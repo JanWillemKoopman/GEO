@@ -110,7 +110,64 @@ De rode draad — vrijwel iedereen toont deze bouwstenen:
 
 ---
 
-## 5. Bronnen
+## 5. Slimme mechanismen die wij kunnen toepassen
+
+Buiten de "grote" GEO-suites is er een tweede categorie tools die precies doet wat jouw acquisitieflow nodig heeft: **URL erin → automatisch rapport eruit → lead binnen**. Deze zijn het meest leerzaam voor ons.
+
+### Promptmonitor — "URL erin, rapport in 2 minuten"
+- **Kernidee:** homepage heeft één veld: *"Enter your website and see how AI talks about your brand. Takes 2 minutes."* Geen prompts invullen, geen setup — de tool genereert zelf de analyse over 8 modellen.
+- **Slimme funnel-mechanismen:**
+  - **Frictieloze start:** alleen een URL nodig voor het eerste rapport (0 setup).
+  - **Snelheidsbelofte:** "binnen 2 minuten je eerste rapport" als expliciete haak.
+  - **Urgentie + concurrentie-angst:** *"What if your competitor ranks but not you?"* / "je verliest elke dag sales".
+  - **Feature-gating:** gratis scan toont score + modellen + bronnen; daglijkse refresh, contact-extractie en meerdere projecten zitten achter betaald ($29–$129/mnd, 7 dagen trial).
+- **Wat wij overnemen:** de **URL-als-enige-input** en de **snelle wow-eerste-scan**. Dit is exact jouw stap 1 & 2.
+
+### Insites — de gratis audit als lead-machine
+- **Kernidee:** *"Enter any business website → client-ready report in under 60 seconds. No sign-up required."*
+- **Slimme mechanismen (vooral voor agency-acquisitie):**
+  - **Batch-scannen:** duizenden prospects in één keer auditen en ieder een eigen rapport sturen → outbound op schaal.
+  - **White-label rapporten:** rapport onder eigen merk/kleuren/domein.
+  - **Embed-formulier:** audit-widget op je eigen site plakken om **inbound leads** te vangen.
+  - **Vertrouwen via inzicht:** de prospect problemen laten zien "die hij niet wist dat hij had" → jij bent direct de expert.
+  - **Jargon-vrij:** "plain-language report, no engineer needed."
+- **Wat wij overnemen:** het **batch-audit + gepersonaliseerd rapport** patroon is letterlijk jouw stap 4 & 5. En het **embed-formulier** is een gratis lead-kanaal naast je outbound.
+
+### AdAmigo / GoVISIBLE / LAv1 — de prompt-probing audit
+- **AdAmigo:** bevraagt meerdere AI-engines met relevante niche-prompts en meet hoe vaak elk merk genoemd/gelinkt wordt en in welke context.
+- **GoVISIBLE:** rapport met share of voice, gaps, citaties, sentiment, brand-framing en **priority actions**.
+- **LAv1:** levert het complete rapport **via e-mail** af — precies jouw distributiekanaal.
+- **Wat wij overnemen:** het rapport moet niet alleen data tonen maar eindigen met **1–3 concrete "priority actions"** — dat maakt het rapport waardevol genoeg om op te reageren.
+
+### Auto-prompt-generatie als differentiator
+Onderzoek bevestigt: *"AI query generators eliminate the manual prompt creation burden that slows onboarding"* — vooral waardevol voor merken die nog niet weten welke AI-vragen ertoe doen. De sterkste promptlijsten combineren bronnen: long-tail zoekvragen, "People Also Ask", support-tickets, sales-gesprekken en **competitor-gap-analyse**.
+- **Wat wij overnemen (jouw stap 2):** laat de LLM met **grounding op de website** de branche, producten en doelgroep afleiden, en genereer daaruit **30 prompts in categorieën** (bijv. *oriëntatie / vergelijking / probleem-oplossing / lokaal / merkspecifiek*). Categorieën maken het rapport leesbaar én geven de klant het gevoel van dekking.
+
+---
+
+## 6. Vertaling naar jouw acquisitieflow
+
+Jouw 5-stappen cold-outreach funnel, met per stap de slimmigheid uit de markt en de valkuil:
+
+| Stap | Jouw actie | Slimheid uit de markt | Valkuil om te vermijden |
+|------|-----------|----------------------|------------------------|
+| **1. URL invullen** | Prospect/jij vult website-URL in | Promptmonitor & Insites: **URL = enige input**, 0 setup | Vraag níets anders (geen account, gege­vens) — elke extra veld kost conversie |
+| **2. Auto-prompts** | LLM analyseert site met grounding → 30 prompts in categorieën | Auto-prompt-generatie is een bewezen differentiator; categorieën = dekking | Prompts te generiek. Verwerk merknaam, concurrenten én branche-context |
+| **3. 10 weken monitoren** | Prompts wekelijks draaien over ChatGPT + Gemini | Trend-over-tijd is de kernwaarde die één scan mist | Kosten: 30 prompts × 2 engines × 10 weken = ~600 calls p.p. — budget bewaken, batchen, cachen |
+| **4. LLM-rapport** | LLM analyseert 10 weken data → rapport | GoVISIBLE/AdAmigo: eindig met **1–3 priority actions**, jargon-vrij, plain-language | Alleen ruwe cijfers dumpen. De klant wil "wat betekent dit + wat nu" |
+| **5. E-mail + opt-in** | Rapport mailen + vraag of hij wil blijven ontvangen | LAv1: rapport-per-e-mail; Promptmonitor: urgentie + concurrentie-angst | Te hard verkopen. Lever eerst waarde, dan zachte opt-in ("wil je dit maandelijks blijven zien?") |
+
+### Concrete productbeslissingen die hieruit volgen
+- **Bouw de "gratis scan" als aparte, publieke pagina** (naast de app): één URL-veld → wow-rapport. Dit is je belangrijkste acquisitie-asset, precies zoals Promptmonitor/Insites.
+- **Batch-modus voor jezelf:** kunnen 100 prospect-URL's tegelijk door de flow, zodat je stap 1–5 op schaal draait (Insites-model).
+- **Rapport = e-mail-first, geen login nodig** om het te lezen. De opt-in ("blijf ontvangen") maakt van de gratis prospect een lead → daarna pas account/betaald.
+- **Grounding verplicht bij prompt-generatie:** gebruik de web-grounding van Gemini (of een crawl + OpenAI) zodat de 30 prompts echt over hún business gaan.
+- **Kostenbewaking bij 10-weken-monitoring:** dit is je grootste variabele kost. Overweeg minder engines of lagere frequentie voor gratis prospects, en de volle behandeling voor betalende klanten.
+- **Priority actions in elk rapport:** minstens één concrete aanbeveling — dat is de reden waarom de prospect reageert op je mail.
+
+---
+
+## 7. Bronnen
 
 - [Best GEO tools 2026 — Superlines](https://www.superlines.io/articles/best-generative-engine-optimization-tools)
 - [Best GEO Tools 2026 — Fingerlakes1](https://www.fingerlakes1.com/2026/03/08/best-generative-engine-optimization-geo-tools-in-2026-what-actually-use-to-track-ai-visibility/)
@@ -125,3 +182,10 @@ De rode draad — vrijwel iedereen toont deze bouwstenen:
 - [Peec AI vs Profound pricing — TryAnalyze](https://www.tryanalyze.ai/blog/peec-ai-vs-profound)
 - [Best GEO Tools 2026 — Nick Lafferty](https://nicklafferty.com/blog/best-generative-engine-optimization-tools-2025/)
 - [Top 6 GEO Tools — Genrank](https://genrank.io/blog/tools-for-geo-content-optimization)
+- [Promptmonitor — URL naar rapport](https://promptmonitor.io/)
+- [Insites — Free AI Visibility Audit (lead-gen)](https://insites.com/resources/free-ai-visibility-audit/)
+- [8 beste AI-visibility audit tools voor agencies — Insites](https://insites.com/the-8-best-ai-visibility-and-geo-auditing-tools-for-digital-marketing-agencies)
+- [AdAmigo AI Search Grader](https://www.adamigo.ai/free-tools/ai-search-grader-free)
+- [GoVISIBLE AI Visibility Audit](https://govisible.ai/ai-visibility-audit/)
+- [LAv1 GEO Audit (rapport per e-mail)](https://lav1.com/geo-audit/)
+- [Prompts beheren met GEO-platforms — Quattr](https://www.quattr.com/blog/how-to-manage-prompts-using-geo-platforms)
