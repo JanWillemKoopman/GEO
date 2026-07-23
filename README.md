@@ -34,6 +34,8 @@ Concrete regels die we hanteren:
 
 > We concurreren níet op "de meeste features" of "de diepste enterprise-analyse". We winnen op **eenvoud, snelheid en doeltreffendheid** voor het MKB en marketeers die geen SEO-experts zijn.
 
+> **🎨 Vastgelegde visuele stijl:** de volledige styling van de app (kleuren, typografie, spacing, componenten, dark mode) is vastgelegd in **[designsystem.md](./designsystem.md)**, gebaseerd op een grondige analyse van InSpace (inspace.io/InSpace Nova). Raadpleeg dit document bij elke UI-beslissing tijdens het bouwen — het is leidend voor de vormgeving, net zoals `abcplan.md` leidend is voor de techniek.
+
 ---
 
 ## 3. Kernfunctionaliteit (MVP)

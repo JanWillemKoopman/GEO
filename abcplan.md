@@ -24,6 +24,8 @@ Dit document is zelfstandig leesbaar en bedoeld als volledige technische spec vo
 
 Alle Zod-schema's in dit document zijn de daadwerkelijke contracten voor de OpenAI `structured output`-calls — implementeer ze letterlijk, ze zijn niet illustratief bedoeld.
 
+> **🎨 Voor alle visuele/UI-implementatie:** raadpleeg **[designsystem.md](./designsystem.md)** — kleuren, typografie, spacing, componenten en dark-mode-tokens staan daar vastgelegd, gebaseerd op een grondige analyse van InSpace. Dit document (`abcplan.md`) beschrijft *wat* er gebouwd wordt en welke data erachter zit; `designsystem.md` beschrijft *hoe het eruitziet*. Bouw geen scherm zonder er even naast te leggen.
+
 ---
 
 ## 1. Scope & filosofie

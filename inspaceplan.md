@@ -4,6 +4,8 @@
 
 *Onderzoek: juli 2026. Bronnen onderaan.*
 
+> **🎨 Visuele stijl:** de kleuren/typografie/componenten-analyse van InSpace uit dit document is later verdiept en apart vastgelegd in **[designsystem.md](./designsystem.md)** — raadpleeg dat document voor de daadwerkelijke design-tokens bij het bouwen van de UI.
+
 ---
 
 ## 1. Wat is InSpace / Nova?
