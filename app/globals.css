@@ -1,0 +1,252 @@
+@import "tailwindcss";
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   GEO Tracker — design system
+   Bron: designsystem.md §C (samengevoegde InSpace dark-mode tokenset).
+   De app is volledig dark-mode: InSpace's merk-DNA (paars/groen, gloed, pil-
+   vormen, mono-labels) toegepast op het Aura-donkerfundament.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+:root,
+:root[data-theme="dark"] {
+  /* Achtergrondlagen — diepste → hoogste */
+  --bg-base: #0b0b0c;
+  --bg-elevated: #14141a;
+  --bg-surface: #171128; /* Aura-gradient: kaarten met paarse ondertoon */
+  --bg-surface-2: #1c1730;
+
+  /* Merkkleuren (rechtstreeks uit InSpace) */
+  --accent-purple: #8511d9;
+  --accent-purple-soft: #a24dec;
+  --accent-purple-glow: rgba(133, 17, 217, 0.42);
+  --accent-green: #b9efa3;
+  --accent-green-text: #2e9e50;
+  --accent-green-dark: #54b86a;
+  --brand-gradient: linear-gradient(96deg, #54b86a 0%, #8511d9 96%);
+
+  /* Tekst op donker */
+  --text-primary: #ffffff;
+  --text-secondary: rgba(255, 255, 255, 0.62);
+  --text-muted: rgba(255, 255, 255, 0.42);
+
+  /* Randen op donker */
+  --border-subtle: rgba(255, 255, 255, 0.1);
+  --border-strong: rgba(255, 255, 255, 0.28);
+
+  /* Status */
+  --status-success: #2e9e50;
+  --status-error: #e5484d;
+  --status-warning: #b9a27a;
+  --status-info: #8511d9;
+
+  /* Typografie — fonts geladen via next/font in layout.tsx (variabelen hieronder) */
+  --font-sans: var(--font-geist-sans), -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-mono: var(--font-jetbrains-mono), "Space Mono", ui-monospace, monospace;
+
+  /* Radii (rechtstreeks uit InSpace) */
+  --radius-pill: 999px;
+  --radius-lg: 18px;
+  --radius-md: 14px;
+  --radius-sm: 9px;
+
+  /* Motion — één consistente easing overal (designsystem.md §A3/§C.4) */
+  --ease-standard: cubic-bezier(0.2, 0.7, 0.2, 1);
+  --duration-fast: 0.2s;
+  --duration-base: 0.3s;
+  --duration-slow: 0.45s;
+}
+
+/* Tailwind-utilities koppelen aan de tokens (v4 @theme inline). Zo werken
+   klassen als bg-base, text-secondary, rounded-pill, font-mono, ease-standard. */
+@theme inline {
+  --color-base: var(--bg-base);
+  --color-elevated: var(--bg-elevated);
+  --color-surface: var(--bg-surface);
+  --color-surface-2: var(--bg-surface-2);
+  --color-purple: var(--accent-purple);
+  --color-purple-soft: var(--accent-purple-soft);
+  --color-green: var(--accent-green);
+  --color-green-text: var(--accent-green-text);
+  --color-green-dark: var(--accent-green-dark);
+  --color-ink: var(--text-primary);
+  --color-secondary: var(--text-secondary);
+  --color-muted: var(--text-muted);
+  --color-success: var(--status-success);
+  --color-error: var(--status-error);
+  --color-warning: var(--status-warning);
+  --color-info: var(--status-info);
+
+  --font-sans: var(--font-sans);
+  --font-mono: var(--font-mono);
+
+  --radius-pill: var(--radius-pill);
+  --radius-lg: var(--radius-lg);
+  --radius-md: var(--radius-md);
+  --radius-sm: var(--radius-sm);
+
+  --ease-standard: var(--ease-standard);
+}
+
+/* ── Base ─────────────────────────────────────────────────────────────────── */
+
+* {
+  border-color: var(--border-subtle);
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+  color-scheme: dark;
+}
+
+body {
+  min-height: 100dvh;
+  background-color: var(--bg-base);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+
+  /* Subtiel 28×28px lijnenraster (designsystem.md §A3) — zeer ingetogen op donker. */
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.025) 1px, transparent 1px);
+  background-size: 28px 28px;
+}
+
+/* ── Herbruikbare component-primitieven (designsystem.md §A4/§C) ───────────── */
+
+/* Mono-label: klein, uppercase, breed getrackt — de "technische read-out"-stijl. */
+.mono-label {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+
+/* Kaart: subtiel elevated, gloed i.p.v. harde rand bij hover. */
+.card {
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  padding: 26px 24px 22px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+  transition:
+    transform var(--duration-base) var(--ease-standard),
+    box-shadow var(--duration-base) var(--ease-standard),
+    border-color var(--duration-base) var(--ease-standard);
+}
+.card:hover {
+  border-color: var(--border-strong);
+  box-shadow: 0 20px 50px var(--accent-purple-glow);
+}
+
+/* Primaire pil-knop (paars, met ring-gloed i.p.v. harde rand). */
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 52px;
+  padding: 0 28px;
+  border-radius: var(--radius-pill);
+  background-color: var(--accent-purple);
+  color: #fff;
+  font-weight: 600;
+  font-size: 1rem;
+  box-shadow: 0 0 0 6px rgba(133, 17, 217, 0.12);
+  transition:
+    transform var(--duration-fast) var(--ease-standard),
+    box-shadow var(--duration-fast) var(--ease-standard);
+}
+.btn-primary:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px -8px rgba(133, 17, 217, 0.45);
+}
+
+/* Secundaire/outline-knop op donker: inverteert naar solide wit bij hover (§B). */
+.btn-outline {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 44px;
+  padding: 0 20px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--border-strong);
+  color: var(--text-primary);
+  font-weight: 600;
+  transition:
+    background-color var(--duration-fast) var(--ease-standard),
+    color var(--duration-fast) var(--ease-standard);
+}
+.btn-outline:hover {
+  background-color: #fff;
+  color: var(--bg-base);
+}
+
+/* Chip/badge: pil-vormig, mono, gedempte accentkleur. */
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 3px 10px;
+  border-radius: var(--radius-pill);
+  background-color: rgba(133, 17, 217, 0.18);
+  color: #d9c6f5;
+  border: 1px solid rgba(165, 120, 240, 0.35);
+}
+.chip-green {
+  background-color: rgba(46, 158, 80, 0.16);
+  color: var(--accent-green-text);
+  border-color: rgba(84, 184, 106, 0.35);
+}
+
+/* Pulserende live-dot (§A4) — "autonoom actief". */
+.live-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: var(--accent-green-dark);
+  box-shadow: 0 0 0 0 rgba(84, 184, 106, 0.5);
+  animation: live-pulse 2s infinite var(--ease-standard);
+}
+@keyframes live-pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(84, 184, 106, 0.5);
+  }
+  70% {
+    box-shadow: 0 0 0 7px rgba(84, 184, 106, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(84, 184, 106, 0);
+  }
+}
+
+/* Ambient gloed-orb (§C.6) — groot, sterk vervaagd, spaarzaam achter hero. */
+.glow-orb {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(90px);
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Merk-gradient tekst (de InSpace-vingerafdruk). */
+.brand-gradient-text {
+  background: var(--brand-gradient);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .live-dot {
+    animation: none;
+  }
+  * {
+    transition-duration: 0.01ms !important;
+  }
+}
