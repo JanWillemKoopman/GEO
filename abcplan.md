@@ -104,7 +104,8 @@ We gebruiken de officiële **`openai`** Node-SDK, met **Zod**-schema's voor stru
 
 ```
 users                 (Supabase Auth)
-brands                id, user_id, url, name, industry, created_at
+brands                id, user_id, url, name, industry, created_at,
+                      tracking_enabled(bool, default false)
 brand_dna             brand_id, tone_of_voice, products[], personas[],
                       value_props[], competitors[], summary, raw_json
 prompts               id, brand_id, text, category, intent, active
@@ -183,7 +184,9 @@ const Mention = z.object({
 
 **Batching:** 30 prompts wordt in kleine job-batches verwerkt zodat één run niet timeout't en kosten voorspelbaar blijven.
 
-**MVP-versnelling — ✅ vastgelegd:** we tonen de klant meteen een **directe nulmeting (week 0)** zodra de 30 prompts één keer zijn doorlopen, in plaats van 10 weken te wachten. De 10-weken-trend wordt daarna wekelijks aangevuld. Zo werkt de acquisitieflow direct.
+**MVP-versnelling — ✅ vastgelegd:** we tonen de klant meteen een **directe nulmeting (week 0)** zodra de 30 prompts één keer zijn doorlopen, in plaats van 10 weken te wachten. Dit gebeurt altijd, automatisch, voor elk merk.
+
+**Wekelijkse lus — ✅ vastgelegd: per klant aan/uit-schakelbaar.** De 10-weken-trend draait **niet** automatisch door na de nulmeting. Elk merk heeft een veld `tracking_enabled` (standaard uit). De cron verwerkt bij elke wekelijkse run **alleen merken waar dit aanstaat**. In de UI (tab Overzicht) staat een simpele schakelaar "Wekelijkse tracking: aan/uit". Zo kun je gratis prospects op de eenmalige nulmeting houden en pas voor betalende klanten de wekelijkse kosten laten lopen.
 
 ---
 
@@ -271,22 +274,32 @@ Stap 2 t/m 7 draaien zonder menselijke tussenkomst. Stap 8 wacht bewust op de kl
 
 **Geen gratis tier bij OpenAI** — elke call kost vanaf de eerste request geld (in tegenstelling tot Gemini's gratis quota). Dit is een bewuste, vastgelegde keuze; zie §2.
 
-**Variabele kostendrijvers:** (1) `web_search`-tool-calls, (2) tokens voor generatie.
+**Tarieven `gpt-4.1-nano`:** $0,10 / $0,40 per 1M tokens (in/uit). **`web_search`-tool:** $10 per 1.000 calls + een vaste blok van 8.000 "search content"-tokens per call (afgerekend tegen het input-tarief, ongeacht hoeveel er feitelijk gevonden wordt) + normale modeltokens.
 
-Indicatieve rekensom met `gpt-4.1-nano` ($0,10 / $0,40 per 1M tokens in/uit — **controleer actuele tarieven vóór opschalen**):
-- **`web_search`-call:** vast tool-tarief + een vaste hoeveelheid "search content"-tokens per call (ongeacht hoeveel er feitelijk gevonden wordt) + normale modeltokens. Reken indicatief op **~$0,01–0,015 per grounded call**.
-- **Gewone structured-output-call** (geen search): doorgaans **~$0,0003–0,001 per call**, sterk afhankelijk van tekstlengte.
+> **Let op:** dit zijn indicatieve tarieven op basis van onderzoek dat tussen bronnen uiteenliep. **Controleer `platform.openai.com/pricing`** voor de exacte, actuele tarieven vóór een kostenbegroting op klantschaal. Onderstaande tokenaannames per halte zijn eveneens indicatief (afhankelijk van de uiteindelijke prompt-lengtes).
 
-**Eén merk-onboarding (nulmeting):** 1 (Brand DNA, web_search) + 1 (prompts) + 30 (meten, web_search) + 30 (beoordelen, geen search) + 1 (rapport) = 63 calls, waarvan 31 met `web_search`.
-→ Indicatief: 31 × ~$0,012 + 32 × ~$0,0005 ≈ **~$0,39–0,40 per merk-onboarding**, vanaf de eerste keer, met echt geld.
+### Kostenoverzicht stap 1 t/m 5 (nulmeting — draait altijd automatisch)
 
-**Wekelijkse lus (10 weken):** 30 web_search + 30 gewone calls/week ≈ **~$0,35/week/merk**, dus **~$3,50/merk over 10 weken** bovenop de nulmeting.
+| Halte | Calls | Web-search | Indicatieve in/uit-tokens | Kosten |
+|-------|-------|------------|---------------------------|--------|
+| 1 · Brand DNA | 1 | Ja | ~10.800 in (incl. 8k search) / ~500 uit | $0,0113 |
+| 2 · Prompts | 1 | Nee | ~800 in / ~600 uit | $0,0003 |
+| 3 · Nulmeting | 60 (30×2) | 30× | per prompt: 3a ~8.200 in/~400 uit + 3b ~650 in/~100 uit | $0,333 |
+| 4 · Scores | 0 | — | puur rekenwerk | $0,00 |
+| 5 · Rapport | 1 | Nee | ~2.300 in / ~1.000 uit | $0,0006 |
+| **Totaal stap 1–5** | **63** | **31×** | | **≈ $0,35 per merk** |
 
-**Content-generatie (Fase C):** alleen bij klik, geen `web_search` nodig → laag (~$0,0007–0,001/pagina) en volledig vraaggestuurd.
+Halte 3 (de 30-prompt-meting) is verreweg de grootste kostenpost: ~96% van de nulmeting, doordat het 60 van de 63 calls omvat waarvan 30 met de dure `web_search`-tool.
+
+### Stap 6 — content, op aanvraag (buiten de nulmeting)
+Alleen bij klant-klik, geen `web_search`: ~1.100 in / ~1.600 uit per pagina → **≈ $0,0008 per pagina**. Volledig vraaggestuurd, geen vaste kost.
+
+### Wekelijkse lus — per klant aan/uit-schakelbaar (buiten de nulmeting)
+Zelfde opbouw als halte 3: **≈ $0,33/week/merk**, alleen voor merken met `tracking_enabled = true`. Over 10 weken continu aan: **≈ $3,33/merk**. Zie §5 (A3) voor de aan/uit-schakelaar.
 
 **Kostenknoppen (belangrijk bij opschalen):**
-1. **`web_search` alleen waar nodig** — nooit aanzetten bij rapport- of content-generatie.
-2. **Gratis prospects = alleen nulmeting** (63 calls eenmalig), volle 10-weken-tracking pas voor betalende klanten.
+1. **`web_search` alleen in halte 1 en 3** — nooit aanzetten bij prompts, rapport of content-generatie.
+2. **Wekelijkse lus staat standaard uit** — gratis prospects blijven op de eenmalige nulmeting (~$0,35), pas bij betalende klanten zet je 'm aan.
 3. **Cache** Brand DNA en hergebruik; content pas genereren op expliciete klik (al vastgelegd, spaart het meest).
 4. **Batch + queue** voorkomt time-outs en maakt kosten per merk voorspelbaar.
 5. **Rate limits bewaken:** instap-tiers bij OpenAI kennen lage RPM-limieten (soms slechts enkele requests/minuut) totdat je account-uitgaven/leeftijd een hogere tier ontgrendelen. Bouw de job-queue met marge, niet ervan uitgaand dat je vanaf dag 1 hoge doorvoer hebt.
@@ -307,8 +320,9 @@ Indicatieve rekensom met `gpt-4.1-nano` ($0,10 / $0,40 per 1M tokens in/uit — 
 ## 11. Vastgelegde keuzes
 
 1. **Engine:** ✅ **Uitsluitend OpenAI**, model **`gpt-4.1-nano`** in de bouwfase. Geen Gemini, geen premium modellen. Andere engines komen later als expliciete, aparte uitbreiding.
-2. **Eerste rapportervaring:** ✅ **Directe nulmeting (week 0)** meteen tonen; de 10-weken-trend wordt daarna wekelijks aangevuld.
+2. **Eerste rapportervaring:** ✅ **Directe nulmeting (week 0)** meteen tonen, altijd automatisch (stap 1 t/m 5, ≈ $0,35/merk).
 3. **Content-generatie:** ✅ **Pas na klik/goedkeuring** door de klant — niet volautomatisch vooraf. Dit spaart kosten en geeft de klant controle.
+4. **Wekelijkse lus (10 weken):** ✅ **Per klant aan/uit-schakelbaar** (`tracking_enabled`), draait niet automatisch door na de nulmeting. Zo blijven gratis prospects op de eenmalige, goedkope nulmeting en zet je de doorlopende kosten pas aan voor betalende klanten.
 
 Nog te bepalen later: aantal pagina's per merk / eventuele limieten.
 
