@@ -3,9 +3,9 @@
 > Gedetailleerd technisch plan voor de eerste tool: **A. Meten → B. Adviseren → C. Genereren**, volledig automatisch. Content wordt in de app afgeleverd onder het tabblad **"Content Bibliotheek"**. Publiceren naar een CMS (D), self-healing (E) en uitbreiding (F) komen later.
 
 > ## 🔒 Vastgelegde technische keuze — niet ter discussie in deze bouwfase
-> **We bouwen uitsluitend met de OpenAI API.** Bouwmodel: **`gpt-4.1-nano`** (instapmodel). Geen Gemini, geen tweede engine, geen premium modellen tijdens het bouwen. Doel van deze fase: **technisch werkend krijgen**, niet uitrollen. Zie §2 voor de onderbouwing.
+> **We bouwen uitsluitend met de OpenAI API.** Twee instapmodellen, gedifferentieerd per halte: **`gpt-4.1-nano`** voor hoogvolume/classificatietaken, **`gpt-4.1-mini`** voor laagvolume/kwaliteitsgevoelige taken (zie §2 voor de exacte verdeling). Geen Gemini, geen tweede engine, geen premium modellen tijdens het bouwen. Doel van deze fase: **technisch werkend krijgen**, niet uitrollen.
 
-*Techstack: Node.js + Next.js op Vercel · Supabase (Auth/Postgres/cron) · **OpenAI API (`gpt-4.1-nano`)** · Resend (e-mail). Opgesteld juli 2026.*
+*Techstack: Node.js + Next.js op Vercel · Supabase (Auth/Postgres/cron) · **OpenAI API (`gpt-4.1-nano` + `gpt-4.1-mini`)** · Resend (e-mail). Opgesteld juli 2026.*
 
 ---
 
@@ -34,19 +34,36 @@ Dit alles draait niet meer rond één "merk", maar rond het beheerobject **"Anal
 ### Waarom OpenAI (en geen Gemini) in deze fase
 Puur een projectbeslissing: één engine, één SDK, één factuur, zo min mogelijk bewegende delen tijdens het bouwen. Multi-engine (Gemini/Perplexity/Claude erbij) is een latere, expliciete uitbreiding — geen onderdeel van deze bouwfase.
 
-### Waarom `gpt-4.1-nano` en niet een ander instapmodel
+### Waarom `gpt-4.1-nano` als basis, en niet een ander instapmodel
 
 | Model | Prijs (indicatief, in/1M) | Structured output betrouwbaar? | Keuze |
 |-------|---------------------------|--------------------------------|-------|
 | gpt-5-nano | laagst | ⚠️ Gemelde problemen: volgt het JSON-schema niet consequent (verkeerde velden/volgorde) | ❌ Vermijden |
-| **gpt-4.1-nano** | $0,10 / $0,40 | ✅ Betrouwbaar, geen gemelde problemen | ✅ **Gekozen bouwmodel** |
+| **gpt-4.1-nano** | $0,10 / $0,40 | ✅ Betrouwbaar, geen gemelde problemen | ✅ Voor hoogvolume/classificatietaken (zie hieronder) |
+| **gpt-4.1-mini** | $0,40 / $1,60 | ✅ Zeer betrouwbaar, merkbaar sterker in redeneren/diversiteit | ✅ Voor laagvolume/kwaliteitsgevoelige taken (zie hieronder) |
 | gpt-4o-mini | $0,15 / $0,60 | ✅ Zeer betrouwbaar (het model waarmee structured outputs oorspronkelijk geïntroduceerd is) | Reserve/fallback |
 
-**Onze hele pipeline leunt op structured output** (Brand DNA, prompts, mentions, rapport, content komen allemaal terug als vast JSON-schema). Betrouwbaarheid van schema-naleving weegt daarom zwaarder dan de laatste cent prijsverschil. `gpt-4.1-nano` is de goedkoopste optie zónder de bekende schema-problemen van gpt-5-nano.
+**Onze hele pipeline leunt op structured output** (Brand DNA, prompts, mentions, rapport, content komen allemaal terug als vast JSON-schema). Betrouwbaarheid van schema-naleving weegt daarom zwaarder dan de laatste cent prijsverschil. Beide gekozen modellen zijn vrij van de bekende schema-problemen van gpt-5-nano.
 
-**Fallback-regel:** als tijdens Sprint 1 blijkt dat `gpt-4.1-nano` bij een specifiek schema toch afwijkt, val dan alleen vóór dát ene aanroeppunt terug op `gpt-4o-mini`. De rest van de pipeline blijft ongewijzigd.
+### ✅ Vastgelegd: gedifferentieerde modelstrategie per halte
 
-> **Prijsvoorbehoud:** online prijsopgaven voor actuele modellen lopen tussen bronnen uiteen (snel-verouderende prijspagina's). Controleer `platform.openai.com/pricing` voor de exacte, actuele tarieven vóór je een kostenbegroting op schaal maakt. De **modelkeuze zelf staat vast** — alleen de prijscijfers in §10 zijn indicatief.
+**Waarom niet overal hetzelfde model?** Een nano-model dat in één call 30 diverse, categorie-specifieke prompts moet bedenken, of een concurrentie-gap-analyse moet schrijven, levert merkbaar minder diverse/scherpe output dan een iets sterker model. Tegelijk is het prijsverschil tussen nano en mini in **absolute dollars verwaarloosbaar** zodra een call maar 1–8× per analyse draait (in plaats van 30-60×). De vuistregel:
+
+| Halte | Hoe vaak per analyse? | Model | Waarom |
+|-------|------------------------|-------|--------|
+| 1 · Brand DNA | 1× | `gpt-4.1-mini` | Eenmalige, kwaliteitsgevoelige analyse — prijsverschil met nano is ~$0,004/analyse. |
+| 2 · Prompt-generatie | 5× (per categorie, zie §6 A2) | `gpt-4.1-mini` | Diversiteit en categorie-scherpte wegen zwaarder dan de paar dubbeltjescent verschil. |
+| 3a · AI-antwoord simuleren | 30×/week | `gpt-4.1-nano` | Hoogvolume; het antwoord leunt vooral op de `web_search`-resultaten, niet op modelcreativiteit. |
+| 3b · Mention beoordelen | 30×/week | `gpt-4.1-nano` | Classificatie-achtige taak (ja/nee, sentiment, positie) — nano is hier prima en de volumekosten tellen wél op. |
+| 5a · Concurrentie-gap-analyse | 1× per rapport | `gpt-4.1-mini` | Vergt echt redeneren over waar concurrenten winnen — zie §7. |
+| 5b · Rapport & aanbevelingen | 1× per rapport | `gpt-4.1-mini` | Eindproduct dat de klant leest; kwaliteit weegt zwaar, kosten zijn triviaal. |
+| 6 · Content-generatie | 1× per pagina, op klik | `gpt-4.1-mini` | Dit ís het product dat de klant meeneemt — kwaliteit boven een paar cent besparing. |
+
+**Kort samengevat:** `gpt-4.1-nano` alleen waar het *aantal* calls de kosten drijft (halte 3, 30-60×/week); `gpt-4.1-mini` overal waar de call maar een handvol keer per analyse draait en de kwaliteit van het denkwerk er echt toe doet. Zie §10 voor de herrekende kosten — het verschil is ~$0,01/analyse, verwaarloosbaar.
+
+**Fallback-regel:** als tijdens Sprint 1 blijkt dat een van beide modellen bij een specifiek schema toch afwijkt, val dan alleen vóór dát ene aanroeppunt terug op `gpt-4o-mini`. De rest van de pipeline blijft ongewijzigd.
+
+> **Prijsvoorbehoud:** online prijsopgaven voor actuele modellen lopen tussen bronnen uiteen (snel-verouderende prijspagina's). Controleer `platform.openai.com/pricing` voor de exacte, actuele tarieven vóór je een kostenbegroting op schaal maakt. De **modelstrategie zelf staat vast** — alleen de prijscijfers in §10 zijn indicatief.
 
 ### Welke OpenAI-features de flow mogelijk maken
 
@@ -230,8 +247,14 @@ tracking_runs         id, prompt_id, prompt_text_snapshot, prompt_category_snaps
                       competitors_mentioned[], cited_sources[],
                       openai_response_id, tokens_used, cost_usd
 visibility_scores     analysis_id, week_no, score, share_of_voice, per_engine_json
+competitor_breakdown   id, analysis_id, week_no, competitor_name,
+                      mentions_count, mentions_by_category_json,
+                      top_cited_sources[], winning_prompts[], losing_prompts[]
+                      -- ← berekend in halte 3c (geen AI-call), input voor FASE B1
 reports               id, analysis_id, period, summary, gaps_json,
-                      recommendations_json, raw_json,   -- ← volledige ruwe OpenAI-output (halte 5)
+                      recommendations_json,
+                      gap_analysis_raw_json,       -- ← volledige ruwe OpenAI-output van B1
+                      raw_json,                    -- ← volledige ruwe OpenAI-output van B2
                       generated_at
 content_pieces        id, analysis_id, report_id, type, title, target_intent,
                       cluster, body_markdown, meta_title, meta_description,
@@ -241,7 +264,7 @@ jobs                  id, analysis_id, type, payload_json, status,
                       attempts, scheduled_for, last_error
 ```
 
-**Kernrelaties:** een `user` heeft veel `analyses`; een `analysis` heeft één `brand_dna` en veel `prompts`; elke prompt genereert (indien actief) `tracking_runs`; die rollen op naar `visibility_scores`; daaruit komt een `report` met `recommendations`; elke aanbeveling wordt een `content_piece` in de bibliotheek. `jobs` is de motor voor async werk, altijd gekoppeld aan één `analysis_id`.
+**Kernrelaties:** een `user` heeft veel `analyses`; een `analysis` heeft één `brand_dna` en veel `prompts`; elke prompt genereert (indien actief) `tracking_runs`; die rollen op naar `visibility_scores` **én** `competitor_breakdown` (de per-concurrent uitsplitsing); die laatste voedt de gap-analyse (B1) die op zijn beurt het `report` met `recommendations` voedt (B2); elke aanbeveling wordt een `content_piece` in de bibliotheek. `jobs` is de motor voor async werk, altijd gekoppeld aan één `analysis_id`.
 
 **`prompts.created_by`** onderscheidt systeem-gegenereerde prompts (halte 2) van door de klant zelf toegevoegde prompts — puur informatief in de UI ("door jou toegevoegd"-label).
 
@@ -262,7 +285,7 @@ jobs                  id, analysis_id, type, payload_json, status,
 
 ### A1. Brand DNA (topic-aware)
 **Stap 1 (geen API-call):** eigen Node.js-crawler haalt de homepage (+ evt. 2-3 kernpagina's) op met `fetch` en zet de HTML om naar schone platte tekst.
-**Stap 2 (OpenAI-call):** Responses API-call met de geëxtraheerde tekst als context, **`web_search`-tool aan** (voor bredere marktcontext) en **structured output**.
+**Stap 2 (OpenAI-call, model `gpt-4.1-mini`):** Responses API-call met de geëxtraheerde tekst als context, **`web_search`-tool aan** (voor bredere marktcontext) en **structured output**. Model `gpt-4.1-mini` (niet nano, zie §2) — dit is een eenmalige, kwaliteitsgevoelige analyse die de basis vormt voor alle 30 prompts.
 
 Prompt (kern) — **twee varianten, afhankelijk van of een onderwerp is opgegeven:**
 - **Zonder onderwerp:** *"Analyseer dit bedrijf op basis van deze website-tekst en het web. Bepaal: branche, kernproducten/-diensten, tone-of-voice, doelgroep-persona's, waardeproposities en 3–5 belangrijkste concurrenten."*
@@ -282,21 +305,26 @@ const BrandDNA = z.object({
 ```
 → Opslaan in `brand_dna` (inclusief `raw_json`, zie §5), gekoppeld aan `analysis_id`. **Dit resultaat is straks volledig zichtbaar én bewerkbaar voor de klant** (zie A2c) — geen enkel veld blijft verborgen.
 
-### A2. Prompt-generatie (30 stuks in categorieën, topic-aware) — ✅ vastgelegd
-**OpenAI-call:** structured output, **zonder** `web_search` (input is de Brand DNA, geen live web nodig).
+### A2. Prompt-generatie (30 stuks in categorieën, topic-aware) — ✅ vastgelegd, herzien
 
-- **Zonder onderwerp:** de 30 prompts dekken **alle diensten/producten** die de website aanbiedt (brede dekking, zoals in de oorspronkelijke opzet).
-- **Met onderwerp:** alle 30 prompts gaan **uitsluitend over dat onderwerp**, binnen de context van het merk. Voorbeeld voor MediaMarkt + onderwerp "iPhone":
+**✅ Vastgelegd: 5 aparte calls (één per categorie), niet 1 call voor alle 30.** Eén enkele call die een klein model 30 diverse, categorie-specifieke prompts in één keer laat verzinnen, levert in de praktijk te veel herhaling en te weinig scherpte per categorie op. Door de generatie op te splitsen krijgt elke categorie een eigen, gefocuste call — met een duidelijke instructie én 3-6 voorbeelden puur voor díe categorie — wat merkbaar diversere en relevantere prompts oplevert. **Model: `gpt-4.1-mini`** (zie §2) — de meerkosten van 5 mini-calls t.o.v. 1 nano-call zijn ~$0,002 per analyse, verwaarloosbaar.
 
-| Categorie | Voorbeeld-prompt (onderwerp "iPhone") |
-|-----------|----------------------------------------|
-| Oriëntatie | "Waar koop ik het beste een iPhone?" |
-| Vergelijking | "MediaMarkt vs Coolblue voor iPhone-reparatie: wat is beter?" |
-| Probleem→oplossing | "Mijn iPhone-scherm is kapot, waar laat ik dit repareren?" |
-| Lokaal/branche | "Beste iPhone-reparatie in [regio]?" |
-| Merkspecifiek | "Is MediaMarkt betrouwbaar voor iPhone-reparaties?" |
+**Per categorie (5 calls, elk structured output, zonder `web_search`):**
 
-→ Opslaan in `prompts` (30 rijen, `created_by = 'system'`, elk met `source_raw_json`). Zodra dit klaar is: `analyses.status = 'concept_klaar'`.
+| Categorie | ~Aantal prompts | Voorbeeld-prompt (onderwerp "iPhone") |
+|-----------|-----------------|----------------------------------------|
+| Oriëntatie | 6 | "Waar koop ik het beste een iPhone?" |
+| Vergelijking | 6 | "MediaMarkt vs Coolblue voor iPhone-reparatie: wat is beter?" |
+| Probleem→oplossing | 6 | "Mijn iPhone-scherm is kapot, waar laat ik dit repareren?" |
+| Lokaal/branche | 6 | "Beste iPhone-reparatie in [regio]?" |
+| Merkspecifiek | 6 | "Is MediaMarkt betrouwbaar voor iPhone-reparaties?" |
+
+Elke call krijgt hetzelfde Brand DNA als context, plus een categorie-specifieke instructie (bijvoorbeeld voor "Vergelijking": *"Genereer 6 prompts die een koper zou stellen aan een AI-assistent om {merk} te vergelijken met concurrenten binnen {onderwerp}. Varieer in toon en specificiteit."*).
+
+- **Zonder onderwerp:** de 30 prompts dekken samen **alle diensten/producten** die de website aanbiedt (brede dekking, zoals in de oorspronkelijke opzet) — elke categorie-call krijgt dan de volledige Brand DNA zonder topic-restrictie.
+- **Met onderwerp:** alle 5 categorie-calls (en dus alle 30 prompts) gaan **uitsluitend over dat onderwerp**, binnen de context van het merk.
+
+→ Opslaan in `prompts` (30 rijen totaal, `created_by = 'system'`, elk met `source_raw_json` — nu per categorie herleidbaar naar de specifieke call die 'm genereerde). Zodra alle 5 categorie-calls klaar zijn: `analyses.status = 'concept_klaar'`.
 
 ### A2b. Prompt-beheer (CRUD) — ✅ vastgelegd, te allen tijde beschikbaar
 Via het tabblad **Instellingen** (zie §3.5) kan de klant, zowel tijdens de verplichte review (A2c) als daarna doorlopend:
@@ -333,7 +361,14 @@ const Mention = z.object({
   citedSources: z.array(z.string()),
 });
 ```
-→ Opslaan in `tracking_runs` — **volledig**: het ruwe antwoord uit 3a (`raw_response`), de complete structured-output uit 3b (`mention_json`), plus een bevroren snapshot van de prompt-tekst/categorie op dat moment (`prompt_text_snapshot`/`prompt_category_snapshot`, zie §5), en waar mogelijk `openai_response_id`/`tokens_used`/`cost_usd` voor kostenbewaking. Niets wordt alleen "verwerkt en weggegooid" — zie het vastgelegde principe in §5. Vervolgens aggregeren naar `visibility_scores` (score 0–100 + share-of-voice).
+→ Opslaan in `tracking_runs` — **volledig**: het ruwe antwoord uit 3a (`raw_response`), de complete structured-output uit 3b (`mention_json`), plus een bevroren snapshot van de prompt-tekst/categorie op dat moment (`prompt_text_snapshot`/`prompt_category_snapshot`, zie §5), en waar mogelijk `openai_response_id`/`tokens_used`/`cost_usd` voor kostenbewaking. Niets wordt alleen "verwerkt en weggegooid" — zie het vastgelegde principe in §5.
+
+**3c — Concurrentie-breakdown berekenen (geen call, herzien/verrijkt):** naast de simpele `visibility_scores` (score 0–100 + share-of-voice) berekenen we nu **per concurrent** een aparte uitsplitsing, puur rekenwerk over de al opgeslagen `tracking_runs`:
+- aantal/percentage vermeldingen **per concurrent, per categorie** (zo zie je bijvoorbeeld: concurrent X wint vooral op "Vergelijking"-prompts, jij wint op "Lokaal/branche"),
+- de meest-geciteerde bronnen **per concurrent** (welke website citeert de AI als het over hén gaat?),
+- concrete "verloren prompts": prompts waar een concurrent wél genoemd werd en het eigen merk niet, en vice versa ("gewonnen prompts").
+
+→ Opslaan in een nieuwe tabel **`competitor_breakdown`** (zie §5). **Dit is de rijke, structured input die FASE B straks nodig heeft** om een echte, onderbouwde gap-analyse te kunnen maken in plaats van te gokken op basis van ruwe cijfers alleen.
 
 **Batching:** de actieve prompts van een analyse worden in kleine job-batches verwerkt zodat één run niet timeout't en kosten voorspelbaar blijven.
 
@@ -345,17 +380,41 @@ const Mention = z.object({
 
 ## 7. FASE B — Adviseren (volautomatisch, per analyse)
 
-**Trigger:** na de nulmeting (of na een latere week), of on-demand knop "Genereer rapport".
-**OpenAI-call:** structured output, **geen** `web_search` nodig. Input = `visibility_scores` + `tracking_runs` + `brand_dna` — allemaal gescoped op één `analysis_id`.
+**✅ Vastgelegd, herzien: 2 aparte calls in plaats van 1.** Eén enkele call die tegelijk moet uitzoeken *waar concurrenten winnen* én daaruit een leesbaar rapport met aanbevelingen moet schrijven, vraagt te veel van één denkstap — de concurrentie-analyse verdient een eigen, gefocuste call met de rijke `competitor_breakdown`-data (§6, 3c) als input. Beide calls: model **`gpt-4.1-mini`** (zie §2), draaien maar 1× per rapport, dus de meerkosten t.o.v. 1 nano-call zijn ~$0,004/analyse.
 
-Het model produceert:
+### B1. Concurrentie-gap-analyse
+**Trigger:** na de nulmeting (of na een latere week), automatisch vóór B2.
+**OpenAI-call:** structured output, **geen** `web_search`. Input = `competitor_breakdown` + `visibility_scores` + `brand_dna` — de volledige, per-concurrent uitsplitsing uit halte 3c, niet de ruwe `tracking_runs`.
+
+Het model produceert een gerichte analyse:
+```ts
+const GapAnalysis = z.object({
+  gaps: z.array(z.object({
+    competitor: z.string(),
+    cluster: z.string(),                  // categorie waar de concurrent wint
+    evidence: z.string(),                 // concreet: hoeveel/waarom, welke bronnen
+    winningPrompts: z.array(z.string()),  // prompts waar de concurrent wél, wij niet
+    citedSourcesForCompetitor: z.array(z.string()),
+  })),
+  strengths: z.array(z.object({           // waar WIJ juist winnen — ook nuttig
+    cluster: z.string(),
+    evidence: z.string(),
+  })),
+});
+```
+→ Opslaan als input voor B2 (niet los in een eigen tabel — het resultaat stroomt direct door).
+
+### B2. Rapport & aanbevelingen
+**OpenAI-call:** structured output, **geen** `web_search`. Input = de `GapAnalysis`-output van B1 + `visibility_scores` + `brand_dna`.
+
+Het model produceert het uiteindelijke, leesbare rapport:
 ```ts
 const Report = z.object({
   headlineScore: z.number(),
   summary: z.string(),                    // jargon-vrij, plain-language
   gaps: z.array(z.object({
     cluster: z.string(),
-    problem: z.string(),                  // "AI noemt concurrent X, jou niet"
+    problem: z.string(),                  // "AI noemt concurrent X, jou niet" — nu onderbouwd door B1
     evidencePrompts: z.array(z.string()),
   })),
   recommendations: z.array(z.object({
@@ -367,7 +426,7 @@ const Report = z.object({
   })),
 });
 ```
-→ Opslaan in `reports`. Toon in tab **Rapport**: één headline-score, korte samenvatting, top-gaps, en een lijst aanbevelingen met **"Genereer deze pagina"**-knop.
+→ Opslaan in `reports` (inclusief `raw_json` van zowel B1 als B2, zie §5). Toon in tab **Rapport**: één headline-score, korte samenvatting, top-gaps (nu met concrete concurrent + bewijs), en een lijst aanbevelingen met **"Genereer deze pagina"**-knop.
 → Mail het rapport via **Resend** (jouw acquisitie-stap 5). Eindig altijd met **1–3 priority actions**.
 
 ---
@@ -409,23 +468,24 @@ Zo levert de tool op klant-verzoek een **steeds verder gevulde bibliotheek** op,
 
 ```
 0. Klant klikt "+ Nieuwe analyse" → URL + (optioneel) onderwerp ingevuld    status: bezig
-1. [eigen crawl, geen call]         → website-tekst
-2. [OpenAI + web_search]            → Brand DNA (topic-aware)         (A1)
-3. [OpenAI structured, geen search] → 30 prompts (topic-aware)        (A2)   status: concept_klaar
-   ─────────────── PIPELINE STOPT BEWUST — WACHT OP KLANT ───────────────
-4. [klant ziet + bewerkt]           → Brand DNA + prompts, transparant (A2c)
-   [klant, altijd beschikbaar]      → prompts toevoegen/wijzigen/verwijderen (A2b)
-5. [klant klikt "Bevestig en start meting"]                                 status: meten
-   ─────────────────────── PIPELINE HERVAT ───────────────────────
-6. [cron: OpenAI + web_search]      → tracking_runs                   (A3, nulmeting + optioneel wekelijks)
-7. [aggregatie, geen call]          → visibility_scores                     status: gereed
-8. [OpenAI structured]              → rapport + Resend-mail           (B)
-9. [klant klikt] → [queue: OpenAI]  → content_pieces                  (C)
-10. UI: analyse staat in "Mijn analyses" met status "Gereed",
+1. [eigen crawl, geen call]              → website-tekst
+2. [OpenAI mini + web_search]            → Brand DNA (topic-aware)          (A1)
+3. [OpenAI mini structured, 5× per cat.] → 30 prompts (topic-aware)         (A2)   status: concept_klaar
+   ─────────────────── PIPELINE STOPT BEWUST — WACHT OP KLANT ───────────────────
+4. [klant ziet + bewerkt]                → Brand DNA + prompts, transparant (A2c)
+   [klant, altijd beschikbaar]           → prompts toevoegen/wijzigen/verwijderen (A2b)
+5. [klant klikt "Bevestig en start meting"]                                       status: meten
+   ────────────────────────── PIPELINE HERVAT ──────────────────────────
+6. [cron: OpenAI nano + web_search]      → tracking_runs                    (A3, nulmeting + optioneel wekelijks)
+7. [aggregatie, geen call]               → visibility_scores + competitor_breakdown (3c)
+8. [OpenAI mini structured]              → concurrentie-gap-analyse         (B1)          status: gereed
+9. [OpenAI mini structured]              → rapport + Resend-mail            (B2)
+10. [klant klikt] → [queue: OpenAI mini] → content_pieces                   (C)
+11. UI: analyse staat in "Mijn analyses" met status "Gereed",
     Content Bibliotheek vult zich verder ✅
 ```
 
-Stap 1–3 en 6–8 draaien zonder menselijke tussenkomst. Stap 4–5 (de verplichte review-gate, §3.6/A2c) en stap 9 wachten bewust op de klant. Meerdere analyses draaien volledig onafhankelijk van elkaar, parallel, elk met zijn eigen status.
+Stap 1–3 en 6–9 draaien zonder menselijke tussenkomst. Stap 4–5 (de verplichte review-gate, §3.6/A2c) en stap 10 wachten bewust op de klant. Meerdere analyses draaien volledig onafhankelijk van elkaar, parallel, elk met zijn eigen status.
 
 ---
 
@@ -435,33 +495,34 @@ Stap 1–3 en 6–8 draaien zonder menselijke tussenkomst. Stap 4–5 (de verpli
 
 **Belangrijk bij meerdere analyses:** kosten worden nu geteld **per analyse**, niet per klant. Eén klant met 5 analyses (bv. MediaMarkt met "iPhone", "wasmachines", "laptops"...) betaalt 5× de onderstaande nulmeting-kosten, omdat elke analyse zijn eigen volledige Brand DNA + 30 prompts + meting heeft.
 
-**Tarieven `gpt-4.1-nano`:** $0,10 / $0,40 per 1M tokens (in/uit). **`web_search`-tool:** $10 per 1.000 calls + een vaste blok van 8.000 "search content"-tokens per call (afgerekend tegen het input-tarief, ongeacht hoeveel er feitelijk gevonden wordt) + normale modeltokens.
+**Tarieven:** `gpt-4.1-nano` $0,10 / $0,40 per 1M tokens (in/uit); `gpt-4.1-mini` $0,40 / $1,60 per 1M tokens (in/uit). **`web_search`-tool:** $10 per 1.000 calls + een vaste blok van 8.000 "search content"-tokens per call (afgerekend tegen het input-tarief van het gebruikte model, ongeacht hoeveel er feitelijk gevonden wordt) + normale modeltokens.
 
 > **Let op:** dit zijn indicatieve tarieven op basis van onderzoek dat tussen bronnen uiteenliep. **Controleer `platform.openai.com/pricing`** voor de exacte, actuele tarieven vóór een kostenbegroting op klantschaal. Onderstaande tokenaannames per halte zijn eveneens indicatief (afhankelijk van de uiteindelijke prompt-lengtes).
 
-### Kostenoverzicht stap 1 t/m 5 (nulmeting per analyse — draait altijd automatisch)
+### Kostenoverzicht stap 1 t/m 9 (nulmeting per analyse — draait altijd automatisch, herzien)
 
-| Halte | Calls | Web-search | Indicatieve in/uit-tokens | Kosten |
-|-------|-------|------------|---------------------------|--------|
-| 1 · Brand DNA | 1 | Ja | ~10.800 in (incl. 8k search) / ~500 uit | $0,0113 |
-| 2 · Prompts | 1 | Nee | ~800 in / ~600 uit | $0,0003 |
-| 3 · Nulmeting | 60 (30×2) | 30× | per prompt: 3a ~8.200 in/~400 uit + 3b ~650 in/~100 uit | $0,333 |
-| 4 · Scores | 0 | — | puur rekenwerk | $0,00 |
-| 5 · Rapport | 1 | Nee | ~2.300 in / ~1.000 uit | $0,0006 |
-| **Totaal stap 1–5** | **63** | **31×** | | **≈ $0,35 per analyse** |
+| Halte | Calls | Model | Web-search | Indicatieve in/uit-tokens | Kosten |
+|-------|-------|-------|------------|---------------------------|--------|
+| 1 · Brand DNA | 1 | mini | Ja | ~10.800 in (incl. 8k search) / ~500 uit | $0,0151 |
+| 2 · Prompts (5× per categorie) | 5 | mini | Nee | per call: ~700 in / ~150 uit | $0,0026 |
+| 3ab · Nulmeting | 60 (30×2) | nano | 30× | per prompt: 3a ~8.200 in/~400 uit + 3b ~650 in/~100 uit | $0,333 |
+| 3c · Concurrentie-breakdown | 0 | — | — | puur rekenwerk | $0,00 |
+| B1 · Gap-analyse | 1 | mini | Nee | ~3.000 in / ~800 uit | $0,0025 |
+| B2 · Rapport | 1 | mini | Nee | ~1.800 in / ~1.200 uit | $0,0026 |
+| **Totaal stap 1–9** | **68** | | **31×** | | **≈ $0,356 per analyse** |
 
-Halte 3 (de 30-prompt-meting) is verreweg de grootste kostenpost: ~96% van de nulmeting, doordat het 60 van de 63 calls omvat waarvan 30 met de dure `web_search`-tool.
+Halte 3ab (de 30-prompt-meting) blijft verreweg de grootste kostenpost: ~94% van de nulmeting, doordat het 60 van de 68 calls omvat waarvan 30 met de dure `web_search`-tool. **De verbeterde promptgeneratie (5× i.p.v. 1×) en de tweeledige rapportage (B1+B2) kosten samen slechts ~$0,006 extra per analyse** t.o.v. de vorige, kariger opgezette versie — een verwaarloosbare meerprijs voor merkbaar betere diversiteit in de prompts en een onderbouwde concurrentie-gap-analyse.
 
-*Noot: als de klant via A2b prompts toevoegt, stijgt het aantal calls in halte 3 evenredig (elke extra actieve prompt = +2 calls per meting).*
+*Noot: als de klant via A2b prompts toevoegt, stijgt het aantal calls in halte 3ab evenredig (elke extra actieve prompt = +2 calls per meting).*
 
-### Stap 6 — content, op aanvraag (buiten de nulmeting)
-Alleen bij klant-klik, geen `web_search`: ~1.100 in / ~1.600 uit per pagina → **≈ $0,0008 per pagina**. Volledig vraaggestuurd, geen vaste kost.
+### Stap 10 — content, op aanvraag (buiten de nulmeting)
+Alleen bij klant-klik, model **mini**, geen `web_search`: ~1.100 in / ~1.600 uit per pagina → **≈ $0,003 per pagina**. Volledig vraaggestuurd, geen vaste kost.
 
 ### Wekelijkse lus — per analyse aan/uit-schakelbaar (buiten de nulmeting)
-Zelfde opbouw als halte 3: **≈ $0,33/week/analyse**, alleen voor analyses met `tracking_enabled = true`. Over 10 weken continu aan: **≈ $3,33/analyse**. Zie §6 (A3) voor de aan/uit-schakelaar.
+Zelfde opbouw als halte 3ab: **≈ $0,33/week/analyse**, alleen voor analyses met `tracking_enabled = true`. Over 10 weken continu aan: **≈ $3,33/analyse**. Zie §6 (A3) voor de aan/uit-schakelaar.
 
 **Kostenknoppen (belangrijk bij opschalen):**
-1. **`web_search` alleen in halte 1 en 3** — nooit aanzetten bij prompts, rapport of content-generatie.
+1. **`web_search` alleen in halte 1 en 3ab** — nooit aanzetten bij prompts, rapport of content-generatie.
 2. **Wekelijkse lus staat standaard uit, per analyse** — gratis prospect-analyses blijven op de eenmalige nulmeting (~$0,35), pas bij betalende klanten (of specifieke analyses) zet je 'm aan.
 3. **Cache** Brand DNA en hergebruik; content pas genereren op expliciete klik (al vastgelegd, spaart het meest).
 4. **Batch + queue** voorkomt time-outs en maakt kosten per analyse voorspelbaar, ook bij veel analyses tegelijk.
@@ -471,20 +532,20 @@ Zelfde opbouw als halte 3: **≈ $0,33/week/analyse**, alleen voor analyses met 
 
 ## 11. Bouwvolgorde (sprints)
 
-1. **Sprint 1 — Fundament:** Next.js op Vercel, Supabase-project, Auth, datamodel-migraties (incl. `analyses` met `topic`/`status`), officiële `openai` Node-SDK + Zod ingericht, één test-call werkend met `gpt-4.1-nano` (structured output + `web_search`-tool getest).
-2. **Sprint 2 — "Mijn analyses" + A0/A1/A2:** lijst-scherm + "Nieuwe analyse starten"-formulier (URL + onderwerp) + **transparant voortgangsscherm** (§3.7 stap 4) → eigen crawler → Brand DNA (topic-aware, met `raw_json`) → 30 prompts (topic-aware, met `source_raw_json`).
+1. **Sprint 1 — Fundament:** Next.js op Vercel, Supabase-project, Auth, datamodel-migraties (incl. `analyses` met `topic`/`status`, `competitor_breakdown`), officiële `openai` Node-SDK + Zod ingericht, test-calls werkend met zowel `gpt-4.1-nano` als `gpt-4.1-mini` (structured output + `web_search`-tool getest op beide).
+2. **Sprint 2 — "Mijn analyses" + A0/A1/A2:** lijst-scherm + "Nieuwe analyse starten"-formulier (URL + onderwerp) + **transparant voortgangsscherm** (§3.7 stap 4) → eigen crawler → Brand DNA (topic-aware, model mini, met `raw_json`) → 30 prompts via **5 aparte categorie-calls** (topic-aware, model mini, elk met `source_raw_json`).
 3. **Sprint 3 — Instellingen-tab, A2b + A2c (review-gate):** concept-scherm met volledig Brand DNA + prompt-lijst, beide met volledige CRUD (`/api/analyses/[id]/brand-dna`, `/api/analyses/[id]/prompts`), plus de knop **"Bevestig en start meting"** (`/api/analyses/[id]/confirm`, status `concept_klaar → meten`). **Dit is de belangrijkste UX-sprint** — zonder deze gate mag A3 niet kunnen starten.
-4. **Sprint 4 — Fase A3:** cron + job-queue + mention-detectie → nulmeting + optionele wekelijkse trend (schakelaar in Instellingen), met volledige opslag (`raw_response`, `mention_json`, prompt-snapshots, zie §5). UI: Overzicht met score + transparant "bezig met meten"-voortgang.
-5. **Sprint 5 — Fase B:** rapportgeneratie (incl. `raw_json`) + Resend-e-mail. UI: tab Rapport.
-6. **Sprint 6 — Fase C:** content-generatie via queue, getriggerd door klant-klik → `content_pieces` (incl. `raw_json`). UI: tab **Content Bibliotheek** (lijst + detail + kopiëren/download).
+4. **Sprint 4 — Fase A3:** cron + job-queue + mention-detectie (model nano) → nulmeting + optionele wekelijkse trend (schakelaar in Instellingen), met volledige opslag (`raw_response`, `mention_json`, prompt-snapshots, zie §5) én de nieuwe **concurrentie-breakdown-aggregatie (3c)** naar `competitor_breakdown`. UI: Overzicht met score + transparant "bezig met meten"-voortgang.
+5. **Sprint 5 — Fase B, in twee stappen:** B1 gap-analyse (model mini, input = `competitor_breakdown`) → B2 rapportgeneratie (model mini, input = B1-output) + Resend-e-mail. UI: tab Rapport, met concurrent + bewijs per gap.
+6. **Sprint 6 — Fase C:** content-generatie via queue (model mini), getriggerd door klant-klik → `content_pieces` (incl. `raw_json`). UI: tab **Content Bibliotheek** (lijst + detail + kopiëren/download).
 7. **Sprint 7 — Polish:** filters, mobiel, kostenlimieten/rate-limit-bewaking, gratis-scan-pagina voor acquisitie.
 
 ---
 
 ## 12. Vastgelegde keuzes
 
-1. **Engine:** ✅ **Uitsluitend OpenAI**, model **`gpt-4.1-nano`** in de bouwfase. Geen Gemini, geen premium modellen. Andere engines komen later als expliciete, aparte uitbreiding.
-2. **Eerste rapportervaring:** ✅ **Directe nulmeting (week 0)** meteen tonen, altijd automatisch (stap 1 t/m 5, ≈ $0,35/analyse).
+1. **Engine:** ✅ **Uitsluitend OpenAI**, gedifferentieerd tussen **`gpt-4.1-nano`** (hoogvolume/classificatie) en **`gpt-4.1-mini`** (laagvolume/kwaliteitsgevoelig) — zie §2. Geen Gemini, geen premium modellen. Andere engines komen later als expliciete, aparte uitbreiding.
+2. **Eerste rapportervaring:** ✅ **Directe nulmeting (week 0)** meteen tonen, altijd automatisch (stap 1 t/m 9, ≈ $0,356/analyse).
 3. **Content-generatie:** ✅ **Pas na klik/goedkeuring** door de klant — niet volautomatisch vooraf. Dit spaart kosten en geeft de klant controle.
 4. **Wekelijkse lus (10 weken):** ✅ **Per analyse aan/uit-schakelbaar** (`tracking_enabled`), draait niet automatisch door na de nulmeting.
 5. **Onderwerp/product-veld:** ✅ Optioneel naast de website-URL. Bepaalt de scope van zowel Brand DNA (A1) als de 30 prompts (A2). Zonder onderwerp: hele website. Met onderwerp: volledig gescoped op dat segment.
@@ -496,6 +557,8 @@ Zelfde opbouw als halte 3: **≈ $0,33/week/analyse**, alleen voor analyses met 
 11. **Verplichte transparantie- en goedkeuringsstap (review-gate):** ✅ Na A1+A2 (Brand DNA + prompts) stopt de pipeline bewust. De klant ziet en kan het volledige resultaat bewerken (zowel Brand DNA als prompts) en moet expliciet op **"Bevestig en start meting"** klikken vóórdat A3 (de betaalde meting) start. Zie §3.6/A2c.
 12. **Brand DNA is bewerkbaar:** ✅ Niet alleen prompts, ook het Brand DNA zelf is door de klant aan te passen (tabblad Instellingen), zowel tijdens de review-gate als daarna doorlopend.
 13. **De klantreis is een vaste, benoemde trechter van 8 stappen** (inloggen → Mijn analyses → nieuwe analyse → transparant voortgangsscherm → concept & goedkeuring → transparant meten → workspace → altijd terug/nieuw). Zie §3.7 — leidend voor de UI/UX-implementatie.
+14. **Prompt-generatie in 5 calls per categorie, niet 1 call voor alle 30:** ✅ Voorkomt herhaling/gebrek aan diversiteit die één grote generatie-call oplevert. Meerkosten ~$0,002/analyse. Zie §6 A2.
+15. **Concurrentie-gap-analyse als aparte, eerste call vóór het rapport (B1 → B2):** ✅ Een dedicated call analyseert eerst, met de rijke `competitor_breakdown`-data (§6, 3c), specifiek waar concurrenten winnen en wij niet — met bewijs (categorie, gewonnen prompts, geciteerde bronnen). Pas daarna schrijft een tweede call het leesbare eindrapport. Meerkosten ~$0,004/analyse. Zie §7.
 
 Nog te bepalen later: aantal analyses/pagina's per klant / eventuele limieten of pakketten.
 
