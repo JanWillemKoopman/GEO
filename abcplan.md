@@ -11,13 +11,15 @@
 
 ## 1. Scope & filosofie
 
-**Wat de MVP doet, volautomatisch, zonder menselijke tussenkomst (behalve C, zie hieronder):**
+**Wat de MVP doet, met twee bewuste momenten waar de klant tussenkomt (de review-gate en C, zie hieronder):**
 
-- **A — Meten:** website-URL (+ optioneel onderwerp/product) → OpenAI analyseert de site (eigen crawl + web-search-tool), gescoped op het onderwerp indien opgegeven → 30 prompts in categorieën → 10 weken monitoren (optioneel) → zichtbaarheidsdata.
+- **A — Meten:** website-URL (+ optioneel onderwerp/product) → OpenAI analyseert de site (eigen crawl + web-search-tool), gescoped op het onderwerp indien opgegeven → 30 prompts in categorieën → **klant reviewt en bevestigt (transparantie-stap, §3.6)** → nulmeting + optionele 10-weken-monitoring → zichtbaarheidsdata.
 - **B — Adviseren:** OpenAI analyseert de meetdata → rapport met zichtbaarheids-gaps en concrete content-aanbevelingen (welke pagina's ontbreken om geciteerd te worden).
 - **C — Genereren:** OpenAI schrijft de aanbevolen pagina's als kant-en-klare concepten, **op klant-verzoek** → verschijnen in de **Content Bibliotheek** waar de klant ze leest, kopieert of downloadt.
 
-Dit alles draait niet meer rond één "merk", maar rond het beheerobject **"Analyse"** — zie §3. Eén klant kan meerdere analyses aanmaken, elk gescoped op een eigen website + (optioneel) onderwerp/product.
+Dit alles draait niet meer rond één "merk", maar rond het beheerobject **"Analyse"** — zie §3. Eén klant kan meerdere analyses aanmaken, elk gescoped op een eigen website + (optioneel) onderwerp/product. De volledige klantreis (de "trechter") staat uitgewerkt in §3.7.
+
+**Transparantie is een kernprincipe, niet een bijzaak:** de klant ziet en kan bijsturen wat er "achter de schermen" gebeurt (Brand DNA + prompts) vóórdat er ook maar één betaalde meting plaatsvindt — zie §3.6.
 
 **Bewust NIET in deze MVP:** publiceren naar CMS, self-healing, meertalige productie op schaal. De klant krijgt de content *aangeleverd in de app*; wat hij ermee doet is (voorlopig) aan hem.
 
@@ -93,22 +95,55 @@ Na inloggen ziet de klant een lijst van al zijn analyses, niet direct een enkele
 - **Grote, altijd zichtbare knop: "+ Nieuwe analyse starten."** Start halte 0 opnieuw (nieuw formulier: URL + onderwerp), volledig onafhankelijk van bestaande analyses. Dit kan de klant **altijd**, op elk moment.
 - Klik op een rij → opent de workspace van die ene analyse.
 
-### 3.5 De workspace van één analyse — nu 4 tabbladen
-De eerdere 3 tabbladen (Overzicht, Rapport, Content Bibliotheek) blijven ongewijzigd van opzet, met een vierde tabblad erbij:
+### 3.5 De workspace van één analyse — 4 tabbladen
+De workspace van een analyse bestaat uit 4 tabbladen:
 
-- **Overzicht** — zoals eerder: score, trendlijn, jij-vs-concurrenten (zie eerdere versie van dit plan / het pipeline-overzicht).
-- **Rapport** — zoals eerder: gaps + aanbevelingen + "Genereer deze pagina".
-- **Content Bibliotheek** — zoals eerder: kaarten met gegenereerde pagina's.
-- **Instellingen** *(nieuw)* — de centrale beheerplek voor déze analyse:
+- **Overzicht** — score, trendlijn, jij-vs-concurrenten (zie eerdere versie van dit plan / het pipeline-overzicht).
+- **Rapport** — gaps + aanbevelingen + "Genereer deze pagina".
+- **Content Bibliotheek** — kaarten met gegenereerde pagina's.
+- **Instellingen** — de centrale beheerplek voor déze analyse:
   - Website + onderwerp, **read-only** (zie 3.3 — niet wijzigbaar na start).
+  - **Brand DNA — inzichtelijk én bewerkbaar** (zie 3.6): alle velden (branche, producten, tone-of-voice, persona's, waardeproposities, concurrenten) worden getoond en kunnen door de klant aangepast worden.
   - **De volledige prompt-lijst (alle 30, of meer/minder na beheer), te allen tijde inzichtelijk én beheerbaar:**
     - ✏️ **Bestaande prompt wijzigen** (tekst en/of categorie aanpassen).
     - ➕ **Nieuwe prompt toevoegen** (vrij tekstveld + categorie-keuze).
     - 🗑️ **Prompt verwijderen.**
-    - ⏸️ **Aan/uit per prompt** (tijdelijk pauzeren zonder verwijderen — bestond al, blijft behouden).
-  - **Wekelijkse tracking: aan/uit** (`tracking_enabled`) — verplaatst hierheen vanuit Overzicht, zodat alle instellingen van de analyse op één plek staan.
+    - ⏸️ **Aan/uit per prompt** (tijdelijk pauzeren zonder verwijderen).
+  - **Wekelijkse tracking: aan/uit** (`tracking_enabled`).
 
-**Belangrijk ontwerpbesluit — vooruitkijkend beheer:** wijzigingen aan de prompt-lijst raken nooit de al verzamelde historische `tracking_runs` (data-integriteit blijft intact voor de trendlijn). Een nieuwe of gewijzigde prompt telt pas mee vanaf de **eerstvolgende meting** (handmatige nulmeting-herhaling of de eerstvolgende wekelijkse cron-run).
+**Belangrijk ontwerpbesluit — vooruitkijkend beheer:** wijzigingen aan de prompt-lijst raken nooit de al verzamelde historische `tracking_runs` (data-integriteit blijft intact voor de trendlijn — zie §5, `prompt_text_snapshot`). Een nieuwe of gewijzigde prompt telt pas mee vanaf de **eerstvolgende meting**.
+
+**Dit tabblad Instellingen speelt een dubbele rol:** de **eerste keer** dat een analyse hier terechtkomt (direct na halte 2) is het een **verplichte review-stap** vóórdat er gemeten wordt (zie 3.6). **Daarna** is het gewoon de doorlopende beheerplek, zonder verplichting.
+
+### 3.6 Transparantie & goedkeuring — de review-stap tussen halte 2 en halte 3 (✅ vastgelegd)
+
+Direct nadat halte 1 (Brand DNA) en halte 2 (30 prompts) automatisch zijn doorlopen, **stopt de pipeline bewust** en krijgt de klant het volledige resultaat te zien — niets gebeurt "achter de schermen" zonder dat de klant het kan inzien of bijsturen:
+
+1. **Transparantie:** zodra halte 1+2 klaar zijn (`analyses.status = 'concept_klaar'`), landt de klant automatisch op het tabblad **Instellingen**, dat nu fungeert als een **concept-scherm**: het volledige Brand DNA (branche, producten, tone-of-voice, persona's, waardeproposities, concurrenten) én de volledige lijst van 30 prompts staan hier leesbaar, gegroepeerd per categorie.
+2. **Bewerkbaar:** de klant kan, vóórdat er ook maar één meting is gedaan, zowel het **Brand DNA aanpassen** (bv. een verkeerd geïdentificeerde concurrent verwijderen) als de **prompts bewerken** (zie A2b, §6) — exact dezelfde CRUD-mechaniek die ook later blijft bestaan.
+3. **Definitieve bevestiging:** onderaan staat één duidelijke knop: **"Bevestig en start meting."** Pas na deze klik:
+   - `analyses.status` gaat van `'concept_klaar'` naar `'meten'`,
+   - halte 3 (de nulmeting) start,
+   - de prompt-lijst en het Brand DNA blijven daarna nog steeds bewerkbaar (zie 3.5), maar niet meer als verplichte stap — gewoon doorlopend beheer.
+
+**Waarom dit zo werkt:** de klant moet nooit het gevoel hebben dat een "black box" zomaar gaat meten en geld/tijd besteedt op basis van een automatische inschatting die hij niet gezien heeft. Door dit expliciete, verplichte goedkeuringsmoment in te bouwen, is elke stap van de pipeline zichtbaar en controleerbaar vóórdat de (duurdere) meetfase start.
+
+### 3.7 De trechter — het klantperspectief (✅ vastgelegd, leidend voor de UI/UX)
+
+Vanuit de klant bekeken is dit de volledige, logische trechter waarin hij zich op elk moment bevindt. Elke stap heeft een duidelijke naam, een duidelijk vervolg, en de klant weet altijd waar hij is:
+
+| # | Scherm | Wat de klant ziet/doet | Status van de analyse |
+|---|--------|--------------------------|------------------------|
+| 1 | **Inloggen** | E-mail + wachtwoord (Supabase Auth). | — |
+| 2 | **Mijn analyses** | Lijst van bestaande analyses (of leeg bij eerste bezoek) + knop "+ Nieuwe analyse starten". | — |
+| 3 | **Nieuwe analyse — formulier** | Twee velden: website-URL + optioneel onderwerp/product. Knop "Start analyse". | `bezig` aangemaakt |
+| 4 | **Voortgangsscherm (transparant, live)** | Duidelijke, simpele voortgangsindicatie: *"Website lezen ✓ → Merk analyseren… → Prompts opstellen…"* — de klant ziet dat er iets gebeurt, geen kale laadspinner. Duurt doorgaans enkele tientallen seconden. | `bezig` |
+| 5 | **Concept & goedkeuring** *(= tabblad Instellingen, eerste keer verplicht)* | Brand DNA + 30 prompts, volledig leesbaar en bewerkbaar. Knop **"Bevestig en start meting."** | `concept_klaar` → klik → `meten` |
+| 6 | **Meten (transparant, live)** | Korte voortgangsindicatie op Overzicht: *"Bezig met meten… (x/30 prompts verwerkt)"*. | `meten` |
+| 7 | **Analyse-workspace** | De 4 tabbladen: Overzicht (score), Rapport (aanbevelingen), Content Bibliotheek, Instellingen (nu doorlopend beheer, niet meer verplicht). | `gereed` |
+| 8 | **Terug naar Mijn analyses, altijd** | Vanuit elke stap kan de klant terug naar het overzicht van al zijn analyses, en op elk moment een geheel nieuwe analyse starten (stap 3), onafhankelijk van waar hij in een andere analyse is. | — |
+
+**Ontwerpregel:** de klant bevindt zich **altijd in precies één van deze 8 stappen**, en elk scherm maakt duidelijk wat de vorige stap was en wat de volgende actie is (geen dead ends, geen schermen zonder duidelijke "volgende stap"-knop). Dit is de concrete invulling van "stupid simple, don't make me think" toegepast op de klantreis als geheel, niet alleen op individuele schermen.
 
 ---
 
@@ -126,16 +161,21 @@ De eerdere 3 tabbladen (Overzicht, Rapport, Content Bibliotheek) blijven ongewij
         │  /analyses/[id]/overzicht   │
         │  /analyses/[id]/rapport     │  UI-tabs per analyse
         │  /analyses/[id]/bibliotheek │
-        │  /analyses/[id]/instellingen (prompt-CRUD, tracking-toggle)
+        │  /analyses/[id]/instellingen (= concept-scherm de eerste
+        │    keer; daarna doorlopend: DNA + prompt-CRUD,
+        │    tracking-toggle)                             │
         │                                                 │
         │  Eigen crawler: fetch + tekst-extractie         │
         │  (geen API-kosten, alleen de klant-URL)         │
         │                                                 │
         │  API-routes (server):                           │
-        │   • /api/analyses          (CRUD analyses)      │
-        │   • /api/analyses/[id]/prompts  (CRUD prompts)  │
-        │   • /api/analyses/[id]/report   (B: rapport)    │
-        │   • /api/analyses/[id]/generate (C: content)    │
+        │   • /api/analyses              (CRUD analyses)  │
+        │   • /api/analyses/[id]/brand-dna (bekijk/bewerk) │
+        │   • /api/analyses/[id]/prompts   (CRUD prompts)  │
+        │   • /api/analyses/[id]/confirm   (A2c: bevestig, │
+        │       zet status 'concept_klaar' → 'meten')      │
+        │   • /api/analyses/[id]/report    (B: rapport)    │
+        │   • /api/analyses/[id]/generate  (C: content)    │
         │                                                 │
         │  Cron (Vercel Cron / Supabase pg_cron):         │
         │   • weekly-tracking-run                         │
@@ -161,25 +201,42 @@ De eerdere 3 tabbladen (Overzicht, Rapport, Content Bibliotheek) blijven ongewij
 
 ## 5. Datamodel (Supabase / Postgres)
 
+> ### 🔒 Vastgelegd principe: we bewaren álles
+> **Elke AI-call in deze pipeline slaat zijn volledige resultaat op in Supabase — nooit alleen een samenvatting of afgeleide waarde.** Dat betekent: de ruwe JSON-output van elke OpenAI-call (Brand DNA, prompt-generatie, mention-beoordeling, rapport, content) wordt **altijd** volledig bewaard, náást de uitgesplitste kolommen die de UI gebruikt. Reden: (1) niets gaat verloren als we later een kolom toevoegen of een parsing-bug vinden, (2) volledige audit-trail — je kunt precies reconstrueren wat het model op elk moment zag en antwoordde, (3) het maakt herberekening/herprocessing achteraf mogelijk zonder opnieuw te hoeven bevragen (dus zonder extra kosten). Elke tabel die AI-output bevat heeft daarom een `raw_json`-kolom (of gebruikt een bestaand JSON-veld) met het complete, ongewijzigde antwoord.
+
 ```
 users                 (Supabase Auth)
 analyses              id, user_id, url, topic(nullable), name,
-                      status ('analyseren'|'gereed'|'mislukt'),
+                      status ('bezig'|'concept_klaar'|'meten'|'gereed'|'mislukt'),
                       tracking_enabled(bool, default false), created_at
-brand_dna             analysis_id, tone_of_voice, products[], personas[],
-                      value_props[], competitors[], summary, raw_json
+brand_dna             id, analysis_id, tone_of_voice, products[], personas[],
+                      value_props[], competitors[], summary,
+                      raw_json,                    -- ← volledige ruwe OpenAI-output (halte 1)
+                      edited_by_user(bool, default false), updated_at
                       -- gescoped op het onderwerp indien opgegeven (zie §3.2)
 prompts               id, analysis_id, text, category, intent, active,
-                      created_by ('system'|'user'), updated_at
-tracking_runs         id, prompt_id, engine, week_no, ran_at,
-                      raw_response, brand_mentioned(bool),
-                      position, sentiment, cited_sources[]
+                      created_by ('system'|'user'), source_raw_json,
+                      -- source_raw_json: het fragment van de halte-2-output
+                      -- waaruit déze prompt ontstond (audit-trail per prompt)
+                      updated_at
+tracking_runs         id, prompt_id, prompt_text_snapshot, prompt_category_snapshot,
+                      -- snapshot = de prompt-tekst/categorie ZOALS DIE WAS op het
+                      -- moment van meten — blijft ongewijzigd ook als de prompt
+                      -- later bewerkt/verwijderd wordt (zie §3.5, vooruitkijkend beheer)
+                      engine, model_used, week_no, ran_at,
+                      raw_response,                -- ← ruw AI-antwoord uit 3a (het "gesimuleerde" antwoord)
+                      mention_json,                 -- ← volledige ruwe structured-output uit 3b
+                      brand_mentioned(bool), position, sentiment,
+                      competitors_mentioned[], cited_sources[],
+                      openai_response_id, tokens_used, cost_usd
 visibility_scores     analysis_id, week_no, score, share_of_voice, per_engine_json
 reports               id, analysis_id, period, summary, gaps_json,
-                      recommendations_json, generated_at
+                      recommendations_json, raw_json,   -- ← volledige ruwe OpenAI-output (halte 5)
+                      generated_at
 content_pieces        id, analysis_id, report_id, type, title, target_intent,
                       cluster, body_markdown, meta_title, meta_description,
-                      schema_jsonld, faq_json, status, word_count, created_at
+                      schema_jsonld, faq_json, raw_json,  -- ← volledige ruwe OpenAI-output (halte 6)
+                      status, word_count, created_at
 jobs                  id, analysis_id, type, payload_json, status,
                       attempts, scheduled_for, last_error
 ```
@@ -187,6 +244,10 @@ jobs                  id, analysis_id, type, payload_json, status,
 **Kernrelaties:** een `user` heeft veel `analyses`; een `analysis` heeft één `brand_dna` en veel `prompts`; elke prompt genereert (indien actief) `tracking_runs`; die rollen op naar `visibility_scores`; daaruit komt een `report` met `recommendations`; elke aanbeveling wordt een `content_piece` in de bibliotheek. `jobs` is de motor voor async werk, altijd gekoppeld aan één `analysis_id`.
 
 **`prompts.created_by`** onderscheidt systeem-gegenereerde prompts (halte 2) van door de klant zelf toegevoegde prompts — puur informatief in de UI ("door jou toegevoegd"-label).
+
+**`tracking_runs.prompt_text_snapshot` / `prompt_category_snapshot`** zijn bewust **gedenormaliseerd** (dubbel opgeslagen, niet alleen via `prompt_id` opgezocht): omdat prompts achteraf bewerkbaar/verwijderbaar zijn (§3.5, §6 A2b), zou een live-join naar `prompts` de geschiedenis vervalsen. Door de tekst/categorie te bevriezen op het moment van meten, blijft de trendlijn en het rapport historisch correct, ongeacht latere wijzigingen.
+
+**`brand_dna.edited_by_user`** vlagt of de klant het automatisch gegenereerde Brand DNA heeft aangepast tijdens de review (zie §3.6 / §6 A2c) — puur informatief, geen functionele impact.
 
 **RLS:** elke tabel filtert op `user_id` (direct op `analyses`, en via `analysis_id` op de overige tabellen) zodat klanten alleen hun eigen analyses zien.
 
@@ -197,7 +258,7 @@ jobs                  id, analysis_id, type, payload_json, status,
 ### A0. Nieuwe analyse starten — altijd beschikbaar
 **Trigger:** klant klikt "+ Nieuwe analyse starten" vanuit "Mijn analyses" (zie §3.4). Dit kan op elk moment, ongeacht hoeveel andere analyses al lopen of klaar zijn.
 **Formulier:** Website-URL (verplicht) + Onderwerp/product/thema (optioneel, vrije tekst).
-→ Nieuwe rij in `analyses` met `status = 'analyseren'`. Halte A1 start direct.
+→ Nieuwe rij in `analyses` met `status = 'bezig'`. Halte A1 start direct. **UI:** de klant ziet vanaf hier het transparante voortgangsscherm uit §3.7 (stap 4) — geen kale laadspinner, maar zichtbare stappen ("Website lezen…", "Merk analyseren…", "Prompts opstellen…").
 
 ### A1. Brand DNA (topic-aware)
 **Stap 1 (geen API-call):** eigen Node.js-crawler haalt de homepage (+ evt. 2-3 kernpagina's) op met `fetch` en zet de HTML om naar schone platte tekst.
@@ -219,7 +280,7 @@ const BrandDNA = z.object({
   summary: z.string(),
 });
 ```
-→ Opslaan in `brand_dna`, gekoppeld aan `analysis_id`.
+→ Opslaan in `brand_dna` (inclusief `raw_json`, zie §5), gekoppeld aan `analysis_id`. **Dit resultaat is straks volledig zichtbaar én bewerkbaar voor de klant** (zie A2c) — geen enkel veld blijft verborgen.
 
 ### A2. Prompt-generatie (30 stuks in categorieën, topic-aware) — ✅ vastgelegd
 **OpenAI-call:** structured output, **zonder** `web_search` (input is de Brand DNA, geen live web nodig).
@@ -235,18 +296,29 @@ const BrandDNA = z.object({
 | Lokaal/branche | "Beste iPhone-reparatie in [regio]?" |
 | Merkspecifiek | "Is MediaMarkt betrouwbaar voor iPhone-reparaties?" |
 
-→ Opslaan in `prompts` (30 rijen, `created_by = 'system'`).
+→ Opslaan in `prompts` (30 rijen, `created_by = 'system'`, elk met `source_raw_json`). Zodra dit klaar is: `analyses.status = 'concept_klaar'`.
 
 ### A2b. Prompt-beheer (CRUD) — ✅ vastgelegd, te allen tijde beschikbaar
-De klant hoeft niets in te vullen om te starten (de 30 prompts staan er automatisch), maar kan via het tabblad **Instellingen** (zie §3.5) op elk moment:
+Via het tabblad **Instellingen** (zie §3.5) kan de klant, zowel tijdens de verplichte review (A2c) als daarna doorlopend:
 - een prompt **toevoegen** (`created_by = 'user'`),
 - een bestaande prompt **wijzigen** (tekst/categorie),
 - een prompt **verwijderen**,
 - een prompt **aan/uit zetten** (pauzeren zonder verwijderen).
 
-Dit gebeurt via eenvoudige CRUD-API-routes (`/api/analyses/[id]/prompts`), geen AI-call nodig. Wijzigingen tellen mee vanaf de eerstvolgende meting (zie §3.5, "vooruitkijkend beheer").
+Dit gebeurt via eenvoudige CRUD-API-routes (`/api/analyses/[id]/prompts`), geen AI-call nodig. Wijzigingen tellen mee vanaf de eerstvolgende meting (zie §3.5, "vooruitkijkend beheer"). Hetzelfde geldt voor het Brand DNA: bewerken via `/api/analyses/[id]/brand-dna` (PATCH), geen AI-call, zet `brand_dna.edited_by_user = true`.
+
+### A2c. Transparantie & goedkeuring — de verplichte review-gate — ✅ vastgelegd
+**Dit is een nieuwe, verplichte stap tussen A2 en A3** (uitgewerkt in §3.6): de pipeline stopt bewust zodra A1+A2 klaar zijn en wacht op de klant.
+
+- **Trigger:** `analyses.status = 'concept_klaar'` (gezet aan het eind van A2).
+- **UI:** de klant landt automatisch op het tabblad **Instellingen**, dat nu fungeert als concept-scherm: volledig Brand DNA + volledige prompt-lijst, leesbaar én bewerkbaar (via A2b).
+- **Geen AI-call in deze stap** — puur weergave + CRUD op al bestaande data.
+- **Afronding:** knop **"Bevestig en start meting."** Bij klik: `analyses.status` gaat van `'concept_klaar'` naar `'meten'`, en **pas dan** start A3.
+
+**Zonder deze bevestiging start A3 nooit** — dit is de harde poort die transparantie garandeert: er wordt nooit gemeten (en dus nooit geld uitgegeven aan `web_search`-calls) op basis van een Brand DNA of prompt-lijst die de klant niet gezien en goedgekeurd heeft.
 
 ### A3. Monitoring — nulmeting + optionele 10 weken
+**Trigger:** `analyses.status = 'meten'` (pas na de bevestiging in A2c).
 **Mechanisme:** voor elke actieve prompt binnen een analyse:
 
 - **3a — De vraag stellen:** OpenAI Responses API-call **met `web_search`-tool aan** — simuleert wat een AI-assistent zou antwoorden als een echte klant die vraag stelt.
@@ -261,11 +333,11 @@ const Mention = z.object({
   citedSources: z.array(z.string()),
 });
 ```
-→ Opslaan in `tracking_runs`; aggregeren naar `visibility_scores` (score 0–100 + share-of-voice).
+→ Opslaan in `tracking_runs` — **volledig**: het ruwe antwoord uit 3a (`raw_response`), de complete structured-output uit 3b (`mention_json`), plus een bevroren snapshot van de prompt-tekst/categorie op dat moment (`prompt_text_snapshot`/`prompt_category_snapshot`, zie §5), en waar mogelijk `openai_response_id`/`tokens_used`/`cost_usd` voor kostenbewaking. Niets wordt alleen "verwerkt en weggegooid" — zie het vastgelegde principe in §5. Vervolgens aggregeren naar `visibility_scores` (score 0–100 + share-of-voice).
 
 **Batching:** de actieve prompts van een analyse worden in kleine job-batches verwerkt zodat één run niet timeout't en kosten voorspelbaar blijven.
 
-**MVP-versnelling — ✅ vastgelegd:** we tonen de klant meteen een **directe nulmeting (week 0)** zodra de actieve prompts één keer zijn doorlopen, in plaats van 10 weken te wachten. Dit gebeurt altijd, automatisch, voor elke nieuwe analyse. Zodra dit klaar is: `analyses.status = 'gereed'`.
+**MVP-versnelling — ✅ vastgelegd:** we tonen de klant meteen een **directe nulmeting (week 0)** zodra de actieve prompts één keer zijn doorlopen, in plaats van 10 weken te wachten. Dit gebeurt altijd, automatisch, voor elke nieuwe analyse (na de bevestiging in A2c). Zodra dit klaar is: `analyses.status = 'gereed'`.
 
 **Wekelijkse lus — ✅ vastgelegd: per analyse aan/uit-schakelbaar.** De 10-weken-trend draait **niet** automatisch door na de nulmeting. Elke analyse heeft `tracking_enabled` (standaard uit), beheerbaar in het tabblad **Instellingen**. De cron verwerkt bij elke wekelijkse run **alleen analyses waar dit aanstaat**. Zo kun je gratis prospect-analyses op de eenmalige nulmeting houden en pas voor betalende klanten (of specifieke analyses) de wekelijkse kosten laten lopen.
 
@@ -336,20 +408,24 @@ Zo levert de tool op klant-verzoek een **steeds verder gevulde bibliotheek** op,
 ## 9. End-to-end flow (samengevat, per analyse)
 
 ```
-0. Klant klikt "+ Nieuwe analyse" → URL + (optioneel) onderwerp ingevuld
+0. Klant klikt "+ Nieuwe analyse" → URL + (optioneel) onderwerp ingevuld    status: bezig
 1. [eigen crawl, geen call]         → website-tekst
 2. [OpenAI + web_search]            → Brand DNA (topic-aware)         (A1)
-3. [OpenAI structured, geen search] → 30 prompts (topic-aware)        (A2)
+3. [OpenAI structured, geen search] → 30 prompts (topic-aware)        (A2)   status: concept_klaar
+   ─────────────── PIPELINE STOPT BEWUST — WACHT OP KLANT ───────────────
+4. [klant ziet + bewerkt]           → Brand DNA + prompts, transparant (A2c)
    [klant, altijd beschikbaar]      → prompts toevoegen/wijzigen/verwijderen (A2b)
-4. [cron: OpenAI + web_search]      → tracking_runs                   (A3, nulmeting + optioneel wekelijks)
-5. [aggregatie, geen call]          → visibility_scores
-6. [OpenAI structured]              → rapport + Resend-mail           (B)
-7. [klant klikt] → [queue: OpenAI]  → content_pieces                  (C)
-8. UI: analyse staat in "Mijn analyses" met status "Gereed",
-   Content Bibliotheek vult zich verder ✅
+5. [klant klikt "Bevestig en start meting"]                                 status: meten
+   ─────────────────────── PIPELINE HERVAT ───────────────────────
+6. [cron: OpenAI + web_search]      → tracking_runs                   (A3, nulmeting + optioneel wekelijks)
+7. [aggregatie, geen call]          → visibility_scores                     status: gereed
+8. [OpenAI structured]              → rapport + Resend-mail           (B)
+9. [klant klikt] → [queue: OpenAI]  → content_pieces                  (C)
+10. UI: analyse staat in "Mijn analyses" met status "Gereed",
+    Content Bibliotheek vult zich verder ✅
 ```
 
-Stap 1 t/m 6 draaien zonder menselijke tussenkomst. Stap 3's beheer (A2b) en stap 7 wachten bewust op de klant. Meerdere analyses draaien volledig onafhankelijk van elkaar, parallel.
+Stap 1–3 en 6–8 draaien zonder menselijke tussenkomst. Stap 4–5 (de verplichte review-gate, §3.6/A2c) en stap 9 wachten bewust op de klant. Meerdere analyses draaien volledig onafhankelijk van elkaar, parallel, elk met zijn eigen status.
 
 ---
 
@@ -396,11 +472,11 @@ Zelfde opbouw als halte 3: **≈ $0,33/week/analyse**, alleen voor analyses met 
 ## 11. Bouwvolgorde (sprints)
 
 1. **Sprint 1 — Fundament:** Next.js op Vercel, Supabase-project, Auth, datamodel-migraties (incl. `analyses` met `topic`/`status`), officiële `openai` Node-SDK + Zod ingericht, één test-call werkend met `gpt-4.1-nano` (structured output + `web_search`-tool getest).
-2. **Sprint 2 — "Mijn analyses" + A0/A1/A2:** lijst-scherm + "Nieuwe analyse starten"-formulier (URL + onderwerp) → eigen crawler → Brand DNA (topic-aware) → 30 prompts (topic-aware).
-3. **Sprint 3 — Instellingen-tab + A2b:** prompt-lijst met volledige CRUD (toevoegen/wijzigen/verwijderen/aan-uit), gekoppeld aan `/api/analyses/[id]/prompts`.
-4. **Sprint 4 — Fase A3:** cron + job-queue + mention-detectie → nulmeting + optionele wekelijkse trend (schakelaar in Instellingen). UI: Overzicht met score.
-5. **Sprint 5 — Fase B:** rapportgeneratie + Resend-e-mail. UI: tab Rapport.
-6. **Sprint 6 — Fase C:** content-generatie via queue, getriggerd door klant-klik → `content_pieces`. UI: tab **Content Bibliotheek** (lijst + detail + kopiëren/download).
+2. **Sprint 2 — "Mijn analyses" + A0/A1/A2:** lijst-scherm + "Nieuwe analyse starten"-formulier (URL + onderwerp) + **transparant voortgangsscherm** (§3.7 stap 4) → eigen crawler → Brand DNA (topic-aware, met `raw_json`) → 30 prompts (topic-aware, met `source_raw_json`).
+3. **Sprint 3 — Instellingen-tab, A2b + A2c (review-gate):** concept-scherm met volledig Brand DNA + prompt-lijst, beide met volledige CRUD (`/api/analyses/[id]/brand-dna`, `/api/analyses/[id]/prompts`), plus de knop **"Bevestig en start meting"** (`/api/analyses/[id]/confirm`, status `concept_klaar → meten`). **Dit is de belangrijkste UX-sprint** — zonder deze gate mag A3 niet kunnen starten.
+4. **Sprint 4 — Fase A3:** cron + job-queue + mention-detectie → nulmeting + optionele wekelijkse trend (schakelaar in Instellingen), met volledige opslag (`raw_response`, `mention_json`, prompt-snapshots, zie §5). UI: Overzicht met score + transparant "bezig met meten"-voortgang.
+5. **Sprint 5 — Fase B:** rapportgeneratie (incl. `raw_json`) + Resend-e-mail. UI: tab Rapport.
+6. **Sprint 6 — Fase C:** content-generatie via queue, getriggerd door klant-klik → `content_pieces` (incl. `raw_json`). UI: tab **Content Bibliotheek** (lijst + detail + kopiëren/download).
 7. **Sprint 7 — Polish:** filters, mobiel, kostenlimieten/rate-limit-bewaking, gratis-scan-pagina voor acquisitie.
 
 ---
@@ -416,6 +492,10 @@ Zelfde opbouw als halte 3: **≈ $0,33/week/analyse**, alleen voor analyses met 
 7. **Prompt-beheer:** ✅ De volledige prompt-lijst is **te allen tijde** door de klant inzichtelijk en beheerbaar (toevoegen, wijzigen, verwijderen, aan/uit) via het tabblad Instellingen. Wijzigingen werken vooruitkijkend, historische metingen blijven ongewijzigd.
 8. **Nieuwe analyse starten:** ✅ Kan altijd, op elk moment, onafhankelijk van bestaande analyses, via de knop op "Mijn analyses".
 9. **Onderwerp is niet wijzigbaar na start:** ✅ Voor een andere scope start de klant een nieuwe analyse (voorkomt inconsistente Brand DNA/prompts).
+10. **Alles opslaan, niets weggooien:** ✅ Elke AI-call slaat zijn volledige ruwe JSON-output op in Supabase (`raw_json`/`mention_json`/`source_raw_json` op de betreffende tabellen), náást de uitgesplitste kolommen. Volledige audit-trail, geen dataverlies bij toekomstige schema-wijzigingen. Zie §5.
+11. **Verplichte transparantie- en goedkeuringsstap (review-gate):** ✅ Na A1+A2 (Brand DNA + prompts) stopt de pipeline bewust. De klant ziet en kan het volledige resultaat bewerken (zowel Brand DNA als prompts) en moet expliciet op **"Bevestig en start meting"** klikken vóórdat A3 (de betaalde meting) start. Zie §3.6/A2c.
+12. **Brand DNA is bewerkbaar:** ✅ Niet alleen prompts, ook het Brand DNA zelf is door de klant aan te passen (tabblad Instellingen), zowel tijdens de review-gate als daarna doorlopend.
+13. **De klantreis is een vaste, benoemde trechter van 8 stappen** (inloggen → Mijn analyses → nieuwe analyse → transparant voortgangsscherm → concept & goedkeuring → transparant meten → workspace → altijd terug/nieuw). Zie §3.7 — leidend voor de UI/UX-implementatie.
 
 Nog te bepalen later: aantal analyses/pagina's per klant / eventuele limieten of pakketten.
 
