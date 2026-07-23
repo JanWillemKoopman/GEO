@@ -55,8 +55,8 @@ Puur een projectbeslissing: één engine, één SDK, één factuur, zo min mogel
 | 2 · Prompt-generatie | 5× (per categorie, zie §6 A2) | `gpt-4.1-mini` | Diversiteit en categorie-scherpte wegen zwaarder dan de paar dubbeltjescent verschil. |
 | 3a · AI-antwoord simuleren | 30×/week | `gpt-4.1-nano` | Hoogvolume; het antwoord leunt vooral op de `web_search`-resultaten, niet op modelcreativiteit. |
 | 3b · Mention beoordelen | 30×/week | `gpt-4.1-nano` | Classificatie-achtige taak (ja/nee, sentiment, positie) — nano is hier prima en de volumekosten tellen wél op. |
-| 5a · Concurrentie-gap-analyse | 1× per rapport | `gpt-4.1-mini` | Vergt echt redeneren over waar concurrenten winnen — zie §7. |
-| 5b · Rapport & aanbevelingen | 1× per rapport | `gpt-4.1-mini` | Eindproduct dat de klant leest; kwaliteit weegt zwaar, kosten zijn triviaal. |
+| B1 · Concurrentie-gap-analyse | 1× per rapport | `gpt-4.1-mini` | Vergt echt redeneren over waar concurrenten winnen — zie §7. |
+| B2 · Rapport & aanbevelingen | 1× per rapport | `gpt-4.1-mini` | Eindproduct dat de klant leest; kwaliteit weegt zwaar, kosten zijn triviaal. |
 | 6 · Content-generatie | 1× per pagina, op klik | `gpt-4.1-mini` | Dit ís het product dat de klant meeneemt — kwaliteit boven een paar cent besparing. |
 
 **Kort samengevat:** `gpt-4.1-nano` alleen waar het *aantal* calls de kosten drijft (halte 3, 30-60×/week); `gpt-4.1-mini` overal waar de call maar een handvol keer per analyse draait en de kwaliteit van het denkwerk er echt toe doet. Zie §10 voor de herrekende kosten — het verschil is ~$0,01/analyse, verwaarloosbaar.
@@ -242,14 +242,24 @@ tracking_runs         id, prompt_id, prompt_text_snapshot, prompt_category_snaps
                       -- later bewerkt/verwijderd wordt (zie §3.5, vooruitkijkend beheer)
                       engine, model_used, week_no, ran_at,
                       raw_response,                -- ← ruw AI-antwoord uit 3a (het "gesimuleerde" antwoord)
-                      mention_json,                 -- ← volledige ruwe structured-output uit 3b
-                      brand_mentioned(bool), position, sentiment,
-                      competitors_mentioned[], cited_sources[],
+                      raw_response_received_at,     -- ← voor idempotente retries (zie A3, 3b)
+                      mention_json,                 -- ← volledige ruwe structured-output uit 3b (alle entiteiten)
                       openai_response_id, tokens_used, cost_usd
+tracking_run_mentions  id, tracking_run_id, entity_name, is_own_brand(bool),
+                      mentioned(bool), position, sentiment, cited_sources[]
+                      -- ← genormaliseerde vorm van mention_json: ÉÉN RIJ PER ENTITEIT
+                      -- (eigen merk + elke concurrent) per meting. Dit is de bron
+                      -- voor visibility_scores (waar is_own_brand = true) én voor
+                      -- 3c/competitor_breakdown (waar is_own_brand = false) — zonder
+                      -- dit zou een "bronnen per concurrent"-analyse niet uit te
+                      -- rekenen zijn (zie herziening naar aanleiding van pipeline-review)
 visibility_scores     analysis_id, week_no, score, share_of_voice, per_engine_json
 competitor_breakdown   id, analysis_id, week_no, competitor_name,
                       mentions_count, mentions_by_category_json,
-                      top_cited_sources[], winning_prompts[], losing_prompts[]
+                      top_cited_sources[], winning_run_ids[], losing_run_ids[]
+                      -- winning/losing_run_ids verwijzen naar tracking_runs.id
+                      -- (niet naar losse prompt-tekst) zodat de klant vanuit het
+                      -- rapport kan doorklikken naar de daadwerkelijke AI-conversatie
                       -- ← berekend in halte 3c (geen AI-call), input voor FASE B1
 reports               id, analysis_id, period, summary, gaps_json,
                       recommendations_json,
@@ -264,7 +274,7 @@ jobs                  id, analysis_id, type, payload_json, status,
                       attempts, scheduled_for, last_error
 ```
 
-**Kernrelaties:** een `user` heeft veel `analyses`; een `analysis` heeft één `brand_dna` en veel `prompts`; elke prompt genereert (indien actief) `tracking_runs`; die rollen op naar `visibility_scores` **én** `competitor_breakdown` (de per-concurrent uitsplitsing); die laatste voedt de gap-analyse (B1) die op zijn beurt het `report` met `recommendations` voedt (B2); elke aanbeveling wordt een `content_piece` in de bibliotheek. `jobs` is de motor voor async werk, altijd gekoppeld aan één `analysis_id`.
+**Kernrelaties:** een `user` heeft veel `analyses`; een `analysis` heeft één `brand_dna` en veel `prompts`; elke prompt genereert (indien actief) `tracking_runs`; elke `tracking_run` heeft veel `tracking_run_mentions` (één rij per entiteit — eigen merk + elke concurrent); die rollen op naar `visibility_scores` (via `is_own_brand = true`) **én** `competitor_breakdown` (via `is_own_brand = false`, de per-concurrent uitsplitsing); die laatste voedt de gap-analyse (B1) die op zijn beurt het `report` met `recommendations` voedt (B2); elke aanbeveling wordt een `content_piece` in de bibliotheek. `jobs` is de motor voor async werk, altijd gekoppeld aan één `analysis_id`.
 
 **`prompts.created_by`** onderscheidt systeem-gegenereerde prompts (halte 2) van door de klant zelf toegevoegde prompts — puur informatief in de UI ("door jou toegevoegd"-label).
 
@@ -343,30 +353,35 @@ Dit gebeurt via eenvoudige CRUD-API-routes (`/api/analyses/[id]/prompts`), geen 
 - **Geen AI-call in deze stap** — puur weergave + CRUD op al bestaande data.
 - **Afronding:** knop **"Bevestig en start meting."** Bij klik: `analyses.status` gaat van `'concept_klaar'` naar `'meten'`, en **pas dan** start A3.
 
-**Zonder deze bevestiging start A3 nooit** — dit is de harde poort die transparantie garandeert: er wordt nooit gemeten (en dus nooit geld uitgegeven aan `web_search`-calls) op basis van een Brand DNA of prompt-lijst die de klant niet gezien en goedgekeurd heeft.
+**Zonder deze bevestiging start A3 nooit** — dit is de harde poort die transparantie garandeert. **Precisering:** halte 1 en 2 (samen ~$0,018, zie §10) draaien al automatisch vóór deze gate om het concept te kunnen tonen — dat is bewust een kleine, geaccepteerde kost om iets te kunnen laten zien. De gate beschermt specifiek tegen de **grote** kostenpost: er wordt nooit de nulmeting (halte 3, ~$0,333, de dure `web_search`-calls op 30 prompts) uitgevoerd op basis van een Brand DNA of prompt-lijst die de klant niet gezien en goedgekeurd heeft.
 
 ### A3. Monitoring — nulmeting + optionele 10 weken
 **Trigger:** `analyses.status = 'meten'` (pas na de bevestiging in A2c).
 **Mechanisme:** voor elke actieve prompt binnen een analyse:
 
-- **3a — De vraag stellen:** OpenAI Responses API-call **met `web_search`-tool aan** — simuleert wat een AI-assistent zou antwoorden als een echte klant die vraag stelt.
-- **3b — Het antwoord beoordelen:** een tweede, goedkope OpenAI-call (structured output, **geen** `web_search`) beoordeelt het antwoord:
+- **3a — De vraag stellen:** OpenAI Responses API-call **met `web_search`-tool aan** — simuleert wat een AI-assistent zou antwoorden als een echte klant die vraag stelt. Resultaat (`raw_response`) wordt **direct opgeslagen** zodra het binnenkomt, vóórdat 3b start.
+- **3b — Het antwoord beoordelen:** een tweede, goedkope OpenAI-call (structured output, **geen** `web_search`) beoordeelt het antwoord — **✅ herzien: per entiteit, niet als platte lijst.** Een plat schema (`brandMentioned` + losse `competitorsMentioned[]`/`citedSources[]`) kan niet aangeven welke bron bij welke concurrent hoort — en dat is precies wat 3c en B1 nodig hebben. Daarom:
 
 ```ts
 const Mention = z.object({
-  brandMentioned: z.boolean(),
-  position: z.number().nullable(),      // volgorde van vermelding
-  sentiment: z.enum(["positive","neutral","negative"]),
-  competitorsMentioned: z.array(z.string()),
-  citedSources: z.array(z.string()),
+  mentions: z.array(z.object({
+    entity: z.string(),                              // merknaam of concurrentnaam
+    isOwnBrand: z.boolean(),
+    mentioned: z.boolean(),
+    position: z.number().nullable(),                 // positie van déze entiteit in het antwoord
+    sentiment: z.enum(["positive","neutral","negative"]),
+    citedSources: z.array(z.string()),                // bronnen die specifiek déze entiteit onderbouwen
+  })),
 });
 ```
-→ Opslaan in `tracking_runs` — **volledig**: het ruwe antwoord uit 3a (`raw_response`), de complete structured-output uit 3b (`mention_json`), plus een bevroren snapshot van de prompt-tekst/categorie op dat moment (`prompt_text_snapshot`/`prompt_category_snapshot`, zie §5), en waar mogelijk `openai_response_id`/`tokens_used`/`cost_usd` voor kostenbewaking. Niets wordt alleen "verwerkt en weggegooid" — zie het vastgelegde principe in §5.
+→ Opslaan in `tracking_runs` — **volledig**: het ruwe antwoord uit 3a (`raw_response`), de complete structured-output uit 3b (`mention_json`), plus een bevroren snapshot van de prompt-tekst/categorie op dat moment (`prompt_text_snapshot`/`prompt_category_snapshot`, zie §5), en waar mogelijk `openai_response_id`/`tokens_used`/`cost_usd` voor kostenbewaking. **Daarnaast wordt `mentions` genormaliseerd naar aparte rijen in `tracking_run_mentions`** (één rij per entiteit, zie §5) — dit is de tabel waarop 3c en B1 straks rekenen, niet de ruwe JSON. Niets wordt alleen "verwerkt en weggegooid" — zie het vastgelegde principe in §5.
 
-**3c — Concurrentie-breakdown berekenen (geen call, herzien/verrijkt):** naast de simpele `visibility_scores` (score 0–100 + share-of-voice) berekenen we nu **per concurrent** een aparte uitsplitsing, puur rekenwerk over de al opgeslagen `tracking_runs`:
+**✅ Vastgelegd — retry-regel (kostenbescherming):** 3a en 3b zijn twee losse, idempotente stappen. Als 3b faalt nadat 3a al succesvol was, wordt **alléén 3b opnieuw geprobeerd** met het al opgeslagen `raw_response` — 3a (de dure `web_search`-call) wordt nooit onnodig herhaald. Dezelfde regel geldt voor A2: als 1 van de 5 categorie-calls faalt, worden **alleen de mislukte categorieën** opnieuw geprobeerd, niet alle 5. Blijft een stap na een paar pogingen mislukken, dan gaat de analyse naar `analyses.status = 'mislukt'` met een retry-knop in "Mijn analyses" (zie §3.4).
+
+**3c — Concurrentie-breakdown berekenen (geen call, herzien/verrijkt):** naast de simpele `visibility_scores` (score 0–100 + share-of-voice, berekend uit `tracking_run_mentions` waar `is_own_brand = true`) berekenen we nu **per concurrent** een aparte uitsplitsing, puur rekenwerk over `tracking_run_mentions` (waar `is_own_brand = false`) — nu dat de data er dankzij het herziene Mention-schema daadwerkelijk voor geschikt is:
 - aantal/percentage vermeldingen **per concurrent, per categorie** (zo zie je bijvoorbeeld: concurrent X wint vooral op "Vergelijking"-prompts, jij wint op "Lokaal/branche"),
-- de meest-geciteerde bronnen **per concurrent** (welke website citeert de AI als het over hén gaat?),
-- concrete "verloren prompts": prompts waar een concurrent wél genoemd werd en het eigen merk niet, en vice versa ("gewonnen prompts").
+- de meest-geciteerde bronnen **per concurrent**, nu correct gekoppeld via `tracking_run_mentions.cited_sources` per entiteit — niet meer een dubbelzinnige platte lijst,
+- concrete "verloren/gewonnen prompts", opgeslagen als **`tracking_runs.id`-verwijzingen** (`winning_run_ids[]`/`losing_run_ids[]`) zodat de klant later kan doorklikken naar de daadwerkelijke AI-conversatie als bewijs.
 
 → Opslaan in een nieuwe tabel **`competitor_breakdown`** (zie §5). **Dit is de rijke, structured input die FASE B straks nodig heeft** om een echte, onderbouwde gap-analyse te kunnen maken in plaats van te gokken op basis van ruwe cijfers alleen.
 
@@ -386,17 +401,17 @@ const Mention = z.object({
 **Trigger:** na de nulmeting (of na een latere week), automatisch vóór B2.
 **OpenAI-call:** structured output, **geen** `web_search`. Input = `competitor_breakdown` + `visibility_scores` + `brand_dna` — de volledige, per-concurrent uitsplitsing uit halte 3c, niet de ruwe `tracking_runs`.
 
-Het model produceert een gerichte analyse:
+Het model produceert een gerichte analyse — **✅ herzien: bewijs als ID-verwijzing, niet als losse tekst**, zodat de klant straks kan doorklikken naar de daadwerkelijke AI-conversatie (zie A3, 3c):
 ```ts
 const GapAnalysis = z.object({
   gaps: z.array(z.object({
     competitor: z.string(),
-    cluster: z.string(),                  // categorie waar de concurrent wint
-    evidence: z.string(),                 // concreet: hoeveel/waarom, welke bronnen
-    winningPrompts: z.array(z.string()),  // prompts waar de concurrent wél, wij niet
+    cluster: z.string(),                     // categorie waar de concurrent wint
+    evidence: z.string(),                    // concreet: hoeveel/waarom, welke bronnen
+    evidenceRunIds: z.array(z.string()),      // verwijzing naar tracking_runs.id — niet naar losse prompt-tekst
     citedSourcesForCompetitor: z.array(z.string()),
   })),
-  strengths: z.array(z.object({           // waar WIJ juist winnen — ook nuttig
+  strengths: z.array(z.object({              // waar WIJ juist winnen — ook nuttig
     cluster: z.string(),
     evidence: z.string(),
   })),
@@ -415,7 +430,7 @@ const Report = z.object({
   gaps: z.array(z.object({
     cluster: z.string(),
     problem: z.string(),                  // "AI noemt concurrent X, jou niet" — nu onderbouwd door B1
-    evidencePrompts: z.array(z.string()),
+    evidenceRunIds: z.array(z.string()),   // verwijzing naar tracking_runs.id — klant kan doorklikken naar het bewijs
   })),
   recommendations: z.array(z.object({
     title: z.string(),                    // wordt straks een content_piece
@@ -558,7 +573,10 @@ Zelfde opbouw als halte 3ab: **≈ $0,33/week/analyse**, alleen voor analyses me
 12. **Brand DNA is bewerkbaar:** ✅ Niet alleen prompts, ook het Brand DNA zelf is door de klant aan te passen (tabblad Instellingen), zowel tijdens de review-gate als daarna doorlopend.
 13. **De klantreis is een vaste, benoemde trechter van 8 stappen** (inloggen → Mijn analyses → nieuwe analyse → transparant voortgangsscherm → concept & goedkeuring → transparant meten → workspace → altijd terug/nieuw). Zie §3.7 — leidend voor de UI/UX-implementatie.
 14. **Prompt-generatie in 5 calls per categorie, niet 1 call voor alle 30:** ✅ Voorkomt herhaling/gebrek aan diversiteit die één grote generatie-call oplevert. Meerkosten ~$0,002/analyse. Zie §6 A2.
-15. **Concurrentie-gap-analyse als aparte, eerste call vóór het rapport (B1 → B2):** ✅ Een dedicated call analyseert eerst, met de rijke `competitor_breakdown`-data (§6, 3c), specifiek waar concurrenten winnen en wij niet — met bewijs (categorie, gewonnen prompts, geciteerde bronnen). Pas daarna schrijft een tweede call het leesbare eindrapport. Meerkosten ~$0,004/analyse. Zie §7.
+15. **Concurrentie-gap-analyse als aparte, eerste call vóór het rapport (B1 → B2):** ✅ Een dedicated call analyseert eerst, met de rijke `competitor_breakdown`-data (§6, 3c), specifiek waar concurrenten winnen en wij niet — met bewijs (categorie, run-verwijzingen, geciteerde bronnen). Pas daarna schrijft een tweede call het leesbare eindrapport. Meerkosten ~$0,004/analyse. Zie §7.
+16. **Mention-schema is per-entiteit, niet plat:** ✅ Elke meting (halte 3b) slaat per entiteit (eigen merk + elke concurrent) een eigen rij op (`tracking_run_mentions`, zie §5), inclusief de bronnen die specifiek díe entiteit onderbouwen. Een plat schema met losse `competitorsMentioned[]`/`citedSources[]`-lijsten kan geen "bronnen per concurrent"-analyse leveren — dit is naar aanleiding van een pipeline-review gecorrigeerd vóórdat er gebouwd is. Zie §6 A3 (3b).
+17. **Bewijs in rapportages is een ID-verwijzing, geen losse tekst:** ✅ `evidenceRunIds`/`winning_run_ids`/`losing_run_ids` verwijzen naar `tracking_runs.id`, zodat de klant vanuit het Rapport kan doorklikken naar de daadwerkelijke AI-conversatie als bewijs — consistent met het transparantieprincipe (§3.6). Zie §6 (3c) en §7 (B1/B2).
+18. **Retry-regel ter kostenbescherming:** ✅ 3a en 3b zijn los herhaalbaar — bij een mislukte 3b wordt nooit opnieuw 3a (de dure `web_search`-call) uitgevoerd. Bij A2 worden alleen mislukte categorie-calls herhaald, niet alle 5. Blijvend falen → `analyses.status = 'mislukt'` met retry-optie. Zie §6 A3.
 
 Nog te bepalen later: aantal analyses/pagina's per klant / eventuele limieten of pakketten.
 
