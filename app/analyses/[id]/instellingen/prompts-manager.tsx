@@ -104,7 +104,7 @@ function PromptCategoryList({
               style={
                 p.active
                   ? undefined
-                  : { background: "rgba(255,255,255,0.06)", color: "var(--text-muted)", borderColor: "var(--border-subtle)" }
+                  : { background: "rgba(11,11,12,0.05)", color: "var(--text-muted)", borderColor: "var(--border-subtle)" }
               }
             >
               {p.active ? "Actief" : "Gepauzeerd"}

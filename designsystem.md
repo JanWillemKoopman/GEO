@@ -12,7 +12,10 @@ Dit document documenteert **beide systemen eerlijk**:
 - **§A — Het lichte kernsysteem**, wat InSpace daadwerkelijk overal gebruikt (kleuren, type, cards, knoppen, micro-interacties).
 - **§B — Het donkere "Aura"-paneel**, de enige plek waar InSpace zelf een dark-mode-esthetiek toont.
 
-**Aanbeveling voor onze app:** omdat jij expliciet een modern, donker, futuristisch dashboard wilt, raad ik aan het **Aura-palet als basis van onze dark mode** te nemen en dat **consistent door de hele app door te trekken** — met InSpace's merk-DNA (de paars/groen-gradient, Aeonik/TTCommons-typografie, pil-vormige radii, gloed-techniek) er bovenop toegepast. Dat is de meest authentieke weg naar "InSpace-gevoel, maar dan volledig dark-mode", zonder iets te verzinnen dat niet in hun eigen merk zit. Zie §C voor de samengevoegde, praktisch bruikbare tokenset.
+> **🔆 VASTGELEGDE KEUZE (herzien juli 2026): de app draait op het LICHTE kernsysteem (§A).**
+> De app is bewust omgezet van dark mode naar het lichte systeem dat InSpace zelf overal gebruikt — witte/off-white vlakken, zwarte tekst, subtiele grijze randen, neutrale schaduwen, met de paars/groen-gradient, pil-vormen en mono-labels als merk-DNA. Dit is bevestigd met screenshots van de live site (juli 2026): de groene pil-CTA ("Schedule free demo"), paarse getallen/accenten, groene tekst voor positieve indicatoren. **§A is dus leidend voor de implementatie** (`app/globals.css`). §B/§C hieronder beschrijven het donkere Aura-alternatief en blijven bewaard als referentie, maar worden **niet** toegepast in de app.
+
+**Historische aanbeveling (niet meer van toepassing — de app was aanvankelijk dark):** eerder is een dark-mode op basis van het Aura-palet (§B/§C) aangeraden omdat er om een donker futuristisch dashboard werd gevraagd. Die keuze is teruggedraaid ten gunste van het authentieke lichte InSpace-systeem (§A). De onderstaande §B/§C blijven staan voor het geval dark mode ooit als optie terugkomt.
 
 ---
 

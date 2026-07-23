@@ -18,7 +18,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#0b0b0c",
+  themeColor: "#f7f8f6",
   width: "device-width",
   initialScale: 1,
 };
@@ -27,7 +27,7 @@ export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="nl" data-theme="dark" className={`${GeistSans.variable} ${jetbrainsMono.variable}`}>
+    <html lang="nl" data-theme="light" className={`${GeistSans.variable} ${jetbrainsMono.variable}`}>
       <body>{children}</body>
     </html>
   );

@@ -11,7 +11,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   return (
     <div className="flex min-h-dvh flex-col">
-      <header className="sticky top-0 z-20 border-b border-[var(--border-subtle)] bg-[rgba(11,11,12,0.72)] backdrop-blur-md">
+      <header className="sticky top-0 z-20 border-b border-[var(--border-subtle)] bg-[rgba(247,248,246,0.8)] backdrop-blur-md">
         <div className="mx-auto flex h-16 max-w-5xl items-center justify-between px-6">
           <Link href="/analyses" className="text-lg font-bold tracking-tight">
             <span className="brand-gradient-text">GEO Tracker</span>

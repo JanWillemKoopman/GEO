@@ -106,7 +106,7 @@ export function MeasureProgress({
       <div className="card flex flex-col gap-4">
         <span
           className="chip w-fit"
-          style={{ background: "rgba(229,72,77,0.16)", color: "#f0a3a5", borderColor: "rgba(229,72,77,0.4)" }}
+          style={{ background: "rgba(211,58,63,0.1)", color: "#c2282d", borderColor: "rgba(211,58,63,0.3)" }}
         >
           Mislukt
         </span>
