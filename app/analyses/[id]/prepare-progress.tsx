@@ -29,19 +29,31 @@ export function PrepareProgress({
     promptCount: 0,
   });
   const [failed, setFailed] = useState(initialStatus === "mislukt");
+  const [errorDetail, setErrorDetail] = useState<string | null>(null);
   const started = useRef(false);
 
   async function runPrepare() {
     setFailed(false);
+    setErrorDetail(null);
     try {
       const res = await fetch(`/api/analyses/${analysisId}/prepare`, { method: "POST" });
-      const json = await res.json();
-      if (!res.ok || json.status === "mislukt") {
+      let json: { status?: string; detail?: string } = {};
+      try {
+        json = await res.json();
+      } catch {
+        // Response was geen JSON (bv. een platform-timeout-pagina).
         setFailed(true);
+        setErrorDetail(`Server gaf geen geldig antwoord (HTTP ${res.status}).`);
         return;
       }
-    } catch {
+      if (!res.ok || json.status === "mislukt") {
+        setFailed(true);
+        setErrorDetail(json.detail ?? null);
+        return;
+      }
+    } catch (err) {
       setFailed(true);
+      setErrorDetail(err instanceof Error ? err.message : String(err));
     }
   }
 
@@ -102,6 +114,11 @@ export function PrepareProgress({
           Het voorbereiden van deze analyse is mislukt. Dit kan aan een tijdelijke fout liggen.
           Probeer het opnieuw.
         </p>
+        {errorDetail && (
+          <p className="rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--bg-elevated)] px-4 py-3 font-mono text-xs text-[var(--status-error)]">
+            {errorDetail}
+          </p>
+        )}
         <button onClick={() => void runPrepare()} className="btn-primary w-fit">
           Opnieuw proberen
         </button>
