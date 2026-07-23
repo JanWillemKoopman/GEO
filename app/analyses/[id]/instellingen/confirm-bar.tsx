@@ -1,0 +1,53 @@
+"use client";
+
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+
+/**
+ * De review-gate-knop (abcplan.md §3.6/A2c). Puur CSS-responsief, geen JS-
+ * viewport-detectie nodig (designsystem.md §D3/§D5): op mobiel `fixed` onderaan
+ * het scherm (altijd binnen duimbereik tijdens het scrollen door een dicht
+ * concept-scherm), op desktop (`lg:`) gewoon inline aan het eind van de sectie.
+ */
+export function ConfirmBar({ analysisId }: { analysisId: string }) {
+  const router = useRouter();
+  const [pending, setPending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function confirm() {
+    setPending(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/analyses/${analysisId}/confirm`, { method: "POST" });
+      if (!res.ok) {
+        const json = await res.json().catch(() => ({}));
+        setError(json.error ?? "Bevestigen mislukt.");
+        setPending(false);
+        return;
+      }
+      router.push(`/analyses/${analysisId}`);
+      router.refresh();
+    } catch {
+      setError("Bevestigen mislukt. Probeer het opnieuw.");
+      setPending(false);
+    }
+  }
+
+  return (
+    <>
+      {/* Spacer zodat de sticky bar op mobiel geen content bedekt. */}
+      <div className="h-20 lg:hidden" aria-hidden />
+      <div className="fixed inset-x-0 bottom-0 z-30 border-t border-[var(--border-subtle)] bg-[var(--bg-base)]/95 px-4 py-3 backdrop-blur-md lg:static lg:border-0 lg:bg-transparent lg:p-0 lg:backdrop-blur-none">
+        <div className="mx-auto flex max-w-5xl flex-col gap-2 sm:flex-row sm:items-center">
+          <button onClick={() => void confirm()} disabled={pending} className="btn-primary w-full disabled:opacity-60 sm:w-auto">
+            {pending ? "Bezig…" : "Bevestig en start meting"}
+          </button>
+          {error && <span className="text-sm text-[var(--status-error)]">{error}</span>}
+          <span className="hidden text-sm text-muted sm:inline">
+            Je kunt Brand DNA en prompts hierna nog steeds aanpassen.
+          </span>
+        </div>
+      </div>
+    </>
+  );
+}

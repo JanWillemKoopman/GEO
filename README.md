@@ -30,7 +30,7 @@ Concrete regels die we hanteren:
 - **Slimme defaults.** We stellen automatisch 30 prompts voor op basis van de website (en het opgegeven onderwerp, indien ingevuld), zodat de klant niet met een leeg scherm start — maar wel altijd zelf kan bijsturen.
 - **Transparant vóór er iets gemeten wordt.** Direct na het invullen ziet de klant precies wat het systeem heeft afgeleid (merkinfo + de 30 prompts), kan dit aanpassen, en geeft pas daarna expliciet akkoord om te starten. Geen "black box".
 - **Rustige dashboards.** Maximaal een handvol widgets per scherm. Witruimte boven volledigheid.
-- **Mobiel-vriendelijk.** Een klant moet de score ook even op zijn telefoon kunnen checken.
+- **Mobiel-vriendelijk.** Een klant moet de score ook even op zijn telefoon kunnen checken. Uitgangspunt is desktop (waar de meeste gebruikers zitten), maar mobiel wordt bewust heroverwogen per scherm, niet simpelweg verkleind — zie [designsystem.md §D](./designsystem.md#d—responsive-strategie-desktop-first-uitgangspunt-mobiel-bewust-heruitgevonden).
 
 > We concurreren níet op "de meeste features" of "de diepste enterprise-analyse". We winnen op **eenvoud, snelheid en doeltreffendheid** voor het MKB en marketeers die geen SEO-experts zijn.
 

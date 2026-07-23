@@ -33,6 +33,22 @@ export default async function OverviewPage({ params }: { params: Promise<{ id: s
     );
   }
 
+  if (analysis.status === "meten") {
+    return (
+      <div className="card flex flex-col gap-3">
+        <div className="flex items-center gap-3">
+          <span className="live-dot" />
+          <span className="mono-label">Meten…</span>
+        </div>
+        <p className="text-secondary">
+          Je hebt de meting bevestigd. De prompts worden binnenkort tegen de AI-assistenten
+          getest — deze stap wordt in de volgende ontwikkelfase gekoppeld. Kom hier later terug
+          voor je zichtbaarheidsscore.
+        </p>
+      </div>
+    );
+  }
+
   return (
     <div className="card flex flex-col gap-2">
       <span className="mono-label">Zichtbaarheidsscore</span>
