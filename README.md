@@ -1,6 +1,6 @@
 # GEO Tracker
 
-> **Simpele GEO-tracking voor iedereen.** Maak een account, voeg een paar prompts toe, en zie hoe zichtbaar jouw merk is in ChatGPT, Gemini en andere AI-assistenten. Geen handleiding nodig.
+> **Simpele GEO-tracking voor iedereen.** Vul een website in (en optioneel een specifiek product/onderwerp), en zie hoe zichtbaar dat merk is in ChatGPT en andere AI-assistenten. Geen handleiding nodig.
 
 ---
 
@@ -25,9 +25,9 @@ Dit is het belangrijkste uitgangspunt van het hele product. Elke feature, elke k
 Concrete regels die we hanteren:
 
 - **Eén hoofdgetal.** De klant ziet direct één zichtbaarheidsscore (0–100). Alles daaronder is verdieping, geen verplichting.
-- **Onboarding in 3 stappen.** Account → merk + concurrenten invullen → prompts toevoegen. Klaar.
+- **Onboarding in 2 velden.** Website-URL (+ optioneel een specifiek product/onderwerp, bv. "iPhone"). Klaar — de prompts staan automatisch klaar.
 - **Geen jargon in de UI.** Geen "share of voice" maar "hoe vaak jij genoemd wordt vs. je concurrenten".
-- **Slimme defaults.** We stellen automatisch prompts voor op basis van de bedrijfsnaam en branche, zodat de klant niet met een leeg scherm start.
+- **Slimme defaults.** We stellen automatisch 30 prompts voor op basis van de website (en het opgegeven onderwerp, indien ingevuld), zodat de klant niet met een leeg scherm start — maar wel altijd zelf kan bijsturen.
 - **Rustige dashboards.** Maximaal een handvol widgets per scherm. Witruimte boven volledigheid.
 - **Mobiel-vriendelijk.** Een klant moet de score ook even op zijn telefoon kunnen checken.
 
@@ -39,14 +39,15 @@ Concrete regels die we hanteren:
 
 | # | Feature | Beschrijving |
 |---|---------|--------------|
-| 1 | **Account & merk aanmaken** | Registreren met e-mail, merknaam + website + branche opgeven. |
-| 2 | **Prompts beheren** | Klant voegt de vragen toe die relevant zijn voor zijn markt (bijv. "wat is de beste boekhoudsoftware voor zzp'ers?"). |
-| 3 | **Automatische tracking** | Op een vast interval (bijv. dagelijks/wekelijks) worden de prompts naar de LLM-API's gestuurd (ChatGPT / Gemini). |
-| 4 | **Zichtbaarheidsscore** | Eén helder getal dat aangeeft hoe zichtbaar het merk is over alle prompts en engines heen. |
-| 5 | **Mentions & bronnen** | Per prompt: word ik genoemd, op welke positie, en welke bronnen citeert de AI? |
-| 6 | **Concurrentievergelijking** | Hoe vaak word ik genoemd t.o.v. de door de klant opgegeven concurrenten. |
-| 7 | **Sentiment** | Wordt er positief, neutraal of negatief over het merk gesproken? |
-| 8 | **Historie** | Simpele grafiek: gaat mijn zichtbaarheid omhoog of omlaag over tijd? |
+| 1 | **Analyse aanmaken** | Website-URL + optioneel een specifiek product/onderwerp/thema (bijv. MediaMarkt + "iPhone"). Zonder onderwerp wordt de hele website geanalyseerd; mét onderwerp wordt alles gescoped op dat segment. |
+| 2 | **Meerdere analyses per klant** | Eén account kan onbeperkt analyses aanmaken (bv. per product of segment), elk volledig zelfstandig. Overzichtelijk in het "Mijn analyses"-scherm, met een knop om altijd een nieuwe te starten. |
+| 3 | **Prompts — automatisch én beheerbaar** | 30 prompts worden automatisch gegenereerd (gescoped op het onderwerp indien opgegeven). De klant kan ze op elk moment inzien, wijzigen, aanvullen of verwijderen. |
+| 4 | **Automatische tracking** | De actieve prompts worden naar de LLM-API gestuurd. Een directe nulmeting is altijd automatisch; wekelijkse tracking (10 weken) is per analyse aan/uit te zetten. |
+| 5 | **Zichtbaarheidsscore** | Eén helder getal dat aangeeft hoe zichtbaar het merk (of productsegment) is over alle actieve prompts heen. |
+| 6 | **Mentions & bronnen** | Per prompt: word ik genoemd, op welke positie, en welke bronnen citeert de AI? |
+| 7 | **Concurrentievergelijking** | Hoe vaak word ik genoemd t.o.v. relevante concurrenten (voor dat merk of specifiek dat segment). |
+| 8 | **Sentiment** | Wordt er positief, neutraal of negatief gesproken? |
+| 9 | **Historie** | Simpele grafiek: gaat de zichtbaarheid omhoog of omlaag over tijd? |
 
 **Bewust NIET in de MVP** (om simpel te blijven): content-generatie, AI-optimalisatie-agents, white-label rapportages, 10+ engines, keyword-research suites. Dat is waar de concurrentie complex en duur wordt — zie [concurrenten.md](./concurrenten.md).
 
@@ -87,11 +88,13 @@ Klant (browser/mobiel)
 ### Datamodel (concept)
 
 - **users** – gekoppeld aan Supabase Auth.
-- **brands** – merknaam, website, branche, eigenaar.
-- **competitors** – concurrentnamen gekoppeld aan een brand.
-- **prompts** – de te tracken vragen per brand.
-- **runs** – elke keer dat een prompt naar een engine gestuurd wordt (engine, timestamp, ruwe respons).
+- **analyses** – het kernobject: website-URL + optioneel onderwerp/product, status, eigenaar. Eén klant kan er meerdere hebben.
+- **brand_dna** – geëxtraheerde merk-/segmentkennis per analyse (gescoped op het onderwerp indien opgegeven).
+- **prompts** – de te tracken vragen per analyse; automatisch gegenereerd én volledig door de klant beheerbaar (toevoegen/wijzigen/verwijderen).
+- **runs** – elke keer dat een prompt naar de LLM gestuurd wordt (engine, timestamp, ruwe respons).
 - **mentions** – gedetecteerde vermeldingen per run (merk/concurrent, positie, sentiment, geciteerde bron).
+
+> Zie [abcplan.md](./abcplan.md) §3 voor de volledige uitwerking van het "Analyse"-concept, en §5 voor het complete datamodel.
 
 ---
 
@@ -99,8 +102,8 @@ Klant (browser/mobiel)
 
 - [ ] **Fase 0 – Onderzoek** ✅ Marktonderzoek concurrenten (zie [concurrenten.md](./concurrenten.md)).
 - [ ] **Fase 1 – Fundament** Repo, Supabase-project, Vercel-deploy, auth werkend.
-- [ ] **Fase 2 – Onboarding** 3-stappen flow: account → merk → prompts.
-- [ ] **Fase 3 – Tracking-engine** Prompts uitvoeren tegen ChatGPT + Gemini, resultaten opslaan.
+- [ ] **Fase 2 – Onboarding** Account → "Mijn analyses" → nieuwe analyse (URL + optioneel onderwerp) → prompts (auto-gegenereerd + beheerbaar).
+- [ ] **Fase 3 – Tracking-engine** Prompts uitvoeren tegen OpenAI (`gpt-4.1-nano`), resultaten opslaan.
 - [ ] **Fase 4 – Dashboard** Eén zichtbaarheidsscore + mentions + concurrentie + historie.
 - [ ] **Fase 5 – Polish** Sentiment, e-mailalerts, mobiele optimalisatie.
 
