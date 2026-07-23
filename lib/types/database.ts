@@ -18,6 +18,7 @@ export type MentionSentiment = "positive" | "neutral" | "negative";
 export type ContentType = "article" | "faq" | "landing" | "comparison";
 export type ContentStatus = "ready" | "archived" | "published";
 export type JobStatus = "queued" | "running" | "done" | "failed";
+export type ProfileStatus = "bezig" | "klaar" | "mislukt";
 
 /**
  * Canonieke prompt-categorieën (abcplan.md §6 A2). Klant mag afwijken (vrije tekst).
@@ -42,8 +43,9 @@ export interface Persona {
 export interface Analysis {
   id: string;
   user_id: string;
+  profile_id: string;
   url: string;
-  topic: string | null;
+  topic: string;
   name: string;
   status: AnalysisStatus;
   tracking_enabled: boolean;
@@ -51,9 +53,13 @@ export interface Analysis {
   updated_at: string;
 }
 
-export interface BrandDna {
+/** Klantprofiel (accountniveau): het grondige, bedrijfsbrede onderzoek — één keer per merk. */
+export interface Profile {
   id: string;
-  analysis_id: string;
+  user_id: string;
+  name: string;
+  url: string;
+  brand_name: string | null;
   industry: string | null;
   tone_of_voice: string | null;
   summary: string | null;
@@ -61,6 +67,19 @@ export interface BrandDna {
   value_props: string[];
   competitors: string[];
   personas: Persona[];
+  raw_json: unknown | null;
+  status: ProfileStatus;
+  edited_by_user: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+/** Onderwerp-onderzoek (per analyse): alleen wat specifiek is voor dít product/thema. */
+export interface TopicResearch {
+  id: string;
+  analysis_id: string;
+  content_summary: string | null;
+  competitors: string[];
   raw_json: unknown | null;
   edited_by_user: boolean;
   updated_at: string;

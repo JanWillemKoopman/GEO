@@ -14,7 +14,6 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { callPlain, callStructured } from "@/lib/openai/structured";
 import { MODELS } from "@/lib/openai/models";
 import { Mention } from "@/lib/schemas/mention";
-import { brandNameFromRawJson } from "@/lib/pipeline/brand-name";
 import type { Analysis, AnalysisStatus, Prompt, TrackingRun } from "@/lib/types/database";
 
 const SIMULATE_SYSTEM =
@@ -235,23 +234,20 @@ export async function measureAnalysis(id: string, weekNo = 0): Promise<AnalysisS
     }
   }
 
-  const { data: brandDna } = await admin
-    .from("brand_dna")
-    .select("competitors, raw_json")
-    .eq("analysis_id", id)
-    .maybeSingle();
-  const { data: activePrompts } = await admin
-    .from("prompts")
-    .select("*")
-    .eq("analysis_id", id)
-    .eq("active", true);
+  const [{ data: profile }, { data: topicResearch }, { data: activePrompts }] = await Promise.all([
+    admin.from("profiles").select("brand_name, competitors").eq("id", typedAnalysis.profile_id).maybeSingle(),
+    admin.from("topic_research").select("competitors").eq("analysis_id", id).maybeSingle(),
+    admin.from("prompts").select("*").eq("analysis_id", id).eq("active", true),
+  ]);
 
   // Gebruik de canonieke merknaam voor mention-detectie (een AI-antwoord noemt
   // "Golden Fingers", niet het domein) — nauwkeuriger dan alleen de URL.
-  const brandName = brandNameFromRawJson(brandDna?.raw_json);
-  const base = brandName ?? typedAnalysis.url;
-  const ownLabel = typedAnalysis.topic ? `${base} (${typedAnalysis.topic})` : base;
-  const competitors: string[] = brandDna?.competitors ?? [];
+  const base = profile?.brand_name ?? typedAnalysis.url;
+  const ownLabel = `${base} (${typedAnalysis.topic})`;
+  // Gededupliceerde unie: onderwerp-specifieke concurrenten + algemene bedrijfsconcurrenten.
+  const competitors: string[] = Array.from(
+    new Set([...(topicResearch?.competitors ?? []), ...(profile?.competitors ?? [])]),
+  );
   const prompts = (activePrompts ?? []) as Prompt[];
 
   try {

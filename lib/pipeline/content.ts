@@ -10,8 +10,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { callStructured } from "@/lib/openai/structured";
 import { MODELS } from "@/lib/openai/models";
 import { ContentPiece } from "@/lib/schemas/content-piece";
-import { brandNameFromRawJson } from "@/lib/pipeline/brand-name";
-import type { Analysis, BrandDna, ContentType } from "@/lib/types/database";
+import type { Analysis, Profile, TopicResearch, ContentType } from "@/lib/types/database";
 
 /**
  * Harde regels — dit staat op de EIGEN website van de klant:
@@ -66,20 +65,21 @@ function countWords(markdown: string): number {
 
 function buildContentInput(args: {
   analysis: Analysis;
-  brandDna: BrandDna | null;
-  brandName: string | null;
+  profile: Profile | null;
+  topicResearch: TopicResearch | null;
   competitors: string[];
   rec: RecommendationInput;
   evidencePrompts: string[];
 }): string {
-  const { analysis, brandDna, brandName, competitors, rec, evidencePrompts } = args;
+  const { analysis, profile, topicResearch, competitors, rec, evidencePrompts } = args;
   return [
-    `Bedrijf: ${brandName ?? analysis.url}`,
+    `Bedrijf: ${profile?.brand_name ?? analysis.url}`,
     `Website: ${analysis.url}`,
-    `Onderwerp/scope: ${analysis.topic ?? "(hele website)"}`,
-    `Branche: ${brandDna?.industry ?? "onbekend"}`,
-    `Tone of voice: ${brandDna?.tone_of_voice ?? "professioneel, helder"}`,
-    `Diensten/producten: ${(brandDna?.products ?? []).join(", ") || "onbekend"}`,
+    `Onderwerp/scope: ${analysis.topic}`,
+    `Branche: ${profile?.industry ?? "onbekend"}`,
+    `Tone of voice: ${profile?.tone_of_voice ?? "professioneel, helder"}`,
+    `Diensten/producten: ${(profile?.products ?? []).join(", ") || "onbekend"}`,
+    topicResearch?.content_summary ? `Wat de website al zegt over dit onderwerp: ${topicResearch.content_summary}` : "",
     competitors.length
       ? `NIET noemen op deze pagina (concurrenten): ${competitors.join(", ")}`
       : "",
@@ -122,14 +122,16 @@ export async function generateContentPiece(args: {
     .maybeSingle();
   if (existing) return existing.id as string;
 
-  const { data: brandDnaRow } = await admin
-    .from("brand_dna")
-    .select("*")
-    .eq("analysis_id", analysisId)
-    .maybeSingle();
-  const brandDna = brandDnaRow as BrandDna | null;
-  const brandName = brandNameFromRawJson(brandDna?.raw_json);
-  const competitors = brandDna?.competitors ?? [];
+  const [{ data: profileRow }, { data: topicResearchRow }] = await Promise.all([
+    admin.from("profiles").select("*").eq("id", analysis.profile_id).maybeSingle(),
+    admin.from("topic_research").select("*").eq("analysis_id", analysisId).maybeSingle(),
+  ]);
+  const profile = profileRow as Profile | null;
+  const topicResearch = topicResearchRow as TopicResearch | null;
+  // Gededupliceerde unie: onderwerp-specifieke concurrenten + algemene bedrijfsconcurrenten.
+  const competitors = Array.from(
+    new Set([...(topicResearch?.competitors ?? []), ...(profile?.competitors ?? [])]),
+  );
 
   // Actieve prompts als thematische inspiratie (NIET letterlijk overnemen — zie system prompt).
   const { data: promptRows } = await admin
@@ -143,7 +145,7 @@ export async function generateContentPiece(args: {
   const result = await callStructured({
     model: MODELS.quality,
     system: CONTENT_SYSTEM,
-    user: buildContentInput({ analysis, brandDna, brandName, competitors, rec: recommendation, evidencePrompts }),
+    user: buildContentInput({ analysis, profile, topicResearch, competitors, rec: recommendation, evidencePrompts }),
     schema: ContentPiece,
     schemaName: "content_piece",
     webSearch: false,

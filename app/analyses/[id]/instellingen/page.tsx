@@ -1,8 +1,9 @@
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getAnalysis } from "@/lib/analyses";
 import { createClient } from "@/lib/supabase/server";
-import type { BrandDna, Prompt } from "@/lib/types/database";
-import { BrandDnaEditor } from "./brand-dna-editor";
+import type { Profile, TopicResearch, Prompt } from "@/lib/types/database";
+import { TopicResearchEditor } from "./topic-research-editor";
 import { PromptsManager } from "./prompts-manager";
 import { ConfirmBar } from "./confirm-bar";
 import { TrackingToggle } from "./tracking-toggle";
@@ -11,6 +12,8 @@ import { TrackingToggle } from "./tracking-toggle";
  * Instellingen = het concept-/review-scherm (abcplan.md §3.6) de EERSTE keer
  * (status concept_klaar, met verplichte ConfirmBar), en daarna de doorlopende
  * beheerplek (§3.5, zonder verplichting — CRUD blijft, de bevestig-knop niet).
+ * Het bedrijfsbrede Brand DNA leeft nu in het klantprofiel (zie ProfielKaart
+ * hieronder, alleen-lezen met link naar Profielen om te bewerken).
  */
 export default async function InstellingenPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -18,12 +21,14 @@ export default async function InstellingenPage({ params }: { params: Promise<{ i
   if (!analysis) notFound();
 
   const supabase = await createClient();
-  const [{ data: dnaRow }, { data: promptRows }] = await Promise.all([
-    supabase.from("brand_dna").select("*").eq("analysis_id", id).maybeSingle(),
+  const [{ data: profileRow }, { data: researchRow }, { data: promptRows }] = await Promise.all([
+    supabase.from("profiles").select("*").eq("id", analysis.profile_id).maybeSingle(),
+    supabase.from("topic_research").select("*").eq("analysis_id", id).maybeSingle(),
     supabase.from("prompts").select("*").eq("analysis_id", id).order("created_at"),
   ]);
 
-  const dna = dnaRow as BrandDna | null;
+  const profile = profileRow as Profile | null;
+  const research = researchRow as TopicResearch | null;
   const prompts = (promptRows ?? []) as Prompt[];
   const isReviewGate = analysis.status === "concept_klaar";
 
@@ -37,7 +42,7 @@ export default async function InstellingenPage({ params }: { params: Promise<{ i
         </div>
         <div className="flex justify-between gap-4">
           <span className="text-secondary">Onderwerp</span>
-          <span className="font-medium">{analysis.topic ?? "Hele website"}</span>
+          <span className="font-medium">{analysis.topic}</span>
         </div>
         <p className="text-sm text-muted">
           Website en onderwerp liggen na de start vast. Wil je een andere scope? Start dan een
@@ -48,17 +53,39 @@ export default async function InstellingenPage({ params }: { params: Promise<{ i
       {isReviewGate && (
         <div className="card" style={{ borderColor: "rgba(165,120,240,0.4)" }}>
           <p className="text-secondary">
-            Dit is automatisch afgeleid uit je website. Controleer en pas aan waar nodig, en
-            bevestig daarna onderaan om de meting te starten.
+            Dit is automatisch afgeleid uit je klantprofiel en de website. Controleer en pas aan
+            waar nodig, en bevestig daarna onderaan om de meting te starten.
           </p>
         </div>
       )}
 
-      {dna ? (
-        <BrandDnaEditor analysisId={id} initial={dna} />
+      {profile ? (
+        <div className="card flex flex-col gap-3">
+          <span className="mono-label">Klantprofiel</span>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <p className="text-lg font-semibold">{profile.name}</p>
+              <p className="text-sm text-secondary">
+                Branche: {profile.industry ?? "onbekend"} · Concurrenten:{" "}
+                {profile.competitors.join(", ") || "onbekend"}
+              </p>
+            </div>
+            <Link href={`/profielen/${profile.id}`} className="btn-outline w-fit">
+              Bewerk profiel
+            </Link>
+          </div>
+        </div>
       ) : (
         <div className="card">
-          <p className="text-secondary">Brand DNA wordt nog voorbereid…</p>
+          <p className="text-secondary">Klantprofiel niet gevonden.</p>
+        </div>
+      )}
+
+      {research ? (
+        <TopicResearchEditor analysisId={id} initial={research} />
+      ) : (
+        <div className="card">
+          <p className="text-secondary">Onderwerp-onderzoek wordt nog voorbereid…</p>
         </div>
       )}
 

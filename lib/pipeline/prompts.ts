@@ -66,11 +66,11 @@ function containsBrand(text: string, tokens: string[]): boolean {
   return tokens.some((t) => lower.includes(t));
 }
 
-function buildContextBlock(url: string, topic: string | null, brand: BrandContext): string {
+function buildContextBlock(url: string, topic: string, brand: BrandContext): string {
   return (
     `Website: ${url}\n` +
     (brand.brandName ? `Eigen merknaam (NIET in prompts gebruiken): ${brand.brandName}\n` : "") +
-    `Onderwerp/scope: ${topic ?? "(hele website — dek alle diensten/producten)"}\n` +
+    `Onderwerp/scope: ${topic}\n` +
     `Branche: ${brand.industry ?? "onbekend"}\n` +
     `Producten/diensten: ${brand.products.join(", ") || "onbekend"}\n` +
     `Concurrenten (mogen wél genoemd worden): ${brand.competitors.join(", ") || "onbekend"}\n` +
@@ -81,16 +81,14 @@ function buildContextBlock(url: string, topic: string | null, brand: BrandContex
 async function generateForCategory(args: {
   category: string;
   url: string;
-  topic: string | null;
+  topic: string;
   brand: BrandContext;
   count: number;
   tokens: string[];
 }): Promise<GeneratedPrompt[]> {
   const { category, url, topic, brand, count, tokens } = args;
 
-  const scopeRule = topic
-    ? `Alle prompts gaan UITSLUITEND over "${topic}" binnen deze branche.`
-    : `De prompts samen dekken de belangrijkste diensten/producten van de website.`;
+  const scopeRule = `Alle prompts gaan UITSLUITEND over "${topic}" binnen deze branche.`;
 
   const brandRule =
     `HARDE REGEL: gebruik NOOIT de eigen merknaam${brand.brandName ? ` ("${brand.brandName}")` : ""} of het domein van de klant in een prompt. ` +
@@ -136,7 +134,7 @@ async function generateForCategory(args: {
  */
 export async function generatePrompts(args: {
   url: string;
-  topic: string | null;
+  topic: string;
   brand: BrandContext;
 }): Promise<GeneratedPrompt[]> {
   const tokens = brandTokens(args.url, args.brand.brandName);

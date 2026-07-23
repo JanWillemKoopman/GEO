@@ -13,7 +13,14 @@ import { MODELS } from "@/lib/openai/models";
 import { GapAnalysis } from "@/lib/schemas/gap-analysis";
 import { Report } from "@/lib/schemas/report";
 import { sendReportEmail } from "@/lib/email/report-email";
-import type { Analysis, AnalysisStatus, BrandDna, VisibilityScore, CompetitorBreakdown } from "@/lib/types/database";
+import type {
+  Analysis,
+  AnalysisStatus,
+  Profile,
+  TopicResearch,
+  VisibilityScore,
+  CompetitorBreakdown,
+} from "@/lib/types/database";
 
 const GAP_SYSTEM =
   "Je bent een GEO-analist (Generative Engine Optimization). Op basis van meetdata identificeer je " +
@@ -27,19 +34,23 @@ const REPORT_SYSTEM =
   "gewone taal. Noem in elk probleem expliciet welke concurrent het betreft. Eindig met concrete, " +
   "uitvoerbare aanbevelingen. Antwoord in het Nederlands.";
 
-function ownLabel(analysis: Analysis): string {
-  return analysis.topic ? `${analysis.url} (${analysis.topic})` : analysis.url;
+function ownLabel(analysis: Analysis, profile: Profile | null): string {
+  return `${profile?.brand_name ?? analysis.url} (${analysis.topic})`;
 }
 
 function buildGapInput(
   analysis: Analysis,
-  brandDna: BrandDna | null,
+  profile: Profile | null,
+  topicResearch: TopicResearch | null,
   score: VisibilityScore | null,
   competitors: CompetitorBreakdown[],
 ): string {
   const lines = [
-    `Eigen merk: ${ownLabel(analysis)}`,
-    `Branche: ${brandDna?.industry ?? "onbekend"}`,
+    `Eigen merk: ${ownLabel(analysis, profile)}`,
+    `Branche: ${profile?.industry ?? "onbekend"}`,
+    ...(topicResearch?.content_summary
+      ? [`Wat de website al zegt over dit onderwerp: ${topicResearch.content_summary}`]
+      : []),
     `Eigen zichtbaarheidsscore: ${score?.score ?? 0}/100` +
       (score?.share_of_voice != null ? ` (${score.share_of_voice}% van alle vermeldingen)` : ""),
     "",
@@ -60,9 +71,14 @@ function buildGapInput(
   return lines.join("\n");
 }
 
-function buildReportInput(analysis: Analysis, score: VisibilityScore | null, gap: GapAnalysis): string {
+function buildReportInput(
+  analysis: Analysis,
+  profile: Profile | null,
+  score: VisibilityScore | null,
+  gap: GapAnalysis,
+): string {
   return [
-    `Eigen merk: ${ownLabel(analysis)}`,
+    `Eigen merk: ${ownLabel(analysis, profile)}`,
     `Zichtbaarheidsscore: ${score?.score ?? 0}/100`,
     "",
     "Concurrentie-gap-analyse (JSON):",
@@ -104,11 +120,13 @@ export async function generateReport(id: string, weekNo = 0): Promise<AnalysisSt
     return "gereed";
   }
 
-  const [{ data: brandDna }, { data: score }, { data: competitors }] = await Promise.all([
-    admin.from("brand_dna").select("*").eq("analysis_id", id).maybeSingle(),
+  const [{ data: profile }, { data: topicResearch }, { data: score }, { data: competitors }] = await Promise.all([
+    admin.from("profiles").select("*").eq("id", analysis.profile_id).maybeSingle(),
+    admin.from("topic_research").select("*").eq("analysis_id", id).maybeSingle(),
     admin.from("visibility_scores").select("*").eq("analysis_id", id).eq("week_no", weekNo).maybeSingle(),
     admin.from("competitor_breakdown").select("*").eq("analysis_id", id).eq("week_no", weekNo),
   ]);
+  const profileTyped = profile as Profile | null;
 
   try {
     // B1 — concurrentie-gap-analyse
@@ -117,7 +135,8 @@ export async function generateReport(id: string, weekNo = 0): Promise<AnalysisSt
       system: GAP_SYSTEM,
       user: buildGapInput(
         analysis,
-        brandDna as BrandDna | null,
+        profileTyped,
+        topicResearch as TopicResearch | null,
         score as VisibilityScore | null,
         (competitors ?? []) as CompetitorBreakdown[],
       ),
@@ -130,7 +149,7 @@ export async function generateReport(id: string, weekNo = 0): Promise<AnalysisSt
     const report = await callStructured({
       model: MODELS.quality,
       system: REPORT_SYSTEM,
-      user: buildReportInput(analysis, score as VisibilityScore | null, gap.parsed),
+      user: buildReportInput(analysis, profileTyped, score as VisibilityScore | null, gap.parsed),
       schema: Report,
       schemaName: "report",
       webSearch: false,

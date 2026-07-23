@@ -3,23 +3,22 @@
 import { useState } from "react";
 import { CollapsibleSection } from "@/components/collapsible-section";
 import { TagListEditor } from "@/components/tag-list-editor";
-import type { BrandDna, Persona } from "@/lib/types/database";
+import type { Persona, Profile } from "@/lib/types/database";
 
 /**
- * Bewerkbaar Brand DNA (abcplan.md §3.5/§3.6). Desktop: secties staan
- * standaard open (CollapsibleSection, designsystem.md §D4). Mobiel: dicht,
- * per groep uitklapbaar — voorkomt een muur van tekst op een klein scherm.
+ * Bewerkbaar klantprofiel — zelfde CRUD-mechaniek als de vroegere
+ * BrandDnaEditor, nu op profielniveau (eenmalig per merk i.p.v. per analyse).
  */
-export function BrandDnaEditor({ analysisId, initial }: { analysisId: string; initial: BrandDna }) {
-  const [dna, setDna] = useState(initial);
+export function ProfileEditor({ initial }: { initial: Profile }) {
+  const [profile, setProfile] = useState(initial);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   function updatePersona(index: number, patch: Partial<Persona>) {
-    setDna((d) => ({
-      ...d,
-      personas: d.personas.map((p, i) => (i === index ? { ...p, ...patch } : p)),
+    setProfile((p) => ({
+      ...p,
+      personas: p.personas.map((persona, i) => (i === index ? { ...persona, ...patch } : persona)),
     }));
   }
 
@@ -28,17 +27,18 @@ export function BrandDnaEditor({ analysisId, initial }: { analysisId: string; in
     setSaved(false);
     setError(null);
     try {
-      const res = await fetch(`/api/analyses/${analysisId}/brand-dna`, {
+      const res = await fetch(`/api/profiles/${profile.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          industry: dna.industry,
-          tone_of_voice: dna.tone_of_voice,
-          summary: dna.summary,
-          products: dna.products,
-          value_props: dna.value_props,
-          competitors: dna.competitors,
-          personas: dna.personas,
+          name: profile.name,
+          industry: profile.industry,
+          tone_of_voice: profile.tone_of_voice,
+          summary: profile.summary,
+          products: profile.products,
+          value_props: profile.value_props,
+          competitors: profile.competitors,
+          personas: profile.personas,
         }),
       });
       if (!res.ok) throw new Error();
@@ -52,23 +52,42 @@ export function BrandDnaEditor({ analysisId, initial }: { analysisId: string; in
 
   return (
     <div className="card flex flex-col gap-4">
-      <span className="mono-label">Brand DNA</span>
+      <span className="mono-label">Klantprofiel</span>
+
+      <div className="flex justify-between gap-4 border-b border-[var(--border-subtle)] pb-3">
+        <span className="text-secondary">Website</span>
+        <span className="font-medium">{profile.url}</span>
+      </div>
+      {profile.brand_name && (
+        <div className="flex justify-between gap-4 border-b border-[var(--border-subtle)] pb-3">
+          <span className="text-secondary">Merknaam</span>
+          <span className="font-medium">{profile.brand_name}</span>
+        </div>
+      )}
 
       <CollapsibleSection title="Basis">
+        <label className="flex flex-col gap-1.5">
+          <span className="mono-label">Naam (label voor dit profiel)</span>
+          <input
+            className="field"
+            value={profile.name}
+            onChange={(e) => setProfile((p) => ({ ...p, name: e.target.value }))}
+          />
+        </label>
         <label className="flex flex-col gap-1.5">
           <span className="mono-label">Branche</span>
           <input
             className="field"
-            value={dna.industry ?? ""}
-            onChange={(e) => setDna((d) => ({ ...d, industry: e.target.value }))}
+            value={profile.industry ?? ""}
+            onChange={(e) => setProfile((p) => ({ ...p, industry: e.target.value }))}
           />
         </label>
         <label className="flex flex-col gap-1.5">
           <span className="mono-label">Tone of voice</span>
           <input
             className="field"
-            value={dna.tone_of_voice ?? ""}
-            onChange={(e) => setDna((d) => ({ ...d, tone_of_voice: e.target.value }))}
+            value={profile.tone_of_voice ?? ""}
+            onChange={(e) => setProfile((p) => ({ ...p, tone_of_voice: e.target.value }))}
           />
         </label>
         <label className="flex flex-col gap-1.5">
@@ -76,8 +95,8 @@ export function BrandDnaEditor({ analysisId, initial }: { analysisId: string; in
           <textarea
             className="field"
             rows={3}
-            value={dna.summary ?? ""}
-            onChange={(e) => setDna((d) => ({ ...d, summary: e.target.value }))}
+            value={profile.summary ?? ""}
+            onChange={(e) => setProfile((p) => ({ ...p, summary: e.target.value }))}
           />
         </label>
       </CollapsibleSection>
@@ -86,16 +105,16 @@ export function BrandDnaEditor({ analysisId, initial }: { analysisId: string; in
         <div className="flex flex-col gap-1.5">
           <span className="mono-label">Producten / diensten</span>
           <TagListEditor
-            items={dna.products}
-            onChange={(products) => setDna((d) => ({ ...d, products }))}
+            items={profile.products}
+            onChange={(products) => setProfile((p) => ({ ...p, products }))}
             placeholder="Nieuw product…"
           />
         </div>
         <div className="flex flex-col gap-1.5">
           <span className="mono-label">Waardeproposities</span>
           <TagListEditor
-            items={dna.value_props}
-            onChange={(value_props) => setDna((d) => ({ ...d, value_props }))}
+            items={profile.value_props}
+            onChange={(value_props) => setProfile((p) => ({ ...p, value_props }))}
             placeholder="Nieuwe waardepropositie…"
           />
         </div>
@@ -103,27 +122,30 @@ export function BrandDnaEditor({ analysisId, initial }: { analysisId: string; in
 
       <CollapsibleSection title="Concurrenten & persona's">
         <div className="flex flex-col gap-1.5">
-          <span className="mono-label">Concurrenten</span>
+          <span className="mono-label">Concurrenten (bedrijfsbreed)</span>
           <TagListEditor
-            items={dna.competitors}
-            onChange={(competitors) => setDna((d) => ({ ...d, competitors }))}
+            items={profile.competitors}
+            onChange={(competitors) => setProfile((p) => ({ ...p, competitors }))}
             placeholder="Nieuwe concurrent…"
           />
+          <span className="text-sm text-muted">
+            Analyses vullen dit per onderwerp aan met eigen, specifieke concurrenten.
+          </span>
         </div>
 
         <div className="flex flex-col gap-2">
           <span className="mono-label">Persona&apos;s</span>
-          {dna.personas.map((p, i) => (
+          {profile.personas.map((persona, i) => (
             <div key={i} className="flex flex-col gap-2 rounded-[var(--radius-md)] border border-[var(--border-subtle)] p-3">
               <input
                 className="field"
-                value={p.name}
+                value={persona.name}
                 onChange={(e) => updatePersona(i, { name: e.target.value })}
                 placeholder="Naam persona"
               />
               <input
                 className="field"
-                value={p.needs.join(", ")}
+                value={persona.needs.join(", ")}
                 onChange={(e) =>
                   updatePersona(i, { needs: e.target.value.split(",").map((s) => s.trim()).filter(Boolean) })
                 }
@@ -131,7 +153,7 @@ export function BrandDnaEditor({ analysisId, initial }: { analysisId: string; in
               />
               <button
                 type="button"
-                onClick={() => setDna((d) => ({ ...d, personas: d.personas.filter((_, idx) => idx !== i) }))}
+                onClick={() => setProfile((p) => ({ ...p, personas: p.personas.filter((_, idx) => idx !== i) }))}
                 className="w-fit text-sm text-[var(--status-error)] hover:underline"
               >
                 Verwijderen
@@ -140,7 +162,7 @@ export function BrandDnaEditor({ analysisId, initial }: { analysisId: string; in
           ))}
           <button
             type="button"
-            onClick={() => setDna((d) => ({ ...d, personas: [...d.personas, { name: "", needs: [] }] }))}
+            onClick={() => setProfile((p) => ({ ...p, personas: [...p.personas, { name: "", needs: [] }] }))}
             className="btn-outline w-fit"
           >
             + Persona toevoegen

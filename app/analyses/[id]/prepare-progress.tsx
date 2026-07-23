@@ -6,12 +6,12 @@ import type { AnalysisStatus } from "@/lib/types/database";
 
 interface StatusPayload {
   status: AnalysisStatus;
-  hasBrandDna: boolean;
+  hasTopicResearch: boolean;
   promptCount: number;
 }
 
 /**
- * Start halte 1+2 en toont live, server-state-gedreven voortgang (abcplan.md §3.7
+ * Start halte 1'+2 en toont live, server-state-gedreven voortgang (abcplan.md §3.7
  * stap 4). Draait de prepare-call en pollt intussen de status; bij concept_klaar
  * gaan we door naar het concept-scherm (Instellingen), bij mislukt tonen we retry.
  */
@@ -25,7 +25,7 @@ export function PrepareProgress({
   const router = useRouter();
   const [data, setData] = useState<StatusPayload>({
     status: initialStatus,
-    hasBrandDna: false,
+    hasTopicResearch: false,
     promptCount: 0,
   });
   const [failed, setFailed] = useState(initialStatus === "mislukt");
@@ -85,8 +85,8 @@ export function PrepareProgress({
   }, []);
 
   const steps = [
-    { label: "Website lezen", done: data.hasBrandDna },
-    { label: "Merk analyseren", done: data.hasBrandDna },
+    { label: "Website lezen voor dit onderwerp", done: data.hasTopicResearch },
+    { label: "Concurrenten voor dit onderwerp zoeken", done: data.hasTopicResearch },
     {
       label: `Prompts opstellen${data.promptCount ? ` (${data.promptCount})` : ""}`,
       done: data.promptCount > 0,
