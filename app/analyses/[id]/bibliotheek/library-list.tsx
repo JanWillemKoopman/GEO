@@ -64,6 +64,9 @@ export function LibraryList({ analysisId, pieces }: { analysisId: string; pieces
               <div className="flex flex-wrap items-center gap-3">
                 {p.cluster && <span className="mono-label">{p.cluster}</span>}
                 {p.word_count != null && <span className="mono-label">{p.word_count} woorden</span>}
+                <span className="chip">
+                  {p.action === "verbeteren" ? `Verbetert: ${p.existing_url ?? "bestaande pagina"}` : "Nieuwe pagina"}
+                </span>
               </div>
             </Link>
           </li>

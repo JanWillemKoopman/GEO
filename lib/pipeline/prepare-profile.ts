@@ -6,7 +6,7 @@ import "server-only";
  * als het onderzoek al is opgeslagen, wordt niets herhaald (geen dubbele kosten).
  */
 import { createAdminClient } from "@/lib/supabase/admin";
-import { crawlSite } from "@/lib/crawler";
+import { crawlSite, discoverPageUrls, crawlPages } from "@/lib/crawler";
 import { generateProfileResearch } from "@/lib/pipeline/profile-research";
 import type { ProfileStatus } from "@/lib/types/database";
 
@@ -38,6 +38,29 @@ export async function prepareProfile(id: string): Promise<ProfileStatus> {
         status: "klaar",
       })
       .eq("id", id);
+
+    // ── Content-inventaris (abcplan.md §12.23): beperkte crawl van de site
+    // (sitemap, fallback: links vanaf de homepage), zodat het rapport straks
+    // bestaande content kan herkennen i.p.v. altijd iets nieuws voor te stellen.
+    // Eenmalig per profiel — mislukt dit, dan blokkeert het het profiel niet
+    // (best-effort: gaps in de inventaris zijn geen showstopper).
+    try {
+      const urls = await discoverPageUrls(profile.url);
+      const pages = await crawlPages(urls);
+      await admin.from("profile_pages").delete().eq("profile_id", id);
+      if (pages.length > 0) {
+        await admin.from("profile_pages").insert(
+          pages.map((page) => ({
+            profile_id: id,
+            url: page.url,
+            title: page.title,
+            text_excerpt: page.text,
+          })),
+        );
+      }
+    } catch (err) {
+      console.error(`Content-inventaris opbouwen mislukt voor profiel ${id}:`, err);
+    }
 
     return "klaar";
   } catch (err) {

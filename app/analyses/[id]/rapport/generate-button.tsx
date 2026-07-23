@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import type { ContentType } from "@/lib/types/database";
+import type { ContentAction, ContentType } from "@/lib/types/database";
 
 /**
  * "Genereer deze pagina" (abcplan.md §8, Fase C — expliciet op klik, niet vooraf).
@@ -16,7 +16,14 @@ export function GenerateButton({
 }: {
   analysisId: string;
   reportId: string;
-  recommendation: { title: string; type: ContentType; targetIntent: string; why: string };
+  recommendation: {
+    title: string;
+    type: ContentType;
+    targetIntent: string;
+    why: string;
+    action: ContentAction;
+    existingUrl: string | null;
+  };
 }) {
   const [state, setState] = useState<"idle" | "pending" | "done" | "error">("idle");
   const [errorDetail, setErrorDetail] = useState<string | null>(null);

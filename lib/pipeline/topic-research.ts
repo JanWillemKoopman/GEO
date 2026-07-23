@@ -6,19 +6,29 @@ import "server-only";
  * voor dit onderwerp zijn. Het bedrijfsbrede deel (merknaam, branche, tone-of-
  * voice, persona's) zit al in het klantprofiel en wordt hier niet herhaald.
  * Model gpt-4.1-mini, web_search AAN (concurrenten voor een onderwerp vinden
- * leunt op actuele marktkennis, net als het profielonderzoek).
+ * leunt op actuele marktkennis, net als het profielonderzoek). Gebruikt de
+ * al gecrawlde `profile_pages`-inventaris (§12.23) i.p.v. een eigen crawl —
+ * die site is al eenmalig gecrawld bij het profiel.
  */
 import { callStructured, type StructuredCallResult } from "@/lib/openai/structured";
 import { MODELS } from "@/lib/openai/models";
 import { TopicResearch } from "@/lib/schemas/topic-research";
-import type { Profile } from "@/lib/types/database";
+import type { Profile, ProfilePage } from "@/lib/types/database";
+
+/** Bouwt een compacte "sitemap met inhoud" van de al gecrawlde profielpagina's. */
+function buildPagesBlock(pages: ProfilePage[]): string {
+  if (pages.length === 0) return "(geen pagina's gecrawld — leun op web search)";
+  return pages
+    .map((p) => `- ${p.url}${p.title ? ` — "${p.title}"` : ""}: ${(p.text_excerpt ?? "").slice(0, 400)}`)
+    .join("\n");
+}
 
 export async function generateTopicResearch(args: {
   topic: string;
-  siteText: string;
+  pages: ProfilePage[];
   profile: Profile;
 }): Promise<StructuredCallResult<TopicResearch>> {
-  const { topic, siteText, profile } = args;
+  const { topic, pages, profile } = args;
 
   const system =
     `Je bent een merk- en marktanalist. Dit bedrijf heeft al een profiel (merknaam, branche, algemene concurrenten); ` +
@@ -33,7 +43,7 @@ export async function generateTopicResearch(args: {
     `Branche: ${profile.industry ?? "onbekend"}\n` +
     `Algemene concurrenten van het bedrijf: ${profile.competitors.join(", ") || "onbekend"}\n` +
     `Onderwerp/scope: ${topic}\n\n` +
-    `Geëxtraheerde website-tekst (kan onvolledig zijn):\n"""\n${siteText || "(geen tekst opgehaald — leun op web search)"}\n"""`;
+    `Pagina's van de website (url — titel: korte inhoud):\n${buildPagesBlock(pages)}`;
 
   return callStructured({
     model: MODELS.quality,

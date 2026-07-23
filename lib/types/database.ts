@@ -19,6 +19,7 @@ export type ContentType = "article" | "faq" | "landing" | "comparison";
 export type ContentStatus = "ready" | "archived" | "published";
 export type JobStatus = "queued" | "running" | "done" | "failed";
 export type ProfileStatus = "bezig" | "klaar" | "mislukt";
+export type ContentAction = "nieuw" | "verbeteren";
 
 /**
  * Canonieke prompt-categorieën (abcplan.md §6 A2). Klant mag afwijken (vrije tekst).
@@ -83,6 +84,20 @@ export interface TopicResearch {
   raw_json: unknown | null;
   edited_by_user: boolean;
   updated_at: string;
+}
+
+/**
+ * Content-inventaris van het profiel (beperkte crawl, sitemap-based): welke
+ * pagina's bestaan er al op de site, zodat het rapport kan kiezen tussen een
+ * bestaande pagina verbeteren of een nieuwe pagina voorstellen.
+ */
+export interface ProfilePage {
+  id: string;
+  profile_id: string;
+  url: string;
+  title: string | null;
+  text_excerpt: string | null;
+  created_at: string;
 }
 
 export interface Prompt {
@@ -183,6 +198,8 @@ export interface ContentPiece {
   raw_json: unknown | null;
   status: ContentStatus;
   word_count: number | null;
+  action: ContentAction;
+  existing_url: string | null;
   created_at: string;
 }
 

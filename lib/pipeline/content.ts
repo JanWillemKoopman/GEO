@@ -3,14 +3,18 @@ import "server-only";
 /**
  * FASE C — Genereren (abcplan.md §8): op klant-verzoek schrijft de app één
  * kant-en-klare pagina per aanbeveling. Model mini, GEEN web_search
- * (§10 kostenknop). Input = de aanbeveling + Brand DNA (voor on-brand tone,
- * incl. het onderwerp) + de bewijs-prompts. Verschijnt in de Content Bibliotheek.
+ * (§10 kostenknop). Input = de aanbeveling + profiel/onderwerp-onderzoek (voor
+ * on-brand tone) + de bewijs-prompts. Bij `action: "verbeteren"` (§12.23,
+ * bepaald door het rapport) wordt de bestaande pagina-tekst uit `profile_pages`
+ * meegegeven als basis om op voort te bouwen, i.p.v. vanaf nul te schrijven.
+ * Verschijnt in de Content Bibliotheek — dit is een SUGGESTIE, geen directe
+ * CMS-publicatie (die is expliciet Fase D, nog niet gebouwd).
  */
 import { createAdminClient } from "@/lib/supabase/admin";
 import { callStructured } from "@/lib/openai/structured";
 import { MODELS } from "@/lib/openai/models";
 import { ContentPiece } from "@/lib/schemas/content-piece";
-import type { Analysis, Profile, TopicResearch, ContentType } from "@/lib/types/database";
+import type { Analysis, Profile, ProfilePage, TopicResearch, ContentAction, ContentType } from "@/lib/types/database";
 
 /**
  * Harde regels — dit staat op de EIGEN website van de klant:
@@ -57,6 +61,9 @@ export interface RecommendationInput {
   type: ContentType;
   targetIntent: string;
   why: string;
+  /** Uit het rapport (abcplan.md §12.23): bestaande pagina verbeteren of nieuw? */
+  action?: ContentAction;
+  existingUrl?: string | null;
 }
 
 function countWords(markdown: string): number {
@@ -67,11 +74,12 @@ function buildContentInput(args: {
   analysis: Analysis;
   profile: Profile | null;
   topicResearch: TopicResearch | null;
+  existingPage: ProfilePage | null;
   competitors: string[];
   rec: RecommendationInput;
   evidencePrompts: string[];
 }): string {
-  const { analysis, profile, topicResearch, competitors, rec, evidencePrompts } = args;
+  const { analysis, profile, topicResearch, existingPage, competitors, rec, evidencePrompts } = args;
   return [
     `Bedrijf: ${profile?.brand_name ?? analysis.url}`,
     `Website: ${analysis.url}`,
@@ -88,6 +96,10 @@ function buildContentInput(args: {
     `Doel: ${rec.targetIntent}`,
     `Achtergrond: ${rec.why}`,
     TYPE_GUIDANCE[rec.type],
+    existingPage
+      ? `\nBESTAANDE PAGINA om te verbeteren/aanvullen (${existingPage.url}) — bouw hierop voort, herschrijf ` +
+        `niet vanaf nul, behoud wat al goed is en vul alleen de ontbrekende delen aan:\n"""\n${existingPage.text_excerpt ?? ""}\n"""`
+      : "",
     evidencePrompts.length
       ? `\nWaar klanten naar zoeken (ALLEEN ter inspiratie voor de onderwerpen — niet letterlijk ` +
         `overnemen, en herschrijf naar echte, merkneutrale klantinhoud zonder concurrentnamen):\n- ${evidencePrompts.join("\n- ")}`
@@ -133,6 +145,18 @@ export async function generateContentPiece(args: {
     new Set([...(topicResearch?.competitors ?? []), ...(profile?.competitors ?? [])]),
   );
 
+  const action = recommendation.action ?? "nieuw";
+  let existingPage: ProfilePage | null = null;
+  if (action === "verbeteren" && recommendation.existingUrl) {
+    const { data: pageRow } = await admin
+      .from("profile_pages")
+      .select("*")
+      .eq("profile_id", analysis.profile_id)
+      .eq("url", recommendation.existingUrl)
+      .maybeSingle();
+    existingPage = (pageRow as ProfilePage | null) ?? null;
+  }
+
   // Actieve prompts als thematische inspiratie (NIET letterlijk overnemen — zie system prompt).
   const { data: promptRows } = await admin
     .from("prompts")
@@ -145,7 +169,15 @@ export async function generateContentPiece(args: {
   const result = await callStructured({
     model: MODELS.quality,
     system: CONTENT_SYSTEM,
-    user: buildContentInput({ analysis, profile, topicResearch, competitors, rec: recommendation, evidencePrompts }),
+    user: buildContentInput({
+      analysis,
+      profile,
+      topicResearch,
+      existingPage,
+      competitors,
+      rec: recommendation,
+      evidencePrompts,
+    }),
     schema: ContentPiece,
     schemaName: "content_piece",
     webSearch: false,
@@ -169,6 +201,8 @@ export async function generateContentPiece(args: {
       raw_json: result.raw as never, // volledige ruwe OpenAI-output (§5)
       status: "ready",
       word_count: countWords(c.bodyMarkdown),
+      action,
+      existing_url: existingPage?.url ?? null,
     })
     .select("id")
     .single();

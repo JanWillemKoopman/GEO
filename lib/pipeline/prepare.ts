@@ -16,10 +16,9 @@ import "server-only";
  * job-queue/cron komt pas bij de wekelijkse lus in Sprint 4.
  */
 import { createAdminClient } from "@/lib/supabase/admin";
-import { crawlSite } from "@/lib/crawler";
 import { generateTopicResearch } from "@/lib/pipeline/topic-research";
 import { generatePrompts, type BrandContext } from "@/lib/pipeline/prompts";
-import type { AnalysisStatus, Profile } from "@/lib/types/database";
+import type { AnalysisStatus, Profile, ProfilePage } from "@/lib/types/database";
 
 export async function prepareAnalysis(id: string): Promise<AnalysisStatus> {
   const admin = createAdminClient();
@@ -67,8 +66,15 @@ export async function prepareAnalysis(id: string): Promise<AnalysisStatus> {
     if (existingResearch) {
       topicCompetitors = existingResearch.competitors ?? [];
     } else {
-      const crawl = await crawlSite(profile.url);
-      const research = await generateTopicResearch({ topic: analysis.topic, siteText: crawl.text, profile });
+      const { data: pageRows } = await admin
+        .from("profile_pages")
+        .select("*")
+        .eq("profile_id", profile.id);
+      const research = await generateTopicResearch({
+        topic: analysis.topic,
+        pages: (pageRows ?? []) as ProfilePage[],
+        profile,
+      });
       const r = research.parsed;
 
       await admin.from("topic_research").upsert(
