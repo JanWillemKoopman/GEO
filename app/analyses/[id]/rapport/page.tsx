@@ -4,7 +4,8 @@ import { createClient } from "@/lib/supabase/server";
 import { determineStage } from "@/lib/pipeline/stage";
 import { EmptyState } from "@/components/empty-state";
 import { ReportProgress } from "../report-progress";
-import type { Report } from "@/lib/types/database";
+import { GenerateButton } from "./generate-button";
+import type { Report, ContentType } from "@/lib/types/database";
 
 interface ReportGap {
   cluster: string;
@@ -14,7 +15,7 @@ interface ReportGap {
 
 interface ReportRecommendation {
   title: string;
-  type: string;
+  type: ContentType;
   targetIntent: string;
   why: string;
   priority: number;
@@ -82,6 +83,13 @@ export default async function RapportPage({ params }: { params: Promise<{ id: st
     (a, b) => a.priority - b.priority,
   );
 
+  // Welke aanbevelingen zijn al omgezet in een pagina? (op titel — idempotent, zie content.ts)
+  const { data: pieceRows } = await supabase
+    .from("content_pieces")
+    .select("title")
+    .eq("analysis_id", id);
+  const generatedTitles = new Set((pieceRows ?? []).map((p) => p.title as string));
+
   return (
     <div className="flex flex-col gap-4">
       <div className="card flex flex-col gap-2">
@@ -125,9 +133,17 @@ export default async function RapportPage({ params }: { params: Promise<{ id: st
                   <span className="chip chip-green">{r.type}</span>
                 </div>
                 <p className="text-sm text-secondary">{r.why}</p>
-                <span className="mono-label w-fit rounded-full border border-[var(--border-subtle)] px-3 py-1">
-                  Content genereren volgt in de volgende ontwikkelstap
-                </span>
+                {generatedTitles.has(r.title) ? (
+                  <a href={`/analyses/${id}/bibliotheek`} className="btn-outline w-fit">
+                    ✓ Al gegenereerd — bekijk in de Bibliotheek
+                  </a>
+                ) : (
+                  <GenerateButton
+                    analysisId={id}
+                    reportId={report.id}
+                    recommendation={{ title: r.title, type: r.type, targetIntent: r.targetIntent, why: r.why }}
+                  />
+                )}
               </li>
             ))}
           </ul>
