@@ -19,13 +19,18 @@ export type ContentType = "article" | "faq" | "landing" | "comparison";
 export type ContentStatus = "ready" | "archived" | "published";
 export type JobStatus = "queued" | "running" | "done" | "failed";
 
-/** Canonieke prompt-categorieën (abcplan.md §6 A2). Klant mag afwijken (vrije tekst). */
+/**
+ * Canonieke prompt-categorieën (abcplan.md §6 A2). Klant mag afwijken (vrije tekst).
+ * ALLE categorieën zijn MERKNEUTRAAL: een prompt mag nooit de eigen merknaam van de
+ * klant bevatten, anders is een vermelding gegarandeerd en meet 'ie niets (zie
+ * lib/pipeline/prompts.ts). Daarom is "Merkspecifiek" vervangen door "Aanbeveling/keuze".
+ */
 export const PROMPT_CATEGORIES = [
   "Oriëntatie",
   "Vergelijking",
   "Probleem→oplossing",
   "Lokaal/branche",
-  "Merkspecifiek",
+  "Aanbeveling/keuze",
 ] as const;
 export type PromptCategory = (typeof PROMPT_CATEGORIES)[number] | (string & {});
 

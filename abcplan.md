@@ -369,17 +369,19 @@ const BrandDNA = z.object({
 
 **✅ Vastgelegd: 5 aparte calls (één per categorie), niet 1 call voor alle 30.** Eén enkele call die een klein model 30 diverse, categorie-specifieke prompts in één keer laat verzinnen, levert in de praktijk te veel herhaling en te weinig scherpte per categorie op. Door de generatie op te splitsen krijgt elke categorie een eigen, gefocuste call — met een duidelijke instructie én 3-6 voorbeelden puur voor díe categorie — wat merkbaar diversere en relevantere prompts oplevert. **Model: `gpt-4.1-mini`** (zie §2) — de meerkosten van 5 mini-calls t.o.v. 1 nano-call zijn ~$0,002 per analyse, verwaarloosbaar.
 
-**Per categorie (5 calls, elk structured output, zonder `web_search`):**
+> **🔒 VASTGELEGD — MERKNEUTRALITEIT (herzien: kritieke methodologische correctie).** Een gegenereerde prompt mag **NOOIT de eigen merknaam/het domein van de klant bevatten**. Een branded prompt (bv. *"Is MediaMarkt betrouwbaar?"*) garandeert een vermelding — de merknaam staat immers al in de vraag — en blaast de zichtbaarheidsscore kunstmatig op. De meting moet **spontane** vermeldingen meten: wat vraagt iemand die het merk nóg niet kent? Daarom (a) is de categorie **"Merkspecifiek" vervangen door "Aanbeveling/keuze"** (merkloze aanbevelingsvragen), (b) noemt **"Vergelijking"** voortaan concurrenten/type-aanbieders maar nooit het eigen merk, en (c) leidt halte 1 nu ook de **canonieke merknaam** af, die als harde uitsluiting aan de generatie wordt meegegeven én als vangnet-filter dient. Concurrenten noemen mág wél. Zie `lib/pipeline/prompts.ts`.
+
+**Per categorie (5 calls, elk structured output, zonder `web_search`) — alle MERKNEUTRAAL:**
 
 | Categorie | ~Aantal prompts | Voorbeeld-prompt (onderwerp "iPhone") |
 |-----------|-----------------|----------------------------------------|
 | Oriëntatie | 6 | "Waar koop ik het beste een iPhone?" |
-| Vergelijking | 6 | "MediaMarkt vs Coolblue voor iPhone-reparatie: wat is beter?" |
+| Vergelijking | 6 | "Grote keten of gespecialiseerde winkel voor iPhone-reparatie: wat is beter?" |
 | Probleem→oplossing | 6 | "Mijn iPhone-scherm is kapot, waar laat ik dit repareren?" |
 | Lokaal/branche | 6 | "Beste iPhone-reparatie in [regio]?" |
-| Merkspecifiek | 6 | "Is MediaMarkt betrouwbaar voor iPhone-reparaties?" |
+| Aanbeveling/keuze | 6 | "Welke iPhone-reparateur in [plaats] is aan te raden?" |
 
-Elke call krijgt hetzelfde Brand DNA als context, plus een categorie-specifieke instructie (bijvoorbeeld voor "Vergelijking": *"Genereer 6 prompts die een koper zou stellen aan een AI-assistent om {merk} te vergelijken met concurrenten binnen {onderwerp}. Varieer in toon en specificiteit."*).
+Elke call krijgt hetzelfde Brand DNA als context (inclusief de merknaam als uitsluiting), plus een categorie-specifieke instructie met de harde no-brand-name-regel.
 
 - **Zonder onderwerp:** de 30 prompts dekken samen **alle diensten/producten** die de website aanbiedt (brede dekking, zoals in de oorspronkelijke opzet) — elke categorie-call krijgt dan de volledige Brand DNA zonder topic-restrictie.
 - **Met onderwerp:** alle 5 categorie-calls (en dus alle 30 prompts) gaan **uitsluitend over dat onderwerp**, binnen de context van het merk.
