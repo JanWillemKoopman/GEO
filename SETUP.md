@@ -113,8 +113,28 @@ weg) tijdens het bouwen.
    (let op: `SUPABASE_SERVICE_ROLE_KEY` is server-only, geen `NEXT_PUBLIC_`).
 4. Deploy. Check `/api/health` om te bevestigen dat alles geconfigureerd is.
 
-> De cron voor de wekelijkse tracking-lus (`abcplan.md` §6 A3) wordt in Sprint 4
-> toegevoegd via `vercel.json` + een beschermd `/api/cron/*`-endpoint.
+## 6b. Wekelijkse tracking-cron activeren (Sprint 4)
+
+De wekelijkse lus (`abcplan.md` §6 A3, alleen voor analyses met de tracking-
+schakelaar aan) draait via `vercel.json` + `/api/cron/weekly-tracking`,
+beveiligd met `CRON_SECRET`.
+
+1. Genereer een geheim: `openssl rand -hex 32`.
+2. Zet dat als `CRON_SECRET` in Vercel (Environment Variables) en redeploy.
+   Vercel Cron stuurt dit automatisch mee als `Authorization: Bearer <secret>`
+   wanneer de env-variabele exact zo heet.
+3. Vercel herkent `vercel.json` automatisch bij de eerstvolgende deploy en zet
+   de cron-job aan (**Project → Cron Jobs** om te bevestigen). Schema:
+   wekelijks, maandag 06:00 UTC.
+4. **Handmatig testen** (hoeft niet op de wekelijkse klok te wachten):
+   ```bash
+   curl -H "Authorization: Bearer <jouw-CRON_SECRET>" \
+     https://<jouw-url>/api/cron/weekly-tracking
+   ```
+   Verwerkt dan direct alle analyses met `tracking_enabled = true`.
+
+> Vercel Hobby ondersteunt Cron Jobs met een minimuminterval van eenmaal per
+> dag — wekelijks past daar ruim binnen.
 
 ## Architectuurprincipes (kort, uit `abcplan.md`)
 

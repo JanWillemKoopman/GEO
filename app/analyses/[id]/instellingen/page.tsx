@@ -5,6 +5,7 @@ import type { BrandDna, Prompt } from "@/lib/types/database";
 import { BrandDnaEditor } from "./brand-dna-editor";
 import { PromptsManager } from "./prompts-manager";
 import { ConfirmBar } from "./confirm-bar";
+import { TrackingToggle } from "./tracking-toggle";
 
 /**
  * Instellingen = het concept-/review-scherm (abcplan.md §3.6) de EERSTE keer
@@ -62,6 +63,8 @@ export default async function InstellingenPage({ params }: { params: Promise<{ i
       )}
 
       {prompts.length > 0 && <PromptsManager analysisId={id} initial={prompts} />}
+
+      <TrackingToggle analysisId={id} initial={analysis.tracking_enabled} />
 
       {isReviewGate && <ConfirmBar analysisId={id} />}
     </div>

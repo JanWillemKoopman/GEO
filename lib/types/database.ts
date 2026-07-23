@@ -113,6 +113,11 @@ export interface VisibilityScore {
   computed_at: string;
 }
 
+export interface CompetitorScore {
+  entity_name: string;
+  mentions_count: number;
+}
+
 export interface CompetitorBreakdown {
   id: string;
   analysis_id: string;

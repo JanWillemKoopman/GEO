@@ -79,3 +79,43 @@ export async function callStructured<T>(
     tokensUsed: response.usage?.total_tokens ?? null,
   };
 }
+
+export interface PlainCallOptions {
+  model: string;
+  system: string;
+  user: string;
+  webSearch?: boolean;
+}
+
+export interface PlainCallResult {
+  /** De vrije-tekst antwoordinhoud. */
+  text: string;
+  raw: unknown;
+  responseId: string | null;
+  tokensUsed: number | null;
+}
+
+/**
+ * Vrije-tekst call (GEEN structured output) — voor halte 3a (abcplan.md §6 A3):
+ * simuleert wat een AI-assistent een echte klant zou antwoorden. Structured
+ * output zou het model dwingen tot JSON i.p.v. een natuurlijk antwoord.
+ */
+export async function callPlain(opts: PlainCallOptions): Promise<PlainCallResult> {
+  const openai = getOpenAI();
+
+  const response = await openai.responses.create({
+    model: opts.model,
+    input: [
+      { role: "system", content: opts.system },
+      { role: "user", content: opts.user },
+    ],
+    tools: opts.webSearch ? [WEB_SEARCH_TOOL] : undefined,
+  });
+
+  return {
+    text: response.output_text ?? "",
+    raw: response,
+    responseId: response.id ?? null,
+    tokensUsed: response.usage?.total_tokens ?? null,
+  };
+}

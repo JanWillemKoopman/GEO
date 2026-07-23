@@ -27,6 +27,18 @@ export async function prepareAnalysis(id: string): Promise<AnalysisStatus> {
     return analysis.status as AnalysisStatus;
   }
 
+  // 'mislukt' kan ook een mislukte MÉTING zijn (halte 3, na confirm) — die
+  // draait pas nadat A1+A2 al succesvol prompts hebben aangemaakt. Als die er
+  // al zijn, is dit dus geen mislukte voorbereiding: niet aankomen, anders zou
+  // deze functie een mislukte meting stilletjes terugzetten naar 'concept_klaar'.
+  if (analysis.status === "mislukt") {
+    const { count } = await admin
+      .from("prompts")
+      .select("*", { count: "exact", head: true })
+      .eq("analysis_id", id);
+    if (count) return "mislukt";
+  }
+
   try {
     // ── A1: Brand DNA (skip als 'ie er al is) ──────────────────────────────
     let brand: BrandContext;
