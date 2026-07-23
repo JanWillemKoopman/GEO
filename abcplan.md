@@ -9,6 +9,23 @@
 
 ---
 
+## Leeswijzer voor de bouwer
+
+Dit document is zelfstandig leesbaar en bedoeld als volledige technische spec voor de bouwfase. Aanbevolen leesvolgorde:
+
+1. **§1–2** — scope, filosofie en de (vastgelegde) modelkeuze — het "waarom".
+2. **§3** — het kernobject "Analyse", de klantreis (§3.7) en de statusmachine — leidend voor alle UI-beslissingen.
+3. **§4–5** — architectuur, datamodel en de RLS/schrijfstrategie — leidend voor de Supabase-opzet.
+4. **§6–8** — de pipeline zelf, halte voor halte, met Zod-schema's en API-gedrag per fase (A/B/C).
+5. **§9–10** — de samengevatte flow en het kostenplaatje.
+6. **§11 Bouwvolgorde** — **dit is ook de bouwvolgorde**: elke sprint bouwt voort op de vorige en dekt een afgebakend stuk van §3–8.
+7. **§12 Vastgelegde keuzes** — de checklist: elke keuze hier is een bewuste beslissing, geen open vraag. Wijk er niet vanaf zonder terug te koppelen.
+8. **§13** — expliciet wat *niet* in deze bouwfase hoort (CMS-publicatie, self-healing, tweede LLM-engine).
+
+Alle Zod-schema's in dit document zijn de daadwerkelijke contracten voor de OpenAI `structured output`-calls — implementeer ze letterlijk, ze zijn niet illustratief bedoeld.
+
+---
+
 ## 1. Scope & filosofie
 
 **Wat de MVP doet, met twee bewuste momenten waar de klant tussenkomt (de review-gate en C, zie hieronder):**
@@ -108,7 +125,13 @@ Een account kan onbeperkt analyses aanmaken. Elke analyse is **volledig zelfstan
 Na inloggen ziet de klant een lijst van al zijn analyses, niet direct een enkele workspace:
 
 - Per rij: naam (auto-gegenereerd als `{website} — {onderwerp}` of `{website} (hele site)` zonder onderwerp), status-badge, huidige zichtbaarheidsscore (indien beschikbaar), laatst bijgewerkt.
-- **Status-badges:** `Analyseren…` (stap 1–5 lopen nog) → `Gereed` (nulmeting + rapport beschikbaar) → eventueel `Mislukt` (met retry-optie).
+- **✅ Herzien: 6 status-badges, één-op-één met `analyses.status`** (niet 3 zoals eerder, om de "wacht op mij"-momenten niet te verbergen):
+  - `Bezig…` (`bezig`) — halte 0-2 lopen, geen actie nodig.
+  - **`Wacht op jouw goedkeuring`** (`concept_klaar`) — ✅ **visueel geprioriteerd** (bovenaan de lijst, opvallende kleur): dit is het enige moment waarop de klant iets *moet* doen om verder te komen. Zonder nadruk kan een klant analyses onopgemerkt laten "hangen".
+  - `Meten…` (`meten`) — halte 3 loopt, geen actie nodig.
+  - `Score klaar, rapport volgt` (`gemeten`) — score al bekijkbaar in Overzicht, rapport nog niet.
+  - `Gereed` (`gereed`) — nulmeting + rapport allebei beschikbaar.
+  - `Mislukt` (`mislukt`) — met retry-knop.
 - **Grote, altijd zichtbare knop: "+ Nieuwe analyse starten."** Start halte 0 opnieuw (nieuw formulier: URL + onderwerp), volledig onafhankelijk van bestaande analyses. Dit kan de klant **altijd**, op elk moment.
 - Klik op een rij → opent de workspace van die ene analyse.
 
@@ -157,10 +180,15 @@ Vanuit de klant bekeken is dit de volledige, logische trechter waarin hij zich o
 | 4 | **Voortgangsscherm (transparant, live)** | Duidelijke, simpele voortgangsindicatie: *"Website lezen ✓ → Merk analyseren… → Prompts opstellen…"* — de klant ziet dat er iets gebeurt, geen kale laadspinner. Duurt doorgaans enkele tientallen seconden. | `bezig` |
 | 5 | **Concept & goedkeuring** *(= tabblad Instellingen, eerste keer verplicht)* | Brand DNA + 30 prompts, volledig leesbaar en bewerkbaar. Knop **"Bevestig en start meting."** | `concept_klaar` → klik → `meten` |
 | 6 | **Meten (transparant, live)** | Korte voortgangsindicatie op Overzicht: *"Bezig met meten… (x/30 prompts verwerkt)"*. | `meten` |
-| 7 | **Analyse-workspace** | De 4 tabbladen: Overzicht (score), Rapport (aanbevelingen), Content Bibliotheek, Instellingen (nu doorlopend beheer, niet meer verplicht). | `gereed` |
-| 8 | **Terug naar Mijn analyses, altijd** | Vanuit elke stap kan de klant terug naar het overzicht van al zijn analyses, en op elk moment een geheel nieuwe analyse starten (stap 3), onafhankelijk van waar hij in een andere analyse is. | — |
+| 7 | **Score klaar, rapport volgt** *(✅ nieuw tussenmoment)* | Tab Overzicht toont al de score/trendlijn; tab Rapport toont *"Rapport wordt opgesteld…"*. | `gemeten` → automatisch → `gereed` zodra B1+B2 klaar zijn |
+| 8 | **Analyse-workspace** | De 4 tabbladen volledig gevuld: Overzicht (score), Rapport (aanbevelingen), Content Bibliotheek, Instellingen (nu doorlopend beheer, niet meer verplicht). | `gereed` |
+| 9 | **Terug naar Mijn analyses, altijd** | Vanuit elke stap kan de klant terug naar het overzicht van al zijn analyses, en op elk moment een geheel nieuwe analyse starten (stap 3), onafhankelijk van waar hij in een andere analyse is. | — |
 
-**Ontwerpregel:** de klant bevindt zich **altijd in precies één van deze 8 stappen**, en elk scherm maakt duidelijk wat de vorige stap was en wat de volgende actie is (geen dead ends, geen schermen zonder duidelijke "volgende stap"-knop). Dit is de concrete invulling van "stupid simple, don't make me think" toegepast op de klantreis als geheel, niet alleen op individuele schermen.
+**Ontwerpregel:** de klant bevindt zich **altijd in precies één van deze 9 stappen**, en elk scherm maakt duidelijk wat de vorige stap was en wat de volgende actie is (geen dead ends, geen schermen zonder duidelijke "volgende stap"-knop). Dit is de concrete invulling van "stupid simple, don't make me think" toegepast op de klantreis als geheel, niet alleen op individuele schermen.
+
+**✅ Vastgelegd — voortgangsschermen zijn server-state-gedreven, niet client-only:** de indicatoren in stap 4, 6 en 7 (*"Website lezen ✓…"*, *"x/30 verwerkt"*, *"Rapport wordt opgesteld"*) worden **afgeleid van echte data** (`analyses.status` + voortgang in de `jobs`-tabel), niet van een lokale animatie. Sluit de klant het scherm en komt hij een uur later terug, dan toont de pagina exact de actuele stand — nooit een animatie die "opnieuw begint" of stil blijft staan terwijl er allang meer gebeurd is.
+
+**✅ Vastgelegd — extra aandacht voor mobiel op het concept-scherm (stap 5):** dit is het meest informatiedichte scherm in de hele app (volledig Brand DNA + 30 bewerkbare prompts) én het enige scherm waar **elke** analyse verplicht doorheen moet. "Mobiel-vriendelijk" is hier geen nice-to-have maar een randvoorwaarde — geef dit scherm bij het bouwen expliciet extra aandacht (bijv. inklapbare secties per Brand DNA-veld, prompts gegroepeerd en pas op tik uitklapbaar per categorie) in plaats van simpelweg de desktop-lay-out te verkleinen.
 
 ---
 
@@ -224,7 +252,10 @@ Vanuit de klant bekeken is dit de volledige, logische trechter waarin hij zich o
 ```
 users                 (Supabase Auth)
 analyses              id, user_id, url, topic(nullable), name,
-                      status ('bezig'|'concept_klaar'|'meten'|'gereed'|'mislukt'),
+                      status ('bezig'|'concept_klaar'|'meten'|'gemeten'|'gereed'|'mislukt'),
+                      -- ✅ herzien: 'gemeten' toegevoegd (zie §3.4) — anders betekent
+                      -- 'gereed' twee dingen tegelijk: "score klaar" (na A3) én
+                      -- "rapport klaar" (na B2), wat tab-beschikbaarheid onduidelijk maakt
                       tracking_enabled(bool, default false), created_at
 brand_dna             id, analysis_id, tone_of_voice, products[], personas[],
                       value_props[], competitors[], summary,
@@ -282,7 +313,24 @@ jobs                  id, analysis_id, type, payload_json, status,
 
 **`brand_dna.edited_by_user`** vlagt of de klant het automatisch gegenereerde Brand DNA heeft aangepast tijdens de review (zie §3.6 / §6 A2c) — puur informatief, geen functionele impact.
 
-**RLS:** elke tabel filtert op `user_id` (direct op `analyses`, en via `analysis_id` op de overige tabellen) zodat klanten alleen hun eigen analyses zien.
+### ✅ Vastgelegd: RLS- en schrijfstrategie
+
+**De vage regel "filtert op user_id" is onvoldoende om veilig op te bouwen.** Twee concrete problemen die dit voorkomt:
+1. Zonder expliciete regel kan een developer per ongeluk de client rechtstreeks laten schrijven naar systeemtabellen (`tracking_runs`, `jobs`) — die horen alleen door de pipeline zelf gevuld te worden.
+2. **Postgres RLS werkt op rij-niveau, niet op kolom-niveau.** RLS kan dus nooit afdwingen dat een klant wél `tracking_enabled` mag wijzigen maar niet `topic` — daarvoor is kolom-specifieke logica nodig, en die hoort niet in een RLS-policy thuis.
+
+**De regel, simpel gehouden:**
+- **Lezen:** de client leest **rechtstreeks** via de Supabase-client met de eigen sessie. RLS-policies zijn **SELECT-only** en filteren op `user_id` (direct op `analyses`, via `analysis_id` op de overige tabellen).
+- **Schrijven:** **altijd** via een Next.js API-route, **nooit** rechtstreeks vanaf de client naar Postgres. Elke route gebruikt de **service-role key** (omzeilt RLS) en controleert zelf expliciet `analysis.user_id === ingelogde gebruiker` vóórdat 'ie iets wijzigt. Dit lost het kolom-niveau-probleem meteen op: de route bepaalt precies welke velden een klant mag aanpassen (bv. `/api/analyses/[id]/prompts` mag prompt-velden wijzigen, maar nooit `analyses.topic` of `analyses.status` direct — statuswijzigingen lopen alleen via de daarvoor bedoelde routes zoals `/confirm`).
+- **`jobs`-tabel:** **geen enkele client-toegang**, ook geen SELECT. RLS staat aan met nul policies (standaard deny-all in Supabase) — puur backend-machinerie, nooit rechtstreeks aan de klant tonen.
+
+| Tabel | Client leest? | Client schrijft rechtstreeks? |
+|-------|---------------|-------------------------------|
+| `analyses`, `brand_dna`, `prompts` | ✅ eigen rijen | ❌ nooit — altijd via API-route (service role + ownership-check) |
+| `tracking_runs`, `tracking_run_mentions`, `visibility_scores`, `competitor_breakdown`, `reports`, `content_pieces` | ✅ eigen rijen (read-only) | ❌ nooit — uitsluitend door de pipeline zelf geschreven |
+| `jobs` | ❌ geen toegang | ❌ geen toegang |
+
+Dit is bewust een **simpelere** regel dan "RLS regelt alles": met alle schrijfacties achter API-routes hoeft RLS alleen nog *lees*-toegang te bewaken, en blijft de business-logica (welk veld mag wanneer wijzigen, welke statusovergangen zijn geldig) op één plek — in de route, niet verspreid over policies.
 
 ---
 
@@ -333,6 +381,8 @@ Elke call krijgt hetzelfde Brand DNA als context, plus een categorie-specifieke 
 
 - **Zonder onderwerp:** de 30 prompts dekken samen **alle diensten/producten** die de website aanbiedt (brede dekking, zoals in de oorspronkelijke opzet) — elke categorie-call krijgt dan de volledige Brand DNA zonder topic-restrictie.
 - **Met onderwerp:** alle 5 categorie-calls (en dus alle 30 prompts) gaan **uitsluitend over dat onderwerp**, binnen de context van het merk.
+
+**Uitvoering:** de 5 categorie-calls hebben geen onderlinge afhankelijkheid (elk krijgt dezelfde Brand DNA als input) en worden daarom **parallel** afgevuurd, niet na elkaar — dit houdt het voortgangsscherm (§3.7, stap 4) kort.
 
 → Opslaan in `prompts` (30 rijen totaal, `created_by = 'system'`, elk met `source_raw_json` — nu per categorie herleidbaar naar de specifieke call die 'm genereerde). Zodra alle 5 categorie-calls klaar zijn: `analyses.status = 'concept_klaar'`.
 
@@ -387,7 +437,7 @@ const Mention = z.object({
 
 **Batching:** de actieve prompts van een analyse worden in kleine job-batches verwerkt zodat één run niet timeout't en kosten voorspelbaar blijven.
 
-**MVP-versnelling — ✅ vastgelegd:** we tonen de klant meteen een **directe nulmeting (week 0)** zodra de actieve prompts één keer zijn doorlopen, in plaats van 10 weken te wachten. Dit gebeurt altijd, automatisch, voor elke nieuwe analyse (na de bevestiging in A2c). Zodra dit klaar is: `analyses.status = 'gereed'`.
+**MVP-versnelling — ✅ vastgelegd:** we tonen de klant meteen een **directe nulmeting (week 0)** zodra de actieve prompts één keer zijn doorlopen, in plaats van 10 weken te wachten. Dit gebeurt altijd, automatisch, voor elke nieuwe analyse (na de bevestiging in A2c). Zodra dit klaar is: `analyses.status = 'gemeten'` **(✅ herzien — niet 'gereed', zie §3.4)**: de score en trendlijn (tab Overzicht) zijn nu zichtbaar, maar het rapport (FASE B) moet nog draaien. Pas wanneer B2 klaar is, gaat de status naar `'gereed'`.
 
 **Wekelijkse lus — ✅ vastgelegd: per analyse aan/uit-schakelbaar.** De 10-weken-trend draait **niet** automatisch door na de nulmeting. Elke analyse heeft `tracking_enabled` (standaard uit), beheerbaar in het tabblad **Instellingen**. De cron verwerkt bij elke wekelijkse run **alleen analyses waar dit aanstaat**. Zo kun je gratis prospect-analyses op de eenmalige nulmeting houden en pas voor betalende klanten (of specifieke analyses) de wekelijkse kosten laten lopen.
 
@@ -441,8 +491,10 @@ const Report = z.object({
   })),
 });
 ```
-→ Opslaan in `reports` (inclusief `raw_json` van zowel B1 als B2, zie §5). Toon in tab **Rapport**: één headline-score, korte samenvatting, top-gaps (nu met concrete concurrent + bewijs), en een lijst aanbevelingen met **"Genereer deze pagina"**-knop.
+→ Opslaan in `reports` (inclusief `raw_json` van zowel B1 als B2, zie §5). Zodra dit klaar is: `analyses.status = 'gereed'` **(✅ herzien — hier, niet al na A3, zie A3 hierboven)**. Toon in tab **Rapport**: één headline-score, korte samenvatting, top-gaps (nu met concrete concurrent + bewijs), en een lijst aanbevelingen met **"Genereer deze pagina"**-knop.
 → Mail het rapport via **Resend** (jouw acquisitie-stap 5). Eindig altijd met **1–3 priority actions**.
+
+**Tab-beschikbaarheid tussen `gemeten` en `gereed`:** in deze (doorgaans korte) tussenperiode toont het tabblad **Rapport** een simpele status *"Rapport wordt opgesteld…"* in plaats van een lege of foutieve staat — de klant ziet nooit een leeg scherm zonder uitleg.
 
 ---
 
@@ -485,16 +537,20 @@ Zo levert de tool op klant-verzoek een **steeds verder gevulde bibliotheek** op,
 0. Klant klikt "+ Nieuwe analyse" → URL + (optioneel) onderwerp ingevuld    status: bezig
 1. [eigen crawl, geen call]              → website-tekst
 2. [OpenAI mini + web_search]            → Brand DNA (topic-aware)          (A1)
-3. [OpenAI mini structured, 5× per cat.] → 30 prompts (topic-aware)         (A2)   status: concept_klaar
+3. [OpenAI mini structured, 5× parallel] → 30 prompts (topic-aware)         (A2)   status: concept_klaar
+   -- de 5 categorie-calls hebben geen onderlinge afhankelijkheid en
+   -- draaien parallel, niet na elkaar — houdt het voortgangsscherm kort
    ─────────────────── PIPELINE STOPT BEWUST — WACHT OP KLANT ───────────────────
 4. [klant ziet + bewerkt]                → Brand DNA + prompts, transparant (A2c)
    [klant, altijd beschikbaar]           → prompts toevoegen/wijzigen/verwijderen (A2b)
 5. [klant klikt "Bevestig en start meting"]                                       status: meten
    ────────────────────────── PIPELINE HERVAT ──────────────────────────
 6. [cron: OpenAI nano + web_search]      → tracking_runs                    (A3, nulmeting + optioneel wekelijks)
-7. [aggregatie, geen call]               → visibility_scores + competitor_breakdown (3c)
-8. [OpenAI mini structured]              → concurrentie-gap-analyse         (B1)          status: gereed
-9. [OpenAI mini structured]              → rapport + Resend-mail            (B2)
+7. [aggregatie, geen call]               → visibility_scores + competitor_breakdown (3c)   status: gemeten
+   -- ✅ herzien: score/trendlijn al zichtbaar in Overzicht; Rapport-tab toont
+   -- "wordt opgesteld" totdat B1+B2 klaar zijn — 'gereed' komt pas na stap 9
+8. [OpenAI mini structured]              → concurrentie-gap-analyse         (B1)
+9. [OpenAI mini structured]              → rapport + Resend-mail            (B2)                status: gereed
 10. [klant klikt] → [queue: OpenAI mini] → content_pieces                   (C)
 11. UI: analyse staat in "Mijn analyses" met status "Gereed",
     Content Bibliotheek vult zich verder ✅
@@ -571,12 +627,15 @@ Zelfde opbouw als halte 3ab: **≈ $0,33/week/analyse**, alleen voor analyses me
 10. **Alles opslaan, niets weggooien:** ✅ Elke AI-call slaat zijn volledige ruwe JSON-output op in Supabase (`raw_json`/`mention_json`/`source_raw_json` op de betreffende tabellen), náást de uitgesplitste kolommen. Volledige audit-trail, geen dataverlies bij toekomstige schema-wijzigingen. Zie §5.
 11. **Verplichte transparantie- en goedkeuringsstap (review-gate):** ✅ Na A1+A2 (Brand DNA + prompts) stopt de pipeline bewust. De klant ziet en kan het volledige resultaat bewerken (zowel Brand DNA als prompts) en moet expliciet op **"Bevestig en start meting"** klikken vóórdat A3 (de betaalde meting) start. Zie §3.6/A2c.
 12. **Brand DNA is bewerkbaar:** ✅ Niet alleen prompts, ook het Brand DNA zelf is door de klant aan te passen (tabblad Instellingen), zowel tijdens de review-gate als daarna doorlopend.
-13. **De klantreis is een vaste, benoemde trechter van 8 stappen** (inloggen → Mijn analyses → nieuwe analyse → transparant voortgangsscherm → concept & goedkeuring → transparant meten → workspace → altijd terug/nieuw). Zie §3.7 — leidend voor de UI/UX-implementatie.
+13. **De klantreis is een vaste, benoemde trechter van 9 stappen** (inloggen → Mijn analyses → nieuwe analyse → transparant voortgangsscherm → concept & goedkeuring → transparant meten → score-klaar-rapport-volgt → workspace → altijd terug/nieuw). Zie §3.7 — leidend voor de UI/UX-implementatie.
 14. **Prompt-generatie in 5 calls per categorie, niet 1 call voor alle 30:** ✅ Voorkomt herhaling/gebrek aan diversiteit die één grote generatie-call oplevert. Meerkosten ~$0,002/analyse. Zie §6 A2.
 15. **Concurrentie-gap-analyse als aparte, eerste call vóór het rapport (B1 → B2):** ✅ Een dedicated call analyseert eerst, met de rijke `competitor_breakdown`-data (§6, 3c), specifiek waar concurrenten winnen en wij niet — met bewijs (categorie, run-verwijzingen, geciteerde bronnen). Pas daarna schrijft een tweede call het leesbare eindrapport. Meerkosten ~$0,004/analyse. Zie §7.
 16. **Mention-schema is per-entiteit, niet plat:** ✅ Elke meting (halte 3b) slaat per entiteit (eigen merk + elke concurrent) een eigen rij op (`tracking_run_mentions`, zie §5), inclusief de bronnen die specifiek díe entiteit onderbouwen. Een plat schema met losse `competitorsMentioned[]`/`citedSources[]`-lijsten kan geen "bronnen per concurrent"-analyse leveren — dit is naar aanleiding van een pipeline-review gecorrigeerd vóórdat er gebouwd is. Zie §6 A3 (3b).
 17. **Bewijs in rapportages is een ID-verwijzing, geen losse tekst:** ✅ `evidenceRunIds`/`winning_run_ids`/`losing_run_ids` verwijzen naar `tracking_runs.id`, zodat de klant vanuit het Rapport kan doorklikken naar de daadwerkelijke AI-conversatie als bewijs — consistent met het transparantieprincipe (§3.6). Zie §6 (3c) en §7 (B1/B2).
 18. **Retry-regel ter kostenbescherming:** ✅ 3a en 3b zijn los herhaalbaar — bij een mislukte 3b wordt nooit opnieuw 3a (de dure `web_search`-call) uitgevoerd. Bij A2 worden alleen mislukte categorie-calls herhaald, niet alle 5. Blijvend falen → `analyses.status = 'mislukt'` met retry-optie. Zie §6 A3.
+19. **Status opgesplitst in `gemeten` én `gereed`:** ✅ Naar aanleiding van een UI/UX-review gecorrigeerd — `gereed` betekende voorheen zowel "score klaar" als "rapport klaar" tegelijk, wat tab-beschikbaarheid onduidelijk maakte. Nu: `gemeten` = score/trendlijn zichtbaar (na A3), `gereed` = rapport ook klaar (na B2). Zie §5 (datamodel) en §6/§7.
+20. **Schrijfstrategie: nooit rechtstreekse client-writes naar Postgres.** ✅ Alle schrijfacties (ook klant-CRUD zoals prompt-beheer) lopen via Next.js API-routes met de service-role key + expliciete ownership-check. RLS regelt alléén lees-toegang (SELECT, gefilterd op `user_id`/`analysis_id`). Reden: Postgres RLS werkt op rij-niveau, niet op kolom-niveau, en kan dus nooit afdwingen welke specifieke velden een klant mag wijzigen — dat hoort in de API-route thuis. De `jobs`-tabel heeft daarnaast **geen enkele** client-toegang. Zie §5.
+21. **Voortgangsschermen zijn server-state-gedreven:** ✅ Alle live voortgangsindicatoren (§3.7, stap 4/6/7) worden afgeleid van `analyses.status` + de `jobs`-tabel, niet van een client-side animatie — zodat een refresh of latere terugkeer altijd de actuele stand toont.
 
 Nog te bepalen later: aantal analyses/pagina's per klant / eventuele limieten of pakketten.
 
