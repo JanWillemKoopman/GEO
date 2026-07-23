@@ -192,7 +192,7 @@ const Report = z.object({
 
 ## 7. FASE C — Genereren (volautomatisch) → Content Bibliotheek
 
-**Trigger:** volautomatisch direct na het rapport (voor elke aanbeveling met priority ≤ 2), óf per stuk op klant-verzoek.
+**Trigger:** op **klant-verzoek** — de klant klikt bij een aanbeveling op "Genereer deze pagina" (of keurt een batch goed). Niet volautomatisch vooraf; dit spaart kosten en geeft de klant controle.
 **Mechanisme:** elke aanbeveling wordt een **job** die één `content_piece` genereert. De cron/queue werkt ze af.
 
 **Gemini-call per pagina:** structured output, input = de aanbeveling + Brand DNA (voor on-brand tone) + de bewijs-prompts. LLM-geoptimaliseerd volgens InSpace's regels: *begin met het directe antwoord, heldere koppen, concrete datapunten, FAQ, schema-markup.*
@@ -265,12 +265,13 @@ Stap 2–8 draaien zonder menselijke tussenkomst. De enige "input" is de URL.
 
 ---
 
-## 11. Openstaande keuzes (voor jou)
+## 11. Vastgelegde keuzes
 
-1. **Engines in de MVP:** alleen Gemini (goedkoop, snel) of ook echte ChatGPT-calls? *Advies: start Gemini-only, ChatGPT later als betaalde upgrade.*
-2. **10 weken vs. directe nulmeting** als default voor de eerste rapportervaring. *Advies: nulmeting nu tonen, trend wekelijks aanvullen.*
-3. **Content volautomatisch genereren** (alle priority ≤2) of pas na klik? *Advies: volautomatisch voor de "wow", met een limiet per merk voor de kosten.*
-4. **Aantal pagina's per merk** in de bibliotheek (kost-versus-waarde).
+1. **Engines:** ✅ **Alleen Gemini** in de MVP. ChatGPT/andere engines komen later als (betaalde) upgrade.
+2. **Eerste rapportervaring:** ✅ **Directe nulmeting (week 0)** meteen tonen; de 10-weken-trend wordt daarna wekelijks aangevuld.
+3. **Content-generatie:** ✅ **Pas na klik/goedkeuring** door de klant — niet volautomatisch vooraf. Dit spaart kosten en geeft de klant controle (de aanbevelingen staan klaar; genereren gebeurt op verzoek).
+
+Nog te bepalen later: aantal pagina's per merk / eventuele limieten.
 
 ---
 
