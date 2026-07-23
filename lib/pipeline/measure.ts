@@ -65,8 +65,13 @@ async function measureOnePrompt(
 
   if (!run) {
     // 3a — de vraag stellen (duur, web_search). Wordt NOOIT herhaald zodra dit slaagt.
+    // Model: gpt-4.1-mini i.p.v. nano. De web_search-tool werkt niet betrouwbaar
+    // op nano (meting faalde 10/10 met web_search op nano); mini is bewezen (het
+    // Brand DNA gebruikt dezelfde combinatie succesvol). Dit valt onder de
+    // fallback-regel uit abcplan.md §2. De web_search-kosten (vast tarief per call)
+    // domineren toch, dus het modelverschil is verwaarloosbaar (~$0,003/prompt).
     const a = await callPlain({
-      model: MODELS.volume,
+      model: MODELS.quality,
       system: SIMULATE_SYSTEM,
       user: prompt.text,
       webSearch: true,
@@ -80,7 +85,7 @@ async function measureOnePrompt(
         prompt_text_snapshot: prompt.text,
         prompt_category_snapshot: prompt.category,
         engine: "openai",
-        model_used: MODELS.volume,
+        model_used: MODELS.quality,
         week_no: weekNo,
         raw_response: a.text,
         raw_response_received_at: new Date().toISOString(),
@@ -248,9 +253,14 @@ export async function measureAnalysis(id: string, weekNo = 0): Promise<AnalysisS
     const results = await Promise.allSettled(
       prompts.map((p) => measureOnePrompt(admin, typedAnalysis, ownLabel, competitors, p, weekNo)),
     );
-    const failed = results.filter((r) => r.status === "rejected");
+    const failed = results.filter((r) => r.status === "rejected") as PromiseRejectedResult[];
     if (failed.length > 0) {
-      throw new Error(`${failed.length} van ${results.length} prompts mislukt tijdens meting.`);
+      // De echte onderliggende reden meesturen (werd voorheen ingeslikt door allSettled).
+      const reason = failed[0].reason;
+      const detail = reason instanceof Error ? reason.message : String(reason);
+      throw new Error(
+        `${failed.length} van ${results.length} prompts mislukt tijdens meting. Eerste fout: ${detail}`,
+      );
     }
 
     await computeAggregates(admin, id, weekNo);
