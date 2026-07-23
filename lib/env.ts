@@ -8,6 +8,8 @@
  * Zie abcplan.md §5/§12.20: de service-role key mag NOOIT in de browser komen.
  */
 
+import { MODELS } from "@/lib/openai/models";
+
 function required(name: string, value: string | undefined): string {
   if (!value || value.length === 0) {
     throw new Error(
@@ -49,15 +51,6 @@ export const serverEnv = {
   },
 };
 
-/**
- * OpenAI-modelkeuze (abcplan.md §2, gedifferentieerde strategie).
- * VOLUME = gpt-4.1-nano (hoogvolume/classificatie), QUALITY = gpt-4.1-mini (kwaliteitsgevoelig).
- */
-export const models = {
-  volume: process.env.OPENAI_MODEL_VOLUME ?? "gpt-4.1-nano",
-  quality: process.env.OPENAI_MODEL_QUALITY ?? "gpt-4.1-mini",
-} as const;
-
 /** Niet-gevoelige check of alles geconfigureerd is (voor /api/health). Retourneert alleen booleans. */
 export function envStatus() {
   return {
@@ -67,6 +60,6 @@ export function envStatus() {
     openaiApiKey: Boolean(process.env.OPENAI_API_KEY),
     resendApiKey: Boolean(process.env.RESEND_API_KEY),
     cronSecret: Boolean(process.env.CRON_SECRET),
-    models,
+    models: MODELS, // vastgelegd in code (lib/openai/models.ts), geen env-variabele
   };
 }

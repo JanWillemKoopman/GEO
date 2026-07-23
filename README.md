@@ -128,15 +128,15 @@ npm run dev
 Benodigde omgevingsvariabelen (via Vercel + Supabase):
 
 ```
-SUPABASE_URL=
-SUPABASE_ANON_KEY=
+NEXT_PUBLIC_SUPABASE_URL=
+NEXT_PUBLIC_SUPABASE_ANON_KEY=
 SUPABASE_SERVICE_ROLE_KEY=
 OPENAI_API_KEY=
-OPENAI_MODEL_VOLUME=gpt-4.1-nano
-OPENAI_MODEL_QUALITY=gpt-4.1-mini
 ```
 
-> **Vastgelegde keuze:** deze app bouwt **uitsluitend met OpenAI**, gedifferentieerd tussen `gpt-4.1-nano` (hoogvolume) en `gpt-4.1-mini` (kwaliteitsgevoelig) in de bouwfase (zie [abcplan.md](./abcplan.md) §2 voor de exacte verdeling per halte). Geen Gemini in deze fase.
+> Volledige lijst + uitleg per variabele: zie [SETUP.md](./SETUP.md) en `.env.example`.
+
+> **Vastgelegde keuze:** deze app bouwt **uitsluitend met OpenAI**, gedifferentieerd tussen `gpt-4.1-nano` (hoogvolume) en `gpt-4.1-mini` (kwaliteitsgevoelig) in de bouwfase (zie [abcplan.md](./abcplan.md) §2 voor de exacte verdeling per halte). Deze modelkeuze staat **vast in de code** (`lib/openai/models.ts`), niet als env-variabele. Geen Gemini in deze fase.
 
 ---
 
