@@ -274,6 +274,51 @@ textarea.field {
   color: transparent;
 }
 
+/* Gerenderde Markdown-content (Content Bibliotheek). Rustige, leesbare typografie. */
+.prose {
+  color: var(--text-secondary);
+  line-height: 1.7;
+}
+.prose > * + * {
+  margin-top: 1em;
+}
+.prose h1,
+.prose h2,
+.prose h3,
+.prose h4 {
+  color: var(--text-primary);
+  font-weight: 700;
+  line-height: 1.25;
+  margin-top: 1.5em;
+}
+.prose h1 { font-size: 1.7rem; }
+.prose h2 { font-size: 1.4rem; }
+.prose h3 { font-size: 1.15rem; }
+.prose h4 { font-size: 1rem; }
+.prose strong { color: var(--text-primary); }
+.prose a { color: var(--accent-purple-soft); text-decoration: underline; }
+.prose ul,
+.prose ol { padding-left: 1.4em; }
+.prose ul { list-style: disc; }
+.prose ol { list-style: decimal; }
+.prose li + li { margin-top: 0.35em; }
+.prose code {
+  font-family: var(--font-mono);
+  font-size: 0.9em;
+  background: var(--bg-elevated);
+  padding: 0.1em 0.4em;
+  border-radius: var(--radius-sm);
+}
+.prose blockquote {
+  border-left: 2px solid var(--accent-purple);
+  padding-left: 1em;
+  color: var(--text-muted);
+}
+.prose hr {
+  border: none;
+  border-top: 1px solid var(--border-subtle);
+}
+
 @media (prefers-reduced-motion: reduce) {
   .live-dot {
     animation: none;
