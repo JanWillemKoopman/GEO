@@ -2,6 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { signupsEnabled } from "@/lib/config";
 
 export interface AuthState {
   error: string | null;
@@ -25,6 +26,11 @@ export async function signIn(_prev: AuthState, formData: FormData): Promise<Auth
 }
 
 export async function signUp(_prev: AuthState, formData: FormData): Promise<AuthState> {
+  // App-laag: registratie is dicht tijdens de bouwfase.
+  if (!signupsEnabled) {
+    return { error: "Registratie is momenteel niet mogelijk. Toegang is op uitnodiging." };
+  }
+
   const { email, password } = readCredentials(formData);
   if (!email || !password) return { error: "Vul je e-mailadres en wachtwoord in." };
   if (password.length < 8) return { error: "Kies een wachtwoord van minstens 8 tekens." };

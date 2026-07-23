@@ -84,6 +84,27 @@ npm run dev        # → http://localhost:3000
 
 De statuspagina op `/` laat direct zien welke env-variabelen gezet zijn.
 
+## 5b. Toegang afsluiten tijdens de bouwfase (alleen jij)
+
+Tijdens het bouwen mag alleen de eigenaar de app gebruiken — geen publieke
+registratie. Dit regel je op **twee lagen**:
+
+**Laag 1 — Supabase (de harde poort, essentieel).**
+De anon-key staat in de browser, dus zonder deze stap kan iemand de Supabase-API
+rechtstreeks aanroepen om een account te maken, buiten onze UI om.
+1. **Authentication → Sign In / Providers** (of **Providers → Email**) → zet
+   **"Allow new users to sign up"** **UIT**.
+2. Maak je eigen account aan via **Authentication → Users → Add user**
+   (e-mail + wachtwoord, vink "Auto Confirm User" aan). Dit is je login.
+
+**Laag 2 — de app (net & reversibel).**
+De env-variabele `SIGNUPS_ENABLED` staat standaard op `false`: de registratie-UI
+is dan verborgen en de registratie-actie weigert. Laat 'm op `false` (of laat 'm
+weg) tijdens het bouwen.
+
+**Bij lancering later:** zet Supabase's "Allow new users to sign up" weer AAN én
+`SIGNUPS_ENABLED=true` in Vercel. Meer niet.
+
 ## 6. Deployen naar Vercel
 
 1. Push naar GitHub (branch `claude/geo-app-development-ho02tg`).

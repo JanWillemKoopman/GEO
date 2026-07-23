@@ -1,5 +1,6 @@
 import { AuthForm } from "../auth-form";
 import { signIn } from "../actions";
+import { signupsEnabled } from "@/lib/config";
 
 export default async function LoginPage({
   searchParams,
@@ -15,7 +16,7 @@ export default async function LoginPage({
     <>
       <h1 className="mb-1 text-xl font-bold">Inloggen</h1>
       <p className="mb-6 text-sm text-secondary">Welkom terug.</p>
-      <AuthForm mode="login" action={signIn} notice={notice} />
+      <AuthForm mode="login" action={signIn} notice={notice} signupsEnabled={signupsEnabled} />
     </>
   );
 }

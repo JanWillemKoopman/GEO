@@ -8,9 +8,11 @@ interface AuthFormProps {
   mode: "login" | "register";
   action: (prev: AuthState, formData: FormData) => Promise<AuthState>;
   notice?: string | null;
+  /** Toont de registratielink alleen als registratie openstaat (bouwfase = dicht). */
+  signupsEnabled?: boolean;
 }
 
-export function AuthForm({ mode, action, notice }: AuthFormProps) {
+export function AuthForm({ mode, action, notice, signupsEnabled = false }: AuthFormProps) {
   const [state, formAction, pending] = useActionState(action, { error: null });
   const isLogin = mode === "login";
 
@@ -56,23 +58,25 @@ export function AuthForm({ mode, action, notice }: AuthFormProps) {
         {pending ? "Even geduld…" : isLogin ? "Inloggen" : "Account aanmaken"}
       </button>
 
-      <p className="mt-2 text-center text-sm text-secondary">
-        {isLogin ? (
-          <>
-            Nog geen account?{" "}
-            <Link href="/register" className="text-[var(--accent-purple-soft)] hover:underline">
-              Registreren
-            </Link>
-          </>
-        ) : (
-          <>
-            Al een account?{" "}
-            <Link href="/login" className="text-[var(--accent-purple-soft)] hover:underline">
-              Inloggen
-            </Link>
-          </>
-        )}
-      </p>
+      {isLogin && signupsEnabled && (
+        <p className="mt-2 text-center text-sm text-secondary">
+          Nog geen account?{" "}
+          <Link href="/register" className="text-[var(--accent-purple-soft)] hover:underline">
+            Registreren
+          </Link>
+        </p>
+      )}
+      {isLogin && !signupsEnabled && (
+        <p className="mt-2 text-center text-sm text-muted">Toegang is op uitnodiging.</p>
+      )}
+      {!isLogin && (
+        <p className="mt-2 text-center text-sm text-secondary">
+          Al een account?{" "}
+          <Link href="/login" className="text-[var(--accent-purple-soft)] hover:underline">
+            Inloggen
+          </Link>
+        </p>
+      )}
     </form>
   );
 }
