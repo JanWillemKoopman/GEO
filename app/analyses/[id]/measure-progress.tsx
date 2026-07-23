@@ -40,22 +40,13 @@ export function MeasureProgress({
     setErrorDetail(null);
     try {
       const res = await fetch(`/api/analyses/${analysisId}/measure`, { method: "POST" });
-      let json: { status?: string; detail?: string } = {};
-      try {
-        json = await res.json();
-      } catch {
-        setFailed(true);
-        setErrorDetail(`Server gaf geen geldig antwoord (HTTP ${res.status}).`);
-        return;
-      }
-      if (!res.ok || json.status === "mislukt") {
+      if (!res.ok) {
+        const json = await res.json().catch(() => ({}) as { detail?: string });
         setFailed(true);
         setErrorDetail(json.detail ?? null);
-        return;
       }
-    } catch (err) {
-      setFailed(true);
-      setErrorDetail(err instanceof Error ? err.message : String(err));
+    } catch {
+      // Netwerkfout ("Load failed") — server werkt door; polling leest de echte status.
     }
   }
 

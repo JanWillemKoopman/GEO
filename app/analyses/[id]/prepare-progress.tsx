@@ -37,23 +37,15 @@ export function PrepareProgress({
     setErrorDetail(null);
     try {
       const res = await fetch(`/api/analyses/${analysisId}/prepare`, { method: "POST" });
-      let json: { status?: string; detail?: string } = {};
-      try {
-        json = await res.json();
-      } catch {
-        // Response was geen JSON (bv. een platform-timeout-pagina).
-        setFailed(true);
-        setErrorDetail(`Server gaf geen geldig antwoord (HTTP ${res.status}).`);
-        return;
-      }
-      if (!res.ok || json.status === "mislukt") {
+      // Alleen bij een EXPLICIETE serverfout hard falen (dan hebben we ook detail).
+      if (!res.ok) {
+        const json = await res.json().catch(() => ({}) as { detail?: string });
         setFailed(true);
         setErrorDetail(json.detail ?? null);
-        return;
       }
-    } catch (err) {
-      setFailed(true);
-      setErrorDetail(err instanceof Error ? err.message : String(err));
+    } catch {
+      // Netwerkfout ("Load failed") — de verbinding viel weg, maar de server
+      // werkt door. NIET hard falen: de polling hieronder leest de echte status.
     }
   }
 
