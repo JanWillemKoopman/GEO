@@ -61,7 +61,7 @@ Concrete regels die we hanteren:
 | **Hosting / deploy** | Vercel | Zero-config deploys van de Node.js/Next.js app, previews per branch. |
 | **Runtime** | Node.js | Backend logica + API-routes + scheduled jobs. |
 | **Database & auth** | Supabase | Postgres, ingebouwde authenticatie, row-level security, cron/edge functions. |
-| **LLM-API's** | OpenAI (ChatGPT) + Google Gemini | De engines die we tracken. Uitbreidbaar naar Perplexity/Claude. |
+| **LLM-API** | **OpenAI — vastgelegd** | Enige engine in de bouwfase. Bouwmodel: **`gpt-4.1-nano`** (instapmodel, betrouwbare structured output). Uitbreidbaar naar Gemini/Perplexity/Claude als tweede engine, later. |
 
 ### Architectuur op hoofdlijnen
 
@@ -74,8 +74,7 @@ Klant (browser/mobiel)
    ├─ API-routes: prompts CRUD, scores ophalen
    └─ Scheduled job: prompts uitvoeren
         │
-        ├──────────────► OpenAI API (ChatGPT)
-        ├──────────────► Google Gemini API
+        ├──────────────► OpenAI API (gpt-4.1-nano)
         │
         ▼
    Supabase (Postgres + Auth)
@@ -124,8 +123,10 @@ SUPABASE_URL=
 SUPABASE_ANON_KEY=
 SUPABASE_SERVICE_ROLE_KEY=
 OPENAI_API_KEY=
-GEMINI_API_KEY=
+OPENAI_MODEL=gpt-4.1-nano
 ```
+
+> **Vastgelegde keuze:** deze app bouwt **uitsluitend met OpenAI**, model **`gpt-4.1-nano`** in de bouwfase (zie [abcplan.md](./abcplan.md) §2 voor de onderbouwing). Geen Gemini in deze fase.
 
 ---
 

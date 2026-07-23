@@ -1,18 +1,21 @@
-# Bouwplan MVP — Fase A + B + C (volautomatisch, met Gemini API)
+# Bouwplan MVP — Fase A + B + C (volautomatisch, met OpenAI)
 
 > Gedetailleerd technisch plan voor de eerste tool: **A. Meten → B. Adviseren → C. Genereren**, volledig automatisch. Content wordt in de app afgeleverd onder het tabblad **"Content Bibliotheek"**. Publiceren naar een CMS (D), self-healing (E) en uitbreiding (F) komen later.
 
-*Techstack: Node.js + Next.js op Vercel · Supabase (Auth/Postgres/cron) · **Gemini API** · Resend (e-mail). Opgesteld juli 2026.*
+> ## 🔒 Vastgelegde technische keuze — niet ter discussie in deze bouwfase
+> **We bouwen uitsluitend met de OpenAI API.** Bouwmodel: **`gpt-4.1-nano`** (instapmodel). Geen Gemini, geen tweede engine, geen premium modellen tijdens het bouwen. Doel van deze fase: **technisch werkend krijgen**, niet uitrollen. Zie §2 voor de onderbouwing.
+
+*Techstack: Node.js + Next.js op Vercel · Supabase (Auth/Postgres/cron) · **OpenAI API (`gpt-4.1-nano`)** · Resend (e-mail). Opgesteld juli 2026.*
 
 ---
 
 ## 1. Scope & filosofie
 
-**Wat de MVP doet, volautomatisch, zonder menselijke tussenkomst:**
+**Wat de MVP doet, volautomatisch, zonder menselijke tussenkomst (behalve C, zie hieronder):**
 
-- **A — Meten:** website-URL → Gemini analyseert de site (grounding) → 30 prompts in categorieën → 10 weken monitoren over AI-engines → zichtbaarheidsdata.
-- **B — Adviseren:** Gemini analyseert de meetdata → rapport met zichtbaarheids-gaps en concrete content-aanbevelingen (welke pagina's ontbreken om geciteerd te worden).
-- **C — Genereren:** Gemini schrijft de aanbevolen pagina's als kant-en-klare concepten → verschijnen in de **Content Bibliotheek** waar de klant ze leest, kopieert of downloadt.
+- **A — Meten:** website-URL → OpenAI analyseert de site (eigen crawl + web-search-tool) → 30 prompts in categorieën → 10 weken monitoren → zichtbaarheidsdata.
+- **B — Adviseren:** OpenAI analyseert de meetdata → rapport met zichtbaarheids-gaps en concrete content-aanbevelingen (welke pagina's ontbreken om geciteerd te worden).
+- **C — Genereren:** OpenAI schrijft de aanbevolen pagina's als kant-en-klare concepten, **op klant-verzoek** → verschijnen in de **Content Bibliotheek** waar de klant ze leest, kopieert of downloadt.
 
 **Bewust NIET in deze MVP:** publiceren naar CMS, self-healing, meertalige productie op schaal. De klant krijgt de content *aangeleverd in de app*; wat hij ermee doet is (voorlopig) aan hem.
 
@@ -22,19 +25,38 @@
 
 ---
 
-## 2. Waarom Gemini de juiste keuze is voor A/B/C
+## 2. Modelkeuze — waarom `gpt-4.1-nano` en waarom OpenAI-only
 
-Drie Gemini-features maken deze hele flow mogelijk zonder losse tooling:
+### Waarom OpenAI (en geen Gemini) in deze fase
+Puur een projectbeslissing: één engine, één SDK, één factuur, zo min mogelijk bewegende delen tijdens het bouwen. Multi-engine (Gemini/Perplexity/Claude erbij) is een latere, expliciete uitbreiding — geen onderdeel van deze bouwfase.
+
+### Waarom `gpt-4.1-nano` en niet een ander instapmodel
+
+| Model | Prijs (indicatief, in/1M) | Structured output betrouwbaar? | Keuze |
+|-------|---------------------------|--------------------------------|-------|
+| gpt-5-nano | laagst | ⚠️ Gemelde problemen: volgt het JSON-schema niet consequent (verkeerde velden/volgorde) | ❌ Vermijden |
+| **gpt-4.1-nano** | $0,10 / $0,40 | ✅ Betrouwbaar, geen gemelde problemen | ✅ **Gekozen bouwmodel** |
+| gpt-4o-mini | $0,15 / $0,60 | ✅ Zeer betrouwbaar (het model waarmee structured outputs oorspronkelijk geïntroduceerd is) | Reserve/fallback |
+
+**Onze hele pipeline leunt op structured output** (Brand DNA, prompts, mentions, rapport, content komen allemaal terug als vast JSON-schema). Betrouwbaarheid van schema-naleving weegt daarom zwaarder dan de laatste cent prijsverschil. `gpt-4.1-nano` is de goedkoopste optie zónder de bekende schema-problemen van gpt-5-nano.
+
+**Fallback-regel:** als tijdens Sprint 1 blijkt dat `gpt-4.1-nano` bij een specifiek schema toch afwijkt, val dan alleen vóór dát ene aanroeppunt terug op `gpt-4o-mini`. De rest van de pipeline blijft ongewijzigd.
+
+> **Prijsvoorbehoud:** online prijsopgaven voor actuele modellen lopen tussen bronnen uiteen (snel-verouderende prijspagina's). Controleer `platform.openai.com/pricing` voor de exacte, actuele tarieven vóór je een kostenbegroting op schaal maakt. De **modelkeuze zelf staat vast** — alleen de prijscijfers in §9 zijn indicatief.
+
+### Welke OpenAI-features de flow mogelijk maken
 
 | Feature | Wat het doet | Waar we het gebruiken |
 |---------|--------------|----------------------|
-| **Grounding with Google Search** | Model haalt live web-info op en citeert bronnen | Stap A: site + branche begrijpen; meten of merk genoemd wordt |
-| **URL context** | Model leest een specifieke URL als input | Stap A: de klant-website crawlen/analyseren |
-| **Structured output (JSON Schema / Zod)** | Antwoord dwingt in een vast, type-safe JSON-formaat | Overal: prompts, rapport, content als voorspelbare objecten |
+| **`web_search`-tool (Responses API)** | Model mag live het web doorzoeken en citeert bronnen | Stap A: branche/concurrenten begrijpen; meten of merk genoemd wordt |
+| **Eigen crawler (géén API-tool)** | Node.js haalt zelf de klant-website op en zet 'm om naar platte tekst | Stap A: de specifieke klant-URL inhoudelijk lezen |
+| **Structured output (JSON Schema via Zod-helper)** | Antwoord dwingt in een vast, type-safe JSON-formaat | Overal: prompts, rapport, content als voorspelbare objecten |
 
-Grounding + URL-context + structured output zijn **combineerbaar** in één call — precies wat een agent-achtige flow nodig heeft. We gebruiken de officiële **`@google/genai`** SDK (Node.js) met **Zod**-schema's.
+**Belangrijk verschil met een Gemini-aanpak:** OpenAI heeft geen ingebouwde "lees deze ene URL"-tool zoals Gemini's URL-context. Daarom lezen we de klant-website **zelf** (een simpele `fetch` + tekst-extractie in Node.js, geen API-kosten) en géven we die tekst als context mee aan de OpenAI-call. De `web_search`-tool gebruiken we daarnaast voor de bredere marktcontext (concurrenten, hoe het merk online voorkomt).
 
-> **Kostennoot:** grounding-queries worden apart afgerekend (Gemini 3: ~$14/1.000 zoekopdrachten; 2.5: per prompt). Zie §9. We gebruiken grounding alleen waar nodig (analyse + meten), niet bij pure tekstgeneratie.
+We gebruiken de officiële **`openai`** Node-SDK, met **Zod**-schema's voor structured output.
+
+> **Kostennoot:** de `web_search`-tool wordt apart afgerekend (vast tarief per call + een vaste hoeveelheid "search content"-tokens per call, zie §9). We zetten hem alleen aan waar echt nodig (branche-analyse + meting), niet bij pure tekstgeneratie.
 
 ---
 
@@ -50,6 +72,9 @@ Grounding + URL-context + structured output zijn **combineerbaar** in één call
         │  UI-tabs:  [ Overzicht ] [ Rapport ]       │
         │            [ Content Bibliotheek ]         │
         │                                            │
+        │  Eigen crawler: fetch + tekst-extractie    │
+        │  (geen API-kosten, alleen de klant-URL)    │
+        │                                            │
         │  API-routes (server):                      │
         │   • /api/onboard   (A: analyse + prompts)  │
         │   • /api/report    (B: rapport genereren)  │
@@ -61,9 +86,9 @@ Grounding + URL-context + structured output zijn **combineerbaar** in één call
                         │                │
                         ▼                ▼
               ┌──────────────┐   ┌──────────────────┐
-              │  Gemini API  │   │    Supabase      │
-              │  • grounding │   │  Postgres + Auth │
-              │  • URL ctx   │   │  + RLS + cron    │
+              │  OpenAI API  │   │    Supabase      │
+              │  gpt-4.1-nano│   │  Postgres + Auth │
+              │  • web_search│   │  + RLS + cron    │
               │  • structured│   └──────────────────┘
               └──────────────┘            │
                         └──────► Resend (rapport-e-mail)
@@ -106,9 +131,10 @@ jobs                  id, brand_id, type, payload_json, status,
 
 ### A1. Onboarding: URL → Brand DNA
 **Trigger:** klant vult URL in (of jij bij cold-outreach).
-**Gemini-call:** `generateContent` met **URL-context tool** (de klant-URL) + **grounding** + **structured output**.
+**Stap 1 (geen API-call):** eigen Node.js-crawler haalt de homepage (+ evt. 2-3 kernpagina's) op met `fetch` en zet de HTML om naar schone platte tekst.
+**Stap 2 (OpenAI-call):** Responses API-call met de geëxtraheerde tekst als context, **`web_search`-tool aan** (voor bredere marktcontext) en **structured output**.
 
-Prompt (kern): *"Analyseer dit bedrijf op basis van de website en het web. Bepaal: branche, kernproducten/-diensten, tone-of-voice, doelgroep-persona's, waardeproposities en 3–5 belangrijkste concurrenten."*
+Prompt (kern): *"Analyseer dit bedrijf op basis van deze website-tekst en het web. Bepaal: branche, kernproducten/-diensten, tone-of-voice, doelgroep-persona's, waardeproposities en 3–5 belangrijkste concurrenten."*
 
 Zod-schema (vereenvoudigd):
 ```ts
@@ -125,8 +151,8 @@ const BrandDNA = z.object({
 → Opslaan in `brand_dna`.
 
 ### A2. Prompt-generatie (30 stuks in categorieën)
-**Gemini-call:** structured output (geen grounding nodig — input is de Brand DNA).
-We laten Gemini **30 prompts in ~5 categorieën** genereren, elk gelabeld met de onderliggende *intent* (volgens InSpace's intent-methodiek):
+**OpenAI-call:** structured output, **zonder** `web_search` (input is de Brand DNA, geen live web nodig).
+We laten het model **30 prompts in ~5 categorieën** genereren, elk gelabeld met de onderliggende *intent*:
 
 | Categorie | Voorbeeld-prompt |
 |-----------|------------------|
@@ -139,11 +165,11 @@ We laten Gemini **30 prompts in ~5 categorieën** genereren, elk gelabeld met de
 → Opslaan in `prompts` (30 rijen). Klant hoeft niets in te vullen; hij mag ze later evt. aan/uitzetten (simpel vinkje).
 
 ### A3. Monitoring — 10 weken
-**Mechanisme:** een **cron** (`weekly-tracking-run`) draait wekelijks. Voor elke actieve prompt × engine:
-- **Engine "Gemini":** directe `generateContent`-call **met grounding** (simuleert een AI-antwoord met live web).
-- **Engine "ChatGPT" (optioneel):** OpenAI-call, óf in de MVP puur Gemini-grounding om kosten te sparen (zie §9 — start met Gemini-only).
+**Mechanisme:** een **cron** (`weekly-tracking-run`) draait wekelijks. Voor elke actieve prompt:
 
-Per antwoord laat een tweede, goedkope Gemini-call (structured output) bepalen:
+- **3a — De vraag stellen:** OpenAI Responses API-call **met `web_search`-tool aan** — simuleert wat een AI-assistent zou antwoorden als een echte klant die vraag stelt.
+- **3b — Het antwoord beoordelen:** een tweede, goedkope OpenAI-call (structured output, **geen** `web_search`) beoordeelt het antwoord:
+
 ```ts
 const Mention = z.object({
   brandMentioned: z.boolean(),
@@ -157,16 +183,16 @@ const Mention = z.object({
 
 **Batching:** 30 prompts wordt in kleine job-batches verwerkt zodat één run niet timeout't en kosten voorspelbaar blijven.
 
-**MVP-versnelling:** je kunt de "10 weken" comprimeren tot een **directe nulmeting (week 0)** zodat een prospect meteen een rapport ziet, en de trend daarna wekelijks aanvult. Zo werkt je acquisitieflow zonder 10 weken te wachten.
+**MVP-versnelling — ✅ vastgelegd:** we tonen de klant meteen een **directe nulmeting (week 0)** zodra de 30 prompts één keer zijn doorlopen, in plaats van 10 weken te wachten. De 10-weken-trend wordt daarna wekelijks aangevuld. Zo werkt de acquisitieflow direct.
 
 ---
 
 ## 6. FASE B — Adviseren (volautomatisch)
 
-**Trigger:** na de nulmeting (of na week 10), of on-demand knop "Genereer rapport".
-**Gemini-call:** structured output. Input = `visibility_scores` + `tracking_runs` + `brand_dna`.
+**Trigger:** na de nulmeting (of na een latere week), of on-demand knop "Genereer rapport".
+**OpenAI-call:** structured output, **geen** `web_search` nodig. Input = `visibility_scores` + `tracking_runs` + `brand_dna`.
 
-Gemini produceert:
+Het model produceert:
 ```ts
 const Report = z.object({
   headlineScore: z.number(),
@@ -185,17 +211,18 @@ const Report = z.object({
   })),
 });
 ```
-→ Opslaan in `reports`. Toon in tab **Rapport**: één headline-score, korte samenvatting, top-gaps, en een lijst aanbevelingen met **"Genereer deze pagina"**-knop (of volautomatisch, zie C).
+→ Opslaan in `reports`. Toon in tab **Rapport**: één headline-score, korte samenvatting, top-gaps, en een lijst aanbevelingen met **"Genereer deze pagina"**-knop.
 → Mail het rapport via **Resend** (jouw acquisitie-stap 5). Eindig altijd met **1–3 priority actions**.
 
 ---
 
-## 7. FASE C — Genereren (volautomatisch) → Content Bibliotheek
+## 7. FASE C — Genereren → Content Bibliotheek
 
-**Trigger:** op **klant-verzoek** — de klant klikt bij een aanbeveling op "Genereer deze pagina" (of keurt een batch goed). Niet volautomatisch vooraf; dit spaart kosten en geeft de klant controle.
-**Mechanisme:** elke aanbeveling wordt een **job** die één `content_piece` genereert. De cron/queue werkt ze af.
+**Trigger — ✅ vastgelegd: pas na klik/goedkeuring door de klant.** De klant klikt bij een aanbeveling op "Genereer deze pagina" (of keurt een batch goed). **Niet** volautomatisch vooraf — dit spaart kosten en geeft de klant controle: er staan alleen aanbevelingen klaar totdat de klant er zelf voor kiest.
 
-**Gemini-call per pagina:** structured output, input = de aanbeveling + Brand DNA (voor on-brand tone) + de bewijs-prompts. LLM-geoptimaliseerd volgens InSpace's regels: *begin met het directe antwoord, heldere koppen, concrete datapunten, FAQ, schema-markup.*
+**Mechanisme:** elke klik wordt een **job** die één `content_piece` genereert. De cron/queue werkt ze af.
+
+**OpenAI-call per pagina:** structured output, **geen** `web_search`. Input = de aanbeveling + Brand DNA (voor on-brand tone) + de bewijs-prompts. LLM-geoptimaliseerd: *begin met het directe antwoord, heldere koppen, concrete datapunten, FAQ, schema-markup.*
 
 ```ts
 const ContentPiece = z.object({
@@ -216,60 +243,72 @@ De centrale opleverplek. Per merk een lijst kaarten:
 - **Kaart** = titel, type-badge (artikel/FAQ/landing/vergelijking), cluster, status, woordaantal.
 - **Detail** = leesbare weergave (Markdown → HTML) met knoppen: **Kopiëren**, **Download (.md / .html)**, **Kopieer schema-markup**, en later (Fase D) **Publiceer naar CMS**.
 - **Filters** = op cluster / type / status. Simpel, rustig, veel witruimte.
+- **Lege staat** (nog niets gegenereerd): duidelijke uitleg *"Ga naar het Rapport en kies welke pagina's je wilt laten schrijven."*
 
-Zo levert de tool **volautomatisch een gevulde bibliotheek** op: de klant hoeft alleen te lezen en te gebruiken. Dat is ~80% van Nova's waarde, zonder het CMS-risico.
+Zo levert de tool op klant-verzoek een **steeds verder gevulde bibliotheek** op. Dat is ~80% van Nova's waarde, zonder het CMS-risico en zonder onnodige kosten voor content die niemand vroeg.
 
 ---
 
-## 8. Volautomatische end-to-end flow (samengevat)
+## 8. End-to-end flow (samengevat)
 
 ```
 1. URL ingevuld
-2. [Gemini+grounding+URL] → Brand DNA            (A1)
-3. [Gemini structured]    → 30 prompts           (A2)
-4. [cron: Gemini+grounding]→ tracking_runs        (A3, nulmeting + wekelijks)
-5. [aggregatie]           → visibility_scores
-6. [Gemini structured]    → rapport + Resend-mail (B)
-7. [queue: Gemini]        → content_pieces        (C)
-8. UI: Content Bibliotheek gevuld ✅
+2. [eigen crawl, geen call]        → website-tekst
+3. [OpenAI + web_search]           → Brand DNA               (A1)
+4. [OpenAI structured, geen search]→ 30 prompts               (A2)
+5. [cron: OpenAI + web_search]     → tracking_runs            (A3, nulmeting + wekelijks)
+6. [aggregatie, geen call]         → visibility_scores
+7. [OpenAI structured]             → rapport + Resend-mail    (B)
+8. [klant klikt] → [queue: OpenAI] → content_pieces           (C)
+9. UI: Content Bibliotheek gevuld ✅
 ```
 
-Stap 2–8 draaien zonder menselijke tussenkomst. De enige "input" is de URL.
+Stap 2 t/m 7 draaien zonder menselijke tussenkomst. Stap 8 wacht bewust op de klant.
 
 ---
 
 ## 9. Kosten & performance
 
-**Variabele kostendrijvers:** (1) grounding-zoekopdrachten, (2) tokens voor generatie.
+**Geen gratis tier bij OpenAI** — elke call kost vanaf de eerste request geld (in tegenstelling tot Gemini's gratis quota). Dit is een bewuste, vastgelegde keuze; zie §2.
 
-- **Grounding** alleen in A1 (1×) en A3 (30 prompts × weken). 30 × 10 weken = 300 grounded calls/merk → bij Gemini 3 ~$14/1.000 = **~$4,20 grounding/merk over 10 weken** (+ tokenkosten). Nulmeting alleen = 30 calls ≈ $0,42.
-- **Generatie (B+C):** rapport + ~5–20 pagina's tekst = tokenkosten, geen grounding. Relatief laag met een efficiënt Gemini-model.
+**Variabele kostendrijvers:** (1) `web_search`-tool-calls, (2) tokens voor generatie.
 
-**Kostenknoppen (belangrijk voor cold-outreach op schaal):**
-1. **Start Gemini-only** (geen aparte OpenAI-calls) — halveert direct de meetkosten.
-2. **Gratis prospects = alleen nulmeting** (30 calls), volle 10-weken-tracking pas voor betalende klanten.
-3. **Cache** Brand DNA en herbruik; genereer content pas na expliciete trigger als je wil besparen.
+Indicatieve rekensom met `gpt-4.1-nano` ($0,10 / $0,40 per 1M tokens in/uit — **controleer actuele tarieven vóór opschalen**):
+- **`web_search`-call:** vast tool-tarief + een vaste hoeveelheid "search content"-tokens per call (ongeacht hoeveel er feitelijk gevonden wordt) + normale modeltokens. Reken indicatief op **~$0,01–0,015 per grounded call**.
+- **Gewone structured-output-call** (geen search): doorgaans **~$0,0003–0,001 per call**, sterk afhankelijk van tekstlengte.
+
+**Eén merk-onboarding (nulmeting):** 1 (Brand DNA, web_search) + 1 (prompts) + 30 (meten, web_search) + 30 (beoordelen, geen search) + 1 (rapport) = 63 calls, waarvan 31 met `web_search`.
+→ Indicatief: 31 × ~$0,012 + 32 × ~$0,0005 ≈ **~$0,39–0,40 per merk-onboarding**, vanaf de eerste keer, met echt geld.
+
+**Wekelijkse lus (10 weken):** 30 web_search + 30 gewone calls/week ≈ **~$0,35/week/merk**, dus **~$3,50/merk over 10 weken** bovenop de nulmeting.
+
+**Content-generatie (Fase C):** alleen bij klik, geen `web_search` nodig → laag (~$0,0007–0,001/pagina) en volledig vraaggestuurd.
+
+**Kostenknoppen (belangrijk bij opschalen):**
+1. **`web_search` alleen waar nodig** — nooit aanzetten bij rapport- of content-generatie.
+2. **Gratis prospects = alleen nulmeting** (63 calls eenmalig), volle 10-weken-tracking pas voor betalende klanten.
+3. **Cache** Brand DNA en hergebruik; content pas genereren op expliciete klik (al vastgelegd, spaart het meest).
 4. **Batch + queue** voorkomt time-outs en maakt kosten per merk voorspelbaar.
-5. Kies per stap het **goedkoopste passende Gemini-model** (analyse/mention-detectie mag een lichter model zijn dan content-generatie).
+5. **Rate limits bewaken:** instap-tiers bij OpenAI kennen lage RPM-limieten (soms slechts enkele requests/minuut) totdat je account-uitgaven/leeftijd een hogere tier ontgrendelen. Bouw de job-queue met marge, niet ervan uitgaand dat je vanaf dag 1 hoge doorvoer hebt.
 
 ---
 
 ## 10. Bouwvolgorde (sprints)
 
-1. **Sprint 1 — Fundament:** Next.js op Vercel, Supabase-project, Auth, datamodel-migraties, `@google/genai` + Zod ingericht, één test-call werkend.
-2. **Sprint 2 — Fase A1+A2:** URL-input → Brand DNA → 30 prompts. UI: onboarding + prompt-lijst.
+1. **Sprint 1 — Fundament:** Next.js op Vercel, Supabase-project, Auth, datamodel-migraties, officiële `openai` Node-SDK + Zod ingericht, één test-call werkend met `gpt-4.1-nano` (structured output + `web_search`-tool getest).
+2. **Sprint 2 — Fase A1+A2:** eigen crawler + URL-input → Brand DNA → 30 prompts. UI: onboarding + prompt-lijst.
 3. **Sprint 3 — Fase A3:** cron + job-queue + mention-detectie → nulmeting + wekelijkse trend. UI: Overzicht met score.
 4. **Sprint 4 — Fase B:** rapportgeneratie + Resend-e-mail. UI: tab Rapport.
-5. **Sprint 5 — Fase C:** content-generatie via queue → `content_pieces`. UI: tab **Content Bibliotheek** (lijst + detail + kopiëren/download).
-6. **Sprint 6 — Polish:** filters, mobiel, kostenlimieten, gratis-scan-pagina voor acquisitie.
+5. **Sprint 5 — Fase C:** content-generatie via queue, getriggerd door klant-klik → `content_pieces`. UI: tab **Content Bibliotheek** (lijst + detail + kopiëren/download).
+6. **Sprint 6 — Polish:** filters, mobiel, kostenlimieten/rate-limit-bewaking, gratis-scan-pagina voor acquisitie.
 
 ---
 
 ## 11. Vastgelegde keuzes
 
-1. **Engines:** ✅ **Alleen Gemini** in de MVP. ChatGPT/andere engines komen later als (betaalde) upgrade.
+1. **Engine:** ✅ **Uitsluitend OpenAI**, model **`gpt-4.1-nano`** in de bouwfase. Geen Gemini, geen premium modellen. Andere engines komen later als expliciete, aparte uitbreiding.
 2. **Eerste rapportervaring:** ✅ **Directe nulmeting (week 0)** meteen tonen; de 10-weken-trend wordt daarna wekelijks aangevuld.
-3. **Content-generatie:** ✅ **Pas na klik/goedkeuring** door de klant — niet volautomatisch vooraf. Dit spaart kosten en geeft de klant controle (de aanbevelingen staan klaar; genereren gebeurt op verzoek).
+3. **Content-generatie:** ✅ **Pas na klik/goedkeuring** door de klant — niet volautomatisch vooraf. Dit spaart kosten en geeft de klant controle.
 
 Nog te bepalen later: aantal pagina's per merk / eventuele limieten.
 
@@ -277,4 +316,4 @@ Nog te bepalen later: aantal pagina's per merk / eventuele limieten.
 
 ## 12. Wat later komt (D/E/F)
 
-Bewust buiten deze MVP, maar het datamodel is er al klaar voor: `content_pieces` heeft een `status`-veld dat straks naar `published` kan, en een `schemaJsonLd` klaar om te publiceren. Fase D voegt alleen CMS-connectors toe bovenop dezelfde bibliotheek.
+Bewust buiten deze MVP, maar het datamodel is er al klaar voor: `content_pieces` heeft een `status`-veld dat straks naar `published` kan, en een `schemaJsonLd` klaar om te publiceren. Fase D voegt alleen CMS-connectors toe bovenop dezelfde bibliotheek. Een tweede LLM-engine (Gemini/Perplexity/Claude) is eveneens een latere, aparte beslissing — niet iets waar deze bouwfase op wacht.

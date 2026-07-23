@@ -84,9 +84,9 @@ Nova blijft rankings, AI-zichtbaarheid en on-page-performance monitoren en **her
 | Nova-onderdeel | Onze techstack-invulling | Haalbaarheid |
 |----------------|--------------------------|--------------|
 | Brand DNA / onboarding | Crawl site (fetch + parser) → LLM extraheert merk, tone, producten, persona's → opslaan in Supabase | ✅ Goed haalbaar |
-| Keyword/prompt-research | LLM met grounding (Gemini) + evt. externe keyword-data-API | ✅ Kern haalbaar; volume-data vergt externe API |
+| Keyword/prompt-research | LLM met web-search-tool (OpenAI, vastgelegde keuze — zie [abcplan.md](./abcplan.md)) + evt. externe keyword-data-API | ✅ Kern haalbaar; volume-data vergt externe API |
 | Clustering & kalender | LLM + eigen scoring-logica in Node.js, opgeslagen als backlog in Supabase | ✅ Goed haalbaar |
-| Content-generatie | OpenAI/Gemini via API-routes; templates voor programmatic pages | ✅ Goed haalbaar (kwaliteit = werk) |
+| Content-generatie | OpenAI (`gpt-4.1-nano`) via API-routes; templates voor programmatic pages | ✅ Goed haalbaar (kwaliteit = werk) |
 | Publicatie naar CMS | Node.js-connectors per CMS (WordPress REST API, Shopify Admin API, Webflow API…) | ⚠️ Grootste bouwlast — elke CMS is een apart project |
 | Schema/metadata/interne links | Generatie in Node.js bij het opmaken van de pagina | ✅ Haalbaar |
 | Tracking & self-healing | Bestaande GEO-tracker + scheduler (Supabase cron / Vercel cron) die onderpresteerders markeert en herschrijft | ✅ Haalbaar, iteratief |
@@ -103,10 +103,10 @@ Klant / prospect
 Vercel (Next.js / Node.js)
  ├─ Crawler + Brand-DNA-extractie ────► LLM (grounding)
  ├─ Research → Clustering → Kalender ─► LLM + scoring
- ├─ Content-generator ───────────────► LLM (OpenAI/Gemini)
+ ├─ Content-generator ───────────────► OpenAI API (gpt-4.1-nano)
  ├─ Approval-UI (mens keurt goed)
  ├─ CMS-publisher ──► WordPress / Shopify / Webflow API's
- └─ Tracking-scheduler (cron) ───────► ChatGPT + Gemini API's
+ └─ Tracking-scheduler (cron) ───────► OpenAI API (gpt-4.1-nano)
       │
       ▼
 Supabase (Postgres + Auth)
@@ -168,7 +168,7 @@ Bouw dit incrementeel bovenop de al geplande GEO Tracker. Elke fase is los verko
 
 ## 8. Conclusie
 
-- **Kan het met onze techstack?** Ja. Node.js + Vercel + Supabase + OpenAI/Gemini + Resend dekken de hele lus. Geen fundamentele blokkade.
+- **Kan het met onze techstack?** Ja. Node.js + Vercel + Supabase + OpenAI (`gpt-4.1-nano`) + Resend dekken de hele lus. Geen fundamentele blokkade.
 - **Wat is echt moeilijk?** Niet de AI-calls, maar: **CMS-publicatie-integraties**, **contentkwaliteit op schaal**, en de **veilige self-healing lus** op klant-sites.
 - **Wat blijft handmatig voor jou?** CMS-onboarding, content-approval en kwaliteitsbewaking — te positioneren als kwaliteitsgarantie (jouw "Customer Success").
 - **Slimste route:** bouw incrementeel (meten → adviseren → genereren → publiceren → optimaliseren). Fase B en C leveren al het grootste deel van Nova's waarde met een fractie van het risico, en passen perfect op jouw bestaande acquisitieflow.
