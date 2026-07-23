@@ -15,14 +15,18 @@ export async function generateBrandDna(args: {
 }): Promise<StructuredCallResult<BrandDNA>> {
   const { url, topic, siteText } = args;
 
+  const brandNameRule =
+    `Bepaal ook de canonieke merknaam (brandName) zoals klanten die kennen — de naam die in gewone taal gebruikt wordt, ` +
+    `niet het domein (dus bv. "Golden Fingers", niet "barbershopgoldenfingers.nl").`;
+
   const system = topic
     ? `Je bent een merk- en marktanalist. Analyseer dit bedrijf SPECIFIEK voor het onderwerp/product "${topic}". ` +
       `Bepaal: welke rol dit product/segment speelt binnen het bedrijf, de tone-of-voice, de doelgroep-persona's die hiernaar zoeken, ` +
       `de waardeproposities specifiek voor dit segment, en 3–5 concurrenten die relevant zijn VOOR DIT SPECIFIEKE ONDERWERP ` +
-      `(niet per se de concurrenten van het hele bedrijf). Gebruik web search voor actuele marktcontext. Antwoord in het Nederlands.`
+      `(niet per se de concurrenten van het hele bedrijf). ${brandNameRule} Gebruik web search voor actuele marktcontext. Antwoord in het Nederlands.`
     : `Je bent een merk- en marktanalist. Analyseer dit bedrijf op basis van de website-tekst en het web. ` +
       `Bepaal: branche, kernproducten/-diensten, tone-of-voice, doelgroep-persona's, waardeproposities en 3–5 belangrijkste concurrenten. ` +
-      `Gebruik web search voor actuele marktcontext. Antwoord in het Nederlands.`;
+      `${brandNameRule} Gebruik web search voor actuele marktcontext. Antwoord in het Nederlands.`;
 
   const user =
     `Website: ${url}\n` +

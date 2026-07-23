@@ -5,6 +5,8 @@ import { z } from "zod";
  * Contract letterlijk uit het plan — niet illustratief.
  */
 export const BrandDNA = z.object({
+  /** Canonieke merknaam zoals klanten die kennen (bv. "Golden Fingers"), niet het domein. */
+  brandName: z.string(),
   industry: z.string(),
   products: z.array(z.string()),
   toneOfVoice: z.string(),

@@ -14,6 +14,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { crawlSite } from "@/lib/crawler";
 import { generateBrandDna } from "@/lib/pipeline/brand-dna";
 import { generatePrompts, type BrandContext } from "@/lib/pipeline/prompts";
+import { brandNameFromRawJson } from "@/lib/pipeline/brand-name";
 import type { AnalysisStatus } from "@/lib/types/database";
 
 export async function prepareAnalysis(id: string): Promise<AnalysisStatus> {
@@ -50,6 +51,7 @@ export async function prepareAnalysis(id: string): Promise<AnalysisStatus> {
 
     if (existingDna) {
       brand = {
+        brandName: brandNameFromRawJson(existingDna.raw_json),
         industry: existingDna.industry,
         products: existingDna.products ?? [],
         competitors: existingDna.competitors ?? [],
@@ -81,6 +83,7 @@ export async function prepareAnalysis(id: string): Promise<AnalysisStatus> {
       );
 
       brand = {
+        brandName: p.brandName,
         industry: p.industry,
         products: p.products,
         competitors: p.competitors,
