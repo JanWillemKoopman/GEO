@@ -55,8 +55,8 @@ Vul in `.env.local` in:
 | `OPENAI_API_KEY` | platform.openai.com → API keys |
 | `RESEND_API_KEY` | resend.com (optioneel, later) |
 
-De modelnamen (`OPENAI_MODEL_VOLUME`/`QUALITY`) staan al goed ingevuld conform
-`abcplan.md` §2 — laat ze staan tenzij je bewust wijzigt.
+De OpenAI-modelkeuze (`gpt-4.1-nano` / `gpt-4.1-mini`) staat **vast in de code**
+(`lib/openai/models.ts`), niet als env-variabele — zie `abcplan.md` §2.
 
 ## 4. Database opzetten
 

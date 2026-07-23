@@ -18,8 +18,10 @@ import OpenAI from "openai";
 // .env.local heeft voorrang op .env (zoals Next.js dat ook doet).
 loadEnv({ path: ".env.local", override: true });
 
-const VOLUME = process.env.OPENAI_MODEL_VOLUME ?? "gpt-4.1-nano";
-const QUALITY = process.env.OPENAI_MODEL_QUALITY ?? "gpt-4.1-mini";
+// Bron van waarheid: lib/openai/models.ts (hier bewust gedupliceerd zodat het
+// script standalone draait zonder tsconfig-path-resolutie).
+const VOLUME = "gpt-4.1-nano";
+const QUALITY = "gpt-4.1-mini";
 
 function assertKey() {
   if (!process.env.OPENAI_API_KEY) {
