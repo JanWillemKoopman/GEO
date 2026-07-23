@@ -1,20 +1,36 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getAnalysis } from "@/lib/analyses";
+import { createClient } from "@/lib/supabase/server";
 import { PrepareProgress } from "./prepare-progress";
+import { MeasureProgress } from "./measure-progress";
+import { ScorePanel } from "./score-panel";
+import type { VisibilityScore, CompetitorBreakdown } from "@/lib/types/database";
 
 /**
  * Overzicht-tab. Server-state-gedreven (abcplan.md §3.7):
- * - bezig/mislukt → het live voortgangsscherm dat halte 1+2 aandrijft.
- * - concept_klaar → verwijzing naar het concept-scherm (review-gate, Sprint 3).
- * - meten/gemeten/gereed → score/trendlijn (komt in Sprint 4).
+ * - bezig/mislukt (zonder prompts) → live voortgang halte 1+2.
+ * - concept_klaar → verwijzing naar het concept-scherm (review-gate).
+ * - meten/mislukt (met prompts) → live voortgang halte 3 (de meting).
+ * - gemeten/gereed → score + "jij vs. concurrenten".
  */
 export default async function OverviewPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const analysis = await getAnalysis(id);
   if (!analysis) notFound();
 
+  const supabase = await createClient();
+
   if (analysis.status === "bezig" || analysis.status === "mislukt") {
+    // Onderscheid mislukte VOORBEREIDING vs mislukte METING (zie prepare.ts/measure.ts).
+    const { count: promptCount } = await supabase
+      .from("prompts")
+      .select("id", { count: "exact", head: true })
+      .eq("analysis_id", id);
+
+    if (analysis.status === "mislukt" && (promptCount ?? 0) > 0) {
+      return <MeasureProgress analysisId={id} initialStatus={analysis.status} />;
+    }
     return <PrepareProgress analysisId={id} initialStatus={analysis.status} />;
   }
 
@@ -34,27 +50,35 @@ export default async function OverviewPage({ params }: { params: Promise<{ id: s
   }
 
   if (analysis.status === "meten") {
+    return <MeasureProgress analysisId={id} initialStatus={analysis.status} />;
+  }
+
+  // gemeten / gereed → score + concurrentievergelijking (week 0).
+  const [{ data: scoreRow }, { data: competitorRows }, { count: activePromptCount }] = await Promise.all([
+    supabase.from("visibility_scores").select("*").eq("analysis_id", id).eq("week_no", 0).maybeSingle(),
+    supabase
+      .from("competitor_breakdown")
+      .select("*")
+      .eq("analysis_id", id)
+      .eq("week_no", 0)
+      .order("mentions_count", { ascending: false }),
+    supabase.from("prompts").select("id", { count: "exact", head: true }).eq("analysis_id", id).eq("active", true),
+  ]);
+
+  if (!scoreRow) {
     return (
-      <div className="card flex flex-col gap-3">
-        <div className="flex items-center gap-3">
-          <span className="live-dot" />
-          <span className="mono-label">Meten…</span>
-        </div>
-        <p className="text-secondary">
-          Je hebt de meting bevestigd. De prompts worden binnenkort tegen de AI-assistenten
-          getest — deze stap wordt in de volgende ontwikkelfase gekoppeld. Kom hier later terug
-          voor je zichtbaarheidsscore.
-        </p>
+      <div className="card flex flex-col gap-2">
+        <span className="mono-label">Zichtbaarheidsscore</span>
+        <p className="text-secondary">Score en trendlijn verschijnen hier zodra de meting is uitgevoerd.</p>
       </div>
     );
   }
 
   return (
-    <div className="card flex flex-col gap-2">
-      <span className="mono-label">Zichtbaarheidsscore</span>
-      <p className="text-secondary">
-        Score en trendlijn verschijnen hier zodra de meting is uitgevoerd.
-      </p>
-    </div>
+    <ScorePanel
+      score={scoreRow as VisibilityScore}
+      activePromptCount={activePromptCount ?? 0}
+      competitors={(competitorRows ?? []) as CompetitorBreakdown[]}
+    />
   );
 }
