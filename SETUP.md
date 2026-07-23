@@ -53,7 +53,7 @@ Vul in `.env.local` in:
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | idem → `anon` `public` key |
 | `SUPABASE_SERVICE_ROLE_KEY` | idem → `service_role` secret (**server-only!**) |
 | `OPENAI_API_KEY` | platform.openai.com → API keys |
-| `RESEND_API_KEY` | resend.com (optioneel, later) |
+| `RESEND_API_KEY` | resend.com (optioneel — zonder key wordt de rapport-mail stil overgeslagen, zie §7b) |
 
 De OpenAI-modelkeuze (`gpt-4.1-nano` / `gpt-4.1-mini`) staat **vast in de code**
 (`lib/openai/models.ts`), niet als env-variabele — zie `abcplan.md` §2.
@@ -135,6 +135,19 @@ beveiligd met `CRON_SECRET`.
 
 > Vercel Hobby ondersteunt Cron Jobs met een minimuminterval van eenmaal per
 > dag — wekelijks past daar ruim binnen.
+
+## 7b. Rapport-e-mail activeren (Sprint 5, optioneel)
+
+Na de nulmeting stelt de app automatisch een rapport op (halte B1+B2) en
+probeert dat naar de accounthouder te mailen via Resend. Zonder `RESEND_API_KEY`
+wordt deze stap **stil overgeslagen** (gelogd, niet blokkerend) — het rapport
+blijft gewoon zichtbaar in de app op het tabblad Rapport.
+
+1. Maak een gratis account op [resend.com](https://resend.com) en een API-key.
+2. Zet `RESEND_API_KEY` in Vercel. `RESEND_FROM_EMAIL` mag je laten staan op
+   het Resend-testadres (`onboarding@resend.dev`) totdat je een eigen domein
+   verifieert bij Resend.
+3. Redeploy.
 
 ## Architectuurprincipes (kort, uit `abcplan.md`)
 

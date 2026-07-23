@@ -3,43 +3,30 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { AnalysisStatus } from "@/lib/types/database";
-import { ReportProgress } from "./report-progress";
-
-interface StatusPayload {
-  status: AnalysisStatus;
-  activePromptCount: number;
-  measuredCount: number;
-}
 
 /**
- * Start halte A3 (nulmeting) en toont live, server-state-gedreven voortgang
- * (abcplan.md §3.7 stap 6: "Bezig met meten… (x/30 prompts verwerkt)").
+ * Draait halte B1+B2 (abcplan.md §7) en toont live voortgang. Wordt automatisch
+ * aangeroepen zodra de meting klaar is — géén klant-klik nodig (in tegenstelling
+ * tot Fase C content-generatie). Herbruikt vanuit MeasureProgress (handoff na
+ * 'gemeten') én vanuit de Rapport-tab (rechtstreeks bezoek of retry na 'mislukt').
  */
-export function MeasureProgress({
+export function ReportProgress({
   analysisId,
-  initialStatus,
+  initialStatus = "gemeten",
 }: {
   analysisId: string;
-  initialStatus: AnalysisStatus;
+  initialStatus?: AnalysisStatus;
 }) {
   const router = useRouter();
-  const [data, setData] = useState<StatusPayload>({
-    status: initialStatus,
-    activePromptCount: 0,
-    measuredCount: 0,
-  });
   const [failed, setFailed] = useState(initialStatus === "mislukt");
   const [errorDetail, setErrorDetail] = useState<string | null>(null);
-  // Zodra de meting klaar is, schakelt dit component door naar het rapport —
-  // automatisch, geen navigatie/klik nodig (matcht abcplan.md §9 stap 6-9).
-  const [handoffToReport, setHandoffToReport] = useState(false);
   const started = useRef(false);
 
-  async function runMeasure() {
+  async function runReport() {
     setFailed(false);
     setErrorDetail(null);
     try {
-      const res = await fetch(`/api/analyses/${analysisId}/measure`, { method: "POST" });
+      const res = await fetch(`/api/analyses/${analysisId}/report`, { method: "POST" });
       let json: { status?: string; detail?: string } = {};
       try {
         json = await res.json();
@@ -65,13 +52,9 @@ export function MeasureProgress({
       try {
         const res = await fetch(`/api/analyses/${analysisId}/status`, { cache: "no-store" });
         if (!res.ok) return;
-        const json: StatusPayload = await res.json();
+        const json: { status: AnalysisStatus } = await res.json();
         if (!active) return;
-        setData(json);
-        if (json.status === "gemeten") {
-          clearInterval(interval);
-          setHandoffToReport(true);
-        } else if (json.status === "gereed") {
+        if (json.status === "gereed") {
           clearInterval(interval);
           router.refresh();
         } else if (json.status === "mislukt") {
@@ -93,13 +76,9 @@ export function MeasureProgress({
   useEffect(() => {
     if (started.current) return;
     started.current = true;
-    void runMeasure();
+    void runReport();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  if (handoffToReport) {
-    return <ReportProgress analysisId={analysisId} />;
-  }
 
   if (failed) {
     return (
@@ -111,37 +90,30 @@ export function MeasureProgress({
           Mislukt
         </span>
         <p className="text-secondary">
-          Het meten van deze analyse is mislukt. Prompts die al gemeten zijn blijven bewaard —
-          bij een nieuwe poging wordt niet opnieuw begonnen.
+          Het opstellen van het rapport is mislukt. Je meting blijft bewaard — er wordt niet
+          opnieuw gemeten.
         </p>
         {errorDetail && (
           <p className="rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--bg-elevated)] px-4 py-3 font-mono text-xs text-[var(--status-error)]">
             {errorDetail}
           </p>
         )}
-        <button onClick={() => void runMeasure()} className="btn-primary w-fit">
+        <button onClick={() => void runReport()} className="btn-primary w-fit">
           Opnieuw proberen
         </button>
       </div>
     );
   }
 
-  const total = data.activePromptCount || null;
-
   return (
-    <div className="card flex flex-col gap-4">
+    <div className="card flex flex-col gap-3">
       <div className="flex items-center gap-3">
         <span className="live-dot" />
-        <span className="mono-label">
-          Bezig met meten{total ? ` (${data.measuredCount}/${total} prompts verwerkt)` : "…"}
-        </span>
+        <span className="mono-label">Rapport wordt opgesteld…</span>
       </div>
       <p className="text-secondary">
-        Elke actieve prompt wordt naar een AI-assistent gestuurd om te zien of jij (en je
-        concurrenten) genoemd worden. Dit duurt doorgaans minder dan een minuut.
-      </p>
-      <p className="text-sm text-muted">
-        Je kunt dit scherm sluiten en later terugkomen — de voortgang loopt gewoon door.
+        We analyseren waar concurrenten je voorbijstreven en stellen concrete aanbevelingen op.
+        Dit duurt meestal een paar tientallen seconden.
       </p>
     </div>
   );
