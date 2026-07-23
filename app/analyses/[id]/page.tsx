@@ -1,45 +1,38 @@
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getAnalysis } from "@/lib/analyses";
+import { PrepareProgress } from "./prepare-progress";
 
 /**
- * Overzicht-tab. In Sprint 2A staat elke nieuwe analyse op 'bezig' (de meet-
- * pipeline volgt in 2B). Dit scherm is server-state-gedreven (abcplan.md §3.7):
- * het leidt de weergave af van analyses.status, niet van een client-animatie.
+ * Overzicht-tab. Server-state-gedreven (abcplan.md §3.7):
+ * - bezig/mislukt → het live voortgangsscherm dat halte 1+2 aandrijft.
+ * - concept_klaar → verwijzing naar het concept-scherm (review-gate, Sprint 3).
+ * - meten/gemeten/gereed → score/trendlijn (komt in Sprint 4).
  */
-const PIPELINE_STEPS = ["Website lezen", "Merk analyseren", "Prompts opstellen"];
-
 export default async function OverviewPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const analysis = await getAnalysis(id);
   if (!analysis) notFound();
 
-  if (analysis.status === "bezig") {
+  if (analysis.status === "bezig" || analysis.status === "mislukt") {
+    return <PrepareProgress analysisId={id} initialStatus={analysis.status} />;
+  }
+
+  if (analysis.status === "concept_klaar") {
     return (
-      <div className="card flex flex-col gap-5">
-        <div className="flex items-center gap-3">
-          <span className="live-dot" />
-          <span className="mono-label">Analyse wordt voorbereid</span>
-        </div>
-        <ul className="flex flex-col gap-3">
-          {PIPELINE_STEPS.map((step) => (
-            <li key={step} className="flex items-center gap-3 text-secondary">
-              <span
-                className="h-2 w-2 rounded-full"
-                style={{ background: "var(--border-strong)" }}
-              />
-              {step}
-            </li>
-          ))}
-        </ul>
-        <p className="text-sm text-muted">
-          De automatische meet-pipeline (website lezen → Brand DNA → 30 prompts) wordt in de
-          volgende stap gekoppeld. Zodra die draait, verschijnt hier je zichtbaarheidsscore.
+      <div className="card flex flex-col gap-4">
+        <span className="mono-label">Concept klaar</span>
+        <p className="text-secondary">
+          Het Brand DNA en de prompts staan klaar. Bekijk en bevestig ze op het tabblad
+          Instellingen om de meting te starten.
         </p>
+        <Link href={`/analyses/${id}/instellingen`} className="btn-primary w-fit">
+          Naar concept &amp; goedkeuring
+        </Link>
       </div>
     );
   }
 
-  // Placeholder voor latere statussen (score/trendlijn komen in Sprint 4).
   return (
     <div className="card flex flex-col gap-2">
       <span className="mono-label">Zichtbaarheidsscore</span>
