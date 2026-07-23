@@ -6,8 +6,8 @@ import { z } from "zod";
  */
 export const ContentPiece = z.object({
   title: z.string(),
-  metaTitle: z.string(),
-  metaDescription: z.string(),
+  metaTitle: z.string().max(60), // Google kapt rond de 60 tekens af
+  metaDescription: z.string().max(160),
   bodyMarkdown: z.string(), // volledige pagina in Markdown
   faq: z.array(
     z.object({

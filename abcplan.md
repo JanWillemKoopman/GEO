@@ -508,7 +508,9 @@ const Report = z.object({
 
 **Mechanisme:** elke klik wordt een **job** die één `content_piece` genereert. De cron/queue werkt ze af.
 
-**OpenAI-call per pagina:** structured output, **geen** `web_search`. Input = de aanbeveling + Brand DNA (voor on-brand tone, inclusief het onderwerp indien van toepassing) + de bewijs-prompts. LLM-geoptimaliseerd: *begin met het directe antwoord, heldere koppen, concrete datapunten, FAQ, schema-markup.*
+**OpenAI-call per pagina:** structured output, **geen** `web_search`. Input = de aanbeveling + Brand DNA (voor on-brand tone, inclusief het onderwerp indien van toepassing) + de meet-prompts *als thematische inspiratie*. LLM-geoptimaliseerd: *begin met het directe antwoord, heldere koppen, concrete datapunten, FAQ, schema-markup.*
+
+> **🔒 VASTGELEGD — HARDE REGELS voor klant-content (herzien: kwaliteitscorrectie).** De pagina staat op de **eigen website van de klant**, dus: **(1)** noem NOOIT concurrenten bij naam (geen "waarom zijn wij beter dan [concurrent]"-content); **(2)** verzin GEEN specifieke feiten (prijzen, cijfers, productmerken, technieken, openingstijden) die niet uit de context blijken — blijf algemeen-waar i.p.v. plausibel-verzonnen; **(3)** neem de meet-prompts NIET letterlijk over als paginakoppen (die noemen legitiem het merk/concurrenten om te *meten* — dat is geen pagina-inhoud); een **FAQ-pagina** krijgt echte klantvragen (afspraak, diensten, verwachtingen), niet de zoekvragen. Meta-title ≤ 60 tekens, meta-description ≤ 160. Zie `lib/pipeline/content.ts`.
 
 ```ts
 const ContentPiece = z.object({
