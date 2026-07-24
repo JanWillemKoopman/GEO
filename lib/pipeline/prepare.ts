@@ -106,6 +106,9 @@ export async function prepareAnalysis(id: string): Promise<AnalysisStatus> {
         competitors: Array.from(new Set([...topicCompetitors, ...profile.competitors])),
         toneOfVoice: profile.tone_of_voice,
         summary: profile.summary,
+        serviceScope: profile.service_scope,
+        serviceRegions: profile.service_regions,
+        marketLanguage: profile.market_language,
       };
 
       const prompts = await generatePrompts({

@@ -45,6 +45,11 @@ export function ProfileEditor({ initial, inventoryCount }: { initial: Profile; i
           personas: profile.personas,
           intake_description: profile.intake_description,
           intake_audience: profile.intake_audience,
+          aliases: profile.aliases,
+          service_scope: profile.service_scope,
+          service_regions: profile.service_regions,
+          market_language: profile.market_language,
+          customer_questions: profile.customer_questions,
           sitemap_url: profile.sitemap_url,
           max_inventory_pages: profile.max_inventory_pages,
         }),
@@ -104,6 +109,15 @@ export function ProfileEditor({ initial, inventoryCount }: { initial: Profile; i
             onChange={(e) => setProfile((p) => ({ ...p, name: e.target.value }))}
           />
         </label>
+        <div className="flex flex-col gap-1.5">
+          <span className="mono-label">Andere namen / schrijfwijzen (aliassen)</span>
+          <TagListEditor
+            items={profile.aliases}
+            onChange={(aliases) => setProfile((p) => ({ ...p, aliases }))}
+            placeholder="Nieuwe schrijfwijze…"
+          />
+          <span className="text-sm text-muted">Meegewogen in de meting: het merk wordt zo breder herkend.</span>
+        </div>
         <label className="flex flex-col gap-1.5">
           <span className="mono-label">Branche</span>
           <input
@@ -166,6 +180,48 @@ export function ProfileEditor({ initial, inventoryCount }: { initial: Profile; i
             items={profile.value_props}
             onChange={(value_props) => setProfile((p) => ({ ...p, value_props }))}
             placeholder="Nieuwe waardepropositie…"
+          />
+        </div>
+      </CollapsibleSection>
+
+      <CollapsibleSection title="Werkgebied & markt">
+        <label className="flex flex-col gap-1.5">
+          <span className="mono-label">Bereik</span>
+          <select
+            className="field"
+            value={profile.service_scope ?? ""}
+            onChange={(e) => setProfile((p) => ({ ...p, service_scope: e.target.value || null }))}
+          >
+            <option value="">— Onbekend —</option>
+            <option value="lokaal">Lokaal</option>
+            <option value="landelijk">Landelijk</option>
+            <option value="internationaal">Internationaal</option>
+          </select>
+        </label>
+        <div className="flex flex-col gap-1.5">
+          <span className="mono-label">Plaatsen / regio&apos;s</span>
+          <TagListEditor
+            items={profile.service_regions}
+            onChange={(service_regions) => setProfile((p) => ({ ...p, service_regions }))}
+            placeholder="Nieuwe plaats/regio…"
+          />
+          <span className="text-sm text-muted">Gebruikt voor lokale zoekvragen in de meting.</span>
+        </div>
+        <label className="flex flex-col gap-1.5">
+          <span className="mono-label">Markt &amp; taal</span>
+          <input
+            className="field"
+            value={profile.market_language ?? ""}
+            onChange={(e) => setProfile((p) => ({ ...p, market_language: e.target.value }))}
+            placeholder="bijv. Nederland + België"
+          />
+        </label>
+        <div className="flex flex-col gap-1.5">
+          <span className="mono-label">Veelgehoorde klantvragen</span>
+          <TagListEditor
+            items={profile.customer_questions}
+            onChange={(customer_questions) => setProfile((p) => ({ ...p, customer_questions }))}
+            placeholder="Nieuwe klantvraag…"
           />
         </div>
       </CollapsibleSection>

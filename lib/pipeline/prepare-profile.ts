@@ -48,12 +48,18 @@ export async function prepareProfile(id: string): Promise<ProfileStatus> {
       siteText: crawl.text,
       intake: {
         name: prof.name,
+        aliases: prof.aliases,
         description: prof.intake_description,
         industry: prof.industry,
         products: prof.products,
+        valueProps: prof.value_props,
         competitors: prof.competitors,
+        serviceScope: prof.service_scope,
+        serviceRegions: prof.service_regions,
+        marketLanguage: prof.market_language,
         toneOfVoice: prof.tone_of_voice,
         audience: prof.intake_audience,
+        customerQuestions: prof.customer_questions,
       },
     });
     const p = research.parsed;
@@ -69,7 +75,7 @@ export async function prepareProfile(id: string): Promise<ProfileStatus> {
         tone_of_voice: filled(prof.tone_of_voice) ? prof.tone_of_voice : p.toneOfVoice,
         summary: filled(prof.summary) ? prof.summary : p.summary,
         products: unionList(prof.products, p.products),
-        value_props: prof.value_props?.length ? prof.value_props : p.valueProps,
+        value_props: unionList(prof.value_props, p.valueProps),
         competitors: unionList(prof.competitors, p.competitors),
         personas: prof.personas?.length ? prof.personas : p.personas,
         raw_json: research.raw as never,

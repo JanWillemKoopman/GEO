@@ -21,6 +21,11 @@ const EDITABLE_FIELDS = [
   "personas",
   "intake_description",
   "intake_audience",
+  "aliases",
+  "service_scope",
+  "service_regions",
+  "market_language",
+  "customer_questions",
   "sitemap_url",
 ] as const;
 

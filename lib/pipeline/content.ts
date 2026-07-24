@@ -87,6 +87,10 @@ function buildContentInput(args: {
     `Branche: ${profile?.industry ?? "onbekend"}`,
     `Tone of voice: ${profile?.tone_of_voice ?? "professioneel, helder"}`,
     `Diensten/producten: ${(profile?.products ?? []).join(", ") || "onbekend"}`,
+    profile?.value_props?.length ? `Waardeproposities (waarom klanten kiezen): ${profile.value_props.join(", ")}` : "",
+    profile?.customer_questions?.length
+      ? `Veelgehoorde klantvragen (verwerk waar relevant): ${profile.customer_questions.join(" | ")}`
+      : "",
     topicResearch?.content_summary ? `Wat de website al zegt over dit onderwerp: ${topicResearch.content_summary}` : "",
     competitors.length
       ? `NIET noemen op deze pagina (concurrenten): ${competitors.join(", ")}`

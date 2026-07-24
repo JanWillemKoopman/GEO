@@ -6,23 +6,38 @@ import Link from "next/link";
 import { TagListEditor } from "@/components/tag-list-editor";
 
 /**
- * Onboarding-wizard voor een nieuw klantprofiel (abcplan.md §12.24). Vraagt in
- * een paar stappen gegevens uit; alles behalve stap 1 (naam + website) is
- * optioneel. Wat de klant invult is leidend — de AI-research vult daarna aan.
+ * Onboarding-wizard voor een nieuw klantprofiel (abcplan.md §12.24). Begeleide,
+ * uitgebreide intake; alleen stap 1 (naam + website) is verplicht. Wat de klant
+ * invult is leidend — de AI-research vult daarna aan. De extra velden (aliassen,
+ * bereik/regio's, markt, klantvragen) worden ook doorgevoerd in de meting en
+ * promptgeneratie.
  */
 
 interface FormState {
   name: string;
   url: string;
+  aliases: string[];
   intake_description: string;
   industry: string;
   products: string[];
+  value_props: string[];
+  service_scope: string;
+  service_regions: string[];
+  market_language: string;
   competitors: string[];
-  tone_of_voice: string;
   intake_audience: string;
+  tone_of_voice: string;
+  customer_questions: string[];
+  sitemap_url: string;
 }
 
-const STEP_TITLES = ["Bedrijf", "Over het bedrijf", "Aanbod & markt", "Stijl & doelgroep"];
+const STEP_TITLES = ["Bedrijf", "Wat je doet", "Markt & concurrentie", "Doelgroep & stijl", "Kennis & techniek"];
+const SCOPES = [
+  { value: "lokaal", label: "Lokaal" },
+  { value: "landelijk", label: "Landelijk" },
+  { value: "internationaal", label: "Internationaal" },
+];
+const MARKETS = ["Nederland", "Nederland + België", "Internationaal"];
 
 export function OnboardingWizard() {
   const router = useRouter();
@@ -30,12 +45,19 @@ export function OnboardingWizard() {
   const [form, setForm] = useState<FormState>({
     name: "",
     url: "",
+    aliases: [],
     intake_description: "",
     industry: "",
     products: [],
+    value_props: [],
+    service_scope: "",
+    service_regions: [],
+    market_language: "",
     competitors: [],
-    tone_of_voice: "",
     intake_audience: "",
+    tone_of_voice: "",
+    customer_questions: [],
+    sitemap_url: "",
   });
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
@@ -77,19 +99,17 @@ export function OnboardingWizard() {
         </Link>
         <h1 className="mt-3 text-3xl font-bold tracking-tight">Nieuw klantprofiel</h1>
         <p className="mt-2 text-secondary">
-          Vertel ons kort over het merk. Wat je zelf invult houden we aan; de rest zoeken we
-          daarna automatisch voor je uit. Alleen bedrijfsnaam en website zijn verplicht — de
-          rest mag je overslaan.
+          Vertel ons over het merk. Wat je zelf invult houden we aan; de rest zoeken we daarna
+          automatisch voor je uit. Alleen bedrijfsnaam en website zijn verplicht — de rest mag je
+          overslaan.
         </p>
       </div>
 
       {/* Voortgang */}
       <div className="flex flex-col gap-2">
-        <div className="flex items-center justify-between">
-          <span className="mono-label">
-            Stap {step + 1} van {STEP_TITLES.length} — {STEP_TITLES[step]}
-          </span>
-        </div>
+        <span className="mono-label">
+          Stap {step + 1} van {STEP_TITLES.length} — {STEP_TITLES[step]}
+        </span>
         <div className="flex gap-1.5">
           {STEP_TITLES.map((_, i) => (
             <div
@@ -113,6 +133,7 @@ export function OnboardingWizard() {
                 placeholder="bijv. MediaMarkt"
                 autoFocus
               />
+              <span className="text-sm text-muted">De naam zoals klanten je kennen (niet het domein).</span>
             </label>
             <label className="flex flex-col gap-1.5">
               <span className="mono-label">Website *</span>
@@ -123,6 +144,17 @@ export function OnboardingWizard() {
                 placeholder="mediamarkt.nl"
               />
             </label>
+            <div className="flex flex-col gap-1.5">
+              <span className="mono-label">Andere namen / schrijfwijzen</span>
+              <TagListEditor
+                items={form.aliases}
+                onChange={(aliases) => set("aliases", aliases)}
+                placeholder="bijv. afkorting of merknaam-variant…"
+              />
+              <span className="text-sm text-muted">
+                Hoe wordt het merk nog meer genoemd? Dit maakt de meting nauwkeuriger.
+              </span>
+            </div>
           </>
         )}
 
@@ -149,11 +181,6 @@ export function OnboardingWizard() {
                 placeholder="bijv. consumentenelektronica"
               />
             </label>
-          </>
-        )}
-
-        {step === 2 && (
-          <>
             <div className="flex flex-col gap-1.5">
               <span className="mono-label">Belangrijkste producten / diensten</span>
               <TagListEditor
@@ -162,6 +189,60 @@ export function OnboardingWizard() {
                 placeholder="Nieuw product…"
               />
             </div>
+            <div className="flex flex-col gap-1.5">
+              <span className="mono-label">Waarom kiezen klanten voor jou? (waardeproposities)</span>
+              <TagListEditor
+                items={form.value_props}
+                onChange={(value_props) => set("value_props", value_props)}
+                placeholder="Nieuwe reden…"
+              />
+            </div>
+          </>
+        )}
+
+        {step === 2 && (
+          <>
+            <div className="flex flex-col gap-1.5">
+              <span className="mono-label">Bereik</span>
+              <div className="flex flex-wrap gap-2">
+                {SCOPES.map((s) => (
+                  <button
+                    key={s.value}
+                    type="button"
+                    onClick={() => set("service_scope", form.service_scope === s.value ? "" : s.value)}
+                    className={form.service_scope === s.value ? "btn-primary" : "btn-outline"}
+                  >
+                    {s.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+            {form.service_scope === "lokaal" && (
+              <div className="flex flex-col gap-1.5">
+                <span className="mono-label">Plaatsen / regio&apos;s</span>
+                <TagListEditor
+                  items={form.service_regions}
+                  onChange={(service_regions) => set("service_regions", service_regions)}
+                  placeholder="bijv. Utrecht…"
+                />
+                <span className="text-sm text-muted">Gebruiken we voor lokale zoekvragen in de meting.</span>
+              </div>
+            )}
+            <label className="flex flex-col gap-1.5">
+              <span className="mono-label">Markt &amp; taal</span>
+              <select
+                className="field"
+                value={form.market_language}
+                onChange={(e) => set("market_language", e.target.value)}
+              >
+                <option value="">— Kies (optioneel) —</option>
+                {MARKETS.map((m) => (
+                  <option key={m} value={m}>
+                    {m}
+                  </option>
+                ))}
+              </select>
+            </label>
             <div className="flex flex-col gap-1.5">
               <span className="mono-label">Bekende concurrenten</span>
               <TagListEditor
@@ -177,24 +258,50 @@ export function OnboardingWizard() {
         {step === 3 && (
           <>
             <label className="flex flex-col gap-1.5">
-              <span className="mono-label">Gewenste tone of voice</span>
-              <input
-                className="field"
-                value={form.tone_of_voice}
-                onChange={(e) => set("tone_of_voice", e.target.value)}
-                placeholder="bijv. toegankelijk, deskundig, informeel"
-                autoFocus
-              />
-            </label>
-            <label className="flex flex-col gap-1.5">
               <span className="mono-label">Doelgroep</span>
               <textarea
                 className="field"
                 rows={3}
                 value={form.intake_audience}
                 onChange={(e) => set("intake_audience", e.target.value)}
-                placeholder="Wie zijn jullie klanten?"
+                placeholder="Wie zijn jullie klanten? (bijv. B2C, particulieren in de regio)"
+                autoFocus
               />
+            </label>
+            <label className="flex flex-col gap-1.5">
+              <span className="mono-label">Gewenste tone of voice</span>
+              <input
+                className="field"
+                value={form.tone_of_voice}
+                onChange={(e) => set("tone_of_voice", e.target.value)}
+                placeholder="bijv. toegankelijk, deskundig, informeel"
+              />
+            </label>
+          </>
+        )}
+
+        {step === 4 && (
+          <>
+            <div className="flex flex-col gap-1.5">
+              <span className="mono-label">Veelgehoorde klantvragen</span>
+              <TagListEditor
+                items={form.customer_questions}
+                onChange={(customer_questions) => set("customer_questions", customer_questions)}
+                placeholder="bijv. 'Kan ik zonder afspraak langskomen?'"
+              />
+              <span className="text-sm text-muted">Vragen die klanten je vaak stellen — helpen bij content.</span>
+            </div>
+            <label className="flex flex-col gap-1.5">
+              <span className="mono-label">Sitemap-URL (optioneel)</span>
+              <input
+                className="field"
+                value={form.sitemap_url}
+                onChange={(e) => set("sitemap_url", e.target.value)}
+                placeholder="https://voorbeeld.nl/sitemap.xml"
+              />
+              <span className="text-sm text-muted">
+                Weet je de sitemap-locatie? Vul die in voor een completere content-inventaris.
+              </span>
             </label>
           </>
         )}

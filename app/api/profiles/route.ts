@@ -12,13 +12,21 @@ import { normalizeUrl } from "@/lib/url";
 interface ProfileIntakeBody {
   name?: string;
   url?: string;
+  aliases?: unknown;
   industry?: string;
   products?: unknown;
+  value_props?: unknown;
   competitors?: unknown;
+  service_scope?: string;
+  service_regions?: unknown;
+  market_language?: string;
   tone_of_voice?: string;
   intake_description?: string;
   intake_audience?: string;
+  customer_questions?: unknown;
 }
+
+const VALID_SCOPES = ["lokaal", "landelijk", "internationaal"];
 
 /** Maakt een schone string-lijst van willekeurige JSON-input (wizard stuurt string[]). */
 function toStringList(value: unknown): string[] {
@@ -63,12 +71,18 @@ export async function POST(request: Request) {
       name,
       url,
       status: "bezig",
+      aliases: toStringList(body.aliases),
       industry: toTextOrNull(body.industry),
       products: toStringList(body.products),
+      value_props: toStringList(body.value_props),
       competitors: toStringList(body.competitors),
+      service_scope: VALID_SCOPES.includes(body.service_scope ?? "") ? body.service_scope : null,
+      service_regions: toStringList(body.service_regions),
+      market_language: toTextOrNull(body.market_language),
       tone_of_voice: toTextOrNull(body.tone_of_voice),
       intake_description: toTextOrNull(body.intake_description),
       intake_audience: toTextOrNull(body.intake_audience),
+      customer_questions: toStringList(body.customer_questions),
     })
     .select("id")
     .single();
