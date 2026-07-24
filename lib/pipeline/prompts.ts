@@ -16,7 +16,7 @@ import "server-only";
  */
 import { callStructured } from "@/lib/openai/structured";
 import { MODELS } from "@/lib/openai/models";
-import { PromptSet } from "@/lib/schemas/prompts";
+import { PromptSet, VolumeCalibration } from "@/lib/schemas/prompts";
 import { PROMPT_CATEGORIES, type PromptIntentType, type PromptSpecificity } from "@/lib/types/database";
 import { promptsPerFunnelStage } from "@/lib/config";
 
@@ -167,9 +167,41 @@ async function generateForFunnelStage(args: {
       specificity: p.specificity,
       purchaseIntent: p.purchaseIntent,
       cluster: p.cluster,
-      volumeEstimate: Math.max(0, Math.min(100, Math.round(p.volumeEstimate))),
+      volumeEstimate: 50, // voorlopig; wordt relatief gekalibreerd over alle prompts (zie calibrateVolumes)
       sourceRawJson: result.raw, // audit-trail per fase (abcplan.md §5)
     }));
+}
+
+/**
+ * Kalibreert het geschatte zoekvolume RELATIEF over alle prompts van de analyse
+ * in één call (abcplan.md §6 A2) — consistenter dan losse per-prompt-schattingen.
+ * Geeft per prompt een 0-100-waarde terug (op input-volgorde). Faalt de call,
+ * dan vallen we terug op een neutrale 50 (blokkeert de analyse niet).
+ */
+async function calibrateVolumes(prompts: GeneratedPrompt[]): Promise<number[]> {
+  if (prompts.length === 0) return [];
+  const numbered = prompts.map((p, i) => `${i + 1}. ${p.text}`).join("\n");
+  try {
+    const result = await callStructured({
+      model: MODELS.quality,
+      system:
+        "Je bent een zoekgedrag-analist. Schat hoe vaak elke onderstaande vraag door echte mensen aan een " +
+        "AI-assistent/zoekmachine gesteld wordt, RELATIEF ten opzichte van elkaar. Gebruik de VOLLE schaal 0-100: " +
+        "de meest gezochte, brede vragen richting 100, de meest specifieke/niche-vragen richting 0-10. Dit is een " +
+        "schatting, geen echte index. Antwoord voor ELKE vraag met haar nummer (index) en een volume 0-100.",
+      user: `Vragen:\n${numbered}`,
+      schema: VolumeCalibration,
+      schemaName: "volume_calibration",
+      webSearch: false,
+    });
+    const byIndex = new Map<number, number>();
+    for (const w of result.parsed.weights) {
+      byIndex.set(Math.round(w.index), Math.max(0, Math.min(100, Math.round(w.volume))));
+    }
+    return prompts.map((_, i) => byIndex.get(i + 1) ?? 50);
+  } catch {
+    return prompts.map(() => 50);
+  }
 }
 
 /**
@@ -188,5 +220,9 @@ export async function generatePrompts(args: {
       generateForFunnelStage({ ...args, category, count: promptsPerFunnelStage, tokens }),
     ),
   );
-  return perStage.flat();
+  const prompts = perStage.flat();
+
+  // Relatieve volume-kalibratie over alle prompts samen (consistenter).
+  const volumes = await calibrateVolumes(prompts);
+  return prompts.map((p, i) => ({ ...p, volumeEstimate: volumes[i] }));
 }

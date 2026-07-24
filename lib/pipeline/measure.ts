@@ -14,6 +14,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { callPlain, callStructured } from "@/lib/openai/structured";
 import { MODELS } from "@/lib/openai/models";
 import { measureWebSearchEnabled } from "@/lib/config";
+import { promptWeight } from "@/lib/pipeline/prompt-weight";
 import { Mention } from "@/lib/schemas/mention";
 import type { Analysis, AnalysisStatus, Prompt, TrackingRun } from "@/lib/types/database";
 
@@ -97,6 +98,8 @@ async function measureOnePrompt(
         prompt_id: prompt.id,
         prompt_text_snapshot: prompt.text,
         prompt_category_snapshot: prompt.category,
+        // Gewicht bevriezen op meetmoment (volume × waarde), voor de gewogen score (§6 A3).
+        prompt_weight: promptWeight(prompt.volume_estimate, prompt.intent_type),
         engine: "openai",
         model_used: MODELS.quality,
         week_no: weekNo,
@@ -145,7 +148,7 @@ async function measureOnePrompt(
 async function computeAggregates(admin: Admin, analysisId: string, weekNo: number): Promise<void> {
   const { data: runsFull } = await admin
     .from("tracking_runs")
-    .select("id, prompt_category_snapshot")
+    .select("id, prompt_category_snapshot, prompt_weight")
     .eq("analysis_id", analysisId)
     .eq("week_no", weekNo);
   const runs = runsFull ?? [];
@@ -153,6 +156,8 @@ async function computeAggregates(admin: Admin, analysisId: string, weekNo: numbe
 
   const runIds = runs.map((r) => r.id as string);
   const categoryByRun = new Map(runs.map((r) => [r.id as string, r.prompt_category_snapshot as string]));
+  // Gewicht per run (volume × waarde), bevroren op meetmoment. Fallback 0,1 (ondergrens).
+  const weightByRun = new Map(runs.map((r) => [r.id as string, Number(r.prompt_weight ?? 0.1)]));
 
   const { data: mentionRows } = await admin.from("tracking_run_mentions").select("*").in("tracking_run_id", runIds);
   const mentions = mentionRows ?? [];
@@ -164,6 +169,14 @@ async function computeAggregates(admin: Admin, analysisId: string, weekNo: numbe
   const ownMentionedCount = Array.from(ownByRun.values()).filter((m) => m.mentioned).length;
   const score = totalRuns > 0 ? Math.round((ownMentionedCount / totalRuns) * 100) : 0;
 
+  // Gewogen zichtbaarheid: Σ gewicht van runs waarin het merk genoemd wordt ÷ Σ gewicht van alle runs.
+  const totalWeight = runIds.reduce((sum, id) => sum + (weightByRun.get(id) ?? 0.1), 0);
+  const ownWeight = runIds.reduce((sum, id) => {
+    const own = ownByRun.get(id);
+    return sum + (own?.mentioned ? (weightByRun.get(id) ?? 0.1) : 0);
+  }, 0);
+  const weightedScore = totalWeight > 0 ? Math.round((ownWeight / totalWeight) * 100) : 0;
+
   const competitorRows = mentions.filter((m) => !m.is_own_brand);
   const competitorMentionedTotal = competitorRows.filter((m) => m.mentioned).length;
   const shareOfVoice =
@@ -174,7 +187,7 @@ async function computeAggregates(admin: Admin, analysisId: string, weekNo: numbe
   await admin
     .from("visibility_scores")
     .upsert(
-      { analysis_id: analysisId, week_no: weekNo, score, share_of_voice: shareOfVoice },
+      { analysis_id: analysisId, week_no: weekNo, score, weighted_score: weightedScore, share_of_voice: shareOfVoice },
       { onConflict: "analysis_id,week_no" },
     );
 
