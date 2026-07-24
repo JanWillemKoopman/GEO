@@ -86,16 +86,19 @@ function PromptCategoryList({
           key={p.id}
           className="flex flex-col gap-2 rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--bg-elevated)] p-3 sm:flex-row sm:items-start"
         >
-          <textarea
-            className="field flex-1"
-            rows={2}
-            defaultValue={p.text}
-            style={{ opacity: p.active ? 1 : 0.5 }}
-            onBlur={(e) => {
-              const text = e.target.value.trim();
-              if (text && text !== p.text) onUpdate(p.id, { text });
-            }}
-          />
+          <div className="flex flex-1 flex-col gap-1.5">
+            <textarea
+              className="field"
+              rows={2}
+              defaultValue={p.text}
+              style={{ opacity: p.active ? 1 : 0.5 }}
+              onBlur={(e) => {
+                const text = e.target.value.trim();
+                if (text && text !== p.text) onUpdate(p.id, { text });
+              }}
+            />
+            <PromptTags prompt={p} />
+          </div>
           <div className="flex shrink-0 items-center gap-3 sm:flex-col sm:items-end">
             <button
               type="button"
@@ -120,6 +123,32 @@ function PromptCategoryList({
         </li>
       ))}
     </ul>
+  );
+}
+
+/** Read-only tag-chips per prompt (funnelfase is de groep; dit toont de fijnere tags). */
+const INTENT_LABEL: Record<string, string> = {
+  informational: "informatief",
+  commercial: "vergelijkend",
+  transactional: "koopklaar",
+};
+
+function PromptTags({ prompt }: { prompt: Prompt }) {
+  const chips: string[] = [];
+  if (prompt.intent_type) chips.push(INTENT_LABEL[prompt.intent_type] ?? prompt.intent_type);
+  if (prompt.specificity) chips.push(prompt.specificity === "head" ? "head" : "long-tail");
+  if (prompt.purchase_intent != null) chips.push(prompt.purchase_intent ? "koopintentie" : "geen koopintentie");
+  if (prompt.cluster) chips.push(prompt.cluster);
+  if (prompt.volume_estimate != null) chips.push(`volume ~${prompt.volume_estimate}/100`);
+  if (chips.length === 0) return null;
+  return (
+    <div className="flex flex-wrap gap-1.5">
+      {chips.map((c, i) => (
+        <span key={i} className="chip" style={{ fontSize: "0.7rem" }}>
+          {c}
+        </span>
+      ))}
+    </div>
   );
 }
 

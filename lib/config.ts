@@ -12,11 +12,11 @@
 export const signupsEnabled = process.env.SIGNUPS_ENABLED === "true";
 
 /**
- * Aantal prompts dat per categorie gegenereerd wordt (abcplan.md §6 A2).
- * Met 5 categorieën: 2 = 10 prompts (bouwfase, kostenbesparend),
- * 6 = 30 prompts (productie, zoals in het plan). Pas dit aan bij lancering.
+ * Aantal prompts dat per FUNNELFASE gegenereerd wordt (abcplan.md §6 A2).
+ * Met 3 funnelfasen (Oriëntatie/Overweging/Beslissing): 4 = 12 prompts
+ * (bouwfase), 10 = 30 prompts (productie). Pas dit aan bij lancering.
  */
-export const promptsPerCategory = 2;
+export const promptsPerFunnelStage = 4;
 
 /**
  * Grounding (de dure `web_search`-tool) in de MÉTING (halte A3, 3a) aan/uit.

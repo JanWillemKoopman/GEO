@@ -1,33 +1,36 @@
 import "server-only";
 
 /**
- * Halte 2 — Prompt-generatie (abcplan.md §6 A2). 5 aparte calls (één per
- * categorie), PARALLEL afgevuurd, model gpt-4.1-mini, geen web_search. Aantal
- * per categorie is configureerbaar (lib/config.ts) — 2 in de bouwfase (=10), 6 in productie (=30).
+ * Halte 2 — Prompt-generatie (abcplan.md §6 A2). Eén call per FUNNELFASE
+ * (Oriëntatie/Overweging/Beslissing), PARALLEL afgevuurd, model gpt-4.1-mini,
+ * geen web_search. Aantal per fase is configureerbaar (lib/config.ts).
  *
- * KERNPRINCIPE (merkneutraliteit): een gegenereerde prompt mag NOOIT de eigen
- * merknaam/het domein van de klant bevatten. Anders is een vermelding gegarandeerd
- * (de merknaam staat immers al in de vraag) en meet de prompt niets — het blaast
- * de zichtbaarheidsscore kunstmatig op. De meting moet spontane vermeldingen
- * meten: wat vraagt iemand die het merk NOG NIET kent? Concurrenten noemen mag wél.
+ * KERNPRINCIPE (merk- én concurrent-neutraliteit): een gegenereerde prompt mag
+ * NOOIT de eigen merknaam/het domein van de klant bevatten, en ook GEEN
+ * concurrerend bedrijf uit de concurrentenlijst. Anders is een vermelding
+ * gegarandeerd (de naam staat immers al in de vraag) en meet de prompt niets —
+ * het vervuilt de zichtbaarheid/share-of-voice. De meting moet SPONTANE
+ * vermeldingen meten: wat vraagt iemand die de merken NOG NIET kent? Generieke
+ * productmerken/categorieën (bv. "Nike-schoenen") mogen wél — die staan niet in
+ * de concurrentenlijst en zijn geen concurrerend bedrijf van de klant.
  */
 import { callStructured } from "@/lib/openai/structured";
 import { MODELS } from "@/lib/openai/models";
 import { PromptSet } from "@/lib/schemas/prompts";
-import { PROMPT_CATEGORIES } from "@/lib/types/database";
-import { promptsPerCategory } from "@/lib/config";
+import { PROMPT_CATEGORIES, type PromptIntentType, type PromptSpecificity } from "@/lib/types/database";
+import { promptsPerFunnelStage } from "@/lib/config";
 
-/** Korte, sturende omschrijving per categorie — ALLE merkneutraal (abcplan.md §6 A2). */
+/** Korte, sturende omschrijving per FUNNELFASE — merk- én concurrent-neutraal. */
 const CATEGORY_BRIEF: Record<string, string> = {
   Oriëntatie:
-    "brede oriëntatievragen van iemand die zich op het onderwerp aan het inlezen is (bv. 'Waar koop ik het beste X?').",
-  Vergelijking:
-    "vragen die concurrenten of type-aanbieders binnen de categorie vergelijken, ZONDER het eigen merk te noemen (bv. 'Ketenzaak of zelfstandige specialist: wat is beter voor X?').",
-  "Probleem→oplossing":
-    "vragen die vanuit een concreet probleem naar een oplossing zoeken (bv. 'Mijn X is kapot, waar laat ik dit maken?').",
-  "Lokaal/branche": "lokale of branchegerichte vragen (bv. 'Beste X-reparatie in [regio]?').",
-  "Aanbeveling/keuze":
-    "vragen waarin iemand om een aanbeveling of keuze vraagt binnen de categorie, zonder een merk te noemen (bv. 'Welke X-specialist in [plaats] is aan te raden?').",
+    "AWARENESS: brede oriëntatievragen van iemand die zich net op het onderwerp inleest en nog geen aanbieder kent " +
+    "(bv. 'Waar moet ik op letten bij het kiezen van X?').",
+  Overweging:
+    "CONSIDERATION: vragen waarin iemand opties/aanpakken/type-aanbieders vergelijkt vóór een aankoop, ZONDER een merk " +
+    "of bedrijf te noemen (bv. 'Ketenzaak of zelfstandige specialist: wat is beter voor X?').",
+  Beslissing:
+    "DECISION: vragen van iemand die klaar is om te kiezen/kopen/boeken (bv. 'Waar koop ik X in [plaats]?', " +
+    "'Welke X-specialist is aan te raden?') — nog steeds zonder een concurrerend bedrijf bij naam te noemen.",
 };
 
 export interface BrandContext {
@@ -45,27 +48,37 @@ export interface BrandContext {
 
 export interface GeneratedPrompt {
   text: string;
-  category: string;
+  category: string; // funnelfase
   intent: string;
+  intentType: PromptIntentType;
+  specificity: PromptSpecificity;
+  purchaseIntent: boolean;
+  cluster: string;
+  volumeEstimate: number;
   sourceRawJson: unknown;
 }
 
 /**
- * Bouwt de lijst met "verboden" merk-tokens: de canonieke merknaam en het
- * domein-label (zonder TLD). Deze mogen niet in een prompt voorkomen. We houden
- * het bewust op DISTINCTIEVE, volledige tokens (geen losse woorden als "barber"
- * of "shop") om te voorkomen dat we legitieme categoriewoorden wegfilteren.
+ * Bouwt de lijst met "verboden" tokens: de canonieke merknaam, het domein-label
+ * (zonder TLD) én elke concurrent uit de concurrentenlijst. Deze mogen niet in
+ * een prompt voorkomen. We houden het op DISTINCTIEVE tokens (lengte > 3) om te
+ * voorkomen dat we legitieme categoriewoorden wegfilteren. Generieke productmerken
+ * staan NIET in de concurrentenlijst en blijven dus toegestaan.
  */
-function brandTokens(url: string, brandName: string | null): string[] {
+function forbiddenTokens(url: string, brandName: string | null, competitors: string[]): string[] {
   const tokens: string[] = [];
   const domainLabel = url.replace(/^https?:\/\//, "").replace(/^www\./, "").split(/[./]/)[0];
   if (domainLabel && domainLabel.length > 3) tokens.push(domainLabel.toLowerCase());
   if (brandName && brandName.trim().length > 2) tokens.push(brandName.trim().toLowerCase());
-  return tokens;
+  for (const c of competitors) {
+    const t = c.trim().toLowerCase();
+    if (t.length > 3) tokens.push(t);
+  }
+  return Array.from(new Set(tokens));
 }
 
-/** Bevat de prompt (case-insensitief) een verboden merk-token? */
-function containsBrand(text: string, tokens: string[]): boolean {
+/** Bevat de prompt (case-insensitief) een verboden merk-/concurrent-token? */
+function containsForbidden(text: string, tokens: string[]): boolean {
   const lower = text.toLowerCase();
   return tokens.some((t) => lower.includes(t));
 }
@@ -85,13 +98,13 @@ function buildContextBlock(url: string, topic: string, brand: BrandContext): str
     `Onderwerp/scope: ${topic}\n` +
     `Branche: ${brand.industry ?? "onbekend"}\n` +
     `Producten/diensten: ${brand.products.join(", ") || "onbekend"}\n` +
-    `Concurrenten (mogen wél genoemd worden): ${brand.competitors.join(", ") || "onbekend"}\n` +
+    `Concurrerende bedrijven — NOOIT bij naam noemen in een prompt: ${brand.competitors.join(", ") || "(geen bekend)"}\n` +
     geoLine(brand) +
     `Samenvatting: ${brand.summary ?? ""}`
   );
 }
 
-async function generateForCategory(args: {
+async function generateForFunnelStage(args: {
   category: string;
   url: string;
   topic: string;
@@ -111,20 +124,25 @@ async function generateForCategory(args: {
         `van deze plaatsen/regio's, zoals een lokale zoeker dat zou doen.`
       : "";
 
-  const brandRule =
-    `HARDE REGEL: gebruik NOOIT de eigen merknaam${brand.brandName ? ` ("${brand.brandName}")` : ""} of het domein van de klant in een prompt. ` +
-    `Schrijf de vraag zoals iemand die het merk NOG NIET kent 'm zou stellen. Een prompt met de eigen merknaam erin is ONGELDIG.`;
+  const neutralityRule =
+    `HARDE REGEL: gebruik NOOIT de eigen merknaam${brand.brandName ? ` ("${brand.brandName}")` : ""} of het domein van de klant, ` +
+    `en noem ook NOOIT een concurrerend bedrijf bij naam${brand.competitors.length ? ` (zoals: ${brand.competitors.join(", ")})` : ""}. ` +
+    `Generieke productmerken of -categorieën (bv. "Nike-schoenen") mag je WÉL gebruiken. ` +
+    `Schrijf de vraag zoals iemand die deze bedrijven NOG NIET kent 'm zou stellen. Een prompt met een eigen of concurrent-bedrijfsnaam is ONGELDIG.`;
 
   const system =
     `Je bedenkt realistische vragen ("prompts") die een echte koper aan een AI-assistent zoals ChatGPT stelt. ` +
     `Schrijf natuurlijke, gesproken vragen — geen losse zoekwoorden. Varieer in toon en specificiteit. Nederlands. ` +
-    brandRule;
+    neutralityRule;
 
   const user =
     `${buildContextBlock(url, topic, brand)}\n\n` +
-    `Genereer precies ${count} prompts in de categorie "${category}": ${CATEGORY_BRIEF[category] ?? ""}\n` +
-    `${scopeRule}\n${geoRule ? `${geoRule}\n` : ""}${brandRule}\n` +
-    `Geef per prompt ook de onderliggende intentie (de job-to-be-done) mee.`;
+    `Genereer precies ${count} prompts voor de FUNNELFASE "${category}": ${CATEGORY_BRIEF[category] ?? ""}\n` +
+    `${scopeRule}\n${geoRule ? `${geoRule}\n` : ""}${neutralityRule}\n` +
+    `Geef per prompt mee: de onderliggende intentie (job-to-be-done); intentType ` +
+    `(informational/commercial/transactional); specificity (head = korte brede vraag, long_tail = lange specifieke vraag); ` +
+    `purchaseIntent (koopintentie true/false); cluster (kort thema-label); en volumeEstimate — jouw SCHATTING van hoe ` +
+    `populair deze vraag is op een schaal 0-100 (0 = zeer specifiek/zelden, 100 = zeer populair/breed). Dit is een schatting, geen echte index.`;
 
   const result = await callStructured({
     model: MODELS.quality,
@@ -135,22 +153,28 @@ async function generateForCategory(args: {
     webSearch: false,
   });
 
-  // Vangnet: gooi prompts weg die tóch de merknaam bevatten (het model verspreekt
-  // zich zelden dankzij de harde regel; de review-gate is de menselijke backstop).
+  // Vangnet: gooi prompts weg die tóch de eigen merknaam of een concurrent bevatten
+  // (het model verspreekt zich zelden dankzij de harde regel; de review-gate is de
+  // menselijke backstop). Clamp de volumeschatting op 0-100.
   return result.parsed.prompts
-    .filter((p) => !containsBrand(p.text, tokens))
+    .filter((p) => !containsForbidden(p.text, tokens))
     .slice(0, count)
     .map((p) => ({
       text: p.text,
       category,
       intent: p.intent,
-      sourceRawJson: result.raw, // audit-trail per categorie (abcplan.md §5)
+      intentType: p.intentType,
+      specificity: p.specificity,
+      purchaseIntent: p.purchaseIntent,
+      cluster: p.cluster,
+      volumeEstimate: Math.max(0, Math.min(100, Math.round(p.volumeEstimate))),
+      sourceRawJson: result.raw, // audit-trail per fase (abcplan.md §5)
     }));
 }
 
 /**
- * Vuurt alle categorie-calls parallel af (geen onderlinge afhankelijkheid) en
- * bundelt het resultaat. Faalt één categorie, dan faalt de hele batch — de
+ * Vuurt alle funnelfase-calls parallel af (geen onderlinge afhankelijkheid) en
+ * bundelt het resultaat. Faalt één fase, dan faalt de hele batch — de
  * orchestratie (prepare.ts) markeert de analyse dan als 'mislukt' met retry.
  */
 export async function generatePrompts(args: {
@@ -158,11 +182,11 @@ export async function generatePrompts(args: {
   topic: string;
   brand: BrandContext;
 }): Promise<GeneratedPrompt[]> {
-  const tokens = brandTokens(args.url, args.brand.brandName);
-  const perCategory = await Promise.all(
+  const tokens = forbiddenTokens(args.url, args.brand.brandName, args.brand.competitors);
+  const perStage = await Promise.all(
     PROMPT_CATEGORIES.map((category) =>
-      generateForCategory({ ...args, category, count: promptsPerCategory, tokens }),
+      generateForFunnelStage({ ...args, category, count: promptsPerFunnelStage, tokens }),
     ),
   );
-  return perCategory.flat();
+  return perStage.flat();
 }
