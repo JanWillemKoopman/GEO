@@ -14,7 +14,6 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { callPlain, callStructured } from "@/lib/openai/structured";
 import { MODELS } from "@/lib/openai/models";
 import { Mention } from "@/lib/schemas/mention";
-import { brandNameFromRawJson } from "@/lib/pipeline/brand-name";
 import type { Analysis, AnalysisStatus, Prompt, TrackingRun } from "@/lib/types/database";
 
 const SIMULATE_SYSTEM =
@@ -27,9 +26,17 @@ const MENTION_SYSTEM =
   "Je analyseert een AI-gegenereerd antwoord op vermeldingen van merken/bedrijven. Werk secuur en " +
   "feitelijk: baseer je uitsluitend op wat er daadwerkelijk in de tekst staat.";
 
-function buildMentionUser(ownLabel: string, competitors: string[], rawResponse: string): string {
+function buildMentionUser(
+  ownLabel: string,
+  ownAliases: string[],
+  competitors: string[],
+  rawResponse: string,
+): string {
   return [
     `Eigen merk: ${ownLabel}`,
+    ownAliases.length
+      ? `Het eigen merk kan ook zo genoemd worden (tel deze als het EIGEN merk): ${ownAliases.join(", ")}`
+      : "",
     competitors.length ? `Bekende concurrenten: ${competitors.join(", ")}` : "Bekende concurrenten: (geen bekend)",
     "",
     "Evalueer voor het EIGEN MERK en voor ELK van de bekende concurrenten hierboven expliciet of ze in " +
@@ -50,6 +57,7 @@ async function measureOnePrompt(
   admin: Admin,
   analysis: Analysis,
   ownLabel: string,
+  ownAliases: string[],
   competitors: string[],
   prompt: Prompt,
   weekNo: number,
@@ -107,7 +115,7 @@ async function measureOnePrompt(
   const b = await callStructured({
     model: MODELS.volume,
     system: MENTION_SYSTEM,
-    user: buildMentionUser(ownLabel, competitors, run.raw_response ?? ""),
+    user: buildMentionUser(ownLabel, ownAliases, competitors, run.raw_response ?? ""),
     schema: Mention,
     schemaName: "mention",
     webSearch: false,
@@ -235,28 +243,27 @@ export async function measureAnalysis(id: string, weekNo = 0): Promise<AnalysisS
     }
   }
 
-  const { data: brandDna } = await admin
-    .from("brand_dna")
-    .select("competitors, raw_json")
-    .eq("analysis_id", id)
-    .maybeSingle();
-  const { data: activePrompts } = await admin
-    .from("prompts")
-    .select("*")
-    .eq("analysis_id", id)
-    .eq("active", true);
+  const [{ data: profile }, { data: topicResearch }, { data: activePrompts }] = await Promise.all([
+    admin.from("profiles").select("brand_name, aliases, competitors").eq("id", typedAnalysis.profile_id).maybeSingle(),
+    admin.from("topic_research").select("competitors").eq("analysis_id", id).maybeSingle(),
+    admin.from("prompts").select("*").eq("analysis_id", id).eq("active", true),
+  ]);
 
   // Gebruik de canonieke merknaam voor mention-detectie (een AI-antwoord noemt
   // "Golden Fingers", niet het domein) — nauwkeuriger dan alleen de URL.
-  const brandName = brandNameFromRawJson(brandDna?.raw_json);
-  const base = brandName ?? typedAnalysis.url;
-  const ownLabel = typedAnalysis.topic ? `${base} (${typedAnalysis.topic})` : base;
-  const competitors: string[] = brandDna?.competitors ?? [];
+  const base = profile?.brand_name ?? typedAnalysis.url;
+  const ownLabel = `${base} (${typedAnalysis.topic})`;
+  // Aliassen (§12.24) tellen ook als het eigen merk — verbetert de mention-detectie.
+  const ownAliases: string[] = profile?.aliases ?? [];
+  // Gededupliceerde unie: onderwerp-specifieke concurrenten + algemene bedrijfsconcurrenten.
+  const competitors: string[] = Array.from(
+    new Set([...(topicResearch?.competitors ?? []), ...(profile?.competitors ?? [])]),
+  );
   const prompts = (activePrompts ?? []) as Prompt[];
 
   try {
     const results = await Promise.allSettled(
-      prompts.map((p) => measureOnePrompt(admin, typedAnalysis, ownLabel, competitors, p, weekNo)),
+      prompts.map((p) => measureOnePrompt(admin, typedAnalysis, ownLabel, ownAliases, competitors, p, weekNo)),
     );
     const failed = results.filter((r) => r.status === "rejected") as PromiseRejectedResult[];
     if (failed.length > 0) {

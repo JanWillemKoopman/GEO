@@ -1,10 +1,10 @@
 import { z } from "zod";
 
 /**
- * Halte 1 — Brand DNA (abcplan.md §6 A1). Topic-aware; model gpt-4.1-mini.
- * Contract letterlijk uit het plan — niet illustratief.
+ * Klantprofiel-onderzoek (accountniveau, eenmalig per merk). Bedrijfsbreed —
+ * geen onderwerp-scoping (die zit in topic-research.ts, per analyse).
  */
-export const BrandDNA = z.object({
+export const ProfileResearch = z.object({
   /** Canonieke merknaam zoals klanten die kennen (bv. "Golden Fingers"), niet het domein. */
   brandName: z.string(),
   industry: z.string(),
@@ -35,4 +35,4 @@ export const BrandDNA = z.object({
   styleSamples: z.array(z.string()),
 });
 
-export type BrandDNA = z.infer<typeof BrandDNA>;
+export type ProfileResearch = z.infer<typeof ProfileResearch>;

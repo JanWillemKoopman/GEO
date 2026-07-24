@@ -21,6 +21,9 @@ export const Report = z.object({
       targetIntent: z.string(),
       why: z.string(), // waarom dit de gap dicht
       priority: z.number(), // 1–3
+      // Content-inventaris (abcplan.md §12.23): bestaande pagina verbeteren of nieuw?
+      action: z.enum(["nieuw", "verbeteren"]),
+      existingUrl: z.string().nullable(), // url uit profile_pages als action = "verbeteren"
     }),
   ),
 });

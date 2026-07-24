@@ -37,6 +37,10 @@ export interface BrandContext {
   competitors: string[];
   toneOfVoice: string | null;
   summary: string | null;
+  /** Werkgebied & markt (§12.24) — sturen lokale/marktgerichte prompts. */
+  serviceScope?: string | null;
+  serviceRegions?: string[];
+  marketLanguage?: string | null;
 }
 
 export interface GeneratedPrompt {
@@ -66,14 +70,23 @@ function containsBrand(text: string, tokens: string[]): boolean {
   return tokens.some((t) => lower.includes(t));
 }
 
-function buildContextBlock(url: string, topic: string | null, brand: BrandContext): string {
+function geoLine(brand: BrandContext): string {
+  const parts: string[] = [];
+  if (brand.serviceScope) parts.push(`bereik: ${brand.serviceScope}`);
+  if (brand.serviceRegions?.length) parts.push(`regio's: ${brand.serviceRegions.join(", ")}`);
+  if (brand.marketLanguage) parts.push(`markt: ${brand.marketLanguage}`);
+  return parts.length ? `Werkgebied & markt: ${parts.join("; ")}\n` : "";
+}
+
+function buildContextBlock(url: string, topic: string, brand: BrandContext): string {
   return (
     `Website: ${url}\n` +
     (brand.brandName ? `Eigen merknaam (NIET in prompts gebruiken): ${brand.brandName}\n` : "") +
-    `Onderwerp/scope: ${topic ?? "(hele website — dek alle diensten/producten)"}\n` +
+    `Onderwerp/scope: ${topic}\n` +
     `Branche: ${brand.industry ?? "onbekend"}\n` +
     `Producten/diensten: ${brand.products.join(", ") || "onbekend"}\n` +
     `Concurrenten (mogen wél genoemd worden): ${brand.competitors.join(", ") || "onbekend"}\n` +
+    geoLine(brand) +
     `Samenvatting: ${brand.summary ?? ""}`
   );
 }
@@ -81,16 +94,22 @@ function buildContextBlock(url: string, topic: string | null, brand: BrandContex
 async function generateForCategory(args: {
   category: string;
   url: string;
-  topic: string | null;
+  topic: string;
   brand: BrandContext;
   count: number;
   tokens: string[];
 }): Promise<GeneratedPrompt[]> {
   const { category, url, topic, brand, count, tokens } = args;
 
-  const scopeRule = topic
-    ? `Alle prompts gaan UITSLUITEND over "${topic}" binnen deze branche.`
-    : `De prompts samen dekken de belangrijkste diensten/producten van de website.`;
+  const scopeRule = `Alle prompts gaan UITSLUITEND over "${topic}" binnen deze branche.`;
+
+  // Lokaal bereik met bekende regio's → laat de vragen (deels) een plaatsnaam
+  // bevatten, zoals een echte lokale zoeker die zou stellen (§12.24).
+  const geoRule =
+    brand.serviceScope === "lokaal" && brand.serviceRegions?.length
+      ? `Dit is een LOKAAL bedrijf (${brand.serviceRegions.join(", ")}): verwerk in een deel van de prompts een ` +
+        `van deze plaatsen/regio's, zoals een lokale zoeker dat zou doen.`
+      : "";
 
   const brandRule =
     `HARDE REGEL: gebruik NOOIT de eigen merknaam${brand.brandName ? ` ("${brand.brandName}")` : ""} of het domein van de klant in een prompt. ` +
@@ -104,7 +123,7 @@ async function generateForCategory(args: {
   const user =
     `${buildContextBlock(url, topic, brand)}\n\n` +
     `Genereer precies ${count} prompts in de categorie "${category}": ${CATEGORY_BRIEF[category] ?? ""}\n` +
-    `${scopeRule}\n${brandRule}\n` +
+    `${scopeRule}\n${geoRule ? `${geoRule}\n` : ""}${brandRule}\n` +
     `Geef per prompt ook de onderliggende intentie (de job-to-be-done) mee.`;
 
   const result = await callStructured({
@@ -136,7 +155,7 @@ async function generateForCategory(args: {
  */
 export async function generatePrompts(args: {
   url: string;
-  topic: string | null;
+  topic: string;
   brand: BrandContext;
 }): Promise<GeneratedPrompt[]> {
   const tokens = brandTokens(args.url, args.brand.brandName);

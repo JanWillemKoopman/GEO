@@ -5,7 +5,7 @@ import { determineStage } from "@/lib/pipeline/stage";
 import { EmptyState } from "@/components/empty-state";
 import { ReportProgress } from "../report-progress";
 import { GenerateButton } from "./generate-button";
-import type { Report, ContentType } from "@/lib/types/database";
+import type { Report, ContentAction, ContentType } from "@/lib/types/database";
 
 interface ReportGap {
   cluster: string;
@@ -19,6 +19,8 @@ interface ReportRecommendation {
   targetIntent: string;
   why: string;
   priority: number;
+  action: ContentAction;
+  existingUrl: string | null;
 }
 
 /**
@@ -132,6 +134,23 @@ export default async function RapportPage({ params }: { params: Promise<{ id: st
                   <span className="font-medium">{r.title}</span>
                   <span className="chip chip-green">{r.type}</span>
                 </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  {r.action === "verbeteren" ? (
+                    <span className="chip">
+                      Verbeter bestaande pagina
+                      {r.existingUrl && (
+                        <>
+                          {": "}
+                          <a href={r.existingUrl} target="_blank" rel="noopener noreferrer" className="underline">
+                            {r.existingUrl}
+                          </a>
+                        </>
+                      )}
+                    </span>
+                  ) : (
+                    <span className="chip">Nieuwe pagina</span>
+                  )}
+                </div>
                 <p className="text-sm text-secondary">{r.why}</p>
                 {generatedTitles.has(r.title) ? (
                   <a href={`/analyses/${id}/bibliotheek`} className="btn-outline w-fit">
@@ -141,7 +160,14 @@ export default async function RapportPage({ params }: { params: Promise<{ id: st
                   <GenerateButton
                     analysisId={id}
                     reportId={report.id}
-                    recommendation={{ title: r.title, type: r.type, targetIntent: r.targetIntent, why: r.why }}
+                    recommendation={{
+                      title: r.title,
+                      type: r.type,
+                      targetIntent: r.targetIntent,
+                      why: r.why,
+                      action: r.action,
+                      existingUrl: r.existingUrl,
+                    }}
                   />
                 )}
               </li>

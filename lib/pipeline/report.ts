@@ -13,7 +13,15 @@ import { MODELS } from "@/lib/openai/models";
 import { GapAnalysis } from "@/lib/schemas/gap-analysis";
 import { Report } from "@/lib/schemas/report";
 import { sendReportEmail } from "@/lib/email/report-email";
-import type { Analysis, AnalysisStatus, BrandDna, VisibilityScore, CompetitorBreakdown } from "@/lib/types/database";
+import type {
+  Analysis,
+  AnalysisStatus,
+  Profile,
+  ProfilePage,
+  TopicResearch,
+  VisibilityScore,
+  CompetitorBreakdown,
+} from "@/lib/types/database";
 
 const GAP_SYSTEM =
   "Je bent een GEO-analist (Generative Engine Optimization). Op basis van meetdata identificeer je " +
@@ -25,21 +33,39 @@ const REPORT_SYSTEM =
   "Je schrijft een kort, jargonvrij rapport voor een ondernemer zonder SEO-achtergrond over hun " +
   "zichtbaarheid in AI-assistenten (GEO). Gebruik geen vaktermen als 'share of voice' — leg uit in " +
   "gewone taal. Noem in elk probleem expliciet welke concurrent het betreft. Eindig met concrete, " +
-  "uitvoerbare aanbevelingen. Antwoord in het Nederlands.";
+  "uitvoerbare aanbevelingen. Bepaal per aanbeveling of dit een BESTAANDE pagina van de klant verbetert " +
+  "(kies dan de meest relevante URL uit de meegegeven paginalijst, action = \"verbeteren\") of dat er een " +
+  "GEHEEL NIEUWE pagina nodig is (action = \"nieuw\", existingUrl = null) — kies alleen \"verbeteren\" als " +
+  "een pagina uit de lijst daadwerkelijk over hetzelfde onderwerp gaat. Antwoord in het Nederlands.";
 
-function ownLabel(analysis: Analysis): string {
-  return analysis.topic ? `${analysis.url} (${analysis.topic})` : analysis.url;
+// De volledige URL-lijst helpt de nieuw/verbeteren-keuze; cap houdt de prompt beheersbaar.
+const REPORT_PAGES_CAP = 150;
+
+function buildPagesBlock(pages: ProfilePage[]): string {
+  if (pages.length === 0) return "(geen pagina's bekend van deze website)";
+  return pages
+    .slice(0, REPORT_PAGES_CAP)
+    .map((p) => `- ${p.url}${p.title ? ` — "${p.title}"` : ""}`)
+    .join("\n");
+}
+
+function ownLabel(analysis: Analysis, profile: Profile | null): string {
+  return `${profile?.brand_name ?? analysis.url} (${analysis.topic})`;
 }
 
 function buildGapInput(
   analysis: Analysis,
-  brandDna: BrandDna | null,
+  profile: Profile | null,
+  topicResearch: TopicResearch | null,
   score: VisibilityScore | null,
   competitors: CompetitorBreakdown[],
 ): string {
   const lines = [
-    `Eigen merk: ${ownLabel(analysis)}`,
-    `Branche: ${brandDna?.industry ?? "onbekend"}`,
+    `Eigen merk: ${ownLabel(analysis, profile)}`,
+    `Branche: ${profile?.industry ?? "onbekend"}`,
+    ...(topicResearch?.content_summary
+      ? [`Wat de website al zegt over dit onderwerp: ${topicResearch.content_summary}`]
+      : []),
     `Eigen zichtbaarheidsscore: ${score?.score ?? 0}/100` +
       (score?.share_of_voice != null ? ` (${score.share_of_voice}% van alle vermeldingen)` : ""),
     "",
@@ -60,13 +86,22 @@ function buildGapInput(
   return lines.join("\n");
 }
 
-function buildReportInput(analysis: Analysis, score: VisibilityScore | null, gap: GapAnalysis): string {
+function buildReportInput(
+  analysis: Analysis,
+  profile: Profile | null,
+  score: VisibilityScore | null,
+  gap: GapAnalysis,
+  pages: ProfilePage[],
+): string {
   return [
-    `Eigen merk: ${ownLabel(analysis)}`,
+    `Eigen merk: ${ownLabel(analysis, profile)}`,
     `Zichtbaarheidsscore: ${score?.score ?? 0}/100`,
     "",
     "Concurrentie-gap-analyse (JSON):",
     JSON.stringify(gap, null, 2),
+    "",
+    "Bestaande pagina's op de website van de klant (voor de nieuw/verbeteren-beslissing):",
+    buildPagesBlock(pages),
     "",
     "Schrijf op basis hiervan een kort, jargonvrij rapport. Noem in elk gap-item expliciet welke " +
       "concurrent het betreft. Eindig met 1-3 concrete, geprioriteerde aanbevelingen (content die de gap zou dichten).",
@@ -104,11 +139,16 @@ export async function generateReport(id: string, weekNo = 0): Promise<AnalysisSt
     return "gereed";
   }
 
-  const [{ data: brandDna }, { data: score }, { data: competitors }] = await Promise.all([
-    admin.from("brand_dna").select("*").eq("analysis_id", id).maybeSingle(),
-    admin.from("visibility_scores").select("*").eq("analysis_id", id).eq("week_no", weekNo).maybeSingle(),
-    admin.from("competitor_breakdown").select("*").eq("analysis_id", id).eq("week_no", weekNo),
-  ]);
+  const [{ data: profile }, { data: topicResearch }, { data: score }, { data: competitors }, { data: pageRows }] =
+    await Promise.all([
+      admin.from("profiles").select("*").eq("id", analysis.profile_id).maybeSingle(),
+      admin.from("topic_research").select("*").eq("analysis_id", id).maybeSingle(),
+      admin.from("visibility_scores").select("*").eq("analysis_id", id).eq("week_no", weekNo).maybeSingle(),
+      admin.from("competitor_breakdown").select("*").eq("analysis_id", id).eq("week_no", weekNo),
+      admin.from("profile_pages").select("*").eq("profile_id", analysis.profile_id),
+    ]);
+  const profileTyped = profile as Profile | null;
+  const pages = (pageRows ?? []) as ProfilePage[];
 
   try {
     // B1 — concurrentie-gap-analyse
@@ -117,7 +157,8 @@ export async function generateReport(id: string, weekNo = 0): Promise<AnalysisSt
       system: GAP_SYSTEM,
       user: buildGapInput(
         analysis,
-        brandDna as BrandDna | null,
+        profileTyped,
+        topicResearch as TopicResearch | null,
         score as VisibilityScore | null,
         (competitors ?? []) as CompetitorBreakdown[],
       ),
@@ -130,7 +171,7 @@ export async function generateReport(id: string, weekNo = 0): Promise<AnalysisSt
     const report = await callStructured({
       model: MODELS.quality,
       system: REPORT_SYSTEM,
-      user: buildReportInput(analysis, score as VisibilityScore | null, gap.parsed),
+      user: buildReportInput(analysis, profileTyped, score as VisibilityScore | null, gap.parsed, pages),
       schema: Report,
       schemaName: "report",
       webSearch: false,

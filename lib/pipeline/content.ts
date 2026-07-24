@@ -6,7 +6,7 @@ import "server-only";
  * i.p.v. één blinde call (zie contentkwaliteit-analyse.md):
  *
  *   1. Draft         — premium model (gpt-4.1), on-brand, geground op de
- *                      concrete feiten uit het Brand DNA (geen verzinsels).
+ *                      concrete feiten uit het klantprofiel (geen verzinsels).
  *   2. Redactie      — goedkope call (mini) scoort de draft op een rubric en
  *                      checkt de harde regels (merkneutraal, geen verzonnen feiten,
  *                      answer-first).
@@ -14,8 +14,12 @@ import "server-only";
  *   4. Kwaliteitspoort — onder de drempel of met regel-risico → needs_review = true.
  *   5. Schema.org    — programmatisch gevalideerd/gerepareerd (geen LLM-string).
  *
- * Nog steeds GEEN web_search (§10 kostenknop); de grounding komt uit het Brand DNA.
- * Verschijnt in de Content Bibliotheek.
+ * Grounding komt uit het klantprofiel (proof_points/style_samples) + het
+ * onderwerp-onderzoek; GEEN web_search (§10 kostenknop). Bij `action: "verbeteren"`
+ * (§12.23, bepaald door het rapport) gaat de bestaande pagina-tekst uit
+ * `profile_pages` mee als basis om op voort te bouwen, i.p.v. vanaf nul te
+ * schrijven. Verschijnt in de Content Bibliotheek — dit is een SUGGESTIE, geen
+ * directe CMS-publicatie (die is expliciet Fase D, nog niet gebouwd).
  */
 import { createAdminClient } from "@/lib/supabase/admin";
 import { callStructured } from "@/lib/openai/structured";
@@ -23,8 +27,7 @@ import { MODELS } from "@/lib/openai/models";
 import { ContentPiece } from "@/lib/schemas/content-piece";
 import { Critique } from "@/lib/schemas/critique";
 import { validateOrRebuildJsonLd } from "@/lib/schema-jsonld";
-import { brandNameFromRawJson } from "@/lib/pipeline/brand-name";
-import type { Analysis, BrandDna, ContentType } from "@/lib/types/database";
+import type { Analysis, Profile, ProfilePage, TopicResearch, ContentAction, ContentType } from "@/lib/types/database";
 
 /** Onder deze rubric-score markeren we een pagina voor menselijke controle (F1). */
 const REVIEW_THRESHOLD = 80;
@@ -84,6 +87,9 @@ export interface RecommendationInput {
   type: ContentType;
   targetIntent: string;
   why: string;
+  /** Uit het rapport (abcplan.md §12.23): bestaande pagina verbeteren of nieuw? */
+  action?: ContentAction;
+  existingUrl?: string | null;
 }
 
 function countWords(markdown: string): number {
@@ -92,28 +98,34 @@ function countWords(markdown: string): number {
 
 function buildContentInput(args: {
   analysis: Analysis;
-  brandDna: BrandDna | null;
-  brandName: string | null;
+  profile: Profile | null;
+  topicResearch: TopicResearch | null;
+  existingPage: ProfilePage | null;
   competitors: string[];
   rec: RecommendationInput;
   evidencePrompts: string[];
 }): string {
-  const { analysis, brandDna, brandName, competitors, rec, evidencePrompts } = args;
-  const proofPoints = brandDna?.proof_points ?? [];
-  const styleSamples = brandDna?.style_samples ?? [];
+  const { analysis, profile, topicResearch, existingPage, competitors, rec, evidencePrompts } = args;
+  const proofPoints = profile?.proof_points ?? [];
+  const styleSamples = profile?.style_samples ?? [];
   return [
-    `Bedrijf: ${brandName ?? analysis.url}`,
+    `Bedrijf: ${profile?.brand_name ?? analysis.url}`,
     `Website: ${analysis.url}`,
-    `Onderwerp/scope: ${analysis.topic ?? "(hele website)"}`,
-    `Branche: ${brandDna?.industry ?? "onbekend"}`,
-    `Tone of voice: ${brandDna?.tone_of_voice ?? "professioneel, helder"}`,
-    `Diensten/producten: ${(brandDna?.products ?? []).join(", ") || "onbekend"}`,
+    `Onderwerp/scope: ${analysis.topic}`,
+    `Branche: ${profile?.industry ?? "onbekend"}`,
+    `Tone of voice: ${profile?.tone_of_voice ?? "professioneel, helder"}`,
+    `Diensten/producten: ${(profile?.products ?? []).join(", ") || "onbekend"}`,
+    profile?.value_props?.length ? `Waardeproposities (waarom klanten kiezen): ${profile.value_props.join(", ")}` : "",
+    profile?.customer_questions?.length
+      ? `Veelgehoorde klantvragen (verwerk waar relevant): ${profile.customer_questions.join(" | ")}`
+      : "",
     // ✅ Grounding: geverifieerde feiten die de schrijver WEL mag gebruiken.
     proofPoints.length
       ? `Feiten over dit bedrijf (geverifieerd van de eigen site — deze mag je gebruiken):\n- ${proofPoints.join("\n- ")}`
       : "Feiten over dit bedrijf: (geen harde feiten bekend — blijf algemeen, verzin niets).",
     // ✅ Stijl-grounding: letterlijke voorbeeldzinnen om de toon na te bootsen.
     styleSamples.length ? `Voorbeeldzinnen in de merkstem (toon nabootsen):\n- ${styleSamples.join("\n- ")}` : "",
+    topicResearch?.content_summary ? `Wat de website al zegt over dit onderwerp: ${topicResearch.content_summary}` : "",
     competitors.length
       ? `NIET noemen op deze pagina (concurrenten): ${competitors.join(", ")}`
       : "",
@@ -122,6 +134,10 @@ function buildContentInput(args: {
     `Doel: ${rec.targetIntent}`,
     `Achtergrond: ${rec.why}`,
     TYPE_GUIDANCE[rec.type],
+    existingPage
+      ? `\nBESTAANDE PAGINA om te verbeteren/aanvullen (${existingPage.url}) — bouw hierop voort, herschrijf ` +
+        `niet vanaf nul, behoud wat al goed is en vul alleen de ontbrekende delen aan:\n"""\n${existingPage.text_excerpt ?? ""}\n"""`
+      : "",
     evidencePrompts.length
       ? `\nWaar klanten naar zoeken (ALLEEN ter inspiratie voor de onderwerpen — niet letterlijk ` +
         `overnemen, en herschrijf naar echte, merkneutrale klantinhoud zonder concurrentnamen):\n- ${evidencePrompts.join("\n- ")}`
@@ -187,14 +203,28 @@ export async function generateContentPiece(args: {
     .maybeSingle();
   if (existing) return existing.id as string;
 
-  const { data: brandDnaRow } = await admin
-    .from("brand_dna")
-    .select("*")
-    .eq("analysis_id", analysisId)
-    .maybeSingle();
-  const brandDna = brandDnaRow as BrandDna | null;
-  const brandName = brandNameFromRawJson(brandDna?.raw_json);
-  const competitors = brandDna?.competitors ?? [];
+  const [{ data: profileRow }, { data: topicResearchRow }] = await Promise.all([
+    admin.from("profiles").select("*").eq("id", analysis.profile_id).maybeSingle(),
+    admin.from("topic_research").select("*").eq("analysis_id", analysisId).maybeSingle(),
+  ]);
+  const profile = profileRow as Profile | null;
+  const topicResearch = topicResearchRow as TopicResearch | null;
+  // Gededupliceerde unie: onderwerp-specifieke concurrenten + algemene bedrijfsconcurrenten.
+  const competitors = Array.from(
+    new Set([...(topicResearch?.competitors ?? []), ...(profile?.competitors ?? [])]),
+  );
+
+  const action = recommendation.action ?? "nieuw";
+  let existingPage: ProfilePage | null = null;
+  if (action === "verbeteren" && recommendation.existingUrl) {
+    const { data: pageRow } = await admin
+      .from("profile_pages")
+      .select("*")
+      .eq("profile_id", analysis.profile_id)
+      .eq("url", recommendation.existingUrl)
+      .maybeSingle();
+    existingPage = (pageRow as ProfilePage | null) ?? null;
+  }
 
   // Actieve prompts als thematische inspiratie (NIET letterlijk overnemen — zie system prompt).
   const { data: promptRows } = await admin
@@ -207,8 +237,9 @@ export async function generateContentPiece(args: {
 
   const baseInput = buildContentInput({
     analysis,
-    brandDna,
-    brandName,
+    profile,
+    topicResearch,
+    existingPage,
     competitors,
     rec: recommendation,
     evidencePrompts,
@@ -304,6 +335,8 @@ export async function generateContentPiece(args: {
       needs_review: needsReview,
       status: "ready",
       word_count: countWords(final.bodyMarkdown),
+      action,
+      existing_url: existingPage?.url ?? null,
     })
     .select("id")
     .single();

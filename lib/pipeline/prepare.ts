@@ -1,7 +1,12 @@
 import "server-only";
 
 /**
- * Orchestratie van halte 1 + 2 (abcplan.md §6 A1/A2): crawl → Brand DNA → prompts.
+ * Orchestratie van halte 1'+2 (abcplan.md §6 A1'/A2, na de klantprofiel-refactor):
+ * onderwerp-onderzoek → prompts. Het bedrijfsbrede onderzoek (merknaam, branche,
+ * tone-of-voice, persona's) gebeurt niet meer hier maar eenmalig in het
+ * klantprofiel (lib/pipeline/prepare-profile.ts) — deze analyse hangt daaraan
+ * via analyses.profile_id en moet dus een profiel met status 'klaar' hebben.
+ *
  * Draait met de service-role client (schrijven, §5/§12.20). Idempotent en
  * resumebaar: elke stap checkt of z'n resultaat al bestaat, zodat een refresh of
  * retry geen dubbel werk of dubbele kosten oplevert. Faalt er iets, dan gaat de
@@ -11,11 +16,9 @@ import "server-only";
  * job-queue/cron komt pas bij de wekelijkse lus in Sprint 4.
  */
 import { createAdminClient } from "@/lib/supabase/admin";
-import { crawlSite } from "@/lib/crawler";
-import { generateBrandDna } from "@/lib/pipeline/brand-dna";
+import { generateTopicResearch } from "@/lib/pipeline/topic-research";
 import { generatePrompts, type BrandContext } from "@/lib/pipeline/prompts";
-import { brandNameFromRawJson } from "@/lib/pipeline/brand-name";
-import type { AnalysisStatus } from "@/lib/types/database";
+import type { AnalysisStatus, Profile, ProfilePage } from "@/lib/types/database";
 
 export async function prepareAnalysis(id: string): Promise<AnalysisStatus> {
   const admin = createAdminClient();
@@ -29,7 +32,7 @@ export async function prepareAnalysis(id: string): Promise<AnalysisStatus> {
   }
 
   // 'mislukt' kan ook een mislukte MÉTING zijn (halte 3, na confirm) — die
-  // draait pas nadat A1+A2 al succesvol prompts hebben aangemaakt. Als die er
+  // draait pas nadat A1'+A2 al succesvol prompts hebben aangemaakt. Als die er
   // al zijn, is dit dus geen mislukte voorbereiding: niet aankomen, anders zou
   // deze functie een mislukte meting stilletjes terugzetten naar 'concept_klaar'.
   if (analysis.status === "mislukt") {
@@ -40,58 +43,51 @@ export async function prepareAnalysis(id: string): Promise<AnalysisStatus> {
     if (count) return "mislukt";
   }
 
+  const { data: profileRow } = await admin
+    .from("profiles")
+    .select("*")
+    .eq("id", analysis.profile_id)
+    .single();
+  if (!profileRow) throw new Error(`Klantprofiel ${analysis.profile_id} niet gevonden.`);
+  const profile = profileRow as Profile;
+  if (profile.status !== "klaar") {
+    throw new Error(`Klantprofiel "${profile.name}" is nog niet klaar met onderzoek.`);
+  }
+
   try {
-    // ── A1: Brand DNA (skip als 'ie er al is) ──────────────────────────────
-    let brand: BrandContext;
-    const { data: existingDna } = await admin
-      .from("brand_dna")
+    // ── A1': onderwerp-onderzoek (skip als 'ie er al is) ───────────────────
+    let topicCompetitors: string[];
+    const { data: existingResearch } = await admin
+      .from("topic_research")
       .select("*")
       .eq("analysis_id", id)
       .maybeSingle();
 
-    if (existingDna) {
-      brand = {
-        brandName: brandNameFromRawJson(existingDna.raw_json),
-        industry: existingDna.industry,
-        products: existingDna.products ?? [],
-        competitors: existingDna.competitors ?? [],
-        toneOfVoice: existingDna.tone_of_voice,
-        summary: existingDna.summary,
-      };
+    if (existingResearch) {
+      topicCompetitors = existingResearch.competitors ?? [];
     } else {
-      const crawl = await crawlSite(analysis.url);
-      const dna = await generateBrandDna({
-        url: analysis.url,
+      const { data: pageRows } = await admin
+        .from("profile_pages")
+        .select("*")
+        .eq("profile_id", profile.id);
+      const research = await generateTopicResearch({
         topic: analysis.topic,
-        siteText: crawl.text,
+        pages: (pageRows ?? []) as ProfilePage[],
+        profile,
       });
-      const p = dna.parsed;
+      const r = research.parsed;
 
-      await admin.from("brand_dna").upsert(
+      await admin.from("topic_research").upsert(
         {
           analysis_id: id,
-          industry: p.industry,
-          tone_of_voice: p.toneOfVoice,
-          summary: p.summary,
-          products: p.products,
-          value_props: p.valueProps,
-          competitors: p.competitors,
-          personas: p.personas,
-          proof_points: p.proofPoints, // ✅ contentkwaliteit (A2): grondstof voor Fase C
-          style_samples: p.styleSamples, // ✅ contentkwaliteit (A3)
-          raw_json: dna.raw as never, // volledige ruwe OpenAI-output (§5)
+          content_summary: r.contentSummary,
+          competitors: r.competitors,
+          raw_json: research.raw as never, // volledige ruwe OpenAI-output (§5)
         },
         { onConflict: "analysis_id" },
       );
 
-      brand = {
-        brandName: p.brandName,
-        industry: p.industry,
-        products: p.products,
-        competitors: p.competitors,
-        toneOfVoice: p.toneOfVoice,
-        summary: p.summary,
-      };
+      topicCompetitors = r.competitors;
     }
 
     // ── A2: prompts (skip als er al prompts zijn) ──────────────────────────
@@ -101,8 +97,22 @@ export async function prepareAnalysis(id: string): Promise<AnalysisStatus> {
       .eq("analysis_id", id);
 
     if (!count) {
+      const brand: BrandContext = {
+        brandName: profile.brand_name,
+        industry: profile.industry,
+        products: profile.products,
+        // Gededupliceerde unie: onderwerp-specifieke concurrenten eerst, aangevuld
+        // met de algemene bedrijfsconcurrenten uit het profiel.
+        competitors: Array.from(new Set([...topicCompetitors, ...profile.competitors])),
+        toneOfVoice: profile.tone_of_voice,
+        summary: profile.summary,
+        serviceScope: profile.service_scope,
+        serviceRegions: profile.service_regions,
+        marketLanguage: profile.market_language,
+      };
+
       const prompts = await generatePrompts({
-        url: analysis.url,
+        url: profile.url,
         topic: analysis.topic,
         brand,
       });

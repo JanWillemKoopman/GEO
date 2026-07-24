@@ -42,7 +42,7 @@ export default async function OverviewPage({ params }: { params: Promise<{ id: s
       <div className="card flex flex-col gap-4">
         <span className="mono-label">Concept klaar</span>
         <p className="text-secondary">
-          Het Brand DNA en de prompts staan klaar. Bekijk en bevestig ze op het tabblad
+          Het onderwerp-onderzoek en de prompts staan klaar. Bekijk en bevestig ze op het tabblad
           Instellingen om de meting te starten.
         </p>
         <Link href={`/analyses/${id}/instellingen`} className="btn-primary w-fit">

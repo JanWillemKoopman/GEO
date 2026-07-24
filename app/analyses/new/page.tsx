@@ -1,38 +1,19 @@
-"use client";
-
-import { useState } from "react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { requireUser } from "@/lib/auth";
+import { createClient } from "@/lib/supabase/server";
+import type { Profile } from "@/lib/types/database";
+import { NewAnalysisForm } from "./new-analysis-form";
 
-export default function NewAnalysisPage() {
-  const router = useRouter();
-  const [url, setUrl] = useState("");
-  const [topic, setTopic] = useState("");
-  const [error, setError] = useState<string | null>(null);
-  const [pending, setPending] = useState(false);
+export default async function NewAnalysisPage() {
+  await requireUser();
+  const supabase = await createClient();
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    setError(null);
-    setPending(true);
-    try {
-      const res = await fetch("/api/analyses", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url, topic }),
-      });
-      const json = await res.json();
-      if (!res.ok) {
-        setError(json.error ?? "Er ging iets mis.");
-        setPending(false);
-        return;
-      }
-      router.push(`/analyses/${json.id}`);
-    } catch {
-      setError("Er ging iets mis. Controleer je verbinding en probeer opnieuw.");
-      setPending(false);
-    }
-  }
+  const { data } = await supabase
+    .from("profiles")
+    .select("*")
+    .eq("status", "klaar")
+    .order("name");
+  const profiles = (data ?? []) as Profile[];
 
   return (
     <div className="mx-auto flex max-w-xl flex-col gap-6">
@@ -42,49 +23,26 @@ export default function NewAnalysisPage() {
         </Link>
         <h1 className="mt-3 text-3xl font-bold tracking-tight">Nieuwe analyse</h1>
         <p className="mt-2 text-secondary">
-          Vul een website in. Wil je inzoomen op één product of onderwerp? Vul dat er dan bij —
-          anders analyseren we de hele website.
+          Kies een klantprofiel en vul het product of onderwerp in dat je wilt meten. We zoeken
+          alleen nog uit wat de website hierover zegt en wie de concurrenten zijn voor dít
+          onderwerp — de rest komt uit het klantprofiel.
         </p>
       </div>
 
-      <form onSubmit={handleSubmit} className="card flex flex-col gap-5">
-        <label className="flex flex-col gap-1.5">
-          <span className="mono-label">Website *</span>
-          <input
-            type="text"
-            required
-            value={url}
-            onChange={(e) => setUrl(e.target.value)}
-            placeholder="mediamarkt.nl"
-            className="field"
-            autoFocus
-          />
-        </label>
-
-        <label className="flex flex-col gap-1.5">
-          <span className="mono-label">Onderwerp / product (optioneel)</span>
-          <input
-            type="text"
-            value={topic}
-            onChange={(e) => setTopic(e.target.value)}
-            placeholder="bijv. iPhone, smartphone-reparatie"
-            className="field"
-          />
-          <span className="text-sm text-muted">
-            Handig bij grote merken: zo meten we alleen dat segment in plaats van het hele bedrijf.
-          </span>
-        </label>
-
-        {error && (
-          <p className="text-sm text-[var(--status-error)]" role="alert">
-            {error}
+      {profiles.length === 0 ? (
+        <div className="card flex flex-col items-center gap-4 py-12 text-center">
+          <h2 className="text-xl font-semibold">Eerst een klantprofiel nodig</h2>
+          <p className="max-w-md text-secondary">
+            Maak eerst een klantprofiel aan voor het merk — daarna kun je hier analyses op
+            verschillende producten/onderwerpen aan koppelen.
           </p>
-        )}
-
-        <button type="submit" disabled={pending} className="btn-primary w-full disabled:opacity-60">
-          {pending ? "Analyse aanmaken…" : "Start analyse"}
-        </button>
-      </form>
+          <Link href="/profielen/nieuw" className="btn-primary mt-2">
+            Klantprofiel aanmaken
+          </Link>
+        </div>
+      ) : (
+        <NewAnalysisForm profiles={profiles} />
+      )}
     </div>
   );
 }

@@ -44,6 +44,23 @@ export default async function ContentDetailPage({
 
       <div className="flex flex-col gap-3">
         <h1 className="text-2xl font-bold tracking-tight">{piece.title}</h1>
+        <span className="chip w-fit">
+          {piece.action === "verbeteren" ? (
+            <>
+              Verbetert bestaande pagina
+              {piece.existing_url && (
+                <>
+                  {": "}
+                  <a href={piece.existing_url} target="_blank" rel="noopener noreferrer" className="underline">
+                    {piece.existing_url}
+                  </a>
+                </>
+              )}
+            </>
+          ) : (
+            "Nieuwe pagina"
+          )}
+        </span>
         <ContentActions
           title={piece.title}
           markdown={piece.body_markdown ?? ""}

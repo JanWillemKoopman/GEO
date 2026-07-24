@@ -74,6 +74,9 @@ export function LibraryList({ analysisId, pieces }: { analysisId: string; pieces
                 {p.quality_score != null && (
                   <span className="mono-label">kwaliteit {Math.round(p.quality_score)}/100</span>
                 )}
+                <span className="chip">
+                  {p.action === "verbeteren" ? `Verbetert: ${p.existing_url ?? "bestaande pagina"}` : "Nieuwe pagina"}
+                </span>
               </div>
             </Link>
           </li>

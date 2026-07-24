@@ -47,6 +47,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         type,
         targetIntent: body.targetIntent ?? "",
         why: body.why ?? "",
+        action: body.action === "verbeteren" ? "verbeteren" : "nieuw",
+        existingUrl: body.existingUrl ?? null,
       },
     });
     return NextResponse.json({ id: contentId }, { status: 201 });
