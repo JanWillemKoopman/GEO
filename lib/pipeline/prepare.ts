@@ -77,6 +77,8 @@ export async function prepareAnalysis(id: string): Promise<AnalysisStatus> {
           value_props: p.valueProps,
           competitors: p.competitors,
           personas: p.personas,
+          proof_points: p.proofPoints, // ✅ contentkwaliteit (A2): grondstof voor Fase C
+          style_samples: p.styleSamples, // ✅ contentkwaliteit (A3)
           raw_json: dna.raw as never, // volledige ruwe OpenAI-output (§5)
         },
         { onConflict: "analysis_id" },
