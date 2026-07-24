@@ -119,8 +119,13 @@ export async function prepareAnalysis(id: string): Promise<AnalysisStatus> {
       const rows = prompts.map((p) => ({
         analysis_id: id,
         text: p.text,
-        category: p.category,
+        category: p.category, // funnelfase
         intent: p.intent,
+        intent_type: p.intentType,
+        specificity: p.specificity,
+        purchase_intent: p.purchaseIntent,
+        cluster: p.cluster,
+        volume_estimate: p.volumeEstimate,
         active: true,
         created_by: "system" as const,
         source_raw_json: p.sourceRawJson as never,

@@ -13,6 +13,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { callPlain, callStructured } from "@/lib/openai/structured";
 import { MODELS } from "@/lib/openai/models";
+import { measureWebSearchEnabled } from "@/lib/config";
 import { Mention } from "@/lib/schemas/mention";
 import type { Analysis, AnalysisStatus, Prompt, TrackingRun } from "@/lib/types/database";
 
@@ -79,11 +80,14 @@ async function measureOnePrompt(
     // Brand DNA gebruikt dezelfde combinatie succesvol). Dit valt onder de
     // fallback-regel uit abcplan.md §2. De web_search-kosten (vast tarief per call)
     // domineren toch, dus het modelverschil is verwaarloosbaar (~$0,003/prompt).
+    //
+    // Grounding (web_search) is via MEASURE_WEB_SEARCH uitschakelbaar voor de
+    // ontwikkelfase (kostenbesparend). Uit → de AI antwoordt uit eigen kennis.
     const a = await callPlain({
       model: MODELS.quality,
       system: SIMULATE_SYSTEM,
       user: prompt.text,
-      webSearch: true,
+      webSearch: measureWebSearchEnabled,
     });
 
     const { data: inserted, error } = await admin

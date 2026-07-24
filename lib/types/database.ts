@@ -22,19 +22,18 @@ export type ProfileStatus = "bezig" | "klaar" | "mislukt";
 export type ContentAction = "nieuw" | "verbeteren";
 
 /**
- * Canonieke prompt-categorieën (abcplan.md §6 A2). Klant mag afwijken (vrije tekst).
- * ALLE categorieën zijn MERKNEUTRAAL: een prompt mag nooit de eigen merknaam van de
- * klant bevatten, anders is een vermelding gegarandeerd en meet 'ie niets (zie
- * lib/pipeline/prompts.ts). Daarom is "Merkspecifiek" vervangen door "Aanbeveling/keuze".
+ * Prompt-hoofd-as = de FUNNELFASE (abcplan.md §6 A2). Klant mag afwijken (vrije tekst).
+ * ALLE prompts zijn MERK- én CONCURRENT-NEUTRAAL: een prompt mag nooit de eigen
+ * merknaam of een concurrerend bedrijf bevatten, anders is een vermelding
+ * gegarandeerd en meet 'ie niets (zie lib/pipeline/prompts.ts). Generieke
+ * productmerken (bv. Nike) mogen wél.
  */
-export const PROMPT_CATEGORIES = [
-  "Oriëntatie",
-  "Vergelijking",
-  "Probleem→oplossing",
-  "Lokaal/branche",
-  "Aanbeveling/keuze",
-] as const;
+export const PROMPT_CATEGORIES = ["Oriëntatie", "Overweging", "Beslissing"] as const;
 export type PromptCategory = (typeof PROMPT_CATEGORIES)[number] | (string & {});
+
+/** Fijnere prompt-tags (abcplan.md §6 A2) — elk een eigen kolom voor analyse. */
+export type PromptIntentType = "informational" | "commercial" | "transactional";
+export type PromptSpecificity = "head" | "long_tail";
 
 export interface Persona {
   name: string;
@@ -118,11 +117,17 @@ export interface Prompt {
   id: string;
   analysis_id: string;
   text: string;
-  category: PromptCategory;
-  intent: string | null;
+  category: PromptCategory; // funnelfase: Oriëntatie | Overweging | Beslissing
+  intent: string | null; // vrije-tekst job-to-be-done
   active: boolean;
   created_by: PromptOrigin;
   source_raw_json: unknown | null;
+  // Fijnere tags (§6 A2) — elk een eigen kolom, nullable voor handmatige prompts.
+  intent_type: PromptIntentType | null;
+  specificity: PromptSpecificity | null;
+  purchase_intent: boolean | null;
+  cluster: string | null;
+  volume_estimate: number | null; // door AI geschat zoekvolume 0-100 (geen echte index)
   created_at: string;
   updated_at: string;
 }
