@@ -111,10 +111,17 @@ async function generateForFunnelStage(args: {
   brand: BrandContext;
   count: number;
   tokens: string[];
+  contentBrief?: string | null;
 }): Promise<GeneratedPrompt[]> {
-  const { category, url, topic, brand, count, tokens } = args;
+  const { category, url, topic, brand, count, tokens, contentBrief } = args;
 
   const scopeRule = `Alle prompts gaan UITSLUITEND over "${topic}" binnen deze branche.`;
+
+  // Content-brief van de klant (§6/§7/§8): stuurt de vragen naar de gewenste hoek/doelgroep.
+  const briefRule = contentBrief?.trim()
+    ? `GEWENSTE HOEK/DOELGROEP (van de klant): ${contentBrief.trim()}. Laat de gegenereerde vragen deze ` +
+      `hoek en doelgroep weerspiegelen — schrijf de vragen zoals díe specifieke zoeker ze zou stellen.`
+    : "";
 
   // Lokaal bereik met bekende regio's → laat de vragen (deels) een plaatsnaam
   // bevatten, zoals een echte lokale zoeker die zou stellen (§12.24).
@@ -137,6 +144,7 @@ async function generateForFunnelStage(args: {
 
   const user =
     `${buildContextBlock(url, topic, brand)}\n\n` +
+    (briefRule ? `${briefRule}\n\n` : "") +
     `Genereer precies ${count} prompts voor de FUNNELFASE "${category}": ${CATEGORY_BRIEF[category] ?? ""}\n` +
     `${scopeRule}\n${geoRule ? `${geoRule}\n` : ""}${neutralityRule}\n` +
     `Geef per prompt mee: de onderliggende intentie (job-to-be-done); intentType ` +
@@ -213,6 +221,7 @@ export async function generatePrompts(args: {
   url: string;
   topic: string;
   brand: BrandContext;
+  contentBrief?: string | null;
 }): Promise<GeneratedPrompt[]> {
   const tokens = forbiddenTokens(args.url, args.brand.brandName, args.brand.competitors);
   const perStage = await Promise.all(

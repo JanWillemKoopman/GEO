@@ -17,7 +17,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Niet ingelogd." }, { status: 401 });
   }
 
-  let body: { profileId?: string; topic?: string };
+  let body: { profileId?: string; topic?: string; content_brief?: string };
   try {
     body = await request.json();
   } catch {
@@ -28,6 +28,8 @@ export async function POST(request: Request) {
   if (!topic) {
     return NextResponse.json({ error: "Vul een product of onderwerp in." }, { status: 400 });
   }
+
+  const contentBrief = body.content_brief?.trim() ? body.content_brief.trim() : null;
 
   const admin = createAdminClient();
 
@@ -56,6 +58,7 @@ export async function POST(request: Request) {
       topic,
       name,
       status: "bezig",
+      content_brief: contentBrief,
     })
     .select("id")
     .single();

@@ -74,6 +74,7 @@ export async function prepareAnalysis(id: string): Promise<AnalysisStatus> {
         topic: analysis.topic,
         pages: (pageRows ?? []) as ProfilePage[],
         profile,
+        contentBrief: analysis.content_brief,
       });
       const r = research.parsed;
 
@@ -115,6 +116,7 @@ export async function prepareAnalysis(id: string): Promise<AnalysisStatus> {
         url: profile.url,
         topic: analysis.topic,
         brand,
+        contentBrief: analysis.content_brief,
       });
       const rows = prompts.map((p) => ({
         analysis_id: id,
