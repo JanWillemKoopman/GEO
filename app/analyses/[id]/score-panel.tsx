@@ -26,15 +26,32 @@ export function ScorePanel({
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="card flex flex-col gap-2">
-        <span className="mono-label">Zichtbaarheidsscore</span>
-        <div className="flex items-end gap-3">
-          <span className="text-6xl font-bold tracking-tight">{Math.round(score.score)}</span>
-          <span className="mb-2 text-secondary">/ 100</span>
+      <div className="grid gap-4 sm:grid-cols-2">
+        <div className="card flex flex-col gap-2">
+          <span className="mono-label">Zichtbaarheidsscore</span>
+          <div className="flex items-end gap-3">
+            <span className="text-6xl font-bold tracking-tight">{Math.round(score.score)}</span>
+            <span className="mb-2 text-secondary">/ 100</span>
+          </div>
+          <p className="text-sm text-secondary">
+            Zo vaak word jij genoemd als een AI-assistent een relevante vraag krijgt — elke vraag telt
+            even zwaar.
+          </p>
         </div>
-        <p className="text-secondary">
-          Zo vaak word jij genoemd als een AI-assistent een relevante vraag krijgt.
-        </p>
+
+        {score.weighted_score != null && (
+          <div className="card flex flex-col gap-2">
+            <span className="mono-label">Gewogen zichtbaarheid</span>
+            <div className="flex items-end gap-3">
+              <span className="text-6xl font-bold tracking-tight">{Math.round(score.weighted_score)}</span>
+              <span className="mb-2 text-secondary">/ 100</span>
+            </div>
+            <p className="text-sm text-secondary">
+              Hetzelfde, maar populaire en koopklare vragen tellen zwaarder (naar verwacht zoekvolume ×
+              commerciële waarde).
+            </p>
+          </div>
+        )}
       </div>
 
       <div className="card flex flex-col gap-4">

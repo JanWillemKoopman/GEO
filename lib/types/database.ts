@@ -148,6 +148,7 @@ export interface TrackingRun {
   openai_response_id: string | null;
   tokens_used: number | null;
   cost_usd: number | null;
+  prompt_weight: number | null; // gewicht (volume × waarde), bevroren op meetmoment (§6 A3)
 }
 
 export interface TrackingRunMention {
@@ -165,7 +166,8 @@ export interface VisibilityScore {
   id: string;
   analysis_id: string;
   week_no: number;
-  score: number;
+  score: number; // ongewogen: % prompts waarin het merk genoemd wordt (elke prompt telt gelijk)
+  weighted_score: number | null; // gewogen naar volume × commerciële waarde (§6 A3)
   share_of_voice: number | null;
   per_engine_json: unknown | null;
   computed_at: string;
