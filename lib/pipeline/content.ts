@@ -112,6 +112,9 @@ function buildContentInput(args: {
     `Bedrijf: ${profile?.brand_name ?? analysis.url}`,
     `Website: ${analysis.url}`,
     `Onderwerp/scope: ${analysis.topic}`,
+    analysis.content_brief?.trim()
+      ? `Gewenste richting/doelgroep van de content (van de klant — VOLG dit): ${analysis.content_brief.trim()}`
+      : "",
     `Branche: ${profile?.industry ?? "onbekend"}`,
     `Tone of voice: ${profile?.tone_of_voice ?? "professioneel, helder"}`,
     `Diensten/producten: ${(profile?.products ?? []).join(", ") || "onbekend"}`,

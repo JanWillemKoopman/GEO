@@ -4,6 +4,7 @@ import { getAnalysis } from "@/lib/analyses";
 import { createClient } from "@/lib/supabase/server";
 import type { Profile, TopicResearch, Prompt } from "@/lib/types/database";
 import { TopicResearchEditor } from "./topic-research-editor";
+import { ContentBriefEditor } from "./content-brief-editor";
 import { PromptsManager } from "./prompts-manager";
 import { ConfirmBar } from "./confirm-bar";
 import { TrackingToggle } from "./tracking-toggle";
@@ -88,6 +89,8 @@ export default async function InstellingenPage({ params }: { params: Promise<{ i
           <p className="text-secondary">Onderwerp-onderzoek wordt nog voorbereid…</p>
         </div>
       )}
+
+      <ContentBriefEditor analysisId={id} initial={analysis.content_brief} />
 
       {prompts.length > 0 && <PromptsManager analysisId={id} initial={prompts} />}
 

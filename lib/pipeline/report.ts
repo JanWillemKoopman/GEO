@@ -87,6 +87,12 @@ function buildMissedBlock(missed: MissedPrompt[]): string {
   );
 }
 
+function briefLine(analysis: Analysis): string[] {
+  return analysis.content_brief?.trim()
+    ? [`Gewenste content-richting van de klant: ${analysis.content_brief.trim()} — laat de aanbevelingen hierop aansluiten.`]
+    : [];
+}
+
 function buildGapInput(
   analysis: Analysis,
   profile: Profile | null,
@@ -98,6 +104,7 @@ function buildGapInput(
   const lines = [
     `Eigen merk: ${ownLabel(analysis, profile)}`,
     `Branche: ${profile?.industry ?? "onbekend"}`,
+    ...briefLine(analysis),
     ...(topicResearch?.content_summary
       ? [`Wat de website al zegt over dit onderwerp: ${topicResearch.content_summary}`]
       : []),
@@ -131,6 +138,7 @@ function buildReportInput(
 ): string {
   return [
     `Eigen merk: ${ownLabel(analysis, profile)}`,
+    ...briefLine(analysis),
     scoreLine(score),
     buildMissedBlock(missed),
     "",

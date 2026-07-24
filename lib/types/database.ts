@@ -49,6 +49,7 @@ export interface Analysis {
   name: string;
   status: AnalysisStatus;
   tracking_enabled: boolean;
+  content_brief: string | null; // vrije toelichting: gewenste hoek/doelgroep van de content (§6/§7/§8)
   created_at: string;
   updated_at: string;
 }

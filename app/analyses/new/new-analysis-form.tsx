@@ -8,6 +8,7 @@ export function NewAnalysisForm({ profiles }: { profiles: Profile[] }) {
   const router = useRouter();
   const [profileId, setProfileId] = useState(profiles[0]?.id ?? "");
   const [topic, setTopic] = useState("");
+  const [contentBrief, setContentBrief] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
 
@@ -19,7 +20,7 @@ export function NewAnalysisForm({ profiles }: { profiles: Profile[] }) {
       const res = await fetch("/api/analyses", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ profileId, topic }),
+        body: JSON.stringify({ profileId, topic, content_brief: contentBrief }),
       });
       const json = await res.json();
       if (!res.ok) {
@@ -65,6 +66,25 @@ export function NewAnalysisForm({ profiles }: { profiles: Profile[] }) {
         />
         <span className="text-sm text-muted">
           Elke analyse meet één specifiek product of onderwerp binnen het klantprofiel.
+        </span>
+      </label>
+
+      <label className="flex flex-col gap-1.5">
+        <span className="mono-label">Wat voor content wil je? (optioneel)</span>
+        <textarea
+          value={contentBrief}
+          onChange={(e) => setContentBrief(e.target.value)}
+          rows={4}
+          placeholder={
+            "bijv. 'Richt de content op sollicitanten die zich voorbereiden op een gesprek " +
+            "(hoe kleed ik me, welke vragen kan ik verwachten) — niet op algemene info voor wie " +
+            "niet actief naar werk zoekt.'"
+          }
+          className="field"
+        />
+        <span className="text-sm text-muted">
+          Stuur de hoek en doelgroep van de content. Dit werkt door in de meet-vragen, de
+          aanbevelingen én het schrijven van de content.
         </span>
       </label>
 

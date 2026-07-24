@@ -33,8 +33,9 @@ export async function generateTopicResearch(args: {
   topic: string;
   pages: ProfilePage[];
   profile: Profile;
+  contentBrief?: string | null;
 }): Promise<StructuredCallResult<TopicResearch>> {
-  const { topic, pages, profile } = args;
+  const { topic, pages, profile, contentBrief } = args;
 
   const system =
     `Je bent een merk- en marktanalist. Dit bedrijf heeft al een profiel (merknaam, branche, algemene concurrenten); ` +
@@ -43,12 +44,16 @@ export async function generateTopicResearch(args: {
     `(2) welke 3–5 concurrenten zijn relevant VOOR DIT SPECIFIEKE ONDERWERP (niet per se dezelfde als de algemene concurrenten van het bedrijf). ` +
     `Gebruik web search voor actuele marktcontext. Antwoord in het Nederlands.`;
 
+  const briefLine = contentBrief?.trim()
+    ? `\nGewenste hoek/doelgroep van de klant (houd hier rekening mee): ${contentBrief.trim()}`
+    : "";
+
   const user =
     `Bedrijf: ${profile.brand_name ?? profile.url}\n` +
     `Website: ${profile.url}\n` +
     `Branche: ${profile.industry ?? "onbekend"}\n` +
     `Algemene concurrenten van het bedrijf: ${profile.competitors.join(", ") || "onbekend"}\n` +
-    `Onderwerp/scope: ${topic}\n\n` +
+    `Onderwerp/scope: ${topic}${briefLine}\n\n` +
     `Pagina's van de website (url — titel: korte inhoud):\n${buildPagesBlock(pages)}`;
 
   return callStructured({
