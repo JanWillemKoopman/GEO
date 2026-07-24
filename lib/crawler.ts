@@ -12,12 +12,12 @@ const PAGE_MAX_CHARS = 1500; // kleinere cap per pagina bij de content-inventari
 const FETCH_TIMEOUT_MS = 12000;
 
 // ── Content-inventaris (abcplan.md §12.23) ─────────────────────────────────
-// We ontdekken zo compleet mogelijk WELKE pagina's er bestaan (URL-lijst, goedkoop
-// via sitemaps) en slaan die allemaal op, maar halen titel+tekst maar voor een
-// deel op — dat zijn de dure per-pagina fetches en die moeten binnen de 60s-route
-// passen. Deze constanten zijn de knoppen om aan te draaien.
-const MAX_INVENTORY_URLS = 200; // max aantal opgeslagen pagina-URL's per profiel
-const CONTENT_FETCH_CAP = 60; // voor hoeveel pagina's we titel + tekst ophalen
+// We ontdekken WELKE pagina's er bestaan (URL-lijst via sitemaps) en halen voor
+// die pagina's titel + tekst op. Het aantal pagina's is per profiel instelbaar
+// (max_inventory_pages), begrensd door een harde bovengrens om de 60s-route te
+// beschermen. Het crawlen zelf is API-gratis (eigen server, geen OpenAI).
+export const DEFAULT_MAX_PAGES = 60; // fallback als een profiel (nog) geen instelling heeft
+export const MAX_PAGES_HARD_CAP = 150; // absolute bovengrens (timeout-bescherming)
 const CRAWL_BATCH_SIZE = 8; // parallelle fetches per batch (niet alles tegelijk)
 const MAX_SITEMAPS = 50; // recursie-plafond bij sitemap-index'en
 
@@ -156,32 +156,39 @@ function isSitemapIndex(xml: string): boolean {
 }
 
 /**
- * Verzamelt pagina-URL's uit de sitemap(s): vindt de ingang(en) via robots.txt
+ * Verzamelt pagina-URL's uit de sitemap(s): vindt de ingang(en) via een door de
+ * klant opgegeven sitemap-URL (indien aanwezig, met voorrang), robots.txt
  * (Sitemap:-regels) + de standaardlocaties, en volgt sitemap-index'en recursief.
  * Product-sitemaps en losse product-URL's worden overgeslagen. Alleen zelfde
  * domein, gededupliceerd, gecapt.
  */
-async function collectSitemapPageUrls(base: string, baseHost: string): Promise<string[]> {
-  const entryPoints = new Set<string>();
+async function collectSitemapPageUrls(
+  base: string,
+  baseHost: string,
+  maxPages: number,
+  sitemapUrl?: string | null,
+): Promise<string[]> {
+  const entryPoints: string[] = [];
+  // Door de klant opgegeven sitemap krijgt voorrang (staat vooraan in de queue).
+  if (sitemapUrl && sitemapUrl.trim()) entryPoints.push(sitemapUrl.trim());
 
   const robots = await fetchText(`${base}/robots.txt`);
   if (robots) {
-    for (const m of robots.matchAll(/^\s*sitemap:\s*(\S+)/gim)) entryPoints.add(m[1].trim());
+    for (const m of robots.matchAll(/^\s*sitemap:\s*(\S+)/gim)) entryPoints.push(m[1].trim());
   }
-  entryPoints.add(`${base}/sitemap.xml`);
-  entryPoints.add(`${base}/sitemap_index.xml`);
+  entryPoints.push(`${base}/sitemap.xml`, `${base}/sitemap_index.xml`);
 
-  const queue = Array.from(entryPoints).filter((u) => !isProductSitemap(u));
+  const queue = Array.from(new Set(entryPoints)).filter((u) => !isProductSitemap(u));
   const seen = new Set<string>();
   const pageUrls = new Set<string>();
   let fetched = 0;
 
-  while (queue.length > 0 && fetched < MAX_SITEMAPS && pageUrls.size < MAX_INVENTORY_URLS) {
-    const sitemapUrl = queue.shift()!;
-    if (seen.has(sitemapUrl)) continue;
-    seen.add(sitemapUrl);
+  while (queue.length > 0 && fetched < MAX_SITEMAPS && pageUrls.size < maxPages) {
+    const sm = queue.shift()!;
+    if (seen.has(sm)) continue;
+    seen.add(sm);
 
-    const xml = await fetchText(sitemapUrl);
+    const xml = await fetchText(sm);
     fetched++;
     if (!xml) continue;
 
@@ -197,7 +204,7 @@ async function collectSitemapPageUrls(base: string, baseHost: string): Promise<s
     }
   }
 
-  return Array.from(pageUrls).slice(0, MAX_INVENTORY_URLS);
+  return Array.from(pageUrls).slice(0, maxPages);
 }
 
 /**
@@ -205,11 +212,15 @@ async function collectSitemapPageUrls(base: string, baseHost: string): Promise<s
  * inventaris, abcplan.md §12.23): eerst via de sitemap(s), en pas als die er
  * echt niet zijn → links volgen vanaf de homepage. Productpagina's uitgesloten.
  */
-export async function discoverPageUrls(host: string, maxPages = MAX_INVENTORY_URLS): Promise<string[]> {
+export async function discoverPageUrls(
+  host: string,
+  maxPages = DEFAULT_MAX_PAGES,
+  sitemapUrl?: string | null,
+): Promise<string[]> {
   const base = toFetchUrl(host);
   const baseHost = new URL(base).hostname;
 
-  const sitemapUrls = await collectSitemapPageUrls(base, baseHost);
+  const sitemapUrls = await collectSitemapPageUrls(base, baseHost, maxPages, sitemapUrl);
   if (sitemapUrls.length > 0) return sitemapUrls.slice(0, maxPages);
 
   // Fallback: geen (bruikbare) sitemap → links vanaf de homepage volgen.
@@ -263,15 +274,23 @@ export interface InventoryPage {
   text: string | null;
 }
 
+export interface InventoryOptions {
+  /** Max aantal pagina's in de inventaris (per profiel instelbaar). */
+  maxPages?: number;
+  /** Door de klant opgegeven sitemap-URL (voorrang boven auto-detectie). */
+  sitemapUrl?: string | null;
+}
+
 /**
- * Bouwt de volledige content-inventaris van een site: ontdekt ALLE (niet-product)
- * pagina-URL's en bewaart die allemaal, maar haalt titel + tekst maar voor de
- * eerste CONTENT_FETCH_CAP op (de dure fetches). De rest komt met titel/tekst =
- * null in de lijst — de URL-lijst blijft dus compleet, de inhoud is een steekproef.
+ * Bouwt de content-inventaris van een site: ontdekt de (niet-product) pagina-URL's
+ * en haalt daarvan titel + tekst op, tot `maxPages` (begrensd door de harde
+ * bovengrens). Een pagina waarvan de fetch faalt komt met titel/tekst = null in
+ * de lijst, zodat de URL-lijst niettemin de gevonden pagina's weerspiegelt.
  */
-export async function crawlInventory(host: string): Promise<InventoryPage[]> {
-  const urls = await discoverPageUrls(host, MAX_INVENTORY_URLS);
-  const crawled = await crawlPages(urls.slice(0, CONTENT_FETCH_CAP));
+export async function crawlInventory(host: string, opts: InventoryOptions = {}): Promise<InventoryPage[]> {
+  const maxPages = Math.min(Math.max(opts.maxPages ?? DEFAULT_MAX_PAGES, 1), MAX_PAGES_HARD_CAP);
+  const urls = await discoverPageUrls(host, maxPages, opts.sitemapUrl);
+  const crawled = await crawlPages(urls);
   const byUrl = new Map(crawled.map((p) => [p.url, p]));
   return urls.map((url) => {
     const c = byUrl.get(url);

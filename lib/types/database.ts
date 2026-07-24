@@ -71,6 +71,9 @@ export interface Profile {
   raw_json: unknown | null;
   status: ProfileStatus;
   edited_by_user: boolean;
+  /** Crawl-instellingen voor de content-inventaris (§12.23), bewerkbaar door de klant. */
+  sitemap_url: string | null;
+  max_inventory_pages: number;
   created_at: string;
   updated_at: string;
 }

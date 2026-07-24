@@ -23,7 +23,10 @@ export async function prepareProfile(id: string): Promise<ProfileStatus> {
     // en hangt niet af van het profielonderzoek — draai 'm daarom PARALLEL aan de
     // (trage) OpenAI-call, zodat beide binnen de 60s-route passen. Best-effort:
     // mislukt de inventaris, dan blokkeert dat het profiel niet.
-    const inventoryPromise: Promise<InventoryPage[]> = crawlInventory(profile.url).catch((err) => {
+    const inventoryPromise: Promise<InventoryPage[]> = crawlInventory(profile.url, {
+      maxPages: profile.max_inventory_pages,
+      sitemapUrl: profile.sitemap_url,
+    }).catch((err) => {
       console.error(`Content-inventaris opbouwen mislukt voor profiel ${id}:`, err);
       return [];
     });

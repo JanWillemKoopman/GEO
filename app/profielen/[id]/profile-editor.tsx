@@ -9,11 +9,15 @@ import type { Persona, Profile } from "@/lib/types/database";
  * Bewerkbaar klantprofiel — zelfde CRUD-mechaniek als de vroegere
  * BrandDnaEditor, nu op profielniveau (eenmalig per merk i.p.v. per analyse).
  */
-export function ProfileEditor({ initial }: { initial: Profile }) {
+export function ProfileEditor({ initial, inventoryCount }: { initial: Profile; inventoryCount: number }) {
   const [profile, setProfile] = useState(initial);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const [count, setCount] = useState(inventoryCount);
+  const [refreshState, setRefreshState] = useState<"idle" | "pending" | "done" | "error">("idle");
+  const [refreshError, setRefreshError] = useState<string | null>(null);
 
   function updatePersona(index: number, patch: Partial<Persona>) {
     setProfile((p) => ({
@@ -39,6 +43,8 @@ export function ProfileEditor({ initial }: { initial: Profile }) {
           value_props: profile.value_props,
           competitors: profile.competitors,
           personas: profile.personas,
+          sitemap_url: profile.sitemap_url,
+          max_inventory_pages: profile.max_inventory_pages,
         }),
       });
       if (!res.ok) throw new Error();
@@ -47,6 +53,28 @@ export function ProfileEditor({ initial }: { initial: Profile }) {
       setError("Opslaan mislukt. Probeer het opnieuw.");
     } finally {
       setSaving(false);
+    }
+  }
+
+  // Slaat eerst de (mogelijk gewijzigde) crawl-instellingen op en crawlt daarna
+  // de content-inventaris opnieuw met die instellingen.
+  async function refreshInventory() {
+    setRefreshState("pending");
+    setRefreshError(null);
+    try {
+      await save();
+      const res = await fetch(`/api/profiles/${profile.id}/refresh-inventory`, { method: "POST" });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setRefreshState("error");
+        setRefreshError(json.detail ?? json.error ?? null);
+        return;
+      }
+      setCount(json.count ?? 0);
+      setRefreshState("done");
+    } catch (err) {
+      setRefreshState("error");
+      setRefreshError(err instanceof Error ? err.message : String(err));
     }
   }
 
@@ -167,6 +195,63 @@ export function ProfileEditor({ initial }: { initial: Profile }) {
           >
             + Persona toevoegen
           </button>
+        </div>
+      </CollapsibleSection>
+
+      <CollapsibleSection title="Content-inventaris (crawl)">
+        <p className="text-sm text-secondary">
+          We brengen in kaart welke pagina&apos;s er al op de website staan, zodat aanbevelingen
+          bestaande content kunnen verbeteren i.p.v. altijd iets nieuws voor te stellen.
+          Productpagina&apos;s van webshops worden overgeslagen. Dit staat nu op{" "}
+          <span className="font-medium">{count} pagina&apos;s</span>.
+        </p>
+
+        <label className="flex flex-col gap-1.5">
+          <span className="mono-label">Sitemap-URL (optioneel)</span>
+          <input
+            className="field"
+            value={profile.sitemap_url ?? ""}
+            onChange={(e) => setProfile((p) => ({ ...p, sitemap_url: e.target.value }))}
+            placeholder="https://voorbeeld.nl/sitemap.xml"
+          />
+          <span className="text-sm text-muted">
+            Weet je de sitemap-locatie? Vul die hier in — dan gebruikt de crawler die met zekerheid.
+            Laat leeg om automatisch te zoeken (robots.txt + standaardlocaties).
+          </span>
+        </label>
+
+        <label className="flex flex-col gap-1.5">
+          <span className="mono-label">Maximaal aantal pagina&apos;s</span>
+          <input
+            type="number"
+            min={5}
+            max={150}
+            className="field w-32"
+            value={profile.max_inventory_pages}
+            onChange={(e) =>
+              setProfile((p) => ({ ...p, max_inventory_pages: Number(e.target.value) || 0 }))
+            }
+          />
+          <span className="text-sm text-muted">Tussen 5 en 150. Meer pagina&apos;s = grondiger, maar trager.</span>
+        </label>
+
+        <div className="flex flex-wrap items-center gap-3">
+          <button
+            type="button"
+            onClick={() => void refreshInventory()}
+            disabled={refreshState === "pending"}
+            className="btn-outline disabled:opacity-60"
+          >
+            {refreshState === "pending" ? "Bezig met crawlen…" : "Vernieuw inventaris"}
+          </button>
+          {refreshState === "done" && (
+            <span className="text-sm text-[var(--accent-green-text)]">Bijgewerkt — {count} pagina&apos;s ✓</span>
+          )}
+          {refreshState === "error" && (
+            <span className="text-sm text-[var(--status-error)]">
+              Vernieuwen mislukt{refreshError ? `: ${refreshError}` : "."}
+            </span>
+          )}
         </div>
       </CollapsibleSection>
 
