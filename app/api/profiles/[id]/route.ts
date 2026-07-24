@@ -19,6 +19,8 @@ const EDITABLE_FIELDS = [
   "value_props",
   "competitors",
   "personas",
+  "intake_description",
+  "intake_audience",
   "sitemap_url",
 ] as const;
 

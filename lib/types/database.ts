@@ -71,6 +71,9 @@ export interface Profile {
   raw_json: unknown | null;
   status: ProfileStatus;
   edited_by_user: boolean;
+  /** Onboarding-intake (§12.24): vrije-tekst seeds die de klant zelf aanleverde. */
+  intake_description: string | null;
+  intake_audience: string | null;
   /** Crawl-instellingen voor de content-inventaris (§12.23), bewerkbaar door de klant. */
   sitemap_url: string | null;
   max_inventory_pages: number;

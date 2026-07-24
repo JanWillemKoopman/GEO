@@ -43,6 +43,8 @@ export function ProfileEditor({ initial, inventoryCount }: { initial: Profile; i
           value_props: profile.value_props,
           competitors: profile.competitors,
           personas: profile.personas,
+          intake_description: profile.intake_description,
+          intake_audience: profile.intake_audience,
           sitemap_url: profile.sitemap_url,
           max_inventory_pages: profile.max_inventory_pages,
         }),
@@ -125,6 +127,26 @@ export function ProfileEditor({ initial, inventoryCount }: { initial: Profile; i
             rows={3}
             value={profile.summary ?? ""}
             onChange={(e) => setProfile((p) => ({ ...p, summary: e.target.value }))}
+          />
+        </label>
+        <label className="flex flex-col gap-1.5">
+          <span className="mono-label">Omschrijving (jouw eigen input)</span>
+          <textarea
+            className="field"
+            rows={3}
+            value={profile.intake_description ?? ""}
+            onChange={(e) => setProfile((p) => ({ ...p, intake_description: e.target.value }))}
+            placeholder="Wat doen jullie, en wat maakt jullie uniek?"
+          />
+        </label>
+        <label className="flex flex-col gap-1.5">
+          <span className="mono-label">Doelgroep (jouw eigen input)</span>
+          <textarea
+            className="field"
+            rows={2}
+            value={profile.intake_audience ?? ""}
+            onChange={(e) => setProfile((p) => ({ ...p, intake_audience: e.target.value }))}
+            placeholder="Wie zijn jullie klanten?"
           />
         </label>
       </CollapsibleSection>

@@ -8,7 +8,17 @@ import "server-only";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { crawlSite, crawlInventory, type InventoryPage } from "@/lib/crawler";
 import { generateProfileResearch } from "@/lib/pipeline/profile-research";
-import type { ProfileStatus } from "@/lib/types/database";
+import type { Profile, ProfileStatus } from "@/lib/types/database";
+
+/** Niet-lege string? (voor "klant leidend": alleen echt ingevulde waarden winnen). */
+function filled(v: string | null | undefined): v is string {
+  return typeof v === "string" && v.trim().length > 0;
+}
+
+/** Gededupliceerde unie: klantwaarden eerst, dan de AI-aanvullingen. */
+function unionList(clientList: string[] | null | undefined, aiList: string[]): string[] {
+  return Array.from(new Set([...(clientList ?? []), ...aiList]));
+}
 
 export async function prepareProfile(id: string): Promise<ProfileStatus> {
   const admin = createAdminClient();
@@ -31,21 +41,37 @@ export async function prepareProfile(id: string): Promise<ProfileStatus> {
       return [];
     });
 
-    const crawl = await crawlSite(profile.url);
-    const research = await generateProfileResearch({ url: profile.url, siteText: crawl.text });
+    const prof = profile as Profile;
+    const crawl = await crawlSite(prof.url);
+    const research = await generateProfileResearch({
+      url: prof.url,
+      siteText: crawl.text,
+      intake: {
+        name: prof.name,
+        description: prof.intake_description,
+        industry: prof.industry,
+        products: prof.products,
+        competitors: prof.competitors,
+        toneOfVoice: prof.tone_of_voice,
+        audience: prof.intake_audience,
+      },
+    });
     const p = research.parsed;
 
+    // Klant leidend, AI vult aan (abcplan.md §12.24): scalars die de klant zelf
+    // invulde blijven staan; producten/concurrenten worden een unie; de rest
+    // komt van de AI. Zo staat er altijd iets (AI garandeert non-empty velden).
     await admin
       .from("profiles")
       .update({
-        brand_name: p.brandName,
-        industry: p.industry,
-        tone_of_voice: p.toneOfVoice,
-        summary: p.summary,
-        products: p.products,
-        value_props: p.valueProps,
-        competitors: p.competitors,
-        personas: p.personas,
+        brand_name: filled(prof.brand_name) ? prof.brand_name : p.brandName || prof.name,
+        industry: filled(prof.industry) ? prof.industry : p.industry,
+        tone_of_voice: filled(prof.tone_of_voice) ? prof.tone_of_voice : p.toneOfVoice,
+        summary: filled(prof.summary) ? prof.summary : p.summary,
+        products: unionList(prof.products, p.products),
+        value_props: prof.value_props?.length ? prof.value_props : p.valueProps,
+        competitors: unionList(prof.competitors, p.competitors),
+        personas: prof.personas?.length ? prof.personas : p.personas,
         raw_json: research.raw as never,
         status: "klaar",
       })
