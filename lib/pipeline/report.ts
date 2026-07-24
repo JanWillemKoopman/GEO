@@ -38,9 +38,15 @@ const REPORT_SYSTEM =
   "GEHEEL NIEUWE pagina nodig is (action = \"nieuw\", existingUrl = null) — kies alleen \"verbeteren\" als " +
   "een pagina uit de lijst daadwerkelijk over hetzelfde onderwerp gaat. Antwoord in het Nederlands.";
 
+// De volledige URL-lijst helpt de nieuw/verbeteren-keuze; cap houdt de prompt beheersbaar.
+const REPORT_PAGES_CAP = 150;
+
 function buildPagesBlock(pages: ProfilePage[]): string {
   if (pages.length === 0) return "(geen pagina's bekend van deze website)";
-  return pages.map((p) => `- ${p.url}${p.title ? ` — "${p.title}"` : ""}`).join("\n");
+  return pages
+    .slice(0, REPORT_PAGES_CAP)
+    .map((p) => `- ${p.url}${p.title ? ` — "${p.title}"` : ""}`)
+    .join("\n");
 }
 
 function ownLabel(analysis: Analysis, profile: Profile | null): string {

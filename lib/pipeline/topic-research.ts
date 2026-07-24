@@ -15,10 +15,16 @@ import { MODELS } from "@/lib/openai/models";
 import { TopicResearch } from "@/lib/schemas/topic-research";
 import type { Profile, ProfilePage } from "@/lib/types/database";
 
+// Alleen pagina's met opgehaalde inhoud zijn zinvol voor "wat zegt de site over X";
+// de URL-lijst is compleet, maar tekst is een steekproef (zie crawlInventory).
+const TOPIC_PAGES_CAP = 40;
+
 /** Bouwt een compacte "sitemap met inhoud" van de al gecrawlde profielpagina's. */
 function buildPagesBlock(pages: ProfilePage[]): string {
-  if (pages.length === 0) return "(geen pagina's gecrawld — leun op web search)";
-  return pages
+  const withContent = pages.filter((p) => p.text_excerpt);
+  if (withContent.length === 0) return "(geen pagina-inhoud beschikbaar — leun op web search)";
+  return withContent
+    .slice(0, TOPIC_PAGES_CAP)
     .map((p) => `- ${p.url}${p.title ? ` — "${p.title}"` : ""}: ${(p.text_excerpt ?? "").slice(0, 400)}`)
     .join("\n");
 }

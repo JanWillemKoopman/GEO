@@ -6,7 +6,7 @@ import "server-only";
  * als het onderzoek al is opgeslagen, wordt niets herhaald (geen dubbele kosten).
  */
 import { createAdminClient } from "@/lib/supabase/admin";
-import { crawlSite, discoverPageUrls, crawlPages } from "@/lib/crawler";
+import { crawlSite, crawlInventory, type InventoryPage } from "@/lib/crawler";
 import { generateProfileResearch } from "@/lib/pipeline/profile-research";
 import type { ProfileStatus } from "@/lib/types/database";
 
@@ -19,6 +19,15 @@ export async function prepareProfile(id: string): Promise<ProfileStatus> {
   if (profile.status === "klaar") return "klaar";
 
   try {
+    // De content-inventaris (abcplan.md §12.23) is netwerk-zwaar maar API-gratis
+    // en hangt niet af van het profielonderzoek — draai 'm daarom PARALLEL aan de
+    // (trage) OpenAI-call, zodat beide binnen de 60s-route passen. Best-effort:
+    // mislukt de inventaris, dan blokkeert dat het profiel niet.
+    const inventoryPromise: Promise<InventoryPage[]> = crawlInventory(profile.url).catch((err) => {
+      console.error(`Content-inventaris opbouwen mislukt voor profiel ${id}:`, err);
+      return [];
+    });
+
     const crawl = await crawlSite(profile.url);
     const research = await generateProfileResearch({ url: profile.url, siteText: crawl.text });
     const p = research.parsed;
@@ -39,27 +48,17 @@ export async function prepareProfile(id: string): Promise<ProfileStatus> {
       })
       .eq("id", id);
 
-    // ── Content-inventaris (abcplan.md §12.23): beperkte crawl van de site
-    // (sitemap, fallback: links vanaf de homepage), zodat het rapport straks
-    // bestaande content kan herkennen i.p.v. altijd iets nieuws voor te stellen.
-    // Eenmalig per profiel — mislukt dit, dan blokkeert het het profiel niet
-    // (best-effort: gaps in de inventaris zijn geen showstopper).
-    try {
-      const urls = await discoverPageUrls(profile.url);
-      const pages = await crawlPages(urls);
-      await admin.from("profile_pages").delete().eq("profile_id", id);
-      if (pages.length > 0) {
-        await admin.from("profile_pages").insert(
-          pages.map((page) => ({
-            profile_id: id,
-            url: page.url,
-            title: page.title,
-            text_excerpt: page.text,
-          })),
-        );
-      }
-    } catch (err) {
-      console.error(`Content-inventaris opbouwen mislukt voor profiel ${id}:`, err);
+    const pages = await inventoryPromise;
+    await admin.from("profile_pages").delete().eq("profile_id", id);
+    if (pages.length > 0) {
+      await admin.from("profile_pages").insert(
+        pages.map((page) => ({
+          profile_id: id,
+          url: page.url,
+          title: page.title,
+          text_excerpt: page.text,
+        })),
+      );
     }
 
     return "klaar";

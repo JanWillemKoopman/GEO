@@ -10,7 +10,16 @@ import "server-only";
 const MAX_CHARS = 6000; // genoeg context, houdt de tokenkost laag
 const PAGE_MAX_CHARS = 1500; // kleinere cap per pagina bij de content-inventaris (meerdere pagina's tegelijk)
 const FETCH_TIMEOUT_MS = 12000;
-const DEFAULT_MAX_PAGES = 20;
+
+// ── Content-inventaris (abcplan.md §12.23) ─────────────────────────────────
+// We ontdekken zo compleet mogelijk WELKE pagina's er bestaan (URL-lijst, goedkoop
+// via sitemaps) en slaan die allemaal op, maar halen titel+tekst maar voor een
+// deel op — dat zijn de dure per-pagina fetches en die moeten binnen de 60s-route
+// passen. Deze constanten zijn de knoppen om aan te draaien.
+const MAX_INVENTORY_URLS = 200; // max aantal opgeslagen pagina-URL's per profiel
+const CONTENT_FETCH_CAP = 60; // voor hoeveel pagina's we titel + tekst ophalen
+const CRAWL_BATCH_SIZE = 8; // parallelle fetches per batch (niet alles tegelijk)
+const MAX_SITEMAPS = 50; // recursie-plafond bij sitemap-index'en
 
 /** Zet een hostnaam (mediamarkt.nl) om naar een op te halen URL. */
 function toFetchUrl(host: string): string {
@@ -112,25 +121,98 @@ function sameDomain(candidate: string, baseHost: string): boolean {
 }
 
 /**
- * Ontdekt een beperkte lijst pagina-URL's van dezelfde site (content-inventaris,
- * abcplan.md §12.23): eerst sitemap.xml/sitemap_index.xml (simpele <loc>-regex,
- * geen XML-lib nodig — consistent met de handgeschreven htmlToText-aanpak),
- * anders links vanaf de homepage volgen. Alleen zelfde domein, gedupliceerd,
- * gecapt op maxPages.
+ * Is dit een webshop-PRODUCTpagina? Die willen we uitsluiten — een grote webshop
+ * heeft er duizenden en ze zijn geen zinvolle GEO-content-doelen. We houden het
+ * bewust strak op `/product/` en `/products/` (WooCommerce, Shopify): daarmee
+ * blijven categorie-/`collections`- en `product-category`-pagina's WÉL behouden
+ * (die zijn juist waardevol).
  */
-export async function discoverPageUrls(host: string, maxPages = DEFAULT_MAX_PAGES): Promise<string[]> {
+function isProductUrl(url: string): boolean {
+  return /\/products?\//i.test(url);
+}
+
+/**
+ * Is dit een sitemap die (bijna) alleen productpagina's bevat? Die slaan we in
+ * z'n geheel over — scheelt vaak duizenden URL's in één keer. Matcht o.a.
+ * Shopify (`sitemap_products_1.xml`) en Yoast/WooCommerce (`product-sitemap.xml`),
+ * maar niet `product-category-sitemap.xml` (daar volgt na "product-" geen sitemap/cijfer).
+ */
+function isProductSitemap(url: string): boolean {
+  return /products?[-_](sitemap|\d)/i.test(url) || /sitemap[-_]products?/i.test(url);
+}
+
+/** Decodeert de paar XML-entiteiten die in sitemap-<loc>-URL's voorkomen. */
+function decodeXmlEntities(s: string): string {
+  return s.replace(/&amp;/gi, "&").replace(/&#38;/g, "&");
+}
+
+function extractLocs(xml: string): string[] {
+  return Array.from(xml.matchAll(/<loc>\s*([^<\s]+)\s*<\/loc>/gi)).map((m) => decodeXmlEntities(m[1]));
+}
+
+/** Een <sitemapindex> wijst naar andere sitemaps; een <urlset> bevat pagina's. */
+function isSitemapIndex(xml: string): boolean {
+  return /<sitemapindex[\s>]/i.test(xml);
+}
+
+/**
+ * Verzamelt pagina-URL's uit de sitemap(s): vindt de ingang(en) via robots.txt
+ * (Sitemap:-regels) + de standaardlocaties, en volgt sitemap-index'en recursief.
+ * Product-sitemaps en losse product-URL's worden overgeslagen. Alleen zelfde
+ * domein, gededupliceerd, gecapt.
+ */
+async function collectSitemapPageUrls(base: string, baseHost: string): Promise<string[]> {
+  const entryPoints = new Set<string>();
+
+  const robots = await fetchText(`${base}/robots.txt`);
+  if (robots) {
+    for (const m of robots.matchAll(/^\s*sitemap:\s*(\S+)/gim)) entryPoints.add(m[1].trim());
+  }
+  entryPoints.add(`${base}/sitemap.xml`);
+  entryPoints.add(`${base}/sitemap_index.xml`);
+
+  const queue = Array.from(entryPoints).filter((u) => !isProductSitemap(u));
+  const seen = new Set<string>();
+  const pageUrls = new Set<string>();
+  let fetched = 0;
+
+  while (queue.length > 0 && fetched < MAX_SITEMAPS && pageUrls.size < MAX_INVENTORY_URLS) {
+    const sitemapUrl = queue.shift()!;
+    if (seen.has(sitemapUrl)) continue;
+    seen.add(sitemapUrl);
+
+    const xml = await fetchText(sitemapUrl);
+    fetched++;
+    if (!xml) continue;
+
+    const locs = extractLocs(xml);
+    if (isSitemapIndex(xml)) {
+      for (const loc of locs) {
+        if (!seen.has(loc) && !isProductSitemap(loc)) queue.push(loc);
+      }
+    } else {
+      for (const loc of locs) {
+        if (sameDomain(loc, baseHost) && !isProductUrl(loc)) pageUrls.add(loc);
+      }
+    }
+  }
+
+  return Array.from(pageUrls).slice(0, MAX_INVENTORY_URLS);
+}
+
+/**
+ * Ontdekt zo compleet mogelijk welke pagina's er op de site staan (content-
+ * inventaris, abcplan.md §12.23): eerst via de sitemap(s), en pas als die er
+ * echt niet zijn → links volgen vanaf de homepage. Productpagina's uitgesloten.
+ */
+export async function discoverPageUrls(host: string, maxPages = MAX_INVENTORY_URLS): Promise<string[]> {
   const base = toFetchUrl(host);
   const baseHost = new URL(base).hostname;
 
-  for (const sitemapPath of ["/sitemap.xml", "/sitemap_index.xml"]) {
-    const xml = await fetchText(`${base}${sitemapPath}`);
-    if (!xml) continue;
-    const locs = Array.from(xml.matchAll(/<loc>\s*([^<\s]+)\s*<\/loc>/gi)).map((m) => m[1]);
-    const urls = Array.from(new Set(locs.filter((u) => sameDomain(u, baseHost))));
-    if (urls.length > 0) return urls.slice(0, maxPages);
-  }
+  const sitemapUrls = await collectSitemapPageUrls(base, baseHost);
+  if (sitemapUrls.length > 0) return sitemapUrls.slice(0, maxPages);
 
-  // Fallback: links vanaf de homepage volgen.
+  // Fallback: geen (bruikbare) sitemap → links vanaf de homepage volgen.
   const html = await fetchText(base);
   if (!html) return [base];
   const hrefs = Array.from(html.matchAll(/<a\s[^>]*href=["']([^"'#]+)["']/gi)).map((m) => m[1]);
@@ -142,7 +224,7 @@ export async function discoverPageUrls(host: string, maxPages = DEFAULT_MAX_PAGE
         return null;
       }
     })
-    .filter((u): u is string => u !== null && sameDomain(u, baseHost));
+    .filter((u): u is string => u !== null && sameDomain(u, baseHost) && !isProductUrl(u));
   const urls = Array.from(new Set([base, ...resolved]));
   return urls.slice(0, maxPages);
 }
@@ -153,21 +235,46 @@ export interface CrawledPage {
   text: string;
 }
 
-/** Haalt meerdere pagina's parallel op (faalt per pagina zacht, net als crawlSite). */
+/**
+ * Haalt meerdere pagina's op in batches (niet alles tegelijk — voorkomt dat we
+ * een site platleggen of de 60s-route overschrijden). Faalt per pagina zacht.
+ */
 export async function crawlPages(urls: string[]): Promise<CrawledPage[]> {
-  const results = await Promise.allSettled(
-    urls.map(async (url) => {
-      const html = await fetchText(url);
-      if (!html) return null;
-      return {
-        url,
-        title: extractTitle(html),
-        text: htmlToText(html).slice(0, PAGE_MAX_CHARS),
-      };
-    }),
-  );
-  return results
-    .filter((r): r is PromiseFulfilledResult<CrawledPage | null> => r.status === "fulfilled")
-    .map((r) => r.value)
-    .filter((p): p is CrawledPage => p !== null && p.text.length > 0);
+  const out: CrawledPage[] = [];
+  for (let i = 0; i < urls.length; i += CRAWL_BATCH_SIZE) {
+    const batch = urls.slice(i, i + CRAWL_BATCH_SIZE);
+    const results = await Promise.allSettled(
+      batch.map(async (url) => {
+        const html = await fetchText(url);
+        if (!html) return null;
+        return { url, title: extractTitle(html), text: htmlToText(html).slice(0, PAGE_MAX_CHARS) };
+      }),
+    );
+    for (const r of results) {
+      if (r.status === "fulfilled" && r.value && r.value.text.length > 0) out.push(r.value);
+    }
+  }
+  return out;
+}
+
+export interface InventoryPage {
+  url: string;
+  title: string | null;
+  text: string | null;
+}
+
+/**
+ * Bouwt de volledige content-inventaris van een site: ontdekt ALLE (niet-product)
+ * pagina-URL's en bewaart die allemaal, maar haalt titel + tekst maar voor de
+ * eerste CONTENT_FETCH_CAP op (de dure fetches). De rest komt met titel/tekst =
+ * null in de lijst — de URL-lijst blijft dus compleet, de inhoud is een steekproef.
+ */
+export async function crawlInventory(host: string): Promise<InventoryPage[]> {
+  const urls = await discoverPageUrls(host, MAX_INVENTORY_URLS);
+  const crawled = await crawlPages(urls.slice(0, CONTENT_FETCH_CAP));
+  const byUrl = new Map(crawled.map((p) => [p.url, p]));
+  return urls.map((url) => {
+    const c = byUrl.get(url);
+    return { url, title: c?.title ?? null, text: c?.text ?? null };
+  });
 }
