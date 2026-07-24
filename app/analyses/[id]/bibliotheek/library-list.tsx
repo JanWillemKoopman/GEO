@@ -59,11 +59,21 @@ export function LibraryList({ analysisId, pieces }: { analysisId: string; pieces
             >
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <span className="text-lg font-semibold">{p.title}</span>
-                <span className="chip chip-green">{TYPE_LABEL[p.type] ?? p.type}</span>
+                <span className="flex items-center gap-2">
+                  {p.needs_review && (
+                    <span className="chip" style={{ background: "var(--accent-amber, #fef3c7)", color: "#92400e" }}>
+                      Check nodig
+                    </span>
+                  )}
+                  <span className="chip chip-green">{TYPE_LABEL[p.type] ?? p.type}</span>
+                </span>
               </div>
               <div className="flex flex-wrap items-center gap-3">
                 {p.cluster && <span className="mono-label">{p.cluster}</span>}
                 {p.word_count != null && <span className="mono-label">{p.word_count} woorden</span>}
+                {p.quality_score != null && (
+                  <span className="mono-label">kwaliteit {Math.round(p.quality_score)}/100</span>
+                )}
               </div>
             </Link>
           </li>

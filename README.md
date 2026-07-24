@@ -66,7 +66,7 @@ Concrete regels die we hanteren:
 | **Hosting / deploy** | Vercel | Zero-config deploys van de Node.js/Next.js app, previews per branch. |
 | **Runtime** | Node.js | Backend logica + API-routes + scheduled jobs. |
 | **Database & auth** | Supabase | Postgres, ingebouwde authenticatie, row-level security, cron/edge functions. |
-| **LLM-API** | **OpenAI — vastgelegd** | Enige engine in de bouwfase. Twee modellen, gedifferentieerd per taak: **`gpt-4.1-nano`** voor hoogvolume/classificatie, **`gpt-4.1-mini`** voor laagvolume/kwaliteitsgevoelige taken (zie [abcplan.md](./abcplan.md) §2). Uitbreidbaar naar Gemini/Perplexity/Claude als tweede engine, later. |
+| **LLM-API** | **OpenAI — vastgelegd** | Enige engine in de bouwfase. Drie modellen (vast in de code, `lib/openai/models.ts`): **`gpt-4.1-nano`** voor hoogvolume/classificatie, **`gpt-4.1-mini`** voor laagvolume/kwaliteitsgevoelige taken (incl. de redactie/kritiek-stap), en **`gpt-4.1` (vol)** uitsluitend voor het schrijven/herschrijven van content in Fase C — het betaalde product (zie [abcplan.md](./abcplan.md) §2). Uitbreidbaar naar Gemini/Perplexity/Claude als tweede engine, later. |
 
 ### Architectuur op hoofdlijnen
 

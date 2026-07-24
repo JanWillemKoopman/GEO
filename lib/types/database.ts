@@ -61,6 +61,8 @@ export interface BrandDna {
   value_props: string[];
   competitors: string[];
   personas: Persona[];
+  proof_points: string[]; // ✅ contentkwaliteit (A2): citeerbare feiten uit de site
+  style_samples: string[]; // ✅ contentkwaliteit (A3): letterlijke stijlvoorbeelden
   raw_json: unknown | null;
   edited_by_user: boolean;
   updated_at: string;
@@ -162,6 +164,9 @@ export interface ContentPiece {
   schema_jsonld: string | null;
   faq_json: unknown | null;
   raw_json: unknown | null;
+  critique_raw_json: unknown | null; // ✅ contentkwaliteit (C3): ruwe redactie-output
+  quality_score: number | null; // ✅ contentkwaliteit (C3/F1): rubric-score 0-100
+  needs_review: boolean; // ✅ contentkwaliteit (F1): onder drempel of regel-risico
   status: ContentStatus;
   word_count: number | null;
   created_at: string;

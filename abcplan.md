@@ -76,9 +76,12 @@ Puur een projectbeslissing: één engine, één SDK, één factuur, zo min mogel
 | 3b · Mention beoordelen | 30×/week | `gpt-4.1-nano` | Classificatie-achtige taak (ja/nee, sentiment, positie) — nano is hier prima en de volumekosten tellen wél op. |
 | B1 · Concurrentie-gap-analyse | 1× per rapport | `gpt-4.1-mini` | Vergt echt redeneren over waar concurrenten winnen — zie §7. |
 | B2 · Rapport & aanbevelingen | 1× per rapport | `gpt-4.1-mini` | Eindproduct dat de klant leest; kwaliteit weegt zwaar, kosten zijn triviaal. |
-| 6 · Content-generatie | 1× per pagina, op klik | `gpt-4.1-mini` | Dit ís het product dat de klant meeneemt — kwaliteit boven een paar cent besparing. |
+| 6 · Content — redactie/kritiek | 1× per pagina (2× bij herschrijf) | `gpt-4.1-mini` | Beoordelen ≠ scheppen; goedkoop model volstaat voor de rubric-check (zie §8). |
+| 6 · Content — draft/herschrijven | 1× per pagina (2× bij herschrijf) | **`gpt-4.1` (vol)** | **Dit ís het product dat de klant meeneemt.** Premium tier voor het feitelijke schrijfwerk — centen extra per pagina. |
 
-**Kort samengevat:** `gpt-4.1-nano` alleen waar het *aantal* calls de kosten drijft (halte 3, 30-60×/week); `gpt-4.1-mini` overal waar de call maar een handvol keer per analyse draait en de kwaliteit van het denkwerk er echt toe doet. Zie §10 voor de herrekende kosten — het verschil is ~$0,01/analyse, verwaarloosbaar.
+**✅ Herzien — drie tiers (contentkwaliteit-herziening).** De modelkeuze staat **vast in de code** (`lib/openai/models.ts`), niet als env-variabele. Naast `gpt-4.1-nano` (hoogvolume) en `gpt-4.1-mini` (laagvolume/kwaliteitsgevoelig) is een **premium tier `gpt-4.1` (vol)** toegevoegd, uitsluitend voor het schrijven/herschrijven van de content zelf (Fase C). Content ís het betaalde product; daar kwaliteit kopen kost centen per pagina. Zie [`contentkwaliteit-analyse.md`](./contentkwaliteit-analyse.md) (C4).
+
+**Kort samengevat:** `gpt-4.1-nano` alleen waar het *aantal* calls de kosten drijft (halte 3, 30-60×/week); `gpt-4.1-mini` waar de call een handvol keer per analyse draait (incl. de redactie/kritiek-stap in Fase C); **`gpt-4.1` (vol) uitsluitend voor het schrijven/herschrijven van de content**. Zie §10 voor de kosten — een pagina met redactie-lus blijft ~$0,05.
 
 **Fallback-regel:** als tijdens Sprint 1 blijkt dat een van beide modellen bij een specifiek schema toch afwijkt, val dan alleen vóór dát ene aanroeppunt terug op `gpt-4o-mini`. De rest van de pipeline blijft ongewijzigd.
 
@@ -506,9 +509,15 @@ const Report = z.object({
 
 **Trigger — ✅ vastgelegd: pas na klik/goedkeuring door de klant.** De klant klikt bij een aanbeveling op "Genereer deze pagina" (of keurt een batch goed). **Niet** volautomatisch vooraf — dit spaart kosten en geeft de klant controle: er staan alleen aanbevelingen klaar totdat de klant er zelf voor kiest.
 
-**Mechanisme:** elke klik wordt een **job** die één `content_piece` genereert. De cron/queue werkt ze af.
+**Mechanisme:** elke klik genereert één `content_piece` via een kleine **redactionele pijplijn** (contentkwaliteit-herziening, zie [`contentkwaliteit-analyse.md`](./contentkwaliteit-analyse.md)) — niet één blinde call:
 
-**OpenAI-call per pagina:** structured output, **geen** `web_search`. Input = de aanbeveling + Brand DNA (voor on-brand tone, inclusief het onderwerp indien van toepassing) + de meet-prompts *als thematische inspiratie*. LLM-geoptimaliseerd: *begin met het directe antwoord, heldere koppen, concrete datapunten, FAQ, schema-markup.*
+1. **Draft** — premium model `gpt-4.1`, structured output, **geen** `web_search`. Input = de aanbeveling + Brand DNA (incl. de **schrijf-grondslag**: `proof_points` = geverifieerde feiten uit de eigen site die de schrijver WÉL mag gebruiken, en `style_samples` = letterlijke stijlvoorbeelden om de merkstem na te bootsen) + de meet-prompts *als thematische inspiratie*.
+2. **Redactie/kritiek** — `gpt-4.1-mini` scoort de draft op een rubric (answer-first, on-brand, concreet-zonder-verzinsels, scanbaar, waardevol) en checkt de harde regels (merkneutraal, geen verzonnen feiten). Levert `qualityScore`, `followsRules`, `issues[]`.
+3. **Herschrijven** — alleen als nodig (regel-risico, score < 80, of open verbeterpunten): premium model verwerkt de feedback → daarna één herbeoordeling voor een eerlijke eindscore.
+4. **Kwaliteitspoort (F1)** — `quality_score` + `needs_review` worden opgeslagen; `needs_review = true` bij score < 80 of regel-risico. De bibliotheek toont dan een **"Check nodig"**-chip.
+5. **Schema.org (E1)** — `schema_jsonld` wordt **programmatisch gevalideerd/gerepareerd** in code (`lib/schema-jsonld.ts`), niet blind uit de LLM-string overgenomen.
+
+De grounding komt uit het Brand DNA (halte 1 extraheert nu ook `proofPoints`/`styleSamples`), dus nog steeds **geen** `web_search` in Fase C (§10 kostenknop). Alles bewaard: `raw_json` (schrijf-call) + `critique_raw_json` (redactie).
 
 > **🔒 VASTGELEGD — HARDE REGELS voor klant-content (herzien: kwaliteitscorrectie).** De pagina staat op de **eigen website van de klant**, dus: **(1)** noem NOOIT concurrenten bij naam (geen "waarom zijn wij beter dan [concurrent]"-content); **(2)** verzin GEEN specifieke feiten (prijzen, cijfers, productmerken, technieken, openingstijden) die niet uit de context blijken — blijf algemeen-waar i.p.v. plausibel-verzonnen; **(3)** neem de meet-prompts NIET letterlijk over als paginakoppen (die noemen legitiem het merk/concurrenten om te *meten* — dat is geen pagina-inhoud); een **FAQ-pagina** krijgt echte klantvragen (afspraak, diensten, verwachtingen), niet de zoekvragen. Meta-title ≤ 60 tekens, meta-description ≤ 160. Zie `lib/pipeline/content.ts`.
 
@@ -519,12 +528,12 @@ const ContentPiece = z.object({
   metaDescription: z.string(),
   bodyMarkdown: z.string(),               // volledige pagina in Markdown
   faq: z.array(z.object({ q: z.string(), a: z.string() })),
-  schemaJsonLd: z.string(),               // klaar om te plakken
+  schemaJsonLd: z.string(),               // basis; wordt programmatisch gevalideerd/gerepareerd (E1)
   targetIntent: z.string(),
   cluster: z.string(),
 });
 ```
-→ Opslaan in `content_pieces` met `status: "ready"`.
+→ Opslaan in `content_pieces` met `status: "ready"`, plus `quality_score`, `needs_review` en `critique_raw_json` (contentkwaliteit-herziening, migratie `0003`).
 
 ### Het tabblad "Content Bibliotheek"
 De centrale opleverplek, per analyse. Een lijst kaarten:
@@ -643,7 +652,15 @@ Zelfde opbouw als halte 3ab: **≈ $0,33/week/analyse**, alleen voor analyses me
 20. **Schrijfstrategie: nooit rechtstreekse client-writes naar Postgres.** ✅ Alle schrijfacties (ook klant-CRUD zoals prompt-beheer) lopen via Next.js API-routes met de service-role key + expliciete ownership-check. RLS regelt alléén lees-toegang (SELECT, gefilterd op `user_id`/`analysis_id`). Reden: Postgres RLS werkt op rij-niveau, niet op kolom-niveau, en kan dus nooit afdwingen welke specifieke velden een klant mag wijzigen — dat hoort in de API-route thuis. De `jobs`-tabel heeft daarnaast **geen enkele** client-toegang. Zie §5.
 21. **Voortgangsschermen zijn server-state-gedreven:** ✅ Alle live voortgangsindicatoren (§3.7, stap 4/6/7) worden afgeleid van `analyses.status` + de `jobs`-tabel, niet van een client-side animatie — zodat een refresh of latere terugkeer altijd de actuele stand toont.
 
-Nog te bepalen later: aantal analyses/pagina's per klant / eventuele limieten of pakketten.
+> **✅ Vastgelegd — contentkwaliteit-herziening (keuzes 22-26), geïmplementeerd.** Naar aanleiding van [`contentkwaliteit-analyse.md`](./contentkwaliteit-analyse.md). Raakt vrijwel uitsluitend Fase C (het betaalde product).
+
+22. **Drie modeltiers:** ✅ Naast nano/mini een premium tier `gpt-4.1` (vol) voor het schrijven/herschrijven van content (Fase C). Vast in de code (`lib/openai/models.ts`). Zie §2.
+23. **Brand DNA is een schrijf-grondslag:** ✅ Halte 1 extraheert ook `proofPoints` (citeerbare feiten die letterlijk uit de site blijken — de schrijver mag die WÉL gebruiken) en `styleSamples` (letterlijke stijlvoorbeelden). Zo kan Fase C concreet én on-brand schrijven zonder de merkneutrale "verzin geen feiten"-regel te breken. Migratie `0003`, `lib/pipeline/brand-dna.ts`.
+24. **Fase C is een redactionele pijplijn, geen enkele call:** ✅ Draft (`gpt-4.1`) → redactie/kritiek (`gpt-4.1-mini`, rubric + regel-check) → herschrijven indien nodig (`gpt-4.1`) → herbeoordelen. Zie §8, `lib/pipeline/content.ts`.
+25. **Kwaliteitspoort vóór de bibliotheek:** ✅ `quality_score` + `needs_review` per pagina; onder de drempel (80) of bij regel-risico markeren we voor menselijke controle ("Check nodig"-chip). Content gaat nooit blind ongezien de deur uit. Migratie `0003`, `lib/pipeline/content.ts`.
+26. **Structured data programmatisch:** ✅ `schema_jsonld` wordt in code gevalideerd/gerepareerd (`lib/schema-jsonld.ts`) i.p.v. de LLM-string blind te vertrouwen. Zie §8 (E1).
+
+Nog te bepalen later: aantal analyses/pagina's per klant / eventuele limieten of pakketten. Mogelijke vervolgstappen uit de analyse die (bewust) nog niet zijn ingebouwd: `web_search`-grounding + feitcontrole in Fase C, concurrent-winnende-bronnen als blauwdruk, demand-grounding van prompts, en de `proof_points`/`style_samples` ook bewerkbaar maken in de review-gate-UI.
 
 ---
 

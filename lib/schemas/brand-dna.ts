@@ -19,6 +19,20 @@ export const BrandDNA = z.object({
   valueProps: z.array(z.string()),
   competitors: z.array(z.string()),
   summary: z.string(),
+  /**
+   * ✅ Contentkwaliteit (A2): concrete, CITEERBARE feiten die LETTERLIJK uit de
+   * site/context blijken (garanties, jaartallen, aantallen, specialisaties,
+   * werkwijze). Dit is de grondstof waarmee Fase C concreet kan schrijven zónder
+   * iets te verzinnen — precies de spanning die de merkneutrale contentregels
+   * ("verzin geen feiten") anders generiek houden. Leeg laten als er niets hards is.
+   */
+  proofPoints: z.array(z.string()),
+  /**
+   * ✅ Contentkwaliteit (A3): 2-3 LETTERLIJKE voorbeeldzinnen van de site die de
+   * merkstem tonen, zodat de schrijver de toon kan nabootsen i.p.v. een losse
+   * "tone of voice"-omschrijving te interpreteren.
+   */
+  styleSamples: z.array(z.string()),
 });
 
 export type BrandDNA = z.infer<typeof BrandDNA>;
