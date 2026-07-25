@@ -1,0 +1,40 @@
+import { NextResponse } from "next/server";
+import { getUser } from "@/lib/auth";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { getOwnedAnalysis } from "@/lib/analyses";
+
+/**
+ * POST /api/analyses/[id]/prompts — nieuwe prompt toevoegen door de klant
+ * (abcplan.md §3.5/§6 A2b). created_by = 'user', geen AI-call.
+ */
+export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  const user = await getUser();
+  if (!user) return NextResponse.json({ error: "Niet ingelogd." }, { status: 401 });
+
+  const admin = createAdminClient();
+  const analysis = await getOwnedAnalysis(admin, id, user.id);
+  if (!analysis) return NextResponse.json({ error: "Niet gevonden." }, { status: 404 });
+
+  let body: { text?: string; category?: string };
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ error: "Ongeldige aanvraag." }, { status: 400 });
+  }
+
+  const text = body.text?.trim();
+  const category = body.category?.trim();
+  if (!text || !category) {
+    return NextResponse.json({ error: "Vul een prompt-tekst en categorie in." }, { status: 400 });
+  }
+
+  const { data, error } = await admin
+    .from("prompts")
+    .insert({ analysis_id: id, text, category, active: true, created_by: "user" })
+    .select("*")
+    .single();
+
+  if (error) return NextResponse.json({ error: "Toevoegen mislukt." }, { status: 500 });
+  return NextResponse.json(data, { status: 201 });
+}

@@ -1,0 +1,71 @@
+import { NextResponse } from "next/server";
+import { getUser } from "@/lib/auth";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { getOwnedProfile } from "@/lib/profiles";
+import { buildAnalysisName } from "@/lib/url";
+
+/**
+ * POST /api/analyses — nieuwe analyse aanmaken (abcplan.md §6 A0, na de
+ * klantprofiel-refactor). Vereist een bestaand, klaar klantprofiel + een
+ * onderwerp (verplicht: zonder onderwerp voegt een analyse niets toe aan wat
+ * het profiel al dekt). `url` wordt overgenomen van het profiel (snapshot).
+ * Schrijven loopt via de service-role client MET expliciete ownership.
+ */
+export async function POST(request: Request) {
+  const user = await getUser();
+  if (!user) {
+    return NextResponse.json({ error: "Niet ingelogd." }, { status: 401 });
+  }
+
+  let body: { profileId?: string; topic?: string; content_brief?: string };
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ error: "Ongeldige aanvraag." }, { status: 400 });
+  }
+
+  const topic = body.topic?.trim() ? body.topic.trim() : null;
+  if (!topic) {
+    return NextResponse.json({ error: "Vul een product of onderwerp in." }, { status: 400 });
+  }
+
+  const contentBrief = body.content_brief?.trim() ? body.content_brief.trim() : null;
+
+  const admin = createAdminClient();
+
+  if (!body.profileId) {
+    return NextResponse.json({ error: "Kies een klantprofiel." }, { status: 400 });
+  }
+  const profile = await getOwnedProfile(admin, body.profileId, user.id);
+  if (!profile) {
+    return NextResponse.json({ error: "Klantprofiel niet gevonden." }, { status: 404 });
+  }
+  if (profile.status !== "klaar") {
+    return NextResponse.json(
+      { error: "Dit klantprofiel is nog niet klaar met onderzoeken." },
+      { status: 409 },
+    );
+  }
+
+  const name = buildAnalysisName(profile.url, topic);
+
+  const { data, error } = await admin
+    .from("analyses")
+    .insert({
+      user_id: user.id,
+      profile_id: profile.id,
+      url: profile.url,
+      topic,
+      name,
+      status: "bezig",
+      content_brief: contentBrief,
+    })
+    .select("id")
+    .single();
+
+  if (error) {
+    return NextResponse.json({ error: "Aanmaken mislukt. Probeer het opnieuw." }, { status: 500 });
+  }
+
+  return NextResponse.json({ id: data.id }, { status: 201 });
+}

@@ -30,7 +30,7 @@ Concrete regels die we hanteren:
 - **Slimme defaults.** We stellen automatisch 30 prompts voor op basis van de website (en het opgegeven onderwerp, indien ingevuld), zodat de klant niet met een leeg scherm start — maar wel altijd zelf kan bijsturen.
 - **Transparant vóór er iets gemeten wordt.** Direct na het invullen ziet de klant precies wat het systeem heeft afgeleid (merkinfo + de 30 prompts), kan dit aanpassen, en geeft pas daarna expliciet akkoord om te starten. Geen "black box".
 - **Rustige dashboards.** Maximaal een handvol widgets per scherm. Witruimte boven volledigheid.
-- **Mobiel-vriendelijk.** Een klant moet de score ook even op zijn telefoon kunnen checken.
+- **Mobiel-vriendelijk.** Een klant moet de score ook even op zijn telefoon kunnen checken. Uitgangspunt is desktop (waar de meeste gebruikers zitten), maar mobiel wordt bewust heroverwogen per scherm, niet simpelweg verkleind — zie [designsystem.md §D](./designsystem.md#d—responsive-strategie-desktop-first-uitgangspunt-mobiel-bewust-heruitgevonden).
 
 > We concurreren níet op "de meeste features" of "de diepste enterprise-analyse". We winnen op **eenvoud, snelheid en doeltreffendheid** voor het MKB en marketeers die geen SEO-experts zijn.
 
@@ -66,7 +66,7 @@ Concrete regels die we hanteren:
 | **Hosting / deploy** | Vercel | Zero-config deploys van de Node.js/Next.js app, previews per branch. |
 | **Runtime** | Node.js | Backend logica + API-routes + scheduled jobs. |
 | **Database & auth** | Supabase | Postgres, ingebouwde authenticatie, row-level security, cron/edge functions. |
-| **LLM-API** | **OpenAI — vastgelegd** | Enige engine in de bouwfase. Twee modellen, gedifferentieerd per taak: **`gpt-4.1-nano`** voor hoogvolume/classificatie, **`gpt-4.1-mini`** voor laagvolume/kwaliteitsgevoelige taken (zie [abcplan.md](./abcplan.md) §2). Uitbreidbaar naar Gemini/Perplexity/Claude als tweede engine, later. |
+| **LLM-API** | **OpenAI — vastgelegd** | Enige engine in de bouwfase. Drie modellen (vast in de code, `lib/openai/models.ts`): **`gpt-4.1-nano`** voor hoogvolume/classificatie, **`gpt-4.1-mini`** voor laagvolume/kwaliteitsgevoelige taken (incl. de redactie/kritiek-stap), en **`gpt-4.1` (vol)** uitsluitend voor het schrijven/herschrijven van content in Fase C — het betaalde product (zie [abcplan.md](./abcplan.md) §2). Uitbreidbaar naar Gemini/Perplexity/Claude als tweede engine, later. |
 
 ### Architectuur op hoofdlijnen
 
@@ -128,15 +128,15 @@ npm run dev
 Benodigde omgevingsvariabelen (via Vercel + Supabase):
 
 ```
-SUPABASE_URL=
-SUPABASE_ANON_KEY=
+NEXT_PUBLIC_SUPABASE_URL=
+NEXT_PUBLIC_SUPABASE_ANON_KEY=
 SUPABASE_SERVICE_ROLE_KEY=
 OPENAI_API_KEY=
-OPENAI_MODEL_VOLUME=gpt-4.1-nano
-OPENAI_MODEL_QUALITY=gpt-4.1-mini
 ```
 
-> **Vastgelegde keuze:** deze app bouwt **uitsluitend met OpenAI**, gedifferentieerd tussen `gpt-4.1-nano` (hoogvolume) en `gpt-4.1-mini` (kwaliteitsgevoelig) in de bouwfase (zie [abcplan.md](./abcplan.md) §2 voor de exacte verdeling per halte). Geen Gemini in deze fase.
+> Volledige lijst + uitleg per variabele: zie [SETUP.md](./SETUP.md) en `.env.example`.
+
+> **Vastgelegde keuze:** deze app bouwt **uitsluitend met OpenAI**, gedifferentieerd tussen `gpt-4.1-nano` (hoogvolume) en `gpt-4.1-mini` (kwaliteitsgevoelig) in de bouwfase (zie [abcplan.md](./abcplan.md) §2 voor de exacte verdeling per halte). Deze modelkeuze staat **vast in de code** (`lib/openai/models.ts`), niet als env-variabele. Geen Gemini in deze fase.
 
 ---
 

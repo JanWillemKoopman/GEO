@@ -1,0 +1,49 @@
+"use client";
+
+import { useState } from "react";
+
+/** Aan/uit-schakelaar voor de wekelijkse tracking-lus (abcplan.md §6 A3/§12.4). */
+export function TrackingToggle({ analysisId, initial }: { analysisId: string; initial: boolean }) {
+  const [enabled, setEnabled] = useState(initial);
+  const [pending, setPending] = useState(false);
+
+  async function toggle() {
+    const next = !enabled;
+    setEnabled(next);
+    setPending(true);
+    try {
+      await fetch(`/api/analyses/${analysisId}/tracking`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tracking_enabled: next }),
+      });
+    } finally {
+      setPending(false);
+    }
+  }
+
+  return (
+    <div className="card flex items-center justify-between gap-4">
+      <div>
+        <span className="mono-label">Wekelijkse tracking</span>
+        <p className="mt-1 text-sm text-secondary">
+          Meet elke week opnieuw (tot 10 weken) om de trend te zien in plaats van alleen de
+          nulmeting.
+        </p>
+      </div>
+      <button
+        type="button"
+        onClick={() => void toggle()}
+        disabled={pending}
+        aria-pressed={enabled}
+        className="relative h-7 w-12 shrink-0 rounded-full transition-colors disabled:opacity-60"
+        style={{ background: enabled ? "var(--accent-purple)" : "var(--bg-elevated)", border: "1px solid var(--border-subtle)" }}
+      >
+        <span
+          className="absolute top-0.5 h-5 w-5 rounded-full bg-white transition-transform"
+          style={{ transform: enabled ? "translateX(22px)" : "translateX(2px)" }}
+        />
+      </button>
+    </div>
+  );
+}
