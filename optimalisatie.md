@@ -39,7 +39,6 @@ Fase 4  schrijver voeden   →  content die op de meting gebaseerd is
 Fase 5  cirkel rond        →  aantoonbaar resultaat
 Fase 6  trend & herhaling  →  de wekelijkse belofte waarmaken
 Fase 7  off-site           →  het plafond van on-site advies doorbreken
-Fase 8  meer engines       →  de belofte "LLM's" in het meervoud waarmaken
 ```
 
 ---
@@ -81,7 +80,6 @@ terugkijken.
 | 5 | De cirkel rond: publiceren → hermeten → delta | Groot | 4 |
 | 6 | Trend & terugkerend rapport | Middel | 2, 5 |
 | 7 | Off-site zichtbaarheid | Middel | 3 |
-| 8 | Meerdere engines | Groot | 1, 2 |
 
 ---
 
@@ -767,58 +765,26 @@ gedaan). Zonder dat blijven ze hangen als goedbedoeld advies.
 
 ---
 
-# Fase 8 — Meerdere engines
+# Geparkeerd — Meerdere engines
 
-**Doel:** de belofte "zichtbaarheid in LLM's" waarmaken in het meervoud.
+**Status: bewust uitgesteld** (juli 2026). In de ontwikkelfase wegen de meetkosten van
+extra engines niet op tegen de opbrengst — vier engines vermenigvuldigen de duurste post
+in het hele systeem (de web-zoekactie per meting) met vier.
 
-**Hangt af van:** Fase 1 en 2.
+Wat er ligt te wachten: `engine` staat hardcoded op `"openai"`, en wat er gemeten wordt is
+`gpt-4.1-mini` met zoekfunctie en een eigen systeeminstructie — een benadering van ChatGPT,
+niet ChatGPT zelf. Google's AI-overzichten, Gemini, Perplexity en Copilot worden niet
+gemeten, terwijl de belofte in het meervoud staat.
 
-### Het probleem, precies
+**Wat je nu al moet doen om dit later goedkoop te houden:** houd de meting achter één
+functie (`askEngine(prompt, engine) → { text, sources }`) in plaats van OpenAI-aanroepen
+door `measure.ts` te vlechten, en blijf `engine` per meting wegschrijven — de kolom bestaat
+al. Dan is dit later een uitbreiding en geen verbouwing.
 
-`engine` staat hardcoded op `"openai"`, en wat er gemeten wordt is `gpt-4.1-mini` met
-zoekfunctie en een eigen systeeminstructie. Dat lijkt op ChatGPT maar is het niet: ChatGPT
-heeft een andere systeeminstructie, een andere zoekmachine eronder, en gebruikt wat het over
-de gebruiker weet. Het is een benadering. En het is de enige: Google's AI-overzichten,
-Gemini, Perplexity, Claude en Copilot worden niet gemeten.
-
-### Techniek
-
-**8.1 — De engine abstract maken**
-Eén interface `askEngine(prompt, engine) → { text, sources }`, met een implementatie per
-engine. De kolom `engine` in `tracking_runs` bestaat al en wordt eindelijk zinvol.
-
-**8.2 — Engines toevoegen, in deze volgorde**
-1. **Perplexity** — heeft een nette API met bronvermelding, en is het snelst toegevoegd.
-2. **Google AI-overzichten** — het grootste bereik, maar alleen te benaderen via een
-   dienst die zoekresultaten uitleest. Onderzoek de betrouwbaarheid vóór je hem toezegt.
-3. **Claude** en **Gemini** — rechtstreeks via hun API, met zoekfunctie waar beschikbaar.
-4. **Bing Copilot** — lastigst; laatste.
-
-**8.3 — Scores per engine én gecombineerd**
-Bewaar per engine en toon een gewogen totaal (op basis van marktaandeel per markt, in te
-stellen). Verschillen tussen engines zijn op zichzelf waardevol advies: word je wel door
-Perplexity genoemd en niet door ChatGPT, dan zegt dat iets over waar je content wél en niet
-opgepikt wordt.
-
-**8.4 — Kosten beheersen**
-Vier engines × 30 vragen × 3 metingen = 360 aanroepen per week per analyse. Maak per engine
-instelbaar hoe vaak er gemeten wordt (bijvoorbeeld: hoofd-engine wekelijks, de rest
-maandelijks) en toon de kosten vóór het aanzetten.
-
-### UX
-
-**8.5 — Engines kiezen**
-Bij het opzetten van een analyse: welke engines tellen mee, met een indicatie van bereik en
-kosten. Niet elke klant hoeft alles.
-
-**8.6 — Vergelijking per engine**
-Een weergave die laat zien waar je wel en niet genoemd wordt per engine. Dit is meteen het
-sterkste verkoopargument tegenover partijen die maar één engine meten.
-
-### Klaar als…
-
-- [ ] Minstens twee engines draaien in productie.
-- [ ] De klant ziet per engine hoe hij scoort en kan kiezen welke meetellen.
+**Wanneer oppakken:** zodra betalende klanten erom vragen, of zodra de cirkel rond is
+(Fase 5) en je aantoonbaar resultaat hebt op één engine. Begin dan met Perplexity — nette
+API met bronvermelding, het snelst toegevoegd — en maak per engine instelbaar hoe vaak er
+gemeten wordt (hoofd-engine wekelijks, de rest maandelijks).
 
 ---
 

@@ -14,8 +14,7 @@ import type { AiCall } from "@/lib/types/database";
  * eigenaarscontrole — hetzelfde patroon als de andere schrijfroutes.
  *
  * Bedoeld om te kunnen rekenen vóórdat we het aantal metingen per vraag
- * verdrievoudigen (fase 2) of engines toevoegen (fase 8): zonder dit cijfer is
- * die planning giswerk.
+ * verdrievoudigen (fase 2): zonder dit cijfer is die planning giswerk.
  */
 export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;

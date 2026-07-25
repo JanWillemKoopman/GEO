@@ -3,8 +3,8 @@
  *
  * De kolom `tracking_runs.cost_usd` bestond al vanaf migratie 0001 maar werd
  * nooit gevuld: er was dus geen enkel zicht op wat een analyse kost. Dat is een
- * probleem zodra we het aantal metingen per vraag verdrievoudigen (fase 2) of
- * meerdere engines toevoegen (fase 8) — dan wil je vóóraf kunnen rekenen.
+ * probleem zodra we het aantal metingen per vraag verdrievoudigen (fase 2) — dan
+ * wil je vóóraf kunnen rekenen wat dat gaat kosten.
  *
  * ⚠️ TARIEVEN CONTROLEREN VÓÓR PRODUCTIE.
  * Onderstaande bedragen zijn de tarieven zoals bekend bij het schrijven van deze
