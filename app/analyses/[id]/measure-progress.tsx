@@ -4,6 +4,8 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { AnalysisStatus } from "@/lib/types/database";
 import { ReportProgress } from "./report-progress";
+import { ErrorNotice, problemFromResponse } from "@/components/error-notice";
+import type { UserFacingError } from "@/lib/errors";
 
 interface StatusPayload {
   status: AnalysisStatus;
@@ -15,6 +17,17 @@ interface StatusPayload {
  * Start halte A3 (nulmeting) en toont live, server-state-gedreven voortgang
  * (abcplan.md §3.7 stap 6: "Bezig met meten… (x/30 prompts verwerkt)").
  */
+/** Zie de gelijknamige constante in prepare-progress.tsx. */
+const STALE_FAILURE: UserFacingError = {
+  kind: "unknown",
+  title: "De meting is eerder misgelopen",
+  message:
+    "Vragen die al gemeten zijn blijven bewaard — een nieuwe poging pakt alleen " +
+    "op wat nog mist, en kost dus geen dubbel werk.",
+  canRetry: true,
+  detail: "",
+};
+
 export function MeasureProgress({
   analysisId,
   initialStatus,
@@ -28,22 +41,21 @@ export function MeasureProgress({
     activePromptCount: 0,
     measuredCount: 0,
   });
-  const [failed, setFailed] = useState(initialStatus === "mislukt");
-  const [errorDetail, setErrorDetail] = useState<string | null>(null);
+  const [problem, setProblem] = useState<UserFacingError | null>(
+    initialStatus === "mislukt" ? STALE_FAILURE : null,
+  );
   // Zodra de meting klaar is, schakelt dit component door naar het rapport —
   // automatisch, geen navigatie/klik nodig (matcht abcplan.md §9 stap 6-9).
   const [handoffToReport, setHandoffToReport] = useState(false);
   const started = useRef(false);
 
   async function runMeasure() {
-    setFailed(false);
-    setErrorDetail(null);
+    setProblem(null);
     try {
       const res = await fetch(`/api/analyses/${analysisId}/measure`, { method: "POST" });
       if (!res.ok) {
-        const json = await res.json().catch(() => ({}) as { detail?: string });
-        setFailed(true);
-        setErrorDetail(json.detail ?? null);
+        const json = await res.json().catch(() => ({}));
+        setProblem(problemFromResponse(json));
       }
     } catch {
       // Netwerkfout ("Load failed") — server werkt door; polling leest de echte status.
@@ -67,7 +79,7 @@ export function MeasureProgress({
           router.refresh();
         } else if (json.status === "mislukt") {
           clearInterval(interval);
-          setFailed(true);
+          setProblem((p) => p ?? STALE_FAILURE);
         }
       } catch {
         /* stil — volgende tick probeert opnieuw */
@@ -92,29 +104,8 @@ export function MeasureProgress({
     return <ReportProgress analysisId={analysisId} />;
   }
 
-  if (failed) {
-    return (
-      <div className="card flex flex-col gap-4">
-        <span
-          className="chip w-fit"
-          style={{ background: "rgba(211,58,63,0.1)", color: "#c2282d", borderColor: "rgba(211,58,63,0.3)" }}
-        >
-          Mislukt
-        </span>
-        <p className="text-secondary">
-          Het meten van deze analyse is mislukt. Prompts die al gemeten zijn blijven bewaard —
-          bij een nieuwe poging wordt niet opnieuw begonnen.
-        </p>
-        {errorDetail && (
-          <p className="rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--bg-elevated)] px-4 py-3 font-mono text-xs text-[var(--status-error)]">
-            {errorDetail}
-          </p>
-        )}
-        <button onClick={() => void runMeasure()} className="btn-primary w-fit">
-          Opnieuw proberen
-        </button>
-      </div>
-    );
+  if (problem) {
+    return <ErrorNotice error={problem} onRetry={() => void runMeasure()} />;
   }
 
   const total = data.activePromptCount || null;

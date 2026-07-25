@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { getUser } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { generateReport } from "@/lib/pipeline/report";
-import { describeError } from "@/lib/errors";
+import { describeError, classifyError } from "@/lib/errors";
 
 /**
  * POST /api/analyses/[id]/report — draait B1 (gap-analyse) + B2 (rapport),
@@ -32,7 +32,7 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
   } catch (err) {
     console.error(`generateReport(${id}) mislukt:`, err);
     return NextResponse.json(
-      { status: "mislukt", error: "Rapport opstellen mislukt.", detail: describeError(err) },
+      { status: "mislukt", error: "Rapport opstellen mislukt.", detail: describeError(err), problem: classifyError(err) },
       { status: 500 },
     );
   }

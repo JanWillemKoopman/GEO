@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { getUser } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { normalizeUrl } from "@/lib/url";
+import { normalizeUrl, checkUrlFormat } from "@/lib/url";
+import { isReachable } from "@/lib/crawler";
 
 /**
  * POST /api/profiles — nieuw klantprofiel aanmaken vanuit de onboarding-wizard
@@ -24,6 +25,12 @@ interface ProfileIntakeBody {
   intake_description?: string;
   intake_audience?: string;
   customer_questions?: unknown;
+  /**
+   * Klant heeft de "site onbereikbaar"-waarschuwing gezien en wil tóch door
+   * (optimalisatie.md 0.12). Een site kan achter een firewall zitten of onze
+   * bot weren en toch prima bestaan — dat mag de klant niet blokkeren.
+   */
+  force?: boolean;
 }
 
 const VALID_SCOPES = ["lokaal", "landelijk", "internationaal"];
@@ -53,12 +60,31 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Ongeldige aanvraag." }, { status: 400 });
   }
 
-  const url = normalizeUrl(body.url ?? "");
-  if (!url) {
-    return NextResponse.json(
-      { error: "Vul een geldige website in, bijvoorbeeld mediamarkt.nl." },
-      { status: 400 },
-    );
+  // Formaatcontrole met een boodschap die de wizard kan tonen bij het veld.
+  const format = checkUrlFormat(body.url ?? "");
+  if (!format.ok) {
+    return NextResponse.json({ error: format.message, field: "url" }, { status: 400 });
+  }
+  const url = normalizeUrl(body.url ?? "")!;
+
+  // Bereikbaarheidscontrole (optimalisatie.md 0.12): liever nu ontdekken dat de
+  // site niet te bereiken is dan minuten later via een mislukt profiel. Geen
+  // harde blokkade — de klant kan bevestigen en doorgaan met `force`.
+  if (!body.force) {
+    const reachable = await isReachable(url);
+    if (!reachable) {
+      return NextResponse.json(
+        {
+          error:
+            `We konden ${url} niet bereiken. Controleer of het adres klopt en of de site ` +
+            `online is. Klopt het wel? Dan kun je gewoon doorgaan — sommige sites weren ` +
+            `automatische bezoekers.`,
+          field: "url",
+          canForce: true,
+        },
+        { status: 400 },
+      );
+    }
   }
 
   const name = body.name?.trim() ? body.name.trim() : url;
