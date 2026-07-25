@@ -449,9 +449,24 @@ const Mention = z.object({
 
 **✅ Vastgelegd, herzien: 2 aparte calls in plaats van 1.** Eén enkele call die tegelijk moet uitzoeken *waar concurrenten winnen* én daaruit een leesbaar rapport met aanbevelingen moet schrijven, vraagt te veel van één denkstap — de concurrentie-analyse verdient een eigen, gefocuste call met de rijke `competitor_breakdown`-data (§6, 3c) als input. Beide calls: model **`gpt-4.1-mini`** (zie §2), draaien maar 1× per rapport, dus de meerkosten t.o.v. 1 nano-call zijn ~$0,004/analyse.
 
+**✅ Vastgelegd: vaste doel-context in de system-prompt van B1 én B2.** Beide calls krijgen, vóór de data, een korte, vaste instructiezin mee die het *doel* van het onderzoek framet — niet als sfeertekst, maar om te voorkomen dat het model op generieke SEO-kennis uit zijn training terugvalt in plaats van op de aangeleverde bewijsdata:
+
+```ts
+function goalContext(analysis: { website: string; topic?: string | null }) {
+  return `Context: dit onderzoek meet de zichtbaarheid van ${analysis.website}` +
+    (analysis.topic ? ` (gescoped op "${analysis.topic}")` : ` (volledige website)`) +
+    ` in antwoorden van AI-assistenten (GEO / AI-zichtbaarheid) — niet traditionele SEO-rankings. ` +
+    `Doel: concrete, onderbouwde content-aanbevelingen die de kans vergroten dat AI-modellen deze klant ` +
+    `citeren of noemen bij relevante vragen. Baseer conclusies uitsluitend op de aangeleverde data hieronder, ` +
+    `niet op algemene kennis over het merk of de markt.`;
+}
+```
+
+Deze functie levert één vaste system-message string die vóór de data-payload in zowel de B1- als de B2-call wordt meegegeven (`brand_dna.website`/`brand_dna.topic` als bron voor `website`/`topic`). **Bewust kort gehouden** (geen herhaling van het volledige Brand DNA) en **bewust met de expliciete "baseer uitsluitend op de data hieronder"-instructie**, om te voorkomen dat de doel-framing de aangeleverde bewijsdata (`competitor_breakdown`, `visibility_scores`) gaat overschaduwen met aannames.
+
 ### B1. Concurrentie-gap-analyse
 **Trigger:** na de nulmeting (of na een latere week), automatisch vóór B2.
-**OpenAI-call:** structured output, **geen** `web_search`. Input = `competitor_breakdown` + `visibility_scores` + `brand_dna` — de volledige, per-concurrent uitsplitsing uit halte 3c, niet de ruwe `tracking_runs`.
+**OpenAI-call:** structured output, **geen** `web_search`. System-prompt = `goalContext()` (zie boven). Input = `competitor_breakdown` + `visibility_scores` + `brand_dna` — de volledige, per-concurrent uitsplitsing uit halte 3c, niet de ruwe `tracking_runs`.
 
 Het model produceert een gerichte analyse — **✅ herzien: bewijs als ID-verwijzing, niet als losse tekst**, zodat de klant straks kan doorklikken naar de daadwerkelijke AI-conversatie (zie A3, 3c):
 ```ts
@@ -472,7 +487,7 @@ const GapAnalysis = z.object({
 → Opslaan als input voor B2 (niet los in een eigen tabel — het resultaat stroomt direct door).
 
 ### B2. Rapport & aanbevelingen
-**OpenAI-call:** structured output, **geen** `web_search`. Input = de `GapAnalysis`-output van B1 + `visibility_scores` + `brand_dna`.
+**OpenAI-call:** structured output, **geen** `web_search`. System-prompt = dezelfde `goalContext()` als B1. Input = de `GapAnalysis`-output van B1 + `visibility_scores` + `brand_dna`.
 
 Het model produceert het uiteindelijke, leesbare rapport:
 ```ts
@@ -636,8 +651,9 @@ Zelfde opbouw als halte 3ab: **≈ $0,33/week/analyse**, alleen voor analyses me
 17. **Bewijs in rapportages is een ID-verwijzing, geen losse tekst:** ✅ `evidenceRunIds`/`winning_run_ids`/`losing_run_ids` verwijzen naar `tracking_runs.id`, zodat de klant vanuit het Rapport kan doorklikken naar de daadwerkelijke AI-conversatie als bewijs — consistent met het transparantieprincipe (§3.6). Zie §6 (3c) en §7 (B1/B2).
 18. **Retry-regel ter kostenbescherming:** ✅ 3a en 3b zijn los herhaalbaar — bij een mislukte 3b wordt nooit opnieuw 3a (de dure `web_search`-call) uitgevoerd. Bij A2 worden alleen mislukte categorie-calls herhaald, niet alle 5. Blijvend falen → `analyses.status = 'mislukt'` met retry-optie. Zie §6 A3.
 19. **Status opgesplitst in `gemeten` én `gereed`:** ✅ Naar aanleiding van een UI/UX-review gecorrigeerd — `gereed` betekende voorheen zowel "score klaar" als "rapport klaar" tegelijk, wat tab-beschikbaarheid onduidelijk maakte. Nu: `gemeten` = score/trendlijn zichtbaar (na A3), `gereed` = rapport ook klaar (na B2). Zie §5 (datamodel) en §6/§7.
-20. **Schrijfstrategie: nooit rechtstreekse client-writes naar Postgres.** ✅ Alle schrijfacties (ook klant-CRUD zoals prompt-beheer) lopen via Next.js API-routes met de service-role key + expliciete ownership-check. RLS regelt alléén lees-toegang (SELECT, gefilterd op `user_id`/`analysis_id`). Reden: Postgres RLS werkt op rij-niveau, niet op kolom-niveau, en kan dus nooit afdwingen welke specifieke velden een klant mag wijzigen — dat hoort in de API-route thuis. De `jobs`-tabel heeft daarnaast **geen enkele** client-toegang. Zie §5.
-21. **Voortgangsschermen zijn server-state-gedreven:** ✅ Alle live voortgangsindicatoren (§3.7, stap 4/6/7) worden afgeleid van `analyses.status` + de `jobs`-tabel, niet van een client-side animatie — zodat een refresh of latere terugkeer altijd de actuele stand toont.
+21. **Vaste doel-context in B1/B2:** ✅ Beide analyse-calls (concurrentie-gap-analyse en rapport) krijgen een korte, vaste system-prompt (`goalContext()`) mee die het GEO-doel van het onderzoek expliciet benoemt (klant, onderwerp-scope, "AI-zichtbaarheid, geen SEO") — met de expliciete instructie om conclusies uitsluitend op de aangeleverde data te baseren, niet op algemene kennis. Voorkomt generieke SEO-aanbevelingen en houdt het model bij de bewijsdata. Zie §7 (B1/B2).
+22. **Schrijfstrategie: nooit rechtstreekse client-writes naar Postgres.** ✅ Alle schrijfacties (ook klant-CRUD zoals prompt-beheer) lopen via Next.js API-routes met de service-role key + expliciete ownership-check. RLS regelt alléén lees-toegang (SELECT, gefilterd op `user_id`/`analysis_id`). Reden: Postgres RLS werkt op rij-niveau, niet op kolom-niveau, en kan dus nooit afdwingen welke specifieke velden een klant mag wijzigen — dat hoort in de API-route thuis. De `jobs`-tabel heeft daarnaast **geen enkele** client-toegang. Zie §5.
+23. **Voortgangsschermen zijn server-state-gedreven:** ✅ Alle live voortgangsindicatoren (§3.7, stap 4/6/7) worden afgeleid van `analyses.status` + de `jobs`-tabel, niet van een client-side animatie — zodat een refresh of latere terugkeer altijd de actuele stand toont.
 
 Nog te bepalen later: aantal analyses/pagina's per klant / eventuele limieten of pakketten.
 
