@@ -447,6 +447,8 @@ const Mention = z.object({
 
 ## 7. FASE B — Adviseren (volautomatisch, per analyse)
 
+> **📈 Kwaliteitsverbeteringen:** een grondige uitwerking van vijf concrete verbeteringen aan B1/B2 (concurrent-content-analyse, data-gedreven prioritering, effect-feedbackloop, trend-gewogen gaps, dedup tegen bestaande content) staat apart uitgewerkt in **[verbeterplan-fase-b.md](./verbeterplan-fase-b.md)** — raadpleeg dat document vóórdat je Fase B bouwt.
+
 **✅ Vastgelegd, herzien: 2 aparte calls in plaats van 1.** Eén enkele call die tegelijk moet uitzoeken *waar concurrenten winnen* én daaruit een leesbaar rapport met aanbevelingen moet schrijven, vraagt te veel van één denkstap — de concurrentie-analyse verdient een eigen, gefocuste call met de rijke `competitor_breakdown`-data (§6, 3c) als input. Beide calls: model **`gpt-4.1-mini`** (zie §2), draaien maar 1× per rapport, dus de meerkosten t.o.v. 1 nano-call zijn ~$0,004/analyse.
 
 ### B1. Concurrentie-gap-analyse
