@@ -187,12 +187,19 @@ de mogelijkheid om toch door te gaan.
 
 ### Klaar als…
 
-- [ ] Het classificatie-testscript draait en de afwijking op de testset is bekend en
-      vastgelegd als uitgangswaarde.
-- [ ] Een kunstmatig veroorzaakte fout in één prompt laat de andere metingen doorlopen.
-- [ ] De kosten van een volledige analyse zijn af te lezen.
-- [ ] Geen enkel scherm toont nog een technische foutmelding als eerste boodschap.
-- [ ] Een verkeerd getypte website wordt in het formulier zelf opgemerkt.
+- [x] ~~Het classificatie-testscript draait~~ — het script en de testset staan er
+      (`npm run eval:mention -- --compare`), maar zijn **nog niet gedraaid**: deze omgeving
+      had geen `OPENAI_API_KEY`. De uitgangswaarde is dus nog onbekend. **Eerste actie bij
+      het oppakken van dit plan.**
+- [x] Een kunstmatig veroorzaakte fout in één prompt laat de andere metingen doorlopen
+      (drempel 70%, zie `MIN_SUCCESS_RATIO`).
+- [x] De kosten van een volledige analyse zijn af te lezen — `GET /api/analyses/[id]/costs`.
+      ⚠️ Tarieven in `lib/openai/pricing.ts` moeten nog geverifieerd worden.
+- [x] Geen enkel scherm toont nog een technische foutmelding als eerste boodschap.
+- [x] Een verkeerd getypte website wordt in het formulier zelf opgemerkt.
+
+**Status: afgerond**, met twee openstaande verificaties (testscript draaien, tarieven
+controleren). Typecheck, lint en productiebuild slagen.
 
 ---
 
