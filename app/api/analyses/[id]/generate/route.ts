@@ -3,7 +3,7 @@ import { getUser } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getOwnedAnalysis } from "@/lib/analyses";
 import { generateContentPiece, type RecommendationInput } from "@/lib/pipeline/content";
-import { describeError } from "@/lib/errors";
+import { describeError, classifyError } from "@/lib/errors";
 import type { ContentType } from "@/lib/types/database";
 
 /**
@@ -54,6 +54,6 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     return NextResponse.json({ id: contentId }, { status: 201 });
   } catch (err) {
     console.error(`generateContentPiece(${id}) mislukt:`, err);
-    return NextResponse.json({ error: "Genereren mislukt.", detail: describeError(err) }, { status: 500 });
+    return NextResponse.json({ error: "Genereren mislukt.", detail: describeError(err), problem: classifyError(err) }, { status: 500 });
   }
 }

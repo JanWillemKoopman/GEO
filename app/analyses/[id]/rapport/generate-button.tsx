@@ -3,6 +3,8 @@
 import { useState } from "react";
 import Link from "next/link";
 import type { ContentAction, ContentType } from "@/lib/types/database";
+import { ErrorNotice, problemFromResponse, networkProblem } from "@/components/error-notice";
+import type { UserFacingError } from "@/lib/errors";
 
 /**
  * "Genereer deze pagina" (abcplan.md §8, Fase C — expliciet op klik, niet vooraf).
@@ -26,11 +28,11 @@ export function GenerateButton({
   };
 }) {
   const [state, setState] = useState<"idle" | "pending" | "done" | "error">("idle");
-  const [errorDetail, setErrorDetail] = useState<string | null>(null);
+  const [problem, setProblem] = useState<UserFacingError | null>(null);
 
   async function generate() {
     setState("pending");
-    setErrorDetail(null);
+    setProblem(null);
     try {
       const res = await fetch(`/api/analyses/${analysisId}/generate`, {
         method: "POST",
@@ -40,13 +42,13 @@ export function GenerateButton({
       const json = await res.json().catch(() => ({}));
       if (!res.ok) {
         setState("error");
-        setErrorDetail(json.detail ?? json.error ?? null);
+        setProblem(problemFromResponse(json));
         return;
       }
       setState("done");
     } catch (err) {
       setState("error");
-      setErrorDetail(err instanceof Error ? err.message : String(err));
+      setProblem(networkProblem(err));
     }
   }
 
@@ -58,16 +60,15 @@ export function GenerateButton({
     );
   }
 
+  if (state === "error" && problem) {
+    return <ErrorNotice error={problem} onRetry={() => void generate()} retryLabel="Opnieuw proberen" />;
+  }
+
   return (
     <div className="flex flex-col gap-2">
       <button onClick={() => void generate()} disabled={state === "pending"} className="btn-primary w-fit disabled:opacity-60">
         {state === "pending" ? "Pagina schrijven…" : "Genereer deze pagina"}
       </button>
-      {state === "error" && (
-        <span className="text-sm text-[var(--status-error)]">
-          Genereren mislukt{errorDetail ? `: ${errorDetail}` : "."} Probeer het opnieuw.
-        </span>
-      )}
     </div>
   );
 }

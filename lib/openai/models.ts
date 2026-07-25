@@ -17,3 +17,33 @@ export const MODELS = {
 } as const;
 
 export type ModelName = (typeof MODELS)[keyof typeof MODELS];
+
+/**
+ * Vastgelegde temperatuur per SOORT werk (optimalisatie.md 0.5). Voorheen werd
+ * `temperature` nergens gezet en draaide dus álles op de standaardwaarde (1.0),
+ * ook het classificeren en beoordelen. Dat is onnodige ruis: bij een meting die
+ * één keer per prompt draait, vertaalt variatie in de classificatie zich direct
+ * in een schommelende zichtbaarheidsscore.
+ *
+ * Vuistregel: alles wat een OORDEEL velt over bestaande tekst moet zo
+ * reproduceerbaar mogelijk zijn; alleen het SCHRIJVEN van content mag variëren
+ * (daar is variatie juist kwaliteit).
+ */
+export const TEMPERATURES = {
+  /** Classificeren/beoordelen (mention-detectie, redactie-kritiek): zo stabiel mogelijk. */
+  deterministic: 0,
+  /** Analyseren/samenvatten (profiel, onderwerp, gap, rapport): nagenoeg stabiel, iets speling. */
+  analytical: 0.2,
+  /** Vragen bedenken: variatie is hier gewenst, anders komen alle prompts op elkaar lijken. */
+  creative: 0.8,
+  /** Content schrijven/herschrijven: het betaalde product, mag natuurlijk klinken. */
+  content: 0.7,
+} as const;
+
+/**
+ * De simulatie-call (halte 3a) zet bewust GEEN temperature: we willen weten wat
+ * een AI-assistent een echte gebruiker antwoordt, en die draait ook op de
+ * standaardinstellingen. Een eigen temperatuur zou de meting juist onrealistisch
+ * maken. Zie lib/pipeline/measure.ts.
+ */
+export const SIMULATION_TEMPERATURE = undefined;

@@ -3,6 +3,8 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { AnalysisStatus } from "@/lib/types/database";
+import { ErrorNotice, problemFromResponse } from "@/components/error-notice";
+import type { UserFacingError } from "@/lib/errors";
 
 interface StatusPayload {
   status: AnalysisStatus;
@@ -15,6 +17,21 @@ interface StatusPayload {
  * stap 4). Draait de prepare-call en pollt intussen de status; bij concept_klaar
  * gaan we door naar het concept-scherm (Instellingen), bij mislukt tonen we retry.
  */
+/**
+ * Fout uit een EERDERE sessie: de status stond al op 'mislukt' bij binnenkomst,
+ * dus we hebben de oorspronkelijke oorzaak niet meer in handen. Vandaar een
+ * algemene boodschap zonder technische details — die staan in de serverlogs.
+ */
+const STALE_FAILURE: UserFacingError = {
+  kind: "unknown",
+  title: "Het voorbereiden is eerder misgelopen",
+  message:
+    "Dit lag vaak aan een tijdelijke storing. Probeer het opnieuw — wat al gelukt " +
+    "is blijft bewaard, dus je begint niet van voren af aan.",
+  canRetry: true,
+  detail: "",
+};
+
 export function PrepareProgress({
   analysisId,
   initialStatus,
@@ -28,20 +45,20 @@ export function PrepareProgress({
     hasTopicResearch: false,
     promptCount: 0,
   });
-  const [failed, setFailed] = useState(initialStatus === "mislukt");
-  const [errorDetail, setErrorDetail] = useState<string | null>(null);
+  // Eén foutobject i.p.v. een losse vlag + ruwe tekst (optimalisatie.md 0.11).
+  const [problem, setProblem] = useState<UserFacingError | null>(
+    initialStatus === "mislukt" ? STALE_FAILURE : null,
+  );
   const started = useRef(false);
 
   async function runPrepare() {
-    setFailed(false);
-    setErrorDetail(null);
+    setProblem(null);
     try {
       const res = await fetch(`/api/analyses/${analysisId}/prepare`, { method: "POST" });
       // Alleen bij een EXPLICIETE serverfout hard falen (dan hebben we ook detail).
       if (!res.ok) {
-        const json = await res.json().catch(() => ({}) as { detail?: string });
-        setFailed(true);
-        setErrorDetail(json.detail ?? null);
+        const json = await res.json().catch(() => ({}));
+        setProblem(problemFromResponse(json));
       }
     } catch {
       // Netwerkfout ("Load failed") — de verbinding viel weg, maar de server
@@ -62,7 +79,7 @@ export function PrepareProgress({
         if (json.status === "concept_klaar" || json.status === "meten") {
           router.replace(`/analyses/${analysisId}/instellingen`);
         } else if (json.status === "mislukt") {
-          setFailed(true);
+          setProblem((p) => p ?? STALE_FAILURE);
         }
       } catch {
         /* stil — volgende tick probeert opnieuw */
@@ -94,28 +111,8 @@ export function PrepareProgress({
   ];
   const activeIndex = steps.findIndex((s) => !s.done);
 
-  if (failed) {
-    return (
-      <div className="card flex flex-col gap-4">
-        <div className="flex items-center gap-3">
-          <span className="chip" style={{ background: "rgba(211,58,63,0.1)", color: "#c2282d", borderColor: "rgba(211,58,63,0.3)" }}>
-            Mislukt
-          </span>
-        </div>
-        <p className="text-secondary">
-          Het voorbereiden van deze analyse is mislukt. Dit kan aan een tijdelijke fout liggen.
-          Probeer het opnieuw.
-        </p>
-        {errorDetail && (
-          <p className="rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--bg-elevated)] px-4 py-3 font-mono text-xs text-[var(--status-error)]">
-            {errorDetail}
-          </p>
-        )}
-        <button onClick={() => void runPrepare()} className="btn-primary w-fit">
-          Opnieuw proberen
-        </button>
-      </div>
-    );
+  if (problem) {
+    return <ErrorNotice error={problem} onRetry={() => void runPrepare()} />;
   }
 
   return (

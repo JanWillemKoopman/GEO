@@ -12,10 +12,13 @@ import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { callPlain, callStructured } from "@/lib/openai/structured";
-import { MODELS } from "@/lib/openai/models";
+import { MODELS, TEMPERATURES, SIMULATION_TEMPERATURE } from "@/lib/openai/models";
 import { measureWebSearchEnabled } from "@/lib/config";
-import { promptWeight } from "@/lib/pipeline/prompt-weight";
+import { promptWeight, NEUTRAL_WEIGHT } from "@/lib/pipeline/prompt-weight";
 import { Mention } from "@/lib/schemas/mention";
+// Gedeeld met scripts/eval-mention.ts, zodat de test exact de productie-prompt
+// beoordeelt en niet een kopie die kan gaan afwijken (optimalisatie.md 0.7).
+import { MENTION_SYSTEM, buildMentionUser } from "@/lib/openai/mention-prompt";
 import type { Analysis, AnalysisStatus, Prompt, TrackingRun } from "@/lib/types/database";
 
 const SIMULATE_SYSTEM =
@@ -24,36 +27,17 @@ const SIMULATE_SYSTEM =
   "of bronnen waar relevant voor het antwoord. Antwoord in het Nederlands, zoals je dat voor een " +
   "echte gebruiker zou doen die deze vraag stelt.";
 
-const MENTION_SYSTEM =
-  "Je analyseert een AI-gegenereerd antwoord op vermeldingen van merken/bedrijven. Werk secuur en " +
-  "feitelijk: baseer je uitsluitend op wat er daadwerkelijk in de tekst staat.";
-
-function buildMentionUser(
-  ownLabel: string,
-  ownAliases: string[],
-  competitors: string[],
-  rawResponse: string,
-): string {
-  return [
-    `Eigen merk: ${ownLabel}`,
-    ownAliases.length
-      ? `Het eigen merk kan ook zo genoemd worden (tel deze als het EIGEN merk): ${ownAliases.join(", ")}`
-      : "",
-    competitors.length ? `Bekende concurrenten: ${competitors.join(", ")}` : "Bekende concurrenten: (geen bekend)",
-    "",
-    "Evalueer voor het EIGEN MERK en voor ELK van de bekende concurrenten hierboven expliciet of ze in " +
-      "onderstaand antwoord genoemd worden — ook als het antwoord ze niet noemt (geef dan mentioned: false, " +
-      "position: null, sentiment: \"neutral\", citedSources: []). Voeg daarnaast als aparte entiteiten eventuele " +
-      "andere merken toe die wél genoemd worden maar niet in de lijst hierboven staan.",
-    "",
-    "AI-antwoord om te analyseren:",
-    '"""',
-    rawResponse,
-    '"""',
-  ].join("\n");
-}
-
 type Admin = SupabaseClient;
+
+/**
+ * Welk deel van de prompts moet minimaal slagen voordat we de meting bruikbaar
+ * noemen (optimalisatie.md 0.4b)? Onder deze drempel is de score gebaseerd op
+ * te weinig vragen om iets te betekenen, en falen we liever eerlijk.
+ *
+ * Met de retries uit 0.4 zou een enkele mislukking al zeldzaam moeten zijn; deze
+ * drempel is het vangnet daaronder, niet de eerste verdedigingslinie.
+ */
+const MIN_SUCCESS_RATIO = 0.7;
 
 async function measureOnePrompt(
   admin: Admin,
@@ -84,11 +68,18 @@ async function measureOnePrompt(
     //
     // Grounding (web_search) is via MEASURE_WEB_SEARCH uitschakelbaar voor de
     // ontwikkelfase (kostenbesparend). Uit → de AI antwoordt uit eigen kennis.
+    // Bewust GEEN temperature (SIMULATION_TEMPERATURE): we willen weten wat een
+    // AI-assistent een echte gebruiker antwoordt, en die draait ook op de
+    // standaardinstellingen. Zelf temperatuur forceren maakt de meting juist
+    // onrealistisch. De ruis die dit oplevert lossen we op met méér metingen
+    // per vraag (optimalisatie.md 2.1), niet met een lagere temperatuur.
     const a = await callPlain({
       model: MODELS.quality,
       system: SIMULATE_SYSTEM,
       user: prompt.text,
       webSearch: measureWebSearchEnabled,
+      temperature: SIMULATION_TEMPERATURE,
+      meta: { kind: "measure_simulate", analysisId: analysis.id, profileId: analysis.profile_id },
     });
 
     const { data: inserted, error } = await admin
@@ -107,6 +98,11 @@ async function measureOnePrompt(
         raw_response_received_at: new Date().toISOString(),
         openai_response_id: a.responseId,
         tokens_used: a.tokensUsed,
+        // Kosten van 3a op de meting zelf (optimalisatie.md 0.6). De kolom
+        // bestond al vanaf migratie 0001 maar werd nooit gevuld. De 3b-kosten
+        // staan in het ai_calls-logboek; 3a is verreweg de grootste post omdat
+        // daar de web_search in zit.
+        cost_usd: a.costUsd,
       })
       .select("*")
       .single();
@@ -122,10 +118,12 @@ async function measureOnePrompt(
   const b = await callStructured({
     model: MODELS.volume,
     system: MENTION_SYSTEM,
-    user: buildMentionUser(ownLabel, ownAliases, competitors, run.raw_response ?? ""),
+    user: buildMentionUser({ ownLabel, ownAliases, competitors, rawResponse: run.raw_response ?? "" }),
     schema: Mention,
     schemaName: "mention",
     webSearch: false,
+    temperature: TEMPERATURES.deterministic,
+    meta: { kind: "measure_mention", analysisId: analysis.id, profileId: analysis.profile_id },
   });
 
   await admin.from("tracking_runs").update({ mention_json: b.parsed as never }).eq("id", run.id);
@@ -156,24 +154,62 @@ async function computeAggregates(admin: Admin, analysisId: string, weekNo: numbe
 
   const runIds = runs.map((r) => r.id as string);
   const categoryByRun = new Map(runs.map((r) => [r.id as string, r.prompt_category_snapshot as string]));
-  // Gewicht per run (volume × waarde), bevroren op meetmoment. Fallback 0,1 (ondergrens).
-  const weightByRun = new Map(runs.map((r) => [r.id as string, Number(r.prompt_weight ?? 0.1)]));
+  // Gewicht per run (volume × waarde), bevroren op meetmoment. Ontbreekt het
+  // (oude rij, of handmatige prompt zonder tags), dan het NEUTRALE gewicht —
+  // niet de ondergrens, zie NEUTRAL_WEIGHT (optimalisatie.md 0.10).
+  const weightByRun = new Map(runs.map((r) => [r.id as string, Number(r.prompt_weight ?? NEUTRAL_WEIGHT)]));
 
   const { data: mentionRows } = await admin.from("tracking_run_mentions").select("*").in("tracking_run_id", runIds);
   const mentions = mentionRows ?? [];
 
+  // Eigen-merk-rij per run. De classificatie hoort er precies één per run te
+  // geven, maar kan er meer teruggeven (bv. merknaam én alias als losse
+  // entiteiten). Voorheen won dan willekeurig de LAATSTE rij, wat betekende dat
+  // een "niet genoemd"-rij een "wel genoemd"-rij kon overschrijven en de score
+  // stilletjes verlaagde. Nu een expliciete samenvoegregel (optimalisatie.md 0.3):
+  // genoemd wint van niet-genoemd; bij twee keer genoemd telt de vroegste positie.
   const ownByRun = new Map<string, (typeof mentions)[number]>();
-  for (const m of mentions) if (m.is_own_brand) ownByRun.set(m.tracking_run_id, m);
+  for (const m of mentions) {
+    if (!m.is_own_brand) continue;
+    const current = ownByRun.get(m.tracking_run_id);
+    if (!current) {
+      ownByRun.set(m.tracking_run_id, m);
+      continue;
+    }
+    if (m.mentioned && !current.mentioned) {
+      ownByRun.set(m.tracking_run_id, m);
+      continue;
+    }
+    if (m.mentioned && current.mentioned) {
+      const currentPos = current.position ?? Number.MAX_SAFE_INTEGER;
+      const candidatePos = m.position ?? Number.MAX_SAFE_INTEGER;
+      if (candidatePos < currentPos) ownByRun.set(m.tracking_run_id, m);
+    }
+  }
 
-  const totalRuns = runIds.length;
+  // Alleen BEOORDEELDE runs tellen mee in de score (optimalisatie.md 0.2, zelfde
+  // regel als in report.ts). Een run zonder eigen-merk-oordeel betekent dat 3b
+  // faalde — dat is onbekend, niet "niet genoemd". Meetellen als niet-genoemd
+  // zou de score verlagen door een technisch probleem, en score en rapport
+  // zouden elkaar tegenspreken.
+  const judgedRunIds = runIds.filter((id) => ownByRun.has(id));
+  const judgedRuns = judgedRunIds.length;
+  if (judgedRuns < runIds.length) {
+    console.warn(
+      `Analyse ${analysisId} week ${weekNo}: ${runIds.length - judgedRuns} van ${runIds.length} ` +
+        `metingen zonder eigen-merk-oordeel; die tellen niet mee in de score.`,
+    );
+  }
+
   const ownMentionedCount = Array.from(ownByRun.values()).filter((m) => m.mentioned).length;
-  const score = totalRuns > 0 ? Math.round((ownMentionedCount / totalRuns) * 100) : 0;
+  const score = judgedRuns > 0 ? Math.round((ownMentionedCount / judgedRuns) * 100) : 0;
 
-  // Gewogen zichtbaarheid: Σ gewicht van runs waarin het merk genoemd wordt ÷ Σ gewicht van alle runs.
-  const totalWeight = runIds.reduce((sum, id) => sum + (weightByRun.get(id) ?? 0.1), 0);
-  const ownWeight = runIds.reduce((sum, id) => {
+  // Gewogen zichtbaarheid: Σ gewicht van beoordeelde runs waarin het merk
+  // genoemd wordt ÷ Σ gewicht van alle beoordeelde runs.
+  const totalWeight = judgedRunIds.reduce((sum, id) => sum + (weightByRun.get(id) ?? NEUTRAL_WEIGHT), 0);
+  const ownWeight = judgedRunIds.reduce((sum, id) => {
     const own = ownByRun.get(id);
-    return sum + (own?.mentioned ? (weightByRun.get(id) ?? 0.1) : 0);
+    return sum + (own?.mentioned ? (weightByRun.get(id) ?? NEUTRAL_WEIGHT) : 0);
   }, 0);
   const weightedScore = totalWeight > 0 ? Math.round((ownWeight / totalWeight) * 100) : 0;
 
@@ -283,12 +319,31 @@ export async function measureAnalysis(id: string, weekNo = 0): Promise<AnalysisS
       prompts.map((p) => measureOnePrompt(admin, typedAnalysis, ownLabel, ownAliases, competitors, p, weekNo)),
     );
     const failed = results.filter((r) => r.status === "rejected") as PromiseRejectedResult[];
+
+    // Deels gelukt is GELUKT (optimalisatie.md 0.4b). Voorheen liet één mislukte
+    // prompt de hele meting falen, inclusief de elf die wél slaagden: de klant
+    // zag "mislukt" terwijl er bruikbare data lag, en een nieuwe poging kostte
+    // opnieuw tijd. Nu bepaalt een drempel of het resultaat bruikbaar is.
+    //
+    // De al gemeten prompts blijven hoe dan ook bewaard (idempotent per prompt),
+    // dus een volgende poging vult alleen de gaten en meet niets dubbel.
     if (failed.length > 0) {
-      // De echte onderliggende reden meesturen (werd voorheen ingeslikt door allSettled).
       const reason = failed[0].reason;
       const detail = reason instanceof Error ? reason.message : String(reason);
-      throw new Error(
-        `${failed.length} van ${results.length} prompts mislukt tijdens meting. Eerste fout: ${detail}`,
+      const succeeded = results.length - failed.length;
+
+      // Onder de drempel is het geen meting meer maar een steekproef met te
+      // weinig grond — dan liever eerlijk falen dan een misleidende score tonen.
+      const ratio = results.length > 0 ? succeeded / results.length : 0;
+      if (succeeded === 0 || ratio < MIN_SUCCESS_RATIO) {
+        throw new Error(
+          `${failed.length} van ${results.length} prompts mislukt tijdens meting. Eerste fout: ${detail}`,
+        );
+      }
+
+      console.warn(
+        `Analyse ${id} week ${weekNo}: ${failed.length} van ${results.length} prompts mislukt, ` +
+          `meting gaat door met ${succeeded}. Eerste fout: ${detail}`,
       );
     }
 

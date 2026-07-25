@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { TagListEditor } from "@/components/tag-list-editor";
+import { checkUrlFormat } from "@/lib/url";
 
 /**
  * Onboarding-wizard voor een nieuw klantprofiel (abcplan.md §12.24). Begeleide,
@@ -60,27 +61,54 @@ export function OnboardingWizard() {
     sitemap_url: "",
   });
   const [error, setError] = useState<string | null>(null);
+  const [urlTouched, setUrlTouched] = useState(false);
+  // Server meldde "site onbereikbaar": we tonen de waarschuwing én de
+  // mogelijkheid om toch door te gaan (optimalisatie.md 0.12).
+  const [canForce, setCanForce] = useState(false);
   const [pending, setPending] = useState(false);
 
   const isLast = step === STEP_TITLES.length - 1;
-  const canProceed = step > 0 || (form.name.trim() !== "" && form.url.trim() !== "");
+
+  // Webadres controleren op het formulier zelf (optimalisatie.md 0.12). Pas
+  // tonen zodra het veld verlaten is: meetypen met een foutmelding onder je
+  // vingers is vervelend, en het adres is halverwege nooit geldig.
+  const urlCheck = checkUrlFormat(form.url);
+  const showUrlError = urlTouched && form.url.trim() !== "" && !urlCheck.ok;
+
+  const canProceed =
+    step > 0 || (form.name.trim() !== "" && form.url.trim() !== "" && urlCheck.ok);
 
   function set<K extends keyof FormState>(key: K, value: FormState[K]) {
     setForm((f) => ({ ...f, [key]: value }));
   }
 
-  async function submit() {
+  async function submit(force = false) {
+    // Ook de overslaan-route loopt hierlangs: een ongeldig adres mag nergens door.
+    if (!urlCheck.ok) {
+      setUrlTouched(true);
+      setStep(0);
+      setError(urlCheck.message ?? "Controleer het webadres.");
+      return;
+    }
     setError(null);
+    setCanForce(false);
     setPending(true);
     try {
       const res = await fetch("/api/profiles", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
+        body: JSON.stringify({ ...form, force }),
       });
       const json = await res.json();
       if (!res.ok) {
         setError(json.error ?? "Er ging iets mis.");
+        setCanForce(Boolean(json.canForce));
+        // Fout op het webadres? Terug naar stap 1, waar dat veld staat — anders
+        // leest de klant een melding over een veld dat hij niet ziet.
+        if (json.field === "url") {
+          setStep(0);
+          setUrlTouched(true);
+        }
         setPending(false);
         return;
       }
@@ -141,8 +169,21 @@ export function OnboardingWizard() {
                 className="field"
                 value={form.url}
                 onChange={(e) => set("url", e.target.value)}
+                onBlur={() => setUrlTouched(true)}
                 placeholder="mediamarkt.nl"
+                aria-invalid={showUrlError}
+                aria-describedby={showUrlError ? "url-error" : undefined}
+                style={showUrlError ? { borderColor: "var(--status-error)" } : undefined}
               />
+              {showUrlError ? (
+                <span id="url-error" className="text-sm text-[var(--status-error)]" role="alert">
+                  {urlCheck.message}
+                </span>
+              ) : (
+                <span className="text-sm text-muted">
+                  Het adres van de website, bijvoorbeeld voorbeeld.nl — met of zonder https://.
+                </span>
+              )}
             </label>
             <div className="flex flex-col gap-1.5">
               <span className="mono-label">Andere namen / schrijfwijzen</span>
@@ -307,9 +348,21 @@ export function OnboardingWizard() {
         )}
 
         {error && (
-          <p className="text-sm text-[var(--status-error)]" role="alert">
-            {error}
-          </p>
+          <div className="flex flex-col gap-2">
+            <p className="text-sm text-[var(--status-error)]" role="alert">
+              {error}
+            </p>
+            {canForce && (
+              <button
+                type="button"
+                onClick={() => void submit(true)}
+                disabled={pending}
+                className="btn-outline w-fit disabled:opacity-60"
+              >
+                Adres klopt — ga toch door
+              </button>
+            )}
+          </div>
         )}
 
         <div className="flex items-center justify-between gap-3">
@@ -325,7 +378,7 @@ export function OnboardingWizard() {
           {isLast ? (
             <button
               type="button"
-              onClick={() => void submit()}
+              onClick={() => void submit(false)}
               disabled={pending || !canProceed}
               className="btn-primary disabled:opacity-60"
             >
@@ -347,7 +400,7 @@ export function OnboardingWizard() {
       {!isLast && (
         <button
           type="button"
-          onClick={() => void submit()}
+          onClick={() => void submit(false)}
           disabled={pending || !canProceed}
           className="mono-label self-center transition-colors hover:text-[var(--text-primary)] disabled:opacity-40"
         >

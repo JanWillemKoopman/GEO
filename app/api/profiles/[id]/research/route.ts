@@ -3,7 +3,7 @@ import { getUser } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getOwnedProfile } from "@/lib/profiles";
 import { prepareProfile } from "@/lib/pipeline/prepare-profile";
-import { describeError } from "@/lib/errors";
+import { describeError, classifyError } from "@/lib/errors";
 
 /**
  * POST /api/profiles/[id]/research — draait het grondige, eenmalige
@@ -28,7 +28,7 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
   } catch (err) {
     console.error(`prepareProfile(${id}) mislukt:`, err);
     return NextResponse.json(
-      { status: "mislukt", error: "Onderzoek mislukt.", detail: describeError(err) },
+      { status: "mislukt", error: "Onderzoek mislukt.", detail: describeError(err), problem: classifyError(err) },
       { status: 500 },
     );
   }

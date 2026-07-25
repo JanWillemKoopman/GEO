@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { getUser } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { prepareAnalysis } from "@/lib/pipeline/prepare";
-import { describeError } from "@/lib/errors";
+import { describeError, classifyError } from "@/lib/errors";
 
 /**
  * POST /api/analyses/[id]/prepare — draait halte 1+2 (crawl → Brand DNA → prompts).
@@ -35,7 +35,7 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
     // ⚠️ Tijdelijk: detail meesturen voor debugging tijdens de bouwfase (app is
     // nog dicht voor publiek, zie SIGNUPS_ENABLED). Voor productie weer weghalen.
     return NextResponse.json(
-      { status: "mislukt", error: "Voorbereiden mislukt.", detail: describeError(err) },
+      { status: "mislukt", error: "Voorbereiden mislukt.", detail: describeError(err), problem: classifyError(err) },
       { status: 500 },
     );
   }

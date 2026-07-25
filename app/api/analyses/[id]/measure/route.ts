@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { getUser } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { measureAnalysis } from "@/lib/pipeline/measure";
-import { describeError } from "@/lib/errors";
+import { describeError, classifyError } from "@/lib/errors";
 
 /**
  * POST /api/analyses/[id]/measure — draait de nulmeting (halte A3, week 0).
@@ -34,7 +34,7 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
     console.error(`measureAnalysis(${id}) mislukt:`, err);
     // ⚠️ Tijdelijk: detail meesturen voor debugging tijdens de bouwfase (zie prepare/route.ts).
     return NextResponse.json(
-      { status: "mislukt", error: "Meting mislukt.", detail: describeError(err) },
+      { status: "mislukt", error: "Meting mislukt.", detail: describeError(err), problem: classifyError(err) },
       { status: 500 },
     );
   }

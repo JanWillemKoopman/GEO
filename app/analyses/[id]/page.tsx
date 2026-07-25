@@ -57,7 +57,11 @@ export default async function OverviewPage({ params }: { params: Promise<{ id: s
   }
 
   // gemeten / gereed / mislukt-tijdens-rapport → score + concurrentievergelijking (week 0).
-  const [{ data: scoreRow }, { data: competitorRows }, { count: activePromptCount }] = await Promise.all([
+  // De noemer voor de concurrentiepercentages is het aantal METINGEN van deze
+  // week, niet het huidige aantal actieve prompts (optimalisatie.md 0.1). Die
+  // twee lopen uiteen zodra de klant een prompt uitzet: de tellingen komen uit
+  // historische runs, dus met een gekrompen noemer schoten de balken boven 100%.
+  const [{ data: scoreRow }, { data: competitorRows }, { count: runCount }] = await Promise.all([
     supabase.from("visibility_scores").select("*").eq("analysis_id", id).eq("week_no", 0).maybeSingle(),
     supabase
       .from("competitor_breakdown")
@@ -65,7 +69,11 @@ export default async function OverviewPage({ params }: { params: Promise<{ id: s
       .eq("analysis_id", id)
       .eq("week_no", 0)
       .order("mentions_count", { ascending: false }),
-    supabase.from("prompts").select("id", { count: "exact", head: true }).eq("analysis_id", id).eq("active", true),
+    supabase
+      .from("tracking_runs")
+      .select("id", { count: "exact", head: true })
+      .eq("analysis_id", id)
+      .eq("week_no", 0),
   ]);
 
   if (!scoreRow) {
@@ -92,7 +100,7 @@ export default async function OverviewPage({ params }: { params: Promise<{ id: s
       )}
       <ScorePanel
         score={scoreRow as VisibilityScore}
-        activePromptCount={activePromptCount ?? 0}
+        measuredRunCount={runCount ?? 0}
         competitors={(competitorRows ?? []) as CompetitorBreakdown[]}
       />
     </div>

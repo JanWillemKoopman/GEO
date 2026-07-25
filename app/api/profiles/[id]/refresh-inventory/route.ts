@@ -3,7 +3,7 @@ import { getUser } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getOwnedProfile } from "@/lib/profiles";
 import { refreshInventory } from "@/lib/pipeline/refresh-inventory";
-import { describeError } from "@/lib/errors";
+import { describeError, classifyError } from "@/lib/errors";
 
 /**
  * POST /api/profiles/[id]/refresh-inventory — crawlt de content-inventaris
@@ -27,6 +27,6 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
     return NextResponse.json({ count });
   } catch (err) {
     console.error(`refreshInventory(${id}) mislukt:`, err);
-    return NextResponse.json({ error: "Vernieuwen mislukt.", detail: describeError(err) }, { status: 500 });
+    return NextResponse.json({ error: "Vernieuwen mislukt.", detail: describeError(err), problem: classifyError(err) }, { status: 500 });
   }
 }

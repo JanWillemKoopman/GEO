@@ -10,6 +10,8 @@ import "server-only";
 const MAX_CHARS = 6000; // genoeg context, houdt de tokenkost laag
 const PAGE_MAX_CHARS = 1500; // kleinere cap per pagina bij de content-inventaris (meerdere pagina's tegelijk)
 const FETCH_TIMEOUT_MS = 12000;
+/** Korter dan een gewone fetch: dit blokkeert een formulier, dus snel antwoord telt. */
+const REACHABLE_TIMEOUT_MS = 6000;
 
 // ── Content-inventaris (abcplan.md §12.23) ─────────────────────────────────
 // We ontdekken WELKE pagina's er bestaan (URL-lijst via sitemaps) en halen voor
@@ -84,6 +86,41 @@ export async function crawlSite(host: string): Promise<CrawlResult> {
     return { url, text, ok: text.length > 0 };
   } catch {
     return { url, text: "", ok: false };
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+/**
+ * Snelle bereikbaarheidscontrole vóór het aanmaken van een profiel
+ * (optimalisatie.md 0.12). Bewust apart van crawlSite: die haalt de hele pagina
+ * op en faalt zacht, terwijl we hier binnen een paar seconden een ja/nee willen
+ * kunnen tonen op het formulier.
+ *
+ * Eerst HEAD (geen body downloaden), en bij een methode-fout alsnog GET —
+ * niet elke server accepteert HEAD. Elke 2xx/3xx telt als bereikbaar; een 403
+ * ook, want dat betekent "de server is er, maar weert onze bot" en dat is geen
+ * reden om de klant tegen te houden.
+ */
+export async function isReachable(host: string): Promise<boolean> {
+  const url = toFetchUrl(host);
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), REACHABLE_TIMEOUT_MS);
+
+  const headers = {
+    "User-Agent": "GEO-Tracker-Bot/1.0 (+https://geo-tracker.app)",
+    Accept: "text/html,application/xhtml+xml",
+  };
+
+  try {
+    let res = await fetch(url, { method: "HEAD", signal: controller.signal, redirect: "follow", headers });
+    // 405/501: server kent HEAD niet — nog één keer met GET.
+    if (res.status === 405 || res.status === 501) {
+      res = await fetch(url, { method: "GET", signal: controller.signal, redirect: "follow", headers });
+    }
+    return res.status < 400 || res.status === 403;
+  } catch {
+    return false;
   } finally {
     clearTimeout(timeout);
   }
