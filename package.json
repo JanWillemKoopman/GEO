@@ -12,7 +12,8 @@
     "start": "next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
-    "test:openai": "tsx scripts/test-openai.ts"
+    "test:openai": "tsx scripts/test-openai.ts",
+    "eval:mention": "tsx scripts/eval-mention.ts"
   },
   "dependencies": {
     "@supabase/ssr": "^0.5.2",

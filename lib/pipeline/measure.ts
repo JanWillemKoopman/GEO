@@ -16,6 +16,9 @@ import { MODELS, TEMPERATURES, SIMULATION_TEMPERATURE } from "@/lib/openai/model
 import { measureWebSearchEnabled } from "@/lib/config";
 import { promptWeight, NEUTRAL_WEIGHT } from "@/lib/pipeline/prompt-weight";
 import { Mention } from "@/lib/schemas/mention";
+// Gedeeld met scripts/eval-mention.ts, zodat de test exact de productie-prompt
+// beoordeelt en niet een kopie die kan gaan afwijken (optimalisatie.md 0.7).
+import { MENTION_SYSTEM, buildMentionUser } from "@/lib/openai/mention-prompt";
 import type { Analysis, AnalysisStatus, Prompt, TrackingRun } from "@/lib/types/database";
 
 const SIMULATE_SYSTEM =
@@ -23,35 +26,6 @@ const SIMULATE_SYSTEM =
   "Gebruik web search om actuele, feitelijke informatie te vinden. Noem concrete merken, bedrijven " +
   "of bronnen waar relevant voor het antwoord. Antwoord in het Nederlands, zoals je dat voor een " +
   "echte gebruiker zou doen die deze vraag stelt.";
-
-const MENTION_SYSTEM =
-  "Je analyseert een AI-gegenereerd antwoord op vermeldingen van merken/bedrijven. Werk secuur en " +
-  "feitelijk: baseer je uitsluitend op wat er daadwerkelijk in de tekst staat.";
-
-function buildMentionUser(
-  ownLabel: string,
-  ownAliases: string[],
-  competitors: string[],
-  rawResponse: string,
-): string {
-  return [
-    `Eigen merk: ${ownLabel}`,
-    ownAliases.length
-      ? `Het eigen merk kan ook zo genoemd worden (tel deze als het EIGEN merk): ${ownAliases.join(", ")}`
-      : "",
-    competitors.length ? `Bekende concurrenten: ${competitors.join(", ")}` : "Bekende concurrenten: (geen bekend)",
-    "",
-    "Evalueer voor het EIGEN MERK en voor ELK van de bekende concurrenten hierboven expliciet of ze in " +
-      "onderstaand antwoord genoemd worden — ook als het antwoord ze niet noemt (geef dan mentioned: false, " +
-      "position: null, sentiment: \"neutral\", citedSources: []). Voeg daarnaast als aparte entiteiten eventuele " +
-      "andere merken toe die wél genoemd worden maar niet in de lijst hierboven staan.",
-    "",
-    "AI-antwoord om te analyseren:",
-    '"""',
-    rawResponse,
-    '"""',
-  ].join("\n");
-}
 
 type Admin = SupabaseClient;
 
@@ -144,7 +118,7 @@ async function measureOnePrompt(
   const b = await callStructured({
     model: MODELS.volume,
     system: MENTION_SYSTEM,
-    user: buildMentionUser(ownLabel, ownAliases, competitors, run.raw_response ?? ""),
+    user: buildMentionUser({ ownLabel, ownAliases, competitors, rawResponse: run.raw_response ?? "" }),
     schema: Mention,
     schemaName: "mention",
     webSearch: false,
