@@ -72,15 +72,62 @@ function forbiddenTokens(url: string, brandName: string | null, competitors: str
   if (brandName && brandName.trim().length > 2) tokens.push(brandName.trim().toLowerCase());
   for (const c of competitors) {
     const t = c.trim().toLowerCase();
-    if (t.length > 3) tokens.push(t);
+    // Een concurrentnaam die zélf een gewoon categoriewoord is (bv. een bedrijf
+    // dat letterlijk "Select" of "Direct" heet) filteren we niet: dan zouden we
+    // elke legitieme prompt met dat woord wegwerpen (optimalisatie.md 0.9).
+    if (t.length > 3 && !GENERIC_WORDS.has(t)) tokens.push(t);
   }
   return Array.from(new Set(tokens));
 }
 
-/** Bevat de prompt (case-insensitief) een verboden merk-/concurrent-token? */
+/**
+ * Woorden die weliswaar in een merknaam kunnen zitten, maar op zichzelf gewone
+ * categoriewoorden zijn (optimalisatie.md 0.9). Zonder deze uitzondering wist
+ * een concurrent als "Zonwering Plus" élke prompt over zonwering — precies de
+ * prompts die we willen meten.
+ *
+ * Alleen van toepassing op LOSSE woorden uit een meerwoordige naam; de volledige
+ * naam ("Zonwering Plus") blijft altijd verboden.
+ */
+const GENERIC_WORDS = new Set([
+  "service", "diensten", "dienst", "groep", "totaal", "centrum", "center", "shop",
+  "winkel", "store", "online", "expert", "experts", "specialist", "specialisten",
+  "advies", "adviseur", "partners", "partner", "company", "bedrijf", "nederland",
+  "holland", "plus", "prof", "profs", "vakman", "vakmannen", "beste", "goedkoop",
+  "snel", "direct", "team", "groep bv", "concept", "concepten", "select",
+]);
+
+/**
+ * Bevat de prompt een verboden merk-/concurrentnaam? Match op HELE WOORDEN
+ * (optimalisatie.md 0.9), niet op deelreeksen: de oude `includes()` liet een
+ * merk als "Snelservice" elke prompt met het woord "snelservice" wissen, en erger,
+ * een deelwoord kon midden in een ander woord matchen.
+ */
 function containsForbidden(text: string, tokens: string[]): boolean {
   const lower = text.toLowerCase();
-  return tokens.some((t) => lower.includes(t));
+  return tokens.some((t) => {
+    // Escape regex-tekens in de merknaam (bv. "AH to go" of "M&S").
+    const escaped = t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    // \b werkt niet betrouwbaar rond niet-ASCII; daarom expliciete grenzen op
+    // niet-woordtekens of tekstbegin/-einde.
+    return new RegExp(`(^|[^\\p{L}\\p{N}])${escaped}([^\\p{L}\\p{N}]|$)`, "iu").test(lower);
+  });
+}
+
+/**
+ * Hoeveel pogingen mag één funnelfase doen om aan het gevraagde aantal prompts
+ * te komen (optimalisatie.md 0.8)? Twee: één normale ronde plus één aanvulronde.
+ * Meer zou bij een merknaam die samenvalt met de categorie eindeloos doorgaan —
+ * daar is het aanvullen niet de oplossing maar de merknaam zelf het probleem.
+ */
+const MAX_TOPUP_ATTEMPTS = 2;
+
+/** Aanvullende instructie voor de tweede ronde: alleen het ontbrekende aantal, geen herhaling. */
+function topUpNote(missing: number, existing: string[]): string {
+  return (
+    `AANVULLING: er ontbreken er nog ${missing}. Geef er precies ${missing}, en herhaal ` +
+    `NIET de vragen die er al zijn:\n${existing.map((t) => `- ${t}`).join("\n")}`
+  );
 }
 
 function geoLine(brand: BrandContext): string {
@@ -153,23 +200,49 @@ async function generateForFunnelStage(args: {
     `purchaseIntent (koopintentie true/false); cluster (kort thema-label); en volumeEstimate — jouw SCHATTING van hoe ` +
     `populair deze vraag is op een schaal 0-100 (0 = zeer specifiek/zelden, 100 = zeer populair/breed). Dit is een schatting, geen echte index.`;
 
-  const result = await callStructured({
-    model: MODELS.quality,
-    system,
-    user,
-    schema: PromptSet,
-    schemaName: "prompt_set",
-    webSearch: false,
-    temperature: TEMPERATURES.creative,
-    meta: { kind: "prompts", analysisId: args.analysisId },
-  });
+  // Vangnet: gooi prompts weg die tóch de eigen merknaam of een concurrent
+  // bevatten. Wordt er iets weggegooid, dan VULLEN WE AAN (optimalisatie.md 0.8):
+  // eerder leverde `.slice(0, count)` na het filteren stilzwijgend minder prompts
+  // op, waardoor de meetbasis kromp zonder dat iemand het zag — en een kleinere
+  // meetbasis betekent een grovere, minder betrouwbare score.
+  const collected: PromptSet["prompts"] = [];
+  const seen = new Set<string>();
+  let lastRaw: unknown = null;
 
-  // Vangnet: gooi prompts weg die tóch de eigen merknaam of een concurrent bevatten
-  // (het model verspreekt zich zelden dankzij de harde regel; de review-gate is de
-  // menselijke backstop). Clamp de volumeschatting op 0-100.
-  return result.parsed.prompts
-    .filter((p) => !containsForbidden(p.text, tokens))
-    .slice(0, count)
+  for (let attempt = 0; attempt < MAX_TOPUP_ATTEMPTS && collected.length < count; attempt++) {
+    const missing = count - collected.length;
+    const result = await callStructured({
+      model: MODELS.quality,
+      system,
+      // Bij een vervolgpoging vragen we alleen nog het ontbrekende aantal, en
+      // zeggen we welke vragen er al zijn zodat het model niet in herhaling valt.
+      user: attempt === 0 ? user : `${user}\n\n${topUpNote(missing, collected.map((p) => p.text))}`,
+      schema: PromptSet,
+      schemaName: "prompt_set",
+      webSearch: false,
+      temperature: TEMPERATURES.creative,
+      meta: { kind: "prompts", analysisId: args.analysisId },
+    });
+    lastRaw = result.raw;
+
+    for (const p of result.parsed.prompts) {
+      if (collected.length >= count) break;
+      const key = p.text.trim().toLowerCase();
+      if (seen.has(key)) continue;
+      if (containsForbidden(p.text, tokens)) continue;
+      seen.add(key);
+      collected.push(p);
+    }
+  }
+
+  if (collected.length < count) {
+    console.warn(
+      `Funnelfase "${category}": ${collected.length} van ${count} prompts na ` +
+        `${MAX_TOPUP_ATTEMPTS} pogingen. De rest sneuvelde op de merkneutraliteitsregel.`,
+    );
+  }
+
+  return collected
     .map((p) => ({
       text: p.text,
       category,
@@ -179,7 +252,7 @@ async function generateForFunnelStage(args: {
       purchaseIntent: p.purchaseIntent,
       cluster: p.cluster,
       volumeEstimate: 50, // voorlopig; wordt relatief gekalibreerd over alle prompts (zie calibrateVolumes)
-      sourceRawJson: result.raw, // audit-trail per fase (abcplan.md §5)
+      sourceRawJson: lastRaw, // audit-trail per fase (abcplan.md §5)
     }));
 }
 

@@ -12,6 +12,7 @@ import { callStructured } from "@/lib/openai/structured";
 import { MODELS, TEMPERATURES } from "@/lib/openai/models";
 import { GapAnalysis } from "@/lib/schemas/gap-analysis";
 import { Report } from "@/lib/schemas/report";
+import { NEUTRAL_WEIGHT } from "@/lib/pipeline/prompt-weight";
 import { sendReportEmail } from "@/lib/email/report-email";
 import type {
   Analysis,
@@ -212,7 +213,7 @@ async function computeMissedPrompts(
       return {
         text: r.prompt_text_snapshot as string,
         category: r.prompt_category_snapshot as string,
-        weight: Number(r.prompt_weight ?? 0.1),
+        weight: Number(r.prompt_weight ?? NEUTRAL_WEIGHT),
         cluster: (tag?.cluster as string | null) ?? null,
         intent_type: (tag?.intent_type as string | null) ?? null,
       };

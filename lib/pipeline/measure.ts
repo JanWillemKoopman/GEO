@@ -14,7 +14,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { callPlain, callStructured } from "@/lib/openai/structured";
 import { MODELS, TEMPERATURES, SIMULATION_TEMPERATURE } from "@/lib/openai/models";
 import { measureWebSearchEnabled } from "@/lib/config";
-import { promptWeight } from "@/lib/pipeline/prompt-weight";
+import { promptWeight, NEUTRAL_WEIGHT } from "@/lib/pipeline/prompt-weight";
 import { Mention } from "@/lib/schemas/mention";
 import type { Analysis, AnalysisStatus, Prompt, TrackingRun } from "@/lib/types/database";
 
@@ -180,8 +180,10 @@ async function computeAggregates(admin: Admin, analysisId: string, weekNo: numbe
 
   const runIds = runs.map((r) => r.id as string);
   const categoryByRun = new Map(runs.map((r) => [r.id as string, r.prompt_category_snapshot as string]));
-  // Gewicht per run (volume × waarde), bevroren op meetmoment. Fallback 0,1 (ondergrens).
-  const weightByRun = new Map(runs.map((r) => [r.id as string, Number(r.prompt_weight ?? 0.1)]));
+  // Gewicht per run (volume × waarde), bevroren op meetmoment. Ontbreekt het
+  // (oude rij, of handmatige prompt zonder tags), dan het NEUTRALE gewicht —
+  // niet de ondergrens, zie NEUTRAL_WEIGHT (optimalisatie.md 0.10).
+  const weightByRun = new Map(runs.map((r) => [r.id as string, Number(r.prompt_weight ?? NEUTRAL_WEIGHT)]));
 
   const { data: mentionRows } = await admin.from("tracking_run_mentions").select("*").in("tracking_run_id", runIds);
   const mentions = mentionRows ?? [];
@@ -230,10 +232,10 @@ async function computeAggregates(admin: Admin, analysisId: string, weekNo: numbe
 
   // Gewogen zichtbaarheid: Σ gewicht van beoordeelde runs waarin het merk
   // genoemd wordt ÷ Σ gewicht van alle beoordeelde runs.
-  const totalWeight = judgedRunIds.reduce((sum, id) => sum + (weightByRun.get(id) ?? 0.1), 0);
+  const totalWeight = judgedRunIds.reduce((sum, id) => sum + (weightByRun.get(id) ?? NEUTRAL_WEIGHT), 0);
   const ownWeight = judgedRunIds.reduce((sum, id) => {
     const own = ownByRun.get(id);
-    return sum + (own?.mentioned ? (weightByRun.get(id) ?? 0.1) : 0);
+    return sum + (own?.mentioned ? (weightByRun.get(id) ?? NEUTRAL_WEIGHT) : 0);
   }, 0);
   const weightedScore = totalWeight > 0 ? Math.round((ownWeight / totalWeight) * 100) : 0;
 
