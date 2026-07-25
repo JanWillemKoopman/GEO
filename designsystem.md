@@ -12,7 +12,10 @@ Dit document documenteert **beide systemen eerlijk**:
 - **§A — Het lichte kernsysteem**, wat InSpace daadwerkelijk overal gebruikt (kleuren, type, cards, knoppen, micro-interacties).
 - **§B — Het donkere "Aura"-paneel**, de enige plek waar InSpace zelf een dark-mode-esthetiek toont.
 
-**Aanbeveling voor onze app:** omdat jij expliciet een modern, donker, futuristisch dashboard wilt, raad ik aan het **Aura-palet als basis van onze dark mode** te nemen en dat **consistent door de hele app door te trekken** — met InSpace's merk-DNA (de paars/groen-gradient, Aeonik/TTCommons-typografie, pil-vormige radii, gloed-techniek) er bovenop toegepast. Dat is de meest authentieke weg naar "InSpace-gevoel, maar dan volledig dark-mode", zonder iets te verzinnen dat niet in hun eigen merk zit. Zie §C voor de samengevoegde, praktisch bruikbare tokenset.
+> **🔆 VASTGELEGDE KEUZE (herzien juli 2026): de app draait op het LICHTE kernsysteem (§A).**
+> De app is bewust omgezet van dark mode naar het lichte systeem dat InSpace zelf overal gebruikt — witte/off-white vlakken, zwarte tekst, subtiele grijze randen, neutrale schaduwen, met de paars/groen-gradient, pil-vormen en mono-labels als merk-DNA. Dit is bevestigd met screenshots van de live site (juli 2026): de groene pil-CTA ("Schedule free demo"), paarse getallen/accenten, groene tekst voor positieve indicatoren. **§A is dus leidend voor de implementatie** (`app/globals.css`). §B/§C hieronder beschrijven het donkere Aura-alternatief en blijven bewaard als referentie, maar worden **niet** toegepast in de app.
+
+**Historische aanbeveling (niet meer van toepassing — de app was aanvankelijk dark):** eerder is een dark-mode op basis van het Aura-palet (§B/§C) aangeraden omdat er om een donker futuristisch dashboard werd gevraagd. Die keuze is teruggedraaid ten gunste van het authentieke lichte InSpace-systeem (§A). De onderstaande §B/§C blijven staan voor het geval dark mode ooit als optie terugkomt.
 
 ---
 
@@ -243,6 +246,57 @@ Dit is de **aanbevolen synthese**: InSpace's merk-DNA (kleuren, typografie, radi
 4. **Eén consistente easing overal:** `--ease-standard` voor elke hover/transitie — dit is een klein detail dat opvalt als het ontbreekt.
 5. **Statusindicatie is kleur + vorm, nooit kleur alleen:** een pulserende dot, een pijltje (`↑`/`↓`), of een chip — nooit alleen een kleurverschil (toegankelijkheid).
 6. **Achtergrond-gloed-orbs spaarzaam, groot en zeer vervaagd** (`blur(40–90px)`) achter hero/belangrijke secties — nooit als decoratie in kleine componenten.
+
+---
+
+## §D — Responsive-strategie: desktop-first uitgangspunt, mobiel bewust heruitgevonden
+
+> **Vastgelegd door de opdrachtgever:** de meeste gebruikers openen de app vanaf desktop — dat is het uitgangspunt en waar de volle, dichte ervaring wordt ontworpen. Mobiel is nadrukkelijk **geen verkleinde desktop**: lagere informatiedichtheid vraagt om een andere indeling, niet alleen kleinere componenten. Voor elk schermformaat (mobiel, tablet, desktop) wordt bewust bepaald wat de optimale weergave is — steek daar net zoveel ontwerp-effort in als in desktop. Deze sectie is **leidend voor elk scherm dat vanaf nu gebouwd wordt**, net zoals §A–C leidend zijn voor kleur/type/componenten.
+
+### D1. Breakpoints
+Sluit aan bij de standaard Tailwind-schaal (het project gebruikt Tailwind v4), zodat er geen aparte breakpoint-taal ontstaat:
+
+| Naam | Breedte | Rol |
+|---|---|---|
+| Mobiel (basis, geen prefix) | < 640px | Bewust herontworpen — eigen indeling, niet slechts verkleind |
+| `sm` | ≥ 640px | Overgang; grotere telefoons/kleine tablets in portret |
+| `md` (tablet) | ≥ 768px | Hybride: meestal dichter bij desktop-gedrag, met meer lucht |
+| `lg` (desktop) | ≥ 1024px | **Uitgangspunt** — hier wordt de volle, dichte ervaring ontworpen |
+| `xl` | ≥ 1280px | Extra ademruimte, geen nieuw gedrag |
+
+Tailwind's utility-klassen zijn technisch mobile-first (een kale class is de basis, `lg:class` overschrijft vanaf 1024px). Dat is puur een implementatiedetail. Het **ontwerpproces** blijft desktop-first: bedenk eerst de volle desktop-indeling, ontwerp daarna bewust de mobiele variant — niet andersom, en niet "voeg er wat lg:-classes aan toe".
+
+### D2. Kernprincipe per schermtype
+- **Desktop (uitgangspunt):** hoge informatiedichtheid mag. Meerdere kolommen, data naast elkaar, hover-states, bredere lijsten/tabellen. Hier leeft de volledige ervaring.
+- **Tablet:** meestal een compactere desktop-indeling (niet de mobiele indeling opgerekt). Apart testen — vaak volstaat het bijstellen van marges/kolombreedtes, soms is een eigen tussenstand nodig.
+- **Mobiel:** verticaal, één taak per sectie, progressive disclosure (inklapbare secties in plaats van alles tonen), belangrijkste actie altijd binnen duimbereik. Geen interactie mag afhankelijk zijn van hover — alles moet ook via tap werken.
+
+Praktische mobiele regels:
+- Tikdoelen ≥ 44×44px.
+- Formuliervelden ≥ 16px lettergrootte (voorkomt ongewenste auto-zoom op iOS Safari).
+- Primaire actie op een lang scherm: sticky/vast onderaan, niet pas bereikbaar na scrollen.
+- Dichte content (meerdere datapunten per rij) wordt op mobiel een gestapelde kaart, niet een uitgeknepen tabel.
+
+### D3. Patronen per component-type
+
+| Component | Desktop | Mobiel |
+|---|---|---|
+| Navigatie/tabs | Horizontale tabbalk, alles zichtbaar | Horizontaal scrollbare tabs (al zo gebouwd); bij veel acties overwegen: vaste onderbalk |
+| Lijsten met meerdere datapunten | Tabel-achtige rijen, kolommen naast elkaar | Gestapelde kaarten (al zo gebouwd bij "Mijn analyses") |
+| Formulieren | Mag meerdere kolommen | Altijd één kolom, volledige breedte |
+| Dichte review-/detailschermen | Twee kolommen naast elkaar, secties standaard open | Inklapbare secties (accordion), gegroepeerd, standaard dicht |
+| Belangrijkste call-to-action op een lang scherm | Prominent aan het eind van de sectie | Sticky onderbalk, altijd zichtbaar tijdens scrollen |
+| Grafieken/data-visualisatie | Volledige grafiek, meerdere reeksen | Vereenvoudigd: kernwaarde + eenvoudige sparkline i.p.v. volledige multi-serie grafiek |
+| Modals/detailweergave | Gecentreerde modal | Full-screen sheet (voelt nativer aan dan een kleine modal) |
+
+### D4. Toepassing op het meest kritieke scherm: het concept-/review-scherm
+Dit scherm (abcplan.md §3.6/§3.7 stap 5 — Brand DNA + alle prompts, bewerkbaar, verplicht voor elke analyse) is het informatiedichtste scherm in de app én het enige dat iedere analyse verplicht doorloopt. Dat maakt het de belangrijkste toetssteen van deze strategie:
+
+- **Desktop:** Brand DNA en de promptlijst mogen ruim en met meerdere kolommen worden getoond; secties staan standaard open.
+- **Mobiel:** elk Brand DNA-veldgroep en elke promptcategorie is een **inklapbare sectie, standaard dicht**, zodat de klant niet meteen een muur van tekst en tientallen prompts ziet. De knop **"Bevestig en start meting"** staat **sticky onderaan het scherm**, zodat 'ie na elke wijziging direct bereikbaar is zonder terug te scrollen.
+
+### D5. Werkwijze bij het bouwen
+Voor elk nieuw scherm: ontwerp eerst hoe het er op **desktop (`lg:`)** dicht en compleet uitziet, bepaal daarna expliciet — niet automatisch — hoe diezelfde informatie op **mobiel (basis-klassen)** anders wordt ingedeeld. "Werkt met kleinere Tailwind-classes" is onvoldoende: de layout-structuur zelf mag verschillen (bijvoorbeeld een grid dat op desktop twee kolommen is en op mobiel een chronologische, inklapbare lijst wordt — niet dezelfde grid met `grid-cols-1`).
 
 ---
 
