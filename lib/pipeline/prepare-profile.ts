@@ -46,6 +46,7 @@ export async function prepareProfile(id: string): Promise<ProfileStatus> {
     const research = await generateProfileResearch({
       url: prof.url,
       siteText: crawl.text,
+      profileId: id,
       intake: {
         name: prof.name,
         aliases: prof.aliases,

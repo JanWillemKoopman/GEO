@@ -11,7 +11,7 @@ import "server-only";
  * die site is al eenmalig gecrawld bij het profiel.
  */
 import { callStructured, type StructuredCallResult } from "@/lib/openai/structured";
-import { MODELS } from "@/lib/openai/models";
+import { MODELS, TEMPERATURES } from "@/lib/openai/models";
 import { TopicResearch } from "@/lib/schemas/topic-research";
 import type { Profile, ProfilePage } from "@/lib/types/database";
 
@@ -34,6 +34,8 @@ export async function generateTopicResearch(args: {
   pages: ProfilePage[];
   profile: Profile;
   contentBrief?: string | null;
+  /** Voor de kostenregistratie (optimalisatie.md 0.6). */
+  analysisId: string;
 }): Promise<StructuredCallResult<TopicResearch>> {
   const { topic, pages, profile, contentBrief } = args;
 
@@ -63,5 +65,7 @@ export async function generateTopicResearch(args: {
     schema: TopicResearch,
     schemaName: "topic_research",
     webSearch: true,
+    temperature: TEMPERATURES.analytical,
+    meta: { kind: "topic_research", analysisId: args.analysisId, profileId: profile.id },
   });
 }

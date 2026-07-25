@@ -12,7 +12,7 @@ import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { callPlain, callStructured } from "@/lib/openai/structured";
-import { MODELS } from "@/lib/openai/models";
+import { MODELS, TEMPERATURES, SIMULATION_TEMPERATURE } from "@/lib/openai/models";
 import { measureWebSearchEnabled } from "@/lib/config";
 import { promptWeight } from "@/lib/pipeline/prompt-weight";
 import { Mention } from "@/lib/schemas/mention";
@@ -84,11 +84,18 @@ async function measureOnePrompt(
     //
     // Grounding (web_search) is via MEASURE_WEB_SEARCH uitschakelbaar voor de
     // ontwikkelfase (kostenbesparend). Uit → de AI antwoordt uit eigen kennis.
+    // Bewust GEEN temperature (SIMULATION_TEMPERATURE): we willen weten wat een
+    // AI-assistent een echte gebruiker antwoordt, en die draait ook op de
+    // standaardinstellingen. Zelf temperatuur forceren maakt de meting juist
+    // onrealistisch. De ruis die dit oplevert lossen we op met méér metingen
+    // per vraag (optimalisatie.md 2.1), niet met een lagere temperatuur.
     const a = await callPlain({
       model: MODELS.quality,
       system: SIMULATE_SYSTEM,
       user: prompt.text,
       webSearch: measureWebSearchEnabled,
+      temperature: SIMULATION_TEMPERATURE,
+      meta: { kind: "measure_simulate", analysisId: analysis.id, profileId: analysis.profile_id },
     });
 
     const { data: inserted, error } = await admin
@@ -107,6 +114,11 @@ async function measureOnePrompt(
         raw_response_received_at: new Date().toISOString(),
         openai_response_id: a.responseId,
         tokens_used: a.tokensUsed,
+        // Kosten van 3a op de meting zelf (optimalisatie.md 0.6). De kolom
+        // bestond al vanaf migratie 0001 maar werd nooit gevuld. De 3b-kosten
+        // staan in het ai_calls-logboek; 3a is verreweg de grootste post omdat
+        // daar de web_search in zit.
+        cost_usd: a.costUsd,
       })
       .select("*")
       .single();
@@ -126,6 +138,8 @@ async function measureOnePrompt(
     schema: Mention,
     schemaName: "mention",
     webSearch: false,
+    temperature: TEMPERATURES.deterministic,
+    meta: { kind: "measure_mention", analysisId: analysis.id, profileId: analysis.profile_id },
   });
 
   await admin.from("tracking_runs").update({ mention_json: b.parsed as never }).eq("id", run.id);

@@ -7,7 +7,7 @@ import "server-only";
  * voor het per-analyse onderwerp-onderzoek dat hierop voortbouwt).
  */
 import { callStructured, type StructuredCallResult } from "@/lib/openai/structured";
-import { MODELS } from "@/lib/openai/models";
+import { MODELS, TEMPERATURES } from "@/lib/openai/models";
 import { ProfileResearch } from "@/lib/schemas/profile";
 
 /** Wat de klant zelf in de onboarding aanleverde (leidend — zie prepare-profile.ts). */
@@ -56,6 +56,8 @@ export async function generateProfileResearch(args: {
   url: string;
   siteText: string;
   intake?: ClientIntake;
+  /** Voor de kostenregistratie (optimalisatie.md 0.6). */
+  profileId: string;
 }): Promise<StructuredCallResult<ProfileResearch>> {
   const { url, siteText, intake } = args;
 
@@ -89,5 +91,7 @@ export async function generateProfileResearch(args: {
     schema: ProfileResearch,
     schemaName: "profile_research",
     webSearch: true,
+    temperature: TEMPERATURES.analytical,
+    meta: { kind: "profile_research", profileId: args.profileId },
   });
 }

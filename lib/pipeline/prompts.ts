@@ -15,7 +15,7 @@ import "server-only";
  * de concurrentenlijst en zijn geen concurrerend bedrijf van de klant.
  */
 import { callStructured } from "@/lib/openai/structured";
-import { MODELS } from "@/lib/openai/models";
+import { MODELS, TEMPERATURES } from "@/lib/openai/models";
 import { PromptSet, VolumeCalibration } from "@/lib/schemas/prompts";
 import { PROMPT_CATEGORIES, type PromptIntentType, type PromptSpecificity } from "@/lib/types/database";
 import { promptsPerFunnelStage } from "@/lib/config";
@@ -106,6 +106,7 @@ function buildContextBlock(url: string, topic: string, brand: BrandContext): str
 
 async function generateForFunnelStage(args: {
   category: string;
+  analysisId: string;
   url: string;
   topic: string;
   brand: BrandContext;
@@ -113,7 +114,7 @@ async function generateForFunnelStage(args: {
   tokens: string[];
   contentBrief?: string | null;
 }): Promise<GeneratedPrompt[]> {
-  const { category, url, topic, brand, count, tokens, contentBrief } = args;
+  const { category, analysisId, url, topic, brand, count, tokens, contentBrief } = args;
 
   const scopeRule = `Alle prompts gaan UITSLUITEND over "${topic}" binnen deze branche.`;
 
@@ -159,6 +160,8 @@ async function generateForFunnelStage(args: {
     schema: PromptSet,
     schemaName: "prompt_set",
     webSearch: false,
+    temperature: TEMPERATURES.creative,
+    meta: { kind: "prompts", analysisId: args.analysisId },
   });
 
   // Vangnet: gooi prompts weg die tóch de eigen merknaam of een concurrent bevatten
@@ -186,7 +189,7 @@ async function generateForFunnelStage(args: {
  * Geeft per prompt een 0-100-waarde terug (op input-volgorde). Faalt de call,
  * dan vallen we terug op een neutrale 50 (blokkeert de analyse niet).
  */
-async function calibrateVolumes(prompts: GeneratedPrompt[]): Promise<number[]> {
+async function calibrateVolumes(prompts: GeneratedPrompt[], analysisId: string): Promise<number[]> {
   if (prompts.length === 0) return [];
   const numbered = prompts.map((p, i) => `${i + 1}. ${p.text}`).join("\n");
   try {
@@ -201,6 +204,8 @@ async function calibrateVolumes(prompts: GeneratedPrompt[]): Promise<number[]> {
       schema: VolumeCalibration,
       schemaName: "volume_calibration",
       webSearch: false,
+      temperature: TEMPERATURES.analytical,
+      meta: { kind: "volume_calibration", analysisId },
     });
     const byIndex = new Map<number, number>();
     for (const w of result.parsed.weights) {
@@ -218,6 +223,8 @@ async function calibrateVolumes(prompts: GeneratedPrompt[]): Promise<number[]> {
  * orchestratie (prepare.ts) markeert de analyse dan als 'mislukt' met retry.
  */
 export async function generatePrompts(args: {
+  /** Voor de kostenregistratie (optimalisatie.md 0.6). */
+  analysisId: string;
   url: string;
   topic: string;
   brand: BrandContext;
@@ -232,6 +239,6 @@ export async function generatePrompts(args: {
   const prompts = perStage.flat();
 
   // Relatieve volume-kalibratie over alle prompts samen (consistenter).
-  const volumes = await calibrateVolumes(prompts);
+  const volumes = await calibrateVolumes(prompts, args.analysisId);
   return prompts.map((p, i) => ({ ...p, volumeEstimate: volumes[i] }));
 }

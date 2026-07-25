@@ -9,7 +9,7 @@ import "server-only";
  */
 import { createAdminClient } from "@/lib/supabase/admin";
 import { callStructured } from "@/lib/openai/structured";
-import { MODELS } from "@/lib/openai/models";
+import { MODELS, TEMPERATURES } from "@/lib/openai/models";
 import { GapAnalysis } from "@/lib/schemas/gap-analysis";
 import { Report } from "@/lib/schemas/report";
 import { sendReportEmail } from "@/lib/email/report-email";
@@ -266,6 +266,8 @@ export async function generateReport(id: string, weekNo = 0): Promise<AnalysisSt
       schema: GapAnalysis,
       schemaName: "gap_analysis",
       webSearch: false,
+      temperature: TEMPERATURES.analytical,
+      meta: { kind: "gap_analysis", analysisId: id, profileId: analysis.profile_id },
     });
 
     // B2 — leesbaar rapport + aanbevelingen
@@ -276,6 +278,8 @@ export async function generateReport(id: string, weekNo = 0): Promise<AnalysisSt
       schema: Report,
       schemaName: "report",
       webSearch: false,
+      temperature: TEMPERATURES.analytical,
+      meta: { kind: "report", analysisId: id, profileId: analysis.profile_id },
     });
 
     await admin.from("reports").insert({

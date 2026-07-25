@@ -23,7 +23,7 @@ import "server-only";
  */
 import { createAdminClient } from "@/lib/supabase/admin";
 import { callStructured } from "@/lib/openai/structured";
-import { MODELS } from "@/lib/openai/models";
+import { MODELS, TEMPERATURES } from "@/lib/openai/models";
 import { ContentPiece } from "@/lib/schemas/content-piece";
 import { Critique } from "@/lib/schemas/critique";
 import { validateOrRebuildJsonLd } from "@/lib/schema-jsonld";
@@ -256,6 +256,8 @@ export async function generateContentPiece(args: {
     schema: ContentPiece,
     schemaName: "content_piece",
     webSearch: false,
+    temperature: TEMPERATURES.content,
+    meta: { kind: "content_draft", analysisId, profileId: analysis.profile_id },
   });
 
   // ── 2. Redactie/kritiek (goedkoop model) ─────────────────────────────────
@@ -266,6 +268,8 @@ export async function generateContentPiece(args: {
     schema: Critique,
     schemaName: "content_critique",
     webSearch: false,
+    temperature: TEMPERATURES.deterministic,
+    meta: { kind: "content_critique", analysisId, profileId: analysis.profile_id },
   });
 
   let final = draft.parsed;
@@ -288,6 +292,8 @@ export async function generateContentPiece(args: {
       schema: ContentPiece,
       schemaName: "content_piece",
       webSearch: false,
+      temperature: TEMPERATURES.content,
+      meta: { kind: "content_revise", analysisId, profileId: analysis.profile_id },
     });
     final = revised.parsed;
     finalContentRaw = revised.raw;
@@ -300,6 +306,8 @@ export async function generateContentPiece(args: {
       schema: Critique,
       schemaName: "content_critique",
       webSearch: false,
+      temperature: TEMPERATURES.deterministic,
+      meta: { kind: "content_critique", analysisId, profileId: analysis.profile_id },
     });
     score = critique2.parsed.qualityScore;
     followsRules = critique2.parsed.followsRules;

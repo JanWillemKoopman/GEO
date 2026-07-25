@@ -228,6 +228,25 @@ export interface ContentPiece {
   created_at: string;
 }
 
+/**
+ * Kostenregistratie per AI-aanroep (optimalisatie.md 0.6, migratie 0012).
+ * Deny-all in RLS: uitsluitend te lezen via een service-role route.
+ */
+export interface AiCall {
+  id: string;
+  analysis_id: string | null;
+  profile_id: string | null;
+  kind: string;
+  model: string;
+  input_tokens: number | null;
+  output_tokens: number | null;
+  total_tokens: number | null;
+  web_search: boolean;
+  cost_usd: number | null;
+  openai_response_id: string | null;
+  created_at: string;
+}
+
 export interface Job {
   id: string;
   analysis_id: string;

@@ -71,6 +71,7 @@ export async function prepareAnalysis(id: string): Promise<AnalysisStatus> {
         .select("*")
         .eq("profile_id", profile.id);
       const research = await generateTopicResearch({
+        analysisId: id,
         topic: analysis.topic,
         pages: (pageRows ?? []) as ProfilePage[],
         profile,
@@ -113,6 +114,7 @@ export async function prepareAnalysis(id: string): Promise<AnalysisStatus> {
       };
 
       const prompts = await generatePrompts({
+        analysisId: id,
         url: profile.url,
         topic: analysis.topic,
         brand,
