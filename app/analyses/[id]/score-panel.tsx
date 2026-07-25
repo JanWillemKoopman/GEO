@@ -8,18 +8,28 @@ import type { VisibilityScore, CompetitorBreakdown } from "@/lib/types/database"
  */
 export function ScorePanel({
   score,
-  activePromptCount,
+  measuredRunCount,
   competitors,
 }: {
   score: VisibilityScore;
-  activePromptCount: number;
+  /**
+   * Aantal daadwerkelijke metingen in deze week — de enige juiste noemer voor de
+   * concurrentiepercentages (optimalisatie.md 0.1). Eerder werd hier het HUIDIGE
+   * aantal actieve prompts gebruikt, terwijl `mentions_count` uit historische
+   * runs komt: zette de klant een prompt uit, dan schoten de balken boven 100%.
+   */
+  measuredRunCount: number;
   competitors: CompetitorBreakdown[];
 }) {
   const rows = [
     { label: "Jij", percent: Math.round(score.score), isOwnBrand: true },
     ...competitors.map((c) => ({
       label: c.competitor_name,
-      percent: activePromptCount > 0 ? Math.round((c.mentions_count / activePromptCount) * 100) : 0,
+      // Vangnet: ook met de juiste noemer kan een concurrent theoretisch vaker
+      // geteld worden dan er runs zijn (dubbele entiteit vóór fase 2.4) — dan
+      // liever afkappen op 100 dan een onmogelijke balk tonen.
+      percent:
+        measuredRunCount > 0 ? Math.min(100, Math.round((c.mentions_count / measuredRunCount) * 100)) : 0,
       isOwnBrand: false,
     })),
   ];

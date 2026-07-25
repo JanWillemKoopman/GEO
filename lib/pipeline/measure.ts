@@ -55,6 +55,16 @@ function buildMentionUser(
 
 type Admin = SupabaseClient;
 
+/**
+ * Welk deel van de prompts moet minimaal slagen voordat we de meting bruikbaar
+ * noemen (optimalisatie.md 0.4b)? Onder deze drempel is de score gebaseerd op
+ * te weinig vragen om iets te betekenen, en falen we liever eerlijk.
+ *
+ * Met de retries uit 0.4 zou een enkele mislukking al zeldzaam moeten zijn; deze
+ * drempel is het vangnet daaronder, niet de eerste verdedigingslinie.
+ */
+const MIN_SUCCESS_RATIO = 0.7;
+
 async function measureOnePrompt(
   admin: Admin,
   analysis: Analysis,
@@ -176,16 +186,52 @@ async function computeAggregates(admin: Admin, analysisId: string, weekNo: numbe
   const { data: mentionRows } = await admin.from("tracking_run_mentions").select("*").in("tracking_run_id", runIds);
   const mentions = mentionRows ?? [];
 
+  // Eigen-merk-rij per run. De classificatie hoort er precies één per run te
+  // geven, maar kan er meer teruggeven (bv. merknaam én alias als losse
+  // entiteiten). Voorheen won dan willekeurig de LAATSTE rij, wat betekende dat
+  // een "niet genoemd"-rij een "wel genoemd"-rij kon overschrijven en de score
+  // stilletjes verlaagde. Nu een expliciete samenvoegregel (optimalisatie.md 0.3):
+  // genoemd wint van niet-genoemd; bij twee keer genoemd telt de vroegste positie.
   const ownByRun = new Map<string, (typeof mentions)[number]>();
-  for (const m of mentions) if (m.is_own_brand) ownByRun.set(m.tracking_run_id, m);
+  for (const m of mentions) {
+    if (!m.is_own_brand) continue;
+    const current = ownByRun.get(m.tracking_run_id);
+    if (!current) {
+      ownByRun.set(m.tracking_run_id, m);
+      continue;
+    }
+    if (m.mentioned && !current.mentioned) {
+      ownByRun.set(m.tracking_run_id, m);
+      continue;
+    }
+    if (m.mentioned && current.mentioned) {
+      const currentPos = current.position ?? Number.MAX_SAFE_INTEGER;
+      const candidatePos = m.position ?? Number.MAX_SAFE_INTEGER;
+      if (candidatePos < currentPos) ownByRun.set(m.tracking_run_id, m);
+    }
+  }
 
-  const totalRuns = runIds.length;
+  // Alleen BEOORDEELDE runs tellen mee in de score (optimalisatie.md 0.2, zelfde
+  // regel als in report.ts). Een run zonder eigen-merk-oordeel betekent dat 3b
+  // faalde — dat is onbekend, niet "niet genoemd". Meetellen als niet-genoemd
+  // zou de score verlagen door een technisch probleem, en score en rapport
+  // zouden elkaar tegenspreken.
+  const judgedRunIds = runIds.filter((id) => ownByRun.has(id));
+  const judgedRuns = judgedRunIds.length;
+  if (judgedRuns < runIds.length) {
+    console.warn(
+      `Analyse ${analysisId} week ${weekNo}: ${runIds.length - judgedRuns} van ${runIds.length} ` +
+        `metingen zonder eigen-merk-oordeel; die tellen niet mee in de score.`,
+    );
+  }
+
   const ownMentionedCount = Array.from(ownByRun.values()).filter((m) => m.mentioned).length;
-  const score = totalRuns > 0 ? Math.round((ownMentionedCount / totalRuns) * 100) : 0;
+  const score = judgedRuns > 0 ? Math.round((ownMentionedCount / judgedRuns) * 100) : 0;
 
-  // Gewogen zichtbaarheid: Σ gewicht van runs waarin het merk genoemd wordt ÷ Σ gewicht van alle runs.
-  const totalWeight = runIds.reduce((sum, id) => sum + (weightByRun.get(id) ?? 0.1), 0);
-  const ownWeight = runIds.reduce((sum, id) => {
+  // Gewogen zichtbaarheid: Σ gewicht van beoordeelde runs waarin het merk
+  // genoemd wordt ÷ Σ gewicht van alle beoordeelde runs.
+  const totalWeight = judgedRunIds.reduce((sum, id) => sum + (weightByRun.get(id) ?? 0.1), 0);
+  const ownWeight = judgedRunIds.reduce((sum, id) => {
     const own = ownByRun.get(id);
     return sum + (own?.mentioned ? (weightByRun.get(id) ?? 0.1) : 0);
   }, 0);
@@ -297,12 +343,31 @@ export async function measureAnalysis(id: string, weekNo = 0): Promise<AnalysisS
       prompts.map((p) => measureOnePrompt(admin, typedAnalysis, ownLabel, ownAliases, competitors, p, weekNo)),
     );
     const failed = results.filter((r) => r.status === "rejected") as PromiseRejectedResult[];
+
+    // Deels gelukt is GELUKT (optimalisatie.md 0.4b). Voorheen liet één mislukte
+    // prompt de hele meting falen, inclusief de elf die wél slaagden: de klant
+    // zag "mislukt" terwijl er bruikbare data lag, en een nieuwe poging kostte
+    // opnieuw tijd. Nu bepaalt een drempel of het resultaat bruikbaar is.
+    //
+    // De al gemeten prompts blijven hoe dan ook bewaard (idempotent per prompt),
+    // dus een volgende poging vult alleen de gaten en meet niets dubbel.
     if (failed.length > 0) {
-      // De echte onderliggende reden meesturen (werd voorheen ingeslikt door allSettled).
       const reason = failed[0].reason;
       const detail = reason instanceof Error ? reason.message : String(reason);
-      throw new Error(
-        `${failed.length} van ${results.length} prompts mislukt tijdens meting. Eerste fout: ${detail}`,
+      const succeeded = results.length - failed.length;
+
+      // Onder de drempel is het geen meting meer maar een steekproef met te
+      // weinig grond — dan liever eerlijk falen dan een misleidende score tonen.
+      const ratio = results.length > 0 ? succeeded / results.length : 0;
+      if (succeeded === 0 || ratio < MIN_SUCCESS_RATIO) {
+        throw new Error(
+          `${failed.length} van ${results.length} prompts mislukt tijdens meting. Eerste fout: ${detail}`,
+        );
+      }
+
+      console.warn(
+        `Analyse ${id} week ${weekNo}: ${failed.length} van ${results.length} prompts mislukt, ` +
+          `meting gaat door met ${succeeded}. Eerste fout: ${detail}`,
       );
     }
 

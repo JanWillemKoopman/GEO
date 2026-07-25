@@ -180,7 +180,23 @@ async function computeMissedPrompts(
     .select("tracking_run_id, mentioned")
     .eq("is_own_brand", true)
     .in("tracking_run_id", runIds);
+
+  // Drie toestanden, geen twee (optimalisatie.md 0.2):
+  //   true  = beoordeeld en genoemd
+  //   false = beoordeeld en NIET genoemd  → dit is een echte gemiste kans
+  //   afwezig = niet beoordeeld (3b faalde, of gaf geen eigen-merk-rij terug)
+  //             → een DATAPROBLEEM, geen gemiste kans.
+  // Voorheen liepen die laatste twee door elkaar: een mislukte classificatie
+  // werd als gemiste kans het rapport in geduwd en leverde een aanbeveling op
+  // voor een vraag waar de klant misschien juist wél genoemd werd.
   const ownMentioned = new Map((ownRows ?? []).map((m) => [m.tracking_run_id as string, m.mentioned as boolean]));
+  const unjudged = runs.filter((r) => !ownMentioned.has(r.id as string)).length;
+  if (unjudged > 0) {
+    console.warn(
+      `Analyse ${analysisId} week ${weekNo}: ${unjudged} van ${runs.length} metingen zonder ` +
+        `eigen-merk-oordeel. Die tellen NIET als gemiste kans; ze wijzen op een mislukte 3b.`,
+    );
+  }
 
   const { data: tagRows } = await admin
     .from("prompts")
@@ -189,7 +205,8 @@ async function computeMissedPrompts(
   const tagByPrompt = new Map((tagRows ?? []).map((p) => [p.id as string, p]));
 
   return runs
-    .filter((r) => !ownMentioned.get(r.id as string)) // niet genoemd (of geen own-rij) = gemist
+    // Alleen expliciet beoordeeld-en-niet-genoemd telt als gemiste kans.
+    .filter((r) => ownMentioned.get(r.id as string) === false)
     .map((r) => {
       const tag = r.prompt_id ? tagByPrompt.get(r.prompt_id as string) : undefined;
       return {
