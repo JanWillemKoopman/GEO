@@ -29,6 +29,7 @@ import "server-only";
  * pagina zou citeren (4.5).
  */
 import { createAdminClient } from "@/lib/supabase/admin";
+import { currentPiece } from "@/lib/jobs/content-jobs";
 import { callStructured } from "@/lib/openai/structured";
 import { MODELS, TEMPERATURES } from "@/lib/openai/models";
 import { ContentPiece } from "@/lib/schemas/content-piece";
@@ -557,15 +558,13 @@ export async function draftContentPiece(args: {
   // De idempotentie zat op de titel en blokkeerde opnieuw genereren volledig:
   // een pagina met "check nodig" liep dood. Nu is de huidige versie het
   // aanknopingspunt — hervatten bij een draft, of een nieuwe versie beginnen.
-  const { data: currentRow } = await admin
-    .from("content_pieces")
-    .select("id, status, version")
-    .eq("analysis_id", analysisId)
-    .eq("title", recommendation.title)
-    .eq("is_current", true)
-    .maybeSingle();
-
-  const current = currentRow as { id: string; status: string; version: number } | null;
+  //
+  // Via dezelfde helper als de inplanroute (lib/jobs/content-jobs.ts). Stond
+  // hier als een eigen query ZONDER `order`/`limit`, terwijl de helper daar
+  // juist voor bestaat: met meerdere versies onder één titel geeft
+  // `maybeSingle()` een fout, en die werd hier niet uitgelezen — dan leek er
+  // geen huidige versie te zijn en kwam er een duplicaat bij.
+  const current = await currentPiece(admin, analysisId, recommendation.title);
 
   if (current && current.status !== "draft" && !regenerate) {
     return { contentPieceId: current.id, needsRevise: false, issues: [] };
@@ -621,7 +620,15 @@ export async function draftContentPiece(args: {
     analysis_id: analysisId,
     report_id: reportId,
     type: recommendation.type,
-    title: draft.parsed.title,
+    // ⚠️ De titel van de AANBEVELING, niet die van het model. Het model mag zijn
+    // eigen titel voorstellen (hij staat in raw_json), maar de hele app zoekt
+    // deze pagina op de titel uit het rapport: de poll-route van de knop, de
+    // "al gegenereerd"-markering op het rapportscherm, en de dedupe-sleutel van
+    // de schrijftaak. Wijkt de opgeslagen titel daarvan af, dan vindt geen van
+    // die drie de pagina nog — de knop blijft eeuwig "bezig", de teller loopt
+    // niet terug, en elke volgende klik maakt een duplicaat met volle
+    // gpt-4.1-kosten. Eén bron van waarheid, en dat is het rapport.
+    title: recommendation.title,
     target_intent: draft.parsed.targetIntent,
     cluster: draft.parsed.cluster,
     body_markdown: draft.parsed.bodyMarkdown,
@@ -629,7 +636,7 @@ export async function draftContentPiece(args: {
     meta_description: draft.parsed.metaDescription,
     schema_jsonld: validateOrRebuildJsonLd(draft.parsed.schemaJsonLd, {
       type: recommendation.type,
-      title: draft.parsed.title,
+      title: recommendation.title,
       description: draft.parsed.metaDescription,
       url: analysis.url,
       faq: draft.parsed.faq,
@@ -657,18 +664,37 @@ export async function draftContentPiece(args: {
 
   let contentPieceId: string | undefined;
   if (resumeId) {
-    contentPieceId = (await admin.from("content_pieces").update(row).eq("id", resumeId).select("id").single())
-      .data?.id as string | undefined;
+    const { data, error } = await admin
+      .from("content_pieces")
+      .update(row)
+      .eq("id", resumeId)
+      .select("id")
+      .single();
+    if (error) throw new Error(`Opslaan van de gegenereerde pagina mislukt: ${error.message}`);
+    contentPieceId = data?.id as string | undefined;
   } else {
-    contentPieceId = (await admin.from("content_pieces").insert(row).select("id").single()).data?.id as
-      | string
-      | undefined;
-    // Pas de vlag omzetten NÁ het aanmaken van de nieuwe rij: gaat de insert
-    // stuk, dan blijft de oude versie de huidige en staat de klant niet ineens
-    // zonder pagina.
-    if (contentPieceId && current) {
+    // De oude versie EERST afvlaggen, dan pas de nieuwe invoegen. Migratie 0023
+    // dwingt af dat er maar één huidige versie per (analyse, titel) bestaat —
+    // precies om de duplicaten te voorkomen die eerder ontstonden — en dus zou
+    // invoegen-vóór-afvlaggen op die index botsen.
+    //
+    // Wat het oude commentaar hier terecht wilde beschermen (de klant mag nooit
+    // zonder huidige pagina komen te staan als het invoegen stukloopt) doen we
+    // nu expliciet: bij een mislukking zetten we de vlag terug.
+    if (current) {
       await admin.from("content_pieces").update({ is_current: false }).eq("id", current.id);
     }
+
+    const { data, error } = await admin.from("content_pieces").insert(row).select("id").single();
+    if (error || !data) {
+      if (current) {
+        await admin.from("content_pieces").update({ is_current: true }).eq("id", current.id);
+      }
+      throw new Error(
+        `Opslaan van de gegenereerde pagina mislukt: ${error?.message ?? "geen rij teruggekregen"}`,
+      );
+    }
+    contentPieceId = data.id as string;
   }
 
   if (!contentPieceId) throw new Error("Opslaan van de gegenereerde pagina mislukt.");
@@ -744,7 +770,10 @@ export async function reviseContentPiece(args: {
   await admin
     .from("content_pieces")
     .update({
-      title: final.title,
+      // `title` bewust NIET bijwerken: de titel uit het rapport is de sleutel
+      // waarop de rest van de app deze pagina terugvindt (zie de toelichting bij
+      // het invoegen in draftContentPiece). De herschrijfronde mag de inhoud
+      // veranderen, niet waar de pagina heet.
       target_intent: final.targetIntent,
       cluster: final.cluster,
       body_markdown: final.bodyMarkdown,
@@ -752,7 +781,7 @@ export async function reviseContentPiece(args: {
       meta_description: final.metaDescription,
       schema_jsonld: validateOrRebuildJsonLd(final.schemaJsonLd, {
         type: recommendation.type,
-        title: final.title,
+        title: recommendation.title,
         description: final.metaDescription,
         url: analysis.url,
         faq: final.faq,

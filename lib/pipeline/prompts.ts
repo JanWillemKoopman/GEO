@@ -318,6 +318,19 @@ export async function generatePrompts(args: {
   );
   const prompts = perStage.flat();
 
+  // Zonder vragen is er niets te meten, en een analyse die daar tóch mee
+  // doorloopt komt nooit meer verder: de meting plant nul taken in, dus de
+  // aggregatie en het rapport worden nooit afgetrapt en de klant kijkt naar een
+  // voortgangsscherm dat eeuwig draait. Liever hier eerlijk falen — de wachtrij
+  // probeert het opnieuw, en lukt het dan nog niet, dan ziet de klant een
+  // fout met een retry-knop in plaats van stilstand.
+  if (prompts.length === 0) {
+    throw new Error(
+      "Promptgeneratie leverde geen enkele bruikbare vraag op. Meestal komt dat doordat de " +
+        "merk- of concurrentnaam samenvalt met de categoriewoorden van het onderwerp.",
+    );
+  }
+
   // Relatieve volume-kalibratie over alle prompts samen (consistenter).
   const volumes = await calibrateVolumes(prompts, args.analysisId);
   return prompts.map((p, i) => ({ ...p, volumeEstimate: volumes[i] }));

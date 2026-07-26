@@ -68,7 +68,11 @@ export async function prepareProfile(id: string): Promise<ProfileStatus> {
     // Klant leidend, AI vult aan (abcplan.md §12.24): scalars die de klant zelf
     // invulde blijven staan; producten/concurrenten worden een unie; de rest
     // komt van de AI. Zo staat er altijd iets (AI garandeert non-empty velden).
-    await admin
+    // Foutcontrole: zonder dit gaf deze functie "klaar" terug terwijl het profiel
+    // op 'bezig' bleef staan. De taak werd dan afgevinkt, maar het profiel hing —
+    // en elke poging om er een analyse mee te starten liep op een 409 ("nog niet
+    // klaar met onderzoeken") zonder dat er nog iets draaide om dat op te lossen.
+    const { error: saveError } = await admin
       .from("profiles")
       .update({
         brand_name: filled(prof.brand_name) ? prof.brand_name : p.brandName || prof.name,
@@ -87,6 +91,10 @@ export async function prepareProfile(id: string): Promise<ProfileStatus> {
         status: "klaar",
       })
       .eq("id", id);
+
+    if (saveError) {
+      throw new Error(`Profielonderzoek opslaan mislukt voor profiel ${id}: ${saveError.message}`);
+    }
 
     const pages = await inventoryPromise;
     await admin.from("profile_pages").delete().eq("profile_id", id);

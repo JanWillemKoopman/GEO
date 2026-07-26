@@ -23,6 +23,7 @@ import { planImpactMeasurements, computeImpact } from "@/lib/pipeline/impact";
 import { verifyPublication } from "@/lib/pipeline/publish";
 import { runOffsiteScan } from "@/lib/offsite/scan";
 import { enqueue, dedupe } from "@/lib/jobs/queue";
+import { countOpenPeriodicMeasurements } from "@/lib/jobs/pending";
 import type { JobType, JobPayloads, RecommendationPayload } from "@/lib/jobs/types";
 import type { Job } from "@/lib/types/database";
 
@@ -65,19 +66,21 @@ async function scheduleAggregateIfLastPrompt(
   weekNo: number,
   currentJobId: string,
 ): Promise<void> {
-  const { count: remaining } = await admin
+  const { data: openJobs } = await admin
     .from("jobs")
-    .select("id", { count: "exact", head: true })
+    .select("id, payload_json")
     .eq("analysis_id", analysisId)
     .eq("type", "measure_prompt")
     .in("status", ["queued", "running"])
-    .contains("payload_json", { weekNo })
     // De taak die dit aanroept staat zélf nog op 'running' — zonder deze
     // uitsluiting is `remaining` altijd minstens 1 en wordt de aggregatie
     // nooit ingepland.
     .neq("id", currentJobId);
 
-  if ((remaining ?? 0) > 0) return;
+  // De filtering op periode gebeurt hier en niet met `.contains()` in de query,
+  // omdat een impactmeting óók `weekNo: 0` meedraagt — zie de toelichting in
+  // lib/jobs/pending.ts, waar deze voorwaarde als testbare functie staat.
+  if (countOpenPeriodicMeasurements(openJobs ?? [], weekNo) > 0) return;
 
   await enqueue(admin, {
     type: "aggregate_week",
@@ -292,6 +295,34 @@ const handlers: { [T in JobType]: Handler<T> } = {
     });
   },
 };
+
+/**
+ * De keten doorzetten nadat een taak DEFINITIEF mislukt is (na alle pogingen).
+ *
+ * Zonder dit blijft een analyse voorgoed hangen zodra één van de dertig vragen
+ * niet te meten valt. De keten hangt namelijk aan de GESLAAGDE meting: die kijkt
+ * of ze de laatste was en plant dan de aggregatie in. Is de laatste openstaande
+ * taak juist de taak die opgeeft, dan doet niemand dat meer — de analyse blijft
+ * op 'meten' staan met een voortgangsscherm dat nooit verder komt.
+ *
+ * Dat terwijl de drempelcontrole (MIN_SUCCESS_RATIO, zie measurementIsUsable)
+ * 29 van de 30 ruimschoots goedkeurt. Die controle zit alleen ín de
+ * aggregatietaak, en die ontstond dus nooit. Deze functie repareert precies dat
+ * gat: mislukken is een uitkomst waar de keten mee door kan, niet een stilstand.
+ *
+ * Wordt aangeroepen NADAT de taak op 'failed' staat, dus hij telt niet meer mee
+ * als openstaand werk.
+ */
+export async function scheduleFollowUpAfterFailure(admin: Admin, job: Job): Promise<void> {
+  if ((job.type as JobType) !== "measure_prompt" || !job.analysis_id) return;
+
+  const payload = (job.payload_json ?? {}) as JobPayloads["measure_prompt"];
+  if (payload.impact) {
+    await scheduleImpactIfLastRun(admin, job.analysis_id, payload.impact, job.id);
+    return;
+  }
+  await scheduleAggregateIfLastPrompt(admin, job.analysis_id, payload.weekNo, job.id);
+}
 
 /** Voert één taak uit. Gooit bij mislukking — de werker regelt de nieuwe poging. */
 export async function runJob(ctx: JobContext): Promise<void> {

@@ -139,10 +139,26 @@ export async function prepareAnalysis(id: string): Promise<AnalysisStatus> {
         created_by: "system" as const,
         source_raw_json: p.sourceRawJson as never,
       }));
-      await admin.from("prompts").insert(rows);
+      // Foutcontrole is hier geen formaliteit: mislukt deze insert stil, dan
+      // gaat de analyse hieronder naar 'concept_klaar' ZONDER vragen, en loopt
+      // hij na het bevestigen vast op een meting die niets te meten heeft.
+      const { error: insertError } = await admin.from("prompts").insert(rows);
+      if (insertError) {
+        throw new Error(`Vragen opslaan mislukt voor analyse ${id}: ${insertError.message}`);
+      }
     }
 
     // ── Klaar → wacht op klant-goedkeuring (review-gate, Sprint 3) ─────────
+    // Laatste controle vóór de poort: er MOET minstens één vraag staan. Zonder
+    // dat is 'concept_klaar' een belofte die de meting niet kan waarmaken.
+    const { count: finalCount } = await admin
+      .from("prompts")
+      .select("id", { count: "exact", head: true })
+      .eq("analysis_id", id);
+    if (!finalCount) {
+      throw new Error(`Analyse ${id} heeft geen vragen; de meting zou niets te meten hebben.`);
+    }
+
     await admin.from("analyses").update({ status: "concept_klaar" }).eq("id", id);
     return "concept_klaar";
   } catch (err) {

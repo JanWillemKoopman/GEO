@@ -33,6 +33,7 @@ import { buildChangeBlock, isWorthEmailing } from "@/lib/pipeline/period-change-
 import type { PeriodChange } from "@/lib/pipeline/period-change-format";
 import { domainOf } from "@/lib/offsite/domain";
 import { checkUrlFormat } from "@/lib/url";
+import { countOpenPeriodicMeasurements } from "@/lib/jobs/pending";
 
 let passed = 0;
 let failed = 0;
@@ -305,6 +306,31 @@ group("webadres controleren", () => {
   ok("leeg wordt geweigerd", !checkUrlFormat("").ok);
   ok("spaties worden geweigerd", !checkUrlFormat("voor beeld.nl").ok);
   ok("e-mailadres wordt geweigerd", !checkUrlFormat("jan@voorbeeld.nl").ok);
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+console.log("\nWanneer is een meetronde klaar (optimalisatie.md 1.5)");
+
+group("openstaande periodieke metingen tellen", () => {
+  const periodiek = (weekNo: number) => ({ payload_json: { promptId: "p", weekNo } });
+  const impact = (weekNo: number) => ({
+    payload_json: { promptId: "p", weekNo, impact: { purpose: "impact", contentPieceId: "c", wave: 1 } },
+  });
+
+  ok("niets open → 0", countOpenPeriodicMeasurements([], 0) === 0);
+  ok("twee van dezelfde periode", countOpenPeriodicMeasurements([periodiek(0), periodiek(0)], 0) === 2);
+  ok("andere periode telt niet mee", countOpenPeriodicMeasurements([periodiek(1)], 0) === 0);
+
+  // De kern: een hermeting ná publicatie draagt óók weekNo 0 mee, maar hoort
+  // niet bij de periodieke ronde. Telde die wel mee, dan bleef de aggregatie
+  // van de nulmeting wachten op werk dat er niets mee te maken heeft.
+  ok("impactmeting telt niet mee", countOpenPeriodicMeasurements([impact(0)], 0) === 0);
+  ok("gemengd: alleen de periodieke", countOpenPeriodicMeasurements([periodiek(0), impact(0)], 0) === 1);
+
+  // Een payload zonder periode is geen periodieke meting van periode 0 — anders
+  // zou een kapotte rij de aggregatie eeuwig tegenhouden.
+  ok("lege payload telt niet mee", countOpenPeriodicMeasurements([{ payload_json: null }], 0) === 0);
+  ok("payload zonder weekNo", countOpenPeriodicMeasurements([{ payload_json: { promptId: "p" } }], 0) === 0);
 });
 
 // ════════════════════════════════════════════════════════════════════════════
