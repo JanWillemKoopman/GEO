@@ -95,11 +95,17 @@ create table if not exists public.offsite_tasks (
   updated_at  timestamptz not null default now()
 );
 
-alter table public.offsite_tasks
-  add constraint offsite_tasks_status_check
-    check (status in ('open', 'bezig', 'gedaan', 'niet_relevant')),
-  add constraint offsite_tasks_kind_check
-    check (kind in ('platform', 'wikidata', 'wikipedia', 'overig'));
+do $$
+begin
+  if not exists (select 1 from pg_constraint where conname = 'offsite_tasks_status_check') then
+    alter table public.offsite_tasks add constraint offsite_tasks_status_check
+      check (status in ('open', 'bezig', 'gedaan', 'niet_relevant'));
+  end if;
+  if not exists (select 1 from pg_constraint where conname = 'offsite_tasks_kind_check') then
+    alter table public.offsite_tasks add constraint offsite_tasks_kind_check
+      check (kind in ('platform', 'wikidata', 'wikipedia', 'overig'));
+  end if;
+end $$;
 
 -- Dezelfde taak niet twee keer aanmaken bij een volgende scan.
 create unique index if not exists offsite_tasks_unique_idx
