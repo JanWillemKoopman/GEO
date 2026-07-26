@@ -1245,12 +1245,37 @@ Overweeg om te draaien: vraag alleen naam en website, laat de eerste bevindingen
 vraag de rest op het moment dat duidelijk is waarom het helpt. Maak de uitweg in elk geval
 een gelijkwaardige knop.
 
+*Uitgevoerd.* Het eerste scherm vraagt naam en website en heeft twee GELIJKWAARDIGE knoppen:
+"Start het onderzoek" en "Eerst meer vertellen (4 korte vragen)". De voortgangsbalk verschijnt
+pas als de klant zélf voor de uitgebreide intake koos — "stap 1 van 5" op het eerste scherm
+belooft vier stappen werk die er helemaal niet hoeven te zijn.
+
+De rest vragen we op de profielpagina, ná het onderzoek, via `ProfileGaps`. Per ontbrekend
+veld staat er wat het CONCREET verbetert: niet "maakt je profiel completer" maar *"noemt een AI
+je als 'Jansen BV' terwijl je profiel 'Bakkerij Jansen' zegt, dan tellen we die vermelding niet
+mee — je score is dan te laag"*. Een ondernemer vult geen veld in omdat een balkje anders op
+80% blijft staan.
+
 ### A10 — Eén overzicht over alles heen
 
 Alles is nu per analyse: elke analyse heeft een eigen bibliotheek, eigen rapport, eigen
 score. Een klant met drie analyses heeft geen enkel scherm dat antwoord geeft op *"hoe sta
 ik ervoor en wat moet ik deze week doen?"*. Bouw een startscherm dat over analyses heen
 kijkt: openstaande acties, gepubliceerd deze maand, grootste verandering.
+
+*Uitgevoerd.* `/analyses` opent nu met een actielijst over alle analyses heen. Geen nieuwe
+tabellen — het is een andere doorsnede van dezelfde data.
+
+De VOLGORDE is het advies: technische blokkade → wacht op jouw goedkeuring → er ging iets mis
+→ klaarliggende content → off-site punten → feitenvragen. Van "hier ligt de app stil te wachten
+op jou" naar "hier valt iets te winnen". Wie van boven naar beneden werkt doet automatisch het
+juiste eerst, en de eerste actie krijgt het accent (A1: één duidelijke volgende stap, visueel
+dominant).
+
+Twee keuzes die het bruikbaar houden: per analyse één regel over klaarliggende content en niet
+één per pagina (vijf regels over hetzelfde is geen overzicht), en de "grootste verandering" is
+de grootste BETEKENISVOLLE verandering — een sprong van veertig punten op een analyse met vijf
+vragen is ruis, en die bovenaan een dashboard zetten is het tegendeel van informeren.
 
 ---
 

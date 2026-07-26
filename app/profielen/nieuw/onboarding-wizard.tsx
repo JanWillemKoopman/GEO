@@ -7,11 +7,21 @@ import { TagListEditor } from "@/components/tag-list-editor";
 import { checkUrlFormat } from "@/lib/url";
 
 /**
- * Onboarding-wizard voor een nieuw klantprofiel (abcplan.md §12.24). Begeleide,
- * uitgebreide intake; alleen stap 1 (naam + website) is verplicht. Wat de klant
- * invult is leidend — de AI-research vult daarna aan. De extra velden (aliassen,
- * bereik/regio's, markt, klantvragen) worden ook doorgevoerd in de meting en
- * promptgeneratie.
+ * Onboarding voor een nieuw klantprofiel (abcplan.md §12.24).
+ *
+ * ── WAARDE VÓÓR INSPANNING (optimalisatie.md bijlage A9) ────────────────────
+ *
+ * Dit was een wizard van vijf stappen vóórdat de klant iets terugzag, met als
+ * uitweg een onopvallend grijs regeltje onderaan ("Overslaan en direct
+ * aanmaken"). Dat is de verkeerde volgorde: je vraagt iemand om tien minuten
+ * werk voordat hij weet of dit product iets voor hem is.
+ *
+ * Nu is het omgedraaid. Naam en website, en dan meteen beginnen — dat is genoeg
+ * om het onderzoek te starten. De extra vragen zijn een GELIJKWAARDIGE knop
+ * ernaast, geen grijze uitweg, en de rest vragen we later op het moment dat
+ * duidelijk is waarom het helpt (zie `ProfileGaps` op de profielpagina).
+ *
+ * Wat de klant zelf invult blijft leidend; de AI-research vult alleen aan.
  */
 
 interface FormState {
@@ -127,27 +137,33 @@ export function OnboardingWizard() {
         </Link>
         <h1 className="mt-3 text-3xl font-bold tracking-tight">Nieuw klantprofiel</h1>
         <p className="mt-2 text-secondary">
-          Vertel ons over het merk. Wat je zelf invult houden we aan; de rest zoeken we daarna
-          automatisch voor je uit. Alleen bedrijfsnaam en website zijn verplicht — de rest mag je
-          overslaan.
+          {step === 0
+            ? "Twee velden en we gaan aan de slag. We zoeken zelf uit wat je aanbiedt, wie je concurrenten zijn en hoe zichtbaar je bent in AI-assistenten."
+            : "Wat je hier invult houden we aan; de AI vult alleen aan wat je openlaat. Alles is optioneel — je kunt op elk moment stoppen en aanmaken."}
         </p>
       </div>
 
-      {/* Voortgang */}
-      <div className="flex flex-col gap-2">
-        <span className="mono-label">
-          Stap {step + 1} van {STEP_TITLES.length} — {STEP_TITLES[step]}
-        </span>
-        <div className="flex gap-1.5">
-          {STEP_TITLES.map((_, i) => (
-            <div
-              key={i}
-              className="h-1.5 flex-1 rounded-full"
-              style={{ background: i <= step ? "var(--accent-purple, #8511d9)" : "var(--border-subtle)" }}
-            />
-          ))}
+      {/* Voortgang — alleen zodra de klant zélf voor de uitgebreide intake koos.
+          Een balk met "stap 1 van 5" op het eerste scherm belooft vier stappen
+          werk die er helemaal niet hoeven te zijn. */}
+      {step > 0 && (
+        <div className="flex flex-col gap-2">
+          <span className="mono-label">
+            Extra vraag {step} van {STEP_TITLES.length - 1} — {STEP_TITLES[step]}
+          </span>
+          <div className="flex gap-1.5">
+            {STEP_TITLES.slice(1).map((_, i) => (
+              <div
+                key={i}
+                className="h-1.5 flex-1 rounded-full"
+                style={{
+                  background: i < step ? "var(--accent-purple, #8511d9)" : "var(--border-subtle)",
+                }}
+              />
+            ))}
+          </div>
         </div>
-      </div>
+      )}
 
       <div className="card flex flex-col gap-5">
         {step === 0 && (
@@ -365,46 +381,74 @@ export function OnboardingWizard() {
           </div>
         )}
 
-        <div className="flex items-center justify-between gap-3">
-          <button
-            type="button"
-            onClick={() => setStep((s) => Math.max(0, s - 1))}
-            disabled={step === 0 || pending}
-            className="btn-outline disabled:opacity-40"
-          >
-            Terug
-          </button>
-
-          {isLast ? (
+        {/* Op het EERSTE scherm twee gelijkwaardige knoppen (bijlage A9).
+            Beginnen is de hoofdactie; meer vertellen is een echte keuze en geen
+            grijs regeltje dat je over het hoofd ziet. */}
+        {step === 0 ? (
+          <div className="flex flex-col gap-2">
             <button
               type="button"
               onClick={() => void submit(false)}
               disabled={pending || !canProceed}
               className="btn-primary disabled:opacity-60"
             >
-              {pending ? "Profiel aanmaken…" : "Profiel aanmaken"}
+              {pending ? "Onderzoek starten…" : "Start het onderzoek"}
             </button>
-          ) : (
             <button
               type="button"
-              onClick={() => setStep((s) => s + 1)}
-              disabled={!canProceed}
-              className="btn-primary disabled:opacity-60"
+              onClick={() => setStep(1)}
+              disabled={pending || !canProceed}
+              className="btn-outline disabled:opacity-40"
             >
-              Volgende
+              Eerst meer vertellen ({STEP_TITLES.length - 1} korte vragen)
             </button>
-          )}
-        </div>
+            <span className="text-sm text-muted">
+              Meer vertellen maakt de meting nauwkeuriger, maar het hoeft niet nu — je kunt het
+              later aanvullen. Het onderzoek duurt ongeveer een minuut.
+            </span>
+          </div>
+        ) : (
+          <div className="flex items-center justify-between gap-3">
+            <button
+              type="button"
+              onClick={() => setStep((s) => Math.max(0, s - 1))}
+              disabled={pending}
+              className="btn-outline disabled:opacity-40"
+            >
+              Terug
+            </button>
+
+            {isLast ? (
+              <button
+                type="button"
+                onClick={() => void submit(false)}
+                disabled={pending || !canProceed}
+                className="btn-primary disabled:opacity-60"
+              >
+                {pending ? "Profiel aanmaken…" : "Profiel aanmaken"}
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setStep((s) => s + 1)}
+                disabled={!canProceed}
+                className="btn-primary disabled:opacity-60"
+              >
+                Volgende
+              </button>
+            )}
+          </div>
+        )}
       </div>
 
-      {!isLast && (
+      {step > 0 && !isLast && (
         <button
           type="button"
           onClick={() => void submit(false)}
           disabled={pending || !canProceed}
-          className="mono-label self-center transition-colors hover:text-[var(--text-primary)] disabled:opacity-40"
+          className="btn-outline self-center disabled:opacity-40"
         >
-          Overslaan en direct aanmaken →
+          Klaar — maak het profiel aan
         </button>
       )}
     </div>

@@ -2,8 +2,9 @@ import Link from "next/link";
 import { requireUser } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { StatusBadge } from "@/components/status-badge";
+import { ActionList, DashboardStats } from "@/components/action-list";
 import { STATUS_META } from "@/lib/analysis-status";
-import type { Analysis } from "@/lib/types/database";
+import { loadDashboard } from "@/lib/dashboard";
 
 export const dynamic = "force-dynamic";
 
@@ -12,16 +13,18 @@ function formatDate(iso: string): string {
 }
 
 export default async function AnalysesPage() {
-  await requireUser();
+  const user = await requireUser();
   const supabase = await createClient();
 
-  // Lezen loopt rechtstreeks via RLS (SELECT-only, gefilterd op user_id).
-  const { data } = await supabase
-    .from("analyses")
-    .select("*")
-    .order("created_at", { ascending: false });
+  // Eén overzicht over alle analyses heen (optimalisatie.md bijlage A10).
+  // Alles was per analyse: wie er drie had, moest negen schermen af om te weten
+  // of er iets te doen was — en deed het dus niet.
+  //
+  // Lezen loopt rechtstreeks via RLS (SELECT-only, gefilterd op user_id); de
+  // expliciete user-filter in loadDashboard is een tweede slot op dezelfde deur.
+  const dashboard = await loadDashboard(supabase, user.id);
+  const analyses = [...dashboard.analyses];
 
-  const analyses = (data ?? []) as Analysis[];
   // "Wacht op jouw goedkeuring" bovenaan (abcplan.md §3.4).
   analyses.sort((a, b) => {
     const aAction = STATUS_META[a.status].actionRequired ? 1 : 0;
@@ -40,6 +43,15 @@ export default async function AnalysesPage() {
           + Nieuwe analyse starten
         </Link>
       </div>
+
+      {analyses.length > 0 && (
+        <div className="flex flex-col gap-4">
+          <ActionList actions={dashboard.actions} stats={dashboard.stats} />
+          <DashboardStats stats={dashboard.stats} biggestChange={dashboard.biggestChange} />
+        </div>
+      )}
+
+      {analyses.length > 1 && <span className="mono-label">Je analyses</span>}
 
       {analyses.length === 0 ? (
         <div className="card flex flex-col items-center gap-4 py-16 text-center">

@@ -6,6 +6,7 @@ import { ProfileEditor } from "./profile-editor";
 import { EntitiesManager } from "./entities-manager";
 import { AuditPanel } from "@/components/audit-panel";
 import { FactRequests } from "./fact-requests";
+import { ProfileGaps } from "./profile-gaps";
 import type { AuditCheck } from "@/lib/audit/technical";
 import type { Entity, FactRequest, TechnicalAudit as TechnicalAuditRow } from "@/lib/types/database";
 
@@ -47,6 +48,11 @@ export default async function ProfilePage({ params }: { params: Promise<{ id: st
 
   return (
     <div className="flex flex-col gap-4">
+      {/* Waarde vóór inspanning (bijlage A9): de onboarding vraagt alleen naam
+          en website; de rest vragen we hier, nu de klant het onderzoek heeft
+          zien draaien en weet waar het voor dient. */}
+      <ProfileGaps profile={profile} />
+
       <ProfileEditor initial={profile} inventoryCount={count ?? 0} />
       {audit ? (
         <AuditPanel
