@@ -361,6 +361,42 @@ Zet `gpt-5.6-sol` op **alleen halte 3a en halte C**, en houd de rest op `gpt-5.4
 
 ---
 
+## 7b. Grounding (`web_search`) — wat het kost en waarom het niet uit kan
+
+### De cijfers (aanbevolen config)
+
+| | `low` (~4k) | `med` (~8k) | `high` (~15k) |
+|---|---|---|---|
+| Halte 1 · Brand DNA (1 call) | $0,013 | $0,016 | $0,021 |
+| Halte 3a · Simulatie (30 calls) | $0,420 | $0,540 | $0,750 |
+| **Grounding totaal** | **$0,433** | **$0,556** | **$0,771** |
+| Nulmeting totaal | $0,587 | $0,710 | $0,925 |
+| **Grounding als % van nulmeting** | **74%** | **78%** | **83%** |
+| Nulmeting *zonder* grounding | $0,154 | $0,154 | $0,154 |
+| Per artikel (research-call) | +$0,020 | +$0,030 | +$0,048 |
+
+Per analyse inclusief 10 weken tracking: **$6,02 / $7,35 / $9,66**.
+
+### Grounding uitzetten op halte 3a is geen besparing maar een productdefect
+
+Het verschil lijkt groot — $7,35 tegen ~$1,54 — maar zonder grounding meet je iets anders dan je verkoopt:
+
+1. **De trendlijn wordt betekenisloos.** Zelfde model, zelfde prompt, bevroren gewichten → elke week vrijwel hetzelfde antwoord. `README.md` feature #10 (*"gaat de zichtbaarheid omhoog of omlaag?"*) kan per constructie niets laten zien. Je zou een klant 10 weken lang een vlakke lijn factureren.
+2. **`citedSources` blijft leeg.** Feature #7 (*"welke bronnen citeert de AI?"*) en de hele bewijsketen naar B1 vervallen. Zonder bronnen geen gap-analyse.
+3. **Je meet trainingsgeheugen, niet zichtbaarheid.** Een merk dat vorige maand doorbrak bestaat niet voor een ongegrond model. Dat is exact de klant die je wilt bedienen.
+
+**Grounding op 3a is dus geen kostenpost om te optimaliseren — het is het product.** De 78% is geen inefficiëntie; het is waar je klant voor betaalt.
+
+### Waar de echte knop zit
+
+Niet aan/uit, maar **`search_context_size`**. Van `high` naar `low` scheelt **38%** over een volledige analyse ($9,66 → $6,02) bij hetzelfde aantal metingen en dezelfde gegronde antwoorden.
+
+Aanbeveling: begin op **`medium`**, en test op een handvol analyses of `low` dezelfde mentions en bronnen oplevert. Zo ja, houd `low` — dat is je goedkoopste kwaliteitsneutrale besparing. Zet dit expliciet in de call; vertrouw niet op de default.
+
+De grounding bij halte 1 ($0,016) en bij contentgeneratie (+$0,03/artikel) laat je gewoon aan staan. Verwaarloosbaar, en bij content is het je enige rem op verzonnen cijfers in tekst die de klant publiceert.
+
+---
+
 ## 8. Wat dit betekent voor `abcplan.md`
 
 Deze secties zijn achterhaald zodra de nieuwe keuze is vastgelegd:
