@@ -69,10 +69,26 @@ function scoreLine(score: VisibilityScore | null): string {
   const base = `Eigen zichtbaarheidsscore: ${score?.score ?? 0}/100 (elke vraag telt gelijk)`;
   const weighted =
     score?.weighted_score != null
-      ? ` — GEWOGEN naar volume × koopwaarde: ${score.weighted_score}/100`
+      ? ` — GEWOGEN naar volumeband × koopwaarde: ${score.weighted_score}/100`
       : "";
-  const sov = score?.share_of_voice != null ? ` (${score.share_of_voice}% van alle vermeldingen)` : "";
-  return base + weighted + sov;
+  const sov =
+    score?.share_of_voice != null
+      ? ` (${score.share_of_voice}% van de vermeldingen, over ${score.share_basis_count ?? "?"} bevestigde merken)`
+      : "";
+
+  // De onzekerheid meegeven aan de schrijver (optimalisatie.md 2.2). Zonder dit
+  // getal formuleert het model conclusies alsof de score exact is — "jullie
+  // zichtbaarheid is 42%" in plaats van "ergens rond de 40%" — en dat is precies
+  // de overclaim die het rapport ongeloofwaardig maakt.
+  const uncertainty =
+    score?.score_stderr != null && score.judged_runs
+      ? `\nBETROUWBAARHEID: de score rust op ${score.judged_runs} metingen; de 95%-marge is ` +
+        `±${Math.round(1.96 * Number(score.score_stderr))} punten. Presenteer de score dus als een ` +
+        `ORDE VAN GROOTTE, niet als een exact cijfer, en trek geen conclusies uit verschillen die ` +
+        `binnen die marge vallen.`
+      : "";
+
+  return base + weighted + sov + uncertainty;
 }
 
 function buildMissedBlock(missed: MissedPrompt[]): string {

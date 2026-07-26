@@ -324,6 +324,11 @@ hoe zeker ze zijn.
 
 **Hangt af van:** Fase 1 (30 vragen passen niet in de oude architectuur).
 
+**Status: afgerond.** Typecheck, lint en productiebuild slagen; statistiek, naamnormalisatie
+en volumebanden zijn in kale scripts getest (54 gevallen, allemaal groen). Migraties 0016 en
+0017 wachten op toepassing, en de keten is nog nergens end-to-end gedraaid — zie de noot
+onderaan deze fase.
+
 ⚠️ **Herzien:** het oorspronkelijke plan verdrievoudigde de metingen per vraag. Dat is
 geschrapt vanwege de kosten. De fase behoudt bijna al zijn waarde: het grootste deel ging
 nooit over het aantal metingen maar over datakwaliteit (entiteiten samenvoegen, een
@@ -423,6 +428,16 @@ als…"), er kan verwijderen die niet kloppen, en er kan toevoegen. Dit is niet 
 opruimwerk: het is het moment waarop de klant merkt dat de app zijn markt begrijpt, en het
 maakt de data meteen beter.
 
+*Uitgevoerd.* Het scherm staat op de PROFIELpagina (`/profielen/[id]#concurrenten`), niet bij
+een analyse — concurrenten horen bij het merk, niet bij één onderwerp. Drie groepen in
+volgorde van aandacht: **nieuw gevonden** (wachten op een oordeel, bovenaan, met een randje),
+**jouw concurrenten** (de vaste noemer van het aandeel) en **weggezet** (dichtgeklapt, terug
+te halen). Verwijderen is bewust níét de prominente knop: wie een merk weghaalt dat de
+volgende meting opnieuw tegenkomt, krijgt het gewoon terug als nieuwkomer — "geen concurrent
+van mij" onthoudt de keuze wél. Samenvoegen verhuist alle metingen mee vóórdat de bronrij
+verdwijnt; andersom zou de foreign key ze op `null` zetten en waren precies de gegevens weg
+die de klant aan het opruimen was.
+
 **2.8 — De score eerlijk tonen**
 Nu staan er twee getallen van 6xl naast elkaar (score en gewogen score) zonder dat duidelijk
 is welke leidend is.
@@ -430,23 +445,47 @@ is welke leidend is.
 verdient — en toon het andere kleiner als context. Zet de bandbreedte er zichtbaar bij
 (*"32, met een marge van ±6"* of een balkje) en één zin die uitlegt wat het getal betekent.
 
+*Uitgevoerd.* Eén kaart met de gewogen score als hoofdgetal, "±N punten" ernaast, en de
+ongewogen score als regel eronder. Het overzicht laadt nu de LAATSTE twee periodes in plaats
+van vast periode 0 — sinds de maandelijkse hermeting is week 0 de nulmeting en niet meer het
+actuele beeld. Onder de vergelijking staat "Ook genoemd": de merken die wel in de antwoorden
+voorkwamen maar nog niet bevestigd zijn, met een link naar het beheerscherm. Zonder dat
+blokje is een lager aandeel niet te verklaren.
+
 **2.9 — Verandering met betekenis**
 Zodra er meerdere weken zijn (Fase 6) mag een verandering pas als verandering getoond
 worden als hij buiten de bandbreedte valt. Anders: *"stabiel"*. Liever een saaie waarheid
 dan een schommeling die de klant laat concluderen dat het product niet werkt.
 
+*Uitgevoerd (samen met 2.3).* `changeIsMeaningful()` vergelijkt tegen de drempel van het
+VERSCHIL tussen twee metingen, niet tegen de band rond één score — die is ruwweg 1,4× breder,
+met 30 vragen zo'n 25 punten. Daaronder staat er "Gelijk gebleven (+4 punten)" met de uitleg
+erbij, in plaats van een pijltje omhoog. Ook de rapportschrijver krijgt de marge nu mee, zodat
+het rapport de score als orde van grootte presenteert en niet als exact cijfer.
+
 **2.10 — Uitleg op de plek zelf**
 Bij elk cijfer een kleine info-knop met twee zinnen: wat is dit, hoe is het gemeten, hoe
 zeker zijn we. Niet in een aparte helppagina — daar komt niemand.
 
+*Uitgevoerd.* `components/info-hint.tsx`: een vraagteken dat zichtbaar klein is maar een
+tikdoel van 44×44 heeft, sluit op Escape en op een klik ernaast. Staat bij het hoofdgetal, bij
+de marge, bij "gelijk gebleven", bij de concurrentievergelijking, bij "ook genoemd" en bij de
+concurrentenlijst.
+
 ### Klaar als…
 
-- [ ] Elke getoonde score heeft een zichtbare bandbreedte, en die is berekend uit het
+- [x] Elke getoonde score heeft een zichtbare bandbreedte, en die is berekend uit het
       werkelijke aantal beoordeelde metingen.
-- [ ] Geen enkele concurrent komt dubbel voor in de vergelijking.
-- [ ] Op het dashboard is te zien welk getal een meting is en welk een schatting.
-- [ ] De klant kan een concurrent samenvoegen of verwijderen en ziet de vergelijking
+- [x] Geen enkele concurrent komt dubbel voor in de vergelijking.
+- [x] Op het dashboard is te zien welk getal een meting is en welk een schatting.
+- [x] De klant kan een concurrent samenvoegen of verwijderen en ziet de vergelijking
       meteen bijgewerkt.
+
+> **Nog te verifiëren tegen een echte database.** Migraties 0016 en 0017 zijn geschreven maar
+> nergens toegepast, en de hele keten is nooit end-to-end gedraaid (dit ontwikkelmachien heeft
+> geen Supabase-project en geen OpenAI-sleutel). Wat wél getest is: de statistiek (18 gevallen),
+> de naamnormalisatie (18) en de volumebanden (18), allemaal in kale scripts; en `tsc`,
+> `eslint` en `next build` zijn schoon.
 
 ---
 

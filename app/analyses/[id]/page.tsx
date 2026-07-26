@@ -6,7 +6,7 @@ import { determineStage } from "@/lib/pipeline/stage";
 import { PrepareProgress } from "./prepare-progress";
 import { MeasureProgress } from "./measure-progress";
 import { ScorePanel } from "./score-panel";
-import type { VisibilityScore, CompetitorBreakdown } from "@/lib/types/database";
+import type { VisibilityScore, CompetitorBreakdown, Entity } from "@/lib/types/database";
 
 /**
  * Overzicht-tab. Server-state-gedreven (abcplan.md §3.7):
@@ -61,20 +61,19 @@ export default async function OverviewPage({ params }: { params: Promise<{ id: s
   // week, niet het huidige aantal actieve prompts (optimalisatie.md 0.1). Die
   // twee lopen uiteen zodra de klant een prompt uitzet: de tellingen komen uit
   // historische runs, dus met een gekrompen noemer schoten de balken boven 100%.
-  const [{ data: scoreRow }, { data: competitorRows }, { count: runCount }] = await Promise.all([
-    supabase.from("visibility_scores").select("*").eq("analysis_id", id).eq("week_no", 0).maybeSingle(),
-    supabase
-      .from("competitor_breakdown")
-      .select("*")
-      .eq("analysis_id", id)
-      .eq("week_no", 0)
-      .order("mentions_count", { ascending: false }),
-    supabase
-      .from("tracking_runs")
-      .select("id", { count: "exact", head: true })
-      .eq("analysis_id", id)
-      .eq("week_no", 0),
-  ]);
+  // De LAATSTE twee periodes, niet vast periode 0: sinds de maandelijkse
+  // hermeting (fase 2.0) is week 0 de nulmeting en niet meer het actuele beeld.
+  // De vorige periode is nodig voor de verandering (optimalisatie.md 2.3).
+  const { data: scoreRows } = await supabase
+    .from("visibility_scores")
+    .select("*")
+    .eq("analysis_id", id)
+    .order("week_no", { ascending: false })
+    .limit(2);
+
+  const scores = (scoreRows ?? []) as VisibilityScore[];
+  const scoreRow = scores[0] ?? null;
+  const previousScore = scores[1] ?? null;
 
   if (!scoreRow) {
     return (
@@ -84,6 +83,34 @@ export default async function OverviewPage({ params }: { params: Promise<{ id: s
       </div>
     );
   }
+
+  const weekNo = scoreRow.week_no;
+
+  const [{ data: competitorRows }, { count: runCount }, { data: entityRows }] = await Promise.all([
+    supabase
+      .from("competitor_breakdown")
+      .select("*")
+      .eq("analysis_id", id)
+      .eq("week_no", weekNo)
+      .order("mentions_count", { ascending: false }),
+    supabase
+      .from("tracking_runs")
+      .select("id", { count: "exact", head: true })
+      .eq("analysis_id", id)
+      .eq("week_no", weekNo),
+    // Nieuw ontdekte merken die nog op bevestiging wachten (optimalisatie.md
+    // 2.5/2.7). Ze tellen niet mee in het aandeel, maar de klant moet ze wél
+    // zien — anders is een lager aandeel niet te verklaren.
+    supabase
+      .from("entities")
+      .select("*")
+      .eq("profile_id", analysis.profile_id)
+      .eq("confirmed", false)
+      .eq("dismissed", false)
+      .order("canonical_name"),
+  ]);
+
+  const alsoMentioned = (entityRows ?? []) as Entity[];
 
   return (
     <div className="flex flex-col gap-4">
@@ -99,9 +126,12 @@ export default async function OverviewPage({ params }: { params: Promise<{ id: s
         </div>
       )}
       <ScorePanel
-        score={scoreRow as VisibilityScore}
+        score={scoreRow}
+        previous={previousScore}
         measuredRunCount={runCount ?? 0}
         competitors={(competitorRows ?? []) as CompetitorBreakdown[]}
+        alsoMentioned={alsoMentioned}
+        profileId={analysis.profile_id}
       />
     </div>
   );
