@@ -69,6 +69,30 @@ supabase db push
 
 of plak `supabase/migrations/0001_init.sql` en daarna `0002_rls.sql` in de SQL Editor.
 
+### Migraties 0012 t/m 0022 — met de hand toepassen
+
+De migraties uit het optimalisatietraject staan ook als samengevoegde bestanden klaar, zodat
+je ze zonder de Supabase-CLI in de SQL Editor kunt plakken. **De volgorde is niet vrij** —
+elk bestand bouwt voort op het vorige:
+
+| Volgorde | Bestand | Wat het toevoegt |
+|---|---|---|
+| 1 | `RUN_0012_TOT_0017.sql` | Kostenlogboek, wachtrij, e-mailkeuze, meetkwaliteit, volumebanden |
+| 2 | `RUN_0018_EN_0019.sql` | Technische GEO-audit; doelvragen, versies, GEO-score, feitenvragen |
+| 3 | `RUN_0020.sql` | Publicatiestatus, hermetingen, gemeten effect |
+| 4 | `RUN_0021.sql` | Rapport per periode, verandering, mailstatus |
+| 5 | `RUN_0022.sql` | Bronnenlandschap, off-site taken, entiteitsaanwezigheid |
+
+Drie dingen om te weten:
+
+* **In bestand 1 moet STAP 3 apart.** `alter type ... add value` mag in Postgres niet in
+  dezelfde transactie gebruikt worden als waarin je hem toevoegt, en de SQL Editor draait je
+  selectie als één transactie. Selecteer die ene regel en voer hem los uit.
+* **STAP 7 in bestand 1 is optioneel** — alleen nodig als je de werker vanuit Postgres wilt
+  aansturen in plaats van via Vercel Cron (zie §6b). Zet vooraf de twee Vault-geheimen.
+* **Herhalen is veilig.** Overal staat `if not exists`; er wordt niets verwijderd of
+  overschreven. Onderaan elk bestand staat een controle-query die alles op `t` hoort te zetten.
+
 ## 5. Verifiëren
 
 ```bash
