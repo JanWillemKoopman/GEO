@@ -31,6 +31,7 @@ export function GenerateButton({
   analysisId,
   reportId,
   recommendation,
+  blocked = false,
 }: {
   analysisId: string;
   reportId: string;
@@ -42,8 +43,16 @@ export function GenerateButton({
     action: ContentAction;
     existingUrl: string | null;
   };
+  /** Houdt de technische controle een blokkade tegen? (optimalisatie.md 3.7) */
+  blocked?: boolean;
 }) {
   const [state, setState] = useState<"idle" | "pending" | "done" | "error">("idle");
+  // Bij een blokkade genereren we niet zomaar: de klant moet eerst bevestigen
+  // dat hij weet dat de tekst voorlopig niet gelezen kan worden. Bewust geen
+  // harde blokkade — hij kan een goede reden hebben (de webbouwer is al bezig,
+  // of hij wil de tekst alvast klaar hebben) en dat is zijn beslissing, niet de
+  // onze. Wel één die hij bewust neemt in plaats van per ongeluk.
+  const [acknowledged, setAcknowledged] = useState(false);
   const [problem, setProblem] = useState<UserFacingError | null>(null);
   const pollTimer = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -125,6 +134,23 @@ export function GenerateButton({
           Dit duurt een paar minuten. Je kunt deze pagina sluiten — het schrijven loopt door en de
           tekst verschijnt vanzelf in de Content Bibliotheek.
         </span>
+      </div>
+    );
+  }
+
+  if (blocked && !acknowledged) {
+    return (
+      <div className="flex flex-col gap-2">
+        <p className="text-sm text-secondary">
+          <span className="font-medium text-[var(--text-primary)]">
+            Je site houdt AI-assistenten nu buiten.
+          </span>{" "}
+          Deze pagina kan dan wel geschreven worden, maar nog niet door ChatGPT geciteerd. Los eerst
+          de blokkade hierboven op, of schrijf hem alvast klaar.
+        </p>
+        <button onClick={() => setAcknowledged(true)} className="btn-outline w-fit">
+          Toch alvast schrijven
+        </button>
       </div>
     );
   }

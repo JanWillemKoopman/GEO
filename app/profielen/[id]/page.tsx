@@ -4,7 +4,9 @@ import { createClient } from "@/lib/supabase/server";
 import { ProfileProgress } from "./profile-progress";
 import { ProfileEditor } from "./profile-editor";
 import { EntitiesManager } from "./entities-manager";
-import type { Entity } from "@/lib/types/database";
+import { AuditPanel } from "@/components/audit-panel";
+import type { AuditCheck } from "@/lib/audit/technical";
+import type { Entity, TechnicalAudit as TechnicalAuditRow } from "@/lib/types/database";
 
 export default async function ProfilePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -16,17 +18,42 @@ export default async function ProfilePage({ params }: { params: Promise<{ id: st
   }
 
   const supabase = await createClient();
-  const [{ count }, { data: entityRows }] = await Promise.all([
+  const [{ count }, { data: entityRows }, { data: auditRow }] = await Promise.all([
     supabase.from("profile_pages").select("id", { count: "exact", head: true }).eq("profile_id", id),
     // Concurrenten horen bij het PROFIEL, niet bij één analyse (optimalisatie.md
     // 2.4/2.7): dezelfde concurrent duikt op bij meerdere onderwerpen van
     // hetzelfde merk, en die moet dan één rij zijn.
     supabase.from("entities").select("*").eq("profile_id", id).order("canonical_name"),
+    // De laatste technische controle (optimalisatie.md 3B).
+    supabase
+      .from("technical_audits")
+      .select("*")
+      .eq("profile_id", id)
+      .order("checked_at", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
   ]);
+
+  const audit = auditRow as TechnicalAuditRow | null;
 
   return (
     <div className="flex flex-col gap-4">
       <ProfileEditor initial={profile} inventoryCount={count ?? 0} />
+      {audit ? (
+        <AuditPanel
+          checks={(audit.checks_json ?? []) as AuditCheck[]}
+          checkedAt={audit.checked_at}
+          siteUrl={audit.site_url}
+        />
+      ) : (
+        <div className="card flex flex-col gap-2">
+          <span className="mono-label">Technische controle</span>
+          <p className="text-secondary">
+            We controleren nog of AI-assistenten je site mogen lezen. De uitslag verschijnt hier
+            zodra dat klaar is — je hoeft niets te doen.
+          </p>
+        </div>
+      )}
       <EntitiesManager profileId={id} initial={(entityRows ?? []) as Entity[]} />
     </div>
   );

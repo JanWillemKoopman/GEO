@@ -5,6 +5,8 @@ import { determineStage } from "@/lib/pipeline/stage";
 import { EmptyState } from "@/components/empty-state";
 import { ReportProgress } from "../report-progress";
 import { GenerateButton } from "./generate-button";
+import { AuditGate } from "@/components/audit-gate";
+import { loadAuditGate } from "@/lib/audit/gate";
 import type { Report, ContentAction, ContentType } from "@/lib/types/database";
 
 interface ReportGap {
@@ -79,6 +81,11 @@ export default async function RapportPage({ params }: { params: Promise<{ id: st
     return <ReportProgress analysisId={id} />;
   }
 
+  // Blokkades als poort, niet als voetnoot (optimalisatie.md 3.7). Dit staat
+  // bewust bovenaan het rapport: content laten schrijven voor een site die
+  // AI-crawlers weigert, is de klant geld laten uitgeven aan niets.
+  const gate = await loadAuditGate(supabase, analysis.profile_id);
+
   const report = reportRow as Report;
   const gaps = (report.gaps_json ?? []) as ReportGap[];
   const recommendations = [...((report.recommendations_json ?? []) as ReportRecommendation[])].sort(
@@ -94,6 +101,8 @@ export default async function RapportPage({ params }: { params: Promise<{ id: st
 
   return (
     <div className="flex flex-col gap-4">
+      <AuditGate blockers={gate.blockers} profileId={analysis.profile_id} since={gate.since} />
+
       <div className="card flex flex-col gap-2">
         <span className="mono-label">Samenvatting</span>
         <p className="text-secondary">{report.summary}</p>
@@ -160,6 +169,7 @@ export default async function RapportPage({ params }: { params: Promise<{ id: st
                   <GenerateButton
                     analysisId={id}
                     reportId={report.id}
+                    blocked={gate.blockers.length > 0}
                     recommendation={{
                       title: r.title,
                       type: r.type,

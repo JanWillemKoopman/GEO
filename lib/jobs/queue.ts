@@ -81,6 +81,11 @@ export const dedupe = {
   // dezelfde knop drukken mag niet twee pagina's opleveren.
   contentDraft: (analysisId: string, title: string) => `content:${analysisId}:${title}`,
   contentRevise: (contentPieceId: string) => `content_revise:${contentPieceId}`,
+  // Per DAG, niet per profiel: de audit draait bij het aanmaken én maandelijks,
+  // en moet dan echt opnieuw kijken. Zonder de datum erin zou een afgeronde
+  // audit van vorig jaar de hermeting van deze maand blokkeren.
+  technicalAudit: (profileId: string, day = new Date().toISOString().slice(0, 10)) =>
+    `audit:${profileId}:${day}`,
 };
 
 /**

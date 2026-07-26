@@ -127,5 +127,16 @@ export async function POST(request: Request) {
     dedupeKey: dedupe.profileResearch(data.id as string),
   });
 
+  // Technische GEO-audit meteen erachteraan (optimalisatie.md 3B). Als de site
+  // AI-crawlers weigert, moet de klant dat weten vóórdat hij content laat
+  // schrijven — niet erna. Losse taak, want een onbereikbare site mag het
+  // profielonderzoek niet laten mislukken.
+  await enqueue(admin, {
+    type: "technical_audit",
+    payload: {},
+    profileId: data.id as string,
+    dedupeKey: dedupe.technicalAudit(data.id as string),
+  });
+
   return NextResponse.json({ id: data.id }, { status: 201 });
 }

@@ -24,6 +24,8 @@ export const JOB_TYPES = [
   "content_draft",
   /** Contentgeneratie stap 2: herschrijven + herbeoordelen. */
   "content_revise",
+  /** Technische GEO-audit: mag een AI-crawler de site überhaupt bezoeken? */
+  "technical_audit",
 ] as const;
 
 export type JobType = (typeof JOB_TYPES)[number];
@@ -54,6 +56,7 @@ export interface JobPayloads {
     /** Verbeterpunten uit de eerste beoordeling — sturen de herschrijfstap. */
     issues: string[];
   };
+  technical_audit: Record<string, never>;
 }
 
 /**

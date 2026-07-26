@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { serverEnv } from "@/lib/env";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { enqueueMeasurement } from "@/lib/jobs/queue";
+import { enqueue, enqueueMeasurement, dedupe } from "@/lib/jobs/queue";
 import { maxMeasurementPeriods } from "@/lib/config";
 
 /**
@@ -9,7 +9,7 @@ import { maxMeasurementPeriods } from "@/lib/config";
  *
  * MAANDELIJKS, niet wekelijks (optimalisatie.md 2.1). De zichtbaarheid van een
  * MKB'er in AI-assistenten verandert niet van week tot week, en met een
- * 95%-band van ±16 punten is een verschil tussen twee opeenvolgende weken
+ * 95%-band van ±18 punten is een verschil tussen twee opeenvolgende weken
  * vrijwel altijd ruis. Minder maar betekenisvollere meetpunten geven een
  * bruikbaarder trendlijn — en het scheelt ruim de helft van de kosten.
  *
@@ -32,13 +32,31 @@ export async function GET(request: Request) {
   const admin = createAdminClient();
   const { data: analyses } = await admin
     .from("analyses")
-    .select("id")
+    .select("id, profile_id")
     .eq("tracking_enabled", true)
     .in("status", ["gemeten", "gereed"]);
 
   const results: { id: string; period: number; planned: number }[] = [];
+  // Eén audit per profiel, niet per analyse: meerdere analyses van hetzelfde
+  // merk delen dezelfde website, en die twee keer controleren levert twee
+  // identieke uitslagen op.
+  const auditedProfiles = new Set<string>();
 
   for (const a of analyses ?? []) {
+    // Herhaalcontrole (optimalisatie.md 3.8). Een blokkade kan er morgen zijn
+    // na een aanpassing door de webbouwer, en dan moet de klant dat horen —
+    // een audit die alleen bij het aanmaken draait, veroudert stil.
+    const profileId = a.profile_id as string | null;
+    if (profileId && !auditedProfiles.has(profileId)) {
+      auditedProfiles.add(profileId);
+      await enqueue(admin, {
+        type: "technical_audit",
+        payload: {},
+        profileId,
+        dedupeKey: dedupe.technicalAudit(profileId),
+      });
+    }
+
     const { data: lastWeek } = await admin
       .from("visibility_scores")
       .select("week_no")

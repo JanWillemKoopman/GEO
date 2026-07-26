@@ -18,6 +18,7 @@ import { prepareAnalysis } from "@/lib/pipeline/prepare";
 import { measurePromptById, computeAggregates, measurementIsUsable } from "@/lib/pipeline/measure";
 import { generateReport } from "@/lib/pipeline/report";
 import { draftContentPiece, reviseContentPiece } from "@/lib/pipeline/content";
+import { runAuditForProfile } from "@/lib/audit/store";
 import { enqueue, dedupe } from "@/lib/jobs/queue";
 import type { JobType, JobPayloads, RecommendationPayload } from "@/lib/jobs/types";
 import type { Job } from "@/lib/types/database";
@@ -180,6 +181,15 @@ const handlers: { [T in JobType]: Handler<T> } = {
       recommendation: toRecommendation(payload.recommendation),
       issues: payload.issues,
     });
+  },
+
+  // ── Technische GEO-audit (optimalisatie.md 3B) ────────────────────────────
+  // Geen AI-aanroep, alleen HTTP-verzoeken. Draait bij het aanmaken van een
+  // profiel en daarna bij elke maandelijkse meting (3.8): een blokkade kan er
+  // morgen zijn na een aanpassing door de webbouwer.
+  technical_audit: async ({ admin, job }) => {
+    if (!job.profile_id) throw new Error("technical_audit zonder profile_id.");
+    await runAuditForProfile(admin, job.profile_id);
   },
 };
 

@@ -50,7 +50,10 @@ const STUCK_AFTER_MINUTES = 10;
 /**
  * Taken waarvan het definitief mislukken betekent dat de ANALYSE (of het
  * profiel) mislukt is. Contentgeneratie hoort daar bewust niet bij: die draait
- * ná het rapport en raakt de analysestatus niet.
+ * ná het rapport en raakt de analysestatus niet. De technische audit evenmin:
+ * een site die net plat lag mag niet het hele profiel op 'mislukt' zetten — dan
+ * is de klant zijn onderzoek kwijt om een controle die hooguit een waarschuwing
+ * had opgeleverd.
  */
 const BLOCKING_JOB_TYPES: ReadonlySet<JobType> = new Set<JobType>([
   "profile_research",

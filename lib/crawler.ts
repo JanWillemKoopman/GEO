@@ -7,6 +7,9 @@ import "server-only";
  * aan de profiel-/onderwerp-onderzoekscalls.
  */
 
+/** Eén plek voor de bot-identiteit, zodat een site ons kan herkennen en toelaten. */
+export const USER_AGENT = "GEO-Tracker-Bot/1.0 (+https://geo-tracker.app)";
+
 const MAX_CHARS = 6000; // genoeg context, houdt de tokenkost laag
 const PAGE_MAX_CHARS = 1500; // kleinere cap per pagina bij de content-inventaris (meerdere pagina's tegelijk)
 const FETCH_TIMEOUT_MS = 12000;
@@ -76,7 +79,7 @@ export async function crawlSite(host: string): Promise<CrawlResult> {
       signal: controller.signal,
       redirect: "follow",
       headers: {
-        "User-Agent": "GEO-Tracker-Bot/1.0 (+https://geo-tracker.app)",
+        "User-Agent": USER_AGENT,
         Accept: "text/html,application/xhtml+xml",
       },
     });
@@ -108,7 +111,7 @@ export async function isReachable(host: string): Promise<boolean> {
   const timeout = setTimeout(() => controller.abort(), REACHABLE_TIMEOUT_MS);
 
   const headers = {
-    "User-Agent": "GEO-Tracker-Bot/1.0 (+https://geo-tracker.app)",
+    "User-Agent": USER_AGENT,
     Accept: "text/html,application/xhtml+xml",
   };
 
@@ -126,7 +129,7 @@ export async function isReachable(host: string): Promise<boolean> {
   }
 }
 
-async function fetchText(url: string): Promise<string | null> {
+export async function fetchText(url: string): Promise<string | null> {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
   try {
@@ -134,7 +137,7 @@ async function fetchText(url: string): Promise<string | null> {
       signal: controller.signal,
       redirect: "follow",
       headers: {
-        "User-Agent": "GEO-Tracker-Bot/1.0 (+https://geo-tracker.app)",
+        "User-Agent": USER_AGENT,
         Accept: "text/html,application/xhtml+xml,application/xml,text/xml",
       },
     });

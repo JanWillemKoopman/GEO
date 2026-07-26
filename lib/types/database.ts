@@ -292,6 +292,22 @@ export interface AiCall {
 }
 
 /**
+ * Uitslag van de technische GEO-audit (optimalisatie.md 3B, migratie 0018).
+ * Eén rij per uitvoering, zodat zichtbaar is sinds wanneer een blokkade er is.
+ * De vorm van `checks_json` staat in lib/audit/technical.ts (AuditCheck[]).
+ */
+export interface TechnicalAudit {
+  id: string;
+  profile_id: string;
+  checked_at: string;
+  site_url: string;
+  blockers: number;
+  warnings: number;
+  checks_json: unknown;
+  created_at: string;
+}
+
+/**
  * Eén taak in de wachtrij (migratie 0013, optimalisatie.md fase 1).
  * `analysis_id` en `profile_id` zijn allebei nullable maar nooit allebei leeg —
  * profielonderzoek hangt aan een profiel, de rest aan een analyse.
