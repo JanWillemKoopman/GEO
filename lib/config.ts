@@ -29,3 +29,21 @@ export const promptsPerFunnelStage = 4;
  * live-zoeken daadwerkelijk antwoorden — de meting wordt dan onrealistisch.
  */
 export const measureWebSearchEnabled = process.env.MEASURE_WEB_SEARCH !== "false";
+
+/**
+ * Hoeveel wandkloktijd de werker zichzelf per aanroep gunt (optimalisatie.md 1.1).
+ *
+ * Moet RUIM onder de tijdslimiet van de route blijven, zodat er tijd overblijft
+ * om de laatste taak af te ronden en de status weg te schrijven. Die limiet
+ * verschilt per platform en per abonnement — vandaar een env-schakelaar in
+ * plaats van een vaste waarde:
+ *
+ *   • Vercel met `maxDuration = 60` (de instelling in de route):  40000 (standaard)
+ *   • Een platform dat op 10s afkapt:                              7000
+ *   • Een eigen server zonder limiet:                              gerust 120000
+ *
+ * Te laag zetten is niet erg: de werker doet dan minder per ronde en de volgende
+ * aanroep gaat verder. Te hoog zetten wél — dan wordt hij midden in een taak
+ * afgekapt en moet de reaper hem tien minuten later terugzetten.
+ */
+export const workerTimeBudgetMs = Number(process.env.WORKER_TIME_BUDGET_MS ?? 40_000);

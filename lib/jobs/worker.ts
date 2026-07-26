@@ -14,16 +14,18 @@ import "server-only";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { runJob } from "@/lib/jobs/handlers";
 import { HEAVY_JOB_TYPES, MAX_ATTEMPTS, backoffMinutes, type JobType } from "@/lib/jobs/types";
+import { workerTimeBudgetMs } from "@/lib/config";
 import { describeError } from "@/lib/errors";
 import type { Job } from "@/lib/types/database";
 
 /**
- * Hoeveel wandkloktijd de werker zichzelf gunt. Ruim onder de 60s van de route,
- * zodat er altijd tijd overblijft om de laatste taak af te ronden en de status
- * weg te schrijven — een taak die als 'running' blijft staan omdat het platform
- * de functie afkapte, moet anders door de reaper worden opgeruimd.
+ * Hoeveel wandkloktijd de werker zichzelf gunt. Instelbaar omdat de tijdslimiet
+ * per platform en abonnement verschilt — zie workerTimeBudgetMs in lib/config.ts.
+ * Ruim onder de limiet van de route blijven: een taak die als 'running' blijft
+ * staan omdat het platform de functie afkapte, wordt pas tien minuten later
+ * door de reaper teruggezet.
  */
-const TIME_BUDGET_MS = 40_000;
+const TIME_BUDGET_MS = workerTimeBudgetMs;
 
 /**
  * Hoeveel taken we per ronde claimen. Lichte taken (een meting is vooral

@@ -74,7 +74,7 @@ terugkijken.
 |---|---|---|---|
 | 0 | Stabiel fundament: bugs, retries, kosten, classifier-test | Klein | — |
 | 1 | Achtergrondmotor (`jobs`) + eerlijke wacht-UX | Middel | 0 |
-| 2 | Betrouwbare meting: meerdere metingen, entiteiten samenvoegen | Middel | 1 |
+| 2 | Betrouwbare meting: 30 vragen, entiteiten samenvoegen, eerlijke band | Middel | 1 |
 | 3 | Bewijs & blokkades: ruwe antwoorden tonen, techniek-audit | Middel | 2 |
 | 4 | De schrijver krijgt de uitslagen | Groot | 2, 3 |
 | 5 | De cirkel rond: publiceren → hermeten → delta | Groot | 4 |
@@ -130,7 +130,7 @@ content. Dit alleen al halveert een deel van de meetruis.
 De kolom `tracking_runs.cost_usd` bestaat en wordt nooit gevuld; `tokens_used` wél.
 → Reken de kosten uit (tokens × tarief per model + het vaste tarief per web-zoekactie) en
 schrijf ze weg bij élke aanroep, ook bij content en rapport. Bouw een simpele
-kostenweergave per analyse. Zonder dit kun je Fase 2 (drie keer zoveel metingen) niet
+kostenweergave per analyse. Zonder dit kun je Fase 2 (van 12 naar 30 vragen) niet
 verantwoord inplannen.
 
 **0.7 — Testset voor de mention-classificatie**
@@ -232,7 +232,19 @@ foutkolom, en met de juiste indexen. Er is alleen nooit iets op gebouwd.
 Eén route (`/api/cron/worker`) die per aanroep een klein aantal taken oppakt: claim een
 taak met status `queued` en `scheduled_for <= now()` (met `for update skip locked` zodat
 twee gelijktijdige aanroepen niet dezelfde taak pakken), zet hem op `running`, voer hem
-uit, zet `done` of `failed` met foutbericht. Plan hem elke minuut in via `vercel.json`.
+uit, zet `done` of `failed` met foutbericht.
+
+**Wie roept hem elke minuut aan?** Twee wegen, allebei ondersteund:
+
+- **Vercel Cron** (`vercel.json`) — het simpelst, maar een taak die elke minuut draait
+  vraagt een betaald plan.
+- **pg_cron in Supabase** (migratie 0015) — de database stuurt zichzelf aan via `pg_cron`
+  + `pg_net`. Geen extra leverancier, geen extra abonnement, en de wachtrij leeft toch al
+  in Postgres. URL en geheim komen uit Supabase Vault; ontbreken die, dan slaat de cron
+  stil over in plaats van elke minuut te falen.
+
+Ze bijten elkaar niet: draaien ze allebei, dan pakken twee werkers werk op en dat is
+precies waar `for update skip locked` voor is.
 
 **1.2 — Nieuwe pogingen met oplopende wachttijd**
 Bij mislukken: `attempts + 1`, `scheduled_for = now() + 2^attempts minuten`, tot maximaal
@@ -307,28 +319,47 @@ van aanmaken tot rapport.
 
 # Fase 2 — Betrouwbare meting
 
-**Doel:** cijfers waar een klant zijn beslissingen op mag baseren. Zonder deze fase is elke
-trendlijn ruis en is de hele belofte niet aantoonbaar.
+**Doel:** cijfers waar een klant zijn beslissingen op mag baseren — en die eerlijk zijn over
+hoe zeker ze zijn.
 
-**Hangt af van:** Fase 1 (drie keer zoveel aanroepen past niet in de oude architectuur).
+**Hangt af van:** Fase 1 (30 vragen passen niet in de oude architectuur).
+
+⚠️ **Herzien:** het oorspronkelijke plan verdrievoudigde de metingen per vraag. Dat is
+geschrapt vanwege de kosten. De fase behoudt bijna al zijn waarde: het grootste deel ging
+nooit over het aantal metingen maar over datakwaliteit (entiteiten samenvoegen, een
+stabiele noemer, een eerlijk volumecijfer) en over eerlijke presentatie.
 
 ### Techniek
 
-**2.1 — Meerdere metingen per vraag**
-Nu wordt elke vraag één keer gesteld. AI-antwoorden zijn niet stabiel: een merk dat in vier
-van de tien antwoorden voorkomt, meet bij één poging als 0 of als 100.
-→ Voeg `sample_no` toe aan `tracking_runs` met een unieke sleutel op
-`(analysis_id, prompt_id, week_no, sample_no)`. Stel elke vraag drie keer. De idempotentie
-die er al zit blijft werken, alleen per sample.
+**2.1 — 30 vragen, één meting per vraag** *(herzien juli 2026)*
+Het oorspronkelijke plan was drie metingen per vraag om de ruis te dempen. Dat is
+geschrapt: te duur in de ontwikkelfase. In plaats daarvan gaat het aantal vragen van 12
+naar 30 (`promptsPerFunnelStage` van 4 naar 10) — wat sinds fase 1 kan.
 
-**2.2 — Van ja/nee naar percentage**
-Sla per vraag op in hoeveel van de metingen het merk genoemd werd (0, ⅓, ⅔ of 1) in plaats
-van een enkele ja/nee. De zichtbaarheidsscore wordt het gemiddelde daarvan. Dat is meteen
-een fijnmaziger cijfer: nu springt de score met 8 punten per vraag.
+Dat is geen halve maatregel. De onzekerheid van de score schaalt met het TOTAAL aantal
+metingen (vragen × metingen per vraag), dus 30×1 en 12×3 zijn statistisch vrijwel gelijk —
+maar 30×1 kost minder (30 web-zoekacties in plaats van 36) én dekt de markt van de klant
+breder af. Bij gelijke kosten wint meer vragen het van meer metingen per vraag.
 
-**2.3 — Bandbreedte berekenen en opslaan**
-Bereken bij de score een betrouwbaarheidsinterval en sla dat op in `visibility_scores`. Dit
-is wat de UI nodig heeft om eerlijk te zijn over wat we wel en niet weten.
+| opzet | metingen | 95%-band | week-op-week nodig |
+|---|---|---|---|
+| 12 × 1 (nu) | 12 | ±26 punten | 37 punten |
+| 12 × 3 | 36 | ±15 punten | 21 punten |
+| **30 × 1 (gekozen)** | **30** | **±16 punten** | **23 punten** |
+| 30 × 3 (oorspronkelijk) | 90 | ±10 punten | 13 punten |
+
+**2.2 — De onzekerheid berekenen en meesturen**
+Zonder meerdere metingen per vraag kun je de ruis niet wegnemen — maar je kunt hem wél
+kennen. Bereken bij elke score de standaardfout uit de binomiale verdeling
+(`√(p(1-p)/n)`, met n = aantal beoordeelde metingen) en sla die op in
+`visibility_scores`. Dit is de belangrijkste stap van de hele fase geworden: hij is
+goedkoop (puur rekenwerk, geen AI-aanroep) en hij is wat de score eerlijk maakt.
+
+**2.3 — Alleen betekenisvolle verandering tonen**
+Met een band van ±16 punten is een verschil van 10 punten week-op-week ruis. Toon een
+verandering pas als verandering wanneer hij buiten de band valt; anders "stabiel". Liever
+een saaie waarheid dan een schommeling waaruit de klant concludeert dat het product niet
+werkt. Dit is dubbel zo belangrijk geworden nu de band groter is.
 
 **2.4 — Entiteiten samenvoegen**
 `competitor_breakdown` groepeert op de exacte naam. "Coolblue", "coolblue.nl" en
@@ -384,8 +415,8 @@ zeker zijn we. Niet in een aparte helppagina — daar komt niemand.
 
 ### Klaar als…
 
-- [ ] Dezelfde analyse twee keer achter elkaar gemeten geeft scores binnen de opgegeven
-      bandbreedte.
+- [ ] Elke getoonde score heeft een zichtbare bandbreedte, en die is berekend uit het
+      werkelijke aantal beoordeelde metingen.
 - [ ] Geen enkele concurrent komt dubbel voor in de vergelijking.
 - [ ] Op het dashboard is te zien welk getal een meting is en welk een schatting.
 - [ ] De klant kan een concurrent samenvoegen of verwijderen en ziet de vergelijking
