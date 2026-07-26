@@ -36,6 +36,13 @@ export type PromptCategory = (typeof PROMPT_CATEGORIES)[number] | (string & {});
 export type PromptIntentType = "informational" | "commercial" | "transactional";
 export type PromptSpecificity = "head" | "long_tail";
 
+/**
+ * Hoe vaak een vraag gesteld wordt, in banden (optimalisatie.md 2.6, migratie 0017).
+ * Zie lib/pipeline/volume.ts voor de labels en de wegingsfactoren.
+ */
+export type VolumeBand = "hoog" | "midden" | "laag";
+export type VolumeSource = "geschat" | "klant";
+
 export interface Persona {
   name: string;
   needs: string[];
@@ -131,7 +138,15 @@ export interface Prompt {
   specificity: PromptSpecificity | null;
   purchase_intent: boolean | null;
   cluster: string | null;
-  volume_estimate: number | null; // door AI geschat zoekvolume 0-100 (geen echte index)
+  /**
+   * Ruwe schatting van het model, 0-100. Blijft staan als audit-trail — dít gaf
+   * het model terug — maar weegt en toont niet meer mee (optimalisatie.md 2.6).
+   */
+  volume_estimate: number | null;
+  /** 'hoog' | 'midden' | 'laag' — wat er wél weegt en wat de klant ziet. */
+  volume_band: VolumeBand | null;
+  /** 'geschat' door het model, of 'klant' als hij de band zelf bijstelde. */
+  volume_source: VolumeSource;
   created_at: string;
   updated_at: string;
 }

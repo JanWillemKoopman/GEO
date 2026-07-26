@@ -261,6 +261,13 @@ async function generateForFunnelStage(args: {
  * in één call (abcplan.md §6 A2) — consistenter dan losse per-prompt-schattingen.
  * Geeft per prompt een 0-100-waarde terug (op input-volgorde). Faalt de call,
  * dan vallen we terug op een neutrale 50 (blokkeert de analyse niet).
+ *
+ * We vragen nog steeds de volle schaal, want de RANGORDE die het model daarmee
+ * aanbrengt is echte informatie: deze vraag is breder dan die. Alleen overleeft
+ * dat getal de opslag niet als getal — prepare.ts zet het om in een band
+ * (hoog/midden/laag) en alleen die band weegt en verschijnt in de UI
+ * (optimalisatie.md 2.6). De ruwe waarde blijft als audit-trail in
+ * `volume_estimate` staan.
  */
 async function calibrateVolumes(prompts: GeneratedPrompt[], analysisId: string): Promise<number[]> {
   if (prompts.length === 0) return [];

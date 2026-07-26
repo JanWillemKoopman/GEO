@@ -2,12 +2,26 @@ import { NextResponse } from "next/server";
 import { getUser } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getOwnedAnalysis } from "@/lib/analyses";
+import { isVolumeBand } from "@/lib/pipeline/volume";
 
 /**
  * PATCH/DELETE /api/analyses/[id]/prompts/[promptId] — prompt wijzigen/verwijderen
  * (abcplan.md §3.5/§6 A2b). Geen AI-call. Ownership loopt via de analyse.
  */
 const EDITABLE_FIELDS = ["text", "category", "active"] as const;
+
+/**
+ * De volumeband mag de klant ook zetten (optimalisatie.md 2.6), maar met een
+ * eigen behandeling: hij wordt gevalideerd tegen de toegestane waarden, en
+ * `volume_source` gaat op 'klant' zodat een volgende kalibratie de keuze van de
+ * klant niet overschrijft. Hij weet beter dan het model welke vragen zijn omzet
+ * opleveren.
+ */
+function volumeUpdate(body: Record<string, unknown>): Record<string, unknown> | "invalid" | null {
+  if (!("volume_band" in body)) return null;
+  if (!isVolumeBand(body.volume_band)) return "invalid";
+  return { volume_band: body.volume_band, volume_source: "klant" };
+}
 
 async function assertOwnedPrompt(
   admin: ReturnType<typeof createAdminClient>,
@@ -50,6 +64,13 @@ export async function PATCH(
   for (const field of EDITABLE_FIELDS) {
     if (field in body) update[field] = body[field];
   }
+
+  const volume = volumeUpdate(body);
+  if (volume === "invalid") {
+    return NextResponse.json({ error: "Onbekende volumeband." }, { status: 400 });
+  }
+  if (volume) Object.assign(update, volume);
+
   if (Object.keys(update).length === 0) {
     return NextResponse.json({ error: "Niets om op te slaan." }, { status: 400 });
   }

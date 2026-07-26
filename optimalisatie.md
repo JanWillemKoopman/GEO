@@ -405,6 +405,16 @@ toe — en gaat vermenigvuldigd het dashboard op als "Gewogen zichtbaarheid".
 In beide gevallen: laat de klant het gewicht per vraag kunnen bijstellen. Hij weet beter
 dan het model welke vragen zijn omzet opleveren.
 
+*Uitgevoerd als (b).* Drie banden — "vaak gesteld" / "gemiddeld" / "weinig gesteld" — met
+wegingsfactoren 1 : 0,5 : 0,2. De kalibratie blijft de volle 0-100-schaal vragen, want de
+RANGORDE die het model aanbrengt is echte informatie; alleen overleeft dat getal de opslag
+niet als getal. De ruwe waarde blijft in `volume_estimate` staan als audit-trail, de band
+in `volume_band`. Zet de klant de band zelf, dan gaat `volume_source` op `'klant'` en staat
+er in de UI zichtbaar bij dat het zíjn keuze is — het verschil tussen "de app denkt" en "ik
+weet" mag niet vervagen. Het bevroren gewicht per meting verandert niet met terugwerkende
+kracht: een bijgestelde band telt vanaf de volgende meting, anders wordt de trend
+onvergelijkbaar.
+
 ### UX
 
 **2.7 — Concurrenten beheren**

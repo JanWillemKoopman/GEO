@@ -4,6 +4,16 @@ import { useState } from "react";
 import { CollapsibleSection } from "@/components/collapsible-section";
 import { PROMPT_CATEGORIES } from "@/lib/types/database";
 import type { Prompt } from "@/lib/types/database";
+import {
+  VOLUME_BANDS,
+  VOLUME_BAND_LABEL,
+  VOLUME_BAND_HELP,
+  volumeBandOf,
+  type VolumeBand,
+} from "@/lib/pipeline/volume";
+
+/** Wat de klant per prompt mag wijzigen. */
+type PromptPatch = Partial<Pick<Prompt, "text" | "category" | "active" | "volume_band">>;
 
 /**
  * Prompt-beheer, gegroepeerd per categorie (abcplan.md §3.5/§6 A2b). Mobiel:
@@ -20,8 +30,12 @@ export function PromptsManager({ analysisId, initial }: { analysisId: string; in
   // Toon ook categorieën die (nog) geen prompts hebben, zodat je er meteen aan kunt toevoegen.
   for (const cat of knownOrder) if (!categories.includes(cat)) categories.push(cat);
 
-  async function updatePrompt(id: string, patch: Partial<Pick<Prompt, "text" | "category" | "active">>) {
-    setPrompts((ps) => ps.map((p) => (p.id === id ? { ...p, ...patch } : p)));
+  async function updatePrompt(id: string, patch: PromptPatch) {
+    // De server zet volume_source op 'klant' zodra de band handmatig wijzigt;
+    // lokaal meteen meenemen zodat het label "door jou ingesteld" niet pas na
+    // een herlaadbeurt verschijnt.
+    const local = patch.volume_band ? { ...patch, volume_source: "klant" as const } : patch;
+    setPrompts((ps) => ps.map((p) => (p.id === id ? { ...p, ...local } : p)));
     await fetch(`/api/analyses/${analysisId}/prompts/${id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
@@ -73,7 +87,7 @@ function PromptCategoryList({
   onDelete,
 }: {
   prompts: Prompt[];
-  onUpdate: (id: string, patch: Partial<Pick<Prompt, "text" | "category" | "active">>) => void;
+  onUpdate: (id: string, patch: PromptPatch) => void;
   onDelete: (id: string) => void;
 }) {
   if (prompts.length === 0) {
@@ -98,6 +112,10 @@ function PromptCategoryList({
               }}
             />
             <PromptTags prompt={p} />
+            <VolumeBandPicker
+              prompt={p}
+              onChange={(volume_band) => onUpdate(p.id, { volume_band })}
+            />
           </div>
           <div className="flex shrink-0 items-center gap-3 sm:flex-col sm:items-end">
             <button
@@ -139,7 +157,9 @@ function PromptTags({ prompt }: { prompt: Prompt }) {
   if (prompt.specificity) chips.push(prompt.specificity === "head" ? "head" : "long-tail");
   if (prompt.purchase_intent != null) chips.push(prompt.purchase_intent ? "koopintentie" : "geen koopintentie");
   if (prompt.cluster) chips.push(prompt.cluster);
-  if (prompt.volume_estimate != null) chips.push(`volume ~${prompt.volume_estimate}/100`);
+  // Het geschatte volume stond hier als "volume ~68/100". Dat getal suggereerde
+  // een precisie die er niet is; het staat nu als band in de keuzeknoppen
+  // hieronder, waar de klant hem ook kan bijstellen (optimalisatie.md 2.6).
   if (chips.length === 0) return null;
   return (
     <div className="flex flex-wrap gap-1.5">
@@ -148,6 +168,64 @@ function PromptTags({ prompt }: { prompt: Prompt }) {
           {c}
         </span>
       ))}
+    </div>
+  );
+}
+
+/**
+ * Hoe vaak wordt deze vraag gesteld? (optimalisatie.md 2.6)
+ *
+ * Drie knoppen in plaats van een getal. De AI zet een eerste inschatting neer,
+ * de klant kan hem overrulen — hij weet welke vragen zijn omzet opleveren en het
+ * model niet. Zodra hij dat doet, staat er zichtbaar bij dat het zíjn keuze is,
+ * zodat het verschil tussen "de app denkt" en "ik weet" niet vervaagt.
+ */
+function VolumeBandPicker({ prompt, onChange }: { prompt: Prompt; onChange: (band: VolumeBand) => void }) {
+  const current = volumeBandOf(prompt);
+  // Drie herkomsten, en die moeten uit elkaar te houden zijn: de klant heeft hem
+  // gezet, de AI heeft hem geschat, of er is nooit iets over gezegd (een
+  // handmatig toegevoegde vraag) en we vallen terug op 'gemiddeld'.
+  const origin =
+    prompt.volume_source === "klant"
+      ? "door jou ingesteld"
+      : prompt.volume_band == null && prompt.volume_estimate == null
+        ? "standaardwaarde"
+        : "schatting van de AI";
+
+  return (
+    <div className="flex flex-wrap items-center gap-1.5">
+      <span className="mono-label" style={{ fontSize: "0.65rem" }}>
+        Hoe vaak gesteld?
+      </span>
+      {VOLUME_BANDS.map((band) => {
+        const selected = band === current;
+        return (
+          <button
+            key={band}
+            type="button"
+            title={VOLUME_BAND_HELP[band]}
+            aria-pressed={selected}
+            onClick={() => !selected && onChange(band)}
+            className="chip"
+            style={{
+              fontSize: "0.7rem",
+              cursor: selected ? "default" : "pointer",
+              ...(selected
+                ? undefined
+                : {
+                    background: "transparent",
+                    color: "var(--text-muted)",
+                    borderColor: "var(--border-subtle)",
+                  }),
+            }}
+          >
+            {VOLUME_BAND_LABEL[band]}
+          </button>
+        );
+      })}
+      <span className="text-muted" style={{ fontSize: "0.65rem" }}>
+        {origin}
+      </span>
     </div>
   );
 }

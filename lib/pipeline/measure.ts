@@ -15,6 +15,7 @@ import { callPlain, callStructured } from "@/lib/openai/structured";
 import { MODELS, TEMPERATURES, SIMULATION_TEMPERATURE } from "@/lib/openai/models";
 import { measureWebSearchEnabled } from "@/lib/config";
 import { promptWeight, NEUTRAL_WEIGHT } from "@/lib/pipeline/prompt-weight";
+import { volumeBandOf } from "@/lib/pipeline/volume";
 import { Mention } from "@/lib/schemas/mention";
 import { ensureKnownEntities, resolveEntity } from "@/lib/entities/resolve";
 import { binomialStderr, weightedScoreStderr } from "@/lib/stats/uncertainty";
@@ -91,8 +92,11 @@ export async function measureOnePrompt(
         prompt_id: prompt.id,
         prompt_text_snapshot: prompt.text,
         prompt_category_snapshot: prompt.category,
-        // Gewicht bevriezen op meetmoment (volume × waarde), voor de gewogen score (§6 A3).
-        prompt_weight: promptWeight(prompt.volume_estimate, prompt.intent_type),
+        // Gewicht bevriezen op meetmoment (volumeband × waarde), voor de gewogen
+        // score (§6 A3). Past de klant de band later aan, dan telt dat pas mee
+        // vanaf de volgende meting — een score met terugwerkende kracht
+        // veranderen maakt de trend onvergelijkbaar.
+        prompt_weight: promptWeight(volumeBandOf(prompt), prompt.intent_type),
         engine: "openai",
         model_used: MODELS.quality,
         week_no: weekNo,

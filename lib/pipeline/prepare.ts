@@ -18,6 +18,7 @@ import "server-only";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { generateTopicResearch } from "@/lib/pipeline/topic-research";
 import { generatePrompts, type BrandContext } from "@/lib/pipeline/prompts";
+import { bandFromEstimate } from "@/lib/pipeline/volume";
 import type { AnalysisStatus, Profile, ProfilePage } from "@/lib/types/database";
 
 export async function prepareAnalysis(id: string): Promise<AnalysisStatus> {
@@ -129,7 +130,11 @@ export async function prepareAnalysis(id: string): Promise<AnalysisStatus> {
         specificity: p.specificity,
         purchase_intent: p.purchaseIntent,
         cluster: p.cluster,
+        // De ruwe schatting bewaren als audit-trail, maar wegen en tonen doen we
+        // over de band (optimalisatie.md 2.6).
         volume_estimate: p.volumeEstimate,
+        volume_band: bandFromEstimate(p.volumeEstimate),
+        volume_source: "geschat" as const,
         active: true,
         created_by: "system" as const,
         source_raw_json: p.sourceRawJson as never,
