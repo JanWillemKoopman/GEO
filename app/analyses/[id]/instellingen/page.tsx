@@ -96,7 +96,22 @@ export default async function InstellingenPage({ params }: { params: Promise<{ i
 
       <TrackingToggle analysisId={id} initial={analysis.tracking_enabled} />
 
-      {isReviewGate && <ConfirmBar analysisId={id} />}
+      {/* De poort mag alleen open als er iets te meten valt. Zonder actieve
+          vragen zou de meting nul taken inplannen en zou de analyse blijven
+          hangen op een voortgangsscherm dat nooit verder komt — dus zeggen we
+          hier wat er moet gebeuren in plaats van een knop aan te bieden die
+          doodloopt. */}
+      {isReviewGate &&
+        (prompts.some((p) => p.active) ? (
+          <ConfirmBar analysisId={id} />
+        ) : (
+          <div className="card" style={{ borderColor: "rgba(229,72,77,0.4)" }}>
+            <p className="text-secondary">
+              Er staat op dit moment geen enkele vraag aan. Zet minstens één vraag aan hierboven —
+              zonder vragen valt er niets te meten en kan de meting niet starten.
+            </p>
+          </div>
+        ))}
     </div>
   );
 }

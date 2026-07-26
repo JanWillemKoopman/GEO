@@ -3,6 +3,7 @@ import { getUser } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getOwnedAnalysis } from "@/lib/analyses";
 import { enqueueMeasurement } from "@/lib/jobs/queue";
+import { describeError, classifyError } from "@/lib/errors";
 
 /**
  * POST /api/analyses/[id]/confirm — de review-gate (abcplan.md §3.6/A2c).
@@ -26,13 +27,47 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
     );
   }
 
-  const { error } = await admin.from("analyses").update({ status: "meten" }).eq("id", id);
-  if (error) return NextResponse.json({ error: "Bevestigen mislukt." }, { status: 500 });
+  // Zonder actieve vragen valt er niets te meten, en zou de analyse blijven
+  // hangen op 'meten': er komen nul taken in de rij, dus de aggregatie en het
+  // rapport worden nooit afgetrapt en het voortgangsscherm draait eindeloos.
+  // De klant kan dit zelf veroorzaken door in het conceptscherm alle vragen uit
+  // te zetten — dan hoort hij te horen wat er mis is, niet een spinner te zien.
+  const { count: activePrompts } = await admin
+    .from("prompts")
+    .select("id", { count: "exact", head: true })
+    .eq("analysis_id", id)
+    .eq("active", true);
+
+  if (!activePrompts) {
+    return NextResponse.json(
+      { error: "Er staat geen enkele vraag aan. Zet minstens één vraag aan om de meting te starten." },
+      { status: 409 },
+    );
+  }
 
   // Goedkeuring IS het startsein voor de meting (optimalisatie.md 1.5). Die
   // hier inplannen in plaats van in het voortgangsscherm: sloot de klant na het
   // bevestigen de tab, dan werd er voorheen nooit gemeten.
-  const { planned, totalPrompts } = await enqueueMeasurement(admin, id, 0);
+  //
+  // Eerst inplannen, dan pas de status omzetten. Andersom kon de analyse op
+  // 'meten' blijven staan terwijl het inplannen stukliep — een status die belooft
+  // wat er niet gebeurt. Deze volgorde herstelt zichzelf: draaien de taken al
+  // terwijl de status nog 'concept_klaar' is, dan zet de aggregatietaak hem
+  // alsnog door.
+  let planned: number;
+  let totalPrompts: number;
+  try {
+    ({ planned, totalPrompts } = await enqueueMeasurement(admin, id, 0));
+  } catch (err) {
+    console.error(`meting inplannen mislukt bij bevestigen van ${id}:`, err);
+    return NextResponse.json(
+      { error: "Meting inplannen mislukt.", detail: describeError(err), problem: classifyError(err) },
+      { status: 500 },
+    );
+  }
+
+  const { error } = await admin.from("analyses").update({ status: "meten" }).eq("id", id);
+  if (error) return NextResponse.json({ error: "Bevestigen mislukt." }, { status: 500 });
 
   return NextResponse.json({ status: "meten", planned, totalPrompts });
 }

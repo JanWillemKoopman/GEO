@@ -12,7 +12,7 @@ import "server-only";
  * niet meer sinds meting per prompt en content in twee stappen gaan).
  */
 import { createAdminClient } from "@/lib/supabase/admin";
-import { runJob } from "@/lib/jobs/handlers";
+import { runJob, scheduleFollowUpAfterFailure } from "@/lib/jobs/handlers";
 import { HEAVY_JOB_TYPES, MAX_ATTEMPTS, backoffMinutes, type JobType } from "@/lib/jobs/types";
 import { workerTimeBudgetMs } from "@/lib/config";
 import { describeError } from "@/lib/errors";
@@ -178,6 +178,17 @@ async function handleFailure(
       .update({ status: "failed", finished_at: new Date().toISOString(), last_error: detail })
       .eq("id", job.id);
     await markOwnerFailed(admin, job);
+
+    // Opgeven is óók een uitkomst waar de keten mee verder moet. Was dit de
+    // laatste openstaande meting, dan moet de aggregatie alsnog starten: die
+    // beslist zelf of er genoeg gemeten is (de 70%-drempel). Zonder deze regel
+    // blijft een analyse eeuwig op 'meten' staan omdat één vraag het niet deed.
+    // Best-effort: een fout hier mag de foutafhandeling zelf niet omvergooien.
+    try {
+      await scheduleFollowUpAfterFailure(admin, job);
+    } catch (err) {
+      console.error(`Vervolg inplannen na definitief mislukte taak ${job.id} faalde:`, err);
+    }
     return false;
   }
 

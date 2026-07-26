@@ -40,6 +40,10 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
         .select("id", { count: "exact", head: true })
         .eq("analysis_id", id)
         .eq("week_no", 0)
+        // Alleen de gewone meting telt in "Vragen stellen (x van y)". Een
+        // hermeting ná publicatie draagt ook week_no 0 en zou de teller boven
+        // het totaal aantal vragen kunnen duwen.
+        .eq("purpose", "periodic")
         .not("mention_json", "is", null),
       analysisProgress(admin, id),
     ]);

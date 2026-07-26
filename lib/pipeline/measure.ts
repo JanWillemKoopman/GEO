@@ -43,6 +43,27 @@ type Admin = SupabaseClient;
 const MIN_SUCCESS_RATIO = 0.7;
 
 /**
+ * Onder hoeveel tekens we een antwoord als MISLUKT beschouwen in plaats van als
+ * meetresultaat (optimalisatie.md 0.2, doorgetrokken naar halte 3a).
+ *
+ * De simulatie-call kan een lege of afgekapte string teruggeven: een weigering,
+ * een web_search die niets opleverde, of een respons die alleen uit een
+ * tool-aanroep bestond. `output_text` is dan "" — en dat werd tot nu toe gewoon
+ * opgeslagen. Stap 3b beoordeelt vervolgens een leeg antwoord, concludeert
+ * volkomen terecht "niet genoemd", en dat oordeel gaat als echte meting de score
+ * in. Het resultaat is een score die te laag is zonder dat iemand het kan zien,
+ * plus een "gemiste vraag" in het rapport waar een pagina voor geschreven wordt.
+ *
+ * Een leeg antwoord is geen nulscore maar een meetfout. Gooien betekent dat de
+ * wachtrij het opnieuw vraagt, en blijft het misgaan, dan valt deze ene vraag
+ * netjes buiten de drempel hierboven in plaats van de uitslag te vertekenen.
+ *
+ * 40 tekens is ruim onder elk echt antwoord ("Daar kan ik je niet mee helpen."
+ * is al 33) en ruim boven leeg.
+ */
+const MIN_ANSWER_CHARS = 40;
+
+/**
  * Waarvoor deze meting gedaan wordt (optimalisatie.md 5.3).
  *
  * Een impactmeting betreft maar een handvol vragen en mag daarom NOOIT
@@ -110,6 +131,16 @@ export async function measureOnePrompt(
       meta: { kind: "measure_simulate", analysisId: analysis.id, profileId: analysis.profile_id },
     });
 
+    // Vóór het opslaan controleren, niet erna: eenmaal opgeslagen wordt 3a nooit
+    // meer herhaald (de kostenbescherming hierboven), en dan zou een leeg
+    // antwoord voorgoed als meting blijven staan.
+    if (a.text.trim().length < MIN_ANSWER_CHARS) {
+      throw new Error(
+        `Lege of onbruikbaar korte respons bij het meten van prompt ${prompt.id} ` +
+          `(${a.text.trim().length} tekens). Dit is een meetfout, geen nulscore.`,
+      );
+    }
+
     const { data: inserted, error } = await admin
       .from("tracking_runs")
       .insert({
@@ -147,6 +178,18 @@ export async function measureOnePrompt(
 
   if (run.mention_json) return; // 3b al gedaan — niets te doen (idempotent)
 
+  // Een eerder opgeslagen leeg antwoord (van vóór de controle hierboven) mag
+  // niet alsnog als "niet genoemd" de score in. De rij weggooien en gooien:
+  // de volgende poging stelt de vraag opnieuw. Dat is begrensd door het aantal
+  // pogingen van de taak, dus het kan niet ontsporen in herhaalde kosten.
+  if ((run.raw_response ?? "").trim().length < MIN_ANSWER_CHARS) {
+    await admin.from("tracking_runs").delete().eq("id", run.id);
+    throw new Error(
+      `Opgeslagen meting van prompt ${prompt.id} bevat geen bruikbaar antwoord; ` +
+        `de meting wordt opnieuw gedaan.`,
+    );
+  }
+
   // 3b — het antwoord beoordelen (goedkoop, geen web_search). Retry-safe: leunt
   // op het al opgeslagen raw_response, herhaalt 3a nooit.
   const b = await callStructured({
@@ -160,9 +203,14 @@ export async function measureOnePrompt(
     meta: { kind: "measure_mention", analysisId: analysis.id, profileId: analysis.profile_id },
   });
 
-  await admin.from("tracking_runs").update({ mention_json: b.parsed as never }).eq("id", run.id);
-
   // Genormaliseerd naar tracking_run_mentions (§5) — delete-then-insert voor idempotente retries.
+  //
+  // De VOLGORDE is hier wezenlijk: eerst de losse oordeelsrijen, dan pas
+  // `mention_json`. Dat laatste veld is namelijk waaraan de rest van de app ziet
+  // dat een vraag beoordeeld is (measurementIsUsable telt erop). Andersom kon de
+  // vlag gezet worden terwijl de insert stukliep — dan telde de meting als
+  // geslaagd voor de drempel, maar als ONBEOORDEELD in de score. Nu is
+  // `mention_json` het sluitstuk: staat hij er, dan staat de rest er ook.
   await admin.from("tracking_run_mentions").delete().eq("tracking_run_id", run.id);
   const rows = b.parsed.mentions.map((m) => ({
     tracking_run_id: run!.id,
@@ -173,7 +221,22 @@ export async function measureOnePrompt(
     sentiment: m.sentiment,
     cited_sources: m.citedSources,
   }));
-  if (rows.length > 0) await admin.from("tracking_run_mentions").insert(rows);
+  if (rows.length > 0) {
+    const { error: rowsError } = await admin.from("tracking_run_mentions").insert(rows);
+    if (rowsError) {
+      throw new Error(`Oordeel opslaan mislukt voor meting ${run.id}: ${rowsError.message}`);
+    }
+  }
+
+  const { error: judgedError } = await admin
+    .from("tracking_runs")
+    .update({ mention_json: b.parsed as never })
+    .eq("id", run.id);
+  if (judgedError) {
+    // Stil falen zou betekenen dat een al betaalde meting voorgoed onbeoordeeld
+    // blijft en de meting onder de drempel kan duwen terwijl de data er is.
+    throw new Error(`Beoordeling vastleggen mislukt voor meting ${run.id}: ${judgedError.message}`);
+  }
 }
 
 /**

@@ -410,7 +410,7 @@ export async function generateReport(id: string, weekNo = 0): Promise<AnalysisSt
     // meting-id's; de codes bestaan alleen binnen deze ene aanroep.
     const enriched = resolveTargets(report.parsed.recommendations, missed);
 
-    const { data: reportRow } = await admin.from("reports").insert({
+    const { data: reportRow, error: reportError } = await admin.from("reports").insert({
       analysis_id: id,
       week_no: weekNo,
       period: weekNo === 0 ? "nulmeting" : `periode ${weekNo}`,
@@ -421,6 +421,18 @@ export async function generateReport(id: string, weekNo = 0): Promise<AnalysisSt
       gap_analysis_raw_json: gap.raw as never, // volledige ruwe OpenAI-output B1 (§5)
       raw_json: report.raw as never, // volledige ruwe OpenAI-output B2 (§5)
     }).select("id").single();
+
+    // Zonder deze controle liep de code door naar status 'gereed' terwijl er
+    // geen rapport in de database stond: de analyse meldde zich klaar, het
+    // rapporttabblad bleef leeg en "schrijf alle pagina's" antwoordde dat er nog
+    // geen rapport was. Gooien betekent dat de wachtrij het gewoon opnieuw
+    // probeert — het dure denkwerk is dan hooguit één keer voor niets geweest.
+    if (reportError || !reportRow) {
+      throw new Error(
+        `Rapport opslaan mislukt voor analyse ${id} (periode ${weekNo}): ` +
+          `${reportError?.message ?? "geen rij teruggekregen"}`,
+      );
+    }
 
     await saveFactRequests(admin, analysis, report.parsed.factRequests);
 
@@ -449,12 +461,10 @@ export async function generateReport(id: string, weekNo = 0): Promise<AnalysisSt
         await sendReportEmail(analysis, authUser.user.email, report.parsed, change).catch((err) =>
           console.error(`Rapport-mail versturen mislukt voor analyse ${id}:`, err),
         );
-        if (reportRow) {
-          await admin
-            .from("reports")
-            .update({ emailed_at: new Date().toISOString() })
-            .eq("id", reportRow.id);
-        }
+        await admin
+          .from("reports")
+          .update({ emailed_at: new Date().toISOString() })
+          .eq("id", reportRow.id);
       }
     } else if (!worthEmailing) {
       console.log(`Analyse ${id} periode ${weekNo}: niets betekenisvols veranderd, geen mail verstuurd.`);
