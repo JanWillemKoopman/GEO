@@ -3,21 +3,30 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { AnalysisStatus } from "@/lib/types/database";
-import { ReportProgress } from "./report-progress";
 import { ErrorNotice, problemFromResponse } from "@/components/error-notice";
+import { WorkInProgress, useStatusPoll } from "@/components/work-in-progress";
 import type { UserFacingError } from "@/lib/errors";
 
 interface StatusPayload {
   status: AnalysisStatus;
   activePromptCount: number;
   measuredCount: number;
+  pendingJobs: number;
+  failedJobs: number;
+  retrying: boolean;
+  etaText: string | null;
 }
 
 /**
- * Start halte A3 (nulmeting) en toont live, server-state-gedreven voortgang
- * (abcplan.md §3.7 stap 6: "Bezig met meten… (x/30 prompts verwerkt)").
+ * Voortgang van de meting (halte A3) én van het rapport dat er direct op volgt.
+ *
+ * Plant per actieve vraag een meettaak in en kijkt daarna toe. De overgang naar
+ * het rapport gebeurt nu OP DE SERVER (optimalisatie.md 1.5): de laatste
+ * meettaak plant de aggregatie in, die plant het rapport in. Dit scherm hoeft
+ * daar niets voor te doen — vandaar dat de losse handoff naar ReportProgress
+ * verdwenen is. Sloot de klant hier de tab, dan werd het rapport voorheen pas
+ * gemaakt als hij terugkwam.
  */
-/** Zie de gelijknamige constante in prepare-progress.tsx. */
 const STALE_FAILURE: UserFacingError = {
   kind: "unknown",
   title: "De meting is eerder misgelopen",
@@ -36,20 +45,12 @@ export function MeasureProgress({
   initialStatus: AnalysisStatus;
 }) {
   const router = useRouter();
-  const [data, setData] = useState<StatusPayload>({
-    status: initialStatus,
-    activePromptCount: 0,
-    measuredCount: 0,
-  });
   const [problem, setProblem] = useState<UserFacingError | null>(
     initialStatus === "mislukt" ? STALE_FAILURE : null,
   );
-  // Zodra de meting klaar is, schakelt dit component door naar het rapport —
-  // automatisch, geen navigatie/klik nodig (matcht abcplan.md §9 stap 6-9).
-  const [handoffToReport, setHandoffToReport] = useState(false);
   const started = useRef(false);
 
-  async function runMeasure() {
+  async function schedule() {
     setProblem(null);
     try {
       const res = await fetch(`/api/analyses/${analysisId}/measure`, { method: "POST" });
@@ -58,73 +59,58 @@ export function MeasureProgress({
         setProblem(problemFromResponse(json));
       }
     } catch {
-      // Netwerkfout ("Load failed") — server werkt door; polling leest de echte status.
+      /* netwerkfout bij inplannen — de polling leest de echte stand */
     }
   }
 
+  const data = useStatusPoll<StatusPayload>(
+    `/api/analyses/${analysisId}/status`,
+    (d) => d.status === "gereed",
+    () => router.refresh(),
+  );
+
   useEffect(() => {
-    let active = true;
-    const poll = async () => {
-      try {
-        const res = await fetch(`/api/analyses/${analysisId}/status`, { cache: "no-store" });
-        if (!res.ok) return;
-        const json: StatusPayload = await res.json();
-        if (!active) return;
-        setData(json);
-        if (json.status === "gemeten") {
-          clearInterval(interval);
-          setHandoffToReport(true);
-        } else if (json.status === "gereed") {
-          clearInterval(interval);
-          router.refresh();
-        } else if (json.status === "mislukt") {
-          clearInterval(interval);
-          setProblem((p) => p ?? STALE_FAILURE);
-        }
-      } catch {
-        /* stil — volgende tick probeert opnieuw */
-      }
-    };
-    const interval = setInterval(poll, 2000);
-    poll();
-    return () => {
-      active = false;
-      clearInterval(interval);
-    };
-  }, [analysisId, router]);
+    if (data && (data.status === "mislukt" || data.failedJobs > 0)) {
+      setProblem((p) => p ?? STALE_FAILURE);
+    }
+  }, [data]);
 
   useEffect(() => {
     if (started.current) return;
     started.current = true;
-    void runMeasure();
+    void schedule();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  if (handoffToReport) {
-    return <ReportProgress analysisId={analysisId} />;
-  }
-
   if (problem) {
-    return <ErrorNotice error={problem} onRetry={() => void runMeasure()} />;
+    return <ErrorNotice error={problem} onRetry={() => void schedule()} />;
   }
 
-  const total = data.activePromptCount || null;
+  const measured = data?.measuredCount ?? 0;
+  const total = data?.activePromptCount ?? 0;
+  const measuringDone = total > 0 && measured >= total;
+  // Na 'gemeten' loopt het rapport nog. Voor de klant is dat dezelfde
+  // wachtsituatie, dus geen apart scherm en geen tussentijdse navigatie.
+  const writingReport = data?.status === "gemeten";
 
   return (
-    <div className="card flex flex-col gap-4">
-      <div className="flex items-center gap-3">
-        <span className="live-dot" />
-        <span className="mono-label">
-          Bezig met meten{total ? ` (${data.measuredCount}/${total} prompts verwerkt)` : "…"}
-        </span>
-      </div>
-      <p className="text-secondary">
-        Elke actieve prompt wordt naar een AI-assistent gestuurd om te zien of jij (en je
-        concurrenten) genoemd worden. Dit duurt doorgaans minder dan een minuut.
-      </p>
-      <p className="text-sm text-muted">
-        Je kunt dit scherm sluiten en later terugkomen — de voortgang loopt gewoon door.
-      </p>
-    </div>
+    <WorkInProgress
+      title={writingReport ? "Rapport wordt opgesteld" : "Bezig met meten"}
+      explanation={
+        writingReport
+          ? "De meting is klaar. We vergelijken je nu met je concurrenten en schrijven daar een rapport over."
+          : "Elke vraag gaat naar een AI-assistent om te zien of jij (en je concurrenten) genoemd worden."
+      }
+      etaText={data?.etaText}
+      retrying={data?.retrying}
+      steps={[
+        {
+          label: total > 0 ? `Vragen stellen (${measured} van ${total})` : "Vragen stellen",
+          done: measuringDone,
+        },
+        { label: "Score en concurrentievergelijking berekenen", done: writingReport },
+        { label: "Rapport opstellen", done: false },
+      ]}
+    />
   );
 }

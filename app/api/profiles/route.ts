@@ -3,6 +3,7 @@ import { getUser } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { normalizeUrl, checkUrlFormat } from "@/lib/url";
 import { isReachable } from "@/lib/crawler";
+import { enqueue, dedupe } from "@/lib/jobs/queue";
 
 /**
  * POST /api/profiles — nieuw klantprofiel aanmaken vanuit de onboarding-wizard
@@ -116,6 +117,15 @@ export async function POST(request: Request) {
   if (error) {
     return NextResponse.json({ error: "Aanmaken mislukt. Probeer het opnieuw." }, { status: 500 });
   }
+
+  // Zie de analyse-route: het onderzoek hangt aan de wachtrij, niet aan een
+  // openstaande browsertab (optimalisatie.md 1.5).
+  await enqueue(admin, {
+    type: "profile_research",
+    payload: {},
+    profileId: data.id as string,
+    dedupeKey: dedupe.profileResearch(data.id as string),
+  });
 
   return NextResponse.json({ id: data.id }, { status: 201 });
 }

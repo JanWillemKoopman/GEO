@@ -3,11 +3,36 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { ProfileStatus } from "@/lib/types/database";
+import { ErrorNotice, problemFromResponse } from "@/components/error-notice";
+import { WorkInProgress, useStatusPoll } from "@/components/work-in-progress";
+import type { UserFacingError } from "@/lib/errors";
+
+interface StatusPayload {
+  status: ProfileStatus;
+  pendingJobs: number;
+  failedJobs: number;
+  retrying: boolean;
+  etaText: string | null;
+}
 
 /**
- * Start het profielonderzoek en toont live, server-state-gedreven voortgang —
- * zelfde patroon als app/analyses/[id]/prepare-progress.tsx.
+ * Voortgang van het profielonderzoek. Plant het werk in en kijkt toe — zelfde
+ * patroon als prepare-progress (optimalisatie.md 1.7).
+ *
+ * Dit is de zwaarste enkele taak in het systeem (sitemap-crawl van tot 150
+ * pagina's plus AI-onderzoek met web_search). Juist hier was "je kunt dit
+ * scherm sluiten" het minst waar toen de browser het werk nog zelf deed.
  */
+const STALE_FAILURE: UserFacingError = {
+  kind: "unknown",
+  title: "Het onderzoek is eerder misgelopen",
+  message:
+    "Dit lag vaak aan een tijdelijke storing, of aan een website die ons niet " +
+    "binnenliet. Probeer het opnieuw — je gegevens blijven staan.",
+  canRetry: true,
+  detail: "",
+};
+
 export function ProfileProgress({
   profileId,
   initialStatus,
@@ -16,94 +41,53 @@ export function ProfileProgress({
   initialStatus: ProfileStatus;
 }) {
   const router = useRouter();
-  const [status, setStatus] = useState<ProfileStatus>(initialStatus);
-  const [failed, setFailed] = useState(initialStatus === "mislukt");
-  const [errorDetail, setErrorDetail] = useState<string | null>(null);
+  const [problem, setProblem] = useState<UserFacingError | null>(
+    initialStatus === "mislukt" ? STALE_FAILURE : null,
+  );
   const started = useRef(false);
 
-  async function runResearch() {
-    setFailed(false);
-    setErrorDetail(null);
+  async function schedule() {
+    setProblem(null);
     try {
       const res = await fetch(`/api/profiles/${profileId}/research`, { method: "POST" });
       if (!res.ok) {
-        const json = await res.json().catch(() => ({}) as { detail?: string });
-        setFailed(true);
-        setErrorDetail(json.detail ?? null);
+        const json = await res.json().catch(() => ({}));
+        setProblem(problemFromResponse(json));
       }
     } catch {
-      // Netwerkfout — server werkt door, polling hieronder leest de echte status.
+      /* netwerkfout bij inplannen — de polling leest de echte stand */
     }
   }
 
+  const data = useStatusPoll<StatusPayload>(
+    `/api/profiles/${profileId}/status`,
+    (d) => d.status === "klaar",
+    () => router.refresh(),
+  );
+
   useEffect(() => {
-    let active = true;
-    const poll = async () => {
-      try {
-        const res = await fetch(`/api/profiles/${profileId}/status`, { cache: "no-store" });
-        if (!res.ok) return;
-        const json: { status: ProfileStatus } = await res.json();
-        if (!active) return;
-        setStatus(json.status);
-        if (json.status === "klaar") {
-          router.refresh();
-        } else if (json.status === "mislukt") {
-          setFailed(true);
-        }
-      } catch {
-        /* stil — volgende tick probeert opnieuw */
-      }
-    };
-    const interval = setInterval(poll, 2000);
-    poll();
-    return () => {
-      active = false;
-      clearInterval(interval);
-    };
-  }, [profileId, router]);
+    if (data && (data.status === "mislukt" || data.failedJobs > 0)) {
+      setProblem((p) => p ?? STALE_FAILURE);
+    }
+  }, [data]);
 
   useEffect(() => {
     if (started.current) return;
     started.current = true;
-    void runResearch();
+    void schedule();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  if (failed) {
-    return (
-      <div className="card flex flex-col gap-4">
-        <div className="flex items-center gap-3">
-          <span className="chip" style={{ background: "rgba(211,58,63,0.1)", color: "#c2282d", borderColor: "rgba(211,58,63,0.3)" }}>
-            Mislukt
-          </span>
-        </div>
-        <p className="text-secondary">
-          Het onderzoeken van dit klantprofiel is mislukt. Dit kan aan een tijdelijke fout liggen.
-          Probeer het opnieuw.
-        </p>
-        {errorDetail && (
-          <p className="rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--bg-elevated)] px-4 py-3 font-mono text-xs text-[var(--status-error)]">
-            {errorDetail}
-          </p>
-        )}
-        <button onClick={() => void runResearch()} className="btn-primary w-fit">
-          Opnieuw proberen
-        </button>
-      </div>
-    );
+  if (problem) {
+    return <ErrorNotice error={problem} onRetry={() => void schedule()} />;
   }
 
   return (
-    <div className="card flex flex-col gap-5">
-      <div className="flex items-center gap-3">
-        <span className="live-dot" />
-        <span className="mono-label">
-          {status === "klaar" ? "Klaar" : "Profiel wordt onderzocht… dit duurt doorgaans een halve minuut"}
-        </span>
-      </div>
-      <p className="text-sm text-muted">
-        Je kunt dit scherm sluiten en later terugkomen — de voortgang loopt gewoon door.
-      </p>
-    </div>
+    <WorkInProgress
+      title="Profiel wordt onderzocht"
+      explanation="We lezen je website, brengen in kaart welke pagina's er zijn, en zoeken uit wat je merk aanbiedt en wie je concurrenten zijn."
+      etaText={data?.etaText}
+      retrying={data?.retrying}
+    />
   );
 }

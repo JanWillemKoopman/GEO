@@ -1,18 +1,17 @@
 import { NextResponse } from "next/server";
 import { serverEnv } from "@/lib/env";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { measureAnalysis } from "@/lib/pipeline/measure";
+import { enqueueMeasurement } from "@/lib/jobs/queue";
 
 /**
  * GET /api/cron/weekly-tracking — de wekelijkse lus (abcplan.md §6 A3, §12.4).
- * Verwerkt alléén analyses met tracking_enabled = true, tot maximaal 10 weken.
- * Beveiligd met CRON_SECRET (Vercel Cron stuurt dit automatisch mee als
- * Authorization-header wanneer de env-variabele zo heet). Zie vercel.json.
  *
- * ⚠️ Vereenvoudiging: analyses worden hier SEQUENTIEEL verwerkt binnen één
- * functie-aanroep — prima op de huidige (kleine) schaal, maar bij veel actieve
- * analyses hoort dit op de al aanwezige `jobs`-tabel (§4) te draaien i.p.v.
- * synchroon in de cron zelf. Niet gebouwd vóórdat de schaal dat vereist.
+ * Plant nu meettaken in plaats van de meting synchroon te draaien
+ * (optimalisatie.md 1.4). Daarmee is ook de laatste plek weg waar het aantal
+ * vragen tegen de tijdslimiet van één route aanliep: deze cron zet alleen taken
+ * klaar en is in milliseconden klaar, hoeveel analyses er ook actief zijn.
+ *
+ * De aggregatie ketent zichzelf aan de laatste meettaak (1.5).
  */
 export const maxDuration = 60;
 const MAX_WEEKS = 10;
@@ -30,7 +29,7 @@ export async function GET(request: Request) {
     .eq("tracking_enabled", true)
     .in("status", ["gemeten", "gereed"]);
 
-  const results: { id: string; week: number; ok: boolean }[] = [];
+  const results: { id: string; week: number; planned: number }[] = [];
 
   for (const a of analyses ?? []) {
     const { data: lastWeek } = await admin
@@ -44,14 +43,9 @@ export async function GET(request: Request) {
     const nextWeek = (lastWeek?.week_no ?? 0) + 1;
     if (nextWeek > MAX_WEEKS) continue; // klaar met de 10-weken-trend (§6 A3)
 
-    try {
-      await measureAnalysis(a.id, nextWeek);
-      results.push({ id: a.id, week: nextWeek, ok: true });
-    } catch (err) {
-      console.error(`weekly-tracking: analyse ${a.id} week ${nextWeek} mislukt:`, err);
-      results.push({ id: a.id, week: nextWeek, ok: false });
-    }
+    const { planned } = await enqueueMeasurement(admin, a.id as string, nextWeek);
+    results.push({ id: a.id as string, week: nextWeek, planned });
   }
 
-  return NextResponse.json({ processed: results.length, results });
+  return NextResponse.json({ analyses: results.length, results });
 }

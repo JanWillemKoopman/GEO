@@ -1,41 +1,47 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { getUser } from "@/lib/auth";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { getOwnedAnalysis } from "@/lib/analyses";
+import { analysisProgress, formatEta } from "@/lib/jobs/progress";
 
 /**
- * GET /api/analyses/[id]/status — lichte poll-endpoint voor de voortgangsschermen.
- * Leest via de user-sessie (RLS = ownership). Geeft de status + coarse voortgang
- * (onderwerp-onderzoek/prompts voor A1'-A2, gemeten prompts voor A3) zodat de UI server-
- * state-gedreven is (abcplan.md §3.7), niet client-animatie.
+ * GET /api/analyses/[id]/status — poll-endpoint voor de voortgangsschermen.
+ *
+ * Leest nu ook de TAAKSTAND (optimalisatie.md 1.6). Dat is het verschil tussen
+ * "voortgang omdat deze browser het werk startte" en "voortgang omdat er werk
+ * loopt" — de tweede klopt ook als de klant het scherm nooit opende.
+ *
+ * `jobs` staat op deny-all in RLS, dus dit gaat via de service-role client mét
+ * expliciete eigenaarscontrole (zelfde patroon als de kosten-route).
  */
 export const dynamic = "force-dynamic";
 
 export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const supabase = await createClient();
 
-  const { data: analysis } = await supabase
-    .from("analyses")
-    .select("id, status")
-    .eq("id", id)
-    .maybeSingle();
+  const user = await getUser();
+  if (!user) return NextResponse.json({ error: "Niet ingelogd." }, { status: 401 });
 
+  const admin = createAdminClient();
+  const analysis = await getOwnedAnalysis(admin, id, user.id);
   if (!analysis) return NextResponse.json({ error: "Niet gevonden." }, { status: 404 });
 
-  const [{ count: researchCount }, { count: promptCount }, { count: activePromptCount }, { count: measuredCount }] =
+  const [{ count: researchCount }, { count: promptCount }, { count: activePromptCount }, { count: measuredCount }, progress] =
     await Promise.all([
-      supabase.from("topic_research").select("id", { count: "exact", head: true }).eq("analysis_id", id),
-      supabase.from("prompts").select("id", { count: "exact", head: true }).eq("analysis_id", id),
-      supabase
+      admin.from("topic_research").select("id", { count: "exact", head: true }).eq("analysis_id", id),
+      admin.from("prompts").select("id", { count: "exact", head: true }).eq("analysis_id", id),
+      admin
         .from("prompts")
         .select("id", { count: "exact", head: true })
         .eq("analysis_id", id)
         .eq("active", true),
-      supabase
+      admin
         .from("tracking_runs")
         .select("id", { count: "exact", head: true })
         .eq("analysis_id", id)
         .eq("week_no", 0)
         .not("mention_json", "is", null),
+      analysisProgress(admin, id),
     ]);
 
   return NextResponse.json({
@@ -44,5 +50,11 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
     promptCount: promptCount ?? 0,
     activePromptCount: activePromptCount ?? 0,
     measuredCount: measuredCount ?? 0,
+    // Taakstand: klopt ook als dit scherm het werk nooit gestart heeft.
+    pendingJobs: progress.pending,
+    runningJobs: progress.running,
+    failedJobs: progress.failed,
+    retrying: progress.retrying,
+    etaText: formatEta(progress.etaSeconds),
   });
 }

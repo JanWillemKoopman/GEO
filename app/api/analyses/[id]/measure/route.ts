@@ -1,16 +1,21 @@
 import { NextResponse } from "next/server";
 import { getUser } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { measureAnalysis } from "@/lib/pipeline/measure";
+import { getOwnedAnalysis } from "@/lib/analyses";
+import { enqueueMeasurement } from "@/lib/jobs/queue";
 import { describeError, classifyError } from "@/lib/errors";
 
 /**
- * POST /api/analyses/[id]/measure — draait de nulmeting (halte A3, week 0).
- * Synchroon; met ~10 actieve prompts in de bouwfase duurt dit doorgaans
- * enkele tientallen seconden (elke prompt: web_search + classificatie, parallel).
+ * POST /api/analyses/[id]/measure — plant de nulmeting in (optimalisatie.md 1.4).
+ *
+ * Zet één taak per actieve prompt in de wachtrij in plaats van alles synchroon
+ * te draaien. Daarmee vervalt het 60-secondenplafond dat de meting bij 30 vragen
+ * (en straks 3 metingen per vraag) onhaalbaar maakte.
+ *
+ * Al gemeten vragen worden overgeslagen: meten is de duurste stap die er is.
+ * De aggregatie en het rapport worden door de laatste meettaak zelf ingepland
+ * — de browser hoeft daar niets meer voor te doen.
  */
-export const maxDuration = 60;
-
 export async function POST(_request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
 
@@ -18,23 +23,25 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
   if (!user) return NextResponse.json({ error: "Niet ingelogd." }, { status: 401 });
 
   const admin = createAdminClient();
-  const { data: analysis } = await admin
-    .from("analyses")
-    .select("id, user_id")
-    .eq("id", id)
-    .maybeSingle();
-  if (!analysis || analysis.user_id !== user.id) {
-    return NextResponse.json({ error: "Niet gevonden." }, { status: 404 });
+  const analysis = await getOwnedAnalysis(admin, id, user.id);
+  if (!analysis) return NextResponse.json({ error: "Niet gevonden." }, { status: 404 });
+
+  // Alleen vanuit 'meten' (na goedkeuring) of 'mislukt' (retry).
+  if (analysis.status !== "meten" && analysis.status !== "mislukt") {
+    return NextResponse.json({ queued: false, status: analysis.status });
   }
 
   try {
-    const status = await measureAnalysis(id, 0);
-    return NextResponse.json({ status });
+    if (analysis.status === "mislukt") {
+      await admin.from("analyses").update({ status: "meten" }).eq("id", id);
+    }
+
+    const { planned, totalPrompts } = await enqueueMeasurement(admin, id, 0);
+    return NextResponse.json({ queued: true, planned, totalPrompts, status: "meten" });
   } catch (err) {
-    console.error(`measureAnalysis(${id}) mislukt:`, err);
-    // ⚠️ Tijdelijk: detail meesturen voor debugging tijdens de bouwfase (zie prepare/route.ts).
+    console.error(`meting inplannen mislukt voor ${id}:`, err);
     return NextResponse.json(
-      { status: "mislukt", error: "Meting mislukt.", detail: describeError(err), problem: classifyError(err) },
+      { error: "Meting inplannen mislukt.", detail: describeError(err), problem: classifyError(err) },
       { status: 500 },
     );
   }

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getUser } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getOwnedAnalysis } from "@/lib/analyses";
+import { enqueueMeasurement } from "@/lib/jobs/queue";
 
 /**
  * POST /api/analyses/[id]/confirm — de review-gate (abcplan.md §3.6/A2c).
@@ -28,5 +29,10 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
   const { error } = await admin.from("analyses").update({ status: "meten" }).eq("id", id);
   if (error) return NextResponse.json({ error: "Bevestigen mislukt." }, { status: 500 });
 
-  return NextResponse.json({ status: "meten" });
+  // Goedkeuring IS het startsein voor de meting (optimalisatie.md 1.5). Die
+  // hier inplannen in plaats van in het voortgangsscherm: sloot de klant na het
+  // bevestigen de tab, dan werd er voorheen nooit gemeten.
+  const { planned, totalPrompts } = await enqueueMeasurement(admin, id, 0);
+
+  return NextResponse.json({ status: "meten", planned, totalPrompts });
 }

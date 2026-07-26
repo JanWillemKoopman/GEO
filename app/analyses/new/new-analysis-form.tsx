@@ -9,6 +9,8 @@ export function NewAnalysisForm({ profiles }: { profiles: Profile[] }) {
   const [profileId, setProfileId] = useState(profiles[0]?.id ?? "");
   const [topic, setTopic] = useState("");
   const [contentBrief, setContentBrief] = useState("");
+  // Standaard aan: een analyse duurt minuten, dus je wilt bericht als het klaar is.
+  const [notifyByEmail, setNotifyByEmail] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
 
@@ -20,7 +22,12 @@ export function NewAnalysisForm({ profiles }: { profiles: Profile[] }) {
       const res = await fetch("/api/analyses", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ profileId, topic, content_brief: contentBrief }),
+        body: JSON.stringify({
+          profileId,
+          topic,
+          content_brief: contentBrief,
+          notify_by_email: notifyByEmail,
+        }),
       });
       const json = await res.json();
       if (!res.ok) {
@@ -85,6 +92,25 @@ export function NewAnalysisForm({ profiles }: { profiles: Profile[] }) {
         <span className="text-sm text-muted">
           Stuur de hoek en doelgroep van de content. Dit werkt door in de meet-vragen, de
           aanbevelingen én het schrijven van de content.
+        </span>
+      </label>
+
+      {/* Bericht als het klaar is (optimalisatie.md 1.8). Het werk draait op de
+          achtergrond en duurt minuten — dan hoort de klant te weten wanneer hij
+          terug kan komen, in plaats van te moeten blijven kijken. */}
+      <label className="flex cursor-pointer items-start gap-3 rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--bg-elevated)] px-4 py-3">
+        <input
+          type="checkbox"
+          checked={notifyByEmail}
+          onChange={(e) => setNotifyByEmail(e.target.checked)}
+          className="mt-0.5"
+        />
+        <span className="flex flex-col gap-0.5">
+          <span className="text-sm font-medium">Mail me zodra het rapport klaar is</span>
+          <span className="text-sm text-muted">
+            De analyse draait op de achtergrond en duurt een paar minuten. Je hoeft niet te wachten —
+            we laten het weten.
+          </span>
         </span>
       </label>
 

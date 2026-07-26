@@ -16,7 +16,8 @@ export type AnalysisStatus =
 export type PromptOrigin = "system" | "user";
 export type MentionSentiment = "positive" | "neutral" | "negative";
 export type ContentType = "article" | "faq" | "landing" | "comparison";
-export type ContentStatus = "ready" | "archived" | "published";
+/** `draft` = tussenstand tijdens generatie (migratie 0013): stap 1 klaar, stap 2 nog niet. */
+export type ContentStatus = "draft" | "ready" | "archived" | "published";
 export type JobStatus = "queued" | "running" | "done" | "failed";
 export type ProfileStatus = "bezig" | "klaar" | "mislukt";
 export type ContentAction = "nieuw" | "verbeteren";
@@ -50,6 +51,8 @@ export interface Analysis {
   status: AnalysisStatus;
   tracking_enabled: boolean;
   content_brief: string | null; // vrije toelichting: gewenste hoek/doelgroep van de content (§6/§7/§8)
+  /** Mail sturen zodra het rapport klaar is (optimalisatie.md 1.8). */
+  notify_by_email: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -247,15 +250,25 @@ export interface AiCall {
   created_at: string;
 }
 
+/**
+ * Eén taak in de wachtrij (migratie 0013, optimalisatie.md fase 1).
+ * `analysis_id` en `profile_id` zijn allebei nullable maar nooit allebei leeg —
+ * profielonderzoek hangt aan een profiel, de rest aan een analyse.
+ */
 export interface Job {
   id: string;
-  analysis_id: string;
+  analysis_id: string | null;
+  profile_id: string | null;
   type: string;
   payload_json: unknown | null;
   status: JobStatus;
   attempts: number;
   scheduled_for: string;
   last_error: string | null;
+  /** Voorkomt dubbel inplannen zolang de taak openstaat (unieke index). */
+  dedupe_key: string | null;
+  started_at: string | null;
+  finished_at: string | null;
   created_at: string;
   updated_at: string;
 }

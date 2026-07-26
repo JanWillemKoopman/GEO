@@ -1,6 +1,10 @@
 {
   "crons": [
     {
+      "path": "/api/cron/worker",
+      "schedule": "* * * * *"
+    },
+    {
       "path": "/api/cron/weekly-tracking",
       "schedule": "0 6 * * 1"
     }
