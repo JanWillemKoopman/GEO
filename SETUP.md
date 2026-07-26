@@ -139,12 +139,21 @@ weg) tijdens het bouwen.
 
 ## 6b. Cron-taken activeren
 
-Er zijn er twee, allebei beveiligd met `CRON_SECRET`:
+Er zijn er drie, allemaal beveiligd met `CRON_SECRET`. Let op **wie ze aanstuurt**
+— dat is niet voor alle drie hetzelfde:
 
-| Taak | Pad | Schema | Waarvoor |
-|---|---|---|---|
-| **Werker** | `/api/cron/worker` | elke minuut | Werkt de wachtrij af: onderzoek, meting, rapport, content. **Zonder deze taak gebeurt er niets.** |
-| Terugkerende meting | `/api/cron/tracking` | maandelijks, de 1e om 06:00 UTC | Plant een nieuwe meting in voor analyses met de tracking-schakelaar aan. |
+| Taak | Pad | Schema | Aangestuurd door | Waarvoor |
+|---|---|---|---|---|
+| **Werker** | `/api/cron/worker` | elke minuut | **Supabase pg_cron** (migratie 0015) | Werkt de wachtrij af: onderzoek, meting, rapport, content. **Zonder deze taak gebeurt er niets.** |
+| Terugkerende meting | `/api/cron/tracking` | maandelijks, de 1e om 06:00 UTC | Vercel (`vercel.json`) | Plant een nieuwe meting in voor analyses met de tracking-schakelaar aan. |
+| Rapport-e-mail | `/api/cron/reminders` | wekelijks, maandag 09:00 UTC | Vercel (`vercel.json`) | Stuurt het periodieke rapport en de publicatieherinnering. |
+
+> ⚠️ **Zet de werker NIET in `vercel.json`.** Het Hobby-plan staat maximaal twee
+> cron-taken toe en die mogen ten hoogste één keer per dag lopen. Een regel met
+> `"schedule": "* * * * *"` laat de **deployment falen** — niet de cron, de hele
+> build. Dat is precies wat er in fase 1 gebeurde. De werker hoort daarom in
+> pg_cron; de twee taken hierboven passen wél binnen de Hobby-grenzen (twee
+> stuks, beide minder vaak dan dagelijks).
 
 1. Genereer een geheim: `openssl rand -hex 32`.
 2. Zet dat als `CRON_SECRET` in Vercel (Environment Variables) en redeploy.
@@ -158,11 +167,25 @@ Er zijn er twee, allebei beveiligd met `CRON_SECRET`:
    curl -H "Authorization: Bearer <jouw-CRON_SECRET>" https://<jouw-url>/api/cron/tracking
    ```
 
-> ⚠️ **De werker draait elke minuut en dat vraagt een betaald Vercel-plan.**
-> Alternatief zonder extra abonnement: migratie `0015_worker_cron_via_pg_cron.sql`
-> laat Supabase de werker aansturen via `pg_cron` + `pg_net`. Zet daarvoor eerst
-> de twee Vault-geheimen (staat in de migratie beschreven). Beide tegelijk mag
-> ook — twee werkers pakken elkaars werk niet dubbel op.
+### De werker: eenmalige setup in Supabase
+
+Migratie `0015_worker_cron_via_pg_cron.sql` laat Supabase de werker elke minuut
+aanroepen via `pg_cron` + `pg_net`. Die migratie alleen is **niet genoeg** — zet
+in de SQL-editor ook de twee Vault-geheimen:
+
+```sql
+select vault.create_secret('https://jouw-app.vercel.app', 'geo_site_url');
+select vault.create_secret('<dezelfde waarde als CRON_SECRET>', 'geo_cron_secret');
+```
+
+Zonder die twee slaat `trigger_worker()` stil over: geen fout in de logs, maar
+ook geen enkele taak die verwerkt wordt. Controleren:
+
+```sql
+select * from cron.job;                                            -- staat 'geo-worker' erin?
+select name from vault.decrypted_secrets where name like 'geo_%';   -- staan beide geheimen er?
+select * from cron.job_run_details order by start_time desc limit 10;
+```
 
 ## 7b. Rapport-e-mail activeren (Sprint 5, optioneel)
 
