@@ -5,6 +5,9 @@ import { usePathname } from "next/navigation";
 
 const TABS = [
   { segment: "", label: "Overzicht" },
+  // Het letterlijke AI-antwoord is het overtuigendste wat het systeem bezit
+  // (optimalisatie.md 3A) — dus staat het vóór het rapport, niet weggestopt.
+  { segment: "antwoorden", label: "Vragen & antwoorden" },
   { segment: "rapport", label: "Rapport" },
   { segment: "bibliotheek", label: "Content Bibliotheek" },
   { segment: "instellingen", label: "Instellingen" },

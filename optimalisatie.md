@@ -496,6 +496,10 @@ laten zien wát de AI antwoordt, en controleren of de deur überhaupt openstaat.
 
 **Hangt af van:** Fase 2 (je wilt geen ruis tonen als bewijs).
 
+**Status: afgerond.** Typecheck, lint en productiebuild slagen; robots.txt-parser en
+tekstmarkering zijn in kale scripts getest (41 gevallen, allemaal groen). Migratie 0018 wacht
+op toepassing — zie de noot onderaan deze fase.
+
 ### 3A — De antwoorden tonen
 
 De app slaat elk AI-antwoord volledig op in `tracking_runs.raw_response`. Dat wordt precies
@@ -555,12 +559,54 @@ worden is de klant geld laten uitgeven aan niets.
 Neem de audit op in de wekelijkse lus. Een blokkade kan er morgen zijn na een aanpassing
 door de webbouwer, en dan moet de klant dat weten.
 
+### Wat er uitgevoerd is
+
+**3A — de antwoorden tonen.** Nieuw tabblad `/analyses/[id]/antwoorden`, vóór het rapport in
+de navigatie: het letterlijke antwoord is het overtuigendste wat het systeem bezit, dus dat
+verstop je niet achter een ander tabblad. Per vraag: of je genoemd bent en op welke plek,
+welke concurrenten wél, de fase en de volumeband. Uitklappen toont het volledige antwoord
+met jouw merknaam paars gemarkeerd en concurrenten grijs, plus de bronnen als aanklikbare
+links.
+
+De markering gaat bewust niet via `dangerouslySetInnerHTML` — de tekst komt van een AI-model
+dat webpagina's las, dus daar mag nooit HTML uit in de DOM belanden. Het knipwerk zit in
+`lib/highlight.ts` (19 tests), met twee dingen die in de praktijk misgaan: langste term
+eerst (anders markeert "Bol" alleen het begin van "Bol.com") en woordgrenzen op
+`\p{L}\p{N}` in plaats van `\b` (anders breekt de grens op de punt in "Bol.com", en matcht
+"Coolblue" wél binnen "Coolbluezaken").
+
+**3.2 — filters.** Standaard **gemist én hoog gewicht bovenaan**; dat is de lijst waar geld
+in zit, en die hoort er te staan zonder dat de klant eerst gaat filteren. Daarnaast: "alleen
+waar ik niet genoemd word", filteren op funnelfase, en sorteren op gewicht.
+
+**3.3 — doorklikken.** De `evidenceRunIds` bij elk probleem in het rapport werden alleen
+geteld ("3× aangetoond"). Ze linken nu naar `?runs=…` op het antwoordentabblad, dat dan
+alleen die metingen toont. Onbekende id's (een oude link, een verwijderde meting) worden
+weggefilterd, zodat een verouderde link geen leeg scherm oplevert.
+
+**3.4 — deelbaar bewijs.** Kopiëren naar klembord in plaats van een afbeeldingsexport:
+`html2canvas` en verwanten kosten honderden kilobytes, terwijl "plakken in een mail of
+appje" precies is wat een bureau of ondernemer met dit bewijs doet. Wie een PDF wil, print
+de pagina.
+
+**3B — de audit.** Zie 3.5 t/m 3.8 hierboven. Eén beperking is bewust niet weggepoetst: of
+een site écht in de index van Bing staat, kun je van buitenaf alleen vaststellen met een
+betaalde API of via de Webmaster Tools van de klant zelf. De zoekpagina van Bing leegtrekken
+is fragiel en niet netjes, dus dat doen we niet — we melden wat we wél weten (mag Bingbot
+binnen, is er een sitemap) en zijn expliciet over de rest.
+
 ### Klaar als…
 
-- [ ] De klant kan per vraag zien wat de AI letterlijk antwoordde en wie er genoemd werd.
-- [ ] Vanuit elk probleem in het rapport is door te klikken naar het bewijs.
-- [ ] Een site die GPTBot blokkeert levert een duidelijke waarschuwing bovenaan op.
-- [ ] De audit draait wekelijks mee.
+- [x] De klant kan per vraag zien wat de AI letterlijk antwoordde en wie er genoemd werd.
+- [x] Vanuit elk probleem in het rapport is door te klikken naar het bewijs.
+- [x] Een site die GPTBot blokkeert levert een duidelijke waarschuwing bovenaan op.
+- [x] De audit draait bij elke terugkerende meting mee.
+
+> **Nog te verifiëren tegen een echte database.** Migratie 0018 is geschreven maar niet
+> toegepast, en de audit is nooit tegen een echte website gedraaid (deze omgeving heeft geen
+> uitgaande verbinding naar willekeurige sites). Wat wél getest is: de robots.txt-parser (22
+> gevallen) en de tekstmarkering (19), allemaal in kale scripts; `tsc`, `eslint` en
+> `next build` zijn schoon.
 
 ---
 

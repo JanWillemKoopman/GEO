@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getAnalysis } from "@/lib/analyses";
 import { createClient } from "@/lib/supabase/server";
@@ -119,8 +120,16 @@ export default async function RapportPage({ params }: { params: Promise<{ id: st
               >
                 <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
                   <span className="chip">{g.cluster}</span>
+                  {/* Doorklikken naar het bewijs (optimalisatie.md 3.3). Deze
+                      id's stonden er al, maar werden alleen geteld — nu leiden
+                      ze naar de antwoorden waar de uitspraak op rust. */}
                   {g.evidenceRunIds?.length > 0 && (
-                    <span className="mono-label">{g.evidenceRunIds.length}× aangetoond</span>
+                    <Link
+                      href={`/analyses/${id}/antwoorden?runs=${g.evidenceRunIds.join(",")}`}
+                      className="mono-label underline transition-colors hover:text-[var(--text-primary)]"
+                    >
+                      {g.evidenceRunIds.length}× aangetoond — bekijk het bewijs
+                    </Link>
                   )}
                 </div>
                 <p className="text-secondary">{g.problem}</p>
