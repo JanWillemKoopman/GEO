@@ -160,16 +160,106 @@ Berekend op de exacte tokenaannames uit `abcplan.md` §10, inclusief de vaste `w
 - **Scenario 6 (Sol overal) is niet aan te raden, óók niet als geld geen rol speelt.** $0,278 daarvan gaat naar halte 3b: een ja/nee-classificatie met een vlaggenschipmodel. Dat is 8× de kosten van scenario 1's héle nulmeting, voor een taak waar het meetbaar niets toevoegt. "Kosten spelen geen rol" is geen reden om het duurste model op de domste taak te zetten.
 - **De echte max-kwaliteitsvariant** is scenario 3 of 5 met Sol op alléén halte 3a (~$1,95 nulmeting, ~$21,50 over 10 weken) — alle kwaliteitswinst die ertoe doet, zonder de verspilling van scenario 6.
 
-### Halte C — contentgeneratie (per pagina, op klik)
+### Halte C — contentgeneratie
 
-| Model | Kosten per pagina |
-|-------|-------------------|
-| gpt-4.1-mini *(huidig)* | $0,003 |
-| gpt-5.4-mini | $0,012 |
-| GPT-5.6 Terra | $0,046 |
-| GPT-5.6 Sol | $0,102 |
+Deze halte is apart uitgewerkt in **§6b** hieronder: de afweging loopt daar precies andersom dan bij halte 3a, en de conclusie wijkt af van de rest van het advies.
 
-**Dit is de duidelijkste "koop gewoon kwaliteit"-beslissing in het hele plan.** Deze pagina is het tastbare product dat de klant meeneemt, wordt op expliciet verzoek gegenereerd, en draait één keer per pagina. Zelfs op Sol kost hij tien cent. Een klant die tien pagina's genereert kost je één euro — voor het onderdeel waar je product op beoordeeld wordt.
+---
+
+## 6b. Halte C — contentgeneratie apart bekeken
+
+### Waarom deze halte anders werkt
+
+Bij halte 3a is het **input**-tarief bepalend (8.000 search-tokens × 30 calls). Bij contentgeneratie is het precies omgekeerd: je schrijft veel meer dan je inleest, dus het **output**-tarief domineert. En output is bij elk model 4–6× duurder dan input.
+
+Daar komt bij dat dit de enige halte is waar de klant het resultaat **letterlijk leest en publiceert onder zijn eigen naam**. Bij een score die 3 punten afwijkt merkt niemand iets. Bij een pagina die stroef Nederlands schrijft of een verzonnen statistiek bevat, is het meteen zichtbaar — en het is precies het onderdeel waarop je product beoordeeld wordt.
+
+### Eerst een correctie op de tokenaanname
+
+`abcplan.md` §10 rekent met **~1.100 in / ~1.600 uit** per pagina. Dat is te krap voor het `ContentPiece`-schema uit §8. Dat schema vraagt in één antwoord om: `title`, `metaTitle`, `metaDescription`, **volledige `bodyMarkdown`**, een `faq`-array, een complete `schemaJsonLd`-string, `targetIntent` en `cluster`.
+
+Ruwe verdeling van 1.600 output-tokens:
+
+| Veld | Tokens |
+|------|--------|
+| JSON-LD (volledig, plakklaar) | ~250 |
+| FAQ-array (4–6 vragen) | ~350 |
+| Metadata (title, meta, intent, cluster) | ~100 |
+| **Overblijvend voor `bodyMarkdown`** | **~900** |
+
+900 tokens is in het Nederlands ongeveer **550–600 woorden**. Dat is een korte blogpost, geen pagina die door een AI-assistent geciteerd gaat worden. Content die daadwerkelijk als bron wordt opgepikt zit eerder op 1.200–2.000 woorden met echte diepgang — dat is het hele punt van de halte.
+
+**Reken daarom met ~2.500 in / ~4.000 uit.** Dat betekent ook dat de $0,003/pagina in §10 er ongeveer een factor 2,5 naast zit, zelfs op hetzelfde model.
+
+### Kosten per pagina
+
+| Model | Uit-tarief | Plan-aanname (1.100/1.600) | **Realistisch (2.500/4.000)** | Realistisch + `web_search` |
+|-------|-----------|---------------------------|------------------------------|---------------------------|
+| gpt-4.1-mini *(huidig)* | $1,60 | $0,003 | $0,007 | $0,021 |
+| gpt-5.4-mini | $4,50 | $0,012 | $0,029 | $0,045 |
+| GPT-5.6 Luna | $6,00 | $0,016 | $0,039 | $0,057 |
+| **GPT-5.6 Terra** | $15,00 | $0,046 | **$0,114** | **$0,144** |
+| **GPT-5.6 Sol** | $30,00 | $0,102 | **$0,253** | **$0,303** |
+| **GPT-5.5** | $30,00 | $0,102 | **$0,253** | **$0,303** |
+
+Voor een klant die 10 pagina's laat schrijven: **$0,29 op 5.4-mini, $1,14 op Terra, $2,53 op Sol** — of $3,02 op Sol mét `web_search`.
+
+### De bevinding die mijn eerdere Terra-advies herziet
+
+Een blinde schrijftest (Noren, juli 2026) liet 24 volledige teksten door beoordelaars ranken zonder te weten welk model wat had geschreven. Uitkomst:
+
+> **GPT-5.5 was de sterkste schrijver, Sol zat er het dichtst achter, en Terra en Luna bleven ver achter.**
+
+De test werd nog een tweede keer gedraaid omdat GPT-5.5 in ronde 1 ~50% langer schreef dan de 5.6-tiers; ook na correctie voor lengte, met verse beoordelaars, bleef de volgorde staan. De conclusie van de onderzoekers: *voor schrijven telt de tier die je kiest zwaarder dan de generatie-upgrade.*
+
+**Dat is relevant, want het is contra-intuïtief in twee richtingen:**
+
+1. **Terra is voor schrijfwerk géén "sweet spot".** Het is de aanbeveling die je overal leest — maar die aanbeveling komt uit coding- en tool-benchmarks. Op schrijfkwaliteit valt Terra samen met Luna in de achterhoede.
+2. **De nieuwste generatie is hier niet de beste.** GPT-5.5 kost hetzelfde als Sol ($5/$30) en scoorde hoger. Wie blind "het nieuwste" pakt, pakt op deze halte niet het beste.
+
+**Belangrijke voorbehouden — neem dit niet klakkeloos over:**
+
+- De test ging over **fictie**, niet over marketing- of SEO-content. Prozastem, samenhang en clichévermijding vertalen redelijk naar merkgebonden webteksten, maar niet één-op-één. Structuur, feitelijke dichtheid en schema-correctheid zijn hier belangrijker dan bij fictie, en daar kan Sol' nieuwere generatie juist voorliggen.
+- Het is één test van één partij (n=24 teksten). Richtinggevend, niet definitief.
+- GPT-5.5 is een vorige-generatie model. Controleer de deprecatie-horizon vóór je er de kern van je product op bouwt — dat is precies de fout die dit hele document corrigeert.
+
+### Het grootste onbeantwoorde risico: Nederlands
+
+Geen enkele benchmark die ik heb gevonden zegt iets over **Nederlandse** schrijfkwaliteit per tier. Alle vergelijkingen zijn Engelstalig.
+
+Dat is een reëel gat, want jouw klanten zijn Nederlandstalig MKB en het geleverde product ís de tekst. De algemene verwachting is dat de kleinere/gedistilleerde tiers juist op niet-Engelse generatie het eerst inzakken — niet-Engels is een kleiner deel van de trainingsdata en distillatie behoudt vooral de dominante vaardigheden. Stroef, vertaald aanvoelend Nederlands is voor een niet-technische klant onmiddellijk zichtbaar, terwijl het in geen enkele Engelse benchmark opduikt.
+
+**Dit is te testen voor een paar dollar en niet te repareren na oplevering.** Draai je eigen `ContentPiece`-prompt op één echte aanbeveling door 5.4-mini, Luna, Terra, Sol en GPT-5.5, en laat een Nederlandstalige lezer ze blind ranken. Bij ~$0,25 per generatie kost die hele test minder dan twee dollar. Doe dit vóór je een tier vastlegt — hij weegt zwaarder dan alles wat hierboven staat.
+
+### Twee wijzigingen die meer opleveren dan de modelkeuze
+
+**1. Zet `web_search` aan bij contentgeneratie.** §8 legt vast: *"structured output, **geen** `web_search`"*, terwijl dezelfde alinea vraagt om *"concrete datapunten"*. Dat is een tegenstrijdigheid met gevolgen. Concrete datapunten zonder retrieval betekent **verzonnen cijfers** — en die publiceert jouw klant onder zijn eigen naam. Dat is een aansprakelijkheidsrisico, en het ondermijnt bovendien het doel van de halte: AI-assistenten citeren juist bronneerbare, verifieerbare claims. Content zonder verifieerbare feiten wordt niet opgepikt, en dan meet je in week 10 je eigen mislukking.
+
+Kosten: **+$0,03 per pagina.** Voor het wegnemen van hallucinatierisico op het enige artefact dat de klant publiceert.
+
+**2. Splits de halte in twee calls**, net zoals je bij B1→B2 en bij de 5 promptcategorieën al doet — met exact dezelfde onderbouwing als je daar zelf gaf:
+
+- **C1 · Research** (`web_search` aan, Terra volstaat): verzamel feiten, cijfers en bronnen voor het onderwerp. ~$0,066.
+- **C2 · Schrijven** (geen search, beste schrijfmodel): schrijf de pagina op basis van C1's feiten + Brand DNA. ~$0,26 op Sol.
+
+Totaal ~$0,33 per pagina. Je scheidt daarmee *feiten verzamelen* van *goed schrijven* — twee taken die verschillende modellen goed doen, en die één call nu tegelijk moet leveren. Het is bovendien precies het patroon dat je in §7 al hebt vastgelegd, dus het past in de bestaande architectuur.
+
+### Advies voor halte C
+
+| | Keuze |
+|---|---|
+| **Aanbevolen** | **GPT-5.6 Sol** voor het schrijven, **Terra** voor de research-call, `web_search` aan, ~4.000 output-tokens. **~$0,33/pagina.** |
+| **Te testen alternatief** | **GPT-5.5** in plaats van Sol voor de schrijfcall — zelfde prijs, scoorde hoger in de blinde schrijftest. Test dit op je eigen Nederlandse prompt vóór je kiest. |
+| **Budgetvariant** | `gpt-5.4-mini` met search, ~$0,045/pagina. Acceptabel als tijdelijke bouwfase-instelling, niet als productiekeuze. |
+| **Niet doen** | Terra of Luna als schrijfmodel zónder eigen test — de aanbeveling "Terra is de sweet spot" komt uit coding-benchmarks, en op schrijfkwaliteit is dat precies de verkeerde conclusie. |
+
+**Is $0,33 per pagina het waard?** Een klant die tien pagina's laat schrijven kost je **$3,30**. Dat is het volledige tastbare product dat hij meeneemt, waarop hij zijn oordeel over de tool baseert, en waarmee hij bij een collega over je product praat. Op elke realistische verkoopprijs is dit de goedkoopste kwaliteitswinst in het hele plan — goedkoper dan de 10 weken tracking eromheen, en zichtbaarder voor de klant dan wat dan ook.
+
+Dit is ook de enige halte waar ik het **wél** verdedigbaar vind om de duurste tier te nemen zonder verdere afweging. Bij halte 3b was dat verspilling omdat het model daar niets toevoegt; hier voegt het precies het enige toe dat de klant kan beoordelen.
+
+### Kleine technische kanttekening bij het schema
+
+`schemaJsonLd: z.string()` laat het model JSON genereren *binnen* een JSON-string. Dat is een escaping-valkuil die ook goede modellen regelmatig verkeerd doen, en Zod valideert de inhoud niet — je krijgt syntactisch geldige output met kapotte JSON-LD erin. Overweeg het als gestructureerd object te modelleren, of valideer en repareer het server-side met een JSON-LD-parser vóór je `status: "ready"` zet. Dit staat los van de modelkeuze en helpt bij elk model.
 
 ### Op schaal — 50 klanten, elk één analyse met wekelijkse tracking aan
 
@@ -197,7 +287,7 @@ Zelfs het duurste scenario blijft binnen een werkbare brutomarge. Bij een SaaS-p
 | 3b · Mention beoordelen | `gpt-5.4-nano` | Echte classificatietaak, 30×/week. Jouw oorspronkelijke redenering klopt hier volledig. |
 | B1 · Gap-analyse | `gpt-5.4-mini` | 1× per rapport, vereist redeneren. |
 | B2 · Rapport | `gpt-5.4-mini` | Eindproduct dat de klant leest. |
-| C · Contentgeneratie | **`gpt-5.6-terra`** | Het tastbare product. $0,046/pagina, volledig vraaggestuurd. |
+| C · Contentgeneratie | **`gpt-5.6-sol`** (+ Terra research-call, `web_search` aan) | Het tastbare product. ~$0,33/pagina, volledig vraaggestuurd. **Zie §6b — hier geldt een andere afweging dan bij de rest.** |
 
 **Kosten: ~$0,71 per nulmeting, ~$7,35 per analyse inclusief 10 weken tracking.** Ongeveer 2× het huidige plan, in absolute zin ~$3,70 extra per klant over een volledig traject.
 
@@ -270,6 +360,10 @@ De **structuur** van §2 (gedifferentieerd per halte, met een expliciete rechtva
 - [Heads up: Web Search Tool Billing Can Be Higher Than You Expect — OpenAI Developer Community](https://community.openai.com/t/heads-up-web-search-tool-billing-can-be-higher-than-you-expect-here-s-why/1236954)
 - [ChatGPT Plans in 2026: Which Model You Get on Each Tier — FindSkill.ai](https://findskill.ai/blog/chatgpt-plans-which-model-2026/)
 - [GPT-5.4 — Wikipedia](https://en.wikipedia.org/wiki/GPT-5.4)
+- [GPT-5.6 Writing Test: Sol vs Terra vs Luna (blinde beoordeling, 24 teksten) — Noren](https://usenoren.ai/blog/gpt-5-6-writing-test)
+- [GPT-5.6 Sol vs Terra vs Luna: Which Tier Should You Actually Use? — Vellum](https://www.vellum.ai/blog/gpt-5-6-benchmarks-explained)
+- [GPT-5.6 Sol, Terra, and Luna: OpenAI's Next-Gen Model Family — DataCamp](https://www.datacamp.com/blog/gpt-5-6-sol-luna-terra)
+- [The new GPT-5.6 family: Luna, Terra, Sol — Simon Willison](https://simonwillison.net/2026/Jul/9/gpt-5-6/)
 
 ---
 
