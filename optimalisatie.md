@@ -819,6 +819,10 @@ wordt ingelost — of weerlegd, en dan weten we dat tenminste.
 
 **Hangt af van:** Fase 4 (zonder de koppeling uit 4.1 valt er niets te volgen).
 
+**Status: afgerond.** Typecheck, lint en productiebuild slagen; de effectrekenkunde is in een
+kaal script getest (20 gevallen). Migratie 0020 wacht op toepassing — zie de noot onderaan
+deze fase.
+
 ### Techniek
 
 **5.1 — Publicatiestatus vastleggen**
@@ -869,12 +873,69 @@ Een exporteerbaar overzicht van het behaalde effect. Voor bureaus is dit het bes
 waarmee ze hun eigen klant behouden. Voor ondernemers is het de bevestiging dat het geld
 goed besteed was.
 
+### Wat er uitgevoerd is
+
+**5.1/5.2 — publiceren vastleggen en controleren.** De statuswaarde `published` bestond al
+sinds de eerste migratie en werd nergens gezet. De klant geeft nu de link op; de app haalt de
+pagina op en kijkt of de tekst er echt staat (60% van de langste zinnen moet terug te vinden
+zijn — niet 100%, want een CMS herformatteert altijd iets) en of de gestructureerde data
+geplaatst is. Die controle draait als APARTE taak: een trage website mag een publicatie niet
+laten mislukken, en een bevinding is geen fout — een taak die faalt zou opnieuw geprobeerd
+worden en uiteindelijk de analyse op 'mislukt' zetten, wat voor een typefout in een URL een
+absurde uitkomst is.
+
+**5.3 — hermeting.** Twee golven, op 14 en 28 dagen. Ze staan gewoon als taak in de wachtrij
+met een `scheduled_for` in de toekomst; de werker uit fase 1 pikt ze vanzelf op. Metingen
+krijgen een `purpose` — en alleen `periodic` telt mee in de zichtbaarheidsscore. Zonder die
+scheiding zou een impactmeting van drie vragen als een score over drie vragen het dashboard op
+gaan, en dat is een grafiek die liegt. Alle zeven plekken waar de score berekend wordt
+filteren daarop.
+
+**5.4/5.5 — het effect, met controlegroep.** Dit is het inhoudelijke hart van de fase. We
+meten niet alleen de doelvragen opnieuw maar ook een even grote groep vragen waar géén pagina
+voor gemaakt is. Dat kost extra metingen en is het waard: *"op de vragen waarvoor je
+publiceerde +18, op de rest +3"* is een uitspraak die standhoudt, *"je score steeg"* niet.
+
+Drie regels die de uitkomst eerlijk houden: alleen vragen die in BEIDE metingen beoordeeld
+zijn tellen mee (anders meet je een mislukte classificatie als een daling); het vertrekpunt is
+de laatste meting vóór publicatie en niet de nulmeting (publiceert de klant pas na drie
+maanden, dan is die nulmeting geen eerlijk vertrekpunt); en onder de twee vergelijkbare vragen
+is het oordeel "nog niet te zeggen".
+
+**5.6/5.7 — resultaatpaneel en trechter.** Bovenaan de analyse zodra er iets gepubliceerd is,
+in gewone zinnen. Daaronder de trechter `geschreven → nagekeken → gepubliceerd → effect
+gemeten`, met "van hoeveel" erbij — 3 gepubliceerd is iets heel anders bij 4 dan bij 12.
+Blijft alles steken bij "geschreven", dan zegt het paneel dát, in plaats van meer content aan
+te bieden.
+
+**5.8 — herinnering.** Wekelijkse cron, één mail per analyse, nooit meer. Vandaar een
+tijdstempel-kolom en geen teller. De vlag wordt gezet vóór het versturen: gaat de mail stuk,
+dan is twee keer dezelfde herinnering erger dan hem missen.
+
+**5.9 — export.** CSV en geen PDF: dit gaat naar Excel of naar een rapportage, en een PDF
+genereren vraagt megabytes aan bibliotheek voor iets wat niemand daarna nog kan bewerken.
+Puntkomma's als scheidingsteken en een BOM vooraan, anders toont Nederlandse Excel de accenten
+verkeerd.
+
 ### Klaar als…
 
-- [ ] Een gepubliceerde pagina leidt automatisch tot een hermeting.
-- [ ] De klant ziet per pagina wat hij heeft opgeleverd, met bandbreedte.
-- [ ] De vergelijking met de controlegroep staat erbij.
-- [ ] Er is een overzicht van hoeveel content daadwerkelijk gepubliceerd wordt.
+- [x] Een gepubliceerde pagina leidt automatisch tot een hermeting.
+- [x] De klant ziet per pagina wat hij heeft opgeleverd, met bandbreedte.
+- [x] De vergelijking met de controlegroep staat erbij.
+- [x] Er is een overzicht van hoeveel content daadwerkelijk gepubliceerd wordt.
+
+> **Nog te verifiëren tegen een echte database.** Migratie 0020 is niet toegepast en de
+> keten publicatie → hermeting → effect heeft nooit gedraaid. Twee dingen die daarbij als
+> eerste getoetst moeten worden: of de tekstvergelijking in de publicatiecontrole niet te
+> streng is bij echte CMS-output (bij veel vals alarm moet de drempel van 60% omlaag), en of
+> de dedupe-sleutel op de impactmetingen klopt als dezelfde prompt doelvraag is van twee
+> verschillende pagina's.
+>
+> **Kosten.** Per gepubliceerde pagina komen er twee golven van (doelvragen + controlegroep)
+> metingen bij. Bij 3 doelvragen is dat 2 × 6 = 12 web-zoekacties, ongeveer $0,30 per pagina.
+> Dat is de prijs van een verdedigbare uitspraak in plaats van een cijfer; wil je hem drukken,
+> verlaag dan `MAX_CONTROL_PROMPTS` in `lib/pipeline/impact.ts` — maar een controlegroep die
+> veel kleiner is dan de doelgroep maakt de vergelijking betekenisloos.
 
 ---
 

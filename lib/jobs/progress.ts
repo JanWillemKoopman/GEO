@@ -37,6 +37,9 @@ const TYPICAL_SECONDS: Record<JobType, number> = {
   content_draft: 50, // gpt-4.1 schrijft een volledige pagina
   content_revise: 50,
   technical_audit: 10, // een handvol HTTP-verzoeken, geen AI
+  verify_publication: 8, // één pagina ophalen en vergelijken
+  measure_impact: 2, // plant alleen taken in
+  compute_impact: 3, // puur rekenwerk
 };
 
 /**

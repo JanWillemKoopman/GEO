@@ -60,6 +60,7 @@ export async function loadAnswers(
       .from("tracking_runs")
       .select("week_no")
       .eq("analysis_id", analysisId)
+      .eq("purpose", "periodic")
       .order("week_no", { ascending: false })
       .limit(1)
       .maybeSingle();
@@ -71,7 +72,10 @@ export async function loadAnswers(
     .from("tracking_runs")
     .select("id, prompt_id, prompt_text_snapshot, prompt_category_snapshot, prompt_weight, raw_response")
     .eq("analysis_id", analysisId)
-    .eq("week_no", period);
+    .eq("week_no", period)
+    // Alleen de gewone meting: het antwoordentabblad toont het beeld van de
+    // markt, niet de losse hermetingen bij één gepubliceerde pagina (5.3).
+    .eq("purpose", "periodic");
 
   const runs = runRows ?? [];
   if (runs.length === 0) return null;

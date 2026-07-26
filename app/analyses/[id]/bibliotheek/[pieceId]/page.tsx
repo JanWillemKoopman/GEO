@@ -7,6 +7,8 @@ import { ContentActions } from "./content-actions";
 import { ReviseBox } from "./revise-box";
 import { ContentEditor } from "./content-editor";
 import { PublishGuide } from "@/components/publish-guide";
+import { PublishBox } from "./publish-box";
+import type { PublishCheck } from "@/lib/pipeline/publish-check";
 import { GeoScorecard } from "@/components/geo-scorecard";
 import type { GeoCriteria } from "@/lib/schemas/critique";
 import type { ContentPiece, ContentPieceTarget } from "@/lib/types/database";
@@ -182,6 +184,15 @@ export default async function ContentDetailPage({
       )}
 
       <article className="card prose max-w-none" dangerouslySetInnerHTML={{ __html: bodyHtml }} />
+
+      <PublishBox
+        analysisId={id}
+        pieceId={pieceId}
+        publishedAt={piece.published_at}
+        publishedUrl={piece.published_url}
+        check={(piece.publish_check_json as PublishCheck | null) ?? null}
+        checkedAt={piece.publish_checked_at}
+      />
 
       <PublishGuide
         title={piece.title}

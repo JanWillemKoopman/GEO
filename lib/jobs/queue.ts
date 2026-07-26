@@ -86,6 +86,13 @@ export const dedupe = {
   // audit van vorig jaar de hermeting van deze maand blokkeren.
   technicalAudit: (profileId: string, day = new Date().toISOString().slice(0, 10)) =>
     `audit:${profileId}:${day}`,
+  // Publicatie en effect (optimalisatie.md fase 5). De golf zit in de sleutel:
+  // golf 1 en golf 2 zijn twee verschillende metingen van dezelfde vragen.
+  verifyPublication: (contentPieceId: string) => `verify:${contentPieceId}`,
+  measureImpact: (contentPieceId: string, wave: number) => `impact:${contentPieceId}:w${wave}`,
+  measureImpactPrompt: (contentPieceId: string, wave: number, promptId: string) =>
+    `impact_run:${contentPieceId}:w${wave}:${promptId}`,
+  computeImpact: (contentPieceId: string, wave: number) => `impact_calc:${contentPieceId}:w${wave}`,
 };
 
 /**

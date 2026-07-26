@@ -19,6 +19,8 @@ import { measurePromptById, computeAggregates, measurementIsUsable } from "@/lib
 import { generateReport } from "@/lib/pipeline/report";
 import { draftContentPiece, reviseContentPiece } from "@/lib/pipeline/content";
 import { runAuditForProfile } from "@/lib/audit/store";
+import { planImpactMeasurements, computeImpact } from "@/lib/pipeline/impact";
+import { verifyPublication } from "@/lib/pipeline/publish";
 import { enqueue, dedupe } from "@/lib/jobs/queue";
 import type { JobType, JobPayloads, RecommendationPayload } from "@/lib/jobs/types";
 import type { Job } from "@/lib/types/database";
@@ -84,6 +86,39 @@ async function scheduleAggregateIfLastPrompt(
   });
 }
 
+/**
+ * Zijn alle hermetingen van deze golf klaar? Zo ja, dan mag het effect berekend
+ * worden (optimalisatie.md 5.4).
+ *
+ * Zelfde patroon als bij de aggregatie, inclusief dezelfde valkuil: de taak die
+ * dit aanroept staat zélf nog op 'running' en moet uitgesloten worden, anders
+ * wordt de berekening nooit ingepland.
+ */
+async function scheduleImpactIfLastRun(
+  admin: Admin,
+  analysisId: string,
+  impact: { contentPieceId: string; wave: number },
+  currentJobId: string,
+): Promise<void> {
+  const { count: remaining } = await admin
+    .from("jobs")
+    .select("id", { count: "exact", head: true })
+    .eq("analysis_id", analysisId)
+    .eq("type", "measure_prompt")
+    .in("status", ["queued", "running"])
+    .contains("payload_json", { impact: { contentPieceId: impact.contentPieceId, wave: impact.wave } })
+    .neq("id", currentJobId);
+
+  if ((remaining ?? 0) > 0) return;
+
+  await enqueue(admin, {
+    type: "compute_impact",
+    payload: { contentPieceId: impact.contentPieceId, wave: impact.wave },
+    analysisId,
+    dedupeKey: dedupe.computeImpact(impact.contentPieceId, impact.wave),
+  });
+}
+
 const handlers: { [T in JobType]: Handler<T> } = {
   // ── Profielonderzoek ──────────────────────────────────────────────────────
   profile_research: async ({ job }) => {
@@ -102,7 +137,15 @@ const handlers: { [T in JobType]: Handler<T> } = {
   // ── Eén vraag meten (3a + 3b) ─────────────────────────────────────────────
   measure_prompt: async ({ admin, job }, payload) => {
     if (!job.analysis_id) throw new Error("measure_prompt zonder analysis_id.");
-    await measurePromptById(job.analysis_id, payload.promptId, payload.weekNo);
+    await measurePromptById(job.analysis_id, payload.promptId, payload.weekNo, payload.impact);
+
+    // Een hermeting ná publicatie (optimalisatie.md 5.3) hoort bij een pagina,
+    // niet bij een periode: hij ketent naar de effectberekening en NIET naar de
+    // aggregatie, want hij mag de zichtbaarheidsscore niet raken.
+    if (payload.impact) {
+      await scheduleImpactIfLastRun(admin, job.analysis_id, payload.impact, job.id);
+      return;
+    }
     await scheduleAggregateIfLastPrompt(admin, job.analysis_id, payload.weekNo, job.id);
   },
 
@@ -195,6 +238,46 @@ const handlers: { [T in JobType]: Handler<T> } = {
   technical_audit: async ({ admin, job }) => {
     if (!job.profile_id) throw new Error("technical_audit zonder profile_id.");
     await runAuditForProfile(admin, job.profile_id);
+  },
+
+  // ── Publicatie controleren (optimalisatie.md 5.2) ─────────────────────────
+  // Geen AI-aanroep: één pagina ophalen en de tekst vergelijken. Vindt hij niets,
+  // dan is dat geen mislukking van de taak maar een bevinding voor de klant.
+  verify_publication: async ({ admin, job }, payload) => {
+    if (!job.analysis_id) throw new Error("verify_publication zonder analysis_id.");
+    await verifyPublication(admin, payload.contentPieceId);
+  },
+
+  // ── Eén golf hermetingen plannen (5.3) ────────────────────────────────────
+  measure_impact: async ({ admin, job }, payload) => {
+    if (!job.analysis_id) throw new Error("measure_impact zonder analysis_id.");
+    const { planned } = await planImpactMeasurements(admin, {
+      analysisId: job.analysis_id,
+      contentPieceId: payload.contentPieceId,
+      wave: payload.wave,
+    });
+
+    // Niets in te plannen (alles al gemeten, of geen doelvragen)? Dan meteen
+    // doorrekenen — anders blijft de golf eeuwig "bezig" zonder dat er ooit een
+    // meettaak is die de berekening aftrapt.
+    if (planned === 0) {
+      await enqueue(admin, {
+        type: "compute_impact",
+        payload: { contentPieceId: payload.contentPieceId, wave: payload.wave },
+        analysisId: job.analysis_id,
+        dedupeKey: dedupe.computeImpact(payload.contentPieceId, payload.wave),
+      });
+    }
+  },
+
+  // ── Effect berekenen (5.4/5.5) — geen AI-aanroep ──────────────────────────
+  compute_impact: async ({ admin, job }, payload) => {
+    if (!job.analysis_id) throw new Error("compute_impact zonder analysis_id.");
+    await computeImpact(admin, {
+      analysisId: job.analysis_id,
+      contentPieceId: payload.contentPieceId,
+      wave: payload.wave,
+    });
   },
 };
 

@@ -6,6 +6,8 @@ import { determineStage } from "@/lib/pipeline/stage";
 import { PrepareProgress } from "./prepare-progress";
 import { MeasureProgress } from "./measure-progress";
 import { ScorePanel } from "./score-panel";
+import { ResultsPanel } from "@/components/results-panel";
+import { loadResults } from "@/lib/pipeline/results";
 import type { VisibilityScore, CompetitorBreakdown, Entity } from "@/lib/types/database";
 
 /**
@@ -97,7 +99,8 @@ export default async function OverviewPage({ params }: { params: Promise<{ id: s
       .from("tracking_runs")
       .select("id", { count: "exact", head: true })
       .eq("analysis_id", id)
-      .eq("week_no", weekNo),
+      .eq("week_no", weekNo)
+      .eq("purpose", "periodic"),
     // Nieuw ontdekte merken die nog op bevestiging wachten (optimalisatie.md
     // 2.5/2.7). Ze tellen niet mee in het aandeel, maar de klant moet ze wél
     // zien — anders is een lager aandeel niet te verklaren.
@@ -112,6 +115,11 @@ export default async function OverviewPage({ params }: { params: Promise<{ id: s
 
   const alsoMentioned = (entityRows ?? []) as Entity[];
 
+  // Het resultaatpaneel (optimalisatie.md 5.6) staat BOVEN de score: zodra er
+  // iets gepubliceerd is, is "wat heeft het opgeleverd" de vraag waarvoor de
+  // klant hier komt. De score eronder is de context.
+  const results = await loadResults(supabase, id);
+
   return (
     <div className="flex flex-col gap-4">
       {reportFailedNotice && (
@@ -125,6 +133,8 @@ export default async function OverviewPage({ params }: { params: Promise<{ id: s
           </p>
         </div>
       )}
+      <ResultsPanel analysisId={id} results={results} />
+
       <ScorePanel
         score={scoreRow}
         previous={previousScore}

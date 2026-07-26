@@ -206,7 +206,10 @@ async function computeMissedPrompts(
     .from("tracking_runs")
     .select("id, prompt_id, prompt_text_snapshot, prompt_category_snapshot, prompt_weight")
     .eq("analysis_id", analysisId)
-    .eq("week_no", weekNo);
+    .eq("week_no", weekNo)
+    // Alleen de gewone meting; impact- en controlemetingen (5.3) betreffen een
+    // handvol vragen en zouden de lijst gemiste kansen vertekenen.
+    .eq("purpose", "periodic");
   const runs = runRows ?? [];
   if (runs.length === 0) return [];
 

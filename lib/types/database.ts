@@ -60,6 +60,8 @@ export interface Analysis {
   content_brief: string | null; // vrije toelichting: gewenste hoek/doelgroep van de content (§6/§7/§8)
   /** Mail sturen zodra het rapport klaar is (optimalisatie.md 1.8). */
   notify_by_email: boolean;
+  /** Eenmalige herinnering bij klaarliggende, niet-gepubliceerde content (5.8). */
+  publish_reminder_sent_at: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -168,6 +170,41 @@ export interface TrackingRun {
   tokens_used: number | null;
   cost_usd: number | null;
   prompt_weight: number | null; // gewicht (volume × waarde), bevroren op meetmoment (§6 A3)
+  /**
+   * Waarvoor deze meting gedaan is (optimalisatie.md 5.3, migratie 0020).
+   * Alleen 'periodic' telt mee in de zichtbaarheidsscore; een impactmeting van
+   * drie vragen mag nooit als score over drie vragen het dashboard op.
+   */
+  purpose: TrackingRunPurpose;
+  content_piece_id: string | null;
+  impact_wave: number | null;
+}
+
+export type TrackingRunPurpose = "periodic" | "impact" | "control";
+
+export type ImpactVerdict = "gestegen" | "gelijk" | "gedaald" | "te_weinig_data";
+
+/**
+ * Het gemeten effect van één gepubliceerde pagina (optimalisatie.md 5.4/5.5,
+ * migratie 0020). Bewaard en niet herrekend: een cijfer dat de klant vandaag
+ * ziet moet morgen nog hetzelfde zijn.
+ */
+export interface ContentImpact {
+  id: string;
+  content_piece_id: string;
+  analysis_id: string;
+  wave: number;
+  target_total: number;
+  target_before_mentioned: number;
+  target_after_mentioned: number;
+  control_total: number;
+  control_before_mentioned: number;
+  control_after_mentioned: number;
+  target_delta: number | null;
+  control_delta: number | null;
+  delta_threshold: number | null;
+  verdict: ImpactVerdict;
+  computed_at: string;
 }
 
 export interface TrackingRunMention {
@@ -282,6 +319,11 @@ export interface ContentPiece {
   review_notes: string[];
   /** Heeft de klant de tekst zelf bijgewerkt? (4.12) */
   edited_by_user: boolean;
+  /** Publicatie (optimalisatie.md 5.1/5.2, migratie 0020). */
+  published_at: string | null;
+  published_url: string | null;
+  publish_check_json: unknown | null;
+  publish_checked_at: string | null;
   created_at: string;
 }
 

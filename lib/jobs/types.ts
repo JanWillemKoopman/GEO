@@ -27,6 +27,12 @@ export const JOB_TYPES = [
   "content_revise",
   /** Technische GEO-audit: mag een AI-crawler de site überhaupt bezoeken? */
   "technical_audit",
+  /** Controleren of een gepubliceerde pagina er echt staat (optimalisatie.md 5.2). */
+  "verify_publication",
+  /** Eén golf hermetingen plannen na publicatie (5.3). */
+  "measure_impact",
+  /** Het effect van één gepubliceerde pagina berekenen (5.4/5.5). Geen AI-aanroep. */
+  "compute_impact",
 ] as const;
 
 export type JobType = (typeof JOB_TYPES)[number];
@@ -50,7 +56,15 @@ export interface RecommendationPayload {
 export interface JobPayloads {
   profile_research: Record<string, never>;
   prepare_analysis: Record<string, never>;
-  measure_prompt: { promptId: string; weekNo: number };
+  measure_prompt: {
+    promptId: string;
+    weekNo: number;
+    /**
+     * Alleen bij een hermeting ná publicatie (optimalisatie.md 5.3). Zonder dit
+     * veld is het een gewone periodieke meting.
+     */
+    impact?: { purpose: "impact" | "control"; contentPieceId: string; wave: number };
+  };
   aggregate_week: { weekNo: number };
   generate_report: { weekNo: number };
   content_draft: {
@@ -67,6 +81,9 @@ export interface JobPayloads {
     issues: string[];
   };
   technical_audit: Record<string, never>;
+  verify_publication: { contentPieceId: string };
+  measure_impact: { contentPieceId: string; wave: number };
+  compute_impact: { contentPieceId: string; wave: number };
 }
 
 /**

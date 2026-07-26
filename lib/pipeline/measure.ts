@@ -42,6 +42,19 @@ type Admin = SupabaseClient;
  */
 const MIN_SUCCESS_RATIO = 0.7;
 
+/**
+ * Waarvoor deze meting gedaan wordt (optimalisatie.md 5.3).
+ *
+ * Een impactmeting betreft maar een handvol vragen en mag daarom NOOIT
+ * meetellen in de zichtbaarheidsscore — anders gaat een meting van drie vragen
+ * als score over drie vragen het dashboard op, en dat is een grafiek die liegt.
+ */
+export interface MeasurePurpose {
+  purpose: "periodic" | "impact" | "control";
+  contentPieceId: string;
+  wave: number;
+}
+
 export async function measureOnePrompt(
   admin: Admin,
   analysis: Analysis,
@@ -50,14 +63,26 @@ export async function measureOnePrompt(
   competitors: string[],
   prompt: Prompt,
   weekNo: number,
+  /** Weglaten voor de gewone (periodieke) meting. */
+  impact?: MeasurePurpose,
 ): Promise<void> {
-  const { data: existing } = await admin
+  // De idempotentie-sleutel verschilt per soort meting. Bij een periodieke
+  // meting is (analyse, prompt, periode) genoeg; bij een impactmeting hangt hij
+  // aan de pagina en de golf, want dezelfde prompt kan in dezelfde periode
+  // zowel periodiek als voor twee verschillende pagina's gemeten worden.
+  const query = admin
     .from("tracking_runs")
     .select("*")
     .eq("analysis_id", analysis.id)
-    .eq("prompt_id", prompt.id)
-    .eq("week_no", weekNo)
-    .maybeSingle();
+    .eq("prompt_id", prompt.id);
+
+  const { data: existing } = impact
+    ? await query
+        .eq("content_piece_id", impact.contentPieceId)
+        .eq("impact_wave", impact.wave)
+        .eq("purpose", impact.purpose)
+        .maybeSingle()
+    : await query.eq("week_no", weekNo).eq("purpose", "periodic").maybeSingle();
 
   let run = existing as TrackingRun | null;
 
@@ -100,6 +125,9 @@ export async function measureOnePrompt(
         engine: "openai",
         model_used: MODELS.quality,
         week_no: weekNo,
+        purpose: impact?.purpose ?? "periodic",
+        content_piece_id: impact?.contentPieceId ?? null,
+        impact_wave: impact?.wave ?? null,
         raw_response: a.text,
         raw_response_received_at: new Date().toISOString(),
         openai_response_id: a.responseId,
@@ -161,7 +189,10 @@ export async function computeAggregates(admin: Admin, analysisId: string, weekNo
     .from("tracking_runs")
     .select("id, prompt_category_snapshot, prompt_weight")
     .eq("analysis_id", analysisId)
-    .eq("week_no", weekNo);
+    .eq("week_no", weekNo)
+    // Impact- en controlemetingen (optimalisatie.md 5.3) horen hier niet bij:
+    // die betreffen een handvol vragen en zouden de score vertekenen.
+    .eq("purpose", "periodic");
   const runs = runsFull ?? [];
   if (runs.length === 0) return;
 
@@ -401,6 +432,7 @@ export async function measurePromptById(
   analysisId: string,
   promptId: string,
   weekNo: number,
+  impact?: MeasurePurpose,
 ): Promise<void> {
   const admin = createAdminClient();
   const ctx = await loadMeasureContext(admin, analysisId);
@@ -420,6 +452,7 @@ export async function measurePromptById(
     ctx.competitors,
     promptRow as Prompt,
     weekNo,
+    impact,
   );
 }
 
@@ -445,6 +478,7 @@ export async function measurementIsUsable(
       .select("id", { count: "exact", head: true })
       .eq("analysis_id", analysisId)
       .eq("week_no", weekNo)
+      .eq("purpose", "periodic")
       .not("mention_json", "is", null),
   ]);
 
