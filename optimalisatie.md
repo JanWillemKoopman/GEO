@@ -1308,10 +1308,24 @@ contentpagina is hier geen risico. Laten zoals het is.
 
 # Bijlage C — Wat maakt een fase af
 
+**Draai vóór elke commit:** `npm run typecheck && npm run lint && npm run test:unit`.
+
+Dat laatste is `scripts/test-unit.ts`: 116 gevallen over de rekenkundige en tekstverwerkende
+kern — onzekerheid, naamnormalisatie, volumebanden, robots.txt, tekstmarkering,
+concurrentnamen verwijderen, vraagcodes, GEO-score, effectberekening, veranderingslogica,
+domeinen en webadressen. Geen database, geen API-sleutel, geen kosten; daarom kán het bij
+elke wijziging draaien in plaats van alleen als iemand eraan denkt.
+
+Dat die tests bestaan is geen toeval maar een ontwerpkeuze die door het hele traject loopt:
+telkens als er logica ontstond waar het stil mis kon gaan, is die uit de databasecode
+getrokken naar een eigen module zónder `server-only`. Vandaar `impact-math.ts` naast
+`impact.ts`, `period-change-format.ts` naast `period-change.ts`, `domain.ts` naast
+`landscape.ts`. Houd dat vol: wat niet testbaar is, wordt niet getest.
+
 Voor elke fase geldt, naast de specifieke afvinklijst:
 
 - [ ] Het classificatie-testscript (0.7) draait nog steeds zonder verslechtering.
-- [ ] `npm run typecheck` en `npm run lint` zijn schoon.
+- [ ] `npm run typecheck`, `npm run lint` en `npm run test:unit` zijn schoon.
 - [ ] Nieuwe kolommen en tabellen hebben een migratie met dezelfde toelichtende stijl als
       de bestaande — en zijn additief, zodat bestaande data blijft werken.
 - [ ] Nieuwe AI-aanroepen slaan hun volledige ruwe uitvoer op.

@@ -2,7 +2,7 @@
   "name": "geo-tracker",
   "version": "0.1.0",
   "private": true,
-  "description": "GEO Tracker — stupid simple GEO-tracking (meten → adviseren → genereren) op Next.js + Supabase + OpenAI.",
+  "description": "GEO Tracker \u2014 stupid simple GEO-tracking (meten \u2192 adviseren \u2192 genereren) op Next.js + Supabase + OpenAI.",
   "engines": {
     "node": ">=20.0.0"
   },
@@ -12,6 +12,7 @@
     "start": "next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
+    "test:unit": "tsx scripts/test-unit.ts",
     "test:openai": "tsx scripts/test-openai.ts",
     "eval:mention": "tsx scripts/eval-mention.ts"
   },
