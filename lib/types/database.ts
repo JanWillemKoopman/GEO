@@ -97,6 +97,14 @@ export interface Profile {
   /** Crawl-instellingen voor de content-inventaris (§12.23), bewerkbaar door de klant. */
   sitemap_url: string | null;
   max_inventory_pages: number;
+  /**
+   * Entiteitsaanwezigheid (optimalisatie.md 7.4, migratie 0022). Of een merk in
+   * Wikidata/Wikipedia voorkomt is een van de sterkste signalen waarmee
+   * AI-systemen een bedrijf als bestaande entiteit herkennen.
+   */
+  wikidata_id: string | null;
+  wikipedia_url: string | null;
+  entity_checked_at: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -384,6 +392,47 @@ export interface AiCall {
   cost_usd: number | null;
   openai_response_id: string | null;
   created_at: string;
+}
+
+export type OffsiteTaskStatus = "open" | "bezig" | "gedaan" | "niet_relevant";
+export type OffsiteTaskKind = "platform" | "wikidata" | "wikipedia" | "overig";
+
+/**
+ * Eén domein dat deze markt bepaalt (optimalisatie.md 7.1, migratie 0022).
+ * Per DOMEIN en niet per URL: drie pagina's van hetzelfde reviewplatform zijn
+ * één signaal, niet drie.
+ */
+export interface SourceLandscapeRow {
+  id: string;
+  analysis_id: string;
+  domain: string;
+  citations: number;
+  prompt_count: number;
+  competitors: string[];
+  /** null = nog niet gecontroleerd. "We weten het niet" is een echt antwoord. */
+  own_present: boolean | null;
+  own_url: string | null;
+  checked_at: string | null;
+  updated_at: string;
+}
+
+/**
+ * Een off-site actie met een status (optimalisatie.md 7.6, migratie 0022).
+ * Geen gegenereerde pagina maar een taak — zonder status blijft off-site advies
+ * hangen als goede bedoeling.
+ */
+export interface OffsiteTask {
+  id: string;
+  analysis_id: string;
+  kind: OffsiteTaskKind;
+  domain: string | null;
+  title: string;
+  why: string;
+  action: string | null;
+  status: OffsiteTaskStatus;
+  priority: number;
+  created_at: string;
+  updated_at: string;
 }
 
 /**

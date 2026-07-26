@@ -16,6 +16,7 @@ import { NEUTRAL_WEIGHT } from "@/lib/pipeline/prompt-weight";
 import { resolveTargets } from "@/lib/pipeline/recommendation";
 import { computePeriodChange, buildChangeBlock, isWorthEmailing } from "@/lib/pipeline/period-change";
 import { sendReportEmail } from "@/lib/email/report-email";
+import { enqueue, dedupe } from "@/lib/jobs/queue";
 import type {
   Analysis,
   AnalysisStatus,
@@ -422,6 +423,16 @@ export async function generateReport(id: string, weekNo = 0): Promise<AnalysisSt
     }).select("id").single();
 
     await saveFactRequests(admin, analysis, report.parsed.factRequests);
+
+    // Off-site scan erachteraan (optimalisatie.md fase 7). Pas nu, want hij
+    // leidt het bronnenlandschap af uit de meetdata. Losse taak: faalt hij, dan
+    // mist de klant het off-site advies maar houdt hij zijn rapport.
+    await enqueue(admin, {
+      type: "offsite_scan",
+      payload: {},
+      analysisId: id,
+      dedupeKey: dedupe.offsiteScan(id),
+    });
 
     await admin.from("analyses").update({ status: "gereed" }).eq("id", id);
 

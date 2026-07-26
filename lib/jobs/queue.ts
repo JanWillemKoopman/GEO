@@ -93,6 +93,10 @@ export const dedupe = {
   measureImpactPrompt: (contentPieceId: string, wave: number, promptId: string) =>
     `impact_run:${contentPieceId}:w${wave}:${promptId}`,
   computeImpact: (contentPieceId: string, wave: number) => `impact_calc:${contentPieceId}:w${wave}`,
+  // Per DAG: de scan mag opnieuw draaien na een nieuwe meting, maar niet twee
+  // keer op dezelfde dag — de aanwezigheidscontrole kost een web-zoekactie.
+  offsiteScan: (analysisId: string, day = new Date().toISOString().slice(0, 10)) =>
+    `offsite:${analysisId}:${day}`,
 };
 
 /**

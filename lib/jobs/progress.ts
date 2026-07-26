@@ -40,6 +40,7 @@ const TYPICAL_SECONDS: Record<JobType, number> = {
   verify_publication: 8, // één pagina ophalen en vergelijken
   measure_impact: 2, // plant alleen taken in
   compute_impact: 3, // puur rekenwerk
+  offsite_scan: 40, // gegroundde aanroep + Wikidata/Wikipedia
 };
 
 /**

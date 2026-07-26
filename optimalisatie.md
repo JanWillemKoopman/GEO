@@ -1062,6 +1062,10 @@ valt. De klant wil terug kunnen kijken naar wat er stond toen hij die beslissing
 
 **Hangt af van:** Fase 3 (de bronanalyse).
 
+**Status: afgerond.** Typecheck, lint en productiebuild slagen; de domeinlogica is in een
+kaal script getest (12 gevallen). Migratie 0022 wacht op toepassing — zie de noot onderaan
+deze fase.
+
 ### Het probleem, precies
 
 De metingen laten zien dat AI-assistenten voor koopvragen zwaar leunen op *andere* sites:
@@ -1100,10 +1104,60 @@ met een andere doorlooptijd en vaak een andere verantwoordelijke.
 Deze acties worden geen gegenereerde pagina maar een taak met een status (open / bezig /
 gedaan). Zonder dat blijven ze hangen als goedbedoeld advies.
 
+### Wat er uitgevoerd is
+
+**7.1 — het bronnenlandschap.** Over ALLE periodes heen geteld welke domeinen geciteerd
+worden, bij hoeveel verschillende vragen, en voor welke concurrenten. Per DOMEIN en niet per
+URL: drie pagina's van hetzelfde reviewplatform zijn één signaal, niet drie. Subdomeinen
+worden samengevoegd (`nl.trustpilot.com` = `trustpilot.com`), tweedelige TLD's blijven heel
+(`example.co.uk`), en zoekmachines en sociale platforms vallen eruit — "sta jij op google.com"
+is geen bruikbaar advies. Gesorteerd op aantal VRAGEN en niet op aantal citaties: een bron die
+bij zes vragen opduikt bepaalt de markt breder dan een die bij één vraag zes keer aangehaald
+wordt.
+
+**7.2 — aanwezigheid controleren.** Er is geen algemene manier om te controleren of een
+bedrijf op een willekeurig platform staat: elk platform heeft z'n eigen URL-structuur en de
+meeste verstoppen hun zoekfunctie achter JavaScript. Een eigen scraper zou per platform
+onderhouden moeten worden. Dus één gegroundde AI-aanroep voor alle domeinen tegelijk — één
+web-zoekactie in plaats van tien.
+
+Het model mag expliciet `onbekend` antwoorden, en dat is de belangrijkste van de drie
+uitkomsten. Een gok kost de ondernemer een middag werk aan iets wat al geregeld was, of laat
+hem denken dat iets geregeld is terwijl dat niet zo is. Staat grounding uit, dan slaan we de
+controle helemaal over in plaats van het model te laten raden.
+
+**7.4 — entiteitsaanwezigheid.** Wikidata en Wikipedia hebben allebei een gratis open API
+zonder sleutel, dus hier is GEEN AI voor nodig — een model laten raden wat je exact kunt
+opzoeken is geld uitgeven aan een slechter antwoord. De valkuil is de naamgenoot: we eisen dat
+de Wikidata-beschrijving de branche of een bedrijfswoord bevat, en op Wikipedia telt alleen
+een exacte titel. Liever niets vinden dan de verkeerde entiteit koppelen.
+
+**7.3/7.5/7.6 — advies dat een taak wordt.** Het rapport is gesplitst in "Op je eigen site"
+en "Daarbuiten". Elke off-site actie is een taak met een status (open / mee bezig / gedaan /
+niet relevant), want off-site advies zonder status blijft hangen als goede bedoeling.
+
+Drie regels die de taken bruikbaar houden: alleen bronnen die bij minstens drie vragen
+opduiken (daaronder is het toeval, en dan geef je iemand werk zonder uitzicht); alleen waar de
+klant er aantoonbaar NIET op staat (`onbekend` levert bewust geen taak op); en de
+Wikipedia-taak zegt eerlijk dat het géén doe-het-zelf-actie is — een artikel over je eigen
+bedrijf schrijven mag daar niet en wordt verwijderd. Dat staat erbij omdat het verklaart
+waarom je minder opduikt dan grotere partijen, niet omdat de klant er iets aan moet doen.
+
 ### Klaar als…
 
-- [ ] Het rapport bevat aanbevelingen die niet over de eigen website gaan.
-- [ ] De klant ziet welke bronnen zijn markt bepalen en of hij daarop staat.
+- [x] Het rapport bevat aanbevelingen die niet over de eigen website gaan.
+- [x] De klant ziet welke bronnen zijn markt bepalen en of hij daarop staat.
+
+> **Nog te verifiëren tegen een echte database en een echte API-sleutel.** Migratie 0022 is
+> niet toegepast en de scan heeft nooit gedraaid. Drie dingen om als eerste te toetsen: of de
+> gegroundde aanwezigheidscontrole niet te vaak "ja" zegt op een naamgenoot (bij twijfel moet
+> de instructie strenger), of de Wikidata-zoekopdracht bij Nederlandse MKB-namen bruikbare
+> treffers geeft, en of de drempel van drie vragen niet te hoog is bij analyses met weinig
+> geciteerde bronnen.
+>
+> **Kosten.** Eén extra web-zoekactie per analyse per scan (~$0,03), en die draait hooguit
+> één keer per dag. Wikidata en Wikipedia zijn gratis. Met `WEB_SEARCH_ENABLED=false` valt
+> de aanwezigheidscontrole weg en kost de scan niets.
 
 ---
 

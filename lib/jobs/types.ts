@@ -33,6 +33,8 @@ export const JOB_TYPES = [
   "measure_impact",
   /** Het effect van één gepubliceerde pagina berekenen (5.4/5.5). Geen AI-aanroep. */
   "compute_impact",
+  /** Bronnenlandschap + aanwezigheid + entiteitscontrole (optimalisatie.md fase 7). */
+  "offsite_scan",
 ] as const;
 
 export type JobType = (typeof JOB_TYPES)[number];
@@ -84,6 +86,7 @@ export interface JobPayloads {
   verify_publication: { contentPieceId: string };
   measure_impact: { contentPieceId: string; wave: number };
   compute_impact: { contentPieceId: string; wave: number };
+  offsite_scan: Record<string, never>;
 }
 
 /**
@@ -96,6 +99,7 @@ export const HEAVY_JOB_TYPES: ReadonlySet<JobType> = new Set<JobType>([
   "prepare_analysis", // onderwerp-onderzoek + 3 parallelle prompt-calls + kalibratie
   "content_draft", // gpt-4.1 schrijft een volledige pagina
   "content_revise", // idem
+  "offsite_scan", // crawlt niets maar doet wel een gegroundde AI-aanroep + externe API's
 ]);
 
 /**

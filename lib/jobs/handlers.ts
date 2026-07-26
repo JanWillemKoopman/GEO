@@ -21,6 +21,7 @@ import { draftContentPiece, reviseContentPiece } from "@/lib/pipeline/content";
 import { runAuditForProfile } from "@/lib/audit/store";
 import { planImpactMeasurements, computeImpact } from "@/lib/pipeline/impact";
 import { verifyPublication } from "@/lib/pipeline/publish";
+import { runOffsiteScan } from "@/lib/offsite/scan";
 import { enqueue, dedupe } from "@/lib/jobs/queue";
 import type { JobType, JobPayloads, RecommendationPayload } from "@/lib/jobs/types";
 import type { Job } from "@/lib/types/database";
@@ -270,6 +271,15 @@ const handlers: { [T in JobType]: Handler<T> } = {
         dedupeKey: dedupe.computeImpact(payload.contentPieceId, payload.wave),
       });
     }
+  },
+
+  // ── Off-site scan (optimalisatie.md fase 7) ───────────────────────────────
+  // Draait ná het rapport: dan is er meetdata om het landschap uit af te
+  // leiden. Geen blokkerende taak — faalt hij, dan mist de klant het off-site
+  // advies maar houdt hij zijn rapport.
+  offsite_scan: async ({ admin, job }) => {
+    if (!job.analysis_id) throw new Error("offsite_scan zonder analysis_id.");
+    await runOffsiteScan(admin, job.analysis_id);
   },
 
   // ── Effect berekenen (5.4/5.5) — geen AI-aanroep ──────────────────────────

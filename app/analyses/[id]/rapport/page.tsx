@@ -11,7 +11,8 @@ import { loadAuditGate } from "@/lib/audit/gate";
 import { InfoHint } from "@/components/info-hint";
 import { readRecommendations } from "@/lib/pipeline/recommendation";
 import { GenerateAllButton } from "./generate-all-button";
-import type { Report } from "@/lib/types/database";
+import { OffsitePanel } from "./offsite-panel";
+import type { Report, OffsiteTask, SourceLandscapeRow } from "@/lib/types/database";
 
 interface ReportGap {
   cluster: string;
@@ -92,6 +93,18 @@ export default async function RapportPage({
   // bewust bovenaan het rapport: content laten schrijven voor een site die
   // AI-crawlers weigert, is de klant geld laten uitgeven aan niets.
   const gate = await loadAuditGate(supabase, analysis.profile_id);
+
+  // Off-site (optimalisatie.md fase 7): wat er BUITEN de eigen site moet
+  // gebeuren. Ander soort werk, andere doorlooptijd, vaak een ander persoon —
+  // dus een eigen blok en geen extra regel tussen de aanbevelingen.
+  const [{ data: offsiteRows }, { data: landscapeRows }] = await Promise.all([
+    supabase.from("offsite_tasks").select("*").eq("analysis_id", id).order("priority"),
+    supabase
+      .from("source_landscape")
+      .select("*")
+      .eq("analysis_id", id)
+      .order("prompt_count", { ascending: false }),
+  ]);
 
   const report = reportRow as Report;
   const gaps = (report.gaps_json ?? []) as ReportGap[];
@@ -181,6 +194,15 @@ export default async function RapportPage({
               </li>
             ))}
           </ul>
+        </div>
+      )}
+
+      {recommendations.length > 0 && (
+        <div className="card">
+          <span className="mono-label">Op je eigen site</span>
+          <p className="mt-1 text-sm text-secondary">
+            Pagina&apos;s die we voor je kunnen schrijven. Dit doe je zelf en het kan vandaag.
+          </p>
         </div>
       )}
 
@@ -287,6 +309,11 @@ export default async function RapportPage({
           </ul>
         </div>
       )}
+      <OffsitePanel
+        analysisId={id}
+        initialTasks={(offsiteRows ?? []) as OffsiteTask[]}
+        landscape={(landscapeRows ?? []) as SourceLandscapeRow[]}
+      />
     </div>
   );
 }
