@@ -6,6 +6,42 @@
 
 ---
 
+## 0a. Correcties na zelf-factcheck (26 juli 2026)
+
+Twee fouten in eerdere versies van dit document, hier rechtgezet. Beide raken de cijfers hierboven.
+
+### Correctie 1 — het 8.000-token-blok geldt níet voor de GPT-5-familie
+
+Dit document rekende overal met een vast blok van 8.000 search-content-tokens per `web_search`-call. **Dat blok is modelspecifiek: het is gedocumenteerd voor `gpt-4o-mini` en `gpt-4.1-mini`.** Voor andere modellen — inclusief de hele GPT-5-lijn — worden de **werkelijk verbruikte** search-content-tokens afgerekend tegen het inputtarief.
+
+Gevolg: voor het *huidige* plan (GPT-4.1) was de 8k-aanname correct. Voor elk GPT-5-scenario is het een **schatting**, geen tarief. Werkelijk verbruik varieert en is bovendien te sturen met de `search_context_size`-parameter (`low`/`medium`/`high`) — een kostenknop die in §7 ontbrak en die je expliciet moet zetten.
+
+Gevoeligheid van de nulmeting voor deze aanname:
+
+| Config | 4k tokens/call | 8k *(gehanteerd)* | 15k tokens/call |
+|--------|---------------|-------------------|-----------------|
+| 0 · Huidig plan (4.1) | $0,342 | **$0,355** | $0,379 |
+| 1 · Minimale migratie (5.4) | $0,400 | **$0,427** | $0,475 |
+| 2 · Aanbevolen (Luna op 3a) | $0,587 | **$0,710** | $0,925 |
+| 3 · Max (Sol op 3a) | $1,703 | **$2,306** | $3,361 |
+
+Alle bedragen in dit document hanteren de 8k-kolom. **Lees ze als een middenschatting met een reële bandbreedte, niet als een tarief** — en zet `search_context_size` bewust, want die knop verschuift je kosten meer dan de meeste modelkeuzes. Bij het aanbevolen scenario scheelt `low` versus `high` meer dan een derde van de nulmeting.
+
+*(Het scenario "Sol op 3a" is in de tabel hierboven herrekend en komt nu op $2,31 in plaats van de eerder genoemde ~$1,95; die eerdere waarde rekende de research-tokens verkeerd toe.)*
+
+### Correctie 2 — ik heb de schrijftest te stellig samengevat
+
+Ik schreef: *"GPT-5.5 was de sterkste schrijver, Sol zat er dicht achter, Terra en Luna bleven ver achter."* De eerste helft is te sterk gesteld. Wat de test daadwerkelijk laat zien:
+
+- Gemiddeld over de condities was het tussen GPT-5.5 en Sol **een praktisch gelijkspel** — blinde gemiddelde rang 8,11 tegen 8,58 over 24 teksten.
+- **Sol scoorde het best van alle GPT-modellen in de test in totaal.** GPT-5.5 lag alleen vóór in de ruwe conditie.
+- Een deel van GPT-5.5's voorsprong kwam doordat het ~50% meer tekst produceerde op dezelfde opdracht.
+- Het testdomein was **romanfictie**, geen marketing- of SEO-content.
+
+**Wat wél robuust overeind blijft — en dat is het punt dat de beslissing draagt: Terra en Luna bleven in beide rondes ver achter op schrijfkwaliteit.** Mijn aanbeveling (níet Terra of Luna als schrijfmodel) wordt hierdoor niet zwakker. Maar mijn onderbouwing "kies GPT-5.5 boven Sol" was dat wel — die vervalt. **Sol is de veiliger keuze**, ook omdat de deprecatie-horizon van GPT-5.5 onduidelijk is en de cadans hard loopt (GPT-5.2 verdween binnen maanden na de opvolger). Zie §6b.
+
+---
+
 ## 0. Bronvoorbehoud (lees dit eerst)
 
 De officiële OpenAI-pagina's (`platform.openai.com/docs/pricing`, `developers.openai.com/api/docs/deprecations`) waren vanuit deze omgeving **niet direct bereikbaar** — het egress-beleid blokkeerde ze. Alle prijzen, modelnamen en einddatums hieronder komen uit **secundaire bronnen** (prijs-aggregators, vakpers, OpenAI-community). Meerdere bronnen zijn tegen elkaar gelegd en waar ze verschilden staat dat vermeld.
@@ -217,11 +253,16 @@ De test werd nog een tweede keer gedraaid omdat GPT-5.5 in ronde 1 ~50% langer s
 1. **Terra is voor schrijfwerk géén "sweet spot".** Het is de aanbeveling die je overal leest — maar die aanbeveling komt uit coding- en tool-benchmarks. Op schrijfkwaliteit valt Terra samen met Luna in de achterhoede.
 2. **De nieuwste generatie is hier niet de beste.** GPT-5.5 kost hetzelfde als Sol ($5/$30) en scoorde hoger. Wie blind "het nieuwste" pakt, pakt op deze halte niet het beste.
 
-**Belangrijke voorbehouden — neem dit niet klakkeloos over:**
+### Wat er níet deugt aan deze onderbouwing
 
-- De test ging over **fictie**, niet over marketing- of SEO-content. Prozastem, samenhang en clichévermijding vertalen redelijk naar merkgebonden webteksten, maar niet één-op-één. Structuur, feitelijke dichtheid en schema-correctheid zijn hier belangrijker dan bij fictie, en daar kan Sol' nieuwere generatie juist voorliggen.
-- Het is één test van één partij (n=24 teksten). Richtinggevend, niet definitief.
-- GPT-5.5 is een vorige-generatie model. Controleer de deprecatie-horizon vóór je er de kern van je product op bouwt — dat is precies de fout die dit hele document corrigeert.
+Dit is de zwakste plek in het hele document en dat hoor je te weten voordat je erop besluit.
+
+1. **Verkeerd domein.** De test ging over **romanfictie**. Prozastem en clichévermijding vertalen redelijk naar merkteksten; structuur, feitelijke dichtheid en schema-correctheid — hier juist doorslaggevend — zijn niet gemeten. Op precies díe eigenschappen kan Sols nieuwere generatie voorliggen op wat de fictietest laat zien.
+2. **Niet-neutrale bron.** De test komt van Noren, een partij die zelf schrijfgereedschap verkoopt. De methode (blind, verse beoordelaars, herhaald met lengtecorrectie) is netjes, maar het is geen onafhankelijke benchmark. Eén test, n=24, één leverancier.
+3. **Geen enkel Nederlands datapunt.** Zie hieronder — dit is het grootste gat.
+4. **Mijn eigen tokenaannames zijn constructies, geen metingen.** De ~4.000 output-tokens heb ik afgeleid uit het `ContentPiece`-schema, niet gemeten. De reasoning-opslag (×1,5–2,0) is een schatting; op Sol is dat ruwweg de helft van de $0,26. Als Sol met lage effort draait, kost een pagina eerder $0,14; met hoge effort eerder $0,40.
+
+**Wat dit betekent voor de beslissing:** de *richting* is robuust — Terra en Luna zakten in beide rondes weg op schrijfkwaliteit, en dat is het enige dat je hier écht moet weten. De *precieze keuze binnen de top* (Sol versus GPT-5.5) rust op te dun bewijs om zonder eigen test vast te leggen. Gelukkig is dat goedkoop op te lossen: zie de testinstructie hieronder.
 
 ### Het grootste onbeantwoorde risico: Nederlands
 
@@ -246,12 +287,13 @@ Totaal ~$0,33 per pagina. Je scheidt daarmee *feiten verzamelen* van *goed schri
 
 ### Advies voor halte C
 
-| | Keuze |
-|---|---|
-| **Aanbevolen** | **GPT-5.6 Sol** voor het schrijven, **Terra** voor de research-call, `web_search` aan, ~4.000 output-tokens. **~$0,33/pagina.** |
-| **Te testen alternatief** | **GPT-5.5** in plaats van Sol voor de schrijfcall — zelfde prijs, scoorde hoger in de blinde schrijftest. Test dit op je eigen Nederlandse prompt vóór je kiest. |
-| **Budgetvariant** | `gpt-5.4-mini` met search, ~$0,045/pagina. Acceptabel als tijdelijke bouwfase-instelling, niet als productiekeuze. |
-| **Niet doen** | Terra of Luna als schrijfmodel zónder eigen test — de aanbeveling "Terra is de sweet spot" komt uit coding-benchmarks, en op schrijfkwaliteit is dat precies de verkeerde conclusie. |
+| | Keuze | Per pagina |
+|---|---|---|
+| **Aanbevolen** | **C1 research = Terra** (`web_search` aan) → **C2 schrijven = Sol**, ~4.000 output-tokens | **$0,33** |
+| **Middenweg** | Terra voor beide calls | $0,18 |
+| **Budget / bouwfase** | `gpt-5.4-mini` voor beide calls | $0,06 |
+| **Te testen** | GPT-5.5 in plaats van Sol als schrijfmodel — zelfde prijs. Zwakker onderbouwd dan ik eerst schreef (zie hierboven) en met onduidelijke deprecatie-horizon. Alleen kiezen als je eigen Nederlandse test hem wint. | $0,33 |
+| **Niet doen** | Luna als schrijfmodel. En Terra alléén als je eigen test hem goedkeurt — "Terra is de sweet spot" komt uit coding-benchmarks en is op schrijfkwaliteit precies de verkeerde conclusie. | |
 
 **Is $0,33 per pagina het waard?** Een klant die tien pagina's laat schrijven kost je **$3,30**. Dat is het volledige tastbare product dat hij meeneemt, waarop hij zijn oordeel over de tool baseert, en waarmee hij bij een collega over je product praat. Op elke realistische verkoopprijs is dit de goedkoopste kwaliteitswinst in het hele plan — goedkoper dan de 10 weken tracking eromheen, en zichtbaarder voor de klant dan wat dan ook.
 
