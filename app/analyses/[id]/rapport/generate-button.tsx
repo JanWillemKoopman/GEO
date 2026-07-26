@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import type { ContentAction, ContentType } from "@/lib/types/database";
+import type { RecommendationTarget } from "@/lib/pipeline/recommendation";
 import { ErrorNotice, problemFromResponse, networkProblem } from "@/components/error-notice";
 import type { UserFacingError } from "@/lib/errors";
 
@@ -42,6 +43,8 @@ export function GenerateButton({
     why: string;
     action: ContentAction;
     existingUrl: string | null;
+    /** De gemiste vragen die deze pagina moet winnen (optimalisatie.md 4.1). */
+    targets?: RecommendationTarget[];
   };
   /** Houdt de technische controle een blokkade tegen? (optimalisatie.md 3.7) */
   blocked?: boolean;

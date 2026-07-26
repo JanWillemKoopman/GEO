@@ -617,6 +617,10 @@ alleen. Dit is de inhoudelijk zwaarste fase en de belangrijkste voor het hoofddo
 
 **Hangt af van:** Fase 2 en 3.
 
+**Status: afgerond.** Typecheck, lint en productiebuild slagen; de pure logica is in kale
+scripts getest (37 gevallen: concurrentnamen wegfilteren 14, vraagcodes oplossen en
+GEO-scores 23). Migratie 0019 wacht op toepassing — zie de noot onderaan deze fase.
+
 ### Het probleem, precies
 
 Wat de schrijfaanroep nu meekrijgt (`buildContentInput` in `lib/pipeline/content.ts`):
@@ -726,15 +730,85 @@ moet. Voeg een kort stappenplan toe: waar plaats je dit, welke URL raden we aan,
 de gestructureerde data neer, en waar link je vanaf. Zonder dit blijft de content in de
 bibliotheek liggen — en dan gebeurt er niets, hoe goed hij ook is.
 
+### Wat er uitgevoerd is
+
+**4.1 — de koppeling.** Nieuwe tabel `content_piece_targets`. Het rapport wijst per
+aanbeveling met codes (V1, V2, …) aan welke gemiste vragen die pagina moet winnen; vóór
+opslag worden die codes opgelost naar echte `prompt_id`/`tracking_run_id`-verwijzingen.
+Bewust codes en géén letterlijke vraagteksten: een model dat een vraag moet overtypen maakt
+er net iets anders van, en dan is precies de koppeling weg waar deze fase op rust. Verzonnen
+codes worden stil weggegooid.
+
+**4.2/4.3 — de opdracht.** De vijf willekeurige vraagteksten "ALLEEN ter inspiratie" zijn
+vervangen door de concrete gemiste vragen, met de instructie dat de pagina die expliciet moet
+beantwoorden. Daarbij gaat het WINNENDE ANTWOORD mee als context, met de concurrentnamen
+eruit (`lib/pipeline/redact.ts`, 14 tests) — een rijtje namen wordt "andere aanbieders" in
+plaats van drie keer dezelfde omschrijving achter elkaar. Er zit een vangnet omheen: zit er ná
+het opschonen tóch nog een naam in, dan gaat het hele blok niet mee. Liever minder context dan
+de harde regel breken.
+
+**4.4 — de bronnen.** `top_cited_sources` ging als kale URL-lijst de prompt in; een model
+weet daar niets mee. Nu worden ze opgehaald met de bestaande crawler (gratis) en beschrijft
+één mini-aanroep wat ze inhoudelijk doen: welke vragen ze beantwoorden, in welke vorm, met
+welke feiten — plus wat er ONTBREEKT. Dat laatste veld is het waardevolste. Uitschakelbaar
+via `SOURCE_ANALYSIS=false`.
+
+**4.5 — de beoordeling.** Vijf GEO-criteria naast de redactionele score, als booleans en niet
+als cijfer: "7 op citeerbaarheid" zegt niemand iets, "de doelvraag wordt niet in de eerste
+twee zinnen beantwoord" is een instructie voor de herschrijfronde. De niet-gehaalde criteria
+worden automatisch verbeterpunten. Het minst intuïtieve criterium is het belangrijkste: een
+model dat "wij leveren binnen 24 uur" leest, weet niet wie "wij" is — en noemt je dus niet.
+
+**4.6 — de spanning opgelost.** Twee ingrepen. Bij minder dan drie geverifieerde feiten mag de
+schrijver het internet op voor ALGEMENE marktfeiten (normen, termijnen, wettelijke eisen) —
+nooit voor claims over het bedrijf zelf, want die kunnen we niet controleren. En het rapport
+vraagt de klant om concrete cijfers; antwoorden gaan naar `proof_points` en verbeteren élke
+volgende pagina. Overslaan blijft bewaard, zodat dezelfde vraag niet elk rapport terugkomt.
+
+**4.7 — opnieuw genereren.** De idempotentie zat op de titel, waardoor een pagina met "check
+nodig" doodliep. Nu versies: elke nieuwe poging is een nieuwe rij, `is_current` wijst de
+actuele aan, en de vlag gaat pas om ná een geslaagde insert — anders staat de klant zonder
+pagina als het schrijven mislukt.
+
+**4.8 — herschrijven met feedback.** De belangrijkste ontbrekende knop in de hele app. Vrije
+tekst die als ZWAARSTE instructie de herschrijfopdracht in gaat, boven de eindredacteur: het
+is zijn website.
+
+**4.9 — alles in één klik.** Van 1–3 naar 5–8 aanbevelingen, en één knop die ze allemaal in de
+wachtrij zet — met vooraf zichtbaar hoeveel pagina's en hoe lang het duurt. Een knop die
+ongevraagd zestien AI-aanroepen wegzet zonder dat te zeggen is geen gemak maar een verrassing.
+
+**4.10 — lengte.** Doellengte per type in de opdracht, in plaats van achteraf tellen. Een FAQ
+is geen artikel, en een AI-assistent citeert liever een compacte passage dan een betoog.
+
+**4.11 t/m 4.15 — UX.** Elke aanbeveling toont de vragen die hij moet winnen, met een link naar
+wat de AI daar nu antwoordt. Het gele "check nodig" noemt nu de punten in plaats van alleen te
+waarschuwen. Het kwaliteitscijfer in de bibliotheek is een oordeel in woorden geworden. Er is
+een eenvoudige markdown-editor (bewust geen WYSIWYG: die produceert stiekem andere HTML dan
+wat er in de database staat). En elke pagina heeft een publicatie-instructie in vier stappen —
+zonder dat blijft de content liggen, en dan gebeurt er niets, hoe goed hij ook is.
+
 ### Klaar als…
 
-- [ ] Elke gegenereerde pagina is gekoppeld aan de vragen die hij moet winnen.
-- [ ] De schrijfopdracht bevat aantoonbaar de doelvraag, het winnende antwoord en de
+- [x] Elke gegenereerde pagina is gekoppeld aan de vragen die hij moet winnen.
+- [x] De schrijfopdracht bevat aantoonbaar de doelvraag, het winnende antwoord en de
       bronanalyse.
-- [ ] De beoordeling toetst op citeerbaarheid, niet alleen op leesbaarheid.
-- [ ] De klant kan een pagina bijschaven, herschrijven met feedback, en weet wat hij ermee
+- [x] De beoordeling toetst op citeerbaarheid, niet alleen op leesbaarheid.
+- [x] De klant kan een pagina bijschaven, herschrijven met feedback, en weet wat hij ermee
       moet doen.
-- [ ] Eén knop zet alle aanbevelingen in de wachtrij.
+- [x] Eén knop zet alle aanbevelingen in de wachtrij.
+
+> **Nog te verifiëren tegen een echte database en een echte API-sleutel.** Migratie 0019 is
+> niet toegepast en de schrijfpijplijn is nooit end-to-end gedraaid. Twee dingen die daarbij
+> als eerste bekeken moeten worden: of het model de vraagcodes betrouwbaar teruggeeft (bij
+> veel onopgeloste codes moet de instructie strenger), en of de GEO-criteria niet te streng
+> uitpakken — als vrijwel elke pagina onder de 60 blijft, herschrijft de app zich suf op
+> criteria die het model zelf niet haalt. Beide zijn pas te zien met echte output.
+>
+> **Kosten.** Per gegenereerde pagina komt er één mini-aanroep bij (de bronanalyse), en het
+> aantal pagina's gaat van maximaal 3 naar 5–8. Ruwe indicatie: van ~$0,10 naar ~$0,50 voor
+> een volledige set. Wil je dat tijdens ontwikkelen drukken: `SOURCE_ANALYSIS=false` scheelt
+> de bronanalyse, en met `WEB_SEARCH_ENABLED=false` staat ook het feiten-vangnet uit.
 
 ---
 

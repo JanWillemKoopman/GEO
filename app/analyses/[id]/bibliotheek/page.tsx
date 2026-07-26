@@ -15,10 +15,14 @@ export default async function BibliotheekPage({ params }: { params: Promise<{ id
   if (!analysis) notFound();
 
   const supabase = await createClient();
+  // Alleen de HUIDIGE versie per pagina (optimalisatie.md 4.7). Oudere versies
+  // blijven bewaard en zijn te bereiken vanaf de detailpagina; ze horen niet in
+  // een overzicht dat de vraag "wat kan ik publiceren?" moet beantwoorden.
   const { data } = await supabase
     .from("content_pieces")
     .select("*")
     .eq("analysis_id", id)
+    .eq("is_current", true)
     .order("created_at", { ascending: false });
 
   const pieces = (data ?? []) as ContentPiece[];

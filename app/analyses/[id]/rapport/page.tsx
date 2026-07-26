@@ -8,22 +8,15 @@ import { ReportProgress } from "../report-progress";
 import { GenerateButton } from "./generate-button";
 import { AuditGate } from "@/components/audit-gate";
 import { loadAuditGate } from "@/lib/audit/gate";
-import type { Report, ContentAction, ContentType } from "@/lib/types/database";
+import { InfoHint } from "@/components/info-hint";
+import { readRecommendations } from "@/lib/pipeline/recommendation";
+import { GenerateAllButton } from "./generate-all-button";
+import type { Report } from "@/lib/types/database";
 
 interface ReportGap {
   cluster: string;
   problem: string;
   evidenceRunIds: string[];
-}
-
-interface ReportRecommendation {
-  title: string;
-  type: ContentType;
-  targetIntent: string;
-  why: string;
-  priority: number;
-  action: ContentAction;
-  existingUrl: string | null;
 }
 
 /**
@@ -89,16 +82,21 @@ export default async function RapportPage({ params }: { params: Promise<{ id: st
 
   const report = reportRow as Report;
   const gaps = (report.gaps_json ?? []) as ReportGap[];
-  const recommendations = [...((report.recommendations_json ?? []) as ReportRecommendation[])].sort(
+  const recommendations = readRecommendations(report.recommendations_json).sort(
     (a, b) => a.priority - b.priority,
   );
 
-  // Welke aanbevelingen zijn al omgezet in een pagina? (op titel — idempotent, zie content.ts)
+  // Welke aanbevelingen zijn al omgezet in een pagina? Alleen de HUIDIGE versie
+  // telt (optimalisatie.md 4.7): een oude versie die vervangen is, is geen
+  // reden om de knop weg te halen.
   const { data: pieceRows } = await supabase
     .from("content_pieces")
-    .select("title")
-    .eq("analysis_id", id);
-  const generatedTitles = new Set((pieceRows ?? []).map((p) => p.title as string));
+    .select("title, status")
+    .eq("analysis_id", id)
+    .eq("is_current", true);
+  const generatedTitles = new Set(
+    (pieceRows ?? []).filter((p) => p.status !== "draft").map((p) => p.title as string),
+  );
 
   return (
     <div className="flex flex-col gap-4">
@@ -140,8 +138,24 @@ export default async function RapportPage({ params }: { params: Promise<{ id: st
       )}
 
       {recommendations.length > 0 && (
+        <GenerateAllButton
+          analysisId={id}
+          total={recommendations.length}
+          remaining={recommendations.filter((r) => !generatedTitles.has(r.title)).length}
+          blocked={gate.blockers.length > 0}
+        />
+      )}
+
+      {recommendations.length > 0 && (
         <div className="card flex flex-col gap-4">
-          <span className="mono-label">Aanbevelingen</span>
+          <span className="mono-label flex items-center gap-1">
+            Aanbevelingen
+            <InfoHint label="Aanbevelingen">
+              Elke pagina hieronder is gekoppeld aan de concrete vragen waarop je nu niet genoemd
+              wordt. Dat is waar de tekst voor gemaakt wordt — en waaraan we later kunnen meten of
+              het gewerkt heeft.
+            </InfoHint>
+          </span>
           <ul className="flex flex-col gap-3">
             {recommendations.map((r, i) => (
               <li
@@ -170,6 +184,37 @@ export default async function RapportPage({ params }: { params: Promise<{ id: st
                   )}
                 </div>
                 <p className="text-sm text-secondary">{r.why}</p>
+
+                {/* Aanbevelingen met bewijs erbij (optimalisatie.md 4.11).
+                    "Waarom zou ik deze pagina maken" is hiermee beantwoord
+                    vóórdat de klant het vraagt: dit zijn de vragen waarop een
+                    AI-assistent hem nu niet noemt. */}
+                {r.targets.length > 0 && (
+                  <div className="flex flex-col gap-1.5 rounded-[var(--radius-md)] border border-[var(--border-subtle)] p-3">
+                    <span className="mono-label" style={{ fontSize: "0.65rem" }}>
+                      Deze pagina moet deze vragen winnen
+                    </span>
+                    <ul className="flex flex-col gap-1">
+                      {r.targets.map((t, ti) => (
+                        <li key={ti} className="text-sm text-secondary">
+                          &ldquo;{t.text}&rdquo;
+                        </li>
+                      ))}
+                    </ul>
+                    {r.targets.some((t) => t.runId) && (
+                      <Link
+                        href={`/analyses/${id}/antwoorden?runs=${r.targets
+                          .map((t) => t.runId)
+                          .filter(Boolean)
+                          .join(",")}`}
+                        className="mono-label w-fit underline transition-colors hover:text-[var(--text-primary)]"
+                      >
+                        Bekijk wat de AI hier nu antwoordt
+                      </Link>
+                    )}
+                  </div>
+                )}
+
                 {generatedTitles.has(r.title) ? (
                   <a href={`/analyses/${id}/bibliotheek`} className="btn-outline w-fit">
                     ✓ Al gegenereerd — bekijk in de Bibliotheek
@@ -186,6 +231,7 @@ export default async function RapportPage({ params }: { params: Promise<{ id: st
                       why: r.why,
                       action: r.action,
                       existingUrl: r.existingUrl,
+                      targets: r.targets,
                     }}
                   />
                 )}

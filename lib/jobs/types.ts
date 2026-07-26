@@ -8,6 +8,7 @@
  * architectuurwijziging — precies wat fase 2 (drie metingen per vraag) nodig heeft.
  */
 import type { ContentAction, ContentType } from "@/lib/types/database";
+import type { RecommendationTarget } from "@/lib/pipeline/recommendation";
 
 export const JOB_TYPES = [
   /** Eenmalig profielonderzoek: crawl + merk/branche/concurrenten. */
@@ -39,6 +40,10 @@ export interface RecommendationPayload {
   action: ContentAction;
   existingUrl: string | null;
   reportId: string | null;
+  /** De gemiste vragen die deze pagina moet winnen (optimalisatie.md 4.1). */
+  targets?: RecommendationTarget[];
+  /** Wat de klant zelf anders wil (optimalisatie.md 4.8). */
+  revisionNote?: string | null;
 }
 
 /** Wat elke taaksoort in `payload_json` meekrijgt. */
@@ -48,7 +53,12 @@ export interface JobPayloads {
   measure_prompt: { promptId: string; weekNo: number };
   aggregate_week: { weekNo: number };
   generate_report: { weekNo: number };
-  content_draft: { userId: string; recommendation: RecommendationPayload };
+  content_draft: {
+    userId: string;
+    recommendation: RecommendationPayload;
+    /** Opnieuw genereren bovenop een afgeronde versie (optimalisatie.md 4.7). */
+    regenerate?: boolean;
+  };
   content_revise: {
     userId: string;
     contentPieceId: string;

@@ -41,6 +41,10 @@ function toRecommendation(r: RecommendationPayload) {
     why: r.why,
     action: r.action,
     existingUrl: r.existingUrl,
+    // Sinds fase 4 draagt de aanbeveling zijn doelvragen mee: welke gemiste
+    // vraag deze pagina moet winnen (4.1) en wat de klant zelf anders wil (4.8).
+    targets: r.targets ?? [],
+    revisionNote: r.revisionNote ?? null,
   };
 }
 
@@ -154,6 +158,7 @@ const handlers: { [T in JobType]: Handler<T> } = {
       userId: payload.userId,
       reportId: payload.recommendation.reportId,
       recommendation: toRecommendation(payload.recommendation),
+      regenerate: payload.regenerate ?? false,
     });
 
     if (!result.needsRevise) return; // eerste versie kwam al door de poort

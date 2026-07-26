@@ -269,6 +269,53 @@ export interface ContentPiece {
   word_count: number | null;
   action: ContentAction;
   existing_url: string | null;
+  /** Versiebeheer (optimalisatie.md 4.7, migratie 0019). */
+  version: number;
+  is_current: boolean;
+  supersedes_id: string | null;
+  /** Wat de klant zelf vroeg te veranderen (4.8). */
+  revision_note: string | null;
+  /** GEO-beoordeling: zou een AI deze pagina citeren? (4.5) */
+  geo_score: number | null;
+  geo_json: unknown | null;
+  /** Wat de eindredacteur nog zag, in gewone taal (4.13). */
+  review_notes: string[];
+  /** Heeft de klant de tekst zelf bijgewerkt? (4.12) */
+  edited_by_user: boolean;
+  created_at: string;
+}
+
+/**
+ * Welke gemiste vraag moet deze pagina winnen? (optimalisatie.md 4.1, migratie 0019)
+ * De spil tussen meting en content: zonder deze koppeling is niet te zeggen of
+ * een gegenereerde pagina iets uithaalt.
+ */
+export interface ContentPieceTarget {
+  id: string;
+  content_piece_id: string;
+  prompt_id: string | null;
+  tracking_run_id: string | null;
+  prompt_text: string;
+  cluster: string | null;
+  created_at: string;
+}
+
+export type FactRequestStatus = "open" | "beantwoord" | "overgeslagen";
+
+/**
+ * Een gerichte vraag aan de klant om een concreet feit (optimalisatie.md 4.6,
+ * migratie 0019). Antwoorden gaan naar `profiles.proof_points` en verbeteren
+ * élke volgende pagina.
+ */
+export interface FactRequest {
+  id: string;
+  profile_id: string;
+  analysis_id: string | null;
+  question: string;
+  reason: string | null;
+  answer: string | null;
+  status: FactRequestStatus;
+  answered_at: string | null;
   created_at: string;
 }
 

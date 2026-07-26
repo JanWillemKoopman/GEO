@@ -92,3 +92,39 @@ export const maxMeasurementPeriods = 12;
  * afgekapt en moet de reaper hem tien minuten later terugzetten.
  */
 export const workerTimeBudgetMs = Number(process.env.WORKER_TIME_BUDGET_MS ?? 40_000);
+
+/**
+ * De geciteerde bronnen ophalen en analyseren vóór het schrijven
+ * (optimalisatie.md 4.4).
+ *
+ * Kost één extra mini-aanroep per gegenereerde pagina, plus een paar
+ * HTTP-verzoeken (die zijn gratis). In ruil daarvoor weet de schrijver wat de
+ * pagina's deden die de AI wél citeerde — de lat waar hij overheen moet.
+ *
+ * Zet `SOURCE_ANALYSIS=false` als je tijdens het ontwikkelen alleen de
+ * pijplijn test en de inhoud er niet toe doet.
+ */
+export const sourceAnalysisEnabled = process.env.SOURCE_ANALYSIS !== "false";
+
+/**
+ * Web-zoeken tijdens het SCHRIJVEN, en alleen als vangnet (optimalisatie.md 4.6).
+ *
+ * De schrijfinstructie zegt "verzin geen feiten, blijf algemeen bij twijfel".
+ * Bij een klant met een dunne website levert dat gegarandeerd algemene tekst op
+ * — en algemeen is precies wat niet geciteerd wordt. Zijn er te weinig
+ * geverifieerde feiten, dan mag de schrijver het internet op voor
+ * ALGEMEEN BEKENDE, verifieerbare feiten over het onderwerp (geen
+ * bedrijfsclaims: die kunnen we niet controleren).
+ *
+ * Volgt standaard `webSearchEnabled`, dus met grounding uit staat dit ook uit.
+ */
+export const contentWebSearchEnabled =
+  webSearchEnabled && process.env.CONTENT_WEB_SEARCH !== "false";
+
+/**
+ * Onder hoeveel geverifieerde feiten we het vangnet uit 4.6 aanzetten.
+ *
+ * Drie is de grens waaronder een pagina onvermijdelijk in algemeenheden vervalt:
+ * met minder heeft de schrijver letterlijk niets concreets om op te staan.
+ */
+export const minProofPointsForConcreteContent = 3;

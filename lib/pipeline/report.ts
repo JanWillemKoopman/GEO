@@ -13,6 +13,7 @@ import { MODELS, TEMPERATURES } from "@/lib/openai/models";
 import { GapAnalysis } from "@/lib/schemas/gap-analysis";
 import { Report } from "@/lib/schemas/report";
 import { NEUTRAL_WEIGHT } from "@/lib/pipeline/prompt-weight";
+import { resolveTargets } from "@/lib/pipeline/recommendation";
 import { sendReportEmail } from "@/lib/email/report-email";
 import type {
   Analysis,
@@ -39,7 +40,18 @@ const REPORT_SYSTEM =
   "meeste op. Eindig met concrete, uitvoerbare aanbevelingen. Bepaal per aanbeveling of dit een BESTAANDE " +
   "pagina van de klant verbetert (kies dan de meest relevante URL uit de meegegeven paginalijst, action = " +
   "\"verbeteren\") of dat er een GEHEEL NIEUWE pagina nodig is (action = \"nieuw\", existingUrl = null) — kies " +
-  "alleen \"verbeteren\" als een pagina uit de lijst daadwerkelijk over hetzelfde onderwerp gaat. Antwoord in het Nederlands.";
+  "alleen \"verbeteren\" als een pagina uit de lijst daadwerkelijk over hetzelfde onderwerp gaat. " +
+  // Fase 4: de aanbeveling moet aanwijzen WELKE gemiste vraag hij gaat winnen.
+  // Zonder die koppeling weet de schrijver later niet waarvoor hij schrijft, en
+  // is achteraf niet te zeggen of de pagina iets uithaalde.
+  "Wijs bij ELKE aanbeveling met de codes (V1, V2, …) aan welke gemiste vragen die pagina moet gaan " +
+  "winnen — minimaal één, en alleen vragen die inhoudelijk bij die pagina horen. Eén pagina mag " +
+  "meerdere verwante vragen bedienen; verdeel de zwaarste vragen over de aanbevelingen en laat geen " +
+  "zware vraag onbenoemd. " +
+  "Vraag daarnaast in factRequests om CONCRETE FEITEN die je mist en die de content aantoonbaar beter " +
+  "zouden maken (bv. 'Hoeveel jaar bestaan jullie?', 'Wat is jullie levertijd?', 'Hoeveel klanten per " +
+  "jaar?'). Alleen feiten die een ondernemer uit zijn hoofd weet, en alleen als ze deze pagina's echt " +
+  "concreter maken — geen vragenlijst om het vragen. Antwoord in het Nederlands.";
 
 // De volledige URL-lijst helpt de nieuw/verbeteren-keuze; cap houdt de prompt beheersbaar.
 const REPORT_PAGES_CAP = 150;
@@ -57,7 +69,12 @@ function ownLabel(analysis: Analysis, profile: Profile | null): string {
 }
 
 /** Een gemiste vraag (klant niet genoemd) met z'n gewicht + tags, voor prioritering. */
-interface MissedPrompt {
+export interface MissedPrompt {
+  /** Korte code (V1, V2, …) waarmee het rapport deze vraag kan aanwijzen (4.1). */
+  code: string;
+  promptId: string | null;
+  /** De meting die aantoont dát deze vraag gemist werd — het bewijs. */
+  runId: string;
   text: string;
   category: string;
   weight: number;
@@ -95,7 +112,7 @@ function buildMissedBlock(missed: MissedPrompt[]): string {
   if (missed.length === 0) return "";
   const lines = missed.map(
     (m) =>
-      `- [gewicht ${m.weight.toFixed(2)}, ${m.category}` +
+      `- ${m.code} [gewicht ${m.weight.toFixed(2)}, ${m.category}` +
       `${m.intent_type ? `, ${m.intent_type}` : ""}${m.cluster ? `, cluster: ${m.cluster}` : ""}] "${m.text}"`,
   );
   return (
@@ -167,7 +184,9 @@ function buildReportInput(
     "",
     "Schrijf op basis hiervan een kort, jargonvrij rapport. Noem in elk gap-item expliciet welke " +
       "concurrent het betreft. PRIORITEER de aanbevelingen op de zwaarwegende gemiste vragen hierboven " +
-      "(hoog gewicht = populair en/of koopklaar). Eindig met 1-3 concrete, geprioriteerde aanbevelingen.",
+      "(hoog gewicht = populair en/of koopklaar). Geef 5 tot 8 concrete, geprioriteerde aanbevelingen — " +
+      "genoeg om de zwaarste gemiste vragen te dekken, niet zoveel dat het een boodschappenlijst wordt. " +
+      "Koppel elke aanbeveling aan de vraagcodes (V1, V2, …) die hij moet winnen.",
   ].join("\n");
 }
 
@@ -227,6 +246,11 @@ async function computeMissedPrompts(
     .map((r) => {
       const tag = r.prompt_id ? tagByPrompt.get(r.prompt_id as string) : undefined;
       return {
+        // De code wordt hierna toegekend, ná het sorteren, zodat V1 ook echt de
+        // zwaarste gemiste vraag is en de nummering betekenis heeft.
+        code: "",
+        promptId: (r.prompt_id as string | null) ?? null,
+        runId: r.id as string,
         text: r.prompt_text_snapshot as string,
         category: r.prompt_category_snapshot as string,
         weight: Number(r.prompt_weight ?? NEUTRAL_WEIGHT),
@@ -235,8 +259,46 @@ async function computeMissedPrompts(
       };
     })
     .sort((a, b) => b.weight - a.weight)
-    .slice(0, MISSED_CAP);
+    .slice(0, MISSED_CAP)
+    .map((m, i) => ({ ...m, code: `V${i + 1}` }));
 }
+
+/**
+ * Bewaart de feitenvragen bij het PROFIEL (optimalisatie.md 4.6).
+ *
+ * Bij het profiel en niet bij de analyse, want "hoeveel jaar bestaan jullie?"
+ * is één keer beantwoorden en daarna weten we het voor elke pagina van dit merk.
+ * De unieke index op (profile_id, question) zorgt dat een tweede rapport
+ * dezelfde vraag niet opnieuw stelt — ook niet als de klant hem al oversloeg.
+ */
+async function saveFactRequests(
+  admin: ReturnType<typeof createAdminClient>,
+  analysis: Analysis,
+  requests: Report["factRequests"],
+): Promise<void> {
+  if (!requests || requests.length === 0) return;
+
+  const rows = requests
+    .filter((r) => r.question?.trim())
+    .slice(0, FACT_REQUEST_CAP)
+    .map((r) => ({
+      profile_id: analysis.profile_id,
+      analysis_id: analysis.id,
+      question: r.question.trim(),
+      reason: r.reason?.trim() || null,
+    }));
+
+  // Botsingen (de vraag stond er al) negeren in plaats van de hele insert laten
+  // klappen; het rapport mag niet mislukken op een dubbele feitenvraag.
+  const { error } = await admin.from("fact_requests").upsert(rows, {
+    onConflict: "profile_id,question",
+    ignoreDuplicates: true,
+  });
+  if (error) console.warn(`Feitenvragen opslaan mislukt voor analyse ${analysis.id}: ${error.message}`);
+}
+
+/** Meer dan een handvol vragen is geen uitnodiging meer maar een formulier. */
+const FACT_REQUEST_CAP = 6;
 
 export async function generateReport(id: string, weekNo = 0): Promise<AnalysisStatus> {
   const admin = createAdminClient();
@@ -316,15 +378,22 @@ export async function generateReport(id: string, weekNo = 0): Promise<AnalysisSt
       meta: { kind: "report", analysisId: id, profileId: analysis.profile_id },
     });
 
+    // De vraagcodes (V1, V2, …) omzetten naar echte verwijzingen vóór opslag
+    // (optimalisatie.md 4.1). Vanaf hier werkt de rest van de app met prompt- en
+    // meting-id's; de codes bestaan alleen binnen deze ene aanroep.
+    const enriched = resolveTargets(report.parsed.recommendations, missed);
+
     await admin.from("reports").insert({
       analysis_id: id,
       period: `week ${weekNo}`,
       summary: report.parsed.summary,
       gaps_json: report.parsed.gaps as never,
-      recommendations_json: report.parsed.recommendations as never,
+      recommendations_json: enriched as never,
       gap_analysis_raw_json: gap.raw as never, // volledige ruwe OpenAI-output B1 (§5)
       raw_json: report.raw as never, // volledige ruwe OpenAI-output B2 (§5)
     });
+
+    await saveFactRequests(admin, analysis, report.parsed.factRequests);
 
     await admin.from("analyses").update({ status: "gereed" }).eq("id", id);
 

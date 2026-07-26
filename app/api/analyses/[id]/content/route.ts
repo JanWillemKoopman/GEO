@@ -29,11 +29,17 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
   if (!title) return NextResponse.json({ error: "Titel ontbreekt." }, { status: 400 });
 
   const [{ data: piece }, { count: failedJobs }] = await Promise.all([
+    // `is_current` erbij sinds versiebeheer (optimalisatie.md 4.7): met meerdere
+    // versies onder dezelfde titel zou `maybeSingle()` een fout opleveren zodra
+    // iemand voor de tweede keer laat schrijven.
     admin
       .from("content_pieces")
       .select("id, status")
       .eq("analysis_id", id)
       .eq("title", title)
+      .eq("is_current", true)
+      .order("version", { ascending: false })
+      .limit(1)
       .maybeSingle(),
     admin
       .from("jobs")

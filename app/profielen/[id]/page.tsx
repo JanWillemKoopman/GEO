@@ -5,8 +5,9 @@ import { ProfileProgress } from "./profile-progress";
 import { ProfileEditor } from "./profile-editor";
 import { EntitiesManager } from "./entities-manager";
 import { AuditPanel } from "@/components/audit-panel";
+import { FactRequests } from "./fact-requests";
 import type { AuditCheck } from "@/lib/audit/technical";
-import type { Entity, TechnicalAudit as TechnicalAuditRow } from "@/lib/types/database";
+import type { Entity, FactRequest, TechnicalAudit as TechnicalAuditRow } from "@/lib/types/database";
 
 export default async function ProfilePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -18,7 +19,7 @@ export default async function ProfilePage({ params }: { params: Promise<{ id: st
   }
 
   const supabase = await createClient();
-  const [{ count }, { data: entityRows }, { data: auditRow }] = await Promise.all([
+  const [{ count }, { data: entityRows }, { data: auditRow }, { data: factRows }] = await Promise.all([
     supabase.from("profile_pages").select("id", { count: "exact", head: true }).eq("profile_id", id),
     // Concurrenten horen bij het PROFIEL, niet bij één analyse (optimalisatie.md
     // 2.4/2.7): dezelfde concurrent duikt op bij meerdere onderwerpen van
@@ -32,6 +33,14 @@ export default async function ProfilePage({ params }: { params: Promise<{ id: st
       .order("checked_at", { ascending: false })
       .limit(1)
       .maybeSingle(),
+    // Feitenvragen uit het rapport (optimalisatie.md 4.6). Overgeslagen vragen
+    // blijven weg: één keer "weet ik niet" is genoeg.
+    supabase
+      .from("fact_requests")
+      .select("*")
+      .eq("profile_id", id)
+      .in("status", ["open", "beantwoord"])
+      .order("created_at"),
   ]);
 
   const audit = auditRow as TechnicalAuditRow | null;
@@ -54,6 +63,7 @@ export default async function ProfilePage({ params }: { params: Promise<{ id: st
           </p>
         </div>
       )}
+      <FactRequests profileId={id} initial={(factRows ?? []) as FactRequest[]} />
       <EntitiesManager profileId={id} initial={(entityRows ?? []) as Entity[]} />
     </div>
   );
