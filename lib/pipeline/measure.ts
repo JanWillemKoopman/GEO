@@ -16,6 +16,8 @@ import { MODELS, TEMPERATURES, SIMULATION_TEMPERATURE } from "@/lib/openai/model
 import { measureWebSearchEnabled } from "@/lib/config";
 import { promptWeight, NEUTRAL_WEIGHT } from "@/lib/pipeline/prompt-weight";
 import { Mention } from "@/lib/schemas/mention";
+import { ensureKnownEntities, resolveEntity } from "@/lib/entities/resolve";
+import { binomialStderr, weightedScoreStderr } from "@/lib/stats/uncertainty";
 // Gedeeld met scripts/eval-mention.ts, zodat de test exact de productie-prompt
 // beoordeelt en niet een kopie die kan gaan afwijken (optimalisatie.md 0.7).
 import { MENTION_SYSTEM, buildMentionUser } from "@/lib/openai/mention-prompt";
@@ -142,7 +144,14 @@ export async function measureOnePrompt(
   if (rows.length > 0) await admin.from("tracking_run_mentions").insert(rows);
 }
 
-/** 3c — pure aggregatie (geen AI-call): visibility_scores + competitor_breakdown. */
+/**
+ * 3c — aggregatie (geen AI-aanroep): visibility_scores + competitor_breakdown.
+ *
+ * Doet sinds fase 2 drie dingen extra (optimalisatie.md 2.2/2.4/2.5):
+ *   • merknamen samenvoegen tot één entiteit per bedrijf
+ *   • de onzekerheid van de score berekenen en opslaan
+ *   • het aandeel over een VASTE set entiteiten berekenen
+ */
 export async function computeAggregates(admin: Admin, analysisId: string, weekNo: number): Promise<void> {
   const { data: runsFull } = await admin
     .from("tracking_runs")
@@ -151,6 +160,14 @@ export async function computeAggregates(admin: Admin, analysisId: string, weekNo
     .eq("week_no", weekNo);
   const runs = runsFull ?? [];
   if (runs.length === 0) return;
+
+  const { data: analysisRow } = await admin
+    .from("analyses")
+    .select("profile_id")
+    .eq("id", analysisId)
+    .single();
+  const profileId = analysisRow?.profile_id as string | undefined;
+  if (!profileId) throw new Error(`Analyse ${analysisId} heeft geen profiel.`);
 
   const runIds = runs.map((r) => r.id as string);
   const categoryByRun = new Map(runs.map((r) => [r.id as string, r.prompt_category_snapshot as string]));
@@ -162,12 +179,40 @@ export async function computeAggregates(admin: Admin, analysisId: string, weekNo
   const { data: mentionRows } = await admin.from("tracking_run_mentions").select("*").in("tracking_run_id", runIds);
   const mentions = mentionRows ?? [];
 
-  // Eigen-merk-rij per run. De classificatie hoort er precies één per run te
-  // geven, maar kan er meer teruggeven (bv. merknaam én alias als losse
-  // entiteiten). Voorheen won dan willekeurig de LAATSTE rij, wat betekende dat
-  // een "niet genoemd"-rij een "wel genoemd"-rij kon overschrijven en de score
-  // stilletjes verlaagde. Nu een expliciete samenvoegregel (optimalisatie.md 0.3):
-  // genoemd wint van niet-genoemd; bij twee keer genoemd telt de vroegste positie.
+  // ── Entiteiten samenvoegen (optimalisatie.md 2.4) ──────────────────────────
+  // De bekende concurrenten worden meteen bevestigd; die vormen de vaste noemer
+  // van het aandeel. Namen die alleen uit een AI-antwoord komen zijn nieuw en
+  // moeten eerst door de klant bevestigd worden.
+  const [{ data: profileRow }, { data: topicRow }] = await Promise.all([
+    admin.from("profiles").select("competitors").eq("id", profileId).maybeSingle(),
+    admin.from("topic_research").select("competitors").eq("analysis_id", analysisId).maybeSingle(),
+  ]);
+  const knownCompetitors = Array.from(
+    new Set([...(topicRow?.competitors ?? []), ...(profileRow?.competitors ?? [])]),
+  );
+  const index = await ensureKnownEntities(admin, profileId, knownCompetitors);
+
+  // Elke gemeten naam koppelen aan z'n entiteit. Het eigen merk slaan we over:
+  // dat is geen concurrent en heeft z'n eigen behandeling.
+  const entityByMention = new Map<string, string>(); // mention.id → entity.id
+  for (const m of mentions) {
+    if (m.is_own_brand) continue;
+    const entity = await resolveEntity(admin, profileId, index, m.entity_name as string);
+    if (!entity) continue;
+    entityByMention.set(m.id as string, entity.id);
+    if (m.entity_id !== entity.id) {
+      await admin.from("tracking_run_mentions").update({ entity_id: entity.id }).eq("id", m.id);
+    }
+  }
+  const entityById = new Map(index.all.map((e) => [e.id, e]));
+
+  // ── Eigen merk per run ─────────────────────────────────────────────────────
+  // De classificatie hoort er precies één per run te geven, maar kan er meer
+  // teruggeven (bv. merknaam én alias als losse entiteiten). Voorheen won dan
+  // willekeurig de LAATSTE rij, wat betekende dat een "niet genoemd"-rij een
+  // "wel genoemd"-rij kon overschrijven en de score stilletjes verlaagde. Nu een
+  // expliciete regel (optimalisatie.md 0.3): genoemd wint van niet-genoemd; bij
+  // twee keer genoemd telt de vroegste positie.
   const ownByRun = new Map<string, (typeof mentions)[number]>();
   for (const m of mentions) {
     if (!m.is_own_brand) continue;
@@ -187,16 +232,14 @@ export async function computeAggregates(admin: Admin, analysisId: string, weekNo
     }
   }
 
-  // Alleen BEOORDEELDE runs tellen mee in de score (optimalisatie.md 0.2, zelfde
-  // regel als in report.ts). Een run zonder eigen-merk-oordeel betekent dat 3b
-  // faalde — dat is onbekend, niet "niet genoemd". Meetellen als niet-genoemd
-  // zou de score verlagen door een technisch probleem, en score en rapport
-  // zouden elkaar tegenspreken.
+  // Alleen BEOORDEELDE runs tellen mee (optimalisatie.md 0.2, zelfde regel als
+  // in report.ts). Een run zonder eigen-merk-oordeel betekent dat 3b faalde —
+  // dat is onbekend, niet "niet genoemd".
   const judgedRunIds = runIds.filter((id) => ownByRun.has(id));
   const judgedRuns = judgedRunIds.length;
   if (judgedRuns < runIds.length) {
     console.warn(
-      `Analyse ${analysisId} week ${weekNo}: ${runIds.length - judgedRuns} van ${runIds.length} ` +
+      `Analyse ${analysisId} periode ${weekNo}: ${runIds.length - judgedRuns} van ${runIds.length} ` +
         `metingen zonder eigen-merk-oordeel; die tellen niet mee in de score.`,
     );
   }
@@ -213,30 +256,65 @@ export async function computeAggregates(admin: Admin, analysisId: string, weekNo
   }, 0);
   const weightedScore = totalWeight > 0 ? Math.round((ownWeight / totalWeight) * 100) : 0;
 
+  // ── Onzekerheid (optimalisatie.md 2.2) ─────────────────────────────────────
+  const stderr = binomialStderr(ownMentionedCount, judgedRuns);
+  const weightedStderr = weightedScoreStderr(
+    judgedRunIds.map((id) => ({
+      weight: weightByRun.get(id) ?? NEUTRAL_WEIGHT,
+      mentioned: Boolean(ownByRun.get(id)?.mentioned),
+    })),
+  );
+
+  // ── Aandeel over een VASTE set (optimalisatie.md 2.5) ──────────────────────
+  // Voorheen: eigen ÷ (eigen + álle concurrentvermeldingen). Die noemer groeide
+  // met elk merk dat de classificatie toevallig ontdekte, waardoor het aandeel
+  // daalde zonder dat de klant iets verkeerd deed — en twee periodes niet
+  // vergelijkbaar waren. Nu tellen alleen BEVESTIGDE, niet-weggezette
+  // entiteiten mee; nieuw ontdekte merken wachten op de klant (2.7).
   const competitorRows = mentions.filter((m) => !m.is_own_brand);
-  const competitorMentionedTotal = competitorRows.filter((m) => m.mentioned).length;
+  const inBasis = (m: (typeof mentions)[number]) => {
+    const entityId = entityByMention.get(m.id as string);
+    const entity = entityId ? entityById.get(entityId) : undefined;
+    return Boolean(entity?.confirmed && !entity.dismissed);
+  };
+  const basisMentions = competitorRows.filter((m) => m.mentioned && inBasis(m)).length;
+  const basisEntities = new Set(
+    competitorRows.filter(inBasis).map((m) => entityByMention.get(m.id as string)),
+  );
   const shareOfVoice =
-    ownMentionedCount + competitorMentionedTotal > 0
-      ? Math.round((ownMentionedCount / (ownMentionedCount + competitorMentionedTotal)) * 100)
+    ownMentionedCount + basisMentions > 0
+      ? Math.round((ownMentionedCount / (ownMentionedCount + basisMentions)) * 100)
       : null;
 
-  await admin
-    .from("visibility_scores")
-    .upsert(
-      { analysis_id: analysisId, week_no: weekNo, score, weighted_score: weightedScore, share_of_voice: shareOfVoice },
-      { onConflict: "analysis_id,week_no" },
-    );
+  await admin.from("visibility_scores").upsert(
+    {
+      analysis_id: analysisId,
+      week_no: weekNo,
+      score,
+      weighted_score: weightedScore,
+      share_of_voice: shareOfVoice,
+      judged_runs: judgedRuns,
+      score_stderr: stderr,
+      weighted_stderr: weightedStderr,
+      // +1 voor het eigen merk: de noemer is "wij plus de bevestigde concurrenten".
+      share_basis_count: basisEntities.size + 1,
+    },
+    { onConflict: "analysis_id,week_no" },
+  );
 
-  const byCompetitor = new Map<string, typeof competitorRows>();
+  // ── Uitsplitsing per concurrent, gegroepeerd op ENTITEIT ───────────────────
+  const byEntity = new Map<string, typeof competitorRows>();
   for (const m of competitorRows) {
-    const list = byCompetitor.get(m.entity_name) ?? [];
+    const entityId = entityByMention.get(m.id as string);
+    if (!entityId) continue;
+    const list = byEntity.get(entityId) ?? [];
     list.push(m);
-    byCompetitor.set(m.entity_name, list);
+    byEntity.set(entityId, list);
   }
 
   await admin.from("competitor_breakdown").delete().eq("analysis_id", analysisId).eq("week_no", weekNo);
 
-  const breakdownRows = Array.from(byCompetitor.entries()).map(([competitor, ms]) => {
+  const breakdownRows = Array.from(byEntity.entries()).map(([entityId, ms]) => {
     const byCategoryCounts: Record<string, number> = {};
     const sources = new Set<string>();
     const winningRunIds: string[] = [];
@@ -256,7 +334,9 @@ export async function computeAggregates(admin: Admin, analysisId: string, weekNo
     return {
       analysis_id: analysisId,
       week_no: weekNo,
-      competitor_name: competitor,
+      // De weergavenaam van de entiteit, niet de toevallige schrijfwijze uit
+      // één antwoord — anders heet dezelfde concurrent elke periode anders.
+      competitor_name: entityById.get(entityId)?.canonical_name ?? "Onbekend",
       mentions_count: ms.filter((m) => m.mentioned).length,
       mentions_by_category_json: byCategoryCounts,
       top_cited_sources: Array.from(sources).slice(0, 5),

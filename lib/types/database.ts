@@ -159,6 +159,8 @@ export interface TrackingRunMention {
   id: string;
   tracking_run_id: string;
   entity_name: string;
+  /** Koppeling naar de samengevoegde entiteit (migratie 0016). */
+  entity_id: string | null;
   is_own_brand: boolean;
   mentioned: boolean;
   position: number | null;
@@ -169,12 +171,36 @@ export interface TrackingRunMention {
 export interface VisibilityScore {
   id: string;
   analysis_id: string;
+  /** Periode-index: 0 = nulmeting, daarna elke maandelijkse hermeting (§6 A3). */
   week_no: number;
   score: number; // ongewogen: % prompts waarin het merk genoemd wordt (elke prompt telt gelijk)
   weighted_score: number | null; // gewogen naar volume × commerciële waarde (§6 A3)
   share_of_voice: number | null;
   per_engine_json: unknown | null;
+  /** Onzekerheid van de meting (optimalisatie.md 2.2, migratie 0016). */
+  judged_runs: number | null; // aantal metingen waarop de score rust
+  score_stderr: number | null; // standaardfout in procentpunten; 95%-band = ±1,96×
+  weighted_stderr: number | null;
+  share_basis_count: number | null; // aantal entiteiten in de noemer van het aandeel
   computed_at: string;
+}
+
+/**
+ * Eén bedrijf, met al z'n schrijfwijzen (optimalisatie.md 2.4, migratie 0016).
+ * Per PROFIEL, want dezelfde concurrent duikt op bij meerdere onderwerpen.
+ */
+export interface Entity {
+  id: string;
+  profile_id: string;
+  canonical_name: string;
+  normalized: string;
+  aliases: string[];
+  /** Door de klant gezien en goedgekeurd? Alleen bevestigde tellen in het aandeel. */
+  confirmed: boolean;
+  /** Door de klant weggezet als "geen concurrent van mij". */
+  dismissed: boolean;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface CompetitorScore {

@@ -341,12 +341,17 @@ metingen (vragen × metingen per vraag), dus 30×1 en 12×3 zijn statistisch vri
 maar 30×1 kost minder (30 web-zoekacties in plaats van 36) én dekt de markt van de klant
 breder af. Bij gelijke kosten wint meer vragen het van meer metingen per vraag.
 
-| opzet | metingen | 95%-band | week-op-week nodig |
+| opzet | metingen | 95%-band | maand-op-maand nodig |
 |---|---|---|---|
-| 12 × 1 (nu) | 12 | ±26 punten | 37 punten |
-| 12 × 3 | 36 | ±15 punten | 21 punten |
-| **30 × 1 (gekozen)** | **30** | **±16 punten** | **23 punten** |
-| 30 × 3 (oorspronkelijk) | 90 | ±10 punten | 13 punten |
+| 12 × 1 (was) | 12 | ±28 punten | 40 punten |
+| 12 × 3 | 36 | ±16 punten | 23 punten |
+| **30 × 1 (gekozen)** | **30** | **±18 punten** | **25 punten** |
+| 30 × 3 (oorspronkelijk) | 90 | ±10 punten | 15 punten |
+
+*(Gecorrigeerd bij de implementatie: een eerdere versie van deze tabel rekende met
+z = 1,8 in plaats van 1,96 en gaf daardoor iets te smalle banden. De getallen hierboven
+komen uit `lib/stats/uncertainty.ts` en zijn de echte 95%-waarden bij p = 0,5, het
+ongunstigste geval. De conclusie verandert niet: 30×1 en 12×3 liggen dicht bij elkaar.)*
 
 **2.2 — De onzekerheid berekenen en meesturen**
 Zonder meerdere metingen per vraag kun je de ruis niet wegnemen — maar je kunt hem wél
@@ -355,8 +360,19 @@ kennen. Bereken bij elke score de standaardfout uit de binomiale verdeling
 `visibility_scores`. Dit is de belangrijkste stap van de hele fase geworden: hij is
 goedkoop (puur rekenwerk, geen AI-aanroep) en hij is wat de score eerlijk maakt.
 
+Twee details die bij de implementatie bleken uit te maken:
+* **De randen.** Zonder correctie geeft 0 van de 30 een standaardfout van exact 0 — de app
+  zou "0%, absoluut zeker" beweren terwijl 0 van 30 prima kan horen bij een echte
+  zichtbaarheid van 8%. Daarom rekenen we de spreiding met de "plus vier"-correctie
+  (Agresti-Coull): alsof er twee successen en twee mislukkingen extra waren. Het getoonde
+  cijfer blijft ongecorrigeerd; alleen de band eromheen.
+* **De gewogen score is onzekerder.** Niet elke vraag telt even zwaar, dus als één zware
+  vraag omslaat beweegt het cijfer meer. Het effectieve aantal metingen (Kish:
+  `(Σw)²/Σw²`) vangt dat: bij gelijke gewichten komt er hetzelfde uit als bij de gewone
+  binomiale formule, bij scheve gewichten terecht een bredere band.
+
 **2.3 — Alleen betekenisvolle verandering tonen**
-Met een band van ±16 punten is een verschil van 10 punten week-op-week ruis. Toon een
+Met een band van ±18 punten is een verschil van 10 punten maand-op-maand ruis. Toon een
 verandering pas als verandering wanneer hij buiten de band valt; anders "stabiel". Liever
 een saaie waarheid dan een schommeling waaruit de klant concludeert dat het product niet
 werkt. Dit is dubbel zo belangrijk geworden nu de band groter is.
