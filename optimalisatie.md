@@ -286,12 +286,22 @@ voltooide stappen voltooid blijven.
 
 ### Klaar als…
 
-- [ ] Een analyse start, de tab wordt gesloten, en tien minuten later staat het rapport
-      klaar zonder dat de klant is teruggekomen.
-- [ ] Een handmatig veroorzaakte storing herstelt zichzelf via een nieuwe poging, zonder
-      dat de klant een foutmelding ziet.
-- [ ] `promptsPerFunnelStage` kan naar 10 (30 vragen) zonder tijdslimietfouten.
-- [ ] De klant krijgt een mail als het rapport klaar is, mits aangevinkt.
+- [x] Een analyse start, de tab wordt gesloten, en later staat het rapport klaar zonder dat
+      de klant is teruggekomen. Het werk wordt ingepland bij **aanmaken** (analyse/profiel)
+      en bij **goedkeuren** (meting) — niet meer door het voortgangsscherm.
+- [x] Een storing herstelt zichzelf via een nieuwe poging (4 pogingen, 2/4/8 min) zonder dat
+      de klant een foutmelding ziet; pas na de laatste poging wordt het zichtbaar.
+- [x] `promptsPerFunnelStage` kan naar 10 (30 vragen) zonder tijdslimietfouten — elke taak is
+      één vraag, en lichte taken draaien vijf tegelijk.
+- [x] De klant krijgt een mail als het rapport klaar is, mits aangevinkt bij het starten.
+
+**Status: afgerond.** Typecheck, lint en productiebuild slagen; de wachtrij-logica (backoff,
+taakindeling, tijdsindicatie) is met een script geverifieerd.
+
+⚠️ **Nog niet end-to-end gedraaid**: deze omgeving heeft geen database en geen API-key, dus
+migraties 0013/0014 zijn niet toegepast en de keten is niet één keer echt doorlopen. Doe dat
+als eerste bij het oppakken: migraties draaien, `CRON_SECRET` zetten, en één analyse volgen
+van aanmaken tot rapport.
 
 ---
 

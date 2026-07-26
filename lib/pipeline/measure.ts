@@ -39,7 +39,7 @@ type Admin = SupabaseClient;
  */
 const MIN_SUCCESS_RATIO = 0.7;
 
-async function measureOnePrompt(
+export async function measureOnePrompt(
   admin: Admin,
   analysis: Analysis,
   ownLabel: string,
@@ -143,7 +143,7 @@ async function measureOnePrompt(
 }
 
 /** 3c — pure aggregatie (geen AI-call): visibility_scores + competitor_breakdown. */
-async function computeAggregates(admin: Admin, analysisId: string, weekNo: number): Promise<void> {
+export async function computeAggregates(admin: Admin, analysisId: string, weekNo: number): Promise<void> {
   const { data: runsFull } = await admin
     .from("tracking_runs")
     .select("id, prompt_category_snapshot, prompt_weight")
@@ -269,95 +269,103 @@ async function computeAggregates(admin: Admin, analysisId: string, weekNo: numbe
 }
 
 /**
- * Voert de meting uit voor één analyse/week. Bij `weekNo = 0` (nulmeting) zet
- * dit ook de statusovergang meten → gemeten (abcplan.md §6 A3, MVP-versnelling).
- * Bij latere weken (wekelijkse lus, Sprint 4-cron) blijft de status ongemoeid.
+ * De gedeelde context die elke meting nodig heeft: hoe heet het eigen merk, hoe
+ * kan het nog meer genoemd worden, en wie zijn de concurrenten.
+ *
+ * Wordt per meettaak opnieuw geladen in plaats van meegegeven in de payload
+ * (optimalisatie.md 1.3): past de klant halverwege z'n concurrentenlijst aan,
+ * dan meten de resterende vragen meteen tegen de nieuwe lijst. Drie kleine
+ * queries per prompt is die correctheid waard.
  */
-export async function measureAnalysis(id: string, weekNo = 0): Promise<AnalysisStatus> {
-  const admin = createAdminClient();
+export interface MeasureContext {
+  analysis: Analysis;
+  ownLabel: string;
+  ownAliases: string[];
+  competitors: string[];
+}
 
-  const { data: analysis } = await admin.from("analyses").select("*").eq("id", id).single();
-  if (!analysis) throw new Error(`Analyse ${id} niet gevonden.`);
-  const typedAnalysis = analysis as Analysis;
+export async function loadMeasureContext(admin: Admin, analysisId: string): Promise<MeasureContext> {
+  const { data: analysisRow } = await admin.from("analyses").select("*").eq("id", analysisId).single();
+  if (!analysisRow) throw new Error(`Analyse ${analysisId} niet gevonden.`);
+  const analysis = analysisRow as Analysis;
 
-  const isNulmeting = weekNo === 0;
-  if (isNulmeting) {
-    const eligible = typedAnalysis.status === "meten" || typedAnalysis.status === "mislukt";
-    if (!eligible) return typedAnalysis.status;
-
-    if (typedAnalysis.status === "mislukt") {
-      // Alleen aanpakken als dit een mislukte MÉTING is (prompts bestaan al —
-      // een mislukte VOORBEREIDING heeft dat nog niet). Zie prepare.ts voor het spiegelbeeld.
-      const { count } = await admin
-        .from("prompts")
-        .select("*", { count: "exact", head: true })
-        .eq("analysis_id", id);
-      if (!count) return "mislukt";
-    }
-  }
-
-  const [{ data: profile }, { data: topicResearch }, { data: activePrompts }] = await Promise.all([
-    admin.from("profiles").select("brand_name, aliases, competitors").eq("id", typedAnalysis.profile_id).maybeSingle(),
-    admin.from("topic_research").select("competitors").eq("analysis_id", id).maybeSingle(),
-    admin.from("prompts").select("*").eq("analysis_id", id).eq("active", true),
+  const [{ data: profile }, { data: topicResearch }] = await Promise.all([
+    admin.from("profiles").select("brand_name, aliases, competitors").eq("id", analysis.profile_id).maybeSingle(),
+    admin.from("topic_research").select("competitors").eq("analysis_id", analysisId).maybeSingle(),
   ]);
 
   // Gebruik de canonieke merknaam voor mention-detectie (een AI-antwoord noemt
   // "Golden Fingers", niet het domein) — nauwkeuriger dan alleen de URL.
-  const base = profile?.brand_name ?? typedAnalysis.url;
-  const ownLabel = `${base} (${typedAnalysis.topic})`;
-  // Aliassen (§12.24) tellen ook als het eigen merk — verbetert de mention-detectie.
-  const ownAliases: string[] = profile?.aliases ?? [];
-  // Gededupliceerde unie: onderwerp-specifieke concurrenten + algemene bedrijfsconcurrenten.
-  const competitors: string[] = Array.from(
-    new Set([...(topicResearch?.competitors ?? []), ...(profile?.competitors ?? [])]),
-  );
-  const prompts = (activePrompts ?? []) as Prompt[];
+  const base = profile?.brand_name ?? analysis.url;
+  return {
+    analysis,
+    ownLabel: `${base} (${analysis.topic})`,
+    // Aliassen (§12.24) tellen ook als het eigen merk — verbetert de detectie.
+    ownAliases: (profile?.aliases as string[] | null) ?? [],
+    // Gededupliceerde unie: onderwerp-specifieke + algemene bedrijfsconcurrenten.
+    competitors: Array.from(
+      new Set([...(topicResearch?.competitors ?? []), ...(profile?.competitors ?? [])]),
+    ),
+  };
+}
 
-  try {
-    const results = await Promise.allSettled(
-      prompts.map((p) => measureOnePrompt(admin, typedAnalysis, ownLabel, ownAliases, competitors, p, weekNo)),
-    );
-    const failed = results.filter((r) => r.status === "rejected") as PromiseRejectedResult[];
+/**
+ * Meet één prompt binnen een analyse. Dit is wat een `measure_prompt`-taak doet.
+ * Idempotent: is deze prompt voor deze week al gemeten, dan gebeurt er niets.
+ */
+export async function measurePromptById(
+  analysisId: string,
+  promptId: string,
+  weekNo: number,
+): Promise<void> {
+  const admin = createAdminClient();
+  const ctx = await loadMeasureContext(admin, analysisId);
 
-    // Deels gelukt is GELUKT (optimalisatie.md 0.4b). Voorheen liet één mislukte
-    // prompt de hele meting falen, inclusief de elf die wél slaagden: de klant
-    // zag "mislukt" terwijl er bruikbare data lag, en een nieuwe poging kostte
-    // opnieuw tijd. Nu bepaalt een drempel of het resultaat bruikbaar is.
-    //
-    // De al gemeten prompts blijven hoe dan ook bewaard (idempotent per prompt),
-    // dus een volgende poging vult alleen de gaten en meet niets dubbel.
-    if (failed.length > 0) {
-      const reason = failed[0].reason;
-      const detail = reason instanceof Error ? reason.message : String(reason);
-      const succeeded = results.length - failed.length;
-
-      // Onder de drempel is het geen meting meer maar een steekproef met te
-      // weinig grond — dan liever eerlijk falen dan een misleidende score tonen.
-      const ratio = results.length > 0 ? succeeded / results.length : 0;
-      if (succeeded === 0 || ratio < MIN_SUCCESS_RATIO) {
-        throw new Error(
-          `${failed.length} van ${results.length} prompts mislukt tijdens meting. Eerste fout: ${detail}`,
-        );
-      }
-
-      console.warn(
-        `Analyse ${id} week ${weekNo}: ${failed.length} van ${results.length} prompts mislukt, ` +
-          `meting gaat door met ${succeeded}. Eerste fout: ${detail}`,
-      );
-    }
-
-    await computeAggregates(admin, id, weekNo);
-
-    if (isNulmeting) {
-      await admin.from("analyses").update({ status: "gemeten" }).eq("id", id);
-      return "gemeten";
-    }
-    return typedAnalysis.status;
-  } catch (err) {
-    if (isNulmeting) {
-      await admin.from("analyses").update({ status: "mislukt" }).eq("id", id);
-    }
-    throw err;
+  const { data: promptRow } = await admin.from("prompts").select("*").eq("id", promptId).maybeSingle();
+  if (!promptRow) {
+    // Prompt verwijderd terwijl de taak in de rij stond — geen fout, niets te doen.
+    console.warn(`Prompt ${promptId} bestaat niet meer; meting overgeslagen.`);
+    return;
   }
+
+  await measureOnePrompt(
+    admin,
+    ctx.analysis,
+    ctx.ownLabel,
+    ctx.ownAliases,
+    ctx.competitors,
+    promptRow as Prompt,
+    weekNo,
+  );
+}
+
+/**
+ * Zijn er genoeg vragen gemeten om een bruikbare score op te baseren
+ * (optimalisatie.md 0.4b)? Onder de drempel is het geen meting meer maar een
+ * steekproef met te weinig grond, en tonen we liever niets dan een misleidend
+ * cijfer. Wordt aangeroepen door de aggregatietaak, die als laatste draait.
+ */
+export async function measurementIsUsable(
+  admin: Admin,
+  analysisId: string,
+  weekNo: number,
+): Promise<{ usable: boolean; measured: number; expected: number }> {
+  const [{ count: expected }, { count: measured }] = await Promise.all([
+    admin
+      .from("prompts")
+      .select("id", { count: "exact", head: true })
+      .eq("analysis_id", analysisId)
+      .eq("active", true),
+    admin
+      .from("tracking_runs")
+      .select("id", { count: "exact", head: true })
+      .eq("analysis_id", analysisId)
+      .eq("week_no", weekNo)
+      .not("mention_json", "is", null),
+  ]);
+
+  const exp = expected ?? 0;
+  const got = measured ?? 0;
+  const ratio = exp > 0 ? got / exp : 0;
+  return { usable: got > 0 && ratio >= MIN_SUCCESS_RATIO, measured: got, expected: exp };
 }

@@ -2,16 +2,22 @@ import { NextResponse } from "next/server";
 import { getUser } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getOwnedAnalysis } from "@/lib/analyses";
-import { generateContentPiece, type RecommendationInput } from "@/lib/pipeline/content";
+import { enqueue, dedupe } from "@/lib/jobs/queue";
 import { describeError, classifyError } from "@/lib/errors";
-import type { ContentType } from "@/lib/types/database";
+import type { ContentType, ContentAction } from "@/lib/types/database";
+import type { RecommendationPayload } from "@/lib/jobs/types";
 
 /**
- * POST /api/analyses/[id]/generate — genereert één pagina op klant-verzoek
- * (abcplan.md §8, Fase C). Body = de aanbeveling. Idempotent op titel.
+ * POST /api/analyses/[id]/generate — plant het schrijven van één pagina in
+ * (optimalisatie.md 1.4, Fase C).
+ *
+ * Was de meest waarschijnlijke plek om op de tijdslimiet stuk te lopen: vier
+ * AI-aanroepen achter elkaar, waarvan twee een volledige pagina schrijven. Nu
+ * twee taken (schrijven+beoordelen, dan herschrijven+herbeoordelen) die elk
+ * ruim binnen één werker-aanroep passen, met de tussenstand in de database.
+ *
+ * Idempotent op de aanbeveling: twee keer klikken levert één pagina op.
  */
-export const maxDuration = 60;
-
 const VALID_TYPES: ContentType[] = ["article", "faq", "landing", "comparison"];
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -24,7 +30,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   const analysis = await getOwnedAnalysis(admin, id, user.id);
   if (!analysis) return NextResponse.json({ error: "Niet gevonden." }, { status: 404 });
 
-  let body: Partial<RecommendationInput> & { reportId?: string };
+  let body: Partial<RecommendationPayload> & { reportId?: string };
   try {
     body = await request.json();
   } catch {
@@ -32,28 +38,43 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   }
 
   const title = body.title?.trim();
-  const type = body.type && VALID_TYPES.includes(body.type) ? body.type : "article";
-  if (!title) {
-    return NextResponse.json({ error: "Titel ontbreekt." }, { status: 400 });
-  }
+  if (!title) return NextResponse.json({ error: "Titel ontbreekt." }, { status: 400 });
+
+  const recommendation: RecommendationPayload = {
+    title,
+    type: body.type && VALID_TYPES.includes(body.type) ? body.type : "article",
+    targetIntent: body.targetIntent ?? "",
+    why: body.why ?? "",
+    action: (body.action === "verbeteren" ? "verbeteren" : "nieuw") as ContentAction,
+    existingUrl: body.existingUrl ?? null,
+    reportId: body.reportId ?? null,
+  };
 
   try {
-    const contentId = await generateContentPiece({
+    // Al geschreven? Dan meteen de bestaande pagina teruggeven.
+    const { data: existing } = await admin
+      .from("content_pieces")
+      .select("id, status")
+      .eq("analysis_id", id)
+      .eq("title", title)
+      .maybeSingle();
+    if (existing && existing.status !== "draft") {
+      return NextResponse.json({ queued: false, id: existing.id, done: true });
+    }
+
+    const { created } = await enqueue(admin, {
+      type: "content_draft",
+      payload: { userId: user.id, recommendation },
       analysisId: id,
-      userId: user.id,
-      reportId: body.reportId ?? null,
-      recommendation: {
-        title,
-        type,
-        targetIntent: body.targetIntent ?? "",
-        why: body.why ?? "",
-        action: body.action === "verbeteren" ? "verbeteren" : "nieuw",
-        existingUrl: body.existingUrl ?? null,
-      },
+      dedupeKey: dedupe.contentDraft(id, title),
     });
-    return NextResponse.json({ id: contentId }, { status: 201 });
+
+    return NextResponse.json({ queued: true, created }, { status: 202 });
   } catch (err) {
-    console.error(`generateContentPiece(${id}) mislukt:`, err);
-    return NextResponse.json({ error: "Genereren mislukt.", detail: describeError(err), problem: classifyError(err) }, { status: 500 });
+    console.error(`content inplannen mislukt voor ${id}:`, err);
+    return NextResponse.json(
+      { error: "Genereren inplannen mislukt.", detail: describeError(err), problem: classifyError(err) },
+      { status: 500 },
+    );
   }
 }

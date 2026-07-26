@@ -27,7 +27,16 @@ import { MODELS, TEMPERATURES } from "@/lib/openai/models";
 import { ContentPiece } from "@/lib/schemas/content-piece";
 import { Critique } from "@/lib/schemas/critique";
 import { validateOrRebuildJsonLd } from "@/lib/schema-jsonld";
-import type { Analysis, Profile, ProfilePage, TopicResearch, ContentAction, ContentType } from "@/lib/types/database";
+import type {
+  Analysis,
+  Profile,
+  ProfilePage,
+  TopicResearch,
+  ContentAction,
+  ContentType,
+  // De databaserij heet ook ContentPiece; hernoemd om te botsen met het Zod-schema.
+  ContentPiece as ContentPieceRow,
+} from "@/lib/types/database";
 
 /** Onder deze rubric-score markeren we een pagina voor menselijke controle (F1). */
 const REVIEW_THRESHOLD = 80;
@@ -184,27 +193,19 @@ function buildReviseInput(baseInput: string, piece: ContentPiece, issues: string
   ].join("\n");
 }
 
-export async function generateContentPiece(args: {
-  analysisId: string;
-  userId: string;
-  reportId: string | null;
-  recommendation: RecommendationInput;
-}): Promise<string> {
-  const { analysisId, userId, reportId, recommendation } = args;
-  const admin = createAdminClient();
-
+/**
+ * De context die beide contentstappen nodig hebben. Puur databasewerk, geen
+ * AI-aanroepen — dus goedkoop om in stap 2 opnieuw op te bouwen.
+ */
+async function loadContentContext(
+  admin: ReturnType<typeof createAdminClient>,
+  analysisId: string,
+  userId: string,
+  recommendation: RecommendationInput,
+): Promise<{ analysis: Analysis; baseInput: string }> {
   const { data: analysisRow } = await admin.from("analyses").select("*").eq("id", analysisId).single();
   if (!analysisRow || analysisRow.user_id !== userId) throw new Error("Analyse niet gevonden.");
   const analysis = analysisRow as Analysis;
-
-  // Idempotent: bestaat deze pagina (zelfde analyse + titel) al, dan die teruggeven.
-  const { data: existing } = await admin
-    .from("content_pieces")
-    .select("id")
-    .eq("analysis_id", analysisId)
-    .eq("title", recommendation.title)
-    .maybeSingle();
-  if (existing) return existing.id as string;
 
   const [{ data: profileRow }, { data: topicResearchRow }] = await Promise.all([
     admin.from("profiles").select("*").eq("id", analysis.profile_id).maybeSingle(),
@@ -238,17 +239,77 @@ export async function generateContentPiece(args: {
     .limit(5);
   const evidencePrompts = (promptRows ?? []).map((p) => p.text as string);
 
-  const baseInput = buildContentInput({
+  return {
     analysis,
-    profile,
-    topicResearch,
-    existingPage,
-    competitors,
-    rec: recommendation,
-    evidencePrompts,
-  });
+    baseInput: buildContentInput({
+      analysis,
+      profile,
+      topicResearch,
+      existingPage,
+      competitors,
+      rec: recommendation,
+      evidencePrompts,
+    }),
+  };
+}
 
-  // ── 1. Draft (premium model) ─────────────────────────────────────────────
+/** Zet de opgeslagen kolommen terug om naar de vorm die de prompts verwachten. */
+function pieceFromRow(row: ContentPieceRow): ContentPiece {
+  return {
+    title: row.title,
+    metaTitle: row.meta_title ?? "",
+    metaDescription: row.meta_description ?? "",
+    bodyMarkdown: row.body_markdown ?? "",
+    faq: (row.faq_json ?? []) as { q: string; a: string }[],
+    schemaJsonLd: row.schema_jsonld ?? "",
+    targetIntent: row.target_intent ?? "",
+    cluster: row.cluster ?? "",
+  };
+}
+
+export interface DraftResult {
+  contentPieceId: string;
+  /** Moet er een herschrijfronde komen? Zo ja, met welke verbeterpunten? */
+  needsRevise: boolean;
+  issues: string[];
+}
+
+/**
+ * ── STAP 1 — schrijven + beoordelen (optimalisatie.md 1.3) ──────────────────
+ *
+ * Contentgeneratie deed vier AI-aanroepen achter elkaar, waarvan twee een
+ * volledige pagina schrijven. Dat past niet betrouwbaar in één taak: het is de
+ * meest waarschijnlijke plek waar het op een tijdslimiet stukloopt, en dan is
+ * het dure schrijfwerk wég.
+ *
+ * Daarom twee taken. Deze stap schrijft en beoordeelt, en zet het resultaat
+ * hoe dan ook in de database — als 'draft' wanneer er nog een herschrijfronde
+ * volgt, als 'ready' wanneer de eerste versie al door de poort komt. Loopt stap
+ * 2 stuk, dan is het werk van stap 1 dus nog steeds bewaard.
+ */
+export async function draftContentPiece(args: {
+  analysisId: string;
+  userId: string;
+  reportId: string | null;
+  recommendation: RecommendationInput;
+}): Promise<DraftResult> {
+  const { analysisId, userId, reportId, recommendation } = args;
+  const admin = createAdminClient();
+
+  // Idempotent: bestaat deze pagina (zelfde analyse + titel) al, dan niets doen.
+  const { data: existing } = await admin
+    .from("content_pieces")
+    .select("id, status")
+    .eq("analysis_id", analysisId)
+    .eq("title", recommendation.title)
+    .maybeSingle();
+  if (existing && existing.status !== "draft") {
+    return { contentPieceId: existing.id as string, needsRevise: false, issues: [] };
+  }
+
+  const { analysis, baseInput } = await loadContentContext(admin, analysisId, userId, recommendation);
+
+  // ── Draft (premium model) ────────────────────────────────────────────────
   const draft = await callStructured({
     model: MODELS.content,
     system: CONTENT_SYSTEM,
@@ -260,8 +321,8 @@ export async function generateContentPiece(args: {
     meta: { kind: "content_draft", analysisId, profileId: analysis.profile_id },
   });
 
-  // ── 2. Redactie/kritiek (goedkoop model) ─────────────────────────────────
-  const critique1 = await callStructured({
+  // ── Redactie/kritiek (goedkoop model) ────────────────────────────────────
+  const critique = await callStructured({
     model: MODELS.quality,
     system: CRITIQUE_SYSTEM,
     user: buildCritiqueInput(draft.parsed, recommendation),
@@ -272,86 +333,131 @@ export async function generateContentPiece(args: {
     meta: { kind: "content_critique", analysisId, profileId: analysis.profile_id },
   });
 
-  let final = draft.parsed;
-  let finalContentRaw: unknown = draft.raw;
-  let score = critique1.parsed.qualityScore;
-  let followsRules = critique1.parsed.followsRules;
-  const critiqueRaws: unknown[] = [critique1.raw];
+  const needsRevise =
+    !critique.parsed.followsRules ||
+    critique.parsed.qualityScore < REVIEW_THRESHOLD ||
+    critique.parsed.issues.length > 0;
 
-  // ── 3. Herschrijven (alleen als nodig) + herbeoordelen ───────────────────
-  const needsRewrite =
-    !critique1.parsed.followsRules ||
-    critique1.parsed.qualityScore < REVIEW_THRESHOLD ||
-    critique1.parsed.issues.length > 0;
-
-  if (needsRewrite) {
-    const revised = await callStructured({
-      model: MODELS.content,
-      system: CONTENT_SYSTEM,
-      user: buildReviseInput(baseInput, draft.parsed, critique1.parsed.issues),
-      schema: ContentPiece,
-      schemaName: "content_piece",
-      webSearch: false,
-      temperature: TEMPERATURES.content,
-      meta: { kind: "content_revise", analysisId, profileId: analysis.profile_id },
-    });
-    final = revised.parsed;
-    finalContentRaw = revised.raw;
-
-    // Herbeoordelen geeft een eerlijke eindscore voor de kwaliteitspoort.
-    const critique2 = await callStructured({
-      model: MODELS.quality,
-      system: CRITIQUE_SYSTEM,
-      user: buildCritiqueInput(revised.parsed, recommendation),
-      schema: Critique,
-      schemaName: "content_critique",
-      webSearch: false,
-      temperature: TEMPERATURES.deterministic,
-      meta: { kind: "content_critique", analysisId, profileId: analysis.profile_id },
-    });
-    score = critique2.parsed.qualityScore;
-    followsRules = critique2.parsed.followsRules;
-    critiqueRaws.push(critique2.raw);
-  }
-
-  // ── 4. Kwaliteitspoort (F1) ──────────────────────────────────────────────
-  const needsReview = !followsRules || score < REVIEW_THRESHOLD;
-
-  // ── 5. Schema.org programmatisch valideren/repareren (E1) ────────────────
-  const schemaJsonLd = validateOrRebuildJsonLd(final.schemaJsonLd, {
+  const action = recommendation.action ?? "nieuw";
+  const row = {
+    analysis_id: analysisId,
+    report_id: reportId,
     type: recommendation.type,
-    title: final.title,
-    description: final.metaDescription,
-    url: analysis.url,
-    faq: final.faq,
+    title: draft.parsed.title,
+    target_intent: draft.parsed.targetIntent,
+    cluster: draft.parsed.cluster,
+    body_markdown: draft.parsed.bodyMarkdown,
+    meta_title: draft.parsed.metaTitle,
+    meta_description: draft.parsed.metaDescription,
+    schema_jsonld: validateOrRebuildJsonLd(draft.parsed.schemaJsonLd, {
+      type: recommendation.type,
+      title: draft.parsed.title,
+      description: draft.parsed.metaDescription,
+      url: analysis.url,
+      faq: draft.parsed.faq,
+    }),
+    faq_json: draft.parsed.faq as never,
+    raw_json: draft.raw as never,
+    critique_raw_json: [critique.raw] as never,
+    quality_score: critique.parsed.qualityScore,
+    // Komt de eerste versie al door de poort, dan is dit meteen de eindstand.
+    needs_review: needsRevise ? true : !critique.parsed.followsRules,
+    status: needsRevise ? ("draft" as const) : ("ready" as const),
+    word_count: countWords(draft.parsed.bodyMarkdown),
+    action,
+    existing_url: recommendation.existingUrl ?? null,
+  };
+
+  const contentPieceId = existing
+    ? ((await admin.from("content_pieces").update(row).eq("id", existing.id).select("id").single()).data
+        ?.id as string)
+    : ((await admin.from("content_pieces").insert(row).select("id").single()).data?.id as string);
+
+  if (!contentPieceId) throw new Error("Opslaan van de gegenereerde pagina mislukt.");
+
+  return { contentPieceId, needsRevise, issues: critique.parsed.issues };
+}
+
+/**
+ * ── STAP 2 — herschrijven + herbeoordelen ───────────────────────────────────
+ *
+ * Verwerkt de verbeterpunten uit stap 1 en bepaalt de eindscore. Faalt deze
+ * stap definitief, dan blijft de draft uit stap 1 staan (als 'draft', met
+ * needs_review) in plaats van dat het schrijfwerk verloren gaat.
+ */
+export async function reviseContentPiece(args: {
+  analysisId: string;
+  userId: string;
+  contentPieceId: string;
+  recommendation: RecommendationInput;
+  issues: string[];
+}): Promise<void> {
+  const { analysisId, userId, contentPieceId, recommendation, issues } = args;
+  const admin = createAdminClient();
+
+  const { data: pieceRow } = await admin
+    .from("content_pieces")
+    .select("*")
+    .eq("id", contentPieceId)
+    .maybeSingle();
+  if (!pieceRow) throw new Error(`Contentpagina ${contentPieceId} niet gevonden.`);
+  if (pieceRow.status !== "draft") return; // al afgerond — niets te doen (idempotent)
+
+  const { analysis, baseInput } = await loadContentContext(admin, analysisId, userId, recommendation);
+  const draftPiece = pieceFromRow(pieceRow as ContentPieceRow);
+
+  const revised = await callStructured({
+    model: MODELS.content,
+    system: CONTENT_SYSTEM,
+    user: buildReviseInput(baseInput, draftPiece, issues),
+    schema: ContentPiece,
+    schemaName: "content_piece",
+    webSearch: false,
+    temperature: TEMPERATURES.content,
+    meta: { kind: "content_revise", analysisId, profileId: analysis.profile_id },
   });
 
-  const { data: inserted, error } = await admin
+  // Herbeoordelen geeft een eerlijke eindscore voor de kwaliteitspoort.
+  const critique = await callStructured({
+    model: MODELS.quality,
+    system: CRITIQUE_SYSTEM,
+    user: buildCritiqueInput(revised.parsed, recommendation),
+    schema: Critique,
+    schemaName: "content_critique",
+    webSearch: false,
+    temperature: TEMPERATURES.deterministic,
+    meta: { kind: "content_critique", analysisId, profileId: analysis.profile_id },
+  });
+
+  const final = revised.parsed;
+  const needsReview = !critique.parsed.followsRules || critique.parsed.qualityScore < REVIEW_THRESHOLD;
+
+  // Ruwe kritiek van BEIDE rondes bewaren (§5: we bewaren alles).
+  const previousCritiques = Array.isArray(pieceRow.critique_raw_json) ? pieceRow.critique_raw_json : [];
+
+  await admin
     .from("content_pieces")
-    .insert({
-      analysis_id: analysisId,
-      report_id: reportId,
-      type: recommendation.type,
+    .update({
       title: final.title,
       target_intent: final.targetIntent,
       cluster: final.cluster,
       body_markdown: final.bodyMarkdown,
       meta_title: final.metaTitle,
       meta_description: final.metaDescription,
-      schema_jsonld: schemaJsonLd,
+      schema_jsonld: validateOrRebuildJsonLd(final.schemaJsonLd, {
+        type: recommendation.type,
+        title: final.title,
+        description: final.metaDescription,
+        url: analysis.url,
+        faq: final.faq,
+      }),
       faq_json: final.faq as never,
-      raw_json: finalContentRaw as never, // ruwe output van de (her)schrijf-call (§5)
-      critique_raw_json: critiqueRaws as never, // ruwe redactie-output(en) (§5)
-      quality_score: score,
+      raw_json: revised.raw as never,
+      critique_raw_json: [...previousCritiques, critique.raw] as never,
+      quality_score: critique.parsed.qualityScore,
       needs_review: needsReview,
-      status: "ready",
+      status: "ready" as const,
       word_count: countWords(final.bodyMarkdown),
-      action,
-      existing_url: existingPage?.url ?? null,
     })
-    .select("id")
-    .single();
-
-  if (error || !inserted) throw new Error("Opslaan van de gegenereerde pagina mislukt.");
-  return inserted.id as string;
+    .eq("id", contentPieceId);
 }

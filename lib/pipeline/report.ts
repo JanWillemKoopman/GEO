@@ -312,11 +312,16 @@ export async function generateReport(id: string, weekNo = 0): Promise<AnalysisSt
 
     await admin.from("analyses").update({ status: "gereed" }).eq("id", id);
 
-    const { data: authUser } = await admin.auth.admin.getUserById(analysis.user_id);
-    if (authUser?.user?.email) {
-      await sendReportEmail(analysis, authUser.user.email, report.parsed).catch((err) =>
-        console.error(`Rapport-mail versturen mislukt voor analyse ${id}:`, err),
-      );
+    // Bericht als het klaar is (optimalisatie.md 1.8). Nu het werk op de
+    // achtergrond draait, is de mail vaak het moment waarop de klant het hoort —
+    // vandaar dat het een keuze bij het starten is, geen automatisme.
+    if (analysis.notify_by_email) {
+      const { data: authUser } = await admin.auth.admin.getUserById(analysis.user_id);
+      if (authUser?.user?.email) {
+        await sendReportEmail(analysis, authUser.user.email, report.parsed).catch((err) =>
+          console.error(`Rapport-mail versturen mislukt voor analyse ${id}:`, err),
+        );
+      }
     }
 
     return "gereed";
