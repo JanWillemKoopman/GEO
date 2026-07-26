@@ -8,6 +8,7 @@ import "server-only";
  */
 import { callStructured, type StructuredCallResult } from "@/lib/openai/structured";
 import { MODELS, TEMPERATURES } from "@/lib/openai/models";
+import { webSearchEnabled } from "@/lib/config";
 import { ProfileResearch } from "@/lib/schemas/profile";
 
 /** Wat de klant zelf in de onboarding aanleverde (leidend — zie prepare-profile.ts). */
@@ -73,15 +74,28 @@ export async function generateProfileResearch(args: {
     `(a) proofPoints — concrete, citeerbare feiten (garanties, jaartallen, aantallen, specialisaties, werkwijze, keurmerken); laat leeg als er niets hards staat; ` +
     `(b) styleSamples — 2-3 letterlijke voorbeeldzinnen van de site die de merkstem tonen.`;
 
+  // Zonder zoekfunctie moet de instructie NIET om actuele marktcontext vragen —
+  // dan verzint het model die. Liever eerlijk: baseer je op wat er staat.
+  const groundingRule = webSearchEnabled
+    ? `Gebruik web search voor actuele marktcontext.`
+    : `Je hebt GEEN zoekfunctie. Baseer je uitsluitend op de meegegeven website-tekst en ` +
+      `op algemeen bekende feiten. Weet je concurrenten niet zeker, geef dan een korte of ` +
+      `lege lijst in plaats van namen te verzinnen.`;
+
   const system =
     `Je bent een merk- en marktanalist. Analyseer dit bedrijf op basis van de website-tekst en het web. ` +
     `Bepaal: branche, kernproducten/-diensten, tone-of-voice, doelgroep-persona's, waardeproposities en 3–5 belangrijkste concurrenten ` +
     `van het HELE bedrijf (niet van één product/segment — dat wordt per analyse apart bepaald). ` +
-    `${brandNameRule} ${writingBasisRule} Gebruik web search voor actuele marktcontext. Antwoord in het Nederlands.`;
+    `${brandNameRule} ${writingBasisRule} ${groundingRule} Antwoord in het Nederlands.`;
 
   const user =
     `Website: ${url}\n\n` +
-    `Geëxtraheerde website-tekst (kan onvolledig zijn):\n"""\n${siteText || "(geen tekst opgehaald — leun op web search)"}\n"""` +
+    `Geëxtraheerde website-tekst (kan onvolledig zijn):\n"""\n${
+      siteText ||
+      (webSearchEnabled
+        ? "(geen tekst opgehaald — leun op web search)"
+        : "(geen tekst opgehaald, en geen zoekfunctie beschikbaar — houd het onderzoek beperkt)")
+    }\n"""` +
     buildIntakeBlock(intake);
 
   return callStructured({
@@ -90,7 +104,10 @@ export async function generateProfileResearch(args: {
     user,
     schema: ProfileResearch,
     schemaName: "profile_research",
-    webSearch: true,
+    // Grounding via de centrale schakelaar (optimalisatie.md 2.1). Uit in de
+    // ontwikkelfase om kosten te sparen; dan leunt dit onderzoek op wat het
+    // model zich herinnert in plaats van op actuele marktkennis.
+    webSearch: webSearchEnabled,
     temperature: TEMPERATURES.analytical,
     meta: { kind: "profile_research", profileId: args.profileId },
   });

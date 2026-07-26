@@ -2,9 +2,16 @@ import { NextResponse } from "next/server";
 import { serverEnv } from "@/lib/env";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { enqueueMeasurement } from "@/lib/jobs/queue";
+import { maxMeasurementPeriods } from "@/lib/config";
 
 /**
- * GET /api/cron/weekly-tracking — de wekelijkse lus (abcplan.md §6 A3, §12.4).
+ * GET /api/cron/tracking — de terugkerende meting (abcplan.md §6 A3, §12.4).
+ *
+ * MAANDELIJKS, niet wekelijks (optimalisatie.md 2.1). De zichtbaarheid van een
+ * MKB'er in AI-assistenten verandert niet van week tot week, en met een
+ * 95%-band van ±16 punten is een verschil tussen twee opeenvolgende weken
+ * vrijwel altijd ruis. Minder maar betekenisvollere meetpunten geven een
+ * bruikbaarder trendlijn — en het scheelt ruim de helft van de kosten.
  *
  * Plant nu meettaken in plaats van de meting synchroon te draaien
  * (optimalisatie.md 1.4). Daarmee is ook de laatste plek weg waar het aantal
@@ -14,7 +21,7 @@ import { enqueueMeasurement } from "@/lib/jobs/queue";
  * De aggregatie ketent zichzelf aan de laatste meettaak (1.5).
  */
 export const maxDuration = 60;
-const MAX_WEEKS = 10;
+
 
 export async function GET(request: Request) {
   const authHeader = request.headers.get("authorization");
@@ -29,7 +36,7 @@ export async function GET(request: Request) {
     .eq("tracking_enabled", true)
     .in("status", ["gemeten", "gereed"]);
 
-  const results: { id: string; week: number; planned: number }[] = [];
+  const results: { id: string; period: number; planned: number }[] = [];
 
   for (const a of analyses ?? []) {
     const { data: lastWeek } = await admin
@@ -40,11 +47,14 @@ export async function GET(request: Request) {
       .limit(1)
       .maybeSingle();
 
-    const nextWeek = (lastWeek?.week_no ?? 0) + 1;
-    if (nextWeek > MAX_WEEKS) continue; // klaar met de 10-weken-trend (§6 A3)
+    // `week_no` is een PERIODE-index, geen kalenderweek — met een maandelijkse
+    // cadans is periode 1 de eerste hermeting, een maand na de nulmeting. De
+    // kolomnaam blijft staan tot fase 6, waar de trendweergave gebouwd wordt.
+    const nextPeriod = (lastWeek?.week_no ?? 0) + 1;
+    if (nextPeriod > maxMeasurementPeriods) continue;
 
-    const { planned } = await enqueueMeasurement(admin, a.id as string, nextWeek);
-    results.push({ id: a.id as string, week: nextWeek, planned });
+    const { planned } = await enqueueMeasurement(admin, a.id as string, nextPeriod);
+    results.push({ id: a.id as string, period: nextPeriod, planned });
   }
 
   return NextResponse.json({ analyses: results.length, results });

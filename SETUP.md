@@ -113,28 +113,32 @@ weg) tijdens het bouwen.
    (let op: `SUPABASE_SERVICE_ROLE_KEY` is server-only, geen `NEXT_PUBLIC_`).
 4. Deploy. Check `/api/health` om te bevestigen dat alles geconfigureerd is.
 
-## 6b. Wekelijkse tracking-cron activeren (Sprint 4)
+## 6b. Cron-taken activeren
 
-De wekelijkse lus (`abcplan.md` §6 A3, alleen voor analyses met de tracking-
-schakelaar aan) draait via `vercel.json` + `/api/cron/weekly-tracking`,
-beveiligd met `CRON_SECRET`.
+Er zijn er twee, allebei beveiligd met `CRON_SECRET`:
+
+| Taak | Pad | Schema | Waarvoor |
+|---|---|---|---|
+| **Werker** | `/api/cron/worker` | elke minuut | Werkt de wachtrij af: onderzoek, meting, rapport, content. **Zonder deze taak gebeurt er niets.** |
+| Terugkerende meting | `/api/cron/tracking` | maandelijks, de 1e om 06:00 UTC | Plant een nieuwe meting in voor analyses met de tracking-schakelaar aan. |
 
 1. Genereer een geheim: `openssl rand -hex 32`.
 2. Zet dat als `CRON_SECRET` in Vercel (Environment Variables) en redeploy.
-   Vercel Cron stuurt dit automatisch mee als `Authorization: Bearer <secret>`
+   Vercel Cron stuurt het automatisch mee als `Authorization: Bearer <secret>`
    wanneer de env-variabele exact zo heet.
-3. Vercel herkent `vercel.json` automatisch bij de eerstvolgende deploy en zet
-   de cron-job aan (**Project → Cron Jobs** om te bevestigen). Schema:
-   wekelijks, maandag 06:00 UTC.
-4. **Handmatig testen** (hoeft niet op de wekelijkse klok te wachten):
+3. Vercel pikt `vercel.json` op bij de eerstvolgende deploy (**Project → Cron
+   Jobs** om te bevestigen).
+4. **Handmatig testen:**
    ```bash
-   curl -H "Authorization: Bearer <jouw-CRON_SECRET>" \
-     https://<jouw-url>/api/cron/weekly-tracking
+   curl -H "Authorization: Bearer <jouw-CRON_SECRET>" https://<jouw-url>/api/cron/worker
+   curl -H "Authorization: Bearer <jouw-CRON_SECRET>" https://<jouw-url>/api/cron/tracking
    ```
-   Verwerkt dan direct alle analyses met `tracking_enabled = true`.
 
-> Vercel Hobby ondersteunt Cron Jobs met een minimuminterval van eenmaal per
-> dag — wekelijks past daar ruim binnen.
+> ⚠️ **De werker draait elke minuut en dat vraagt een betaald Vercel-plan.**
+> Alternatief zonder extra abonnement: migratie `0015_worker_cron_via_pg_cron.sql`
+> laat Supabase de werker aansturen via `pg_cron` + `pg_net`. Zet daarvoor eerst
+> de twee Vault-geheimen (staat in de migratie beschreven). Beide tegelijk mag
+> ook — twee werkers pakken elkaars werk niet dubbel op.
 
 ## 7b. Rapport-e-mail activeren (Sprint 5, optioneel)
 

@@ -12,23 +12,68 @@
 export const signupsEnabled = process.env.SIGNUPS_ENABLED === "true";
 
 /**
- * Aantal prompts dat per FUNNELFASE gegenereerd wordt (abcplan.md §6 A2).
- * Met 3 funnelfasen (Oriëntatie/Overweging/Beslissing): 4 = 12 prompts
- * (bouwfase), 10 = 30 prompts (productie). Pas dit aan bij lancering.
+ * Aantal prompts dat per FUNNELFASE gegenereerd wordt (abcplan.md §6 A2,
+ * optimalisatie.md 2.1). Met 3 funnelfasen: 10 = 30 vragen.
+ *
+ * Stond op 4 (12 vragen) omdat meer niet binnen de 60s van één route paste.
+ * Sinds fase 1 is elke vraag een eigen taak, dus die grens is weg.
+ *
+ * WAAROM 30 EN NIET 12 MET 3 METINGEN: de onzekerheid van de score schaalt met
+ * het TOTAAL aantal metingen, dus 30×1 en 12×3 zijn statistisch vrijwel gelijk
+ * (95%-band ±16 vs ±15) — maar 30×1 kost minder (30 web-zoekacties i.p.v. 36)
+ * én dekt de markt van de klant breder af. Bij gelijke kosten wint meer vragen
+ * het van meer metingen per vraag.
  */
-export const promptsPerFunnelStage = 4;
+export const promptsPerFunnelStage = 10;
 
 /**
- * Grounding (de dure `web_search`-tool) in de MÉTING (halte A3, 3a) aan/uit.
- * Standaard AAN. Zet `MEASURE_WEB_SEARCH=false` in de ontwikkelomgeving om de
- * web_search uit te schakelen: de AI beantwoordt de meet-prompt dan uit eigen
- * kennis i.p.v. live internet — veel goedkoper en sneller tijdens het ontwikkelen
- * (web_search is verreweg de grootste kostenpost, zie abcplan.md §10).
+ * Grounding: de `web_search`-tool, oftewel of de AI het internet op mag.
  *
- * ⚠️ NIET uitzetten in productie: dan meet je niet meer wat AI-assistenten mét
- * live-zoeken daadwerkelijk antwoorden — de meting wordt dan onrealistisch.
+ * ⚠️ DIT IS DE GROOTSTE KOSTENKNOP VAN HET HELE PRODUCT. Een web-zoekactie kost
+ * een vast bedrag per aanroep en is daarmee ~94% van de meetkosten — de tokens
+ * zijn verwaarloosbaar. Uit betekent: 30 vragen meten kost centen in plaats van
+ * driekwart dollar.
+ *
+ * Zet `WEB_SEARCH_ENABLED=false` in de ontwikkelomgeving. Dit dekt ALLE drie de
+ * plekken waar grounding gebruikt wordt:
+ *   • de meting (halte 3a) — de AI antwoordt uit eigen kennis
+ *   • het profielonderzoek — geen actuele marktcontext
+ *   • het onderwerp-onderzoek — geen actuele concurrenten
+ *
+ * ⚠️ NIET UITZETTEN IN PRODUCTIE, en weet wat je meet als je hem uitzet:
+ *
+ *   1. De MÉTING wordt onrealistisch. Je meet dan wat het model uit z'n
+ *      trainingsdata herinnert, niet wat een AI-assistent met live-zoeken
+ *      antwoordt. Voor een lokale MKB'er is dat vrijwel altijd "ken ik niet".
+ *   2. Het ONDERZOEK wordt zwakker. Concurrenten opzoeken leunt op actuele
+ *      marktkennis; zonder zoeken verzint het model ze of laat de lijst leeg.
+ *      Een lege concurrentenlijst maakt de mention-detectie én de
+ *      merkneutraliteitsregel in de promptgeneratie minder scherp.
+ *
+ * Voor ontwikkelen is dat prima — je test de pijplijn, niet de marktdata. Voor
+ * een echte klant niet.
  */
-export const measureWebSearchEnabled = process.env.MEASURE_WEB_SEARCH !== "false";
+export const webSearchEnabled = process.env.WEB_SEARCH_ENABLED !== "false";
+
+/**
+ * Fijnere schakelaar: alleen de meting groundless maken en het onderzoek wél
+ * laten zoeken. Standaard volgt hij `webSearchEnabled`. Bestond al als
+ * MEASURE_WEB_SEARCH; blijft werken voor wie hem al gezet heeft.
+ */
+export const measureWebSearchEnabled =
+  webSearchEnabled && process.env.MEASURE_WEB_SEARCH !== "false";
+
+/**
+ * Hoe vaak de terugkerende meting draait (optimalisatie.md 2.1).
+ *
+ * MAANDELIJKS, niet wekelijks. Twee redenen: de zichtbaarheid van een MKB'er in
+ * AI-assistenten verandert niet van week tot week (nieuwe content wordt pas na
+ * weken opgepikt), en met een 95%-band van ±16 punten is een verschil tussen
+ * twee opeenvolgende weken vrijwel altijd ruis. Minder-maar-betekenisvollere
+ * meetpunten leveren een bruikbaarder trendlijn op — en het scheelt ruim de
+ * helft van de kosten.
+ */
+export const maxMeasurementPeriods = 12;
 
 /**
  * Hoeveel wandkloktijd de werker zichzelf per aanroep gunt (optimalisatie.md 1.1).

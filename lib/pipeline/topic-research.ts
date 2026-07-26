@@ -12,6 +12,7 @@ import "server-only";
  */
 import { callStructured, type StructuredCallResult } from "@/lib/openai/structured";
 import { MODELS, TEMPERATURES } from "@/lib/openai/models";
+import { webSearchEnabled } from "@/lib/config";
 import { TopicResearch } from "@/lib/schemas/topic-research";
 import type { Profile, ProfilePage } from "@/lib/types/database";
 
@@ -39,12 +40,19 @@ export async function generateTopicResearch(args: {
 }): Promise<StructuredCallResult<TopicResearch>> {
   const { topic, pages, profile, contentBrief } = args;
 
+  // Zie profile-research.ts: zonder zoekfunctie niet om actuele kennis vragen.
+  const groundingRule = webSearchEnabled
+    ? `Gebruik web search voor actuele marktcontext.`
+    : `Je hebt GEEN zoekfunctie. Baseer je uitsluitend op de meegegeven pagina-inhoud en ` +
+      `op algemeen bekende feiten. Weet je de concurrenten voor dit onderwerp niet zeker, ` +
+      `geef dan een korte of lege lijst in plaats van namen te verzinnen.`;
+
   const system =
     `Je bent een merk- en marktanalist. Dit bedrijf heeft al een profiel (merknaam, branche, algemene concurrenten); ` +
     `jouw taak is ALLEEN het specifieke onderwerp "${topic}" te onderzoeken: ` +
     `(1) wat zegt de website specifiek over dit product/thema (contentSummary), en ` +
     `(2) welke 3–5 concurrenten zijn relevant VOOR DIT SPECIFIEKE ONDERWERP (niet per se dezelfde als de algemene concurrenten van het bedrijf). ` +
-    `Gebruik web search voor actuele marktcontext. Antwoord in het Nederlands.`;
+    `${groundingRule} Antwoord in het Nederlands.`;
 
   const briefLine = contentBrief?.trim()
     ? `\nGewenste hoek/doelgroep van de klant (houd hier rekening mee): ${contentBrief.trim()}`
@@ -64,7 +72,10 @@ export async function generateTopicResearch(args: {
     user,
     schema: TopicResearch,
     schemaName: "topic_research",
-    webSearch: true,
+    // Grounding via de centrale schakelaar (optimalisatie.md 2.1). Uit in de
+    // ontwikkelfase om kosten te sparen; dan leunt dit onderzoek op wat het
+    // model zich herinnert in plaats van op actuele marktkennis.
+    webSearch: webSearchEnabled,
     temperature: TEMPERATURES.analytical,
     meta: { kind: "topic_research", analysisId: args.analysisId, profileId: profile.id },
   });
