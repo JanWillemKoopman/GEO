@@ -945,6 +945,11 @@ verkeerd.
 
 **Hangt af van:** Fase 2 (zonder bandbreedte is een trendlijn misleidend) en Fase 5.
 
+**Status: afgerond.** Typecheck, lint en productiebuild slagen; de veranderingslogica is in een
+kaal script getest (21 gevallen), de kleurenset van de grafiek is gevalideerd op
+kleurenblindheid, en de grafiek is met testdata gerenderd en op layout nagekeken. Migratie
+0021 wacht op toepassing — zie de noot onderaan deze fase.
+
 ### Het probleem, precies
 
 De wekelijkse taak meet week 1 tot en met 10 en schrijft alles netjes weg. Maar:
@@ -993,11 +998,61 @@ weken niet meer geopend.
 Oudere rapporten blijven raadpleegbaar, met een weekkiezer. De klant wil terug kunnen kijken
 naar wat er stond toen hij die beslissing nam.
 
+### Wat er uitgevoerd is
+
+**6.1 — rapporten zijn een reeks.** De controle "bestaat er al een rapport voor deze analyse"
+is "voor déze periode" geworden, met een unieke index op (analyse, periode) — idempotentie
+hoort op databaseniveau en niet in een `if`. De aggregatie ketent nu bij ELKE periode door
+naar een rapport, niet alleen bij periode 0. Daarmee is de bug weg waardoor twaalf periodes
+aan meetkosten gemaakt werden voor data die niemand ooit zag.
+
+**6.2 — het rapport beschrijft de verandering.** `computePeriodChange` vergelijkt twee
+periodes in de database — welke vragen omsloegen, welke concurrent oprukte — en levert een
+uitgeschreven blok aan de rapportopdracht. Bewust uitgeschreven en niet als ruwe JSON: het
+model moet dit VERWOORDEN, niet interpreteren, want zelf twee periodes laten vergelijken gaat
+mis. Valt het verschil binnen de meetruis, dan staat er letterlijk in de opdracht dat het
+"stabiel" heet en dat er geen conclusies uit getrokken mogen worden.
+
+**6.3 — de grens is weg.** `maxMeasurementPeriods` stond op een harde 12 en is nu standaard
+onbeperkt, met `MAX_MEASUREMENT_PERIODS` als optionele rem. Zichtbaarheid volgen is doorlopend
+werk; een klant die na een jaar stilletjes ophoudt met gemeten worden, merkt dat pas als hij
+zich afvraagt waarom de grafiek niet meer groeit.
+
+**6.4/6.5/6.6 — de trendlijn.** Eén query-set (`loadTrend`) voor de hele grafiek: score,
+band, aandeel, de drie grootste concurrenten, en de publicatiemomenten. Die laatste zijn het
+punt van de hele grafiek — zonder die verticale strepen is een stijging een toevalligheid, met
+die strepen een gevolg.
+
+Gebouwd als kale SVG, geen grafiekbibliotheek: dit is een lijn met een paar punten, en een
+bibliotheek zou honderden kilobytes kosten. Drie keuzes die ertoe doen: een VASTE schaal van
+0 tot 100 (een auto-schalende y-as maakt van drie punten verschil een dramatische klim), de
+vier kleuren zijn samen gevalideerd op kleurenblindheid (ΔE 9,2 op het slechtste aangrenzende
+paar), en omdat één kleur de contrastdrempel net niet haalt staat er bij élke lijn een naam
+aan het uiteinde én een tabelweergave eronder — identiteit mag nooit alleen op kleur leunen.
+
+De grafiek is met testdata gerenderd en bekeken. Dat leverde drie echte fouten op die je in
+code niet ziet: eindlabels die over elkaar heen vielen, labels die buiten het kader liepen, en
+een legenda-streepje dat als scheidingsteken las. Alle drie gefixt (labels worden nu uit
+elkaar geduwd met een verbindingslijntje naar hun stip).
+
+**6.7 — de mail zwijgt bij geen nieuws.** `isWorthEmailing` stuurt alleen bij een echte
+scoreverandering, een omgeslagen vraag, een nieuwe concurrent, of een concurrent die twee of
+meer vermeldingen won. Een mail die elke periode hetzelfde zegt, wordt na drie keer niet meer
+geopend — en dan mist de klant ook de mail die er wél toe doet.
+
+**6.8 — geschiedenis.** Periodekiezer boven het rapport, zichtbaar zodra er iets te kiezen
+valt. De klant wil terug kunnen kijken naar wat er stond toen hij die beslissing nam.
+
 ### Klaar als…
 
-- [ ] Er verschijnt elke week een nieuw rapport dat de verandering beschrijft.
-- [ ] De trendlijn staat op het overzicht, met publicatiemomenten erin.
-- [ ] Een week zonder betekenisvolle verandering levert geen mail op.
+- [x] Er verschijnt elke periode een nieuw rapport dat de verandering beschrijft.
+- [x] De trendlijn staat op het overzicht, met publicatiemomenten erin.
+- [x] Een periode zonder betekenisvolle verandering levert geen mail op.
+
+> **Nog te verifiëren tegen een echte database.** Migratie 0021 is niet toegepast en er is
+> nooit een tweede periode gedraaid. Het punt om als eerste te toetsen: de backfill van
+> `week_no` uit de bestaande `period`-tekst, en of de unieke index op (analyse, periode) niet
+> botst met rapporten die vóór deze migratie zijn aangemaakt.
 
 ---
 

@@ -277,6 +277,12 @@ export interface Report {
   id: string;
   analysis_id: string;
   period: string | null;
+  /** Periode-index (migratie 0021). Rapporten zijn sinds fase 6 een REEKS. */
+  week_no: number;
+  /** Wat er veranderd is t.o.v. de vorige periode (optimalisatie.md 6.2). */
+  change_json: unknown | null;
+  /** Wanneer de mail hierover de deur uit ging — null = nooit (6.7). */
+  emailed_at: string | null;
   summary: string | null;
   gaps_json: unknown | null;
   recommendations_json: unknown | null;

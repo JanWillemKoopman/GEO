@@ -14,6 +14,7 @@ import { GapAnalysis } from "@/lib/schemas/gap-analysis";
 import { Report } from "@/lib/schemas/report";
 import { NEUTRAL_WEIGHT } from "@/lib/pipeline/prompt-weight";
 import { resolveTargets } from "@/lib/pipeline/recommendation";
+import { computePeriodChange, buildChangeBlock, isWorthEmailing } from "@/lib/pipeline/period-change";
 import { sendReportEmail } from "@/lib/email/report-email";
 import type {
   Analysis,
@@ -169,11 +170,13 @@ function buildReportInput(
   gap: GapAnalysis,
   pages: ProfilePage[],
   missed: MissedPrompt[],
+  changeBlock: string,
 ): string {
   return [
     `Eigen merk: ${ownLabel(analysis, profile)}`,
     ...briefLine(analysis),
     scoreLine(score),
+    changeBlock,
     buildMissedBlock(missed),
     "",
     "Concurrentie-gap-analyse (JSON):",
@@ -310,7 +313,10 @@ export async function generateReport(id: string, weekNo = 0): Promise<AnalysisSt
   if (!analysisRow) throw new Error(`Analyse ${id} niet gevonden.`);
   const analysis = analysisRow as Analysis;
 
-  const eligible = analysis.status === "gemeten" || analysis.status === "mislukt";
+  // De nulmeting brengt de analyse op 'gemeten'; latere periodes draaien terwijl
+  // hij al 'gereed' is. Beide moeten een rapport kunnen opleveren (6.1).
+  const eligible =
+    analysis.status === "gemeten" || analysis.status === "mislukt" || (weekNo > 0 && analysis.status === "gereed");
   if (!eligible) return analysis.status;
 
   if (analysis.status === "mislukt") {
@@ -324,11 +330,14 @@ export async function generateReport(id: string, weekNo = 0): Promise<AnalysisSt
     if (!score) return "mislukt";
   }
 
-  // Idempotent: al een rapport? Nooit opnieuw genereren, alleen status herstellen.
+  // Idempotent PER PERIODE (optimalisatie.md 6.1). Stond hier als "bestaat er
+  // al een rapport voor deze analyse" — waardoor er na de nulmeting nooit meer
+  // een rapport kwam en twaalf periodes aan meetkosten in het niets verdwenen.
   const { count: existingReport } = await admin
     .from("reports")
     .select("id", { count: "exact", head: true })
-    .eq("analysis_id", id);
+    .eq("analysis_id", id)
+    .eq("week_no", weekNo);
   if (existingReport) {
     await admin.from("analyses").update({ status: "gereed" }).eq("id", id);
     return "gereed";
@@ -348,6 +357,12 @@ export async function generateReport(id: string, weekNo = 0): Promise<AnalysisSt
   // Gemiste hoog-gewicht vragen (klant niet genoemd), gesorteerd op gewicht — zodat
   // B1/B2 de aanbevelingen richten op de waardevolste kansen (§6 A3 / §7).
   const missed = await computeMissedPrompts(admin, id, weekNo);
+
+  // Wat er veranderd is sinds de vorige periode (optimalisatie.md 6.2). Puur
+  // databasewerk: het model hoeft niet zelf twee periodes te vergelijken — dat
+  // gaat mis — maar alleen te verwoorden wat er staat.
+  const change = await computePeriodChange(admin, id, weekNo);
+  const changeBlock = buildChangeBlock(change, weekNo);
 
   try {
     // B1 — concurrentie-gap-analyse
@@ -373,7 +388,15 @@ export async function generateReport(id: string, weekNo = 0): Promise<AnalysisSt
     const report = await callStructured({
       model: MODELS.quality,
       system: REPORT_SYSTEM,
-      user: buildReportInput(analysis, profileTyped, score as VisibilityScore | null, gap.parsed, pages, missed),
+      user: buildReportInput(
+        analysis,
+        profileTyped,
+        score as VisibilityScore | null,
+        gap.parsed,
+        pages,
+        missed,
+        changeBlock,
+      ),
       schema: Report,
       schemaName: "report",
       webSearch: false,
@@ -386,15 +409,17 @@ export async function generateReport(id: string, weekNo = 0): Promise<AnalysisSt
     // meting-id's; de codes bestaan alleen binnen deze ene aanroep.
     const enriched = resolveTargets(report.parsed.recommendations, missed);
 
-    await admin.from("reports").insert({
+    const { data: reportRow } = await admin.from("reports").insert({
       analysis_id: id,
-      period: `week ${weekNo}`,
+      week_no: weekNo,
+      period: weekNo === 0 ? "nulmeting" : `periode ${weekNo}`,
+      change_json: change as never,
       summary: report.parsed.summary,
       gaps_json: report.parsed.gaps as never,
       recommendations_json: enriched as never,
       gap_analysis_raw_json: gap.raw as never, // volledige ruwe OpenAI-output B1 (§5)
       raw_json: report.raw as never, // volledige ruwe OpenAI-output B2 (§5)
-    });
+    }).select("id").single();
 
     await saveFactRequests(admin, analysis, report.parsed.factRequests);
 
@@ -403,13 +428,25 @@ export async function generateReport(id: string, weekNo = 0): Promise<AnalysisSt
     // Bericht als het klaar is (optimalisatie.md 1.8). Nu het werk op de
     // achtergrond draait, is de mail vaak het moment waarop de klant het hoort —
     // vandaar dat het een keuze bij het starten is, geen automatisme.
-    if (analysis.notify_by_email) {
+    // Zwijgen als er niets te melden valt (optimalisatie.md 6.7). Een mail die
+    // elke periode hetzelfde zegt, wordt na drie keer niet meer geopend — en dan
+    // mist de klant ook de mail die er wél toe doet.
+    const worthEmailing = isWorthEmailing(change);
+    if (analysis.notify_by_email && worthEmailing) {
       const { data: authUser } = await admin.auth.admin.getUserById(analysis.user_id);
       if (authUser?.user?.email) {
-        await sendReportEmail(analysis, authUser.user.email, report.parsed).catch((err) =>
+        await sendReportEmail(analysis, authUser.user.email, report.parsed, change).catch((err) =>
           console.error(`Rapport-mail versturen mislukt voor analyse ${id}:`, err),
         );
+        if (reportRow) {
+          await admin
+            .from("reports")
+            .update({ emailed_at: new Date().toISOString() })
+            .eq("id", reportRow.id);
+        }
       }
+    } else if (!worthEmailing) {
+      console.log(`Analyse ${id} periode ${weekNo}: niets betekenisvols veranderd, geen mail verstuurd.`);
     }
 
     return "gereed";

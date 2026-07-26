@@ -68,12 +68,26 @@ export const measureWebSearchEnabled =
  *
  * MAANDELIJKS, niet wekelijks. Twee redenen: de zichtbaarheid van een MKB'er in
  * AI-assistenten verandert niet van week tot week (nieuwe content wordt pas na
- * weken opgepikt), en met een 95%-band van ±16 punten is een verschil tussen
+ * weken opgepikt), en met een 95%-band van ±18 punten is een verschil tussen
  * twee opeenvolgende weken vrijwel altijd ruis. Minder-maar-betekenisvollere
  * meetpunten leveren een bruikbaarder trendlijn op — en het scheelt ruim de
  * helft van de kosten.
  */
-export const maxMeasurementPeriods = 12;
+
+/**
+ * Tot hoeveel periodes we blijven meten (optimalisatie.md 6.3).
+ *
+ * Stond op een harde 12. Zichtbaarheid volgen is doorlopend werk, geen project
+ * van twaalf maanden: een klant die na een jaar stilletjes ophoudt met gemeten
+ * worden, ziet dat pas als hij zich afvraagt waarom de grafiek niet meer groeit.
+ *
+ * Standaard onbeperkt. De rem zit waar hij hoort — bij de kosten (0.6) en bij
+ * `tracking_enabled`, dat de klant zelf uitzet. Zet `MAX_MEASUREMENT_PERIODS`
+ * als je tijdens ontwikkelen tóch een plafond wilt.
+ */
+export const maxMeasurementPeriods = Number(
+  process.env.MAX_MEASUREMENT_PERIODS ?? Number.POSITIVE_INFINITY,
+);
 
 /**
  * Hoeveel wandkloktijd de werker zichzelf per aanroep gunt (optimalisatie.md 1.1).

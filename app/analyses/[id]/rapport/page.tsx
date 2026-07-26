@@ -23,8 +23,15 @@ interface ReportGap {
  * Rapport-tab (abcplan.md §7/§9). Tussen 'gemeten' en 'gereed' toont dit tabblad
  * een korte "wordt opgesteld"-status i.p.v. een lege of foutieve staat.
  */
-export default async function RapportPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function RapportPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ periode?: string }>;
+}) {
   const { id } = await params;
+  const { periode } = await searchParams;
   const analysis = await getAnalysis(id);
   if (!analysis) notFound();
 
@@ -63,17 +70,23 @@ export default async function RapportPage({ params }: { params: Promise<{ id: st
   }
 
   // status === "gereed"
-  const { data: reportRow } = await supabase
+  // Rapporten zijn sinds fase 6 een REEKS (6.1/6.8): standaard de nieuwste,
+  // maar de klant kan terugkijken. Hij wil kunnen zien wat er stond toen hij
+  // die beslissing nam.
+  const { data: reportRows } = await supabase
     .from("reports")
     .select("*")
     .eq("analysis_id", id)
-    .order("generated_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
+    .order("week_no", { ascending: false });
 
-  if (!reportRow) {
+  const reports = (reportRows ?? []) as Report[];
+  if (reports.length === 0) {
     return <ReportProgress analysisId={id} />;
   }
+
+  const requested = periode != null ? Number(periode) : null;
+  const reportRow =
+    (requested != null && reports.find((r) => r.week_no === requested)) || reports[0];
 
   // Blokkades als poort, niet als voetnoot (optimalisatie.md 3.7). Dit staat
   // bewust bovenaan het rapport: content laten schrijven voor een site die
@@ -101,6 +114,40 @@ export default async function RapportPage({ params }: { params: Promise<{ id: st
   return (
     <div className="flex flex-col gap-4">
       <AuditGate blockers={gate.blockers} profileId={analysis.profile_id} since={gate.since} />
+
+      {/* Geschiedenis (optimalisatie.md 6.8). Alleen zichtbaar zodra er iets te
+          kiezen valt — één rapport heeft geen kiezer nodig. */}
+      {reports.length > 1 && (
+        <div className="card flex flex-wrap items-center gap-2">
+          <span className="mono-label">Rapport van</span>
+          {reports.map((r) => {
+            const active = r.id === report.id;
+            return (
+              <Link
+                key={r.id}
+                href={`/analyses/${id}/rapport?periode=${r.week_no}`}
+                className="chip"
+                style={
+                  active
+                    ? undefined
+                    : {
+                        background: "transparent",
+                        color: "var(--text-muted)",
+                        borderColor: "var(--border-subtle)",
+                      }
+                }
+              >
+                {r.week_no === 0
+                  ? "nulmeting"
+                  : new Date(r.generated_at).toLocaleDateString("nl-NL", {
+                      day: "numeric",
+                      month: "short",
+                    })}
+              </Link>
+            );
+          })}
+        </div>
+      )}
 
       <div className="card flex flex-col gap-2">
         <span className="mono-label">Samenvatting</span>

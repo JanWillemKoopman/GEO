@@ -8,6 +8,8 @@ import { MeasureProgress } from "./measure-progress";
 import { ScorePanel } from "./score-panel";
 import { ResultsPanel } from "@/components/results-panel";
 import { loadResults } from "@/lib/pipeline/results";
+import { TrendChart } from "@/components/trend-chart";
+import { loadTrend } from "@/lib/pipeline/trend";
 import type { VisibilityScore, CompetitorBreakdown, Entity } from "@/lib/types/database";
 
 /**
@@ -118,7 +120,15 @@ export default async function OverviewPage({ params }: { params: Promise<{ id: s
   // Het resultaatpaneel (optimalisatie.md 5.6) staat BOVEN de score: zodra er
   // iets gepubliceerd is, is "wat heeft het opgeleverd" de vraag waarvoor de
   // klant hier komt. De score eronder is de context.
-  const results = await loadResults(supabase, id);
+  const [results, trend, { data: profileRow }] = await Promise.all([
+    loadResults(supabase, id),
+    // De trendlijn (optimalisatie.md 6.5). Verschijnt vanzelf zodra er een
+    // tweede meting is; daarvóór toont het component zelf waarom er nog niets
+    // te zien is.
+    loadTrend(supabase, id),
+    supabase.from("profiles").select("brand_name").eq("id", analysis.profile_id).maybeSingle(),
+  ]);
+  const ownLabel = (profileRow?.brand_name as string | null) ?? "Jouw merk";
 
   return (
     <div className="flex flex-col gap-4">
@@ -143,6 +153,8 @@ export default async function OverviewPage({ params }: { params: Promise<{ id: s
         alsoMentioned={alsoMentioned}
         profileId={analysis.profile_id}
       />
+
+      <TrendChart data={trend} ownLabel={ownLabel} />
     </div>
   );
 }

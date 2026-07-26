@@ -173,18 +173,20 @@ const handlers: { [T in JobType]: Handler<T> } = {
 
     await computeAggregates(admin, analysisId, weekNo);
 
-    // De nulmeting brengt de analyse naar 'gemeten' en ketent door naar het
-    // rapport. Latere weken laten de status ongemoeid (fase 6 maakt daar ook
-    // weekrapporten van; nu nog niet).
+    // De nulmeting brengt de analyse naar 'gemeten'; latere periodes laten de
+    // status op 'gereed' staan. Beide ketenen door naar een rapport
+    // (optimalisatie.md 6.1) — voorheen alleen periode 0, waardoor er twaalf
+    // periodes aan meetkosten gemaakt werden voor data die niemand ooit zag.
     if (weekNo === 0) {
       await admin.from("analyses").update({ status: "gemeten" }).eq("id", analysisId);
-      await enqueue(admin, {
-        type: "generate_report",
-        payload: { weekNo },
-        analysisId,
-        dedupeKey: dedupe.generateReport(analysisId, weekNo),
-      });
     }
+
+    await enqueue(admin, {
+      type: "generate_report",
+      payload: { weekNo },
+      analysisId,
+      dedupeKey: dedupe.generateReport(analysisId, weekNo),
+    });
   },
 
   // ── Rapport (B1 + B2) + mail ──────────────────────────────────────────────
