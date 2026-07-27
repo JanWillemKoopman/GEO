@@ -51,6 +51,24 @@ export const serverEnv = {
   },
 };
 
+/**
+ * Hoofdschakelaar voor ALLE uitgaande e-mail (Resend).
+ *
+ * Standaard UIT. Tijdens het bouwen wil je geen echte mail versturen — en op een
+ * gratis Resend-account is elk verstuurd bericht er één van een klein maandbudget.
+ * Zet `EMAILS_ENABLED=true` (lokaal in `.env.local`, in productie in Vercel) om
+ * ze weer aan te zetten; dan is ook `RESEND_API_KEY` nodig.
+ *
+ * Bewust niet gekoppeld aan "is RESEND_API_KEY gezet?": je kunt de sleutel dus
+ * vast in Vercel zetten zonder dat er iets de deur uit gaat.
+ *
+ * Wordt bij elke aanroep gelezen, niet bij het laden van de module, zodat de
+ * waarde niet in een build vastgebakken wordt.
+ */
+export function emailsEnabled(): boolean {
+  return process.env.EMAILS_ENABLED === "true";
+}
+
 /** Niet-gevoelige check of alles geconfigureerd is (voor /api/health). Retourneert alleen booleans. */
 export function envStatus() {
   return {
@@ -59,6 +77,9 @@ export function envStatus() {
     supabaseServiceRoleKey: Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY),
     openaiApiKey: Boolean(process.env.OPENAI_API_KEY),
     resendApiKey: Boolean(process.env.RESEND_API_KEY),
+    // Staat de mailfunctionaliteit überhaupt aan? Is dit false, dan doet een
+    // ontbrekende RESEND_API_KEY er niet toe — er wordt toch niets verstuurd.
+    emailsEnabled: emailsEnabled(),
     cronSecret: Boolean(process.env.CRON_SECRET),
     models: MODELS, // vastgelegd in code (lib/openai/models.ts), geen env-variabele
   };

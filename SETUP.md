@@ -31,7 +31,8 @@ scripts/test-openai.ts   rooktest: beide modellen + structured output + web_sear
 - **Node.js ≥ 20**
 - Een **Supabase**-project (gratis tier volstaat om te bouwen)
 - Een **OpenAI**-API-key met toegang tot `gpt-4.1-nano` en `gpt-4.1-mini`
-- Optioneel: een **Resend**-key (pas nodig in Sprint 5 voor de rapport-mail)
+- Optioneel: een **Resend**-key — alleen nodig als je de mail aanzet
+  (`EMAILS_ENABLED=true`); tijdens het bouwen staat alle uitgaande mail uit
 
 ## 2. Installeren
 
@@ -53,7 +54,8 @@ Vul in `.env.local` in:
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | idem → `anon` `public` key |
 | `SUPABASE_SERVICE_ROLE_KEY` | idem → `service_role` secret (**server-only!**) |
 | `OPENAI_API_KEY` | platform.openai.com → API keys |
-| `RESEND_API_KEY` | resend.com (optioneel — zonder key wordt de rapport-mail stil overgeslagen, zie §7b) |
+| `EMAILS_ENABLED` | Hoofdschakelaar voor álle uitgaande mail. Standaard `false` (aanbevolen tijdens bouwen), zie §7b |
+| `RESEND_API_KEY` | resend.com (alleen nodig bij `EMAILS_ENABLED=true` — anders wordt er sowieso niets verstuurd, zie §7b) |
 
 De OpenAI-modelkeuze (`gpt-4.1-nano` / `gpt-4.1-mini`) staat **vast in de code**
 (`lib/openai/models.ts`), niet als env-variabele — zie `abcplan.md` §2.
@@ -187,18 +189,47 @@ select name from vault.decrypted_secrets where name like 'geo_%';   -- staan bei
 select * from cron.job_run_details order by start_time desc limit 10;
 ```
 
-## 7b. Rapport-e-mail activeren (Sprint 5, optioneel)
+## 7b. E-mail (staat tijdens het bouwen UIT)
 
-Na de nulmeting stelt de app automatisch een rapport op (halte B1+B2) en
-probeert dat naar de accounthouder te mailen via Resend. Zonder `RESEND_API_KEY`
-wordt deze stap **stil overgeslagen** (gelogd, niet blokkerend) — het rapport
-blijft gewoon zichtbaar in de app op het tabblad Rapport.
+De app kan twee soorten mail sturen via Resend:
+
+| Mail | Wanneer | Code |
+| --- | --- | --- |
+| Rapport klaar | na B1+B2, als de analyse op `gereed` gaat | `lib/email/report-email.ts` |
+| Publicatie-herinnering | wekelijkse cron, één keer per analyse | `lib/email/publish-reminder.ts` |
+
+**Beide staan standaard uit.** `EMAILS_ENABLED` is de hoofdschakelaar; zolang
+die niet expliciet op `true` staat, gebeurt er dit:
+
+- geen rapport-mail, en `reports.emailed_at` blijft leeg (dat veld moet blijven
+  kloppen — anders lijkt er later een mail verstuurd die er nooit was);
+- geen herinnering, en `analyses.publish_reminder_sent_at` blijft leeg, zodat de
+  éénmalige herinnering niet stil opgebrand wordt aan een mail die nooit ging;
+- de reminder-cron stopt meteen en antwoordt `{ "skipped": "emails_disabled" }`;
+- het vinkje *"Mail me zodra het rapport klaar is"* verdwijnt uit het
+  nieuwe-analyse-formulier.
+
+De rapporten zelf blijven gewoon zichtbaar in de app op het tabblad Rapport —
+alleen het verzenden ligt stil.
+
+De schakelaar staat **los van** `RESEND_API_KEY`. Je kunt de sleutel dus vast in
+Vercel zetten zonder dat er iets de deur uit gaat; dat is precies de bedoeling
+op een gratis Resend-account, waar elke mail er één van een klein maandbudget is.
+
+### Aanzetten, later
 
 1. Maak een gratis account op [resend.com](https://resend.com) en een API-key.
 2. Zet `RESEND_API_KEY` in Vercel. `RESEND_FROM_EMAIL` mag je laten staan op
    het Resend-testadres (`onboarding@resend.dev`) totdat je een eigen domein
    verifieert bij Resend.
-3. Redeploy.
+3. Zet `EMAILS_ENABLED=true` in Vercel (en/of in `.env.local`).
+4. Wil je ook de publicatie-herinnering terug, zet de cron dan terug in
+   `vercel.json` — hij is eruit gehaald omdat hij alleen bestaat om te mailen,
+   en een gratis Vercel-account maar een paar cron-jobs toestaat:
+   ```json
+   { "path": "/api/cron/reminders", "schedule": "0 9 * * 1" }
+   ```
+5. Redeploy. Controleer via `/api/health`: daar staat `emailsEnabled` bij.
 
 ## Architectuurprincipes (kort, uit `abcplan.md`)
 

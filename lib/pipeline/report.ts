@@ -16,6 +16,7 @@ import { NEUTRAL_WEIGHT } from "@/lib/pipeline/prompt-weight";
 import { resolveTargets } from "@/lib/pipeline/recommendation";
 import { computePeriodChange, buildChangeBlock, isWorthEmailing } from "@/lib/pipeline/period-change";
 import { sendReportEmail } from "@/lib/email/report-email";
+import { emailsEnabled } from "@/lib/env";
 import { enqueue, dedupe } from "@/lib/jobs/queue";
 import type {
   Analysis,
@@ -454,8 +455,14 @@ export async function generateReport(id: string, weekNo = 0): Promise<AnalysisSt
     // Zwijgen als er niets te melden valt (optimalisatie.md 6.7). Een mail die
     // elke periode hetzelfde zegt, wordt na drie keer niet meer geopend — en dan
     // mist de klant ook de mail die er wél toe doet.
+    // Staat de mail uit (EMAILS_ENABLED), dan slaan we het hele blok over: geen
+    // opzoeken van het e-mailadres, en vooral geen `emailed_at` zetten. Dat veld
+    // moet blijven kloppen — anders lijkt er later een mail verstuurd te zijn
+    // die er nooit was.
     const worthEmailing = isWorthEmailing(change);
-    if (analysis.notify_by_email && worthEmailing) {
+    if (!emailsEnabled()) {
+      console.log(`E-mail staat uit (EMAILS_ENABLED) — geen rapport-mail voor analyse ${id}.`);
+    } else if (analysis.notify_by_email && worthEmailing) {
       const { data: authUser } = await admin.auth.admin.getUserById(analysis.user_id);
       if (authUser?.user?.email) {
         await sendReportEmail(analysis, authUser.user.email, report.parsed, change).catch((err) =>

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { serverEnv } from "@/lib/env";
+import { emailsEnabled, serverEnv } from "@/lib/env";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { sendPublishReminder } from "@/lib/email/publish-reminder";
 import type { Analysis } from "@/lib/types/database";
@@ -23,6 +23,14 @@ export async function GET(request: Request) {
   const authHeader = request.headers.get("authorization");
   if (authHeader !== `Bearer ${serverEnv.cronSecret}`) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  // Deze cron bestaat alleen om te mailen. Staat de mail uit, dan stoppen we
+  // hier — vóór het zetten van `publish_reminder_sent_at`. Zouden we die vlag
+  // wél zetten, dan is de enige herinnering die een analyse ooit krijgt stil
+  // opgebrand aan een mail die nooit verstuurd is.
+  if (!emailsEnabled()) {
+    return NextResponse.json({ sent: 0, skipped: "emails_disabled", details: [] });
   }
 
   const admin = createAdminClient();

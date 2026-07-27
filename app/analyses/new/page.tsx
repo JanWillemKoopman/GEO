@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { requireUser } from "@/lib/auth";
+import { emailsEnabled } from "@/lib/env";
 import { createClient } from "@/lib/supabase/server";
 import type { Profile } from "@/lib/types/database";
 import { NewAnalysisForm } from "./new-analysis-form";
@@ -41,7 +42,10 @@ export default async function NewAnalysisPage() {
           </Link>
         </div>
       ) : (
-        <NewAnalysisForm profiles={profiles} />
+        /* Staat de mail uit, dan verbergt het formulier het vinkje "mail me
+           zodra het rapport klaar is" — een keuze aanbieden die niets doet, is
+           erger dan hem niet aanbieden. */
+        <NewAnalysisForm profiles={profiles} emailsEnabled={emailsEnabled()} />
       )}
     </div>
   );
