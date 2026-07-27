@@ -4,7 +4,14 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import type { Profile } from "@/lib/types/database";
 
-export function NewAnalysisForm({ profiles }: { profiles: Profile[] }) {
+export function NewAnalysisForm({
+  profiles,
+  /** Uit tijdens het bouwen (EMAILS_ENABLED) — dan tonen we het mailvinkje niet. */
+  emailsEnabled = false,
+}: {
+  profiles: Profile[];
+  emailsEnabled?: boolean;
+}) {
   const router = useRouter();
   const [profileId, setProfileId] = useState(profiles[0]?.id ?? "");
   const [topic, setTopic] = useState("");
@@ -97,22 +104,27 @@ export function NewAnalysisForm({ profiles }: { profiles: Profile[] }) {
 
       {/* Bericht als het klaar is (optimalisatie.md 1.8). Het werk draait op de
           achtergrond en duurt minuten — dan hoort de klant te weten wanneer hij
-          terug kan komen, in plaats van te moeten blijven kijken. */}
-      <label className="flex cursor-pointer items-start gap-3 rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--bg-elevated)] px-4 py-3">
-        <input
-          type="checkbox"
-          checked={notifyByEmail}
-          onChange={(e) => setNotifyByEmail(e.target.checked)}
-          className="mt-0.5"
-        />
-        <span className="flex flex-col gap-0.5">
-          <span className="text-sm font-medium">Mail me zodra het rapport klaar is</span>
-          <span className="text-sm text-muted">
-            De analyse draait op de achtergrond en duurt een paar minuten. Je hoeft niet te wachten —
-            we laten het weten.
+          terug kan komen, in plaats van te moeten blijven kijken.
+
+          Staat de mail uit (EMAILS_ENABLED), dan verdwijnt het vinkje: een vakje
+          aanvinken waar niets van komt, is een belofte die de app niet nakomt. */}
+      {emailsEnabled && (
+        <label className="flex cursor-pointer items-start gap-3 rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--bg-elevated)] px-4 py-3">
+          <input
+            type="checkbox"
+            checked={notifyByEmail}
+            onChange={(e) => setNotifyByEmail(e.target.checked)}
+            className="mt-0.5"
+          />
+          <span className="flex flex-col gap-0.5">
+            <span className="text-sm font-medium">Mail me zodra het rapport klaar is</span>
+            <span className="text-sm text-muted">
+              De analyse draait op de achtergrond en duurt een paar minuten. Je hoeft niet te
+              wachten — we laten het weten.
+            </span>
           </span>
-        </span>
-      </label>
+        </label>
+      )}
 
       {error && (
         <p className="text-sm text-[var(--status-error)]" role="alert">

@@ -1,12 +1,13 @@
 import "server-only";
 
 /**
- * Rapport-e-mail via Resend (abcplan.md §7 B2). Best-effort: als RESEND_API_KEY
- * ontbreekt, wordt de mail stil overgeslagen — dit mag de statusovergang naar
- * 'gereed' nooit blokkeren (de klant kan het rapport ook gewoon in de app zien).
+ * Rapport-e-mail via Resend (abcplan.md §7 B2). Best-effort: staat de mail uit
+ * of ontbreekt RESEND_API_KEY, dan wordt hij stil overgeslagen — dit mag de
+ * statusovergang naar 'gereed' nooit blokkeren (de klant kan het rapport ook
+ * gewoon in de app zien).
  */
 import { Resend } from "resend";
-import { publicEnv } from "@/lib/env";
+import { emailsEnabled, publicEnv } from "@/lib/env";
 import type { Analysis } from "@/lib/types/database";
 import type { Report } from "@/lib/schemas/report";
 import type { PeriodChange } from "@/lib/pipeline/period-change";
@@ -68,6 +69,13 @@ export async function sendReportEmail(
   /** Wat er veranderd is sinds de vorige periode (optimalisatie.md 6.2/6.7). */
   change?: PeriodChange | null,
 ): Promise<void> {
+  // Laatste vangnet: ook als een aanroeper de schakelaar vergeet te checken,
+  // gaat er hier niets de deur uit.
+  if (!emailsEnabled()) {
+    console.log(`E-mail staat uit (EMAILS_ENABLED) — rapport-mail overgeslagen voor analyse ${analysis.id}.`);
+    return;
+  }
+
   const apiKey = process.env.RESEND_API_KEY;
   if (!apiKey) {
     console.log(`Resend niet geconfigureerd — rapport-mail overgeslagen voor analyse ${analysis.id}.`);

@@ -12,7 +12,7 @@ import "server-only";
  * `publish_reminder_sent_at` als kolom en niet als teller.
  */
 import { Resend } from "resend";
-import { publicEnv } from "@/lib/env";
+import { emailsEnabled, publicEnv } from "@/lib/env";
 import type { Analysis } from "@/lib/types/database";
 
 function escapeHtml(s: string): string {
@@ -24,6 +24,13 @@ export async function sendPublishReminder(
   toEmail: string,
   waitingCount: number,
 ): Promise<void> {
+  // Laatste vangnet: ook als een aanroeper de schakelaar vergeet te checken,
+  // gaat er hier niets de deur uit.
+  if (!emailsEnabled()) {
+    console.log(`E-mail staat uit (EMAILS_ENABLED) — herinnering overgeslagen voor analyse ${analysis.id}.`);
+    return;
+  }
+
   const apiKey = process.env.RESEND_API_KEY;
   if (!apiKey) {
     console.log(`Resend niet geconfigureerd — herinnering overgeslagen voor analyse ${analysis.id}.`);
