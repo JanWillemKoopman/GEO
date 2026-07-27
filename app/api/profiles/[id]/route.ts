@@ -25,7 +25,6 @@ const EDITABLE_FIELDS = [
   "service_scope",
   "service_regions",
   "market_language",
-  "customer_questions",
   "sitemap_url",
 ] as const;
 

@@ -25,7 +25,6 @@ export interface ClientIntake {
   marketLanguage?: string | null;
   toneOfVoice?: string | null;
   audience?: string | null;
-  customerQuestions?: string[];
 }
 
 function buildIntakeBlock(intake?: ClientIntake): string {
@@ -43,8 +42,6 @@ function buildIntakeBlock(intake?: ClientIntake): string {
   if (intake.marketLanguage) lines.push(`Markt & taal: ${intake.marketLanguage}`);
   if (intake.toneOfVoice) lines.push(`Gewenste tone-of-voice (door de klant): ${intake.toneOfVoice}`);
   if (intake.audience) lines.push(`Doelgroep (door de klant): ${intake.audience}`);
-  if (intake.customerQuestions?.length)
-    lines.push(`Veelgehoorde klantvragen (door de klant): ${intake.customerQuestions.join(" | ")}`);
   if (lines.length === 0) return "";
   return (
     `\n\nDe klant heeft in de onboarding het volgende al aangegeven — RESPECTEER dit: verzin geen andere ` +

@@ -38,14 +38,6 @@ function findGaps(profile: Profile): Gap[] {
     });
   }
 
-  if (profile.customer_questions.length === 0) {
-    gaps.push({
-      label: "Vragen die klanten je stellen",
-      effect:
-        "Dit zijn precies de vragen waarop je gevonden wilt worden. Vul je ze in, dan meten we ze ook — en gaan de teksten erover.",
-    });
-  }
-
   if (profile.proof_points.length < 3) {
     gaps.push({
       label: "Concrete feiten over je bedrijf",

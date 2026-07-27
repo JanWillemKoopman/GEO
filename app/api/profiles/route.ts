@@ -25,7 +25,6 @@ interface ProfileIntakeBody {
   tone_of_voice?: string;
   intake_description?: string;
   intake_audience?: string;
-  customer_questions?: unknown;
   /**
    * Klant heeft de "site onbereikbaar"-waarschuwing gezien en wil tóch door
    * (optimalisatie.md 0.12). Een site kan achter een firewall zitten of onze
@@ -109,7 +108,6 @@ export async function POST(request: Request) {
       tone_of_voice: toTextOrNull(body.tone_of_voice),
       intake_description: toTextOrNull(body.intake_description),
       intake_audience: toTextOrNull(body.intake_audience),
-      customer_questions: toStringList(body.customer_questions),
     })
     .select("id")
     .single();
