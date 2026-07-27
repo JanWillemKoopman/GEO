@@ -7,6 +7,15 @@ Dit document is geschreven op basis van een volledige doorlichting van de code o
 zowel aan de techniek als aan de gebruikerservaring. Elke fase is af te ronden en te
 releasen zonder de volgende fase nodig te hebben.
 
+> **Status: alle fasen 0 t/m 7 hieronder zijn afgerond** (zie de `**Status:**`-regel
+> onderaan de inleiding van elke fase). "Meerdere engines" staat bewust geparkeerd (zie
+> die sectie). Dit document blijft staan als het levende logboek van *wat* er gebouwd is
+> en *waarom* — voor de actuele architectuur zelf, zie [`abcplan.md`](./abcplan.md) en
+> [`SETUP.md`](./SETUP.md). Een enkele term in de plan-tekst van een fase (bijv.
+> "wekelijks") is intussen achterhaald door een latere keuze verderop in dezelfde fase
+> (hier: maandelijkse periodes) — de `### Wat er uitgevoerd is`-subsectie onderaan elke
+> fase is altijd leidend voor wat er daadwerkelijk staat, niet de planningstekst erboven.
+
 ---
 
 ## Hoe je dit document gebruikt
@@ -37,7 +46,7 @@ Fase 2  betrouwbare meting →  cijfers die een klant mag geloven
 Fase 3  bewijs zichtbaar   →  vertrouwen + blokkades opsporen
 Fase 4  schrijver voeden   →  content die op de meting gebaseerd is
 Fase 5  cirkel rond        →  aantoonbaar resultaat
-Fase 6  trend & herhaling  →  de wekelijkse belofte waarmaken
+Fase 6  trend & herhaling  →  de terugkerende meting zichtbaar maken
 Fase 7  off-site           →  het plafond van on-site advies doorbreken
 ```
 

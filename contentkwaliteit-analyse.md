@@ -5,6 +5,11 @@
 > Dit document loopt de contentpijplijn van de app na (crawl → Brand DNA → prompts → meting → rapport → **content-generatie**), benoemt de zwakke plekken, en geeft een **geprioriteerde verbeterlijst** met per punt de **impact** en de **extra API-kosten**. Onderaan staat wat er **daadwerkelijk in de code is doorgevoerd** en wat als vervolgstap openstaat.
 >
 > *Opgesteld juli 2026. Verwijzingen: `abcplan.md` (spec) en de bestanden onder `lib/`.*
+>
+> **Status:** dit was de doorlichting die tot de eerste redactie-lus in Fase C leidde
+> (§3 hieronder). Een groot deel van wat in §4 destijds nog openstond, is inmiddels
+> alsnog gebouwd — zie de bijgewerkte §4 en [`optimalisatie.md`](./optimalisatie.md)
+> fase 4 voor de actuele stand van de content-pijplijn.
 
 ---
 
@@ -104,12 +109,34 @@ De volgende punten zijn **daadwerkelijk geïmplementeerd** in de gebouwde app, p
 
 **Kosten na deze wijziging:** een pagina met redactie-lus draait ~$0,05 (draft `gpt-4.1` + 1-2× mini-kritiek + evt. 1× herschrijven `gpt-4.1`), tegen ~$0,003 voorheen — in absolute termen verwaarloosbaar voor het kernproduct.
 
-## 4. Bewuste vervolgstappen (nog niet ingebouwd)
+## 4. Wat hierna is opgevolgd
 
-Deze punten uit de lijst zijn **niet** in deze branch doorgevoerd omdat ze óf de kosten/architectuur wezenlijk veranderen, óf een externe databron vergen. Ze staan gedocumenteerd als expliciete vervolgkeuzes (zie `abcplan.md` §12, slotalinea):
+Deze doorlichting was het startpunt van een grotere, later uitgevoerde herziening van
+Fase C. Vrijwel alle toen nog openstaande punten zijn inmiddels wél gebouwd, in
+[`optimalisatie.md`](./optimalisatie.md) fase 4 ("De schrijver krijgt de uitslagen") —
+dat document is nu de actuele bron voor wat er in de content-pijplijn gebeurt:
 
-- **C1/D1** — `web_search`-grounding en feitcontrole in de generatie (verhoogt kosten per pagina, aparte iteratie waard).
-- **A1/B3** — sitemap-brede crawl en het inhoudelijk gebruiken van winnende concurrent-bronnen als blauwdruk.
-- **B1/B4** — demand-grounding en waarde-gebaseerde prioritering van prompts.
-- **A4** — `proofPoints`/`styleSamples` ook bewerkbaar maken in de review-gate-UI (nu worden ze automatisch geëxtraheerd en gebruikt).
-- **C7/F2/F3** — regeneratie-met-instructie, bibliotheek-bewustzijn en post-generatie-terugmeting.
+- **B3 (winnende concurrent-bronnen als blauwdruk)** → gebouwd: `lib/pipeline/source-analysis.ts`
+  haalt de door de AI geciteerde bronnen op en analyseert wat ze inhoudelijk doen — vooral
+  wélk element ze *missen* is de waardevolle input voor de nieuwe pagina.
+- **C1/D1 (web_search-grounding/feitcontrole in de generatie)** → gedeeltelijk gebouwd: bij
+  minder dan drie geverifieerde feiten mag de schrijver zoeken naar *algemene* marktfeiten
+  (nooit bedrijfsclaims), schakelbaar via `CONTENT_WEB_SEARCH`. Geen aparte feitcontrole-pass
+  achteraf.
+- **C7 (regeneratie-met-instructie)** → gebouwd: een vrij tekstveld "wat moet er anders?"
+  gaat als zwaarste instructie de herschrijfstap in.
+- **F3-achtig (terugkoppeling na publicatie)** → breder opgelost dan hier voorgesteld: in
+  plaats van een korte post-generatie hermeting is er een volledige publiceer-verifiëer-
+  hermeet-lus gekomen (`lib/pipeline/publish.ts`, `impact.ts`) — zie
+  [`abcplan.md`](./abcplan.md) §8b.
+- **A4 (feiten bewerkbaar maken)** → gedeeltelijk anders opgelost: in plaats van
+  `proofPoints` direct bewerkbaar te maken, vraagt het rapport de klant gericht om
+  ontbrekende cijfers/feiten wanneer een pagina er te weinig heeft; antwoorden landen in
+  `proof_points` en verbeteren elke volgende pagina.
+
+**Nog niet gebouwd:** A1 (sitemap-brede crawl specifiek vóór Brand DNA/profiel-research —
+de contentinventaris-crawl uit `abcplan.md` §12-keuze 23 dekt dit deels anders), B1/B4
+(demand-grounding en waarde-gebaseerde promptprioritering via een externe keyword-databron
+— de volume-gewogen score uit §12-keuze 32 gebruikt LLM-inschatting, geen externe index),
+een losstaande feitcontrole-pass (D1 boven op de C1-terugval), en F2 (bibliotheek-brede
+overlapdetectie).

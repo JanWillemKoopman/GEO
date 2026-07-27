@@ -4,33 +4,56 @@ De inhoudelijke visie staat in [`README.md`](./README.md), het technische plan i
 [`abcplan.md`](./abcplan.md) en de vormgeving in [`designsystem.md`](./designsystem.md).
 Dit bestand beschrijft hoe je de app lokaal draait en deployt.
 
-> **Status:** Sprint 1 (fundament) is opgeleverd. De feature-schermen en de
-> pipeline (Sprint 2–7) volgen. Zie [`abcplan.md`](./abcplan.md) §11 voor de
-> volledige bouwvolgorde.
+> **Status:** de app is voorbij het MVP — profiel-onboarding, de volledige
+> meet→advies→content-pijplijn, een achtergrond-jobqueue, technische GEO-audit
+> en off-site-scanning draaien allemaal. Zie [`optimalisatie.md`](./optimalisatie.md)
+> voor wat er ná de MVP is bijgebouwd en wat eventueel nog openstaat.
 
 ## Wat er nu staat
 
 ```
-app/                     Next.js App Router
-  layout.tsx             fonts (Geist + JetBrains Mono) + dark-mode shell
-  page.tsx               scaffold-statuspagina (env-check + design system)
-  globals.css            design system uit designsystem.md §C
-  api/health/route.ts    health-check (booleans, geen secrets)
+app/
+  (auth)/                  login/register (Supabase e-mail+wachtwoord), server actions
+  profielen/                Profielen: account-brede merkkennis (1x onderzoek per klant)
+    [id]/                   detail: research, entiteiten, feiten, hiaten
+    nieuw/                  onboarding-wizard (nieuw profiel aanmaken)
+  analyses/                 Analyses: een getrackt onderwerp/product, hangt aan één profiel
+    [id]/                   tabs: Overzicht · Antwoorden · Rapport · Bibliotheek · Instellingen
+    new/                    nieuwe analyse (kiest/maakt eerst een profiel)
+  api/
+    profiles/                profiel-CRUD + research, refresh-inventory, status, entities, facts
+    analyses/                analyse-CRUD + confirm, prepare, measure, report, generate(-all),
+                              tracking, topic-research, costs, prompts, content(/publish)
+    cron/                    worker · tracking · reminders (zie §6b)
+    health/                  env-status check
+  layout.tsx, globals.css    lichte InSpace-huisstijl (zie designsystem.md)
 lib/
-  env.ts                 gevalideerde env-toegang + modelkeuze
-  supabase/              client (browser) · server (sessie) · admin (service-role)
-  openai/                client + structured-output helper (Responses API + web_search)
-  schemas/               alle Zod-contracten (Brand DNA, prompts, mention, gap, report, content)
-  types/database.ts      TypeScript-datamodel
-supabase/migrations/     0001_init.sql (schema) · 0002_rls.sql (RLS)
-scripts/test-openai.ts   rooktest: beide modellen + structured output + web_search
+  env.ts, config.ts          gevalideerde env-toegang + modelkeuze
+  auth.ts                    requireUser() / getUser()
+  supabase/                  client (browser) · server (sessie) · admin (service-role)
+  openai/                    client, structured-output helper, modellen, pricing, kostenlogboek
+  entities/                  merknaam-normalisatie + -matching (dedupliceert varianten)
+  audit/                     technische GEO-audit (robots.txt, AI-crawler-toegang) — geen AI-calls
+  offsite/                   off-site aanwezigheid: bronnenlandschap, presence-check, entity-presence
+  pipeline/                  alle pijplijn-stappen (profiel-research t/m content t/m impact-meting)
+  jobs/                      achtergrond-wachtrij: types, queue, handlers, worker
+  schemas/                   alle Zod-contracten
+  stats/                     onzekerheidsmarges / betrouwbaarheidsbanden
+  types/database.ts          TypeScript-datamodel
+supabase/migrations/        0001 t/m 0023 (zie supabase/README.md) + RUN_*.sql-bundels
+scripts/
+  test-unit.ts               npm run test:unit — pure functies, geen DB/API-key nodig
+  test-openai.ts             npm run test:openai — rooktest, echte (betaalde) OpenAI-calls
+  eval-mention.ts            npm run eval:mention — accuratesse mention-classificatie, nano vs mini
 ```
+
 
 ## 1. Vereisten
 
 - **Node.js ≥ 20**
 - Een **Supabase**-project (gratis tier volstaat om te bouwen)
-- Een **OpenAI**-API-key met toegang tot `gpt-4.1-nano` en `gpt-4.1-mini`
+- Een **OpenAI**-API-key met toegang tot `gpt-4.1-nano`, `gpt-4.1-mini` én `gpt-4.1`
+  (het volle model wordt alleen gebruikt om content te schrijven/herschrijven, `lib/openai/models.ts`)
 - Optioneel: een **Resend**-key — alleen nodig als je de mail aanzet
   (`EMAILS_ENABLED=true`); tijdens het bouwen staat alle uitgaande mail uit
 
@@ -57,25 +80,28 @@ Vul in `.env.local` in:
 | `EMAILS_ENABLED` | Hoofdschakelaar voor álle uitgaande mail. Standaard `false` (aanbevolen tijdens bouwen), zie §7b |
 | `RESEND_API_KEY` | resend.com (alleen nodig bij `EMAILS_ENABLED=true` — anders wordt er sowieso niets verstuurd, zie §7b) |
 
-De OpenAI-modelkeuze (`gpt-4.1-nano` / `gpt-4.1-mini`) staat **vast in de code**
-(`lib/openai/models.ts`), niet als env-variabele — zie `abcplan.md` §2.
+De OpenAI-modelkeuze staat **vast in de code** (`lib/openai/models.ts`), niet als
+env-variabele — drie tiers: `gpt-4.1-nano` (hoogvolume/classificatie), `gpt-4.1-mini`
+(kwaliteitsgevoelig: research, prompts, rapport, redactie-kritiek) en `gpt-4.1` (vol,
+uitsluitend voor het schrijven/herschrijven van content-pagina's).
 
 ## 4. Database opzetten
 
-Pas de migraties toe op je Supabase-project (zie [`supabase/README.md`](./supabase/README.md)):
+Pas **alle** migraties toe op je Supabase-project (zie [`supabase/README.md`](./supabase/README.md)
+voor de volledige lijst, 0001 t/m 0023):
 
 ```bash
 supabase link --project-ref <jouw-project-ref>
 supabase db push
 ```
 
-of plak `supabase/migrations/0001_init.sql` en daarna `0002_rls.sql` in de SQL Editor.
+### Zonder Supabase-CLI — de RUN_*.sql-bundels
 
-### Migraties 0012 t/m 0022 — met de hand toepassen
-
-De migraties uit het optimalisatietraject staan ook als samengevoegde bestanden klaar, zodat
-je ze zonder de Supabase-CLI in de SQL Editor kunt plakken. **De volgorde is niet vrij** —
-elk bestand bouwt voort op het vorige:
+`0001_init.sql` en `0002_rls.sql` plak je los in de SQL Editor. Migraties 0012 t/m 0023
+(alles uit het optimalisatietraject) staan ook als samengevoegde bestanden klaar, zodat
+je ze zonder CLI kunt plakken. **De volgorde is niet vrij** — elk bestand bouwt voort op
+het vorige en op 0003 t/m 0011 (klantprofielen, prompt-taxonomie, gewogen zichtbaarheid,
+content-brief — die hebben geen RUN-bundel, gewoon los toepassen in volgorde):
 
 | Volgorde | Bestand | Wat het toevoegt |
 |---|---|---|
@@ -84,6 +110,7 @@ elk bestand bouwt voort op het vorige:
 | 3 | `RUN_0020.sql` | Publicatiestatus, hermetingen, gemeten effect |
 | 4 | `RUN_0021.sql` | Rapport per periode, verandering, mailstatus |
 | 5 | `RUN_0022.sql` | Bronnenlandschap, off-site taken, entiteitsaanwezigheid |
+| 6 | `RUN_0023.sql` | Eén actuele content-versie per pagina/titel afgedwongen op DB-niveau |
 
 Drie dingen om te weten:
 
@@ -133,7 +160,7 @@ weg) tijdens het bouwen.
 
 ## 6. Deployen naar Vercel
 
-1. Push naar GitHub (branch `claude/geo-app-development-ho02tg`).
+1. Push naar GitHub (`main`, of importeer een feature-branch als Vercel-preview).
 2. Importeer de repo in Vercel — Next.js wordt automatisch herkend.
 3. Zet dezelfde env-variabelen in **Project → Settings → Environment Variables**
    (let op: `SUPABASE_SERVICE_ROLE_KEY` is server-only, geen `NEXT_PUBLIC_`).
@@ -238,5 +265,11 @@ op een gratis Resend-account, waar elke mail er één van een klein maandbudget 
 - **RLS = SELECT-only**; `jobs` heeft geen client-toegang.
 - **We bewaren alles**: elke AI-call slaat zijn volledige ruwe JSON op naast de
   uitgesplitste kolommen (§5).
-- **web_search alleen waar nodig** (Brand DNA + meting), nooit bij prompt-/rapport-/
-  content-generatie (§10 kostenknop).
+- **web_search alleen waar nodig**: profiel-research, onderwerp-research en de meting
+  gebruiken het; prompt-generatie en het rapport niet. Content-generatie gebruikt het
+  alleen als terugval bij een dunne feitenbasis (`CONTENT_WEB_SEARCH`, uit als
+  `WEB_SEARCH_ENABLED` uit staat) — zie `.env.example`.
+- **Achtergrond-jobqueue, niet synchroon in de request**: elke pijplijnstap is een job
+  in `jobs` die zichzelf naar de volgende stap doorschakelt (`lib/jobs/`). De werker
+  (`/api/cron/worker`, aangestuurd via pg_cron) werkt de wachtrij af — geen browsertab
+  hoeft open te blijven tijdens onderzoek/meting/rapport/content.

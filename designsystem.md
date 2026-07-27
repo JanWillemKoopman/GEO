@@ -4,18 +4,11 @@
 
 ---
 
-## ⚠️ Belangrijke eerlijke bevinding vóór je verder leest
+## Vastgelegde keuze: licht, geen dark mode
 
-**De marketingsite van InSpace is overwegend lícht getint, niet donker.** De basis is wit/off-white (`#FFFFFF`, `#F5F6F3`) met zwarte tekst (`#0B0B0C`) en een **paars-naar-groen merk-gradient** als signatuur-accent. Een echt donker, "futuristisch tech"-paneel — dichtbij navy/zwart met neon-paarse glow — bestaat op dit moment alleen in één specifiek onderdeel: de **"Aura"-teaser** (hun aangekondigde, nog niet gelanceerde uitbreiding, zichtbaar in een wisselpaneel in de navigatie-megamenu).
+**De marketingsite van InSpace is overwegend lícht getint, niet donker.** De basis is wit/off-white (`#FFFFFF`, `#F5F6F3`) met zwarte tekst (`#0B0B0C`) en een **paars-naar-groen merk-gradient** als signatuur-accent. De app is gebouwd op dit lichte systeem — **§A** hieronder is de bronanalyse, **§B** is de daadwerkelijke implementatie in `app/globals.css` (de brontokens uit §A, direct toegepast).
 
-Dit document documenteert **beide systemen eerlijk**:
-- **§A — Het lichte kernsysteem**, wat InSpace daadwerkelijk overal gebruikt (kleuren, type, cards, knoppen, micro-interacties).
-- **§B — Het donkere "Aura"-paneel**, de enige plek waar InSpace zelf een dark-mode-esthetiek toont.
-
-> **🔆 VASTGELEGDE KEUZE (herzien juli 2026): de app draait op het LICHTE kernsysteem (§A).**
-> De app is bewust omgezet van dark mode naar het lichte systeem dat InSpace zelf overal gebruikt — witte/off-white vlakken, zwarte tekst, subtiele grijze randen, neutrale schaduwen, met de paars/groen-gradient, pil-vormen en mono-labels als merk-DNA. Dit is bevestigd met screenshots van de live site (juli 2026): de groene pil-CTA ("Schedule free demo"), paarse getallen/accenten, groene tekst voor positieve indicatoren. **§A is dus leidend voor de implementatie** (`app/globals.css`). §B/§C hieronder beschrijven het donkere Aura-alternatief en blijven bewaard als referentie, maar worden **niet** toegepast in de app.
-
-**Historische aanbeveling (niet meer van toepassing — de app was aanvankelijk dark):** eerder is een dark-mode op basis van het Aura-palet (§B/§C) aangeraden omdat er om een donker futuristisch dashboard werd gevraagd. Die keuze is teruggedraaid ten gunste van het authentieke lichte InSpace-systeem (§A). De onderstaande §B/§C blijven staan voor het geval dark mode ooit als optie terugkomt.
+Er is bewust **geen dark mode** gebouwd: `app/globals.css` bevat alleen `:root`/`:root[data-theme="light"]` en zet `html { color-scheme: light; }`. InSpace zelf toont ergens in hun navigatie-megamenu een donker "Aura"-paneel (een aangekondigde, nog niet gelanceerde uitbreiding van hen), maar dat is nooit de basis geweest voor onze implementatie en is hier niet gedocumenteerd — als dark mode ooit alsnog gebouwd wordt, is een verse analyse van de dan-actuele InSpace-site (of een eigen ontwerp) het startpunt, niet dit document.
 
 ---
 
@@ -59,7 +52,7 @@ Dit document documenteert **beide systemen eerlijk**:
 - **`Aeonik`** — primaire sans-serif voor headings én body. Gewichten: 400 (Regular), 700 (Bold). Fallback-stack: `'Aeonik','Aeonik Fallback',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif`.
 - **`TTCommons`** (specifiek: TT Commons Pro Mono Trial) — een **mono-stijl technisch font**, uitsluitend gebruikt voor labels, badges, stat-captions en kleine uppercase UI-tekst met brede tracking. Gewichten: 400, 700. Fallback: `'TTCommons','TT Commons','SFMono-Regular','Space Mono',ui-monospace,monospace`.
 
-> **⚠️ Licentie-caveat:** Aeonik en TT Commons zijn **commerciële, gelicenseerde fonts** — InSpace's productie-CSS bevat zelfs zelf-gehoste base64-embedded font-bestanden. We mogen die niet 1-op-1 overnemen/hergebruiken zonder licentie. Twee opties: (a) zelf een licentie aanschaffen voor Aeonik + TT Commons, of (b) een visueel zeer vergelijkbaar open-source alternatief gebruiken — bv. **Geist** of **General Sans** als Aeonik-vervanger (geometrische grotesk, vergelijkbare x-hoogte/karakter), en **Space Mono** of **JetBrains Mono** als TT Commons-vervanger (dat laatste wordt zelfs letterlijk als fallback gebruikt in hun eigen `--mono`-stack hierboven). Zie §C voor de aanbevolen combinatie.
+> **⚠️ Licentie-caveat:** Aeonik en TT Commons zijn **commerciële, gelicenseerde fonts** — InSpace's productie-CSS bevat zelfs zelf-gehoste base64-embedded font-bestanden. We mogen die niet 1-op-1 overnemen/hergebruiken zonder licentie. Twee opties: (a) zelf een licentie aanschaffen voor Aeonik + TT Commons, of (b) een visueel zeer vergelijkbaar open-source alternatief gebruiken — bv. **Geist** of **General Sans** als Aeonik-vervanger (geometrische grotesk, vergelijkbare x-hoogte/karakter), en **Space Mono** of **JetBrains Mono** als TT Commons-vervanger (dat laatste wordt zelfs letterlijk als fallback gebruikt in hun eigen `--mono`-stack hierboven). Zie §B voor de daadwerkelijk geïmplementeerde font-tokens.
 
 **Het karakteristieke gebruik van het mono-font:** InSpace's meest herkenbare typografische trucje is **kleine, uppercase, breed getrackte labels in het mono-font** (bv. stat-captions, badges, statusindicators) — dit geeft de "technische read-out"-uitstraling die bij een AI/SEO-tool past. Letter-spacing op deze labels loopt van `.08em` tot `.3em`.
 
@@ -142,118 +135,84 @@ Kaarten zijn subtiel elevated in rust, en krijgen bij hover een **sterkere, gekl
 
 ---
 
-## §B — Het donkere "Aura"-paneel (enige echte dark-mode-referentie bij InSpace)
+## §B — De daadwerkelijke implementatie (`app/globals.css`)
 
-Dit paneel verschijnt in een wisselpaneel binnen de mega-menu-navigatie ("Nova" vs. "Aura" tabs) en is InSpace's enige zelf-gebouwde donkere UI-oppervlak. Dit is de basis voor onze eigen dark mode (zie §C).
-
-**Achtergrond:**
-```css
-background:
-  radial-gradient(120% 92% at 88% 6%, rgba(133,17,217,.42), transparent 52%),
-  linear-gradient(180deg, #0B0B0C, #171128);
-border: 1px solid rgba(255,255,255,.1);
-```
-Dus: een bijna-zwarte basis (`#0B0B0C`) die naar een donker paars-getint navy verloopt (`#171128`), met een **paarse radiale gloed rechtsboven** — exact de "deep space, glow in the corner"-esthetiek.
-
-**Tekst op donker:**
-| Token | Waarde |
-|-------|--------|
-| Primaire tekst | `#fff` |
-| Secundaire/muted tekst | `rgba(255,255,255,.62)` |
-| Border (subtiel, op donker) | `rgba(255,255,255,.1)` tot `.28` |
-
-**Badge op donker:**
-```css
-.imd-aura-chip {
-  color: #D9C6F5; background: rgba(133,17,217,.24);
-  border: 1px solid rgba(165,120,240,.5); border-radius: 99px;
-  font-family: mono; font-size: 9px; letter-spacing: .14em; text-transform: uppercase;
-}
-```
-Lila-lichte tekst (`#D9C6F5`) op een gedempte paarse achtergrond — het "donkere equivalent" van de lichte badge-stijl uit §A4.
-
-**CTA op donker:**
-```css
-.imd-aura-cta {
-  height: 40px; border-radius: 99px; border: 1px solid rgba(255,255,255,.28); color: #fff;
-}
-.imd-aura-cta:hover { background: #fff; color: #0B0B0C; border-color: #fff; }
-```
-Op donker is de knop-hover-logica **omgekeerd**: een outline-knop die bij hover naar een solide wit blok inverteert (in plaats van een gekleurde gloed zoals op licht).
-
-**Accent-orb:** een los, zwevend "glow orb"-icoontje met `filter: drop-shadow(0 12px 22px rgba(133,17,217,.4))` — decoratief paars gloed-element, typisch voor de "AI/tech" sfeer.
-
----
-
-## §C — Samengevoegd, praktisch tokensysteem voor onze app
-
-Dit is de **aanbevolen synthese**: InSpace's merk-DNA (kleuren, typografie, radii, gloed-techniek uit §A) volledig toegepast op een dark-mode-fundament (uit §B), zodat het resultaat authentiek "InSpace" aanvoelt terwijl de hele app consistent donker is — in plaats van maar één geïsoleerd donker paneel.
+Dit zijn de tokens zoals ze **nu echt in de code staan** (niet een aanbeveling — dit ís
+`app/globals.css`, `:root` / `:root[data-theme="light"]`):
 
 ```css
-:root[data-theme="dark"] {
-  /* Achtergrondlagen — van diepste naar hoogste laag */
-  --bg-base:        #0B0B0C;
-  --bg-elevated:     #14141A;   /* interpretatie: iets lichter dan base, voor top-level containers */
-  --bg-surface:      #171128;   /* uit Aura-gradient: kaarten/panelen met paarse ondertoon */
-  --bg-surface-2:    #1C1730;   /* interpretatie: nog een laag hoger, voor gestapelde cards/modals */
+:root,
+:root[data-theme="light"] {
+  /* Achtergrondlagen — pagina (off-white) → kaart (wit) → veld (recessed grijs) */
+  --bg-base: #f7f8f6;
+  --bg-surface: #ffffff;
+  --bg-elevated: #f1f2ee;
+  --bg-surface-2: #e9ebe5;
 
-  /* Merkkleuren (rechtstreeks uit InSpace) */
-  --accent-purple:       #8511D9;
-  --accent-purple-soft:  #A24DEC;
-  --accent-purple-glow:  rgba(133,17,217,.42);
-  --accent-green:        #B9EFA3;
-  --accent-green-text:   #2E9E50;
-  --accent-green-dark:   #54B86A;
-  --brand-gradient: linear-gradient(96deg, #54B86A 0%, #8511D9 96%);
+  /* Merkkleuren (rechtstreeks uit InSpace, zie §A) */
+  --accent-purple: #8511d9;
+  --accent-purple-soft: #a24dec;
+  --accent-purple-glow: rgba(133, 17, 217, 0.14);
+  --accent-green: #b9efa3;
+  --accent-green-text: #2e9e50;
+  --accent-green-dark: #54b86a;
+  --brand-gradient: linear-gradient(96deg, #54b86a 0%, #8511d9 96%);
 
-  /* Tekst op donker */
-  --text-primary:    #FFFFFF;
-  --text-secondary:  rgba(255,255,255,.62);
-  --text-muted:      rgba(255,255,255,.42);   /* interpretatie: placeholder/disabled */
+  /* Tekst */
+  --text-primary: #0b0b0c;
+  --text-secondary: rgba(11, 11, 12, 0.62);
+  --text-muted: rgba(11, 11, 12, 0.45);
 
-  /* Randen op donker */
-  --border-subtle:   rgba(255,255,255,.10);
-  --border-strong:   rgba(255,255,255,.28);
+  /* Randen */
+  --border-subtle: rgba(11, 11, 12, 0.1);
+  --border-strong: rgba(11, 11, 12, 0.22);
 
-  /* Status (aangepast aan dark, zie A1) */
-  --status-success:  #2E9E50;
-  --status-error:    #E5484D;   /* afgeleid van Tailwind-root oklch(57.7% .245 27.325) */
-  --status-warning:  #B9A27A;  /* InSpace's gouden accent, informeel als warning gebruikt */
-  --status-info:     #8511D9;
+  /* Status */
+  --status-success: #2e9e50;
+  --status-error: #d33a3f;
+  --status-warning: #b9a27a;
+  --status-info: #8511d9;
 
-  /* Typografie */
-  --font-sans: 'Geist', 'Aeonik', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  --font-mono: 'JetBrains Mono', 'Space Mono', 'TTCommons', ui-monospace, monospace;
+  /* Typografie — fonts geladen via next/font in layout.tsx (Geist Sans + JetBrains Mono,
+     de open-source vervangers voor Aeonik/TT Commons uit §A2) */
+  --font-sans: var(--font-geist-sans), -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-mono: var(--font-jetbrains-mono), "Space Mono", ui-monospace, monospace;
 
   /* Radii (rechtstreeks uit InSpace) */
   --radius-pill: 999px;
-  --radius-lg:   18px;
-  --radius-md:   14px;
-  --radius-sm:   9px;
+  --radius-lg: 18px;
+  --radius-md: 14px;
+  --radius-sm: 9px;
 
-  /* Motion */
-  --ease-standard: cubic-bezier(.2,.7,.2,1);
-  --duration-fast: .2s;
-  --duration-base: .3s;
-  --duration-slow: .45s;
+  /* Motion — één consistente easing overal */
+  --ease-standard: cubic-bezier(0.2, 0.7, 0.2, 1);
+  --duration-fast: 0.2s;
+  --duration-base: 0.3s;
+  --duration-slow: 0.45s;
 }
 ```
+
+Deze tokens zijn via Tailwind v4's `@theme inline` gekoppeld aan utility-classes
+(`bg-base`, `text-ink`, `rounded-pill`, ...) — zie `app/globals.css` zelf voor de volledige
+koppeling en de herbruikbare primitieven (`.mono-label`, `.card`, `.btn-primary`,
+`.btn-green`, `.btn-outline`, `.chip`/`.chip-green`, `.field`, `.live-dot`, `.glow-orb`,
+`.brand-gradient-text`, `.prose`).
 
 **Kernprincipes voor consistente toepassing:**
 1. **Gloed in plaats van harde randen.** Elevatie en focus-states communiceren via een gekleurde `box-shadow`-gloed (accentkleur, lage opaciteit), niet via felle borders. Zie §A3.
 2. **Pil-vormige interactieve elementen.** Alle knoppen, badges en chips zijn volledig rond (`--radius-pill`); alleen containers/cards gebruiken de kleinere radii.
-3. **Mono-font is gereserveerd voor "technische" UI-tekst.** Labels, statuscaptions, badges en stat-waarden in `--font-mono`, uppercase, breed getrackt (`.08em`–`.2em`) — precies zoals InSpace's `.imd-*`- en `.q-card`-labels. Body-tekst en koppen blijven in `--font-sans`.
-4. **Eén consistente easing overal:** `--ease-standard` voor elke hover/transitie — dit is een klein detail dat opvalt als het ontbreekt.
+3. **Mono-font is gereserveerd voor "technische" UI-tekst.** Labels, statuscaptions, badges en stat-waarden in `--font-mono`, uppercase, breed getrackt (`.08em`–`.2em`). Body-tekst en koppen blijven in `--font-sans`.
+4. **Eén consistente easing overal:** `--ease-standard` voor elke hover/transitie.
 5. **Statusindicatie is kleur + vorm, nooit kleur alleen:** een pulserende dot, een pijltje (`↑`/`↓`), of een chip — nooit alleen een kleurverschil (toegankelijkheid).
 6. **Achtergrond-gloed-orbs spaarzaam, groot en zeer vervaagd** (`blur(40–90px)`) achter hero/belangrijke secties — nooit als decoratie in kleine componenten.
 
 ---
 
-## §D — Responsive-strategie: desktop-first uitgangspunt, mobiel bewust heruitgevonden
+## §C — Responsive-strategie: desktop-first uitgangspunt, mobiel bewust heruitgevonden
 
 > **Vastgelegd door de opdrachtgever:** de meeste gebruikers openen de app vanaf desktop — dat is het uitgangspunt en waar de volle, dichte ervaring wordt ontworpen. Mobiel is nadrukkelijk **geen verkleinde desktop**: lagere informatiedichtheid vraagt om een andere indeling, niet alleen kleinere componenten. Voor elk schermformaat (mobiel, tablet, desktop) wordt bewust bepaald wat de optimale weergave is — steek daar net zoveel ontwerp-effort in als in desktop. Deze sectie is **leidend voor elk scherm dat vanaf nu gebouwd wordt**, net zoals §A–C leidend zijn voor kleur/type/componenten.
 
-### D1. Breakpoints
+### C1. Breakpoints
 Sluit aan bij de standaard Tailwind-schaal (het project gebruikt Tailwind v4), zodat er geen aparte breakpoint-taal ontstaat:
 
 | Naam | Breedte | Rol |
@@ -266,7 +225,7 @@ Sluit aan bij de standaard Tailwind-schaal (het project gebruikt Tailwind v4), z
 
 Tailwind's utility-klassen zijn technisch mobile-first (een kale class is de basis, `lg:class` overschrijft vanaf 1024px). Dat is puur een implementatiedetail. Het **ontwerpproces** blijft desktop-first: bedenk eerst de volle desktop-indeling, ontwerp daarna bewust de mobiele variant — niet andersom, en niet "voeg er wat lg:-classes aan toe".
 
-### D2. Kernprincipe per schermtype
+### C2. Kernprincipe per schermtype
 - **Desktop (uitgangspunt):** hoge informatiedichtheid mag. Meerdere kolommen, data naast elkaar, hover-states, bredere lijsten/tabellen. Hier leeft de volledige ervaring.
 - **Tablet:** meestal een compactere desktop-indeling (niet de mobiele indeling opgerekt). Apart testen — vaak volstaat het bijstellen van marges/kolombreedtes, soms is een eigen tussenstand nodig.
 - **Mobiel:** verticaal, één taak per sectie, progressive disclosure (inklapbare secties in plaats van alles tonen), belangrijkste actie altijd binnen duimbereik. Geen interactie mag afhankelijk zijn van hover — alles moet ook via tap werken.
@@ -277,7 +236,7 @@ Praktische mobiele regels:
 - Primaire actie op een lang scherm: sticky/vast onderaan, niet pas bereikbaar na scrollen.
 - Dichte content (meerdere datapunten per rij) wordt op mobiel een gestapelde kaart, niet een uitgeknepen tabel.
 
-### D3. Patronen per component-type
+### C3. Patronen per component-type
 
 | Component | Desktop | Mobiel |
 |---|---|---|
@@ -289,13 +248,13 @@ Praktische mobiele regels:
 | Grafieken/data-visualisatie | Volledige grafiek, meerdere reeksen | Vereenvoudigd: kernwaarde + eenvoudige sparkline i.p.v. volledige multi-serie grafiek |
 | Modals/detailweergave | Gecentreerde modal | Full-screen sheet (voelt nativer aan dan een kleine modal) |
 
-### D4. Toepassing op het meest kritieke scherm: het concept-/review-scherm
+### C4. Toepassing op het meest kritieke scherm: het concept-/review-scherm
 Dit scherm (abcplan.md §3.6/§3.7 stap 5 — Brand DNA + alle prompts, bewerkbaar, verplicht voor elke analyse) is het informatiedichtste scherm in de app én het enige dat iedere analyse verplicht doorloopt. Dat maakt het de belangrijkste toetssteen van deze strategie:
 
 - **Desktop:** Brand DNA en de promptlijst mogen ruim en met meerdere kolommen worden getoond; secties staan standaard open.
 - **Mobiel:** elk Brand DNA-veldgroep en elke promptcategorie is een **inklapbare sectie, standaard dicht**, zodat de klant niet meteen een muur van tekst en tientallen prompts ziet. De knop **"Bevestig en start meting"** staat **sticky onderaan het scherm**, zodat 'ie na elke wijziging direct bereikbaar is zonder terug te scrollen.
 
-### D5. Werkwijze bij het bouwen
+### C5. Werkwijze bij het bouwen
 Voor elk nieuw scherm: ontwerp eerst hoe het er op **desktop (`lg:`)** dicht en compleet uitziet, bepaal daarna expliciet — niet automatisch — hoe diezelfde informatie op **mobiel (basis-klassen)** anders wordt ingedeeld. "Werkt met kleinere Tailwind-classes" is onvoldoende: de layout-structuur zelf mag verschillen (bijvoorbeeld een grid dat op desktop twee kolommen is en op mobiel een chronologische, inklapbare lijst wordt — niet dezelfde grid met `grid-cols-1`).
 
 ---
