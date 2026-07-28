@@ -33,7 +33,7 @@ import "server-only";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { generateTopicResearch } from "@/lib/pipeline/topic-research";
-import { generatePrompts, type BrandContext } from "@/lib/pipeline/prompts";
+import { generatePrompts, calibrateVolumes, type BrandContext } from "@/lib/pipeline/prompts";
 import { bandFromEstimate } from "@/lib/pipeline/volume";
 import type { Analysis, AnalysisStatus, Profile, ProfilePage } from "@/lib/types/database";
 
@@ -234,4 +234,54 @@ export async function generateAnalysisPrompts(id: string): Promise<AnalysisStatu
     await admin.from("analyses").update({ status: "mislukt" }).eq("id", id);
     throw err;
   }
+}
+
+/**
+ * Fase 3 (nabewerking): het geschatte zoekvolume relatief kalibreren over alle
+ * vragen van de analyse (abcplan.md §6 A2) — consistenter dan losse schattingen
+ * per vraag.
+ *
+ * Bewust ná de poort naar 'concept_klaar' en als eigen taak. Twee redenen:
+ *
+ *  • Het is een verfijning, geen voorwaarde. De vragen staan er al, mét een
+ *    bruikbare band ('midden'); de klant hoeft daar niet op te wachten.
+ *  • Het scheelt een derde ronde AI-aanroepen in `generate_prompts`, die het
+ *    daardoor niet binnen één werker-aanroep haalde.
+ *
+ * Mislukt dit, dan blijft elke vraag op de neutrale 50 / band 'midden' staan —
+ * exact de terugval die er altijd al was. Daarom raakt een fout hier de status
+ * van de analyse NIET: 'mislukt' tonen voor een cosmetische verfijning zou de
+ * klant een probleem melden dat hij niet heeft.
+ */
+export async function calibratePromptVolumes(id: string): Promise<void> {
+  const admin = createAdminClient();
+
+  // Vaste volgorde: de kalibratie geeft haar antwoorden terug op invoervolgorde.
+  const { data: promptRows } = await admin
+    .from("prompts")
+    .select("id, text")
+    .eq("analysis_id", id)
+    .eq("created_by", "system")
+    .order("created_at")
+    .order("id");
+
+  const prompts = (promptRows ?? []) as { id: string; text: string }[];
+  if (prompts.length === 0) return;
+
+  const volumes = await calibrateVolumes(
+    prompts.map((p) => p.text),
+    id,
+  );
+
+  // Eén update per vraag. Het zijn er dertig en het is puur database-werk;
+  // een bulk-upsert zou hier alleen de kans op een halve schrijfactie
+  // introduceren zonder merkbare winst.
+  await Promise.all(
+    prompts.map((p, i) =>
+      admin
+        .from("prompts")
+        .update({ volume_estimate: volumes[i], volume_band: bandFromEstimate(volumes[i]) })
+        .eq("id", p.id),
+    ),
+  );
 }

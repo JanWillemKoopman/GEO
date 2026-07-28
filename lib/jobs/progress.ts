@@ -31,7 +31,8 @@ type Admin = SupabaseClient;
 const TYPICAL_SECONDS: Record<JobType, number> = {
   profile_research: 50, // sitemap-crawl + AI-onderzoek met web_search
   prepare_analysis: 30, // onderwerp-onderzoek: één gegrondde AI-aanroep
-  generate_prompts: 35, // 3 parallelle prompt-calls + volume-kalibratie
+  generate_prompts: 40, // 3 parallelle prompt-calls, elk met een bijvul-ronde
+  calibrate_volumes: 15, // één aanroep over alle vragen samen
   measure_prompt: 18, // één vraag stellen met web_search + beoordelen
   aggregate_week: 3, // puur rekenwerk
   generate_report: 25, // gap-analyse + rapport
@@ -43,6 +44,18 @@ const TYPICAL_SECONDS: Record<JobType, number> = {
   compute_impact: 3, // puur rekenwerk
   offsite_scan: 40, // gegroundde aanroep + Wikidata/Wikipedia
 };
+
+/**
+ * Taken waarvan het mislukken de klant niet raakt, en die dus geen foutmelding
+ * op een voortgangsscherm mogen veroorzaken.
+ *
+ * De volume-kalibratie verfijnt alleen de banden ("vaak gesteld" / "gemiddeld"
+ * / "weinig gesteld"); lukt dat niet, dan staat elke vraag op 'midden' en werkt
+ * de hele analyse gewoon. De schermen kijken naar het TOTAAL aantal mislukte
+ * taken van een analyse, dus zonder deze uitzondering zou zo'n cosmetische
+ * misser als "de meting is misgelopen" gemeld worden.
+ */
+const NON_BLOCKING_TYPES: ReadonlySet<JobType> = new Set<JobType>(["calibrate_volumes"]);
 
 /**
  * Hoeveel lichte taken de werker gelijktijdig afwerkt. Moet overeenkomen met
@@ -81,7 +94,9 @@ function summarize(jobs: Job[]): JobProgress {
   if (jobs.length === 0) return EMPTY;
 
   const open = jobs.filter((j) => j.status === "queued" || j.status === "running");
-  const failed = jobs.filter((j) => j.status === "failed");
+  const failed = jobs.filter(
+    (j) => j.status === "failed" && !NON_BLOCKING_TYPES.has(j.type as JobType),
+  );
 
   const pendingByType: Partial<Record<JobType, number>> = {};
   let workSeconds = 0;

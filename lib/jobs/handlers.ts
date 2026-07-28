@@ -14,7 +14,11 @@ import "server-only";
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { prepareProfile } from "@/lib/pipeline/prepare-profile";
-import { prepareTopicResearch, generateAnalysisPrompts } from "@/lib/pipeline/prepare";
+import {
+  prepareTopicResearch,
+  generateAnalysisPrompts,
+  calibratePromptVolumes,
+} from "@/lib/pipeline/prepare";
 import { measurePromptById, computeAggregates, measurementIsUsable } from "@/lib/pipeline/measure";
 import { generateReport } from "@/lib/pipeline/report";
 import { draftContentPiece, reviseContentPiece } from "@/lib/pipeline/content";
@@ -147,11 +151,25 @@ const handlers: { [T in JobType]: Handler<T> } = {
   },
 
   // ── Voorbereiding stap 2: de vragen opstellen ─────────────────────────────
-  // Géén automatisch vervolg: hierna wacht de analyse op goedkeuring van de
-  // klant (de review-gate). Dat is een bewuste stop, geen ontbrekende schakel.
-  generate_prompts: async ({ job }) => {
+  // Hierna wacht de analyse op goedkeuring van de klant (de review-gate); dat
+  // is een bewuste stop. De kalibratie die nog volgt is een verfijning van de
+  // volumebanden en houdt de klant niet tegen.
+  generate_prompts: async ({ admin, job }) => {
     if (!job.analysis_id) throw new Error("generate_prompts zonder analysis_id.");
     await generateAnalysisPrompts(job.analysis_id);
+
+    await enqueue(admin, {
+      type: "calibrate_volumes",
+      payload: {},
+      analysisId: job.analysis_id,
+      dedupeKey: dedupe.calibrateVolumes(job.analysis_id),
+    });
+  },
+
+  // ── Nabewerking: zoekvolume relatief kalibreren ───────────────────────────
+  calibrate_volumes: async ({ job }) => {
+    if (!job.analysis_id) throw new Error("calibrate_volumes zonder analysis_id.");
+    await calibratePromptVolumes(job.analysis_id);
   },
 
   // ── Eén vraag meten (3a + 3b) ─────────────────────────────────────────────
