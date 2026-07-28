@@ -26,23 +26,23 @@ export function AppShell({ user, children }: { user: User; children: React.React
           {/* sm+ : alles direct in de balk, geen icoon nodig. */}
           <div className="hidden items-center gap-6 sm:flex">
             <nav className="flex items-center gap-4">
-              <Link href="/analyses" className="mono-label transition-colors hover:text-[var(--text-primary)]">
+              <Link href="/analyses" className="mono-label transition-colors hover:text-[var(--accent-purple)]">
                 Mijn analyses
               </Link>
-              <Link href="/profielen" className="mono-label transition-colors hover:text-[var(--text-primary)]">
+              <Link href="/profielen" className="mono-label transition-colors hover:text-[var(--accent-purple)]">
                 Klantprofielen
               </Link>
-              <Link href="/profielen" className="mono-label transition-colors hover:text-[var(--text-primary)]">
+              <Link href="/profielen" className="mono-label transition-colors hover:text-[var(--accent-purple)]">
                 Mijn bedrijfsgegevens
               </Link>
-              <Link href="/instellingen" className="mono-label transition-colors hover:text-[var(--text-primary)]">
+              <Link href="/instellingen" className="mono-label transition-colors hover:text-[var(--accent-purple)]">
                 Mijn instellingen
               </Link>
             </nav>
             <div className="flex items-center gap-4">
               <span className="text-sm text-secondary">{user.email}</span>
               <form action={signOut}>
-                <button type="submit" className="mono-label transition-colors hover:text-[var(--text-primary)]">
+                <button type="submit" className="mono-label transition-colors hover:text-[var(--accent-purple)]">
                   Uitloggen
                 </button>
               </form>
