@@ -525,6 +525,141 @@ export interface DraftResult {
   issues: string[];
 }
 
+/** Wat `callStructured` voor een contentpagina teruggeeft, of wat we uit de DB hervatten. */
+type DraftOutput = { parsed: ContentPiece; raw: unknown };
+
+/**
+ * Haalt een eerder weggeschreven draft terug in de vorm die de rest van deze
+ * functie van een verse AI-aanroep verwacht. `null` als er nog geen tekst staat —
+ * dan moet er alsnog geschreven worden.
+ */
+async function loadSavedDraft(
+  admin: ReturnType<typeof createAdminClient>,
+  pieceId: string,
+): Promise<DraftOutput | null> {
+  const { data } = await admin
+    .from("content_pieces")
+    .select("target_intent, cluster, body_markdown, meta_title, meta_description, schema_jsonld, faq_json, raw_json")
+    .eq("id", pieceId)
+    .maybeSingle();
+
+  if (!data?.body_markdown) return null;
+
+  return {
+    parsed: {
+      title: "", // niet gebruikt: de app volgt altijd de titel uit het rapport
+      targetIntent: data.target_intent ?? "",
+      cluster: data.cluster ?? "",
+      bodyMarkdown: data.body_markdown as string,
+      metaTitle: data.meta_title ?? "",
+      metaDescription: data.meta_description ?? "",
+      schemaJsonLd: data.schema_jsonld ?? "",
+      faq: (data.faq_json ?? []) as ContentPiece["faq"],
+    } as ContentPiece,
+    raw: data.raw_json,
+  };
+}
+
+/** De kolommen die uit de SCHRIJFronde komen — los van het oordeel dat erna volgt. */
+function buildDraftRow(args: {
+  analysisId: string;
+  reportId: string | null;
+  recommendation: RecommendationInput;
+  draft: DraftOutput;
+  analysis: { url: string };
+  action: ContentAction;
+  version: number;
+  supersedesId: string | null;
+}) {
+  const { analysisId, reportId, recommendation, draft, analysis, action, version, supersedesId } = args;
+  return {
+    analysis_id: analysisId,
+    report_id: reportId,
+    type: recommendation.type,
+    // ⚠️ De titel van de AANBEVELING, niet die van het model. Het model mag zijn
+    // eigen titel voorstellen (hij staat in raw_json), maar de hele app zoekt
+    // deze pagina op de titel uit het rapport: de poll-route van de knop, de
+    // "al gegenereerd"-markering op het rapportscherm, en de dedupe-sleutel van
+    // de schrijftaak. Wijkt de opgeslagen titel daarvan af, dan vindt geen van
+    // die drie de pagina nog — de knop blijft eeuwig "bezig", de teller loopt
+    // niet terug, en elke volgende klik maakt een duplicaat met volle
+    // gpt-4.1-kosten. Eén bron van waarheid, en dat is het rapport.
+    title: recommendation.title,
+    target_intent: draft.parsed.targetIntent,
+    cluster: draft.parsed.cluster,
+    body_markdown: draft.parsed.bodyMarkdown,
+    meta_title: draft.parsed.metaTitle,
+    meta_description: draft.parsed.metaDescription,
+    schema_jsonld: validateOrRebuildJsonLd(draft.parsed.schemaJsonLd, {
+      type: recommendation.type,
+      title: recommendation.title,
+      description: draft.parsed.metaDescription,
+      url: analysis.url,
+      faq: draft.parsed.faq,
+    }),
+    faq_json: draft.parsed.faq as never,
+    raw_json: draft.raw as never,
+    word_count: countWords(draft.parsed.bodyMarkdown),
+    action,
+    existing_url: recommendation.existingUrl ?? null,
+    version,
+    is_current: true,
+    supersedes_id: supersedesId,
+    revision_note: recommendation.revisionNote ?? null,
+    // Nog niet beoordeeld: de redactieronde zet dit zo meteen op z'n eindwaarde.
+    // 'draft' is hier de eerlijke stand — de tekst bestaat, het oordeel nog niet.
+    status: "draft" as const,
+    needs_review: true,
+  };
+}
+
+/**
+ * Schrijft de zojuist geschreven pagina weg en geeft het id terug. Bevat de
+ * versie-administratie: hervatten werkt de bestaande rij bij, een nieuwe versie
+ * vlagt eerst de vorige af.
+ */
+async function persistDraft(
+  admin: ReturnType<typeof createAdminClient>,
+  row: ReturnType<typeof buildDraftRow>,
+  opts: { resumeId: string | null; currentId: string | null },
+): Promise<string> {
+  if (opts.resumeId) {
+    const { data, error } = await admin
+      .from("content_pieces")
+      .update(row)
+      .eq("id", opts.resumeId)
+      .select("id")
+      .single();
+    if (error || !data) {
+      throw new Error(`Opslaan van de gegenereerde pagina mislukt: ${error?.message ?? "geen rij"}`);
+    }
+    return data.id as string;
+  }
+
+  // De oude versie EERST afvlaggen, dan pas de nieuwe invoegen. Migratie 0023
+  // dwingt af dat er maar één huidige versie per (analyse, titel) bestaat —
+  // precies om de duplicaten te voorkomen die eerder ontstonden — en dus zou
+  // invoegen-vóór-afvlaggen op die index botsen.
+  //
+  // Wat het oude commentaar hier terecht wilde beschermen (de klant mag nooit
+  // zonder huidige pagina komen te staan als het invoegen stukloopt) doen we
+  // nu expliciet: bij een mislukking zetten we de vlag terug.
+  if (opts.currentId) {
+    await admin.from("content_pieces").update({ is_current: false }).eq("id", opts.currentId);
+  }
+
+  const { data, error } = await admin.from("content_pieces").insert(row).select("id").single();
+  if (error || !data) {
+    if (opts.currentId) {
+      await admin.from("content_pieces").update({ is_current: true }).eq("id", opts.currentId);
+    }
+    throw new Error(
+      `Opslaan van de gegenereerde pagina mislukt: ${error?.message ?? "geen rij teruggekregen"}`,
+    );
+  }
+  return data.id as string;
+}
+
 /**
  * ── STAP 1 — schrijven + beoordelen (optimalisatie.md 1.3) ──────────────────
  *
@@ -576,17 +711,46 @@ export async function draftContentPiece(args: {
   const { analysis, targets, baseInput, brandName } = ctx;
 
   // ── Draft (premium model) ────────────────────────────────────────────────
-  const draft = await callStructured({
-    model: MODELS.content,
-    // Vangnet bij een dunne feitenlijst (4.6): dan mag hij marktfeiten opzoeken.
-    system: ctx.needsFactFinding ? CONTENT_SYSTEM + FACT_FINDING_ADDENDUM : CONTENT_SYSTEM,
-    user: baseInput,
-    schema: ContentPiece,
-    schemaName: "content_piece",
-    webSearch: ctx.needsFactFinding,
-    temperature: TEMPERATURES.content,
-    meta: { kind: "content_draft", analysisId, profileId: analysis.profile_id },
+  //
+  // Staat er al een draft mét tekst, dan is deze ronde in een eerdere poging al
+  // gedaan en hergebruiken we hem. Dit is de duurste aanroep van het hele
+  // product — gpt-4.1 die een volledige pagina schrijft — en die twee keer
+  // betalen omdat de vórige poging ná het schrijven strandde, is puur verlies.
+  const saved = resumeId ? await loadSavedDraft(admin, resumeId) : null;
+  const draft =
+    saved ??
+    (await callStructured({
+      model: MODELS.content,
+      // Vangnet bij een dunne feitenlijst (4.6): dan mag hij marktfeiten opzoeken.
+      system: ctx.needsFactFinding ? CONTENT_SYSTEM + FACT_FINDING_ADDENDUM : CONTENT_SYSTEM,
+      user: baseInput,
+      schema: ContentPiece,
+      schemaName: "content_piece",
+      webSearch: ctx.needsFactFinding,
+      temperature: TEMPERATURES.content,
+      meta: { kind: "content_draft", analysisId, profileId: analysis.profile_id },
+    }));
+
+  // ── Wegschrijven vóór de redactieronde ───────────────────────────────────
+  //
+  // Bewust hier en niet pas onderaan. Het schrijven en het beoordelen zijn twee
+  // aanroepen achter elkaar; wordt de route tussendoor afgekapt, dan was de hele
+  // dure schrijfronde weg en begon elke volgende poging opnieuw. Nu staat de
+  // tekst op schijf zodra hij bestaat, en pikt de hervatting hierboven hem op.
+  const draftRow = buildDraftRow({
+    analysisId,
+    reportId,
+    recommendation,
+    draft,
+    analysis,
+    action: recommendation.action ?? "nieuw",
+    version: nextVersion,
+    supersedesId: resumeId ? null : (current?.id ?? null),
   });
+
+  const pieceId = saved
+    ? resumeId!
+    : await persistDraft(admin, draftRow, { resumeId, currentId: current?.id ?? null });
 
   // ── Redactie/kritiek (goedkoop model) ────────────────────────────────────
   const critique = await callStructured({
@@ -612,93 +776,30 @@ export async function draftContentPiece(args: {
     geo_score < GEO_THRESHOLD ||
     issues.length > 0;
 
-  const action = recommendation.action ?? "nieuw";
-  const row = {
-    analysis_id: analysisId,
-    report_id: reportId,
-    type: recommendation.type,
-    // ⚠️ De titel van de AANBEVELING, niet die van het model. Het model mag zijn
-    // eigen titel voorstellen (hij staat in raw_json), maar de hele app zoekt
-    // deze pagina op de titel uit het rapport: de poll-route van de knop, de
-    // "al gegenereerd"-markering op het rapportscherm, en de dedupe-sleutel van
-    // de schrijftaak. Wijkt de opgeslagen titel daarvan af, dan vindt geen van
-    // die drie de pagina nog — de knop blijft eeuwig "bezig", de teller loopt
-    // niet terug, en elke volgende klik maakt een duplicaat met volle
-    // gpt-4.1-kosten. Eén bron van waarheid, en dat is het rapport.
-    title: recommendation.title,
-    target_intent: draft.parsed.targetIntent,
-    cluster: draft.parsed.cluster,
-    body_markdown: draft.parsed.bodyMarkdown,
-    meta_title: draft.parsed.metaTitle,
-    meta_description: draft.parsed.metaDescription,
-    schema_jsonld: validateOrRebuildJsonLd(draft.parsed.schemaJsonLd, {
-      type: recommendation.type,
-      title: recommendation.title,
-      description: draft.parsed.metaDescription,
-      url: analysis.url,
-      faq: draft.parsed.faq,
-    }),
-    faq_json: draft.parsed.faq as never,
-    raw_json: draft.raw as never,
-    critique_raw_json: [critique.raw] as never,
-    quality_score: critique.parsed.qualityScore,
-    geo_score,
-    geo_json: geo as never,
-    // Wat er nog aan schort, in gewone taal (4.13). Stond alleen in de ruwe
-    // API-respons, en die laat je een klant niet lezen.
-    review_notes: issues,
-    // Komt de eerste versie al door de poort, dan is dit meteen de eindstand.
-    needs_review: needsRevise ? true : !critique.parsed.followsRules,
-    status: needsRevise ? ("draft" as const) : ("ready" as const),
-    word_count: countWords(draft.parsed.bodyMarkdown),
-    action,
-    existing_url: recommendation.existingUrl ?? null,
-    version: nextVersion,
-    is_current: true,
-    supersedes_id: resumeId ? null : (current?.id ?? null),
-    revision_note: recommendation.revisionNote ?? null,
-  };
-
-  let contentPieceId: string | undefined;
-  if (resumeId) {
-    const { data, error } = await admin
-      .from("content_pieces")
-      .update(row)
-      .eq("id", resumeId)
-      .select("id")
-      .single();
-    if (error) throw new Error(`Opslaan van de gegenereerde pagina mislukt: ${error.message}`);
-    contentPieceId = data?.id as string | undefined;
-  } else {
-    // De oude versie EERST afvlaggen, dan pas de nieuwe invoegen. Migratie 0023
-    // dwingt af dat er maar één huidige versie per (analyse, titel) bestaat —
-    // precies om de duplicaten te voorkomen die eerder ontstonden — en dus zou
-    // invoegen-vóór-afvlaggen op die index botsen.
-    //
-    // Wat het oude commentaar hier terecht wilde beschermen (de klant mag nooit
-    // zonder huidige pagina komen te staan als het invoegen stukloopt) doen we
-    // nu expliciet: bij een mislukking zetten we de vlag terug.
-    if (current) {
-      await admin.from("content_pieces").update({ is_current: false }).eq("id", current.id);
-    }
-
-    const { data, error } = await admin.from("content_pieces").insert(row).select("id").single();
-    if (error || !data) {
-      if (current) {
-        await admin.from("content_pieces").update({ is_current: true }).eq("id", current.id);
-      }
-      throw new Error(
-        `Opslaan van de gegenereerde pagina mislukt: ${error?.message ?? "geen rij teruggekregen"}`,
-      );
-    }
-    contentPieceId = data.id as string;
+  // De tekst staat er al (hierboven weggeschreven); dit vult alleen het oordeel
+  // aan en zet de eindstatus.
+  const { error: critiqueError } = await admin
+    .from("content_pieces")
+    .update({
+      critique_raw_json: [critique.raw] as never,
+      quality_score: critique.parsed.qualityScore,
+      geo_score,
+      geo_json: geo as never,
+      // Wat er nog aan schort, in gewone taal (4.13). Stond alleen in de ruwe
+      // API-respons, en die laat je een klant niet lezen.
+      review_notes: issues,
+      // Komt de eerste versie al door de poort, dan is dit meteen de eindstand.
+      needs_review: needsRevise ? true : !critique.parsed.followsRules,
+      status: needsRevise ? ("draft" as const) : ("ready" as const),
+    })
+    .eq("id", pieceId);
+  if (critiqueError) {
+    throw new Error(`Opslaan van de beoordeling mislukt: ${critiqueError.message}`);
   }
 
-  if (!contentPieceId) throw new Error("Opslaan van de gegenereerde pagina mislukt.");
+  await saveTargets(admin, pieceId, targets);
 
-  await saveTargets(admin, contentPieceId, targets);
-
-  return { contentPieceId, needsRevise, issues };
+  return { contentPieceId: pieceId, needsRevise, issues };
 }
 
 /**

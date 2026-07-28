@@ -13,11 +13,16 @@ import { describeError } from "@/lib/errors";
  * Beveiligd met CRON_SECRET, net als de wekelijkse lus. Vercel Cron stuurt dat
  * automatisch mee als Authorization-header wanneer de env-variabele zo heet.
  *
- * De werker houdt zelf een tijdbudget aan (40s) en stopt netjes; wat blijft
- * liggen wordt een minuut later opgepakt. Vastgelopen taken van een afgebroken
- * vorige aanroep worden aan het begin teruggezet.
+ * De werker houdt zelf een tijdbudget aan en stopt netjes; wat blijft liggen
+ * wordt een minuut later opgepakt. Vastgelopen taken van een afgebroken vorige
+ * aanroep worden aan het begin teruggezet.
+ *
+ * maxDuration staat op 300 en niet op 60: contentgeneratie laat gpt-4.1 een
+ * volledige pagina schrijven, en dat past er niet in. 300s is het maximum dat
+ * Vercel met Fluid Compute toestaat (ook op Hobby). Het tijdbudget van de
+ * werker moet daar ruim onder blijven — zie workerTimeBudgetMs in lib/config.ts.
  */
-export const maxDuration = 60;
+export const maxDuration = 300;
 export const dynamic = "force-dynamic";
 
 export async function GET(request: Request) {

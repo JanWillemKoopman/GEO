@@ -97,15 +97,15 @@ export const maxMeasurementPeriods = Number(
  * verschilt per platform en per abonnement — vandaar een env-schakelaar in
  * plaats van een vaste waarde:
  *
- *   • Vercel met `maxDuration = 60` (de instelling in de route):  40000 (standaard)
- *   • Een platform dat op 10s afkapt:                              7000
- *   • Een eigen server zonder limiet:                              gerust 120000
+ *   • Vercel met `maxDuration = 300` (de instelling in de route): 240000 (standaard)
+ *   • Vercel met `maxDuration = 60` (zonder Fluid Compute):         40000
+ *   • Een platform dat op 10s afkapt:                                7000
  *
  * Te laag zetten is niet erg: de werker doet dan minder per ronde en de volgende
  * aanroep gaat verder. Te hoog zetten wél — dan wordt hij midden in een taak
- * afgekapt en moet de reaper hem tien minuten later terugzetten.
+ * afgekapt en moet de reaper hem vijf minuten later terugzetten.
  */
-export const workerTimeBudgetMs = Number(process.env.WORKER_TIME_BUDGET_MS ?? 40_000);
+export const workerTimeBudgetMs = Number(process.env.WORKER_TIME_BUDGET_MS ?? 240_000);
 
 /**
  * De geciteerde bronnen ophalen en analyseren vóór het schrijven

@@ -22,10 +22,24 @@ import type { Job } from "@/lib/types/database";
  * Hoeveel wandkloktijd de werker zichzelf gunt. Instelbaar omdat de tijdslimiet
  * per platform en abonnement verschilt — zie workerTimeBudgetMs in lib/config.ts.
  * Ruim onder de limiet van de route blijven: een taak die als 'running' blijft
- * staan omdat het platform de functie afkapte, wordt pas tien minuten later
- * door de reaper teruggezet.
+ * staan omdat het platform de functie afkapte, wordt pas door de reaper
+ * teruggezet.
  */
 const TIME_BUDGET_MS = workerTimeBudgetMs;
+
+/**
+ * Hoeveel tijd we vrijhouden voordat we aan een ZWARE taak beginnen.
+ *
+ * De vorige regel hier keek naar de helft van het tijdbudget. Dat werkte zolang
+ * elke taak binnen een halve minuut klaar was, maar niet meer nu contentgeneratie
+ * twee aanroepen van maximaal honderd seconden doet: die kon starten met te
+ * weinig routetijd over en werd dan alsnog middenin afgekapt.
+ *
+ * Nu expliciet: alleen beginnen als de traagste zware taak er nog volledig in
+ * past. Twee AI-aanroepen van 100s (de clienttimeout, lib/openai/client.ts) plus
+ * marge voor het opslaan.
+ */
+const HEAVY_JOB_RESERVE_MS = 220_000;
 
 /**
  * Hoeveel taken we per ronde claimen. Lichte taken (een meting is vooral
@@ -115,7 +129,11 @@ export async function runWorker(): Promise<WorkerResult> {
     // teruggelegd: half beginnen aan een pagina die gpt-4.1 moet schrijven is
     // duur en levert niets op.
     for (const job of heavy) {
-      if (Date.now() - startedAt > TIME_BUDGET_MS / 2 && out.processed > 0) {
+      // Past deze taak nog volledig binnen het budget? Zo niet: terugleggen. De
+      // uitzondering is een lege ronde — dan is dit de eerste taak van deze
+      // aanroep en heeft hij de volle tijd, dus dan altijd beginnen. Zonder die
+      // uitzondering zou een taak die langer duurt dan het budget nóóit starten.
+      if (Date.now() - startedAt + HEAVY_JOB_RESERVE_MS > TIME_BUDGET_MS && out.processed > 0) {
         await releaseJob(admin, job);
         continue;
       }
