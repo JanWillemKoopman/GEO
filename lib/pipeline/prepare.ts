@@ -12,24 +12,49 @@ import "server-only";
  * retry geen dubbel werk of dubbele kosten oplevert. Faalt er iets, dan gaat de
  * analyse naar 'mislukt' (retry-knop in Mijn analyses).
  *
- * NB: dit draait synchroon in de prepare-route (maxDuration 60s). De echte
- * job-queue/cron komt pas bij de wekelijkse lus in Sprint 4.
+ * ── WAAROM DIT TWEE TAKEN IS ────────────────────────────────────────────────
+ *
+ * Dit was één taak (`prepare_analysis`) die drie ronden AI-aanroepen achter
+ * elkaar deed: onderwerp-onderzoek → drie parallelle prompt-calls →
+ * volume-kalibratie. Bij elkaar past dat niet binnen de zestig seconden die de
+ * werker-route van het platform krijgt. De functie werd dan middenin afgekapt,
+ * de taak bleef als 'running' in de wachtrij staan tot de reaper hem tien
+ * minuten later terugzette, en de volgende poging liep tegen exact dezelfde
+ * muur aan — want tussen het opslaan van het onderwerp-onderzoek en het
+ * wegschrijven van de prompts wordt niets tussentijds bewaard. Vier pogingen
+ * lang leek het scherm gewoon te werken ("nog minder dan een minuut"), waarna
+ * de analyse alsnog op 'mislukt' viel.
+ *
+ * Nu is het opgeknipt volgens het principe dat elders in de wachtrij al geldt
+ * (lib/jobs/types.ts: één taak = hooguit één zware AI-ronde): `prepare_analysis`
+ * doet alleen het onderwerp-onderzoek en ketent naar `generate_prompts`. Beide
+ * passen ruim binnen één aanroep, en het tussenresultaat staat op schijf.
  */
 import { createAdminClient } from "@/lib/supabase/admin";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { generateTopicResearch } from "@/lib/pipeline/topic-research";
 import { generatePrompts, type BrandContext } from "@/lib/pipeline/prompts";
 import { bandFromEstimate } from "@/lib/pipeline/volume";
-import type { AnalysisStatus, Profile, ProfilePage } from "@/lib/types/database";
+import type { Analysis, AnalysisStatus, Profile, ProfilePage } from "@/lib/types/database";
 
-export async function prepareAnalysis(id: string): Promise<AnalysisStatus> {
-  const admin = createAdminClient();
+type Admin = SupabaseClient;
 
-  const { data: analysis } = await admin.from("analyses").select("*").eq("id", id).single();
-  if (!analysis) throw new Error(`Analyse ${id} niet gevonden.`);
+/**
+ * Gedeelde voorwaarden van beide fasen: bestaat de analyse, is er nog werk te
+ * doen, en is het profiel klaar? Geeft `null` terug als er niets te doen valt
+ * (met de status die de aanroeper dan moet melden).
+ */
+async function loadPreparable(
+  admin: Admin,
+  id: string,
+): Promise<{ analysis: Analysis; profile: Profile } | { done: AnalysisStatus }> {
+  const { data: analysisRow } = await admin.from("analyses").select("*").eq("id", id).single();
+  if (!analysisRow) throw new Error(`Analyse ${id} niet gevonden.`);
+  const analysis = analysisRow as Analysis;
 
   // Al voorbij de conceptfase? Niets te doen (voorkomt herverwerking).
   if (analysis.status !== "bezig" && analysis.status !== "mislukt") {
-    return analysis.status as AnalysisStatus;
+    return { done: analysis.status };
   }
 
   // 'mislukt' kan ook een mislukte MÉTING zijn (halte 3, na confirm) — die
@@ -41,7 +66,7 @@ export async function prepareAnalysis(id: string): Promise<AnalysisStatus> {
       .from("prompts")
       .select("*", { count: "exact", head: true })
       .eq("analysis_id", id);
-    if (count) return "mislukt";
+    if (count) return { done: "mislukt" };
   }
 
   const { data: profileRow } = await admin
@@ -55,18 +80,31 @@ export async function prepareAnalysis(id: string): Promise<AnalysisStatus> {
     throw new Error(`Klantprofiel "${profile.name}" is nog niet klaar met onderzoek.`);
   }
 
+  return { analysis, profile };
+}
+
+/**
+ * Fase 1 (A1'): onderwerp-onderzoek. Eén gegrondde AI-aanroep; het resultaat
+ * gaat meteen naar `topic_research`, zodat een nieuwe poging deze stap overslaat.
+ *
+ * Geeft terug of de promptgeneratie nog moet gebeuren — de handler ketent daar
+ * dan naartoe.
+ */
+export async function prepareTopicResearch(id: string): Promise<{ needsPrompts: boolean }> {
+  const admin = createAdminClient();
+
+  const loaded = await loadPreparable(admin, id);
+  if ("done" in loaded) return { needsPrompts: false };
+  const { analysis, profile } = loaded;
+
   try {
-    // ── A1': onderwerp-onderzoek (skip als 'ie er al is) ───────────────────
-    let topicCompetitors: string[];
     const { data: existingResearch } = await admin
       .from("topic_research")
-      .select("*")
+      .select("id")
       .eq("analysis_id", id)
       .maybeSingle();
 
-    if (existingResearch) {
-      topicCompetitors = existingResearch.competitors ?? [];
-    } else {
+    if (!existingResearch) {
       const { data: pageRows } = await admin
         .from("profile_pages")
         .select("*")
@@ -89,11 +127,42 @@ export async function prepareAnalysis(id: string): Promise<AnalysisStatus> {
         },
         { onConflict: "analysis_id" },
       );
-
-      topicCompetitors = r.competitors;
     }
 
-    // ── A2: prompts (skip als er al prompts zijn) ──────────────────────────
+    return { needsPrompts: true };
+  } catch (err) {
+    await admin.from("analyses").update({ status: "mislukt" }).eq("id", id);
+    throw err;
+  }
+}
+
+/**
+ * Fase 2 (A2): promptgeneratie + volume-kalibratie, en daarna de poort naar
+ * klant-goedkeuring. Draait als losse taak zodat deze ronde AI-aanroepen de
+ * tijdslimiet van één werker-aanroep niet deelt met het onderwerp-onderzoek.
+ */
+export async function generateAnalysisPrompts(id: string): Promise<AnalysisStatus> {
+  const admin = createAdminClient();
+
+  const loaded = await loadPreparable(admin, id);
+  if ("done" in loaded) return loaded.done;
+  const { analysis, profile } = loaded;
+
+  try {
+    // Het onderwerp-onderzoek van fase 1 is de input voor de prompts. Ontbreekt
+    // het, dan is deze taak buiten de keten om gestart — dan is falen met een
+    // duidelijke melding beter dan prompts zonder context genereren.
+    const { data: research } = await admin
+      .from("topic_research")
+      .select("competitors")
+      .eq("analysis_id", id)
+      .maybeSingle();
+    if (!research) {
+      throw new Error(`Analyse ${id}: onderwerp-onderzoek ontbreekt, prompts kunnen niet volgen.`);
+    }
+    const topicCompetitors: string[] = research.competitors ?? [];
+
+    // Skip als er al prompts zijn (idempotent bij een nieuwe poging).
     const { count } = await admin
       .from("prompts")
       .select("*", { count: "exact", head: true })

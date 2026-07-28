@@ -73,6 +73,7 @@ export async function enqueue<T extends JobType>(
 export const dedupe = {
   profileResearch: (profileId: string) => `profile_research:${profileId}`,
   prepareAnalysis: (analysisId: string) => `prepare:${analysisId}`,
+  generatePrompts: (analysisId: string) => `prompts:${analysisId}`,
   measurePrompt: (analysisId: string, promptId: string, weekNo: number) =>
     `measure:${analysisId}:${promptId}:w${weekNo}`,
   aggregateWeek: (analysisId: string, weekNo: number) => `aggregate:${analysisId}:w${weekNo}`,

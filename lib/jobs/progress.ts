@@ -30,7 +30,8 @@ type Admin = SupabaseClient;
  */
 const TYPICAL_SECONDS: Record<JobType, number> = {
   profile_research: 50, // sitemap-crawl + AI-onderzoek met web_search
-  prepare_analysis: 45, // onderwerp-onderzoek + prompts + volume-kalibratie
+  prepare_analysis: 30, // onderwerp-onderzoek: één gegrondde AI-aanroep
+  generate_prompts: 35, // 3 parallelle prompt-calls + volume-kalibratie
   measure_prompt: 18, // één vraag stellen met web_search + beoordelen
   aggregate_week: 3, // puur rekenwerk
   generate_report: 25, // gap-analyse + rapport
