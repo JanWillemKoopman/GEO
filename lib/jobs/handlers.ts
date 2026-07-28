@@ -8,13 +8,13 @@ import "server-only";
  * nadat de meting klaar was — sloot de klant de tab, dan gebeurde er niets meer.
  * Nu loopt de keten op de server:
  *
- *   prepare_analysis → (wacht op goedkeuring van de klant)
+ *   prepare_analysis → generate_prompts → (wacht op goedkeuring van de klant)
  *   measure_prompt ×N → aggregate_week → generate_report → mail
  *   content_draft → content_revise
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { prepareProfile } from "@/lib/pipeline/prepare-profile";
-import { prepareAnalysis } from "@/lib/pipeline/prepare";
+import { prepareTopicResearch, generateAnalysisPrompts } from "@/lib/pipeline/prepare";
 import { measurePromptById, computeAggregates, measurementIsUsable } from "@/lib/pipeline/measure";
 import { generateReport } from "@/lib/pipeline/report";
 import { draftContentPiece, reviseContentPiece } from "@/lib/pipeline/content";
@@ -130,12 +130,28 @@ const handlers: { [T in JobType]: Handler<T> } = {
     await prepareProfile(job.profile_id);
   },
 
-  // ── Voorbereiding: onderwerp-onderzoek + prompts ──────────────────────────
+  // ── Voorbereiding stap 1: onderwerp-onderzoek ─────────────────────────────
+  // Bewust los van de promptgeneratie: samen passen ze niet binnen de zestig
+  // seconden van één werker-aanroep (zie de toelichting in lib/pipeline/prepare.ts).
+  prepare_analysis: async ({ admin, job }) => {
+    if (!job.analysis_id) throw new Error("prepare_analysis zonder analysis_id.");
+    const { needsPrompts } = await prepareTopicResearch(job.analysis_id);
+    if (!needsPrompts) return;
+
+    await enqueue(admin, {
+      type: "generate_prompts",
+      payload: {},
+      analysisId: job.analysis_id,
+      dedupeKey: dedupe.generatePrompts(job.analysis_id),
+    });
+  },
+
+  // ── Voorbereiding stap 2: de vragen opstellen ─────────────────────────────
   // Géén automatisch vervolg: hierna wacht de analyse op goedkeuring van de
   // klant (de review-gate). Dat is een bewuste stop, geen ontbrekende schakel.
-  prepare_analysis: async ({ job }) => {
-    if (!job.analysis_id) throw new Error("prepare_analysis zonder analysis_id.");
-    await prepareAnalysis(job.analysis_id);
+  generate_prompts: async ({ job }) => {
+    if (!job.analysis_id) throw new Error("generate_prompts zonder analysis_id.");
+    await generateAnalysisPrompts(job.analysis_id);
   },
 
   // ── Eén vraag meten (3a + 3b) ─────────────────────────────────────────────

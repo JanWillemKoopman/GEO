@@ -13,8 +13,10 @@ import type { RecommendationTarget } from "@/lib/pipeline/recommendation";
 export const JOB_TYPES = [
   /** Eenmalig profielonderzoek: crawl + merk/branche/concurrenten. */
   "profile_research",
-  /** Onderwerp-onderzoek + promptgeneratie voor één analyse. */
+  /** Onderwerp-onderzoek voor één analyse. Ketent naar generate_prompts. */
   "prepare_analysis",
+  /** Promptgeneratie + volume-kalibratie voor één analyse (2e helft van de voorbereiding). */
+  "generate_prompts",
   /** Eén vraag stellen en het antwoord beoordelen (3a + 3b). Eén per prompt. */
   "measure_prompt",
   /** Pure aggregatie over alle metingen van een week (3c). Geen AI-aanroep. */
@@ -58,6 +60,7 @@ export interface RecommendationPayload {
 export interface JobPayloads {
   profile_research: Record<string, never>;
   prepare_analysis: Record<string, never>;
+  generate_prompts: Record<string, never>;
   measure_prompt: {
     promptId: string;
     weekNo: number;
@@ -96,7 +99,8 @@ export interface JobPayloads {
  */
 export const HEAVY_JOB_TYPES: ReadonlySet<JobType> = new Set<JobType>([
   "profile_research", // crawlt de hele site + AI-onderzoek met web_search
-  "prepare_analysis", // onderwerp-onderzoek + 3 parallelle prompt-calls + kalibratie
+  "prepare_analysis", // onderwerp-onderzoek: één gegrondde AI-aanroep
+  "generate_prompts", // 3 parallelle prompt-calls + volume-kalibratie
   "content_draft", // gpt-4.1 schrijft een volledige pagina
   "content_revise", // idem
   "offsite_scan", // crawlt niets maar doet wel een gegroundde AI-aanroep + externe API's

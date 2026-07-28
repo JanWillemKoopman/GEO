@@ -41,11 +41,17 @@ const TIME_BUDGET_MS = workerTimeBudgetMs;
 const CLAIM_BATCH = 5;
 
 /**
- * Na hoeveel minuten geldt een 'running' taak als vastgelopen? Ruim boven de
- * langste taak (een profielonderzoek met crawl + web_search), zodat we nooit
- * iets terugzetten dat nog gewoon draait.
+ * Na hoeveel minuten geldt een 'running' taak als vastgelopen?
+ *
+ * De route waarin de werker draait wordt door het platform na 60 seconden
+ * afgekapt (`maxDuration` in app/api/cron/worker/route.ts). Een taak die daarna
+ * nog steeds op 'running' staat, drááít dus niet meer — die hoort bij een
+ * aanroep die halverwege is doodgeslagen. Vijf minuten is ruim een factor vijf
+ * boven die harde grens (veilig), maar half zo lang als de tien minuten die
+ * hier eerst stonden: zo lang staat de klant naar een voortgangsscherm te
+ * kijken waarachter niets meer gebeurt.
  */
-const STUCK_AFTER_MINUTES = 10;
+const STUCK_AFTER_MINUTES = 5;
 
 /**
  * Taken waarvan het definitief mislukken betekent dat de ANALYSE (of het
@@ -58,6 +64,7 @@ const STUCK_AFTER_MINUTES = 10;
 const BLOCKING_JOB_TYPES: ReadonlySet<JobType> = new Set<JobType>([
   "profile_research",
   "prepare_analysis",
+  "generate_prompts",
   "aggregate_week",
   "generate_report",
 ]);
