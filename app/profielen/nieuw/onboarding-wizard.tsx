@@ -22,6 +22,16 @@ import { checkUrlFormat } from "@/lib/url";
  * duidelijk is waarom het helpt (zie `ProfileGaps` op de profielpagina).
  *
  * Wat de klant zelf invult blijft leidend; de AI-research vult alleen aan.
+ *
+ * ── VERPLICHT ZODRA JE VOOR "MEER VERTELLEN" KIEST ──────────────────────────
+ * Kiest de klant voor de snelle start (alleen naam + website), dan blijft
+ * alles hierboven van kracht: de uitgebreide vragen worden overgeslagen. Kiest
+ * hij bewust voor "Eerst meer vertellen", dan voelde het invullen daarna te
+ * vrijblijvend aan — terwijl juist deze velden de kwaliteit van de meting en
+ * gegenereerde content grotendeels bepalen. Vandaar: per stap een expliciete
+ * verplicht/optioneel-markering (isStepValid hieronder), geen tussentijdse
+ * "sla de rest maar over"-knop meer, en niet vooruit kunnen zonder de
+ * verplichte velden van de huidige stap.
  */
 
 interface FormState {
@@ -83,8 +93,29 @@ export function OnboardingWizard() {
   const urlCheck = checkUrlFormat(form.url);
   const showUrlError = urlTouched && form.url.trim() !== "" && !urlCheck.ok;
 
-  const canProceed =
-    step > 0 || (form.name.trim() !== "" && form.url.trim() !== "" && urlCheck.ok);
+  // Per stap: welke velden zijn verplicht om verder te mogen? Alleen de
+  // velden die de kwaliteit van meting/content het meest bepalen — de rest
+  // (aliassen, bereik/regio's, markt & taal, sitemap) blijft optioneel.
+  function isStepValid(s: number): boolean {
+    switch (s) {
+      case 0:
+        return form.name.trim() !== "" && form.url.trim() !== "" && urlCheck.ok;
+      case 1:
+        return (
+          form.intake_description.trim() !== "" &&
+          form.industry.trim() !== "" &&
+          form.products.length > 0
+        );
+      case 2:
+        return form.competitors.length > 0;
+      case 3:
+        return form.intake_audience.trim() !== "" && form.tone_of_voice.trim() !== "";
+      default:
+        return true;
+    }
+  }
+
+  const canProceed = isStepValid(step);
 
   function set<K extends keyof FormState>(key: K, value: FormState[K]) {
     setForm((f) => ({ ...f, [key]: value }));
@@ -137,7 +168,7 @@ export function OnboardingWizard() {
         <p className="mt-2 text-secondary">
           {step === 0
             ? "Twee velden en we gaan aan de slag. We zoeken zelf uit wat je aanbiedt, wie je concurrenten zijn en hoe zichtbaar je bent in AI-assistenten."
-            : "Wat je hier invult houden we aan; de AI vult alleen aan wat je openlaat. Alles is optioneel — je kunt op elk moment stoppen en aanmaken."}
+            : "Wat je hier invult houden we aan; de AI vult alleen aan wat je openlaat. Velden met een * zijn verplicht — ze bepalen grotendeels de kwaliteit van de meting en de content. De rest is optioneel en kun je ook later nog aanvullen."}
         </p>
       </div>
 
@@ -200,7 +231,7 @@ export function OnboardingWizard() {
               )}
             </label>
             <div className="flex flex-col gap-1.5">
-              <span className="mono-label">Andere namen / schrijfwijzen</span>
+              <span className="mono-label">Andere namen / schrijfwijzen (optioneel)</span>
               <TagListEditor
                 items={form.aliases}
                 onChange={(aliases) => set("aliases", aliases)}
@@ -216,7 +247,7 @@ export function OnboardingWizard() {
         {step === 1 && (
           <>
             <label className="flex flex-col gap-1.5">
-              <span className="mono-label">Korte omschrijving van het bedrijf</span>
+              <span className="mono-label">Korte omschrijving van het bedrijf *</span>
               <textarea
                 className="field"
                 rows={4}
@@ -228,7 +259,7 @@ export function OnboardingWizard() {
               <span className="text-sm text-muted">Hoe meer context, hoe beter de AI het profiel invult.</span>
             </label>
             <label className="flex flex-col gap-1.5">
-              <span className="mono-label">Branche</span>
+              <span className="mono-label">Branche *</span>
               <input
                 className="field"
                 value={form.industry}
@@ -237,7 +268,7 @@ export function OnboardingWizard() {
               />
             </label>
             <div className="flex flex-col gap-1.5">
-              <span className="mono-label">Belangrijkste producten / diensten</span>
+              <span className="mono-label">Belangrijkste producten / diensten * (minimaal 1)</span>
               <TagListEditor
                 items={form.products}
                 onChange={(products) => set("products", products)}
@@ -245,7 +276,7 @@ export function OnboardingWizard() {
               />
             </div>
             <div className="flex flex-col gap-1.5">
-              <span className="mono-label">Waarom kiezen klanten voor jou? (waardeproposities)</span>
+              <span className="mono-label">Waarom kiezen klanten voor jou? (waardeproposities, optioneel)</span>
               <TagListEditor
                 items={form.value_props}
                 onChange={(value_props) => set("value_props", value_props)}
@@ -258,7 +289,7 @@ export function OnboardingWizard() {
         {step === 2 && (
           <>
             <div className="flex flex-col gap-1.5">
-              <span className="mono-label">Bereik</span>
+              <span className="mono-label">Bereik (optioneel)</span>
               <div className="flex flex-wrap gap-2">
                 {SCOPES.map((s) => (
                   <button
@@ -274,7 +305,7 @@ export function OnboardingWizard() {
             </div>
             {form.service_scope === "lokaal" && (
               <div className="flex flex-col gap-1.5">
-                <span className="mono-label">Plaatsen / regio&apos;s</span>
+                <span className="mono-label">Plaatsen / regio&apos;s (optioneel)</span>
                 <TagListEditor
                   items={form.service_regions}
                   onChange={(service_regions) => set("service_regions", service_regions)}
@@ -284,7 +315,7 @@ export function OnboardingWizard() {
               </div>
             )}
             <label className="flex flex-col gap-1.5">
-              <span className="mono-label">Markt &amp; taal</span>
+              <span className="mono-label">Markt &amp; taal (optioneel)</span>
               <select
                 className="field"
                 value={form.market_language}
@@ -299,7 +330,7 @@ export function OnboardingWizard() {
               </select>
             </label>
             <div className="flex flex-col gap-1.5">
-              <span className="mono-label">Bekende concurrenten</span>
+              <span className="mono-label">Bekende concurrenten * (minimaal 1)</span>
               <TagListEditor
                 items={form.competitors}
                 onChange={(competitors) => set("competitors", competitors)}
@@ -313,7 +344,7 @@ export function OnboardingWizard() {
         {step === 3 && (
           <>
             <label className="flex flex-col gap-1.5">
-              <span className="mono-label">Doelgroep</span>
+              <span className="mono-label">Doelgroep *</span>
               <textarea
                 className="field"
                 rows={3}
@@ -324,7 +355,7 @@ export function OnboardingWizard() {
               />
             </label>
             <label className="flex flex-col gap-1.5">
-              <span className="mono-label">Gewenste tone of voice</span>
+              <span className="mono-label">Gewenste tone of voice *</span>
               <input
                 className="field"
                 value={form.tone_of_voice}
@@ -393,7 +424,8 @@ export function OnboardingWizard() {
             </button>
             <span className="text-sm text-muted">
               Meer vertellen maakt de meting nauwkeuriger, maar het hoeft niet nu — je kunt het
-              later aanvullen. Het onderzoek duurt ongeveer een minuut.
+              later aanvullen. Het onderzoek duurt ongeveer een minuut. Kies je hiervoor, dan zijn
+              de velden met een * verplicht.
             </span>
           </div>
         ) : (
@@ -414,7 +446,7 @@ export function OnboardingWizard() {
                 disabled={pending || !canProceed}
                 className="btn-primary disabled:opacity-60"
               >
-                {pending ? "Profiel aanmaken…" : "Profiel aanmaken"}
+                {pending ? "Bedrijfsprofiel opslaan…" : "Bedrijfsprofiel opslaan"}
               </button>
             ) : (
               <button
@@ -429,17 +461,6 @@ export function OnboardingWizard() {
           </div>
         )}
       </div>
-
-      {step > 0 && !isLast && (
-        <button
-          type="button"
-          onClick={() => void submit(false)}
-          disabled={pending || !canProceed}
-          className="btn-outline self-center disabled:opacity-40"
-        >
-          Klaar — maak het profiel aan
-        </button>
-      )}
     </div>
   );
 }
