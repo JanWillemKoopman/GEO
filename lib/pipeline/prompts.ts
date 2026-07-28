@@ -269,9 +269,9 @@ async function generateForFunnelStage(args: {
  * (optimalisatie.md 2.6). De ruwe waarde blijft als audit-trail in
  * `volume_estimate` staan.
  */
-async function calibrateVolumes(prompts: GeneratedPrompt[], analysisId: string): Promise<number[]> {
-  if (prompts.length === 0) return [];
-  const numbered = prompts.map((p, i) => `${i + 1}. ${p.text}`).join("\n");
+export async function calibrateVolumes(texts: string[], analysisId: string): Promise<number[]> {
+  if (texts.length === 0) return [];
+  const numbered = texts.map((t, i) => `${i + 1}. ${t}`).join("\n");
   try {
     const result = await callStructured({
       model: MODELS.quality,
@@ -291,9 +291,9 @@ async function calibrateVolumes(prompts: GeneratedPrompt[], analysisId: string):
     for (const w of result.parsed.weights) {
       byIndex.set(Math.round(w.index), Math.max(0, Math.min(100, Math.round(w.volume))));
     }
-    return prompts.map((_, i) => byIndex.get(i + 1) ?? 50);
+    return texts.map((_, i) => byIndex.get(i + 1) ?? 50);
   } catch {
-    return prompts.map(() => 50);
+    return texts.map(() => 50);
   }
 }
 
@@ -301,6 +301,15 @@ async function calibrateVolumes(prompts: GeneratedPrompt[], analysisId: string):
  * Vuurt alle funnelfase-calls parallel af (geen onderlinge afhankelijkheid) en
  * bundelt het resultaat. Faalt één fase, dan faalt de hele batch — de
  * orchestratie (prepare.ts) markeert de analyse dan als 'mislukt' met retry.
+ *
+ * De volume-kalibratie zit hier BEWUST niet meer in. Elke funnelfase kan tot
+ * MAX_TOPUP_ATTEMPTS aanroepen achter elkaar doen (vragen die de merknaam
+ * bevatten worden weggegooid en bijgevuld), en met de kalibratie erachteraan
+ * werden dat drie ronden in één taak — te veel voor de zestig seconden van één
+ * werker-aanroep. De prompts krijgen hier een neutrale 50 mee; de losse taak
+ * `calibrate_volumes` verfijnt dat daarna. Blijft die achterwege, dan is 50
+ * precies de terugvalwaarde die deze functie bij een mislukte kalibratie ook al
+ * gebruikte — de analyse werkt dus gewoon door.
  */
 export async function generatePrompts(args: {
   /** Voor de kostenregistratie (optimalisatie.md 0.6). */
@@ -331,7 +340,5 @@ export async function generatePrompts(args: {
     );
   }
 
-  // Relatieve volume-kalibratie over alle prompts samen (consistenter).
-  const volumes = await calibrateVolumes(prompts, args.analysisId);
-  return prompts.map((p, i) => ({ ...p, volumeEstimate: volumes[i] }));
+  return prompts;
 }

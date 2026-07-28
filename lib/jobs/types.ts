@@ -15,8 +15,10 @@ export const JOB_TYPES = [
   "profile_research",
   /** Onderwerp-onderzoek voor één analyse. Ketent naar generate_prompts. */
   "prepare_analysis",
-  /** Promptgeneratie + volume-kalibratie voor één analyse (2e helft van de voorbereiding). */
+  /** Promptgeneratie voor één analyse (2e helft van de voorbereiding). */
   "generate_prompts",
+  /** Zoekvolume relatief kalibreren over alle vragen. Verfijning ná de review-gate. */
+  "calibrate_volumes",
   /** Eén vraag stellen en het antwoord beoordelen (3a + 3b). Eén per prompt. */
   "measure_prompt",
   /** Pure aggregatie over alle metingen van een week (3c). Geen AI-aanroep. */
@@ -61,6 +63,7 @@ export interface JobPayloads {
   profile_research: Record<string, never>;
   prepare_analysis: Record<string, never>;
   generate_prompts: Record<string, never>;
+  calibrate_volumes: Record<string, never>;
   measure_prompt: {
     promptId: string;
     weekNo: number;
@@ -100,7 +103,7 @@ export interface JobPayloads {
 export const HEAVY_JOB_TYPES: ReadonlySet<JobType> = new Set<JobType>([
   "profile_research", // crawlt de hele site + AI-onderzoek met web_search
   "prepare_analysis", // onderwerp-onderzoek: één gegrondde AI-aanroep
-  "generate_prompts", // 3 parallelle prompt-calls + volume-kalibratie
+  "generate_prompts", // 3 parallelle prompt-calls, elk met een bijvul-ronde
   "content_draft", // gpt-4.1 schrijft een volledige pagina
   "content_revise", // idem
   "offsite_scan", // crawlt niets maar doet wel een gegroundde AI-aanroep + externe API's
