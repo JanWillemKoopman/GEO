@@ -265,9 +265,6 @@ function buildContentInput(args: {
     `Tone of voice: ${profile?.tone_of_voice ?? "professioneel, helder"}`,
     `Diensten/producten: ${(profile?.products ?? []).join(", ") || "onbekend"}`,
     profile?.value_props?.length ? `Waardeproposities (waarom klanten kiezen): ${profile.value_props.join(", ")}` : "",
-    profile?.customer_questions?.length
-      ? `Veelgehoorde klantvragen (verwerk waar relevant): ${profile.customer_questions.join(" | ")}`
-      : "",
     // ✅ Grounding: geverifieerde feiten die de schrijver WEL mag gebruiken.
     proofPoints.length
       ? `Feiten over dit bedrijf (geverifieerd — deze mag en MOET je gebruiken waar ze passen):\n- ${proofPoints.join("\n- ")}`

@@ -93,7 +93,6 @@ export interface Profile {
   service_scope: string | null; // 'lokaal' | 'landelijk' | 'internationaal'
   service_regions: string[];
   market_language: string | null;
-  customer_questions: string[];
   /** Crawl-instellingen voor de content-inventaris (§12.23), bewerkbaar door de klant. */
   sitemap_url: string | null;
   max_inventory_pages: number;

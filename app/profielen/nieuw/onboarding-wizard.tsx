@@ -38,7 +38,6 @@ interface FormState {
   competitors: string[];
   intake_audience: string;
   tone_of_voice: string;
-  customer_questions: string[];
   sitemap_url: string;
 }
 
@@ -67,7 +66,6 @@ export function OnboardingWizard() {
     competitors: [],
     intake_audience: "",
     tone_of_voice: "",
-    customer_questions: [],
     sitemap_url: "",
   });
   const [error, setError] = useState<string | null>(null);
@@ -339,15 +337,6 @@ export function OnboardingWizard() {
 
         {step === 4 && (
           <>
-            <div className="flex flex-col gap-1.5">
-              <span className="mono-label">Veelgehoorde klantvragen</span>
-              <TagListEditor
-                items={form.customer_questions}
-                onChange={(customer_questions) => set("customer_questions", customer_questions)}
-                placeholder="bijv. 'Kan ik zonder afspraak langskomen?'"
-              />
-              <span className="text-sm text-muted">Vragen die klanten je vaak stellen — helpen bij content.</span>
-            </div>
             <label className="flex flex-col gap-1.5">
               <span className="mono-label">Sitemap-URL (optioneel)</span>
               <input

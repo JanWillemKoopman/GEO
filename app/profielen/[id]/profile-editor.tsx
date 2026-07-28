@@ -49,7 +49,6 @@ export function ProfileEditor({ initial, inventoryCount }: { initial: Profile; i
           service_scope: profile.service_scope,
           service_regions: profile.service_regions,
           market_language: profile.market_language,
-          customer_questions: profile.customer_questions,
           sitemap_url: profile.sitemap_url,
           max_inventory_pages: profile.max_inventory_pages,
         }),
@@ -216,14 +215,6 @@ export function ProfileEditor({ initial, inventoryCount }: { initial: Profile; i
             placeholder="bijv. Nederland + België"
           />
         </label>
-        <div className="flex flex-col gap-1.5">
-          <span className="mono-label">Veelgehoorde klantvragen</span>
-          <TagListEditor
-            items={profile.customer_questions}
-            onChange={(customer_questions) => setProfile((p) => ({ ...p, customer_questions }))}
-            placeholder="Nieuwe klantvraag…"
-          />
-        </div>
       </CollapsibleSection>
 
       <CollapsibleSection title="Concurrenten & persona's">

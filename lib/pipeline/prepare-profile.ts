@@ -60,7 +60,6 @@ export async function prepareProfile(id: string): Promise<ProfileStatus> {
         marketLanguage: prof.market_language,
         toneOfVoice: prof.tone_of_voice,
         audience: prof.intake_audience,
-        customerQuestions: prof.customer_questions,
       },
     });
     const p = research.parsed;
