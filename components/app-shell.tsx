@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { signOut } from "@/app/(auth)/actions";
+import { ProfileMenu } from "@/components/profile-menu";
 import type { User } from "@supabase/supabase-js";
 
 /**
@@ -25,13 +26,14 @@ export function AppShell({ user, children }: { user: User; children: React.React
               </Link>
             </nav>
           </div>
-          <div className="flex items-center gap-4">
+          <div className="ml-auto flex items-center gap-2">
             <span className="hidden text-sm text-secondary sm:inline">{user.email}</span>
             <form action={signOut}>
               <button type="submit" className="mono-label transition-colors hover:text-[var(--text-primary)]">
                 Uitloggen
               </button>
             </form>
+            <ProfileMenu />
           </div>
         </div>
       </header>
