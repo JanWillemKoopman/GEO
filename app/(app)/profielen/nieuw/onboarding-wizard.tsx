@@ -7,7 +7,7 @@ import { TagListEditor } from "@/components/tag-list-editor";
 import { checkUrlFormat } from "@/lib/url";
 
 /**
- * Onboarding voor een nieuw klantprofiel (abcplan.md §12.24).
+ * Onboarding voor een nieuw merk (abcplan.md §12.24).
  *
  * ── WAARDE VÓÓR INSPANNING (optimalisatie.md bijlage A9) ────────────────────
  *
@@ -51,7 +51,10 @@ interface FormState {
   sitemap_url: string;
 }
 
-const STEP_TITLES = ["Bedrijf", "Wat je doet", "Markt & concurrentie", "Doelgroep & stijl", "Kennis & techniek"];
+// Vier stappen, niet vijf. De laatste stap bevatte één optioneel veld
+// (sitemap-URL) met een volledige stap, terug/volgende-knop en een kwart
+// voortgangsbalk eromheen. Dat veld staat nu onderaan stap 4.
+const STEP_TITLES = ["Bedrijf", "Wat je doet", "Markt & concurrentie", "Doelgroep, stijl & techniek"];
 const SCOPES = [
   { value: "lokaal", label: "Lokaal" },
   { value: "landelijk", label: "Landelijk" },
@@ -162,9 +165,9 @@ export function OnboardingWizard() {
     <div className="mx-auto flex max-w-xl flex-col gap-6">
       <div>
         <Link href="/profielen" className="mono-label transition-colors hover:text-[var(--text-primary)]">
-          ← Terug naar Klantprofielen
+          ← Merken
         </Link>
-        <h1 className="mt-3 text-3xl font-bold tracking-tight">Nieuw klantprofiel</h1>
+        <h1 className="text-3xl font-bold tracking-tight">Nieuw merk</h1>
         <p className="mt-2 text-secondary">
           {step === 0
             ? "Twee velden en we gaan aan de slag. We zoeken zelf uit wat je aanbiedt, wie je concurrenten zijn en hoe zichtbaar je bent in AI-assistenten."
@@ -363,11 +366,6 @@ export function OnboardingWizard() {
                 placeholder="bijv. toegankelijk, deskundig, informeel"
               />
             </label>
-          </>
-        )}
-
-        {step === 4 && (
-          <>
             <label className="flex flex-col gap-1.5">
               <span className="mono-label">Sitemap-URL (optioneel)</span>
               <input
@@ -446,7 +444,7 @@ export function OnboardingWizard() {
                 disabled={pending || !canProceed}
                 className="btn-primary disabled:opacity-60"
               >
-                {pending ? "Bedrijfsprofiel opslaan…" : "Bedrijfsprofiel opslaan"}
+                {pending ? "Onderzoek starten…" : "Opslaan en onderzoek starten"}
               </button>
             ) : (
               <button

@@ -62,7 +62,7 @@ export function ProfileGaps({ profile }: { profile: Profile }) {
   if (gaps.length === 0) return null;
 
   return (
-    <div className="card flex flex-col gap-3" style={{ borderColor: "rgba(165,120,240,0.4)" }}>
+    <div className="card card-accent flex flex-col gap-3">
       <span className="mono-label flex items-center gap-1">
         Dit zou de meting scherper maken
         <InfoHint label="Moet dit?">

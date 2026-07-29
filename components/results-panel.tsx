@@ -15,23 +15,11 @@ import type { ImpactVerdict } from "@/lib/types/database";
  * beweegt ook vanzelf. "Op de vragen waarvoor je publiceerde +18, op de rest +3"
  * is wél een uitspraak die standhoudt.
  */
-const VERDICT: Record<ImpactVerdict, { text: string; style: React.CSSProperties }> = {
-  gestegen: {
-    text: "Gestegen",
-    style: { background: "rgba(46,158,80,0.1)", color: "#1f7a3d", borderColor: "rgba(46,158,80,0.3)" },
-  },
-  gedaald: {
-    text: "Gedaald",
-    style: { background: "rgba(211,58,63,0.1)", color: "#c2282d", borderColor: "rgba(211,58,63,0.3)" },
-  },
-  gelijk: {
-    text: "Nog gelijk",
-    style: { background: "rgba(11,11,12,0.05)", color: "var(--text-muted)", borderColor: "var(--border-subtle)" },
-  },
-  te_weinig_data: {
-    text: "Nog aan het meten",
-    style: { background: "rgba(11,11,12,0.05)", color: "var(--text-muted)", borderColor: "var(--border-subtle)" },
-  },
+const VERDICT: Record<ImpactVerdict, { text: string; className: string }> = {
+  gestegen: { text: "Gestegen", className: "chip chip-success" },
+  gedaald: { text: "Gedaald", className: "chip chip-danger" },
+  gelijk: { text: "Nog gelijk", className: "chip chip-neutral" },
+  te_weinig_data: { text: "Nog aan het meten", className: "chip chip-neutral" },
 };
 
 export function ResultsPanel({ analysisId, results }: { analysisId: string; results: ResultsSummary }) {
@@ -41,7 +29,7 @@ export function ResultsPanel({ analysisId, results }: { analysisId: string; resu
   return (
     <div className="flex flex-col gap-4">
       {totals && (
-        <div className="card flex flex-col gap-3" style={{ borderColor: "rgba(46,158,80,0.4)" }}>
+        <div className="card card-success flex flex-col gap-3">
           <span className="mono-label flex items-center gap-1">
             Wat het heeft opgeleverd
             <InfoHint label="Wat het heeft opgeleverd">
@@ -118,7 +106,7 @@ export function ResultsPanel({ analysisId, results }: { analysisId: string; resu
                   >
                     {p.title}
                   </Link>
-                  <span className="chip" style={VERDICT[p.impact?.verdict ?? "te_weinig_data"].style}>
+                  <span className={VERDICT[p.impact?.verdict ?? "te_weinig_data"].className}>
                     {VERDICT[p.impact?.verdict ?? "te_weinig_data"].text}
                   </span>
                 </div>

@@ -15,12 +15,12 @@ import { groupWork, WORK_KIND_LABEL, WORK_STATE_LABEL, type WorkItem, type WorkS
  * groepeert naar "moet ik hier iets?".
  */
 
-/** Chip-tint per staat. Dezelfde tinten als elders in het systeem (§A1). */
-const STATE_STYLE: Record<WorkState, React.CSSProperties> = {
-  nu: { background: "rgba(133,17,217,0.1)", color: "#7a13c9", borderColor: "rgba(133,17,217,0.28)" },
-  loopt: { background: "rgba(11,11,12,0.05)", color: "rgba(11,11,12,0.62)", borderColor: "rgba(11,11,12,0.12)" },
-  wacht: { background: "rgba(185,162,122,0.16)", color: "#8a6100", borderColor: "rgba(185,162,122,0.4)" },
-  klaar: { background: "rgba(46,158,80,0.1)", color: "#1f7a3d", borderColor: "rgba(46,158,80,0.3)" },
+/** Chip-tint per staat — de klassen uit het design system, geen losse kleuren. */
+const STATE_CHIP: Record<WorkState, string> = {
+  nu: "chip",
+  loopt: "chip chip-neutral",
+  wacht: "chip chip-warning",
+  klaar: "chip chip-success",
 };
 
 /**
@@ -128,9 +128,7 @@ export function WorkList({ items }: { items: WorkItem[] }) {
                   </InfoHint>
                 )}
               </span>
-              <span className="chip" style={STATE_STYLE[group.state]}>
-                {group.items.length}
-              </span>
+              <span className={STATE_CHIP[group.state]}>{group.items.length}</span>
             </div>
 
             {collapsed ? (

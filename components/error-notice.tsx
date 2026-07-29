@@ -26,7 +26,7 @@ export function ErrorNotice({
   retryLabel?: string;
 }) {
   return (
-    <div className="card flex flex-col gap-4" style={{ borderColor: "rgba(211,58,63,0.4)" }}>
+    <div className="card card-danger flex flex-col gap-4">
       <div className="flex flex-col gap-2">
         <span
           className="chip w-fit"

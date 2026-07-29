@@ -37,15 +37,15 @@ export async function POST(request: Request) {
   const admin = createAdminClient();
 
   if (!body.profileId) {
-    return NextResponse.json({ error: "Kies een klantprofiel." }, { status: 400 });
+    return NextResponse.json({ error: "Kies een merk." }, { status: 400 });
   }
   const profile = await getOwnedProfile(admin, body.profileId, user.id);
   if (!profile) {
-    return NextResponse.json({ error: "Klantprofiel niet gevonden." }, { status: 404 });
+    return NextResponse.json({ error: "Merk niet gevonden." }, { status: 404 });
   }
   if (profile.status !== "klaar") {
     return NextResponse.json(
-      { error: "Dit klantprofiel is nog niet klaar met onderzoeken." },
+      { error: "Dit merk is nog niet klaar met onderzoeken." },
       { status: 409 },
     );
   }

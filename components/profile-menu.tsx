@@ -4,12 +4,19 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { NAV, ACCOUNT_NAV, type NavItem } from "@/lib/nav";
 
 /**
- * Mobiel accountmenu: op kleine schermen staat er in de header alleen dit
- * profiel-icoon (desktop toont alles al direct inline, zie AppShell). Erachter
- * zit geen kleine dropdown maar een full-screen sheet (designsystem.md C3: op
- * mobiel voelt dat nativer aan dan een klein paneeltje).
+ * Het menu achter het profiel-icoon — op élk schermformaat.
+ *
+ * Dit was eerder alleen een mobiel menu; op desktop stonden dezelfde links plus
+ * het e-mailadres en een uitlog-knop uitgestald in de bovenbalk. Twee menu's
+ * met dezelfde inhoud, en ze liepen dan ook uit elkaar. Nu is het er één, en
+ * bevat de balk alleen nog waar je naartoe kunt.
+ *
+ * Erachter zit geen kleine dropdown maar een full-screen sheet (designsystem.md
+ * C3) — dat is het patroon van InSpace zelf, en het maakt van accountzaken een
+ * bewuste zijstap in plaats van een uitklapmenu dat je per ongeluk opent.
  *
  * Vormgeving bewust 1-op-1 afgestemd op InSpace's eigen "Pick your orbit"
  * mobiele menu (referentie-screenshot van de opdrachtgever, juli 2026):
@@ -18,20 +25,13 @@ import { createPortal } from "react-dom";
  * met de tokens uit designsystem.md §A/§B (geen nieuwe kleuren/fonts).
  */
 
-interface MenuLink {
-  href: string;
-  label: string;
-}
-
-const NAV_LINKS: MenuLink[] = [
-  { href: "/analyses", label: "Mijn analyses" },
-  { href: "/profielen", label: "Klantprofielen" },
-];
-
-const ACCOUNT_LINKS: MenuLink[] = [
-  { href: "/profielen", label: "Mijn bedrijfsgegevens" },
-  { href: "/instellingen", label: "Mijn instellingen" },
-];
+/**
+ * De links komen uit `lib/nav.ts` — dezelfde bron als de bovenbalk. Ze stonden
+ * hier als losse constanten, en dat leverde precies op wat je verwacht: de twee
+ * menu's liepen uit elkaar, met een "Mijn bedrijfsgegevens" onder Account dat
+ * naar dezelfde route wees als "Klantprofielen" onder Navigatie.
+ */
+type MenuLink = NavItem;
 
 function ChevronIcon() {
   return (
@@ -137,7 +137,7 @@ export function ProfileMenu({
         onClick={() => setOpen(true)}
         aria-label="Menu openen"
         aria-haspopup="dialog"
-        className="flex h-11 w-11 items-center justify-center rounded-full text-[var(--text-muted)] transition-colors hover:text-[var(--accent-purple)] sm:hidden"
+        className="flex h-11 w-11 items-center justify-center rounded-full text-[var(--text-muted)] transition-colors hover:text-[var(--accent-purple)]"
       >
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
           <circle cx="12" cy="8" r="4" stroke="currentColor" strokeWidth="1.6" />
@@ -152,7 +152,7 @@ export function ProfileMenu({
             role="dialog"
             aria-modal="true"
             aria-label="Menu"
-            className="fixed inset-0 z-50 flex flex-col overflow-hidden bg-[var(--bg-base)] sm:hidden"
+            className="fixed inset-0 z-50 flex flex-col overflow-hidden bg-[var(--bg-base)]"
           >
             {/* Ambient gloed-orbs (designsystem.md A3/B) — dezelfde grote, sterk
                 vervaagde accent-cirkels als InSpace achter hun menu/hero. */}
@@ -190,8 +190,8 @@ export function ProfileMenu({
                 </h2>
               </div>
 
-              <NumberedNav label="Navigatie" links={NAV_LINKS} pathname={pathname} onNavigate={() => setOpen(false)} />
-              <NumberedNav label="Account" links={ACCOUNT_LINKS} pathname={pathname} onNavigate={() => setOpen(false)} />
+              <NumberedNav label="Navigatie" links={NAV} pathname={pathname} onNavigate={() => setOpen(false)} />
+              <NumberedNav label="Account" links={ACCOUNT_NAV} pathname={pathname} onNavigate={() => setOpen(false)} />
 
               <div className="mt-auto flex flex-col gap-4">
                 <span className="text-sm text-secondary">{email}</span>

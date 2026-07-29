@@ -52,7 +52,7 @@ export function NewAnalysisForm({
   return (
     <form onSubmit={handleSubmit} className="card flex flex-col gap-5">
       <label className="flex flex-col gap-1.5">
-        <span className="mono-label">Klantprofiel *</span>
+        <span className="mono-label">Merk *</span>
         <select
           required
           value={profileId}
@@ -79,7 +79,7 @@ export function NewAnalysisForm({
           autoFocus
         />
         <span className="text-sm text-muted">
-          Elke analyse meet één specifiek product of onderwerp binnen het klantprofiel.
+          Elke analyse meet één specifiek product of onderwerp binnen dit merk.
         </span>
       </label>
 

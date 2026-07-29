@@ -148,13 +148,19 @@ body {
   box-shadow: 0 14px 34px rgba(11, 11, 12, 0.08);
 }
 
+/* ── Knoppen ────────────────────────────────────────────────────────────────
+   Eén hoogteschaal: 48px normaal, 40px compact. Primair was 52px en outline
+   44px, wat overal waar ze naast of onder elkaar stonden (onboarding, rapport,
+   profiel) een verschil van 8px opleverde — dat leest als slordigheid, niet
+   als hiërarchie. Het verschil in gewicht doen de kleur en de gloed. */
+
 /* Primaire pil-knop (paars, met zachte ring-gloed i.p.v. harde rand). */
 .btn-primary {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  height: 52px;
-  padding: 0 28px;
+  height: 48px;
+  padding: 0 26px;
   border-radius: var(--radius-pill);
   background-color: var(--accent-purple);
   color: #fff;
@@ -170,34 +176,13 @@ body {
   box-shadow: 0 6px 16px -8px rgba(133, 17, 217, 0.55);
 }
 
-/* Groene pil-CTA (InSpace's signatuur "Schedule free demo"-knop): groen, zwarte tekst. */
-.btn-green {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  height: 52px;
-  padding: 0 28px;
-  border-radius: var(--radius-pill);
-  background-color: var(--accent-green);
-  color: var(--text-primary);
-  font-weight: 600;
-  font-size: 1rem;
-  transition:
-    transform var(--duration-fast) var(--ease-standard),
-    box-shadow var(--duration-fast) var(--ease-standard);
-}
-.btn-green:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 12px 28px rgba(84, 184, 106, 0.28);
-}
-
 /* Secundaire/outline-knop: op licht inverteert 'ie bij hover naar solide zwart. */
 .btn-outline {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  height: 44px;
-  padding: 0 20px;
+  height: 48px;
+  padding: 0 26px;
   border-radius: var(--radius-pill);
   border: 1px solid var(--border-strong);
   color: var(--text-primary);
@@ -212,6 +197,13 @@ body {
   background-color: var(--text-primary);
   color: #fff;
   border-color: var(--text-primary);
+}
+
+/* Compacte variant, voor knoppen binnen een rij of kaart. */
+.btn-sm {
+  height: 40px;
+  padding: 0 18px;
+  font-size: 0.9375rem;
 }
 
 /* Chip/badge: pil-vormig, mono, uppercase, gedempte accentkleur. */
@@ -233,6 +225,44 @@ body {
   background-color: rgba(46, 158, 80, 0.14);
   color: var(--accent-green-text);
   border-color: rgba(46, 158, 80, 0.3);
+}
+
+/* ── Status-tinten ──────────────────────────────────────────────────────────
+   Dezelfde chip werd op zeventien plekken met de hand nagebouwd, in dertig
+   losse inline-stijlen. Twee van de gebruikte kleuren stonden niet eens in het
+   token-set: een paars dat 30 punten afweek van --accent-purple, en een rood
+   naast --status-error — twee roden die nét verschillen op schermen die
+   elkaar opvolgen. Hier staat het één keer. */
+.chip-success {
+  background-color: rgba(46, 158, 80, 0.1);
+  color: #1f7a3d;
+  border-color: rgba(46, 158, 80, 0.3);
+}
+.chip-danger {
+  background-color: rgba(211, 58, 63, 0.1);
+  color: #c2282d;
+  border-color: rgba(211, 58, 63, 0.3);
+}
+.chip-warning {
+  background-color: rgba(240, 180, 60, 0.12);
+  color: #8a6100;
+  border-color: rgba(240, 180, 60, 0.35);
+}
+.chip-neutral {
+  background-color: rgba(11, 11, 12, 0.05);
+  color: var(--text-muted);
+  border-color: var(--border-subtle);
+}
+
+/* Kaart-accenten — vervangt de losse borderColor-overrides met rauwe rgba. */
+.card-accent {
+  border-color: color-mix(in srgb, var(--accent-purple) 32%, transparent);
+}
+.card-danger {
+  border-color: color-mix(in srgb, var(--status-error) 40%, transparent);
+}
+.card-success {
+  border-color: color-mix(in srgb, var(--status-success) 40%, transparent);
 }
 
 /* Invoervelden — recessed grijs op witte kaart, paarse focus-gloed. */

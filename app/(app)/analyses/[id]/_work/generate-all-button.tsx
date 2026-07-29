@@ -65,7 +65,7 @@ export function GenerateAllButton({
 
   if (state === "queued") {
     return (
-      <div className="card flex flex-col gap-2" style={{ borderColor: "rgba(165,120,240,0.4)" }}>
+      <div className="card card-accent flex flex-col gap-2">
         <span className="flex items-center gap-2 font-medium">
           <span className="live-dot" />
           {planned} {planned === 1 ? "pagina wordt" : "pagina's worden"} geschreven
@@ -83,7 +83,7 @@ export function GenerateAllButton({
   }
 
   return (
-    <div className="card flex flex-col gap-3" style={{ borderColor: "rgba(165,120,240,0.4)" }}>
+    <div className="card card-accent flex flex-col gap-3">
       <div className="flex flex-col gap-1">
         <span className="font-medium">
           Alles laten schrijven ({remaining} van de {total})

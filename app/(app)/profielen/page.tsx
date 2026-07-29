@@ -2,6 +2,8 @@ import Link from "next/link";
 import { requireUser } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { ProfileStatusBadge } from "@/components/profile-status-badge";
+import { EmptyState } from "@/components/empty-state";
+import { PageHeader } from "@/components/page-header";
 import type { Profile } from "@/lib/types/database";
 
 export const dynamic = "force-dynamic";
@@ -23,32 +25,25 @@ export default async function ProfielenPage() {
 
   return (
     <div className="flex flex-col gap-8">
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <span className="mono-label">Klantprofielen</span>
-          <h1 className="mt-1 text-3xl font-bold tracking-tight">Overzicht</h1>
-          <p className="mt-2 max-w-xl text-secondary">
-            Eén profiel per merk: het grondige merkonderzoek (branche, concurrenten, persona&apos;s,
-            tone-of-voice) gebeurt hier één keer en wordt door al je analyses voor dat merk hergebruikt.
-          </p>
-        </div>
-        <Link href="/profielen/nieuw" className="btn-primary">
-          + Nieuw klantprofiel
-        </Link>
-      </div>
+      <PageHeader
+        eyebrow="GEO Tracker"
+        title="Merken"
+        description="Het grondige merkonderzoek — branche, concurrenten, persona's, tone-of-voice — gebeurt hier één keer per merk, en wordt door al je analyses voor dat merk hergebruikt."
+        action={
+          <Link href="/profielen/nieuw" className="btn-primary">
+            + Nieuw merk
+          </Link>
+        }
+      />
 
       {profiles.length === 0 ? (
-        <div className="card flex flex-col items-center gap-4 py-16 text-center">
-          <span className="live-dot" />
-          <h2 className="text-xl font-semibold">Nog geen klantprofielen</h2>
-          <p className="max-w-md text-secondary">
-            Maak eerst een klantprofiel aan voor een merk — daarna kun je er analyses op verschillende
-            producten/onderwerpen aan koppelen.
-          </p>
-          <Link href="/profielen/nieuw" className="btn-primary mt-2">
-            Eerste klantprofiel aanmaken
-          </Link>
-        </div>
+        <EmptyState
+          title="Nog geen merken"
+          action={{ href: "/profielen/nieuw", label: "Eerste merk toevoegen" }}
+        >
+          Voeg eerst het merk toe waarvan je de zichtbaarheid wilt meten. Daarna koppel je er
+          analyses aan voor de losse producten en onderwerpen.
+        </EmptyState>
       ) : (
         <ul className="flex flex-col gap-3">
           {profiles.map((p) => (

@@ -24,21 +24,21 @@ export default async function NewAnalysisPage() {
         </Link>
         <h1 className="mt-3 text-3xl font-bold tracking-tight">Nieuwe analyse</h1>
         <p className="mt-2 text-secondary">
-          Kies een klantprofiel en vul het product of onderwerp in dat je wilt meten. We zoeken
+          Kies een merk en vul het product of onderwerp in dat je wilt meten. We zoeken
           alleen nog uit wat de website hierover zegt en wie de concurrenten zijn voor dít
-          onderwerp — de rest komt uit het klantprofiel.
+          onderwerp — de rest komt uit het merkprofiel.
         </p>
       </div>
 
       {profiles.length === 0 ? (
         <div className="card flex flex-col items-center gap-4 py-12 text-center">
-          <h2 className="text-xl font-semibold">Eerst een klantprofiel nodig</h2>
+          <h2 className="text-xl font-semibold">Eerst een merk nodig</h2>
           <p className="max-w-md text-secondary">
-            Maak eerst een klantprofiel aan voor het merk — daarna kun je hier analyses op
+            Voeg eerst het merk toe — daarna kun je hier analyses op
             verschillende producten/onderwerpen aan koppelen.
           </p>
           <Link href="/profielen/nieuw" className="btn-primary mt-2">
-            Klantprofiel aanmaken
+            Merk toevoegen
           </Link>
         </div>
       ) : (

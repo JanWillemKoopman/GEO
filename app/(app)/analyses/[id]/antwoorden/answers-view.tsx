@@ -172,18 +172,16 @@ function AnswerCard({
 
   const status =
     row.ownMentioned === null
-      ? { text: "Niet beoordeeld", style: { background: "rgba(11,11,12,0.05)", color: "var(--text-muted)", borderColor: "var(--border-subtle)" } }
+      ? { text: "Niet beoordeeld", className: "chip chip-neutral" }
       : row.ownMentioned
-        ? { text: "Jij wordt genoemd", style: { background: "rgba(46,158,80,0.1)", color: "#1f7a3d", borderColor: "rgba(46,158,80,0.3)" } }
-        : { text: "Jij ontbreekt", style: { background: "rgba(211,58,63,0.1)", color: "#c2282d", borderColor: "rgba(211,58,63,0.3)" } };
+        ? { text: "Jij wordt genoemd", className: "chip chip-success" }
+        : { text: "Jij ontbreekt", className: "chip chip-danger" };
 
   return (
     <li className="card flex flex-col gap-3">
       <div className="flex flex-wrap items-start justify-between gap-2">
         <p className="flex-1 font-medium">{row.prompt}</p>
-        <span className="chip shrink-0" style={status.style}>
-          {status.text}
-        </span>
+        <span className={`${status.className} shrink-0`}>{status.text}</span>
       </div>
 
       <div className="flex flex-wrap items-center gap-1.5">

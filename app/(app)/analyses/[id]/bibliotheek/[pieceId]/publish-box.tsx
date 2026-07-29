@@ -76,7 +76,7 @@ export function PublishBox({
   // ── Al gepubliceerd ───────────────────────────────────────────────────────
   if (publishedAt) {
     return (
-      <div className="card flex flex-col gap-3" style={{ borderColor: "rgba(46,158,80,0.4)" }}>
+      <div className="card card-success flex flex-col gap-3">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <span className="mono-label flex items-center gap-1">
             Gepubliceerd

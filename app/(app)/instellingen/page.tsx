@@ -1,14 +1,15 @@
 import { requireUser } from "@/lib/auth";
+import { PageHeader } from "@/components/page-header";
 
 export default async function InstellingenPage() {
   const user = await requireUser();
 
   return (
     <div className="mx-auto flex max-w-xl flex-col gap-6">
-      <div>
-        <h1 className="mt-3 text-3xl font-bold tracking-tight">Mijn instellingen</h1>
-        <p className="mt-2 text-secondary">Accountinstellingen, los van je bedrijfsgegevens.</p>
-      </div>
+      <PageHeader
+        title="Mijn instellingen"
+        description="Accountinstellingen, los van je merken."
+      />
 
       <div className="card flex flex-col gap-4">
         <div className="flex justify-between gap-4 border-b border-[var(--border-subtle)] pb-3">

@@ -40,42 +40,26 @@ const TYPE_LABEL: Record<string, string> = {
  */
 type Group = "klaar" | "nakijken" | "live" | "bezig";
 
-const GROUP_META: Record<Group, { label: string; hint: string; style: React.CSSProperties }> = {
+const GROUP_META: Record<Group, { label: string; hint: string; chip: string }> = {
   klaar: {
     label: "Klaar om te publiceren",
     hint: "Zolang de tekst niet online staat, verandert er niets aan je zichtbaarheid.",
-    style: {
-      background: "rgba(133,17,217,0.1)",
-      color: "#7a13c9",
-      borderColor: "rgba(133,17,217,0.28)",
-    },
+    chip: "chip",
   },
   nakijken: {
     label: "Even nakijken",
     hint: "De eindredactie zag nog iets. Lees het na en publiceer daarna.",
-    style: {
-      background: "rgba(240,180,60,0.12)",
-      color: "#8a6100",
-      borderColor: "rgba(240,180,60,0.35)",
-    },
+    chip: "chip chip-warning",
   },
   live: {
     label: "Staat online",
     hint: "Het effect meten we twee en vier weken na publicatie.",
-    style: {
-      background: "rgba(46,158,80,0.1)",
-      color: "#1f7a3d",
-      borderColor: "rgba(46,158,80,0.3)",
-    },
+    chip: "chip chip-success",
   },
   bezig: {
     label: "Wordt geschreven",
     hint: "Dit loopt op de achtergrond. Je hoeft er niet op te wachten.",
-    style: {
-      background: "rgba(11,11,12,0.05)",
-      color: "var(--text-muted)",
-      borderColor: "var(--border-subtle)",
-    },
+    chip: "chip chip-neutral",
   },
 };
 
@@ -170,9 +154,7 @@ export function LibraryList({ analysisId, pieces }: { analysisId: string; pieces
               <span className="mono-label flex items-center gap-2">
                 {group === "bezig" && <span className="live-dot" />}
                 {GROUP_META[group].label}
-                <span className="chip" style={GROUP_META[group].style}>
-                  {items.length}
-                </span>
+                <span className={GROUP_META[group].chip}>{items.length}</span>
               </span>
               <span className="max-w-sm text-sm text-muted">{GROUP_META[group].hint}</span>
             </div>

@@ -3,6 +3,8 @@ import { requireUser } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { StatusBadge } from "@/components/status-badge";
 import { ActionList, DashboardStats } from "@/components/action-list";
+import { EmptyState } from "@/components/empty-state";
+import { PageHeader } from "@/components/page-header";
 import { STATUS_META } from "@/lib/analysis-status";
 import { loadDashboard } from "@/lib/dashboard";
 
@@ -22,7 +24,16 @@ export default async function AnalysesPage() {
   //
   // Lezen loopt rechtstreeks via RLS (SELECT-only, gefilterd op user_id); de
   // expliciete user-filter in loadDashboard is een tweede slot op dezelfde deur.
-  const dashboard = await loadDashboard(supabase, user.id);
+  // Bestaat er al een merk? Zonder merk is "start een analyse" een belofte die
+  // de app niet kan nakomen: die knop leidde naar een pagina die zei dat je
+  // eerst een klantprofiel nodig had. Drie schermen en twee knoppen voordat de
+  // eerste échte stap begon — precies de fout die de onboarding zelf zo
+  // zorgvuldig vermijdt.
+  const [dashboard, { count: profileCount }] = await Promise.all([
+    loadDashboard(supabase, user.id),
+    supabase.from("profiles").select("id", { count: "exact", head: true }),
+  ]);
+  const hasProfile = (profileCount ?? 0) > 0;
   const analyses = [...dashboard.analyses];
 
   // "Wacht op jouw goedkeuring" bovenaan (abcplan.md §3.4).
@@ -34,15 +45,17 @@ export default async function AnalysesPage() {
 
   return (
     <div className="flex flex-col gap-8">
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <span className="mono-label">Mijn analyses</span>
-          <h1 className="mt-1 text-3xl font-bold tracking-tight">Overzicht</h1>
-        </div>
-        <Link href="/analyses/new" className="btn-primary">
-          + Nieuwe analyse starten
-        </Link>
-      </div>
+      <PageHeader
+        eyebrow="GEO Tracker"
+        title="Analyses"
+        action={
+          hasProfile ? (
+            <Link href="/analyses/new" className="btn-primary">
+              + Nieuwe analyse
+            </Link>
+          ) : null
+        }
+      />
 
       {analyses.length > 0 && (
         <div className="flex flex-col gap-4">
@@ -54,17 +67,18 @@ export default async function AnalysesPage() {
       {analyses.length > 1 && <span className="mono-label">Je analyses</span>}
 
       {analyses.length === 0 ? (
-        <div className="card flex flex-col items-center gap-4 py-16 text-center">
-          <span className="live-dot" />
-          <h2 className="text-xl font-semibold">Nog geen analyses</h2>
-          <p className="max-w-md text-secondary">
-            Vul een website in (en optioneel een specifiek product of onderwerp) en zie hoe
-            zichtbaar dat merk is in ChatGPT en andere AI-assistenten.
-          </p>
-          <Link href="/analyses/new" className="btn-primary mt-2">
-            Start je eerste analyse
-          </Link>
-        </div>
+        <EmptyState
+          title={hasProfile ? "Nog geen analyses" : "Welkom — begin met je merk"}
+          action={
+            hasProfile
+              ? { href: "/analyses/new", label: "Start je eerste analyse" }
+              : { href: "/profielen/nieuw", label: "Merk toevoegen" }
+          }
+        >
+          {hasProfile
+            ? "Kies een merk en vul het product of onderwerp in dat je wilt meten. Wij zoeken uit hoe zichtbaar je daarop bent in ChatGPT en andere AI-assistenten."
+            : "We onderzoeken je merk één keer grondig — daarna meet je er onbeperkt onderwerpen op. Twee velden, en het onderzoek duurt ongeveer een minuut."}
+        </EmptyState>
       ) : (
         <ul className="flex flex-col gap-3">
           {analyses.map((a) => (

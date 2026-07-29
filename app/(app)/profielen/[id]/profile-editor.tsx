@@ -86,7 +86,7 @@ export function ProfileEditor({ initial, inventoryCount }: { initial: Profile; i
 
   return (
     <div id="profiel" className="card flex scroll-mt-4 flex-col gap-4">
-      <span className="mono-label">Klantprofiel</span>
+      <span className="mono-label">Merkprofiel</span>
 
       <div className="flex justify-between gap-4 border-b border-[var(--border-subtle)] pb-3">
         <span className="text-secondary">Website</span>

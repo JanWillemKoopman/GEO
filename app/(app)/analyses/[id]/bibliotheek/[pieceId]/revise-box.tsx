@@ -64,7 +64,7 @@ export function ReviseBox({ analysisId, pieceId }: { analysisId: string; pieceId
 
   if (state === "queued") {
     return (
-      <div className="card flex flex-col gap-2" style={{ borderColor: "rgba(165,120,240,0.4)" }}>
+      <div className="card card-accent flex flex-col gap-2">
         <span className="flex items-center gap-2 font-medium">
           <span className="live-dot" />
           We schrijven een nieuwe versie
