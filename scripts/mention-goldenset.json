@@ -13,7 +13,9 @@
     "op wat het juiste oordeel is, en voeg het toe in hetzelfde formaat.",
     "",
     "Veld 'expect' bevat per entiteit het verwachte oordeel. Entiteiten die niet in 'expect'",
-    "staan worden genegeerd: het model mag extra merken vinden zonder dat dat fout is."
+    "staan worden genegeerd: het model mag extra merken vinden zonder dat dat fout is.",
+    "",
+    "MIGRATIE 0026: de prompt krijgt GEEN concurrentenlijst meer mee en ontdekt puur. Verwachtingen van de vorm 'bekende concurrent X komt niet voor -> mentioned: false' zijn daarmee vervallen: een merk dat niet in het antwoord staat, levert nu geen rij op. Het veld 'competitors' per geval is om dezelfde reden verwijderd."
   ],
   "cases": [
     {
@@ -21,32 +23,41 @@
       "why": "Basisgeval: merk gewoon genoemd. Faalt dit, dan is er iets fundamenteel mis.",
       "ownLabel": "Golden Fingers (herenkapper)",
       "ownAliases": [],
-      "competitors": ["Barbershop Amsterdam"],
       "answer": "Voor een klassieke scheerbeurt in Utrecht kun je terecht bij Golden Fingers. Ze werken op afspraak en zijn gespecialiseerd in baardverzorging.",
       "expect": [
-        { "entity": "own", "mentioned": true },
-        { "entity": "Barbershop Amsterdam", "mentioned": false }
+        {
+          "entity": "own",
+          "mentioned": true
+        }
       ]
     },
     {
       "id": "alias-mention",
       "why": "Merk genoemd via een alias. Aliassen staan in het profiel juist om dit te vangen.",
       "ownLabel": "Koninklijke Jansen Zonwering (zonwering)",
-      "ownAliases": ["Jansen Zonwering", "Jansen"],
-      "competitors": [],
+      "ownAliases": [
+        "Jansen Zonwering",
+        "Jansen"
+      ],
       "answer": "Jansen Zonwering levert screens en uitvalschermen op maat en werkt in de regio Eindhoven.",
-      "expect": [{ "entity": "own", "mentioned": true }]
+      "expect": [
+        {
+          "entity": "own",
+          "mentioned": true
+        }
+      ]
     },
     {
       "id": "not-mentioned-clean",
       "why": "Merk komt niet voor. Moet expliciet false opleveren, niet een ontbrekende rij.",
       "ownLabel": "Golden Fingers (herenkapper)",
       "ownAliases": [],
-      "competitors": ["Barbershop Amsterdam"],
       "answer": "Let bij het kiezen van een kapper op reviews, of ze ervaring hebben met jouw haartype, en of je online een afspraak kunt maken.",
       "expect": [
-        { "entity": "own", "mentioned": false },
-        { "entity": "Barbershop Amsterdam", "mentioned": false }
+        {
+          "entity": "own",
+          "mentioned": false
+        }
       ]
     },
     {
@@ -54,38 +65,60 @@
       "why": "Deelnaam-val: 'Golden Retriever Grooming' is een ANDER bedrijf. Mag niet als eigen merk tellen.",
       "ownLabel": "Golden Fingers (herenkapper)",
       "ownAliases": [],
-      "competitors": [],
       "answer": "Bij Golden Retriever Grooming in Zwolle kun je terecht voor het trimmen van je hond.",
-      "expect": [{ "entity": "own", "mentioned": false }]
+      "expect": [
+        {
+          "entity": "own",
+          "mentioned": false
+        }
+      ]
     },
     {
       "id": "url-only-mention",
       "why": "Merk komt alleen voor als domein in een bronvermelding. Telt als vermelding.",
       "ownLabel": "Fietsplezier Deventer (elektrische fietsen)",
-      "ownAliases": ["Fietsplezier"],
-      "competitors": [],
+      "ownAliases": [
+        "Fietsplezier"
+      ],
       "answer": "Voor de actuele prijzen kun je het beste de website raadplegen (fietsplezier-deventer.nl). Let op accucapaciteit en garantietermijn.",
-      "expect": [{ "entity": "own", "mentioned": true }]
+      "expect": [
+        {
+          "entity": "own",
+          "mentioned": true
+        }
+      ]
     },
     {
       "id": "negated-mention",
       "why": "Ontkenning: het merk wordt genoemd maar afgeraden. Wél mentioned, sentiment negatief.",
       "ownLabel": "SnelBoeken (vakantiehuizen)",
       "ownAliases": [],
-      "competitors": [],
       "answer": "SnelBoeken zou ik niet aanraden: er zijn veel klachten over de annuleringsvoorwaarden en de klantenservice is slecht bereikbaar.",
-      "expect": [{ "entity": "own", "mentioned": true, "sentiment": "negative" }]
+      "expect": [
+        {
+          "entity": "own",
+          "mentioned": true,
+          "sentiment": "negative"
+        }
+      ]
     },
     {
       "id": "position-in-list",
       "why": "Positie in een opsomming. De eigen naam staat op plek 3 en de concurrent op plek 1.",
       "ownLabel": "De Boekenkast (boekhandel)",
       "ownAliases": [],
-      "competitors": ["Boekhandel Vermeer"],
       "answer": "Populaire boekhandels in de stad zijn: 1. Boekhandel Vermeer, bekend om de grote fictieafdeling. 2. Het Literair Kwartier. 3. De Boekenkast, met een goed geselecteerd non-fictieaanbod.",
       "expect": [
-        { "entity": "own", "mentioned": true, "position": 3 },
-        { "entity": "Boekhandel Vermeer", "mentioned": true, "position": 1 }
+        {
+          "entity": "own",
+          "mentioned": true,
+          "position": 3
+        },
+        {
+          "entity": "Boekhandel Vermeer",
+          "mentioned": true,
+          "position": 1
+        }
       ]
     },
     {
@@ -93,12 +126,16 @@
       "why": "Alleen de concurrent wordt genoemd. Dit is het geval dat een gemiste kans oplevert.",
       "ownLabel": "Groenveld Hoveniers (tuinaanleg)",
       "ownAliases": [],
-      "competitors": ["Tuinmeesters", "De Groene Vinger"],
       "answer": "Tuinmeesters wordt vaak genoemd voor complete tuinrenovaties in de regio; ze werken met een vast team en geven garantie op beplanting.",
       "expect": [
-        { "entity": "own", "mentioned": false },
-        { "entity": "Tuinmeesters", "mentioned": true },
-        { "entity": "De Groene Vinger", "mentioned": false }
+        {
+          "entity": "own",
+          "mentioned": false
+        },
+        {
+          "entity": "Tuinmeesters",
+          "mentioned": true
+        }
       ]
     },
     {
@@ -106,52 +143,74 @@
       "why": "Merknaam valt samen met een gewoon woord. 'direct' als bijwoord is GEEN vermelding.",
       "ownLabel": "Direct (verzekeringen)",
       "ownAliases": [],
-      "competitors": [],
       "answer": "Je kunt een reisverzekering vaak direct online afsluiten; de dekking gaat dan meestal dezelfde dag in.",
-      "expect": [{ "entity": "own", "mentioned": false }]
+      "expect": [
+        {
+          "entity": "own",
+          "mentioned": false
+        }
+      ]
     },
     {
       "id": "no-brands-at-all",
       "why": "Puur informatief antwoord zonder enig merk. Alles moet false zijn, geen verzinsels.",
       "ownLabel": "Bakkerij Hendriks (brood)",
       "ownAliases": [],
-      "competitors": ["Bakker Bart"],
       "answer": "Zuurdesembrood heeft een langere rijstijd, waardoor het beter verteerbaar is. Let op een knapperige korst en een onregelmatige kruimstructuur.",
       "expect": [
-        { "entity": "own", "mentioned": false },
-        { "entity": "Bakker Bart", "mentioned": false }
+        {
+          "entity": "own",
+          "mentioned": false
+        }
       ]
     },
     {
       "id": "casing-and-spacing",
       "why": "Afwijkende schrijfwijze (hoofdletters, spatie). Moet nog steeds herkend worden.",
       "ownLabel": "VanDerBerg Advocaten (arbeidsrecht)",
-      "ownAliases": ["Van der Berg Advocaten"],
-      "competitors": [],
+      "ownAliases": [
+        "Van der Berg Advocaten"
+      ],
       "answer": "Voor ontslagzaken kun je onder meer terecht bij VAN DER BERG ADVOCATEN, gespecialiseerd in arbeidsrecht.",
-      "expect": [{ "entity": "own", "mentioned": true }]
+      "expect": [
+        {
+          "entity": "own",
+          "mentioned": true
+        }
+      ]
     },
     {
       "id": "mentioned-as-source-only",
       "why": "Merk komt alleen voor als geciteerde bron onderaan. Telt als vermelding.",
       "ownLabel": "Klusgids (verbouwen)",
       "ownAliases": [],
-      "competitors": [],
       "answer": "Een badkamerrenovatie kost gemiddeld tussen de 8.000 en 15.000 euro, afhankelijk van het formaat en de afwerking.\n\nBronnen: klusgids.nl, verbouwkosten.nl",
-      "expect": [{ "entity": "own", "mentioned": true }]
+      "expect": [
+        {
+          "entity": "own",
+          "mentioned": true
+        }
+      ]
     },
     {
       "id": "two-competitors-one-absent",
       "why": "Meerdere concurrenten waarvan er één ontbreekt. Test of er per entiteit geoordeeld wordt.",
       "ownLabel": "Sportschool Kracht (fitness)",
       "ownAliases": [],
-      "competitors": ["Basic-Fit", "SportCity", "Fit For Free"],
       "answer": "Basic-Fit heeft de meeste vestigingen en is het goedkoopst. SportCity biedt meer groepslessen en zwembaden.",
       "expect": [
-        { "entity": "own", "mentioned": false },
-        { "entity": "Basic-Fit", "mentioned": true },
-        { "entity": "SportCity", "mentioned": true },
-        { "entity": "Fit For Free", "mentioned": false }
+        {
+          "entity": "own",
+          "mentioned": false
+        },
+        {
+          "entity": "Basic-Fit",
+          "mentioned": true
+        },
+        {
+          "entity": "SportCity",
+          "mentioned": true
+        }
       ]
     },
     {
@@ -159,18 +218,28 @@
       "why": "Merk genoemd in een voorwaardelijke zin. Nog steeds een vermelding.",
       "ownLabel": "Dakdekkers Zuid (dakwerk)",
       "ownAliases": [],
-      "competitors": [],
       "answer": "Als je een plat dak hebt, zou je een partij als Dakdekkers Zuid kunnen benaderen voor een offerte op bitumen.",
-      "expect": [{ "entity": "own", "mentioned": true }]
+      "expect": [
+        {
+          "entity": "own",
+          "mentioned": true
+        }
+      ]
     },
     {
       "id": "long-answer-late-mention",
       "why": "Vermelding pas ver in een lang antwoord. Test of de classificatie niet vroeg stopt.",
       "ownLabel": "Installatiebedrijf Veenstra (warmtepompen)",
-      "ownAliases": ["Veenstra"],
-      "competitors": [],
+      "ownAliases": [
+        "Veenstra"
+      ],
       "answer": "Bij het kiezen van een warmtepomp let je op het type (lucht-water of bodem), het vermogen in verhouding tot je warmtebehoefte, en het geluidsniveau van de buitenunit. Ook de isolatiegraad van je woning is bepalend: bij een slecht geïsoleerd huis is een hybride opstelling vaak verstandiger. Subsidies via de ISDE kunnen een deel van de kosten dekken, mits je installateur gecertificeerd is. Vraag altijd meerdere offertes op en let op de garantietermijn op zowel het toestel als de installatie. Een goede installateur doet eerst een warmteverliesberekening. In de regio Friesland wordt Installatiebedrijf Veenstra regelmatig genoemd als gecertificeerde partij voor dit soort installaties.",
-      "expect": [{ "entity": "own", "mentioned": true }]
+      "expect": [
+        {
+          "entity": "own",
+          "mentioned": true
+        }
+      ]
     }
   ]
 }

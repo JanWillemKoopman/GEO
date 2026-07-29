@@ -161,23 +161,45 @@ export function CompetitorCard({
         <InfoHint label="Jij vs. concurrenten">
           Het percentage van de {measuredRunCount} gestelde vragen waarin dit merk voorkwam. Meer
           dan één merk kan in hetzelfde antwoord staan, dus de percentages tellen niet op tot 100.
+          Deze concurrenten zijn niet vooraf opgegeven: het zijn de bedrijven die de AI-assistent
+          in zijn antwoorden daadwerkelijk naast jou noemde.
         </InfoHint>
       </span>
       {rows.length > 1 ? (
         <EntityComparison rows={rows} />
       ) : (
-        <p className="text-secondary">Geen concurrenten gedetecteerd in deze meting.</p>
+        <p className="text-secondary">
+          In de antwoorden op deze vragen kwam geen enkele concurrent naast jou voor.
+        </p>
       )}
     </div>
   );
 }
 
-/** Hoofdstuk 02 — merken die opdoken maar nog niet bevestigd zijn. */
+/** Leesbaar label per rol, voor de "Ook genoemd"-kaart. */
+const ROLE_LABELS: Record<string, string> = {
+  vergelijker: "Vergelijkingssite",
+  brancheorganisatie: "Brancheorganisatie",
+  eigen_product: "Merk dat je zelf voert",
+  niet_relevant: "Geen concurrent",
+};
+
+/**
+ * Hoofdstuk 02 — merken die de meting tegenkwam maar die geen concurrent zijn
+ * (migratie 0026).
+ *
+ * Deze kaart toonde eerder "nog niet bevestigde" merken: alles wat de meting
+ * ontdekte wachtte op een handmatig vinkje van de klant voordat het meetelde.
+ * Dat maakte de concurrentievergelijking afhankelijk van een lijst in plaats van
+ * van de meting. Nu classificeert de aggregatie elk ontdekt merk automatisch, en
+ * staat hier wat er bewust NIET in de grafiek hoort — met de reden erbij, zodat
+ * zichtbaar is waarom een merk uit de antwoorden er niet tussen staat.
+ */
 export function AlsoMentionedCard({
   alsoMentioned,
   profileId,
 }: {
-  /** Nieuw ontdekte merken die nog op bevestiging van de klant wachten (2.5/2.7). */
+  /** Ontdekte merken die als iets anders dan concurrent geclassificeerd zijn. */
   alsoMentioned: Entity[];
   profileId: string;
 }) {
@@ -186,20 +208,25 @@ export function AlsoMentionedCard({
   return (
     <div className="card flex flex-col gap-3">
       <span className="mono-label flex items-center gap-1">
-        Ook genoemd
+        Ook genoemd — geen concurrent
         <InfoHint label="Ook genoemd">
-          Merken die in de antwoorden voorkwamen maar die je nog niet als concurrent hebt
-          bevestigd. Ze tellen daarom niet mee in je aandeel — een leverancier of een
-          vergelijkingssite zou dat cijfer anders vertekenen.
+          Deze merken kwamen wél in de antwoorden voor, maar zijn geen concurrent van je: denk aan
+          vergelijkingssites, marktplaatsen en brancheorganisaties. Ze tellen daarom niet mee in je
+          aandeel — anders zou dat cijfer vertekenen. Klopt een indeling niet? Pas hem aan bij
+          Concurrenten beheren; jouw keuze wordt daarna nooit meer automatisch overschreven.
         </InfoHint>
       </span>
-      <div className="flex flex-wrap gap-1.5">
+      <ul className="flex flex-col gap-2">
         {alsoMentioned.map((e) => (
-          <span key={e.id} className="chip" style={{ fontSize: "0.75rem" }}>
-            {e.canonical_name}
-          </span>
+          <li key={e.id} className="flex flex-wrap items-baseline gap-x-2 gap-y-1 text-sm">
+            <span className="font-medium">{e.canonical_name}</span>
+            <span className="chip" style={{ fontSize: "0.7rem" }}>
+              {ROLE_LABELS[e.entity_role] ?? "Geen concurrent"}
+            </span>
+            {e.exclude_reason && <span className="text-muted">{e.exclude_reason}</span>}
+          </li>
         ))}
-      </div>
+      </ul>
       <Link href={`/profielen/${profileId}#concurrenten`} className="btn-outline btn-sm w-fit">
         Concurrenten beheren
       </Link>

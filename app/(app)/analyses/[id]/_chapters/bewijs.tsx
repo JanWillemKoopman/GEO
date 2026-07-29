@@ -76,14 +76,18 @@ export async function BewijsChapter({
       .eq("analysis_id", analysis.id)
       .eq("week_no", weekNo)
       .eq("purpose", "periodic"),
-    // Nieuw ontdekte merken die nog op bevestiging wachten (2.5/2.7). Ze tellen
-    // niet mee in het aandeel, maar de klant moet ze wél zien — anders is een
-    // lager aandeel niet te verklaren.
+    // Merken die de meting wél tegenkwam maar die geen concurrent zijn
+    // (migratie 0026): marktplaatsen, vergelijkers, brancheorganisaties. Ze
+    // tellen niet mee in het aandeel, maar de klant moet ze zien — anders is
+    // niet te verklaren waarom een merk uit de antwoorden niet in de grafiek
+    // staat. Nog niet geclassificeerde merken ('onbepaald') laten we weg: die
+    // zijn nog onderweg en zouden hier als 'geen concurrent' overkomen.
     supabase
       .from("entities")
       .select("*")
       .eq("profile_id", analysis.profile_id)
-      .eq("confirmed", false)
+      .not("entity_role", "in", "(concurrent,eigen_merk)")
+      .neq("role_source", "onbepaald")
       .eq("dismissed", false)
       .order("canonical_name"),
     supabase

@@ -50,7 +50,6 @@ interface GoldenCase {
   why: string;
   ownLabel: string;
   ownAliases: string[];
-  competitors: string[];
   answer: string;
   expect: ExpectedEntity[];
 }
@@ -113,7 +112,6 @@ async function runModel(model: string, cases: GoldenCase[]): Promise<{
             content: buildMentionUser({
               ownLabel: c.ownLabel,
               ownAliases: c.ownAliases,
-              competitors: c.competitors,
               rawResponse: c.answer,
             }),
           },
@@ -135,8 +133,9 @@ async function runModel(model: string, cases: GoldenCase[]): Promise<{
     for (const exp of c.expect) {
       const actual = findActual(parsed.mentions, exp);
 
-      // Ontbrekende entiteit is zelf een fout: de prompt vraagt expliciet om een
-      // oordeel over ELKE bekende entiteit, ook als die niet genoemd wordt.
+      // Ontbrekende entiteit is zelf een fout. Sinds migratie 0026 ontdekt de
+      // prompt puur, dus de testset verwacht alleen nog het eigen merk (altijd)
+      // en merken die ECHT in het antwoord staan — precies wat er terug moet komen.
       if (!actual) {
         checks++;
         mismatches.push({ caseId: c.id, entity: exp.entity, field: "aanwezig", expected: true, actual: false });

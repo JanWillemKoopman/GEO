@@ -1,3 +1,4 @@
+import type { EntityRole } from "@/lib/schemas/entity-classification";
 /**
  * TypeScript-representatie van het datamodel (abcplan.md §5).
  * Handgeschreven (in plaats van gegenereerd) zodat de scaffolding zonder
@@ -254,7 +255,26 @@ export interface Entity {
   canonical_name: string;
   normalized: string;
   aliases: string[];
-  /** Door de klant gezien en goedgekeurd? Alleen bevestigde tellen in het aandeel. */
+  /**
+   * Wat dit merk IS ten opzichte van de klant (migratie 0024/0026). Alleen
+   * 'concurrent' telt mee in 'Jij vs. concurrenten' en in share_of_voice — een
+   * marktplaats of brancheorganisatie komt wél uit de meting maar hoort daar
+   * niet tussen.
+   */
+  entity_role: EntityRole;
+  /**
+   * Waar `entity_role` vandaan komt. 'onbepaald' = nog te classificeren;
+   * 'ai' = automatisch bepaald tijdens de aggregatie; 'handmatig' = door de
+   * klant gezet en wordt nooit automatisch overschreven.
+   */
+  role_source: "onbepaald" | "ai" | "handmatig";
+  /** Korte reden waarom dit merk géén concurrent is. Null bij een concurrent. */
+  exclude_reason: string | null;
+  /**
+   * Door de klant gezien en goedgekeurd. Sinds migratie 0026 bepaalt dit niet
+   * meer of een merk meetelt — dat doet `entity_role`. Blijft bestaan als
+   * signaal dat de klant er zelf naar gekeken heeft.
+   */
   confirmed: boolean;
   /** Door de klant weggezet als "geen concurrent van mij". */
   dismissed: boolean;

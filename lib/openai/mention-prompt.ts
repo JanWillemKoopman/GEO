@@ -22,25 +22,43 @@ export interface MentionPromptInput {
   ownLabel: string;
   /** Andere schrijfwijzen die ook als het eigen merk tellen. */
   ownAliases: string[];
-  /** Bekende concurrenten waarover expliciet een oordeel gevraagd wordt. */
-  competitors: string[];
   /** Het te beoordelen AI-antwoord. */
   rawResponse: string;
 }
 
+/**
+ * PURE ONTDEKKING (migratie 0026). Deze prompt kreeg eerder een vooraf
+ * gegenereerde concurrentenlijst mee, met de opdracht die namen expliciet te
+ * beoordelen "ook als het antwoord ze niet noemt". Dat had twee kwalijke
+ * gevolgen: elke vooraf bedachte naam kwam in élke meting terug (en dus met een
+ * balk op 0% in de grafiek), en het model werd op díe namen gericht in plaats
+ * van op wat er werkelijk stond.
+ *
+ * Nu wordt alleen het EIGEN merk expliciet uitgevraagd — dat moet, want een
+ * meting zonder eigen-merk-oordeel telt als onbeoordeeld en valt uit de score.
+ * Alle andere merken komen uit de tekst zelf. Of zo'n merk een echte concurrent
+ * is of een marktplaats/vergelijker, bepaalt de classificatie later
+ * (lib/pipeline/classify-entities.ts) — niet deze prompt.
+ */
 export function buildMentionUser(input: MentionPromptInput): string {
-  const { ownLabel, ownAliases, competitors, rawResponse } = input;
+  const { ownLabel, ownAliases, rawResponse } = input;
   return [
     `Eigen merk: ${ownLabel}`,
     ownAliases.length
       ? `Het eigen merk kan ook zo genoemd worden (tel deze als het EIGEN merk): ${ownAliases.join(", ")}`
       : "",
-    competitors.length ? `Bekende concurrenten: ${competitors.join(", ")}` : "Bekende concurrenten: (geen bekend)",
     "",
-    "Evalueer voor het EIGEN MERK en voor ELK van de bekende concurrenten hierboven expliciet of ze in " +
-      "onderstaand antwoord genoemd worden — ook als het antwoord ze niet noemt (geef dan mentioned: false, " +
-      'position: null, sentiment: "neutral", citedSources: []). Voeg daarnaast als aparte entiteiten eventuele ' +
-      "andere merken toe die wél genoemd worden maar niet in de lijst hierboven staan.",
+    "Doe twee dingen:",
+    "",
+    "1. Geef ALTIJD een oordeel over het EIGEN MERK hierboven, ook als het antwoord het niet noemt " +
+      '(geef dan mentioned: false, position: null, sentiment: "neutral", citedSources: []). ' +
+      "Zet daarbij isOwnBrand op true.",
+    "",
+    "2. Voeg een aparte entiteit toe voor ELK ANDER merk, bedrijf, winkel, platform of organisatie " +
+      "dat in het antwoord DAADWERKELIJK bij naam genoemd wordt, met isOwnBrand op false en " +
+      "mentioned op true. Neem ze allemaal mee — ook webshops, marktplaatsen, vergelijkingssites, " +
+      "brancheorganisaties en leveranciers; of ze een echte concurrent zijn wordt elders bepaald. " +
+      "Verzin niets: een merk dat niet in de tekst staat, hoort er niet bij.",
     "",
     "AI-antwoord om te analyseren:",
     '"""',

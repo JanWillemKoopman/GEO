@@ -80,10 +80,19 @@ export default async function ConceptPage({ params }: { params: Promise<{ id: st
             <span className="text-secondary">Merk</span>{" "}
             <span className="font-medium">{profile?.name ?? "onbekend"}</span>
             {profile && (
-              <p className="mt-0.5 text-sm text-muted">
-                Branche: {profile.industry ?? "onbekend"} · Concurrenten:{" "}
-                {profile.competitors.join(", ") || "onbekend"}
-              </p>
+              <>
+                <p className="mt-0.5 text-sm text-muted">
+                  Branche: {profile.industry ?? "onbekend"}
+                </p>
+                <p className="mt-0.5 text-sm text-muted">
+                  {/* Deze lijst bepaalt sinds migratie 0026 NIET meer waar je tegen
+                      vergeleken wordt — dat komt uit de meting zelf. Hij dient nog
+                      één doel: deze namen blijven uit de vragen, zodat we neutraal
+                      meten. Vandaar het eerlijke label. */}
+                  Deze merken houden we uit de vragen:{" "}
+                  {profile.competitors.join(", ") || "onbekend"}
+                </p>
+              </>
             )}
           </div>
           {profile && (

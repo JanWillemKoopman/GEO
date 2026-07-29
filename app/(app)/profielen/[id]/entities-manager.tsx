@@ -24,11 +24,16 @@ export function EntitiesManager({ profileId, initial }: { profileId: string; ini
   const [busy, setBusy] = useState<string | null>(null);
   const [showDismissed, setShowDismissed] = useState(false);
 
-  const { pending, confirmed, dismissed } = useMemo(() => {
+  // Sinds migratie 0026 bepaalt de ROL wie meetelt, niet het bevestigingsvinkje.
+  // 'pending' is daarom niet meer "wacht op de klant" maar "de classificatie is
+  // er nog niet aan toegekomen" — een tussenstand van seconden, geen werklijst.
+  const { pending, competitors, others, dismissed } = useMemo(() => {
     const sorted = [...entities].sort((a, b) => a.canonical_name.localeCompare(b.canonical_name, "nl"));
+    const live = sorted.filter((e) => !e.dismissed);
     return {
-      pending: sorted.filter((e) => !e.confirmed && !e.dismissed),
-      confirmed: sorted.filter((e) => e.confirmed && !e.dismissed),
+      pending: live.filter((e) => e.role_source === "onbepaald"),
+      competitors: live.filter((e) => e.role_source !== "onbepaald" && e.entity_role === "concurrent"),
+      others: live.filter((e) => e.role_source !== "onbepaald" && e.entity_role !== "concurrent"),
       dismissed: sorted.filter((e) => e.dismissed),
     };
   }, [entities]);
@@ -81,7 +86,7 @@ export function EntitiesManager({ profileId, initial }: { profileId: string; ini
     }
   }
 
-  const mergeTargets = confirmed;
+  const mergeTargets = competitors;
 
   return (
     <div id="concurrenten" className="card flex flex-col gap-4 scroll-mt-4">
@@ -89,12 +94,14 @@ export function EntitiesManager({ profileId, initial }: { profileId: string; ini
         <span className="mono-label flex items-center gap-1">
           Concurrenten
           <InfoHint label="Concurrenten">
-            Alleen de merken die jij hier bevestigt tellen mee in je aandeel. Zo verwatert je cijfer
-            niet door een leverancier of een vergelijkingssite die toevallig in een AI-antwoord
-            langskwam.
+            Deze lijst komt uit de metingen: elk merk dat een AI-assistent in zijn antwoorden noemt,
+            wordt automatisch ingedeeld. Alleen echte concurrenten tellen mee in je aandeel — een
+            vergelijkingssite of brancheorganisatie zou dat cijfer anders vertekenen. Klopt een
+            indeling niet? Pas hem hier aan; jouw keuze wordt daarna nooit meer automatisch
+            overschreven.
           </InfoHint>
         </span>
-        <span className="mono-label">{confirmed.length} bevestigd</span>
+        <span className="mono-label">{competitors.length} concurrenten</span>
       </div>
 
       {problem && <ErrorNotice error={problem} />}
@@ -105,7 +112,8 @@ export function EntitiesManager({ profileId, initial }: { profileId: string; ini
             <span className="font-medium text-[var(--text-primary)]">
               {pending.length} nieuw gevonden {pending.length === 1 ? "merk" : "merken"}
             </span>{" "}
-            in de laatste meting. Zolang je niets kiest, tellen ze niet mee in je aandeel.
+            in de laatste meting, nog niet ingedeeld. Dat gebeurt automatisch bij de eerstvolgende
+            aggregatie — je hoeft er niets voor te doen.
           </p>
           <ul className="flex flex-col gap-2">
             {pending.map((e) => (
@@ -123,14 +131,14 @@ export function EntitiesManager({ profileId, initial }: { profileId: string; ini
 
       <section className="flex flex-col gap-2">
         <span className="text-sm font-medium">Jouw concurrenten</span>
-        {confirmed.length === 0 ? (
+        {competitors.length === 0 ? (
           <p className="text-sm text-muted">
-            Nog geen bevestigde concurrenten. Voeg ze hieronder toe, of bevestig wat de meting
-            gevonden heeft.
+            De metingen kwamen nog geen concurrent tegen. Zodra een AI-assistent een concurrent
+            naast je noemt, staat hij hier automatisch. Je kunt er ook zelf een toevoegen.
           </p>
         ) : (
           <ul className="flex flex-col gap-2">
-            {confirmed.map((e) => (
+            {competitors.map((e) => (
               <EntityRow
                 key={e.id}
                 entity={e}
@@ -142,6 +150,27 @@ export function EntitiesManager({ profileId, initial }: { profileId: string; ini
           </ul>
         )}
       </section>
+
+      {others.length > 0 && (
+        <section className="flex flex-col gap-2 border-t border-[var(--border-subtle)] pt-3">
+          <span className="text-sm font-medium">Genoemd, maar geen concurrent</span>
+          <p className="text-sm text-muted">
+            Deze merken kwamen in de antwoorden voor maar tellen niet mee in je aandeel. Hoort er
+            een tóch bij? Zet hem op concurrent.
+          </p>
+          <ul className="flex flex-col gap-2">
+            {others.map((e) => (
+              <EntityRow
+                key={e.id}
+                entity={e}
+                busy={busy === e.id}
+                mergeTargets={mergeTargets}
+                onPatch={patch}
+              />
+            ))}
+          </ul>
+        </section>
+      )}
 
       <AddEntityForm onAdd={add} />
 
@@ -178,6 +207,19 @@ export function EntitiesManager({ profileId, initial }: { profileId: string; ini
   );
 }
 
+/**
+ * De rollen zoals de klant ze ziet. Zelfde waarden als de check-constraint op
+ * entities.entity_role (migratie 0024) en ENTITY_ROLES in het schema.
+ */
+const ROLE_OPTIONS = [
+  { value: "concurrent", label: "Concurrent" },
+  { value: "vergelijker", label: "Vergelijkingssite" },
+  { value: "brancheorganisatie", label: "Brancheorganisatie" },
+  { value: "eigen_product", label: "Merk dat ik zelf voer" },
+  { value: "eigen_merk", label: "Mijn eigen merk" },
+  { value: "niet_relevant", label: "Geen concurrent" },
+] as const;
+
 function EntityRow({
   entity,
   busy,
@@ -205,15 +247,27 @@ function EntityRow({
       />
 
       <div className="flex shrink-0 flex-wrap items-center gap-3">
-        {!entity.confirmed && (
-          <button
-            type="button"
-            disabled={busy}
-            onClick={() => onPatch(entity.id, { confirmed: true })}
-            className="btn-outline"
-          >
-            Is een concurrent
-          </button>
+        {/* De rol is sinds migratie 0026 het enige wat bepaalt of dit merk
+            meetelt. Kiezen zet role_source op 'handmatig', waarna de
+            automatische classificatie deze rij voorgoed met rust laat. */}
+        <select
+          className="field"
+          disabled={busy}
+          value={entity.entity_role}
+          aria-label={`Rol van ${entity.canonical_name}`}
+          onChange={(e) => onPatch(entity.id, { entity_role: e.target.value })}
+        >
+          {ROLE_OPTIONS.map((o) => (
+            <option key={o.value} value={o.value}>
+              {o.label}
+            </option>
+          ))}
+        </select>
+
+        {entity.role_source === "ai" && (
+          <span className="text-xs text-muted" title="Automatisch ingedeeld op basis van de meting.">
+            automatisch
+          </span>
         )}
 
         {mergeTargets.length > 0 &&
