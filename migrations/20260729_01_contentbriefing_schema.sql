@@ -83,10 +83,6 @@ comment on column public.content_pieces.brief_instruction is
 comment on column public.content_pieces.source_coverage is
   'Percentage beweringen dat herleidbaar is tot een bron. Vervangt de niet-discriminerende geo_score als kwaliteitsmaat.';
 
--- Nieuwe status: gekozen door de klant, wacht op briefing-antwoorden.
-alter type public.content_status add value if not exists 'briefing' before 'draft';
-
-
 -- ── 3. entities: expliciet onderscheid tussen concurrent en eigen merk/product ─
 -- Voorkomt dat het merk dat de klant zelf voert (Škoda) als concurrent telt.
 
@@ -104,3 +100,11 @@ comment on column public.entities.entity_role is
   'Alleen entity_role = ''concurrent'' telt mee in share_of_voice en competitor_breakdown.';
 
 commit;
+
+
+-- ── 4. Nieuwe content-status, buiten de transactie ───────────────────────────
+-- ALTER TYPE ... ADD VALUE mag sinds PG12 binnen een transactie, maar de nieuwe
+-- waarde is daarbinnen nog niet bruikbaar. Daarom apart, ná de commit hierboven.
+-- 'briefing' = door de klant gekozen, wacht op antwoorden uit de contentbriefing.
+
+alter type public.content_status add value if not exists 'briefing' before 'draft';

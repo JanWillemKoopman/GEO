@@ -248,6 +248,9 @@ Vanuit de klant bekeken is dit de volledige, logische trechter waarin hij zich o
 
 ## 5. Datamodel (Supabase / Postgres)
 
+> ### ⚠️ Correctie na de praktijktest: bewaar ook de **vraag**, niet alleen het antwoord
+> In de eerste analyse bleek `raw_json` 38 sleutels te bevatten, maar geen enkele daarvan was de input: `instructions` was `null` in alle 60 opgeslagen calls en een `input`-sleutel ontbrak volledig. We bewaren dus wat het model *antwoordde*, maar nergens wat we het *vroegen* — terwijl het principe hieronder belooft dat je kunt reconstrueren wat het model "zag en antwoordde". Daardoor kostte de vraag *"is `content_brief` eigenlijk wel meegestuurd?"* een reconstructie uit de uitkomsten, in plaats van één query. **Elke opgeslagen call bevat voortaan naast het antwoord ook de daadwerkelijk verstuurde `instructions` en `input`.**
+
 > ### 🔒 Vastgelegd principe: we bewaren álles
 > **Elke AI-call in deze pipeline slaat zijn volledige resultaat op in Supabase — nooit alleen een samenvatting of afgeleide waarde.** Dat betekent: de ruwe JSON-output van elke OpenAI-call (Brand DNA, prompt-generatie, mention-beoordeling, rapport, content) wordt **altijd** volledig bewaard, náást de uitgesplitste kolommen die de UI gebruikt. Reden: (1) niets gaat verloren als we later een kolom toevoegen of een parsing-bug vinden, (2) volledige audit-trail — je kunt precies reconstrueren wat het model op elk moment zag en antwoordde, (3) het maakt herberekening/herprocessing achteraf mogelijk zonder opnieuw te hoeven bevragen (dus zonder extra kosten). Elke tabel die AI-output bevat heeft daarom een `raw_json`-kolom (of gebruikt een bestaand JSON-veld) met het complete, ongewijzigde antwoord.
 
@@ -382,6 +385,14 @@ const BrandDNA = z.object({
 > **⚠️ Correctie na de praktijktest (zie [praktijktest-udenhout.md](./praktijktest-udenhout.md)).** De eerste echte analyse gebruikte slechts **drie** categorieën (Oriëntatie / Overweging / Beslissing — een funnel-indeling). Op zichzelf een prima indeling, maar het gevolg was dat **"Merkspecifiek" volledig ontbrak**: geen enkele van de 30 prompts noemde de klant bij naam. Daardoor meet je alleen of het merk *spontaan* opduikt, en nooit **wat de AI over het merk zégt** als er expliciet naar gevraagd wordt.
 >
 > Dat is een blinde vlek die precies de sterkste troef van veel MKB-klanten onzichtbaar laat: Van den Udenhout heeft 3670 reviews met een 9+, en er is geen enkele meting die laat zien of ChatGPT dat weet. **De categorie "Merkspecifiek" is daarom verplicht**, ook als de overige vier anders worden ingedeeld. Sentiment (`tracking_run_mentions.sentiment`) is pas betekenisvol zodra deze categorie bestaat.
+
+> **⚠️ Correctie: de klant kan wél sturen, maar dat kwam nergens aan.** De app slaat per analyse een `content_brief` op (vrije tekst: *"voor wie is deze content bedoeld?"*), maar die tekst werd niet meegegeven aan de vijf categorie-calls. Bewijs uit de praktijktest: de Schadeherstel-brief zegt letterlijk *"content voor **particulieren**"*, en de gegenereerde prompts bevatten **nul** keer "particulier" en **twee** prompts over bedrijfswagens — precies de doelgroep die de brief uitsloot.
+>
+> Een veld dat de klant invult, dat netjes wordt opgeslagen en zichtbaar is in de instellingen, maar dat aantoonbaar niets doet, is erger dan geen veld: het wekt de indruk van controle die er niet is. **`content_brief` gaat daarom mee als expliciete scoping-instructie in elk van de vijf categorie-calls.**
+>
+> **Ook vastgelegd: een focusveld voor regio.** De plaatsnamen in de prompts komen nu uit `profiles.service_regions` — een profiel-breed veld dat vier vestigingsplaatsen als gelijkwaardig behandelt. Het model verdeelt ze dan netjes rond (Eindhoven 6×, Noord-Brabant 6×, Tilburg/Breda/Den Bosch elk 4×), wat correct is bij afwezigheid van een voorkeur, maar geen focus mogelijk maakt. Bij het aanmaken van een analyse komt daarom een optionele vraag *"Wil je je richten op een specifieke plaats of regio?"* met de bekende `service_regions` als keuzelijst en "alle" als standaard.
+>
+> **En: toon de verdeling op het concept-scherm** (A2c), bijvoorbeeld *"Deze 30 vragen gaan over: Eindhoven (6), Breda (4), Tilburg (4), geen plaats (7)"*. Dan valt een scheve of ongewenste verdeling op tijdens de review-gate in plaats van pas na de meting — precies waar die gate voor bedoeld is.
 
 **✅ Vastgelegd — `cluster` is een label, geen samenvatting.** De prompt-generatie vult per prompt een `cluster`. In de praktijktest liep dit veld volledig uit de hand: 23 prompts kregen een cluster van 78 tot **14.341 tekens** keyword-soep, en in één geval lekte er onverwerkte JSON in (`volumeEstimate=35}]}`). Die strings kwamen letterlijk in het klantrapport terecht als naam van een gap — het eerste wat de klant ziet. Daarom:
 - instructie in de prompt: *"cluster = maximaal 5 woorden, een label waaronder je deze vraag zou archiveren"*;

@@ -56,8 +56,12 @@ Belangrijk om vast te leggen, want dit zijn de delen die níet veranderd moeten 
 | 10 | Categorie "Merkspecifiek" ontbrak — sentiment daardoor betekenisloos | Middel | Spec: abcplan §A2 |
 | 11 | Critique-bevindingen niet zichtbaar (`needs_review = false`) | Laag | Spec: abcplan §8 |
 | 12 | Revisies niet vastgelegd (`version` blijft 1, `revision_note` leeg) | Laag | Spec: abcplan §8 |
-| 13 | 22 van 30 prompts zijn long-tail met volume 10–25 | Laag | Open — zie §6 |
-| 14 | Vergelijkingstabel bevat een onjuiste rij die tegen de klant werkt | Middel | Data: notitie in `review_notes` — zie §6 |
+| 13 | 22 van 30 prompts zijn long-tail met volume 10–25 | Laag | Open — zie §7 |
+| 14 | Vergelijkingstabel bevat een onjuiste rij die tegen de klant werkt | Middel | Data: notitie in `review_notes` — zie §7 |
+| 15 | **`content_brief` wordt opgeslagen maar stuurt de promptgeneratie niet aan** | **Hoog** | Spec: abcplan §A2 — zie §5 |
+| 16 | Geen enkel veld waarin de klant een geografische focus kan opgeven | Middel | Spec: abcplan §A2 — zie §5 |
+| 17 | Audit-trail bewaart alleen het antwoord, nooit de vraag aan het model | Middel | Spec: abcplan §5 — zie §5 |
+| 18 | Het eigen merk staat niet in `entities`; mentions hebben `entity_id = null` | Middel | Spec: abcplan §A3 |
 
 Datacorrecties staan in [`migrations/20260729_02_dataopschoning.sql`](./migrations/20260729_02_dataopschoning.sql), schema-uitbreidingen in [`migrations/20260729_01_contentbriefing_schema.sql`](./migrations/20260729_01_contentbriefing_schema.sql).
 
@@ -127,12 +131,86 @@ Acht vragen, geen ervan vereist opzoekwerk, samen naar schatting **twee minuten 
 
 ---
 
-## 5. Acceptatiecriteria voor de volgende analyse
+## 5. Onderzocht: waarom de regio-focus niet landde
+
+**Aanleiding:** de indruk dat er bij het aanmaken van de analyse expliciet om **Eindhoven** gevraagd was, terwijl de prompts vervolgens over Breda, Tilburg en Den Bosch gaan.
+
+### Wat de data laat zien
+
+**a) Eindhoven is niet genegeerd — het is juist de meest genoemde plaats.**
+
+| Plaats in de promptteksten | Aantal van de 30 |
+|---|---|
+| **Eindhoven** | **6** |
+| Noord-Brabant | 6 |
+| Tilburg | 4 |
+| Breda | 4 |
+| Den Bosch | 4 |
+| geen plaatsnaam | 7 |
+
+Het model heeft de vier vestigingsplaatsen als **gelijkwaardig** behandeld en er rouleerbaar over verdeeld. Dat is precies wat je krijgt als niets aangeeft dat één plaats belangrijker is dan de andere. De indruk dat Eindhoven "ontbrak" komt doordat de zes Eindhoven-prompts verspreid door de lijst staan tussen de andere plaatsen, niet doordat ze er niet zijn.
+
+**b) De geografische focus is nergens opgegeven — er is geen veld voor.**
+
+De plaatsnamen komen uit `profiles.service_regions`: `Noord-Brabant | Den Bosch | Eindhoven | Breda | Tilburg`. Dat is een **profiel**veld — het beschrijft waar het bedrijf actief is, niet waar déze analyse over moet gaan. Er bestaat geen enkel veld waarin "focus deze analyse op Eindhoven" uitgedrukt kan worden. Wat er wél is:
+
+| Veld | Inhoud bij deze analyse |
+|---|---|
+| `analyses.topic` | "Private Lease Skoda" |
+| `analyses.content_brief` | "Ik wil content voor mensen die opzoek zijn naar een nieuwe auto en Skoda private lease een goede oplossing is." |
+| `profiles.intake_description` | "Autodealer omgeving Brabant" |
+
+Geen van deze noemt Eindhoven. Als de wens er was, is hij nergens terechtgekomen waar het systeem hem kon zien.
+
+**c) En dat is niet het enige — `content_brief` stuurt de promptgeneratie sowieso niet aan.**
+
+Dit is de zwaarste bevinding uit dit onderzoek, en hij is hard te bewijzen met de **andere** analyse. De brief van de Schadeherstel-analyse luidt:
+
+> *"Ik wil content voor **particulieren** die schade hebben aan hun auto en nu opzoek zijn naar een oplossing."*
+
+De prompts die daarop volgden:
+
+| | Aantal |
+|---|---|
+| Prompts die "particulier" noemen | **0** |
+| Prompts over **bedrijfswagens** (dus expliciet zakelijk) | **2** |
+
+Onder andere *"spoed schadeherstel bedrijfswagen Tilburg"* en *"schadeherstel en bedrijfswageninrichting Eindhoven"* — de doelgroep die de brief juist uitsloot. Bij de Skoda-analyse hetzelfde beeld: nul prompts noemen "particulier", terwijl de brief over consumenten gaat die een nieuwe auto zoeken.
+
+**Het veld wordt dus wel uitgevraagd en netjes opgeslagen, maar bereikt de vijf categorie-calls van halte A2 niet.** De klant vult iets in, ziet het terug in zijn instellingen, en het heeft aantoonbaar geen effect op wat er gemeten wordt. Dat is erger dan het veld niet hebben: het wekt de indruk van sturing die er niet is.
+
+**d) Waarom dit niet in vijf seconden te controleren was.**
+
+`prompts.source_raw_json` bevat 38 sleutels, maar **geen enkele daarvan is de input**. `instructions` is `null` in alle 60 opgeslagen calls, en er is geen `input`-sleutel. We bewaren dus wel volledig wat het model *antwoordde*, maar nergens wat we het *vroegen*.
+
+Dat botst met het vastgelegde principe in `abcplan.md` §5, dat belooft dat je "precies kunt reconstrueren wat het model op elk moment **zag** en antwoordde". De helft daarvan klopt. Om deze vraag te beantwoorden moest het effect worden afgeleid uit de uitkomsten, in plaats van dat de invoer gewoon opgezocht kon worden.
+
+### Conclusie
+
+De onderliggende observatie klopt: **de app doet niets met een geografische voorkeur.** Maar de oorzaak is niet dat Eindhoven werd overgeslagen — het is dat er geen manier is om focus uit te drukken, en dat het enige vrije tekstveld dat de klant invult (`content_brief`) nooit bij de promptgeneratie aankomt.
+
+### Wat er moet gebeuren
+
+1. **`content_brief` doorgeven aan alle vijf de categorie-calls** van A2, als expliciete scoping-instructie. Kleinste ingreep, grootste effect — het veld bestaat al en de klant vult het al in.
+2. **Een focusveld toevoegen** bij het aanmaken van de analyse: *"Wil je je richten op een specifieke plaats of regio?"* met de bekende `service_regions` als keuzelijst en "alle" als standaard. Bij een keuze krijgt die plaats het zwaartepunt in de prompts in plaats van een gelijk deel.
+3. **De verdeling zichtbaar maken op het concept-scherm** (A2c), bijvoorbeeld: *"Deze 30 vragen gaan over: Eindhoven (6), Breda (4), Tilburg (4)…"*. Dan had dit tijdens de review-gate opgevallen in plaats van achteraf — precies waar die gate voor bedoeld is.
+4. **De input meebewaren** in `raw_json` (`instructions` + `input`), zodat "wat vroegen we precies?" een query is en geen reconstructie.
+
+---
+
+## 6. Acceptatiecriteria voor de volgende analyse
 
 Concreet en toetsbaar. Elk criterium is met één query te controleren.
 
+**Sturing door de klant**
+- [ ] `content_brief` komt aantoonbaar terug in de scoping van de prompts (test: een brief die "particulieren" zegt levert nul bedrijfswagen-prompts op)
+- [ ] Een opgegeven focusregio krijgt aantoonbaar meer prompts dan de overige regio's
+- [ ] Het concept-scherm toont de verdeling over regio's en doelgroep vóór de meting start
+- [ ] `raw_json` bevat naast het antwoord ook de gestelde vraag (`instructions` + `input`)
+
 **Meten**
 - [ ] Geen enkele prompt heeft `length(cluster) > 120`
+- [ ] Het eigen merk staat als entiteit in `entities` met `entity_role = 'eigen_merk'`, en mentions verwijzen ernaar via `entity_id`
 - [ ] Minstens 6 prompts noemen de klantnaam letterlijk (categorie Merkspecifiek)
 - [ ] Het eigen merk telt maximaal één keer per run, ongeacht schrijfwijze
 - [ ] Geen enkele entiteit met `entity_role <> 'concurrent'` telt mee in share-of-voice
@@ -161,7 +239,7 @@ Concreet en toetsbaar. Elk criterium is met één query te controleren.
 
 ---
 
-## 6. Wat bewust nog openstaat
+## 7. Wat bewust nog openstaat
 
 **Promptverdeling (bevinding 13).** 22 van de 30 prompts zijn `long_tail` met een geschat volume van 10–25; slechts 4 zitten in de band "hoog". De zichtbaarheidsscore wordt daardoor gedomineerd door vragen die bijna niemand stelt. Een gewogen score bestaat al technisch (`visibility_scores.weighted_score`, `prompts.volume_estimate`), maar wordt in de UI niet als hoofdgetal gebruikt. **Nog te beslissen:** sturen we op de verdeling bij het genereren, of tonen we de gewogen score als hoofdgetal? Beide kan, maar niet zonder keuze — en het raakt de belofte van "één helder getal" uit README §2.
 
