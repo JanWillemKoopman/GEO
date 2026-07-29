@@ -1,34 +1,67 @@
-import Link from "next/link";
+import { Suspense } from "react";
 import { notFound, redirect } from "next/navigation";
+import Link from "next/link";
 import { getAnalysis } from "@/lib/analyses";
 import { createClient } from "@/lib/supabase/server";
 import { determineStage } from "@/lib/pipeline/stage";
+import { loadPeriods, resolvePeriod } from "@/lib/pipeline/periods";
 import { PrepareProgress } from "./prepare-progress";
 import { MeasureProgress } from "./measure-progress";
-import { ScorePanel } from "./score-panel";
-import { ResultsPanel } from "@/components/results-panel";
-import { loadResults } from "@/lib/pipeline/results";
-import { TrendChart } from "@/components/trend-chart";
-import { loadTrend } from "@/lib/pipeline/trend";
-import type { VisibilityScore, CompetitorBreakdown, Entity } from "@/lib/types/database";
+import { Chapter } from "@/components/chapter";
+import { SectionRail } from "@/components/section-rail";
+import { PeriodPicker } from "@/components/period-picker";
+import { ChapterSkeleton } from "@/components/skeleton";
+import { StandChapter } from "./_chapters/stand";
+import { BewijsChapter } from "./_chapters/bewijs";
+import { WerkChapter } from "./_chapters/werk";
+import { ResultaatChapter } from "./_chapters/resultaat";
+import { countNow, loadWork } from "@/lib/work";
 
 /**
- * Overzicht-tab. Server-state-gedreven (abcplan.md §3.7):
- * - bezig, of mislukt in de voorbereidingsfase → live voortgang halte 1+2.
- * - concept_klaar → verwijzing naar het concept-scherm (review-gate).
- * - meten, of mislukt tijdens de meting → live voortgang halte 3.
- * - gemeten/gereed, of mislukt tijdens het RAPPORT → score + "jij vs.
- *   concurrenten" (de meting zelf is dan al gelukt; het rapport-retry-scherm
- *   leeft op het tabblad Rapport, niet hier).
+ * HET DOSSIER — één analyse, van boven naar beneden te lezen.
+ *
+ * ── WAAROM DIT GEEN TABBLADEN MEER ZIJN ─────────────────────────────────────
+ *
+ * Een analyse was verdeeld over vijf tabbladen. Dat is een platte, volgordeloze
+ * structuur voor werk dat juist een strikte volgorde heeft: je meet, je ziet
+ * waar je mist, je doet er iets aan, en weken later zie je of het gewerkt heeft.
+ *
+ * Erger nog: één stuk werk kruiste vier schermen. Een aanbevolen pagina begon op
+ * het rapport-tabblad, verhuisde naar de bibliotheek, werd daar op een
+ * detailpagina gepubliceerd en dook weer op als resultaat op het
+ * overzicht-tabblad. Dezelfde pagina, vier plekken.
+ *
+ * Nu vier hoofdstukken in vaste leesvolgorde. De volgorde ís de logica, en
+ * hoofdstuk 04 voedt volgende periode hoofdstuk 01.
+ *
+ * ── STREAMEN, NIET BLOKKEREN ────────────────────────────────────────────────
+ *
+ * Elk hoofdstuk is een eigen async component achter een `<Suspense>`. De score
+ * verschijnt zodra die er is, terwijl het bewijs nog geladen wordt. Voorheen
+ * blokkeerde het rapport-tabblad op zeven queries vóór er één byte HTML de deur
+ * uit ging — één pagina met streaming is dus sneller dan vijf zonder.
  */
-export default async function OverviewPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function DossierPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ periode?: string }>;
+}) {
   const { id } = await params;
+  const { periode } = await searchParams;
   const analysis = await getAnalysis(id);
   if (!analysis) notFound();
 
-  const supabase = await createClient();
-  let reportFailedNotice = false;
+  // Wacht het concept op goedkeuring, dan is dát het scherm — één taak, geen
+  // hoofdstukken die toch nog leeg zijn.
+  if (analysis.status === "concept_klaar") redirect(`/analyses/${id}/concept`);
 
+  const supabase = await createClient();
+
+  // Loopt de voorbereiding of de meting nog, dan is er geen dossier om te tonen
+  // maar voortgang om te volgen. Dat is geen hoofdstuk maar een andere toestand
+  // van hetzelfde scherm.
   if (analysis.status === "bezig" || analysis.status === "mislukt") {
     const stage = await determineStage(supabase, id);
     if (stage === "prepare") {
@@ -37,114 +70,101 @@ export default async function OverviewPage({ params }: { params: Promise<{ id: s
     if (stage === "measure") {
       return <MeasureProgress analysisId={id} initialStatus={analysis.status} />;
     }
-    // stage === "report": de meting is gelukt — val door naar de score-weergave.
-    reportFailedNotice = analysis.status === "mislukt";
+    // stage === "report": de meting is gelukt, val door naar het dossier.
   }
-
-  // Wacht het concept op goedkeuring, dan is dát het scherm — niet een kaart die
-  // doorverwijst naar een tabblad. Een verplichte stap hoort geen tussenstap te
-  // hebben.
-  if (analysis.status === "concept_klaar") redirect(`/analyses/${id}/concept`);
 
   if (analysis.status === "meten") {
     return <MeasureProgress analysisId={id} initialStatus={analysis.status} />;
   }
 
-  // gemeten / gereed / mislukt-tijdens-rapport → score + concurrentievergelijking (week 0).
-  // De noemer voor de concurrentiepercentages is het aantal METINGEN van deze
-  // week, niet het huidige aantal actieve prompts (optimalisatie.md 0.1). Die
-  // twee lopen uiteen zodra de klant een prompt uitzet: de tellingen komen uit
-  // historische runs, dus met een gekrompen noemer schoten de balken boven 100%.
-  // De LAATSTE twee periodes, niet vast periode 0: sinds de maandelijkse
-  // hermeting (fase 2.0) is week 0 de nulmeting en niet meer het actuele beeld.
-  // De vorige periode is nodig voor de verandering (optimalisatie.md 2.3).
-  const { data: scoreRows } = await supabase
-    .from("visibility_scores")
-    .select("*")
-    .eq("analysis_id", id)
-    .order("week_no", { ascending: false })
-    .limit(2);
+  // De periode wordt hier één keer bepaald en aan alle hoofdstukken doorgegeven.
+  // Voorheen gold de periodekiezer alleen op het rapport-tabblad, waardoor je
+  // een rapport van april kon lezen met de score van juli ernaast.
+  const periods = await loadPeriods(supabase, id);
+  const weekNo = resolvePeriod(periods, periode);
 
-  const scores = (scoreRows ?? []) as VisibilityScore[];
-  const scoreRow = scores[0] ?? null;
-  const previousScore = scores[1] ?? null;
-
-  if (!scoreRow) {
-    return (
-      <div className="card flex flex-col gap-2">
-        <span className="mono-label">Zichtbaarheidsscore</span>
-        <p className="text-secondary">Score en trendlijn verschijnen hier zodra de meting is uitgevoerd.</p>
-      </div>
-    );
-  }
-
-  const weekNo = scoreRow.week_no;
-
-  const [{ data: competitorRows }, { count: runCount }, { data: entityRows }] = await Promise.all([
-    supabase
-      .from("competitor_breakdown")
-      .select("*")
-      .eq("analysis_id", id)
-      .eq("week_no", weekNo)
-      .order("mentions_count", { ascending: false }),
-    supabase
-      .from("tracking_runs")
-      .select("id", { count: "exact", head: true })
-      .eq("analysis_id", id)
-      .eq("week_no", weekNo)
-      .eq("purpose", "periodic"),
-    // Nieuw ontdekte merken die nog op bevestiging wachten (optimalisatie.md
-    // 2.5/2.7). Ze tellen niet mee in het aandeel, maar de klant moet ze wél
-    // zien — anders is een lager aandeel niet te verklaren.
-    supabase
-      .from("entities")
-      .select("*")
-      .eq("profile_id", analysis.profile_id)
-      .eq("confirmed", false)
-      .eq("dismissed", false)
-      .order("canonical_name"),
-  ]);
-
-  const alsoMentioned = (entityRows ?? []) as Entity[];
-
-  // Het resultaatpaneel (optimalisatie.md 5.6) staat BOVEN de score: zodra er
-  // iets gepubliceerd is, is "wat heeft het opgeleverd" de vraag waarvoor de
-  // klant hier komt. De score eronder is de context.
-  const [results, trend, { data: profileRow }] = await Promise.all([
-    loadResults(supabase, id),
-    // De trendlijn (optimalisatie.md 6.5). Verschijnt vanzelf zodra er een
-    // tweede meting is; daarvóór toont het component zelf waarom er nog niets
-    // te zien is.
-    loadTrend(supabase, id),
-    supabase.from("profiles").select("brand_name").eq("id", analysis.profile_id).maybeSingle(),
-  ]);
-  const ownLabel = (profileRow?.brand_name as string | null) ?? "Jouw merk";
+  // Voor de rail: hoeveel er in hoofdstuk 03 op de klant wacht. Dat is het enige
+  // wat een tabbalk nooit deed — laten zien waar iets op je ligt te wachten.
+  const work = await loadWork(supabase, analysis);
+  const openCount = countNow(work);
+  const running = work.some((w) => w.state === "loopt");
 
   return (
-    <div className="flex flex-col gap-4">
-      {reportFailedNotice && (
-        <div className="card" style={{ borderColor: "rgba(229,72,77,0.4)" }}>
-          <p className="text-secondary">
-            Het rapport kon niet worden opgesteld. Ga naar het tabblad{" "}
-            <Link href={`/analyses/${id}/rapport`} className="underline">
-              Rapport
-            </Link>{" "}
-            om het opnieuw te proberen.
-          </p>
-        </div>
-      )}
-      <ResultsPanel analysisId={id} results={results} />
-
-      <ScorePanel
-        score={scoreRow}
-        previous={previousScore}
-        measuredRunCount={runCount ?? 0}
-        competitors={(competitorRows ?? []) as CompetitorBreakdown[]}
-        alsoMentioned={alsoMentioned}
-        profileId={analysis.profile_id}
+    // Mobiel: de rail is een meescrollende chiprij bóven de inhoud. Desktop:
+    // een verticale rail ernaast.
+    <div className="flex flex-col lg:flex-row lg:gap-10">
+      <SectionRail
+        sections={[
+          { id: "stand", label: "Stand" },
+          { id: "bewijs", label: "Waar je mist" },
+          {
+            id: "werk",
+            label: "Wat je moet doen",
+            badge: openCount > 0 ? `${openCount} open` : running ? "loopt" : undefined,
+            live: running,
+          },
+          { id: "resultaat", label: "Opgeleverd" },
+        ]}
       />
 
-      <TrendChart data={trend} ownLabel={ownLabel} />
+      <div className="flex min-w-0 flex-1 flex-col gap-16">
+        <Chapter
+          id="stand"
+          number="01"
+          title="Hoe je ervoor"
+          accent="staat"
+          intro="Hoe vaak een AI-assistent jou noemt op de vragen die er voor jouw markt toe doen."
+          aside={<PeriodPicker analysisId={id} periods={periods} selected={weekNo} />}
+        >
+          <Suspense fallback={<ChapterSkeleton blocks={2} />}>
+            <StandChapter analysis={analysis} weekNo={weekNo} />
+          </Suspense>
+        </Chapter>
+
+        <Chapter
+          id="bewijs"
+          number="02"
+          title="Waar je wint"
+          accent="en mist"
+          intro="Het bewijs onder het cijfer: tegen wie je het opneemt en op welke vragen je nu niet genoemd wordt."
+        >
+          <Suspense fallback={<ChapterSkeleton blocks={2} />}>
+            <BewijsChapter analysis={analysis} weekNo={weekNo} />
+          </Suspense>
+        </Chapter>
+
+        <Chapter
+          id="werk"
+          number="03"
+          title="Wat je nu"
+          accent="moet doen"
+          intro="Alles wat er te doen valt, op volgorde van belang. Bovenaan staat waar het vastloopt zonder jou."
+        >
+          <Suspense fallback={<ChapterSkeleton blocks={2} />}>
+            <WerkChapter analysis={analysis} />
+          </Suspense>
+        </Chapter>
+
+        <Chapter
+          id="resultaat"
+          number="04"
+          title="Wat het heeft"
+          accent="opgeleverd"
+          intro="Wat de pagina's die je publiceerde met je zichtbaarheid gedaan hebben — afgezet tegen vragen waarvoor je niets deed."
+        >
+          <Suspense fallback={<ChapterSkeleton blocks={1} />}>
+            <ResultaatChapter analysis={analysis} />
+          </Suspense>
+        </Chapter>
+
+        <p className="text-sm text-muted">
+          Klopt er iets niet aan de vragen of de scope?{" "}
+          <Link href={`/analyses/${id}/instellingen`} className="underline">
+            Naar de instellingen van deze analyse
+          </Link>
+          .
+        </p>
+      </div>
     </div>
   );
 }
