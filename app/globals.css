@@ -259,6 +259,30 @@ textarea.field {
   line-height: 1.5;
 }
 
+/* Skeleton — de vorm van wat er komt, in de vlakken en easing van het systeem.
+   Een skeleton zegt WAAR de inhoud komt; een spinner zegt alleen DAT er
+   gewacht wordt. Bij server-gerenderde pagina's met meerdere queries is dat
+   verschil het verschil tussen "hij laadt" en "hij doet niets". */
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--bg-elevated) 25%,
+    var(--bg-surface-2) 50%,
+    var(--bg-elevated) 75%
+  );
+  background-size: 200% 100%;
+  border-radius: var(--radius-md);
+  animation: skeleton-sweep 1.4s infinite var(--ease-standard);
+}
+@keyframes skeleton-sweep {
+  from {
+    background-position: 200% 0;
+  }
+  to {
+    background-position: -200% 0;
+  }
+}
+
 /* Pulserende live-dot (§A4) — "autonoom actief". */
 .live-dot {
   width: 8px;
@@ -366,6 +390,10 @@ textarea.field {
 @media (prefers-reduced-motion: reduce) {
   .live-dot {
     animation: none;
+  }
+  .skeleton {
+    animation: none;
+    background: var(--bg-elevated);
   }
   * {
     transition-duration: 0.01ms !important;
