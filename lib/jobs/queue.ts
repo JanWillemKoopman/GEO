@@ -107,6 +107,14 @@ export const dedupe = {
  * tijdslimiet houdt en wat fase 2 (meerdere metingen per vraag) straks
  * schaalbaar maakt.
  *
+ * Deze functie draait zelf synchroon in de confirm-route (bevestigen ís het
+ * startsein, zie route-commentaar). Met tot 30 actieve prompts liep een
+ * sequentiële lus — twee awaits per prompt, dus tot 60 keer heen-en-weer naar
+ * Supabase — de functie-tijdslimiet van die route plat, waardoor de fetch op
+ * de knop "Bevestig en start de meting" strandde zonder ooit een response te
+ * krijgen ("Bevestigen mislukt. Probeer het opnieuw."). Nu twee bulk-queries
+ * in plaats van 2×N sequentiële round-trips.
+ *
  * Geeft terug hoeveel taken er daadwerkelijk bij kwamen — bij een tweede poging
  * na een gedeeltelijke mislukking is dat alleen het restant.
  */
@@ -122,29 +130,72 @@ export async function enqueueMeasurement(
     .eq("active", true);
 
   const list = prompts ?? [];
+  if (list.length === 0) return { planned: 0, totalPrompts: 0 };
+
+  // Al gemeten? Dan niet opnieuw plannen — meten is de duurste stap die er is
+  // (de web-zoekactie is ~94% van de meetkosten). Eén query voor alle prompts
+  // tegelijk in plaats van één query per prompt.
+  const { data: measuredRows } = await admin
+    .from("tracking_runs")
+    .select("prompt_id")
+    .eq("analysis_id", analysisId)
+    .eq("week_no", weekNo)
+    .not("mention_json", "is", null);
+
+  const alreadyMeasured = new Set((measuredRows ?? []).map((r) => r.prompt_id as string));
+  const candidates = list.filter((p) => !alreadyMeasured.has(p.id as string));
+  if (candidates.length === 0) return { planned: 0, totalPrompts: list.length };
+
+  // Openstaand werk (van een eerdere, deels mislukte poging) er ook in één
+  // query uit filteren — dat is precies het scenario dat de dedupe-index
+  // (migratie 0013, alleen voor status queued/running) moet afvangen. De
+  // index is PARTIEEL, dus `.upsert(..., { onConflict })` kan hem niet als
+  // ON CONFLICT-doel gebruiken (Postgres eist dezelfde WHERE-clausule); dit
+  // filtert vooraf i.p.v. op de index te vertrouwen.
+  const candidateKeys = candidates.map((p) => dedupe.measurePrompt(analysisId, p.id as string, weekNo));
+  const { data: openRows } = await admin
+    .from("jobs")
+    .select("dedupe_key")
+    .in("dedupe_key", candidateKeys)
+    .in("status", ["queued", "running"]);
+
+  const alreadyQueued = new Set((openRows ?? []).map((r) => r.dedupe_key as string));
+  const rows = candidates
+    .filter((p) => !alreadyQueued.has(dedupe.measurePrompt(analysisId, p.id as string, weekNo)))
+    .map((p) => ({
+      promptId: p.id as string,
+      type: "measure_prompt" as const,
+      payload_json: { promptId: p.id as string, weekNo } as never,
+      analysis_id: analysisId,
+      dedupe_key: dedupe.measurePrompt(analysisId, p.id as string, weekNo),
+      status: "queued" as const,
+      scheduled_for: new Date().toISOString(),
+    }));
+
+  if (rows.length === 0) return { planned: 0, totalPrompts: list.length };
+
+  // Eén bulk-insert i.p.v. een taak per prompt (was tot 2×N sequentiële
+  // round-trips, genoeg om de confirm-route over de functie-tijdslimiet te
+  // duwen — zie de doc-comment op deze functie). Een echte race met een
+  // gelijktijdige tweede poging is zeldzaam (de knop staat uit tijdens
+  // 'pending'); mocht de index dan alsnog botsen, valt dit terug op de oude,
+  // per-rij-veilige weg voor precies dat restant.
+  const { data: inserted, error } = await admin
+    .from("jobs")
+    .insert(rows.map(({ promptId: _promptId, ...row }) => row))
+    .select("id");
+  if (!error) return { planned: (inserted ?? []).length, totalPrompts: list.length };
+  if (error.code !== UNIQUE_VIOLATION) throw new Error(`Meting inplannen mislukt: ${error.message}`);
+
   let planned = 0;
-
-  for (const p of list) {
-    const promptId = p.id as string;
-    // Al gemeten? Dan niet opnieuw plannen — meten is de duurste stap die er is
-    // (de web-zoekactie is ~94% van de meetkosten).
-    const { count: alreadyMeasured } = await admin
-      .from("tracking_runs")
-      .select("id", { count: "exact", head: true })
-      .eq("analysis_id", analysisId)
-      .eq("prompt_id", promptId)
-      .eq("week_no", weekNo)
-      .not("mention_json", "is", null);
-    if (alreadyMeasured) continue;
-
+  for (const row of rows) {
     const { created } = await enqueue(admin, {
       type: "measure_prompt",
-      payload: { promptId, weekNo },
+      payload: { promptId: row.promptId, weekNo },
       analysisId,
-      dedupeKey: dedupe.measurePrompt(analysisId, promptId, weekNo),
+      dedupeKey: row.dedupe_key,
     });
     if (created) planned++;
   }
-
   return { planned, totalPrompts: list.length };
 }
