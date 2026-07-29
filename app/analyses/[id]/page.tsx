@@ -46,10 +46,10 @@ export default async function DossierPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ periode?: string }>;
+  searchParams: Promise<{ periode?: string; runs?: string }>;
 }) {
   const { id } = await params;
-  const { periode } = await searchParams;
+  const { periode, runs } = await searchParams;
   const analysis = await getAnalysis(id);
   if (!analysis) notFound();
 
@@ -129,7 +129,7 @@ export default async function DossierPage({
           intro="Het bewijs onder het cijfer: tegen wie je het opneemt en op welke vragen je nu niet genoemd wordt."
         >
           <Suspense fallback={<ChapterSkeleton blocks={2} />}>
-            <BewijsChapter analysis={analysis} weekNo={weekNo} />
+            <BewijsChapter analysis={analysis} weekNo={weekNo} focusRuns={runs} />
           </Suspense>
         </Chapter>
 
