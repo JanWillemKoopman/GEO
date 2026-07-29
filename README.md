@@ -100,6 +100,8 @@ Klant (browser/mobiel)
 
 **Vastgelegd principe: we bewaren alles.** Elke AI-call slaat zijn volledige ruwe JSON-resultaat op in Supabase (niet alleen de uitgesplitste velden) — volledige audit-trail, geen dataverlies. Zie [abcplan.md](./abcplan.md) §5.
 
+> **📋 Contentkwaliteit:** hoe de app vóór het schrijven van content gerichte vragen stelt aan de klant — om interne kennis op te halen die een AI niet kan weten, én om te voorkomen dat het model feiten verzint — staat in **[contentbriefing.md](./contentbriefing.md)**.
+
 > Zie [abcplan.md](./abcplan.md) §3 voor de volledige uitwerking van het "Analyse"-concept (incl. de transparantie- en goedkeuringsstap, §3.6, en de volledige klantreis, §3.7), en §5 voor het complete datamodel.
 
 ---

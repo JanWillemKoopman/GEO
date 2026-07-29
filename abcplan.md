@@ -504,6 +504,8 @@ const Report = z.object({
 
 **Trigger — ✅ vastgelegd: pas na klik/goedkeuring door de klant.** De klant klikt bij een aanbeveling op "Genereer deze pagina" (of keurt een batch goed). **Niet** volautomatisch vooraf — dit spaart kosten en geeft de klant controle: er staan alleen aanbevelingen klaar totdat de klant er zelf voor kiest.
 
+> **📋 Verplichte tussenstap: de contentbriefing — zie [contentbriefing.md](./contentbriefing.md).** Tussen de keuze van de pagina's en het daadwerkelijke schrijven zit een tweede transparantie-gate (zelfde patroon als A2c): de app leidt uit de gekozen pagina's af welke beweringen nodig zijn, controleert welke daarvan níet door bekende data gedekt worden, en stelt daarover maximaal 8 korte vragen aan de klant. De content wordt vervolgens geschreven op basis van een gesloten **feitenkaart** — staat een feit daar niet op, dan komt het niet in de tekst. Aanleiding: bij de eerste echte end-to-end analyse (Van den Udenhout, juli) waren 6 van de ~13 feitelijke claims in de gegenereerde content verzonnen, terwijl de klant ze zelf had kunnen aanleveren.
+
 **Mechanisme:** elke klik wordt een **job** die één `content_piece` genereert. De cron/queue werkt ze af.
 
 **OpenAI-call per pagina:** structured output, **geen** `web_search`. Input = de aanbeveling + Brand DNA (voor on-brand tone, inclusief het onderwerp indien van toepassing) + de bewijs-prompts. LLM-geoptimaliseerd: *begin met het directe antwoord, heldere koppen, concrete datapunten, FAQ, schema-markup.*
@@ -553,12 +555,18 @@ Zo levert de tool op klant-verzoek een **steeds verder gevulde bibliotheek** op,
    -- "wordt opgesteld" totdat B1+B2 klaar zijn — 'gereed' komt pas na stap 9
 8. [OpenAI mini structured]              → concurrentie-gap-analyse         (B1)
 9. [OpenAI mini structured]              → rapport + Resend-mail            (B2)                status: gereed
-10. [klant klikt] → [queue: OpenAI mini] → content_pieces                   (C)
+10a. [klant vinkt aanbevelingen aan]      → content_pieces               status: briefing
+10b. [OpenAI mini structured]             → claim-audit → fact_requests  (contentbriefing.md §3)
+    ─────────── PIPELINE STOPT BEWUST — WACHT OP KLANT ───────────
+10c. [klant beantwoordt max. 8 vragen] → klikt "Schrijf mijn pagina's"
+    ────────────────── PIPELINE HERVAT ──────────────────
+10d. [queue: OpenAI mini]                 → content_pieces op basis van de
+                                            feitenkaart                  (C)   status: ready
 11. UI: analyse staat in "Mijn analyses" met status "Gereed",
     Content Bibliotheek vult zich verder ✅
 ```
 
-Stap 1–3 en 6–9 draaien zonder menselijke tussenkomst. Stap 4–5 (de verplichte review-gate, §3.6/A2c) en stap 10 wachten bewust op de klant. Meerdere analyses draaien volledig onafhankelijk van elkaar, parallel, elk met zijn eigen status.
+Stap 1–3 en 6–9 draaien zonder menselijke tussenkomst. Stap 4–5 (de verplichte review-gate, §3.6/A2c) en stap 10a/10c (de contentbriefing, zie [contentbriefing.md](./contentbriefing.md)) wachten bewust op de klant — twee keer hetzelfde patroon: de pipeline stopt, de klant ziet en corrigeert, en bevestigt pas daarna. Meerdere analyses draaien volledig onafhankelijk van elkaar, parallel, elk met zijn eigen status.
 
 ---
 
@@ -590,6 +598,8 @@ Halte 3ab (de 30-prompt-meting) blijft verreweg de grootste kostenpost: ~94% van
 
 ### Stap 10 — content, op aanvraag (buiten de nulmeting)
 Alleen bij klant-klik, model **mini**, geen `web_search`: ~1.100 in / ~1.600 uit per pagina → **≈ $0,003 per pagina**. Volledig vraaggestuurd, geen vaste kost.
+
+Daarbovenop de **claim-audit** van de contentbriefing: 1 mini-call **per batch** (niet per pagina), ~2.500 in / ~700 uit → **≈ $0,002 per batch**. Geen `web_search`, dus kostenknop 1 blijft intact. Verwaarloosbaar t.o.v. de kosten van een pagina die vanwege verzonnen informatie weggegooid en opnieuw gegenereerd moet worden.
 
 ### Wekelijkse lus — per analyse aan/uit-schakelbaar (buiten de nulmeting)
 Zelfde opbouw als halte 3ab: **≈ $0,33/week/analyse**, alleen voor analyses met `tracking_enabled = true`. Over 10 weken continu aan: **≈ $3,33/analyse**. Zie §6 (A3) voor de aan/uit-schakelaar.
