@@ -29,9 +29,13 @@ export default async function BibliotheekPage({ params }: { params: Promise<{ id
 
   if (pieces.length === 0) {
     return (
-      <EmptyState title="Je bibliotheek is nog leeg">
-        Ga naar het Rapport en kies welke pagina&apos;s je wilt laten schrijven. De gegenereerde
-        content verschijnt hier als kaarten die je kunt lezen, kopiëren of downloaden.
+      <EmptyState
+        title="Je bibliotheek is nog leeg"
+        action={{ href: `/analyses/${id}#werk`, label: "Kies wat we gaan schrijven" }}
+      >
+        In hoofdstuk 03 van je analyse staat welke pagina&apos;s we voor je kunnen schrijven, met
+        per pagina de vragen die hij moet gaan winnen. Wat we schrijven verschijnt hier — te
+        lezen, te bewerken, te kopiëren en te downloaden.
       </EmptyState>
     );
   }

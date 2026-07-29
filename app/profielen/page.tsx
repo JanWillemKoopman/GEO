@@ -55,7 +55,7 @@ export default async function ProfielenPage() {
             <li key={p.id}>
               <Link
                 href={`/profielen/${p.id}`}
-                className="card flex flex-wrap items-center justify-between gap-4 hover:cursor-pointer"
+                className="card card-interactive flex flex-wrap items-center justify-between gap-4"
               >
                 <div className="min-w-0">
                   <p className="truncate text-lg font-semibold">{p.name}</p>

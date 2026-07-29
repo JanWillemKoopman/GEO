@@ -71,7 +71,7 @@ export default async function AnalysesPage() {
             <li key={a.id}>
               <Link
                 href={`/analyses/${a.id}`}
-                className="card flex flex-wrap items-center justify-between gap-4 hover:cursor-pointer"
+                className="card card-interactive flex flex-wrap items-center justify-between gap-4"
               >
                 <div className="min-w-0">
                   <p className="truncate text-lg font-semibold">{a.name}</p>

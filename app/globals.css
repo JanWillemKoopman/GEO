@@ -136,7 +136,14 @@ body {
     box-shadow var(--duration-base) var(--ease-standard),
     border-color var(--duration-base) var(--ease-standard);
 }
-.card:hover {
+/* Alleen wat klikbaar IS, gedraagt zich klikbaar. De hover-lift zat op .card
+   zelf en gold dus voor alle ~70 kaarten in de app, waarvan er hooguit acht
+   ergens heen gaan: score, rapport, foutmeldingen en wachtschermen lagen mee te
+   liften zonder bestemming. Een kaart die omhoog schaduwt belooft interactie. */
+.card-interactive {
+  cursor: pointer;
+}
+.card-interactive:hover {
   border-color: rgba(11, 11, 12, 0.16);
   box-shadow: 0 14px 34px rgba(11, 11, 12, 0.08);
 }
