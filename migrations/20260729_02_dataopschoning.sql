@@ -69,10 +69,50 @@ from   cleaned c
 where  c.id = p.id;
 
 -- Voorkomt herhaling, ongeacht wat het model in de toekomst produceert.
+--
+-- ⚠️ BELANGRIJK — een kále check-constraint is hier gevaarlijk. De prompt-
+-- generatie hanteert zelf nog geen grens (dat is de spec-fix in abcplan.md §A2,
+-- nog te bouwen). Een harde constraint zou de eerstvolgende analyse laten
+-- CRASHEN op de insert, terwijl er vóór deze opschoning alleen rommel werd
+-- opgeslagen. Dat is een regressie: van "lelijk" naar "kapot".
+--
+-- Daarom: een BEFORE-trigger die afkapt, met de constraint als onbereikbaar
+-- vangnet erachter. De pipeline blijft draaien, de data blijft schoon.
+
+create or replace function public.normaliseer_prompt_cluster()
+returns trigger language plpgsql as $$
+declare schoon text;
+begin
+  if new.cluster is null or length(new.cluster) <= 120 then
+    return new;
+  end if;
+  schoon := btrim(split_part(
+              regexp_replace(new.cluster, ',?\s*volumeEstimate\s*=.*$', '', 'g'), ',', 1));
+  if length(schoon) > 60 then
+    schoon := btrim(regexp_replace(left(schoon, 60), '\s+\S*$', ''));
+  end if;
+  if schoon is null or schoon = '' then
+    schoon := btrim(left(new.cluster, 60));
+  end if;
+  new.cluster := schoon;
+  return new;
+end $$;
+
+comment on function public.normaliseer_prompt_cluster() is
+  'Kapt uitgelopen cluster-waarden af i.p.v. de insert te laten falen. Zolang de promptgeneratie zelf nog geen grens hanteert (abcplan.md A2) voorkomt dit dat een lange cluster de hele analyse laat crashen.';
+
+drop trigger if exists prompts_cluster_normaliseren on public.prompts;
+create trigger prompts_cluster_normaliseren
+  before insert or update of cluster on public.prompts
+  for each row execute function public.normaliseer_prompt_cluster();
+
 alter table public.prompts
   drop constraint if exists prompts_cluster_len_check,
   add  constraint prompts_cluster_len_check
        check (cluster is null or length(cluster) <= 120);
+
+-- Getest met een insert van 16.020 tekens inclusief JSON-resten:
+-- resultaat 38 tekens, insert geslaagd.
 
 
 -- ── 2. Dezelfde overflow in het klantrapport ─────────────────────────────────

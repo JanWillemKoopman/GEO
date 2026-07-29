@@ -239,7 +239,22 @@ Concreet en toetsbaar. Elk criterium is met één query te controleren.
 
 ---
 
-## 7. Wat bewust nog openstaat
+## 7. Wat de opschoning níet duurzaam repareert
+
+Twee correcties uit de dataopschoning worden **overschreven zodra de app opnieuw draait**, omdat de onderliggende code nog niet is aangepast. Ze zijn een momentopname, geen oplossing:
+
+| Correctie | Wordt overschreven door | Duurzame fix |
+|---|---|---|
+| `share_of_voice` 20% → 17,65% | de eerstvolgende aggregatie (halte 3c) rekent weer met de oude formule | entiteit-normalisatie in A3 |
+| Titels, `existing_url`, review-notities | een hergeneratie van de content overschrijft deze rijen | `pageTitle` in B2, feitenkaart in Fase C |
+
+Wat wél duurzaam is: de opgeschoonde `cluster`-waarden (de trigger houdt ze kort, ook bij nieuwe prompts), de `entity_role`-toewijzing (blijft staan tot iemand hem wijzigt), en alle schema-uitbreidingen.
+
+**Concreet gevolg:** ga je vóór de codefixes een nieuwe meting draaien op deze analyse, verwacht dan dat de share-of-voice terugspringt naar de oude berekening. Dat is geen nieuwe bug — het is dezelfde bug, die pas verdwijnt als A3 is aangepast.
+
+---
+
+## 8. Wat bewust nog openstaat
 
 **Promptverdeling (bevinding 13).** 22 van de 30 prompts zijn `long_tail` met een geschat volume van 10–25; slechts 4 zitten in de band "hoog". De zichtbaarheidsscore wordt daardoor gedomineerd door vragen die bijna niemand stelt. Een gewogen score bestaat al technisch (`visibility_scores.weighted_score`, `prompts.volume_estimate`), maar wordt in de UI niet als hoofdgetal gebruikt. **Nog te beslissen:** sturen we op de verdeling bij het genereren, of tonen we de gewogen score als hoofdgetal? Beide kan, maar niet zonder keuze — en het raakt de belofte van "één helder getal" uit README §2.
 
