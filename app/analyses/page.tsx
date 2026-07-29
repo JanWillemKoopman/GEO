@@ -46,7 +46,7 @@ export default async function AnalysesPage() {
 
       {analyses.length > 0 && (
         <div className="flex flex-col gap-4">
-          <ActionList actions={dashboard.actions} stats={dashboard.stats} />
+          <ActionList work={dashboard.work} stats={dashboard.stats} />
           <DashboardStats stats={dashboard.stats} biggestChange={dashboard.biggestChange} />
         </div>
       )}

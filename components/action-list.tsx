@@ -1,5 +1,6 @@
-import Link from "next/link";
 import { InfoHint } from "@/components/info-hint";
+import { WorkRow } from "@/components/work-list";
+import { countNow } from "@/lib/work";
 import type { DashboardData } from "@/lib/dashboard";
 
 /**
@@ -10,19 +11,35 @@ import type { DashboardData } from "@/lib/dashboard";
  * off-site punten in het rapport. Wie drie analyses had, moest negen schermen af
  * om te weten of er iets te doen was — en deed het dus niet.
  *
- * De VOLGORDE is het advies. Bovenaan staat waar de app stilligt te wachten op
- * de klant, onderaan waar iets te winnen valt. Wie van boven naar beneden werkt,
- * doet automatisch het juiste eerst.
+ * Dit is de OPGEROLDE weergave van hetzelfde werkmodel dat het dossier per
+ * analyse toont (`lib/work.ts`). Eén afleiding, twee schaalniveaus: het
+ * dashboard kan niet meer iets anders beweren dan de analyse zelf. Voorheen
+ * waren dat twee losse berekeningen die gegarandeerd uit elkaar gingen lopen.
+ *
+ * Alleen de staat "nu" komt hier. Wat loopt of op hermeting wacht hoort in het
+ * dossier van die ene analyse, niet op een lijst die tot actie aanspoort.
  */
-export function ActionList({ actions, stats }: Pick<DashboardData, "actions" | "stats">) {
-  if (actions.length === 0) {
+export function ActionList({ work, stats }: Pick<DashboardData, "work" | "stats">) {
+  const now = work.filter((w) => w.state === "nu");
+  const running = work.filter((w) => w.state === "loopt").length;
+
+  if (now.length === 0) {
     return (
       <div className="card flex flex-col gap-2">
-        <span className="mono-label">Wat je nu kunt doen</span>
+        <span className="mono-label flex items-center gap-1.5">
+          {running > 0 && <span className="live-dot" />}
+          Wat je nu kunt doen
+        </span>
         <p className="text-secondary">
           Niets — alles staat klaar en er wacht geen actie op jou. We meten maandelijks door en
           laten het weten zodra er iets verandert.
         </p>
+        {running > 0 && (
+          <p className="text-sm text-muted">
+            {running === 1 ? "Eén ding draait" : `${running} dingen draaien`} nog op de achtergrond.
+            Daar hoef je niet op te wachten.
+          </p>
+        )}
         {stats.publishedThisMonth > 0 && (
           <p className="text-sm text-muted">
             Deze maand publiceerde je {stats.publishedThisMonth}{" "}
@@ -45,29 +62,17 @@ export function ActionList({ actions, stats }: Pick<DashboardData, "actions" | "
           </InfoHint>
         </span>
         <span className="mono-label">
-          {actions.length} {actions.length === 1 ? "punt" : "punten"}
+          {countNow(work)} {countNow(work) === 1 ? "punt" : "punten"}
         </span>
       </div>
 
       <ul className="flex flex-col gap-2">
-        {actions.map((action, i) => (
-          <li key={`${action.href}-${i}`}>
-            <Link
-              href={action.href}
-              className="flex flex-col gap-1 rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--bg-elevated)] p-3 transition-colors hover:border-[var(--border-strong)]"
-              // De eerste actie krijgt het accent: één duidelijke volgende stap,
-              // visueel dominant (bijlage A1). Twee even zware knoppen naast
-              // elkaar is geen advies maar een keuzemenu.
-              style={i === 0 ? { borderColor: "rgba(165,120,240,0.5)" } : undefined}
-            >
-              <div className="flex flex-wrap items-baseline justify-between gap-2">
-                <span className="font-medium">{action.title}</span>
-                <span className="mono-label" style={{ fontSize: "0.65rem" }}>
-                  {action.analysisName}
-                </span>
-              </div>
-              <span className="text-sm text-secondary">{action.detail}</span>
-            </Link>
+        {now.map((item, i) => (
+          <li key={item.id}>
+            {/* De eerste actie krijgt het accent: één duidelijke volgende stap,
+                visueel dominant. Twee even zware regels naast elkaar is geen
+                advies maar een keuzemenu. */}
+            <WorkRow item={item} emphasis={i === 0} showAnalysis />
           </li>
         ))}
       </ul>
