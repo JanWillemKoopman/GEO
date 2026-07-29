@@ -1,0 +1,42 @@
+{
+  "name": "geo-tracker",
+  "version": "0.1.0",
+  "private": true,
+  "description": "GEO Tracker \u2014 stupid simple GEO-tracking (meten \u2192 adviseren \u2192 genereren) op Next.js + Supabase + OpenAI.",
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "typecheck": "tsc --noEmit",
+    "test:unit": "tsx scripts/test-unit.ts",
+    "test:openai": "tsx scripts/test-openai.ts",
+    "eval:mention": "tsx scripts/eval-mention.ts"
+  },
+  "dependencies": {
+    "@supabase/ssr": "^0.5.2",
+    "@supabase/supabase-js": "^2.48.1",
+    "geist": "^1.3.1",
+    "next": "^15.1.6",
+    "openai": "^4.83.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "resend": "^4.1.2",
+    "zod": "^3.24.1"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.0.0",
+    "@types/node": "^22.13.0",
+    "@types/react": "^19.0.8",
+    "@types/react-dom": "^19.0.3",
+    "dotenv": "^16.4.7",
+    "eslint": "^9.19.0",
+    "eslint-config-next": "^15.1.6",
+    "tailwindcss": "^4.0.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.3"
+  }
+}

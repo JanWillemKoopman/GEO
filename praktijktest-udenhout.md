@@ -1,8 +1,20 @@
 # Praktijktest — Van den Udenhout, "Private Lease Skoda"
 
+> ## ⚠️ Lees dit eerst: status van dit document
+>
+> De bevindingen hieronder zijn afgeleid uit de **opgeslagen data** van een echte doorloop. Dat maakt ze feitelijk over wat er gebeurd is, maar **niet automatisch juist over de oorzaak**. Bij het naderhand naast de code leggen bleken drie conclusies fout of te kort door de bocht. Ze zijn hieronder gecorrigeerd en gemarkeerd.
+>
+> | Markering | Betekenis |
+> |---|---|
+> | ✅ **geverifieerd** | Nagelopen in de code op `main`; oorzaak en voorstel kloppen |
+> | 🔬 **te verifiëren** | Waargenomen in de data, oorzaak nog niet in de code nagelopen |
+> | ❌ **ingetrokken** | Was fout; de code doet dit al of doet het bewust anders |
+>
+> **`abcplan.md` is met opzet níet aangepast op basis van dit document.** Dat is de gezaghebbende technische spec en die hoort geen ongeverifieerde claims te bevatten. Voorstellen die de toets doorstaan verhuizen daar pas naartoe.
+
 > **Wat dit document is:** de eerste volledige end-to-end doorloop van de app (28 juli 2026), nagerekend tegen de opgeslagen data in Supabase. Elke bevinding hieronder is herleidbaar tot een concrete rij in de database, niet tot een indruk.
 >
-> **Waarom het bewaard wordt:** dit is het enige moment waarop we precies zien wat de pipeline in de praktijk doet in plaats van wat we hoopten dat hij zou doen. De bevindingen zijn de onderbouwing van de correcties in [abcplan.md](./abcplan.md) en van het ontwerp in [contentbriefing.md](./contentbriefing.md), en fungeren als **regressietest** voor de volgende analyse.
+> **Waarom het bewaard wordt:** dit is het enige moment waarop we precies zien wat de pipeline in de praktijk doet in plaats van wat we hoopten dat hij zou doen. Het onderbouwt het ontwerp in [contentbriefing.md](./contentbriefing.md) en levert **acceptatiecriteria** (§6) voor de volgende analyse.
 
 ---
 
@@ -45,25 +57,25 @@ Belangrijk om vast te leggen, want dit zijn de delen die níet veranderd moeten 
 | # | Bevinding | Ernst | Status |
 |---|---|---|---|
 | 1 | 6 van ~13 feitelijke claims in de content niet herleidbaar tot enige bron | **Hoog** | Ontwerp: [contentbriefing.md](./contentbriefing.md) · data: notitie in `review_notes` |
-| 2 | Alle 5 gaps verwijzen naar de verkeerde bewijs-run | **Hoog** | Spec: abcplan §B1 — koppeling volledig in code |
-| 3 | Rapport noemt de slechtst scorende vraag een "sterk punt" | **Hoog** | Spec: abcplan §B1 · data: samenvatting gecorrigeerd |
-| 4 | `content_pieces.title` bevat de instructie i.p.v. de paginakop | Middel | Spec: abcplan §B2 (`pageTitle`) · data: titels gezet |
-| 5 | `cluster` liep uit tot 14.341 tekens, kwam in het klantrapport | Middel | Spec: abcplan §A2 · data: opgeschoond + check-constraint |
-| 6 | Eigen merk dubbel geteld via alias; Škoda geteld als concurrent | Middel | Spec: abcplan §A3 · data: `entity_role` + SoV herberekend |
-| 7 | `geo_score = 100` en `quality_score = 90` voor álle pagina's | Middel | Spec: abcplan §8 — nieuwe scoreopbouw |
-| 8 | `existingUrl` verzonnen (`/udenhout.nl/skoda`) | Middel | Spec: abcplan §B2 · data: echte URL gezet |
-| 9 | `"telephone": "+31 "` in de schema-markup | Middel | Spec: abcplan §8 · data: veld verwijderd |
-| 10 | Categorie "Merkspecifiek" ontbrak — sentiment daardoor betekenisloos | Middel | Spec: abcplan §A2 |
-| 11 | Critique-bevindingen niet zichtbaar (`needs_review = false`) | Laag | Spec: abcplan §8 |
-| 12 | Revisies niet vastgelegd (`version` blijft 1, `revision_note` leeg) | Laag | Spec: abcplan §8 |
+| 2 | Alle 5 gaps verwijzen naar de verkeerde bewijs-run | **Hoog** | ✅ geverifieerd: `report.ts` laat het model zelf `evidenceRunIds` kiezen |
+| 3 | Rapport noemt de slechtst scorende vraag een "sterk punt" | **Hoog** | 🔬 voorstel · data: samenvatting gecorrigeerd |
+| 4 | `content_pieces.title` bevat de instructie i.p.v. de paginakop | Middel | 🔬 voorstel · data: titels gezet |
+| 5 | `cluster` liep uit tot 14.341 tekens, kwam in het klantrapport | Middel | 🔬 voorstel · data: opgeschoond + trigger |
+| 6 | Eigen merk dubbel geteld via alias; Škoda geteld als concurrent | Middel | Data: `entity_role` + SoV herberekend. **Let op:** `lib/entities/normalize.ts` bestaat al en dekt accenten/TLD's/rechtsvormen — het eigen merk loopt er alleen niet doorheen |
+| 7 | `geo_score = 100` en `quality_score = 90` voor álle pagina's | Middel | 🔬 voorstel — nieuwe scoreopbouw |
+| 8 | `existingUrl` verzonnen (`/udenhout.nl/skoda`) | Middel | 🔬 voorstel · data: echte URL gezet |
+| 9 | `"telephone": "+31 "` in de schema-markup | Middel | 🔬 voorstel · data: veld verwijderd |
+| 10 | ❌ *Was: "categorie Merkspecifiek ontbreekt"* | — | **Ingetrokken** — zie §5c |
+| 11 | Critique-bevindingen niet zichtbaar (`needs_review = false`) | Laag | 🔬 voorstel |
+| 12 | Revisies niet vastgelegd (`version` blijft 1, `revision_note` leeg) | Laag | 🔬 voorstel |
 | 13 | 22 van 30 prompts zijn long-tail met volume 10–25 | Laag | Open — zie §7 |
 | 14 | Vergelijkingstabel bevat een onjuiste rij die tegen de klant werkt | Middel | Data: notitie in `review_notes` — zie §7 |
-| 15 | **`content_brief` wordt opgeslagen maar stuurt de promptgeneratie niet aan** | **Hoog** | Spec: abcplan §A2 — zie §5 |
-| 16 | Geen enkel veld waarin de klant een geografische focus kan opgeven | Middel | Spec: abcplan §A2 — zie §5 |
-| 17 | Audit-trail bewaart alleen het antwoord, nooit de vraag aan het model | Middel | Spec: abcplan §5 — zie §5 |
-| 18 | Het eigen merk staat niet in `entities`; mentions hebben `entity_id = null` | Middel | Spec: abcplan §A3 |
+| 15 | ❌ *Was: "`content_brief` bereikt de promptgeneratie niet"* | — | **Ingetrokken** — zie §5c |
+| 16 | Geen veld waarin de klant een geografische focus per analyse kan opgeven | Middel | 🔬 voorstel — zie §5 |
+| 17 | Audit-trail bewaart alleen het antwoord, nooit de verstuurde input | Middel | ✅ geverifieerd in `lib/openai/structured.ts` |
+| 18 | Het eigen merk staat niet in `entities`; mentions hebben `entity_id = null` | Middel | 🔬 voorstel |
 
-Datacorrecties staan in [`migrations/20260729_02_dataopschoning.sql`](./migrations/20260729_02_dataopschoning.sql), schema-uitbreidingen in [`migrations/20260729_01_contentbriefing_schema.sql`](./migrations/20260729_01_contentbriefing_schema.sql).
+Datacorrecties staan in [`supabase/migrations/0025_dataopschoning_udenhout.sql`](./supabase/migrations/0025_dataopschoning_udenhout.sql), schema-uitbreidingen in [`supabase/migrations/0024_contentbriefing_schema.sql`](./supabase/migrations/0024_contentbriefing_schema.sql). Beide zijn al op de productiedatabase toegepast.
 
 ---
 
@@ -162,9 +174,26 @@ De plaatsnamen komen uit `profiles.service_regions`: `Noord-Brabant | Den Bosch 
 
 Geen van deze noemt Eindhoven. Als de wens er was, is hij nergens terechtgekomen waar het systeem hem kon zien.
 
-**c) En dat is niet het enige — `content_brief` stuurt de promptgeneratie sowieso niet aan.**
+**c) ❌ Ingetrokken conclusie: "`content_brief` stuurt de promptgeneratie niet aan".**
 
-Dit is de zwaarste bevinding uit dit onderzoek, en hij is hard te bewijzen met de **andere** analyse. De brief van de Schadeherstel-analyse luidt:
+> **Deze conclusie was fout.** Ze is hier bewaard omdat de manier waarop ze fout was leerzaam is.
+>
+> In `lib/pipeline/prompts.ts` staat het gewoon:
+>
+> ```ts
+> const briefRule = contentBrief?.trim()
+>   ? `GEWENSTE HOEK/DOELGROEP (van de klant): ${contentBrief.trim()}. Laat de gegenereerde vragen deze …`
+> ```
+>
+> De brief **wordt** meegegeven aan elke categorie-call. Ik concludeerde het tegendeel uit de uitkomsten (zie hieronder) zonder de code te openen. De waarneming klopt, de oorzaak niet: het model krijgt de instructie en volgt hem onvoldoende op. Dat is een **prompt-adherentieprobleem**, geen bedradingsprobleem — en dus een totaal andere oplossing dan "geef de brief mee".
+>
+> **De les:** een oorzaak afleiden uit output alleen is niet betrouwbaar zodra er een taalmodel tussen zit. Voor élke bevinding in dit document geldt daarom: waarneming uit de data, oorzaak uit de code.
+>
+> **Wat de waarneming wél waard is:** de adherentie is aantoonbaar zwak, en dat is een echt probleem. Voorstel (🔬 nog te toetsen): de brief niet alleen als losse regel meegeven maar als expliciete uitsluiting formuleren (*"deze content is NIET voor zakelijke rijders"*), en na generatie in code toetsen of de prompts de brief tegenspreken.
+
+**Wat de waarneming was:**
+
+De brief van de Schadeherstel-analyse luidt:
 
 > *"Ik wil content voor **particulieren** die schade hebben aan hun auto en nu opzoek zijn naar een oplossing."*
 
@@ -177,7 +206,7 @@ De prompts die daarop volgden:
 
 Onder andere *"spoed schadeherstel bedrijfswagen Tilburg"* en *"schadeherstel en bedrijfswageninrichting Eindhoven"* — de doelgroep die de brief juist uitsloot. Bij de Skoda-analyse hetzelfde beeld: nul prompts noemen "particulier", terwijl de brief over consumenten gaat die een nieuwe auto zoeken.
 
-**Het veld wordt dus wel uitgevraagd en netjes opgeslagen, maar bereikt de vijf categorie-calls van halte A2 niet.** De klant vult iets in, ziet het terug in zijn instellingen, en het heeft aantoonbaar geen effect op wat er gemeten wordt. Dat is erger dan het veld niet hebben: het wekt de indruk van sturing die er niet is.
+Dat de prompts geen "particulier" bevatten is overigens deels **bedoeld**: de generatie is merk- en doelgroep-neutraal geformuleerd zodat de meting eerlijk blijft (zie c hieronder over merkneutraliteit). Maar prompts genereren over bedrijfswagens terwijl de brief particulieren vraagt, is dat niet.
 
 **d) Waarom dit niet in vijf seconden te controleren was.**
 
@@ -185,16 +214,26 @@ Onder andere *"spoed schadeherstel bedrijfswagen Tilburg"* en *"schadeherstel en
 
 Dat botst met het vastgelegde principe in `abcplan.md` §5, dat belooft dat je "precies kunt reconstrueren wat het model op elk moment **zag** en antwoordde". De helft daarvan klopt. Om deze vraag te beantwoorden moest het effect worden afgeleid uit de uitkomsten, in plaats van dat de invoer gewoon opgezocht kon worden.
 
+**c-bis) ❌ Ook ingetrokken: "de categorie Merkspecifiek ontbreekt".**
+
+> Ik stelde voor om prompts toe te voegen die de klant bij naam noemen (*"Is Van den Udenhout betrouwbaar voor Skoda private lease?"*), omdat je anders nooit meet wát de AI over het merk zegt.
+>
+> **Dat voorstel is schadelijk.** De promptgeneratie op `main` is bewust **merk-neutraal** — er geldt een "harde no-brand-name-regel" en de merknaam gaat als *uitsluiting* mee (commit `665cb01`, "merkneutrale promptgeneratie (eerlijke zichtbaarheidsmeting)"). Zet je de merknaam in de vraag, dan noemt de AI hem vanzelf en meet de zichtbaarheidsscore zichzelf omhoog. Precies wat die keuze voorkomt.
+>
+> **De blinde vlek is wel echt**: er is nu geen enkele meting die laat zien of ChatGPT weet dat deze klant 3670 reviews met een 9+ heeft. Maar de oplossing kan nooit zijn: merkprompts tussen de 30 scorende vragen. Het zou een **aparte, niet-scorende reputatiemeting** moeten zijn, los van de zichtbaarheidsscore. Dat is een productbeslissing, geen bugfix — geparkeerd tot iemand daar bewust voor kiest.
+
 ### Conclusie
 
-De onderliggende observatie klopt: **de app doet niets met een geografische voorkeur.** Maar de oorzaak is niet dat Eindhoven werd overgeslagen — het is dat er geen manier is om focus uit te drukken, en dat het enige vrije tekstveld dat de klant invult (`content_brief`) nooit bij de promptgeneratie aankomt.
+De onderliggende observatie klopt: **er is geen manier om een geografische focus per analyse uit te drukken.** De plaatsnamen komen uit een profiel-breed veld en het rondstrooien is een bewuste regel voor lokale bedrijven (`lib/pipeline/prompts.ts`: *"verwerk in een deel van de prompts een van deze plaatsen/regio's"*). Bij afwezigheid van een voorkeur is dat correct gedrag — maar een voorkeur kán niet worden opgegeven.
 
-### Wat er moet gebeuren
+Eindhoven werd dus niet overgeslagen; er was nooit een plek om te zeggen dat het zwaarder moest wegen.
 
-1. **`content_brief` doorgeven aan alle vijf de categorie-calls** van A2, als expliciete scoping-instructie. Kleinste ingreep, grootste effect — het veld bestaat al en de klant vult het al in.
-2. **Een focusveld toevoegen** bij het aanmaken van de analyse: *"Wil je je richten op een specifieke plaats of regio?"* met de bekende `service_regions` als keuzelijst en "alle" als standaard. Bij een keuze krijgt die plaats het zwaartepunt in de prompts in plaats van een gelijk deel.
-3. **De verdeling zichtbaar maken op het concept-scherm** (A2c), bijvoorbeeld: *"Deze 30 vragen gaan over: Eindhoven (6), Breda (4), Tilburg (4)…"*. Dan had dit tijdens de review-gate opgevallen in plaats van achteraf — precies waar die gate voor bedoeld is.
-4. **De input meebewaren** in `raw_json` (`instructions` + `input`), zodat "wat vroegen we precies?" een query is en geen reconstructie.
+### Wat er zou moeten gebeuren — 🔬 voorstellen, nog niet getoetst op de code
+
+1. **Een focusveld** bij het aanmaken van de analyse: *"Wil je je richten op een specifieke plaats of regio?"* met de bekende `service_regions` als keuzelijst en "alle" als standaard. Bij een keuze krijgt die plaats het zwaartepunt in plaats van een gelijk deel.
+2. **De brief harder laten landen.** Hij wordt al meegegeven, maar wordt onvoldoende opgevolgd. Formuleer hem als expliciete uitsluiting en toets ná generatie in code of de prompts de brief tegenspreken.
+3. **De verdeling zichtbaar maken op het concept-scherm**, bijvoorbeeld: *"Deze 30 vragen gaan over: Eindhoven (6), Breda (4), Tilburg (4), geen plaats (7)"*. Dan valt een scheve verdeling op tijdens de goedkeuringsstap in plaats van achteraf — precies waar die stap voor bedoeld is. Dit is de goedkoopste van de drie en lost het gevoel "er is niets met mijn wens gedaan" direct op.
+4. **De input meebewaren** (✅ geverifieerd): `lib/openai/structured.ts` slaat `raw: response` op — alleen het antwoord van OpenAI, niet de `input`-array die verstuurd werd. Sla `system` + `input` mee, zodat "wat vroegen we precies?" een query is en geen reconstructie. Had deze regel bestaan, dan was de fout in c hierboven niet gemaakt.
 
 ---
 
