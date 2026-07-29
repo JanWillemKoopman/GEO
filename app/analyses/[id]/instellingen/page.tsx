@@ -1,25 +1,33 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { getAnalysis } from "@/lib/analyses";
 import { createClient } from "@/lib/supabase/server";
 import type { Profile, TopicResearch, Prompt } from "@/lib/types/database";
-import { TopicResearchEditor } from "./topic-research-editor";
-import { ContentBriefEditor } from "./content-brief-editor";
-import { PromptsManager } from "./prompts-manager";
-import { ConfirmBar } from "./confirm-bar";
+import { TopicResearchEditor } from "../_editors/topic-research-editor";
+import { ContentBriefEditor } from "../_editors/content-brief-editor";
+import { PromptsManager } from "../_editors/prompts-manager";
 import { TrackingToggle } from "./tracking-toggle";
 
 /**
- * Instellingen = het concept-/review-scherm (abcplan.md §3.6) de EERSTE keer
- * (status concept_klaar, met verplichte ConfirmBar), en daarna de doorlopende
- * beheerplek (§3.5, zonder verplichting — CRUD blijft, de bevestig-knop niet).
- * Het bedrijfsbrede Brand DNA leeft nu in het klantprofiel (zie ProfielKaart
- * hieronder, alleen-lezen met link naar Profielen om te bewerken).
+ * Instellingen = de doorlopende beheerplek (abcplan.md §3.5).
+ *
+ * Deze pagina deed tot nu toe twee dingen tegelijk: configuratie én de
+ * verplichte goedkeuring van het concept. Die tweede rol is verhuisd naar een
+ * eigen scherm (`/concept`) — een blokkerende stap in de gebruikersreis hoort
+ * niet vermomd te gaan als een configuratiescherm, want "Instellingen" betekent
+ * in elke applicatie ter wereld "hier hoef je niet te zijn".
+ *
+ * Wat hier overblijft is precies wat de naam belooft: dingen die je kúnt
+ * aanpassen, niet dingen die je móet doen.
  */
 export default async function InstellingenPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const analysis = await getAnalysis(id);
   if (!analysis) notFound();
+
+  // Nog niet bevestigd? Dan hoort de klant op het conceptscherm te zijn — daar
+  // staat dezelfde inhoud, mét de stap die de meting start.
+  if (analysis.status === "concept_klaar") redirect(`/analyses/${id}/concept`);
 
   const supabase = await createClient();
   const [{ data: profileRow }, { data: researchRow }, { data: promptRows }] = await Promise.all([
@@ -31,7 +39,6 @@ export default async function InstellingenPage({ params }: { params: Promise<{ i
   const profile = profileRow as Profile | null;
   const research = researchRow as TopicResearch | null;
   const prompts = (promptRows ?? []) as Prompt[];
-  const isReviewGate = analysis.status === "concept_klaar";
 
   return (
     <div className="flex flex-col gap-4">
@@ -51,18 +58,9 @@ export default async function InstellingenPage({ params }: { params: Promise<{ i
         </p>
       </div>
 
-      {isReviewGate && (
-        <div className="card" style={{ borderColor: "rgba(165,120,240,0.4)" }}>
-          <p className="text-secondary">
-            Dit is automatisch afgeleid uit je klantprofiel en de website. Controleer en pas aan
-            waar nodig, en bevestig daarna onderaan om de meting te starten.
-          </p>
-        </div>
-      )}
-
       {profile ? (
         <div className="card flex flex-col gap-3">
-          <span className="mono-label">Klantprofiel</span>
+          <span className="mono-label">Merk</span>
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <p className="text-lg font-semibold">{profile.name}</p>
@@ -72,46 +70,23 @@ export default async function InstellingenPage({ params }: { params: Promise<{ i
               </p>
             </div>
             <Link href={`/profielen/${profile.id}`} className="btn-outline w-fit">
-              Bewerk profiel
+              Merk bewerken
             </Link>
           </div>
         </div>
       ) : (
         <div className="card">
-          <p className="text-secondary">Klantprofiel niet gevonden.</p>
+          <p className="text-secondary">Merkprofiel niet gevonden.</p>
         </div>
       )}
 
-      {research ? (
-        <TopicResearchEditor analysisId={id} initial={research} />
-      ) : (
-        <div className="card">
-          <p className="text-secondary">Onderwerp-onderzoek wordt nog voorbereid…</p>
-        </div>
-      )}
+      {research && <TopicResearchEditor analysisId={id} initial={research} />}
 
       <ContentBriefEditor analysisId={id} initial={analysis.content_brief} />
 
       {prompts.length > 0 && <PromptsManager analysisId={id} initial={prompts} />}
 
       <TrackingToggle analysisId={id} initial={analysis.tracking_enabled} />
-
-      {/* De poort mag alleen open als er iets te meten valt. Zonder actieve
-          vragen zou de meting nul taken inplannen en zou de analyse blijven
-          hangen op een voortgangsscherm dat nooit verder komt — dus zeggen we
-          hier wat er moet gebeuren in plaats van een knop aan te bieden die
-          doodloopt. */}
-      {isReviewGate &&
-        (prompts.some((p) => p.active) ? (
-          <ConfirmBar analysisId={id} />
-        ) : (
-          <div className="card" style={{ borderColor: "rgba(229,72,77,0.4)" }}>
-            <p className="text-secondary">
-              Er staat op dit moment geen enkele vraag aan. Zet minstens één vraag aan hierboven —
-              zonder vragen valt er niets te meten en kan de meting niet starten.
-            </p>
-          </div>
-        ))}
     </div>
   );
 }

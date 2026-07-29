@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { getAnalysis } from "@/lib/analyses";
 import { createClient } from "@/lib/supabase/server";
 import { determineStage } from "@/lib/pipeline/stage";
@@ -41,20 +41,10 @@ export default async function OverviewPage({ params }: { params: Promise<{ id: s
     reportFailedNotice = analysis.status === "mislukt";
   }
 
-  if (analysis.status === "concept_klaar") {
-    return (
-      <div className="card flex flex-col gap-4">
-        <span className="mono-label">Concept klaar</span>
-        <p className="text-secondary">
-          Het onderwerp-onderzoek en de prompts staan klaar. Bekijk en bevestig ze op het tabblad
-          Instellingen om de meting te starten.
-        </p>
-        <Link href={`/analyses/${id}/instellingen`} className="btn-primary w-fit">
-          Naar concept &amp; goedkeuring
-        </Link>
-      </div>
-    );
-  }
+  // Wacht het concept op goedkeuring, dan is dát het scherm — niet een kaart die
+  // doorverwijst naar een tabblad. Een verplichte stap hoort geen tussenstap te
+  // hebben.
+  if (analysis.status === "concept_klaar") redirect(`/analyses/${id}/concept`);
 
   if (analysis.status === "meten") {
     return <MeasureProgress analysisId={id} initialStatus={analysis.status} />;

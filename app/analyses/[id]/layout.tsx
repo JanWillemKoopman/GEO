@@ -17,6 +17,11 @@ export default async function AnalysisLayout({
   const analysis = await getAnalysis(id);
   if (!analysis) notFound();
 
+  // Zolang het concept nog bevestigd moet worden, is er maar één taak — dan
+  // horen er geen tabbladen te staan die daarvan afleiden en die toch allemaal
+  // leeg zijn. Alle andere routes sturen in deze toestand door naar /concept.
+  const awaitingApproval = analysis.status === "concept_klaar";
+
   return (
     <div className="flex flex-col gap-6">
       <div>
@@ -29,7 +34,7 @@ export default async function AnalysisLayout({
         </div>
       </div>
 
-      <AnalysisTabs analysisId={id} />
+      {!awaitingApproval && <AnalysisTabs analysisId={id} />}
 
       <div>{children}</div>
     </div>
