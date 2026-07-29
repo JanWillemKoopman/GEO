@@ -374,10 +374,19 @@ const BrandDNA = z.object({
 | Categorie | ~Aantal prompts | Voorbeeld-prompt (onderwerp "iPhone") |
 |-----------|-----------------|----------------------------------------|
 | Oriëntatie | 6 | "Waar koop ik het beste een iPhone?" |
-| Vergelijking | 6 | "MediaMarkt vs Coolblue voor iPhone-reparatie: wat is beter?" |
-| Probleem→oplossing | 6 | "Mijn iPhone-scherm is kapot, waar laat ik dit repareren?" |
+| Overweging | 6 | "iPhone kopen of los toestel + sim-only: wat is slimmer?" |
+| Beslissing | 6 | "Waar kan ik vandaag in [regio] een iPhone ophalen?" |
 | Lokaal/branche | 6 | "Beste iPhone-reparatie in [regio]?" |
-| Merkspecifiek | 6 | "Is MediaMarkt betrouwbaar voor iPhone-reparaties?" |
+| **Merkspecifiek** | 6 | "Is MediaMarkt betrouwbaar voor iPhone-reparaties?" |
+
+> **⚠️ Correctie na de praktijktest (zie [praktijktest-udenhout.md](./praktijktest-udenhout.md)).** De eerste echte analyse gebruikte slechts **drie** categorieën (Oriëntatie / Overweging / Beslissing — een funnel-indeling). Op zichzelf een prima indeling, maar het gevolg was dat **"Merkspecifiek" volledig ontbrak**: geen enkele van de 30 prompts noemde de klant bij naam. Daardoor meet je alleen of het merk *spontaan* opduikt, en nooit **wat de AI over het merk zégt** als er expliciet naar gevraagd wordt.
+>
+> Dat is een blinde vlek die precies de sterkste troef van veel MKB-klanten onzichtbaar laat: Van den Udenhout heeft 3670 reviews met een 9+, en er is geen enkele meting die laat zien of ChatGPT dat weet. **De categorie "Merkspecifiek" is daarom verplicht**, ook als de overige vier anders worden ingedeeld. Sentiment (`tracking_run_mentions.sentiment`) is pas betekenisvol zodra deze categorie bestaat.
+
+**✅ Vastgelegd — `cluster` is een label, geen samenvatting.** De prompt-generatie vult per prompt een `cluster`. In de praktijktest liep dit veld volledig uit de hand: 23 prompts kregen een cluster van 78 tot **14.341 tekens** keyword-soep, en in één geval lekte er onverwerkte JSON in (`volumeEstimate=35}]}`). Die strings kwamen letterlijk in het klantrapport terecht als naam van een gap — het eerste wat de klant ziet. Daarom:
+- instructie in de prompt: *"cluster = maximaal 5 woorden, een label waaronder je deze vraag zou archiveren"*;
+- **harde databasegrens**: `check (cluster is null or length(cluster) <= 120)`;
+- afkappen bij het wegschrijven, niet pas bij het tonen.
 
 Elke call krijgt hetzelfde Brand DNA als context, plus een categorie-specifieke instructie (bijvoorbeeld voor "Vergelijking": *"Genereer 6 prompts die een koper zou stellen aan een AI-assistent om {merk} te vergelijken met concurrenten binnen {onderwerp}. Varieer in toon en specificiteit."*).
 
@@ -426,6 +435,16 @@ const Mention = z.object({
   })),
 });
 ```
+**✅ Vastgelegd — entiteit-normalisatie vóór het tellen (nieuw na de praktijktest).** Het model levert entiteitsnamen zoals ze in de tekst staan. Zonder normalisatie levert dat drie telfouten op die alle drie in de eerste analyse optraden:
+
+| Fout | Wat er gebeurde | Regel |
+|------|-----------------|-------|
+| **Alias dubbel geteld** | "Udenhout" én "Van den Udenhout" telden apart mee; 3 runs leverden 5 mention-rijen op, waardoor share-of-voice (20%) en score (10%) elkaar tegenspraken | Normaliseer tegen `profiles.aliases` + `entities.aliases` vóór het wegschrijven; tel het eigen merk **maximaal één keer per run** |
+| **Eigen productmerk als concurrent** | "Skoda" en "Škoda" werden als twee concurrenten geteld — het merk dat de klant zélf verkoopt | `entities.entity_role` bepaalt of iets meetelt; alleen `'concurrent'` telt in share-of-voice en `competitor_breakdown` |
+| **Irrelevante concurrenten** | De profiel-brede lijst (incl. `Autotaalglas`, een ruitschadebedrijf, en `Bovag`, een brancheorganisatie) werd in élk antwoord meegezocht, ook bij private-lease-vragen | Stuur bij een analyse mét onderwerp de **topic-specifieke** concurrentenlijst mee (uit `topic_research.competitors`), niet de profiel-brede lijst |
+
+Diakritische tekens (`Škoda`/`Skoda`), hoofdletters en rechtsvormen (`B.V.`, `Groep`) worden weggenormaliseerd in `entities.normalized`. **De ruwe naam blijft altijd bewaard** in `tracking_run_mentions.entity_name` — normalisatie bepaalt alleen hoe er geteld wordt, niet wat er opgeslagen wordt (§5).
+
 → Opslaan in `tracking_runs` — **volledig**: het ruwe antwoord uit 3a (`raw_response`), de complete structured-output uit 3b (`mention_json`), plus een bevroren snapshot van de prompt-tekst/categorie op dat moment (`prompt_text_snapshot`/`prompt_category_snapshot`, zie §5), en waar mogelijk `openai_response_id`/`tokens_used`/`cost_usd` voor kostenbewaking. **Daarnaast wordt `mentions` genormaliseerd naar aparte rijen in `tracking_run_mentions`** (één rij per entiteit, zie §5) — dit is de tabel waarop 3c en B1 straks rekenen, niet de ruwe JSON. Niets wordt alleen "verwerkt en weggegooid" — zie het vastgelegde principe in §5.
 
 **✅ Vastgelegd — retry-regel (kostenbescherming):** 3a en 3b zijn twee losse, idempotente stappen. Als 3b faalt nadat 3a al succesvol was, wordt **alléén 3b opnieuw geprobeerd** met het al opgeslagen `raw_response` — 3a (de dure `web_search`-call) wordt nooit onnodig herhaald. Dezelfde regel geldt voor A2: als 1 van de 5 categorie-calls faalt, worden **alleen de mislukte categorieën** opnieuw geprobeerd, niet alle 5. Blijft een stap na een paar pogingen mislukken, dan gaat de analyse naar `analyses.status = 'mislukt'` met een retry-knop in "Mijn analyses" (zie §3.4).
@@ -471,6 +490,38 @@ const GapAnalysis = z.object({
 ```
 → Opslaan als input voor B2 (niet los in een eigen tabel — het resultaat stroomt direct door).
 
+> ### ⚠️ Vastgelegd na de praktijktest: het model kiest géén ID's meer
+>
+> Dit is de **ernstigste fout** die de eerste echte analyse opleverde. Bij alle **vijf** gaps verwees `evidenceRunIds` naar een run die over een ándere vraag ging dan het cluster waaraan de gap hing:
+>
+> | Gap zegt | Bewijs-run gaat feitelijk over |
+> |---|---|
+> | "voordelen private lease" — Pon genoemd | proefrit in de buurt van Eindhoven |
+> | "leasevormen Skoda" — Pon genoemd | aanbiedingen objectief vergelijken |
+> | "proefrit Noord-Brabant" — Van Mossel genoemd | lokale dealer Tilburg |
+> | "dealer Tilburg" — Skoda genoemd | modellen beschikbaar Den Bosch |
+> | "Eindhoven contract" — skodafinancialservices genoemd | ophalen in Breda |
+>
+> De genoemde concurrent klópte telkens voor de aangewezen run, maar de gekoppelde vraag was steeds een andere — een consistent verschoven koppeling. Een taalmodel is niet betrouwbaar in het overtypen van UUID's, en dat is ook niet zijn werk. Het effect is erger dan geen bewijs tonen: de klant klikt door en ziet een gesprek dat niet over zijn probleem gaat, en verliest zijn vertrouwen in het hele rapport.
+>
+> **De regel:** de koppeling cluster → run → concurrent wordt **volledig in code** samengesteld uit `tracking_run_mentions`, vóórdat het model iets te zien krijgt. Het model krijgt een genummerde lijst voorgekauwde gaps en mag uitsluitend de **formulering** doen — nooit de selectie, nooit een ID.
+>
+> ```ts
+> // In code opgebouwd (geen AI), per cluster:
+> type GapFeit = {
+>   gapId: string;          // "G1" — het model verwijst hiernaar, niet naar UUID's
+>   cluster: string;
+>   runId: string;          // door ons ingevuld, nooit door het model
+>   promptText: string;
+>   competitorsMentioned: string[];
+>   ownBrandMentioned: boolean;
+> };
+> ```
+>
+> Het model levert per `gapId` alleen `problem` (de uitleg in gewone taal) terug. Wij plakken het `runId` er weer aan. **Validatie na afloop:** verwijst het model naar een `gapId` dat niet in de input zat, dan wordt die gap weggegooid in plaats van getoond.
+>
+> **Dezelfde fout, andere kant op — de sterktes.** Het rapport noemde *"vergelijken van kosten en aanbiedingen"* een sterk punt. In precies die run wordt de klant **niet** genoemd en tien concurrenten wél: objectief de slechtst scorende vraag van de hele meting. Ondertussen bleven de drie vragen waar de klant wél gevonden werd volledig onbenoemd. **Sterktes worden daarom net zo goed in code bepaald** — `select ... where is_own_brand and mentioned` — en niet aan het model gevraagd. Een sterkte die niet uit de data volgt, bestaat niet.
+
 ### B2. Rapport & aanbevelingen
 **OpenAI-call:** structured output, **geen** `web_search`. Input = de `GapAnalysis`-output van B1 + `visibility_scores` + `brand_dna`.
 
@@ -485,7 +536,10 @@ const Report = z.object({
     evidenceRunIds: z.array(z.string()),   // verwijzing naar tracking_runs.id — klant kan doorklikken naar het bewijs
   })),
   recommendations: z.array(z.object({
-    title: z.string(),                    // wordt straks een content_piece
+    briefInstruction: z.string(),         // de opdracht: "Maak een pagina over…"
+    pageTitle: z.string(),                // ✅ nieuw: de daadwerkelijke kop van de
+                                          // pagina, max 60 tekens, geen werkwoord
+                                          // in de gebiedende wijs
     type: z.enum(["article","faq","landing","comparison"]),
     targetIntent: z.string(),
     why: z.string(),                      // waarom dit de gap dicht
@@ -493,6 +547,10 @@ const Report = z.object({
   })),
 });
 ```
+
+**✅ Vastgelegd na de praktijktest: opdracht ≠ titel.** In de eerste analyse belandde de instructie letterlijk als paginakop in de bibliotheek: *"Maak een overzichtelijke pagina met informatie over lokale dealers in Tilburg waar private lease mogelijk is"*. De klant keek dus naar kaarten met opdrachten in plaats van titels. Veelzeggend: de `metaTitle` die de content-generator later maakte wás wel goed ("Škoda Private Lease Tilburg – Van den Udenhout") — de informatie was er, ze werd alleen nooit als titel gebruikt. Daarom levert B2 nu **beide** velden, die als aparte kolommen worden opgeslagen (`content_pieces.brief_instruction` en `content_pieces.title`). De klant bevestigt of corrigeert de titel tijdens de contentbriefing (zie [contentbriefing.md](./contentbriefing.md) §11).
+
+**✅ Vastgelegd: `existingUrl` moet een echte URL zijn.** In de praktijktest vulde het model `/udenhout.nl/skoda` in — geen geldig pad en geen geldige URL, terwijl de échte pagina (`https://www.udenhout.nl/acties/skoda-private-lease`) al bekend was uit de topic research inclusief citatie. Het model mag dit veld daarom **niet zelf verzinnen**: het krijgt de lijst bekende URL's uit `profile_pages` + `topic_research` mee en mag daar alleen uit kiezen, of `null` teruggeven. Bij `null` wordt het een briefingvraag.
 → Opslaan in `reports` (inclusief `raw_json` van zowel B1 als B2, zie §5). Zodra dit klaar is: `analyses.status = 'gereed'` **(✅ herzien — hier, niet al na A3, zie A3 hierboven)**. Toon in tab **Rapport**: één headline-score, korte samenvatting, top-gaps (nu met concrete concurrent + bewijs), en een lijst aanbevelingen met **"Genereer deze pagina"**-knop.
 → Mail het rapport via **Resend** (jouw acquisitie-stap 5). Eindig altijd met **1–3 priority actions**.
 
@@ -523,6 +581,29 @@ const ContentPiece = z.object({
 });
 ```
 → Opslaan in `content_pieces` met `status: "ready"`.
+
+### ✅ Vastgelegd na de praktijktest: een score die daadwerkelijk onderscheidt
+
+De eerste analyse leverde drie pagina's op met **exact dezelfde cijfers**: `geo_score = 100` en `quality_score = 90` voor alle drie. De `geo_json` bestond uit vijf booleans die alle drie de keren allemaal `true` waren. Een pagina met zes verzonnen feiten en een kapotte `"telephone": "+31 "` in de schema-markup scoorde dus een perfecte 100.
+
+Een score die altijd hetzelfde is, is geen score — hij geeft de klant valse zekerheid en ons geen enkel signaal. De vijf bestaande checks blijven nuttig als **drempel** (haalt de pagina de basis?), maar de score wordt opgebouwd uit dingen die per pagina echt verschillen:
+
+| Component | Weging | Hoe gemeten | Wat het vangt |
+|---|---|---|---|
+| **Bronnendekking** | 40% | `content_pieces.source_coverage`: % beweringen met een F-nummer op de feitenkaart | De zes verzonnen claims |
+| **Schema-validiteit** | 20% | Verplichte velden per `@type` aanwezig én niet-leeg | De `"+31 "`-placeholder |
+| **Eigen bewijs** | 20% | Bevat de pagina minstens één cijfer/case/proof-point dat níet op de bestaande site staat? | Generieke content die niets toevoegt |
+| **Interne link** | 10% | Verwijst de pagina naar de echte bestaande pagina uit `existing_url`? | De verzonnen `/udenhout.nl/skoda` |
+| **Basischecks** | 10% | De vijf bestaande GEO-booleans | Structuur |
+
+**Harde regels bovenop de score**, want sommige dingen mag je niet wegmiddelen:
+- bronnendekking < 100% → `needs_review = true`, ongeacht de totaalscore;
+- ongeldige schema-markup → het veld wordt **leeg** opgeleverd in plaats van half gevuld;
+- openstaande verplichte briefingvraag die deze pagina raakt → zichtbare notitie in `review_notes`.
+
+**Ook vastgelegd: de critique moet zichtbaar zijn.** In de praktijktest vond de critique-call drie terechte stijlpunten op de landingspagina, maar `needs_review` bleef `false` en `review_notes` bleef leeg — de klant heeft die opmerkingen nooit gezien. Alles wat de critique vindt en niet automatisch is opgelost, hoort in `review_notes`.
+
+**En: leg de revisie vast.** De opgeslagen critique in de praktijktest ging over een linktekst die in de definitieve versie niet meer voorkwam, terwijl `version = 1` en `revision_note = null` bleven staan. De kolommen `version` / `supersedes_id` / `revision_note` bestaan al (§5) — ze worden alleen niet gevuld. Elke revisie hoort een nieuwe versie te zijn, zodat `quality_score` altijd bij de tekst hoort die er daadwerkelijk staat.
 
 ### Het tabblad "Content Bibliotheek"
 De centrale opleverplek, per analyse. Een lijst kaarten:

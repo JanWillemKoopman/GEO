@@ -53,7 +53,11 @@ Concrete regels die we hanteren:
 | 9 | **Sentiment** | Wordt er positief, neutraal of negatief gesproken? |
 | 10 | **Historie** | Simpele grafiek: gaat de zichtbaarheid omhoog of omlaag over tijd? |
 
-**Bewust NIET in de MVP** (om simpel te blijven): content-generatie, AI-optimalisatie-agents, white-label rapportages, 10+ engines, keyword-research suites. Dat is waar de concurrentie complex en duur wordt — zie [concurrenten.md](./concurrenten.md).
+| 11 | **Content op aanvraag** | Bij elke aanbeveling uit het rapport kan de klant met één klik de pagina laten schrijven. Vóór het schrijven stelt de app een korte vragenronde in om interne kennis op te halen en verzinsels te voorkomen (zie [contentbriefing.md](./contentbriefing.md)). |
+
+**Bewust NIET in de MVP** (om simpel te blijven): AI-optimalisatie-agents die zelfstandig de website aanpassen, publiceren naar het CMS, white-label rapportages, 10+ engines, keyword-research suites. Dat is waar de concurrentie complex en duur wordt — zie [concurrenten.md](./concurrenten.md).
+
+> *Noot: content-generatie stond hier oorspronkelijk als "niet in de MVP". Dat is achterhaald — FASE C in [abcplan.md](./abcplan.md) §8 levert het wél, maar alleen op expliciete klik van de klant, zodat er nooit kosten worden gemaakt voor content die niemand vroeg.*
 
 ---
 
@@ -101,6 +105,8 @@ Klant (browser/mobiel)
 **Vastgelegd principe: we bewaren alles.** Elke AI-call slaat zijn volledige ruwe JSON-resultaat op in Supabase (niet alleen de uitgesplitste velden) — volledige audit-trail, geen dataverlies. Zie [abcplan.md](./abcplan.md) §5.
 
 > **📋 Contentkwaliteit:** hoe de app vóór het schrijven van content gerichte vragen stelt aan de klant — om interne kennis op te halen die een AI niet kan weten, én om te voorkomen dat het model feiten verzint — staat in **[contentbriefing.md](./contentbriefing.md)**.
+
+> **🔍 Praktijktest:** de eerste volledige doorloop van de app (Van den Udenhout, "Private Lease Skoda") is nagerekend tegen de opgeslagen data en vastgelegd in **[praktijktest-udenhout.md](./praktijktest-udenhout.md)** — inclusief wat er goed werkte, 14 bevindingen met status, en de acceptatiecriteria voor de volgende analyse. Dit document is de onderbouwing van diverse correcties in `abcplan.md`.
 
 > Zie [abcplan.md](./abcplan.md) §3 voor de volledige uitwerking van het "Analyse"-concept (incl. de transparantie- en goedkeuringsstap, §3.6, en de volledige klantreis, §3.7), en §5 voor het complete datamodel.
 

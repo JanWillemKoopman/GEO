@@ -8,7 +8,7 @@
 
 ## 1. Waarom deze stap er moet komen
 
-De eerste echte end-to-end analyse (Van den Udenhout, onderwerp "Private Lease Skoda", 28 juli) leverde drie goed geschreven pagina's op. Bij een feitencheck van elke bewering tegen de beschikbare brondata bleek het volgende:
+De eerste echte end-to-end analyse (Van den Udenhout, onderwerp "Private Lease Skoda", 28 juli — volledig nagerekend in [praktijktest-udenhout.md](./praktijktest-udenhout.md)) leverde drie goed geschreven pagina's op. Bij een feitencheck van elke bewering tegen de beschikbare brondata bleek het volgende:
 
 | Bewering in de content | Onderbouwd door |
 |---|---|
@@ -114,7 +114,7 @@ const ClaimAudit = z.object({
 
 Elke onbewezen claim → één `fact_request`.
 
-> **Waarom dit werkt:** in de Udenhout-run had deze audit exact de zes verzonnen claims uit §1 opgeleverd als vraag, omdat er geen enkel item in de feitenindex naar pechhulp, vervangend vervoer, contractlooptijd of financial lease verwijst. Het mechanisme is direct afgeleid uit een echte fout, niet uit een aanname.
+> **Waarom dit werkt — getoetst, niet aangenomen.** De audit is handmatig uitgevoerd op de echte gegenereerde pagina uit de praktijktest. Van de 16 beweringen markeerde hij precies de zes verzonnen claims als onbewezen, plus een feitelijk onjuiste rij in de vergelijkingstabel die bij de handmatige controle pas als laatste opviel. Vier andere claims werden terecht als "aannemelijk maar niet toe te schrijven aan deze klant" gemarkeerd. De volledige uitwerking, inclusief de acht vragen die eruit volgden, staat in [praktijktest-udenhout.md](./praktijktest-udenhout.md) §4.
 
 ### 3.3 Stap 3 — vaste slots per contenttype (geen AI-call)
 
