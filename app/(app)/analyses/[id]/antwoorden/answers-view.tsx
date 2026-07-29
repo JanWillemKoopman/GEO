@@ -210,7 +210,7 @@ function AnswerCard({
           type="button"
           onClick={() => setOpen((o) => !o)}
           aria-expanded={open}
-          className="btn-outline w-fit"
+          className="btn-outline btn-sm w-fit"
         >
           {open ? "Verberg het antwoord" : "Bekijk het antwoord"}
         </button>

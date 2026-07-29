@@ -65,7 +65,7 @@ export default async function ContentDetailPage({
         href={`/analyses/${id}/bibliotheek`}
         className="mono-label transition-colors hover:text-[var(--text-primary)]"
       >
-        ← Content Bibliotheek
+        ← Bibliotheek
       </Link>
 
       <div className="flex flex-col gap-3">
@@ -117,7 +117,7 @@ export default async function ContentDetailPage({
           </ul>
           {targets.some((t) => t.tracking_run_id) && (
             <Link
-              href={`/analyses/${id}/antwoorden?runs=${targets
+              href={`/analyses/${id}?runs=${targets
                 .map((t) => t.tracking_run_id)
                 .filter(Boolean)
                 .join(",")}`}

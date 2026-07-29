@@ -199,7 +199,8 @@ body {
   border-color: var(--text-primary);
 }
 
-/* Compacte variant, voor knoppen binnen een rij of kaart. */
+/* Compacte variant, voor knoppen binnen een kaart of lijstregel — daar is 48px
+   te dominant naast de tekst waar hij bij hoort. */
 .btn-sm {
   height: 40px;
   padding: 0 18px;

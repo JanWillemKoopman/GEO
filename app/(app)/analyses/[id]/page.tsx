@@ -141,7 +141,7 @@ export default async function DossierPage({
           intro="Alles wat er te doen valt, op volgorde van belang. Bovenaan staat waar het vastloopt zonder jou."
         >
           <Suspense fallback={<ChapterSkeleton blocks={2} />}>
-            <WerkChapter analysis={analysis} />
+            <WerkChapter analysis={analysis} work={work} />
           </Suspense>
         </Chapter>
 

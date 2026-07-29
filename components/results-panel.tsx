@@ -84,7 +84,7 @@ export function ResultsPanel({ analysisId, results }: { analysisId: string; resu
             nog niet online {funnel.generated === 1 ? "staat" : "staan"}. Zolang dat zo is, kan er
             niets veranderen aan je zichtbaarheid.{" "}
             <Link href={`/analyses/${analysisId}/bibliotheek`} className="underline">
-              Naar de Content Bibliotheek
+              Naar je bibliotheek
             </Link>
           </p>
         )}
@@ -148,7 +148,7 @@ export function ResultsPanel({ analysisId, results }: { analysisId: string; resu
             ))}
           </ul>
 
-          <Link href={`/api/analyses/${analysisId}/results/export`} className="btn-outline w-fit">
+          <Link href={`/api/analyses/${analysisId}/results/export`} className="btn-outline btn-sm w-fit">
             Overzicht downloaden
           </Link>
         </div>

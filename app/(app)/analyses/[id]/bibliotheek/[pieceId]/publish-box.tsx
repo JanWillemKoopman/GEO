@@ -110,7 +110,7 @@ export function PublishBox({
 
         <p className="text-sm text-secondary">
           We hermeten de bijbehorende vragen over twee en vier weken. Het resultaat verschijnt
-          vanzelf op het tabblad Overzicht — je hoeft niets te doen.
+          vanzelf in hoofdstuk 04 van je analyse — je hoeft niets te doen.
         </p>
 
         <button

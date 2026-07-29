@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { WorkList } from "@/components/work-list";
-import { loadWork } from "@/lib/work";
+import type { WorkItem } from "@/lib/work";
 import { AuditGate } from "@/components/audit-gate";
 import { loadAuditGate } from "@/lib/audit/gate";
 import { InfoHint } from "@/components/info-hint";
@@ -32,12 +32,22 @@ import type { Analysis, OffsiteTask, Report, SourceLandscapeRow } from "@/lib/ty
  *   3. Nieuwe pagina's laten schrijven — hier ontstaat nieuw werk.
  *   4. Het off-site blok: waar je de punten van buiten je site afvinkt.
  */
-export async function WerkChapter({ analysis }: { analysis: Analysis }) {
+export async function WerkChapter({
+  analysis,
+  work,
+}: {
+  analysis: Analysis;
+  /**
+   * Al opgehaald door de pagina, want de rail heeft de telling nodig om te
+   * kunnen tonen dat hier iets op je wacht. Doorgeven in plaats van opnieuw
+   * ophalen: dezelfde vijf queries twee keer draaien is puur verlies.
+   */
+  work: WorkItem[];
+}) {
   const supabase = await createClient();
 
-  const [work, gate, { data: reportRow }, { data: offsiteRows }, { data: landscapeRows }] =
+  const [gate, { data: reportRow }, { data: offsiteRows }, { data: landscapeRows }] =
     await Promise.all([
-      loadWork(supabase, analysis),
       loadAuditGate(supabase, analysis.profile_id),
       // Het nieuwste rapport levert de aanbevelingen; oudere aanbevelingen zijn
       // achterhaald zodra er opnieuw gemeten is.

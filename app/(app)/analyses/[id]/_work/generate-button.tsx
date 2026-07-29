@@ -135,7 +135,7 @@ export function GenerateButton({
         </span>
         <span className="text-sm text-muted">
           Dit duurt een paar minuten. Je kunt deze pagina sluiten — het schrijven loopt door en de
-          tekst verschijnt vanzelf in de Content Bibliotheek.
+          tekst verschijnt vanzelf in je bibliotheek.
         </span>
       </div>
     );

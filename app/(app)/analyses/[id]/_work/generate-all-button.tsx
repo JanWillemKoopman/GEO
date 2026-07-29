@@ -76,7 +76,7 @@ export function GenerateAllButton({
           Bibliotheek.
         </p>
         <Link href={`/analyses/${analysisId}/bibliotheek`} className="btn-outline w-fit">
-          Naar de Content Bibliotheek
+          Naar je bibliotheek
         </Link>
       </div>
     );

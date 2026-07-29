@@ -84,7 +84,7 @@ export async function sendReportEmail(
 
   const resend = new Resend(apiKey);
   const from = process.env.RESEND_FROM_EMAIL ?? "GEO Tracker <onboarding@resend.dev>";
-  const reportUrl = `${publicEnv.siteUrl}/analyses/${analysis.id}/rapport`;
+  const reportUrl = `${publicEnv.siteUrl}/analyses/${analysis.id}`;
   const topRecommendations = [...report.recommendations].sort((a, b) => a.priority - b.priority).slice(0, 3);
 
   const html = `

@@ -57,7 +57,7 @@ export async function sendPublishReminder(
         en je mag ons altijd mailen als het niet lukt.
       </p>
       <p style="margin-top: 24px;">
-        <a href="${libraryUrl}" style="color: #8511D9;">Naar je Content Bibliotheek →</a>
+        <a href="${libraryUrl}" style="color: #8511D9;">Naar je bibliotheek →</a>
       </p>
       <p style="font-size: 12px; color: #6b6b70; margin-top: 32px;">
         Dit is de enige herinnering die we hierover sturen.

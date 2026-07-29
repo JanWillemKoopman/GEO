@@ -80,7 +80,7 @@ export function ProfileGaps({ profile }: { profile: Profile }) {
         ))}
       </ul>
 
-      <Link href={`/profielen/${profile.id}#profiel`} className="btn-outline w-fit">
+      <Link href={`/profielen/${profile.id}#profiel`} className="btn-outline btn-sm w-fit">
         Profiel aanvullen
       </Link>
     </div>
