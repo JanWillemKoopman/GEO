@@ -24,20 +24,25 @@ export function ConfirmBar({ analysisId }: { analysisId: string }) {
   async function confirm() {
     setPending(true);
     setError(null);
+    let res: Response;
     try {
-      const res = await fetch(`/api/analyses/${analysisId}/confirm`, { method: "POST" });
-      if (!res.ok) {
-        const json = await res.json().catch(() => ({}));
-        setError(json.error ?? "Bevestigen mislukt.");
-        setPending(false);
-        return;
-      }
-      router.push(`/analyses/${analysisId}`);
-      router.refresh();
+      res = await fetch(`/api/analyses/${analysisId}/confirm`, { method: "POST" });
     } catch {
+      // De fetch zelf strandde (netwerk/timeout) — er is geen response om te lezen.
       setError("Bevestigen mislukt. Probeer het opnieuw.");
       setPending(false);
+      return;
     }
+    if (!res.ok) {
+      const json = await res.json().catch(() => ({}));
+      setError(json.error ?? "Bevestigen mislukt.");
+      setPending(false);
+      return;
+    }
+    // Buiten de try: bevestigen is al gelukt op de server, dus een fout hier
+    // (bv. tijdens router.refresh) mag niet als "bevestigen mislukt" ogen.
+    router.push(`/analyses/${analysisId}`);
+    router.refresh();
   }
 
   return (
