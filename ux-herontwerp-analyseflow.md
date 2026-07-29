@@ -183,7 +183,7 @@ vraag hoort:
 | Aanbevelingen + `GenerateButton` | tab 3 | **03 Werk** — als taak in staat "te doen" |
 | `GenerateAllButton` | tab 3 | **03 Werk**, kop van de lijst |
 | `OffsitePanel` | tab 3, onderaan | **03 Werk** — als taken, tussen de rest |
-| `LibraryList` (bibliotheek) | tab 4 | **03 Werk** — dezelfde taken, latere staat |
+| `LibraryList` (bibliotheek) | tab 4 | **blijft een eigen plek** — zie §3.3 |
 | `FactRequests` | **profielpagina** | **03 Werk** — als taak |
 | `ResultsPanel` | tab 1, bovenaan | **04 Resultaat** |
 | Effect per pagina | tab 1 + tab 4 detail | **04 Resultaat**, één plek |
@@ -292,36 +292,50 @@ Gegroepeerd op **staat**, niet op soort:
 ```
 
 Eén lijst. De gebruiker leest van boven naar beneden en weet wat hij moet doen.
-De **Content Bibliotheek verdwijnt als plek** — een geschreven pagina is
-gewoon een taak in een latere staat. Dat is precies het inzicht dat nu ontbreekt:
-`content_pieces` was nooit een bibliotheek, het was altijd een takenlijst.
 
-Wat blijft: het **contentstuk zelf** heeft genoeg diepte (tekst, GEO-scorecard,
+**De bibliotheek blijft wél een eigen plek** (beslissing van de opdrachtgever,
+en terecht). `content_pieces` is twee dingen tegelijk: in het dossier is een
+pagina een *taak* — hij ligt klaar, hij is gepubliceerd, hij wordt hermeten —
+maar de tekst zélf is het **eindproduct** waar de klant voor betaalt. Een
+eindproduct hoort een vaste kast te hebben waar het netjes bij elkaar staat,
+ook lang nadat de taak eromheen is afgerond.
+
+De tweedeling is dus: **hoofdstuk 03 zegt wat je moet dóén, de bibliotheek is
+waar alles staat.** In de bibliotheek is de ordening de levensloop van een
+tekst — klaar om te publiceren, nog nakijken, online, in de maak — in plaats van
+één lange lijst op datum. Zo zoekt iemand zijn eigen content ook: "wat staat er
+al online" is een andere vraag dan "wat moet ik nog nakijken".
+
+Het **contentstuk zelf** heeft genoeg diepte (tekst, GEO-scorecard,
 publicatie-instructies, versies, herschrijven) om een subpagina te verdienen.
-Die blijft, alleen op een eerlijkere URL.
+Die blijft.
 
 ---
 
 ## 4. Nieuwe routestructuur
 
 ```
-/analyses                          Dashboard — het werk over alle analyses heen
-/analyses/nieuw                    (was: /new)
-/analyses/[id]                     HET DOSSIER — 01 Stand · 02 Bewijs · 03 Werk · 04 Resultaat
-/analyses/[id]/concept             De goedkeuringsstap (alleen bij status concept_klaar)
-/analyses/[id]/pagina/[pieceId]    Eén contentstuk (was: /bibliotheek/[pieceId])
-/analyses/[id]/instellingen        Configuratie, achter het tandwiel
+/analyses                             Dashboard — het werk over alle analyses heen
+/analyses/[id]                        HET DOSSIER — 01 Stand · 02 Bewijs · 03 Werk · 04 Resultaat
+/analyses/[id]/concept                De goedkeuringsstap (alleen bij status concept_klaar)
+/analyses/[id]/bibliotheek            Het eindproduct: alle geschreven pagina's
+/analyses/[id]/bibliotheek/[pieceId]  Eén contentstuk
+/analyses/[id]/instellingen           Configuratie, achter het tandwiel
 
-/merken                            (was: /profielen) — naslag over het merk
-/merken/nieuw
-/merken/[id]
-/instellingen                      Account
+/analyses/[id]/rapport                → stuurt door naar het dossier
+/analyses/[id]/antwoorden             → stuurt door naar hoofdstuk 02
+
+/profielen                            Naslag over het merk (heet in de UI "Merken")
+/instellingen                         Account
 ```
 
-**Van 5 tabs + 1 subpagina naar 1 pagina + 3 subpagina's**, waarvan er twee
-situationeel zijn (concept alleen tijdens de gate, pagina alleen als je erop
-klikt). Wat de gebruiker in de normale gang van zaken ziet: **één scherm per
-analyse.**
+**Van 5 tabbladen naar 1 dossier + 2 vaste bestemmingen** (bibliotheek en
+instellingen), plus het conceptscherm dat alleen tijdens de goedkeuring
+bestaat. De oude tab-URL's blijven werken als redirect, want er staan links naar
+in eerder verstuurde e-mails.
+
+De routes heten nog `/profielen` terwijl de UI "Merken" zegt: bestaande links en
+bladwijzers blijven zo werken, en wat de klant leest is wat telt.
 
 ### 4.1 Periodes
 
@@ -593,21 +607,23 @@ gebruiken en beslissen of de rest doorgaat, zonder iets te hebben weggegooid.
 
 ---
 
-## 8. Wat ik van jou nodig heb
+## 8. Status
 
-Twee beslissingen, de rest kan ik invullen:
+Alle acht fases zijn gebouwd. De twee openstaande beslissingen zijn beantwoord:
 
-1. **Gaat de Content Bibliotheek als plek weg?** Mijn advies is ja — het is een
-   takenlijst die zich voordoet als archief, en dat is de grootste bron van
-   "informatie staat overal". Maar als jij of je klanten het als *bibliotheek*
-   gebruiken (terugzoeken wat er ooit geschreven is, los van de takenstroom),
-   dan moet er een archiefweergave blijven en wordt het een filter in
-   hoofdstuk 03 in plaats van een verdwijnpunt.
+1. **De bibliotheek blijft een eigen plek** — het is een eindproduct, geen
+   takenlijst die zich als archief voordoet. Zie §3.3.
+2. **Alles in één keer**, in acht releasebare stappen.
 
-2. **Hoeveel mag er in één keer om?** Fase 1–4 is een half project en levert al
-   het grootste deel van de winst; fase 5–7 maakt het af. Ik kan ook alleen
-   fase 3 doen als je eerst wilt zien hoe het voelt.
+Wat nog aandacht verdient nu het staat:
 
-Op één punt na kan ik zonder verdere input door: de exacte woorden van de
-hoofdstukkoppen ("Waar je wint en mist" versus "Bewijs") bepaal ik graag samen
-als het staat — dat leest beter op het scherm dan in een document.
+- **De woorden van de hoofdstukkoppen.** "Hoe je ervoor staat", "Waar je wint
+  en mist", "Wat je nu moet doen", "Wat het heeft opgeleverd" — dat leest
+  beter op het scherm dan in een document, en is met één regel per kop aan te
+  passen in `app/(app)/analyses/[id]/page.tsx`.
+- **De term "Merken".** De UI zegt het nu overal; de routes en de database
+  spreken nog van profielen. Dat mag zo blijven, maar als je een ander woord
+  wilt, staat het op één plek (`lib/nav.ts` plus de schermteksten).
+- **Doormeten met echte data.** De hoofdstukken zijn gebouwd op de bestaande
+  queries, maar hoe lang hoofdstuk 02 wordt bij dertig vragen, en of de rail
+  dan nog genoeg houvast geeft, blijkt pas met een gevulde analyse.
