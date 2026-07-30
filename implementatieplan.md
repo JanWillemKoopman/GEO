@@ -83,8 +83,8 @@ toegepast.
 | R0.4 | Meetbasis-krimp zichtbaar maken | 1,5 d | ☐ |
 | R0.5 | Entiteitclassificatie: bedrijfsmodel + productlijnen | 2 d | ☐ |
 | R0.6 | Off-site: repareren of uitzetten | 1,5 d | ☐ |
-| R1.1 | Bewijsdossier in code | 2 d | ☐ |
-| R1.2 | Rapportprompt: verwoorden, niet afleiden | 1 d | ☐ |
+| R1.1 | Bewijsdossier in code | 2 d | ✅ |
+| R1.2 | Rapportprompt: verwoorden, niet afleiden | 1 d | ✅ |
 | R1.3 | Claimvalidator | 1,5 d | ☐ |
 | R2.1 | Merken-per-antwoord vastleggen | 1 d | ☐ |
 | R2.2 | Score splitsen | 2 d | ☐ |
@@ -344,6 +344,30 @@ leggen en gokt.
 **Klaar wanneer:** elke gemiste vraag in de rapportinvoer draagt zijn eigen, uit de database
 afgeleide merkenlijst.
 
+> **✅ Opgeleverd.** `lib/pipeline/evidence.ts` (query's) + `lib/pipeline/evidence-format.ts`
+> (opmaak, puur en getest — zelfde splitsing als `period-change` / `period-change-format`).
+> 15 nieuwe eenheidstests.
+>
+> **Uitkomst van de verificatie op Van der Valk** — de oorzaak is nu volledig zichtbaar:
+>
+> | Vraag | Bedrijven in dát antwoord |
+> |---|---|
+> | **V1** — *"Wat is de beste manier om een vergaderlocatie te boeken…"* | **geen enkel** |
+> | **V5** — *"Welke vergaderlocaties zijn beschikbaar voor 20 personen…"* | Dotslash Utrecht, Het Oude Raadhuis Hoofddorp, ZiPPERZ |
+>
+> Het rapport plakte de namen van **V5** op **V1**. Met het dossier staat per vraag apart wat
+> erin zat, dus die verwisseling kan niet meer ontstaan.
+>
+> **Afwijking van het plan — rolfilter toegevoegd.** De verificatie bracht iets aan het licht
+> dat vooraf niet voorzien was: de mention-classificatie pikt naast bedrijven ook gewone
+> woorden op als entiteit ("vergaderlocatie", "locatie", "hotel", "Nederland"). Die worden
+> verderop correct als `niet_relevant` geclassificeerd, maar zouden in het dossier ten onrechte
+> doorgaan voor een genoemd bedrijf — precies het misverstand dat dit dossier moet uitbannen.
+> Daarom telt alleen `concurrent`, `vergelijker`, `brancheorganisatie` en `eigen_product` mee
+> (`RELEVANTE_ROLLEN`). Nog niet geclassificeerde namen blijven wél staan: die stonden echt in
+> het antwoord en weglaten zou het dossier onvolledig maken. Effect: bij Van der Valk tonen 8
+> van de 15 gemiste vragen nu correct "geen enkel bedrijf" in plaats van een rommelnaam.
+
 ### R1.2 — Rapportprompt: verwoorden, niet afleiden
 
 **Bestanden:** `lib/pipeline/report.ts` (`GAP_SYSTEM`, `REPORT_SYSTEM`).
@@ -359,6 +383,17 @@ afgeleide merkenlijst.
 
 **Verificatie:** genereer het rapport van Van der Valk opnieuw (~$0,004). De aanbeveling bij V1
 mag geen concurrentnaam meer noemen.
+
+> **✅ Opgeleverd** (code). Beide systeeminstructies hebben een `BEWIJSREGEL` gekregen. Uit
+> `REPORT_SYSTEM` is bovendien de zinsnede *"Noem in elk probleem expliciet welke concurrent het
+> betreft"* verwijderd: die dwóng het model een naam te noemen, óók als het dossier er geen gaf —
+> wat precies de aanleiding was om er dan maar een te verzinnen. De concurrentiedata staat nu
+> onder een expliciete kop `MARKTBEELD over de HELE meting` met de instructie dat die nooit
+> gebruikt mag worden om te zeggen wie een specifieke vraag wint.
+>
+> **Nog te doen:** het rapport daadwerkelijk opnieuw genereren om te bevestigen dat de
+> V1-aanbeveling geen concurrentnaam meer noemt. Dat kost ~$0,004 en vereist een draaiende
+> werker; te doen zodra R1.3 (de validator) er ook is, dan toetst één run beide stappen.
 
 ### R1.3 — Claimvalidator
 

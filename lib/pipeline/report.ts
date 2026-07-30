@@ -14,6 +14,8 @@ import { GapAnalysis } from "@/lib/schemas/gap-analysis";
 import { Report } from "@/lib/schemas/report";
 import { NEUTRAL_WEIGHT } from "@/lib/pipeline/prompt-weight";
 import { resolveTargets } from "@/lib/pipeline/recommendation";
+import { buildEvidenceDossier } from "@/lib/pipeline/evidence";
+import { formatEvidenceDossier, type EvidenceEntry } from "@/lib/pipeline/evidence-format";
 import { computePeriodChange, buildChangeBlock, isWorthEmailing } from "@/lib/pipeline/period-change";
 import { sendReportEmail } from "@/lib/email/report-email";
 import { emailsEnabled } from "@/lib/env";
@@ -33,12 +35,26 @@ const GAP_SYSTEM =
   "concrete zichtbaarheids-gaps: categorieën waarin concurrenten vaker door AI-assistenten genoemd " +
   "worden dan het eigen merk, mét bewijs (run-ID's, bronnen). PRIORITEER de gaps op de vragen met het " +
   "HOOGSTE GEWICHT (populair en/of koopklaar) waar het eigen merk niet genoemd wordt — daar liggen de " +
-  "waardevolste kansen. Werk uitsluitend met de aangeleverde cijfers — verzin niets. Antwoord in het Nederlands.";
+  "waardevolste kansen. Werk uitsluitend met de aangeleverde cijfers — verzin niets. " +
+  // R1.2 — het model VERWOORDT het bewijsdossier, het leidt niets af. Zonder deze
+  // regel koppelde het concurrenten aan vragen waarin ze niet voorkwamen.
+  "BEWIJSREGEL: het bewijsdossier vermeldt per vraag welke bedrijven in dát antwoord genoemd werden. " +
+  "Noem een concurrent alleen bij een specifieke vraag als die naam ONDER DIE VRAAG in het dossier " +
+  "staat. Staat er dat er geen enkel bedrijf genoemd werd, dan is dat je bevinding — haal er geen " +
+  "concurrent bij uit een andere vraag of uit het marktbeeld. Antwoord in het Nederlands.";
 
 const REPORT_SYSTEM =
   "Je schrijft een kort, jargonvrij rapport voor een ondernemer zonder SEO-achtergrond over hun " +
   "zichtbaarheid in AI-assistenten (GEO). Gebruik geen vaktermen als 'share of voice' — leg uit in " +
-  "gewone taal. Noem in elk probleem expliciet welke concurrent het betreft. PRIORITEER je aanbevelingen " +
+  "gewone taal. " +
+  // R1.2 — zie GAP_SYSTEM. Dit ving eerder "noem in elk probleem expliciet welke
+  // concurrent het betreft", wat het model dwong een naam te noemen óók als het
+  // dossier er geen gaf — precies de aanleiding om er dan maar een te verzinnen.
+  "BEWIJSREGEL: noem een concurrent alleen bij een specifieke vraag als die naam ONDER DIE VRAAG in " +
+  "het bewijsdossier staat. Staat er dat er geen enkel bedrijf genoemd werd, schrijf dan dat de AI bij " +
+  "die vraag geen enkele aanbieder noemt — dat is een kans om de eerste te zijn, niet een concurrent " +
+  "die wint. Het marktbeeld onderaan gaat over de hele meting en mag NOOIT gebruikt worden om te " +
+  "zeggen wie een specifieke vraag wint. PRIORITEER je aanbevelingen " +
   "op de zwaarwegende vragen (populair en/of koopklaar) waar de klant slecht scoort — die leveren het " +
   "meeste op. Eindig met concrete, uitvoerbare aanbevelingen. Bepaal per aanbeveling of dit een BESTAANDE " +
   "pagina van de klant verbetert (kies dan de meest relevante URL uit de meegegeven paginalijst, action = " +
@@ -111,18 +127,18 @@ function scoreLine(score: VisibilityScore | null): string {
   return base + weighted + sov + uncertainty;
 }
 
-function buildMissedBlock(missed: MissedPrompt[]): string {
-  if (missed.length === 0) return "";
-  const lines = missed.map(
-    (m) =>
-      `- ${m.code} [gewicht ${m.weight.toFixed(2)}, ${m.category}` +
-      `${m.intent_type ? `, ${m.intent_type}` : ""}${m.cluster ? `, cluster: ${m.cluster}` : ""}] "${m.text}"`,
-  );
-  return (
-    `\nBelangrijkste GEMISTE vragen — hier word jij NIET genoemd, gesorteerd op gewicht (hoog gewicht = ` +
-    `populair en/of koopklaar; dáár liggen de waardevolste kansen):\n${lines.join("\n")}`
-  );
-}
+/**
+ * Het blok gemiste vragen is vervangen door het BEWIJSDOSSIER
+ * (lib/pipeline/evidence.ts, implementatieplan.md R1.1).
+ *
+ * De oude vorm gaf per vraag alleen code, gewicht, categorie en tekst — géén
+ * run-ID. De concurrentiedata eronder had wél run-ID's. Daarmee was de koppeling
+ * "welke concurrent wint wélke vraag" nergens gelegd, en dat is precies wat het
+ * model moest opschrijven. Het gokte dus, en schreef concurrenten bij vragen
+ * waarin ze niet voorkwamen (kwaliteitsanalyse-5-testcases.md §2.2).
+ *
+ * Het dossier levert die koppeling kant-en-klaar aan, uit de database.
+ */
 
 function briefLine(analysis: Analysis): string[] {
   return analysis.content_brief?.trim()
@@ -136,7 +152,7 @@ function buildGapInput(
   topicResearch: TopicResearch | null,
   score: VisibilityScore | null,
   competitors: CompetitorBreakdown[],
-  missed: MissedPrompt[],
+  dossier: EvidenceEntry[],
 ): string {
   const lines = [
     `Eigen merk: ${ownLabel(analysis, profile)}`,
@@ -146,9 +162,14 @@ function buildGapInput(
       ? [`Wat de website al zegt over dit onderwerp: ${topicResearch.content_summary}`]
       : []),
     scoreLine(score),
-    buildMissedBlock(missed),
+    formatEvidenceDossier(dossier),
     "",
-    "Concurrentiedata (per concurrent, uit dezelfde meting):",
+    // Bewust ná het dossier, en met een expliciet label: dit zijn totalen over de
+    // hele meting. Zonder dat onderscheid leest het model deze cijfers als
+    // uitspraken over de vragen hierboven, en dat is precies de verwarring waar
+    // het dossier een eind aan maakt.
+    "MARKTBEELD over de HELE meting (niet per vraag — gebruik dit alleen voor algemene " +
+      "uitspraken over de markt, nooit om te zeggen wie een specifieke vraag wint):",
   ];
   if (competitors.length === 0) {
     lines.push("(geen concurrentiedata beschikbaar)");
@@ -171,7 +192,7 @@ function buildReportInput(
   score: VisibilityScore | null,
   gap: GapAnalysis,
   pages: ProfilePage[],
-  missed: MissedPrompt[],
+  dossier: EvidenceEntry[],
   changeBlock: string,
 ): string {
   return [
@@ -179,7 +200,7 @@ function buildReportInput(
     ...briefLine(analysis),
     scoreLine(score),
     changeBlock,
-    buildMissedBlock(missed),
+    formatEvidenceDossier(dossier),
     "",
     "Concurrentie-gap-analyse (JSON):",
     JSON.stringify(gap, null, 2),
@@ -360,6 +381,12 @@ export async function generateReport(id: string, weekNo = 0): Promise<AnalysisSt
   // B1/B2 de aanbevelingen richten op de waardevolste kansen (§6 A3 / §7).
   const missed = await computeMissedPrompts(admin, id, weekNo);
 
+  // Het bewijsdossier: per gemiste vraag welke bedrijven er in DÁT antwoord
+  // stonden (implementatieplan.md R1.1). Deterministisch uit de database, zodat
+  // het model de koppeling vraag↔concurrent niet hoeft af te leiden — en hem dus
+  // ook niet verkeerd kán afleiden.
+  const dossier = await buildEvidenceDossier(admin, analysis.profile_id, missed);
+
   // Wat er veranderd is sinds de vorige periode (optimalisatie.md 6.2). Puur
   // databasewerk: het model hoeft niet zelf twee periodes te vergelijken — dat
   // gaat mis — maar alleen te verwoorden wat er staat.
@@ -377,7 +404,7 @@ export async function generateReport(id: string, weekNo = 0): Promise<AnalysisSt
         topicResearch as TopicResearch | null,
         score as VisibilityScore | null,
         (competitors ?? []) as CompetitorBreakdown[],
-        missed,
+        dossier,
       ),
       schema: GapAnalysis,
       schemaName: "gap_analysis",
@@ -396,7 +423,7 @@ export async function generateReport(id: string, weekNo = 0): Promise<AnalysisSt
         score as VisibilityScore | null,
         gap.parsed,
         pages,
-        missed,
+        dossier,
         changeBlock,
       ),
       schema: Report,

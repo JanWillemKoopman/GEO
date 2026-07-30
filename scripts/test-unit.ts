@@ -34,6 +34,8 @@ import type { PeriodChange } from "@/lib/pipeline/period-change-format";
 import { domainOf } from "@/lib/offsite/domain";
 import { checkUrlFormat } from "@/lib/url";
 import { countOpenPeriodicMeasurements } from "@/lib/jobs/pending";
+import { formatEvidenceDossier, excerpt } from "@/lib/pipeline/evidence-format";
+import type { EvidenceEntry } from "@/lib/pipeline/evidence-format";
 
 let passed = 0;
 let failed = 0;
@@ -331,6 +333,61 @@ group("openstaande periodieke metingen tellen", () => {
   // zou een kapotte rij de aggregatie eeuwig tegenhouden.
   ok("lege payload telt niet mee", countOpenPeriodicMeasurements([{ payload_json: null }], 0) === 0);
   ok("payload zonder weekNo", countOpenPeriodicMeasurements([{ payload_json: { promptId: "p" } }], 0) === 0);
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+group("Bewijsdossier (implementatieplan.md R1.1)", () => {
+  const basis: EvidenceEntry = {
+    code: "V1",
+    runId: "run-1",
+    promptText: "Waar boek ik een vergaderlocatie?",
+    category: "Beslissing",
+    weight: 0.5,
+    cluster: "vergaderlocatie",
+    intentType: "transactional",
+    brandsInAnswer: [],
+    answerExcerpt: "Bepaal eerst je wensen en eisen…",
+  };
+
+  // De kern van R1.1: een vraag zonder merken moet als HELE ZIN in de prompt
+  // staan, niet als lege lijst. Een model dat "geen data" ziet vult dat gat op;
+  // dat is precies hoe het rapport eerder concurrenten verzon.
+  const leeg = formatEvidenceDossier([basis]);
+  ok("merkloze vraag wordt expliciet benoemd", leeg.includes("GEEN ENKEL bedrijf bij naam genoemd"));
+  ok("merkloze vraag verbiedt een concurrent te noemen", leeg.includes("noem er ook geen"));
+  ok("de harde regel staat in de kop", leeg.includes("HARDE REGEL"));
+  ok("code en vraagtekst staan erin", leeg.includes("V1") && leeg.includes("Waar boek ik"));
+  ok("gewicht en tags staan erin", leeg.includes("gewicht 0.50") && leeg.includes("transactional"));
+
+  const metMerken = formatEvidenceDossier([
+    {
+      ...basis,
+      brandsInAnswer: [
+        { name: "Regus", role: "concurrent", position: 2, citedSources: ["https://regus.nl"] },
+        { name: "Meetingselect", role: "vergelijker", position: 1, citedSources: [] },
+      ],
+    },
+  ]);
+  ok("merken worden opgesomd", metMerken.includes("Regus") && metMerken.includes("Meetingselect"));
+  ok("rol gaat mee", metMerken.includes("concurrent") && metMerken.includes("vergelijker"));
+  ok("positie gaat mee", metMerken.includes("positie 2"));
+  ok("bron gaat mee", metMerken.includes("https://regus.nl"));
+  ok("geen merkloos-zin bij gevulde lijst", !metMerken.includes("GEEN ENKEL bedrijf"));
+
+  // Ontbrekende positie mag geen "positie null" opleveren in de prompt.
+  const zonderPositie = formatEvidenceDossier([
+    { ...basis, brandsInAnswer: [{ name: "X", role: "onbekend", position: null, citedSources: [] }] },
+  ]);
+  ok("onbekende positie leest netjes", zonderPositie.includes("positie onbekend"));
+
+  ok("leeg dossier levert lege string", formatEvidenceDossier([]) === "");
+
+  // Het fragment mag niet middenin een woord afbreken.
+  const lang = `${"woord ".repeat(200)}einde`;
+  const kort = excerpt(lang);
+  ok("fragment wordt afgekapt", kort.length < lang.length && kort.endsWith("…"));
+  ok("fragment breekt op een woordgrens", !kort.slice(0, -1).endsWith("woor"));
+  ok("kort antwoord blijft heel", excerpt("Kort antwoord.") === "Kort antwoord.");
 });
 
 // ════════════════════════════════════════════════════════════════════════════
