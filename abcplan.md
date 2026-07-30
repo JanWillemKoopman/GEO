@@ -7,6 +7,13 @@
 
 *Techstack: Node.js + Next.js op Vercel · Supabase (Auth/Postgres/cron) · **OpenAI API (`gpt-4.1-nano` + `gpt-4.1-mini`)** · Resend (e-mail). Opgesteld juli 2026.*
 
+> **Dit document beschrijft de oorspronkelijke MVP-spec (Fase A+B+C) en is sindsdien
+> bijgewerkt waar de bouw ervan afweek** (drie modeltiers i.p.v. twee, maandelijkse i.p.v.
+> wekelijkse tracking, profiel/analyse-splitsing, §8b voor wat er structureel bij is
+> gekomen). Voor de volledige, chronologische ontwikkelgeschiedenis ná de MVP —
+> job-queue, technische audit, off-site-scanning, content-kwaliteit — zie
+> [`optimalisatie.md`](./optimalisatie.md), het levende logboek.
+
 ---
 
 ## Leeswijzer voor de bouwer
@@ -32,7 +39,7 @@ Alle Zod-schema's in dit document zijn de daadwerkelijke contracten voor de Open
 
 **Wat de MVP doet, met twee bewuste momenten waar de klant tussenkomt (de review-gate en C, zie hieronder):**
 
-- **A — Meten:** website-URL (+ optioneel onderwerp/product) → OpenAI analyseert de site (eigen crawl + web-search-tool), gescoped op het onderwerp indien opgegeven → 30 prompts in categorieën → **klant reviewt en bevestigt (transparantie-stap, §3.6)** → nulmeting + optionele 10-weken-monitoring → zichtbaarheidsdata.
+- **A — Meten:** website-URL (+ optioneel onderwerp/product) → OpenAI analyseert de site (eigen crawl + web-search-tool), gescoped op het onderwerp indien opgegeven → 30 prompts in categorieën → **klant reviewt en bevestigt (transparantie-stap, §3.6)** → nulmeting + optionele maandelijkse monitoring → zichtbaarheidsdata.
 - **B — Adviseren:** OpenAI analyseert de meetdata → rapport met zichtbaarheids-gaps en concrete content-aanbevelingen (welke pagina's ontbreken om geciteerd te worden).
 - **C — Genereren:** OpenAI schrijft de aanbevolen pagina's als kant-en-klare concepten, **op klant-verzoek** → verschijnen in de **Content Bibliotheek** waar de klant ze leest, kopieert of downloadt.
 
@@ -76,9 +83,12 @@ Puur een projectbeslissing: één engine, één SDK, één factuur, zo min mogel
 | 3b · Mention beoordelen | 30×/week | `gpt-4.1-nano` | Classificatie-achtige taak (ja/nee, sentiment, positie) — nano is hier prima en de volumekosten tellen wél op. |
 | B1 · Concurrentie-gap-analyse | 1× per rapport | `gpt-4.1-mini` | Vergt echt redeneren over waar concurrenten winnen — zie §7. |
 | B2 · Rapport & aanbevelingen | 1× per rapport | `gpt-4.1-mini` | Eindproduct dat de klant leest; kwaliteit weegt zwaar, kosten zijn triviaal. |
-| 6 · Content-generatie | 1× per pagina, op klik | `gpt-4.1-mini` | Dit ís het product dat de klant meeneemt — kwaliteit boven een paar cent besparing. |
+| 6 · Content — redactie/kritiek | 1× per pagina (2× bij herschrijf) | `gpt-4.1-mini` | Beoordelen ≠ scheppen; goedkoop model volstaat voor de rubric-check (zie §8). |
+| 6 · Content — draft/herschrijven | 1× per pagina (2× bij herschrijf) | **`gpt-4.1` (vol)** | **Dit ís het product dat de klant meeneemt.** Premium tier voor het feitelijke schrijfwerk — centen extra per pagina. |
 
-**Kort samengevat:** `gpt-4.1-nano` alleen waar het *aantal* calls de kosten drijft (halte 3, 30-60×/week); `gpt-4.1-mini` overal waar de call maar een handvol keer per analyse draait en de kwaliteit van het denkwerk er echt toe doet. Zie §10 voor de herrekende kosten — het verschil is ~$0,01/analyse, verwaarloosbaar.
+**✅ Herzien — drie tiers (contentkwaliteit-herziening).** De modelkeuze staat **vast in de code** (`lib/openai/models.ts`), niet als env-variabele. Naast `gpt-4.1-nano` (hoogvolume) en `gpt-4.1-mini` (laagvolume/kwaliteitsgevoelig) is een **premium tier `gpt-4.1` (vol)** toegevoegd, uitsluitend voor het schrijven/herschrijven van de content zelf (Fase C). Content ís het betaalde product; daar kwaliteit kopen kost centen per pagina. Zie [`contentkwaliteit-analyse.md`](./contentkwaliteit-analyse.md) (C4).
+
+**Kort samengevat:** `gpt-4.1-nano` alleen waar het *aantal* calls de kosten drijft (halte 3, 30-60×/week); `gpt-4.1-mini` waar de call een handvol keer per analyse draait (incl. de redactie/kritiek-stap in Fase C); **`gpt-4.1` (vol) uitsluitend voor het schrijven/herschrijven van de content**. Zie §10 voor de kosten — een pagina met redactie-lus blijft ~$0,05.
 
 **Fallback-regel:** als tijdens Sprint 1 blijkt dat een van beide modellen bij een specifiek schema toch afwijkt, val dan alleen vóór dát ene aanroeppunt terug op `gpt-4o-mini`. De rest van de pipeline blijft ongewijzigd.
 
@@ -119,7 +129,7 @@ Dit is de belangrijkste structurele wijziging in dit plan: het draaipunt van de 
 - **Onderwerp ingevuld:** Brand DNA (halte 1) wordt **specifiek voor dat onderwerp** opgesteld — welke rol speelt dit product/segment binnen het bedrijf, welke concurrenten zijn relevant *voor dit segment* (niet per se de concurrenten van het hele bedrijf), welke persona's zoeken hiernaar. De 30 prompts (halte 2) gaan **uitsluitend over dat onderwerp** binnen de context van het merk (bv. "Waar koop ik het beste een iPhone?", "MediaMarkt vs Coolblue voor iPhone-reparatie", "Wat kost een iPhone-schermreparatie bij MediaMarkt?") — geen prompts over wasmachines of tv's als het onderwerp "iPhone" is.
 
 ### 3.3 Eén klant, meerdere analyses
-Een account kan onbeperkt analyses aanmaken. Elke analyse is **volledig zelfstandig**: eigen Brand DNA, eigen 30 prompts, eigen tracking, eigen rapport, eigen Content Bibliotheek, eigen aan/uit-schakelaar voor de wekelijkse lus. Twee analyses voor dezelfde website (bv. MediaMarkt + "iPhone" én MediaMarkt + "wasmachines") delen niets — dat is bewust simpel gehouden; brand-niveau deduplicatie is geen MVP-scope.
+Een account kan onbeperkt analyses aanmaken. Elke analyse is **volledig zelfstandig**: eigen Brand DNA, eigen 30 prompts, eigen tracking, eigen rapport, eigen Content Bibliotheek, eigen aan/uit-schakelaar voor de maandelijkse lus. Twee analyses voor dezelfde website (bv. MediaMarkt + "iPhone" én MediaMarkt + "wasmachines") delen niets — dat is bewust simpel gehouden; brand-niveau deduplicatie is geen MVP-scope.
 
 **Onderwerp is niet achteraf wijzigbaar.** Zodra een analyse is gestart, staat het onderwerp vast — wijzigen zou het Brand DNA en de prompts met terugwerkende kracht ongeldig maken. Wil de klant een andere scope, dan start hij een **nieuwe analyse** (kost een nieuwe nulmeting, ~$0,35, zie §10).
 
@@ -190,7 +200,7 @@ Vanuit de klant bekeken is dit de volledige, logische trechter waarin hij zich o
 
 **✅ Vastgelegd — voortgangsschermen zijn server-state-gedreven, niet client-only:** de indicatoren in stap 4, 6 en 7 (*"Website lezen ✓…"*, *"x/30 verwerkt"*, *"Rapport wordt opgesteld"*) worden **afgeleid van echte data** (`analyses.status` + voortgang in de `jobs`-tabel), niet van een lokale animatie. Sluit de klant het scherm en komt hij een uur later terug, dan toont de pagina exact de actuele stand — nooit een animatie die "opnieuw begint" of stil blijft staan terwijl er allang meer gebeurd is.
 
-**✅ Vastgelegd — extra aandacht voor mobiel op het concept-scherm (stap 5):** dit is het meest informatiedichte scherm in de hele app (volledig Brand DNA + 30 bewerkbare prompts) én het enige scherm waar **elke** analyse verplicht doorheen moet. "Mobiel-vriendelijk" is hier geen nice-to-have maar een randvoorwaarde — geef dit scherm bij het bouwen expliciet extra aandacht (bijv. inklapbare secties per Brand DNA-veld, prompts gegroepeerd en pas op tik uitklapbaar per categorie) in plaats van simpelweg de desktop-lay-out te verkleinen.
+**✅ Vastgelegd — extra aandacht voor mobiel op het concept-scherm (stap 5):** dit is het meest informatiedichte scherm in de hele app (volledig Brand DNA + 30 bewerkbare prompts) én het enige scherm waar **elke** analyse verplicht doorheen moet. "Mobiel-vriendelijk" is hier geen nice-to-have maar een randvoorwaarde — geef dit scherm bij het bouwen expliciet extra aandacht (bijv. inklapbare secties per Brand DNA-veld, prompts gegroepeerd en pas op tik uitklapbaar per categorie) in plaats van simpelweg de desktop-lay-out te verkleinen. De volledige, app-brede responsive-strategie (breakpoints, patronen per component, desktop-first ontwerpproces) staat vastgelegd in [designsystem.md §C](./designsystem.md#c—responsive-strategie-desktop-first-uitgangspunt-mobiel-bewust-heruitgevonden) — leidend voor elk scherm, niet alleen dit concept-scherm.
 
 ---
 
@@ -225,7 +235,7 @@ Vanuit de klant bekeken is dit de volledige, logische trechter waarin hij zich o
         │   • /api/analyses/[id]/generate  (C: content)    │
         │                                                 │
         │  Cron (Vercel Cron / Supabase pg_cron):         │
-        │   • weekly-tracking-run                         │
+        │   • monthly-tracking-run (/api/cron/tracking)   │
         │     (verwerkt alléén analyses met                │
         │      tracking_enabled = true)                   │
         └───────────────┬────────────────┬────────────────┘
@@ -242,11 +252,21 @@ Vanuit de klant bekeken is dit de volledige, logische trechter waarin hij zich o
 
 ### Uitvoeringsmodel
 - **Korte taken** (analyse, één rapport, één pagina, prompt-CRUD) → Next.js API-route / serverless function op Vercel.
-- **Lange/herhalende taken** (nulmeting, wekelijkse tracking, batch-generatie van pagina's) → **job-queue in Supabase** die door een **cron** afgewerkt wordt in kleine batches, per analyse. Zo blijven we binnen serverless time-limits en houden we de kosten controleerbaar, ook als een klant tientallen analyses tegelijk heeft lopen.
+- **Lange/herhalende taken** (nulmeting, maandelijkse tracking, batch-generatie van pagina's) → **job-queue in Supabase** (`lib/jobs/`) die door een **werker** afgewerkt wordt in kleine batches. Zo blijven we binnen serverless time-limits en houden we de kosten controleerbaar, ook als een klant tientallen analyses tegelijk heeft lopen. Dit is inmiddels verder doorontwikkeld dan hier oorspronkelijk geschetst: élke pijplijnstap (niet alleen tracking) loopt als job die zichzelf naar de volgende stap doorschakelt, aangedreven door `/api/cron/worker` via Supabase pg_cron — zie [`optimalisatie.md`](./optimalisatie.md) fase 1 en [`SETUP.md`](./SETUP.md) §6b.
 
 ---
 
 ## 5. Datamodel (Supabase / Postgres)
+
+> **Dit is het datamodel zoals oorspronkelijk ontworpen (migratie `0001`).** De kern
+> (analyses → prompts → tracking_runs → mentions → reports → content_pieces) staat nog
+> steeds overeind. Twee dingen zijn sindsdien gewijzigd — zie §12-keuze 22: **`brand_dna`
+> is vervangen** door `profiles` (accountbreed, eenmalig onderzoek) + `topic_research`
+> (per analyse, kleiner); elke `analysis` hangt nu verplicht aan een `profile_id`. En er
+> zijn tabellen bijgekomen die hier niet stonden: `entities`, `ai_calls`,
+> `technical_audit`, `offsite_*` (zie §8b). Voor de **volledige, actuele** lijst van alle
+> 23 migraties zie [`supabase/README.md`](./supabase/README.md) — dat is de bron van
+> waarheid voor het datamodel, dit diagram is de conceptuele basis waarop het voortbouwt.
 
 > ### 🔒 Vastgelegd principe: we bewaren álles
 > **Elke AI-call in deze pipeline slaat zijn volledige resultaat op in Supabase — nooit alleen een samenvatting of afgeleide waarde.** Dat betekent: de ruwe JSON-output van elke OpenAI-call (Brand DNA, prompt-generatie, mention-beoordeling, rapport, content) wordt **altijd** volledig bewaard, náást de uitgesplitste kolommen die de UI gebruikt. Reden: (1) niets gaat verloren als we later een kolom toevoegen of een parsing-bug vinden, (2) volledige audit-trail — je kunt precies reconstrueren wat het model op elk moment zag en antwoordde, (3) het maakt herberekening/herprocessing achteraf mogelijk zonder opnieuw te hoeven bevragen (dus zonder extra kosten). Elke tabel die AI-output bevat heeft daarom een `raw_json`-kolom (of gebruikt een bestaand JSON-veld) met het complete, ongewijzigde antwoord.
@@ -369,17 +389,19 @@ const BrandDNA = z.object({
 
 **✅ Vastgelegd: 5 aparte calls (één per categorie), niet 1 call voor alle 30.** Eén enkele call die een klein model 30 diverse, categorie-specifieke prompts in één keer laat verzinnen, levert in de praktijk te veel herhaling en te weinig scherpte per categorie op. Door de generatie op te splitsen krijgt elke categorie een eigen, gefocuste call — met een duidelijke instructie én 3-6 voorbeelden puur voor díe categorie — wat merkbaar diversere en relevantere prompts oplevert. **Model: `gpt-4.1-mini`** (zie §2) — de meerkosten van 5 mini-calls t.o.v. 1 nano-call zijn ~$0,002 per analyse, verwaarloosbaar.
 
-**Per categorie (5 calls, elk structured output, zonder `web_search`):**
+> **🔒 VASTGELEGD — MERKNEUTRALITEIT (herzien: kritieke methodologische correctie).** Een gegenereerde prompt mag **NOOIT de eigen merknaam/het domein van de klant bevatten**. Een branded prompt (bv. *"Is MediaMarkt betrouwbaar?"*) garandeert een vermelding — de merknaam staat immers al in de vraag — en blaast de zichtbaarheidsscore kunstmatig op. De meting moet **spontane** vermeldingen meten: wat vraagt iemand die het merk nóg niet kent? Daarom (a) is de categorie **"Merkspecifiek" vervangen door "Aanbeveling/keuze"** (merkloze aanbevelingsvragen), (b) noemt **"Vergelijking"** voortaan concurrenten/type-aanbieders maar nooit het eigen merk, en (c) leidt halte 1 nu ook de **canonieke merknaam** af, die als harde uitsluiting aan de generatie wordt meegegeven én als vangnet-filter dient. Concurrenten noemen mág wél. Zie `lib/pipeline/prompts.ts`.
+
+**Per categorie (5 calls, elk structured output, zonder `web_search`) — alle MERKNEUTRAAL:**
 
 | Categorie | ~Aantal prompts | Voorbeeld-prompt (onderwerp "iPhone") |
 |-----------|-----------------|----------------------------------------|
 | Oriëntatie | 6 | "Waar koop ik het beste een iPhone?" |
-| Vergelijking | 6 | "MediaMarkt vs Coolblue voor iPhone-reparatie: wat is beter?" |
+| Vergelijking | 6 | "Grote keten of gespecialiseerde winkel voor iPhone-reparatie: wat is beter?" |
 | Probleem→oplossing | 6 | "Mijn iPhone-scherm is kapot, waar laat ik dit repareren?" |
 | Lokaal/branche | 6 | "Beste iPhone-reparatie in [regio]?" |
-| Merkspecifiek | 6 | "Is MediaMarkt betrouwbaar voor iPhone-reparaties?" |
+| Aanbeveling/keuze | 6 | "Welke iPhone-reparateur in [plaats] is aan te raden?" |
 
-Elke call krijgt hetzelfde Brand DNA als context, plus een categorie-specifieke instructie (bijvoorbeeld voor "Vergelijking": *"Genereer 6 prompts die een koper zou stellen aan een AI-assistent om {merk} te vergelijken met concurrenten binnen {onderwerp}. Varieer in toon en specificiteit."*).
+Elke call krijgt hetzelfde Brand DNA als context (inclusief de merknaam als uitsluiting), plus een categorie-specifieke instructie met de harde no-brand-name-regel.
 
 - **Zonder onderwerp:** de 30 prompts dekken samen **alle diensten/producten** die de website aanbiedt (brede dekking, zoals in de oorspronkelijke opzet) — elke categorie-call krijgt dan de volledige Brand DNA zonder topic-restrictie.
 - **Met onderwerp:** alle 5 categorie-calls (en dus alle 30 prompts) gaan **uitsluitend over dat onderwerp**, binnen de context van het merk.
@@ -407,7 +429,13 @@ Dit gebeurt via eenvoudige CRUD-API-routes (`/api/analyses/[id]/prompts`), geen 
 
 **Zonder deze bevestiging start A3 nooit** — dit is de harde poort die transparantie garandeert. **Precisering:** halte 1 en 2 (samen ~$0,018, zie §10) draaien al automatisch vóór deze gate om het concept te kunnen tonen — dat is bewust een kleine, geaccepteerde kost om iets te kunnen laten zien. De gate beschermt specifiek tegen de **grote** kostenpost: er wordt nooit de nulmeting (halte 3, ~$0,333, de dure `web_search`-calls op 30 prompts) uitgevoerd op basis van een Brand DNA of prompt-lijst die de klant niet gezien en goedgekeurd heeft.
 
-### A3. Monitoring — nulmeting + optionele 10 weken
+### A3. Monitoring — nulmeting + optionele maandelijkse trend
+
+> **Herzien t.o.v. de oorspronkelijke opzet:** dit onderdeel beschreef aanvankelijk een
+> **wekelijkse** lus over 10 weken. In de praktijk draait dit nu **maandelijks**, zonder
+> vaste einddatum (optioneel begrensd via `MAX_MEASUREMENT_PERIODS`, standaard onbegrensd),
+> aangestuurd door `/api/cron/tracking` — zie [`optimalisatie.md`](./optimalisatie.md) fase
+> 2. Het onderliggende meetmechanisme (3a/3b/3c hieronder) is ongewijzigd.
 **Trigger:** `analyses.status = 'meten'` (pas na de bevestiging in A2c).
 **Mechanisme:** voor elke actieve prompt binnen een analyse:
 
@@ -441,7 +469,7 @@ const Mention = z.object({
 
 **MVP-versnelling — ✅ vastgelegd:** we tonen de klant meteen een **directe nulmeting (week 0)** zodra de actieve prompts één keer zijn doorlopen, in plaats van 10 weken te wachten. Dit gebeurt altijd, automatisch, voor elke nieuwe analyse (na de bevestiging in A2c). Zodra dit klaar is: `analyses.status = 'gemeten'` **(✅ herzien — niet 'gereed', zie §3.4)**: de score en trendlijn (tab Overzicht) zijn nu zichtbaar, maar het rapport (FASE B) moet nog draaien. Pas wanneer B2 klaar is, gaat de status naar `'gereed'`.
 
-**Wekelijkse lus — ✅ vastgelegd: per analyse aan/uit-schakelbaar.** De 10-weken-trend draait **niet** automatisch door na de nulmeting. Elke analyse heeft `tracking_enabled` (standaard uit), beheerbaar in het tabblad **Instellingen**. De cron verwerkt bij elke wekelijkse run **alleen analyses waar dit aanstaat**. Zo kun je gratis prospect-analyses op de eenmalige nulmeting houden en pas voor betalende klanten (of specifieke analyses) de wekelijkse kosten laten lopen.
+**Terugkerende lus — ✅ vastgelegd: per analyse aan/uit-schakelbaar.** De trend draait **niet** automatisch door na de nulmeting. Elke analyse heeft `tracking_enabled` (standaard uit), beheerbaar in het tabblad **Instellingen**. De maandelijkse cron (`/api/cron/tracking`) verwerkt **alleen analyses waar dit aanstaat**. Zo kun je gratis prospect-analyses op de eenmalige nulmeting houden en pas voor betalende klanten (of specifieke analyses) de doorlopende meetkosten laten lopen.
 
 ---
 
@@ -504,9 +532,17 @@ const Report = z.object({
 
 **Trigger — ✅ vastgelegd: pas na klik/goedkeuring door de klant.** De klant klikt bij een aanbeveling op "Genereer deze pagina" (of keurt een batch goed). **Niet** volautomatisch vooraf — dit spaart kosten en geeft de klant controle: er staan alleen aanbevelingen klaar totdat de klant er zelf voor kiest.
 
-**Mechanisme:** elke klik wordt een **job** die één `content_piece` genereert. De cron/queue werkt ze af.
+**Mechanisme:** elke klik genereert één `content_piece` via een kleine **redactionele pijplijn** (contentkwaliteit-herziening, zie [`contentkwaliteit-analyse.md`](./contentkwaliteit-analyse.md)) — niet één blinde call:
 
-**OpenAI-call per pagina:** structured output, **geen** `web_search`. Input = de aanbeveling + Brand DNA (voor on-brand tone, inclusief het onderwerp indien van toepassing) + de bewijs-prompts. LLM-geoptimaliseerd: *begin met het directe antwoord, heldere koppen, concrete datapunten, FAQ, schema-markup.*
+1. **Draft** — premium model `gpt-4.1`, structured output, **geen** `web_search`. Input = de aanbeveling + Brand DNA (incl. de **schrijf-grondslag**: `proof_points` = geverifieerde feiten uit de eigen site die de schrijver WÉL mag gebruiken, en `style_samples` = letterlijke stijlvoorbeelden om de merkstem na te bootsen) + de meet-prompts *als thematische inspiratie*.
+2. **Redactie/kritiek** — `gpt-4.1-mini` scoort de draft op een rubric (answer-first, on-brand, concreet-zonder-verzinsels, scanbaar, waardevol) en checkt de harde regels (merkneutraal, geen verzonnen feiten). Levert `qualityScore`, `followsRules`, `issues[]`.
+3. **Herschrijven** — alleen als nodig (regel-risico, score < 80, of open verbeterpunten): premium model verwerkt de feedback → daarna één herbeoordeling voor een eerlijke eindscore.
+4. **Kwaliteitspoort (F1)** — `quality_score` + `needs_review` worden opgeslagen; `needs_review = true` bij score < 80 of regel-risico. De bibliotheek toont dan een **"Check nodig"**-chip.
+5. **Schema.org (E1)** — `schema_jsonld` wordt **programmatisch gevalideerd/gerepareerd** in code (`lib/schema-jsonld.ts`), niet blind uit de LLM-string overgenomen.
+
+De grounding komt uit het Brand DNA (halte 1 extraheert nu ook `proofPoints`/`styleSamples`), dus nog steeds **geen** `web_search` in Fase C (§10 kostenknop). Alles bewaard: `raw_json` (schrijf-call) + `critique_raw_json` (redactie).
+
+> **🔒 VASTGELEGD — HARDE REGELS voor klant-content (herzien: kwaliteitscorrectie).** De pagina staat op de **eigen website van de klant**, dus: **(1)** noem NOOIT concurrenten bij naam (geen "waarom zijn wij beter dan [concurrent]"-content); **(2)** verzin GEEN specifieke feiten (prijzen, cijfers, productmerken, technieken, openingstijden) die niet uit de context blijken — blijf algemeen-waar i.p.v. plausibel-verzonnen; **(3)** neem de meet-prompts NIET letterlijk over als paginakoppen (die noemen legitiem het merk/concurrenten om te *meten* — dat is geen pagina-inhoud); een **FAQ-pagina** krijgt echte klantvragen (afspraak, diensten, verwachtingen), niet de zoekvragen. Meta-title ≤ 60 tekens, meta-description ≤ 160. Zie `lib/pipeline/content.ts`.
 
 ```ts
 const ContentPiece = z.object({
@@ -515,12 +551,12 @@ const ContentPiece = z.object({
   metaDescription: z.string(),
   bodyMarkdown: z.string(),               // volledige pagina in Markdown
   faq: z.array(z.object({ q: z.string(), a: z.string() })),
-  schemaJsonLd: z.string(),               // klaar om te plakken
+  schemaJsonLd: z.string(),               // basis; wordt programmatisch gevalideerd/gerepareerd (E1)
   targetIntent: z.string(),
   cluster: z.string(),
 });
 ```
-→ Opslaan in `content_pieces` met `status: "ready"`.
+→ Opslaan in `content_pieces` met `status: "ready"`, plus `quality_score`, `needs_review` en `critique_raw_json` (contentkwaliteit-herziening, migratie `0003`).
 
 ### Het tabblad "Content Bibliotheek"
 De centrale opleverplek, per analyse. Een lijst kaarten:
@@ -530,6 +566,45 @@ De centrale opleverplek, per analyse. Een lijst kaarten:
 - **Lege staat** (nog niets gegenereerd): duidelijke uitleg *"Ga naar het Rapport en kies welke pagina's je wilt laten schrijven."*
 
 Zo levert de tool op klant-verzoek een **steeds verder gevulde bibliotheek** op, per analyse. Dat is ~80% van Nova's waarde, zonder het CMS-risico en zonder onnodige kosten voor content die niemand vroeg.
+
+---
+
+## 8b. Ná de MVP bijgebouwd: publiceren, effect meten, technische audit, off-site
+
+Deze onderdelen stonden niet in de oorspronkelijke Fase A/B/C-scope, maar zijn sindsdien
+gebouwd (zie [`optimalisatie.md`](./optimalisatie.md) voor de volledige, gefaseerde
+geschiedenis). Kort samengevat, zodat dit document het geheel dekt:
+
+- **Publiceren & verifiëren (`lib/pipeline/publish.ts`, `publish-check.ts`).** De klant
+  publiceert de content **zelf** (kopiëren/downloaden, zoals altijd al het geval was —
+  er is geen CMS-connector). Wat wél nieuw is: zodra de klant een stuk als gepubliceerd
+  markeert, haalt de app de live pagina op via HTTP en verifieert of de content er
+  daadwerkelijk staat, vóórdat een effectmeting wordt ingepland.
+- **Effect meten (`lib/pipeline/impact.ts`, `impact-math.ts`).** Na een geverifieerde
+  publicatie plant de app een **hermeet-golf**: de betrokken prompts worden opnieuw
+  gemeten, en er wordt statistisch (niet alleen "score ging omhoog") bepaald of de
+  zichtbaarheid meetbaar veranderd is, met een onzekerheidsmarge. Dit sluit de lus die
+  §12-keuze 3 ("content pas na klik") openliet: bewijst dat gegenereerde content ook
+  werkt.
+- **Technische GEO-audit (`lib/audit/`).** Geen AI-call, pure HTTP + tekstinspectie:
+  checkt `robots.txt` tegen bekende AI-crawlers (GPTBot, CCBot, ...). Draait bij
+  profiel-aanmaak en maandelijks mee met de tracking-cron. Als AI-crawlers geblokkeerd
+  zijn, blokkeert een gedeelde "poort"-check (`lib/audit/gate.ts`) bewust
+  content-generatie totdat dat is opgelost — extra content heeft geen zin als AI de site
+  niet eens kan lezen.
+- **Off-site zichtbaarheid (`lib/offsite/`).** Aanvullend op eigen content: welke externe
+  domeinen zijn relevant in deze markt (afgeleid uit de bronnen die de meting al
+  citeerde, geen extra AI-call), staat het merk daar wél/niet op (één grounded
+  web-search-call), en is het merk een herkende entiteit op Wikidata/Wikipedia (gratis
+  publieke API's, geen AI-call). Draait als job na rapportgeneratie, non-blocking.
+- **Merknaam-deduplicatie (`lib/entities/`).** "Coolblue", "coolblue.nl" en "Coolblue
+  B.V." worden genormaliseerd naar één entiteit, zodat concurrentievergelijkingen en
+  trends niet fragmenteren over naamvarianten.
+
+Deze uitbreidingen raken vooral het datamodel (nieuwe tabellen: `technical_audit`,
+`offsite_landscape`/`offsite_presence`/`offsite_tasks`, `entities`, plus
+publicatie-/impact-kolommen op `content_pieces`) en de jobqueue (§4), niet de kern-Zod-
+schema's uit §6–8 hierboven.
 
 ---
 
@@ -547,7 +622,7 @@ Zo levert de tool op klant-verzoek een **steeds verder gevulde bibliotheek** op,
    [klant, altijd beschikbaar]           → prompts toevoegen/wijzigen/verwijderen (A2b)
 5. [klant klikt "Bevestig en start meting"]                                       status: meten
    ────────────────────────── PIPELINE HERVAT ──────────────────────────
-6. [cron: OpenAI nano + web_search]      → tracking_runs                    (A3, nulmeting + optioneel wekelijks)
+6. [cron: OpenAI nano + web_search]      → tracking_runs                    (A3, nulmeting + optioneel maandelijks)
 7. [aggregatie, geen call]               → visibility_scores + competitor_breakdown (3c)   status: gemeten
    -- ✅ herzien: score/trendlijn al zichtbaar in Overzicht; Rapport-tab toont
    -- "wordt opgesteld" totdat B1+B2 klaar zijn — 'gereed' komt pas na stap 9
@@ -559,6 +634,8 @@ Zo levert de tool op klant-verzoek een **steeds verder gevulde bibliotheek** op,
 ```
 
 Stap 1–3 en 6–9 draaien zonder menselijke tussenkomst. Stap 4–5 (de verplichte review-gate, §3.6/A2c) en stap 10 wachten bewust op de klant. Meerdere analyses draaien volledig onafhankelijk van elkaar, parallel, elk met zijn eigen status.
+
+**Ná stap 11** loopt de lus door (zie §8b): de klant markeert een stuk als gepubliceerd → de app verifieert dit op de live pagina → een hermeet-golf toont of de zichtbaarheid meetbaar veranderde. Los daarvan draait maandelijks een technische audit mee met de tracking-cron, en na elke rapportgeneratie een non-blocking off-site-scan.
 
 ---
 
@@ -591,12 +668,12 @@ Halte 3ab (de 30-prompt-meting) blijft verreweg de grootste kostenpost: ~94% van
 ### Stap 10 — content, op aanvraag (buiten de nulmeting)
 Alleen bij klant-klik, model **mini**, geen `web_search`: ~1.100 in / ~1.600 uit per pagina → **≈ $0,003 per pagina**. Volledig vraaggestuurd, geen vaste kost.
 
-### Wekelijkse lus — per analyse aan/uit-schakelbaar (buiten de nulmeting)
-Zelfde opbouw als halte 3ab: **≈ $0,33/week/analyse**, alleen voor analyses met `tracking_enabled = true`. Over 10 weken continu aan: **≈ $3,33/analyse**. Zie §6 (A3) voor de aan/uit-schakelaar.
+### Terugkerende lus — per analyse aan/uit-schakelbaar (buiten de nulmeting)
+Zelfde opbouw als halte 3ab: **≈ $0,33/meetronde/analyse**, alleen voor analyses met `tracking_enabled = true`. In de huidige implementatie draait dit **maandelijks**, niet wekelijks (zie A3-herziening in §6) en zonder vaste einddatum. Zie §6 (A3) voor de aan/uit-schakelaar.
 
 **Kostenknoppen (belangrijk bij opschalen):**
-1. **`web_search` alleen in halte 1 en 3ab** — nooit aanzetten bij prompts, rapport of content-generatie.
-2. **Wekelijkse lus staat standaard uit, per analyse** — gratis prospect-analyses blijven op de eenmalige nulmeting (~$0,35), pas bij betalende klanten (of specifieke analyses) zet je 'm aan.
+1. **`web_search` alleen in halte 1 en 3ab** — nooit aanzetten bij prompts of rapport; bij content-generatie alleen als terugval (`CONTENT_WEB_SEARCH`, zie `.env.example`).
+2. **Terugkerende lus staat standaard uit, per analyse** — gratis prospect-analyses blijven op de eenmalige nulmeting (~$0,35), pas bij betalende klanten (of specifieke analyses) zet je 'm aan.
 3. **Cache** Brand DNA en hergebruik; content pas genereren op expliciete klik (al vastgelegd, spaart het meest).
 4. **Batch + queue** voorkomt time-outs en maakt kosten per analyse voorspelbaar, ook bij veel analyses tegelijk.
 5. **Rate limits bewaken:** instap-tiers bij OpenAI kennen lage RPM-limieten (soms slechts enkele requests/minuut) totdat je account-uitgaven/leeftijd een hogere tier ontgrendelen. Bouw de job-queue met marge, niet ervan uitgaand dat je vanaf dag 1 hoge doorvoer hebt — zeker relevant zodra een klant meerdere analyses tegelijk start.
@@ -604,6 +681,12 @@ Zelfde opbouw als halte 3ab: **≈ $0,33/week/analyse**, alleen voor analyses me
 ---
 
 ## 11. Bouwvolgorde (sprints)
+
+> **Status: alle 7 sprints hieronder zijn opgeleverd.** Deze sectie beschrijft de
+> oorspronkelijke bouwvolgorde van de MVP (Fase A+B+C) en blijft staan als historisch
+> overzicht van hoe het fundament is opgebouwd. De ontwikkeling na de MVP (profiel-split,
+> job-queue, technische audit, off-site-scanning, content-generatie als volwaardige
+> feature, ...) staat gefaseerd beschreven in [`optimalisatie.md`](./optimalisatie.md).
 
 1. **Sprint 1 — Fundament:** Next.js op Vercel, Supabase-project, Auth, datamodel-migraties (incl. `analyses` met `topic`/`status`, `competitor_breakdown`), officiële `openai` Node-SDK + Zod ingericht, test-calls werkend met zowel `gpt-4.1-nano` als `gpt-4.1-mini` (structured output + `web_search`-tool getest op beide).
 2. **Sprint 2 — "Mijn analyses" + A0/A1/A2:** lijst-scherm + "Nieuwe analyse starten"-formulier (URL + onderwerp) + **transparant voortgangsscherm** (§3.7 stap 4) → eigen crawler → Brand DNA (topic-aware, model mini, met `raw_json`) → 30 prompts via **5 aparte categorie-calls** (topic-aware, model mini, elk met `source_raw_json`).
@@ -620,7 +703,7 @@ Zelfde opbouw als halte 3ab: **≈ $0,33/week/analyse**, alleen voor analyses me
 1. **Engine:** ✅ **Uitsluitend OpenAI**, gedifferentieerd tussen **`gpt-4.1-nano`** (hoogvolume/classificatie) en **`gpt-4.1-mini`** (laagvolume/kwaliteitsgevoelig) — zie §2. Geen Gemini, geen premium modellen. Andere engines komen later als expliciete, aparte uitbreiding.
 2. **Eerste rapportervaring:** ✅ **Directe nulmeting (week 0)** meteen tonen, altijd automatisch (stap 1 t/m 9, ≈ $0,356/analyse).
 3. **Content-generatie:** ✅ **Pas na klik/goedkeuring** door de klant — niet volautomatisch vooraf. Dit spaart kosten en geeft de klant controle.
-4. **Wekelijkse lus (10 weken):** ✅ **Per analyse aan/uit-schakelbaar** (`tracking_enabled`), draait niet automatisch door na de nulmeting.
+4. **Terugkerende lus:** ✅ **Per analyse aan/uit-schakelbaar** (`tracking_enabled`), draait niet automatisch door na de nulmeting. **Herzien t.o.v. de oorspronkelijke opzet:** in de praktijk maandelijks i.p.v. wekelijks, zonder vaste 10-weken-grens (optioneel begrensbaar via `MAX_MEASUREMENT_PERIODS`).
 5. **Onderwerp/product-veld:** ✅ Optioneel naast de website-URL. Bepaalt de scope van zowel Brand DNA (A1) als de 30 prompts (A2). Zonder onderwerp: hele website. Met onderwerp: volledig gescoped op dat segment.
 6. **Meerdere analyses per klant:** ✅ Onbeperkt, volledig zelfstandig van elkaar (eigen DNA/prompts/tracking/rapport/bibliotheek/schakelaar). Beheerd via het "Mijn analyses"-scherm.
 7. **Prompt-beheer:** ✅ De volledige prompt-lijst is **te allen tijde** door de klant inzichtelijk en beheerbaar (toevoegen, wijzigen, verwijderen, aan/uit) via het tabblad Instellingen. Wijzigingen werken vooruitkijkend, historische metingen blijven ongewijzigd.
@@ -638,8 +721,22 @@ Zelfde opbouw als halte 3ab: **≈ $0,33/week/analyse**, alleen voor analyses me
 19. **Status opgesplitst in `gemeten` én `gereed`:** ✅ Naar aanleiding van een UI/UX-review gecorrigeerd — `gereed` betekende voorheen zowel "score klaar" als "rapport klaar" tegelijk, wat tab-beschikbaarheid onduidelijk maakte. Nu: `gemeten` = score/trendlijn zichtbaar (na A3), `gereed` = rapport ook klaar (na B2). Zie §5 (datamodel) en §6/§7.
 20. **Schrijfstrategie: nooit rechtstreekse client-writes naar Postgres.** ✅ Alle schrijfacties (ook klant-CRUD zoals prompt-beheer) lopen via Next.js API-routes met de service-role key + expliciete ownership-check. RLS regelt alléén lees-toegang (SELECT, gefilterd op `user_id`/`analysis_id`). Reden: Postgres RLS werkt op rij-niveau, niet op kolom-niveau, en kan dus nooit afdwingen welke specifieke velden een klant mag wijzigen — dat hoort in de API-route thuis. De `jobs`-tabel heeft daarnaast **geen enkele** client-toegang. Zie §5.
 21. **Voortgangsschermen zijn server-state-gedreven:** ✅ Alle live voortgangsindicatoren (§3.7, stap 4/6/7) worden afgeleid van `analyses.status` + de `jobs`-tabel, niet van een client-side animatie — zodat een refresh of latere terugkeer altijd de actuele stand toont.
+22. **Klantprofiel op accountniveau (i.p.v. Brand DNA per analyse):** ✅ Het grondige, bedrijfsbrede merkonderzoek (merknaam, branche, tone-of-voice, persona's, waardeproposities, algemene concurrenten) gebeurt niet meer per analyse, maar eenmalig bij het aanmaken van een **klantprofiel** (nieuwe tabel `profiles`, accountniveau — een account kan er meerdere hebben, bv. een bureau met meerdere merken). Elke analyse hangt verplicht aan één profiel (`analyses.profile_id`) en het onderwerp (`analyses.topic`) is nu **verplicht** (was optioneel) — zonder onderwerp voegt een analyse niets toe aan wat het profiel al dekt. Halte A1 (Brand DNA) is vervangen door het kleinere, per-analyse **A1'-onderwerp-onderzoek** (`topic_research`-tabel, vervangt `brand_dna`): alleen nog (1) wat de website specifiek zegt over dit product/thema en (2) welke concurrenten relevant zijn voor dít onderwerp. Prompts (A2), meting (A3), rapport (B1/B2) en content-generatie (C) combineren voortaan profiel + onderwerp-onderzoek (concurrenten: gededupliceerde unie van beide lijsten). Bespaart herhaald, identiek bedrijfsonderzoek bij meerdere analyses voor hetzelfde merk. Zie de nieuwe UI-sectie **Klantprofielen** (`/profielen`, los van "Mijn analyses").
+23. **Content-inventaris beslist nieuw vs. verbeteren:** ✅ Elk klantprofiel krijgt een zo compleet mogelijke inventaris van bestaande content (`profile_pages`) — eenmalig per profiel, niet per analyse. Ontdekking: `robots.txt` uitlezen voor de sitemap-locatie(s), sitemap-index'en **recursief** volgen, en pas als er echt geen sitemap is → links vanaf de homepage. **Webshop-productpagina's worden uitgesloten** (hele product-sitemaps zoals Shopify `sitemap_products_1.xml` / Yoast `product-sitemap.xml` overslaan, plus losse `/product(s)/`-URL's) omdat het er duizenden kunnen zijn en ze geen zinvol GEO-content-doel zijn; categorie-/`collections`-pagina's blijven wél behouden. Het crawlen zelf is API-gratis (eigen server, geen OpenAI). De crawl-instellingen zijn **per profiel bewerkbaar** (tabblad profiel): een optioneel `sitemap_url` (weet de klant de sitemap-locatie, dan gebruikt de crawler die met zekerheid als ingang) en `max_inventory_pages` (5–150, hoeveel pagina's er in de inventaris komen; hoger = grondiger maar trager). Een **"Vernieuw inventaris"-knop** (`POST /api/profiles/[id]/refresh-inventory`) draait de crawl opnieuw met die instellingen en vervangt `profile_pages` — zonder het (mogelijk handmatig bijgewerkte) merkonderzoek te raken. Het rapport (B2) beslist per aanbeveling of dit een bestaande pagina verbetert (`action: "verbeteren"`, met `existingUrl`) of een geheel nieuwe pagina vereist (`action: "nieuw"`). Fase C gebruikt bij "verbeteren" de opgeslagen paginatekst als basis om op voort te bouwen i.p.v. vanaf nul te schrijven. Dit blijft een SUGGESTIE (Content Bibliotheek, kopiëren/downloaden) — geen directe CMS-publicatie, dat is expliciet Fase D en nog niet gebouwd.
+24. **Onboarding-wizard bij profiel-aanmaak, klant-input leidend:** ✅ Een nieuw klantprofiel wordt aangemaakt via een **begeleide onboarding-wizard** (5 stappen) die uitvraagt: bedrijfsnaam + website (verplicht), aliassen, korte omschrijving, branche, producten, waardeproposities, bereik (lokaal/landelijk/internationaal) + regio's, markt & taal, concurrenten, doelgroep, tone-of-voice, veelgehoorde klantvragen en sitemap-URL (al het overige optioneel). De AI-research (`generateProfileResearch`) vult daarna het profiel, maar **klant-input is leidend**: deterministisch in code afgedwongen (`prepare-profile.ts`) — ingevulde scalars blijven staan, lijsten (producten/waardeproposities/concurrenten) worden een unie van klant + AI, lege velden door de AI gevuld. Omdat het AI-schema alle velden altijd gevuld teruggeeft, staat er na de merge altijd iets (de klant kan de AI-content aanpassen of overslaan). De extra velden worden **doorgevoerd in de pipeline**: aliassen → nauwkeurigere mention-detectie in de meting (`measure.ts`); bereik/regio's/markt → lokale & marktgerichte promptgeneratie (`prompts.ts`); waardeproposities + klantvragen → context voor content-generatie (`content.ts`). Profiel en analyse blijven strikt gescheiden: de onboarding vraagt géén te meten onderwerpen uit (dat is analyse-terrein). Zie migraties `0006` (intake-seeds) en `0007` (uitgebreide velden).
 
-Nog te bepalen later: aantal analyses/pagina's per klant / eventuele limieten of pakketten.
+> **✅ Vastgelegd — contentkwaliteit-herziening (keuzes 22-26), geïmplementeerd.** Naar aanleiding van [`contentkwaliteit-analyse.md`](./contentkwaliteit-analyse.md). Raakt vrijwel uitsluitend Fase C (het betaalde product).
+
+25. **Drie modeltiers:** ✅ Naast nano/mini een premium tier `gpt-4.1` (vol) voor het schrijven/herschrijven van content (Fase C). Vast in de code (`lib/openai/models.ts`). Zie §2.
+26. **Brand DNA is een schrijf-grondslag:** ✅ Halte 1 extraheert ook `proofPoints` (citeerbare feiten die letterlijk uit de site blijken — de schrijver mag die WÉL gebruiken) en `styleSamples` (letterlijke stijlvoorbeelden). Zo kan Fase C concreet én on-brand schrijven zonder de merkneutrale "verzin geen feiten"-regel te breken. Migratie `0003`, `lib/pipeline/brand-dna.ts`.
+27. **Fase C is een redactionele pijplijn, geen enkele call:** ✅ Draft (`gpt-4.1`) → redactie/kritiek (`gpt-4.1-mini`, rubric + regel-check) → herschrijven indien nodig (`gpt-4.1`) → herbeoordelen. Zie §8, `lib/pipeline/content.ts`.
+28. **Kwaliteitspoort vóór de bibliotheek:** ✅ `quality_score` + `needs_review` per pagina; onder de drempel (80) of bij regel-risico markeren we voor menselijke controle ("Check nodig"-chip). Content gaat nooit blind ongezien de deur uit. Migratie `0003`, `lib/pipeline/content.ts`.
+29. **Structured data programmatisch:** ✅ `schema_jsonld` wordt in code gevalideerd/gerepareerd (`lib/schema-jsonld.ts`) i.p.v. de LLM-string blind te vertrouwen. Zie §8 (E1).
+30. **Prompt-taxonomie: funnel als hoofd-as + fijnere tags per kolom:** ✅ Promptgeneratie (A2) draait nu per **funnelfase** (`Oriëntatie`/`Overweging`/`Beslissing`, opgeslagen in `prompts.category` → stroomt door naar de meting en de concurrentie-breakdown per funnelfase). Elke prompt krijgt daarnaast **eigen kolommen** voor latere analyse: `intent_type` (informational/commercial/transactional), `specificity` (head/long_tail), `purchase_intent` (koopintentie), `cluster` (thema-/topic-label) en `volume_estimate` (door de AI **geschat** zoekvolume 0-100, géén echte index). Bovendien mag een prompt **geen concurrerend bedrijf** meer bij naam noemen (naast de eigen merknaam) — generieke productmerken (bv. "Nike") blijven wél toegestaan, want alleen de gecureerde concurrentenlijst geldt als verboden. Migratie `0009`, `lib/pipeline/prompts.ts`.
+31. **Content-brief per analyse (klant stuurt hoek/doelgroep):** ✅ Bij het aanmaken van een analyse kan de klant een vrij-tekst **content-brief** (`analyses.content_brief`) meegeven — de gewenste hoek/doelgroep van de content (bv. uitzendbureau, onderwerp "sollicitanten" → content om je vóór te bereiden op een gesprek, niet generieke info). De brief stuurt **A2** (de meet-vragen weerspiegelen de hoek), **B1/B2** (aanbevelingen sluiten erop aan, naast de gewogen-score-prioritering) en **Fase C** (de content wordt erop geschreven). Invulbaar bij aanmaken (`new-analysis-form`) en bewerkbaar in Instellingen (`PATCH /api/analyses/[id]`) — bewerken ná de voorbereiding stuurt nog rapport + content, niet de al gegenereerde prompts. Migratie `0011`. `url`/`topic` blijven gelockt.
+32. **Volume-gewogen zichtbaarheidsscore:** ✅ Naast de ongewogen score (elke prompt telt gelijk) is er een **gewogen score** waarbij elke prompt weegt naar `volume × commerciële waarde` (waardefactor: transactional 1,0 · commercial 0,6 · informational 0,3; ondergrens 0,1 zodat niets wegvalt). Het geschatte zoekvolume wordt **relatief gekalibreerd in één call** over alle prompts van een analyse (consistenter dan losse schattingen). Het gewicht wordt **bevroren op het meetmoment** (`tracking_runs.prompt_weight`); de gewogen score staat in `visibility_scores.weighted_score` en wordt naast de ongewogen score getoond. Zo tellen populaire, koopklare vragen zwaarder. Migratie `0010`, `lib/pipeline/prompt-weight.ts` + `measure.ts` (3c). **Het rapport (B1/B2) stuurt hierop**: de gap-analyse en aanbevelingen prioriteren de GEMISTE vragen met het hoogste gewicht (populair/koopklaar), aangevuld met de gewogen score en de tags per gemiste vraag (`lib/pipeline/report.ts`, `computeMissedPrompts`).
+
+Nog te bepalen later: aantal analyses/pagina's per klant / eventuele limieten of pakketten. Mogelijke vervolgstappen uit de analyse die (bewust) nog niet zijn ingebouwd: `web_search`-grounding + feitcontrole in Fase C, concurrent-winnende-bronnen als blauwdruk, demand-grounding van prompts, en de `proof_points`/`style_samples` ook bewerkbaar maken in de review-gate-UI.
 
 ---
 
