@@ -49,16 +49,20 @@ verse metingen nodig.
 
 Laatst toegepaste migratie is `0026`. Hieronder vooraf vastgelegd om botsingen te voorkomen:
 
-| Nr | Ronde | Inhoud |
-|---|---|---|
-| `0027` | R0 | Promptgeneratie-telemetrie, `profiles.business_model` |
-| `0028` | R2 | Meetbaarheid (`brands_in_answer`, `brand_eliciting`, score-splitsing) |
-| `0029` | R3 | Zichtbaarheidsprofiel (rol, positie-aggregatie, citatiescore) |
-| `0030` | R4 | Concurrent-intelligence |
-| `0031` | R6 | Herhaalmeting + inventariskwaliteit |
+| Nr | Ronde | Inhoud | Status |
+|---|---|---|---|
+| `0027` | R1 | `reports.stripped_claims_json` (bewijslaag) | ✅ toegepast |
+| `0028` | R0 | Promptgeneratie-telemetrie, `profiles.business_model` | gereserveerd |
+| `0029` | R2 | Meetbaarheid (`brands_in_answer`, `brand_eliciting`, score-splitsing) | gereserveerd |
+| `0030` | R3 | Zichtbaarheidsprofiel (rol, positie-aggregatie, citatiescore) | gereserveerd |
+| `0031` | R4 | Concurrent-intelligence | gereserveerd |
+| `0032` | R6 | Herhaalmeting + inventariskwaliteit | gereserveerd |
 
-R1 en R5 hebben geen nieuwe migratie nodig — R5 draait op het schema uit `0024`, dat al is
-toegepast.
+R5 heeft geen nieuwe migratie nodig — die draait op het schema uit `0024`, dat al is toegepast.
+
+> **Afwijking:** R1 is als eerste opgeleverd en heeft daarom `0027` gekregen; de rest is één
+> nummer opgeschoven. R1 bleek wél een migratie nodig te hebben (de audit-trail van gestripte
+> beweringen), anders dan bij het opstellen van dit plan gedacht.
 
 ### 1.4 Huisregels uit de codebase
 
@@ -85,7 +89,7 @@ toegepast.
 | R0.6 | Off-site: repareren of uitzetten | 1,5 d | ☐ |
 | R1.1 | Bewijsdossier in code | 2 d | ✅ |
 | R1.2 | Rapportprompt: verwoorden, niet afleiden | 1 d | ✅ |
-| R1.3 | Claimvalidator | 1,5 d | ☐ |
+| R1.3 | Claimvalidator | 1,5 d | ✅ |
 | R2.1 | Merken-per-antwoord vastleggen | 1 d | ☐ |
 | R2.2 | Score splitsen | 2 d | ☐ |
 | R2.3 | Kansloze vragen uit contentadvies | 1 d | ☐ |
@@ -417,7 +421,34 @@ Van der Valk-claim over "Het Oude Raadhuis Hoofddorp en Dotslash Utrecht" wordt 
 concurrent niet gemeten is. `stripped_claims_json` is leeg bij een gezond rapport — is dat
 structureel niet zo, dan is dat een signaal dat R1.2 nog niet streng genoeg is.
 
-> **Migratie:** `reports.stripped_claims_json` gaat mee in `0027` (additief, jsonb, nullable).
+> **✅ Opgeleverd.** `lib/pipeline/validate-claims.ts` (puur, getest) +
+> `validateReportClaims()` in `report.ts` (het stuk dat de database nodig heeft).
+> Migratie `0027_bewijslaag.sql` is **toegepast op productie**. 18 nieuwe eenheidstests.
+>
+> **Verificatie op echte rapporttekst** — vier gevallen uit de opgeslagen rapporten, met de
+> werkelijke toegestane namen per doelvraag:
+>
+> | Geval | Verwacht | Uitkomst |
+> |---|---|---|
+> | Van der Valk #1 — *"Het Oude Raadhuis Hoofddorp en Dotslash Utrecht scoren hier wel"* (0 bedrijven in dat antwoord) | strippen | ✅ gestript |
+> | Van der Valk #2 — geen namen in de tekst | ongemoeid | ✅ ongemoeid |
+> | Coolblue #1 — *"Expert, Bemmel en Kroon en Flevo Witgoed scoren hier wel"* (alle drie onderbouwd) | ongemoeid | ✅ ongemoeid |
+> | Coolblue #3 — *"Bol.com scoort hier"* (0 bedrijven in dat antwoord) | strippen | ✅ gestript |
+>
+> Coolblue #3 was een **tweede geval van dezelfde fout**, niet eerder opgemerkt in de
+> kwaliteitsanalyse. Het patroon komt dus vaker voor dan het ene Van der Valk-geval.
+>
+> **Bug gevonden én gefixt tijdens de verificatie.** De eerste zinssplitser brak naïef op elke
+> punt, waardoor `Bol.com` uiteenviel in `Bol.` + `com`. Geen van beide helften bevatte de
+> merknaam nog, dus de validator zag hem niet en liet de onjuiste bewering staan — precies het
+> geval dat hij moest vangen. Een punt telt nu alleen als zinseinde wanneer er witruimte of het
+> einde van de tekst op volgt; domeinnamen en getallen als `3.5` blijven heel. Geborgd met
+> eigen tests.
+>
+> **Waarom een hele zin en niet alleen de naam:** een zin met één onderbouwde en één
+> niet-onderbouwde naam gaat er in z'n geheel uit. Dat kost een correcte mededeling, maar de
+> twee zijn niet te scheiden zonder de zin te herschrijven — en dat moet dit stukje code niet
+> willen.
 
 ---
 

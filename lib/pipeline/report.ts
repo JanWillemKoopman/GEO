@@ -14,8 +14,9 @@ import { GapAnalysis } from "@/lib/schemas/gap-analysis";
 import { Report } from "@/lib/schemas/report";
 import { NEUTRAL_WEIGHT } from "@/lib/pipeline/prompt-weight";
 import { resolveTargets } from "@/lib/pipeline/recommendation";
-import { buildEvidenceDossier } from "@/lib/pipeline/evidence";
+import { buildEvidenceDossier, loadBrandsByRun, loadKnownBrandNames } from "@/lib/pipeline/evidence";
 import { formatEvidenceDossier, type EvidenceEntry } from "@/lib/pipeline/evidence-format";
+import { validateField, type StrippedClaim } from "@/lib/pipeline/validate-claims";
 import { computePeriodChange, buildChangeBlock, isWorthEmailing } from "@/lib/pipeline/period-change";
 import { sendReportEmail } from "@/lib/email/report-email";
 import { emailsEnabled } from "@/lib/env";
@@ -329,6 +330,84 @@ async function saveFactRequests(
 /** Meer dan een handvol vragen is geen uitnodiging meer maar een formulier. */
 const FACT_REQUEST_CAP = 6;
 
+/**
+ * Toetst de concurrentnamen in het rapport tegen het bewijs
+ * (implementatieplan.md R1.3).
+ *
+ * Per aanbeveling zijn de toegestane namen die uit de antwoorden van háár
+ * doelvragen; per gap die uit z'n `evidenceRunIds`. Een naam die daar niet in
+ * voorkomt, is een bewering die de meting niet draagt — de zin gaat eruit.
+ *
+ * Waarom hier en niet in `validate-claims.ts`: die module is bewust puur en
+ * testbaar zonder database. Dit is het stukje dat wél de database nodig heeft.
+ */
+async function validateReportClaims(
+  admin: ReturnType<typeof createAdminClient>,
+  args: {
+    profileId: string;
+    recommendations: ReturnType<typeof resolveTargets>;
+    gaps: Report["gaps"];
+    dossier: EvidenceEntry[];
+  },
+): Promise<{
+  recommendations: ReturnType<typeof resolveTargets>;
+  gaps: Report["gaps"];
+  stripped: StrippedClaim[];
+}> {
+  const { profileId, recommendations, gaps, dossier } = args;
+
+  // Alle metingen waar het rapport naar verwijst: de doelvragen van de
+  // aanbevelingen plus het bewijs onder de gaps. Die laatste hoeven niet in het
+  // dossier te staan (dat is afgekapt op de vijftien zwaarste), dus we halen ze
+  // er in één keer bij.
+  const referenced = new Set<string>();
+  for (const rec of recommendations) {
+    for (const t of rec.targets) if (t.runId) referenced.add(t.runId);
+  }
+  for (const gap of gaps) {
+    for (const runId of gap.evidenceRunIds ?? []) if (runId) referenced.add(runId);
+  }
+
+  const [knownNames, brandsByRun] = await Promise.all([
+    loadKnownBrandNames(admin, profileId),
+    loadBrandsByRun(admin, profileId, Array.from(referenced)),
+  ]);
+
+  // Het dossier heeft de merken al; die hergebruiken scheelt niets aan queries
+  // maar houdt beide bronnen gelijk als een run in allebei zit.
+  const namesForRun = (runId: string): string[] => {
+    const fromDossier = dossier.find((d) => d.runId === runId);
+    if (fromDossier) return fromDossier.brandsInAnswer.map((b) => b.name);
+    return (brandsByRun.get(runId) ?? []).map((b) => b.name);
+  };
+
+  const stripped: StrippedClaim[] = [];
+
+  const checkedRecommendations = recommendations.map((rec) => {
+    const allowed = rec.targets.flatMap((t) => (t.runId ? namesForRun(t.runId) : []));
+    const result = validateField(rec.why, {
+      knownNames,
+      allowedNames: allowed,
+      where: `aanbeveling: ${rec.title}`,
+    });
+    stripped.push(...result.stripped);
+    return { ...rec, why: result.text };
+  });
+
+  const checkedGaps = gaps.map((gap) => {
+    const allowed = (gap.evidenceRunIds ?? []).flatMap((runId) => namesForRun(runId));
+    const result = validateField(gap.problem, {
+      knownNames,
+      allowedNames: allowed,
+      where: `gap: ${gap.cluster}`,
+    });
+    stripped.push(...result.stripped);
+    return { ...gap, problem: result.text };
+  });
+
+  return { recommendations: checkedRecommendations, gaps: checkedGaps, stripped };
+}
+
 export async function generateReport(id: string, weekNo = 0): Promise<AnalysisStatus> {
   const admin = createAdminClient();
 
@@ -438,14 +517,33 @@ export async function generateReport(id: string, weekNo = 0): Promise<AnalysisSt
     // meting-id's; de codes bestaan alleen binnen deze ene aanroep.
     const enriched = resolveTargets(report.parsed.recommendations, missed);
 
+    // ── Claimvalidatie (implementatieplan.md R1.3) ─────────────────────────
+    // Het deterministische vangnet onder R1.1/R1.2: elke concurrentnaam moet
+    // voorkomen in het bewijs van de vraag waaraan hij hangt. Wat dat niet
+    // haalt, gaat eruit — en wordt bewaard, zodat te zien is of de instructie
+    // uit R1.2 streng genoeg is.
+    const { recommendations, gaps, stripped } = await validateReportClaims(admin, {
+      profileId: analysis.profile_id,
+      recommendations: enriched,
+      gaps: report.parsed.gaps,
+      dossier,
+    });
+    if (stripped.length > 0) {
+      console.warn(
+        `Analyse ${id} periode ${weekNo}: ${stripped.length} niet-onderbouwde bewering(en) ` +
+          `uit het rapport verwijderd. Zie reports.stripped_claims_json.`,
+      );
+    }
+
     const { data: reportRow, error: reportError } = await admin.from("reports").insert({
       analysis_id: id,
       week_no: weekNo,
       period: weekNo === 0 ? "nulmeting" : `periode ${weekNo}`,
       change_json: change as never,
       summary: report.parsed.summary,
-      gaps_json: report.parsed.gaps as never,
-      recommendations_json: enriched as never,
+      gaps_json: gaps as never,
+      recommendations_json: recommendations as never,
+      stripped_claims_json: stripped as never,
       gap_analysis_raw_json: gap.raw as never, // volledige ruwe OpenAI-output B1 (§5)
       raw_json: report.raw as never, // volledige ruwe OpenAI-output B2 (§5)
     }).select("id").single();

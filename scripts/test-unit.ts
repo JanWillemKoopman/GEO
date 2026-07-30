@@ -36,6 +36,7 @@ import { checkUrlFormat } from "@/lib/url";
 import { countOpenPeriodicMeasurements } from "@/lib/jobs/pending";
 import { formatEvidenceDossier, excerpt } from "@/lib/pipeline/evidence-format";
 import type { EvidenceEntry } from "@/lib/pipeline/evidence-format";
+import { stripUnsupportedClaims, validateField, NEUTRAL_FALLBACK } from "@/lib/pipeline/validate-claims";
 
 let passed = 0;
 let failed = 0;
@@ -388,6 +389,98 @@ group("Bewijsdossier (implementatieplan.md R1.1)", () => {
   ok("fragment wordt afgekapt", kort.length < lang.length && kort.endsWith("…"));
   ok("fragment breekt op een woordgrens", !kort.slice(0, -1).endsWith("woor"));
   ok("kort antwoord blijft heel", excerpt("Kort antwoord.") === "Kort antwoord.");
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+group("Claimvalidator (implementatieplan.md R1.3)", () => {
+  const known = ["Regus", "Spaces", "Het Oude Raadhuis Hoofddorp", "Dotslash Utrecht", "Spacesworks"];
+
+  // Het echte geval uit kwaliteitsanalyse-5-testcases.md §2.2: het rapport
+  // noemde twee concurrenten bij een vraag waar geen enkel bedrijf in stond.
+  const echt = stripUnsupportedClaims(
+    "Deze vraag is zeer populair en koopgericht. Concurrenten zoals Het Oude Raadhuis Hoofddorp " +
+      "en Dotslash Utrecht scoren hier wel, Van der Valk niet.",
+    { knownNames: known, allowedNames: [], where: "aanbeveling: test" },
+  );
+  ok("niet-onderbouwde zin verdwijnt", !echt.text.includes("Het Oude Raadhuis"));
+  ok("de onderbouwde zin blijft", echt.text.includes("zeer populair en koopgericht"));
+  ok("verwijdering wordt vastgelegd", echt.stripped.length === 1);
+  ok("de naam wordt gemeld", echt.stripped[0]?.unsupportedName === "Het Oude Raadhuis Hoofddorp");
+
+  // Wél onderbouwd: dezelfde zin, maar nu stond die concurrent er echt in.
+  const onderbouwd = stripUnsupportedClaims("Regus wordt hier genoemd, jij niet.", {
+    knownNames: known,
+    allowedNames: ["Regus"],
+    where: "aanbeveling: test",
+  });
+  ok("onderbouwde naam blijft staan", onderbouwd.text.includes("Regus"));
+  ok("niets gestript bij bewijs", onderbouwd.stripped.length === 0);
+
+  // Twee namen in één zin, één onderbouwd: de zin gaat er in z'n geheel uit.
+  // Dat kost een correcte mededeling, maar de zin bevat óók een onjuiste en die
+  // twee zijn niet te scheiden zonder te herschrijven.
+  const gemengd = stripUnsupportedClaims("Regus en Dotslash Utrecht winnen hier.", {
+    knownNames: known,
+    allowedNames: ["Regus"],
+    where: "aanbeveling: test",
+  });
+  ok("gemengde zin gaat er helemaal uit", gemengd.text === "");
+  ok("gemengde zin wordt gemeld", gemengd.stripped.length === 1);
+
+  // Een punt binnen een naam is GEEN zinseinde. Gevonden bij de verificatie op
+  // echte rapporttekst: de naïeve splitser hakte "Bol.com" in "Bol." + "com",
+  // waardoor geen van beide helften de merknaam nog bevatte en de onjuiste
+  // bewering ongemoeid bleef — precies het geval dat gevangen moest worden.
+  const domeinnaam = stripUnsupportedClaims(
+    "Deze vraag helpt klanten bij hun keuze. Bol.com scoort hier, Coolblue niet.",
+    { knownNames: ["Bol.com", "EP.nl"], allowedNames: [], where: "aanbeveling: test" },
+  );
+  ok("naam met punt wordt herkend", domeinnaam.stripped.length === 1);
+  ok("naam met punt: juiste naam gemeld", domeinnaam.stripped[0]?.unsupportedName === "Bol.com");
+  ok("naam met punt: rest blijft staan", domeinnaam.text.startsWith("Deze vraag helpt klanten"));
+  ok("naam met punt: claim is weg", !domeinnaam.text.includes("Bol.com"));
+
+  // Getallen met een decimale punt breken de zin evenmin op.
+  const getal = stripUnsupportedClaims("De score is 3.5 punten. Regus wint hier.", {
+    knownNames: ["Regus"],
+    allowedNames: ["Regus"],
+    where: "gap: test",
+  });
+  ok("decimaal getal breekt de zin niet", getal.text.includes("3.5 punten"));
+
+  // Deelreeksen mogen niet matchen: "Spaces" zit letterlijk in "Spacesworks".
+  const deelreeks = stripUnsupportedClaims("Spacesworks wordt genoemd.", {
+    knownNames: known,
+    allowedNames: ["Spacesworks"],
+    where: "gap: test",
+  });
+  ok("deelreeks levert geen valse treffer", deelreeks.stripped.length === 0);
+
+  // Tekst zonder enige merknaam blijft ongemoeid.
+  const schoon = stripUnsupportedClaims("Hier noemt de AI geen enkele aanbieder.", {
+    knownNames: known,
+    allowedNames: [],
+    where: "gap: test",
+  });
+  ok("tekst zonder namen blijft heel", schoon.text === "Hier noemt de AI geen enkele aanbieder.");
+  ok("geen namen, niets gestript", schoon.stripped.length === 0);
+
+  // Loopt een veld helemaal leeg, dan komt er een eerlijke zin voor in de plaats
+  // in plaats van een leeg vak op het rapportscherm.
+  const leeggelopen = validateField("Dotslash Utrecht wint hier.", {
+    knownNames: known,
+    allowedNames: [],
+    where: "aanbeveling: test",
+  });
+  ok("leeggelopen veld krijgt terugval", leeggelopen.text === NEUTRAL_FALLBACK);
+
+  // Zonder merkenregister (nieuw profiel) mag de validator niets kapotmaken.
+  const geenRegister = stripUnsupportedClaims("Van alles en nog wat.", {
+    knownNames: [],
+    allowedNames: [],
+    where: "gap: test",
+  });
+  ok("leeg register laat de tekst ongemoeid", geenRegister.text === "Van alles en nog wat.");
 });
 
 // ════════════════════════════════════════════════════════════════════════════

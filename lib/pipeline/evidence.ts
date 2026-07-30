@@ -64,40 +64,35 @@ export interface MissedPromptInput {
 }
 
 /**
- * Bouwt het dossier voor een set gemiste vragen.
+ * Welke bedrijven kwamen er in wélke meting voor?
  *
- * Drie queries, ongeacht het aantal vragen — dit draait in de rapportstap en mag
- * geen N+1 worden.
+ * Apart van `buildEvidenceDossier` omdat de claimvalidator (R1.3) exact deze
+ * koppeling nodig heeft — hij toetst of een naam in het rapport voorkomt in het
+ * bewijs van de vraag waaraan hij hangt. Eén bron voor "wat stond er in dit
+ * antwoord", zodat dossier en validator niet uiteen kunnen lopen.
  */
-export async function buildEvidenceDossier(
+export async function loadBrandsByRun(
   admin: Admin,
   profileId: string,
-  missed: MissedPromptInput[],
-): Promise<EvidenceEntry[]> {
-  if (missed.length === 0) return [];
+  runIds: string[],
+): Promise<Map<string, EvidenceBrand[]>> {
+  const byRun = new Map<string, EvidenceBrand[]>();
+  if (runIds.length === 0) return byRun;
 
-  const runIds = missed.map((m) => m.runId);
-
-  const [{ data: mentionRows }, { data: runRows }, { data: entityRows }] = await Promise.all([
+  const [{ data: mentionRows }, { data: entityRows }] = await Promise.all([
     admin
       .from("tracking_run_mentions")
       .select("tracking_run_id, entity_id, entity_name, is_own_brand, mentioned, position, cited_sources")
       .in("tracking_run_id", runIds),
-    admin.from("tracking_runs").select("id, raw_response").in("id", runIds),
     admin.from("entities").select("id, canonical_name, entity_role").eq("profile_id", profileId),
   ]);
 
   const entityById = new Map(
     ((entityRows ?? []) as Pick<Entity, "id" | "canonical_name" | "entity_role">[]).map((e) => [e.id, e]),
   );
-  const answerByRun = new Map(
-    ((runRows ?? []) as { id: string; raw_response: string | null }[]).map((r) => [r.id, r.raw_response ?? ""]),
-  );
 
   // Alleen ANDERE merken die daadwerkelijk genoemd zijn. Het eigen merk laten we
-  // weg: dat deze vraag in de lijst staat, betekent per definitie dat het eigen
-  // merk er niet in voorkwam.
-  const brandsByRun = new Map<string, EvidenceBrand[]>();
+  // weg: een vraag komt hier terecht juist omdát het eigen merk er niet in stond.
   for (const row of (mentionRows ?? []) as TrackingRunMention[]) {
     if (row.is_own_brand || !row.mentioned) continue;
 
@@ -108,7 +103,7 @@ export async function buildEvidenceDossier(
     // weglaten zou het dossier onvolledig maken.
     if (entity && !RELEVANTE_ROLLEN.has(entity.entity_role)) continue;
 
-    const list = brandsByRun.get(row.tracking_run_id) ?? [];
+    const list = byRun.get(row.tracking_run_id) ?? [];
     list.push({
       // De entiteitsnaam is stabiel over periodes heen; de gemeten schrijfwijze
       // wisselt per antwoord. Zonder entiteit (classificatie nog niet gedraaid)
@@ -118,8 +113,59 @@ export async function buildEvidenceDossier(
       position: row.position,
       citedSources: row.cited_sources ?? [],
     });
-    brandsByRun.set(row.tracking_run_id, list);
+    byRun.set(row.tracking_run_id, list);
   }
+
+  return byRun;
+}
+
+/**
+ * Alle merknamen die dit profiel kent, in de rollen die als "een bedrijf" tellen.
+ *
+ * Dit is waarnaar de claimvalidator zoekt in de rapporttekst. Rommelentiteiten
+ * ("hotel", "Nederland") horen er nadrukkelijk NIET in: daarop zoeken zou elke
+ * zin met het woord "hotel" verdacht maken.
+ */
+export async function loadKnownBrandNames(admin: Admin, profileId: string): Promise<string[]> {
+  const { data } = await admin
+    .from("entities")
+    .select("canonical_name, aliases, entity_role")
+    .eq("profile_id", profileId);
+
+  const names = new Set<string>();
+  for (const e of (data ?? []) as Pick<Entity, "canonical_name" | "aliases" | "entity_role">[]) {
+    if (!RELEVANTE_ROLLEN.has(e.entity_role)) continue;
+    if (e.canonical_name.trim().length >= 3) names.add(e.canonical_name.trim());
+    for (const alias of e.aliases ?? []) {
+      if (alias.trim().length >= 3) names.add(alias.trim());
+    }
+  }
+  return Array.from(names);
+}
+
+/**
+ * Bouwt het dossier voor een set gemiste vragen.
+ *
+ * Vast aantal queries, ongeacht het aantal vragen — dit draait in de rapportstap
+ * en mag geen N+1 worden.
+ */
+export async function buildEvidenceDossier(
+  admin: Admin,
+  profileId: string,
+  missed: MissedPromptInput[],
+): Promise<EvidenceEntry[]> {
+  if (missed.length === 0) return [];
+
+  const runIds = missed.map((m) => m.runId);
+
+  const [brandsByRun, { data: runRows }] = await Promise.all([
+    loadBrandsByRun(admin, profileId, runIds),
+    admin.from("tracking_runs").select("id, raw_response").in("id", runIds),
+  ]);
+
+  const answerByRun = new Map(
+    ((runRows ?? []) as { id: string; raw_response: string | null }[]).map((r) => [r.id, r.raw_response ?? ""]),
+  );
 
   return missed.map((m) => ({
     code: m.code,
