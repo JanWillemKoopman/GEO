@@ -23,6 +23,8 @@ export const JOB_TYPES = [
   "measure_prompt",
   /** Pure aggregatie over alle metingen van een week (3c). Geen AI-aanroep. */
   "aggregate_week",
+  /** Waarom worden concurrenten genoemd? Destilleert eigenschappen uit de meting (R4.2). */
+  "profile_competitors",
   /** Gap-analyse + rapport (B1 + B2) en de rapportmail. */
   "generate_report",
   /** Contentgeneratie stap 1: schrijven + beoordelen. */
@@ -74,6 +76,7 @@ export interface JobPayloads {
     impact?: { purpose: "impact" | "control"; contentPieceId: string; wave: number };
   };
   aggregate_week: { weekNo: number };
+  profile_competitors: { weekNo: number };
   generate_report: { weekNo: number };
   content_draft: {
     userId: string;
@@ -104,6 +107,7 @@ export const HEAVY_JOB_TYPES: ReadonlySet<JobType> = new Set<JobType>([
   "profile_research", // crawlt de hele site + AI-onderzoek met web_search
   "prepare_analysis", // onderwerp-onderzoek: één gegrondde AI-aanroep
   "generate_prompts", // 3 parallelle prompt-calls, elk met een bijvul-ronde
+  "profile_competitors", // destilleert eigenschappen uit alle antwoordfragmenten
   "content_draft", // gpt-4.1 schrijft een volledige pagina
   "content_revise", // idem
   "offsite_scan", // crawlt niets maar doet wel een gegroundde AI-aanroep + externe API's

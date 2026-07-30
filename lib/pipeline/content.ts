@@ -231,6 +231,8 @@ function buildContentInput(args: {
   targets: RecommendationTarget[];
   winningAnswers: string[];
   sourceBlock: string;
+  /** Waarop concurrenten genoemd worden — de lat (R4.3). Zonder namen. */
+  competitorEdge: string;
   answeredFacts: string[];
 }): string {
   const {
@@ -243,6 +245,7 @@ function buildContentInput(args: {
     targets,
     winningAnswers,
     sourceBlock,
+    competitorEdge,
     answeredFacts,
   } = args;
 
@@ -287,6 +290,11 @@ function buildContentInput(args: {
     buildWinningAnswerBlock(winningAnswers, competitors),
     // 4.4 — wat de geciteerde bronnen doen.
     sourceBlock,
+    // R4.3 — waarop de concurrenten genoemd worden. Dit is de lat: de pagina moet
+    // op deze punten minstens zo concreet zijn. Bewust ZONDER namen (zie de
+    // opbouw in loadContentContext) — de harde regel blijft dat klantcontent
+    // nooit een concurrent noemt.
+    competitorEdge,
     existingPage
       ? `\nBESTAANDE PAGINA om te verbeteren/aanvullen (${existingPage.url}) — bouw hierop voort, herschrijf ` +
         `niet vanaf nul, behoud wat al goed is en vul alleen de ontbrekende delen aan:\n"""\n${existingPage.text_excerpt ?? ""}\n"""`
@@ -454,6 +462,33 @@ async function loadContentContext(
     profileId: analysis.profile_id,
   });
 
+  // R4.3 — waarop worden de concurrenten genoemd? Alleen de EIGENSCHAPPEN, nooit
+  // de namen: die mogen de schrijfprompt niet in, anders belandt er vroeg of laat
+  // een concurrent op de pagina van de klant.
+  const { data: rivalRows } = await admin
+    .from("competitor_breakdown")
+    .select("attributes_json")
+    .eq("analysis_id", analysisId)
+    .not("attributes_json", "is", null)
+    .order("mentions_count", { ascending: false })
+    .limit(8);
+
+  const edgeCounts = new Map<string, string>();
+  for (const row of rivalRows ?? []) {
+    for (const a of (row.attributes_json ?? []) as { attribute: string; evidence: string }[]) {
+      if (!edgeCounts.has(a.attribute)) edgeCounts.set(a.attribute, a.evidence);
+    }
+  }
+
+  const competitorEdge =
+    edgeCounts.size > 0
+      ? `\nWAAROP DE AI NU ANDERE AANBIEDERS NOEMT (dit is de lat — jouw pagina moet op deze punten ` +
+        `minstens zo concreet zijn; de namen doen er niet toe en mogen niet op de pagina):\n` +
+        Array.from(edgeCounts.keys())
+          .map((attr) => `- ${attr}`)
+          .join("\n")
+      : "";
+
   const proofCount = (profile?.proof_points?.length ?? 0) + answeredFacts.length;
 
   return {
@@ -473,6 +508,7 @@ async function loadContentContext(
       targets,
       winningAnswers,
       sourceBlock: sources.block,
+      competitorEdge,
       answeredFacts,
     }),
   };

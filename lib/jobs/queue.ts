@@ -78,6 +78,7 @@ export const dedupe = {
   measurePrompt: (analysisId: string, promptId: string, weekNo: number) =>
     `measure:${analysisId}:${promptId}:w${weekNo}`,
   aggregateWeek: (analysisId: string, weekNo: number) => `aggregate:${analysisId}:w${weekNo}`,
+  competitorIntel: (analysisId: string, weekNo: number) => `compintel:${analysisId}:w${weekNo}`,
   generateReport: (analysisId: string, weekNo: number) => `report:${analysisId}:w${weekNo}`,
   // Content is idempotent op de aanbeveling, niet op de pagina: twee keer op
   // dezelfde knop drukken mag niet twee pagina's opleveren.

@@ -21,6 +21,7 @@ import {
 } from "@/lib/pipeline/prepare";
 import { measurePromptById, computeAggregates, measurementIsUsable } from "@/lib/pipeline/measure";
 import { generateReport } from "@/lib/pipeline/report";
+import { profileCompetitors } from "@/lib/pipeline/competitor-intel";
 import { draftContentPiece, reviseContentPiece } from "@/lib/pipeline/content";
 import { runAuditForProfile } from "@/lib/audit/store";
 import { planImpactMeasurements, computeImpact } from "@/lib/pipeline/impact";
@@ -219,11 +220,37 @@ const handlers: { [T in JobType]: Handler<T> } = {
       await admin.from("analyses").update({ status: "gemeten" }).eq("id", analysisId);
     }
 
+    // Eerst de concurrenten profileren (R4.2), dán pas het rapport: B1/B2
+    // gebruiken de gedestilleerde eigenschappen om te kunnen zeggen WAAROP de
+    // klant verliest, niet alleen dát hij verliest.
     await enqueue(admin, {
-      type: "generate_report",
+      type: "profile_competitors",
       payload: { weekNo },
       analysisId,
-      dedupeKey: dedupe.generateReport(analysisId, weekNo),
+      dedupeKey: dedupe.competitorIntel(analysisId, weekNo),
+    });
+  },
+
+  // ── Waarom winnen die concurrenten? (R4.2) ────────────────────────────────
+  // Verrijking, geen voorwaarde: mislukt dit, dan houdt de klant zijn cijfers en
+  // zijn rapport — alleen zonder de "waarom"-laag. Vandaar dat de fout hier
+  // gevangen wordt en de keten hoe dan ook doorloopt naar het rapport.
+  profile_competitors: async ({ admin, job }, payload) => {
+    if (!job.analysis_id) throw new Error("profile_competitors zonder analysis_id.");
+    const analysisId = job.analysis_id;
+
+    try {
+      const { profiled } = await profileCompetitors(admin, analysisId, payload.weekNo);
+      console.log(`Analyse ${analysisId} periode ${payload.weekNo}: ${profiled} concurrenten geprofileerd.`);
+    } catch (err) {
+      console.error(`Concurrenten profileren mislukt voor analyse ${analysisId}:`, err);
+    }
+
+    await enqueue(admin, {
+      type: "generate_report",
+      payload: { weekNo: payload.weekNo },
+      analysisId,
+      dedupeKey: dedupe.generateReport(analysisId, payload.weekNo),
     });
   },
 

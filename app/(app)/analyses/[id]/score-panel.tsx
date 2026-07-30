@@ -143,9 +143,31 @@ export function CompetitorCard({
   measuredRunCount: number;
   competitors: CompetitorBreakdown[];
 }) {
+  // ── Snoeien (implementatieplan.md R4.1) ──────────────────────────────────
+  //
+  // Bij HEMA stonden er 34 merken in deze vergelijking, waarvan 24 met precies
+  // één vermelding — van Kruidvat tot cadeauxfolies.fr. Dat is geen
+  // concurrentiebeeld maar een lijst toevalligheden, en "je hebt 34
+  // concurrenten" is een misleidende conclusie.
+  //
+  // Alleen in de DATA snoeien zou informatie weggooien (we bewaren alles); dus
+  // snoeien we hier, in de weergave, en vertellen we hoeveel er buiten beeld
+  // blijven.
+  const sorted = [...competitors].sort((a, b) => b.mentions_count - a.mentions_count);
+  const terugkerend = sorted.filter((c) => c.mentions_count >= 2);
+
+  // Komt er GEEN enkele concurrent vaker dan één keer voorbij, dan is dat zelf de
+  // bevinding: een versnipperde markt zonder dominante partij. Bij Van der Valk
+  // is dat precies de situatie — 18 vergaderlocaties, elk één keer genoemd. Dan
+  // een top-3 tonen alsof dat de concurrenten zijn, zou een rangorde suggereren
+  // die er niet is.
+  const versnipperd = terugkerend.length === 0 && sorted.length > 0;
+  const shown = terugkerend.slice(0, 8);
+  const tail = sorted.length - shown.length;
+
   const rows = [
     { label: "Jij", percent: Math.round(score.score), isOwnBrand: true },
-    ...competitors.map((c) => ({
+    ...shown.map((c) => ({
       label: c.competitor_name,
       // Vangnet: ook met de juiste noemer kan een concurrent theoretisch vaker
       // geteld worden dan er runs zijn — dan liever afkappen op 100 dan een
@@ -169,8 +191,23 @@ export function CompetitorCard({
           in zijn antwoorden daadwerkelijk naast jou noemde.
         </InfoHint>
       </span>
-      {rows.length > 1 ? (
-        <EntityComparison rows={rows} />
+      {versnipperd ? (
+        <p className="text-secondary">
+          Geen enkele aanbieder kwam vaker dan één keer voorbij — de AI noemde {sorted.length}{" "}
+          verschillende partijen, elk één keer. Er is hier dus geen vaste favoriet die je moet
+          verslaan; dat maakt het makkelijker om er zelf één te worden.
+        </p>
+      ) : rows.length > 1 ? (
+        <>
+          <EntityComparison rows={rows} />
+          {tail > 0 && (
+            <p className="text-sm text-muted">
+              Daarnaast kwamen nog {tail} andere merken één keer voorbij. Die laten we hier weg:
+              één vermelding is toeval, geen patroon.
+            </p>
+          )}
+          <CompetitorReasons competitors={shown} />
+        </>
       ) : (
         <p className="text-secondary">
           In de antwoorden op deze vragen kwam geen enkele concurrent naast jou voor.
@@ -380,6 +417,42 @@ function VisibilityProfileRow({ score }: { score: VisibilityScore }) {
           </InfoHint>
         </span>
       )}
+    </div>
+  );
+}
+
+/**
+ * Waaróm die concurrenten genoemd worden (implementatieplan.md R4.3).
+ *
+ * De vergelijking eronder liet alleen zien hoe vaak iemand genoemd wordt. De
+ * vraag die de klant daarna stelt — waarom die ander wel en ik niet — bleef
+ * onbeantwoord. Dit is het antwoord, gedestilleerd uit de antwoorden zelf.
+ *
+ * Verschijnt alleen als de profilering gedraaid heeft; bij metingen van vóór R4
+ * blijft het blok leeg in plaats van een lege belofte te tonen.
+ */
+function CompetitorReasons({ competitors }: { competitors: CompetitorBreakdown[] }) {
+  const withReason = competitors.filter((c) => c.why_summary);
+  if (withReason.length === 0) return null;
+
+  return (
+    <div className="flex flex-col gap-2 border-t border-[var(--border-subtle)] pt-3">
+      <span className="mono-label flex items-center gap-1">
+        Waarom zij genoemd worden
+        <InfoHint label="Waarom zij genoemd worden">
+          Afgeleid uit de antwoorden zelf: op welke eigenschappen de AI deze aanbieders aanhaalt.
+          Dat is de lat waar jouw content overheen moet — niet om deze bedrijven na te doen, maar
+          om op dezelfde punten net zo concreet te zijn.
+        </InfoHint>
+      </span>
+      <ul className="flex flex-col gap-2">
+        {withReason.map((c) => (
+          <li key={c.id} className="text-sm">
+            <span className="font-medium">{c.competitor_name}</span>
+            <span className="text-secondary"> — {c.why_summary}</span>
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }

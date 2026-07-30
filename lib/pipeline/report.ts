@@ -176,8 +176,16 @@ function buildGapInput(
     lines.push("(geen concurrentiedata beschikbaar)");
   }
   for (const c of competitors) {
+    // Het gedestilleerde "waarom" (R4.2) staat vooraan: dát is wat de klant wil
+    // weten en waar de aanbeveling op moet sturen. De ruwe cijfers erachter.
+    const waarom = c.why_summary ? ` WAAROM GENOEMD: ${c.why_summary}` : "";
+    const eigenschappen = Array.isArray(c.attributes_json) && c.attributes_json.length > 0
+      ? ` Genoemd op: ${(c.attributes_json as { attribute: string }[]).map((a) => a.attribute).join(", ")}.`
+      : "";
     lines.push(
-      `- ${c.competitor_name}: ${c.mentions_count} vermeldingen. ` +
+      `- ${c.competitor_name}: ${c.mentions_count} vermeldingen` +
+        (c.avg_position != null ? `, gemiddelde positie ${c.avg_position}` : "") +
+        `.${waarom}${eigenschappen} ` +
         `Per categorie: ${JSON.stringify(c.mentions_by_category_json ?? {})}. ` +
         `Meest geciteerde bronnen: ${(c.top_cited_sources ?? []).join(", ") || "geen"}. ` +
         `Gewonnen van ons (evidenceRunIds): ${(c.winning_run_ids ?? []).join(", ") || "geen"}. ` +

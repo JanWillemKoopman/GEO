@@ -98,9 +98,9 @@ R5 heeft geen nieuwe migratie nodig — die draait op het schema uit `0024`, dat
 | R3.1 | Mention-schema: rol i.p.v. sentiment | 1,5 d | ✅ |
 | R3.2 | Positie- en citatie-aggregatie | 2 d | ✅ |
 | R3.3 | UI: zichtbaarheidsprofiel | 2 d | ✅ |
-| R4.1 | Concurrent-snoei | 1 d | ☐ |
-| R4.2 | Concurrentprofilering (nieuwe stap) | 3 d | ☐ |
-| R4.3 | Doorgeven aan rapport en content | 1,5 d | ☐ |
+| R4.1 | Concurrent-snoei | 1 d | ✅ |
+| R4.2 | Concurrentprofilering (nieuwe stap) | 3 d | ✅ |
+| R4.3 | Doorgeven aan rapport en content | 1,5 d | ✅ |
 | R5.1 | Feitenindex + claim-audit | 3 d | ☐ |
 | R5.2 | Briefingscherm | 3 d | ☐ |
 | R5.3 | Schrijfcontract | 2,5 d | ☐ |
@@ -783,6 +783,52 @@ ligging"*, met citaten die letterlijk in de opgeslagen antwoorden voorkomen.
 
 **Verificatie:** controleer dat er geen concurrentnaam in de contentinvoer lekt — bestaande
 `redactCompetitors`/`containsCompetitor` uit `lib/pipeline/redact.ts` hergebruiken.
+
+---
+
+### ✅ R4 opgeleverd — en een derde soort markt ontdekt
+
+Migratie `0030_concurrent_intelligence.sql` toegepast op productie. Nieuw:
+`lib/pipeline/competitor-intel.ts`, `lib/schemas/competitor-profile.ts`, jobtype
+`profile_competitors` (geketend tussen aggregatie en rapport). Aangepast: `report.ts` (het
+"waarom" gaat mee de gap-analyse in), `content.ts` (de eigenschappen als lat) en
+`score-panel.tsx`.
+
+**De snoei doet wat hij moet doen:**
+
+| Bedrijf | Getoond vóór | Getoond ná | Met 1 vermelding | Profileerbaar (≥2) |
+|---|---|---|---|---|
+| HEMA | 33 | **8** | 24 | 9 |
+| Bol | 29 | **8** | 21 | 8 |
+| Fysi-Unique | 19 | **6** | 13 | 6 |
+| Van der Valk | 18 | **0** | 18 | **0** |
+| Coolblue | 11 | **2** | 9 | 2 |
+
+**Afwijking van het plan — een derde geval.** Het plan kende twee situaties: er zijn
+concurrenten, of er zijn er geen. Van der Valk bleek een derde: **18 concurrenten, allemaal
+precies één keer genoemd.** Mijn eerste regel toonde dan de "top 3", maar dat suggereert een
+rangorde die er niet is — en de bijschrift "één vermelding is toeval" spreekt zichzelf tegen als
+je er tóch drie laat zien.
+
+Dat is geen weergaveprobleem maar een bevinding: er is in die markt geen vaste favoriet. De
+kaart zegt dat nu met zoveel woorden — *"de AI noemde 18 verschillende partijen, elk één keer.
+Er is hier dus geen vaste favoriet die je moet verslaan; dat maakt het makkelijker om er zelf
+één te worden."* Voor Van der Valk is dat waardevoller dan welke balkengrafiek dan ook.
+
+**Waarom de eigenschappen een gesloten lijst zijn.** `COMPETITOR_ATTRIBUTES` is vast (prijs,
+locatie, specialisme, assortiment, snelheid, beschikbaarheid, service, reputatie, ervaring,
+duurzaamheid) en geen vrije tekst. Bij de promptgeneratie liep het vrije `cluster`-veld juist uit
+de hand — daar kwam één cluster per vraag uit, mét modelruis als `volumeEstimate: 75` ín het
+veld (zie R0.3). Een vaste set houdt de uitkomsten vergelijkbaar tussen concurrenten én tussen
+periodes, en dat is wat een klant nodig heeft om te zien of hij terrein wint.
+
+**Naar de content gaat alleen de eigenschap, nooit de naam.** De schrijfprompt krijgt "de AI
+noemt anderen op: locatie, specialisme" als lat, niet wie dat zijn. De harde regel dat
+klantcontent nooit een concurrent noemt blijft daarmee onaangetast.
+
+**Nog open:** de profilering zelf is nog niet gedraaid — dat vereist een werker met een
+API-sleutel. Van de vijf testanalyses zijn er vier profileerbaar (Van der Valk niet, zie boven).
+Kosten: ~$0,005 per analyse.
 
 ---
 

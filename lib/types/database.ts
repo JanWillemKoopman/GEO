@@ -351,6 +351,17 @@ export interface CompetitorBreakdown {
    */
   avg_position: number | null;
   first_mention_count: number | null;
+  /**
+   * Waaróm wordt deze concurrent genoemd (implementatieplan.md R4.2, migratie
+   * 0030)? `attributes_json` bevat per eigenschap een letterlijk citaat uit de
+   * meting als bewijs; `why_summary` is één leesbare zin voor de klant.
+   *
+   * De eigenschappen zijn de lat voor de contentstap. De NAAM van de concurrent
+   * gaat daarbij nooit mee — alleen de eigenschap; klantcontent noemt nooit een
+   * concurrent (lib/pipeline/content.ts).
+   */
+  attributes_json: { attribute: string; evidence: string }[] | null;
+  why_summary: string | null;
   computed_at: string;
 }
 
