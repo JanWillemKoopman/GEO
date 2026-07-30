@@ -16,6 +16,14 @@ export type AnalysisStatus =
 
 export type PromptOrigin = "system" | "user";
 export type MentionSentiment = "positive" | "neutral" | "negative";
+
+/**
+ * Hoe prominent een merk in een AI-antwoord staat (implementatieplan.md R3).
+ * Vervangt sentiment als derde kenmerk van een vermelding: niet "hoe wordt
+ * erover gesproken" (waar geen variatie in bleek te zitten) maar "word je
+ * aanbevolen of alleen genoemd" — het verschil dat klanten oplevert.
+ */
+export type MentionRole = "eerste_aanbeveling" | "een_van_meerdere" | "zijdelings";
 export type ContentType = "article" | "faq" | "landing" | "comparison";
 /** `draft` = tussenstand tijdens generatie (migratie 0013): stap 1 klaar, stap 2 nog niet. */
 export type ContentStatus = "draft" | "ready" | "archived" | "published";
@@ -238,7 +246,14 @@ export interface TrackingRunMention {
   is_own_brand: boolean;
   mentioned: boolean;
   position: number | null;
+  /**
+   * VERVALLEN sinds R3 (migratie 0029): wordt niet meer gevuld. In 650 metingen
+   * kwam 'negative' geen enkele keer voor en de waarde werd nergens getoond.
+   * Blijft bestaan voor de historie van bestaande metingen.
+   */
   sentiment: MentionSentiment | null;
+  /** Hoe prominent dit merk in het antwoord staat (R3). Null als niet genoemd. */
+  mention_role: MentionRole | null;
   cited_sources: string[];
 }
 
@@ -262,6 +277,15 @@ export interface VisibilityScore {
    */
   winnable_runs: number | null;
   brandless_runs: number | null;
+  /**
+   * Zichtbaarheidsprofiel (implementatieplan.md R3, migratie 0029). Naast
+   * "genoemd ja/nee": waar in het antwoord sta je (`avg_position`, lager is
+   * beter), hoe vaak wordt je site als bron geciteerd (`citation_count`) en hoe
+   * vaak word je als eerste aanbevolen (`first_mention_count`).
+   */
+  avg_position: number | null;
+  citation_count: number | null;
+  first_mention_count: number | null;
   score_stderr: number | null; // standaardfout in procentpunten; 95%-band = ±1,96×
   weighted_stderr: number | null;
   share_basis_count: number | null; // aantal entiteiten in de noemer van het aandeel
@@ -320,6 +344,13 @@ export interface CompetitorBreakdown {
   top_cited_sources: string[];
   winning_run_ids: string[];
   losing_run_ids: string[];
+  /**
+   * Hetzelfde profiel als voor het eigen merk (R3, migratie 0029) — zonder deze
+   * twee valt er niets te vergelijken: even vaak genoemd maar structureel later
+   * in het antwoord is een heel ander verhaal dan even vaak én even prominent.
+   */
+  avg_position: number | null;
+  first_mention_count: number | null;
   computed_at: string;
 }
 

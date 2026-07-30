@@ -42,7 +42,7 @@ interface ExpectedEntity {
   entity: string;
   mentioned: boolean;
   position?: number;
-  sentiment?: "positive" | "neutral" | "negative";
+  role?: "eerste_aanbeveling" | "een_van_meerdere" | "zijdelings" | null;
 }
 
 interface GoldenCase {
@@ -74,7 +74,7 @@ function loadCases(): GoldenCase[] {
  * hoofdletters en spaties, want daar draait deze test niet om).
  */
 function findActual(
-  mentions: { entity: string; isOwnBrand: boolean; mentioned: boolean; position: number | null; sentiment: string }[],
+  mentions: { entity: string; isOwnBrand: boolean; mentioned: boolean; position: number | null; role: string | null }[],
   expected: ExpectedEntity,
 ) {
   if (expected.entity === "own") {
@@ -153,7 +153,7 @@ async function runModel(model: string, cases: GoldenCase[]): Promise<{
           actual: actual.mentioned,
         });
 
-      // Positie en sentiment alleen controleren waar de testset ze vastlegt:
+      // Positie en rol alleen controleren waar de testset ze vastlegt:
       // niet elk geval heeft een eenduidig juist antwoord op die velden.
       if (exp.position !== undefined) {
         checks++;
@@ -167,16 +167,16 @@ async function runModel(model: string, cases: GoldenCase[]): Promise<{
             actual: actual.position,
           });
       }
-      if (exp.sentiment !== undefined) {
+      if (exp.role !== undefined) {
         checks++;
-        if (actual.sentiment === exp.sentiment) correct++;
+        if (actual.role === exp.role) correct++;
         else
           mismatches.push({
             caseId: c.id,
             entity: exp.entity,
-            field: "sentiment",
-            expected: exp.sentiment,
-            actual: actual.sentiment,
+            field: "role",
+            expected: exp.role,
+            actual: actual.role,
           });
       }
     }

@@ -37,6 +37,7 @@ import { countOpenPeriodicMeasurements } from "@/lib/jobs/pending";
 import { formatEvidenceDossier, excerpt } from "@/lib/pipeline/evidence-format";
 import type { EvidenceEntry } from "@/lib/pipeline/evidence-format";
 import { stripUnsupportedClaims, validateField, NEUTRAL_FALLBACK } from "@/lib/pipeline/validate-claims";
+import { normalizePosition, averagePosition } from "@/lib/pipeline/position";
 
 let passed = 0;
 let failed = 0;
@@ -481,6 +482,29 @@ group("Claimvalidator (implementatieplan.md R1.3)", () => {
     where: "gap: test",
   });
   ok("leeg register laat de tekst ongemoeid", geenRegister.text === "Van alles en nog wat.");
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+group("Positie van een vermelding (implementatieplan.md R3.2)", () => {
+  // De aanleiding: `position` zat al in het schema maar de prompt legde nooit
+  // uit hoe er geteld moest worden. Van de 521 vermeldingen in de eerste vijf
+  // analyses stonden er 215 op 0 en 2 op -1, naast gewone waarden 1 t/m 10.
+  // Uit dat mengsel is niet te herleiden wat "0" betekende, dus wordt het null.
+  ok("0 is onbruikbaar", normalizePosition(0) === null);
+  ok("negatief is onbruikbaar", normalizePosition(-1) === null);
+  ok("null blijft null", normalizePosition(null) === null);
+  ok("1 is geldig", normalizePosition(1) === 1);
+  ok("10 is geldig", normalizePosition(10) === 10);
+  ok("kommagetal wordt afgerond", normalizePosition(2.4) === 2);
+  ok("NaN is onbruikbaar", normalizePosition(Number.NaN) === null);
+
+  // Het gemiddelde slaat onbruikbare waarden over in plaats van ze als 0 mee te
+  // tellen — anders trekt één ontspoorde meting het cijfer omlaag.
+  ok("gemiddelde over geldige waarden", averagePosition([1, 3]) === 2);
+  ok("onbruikbare waarden tellen niet mee", averagePosition([0, 2, 4]) === 3);
+  ok("alles onbruikbaar → null", averagePosition([0, -1, null]) === null);
+  ok("leeg → null", averagePosition([]) === null);
+  ok("afgerond op één decimaal", averagePosition([1, 2, 2]) === 1.7);
 });
 
 // ════════════════════════════════════════════════════════════════════════════

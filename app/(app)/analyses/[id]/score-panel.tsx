@@ -95,6 +95,8 @@ export function ScoreCard({
 
       <BrandlessLine score={score} />
 
+      <VisibilityProfileRow score={score} />
+
       <p className="text-sm text-secondary">
         {leadIsWeighted
           ? "Zo vaak word jij genoemd als een AI-assistent een relevante vraag krijgt, waarbij vaak gestelde en koopklare vragen zwaarder tellen."
@@ -320,5 +322,64 @@ function BrandlessLine({ score }: { score: VisibilityScore }) {
         geen partij die de AI standaard noemt.
       </InfoHint>
     </p>
+  );
+}
+
+/**
+ * Het zichtbaarheidsprofiel onder het hoofdgetal (implementatieplan.md R3.3).
+ *
+ * Het hoofdgetal blijft één getal — dat is het ontwerpprincipe van de app. Maar
+ * "genoemd ja/nee" is een grove maat: als vijfde genoemd worden ná drie
+ * concurrenten is iets heel anders dan als eerste aanbevolen worden, en
+ * geciteerd worden is een derde vorm van zichtbaarheid die tot R3 helemaal niet
+ * meetelde — terwijl dát de link is waarop een gebruiker doorklikt.
+ *
+ * Drie cijfers, geen tabel: dit is verdieping onder het hoofdgetal, geen tweede
+ * dashboard. Verschijnt alleen als er iets te tonen valt.
+ */
+function VisibilityProfileRow({ score }: { score: VisibilityScore }) {
+  const heeftProfiel =
+    score.avg_position != null ||
+    (score.citation_count ?? 0) > 0 ||
+    (score.first_mention_count ?? 0) > 0;
+  if (!heeftProfiel) return null;
+
+  return (
+    <div className="flex flex-wrap gap-x-6 gap-y-2 border-t border-[var(--border-subtle)] pt-3 text-sm">
+      {score.avg_position != null && (
+        <span className="flex items-center gap-1 text-secondary">
+          Gemiddelde plek in het antwoord:{" "}
+          <span className="font-medium text-[var(--text-primary)]">{score.avg_position}</span>
+          <InfoHint label="Gemiddelde plek">
+            Op welke plaats in het antwoord je genoemd wordt, gemiddeld over de keren dát je
+            genoemd wordt. Lager is beter: wie bovenaan staat, wordt eerder gekozen.
+          </InfoHint>
+        </span>
+      )}
+
+      {(score.first_mention_count ?? 0) > 0 && (
+        <span className="flex items-center gap-1 text-secondary">
+          Als eerste aanbevolen:{" "}
+          <span className="font-medium text-[var(--text-primary)]">{score.first_mention_count}×</span>
+          <InfoHint label="Als eerste aanbevolen">
+            Hoe vaak de AI jou als eerste of beste keuze presenteert, in plaats van als één van
+            meerdere opties. Dit is het verschil tussen &ldquo;je staat erbij&rdquo; en &ldquo;je
+            wordt aangeraden&rdquo;.
+          </InfoHint>
+        </span>
+      )}
+
+      {(score.citation_count ?? 0) > 0 && (
+        <span className="flex items-center gap-1 text-secondary">
+          Jouw site als bron gebruikt:{" "}
+          <span className="font-medium text-[var(--text-primary)]">{score.citation_count}×</span>
+          <InfoHint label="Jouw site als bron">
+            Hoe vaak de AI-assistent naar jouw website verwijst om zijn antwoord te onderbouwen.
+            Dat is een aparte vorm van zichtbaarheid: ook als je niet in de tekst genoemd wordt,
+            is dit de link waarop iemand doorklikt.
+          </InfoHint>
+        </span>
+      )}
+    </div>
   );
 }

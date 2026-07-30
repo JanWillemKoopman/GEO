@@ -11,7 +11,20 @@ export const Mention = z.object({
       isOwnBrand: z.boolean(),
       mentioned: z.boolean(),
       position: z.number().nullable(), // positie van déze entiteit in het antwoord
-      sentiment: z.enum(["positive", "neutral", "negative"]),
+      /**
+       * Hoe PROMINENT dit merk in het antwoord staat (implementatieplan.md R3).
+       *
+       * Vervangt `sentiment`, dat in 650 gemeten rijen geen enkele keer
+       * 'negative' opleverde en nergens in de applicatie getoond werd — een
+       * veld dat elke meting modelaandacht kostte zonder ooit iets te zeggen.
+       * De rol varieert wél, en is precies het verschil tussen "je staat erbij"
+       * en "je wordt aangeraden".
+       *
+       * Null als het merk niet genoemd wordt.
+       */
+      role: z
+        .enum(["eerste_aanbeveling", "een_van_meerdere", "zijdelings"])
+        .nullable(),
       citedSources: z.array(z.string()), // bronnen die specifiek déze entiteit onderbouwen
     }),
   ),

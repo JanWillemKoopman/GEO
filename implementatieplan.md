@@ -95,9 +95,9 @@ R5 heeft geen nieuwe migratie nodig — die draait op het schema uit `0024`, dat
 | R2.3 | Kansloze vragen uit contentadvies | 1 d | ✅ |
 | R2.4 | Vervolgmetingen inperken | 1,5 d | ✅ |
 | R2.5 | UI: tweede getal | 1,5 d | ✅ |
-| R3.1 | Mention-schema: rol i.p.v. sentiment | 1,5 d | ☐ |
-| R3.2 | Positie- en citatie-aggregatie | 2 d | ☐ |
-| R3.3 | UI: zichtbaarheidsprofiel | 2 d | ☐ |
+| R3.1 | Mention-schema: rol i.p.v. sentiment | 1,5 d | ✅ |
+| R3.2 | Positie- en citatie-aggregatie | 2 d | ✅ |
+| R3.3 | UI: zichtbaarheidsprofiel | 2 d | ✅ |
 | R4.1 | Concurrent-snoei | 1 d | ☐ |
 | R4.2 | Concurrentprofilering (nieuwe stap) | 3 d | ☐ |
 | R4.3 | Doorgeven aan rapport en content | 1,5 d | ☐ |
@@ -669,6 +669,59 @@ geciteerd, eerste aanbeveling — elk met de concurrentvergelijking ernaast. Ont
 
 **Klaar wanneer:** de klant kan zien dat hij bijvoorbeeld "even vaak genoemd wordt als
 concurrent X, maar structureel later in het antwoord".
+
+---
+
+### ✅ R3 opgeleverd — en een kapot veld gevonden dat al maanden meeliep
+
+Migratie `0029_zichtbaarheidsprofiel.sql` toegepast op productie. Code in
+`lib/schemas/mention.ts`, `lib/openai/mention-prompt.ts`, `lib/pipeline/measure.ts`, nieuw
+`lib/pipeline/position.ts`, `scripts/eval-mention.ts` en `score-panel.tsx`. 12 nieuwe tests.
+
+**`position` was onbruikbaar en niemand wist het.** Het veld zat vanaf de eerste migratie in
+het schema, maar de prompt legde nergens uit hóé er geteld moest worden. Het model deed dus
+maar wat. Verdeling over de eerste vijf analyses:
+
+| Positie | Aantal vermeldingen |
+|---|---|
+| **−1** | 2 |
+| **0** | **215** |
+| 1 t/m 10 | 304 |
+
+Dat is geen conventie maar een mengsel van 0-based en 1-based, plus een enkele onzinwaarde.
+Zolang het veld nergens gebruikt werd viel dat niet op — en R3 wilde het juist gaan gebruiken.
+Twee ingrepen: de prompt zegt nu expliciet *"tel vanaf 1, gebruik nooit 0 of negatief"*, en
+`normalizePosition()` is het vangnet daaronder. Onbruikbare waarden worden `null`, niet
+verschoven of gegokt: uit een mengsel is achteraf niet te herleiden of "0" *eerste plek* of
+*geen idee* betekende, en onbekend is een betere waarde dan een verkeerde.
+
+**Gevolg voor de historie:** `avg_position` en `first_mention_count` blijven leeg voor de
+bestaande metingen. Ze zijn niet met terugwerkende kracht te redden — daarvoor zou de
+3b-beoordeling opnieuw moeten draaien. Vanaf de eerstvolgende meting kloppen ze.
+
+**`citation_count` kon wél met terugwerkende kracht**, want dat komt uit `cited_sources` en dat
+veld is altijd betrouwbaar geweest:
+
+| Bedrijf | Genoemd in tekst | Eigen site als bron geciteerd |
+|---|---|---|
+| Coolblue | 8 | **5** |
+| Fysi-Unique | 3 | **4** |
+| Bol / HEMA / Van der Valk | 5 / 3 / 2 | 0 |
+
+Fysi-Unique wordt dus vaker geciteerd dan genoemd. Dat was tot nu toe volledig onzichtbaar,
+terwijl het de link is waarop iemand doorklikt.
+
+**Sentiment is uitgezet.** In 650 rijen kwam `negative` geen enkele keer voor, en het bleek
+bovendien **nergens in de applicatie getoond te worden** — het kostte bij elke meting
+modelaandacht zonder ooit iets te zeggen. `mention_role` neemt zijn plaats in
+(`eerste_aanbeveling` / `een_van_meerdere` / `zijdelings`). De kolom `sentiment` blijft bestaan
+voor de historie, maar wordt niet meer gevuld.
+
+**Let op bij R3.1:** `lib/openai/mention-prompt.ts` is de meest load-bearing prompt van het
+product, en `scripts/eval-mention.ts` is meegewijzigd zodat de evaluatie exact dezelfde prompt
+blijft toetsen. Draai `npm run eval:mention` vóór en ná de eerstvolgende echte meting om te
+bevestigen dat `mentioned` en `position` er niet op achteruit gaan — dat kost een paar cent en
+is de enige manier om dit hard te maken.
 
 ---
 

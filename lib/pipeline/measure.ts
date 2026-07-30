@@ -18,6 +18,8 @@ import { promptWeight, NEUTRAL_WEIGHT } from "@/lib/pipeline/prompt-weight";
 import { volumeBandOf } from "@/lib/pipeline/volume";
 import { Mention } from "@/lib/schemas/mention";
 import { loadEntityIndex, resolveEntity } from "@/lib/entities/resolve";
+import { domainOf } from "@/lib/offsite/domain";
+import { normalizePosition, averagePosition } from "@/lib/pipeline/position";
 import { classifyPendingEntities } from "@/lib/pipeline/classify-entities";
 import { binomialStderr, weightedScoreStderr } from "@/lib/stats/uncertainty";
 // Gedeeld met scripts/eval-mention.ts, zodat de test exact de productie-prompt
@@ -217,8 +219,11 @@ export async function measureOnePrompt(
     entity_name: m.entity,
     is_own_brand: m.isOwnBrand,
     mentioned: m.mentioned,
-    position: m.position,
-    sentiment: m.sentiment,
+    position: normalizePosition(m.position),
+    // `sentiment` wordt sinds R3 niet meer gevuld (migratie 0029): het leverde
+    // in 650 metingen geen enkele keer 'negative' op en werd nergens getoond.
+    // `mention_role` neemt zijn plaats in — die varieert wél.
+    mention_role: m.role,
     cited_sources: m.citedSources,
   }));
   if (rows.length > 0) {
@@ -260,6 +265,41 @@ const AANBIEDER_ROLLEN: ReadonlySet<string> = new Set([
 ]);
 
 type MentionRow = { id: string; tracking_run_id: string; is_own_brand: boolean; mentioned: boolean };
+
+/** Wat een merk in één periode aan zichtbaarheid opbouwt, naast "genoemd ja/nee". */
+export interface VisibilityProfile {
+  /** Gemiddelde positie in het antwoord; null als nergens genoemd. Lager is beter. */
+  avgPosition: number | null;
+  /** In hoeveel antwoorden staat het eigen domein tussen de geciteerde bronnen? */
+  citationCount: number;
+  /** In hoeveel antwoorden wordt dit merk als eerste aanbeveling gepresenteerd? */
+  firstMentionCount: number;
+}
+
+/**
+ * Berekent het zichtbaarheidsprofiel over een set mention-rijen
+ * (implementatieplan.md R3.2).
+ *
+ * De positie wordt alleen gemiddeld over antwoorden waarin het merk daadwerkelijk
+ * genoemd is: een niet-genoemd merk heeft geen positie, en die als 0 of als
+ * maximum meetellen zou het gemiddelde allebei op een andere manier vervalsen.
+ */
+function profileVisibility(
+  rows: { mentioned: boolean; position: number | null; mention_role?: string | null; cited_sources?: string[] | null }[],
+  ownDomain: string | null,
+): VisibilityProfile {
+  const citationCount = ownDomain
+    ? rows.filter((r) =>
+        (r.cited_sources ?? []).some((src) => domainOf(src) === ownDomain),
+      ).length
+    : 0;
+
+  return {
+    avgPosition: averagePosition(rows.filter((r) => r.mentioned).map((r) => r.position)),
+    citationCount,
+    firstMentionCount: rows.filter((r) => r.mentioned && r.mention_role === "eerste_aanbeveling").length,
+  };
+}
 
 /**
  * Hoeveel verschillende aanbieders noemt elk antwoord?
@@ -402,11 +442,15 @@ export async function computeAggregates(admin: Admin, analysisId: string, weekNo
 
   const { data: analysisRow } = await admin
     .from("analyses")
-    .select("profile_id")
+    .select("profile_id, url")
     .eq("id", analysisId)
     .single();
   const profileId = analysisRow?.profile_id as string | undefined;
   if (!profileId) throw new Error(`Analyse ${analysisId} heeft geen profiel.`);
+
+  // Het eigen domein, om geciteerd-worden te kunnen tellen (R3).
+  const ownUrl = (analysisRow?.url as string | undefined) ?? "";
+  const ownDomain = domainOf(ownUrl.startsWith("http") ? ownUrl : `https://${ownUrl}`);
 
   const runIds = runs.map((r) => r.id as string);
   const categoryByRun = new Map(runs.map((r) => [r.id as string, r.prompt_category_snapshot as string]));
@@ -564,6 +608,17 @@ export async function computeAggregates(admin: Admin, analysisId: string, weekNo
   // periode nog gemeten worden (R2.4).
   await updateBrandEliciting(admin, analysisId);
 
+  // ── Zichtbaarheidsprofiel (implementatieplan.md R3) ───────────────────────
+  //
+  // Genoemd-ja/nee is een grove maat. Als vijfde genoemd worden ná drie
+  // concurrenten is iets anders dan als eerste aanbevolen worden, en geciteerd
+  // worden is een derde vorm van zichtbaarheid die tot nu toe helemaal niet
+  // meetelde — terwijl dát de link is waarop de gebruiker doorklikt.
+  const ownProfile = profileVisibility(
+    winnableRunIds.map((id) => ownByRun.get(id)).filter((m): m is (typeof mentions)[number] => Boolean(m)),
+    ownDomain,
+  );
+
   // ── Aandeel over de ECHTE concurrenten (optimalisatie.md 2.5 / migratie 0026) ─
   // Voorheen: eigen ÷ (eigen + álle concurrentvermeldingen). Die noemer groeide
   // met elk merk dat de classificatie toevallig ontdekte, waardoor het aandeel
@@ -597,6 +652,11 @@ export async function computeAggregates(admin: Admin, analysisId: string, weekNo
       weighted_score: weightedScore,
       winnable_runs: winnableRuns,
       brandless_runs: brandlessRuns,
+      // Zichtbaarheidsprofiel (R3): genoemd wórden is één ding, waar in het
+      // antwoord en of je geciteerd wordt zijn er twee andere.
+      avg_position: ownProfile.avgPosition,
+      citation_count: ownProfile.citationCount,
+      first_mention_count: ownProfile.firstMentionCount,
       share_of_voice: shareOfVoice,
       judged_runs: judgedRuns,
       score_stderr: stderr,
@@ -651,6 +711,12 @@ export async function computeAggregates(admin: Admin, analysisId: string, weekNo
       top_cited_sources: Array.from(sources).slice(0, 5),
       winning_run_ids: winningRunIds,
       losing_run_ids: losingRunIds,
+      // Zelfde profiel als voor het eigen merk (R3), anders valt er niets te
+      // vergelijken: even vaak genoemd maar structureel later in het antwoord is
+      // een heel ander verhaal dan even vaak én even prominent. Het eigen domein
+      // is hier niet van toepassing, dus geen citatietelling.
+      avg_position: profileVisibility(ms, null).avgPosition,
+      first_mention_count: profileVisibility(ms, null).firstMentionCount,
     };
   });
 
