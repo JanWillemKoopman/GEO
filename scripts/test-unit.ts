@@ -18,7 +18,7 @@
  * database toetst vooral of je nabootsing klopt.
  */
 import { binomialStderr, weightedScoreStderr, confidenceBand, changeIsMeaningful } from "@/lib/stats/uncertainty";
-import { normalizeEntityName, isSameEntity, pickCanonicalName } from "@/lib/entities/normalize";
+import { normalizeEntityName, isSameEntity, pickCanonicalName, looksLikeBrandName } from "@/lib/entities/normalize";
 import { bandFromEstimate, volumeBandOf, isVolumeBand, VOLUME_BANDS, VOLUME_FACTOR } from "@/lib/pipeline/volume";
 import { promptWeight, NEUTRAL_WEIGHT } from "@/lib/pipeline/prompt-weight";
 import { parseRobots, isAllowed, sitemapsFrom } from "@/lib/audit/robots";
@@ -103,6 +103,32 @@ group("normalisatie", () => {
   ok("twee rechtsvormen", normalizeEntityName("Jansen Holding BV") === "jansen");
   ok("nooit leeg", normalizeEntityName("BV") !== "");
   ok("leestekens weg", normalizeEntityName("Jansen & Zn.") === "jansen zn");
+});
+
+group("bedrijfsnaam of gewoon woord (R1.3-correctie)", () => {
+  // Aanleiding: de claimvalidator stripte twee CORRECTE zinnen uit een
+  // Fysi-Unique-rapport omdat "manuele therapie" en "fysiotherapie" als entiteit
+  // in een relevante rol stonden. Dat zijn behandelvormen, geen bedrijven.
+  // Alle namen hieronder komen letterlijk uit de productiedatabase.
+  const echteMerken = [
+    "SMC Amersfoort", "FysioAmersfoort", "Fysio Atelier Amersfoort", "FysioNieuwland",
+    "fysiolution.nl", "consumentenbond.nl", "Het Centrum - Vondelplein", "Bol.com", "EP.nl",
+  ];
+  for (const naam of echteMerken) {
+    ok(`"${naam}" is een merknaam`, looksLikeBrandName(naam));
+  }
+
+  const generiek = [
+    "fysiotherapie", "manuele therapie", "medische fitness", "sportfysiotherapie",
+    "bekkenfysiotherapie", "hardloopkliniek", "fysiotherapiepraktijken", "medische fitnesscentra",
+    "vergaderlocatie", "hotel", "wasmachine", "voorlader",
+  ];
+  for (const woord of generiek) {
+    ok(`"${woord}" is GEEN merknaam`, !looksLikeBrandName(woord));
+  }
+
+  ok("lege naam telt niet", !looksLikeBrandName(""));
+  ok("losse letter telt niet", !looksLikeBrandName("a"));
 });
 
 group("gelijk of niet", () => {

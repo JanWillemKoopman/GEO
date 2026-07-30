@@ -122,3 +122,43 @@ export function pickCanonicalName(variants: string[]): string {
 
   return cleaned.reduce((best, v) => (score(v) > score(best) ? v : best), cleaned[0]);
 }
+
+/**
+ * Ziet deze naam eruit als een BEDRIJFSNAAM, of is het een gewoon woord?
+ *
+ * ── WAAROM DIT NODIG IS ─────────────────────────────────────────────────────
+ *
+ * De mention-classificatie haalt uit een AI-antwoord niet alleen bedrijven maar
+ * ook gewone woorden. De rol-classificatie daarna zet die soms in een
+ * "relevante" rol in plaats van `niet_relevant` — bij een fysiopraktijk kwamen
+ * "fysiotherapie", "manuele therapie", "medische fitness" en "sportfysiotherapie"
+ * als `eigen_product` binnen, en "hardloopkliniek" en "fysiotherapiepraktijken"
+ * zelfs als `concurrent`. Voor een praktijk zijn dat behandelvormen, geen
+ * bedrijven.
+ *
+ * Dat is niet onschuldig. Het brak twee dingen tegelijk:
+ *   • De claimvalidator (R1.3) stripte twee volstrekt CORRECTE zinnen uit een
+ *     rapport, omdat het woord "manuele therapie" erin stond en dat als
+ *     onderbouwd merk gelezen werd.
+ *   • De meetbaarheidstelling (R2.1) telt zo'n woord als "er werd een aanbieder
+ *     genoemd", waardoor een zuivere adviesvraag alsnog winbaar lijkt.
+ *
+ * ── DE REGEL ────────────────────────────────────────────────────────────────
+ *
+ * Een bedrijfsnaam heeft een hoofdletter ("SMC Amersfoort", "FysioNieuwland") óf
+ * is een domein ("fysiolution.nl", "consumentenbond.nl"). Een gewoon woord heeft
+ * geen van beide. Simpel, maar het scheidt in de praktijk exact de juiste kant:
+ * alle echte merken uit de vijf testanalyses komen erdoor, alle acht generieke
+ * termen vallen af.
+ *
+ * Dit is een VANGNET, geen vervanging van betere classificatie (R0.5) — ook met
+ * een scherper model zullen er generieke termen doorheen glippen.
+ */
+export function looksLikeBrandName(name: string): boolean {
+  const trimmed = name.trim();
+  if (trimmed.length < 2) return false;
+  // Een domein: puntje met minstens twee letters erachter.
+  if (/\.[a-z]{2,}$/i.test(trimmed)) return true;
+  // Een hoofdletter ergens in de naam.
+  return /\p{Lu}/u.test(trimmed);
+}

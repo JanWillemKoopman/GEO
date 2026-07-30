@@ -18,6 +18,7 @@ import { promptWeight, NEUTRAL_WEIGHT } from "@/lib/pipeline/prompt-weight";
 import { volumeBandOf } from "@/lib/pipeline/volume";
 import { Mention } from "@/lib/schemas/mention";
 import { loadEntityIndex, resolveEntity } from "@/lib/entities/resolve";
+import { looksLikeBrandName } from "@/lib/entities/normalize";
 import { domainOf } from "@/lib/offsite/domain";
 import { normalizePosition, averagePosition } from "@/lib/pipeline/position";
 import { classifyPendingEntities } from "@/lib/pipeline/classify-entities";
@@ -223,7 +224,12 @@ export async function measureOnePrompt(
     // `sentiment` wordt sinds R3 niet meer gevuld (migratie 0029): het leverde
     // in 650 metingen geen enkele keer 'negative' op en werd nergens getoond.
     // `mention_role` neemt zijn plaats in — die varieert wél.
-    mention_role: m.role,
+    // Vangnet, net als bij de positie: het model vulde bij 10 van de 27
+    // niet-genoemde merken tóch een rol in ('eerste_aanbeveling'), terwijl de
+    // prompt expliciet null vraagt. Structured output vult bij twijfel de eerste
+    // enum-waarde in. Een merk dat niet genoemd wordt kán geen eerste
+    // aanbeveling zijn, dus dwingen we die tegenspraak hier weg.
+    mention_role: m.mentioned ? m.role : null,
     cited_sources: m.citedSources,
   }));
   if (rows.length > 0) {
@@ -264,7 +270,13 @@ const AANBIEDER_ROLLEN: ReadonlySet<string> = new Set([
   "eigen_product",
 ]);
 
-type MentionRow = { id: string; tracking_run_id: string; is_own_brand: boolean; mentioned: boolean };
+type MentionRow = {
+  id: string;
+  tracking_run_id: string;
+  entity_name: string;
+  is_own_brand: boolean;
+  mentioned: boolean;
+};
 
 /** Wat een merk in één periode aan zichtbaarheid opbouwt, naast "genoemd ja/nee". */
 export interface VisibilityProfile {
@@ -311,7 +323,7 @@ function profileVisibility(
 function countBrandsPerRun(
   mentions: MentionRow[],
   entityByMention: Map<string, string>,
-  entityById: Map<string, { entity_role: string }>,
+  entityById: Map<string, { entity_role: string; canonical_name: string }>,
   ownByRun: Map<string, { mentioned: boolean }>,
 ): Map<string, number> {
   const perRun = new Map<string, Set<string>>();
@@ -321,6 +333,10 @@ function countBrandsPerRun(
     const entityId = entityByMention.get(m.id);
     const entity = entityId ? entityById.get(entityId) : undefined;
     if (entity && !AANBIEDER_ROLLEN.has(entity.entity_role)) continue;
+    // Een generieke term ("fysiotherapie", "medische fitness") is geen genoemde
+    // aanbieder, ook niet als de classificatie hem in een relevante rol zette.
+    // Zonder dit lijkt een zuivere adviesvraag alsnog winbaar.
+    if (!looksLikeBrandName(entity?.canonical_name ?? m.entity_name)) continue;
 
     const set = perRun.get(m.tracking_run_id) ?? new Set<string>();
     // Zonder entiteit valt hij terug op de mention-id: die is uniek, dus telt

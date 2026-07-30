@@ -837,6 +837,90 @@ Kosten: ~$0,005 per analyse.
 
 ---
 
+## ✅ Verificatieronde R1–R4 — één analyse volledig door de nieuwe pijplijn
+
+**Wat:** Fysi-Unique, periode 1 (`week_no = 1`), 30 vragen, op productie (commit `bf0fa3f`).
+**Resultaat:** 30 metingen, 30 beoordeeld, score + rapport klaar, **nul mislukte taken**.
+**Kosten: $0,82** — waarvan $0,777 (95%) in de 30 simulatiecalls. De hele nieuwe intelligentie
+(concurrentprofilering, gap, rapport, classificatie) kost samen $0,013.
+
+| Punt | Verwacht | Uitkomst |
+|---|---|---|
+| R2.1 | `brands_in_answer` door de code gevuld | ✅ 30/30 |
+| R2.2 | Score over meetbare vragen | ✅ 11 meetbaar, 19 merkloos, score 36 |
+| R2.4 | Structureel merkloze vragen gemarkeerd | ✅ **9 vragen op `nee`** — die worden volgende periode overgeslagen (−$0,23) |
+| R3.1 | `mention_role` gevuld | ⚠️ gevuld, maar met een tegenspraak — zie hieronder |
+| **R3.2a** | **Posities ≥ 1** | ✅ **periode 1: uitsluitend 1 t/m 9** |
+| R3.2b | Profiel gevuld | ✅ `avg_position` 2, `citation_count` 1, `first_mention_count` 3 |
+| R4.2 | Concurrenten geprofileerd | ✅ 4 van 17 (alleen ≥2 vermeldingen) |
+| R1.3 | Validator | ⚠️ 2 claims gestript, maar **beide onterecht** — zie hieronder |
+
+### De positiereparatie werkt
+
+Dit was de belangrijkste toets. Periode 0 versus periode 1, dezelfde analyse:
+
+| | Periode 0 (oude prompt) | Periode 1 (nieuwe prompt) |
+|---|---|---|
+| Positie 0 | **39×** | 0 |
+| Posities 1–9 | 43× | **38×** |
+| Absurde waarden | 94, 174, 278, 319 (tekenposities!) | geen |
+
+De expliciete telinstructie plus `normalizePosition` doen precies wat ze moesten doen.
+
+### Twee fouten gevonden — beide gerepareerd
+
+**1. De claimvalidator sloeg vals alarm.** Hij stripte twee zinnen die feitelijk klópten:
+
+> *"Fysi-Unique wordt niet genoemd als bron voor informatie over kosten en vergoedingen van
+> fysiotherapie, terwijl fysiolution.nl en consumentenbond.nl dit wel zijn."*
+
+Beide genoemde bronnen stonden gewoon in het bewijs. De validator struikelde over het woord
+**`fysiotherapie`** — dat staat als entiteit in de database met rol `eigen_product`. Bij dit
+profiel bleken acht generieke termen in een "relevante" rol te staan: `fysiotherapie`,
+`manuele therapie`, `medische fitness`, `sportfysiotherapie`, `bekkenfysiotherapie`,
+`hardloopkliniek`, `fysiotherapiepraktijken`, `medische fitnesscentra`. Dat zijn behandelvormen,
+geen bedrijven.
+
+Dat brak twee dingen tegelijk: de validator stripte correcte zinnen, én de meetbaarheidstelling
+(R2.1) zag zo'n woord aan voor "er werd een aanbieder genoemd" — waardoor een zuivere
+adviesvraag alsnog winbaar leek.
+
+Opgelost met `looksLikeBrandName()` in `lib/entities/normalize.ts`: een bedrijfsnaam heeft een
+hoofdletter (`SMC Amersfoort`, `FysioNieuwland`) óf is een domein (`fysiolution.nl`). Een gewoon
+woord heeft geen van beide. Toegepast op drie plekken — validator, bewijsdossier en
+meetbaarheidstelling — en getest met alle echte namen uit de database (23 gevallen).
+
+Dit is een vangnet, geen vervanging van betere classificatie: **R0.5 blijft nodig.**
+
+**2. `mention_role` sprak zichzelf tegen.** Tien van de 27 níét-genoemde merken kregen tóch rol
+`eerste_aanbeveling`. Structured output vult bij twijfel de eerste enum-waarde in, ook als de
+prompt expliciet `null` vraagt. Een merk dat niet genoemd wordt kán geen eerste aanbeveling
+zijn. Nu deterministisch afgedwongen: `mention_role: m.mentioned ? m.role : null`. De score was
+hier niet door aangetast (die filterde al op `mentioned`), maar de data was misleidend.
+
+Verder blijft 13 van de 38 genoemde merken zónder rol — `null` is daar een eerlijke waarde
+("onbekend"), maar het verzwakt R3 wel. Dat is `gpt-4.1-nano` die het derde veld laat vallen;
+te volgen bij de volgende ronde.
+
+### Wat R4 oplevert — een voorbeeld
+
+> **FysioAmersfoort** — *"heeft meerdere locaties in Amersfoort en biedt fysiotherapie zonder
+> verwijzing. Ze combineren traditionele en moderne behandelmethodes, inclusief preventieve
+> trainingen zoals FysioSport en Pilates. De prijs voor manuele therapie is €60 per sessie."*
+> Eigenschappen: locatie, service, specialisme, prijs.
+
+Dat is precies de "waarom winnen zij"-laag die doel 2 belooft, en de lat voor doel 3.
+
+### Openstaand na deze ronde
+
+- **De score is instabieler dan gedacht.** Periode 0: 17 meetbaar, score 18. Periode 1: 11
+  meetbaar, score 36. Niet alleen de score maar ook de nóémer beweegt, en bij 11 vragen is de
+  marge enorm. Dat maakt **R6.1 (gelaagd hermeten) urgenter** dan als "laatste ronde" ingepland.
+- **`npm run eval:mention` is nog niet gedraaid** — de gewijzigde mention-prompt is niet
+  getoetst op detectie-accuratesse. Vereist een API-sleutel.
+
+---
+
 ## R5 — Contentbriefing als klantgate
 
 **Dit is de uitwerking van een bestaande spec.** [`contentbriefing.md`](./contentbriefing.md)

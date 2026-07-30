@@ -27,6 +27,7 @@ import "server-only";
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { excerpt, type EvidenceBrand, type EvidenceEntry } from "@/lib/pipeline/evidence-format";
+import { looksLikeBrandName } from "@/lib/entities/normalize";
 import type { Entity, TrackingRunMention } from "@/lib/types/database";
 
 type Admin = SupabaseClient;
@@ -102,6 +103,8 @@ export async function loadBrandsByRun(
     // in het antwoord stond en waarvan we nog niet weten wat het is — die
     // weglaten zou het dossier onvolledig maken.
     if (entity && !RELEVANTE_ROLLEN.has(entity.entity_role)) continue;
+    // Generieke termen zijn geen aanbieder (zie looksLikeBrandName).
+    if (!looksLikeBrandName(entity?.canonical_name ?? row.entity_name)) continue;
 
     const list = byRun.get(row.tracking_run_id) ?? [];
     list.push({
@@ -135,9 +138,15 @@ export async function loadKnownBrandNames(admin: Admin, profileId: string): Prom
   const names = new Set<string>();
   for (const e of (data ?? []) as Pick<Entity, "canonical_name" | "aliases" | "entity_role">[]) {
     if (!RELEVANTE_ROLLEN.has(e.entity_role)) continue;
-    if (e.canonical_name.trim().length >= 3) names.add(e.canonical_name.trim());
+    // Alleen namen die er als BEDRIJF uitzien. Zonder dit filter stripte de
+    // claimvalidator twee volstrekt correcte zinnen uit een Fysi-Unique-rapport,
+    // omdat "manuele therapie" en "fysiotherapie" als entiteit in een relevante
+    // rol stonden en dus als niet-onderbouwd merk gelezen werden.
+    if (e.canonical_name.trim().length >= 3 && looksLikeBrandName(e.canonical_name)) {
+      names.add(e.canonical_name.trim());
+    }
     for (const alias of e.aliases ?? []) {
-      if (alias.trim().length >= 3) names.add(alias.trim());
+      if (alias.trim().length >= 3 && looksLikeBrandName(alias)) names.add(alias.trim());
     }
   }
   return Array.from(names);
