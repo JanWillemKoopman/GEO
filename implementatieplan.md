@@ -49,20 +49,25 @@ verse metingen nodig.
 
 Laatst toegepaste migratie is `0026`. Hieronder vooraf vastgelegd om botsingen te voorkomen:
 
+Migraties krijgen hun nummer in de volgorde waarin ze daadwerkelijk worden opgeleverd, niet in
+de volgorde van dit plan — een migratienummer moet de toepassingsvolgorde volgen.
+
 | Nr | Ronde | Inhoud | Status |
 |---|---|---|---|
 | `0027` | R1 | `reports.stripped_claims_json` (bewijslaag) | ✅ toegepast |
-| `0028` | R0 | Promptgeneratie-telemetrie, `profiles.business_model` | gereserveerd |
-| `0029` | R2 | Meetbaarheid (`brands_in_answer`, `brand_eliciting`, score-splitsing) | gereserveerd |
-| `0030` | R3 | Zichtbaarheidsprofiel (rol, positie-aggregatie, citatiescore) | gereserveerd |
-| `0031` | R4 | Concurrent-intelligence | gereserveerd |
+| `0028` | R2 | Meetbaarheid (`brands_in_answer`, `brand_eliciting`, score-splitsing) | ✅ toegepast |
+| `0029` | R3 | Zichtbaarheidsprofiel (`mention_role`, positie, citaties) | ✅ toegepast |
+| `0030` | R4 | Concurrent-intelligence (`attributes_json`, `why_summary`) | ✅ toegepast |
+| `0031` | R0 | Promptgeneratie-telemetrie, `profiles.business_model` | gereserveerd |
 | `0032` | R6 | Herhaalmeting + inventariskwaliteit | gereserveerd |
 
 R5 heeft geen nieuwe migratie nodig — die draait op het schema uit `0024`, dat al is toegepast.
 
-> **Afwijking:** R1 is als eerste opgeleverd en heeft daarom `0027` gekregen; de rest is één
-> nummer opgeschoven. R1 bleek wél een migratie nodig te hebben (de audit-trail van gestripte
-> beweringen), anders dan bij het opstellen van dit plan gedacht.
+> **Afwijking:** R1 bleek wél een migratie nodig te hebben (de audit-trail van gestripte
+> beweringen), anders dan bij het opstellen van dit plan gedacht. En R0 is naar achteren
+> geschoven omdat R1–R4 eerst opgeleverd zijn; die ronde is hygiëne en blokkeerde in de praktijk
+> niets — R4 bleek prima te bouwen zonder de entiteitverbetering uit R0.5, al is dat wel de
+> reden dat Bol's fabrikanten nog als concurrent tellen.
 
 ### 1.4 Huisregels uit de codebase
 
