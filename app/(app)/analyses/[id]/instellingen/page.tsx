@@ -65,7 +65,14 @@ export default async function InstellingenPage({ params }: { params: Promise<{ i
             <div>
               <p className="text-lg font-semibold">{profile.name}</p>
               <p className="text-sm text-secondary">
-                Branche: {profile.industry ?? "onbekend"} · Concurrenten:{" "}
+                Branche: {profile.industry ?? "onbekend"}
+              </p>
+              <p className="mt-0.5 text-sm text-muted">
+                {/* Deze lijst bepaalt sinds migratie 0026 NIET meer waar je tegen
+                    vergeleken wordt — dat komt uit de meting zelf. Hij dient nog
+                    één doel: deze namen blijven uit de vragen, zodat we neutraal
+                    meten. Vandaar het eerlijke label. */}
+                Deze merken houden we uit de vragen:{" "}
                 {profile.competitors.join(", ") || "onbekend"}
               </p>
             </div>

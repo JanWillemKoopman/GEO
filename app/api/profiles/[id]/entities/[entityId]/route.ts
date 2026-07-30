@@ -3,6 +3,7 @@ import { getUser } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getOwnedProfile } from "@/lib/profiles";
 import { normalizeEntityName } from "@/lib/entities/normalize";
+import { ENTITY_ROLES } from "@/lib/schemas/entity-classification";
 import type { Entity } from "@/lib/types/database";
 
 /**
@@ -103,14 +104,48 @@ export async function PATCH(
     }
   }
 
+  // Rol handmatig zetten (migratie 0026). Zodra de klant zelf iets kiest, gaat
+  // role_source op 'handmatig' en laat de automatische classificatie deze
+  // entiteit voorgoed met rust — anders zou de volgende aggregatie de correctie
+  // van de klant terugdraaien.
+  if (typeof body.entity_role === "string") {
+    if (!(ENTITY_ROLES as readonly string[]).includes(body.entity_role)) {
+      return NextResponse.json({ error: "Onbekende rol." }, { status: 400 });
+    }
+    update.entity_role = body.entity_role;
+    update.role_source = "handmatig";
+    update.exclude_reason =
+      body.entity_role === "concurrent"
+        ? null
+        : typeof body.exclude_reason === "string" && body.exclude_reason.trim()
+          ? body.exclude_reason.trim()
+          : "Door jou ingesteld.";
+    // Een rol kiezen is zelf het oordeel; de oude vinkjes volgen mee zodat de
+    // twee elkaar niet tegenspreken.
+    update.confirmed = body.entity_role === "concurrent";
+    update.dismissed = false;
+  }
+
   if (typeof body.confirmed === "boolean") {
     update.confirmed = body.confirmed;
     // Bevestigen en weggezet-zijn spreken elkaar tegen; bevestigen wint.
     if (body.confirmed) update.dismissed = false;
+    // Bevestigen betekent "dit is een concurrent van mij" — een handmatig
+    // oordeel dat de classificatie niet mag overrulen.
+    if (body.confirmed && typeof body.entity_role !== "string") {
+      update.entity_role = "concurrent";
+      update.role_source = "handmatig";
+      update.exclude_reason = null;
+    }
   }
   if (typeof body.dismissed === "boolean") {
     update.dismissed = body.dismissed;
     if (body.dismissed) update.confirmed = false;
+    if (body.dismissed && typeof body.entity_role !== "string") {
+      update.entity_role = "niet_relevant";
+      update.role_source = "handmatig";
+      update.exclude_reason = "Door jou weggezet als geen concurrent.";
+    }
   }
 
   if (Object.keys(update).length === 0) {

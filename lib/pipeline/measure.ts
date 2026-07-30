@@ -17,7 +17,8 @@ import { measureWebSearchEnabled } from "@/lib/config";
 import { promptWeight, NEUTRAL_WEIGHT } from "@/lib/pipeline/prompt-weight";
 import { volumeBandOf } from "@/lib/pipeline/volume";
 import { Mention } from "@/lib/schemas/mention";
-import { ensureKnownEntities, resolveEntity } from "@/lib/entities/resolve";
+import { loadEntityIndex, resolveEntity } from "@/lib/entities/resolve";
+import { classifyPendingEntities } from "@/lib/pipeline/classify-entities";
 import { binomialStderr, weightedScoreStderr } from "@/lib/stats/uncertainty";
 // Gedeeld met scripts/eval-mention.ts, zodat de test exact de productie-prompt
 // beoordeelt en niet een kopie die kan gaan afwijken (optimalisatie.md 0.7).
@@ -81,7 +82,6 @@ export async function measureOnePrompt(
   analysis: Analysis,
   ownLabel: string,
   ownAliases: string[],
-  competitors: string[],
   prompt: Prompt,
   weekNo: number,
   /** Weglaten voor de gewone (periodieke) meting. */
@@ -195,7 +195,7 @@ export async function measureOnePrompt(
   const b = await callStructured({
     model: MODELS.volume,
     system: MENTION_SYSTEM,
-    user: buildMentionUser({ ownLabel, ownAliases, competitors, rawResponse: run.raw_response ?? "" }),
+    user: buildMentionUser({ ownLabel, ownAliases, rawResponse: run.raw_response ?? "" }),
     schema: Mention,
     schemaName: "mention",
     webSearch: false,
@@ -240,12 +240,21 @@ export async function measureOnePrompt(
 }
 
 /**
- * 3c — aggregatie (geen AI-aanroep): visibility_scores + competitor_breakdown.
+ * 3c — aggregatie: visibility_scores + competitor_breakdown.
  *
  * Doet sinds fase 2 drie dingen extra (optimalisatie.md 2.2/2.4/2.5):
  *   • merknamen samenvoegen tot één entiteit per bedrijf
  *   • de onzekerheid van de score berekenen en opslaan
- *   • het aandeel over een VASTE set entiteiten berekenen
+ *   • het aandeel over de echte concurrenten berekenen
+ *
+ * Was tot migratie 0026 vrij van AI-aanroepen. Dat is niet meer zo: nu de
+ * concurrenten uit de meting komen in plaats van uit een lijst vooraf, moet er
+ * per ontdekt merk bepaald worden of het écht een concurrent is of een
+ * marktplaats/vergelijker. Dat is één goedkope aanroep per ~40 nieuwe merken,
+ * en alleen voor merken die nog niet geclassificeerd zijn — bij een tweede
+ * periode is dat er meestal nul. De aanroep zit in een try/catch: mislukt hij,
+ * dan blijven de cijfers gewoon staan en probeert de volgende aggregatie het
+ * opnieuw.
  */
 export async function computeAggregates(admin: Admin, analysisId: string, weekNo: number): Promise<void> {
   const { data: runsFull } = await admin
@@ -278,17 +287,11 @@ export async function computeAggregates(admin: Admin, analysisId: string, weekNo
   const mentions = mentionRows ?? [];
 
   // ── Entiteiten samenvoegen (optimalisatie.md 2.4) ──────────────────────────
-  // De bekende concurrenten worden meteen bevestigd; die vormen de vaste noemer
-  // van het aandeel. Namen die alleen uit een AI-antwoord komen zijn nieuw en
-  // moeten eerst door de klant bevestigd worden.
-  const [{ data: profileRow }, { data: topicRow }] = await Promise.all([
-    admin.from("profiles").select("competitors").eq("id", profileId).maybeSingle(),
-    admin.from("topic_research").select("competitors").eq("analysis_id", analysisId).maybeSingle(),
-  ]);
-  const knownCompetitors = Array.from(
-    new Set([...(topicRow?.competitors ?? []), ...(profileRow?.competitors ?? [])]),
-  );
-  const index = await ensureKnownEntities(admin, profileId, knownCompetitors);
+  // Sinds migratie 0026 wordt hier NIETS meer voorgezaaid vanuit een vooraf
+  // gegenereerde concurrentenlijst. Elk merk in deze lus komt uit een echt
+  // AI-antwoord; wie er meetelt als concurrent bepaalt de classificatie
+  // hieronder, niet een lijst die vóór de meting bedacht is.
+  const index = await loadEntityIndex(admin, profileId);
 
   // Elke gemeten naam koppelen aan z'n entiteit. Het eigen merk slaan we over:
   // dat is geen concurrent en heeft z'n eigen behandeling.
@@ -302,7 +305,38 @@ export async function computeAggregates(admin: Admin, analysisId: string, weekNo
       await admin.from("tracking_run_mentions").update({ entity_id: entity.id }).eq("id", m.id);
     }
   }
-  const entityById = new Map(index.all.map((e) => [e.id, e]));
+
+  // ── Ontdekte merken classificeren (migratie 0026) ──────────────────────────
+  // Een autobedrijf krijgt naast echte concurrenten ook AutoScout24, Marktplaats
+  // en de ANWB terug. Zonder dit onderscheid zouden die als concurrent in de
+  // grafiek staan en het aandeel drukken.
+  //
+  // Mag de aggregatie niet laten klappen: de score is dan al berekend en een
+  // cijfer dat een periode later compleet is, is beter dan geen cijfer. Blijven
+  // entiteiten op 'onbepaald' staan, dan pakt de volgende aggregatie ze op.
+  try {
+    const [{ data: profileRow }, { data: analysisRow }] = await Promise.all([
+      admin.from("profiles").select("brand_name, industry, products").eq("id", profileId).maybeSingle(),
+      admin.from("analyses").select("topic").eq("id", analysisId).maybeSingle(),
+    ]);
+    await classifyPendingEntities(
+      admin,
+      profileId,
+      {
+        brandName: (profileRow?.brand_name as string | null) ?? "",
+        industry: (profileRow?.industry as string | null) ?? null,
+        topic: (analysisRow?.topic as string | null) ?? null,
+        ownProducts: (profileRow?.products as string[] | null) ?? [],
+      },
+      analysisId,
+    );
+  } catch (err) {
+    console.error(`Classificeren van ontdekte merken mislukt voor analyse ${analysisId}:`, err);
+  }
+
+  // Ná de classificatie herladen: de rollen die hierboven gezet zijn bepalen
+  // hieronder wie er in de vergelijking en in het aandeel meetelt.
+  const entityById = new Map((await loadEntityIndex(admin, profileId)).all.map((e) => [e.id, e]));
 
   // ── Eigen merk per run ─────────────────────────────────────────────────────
   // De classificatie hoort er precies één per run te geven, maar kan er meer
@@ -363,17 +397,21 @@ export async function computeAggregates(admin: Admin, analysisId: string, weekNo
     })),
   );
 
-  // ── Aandeel over een VASTE set (optimalisatie.md 2.5) ──────────────────────
+  // ── Aandeel over de ECHTE concurrenten (optimalisatie.md 2.5 / migratie 0026) ─
   // Voorheen: eigen ÷ (eigen + álle concurrentvermeldingen). Die noemer groeide
   // met elk merk dat de classificatie toevallig ontdekte, waardoor het aandeel
-  // daalde zonder dat de klant iets verkeerd deed — en twee periodes niet
-  // vergelijkbaar waren. Nu tellen alleen BEVESTIGDE, niet-weggezette
-  // entiteiten mee; nieuw ontdekte merken wachten op de klant (2.7).
+  // daalde zonder dat de klant iets verkeerd deed. De oplossing was toen een
+  // handmatige bevestigingspoort — maar die maakte het cijfer afhankelijk van
+  // een vooraf opgegeven lijst in plaats van van de meting.
+  //
+  // Nu bepaalt de ROL de noemer: alleen merken die als echte concurrent
+  // geclassificeerd zijn tellen mee. Een marktplaats of brancheorganisatie
+  // vervuilt het cijfer dus niet, en de klant hoeft niets af te vinken.
   const competitorRows = mentions.filter((m) => !m.is_own_brand);
   const inBasis = (m: (typeof mentions)[number]) => {
     const entityId = entityByMention.get(m.id as string);
     const entity = entityId ? entityById.get(entityId) : undefined;
-    return Boolean(entity?.confirmed && !entity.dismissed);
+    return entity?.entity_role === "concurrent" && !entity.dismissed;
   };
   const basisMentions = competitorRows.filter((m) => m.mentioned && inBasis(m)).length;
   const basisEntities = new Set(
@@ -394,17 +432,21 @@ export async function computeAggregates(admin: Admin, analysisId: string, weekNo
       judged_runs: judgedRuns,
       score_stderr: stderr,
       weighted_stderr: weightedStderr,
-      // +1 voor het eigen merk: de noemer is "wij plus de bevestigde concurrenten".
+      // +1 voor het eigen merk: de noemer is "wij plus de echte concurrenten".
       share_basis_count: basisEntities.size + 1,
     },
     { onConflict: "analysis_id,week_no" },
   );
 
   // ── Uitsplitsing per concurrent, gegroepeerd op ENTITEIT ───────────────────
+  // Alleen echte concurrenten (migratie 0026). Marktplaatsen, vergelijkers en
+  // brancheorganisaties komen wél uit de meting maar horen niet in 'Jij vs.
+  // concurrenten'; die staan apart onder "Ook genoemd".
   const byEntity = new Map<string, typeof competitorRows>();
   for (const m of competitorRows) {
     const entityId = entityByMention.get(m.id as string);
     if (!entityId) continue;
+    if (!inBasis(m)) continue;
     const list = byEntity.get(entityId) ?? [];
     list.push(m);
     byEntity.set(entityId, list);
@@ -443,23 +485,30 @@ export async function computeAggregates(admin: Admin, analysisId: string, weekNo
     };
   });
 
-  if (breakdownRows.length > 0) await admin.from("competitor_breakdown").insert(breakdownRows);
+  // Nul-metingen weglaten (migratie 0026). Een concurrent die in geen enkel
+  // antwoord voorkwam hoort niet als lege balk in de grafiek: de vergelijking
+  // laat zien wie je in de antwoorden tegenkomt, niet wie er ooit bedacht is.
+  const measured = breakdownRows.filter((r) => r.mentions_count > 0);
+  if (measured.length > 0) await admin.from("competitor_breakdown").insert(measured);
 }
 
 /**
- * De gedeelde context die elke meting nodig heeft: hoe heet het eigen merk, hoe
- * kan het nog meer genoemd worden, en wie zijn de concurrenten.
+ * De gedeelde context die elke meting nodig heeft: hoe heet het eigen merk en
+ * hoe kan het nog meer genoemd worden.
  *
  * Wordt per meettaak opnieuw geladen in plaats van meegegeven in de payload
- * (optimalisatie.md 1.3): past de klant halverwege z'n concurrentenlijst aan,
- * dan meten de resterende vragen meteen tegen de nieuwe lijst. Drie kleine
- * queries per prompt is die correctheid waard.
+ * (optimalisatie.md 1.3): past de klant halverwege z'n merkgegevens aan, dan
+ * meten de resterende vragen meteen tegen de nieuwe gegevens.
+ *
+ * Sinds migratie 0026 zit hier GEEN concurrentenlijst meer in. Concurrenten
+ * worden niet vooraf opgegeven maar ontdekt in de antwoorden zelf; welke
+ * ontdekte merken echt concurrent zijn, bepaalt de classificatie tijdens de
+ * aggregatie (lib/pipeline/classify-entities.ts).
  */
 export interface MeasureContext {
   analysis: Analysis;
   ownLabel: string;
   ownAliases: string[];
-  competitors: string[];
 }
 
 export async function loadMeasureContext(admin: Admin, analysisId: string): Promise<MeasureContext> {
@@ -467,10 +516,11 @@ export async function loadMeasureContext(admin: Admin, analysisId: string): Prom
   if (!analysisRow) throw new Error(`Analyse ${analysisId} niet gevonden.`);
   const analysis = analysisRow as Analysis;
 
-  const [{ data: profile }, { data: topicResearch }] = await Promise.all([
-    admin.from("profiles").select("brand_name, aliases, competitors").eq("id", analysis.profile_id).maybeSingle(),
-    admin.from("topic_research").select("competitors").eq("analysis_id", analysisId).maybeSingle(),
-  ]);
+  const { data: profile } = await admin
+    .from("profiles")
+    .select("brand_name, aliases")
+    .eq("id", analysis.profile_id)
+    .maybeSingle();
 
   // Gebruik de canonieke merknaam voor mention-detectie (een AI-antwoord noemt
   // "Golden Fingers", niet het domein) — nauwkeuriger dan alleen de URL.
@@ -480,10 +530,6 @@ export async function loadMeasureContext(admin: Admin, analysisId: string): Prom
     ownLabel: `${base} (${analysis.topic})`,
     // Aliassen (§12.24) tellen ook als het eigen merk — verbetert de detectie.
     ownAliases: (profile?.aliases as string[] | null) ?? [],
-    // Gededupliceerde unie: onderwerp-specifieke + algemene bedrijfsconcurrenten.
-    competitors: Array.from(
-      new Set([...(topicResearch?.competitors ?? []), ...(profile?.competitors ?? [])]),
-    ),
   };
 }
 
@@ -512,7 +558,6 @@ export async function measurePromptById(
     ctx.analysis,
     ctx.ownLabel,
     ctx.ownAliases,
-    ctx.competitors,
     promptRow as Prompt,
     weekNo,
     impact,

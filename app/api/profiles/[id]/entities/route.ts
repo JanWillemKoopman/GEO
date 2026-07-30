@@ -67,7 +67,15 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   if (existing) {
     const { data: updated } = await admin
       .from("entities")
-      .update({ confirmed: true, dismissed: false })
+      .update({
+        confirmed: true,
+        dismissed: false,
+        // Zelf toevoegen is een handmatig oordeel "dit is een concurrent van
+        // mij" — de automatische classificatie mag dat niet terugdraaien.
+        entity_role: "concurrent",
+        role_source: "handmatig",
+        exclude_reason: null,
+      })
       .eq("id", existing.id)
       .select("*")
       .single();
@@ -76,7 +84,14 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 
   const { data, error } = await admin
     .from("entities")
-    .insert({ profile_id: id, canonical_name: name, normalized, confirmed: true })
+    .insert({
+      profile_id: id,
+      canonical_name: name,
+      normalized,
+      confirmed: true,
+      entity_role: "concurrent",
+      role_source: "handmatig",
+    })
     .select("*")
     .single();
 
