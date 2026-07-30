@@ -64,12 +64,12 @@ export function ScoreCard({
             <>
               Van alle vragen die we aan een AI-assistent stelden, in hoeveel word jij genoemd —
               waarbij vaak gestelde en koopklare vragen zwaarder tellen. Gemeten over{" "}
-              {score.judged_runs ?? measuredRunCount} vragen.
+              {score.winnable_runs ?? score.judged_runs ?? measuredRunCount} vragen.
             </>
           ) : (
             <>
               Van alle vragen die we aan een AI-assistent stelden, in hoeveel word jij genoemd.
-              Elke vraag telt even zwaar. Gemeten over {score.judged_runs ?? measuredRunCount}{" "}
+              Elke vraag telt even zwaar. Gemeten over {score.winnable_runs ?? score.judged_runs ?? measuredRunCount}{" "}
               vragen.
             </>
           )}
@@ -83,7 +83,7 @@ export function ScoreCard({
           <span className="mb-2 flex items-center gap-1 text-sm text-muted">
             ±{band.margin} punten
             <InfoHint label="Waarom een marge?">
-              We stellen {score.judged_runs ?? measuredRunCount} vragen, geen duizend. Een andere
+              We stellen {score.winnable_runs ?? score.judged_runs ?? measuredRunCount} vragen, geen duizend. Een andere
               set vragen — of dezelfde vragen op een andere dag — geeft een iets ander getal. De
               echte score ligt naar alle waarschijnlijkheid tussen {band.low} en {band.high}.
             </InfoHint>
@@ -92,6 +92,8 @@ export function ScoreCard({
       </div>
 
       <ChangeLine change={change} />
+
+      <BrandlessLine score={score} />
 
       <p className="text-sm text-secondary">
         {leadIsWeighted
@@ -281,6 +283,41 @@ function ChangeLine({
       <InfoHint label="Echte verandering">
         Dit verschil is groter dan de {change.threshold} punten die we nodig hebben om toeval uit
         te sluiten. Er is dus echt iets veranderd.
+      </InfoHint>
+    </p>
+  );
+}
+
+/**
+ * Het tweede getal: bij hoeveel vragen noemt de AI helemaal geen aanbieder?
+ * (implementatieplan.md R2.5)
+ *
+ * Het hoofdgetal blijft één getal — dat is het ontwerpprincipe van de app. Maar
+ * de score zegt pas iets als je weet waaróver hij gaat. Bij Van der Valk noemt
+ * de AI bij 17 van de 30 vragen geen enkel bedrijf; die vragen tellen sinds R2
+ * niet meer mee. Zonder deze regel zou de klant zich afvragen waarom er "30
+ * vragen" gesteld zijn maar over 13 gemeten wordt.
+ *
+ * En het is zelf een bevinding: waar niemand genoemd wordt, valt niets te
+ * verliezen — maar is er ook nog geen partij de standaard.
+ */
+function BrandlessLine({ score }: { score: VisibilityScore }) {
+  const brandless = score.brandless_runs ?? 0;
+  if (brandless <= 0) return null;
+
+  const total = (score.winnable_runs ?? 0) + brandless;
+
+  return (
+    <p className="flex items-start gap-1 text-sm text-muted">
+      <span>
+        Bij {brandless} van je {total} vragen noemt de AI helemaal geen bedrijf. Die tellen niet
+        mee in je score.
+      </span>
+      <InfoHint label="Waarom tellen die niet mee?">
+        Op vragen als &ldquo;waar moet ik op letten bij het kiezen?&rdquo; geeft een AI-assistent
+        een stappenplan in plaats van een lijstje aanbieders. Daar kún je niet genoemd worden, dus
+        het zou oneerlijk zijn je erop af te rekenen. Tegelijk is het een kans: er is hier nog
+        geen partij die de AI standaard noemt.
       </InfoHint>
     </p>
   );

@@ -90,11 +90,11 @@ R5 heeft geen nieuwe migratie nodig — die draait op het schema uit `0024`, dat
 | R1.1 | Bewijsdossier in code | 2 d | ✅ |
 | R1.2 | Rapportprompt: verwoorden, niet afleiden | 1 d | ✅ |
 | R1.3 | Claimvalidator | 1,5 d | ✅ |
-| R2.1 | Merken-per-antwoord vastleggen | 1 d | ☐ |
-| R2.2 | Score splitsen | 2 d | ☐ |
-| R2.3 | Kansloze vragen uit contentadvies | 1 d | ☐ |
-| R2.4 | Vervolgmetingen inperken | 1,5 d | ☐ |
-| R2.5 | UI: tweede getal | 1,5 d | ☐ |
+| R2.1 | Merken-per-antwoord vastleggen | 1 d | ✅ |
+| R2.2 | Score splitsen | 2 d | ✅ |
+| R2.3 | Kansloze vragen uit contentadvies | 1 d | ✅ |
+| R2.4 | Vervolgmetingen inperken | 1,5 d | ✅ |
+| R2.5 | UI: tweede getal | 1,5 d | ✅ |
 | R3.1 | Mention-schema: rol i.p.v. sentiment | 1,5 d | ☐ |
 | R3.2 | Positie- en citatie-aggregatie | 2 d | ☐ |
 | R3.3 | UI: zichtbaarheidsprofiel | 2 d | ☐ |
@@ -555,6 +555,53 @@ vervolgperiode (≈ −$0,18 per analyse).
 
 **Verificatie:** visuele controle op alle vijf analyses; de tekst moet kloppen met de opgeslagen
 `brandless_runs`.
+
+---
+
+### ✅ R2 opgeleverd — uitkomst en twee correcties op dit plan
+
+Migratie `0028_meetbaarheid.sql` toegepast op productie. Code in `lib/pipeline/measure.ts`
+(telling + score + `brand_eliciting`), `lib/pipeline/report.ts` (R2.3), `lib/jobs/queue.ts`
+(R2.4) en `score-panel.tsx` (R2.5).
+
+**Correctie 1 — het eigen merk telt mee als aanbieder.** Dit plan schreef voor om alleen
+ándere merken te tellen. Uit de data bleek dat er antwoorden zijn waarin uitsluitend de klant
+genoemd wordt: 3× bij Bol, 2× bij Coolblue en HEMA, 1× bij Van der Valk. Dat zijn zuivere
+winsten — de AI noemt één aanbieder en dat ben jij. Met de plan-definitie waren die als
+"merkloos" buiten de score gevallen en had de klant een overwinning verloren. `brands_in_answer`
+telt daarom álle aanbieders inclusief het eigen merk; een vraag is meetbaar zodra er één
+aanbieder genoemd wordt, wie dat ook is.
+
+**Correctie 2 — het rolfilter maakt het probleem grόter dan gedacht.** De mention-classificatie
+pikt naast bedrijven ook gewone woorden op als entiteit: bij Coolblue "voorlader", "bovenlader",
+"wasmachine", "fabrieksgarantie"; bij Van der Valk "hotel", "locatie", "vergaderlocatie". Die
+zijn correct als `niet_relevant` geclassificeerd en tellen dus niet als aanbieder. Steekproef op
+alle gevallen die daardoor omslaan bevestigt dat het zonder uitzondering echte rommel is; de
+enige drie randgevallen (Adobe Creative Suite, Chrome OS, skodafinancialservices.nl) zijn
+terecht uitgesloten. **Gevolg: de kwaliteitsanalyse onderschatte het probleem** — die telde
+"voorlader" nog als merk mee. De werkelijke cijfers:
+
+| Bedrijf | Beoordeeld | Merkloos | Meetbaar | Score vóór → ná | Gewogen vóór → ná |
+|---|---|---|---|---|---|
+| Coolblue | 22 | **10 (45%)** | 12 | 36 → **67** | 52 → **68** |
+| Bol | 29 | **12 (41%)** | 17 | 17 → **29** | 17 → **24** |
+| Fysi-Unique | 30 | **13 (43%)** | 17 | 10 → **18** | 10 → **18** |
+| HEMA | 30 | 3 (10%) | 27 | 10 → **11** | 12 → **12** |
+| Van der Valk | 30 | **17 (57%)** | 13 | 7 → **15** | 8 → **18** |
+
+De scores gaan fors omhoog omdat de klant niet langer wordt afgerekend op vragen waarop geen
+enkel bedrijf genoemd wordt. HEMA verandert nauwelijks — daar noemt de AI vrijwel altijd wél
+aanbieders, en die score van 10 was dus al eerlijk. Dat verschil tussen HEMA en Van der Valk is
+precies het inzicht dat R2 toevoegt: bij de één is onzichtbaarheid een probleem, bij de ander
+een eigenschap van de markt.
+
+**Verificatie R2.4:** na één meetperiode staat elke vraag op `ja` of `onbekend`, geen enkele op
+`nee`. Correct — `nee` vereist twee metingen zonder aanbieder, dus er wordt nu nog niets
+overgeslagen. Dat is pas bij periode 2 te toetsen.
+
+**Nog open:** de scores van de vijf testanalyses zijn met SQL bijgewerkt volgens exact dezelfde
+logica als de code. Zodra er een nieuwe meetronde draait, moet de code dezelfde waarden
+opleveren — dat is de sluitende bevestiging.
 
 ---
 

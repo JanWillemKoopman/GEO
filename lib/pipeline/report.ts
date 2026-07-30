@@ -231,13 +231,29 @@ async function computeMissedPrompts(
 ): Promise<MissedPrompt[]> {
   const { data: runRows } = await admin
     .from("tracking_runs")
-    .select("id, prompt_id, prompt_text_snapshot, prompt_category_snapshot, prompt_weight")
+    .select("id, prompt_id, prompt_text_snapshot, prompt_category_snapshot, prompt_weight, brands_in_answer")
     .eq("analysis_id", analysisId)
     .eq("week_no", weekNo)
     // Alleen de gewone meting; impact- en controlemetingen (5.3) betreffen een
     // handvol vragen en zouden de lijst gemiste kansen vertekenen.
     .eq("purpose", "periodic");
-  const runs = runRows ?? [];
+  const allRuns = runRows ?? [];
+  if (allRuns.length === 0) return [];
+
+  // Kansloze vragen eruit (implementatieplan.md R2.3). Waar de AI géén enkele
+  // aanbieder noemt, is niet-genoemd-worden geen gemiste kans — er valt niets te
+  // winnen. Zulke vragen als contentdoel opvoeren is de duurste fout die het
+  // product kan maken: bij Van der Valk was de aanbeveling met prioriteit 1
+  // gebouwd op precies zo'n vraag, en die zou als eerste door gpt-4.1 geschreven
+  // worden. `null` (nog niet geteld, oude meting) laten we staan — dat is
+  // onbekend, geen bewijs van kansloosheid.
+  const runs = allRuns.filter((r) => r.brands_in_answer !== 0);
+  if (runs.length < allRuns.length) {
+    console.log(
+      `Analyse ${analysisId} periode ${weekNo}: ${allRuns.length - runs.length} vragen zonder ` +
+        `enige genoemde aanbieder tellen niet als gemiste kans.`,
+    );
+  }
   if (runs.length === 0) return [];
 
   const runIds = runs.map((r) => r.id as string);

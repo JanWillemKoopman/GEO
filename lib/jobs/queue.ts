@@ -125,12 +125,32 @@ export async function enqueueMeasurement(
 ): Promise<{ planned: number; totalPrompts: number }> {
   const { data: prompts } = await admin
     .from("prompts")
-    .select("id")
+    .select("id, brand_eliciting")
     .eq("analysis_id", analysisId)
     .eq("active", true);
 
-  const list = prompts ?? [];
-  if (list.length === 0) return { planned: 0, totalPrompts: 0 };
+  const all = prompts ?? [];
+  if (all.length === 0) return { planned: 0, totalPrompts: 0 };
+
+  // ── Structureel merkloze vragen overslaan (implementatieplan.md R2.4) ──────
+  //
+  // Een vraag die twee metingen lang géén enkele aanbieder opleverde, levert die
+  // de derde keer vrijwel zeker ook niet — en elke meting is een betaalde
+  // web-zoekactie. Alleen bij VERVOLGperiodes: de nulmeting meet altijd alles,
+  // want je moet meten om te weten.
+  //
+  // Elke vierde periode tóch de volledige set, zodat een markt die verandert
+  // (er ontstaat wél een standaardpartij) niet voorgoed onopgemerkt blijft.
+  const volledigeRonde = weekNo === 0 || weekNo % 4 === 0;
+  const list = volledigeRonde ? all : all.filter((p) => p.brand_eliciting !== "nee");
+
+  if (list.length < all.length) {
+    console.log(
+      `Analyse ${analysisId} periode ${weekNo}: ${all.length - list.length} structureel merkloze ` +
+        `vragen overgeslagen; die leverden twee metingen lang geen enkele aanbieder op.`,
+    );
+  }
+  if (list.length === 0) return { planned: 0, totalPrompts: all.length };
 
   // Al gemeten? Dan niet opnieuw plannen — meten is de duurste stap die er is
   // (de web-zoekactie is ~94% van de meetkosten). Eén query voor alle prompts

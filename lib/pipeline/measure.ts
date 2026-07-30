@@ -240,6 +240,138 @@ export async function measureOnePrompt(
 }
 
 /**
+ * Rollen die als "een genoemde aanbieder" gelden (implementatieplan.md R2.1).
+ *
+ * Dezelfde set als in lib/pipeline/evidence.ts, en om dezelfde reden: de
+ * mention-classificatie pikt naast bedrijven ook gewone woorden op. Bij Coolblue
+ * kwamen "voorlader", "bovenlader", "wasmachine" en "fabrieksgarantie" als
+ * entiteit binnen; bij Van der Valk "hotel", "locatie" en "vergaderlocatie".
+ * Zouden die als aanbieder tellen, dan lijkt een zuivere adviesvraag ineens
+ * winbaar en blijft precies het probleem bestaan dat R2 moet oplossen.
+ *
+ * Nog niet geclassificeerd (geen entiteit, of rol 'onbepaald') telt WÉL mee: die
+ * naam stond echt in het antwoord, we weten alleen nog niet wat het is.
+ */
+const AANBIEDER_ROLLEN: ReadonlySet<string> = new Set([
+  "concurrent",
+  "vergelijker",
+  "brancheorganisatie",
+  "eigen_product",
+]);
+
+type MentionRow = { id: string; tracking_run_id: string; is_own_brand: boolean; mentioned: boolean };
+
+/**
+ * Hoeveel verschillende aanbieders noemt elk antwoord?
+ *
+ * Ontdubbeld op entiteit: een antwoord dat "Coolblue" en "coolblue.nl" noemt,
+ * noemt één aanbieder. Het eigen merk telt mee (zie de toelichting bij de
+ * aanroep) — precies één keer, hoeveel mention-rijen het ook opleverde.
+ */
+function countBrandsPerRun(
+  mentions: MentionRow[],
+  entityByMention: Map<string, string>,
+  entityById: Map<string, { entity_role: string }>,
+  ownByRun: Map<string, { mentioned: boolean }>,
+): Map<string, number> {
+  const perRun = new Map<string, Set<string>>();
+
+  for (const m of mentions) {
+    if (m.is_own_brand || !m.mentioned) continue;
+    const entityId = entityByMention.get(m.id);
+    const entity = entityId ? entityById.get(entityId) : undefined;
+    if (entity && !AANBIEDER_ROLLEN.has(entity.entity_role)) continue;
+
+    const set = perRun.get(m.tracking_run_id) ?? new Set<string>();
+    // Zonder entiteit valt hij terug op de mention-id: die is uniek, dus telt
+    // hij als eigen aanbieder. Dat is de veilige kant — liever één te veel dan
+    // een vraag ten onrechte als onmeetbaar wegzetten.
+    set.add(entityId ?? m.id);
+    perRun.set(m.tracking_run_id, set);
+  }
+
+  const counts = new Map<string, number>();
+  for (const [runId, set] of perRun) counts.set(runId, set.size);
+
+  // Het eigen merk erbij, als het genoemd werd.
+  for (const [runId, own] of ownByRun) {
+    if (!own.mentioned) continue;
+    counts.set(runId, (counts.get(runId) ?? 0) + 1);
+  }
+
+  // Beoordeelde runs zonder enige aanbieder expliciet op 0 — anders is niet te
+  // onderscheiden of er niets genoemd werd of dat de telling nooit draaide.
+  for (const runId of ownByRun.keys()) {
+    if (!counts.has(runId)) counts.set(runId, 0);
+  }
+
+  return counts;
+}
+
+/** Schrijft de tellingen weg. Eén update per waarde in plaats van per run. */
+async function persistBrandCounts(admin: Admin, counts: Map<string, number>): Promise<void> {
+  if (counts.size === 0) return;
+
+  // Groeperen op aantal: dertig runs leveren doorgaans een handvol verschillende
+  // waarden op, dus dit zijn een paar queries in plaats van dertig.
+  const byCount = new Map<number, string[]>();
+  for (const [runId, n] of counts) {
+    const list = byCount.get(n) ?? [];
+    list.push(runId);
+    byCount.set(n, list);
+  }
+
+  for (const [n, runIds] of byCount) {
+    const { error } = await admin.from("tracking_runs").update({ brands_in_answer: n }).in("id", runIds);
+    if (error) {
+      // Niet laten klappen: de score is hierboven al berekend, en een ontbrekende
+      // telling wordt bij de volgende aggregatie alsnog gezet.
+      console.warn(`Aantal aanbieders opslaan mislukt voor ${runIds.length} metingen: ${error.message}`);
+    }
+  }
+}
+
+/**
+ * Bepaalt per vraag of die structureel merkloze antwoorden oplevert
+ * (implementatieplan.md R2.1/R2.4).
+ *
+ * 'nee' pas na TWEE metingen zonder aanbieder. Eén merkloos antwoord kan toeval
+ * zijn — een AI-assistent die die ene keer een algemeen stappenplan gaf. Twee
+ * keer achtereen is een patroon, en pas dan is het verantwoord de vraag bij
+ * vervolgperiodes over te slaan.
+ */
+async function updateBrandEliciting(admin: Admin, analysisId: string): Promise<void> {
+  const { data } = await admin
+    .from("tracking_runs")
+    .select("prompt_id, brands_in_answer")
+    .eq("analysis_id", analysisId)
+    .eq("purpose", "periodic")
+    .not("prompt_id", "is", null)
+    .not("brands_in_answer", "is", null);
+
+  const perPrompt = new Map<string, number[]>();
+  for (const row of (data ?? []) as { prompt_id: string; brands_in_answer: number }[]) {
+    const list = perPrompt.get(row.prompt_id) ?? [];
+    list.push(row.brands_in_answer);
+    perPrompt.set(row.prompt_id, list);
+  }
+
+  const byVerdict = new Map<string, string[]>();
+  for (const [promptId, counts] of perPrompt) {
+    const verdict =
+      counts.some((n) => n > 0) ? "ja" : counts.length >= 2 ? "nee" : "onbekend";
+    const list = byVerdict.get(verdict) ?? [];
+    list.push(promptId);
+    byVerdict.set(verdict, list);
+  }
+
+  for (const [verdict, promptIds] of byVerdict) {
+    const { error } = await admin.from("prompts").update({ brand_eliciting: verdict }).in("id", promptIds);
+    if (error) console.warn(`Meetbaarheid opslaan mislukt voor ${promptIds.length} vragen: ${error.message}`);
+  }
+}
+
+/**
  * 3c — aggregatie: visibility_scores + competitor_breakdown.
  *
  * Doet sinds fase 2 drie dingen extra (optimalisatie.md 2.2/2.4/2.5):
@@ -376,26 +508,61 @@ export async function computeAggregates(admin: Admin, analysisId: string, weekNo
     );
   }
 
-  const ownMentionedCount = Array.from(ownByRun.values()).filter((m) => m.mentioned).length;
-  const score = judgedRuns > 0 ? Math.round((ownMentionedCount / judgedRuns) * 100) : 0;
+  // ── Meetbaarheid (implementatieplan.md R2) ─────────────────────────────────
+  //
+  // Bij een groot deel van de metingen noemt de AI géén enkele aanbieder: het
+  // zijn "hoe kies ik"-antwoorden met stappenplannen en criteria. Bij Van der
+  // Valk is dat 17 van de 30 vragen. Die metingen telden volledig mee als "het
+  // eigen merk werd niet genoemd" en gingen zo als gemiste kans het rapport in.
+  //
+  // Dat mengt twee onvergelijkbare dingen. Waar merken genoemd worden en de
+  // klant er niet bij zit, is een echte gemiste kans. Waar niemand genoemd
+  // wordt, is er niets te winnen — en niets te verliezen. Vanaf hier telt alleen
+  // het eerste mee in de score; het tweede wordt als eigen cijfer getoond.
+  //
+  // Het eigen merk telt mee als aanbieder: er zijn antwoorden waarin uitsluitend
+  // de klant genoemd wordt (3× bij Bol, 2× bij Coolblue en HEMA, 1× bij Van der
+  // Valk). Dat zijn zuivere winsten; die buiten de score houden zou de klant een
+  // overwinning kosten.
+  const brandsPerRun = countBrandsPerRun(mentions, entityByMention, entityById, ownByRun);
+  await persistBrandCounts(admin, brandsPerRun);
 
-  // Gewogen zichtbaarheid: Σ gewicht van beoordeelde runs waarin het merk
-  // genoemd wordt ÷ Σ gewicht van alle beoordeelde runs.
-  const totalWeight = judgedRunIds.reduce((sum, id) => sum + (weightByRun.get(id) ?? NEUTRAL_WEIGHT), 0);
-  const ownWeight = judgedRunIds.reduce((sum, id) => {
+  const winnableRunIds = judgedRunIds.filter((id) => (brandsPerRun.get(id) ?? 0) > 0);
+  const winnableRuns = winnableRunIds.length;
+  const brandlessRuns = judgedRuns - winnableRuns;
+  if (brandlessRuns > 0) {
+    console.log(
+      `Analyse ${analysisId} periode ${weekNo}: bij ${brandlessRuns} van ${judgedRuns} vragen ` +
+        `noemt de AI geen enkele aanbieder; die tellen niet mee in de score.`,
+    );
+  }
+
+  const ownMentionedCount = winnableRunIds.filter((id) => ownByRun.get(id)?.mentioned).length;
+  const score = winnableRuns > 0 ? Math.round((ownMentionedCount / winnableRuns) * 100) : 0;
+
+  // Gewogen zichtbaarheid: Σ gewicht van meetbare runs waarin het merk genoemd
+  // wordt ÷ Σ gewicht van alle meetbare runs.
+  const totalWeight = winnableRunIds.reduce((sum, id) => sum + (weightByRun.get(id) ?? NEUTRAL_WEIGHT), 0);
+  const ownWeight = winnableRunIds.reduce((sum, id) => {
     const own = ownByRun.get(id);
     return sum + (own?.mentioned ? (weightByRun.get(id) ?? NEUTRAL_WEIGHT) : 0);
   }, 0);
   const weightedScore = totalWeight > 0 ? Math.round((ownWeight / totalWeight) * 100) : 0;
 
   // ── Onzekerheid (optimalisatie.md 2.2) ─────────────────────────────────────
-  const stderr = binomialStderr(ownMentionedCount, judgedRuns);
+  // Over de meetbare runs, niet over alle beoordeelde: een kleinere noemer geeft
+  // een bredere band, en dat is de eerlijke weergave van wat we werkelijk weten.
+  const stderr = binomialStderr(ownMentionedCount, winnableRuns);
   const weightedStderr = weightedScoreStderr(
-    judgedRunIds.map((id) => ({
+    winnableRunIds.map((id) => ({
       weight: weightByRun.get(id) ?? NEUTRAL_WEIGHT,
       mentioned: Boolean(ownByRun.get(id)?.mentioned),
     })),
   );
+
+  // Welke vragen leveren structureel niets op? Bepaalt of ze bij een volgende
+  // periode nog gemeten worden (R2.4).
+  await updateBrandEliciting(admin, analysisId);
 
   // ── Aandeel over de ECHTE concurrenten (optimalisatie.md 2.5 / migratie 0026) ─
   // Voorheen: eigen ÷ (eigen + álle concurrentvermeldingen). Die noemer groeide
@@ -428,6 +595,8 @@ export async function computeAggregates(admin: Admin, analysisId: string, weekNo
       week_no: weekNo,
       score,
       weighted_score: weightedScore,
+      winnable_runs: winnableRuns,
+      brandless_runs: brandlessRuns,
       share_of_voice: shareOfVoice,
       judged_runs: judgedRuns,
       score_stderr: stderr,

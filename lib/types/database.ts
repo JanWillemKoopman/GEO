@@ -157,6 +157,13 @@ export interface Prompt {
   volume_band: VolumeBand | null;
   /** 'geschat' door het model, of 'klant' als hij de band zelf bijstelde. */
   volume_source: VolumeSource;
+  /**
+   * Levert deze vraag antwoorden op waarin aanbieders genoemd worden
+   * (implementatieplan.md R2, migratie 0028)? 'nee' pas na twee metingen zonder
+   * enige aanbieder — dan wordt de vraag bij vervolgperiodes overgeslagen, want
+   * elke meting is een betaalde web-zoekactie.
+   */
+  brand_eliciting: "ja" | "nee" | "onbekend" | null;
   created_at: string;
   updated_at: string;
 }
@@ -186,6 +193,13 @@ export interface TrackingRun {
   purpose: TrackingRunPurpose;
   content_piece_id: string | null;
   impact_wave: number | null;
+  /**
+   * Hoeveel verschillende aanbieders dit antwoord bij naam noemde, INCLUSIEF het
+   * eigen merk (implementatieplan.md R2.1, migratie 0028). 0 = de AI noemde er
+   * geen enkele; die meting telt niet mee in de score, want daar viel niets te
+   * winnen. Null = nog niet geteld (meting van vóór R2).
+   */
+  brands_in_answer: number | null;
 }
 
 export type TrackingRunPurpose = "periodic" | "impact" | "control";
@@ -239,6 +253,15 @@ export interface VisibilityScore {
   per_engine_json: unknown | null;
   /** Onzekerheid van de meting (optimalisatie.md 2.2, migratie 0016). */
   judged_runs: number | null; // aantal metingen waarop de score rust
+  /**
+   * Meetbaarheid (implementatieplan.md R2, migratie 0028). `winnable_runs` is de
+   * NOEMER van score/weighted_score: alleen metingen waarin de AI minstens één
+   * aanbieder noemde. `brandless_runs` zijn de metingen waarin er geen enkele
+   * genoemd werd — geen gemiste kans, maar een vraag waar niemand de standaard
+   * is. Samen tellen ze op tot `judged_runs`.
+   */
+  winnable_runs: number | null;
+  brandless_runs: number | null;
   score_stderr: number | null; // standaardfout in procentpunten; 95%-band = ±1,96×
   weighted_stderr: number | null;
   share_basis_count: number | null; // aantal entiteiten in de noemer van het aandeel
