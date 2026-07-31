@@ -49,6 +49,21 @@ export interface FactItem {
    * gezegd dat dit niet zo is (of niet beweerd mag worden).
    */
   allowed: boolean;
+  /**
+   * Mag dit item als BRON voor een bewering dienen? (verificatie 31 juli)
+   *
+   * Niet alles wat we weten is een feit. Een lap sitetekst van 400 tekens of een
+   * samenvatting van het onderwerp-onderzoek is CONTEXT: bruikbaar om over te
+   * schrijven, onbruikbaar om iets mee te bewijzen. Bij de eerste echte
+   * briefingronde verwezen 6 van de 7 beweringen naar hetzelfde blok
+   * ("Wat de site over dit onderwerp zegt: …") — één alibi dat alles dekte, dus
+   * nul vragen aan de klant. Precies het tegenovergestelde van de bedoeling.
+   *
+   * Alleen ATOMAIRE, controleerbare uitspraken zijn citeerbaar: één bewering per
+   * regel, kort genoeg om na te lopen. Die krijgen een F-nummer; de rest komt
+   * onder ACHTERGROND te staan, zonder nummer, expliciet niet als bron.
+   */
+  citable: boolean;
 }
 
 /** Bron-categorie, alleen om de kaart te kunnen sorteren op betrouwbaarheid. */
@@ -73,7 +88,10 @@ export const SOURCE_ORDER: Record<FactSourceKind, number> = {
  * twee feiten met hetzelfde nummer maken die hele traceerbaarheid waardeloos.
  */
 export function numberFacts(items: Omit<FactItem, "ref">[]): FactItem[] {
-  return items.map((item, i) => ({ ...item, ref: `F${i + 1}` }));
+  // Alleen citeerbare items krijgen een nummer. Achtergrond hoort geen F-nummer
+  // te hebben — een nummer is precies de uitnodiging om ernaar te verwijzen.
+  let n = 0;
+  return items.map((item) => ({ ...item, ref: item.citable ? `F${++n}` : "" }));
 }
 
 /** Een feit vóór het nummeren; `kind` bepaalt alleen de volgorde op de kaart. */
@@ -81,6 +99,7 @@ export interface RawFact {
   text: string;
   source: string;
   allowed: boolean;
+  citable: boolean;
   kind: FactSourceKind;
 }
 
@@ -114,11 +133,13 @@ export function factFromAnswer(row: {
       text: ontkennend ? `${vraag}: NEE` : `${vraag}: ja`,
       source: bron,
       allowed: !ontkennend,
+      // Antwoorden van de klant zijn per definitie atomair: één vraag, één feit.
+      citable: true,
       kind: "klant",
     };
   }
 
-  return { text: `${vraag}: ${antwoord}`, source: bron, allowed: true, kind: "klant" };
+  return { text: `${vraag}: ${antwoord}`, source: bron, allowed: true, citable: true, kind: "klant" };
 }
 
 /**
@@ -130,8 +151,9 @@ export function factFromAnswer(row: {
  * een grens. Dat verschil is precies waar het in de Udenhout-run misging.
  */
 export function formatFactCard(facts: FactItem[]): string {
-  const bruikbaar = facts.filter((f) => f.allowed);
+  const bruikbaar = facts.filter((f) => f.allowed && f.citable);
   const verboden = facts.filter((f) => !f.allowed);
+  const achtergrond = facts.filter((f) => f.allowed && !f.citable);
 
   const regels: string[] = [];
 
@@ -163,6 +185,19 @@ export function formatFactCard(facts: FactItem[]): string {
     );
   }
 
+  if (achtergrond.length > 0) {
+    regels.push("");
+    regels.push(
+      "ACHTERGROND — GEEN BRON. Dit is losse sitetekst en onderzoek, bedoeld om de context " +
+        "en de toon te begrijpen. Het heeft met opzet GEEN F-nummer: je mag er geen enkele " +
+        "bewering op baseren. Staat een feit hier wél in maar niet op de kaart hierboven, dan " +
+        "is het niet bevestigd en schrijf je het niet op:",
+    );
+    for (const f of achtergrond) {
+      regels.push(`    ~ ${f.text}   (${f.source})`);
+    }
+  }
+
   regels.push("─".repeat(70));
   regels.push(
     "REGELS BIJ DEZE KAART:\n" +
@@ -192,16 +227,54 @@ export function formatFactCard(facts: FactItem[]): string {
  * Een verwijzing naar een VERBOD telt óók niet als dekking: "pechhulp zit er niet
  * in" onderbouwt de bewering "pechhulp is inbegrepen" niet, het weerlegt hem.
  */
-export function isSupported(sourceRef: string | null | undefined, facts: FactItem[]): boolean {
+export function isSupported(
+  sourceRef: string | null | undefined,
+  facts: FactItem[],
+  /**
+   * Het letterlijke fragment uit dat feit dat de bewering dekt. Meegeven maakt
+   * de controle veel strenger — zie de toelichting hieronder.
+   */
+  supportQuote?: string | null,
+): boolean {
   if (!sourceRef) return false;
   const ref = sourceRef.trim().toUpperCase();
-  return facts.some((f) => f.allowed && f.ref.toUpperCase() === ref);
+  const feit = facts.find((f) => f.allowed && f.citable && f.ref.toUpperCase() === ref);
+  if (!feit) return false;
+  if (supportQuote === undefined) return true;
+
+  // ── DE CITAATPLICHT (verificatie 31 juli) ────────────────────────────────
+  //
+  // Bestaan van het F-nummer bleek niet genoeg. Bij de eerste echte briefing
+  // verwezen 6 van de 7 beweringen naar hetzelfde blok sitetekst: het nummer
+  // bestond, dus alles gold als onderbouwd en er werd geen enkele vraag
+  // gesteld. De code controleerde bestáán, niet dekking.
+  //
+  // Nu moet het model het letterlijke fragment noemen dat de bewering dekt, en
+  // dat fragment moet écht in dat feit staan. Zelfde principe als het
+  // bewijsdossier (R1.1) en de concurrentprofielen (R4.2): wat niet na te
+  // trekken is, mag niet gezegd worden. Een blok tekst aanwijzen kan nog steeds,
+  // maar dan moet de aangewezen zin er ook echt in staan.
+  const quote = (supportQuote ?? "").trim();
+  if (quote.length < 4) return false;
+  return normalizeForQuote(feit.text).includes(normalizeForQuote(quote));
+}
+
+/** Losjes vergelijken: hoofdletters, accenten en witruimte mogen afwijken. */
+function normalizeForQuote(text: string): string {
+  return text
+    .toLowerCase()
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
 }
 
 /** Eén bewering uit de geschreven pagina, met het F-nummer dat hem dekt. */
 export interface WrittenClaim {
   claim: string;
   factRef: string;
+  /** Het letterlijke fragment uit dat feit dat de bewering dekt (citaatplicht). */
+  quote?: string | null;
 }
 
 /**
@@ -231,7 +304,7 @@ export function sourceCoverage(
   const echt = claims.filter((c) => c.claim?.trim());
   if (echt.length === 0) return { coverage: null, unsupported: [] };
 
-  const unsupported = echt.filter((c) => !isSupported(c.factRef, facts));
+  const unsupported = echt.filter((c) => !isSupported(c.factRef, facts, c.quote ?? null));
   const gedekt = echt.length - unsupported.length;
   return { coverage: Math.round((gedekt / echt.length) * 100), unsupported };
 }

@@ -65,6 +65,15 @@ export const AuditedClaim = z.object({
   supported: z.boolean(),
   /** Het F-nummer van de feitenkaart dat dit zou dekken, of null. */
   sourceRef: z.string().nullable(),
+  /**
+   * Het LETTERLIJKE fragment uit dat feit dat de bewering dekt (citaatplicht).
+   *
+   * Zonder deze eis bleek `sourceRef` waardeloos: bij de eerste echte briefing
+   * wezen 6 van de 7 beweringen naar hetzelfde blok sitetekst. Het nummer
+   * bestond, dus alles gold als onderbouwd en er werd geen enkele vraag gesteld.
+   * De code controleert nu of dit fragment écht in dat feit voorkomt.
+   */
+  supportQuote: z.string().nullable(),
   /** kern = zonder dit feit is de pagina waardeloos voor z'n doelvraag. */
   importance: z.enum(["kern", "ondersteunend"]),
   /** De vraag die dit gat dicht. Null als de claim al gedekt is. */

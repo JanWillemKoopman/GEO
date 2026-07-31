@@ -87,7 +87,9 @@ export async function buildFactBase(
   const siteUrl = (profile?.url as string | null) ?? "de eigen site";
   for (const punt of (profile?.proof_points as string[] | null) ?? []) {
     if (!punt?.trim()) continue;
-    rauw.push({ text: punt.trim(), source: `site ${siteUrl}`, allowed: true, kind: "site" });
+    // Proof points zijn wél atomair: het zijn korte, door de klant bevestigde
+    // uitspraken ("wordt met een 9,4 beoordeeld op Zorgkaart"). Citeerbaar dus.
+    rauw.push({ text: punt.trim(), source: `site ${siteUrl}`, allowed: true, citable: true, kind: "site" });
   }
 
   for (const page of pages ?? []) {
@@ -97,6 +99,10 @@ export async function buildFactBase(
       text: `Sitetekst "${(page.title as string | null) ?? page.url}": ${tekst.slice(0, PAGE_EXCERPT_CHARS)}`,
       source: `site ${page.url as string}`,
       allowed: true,
+      // NIET citeerbaar: een lap van 400 tekens is context, geen feit. Zie de
+      // toelichting bij FactItem.citable — dit was precies het alibi waarmee de
+      // eerste briefingronde nul vragen opleverde.
+      citable: false,
       kind: "site",
     });
   }
@@ -107,6 +113,9 @@ export async function buildFactBase(
       text: `Wat de site over dit onderwerp zegt: ${samenvatting}`,
       source: "onderwerp-onderzoek",
       allowed: true,
+      // Idem: een samenvatting is een parafrase van het model, geen bevestigd
+      // feit. 6 van de 7 beweringen wezen bij de eerste ronde hiernaar.
+      citable: false,
       kind: "onderzoek",
     });
   }
@@ -115,10 +124,15 @@ export async function buildFactBase(
   // een eigen blok op de kaart), maar de bruikbare feiten houden zo de lage
   // nummers — en dat zijn de nummers waar de content naar verwijst.
   const gesorteerd = [...rauw].sort(
-    (a, b) => SOURCE_ORDER[a.kind] - SOURCE_ORDER[b.kind] || Number(a.allowed) - Number(b.allowed),
+    (a, b) =>
+      // Citeerbaar eerst, zodat de F-nummers aaneengesloten lopen en de
+      // achtergrond er zichtbaar buiten valt.
+      Number(b.citable) - Number(a.citable) ||
+      SOURCE_ORDER[a.kind] - SOURCE_ORDER[b.kind] ||
+      Number(a.allowed) - Number(b.allowed),
   );
 
   return numberFacts(
-    gesorteerd.map(({ text, source, allowed }) => ({ text, source, allowed })),
+    gesorteerd.map(({ text, source, allowed, citable }) => ({ text, source, allowed, citable })),
   );
 }

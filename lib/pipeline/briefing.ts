@@ -68,9 +68,13 @@ const AUDIT_SYSTEM =
   "HARDE REGELS: " +
   "(1) Verzin GEEN beweringen die je aannemelijk vindt — noem alleen wat de pagina echt nodig heeft. " +
   "(2) Markeer een bewering ALLEEN als gedekt wanneer je een concreet F-nummer kunt noemen dat hem " +
-  "echt dekt. Bij twijfel: niet gedekt. Een vraag te veel stellen kost de klant dertig seconden; " +
-  "een verzonnen feit kost hem zijn geloofwaardigheid. " +
-  "(3) Een feit onder 'MAG JE NIET BEWEREN' dekt niets — het verbiedt juist. " +
+  "echt dekt, EN in supportQuote het letterlijke fragment uit dat feit overneemt dat de bewering " +
+  "dekt. Kun je die zin niet letterlijk aanwijzen, dan is de bewering NIET gedekt — hoe " +
+  "aannemelijk hij ook is. Bij twijfel: niet gedekt. Een vraag te veel stellen kost de klant " +
+  "dertig seconden; een verzonnen feit kost hem zijn geloofwaardigheid. " +
+  "(3) Een feit onder 'MAG JE NIET BEWEREN' dekt niets — het verbiedt juist. Wat onder " +
+  "'ACHTERGROND' staat dekt óók niets: dat is losse sitetekst zonder F-nummer, geen bevestigd " +
+  "feit. Een bewering die je alleen op achtergrond kunt baseren is ONGEDEKT en wordt een vraag. " +
   "(4) Voor elke ONGEDEKTE bewering formuleer je de vraag die het gat dicht. Die vraag moet in " +
   "maximaal 30 seconden te beantwoorden zijn zonder iets op te zoeken, en gaat over ÉÉN feit. " +
   "Niet 'welke voorwaarden en opties biedt u?' maar 'zit pechhulp in het maandbedrag?'. " +
@@ -299,10 +303,10 @@ export async function runBriefing(args: {
   // `supported: true` maar wijst `sourceRef` nergens naar op de kaart, dan is de
   // claim onbewezen — anders verdwijnt juist de vraag die het gat moest dichten.
   const ongedekt = audit.parsed.claims.filter(
-    (c) => !isSupported(c.sourceRef, facts) && Boolean(c.questionIfMissing?.trim()),
+    (c) => !isSupported(c.sourceRef, facts, c.supportQuote) && Boolean(c.questionIfMissing?.trim()),
   );
   const zelfverklaard = audit.parsed.claims.filter(
-    (c) => c.supported && !isSupported(c.sourceRef, facts),
+    (c) => c.supported && !isSupported(c.sourceRef, facts, c.supportQuote),
   ).length;
   if (zelfverklaard > 0) {
     console.log(

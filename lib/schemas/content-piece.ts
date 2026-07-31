@@ -34,6 +34,12 @@ export const ContentPiece = z.object({
     z.object({
       claim: z.string(),
       factRef: z.string(),
+      /**
+       * Het letterlijke fragment uit dat feit dat de bewering dekt. De code
+       * controleert of het er echt in staat — een F-nummer noemen zonder de
+       * dekkende zin te kunnen aanwijzen telt niet als onderbouwing.
+       */
+      quote: z.string(),
     }),
   ),
 });

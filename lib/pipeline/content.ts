@@ -114,7 +114,10 @@ const CONTENT_SYSTEM =
   "FAQ. Een pagina die iets niet noemt is beter dan een pagina die het verzint. Wat onder 'MAG JE " +
   "NIET BEWEREN' staat is een VERBOD. Algemene uitleg over het onderwerp (hoe dit in het algemeen " +
   "werkt) mag wel zonder F-nummer, zolang er geen belofte van deze klant in zit. " +
-  "Lever in het veld `claims` per concrete bewering over de klant het F-nummer dat hem dekt. " +
+  "Lever in het veld `claims` per concrete bewering over de klant het F-nummer dat hem dekt PLUS " +
+  "het letterlijke fragment uit dat feit dat hem dekt (`quote`). Kun je die zin niet letterlijk " +
+  "aanwijzen, dan mag je de bewering niet doen. Wat onder 'ACHTERGROND' staat heeft geen F-nummer " +
+  "en dekt dus niets: dat is losse sitetekst om de context te begrijpen, geen bevestigd feit. " +
   "(3) Schrijf in dezelfde stijl als de meegegeven voorbeeldzinnen van de site. " +
   "REGELS VOOR VINDBAARHEID IN AI-ASSISTENTEN (net zo belangrijk als de rest): " +
   "(4) Beantwoord de DOELVRAAG letterlijk en volledig in de eerste twee zinnen van de pagina, vóór " +
@@ -325,7 +328,7 @@ function buildContentInput(args: {
     `Schrijf de volledige pagina in Markdown (zonder concurrentnamen), plus meta-title (max 60 tekens), ` +
       `meta-description (max 160 tekens), FAQ en schema.org JSON-LD. Noem "${brandName}" expliciet bij naam ` +
       `waar je iets over het bedrijf zegt. Vul daarna \`claims\` met elke concrete bewering die je over ` +
-      `${brandName} hebt gedaan en het F-nummer dat hem dekt.`,
+      `${brandName} hebt gedaan, het F-nummer dat hem dekt, en de letterlijke zin uit dat feit.`,
   ]
     .filter(Boolean)
     .join("\n");
@@ -589,9 +592,9 @@ function pieceFromRow(row: ContentPieceRow): ContentPiece {
     // Bij een hervatte poging staan de beweringen al in de kolom (R5.3). Is de
     // rij van vóór R5.3, dan is dat een lege lijst — geen dekking bekend, wat
     // eerlijker is dan doen alsof alles gedekt was.
-    claims: ((row.claims_json ?? []) as WrittenClaim[]).filter(
-      (c) => typeof c?.claim === "string" && typeof c?.factRef === "string",
-    ),
+    claims: ((row.claims_json ?? []) as WrittenClaim[])
+      .filter((c) => typeof c?.claim === "string" && typeof c?.factRef === "string")
+      .map((c) => ({ claim: c.claim, factRef: c.factRef, quote: c.quote ?? "" })),
   };
 }
 

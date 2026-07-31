@@ -625,11 +625,20 @@ group("Per vraag tellen in plaats van per meting (implementatieplan.md R6.1)", (
 // ════════════════════════════════════════════════════════════════════════════
 group("Feitenkaart (contentbriefing.md §9 / R5.1)", () => {
   const facts = numberFacts([
-    { text: "All-in vanaf €419 per maand", source: "site /acties", allowed: true },
-    { text: "Pechhulp: NEE", source: "klant, bevestigd 29-07", allowed: false },
+    { text: "All-in vanaf €419 per maand", source: "site /acties", allowed: true, citable: true },
+    { text: "Pechhulp: NEE", source: "klant, bevestigd 29-07", allowed: false, citable: true },
+    {
+      text: "Sitetekst: bij ons staat de klant centraal en werken we met een persoonlijke aanpak",
+      source: "site /over-ons",
+      allowed: true,
+      citable: false,
+    },
   ]);
 
   ok("nummering begint bij F1", facts[0].ref === "F1" && facts[1].ref === "F2");
+  // Achtergrond krijgt met opzet GEEN nummer — een nummer is de uitnodiging om
+  // ernaar te verwijzen, en dat was precies het alibi van 31 juli.
+  ok("achtergrond krijgt geen F-nummer", facts[2].ref === "");
 
   const kaart = formatFactCard(facts);
   ok("bruikbaar feit staat op de kaart", kaart.includes("F1") && kaart.includes("€419"));
@@ -641,6 +650,8 @@ group("Feitenkaart (contentbriefing.md §9 / R5.1)", () => {
 
   // Zonder feiten mag er niets concreets beweerd worden — dat moet er expliciet
   // staan, want een leeg blok leest een model als "verzin het zelf maar".
+  ok("achtergrond staat in een eigen blok", kaart.includes("ACHTERGROND — GEEN BRON"));
+
   const leeg = formatFactCard([]);
   ok("lege kaart verbiedt expliciet", leeg.includes("GEEN ENKELE concrete bewering"));
 
@@ -651,6 +662,17 @@ group("Feitenkaart (contentbriefing.md §9 / R5.1)", () => {
   ok("null dekt niet", !isSupported(null, facts));
   // Een verwijzing naar een VERBOD onderbouwt niets; het weerlegt juist.
   ok("verbod dekt niet", !isSupported("F2", facts));
+  ok("achtergrond dekt niet", !isSupported("", facts));
+
+  // ── De citaatplicht (verificatie 31 juli) ────────────────────────────────
+  // Bestaan van het F-nummer was niet genoeg: 6 van de 7 beweringen wezen naar
+  // hetzelfde blok sitetekst, dus gold alles als onderbouwd en werd er geen
+  // enkele vraag gesteld. Nu moet de aangewezen zin er ook echt in staan.
+  ok("citaat dat er staat, dekt", isSupported("F1", facts, "vanaf €419 per maand"));
+  ok("hoofdletters en leestekens mogen afwijken", isSupported("F1", facts, "VANAF 419  PER MAAND"));
+  ok("citaat dat er niet staat, dekt niet", isSupported("F1", facts, "pechhulp inbegrepen") === false);
+  ok("leeg citaat dekt niet", !isSupported("F1", facts, ""));
+  ok("null citaat dekt niet", !isSupported("F1", facts, null));
 
   // Ontdubbelen: dezelfde vraag vanuit drie pagina's wordt één vraag.
   ok(
@@ -665,9 +687,9 @@ group("Feitenkaart (contentbriefing.md §9 / R5.1)", () => {
 // ════════════════════════════════════════════════════════════════════════════
 group("Bronnendekking van geschreven content (contentbriefing.md §9 / R5.3)", () => {
   const facts = numberFacts([
-    { text: "All-in vanaf €419 per maand", source: "site", allowed: true },
-    { text: "4 jaar garantie", source: "klant", allowed: true },
-    { text: "Pechhulp: NEE", source: "klant", allowed: false },
+    { text: "All-in vanaf €419 per maand", source: "site", allowed: true, citable: true },
+    { text: "4 jaar garantie", source: "klant", allowed: true, citable: true },
+    { text: "Pechhulp: NEE", source: "klant", allowed: false, citable: true },
   ]);
 
   // Dit is de maat die geo_score vervangt. Die gaf in de praktijktest voor alle
@@ -675,8 +697,8 @@ group("Bronnendekking van geschreven content (contentbriefing.md §9 / R5.3)", (
   // cijfer dat nooit differentieert meet niets.
   const alles = sourceCoverage(
     [
-      { claim: "Vanaf €419 per maand", factRef: "F1" },
-      { claim: "4 jaar garantie op het werk", factRef: "F2" },
+      { claim: "Vanaf €419 per maand", factRef: "F1", quote: "All-in vanaf €419" },
+      { claim: "4 jaar garantie op het werk", factRef: "F2", quote: "4 jaar garantie" },
     ],
     facts,
   );
@@ -686,8 +708,8 @@ group("Bronnendekking van geschreven content (contentbriefing.md §9 / R5.3)", (
   // De Udenhout-fout: een bewering met een F-nummer dat niet bestaat.
   const verzonnen = sourceCoverage(
     [
-      { claim: "Vanaf €419 per maand", factRef: "F1" },
-      { claim: "Pechhulp is inbegrepen", factRef: "F7" },
+      { claim: "Vanaf €419 per maand", factRef: "F1", quote: "All-in vanaf €419" },
+      { claim: "Pechhulp is inbegrepen", factRef: "F7", quote: "pechhulp" },
     ],
     facts,
   );
@@ -695,14 +717,25 @@ group("Bronnendekking van geschreven content (contentbriefing.md §9 / R5.3)", (
   ok("de onherleidbare bewering wordt teruggegeven", verzonnen.unsupported[0].claim.includes("Pechhulp"));
 
   // Verwijzen naar een VERBOD is geen onderbouwing maar een weerlegging.
-  const verbod = sourceCoverage([{ claim: "Pechhulp is inbegrepen", factRef: "F3" }], facts);
+  const verbod = sourceCoverage(
+    [{ claim: "Pechhulp is inbegrepen", factRef: "F3", quote: "Pechhulp" }],
+    facts,
+  );
   ok("verbod onderbouwt niets", verbod.coverage === 0);
+
+  // Het echte alibi uit de productieronde: een geldig F-nummer noemen bij een
+  // bewering die dat feit niet doet.
+  const alibi = sourceCoverage(
+    [{ claim: "Wij leveren binnen 24 uur", factRef: "F1", quote: "binnen 24 uur" }],
+    facts,
+  );
+  ok("geldig nummer met onvindbaar citaat telt niet", alibi.coverage === 0);
 
   // Geen beweringen is geen perfecte dekking maar een ontbrekend oordeel.
   ok("geen beweringen → null, niet 100", sourceCoverage([], facts).coverage === null);
   ok(
     "lege bewering telt niet mee",
-    sourceCoverage([{ claim: "   ", factRef: "F1" }], facts).coverage === null,
+    sourceCoverage([{ claim: "   ", factRef: "F1", quote: "x" }], facts).coverage === null,
   );
 });
 
