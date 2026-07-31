@@ -1,6 +1,6 @@
 # Status doorontwikkeling — overdracht tussen sessies
 
-**Laatst bijgewerkt:** 31 juli 2026 · **Branch:** `main` (alles is gemerged) · **Tests:** 234 groen
+**Laatst bijgewerkt:** 31 juli 2026 · **Branch:** `main` (alles is gemerged) · **Tests:** 241 groen
 
 Dit document is de brug tussen werksessies. Het beschrijft **wat er af is**, **wat de afspraken
 zijn die tijdens het bouwen zijn ontstaan**, en **wat er nog open staat en in welke volgorde**.
