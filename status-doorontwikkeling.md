@@ -1,6 +1,6 @@
 # Status doorontwikkeling — overdracht tussen sessies
 
-**Laatst bijgewerkt:** 31 juli 2026 · **Branch:** `main` (alles is gemerged) · **Tests:** 250 groen
+**Laatst bijgewerkt:** 31 juli 2026 (na de contentronde) · **Branch:** `main` (alles is gemerged) · **Tests:** 250 groen
 
 Dit document is de brug tussen werksessies. Het beschrijft **wat er af is**, **wat de afspraken
 zijn die tijdens het bouwen zijn ontstaan**, en **wat er nog open staat en in welke volgorde**.
@@ -19,6 +19,7 @@ Deze zijn op 30 en 31 juli in deze volgorde ontstaan. Samen vormen ze de ketting
 | 2 | `kwaliteitsanalyse-5-testcases.md` | de doorlichting | Analyse van 5 echte testanalyses (Bol, Coolblue, HEMA, Van der Valk, Fysi-Unique) tegen de drie klantdoelen. Bevat de 20 verbeterpunten V1–V20. |
 | 3 | `implementatieplan.md` | **het werkdocument** | 27 stappen R0.1 t/m R6.3, met per stap bestanden, migraties en verificatiecriteria. Bevat de voortgangstabel — dát is de bron van waarheid voor wat af is. |
 | 4 | `status-doorontwikkeling.md` | dit document | De brug tussen sessies: wat er af is, welke werkafspraken zijn ontstaan, wat de verificaties op productie hebben uitgewezen, en wat er in welke volgorde nog moet. |
+| 5 | `kwaliteitsanalyse-contentronde.md` | de contentronde van 31 juli | 10 pagina's laten schrijven (5 testcases × 2) door de volledige keten, elke pagina beoordeeld tegen de klantdoelen, en de keten doorgelicht op de vraag welke schakel de contentkwaliteit begrenst. Bevat de zwaarste vondst van het hele traject: klantantwoorden uit de briefing bereiken de schrijver niet (§1.3 van dat document). |
 
 Ouder, maar nog steeds leidend voor de code:
 
@@ -306,38 +307,31 @@ de verificatieronde op gedraaid en daar hangen de cijfers in dit document aan.
 
 ## 5. Wat er nog moet gebeuren, op volgorde
 
-### Eerst: de contentronde — 10 pagina's schrijven en grondig beoordelen (~$2, 1–2 dagen)
+### ✅ De contentronde — 10 pagina's geschreven en grondig beoordeeld
 
-Dit is de volgende afgesproken stap, en hij is groter dan een verificatie. Tot nu toe is elke ronde
-getoetst op de MEETKANT: klopt de score, klopt het bewijs, klopt de vraag. De contentkant is nooit
-op schaal beoordeeld — er bestaan drie gegenereerde pagina's uit de Udenhout-run van 28 juli, en
-daarvan wisten we alleen dat er vijf feiten in verzonnen waren.
+**Uitgevoerd op 31 juli.** Volledige uitwerking, inclusief de vraag-voor-vraag routekeuzes
+(beantwoord met bron vs. bewust overgeslagen) en de bewijsvoering per pagina, staat in
+[`kwaliteitsanalyse-contentronde.md`](./kwaliteitsanalyse-contentronde.md). Samenvatting:
 
-**Wat er gebeurt:** voor elk van de 5 testcases 2 artikelen laten schrijven, dus 10 pagina's, door
-de volledige keten heen — briefing, feitenkaart, schrijven, redactie, herschrijven.
+- **Eén bug onderweg gevonden en direct gerepareerd** (met toestemming rechtstreeks naar `main`):
+  `draftContentPiece()` behandelde een `content_piece` met status `'briefing'` als "al af" en sloeg
+  het schrijven stilzwijgend over. Trof potentieel elke "Schrijf mijn pagina's"-klik sinds R5.2.
+  Commit `671722d`, 250/250 tests, build groen, geverifieerd op productie.
+- **De zwaarste vondst van het hele traject staat er nog wél in**: de antwoorden die een klant in
+  het briefingscherm geeft, bereiken de schrijver niet. `loadContentContext()` bouwt wel een lijst
+  `answeredFacts` uit de actuele `fact_requests`, maar gebruikt hem nergens — de schrijver krijgt
+  uitsluitend de kaart die *vóór* de antwoorden bevroren werd. Concreet bewijs: een door mij met
+  bron bevestigd "nee" op de doelvraag van een Fysi-Unique-pagina werd alsnog als "ja" gepubliceerd.
+  Dit is groter dan een losse bug — het is het gat waarom R5's kernbelofte ("schrijf uitsluitend
+  binnen bevestigde feiten") in de praktijk niet werkt zodra de klant iets *corrigeert of aanvult*.
+- Drie kleinere bevindingen (multi-ref-claims die de citaatplicht ten onrechte laten falen, een
+  versiesprong die een lege spookrij achterlaat, vaste praktisch-slots die niet passen bij een
+  platform/keten) en één structurele (koopgids-content is het verkeerde format voor Bol/Coolblue/
+  HEMA-achtige klanten zonder productfeed) staan uitgewerkt in het document, met een geprioriteerde
+  verbeterlijst (P1 t/m P10, effort/impact/kosten).
 
-**De maatstaf is niet "nul verzonnen feiten".** Dat is de ondergrens en die is met R5.3 afgedekt.
-De echte lat is: *zou een klant die hier €X per maand voor betaalt zeggen dat deze tool zijn
-GEO/contentspecialist grotendeels vervangt?* Een pagina zonder verzinsels die verder nietszeggend
-is, haalt die lat niet.
-
-**Een valkuil die vooraf geregeld moet worden.** De vijf testcases zijn ECHTE bedrijven waarvan wij
-de klant niet zijn (Bol, Coolblue, HEMA, Van der Valk, Fysi-Unique). De briefingvragen kunnen we
-dus niet naar waarheid beantwoorden. Verzonnen antwoorden invullen maakt de hele toets waardeloos —
-dan meten we of het model mooi schrijft op basis van fictie. Twee legitieme routes, en de keuze
-moet per vraag bewust en vastgelegd zijn:
-- **beantwoorden vanuit de publieke website van het bedrijf**, met de bron erbij (dat is precies
-  wat een echte klant ook zou doen: bevestigen wat er al staat);
-- **bewust overslaan**, wat meteen de belangrijkste belofte van R5.3 toetst — vervalt de passage
-  echt, of verzint het model hem alsnog?
-
-Doe beide: enkele cases volledig beantwoord, enkele bewust half. Het verschil tussen die twee
-groepen is zelf een meetresultaat.
-
-**Wat er daarna moet gebeuren** is geen lijstje bugs maar een doorlichting van de HELE keten, van
-stap 1 (de klant maakt een bedrijfsprofiel en een analyse aan) tot de opgeleverde pagina, met de
-vraag welke schakel de contentkwaliteit begrenst. Grote ingrepen zijn expliciet toegestaan; als de
-conclusie is dat de keten in de kern anders moet, dan is dat de conclusie.
+**Nog niet gedaan:** de code voor P1 (de belangrijkste fix) zelf bouwen — dat is bewust een aparte
+beslissing, geen automatisch vervolg van deze doorlichting.
 
 ### Daarna: R7 — de meetbasis stabiliseren (~4 d, nieuw)
 
