@@ -20,7 +20,8 @@ import { Mention } from "@/lib/schemas/mention";
 import { loadEntityIndex, resolveEntity } from "@/lib/entities/resolve";
 import { looksLikeBrandName } from "@/lib/entities/normalize";
 import { domainOf } from "@/lib/offsite/domain";
-import { normalizePosition, averagePosition } from "@/lib/pipeline/position";
+import { normalizePosition, weightedAveragePosition } from "@/lib/pipeline/position";
+import { shareByRun, sumShare, roundQuestions } from "@/lib/pipeline/question-share";
 import { classifyPendingEntities } from "@/lib/pipeline/classify-entities";
 import { binomialStderr, weightedScoreStderr } from "@/lib/stats/uncertainty";
 // Gedeeld met scripts/eval-mention.ts, zodat de test exact de productie-prompt
@@ -89,11 +90,18 @@ export async function measureOnePrompt(
   weekNo: number,
   /** Weglaten voor de gewone (periodieke) meting. */
   impact?: MeasurePurpose,
+  /**
+   * Hoeveelste herhaling van deze vraag binnen deze periode (R6.1). 0 = de
+   * eerste meting. Alleen de zwaarstwegende vragen krijgen herhalingen; de rest
+   * blijft op 0 staan, precies zoals alle metingen van vóór migratie 0031.
+   */
+  repeatIndex = 0,
 ): Promise<void> {
   // De idempotentie-sleutel verschilt per soort meting. Bij een periodieke
-  // meting is (analyse, prompt, periode) genoeg; bij een impactmeting hangt hij
-  // aan de pagina en de golf, want dezelfde prompt kan in dezelfde periode
-  // zowel periodiek als voor twee verschillende pagina's gemeten worden.
+  // meting is (analyse, prompt, periode, herhaling) genoeg; bij een
+  // impactmeting hangt hij aan de pagina en de golf, want dezelfde prompt kan in
+  // dezelfde periode zowel periodiek als voor twee verschillende pagina's
+  // gemeten worden.
   const query = admin
     .from("tracking_runs")
     .select("*")
@@ -106,7 +114,11 @@ export async function measureOnePrompt(
         .eq("impact_wave", impact.wave)
         .eq("purpose", impact.purpose)
         .maybeSingle()
-    : await query.eq("week_no", weekNo).eq("purpose", "periodic").maybeSingle();
+    : await query
+        .eq("week_no", weekNo)
+        .eq("purpose", "periodic")
+        .eq("repeat_index", repeatIndex)
+        .maybeSingle();
 
   let run = existing as TrackingRun | null;
 
@@ -160,6 +172,9 @@ export async function measureOnePrompt(
         model_used: MODELS.quality,
         week_no: weekNo,
         purpose: impact?.purpose ?? "periodic",
+        // Een impactmeting kent geen herhalingen: die gaat over een handvol
+        // vragen rond één pagina en heeft z'n eigen sleutel (pagina + golf).
+        repeat_index: impact ? 0 : repeatIndex,
         content_piece_id: impact?.contentPieceId ?? null,
         impact_wave: impact?.wave ?? null,
         raw_response: a.text,
@@ -295,21 +310,38 @@ export interface VisibilityProfile {
  * De positie wordt alleen gemiddeld over antwoorden waarin het merk daadwerkelijk
  * genoemd is: een niet-genoemd merk heeft geen positie, en die als 0 of als
  * maximum meetellen zou het gemiddelde allebei op een andere manier vervalsen.
+ *
+ * `share` is het aandeel van deze meting binnen z'n vraag (R6.1): 1 bij een
+ * eenmalig gemeten vraag, 1/3 bij een drie keer gemeten vraag. Alle cijfers
+ * hieronder zijn daardoor uitgedrukt in VRAGEN, niet in metingen — "in 4 vragen
+ * geciteerd" blijft 4 vragen, ook als er twaalf metingen onder liggen.
  */
 function profileVisibility(
-  rows: { mentioned: boolean; position: number | null; mention_role?: string | null; cited_sources?: string[] | null }[],
+  rows: {
+    mentioned: boolean;
+    position: number | null;
+    mention_role?: string | null;
+    cited_sources?: string[] | null;
+    share?: number;
+  }[],
   ownDomain: string | null,
 ): VisibilityProfile {
-  const citationCount = ownDomain
-    ? rows.filter((r) =>
-        (r.cited_sources ?? []).some((src) => domainOf(src) === ownDomain),
-      ).length
+  const share = (r: { share?: number }) => r.share ?? 1;
+  const citationTotal = ownDomain
+    ? rows
+        .filter((r) => (r.cited_sources ?? []).some((src) => domainOf(src) === ownDomain))
+        .reduce((sum, r) => sum + share(r), 0)
     : 0;
+  const firstMentionTotal = rows
+    .filter((r) => r.mentioned && r.mention_role === "eerste_aanbeveling")
+    .reduce((sum, r) => sum + share(r), 0);
 
   return {
-    avgPosition: averagePosition(rows.filter((r) => r.mentioned).map((r) => r.position)),
-    citationCount,
-    firstMentionCount: rows.filter((r) => r.mentioned && r.mention_role === "eerste_aanbeveling").length,
+    avgPosition: weightedAveragePosition(
+      rows.filter((r) => r.mentioned).map((r) => ({ position: r.position, weight: share(r) })),
+    ),
+    citationCount: roundQuestions(citationTotal),
+    firstMentionCount: roundQuestions(firstMentionTotal),
   };
 }
 
@@ -447,7 +479,7 @@ async function updateBrandEliciting(admin: Admin, analysisId: string): Promise<v
 export async function computeAggregates(admin: Admin, analysisId: string, weekNo: number): Promise<void> {
   const { data: runsFull } = await admin
     .from("tracking_runs")
-    .select("id, prompt_category_snapshot, prompt_weight")
+    .select("id, prompt_id, prompt_category_snapshot, prompt_weight")
     .eq("analysis_id", analysisId)
     .eq("week_no", weekNo)
     // Impact- en controlemetingen (optimalisatie.md 5.3) horen hier niet bij:
@@ -470,6 +502,9 @@ export async function computeAggregates(admin: Admin, analysisId: string, weekNo
 
   const runIds = runs.map((r) => r.id as string);
   const categoryByRun = new Map(runs.map((r) => [r.id as string, r.prompt_category_snapshot as string]));
+  // Welke vraag hoort bij welke meting — nodig om per VRAAG te kunnen tellen nu
+  // de zwaarste vragen meerdere keren gemeten worden (R6.1).
+  const promptByRun = new Map(runs.map((r) => [r.id as string, (r.prompt_id as string | null) ?? null]));
   // Gewicht per run (volume × waarde), bevroren op meetmoment. Ontbreekt het
   // (oude rij, of handmatige prompt zonder tags), dan het NEUTRALE gewicht —
   // niet de ondergrens, zie NEUTRAL_WEIGHT (optimalisatie.md 0.10).
@@ -560,13 +595,25 @@ export async function computeAggregates(admin: Admin, analysisId: string, weekNo
   // in report.ts). Een run zonder eigen-merk-oordeel betekent dat 3b faalde —
   // dat is onbekend, niet "niet genoemd".
   const judgedRunIds = runIds.filter((id) => ownByRun.has(id));
-  const judgedRuns = judgedRunIds.length;
-  if (judgedRuns < runIds.length) {
+  if (judgedRunIds.length < runIds.length) {
     console.warn(
-      `Analyse ${analysisId} periode ${weekNo}: ${runIds.length - judgedRuns} van ${runIds.length} ` +
+      `Analyse ${analysisId} periode ${weekNo}: ${runIds.length - judgedRunIds.length} van ${runIds.length} ` +
         `metingen zonder eigen-merk-oordeel; die tellen niet mee in de score.`,
     );
   }
+
+  // ── Per VRAAG tellen, niet per meting (R6.1) ───────────────────────────────
+  // De zwaarstwegende vragen worden meerdere keren gemeten. Zonder deze weging
+  // zouden die drie keer zo zwaar meetellen als de rest — het omgekeerde van de
+  // bedoeling. Elke meting weegt 1/(aantal beoordeelde metingen van die vraag),
+  // dus elke vraag weegt precies 1. Zonder herhalingen is elk aandeel 1 en
+  // verandert er getalsmatig niets. Zie lib/pipeline/question-share.ts.
+  const shares = shareByRun(
+    judgedRunIds.map((id) => ({ runId: id, promptId: promptByRun.get(id) ?? null })),
+  );
+  const judgedRuns = roundQuestions(sumShare(judgedRunIds, shares));
+  /** Het aandeel van één meting binnen z'n vraag; 1 voor eenmalig gemeten vragen. */
+  const shareOf = (runId: string) => shares.get(runId) ?? 1;
 
   // ── Meetbaarheid (implementatieplan.md R2) ─────────────────────────────────
   //
@@ -588,8 +635,12 @@ export async function computeAggregates(admin: Admin, analysisId: string, weekNo
   await persistBrandCounts(admin, brandsPerRun);
 
   const winnableRunIds = judgedRunIds.filter((id) => (brandsPerRun.get(id) ?? 0) > 0);
-  const winnableRuns = winnableRunIds.length;
-  const brandlessRuns = judgedRuns - winnableRuns;
+  // Alle tellingen hieronder zijn in VRAGEN, niet in metingen: elke meting weegt
+  // z'n aandeel (1/aantal herhalingen van die vraag). Een vraag die drie keer
+  // gemeten is en twee keer winbaar bleek, telt dus voor 2/3 winbaar.
+  const winnableTotal = sumShare(winnableRunIds, shares);
+  const winnableRuns = roundQuestions(winnableTotal);
+  const brandlessRuns = Math.max(0, judgedRuns - winnableRuns);
   if (brandlessRuns > 0) {
     console.log(
       `Analyse ${analysisId} periode ${weekNo}: bij ${brandlessRuns} van ${judgedRuns} vragen ` +
@@ -597,25 +648,34 @@ export async function computeAggregates(admin: Admin, analysisId: string, weekNo
     );
   }
 
-  const ownMentionedCount = winnableRunIds.filter((id) => ownByRun.get(id)?.mentioned).length;
-  const score = winnableRuns > 0 ? Math.round((ownMentionedCount / winnableRuns) * 100) : 0;
+  const mentionedRunIds = winnableRunIds.filter((id) => ownByRun.get(id)?.mentioned);
+  const ownMentionedTotal = sumShare(mentionedRunIds, shares);
+  const ownMentionedCount = roundQuestions(ownMentionedTotal);
+  // Delen vóór afronden: op de afgeronde hele vragen delen zou bij herhaalde
+  // metingen een score kunnen opleveren die niet bij de onderliggende cijfers past.
+  const score = winnableTotal > 0 ? Math.round((ownMentionedTotal / winnableTotal) * 100) : 0;
 
-  // Gewogen zichtbaarheid: Σ gewicht van meetbare runs waarin het merk genoemd
-  // wordt ÷ Σ gewicht van alle meetbare runs.
-  const totalWeight = winnableRunIds.reduce((sum, id) => sum + (weightByRun.get(id) ?? NEUTRAL_WEIGHT), 0);
-  const ownWeight = winnableRunIds.reduce((sum, id) => {
-    const own = ownByRun.get(id);
-    return sum + (own?.mentioned ? (weightByRun.get(id) ?? NEUTRAL_WEIGHT) : 0);
-  }, 0);
+  // Gewogen zichtbaarheid: Σ gewicht van meetbare vragen waarin het merk genoemd
+  // wordt ÷ Σ gewicht van alle meetbare vragen. Het gewicht van een meting is
+  // z'n vraaggewicht × z'n aandeel, zodat een driemaal gemeten vraag in totaal
+  // z'n eigen gewicht meebrengt en niet drie keer dat gewicht.
+  const effectiveWeight = (id: string) =>
+    (weightByRun.get(id) ?? NEUTRAL_WEIGHT) * (shares.get(id) ?? 1);
+  const totalWeight = winnableRunIds.reduce((sum, id) => sum + effectiveWeight(id), 0);
+  const ownWeight = mentionedRunIds.reduce((sum, id) => sum + effectiveWeight(id), 0);
   const weightedScore = totalWeight > 0 ? Math.round((ownWeight / totalWeight) * 100) : 0;
 
   // ── Onzekerheid (optimalisatie.md 2.2) ─────────────────────────────────────
-  // Over de meetbare runs, niet over alle beoordeelde: een kleinere noemer geeft
-  // een bredere band, en dat is de eerlijke weergave van wat we werkelijk weten.
-  const stderr = binomialStderr(ownMentionedCount, winnableRuns);
+  // Over de meetbare vragen, niet over alle beoordeelde: een kleinere noemer
+  // geeft een bredere band, en dat is de eerlijke weergave van wat we werkelijk
+  // weten. Bewust in VRAGEN en niet in metingen: drie metingen van dezelfde
+  // vraag maken die vraag betrouwbaarder, maar leveren geen derde vraag op. Wie
+  // hier de metingen zou tellen, koopt een smallere band voor geld in plaats van
+  // voor kennis.
+  const stderr = binomialStderr(ownMentionedTotal, winnableTotal);
   const weightedStderr = weightedScoreStderr(
     winnableRunIds.map((id) => ({
-      weight: weightByRun.get(id) ?? NEUTRAL_WEIGHT,
+      weight: effectiveWeight(id),
       mentioned: Boolean(ownByRun.get(id)?.mentioned),
     })),
   );
@@ -631,7 +691,12 @@ export async function computeAggregates(admin: Admin, analysisId: string, weekNo
   // worden is een derde vorm van zichtbaarheid die tot nu toe helemaal niet
   // meetelde — terwijl dát de link is waarop de gebruiker doorklikt.
   const ownProfile = profileVisibility(
-    winnableRunIds.map((id) => ownByRun.get(id)).filter((m): m is (typeof mentions)[number] => Boolean(m)),
+    winnableRunIds
+      .map((id) => {
+        const own = ownByRun.get(id);
+        return own ? { ...own, share: shares.get(id) ?? 1 } : null;
+      })
+      .filter((m): m is (typeof mentions)[number] & { share: number } => Boolean(m)),
     ownDomain,
   );
 
@@ -651,13 +716,17 @@ export async function computeAggregates(admin: Admin, analysisId: string, weekNo
     const entity = entityId ? entityById.get(entityId) : undefined;
     return entity?.entity_role === "concurrent" && !entity.dismissed;
   };
-  const basisMentions = competitorRows.filter((m) => m.mentioned && inBasis(m)).length;
+  // Ook hier per VRAAG (R6.1): een concurrent die in alle drie de metingen van
+  // dezelfde vraag genoemd wordt, wint die ene vraag — niet drie.
+  const basisMentions = competitorRows
+    .filter((m) => m.mentioned && inBasis(m))
+    .reduce((sum, m) => sum + shareOf(m.tracking_run_id as string), 0);
   const basisEntities = new Set(
     competitorRows.filter(inBasis).map((m) => entityByMention.get(m.id as string)),
   );
   const shareOfVoice =
-    ownMentionedCount + basisMentions > 0
-      ? Math.round((ownMentionedCount / (ownMentionedCount + basisMentions)) * 100)
+    ownMentionedTotal + basisMentions > 0
+      ? Math.round((ownMentionedTotal / (ownMentionedTotal + basisMentions)) * 100)
       : null;
 
   await admin.from("visibility_scores").upsert(
@@ -700,7 +769,7 @@ export async function computeAggregates(admin: Admin, analysisId: string, weekNo
   await admin.from("competitor_breakdown").delete().eq("analysis_id", analysisId).eq("week_no", weekNo);
 
   const breakdownRows = Array.from(byEntity.entries()).map(([entityId, ms]) => {
-    const byCategoryCounts: Record<string, number> = {};
+    const byCategoryTotals: Record<string, number> = {};
     const sources = new Set<string>();
     const winningRunIds: string[] = [];
     const losingRunIds: string[] = [];
@@ -708,7 +777,7 @@ export async function computeAggregates(admin: Admin, analysisId: string, weekNo
     for (const m of ms) {
       if (m.mentioned) {
         const cat = categoryByRun.get(m.tracking_run_id) ?? "Onbekend";
-        byCategoryCounts[cat] = (byCategoryCounts[cat] ?? 0) + 1;
+        byCategoryTotals[cat] = (byCategoryTotals[cat] ?? 0) + shareOf(m.tracking_run_id as string);
         for (const s of m.cited_sources ?? []) sources.add(s);
       }
       const own = ownByRun.get(m.tracking_run_id);
@@ -716,23 +785,45 @@ export async function computeAggregates(admin: Admin, analysisId: string, weekNo
       if (!m.mentioned && own && own.mentioned) losingRunIds.push(m.tracking_run_id);
     }
 
+    // Herhaalde metingen van dezelfde vraag leveren meerdere run-ids op. Die
+    // lijsten zijn bewijsmateriaal ("bij welke vragen wint deze concurrent van
+    // jou"), dus hoort elke VRAAG er hooguit één keer in te staan — anders leest
+    // de klant dezelfde vraag drie keer in het rapport (R6.1).
+    const withShare = ms.map((m) => ({ ...m, share: shareOf(m.tracking_run_id as string) }));
+
+    const eersteRunPerVraag = (ids: string[]): string[] => {
+      const gezien = new Set<string>();
+      return ids.filter((id) => {
+        const key = promptByRun.get(id) ?? `run:${id}`;
+        if (gezien.has(key)) return false;
+        gezien.add(key);
+        return true;
+      });
+    };
+
     return {
       analysis_id: analysisId,
       week_no: weekNo,
       // De weergavenaam van de entiteit, niet de toevallige schrijfwijze uit
       // één antwoord — anders heet dezelfde concurrent elke periode anders.
       competitor_name: entityById.get(entityId)?.canonical_name ?? "Onbekend",
-      mentions_count: ms.filter((m) => m.mentioned).length,
-      mentions_by_category_json: byCategoryCounts,
+      mentions_count: roundQuestions(
+        ms
+          .filter((m) => m.mentioned)
+          .reduce((sum, m) => sum + shareOf(m.tracking_run_id as string), 0),
+      ),
+      mentions_by_category_json: Object.fromEntries(
+        Object.entries(byCategoryTotals).map(([cat, total]) => [cat, roundQuestions(total)]),
+      ),
       top_cited_sources: Array.from(sources).slice(0, 5),
-      winning_run_ids: winningRunIds,
-      losing_run_ids: losingRunIds,
+      winning_run_ids: eersteRunPerVraag(winningRunIds),
+      losing_run_ids: eersteRunPerVraag(losingRunIds),
       // Zelfde profiel als voor het eigen merk (R3), anders valt er niets te
       // vergelijken: even vaak genoemd maar structureel later in het antwoord is
       // een heel ander verhaal dan even vaak én even prominent. Het eigen domein
       // is hier niet van toepassing, dus geen citatietelling.
-      avg_position: profileVisibility(ms, null).avgPosition,
-      first_mention_count: profileVisibility(ms, null).firstMentionCount,
+      avg_position: profileVisibility(withShare, null).avgPosition,
+      first_mention_count: profileVisibility(withShare, null).firstMentionCount,
     };
   });
 
@@ -793,6 +884,7 @@ export async function measurePromptById(
   promptId: string,
   weekNo: number,
   impact?: MeasurePurpose,
+  repeatIndex = 0,
 ): Promise<void> {
   const admin = createAdminClient();
   const ctx = await loadMeasureContext(admin, analysisId);
@@ -812,6 +904,7 @@ export async function measurePromptById(
     promptRow as Prompt,
     weekNo,
     impact,
+    repeatIndex,
   );
 }
 
@@ -838,6 +931,11 @@ export async function measurementIsUsable(
       .eq("analysis_id", analysisId)
       .eq("week_no", weekNo)
       .eq("purpose", "periodic")
+      // Alleen de eerste meting per vraag telt hier mee (R6.1). Zonder dit
+      // filter zouden de herhalingen van de zwaarste vragen de teller boven de
+      // noemer duwen, en zou een ronde waarin de helft van de vragen mislukte
+      // alsnog "voldoende gemeten" heten.
+      .eq("repeat_index", 0)
       .not("mention_json", "is", null),
   ]);
 

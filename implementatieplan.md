@@ -58,8 +58,9 @@ de volgorde van dit plan — een migratienummer moet de toepassingsvolgorde volg
 | `0028` | R2 | Meetbaarheid (`brands_in_answer`, `brand_eliciting`, score-splitsing) | ✅ toegepast |
 | `0029` | R3 | Zichtbaarheidsprofiel (`mention_role`, positie, citaties) | ✅ toegepast |
 | `0030` | R4 | Concurrent-intelligence (`attributes_json`, `why_summary`) | ✅ toegepast |
-| `0031` | R0 | Promptgeneratie-telemetrie, `profiles.business_model` | gereserveerd |
-| `0032` | R6 | Herhaalmeting + inventariskwaliteit | gereserveerd |
+| `0031` | R6.1 | Gelaagd hermeten (`tracking_runs.repeat_index`) | ✅ toegepast |
+| `0032` | R0 | Promptgeneratie-telemetrie, `profiles.business_model` | gereserveerd |
+| `0033` | R6.2 | Inventariskwaliteit (`profiles.inventory_quality_json`) | gereserveerd |
 
 R5 heeft geen nieuwe migratie nodig — die draait op het schema uit `0024`, dat al is toegepast.
 
@@ -109,7 +110,7 @@ R5 heeft geen nieuwe migratie nodig — die draait op het schema uit `0024`, dat
 | R5.1 | Feitenindex + claim-audit | 3 d | ☐ |
 | R5.2 | Briefingscherm | 3 d | ☐ |
 | R5.3 | Schrijfcontract | 2,5 d | ☐ |
-| R6.1 | Gelaagd hermeten | 2 d | ☐ |
+| R6.1 | Gelaagd hermeten | 2 d | ✅ |
 | R6.2 | Inventariskwaliteitspoort | 2 d | ☐ |
 | R6.3 | Brontype als signaal | 1,5 d | ☐ |
 
@@ -999,41 +1000,82 @@ bewering handmatig tegen `claims_json` — dezelfde methode als de audit in `con
 
 ## R6 — Betrouwbaarheid en grondstofbewaking
 
-### R6.1 — Gelaagd hermeten
+### R6.1 — Gelaagd hermeten ✅
 
 **Probleem** (§5, kwaliteitsanalyse): elke vraag wordt één keer gemeten; de 95%-marge is bij 30
 vragen ongeveer ±18 punten. Een verschil tussen twee periodes is dus meestal ruis.
 
-**Migratie `0031`:**
+De verificatieronde van 30 juli maakte dat concreet: dezelfde analyse (Fysi-Unique), dezelfde
+dertig vragen, twee periodes achter elkaar, niets veranderd aan de site of de markt —
+
+| | meetbare vragen | score |
+|---|---|---|
+| periode 0 | 17 | 18 |
+| periode 1 | 11 | 36 |
+
+Niet alleen de score verdubbelde, ook de nóémer bewoog. Dat is de directe aanleiding waarom deze
+stap vóór R5 is opgeleverd in plaats van als laatste ronde.
+
+**Migratie `0031`** — ✅ toegepast op productie:
 ```sql
 alter table public.tracking_runs
   add column if not exists repeat_index integer not null default 0;
+create index if not exists tracking_runs_repeat_idx
+  on public.tracking_runs (analysis_id, prompt_id, week_no, purpose, repeat_index);
 ```
-De bestaande unieke sleutel (analyse, prompt, periode, purpose) moet `repeat_index` mee gaan
-nemen — **let op: dit raakt de idempotentie van `measureOnePrompt`**, dus zorgvuldig aanpassen.
+Er bleek géén unieke sleutel op periodieke metingen te bestaan (alleen `tracking_runs_impact_unique_idx`
+voor impactmetingen); de idempotentie zit in `measureOnePrompt` zelf via een `.maybeSingle()`-lookup.
+Die lookup filtert nu ook op `repeat_index`, en de index hierboven houdt dat een indexscan.
 
-**Bestanden:** `lib/jobs/queue.ts`, `lib/pipeline/measure.ts`, `lib/stats/uncertainty.ts`.
+**Bestanden:** `lib/config.ts`, `lib/jobs/types.ts`, `lib/jobs/queue.ts`, `lib/jobs/handlers.ts`,
+`lib/pipeline/measure.ts`, `lib/pipeline/report.ts`, `lib/pipeline/position.ts`,
+**nieuw** `lib/pipeline/question-share.ts`.
 
-**Implementatie**
+**Wat er gebouwd is**
 
-1. De 8 zwaarstwegende vragen per analyse worden 3× gemeten, de rest 1×.
-2. Aggregatie middelt per vraag vóór het optellen — anders wegen herhaalde vragen zwaarder.
-3. `score_stderr` houdt rekening met de herhalingen.
+1. `enqueueMeasurement` sorteert de actieve vragen op gewicht en plant de zwaarste
+   `repeatedPromptCount` (standaard 8) `measureRepeats` keer (standaard 3), de rest één keer.
+   Bij gelijk gewicht beslist het id, zodat elke periode dezelfde vragen herhaalt — anders
+   verschuift de nauwkeurigheid per periode en creëer je precies de ruis die je wilde wegnemen.
+2. `repeatIndex` loopt door de taakpayload, de handler en `measurePromptById` naar
+   `measureOnePrompt`, waar hij zowel in de idempotentiecontrole als in de insert zit. Een
+   impactmeting krijgt altijd 0: die heeft z'n eigen sleutel (pagina + golf).
+3. **Alle aggregatie telt per VRAAG, niet per meting.** Eén regel, overal toegepast: een meting
+   weegt `1 / (aantal beoordeelde metingen van die vraag)`. Zie `lib/pipeline/question-share.ts`.
+   Dat raakt `score`, `weighted_score`, `winnable_runs`, `brandless_runs`, `judged_runs`,
+   `share_of_voice`, `avg_position`, `citation_count`, `first_mention_count` en de hele
+   `competitor_breakdown`. Zonder herhalingen is elk aandeel 1 en komt er getalsmatig exact
+   hetzelfde uit als vóór R6.1 — bewust, zodat historische scores vergelijkbaar blijven.
+4. `score_stderr` rekent in vragen, niet in metingen. Drie metingen van dezelfde vraag maken die
+   vraag betrouwbaarder maar leveren geen derde vraag op; wie hier metingen telt, koopt een
+   smallere band voor geld in plaats van voor kennis.
+5. De lijst gemiste kansen (`computeMissedPrompts`) geeft één regel per vraag. Een vraag telt als
+   gemist wanneer het merk in de **meerderheid** van z'n metingen ontbrak — word je twee van de
+   drie keer wél genoemd, dan is dat wisselvalligheid en geen reden om er een pagina voor te
+   schrijven. De representatieve meting is er altijd één waarin het merk écht ontbrak, want daar
+   hangt het bewijsdossier uit R1.1 aan.
+6. `measurementIsUsable` telt alleen `repeat_index = 0`; anders zouden de herhalingen de teller
+   boven de noemer duwen en zou een half mislukte ronde alsnog "voldoende gemeten" heten.
+
+**Instelbaar** in `lib/config.ts`: `measureRepeats` (env `MEASURE_REPEATS`, standaard 3) en
+`repeatedPromptCount` (env `REPEATED_PROMPT_COUNT`, standaard 8). Op 1 of 0 zetten schakelt de
+hele laag uit zonder codewijziging.
 
 **Kosten:** +16 metingen per periode ≈ **+$0,41**, deels gecompenseerd door R2.4 (−$0,18).
-Maak het aantal herhalingen configureerbaar in `lib/config.ts` zodat het per omgeving te temperen
-is.
 
-**Verificatie:** meet Fysi-Unique's top-8 driemaal (~$0,42) en bepaal de spreiding. Dat getal is
-tegelijk het antwoord op de vraag hoe betrouwbaar de huidige eenmalige meting is — waardevolle
-kennis, los van deze stap.
+**Tests:** 205 groen, waarvan 14 nieuw voor `shareByRun`/`sumShare`/`roundQuestions` en de
+gewogen positieberekening.
+
+**Nog te doen:** de spreiding daadwerkelijk meten. Eén periode met herhalingen draaien op
+Fysi-Unique (~$1,06) geeft per herhaalde vraag hoe vaak het antwoord omslaat — het cijfer dat
+zegt hoe betrouwbaar de eenmalige meting al die tijd was.
 
 ### R6.2 — Inventariskwaliteitspoort
 
 **Probleem** (§3.4): Bol had 1 pagina in de inventaris, HEMA 40 productpagina's. In beide
 gevallen degradeert het rapport zonder foutmelding.
 
-**Migratie `0031`** (zelfde bestand):
+**Migratie `0033`:**
 ```sql
 alter table public.profiles
   add column if not exists inventory_quality_json jsonb;

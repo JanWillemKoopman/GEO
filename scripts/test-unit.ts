@@ -37,7 +37,8 @@ import { countOpenPeriodicMeasurements } from "@/lib/jobs/pending";
 import { formatEvidenceDossier, excerpt } from "@/lib/pipeline/evidence-format";
 import type { EvidenceEntry } from "@/lib/pipeline/evidence-format";
 import { stripUnsupportedClaims, validateField, NEUTRAL_FALLBACK } from "@/lib/pipeline/validate-claims";
-import { normalizePosition, averagePosition } from "@/lib/pipeline/position";
+import { normalizePosition, averagePosition, weightedAveragePosition } from "@/lib/pipeline/position";
+import { shareByRun, sumShare, roundQuestions } from "@/lib/pipeline/question-share";
 
 let passed = 0;
 let failed = 0;
@@ -531,6 +532,85 @@ group("Positie van een vermelding (implementatieplan.md R3.2)", () => {
   ok("alles onbruikbaar → null", averagePosition([0, -1, null]) === null);
   ok("leeg → null", averagePosition([]) === null);
   ok("afgerond op één decimaal", averagePosition([1, 2, 2]) === 1.7);
+
+  // Gewogen variant (R6.1): een drie keer gemeten vraag mag niet drie plekken
+  // van het gemiddelde bepalen.
+  ok(
+    "gewicht 1 gedraagt zich als het ongewogen gemiddelde",
+    weightedAveragePosition([
+      { position: 1, weight: 1 },
+      { position: 3, weight: 1 },
+    ]) === 2,
+  );
+  ok(
+    "een drie keer gemeten vraag telt als één vraag",
+    // Vraag A drie keer op positie 4 (elk 1/3), vraag B één keer op 1.
+    // Per vraag: (4 + 1) / 2 = 2,5. Per meting zou het 3,25 zijn geweest.
+    weightedAveragePosition([
+      { position: 4, weight: 1 / 3 },
+      { position: 4, weight: 1 / 3 },
+      { position: 4, weight: 1 / 3 },
+      { position: 1, weight: 1 },
+    ]) === 2.5,
+  );
+  ok(
+    "onbruikbare positie telt niet mee, ook niet met gewicht",
+    weightedAveragePosition([
+      { position: 0, weight: 5 },
+      { position: 2, weight: 1 },
+    ]) === 2,
+  );
+  ok("gewicht 0 telt niet mee", weightedAveragePosition([{ position: 3, weight: 0 }]) === null);
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+group("Per vraag tellen in plaats van per meting (implementatieplan.md R6.1)", () => {
+  // De aanleiding staat in migratie 0031: dezelfde analyse leverde in twee
+  // opeenvolgende periodes 17 vs 11 meetbare vragen en score 18 vs 36 op, zonder
+  // dat er iets veranderd was. De zwaarste vragen worden daarom meerdere keren
+  // gemeten — maar dan moeten ze niet ook zwaarder gaan MEEtellen.
+  const shares = shareByRun([
+    { runId: "a1", promptId: "A" },
+    { runId: "a2", promptId: "A" },
+    { runId: "a3", promptId: "A" },
+    { runId: "b1", promptId: "B" },
+  ]);
+  ok("drie metingen van dezelfde vraag wegen elk 1/3", shares.get("a1") === 1 / 3);
+  ok("een eenmalig gemeten vraag weegt 1", shares.get("b1") === 1);
+  ok("de aandelen tellen op tot het aantal VRAGEN", sumShare(["a1", "a2", "a3", "b1"], shares) === 2);
+
+  // Twee van de drie metingen van vraag A leverden een vermelding op: 2/3 vraag.
+  ok("deelresultaat telt fractioneel mee", Math.abs(sumShare(["a1", "a2"], shares) - 2 / 3) < 1e-9);
+
+  // Faalt de beoordeling van één herhaling, dan wegen de overgebleven twee elk
+  // 1/2 — de vraag blijft in totaal 1 wegen in plaats van te verdampen.
+  const naUitval = shareByRun([
+    { runId: "a1", promptId: "A" },
+    { runId: "a2", promptId: "A" },
+  ]);
+  ok("uitval verandert de deler, niet het totaal", sumShare(["a1", "a2"], naUitval) === 1);
+
+  // Zonder herhalingen komt er exact hetzelfde uit als vóór R6.1 — bewust, zodat
+  // historische scores vergelijkbaar blijven met de nieuwe.
+  const zonderHerhaling = shareByRun([
+    { runId: "x", promptId: "X" },
+    { runId: "y", promptId: "Y" },
+  ]);
+  ok("zonder herhalingen weegt alles 1", sumShare(["x", "y"], zonderHerhaling) === 2);
+
+  // Een meting waarvan de vraag verwijderd is staat op zichzelf; twee van die
+  // metingen mogen niet als herhalingen van elkaar gaan gelden.
+  const zonderVraag = shareByRun([
+    { runId: "p", promptId: null },
+    { runId: "q", promptId: null },
+  ]);
+  ok("verweesde metingen wegen elk 1", sumShare(["p", "q"], zonderVraag) === 2);
+
+  // De kolommen in de database zijn hele vragen; "2,67 vragen" zegt een klant niets.
+  ok("afronden op hele vragen", roundQuestions(2.67) === 3);
+  ok("nul blijft nul", roundQuestions(0) === 0);
+  // Maar nooit naar 0: "0 keer geciteerd" is een ander bericht dan "zelden".
+  ok("iets is nooit nul", roundQuestions(1 / 3) === 1);
 });
 
 // ════════════════════════════════════════════════════════════════════════════

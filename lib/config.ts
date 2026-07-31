@@ -142,3 +142,33 @@ export const contentWebSearchEnabled =
  * met minder heeft de schrijver letterlijk niets concreets om op te staan.
  */
 export const minProofPointsForConcreteContent = 3;
+
+/**
+ * Gelaagd hermeten (implementatieplan.md R6.1).
+ *
+ * ── WAAROM ──────────────────────────────────────────────────────────────────
+ *
+ * Bij de verificatieronde van 30 juli bleek hoe onbetrouwbaar één meting per
+ * vraag is. Dezelfde analyse, dezelfde dertig vragen, twee periodes:
+ *
+ *            meetbare vragen   score
+ *   periode 0       17           18
+ *   periode 1       11           36
+ *
+ * Er was in de tussentijd niets veranderd. Zowel de score als de NOEMER bewoog,
+ * en toch toont de app daar een trendlijn op.
+ *
+ * ── WAAROM NIET ALLES VAKER ─────────────────────────────────────────────────
+ *
+ * De meting is 95% van de kosten ($0,78 van $0,82 per ronde). Alles drie keer
+ * meten verdrievoudigt de rekening voor precisie die je vooral nodig hebt waar
+ * het geld zit. Vandaar: de zwaarstwegende vragen vaker, de rest één keer.
+ *
+ * Standaard 8 × 3 = +16 metingen per ronde ≈ +$0,41, deels gecompenseerd door
+ * de besparing uit R2.4 (structureel merkloze vragen overslaan, −$0,23 bij
+ * Fysi-Unique). Zet `MEASURE_REPEATS=1` om het uit te zetten.
+ */
+export const measureRepeats = Math.max(1, Number(process.env.MEASURE_REPEATS ?? 3));
+
+/** Hoeveel van de zwaarstwegende vragen die herhalingen krijgen. */
+export const repeatedPromptCount = Math.max(0, Number(process.env.REPEATED_PROMPT_COUNT ?? 8));

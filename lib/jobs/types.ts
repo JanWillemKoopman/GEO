@@ -70,6 +70,13 @@ export interface JobPayloads {
     promptId: string;
     weekNo: number;
     /**
+     * Hoeveelste herhaling van deze vraag binnen deze periode (R6.1, migratie
+     * 0031). Afwezig of 0 = de eerste meting. Alleen de zwaarstwegende vragen
+     * krijgen herhalingen; de aggregatie rekent per VRAAG zodat die vragen niet
+     * zwaarder gaan meetellen dan de rest.
+     */
+    repeatIndex?: number;
+    /**
      * Alleen bij een hermeting ná publicatie (optimalisatie.md 5.3). Zonder dit
      * veld is het een gewone periodieke meting.
      */

@@ -11,6 +11,9 @@ import "server-only";
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { type JobType, type JobPayloads } from "@/lib/jobs/types";
+import { promptWeight } from "@/lib/pipeline/prompt-weight";
+import { volumeBandOf } from "@/lib/pipeline/volume";
+import { measureRepeats, repeatedPromptCount } from "@/lib/config";
 
 type Admin = SupabaseClient;
 
@@ -75,8 +78,14 @@ export const dedupe = {
   prepareAnalysis: (analysisId: string) => `prepare:${analysisId}`,
   generatePrompts: (analysisId: string) => `prompts:${analysisId}`,
   calibrateVolumes: (analysisId: string) => `volumes:${analysisId}`,
-  measurePrompt: (analysisId: string, promptId: string, weekNo: number) =>
-    `measure:${analysisId}:${promptId}:w${weekNo}`,
+  // De herhalingsindex hoort in de sleutel (R6.1): drie metingen van dezelfde
+  // vraag in dezelfde periode zijn drie verschillende taken, geen duplicaat.
+  // Index 0 houdt bewust de OUDE sleutelvorm, zodat taken die al in de wachtrij
+  // stonden bij het uitrollen van R6.1 niet ineens als nieuw werk gelden.
+  measurePrompt: (analysisId: string, promptId: string, weekNo: number, repeat = 0) =>
+    repeat === 0
+      ? `measure:${analysisId}:${promptId}:w${weekNo}`
+      : `measure:${analysisId}:${promptId}:w${weekNo}:r${repeat}`,
   aggregateWeek: (analysisId: string, weekNo: number) => `aggregate:${analysisId}:w${weekNo}`,
   competitorIntel: (analysisId: string, weekNo: number) => `compintel:${analysisId}:w${weekNo}`,
   generateReport: (analysisId: string, weekNo: number) => `report:${analysisId}:w${weekNo}`,
@@ -126,7 +135,7 @@ export async function enqueueMeasurement(
 ): Promise<{ planned: number; totalPrompts: number }> {
   const { data: prompts } = await admin
     .from("prompts")
-    .select("id, brand_eliciting")
+    .select("id, brand_eliciting, volume_band, volume_estimate, intent_type")
     .eq("analysis_id", analysisId)
     .eq("active", true);
 
@@ -153,18 +162,47 @@ export async function enqueueMeasurement(
   }
   if (list.length === 0) return { planned: 0, totalPrompts: all.length };
 
+  // ── Gelaagd hermeten (implementatieplan.md R6.1) ──────────────────────────
+  //
+  // Eén meting per vraag bleek te onbetrouwbaar: dezelfde analyse leverde twee
+  // periodes achter elkaar 17 en 11 meetbare vragen op, met scores 18 en 36,
+  // zonder dat er iets veranderd was. Alles vaker meten kan niet — de meting is
+  // 95% van de kosten — dus meten we de ZWAARSTWEGENDE vragen vaker en de rest
+  // één keer. Precisie waar het geld zit.
+  const gewicht = (p: (typeof list)[number]) =>
+    promptWeight(volumeBandOf(p), p.intent_type as string | null);
+
+  const teHerhalen = new Set(
+    [...list]
+      // Gelijk gewicht? Dan op id, zodat elke periode dezelfde vragen herhaalt.
+      // Zonder die vaste volgorde bepaalt de toevallige rijvolgorde uit Postgres
+      // wie er herhaald wordt, en dan verandert de nauwkeurigheid van een vraag
+      // van periode tot periode — precies de ruis die R6.1 moet wegnemen.
+      .sort((a, b) => gewicht(b) - gewicht(a) || (a.id as string).localeCompare(b.id as string))
+      .slice(0, repeatedPromptCount)
+      .map((p) => p.id as string),
+  );
+
+  // Elke te plannen meting als (vraag, hoeveelste keer).
+  const gepland = list.flatMap((p) => {
+    const keren = teHerhalen.has(p.id as string) ? measureRepeats : 1;
+    return Array.from({ length: keren }, (_, r) => ({ promptId: p.id as string, repeat: r }));
+  });
+
   // Al gemeten? Dan niet opnieuw plannen — meten is de duurste stap die er is
   // (de web-zoekactie is ~94% van de meetkosten). Eén query voor alle prompts
   // tegelijk in plaats van één query per prompt.
   const { data: measuredRows } = await admin
     .from("tracking_runs")
-    .select("prompt_id")
+    .select("prompt_id, repeat_index")
     .eq("analysis_id", analysisId)
     .eq("week_no", weekNo)
     .not("mention_json", "is", null);
 
-  const alreadyMeasured = new Set((measuredRows ?? []).map((r) => r.prompt_id as string));
-  const candidates = list.filter((p) => !alreadyMeasured.has(p.id as string));
+  const alreadyMeasured = new Set(
+    (measuredRows ?? []).map((r) => `${r.prompt_id as string}:${(r.repeat_index as number) ?? 0}`),
+  );
+  const candidates = gepland.filter((g) => !alreadyMeasured.has(`${g.promptId}:${g.repeat}`));
   if (candidates.length === 0) return { planned: 0, totalPrompts: list.length };
 
   // Openstaand werk (van een eerdere, deels mislukte poging) er ook in één
@@ -173,7 +211,9 @@ export async function enqueueMeasurement(
   // index is PARTIEEL, dus `.upsert(..., { onConflict })` kan hem niet als
   // ON CONFLICT-doel gebruiken (Postgres eist dezelfde WHERE-clausule); dit
   // filtert vooraf i.p.v. op de index te vertrouwen.
-  const candidateKeys = candidates.map((p) => dedupe.measurePrompt(analysisId, p.id as string, weekNo));
+  const candidateKeys = candidates.map((c) =>
+    dedupe.measurePrompt(analysisId, c.promptId, weekNo, c.repeat),
+  );
   const { data: openRows } = await admin
     .from("jobs")
     .select("dedupe_key")
@@ -182,13 +222,14 @@ export async function enqueueMeasurement(
 
   const alreadyQueued = new Set((openRows ?? []).map((r) => r.dedupe_key as string));
   const rows = candidates
-    .filter((p) => !alreadyQueued.has(dedupe.measurePrompt(analysisId, p.id as string, weekNo)))
-    .map((p) => ({
-      promptId: p.id as string,
+    .filter((c) => !alreadyQueued.has(dedupe.measurePrompt(analysisId, c.promptId, weekNo, c.repeat)))
+    .map((c) => ({
+      promptId: c.promptId,
+      repeat: c.repeat,
       type: "measure_prompt" as const,
-      payload_json: { promptId: p.id as string, weekNo } as never,
+      payload_json: { promptId: c.promptId, weekNo, repeatIndex: c.repeat } as never,
       analysis_id: analysisId,
-      dedupe_key: dedupe.measurePrompt(analysisId, p.id as string, weekNo),
+      dedupe_key: dedupe.measurePrompt(analysisId, c.promptId, weekNo, c.repeat),
       status: "queued" as const,
       scheduled_for: new Date().toISOString(),
     }));
@@ -203,7 +244,7 @@ export async function enqueueMeasurement(
   // per-rij-veilige weg voor precies dat restant.
   const { data: inserted, error } = await admin
     .from("jobs")
-    .insert(rows.map(({ promptId: _promptId, ...row }) => row))
+    .insert(rows.map(({ promptId: _promptId, repeat: _repeat, ...row }) => row))
     .select("id");
   if (!error) return { planned: (inserted ?? []).length, totalPrompts: list.length };
   if (error.code !== UNIQUE_VIOLATION) throw new Error(`Meting inplannen mislukt: ${error.message}`);
@@ -212,7 +253,7 @@ export async function enqueueMeasurement(
   for (const row of rows) {
     const { created } = await enqueue(admin, {
       type: "measure_prompt",
-      payload: { promptId: row.promptId, weekNo },
+      payload: { promptId: row.promptId, weekNo, repeatIndex: row.repeat },
       analysisId,
       dedupeKey: row.dedupe_key,
     });

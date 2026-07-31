@@ -176,7 +176,13 @@ const handlers: { [T in JobType]: Handler<T> } = {
   // ── Eén vraag meten (3a + 3b) ─────────────────────────────────────────────
   measure_prompt: async ({ admin, job }, payload) => {
     if (!job.analysis_id) throw new Error("measure_prompt zonder analysis_id.");
-    await measurePromptById(job.analysis_id, payload.promptId, payload.weekNo, payload.impact);
+    await measurePromptById(
+      job.analysis_id,
+      payload.promptId,
+      payload.weekNo,
+      payload.impact,
+      payload.repeatIndex ?? 0,
+    );
 
     // Een hermeting ná publicatie (optimalisatie.md 5.3) hoort bij een pagina,
     // niet bij een periode: hij ketent naar de effectberekening en NIET naar de

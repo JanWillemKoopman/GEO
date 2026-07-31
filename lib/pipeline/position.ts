@@ -39,7 +39,27 @@ export function normalizePosition(position: number | null | undefined): number |
  * allebei op een andere manier vervalsen.
  */
 export function averagePosition(positions: (number | null | undefined)[]): number | null {
-  const geldig = positions.map(normalizePosition).filter((p): p is number => p !== null);
+  return weightedAveragePosition(positions.map((position) => ({ position, weight: 1 })));
+}
+
+/**
+ * Hetzelfde gemiddelde, maar met een gewicht per meting (R6.1).
+ *
+ * Nodig omdat de zwaarstwegende vragen sinds R6.1 meerdere keren gemeten worden.
+ * Zou elke meting even zwaar tellen, dan bepaalde zo'n vraag in z'n eentje drie
+ * plekken van het gemiddelde. Met gewicht 1/herhalingen telt elke VRAAG één keer
+ * mee, en is de bijdrage van een herhaalde vraag z'n eigen gemiddelde positie.
+ */
+export function weightedAveragePosition(
+  metingen: { position: number | null | undefined; weight: number }[],
+): number | null {
+  const geldig = metingen
+    .map((m) => ({ position: normalizePosition(m.position), weight: m.weight }))
+    .filter((m): m is { position: number; weight: number } => m.position !== null && m.weight > 0);
   if (geldig.length === 0) return null;
-  return Math.round((geldig.reduce((a, b) => a + b, 0) / geldig.length) * 10) / 10;
+
+  const totaalGewicht = geldig.reduce((sum, m) => sum + m.weight, 0);
+  if (totaalGewicht <= 0) return null;
+  const som = geldig.reduce((sum, m) => sum + m.position * m.weight, 0);
+  return Math.round((som / totaalGewicht) * 10) / 10;
 }

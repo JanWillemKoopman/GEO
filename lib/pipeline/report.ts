@@ -294,9 +294,44 @@ async function computeMissedPrompts(
     .eq("analysis_id", analysisId);
   const tagByPrompt = new Map((tagRows ?? []).map((p) => [p.id as string, p]));
 
+  // ── Eén regel per VRAAG, niet per meting (implementatieplan.md R6.1) ───────
+  //
+  // De zwaarstwegende vragen worden meerdere keren gemeten. Zonder deze stap zou
+  // dezelfde vraag tot drie keer in de lijst gemiste kansen staan, en met de cap
+  // van MISSED_CAP zouden die duplicaten de plek innemen van vragen die er nog
+  // niet in staan. Erger: contentaanbevelingen zouden zich op één vraag stapelen.
+  //
+  // De regel: een vraag is een gemiste kans als het merk in de MEERDERHEID van
+  // z'n beoordeelde metingen ontbrak. Word je bij dezelfde vraag twee van de
+  // drie keer wél genoemd, dan is dat geen gemiste kans maar een wisselvallige
+  // — een ander probleem, en geen reden om er een pagina voor te schrijven.
+  const perVraag = new Map<string, { beoordeeld: number; gemist: number; eersteGemisteRun: string }>();
+  for (const r of runs) {
+    const oordeel = ownMentioned.get(r.id as string);
+    if (oordeel === undefined) continue;
+    const key = (r.prompt_id as string | null) ?? `run:${r.id as string}`;
+    const entry = perVraag.get(key) ?? { beoordeeld: 0, gemist: 0, eersteGemisteRun: "" };
+    entry.beoordeeld++;
+    if (oordeel === false) {
+      entry.gemist++;
+      if (!entry.eersteGemisteRun) entry.eersteGemisteRun = r.id as string;
+    }
+    perVraag.set(key, entry);
+  }
+
+  // De representatieve meting per gemiste vraag: eentje waarin het merk écht
+  // ontbrak, want daar hangt het bewijsdossier aan (R1.1). Een meting waarin het
+  // merk wél genoemd werd als bewijs van een gemiste kans opvoeren zou precies
+  // de fabricage zijn die R1 uitbant.
+  const gemisteRunIds = new Set<string>();
+  for (const entry of perVraag.values()) {
+    if (entry.gemist * 2 > entry.beoordeeld) gemisteRunIds.add(entry.eersteGemisteRun);
+  }
+
   return runs
-    // Alleen expliciet beoordeeld-en-niet-genoemd telt als gemiste kans.
-    .filter((r) => ownMentioned.get(r.id as string) === false)
+    // Alleen expliciet beoordeeld-en-niet-genoemd telt als gemiste kans, en per
+    // vraag hooguit één keer.
+    .filter((r) => gemisteRunIds.has(r.id as string))
     .map((r) => {
       const tag = r.prompt_id ? tagByPrompt.get(r.prompt_id as string) : undefined;
       return {
