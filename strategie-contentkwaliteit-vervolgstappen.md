@@ -24,20 +24,23 @@
 >
 > ---
 >
-> **STAND VAN ZAKEN — S1, S2, S3 en S4 zijn later op 31 juli gebouwd**, bovenop het R8-werk uit
-> commit `f85ff5f` en daarmee geïntegreerd. Geen migratie nodig; tests van 298 naar 342. Waar R8 en
-> een S-stap elkaar raakten is de R8-implementatie leidend gebleven — die stond al op productie —
-> en is de S-stap erbovenop gelegd: R8.1 repareert de bedrading klant → schrijver, S2 bepaalt wat
-> er dan doorheen gaat; R8.7 haalt de zelfrapportage uit de GEO-score, S3 haalt hem uit de
-> dekkingsnoemer.
+> **STAND VAN ZAKEN — alle zeven voorstellen zijn gebouwd**, bovenop het R8-werk uit commit
+> `f85ff5f` en daarmee geïntegreerd. **Geen enkele migratie nodig**: waar een nieuwe kolom voor de
+> hand lag is eerst gekeken of een bestaande hetzelfde kan dragen, en dat kon. Tests: 355
+> eenheidstests plus 20 ketentests, alles zonder netwerk en zonder API-sleutel.
 >
-> Per voorstel staat hieronder wat er af is. De uitwerking per bestand staat in
-> `status-doorontwikkeling.md` §5, de vinkjes in `implementatieplan.md` §2.
+> Waar R8 en een S-stap elkaar raakten is de R8-implementatie leidend gebleven — die stond al op
+> productie — en is de S-stap erbovenop gelegd: R8.1 repareert de bedrading klant → schrijver,
+> S2 bepaalt wat er dan doorheen gaat; R8.7 haalt de zelfrapportage uit de GEO-score, S3 haalt hem
+> uit de dekkingsnoemer.
 >
-> **Nog open:** S5 (merkdossier bij onboarding), S7 (ketentest — vraagt een lokale Postgres) en het
-> resterende deel van S6: de migratie voor een status `te_beoordelen` plus het scherm waarop de
-> klant ziet wat hij vrijgeeft. De deterministische poort zelf bestaat sinds R8
-> (`lib/pipeline/content-gate.ts`).
+> Twee voorstellen zijn onderweg van vorm veranderd, en dat staat bij de stap zelf toegelicht:
+> **S6** krijgt géén nieuwe statuswaarde (`content_status` is een enum; `needs_review` draagt
+> hetzelfde onderscheid), en **S7** draait op een lokaal opgestarte Postgres in plaats van via de
+> Supabase CLI — dat scheelt Docker en maakt de test overal draaibaar.
+>
+> **Wat nu nog openstaat is geen S-stap meer:** één contentronde op productie om te zien of dit
+> werkt, en R7 (de meetbasis). Zie `status-doorontwikkeling.md` §5.
 
 ---
 
@@ -463,7 +466,7 @@ een lege verzameling.
 
 ---
 
-### S5 — Merkdossier bij onboarding: bulk-intake in plaats van acht vragen per batch  ☐ open
+### S5 — Merkdossier bij onboarding: bulk-intake in plaats van acht vragen per batch  ✅ gebouwd
 
 **Wat het is.** Het kanaal waarlangs klantkennis binnenkomt verbreden. Vandaag is dat kanaal:
 maximaal 8 vragen per contentbatch, waarvan er 3 à 4 vaste slots zijn. Over vijf testklanten
@@ -509,7 +512,7 @@ Geen effect op de kosten per analyse of per pagina.
 
 ---
 
-### S6 — Van `ready` naar vrijgegeven: één deterministische poort, en de klant ziet wat hij vrijgeeft  ◐ poort af
+### S6 — Van `ready` naar vrijgegeven: één deterministische poort, en de klant ziet wat hij vrijgeeft  ✅ gebouwd
 
 **Wat het is.** De statuswaarde `ready` betekent vandaag "de pijplijn is klaar", niet "dit kan
 live". Dat verschil kost de klant zijn geloofwaardigheid op het moment dat het misgaat.
@@ -553,7 +556,7 @@ Content Bibliotheek 1,5 d). Bouwt op R8.2/R8.7/R8.8 en moet daarna.
 
 ---
 
-### S7 — Een ketentest op de echte handlers, met een gestubde OpenAI-client  ☐ open
+### S7 — Een ketentest op de echte handlers, met een gestubde OpenAI-client  ✅ gebouwd
 
 **Wat het is.** `scripts/test-unit.ts` (250 tests) dekt pure functies uitstekend. Precies daarom
 zat geen van de zeven fouten van dit traject erin: ze zitten allemaal in de **samenhang** tussen

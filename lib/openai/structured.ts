@@ -90,9 +90,50 @@ export interface StructuredCallResult<T> extends CallUsage {
   raw: unknown;
 }
 
+/**
+ * Injectiepunt voor de ketentest (implementatieplan.md S7).
+ *
+ * De ketentest draait de échte jobhandlers tegen een échte Postgres, maar mag
+ * geen OpenAI aanroepen: dat kost geld, is traag en geeft elke keer een ander
+ * antwoord — en dan test je het model in plaats van de bedrading. De stub geeft
+ * per `schemaName` een vast, realistisch antwoord terug, ontleend aan de ruwe
+ * responses die al in `ai_calls` staan.
+ *
+ * Zetten kan alleen buiten productie; zie de toelichting bij
+ * `__setTestAdminClient()` in lib/supabase/admin.ts voor waarom dit hier staat
+ * en niet als losse laag eromheen.
+ */
+export type StructuredTransport = <T>(
+  opts: StructuredCallOptions<T>,
+) => Promise<{ parsed: T; raw: unknown }>;
+
+let testTransport: StructuredTransport | null = null;
+
+export function __setTestTransport(transport: StructuredTransport | null): void {
+  if (process.env.NODE_ENV === "production") {
+    throw new Error("De teststub mag niet in productie gezet worden.");
+  }
+  testTransport = transport;
+}
+
 export async function callStructured<T>(
   opts: StructuredCallOptions<T>,
 ): Promise<StructuredCallResult<T>> {
+  if (testTransport) {
+    const { parsed, raw } = await testTransport(opts);
+    // Geen kostenregistratie: er is niets aangeroepen, en een gelogde aanroep
+    // die nooit plaatsvond maakt de kostenboekhouding onbetrouwbaar.
+    return {
+      parsed,
+      raw,
+      responseId: null,
+      tokensUsed: null,
+      inputTokens: null,
+      outputTokens: null,
+      costUsd: 0,
+    };
+  }
+
   const openai = getOpenAI();
 
   const response = await openai.responses.parse({

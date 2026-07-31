@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { CollapsibleSection } from "@/components/collapsible-section";
 import { TagListEditor } from "@/components/tag-list-editor";
+import { DossierBox } from "./dossier-box";
 import type { Persona, Profile } from "@/lib/types/database";
 
 /**
@@ -351,6 +352,13 @@ export function ProfileEditor({ initial, inventoryCount }: { initial: Profile; i
             </span>
           )}
         </div>
+      </CollapsibleSection>
+
+      {/* Het merkdossier (S5). Onderaan en ingeklapt: dit is de rijkste bron die
+          we hebben, maar hij mag het invullen van het profiel niet in de weg
+          zitten — dat is de stap waar de klant hier voor kwam. */}
+      <CollapsibleSection title="Wat je al hebt liggen">
+        <DossierBox profileId={profile.id} />
       </CollapsibleSection>
 
       <div className="flex items-center gap-3">

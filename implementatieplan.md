@@ -131,9 +131,9 @@ R5 heeft geen nieuwe migratie nodig — die draait op het schema uit `0024`, dat
 | S2 | De claim-audit als architect: het paginaplan overleeft de briefing | 3 d | ✅ |
 | S3 | Dekkingsmeting met een noemer die de code bepaalt | 3 d | ✅ |
 | S4 | Positioneringsslot met een gereserveerde plek | 2 d | ✅ |
-| S5 | Merkdossier bij onboarding | 4 d | ☐ |
-| S6 | Publicatiepoort | 3 d | ◐ logica in R8-poort, migratie + scherm open |
-| S7 | Ketentest op de echte handlers | 4 d | ☐ |
+| S5 | Merkdossier bij onboarding | 4 d | ✅ |
+| S6 | Publicatiepoort | 3 d | ✅ (zonder migratie, zie §S6) |
+| S7 | Ketentest op de echte handlers | 4 d | ✅ |
 
 **Totaal: circa 46 dagen (R0-R6) + 15,5-17,5 dagen (R8).** Volgorde-afhankelijkheden: R1 en R2 zijn
 onafhankelijk van elkaar en kunnen parallel. R3 bouwt op R2.1. R4 bouwt op R0.5. R5 bouwt op R1
@@ -1410,6 +1410,183 @@ Gebouwd is niet hetzelfde als geverifieerd (status-doorontwikkeling.md §2.6) �
 is een nieuwe contentronde over dezelfde vijf testcases, waarbij met name te controleren valt of
 (a) een gecorrigeerd briefingantwoord nu écht in de tekst landt, en (b) de poort de vier pagina's
 markeert die hun doelvraag ontweken.
+
+---
+
+## S — Structurele ingrepen boven R8
+
+**De kern.** `strategie-contentkwaliteit-vervolgstappen.md` beschrijft zeven ingrepen die niet
+verbeteren wát er met de feitenkaart gebeurt, maar wat erop staat en wie het oordeel velt. S1 t/m
+S4 zijn op 31 juli gebouwd (zie de voortgangstabel §2). Hieronder de drie die daarna nog open
+stonden, uitgewerkt tot opleverbare stappen.
+
+**Eén randvoorwaarde vooraf.** Geen van deze drie stappen vraagt een migratie. Dat is een bewuste
+keuze en geen toeval: elke schemawijziging moet op productie toegepast worden, en die database
+draait met echte klantdata. Waar een nieuwe kolom voor de hand lag, is eerst gekeken of een
+bestaande kolom hetzelfde kan dragen — en dat kon twee van de drie keer. Waar het écht niet kon
+(S5 bewaart het aangeleverde document niet) staat dat hieronder als expliciete beperking.
+
+### S5 — Merkdossier: bulk-intake in plaats van acht vragen per batch
+
+**Probleem** (strategie §1.4). Het kanaal waarlangs klantkennis binnenkomt is te smal. Maximaal 8
+vragen per contentbatch, waarvan er 3 à 4 vaste slots zijn. Over vijf testklanten leverde dat 21
+beantwoorde vragen op, waarvan 8 praktisch (telefoon, URL). Van de 35 `aanvulling`-vragen werden er
+7 beantwoord (20%). De kennisbank die `contentbriefing.md` §7 belooft — "na drie analyses een
+gevulde feitenbank" — vult zich met die trechter niet.
+
+Tegelijk heeft vrijwel elke ondernemer het materiaal al liggen: een tarievenpagina, een
+brochure, een lijst veelgestelde vragen. `contentbriefing.md` §8 noemt dat het "bulk-alternatief"
+en zet het op *fase 2, niet MVP*. Deze stap promoveert het.
+
+**Bestanden**
+- nieuw `lib/schemas/dossier-facts.ts` — het uitvoercontract van de extractie
+- nieuw `lib/pipeline/dossier-verify.ts` — puur, zonder `server-only`: het vangnet
+- nieuw `lib/pipeline/dossier.ts` — `server-only`: de AI-aanroep
+- nieuw `app/api/profiles/[id]/dossier/route.ts`
+- `app/(app)/profielen/[id]/profile-editor.tsx` — het invoerveld
+
+**Implementatie**
+
+1. **Eén veld op het profielscherm**, ná het profielonderzoek en niet ervóór (strategie §3.3): dan
+   is het profiel er al en kan de app tonen wat hij zelf gevonden heeft. Vrije tekst, plakken
+   volstaat — geen bestandsparser in deze versie, dat houdt de scope klein en dekt het overgrote
+   deel van de gevallen (een tarievenpagina of FAQ kopieer je uit de browser).
+2. **Eén mini-aanroep zet het om in vraag/antwoord-paren.** Niet in losse zinnen: een paar past
+   exact op het datamodel van de kennisbank (`fact_requests.question` + `answer`), is direct
+   herbruikbaar bij een volgende analyse, en dwingt het model tot het benoemen van *waar het feit
+   antwoord op geeft* — wat een zin uit een brochure niet vanzelf doet.
+3. **Het vangnet in code**, zelfde principe als S1 (`atom-verify.ts`): het `answer` moet letterlijk
+   in de aangeleverde tekst voorkomen. Een samengevat, afgerond of "netter" gemaakt bedrag valt
+   weg. Onbekend is beter dan verkeerd.
+4. **Wegschrijven als beantwoorde `fact_requests`** (`status: 'beantwoord'`, `scope: 'merk'`), zodat
+   `buildFactBase()` ze zonder wijziging oppikt via het pad dat er al is. Geen nieuwe kolom, geen
+   migratie.
+5. **`verify_after` activeren.** De kolom bestaat sinds migratie `0024` en wordt nergens gebruikt
+   (`GEO-PROCES-HUIDIGE-STAND.md` §3). Een feit met een bedrag of een looptijd verloopt; het model
+   geeft per paar aan of dat geldt en de code zet dan een datum. Daarmee doet de veroudering uit
+   `contentbriefing.md` §7 voor het eerst iets.
+6. **De klant ziet de lijst en kan doorstrepen**, niet formuleren. Doorstrepen gebruikt de
+   bestaande `PATCH /api/profiles/[id]/facts`-route (`skip: true`).
+
+**Bewuste beperking.** Het aangeleverde document zelf wordt niet bewaard — daar zou een kolom voor
+nodig zijn. Gevolg: de extractie is niet later opnieuw te draaien over dezelfde brontekst. Wat
+blijft is per feit de letterlijke bronzin in `raw_json`, dus de traceerbaarheid van elk afzonderlijk
+feit is wél compleet.
+
+**Verificatie:** plak de tarievenpagina van Fysi-Unique. Verwacht: bedragen komen er als losse
+feiten uit met de letterlijke zin erbij, en een verzonnen of afgerond bedrag haalt het vangnet niet.
+
+**Klaar wanneer:** een unit test op `dossier-verify.ts` toont aan dat een letterlijk overgenomen
+antwoord doorkomt en een samengevat antwoord wegvalt, en dat een bedrag een `verify_after` krijgt.
+
+### S6 — De publicatiepoort: de klant ziet wat hij vrijgeeft
+
+**Probleem** (strategie §1.6). `status: 'ready'` betekent "de pijplijn is klaar", niet "dit kan
+live". R8.2/R8.7/R8.8 leveren sinds 31 juli deterministische signalen en S3 een eerlijke
+dekkingsnoemer, maar die eindigen alle vier in `review_notes` — een veld dat de klant misschien
+nooit opent. En `reviseContentPiece()` zet de status onvoorwaardelijk op `ready`, ook bij
+`needs_review`.
+
+**Bestanden**
+- `app/(app)/analyses/[id]/bibliotheek/[pieceId]/page.tsx` — het vrijgavepaneel
+- nieuw `app/(app)/analyses/[id]/bibliotheek/[pieceId]/release-panel.tsx` — de bevestigknop
+- nieuw `app/api/analyses/[id]/content/[pieceId]/approve/route.ts`
+
+**Waarom géén nieuwe statuswaarde.** Het strategiedocument stelde een status `te_beoordelen` voor
+tussen `draft` en `ready`. `content_pieces.status` is een Postgres-enum (`content_status`,
+migratie `0001`/`0024`), dus dat vraagt een migratie op productie — en het vraagt dat elke plek die
+op statuswaarden filtert (de pollroute, de bibliotheek, `planContentDraft`, `runBriefing`,
+`draftContentPiece`) meeverandert. Dat is veel bewegende delen voor een onderscheid dat
+`needs_review` al kan dragen: die kolom betekent letterlijk "hier moet nog iemand naar kijken".
+
+De poort wordt daarom: **`needs_review = true` betekent "nog niet vrijgegeven"**, en de klant zet
+hem zelf op `false` met één handeling. Zelfde uitkomst, geen schemawijziging, geen tweede
+statusmachine die uit de pas kan lopen met de eerste.
+
+**Implementatie**
+
+1. **Het vrijgavepaneel** toont drie dingen die vandaag alleen in de database staan:
+   - de **feitenkaart die deze pagina werkelijk kreeg** (`briefing_snapshot_json.facts`), met per
+     feit de bron;
+   - elke **zin die een uitspraak doet over het bedrijf** (`detectClaimSentences`, S3), met het
+     F-nummer dat hem dekt of de mededeling dat er geen is;
+   - elke **verplichte briefingvraag die open bleef**, met wat dat de pagina gekost heeft.
+2. **Eén bevestiging**: "Ik heb dit gecontroleerd" → `needs_review = false`. Geen harde blokkade;
+   de klant kan de pagina altijd kopiëren en publiceren (`README.md` §2). Het verschil is dat hij
+   nu ziet wát hij vrijgeeft in plaats van een status te lezen die "klaar" zegt.
+3. **De route mag weinig**, zelfde patroon als de briefingroute: uitsluitend `needs_review` op
+   `false` zetten, na een eigenaarschapscontrole. Nooit de tekst, nooit de status.
+
+**Verificatie:** open de Coolblue-pagina uit de contentronde. Verwacht: het paneel toont de vijf
+verbeterpunten, de zin die zijn eigen doelvraag ontwijkt, en de knop staat er — de pagina telt niet
+als vrijgegeven tot iemand hem indrukt.
+
+### S7 — Ketentest op de echte handlers
+
+**Probleem** (strategie §1.7 en S7). Zeven van de zeven fouten in dit traject zaten in de
+**samenhang** tussen taken: wat de ene stap opslaat en wat de volgende ervan leest. `test-unit.ts`
+dekt pure functies uitstekend en kón ze daarom geen van alle vangen. Tijdens het bouwen van R8
+kwamen er nog twee bij (de weggegooide `recommendation` in de snapshot, de te grove
+onderwerp-sleutel) — allebei gevonden met de hand, niet door een test.
+
+**Bestanden**
+- nieuw `scripts/test-chain.ts` — het scenario
+- nieuw `scripts/chain/postgres.ts` — lokale Postgres starten, migraties toepassen
+- nieuw `scripts/chain/supabase-shim.ts` — de Supabase-client-API over een echte Postgres
+- nieuw `scripts/chain/openai-stub.ts` — vaste, realistische structured-output-antwoorden
+- `lib/supabase/admin.ts`, `lib/openai/structured.ts` — één expliciet injectiepunt elk
+- `package.json` — `npm run test:chain`
+
+**Het bezwaar dat deze opzet moet overleven.** De kop van `test-unit.ts` zegt: *"een test met een
+nagebootste database toetst vooral of je nabootsing klopt"*. Dat bezwaar is dodelijk voor een
+mock-database en het is hier bewust ontweken:
+
+| Onderdeel | Echt of nagebootst |
+|---|---|
+| Postgres | **echt** (lokaal, `initdb` + `pg_ctl`; geen Docker nodig) |
+| Het schema | **echt** — dezelfde migratiebestanden `0001`…`0032` |
+| Constraints, enums, unieke indexen | **echt** — migratie `0023` (één huidige versie per titel) en `content_status` doen hun werk |
+| De jobhandlers, de wachtrij, de dedupe-sleutels | **echt** (`lib/jobs/handlers.ts`, `queue.ts`) |
+| De pijplijncode | **echt** (`briefing.ts`, `content.ts`, `factbase.ts`, …) |
+| De Supabase-*client* | nagebootst — een vertaling van de query-builder naar SQL |
+| OpenAI | gestubd — vaste antwoorden per `schemaName`, nul kosten, nul netwerk |
+
+Wat overblijft als nabootsing is dus uitsluitend de wire-vertaling. **En die faalt luidruchtig**:
+elke operator die de shim niet kent gooit een fout in plaats van stilletjes iets anders terug te
+geven. Een shim die stil afwijkt zou het bezwaar terecht maken; een shim die valt bij het eerste
+onbekende geval kan dat niet.
+
+**Implementatie**
+
+1. **Postgres opstarten** in een tijdelijke datadirectory, `auth.users` als stub-tabel aanmaken
+   (de migraties verwijzen ernaar), en de migraties in volgorde toepassen. `pg_cron`/`pg_net`
+   bestaan niet lokaal — die migratie wordt overgeslagen met een expliciete melding, want hij gaat
+   over de cron-motor en niet over het datamodel.
+2. **De shim** implementeert precies de operatoren die de contentketen gebruikt en gooit op de rest.
+3. **De OpenAI-stub** geeft per `schemaName` een vast, realistisch antwoord terug — ontleend aan de
+   ruwe responses die al in `ai_calls` staan.
+4. **Het scenario**: profiel + analyse + rapport klaarzetten → `content_brief` → de klant beantwoordt
+   één merkbrede en één analyse-brede vraag → `content_draft` → `content_revise`, met asserties op
+   elke tussenstand.
+
+**Wat dit scenario moet aantonen** — dit zijn de zeven fouten van dit traject, als test:
+
+| # | Bug | Assertie |
+|---|---|---|
+| 1 | `briefing` gold als "al af" | ná `content_draft` staat er tekst in de rij |
+| 2 | Versiesprong / spookrij | precies één rij per titel, versie 1, `is_current` |
+| 3 | `answeredFacts` dood | het antwoord van de klant staat in de gebruikte feitenkaart |
+| 4 | Multi-ref-citaatplicht | een claim met `factRef: "F1, F2"` telt als onderbouwd |
+| 5 | Bevroren kaart plant zich voort | ná een tweede antwoord ziet een `regenerate` het nieuwe feit |
+| 6 | Merkbrede antwoorden buiten de dedupe-sleutel | een merkbreed antwoord levert een nieuwe taak op |
+| 7 | Auditplan weggegooid | het plan staat in de snapshot en gaat mee de schrijfprompt in |
+
+**Verificatie:** `npm run test:chain` draait groen zonder netwerk en zonder API-sleutel. Draai hem
+daarna nog eens met de reparatie van bug 6 teruggedraaid; hij moet dan rood worden. Een test die
+niet aantoonbaar kan falen bewijst niets.
+
+**Klaar wanneer:** de zeven asserties hierboven bestaan en groen zijn, en de test in de vaste
+controle vóór elke commit staat.
 
 ---
 

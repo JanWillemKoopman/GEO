@@ -62,6 +62,7 @@ import { checkContentGate, openingVan, geoRegels } from "@/lib/pipeline/content-
 import { splitSentences, stripMarkdown, firstSentences } from "@/lib/pipeline/sentences";
 import { topicTerms, canonicalPath, scorePage, selectRelevantPages } from "@/lib/pipeline/page-relevance";
 import { verifyAtoms } from "@/lib/pipeline/atom-verify";
+import { verifyDossierFacts, answerTypeOf } from "@/lib/pipeline/dossier-verify";
 import { detectClaimSentences, claimMatchesSentence, detectedCoverage } from "@/lib/pipeline/claim-extract";
 
 let passed = 0;
@@ -1435,6 +1436,124 @@ group("de gereserveerde plek", () => {
   // zelden alle pagina's, dus de sortering op impact duwt hem er structureel uit.
   // Dat is precies waarom hij 0 van de 62 keer gesteld werd.
   ok("de positioneringsvraag haalt de lijst", met.some((v) => v.kind === "onderscheid"));
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+console.log("\nMerkdossier — het vangnet (implementatieplan.md S5)");
+
+group("alleen letterlijke antwoorden overleven", () => {
+  const document =
+    "Tarieven 2026. Zitting manuele therapie 30 min. \u2014 \u20ac 45,00. " +
+    "Een eerste consult duurt 45 minuten en is inclusief onderzoek. " +
+    "Wij zijn gevestigd aan de Vondelplein 4c in Amersfoort.";
+
+  const goed = verifyDossierFacts(
+    [
+      {
+        question: "Wat kost een zitting manuele therapie?",
+        answer: "\u20ac 45,00",
+        sourceSentence: "Zitting manuele therapie 30 min. \u2014 \u20ac 45,00.",
+        perishable: true,
+      },
+    ],
+    document,
+    new Date("2026-07-31T00:00:00Z"),
+  );
+  ok("een letterlijk bedrag komt door", goed.length === 1);
+  ok("herkend als bedrag", goed[0]?.answerType === "bedrag");
+  ok("en verloopt over zes maanden", goed[0]?.verifyAfter === "2027-01-31");
+  ok("de bronzin blijft bewaard", goed[0]?.sourceSentence.includes("manuele therapie"));
+
+  // Dit is waar de hele module om draait: "\u20ac 45,00" afronden naar "45 euro"
+  // is een ander bedrag beloven dan er staat, en de klant wordt daarop
+  // afgerekend.
+  ok(
+    "een afgerond bedrag valt weg",
+    verifyDossierFacts(
+      [
+        {
+          question: "Wat kost een zitting manuele therapie?",
+          answer: "45 euro",
+          sourceSentence: "Zitting manuele therapie 30 min. \u2014 \u20ac 45,00.",
+          perishable: true,
+        },
+      ],
+      document,
+    ).length === 0,
+  );
+
+  ok(
+    "een verzonnen bronzin valt weg",
+    verifyDossierFacts(
+      [
+        {
+          question: "Wat kost een intake?",
+          answer: "\u20ac 45,00",
+          sourceSentence: "Onze intake kost \u20ac 45,00 inclusief btw.",
+          perishable: true,
+        },
+      ],
+      document,
+    ).length === 0,
+  );
+
+  // Het F-nummer-probleem van 31 juli, een laag lager: de zin bestaat, maar hij
+  // dekt het antwoord niet.
+  ok(
+    "een bronzin die het antwoord niet bevat valt weg",
+    verifyDossierFacts(
+      [
+        {
+          question: "Waar zitten jullie?",
+          answer: "Vondelplein 4c",
+          sourceSentence: "Een eerste consult duurt 45 minuten en is inclusief onderzoek.",
+          perishable: false,
+        },
+      ],
+      document,
+    ).length === 0,
+  );
+
+  const blijvend = verifyDossierFacts(
+    [
+      {
+        question: "Waar is de praktijk gevestigd?",
+        answer: "Vondelplein 4c in Amersfoort",
+        sourceSentence: "Wij zijn gevestigd aan de Vondelplein 4c in Amersfoort.",
+        perishable: false,
+      },
+    ],
+    document,
+  );
+  ok("een blijvend feit krijgt geen vervaldatum", blijvend[0]?.verifyAfter === null);
+
+  ok(
+    "twee formuleringen van dezelfde vraag leveren \u00e9\u00e9n feit",
+    verifyDossierFacts(
+      [
+        {
+          question: "Wat kost een zitting manuele therapie?",
+          answer: "\u20ac 45,00",
+          sourceSentence: "Zitting manuele therapie 30 min. \u2014 \u20ac 45,00.",
+          perishable: true,
+        },
+        {
+          question: "Wat kost manuele therapie per zitting?",
+          answer: "\u20ac 45,00",
+          sourceSentence: "Zitting manuele therapie 30 min. \u2014 \u20ac 45,00.",
+          perishable: true,
+        },
+      ],
+      document,
+    ).length === 1,
+  );
+});
+
+group("antwoordtype afleiden", () => {
+  ok("bedrag", answerTypeOf("\u20ac 45,00") === "bedrag");
+  ok("getal", answerTypeOf("22") === "getal");
+  ok("url", answerTypeOf("https://fysi-unique.nl/tarieven") === "url");
+  ok("korte tekst", answerTypeOf("binnen 1 werkdag") === "tekst_kort");
 });
 
 // ════════════════════════════════════════════════════════════════════════════

@@ -509,6 +509,7 @@ mention-beoordeling) zijn ongewijzigd qua model/temperatuur/schema; de **inhoud*
 | 9 | Gap-analyse (B1) | Na concurrentprofilering | `gpt-4.1-mini` | uit | 0,2 | `GapAnalysis` (+ bewijsdossier, R1.1) |
 | 10 | Rapport (B2) | Direct na B1 | `gpt-4.1-mini` | uit | 0,2 | `Report` |
 | — | *(code, geen AI)* Claimvalidator | Direct na B2 | — | — | — | `stripped_claims_json` |
+| 1b | **Merkdossier lezen** *(nieuw, S5)* | Klant plakt materiaal op het profielscherm | `gpt-4.1-mini` | uit | 0 | `DossierFacts` |
 | 10b | **Feiten atomiseren** *(nieuw, S1)* | Bij het opbouwen van de feitenkaart, vóór de claim-audit | `gpt-4.1-mini` | uit | 0 | `FactAtoms` |
 | 11 | **Claim-audit** *(nieuw, R5.1)* | Klant kiest aanbeveling(en) | `gpt-4.1-mini` | uit | 0 | `ClaimAudit` |
 | 12 | Content-draft | Klant beantwoordt briefing / slaat over en klikt "Schrijf" | `gpt-4.1` | uit (tenzij vangnet) | 0,7 | `ContentPiece` (+ `claims[]`, R5.3) |

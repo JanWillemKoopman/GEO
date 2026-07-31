@@ -10,6 +10,10 @@ import { PublishGuide } from "@/components/publish-guide";
 import { PublishBox } from "./publish-box";
 import type { PublishCheck } from "@/lib/pipeline/publish-check";
 import { GeoScorecard } from "@/components/geo-scorecard";
+import { ReleasePanel, type ReleaseClaim, type ReleaseFact } from "./release-panel";
+import { factsFromSnapshot } from "@/lib/pipeline/briefing";
+import { detectClaimSentences, claimMatchesSentence } from "@/lib/pipeline/claim-extract";
+import { isSupported, type WrittenClaim } from "@/lib/pipeline/factcard";
 import type { ContentPiece, ContentPieceTarget } from "@/lib/types/database";
 
 interface Faq {
@@ -60,6 +64,59 @@ export default async function ContentDetailPage({
   // vormen (de zelfrapportage van vóór R8.7 en de deterministische controle
   // erna) en normaliseert ze allebei.
   const geo = piece.geo_json as Record<string, unknown> | null;
+
+  // ── Wat het vrijgavepaneel toont (S6) ─────────────────────────────────────
+  //
+  // Alle drie de stukken bestonden al in de database en waren voor de klant
+  // onzichtbaar: de feitenkaart alleen in `briefing_snapshot_json`, de
+  // uitspraken-zonder-bron alleen als getal in `source_coverage`, en de
+  // openstaande verplichte vragen alleen in `fact_requests`.
+  //
+  // De zinnen worden hier opnieuw gedetecteerd in plaats van opgeslagen. Dat is
+  // met opzet: dan klopt het paneel ook nadat de klant de tekst zelf bijgewerkt
+  // heeft (`edited_by_user`), en er is geen tweede kolom die uit de pas kan lopen
+  // met de tekst waar hij over gaat.
+  const releaseFacts: ReleaseFact[] = factsFromSnapshot(piece.briefing_snapshot_json).map((f) => ({
+    ref: f.ref || "—",
+    text: f.text,
+    source: f.source,
+    // Achtergrond zonder F-nummer is geen bron; die hoort hier niet als
+    // "bevestigd feit" te staan, en ook niet als verbod.
+    allowed: f.allowed && f.citable,
+  }));
+  const alleFeiten = factsFromSnapshot(piece.briefing_snapshot_json);
+  const verbodenFeiten: ReleaseFact[] = alleFeiten
+    .filter((f) => !f.allowed)
+    .map((f) => ({ ref: f.ref || "—", text: f.text, source: f.source, allowed: false }));
+
+  // De merknaam komt van het profiel, niet van de analyse: `detectClaimSentences`
+  // herkent een zin als bewering onder andere aan die naam, en met de kale URL
+  // als terugval zou geen enkele zin matchen.
+  const { data: profielRij } = await supabase
+    .from("profiles")
+    .select("brand_name")
+    .eq("id", analysis.profile_id)
+    .maybeSingle();
+  const merknaam = (profielRij?.brand_name as string | null) ?? analysis.url;
+
+  const getagd = ((piece.claims_json ?? []) as WrittenClaim[]).filter((c) => c?.claim?.trim());
+  const releaseClaims: ReleaseClaim[] = detectClaimSentences(
+    { bodyMarkdown: piece.body_markdown ?? "", faq },
+    merknaam,
+  ).map((d) => {
+    const dekkend = getagd.find(
+      (c) => claimMatchesSentence(c.claim, d.sentence) && isSupported(c.factRef, alleFeiten, c.quote ?? null),
+    );
+    return { sentence: d.sentence, factRef: dekkend?.factRef ?? null };
+  });
+
+  const { data: openVragen } = await supabase
+    .from("fact_requests")
+    .select("question")
+    .eq("profile_id", analysis.profile_id)
+    .eq("required", true)
+    .in("status", ["open", "overgeslagen"]);
+  const unansweredRequired = (openVragen ?? []).map((v) => v.question as string);
 
   return (
     <div className="flex flex-col gap-5">
@@ -150,6 +207,17 @@ export default async function ContentDetailPage({
       )}
 
       {geo && <GeoScorecard geo={geo} score={piece.geo_score} />}
+
+      {/* Het vrijgavepaneel (S6). Toont waarop deze pagina gebouwd is, en maakt
+          van "klaar" een handeling in plaats van een restwaarde. */}
+      <ReleasePanel
+        analysisId={id}
+        pieceId={pieceId}
+        needsReview={piece.needs_review}
+        facts={[...releaseFacts.filter((f) => f.allowed), ...verbodenFeiten]}
+        claims={releaseClaims}
+        unansweredRequired={unansweredRequired}
+      />
 
       <div className="card flex flex-wrap items-center gap-x-6 gap-y-2">
         <span className="text-sm">
