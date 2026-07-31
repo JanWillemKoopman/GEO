@@ -8,13 +8,25 @@ Wie hier begint hoeft de rest van de documentatie niet eerst uit te pluizen.
 
 De inhoudelijke onderbouwing staat elders en wordt niet herhaald:
 
+### De vier documenten van dit traject
+
+Deze zijn op 30 en 31 juli in deze volgorde ontstaan. Samen vormen ze de ketting van
+*beschrijven → beoordelen → plannen → bijhouden*; elk volgende document leunt op het vorige.
+
+| # | Document | Ontstaan als | Wat het is |
+|---|---|---|---|
+| 1 | `GEO-EINDE-TOT-EINDE-PROCES.md` | het startpunt | Feitelijke beschrijving van de volledige klantreis, van account tot gemeten content, inclusief elke AI-aanroep met in- en uitvoer. **Bewust zonder meningen of aanbevelingen** — dat was de opdracht. Beschrijft de app van vóór R1; daarmee is het inmiddels óók de nulmeting waartegen de rondes af te zetten zijn. |
+| 2 | `kwaliteitsanalyse-5-testcases.md` | de doorlichting | Analyse van 5 echte testanalyses (Bol, Coolblue, HEMA, Van der Valk, Fysi-Unique) tegen de drie klantdoelen. Bevat de 20 verbeterpunten V1–V20. |
+| 3 | `implementatieplan.md` | **het werkdocument** | 27 stappen R0.1 t/m R6.3, met per stap bestanden, migraties en verificatiecriteria. Bevat de voortgangstabel — dát is de bron van waarheid voor wat af is. |
+| 4 | `status-doorontwikkeling.md` | dit document | De brug tussen sessies: wat er af is, welke werkafspraken zijn ontstaan, wat de verificaties op productie hebben uitgewezen, en wat er in welke volgorde nog moet. |
+
+Ouder, maar nog steeds leidend voor de code:
+
 | Document | Wat het is |
 |---|---|
-| `GEO-EINDE-TOT-EINDE-PROCES.md` | Feitelijke beschrijving van het proces zoals het draait. Alleen feiten, geen meningen. Beschrijft de app van vóór R1–R6.1. |
-| `kwaliteitsanalyse-5-testcases.md` | Analyse van 5 echte testanalyses. Bevat de 20 verbeterpunten V1–V20 waar het implementatieplan uit voortkomt. |
-| `implementatieplan.md` | **Het werkdocument.** 27 stappen R0.1 t/m R6.3, met per stap bestanden, migraties en verificatiecriteria. Bevat de voortgangstabel. |
-| `optimalisatie.md`, `abcplan.md` | De oudere plannen waar de bestaande code naar verwijst in commentaar. |
-| `contentbriefing.md` | De specificatie waar R5 op gebouwd moet worden. |
+| `optimalisatie.md`, `abcplan.md` | De oudere plannen waar de bestaande code in commentaar naar verwijst. |
+| `contentbriefing.md` | De specificatie waarop R5 gebouwd is. |
+| `praktijktest-udenhout.md` | De handmatige feitencheck van 28 juli waaruit de vijf verzinsels kwamen — de aanleiding voor heel R5. |
 
 ---
 
@@ -294,22 +306,38 @@ de verificatieronde op gedraaid en daar hangen de cijfers in dit document aan.
 
 ## 5. Wat er nog moet gebeuren, op volgorde
 
-### Eerst: R5 in de praktijk toetsen (~$0,06, een halve dag)
+### Eerst: de contentronde — 10 pagina's schrijven en grondig beoordelen (~$2, 1–2 dagen)
 
-R5 is compleet gebouwd maar **nog nooit end-to-end gedraaid**. Dat is precies de fout die bij R6.1
-is rechtgezet: code die klopt is niet hetzelfde als gedrag dat klopt.
+Dit is de volgende afgesproken stap, en hij is groter dan een verificatie. Tot nu toe is elke ronde
+getoetst op de MEETKANT: klopt de score, klopt het bewijs, klopt de vraag. De contentkant is nooit
+op schaal beoordeeld — er bestaan drie gegenereerde pagina's uit de Udenhout-run van 28 juli, en
+daarvan wisten we alleen dat er vijf feiten in verzonnen waren.
 
-De toets die er toe doet is dezelfde als in `contentbriefing.md` §1: genereer één pagina voor een
-testklant en reken elke concrete bewering na tegen `claims_json`. **Doel: nul verzonnen feiten,
-tegen vijf in de Udenhout-test.** Loop daarbij ook de briefing zelf door — zijn de vragen echt in
-30 seconden te beantwoorden, en levert het overslaan van een verplichte vraag inderdaad een
-ontbrekende passage op in plaats van een verzonnen zin?
+**Wat er gebeurt:** voor elk van de 5 testcases 2 artikelen laten schrijven, dus 10 pagina's, door
+de volledige keten heen — briefing, feitenkaart, schrijven, redactie, herschrijven.
 
-Let bij die toets specifiek op twee dingen die pas in productie blijken:
-- Vult het model `claims` volledig, of noemt het alleen de makkelijke beweringen? Een lage
-  `source_coverage` is een signaal; een verdácht hoge ook.
-- Zijn de vaste slots (telefoonnummer, link naar bestaande pagina) niet irritant bij een klant die
-  ze al op zijn site heeft staan?
+**De maatstaf is niet "nul verzonnen feiten".** Dat is de ondergrens en die is met R5.3 afgedekt.
+De echte lat is: *zou een klant die hier €X per maand voor betaalt zeggen dat deze tool zijn
+GEO/contentspecialist grotendeels vervangt?* Een pagina zonder verzinsels die verder nietszeggend
+is, haalt die lat niet.
+
+**Een valkuil die vooraf geregeld moet worden.** De vijf testcases zijn ECHTE bedrijven waarvan wij
+de klant niet zijn (Bol, Coolblue, HEMA, Van der Valk, Fysi-Unique). De briefingvragen kunnen we
+dus niet naar waarheid beantwoorden. Verzonnen antwoorden invullen maakt de hele toets waardeloos —
+dan meten we of het model mooi schrijft op basis van fictie. Twee legitieme routes, en de keuze
+moet per vraag bewust en vastgelegd zijn:
+- **beantwoorden vanuit de publieke website van het bedrijf**, met de bron erbij (dat is precies
+  wat een echte klant ook zou doen: bevestigen wat er al staat);
+- **bewust overslaan**, wat meteen de belangrijkste belofte van R5.3 toetst — vervalt de passage
+  echt, of verzint het model hem alsnog?
+
+Doe beide: enkele cases volledig beantwoord, enkele bewust half. Het verschil tussen die twee
+groepen is zelf een meetresultaat.
+
+**Wat er daarna moet gebeuren** is geen lijstje bugs maar een doorlichting van de HELE keten, van
+stap 1 (de klant maakt een bedrijfsprofiel en een analyse aan) tot de opgeleverde pagina, met de
+vraag welke schakel de contentkwaliteit begrenst. Grote ingrepen zijn expliciet toegestaan; als de
+conclusie is dat de keten in de kern anders moet, dan is dat de conclusie.
 
 ### Daarna: R7 — de meetbasis stabiliseren (~4 d, nieuw)
 
