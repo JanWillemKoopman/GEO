@@ -1,6 +1,7 @@
 # Status doorontwikkeling — overdracht tussen sessies
 
-**Laatst bijgewerkt:** 31 juli 2026 (na de contentronde) · **Branch:** `main` (alles is gemerged) · **Tests:** 250 groen
+**Laatst bijgewerkt:** 31 juli 2026 (na de contentronde en de strategische doorlichting erboven) ·
+**Branch:** `main` (alles is gemerged) · **Tests:** 250 groen
 
 Dit document is de brug tussen werksessies. Het beschrijft **wat er af is**, **wat de afspraken
 zijn die tijdens het bouwen zijn ontstaan**, en **wat er nog open staat en in welke volgorde**.
@@ -20,6 +21,7 @@ Deze zijn op 30 en 31 juli in deze volgorde ontstaan. Samen vormen ze de ketting
 | 3 | `implementatieplan.md` | **het werkdocument** | 27 stappen R0.1 t/m R6.3, met per stap bestanden, migraties en verificatiecriteria. Bevat de voortgangstabel — dát is de bron van waarheid voor wat af is. |
 | 4 | `status-doorontwikkeling.md` | dit document | De brug tussen sessies: wat er af is, welke werkafspraken zijn ontstaan, wat de verificaties op productie hebben uitgewezen, en wat er in welke volgorde nog moet. |
 | 5 | `kwaliteitsanalyse-contentronde.md` | de contentronde van 31 juli | 10 pagina's laten schrijven (5 testcases × 2) door de volledige keten, elke pagina beoordeeld tegen de klantdoelen, en de keten doorgelicht op de vraag welke schakel de contentkwaliteit begrenst. Bevat de zwaarste vondst van het hele traject: klantantwoorden uit de briefing bereiken de schrijver niet (§1.3 van dat document). |
+| 6 | `strategie-contentkwaliteit-vervolgstappen.md` | de laag bóven R8 | Zeven structurele ingrepen (S1–S7): niet wat er met de feitenkaart gebeurt, maar wat erop staat; niet een strengere controle, maar een noemer die de code bepaalt. Bevat het tweede plafond dat de contentronde niet zag — de feitenkaart is merkbreed en onderwerp-blind — met de meetcijfers eronder. Vervangt de eerste versie van dat document volledig. |
 
 Ouder, maar nog steeds leidend voor de code:
 
@@ -48,6 +50,8 @@ Ouder, maar nog steeds leidend voor de code:
 
 | Ronde | Stappen | Effort |
 |---|---|---|
+| **S1–S7** — Structurele contentkwaliteit (nieuw, zie §5) | `strategie-contentkwaliteit-vervolgstappen.md` | 23 d |
+| **R8** — De 10 contentkwaliteit-optimalisaties | R8.1 t/m R8.10 | 15,5–17,5 d bruto, ~9 d netto na S1–S4 |
 | **R0** — Fundament | R0.1 t/m R0.6 | 8 d |
 | **R7** — Stabiele meetbasis (nieuw, uit §3b) | nog uit te werken | ~4 d |
 | **R6.2 / R6.3** | Inventariskwaliteitspoort, brontype als signaal | 3,5 d |
@@ -333,6 +337,52 @@ de verificatieronde op gedraaid en daar hangen de cijfers in dit document aan.
 **Nog niet gedaan:** de code voor P1 (de belangrijkste fix) zelf bouwen — dat is bewust een aparte
 beslissing, geen automatisch vervolg van deze doorlichting.
 
+### ✅ De strategische doorlichting bovenóp R8 — zeven structurele ingrepen
+
+**Uitgevoerd op 31 juli**, na de contentronde. De vraag was niet "welke R8-punten eerst" maar
+"welke schakels moeten fundamenteel anders". Volledige uitwerking, met de meetcijfers eronder en
+de vier invalshoeken (AI/GEO-expert, copywriter, ontwikkelaar, klant), staat in
+[`strategie-contentkwaliteit-vervolgstappen.md`](./strategie-contentkwaliteit-vervolgstappen.md).
+
+De kern: **de contentronde vond het gat tussen klant en schrijver; deze doorlichting vond het
+plafond erboven.** De feitenkaart is merkbreed en onderwerp-blind. Over vijf analyses zijn er
+24 citeerbare feiten, en géén daarvan gaat over het onderwerp van de analyse — geen laptop, geen
+wasmachine, geen vergaderzaal, geen hardloopblessure. Het materiaal om dat op te lossen ligt er
+wél: Coolblue heeft 10 gecrawlde wasmachine-adviespagina's in `profile_pages`, waarvan er nul in
+de feitenkaart terechtkwam terwijl vier Engelstalige duplicaten van de homepage dat wél deden
+(`buildFactBase()` selecteert 8 pagina's zonder `order by` en zonder relevantiefilter).
+
+Twee nieuwe codebevindingen uit die doorlichting, die in R8 thuishoren:
+
+- **De dedupe-sleutel telt merkbrede antwoorden niet mee.** `planContentDraft()` telt beantwoorde
+  vragen met `.eq("analysis_id", …)`, maar `scope = 'merk'`-vragen worden met `analysis_id = null`
+  opgeslagen — 9 van de 21 beantwoorde vragen in productie (43%), inclusief beide verplichte
+  `landing`-slots. Een klant die alleen merkbrede vragen beantwoordt en opnieuw op "Schrijf mijn
+  pagina's" klikt, krijgt een taak die stil op de sleutel sneuvelt.
+- **De bevroren feitenkaart plant zichzelf voort.** `buildDraftRow()` schrijft
+  `briefing_snapshot_json` opnieuw weg op de nieuwe rij; een volgende `regenerate` leest die en
+  roept `buildFactBase()` nooit meer aan. De verouderde kaart is niet één keer verkeerd maar
+  permanent. R8.1 zoals beschreven dempt dit, S2 heft het op.
+
+### Daarna, in deze volgorde (vervangt de oude volgorde hieronder)
+
+1. **S7 — ketentest op de echte handlers** (4 d, $0). Vóór alles: elke volgende stap raakt
+   dezelfde vier bestanden waar de laatste vijf bugs vandaan kwamen.
+2. **S1 — onderwerpgerichte, atomaire feitenkaart** (4 d, ~$0,004/batch). Heft het plafond op en
+   maakt R8.9 (3-5 d onderzoek) grotendeels overbodig.
+3. **S2 — de claim-audit als architect** (3 d, $0). Vervángt R8.1 in plaats van erop te volgen.
+4. **S4 — positioneringsslot** (2 d, $0). Maakt R8.8 pas zinvol: `onderscheid` is 0 van de 62
+   gestelde vragen, want er is geen mechanisme dat die vraagsoort produceert.
+5. **R8.3, R8.4, R8.5, R8.6, R8.10** — de resterende R8-punten (~5 d).
+6. **S3 — dekkingsmeting met een noemer die de code bepaalt** (3 d, $0). Neemt R8.7 in zich op.
+   Bewust ná S1: een strengere rem op een lege tank levert vagere teksten op, niet betere.
+7. **S6 — publicatiepoort** (3 d, $0). Ná R8.2/R8.7/R8.8, want die leveren de signalen.
+8. **S5 — merkdossier bij onboarding** (4 d, ~$0,01/document). Laatste: raakt als enige de
+   onboarding.
+
+**Als er maar twee dingen mogen: S1 en S2.** Samen 7 dagen, geen migratie, ~$0,004 per batch
+extra, en ze raken de enige twee schakels waar de kwaliteit werkelijk begrensd wordt.
+
 ### Daarna: R7 — de meetbasis stabiliseren (~4 d, nieuw)
 
 Volgt rechtstreeks uit §3b. Dit is inmiddels het zwaarstwegende punt: bij 5 winbare vragen is de
@@ -376,7 +426,7 @@ steeds als concurrent meetellen.**
 
 ```bash
 npx tsc --noEmit      # moet schoon zijn
-npm run test:unit     # 205 groen
+npm run test:unit     # 250 groen
 npm run build         # moet slagen
 ```
 
