@@ -39,6 +39,8 @@ import type { EvidenceEntry } from "@/lib/pipeline/evidence-format";
 import { stripUnsupportedClaims, validateField, NEUTRAL_FALLBACK } from "@/lib/pipeline/validate-claims";
 import { normalizePosition, averagePosition, weightedAveragePosition } from "@/lib/pipeline/position";
 import { shareByRun, sumShare, roundQuestions } from "@/lib/pipeline/question-share";
+import { numberFacts, formatFactCard, isSupported, claimKey, factFromAnswer } from "@/lib/pipeline/factcard";
+import { selectBriefingQuestions, describeSkipped, MAX_QUESTIONS } from "@/lib/pipeline/briefing-select";
 
 let passed = 0;
 let failed = 0;
@@ -611,6 +613,148 @@ group("Per vraag tellen in plaats van per meting (implementatieplan.md R6.1)", (
   ok("nul blijft nul", roundQuestions(0) === 0);
   // Maar nooit naar 0: "0 keer geciteerd" is een ander bericht dan "zelden".
   ok("iets is nooit nul", roundQuestions(1 / 3) === 1);
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+group("Feitenkaart (contentbriefing.md §9 / R5.1)", () => {
+  const facts = numberFacts([
+    { text: "All-in vanaf €419 per maand", source: "site /acties", allowed: true },
+    { text: "Pechhulp: NEE", source: "klant, bevestigd 29-07", allowed: false },
+  ]);
+
+  ok("nummering begint bij F1", facts[0].ref === "F1" && facts[1].ref === "F2");
+
+  const kaart = formatFactCard(facts);
+  ok("bruikbaar feit staat op de kaart", kaart.includes("F1") && kaart.includes("€419"));
+  // Verboden staan in een EIGEN blok. Tussen de feiten leest een model ze als
+  // materiaal; onder een verbodskop leest het ze als grens — dat verschil is
+  // precies waar het in de Udenhout-run misging.
+  ok("verbod staat onder een eigen kop", kaart.includes("MAG JE NIET BEWEREN"));
+  ok("verbod krijgt geen F-nummer op de kaartregel", !/F2\s+Pechhulp/.test(kaart));
+
+  // Zonder feiten mag er niets concreets beweerd worden — dat moet er expliciet
+  // staan, want een leeg blok leest een model als "verzin het zelf maar".
+  const leeg = formatFactCard([]);
+  ok("lege kaart verbiedt expliciet", leeg.includes("GEEN ENKELE concrete bewering"));
+
+  // Het model mag zichzelf niet vrijpleiten: dekking wordt in code bepaald.
+  ok("geldig F-nummer dekt", isSupported("F1", facts));
+  ok("kleine letters mogen ook", isSupported("f1", facts));
+  ok("onbekend F-nummer dekt niet", !isSupported("F9", facts));
+  ok("null dekt niet", !isSupported(null, facts));
+  // Een verwijzing naar een VERBOD onderbouwt niets; het weerlegt juist.
+  ok("verbod dekt niet", !isSupported("F2", facts));
+
+  // Ontdubbelen: dezelfde vraag vanuit drie pagina's wordt één vraag.
+  ok(
+    "woordvolgorde maakt niet uit",
+    claimKey("Pechhulp is inbegrepen") === claimKey("Inbegrepen: pechhulp"),
+  );
+  ok("leestekens maken niet uit", claimKey("Kost €419!") === claimKey("kost 419"));
+  ok("meervoud valt samen", claimKey("de looptijden") === claimKey("de looptijd"));
+  ok("echt andere claims blijven apart", claimKey("pechhulp inbegrepen") !== claimKey("apk inbegrepen"));
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+group("Briefingvragen selecteren (contentbriefing.md §3.4 / R5.1)", () => {
+  const basis = {
+    reason: "reden",
+    kind: "aanvulling" as const,
+    answerType: "tekst_kort" as const,
+    options: [],
+    suggestedAnswer: null,
+    scope: "analyse" as const,
+    priority: 1,
+  };
+
+  // Dezelfde vraag vanuit drie pagina's → één vraag die alle drie voedt.
+  const samengevoegd = selectBriefingQuestions({
+    candidates: [
+      { ...basis, claimKey: "a", question: "Zit pechhulp erbij?", required: false, contentPieceIds: ["p1"] },
+      { ...basis, claimKey: "a", question: "Zit pechhulp erbij?", required: true, contentPieceIds: ["p2"] },
+      { ...basis, claimKey: "a", question: "Zit pechhulp erbij?", required: false, contentPieceIds: ["p3"] },
+    ],
+    alreadyKnown: new Set(),
+  });
+  ok("drie keer dezelfde vraag wordt één vraag", samengevoegd.length === 1);
+  ok("alle drie de pagina's blijven eraan hangen", samengevoegd[0].contentPieceIds.length === 3);
+  // Verplicht wint van optioneel: is de vraag voor één pagina kern, dan is hij kern.
+  ok("verplicht wint van optioneel", samengevoegd[0].required === true);
+
+  // Nooit vragen wat we al weten — dat is geloofwaardigheidsverlies (§4 regel 6).
+  const bekend = selectBriefingQuestions({
+    candidates: [{ ...basis, claimKey: "a", question: "Al bekend?", required: true, contentPieceIds: ["p1"] }],
+    alreadyKnown: new Set(["a"]),
+  });
+  ok("al bekende vraag wordt niet gesteld", bekend.length === 0);
+
+  // Harde grens van acht, en het belangrijkste bovenaan.
+  const veel = selectBriefingQuestions({
+    candidates: Array.from({ length: 20 }, (_, i) => ({
+      ...basis,
+      claimKey: `k${i}`,
+      question: `Vraag ${i}?`,
+      required: i === 19,
+      contentPieceIds: i === 19 ? ["p1", "p2", "p3"] : ["p1"],
+    })),
+    alreadyKnown: new Set(),
+  });
+  ok("afgekapt op acht", veel.length === MAX_QUESTIONS);
+  ok("de zwaarste vraag staat bovenaan", veel[0].question === "Vraag 19?");
+
+  // Lege vragen horen er nooit in te belanden.
+  const leeg = selectBriefingQuestions({
+    candidates: [{ ...basis, claimKey: "x", question: "   ", required: true, contentPieceIds: ["p1"] }],
+    alreadyKnown: new Set(),
+  });
+  ok("lege vraag valt af", leeg.length === 0);
+
+  // De eerlijke telling onder de knop: de klant mag altijd door, maar ziet wat
+  // het overslaan hem kost (§6).
+  ok("geen open vragen → geen tekst", describeSkipped([]) === "");
+  const tekst = describeSkipped([
+    { question: "Zit pechhulp erbij?", required: true },
+    { question: "Wat is de looptijd?", required: true },
+    { question: "Heb je een cijfer?", required: false },
+  ]);
+  ok("noemt alleen de verplichte", tekst.includes("pechhulp") && !tekst.includes("cijfer"));
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+group("Antwoord van de klant → feit of verbod (contentbriefing.md §3.1)", () => {
+  // Het subtielste stukje van de briefing: "nee" is geen ontbrekend feit maar
+  // een VERBOD. Zonder dat onderscheid redeneert het model bij een ontkennend
+  // antwoord alsnog dat het er waarschijnlijk wel in zit.
+  const nee = factFromAnswer({
+    question: "Zit pechhulp in het maandbedrag?",
+    answer: "Nee",
+    answer_type: "ja_nee",
+    answered_at: "2026-07-29T10:00:00Z",
+  });
+  ok("nee wordt een verbod", nee !== null && nee.allowed === false);
+  ok("de vraag zit in de tekst", nee !== null && nee.text.includes("pechhulp"));
+
+  const ja = factFromAnswer({
+    question: "Zit pechhulp in het maandbedrag?",
+    answer: "Ja",
+    answer_type: "ja_nee",
+    answered_at: "2026-07-29T10:00:00Z",
+  });
+  ok("ja wordt een bruikbaar feit", ja !== null && ja.allowed === true);
+
+  ok(
+    "leeg antwoord levert geen feit",
+    factFromAnswer({ question: "X?", answer: "  ", answer_type: "tekst_kort", answered_at: null }) === null,
+  );
+
+  const bedrag = factFromAnswer({
+    question: "Wat is het maandbedrag?",
+    answer: "€419",
+    answer_type: "bedrag",
+    answered_at: "2026-07-29T10:00:00Z",
+  });
+  ok("vrij antwoord wordt vraag + antwoord", bedrag !== null && bedrag.text.includes("€419"));
+  ok("bron vermeldt de klant", bedrag !== null && bedrag.source.startsWith("klant"));
 });
 
 // ════════════════════════════════════════════════════════════════════════════

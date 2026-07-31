@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { getUser } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getOwnedAnalysis } from "@/lib/analyses";
-import { planAllRecommendations } from "@/lib/jobs/content-jobs";
+import { planContentBriefing, toPayload } from "@/lib/jobs/content-jobs";
 import { readRecommendations } from "@/lib/pipeline/recommendation";
 import { describeError, classifyError } from "@/lib/errors";
 
@@ -48,16 +48,20 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
   }
 
   try {
-    const { planned, skipped } = await planAllRecommendations(admin, {
+    // Sinds R5.1 gaat de hele batch éérst door de contentbriefing
+    // (contentbriefing.md §2). Juist hier telt dat: bij drie pagina's tegelijk
+    // overlappen de vragen ("wat zit er in het pakket?") en levert het
+    // ontdubbelen het meeste op. Drie keer los dezelfde vraag beantwoorden is
+    // precies de wrijving die README.md §2 verbiedt.
+    const { created, pages } = await planContentBriefing(admin, {
       analysisId: id,
       userId: user.id,
-      reportId: report.id as string,
-      recommendations,
+      recommendations: recommendations.map((rec) => toPayload(rec, report.id as string)),
     });
 
     return NextResponse.json(
-      { planned, skipped, total: recommendations.length },
-      { status: planned > 0 ? 202 : 200 },
+      { briefing: true, created, pages, total: recommendations.length },
+      { status: created ? 202 : 200 },
     );
   } catch (err) {
     console.error(`alle content inplannen mislukt voor ${id}:`, err);

@@ -20,6 +20,7 @@ import {
   calibratePromptVolumes,
 } from "@/lib/pipeline/prepare";
 import { measurePromptById, computeAggregates, measurementIsUsable } from "@/lib/pipeline/measure";
+import { runBriefing } from "@/lib/pipeline/briefing";
 import { generateReport } from "@/lib/pipeline/report";
 import { profileCompetitors } from "@/lib/pipeline/competitor-intel";
 import { draftContentPiece, reviseContentPiece } from "@/lib/pipeline/content";
@@ -264,6 +265,24 @@ const handlers: { [T in JobType]: Handler<T> } = {
   generate_report: async ({ job }, payload) => {
     if (!job.analysis_id) throw new Error("generate_report zonder analysis_id.");
     await generateReport(job.analysis_id, payload.weekNo);
+  },
+
+  // ── Contentbriefing: de vragenronde vóór het schrijven (R5.1) ─────────────
+  //
+  // Hierna stopt de pijplijn bewust. Er wordt niets ingepland: de klant beslist
+  // wanneer er geschreven wordt, via het briefingscherm. Dat is hetzelfde
+  // patroon als de review-gate tussen halte 2 en 3 (abcplan.md §3.6) — nooit een
+  // black box, altijd eerst kijken en bijsturen.
+  content_brief: async ({ job }, payload) => {
+    if (!job.analysis_id) throw new Error("content_brief zonder analysis_id.");
+    const result = await runBriefing({
+      analysisId: job.analysis_id,
+      recommendations: payload.recommendations,
+    });
+    console.log(
+      `Briefing ${job.analysis_id}: ${result.contentPieceIds.length} pagina's, ` +
+        `${result.facts} bekende feiten, ${result.questions} vragen aan de klant.`,
+    );
   },
 
   // ── Content stap 1: schrijven + beoordelen ────────────────────────────────

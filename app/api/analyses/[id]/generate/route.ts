@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { getUser } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getOwnedAnalysis } from "@/lib/analyses";
-import { planContentDraft, VALID_CONTENT_TYPES } from "@/lib/jobs/content-jobs";
+import { planContentDraft, planContentBriefing, VALID_CONTENT_TYPES } from "@/lib/jobs/content-jobs";
 import { describeError, classifyError } from "@/lib/errors";
 import type { ContentAction } from "@/lib/types/database";
 import type { RecommendationPayload } from "@/lib/jobs/types";
@@ -50,7 +50,12 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   const analysis = await getOwnedAnalysis(admin, id, user.id);
   if (!analysis) return NextResponse.json({ error: "Niet gevonden." }, { status: 404 });
 
-  let body: Partial<RecommendationPayload> & { reportId?: string; regenerate?: boolean };
+  let body: Partial<RecommendationPayload> & {
+    reportId?: string;
+    regenerate?: boolean;
+    /** Briefing overslaan: alleen voor het herschrijven van een bestaande pagina. */
+    skipBriefing?: boolean;
+  };
   try {
     body = await request.json();
   } catch {
@@ -73,6 +78,23 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   };
 
   try {
+    // ── Sinds R5.1: eerst de briefing, niet meteen schrijven ────────────────
+    //
+    // De klant kiest een pagina → de app bouwt de feitenkaart, controleert welke
+    // beweringen die pagina nodig heeft, en stelt de vragen die het verschil
+    // maken. Pas als hij op "Schrijf mijn pagina's" klikt gaat de schrijftaak de
+    // rij in (via de briefing-route). `skipBriefing` is de uitweg voor het
+    // opnieuw genereren van een al bestaande pagina: daar is de briefing al
+    // doorlopen en zou hem herhalen alleen maar wrijving zijn.
+    if (body.regenerate !== true && body.skipBriefing !== true) {
+      const { created, pages } = await planContentBriefing(admin, {
+        analysisId: id,
+        userId: user.id,
+        recommendations: [recommendation],
+      });
+      return NextResponse.json({ queued: true, briefing: true, created, pages }, { status: 202 });
+    }
+
     const { created, alreadyDone } = await planContentDraft(admin, {
       analysisId: id,
       userId: user.id,

@@ -37,6 +37,7 @@ const TYPICAL_SECONDS: Record<JobType, number> = {
   aggregate_week: 3, // puur rekenwerk
   profile_competitors: 15, // één destillatie-aanroep over de antwoordfragmenten
   generate_report: 25, // gap-analyse + rapport
+  content_brief: 12, // één mini-aanroep voor de hele batch, geen web_search
   content_draft: 50, // gpt-4.1 schrijft een volledige pagina
   content_revise: 50,
   technical_audit: 10, // een handvol HTTP-verzoeken, geen AI

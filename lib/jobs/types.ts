@@ -27,6 +27,8 @@ export const JOB_TYPES = [
   "profile_competitors",
   /** Gap-analyse + rapport (B1 + B2) en de rapportmail. */
   "generate_report",
+  /** Contentbriefing: feitenindex + claim-audit → vragen aan de klant (R5.1). */
+  "content_brief",
   /** Contentgeneratie stap 1: schrijven + beoordelen. */
   "content_draft",
   /** Contentgeneratie stap 2: herschrijven + herbeoordelen. */
@@ -85,6 +87,11 @@ export interface JobPayloads {
   aggregate_week: { weekNo: number };
   profile_competitors: { weekNo: number };
   generate_report: { weekNo: number };
+  content_brief: {
+    userId: string;
+    /** De hele batch gekozen pagina's: één briefing voor alles samen (§2). */
+    recommendations: RecommendationPayload[];
+  };
   content_draft: {
     userId: string;
     recommendation: RecommendationPayload;
@@ -115,6 +122,7 @@ export const HEAVY_JOB_TYPES: ReadonlySet<JobType> = new Set<JobType>([
   "prepare_analysis", // onderwerp-onderzoek: één gegrondde AI-aanroep
   "generate_prompts", // 3 parallelle prompt-calls, elk met een bijvul-ronde
   "profile_competitors", // destilleert eigenschappen uit alle antwoordfragmenten
+  "content_brief", // claim-audit over de hele batch, plus alle winnende antwoorden
   "content_draft", // gpt-4.1 schrijft een volledige pagina
   "content_revise", // idem
   "offsite_scan", // crawlt niets maar doet wel een gegroundde AI-aanroep + externe API's

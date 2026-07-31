@@ -86,20 +86,74 @@ export async function planContentDraft(
   const { analysisId, userId, recommendation, regenerate = false } = args;
 
   const existing = await currentPiece(admin, analysisId, recommendation.title);
-  if (existing && existing.status !== "draft" && !regenerate) {
+  // 'briefing' telt hier als "nog niet geschreven" (R5.1): de rij bestaat al —
+  // hij is aangemaakt toen de klant de pagina koos — maar er staat nog geen
+  // tekst in. Zonder deze uitzondering zou het indrukken van "Schrijf mijn
+  // pagina's" na de briefing stil niets doen, want de pagina lijkt dan al klaar.
+  if (existing && existing.status !== "draft" && existing.status !== "briefing" && !regenerate) {
     return { created: false, alreadyDone: true };
   }
 
   const nextVersion = existing ? (regenerate ? existing.version + 1 : existing.version) : 1;
 
+  // Het aantal beantwoorde briefingvragen telt mee in de dedupe-sleutel (R5.1).
+  // "Schrijf met wat je hebt" en "schrijf nadat ik alsnog twee vragen beantwoord
+  // heb" zijn twee verschillende opdrachten met een verschillende feitenkaart.
+  // Zonder dit zou die tweede klik stil genegeerd worden — de sleutel bestond
+  // immers al — en zou het antwoord van de klant nooit in de tekst belanden.
+  const { count: beantwoord } = await admin
+    .from("fact_requests")
+    .select("id", { count: "exact", head: true })
+    .eq("analysis_id", analysisId)
+    .eq("status", "beantwoord");
+
   const { created } = await enqueue(admin, {
     type: "content_draft",
     payload: { userId, recommendation, regenerate },
     analysisId,
-    dedupeKey: `${dedupe.contentDraft(analysisId, recommendation.title)}:v${nextVersion}`,
+    dedupeKey:
+      `${dedupe.contentDraft(analysisId, recommendation.title)}:v${nextVersion}` +
+      `:f${beantwoord ?? 0}`,
   });
 
   return { created, alreadyDone: false };
+}
+
+/**
+ * Plant de CONTENTBRIEFING in voor een batch gekozen pagina's
+ * (contentbriefing.md §2, implementatieplan.md R5.1).
+ *
+ * Dit vervangt de directe sprong naar `content_draft`. De briefing maakt de
+ * pagina's aan met status 'briefing', bouwt de feitenkaart en stelt de vragen —
+ * daarna stopt de pijplijn en beslist de klant wanneer er geschreven wordt.
+ *
+ * Eén briefing voor de hele batch, niet per pagina. Kiest de klant drie
+ * pagina's, dan krijgt hij één vragenlijst waarin overlappende vragen zijn
+ * samengevoegd. Drie keer los "wat is er inbegrepen?" beantwoorden is precies
+ * het soort wrijving dat README.md §2 verbiedt.
+ */
+export async function planContentBriefing(
+  admin: Admin,
+  args: {
+    analysisId: string;
+    userId: string;
+    recommendations: RecommendationPayload[];
+  },
+): Promise<{ created: boolean; pages: number }> {
+  const recommendations = args.recommendations.filter((r) => r.title?.trim());
+  if (recommendations.length === 0) return { created: false, pages: 0 };
+
+  const { created } = await enqueue(admin, {
+    type: "content_brief",
+    payload: { userId: args.userId, recommendations },
+    analysisId: args.analysisId,
+    dedupeKey: dedupe.contentBrief(
+      args.analysisId,
+      recommendations.map((r) => r.title),
+    ),
+  });
+
+  return { created, pages: recommendations.length };
 }
 
 /**

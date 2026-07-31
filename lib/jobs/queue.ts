@@ -92,6 +92,12 @@ export const dedupe = {
   // Content is idempotent op de aanbeveling, niet op de pagina: twee keer op
   // dezelfde knop drukken mag niet twee pagina's opleveren.
   contentDraft: (analysisId: string, title: string) => `content:${analysisId}:${title}`,
+  // Eén briefing per BATCH (contentbriefing.md §2), dus de sleutel is de set
+  // gekozen titels — niet één titel. Kiest de klant dezelfde drie pagina's nog
+  // een keer, dan is dat dezelfde briefing; kiest hij er een vierde bij, dan is
+  // het een nieuwe vragenronde.
+  contentBrief: (analysisId: string, titles: string[]) =>
+    `brief:${analysisId}:${[...titles].sort().join("|")}`,
   contentRevise: (contentPieceId: string) => `content_revise:${contentPieceId}`,
   // Per DAG, niet per profiel: de audit draait bij het aanmaken én maandelijks,
   // en moet dan echt opnieuw kijken. Zonder de datum erin zou een afgeronde
