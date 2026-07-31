@@ -83,6 +83,10 @@ R5 heeft geen nieuwe migratie nodig — die draait op het schema uit `0024`, dat
 
 ---
 
+> **Hervat je het werk in een nieuwe sessie?** Lees eerst `status-doorontwikkeling.md`. Daar staat
+> wat er af is, welke afspraken tijdens het bouwen zijn ontstaan, en wat er in welke volgorde nog
+> moet gebeuren. Dit plan blijft de bron van waarheid voor de stappen zelf.
+
 ## 2. Voortgang
 
 | Stap | Omschrijving | Effort | Status |
