@@ -1,7 +1,7 @@
 # Status doorontwikkeling — overdracht tussen sessies
 
-**Laatst bijgewerkt:** 31 juli 2026 (na R8 en de strategische doorlichting erboven) ·
-**Branch:** `main` (alles is gemerged) · **Tests:** 298 groen
+**Laatst bijgewerkt:** 31 juli 2026 (na R8, de strategische doorlichting erboven, en het bouwen
+van S1–S4) · **Branch:** `main` (alles is gemerged) · **Tests:** 342 groen
 
 Dit document is de brug tussen werksessies. Het beschrijft **wat er af is**, **wat de afspraken
 zijn die tijdens het bouwen zijn ontstaan**, en **wat er nog open staat en in welke volgorde**.
@@ -390,43 +390,60 @@ Twee nieuwe codebevindingen uit die doorlichting, die in R8 thuishoren:
   roept `buildFactBase()` nooit meer aan. De verouderde kaart is niet één keer verkeerd maar
   permanent. R8.1 zoals beschreven dempt dit, S2 heft het op.
 
-### Daarna, in deze volgorde (vervangt de oude volgorde hieronder)
+### ✅ S1–S4 gebouwd, bovenop R8
 
-> **Bijgewerkt ná R8.** Deze volgorde is geschreven toen R8 nog openstond; inmiddels zijn
-> R8.1 t/m R8.8 en R8.10 gebouwd (zie hierboven). Wat daarvan overblijft staat hieronder
-> doorgestreept. De strekking verandert niet: S1 en S2 blijven de zwaarstwegende stappen, en de
-> reden daarvoor is door het bouwen van R8 alleen maar sterker geworden — R8.8 kón geen effect
-> hebben omdat er geen `onderscheid`-vragen bestaan om te toetsen, en R8.2/R8.7 zetten een
-> strengere rem op dezelfde lege tank.
+**Opgeleverd op 31 juli**, in dezelfde ronde als R8 en geïntegreerd met dat werk. Geen migratie —
+alles past binnen de bestaande kolommen. 342 tests groen (was 298).
 
-1. **S7 — ketentest op de echte handlers** (4 d, $0). Vóór alles: elke volgende stap raakt
-   dezelfde vier bestanden waar de laatste vijf bugs vandaan kwamen. *(R8 heeft er daar nog twee
-   aan toegevoegd: de weggegooide `recommendation` in de snapshot en de te grove onderwerp-sleutel
-   — allebei pas gevonden tijdens het bouwen, niet door een test.)*
-2. **S1 — onderwerpgerichte, atomaire feitenkaart** (4 d, ~$0,004/batch). Heft het plafond op en
-   maakt R8.9 (3-5 d onderzoek) grotendeels overbodig.
-3. **S2 — de claim-audit als architect** (3 d, $0). ~~Vervángt R8.1~~ → **bouwt nu vóórt op R8.1**,
-   dat de bedrading klant → schrijver gerepareerd heeft. S2 gaat over wát er dan doorheen gaat.
-4. **S4 — positioneringsslot** (2 d, $0). Nu urgenter dan gedacht: R8.8 dwingt af dat een
-   `onderscheid`-antwoord in de tekst terugkomt, maar er zijn 0 van de 62 gestelde vragen van dat
-   type. De controle staat er en heeft niets te toetsen tot S4 er is.
-5. ~~**R8.3, R8.4, R8.5, R8.6, R8.10**~~ — **gebouwd op 31 juli.**
-6. **S3 — dekkingsmeting met een noemer die de code bepaalt** (3 d, $0). ~~Neemt R8.7 in zich op~~
-   → R8.7 is gebouwd; S3 vervangt het resterende deel waar het model nog de noemer kiest
-   (`claims_json`). Bewust ná S1: een strengere rem op een lege tank levert vagere teksten op,
-   niet betere.
-7. **S6 — publicatiepoort** (3 d, $0). Kan nu: R8.2/R8.7/R8.8 leveren de signalen die deze poort
-   moet tonen.
-8. **S5 — merkdossier bij onboarding** (4 d, ~$0,01/document). Laatste: raakt als enige de
-   onboarding.
+- **S1 — de feitenkaart wordt onderwerpgericht en atomair.** Het plafond onder alles. Over vijf
+  analyses stonden er 24 citeerbare feiten op de kaart en géén ervan ging over het onderwerp; voor
+  "wasmachine kopen" waren dat gratis wassen tussen 12 en 15 uur, cashback op groene stroom en een
+  AirPods-reviewscore. `buildFactBase()` nam de eerste 8 crawlrijen — geen `order by`, geen filter
+  — en bij Coolblue leverde dat vier navigatiepagina's plus dezelfde vier in het Engels op, terwijl
+  tien wasmachine-adviespagina's (15.000 tekens) ongebruikt bleven. Nu: relevantieselectie in code
+  (`page-relevance.ts`, inclusief het samenvouwen van taalvarianten) en daarna één mini-aanroep die
+  de letterlijke zinnen met een hard feit eruit haalt (`fact-atomise.ts`, ~$0,004 per batch). Het
+  vangnet staat los in `atom-verify.ts` — zonder `server-only`, conform §2.4 — en gooit elke zin
+  weg die niet letterlijk in de brontekst staat.
+- **S2 — het paginaplan overleeft de briefing.** De claim-audit rekent uit wat elke pagina moet
+  beweren (31 beweringen over vijf batches, waarvan 19 onderbouwd) en dat werd weggegooid zodra de
+  vragen gesteld waren. Nu blijft het plan per pagina in `briefing_snapshot_json` staan en gaat het
+  als opdracht de schrijfprompt in, met per punt GEDEKT / WEERLEGD / GEEN BRON — opnieuw
+  doorgerekend tegen de kaart inclusief de antwoorden die R8.1 er nu bij zet.
+- **S3 — de code bepaalt de noemer van de dekking.** R8.7 haalde de zelfrapportage uit de
+  GEO-score; dit haalt hem uit `source_coverage`. Dat cijfer mat 49 door het model getagde
+  beweringen op ~250 zinnen — één op de vijf — en juist in die andere vier vijfde zaten beide
+  fabricages van de contentronde. `claim-extract.ts` bepaalt nu welke zinnen een bewering zijn
+  (merknaam, getal of toezegging); een zin zonder onderbouwde claim telt als ongedekt en komt met
+  naam en toenaam in `review_notes`.
+- **S4 — de positioneringsvraag bestaat.** `onderscheid` was 0 van de 62 gestelde vragen, en
+  daardoor draaide de R8.8-controle op een lege verzameling. De vraag kán niet uit de claim-audit
+  komen (die kent alleen dekkingsgaten), dus is het een deterministisch slot geworden uit
+  `competitor_breakdown.attributes_json`, met één gereserveerde plek in de acht. Diezelfde
+  bewijszinnen gaan nu ook naar de schrijver: die kreeg tot nu toe alleen de woorden "prijs" en
+  "service", terwijl "Zitting manuele therapie: €60,00 per sessie" eronder in de database stond.
+- **De dedupe-bug uit de doorlichting** is mee gerepareerd: `planContentDraft()` telt beantwoorde
+  vragen nu over het profiel met dezelfde scope-regel als `buildFactBase()`, zodat merkbrede
+  antwoorden meetellen.
 
-**Als er maar twee dingen mogen: S1 en S2.** Samen 7 dagen, geen migratie, ~$0,004 per batch
-extra, en ze raken de enige twee schakels waar de kwaliteit werkelijk begrensd wordt.
+### Daarna, in deze volgorde
 
-**En vóór dat alles één goedkope stap:** de contentronde opnieuw draaien over dezelfde vijf
-testcases (~$2). R8 is met unit tests op de echte gevallen getoetst maar nog niet op productie;
-gebouwd is niet hetzelfde als geverifieerd (§2.6). Die ronde toetst tegelijk of het plafond uit
-S1 zichtbaar wordt in de nieuwe cijfers.
+1. **De contentronde opnieuw draaien over dezelfde vijf testcases** (~$2, een halve dag). R8 én
+   S1–S4 zijn met unit tests op de echte gevallen getoetst en geen van beide op productie; gebouwd
+   is niet hetzelfde als geverifieerd (§2.6). Deze ronde beantwoordt in één keer of de feitenkaart
+   voor Coolblue nu de wasmachinepagina's haalt, of de Fysi-Unique-tegenspraak weg is, en of de
+   poort de vier pagina's markeert die hun doelvraag ontweken.
+2. **S7 — ketentest op de echte handlers** (4 d, $0). Zeven van de zeven fouten in dit traject
+   zaten in de samenhang tussen taken, niet in een pure functie — en R8 voegde er tijdens het
+   bouwen nog twee aan toe. Deze ronde raakte diezelfde samenhang op vijf plekken.
+3. **S6 afmaken** (1,5 d): migratie `0034` met een status `te_beoordelen`, plus het scherm waarop
+   de klant ziet wat hij vrijgeeft. `status: 'ready'` betekent nog steeds "de pijplijn is klaar",
+   niet "dit kan live".
+4. **S5 — merkdossier bij onboarding** (4 d, ~$0,01/document). Raakt als enige het aanmeldscherm;
+   verdient de rust van een keten die verder staat.
+5. **R8.9 opnieuw beoordelen.** Na S1 is de vraag alleen nog wat we doen met een klant als Bol,
+   waarvan de crawl één pagina zonder bruikbare tekst opleverde. Dat is een gerichte vraag over
+   één klanttype, geen onderzoekstraject van 3-5 dagen.
 
 ### Daarna: R7 — de meetbasis stabiliseren (~4 d, nieuw)
 

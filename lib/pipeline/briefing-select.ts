@@ -22,6 +22,25 @@ import type { BusinessModel, ContentType } from "@/lib/types/database";
 /** Harde bovengrens per briefing (contentbriefing.md §3.4). */
 export const MAX_QUESTIONS = 8;
 
+/**
+ * Hoeveel plekken er gereserveerd zijn voor de vraagsoort `onderscheid` (S4).
+ *
+ * `contentbriefing.md` §5 noemt `onderscheid` "de meest waardevolle en de meest
+ * verwaarloosde ... de enige informatie die principieel niet uit een crawl of
+ * web_search te halen is". In productie is die vraagsoort **0 van de 62 keer**
+ * gesteld, over zes profielen.
+ *
+ * Eén oorzaak is dat er geen mechanisme was dat hem produceerde (opgelost met
+ * `positioningQuestion()`). De andere is de sortering op impact: een
+ * positioneringsvraag is nooit `kern` en raakt zelden alle pagina's, dus hij
+ * verliest structureel van een verificatievraag. Zonder reservering zou hij ook
+ * mét mechanisme de acht nooit halen.
+ *
+ * Eén plek, niet meer: acht vragen waarvan er drie over positionering gaan is
+ * een enquête, geen briefing.
+ */
+export const RESERVED_FOR_ONDERSCHEID = 1;
+
 /** Eén vraag zoals hij uiteindelijk in `fact_requests` en op het scherm belandt. */
 export interface BriefingQuestion {
   claimKey: string;
@@ -180,6 +199,74 @@ const CONTACTKANAAL_SLOT: Omit<BriefingQuestion, "contentPieceIds" | "priority" 
 /** Bedrijfsmodellen zonder één vestiging: daar past de adres-/telefoonvraag niet. */
 const ZONDER_VESTIGING = new Set<BusinessModel>(["retailer", "platform"]);
 
+/**
+ * De positioneringsvraag: wat kun jij wat je concurrent niet kan? (S4)
+ *
+ * ── WAAROM DIT EEN SLOT IS EN GEEN AI-AANROEP ───────────────────────────────
+ *
+ * Deze vraag kán niet uit de claim-audit komen, en dat is geen instelfout maar
+ * een vormfout. Die audit vraagt: "welke bewering heeft deze pagina nodig, en
+ * dekt de kaart hem?" Elk gat wordt een vraag. Maar "wat kun jij wat de
+ * concurrent niet kan" is geen dekkingsgat — het is een positioneringsvraag, en
+ * die past niet in het schema. Vandaar 0 van de 62.
+ *
+ * R8.8 controleert of het onderscheidende antwoord in de tekst terechtkwam. Die
+ * controle draaide tot nu toe op een lege verzameling: er wás geen antwoord,
+ * want er werd nooit naar gevraagd.
+ *
+ * Het materiaal ligt er wel. `competitor_breakdown.attributes_json` (R4.2) bevat
+ * per concurrent de eigenschap waaróp hij genoemd wordt, mét een letterlijk
+ * citaat: "Zitting manuele therapie: €60,00 per sessie", "biedt fysiotherapie
+ * aan zonder dat een verwijsbrief nodig is". Dat is precies wat deze vraag
+ * scherp maakt: we laten de ondernemer zien wát de AI nu over de ander zegt en
+ * vragen wat zijn antwoord daarop is.
+ *
+ * Zónder namen. De aanroeper haalt die eruit (`redactCompetitors`), want de harde
+ * regel dat klantcontent nooit een concurrent noemt geldt ook voor wat we de
+ * klant voorschotelen.
+ */
+export function positioningQuestion(args: {
+  /** Eigenschap + letterlijk bewijs, namen er al uit. Beste eerst. */
+  evidence: { attribute: string; evidence: string }[];
+  contentPieceIds: string[];
+}): BriefingQuestion | null {
+  const bewijs = args.evidence
+    .filter((e) => e.evidence?.trim() && e.attribute?.trim())
+    .slice(0, 3);
+  if (bewijs.length === 0) return null;
+
+  const opsomming = bewijs.map((e) => `"${e.evidence.trim()}" (${e.attribute})`).join(", ");
+
+  return {
+    // Vaste sleutel: deze vraag mag per merk maar één keer bestaan, ongeacht hoe
+    // de concurrentargumenten deze periode luiden.
+    claimKey: claimKey("slot onderscheid positionering"),
+    question:
+      "Een AI-assistent noemt bij deze vragen nu andere aanbieders, met argumenten als " +
+      `${opsomming}. Wat kun jij wat zij niet kunnen? Noem één concreet ding — een aantal, ` +
+      "een termijn, een dienst of een voorwaarde.",
+    reason:
+      "Dit is het enige wat een concurrent niet van je kan overschrijven, en het is het enige " +
+      "dat wij niet van je website kunnen halen.",
+    kind: "onderscheid",
+    // Lang tekstveld: hier moet ruimte zijn om iets uit te leggen. Dit is de ene
+    // vraag in de briefing waar formuleren méér waard is dan bevestigen.
+    answerType: "tekst_lang",
+    options: [],
+    suggestedAnswer: null,
+    // Bewust niet verplicht. Een ondernemer die hier niets op weet moet door
+    // kunnen (README.md §2); de reservering zorgt dat hij de vraag in elk geval
+    // te zien krijgt.
+    required: false,
+    scope: "merk",
+    contentPieceIds: args.contentPieceIds,
+    priority: 2,
+    // Handgeschreven, net als de andere vaste slots: de onderwerp-ontdubbeling
+    // van R8.4 moet hem met rust laten.
+    fixedSlot: true,
+  };
+}
+
 /** De vaste slots voor één gekozen pagina, als vragen met een claim-sleutel. */
 export function slotQuestions(
   type: ContentType,
@@ -256,7 +343,7 @@ export function selectBriefingQuestions(args: {
     bestaand.priority = Math.max(bestaand.priority, kandidaat.priority);
   }
 
-  return dedupeOpOnderwerp(Array.from(samengevoegd.values()))
+  const gesorteerd = dedupeOpOnderwerp(Array.from(samengevoegd.values()))
     .map((vraag) => ({
       ...vraag,
       priority: vraag.contentPieceIds.length * (vraag.required ? 2 : 1) * vraag.priority,
@@ -269,8 +356,26 @@ export function selectBriefingQuestions(args: {
         Number(b.required) - Number(a.required) ||
         Number(Boolean(b.suggestedAnswer)) - Number(Boolean(a.suggestedAnswer)) ||
         a.question.localeCompare(b.question),
-    )
-    .slice(0, max);
+    );
+
+  const gekozen = gesorteerd.slice(0, max);
+
+  // ── De gereserveerde plek voor 'onderscheid' (S4) ─────────────────────────
+  //
+  // De sortering hierboven is `aantal pagina's × kern(2)`. Een positioneringsvraag
+  // raakt zelden alle pagina's en is nooit `kern`, dus hij verliest structureel
+  // van elke verificatievraag — ook nu er eindelijk een mechanisme is dat hem
+  // produceert. Zonder deze reservering zou `onderscheid` 0 van de 62 blijven.
+  //
+  // Bewust de LAATSTE plek en niet de zwakste verplichte: de lijst staat al op
+  // impact gesorteerd, dus de laatste is per definitie de minst waardevolle die
+  // het haalde.
+  if (gekozen.length >= max && !gekozen.some((v) => v.kind === "onderscheid")) {
+    const kandidaat = gesorteerd.find((v) => v.kind === "onderscheid");
+    if (kandidaat) gekozen.splice(max - RESERVED_FOR_ONDERSCHEID, RESERVED_FOR_ONDERSCHEID, kandidaat);
+  }
+
+  return gekozen;
 }
 
 /**

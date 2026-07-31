@@ -14,8 +14,28 @@ import "server-only";
  * het best gebruikt.
  *
  *   1. klant     — expliciet beantwoorde vragen. Hoogst: dit weet niemand anders.
- *   2. site      — proof points en letterlijke sitetekst, met URL.
+ *   2. site      — proof points, en de letterlijke zinnen uit de pagina's die
+ *                  over dít onderwerp gaan (S1).
  *   3. onderzoek — de samenvatting uit het onderwerp-onderzoek.
+ *
+ * ── WAT S1 HIER VERANDERDE, EN WAAROM ───────────────────────────────────────
+ *
+ * Deze functie nam de eerste 8 rijen uit `profile_pages` (geen `order by`, geen
+ * filter) en zette ze als NIET-citeerbare achtergrondblokken op de kaart. Wat
+ * daar in productie van overbleef, gemeten op de contentronde van 31 juli: over
+ * vijf analyses 24 citeerbare feiten, allemaal merkbreed, en géén enkele over
+ * het onderwerp van de analyse. Voor "wasmachine kopen" was de volledige
+ * citeerbare kaart: gratis wassen 12-15u, cashback op groene stroom, een
+ * AirPods-reviewscore, Beste webwinkel 2022, 22 winkels.
+ *
+ * Sinds S1 gebeuren er twee dingen extra, in deze volgorde:
+ *
+ *   • SELECTEREN op onderwerp (`page-relevance.ts`, geen AI). Coolblue had tien
+ *     gecrawlde wasmachinepagina's die geen van alle meegingen, terwijl vier
+ *     Engelstalige duplicaten van de homepage dat wél deden.
+ *   • ATOMISEREN (`fact-atomise.ts`, één mini-aanroep per batch): de letterlijke
+ *     zinnen met een hard feit erin worden losse, citeerbare items. De blokken
+ *     blijven daarnaast als achtergrond staan, voor context en toon.
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 import {
@@ -26,6 +46,8 @@ import {
   type FactSourceKind,
   type RawFact,
 } from "@/lib/pipeline/factcard";
+import { selectRelevantPages, topicTerms, type CandidatePage } from "@/lib/pipeline/page-relevance";
+import { atomiseSitePages } from "@/lib/pipeline/fact-atomise";
 
 type Admin = SupabaseClient;
 
@@ -36,9 +58,23 @@ type Admin = SupabaseClient;
  * feitenkaart proppen maakt de prompt onleesbaar én duur zonder dat het de
  * dekking verbetert. De pagina's die er wél toe doen (de bestaande pagina bij
  * `verbeteren`) gaan apart mee in de schrijfstap.
+ *
+ * Sinds S1 gaat het om de 10 MEEST RELEVANTE pagina's in plaats van de eerste 8
+ * die de database teruggeeft — zie `page-relevance.ts` voor wat die willekeur in
+ * productie aanrichtte (Coolblue kreeg vier Engelstalige duplicaten van de
+ * homepage; nul van de tien gecrawlde wasmachinepagina's).
  */
-const MAX_SITE_PAGES = 8;
+const MAX_SITE_PAGES = 10;
 const PAGE_EXCERPT_CHARS = 400;
+
+/**
+ * Hoeveel pagina's er uit de crawl gehaald worden om uit te kiezen.
+ *
+ * De selectie moet iets te kiezen hébben: bij een limiet van 8 was de keuze al
+ * gemaakt vóór de relevantie berekend werd. 60 dekt de volledige inventaris van
+ * elk testprofiel (Coolblue/HEMA/Van der Valk: 40, Fysi-Unique: 30).
+ */
+const PAGE_POOL = 60;
 
 /**
  * Bouwt de feitenindex voor één analyse.
@@ -53,25 +89,39 @@ export async function buildFactBase(
   admin: Admin,
   profileId: string,
   analysisId: string,
+  /**
+   * De vragen die de te schrijven pagina's moeten winnen (S1).
+   *
+   * Sturen de relevantieselectie: dít zijn de vragen waarop een antwoord nodig
+   * is, dus dít zijn de pagina's die we nodig hebben. Leeg meegeven werkt ook —
+   * dan telt alleen het analyse-onderwerp — maar levert een bredere selectie op.
+   */
+  targetQuestions: string[] = [],
 ): Promise<FactItem[]> {
-  const [{ data: profile }, { data: topic }, { data: pages }, { data: answers }] = await Promise.all([
-    admin.from("profiles").select("proof_points, brand_name, url").eq("id", profileId).maybeSingle(),
-    admin.from("topic_research").select("content_summary").eq("analysis_id", analysisId).maybeSingle(),
-    admin
-      .from("profile_pages")
-      .select("url, title, text_excerpt")
-      .eq("profile_id", profileId)
-      .limit(MAX_SITE_PAGES),
-    // Merkbrede antwoorden gelden altijd; analyse-antwoorden alleen bij deze
-    // analyse. Een 'pagina'-antwoord hoort bij één content_piece en gaat daar
-    // apart mee — hier zou het bij de verkeerde pagina kunnen belanden.
-    admin
-      .from("fact_requests")
-      .select("question, answer, answer_type, answered_at, scope, analysis_id")
-      .eq("profile_id", profileId)
-      .eq("status", "beantwoord")
-      .not("answer", "is", null),
-  ]);
+  const [{ data: analysis }, { data: profile }, { data: topic }, { data: pages }, { data: answers }] =
+    await Promise.all([
+      admin.from("analyses").select("topic").eq("id", analysisId).maybeSingle(),
+      admin.from("profiles").select("proof_points, brand_name, url").eq("id", profileId).maybeSingle(),
+      admin
+        .from("topic_research")
+        .select("content_summary")
+        .eq("analysis_id", analysisId)
+        .maybeSingle(),
+      admin
+        .from("profile_pages")
+        .select("url, title, text_excerpt")
+        .eq("profile_id", profileId)
+        .limit(PAGE_POOL),
+      // Merkbrede antwoorden gelden altijd; analyse-antwoorden alleen bij deze
+      // analyse. Een 'pagina'-antwoord hoort bij één content_piece en gaat daar
+      // apart mee — hier zou het bij de verkeerde pagina kunnen belanden.
+      admin
+        .from("fact_requests")
+        .select("question, answer, answer_type, answered_at, scope, analysis_id")
+        .eq("profile_id", profileId)
+        .eq("status", "beantwoord")
+        .not("answer", "is", null),
+    ]);
 
   const rauw: RawFact[] = [];
 
@@ -92,16 +142,42 @@ export async function buildFactBase(
     rauw.push({ text: punt.trim(), source: `site ${siteUrl}`, allowed: true, citable: true, kind: "site" });
   }
 
-  for (const page of pages ?? []) {
-    const tekst = ((page.text_excerpt as string | null) ?? "").trim();
-    if (tekst.length < 40) continue;
+  // ── S1: welke pagina's gaan er mee, en wat halen we eruit? ────────────────
+  //
+  // Eerst SELECTEREN op onderwerp (deterministisch), dan ATOMISEREN (één
+  // mini-aanroep). De volgorde doet ertoe: atomiseren over de verkeerde pagina's
+  // levert keurige, letterlijke feiten op over de klantenservice.
+  const kandidaten: CandidatePage[] = (pages ?? [])
+    .map((page) => ({
+      url: page.url as string,
+      title: (page.title as string | null) ?? null,
+      text: ((page.text_excerpt as string | null) ?? "").trim(),
+    }))
+    .filter((p) => p.text.length >= 40);
+
+  const termen = topicTerms((analysis?.topic as string | null) ?? null, ...targetQuestions);
+  const relevant = selectRelevantPages(kandidaten, termen, MAX_SITE_PAGES);
+
+  const atomen = await atomiseSitePages({
+    pages: relevant,
+    brandName: (profile?.brand_name as string | null) ?? siteUrl,
+    topic: (analysis?.topic as string | null) ?? "",
+    targetQuestions,
+    analysisId,
+    profileId,
+  });
+  rauw.push(...atomen);
+
+  for (const page of relevant) {
     rauw.push({
-      text: `Sitetekst "${(page.title as string | null) ?? page.url}": ${tekst.slice(0, PAGE_EXCERPT_CHARS)}`,
-      source: `site ${page.url as string}`,
+      text: `Sitetekst "${page.title ?? page.url}": ${page.text.slice(0, PAGE_EXCERPT_CHARS)}`,
+      source: `site ${page.url}`,
       allowed: true,
       // NIET citeerbaar: een lap van 400 tekens is context, geen feit. Zie de
       // toelichting bij FactItem.citable — dit was precies het alibi waarmee de
-      // eerste briefingronde nul vragen opleverde.
+      // eerste briefingronde nul vragen opleverde. De losse, letterlijke zinnen
+      // uit deze pagina's staan hierboven wél als citeerbaar feit (S1); dit blok
+      // blijft eronder staan zodat de schrijver de context en de toon ziet.
       citable: false,
       kind: "site",
     });

@@ -19,7 +19,25 @@
 > gelezen). Waar documentatie en code uit elkaar liepen, is de code leidend — dat verschil heeft
 > in dit traject al vijf bugs opgeleverd, en hieronder komen er nog twee bij.
 >
-> **Peildatum:** 31 juli 2026. Baseline: `npx tsc --noEmit` schoon, 250/250 tests groen.
+> **Peildatum:** 31 juli 2026. Baseline bij het schrijven: `npx tsc --noEmit` schoon, 250/250 tests
+> groen.
+>
+> ---
+>
+> **STAND VAN ZAKEN — S1, S2, S3 en S4 zijn later op 31 juli gebouwd**, bovenop het R8-werk uit
+> commit `f85ff5f` en daarmee geïntegreerd. Geen migratie nodig; tests van 298 naar 342. Waar R8 en
+> een S-stap elkaar raakten is de R8-implementatie leidend gebleven — die stond al op productie —
+> en is de S-stap erbovenop gelegd: R8.1 repareert de bedrading klant → schrijver, S2 bepaalt wat
+> er dan doorheen gaat; R8.7 haalt de zelfrapportage uit de GEO-score, S3 haalt hem uit de
+> dekkingsnoemer.
+>
+> Per voorstel staat hieronder wat er af is. De uitwerking per bestand staat in
+> `status-doorontwikkeling.md` §5, de vinkjes in `implementatieplan.md` §2.
+>
+> **Nog open:** S5 (merkdossier bij onboarding), S7 (ketentest — vraagt een lokale Postgres) en het
+> resterende deel van S6: de migratie voor een status `te_beoordelen` plus het scherm waarop de
+> klant ziet wat hij vrijgeeft. De deterministische poort zelf bestaat sinds R8
+> (`lib/pipeline/content-gate.ts`).
 
 ---
 
@@ -240,7 +258,7 @@ werkvolgorde staat in §4.
 
 ---
 
-### S1 — De feitenkaart wordt onderwerpgericht en atomair
+### S1 — De feitenkaart wordt onderwerpgericht en atomair  ✅ gebouwd
 
 **Wat het is.** `buildFactBase()` verandert van "verzamel wat we over het merk weten" naar
 "verzamel wat we over **dit onderwerp bij dit merk** weten". Drie ingrepen, waarvan twee
@@ -300,7 +318,7 @@ per batch is dat +4% op de $0,048 per pagina. **Verhoogt het aantal getrackte pr
 
 ---
 
-### S2 — De claim-audit wordt de architect: het paginaplan overleeft de briefing
+### S2 — De claim-audit wordt de architect: het paginaplan overleeft de briefing  ✅ gebouwd
 
 **Wat het is.** De rolverdeling tussen twee bestaande stappen omdraaien. Nu is de claim-audit een
 *vragengenerator* en de schrijver een *auteur die zelf zijn structuur bedenkt*. Voorstel: de
@@ -352,7 +370,7 @@ een kleine besparing: een schrijfaanroep met een plan heeft minder herschrijfron
 
 ---
 
-### S3 — De dekkingsmeting krijgt een noemer die de code bepaalt
+### S3 — De dekkingsmeting krijgt een noemer die de code bepaalt  ✅ gebouwd
 
 **Wat het is.** `source_coverage` stopt met vertrouwen op wat het model als bewering aanmerkt.
 Nieuwe pure module `lib/pipeline/claim-extract.ts` (zonder `server-only`, testbaar in
@@ -400,7 +418,7 @@ inhaken in `buildDraftRow`/`reviseContentPiece` 1 d).
 
 ---
 
-### S4 — Een positioneringsslot, met een gereserveerde plek in de acht
+### S4 — Een positioneringsslot, met een gereserveerde plek in de acht  ✅ gebouwd
 
 **Wat het is.** De vraagsoort `onderscheid` krijgt een eigen productiemechanisme in plaats van
 alleen een enumwaarde, en een **gegarandeerde plek** in de vragenlijst.
@@ -445,7 +463,7 @@ een lege verzameling.
 
 ---
 
-### S5 — Merkdossier bij onboarding: bulk-intake in plaats van acht vragen per batch
+### S5 — Merkdossier bij onboarding: bulk-intake in plaats van acht vragen per batch  ☐ open
 
 **Wat het is.** Het kanaal waarlangs klantkennis binnenkomt verbreden. Vandaag is dat kanaal:
 maximaal 8 vragen per contentbatch, waarvan er 3 à 4 vaste slots zijn. Over vijf testklanten
@@ -491,7 +509,7 @@ Geen effect op de kosten per analyse of per pagina.
 
 ---
 
-### S6 — Van `ready` naar vrijgegeven: één deterministische poort, en de klant ziet wat hij vrijgeeft
+### S6 — Van `ready` naar vrijgegeven: één deterministische poort, en de klant ziet wat hij vrijgeeft  ◐ poort af
 
 **Wat het is.** De statuswaarde `ready` betekent vandaag "de pijplijn is klaar", niet "dit kan
 live". Dat verschil kost de klant zijn geloofwaardigheid op het moment dat het misgaat.
@@ -535,7 +553,7 @@ Content Bibliotheek 1,5 d). Bouwt op R8.2/R8.7/R8.8 en moet daarna.
 
 ---
 
-### S7 — Een ketentest op de echte handlers, met een gestubde OpenAI-client
+### S7 — Een ketentest op de echte handlers, met een gestubde OpenAI-client  ☐ open
 
 **Wat het is.** `scripts/test-unit.ts` (250 tests) dekt pure functies uitstekend. Precies daarom
 zat geen van de zeven fouten van dit traject erin: ze zitten allemaal in de **samenhang** tussen

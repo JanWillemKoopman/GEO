@@ -53,9 +53,16 @@ import {
   selectBriefingQuestions,
   slotQuestions,
   describeSkipped,
+  positioningQuestion,
   MAX_QUESTIONS,
 } from "@/lib/pipeline/briefing-select";
+import type { BriefingQuestion } from "@/lib/pipeline/briefing-select";
 import { checkContentGate, openingVan, geoRegels } from "@/lib/pipeline/content-gate";
+
+import { splitSentences, stripMarkdown, firstSentences } from "@/lib/pipeline/sentences";
+import { topicTerms, canonicalPath, scorePage, selectRelevantPages } from "@/lib/pipeline/page-relevance";
+import { verifyAtoms } from "@/lib/pipeline/atom-verify";
+import { detectClaimSentences, claimMatchesSentence, detectedCoverage } from "@/lib/pipeline/claim-extract";
 
 let passed = 0;
 let failed = 0;
@@ -1160,6 +1167,274 @@ group("Scorekaart leest beide formaten (implementatieplan.md R8.7)", () => {
 
   // Een leeg veld mag niet crashen en niet doen alsof alles goed is.
   ok("leeg veld levert geen valse vinkjes", geoRegels(null).every((r) => r.ok === null));
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+console.log("\nZinnen en markdown (S3, gedeelde basis)");
+
+group("zinnen knippen en markdown strippen", () => {
+  ok("Bol.com blijft heel", splitSentences("Bol.com is groot. En snel.").length === 2);
+  ok("3.5 blijft heel", splitSentences("Het cijfer is 3.5 gemiddeld.").length === 1);
+
+  const plat = stripMarkdown("### Kop\n\n**Fysi-Unique** biedt [zorg](/zorg) op maat.\n\n- punt een");
+  ok("kopmarkering weg", !plat.includes("#"));
+  ok("nadruk weg, woorden blijven", plat.includes("Fysi-Unique") && !plat.includes("**"));
+  ok("linklabel blijft, doel weg", plat.includes("zorg") && !plat.includes("/zorg"));
+
+  // De echte openingszin van de Fysi-Unique-pagina van 31 juli staat vetgedrukt.
+  // Zou de vetmarkering blijven staan, dan zou de doelvraag-echo op de sterretjes
+  // struikelen in plaats van op de woorden.
+  const opening = firstSentences(
+    "**Fysi-Unique in Amersfoort biedt preventieve begeleiding.** Dat doen we zo. En verder nog dit.",
+    2,
+  );
+  ok("eerste twee zinnen, zonder opmaak", opening.includes("Fysi-Unique") && !opening.includes("**"));
+  ok("derde zin blijft buiten", !opening.includes("verder nog dit"));
+});
+
+
+// ════════════════════════════════════════════════════════════════════════════
+console.log("\nRelevante pagina's kiezen (S1)");
+
+group("onderwerptermen en taalvarianten", () => {
+  const termen = topicTerms("wasmachine kopen", "Waar kan ik een wasmachine kopen en afhalen?");
+  ok("onderwerpwoord zit erin", termen.includes("wasmachine"));
+  ok("stopwoord eruit", !termen.includes("waar") && !termen.includes("een"));
+
+  // Vier van de acht plekken in de Coolblue-feitenkaart gingen op aan Engelse
+  // duplicaten van pagina's die er al in stonden.
+  ok(
+    "taalsegment eruit",
+    canonicalPath("https://www.coolblue.nl/en/stores") === canonicalPath("https://www.coolblue.nl/stores"),
+  );
+  ok(
+    "gewoon pad blijft heel",
+    canonicalPath("https://fysi-unique.nl/specialismen/revalidatie/") === "/specialismen/revalidatie",
+  );
+});
+
+group("de echte Coolblue-selectie", () => {
+  // Exact de situatie van 31 juli: de homepage en de klantenservice haalden de
+  // kaart, de tien wasmachinepagina's niet.
+  const termen = topicTerms("wasmachine kopen", "Kan ik een wasmachine online bestellen en afhalen?");
+
+  const advies = {
+    url: "https://www.coolblue.nl/advies/wasmachine-bekijken-in-de-coolblue-winkel.html",
+    title: "Persoonlijk advies over wasmachines in onze winkels",
+    text: "Je vindt onze wasmachines in de winkels in Almere, Amsterdam en Tilburg. Bestel samen met een medewerker.",
+  };
+  const home = {
+    url: "https://www.coolblue.nl",
+    title: "Coolblue - Alles voor een glimlach",
+    text: "Ga naar hoofdinhoud. Alles voor een glimlach. Onze winkels en klantenservice staan voor je klaar.",
+  };
+  const homeEn = { ...home, url: "https://www.coolblue.nl/en", title: "Coolblue - Anything for a smile" };
+
+  ok("adviespagina scoort hoger dan de homepage", scorePage(advies, termen) > scorePage(home, termen));
+
+  const gekozen = selectRelevantPages([home, homeEn, advies], termen, 2);
+  ok("adviespagina staat vooraan", gekozen[0].url === advies.url);
+  ok("Engelse duplicaat is samengevouwen", gekozen.length === 2);
+  ok("de Nederlandse variant blijft", gekozen.every((p) => !p.url.endsWith("/en")));
+});
+
+
+// ════════════════════════════════════════════════════════════════════════════
+console.log("\nSitetekst atomiseren — het vangnet (S1)");
+
+group("alleen letterlijke zinnen overleven", () => {
+  const pagina = [
+    {
+      url: "https://www.coolblue.nl/winkels",
+      title: "Winkels",
+      text: "Je vindt onze wasmachines in de winkels in Almere, Amsterdam en Tilburg. Alles voor een glimlach.",
+    },
+  ];
+
+  const echt = verifyAtoms(
+    [{ sentence: "Je vindt onze wasmachines in de winkels in Almere, Amsterdam en Tilburg.", pageIndex: 1 }],
+    pagina,
+  );
+  ok("letterlijke zin komt door", echt.length === 1);
+  ok("en is citeerbaar", echt[0]?.citable === true);
+  ok("met de juiste bron", echt[0]?.source.includes("coolblue.nl/winkels"));
+
+  // Dit is de hele reden dat het vangnet bestaat: een gladgestreken samenvatting
+  // ziet er beter uit en is niet na te trekken.
+  ok(
+    "samengevatte zin valt weg",
+    verifyAtoms([{ sentence: "Coolblue heeft winkels door heel Nederland.", pageIndex: 1 }], pagina).length === 0,
+  );
+  ok(
+    "te korte zin valt weg",
+    verifyAtoms([{ sentence: "Almere.", pageIndex: 1 }], pagina).length === 0,
+  );
+  ok(
+    "verkeerd paginanummer wordt hersteld, niet afgestraft",
+    verifyAtoms(
+      [{ sentence: "Je vindt onze wasmachines in de winkels in Almere, Amsterdam en Tilburg.", pageIndex: 7 }],
+      pagina,
+    ).length === 1,
+  );
+  ok(
+    "dezelfde zin twee keer levert één feit",
+    verifyAtoms(
+      [
+        { sentence: "Je vindt onze wasmachines in de winkels in Almere, Amsterdam en Tilburg.", pageIndex: 1 },
+        { sentence: "Je vindt onze wasmachines in de winkels in Almere, Amsterdam en Tilburg.", pageIndex: 1 },
+      ],
+      pagina,
+    ).length === 1,
+  );
+});
+
+
+// ════════════════════════════════════════════════════════════════════════════
+console.log("\nWelke zinnen zijn een bewering? (S3)");
+
+group("de noemer die de code bepaalt", () => {
+  // Letterlijk de zin uit de Van der Valk-pagina die nooit als claim getagd werd
+  // en dus onzichtbaar bleef voor elke controle.
+  const gevonden = detectClaimSentences(
+    {
+      bodyMarkdown:
+        "Op valk.com zoekt en vergelijkt u snel alle opties en reserveert u direct online. " +
+        "Vergaderen is een vak apart. " +
+        "Van der Valk heeft meer dan 100 hotels wereldwijd. " +
+        "Wat kost een vergaderzaal?",
+      faq: [{ q: "Is parkeren gratis?", a: "Van der Valk biedt gratis parkeren op eigen terrein." }],
+    },
+    "Van der Valk",
+  );
+
+  const zinnen = gevonden.map((g) => g.sentence);
+  ok("de onbewaakte marketingzin wordt gezien", zinnen.some((z) => z.includes("reserveert u direct online")));
+  ok("merknaamzin wordt gezien", zinnen.some((z) => z.includes("100 hotels")));
+  ok("FAQ-antwoord telt mee", zinnen.some((z) => z.includes("gratis parkeren")));
+  ok("een vraag is geen bewering", !zinnen.some((z) => z.includes("Wat kost")));
+  ok("sfeerzin zonder signaal valt buiten", !zinnen.some((z) => z.includes("vak apart")));
+
+  ok(
+    "parafrase hoort bij de zin",
+    claimMatchesSentence(
+      "Van der Valk heeft meer dan 100 hotels",
+      "Van der Valk heeft meer dan 100 hotels wereldwijd.",
+    ),
+  );
+  ok(
+    "een andere bewering hoort er niet bij",
+    !claimMatchesSentence("Van der Valk biedt gratis wifi", "Van der Valk heeft meer dan 100 hotels wereldwijd."),
+  );
+});
+
+group("dekking over de gedetecteerde noemer", () => {
+  const facts = numberFacts([
+    { text: "Meer dan 100 hotels en restaurants wereldwijd", source: "site", allowed: true, citable: true },
+  ]);
+
+  const detected = detectClaimSentences(
+    {
+      bodyMarkdown:
+        "Van der Valk heeft meer dan 100 hotels wereldwijd. " +
+        "Op valk.com reserveert u direct online een zaal.",
+    },
+    "Van der Valk",
+  );
+
+  const zonderTag = detectedCoverage({ detected, claims: [], facts });
+  ok("niets taggen geeft geen 100 meer", zonderTag.coverage === 0);
+  ok("beide zinnen staan als ongetagd", zonderTag.untagged.length === 2);
+
+  const metTag = detectedCoverage({
+    detected,
+    claims: [
+      {
+        claim: "Van der Valk heeft meer dan 100 hotels wereldwijd",
+        factRef: "F1",
+        quote: "Meer dan 100 hotels en restaurants wereldwijd",
+      },
+    ],
+    facts,
+  });
+  ok("de onderbouwde zin telt als gedekt", metTag.coverage === 50);
+  ok("de fabricage blijft over als ongetagd", metTag.untagged.length === 1);
+  ok(
+    "en het is de juiste zin",
+    metTag.untagged[0]?.sentence.includes("reserveert u direct online"),
+  );
+
+  ok(
+    "een pagina zonder beweringen geeft null, niet 100",
+    detectedCoverage({ detected: [], claims: [], facts }).coverage === null,
+  );
+});
+
+
+// ════════════════════════════════════════════════════════════════════════════
+console.log("\nDe positioneringsvraag en de reservering (S4)");
+
+group("de vraag die 0 van de 62 keer gesteld werd", () => {
+  const vraag = positioningQuestion({
+    evidence: [
+      { attribute: "prijs", evidence: "Zitting manuele therapie: €60,00 per sessie" },
+      { attribute: "service", evidence: "biedt fysiotherapie aan zonder dat een verwijsbrief nodig is" },
+    ],
+    contentPieceIds: ["p1"],
+  });
+  ok("er komt een vraag uit", vraag !== null);
+  ok("van de juiste soort", vraag?.kind === "onderscheid");
+  ok("met het letterlijke bewijs erin", vraag?.question.includes("€60,00 per sessie") === true);
+  ok("merkbreed, want dit geldt voor elke pagina", vraag?.scope === "merk");
+  ok("niet verplicht — je moet door kunnen", vraag?.required === false);
+  ok("zonder bewijs geen vraag", positioningQuestion({ evidence: [], contentPieceIds: ["p1"] }) === null);
+});
+
+group("de gereserveerde plek", () => {
+  // Acht inhoudelijk verschillende, verplichte vragen die alle pagina's raken —
+  // precies de soort die in productie alle acht plekken innam.
+  const onderwerpen = [
+    "tarieven vergoeding zorgverzekeraar",
+    "wachttijd eerste afspraak inplannen",
+    "parkeergelegenheid bereikbaarheid locatie",
+    "openingstijden avondbehandeling weekend",
+    "verwijsbrief huisarts noodzakelijk",
+    "behandelduur intakegesprek minuten",
+    "oefenprogramma thuis begeleiding",
+    "samenwerking sportclubs trainers",
+  ];
+  const vulling: BriefingQuestion[] = onderwerpen.map((onderwerp, i) => ({
+    claimKey: claimKey(onderwerp),
+    question: `Vraag over ${onderwerp}?`,
+    reason: "r",
+    kind: "verificatie" as const,
+    answerType: "ja_nee" as const,
+    options: [],
+    suggestedAnswer: null,
+    required: true,
+    scope: "analyse" as const,
+    contentPieceIds: ["p1", "p2"],
+    priority: 2,
+  }));
+
+  const positionering = positioningQuestion({
+    evidence: [{ attribute: "prijs", evidence: "Zitting manuele therapie: €60,00 per sessie" }],
+    contentPieceIds: ["p1"],
+  })!;
+
+  ok(
+    "acht verplichte vragen vullen de lijst",
+    selectBriefingQuestions({ candidates: vulling, alreadyKnown: new Set() }).length === MAX_QUESTIONS,
+  );
+
+  const met = selectBriefingQuestions({
+    candidates: [...vulling, positionering],
+    alreadyKnown: new Set(),
+  });
+  ok("nog steeds acht vragen", met.length === MAX_QUESTIONS);
+  // Zonder reservering verliest deze vraag altijd: hij is nooit `kern` en raakt
+  // zelden alle pagina's, dus de sortering op impact duwt hem er structureel uit.
+  // Dat is precies waarom hij 0 van de 62 keer gesteld werd.
+  ok("de positioneringsvraag haalt de lijst", met.some((v) => v.kind === "onderscheid"));
 });
 
 // ════════════════════════════════════════════════════════════════════════════

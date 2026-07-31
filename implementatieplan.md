@@ -127,6 +127,13 @@ R5 heeft geen nieuwe migratie nodig — die draait op het schema uit `0024`, dat
 | R8.8 | Onderscheidend vermogen afdwingen | 1,5 d | ✅ |
 | R8.9 | Productfeed voor retailers/platforms (onderzoek) | 3-5 d | ☐ |
 | R8.10 | Versiesprong bij eerste schrijfronde opruimen | 1 d | ✅ |
+| S1 | Onderwerpgerichte, atomaire feitenkaart | 4 d | ✅ |
+| S2 | De claim-audit als architect: het paginaplan overleeft de briefing | 3 d | ✅ |
+| S3 | Dekkingsmeting met een noemer die de code bepaalt | 3 d | ✅ |
+| S4 | Positioneringsslot met een gereserveerde plek | 2 d | ✅ |
+| S5 | Merkdossier bij onboarding | 4 d | ☐ |
+| S6 | Publicatiepoort | 3 d | ◐ logica in R8-poort, migratie + scherm open |
+| S7 | Ketentest op de echte handlers | 4 d | ☐ |
 
 **Totaal: circa 46 dagen (R0-R6) + 15,5-17,5 dagen (R8).** Volgorde-afhankelijkheden: R1 en R2 zijn
 onafhankelijk van elkaar en kunnen parallel. R3 bouwt op R2.1. R4 bouwt op R0.5. R5 bouwt op R1

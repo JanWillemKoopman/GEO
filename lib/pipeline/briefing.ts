@@ -32,15 +32,17 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { callStructured } from "@/lib/openai/structured";
 import { MODELS, TEMPERATURES } from "@/lib/openai/models";
 import { ClaimAudit } from "@/lib/schemas/claim-audit";
+import type { AuditedClaim } from "@/lib/schemas/claim-audit";
 import { buildFactBase } from "@/lib/pipeline/factbase";
 import { formatFactCard, isSupported, claimKey, type FactItem } from "@/lib/pipeline/factcard";
 import {
   selectBriefingQuestions,
   slotQuestions,
+  positioningQuestion,
   MAX_QUESTIONS,
   type BriefingQuestion,
 } from "@/lib/pipeline/briefing-select";
-import { redactCompetitors } from "@/lib/pipeline/redact";
+import { redactCompetitors, containsCompetitor } from "@/lib/pipeline/redact";
 import type { RecommendationPayload } from "@/lib/jobs/types";
 import type { BusinessModel, ContentType } from "@/lib/types/database";
 
@@ -235,6 +237,55 @@ async function loadKnownClaimKeys(
   return { keys, questions };
 }
 
+/**
+ * De positioneringsvraag opbouwen uit de concurrentprofielen (S4).
+ *
+ * `competitor_breakdown.attributes_json` (R4.2) bevat per concurrent de
+ * eigenschap waaróp hij genoemd wordt, met een letterlijk citaat als bewijs:
+ * "Zitting manuele therapie: €60,00 per sessie", "biedt fysiotherapie aan zonder
+ * dat een verwijsbrief nodig is". Die zinnen stonden er al en werden nergens
+ * gebruikt — `loadContentContext()` gooide zelfs alleen de eigenschapsnamen in de
+ * schrijfprompt en liet het bewijs liggen.
+ *
+ * Namen gaan er dubbel uit: `redactCompetitors` haalt ze weg en
+ * `containsCompetitor` controleert dat na. Een citaat dat ondanks beide nog een
+ * naam bevat gaat niet mee — de harde regel dat klantcontent nooit een concurrent
+ * noemt geldt ook voor wat we de klant voorschotelen.
+ */
+async function buildPositioningQuestion(
+  admin: Admin,
+  analysisId: string,
+  pieceIds: string[],
+  competitors: string[],
+) {
+  const { data: rows } = await admin
+    .from("competitor_breakdown")
+    .select("attributes_json")
+    .eq("analysis_id", analysisId)
+    .not("attributes_json", "is", null)
+    .order("mentions_count", { ascending: false })
+    .limit(8);
+
+  // Eén bewijszin per eigenschap: drie keer "service" met net andere bewoording
+  // maakt de vraag lang zonder hem scherper te maken.
+  const perEigenschap = new Map<string, string>();
+  for (const row of rows ?? []) {
+    for (const attr of (row.attributes_json ?? []) as { attribute: string; evidence: string }[]) {
+      if (!attr?.attribute?.trim() || !attr?.evidence?.trim()) continue;
+      if (perEigenschap.has(attr.attribute)) continue;
+
+      const schoon = redactCompetitors(attr.evidence.trim(), competitors);
+      if (containsCompetitor(schoon, competitors)) continue;
+      perEigenschap.set(attr.attribute, schoon);
+    }
+  }
+
+  return positioningQuestion({
+    evidence: Array.from(perEigenschap, ([attribute, evidence]) => ({ attribute, evidence })),
+    contentPieceIds: pieceIds,
+  });
+}
+
 export interface BriefingResult {
   contentPieceIds: string[];
   /** Aantal nieuw gestelde vragen. 0 = alles al bekend, er valt niets te vragen. */
@@ -266,8 +317,22 @@ export async function runBriefing(args: {
 
   const pieceIds = await ensureBriefingPieces(admin, analysisId, recommendations);
 
-  // ── 1. De feitenindex (geen AI-aanroep) ──────────────────────────────────
-  const facts = await buildFactBase(admin, profileId, analysisId);
+  // ── 1. De feitenindex ─────────────────────────────────────────────────────
+  //
+  // De doelvragen gaan mee sinds S1: zij bepalen wélke gecrawlde pagina's
+  // relevant zijn, en dus welke feiten er überhaupt op de kaart kunnen komen.
+  // Zonder dat argument koos `buildFactBase()` de eerste acht rijen uit de
+  // database — bij Coolblue vier keer een navigatiepagina plus dezelfde vier in
+  // het Engels, en geen van de tien gecrawlde wasmachinepagina's.
+  const doelvragen = Array.from(
+    new Set(
+      recommendations
+        .flatMap((rec) => rec.targets ?? [])
+        .map((t) => t.text?.trim())
+        .filter((t): t is string => Boolean(t)),
+    ),
+  );
+  const facts = await buildFactBase(admin, profileId, analysisId, doelvragen);
 
   const { data: profile } = await admin
     .from("profiles")
@@ -380,6 +445,12 @@ export async function runBriefing(args: {
     );
   }
 
+  // De positioneringsvraag erbij (S4). Deze kán niet uit de claim-audit komen —
+  // die kent alleen dekkingsgaten — en werd daardoor 0 van de 62 keer gesteld,
+  // waardoor de R8.8-controle op een lege verzameling draaide.
+  const positionering = await buildPositioningQuestion(admin, analysisId, pieceIds, competitors);
+  if (positionering) kandidaten.push(positionering);
+
   const gekozen = selectBriefingQuestions({ candidates: kandidaten, alreadyKnown: bekend.keys });
 
   if (kandidaten.length > gekozen.length + bekend.keys.size) {
@@ -435,6 +506,19 @@ export async function runBriefing(args: {
       .update({
         briefing_snapshot_json: {
           facts,
+          // ── HET PAGINAPLAN BEWAREN (S2) ────────────────────────────────
+          //
+          // De audit rekent per pagina uit WELKE beweringen hij nodig heeft en
+          // waaróm. Tot nu toe gebruikten we daar alleen de GATEN van (om vragen
+          // te stellen) en verdween de rest. Gemeten over de vijf testcases: 31
+          // beweringen, waarvan 19 door het model onderbouwd geacht — allemaal
+          // weggegooid, terwijl dat precies het skelet is waarmee de schrijver
+          // zou moeten beginnen.
+          //
+          // `draftContentPiece()` rekent dit plan vlak vóór het schrijven
+          // opnieuw door tegen de dan-geldende feiten, inclusief de antwoorden
+          // die de klant ná de briefing gaf.
+          plan: audit.parsed.claims.filter((c) => paginaVanClaim(c.neededFor).includes(pieceId)),
           recommendation: recommendations[i],
           generatedAt: new Date().toISOString(),
         } as never,
@@ -452,6 +536,25 @@ export function factsFromSnapshot(snapshot: unknown): FactItem[] {
   return snap.facts.filter(
     (f): f is FactItem =>
       Boolean(f) && typeof (f as FactItem).ref === "string" && typeof (f as FactItem).text === "string",
+  );
+}
+
+/**
+ * Het paginaplan uit de snapshot teruglezen (S2).
+ *
+ * Leeg bij een pagina van vóór S2, of bij een briefing die strandde vóór het
+ * wegschrijven. De schrijver valt dan terug op het oude gedrag: doelvragen +
+ * feitenkaart, zonder skelet. Minder goed, niet stuk — zelfde afspraak als bij
+ * `recommendationFromSnapshot()`.
+ */
+export function planFromSnapshot(snapshot: unknown): AuditedClaim[] {
+  const snap = (snapshot ?? {}) as { plan?: unknown };
+  if (!Array.isArray(snap.plan)) return [];
+  return snap.plan.filter(
+    (c): c is AuditedClaim =>
+      Boolean(c) &&
+      typeof (c as AuditedClaim).claim === "string" &&
+      typeof (c as AuditedClaim).neededFor === "string",
   );
 }
 

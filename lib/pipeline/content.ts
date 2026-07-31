@@ -35,15 +35,18 @@ import { MODELS, TEMPERATURES } from "@/lib/openai/models";
 import { ContentPiece } from "@/lib/schemas/content-piece";
 import { Critique, geoScore, geoIssues } from "@/lib/schemas/critique";
 import { checkContentGate } from "@/lib/pipeline/content-gate";
+import { detectClaimSentences, detectedCoverage } from "@/lib/pipeline/claim-extract";
+import type { AuditedClaim } from "@/lib/schemas/claim-audit";
 import { validateOrRebuildJsonLd } from "@/lib/schema-jsonld";
 import { redactCompetitors, containsCompetitor } from "@/lib/pipeline/redact";
 import { analyzeCitedSources } from "@/lib/pipeline/source-analysis";
 import { contentWebSearchEnabled, minProofPointsForConcreteContent } from "@/lib/config";
 import { buildFactBase } from "@/lib/pipeline/factbase";
-import { factsFromSnapshot } from "@/lib/pipeline/briefing";
+import { factsFromSnapshot, planFromSnapshot } from "@/lib/pipeline/briefing";
 import {
   formatFactCard,
   sourceCoverage,
+  isSupported,
   factFromAnswer,
   mergeAnsweredFacts,
   type AnsweredFactInput,
@@ -249,6 +252,64 @@ function buildWinningAnswerBlock(answers: string[], competitors: string[]): stri
   );
 }
 
+/**
+ * Het paginaplan als opdracht (S2).
+ *
+ * ── WAAROM DIT BLOK ER NIET WAS ─────────────────────────────────────────────
+ *
+ * De claim-audit rekent vóór het schrijven uit welke beweringen de pagina nodig
+ * heeft om zijn doelvraag geloofwaardig te beantwoorden, en waaróm. Van die
+ * uitkomst gebruikte de app alleen de GATEN — om vragen aan de klant van te
+ * maken. De rest verdween. Gemeten over de vijf testcases: 31 beweringen in de
+ * audits, waarvan 19 onderbouwd; alle 31 weggegooid na het stellen van de vragen.
+ *
+ * De schrijver begon dus elke keer bij nul: feitenkaart, doelvragen, succes. Nu
+ * krijgt hij het skelet, met per bewering de stand van zaken op dít moment —
+ * opnieuw doorgerekend tegen de kaart inclusief de antwoorden die de klant ná de
+ * briefing gaf, niet tegen de stand van tijdens de audit.
+ *
+ * Drie uitkomsten, en het verschil ertussen is het hele punt:
+ *   • GEDEKT       — schrijf hem, met dit F-nummer erbij
+ *   • WEERLEGD     — de klant heeft dit ontkend; dit is een verbod
+ *   • GEEN BRON    — laat de passage weg, vul hem niet in
+ */
+function buildPlanBlock(plan: AuditedClaim[], facts: FactItem[]): string {
+  if (plan.length === 0) return "";
+
+  const regels = plan.map((claim) => {
+    const gedekt = isSupported(claim.sourceRef, facts, claim.supportQuote);
+    // Een feit met `allowed: false` is een VERBOD, geen ontbrekend feit: de
+    // klant heeft "nee" geantwoord. Dat onderscheid weglaten zou het model laten
+    // redeneren dat het waarschijnlijk tóch wel zo is — precies de fout uit de
+    // Udenhout-run, maar dan mét een antwoord in de hand.
+    const weerlegd = facts.some(
+      (f) =>
+        !f.allowed &&
+        f.ref &&
+        claim.sourceRef &&
+        claim.sourceRef.toUpperCase().includes(f.ref.toUpperCase()),
+    );
+
+    const stand = gedekt
+      ? `GEDEKT door ${claim.sourceRef}`
+      : weerlegd
+        ? "WEERLEGD — de klant heeft dit ontkend, dus VERBODEN"
+        : "GEEN BRON — laat deze passage weg";
+
+    return (
+      `- [${claim.importance === "kern" ? "KERN" : "ondersteunend"}] ${claim.claim}\n` +
+      `    beantwoordt: ${claim.neededFor}\n    stand: ${stand}`
+    );
+  });
+
+  return (
+    `\nPAGINAPLAN — dit is wat deze pagina moet vertellen, en per punt of we het kunnen ` +
+    `onderbouwen. Volg dit plan: behandel de KERN-punten die gedekt zijn als eerste, laat de ` +
+    `punten zonder bron volledig weg (niet voorzichtig formuleren — WEGLATEN), en schrijf nooit ` +
+    `iets dat als WEERLEGD staat aangemerkt.\n${regels.join("\n")}`
+  );
+}
+
 function buildContentInput(args: {
   analysis: Analysis;
   profile: Profile | null;
@@ -263,6 +324,8 @@ function buildContentInput(args: {
   competitorEdge: string;
   /** De gesloten feitenkaart (R5.3). Vervangt de open "gebruik deze feiten"-lijst. */
   facts: FactItem[];
+  /** Wat deze pagina moet vertellen, uit de claim-audit (S2). */
+  plan: AuditedClaim[];
   /** Verplichte vragen die de klant liet liggen — die claims vervallen (§6). */
   unansweredRequired: string[];
 }): string {
@@ -278,6 +341,7 @@ function buildContentInput(args: {
     sourceBlock,
     competitorEdge,
     facts,
+    plan,
     unansweredRequired,
   } = args;
 
@@ -298,6 +362,10 @@ function buildContentInput(args: {
     profile?.value_props?.length ? `Waardeproposities (waarom klanten kiezen): ${profile.value_props.join(", ")}` : "",
     // ✅ De gesloten feitenkaart (R5.3) — geen uitnodiging maar een grens.
     formatFactCard(facts),
+    // ✅ Het paginaplan uit de claim-audit (S2) — wat de pagina moet vertellen,
+    // met per punt of we het kunnen onderbouwen. Direct onder de kaart, want de
+    // twee horen bij elkaar: het plan noemt de F-nummers die de kaart draagt.
+    buildPlanBlock(plan, facts),
     // Wat de klant bewust liet liggen. Expliciet benoemen is wezenlijk: zonder
     // deze regel weet het model alleen dat het feit ontbreekt, en "ontbreekt"
     // is precies de situatie waarin het gaat invullen. Nu weet het dat er
@@ -412,10 +480,12 @@ interface ContentContext {
   brandName: string;
   /**
    * De feitenkaart waarop deze pagina geschreven wordt (R5.3). Wordt ook ná het
-   * schrijven gebruikt: `sourceCoverage()` rekent er de bronnendekking mee na,
-   * en die controle is alleen zinnig tegen dezelfde kaart die het model kreeg.
+   * schrijven gebruikt: de dekkingsberekening rekent er de bronnen mee na, en
+   * die controle is alleen zinnig tegen dezelfde kaart die het model kreeg.
    */
   facts: FactItem[];
+  /** Wat de pagina moet vertellen, uit de claim-audit (S2). Leeg = geen plan. */
+  plan: AuditedClaim[];
   /**
    * Wat de klant als ONDERSCHEIDEND heeft opgegeven (R8.8). De briefing vraagt
    * er expliciet naar (contentbriefing.md §5, vraagsoort 3) omdat het de enige
@@ -552,10 +622,31 @@ async function loadContentContext(
     .order("mentions_count", { ascending: false })
     .limit(8);
 
+  // ── Waaróp worden de concurrenten genoemd? (R4.3, aangescherpt in S4) ─────
+  //
+  // Deze Map bevatte de bewijszinnen al — en er ging alleen `.keys()` de prompt
+  // in. De schrijver kreeg dus letterlijk dit als "de lat":
+  //
+  //     - locatie
+  //     - service
+  //     - specialisme
+  //     - prijs
+  //
+  // Vier abstracte zelfstandige naamwoorden, terwijl de concrete zinnen eronder
+  // in de database stonden: "Zitting manuele therapie: €60,00 per sessie",
+  // "biedt fysiotherapie aan zonder dat een verwijsbrief nodig is". Dat is het
+  // verschil tussen weten dát je op prijs verliest en weten waarvan.
+  //
+  // De namen gaan er dubbel uit — wegstrepen én controleren — want de harde
+  // regel is dat er nooit een concurrent op de pagina van de klant komt.
   const edgeCounts = new Map<string, string>();
   for (const row of rivalRows ?? []) {
     for (const a of (row.attributes_json ?? []) as { attribute: string; evidence: string }[]) {
-      if (!edgeCounts.has(a.attribute)) edgeCounts.set(a.attribute, a.evidence);
+      if (!a?.attribute?.trim() || !a?.evidence?.trim()) continue;
+      if (edgeCounts.has(a.attribute)) continue;
+      const schoon = redactCompetitors(a.evidence.trim(), competitors);
+      if (containsCompetitor(schoon, competitors)) continue;
+      edgeCounts.set(a.attribute, schoon);
     }
   }
 
@@ -563,9 +654,7 @@ async function loadContentContext(
     edgeCounts.size > 0
       ? `\nWAAROP DE AI NU ANDERE AANBIEDERS NOEMT (dit is de lat — jouw pagina moet op deze punten ` +
         `minstens zo concreet zijn; de namen doen er niet toe en mogen niet op de pagina):\n` +
-        Array.from(edgeCounts.keys())
-          .map((attr) => `- ${attr}`)
-          .join("\n")
+        Array.from(edgeCounts, ([attr, bewijs]) => `- ${attr}: "${bewijs}"`).join("\n")
       : "";
 
   // ── De feitenkaart (R5.3) ─────────────────────────────────────────────────
@@ -587,7 +676,22 @@ async function loadContentContext(
 
   const bevroren = factsFromSnapshot(pieceRow?.briefing_snapshot_json);
   const basis =
-    bevroren.length > 0 ? bevroren : await buildFactBase(admin, analysis.profile_id, analysisId);
+    bevroren.length > 0
+      ? bevroren
+      : // De doelvragen sturen de relevantieselectie (S1). Zonder ze zou de
+        // terugvalroute weer de eerste acht crawlrijen pakken — bij Coolblue vier
+        // navigatiepagina's plus dezelfde vier in het Engels.
+        await buildFactBase(
+          admin,
+          analysis.profile_id,
+          analysisId,
+          targets.map((t) => t.text),
+        );
+
+  // Het paginaplan uit de audit (S2). Wordt in `buildPlanBlock()` opnieuw
+  // doorgerekend tegen de kaart hieronder — inclusief de verse antwoorden — in
+  // plaats van tegen de stand van tijdens de briefing.
+  const plan = planFromSnapshot(pieceRow?.briefing_snapshot_json);
 
   // ── De bevroren kaart is een MOMENTOPNAME, geen eindstand (R8.1) ──────────
   //
@@ -604,6 +708,7 @@ async function loadContentContext(
   return {
     analysis,
     facts,
+    plan,
     profile,
     competitors,
     targets,
@@ -622,6 +727,7 @@ async function loadContentContext(
       sourceBlock: sources.block,
       competitorEdge,
       facts,
+      plan,
       unansweredRequired,
     }),
   };
@@ -719,6 +825,40 @@ async function loadSavedDraft(
   };
 }
 
+/**
+ * De dekking, met een noemer die de CODE bepaalt (S3).
+ *
+ * ── WAT ER MIS WAS MET DE OUDE NOEMER ───────────────────────────────────────
+ *
+ * `sourceCoverage()` rekent na of de beweringen in `claims_json` standhouden
+ * tegen de feitenkaart — en dat blijft precies zoals het was. Maar `claims_json`
+ * wordt door het SCHRIJVENDE model zelf samengesteld: het bepaalt welke zinnen
+ * als bewering tellen. Gemeten over de tien pagina's van 31 juli:
+ *
+ *   4.470 woorden · ~250 zinnen · 49 getagde beweringen
+ *
+ * Ongeveer één op de vijf zinnen werd gemeten, en juist in die andere vier
+ * vijfde zaten beide fabricages die de contentronde vond: "Op valk.com …
+ * reserveer direct online" (aantoonbaar onjuist, source_coverage bleef 100) en
+ * de Fysi-Unique-openingszin die een bevestigd "nee" tegensprak. Niet-taggen was
+ * een ontsnappingsroute.
+ *
+ * `detectClaimSentences()` bepaalt nu welke zinnen een bewering zijn (merknaam,
+ * getal of toezegging) en een zin zonder onderbouwde claim telt als ongedekt.
+ * Wat het model tagt is nog steeds nodig — het levert het F-nummer — maar het
+ * bepaalt niet langer waarover afgerekend wordt.
+ *
+ * Eén functie voor de schrijf- én de herschrijfronde, zodat die twee niet elk
+ * hun eigen variant krijgen.
+ */
+function assessClaims(piece: ContentPiece, facts: FactItem[], brandName: string) {
+  const detected = detectClaimSentences(
+    { bodyMarkdown: piece.bodyMarkdown, faq: piece.faq },
+    brandName,
+  );
+  return detectedCoverage({ detected, claims: piece.claims ?? [], facts });
+}
+
 /** De kolommen die uit de SCHRIJFronde komen — los van het oordeel dat erna volgt. */
 function buildDraftRow(args: {
   analysisId: string;
@@ -731,14 +871,22 @@ function buildDraftRow(args: {
   supersedesId: string | null;
   /** De kaart waartegen de beweringen nagerekend worden (R5.3). */
   facts: FactItem[];
+  brandName: string;
 }) {
-  const { analysisId, reportId, recommendation, draft, analysis, action, version, supersedesId, facts } = args;
+  const {
+    analysisId,
+    reportId,
+    recommendation,
+    draft,
+    analysis,
+    action,
+    version,
+    supersedesId,
+    facts,
+    brandName,
+  } = args;
 
-  // De dekking wordt in CODE nagerekend, niet overgenomen van het model
-  // (contentbriefing.md §9). Een F-nummer dat niet bestaat — of dat naar een
-  // verbod wijst — telt niet mee. Anders tilt een model zijn eigen cijfer op
-  // door plausibele nummers te noemen, en meet het cijfer weer niets.
-  const { coverage, unsupported } = sourceCoverage(draft.parsed.claims ?? [], facts);
+  const { coverage, unsupported } = assessClaims(draft.parsed, facts, brandName);
 
   return {
     analysis_id: analysisId,
@@ -972,6 +1120,7 @@ export async function draftContentPiece(args: {
     // Dezelfde kaart die het model kreeg (R5.3). Tegen een andere kaart
     // narekenen zou een dekking opleveren die niets zegt over deze tekst.
     facts: ctx.facts,
+    brandName,
     version: nextVersion,
     supersedesId: resumeId ? null : (current?.id ?? null),
   });
@@ -1007,9 +1156,29 @@ export async function draftContentPiece(args: {
     distinctiveAnswers: ctx.distinctiveAnswers,
   });
   const geo_score = gate.score ?? geoScore(geo);
+
+  // Zinnen die een uitspraak doen over het bedrijf zonder dat het model ze als
+  // bewering aanmeldde (S3). Dat is de categorie waarin beide fabricages van
+  // 31 juli vielen, en de herschrijfronde kan er iets mee: de zin staat erbij.
+  const { untagged } = assessClaims(draft.parsed, ctx.facts, brandName);
+  const brononderbouwing =
+    untagged.length > 0
+      ? [
+          `${untagged.length} zin(nen) doen een uitspraak over het bedrijf zonder bron: ` +
+            `${untagged.slice(0, 2).map((d) => `"${d.sentence}"`).join(", ")}` +
+            `${untagged.length > 2 ? ` (en nog ${untagged.length - 2})` : ""}. ` +
+            `Onderbouw ze met een F-nummer of haal ze weg.`,
+        ]
+      : [];
+
   // De GEO-tekortkomingen worden gewone verbeterpunten: de herschrijfronde weet
   // dan precies wát er moet veranderen in plaats van "beter maken".
-  const issues = [...critique.parsed.issues, ...geoIssues(geo), ...gate.issues];
+  const issues = [
+    ...critique.parsed.issues,
+    ...geoIssues(geo),
+    ...gate.issues,
+    ...brononderbouwing,
+  ];
 
   const needsRevise =
     !critique.parsed.followsRules ||
@@ -1127,16 +1296,29 @@ export async function reviseContentPiece(args: {
   // De bronnendekking opnieuw narekenen (R5.3). De herschrijfronde levert een
   // andere tekst op, dus ook andere beweringen — de dekking van de eerste
   // versie laten staan zou een cijfer over een tekst zijn die niet meer bestaat.
-  const { coverage, unsupported } = sourceCoverage(final.claims ?? [], ctx.facts);
-  const bronNotitie =
-    unsupported.length > 0
+  const { coverage, unsupported, untagged } = assessClaims(final, ctx.facts, brandName);
+  const bronNotitie = [
+    ...(unsupported.length > 0
       ? [
           `${unsupported.length} bewering(en) konden we niet herleiden tot een bevestigd feit: ` +
             `${unsupported.slice(0, 3).map((c) => `"${c.claim}"`).join(", ")}` +
             `${unsupported.length > 3 ? ` (en nog ${unsupported.length - 3})` : ""}. ` +
             `Controleer of ze kloppen voordat je publiceert.`,
         ]
-      : [];
+      : []),
+    // De categorie waarin beide fabricages van 31 juli vielen (S3): een zin die
+    // een uitspraak doet over het bedrijf zonder dat het model hem als bewering
+    // aanmeldde. Vóór S3 was zo'n zin onzichtbaar voor élke controle; nu staat
+    // hij letterlijk in de notitie die de klant leest.
+    ...(untagged.length > 0
+      ? [
+          `${untagged.length} zin(nen) doen een uitspraak over het bedrijf zonder bron: ` +
+            `${untagged.slice(0, 2).map((d) => `"${d.sentence}"`).join(", ")}` +
+            `${untagged.length > 2 ? ` (en nog ${untagged.length - 2})` : ""}. ` +
+            `Klopt dit? Zo niet, haal de zin weg.`,
+        ]
+      : []),
+  ];
 
   await admin
     .from("content_pieces")
@@ -1172,7 +1354,10 @@ export async function reviseContentPiece(args: {
         ...gate.issues,
         ...bronNotitie,
       ],
-      needs_review: needsReview || unsupported.length > 0,
+      // Een onherleidbare bewering telt, en sinds S3 ook een bewerende zin
+      // zónder claim: dat is precies de vorm waarin de twee fabricages van
+      // 31 juli aan elke controle ontsnapten.
+      needs_review: needsReview || unsupported.length > 0 || untagged.length > 0,
       status: "ready" as const,
       word_count: countWords(final.bodyMarkdown),
     })

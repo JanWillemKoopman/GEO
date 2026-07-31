@@ -101,11 +101,37 @@ export async function planContentDraft(
   // heb" zijn twee verschillende opdrachten met een verschillende feitenkaart.
   // Zonder dit zou die tweede klik stil genegeerd worden — de sleutel bestond
   // immers al — en zou het antwoord van de klant nooit in de tekst belanden.
-  const { count: beantwoord } = await admin
-    .from("fact_requests")
-    .select("id", { count: "exact", head: true })
-    .eq("analysis_id", analysisId)
-    .eq("status", "beantwoord");
+  //
+  // ⚠️ De telling liep over `analysis_id`, en dat sloeg bijna de helft van de
+  // antwoorden over: vragen met `scope = 'merk'` worden bewust met
+  // `analysis_id = null` opgeslagen (briefing.ts), want ze gelden voor álle
+  // analyses van dit profiel. In productie is dat 9 van de 21 beantwoorde vragen
+  // (43%) — inclusief BEIDE verplichte landing-slots (telefoon/adres en de
+  // contact-URL). Een klant die alleen merkbrede vragen beantwoordde en opnieuw
+  // op "Schrijf mijn pagina's" klikte, kreeg dus een taak die stil op de sleutel
+  // sneuvelde: exact het scenario dat deze sleutel moest voorkomen.
+  //
+  // Nu tellen we met dezelfde reikwijdte die `buildFactBase()` hanteert:
+  // merkbreed telt altijd mee, analyse-specifiek alleen bij deze analyse. Wat de
+  // feitenkaart gebruikt, moet de sleutel zien.
+  const { data: analyseRij } = await admin
+    .from("analyses")
+    .select("profile_id")
+    .eq("id", analysisId)
+    .maybeSingle();
+
+  const { count: beantwoord } = analyseRij?.profile_id
+    ? await admin
+        .from("fact_requests")
+        .select("id", { count: "exact", head: true })
+        .eq("profile_id", analyseRij.profile_id)
+        .eq("status", "beantwoord")
+        .or(`scope.eq.merk,analysis_id.eq.${analysisId}`)
+    : await admin
+        .from("fact_requests")
+        .select("id", { count: "exact", head: true })
+        .eq("analysis_id", analysisId)
+        .eq("status", "beantwoord");
 
   const { created } = await enqueue(admin, {
     type: "content_draft",

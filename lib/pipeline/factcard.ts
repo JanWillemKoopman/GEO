@@ -393,8 +393,16 @@ function splitQuote(raw: string): string[] {
     .filter(Boolean);
 }
 
-/** Losjes vergelijken: hoofdletters, accenten en witruimte mogen afwijken. */
-function normalizeForQuote(text: string): string {
+/**
+ * Losjes vergelijken: hoofdletters, accenten en witruimte mogen afwijken.
+ *
+ * Geëxporteerd sinds S1, omdat twee controles buiten dit bestand exact dezelfde
+ * maatstaf moeten gebruiken: `atom-verify.ts` (staat deze zin écht in de
+ * brontekst?) en `claim-extract.ts` (hoort deze getagde bewering bij deze zin?).
+ * Twee net verschillende normalisaties zouden betekenen dat een feit de ene
+ * controle haalt en de andere niet.
+ */
+export function normalizeForQuote(text: string): string {
   return text
     .toLowerCase()
     .normalize("NFKD")
