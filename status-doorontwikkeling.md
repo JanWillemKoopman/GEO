@@ -1,6 +1,6 @@
 # Status doorontwikkeling — overdracht tussen sessies
 
-**Laatst bijgewerkt:** 31 juli 2026 · **Branch:** `main` (alles is gemerged) · **Tests:** 205 groen
+**Laatst bijgewerkt:** 31 juli 2026 · **Branch:** `main` (alles is gemerged) · **Tests:** 234 groen
 
 Dit document is de brug tussen werksessies. Het beschrijft **wat er af is**, **wat de afspraken
 zijn die tijdens het bouwen zijn ontstaan**, en **wat er nog open staat en in welke volgorde**.
@@ -28,14 +28,16 @@ De inhoudelijke onderbouwing staat elders en wordt niet herhaald:
 | **R2** — Meetbaarheid | De score telde "de AI noemde niemand" mee als "jij werd niet genoemd". Nu wordt per antwoord geteld hoeveel aanbieders er genoemd worden; alleen winbare vragen tellen mee in de score, en structureel merkloze vragen worden bij vervolgperiodes overgeslagen. |
 | **R3** — Zichtbaarheidsprofiel | `position` stond vol onzin (215 van 521 vermeldingen op 0) en `sentiment` gaf in 650 metingen nooit iets anders dan neutraal. Positie is gerepareerd, sentiment vervangen door `mention_role`, en citaties worden nu geteld. |
 | **R4** — Concurrent-intelligence | Concurrenten werden geteld maar niet begrepen. Nieuwe pipelinestap destilleert per concurrent waaróm die genoemd wordt, met een letterlijk citaat per eigenschap. |
-| **R6.1** — Gelaagd hermeten | Eén meting per vraag was te wisselvallig om een trendlijn op te tekenen. De zwaarste 8 vragen gaan nu 3× door de meting, en alle aggregatie telt per **vraag** in plaats van per meting. |
+| **R6.1** — Gelaagd hermeten | Eén meting per vraag was te wisselvallig om een trendlijn op te tekenen. De zwaarste 8 vragen gaan nu 3× door de meting, en alle aggregatie telt per **vraag** in plaats van per meting. Geverifieerd op productie — zie §3b. |
+| **R5.1** — Contentbriefing (backend) | Het model verzon feiten precies waar de pagina er een nodig had. Nu bouwt de app eerst een feitenkaart, laat een claim-audit bepalen welke beweringen niet onderbouwd zijn, en maakt van elk gat een vraag aan de klant. Het scherm (R5.2) staat nog open. |
 
 ### Nog open
 
 | Ronde | Stappen | Effort |
 |---|---|---|
 | **R0** — Fundament | R0.1 t/m R0.6 | 8 d |
-| **R5** — Contentbriefing als klantgate | R5.1, R5.2, R5.3 | 8,5 d |
+| **R5** — Contentbriefing | R5.2 (scherm), R5.3 (schrijfcontract) | 5,5 d |
+| **R7** — Stabiele meetbasis (nieuw, uit §3b) | nog uit te werken | ~4 d |
 | **R6.2 / R6.3** | Inventariskwaliteitspoort, brontype als signaal | 3,5 d |
 
 De actuele vinkjes staan in de voortgangstabel van `implementatieplan.md` §2. Dát is de bron van
@@ -114,6 +116,86 @@ bewoog, ook de noemer.
 
 ---
 
+## 3b. De R6.1-verificatie — hoe onbetrouwbaar één meting werkelijk is
+
+Op 31 juli is periode 2 van Fysi-Unique gedraaid mét herhalingen: 21 vragen, waarvan de 8
+zwaarste drie keer. 37 metingen, 0 mislukkingen, ongeveer $0,96. Dit is het cijfer waar R6.1 om
+gebouwd is.
+
+### De uitkomst
+
+**Van de 8 herhaalde vragen veranderde bij 4 de winbaarheid tussen de metingen.** Dezelfde vraag,
+dezelfde week, en de ene keer noemt de AI geen enkele aanbieder en de andere keer vier. Geen
+enkele herhaalde vraag was alle drie de keren winbaar.
+
+Het aantal genoemde aanbieders per meting, per vraag:
+
+| Vraag (ingekort) | meting 1 | 2 | 3 |
+|---|---|---|---|
+| Hoe kan ik snel een afspraak maken… | 0 | 1 | 4 |
+| Waar kan ik in Amersfoort terecht… | 0 | 5 | 1 |
+| Welke praktijk biedt ook preventief… | 0 | 5 | 4 |
+| Is een persoonlijk behandelplan mogelijk… | 0 | 4 | 0 |
+| (4 overige) | 0 | 0 | 0 |
+
+### Wat dat met de score doet
+
+De sluitende manier om het te laten zien: neem dezelfde 21 vragen en doe alsof we elke vraag maar
+één keer gemeten hadden. Afhankelijk van wélke meting je dan toevallig had:
+
+| Als we alleen meting … hadden | winbare vragen | genoemd | score |
+|---|---|---|---|
+| 1 | 6 | 3 | **50** |
+| 2 | 5 | 1 | **20** |
+| 3 | 5 | 2 | **40** |
+| *gemiddeld over alle drie (wat R6.1 nu doet)* | 5 | — | **38** |
+
+**Dezelfde week, dezelfde vragen, en de score valt ergens tussen 20 en 50.** Dat is het antwoord
+op de vraag hoe betrouwbaar de eenmalige meting al die tijd was: de trendlijn die de app tot nu
+toe toonde bewoog grotendeels op ruis. De 18 → 36 uit periode 0 en 1 was geen verbetering, en de
+verificatieronde is nu het bewijs in plaats van het vermoeden.
+
+### Wat R6.1 heeft opgelost, en wat niet
+
+**Opgelost.** De aggregatie telt aantoonbaar per vraag: 37 metingen leverden `judged_runs = 21`
+op, niet 37. De herhaalde vragen wegen dus niet zwaarder. Het middelen werkt zoals bedoeld — 38
+ligt netjes in het midden van 20–50 in plaats van op een van de uitersten.
+
+**Niet opgelost — en dit is de belangrijkste openstaande bevinding.** De meetbasis krimpt hard:
+
+| periode | judged | winbaar | score | stderr |
+|---|---|---|---|---|
+| 0 | 30 | 17 | 18 | 6,5 |
+| 1 | 30 | 11 | 36 | 14,8 |
+| 2 | 21 | 5 | 38 | 21,4 |
+
+Bij 5 winbare vragen is de 95%-band ongeveer ±42 punten. De score is dan formeel nog een getal,
+maar hij zegt niets meer. Twee dingen versterken elkaar hier:
+
+1. **Winbaarheid is stochastisch, niet een eigenschap van de vraag.** De app behandelt hem als
+   binair (`brand_eliciting` = ja/nee/onbekend), maar de meting laat zien dat het een kans is.
+2. **R2.4 versmalt de basis bij elke periode.** Vragen die twee metingen lang niets opleverden
+   worden overgeslagen. Dat spaart geld, maar het haalt ook vragen weg die één op de drie keer wél
+   winbaar zijn.
+
+De `score_stderr` rapporteert dit inmiddels eerlijk — dat is winst van R6.1 — maar eerlijk
+rapporteren dat een cijfer onbruikbaar is, is niet hetzelfde als een bruikbaar cijfer hebben.
+
+### Wat hieruit volgt
+
+Dit hoort in een eigen ronde thuis, en het is nu het zwaarstwegende openstaande punt:
+
+- `brand_eliciting` als **kans** modelleren in plaats van als vlag, en R2.4 pas laten overslaan
+  bij een aantoonbaar lage kans in plaats van na twee nulmetingen.
+- De **noemer stabiliseren**: óf meer vragen meten, óf de score over alle vragen berekenen met de
+  winbaarheid als weging, zodat een wisselende noemer de trend niet meer domineert.
+- Overwegen de score **niet te tonen** onder een minimum aantal winbare vragen — dezelfde logica
+  als `measurementIsUsable`, maar dan op de winbare basis in plaats van op het aantal metingen.
+
+Dat is geen kleine correctie op R6.1; het raakt hoe de kernmaat van het product gedefinieerd is.
+
+---
+
 ## 4. Testdata in productie
 
 Vijf klantprofielen op het account van de eigenaar, aangemaakt via Supabase (niet via de UI).
@@ -136,30 +218,26 @@ de verificatieronde op gedraaid en daar hangen de cijfers in dit document aan.
 
 ## 5. Wat er nog moet gebeuren, op volgorde
 
-### Eerst: de spreiding van R6.1 meten (~$1,06, een halve dag)
+### Eerst: R5 afmaken (5,5 d)
 
-R6.1 is gebouwd maar **nog nooit met herhalingen gedraaid**. Eén periode op Fysi-Unique geeft per
-herhaalde vraag hoe vaak het antwoord omslaat. Dat cijfer is om twee redenen belangrijk:
+R5.1 staat, maar de klant ziet er nog niets van: de vragen komen in de database en daar blijft het
+bij. Zolang R5.2 er niet is, staat de briefing tussen de klant en zijn content in zonder iets
+terug te geven. Dit is dus geen "nice to have" maar het afmaken van een halve ingreep.
 
-1. Het zegt of drie herhalingen genoeg zijn, of dat `measureRepeats` omhoog/omlaag moet.
-2. Het is meteen het antwoord op de vraag hoe betrouwbaar de eenmalige meting al die tijd was —
-   waardevolle kennis los van deze stap.
+- **R5.2** Briefingscherm (3 d) — het scherm uit `contentbriefing.md` §8, plus de route
+  `POST /api/analyses/[id]/briefing` die alleen `answer`, `status` en `answered_at` mag zetten,
+  en de knop die dan pas `content_draft` inplant.
+- **R5.3** Schrijfcontract (2,5 d) — de schrijfcall krijgt de feitenkaart als **enige** bron,
+  vult `claims_json` met per bewering het F-nummer, en berekent `source_coverage`. Doel: nul
+  verzonnen feiten tegen de vijf uit de Udenhout-test.
 
-Zonder dit cijfer is R6.1 een aanname die in productie staat. Dit hoort daarom vóór nieuwe
-functionaliteit.
+De bouwstenen liggen er al: `formatFactCard()`, `factsFromSnapshot()` en de bevroren
+`briefing_snapshot_json` per pagina.
 
-### Daarna: R5 — Contentbriefing als klantgate (8,5 d)
+### Daarna: R7 — de meetbasis stabiliseren (~4 d, nieuw)
 
-De grootste openstaande ronde, en de reden dat het hele traject begon: de klant moet ijzersterke
-content krijgen die aansluit op zijn analyse. R1–R4 hebben de grondstof betrouwbaar gemaakt;
-R5 is wat er met die grondstof gebeurt.
-
-- **R5.1** Feitenindex + claim-audit (3 d)
-- **R5.2** Briefingscherm (3 d) — de klant bevestigt de briefing vóór het schrijven
-- **R5.3** Schrijfcontract (2,5 d)
-
-Volgt de specificatie in `contentbriefing.md`. Migratie `0024` is al toegepast; R5 heeft geen
-nieuwe migratie nodig. Bouwt op het bewijsdossier uit R1.
+Volgt rechtstreeks uit §3b. Dit is inmiddels het zwaarstwegende punt: bij 5 winbare vragen is de
+score formeel nog een getal maar zegt hij niets meer.
 
 ### Daarna: R6.2 en R6.3 (3,5 d)
 

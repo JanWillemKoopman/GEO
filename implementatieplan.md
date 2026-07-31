@@ -111,7 +111,7 @@ R5 heeft geen nieuwe migratie nodig — die draait op het schema uit `0024`, dat
 | R4.1 | Concurrent-snoei | 1 d | ✅ |
 | R4.2 | Concurrentprofilering (nieuwe stap) | 3 d | ✅ |
 | R4.3 | Doorgeven aan rapport en content | 1,5 d | ✅ |
-| R5.1 | Feitenindex + claim-audit | 3 d | ☐ |
+| R5.1 | Feitenindex + claim-audit | 3 d | ✅ |
 | R5.2 | Briefingscherm | 3 d | ☐ |
 | R5.3 | Schrijfcontract | 2,5 d | ☐ |
 | R6.1 | Gelaagd hermeten | 2 d | ✅ |
@@ -1070,9 +1070,16 @@ hele laag uit zonder codewijziging.
 **Tests:** 205 groen, waarvan 14 nieuw voor `shareByRun`/`sumShare`/`roundQuestions` en de
 gewogen positieberekening.
 
-**Nog te doen:** de spreiding daadwerkelijk meten. Eén periode met herhalingen draaien op
-Fysi-Unique (~$1,06) geeft per herhaalde vraag hoe vaak het antwoord omslaat — het cijfer dat
-zegt hoe betrouwbaar de eenmalige meting al die tijd was.
+**Geverifieerd op productie (31 juli).** Periode 2 van Fysi-Unique met herhalingen: 21 vragen,
+8 daarvan 3×, 37 metingen, 0 mislukkingen, ~$0,96. Bij 4 van de 8 herhaalde vragen veranderde de
+winbaarheid tussen de metingen; geen enkele was alle drie de keren winbaar. Had je elke vraag maar
+één keer gemeten, dan was de score op dezelfde week 50, 20 of 40 geworden — R6.1 middelt dat naar
+38. De aggregatie telt aantoonbaar per vraag (`judged_runs = 21` bij 37 metingen).
+
+**Bevinding die hieruit volgt en NIET door R6.1 wordt opgelost:** de meetbasis krimpt
+(17 → 11 → 5 winbare vragen) en bij 5 winbare vragen is de 95%-band ±42 punten. Winbaarheid blijkt
+een kans te zijn, geen eigenschap van de vraag, terwijl `brand_eliciting` hem binair modelleert.
+Uitgewerkt in `status-doorontwikkeling.md` §3b; opgevoerd als nieuwe ronde R7.
 
 ### R6.2 — Inventariskwaliteitspoort
 
