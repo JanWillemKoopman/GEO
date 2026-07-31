@@ -112,8 +112,8 @@ R5 heeft geen nieuwe migratie nodig — die draait op het schema uit `0024`, dat
 | R4.2 | Concurrentprofilering (nieuwe stap) | 3 d | ✅ |
 | R4.3 | Doorgeven aan rapport en content | 1,5 d | ✅ |
 | R5.1 | Feitenindex + claim-audit | 3 d | ✅ |
-| R5.2 | Briefingscherm | 3 d | ☐ |
-| R5.3 | Schrijfcontract | 2,5 d | ☐ |
+| R5.2 | Briefingscherm | 3 d | ✅ |
+| R5.3 | Schrijfcontract | 2,5 d | ✅ |
 | R6.1 | Gelaagd hermeten | 2 d | ✅ |
 | R6.2 | Inventariskwaliteitspoort | 2 d | ☐ |
 | R6.3 | Brontype als signaal | 1,5 d | ☐ |

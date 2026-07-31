@@ -39,7 +39,14 @@ import type { EvidenceEntry } from "@/lib/pipeline/evidence-format";
 import { stripUnsupportedClaims, validateField, NEUTRAL_FALLBACK } from "@/lib/pipeline/validate-claims";
 import { normalizePosition, averagePosition, weightedAveragePosition } from "@/lib/pipeline/position";
 import { shareByRun, sumShare, roundQuestions } from "@/lib/pipeline/question-share";
-import { numberFacts, formatFactCard, isSupported, claimKey, factFromAnswer } from "@/lib/pipeline/factcard";
+import {
+  numberFacts,
+  formatFactCard,
+  isSupported,
+  claimKey,
+  factFromAnswer,
+  sourceCoverage,
+} from "@/lib/pipeline/factcard";
 import { selectBriefingQuestions, describeSkipped, MAX_QUESTIONS } from "@/lib/pipeline/briefing-select";
 
 let passed = 0;
@@ -653,6 +660,50 @@ group("Feitenkaart (contentbriefing.md §9 / R5.1)", () => {
   ok("leestekens maken niet uit", claimKey("Kost €419!") === claimKey("kost 419"));
   ok("meervoud valt samen", claimKey("de looptijden") === claimKey("de looptijd"));
   ok("echt andere claims blijven apart", claimKey("pechhulp inbegrepen") !== claimKey("apk inbegrepen"));
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+group("Bronnendekking van geschreven content (contentbriefing.md §9 / R5.3)", () => {
+  const facts = numberFacts([
+    { text: "All-in vanaf €419 per maand", source: "site", allowed: true },
+    { text: "4 jaar garantie", source: "klant", allowed: true },
+    { text: "Pechhulp: NEE", source: "klant", allowed: false },
+  ]);
+
+  // Dit is de maat die geo_score vervangt. Die gaf in de praktijktest voor alle
+  // drie de pagina's 100 — ook voor de pagina met vijf verzonnen feiten. Een
+  // cijfer dat nooit differentieert meet niets.
+  const alles = sourceCoverage(
+    [
+      { claim: "Vanaf €419 per maand", factRef: "F1" },
+      { claim: "4 jaar garantie op het werk", factRef: "F2" },
+    ],
+    facts,
+  );
+  ok("alles onderbouwd is 100", alles.coverage === 100);
+  ok("niets onherleidbaar", alles.unsupported.length === 0);
+
+  // De Udenhout-fout: een bewering met een F-nummer dat niet bestaat.
+  const verzonnen = sourceCoverage(
+    [
+      { claim: "Vanaf €419 per maand", factRef: "F1" },
+      { claim: "Pechhulp is inbegrepen", factRef: "F7" },
+    ],
+    facts,
+  );
+  ok("onbestaand F-nummer telt niet mee", verzonnen.coverage === 50);
+  ok("de onherleidbare bewering wordt teruggegeven", verzonnen.unsupported[0].claim.includes("Pechhulp"));
+
+  // Verwijzen naar een VERBOD is geen onderbouwing maar een weerlegging.
+  const verbod = sourceCoverage([{ claim: "Pechhulp is inbegrepen", factRef: "F3" }], facts);
+  ok("verbod onderbouwt niets", verbod.coverage === 0);
+
+  // Geen beweringen is geen perfecte dekking maar een ontbrekend oordeel.
+  ok("geen beweringen → null, niet 100", sourceCoverage([], facts).coverage === null);
+  ok(
+    "lege bewering telt niet mee",
+    sourceCoverage([{ claim: "   ", factRef: "F1" }], facts).coverage === null,
+  );
 });
 
 // ════════════════════════════════════════════════════════════════════════════

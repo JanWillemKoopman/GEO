@@ -198,6 +198,44 @@ export function isSupported(sourceRef: string | null | undefined, facts: FactIte
   return facts.some((f) => f.allowed && f.ref.toUpperCase() === ref);
 }
 
+/** Eén bewering uit de geschreven pagina, met het F-nummer dat hem dekt. */
+export interface WrittenClaim {
+  claim: string;
+  factRef: string;
+}
+
+/**
+ * Hoeveel van de concrete beweringen in de tekst zijn écht herleidbaar?
+ * (contentbriefing.md §9, implementatieplan.md R5.3)
+ *
+ * ── WAAROM DIT DE `geo_score` VERVANGT ──────────────────────────────────────
+ *
+ * De bestaande `geo_score` gaf in de praktijktest voor alle drie de pagina's
+ * 100 — inclusief de pagina met vijf verzonnen feiten. Een cijfer dat nooit
+ * differentieert meet niets. Bronnendekking differentieert wél: het is het
+ * percentage beweringen waarvan de herkomst aanwijsbaar is.
+ *
+ * Net als bij de claim-audit wordt de dekking in CODE bepaald en niet door het
+ * model. Een verwijzing naar een F-nummer dat niet bestaat — of naar een verbod —
+ * telt niet mee. Anders zou een model de eigen score kunnen optillen door
+ * plausibele nummers te noemen, en dan meet het cijfer opnieuw niets.
+ *
+ * Geen enkele bewering opleveren geeft `null`, niet 100. "Ik heb niets beweerd"
+ * is geen perfecte dekking maar een ontbrekend oordeel — en `null` is de enige
+ * eerlijke weergave daarvan.
+ */
+export function sourceCoverage(
+  claims: WrittenClaim[],
+  facts: FactItem[],
+): { coverage: number | null; unsupported: WrittenClaim[] } {
+  const echt = claims.filter((c) => c.claim?.trim());
+  if (echt.length === 0) return { coverage: null, unsupported: [] };
+
+  const unsupported = echt.filter((c) => !isSupported(c.factRef, facts));
+  const gedekt = echt.length - unsupported.length;
+  return { coverage: Math.round((gedekt / echt.length) * 100), unsupported };
+}
+
 /**
  * De ontdubbelsleutel van een claim (contentbriefing.md §3.4).
  *

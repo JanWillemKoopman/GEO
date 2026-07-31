@@ -159,6 +159,21 @@ export default async function ContentDetailPage({
             <span className="text-muted"> ({Math.round(piece.quality_score)}/100)</span>
           )}
         </span>
+        {/* Bronnendekking (contentbriefing.md §9, R5.3). Bewust náást de
+            redactionele kwaliteit en niet in plaats daarvan: die twee meten
+            iets anders. Een tekst kan prachtig geschreven zijn én beweringen
+            bevatten die nergens vandaan komen — dat was precies de uitkomst van
+            de praktijktest, waar de redactionele score voor alle drie de
+            pagina's 100 gaf terwijl er vijf feiten verzonnen waren. */}
+        {piece.source_coverage != null && (
+          <span className="text-sm">
+            <span className="text-muted">Onderbouwd met jouw feiten: </span>
+            <span className="font-medium">{Math.round(piece.source_coverage)}%</span>
+            {piece.source_coverage < 100 && (
+              <span className="text-muted"> — de rest is algemene uitleg of niet herleidbaar</span>
+            )}
+          </span>
+        )}
         {piece.word_count != null && (
           <span className="text-sm text-muted">{piece.word_count} woorden</span>
         )}

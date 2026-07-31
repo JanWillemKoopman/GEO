@@ -29,14 +29,13 @@ De inhoudelijke onderbouwing staat elders en wordt niet herhaald:
 | **R3** — Zichtbaarheidsprofiel | `position` stond vol onzin (215 van 521 vermeldingen op 0) en `sentiment` gaf in 650 metingen nooit iets anders dan neutraal. Positie is gerepareerd, sentiment vervangen door `mention_role`, en citaties worden nu geteld. |
 | **R4** — Concurrent-intelligence | Concurrenten werden geteld maar niet begrepen. Nieuwe pipelinestap destilleert per concurrent waaróm die genoemd wordt, met een letterlijk citaat per eigenschap. |
 | **R6.1** — Gelaagd hermeten | Eén meting per vraag was te wisselvallig om een trendlijn op te tekenen. De zwaarste 8 vragen gaan nu 3× door de meting, en alle aggregatie telt per **vraag** in plaats van per meting. Geverifieerd op productie — zie §3b. |
-| **R5.1** — Contentbriefing (backend) | Het model verzon feiten precies waar de pagina er een nodig had. Nu bouwt de app eerst een feitenkaart, laat een claim-audit bepalen welke beweringen niet onderbouwd zijn, en maakt van elk gat een vraag aan de klant. Het scherm (R5.2) staat nog open. |
+| **R5** — Contentbriefing | Het model verzon feiten precies waar de pagina er een nodig had. Nu bouwt de app eerst een feitenkaart, laat een claim-audit bepalen welke beweringen niet onderbouwd zijn, stelt de klant maximaal 8 vragen, en schrijft daarna uitsluitend binnen die kaart — met per bewering het F-nummer dat hem dekt. |
 
 ### Nog open
 
 | Ronde | Stappen | Effort |
 |---|---|---|
 | **R0** — Fundament | R0.1 t/m R0.6 | 8 d |
-| **R5** — Contentbriefing | R5.2 (scherm), R5.3 (schrijfcontract) | 5,5 d |
 | **R7** — Stabiele meetbasis (nieuw, uit §3b) | nog uit te werken | ~4 d |
 | **R6.2 / R6.3** | Inventariskwaliteitspoort, brontype als signaal | 3,5 d |
 
@@ -218,21 +217,22 @@ de verificatieronde op gedraaid en daar hangen de cijfers in dit document aan.
 
 ## 5. Wat er nog moet gebeuren, op volgorde
 
-### Eerst: R5 afmaken (5,5 d)
+### Eerst: R5 in de praktijk toetsen (~$0,06, een halve dag)
 
-R5.1 staat, maar de klant ziet er nog niets van: de vragen komen in de database en daar blijft het
-bij. Zolang R5.2 er niet is, staat de briefing tussen de klant en zijn content in zonder iets
-terug te geven. Dit is dus geen "nice to have" maar het afmaken van een halve ingreep.
+R5 is compleet gebouwd maar **nog nooit end-to-end gedraaid**. Dat is precies de fout die bij R6.1
+is rechtgezet: code die klopt is niet hetzelfde als gedrag dat klopt.
 
-- **R5.2** Briefingscherm (3 d) — het scherm uit `contentbriefing.md` §8, plus de route
-  `POST /api/analyses/[id]/briefing` die alleen `answer`, `status` en `answered_at` mag zetten,
-  en de knop die dan pas `content_draft` inplant.
-- **R5.3** Schrijfcontract (2,5 d) — de schrijfcall krijgt de feitenkaart als **enige** bron,
-  vult `claims_json` met per bewering het F-nummer, en berekent `source_coverage`. Doel: nul
-  verzonnen feiten tegen de vijf uit de Udenhout-test.
+De toets die er toe doet is dezelfde als in `contentbriefing.md` §1: genereer één pagina voor een
+testklant en reken elke concrete bewering na tegen `claims_json`. **Doel: nul verzonnen feiten,
+tegen vijf in de Udenhout-test.** Loop daarbij ook de briefing zelf door — zijn de vragen echt in
+30 seconden te beantwoorden, en levert het overslaan van een verplichte vraag inderdaad een
+ontbrekende passage op in plaats van een verzonnen zin?
 
-De bouwstenen liggen er al: `formatFactCard()`, `factsFromSnapshot()` en de bevroren
-`briefing_snapshot_json` per pagina.
+Let bij die toets specifiek op twee dingen die pas in productie blijken:
+- Vult het model `claims` volledig, of noemt het alleen de makkelijke beweringen? Een lage
+  `source_coverage` is een signaal; een verdácht hoge ook.
+- Zijn de vaste slots (telefoonnummer, link naar bestaande pagina) niet irritant bij een klant die
+  ze al op zijn site heeft staan?
 
 ### Daarna: R7 — de meetbasis stabiliseren (~4 d, nieuw)
 

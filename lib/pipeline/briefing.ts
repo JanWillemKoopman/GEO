@@ -390,10 +390,25 @@ export async function runBriefing(args: {
   // De feitenkaart bevriezen op de gekozen pagina's, net als prompt_text_snapshot
   // (abcplan.md §5): wijzigt de klant later een feit, dan blijft achterhaalbaar
   // op basis waarvan de bestaande pagina destijds geschreven is.
-  await admin
-    .from("content_pieces")
-    .update({ briefing_snapshot_json: { facts, generatedAt: new Date().toISOString() } as never })
-    .in("id", pieceIds);
+  //
+  // De AANBEVELING gaat mee in dezelfde snapshot, en dat is geen bijvangst: de
+  // doelvragen (welke gemiste vraag deze pagina moet winnen, R4.1) zitten niet
+  // in de kolommen van content_pieces. Zonder ze hier te bewaren zou de
+  // schrijftaak die de klant straks start ze kwijt zijn, en dan schrijft de app
+  // weer een pagina zonder te weten welke vraag hij moet winnen — precies het
+  // gat dat fase 4 dichtte.
+  for (const [i, pieceId] of pieceIds.entries()) {
+    await admin
+      .from("content_pieces")
+      .update({
+        briefing_snapshot_json: {
+          facts,
+          recommendation: recommendations[i],
+          generatedAt: new Date().toISOString(),
+        } as never,
+      })
+      .eq("id", pieceId);
+  }
 
   return { contentPieceIds: pieceIds, questions: geschreven, facts: facts.length };
 }
@@ -406,4 +421,18 @@ export function factsFromSnapshot(snapshot: unknown): FactItem[] {
     (f): f is FactItem =>
       Boolean(f) && typeof (f as FactItem).ref === "string" && typeof (f as FactItem).text === "string",
   );
+}
+
+/**
+ * De bevroren aanbeveling teruglezen — inclusief de doelvragen.
+ *
+ * Geeft null als de snapshot er niet is (een pagina van vóór R5.1, of een
+ * briefing die halverwege strandde). De aanroeper valt dan terug op de kolommen
+ * van de rij zelf; dat levert een pagina zonder doelvragen op, wat minder goed
+ * is maar niet kapot.
+ */
+export function recommendationFromSnapshot(snapshot: unknown): RecommendationPayload | null {
+  const snap = (snapshot ?? {}) as { recommendation?: unknown };
+  const rec = snap.recommendation as RecommendationPayload | undefined;
+  return rec && typeof rec.title === "string" ? rec : null;
 }

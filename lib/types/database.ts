@@ -26,7 +26,13 @@ export type MentionSentiment = "positive" | "neutral" | "negative";
 export type MentionRole = "eerste_aanbeveling" | "een_van_meerdere" | "zijdelings";
 export type ContentType = "article" | "faq" | "landing" | "comparison";
 /** `draft` = tussenstand tijdens generatie (migratie 0013): stap 1 klaar, stap 2 nog niet. */
-export type ContentStatus = "draft" | "ready" | "archived" | "published";
+/**
+ * `briefing` = door de klant gekozen, wacht op zijn antwoorden vóórdat er ook
+ * maar één zin geschreven wordt (contentbriefing.md §10, migratie 0024). Een
+ * rij in deze status heeft nog geen `body_markdown`; de bibliotheek toont hem
+ * apart en linkt naar het briefingscherm in plaats van naar een lege pagina.
+ */
+export type ContentStatus = "briefing" | "draft" | "ready" | "archived" | "published";
 export type JobStatus = "queued" | "running" | "done" | "failed";
 export type ProfileStatus = "bezig" | "klaar" | "mislukt";
 export type ContentAction = "nieuw" | "verbeteren";
@@ -415,6 +421,20 @@ export interface ContentPiece {
   geo_json: unknown | null;
   /** Wat de eindredacteur nog zag, in gewone taal (4.13). */
   review_notes: string[];
+  /**
+   * Contentbriefing (migratie 0024, implementatieplan.md R5.1/R5.3).
+   *
+   * `claims_json` = per concrete bewering in de tekst het F-nummer dat hem dekt.
+   * `briefing_snapshot_json` = de feitenkaart en de aanbeveling zoals gebruikt
+   * bij het schrijven, bevroren. `source_coverage` = welk deel van de
+   * beweringen herleidbaar is; vervangt `geo_score` als kwaliteitsmaat, want
+   * die gaf in de praktijktest voor alle drie de pagina's 100 — ook voor de
+   * pagina met vijf verzonnen feiten.
+   */
+  claims_json: unknown | null;
+  briefing_snapshot_json: unknown | null;
+  brief_instruction: string | null;
+  source_coverage: number | null;
   /** Heeft de klant de tekst zelf bijgewerkt? (4.12) */
   edited_by_user: boolean;
   /** Publicatie (optimalisatie.md 5.1/5.2, migratie 0020). */

@@ -38,6 +38,9 @@ import { validateOrRebuildJsonLd } from "@/lib/schema-jsonld";
 import { redactCompetitors, containsCompetitor } from "@/lib/pipeline/redact";
 import { analyzeCitedSources } from "@/lib/pipeline/source-analysis";
 import { contentWebSearchEnabled, minProofPointsForConcreteContent } from "@/lib/config";
+import { buildFactBase } from "@/lib/pipeline/factbase";
+import { factsFromSnapshot } from "@/lib/pipeline/briefing";
+import { formatFactCard, sourceCoverage, type FactItem, type WrittenClaim } from "@/lib/pipeline/factcard";
 import type { RecommendationTarget } from "@/lib/pipeline/recommendation";
 import type {
   Analysis,
@@ -79,8 +82,8 @@ const TARGET_WORDS: Record<ContentType, { min: number; max: number }> = {
 /**
  * Harde regels — dit staat op de EIGEN website van de klant:
  * 1. Nooit concurrenten of andere bedrijven bij naam noemen.
- * 2. Geen specifieke feiten verzinnen. WEL toegestaan: de meegegeven,
- *    geverifieerde feiten uit "Feiten over dit bedrijf".
+ * 2. De FEITENKAART is de enige bron van concrete beweringen over de klant
+ *    (R5.3). Gesloten lijst: wat er niet op staat, wordt niet geschreven.
  * 3. Direct antwoord eerst; heldere koppen; scanbaar; geen AI-slop.
  *
  * De GEO-regels (4-6) zijn nieuw in fase 4 en gaan over iets anders dan
@@ -95,10 +98,23 @@ const CONTENT_SYSTEM =
   "HARDE REGELS: " +
   "(1) Noem NOOIT concurrenten of andere bedrijven bij naam — dit is de site van de klant zelf; " +
   "vergelijkingen met bij naam genoemde bedrijven zijn absoluut verboden. " +
-  "(2) Je mag de CONCRETE FEITEN gebruiken die onder 'Feiten over dit bedrijf' staan (die zijn geverifieerd " +
-  "van de eigen site). Verzin daarbuiten GEEN specifieke feiten (prijzen, cijfers, productmerken, technieken, " +
-  "keurmerken, openingstijden). Waar een concreet detail zou horen dat je niet weet, houd het algemeen; " +
-  "vermijd holle superlatieven. " +
+  // ── R5.3: de feitenkaart is een GRENS, geen suggestie ────────────────────
+  // Hier stond "je mag de concrete feiten gebruiken die onder 'Feiten over dit
+  // bedrijf' staan". Dat is een uitnodiging: het zegt wat mag, niet wat niet
+  // mag. In de praktijktest schreef het model vijf feiten die er niet stonden —
+  // pechhulp, vervangend vervoer, schadeherstel, looptijden, kilometerbundels —
+  // en elk daarvan op precies de plek waar de pagina een concreet detail nodig
+  // had. De regel hieronder draait het om: gesloten lijst, en wat er niet op
+  // staat bestaat niet.
+  "(2) De FEITENKAART is de ENIGE toegestane bron van concrete beweringen over dit bedrijf. Elke " +
+  "feitelijke bewering over de klant (prijzen, cijfers, voorwaarden, wat er wel/niet bij zit, " +
+  "openingstijden, keurmerken, aantallen, namen van vestigingen) moet herleidbaar zijn tot een " +
+  "F-nummer op die kaart. Staat het er niet op, dan schrijf je er NIET over — niet gladstrijken, " +
+  "niet aannemen, niet 'logisch invullen', ook niet voorzichtig geformuleerd of als vraag in een " +
+  "FAQ. Een pagina die iets niet noemt is beter dan een pagina die het verzint. Wat onder 'MAG JE " +
+  "NIET BEWEREN' staat is een VERBOD. Algemene uitleg over het onderwerp (hoe dit in het algemeen " +
+  "werkt) mag wel zonder F-nummer, zolang er geen belofte van deze klant in zit. " +
+  "Lever in het veld `claims` per concrete bewering over de klant het F-nummer dat hem dekt. " +
   "(3) Schrijf in dezelfde stijl als de meegegeven voorbeeldzinnen van de site. " +
   "REGELS VOOR VINDBAARHEID IN AI-ASSISTENTEN (net zo belangrijk als de rest): " +
   "(4) Beantwoord de DOELVRAAG letterlijk en volledig in de eerste twee zinnen van de pagina, vóór " +
@@ -233,7 +249,10 @@ function buildContentInput(args: {
   sourceBlock: string;
   /** Waarop concurrenten genoemd worden — de lat (R4.3). Zonder namen. */
   competitorEdge: string;
-  answeredFacts: string[];
+  /** De gesloten feitenkaart (R5.3). Vervangt de open "gebruik deze feiten"-lijst. */
+  facts: FactItem[];
+  /** Verplichte vragen die de klant liet liggen — die claims vervallen (§6). */
+  unansweredRequired: string[];
 }): string {
   const {
     analysis,
@@ -246,13 +265,10 @@ function buildContentInput(args: {
     winningAnswers,
     sourceBlock,
     competitorEdge,
-    answeredFacts,
+    facts,
+    unansweredRequired,
   } = args;
 
-  // Feiten van de site + feiten die de klant zelf aanleverde (4.6). Die tweede
-  // groep is doorgaans waardevoller: het zijn precies de cijfers die nergens op
-  // de website stonden.
-  const proofPoints = [...(profile?.proof_points ?? []), ...answeredFacts];
   const styleSamples = profile?.style_samples ?? [];
   const words = TARGET_WORDS[rec.type];
   const brandName = profile?.brand_name ?? analysis.url;
@@ -268,10 +284,16 @@ function buildContentInput(args: {
     `Tone of voice: ${profile?.tone_of_voice ?? "professioneel, helder"}`,
     `Diensten/producten: ${(profile?.products ?? []).join(", ") || "onbekend"}`,
     profile?.value_props?.length ? `Waardeproposities (waarom klanten kiezen): ${profile.value_props.join(", ")}` : "",
-    // ✅ Grounding: geverifieerde feiten die de schrijver WEL mag gebruiken.
-    proofPoints.length
-      ? `Feiten over dit bedrijf (geverifieerd — deze mag en MOET je gebruiken waar ze passen):\n- ${proofPoints.join("\n- ")}`
-      : "Feiten over dit bedrijf: (geen harde feiten bekend — blijf algemeen, verzin niets).",
+    // ✅ De gesloten feitenkaart (R5.3) — geen uitnodiging maar een grens.
+    formatFactCard(facts),
+    // Wat de klant bewust liet liggen. Expliciet benoemen is wezenlijk: zonder
+    // deze regel weet het model alleen dat het feit ontbreekt, en "ontbreekt"
+    // is precies de situatie waarin het gaat invullen. Nu weet het dat er
+    // NAAR GEVRAAGD is en dat er geen antwoord kwam.
+    unansweredRequired.length
+      ? `ONBEANTWOORD GEBLEVEN — hier is naar gevraagd, de klant heeft niet geantwoord. Schrijf ` +
+        `hier NIETS over; laat de passage weg in plaats van hem in te vullen:\n- ${unansweredRequired.join("\n- ")}`
+      : "",
     // ✅ Stijl-grounding: letterlijke voorbeeldzinnen om de toon na te bootsen.
     styleSamples.length ? `Voorbeeldzinnen in de merkstem (toon nabootsen):\n- ${styleSamples.join("\n- ")}` : "",
     topicResearch?.content_summary ? `Wat de website al zegt over dit onderwerp: ${topicResearch.content_summary}` : "",
@@ -302,7 +324,8 @@ function buildContentInput(args: {
     "",
     `Schrijf de volledige pagina in Markdown (zonder concurrentnamen), plus meta-title (max 60 tekens), ` +
       `meta-description (max 160 tekens), FAQ en schema.org JSON-LD. Noem "${brandName}" expliciet bij naam ` +
-      `waar je iets over het bedrijf zegt.`,
+      `waar je iets over het bedrijf zegt. Vul daarna \`claims\` met elke concrete bewering die je over ` +
+      `${brandName} hebt gedaan en het F-nummer dat hem dekt.`,
   ]
     .filter(Boolean)
     .join("\n");
@@ -375,6 +398,12 @@ interface ContentContext {
   /** Web-zoeken aanzetten voor déze aanroep, omdat de feitenlijst te dun is (4.6). */
   needsFactFinding: boolean;
   brandName: string;
+  /**
+   * De feitenkaart waarop deze pagina geschreven wordt (R5.3). Wordt ook ná het
+   * schrijven gebruikt: `sourceCoverage()` rekent er de bronnendekking mee na,
+   * en die controle is alleen zinnig tegen dezelfde kaart die het model kreeg.
+   */
+  facts: FactItem[];
 }
 
 async function loadContentContext(
@@ -392,18 +421,27 @@ async function loadContentContext(
     admin.from("topic_research").select("*").eq("analysis_id", analysisId).maybeSingle(),
     // Feiten die de klant zelf aanleverde (4.6) — vaak precies de cijfers die
     // nergens op de website stonden.
+    // Sinds R5.3 halen we hier niet de ANTWOORDEN op (die zitten in de
+    // feitenkaart) maar de vragen die ONBEANTWOORD bleven. Dat is het stuk dat
+    // het model expliciet moet weten: er is naar gevraagd, er kwam niets, dus
+    // laat de passage weg in plaats van hem in te vullen.
     admin
       .from("fact_requests")
-      .select("question, answer")
-      .eq("profile_id", analysis.profile_id)
-      .eq("status", "beantwoord"),
+      .select("question, answer, status, required")
+      .eq("profile_id", analysis.profile_id),
   ]);
   const profile = profileRow as Profile | null;
   const topicResearch = topicResearchRow as TopicResearch | null;
 
   const answeredFacts = (factRows ?? [])
-    .filter((f) => (f.answer as string | null)?.trim())
+    .filter((f) => f.status === "beantwoord" && (f.answer as string | null)?.trim())
     .map((f) => `${f.question}: ${(f.answer as string).trim()}`);
+
+  // Verplichte vragen die de klant heeft laten liggen of bewust oversloeg. De
+  // bewering vervalt dan — hij wordt niet verzonnen (contentbriefing.md §6).
+  const unansweredRequired = (factRows ?? [])
+    .filter((f) => f.required && (f.status === "open" || f.status === "overgeslagen"))
+    .map((f) => f.question as string);
 
   // Gededupliceerde unie: onderwerp-specifieke concurrenten + algemene bedrijfsconcurrenten.
   const competitors = Array.from(
@@ -489,10 +527,32 @@ async function loadContentContext(
           .join("\n")
       : "";
 
-  const proofCount = (profile?.proof_points?.length ?? 0) + answeredFacts.length;
+  // ── De feitenkaart (R5.3) ─────────────────────────────────────────────────
+  //
+  // Bij voorkeur de BEVROREN kaart uit de briefing: dan is achterhaalbaar op
+  // basis van welke feiten deze pagina destijds geschreven is, ook als de klant
+  // later een feit bijstelt (contentbriefing.md §10, zelfde principe als
+  // prompt_text_snapshot). Bestaat die niet — een pagina van vóór R5.1, of een
+  // herschrijfronde zonder briefing — dan bouwen we hem alsnog op. Zonder kaart
+  // schrijven is geen optie: dat is precies de open context waarin het model
+  // ging invullen.
+  const { data: pieceRow } = await admin
+    .from("content_pieces")
+    .select("briefing_snapshot_json")
+    .eq("analysis_id", analysisId)
+    .eq("title", recommendation.title)
+    .eq("is_current", true)
+    .maybeSingle();
+
+  const bevroren = factsFromSnapshot(pieceRow?.briefing_snapshot_json);
+  const facts =
+    bevroren.length > 0 ? bevroren : await buildFactBase(admin, analysis.profile_id, analysisId);
+
+  const proofCount = facts.filter((f) => f.allowed).length;
 
   return {
     analysis,
+    facts,
     profile,
     competitors,
     targets,
@@ -509,7 +569,8 @@ async function loadContentContext(
       winningAnswers,
       sourceBlock: sources.block,
       competitorEdge,
-      answeredFacts,
+      facts,
+      unansweredRequired,
     }),
   };
 }
@@ -525,6 +586,12 @@ function pieceFromRow(row: ContentPieceRow): ContentPiece {
     schemaJsonLd: row.schema_jsonld ?? "",
     targetIntent: row.target_intent ?? "",
     cluster: row.cluster ?? "",
+    // Bij een hervatte poging staan de beweringen al in de kolom (R5.3). Is de
+    // rij van vóór R5.3, dan is dat een lege lijst — geen dekking bekend, wat
+    // eerlijker is dan doen alsof alles gedekt was.
+    claims: ((row.claims_json ?? []) as WrittenClaim[]).filter(
+      (c) => typeof c?.claim === "string" && typeof c?.factRef === "string",
+    ),
   };
 }
 
@@ -575,7 +642,7 @@ async function loadSavedDraft(
 ): Promise<DraftOutput | null> {
   const { data } = await admin
     .from("content_pieces")
-    .select("target_intent, cluster, body_markdown, meta_title, meta_description, schema_jsonld, faq_json, raw_json")
+    .select("target_intent, cluster, body_markdown, meta_title, meta_description, schema_jsonld, faq_json, raw_json, claims_json")
     .eq("id", pieceId)
     .maybeSingle();
 
@@ -591,6 +658,10 @@ async function loadSavedDraft(
       metaDescription: data.meta_description ?? "",
       schemaJsonLd: data.schema_jsonld ?? "",
       faq: (data.faq_json ?? []) as ContentPiece["faq"],
+      // Meenemen bij hervatten: zonder dit zou een pagina die na het schrijven
+      // strandde zijn traceerbaarheid kwijtraken en op dekking 0 uitkomen,
+      // terwijl de tekst gewoon onderbouwd was.
+      claims: (data.claims_json ?? []) as ContentPiece["claims"],
     } as ContentPiece,
     raw: data.raw_json,
   };
@@ -606,8 +677,17 @@ function buildDraftRow(args: {
   action: ContentAction;
   version: number;
   supersedesId: string | null;
+  /** De kaart waartegen de beweringen nagerekend worden (R5.3). */
+  facts: FactItem[];
 }) {
-  const { analysisId, reportId, recommendation, draft, analysis, action, version, supersedesId } = args;
+  const { analysisId, reportId, recommendation, draft, analysis, action, version, supersedesId, facts } = args;
+
+  // De dekking wordt in CODE nagerekend, niet overgenomen van het model
+  // (contentbriefing.md §9). Een F-nummer dat niet bestaat — of dat naar een
+  // verbod wijst — telt niet mee. Anders tilt een model zijn eigen cijfer op
+  // door plausibele nummers te noemen, en meet het cijfer weer niets.
+  const { coverage, unsupported } = sourceCoverage(draft.parsed.claims ?? [], facts);
+
   return {
     analysis_id: analysisId,
     report_id: reportId,
@@ -635,6 +715,12 @@ function buildDraftRow(args: {
     }),
     faq_json: draft.parsed.faq as never,
     raw_json: draft.raw as never,
+    // Traceerbaarheid (R5.3): per bewering het F-nummer, zodat bij een klacht
+    // per zin aanwijsbaar is waar hij vandaan komt, en zodat bij een nieuw
+    // antwoord van de klant bekend is welke pagina's daardoor beter kunnen.
+    claims_json: (draft.parsed.claims ?? []) as never,
+    briefing_snapshot_json: { facts, writtenAt: new Date().toISOString() } as never,
+    source_coverage: coverage,
     word_count: countWords(draft.parsed.bodyMarkdown),
     action,
     existing_url: recommendation.existingUrl ?? null,
@@ -642,6 +728,18 @@ function buildDraftRow(args: {
     is_current: true,
     supersedes_id: supersedesId,
     revision_note: recommendation.revisionNote ?? null,
+    // Onderbouwde beweringen die nergens naar wijzen zijn geen detail: dat is
+    // precies de fout die R5 moet uitbannen, en de klant hoort hem te zien
+    // staan in plaats van hem te moeten vinden.
+    review_notes:
+      unsupported.length > 0
+        ? [
+            `${unsupported.length} bewering(en) in deze tekst konden we niet herleiden tot een ` +
+              `bevestigd feit: ${unsupported.slice(0, 3).map((c) => `"${c.claim}"`).join(", ")}` +
+              `${unsupported.length > 3 ? ` (en nog ${unsupported.length - 3})` : ""}. ` +
+              `Controleer of ze kloppen voordat je publiceert.`,
+          ]
+        : [],
     // Nog niet beoordeeld: de redactieronde zet dit zo meteen op z'n eindwaarde.
     // 'draft' is hier de eerlijke stand — de tekst bestaat, het oordeel nog niet.
     status: "draft" as const,
@@ -780,6 +878,9 @@ export async function draftContentPiece(args: {
     draft,
     analysis,
     action: recommendation.action ?? "nieuw",
+    // Dezelfde kaart die het model kreeg (R5.3). Tegen een andere kaart
+    // narekenen zou een dekking opleveren die niets zegt over deze tekst.
+    facts: ctx.facts,
     version: nextVersion,
     supersedesId: resumeId ? null : (current?.id ?? null),
   });
@@ -901,6 +1002,20 @@ export async function reviseContentPiece(args: {
   // Ruwe kritiek van BEIDE rondes bewaren (§5: we bewaren alles).
   const previousCritiques = Array.isArray(pieceRow.critique_raw_json) ? pieceRow.critique_raw_json : [];
 
+  // De bronnendekking opnieuw narekenen (R5.3). De herschrijfronde levert een
+  // andere tekst op, dus ook andere beweringen — de dekking van de eerste
+  // versie laten staan zou een cijfer over een tekst zijn die niet meer bestaat.
+  const { coverage, unsupported } = sourceCoverage(final.claims ?? [], ctx.facts);
+  const bronNotitie =
+    unsupported.length > 0
+      ? [
+          `${unsupported.length} bewering(en) konden we niet herleiden tot een bevestigd feit: ` +
+            `${unsupported.slice(0, 3).map((c) => `"${c.claim}"`).join(", ")}` +
+            `${unsupported.length > 3 ? ` (en nog ${unsupported.length - 3})` : ""}. ` +
+            `Controleer of ze kloppen voordat je publiceert.`,
+        ]
+      : [];
+
   await admin
     .from("content_pieces")
     .update({
@@ -922,12 +1037,19 @@ export async function reviseContentPiece(args: {
       }),
       faq_json: final.faq as never,
       raw_json: revised.raw as never,
+      claims_json: (final.claims ?? []) as never,
+      source_coverage: coverage,
       critique_raw_json: [...previousCritiques, critique.raw] as never,
       quality_score: critique.parsed.qualityScore,
       geo_score,
       geo_json: geo as never,
-      review_notes: needsReview ? [...critique.parsed.issues, ...geoIssues(geo)] : [],
-      needs_review: needsReview,
+      // Een onherleidbare bewering is óók een reden om na te kijken, ook als de
+      // redacteur tevreden was: die beoordeelt de tekst, niet de herkomst.
+      review_notes: [
+        ...(needsReview ? [...critique.parsed.issues, ...geoIssues(geo)] : []),
+        ...bronNotitie,
+      ],
+      needs_review: needsReview || unsupported.length > 0,
       status: "ready" as const,
       word_count: countWords(final.bodyMarkdown),
     })

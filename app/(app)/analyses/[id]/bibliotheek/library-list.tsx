@@ -38,9 +38,18 @@ const TYPE_LABEL: Record<string, string> = {
  * antwoord op de enige vraag die je bij een overzicht stelt: kan dit weg naar
  * de website of niet?
  */
-type Group = "klaar" | "nakijken" | "live" | "bezig";
+type Group = "briefing" | "klaar" | "nakijken" | "live" | "bezig";
 
 const GROUP_META: Record<Group, { label: string; hint: string; chip: string }> = {
+  // Bovenaan, en bewust met een andere toon dan de rest: dit is het enige
+  // groepje waar de app op de KLANT wacht in plaats van andersom. Blijft dat
+  // onopgemerkt, dan denkt hij dat er content geschreven wordt terwijl er niets
+  // gebeurt — en dat is de ergste vorm van stilstand die een app kan hebben.
+  briefing: {
+    label: "Wacht op jouw input",
+    hint: "Een paar korte vragen, dan schrijven we deze pagina's zonder iets te verzinnen.",
+    chip: "chip chip-warning",
+  },
   klaar: {
     label: "Klaar om te publiceren",
     hint: "Zolang de tekst niet online staat, verandert er niets aan je zichtbaarheid.",
@@ -63,9 +72,10 @@ const GROUP_META: Record<Group, { label: string; hint: string; chip: string }> =
   },
 };
 
-const GROUP_ORDER: Group[] = ["klaar", "nakijken", "live", "bezig"];
+const GROUP_ORDER: Group[] = ["briefing", "klaar", "nakijken", "live", "bezig"];
 
 function groupOf(piece: ContentPiece): Group {
+  if (piece.status === "briefing") return "briefing";
   if (piece.status === "draft") return "bezig";
   if (piece.published_at) return "live";
   if (piece.needs_review) return "nakijken";
@@ -91,6 +101,10 @@ export function LibraryList({ analysisId, pieces }: { analysisId: string; pieces
   })).filter((g) => g.items.length > 0);
 
   const liveCount = pieces.filter((p) => p.published_at).length;
+  // Pagina's in briefing zijn gekozen maar nog niet geschreven; ze meetellen in
+  // "x pagina's geschreven" zou een belofte zijn die de bibliotheek niet waarmaakt.
+  const geschreven = pieces.filter((p) => p.status !== "briefing").length;
+  const wachtend = pieces.length - geschreven;
 
   return (
     <div className="flex flex-col gap-6">
@@ -98,12 +112,14 @@ export function LibraryList({ analysisId, pieces }: { analysisId: string; pieces
         <div>
           <span className="mono-label">Je bibliotheek</span>
           <p className="mt-1 text-2xl font-bold tracking-tight">
-            {pieces.length} {pieces.length === 1 ? "pagina" : "pagina's"} geschreven
+            {geschreven} {geschreven === 1 ? "pagina" : "pagina's"} geschreven
           </p>
           <p className="mt-1 max-w-md text-sm text-secondary">
-            {liveCount === 0
-              ? "Nog niets online. Een tekst die niet gepubliceerd is, kan door geen enkele AI-assistent geciteerd worden."
-              : `Waarvan er ${liveCount} online ${liveCount === 1 ? "staat" : "staan"}.`}
+            {wachtend > 0
+              ? `${wachtend} ${wachtend === 1 ? "pagina wacht" : "pagina's wachten"} op een paar antwoorden van jou.`
+              : liveCount === 0
+                ? "Nog niets online. Een tekst die niet gepubliceerd is, kan door geen enkele AI-assistent geciteerd worden."
+                : `Waarvan er ${liveCount} online ${liveCount === 1 ? "staat" : "staan"}.`}
           </p>
         </div>
 
@@ -159,6 +175,12 @@ export function LibraryList({ analysisId, pieces }: { analysisId: string; pieces
               <span className="max-w-sm text-sm text-muted">{GROUP_META[group].hint}</span>
             </div>
 
+            {group === "briefing" && (
+              <Link href={`/analyses/${analysisId}/briefing`} className="btn-primary w-fit">
+                Beantwoord de vragen
+              </Link>
+            )}
+
             <ul className="grid gap-3 sm:grid-cols-2">
               {items.map((p) => (
                 <li key={p.id} className="flex">
@@ -174,9 +196,17 @@ export function LibraryList({ analysisId, pieces }: { analysisId: string; pieces
 }
 
 function PieceCard({ analysisId, piece }: { analysisId: string; piece: ContentPiece }) {
+  // Een pagina in briefing heeft nog geen tekst. Doorlinken naar de
+  // detailpagina levert dan een leeg scherm op; de briefing is waar deze pagina
+  // op wacht, dus daar hoort de kaart heen te wijzen.
+  const href =
+    piece.status === "briefing"
+      ? `/analyses/${analysisId}/briefing`
+      : `/analyses/${analysisId}/bibliotheek/${piece.id}`;
+
   return (
     <Link
-      href={`/analyses/${analysisId}/bibliotheek/${piece.id}`}
+      href={href}
       className="card card-interactive flex w-full flex-col gap-3"
     >
       <div className="flex flex-wrap items-start justify-between gap-2">
