@@ -835,7 +835,17 @@ export async function draftContentPiece(args: {
   // geen huidige versie te zijn en kwam er een duplicaat bij.
   const current = await currentPiece(admin, analysisId, recommendation.title);
 
-  if (current && current.status !== "draft" && !regenerate) {
+  // 'briefing' telt hier, net als in lib/jobs/content-jobs.ts (planContentDraft),
+  // als "nog niet geschreven": de rij bestaat al sinds de klant de pagina koos
+  // (R5.1), maar er staat nog geen tekst in. Deze functie kende die uitzondering
+  // niet — ontdekt tijdens de contentronde van 31 juli (status-doorontwikkeling.md
+  // §5): alle 10 content_draft-taken meldden zich in <2 seconden als "klaar"
+  // zonder ook maar één AI-aanroep te doen, omdat "briefing" hier gewoon als
+  // "al af" gold. Erger: de pollroute (`GET .../content`) toont zo'n pagina
+  // vervolgens als `ready: true` (status !== 'draft'), dus de klant zag "klaar"
+  // terwijl er nooit geschreven is. Sinds R5.2 loopt IEDERE pagina via de
+  // briefing, dus dit trof potentieel elke "Schrijf mijn pagina's"-klik.
+  if (current && current.status !== "draft" && current.status !== "briefing" && !regenerate) {
     return { contentPieceId: current.id, needsRevise: false, issues: [] };
   }
 
