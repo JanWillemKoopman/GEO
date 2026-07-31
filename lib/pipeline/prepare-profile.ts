@@ -76,6 +76,10 @@ export async function prepareProfile(id: string): Promise<ProfileStatus> {
       .update({
         brand_name: filled(prof.brand_name) ? prof.brand_name : p.brandName || prof.name,
         industry: filled(prof.industry) ? prof.industry : p.industry,
+        // Het bedrijfsmodel (R8.5, migratie 0032). Een handmatig gezette waarde
+        // wint: de klant weet beter dan het model of hij een retailer of een
+        // fabrikant is, en dit stuurt welke vragen hij straks krijgt.
+        business_model: filled(prof.business_model) ? prof.business_model : p.businessModel,
         tone_of_voice: filled(prof.tone_of_voice) ? prof.tone_of_voice : p.toneOfVoice,
         summary: filled(prof.summary) ? prof.summary : p.summary,
         products: unionList(prof.products, p.products),

@@ -37,6 +37,7 @@ export function ProfileEditor({ initial, inventoryCount }: { initial: Profile; i
         body: JSON.stringify({
           name: profile.name,
           industry: profile.industry,
+          business_model: profile.business_model,
           tone_of_voice: profile.tone_of_voice,
           summary: profile.summary,
           products: profile.products,
@@ -124,6 +125,34 @@ export function ProfileEditor({ initial, inventoryCount }: { initial: Profile; i
             value={profile.industry ?? ""}
             onChange={(e) => setProfile((p) => ({ ...p, industry: e.target.value }))}
           />
+        </label>
+        {/* Het bedrijfsmodel (R8.5) stuurt welke vragen de klant bij het schrijven
+            krijgt: een platform of keten heeft geen enkel adres of telefoonnummer,
+            en die vraag verplicht stellen levert een antwoord op dat niet kan
+            kloppen. De klant weet dit beter dan het model, dus hij kan het
+            corrigeren. */}
+        <label className="flex flex-col gap-1.5">
+          <span className="mono-label">Bedrijfsmodel</span>
+          <select
+            className="field"
+            value={profile.business_model ?? ""}
+            onChange={(e) =>
+              setProfile((p) => ({
+                ...p,
+                business_model: (e.target.value || null) as typeof p.business_model,
+              }))
+            }
+          >
+            <option value="">Nog niet bepaald</option>
+            <option value="dienstverlener">Dienstverlener — eigen mensen leveren de dienst</option>
+            <option value="retailer">Retailer — verkoopt producten van andere merken</option>
+            <option value="platform">Platform — brengt vraag en aanbod van derden samen</option>
+            <option value="fabrikant">Fabrikant — maakt en verkoopt eigen producten</option>
+            <option value="overig">Overig</option>
+          </select>
+          <span className="text-sm text-muted">
+            Bepaalt welke vragen we je stellen voordat we een pagina schrijven.
+          </span>
         </label>
         <label className="flex flex-col gap-1.5">
           <span className="mono-label">Tone of voice</span>

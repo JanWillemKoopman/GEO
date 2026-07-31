@@ -44,10 +44,18 @@ import {
   formatFactCard,
   isSupported,
   claimKey,
+  topicKey,
   factFromAnswer,
+  mergeAnsweredFacts,
   sourceCoverage,
 } from "@/lib/pipeline/factcard";
-import { selectBriefingQuestions, describeSkipped, MAX_QUESTIONS } from "@/lib/pipeline/briefing-select";
+import {
+  selectBriefingQuestions,
+  slotQuestions,
+  describeSkipped,
+  MAX_QUESTIONS,
+} from "@/lib/pipeline/briefing-select";
+import { checkContentGate, openingVan, geoRegels } from "@/lib/pipeline/content-gate";
 
 let passed = 0;
 let failed = 0;
@@ -839,6 +847,319 @@ group("Antwoord van de klant → feit of verbod (contentbriefing.md §3.1)", () 
   });
   ok("vrij antwoord wordt vraag + antwoord", bedrag !== null && bedrag.text.includes("€419"));
   ok("bron vermeldt de klant", bedrag !== null && bedrag.source.startsWith("klant"));
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+group("Citaatplicht bij meerdere feiten (implementatieplan.md R8.3)", () => {
+  const facts = numberFacts([
+    { text: "Al 150 jaar gastvrijheid sinds 1862", source: "site", allowed: true, citable: true },
+    {
+      text: "Meer dan 100 hotels en restaurants wereldwijd",
+      source: "site",
+      allowed: true,
+      citable: true,
+    },
+    { text: "Pechhulp: NEE", source: "klant", allowed: false, citable: true },
+  ]);
+
+  // Het echte geval uit de contentronde van 31 juli: één bewering die twee
+  // bevestigde feiten combineert. Telde als ONBEWEZEN omdat er geen feit met
+  // ref "F1, F2" bestaat — en trok source_coverage van 100 naar 80.
+  ok(
+    "twee feiten in één bewering tellen als onderbouwd",
+    isSupported(
+      "F1, F2",
+      facts,
+      "Al 150 jaar gastvrijheid sinds 1862; Meer dan 100 hotels en restaurants wereldwijd",
+    ),
+  );
+  ok("puntkomma of pijp als scheidingsteken", isSupported("F1;F2", facts, "sinds 1862 | 100 hotels"));
+  ok("'en' als scheidingsteken werkt ook", isSupported("F1 en F2", facts, "sinds 1862; 100 hotels"));
+
+  // Streng blijven waar het moet: een echt nummer aanvullen met een verzonnen
+  // nummer mag de dekking niet optillen.
+  ok(
+    "één bestaand plus één verzonnen nummer dekt niet",
+    !isSupported("F1, F9", facts, "sinds 1862; iets anders"),
+  );
+  // Een citaatdeel dat nergens staat blijft ongedekt, ook al bestaan beide refs.
+  ok(
+    "citaatdeel dat er niet staat dekt niet",
+    !isSupported("F1, F2", facts, "sinds 1862; pechhulp is inbegrepen"),
+  );
+  // Een verwijzing naar een verbod telt nooit mee, ook niet als tweede ref.
+  ok("verbod als tweede nummer dekt niet", !isSupported("F1, F3", facts, "sinds 1862; pechhulp"));
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+group("Antwoorden van de klant in de feitenkaart (implementatieplan.md R8.1)", () => {
+  const bevroren = numberFacts([
+    {
+      text: "Biedt Fysi-Unique preventieve begeleiding: ja",
+      source: "klant, bevestigd 30-07-2026",
+      allowed: true,
+      citable: true,
+    },
+    { text: "Wordt met een 9,4 beoordeeld op Zorgkaart", source: "site", allowed: true, citable: true },
+  ]);
+
+  // Het geval dat de hele contentronde blootlegde: de klant CORRIGEERT een
+  // eerder antwoord. De twee mogen niet naast elkaar op de kaart belanden,
+  // want dan mag het model kiezen — en het koos de gunstige.
+  const gecorrigeerd = mergeAnsweredFacts(bevroren, [
+    {
+      question: "Biedt Fysi-Unique preventieve begeleiding",
+      fact: {
+        text: "Biedt Fysi-Unique preventieve begeleiding: NEE",
+        source: "klant, bevestigd 31-07-2026",
+        allowed: false,
+        citable: true,
+        kind: "klant",
+      },
+    },
+  ]);
+
+  const preventie = gecorrigeerd.filter((f) => f.text.toLowerCase().includes("preventieve"));
+  ok("een gecorrigeerd antwoord staat er maar één keer", preventie.length === 1);
+  ok("het nieuwste antwoord wint", preventie[0]?.text.includes("NEE") === true);
+  ok("een ontkenning wordt een verbod", preventie[0]?.allowed === false);
+  ok(
+    "sitefeiten blijven staan",
+    gecorrigeerd.some((f) => f.text.includes("Zorgkaart")),
+  );
+
+  // Een nieuw antwoord dat nog niet op de kaart stond, komt er gewoon bij.
+  const aangevuld = mergeAnsweredFacts(bevroren, [
+    {
+      question: "Welke blessures behandelt Fysi-Unique",
+      fact: {
+        text: "Welke blessures behandelt Fysi-Unique: shin splints, hielspoor",
+        source: "klant, bevestigd 31-07-2026",
+        allowed: true,
+        citable: true,
+        kind: "klant",
+      },
+    },
+  ]);
+  ok("een nieuw antwoord komt erbij", aangevuld.length === bevroren.length + 1);
+  // Antwoorden van de klant horen bovenaan: wat bovenaan een prompt staat wordt
+  // het best gebruikt (zelfde volgorde als buildFactBase aanhoudt).
+  ok("het antwoord van de klant staat bovenaan", aangevuld[0].text.includes("shin splints"));
+  ok("nummering blijft sluitend", aangevuld[0].ref === "F1" && aangevuld[1].ref === "F2");
+
+  // Zonder antwoorden verandert er niets — geen nummerwissel om niets.
+  ok("geen antwoorden laat de kaart ongemoeid", mergeAnsweredFacts(bevroren, []) === bevroren);
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+group("Bijna-dezelfde vraag samenvoegen (implementatieplan.md R8.4)", () => {
+  // De drie echte formuleringen uit de Fysi-Unique-briefing. Alle drie kregen
+  // een eigen claimKey en dus een eigen plek in de lijst van maximaal acht.
+  const a = "Biedt Fysi-Unique preventieve begeleiding na herstel van hardloopblessures? Zo ja, welke specifieke diensten?";
+  const b = "Welke preventieve begeleiding biedt Fysi-Unique na herstel van een hardloopblessure?";
+  const c = "Biedt Fysi-Unique preventieve begeleiding aan na herstel van een hardloopblessure? Zo ja, welke specifieke diensten of programma's?";
+
+  ok("drie formuleringen, één onderwerp", topicKey(a) === topicKey(b) && topicKey(b) === topicKey(c));
+  ok("claimKey zag ze nog als verschillend", claimKey(a) !== claimKey(b));
+
+  // Enkelvoud en meervoud mogen niet uit elkaar lopen — dat was de eerste bug
+  // in deze functie: "hardloopblessures" verloor z'n s en stopte, terwijl
+  // "hardloopblessure" wél z'n e verloor.
+  ok(
+    "enkelvoud en meervoud vallen samen",
+    topicKey("Welke hardloopblessure behandelen jullie") ===
+      topicKey("Welke hardloopblessures behandelen jullie"),
+  );
+
+  // Echt andere onderwerpen blijven apart.
+  ok(
+    "andere onderwerpen blijven gescheiden",
+    topicKey("Wat kost een behandeling bij Fysi-Unique?") !== topicKey(a),
+  );
+
+  const maakVraag = (question: string, extra: Partial<Parameters<typeof selectBriefingQuestions>[0]["candidates"][number]> = {}) => ({
+    claimKey: claimKey(question),
+    question,
+    reason: "reden",
+    kind: "aanvulling" as const,
+    answerType: "tekst_kort" as const,
+    options: [],
+    suggestedAnswer: null,
+    required: false,
+    scope: "analyse" as const,
+    contentPieceIds: ["p1"],
+    priority: 1,
+    ...extra,
+  });
+
+  const gekozen = selectBriefingQuestions({
+    candidates: [maakVraag(a), maakVraag(b, { contentPieceIds: ["p2"] }), maakVraag(c)],
+    alreadyKnown: new Set(),
+  });
+  ok("drie varianten worden één vraag", gekozen.length === 1);
+  // De verliezers verdwijnen niet zonder sporen: hun pagina's worden aan de
+  // winnaar gekoppeld, want het antwoord voedt ze allebei.
+  ok(
+    "de pagina's van alle varianten blijven gekoppeld",
+    gekozen[0].contentPieceIds.includes("p1") && gekozen[0].contentPieceIds.includes("p2"),
+  );
+  ok("de kortste formulering wint", gekozen[0].question === b);
+
+  // Vaste slots doen niet mee aan de grove ontdubbeling: die zijn met de hand
+  // geformuleerd en bewust verschillend.
+  const slots = slotQuestions("landing", "p1");
+  const naSelectie = selectBriefingQuestions({ candidates: slots, alreadyKnown: new Set() });
+  ok("vaste slots blijven allemaal staan", naSelectie.length === slots.length);
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+group("Vaste slots per bedrijfsmodel (implementatieplan.md R8.5)", () => {
+  const lokaal = slotQuestions("landing", "p1", null, "dienstverlener");
+  ok(
+    "een dienstverlener krijgt de adresvraag",
+    lokaal.some((v) => v.question.includes("telefoonnummer en adres")),
+  );
+
+  // Bol, Coolblue en Van der Valk konden deze vraag niet naar waarheid
+  // beantwoorden; een verplichte vraag zonder waar antwoord nodigt uit tot
+  // invullen wat niet klopt.
+  for (const model of ["retailer", "platform"] as const) {
+    const zonderVestiging = slotQuestions("landing", "p1", null, model);
+    ok(
+      `een ${model} krijgt geen adresvraag`,
+      !zonderVestiging.some((v) => v.question.includes("telefoonnummer en adres")),
+    );
+    ok(
+      `een ${model} krijgt wel een contactkanaal-vraag`,
+      zonderVestiging.some((v) => v.question.includes("klanten met vragen")),
+    );
+  }
+
+  // Onbekend model = onveranderd gedrag. Onbekend is geen reden om de vragenset
+  // te wijzigen.
+  ok(
+    "onbekend bedrijfsmodel verandert niets",
+    JSON.stringify(slotQuestions("landing", "p1", null, null)) ===
+      JSON.stringify(slotQuestions("landing", "p1")),
+  );
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+group("Deterministische kwaliteitspoort (implementatieplan.md R8.2/R8.7/R8.8)", () => {
+  // De kop wordt bewust NIET als opening geteld: de Coolblue-pagina herhaalde
+  // de doelvraag als kop, en een vraag herhalen is het tegenovergestelde van
+  // hem beantwoorden.
+  const opening = openingVan("### Kan ik een wasmachine afhalen?\n\nCoolblue biedt veel keuze.");
+  ok("koppen tellen niet mee in de opening", !opening.includes("Kan ik een wasmachine afhalen"));
+  ok("de eerste bewerende zin telt wel mee", opening.includes("Coolblue biedt veel keuze"));
+
+  const doelvraag = "Kan ik een wasmachine online bestellen en hem daarna in de winkel afhalen?";
+
+  // Het echte Coolblue-geval: opent met een omweg, en verwijst in de FAQ door
+  // naar de site in plaats van de vraag te beantwoorden.
+  const ontwijkend = checkContentGate({
+    bodyMarkdown:
+      "### Kan ik een wasmachine online bestellen en hem daarna in de winkel afhalen?\n\n" +
+      "Coolblue biedt een uitgebreid assortiment wasmachines online en heeft 22 fysieke winkels.\n",
+    faq: [
+      {
+        q: "Kan ik een wasmachine online bestellen en hem daarna in de winkel afhalen bij Coolblue?",
+        a: "Coolblue heeft 22 winkels. Kijk voor de actuele mogelijkheden op de website.",
+      },
+    ],
+    brandName: "Coolblue",
+    targetQuestions: [doelvraag],
+    distinctiveAnswers: [],
+  });
+  ok("een ja/nee-vraag zonder ja of nee valt door de poort", ontwijkend.checks.directAntwoord === false);
+  ok("doorverwijzen telt als ontwijken", ontwijkend.checks.geenOntwijking === false);
+  ok("de poort levert concrete verbeterpunten", ontwijkend.issues.length >= 2);
+
+  // Hetzelfde onderwerp, maar mét een direct antwoord: dit moet er wél door.
+  const direct = checkContentGate({
+    bodyMarkdown:
+      "Ja, je kunt een wasmachine online bestellen bij Coolblue en hem daarna afhalen in de winkel. " +
+      "Coolblue heeft 22 winkels in Nederland waar dat kan.\n",
+    faq: [],
+    brandName: "Coolblue",
+    targetQuestions: [doelvraag],
+    distinctiveAnswers: [],
+  });
+  ok("een expliciet ja komt erdoor", direct.checks.directAntwoord === true);
+  ok("de doelvraag staat in de opening", direct.checks.doelvraagInOpening === true);
+  ok("de merknaam staat er expliciet in", direct.checks.merknaamExpliciet === true);
+  ok("er staan concrete cijfers in", direct.checks.concreteFeiten === true);
+
+  // Een open vraag ("welke", "waar") is geen ja/nee-vraag: dan is die controle
+  // niet van toepassing en telt hij niet mee. Onbekend is geen onvoldoende.
+  const openVraag = checkContentGate({
+    bodyMarkdown: "Fysi-Unique in Amersfoort behandelt shin splints en hielspoor bij 200 hardlopers.",
+    faq: [],
+    brandName: "Fysi-Unique",
+    targetQuestions: ["Welke praktijk in Amersfoort behandelt hardloopblessures?"],
+    distinctiveAnswers: [],
+  });
+  ok("geen ja/nee-vraag → controle niet van toepassing", openVraag.checks.directAntwoord === null);
+  ok("niet-uitgevoerde controles tellen niet mee", openVraag.score !== null && openVraag.score > 0);
+
+  // R8.8 — het onderscheidende antwoord van de klant moet terugkomen.
+  const zonderOnderscheid = checkContentGate({
+    bodyMarkdown: "Fysi-Unique in Amersfoort behandelt hardloopblessures met 20 jaar ervaring.",
+    faq: [],
+    brandName: "Fysi-Unique",
+    targetQuestions: ["Welke praktijk behandelt hardloopblessures?"],
+    distinctiveAnswers: ["Wij hebben een eigen looplab met videoanalyse op de loopband"],
+  });
+  ok("ongebruikt onderscheid valt op", zonderOnderscheid.checks.onderscheidGebruikt === false);
+
+  const metOnderscheid = checkContentGate({
+    bodyMarkdown:
+      "Fysi-Unique in Amersfoort heeft een eigen looplab met videoanalyse op de loopband, " +
+      "waarmee we sinds 2005 hardloopblessures behandelen.",
+    faq: [],
+    brandName: "Fysi-Unique",
+    targetQuestions: ["Welke praktijk behandelt hardloopblessures?"],
+    distinctiveAnswers: ["Wij hebben een eigen looplab met videoanalyse op de loopband"],
+  });
+  ok("gebruikt onderscheid wordt herkend", metOnderscheid.checks.onderscheidGebruikt === true);
+  ok(
+    "zonder opgegeven onderscheid is er niets te toetsen",
+    direct.checks.onderscheidGebruikt === null,
+  );
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+group("Scorekaart leest beide formaten (implementatieplan.md R8.7)", () => {
+  // Pagina's van vóór R8.7 hebben de kale zelfrapportage in geo_json. Die
+  // mogen niet leeg of fout renderen omdat het formaat veranderd is.
+  const oud = geoRegels({
+    answersTargetQuestionUpFront: true,
+    hasStandaloneCitableSentences: false,
+    namesTheBusinessExplicitly: true,
+    usesConcreteFacts: true,
+    answersFollowUpQuestions: true,
+  });
+  ok("oude vorm levert vijf regels", oud.length === 5);
+  ok("oude vorm behoudt de waarden", oud.filter((r) => r.ok === true).length === 4);
+
+  const nieuw = geoRegels({
+    zelfrapportage: { answersTargetQuestionUpFront: true },
+    deterministisch: {
+      doelvraagInOpening: true,
+      directAntwoord: null,
+      geenOntwijking: false,
+      merknaamExpliciet: true,
+      concreteFeiten: true,
+      citeerbareZin: true,
+      onderscheidGebruikt: null,
+    },
+  });
+  ok("nieuwe vorm gebruikt de deterministische uitkomst", nieuw.length === 7);
+  ok("niet-uitgevoerde controles blijven null", nieuw.filter((r) => r.ok === null).length === 2);
+  ok("een gezakte controle blijft zichtbaar", nieuw.some((r) => r.ok === false));
+
+  // Een leeg veld mag niet crashen en niet doen alsof alles goed is.
+  ok("leeg veld levert geen valse vinkjes", geoRegels(null).every((r) => r.ok === null));
 });
 
 // ════════════════════════════════════════════════════════════════════════════

@@ -13,6 +13,11 @@ import { MAX_PAGES_HARD_CAP } from "@/lib/crawler";
 const EDITABLE_FIELDS = [
   "name",
   "industry",
+  // Het bedrijfsmodel (R8.5, migratie 0032). Bewerkbaar omdat de klant beter
+  // weet dan het model of hij een retailer of een fabrikant is — en omdat deze
+  // waarde stuurt welke briefingvragen hij straks krijgt. De database-constraint
+  // bewaakt de toegestane waarden.
+  "business_model",
   "tone_of_voice",
   "summary",
   "products",

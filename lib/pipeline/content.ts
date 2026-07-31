@@ -34,13 +34,22 @@ import { callStructured } from "@/lib/openai/structured";
 import { MODELS, TEMPERATURES } from "@/lib/openai/models";
 import { ContentPiece } from "@/lib/schemas/content-piece";
 import { Critique, geoScore, geoIssues } from "@/lib/schemas/critique";
+import { checkContentGate } from "@/lib/pipeline/content-gate";
 import { validateOrRebuildJsonLd } from "@/lib/schema-jsonld";
 import { redactCompetitors, containsCompetitor } from "@/lib/pipeline/redact";
 import { analyzeCitedSources } from "@/lib/pipeline/source-analysis";
 import { contentWebSearchEnabled, minProofPointsForConcreteContent } from "@/lib/config";
 import { buildFactBase } from "@/lib/pipeline/factbase";
 import { factsFromSnapshot } from "@/lib/pipeline/briefing";
-import { formatFactCard, sourceCoverage, type FactItem, type WrittenClaim } from "@/lib/pipeline/factcard";
+import {
+  formatFactCard,
+  sourceCoverage,
+  factFromAnswer,
+  mergeAnsweredFacts,
+  type AnsweredFactInput,
+  type FactItem,
+  type WrittenClaim,
+} from "@/lib/pipeline/factcard";
 import type { RecommendationTarget } from "@/lib/pipeline/recommendation";
 import type {
   Analysis,
@@ -407,6 +416,13 @@ interface ContentContext {
    * en die controle is alleen zinnig tegen dezelfde kaart die het model kreeg.
    */
   facts: FactItem[];
+  /**
+   * Wat de klant als ONDERSCHEIDEND heeft opgegeven (R8.8). De briefing vraagt
+   * er expliciet naar (contentbriefing.md §5, vraagsoort 3) omdat het de enige
+   * informatie is die principieel niet uit een crawl te halen is — maar tot nu
+   * toe controleerde niets of het antwoord ook in de tekst belandde.
+   */
+  distinctiveAnswers: string[];
 }
 
 async function loadContentContext(
@@ -423,28 +439,50 @@ async function loadContentContext(
     admin.from("profiles").select("*").eq("id", analysis.profile_id).maybeSingle(),
     admin.from("topic_research").select("*").eq("analysis_id", analysisId).maybeSingle(),
     // Feiten die de klant zelf aanleverde (4.6) — vaak precies de cijfers die
-    // nergens op de website stonden.
-    // Sinds R5.3 halen we hier niet de ANTWOORDEN op (die zitten in de
-    // feitenkaart) maar de vragen die ONBEANTWOORD bleven. Dat is het stuk dat
-    // het model expliciet moet weten: er is naar gevraagd, er kwam niets, dus
-    // laat de passage weg in plaats van hem in te vullen.
+    // nergens op de website stonden — én de vragen die ONBEANTWOORD bleven.
+    // Beide zijn nodig: de antwoorden gaan de feitenkaart in (R8.1), de
+    // onbeantwoorde verplichte vragen gaan als expliciet verbod de prompt in.
     admin
       .from("fact_requests")
-      .select("question, answer, status, required")
+      .select("question, answer, answer_type, answered_at, status, required, scope, analysis_id, kind")
       .eq("profile_id", analysis.profile_id),
   ]);
   const profile = profileRow as Profile | null;
   const topicResearch = topicResearchRow as TopicResearch | null;
 
-  const answeredFacts = (factRows ?? [])
-    .filter((f) => f.status === "beantwoord" && (f.answer as string | null)?.trim())
-    .map((f) => `${f.question}: ${(f.answer as string).trim()}`);
+  // ── De antwoorden van de klant, klaar om de kaart in te gaan (R8.1) ───────
+  //
+  // Dit stond hier al, maar werd nergens gebruikt: de lijst werd opgebouwd en
+  // daarna vergeten, terwijl de schrijver uitsluitend de kaart kreeg die vóór
+  // de briefing bevroren was. Precies daardoor werd een met bron bevestigd
+  // "nee" alsnog als "ja" gepubliceerd (zie mergeAnsweredFacts).
+  //
+  // Dezelfde scope-regel als buildFactBase: merkbrede antwoorden gelden altijd,
+  // analyse-antwoorden alleen bij deze analyse. Een 'pagina'-antwoord hoort bij
+  // één content_piece en zou hier bij de verkeerde pagina kunnen belanden.
+  const answeredFacts: AnsweredFactInput[] = (factRows ?? [])
+    .filter((f) => {
+      if (f.status !== "beantwoord" || !(f.answer as string | null)?.trim()) return false;
+      const scope = f.scope as string;
+      return scope === "merk" || (scope === "analyse" && f.analysis_id === analysisId);
+    })
+    .flatMap((f) => {
+      const fact = factFromAnswer(f as never);
+      return fact ? [{ question: f.question as string, fact }] : [];
+    });
 
   // Verplichte vragen die de klant heeft laten liggen of bewust oversloeg. De
   // bewering vervalt dan — hij wordt niet verzonnen (contentbriefing.md §6).
   const unansweredRequired = (factRows ?? [])
     .filter((f) => f.required && (f.status === "open" || f.status === "overgeslagen"))
     .map((f) => f.question as string);
+
+  // Wat de klant als onderscheidend opgaf (R8.8) — apart, omdat de poort ná het
+  // schrijven controleert of dit ook echt in de tekst is beland.
+  const distinctiveAnswers = (factRows ?? [])
+    .filter((f) => f.kind === "onderscheid" && f.status === "beantwoord")
+    .map((f) => ((f.answer as string | null) ?? "").trim())
+    .filter(Boolean);
 
   // Gededupliceerde unie: onderwerp-specifieke concurrenten + algemene bedrijfsconcurrenten.
   const competitors = Array.from(
@@ -548,8 +586,18 @@ async function loadContentContext(
     .maybeSingle();
 
   const bevroren = factsFromSnapshot(pieceRow?.briefing_snapshot_json);
-  const facts =
+  const basis =
     bevroren.length > 0 ? bevroren : await buildFactBase(admin, analysis.profile_id, analysisId);
+
+  // ── De bevroren kaart is een MOMENTOPNAME, geen eindstand (R8.1) ──────────
+  //
+  // Hij is bevroren toen de claim-audit draaide — dus vóórdat de klant ook maar
+  // één vraag beantwoord had. Alles wat hij daarna invulde staat in
+  // `fact_requests` en moet er alsnog bij, anders schrijft het model tegen een
+  // kaart die het halve verhaal mist. Bij de terugvalroute (geen snapshot)
+  // zitten de antwoorden al in `buildFactBase`; het samenvoegen ontdubbelt
+  // daarop, dus die route blijft ongewijzigd van uitkomst.
+  const facts = mergeAnsweredFacts(basis, answeredFacts);
 
   const proofCount = facts.filter((f) => f.allowed).length;
 
@@ -559,6 +607,7 @@ async function loadContentContext(
     profile,
     competitors,
     targets,
+    distinctiveAnswers,
     brandName: profile?.brand_name ?? analysis.url,
     needsFactFinding: contentWebSearchEnabled && proofCount < minProofPointsForConcreteContent,
     baseInput: buildContentInput({
@@ -722,7 +771,20 @@ function buildDraftRow(args: {
     // per zin aanwijsbaar is waar hij vandaan komt, en zodat bij een nieuw
     // antwoord van de klant bekend is welke pagina's daardoor beter kunnen.
     claims_json: (draft.parsed.claims ?? []) as never,
-    briefing_snapshot_json: { facts, writtenAt: new Date().toISOString() } as never,
+    // De kaart zoals hij BIJ HET SCHRIJVEN gebruikt is — inclusief de antwoorden
+    // die de klant ná de claim-audit gaf (R8.1). Daarmee klopt "bevriezen" weer
+    // met wat er werkelijk gebeurd is, en resolven de F-nummers in `claims_json`
+    // ook later nog naar het juiste feit.
+    //
+    // De AANBEVELING gaat mee en wordt niet overschreven: daar zitten de
+    // doelvragen in (R4.1), en die staan nergens anders in de kolommen van
+    // content_pieces. Zonder dit veld verloor elke geschreven pagina z'n
+    // doelvragen-snapshot zodra de eerste versie werd weggeschreven.
+    briefing_snapshot_json: {
+      facts,
+      recommendation,
+      writtenAt: new Date().toISOString(),
+    } as never,
     source_coverage: coverage,
     word_count: countWords(draft.parsed.bodyMarkdown),
     action,
@@ -849,10 +911,26 @@ export async function draftContentPiece(args: {
     return { contentPieceId: current.id, needsRevise: false, issues: [] };
   }
 
-  // Hervatten mag alleen op een draft van dezelfde poging; bij een expliciete
-  // herstart schrijven we een nieuwe rij zodat het oude werk bewaard blijft.
-  const resumeId = current && current.status === "draft" && !regenerate ? current.id : null;
-  const nextVersion = resumeId ? current!.version : (current?.version ?? 0) + 1;
+  // ── In welke rij schrijven we? (R8.10) ────────────────────────────────────
+  //
+  // Drie gevallen, waar de code er eerder twee van kende:
+  //
+  //  1. Een 'draft' hervatten — een eerdere poging strandde ná het schrijven.
+  //     Schrijf in DEZELFDE rij, versie ongewijzigd.
+  //  2. Een verse 'briefing'-rij voor het eerst schrijven. Ook DEZELFDE rij: er
+  //     is nog geen tekst om te bewaren, dus er valt niets te superseden.
+  //  3. Een expliciete herstart bovenop een afgeronde versie (`regenerate`).
+  //     Nieuwe rij, versie + 1, oude blijft als historie staan.
+  //
+  // Geval 2 viel eerder onder 3. Gevolg: de briefing-rij (versie 1, leeg) bleef
+  // als niet-actuele spookrij achter naast de geschreven versie 2 — en
+  // `fact_requests.content_piece_ids`, dat bij de briefing aan die eerste id
+  // gekoppeld werd, wees daarna naar een rij die de klant nooit te zien krijgt.
+  // Gemeten in de contentronde van 31 juli bij beide Fysi-Unique-pagina's.
+  const hergebruikt =
+    current && (current.status === "draft" || current.status === "briefing") && !regenerate;
+  const resumeId = hergebruikt ? current!.id : null;
+  const nextVersion = hergebruikt ? current!.version : (current?.version ?? 0) + 1;
 
   const ctx = await loadContentContext(admin, analysisId, userId, recommendation);
   const { analysis, targets, baseInput, brandName } = ctx;
@@ -915,10 +993,23 @@ export async function draftContentPiece(args: {
   });
 
   const geo = critique.parsed.geo;
-  const geo_score = geoScore(geo);
+  // ── De deterministische poort (R8.2/R8.7/R8.8) ───────────────────────────
+  //
+  // Niet ná maar NAAST de zelfrapportage van het model, en zijn oordeel wint.
+  // In de contentronde gaven de vijf zelfbeoordeelde booleans 100/100 op alle
+  // tien de pagina's — óók op de pagina waarvan dezelfde aanroep in z'n eigen
+  // verbeterpunten schreef dat de hoofdvraag niet beantwoord werd.
+  const gate = checkContentGate({
+    bodyMarkdown: draft.parsed.bodyMarkdown,
+    faq: draft.parsed.faq ?? [],
+    brandName,
+    targetQuestions: targets.map((t) => t.text),
+    distinctiveAnswers: ctx.distinctiveAnswers,
+  });
+  const geo_score = gate.score ?? geoScore(geo);
   // De GEO-tekortkomingen worden gewone verbeterpunten: de herschrijfronde weet
   // dan precies wát er moet veranderen in plaats van "beter maken".
-  const issues = [...critique.parsed.issues, ...geoIssues(geo)];
+  const issues = [...critique.parsed.issues, ...geoIssues(geo), ...gate.issues];
 
   const needsRevise =
     !critique.parsed.followsRules ||
@@ -934,7 +1025,11 @@ export async function draftContentPiece(args: {
       critique_raw_json: [critique.raw] as never,
       quality_score: critique.parsed.qualityScore,
       geo_score,
-      geo_json: geo as never,
+      // Beide oordelen bewaren: `zelfrapportage` is wat het model ervan vond,
+      // `deterministisch` is wat de code kon vaststellen. Uit elkaar houden
+      // maakt achteraf zichtbaar wannéér die twee gingen afwijken — precies het
+      // signaal dat deze poort nodig maakte.
+      geo_json: { zelfrapportage: geo, deterministisch: gate.checks } as never,
       // Wat er nog aan schort, in gewone taal (4.13). Stond alleen in de ruwe
       // API-respons, en die laat je een klant niet lezen.
       review_notes: issues,
@@ -1006,11 +1101,25 @@ export async function reviseContentPiece(args: {
 
   const final = revised.parsed;
   const geo = critique.parsed.geo;
-  const geo_score = geoScore(geo);
+  // Dezelfde deterministische poort als bij de eerste ronde (R8.2/R8.7/R8.8).
+  // Juist hier telt hij: dit is de EINDSTAND — er volgt geen derde ronde, dus
+  // wat hier doorheen komt gaat zo naar de klant.
+  const gate = checkContentGate({
+    bodyMarkdown: final.bodyMarkdown,
+    faq: final.faq ?? [],
+    brandName,
+    targetQuestions: targets.map((t) => t.text),
+    distinctiveAnswers: ctx.distinctiveAnswers,
+  });
+  const geo_score = gate.score ?? geoScore(geo);
   const needsReview =
     !critique.parsed.followsRules ||
     critique.parsed.qualityScore < REVIEW_THRESHOLD ||
-    geo_score < GEO_THRESHOLD;
+    geo_score < GEO_THRESHOLD ||
+    // Een openstaand punt uit de poort is een harde reden om na te kijken. De
+    // redacteur beoordeelt de tekst; de poort beoordeelt of de pagina zijn
+    // opdracht uitvoert — en dat laatste mag niet stil wegvallen.
+    gate.issues.length > 0;
 
   // Ruwe kritiek van BEIDE rondes bewaren (§5: we bewaren alles).
   const previousCritiques = Array.isArray(pieceRow.critique_raw_json) ? pieceRow.critique_raw_json : [];
@@ -1055,11 +1164,12 @@ export async function reviseContentPiece(args: {
       critique_raw_json: [...previousCritiques, critique.raw] as never,
       quality_score: critique.parsed.qualityScore,
       geo_score,
-      geo_json: geo as never,
+      geo_json: { zelfrapportage: geo, deterministisch: gate.checks } as never,
       // Een onherleidbare bewering is óók een reden om na te kijken, ook als de
       // redacteur tevreden was: die beoordeelt de tekst, niet de herkomst.
       review_notes: [
         ...(needsReview ? [...critique.parsed.issues, ...geoIssues(geo)] : []),
+        ...gate.issues,
         ...bronNotitie,
       ],
       needs_review: needsReview || unsupported.length > 0,

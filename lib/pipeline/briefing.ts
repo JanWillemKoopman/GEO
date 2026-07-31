@@ -42,7 +42,7 @@ import {
 } from "@/lib/pipeline/briefing-select";
 import { redactCompetitors } from "@/lib/pipeline/redact";
 import type { RecommendationPayload } from "@/lib/jobs/types";
-import type { ContentType } from "@/lib/types/database";
+import type { BusinessModel, ContentType } from "@/lib/types/database";
 
 type Admin = ReturnType<typeof createAdminClient>;
 
@@ -83,7 +83,12 @@ const AUDIT_SYSTEM =
   "(6) Heb je uit de gegeven informatie een waarschijnlijk antwoord, zet dat dan in suggestedAnswer " +
   "en maak er een verificatievraag van. Bevestigen is voor de klant veel goedkoper dan formuleren. " +
   "(7) importance 'kern' betekent: zonder dit feit kan de pagina zijn vraag niet eerlijk " +
-  "beantwoorden. Wees streng — als alles kern is, is niets het.";
+  "beantwoorden. Wees streng — als alles kern is, is niets het. " +
+  "(8) ÉÉN VRAAG PER ONDERWERP. Staat er een lijst 'AL GESTELDE VRAGEN', dan stel je die niet " +
+  "opnieuw — ook niet net anders geformuleerd, ook niet als deelvraag. En stel binnen je eigen " +
+  "antwoord nooit twee vragen die met hetzelfde antwoord beantwoord zouden worden: kies dan de " +
+  "kortste. De klant krijgt er maximaal acht te zien; drie varianten van dezelfde vraag kosten " +
+  "hem drie van die acht plekken en leveren één antwoord op.";
 
 /** De doelvragen en het winnende antwoord per gekozen pagina. */
 async function buildPageBlocks(
@@ -207,14 +212,14 @@ async function loadKnownClaimKeys(
   admin: Admin,
   profileId: string,
   analysisId: string,
-): Promise<Set<string>> {
+): Promise<{ keys: Set<string>; questions: string[] }> {
   const { data } = await admin
     .from("fact_requests")
-    .select("claim_key, status, scope, analysis_id")
-    .eq("profile_id", profileId)
-    .not("claim_key", "is", null);
+    .select("claim_key, question, status, scope, analysis_id")
+    .eq("profile_id", profileId);
 
-  const bekend = new Set<string>();
+  const keys = new Set<string>();
+  const questions: string[] = [];
   for (const row of data ?? []) {
     const status = row.status as string;
     // 'verlopen' hoort er NIET bij: een verlopen feit moet juist opnieuw
@@ -222,9 +227,12 @@ async function loadKnownClaimKeys(
     if (status !== "open" && status !== "beantwoord" && status !== "overgeslagen") continue;
     const scope = row.scope as string;
     if (scope !== "merk" && row.analysis_id !== analysisId) continue;
-    bekend.add(row.claim_key as string);
+    if (row.claim_key) keys.add(row.claim_key as string);
+    // De vraagteksten gaan mee de audit in (R8.4): het model kan pas ophouden
+    // met varianten verzinnen als het ziet wat er al gevraagd is.
+    if (row.question) questions.push(row.question as string);
   }
-  return bekend;
+  return { keys, questions };
 }
 
 export interface BriefingResult {
@@ -263,7 +271,7 @@ export async function runBriefing(args: {
 
   const { data: profile } = await admin
     .from("profiles")
-    .select("brand_name, industry")
+    .select("brand_name, industry, business_model")
     .eq("id", profileId)
     .maybeSingle();
   const { data: topic } = await admin
@@ -275,6 +283,13 @@ export async function runBriefing(args: {
 
   const pageBlocks = await buildPageBlocks(admin, recommendations, pieceIds, competitors);
 
+  // Wat er al gevraagd is, moet de audit weten (R8.4). Zonder deze lijst kan het
+  // model niet zien dat het bezig is een variant te formuleren van een vraag die
+  // er al staat — bij Fysi-Unique leverde dat 17 vragen op voor 5 à 6 werkelijke
+  // onderwerpen. De code ontdubbelt achteraf nog steeds (dat blijft het vangnet),
+  // maar het is goedkoper om de dubbele vraag niet te laten ontstaan.
+  const bekend = await loadKnownClaimKeys(admin, profileId, analysisId);
+
   // ── 2. De claim-audit (één mini-aanroep voor de hele batch) ───────────────
   const auditInput = [
     `Bedrijf: ${(profile?.brand_name as string | null) ?? analysis.url}`,
@@ -284,7 +299,16 @@ export async function runBriefing(args: {
     pageBlocks,
     "",
     formatFactCard(facts),
-  ].join("\n");
+    bekend.questions.length > 0
+      ? [
+          "",
+          "AL GESTELDE VRAGEN — stel deze niet opnieuw, ook niet in andere bewoordingen:",
+          ...bekend.questions.slice(0, 30).map((v) => `  • ${v}`),
+        ].join("\n")
+      : "",
+  ]
+    .filter(Boolean)
+    .join("\n");
 
   const audit = await callStructured({
     model: MODELS.quality,
@@ -346,15 +370,19 @@ export async function runBriefing(args: {
     priority: c.importance === "kern" ? 2 : 1,
   }));
 
-  // De vaste slots per type erbij (contentbriefing.md §3.3).
+  // De vaste slots per type erbij (contentbriefing.md §3.3), afgestemd op het
+  // bedrijfsmodel (R8.5): een platform of keten krijgt geen adres-/telefoonvraag
+  // die hij niet naar waarheid kan beantwoorden.
+  const businessModel = (profile?.business_model as BusinessModel | null) ?? null;
   for (const [i, rec] of recommendations.entries()) {
-    kandidaten.push(...slotQuestions(rec.type as ContentType, pieceIds[i], rec.existingUrl));
+    kandidaten.push(
+      ...slotQuestions(rec.type as ContentType, pieceIds[i], rec.existingUrl, businessModel),
+    );
   }
 
-  const bekend = await loadKnownClaimKeys(admin, profileId, analysisId);
-  const gekozen = selectBriefingQuestions({ candidates: kandidaten, alreadyKnown: bekend });
+  const gekozen = selectBriefingQuestions({ candidates: kandidaten, alreadyKnown: bekend.keys });
 
-  if (kandidaten.length > gekozen.length + bekend.size) {
+  if (kandidaten.length > gekozen.length + bekend.keys.size) {
     console.log(
       `Briefing ${analysisId}: ${kandidaten.length} kandidaatvragen teruggebracht tot ` +
         `${gekozen.length} (grens ${MAX_QUESTIONS}). De rest komt bij een volgende batch terug.`,

@@ -1,33 +1,30 @@
 import { InfoHint } from "@/components/info-hint";
-import { GEO_CRITERIA_LABELS, type GeoCriteria } from "@/lib/schemas/critique";
+import { geoRegels } from "@/lib/pipeline/content-gate";
 
 /**
- * Zou een AI-assistent deze pagina citeren? (optimalisatie.md 4.5)
+ * Zou een AI-assistent deze pagina citeren? (optimalisatie.md 4.5, R8.7)
  *
- * De redactionele score zei alleen of de tekst lekker las. Deze vijf criteria
- * gaan over iets anders: of het ding waarvoor de pagina gemaakt is, ook echt kan
+ * De redactionele score zei alleen of de tekst lekker las. Deze criteria gaan
+ * over iets anders: of het ding waarvoor de pagina gemaakt is, ook echt kan
  * gebeuren. Een tekst kan vlekkeloos zijn en tegelijk volstrekt onciteerbaar.
  *
- * Bewust vijf vinkjes en geen enkel getal. "GEO-score 60" zegt de klant niets;
- * "noemt het bedrijf expliciet: nee" is een concreet gebrek dat hij herkent
- * zodra hij het leest.
+ * Bewust vinkjes en geen enkel getal als hoofdzaak. "GEO-score 60" zegt de klant
+ * niets; "noemt het bedrijf expliciet: nee" is een concreet gebrek dat hij
+ * herkent zodra hij het leest.
+ *
+ * Sinds R8.7 komen deze vinkjes uit een DETERMINISTISCHE controle in code en
+ * niet meer uit een zelfbeoordeling door het model dat de tekst schreef. Dat
+ * verschil is gemeten: in de contentronde van 31 juli gaf de zelfrapportage
+ * 100/100 op alle tien de pagina's, óók op de pagina waarvan dezelfde aanroep in
+ * z'n eigen verbeterpunten schreef dat de hoofdvraag niet beantwoord werd.
  */
-const EXPLANATION: Record<keyof GeoCriteria, string> = {
-  answersTargetQuestionUpFront:
-    "Een AI die een antwoord zoekt, leest de inleiding niet uit. Staat het antwoord pas in alinea drie, dan wordt het niet gevonden.",
-  hasStandaloneCitableSentences:
-    "AI-assistenten knippen zinnen uit een pagina. Een zin die alleen klopt als je de rest gelezen hebt, is onbruikbaar om te citeren.",
-  namesTheBusinessExplicitly:
-    "Een model dat 'wij leveren binnen 24 uur' leest, weet niet wie 'wij' is — en noemt je dus niet in het antwoord.",
-  usesConcreteFacts:
-    "Cijfers, jaartallen en termijnen zijn wat een AI aanhaalt. Algemene beloftes worden overgeslagen.",
-  answersFollowUpQuestions:
-    "Wie de hoofdvraag én de vervolgvragen beantwoordt, wordt bij meer verschillende vragen genoemd.",
-};
-
-export function GeoScorecard({ geo, score }: { geo: GeoCriteria; score: number | null }) {
-  const keys = Object.keys(GEO_CRITERIA_LABELS) as (keyof GeoCriteria)[];
-  const met = keys.filter((k) => geo[k]).length;
+export function GeoScorecard({ geo, score }: { geo: unknown; score: number | null }) {
+  const regels = geoRegels(geo);
+  // Alleen de uitgevoerde controles tellen mee in "x van de y". Een controle die
+  // niet van toepassing was (geen ja/nee-vraag, geen onderscheidend antwoord)
+  // is geen onvoldoende — onbekend is een betere waarde dan een verkeerde.
+  const getoetst = regels.filter((r) => r.ok !== null);
+  const geslaagd = getoetst.filter((r) => r.ok).length;
 
   return (
     <div className="card flex flex-col gap-3">
@@ -40,29 +37,47 @@ export function GeoScorecard({ geo, score }: { geo: GeoCriteria; score: number |
           </InfoHint>
         </span>
         <span className="mono-label">
-          {met} van de {keys.length}
+          {geslaagd} van de {getoetst.length}
           {score != null ? ` · ${score}/100` : ""}
         </span>
       </div>
 
       <ul className="flex flex-col gap-2">
-        {keys.map((key) => (
-          <li key={key} className="flex items-start gap-2 text-sm">
+        {regels.map((regel) => (
+          <li key={regel.label} className="flex items-start gap-2 text-sm">
             <span
               aria-hidden
               className="mt-0.5 shrink-0 font-bold"
-              style={{ color: geo[key] ? "var(--status-success)" : "var(--status-error)" }}
+              style={{
+                color:
+                  regel.ok === null
+                    ? "var(--text-muted)"
+                    : regel.ok
+                      ? "var(--status-success)"
+                      : "var(--status-error)",
+              }}
             >
-              {geo[key] ? "✓" : "✕"}
+              {regel.ok === null ? "–" : regel.ok ? "✓" : "✕"}
             </span>
             <span className="flex flex-col gap-0.5">
-              <span style={{ color: geo[key] ? "var(--text-primary)" : "var(--text-primary)" }}>
-                {/* Zelfde kleur voor beide: de kleur zit in het teken ernaast.
-                    Identiteit mag nooit alleen op kleur leunen. */}
-                {GEO_CRITERIA_LABELS[key]}
-                <span className="sr-only">{geo[key] ? " — in orde" : " — nog niet in orde"}</span>
+              {/* Zelfde tekstkleur voor alle drie de toestanden: de betekenis zit
+                  in het teken ernaast. Identiteit mag nooit alleen op kleur leunen. */}
+              <span>
+                {regel.label}
+                <span className="sr-only">
+                  {regel.ok === null
+                    ? " — niet van toepassing"
+                    : regel.ok
+                      ? " — in orde"
+                      : " — nog niet in orde"}
+                </span>
               </span>
-              {!geo[key] && <span className="text-muted">{EXPLANATION[key]}</span>}
+              {regel.ok === false && <span className="text-muted">{regel.uitleg}</span>}
+              {regel.ok === null && (
+                <span className="text-muted">
+                  Niet van toepassing op deze pagina, dus niet meegeteld.
+                </span>
+              )}
             </span>
           </li>
         ))}

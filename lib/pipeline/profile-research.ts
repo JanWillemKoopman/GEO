@@ -79,11 +79,24 @@ export async function generateProfileResearch(args: {
       `op algemeen bekende feiten. Weet je concurrenten niet zeker, geef dan een korte of ` +
       `lege lijst in plaats van namen te verzinnen.`;
 
+  // Het BEDRIJFSMODEL (R8.5, migratie 0032). Bepaalt straks welke vaste
+  // briefingvragen zinvol zijn: een platform of keten heeft geen enkelvoudig
+  // adres of telefoonnummer, en die verplicht vragen levert een antwoord op dat
+  // niet kan kloppen.
+  const businessModelRule =
+    `Bepaal het BEDRIJFSMODEL (businessModel), en wees hierin letterlijk: ` +
+    `'retailer' = verkoopt producten van ANDERE merken (webshop, winkelketen); ` +
+    `'platform' = brengt vraag en aanbod van derden bij elkaar (marktplaats, vergelijker, boekingssite); ` +
+    `'dienstverlener' = levert diensten met eigen mensen (praktijk, bureau, installateur); ` +
+    `'fabrikant' = maakt en verkoopt zijn eigen producten; ` +
+    `'overig' = past in geen van deze. Twijfel je tussen retailer en fabrikant, kijk of ` +
+    `de producten het merk van het bedrijf zelf dragen.`;
+
   const system =
     `Je bent een merk- en marktanalist. Analyseer dit bedrijf op basis van de website-tekst en het web. ` +
     `Bepaal: branche, kernproducten/-diensten, tone-of-voice, doelgroep-persona's, waardeproposities en 3–5 belangrijkste concurrenten ` +
     `van het HELE bedrijf (niet van één product/segment — dat wordt per analyse apart bepaald). ` +
-    `${brandNameRule} ${writingBasisRule} ${groundingRule} Antwoord in het Nederlands.`;
+    `${brandNameRule} ${businessModelRule} ${writingBasisRule} ${groundingRule} Antwoord in het Nederlands.`;
 
   const user =
     `Website: ${url}\n\n` +

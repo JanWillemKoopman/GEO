@@ -15,9 +15,9 @@
  *
  * Bewust ZONDER `server-only`: pure selectielogica, testbaar in een kaal script.
  */
-import { claimKey } from "@/lib/pipeline/factcard";
+import { claimKey, topicKey } from "@/lib/pipeline/factcard";
 import type { AnswerType, QuestionKind } from "@/lib/schemas/claim-audit";
-import type { ContentType } from "@/lib/types/database";
+import type { BusinessModel, ContentType } from "@/lib/types/database";
 
 /** Harde bovengrens per briefing (contentbriefing.md §3.4). */
 export const MAX_QUESTIONS = 8;
@@ -38,6 +38,16 @@ export interface BriefingQuestion {
   contentPieceIds: string[];
   /** Alleen voor de sortering; wordt niet opgeslagen. */
   priority: number;
+  /**
+   * Een vast slot (§3.3) in plaats van een vraag uit de claim-audit.
+   *
+   * Slots gaan niet over de INHOUD maar over de bruikbaarheid van de pagina, en
+   * ze zijn met de hand geformuleerd. De grove onderwerp-ontdubbeling van R8.4
+   * slaat ze daarom over: die is er om varianten van dezelfde
+   * modelformulering samen te vegen, en zou twee bewust verschillende slots
+   * kunnen laten samenvallen.
+   */
+  fixedSlot?: boolean;
 }
 
 /**
@@ -51,29 +61,33 @@ export interface BriefingQuestion {
  * bevatte `"telephone": "+31 "` in de schema-markup. Een halve placeholder, en er
  * was geen enkele bron in het systeem waar dat nummer wél uit te halen was.
  */
-const SLOTS: Record<ContentType, Omit<BriefingQuestion, "contentPieceIds" | "priority" | "claimKey">[]> = {
-  landing: [
-    {
-      question: "Welk telefoonnummer en adres moeten er op deze pagina staan?",
-      reason: "Zonder deze gegevens blijft de Google- en AI-vermelding van de pagina half leeg.",
-      kind: "praktisch",
-      answerType: "tekst_kort",
-      options: [],
-      suggestedAnswer: null,
-      required: true,
-      scope: "merk",
-    },
-    {
-      question: "Naar welke pagina moet de knop 'Neem contact op' of 'Vraag aan' linken?",
-      reason: "Anders wijst de knop nergens heen en verliest de pagina haar doel.",
-      kind: "praktisch",
-      answerType: "url",
-      options: [],
-      suggestedAnswer: null,
-      required: true,
-      scope: "merk",
-    },
-  ],
+type SlotDefinitie = Omit<BriefingQuestion, "contentPieceIds" | "priority" | "claimKey">;
+
+/** Apart benoemd omdat R8.5 ze vervangt bij een bedrijf zonder één vestiging. */
+const ADRES_SLOT: SlotDefinitie = {
+  question: "Welk telefoonnummer en adres moeten er op deze pagina staan?",
+  reason: "Zonder deze gegevens blijft de Google- en AI-vermelding van de pagina half leeg.",
+  kind: "praktisch",
+  answerType: "tekst_kort",
+  options: [],
+  suggestedAnswer: null,
+  required: true,
+  scope: "merk",
+};
+
+const CONTACTKNOP_SLOT: SlotDefinitie = {
+  question: "Naar welke pagina moet de knop 'Neem contact op' of 'Vraag aan' linken?",
+  reason: "Anders wijst de knop nergens heen en verliest de pagina haar doel.",
+  kind: "praktisch",
+  answerType: "url",
+  options: [],
+  suggestedAnswer: null,
+  required: true,
+  scope: "merk",
+};
+
+const SLOTS: Record<ContentType, SlotDefinitie[]> = {
+  landing: [ADRES_SLOT, CONTACTKNOP_SLOT],
   comparison: [
     {
       question: "Wanneer past jouw oplossing juist NIET bij iemand?",
@@ -136,16 +150,58 @@ function linkSlot(suggestion: string | null): Omit<BriefingQuestion, "contentPie
   };
 }
 
+/**
+ * De vestigingsvragen vervangen door een contactvraag (R8.5).
+ *
+ * "Welk telefoonnummer en adres moeten er op deze pagina staan?" is de goede
+ * vraag voor een fysiotherapiepraktijk en een onmogelijke vraag voor Bol
+ * (43.300 verkooppartners), Coolblue (22 winkels) of Van der Valk (100+
+ * zelfstandige hotels). In de contentronde van 31 juli werd hij bij alle drie
+ * bewust overgeslagen — de enige eerlijke uitkomst van een vraag die niet
+ * beantwoord kán worden.
+ *
+ * Een verplichte vraag zonder waar antwoord is niet neutraal: hij nodigt uit tot
+ * invullen wat niet klopt, en dat is precies wat R5 moest voorkomen. Voor deze
+ * modellen vragen we daarom naar het kanaal dat er wél is.
+ */
+const CONTACTKANAAL_SLOT: Omit<BriefingQuestion, "contentPieceIds" | "priority" | "claimKey"> = {
+  question: "Naar welke pagina moeten klanten met vragen over dit onderwerp toe?",
+  reason:
+    "Jouw bedrijf heeft geen enkel adres of telefoonnummer dat op deze pagina hoort. " +
+    "Een klantenservice- of contactpagina werkt hier beter.",
+  kind: "praktisch",
+  answerType: "url",
+  options: [],
+  suggestedAnswer: null,
+  required: true,
+  scope: "merk",
+};
+
+/** Bedrijfsmodellen zonder één vestiging: daar past de adres-/telefoonvraag niet. */
+const ZONDER_VESTIGING = new Set<BusinessModel>(["retailer", "platform"]);
+
 /** De vaste slots voor één gekozen pagina, als vragen met een claim-sleutel. */
 export function slotQuestions(
   type: ContentType,
   contentPieceId: string,
   linkSuggestion: string | null = null,
+  /** `null` = onbekend; dan blijft het gedrag exact zoals vóór R8.5. */
+  businessModel: BusinessModel | null = null,
 ): BriefingQuestion[] {
-  const basis = [...(SLOTS[type] ?? []), linkSlot(linkSuggestion)];
+  const perType = SLOTS[type] ?? [];
+  const aangepast =
+    businessModel && ZONDER_VESTIGING.has(businessModel)
+      ? [
+          ...perType.filter((slot) => slot !== ADRES_SLOT && slot !== CONTACTKNOP_SLOT),
+          CONTACTKANAAL_SLOT,
+        ]
+      : perType;
+
+  const basis = [...aangepast, linkSlot(linkSuggestion)];
   return basis.map((slot) => ({
     ...slot,
     claimKey: claimKey(`slot ${type} ${slot.question}`),
+    fixedSlot: true,
     contentPieceIds: [contentPieceId],
     // Slots wegen als een ondersteunende claim: ze mogen de echte inhoudelijke
     // gaten niet van de lijst duwen, maar wel meeliften als er ruimte is.
@@ -200,7 +256,7 @@ export function selectBriefingQuestions(args: {
     bestaand.priority = Math.max(bestaand.priority, kandidaat.priority);
   }
 
-  return Array.from(samengevoegd.values())
+  return dedupeOpOnderwerp(Array.from(samengevoegd.values()))
     .map((vraag) => ({
       ...vraag,
       priority: vraag.contentPieceIds.length * (vraag.required ? 2 : 1) * vraag.priority,
@@ -215,6 +271,76 @@ export function selectBriefingQuestions(args: {
         a.question.localeCompare(b.question),
     )
     .slice(0, max);
+}
+
+/**
+ * Tweede ontdubbelronde, nu op ONDERWERP in plaats van op formulering (R8.4).
+ *
+ * `claimKey` vangt dezelfde vraag in andere woordvolgorde, maar niet dezelfde
+ * vraag in een andere zinsbouw. Bij Fysi-Unique leverde dat 17 openstaande
+ * vragen voor 2 pagina's op, waarvan er 4 over het persoonlijke behandelplan
+ * gingen en 3 over preventieve nazorg — allemaal met een eigen `claimKey`.
+ *
+ * Met een grens van acht vragen is dat niet alleen vervelend maar schadelijk:
+ * zeven van de acht plekken gingen op aan twee onderwerpen, en de vragen die er
+ * daardoor uit vielen waren de vragen die de pagina concreet hadden gemaakt.
+ *
+ * Per onderwerp blijft de BESTE vraag staan: verplicht wint, dan de vraag met
+ * een voorstel (één klik in plaats van een formulering), dan de kortste — want
+ * dat is de vraag die een klant binnen dertig seconden beantwoordt
+ * (contentbriefing.md §4, regel 2).
+ */
+function dedupeOpOnderwerp(vragen: BriefingQuestion[]): BriefingQuestion[] {
+  const perOnderwerp = new Map<string, BriefingQuestion>();
+  const uitkomst: BriefingQuestion[] = [];
+
+  for (const vraag of vragen) {
+    // Vaste slots doen niet mee: die zijn met de hand geformuleerd en bewust
+    // verschillend, ook als ze qua kernwoorden op elkaar lijken.
+    const sleutel = vraag.fixedSlot ? "" : topicKey(vraag.question);
+
+    // Onder de twee kernwoorden is de sleutel te grof om op te vertrouwen. Een
+    // vraag als "Wat is de prijs?" houdt één woord over, en dan zou élke korte
+    // vraag met dat woord erin samenvallen met een heel ander onderwerp. Bij
+    // twijfel niet samenvoegen: een dubbele vraag kost de klant dertig seconden,
+    // een ten onrechte verdwenen vraag kost hem het feit dat zijn pagina concreet
+    // had gemaakt.
+    if (!sleutel || sleutel.split(" ").length < 2) {
+      uitkomst.push(vraag);
+      continue;
+    }
+
+    const bestaand = perOnderwerp.get(sleutel);
+    if (!bestaand) {
+      perOnderwerp.set(sleutel, vraag);
+      continue;
+    }
+
+    // De verliezer verdwijnt niet zonder sporen: zijn pagina's worden aan de
+    // winnaar gekoppeld, want het antwoord voedt ze allebei.
+    const winnaar = kiesBesteVraag(bestaand, vraag);
+    const verliezer = winnaar === bestaand ? vraag : bestaand;
+    winnaar.contentPieceIds = Array.from(
+      new Set([...winnaar.contentPieceIds, ...verliezer.contentPieceIds]),
+    );
+    winnaar.required = winnaar.required || verliezer.required;
+    winnaar.suggestedAnswer = winnaar.suggestedAnswer ?? verliezer.suggestedAnswer;
+    if (winnaar.options.length === 0) winnaar.options = verliezer.options;
+    winnaar.priority = Math.max(winnaar.priority, verliezer.priority);
+    perOnderwerp.set(sleutel, winnaar);
+  }
+
+  return [...uitkomst, ...perOnderwerp.values()];
+}
+
+/** Welke van twee vragen over hetzelfde onderwerp de klant het beste kan stellen. */
+function kiesBesteVraag(a: BriefingQuestion, b: BriefingQuestion): BriefingQuestion {
+  if (a.required !== b.required) return a.required ? a : b;
+  const aVoorstel = Boolean(a.suggestedAnswer?.trim());
+  const bVoorstel = Boolean(b.suggestedAnswer?.trim());
+  if (aVoorstel !== bVoorstel) return aVoorstel ? a : b;
+  if (a.priority !== b.priority) return a.priority > b.priority ? a : b;
+  return a.question.length <= b.question.length ? a : b;
 }
 
 /**

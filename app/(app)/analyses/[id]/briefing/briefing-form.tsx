@@ -282,15 +282,31 @@ function QuestionCard({
       </div>
 
       {/* Ons voorstel als knop, niet als voorgevulde waarde: bevestigen moet een
-          handeling zijn. Eén klik, maar wel een klik. */}
+          handeling zijn. Eén klik, maar wel een klik.
+
+          En het is een GOK, geen voorstel (R8.6). In de contentronde van 31 juli
+          stond het voorstel twee keer op het tegenovergestelde van de waarheid:
+          "nee" op de vraag of Bol een studentengids heeft (die bestaat), en
+          "nee" op de vraag of Fysi-Unique een persoonlijk behandelplan vermeldt
+          (de site zegt letterlijk "we stellen altijd een behandelplan op maat
+          samen"). Wie dat als "ons voorstel" leest, klikt het door — en dan
+          staat er een fout feit in de tekst mét de bevestiging van de klant
+          eronder. Vandaar dat er nu bij staat waar het vandaan komt en dat het
+          nagekeken moet worden. */}
       {question.suggestedAnswer && !value && !skipped && (
-        <button
-          type="button"
-          className="btn-outline btn-sm w-fit"
-          onClick={() => onChange(question.suggestedAnswer!)}
-        >
-          Wij denken: {question.suggestedAnswer} — klopt
-        </button>
+        <div className="flex flex-col gap-1">
+          <button
+            type="button"
+            className="btn-outline btn-sm w-fit"
+            onClick={() => onChange(question.suggestedAnswer!)}
+          >
+            Onze gok: {question.suggestedAnswer} — dit klopt
+          </button>
+          <span className="text-sm text-muted">
+            Dit is een inschatting van ons systeem, niet iets wat we gecontroleerd hebben. Lees hem
+            na voor je hem bevestigt — een fout antwoord komt zo in je tekst terecht.
+          </span>
+        </div>
       )}
 
       {!skipped && <AnswerField id={inputId} question={question} value={value} onChange={onChange} />}

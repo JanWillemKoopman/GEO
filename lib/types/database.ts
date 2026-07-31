@@ -81,6 +81,15 @@ export interface Analysis {
   updated_at: string;
 }
 
+/**
+ * Het bedrijfsmodel van een klant (migratie 0032, R8.5).
+ *
+ * Het onderscheid dat ertoe doet is niet de branche maar hóé het bedrijf zijn
+ * geld verdient: een webshop met eigen producten heeft één adres, een
+ * marktplaats niet.
+ */
+export type BusinessModel = "retailer" | "platform" | "dienstverlener" | "fabrikant" | "overig";
+
 /** Klantprofiel (accountniveau): het grondige, bedrijfsbrede onderzoek — één keer per merk. */
 export interface Profile {
   id: string;
@@ -89,6 +98,13 @@ export interface Profile {
   url: string;
   brand_name: string | null;
   industry: string | null;
+  /**
+   * Bedrijfsmodel (migratie 0032, R8.5). Bepaalt welke vaste briefingvragen
+   * zinvol zijn: een platform of keten heeft geen enkelvoudig adres of
+   * telefoonnummer. `null` = onbekend, dan valt de briefing terug op het
+   * standaardgedrag.
+   */
+  business_model: BusinessModel | null;
   tone_of_voice: string | null;
   summary: string | null;
   products: string[];

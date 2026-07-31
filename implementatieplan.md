@@ -59,7 +59,7 @@ de volgorde van dit plan — een migratienummer moet de toepassingsvolgorde volg
 | `0029` | R3 | Zichtbaarheidsprofiel (`mention_role`, positie, citaties) | ✅ toegepast |
 | `0030` | R4 | Concurrent-intelligence (`attributes_json`, `why_summary`) | ✅ toegepast |
 | `0031` | R6.1 | Gelaagd hermeten (`tracking_runs.repeat_index`) | ✅ toegepast |
-| `0032` | R0 | Promptgeneratie-telemetrie, `profiles.business_model` | gereserveerd |
+| `0032` | R8.5 | `profiles.business_model` (bedrijfsmodel) | ✅ toegepast |
 | `0033` | R6.2 | Inventariskwaliteit (`profiles.inventory_quality_json`) | gereserveerd |
 
 R5 heeft geen nieuwe migratie nodig — die draait op het schema uit `0024`, dat al is toegepast.
@@ -117,16 +117,16 @@ R5 heeft geen nieuwe migratie nodig — die draait op het schema uit `0024`, dat
 | R6.1 | Gelaagd hermeten | 2 d | ✅ |
 | R6.2 | Inventariskwaliteitspoort | 2 d | ☐ |
 | R6.3 | Brontype als signaal | 1,5 d | ☐ |
-| R8.1 | Briefingantwoorden daadwerkelijk in de feitenkaart | 1,5 d | ☐ |
-| R8.2 | Publicatiegate: doelvraag-echo | 2 d | ☐ |
-| R8.3 | Multi-ref-bestendige citaatplicht | 0,5 d | ☐ |
-| R8.4 | Claim-key-ontdubbeling robuuster | 1,5 d | ☐ |
-| R8.5 | Vaste slots conditioneel op bedrijfsmodel | 1 d | ☐ |
-| R8.6 | `suggested_answer` eerlijk labelen | 0,5 d | ☐ |
-| R8.7 | GEO-score deterministisch maken | 2,5 d | ☐ |
-| R8.8 | Onderscheidend vermogen afdwingen | 1,5 d | ☐ |
+| R8.1 | Briefingantwoorden daadwerkelijk in de feitenkaart | 1,5 d | ✅ |
+| R8.2 | Publicatiegate: doelvraag-echo | 2 d | ✅ |
+| R8.3 | Multi-ref-bestendige citaatplicht | 0,5 d | ✅ |
+| R8.4 | Claim-key-ontdubbeling robuuster | 1,5 d | ✅ |
+| R8.5 | Vaste slots conditioneel op bedrijfsmodel | 1 d | ✅ |
+| R8.6 | `suggested_answer` eerlijk labelen | 0,5 d | ✅ |
+| R8.7 | GEO-score deterministisch maken | 2,5 d | ✅ |
+| R8.8 | Onderscheidend vermogen afdwingen | 1,5 d | ✅ |
 | R8.9 | Productfeed voor retailers/platforms (onderzoek) | 3-5 d | ☐ |
-| R8.10 | Versiesprong bij eerste schrijfronde opruimen | 1 d | ☐ |
+| R8.10 | Versiesprong bij eerste schrijfronde opruimen | 1 d | ✅ |
 
 **Totaal: circa 46 dagen (R0-R6) + 15,5-17,5 dagen (R8).** Volgorde-afhankelijkheden: R1 en R2 zijn
 onafhankelijk van elkaar en kunnen parallel. R3 bouwt op R2.1. R4 bouwt op R0.5. R5 bouwt op R1
@@ -1264,14 +1264,22 @@ te verzinnen welke vestiging bedoeld wordt.
 
 **Bestanden:** `lib/pipeline/briefing.ts` (de vaste-slotsdefinitie uit contentbriefing.md §3.3).
 
-**Implementatie:** bouwt voort op `profiles.business_model` (R0.5, migratie `0032`, nog niet
-opgeleverd). Voor `retailer`/`platform`: vervang het adres/telefoonslot door "naar welke
-klantenservice-/contactpagina moet gelinkt worden?". Voor overige modellen: ongewijzigd.
+**Implementatie:** ✅ opgeleverd. Migratie `0032_bedrijfsmodel.sql` (toegepast op productie) voegt
+`profiles.business_model` toe — nullable, met een check-constraint op de vijf toegestane waarden.
+Het profielonderzoek bepaalt het model voortaan zelf (`ProfileResearch.businessModel`), en de klant
+kan het corrigeren op de profielpagina; een handmatige waarde wint. In `slotQuestions()` vervangt
+`CONTACTKANAAL_SLOT` bij `retailer`/`platform` de twee vestigingsvragen.
 
-**Verificatie:** genereer de briefing opnieuw voor Bol en Coolblue. Verwacht: geen adres/
-telefoonvraag meer, wel een contactpagina-vraag.
+**Afwijking van het plan.** Deze stap was afhankelijk gemaakt van R0.5, maar had daar alleen de
+kolom van nodig — niet de productlijn-deduplicatie of de concurrent/eigen_product-regel. Die twee
+blijven open onder R0.5; de kolom is hier meegeleverd omdat R8.5 anders niets zou doen.
 
-**Afhankelijkheid:** kan pas na R0.5.
+**Onbekend blijft onbekend:** zolang `business_model` `null` is, is de vragenset exact gelijk aan
+vóór deze stap. Een vragenset wijzigen op een gok is precies het soort fout dat R5 moest
+uitbannen.
+
+**Verificatie:** unit tests dekken alle vijf de modellen plus `null`; de bestaande vijf
+testprofielen houden hun huidige gedrag tot hun profielonderzoek opnieuw draait.
 
 ### R8.6 — `suggested_answer` eerlijk labelen
 
@@ -1362,6 +1370,39 @@ daarna `fact_requests.content_piece_ids` bij naar de definitieve rij wanneer die
 
 **Verificatie:** genereer een nieuwe briefing-pagina end-to-end. Verwacht: precies één rij per
 titel, geen `is_current = false`-rij zonder dat er ooit een eerdere versie bestond.
+
+---
+
+### ✅ R8 opgeleverd — negen van de tien, plus twee dingen die er niet in stonden
+
+Alles behalve R8.9 (bewust een onderzoeksvraag, geen bouwstap) is gebouwd. 298 tests groen, was
+250; migratie `0032` toegepast op productie.
+
+**Nieuwe bestanden:** `lib/pipeline/content-gate.ts` (de deterministische poort, puur en getest),
+`supabase/migrations/0032_bedrijfsmodel.sql`.
+
+**Twee dingen die tijdens het bouwen aan het licht kwamen en niet in het plan stonden:**
+
+**1. `buildDraftRow()` gooide de aanbeveling uit de snapshot.** Bij het wegschrijven van de eerste
+versie werd `briefing_snapshot_json` overschreven met alleen `{facts, writtenAt}` — zonder
+`recommendation`. Daarmee verdween de enige plek waar de DOELVRAGEN van een pagina bewaard stonden
+(die staan in geen enkele kolom van `content_pieces`). Zichtbaar gevolg was er nog niet, omdat
+`recommendationFromSnapshot()` alleen gelezen wordt bij status `briefing` — maar het is precies het
+soort stille dataverlies dat R1 en R5 allebei al een keer hebben opgeleverd. Nu gaat de aanbeveling
+mee.
+
+**2. De onderwerp-sleutel van R8.4 had een ondergrens nodig.** De eerste versie groepeerde op de
+drie langste woorden, en liet daarmee twintig testvragen ("Vraag 0?" … "Vraag 19?") samenvallen op
+één woord. In productie zou hetzelfde gebeuren met korte vragen als "Wat is de prijs?". Onder de
+twee kernwoorden wordt er nu niet meer gegroepeerd: een dubbele vraag kost de klant dertig
+seconden, een ten onrechte verdwenen vraag kost hem het feit dat zijn pagina concreet had gemaakt.
+
+**Wat nog niet geverifieerd is.** Alle negen stappen zijn getoetst met unit tests op de echte
+gevallen uit de contentronde, maar er is nog geen nieuwe pagina mee geschreven op productie.
+Gebouwd is niet hetzelfde als geverifieerd (status-doorontwikkeling.md §2.6) — de sluitende toets
+is een nieuwe contentronde over dezelfde vijf testcases, waarbij met name te controleren valt of
+(a) een gecorrigeerd briefingantwoord nu écht in de tekst landt, en (b) de poort de vier pagina's
+markeert die hun doelvraag ontweken.
 
 ---
 

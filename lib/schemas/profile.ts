@@ -8,6 +8,17 @@ export const ProfileResearch = z.object({
   /** Canonieke merknaam zoals klanten die kennen (bv. "Golden Fingers"), niet het domein. */
   brandName: z.string(),
   industry: z.string(),
+  /**
+   * Het BEDRIJFSMODEL (R8.5, migratie 0032). Bepaalt welke vaste briefingvragen
+   * zinvol zijn: een platform of keten heeft geen enkelvoudig adres of
+   * telefoonnummer, en die verplicht vragen nodigt uit tot invullen wat niet
+   * klopt — precies wat R5 moest voorkomen.
+   *
+   * Gemeten in de contentronde van 31 juli: bij 3 van de 5 testcases (Bol,
+   * Coolblue, Van der Valk) was de verplichte adres-/telefoonvraag principieel
+   * onbeantwoordbaar.
+   */
+  businessModel: z.enum(["retailer", "platform", "dienstverlener", "fabrikant", "overig"]),
   products: z.array(z.string()),
   toneOfVoice: z.string(),
   personas: z.array(

@@ -10,7 +10,6 @@ import { PublishGuide } from "@/components/publish-guide";
 import { PublishBox } from "./publish-box";
 import type { PublishCheck } from "@/lib/pipeline/publish-check";
 import { GeoScorecard } from "@/components/geo-scorecard";
-import type { GeoCriteria } from "@/lib/schemas/critique";
 import type { ContentPiece, ContentPieceTarget } from "@/lib/types/database";
 
 interface Faq {
@@ -57,7 +56,10 @@ export default async function ContentDetailPage({
     ContentPiece,
     "id" | "version" | "created_at" | "is_current" | "revision_note"
   >[];
-  const geo = piece.geo_json as GeoCriteria | null;
+  // Bewust ongetypeerd doorgegeven: `geoRegels()` in de scorekaart kent twee
+  // vormen (de zelfrapportage van vóór R8.7 en de deterministische controle
+  // erna) en normaliseert ze allebei.
+  const geo = piece.geo_json as Record<string, unknown> | null;
 
   return (
     <div className="flex flex-col gap-5">

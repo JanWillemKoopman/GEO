@@ -142,6 +142,81 @@ export function factFromAnswer(row: {
   return { text: `${vraag}: ${antwoord}`, source: bron, allowed: true, citable: true, kind: "klant" };
 }
 
+/** Een antwoord van de klant, klaar om in een bestaande kaart te worden gevoegd. */
+export interface AnsweredFactInput {
+  /** De vraag zelf — de sleutel waarop een ouder antwoord wordt vervangen. */
+  question: string;
+  fact: RawFact;
+}
+
+/**
+ * De antwoorden van de klant alsnog in de feitenkaart voegen (R8.1).
+ *
+ * ── WAAROM DIT BESTAAT ──────────────────────────────────────────────────────
+ *
+ * De contentronde van 31 juli legde het zwaarste gat van het hele traject bloot:
+ * wat een klant in het briefingscherm invult, kwam niet in de geschreven pagina
+ * terecht. De keten is namelijk: de claim-audit BEVRIEST de feitenkaart → de
+ * klant beantwoordt de vragen (die alleen `fact_requests` bijwerken) → de
+ * schrijver leest de BEVROREN kaart. Alles wat de klant daartussen invulde,
+ * bestond voor de schrijver niet.
+ *
+ * Concreet gemeten: op de vraag "biedt Fysi-Unique een preventief
+ * nazorgprogramma?" stond met bron bevestigd "nee, niet als apart benoemd
+ * programma". De gepubliceerde pagina opende met "Fysi-Unique biedt preventieve
+ * begeleiding na herstel van een hardloopblessure" — geen gok bij gebrek aan
+ * informatie, maar een directe tegenspraak van een bevestigd antwoord.
+ *
+ * ── EEN NIEUWER ANTWOORD VERSLAAT EEN OUDER ─────────────────────────────────
+ *
+ * De bevroren kaart bevat vaak al een antwoord op dezelfde vraag (van vóór de
+ * briefing). Corrigeert de klant dat antwoord, dan moeten die twee elkaar niet
+ * tegenspreken op één kaart. Daarom vervangt een nieuw antwoord het oude op
+ * basis van de VRAAG, niet van de antwoordtekst — anders zou "…: ja" naast
+ * "…: NEE" belanden en mag het model kiezen.
+ *
+ * Alleen feiten met bron 'klant' worden zo vervangen. Een proof point uit de
+ * site die toevallig met dezelfde woorden begint, blijft staan.
+ */
+export function mergeAnsweredFacts(
+  frozen: FactItem[],
+  answered: AnsweredFactInput[],
+): FactItem[] {
+  if (answered.length === 0) return frozen;
+
+  const vervangen = answered.map((a) => normalizeForQuote(a.question)).filter(Boolean);
+
+  const behouden = frozen.filter((f) => {
+    // Alleen antwoorden van de klant kunnen achterhaald raken door een nieuwer
+    // antwoord; sitetekst en onderzoek niet.
+    if (!f.source.toLowerCase().startsWith("klant")) return true;
+    const tekst = normalizeForQuote(f.text);
+    return !vervangen.some((vraag) => vraag.length > 0 && tekst.startsWith(vraag));
+  });
+
+  // Antwoorden van de klant vooraan: dat is de volgorde die buildFactBase ook
+  // aanhoudt (SOURCE_ORDER), en wat bovenaan een prompt staat wordt het best
+  // gebruikt. Opnieuw nummeren omdat er items bij komen én weggaan — een
+  // F-nummer dat naar twee verschillende feiten wijst maakt de hele
+  // traceerbaarheid waardeloos.
+  const samen: Omit<FactItem, "ref">[] = [
+    ...answered.map((a) => ({
+      text: a.fact.text,
+      source: a.fact.source,
+      allowed: a.fact.allowed,
+      citable: a.fact.citable,
+    })),
+    ...behouden.map((f) => ({
+      text: f.text,
+      source: f.source,
+      allowed: f.allowed,
+      citable: f.citable,
+    })),
+  ];
+
+  return numberFacts(samen);
+}
+
 /**
  * De feitenkaart zoals hij in de schrijfprompt komt (contentbriefing.md §9).
  *
@@ -237,9 +312,33 @@ export function isSupported(
   supportQuote?: string | null,
 ): boolean {
   if (!sourceRef) return false;
-  const ref = sourceRef.trim().toUpperCase();
-  const feit = facts.find((f) => f.allowed && f.citable && f.ref.toUpperCase() === ref);
-  if (!feit) return false;
+
+  // ── ÉÉN BEWERING KAN OP MEERDERE FEITEN STEUNEN (R8.3) ───────────────────
+  //
+  // De contentronde van 31 juli legde het spiegelbeeld van de citaatplicht
+  // bloot: een claim die WÉL correct onderbouwd was telde als NIET onderbouwd,
+  // puur omdat het model twee feiten tegelijk aanwees. Concreet bij Van der
+  // Valk: factRef "F1, F2" voor "combineert 150 jaar gastvrijheid met meer dan
+  // 100 hotels". Er bestaat geen feit met ref "F1, F2" — alleen F1 en F2 los —
+  // dus vond de lookup niets en gold de claim als onbewezen. Dat vertekende 2
+  // van de 10 gemeten pagina's (source_coverage 80 en 50 in plaats van 100).
+  //
+  // Het model doet hier niets fouts: het combineren van twee bevestigde feiten
+  // in één zin is precies wat een goede tekst doet. De controle moet daarop
+  // ingericht zijn, niet de tekst op de controle.
+  const refs = splitRefs(sourceRef);
+  if (refs.length === 0) return false;
+
+  // ELK genoemd nummer moet bestaan én citeerbaar zijn. Bewust streng: zou één
+  // geldig nummer volstaan, dan kan een model zijn dekking optillen door een
+  // echt nummer aan te vullen met verzonnen nummers — en dan meet de dekking
+  // opnieuw niets (zelfde redenering als bij de claim-audit hierboven).
+  const gevonden = refs.map((ref) =>
+    facts.find((f) => f.allowed && f.citable && f.ref.toUpperCase() === ref),
+  );
+  if (gevonden.some((f) => !f)) return false;
+  const feiten = gevonden as FactItem[];
+
   if (supportQuote === undefined) return true;
 
   // ── DE CITAATPLICHT (verificatie 31 juli) ────────────────────────────────
@@ -254,9 +353,44 @@ export function isSupported(
   // bewijsdossier (R1.1) en de concurrentprofielen (R4.2): wat niet na te
   // trekken is, mag niet gezegd worden. Een blok tekst aanwijzen kan nog steeds,
   // maar dan moet de aangewezen zin er ook echt in staan.
-  const quote = (supportQuote ?? "").trim();
-  if (quote.length < 4) return false;
-  return normalizeForQuote(feit.text).includes(normalizeForQuote(quote));
+  //
+  // Bij meerdere feiten levert het model ook een samengesteld citaat op ("citaat
+  // uit F1; citaat uit F2"). Elk deel moet in minstens één van de aangewezen
+  // feiten staan — zo blijft de eis "wijs de dekkende zin aan" overeind, ook als
+  // de bewering op twee bronnen rust.
+  const delen = splitQuote(supportQuote ?? "");
+  if (delen.length === 0) return false;
+  return delen.every(
+    (deel) =>
+      deel.length >= MIN_QUOTE_CHARS &&
+      feiten.some((f) => normalizeForQuote(f.text).includes(normalizeForQuote(deel))),
+  );
+}
+
+/** Een citaat korter dan dit wijst niets aan en telt niet als onderbouwing. */
+const MIN_QUOTE_CHARS = 4;
+
+/**
+ * "F1, F2" / "F4; F5" / "F1 en F2" → ["F1", "F2"].
+ *
+ * Het model krijgt geen strak formaat opgelegd voor `factRef` (dat is een vrij
+ * tekstveld in het schema), dus de scheidingstekens die het in de praktijk
+ * gebruikt worden hier alle drie afgevangen. Alleen echte F-nummers blijven
+ * over: losse woorden als "en" mogen de "elk nummer moet bestaan"-eis niet
+ * laten klappen.
+ */
+function splitRefs(raw: string): string[] {
+  return Array.from(new Set(raw.toUpperCase().match(/F\s*\d+/g) ?? [])).map((r) =>
+    r.replace(/\s+/g, ""),
+  );
+}
+
+/** Een samengesteld citaat opsplitsen in de delen die apart aanwijsbaar moeten zijn. */
+function splitQuote(raw: string): string[] {
+  return raw
+    .split(/\s*[;|]\s*|\s+\/\s+/)
+    .map((deel) => deel.trim())
+    .filter(Boolean);
 }
 
 /** Losjes vergelijken: hoofdletters, accenten en witruimte mogen afwijken. */
@@ -337,6 +471,72 @@ export function claimKey(claim: string): string {
       if (woord.length > 3 && woord.endsWith("s")) return woord.slice(0, -1);
       return woord;
     })
+    .sort()
+    .join(" ");
+}
+
+/** Hoeveel kernwoorden het onderwerp van een vraag bepalen. */
+const TOPIC_WOORDEN = 3;
+
+/**
+ * De ONDERWERP-sleutel van een vraag (R8.4).
+ *
+ * `claimKey` ontdubbelt op woordniveau en is daar goed in, maar hij struikelt
+ * over zinsbouw. In de contentronde van 31 juli leverde dat bij Fysi-Unique
+ * **17 openstaande vragen voor 2 pagina's** op, terwijl het er in werkelijkheid
+ * 5 à 6 waren. Drie voorbeelden die alle drie een andere `claimKey` kregen:
+ *
+ *   "Biedt Fysi-Unique preventieve begeleiding na herstel van hardloopblessures?
+ *    Zo ja, welke specifieke diensten?"
+ *   "Welke preventieve begeleiding biedt Fysi-Unique na herstel van een
+ *    hardloopblessure?"
+ *   "Biedt Fysi-Unique preventieve begeleiding aan na herstel van een
+ *    hardloopblessure? Zo ja, welke specifieke diensten of programma's?"
+ *
+ * Eén vraag, drie formuleringen. Dat is precies wat contentbriefing.md §4 regel 6
+ * verbiedt ("nooit vragen wat we al weten") en wat de grens van acht vragen
+ * uitholt: vier van de acht plekken gaan op aan hetzelfde onderwerp.
+ *
+ * Deze sleutel kijkt daarom alleen naar de LANGSTE woorden. In het Nederlands
+ * dragen samenstellingen de betekenis ("hardloopblessure", "behandelplan",
+ * "begeleiding"), terwijl de variatie juist in de korte woorden en de zinsbouw
+ * zit ("zo ja", "welke", "aan", "specifieke"). Drie woorden is de uitkomst van
+ * naregelen op de echte vragen: bij twee vielen te verschillende onderwerpen
+ * samen, bij vier bleven de drie voorbeelden hierboven nog uit elkaar.
+ *
+ * Bewust grover dan `claimKey` en bewust NIET als vervanging ervan: `claim_key`
+ * is de kolom waar de unieke index in de database op staat. Deze sleutel groepeert
+ * alleen binnen één briefingronde.
+ */
+export function topicKey(question: string): string {
+  const woorden = question
+    .toLowerCase()
+    .normalize("NFKD")
+    .replace(/[̀-ͯ]/g, "")
+    .replace(/[^a-z0-9\s]/g, " ")
+    .split(/\s+/)
+    .filter((w) => w.length > 4)
+    .map((w) => {
+      // Zelfde ruwe afkapping als claimKey, plus de Nederlandse buigings-e
+      // ("persoonlijke" → "persoonlijk"), want juist die wisselt per formulering.
+      //
+      // Achter elkaar toepassen en niet als eerste-treffer-wint: anders lopen
+      // enkelvoud en meervoud uit elkaar. "hardloopblessures" verliest z'n s en
+      // stopt dan op "hardloopblessure", terwijl "hardloopblessure" wél z'n e
+      // verliest — twee sleutels voor hetzelfde woord, precies de fout die deze
+      // functie moest oplossen.
+      let stam = w;
+      if (stam.length > 5 && stam.endsWith("en")) stam = stam.slice(0, -2);
+      if (stam.length > 3 && stam.endsWith("s")) stam = stam.slice(0, -1);
+      if (stam.length > 6 && stam.endsWith("e")) stam = stam.slice(0, -1);
+      return stam;
+    });
+
+  return Array.from(new Set(woorden))
+    // Langste eerst; bij gelijke lengte alfabetisch, zodat de uitkomst niet van
+    // de woordvolgorde in de vraag afhangt.
+    .sort((a, b) => b.length - a.length || a.localeCompare(b))
+    .slice(0, TOPIC_WOORDEN)
     .sort()
     .join(" ");
 }

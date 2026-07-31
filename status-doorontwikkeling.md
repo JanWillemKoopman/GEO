@@ -1,7 +1,7 @@
 # Status doorontwikkeling — overdracht tussen sessies
 
-**Laatst bijgewerkt:** 31 juli 2026 (na de contentronde en de strategische doorlichting erboven) ·
-**Branch:** `main` (alles is gemerged) · **Tests:** 250 groen
+**Laatst bijgewerkt:** 31 juli 2026 (na R8 en de strategische doorlichting erboven) ·
+**Branch:** `main` (alles is gemerged) · **Tests:** 298 groen
 
 Dit document is de brug tussen werksessies. Het beschrijft **wat er af is**, **wat de afspraken
 zijn die tijdens het bouwen zijn ontstaan**, en **wat er nog open staat en in welke volgorde**.
@@ -45,13 +45,14 @@ Ouder, maar nog steeds leidend voor de code:
 | **R4** — Concurrent-intelligence | Concurrenten werden geteld maar niet begrepen. Nieuwe pipelinestap destilleert per concurrent waaróm die genoemd wordt, met een letterlijk citaat per eigenschap. |
 | **R6.1** — Gelaagd hermeten | Eén meting per vraag was te wisselvallig om een trendlijn op te tekenen. De zwaarste 8 vragen gaan nu 3× door de meting, en alle aggregatie telt per **vraag** in plaats van per meting. Geverifieerd op productie — zie §3b. |
 | **R5** — Contentbriefing | Het model verzon feiten precies waar de pagina er een nodig had. Nu bouwt de app eerst een feitenkaart, laat een claim-audit bepalen welke beweringen niet onderbouwd zijn, stelt de klant maximaal 8 vragen, en schrijft daarna uitsluitend binnen die kaart — met per bewering het F-nummer dat hem dekt. |
+| **R8** — Contentkwaliteit | Negen van de tien punten uit de contentronde. De zwaarste: de antwoorden die de klant in de briefing gaf bereikten de schrijver niet, waardoor een met bron bevestigd "nee" als "ja" gepubliceerd werd. Daarnaast is de GEO-beoordeling van een zelfrapportage door het schrijvende model een deterministische controle in code geworden. **Nog niet op productie geverifieerd** — zie §5. |
 
 ### Nog open
 
 | Ronde | Stappen | Effort |
 |---|---|---|
 | **S1–S7** — Structurele contentkwaliteit (nieuw, zie §5) | `strategie-contentkwaliteit-vervolgstappen.md` | 23 d |
-| **R8** — De 10 contentkwaliteit-optimalisaties | R8.1 t/m R8.10 | 15,5–17,5 d bruto, ~9 d netto na S1–S4 |
+| **R8.9** — Productfeed voor retailers (onderzoeksvraag, geen bouwstap) | zie S1 hieronder | n.t.b. |
 | **R0** — Fundament | R0.1 t/m R0.6 | 8 d |
 | **R7** — Stabiele meetbasis (nieuw, uit §3b) | nog uit te werken | ~4 d |
 | **R6.2 / R6.3** | Inventariskwaliteitspoort, brontype als signaal | 3,5 d |
@@ -61,7 +62,7 @@ waarheid; deze tabel is een samenvatting.
 
 ### Migraties
 
-Alle migraties t/m `0031` zijn **toegepast op productie**. `0032` en `0033` zijn gereserveerd
+Alle migraties t/m `0032` zijn **toegepast op productie**. `0033` is gereserveerd
 (zie de migratietabel in `implementatieplan.md` §1).
 
 | Nr | Ronde | Inhoud |
@@ -71,6 +72,7 @@ Alle migraties t/m `0031` zijn **toegepast op productie**. `0032` en `0033` zijn
 | `0029` | R3 | `mention_role`, `avg_position`, `citation_count`, `first_mention_count` |
 | `0030` | R4 | `competitor_breakdown.attributes_json`/`why_summary` |
 | `0031` | R6.1 | `tracking_runs.repeat_index` + index `tracking_runs_repeat_idx` |
+| `0032` | R8.5 | `profiles.business_model` (bedrijfsmodel, nullable + check-constraint) |
 
 ---
 
@@ -334,8 +336,32 @@ de verificatieronde op gedraaid en daar hangen de cijfers in dit document aan.
   HEMA-achtige klanten zonder productfeed) staan uitgewerkt in het document, met een geprioriteerde
   verbeterlijst (P1 t/m P10, effort/impact/kosten).
 
-**Nog niet gedaan:** de code voor P1 (de belangrijkste fix) zelf bouwen — dat is bewust een aparte
-beslissing, geen automatisch vervolg van deze doorlichting.
+### ✅ R8 — de tien verbeterpunten uit die doorlichting gebouwd
+
+**Opgeleverd op 31 juli**, negen van de tien (R8.9 is bewust een onderzoeksvraag gebleven, geen
+bouwstap). 298 tests groen, migratie `0032` toegepast op productie. Uitwerking per stap staat in
+`implementatieplan.md` §R8; de kern:
+
+- **R8.1** — de feitenkaart krijgt de antwoorden van de klant er alsnog bij
+  (`mergeAnsweredFacts`), en een nieuwer antwoord verslaat een ouder op basis van de VRAAG. Dit
+  was de zwaarste vondst van de contentronde: een met bron bevestigd "nee" werd als "ja"
+  gepubliceerd.
+- **R8.2 / R8.7 / R8.8** — nieuwe pure module `lib/pipeline/content-gate.ts` met deterministische
+  controles die de zelfrapportage van het model vervangen. Die gaf 100/100 op alle tien de
+  pagina's, óók op de pagina waarvan dezelfde aanroep in z'n eigen verbeterpunten schreef dat de
+  hoofdvraag niet beantwoord werd.
+- **R8.3** — een bewering die op twee bevestigde feiten steunt telt niet langer als onbewezen.
+- **R8.4** — bijna-identieke vragen vallen samen (`topicKey`), plus de al gestelde vragen gaan mee
+  de claim-audit in.
+- **R8.5** — migratie `0032` (`profiles.business_model`) en een vragenset die zich daarop aanpast.
+- **R8.6** — het briefingscherm noemt `suggested_answer` nu een gok in plaats van een voorstel.
+- **R8.10** — een verse briefing-rij wordt in dezelfde rij geschreven, geen spookversie meer.
+
+**Nog te verifiëren.** Alles is met unit tests op de echte gevallen uit de contentronde getoetst,
+maar er is nog geen nieuwe pagina mee geschreven op productie. Gebouwd is niet hetzelfde als
+geverifieerd (§2.6): de sluitende toets is dezelfde vijf testcases opnieuw door de keten, waarbij
+te controleren valt of een gecorrigeerd briefingantwoord nu écht in de tekst landt en of de poort
+de vier pagina's markeert die hun doelvraag ontweken. Kosten ~$2.
 
 ### ✅ De strategische doorlichting bovenóp R8 — zeven structurele ingrepen
 
@@ -366,22 +392,41 @@ Twee nieuwe codebevindingen uit die doorlichting, die in R8 thuishoren:
 
 ### Daarna, in deze volgorde (vervangt de oude volgorde hieronder)
 
+> **Bijgewerkt ná R8.** Deze volgorde is geschreven toen R8 nog openstond; inmiddels zijn
+> R8.1 t/m R8.8 en R8.10 gebouwd (zie hierboven). Wat daarvan overblijft staat hieronder
+> doorgestreept. De strekking verandert niet: S1 en S2 blijven de zwaarstwegende stappen, en de
+> reden daarvoor is door het bouwen van R8 alleen maar sterker geworden — R8.8 kón geen effect
+> hebben omdat er geen `onderscheid`-vragen bestaan om te toetsen, en R8.2/R8.7 zetten een
+> strengere rem op dezelfde lege tank.
+
 1. **S7 — ketentest op de echte handlers** (4 d, $0). Vóór alles: elke volgende stap raakt
-   dezelfde vier bestanden waar de laatste vijf bugs vandaan kwamen.
+   dezelfde vier bestanden waar de laatste vijf bugs vandaan kwamen. *(R8 heeft er daar nog twee
+   aan toegevoegd: de weggegooide `recommendation` in de snapshot en de te grove onderwerp-sleutel
+   — allebei pas gevonden tijdens het bouwen, niet door een test.)*
 2. **S1 — onderwerpgerichte, atomaire feitenkaart** (4 d, ~$0,004/batch). Heft het plafond op en
    maakt R8.9 (3-5 d onderzoek) grotendeels overbodig.
-3. **S2 — de claim-audit als architect** (3 d, $0). Vervángt R8.1 in plaats van erop te volgen.
-4. **S4 — positioneringsslot** (2 d, $0). Maakt R8.8 pas zinvol: `onderscheid` is 0 van de 62
-   gestelde vragen, want er is geen mechanisme dat die vraagsoort produceert.
-5. **R8.3, R8.4, R8.5, R8.6, R8.10** — de resterende R8-punten (~5 d).
-6. **S3 — dekkingsmeting met een noemer die de code bepaalt** (3 d, $0). Neemt R8.7 in zich op.
-   Bewust ná S1: een strengere rem op een lege tank levert vagere teksten op, niet betere.
-7. **S6 — publicatiepoort** (3 d, $0). Ná R8.2/R8.7/R8.8, want die leveren de signalen.
+3. **S2 — de claim-audit als architect** (3 d, $0). ~~Vervángt R8.1~~ → **bouwt nu vóórt op R8.1**,
+   dat de bedrading klant → schrijver gerepareerd heeft. S2 gaat over wát er dan doorheen gaat.
+4. **S4 — positioneringsslot** (2 d, $0). Nu urgenter dan gedacht: R8.8 dwingt af dat een
+   `onderscheid`-antwoord in de tekst terugkomt, maar er zijn 0 van de 62 gestelde vragen van dat
+   type. De controle staat er en heeft niets te toetsen tot S4 er is.
+5. ~~**R8.3, R8.4, R8.5, R8.6, R8.10**~~ — **gebouwd op 31 juli.**
+6. **S3 — dekkingsmeting met een noemer die de code bepaalt** (3 d, $0). ~~Neemt R8.7 in zich op~~
+   → R8.7 is gebouwd; S3 vervangt het resterende deel waar het model nog de noemer kiest
+   (`claims_json`). Bewust ná S1: een strengere rem op een lege tank levert vagere teksten op,
+   niet betere.
+7. **S6 — publicatiepoort** (3 d, $0). Kan nu: R8.2/R8.7/R8.8 leveren de signalen die deze poort
+   moet tonen.
 8. **S5 — merkdossier bij onboarding** (4 d, ~$0,01/document). Laatste: raakt als enige de
    onboarding.
 
 **Als er maar twee dingen mogen: S1 en S2.** Samen 7 dagen, geen migratie, ~$0,004 per batch
 extra, en ze raken de enige twee schakels waar de kwaliteit werkelijk begrensd wordt.
+
+**En vóór dat alles één goedkope stap:** de contentronde opnieuw draaien over dezelfde vijf
+testcases (~$2). R8 is met unit tests op de echte gevallen getoetst maar nog niet op productie;
+gebouwd is niet hetzelfde als geverifieerd (§2.6). Die ronde toetst tegelijk of het plafond uit
+S1 zichtbaar wordt in de nieuwe cijfers.
 
 ### Daarna: R7 — de meetbasis stabiliseren (~4 d, nieuw)
 
