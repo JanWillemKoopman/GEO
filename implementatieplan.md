@@ -117,10 +117,22 @@ R5 heeft geen nieuwe migratie nodig — die draait op het schema uit `0024`, dat
 | R6.1 | Gelaagd hermeten | 2 d | ✅ |
 | R6.2 | Inventariskwaliteitspoort | 2 d | ☐ |
 | R6.3 | Brontype als signaal | 1,5 d | ☐ |
+| R8.1 | Briefingantwoorden daadwerkelijk in de feitenkaart | 1,5 d | ☐ |
+| R8.2 | Publicatiegate: doelvraag-echo | 2 d | ☐ |
+| R8.3 | Multi-ref-bestendige citaatplicht | 0,5 d | ☐ |
+| R8.4 | Claim-key-ontdubbeling robuuster | 1,5 d | ☐ |
+| R8.5 | Vaste slots conditioneel op bedrijfsmodel | 1 d | ☐ |
+| R8.6 | `suggested_answer` eerlijk labelen | 0,5 d | ☐ |
+| R8.7 | GEO-score deterministisch maken | 2,5 d | ☐ |
+| R8.8 | Onderscheidend vermogen afdwingen | 1,5 d | ☐ |
+| R8.9 | Productfeed voor retailers/platforms (onderzoek) | 3-5 d | ☐ |
+| R8.10 | Versiesprong bij eerste schrijfronde opruimen | 1 d | ☐ |
 
-**Totaal: circa 46 dagen.** Volgorde-afhankelijkheden: R1 en R2 zijn onafhankelijk van elkaar en
-kunnen parallel. R3 bouwt op R2.1. R4 bouwt op R0.5. R5 bouwt op R1 (het bewijsdossier is input
-voor de brief). R6 kan op elk moment.
+**Totaal: circa 46 dagen (R0-R6) + 15,5-17,5 dagen (R8).** Volgorde-afhankelijkheden: R1 en R2 zijn
+onafhankelijk van elkaar en kunnen parallel. R3 bouwt op R2.1. R4 bouwt op R0.5. R5 bouwt op R1
+(het bewijsdossier is input voor de brief). R6 kan op elk moment. R8 bouwt op R5 (dezelfde
+bestanden) en R8.5 bouwt op R0.5 (bedrijfsmodelclassificatie). R8.1 en R8.3 zijn onafhankelijk van
+de rest van R8 en kunnen als eerste, kleinste stappen.
 
 ---
 
@@ -1132,6 +1144,227 @@ moet daar aantoonbaar anders op adviseren dan nu.
 
 ---
 
+## R8 — Contentkwaliteit: van briefing tot publiceerbare pagina
+
+**De kern.** De contentronde van 31 juli (10 pagina's, 5 testcases, volledige keten van briefing
+tot herschrijven) is uitgewerkt in
+[`kwaliteitsanalyse-contentronde.md`](./kwaliteitsanalyse-contentronde.md). Die doorlichting vond
+één bug die onderweg al gerepareerd is (`draftContentPiece()` behandelde een `content_piece` met
+status `briefing` als "al af" — commit `671722d`, al op `main`), en tien verbeterpunten die nog
+open staan. Deze ronde zet die tien punten om in opleverbare stappen, in dezelfde volgorde van
+prioriteit als het brondocument.
+
+### R8.1 — Briefingantwoorden daadwerkelijk in de feitenkaart
+
+**Probleem** (kwaliteitsanalyse-contentronde.md §1.3, de zwaarste vondst van de contentronde):
+`loadContentContext()` in `lib/pipeline/content.ts` bouwt een lijst `answeredFacts` uit de actuele
+`fact_requests`, maar gebruikt hem nergens. De schrijver krijgt uitsluitend
+`briefing_snapshot_json.facts` — bevroren vóórdat de klant ook maar één vraag beantwoordde. Bewijs:
+een met bron bevestigd "nee" op de doelvraag van een Fysi-Unique-testpagina werd alsnog als "ja"
+gepubliceerd, zonder dat dit ergens zichtbaar werd (de bewering stond niet eens in `claims_json`).
+
+**Bestanden:** `lib/pipeline/content.ts` (`loadContentContext`), `lib/pipeline/briefing.ts`
+(`factsFromSnapshot`, evt. een nieuwe `mergeAnsweredFacts`), `lib/schemas/claim-audit.ts` (het
+`FactItem`-type, indien een nieuwe bronwaarde als `"klant, briefing <datum>"` moet).
+
+**Implementatie**
+
+1. Na het ophalen van `bevroren` (de bevroren snapshot): map elke vers beantwoorde `fact_request`
+   (`status === 'beantwoord'`) om naar een `FactItem` met een nieuw F-nummer, `citable: true`,
+   `source: "klant, briefing " + answered_at`. Voeg deze toe aan `facts` vóórdat die naar
+   `buildContentInput` gaat — ook als `bevroren.length > 0`.
+2. Overweeg daarnaast (niet noodzakelijk voor de fix zelf, wel voor traceerbaarheid) de
+   `briefing_snapshot_json` op de content_piece bij te werken zodra de klant klaar is met
+   antwoorden — vóór `content_draft` wordt ingepland — zodat "bevriezen" weer klopt met wat
+   daadwerkelijk gebruikt is bij het schrijven.
+3. Ontdubbel op `claim_key`/vraagtekst tegen de bestaande `bevroren`-lijst, zodat een feit dat al in
+   de snapshot stond niet dubbel verschijnt.
+
+**Verificatie:** herhaal het Fysi-Unique-geval uit de contentronde: beantwoord de vraag "Biedt
+Fysi-Unique een specifiek preventief nazorgprogramma?" met "nee" en laat de pagina opnieuw
+schrijven. Verwacht: de pagina beweert nergens meer expliciet "ja".
+
+**Klaar wanneer:** een unit test op `loadContentContext`/de facts-samenstelling toont aan dat een
+vers beantwoord fact_request in de uiteindelijke `facts`-lijst staat, ook wanneer de bevroren
+snapshot al gevuld was.
+
+### R8.2 — Publicatiegate: doelvraag-echo
+
+**Probleem** (§2, tabel): 4 van de 10 testpagina's beantwoorden hun eigen doelvraag niet concreet in
+de eerste twee zinnen (Bol ×2, Coolblue, HEMA-snel). Niets in de pijplijn meet dit; `geo_json.
+answersTargetQuestionUpFront` is een zelfbeoordeling door hetzelfde model dat de tekst schreef, en
+bleek zelfs één keer in tegenspraak met de eigen `review_notes` van diezelfde aanroep.
+
+**Bestanden:** nieuw `lib/pipeline/target-echo.ts` (puur, testbaar), `lib/pipeline/content.ts`
+(aanroepen ná het schrijven, vóór het opslaan van de status).
+
+**Implementatie**
+
+1. Deterministische check op de eerste ~300 tekens van `bodyMarkdown` tegen `targetIntent`/
+   `targets[].text`: overlap van kernbegrippen (zelfstandige naamwoorden, genoemde entiteiten),
+   geen embedding-aanroep nodig.
+2. Faalt de check → `needs_review = true` en een concrete regel in `review_notes` ("De opening
+   beantwoordt de doelvraag niet direct"), ongeacht wat `qualityScore`/`geo_score` zeggen.
+3. Dit is een vangnet naast de bestaande redactieronde, geen vervanging: de bestaande
+   `CRITIQUE_SYSTEM`-aanroep blijft zoals hij is.
+
+**Verificatie:** draai over de 10 bestaande testpagina's (geen AI-kosten, puur tekstanalyse).
+Verwacht: minstens de 4 hierboven genoemde pagina's worden gemarkeerd.
+
+### R8.3 — Multi-ref-bestendige citaatplicht
+
+**Probleem** (§1.4): `isSupported()` in `lib/pipeline/factcard.ts` matcht `factRef` letterlijk tegen
+één `fact.ref`. Een claim met `factRef: "F1, F2"` vindt nooit een feit en telt dus als onbewezen,
+ook als beide losse feiten (F1 én F2) legitiem en citeerbaar zijn. Trof 2 van de 10 testpagina's en
+vertekende hun `source_coverage` (80 en 50 in plaats van 100).
+
+**Bestanden:** `lib/pipeline/factcard.ts` (`isSupported`).
+
+**Implementatie**
+
+1. Split `sourceRef` op `,`/`;`/`/` vóór de lookup.
+2. Eis dat minstens één deelref een citeerbaar feit oplevert wiens tekst het opgegeven fragment
+   bevat (dezelfde citaatplichtlogica als nu, maar per deelref in plaats van op de hele string).
+3. Unit tests met exact de twee gevallen uit de contentronde (Van der Valk "F1, F2", Fysi-Unique
+   "F4, F2, F5").
+
+**Verificatie:** herbereken `source_coverage` over de twee getroffen testpagina's. Verwacht: beide
+naar 100.
+
+**Klaar wanneer:** geen enkele claim met een samengesteld `factRef` wordt nog onterecht als
+onbewezen aangemerkt, getoetst met de twee echte gevallen als regressietest.
+
+### R8.4 — Claim-key-ontdubbeling robuuster
+
+**Probleem** (§1.6): Fysi-Unique kreeg 17 openstaande `fact_requests` voor 2 pagina's — in
+werkelijkheid 5 à 6 onderliggende vragen, elk 3-4 keer gesteld met net andere bewoording.
+`claimKey()` in `lib/pipeline/factcard.ts` normaliseert spelling/meervoud maar niet zinsopbouw.
+
+**Bestanden:** `lib/pipeline/briefing.ts` (de claim-audit-aanroep), `lib/pipeline/factcard.ts`
+(`claimKey`).
+
+**Implementatie**
+
+1. Geef de claim-audit-aanroep expliciet de reeds gestelde vragen van eerdere batches binnen
+   dezelfde profiel-scope mee, met de instructie ze te hergebruiken bij overlap in plaats van
+   opnieuw te formuleren.
+2. Als vangnet in code: groepeer nieuwe vragen vóór het opslaan op een grovere sleutel (bijv. de
+   belangrijkste 3-4 zelfstandige naamwoorden, ongeacht volgorde/zinsbouw) en behoud er per groep
+   maar één.
+
+**Verificatie:** draai de claim-audit opnieuw voor de twee Fysi-Unique-pagina's. Verwacht: ≤8
+vragen in plaats van 17, geen twee met dezelfde onderliggende betekenis.
+
+### R8.5 — Vaste slots conditioneel op bedrijfsmodel
+
+**Probleem** (§1.5): de vaste vraag "welk telefoonnummer en adres?" past bij een lokale praktijk
+(Fysi-Unique) maar niet bij een platform (Bol, 43.300 verkooppartners), een keten met 22 winkels
+(Coolblue) of 100+ zelfstandige hotels (Van der Valk) — daar is er geen enkelvoudig antwoord zonder
+te verzinnen welke vestiging bedoeld wordt.
+
+**Bestanden:** `lib/pipeline/briefing.ts` (de vaste-slotsdefinitie uit contentbriefing.md §3.3).
+
+**Implementatie:** bouwt voort op `profiles.business_model` (R0.5, migratie `0032`, nog niet
+opgeleverd). Voor `retailer`/`platform`: vervang het adres/telefoonslot door "naar welke
+klantenservice-/contactpagina moet gelinkt worden?". Voor overige modellen: ongewijzigd.
+
+**Verificatie:** genereer de briefing opnieuw voor Bol en Coolblue. Verwacht: geen adres/
+telefoonvraag meer, wel een contactpagina-vraag.
+
+**Afhankelijkheid:** kan pas na R0.5.
+
+### R8.6 — `suggested_answer` eerlijk labelen
+
+**Probleem** (§0): de claim-audit gaf twee keer een `suggested_answer` die het tegenovergestelde
+was van de waarheid (Bol: "nee" op het bestaan van een studentengids, terwijl die generiek bestaat;
+Fysi-Unique: "nee" op het expliciet vermelden van een persoonlijk behandelplan, terwijl de site dat
+letterlijk zegt). Dit is een modelinschatting, geen geverifieerd feit, maar wordt in het
+briefingscherm getoond als een kant-en-klaar antwoord om te bevestigen.
+
+**Bestanden:** briefingscherm-UI (`app/(app)/analyses/[id]/briefing/*`, zie R5.2), geen
+pijplijnwijziging nodig.
+
+**Implementatie:** UI-tekst bij `suggested_answer` aanpassen van een neutrale voorinvulling naar
+een expliciet gelabelde inschatting (bijv. "onze inschatting, nog niet bevestigd: …") zodat de
+klant hem niet met te veel vertrouwen wegklikt.
+
+**Verificatie:** visuele controle op het briefingscherm.
+
+### R8.7 — GEO-score deterministisch maken
+
+**Probleem** (§3): alle 10 testpagina's scoren 100/100 op de vijf `geo_json`-booleans, **inclusief**
+de Coolblue-pagina wiens eigen `review_notes` (uit dezelfde AI-aanroep) zegt dat de doelvraag niet
+duidelijk beantwoord wordt. Dezelfde niet-discriminerende uitkomst die `contentbriefing.md` §9 al
+bij de oude `geo_score` beschreef, keert terug op een ander instrument.
+
+**Bestanden:** `lib/pipeline/content.ts` (waar `geo`/`geoScore`/`geoIssues` vandaan komen), nieuw
+`lib/pipeline/geo-check.ts` (puur, testbaar).
+
+**Implementatie**
+
+1. Vervang (of vul aan) de zelfbeoordeelde booleans door deterministische checks in code: bevat de
+   eerste alinea de doelvraag-kernwoorden (deelt logica met R8.2); staat de merknaam expliciet
+   (niet alleen "wij"/"we") in de eerste twee zinnen; bevat de tekst minstens één losstaand
+   citeerbare zin (een zin zonder voornaamwoord-verwijzing naar de vorige zin).
+2. Laat `geoScore` rekenen over de deterministische uitkomsten, niet over de zelfrapportage van
+   `CRITIQUE_SYSTEM`.
+
+**Verificatie:** herbereken over de 10 testpagina's. Verwacht: niet langer 10/10 op 100 — met name
+de Coolblue-pagina met de bekende tegenspraak moet lager uitkomen.
+
+### R8.8 — Onderscheidend vermogen afdwingen
+
+**Probleem** (§3): vraagsoort 3 ("onderscheid") bestaat al in de briefing (contentbriefing.md §5),
+maar niets ná het schrijven toetst of het antwoord ook echt in de pagina terechtkwam. Van de 10
+testpagina's bevat er op de twee Fysi-Unique-pagina's (therapeutennamen, Zorgkaart-score) na geen
+enkele iets dat een concurrent met dezelfde generieke aanpak niet had kunnen schrijven.
+
+**Bestanden:** `lib/pipeline/content.ts` (`CRITIQUE_SYSTEM` of een aparte check), `lib/pipeline/
+factcard.ts`.
+
+**Implementatie:** als er bij de briefing een "onderscheid"-antwoord is gegeven (kind =
+`onderscheid`, `status = 'beantwoord'`), controleer of de kernterm van dat antwoord letterlijk in
+`bodyMarkdown` voorkomt. Zo niet: `needs_review = true` met een concrete regel welk
+onderscheidend antwoord ontbreekt.
+
+**Verificatie:** unit test met een vaste "onderscheid"-fact die wél/niet in de tekst voorkomt.
+
+### R8.9 — Productfeed voor retailers/platforms (onderzoek)
+
+**Probleem** (§3, §2.2): voor Bol, Coolblue en HEMA-achtige klanten (assortiment i.p.v. één eigen
+product) is "koopgids-artikel" mogelijk het verkeerde contenttype zolang de schrijver geen toegang
+heeft tot actuele producten/prijzen. Beide Bol-testpagina's zijn feitelijk vlekkeloos (100%
+brondekking) en noemen tegelijk geen enkel laptopmodel — precies waar hun doelvraag om vraagt.
+
+**Dit is geen bouwstap maar een onderzoeksvraag.** Voordat hier iets gebouwd wordt, moet vastgesteld
+worden of dit binnen de MVP-scope past (`README.md` §3 sluit "keyword-research suites" en
+vergelijkbare complexiteit expliciet uit) en welke databron realistisch is: een sitemap-gedreven
+productcrawl (al deels aanwezig via `lib/crawler.ts`/inventaris), een live API-koppeling per klant,
+of het contenttype bewust uitsluiten voor dit klantsegment.
+
+**Bestanden:** n.t.b., afhankelijk van de uitkomst van het onderzoek.
+
+**Verificatie:** n.t.b.
+
+### R8.10 — Versiesprong bij eerste schrijfronde opruimen
+
+**Probleem** (§1.2): `draftContentPiece()` behandelt elke rij met `status !== 'draft'` als "nieuwe
+versie nodig", ook een verse `briefing`-rij zonder eerdere schrijfpoging. Gevolg: versie 1 (leeg,
+status `briefing`) blijft als niet-actuele spookrij bestaan naast versie 2 (de daadwerkelijk
+geschreven pagina), en `fact_requests.content_piece_ids` blijft naar de verouderde v1-id's wijzen.
+
+**Bestanden:** `lib/pipeline/content.ts` (`draftContentPiece`, `persistDraft`).
+
+**Implementatie:** onderscheid expliciet twee gevallen waar nu één `if` ze samenvoegt: "dit is een
+briefing-rij die voor het eerst geschreven wordt" (schrijf in dezelfde rij, versie blijft 1) versus
+"dit is een regenerate/herstart bovenop een al voltooide versie" (nieuwe rij, versie + 1). Werk
+daarna `fact_requests.content_piece_ids` bij naar de definitieve rij wanneer die alsnog verandert.
+
+**Verificatie:** genereer een nieuwe briefing-pagina end-to-end. Verwacht: precies één rij per
+titel, geen `is_current = false`-rij zonder dat er ooit een eerdere versie bestond.
+
+---
+
 ## 7. Kostenoverzicht
 
 Basis: $0,0259 per meting (gemeten, 141 calls). Huidige situatie: **$0,83 per analyse**.
@@ -1143,6 +1376,8 @@ Basis: $0,0259 per meting (gemeten, 141 calls). Huidige situatie: **$0,83 per an
 | R4.2 | +$0,005 |
 | R5.1 | +$0,003 per pagina; bespaart een mislukte `gpt-4.1`-ronde (~$0,05) |
 | R6.1 | +$0,41 per periode (configureerbaar) |
+| R8.1-R8.8, R8.10 | neutraal — code-only, geen nieuwe AI-aanroep |
+| R8.9 | nog te bepalen (afhankelijk van de uitkomst van het onderzoek) |
 | Overige stappen | neutraal |
 
 **Eindbeeld:** nulmeting ongeveer gelijk (~$0,85); vervolgperiode met R6.1 aan ongeveer $1,06, met
