@@ -1,6 +1,6 @@
 # Status doorontwikkeling — overdracht tussen sessies
 
-**Laatst bijgewerkt:** 31 juli 2026 · **Branch:** `main` (alles is gemerged) · **Tests:** 241 groen
+**Laatst bijgewerkt:** 31 juli 2026 · **Branch:** `main` (alles is gemerged) · **Tests:** 250 groen
 
 Dit document is de brug tussen werksessies. Het beschrijft **wat er af is**, **wat de afspraken
 zijn die tijdens het bouwen zijn ontstaan**, en **wat er nog open staat en in welke volgorde**.
@@ -192,6 +192,83 @@ Dit hoort in een eigen ronde thuis, en het is nu het zwaarstwegende openstaande 
   als `measurementIsUsable`, maar dan op de winbare basis in plaats van op het aantal metingen.
 
 Dat is geen kleine correctie op R6.1; het raakt hoe de kernmaat van het product gedefinieerd is.
+
+---
+
+## 3c. De R5-verificatie — een controle die het verkeerde controleerde
+
+Op 31 juli is R5 voor het eerst end-to-end gedraaid: twee aanbevelingen van Fysi-Unique door de
+contentbriefing. De taak slaagde, twee pagina's kwamen op status `briefing`, de feitenkaart telde
+14 items, en het ontdubbelen over beide pagina's werkte.
+
+**Maar de claim-audit stelde nul vragen aan de klant.** Bij een fysiotherapiepraktijk waarvan we
+vrijwel geen harde feiten hebben, kan dat niet kloppen.
+
+### De oorzaak
+
+Van de zeven beweringen verwezen er **zes naar hetzelfde F-nummer**: een blok van 400 tekens
+sitetekst dat als "feit" op de kaart stond.
+
+| Bewering | Verwijst naar |
+|---|---|
+| "biedt preventieve begeleiding na herstel" | F14 — *"Wat de site over dit onderwerp zegt: …"* |
+| "behandelt runnersknie, shin splints…" | F14 — idem |
+| "hanteert een persoonlijke aanpak" | F14 — idem |
+| "besteedt aandacht aan looptechniek" | F14 — idem |
+| "biedt een persoonlijk behandelplan" | F14 — idem |
+| "is een praktijk in Amersfoort met specialisatie" | F6 — sitetekst-blok |
+| "heeft een 9,4 op Zorgkaart" | F1 — *echt* atomair feit |
+
+`isSupported()` controleerde of het F-nummer **bestond**, niet of het feit de bewering ook echt
+doet. Eén tekstblok dekte daarmee alles, dus gold alles als onderbouwd en verviel elke vraag.
+
+**Dit is dezelfde fout als in R1, maar een niveau hoger.** Daar was de les: een promptinstructie is
+een intentie, code is een garantie. Hier bleek dat een controle in code óók nog het juiste moet
+controleren.
+
+### De twee reparaties
+
+**1. Niet alles wat we weten is een feit.** Een lap sitetekst of een samenvatting van het
+onderzoek is *context*: bruikbaar om over te schrijven, onbruikbaar om iets mee te bewijzen. Die
+items krijgen geen F-nummer meer en staan onder een kop `ACHTERGROND — GEEN BRON`. Alleen
+atomaire, controleerbare uitspraken zijn nog citeerbaar: proof points en antwoorden van de klant.
+Zie `FactItem.citable`.
+
+**2. Citaatplicht.** Wie een F-nummer noemt moet de letterlijke zin uit dat feit aanwijzen die de
+bewering dekt, en de code controleert of die zin er écht in staat. Hetzelfde principe als het
+bewijsdossier (R1.1) en de concurrentprofielen (R4.2). Geldt voor de audit én voor de geschreven
+pagina (`sourceCoverage`).
+
+### Wat wél meteen werkte
+
+- De vaste slots kwamen door, ontdubbeld over beide pagina's
+- Het slot "welke bestaande pagina hoort hierbij?" kwam mét de juiste URL als voorstel — precies de
+  verzonnen `existingUrl` uit de Udenhout-run die daarmee gerepareerd is
+- `briefing_snapshot_json` werd per pagina bevroren, inclusief de aanbeveling met doelvragen
+
+### De herhaalronde ná de reparatie — bevestigd
+
+Dezelfde twee aanbevelingen, opnieuw door de briefing, met de citaatplicht en de
+achtergrondsplitsing erin:
+
+| | vóór de reparatie | erna |
+|---|---|---|
+| Vragen uit de claim-audit | **0** | **3** |
+| Vaste slots | 2 | 2 |
+| Waarvan verplicht (`kern`) | 0 | 2 |
+
+De drie nieuwe vragen zijn precies de gaten die er waren:
+
+- *"Biedt Fysi-Unique een specifiek preventief nazorgprogramma na herstel van een
+  hardloopblessure?"* (verificatie, verplicht)
+- *"Is het op de website expliciet vermeld dat je een persoonlijk behandelplan krijgt?"*
+  (verificatie, verplicht)
+- *"Welke specifieke hardloopblessures behandelt Fysi-Unique?"* (aanvulling)
+
+Dat zijn de twee doelvragen van de gekozen pagina's, plus het detail dat de pagina concreet maakt.
+Alle drie in dertig seconden te beantwoorden, alle drie over één feit.
+
+**Nog niet getoetst:** of een geschreven pagina nu op nul verzonnen feiten uitkomt. Zie §5.
 
 ---
 
