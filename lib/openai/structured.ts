@@ -12,7 +12,7 @@ import "server-only";
 import type { ZodType } from "zod";
 import type OpenAI from "openai";
 import { zodTextFormat } from "openai/helpers/zod";
-import { getOpenAI } from "@/lib/openai/client";
+import { getOpenAI, callBudget } from "@/lib/openai/client";
 import { estimateCostUsd } from "@/lib/openai/pricing";
 import { logAiCall, type CallMeta } from "@/lib/openai/ledger";
 
@@ -147,7 +147,7 @@ export async function callStructured<T>(
     text: {
       format: zodTextFormat(opts.schema, opts.schemaName),
     },
-  });
+  }, callBudget());
 
   const parsed = response.output_parsed;
   if (parsed == null) {
@@ -225,7 +225,7 @@ export async function callPlain(opts: PlainCallOptions): Promise<PlainCallResult
     ],
     tools: opts.webSearch ? [WEB_SEARCH_TOOL] : undefined,
     temperature: opts.temperature,
-  });
+  }, callBudget());
 
   const usage = await recordUsage(opts.model, Boolean(opts.webSearch), response, opts.meta);
 

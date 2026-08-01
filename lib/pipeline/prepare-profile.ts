@@ -102,7 +102,14 @@ export async function prepareProfile(id: string): Promise<ProfileStatus> {
     const pages = await inventoryPromise;
     await admin.from("profile_pages").delete().eq("profile_id", id);
     if (pages.length > 0) {
-      await admin.from("profile_pages").insert(
+      // Fout WÉL controleren. Deze insert is één batch van tientallen rijen; als
+      // Postgres er één weigert, gaat de hele batch niet door. Dat gebeurde bij
+      // swapfiets.nl (NUL-byte, zie lib/pg-text.ts) en niemand merkte het:
+      // de crawl meldde 22 pagina's, de database hield er nul, het profiel ging
+      // op 'klaar' en de feitenbank bleef leeg. Loggen is genoeg — de inventaris
+      // is best-effort en mag het profielonderzoek niet alsnog omvergooien —
+      // maar stil verdwijnen mag hij niet.
+      const { error: pagesError } = await admin.from("profile_pages").insert(
         pages.map((page) => ({
           profile_id: id,
           url: page.url,
@@ -110,6 +117,12 @@ export async function prepareProfile(id: string): Promise<ProfileStatus> {
           text_excerpt: page.text,
         })),
       );
+      if (pagesError) {
+        console.error(
+          `Content-inventaris opslaan mislukt voor profiel ${id} ` +
+            `(${pages.length} pagina's gecrawld, 0 opgeslagen): ${pagesError.message}`,
+        );
+      }
     }
 
     return "klaar";

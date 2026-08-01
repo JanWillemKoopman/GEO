@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { TagListEditor } from "@/components/tag-list-editor";
@@ -83,6 +83,28 @@ export function OnboardingWizard() {
   });
   const [error, setError] = useState<string | null>(null);
   const [urlTouched, setUrlTouched] = useState(false);
+
+  // ── Wat er vóór de hydratie getypt is, overnemen ──────────────────────────
+  //
+  // De server rendert dit formulier als HTML; React neemt het pas over zodra de
+  // JS-bundel geladen én uitgevoerd is. In dat gat is het veld gewoon te
+  // gebruiken — en het naamveld heeft `autoFocus`, dus het NODIGT UIT om er
+  // meteen in te typen. Wie dat deed, zag zijn invoer bij de eerste re-render
+  // spoorloos verdwijnen: de controlled input schreef de lege React-state terug
+  // over de DOM-waarde heen. Gemeten op 1 augustus 2026 tegen productie: naam
+  // én webadres, allebei leeg, zonder enige melding.
+  //
+  // Eén effect bij het aankoppelen, dus dit draait vóór de eerste re-render die
+  // de waarde zou wissen. Alleen niet-lege velden overnemen — anders zou dit
+  // een waarde die React al kent kunnen leegmaken.
+  const nameRef = useRef<HTMLInputElement>(null);
+  const urlRef = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    const name = nameRef.current?.value ?? "";
+    const url = urlRef.current?.value ?? "";
+    if (!name && !url) return;
+    setForm((f) => ({ ...f, name: name || f.name, url: url || f.url }));
+  }, []);
   // Server meldde "site onbereikbaar": we tonen de waarschuwing én de
   // mogelijkheid om toch door te gaan (optimalisatie.md 0.12).
   const [canForce, setCanForce] = useState(false);
@@ -203,6 +225,7 @@ export function OnboardingWizard() {
             <label className="flex flex-col gap-1.5">
               <span className="mono-label">Bedrijfsnaam *</span>
               <input
+                ref={nameRef}
                 className="field"
                 value={form.name}
                 onChange={(e) => set("name", e.target.value)}
@@ -214,6 +237,7 @@ export function OnboardingWizard() {
             <label className="flex flex-col gap-1.5">
               <span className="mono-label">Website *</span>
               <input
+                ref={urlRef}
                 className="field"
                 value={form.url}
                 onChange={(e) => set("url", e.target.value)}

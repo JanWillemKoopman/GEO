@@ -33,6 +33,7 @@ import { buildChangeBlock, isWorthEmailing } from "@/lib/pipeline/period-change-
 import type { PeriodChange } from "@/lib/pipeline/period-change-format";
 import { domainOf } from "@/lib/offsite/domain";
 import { checkUrlFormat } from "@/lib/url";
+import { sanitizeForPostgres, hasUnstorableChars } from "@/lib/pg-text";
 import { countOpenPeriodicMeasurements } from "@/lib/jobs/pending";
 import { formatEvidenceDossier, excerpt } from "@/lib/pipeline/evidence-format";
 import type { EvidenceEntry } from "@/lib/pipeline/evidence-format";
@@ -357,6 +358,38 @@ group("domein uit url", () => {
   ok("co.uk blijft heel", domainOf("https://shop.example.co.uk/x") === "example.co.uk");
   ok("poort genegeerd", domainOf("https://example.nl:8443/x") === "example.nl");
   ok("ongeldige url → null", domainOf("dit is geen url") === null);
+});
+
+group("tekst opslaanbaar maken voor Postgres", () => {
+  // Twee van de 22 gecrawlde pagina's van swapfiets.nl bevatten een NUL-byte.
+  // Postgres weigert daarop de HELE batch-insert, dus die twee kostten de
+  // volledige content-inventaris. Zie lib/pg-text.ts.
+  const nul = String.fromCharCode(0);
+  const hoog = String.fromCharCode(0xd83d); // losse high surrogate
+  const laag = String.fromCharCode(0xde00); // losse low surrogate
+
+  ok("NUL-byte verdwijnt", sanitizeForPostgres(`a${nul}b`) === "ab");
+  ok("meerdere NUL-bytes verdwijnen", sanitizeForPostgres(`${nul}a${nul}${nul}b${nul}`) === "ab");
+  ok("losse high surrogate verdwijnt", sanitizeForPostgres(`a${hoog}b`) === "ab");
+  ok("losse low surrogate verdwijnt", sanitizeForPostgres(`a${laag}b`) === "ab");
+
+  // Wat WÉL opslaanbaar is, mag niet sneuvelen — een emoji is een geldig paar.
+  ok("emoji blijft heel", sanitizeForPostgres("fiets 🚲 blauw") === "fiets 🚲 blauw");
+  ok("accenten blijven heel", sanitizeForPostgres("België — €19,90") === "België — €19,90");
+  ok("gewone tekst blijft gelijk", sanitizeForPostgres("Swapfiets") === "Swapfiets");
+  ok("lege tekst blijft leeg", sanitizeForPostgres("") === "");
+  ok("null blijft null", sanitizeForPostgres(null) === null);
+  ok("undefined wordt null", sanitizeForPostgres(undefined) === null);
+
+  // De /g-regex mag geen lastIndex meeslepen tussen aanroepen: dat was de
+  // valkuil waardoor een gedeelde regex om de beurt treffers overslaat.
+  ok("tweede aanroep werkt net zo goed", sanitizeForPostgres(`x${nul}y`) === "xy");
+  ok("derde aanroep ook", sanitizeForPostgres(`x${nul}y`) === "xy");
+
+  ok("detectie ziet de NUL", hasUnstorableChars(`a${nul}b`));
+  ok("detectie ziet de losse surrogate", hasUnstorableChars(`a${hoog}b`));
+  ok("detectie laat schone tekst met rust", !hasUnstorableChars("fiets 🚲 blauw"));
+  ok("detectie op null is false", !hasUnstorableChars(null));
 });
 
 group("webadres controleren", () => {

@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="GEO Tracker">
+  <!--
+    Favicon. Zonder dit bestand vroeg elke paginaweergave /favicon.ico op en
+    kreeg een 404 terug — zichtbaar als consolefout in elke browser en als ruis
+    in de Vercel-logs. Next.js serveert app/icon.svg automatisch als icoon.
+    Kleuren uit app/globals.css: --accent-purple en --accent-green.
+  -->
+  <rect width="32" height="32" rx="7" fill="#8511d9" />
+  <circle cx="14" cy="14" r="6.5" fill="none" stroke="#b9efa3" stroke-width="2.5" />
+  <line x1="18.8" y1="18.8" x2="25" y2="25" stroke="#b9efa3" stroke-width="3" stroke-linecap="round" />
+</svg>

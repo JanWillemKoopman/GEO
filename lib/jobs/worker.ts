@@ -42,6 +42,22 @@ const TIME_BUDGET_MS = workerTimeBudgetMs;
 const HEAVY_JOB_RESERVE_MS = 220_000;
 
 /**
+ * Hoeveel tijd er nog moet zijn voordat we een NIEUWE ronde taken claimen.
+ *
+ * Hier zat het gat dat de 504's op /api/cron/worker veroorzaakte. De zware
+ * taken hadden een reservering, de lichte niet: de lus keek alleen of het budget
+ * nog niet op wás, niet of het volgende werk er nog in past. Een ronde van vijf
+ * metingen die op t = 239s geclaimd werd, liep dus door tot ver voorbij de 300
+ * seconden die het platform de route geeft — en werd hard afgekapt, met vijf
+ * taken die op 'running' bleven staan tot de reaper ze vijf minuten later
+ * terugzette.
+ *
+ * 115 seconden = het totale budget van één AI-aanroep (CALL_BUDGET_MS, 105s in
+ * lib/openai/client.ts) plus marge om de uitkomst nog weg te schrijven.
+ */
+const LIGHT_JOB_RESERVE_MS = 115_000;
+
+/**
  * Hoeveel taken we per ronde claimen. Lichte taken (een meting is vooral
  * wachten op een netwerkantwoord) draaien PARALLEL binnen zo'n ronde — anders
  * zou één werker met een budget van 40s per minuut maar ~3 vragen aankunnen en
@@ -110,7 +126,12 @@ export async function runWorker(): Promise<WorkerResult> {
   });
   out.reclaimed = typeof reclaimed === "number" ? reclaimed : 0;
 
-  while (Date.now() - startedAt < TIME_BUDGET_MS) {
+  // Claim alleen zolang de traagste taak die we terug kunnen krijgen er nog
+  // helemaal in past — zie LIGHT_JOB_RESERVE_MS. De eerste ronde mag altijd:
+  // anders zou een werker met een krap ingesteld budget nooit iets doen.
+  let eersteRonde = true;
+  while (eersteRonde || Date.now() - startedAt + LIGHT_JOB_RESERVE_MS <= TIME_BUDGET_MS) {
+    eersteRonde = false;
     const { data: claimed, error } = await admin.rpc("claim_jobs", { p_limit: CLAIM_BATCH });
     if (error) throw new Error(`Taken claimen mislukt: ${error.message}`);
 

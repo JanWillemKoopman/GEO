@@ -22,14 +22,23 @@ export async function refreshInventory(id: string): Promise<number> {
   });
 
   await admin.from("profile_pages").delete().eq("profile_id", id);
-  if (pages.length > 0) {
-    await admin.from("profile_pages").insert(
-      pages.map((page) => ({
-        profile_id: id,
-        url: page.url,
-        title: page.title,
-        text_excerpt: page.text,
-      })),
+  if (pages.length === 0) return 0;
+
+  // Anders dan bij het profielonderzoek is dit een handeling die de klant zelf
+  // startte en waarvan hij het getal te zien krijgt ("22 pagina's gevonden").
+  // Dan mag een mislukte insert geen 22 opleveren: hier gooien we, zodat de
+  // route een echte foutmelding toont in plaats van een leugen.
+  const { error } = await admin.from("profile_pages").insert(
+    pages.map((page) => ({
+      profile_id: id,
+      url: page.url,
+      title: page.title,
+      text_excerpt: page.text,
+    })),
+  );
+  if (error) {
+    throw new Error(
+      `Content-inventaris opslaan mislukt (${pages.length} pagina's gecrawld): ${error.message}`,
     );
   }
 

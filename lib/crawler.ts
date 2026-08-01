@@ -7,6 +7,8 @@ import "server-only";
  * aan de profiel-/onderwerp-onderzoekscalls.
  */
 
+import { sanitizeForPostgres } from "@/lib/pg-text";
+
 /** Eén plek voor de bot-identiteit, zodat een site ons kan herkennen en toelaten. */
 export const USER_AGENT = "GEO-Tracker-Bot/1.0 (+https://geo-tracker.app)";
 
@@ -44,7 +46,11 @@ export function htmlToText(html: string): string {
     .replace(/<noscript[\s\S]*?<\/noscript>/gi, " ")
     .replace(/<!--[\s\S]*?-->/g, " ");
 
-  const text = withoutScripts
+  // Meteen hier schonen, niet pas bij de insert: ALLES wat de app aan platte
+  // tekst uit een externe pagina haalt loopt via deze functie, dus dit is de
+  // enige plek waar een NUL-byte of losse surrogate kan binnenkomen. Zie
+  // lib/pg-text.ts voor wat er misging toen dat niet gebeurde.
+  const text = sanitizeForPostgres(withoutScripts)
     .replace(/<[^>]+>/g, " ")
     .replace(/&nbsp;/gi, " ")
     .replace(/&amp;/gi, "&")

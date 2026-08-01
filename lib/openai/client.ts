@@ -31,6 +31,40 @@ const MAX_RETRIES = 3;
  */
 const TIMEOUT_MS = 100_000;
 
+/**
+ * Het TOTALE tijdbudget van één aanroep, retries meegerekend.
+ *
+ * ── WAAROM DIT ERBIJ MOEST ──────────────────────────────────────────────────
+ *
+ * `timeout` hierboven geldt PER POGING, en de SDK herhaalt ook een timeout.
+ * Met MAX_RETRIES = 3 was de echte bovengrens van één aanroep dus 4 × 100s =
+ * 400 seconden — meer dan de 300s die de werkerroute van het platform krijgt.
+ * De rekensom in lib/jobs/worker.ts (HEAVY_JOB_RESERVE_MS = 220s voor twee
+ * aanroepen van 100s) ging er stilzwijgend van uit dat er niet herhaald werd.
+ *
+ * Op 1 augustus 2026 stonden er twee 504's op /api/cron/worker in de
+ * Vercel-logs ("Task timed out after 300 seconds"). Alles wat op dat moment
+ * geclaimd was bleef op 'running' staan tot de reaper het vijf minuten later
+ * terugzette — de klant kijkt dan naar een voortgangsscherm waarachter niets
+ * gebeurt.
+ *
+ * 105 seconden is de bovengrens die de rekensom wél waarmaakt: twee aanroepen
+ * van een zware taak passen samen (210s) binnen HEAVY_JOB_RESERVE_MS. De
+ * retries leven binnen dit budget in plaats van erbovenop; loopt het op,
+ * dan valt de taak terug op de retry-laag van de wachtrij (minutenschaal),
+ * precies waar hij thuishoort.
+ */
+const CALL_BUDGET_MS = 105_000;
+
+/**
+ * Requestopties met een harde bovengrens op de totale duur van één aanroep.
+ * Elke aanroep in lib/openai/structured.ts geeft dit mee; het signaal geldt
+ * over alle pogingen heen, dus dit is een echte grens en geen wens.
+ */
+export function callBudget(): { signal: AbortSignal } {
+  return { signal: AbortSignal.timeout(CALL_BUDGET_MS) };
+}
+
 let cached: OpenAI | null = null;
 
 export function getOpenAI(): OpenAI {

@@ -88,11 +88,16 @@ export function WorkInProgress({
         </ul>
       )}
 
-      {/* Dit is nu WAAR — het werk draait op de achtergrond, niet in deze tab. */}
+      {/* Dit is nu WAAR — het werk draait op de achtergrond, niet in deze tab.
+          "of wacht op de e-mail" stond hier ook, en dat was het NIET: uitgaande
+          mail staat standaard uit (EMAILS_ENABLED, .env.example) en op productie
+          stond hij op 1 augustus 2026 inderdaad uit. Wie het scherm sloot en op
+          een mailtje wachtte, wachtte voor niets. Dit component is een client-
+          component en kan de serverschakelaar niet zien, dus staat er nu alleen
+          wat onder alle omstandigheden waar is. */}
       <p className="rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--bg-elevated)] px-4 py-3 text-sm text-secondary">
         <strong className="font-medium">Je kunt dit scherm sluiten.</strong> Het werk draait op de
-        achtergrond door en loopt gewoon af, ook als je de browser afsluit. Kom later terug of wacht
-        op de e-mail.
+        achtergrond door en loopt gewoon af, ook als je de browser afsluit — kom gerust later terug.
       </p>
     </div>
   );
