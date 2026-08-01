@@ -116,17 +116,43 @@ function containsForbidden(text: string, tokens: string[]): boolean {
 
 /**
  * Hoeveel pogingen mag één funnelfase doen om aan het gevraagde aantal prompts
- * te komen (optimalisatie.md 0.8)? Twee: één normale ronde plus één aanvulronde.
- * Meer zou bij een merknaam die samenvalt met de categorie eindeloos doorgaan —
- * daar is het aanvullen niet de oplossing maar de merknaam zelf het probleem.
+ * te komen (optimalisatie.md 0.8)?
+ *
+ * Stond op twee: één normale ronde plus één aanvulronde, met als redenering dat
+ * bij een merknaam die samenvalt met de categorie het aanvullen niet de
+ * oplossing is maar de merknaam het probleem. Die redenering klopt, maar de
+ * grens lag te laag voor een merk dat zijn eigen categorie definieert.
+ *
+ * Gemeten bij Swapfiets op 1 augustus 2026, onderwerp "fietsabonnement":
+ * Oriëntatie leverde 2 van de 10 vragen op — 80% sneuvelde omdat het model in
+ * een brede oriëntatievraag over fietsabonnementen vanzelf de marktleider
+ * noemt, en dat is precies de klant. Overweging en Beslissing haalden allebei
+ * gewoon 10. De klant zag alleen "22 actief van 22" en had geen enkele
+ * aanwijzing dat een hele funnelfase vrijwel leeg was.
+ *
+ * Drie is geen "eindeloos doorgaan": het is één extra mini-aanroep zonder
+ * web_search (fracties van een cent), en alleen in het geval dat er anders
+ * daadwerkelijk vragen ontbreken.
  */
-const MAX_TOPUP_ATTEMPTS = 2;
+const MAX_TOPUP_ATTEMPTS = 3;
 
-/** Aanvullende instructie voor de tweede ronde: alleen het ontbrekende aantal, geen herhaling. */
-function topUpNote(missing: number, existing: string[]): string {
+/**
+ * Aanvullende instructie voor een vervolgronde.
+ *
+ * Zei eerder alleen "er ontbreken er nog N, herhaal deze niet". Daarmee wist het
+ * model niet WAAROM zijn vorige vragen sneuvelden — het kreeg een lijst met
+ * geaccepteerde vragen te zien en concludeerde daaruit niets over de merkregel.
+ * Nu staat de reden er expliciet bij, met de namen die het niet mag gebruiken.
+ */
+function topUpNote(missing: number, existing: string[], verboden: string[]): string {
+  const namen = verboden.length ? verboden.join(", ") : "de eigen merknaam";
   return (
-    `AANVULLING: er ontbreken er nog ${missing}. Geef er precies ${missing}, en herhaal ` +
-    `NIET de vragen die er al zijn:\n${existing.map((t) => `- ${t}`).join("\n")}`
+    `AANVULLING: er ontbreken er nog ${missing}. Geef er precies ${missing}.\n` +
+    `WAAROM ER VRAGEN ONTBREKEN: de vorige ronde bevatte vragen waarin een bedrijfsnaam voorkwam. ` +
+    `Die zijn weggegooid. Noem in deze ronde dus GEEN van deze namen, in geen enkele vorm: ${namen}. ` +
+    `Ook niet als het bedrijf het meest voor de hand liggende antwoord op de vraag is — schrijf de ` +
+    `vraag zoals iemand die het bedrijf nog niet kent 'm zou stellen.\n` +
+    `Herhaal NIET de vragen die er al zijn:\n${existing.map((t) => `- ${t}`).join("\n")}`
   );
 }
 
@@ -216,7 +242,10 @@ async function generateForFunnelStage(args: {
       system,
       // Bij een vervolgpoging vragen we alleen nog het ontbrekende aantal, en
       // zeggen we welke vragen er al zijn zodat het model niet in herhaling valt.
-      user: attempt === 0 ? user : `${user}\n\n${topUpNote(missing, collected.map((p) => p.text))}`,
+      user:
+        attempt === 0
+          ? user
+          : `${user}\n\n${topUpNote(missing, collected.map((p) => p.text), tokens)}`,
       schema: PromptSet,
       schemaName: "prompt_set",
       webSearch: false,
@@ -238,7 +267,8 @@ async function generateForFunnelStage(args: {
   if (collected.length < count) {
     console.warn(
       `Funnelfase "${category}": ${collected.length} van ${count} prompts na ` +
-        `${MAX_TOPUP_ATTEMPTS} pogingen. De rest sneuvelde op de merkneutraliteitsregel.`,
+        `${MAX_TOPUP_ATTEMPTS} pogingen. De rest sneuvelde op de merkneutraliteitsregel ` +
+        `(verboden namen: ${tokens.join(", ")}).`,
     );
   }
 
