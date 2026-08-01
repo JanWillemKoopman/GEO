@@ -341,6 +341,9 @@ export async function runBriefing(args: {
   // vraag die elkaar uitsluiten belandden vóór 0036 allebei op de kaart, en dan
   // koos het model welk het aanhaalde. Nu wint het nieuwste — en zegt de app
   // erbij dát er iets omging, zodat de klant het kan nakijken.
+  // Ze gaan hieronder mee in `briefing_snapshot_json` en komen zo op het
+  // briefingscherm terecht; deze logregel is voor de ontwikkelaar, niet het
+  // kanaal naar de klant.
   const tegenspraken = describeContradictions(lastContradictions());
   if (tegenspraken.length > 0) {
     console.log(`Briefing ${analysisId}: ${tegenspraken.length} tegenspraak/tegenspraken — ${tegenspraken.join(" | ")}`);
@@ -532,6 +535,19 @@ export async function runBriefing(args: {
           // die de klant ná de briefing gaf.
           plan: audit.parsed.claims.filter((c) => paginaVanClaim(c.neededFor).includes(pieceId)),
           recommendation: recommendations[i],
+          // ── DE TEGENSPRAKEN BEWAREN (S8) ───────────────────────────────
+          //
+          // Ze werden berekend en alleen gelogd — precies het patroon dat dit
+          // hele traject drie keer eerder opleverde (de antwoorden van de klant
+          // in R8.1, het paginaplan in S2, de aanbeveling in de snapshot). Een
+          // uitkomst die nergens landt bestaat voor de klant niet.
+          //
+          // Ze horen in de snapshot en niet in een eigen kolom, want ze zijn
+          // waar op het moment van de briefing: dít zag de app toen het model
+          // twee uitspraken over hetzelfde onderwerp tegenkwam. De lijst is
+          // analysebreed en staat dus op elke pagina van deze batch gelijk; het
+          // briefingscherm ontdubbelt hem.
+          contradictions: tegenspraken,
           generatedAt: new Date().toISOString(),
         } as never,
       })
@@ -554,6 +570,20 @@ export function factsFromSnapshot(snapshot: unknown): FactItem[] {
     (f): f is FactItem =>
       Boolean(f) && typeof (f as FactItem).ref === "string" && typeof (f as FactItem).text === "string",
   );
+}
+
+/**
+ * De tegenspraken uit de snapshot teruglezen (S8).
+ *
+ * Leeg bij een briefing van vóór S8, of bij een batch waarin niets omging — en
+ * dat laatste is het normale geval. Alleen de tegenspraken die de klant aangaan
+ * staan erin: `describeContradictions()` filtert de sitewijzigingen er al uit,
+ * want een site die verandert is meestal gewoon een update.
+ */
+export function contradictionsFromSnapshot(snapshot: unknown): string[] {
+  const snap = (snapshot ?? {}) as { contradictions?: unknown };
+  if (!Array.isArray(snap.contradictions)) return [];
+  return snap.contradictions.filter((c): c is string => typeof c === "string" && c.trim().length > 0);
 }
 
 /**

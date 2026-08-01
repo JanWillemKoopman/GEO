@@ -38,6 +38,7 @@ export function DossierBox({ profileId }: { profileId: string }) {
   const [error, setError] = useState<string | null>(null);
   const [facts, setFacts] = useState<DossierFact[] | null>(null);
   const [skipped, setSkipped] = useState(0);
+  const [alKnown, setAlKnown] = useState(false);
   const [verwijderd, setVerwijderd] = useState<Set<string>>(new Set());
 
   async function verwerk() {
@@ -52,11 +53,17 @@ export function DossierBox({ profileId }: { profileId: string }) {
       const json = (await res.json().catch(() => ({}))) as {
         facts?: DossierFact[];
         skipped?: number;
+        alreadyKnown?: boolean;
         error?: string;
       };
       if (!res.ok) throw new Error(json.error ?? "Verwerken mislukt.");
       setFacts(json.facts ?? []);
       setSkipped(json.skipped ?? 0);
+      // Sinds migratie 0035 herkent de app dezelfde tekst aan zijn hash. Zonder
+      // dit onderscheid kreeg de klant "hier kwamen geen harde feiten uit" te
+      // zien op zijn tarievenpagina — een onjuiste conclusie over een prima
+      // document, en precies het soort melding dat vertrouwen kost.
+      setAlKnown(Boolean(json.alreadyKnown));
       setText("");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Er ging iets mis.");
@@ -120,7 +127,12 @@ export function DossierBox({ profileId }: { profileId: string }) {
 
       {facts !== null && (
         <div className="flex flex-col gap-2">
-          {zichtbaar.length === 0 ? (
+          {alKnown ? (
+            <p className="text-sm text-muted">
+              Deze tekst heb je al eerder aangeleverd — de feiten eruit staan er dus al. Je hoeft
+              niets te doen.
+            </p>
+          ) : zichtbaar.length === 0 ? (
             <p className="text-sm text-muted">
               Hier kwamen geen harde feiten uit. Dat gebeurt bij sfeerteksten: er staat niets in dat
               een pagina kan bewijzen. Probeer een tarievenpagina of een lijst met voorwaarden.

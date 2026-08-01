@@ -157,6 +157,7 @@ async function main(): Promise<void> {
     const snapshot = kaart.rows[0]?.briefing_snapshot_json as {
       facts?: { text: string; citable: boolean }[];
       plan?: unknown[];
+      contradictions?: unknown;
     };
     const citeerbaar = (snapshot?.facts ?? []).filter((f) => f.citable).map((f) => f.text);
     ok(
@@ -174,6 +175,17 @@ async function main(): Promise<void> {
       "bug 7: het paginaplan staat in de snapshot",
       Array.isArray(snapshot?.plan) && snapshot.plan.length === 2,
       `${snapshot?.plan?.length ?? 0} punten`,
+    );
+
+    // S8 — de tegenspraken werden berekend en alleen gelogd. Dit scenario kent
+    // er geen (de klant heeft nog niets herzien), dus de lijst hoort leeg te
+    // zijn — maar hij moet er wél STAAN. Precies dát is de regressie die deze
+    // assertie bewaakt: verdwijnt het veld uit de snapshot, dan kan het
+    // briefingscherm het nooit tonen en merkt niemand het.
+    ok(
+      "S8: het tegenspraakveld staat in de snapshot",
+      Array.isArray(snapshot?.contradictions),
+      `${JSON.stringify(snapshot?.contradictions)}`,
     );
 
     // ── 2. De klant beantwoordt ─────────────────────────────────────────────

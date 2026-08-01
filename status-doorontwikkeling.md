@@ -1,7 +1,7 @@
 # Status doorontwikkeling — overdracht tussen sessies
 
 **Laatst bijgewerkt:** 1 augustus 2026 (na R8, S1 t/m S8 en R7.1) ·
-**Branch:** `main` (alles is gemerged) · **Tests:** 384 eenheidstests + 24 ketentests groen
+**Branch:** `main` (alles is gemerged) · **Tests:** 384 eenheidstests + 25 ketentests groen
 
 Dit document is de brug tussen werksessies. Het beschrijft **wat er af is**, **wat de afspraken
 zijn die tijdens het bouwen zijn ontstaan**, en **wat er nog open staat en in welke volgorde**.
@@ -466,7 +466,7 @@ jobhandlers tegen een échte Postgres: dezelfde migraties `0001`…`0037`, dus d
 enums en unieke indexen. Geen Docker en geen Supabase CLI nodig — `initdb` + `pg_ctl` volstaan.
 Nagebootst is alleen de Supabase-wire-vertaling (`chain/supabase-shim.ts`, die gooit bij het eerste
 onbekende geval in plaats van iets anders terug te geven) en OpenAI (vaste antwoorden per schema).
-De vierentwintig asserties zijn de zeven bugs plus de nieuwe garanties van S1–S6 en S8.
+De vijfentwintig asserties zijn de zeven bugs plus de nieuwe garanties van S1–S6 en S8.
 
 **S8 — de feitenbank (migratie `0036`).** Een F-nummer is een POSITIE, geen identiteit: "F3"
 betekent "het derde citeerbare feit in déze lijst". Dat is aantoonbaar en niet theoretisch — in de
@@ -551,7 +551,7 @@ steeds als concurrent meetellen.**
 ```bash
 npx tsc --noEmit      # moet schoon zijn
 npm run test:unit     # 384 groen
-npm run test:chain    # 24 groen, zonder netwerk en zonder API-sleutel
+npm run test:chain    # 25 groen, zonder netwerk en zonder API-sleutel
 npm run build         # moet slagen
 ```
 

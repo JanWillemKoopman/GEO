@@ -4,6 +4,7 @@ import { getAnalysis } from "@/lib/analyses";
 import { createClient } from "@/lib/supabase/server";
 import { EmptyState } from "@/components/empty-state";
 import { BriefingForm, type BriefingQuestionView } from "./briefing-form";
+import { contradictionsFromSnapshot } from "@/lib/pipeline/briefing";
 
 export const metadata = { title: "Contentbriefing" };
 
@@ -22,6 +23,28 @@ export const metadata = { title: "Contentbriefing" };
  * enige zinnige actie "schrijven". Dat is precies wat de kennisbank op termijn
  * moet opleveren: bij de derde analyse van dezelfde klant is deze stap leeg.
  */
+/**
+ * Het tegenspraakblok. Bewust boven de vragen en bewust geen blokkade: de klant
+ * hoeft er niets mee te doen, maar hij hoort het wél te weten voordat er een
+ * pagina op gebouwd wordt.
+ */
+function Tegenspraken({ regels }: { regels: string[] }) {
+  if (regels.length === 0) return null;
+  return (
+    <div className="card flex flex-col gap-2">
+      <span className="mono-label">Dit is veranderd sinds de vorige keer</span>
+      <ul className="flex list-disc flex-col gap-1 pl-5 text-sm text-secondary">
+        {regels.map((r) => (
+          <li key={r}>{r}</li>
+        ))}
+      </ul>
+      <p className="text-sm text-muted">
+        We gebruiken steeds het nieuwste antwoord. Klopt dat niet, pas het dan hieronder aan.
+      </p>
+    </div>
+  );
+}
+
 export default async function BriefingPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const analysis = await getAnalysis(id);
@@ -32,7 +55,7 @@ export default async function BriefingPage({ params }: { params: Promise<{ id: s
   const [{ data: pieceRows }, { data: questionRows }] = await Promise.all([
     supabase
       .from("content_pieces")
-      .select("id, title")
+      .select("id, title, briefing_snapshot_json")
       .eq("analysis_id", id)
       .eq("status", "briefing")
       .eq("is_current", true),
@@ -53,6 +76,17 @@ export default async function BriefingPage({ params }: { params: Promise<{ id: s
   const pieces = pieceRows ?? [];
   const titleById = new Map(pieces.map((p) => [p.id as string, p.title as string]));
   const pieceIds = new Set(pieces.map((p) => p.id as string));
+
+  // ── Wat er sinds de vorige keer omging (S8) ───────────────────────────────
+  //
+  // De feitenbank merkt het wanneer twee uitspraken over hetzelfde onderwerp
+  // elkaar uitsluiten. Vóór migratie 0036 belandden die allebei op de kaart en
+  // koos het model welke het aanhaalde; nu wint de nieuwste en hoort de klant
+  // dát er iets omging. De lijst is analysebreed en staat op elke pagina van de
+  // batch gelijk, vandaar de Set.
+  const tegenspraken = Array.from(
+    new Set(pieces.flatMap((p) => contradictionsFromSnapshot(p.briefing_snapshot_json))),
+  );
 
   // Alleen vragen die bij de pagina's horen die nú op schrijven wachten. Een
   // vraag uit een eerdere batch die toen is overgeslagen hoort hier niet
@@ -103,6 +137,7 @@ export default async function BriefingPage({ params }: { params: Promise<{ id: s
           hebben we geen open vragen: alles wat nodig is staat al in je profiel of is bij een
           eerdere analyse beantwoord.
         </p>
+        <Tegenspraken regels={tegenspraken} />
         <BriefingForm analysisId={id} questions={[]} pageCount={pieces.length} />
         <Link href={`/analyses/${id}/bibliotheek`} className="mono-label">
           Naar de bibliotheek
@@ -111,5 +146,10 @@ export default async function BriefingPage({ params }: { params: Promise<{ id: s
     );
   }
 
-  return <BriefingForm analysisId={id} questions={questions} pageCount={pieces.length} />;
+  return (
+    <div className="flex flex-col gap-4">
+      <Tegenspraken regels={tegenspraken} />
+      <BriefingForm analysisId={id} questions={questions} pageCount={pieces.length} />
+    </div>
+  );
 }
