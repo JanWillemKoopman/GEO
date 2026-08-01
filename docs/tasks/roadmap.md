@@ -30,11 +30,16 @@ zonder productfeed.
 
 ## 4. R6.2 en R6.3 (3,5 d)
 
+Volledige bouwspec: [`r6-inventaris-en-bronnen.md`](./r6-inventaris-en-bronnen.md).
+
 - **R6.2 — Inventariskwaliteitspoort.** Bol had 1 pagina in de inventaris, HEMA 40 productpagina's;
   in beide gevallen degradeert het rapport zonder foutmelding. Migratie `0033` staat gereserveerd.
-- **R6.3 — Brontype als signaal.**
+- **R6.3 — Brontype als signaal.** Bij Fysi-Unique zijn 8 van de 10 meest geciteerde bronnen
+  homepages — dan is "schrijf een lange blogpagina" waarschijnlijk het verkeerde advies.
 
 ## 5. Blijvend uitgesteld: R0 — Fundament (8 d)
+
+Volledige bouwspec per stap: [`r0-fundament.md`](./r0-fundament.md).
 
 Hygiëne die in de praktijk niets blokkeerde; R4 bleek prima te bouwen zonder R0.5. Zes stappen:
 `existingUrl`-conventie afdwingen · volumekalibratie normaliseren · clusters bruikbaar maken ·
@@ -42,7 +47,8 @@ meetbasis-krimp zichtbaar maken · entiteitclassificatie (bedrijfsmodel + produc
 repareren of uitzetten.
 
 Eén punt is het onthouden waard: **R0.5 is de reden dat de fabrikanten die Bol verkoopt nog steeds
-als concurrent meetellen.**
+als concurrent meetellen.** De helft van R0.5 is intussen meegelift op R8.5: de kolom
+`business_model` bestaat en wordt gevuld; alleen `classify-entities.ts` gebruikt hem nog niet.
 
 ## Losse punten
 

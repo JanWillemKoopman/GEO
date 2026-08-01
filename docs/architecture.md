@@ -3,6 +3,10 @@
 Backend, Supabase, pijplijn en deploy. Voor het *waarom* achter een keuze: `logbook.md`.
 Voor UI/UX: `ux-design.md`.
 
+> **Geverifieerd tegen de code op 1 augustus 2026** (branch `main`, t/m migratie `0037`).
+> Dit document beschrijft wat de code dóet, niet wat een plan voorschrijft — wijkt het af, dan is
+> de code leidend en is dit document fout. Werk deze datum bij zodra je hem hebt nagetrokken.
+
 ## 1. Hosting en dataflow
 
 ```
@@ -245,9 +249,7 @@ select * from cron.job_run_details order by start_time desc limit 10;
 ## 11. Migraties
 
 `0001` t/m `0037`, alle toegepast op productie behalve `0033` (gereserveerd voor R6.2, nooit
-gedraaid — een gereserveerd nummer dat nooit draaide blokkeert niets). Volledige index met
-beschrijving per migratie: `supabase/README.md`.
+gedraaid — een gereserveerd nummer dat nooit draaide blokkeert niets).
 
-Nieuwe migratie: schrijf het bestand in `supabase/migrations/`, pas toe met de Supabase MCP-tool
-(`apply_migration`), werk daarna `supabase/README.md` bij. Additief en idempotent, met een
-Nederlands commentaarblok bovenaan en een controlerende `select` onderaan.
+**Index per migratie en de regels voor het schrijven ervan: [`../supabase/README.md`](../supabase/README.md).**
+Dat is de enige plek waar die regels staan; herhaal ze hier niet.

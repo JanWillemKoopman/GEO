@@ -43,7 +43,7 @@ supabase db push                      # migraties naar remote
 ```
 
 Migraties toepassen op productie gaat via de Supabase MCP-tool (`apply_migration`), niet via de
-CLI. Werk daarna de migratietabel in `docs/architecture.md` bij.
+CLI. Werk daarna de index in `supabase/README.md` bij.
 
 ## Code-conventies
 
@@ -60,10 +60,8 @@ Deze zijn over acht bouwrondes consequent toegepast. Houd ze aan.
    `claim-extract.ts`) — anders is het niet te testen vanuit `scripts/test-unit.ts`.
 3. **Onbekend is een betere waarde dan een verkeerde.** Onbruikbare modeloutput wordt `null`,
    nooit 0 en nooit een gok.
-4. **Migraties zijn additief en idempotent.** `add column if not exists` / `create table if not
-   exists`, nooit `drop`. Elke migratie opent met een Nederlands commentaarblok: wat het probleem
-   was, met welke gemeten cijfers, en waarom deze oplossing. Sluit af met een `select` die
-   controleert dat het gelukt is.
+4. **Migraties zijn additief en idempotent** — nooit `drop`. Volledige regels en de index:
+   `supabase/README.md`.
 5. **Commentaar legt uit wáárom, met cijfers.** "bij Van der Valk was dat 17 van de 30 vragen".
    Dat is de huisstijl; nieuw commentaar volgt hem.
 6. **Schrijven loopt nooit rechtstreeks vanaf de client.** Altijd via een API-route met
@@ -115,6 +113,18 @@ van oude verwijzing naar nieuwe sectie. De originelen staan in de git-historie.
   de samenhang tussen taken een scenario in `test-chain.ts`. Zeven van de zeven fouten van dit
   traject zaten in die samenhang en geen enkele unittest kon ze vangen.
 - Verandert het gedrag, werk dan `docs/` bij in dezelfde commit.
+
+**Waar documentatie landt — houd dit aan, anders groeit `docs/` terug naar de oude wildgroei:**
+
+| Wat | Waarheen |
+|---|---|
+| Een nieuwe beslissing of bouwronde | Alinea onderaan `docs/logbook.md`, met datum en het cijfer dat hem droeg |
+| Werk dat nog gebouwd moet worden | Eigen bestand in `docs/tasks/`, met bestanden + verificatiecriteria |
+| Taak afgerond | Uit `docs/tasks/` weg, samengevat in `docs/logbook.md` |
+| Gedrag van de code veranderd | `docs/architecture.md` of `docs/ux-design.md`, en de peildatum bijwerken |
+| Nieuwe migratie | `supabase/README.md` |
+
+Eén feit heeft één eigenaar. Staat het al ergens, verwijs dan — herhaal het niet.
 - Kosten zijn een ontwerpvariabele: een meetronde is ~$0,82 (~95% zit in de meting zelf, waarvan
   ~94% in `web_search`). Zet `MEASURE_WEB_SEARCH=false` om goedkoop te ontwikkelen — de meting is
   dan niet representatief.
