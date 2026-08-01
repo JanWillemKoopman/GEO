@@ -6,6 +6,15 @@ de AI-prompts, de code-commentaren en deze documentatie.
 
 **De app staat live.** `main` is de productiebranch (Vercel). Werk op een feature-branch.
 
+## Toegang
+
+Claude heeft volledige lees- en schrijfrechten op **Vercel** en **Supabase** (via de MCP-tools:
+`apply_migration`, `execute_sql`, deployments, logs, env-variabelen, etc.) om zelfstandig door te
+kunnen ontwikkelen — geen aparte toestemming nodig per migratie, deploy-check of query. De
+bestaande regels blijven wel gelden: migraties additief/idempotent (nooit `drop`), nooit
+rechtstreeks schrijven vanaf de client, en bij een echt onomkeerbare actie (data verwijderen,
+een branch/project weggooien) eerst expliciet afstemmen.
+
 ## Techstack
 
 | Laag | Keuze |
