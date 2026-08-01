@@ -33,7 +33,8 @@ import { callStructured } from "@/lib/openai/structured";
 import { MODELS, TEMPERATURES } from "@/lib/openai/models";
 import { ClaimAudit } from "@/lib/schemas/claim-audit";
 import type { AuditedClaim } from "@/lib/schemas/claim-audit";
-import { buildFactBase } from "@/lib/pipeline/factbase";
+import { buildFactBase, lastContradictions } from "@/lib/pipeline/factbase";
+import { describeContradictions } from "@/lib/pipeline/fact-merge";
 import { formatFactCard, isSupported, claimKey, type FactItem } from "@/lib/pipeline/factcard";
 import {
   selectBriefingQuestions,
@@ -288,6 +289,8 @@ async function buildPositioningQuestion(
 
 export interface BriefingResult {
   contentPieceIds: string[];
+  /** Antwoorden die elkaar tegenspreken, in gewone taal (migratie 0036). */
+  contradictions?: string[];
   /** Aantal nieuw gestelde vragen. 0 = alles al bekend, er valt niets te vragen. */
   questions: number;
   facts: number;
@@ -333,6 +336,15 @@ export async function runBriefing(args: {
     ),
   );
   const facts = await buildFactBase(admin, profileId, analysisId, doelvragen);
+
+  // Tegenspraken uit de feitenbank (migratie 0036). Twee antwoorden op dezelfde
+  // vraag die elkaar uitsluiten belandden vóór 0036 allebei op de kaart, en dan
+  // koos het model welk het aanhaalde. Nu wint het nieuwste — en zegt de app
+  // erbij dát er iets omging, zodat de klant het kan nakijken.
+  const tegenspraken = describeContradictions(lastContradictions());
+  if (tegenspraken.length > 0) {
+    console.log(`Briefing ${analysisId}: ${tegenspraken.length} tegenspraak/tegenspraken — ${tegenspraken.join(" | ")}`);
+  }
 
   const { data: profile } = await admin
     .from("profiles")
@@ -526,7 +538,12 @@ export async function runBriefing(args: {
       .eq("id", pieceId);
   }
 
-  return { contentPieceIds: pieceIds, questions: geschreven, facts: facts.length };
+  return {
+    contentPieceIds: pieceIds,
+    questions: geschreven,
+    facts: facts.length,
+    contradictions: tegenspraken,
+  };
 }
 
 /** De bevroren feitenkaart van een pagina teruglezen (voor het schrijven, R5.3). */

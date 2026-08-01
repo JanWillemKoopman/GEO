@@ -63,6 +63,9 @@ import { splitSentences, stripMarkdown, firstSentences } from "@/lib/pipeline/se
 import { topicTerms, canonicalPath, scorePage, selectRelevantPages } from "@/lib/pipeline/page-relevance";
 import { verifyAtoms } from "@/lib/pipeline/atom-verify";
 import { verifyDossierFacts, answerTypeOf } from "@/lib/pipeline/dossier-verify";
+import { wilsonBounds, maySkip, elicitLabel, describeElicit } from "@/lib/pipeline/elicit-rate";
+import { planFactMerge, describeContradictions } from "@/lib/pipeline/fact-merge";
+import type { IncomingFact, StoredFact } from "@/lib/pipeline/fact-merge";
 import { detectClaimSentences, claimMatchesSentence, detectedCoverage } from "@/lib/pipeline/claim-extract";
 
 let passed = 0;
@@ -957,6 +960,35 @@ group("Antwoorden van de klant in de feitenkaart (implementatieplan.md R8.1)", (
 
   // Zonder antwoorden verandert er niets — geen nummerwissel om niets.
   ok("geen antwoorden laat de kaart ongemoeid", mergeAnsweredFacts(bevroren, []) === bevroren);
+
+  // ── Het bank-id overleeft het hernummeren (migratie 0036) ─────────────────
+  //
+  // Dit ging in de ketentest daadwerkelijk mis: het samenvoegen bouwde de items
+  // veld voor veld opnieuw op en liet `id` weg, waardoor geen enkele bewering
+  // nog een `factId` in `claims_json` kreeg. Het F-nummer is een positie en mág
+  // schuiven; de identiteit niet.
+  const metIds = numberFacts([
+    { id: "bank-site", text: "Wordt met een 9,4 beoordeeld op Zorgkaart", source: "site", allowed: true, citable: true },
+  ]);
+  const behouden = mergeAnsweredFacts(metIds, [
+    {
+      question: "Welke blessures behandelt Fysi-Unique",
+      fact: {
+        text: "Welke blessures behandelt Fysi-Unique: shin splints",
+        source: "klant, bevestigd 31-07-2026",
+        allowed: true,
+        citable: true,
+        kind: "klant",
+      },
+      id: "bank-antwoord",
+    },
+  ]);
+  ok("het id van het antwoord gaat mee", behouden[0]?.id === "bank-antwoord");
+  ok("het id van het bestaande feit blijft staan", behouden[1]?.id === "bank-site");
+  ok(
+    "terwijl het F-nummer wél opschuift",
+    metIds[0].ref === "F1" && behouden[1]?.ref === "F2",
+  );
 });
 
 // ════════════════════════════════════════════════════════════════════════════
@@ -1554,6 +1586,113 @@ group("antwoordtype afleiden", () => {
   ok("getal", answerTypeOf("22") === "getal");
   ok("url", answerTypeOf("https://fysi-unique.nl/tarieven") === "url");
   ok("korte tekst", answerTypeOf("binnen 1 werkdag") === "tekst_kort");
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+console.log("\nWinbaarheid als kans (R7 / migratie 0037)");
+
+group("het betrouwbaarheidsinterval", () => {
+  // Dit is waar het om draait: bij 0 successen geeft de normaalbenadering een
+  // interval van nul breed ("0%, absoluut zeker"), en dan haalt elke drempel het
+  // meteen. Wilson houdt hem eerlijk breed.
+  const na2 = wilsonBounds({ successes: 0, samples: 2 });
+  ok("0 van 2 zegt bijna niets", na2.high > 0.6, `bovengrens ${na2.high.toFixed(2)}`);
+
+  const na12 = wilsonBounds({ successes: 0, samples: 12 });
+  ok("0 van 12 zegt wél iets", na12.high < 0.3, `bovengrens ${na12.high.toFixed(2)}`);
+  ok("maar nooit absolute zekerheid", na12.high > 0);
+
+  const helft = wilsonBounds({ successes: 6, samples: 12 });
+  ok("6 van 12 ligt rond de helft", helft.low < 0.5 && helft.high > 0.5);
+});
+
+group("wanneer een vraag mag vervallen", () => {
+  // De negen vragen die op productie op 'nee' staan hebben allemaal precies twee
+  // metingen. Onder de oude regel verdwenen ze; onder de nieuwe komen ze terug.
+  ok("0 van 2 is niet genoeg om te schrappen", !maySkip({ successes: 0, samples: 2 }));
+  ok("0 van 8 nog steeds niet", !maySkip({ successes: 0, samples: 8 }));
+  ok("0 van 12 wel", maySkip({ successes: 0, samples: 12 }));
+  // Een vraag die één op de drie keer raak is, mag nooit verdwijnen — dat is
+  // precies de vraag die de contentronde liet zien.
+  ok("4 van 12 mag nooit vervallen", !maySkip({ successes: 4, samples: 12 }));
+  // Wél vervallen bij véél bewijs van bijna niets: 1 op 30 is 3%, en dertig
+  // metingen is genoeg om dat te durven zeggen.
+  ok("1 van 30 mag wel", maySkip({ successes: 1, samples: 30 }));
+});
+
+group("de afgeleide vlag", () => {
+  ok("te weinig metingen blijft onbekend", elicitLabel({ successes: 0, samples: 2 }) === "onbekend");
+  ok("ooit raak is ja", elicitLabel({ successes: 1, samples: 9 }) === "ja");
+  ok("lang niets is nee", elicitLabel({ successes: 0, samples: 12 }) === "nee");
+  // De oude regel zei hier 'nee' na twee nulmetingen. Dat is precies de fout.
+  ok("maar niet na twee nulmetingen", elicitLabel({ successes: 0, samples: 2 }) !== "nee");
+
+  ok(
+    "de omschrijving noemt het interval",
+    describeElicit({ successes: 1, samples: 3 }).includes("tussen"),
+  );
+  ok("zonder metingen geen getal", describeElicit({ successes: 0, samples: 0 }) === "nog niet gemeten");
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+console.log("\nFeiten samenvoegen met de feitenbank (migratie 0036)");
+
+group("nieuw, ongewijzigd en vervangen", () => {
+  const bestaand: StoredFact[] = [
+    {
+      id: "f-oud",
+      text: "Zit pechhulp in het maandbedrag: NEE",
+      source: "klant, bevestigd 29-07-2026",
+      kind: "klant",
+      citable: true,
+      allowed: false,
+      factKey: "bedrag inbegrepen maandbedrag pechhulp zit",
+    },
+  ];
+
+  const zelfde: IncomingFact = {
+    text: "Zit pechhulp in het maandbedrag: NEE",
+    source: "klant, bevestigd 29-07-2026",
+    kind: "klant",
+    citable: true,
+    allowed: false,
+    factKey: "bedrag inbegrepen maandbedrag pechhulp zit",
+  };
+  const ongewijzigd = planFactMerge(bestaand, [zelfde]);
+  ok("hetzelfde feit blijft staan", ongewijzigd.unchanged.length === 1);
+  ok("en levert geen tegenspraak op", ongewijzigd.contradictions.length === 0);
+
+  // Het scherpste geval: de klant draait zijn antwoord om. Vóór 0036 stonden
+  // beide antwoorden op de kaart en mocht het model kiezen.
+  const omgedraaid: IncomingFact = { ...zelfde, text: "Zit pechhulp in het maandbedrag: ja", allowed: true };
+  const conflict = planFactMerge(bestaand, [omgedraaid]);
+  ok("een omgedraaid antwoord vervangt het oude", conflict.supersede.length === 1);
+  ok("het oude feit wordt niet verwijderd", conflict.supersede[0]?.oldId === "f-oud");
+  ok("en het telt als tegenspraak", conflict.contradictions.length === 1);
+  ok("herkend als omkering", conflict.contradictions[0]?.omgekeerd === true);
+  ok("en als afkomstig van de klant", conflict.contradictions[0]?.vanKlant === true);
+
+  const nieuw: IncomingFact = { ...zelfde, text: "Kortste looptijd: 12 maanden", factKey: "kortste looptijd maanden" };
+  const toegevoegd = planFactMerge(bestaand, [nieuw]);
+  ok("een onbekend feit komt erbij", toegevoegd.insert.length === 1);
+  ok("zonder iets te vervangen", toegevoegd.supersede.length === 0);
+});
+
+group("wat de klant hierover leest", () => {
+  const regels = describeContradictions([
+    {
+      factKey: "k",
+      oud: "Zit pechhulp in het maandbedrag: NEE",
+      nieuw: "Zit pechhulp in het maandbedrag: ja",
+      vanKlant: true,
+      omgekeerd: true,
+    },
+    // Een sitewijziging is meestal gewoon een update; die hoeft de klant niet
+    // lastig te vallen.
+    { factKey: "s", oud: "22 winkels", nieuw: "23 winkels", vanKlant: false, omgekeerd: false },
+  ]);
+  ok("de omkering wordt gemeld", regels.length === 1);
+  ok("met beide teksten erin", regels[0].includes("NEE") && regels[0].includes("ja"));
 });
 
 // ════════════════════════════════════════════════════════════════════════════

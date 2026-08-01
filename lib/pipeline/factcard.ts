@@ -40,6 +40,19 @@
 export interface FactItem {
   /** "F1", "F2", … — het nummer waarmee de schrijver dit feit aanhaalt. */
   ref: string;
+  /**
+   * Het id in de feitenbank (`brand_facts`, migratie 0036).
+   *
+   * Het F-nummer is een POSITIE: "F3" betekent "het derde citeerbare feit in
+   * deze lijst", en voeg je er één toe dan schuift alles. Dit id is de
+   * IDENTITEIT: hetzelfde feit houdt hetzelfde id, ook als de nummering
+   * verschuift. Daarmee is achteraf aanwijsbaar naar wélk feit een bewering
+   * verwees, en niet alleen naar welke plek in een lijst.
+   *
+   * Optioneel: feiten die niet in de bank staan (achtergrondblokken, en kaarten
+   * van vóór 0036) hebben er geen.
+   */
+  id?: string | null;
   /** De bewering zelf, in gewone taal. */
   text: string;
   /** Waar het vandaan komt: "site /acties/lease", "klant, bevestigd 29-07". */
@@ -147,6 +160,15 @@ export interface AnsweredFactInput {
   /** De vraag zelf — de sleutel waarop een ouder antwoord wordt vervangen. */
   question: string;
   fact: RawFact;
+  /**
+   * Het id uit de feitenbank (migratie 0036), als het antwoord daar staat.
+   *
+   * Zonder dit zou elk antwoord dat ná de briefing binnenkwam alsnog zonder
+   * identiteit op de kaart belanden — en juist die antwoorden zijn de reden dat
+   * deze functie bestaat. Een bewering die naar zo'n feit verwijst zou dan geen
+   * `factId` in `claims_json` krijgen en achteraf niet na te trekken zijn.
+   */
+  id?: string | null;
 }
 
 /**
@@ -199,14 +221,20 @@ export function mergeAnsweredFacts(
   // gebruikt. Opnieuw nummeren omdat er items bij komen én weggaan — een
   // F-nummer dat naar twee verschillende feiten wijst maakt de hele
   // traceerbaarheid waardeloos.
+  //
+  // Het bank-id gaat MEE. Alleen `ref` wordt opnieuw bepaald, want dat is de
+  // positie; de identiteit van een feit verandert niet doordat er iets vóór komt
+  // te staan (migratie 0036).
   const samen: Omit<FactItem, "ref">[] = [
     ...answered.map((a) => ({
+      id: a.id ?? null,
       text: a.fact.text,
       source: a.fact.source,
       allowed: a.fact.allowed,
       citable: a.fact.citable,
     })),
     ...behouden.map((f) => ({
+      id: f.id ?? null,
       text: f.text,
       source: f.source,
       allowed: f.allowed,
@@ -415,6 +443,15 @@ export function normalizeForQuote(text: string): string {
 export interface WrittenClaim {
   claim: string;
   factRef: string;
+  /**
+   * Het feit-id achter `factRef`, ingevuld door de CODE bij het opslaan (0036).
+   *
+   * Het model levert alleen het F-nummer — dat is de handle die het kent. De
+   * code zoekt daar het feit bij op en legt het id vast, zodat een bewering ook
+   * over een jaar nog naar hetzelfde feit wijst als de kaart intussen is
+   * gegroeid.
+   */
+  factId?: string | null;
   /** Het letterlijke fragment uit dat feit dat de bewering dekt (citaatplicht). */
   quote?: string | null;
 }

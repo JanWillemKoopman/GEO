@@ -63,7 +63,9 @@ zijn sindsdien toegevoegd of van betekenis veranderd; alleen wat gewijzigd is, s
 ### `prompts`
 | Kolom | Toegevoegd door | Betekenis |
 |---|---|---|
-| `brand_eliciting` | R2.1 | `'ja'` / `'nee'` / `'onbekend'`. Afgeleid tijdens aggregatie: `'nee'` zodra een vraag in twee opeenvolgende periodes 0 aanbieders opleverde (welke aanbieder dan ook, inclusief het eigen merk); bij minder dan twee metingen `'onbekend'`. |
+| `brand_eliciting` | R2.1, herzien in R7.1 | `'ja'` / `'nee'` / `'onbekend'`. Sinds migratie `0037` géén los oordeel meer maar een **afgeleide** van de twee tellers hieronder: `'onbekend'` onder de 3 metingen, daarboven `'ja'`/`'nee'` naar het gemeten percentage. |
+| `elicit_successes` | R7.1 (`0037`) | Aantal beoordeelde metingen van deze vraag waarin de AI minstens één aanbieder noemde (`brands_in_answer > 0`). |
+| `elicit_samples` | R7.1 (`0037`) | Aantal beoordeelde metingen in totaal. Samen met `elicit_successes` de **kans** dat deze vraag überhaupt een merk oplevert. `queue.ts` slaat een vraag pas over bij ≥ 8 metingen én een bovengrens van het 95%-Wilson-interval onder 0,25 — niet meer op de vlag. Backfill uit `tracking_runs` bij het toepassen van `0037`. |
 
 ### `tracking_runs`
 | Kolom | Toegevoegd door | Betekenis |
@@ -124,12 +126,13 @@ Sterk uitgebreid sinds R5.1–R5.3. Volledige kolomlijst van de contentspecifiek
 | `status` | R5.1 (nieuwe waarde) | Krijgt de waarde `'briefing'` naast de bestaande `draft`/`ready`/`published` (zie §5.3 hieronder voor de volledige machine). |
 | `brief_instruction` | R5.1 | De oorspronkelijke `why`/opdracht uit de aanbeveling, los van de titel (titels zijn soms een instructie i.p.v. een kop, bv. "Maak een overzichtspagina met…"). |
 | `briefing_snapshot_json` | R5.1 | Bevat `{facts, recommendation, generatedAt}`: de feitenkaart en de volledige aanbeveling (incl. doelvragen) zoals die waren op het moment dat de claim-audit draaide. Bevroren vóórdat de klant de briefingvragen beantwoordt (zie §6.12 voor de precieze implicatie hiervan). |
-| `claims_json` | R5.3 | Array van `{claim, factRef, quote}` — per concrete bewering over de klant in de geschreven tekst het F-nummer dat hem dekt, plus het letterlijke citaat. Alleen beweringen die het model zelf als zodanig heeft getagd staan hierin. |
+| `claims_json` | R5.3, uitgebreid in S8 | Array van `{claim, factRef, quote, factId}` — per concrete bewering over de klant in de geschreven tekst het F-nummer dat hem dekt, plus het letterlijke citaat. Alleen beweringen die het model zelf als zodanig heeft getagd staan hierin. |
 | `source_coverage` | R5.3 | Percentage van `claims_json` waarvan `factRef`/`quote` daadwerkelijk klopt met een citeerbaar feit op de bevroren kaart (`sourceCoverage()`, `lib/pipeline/factcard.ts`). `null` als er geen enkele getagde claim is. |
 | `quality_score` | vóór R5, hergebruikt | 0–100, uit de redactieronde (`CRITIQUE_SYSTEM`). |
 | `geo_score` | vóór R5, hergebruikt | Percentage van 5 zelfbeoordeelde `geo_json`-booleans dat waar is. |
 | `geo_json` | vóór R5, hergebruikt | `{usesConcreteFacts, answersFollowUpQuestions, namesTheBusinessExplicitly, answersTargetQuestionUpFront, hasStandaloneCitableSentences}` — vijf booleans, ingevuld door dezelfde AI-aanroep die ook `review_notes`/`issues` produceert. |
 | `needs_review` | vóór R5, hergebruikt | `true` zodra `!followsRules`, `qualityScore < REVIEW_THRESHOLD`, `geo_score < GEO_THRESHOLD`, er `issues` zijn, of er een niet-herleidbare claim overblijft na de herschrijfronde. |
+| `reviewed_at` / `reviewed_by` | S6 (`0034`) | Wanneer een mens de pagina heeft vrijgegeven, en wie. Zonder deze twee betekende `needs_review = false` twee dingen tegelijk — "de automatische poort vond niets" en "iemand heeft gekeken" — en waren ze niet uit elkaar te houden. Alleen gezet door `POST /api/analyses/[id]/content/[pieceId]/approve`. |
 | `version` / `is_current` / `supersedes_id` | vóór R5, hergebruikt | Versiebeheer per (analyse, titel). Een verse briefing-rij (versie 1, status `briefing`) die voor het eerst geschreven wordt, krijgt in de huidige code een NIEUWE rij (versie 2) met de oorspronkelijke rij op `is_current = false` — zie §6.12 voor de precieze mechaniek. |
 
 ### `fact_requests`
@@ -151,6 +154,44 @@ uitgebreid tot het datamodel van de contentbriefing:
 | `raw_json` | De volledige ruwe claim-audit-output waar deze vraag uit voortkwam. |
 | `status` | `open` / `beantwoord` / `overgeslagen`. Precies deze drie — er is geen vierde "verlopen"-status actief in de schrijfroute, ondanks dat `loadKnownClaimKeys()` er wel naar verwijst in commentaar. |
 | `answer` / `answered_at` | Alleen gezet bij `status = 'beantwoord'`; bij `overgeslagen` blijft `answer` `null`. |
+
+### `brand_documents` (nieuw, migratie `0035`)
+Het materiaal dat de klant zelf aanlevert (S5): een tarievenpagina, een brochure, een lijst
+veelgestelde vragen. De eerste versie van S5 gooide die brontekst weg na de extractie; daardoor kon
+hij niet opnieuw uitgelezen worden, kon herkomst niet getoond worden, en leverde dezelfde brochure
+twee keer plakken twee keer dezelfde feiten op.
+
+| Kolom | Betekenis |
+|---|---|
+| `profile_id` | Het merk. Documenten zijn altijd merkbreed, nooit per analyse. |
+| `label` | Wat de klant het zelf noemde; mag leeg zijn. |
+| `body` | De aangeleverde tekst, ongewijzigd. |
+| `content_hash` | sha256 over `body`. Unieke index op (`profile_id`, `content_hash`): dezelfde tekst een tweede keer plakken geeft een expliciete melding in plaats van een tweede set feiten. |
+| `chars` | Lengte, voor de terugkoppeling op het scherm. |
+| `facts_extracted` / `facts_rejected` | Hoeveel feiten dit document opleverde en hoeveel er door het vangnet vielen omdat ze niet letterlijk in de tekst stonden. Blijft `facts_rejected` structureel hoog, dan is dat het signaal dat de extractie-instructie niet streng genoeg is — hetzelfde patroon als `reports.stripped_claims_json`. |
+
+### `brand_facts` (nieuw, migratie `0036`)
+De feitenbank (S8): een feit met een **identiteit**, over analyses en versies heen. Een F-nummer op
+de feitenkaart is een positie in één lijst; dit is wat er onder ligt. De kaart blijft bestaan als
+bewijsstuk van wat het model zág — dat is bewust "en", geen "of".
+
+| Kolom | Betekenis |
+|---|---|
+| `profile_id` | Het merk. |
+| `analysis_id` | `null` = **merkbreed** (klantantwoorden, proof points: gelden voor élke analyse). Gevuld = alleen deze analyse (geatomiseerde sitezinnen; dezelfde zin kan bij een ander onderwerp irrelevant zijn). |
+| `text` / `source` / `source_url` | De uitspraak, waar hij vandaan komt, en de URL als die in de bron zat. |
+| `kind` | `klant` / `site` / `onderzoek` — dezelfde driedeling als `SOURCE_ORDER` op de kaart. |
+| `citable` | Alleen atomaire, controleerbare uitspraken. Achtergrondblokken komen niet in de bank: dat is context, geen feit. |
+| `allowed` | `false` = een **verbod**. De klant heeft expliciet gezegd dat dit niet zo is. |
+| `fact_key` | Ontdubbelsleutel (`claimKey()`), dezelfde als op `fact_requests`. Twee feiten met dezelfde sleutel gaan over hetzelfde onderwerp; verschilt hun tekst, dan is dat een **tegenspraak** en geen dubbeling. |
+| `verify_after` | Wanneer dit feit opnieuw bevestigd moet worden (bedragen, looptijden). |
+| `origin_fact_request_id` / `origin_document_id` | Uit welke briefingvraag of welk aangeleverd document dit feit komt. |
+| `superseded_by` | Wijst naar het opvolgende feit. Een bijgesteld feit wordt **niet overschreven**: anders is een al geschreven pagina die ernaar verwijst niet meer na te trekken. |
+
+Unieke index `brand_facts_actueel_idx` op (`profile_id`, `coalesce(analysis_id, …)`, `fact_key`)
+`where superseded_by is null`: per scope mag er maar één actuele versie van een feit bestaan. Bij het
+vervangen wijst het oude feit even naar zichzélf om die index vrij te maken, en direct daarna naar de
+opvolger — hetzelfde patroon als bij de contentversies (migratie `0023`).
 
 ---
 

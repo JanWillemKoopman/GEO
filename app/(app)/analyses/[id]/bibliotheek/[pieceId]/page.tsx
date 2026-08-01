@@ -214,6 +214,7 @@ export default async function ContentDetailPage({
         analysisId={id}
         pieceId={pieceId}
         needsReview={piece.needs_review}
+        reviewedAt={piece.reviewed_at}
         facts={[...releaseFacts.filter((f) => f.allowed), ...verbodenFeiten]}
         claims={releaseClaims}
         unansweredRequired={unansweredRequired}

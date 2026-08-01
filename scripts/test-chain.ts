@@ -335,6 +335,39 @@ async function main(): Promise<void> {
       "de bevroren kaart plantte zichzelf voort over versies",
     );
 
+    // ── De feitenbank (migratie 0036) ───────────────────────────────────────
+    const bank = await db.client.query(
+      `select id, text, analysis_id, kind, allowed from public.brand_facts
+        where profile_id = $1 and superseded_by is null order by created_at`,
+      [profileId],
+    );
+    ok(
+      "0036: de feiten staan in de feitenbank",
+      bank.rows.length >= 3,
+      `${bank.rows.length} feiten`,
+    );
+    ok(
+      "0036: klantantwoorden zijn merkbreed",
+      bank.rows.some((r) => r.kind === "klant" && r.analysis_id === null),
+    );
+    ok(
+      "0036: de geatomiseerde sitezin hangt aan deze analyse",
+      bank.rows.some((r) => r.analysis_id === analysisId && String(r.text).includes("runnersknie")),
+    );
+
+    // Elke bewering wijst naar een FEIT-ID en niet alleen naar een plek in een
+    // lijst. Dat is het hele punt van 0036: een F-nummer is een positie.
+    const metId = await db.client.query(
+      `select claims_json from public.content_pieces where analysis_id = $1 and is_current = true`,
+      [analysisId],
+    );
+    const claims = (metId.rows[0]?.claims_json ?? []) as { factRef: string; factId: string | null }[];
+    ok(
+      "0036: elke onderbouwde bewering draagt een feit-id",
+      claims.length > 0 && claims.every((c) => typeof c.factId === "string" && c.factId.length > 0),
+      JSON.stringify(claims.map((c) => ({ ref: c.factRef, id: c.factId ? "ja" : "nee" }))),
+    );
+
     ok(
       "de unieke index laat maar één huidige versie toe",
       (

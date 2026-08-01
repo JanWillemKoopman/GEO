@@ -46,6 +46,7 @@ export function ReleasePanel({
   analysisId,
   pieceId,
   needsReview,
+  reviewedAt,
   facts,
   claims,
   unansweredRequired,
@@ -53,6 +54,8 @@ export function ReleasePanel({
   analysisId: string;
   pieceId: string;
   needsReview: boolean;
+  /** Wanneer een mens hem heeft vrijgegeven. `null` = nog nooit bekeken (0034). */
+  reviewedAt: string | null;
   facts: ReleaseFact[];
   claims: ReleaseClaim[];
   unansweredRequired: string[];
@@ -174,17 +177,24 @@ export function ReleasePanel({
         </p>
       )}
 
-      {needsReview ? (
+      {/* Drie standen, en het verschil tussen de laatste twee is precies waarom
+          migratie 0034 er is: "de controles vonden niets" is niet hetzelfde als
+          "iemand heeft gekeken". */}
+      {reviewedAt ? (
+        <span className="text-sm text-muted">
+          Vrijgegeven op {new Date(reviewedAt).toLocaleDateString("nl-NL")}.
+        </span>
+      ) : (
         <div className="flex flex-wrap items-center gap-3">
           <button type="button" className="btn-primary btn-sm" onClick={approve} disabled={busy}>
             {busy ? "Bezig…" : "Ik heb dit gecontroleerd"}
           </button>
           <span className="text-sm text-muted">
-            Je kunt de tekst ook zonder dit gewoon kopiëren — dit is een aantekening voor jezelf.
+            {needsReview
+              ? "Je kunt de tekst ook zonder dit gewoon kopiëren — dit is een aantekening voor jezelf."
+              : "De controles vonden niets, maar er heeft nog niemand naar gekeken."}
           </span>
         </div>
-      ) : (
-        <span className="text-sm text-muted">Je hebt deze pagina gecontroleerd en vrijgegeven.</span>
       )}
     </div>
   );

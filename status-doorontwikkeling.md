@@ -1,7 +1,7 @@
 # Status doorontwikkeling — overdracht tussen sessies
 
-**Laatst bijgewerkt:** 31 juli 2026 (na R8 en het bouwen van S1 t/m S7) ·
-**Branch:** `main` (alles is gemerged) · **Tests:** 355 eenheidstests + 20 ketentests groen
+**Laatst bijgewerkt:** 1 augustus 2026 (na R8, S1 t/m S8 en R7.1) ·
+**Branch:** `main` (alles is gemerged) · **Tests:** 384 eenheidstests + 24 ketentests groen
 
 Dit document is de brug tussen werksessies. Het beschrijft **wat er af is**, **wat de afspraken
 zijn die tijdens het bouwen zijn ontstaan**, en **wat er nog open staat en in welke volgorde**.
@@ -21,7 +21,7 @@ Deze zijn op 30 en 31 juli in deze volgorde ontstaan. Samen vormen ze de ketting
 | 3 | `implementatieplan.md` | **het werkdocument** | 27 stappen R0.1 t/m R6.3, met per stap bestanden, migraties en verificatiecriteria. Bevat de voortgangstabel — dát is de bron van waarheid voor wat af is. |
 | 4 | `status-doorontwikkeling.md` | dit document | De brug tussen sessies: wat er af is, welke werkafspraken zijn ontstaan, wat de verificaties op productie hebben uitgewezen, en wat er in welke volgorde nog moet. |
 | 5 | `kwaliteitsanalyse-contentronde.md` | de contentronde van 31 juli | 10 pagina's laten schrijven (5 testcases × 2) door de volledige keten, elke pagina beoordeeld tegen de klantdoelen, en de keten doorgelicht op de vraag welke schakel de contentkwaliteit begrenst. Bevat de zwaarste vondst van het hele traject: klantantwoorden uit de briefing bereiken de schrijver niet (§1.3 van dat document). |
-| 6 | `strategie-contentkwaliteit-vervolgstappen.md` | de laag bóven R8 | Zeven structurele ingrepen (S1–S7): niet wat er met de feitenkaart gebeurt, maar wat erop staat; niet een strengere controle, maar een noemer die de code bepaalt. Bevat het tweede plafond dat de contentronde niet zag — de feitenkaart is merkbreed en onderwerp-blind — met de meetcijfers eronder. Vervangt de eerste versie van dat document volledig. |
+| 6 | `strategie-contentkwaliteit-vervolgstappen.md` | de laag bóven R8 | Structurele ingrepen S1–S7 (plus S8 en R7.1, die er na het openen van de schrijfrechten bij kwamen): niet wat er met de feitenkaart gebeurt, maar wat erop staat; niet een strengere controle, maar een noemer die de code bepaalt. Bevat het tweede plafond dat de contentronde niet zag — de feitenkaart is merkbreed en onderwerp-blind — met de meetcijfers eronder. Vervangt de eerste versie van dat document volledig. |
 
 Ouder, maar nog steeds leidend voor de code:
 
@@ -53,7 +53,7 @@ Ouder, maar nog steeds leidend voor de code:
 |---|---|---|
 | **R8.9** — Productfeed voor retailers (onderzoeksvraag, geen bouwstap) | zie S1 hieronder | n.t.b. |
 | **R0** — Fundament | R0.1 t/m R0.6 | 8 d |
-| **R7** — Stabiele meetbasis (nieuw, uit §3b) | nog uit te werken | ~4 d |
+| **R7** — Stabiele meetbasis (nieuw, uit §3b) | R7.1 ✅ gebouwd (migratie `0037`); de rest nog uit te werken | ~2 d resterend |
 | **R6.2 / R6.3** | Inventariskwaliteitspoort, brontype als signaal | 3,5 d |
 
 De actuele vinkjes staan in de voortgangstabel van `implementatieplan.md` §2. Dát is de bron van
@@ -61,8 +61,8 @@ waarheid; deze tabel is een samenvatting.
 
 ### Migraties
 
-Alle migraties t/m `0032` zijn **toegepast op productie**. `0033` is gereserveerd
-(zie de migratietabel in `implementatieplan.md` §1).
+Alle migraties t/m `0032` en `0034` t/m `0037` zijn **toegepast op productie**. `0033` is
+gereserveerd voor R6.2 en heeft nooit gedraaid (zie de migratietabel in `implementatieplan.md` §1).
 
 | Nr | Ronde | Inhoud |
 |---|---|---|
@@ -72,6 +72,16 @@ Alle migraties t/m `0032` zijn **toegepast op productie**. `0033` is gereserveer
 | `0030` | R4 | `competitor_breakdown.attributes_json`/`why_summary` |
 | `0031` | R6.1 | `tracking_runs.repeat_index` + index `tracking_runs_repeat_idx` |
 | `0032` | R8.5 | `profiles.business_model` (bedrijfsmodel, nullable + check-constraint) |
+| `0034` | S6 | `content_pieces.reviewed_at`/`reviewed_by` + partiële index `content_pieces_unreviewed_idx` |
+| `0035` | S5 | tabel `brand_documents` (brontekst, sha256-hash, `facts_extracted`/`facts_rejected`) |
+| `0036` | S8 | tabel `brand_facts` (identiteit, merkbreed/analysebreed, `superseded_by`) + unieke index op de actuele versie |
+| `0037` | R7.1 | `prompts.elicit_successes`/`elicit_samples` + backfill uit `tracking_runs` |
+
+**Wat de backfill van `0037` opleverde** (gemeten op productie, 1 augustus): 231 prompts, waarvan
+201 met minstens één beoordeelde meting en 21 met drie of meer. Gemiddeld elicit-percentage 46%.
+Alle 9 prompts die op `brand_eliciting = 'nee'` stonden, waren dat op **precies 2 metingen** — bij
+die steekproefgrootte loopt de bovengrens van het betrouwbaarheidsinterval tot ~0,66. Dat is de
+meting die R7.1 van een vlag een kans maakt.
 
 ---
 
@@ -389,12 +399,13 @@ Twee nieuwe codebevindingen uit die doorlichting, die in R8 thuishoren:
   roept `buildFactBase()` nooit meer aan. De verouderde kaart is niet één keer verkeerd maar
   permanent. R8.1 zoals beschreven dempt dit, S2 heft het op.
 
-### ✅ S1 t/m S7 gebouwd, bovenop R8
+### ✅ S1 t/m S8 en R7.1 gebouwd, bovenop R8
 
-**Opgeleverd op 31 juli.** Geen migratie — alle zeven passen binnen de bestaande kolommen. Dat is
-een bewuste keuze en geen toeval: elke schemawijziging moet op productie toegepast worden, en waar
-een nieuwe kolom voor de hand lag is eerst gekeken of een bestaande hetzelfde kan dragen. Dat kon
-twee van de drie keer; waar het niet kon staat de beperking erbij.
+**Opgeleverd op 31 juli en 1 augustus.** S1 t/m S7 zijn eerst gebouwd zónder migratie, omdat er
+destijds alleen leestoegang tot productie was. Dat leverde bruikbare stappen op met drie erkende
+beperkingen. Nadat de schrijfrechten er wél waren zijn die alsnog opgeheven met `0034` (vrijgave),
+`0035` (merkdocumenten) en `0036` (feitenbank), plus `0037` voor R7.1. Alle vier additief en
+idempotent — `add column if not exists` / `create table if not exists`, geen `drop`.
 
 **S1 — de feitenkaart wordt onderwerpgericht en atomair.** Het plafond onder alles. Over vijf
 analyses stonden er 24 citeerbare feiten op de kaart en géén ervan ging over het onderwerp; voor
@@ -430,8 +441,11 @@ waarvan het antwoord niet letterlijk in de aangeleverde tekst staat: "€ 45,00"
 euro" is een andere belofte dan er stond. De paren landen als beantwoorde `fact_requests` met
 `scope: 'merk'`, dus `buildFactBase()` pikt ze zonder wijziging op en ze gelden meteen voor élke
 analyse. `verify_after` wordt hierbij voor het eerst gevuld — die kolom bestond sinds `0024` en
-deed niets. *Beperking: het aangeleverde document zelf wordt niet bewaard (dat zou een kolom
-vragen); per feit blijft wel de letterlijke bronzin staan in `raw_json`.*
+deed niets. *Sinds migratie `0035` blijft het aangeleverde document zelf bewaard in
+`brand_documents`, met een sha256-hash: dezelfde brochure twee keer plakken levert nu geen tweede
+set feiten meer op maar een expliciete melding dat we die tekst al kennen. `facts_extracted` en
+`facts_rejected` per document maken zichtbaar of de extractie-instructie streng genoeg is —
+hetzelfde patroon als `stripped_claims_json` onder het rapport.*
 
 **S6 — de publicatiepoort.** `status: 'ready'` betekende "de pijplijn is klaar" en de bibliotheek
 toonde dat als "klaar om te publiceren". Nu betekent `needs_review = true` "nog niet vrijgegeven",
@@ -439,16 +453,42 @@ en de klant zet hem zelf op `false` nadat hij het vrijgavepaneel gezien heeft: d
 waarop déze pagina gebouwd is, elke zin die iets over het bedrijf beweert mét of zonder bron, en
 elke verplichte vraag die open bleef. Geen harde blokkade — de tekst blijft gewoon te kopiëren.
 *Bewust géén nieuwe statuswaarde:* `content_status` is een Postgres-enum, dus `te_beoordelen` zou
-een migratie vragen plus een aanpassing op elke plek die op status filtert. `needs_review` draagt
-hetzelfde onderscheid.
+een aanpassing vragen op elke plek die op status filtert. `needs_review` draagt hetzelfde
+onderscheid. *Sinds migratie `0034`* leggen `reviewed_at` en `reviewed_by` vast dát er iemand keek
+en wie. Zonder die twee betekende `needs_review = false` twee dingen tegelijk — "de poort vond
+niets" en "een mens heeft gekeken" — en waren ze niet uit elkaar te houden. Het paneel toont nu drie
+standen, en de derde is precies dat verschil: *"De controles vonden niets, maar er heeft nog niemand
+naar gekeken."*
 
 **S7 — de ketentest.** Zeven van de zeven fouten van dit traject zaten in de samenhang tussen
 taken, en `test-unit.ts` kon ze daarom geen van alle vangen. `npm run test:chain` draait de échte
-jobhandlers tegen een échte Postgres: dezelfde migraties `0001`…`0032`, dus dezelfde constraints,
+jobhandlers tegen een échte Postgres: dezelfde migraties `0001`…`0037`, dus dezelfde constraints,
 enums en unieke indexen. Geen Docker en geen Supabase CLI nodig — `initdb` + `pg_ctl` volstaan.
 Nagebootst is alleen de Supabase-wire-vertaling (`chain/supabase-shim.ts`, die gooit bij het eerste
 onbekende geval in plaats van iets anders terug te geven) en OpenAI (vaste antwoorden per schema).
-De twintig asserties zijn de zeven bugs plus de nieuwe garanties van S1–S6.
+De vierentwintig asserties zijn de zeven bugs plus de nieuwe garanties van S1–S6 en S8.
+
+**S8 — de feitenbank (migratie `0036`).** Een F-nummer is een POSITIE, geen identiteit: "F3"
+betekent "het derde citeerbare feit in déze lijst". Dat is aantoonbaar en niet theoretisch — in de
+ketentest verwees de stub naar F1 en F2, en zodra er vier klantantwoorden bijkwamen werden dat F5 en
+F6, want klantantwoorden sorteren vooraan. Daardoor stond hetzelfde feit in élke snapshot van élke
+versie opnieuw (bij Fysi-Unique vier therapeutenbio's), was van `claims_json` niet te zeggen naar
+wélk feit een bewering verwees, belandden twee tegenstrijdige antwoorden allebei op de kaart, en was
+"wat weten we over deze klant?" geen vraag die je kon stellen. Nu heeft elk feit een rij in
+`brand_facts` met een `fact_key`, een scope (klantantwoorden merkbreed, geatomiseerde sitezinnen bij
+deze analyse) en `superseded_by` in plaats van overschrijven — zodat een al geschreven pagina
+naspeurbaar blijft. Tegenspraken komen boven in plaats van dat het model kiest. De kaart blijft
+bestaan als bewijsstuk: dat is bewust "en", geen "of". Fouttolerant: gaat het schrijven stuk, dan
+werkt de kaart precies zoals vóór `0036`.
+
+**R7.1 — winbaarheid is een kans, geen vlag (migratie `0037`).** `brand_eliciting` was een tekstvlag
+en `queue.ts` sloeg elke vraag met `'nee'` over bij een vervolgperiode, terwijl de onderliggende
+meting een verhouding is. Op productie gemeten: alle **9** prompts die op `'nee'` stonden, stonden
+daar op **precies 2 metingen** — bij n=2 en nul successen loopt de bovengrens van het Wilson-interval
+tot ~0,66. Nu tellen `elicit_successes` en `elicit_samples` het bewijs mee, mag een vraag pas
+vervallen bij minstens 8 metingen én een bovengrens onder 0,25, en verschijnt de vlag zelf pas vanaf
+3 metingen. Met de huidige stand wordt er dus geen enkele overgeslagen — precies de bedoeling.
+Onbekend is beter dan verkeerd.
 
 **Aangetoond dat de test kán falen.** Met de reparatie van bug 6 teruggedraaid wordt hij rood op
 precies die assertie, en groen zodra hij er weer in zit. Een test die niet aantoonbaar kan falen
@@ -458,17 +498,19 @@ foutcode terug, waardoor `enqueue()` gooide waar productie netjes doorloopt.
 ### Daarna, in deze volgorde
 
 1. **De contentronde opnieuw draaien over dezelfde vijf testcases** (~$2, een halve dag). R8 en
-   S1–S7 zijn met tests op de echte gevallen getoetst en geen van beide op productie; gebouwd is
+   S1–S8 zijn met tests op de echte gevallen getoetst en geen van beide op productie; gebouwd is
    niet hetzelfde als geverifieerd (§2.6). Deze ronde beantwoordt in één keer of de feitenkaart
    voor Coolblue nu de wasmachinepagina's haalt, of de Fysi-Unique-tegenspraak weg is, en of de
    poort de vier pagina's markeert die hun doelvraag ontweken.
-2. **R7 — de meetbasis stabiliseren** (~4 d). Inmiddels het zwaarstwegende openstaande punt: bij
-   5 winbare vragen is de score formeel nog een getal maar zegt hij niets meer (§3b).
+2. **De rest van R7 — de meetbasis stabiliseren** (~2 d resterend). R7.1 is gebouwd; wat blijft
+   staan is het punt uit §3b: bij 5 winbare vragen is de score formeel nog een getal maar zegt hij
+   niets meer. De tellers uit `0037` zijn daar de invoer voor.
 3. **R8.9 opnieuw beoordelen.** Na S1 is de vraag alleen nog wat we doen met een klant als Bol,
    waarvan de crawl één pagina zonder bruikbare tekst opleverde. Dat is een gerichte vraag over één
    klanttype, geen onderzoekstraject van 3-5 dagen.
-4. **De ketentest uitbreiden naar de meetkant** zodra R7 gebouwd wordt. De opzet staat er; een
-   scenario toevoegen is nu goedkoop.
+4. **De ketentest uitbreiden naar de meetkant** zodra de rest van R7 gebouwd wordt. De opzet staat
+   er; een scenario toevoegen is nu goedkoop. `0037` heeft er al twee kolommen bij gekregen die zich
+   deterministisch laten toetsen.
 
 ### Daarna: R6.2 en R6.3 (3,5 d)
 
@@ -508,7 +550,8 @@ steeds als concurrent meetellen.**
 
 ```bash
 npx tsc --noEmit      # moet schoon zijn
-npm run test:unit     # 250 groen
+npm run test:unit     # 384 groen
+npm run test:chain    # 24 groen, zonder netwerk en zonder API-sleutel
 npm run build         # moet slagen
 ```
 

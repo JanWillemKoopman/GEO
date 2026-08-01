@@ -24,6 +24,7 @@ import { normalizePosition, weightedAveragePosition } from "@/lib/pipeline/posit
 import { shareByRun, sumShare, roundQuestions } from "@/lib/pipeline/question-share";
 import { classifyPendingEntities } from "@/lib/pipeline/classify-entities";
 import { binomialStderr, weightedScoreStderr } from "@/lib/stats/uncertainty";
+import { elicitLabel } from "@/lib/pipeline/elicit-rate";
 // Gedeeld met scripts/eval-mention.ts, zodat de test exact de productie-prompt
 // beoordeelt en niet een kopie die kan gaan afwijken (optimalisatie.md 0.7).
 import { MENTION_SYSTEM, buildMentionUser } from "@/lib/openai/mention-prompt";
@@ -420,13 +421,27 @@ async function persistBrandCounts(admin: Admin, counts: Map<string, number>): Pr
 }
 
 /**
- * Bepaalt per vraag of die structureel merkloze antwoorden oplevert
- * (implementatieplan.md R2.1/R2.4).
+ * Bepaalt per vraag hoe vaak hij een aanbieder oplevert
+ * (implementatieplan.md R2.1/R2.4, herzien in R7 / migratie 0037).
  *
- * 'nee' pas na TWEE metingen zonder aanbieder. Eén merkloos antwoord kan toeval
- * zijn — een AI-assistent die die ene keer een algemeen stappenplan gaf. Twee
- * keer achtereen is een patroon, en pas dan is het verantwoord de vraag bij
- * vervolgperiodes over te slaan.
+ * ── WAAROM DIT GEEN VLAG MEER IS ────────────────────────────────────────────
+ *
+ * De oude regel was: 'nee' na TWEE metingen zonder aanbieder. De redenering
+ * ("één keer kan toeval zijn, twee keer is een patroon") klonk goed en bleek
+ * onjuist. De verificatieronde van 31 juli mat dezelfde acht vragen drie keer in
+ * dezelfde week; bij vier ervan wisselde de winbaarheid TUSSEN die metingen, en
+ * geen enkele was alle drie de keren winbaar.
+ *
+ * Bij een vraag die één op de drie keer iets oplevert is de kans om twee keer
+ * achtereen nul te trekken ongeveer 44%. Die vraag verdween dan permanent. Zo
+ * kromp de meetbasis van 30 naar 21 vragen en de winbare basis van 17 naar 5 —
+ * waarmee de 95%-band op de score naar ±42 punten liep en het cijfer ophield
+ * iets te betekenen.
+ *
+ * Nu tellen we de STEEKPROEF: hoe vaak beoordeeld, hoe vaak raak. De vlag blijft
+ * bestaan en blijft gevuld (additief, §2.3), maar wordt afgeleid van die telling
+ * via `elicitLabel()` — en de beslissing om over te slaan gebruikt het
+ * betrouwbaarheidsinterval in plaats van twee ongelukkige trekkingen.
  */
 async function updateBrandEliciting(admin: Admin, analysisId: string): Promise<void> {
   const { data } = await admin
@@ -444,18 +459,24 @@ async function updateBrandEliciting(admin: Admin, analysisId: string): Promise<v
     perPrompt.set(row.prompt_id, list);
   }
 
-  const byVerdict = new Map<string, string[]>();
+  // Per vraag de tellers wegschrijven, plus de afgeleide vlag. Eén update per
+  // vraag: de tellers verschillen per rij, dus groeperen zoals bij de oude vlag
+  // kan niet meer.
   for (const [promptId, counts] of perPrompt) {
-    const verdict =
-      counts.some((n) => n > 0) ? "ja" : counts.length >= 2 ? "nee" : "onbekend";
-    const list = byVerdict.get(verdict) ?? [];
-    list.push(promptId);
-    byVerdict.set(verdict, list);
-  }
+    const bewijs = {
+      samples: counts.length,
+      successes: counts.filter((n) => n > 0).length,
+    };
 
-  for (const [verdict, promptIds] of byVerdict) {
-    const { error } = await admin.from("prompts").update({ brand_eliciting: verdict }).in("id", promptIds);
-    if (error) console.warn(`Meetbaarheid opslaan mislukt voor ${promptIds.length} vragen: ${error.message}`);
+    const { error } = await admin
+      .from("prompts")
+      .update({
+        elicit_samples: bewijs.samples,
+        elicit_successes: bewijs.successes,
+        brand_eliciting: elicitLabel(bewijs),
+      })
+      .eq("id", promptId);
+    if (error) console.warn(`Meetbaarheid opslaan mislukt voor vraag ${promptId}: ${error.message}`);
   }
 }
 

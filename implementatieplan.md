@@ -61,6 +61,14 @@ de volgorde van dit plan — een migratienummer moet de toepassingsvolgorde volg
 | `0031` | R6.1 | Gelaagd hermeten (`tracking_runs.repeat_index`) | ✅ toegepast |
 | `0032` | R8.5 | `profiles.business_model` (bedrijfsmodel) | ✅ toegepast |
 | `0033` | R6.2 | Inventariskwaliteit (`profiles.inventory_quality_json`) | gereserveerd |
+| `0034` | S6 | Vrijgave (`content_pieces.reviewed_at`/`reviewed_by` + index op ongelezen) | ✅ toegepast |
+| `0035` | S5 | Merkdocumenten (`brand_documents`: brontekst, hash, extractieteller) | ✅ toegepast |
+| `0036` | S8 | Feitenbank (`brand_facts`: identiteit, scope, `superseded_by`) | ✅ toegepast |
+| `0037` | R7.1 | Winbaarheid als kans (`prompts.elicit_successes`/`elicit_samples` + backfill) | ✅ toegepast |
+
+`0034` t/m `0037` zijn opgeleverd ná `0032`; `0033` blijft gereserveerd voor R6.2 en wordt
+overgeslagen tot die ronde er is — een migratienummer volgt de toepassingsvolgorde, en een
+gereserveerd nummer dat nooit gedraaid heeft blokkeert niets.
 
 R5 heeft geen nieuwe migratie nodig — die draait op het schema uit `0024`, dat al is toegepast.
 
@@ -131,9 +139,11 @@ R5 heeft geen nieuwe migratie nodig — die draait op het schema uit `0024`, dat
 | S2 | De claim-audit als architect: het paginaplan overleeft de briefing | 3 d | ✅ |
 | S3 | Dekkingsmeting met een noemer die de code bepaalt | 3 d | ✅ |
 | S4 | Positioneringsslot met een gereserveerde plek | 2 d | ✅ |
-| S5 | Merkdossier bij onboarding | 4 d | ✅ |
-| S6 | Publicatiepoort | 3 d | ✅ (zonder migratie, zie §S6) |
+| S5 | Merkdossier bij onboarding | 4 d | ✅ (+ migratie `0035`: de brontekst blijft bewaard) |
+| S6 | Publicatiepoort | 3 d | ✅ (+ migratie `0034`: vastgelegd dát er iemand keek, en wie) |
 | S7 | Ketentest op de echte handlers | 4 d | ✅ |
+| S8 | De feitenbank: een feit met een identiteit | 3 d | ✅ (migratie `0036`) |
+| R7.1 | Winbaarheid als kans in plaats van een vlag | 2 d | ✅ (migratie `0037`) |
 
 **Totaal: circa 46 dagen (R0-R6) + 15,5-17,5 dagen (R8).** Volgorde-afhankelijkheden: R1 en R2 zijn
 onafhankelijk van elkaar en kunnen parallel. R3 bouwt op R2.1. R4 bouwt op R0.5. R5 bouwt op R1
@@ -1418,13 +1428,21 @@ markeert die hun doelvraag ontweken.
 **De kern.** `strategie-contentkwaliteit-vervolgstappen.md` beschrijft zeven ingrepen die niet
 verbeteren wát er met de feitenkaart gebeurt, maar wat erop staat en wie het oordeel velt. S1 t/m
 S4 zijn op 31 juli gebouwd (zie de voortgangstabel §2). Hieronder de drie die daarna nog open
-stonden, uitgewerkt tot opleverbare stappen.
+stonden, plus twee stappen die er ná het openen van de schrijfrechten op de database bij kwamen:
+S8 (de feitenbank) en R7.1 (winbaarheid als kans).
 
-**Eén randvoorwaarde vooraf.** Geen van deze drie stappen vraagt een migratie. Dat is een bewuste
-keuze en geen toeval: elke schemawijziging moet op productie toegepast worden, en die database
-draait met echte klantdata. Waar een nieuwe kolom voor de hand lag, is eerst gekeken of een
-bestaande kolom hetzelfde kan dragen — en dat kon twee van de drie keer. Waar het écht niet kon
-(S5 bewaart het aangeleverde document niet) staat dat hieronder als expliciete beperking.
+**Eén randvoorwaarde vooraf — en hoe die is verlopen.** S5 t/m S7 zijn eerst gebouwd *zonder*
+migratie, omdat er destijds alleen leestoegang tot productie was. Dat leverde bruikbare stappen op
+met drie erkende beperkingen: S5 gooide de aangeleverde brontekst weg, S6 kon "de poort vond niets"
+niet onderscheiden van "een mens heeft gekeken", en een feit bestond alleen als positie in een
+JSON-lijst. Nadat schrijfrechten er wél waren zijn die drie alsnog opgeheven met de migraties
+`0034` (vrijgave), `0035` (merkdocumenten) en `0036` (feitenbank), plus `0037` voor R7. Alle vier
+zijn additief en idempotent: `add column if not exists` / `create table if not exists`, geen `drop`,
+geen `alter type`.
+
+Wat níet is teruggedraaid: de keuze om S6 op `needs_review` te bouwen in plaats van op een nieuwe
+enum-waarde. Die keuze was niet ingegeven door het ontbreken van rechten maar door het aantal
+bewegende delen — zie hieronder.
 
 ### S5 — Merkdossier: bulk-intake in plaats van acht vragen per batch
 
@@ -1544,7 +1562,7 @@ mock-database en het is hier bewust ontweken:
 | Onderdeel | Echt of nagebootst |
 |---|---|
 | Postgres | **echt** (lokaal, `initdb` + `pg_ctl`; geen Docker nodig) |
-| Het schema | **echt** — dezelfde migratiebestanden `0001`…`0032` |
+| Het schema | **echt** — dezelfde migratiebestanden `0001`…`0037` |
 | Constraints, enums, unieke indexen | **echt** — migratie `0023` (één huidige versie per titel) en `content_status` doen hun werk |
 | De jobhandlers, de wachtrij, de dedupe-sleutels | **echt** (`lib/jobs/handlers.ts`, `queue.ts`) |
 | De pijplijncode | **echt** (`briefing.ts`, `content.ts`, `factbase.ts`, …) |
@@ -1587,6 +1605,97 @@ niet aantoonbaar kan falen bewijst niets.
 
 **Klaar wanneer:** de zeven asserties hierboven bestaan en groen zijn, en de test in de vaste
 controle vóór elke commit staat.
+
+### S8 — De feitenbank: een feit met een identiteit (migratie `0036`)
+
+**Probleem.** Een F-nummer is een **positie**, geen identiteit: "F3" betekent "het derde citeerbare
+feit in déze lijst". Komt er één feit bij, dan schuift alles op. Dat is aantoonbaar en niet
+theoretisch: in de ketentest verwees de stub naar F1 en F2, en zodra er vier klantantwoorden
+bijkwamen werden dat F5 en F6 — klantantwoorden sorteren vooraan (`SOURCE_ORDER`). De test viel daar
+terecht op om.
+
+Zolang een feit alleen als positie in een JSON-lijst bestaat, volgt daaruit vier keer schade:
+
+1. hetzelfde feit staat opnieuw in élke snapshot van élke versie van élke pagina (bij Fysi-Unique
+   vier therapeutenbio's, keer op keer);
+2. van `claims_json` is niet te zeggen naar wélk feit een bewering verwees, alleen naar welke plek;
+3. twee antwoorden die elkaar tegenspreken belanden allebei op de kaart en het model kiest — precies
+   wat in de contentronde van 31 juli misging;
+4. "wat weten we eigenlijk over deze klant?" is geen vraag die je kunt stellen. Dat is nu net de
+   kennisbank die `contentbriefing.md` §7 belooft.
+
+**Bestanden**
+- nieuw `supabase/migrations/0036_feitenbank.sql` — tabel `brand_facts`
+- nieuw `lib/pipeline/fact-merge.ts` — puur, zonder `server-only`: wat is nieuw, wat vervangt wat
+- nieuw `lib/pipeline/factstore.ts` — `server-only`: lezen, schrijven, teruggeven
+- `lib/pipeline/factcard.ts` — `FactItem.id`, `WrittenClaim.factId`
+- `lib/pipeline/factbase.ts`, `content.ts`, `claim-extract.ts`, `briefing.ts`
+
+**Implementatie**
+
+1. **De bank is de bron van waarheid, de kaart blijft het bewijsstuk.** Bewust "en", geen "of". De
+   bevroren feitenkaart in `briefing_snapshot_json` is precies wat het model zág, zonder join die er
+   later onderuit kan schuiven — die blijft. De bank voegt toe wat de kaart niet kan: onthouden.
+2. **Scope.** Klantantwoorden en proof points zijn **merkbreed** (`analysis_id = null`): ze gelden
+   voor élke analyse van deze klant. Geatomiseerde sitezinnen horen bij **deze** analyse — dezelfde
+   zin kan bij een ander onderwerp irrelevant zijn, en hem merkbreed maken zou elke andere analyse
+   vervuilen. De unieke index `brand_facts_actueel_idx` behandelt de twee scopes ook als apart.
+3. **Alleen echte feiten.** Achtergrondblokken (400 tekens sitetekst, de onderzoekssamenvatting)
+   gaan er níét in: dat is context, geen feit. Dat onderscheid kostte de eerste briefingronde al nul
+   vragen aan de klant (zie `FactItem.citable`).
+4. **Vervangen in plaats van overschrijven.** Een bijgesteld feit blijft bestaan via
+   `superseded_by`; anders is een al geschreven pagina die ernaar verwijst niet meer na te trekken.
+   Het oude feit wijst tijdens de wissel even naar zichzélf — dat maakt de unieke index vrij zodat de
+   opvolger erin past, waarna hij naar die opvolger wijst. Zelfde patroon als bij de contentversies
+   (migratie `0023`).
+5. **Tegenspraak is de interessante uitkomst.** Twee feiten met dezelfde `fact_key` gaan over
+   hetzelfde; verschilt hun tekst, dan is dat geen dubbeling maar een tegenspraak.
+   `describeContradictions()` laat alleen de gevallen bovendrijven die de klant aangaan: een
+   antwoord dat hij zélf herziet, of
+   een feit dat van mag-wel naar mag-niet omslaat.
+6. **Fouttolerant.** Gaat het schrijven stuk, dan komt de lijst terug zónder id's en werkt de
+   feitenkaart precies zoals vóór `0036`: minder goed, niet stuk. Een verrijking mag nooit een
+   briefing blokkeren — zelfde afspraak als bij R4.2 en S1.
+7. **Klantantwoorden krijgen hun identiteit op het moment dat ze de kaart op gaan.**
+   `buildFactBase()` vult de bank, maar draait tijdens de *briefing* — dus vóórdat de klant één vraag
+   beantwoord had. `loadContentContext()` schrijft de antwoorden daarom alsnog weg vlak vóór
+   `mergeAnsweredFacts()`. Zonder die stap zou juist het materiaal dat nergens op de site staat nooit
+   onthouden worden.
+
+**Verificatie:** de vier asserties in `test-chain.ts` — de bank raakt gevuld, klantantwoorden staan
+er merkbreed in, de geatomiseerde sitezin hangt aan déze analyse, en elke onderbouwde bewering in
+`claims_json` draagt een `factId`. Die laatste viel bij het bouwen om: `mergeAnsweredFacts()` bouwde
+de items veld voor veld opnieuw op en liet `id` weg.
+
+### R7.1 — Winbaarheid is een kans, geen vlag (migratie `0037`)
+
+**Probleem.** `prompts.brand_eliciting` is een tekstvlag (`ja`/`nee`/`onbekend`) en `queue.ts` sloeg
+elke vraag met `'nee'` over bij een vervolgperiode. Maar de onderliggende meting is een
+**verhouding**: hoe vaak noemde de AI überhaupt een merk. Gemeten op productie (1 augustus): van de
+231 prompts zijn er 201 minstens één keer beoordeeld en 21 drie keer of vaker. Alle **9** prompts
+die op `'nee'` stonden, stonden daar op **precies 2 metingen**. Bij n=2 en 0 successen loopt de
+bovengrens van het Wilson-interval tot ~0,66 — een vraag definitief wegstrepen op dat bewijs is geen
+besparing maar een gok.
+
+**Bestanden**
+- nieuw `supabase/migrations/0037_winbaarheid_als_kans.sql` — twee tellers + backfill
+- nieuw `lib/pipeline/elicit-rate.ts` — puur, zonder `server-only`: het interval en de drempels
+- `lib/pipeline/measure.ts` — de tellers bijhouden, de vlag afleiden
+- `lib/jobs/queue.ts` — overslaan op bewijs in plaats van op een vlag
+
+**Implementatie**
+
+1. **Twee tellers** (`elicit_successes`, `elicit_samples`), gevuld uit `tracking_runs`: samples = de
+   beoordeelde metingen, successes = die waarin `brands_in_answer > 0`.
+2. **Overslaan mag pas bij bewijs**: minimaal 8 metingen (`MIN_SAMPLES_TO_SKIP`) én een bovengrens
+   van het 95%-interval onder 0,25. Onder die drempel blijft de vraag gewoon meelopen. De vlag zelf
+   verschijnt pas vanaf 3 metingen (`MIN_SAMPLES_FOR_LABEL`); daaronder is hij `onbekend` — onbekend
+   is beter dan verkeerd.
+3. **`brand_eliciting` blijft bestaan** als afgeleide van de tellers, want het scherm en het rapport
+   lezen hem. De bron is nu alleen de meting in plaats van een los oordeel.
+
+**Verificatie:** met de huidige productiestand mag geen enkele van de 9 prompts overgeslagen worden
+— geen van hen haalt 8 metingen. Dat is precies de bedoeling.
 
 ---
 

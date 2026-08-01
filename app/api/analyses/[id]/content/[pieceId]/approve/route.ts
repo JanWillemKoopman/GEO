@@ -31,10 +31,11 @@ import { describeError, classifyError } from "@/lib/errors";
  *
  * ── DE ROUTE MAG WEINIG, EN DAT IS HET PUNT ─────────────────────────────────
  *
- * Uitsluitend `needs_review` op `false`. Nooit de tekst, nooit de status, nooit
- * `review_notes` — die blijven staan, want vrijgeven is niet hetzelfde als
- * "er was niets aan de hand". Zelfde patroon als de briefingroute: service role
- * plus een expliciete eigenaarschapscontrole (abcplan.md §5).
+ * Uitsluitend `needs_review`, `reviewed_at` en `reviewed_by`. Nooit de tekst,
+ * nooit de status, nooit `review_notes` — die blijven staan, want vrijgeven is
+ * niet hetzelfde als "er was niets aan de hand". Zelfde patroon als de
+ * briefingroute: service role plus een expliciete eigenaarschapscontrole
+ * (abcplan.md §5).
  */
 export async function POST(
   _request: Request,
@@ -56,7 +57,15 @@ export async function POST(
     // analyse, niet de pagina.
     const { data, error } = await admin
       .from("content_pieces")
-      .update({ needs_review: false })
+      .update({
+        needs_review: false,
+        // Sinds migratie 0034 leggen we vast DAT er iemand gekeken heeft, en
+        // wie. Zonder die twee kolommen betekent `needs_review = false` twee
+        // dingen tegelijk — "de poort vond niets" (automatisch) en "een mens
+        // heeft gekeken" — en zijn ze niet uit elkaar te houden.
+        reviewed_at: new Date().toISOString(),
+        reviewed_by: user.id,
+      })
       .eq("id", pieceId)
       .eq("analysis_id", id)
       .select("id")
@@ -65,7 +74,7 @@ export async function POST(
     if (error) throw new Error(error.message);
     if (!data) return NextResponse.json({ error: "Pagina niet gevonden." }, { status: 404 });
 
-    return NextResponse.json({ approved: true });
+    return NextResponse.json({ approved: true, reviewedAt: new Date().toISOString() });
   } catch (err) {
     console.error(`vrijgeven mislukt voor pagina ${pieceId}:`, err);
     return NextResponse.json(

@@ -35,13 +35,14 @@ import { MODELS, TEMPERATURES } from "@/lib/openai/models";
 import { ContentPiece } from "@/lib/schemas/content-piece";
 import { Critique, geoScore, geoIssues } from "@/lib/schemas/critique";
 import { checkContentGate } from "@/lib/pipeline/content-gate";
-import { detectClaimSentences, detectedCoverage } from "@/lib/pipeline/claim-extract";
+import { detectClaimSentences, detectedCoverage, resolveFactId } from "@/lib/pipeline/claim-extract";
 import type { AuditedClaim } from "@/lib/schemas/claim-audit";
 import { validateOrRebuildJsonLd } from "@/lib/schema-jsonld";
 import { redactCompetitors, containsCompetitor } from "@/lib/pipeline/redact";
 import { analyzeCitedSources } from "@/lib/pipeline/source-analysis";
 import { contentWebSearchEnabled, minProofPointsForConcreteContent } from "@/lib/config";
 import { buildFactBase } from "@/lib/pipeline/factbase";
+import { syncBrandFacts } from "@/lib/pipeline/factstore";
 import { factsFromSnapshot, planFromSnapshot } from "@/lib/pipeline/briefing";
 import {
   formatFactCard,
@@ -49,6 +50,7 @@ import {
   isSupported,
   factFromAnswer,
   mergeAnsweredFacts,
+  normalizeForQuote,
   type AnsweredFactInput,
   type FactItem,
   type WrittenClaim,
@@ -514,7 +516,9 @@ async function loadContentContext(
     // onbeantwoorde verplichte vragen gaan als expliciet verbod de prompt in.
     admin
       .from("fact_requests")
-      .select("question, answer, answer_type, answered_at, status, required, scope, analysis_id, kind")
+      .select(
+        "id, question, answer, answer_type, answered_at, status, required, scope, analysis_id, kind",
+      )
       .eq("profile_id", analysis.profile_id),
   ]);
   const profile = profileRow as Profile | null;
@@ -530,7 +534,11 @@ async function loadContentContext(
   // Dezelfde scope-regel als buildFactBase: merkbrede antwoorden gelden altijd,
   // analyse-antwoorden alleen bij deze analyse. Een 'pagina'-antwoord hoort bij
   // één content_piece en zou hier bij de verkeerde pagina kunnen belanden.
-  const answeredFacts: AnsweredFactInput[] = (factRows ?? [])
+  // De extra velden dienen alleen het wegschrijven naar de feitenbank hieronder;
+  // `mergeAnsweredFacts` kijkt er niet naar.
+  const answeredFacts: (AnsweredFactInput & { scope: string; requestId: string })[] = (
+    factRows ?? []
+  )
     .filter((f) => {
       if (f.status !== "beantwoord" || !(f.answer as string | null)?.trim()) return false;
       const scope = f.scope as string;
@@ -538,7 +546,19 @@ async function loadContentContext(
     })
     .flatMap((f) => {
       const fact = factFromAnswer(f as never);
-      return fact ? [{ question: f.question as string, fact }] : [];
+      return fact
+        ? [
+            {
+              question: f.question as string,
+              fact,
+              // Wordt hieronder ingevuld zodra het antwoord in de feitenbank
+              // staat; blijft null als dat wegschrijven mislukt.
+              id: null as string | null,
+              scope: f.scope as string,
+              requestId: f.id as string,
+            },
+          ]
+        : [];
     });
 
   // Verplichte vragen die de klant heeft laten liggen of bewust oversloeg. De
@@ -701,6 +721,37 @@ async function loadContentContext(
   // kaart die het halve verhaal mist. Bij de terugvalroute (geen snapshot)
   // zitten de antwoorden al in `buildFactBase`; het samenvoegen ontdubbelt
   // daarop, dus die route blijft ongewijzigd van uitkomst.
+  //
+  // ── Eerst de bank, dan de kaart (migratie 0036) ───────────────────────────
+  //
+  // `buildFactBase()` zet zijn feiten in de feitenbank, maar draait tijdens de
+  // BRIEFING — dus vóórdat de klant één vraag beantwoord had. De antwoorden die
+  // daarna binnenkwamen zouden daardoor nooit in de bank belanden: precies de
+  // feiten die het meest waard zijn om te onthouden, want ze staan nergens op de
+  // site. Vandaar hier alsnog, op het moment dat ze de kaart op gaan.
+  //
+  // Scope volgt dezelfde regel als overal: een 'merk'-antwoord geldt voor élke
+  // analyse van deze klant, een 'analyse'-antwoord alleen voor deze. Ze merkbreed
+  // maken zou elke andere analyse van dezelfde klant vervuilen.
+  const antwoordHerkomst = new Map<string, { factRequestId: string | null; documentId: null }>(
+    answeredFacts.map((a) => [a.fact.text, { factRequestId: a.requestId, documentId: null }]),
+  );
+  const bank = await syncBrandFacts(admin, {
+    profileId: analysis.profile_id,
+    analysisId,
+    brandWide: answeredFacts.filter((a) => a.scope === "merk").map((a) => a.fact),
+    topicScoped: answeredFacts.filter((a) => a.scope !== "merk").map((a) => a.fact),
+    origins: antwoordHerkomst,
+  });
+
+  // Het id terugkoppelen op tekst, met dezelfde normalisatie als de rest van de
+  // keten gebruikt — anders zou een verschil in spatie of hoofdletter het feit
+  // opnieuw zonder identiteit op de kaart zetten.
+  const idPerTekst = new Map(bank.facts.filter((f) => f.id).map((f) => [normalizeForQuote(f.text), f.id]));
+  for (const antwoord of answeredFacts) {
+    antwoord.id = idPerTekst.get(normalizeForQuote(antwoord.fact.text)) ?? null;
+  }
+
   const facts = mergeAnsweredFacts(basis, answeredFacts);
 
   const proofCount = facts.filter((f) => f.allowed).length;
@@ -918,7 +969,14 @@ function buildDraftRow(args: {
     // Traceerbaarheid (R5.3): per bewering het F-nummer, zodat bij een klacht
     // per zin aanwijsbaar is waar hij vandaan komt, en zodat bij een nieuw
     // antwoord van de klant bekend is welke pagina's daardoor beter kunnen.
-    claims_json: (draft.parsed.claims ?? []) as never,
+    // Elke bewering krijgt het FEIT-ID mee naast het F-nummer (migratie 0036).
+    // Het model levert alleen het nummer; de code zoekt het feit erbij op. Zonder
+    // dat id verwijst `claims_json` naar een plek in een lijst, en is achteraf
+    // niet te zeggen of F3 in versie 2 hetzelfde feit is als F3 in versie 1.
+    claims_json: (draft.parsed.claims ?? []).map((c) => ({
+      ...c,
+      factId: resolveFactId(c.factRef, facts),
+    })) as never,
     // De kaart zoals hij BIJ HET SCHRIJVEN gebruikt is — inclusief de antwoorden
     // die de klant ná de claim-audit gaf (R8.1). Daarmee klopt "bevriezen" weer
     // met wat er werkelijk gebeurd is, en resolven de F-nummers in `claims_json`
@@ -1341,7 +1399,10 @@ export async function reviseContentPiece(args: {
       }),
       faq_json: final.faq as never,
       raw_json: revised.raw as never,
-      claims_json: (final.claims ?? []) as never,
+      claims_json: (final.claims ?? []).map((c) => ({
+        ...c,
+        factId: resolveFactId(c.factRef, ctx.facts),
+      })) as never,
       source_coverage: coverage,
       critique_raw_json: [...previousCritiques, critique.raw] as never,
       quality_score: critique.parsed.qualityScore,

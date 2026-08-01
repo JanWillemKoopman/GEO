@@ -148,6 +148,29 @@ export function claimMatchesSentence(claim: string, sentence: string): boolean {
   return raak / woorden.length >= 0.6;
 }
 
+/**
+ * Het feit-id opzoeken bij een bronverwijzing (migratie 0036).
+ *
+ * Het model levert alleen het F-nummer; dat is de handle die het kent. De code
+ * zoekt daar het feit bij op en legt het ID vast, zodat een bewering ook na een
+ * herschrijfronde of een groeiende kaart nog naar hetzelfde feit wijst — een
+ * F-nummer is een positie, geen identiteit.
+ *
+ * Bij een samengestelde verwijzing ("F1, F2") wint het EERSTE deel dat een feit
+ * oplevert: dat is het feit waar het citaat uit komt, en daarmee de bron van de
+ * bewering.
+ */
+export function resolveFactId(factRef: string | null | undefined, facts: FactItem[]): string | null {
+  if (!factRef) return null;
+  for (const deel of factRef.split(/[,;/]+/)) {
+    const ref = deel.trim().toUpperCase();
+    if (!ref) continue;
+    const feit = facts.find((f) => f.ref.toUpperCase() === ref && f.id);
+    if (feit?.id) return feit.id;
+  }
+  return null;
+}
+
 export interface CoverageResult {
   /** Percentage gedetecteerde beweringen dat herleidbaar is. `null` = niets gedetecteerd. */
   coverage: number | null;

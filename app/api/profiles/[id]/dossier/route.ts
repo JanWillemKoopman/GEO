@@ -3,6 +3,7 @@ import { getUser } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getOwnedProfile } from "@/lib/profiles";
 import { extractDossierFacts, MAX_DOCUMENT_CHARS } from "@/lib/pipeline/dossier";
+import { createHash } from "node:crypto";
 import { describeError, classifyError } from "@/lib/errors";
 
 /**
@@ -47,7 +48,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   const profile = await getOwnedProfile(admin, id, user.id);
   if (!profile) return NextResponse.json({ error: "Niet gevonden." }, { status: 404 });
 
-  let body: { text?: unknown };
+  let body: { text?: unknown; label?: unknown };
   try {
     body = await request.json();
   } catch {
@@ -73,6 +74,46 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   }
 
   try {
+    // ── Het document bewaren (migratie 0035) ────────────────────────────────
+    //
+    // De eerste versie gooide de brontekst weg na de extractie. Dat kostte drie
+    // dingen: opnieuw uitlezen kon niet, herkomst tonen kon niet, en dezelfde
+    // brochure twee keer plakken leverde twee keer dezelfde feiten op.
+    //
+    // De hash maakt dat laatste een non-probleem: dezelfde tekst geeft dezelfde
+    // hash, ook bij 12.000 tekens, en de unieke index laat er maar één door.
+    const hash = createHash("sha256").update(tekst).digest("hex");
+    const { data: bestaand } = await admin
+      .from("brand_documents")
+      .select("id, facts_extracted")
+      .eq("profile_id", id)
+      .eq("content_hash", hash)
+      .maybeSingle();
+
+    if (bestaand) {
+      return NextResponse.json({
+        facts: [],
+        proposed: 0,
+        skipped: 0,
+        alreadyKnown: true,
+        message: "Deze tekst heb je al eerder aangeleverd; de feiten eruit staan er al.",
+      });
+    }
+
+    const { data: document } = await admin
+      .from("brand_documents")
+      .insert({
+        profile_id: id,
+        label: typeof body.label === "string" && body.label.trim() ? body.label.trim() : null,
+        body: tekst,
+        content_hash: hash,
+        chars: tekst.length,
+      })
+      .select("id")
+      .maybeSingle();
+
+    const documentId = (document?.id as string | undefined) ?? null;
+
     const { facts, proposed } = await extractDossierFacts({
       documentText: tekst,
       brandName: profile.brand_name ?? profile.name,
@@ -119,10 +160,10 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
           required: false,
           claim_key: feit.claimKey,
           verify_after: feit.verifyAfter,
-          // De letterlijke bronzin blijft bewaard, zodat per feit natrekbaar is
-          // waar hij vandaan komt. Het document zelf bewaren we niet — dat zou
-          // een kolom vragen; zie implementatieplan.md §S5.
-          raw_json: { bron: "merkdossier", zin: feit.sourceSentence } as never,
+          // De letterlijke bronzin blijft hier staan voor de snelle blik; het
+          // volledige document staat sinds 0035 in `brand_documents` en is via
+          // `documentId` terug te vinden.
+          raw_json: { bron: "merkdossier", zin: feit.sourceSentence, documentId } as never,
         })
         .select("id")
         .maybeSingle();
@@ -141,6 +182,16 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
           verifyAfter: feit.verifyAfter,
         });
       }
+    }
+
+    // De uitkomst bij het document zetten. Blijft `facts_rejected` structureel
+    // hoog, dan is dat het signaal dat de extractie-instructie niet streng genoeg
+    // is — hetzelfde patroon als `reports.stripped_claims_json` onder het rapport.
+    if (documentId) {
+      await admin
+        .from("brand_documents")
+        .update({ facts_extracted: opgeslagen.length, facts_rejected: proposed - facts.length })
+        .eq("id", documentId);
     }
 
     return NextResponse.json({

@@ -606,6 +606,108 @@ het scenario + asserties 1,5 d; in de vaste controle vóór commit hangen 0,5 d)
 
 ---
 
+## 2b. Twee voorstellen die pas konden nadat de database open ging
+
+S1 t/m S7 zijn ontworpen onder één harde beperking: **alleen leestoegang tot productie**. Elk
+voorstel moest daarom binnen de bestaande kolommen passen. Dat leverde bruikbare stappen op, maar
+het dwong ook drie compromissen af die hieronder alsnog zijn opgeheven — en het maakte twee
+ingrepen onmogelijk die op eigen kracht zwaarder wegen dan de helft van S1–S7.
+
+Toen de schrijfrechten er wél waren zijn beide gebouwd. Alle migraties zijn additief en idempotent
+(`add column if not exists` / `create table if not exists`, geen `drop`, geen `alter type`), zoals de
+huisregel voorschrijft.
+
+### S8 — De feitenbank: een feit met een identiteit  ✅ gebouwd (migratie `0036`)
+
+**Het probleem, en waarom het niet in de eerste zeven zat.** Een F-nummer is een **positie**, geen
+identiteit: "F3" betekent "het derde citeerbare feit in déze lijst". Voeg er één toe en alles
+schuift. Dat klinkt als een detail tot je het meet — in de ketentest verwees de stub naar F1 en F2,
+en zodra er vier klantantwoorden bijkwamen werden dat F5 en F6, want klantantwoorden sorteren
+vooraan (`SOURCE_ORDER`). De test viel daar terecht op om, en dát is het bewijs dat het geen
+theoretisch bezwaar is.
+
+Zolang een feit alleen als positie in een JSON-blob bestaat, volgt daaruit vier keer schade:
+
+1. **Geen ontdubbeling over analyses heen.** Hetzelfde feit staat in élke snapshot van élke versie
+   van élke pagina opnieuw. Bij Fysi-Unique: vier therapeutenbio's, keer op keer.
+2. **Geen naspeurbaarheid.** Van `claims_json` was niet te zeggen naar wélk feit een bewering
+   verwees — alleen naar welke plek in een lijst die inmiddels verschoven kan zijn. Precies de
+   traceerbaarheid die R5 zou opleveren, kwam één stap tekort.
+3. **Geen tegenspraakdetectie.** Twee antwoorden die elkaar tegenspreken belandden allebei op de
+   kaart en het model mocht kiezen. Dat is letterlijk wat er in de contentronde van 31 juli misging.
+4. **De kennisbank was niet opvraagbaar.** "Wat weten we eigenlijk over deze klant?" was geen vraag
+   die je kon stellen — terwijl `contentbriefing.md` §7 belooft dat een klant er na drie analyses
+   een heeft. Dat antwoord zat verspreid over tien JSON-blokken.
+
+**De ingreep.** Een tabel `brand_facts` met een `fact_key`, een scope (klantantwoorden en proof
+points **merkbreed**, geatomiseerde sitezinnen bij **deze** analyse) en `superseded_by` in plaats van
+overschrijven. Een bijgesteld feit blijft bestaan, want anders is een al geschreven pagina die ernaar
+verwijst niet meer na te trekken. Twee feiten met dezelfde sleutel maar verschillende tekst zijn geen
+dubbeling maar een **tegenspraak**, en die komt boven in plaats van dat het model kiest.
+
+**Wat níet verandert.** De feitenkaart blijft. Dat is bewust "en", geen "of": de bevroren kaart in
+`briefing_snapshot_json` is precies wat het model zág, zonder join die er later onderuit kan
+schuiven. De bank is de bron van waarheid, de kaart het bewijsstuk. Achtergrondblokken gaan de bank
+níét in — dat is context, geen feit, en dat onderscheid kostte de eerste briefingronde al nul vragen
+aan de klant.
+
+**Invalshoeken.**
+- *GEO-expert:* sterk. Een feit dat over analyses heen bestaat is de basis voor een klantprofiel dat
+  bij elke volgende analyse rijker begint in plaats van weer vanaf nul.
+- *Copywriter:* neutraal tot licht positief — hij merkt het aan minder herhaalde vragen.
+- *Ontwikkelaar:* het opheft van een structurele fout, geen verbetering aan de marge.
+- *Klant:* merkt het pas bij analyse twee en drie. Dat is precies wanneer hij afhaakt of blijft.
+
+**Effort:** 3 dagen. **Extra AI-kosten:** $0 — er komt geen aanroep bij.
+
+### R7.1 — Winbaarheid is een kans, geen vlag  ✅ gebouwd (migratie `0037`)
+
+**Het probleem.** `prompts.brand_eliciting` is een tekstvlag (`ja`/`nee`/`onbekend`) en `queue.ts`
+sloeg elke vraag met `'nee'` over bij een vervolgperiode. Maar de onderliggende meting is geen vlag,
+het is een **verhouding**: hoe vaak leverde deze vraag überhaupt een aanbieder op.
+
+**De meting op productie** (1 augustus, 231 prompts): 201 zijn minstens één keer beoordeeld, 21
+drie keer of vaker, gemiddeld elicit-percentage 46%. En het cijfer dat de hele ingreep rechtvaardigt:
+alle **9** prompts die op `'nee'` stonden, stonden daar op **precies 2 metingen**. Bij n=2 en nul
+successen loopt de bovengrens van het 95%-Wilson-interval tot ~0,66. Een vraag definitief wegstrepen
+op dat bewijs is geen besparing maar een gok — en de kosten van die gok zijn asymmetrisch: een
+overgeslagen vraag komt nooit meer terug in beeld.
+
+**De ingreep.** Twee tellers (`elicit_successes`, `elicit_samples`), gevuld uit `tracking_runs`. Een
+vraag mag pas vervallen bij minimaal 8 metingen **én** een bovengrens onder 0,25; de vlag zelf
+verschijnt pas vanaf 3 metingen en is daaronder `onbekend`. Met de huidige productiestand wordt er
+dus géén enkele overgeslagen. Dat is niet een tegenvaller maar de uitkomst: onbekend is beter dan
+verkeerd.
+
+**Randvoorwaarde gehaald.** Dit verhoogt het aantal getrackte prompts niet — het maximum van 30 per
+analyse blijft ongemoeid. Het verandert alleen welke van die 30 bij een vervolgperiode opnieuw
+gemeten worden, en dat was tot nu toe te snel te weinig.
+
+**Invalshoeken.**
+- *GEO-expert:* de meting is het product; een vlag op twee waarnemingen ondermijnt hem.
+- *Klant:* betaalt voor 30 vragen en kreeg er stilzwijgend minder gemeten.
+- *Ontwikkelaar:* het rekenwerk staat puur in `elicit-rate.ts`, buiten `server-only`, en is
+  daarmee toetsbaar zonder database.
+- *Copywriter:* geen mening.
+
+**Effort:** 2 dagen. **Extra AI-kosten:** licht **hoger** bij vervolgperiodes, omdat er minder
+vragen vervallen. Dat is de prijs van een meting die klopt.
+
+### De drie compromissen uit S5 t/m S7 die alsnog zijn opgeheven
+
+| Was | Nu |
+|---|---|
+| S5 gooide het aangeleverde document weg na de extractie — opnieuw uitlezen kon niet, en dezelfde brochure twee keer plakken gaf twee keer dezelfde feiten. | Migratie `0035`: `brand_documents` met de brontekst en een sha256-hash. Een tweede keer plakken geeft een expliciete melding, en `facts_extracted`/`facts_rejected` per document maken zichtbaar of de extractie-instructie streng genoeg is. |
+| S6 kon "de automatische poort vond niets" niet onderscheiden van "een mens heeft gekeken" — `needs_review = false` betekende beide. | Migratie `0034`: `reviewed_at` en `reviewed_by`. Het paneel toont nu drie standen, en de derde is precies dat verschil: *"De controles vonden niets, maar er heeft nog niemand naar gekeken."* |
+| Een feit bestond alleen als positie in een JSON-lijst. | Migratie `0036`, hierboven. |
+
+Wat **niet** is teruggedraaid: de keuze om S6 op `needs_review` te bouwen in plaats van op een nieuwe
+enum-waarde `te_beoordelen`. Die keuze kwam niet voort uit het ontbreken van rechten maar uit het
+aantal bewegende delen — een tweede statusmachine die uit de pas kan lopen met de eerste is duurder
+dan de duidelijkheid die hij oplevert.
+
+---
+
 ## 3. Waar de vier invalshoeken botsen
 
 Drie botsingen zijn echt, en ze zijn interessanter dan de voorstellen zelf.
@@ -682,7 +784,8 @@ schrijver aan feiten heeft, en of iemand hem heeft verteld wat de pagina moet do
 ## 5. Wat ik bewust níét voorstel
 
 - **Meer getrackte prompts.** Randvoorwaarde, en terecht: de meting is 95% van de kosten. Geen
-  van de zeven raakt de 30.
+  van de zeven raakt de 30, en S8 en R7.1 evenmin — R7.1 verandert alleen wélke van die 30 bij een
+  vervolgperiode opnieuw gemeten worden.
 - **Een tweede beoordelende AI-agent.** De keten doet al vier AI-aanroepen per pagina en de
   laatste twee (herschrijven + herbeoordelen) leveren een oordeel op dat niets doet. Een agent
   toevoegen aan een keten waar het bestaande oordeel genegeerd wordt, is symptoombestrijding. S2
@@ -718,6 +821,10 @@ Alles hierboven komt uit één van deze bronnen; niets is geschat waar gemeten k
 | `geo_score` = 100 op alle 20 pagina's in de database | `content_pieces.geo_score` |
 | 10× draft, 10× revise, $0,480 totaal = $0,048 per pagina | `ai_calls` van 31 juli |
 | De AI citeert vooral de eigen sites van concurrenten | `tracking_run_mentions.cited_sources`, gegroepeerd op domein |
+| 231 prompts, 201 met ≥1 beoordeelde meting, 21 met ≥3 | `prompts` na de backfill van migratie `0037`, 1 augustus |
+| Gemiddeld elicit-percentage 46% | idem, `sum(elicit_successes) / sum(elicit_samples)` |
+| Alle 9 prompts op `brand_eliciting = 'nee'` hadden precies 2 metingen | idem, gegroepeerd op `elicit_samples` |
+| F-nummers verschuiven bij nieuwe klantantwoorden (F1/F2 → F5/F6) | `scripts/test-chain.ts`, waargenomen bij het bouwen van S7 |
 
 ---
 

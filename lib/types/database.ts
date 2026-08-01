@@ -432,6 +432,15 @@ export interface ContentPiece {
   supersedes_id: string | null;
   /** Wat de klant zelf vroeg te veranderen (4.8). */
   revision_note: string | null;
+  /**
+   * Wanneer een mens deze pagina heeft vrijgegeven (S6, migratie 0034).
+   *
+   * `null` = nog nooit bekeken. Dat is iets anders dan `needs_review = false`,
+   * wat de kwaliteitspoort ook automatisch zet — zonder deze kolom zijn "de
+   * controles vonden niets" en "iemand heeft gekeken" niet te onderscheiden.
+   */
+  reviewed_at: string | null;
+  reviewed_by: string | null;
   /** GEO-beoordeling: zou een AI deze pagina citeren? (4.5) */
   geo_score: number | null;
   geo_json: unknown | null;

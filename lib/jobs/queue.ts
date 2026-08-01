@@ -1,4 +1,5 @@
 import "server-only";
+import { maySkip } from "@/lib/pipeline/elicit-rate";
 
 /**
  * Taken in de wachtrij zetten (optimalisatie.md fase 1).
@@ -141,24 +142,42 @@ export async function enqueueMeasurement(
 ): Promise<{ planned: number; totalPrompts: number }> {
   const { data: prompts } = await admin
     .from("prompts")
-    .select("id, brand_eliciting, volume_band, volume_estimate, intent_type")
+    .select("id, brand_eliciting, elicit_successes, elicit_samples, volume_band, volume_estimate, intent_type")
     .eq("analysis_id", analysisId)
     .eq("active", true);
 
   const all = prompts ?? [];
   if (all.length === 0) return { planned: 0, totalPrompts: 0 };
 
-  // ── Structureel merkloze vragen overslaan (implementatieplan.md R2.4) ──────
+  // ── Structureel merkloze vragen overslaan (R2.4, herzien in R7) ────────────
   //
-  // Een vraag die twee metingen lang géén enkele aanbieder opleverde, levert die
-  // de derde keer vrijwel zeker ook niet — en elke meting is een betaalde
-  // web-zoekactie. Alleen bij VERVOLGperiodes: de nulmeting meet altijd alles,
-  // want je moet meten om te weten.
+  // Elke meting is een betaalde web-zoekactie, dus een vraag die nooit iets
+  // oplevert is verspild geld. De vraag is alleen: wannéér weet je dat?
+  //
+  // De oude regel zei "na twee metingen zonder aanbieder". Die bleek te scherp.
+  // De verificatieronde van 31 juli mat dezelfde acht vragen drie keer in
+  // dezelfde week en zag de winbaarheid bij vier ervan wisselen; bij een vraag
+  // die één op de drie keer raak is, is de kans op twee nullen achtereen 44%.
+  // Zo kromp de winbare basis van 17 naar 5 vragen en werd de score betekenisloos
+  // (95%-band ±42 punten).
+  //
+  // Nu beslist het betrouwbaarheidsinterval: overslaan mag pas bij genoeg
+  // metingen én een bovengrens die laag genoeg is (`maySkip`). Op productie staan
+  // negen vragen op 'nee' — alle negen op basis van precies twee metingen, en die
+  // komen met deze regel dus terug in de meting.
   //
   // Elke vierde periode tóch de volledige set, zodat een markt die verandert
   // (er ontstaat wél een standaardpartij) niet voorgoed onopgemerkt blijft.
   const volledigeRonde = weekNo === 0 || weekNo % 4 === 0;
-  const list = volledigeRonde ? all : all.filter((p) => p.brand_eliciting !== "nee");
+  const list = volledigeRonde
+    ? all
+    : all.filter(
+        (p) =>
+          !maySkip({
+            successes: (p.elicit_successes as number | null) ?? 0,
+            samples: (p.elicit_samples as number | null) ?? 0,
+          }),
+      );
 
   if (list.length < all.length) {
     console.log(

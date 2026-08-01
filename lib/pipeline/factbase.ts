@@ -48,6 +48,8 @@ import {
 } from "@/lib/pipeline/factcard";
 import { selectRelevantPages, topicTerms, type CandidatePage } from "@/lib/pipeline/page-relevance";
 import { atomiseSitePages } from "@/lib/pipeline/fact-atomise";
+import { syncBrandFacts } from "@/lib/pipeline/factstore";
+import type { Contradiction } from "@/lib/pipeline/fact-merge";
 
 type Admin = SupabaseClient;
 
@@ -135,10 +137,16 @@ export async function buildFactBase(
   }
 
   const siteUrl = (profile?.url as string | null) ?? "de eigen site";
+  // Apart bijgehouden: proof points gelden MERKBREED (ze gaan over het bedrijf,
+  // niet over dit onderwerp) en moeten dus in de andere scope van de feitenbank
+  // belanden dan de geatomiseerde sitezinnen. Beide hebben `kind: "site"`, dus
+  // aan de bronsoort alleen is dat onderscheid niet te zien.
+  const proofPoints: string[] = [];
   for (const punt of (profile?.proof_points as string[] | null) ?? []) {
     if (!punt?.trim()) continue;
     // Proof points zijn wél atomair: het zijn korte, door de klant bevestigde
     // uitspraken ("wordt met een 9,4 beoordeeld op Zorgkaart"). Citeerbaar dus.
+    proofPoints.push(punt.trim());
     rauw.push({ text: punt.trim(), source: `site ${siteUrl}`, allowed: true, citable: true, kind: "site" });
   }
 
@@ -196,10 +204,53 @@ export async function buildFactBase(
     });
   }
 
+  // ── De feitenbank bijwerken en teruglezen (migratie 0036) ─────────────────
+  //
+  // De citeerbare feiten gaan door de bank heen, zodat ze een IDENTITEIT krijgen
+  // die de nummering overleeft. Klantantwoorden en proof points zijn merkbreed —
+  // die gelden voor elke analyse van deze klant. De geatomiseerde sitezinnen
+  // horen bij DIT onderwerp: dezelfde zin kan bij een ander onderwerp irrelevant
+  // zijn, en hem merkbreed maken zou elke andere analyse vervuilen.
+  //
+  // De achtergrondblokken gaan er NIET doorheen: die zijn context en geen feit.
+  const citeerbaar = rauw.filter((f) => f.citable);
+  const achtergrond = rauw.filter((f) => !f.citable);
+
+  const { facts: uitBank, contradictions } = await syncBrandFacts(admin, {
+    profileId,
+    analysisId,
+    brandWide: citeerbaar.filter((f) => f.kind === "klant" || isProofPoint(f.text, proofPoints)),
+    topicScoped: citeerbaar.filter((f) => f.kind !== "klant" && !isProofPoint(f.text, proofPoints)),
+  });
+
+  laatsteTegenspraken = contradictions;
+
+  // Feiten die de bank niet haalde (schrijffout, of een dubbele sleutel) vallen
+  // terug op hun oorspronkelijke vorm zonder id. Liever een kaart zonder
+  // identiteit dan geen kaart: de schrijver heeft hem nodig, de identiteit is
+  // een verbetering.
+  const bankTeksten = new Set(uitBank.map((f) => f.text));
+  const ontbrekend = citeerbaar
+    .filter((f) => !bankTeksten.has(f.text))
+    .map(({ text, source, allowed, citable }) => ({ id: null, text, source, allowed, citable }));
+
+  const alles = [
+    ...uitBank.map((f) => ({ ...f, kind: kindVan(f.source) })),
+    ...ontbrekend.map((f) => ({ ...f, kind: kindVan(f.source) })),
+    ...achtergrond.map(({ text, source, allowed, citable, kind }) => ({
+      id: null,
+      text,
+      source,
+      allowed,
+      citable,
+      kind,
+    })),
+  ];
+
   // Verboden achteraan nummeren maakt niets uit voor hun werking (die staan in
   // een eigen blok op de kaart), maar de bruikbare feiten houden zo de lage
   // nummers — en dat zijn de nummers waar de content naar verwijst.
-  const gesorteerd = [...rauw].sort(
+  const gesorteerd = [...alles].sort(
     (a, b) =>
       // Citeerbaar eerst, zodat de F-nummers aaneengesloten lopen en de
       // achtergrond er zichtbaar buiten valt.
@@ -209,6 +260,39 @@ export async function buildFactBase(
   );
 
   return numberFacts(
-    gesorteerd.map(({ text, source, allowed, citable }) => ({ text, source, allowed, citable })),
+    gesorteerd.map(({ id, text, source, allowed, citable }) => ({ id, text, source, allowed, citable })),
   );
+}
+
+/**
+ * De bronsoort terugleiden uit de bronvermelding.
+ *
+ * De bank bewaart `kind` wel, maar de teruglezing hierboven haalt alleen op wat
+ * de kaart nodig heeft. De sortering heeft `kind` nodig, en "klant, bevestigd
+ * 29-07" is eenduidig genoeg om hem uit af te leiden — dat scheelt een kolom in
+ * elke query.
+ */
+function kindVan(source: string): FactSourceKind {
+  if (source.startsWith("klant")) return "klant";
+  if (source.startsWith("site")) return "site";
+  return "onderzoek";
+}
+
+/** Is deze tekst een proof point van het profiel? Dan geldt hij merkbreed. */
+function isProofPoint(text: string, proofPoints: string[]): boolean {
+  return proofPoints.includes(text);
+}
+
+/**
+ * De tegenspraken van de laatste opbouw.
+ *
+ * Bewust een modulevariabele en geen extra retourwaarde: `buildFactBase()` wordt
+ * op vier plekken aangeroepen en die hebben op één na niets met tegenspraak te
+ * maken. Wie ze wél wil (de briefing, om ze aan de klant te tonen) haalt ze hier
+ * op, direct ná de aanroep.
+ */
+let laatsteTegenspraken: Contradiction[] = [];
+
+export function lastContradictions(): Contradiction[] {
+  return laatsteTegenspraken;
 }
