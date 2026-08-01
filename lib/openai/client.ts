@@ -23,11 +23,18 @@ const MAX_RETRIES = 3;
  * de timeout melden en niet het platform de functie hard afkapt.
  *
  * Stond op 50s toen de route nog op 60s stond. Dat was te krap geworden: een
- * meting met web_search duurt 20-40s, maar gpt-4.1 die een volledige pagina
- * schrijft doet er regelmatig langer over — die werd dus afgebroken vóórdat hij
- * klaar was. Nu de route op 300s staat past 100s daar comfortabel in, met nog
- * ruimte voor de tweede aanroep van dezelfde taak (schrijven + redactie) — zie
- * HEAVY_JOB_RESERVE_MS in lib/jobs/worker.ts, dat op deze waarde is afgestemd.
+ * meting met web_search duurt 20-40s, maar het premium model dat een volledige
+ * pagina schrijft doet er regelmatig langer over — die werd dus afgebroken
+ * vóórdat hij klaar was. Nu de route op 300s staat past 100s daar comfortabel
+ * in, met nog ruimte voor de tweede aanroep van dezelfde taak (schrijven +
+ * redactie) — zie HEAVY_JOB_RESERVE_MS in lib/jobs/worker.ts, dat op deze
+ * waarde is afgestemd.
+ *
+ * ⚠️ Sinds GPT-5.6 komt er redeneertijd bij elke aanroep bovenop. Deze 100s is
+ * daarom de reden dat de redeneerinspanning per soort werk bewust laag staat
+ * (lib/openai/sampling.ts): `none` waar het kan, `low` bij onderzoek dat óók
+ * web_search doet, `medium` bij het schrijven. Wie die knop omhoog draait, moet
+ * eerst hier en in lib/jobs/worker.ts nameten — niet andersom.
  */
 const TIMEOUT_MS = 100_000;
 

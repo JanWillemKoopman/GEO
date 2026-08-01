@@ -7,7 +7,7 @@
  * report-progress en generate-button drie keer los herhaald werd: een rood
  * "Mislukt"-label met daaronder de ruwe serverfout in monospace. Voor een
  * ondernemer zonder technische achtergrond zegt "[429] Rate limit reached for
- * gpt-4.1-mini" niets — behalve dat er iets stuk is.
+ * gpt-5.6-luna" niets — behalve dat er iets stuk is.
  *
  * Hier: kop en uitleg in gewone taal, één duidelijke vervolgstap, en de
  * technische tekst weggevouwen achter "technische details" (nog steeds nodig

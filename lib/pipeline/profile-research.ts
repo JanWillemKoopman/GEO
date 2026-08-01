@@ -1,13 +1,13 @@
 import "server-only";
 
 /**
- * Klantprofiel-onderzoek (accountniveau, eenmalig per merk). Model gpt-4.1-mini,
+ * Klantprofiel-onderzoek (accountniveau, eenmalig per merk). Quality-tier,
  * web_search AAN voor bredere marktcontext. De eigen crawltekst gaat als context
  * mee. Bedrijfsbreed — geen onderwerp-scoping (zie lib/pipeline/topic-research.ts
  * voor het per-analyse onderwerp-onderzoek dat hierop voortbouwt).
  */
 import { callStructured, type StructuredCallResult } from "@/lib/openai/structured";
-import { MODELS, TEMPERATURES } from "@/lib/openai/models";
+import { MODELS } from "@/lib/openai/models";
 import { webSearchEnabled } from "@/lib/config";
 import { ProfileResearch } from "@/lib/schemas/profile";
 
@@ -118,7 +118,7 @@ export async function generateProfileResearch(args: {
     // ontwikkelfase om kosten te sparen; dan leunt dit onderzoek op wat het
     // model zich herinnert in plaats van op actuele marktkennis.
     webSearch: webSearchEnabled,
-    temperature: TEMPERATURES.analytical,
+    work: "analytical",
     meta: { kind: "profile_research", profileId: args.profileId },
   });
 }

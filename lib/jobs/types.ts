@@ -123,7 +123,7 @@ export const HEAVY_JOB_TYPES: ReadonlySet<JobType> = new Set<JobType>([
   "generate_prompts", // 3 parallelle prompt-calls, elk met een bijvul-ronde
   "profile_competitors", // destilleert eigenschappen uit alle antwoordfragmenten
   "content_brief", // claim-audit over de hele batch, plus alle winnende antwoorden
-  "content_draft", // gpt-4.1 schrijft een volledige pagina
+  "content_draft", // het premium model schrijft een volledige pagina
   "content_revise", // idem
   "offsite_scan", // crawlt niets maar doet wel een gegroundde AI-aanroep + externe API's
 ]);

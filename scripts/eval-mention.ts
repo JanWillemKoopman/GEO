@@ -8,11 +8,12 @@
  * Een systematische fout daar corrumpeert stil het hele product.
  *
  * Draaien:
- *   npm run eval:mention              # test het productiemodel (nano)
- *   npm run eval:mention -- --compare # vergelijkt nano tegen mini
+ *   npm run eval:mention              # test het productiemodel (gpt-5.6-luna)
+ *   npm run eval:mention -- --compare # vergelijkt Luna tegen Terra
  *
  * ⚠️ Dit maakt ECHTE, betaalde OpenAI-calls. Met de startset (15 gevallen) is
- * dat een fractie van een cent op nano; met --compare het dubbele.
+ * dat een fractie van een cent op Luna; met --compare loopt dat op, want Terra
+ * kost tienmaal zoveel per token.
  *
  * De testset staat in scripts/mention-goldenset.json en is bewust klein en
  * met de hand geschreven rond bekende faalpatronen. Vul hem aan met echte
@@ -34,8 +35,17 @@ loadEnv({ path: ".env.local", override: true });
 // script standalone draait zonder padalias-resolutie (zelfde keuze als
 // scripts/test-openai.ts). De PROMPT wordt wél geïmporteerd — die mag nooit
 // afwijken van productie, anders test je iets anders dan er draait.
-const PRODUCTION_MODEL = "gpt-4.1-nano";
-const COMPARISON_MODEL = "gpt-4.1-mini";
+const PRODUCTION_MODEL = "gpt-5.6-luna";
+// De naasthogere tier van dezelfde generatie. Was `gpt-4.1-mini` toen productie
+// nog op nano draaide; nu volume én quality op Luna staan, is Terra het model
+// waar je naartoe zou wijken als de classificatie tekortschiet.
+const COMPARISON_MODEL = "gpt-5.6-terra";
+
+// Precies zoals productie deze call verstuurt (WORK.deterministic in
+// lib/openai/sampling.ts): geen redeneertijd, temperatuur 0. Meet je met andere
+// instellingen, dan meet je niet wat er draait.
+const EFFORT = "none";
+const TEMPERATURE = 0;
 
 interface ExpectedEntity {
   /** "own" voor het eigen merk, anders de exacte concurrentnaam. */
@@ -116,7 +126,10 @@ async function runModel(model: string, cases: GoldenCase[]): Promise<{
             }),
           },
         ],
-        temperature: 0,
+        temperature: TEMPERATURE,
+        // Cast zoals in lib/openai/structured.ts: de vastgezette SDK kent
+        // `none` nog niet als effort-waarde, de API wel.
+        reasoning: { effort: EFFORT } as unknown as OpenAI.Reasoning,
         text: { format: zodTextFormat(Mention, "mention") },
       });
       parsed = response.output_parsed;
@@ -231,7 +244,8 @@ async function main() {
       console.log(
         `\n   → ${COMPARISON_MODEL} scoort ${diff.toFixed(1)} punten beter. Overweeg MODELS.volume\n` +
           `     in lib/openai/models.ts om te zetten: de classificatie is het fundament\n` +
-          `     onder elk cijfer, en het prijsverschil is klein t.o.v. de web_search-kosten.`,
+          `     onder elk cijfer, en het prijsverschil is klein t.o.v. de web_search-kosten\n` +
+          `     ($0,010 per zoekactie tegen enkele tienden van een cent aan tokens).`,
       );
     } else {
       console.log(`\n   → Geen doorslaggevend verschil. ${PRODUCTION_MODEL} volstaat.`);

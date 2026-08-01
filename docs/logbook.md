@@ -32,8 +32,9 @@ waar de concurrentie complex en duur wordt.
 
 De keuzes die sindsdien niet meer ter discussie hebben gestaan:
 
-1. **OpenAI-only, drie tiers, vast in code.** Geen env-variabele, geen tweede provider. De meting
-   draait op mini en niet op nano: met `web_search` faalde nano 10 van de 10 keer.
+1. **OpenAI-only, drie tiers, vast in code.** Geen env-variabele, geen tweede provider. Op de
+   GPT-4.1-familie draaide de meting op mini en niet op nano: met `web_search` faalde nano 10 van
+   de 10 keer. Sinds augustus 2026 zijn het GPT-5.6-modellen — zie §10.
 2. **Alles bewaren.** Elke AI-call slaat zijn volledige ruwe JSON op náást de uitgesplitste
    kolommen. Volledige audit-trail, geen dataverlies bij toekomstige schemawijzigingen.
 3. **Verplichte goedkeuringspoort.** Na onderzoek + prompts stopt de pijplijn tot de klant
@@ -213,7 +214,53 @@ plaats van 30 handgebouwde inline-styles).
 Het uitgangspunt bij dat alles: de datalaag was al netjes gescheiden (`lib/pipeline/*`,
 `lib/dashboard.ts`), dus vrijwel alles was schermwerk. Zie `ux-design.md` voor het resultaat.
 
-## 10. Bekende, bewust geaccepteerde beperkingen
+## 10. Over naar GPT-5.6 (1 augustus 2026)
+
+De hele app draaide op de GPT-4.1-familie. Nu: **`gpt-5.6-luna`** voor alles wat meet, onderzoekt
+en beoordeelt, en **`gpt-5.6-sol`** — het duurste model dat OpenAI levert — uitsluitend voor het
+schrijven en herschrijven van content. Dat laatste is de enige stap waarvan de uitkomst letterlijk
+gepubliceerd wordt; daar is de tier het geld waard, overal elders niet.
+
+**Wat er inhoudelijk moest veranderen, en waarom het meer was dan drie strings.**
+
+De GPT-5-familie is een redeneerfamilie. Dat raakt twee dingen die deze app expliciet gebruikte:
+
+- **`temperature` is geen vrije knop meer.** Een GPT-5.6-model accepteert hem alleen bij
+  `reasoning.effort: "none"`; bij elke hogere stand is het een unsupported parameter en faalt de
+  call. De app zette op 21 plekken een temperatuur — één op één overzetten had dus niet "iets
+  slechtere output" opgeleverd maar een 400 op elke onderzoeks-, rapport- en schrijfstap.
+- **De tier-splitsing verviel.** `volume` (nano) en `quality` (mini) waren twee modellen; nu wijzen
+  ze allebei naar Luna. Het onderscheid dat we ermee maakten — hoeveel mag deze stap kosten en hoe
+  zorgvuldig moet hij zijn — zit nu in de redeneerinspanning.
+
+Daarom geven aanroepplekken geen temperatuur meer op maar een **soort werk** (`work:
+"deterministic" | "analytical" | "creative" | "content" | "simulation"`), en vertaalt
+`resolveTuning()` in `lib/openai/sampling.ts` dat naar de parameters die daadwerkelijk de deur uit
+gaan. Eén tabel, met per regel de reden: classificeren krijgt effort `none` + temperatuur 0
+(reproduceerbaarheid gaat vóór; één verschoven oordeel verschuift de score), promptgeneratie
+effort `none` + temperatuur 0,8 (variatie ís daar het product), onderzoek effort `low`, content
+effort `medium`. De effort-standen staan laag omdat één call binnen de 100 s van `TIMEOUT_MS` moet
+passen en de meet- en onderzoeksstappen daar web_search bij doen.
+
+**Vangnet (conventie 1).** De regel "temperatuur mag bij effort `none`" is een regel van OpenAI,
+niet van ons. Weigert de API hem alsnog, dan herhaalt `structured.ts` die ene call zonder
+temperatuur en stuurt hem de rest van het proces niet meer mee. Liever iets meer ruis in de
+classificatie dan een meetronde die omvalt nadat hij per vraag al betaald zoekwerk heeft gedaan.
+
+**Kosten.** Twee kanten op. Zoeken werd goedkoper: op een redeneermodel kost web_search $10 per
+1000 calls in plaats van $25, en dat was ~90% van een meetronde — 30 vragen gaan van $0,75 naar
+$0,30. Daar staat tegenover dat de opgehaalde pagina's nu wél als input worden afgerekend (~$0,05
+per ronde op Luna). Netto ruwweg $0,40 in plaats van $0,82. Content werd juist ~5× duurder per
+pagina. Beide getallen zijn afgeleid van de gepubliceerde tarieven en **nog niet nagerekend tegen
+`ai_calls` op productie** — conventie 10 geldt ook hier.
+
+**Wat dit niet oplost.** De eerste echte call op het nieuwe model is nog niet gemaakt: `npm run
+test:openai` maakt betaalde calls en is in deze ronde niet gedraaid. Die rooktest verifieert nu wel
+precies de combinaties die de pijplijn verstuurt (effort `none` + temperatuur 0, effort `low`,
+effort `medium` op Sol), zodat een geweigerde parameter daar zichtbaar wordt en niet pas in een
+meetronde.
+
+## 11. Bekende, bewust geaccepteerde beperkingen
 
 - **R0.5 is niet gebouwd**, en dat is de reden dat de fabrikanten die Bol verkoopt nog steeds als
   concurrent meetellen.
@@ -221,6 +268,9 @@ Het uitgangspunt bij dat alles: de datalaag was al netjes gescheiden (`lib/pipel
   we droppen niets).
 - **`npm run eval:mention` is nooit gedraaid tegen de gewijzigde mention-prompt.** Dat bestand
   omschrijft zichzelf als "de meest load-bearing prompt van het hele product" — daar hoort een
-  evaluatie bij. Vereist een API-sleutel.
+  evaluatie bij. Vereist een API-sleutel. Sinds de overstap naar GPT-5.6 (§10) weegt dit zwaarder:
+  de classificatie draait nu op een ánder model dan waarop de prompt is afgeregeld. Het script
+  meet inmiddels met exact de productie-instellingen (effort `none`, temperatuur 0) en vergelijkt
+  Luna tegen Terra.
 - **De regressieset is vijf analyses van 30 juli 2026.** Na een wijziging moeten de cijfers óf
   gelijk blijven, óf aantoonbaar beter worden om de reden die in de stap staat.

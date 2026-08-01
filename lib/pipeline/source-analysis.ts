@@ -18,7 +18,7 @@ import "server-only";
  */
 import { crawlPages } from "@/lib/crawler";
 import { callStructured } from "@/lib/openai/structured";
-import { MODELS, TEMPERATURES } from "@/lib/openai/models";
+import { MODELS } from "@/lib/openai/models";
 import { SourceAnalysis } from "@/lib/schemas/source-analysis";
 import { sourceAnalysisEnabled } from "@/lib/config";
 import { redactCompetitors } from "@/lib/pipeline/redact";
@@ -95,7 +95,7 @@ export async function analyzeCitedSources(args: {
       schema: SourceAnalysis,
       schemaName: "source_analysis",
       webSearch: false,
-      temperature: TEMPERATURES.analytical,
+      work: "analytical",
       meta: { kind: "source_analysis", analysisId: args.analysisId, profileId: args.profileId },
     });
 

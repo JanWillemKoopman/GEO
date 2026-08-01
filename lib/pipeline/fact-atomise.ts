@@ -39,7 +39,7 @@ import "server-only";
  * batch ongeacht hoeveel pagina's de klant koos.
  */
 import { callStructured } from "@/lib/openai/structured";
-import { MODELS, TEMPERATURES } from "@/lib/openai/models";
+import { MODELS } from "@/lib/openai/models";
 import { FactAtoms } from "@/lib/schemas/fact-atoms";
 import { verifyAtoms } from "@/lib/pipeline/atom-verify";
 import type { RawFact } from "@/lib/pipeline/factcard";
@@ -134,7 +134,7 @@ export async function atomiseSitePages(args: {
       schema: FactAtoms,
       schemaName: "fact_atoms",
       webSearch: false,
-      temperature: TEMPERATURES.deterministic,
+      work: "deterministic",
       meta: { kind: "fact_atomise", analysisId: args.analysisId, profileId: args.profileId },
     });
     atoms = result.parsed.atoms;

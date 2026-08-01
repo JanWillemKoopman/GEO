@@ -2,7 +2,7 @@ import "server-only";
 
 /**
  * Halte 2 — Prompt-generatie (abcplan.md §6 A2). Eén call per FUNNELFASE
- * (Oriëntatie/Overweging/Beslissing), PARALLEL afgevuurd, model gpt-4.1-mini,
+ * (Oriëntatie/Overweging/Beslissing), PARALLEL afgevuurd, quality-tier,
  * geen web_search. Aantal per fase is configureerbaar (lib/config.ts).
  *
  * KERNPRINCIPE (merk- én concurrent-neutraliteit): een gegenereerde prompt mag
@@ -15,7 +15,7 @@ import "server-only";
  * de concurrentenlijst en zijn geen concurrerend bedrijf van de klant.
  */
 import { callStructured } from "@/lib/openai/structured";
-import { MODELS, TEMPERATURES } from "@/lib/openai/models";
+import { MODELS } from "@/lib/openai/models";
 import { PromptSet, VolumeCalibration } from "@/lib/schemas/prompts";
 import { PROMPT_CATEGORIES, type PromptIntentType, type PromptSpecificity } from "@/lib/types/database";
 import { promptsPerFunnelStage } from "@/lib/config";
@@ -220,7 +220,7 @@ async function generateForFunnelStage(args: {
       schema: PromptSet,
       schemaName: "prompt_set",
       webSearch: false,
-      temperature: TEMPERATURES.creative,
+      work: "creative",
       meta: { kind: "prompts", analysisId: args.analysisId },
     });
     lastRaw = result.raw;
@@ -284,7 +284,7 @@ export async function calibrateVolumes(texts: string[], analysisId: string): Pro
       schema: VolumeCalibration,
       schemaName: "volume_calibration",
       webSearch: false,
-      temperature: TEMPERATURES.analytical,
+      work: "analytical",
       meta: { kind: "volume_calibration", analysisId },
     });
     const byIndex = new Map<number, number>();

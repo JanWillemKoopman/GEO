@@ -38,7 +38,7 @@ const TYPICAL_SECONDS: Record<JobType, number> = {
   profile_competitors: 15, // één destillatie-aanroep over de antwoordfragmenten
   generate_report: 25, // gap-analyse + rapport
   content_brief: 12, // één mini-aanroep voor de hele batch, geen web_search
-  content_draft: 50, // gpt-4.1 schrijft een volledige pagina
+  content_draft: 50, // het premium model schrijft een volledige pagina
   content_revise: 50,
   technical_audit: 10, // een handvol HTTP-verzoeken, geen AI
   verify_publication: 8, // één pagina ophalen en vergelijken

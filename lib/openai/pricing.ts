@@ -13,13 +13,16 @@
  * https://openai.com/api/pricing/ en werk `RATES_CHECKED_ON` bij.
  *
  * De berekende kosten zijn een SCHATTING: cached input-tokens worden goedkoper
- * afgerekend dan verse, en die splitsing nemen we hier niet mee. De schatting
+ * afgerekend dan verse, en die splitsing nemen we hier niet mee. Redeneertokens
+ * (GPT-5.6) hoeven geen aparte behandeling: de API telt ze al mee in
+ * `output_tokens` en ze worden ook als output afgerekend. De schatting
  * valt daardoor iets aan de hoge kant uit — dat is de veilige kant voor een
  * budgetberekening.
  */
+import { isReasoningModel } from "@/lib/openai/sampling";
 
 /** Datum waarop de tarieven hieronder voor het laatst geverifieerd zijn. */
-export const RATES_CHECKED_ON = "2026-07-25";
+export const RATES_CHECKED_ON = "2026-08-01";
 
 interface ModelRate {
   /** USD per 1 miljoen input-tokens. */
@@ -33,20 +36,42 @@ interface ModelRate {
  * ruwe schatting dan een stil gat in de kostenregistratie.
  */
 const RATES: Record<string, ModelRate> = {
+  // GPT-5.6 — wat de app sinds augustus 2026 draait (lib/openai/models.ts).
+  "gpt-5.6-sol": { inputPerMillion: 5.0, outputPerMillion: 30.0 },
+  "gpt-5.6-terra": { inputPerMillion: 2.0, outputPerMillion: 12.0 },
+  "gpt-5.6-luna": { inputPerMillion: 0.2, outputPerMillion: 1.2 },
+  // `gpt-5.6` is de alias van Sol; komt hij ergens ongesuffixt voorbij, dan mag
+  // hij niet stilletjes op de terugval belanden.
+  "gpt-5.6": { inputPerMillion: 5.0, outputPerMillion: 30.0 },
+  // GPT-4.1 — blijft staan voor de historische rijen in `ai_calls`: die zijn met
+  // déze tarieven berekend en moeten narekenbaar blijven.
   "gpt-4.1": { inputPerMillion: 2.0, outputPerMillion: 8.0 },
   "gpt-4.1-mini": { inputPerMillion: 0.4, outputPerMillion: 1.6 },
   "gpt-4.1-nano": { inputPerMillion: 0.1, outputPerMillion: 0.4 },
 };
 
-/** Terugval voor een model dat (nog) niet in de tabel staat — bewust aan de dure kant. */
-const FALLBACK_RATE: ModelRate = { inputPerMillion: 2.0, outputPerMillion: 8.0 };
+/**
+ * Terugval voor een model dat (nog) niet in de tabel staat — bewust aan de dure
+ * kant, en dus gelijk aan het duurste model dat we draaien (Sol). Stond op het
+ * gpt-4.1-tarief; dat zou een onbekend GPT-5.6-model 2,5× te goedkoop schatten,
+ * en een te lage schatting is precies wat je in een budgetberekening niet wilt.
+ */
+const FALLBACK_RATE: ModelRate = { inputPerMillion: 5.0, outputPerMillion: 30.0 };
 
 /**
  * Vast tarief per web-zoekactie. Dit is verreweg de grootste kostenpost van de
  * meting: bij 30 vragen weegt dit zwaarder dan alle tokens samen. Precies daarom
  * bestaat de MEASURE_WEB_SEARCH-schakelaar (lib/config.ts).
+ *
+ * Twee tarieven, en welke geldt hangt af van het MODEL, niet van de toolnaam:
+ * op een redeneermodel kost een zoekactie $10 per 1000 calls en worden de
+ * opgehaalde pagina-tokens gewoon als input afgerekend; op een niet-redeneermodel
+ * is de preview-tool $25 per 1000 calls en zijn die tokens gratis. De overstap
+ * naar GPT-5.6 maakt de meting op dit punt dus 2,5× goedkoper per zoekactie —
+ * de opgehaalde tokens zitten al in `input_tokens` en tellen hieronder vanzelf mee.
  */
-const WEB_SEARCH_PER_CALL = 0.025;
+const WEB_SEARCH_PER_CALL_REASONING = 0.01;
+const WEB_SEARCH_PER_CALL_PREVIEW = 0.025;
 
 export interface CostInput {
   model: string;
@@ -65,7 +90,10 @@ export function estimateCostUsd(input: CostInput): number {
   const rate = RATES[input.model] ?? FALLBACK_RATE;
   const inputCost = ((input.inputTokens ?? 0) / 1_000_000) * rate.inputPerMillion;
   const outputCost = ((input.outputTokens ?? 0) / 1_000_000) * rate.outputPerMillion;
-  const searchCost = input.webSearch ? WEB_SEARCH_PER_CALL : 0;
+  const perSearch = isReasoningModel(input.model)
+    ? WEB_SEARCH_PER_CALL_REASONING
+    : WEB_SEARCH_PER_CALL_PREVIEW;
+  const searchCost = input.webSearch ? perSearch : 0;
   // 6 decimalen: matcht numeric(10,6) in de database.
   return Number((inputCost + outputCost + searchCost).toFixed(6));
 }

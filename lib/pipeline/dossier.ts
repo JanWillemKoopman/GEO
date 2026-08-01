@@ -38,7 +38,7 @@ import "server-only";
  * document, dus geen effect op de kosten per analyse of per pagina.
  */
 import { callStructured } from "@/lib/openai/structured";
-import { MODELS, TEMPERATURES } from "@/lib/openai/models";
+import { MODELS } from "@/lib/openai/models";
 import { DossierFacts } from "@/lib/schemas/dossier-facts";
 import { verifyDossierFacts, type VerifiedDossierFact } from "@/lib/pipeline/dossier-verify";
 
@@ -109,7 +109,7 @@ export async function extractDossierFacts(args: {
       schema: DossierFacts,
       schemaName: "dossier_facts",
       webSearch: false,
-      temperature: TEMPERATURES.deterministic,
+      work: "deterministic",
       meta: { kind: "dossier_extract", profileId: args.profileId },
     });
 

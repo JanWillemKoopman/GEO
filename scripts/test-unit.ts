@@ -67,6 +67,9 @@ import { wilsonBounds, maySkip, elicitLabel, describeElicit } from "@/lib/pipeli
 import { planFactMerge, describeContradictions } from "@/lib/pipeline/fact-merge";
 import type { IncomingFact, StoredFact } from "@/lib/pipeline/fact-merge";
 import { detectClaimSentences, claimMatchesSentence, detectedCoverage } from "@/lib/pipeline/claim-extract";
+import { resolveTuning, isReasoningModel, isUnsupportedTemperatureError } from "@/lib/openai/sampling";
+import { estimateCostUsd, hasKnownRate } from "@/lib/openai/pricing";
+import { MODELS } from "@/lib/openai/models";
 
 let passed = 0;
 let failed = 0;
@@ -1693,6 +1696,102 @@ group("wat de klant hierover leest", () => {
   ]);
   ok("de omkering wordt gemeld", regels.length === 1);
   ok("met beide teksten erin", regels[0].includes("NEE") && regels[0].includes("ja"));
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+console.log("\nModelparameters en kosten (GPT-5.6-overstap, augustus 2026)");
+
+group("welk model redeneert", () => {
+  ok("luna", isReasoningModel("gpt-5.6-luna"));
+  ok("sol", isReasoningModel("gpt-5.6-sol"));
+  ok("terra", isReasoningModel("gpt-5.6-terra"));
+  ok("o3", isReasoningModel("o3-mini"));
+  ok("gpt-4.1 niet", !isReasoningModel("gpt-4.1"));
+  ok("gpt-4.1-nano niet", !isReasoningModel("gpt-4.1-nano"));
+  // Alle drie de tiers die de app draait moeten in dezelfde tak vallen: anders
+  // krijgt de content-stap stilzwijgend andere parameters dan de rest.
+  ok("alle tiers van de app", Object.values(MODELS).every(isReasoningModel));
+});
+
+group("soort werk → parameters", () => {
+  const det = resolveTuning(MODELS.volume, "deterministic");
+  ok("classificeren redeneert niet", det.reasoningEffort === "none");
+  ok("en blijft op temperatuur 0", det.temperature === 0);
+
+  const ana = resolveTuning(MODELS.quality, "analytical");
+  ok("analyseren krijgt redeneertijd", ana.reasoningEffort === "low");
+  // De kern van deze hele laag: bij effort > none weigert de API `temperature`.
+  // Gaat dit stuk, dan valt élke onderzoeks-, rapport- en gap-call om.
+  ok("en stuurt géén temperatuur mee", ana.temperature === undefined);
+
+  const cre = resolveTuning(MODELS.quality, "creative");
+  ok("promptgeneratie mag zwerven", cre.temperature === 0.8 && cre.reasoningEffort === "none");
+
+  const con = resolveTuning(MODELS.content, "content");
+  ok("content krijgt redeneertijd", con.reasoningEffort === "medium");
+  ok("zonder temperatuur", con.temperature === undefined);
+
+  const sim = resolveTuning(MODELS.quality, "simulation");
+  ok("de meting draait op de modelstandaard", sim.temperature === undefined && sim.reasoningEffort === undefined);
+});
+
+group("terugval als de API de temperatuur weigert", () => {
+  const uit = resolveTuning(MODELS.volume, "deterministic", false);
+  ok("temperatuur verdwijnt", uit.temperature === undefined);
+  ok("maar de effort blijft staan", uit.reasoningEffort === "none");
+
+  // Een niet-redeneermodel houdt zijn oude gedrag: temperatuur zoals bedoeld,
+  // geen effort. Zo blijft een vergelijking tegen gpt-4.1 eerlijk.
+  const oud = resolveTuning("gpt-4.1-mini", "analytical");
+  ok("gpt-4.1 houdt zijn temperatuur", oud.temperature === 0.2);
+  ok("en krijgt geen effort", oud.reasoningEffort === undefined);
+});
+
+group("herkennen van een geweigerde temperatuur", () => {
+  ok(
+    "unsupported parameter",
+    isUnsupportedTemperatureError({
+      status: 400,
+      error: { param: "temperature", message: "Unsupported parameter: 'temperature'." },
+    }),
+  );
+  ok(
+    "does not support",
+    isUnsupportedTemperatureError({ status: 400, message: "This model does not support temperature." }),
+  );
+  // Valse herkenning is erger dan een gemiste: dan zetten we de temperatuur
+  // voorgoed uit om een fout die er niets mee te maken had.
+  ok("niet bij een andere 400", !isUnsupportedTemperatureError({ status: 400, message: "Invalid schema." }));
+  ok(
+    "niet bij een 429 over temperatuur",
+    !isUnsupportedTemperatureError({ status: 429, message: "rate limit (temperature)" }),
+  );
+  ok("niet bij null", !isUnsupportedTemperatureError(null));
+});
+
+group("kosten per model", () => {
+  ok("luna staat in de tabel", hasKnownRate("gpt-5.6-luna"));
+  ok("sol staat in de tabel", hasKnownRate("gpt-5.6-sol"));
+  ok("gpt-4.1 blijft narekenbaar", hasKnownRate("gpt-4.1"));
+
+  // 1M in + 1M uit op Luna = $0,20 + $1,20.
+  const luna = estimateCostUsd({ model: "gpt-5.6-luna", inputTokens: 1e6, outputTokens: 1e6, webSearch: false });
+  ok("luna 1M+1M = $1,40", Math.abs(luna - 1.4) < 1e-6, `${luna}`);
+
+  const sol = estimateCostUsd({ model: "gpt-5.6-sol", inputTokens: 1e6, outputTokens: 1e6, webSearch: false });
+  ok("sol 1M+1M = $35", Math.abs(sol - 35) < 1e-6, `${sol}`);
+
+  // Een zoekactie kost op een redeneermodel $0,010 en op de niet-redeneerpreview
+  // $0,025. Dit is de grootste kostenpost van de meting, dus het verschil telt:
+  // 30 vragen × $0,015 scheelt $0,45 per ronde.
+  const zoekNieuw = estimateCostUsd({ model: "gpt-5.6-luna", inputTokens: 0, outputTokens: 0, webSearch: true });
+  ok("zoekactie op luna = $0,010", Math.abs(zoekNieuw - 0.01) < 1e-6, `${zoekNieuw}`);
+  const zoekOud = estimateCostUsd({ model: "gpt-4.1-mini", inputTokens: 0, outputTokens: 0, webSearch: true });
+  ok("zoekactie op gpt-4.1 = $0,025", Math.abs(zoekOud - 0.025) < 1e-6, `${zoekOud}`);
+
+  // Onbekend model → de dure terugval (Sol-tarief), nooit stil een te laag bedrag.
+  const onbekend = estimateCostUsd({ model: "gpt-6-mystery", inputTokens: 1e6, outputTokens: 0, webSearch: false });
+  ok("onbekend model rekent duur", Math.abs(onbekend - 5) < 1e-6, `${onbekend}`);
 });
 
 // ════════════════════════════════════════════════════════════════════════════

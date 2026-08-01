@@ -30,7 +30,7 @@ import "server-only";
  */
 import { createAdminClient } from "@/lib/supabase/admin";
 import { callStructured } from "@/lib/openai/structured";
-import { MODELS, TEMPERATURES } from "@/lib/openai/models";
+import { MODELS } from "@/lib/openai/models";
 import { ClaimAudit } from "@/lib/schemas/claim-audit";
 import type { AuditedClaim } from "@/lib/schemas/claim-audit";
 import { buildFactBase, lastContradictions } from "@/lib/pipeline/factbase";
@@ -397,7 +397,7 @@ export async function runBriefing(args: {
     schema: ClaimAudit,
     schemaName: "claim_audit",
     webSearch: false,
-    temperature: TEMPERATURES.deterministic,
+    work: "deterministic",
     meta: { kind: "claim_audit", analysisId, profileId },
   });
 
