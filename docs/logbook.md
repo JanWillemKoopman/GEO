@@ -213,7 +213,77 @@ plaats van 30 handgebouwde inline-styles).
 Het uitgangspunt bij dat alles: de datalaag was al netjes gescheiden (`lib/pipeline/*`,
 `lib/dashboard.ts`), dus vrijwel alles was schermwerk. Zie `ux-design.md` voor het resultaat.
 
-## 10. Bekende, bewust geaccepteerde beperkingen
+## 10. Eind-tot-eind door de productie-app (1 augustus)
+
+Eén echte klantcase van nul tot artikel, via de browser tegen de live app, met echte kosten:
+**Swapfiets** (swapfiets.nl), onderwerp *fietsabonnement*. Niet tegen testdata en niet tegen
+stubs — profiel aanmaken, 22 vragen laten opstellen, bevestigen, 38 metingen met `web_search`,
+rapport, briefing beantwoorden en één pagina laten schrijven. Kosten van de hele run: **$1,03**,
+waarvan $0,988 (96%) in de 38 metingen. Dat is precies de verhouding die §3 voorspelde.
+
+De keten werkt. Wat eruit kwam: score 95 ±13, 68% van de metingen noemt Swapfiets, gemiddelde
+positie 1,3, 14× als eerste aanbevolen, en een artikel van 502 woorden waarvan elke concrete
+bewering een F-nummer draagt dat naar een echte bron wijst. Nul verzinsels.
+
+Er gingen onderweg vijf dingen stuk. Op volgorde van hoe erg:
+
+**De content-inventaris verdween zonder een woord.** Twee van de 22 gecrawlde pagina's van
+swapfiets.nl bevatten een NUL-byte (U+0000). Postgres accepteert dat niet in een `text`-kolom en
+PostgREST weigert dan de HÉLE batch-insert — dus twee rotte pagina's kostten alle 22. De fout van
+de insert werd nergens gecontroleerd: `refreshInventory()` gaf 22 terug, de route antwoordde
+`{"count":22}`, en in `profile_pages` stond nul. Het profiel ging op 'klaar'.
+
+Dit is de duurste soort fout die dit product kan maken, want hij is onzichtbaar en hij vreet aan
+het fundament: zonder inventaris is de feitenkaart leeg en wordt content op niets gebouwd. Het
+verschil is te meten. Na de reparatie telde de kaart van dezelfde pagina **29 citeerbare feiten,
+waarvan er 18 uitsluitend uit de gecrawlde pagina's komen** — inclusief alle prijzen (€19,90 voor
+de Original, €23,90 voor de Deluxe 7) en de servicebelofte "binnen 10 minuten gerepareerd of
+omgeruild". Zonder de fix had het artikel het over "een vast bedrag per maand" moeten hebben.
+
+Geschoond bij de bron (`lib/pg-text.ts`, puur en getest): `htmlToText()` is het enige punt waar
+externe HTML platte tekst wordt, dus daar gaan de NUL-byte en de losse surrogate eruit. En beide
+inserts controleren nu hun fout — `prepare-profile` logt hem, `refresh-inventory` gooit hem, want
+die route toont de klant een getal en dat mag geen leugen zijn.
+
+**De werker werd door het platform afgekapt.** Twee 504's op `/api/cron/worker` in 24 uur ("Task
+timed out after 300 seconds"). Twee rekensommen die niet klopten. De SDK-timeout van 100s geldt
+per POGING en de SDK herhaalt ook timeouts, dus met `maxRetries = 3` was de echte bovengrens van
+één aanroep 400 seconden — terwijl `HEAVY_JOB_RESERVE_MS` (220s voor twee aanroepen) er
+stilzwijgend van uitging dat er niet herhaald werd. En de claimlus keek alleen of het budget nog
+niet óp was, niet of het volgende werk er nog ín past: zware taken hadden een reservering, lichte
+niet. Nu een totaalbudget van 105s per aanroep via een `AbortSignal` die over alle pogingen heen
+geldt, plus een reservering voor allebei de soorten. Afgekapt worden is niet onschuldig: alles wat
+op dat moment geclaimd was bleef op 'running' staan tot de reaper het vijf minuten later
+terugzette, en zo lang kijkt de klant naar een voortgangsscherm waarachter niets gebeurt.
+
+**Wat je vóór de hydratie typte, was weg.** Het naamveld van de onboarding heeft `autoFocus` en
+nodigt dus uit om er meteen in te typen. Wie dat deed vóórdat React het formulier had overgenomen,
+zag bij de eerste re-render naam én webadres leeglopen — de controlled input schreef de lege
+React-state over de DOM-waarde heen. Gemeten tegen productie, zonder enige melding. Eén effect bij
+het aankoppelen neemt nu over wat er al stond.
+
+**Oriëntatie leverde 2 van de 10 vragen op.** Overweging en Beslissing haalden allebei gewoon 10.
+Oorzaak is de merkneutraliteitsregel die precies doet wat hij moet doen: een brede oriëntatievraag
+over fietsabonnementen noemt in Nederland vanzelf de marktleider, en dat is hier de klant zelf.
+Het probleem zat in de aanvulronde, die wel te horen kreeg dát er vragen ontbraken maar niet dat
+de vorige ronde op een BEDRIJFSNAAM sneuvelde — uit een lijst geaccepteerde vragen valt dat niet
+af te leiden. Nu staat de reden er expliciet bij, met de verboden namen, en mag een fase drie
+rondes in plaats van twee. De klant zag hier niets van: het scherm meldde "22 actief van 22".
+⚠️ Dit is de enige reparatie van deze ronde die nog **niet live is nagerekend** — de wachtrij
+draait op de productiebranch, dus het effect is pas te meten bij de eerste analyse na de merge.
+
+**En een e-mail die nooit kwam.** "Kom later terug of wacht op de e-mail", op elk voortgangsscherm,
+terwijl `EMAILS_ENABLED` uitstaat en op productie uitstond. Er staat nu alleen wat onder alle
+omstandigheden waar is. Verder `app/icon.svg` toegevoegd: `/favicon.ico` gaf 404 bij elke
+paginaweergave.
+
+Wat déze ronde leert bovenop §7: de bugklasse is opgeschoven. De zeven fouten van juli zaten in de
+samenhang tussen taken. Deze vijf zitten in de **randen van het systeem** — wat het open web in de
+database duwt, wat het platform met een te lange functie doet, wat de browser doet vóórdat React
+er is. Geen enkele was te vinden met een test die de app tegen zichzelf draait; alle vijf lagen
+binnen tien minuten open zodra er één echte klant doorheen liep.
+
+## 11. Bekende, bewust geaccepteerde beperkingen
 
 - **R0.5 is niet gebouwd**, en dat is de reden dat de fabrikanten die Bol verkoopt nog steeds als
   concurrent meetellen.

@@ -3,7 +3,9 @@
 Backend, Supabase, pijplijn en deploy. Voor het *waarom* achter een keuze: `logbook.md`.
 Voor UI/UX: `ux-design.md`.
 
-> **Geverifieerd tegen de code op 1 augustus 2026** (branch `main`, t/m migratie `0037`).
+> **Geverifieerd tegen de code op 1 augustus 2026** (branch `main`, t/m migratie `0037`),
+> plus de eind-tot-eind-ronde van diezelfde dag (`logbook.md` §10) — die raakte de crawler,
+> de werker en de OpenAI-client, en die wijzigingen staan hieronder verwerkt.
 > Dit document beschrijft wat de code dóet, niet wat een plan voorschrijft — wijkt het af, dan is
 > de code leidend en is dit document fout. Werk deze datum bij zodra je hem hebt nagetrokken.
 
@@ -64,7 +66,7 @@ Daarom pg_cron.
 | Tabel | Wat het is |
 |---|---|
 | `profiles` | Klant/merk op accountniveau. Website, branche, aliassen, concurrenten, persona's, tone-of-voice, `business_model`. Eén keer onderzocht, hergebruikt door alle analyses. |
-| `profile_pages` | Contentinventaris uit een crawl (sitemap recursief, anders homepage-links). Productpagina's uitgesloten. Geen AI. |
+| `profile_pages` | Contentinventaris uit een crawl (sitemap recursief, anders homepage-links). Productpagina's uitgesloten. Geen AI. Alle tekst gaat door `sanitizeForPostgres()` (`lib/pg-text.ts`): één NUL-byte uit één pagina laat Postgres anders de hele batch-insert weigeren, en dan verdwijnt de complete inventaris. |
 | `analyses` | Eén getrackt onderwerp onder een profiel. Status, tracking aan/uit, content-brief. `topic` verplicht en niet wijzigbaar na start. |
 | `prompts` | 30 per analyse (10 per funnelfase). Volledig door de klant beheerbaar. `elicit_successes`/`elicit_samples` = de kans dat deze vraag überhaupt een merk oplevert. |
 | `tracking_runs` | Eén rij per meting per prompt. `raw_response`, `brands_in_answer`, `repeat_index`, `prompt_weight` (bevroren op meetmoment). |
@@ -238,6 +240,26 @@ select * from cron.job_run_details order by start_time desc limit 10;
 | **Werker** | `/api/cron/worker` | elke minuut | **Supabase pg_cron**. Zonder deze taak gebeurt er niets. |
 | Terugkerende meting | `/api/cron/tracking` | 1e van de maand 06:00 UTC | Vercel |
 | Rapport-mail | `/api/cron/reminders` | maandag 09:00 UTC | Vercel (nu uit `vercel.json` gehaald — bestaat alleen om te mailen) |
+
+### Tijdbudgetten — waarom deze getallen bij elkaar horen
+
+De werkerroute krijgt van Vercel **300 seconden** (`maxDuration`). Alles eronder is daarvan
+afgeleid en moet daar samen in passen; klopt de som niet, dan kapt het platform de functie af en
+blijven geclaimde taken vijf minuten op 'running' staan tot de reaper ze terugzet.
+
+| Grens | Waarde | Waar |
+|---|---|---|
+| Routelimiet | 300 s | `maxDuration`, `app/api/cron/worker/route.ts` |
+| Tijdbudget werker | 240 s (instelbaar) | `workerTimeBudgetMs`, `lib/config.ts` |
+| Reservering zware taak | 220 s | `HEAVY_JOB_RESERVE_MS`, `lib/jobs/worker.ts` |
+| Reservering lichte taak | 115 s | `LIGHT_JOB_RESERVE_MS`, idem — gecontroleerd vóór élke claimronde |
+| Totaalbudget één AI-aanroep | 105 s | `CALL_BUDGET_MS` → `callBudget()`, `lib/openai/client.ts` |
+| Timeout per poging | 100 s | `TIMEOUT_MS`, idem |
+
+Het totaalbudget is een `AbortSignal` die over ALLE pogingen heen geldt. Zonder dat was de echte
+bovengrens van één aanroep 4 × 100 s = 400 s (`maxRetries = 3` herhaalt ook timeouts), en dan
+klopt geen enkele reservering hierboven meer. Verhoog je één van deze getallen, reken dan de rij
+opnieuw door.
 
 ## 10. Omgeving
 
