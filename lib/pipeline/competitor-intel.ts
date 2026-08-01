@@ -29,7 +29,7 @@ import "server-only";
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { callStructured } from "@/lib/openai/structured";
-import { MODELS, TEMPERATURES } from "@/lib/openai/models";
+import { MODELS } from "@/lib/openai/models";
 import { CompetitorProfileSet } from "@/lib/schemas/competitor-profile";
 import { normalizeEntityName } from "@/lib/entities/normalize";
 import type { CompetitorBreakdown } from "@/lib/types/database";
@@ -178,7 +178,7 @@ export async function profileCompetitors(
     schema: CompetitorProfileSet,
     schemaName: "competitor_profiles",
     webSearch: false,
-    temperature: TEMPERATURES.deterministic,
+    work: "deterministic",
     meta: {
       kind: "competitor_intel",
       analysisId,

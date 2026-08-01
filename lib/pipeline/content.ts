@@ -5,9 +5,9 @@ import "server-only";
  * kant-en-klare pagina per aanbeveling, als een kleine REDACTIONELE PIJPLIJN
  * i.p.v. één blinde call:
  *
- *   1. Draft         — premium model (gpt-4.1), on-brand, geground op de
+ *   1. Draft         — premium model (`gpt-5.6-sol`), on-brand, geground op de
  *                      concrete feiten uit het klantprofiel.
- *   2. Redactie      — goedkope call (mini) scoort de draft op een rubric,
+ *   2. Redactie      — goedkope call (quality-tier) scoort de draft op een rubric,
  *                      checkt de harde regels én de GEO-criteria.
  *   3. Herschrijven  — premium model verwerkt de feedback (alleen als nodig).
  *   4. Kwaliteitspoort — onder de drempel of met regel-risico → needs_review.
@@ -31,7 +31,7 @@ import "server-only";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { currentPiece } from "@/lib/jobs/content-jobs";
 import { callStructured } from "@/lib/openai/structured";
-import { MODELS, TEMPERATURES } from "@/lib/openai/models";
+import { MODELS } from "@/lib/openai/models";
 import { ContentPiece } from "@/lib/schemas/content-piece";
 import { Critique, geoScore, geoIssues } from "@/lib/schemas/critique";
 import { checkContentGate } from "@/lib/pipeline/content-gate";
@@ -950,7 +950,7 @@ function buildDraftRow(args: {
     // de schrijftaak. Wijkt de opgeslagen titel daarvan af, dan vindt geen van
     // die drie de pagina nog — de knop blijft eeuwig "bezig", de teller loopt
     // niet terug, en elke volgende klik maakt een duplicaat met volle
-    // gpt-4.1-kosten. Eén bron van waarheid, en dat is het rapport.
+    // premium-kosten. Eén bron van waarheid, en dat is het rapport.
     title: recommendation.title,
     target_intent: draft.parsed.targetIntent,
     cluster: draft.parsed.cluster,
@@ -1145,7 +1145,7 @@ export async function draftContentPiece(args: {
   //
   // Staat er al een draft mét tekst, dan is deze ronde in een eerdere poging al
   // gedaan en hergebruiken we hem. Dit is de duurste aanroep van het hele
-  // product — gpt-4.1 die een volledige pagina schrijft — en die twee keer
+  // product — het premium model dat een volledige pagina schrijft — en die twee keer
   // betalen omdat de vórige poging ná het schrijven strandde, is puur verlies.
   const saved = resumeId ? await loadSavedDraft(admin, resumeId) : null;
   const draft =
@@ -1158,7 +1158,7 @@ export async function draftContentPiece(args: {
       schema: ContentPiece,
       schemaName: "content_piece",
       webSearch: ctx.needsFactFinding,
-      temperature: TEMPERATURES.content,
+      work: "content",
       meta: { kind: "content_draft", analysisId, profileId: analysis.profile_id },
     }));
 
@@ -1195,7 +1195,7 @@ export async function draftContentPiece(args: {
     schema: Critique,
     schemaName: "content_critique",
     webSearch: false,
-    temperature: TEMPERATURES.deterministic,
+    work: "deterministic",
     meta: { kind: "content_critique", analysisId, profileId: analysis.profile_id },
   });
 
@@ -1310,7 +1310,7 @@ export async function reviseContentPiece(args: {
     schema: ContentPiece,
     schemaName: "content_piece",
     webSearch: ctx.needsFactFinding,
-    temperature: TEMPERATURES.content,
+    work: "content",
     meta: { kind: "content_revise", analysisId, profileId: analysis.profile_id },
   });
 
@@ -1322,7 +1322,7 @@ export async function reviseContentPiece(args: {
     schema: Critique,
     schemaName: "content_critique",
     webSearch: false,
-    temperature: TEMPERATURES.deterministic,
+    work: "deterministic",
     meta: { kind: "content_critique", analysisId, profileId: analysis.profile_id },
   });
 

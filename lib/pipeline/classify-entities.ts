@@ -21,7 +21,7 @@ import "server-only";
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { callStructured } from "@/lib/openai/structured";
-import { MODELS, TEMPERATURES } from "@/lib/openai/models";
+import { MODELS } from "@/lib/openai/models";
 import { EntityClassification } from "@/lib/schemas/entity-classification";
 import { normalizeEntityName } from "@/lib/entities/normalize";
 import type { Entity } from "@/lib/types/database";
@@ -151,7 +151,7 @@ export async function classifyPendingEntities(
       schema: EntityClassification,
       schemaName: "entity_classification",
       webSearch: false,
-      temperature: TEMPERATURES.deterministic,
+      work: "deterministic",
       meta: { kind: "classify_entities", analysisId, profileId },
     });
 

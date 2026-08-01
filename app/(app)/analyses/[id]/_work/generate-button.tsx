@@ -12,7 +12,7 @@ import type { UserFacingError } from "@/lib/errors";
  *
  * Het schrijven draait nu op de achtergrond (optimalisatie.md 1.4): de knop
  * plant het in en pollt tot de pagina klaar is. Voorheen hield deze fetch
- * zestig seconden lang een verbinding open terwijl gpt-4.1 twee volledige
+ * zestig seconden lang een verbinding open terwijl het premium model twee volledige
  * pagina's schreef — de meest waarschijnlijke plek om op de tijdslimiet stuk te
  * lopen, en dan was het dure schrijfwerk weg.
  *

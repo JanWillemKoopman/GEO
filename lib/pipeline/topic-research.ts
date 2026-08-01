@@ -5,13 +5,13 @@ import "server-only";
  * dit product/thema — (1) wat de website hierover zegt, (2) wie de concurrenten
  * voor dit onderwerp zijn. Het bedrijfsbrede deel (merknaam, branche, tone-of-
  * voice, persona's) zit al in het klantprofiel en wordt hier niet herhaald.
- * Model gpt-4.1-mini, web_search AAN (concurrenten voor een onderwerp vinden
+ * Quality-tier, web_search AAN (concurrenten voor een onderwerp vinden
  * leunt op actuele marktkennis, net als het profielonderzoek). Gebruikt de
  * al gecrawlde `profile_pages`-inventaris (§12.23) i.p.v. een eigen crawl —
  * die site is al eenmalig gecrawld bij het profiel.
  */
 import { callStructured, type StructuredCallResult } from "@/lib/openai/structured";
-import { MODELS, TEMPERATURES } from "@/lib/openai/models";
+import { MODELS } from "@/lib/openai/models";
 import { webSearchEnabled } from "@/lib/config";
 import { TopicResearch } from "@/lib/schemas/topic-research";
 import type { Profile, ProfilePage } from "@/lib/types/database";
@@ -76,7 +76,7 @@ export async function generateTopicResearch(args: {
     // ontwikkelfase om kosten te sparen; dan leunt dit onderzoek op wat het
     // model zich herinnert in plaats van op actuele marktkennis.
     webSearch: webSearchEnabled,
-    temperature: TEMPERATURES.analytical,
+    work: "analytical",
     meta: { kind: "topic_research", analysisId: args.analysisId, profileId: profile.id },
   });
 }

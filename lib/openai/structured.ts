@@ -15,8 +15,65 @@ import { zodTextFormat } from "openai/helpers/zod";
 import { getOpenAI, callBudget } from "@/lib/openai/client";
 import { estimateCostUsd } from "@/lib/openai/pricing";
 import { logAiCall, type CallMeta } from "@/lib/openai/ledger";
+import {
+  isUnsupportedTemperatureError,
+  resolveTuning,
+  type CallTuning,
+  type WorkKind,
+} from "@/lib/openai/sampling";
 
 export type { CallMeta };
+
+/**
+ * Heeft de API de temperatuur geaccepteerd? Zodra hij hem één keer weigert,
+ * gaat deze vlag om en sturen we hem voor de rest van het proces niet meer mee.
+ *
+ * WAAROM. GPT-5.6 accepteert `temperature` alleen bij effort `none`
+ * (lib/openai/sampling.ts). Dat is de regel zoals hij nu geldt, maar het is een
+ * regel van OpenAI en niet van ons: scherpen ze hem aan, dan zou élke
+ * classificatie-call in de app op een 400 stuklopen — midden in een meetronde
+ * die per prompt al betaald web_search-werk heeft gedaan. Deze vlag maakt dat
+ * een eenmalige, zelfherstellende hik in plaats van een storing. Conventie 1:
+ * een aanname over het model krijgt een vangnet in code.
+ */
+let temperatureSupported = true;
+
+/** Vertaalt soort werk naar API-parameters, met de huidige stand van de vlag. */
+function tuningFor(model: string, work: WorkKind | undefined): CallTuning {
+  return resolveTuning(model, work ?? "simulation", temperatureSupported);
+}
+
+/**
+ * Voert de aanroep uit en herhaalt hem één keer zónder temperatuur als dat het
+ * enige struikelblok was. Elke andere fout gaat ongewijzigd omhoog — de
+ * retry-laag van de SDK (429/5xx) en die van de jobwachtrij zitten daar al op.
+ */
+async function withTemperatureFallback<R>(
+  tuning: CallTuning,
+  send: (tuning: CallTuning) => Promise<R>,
+): Promise<R> {
+  try {
+    return await send(tuning);
+  } catch (err) {
+    if (tuning.temperature === undefined || !isUnsupportedTemperatureError(err)) throw err;
+    temperatureSupported = false;
+    return await send({ ...tuning, temperature: undefined });
+  }
+}
+
+/**
+ * De redeneerinspanning zoals de Responses API hem verwacht.
+ *
+ * De cast is nodig omdat de vastgezette SDK (openai 4.104) van vóór de
+ * GPT-5-familie stamt: zijn `ReasoningEffort` kent alleen `low | medium | high`,
+ * terwijl GPT-5.6 ook `none`, `xhigh` en `max` accepteert. De waarde gaat
+ * ongewijzigd de HTTP-body in, dus dit is puur een typegat en geen gedrag.
+ * Verdwijnt zodra de SDK meegaat naar v7.
+ */
+function reasoningParam(tuning: CallTuning): OpenAI.Reasoning | undefined {
+  if (!tuning.reasoningEffort) return undefined;
+  return { effort: tuning.reasoningEffort } as unknown as OpenAI.Reasoning;
+}
 
 /**
  * Haalt de tokenaantallen uit een Responses-antwoord. De SDK-typering dekt niet
@@ -58,11 +115,13 @@ export interface StructuredCallOptions<T> {
   /** web_search-tool aanzetten? Alleen waar echt nodig (§10 kostenknop). */
   webSearch?: boolean;
   /**
-   * Temperatuur — kies er één uit TEMPERATURES (lib/openai/models.ts), zodat de
-   * keuze op één plek vastligt (optimalisatie.md 0.5). Weglaten = het
-   * model-default, wat je alleen wilt bij de simulatie-call (halte 3a).
+   * Wat voor werk is dit? Daaruit volgen temperatuur én redeneerinspanning
+   * (lib/openai/sampling.ts), zodat die keuze op één plek vastligt
+   * (optimalisatie.md 0.5) en niet per aanroep opnieuw bedacht wordt.
+   * Weglaten = `simulation`: geen enkele parameter, puur de modelstandaard —
+   * wat je alleen wilt bij de simulatie-call (halte 3a).
    */
-  temperature?: number;
+  work?: WorkKind;
   /**
    * Waar hoort deze aanroep bij (optimalisatie.md 0.6)? Meegeven → de aanroep
    * wordt automatisch geregistreerd in `ai_calls`. Weglaten → geen registratie
@@ -136,18 +195,28 @@ export async function callStructured<T>(
 
   const openai = getOpenAI();
 
-  const response = await openai.responses.parse({
-    model: opts.model,
-    input: [
-      { role: "system", content: opts.system },
-      { role: "user", content: opts.user },
-    ],
-    tools: opts.webSearch ? [WEB_SEARCH_TOOL] : undefined,
-    temperature: opts.temperature,
-    text: {
-      format: zodTextFormat(opts.schema, opts.schemaName),
-    },
-  }, callBudget());
+  // Eén budget voor de HELE aanroep, dus buiten withTemperatureFallback: die kan
+  // een tweede poging doen, en twee losse budgetten zouden samen het dubbele van
+  // de bovengrens opleveren waar lib/jobs/worker.ts op rekent.
+  const budget = callBudget();
+  const response = await withTemperatureFallback(tuningFor(opts.model, opts.work), (tuning) =>
+    openai.responses.parse(
+      {
+        model: opts.model,
+        input: [
+          { role: "system", content: opts.system },
+          { role: "user", content: opts.user },
+        ],
+        tools: opts.webSearch ? [WEB_SEARCH_TOOL] : undefined,
+        temperature: tuning.temperature,
+        reasoning: reasoningParam(tuning),
+        text: {
+          format: zodTextFormat(opts.schema, opts.schemaName),
+        },
+      },
+      budget,
+    ),
+  );
 
   const parsed = response.output_parsed;
   if (parsed == null) {
@@ -197,8 +266,8 @@ export interface PlainCallOptions {
   system: string;
   user: string;
   webSearch?: boolean;
-  /** Zie StructuredCallOptions.temperature. Bewust leeg laten bij halte 3a. */
-  temperature?: number;
+  /** Zie StructuredCallOptions.work. Bewust leeg laten bij halte 3a. */
+  work?: WorkKind;
   /** Zie StructuredCallOptions.meta. */
   meta?: CallMeta;
 }
@@ -217,15 +286,23 @@ export interface PlainCallResult extends CallUsage {
 export async function callPlain(opts: PlainCallOptions): Promise<PlainCallResult> {
   const openai = getOpenAI();
 
-  const response = await openai.responses.create({
-    model: opts.model,
-    input: [
-      { role: "system", content: opts.system },
-      { role: "user", content: opts.user },
-    ],
-    tools: opts.webSearch ? [WEB_SEARCH_TOOL] : undefined,
-    temperature: opts.temperature,
-  }, callBudget());
+  // Zie callStructured: één budget over beide pogingen heen.
+  const budget = callBudget();
+  const response = await withTemperatureFallback(tuningFor(opts.model, opts.work), (tuning) =>
+    openai.responses.create(
+      {
+        model: opts.model,
+        input: [
+          { role: "system", content: opts.system },
+          { role: "user", content: opts.user },
+        ],
+        tools: opts.webSearch ? [WEB_SEARCH_TOOL] : undefined,
+        temperature: tuning.temperature,
+        reasoning: reasoningParam(tuning),
+      },
+      budget,
+    ),
+  );
 
   const usage = await recordUsage(opts.model, Boolean(opts.webSearch), response, opts.meta);
 

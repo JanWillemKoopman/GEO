@@ -12,7 +12,7 @@ import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { callPlain, callStructured } from "@/lib/openai/structured";
-import { MODELS, TEMPERATURES, SIMULATION_TEMPERATURE } from "@/lib/openai/models";
+import { MODELS } from "@/lib/openai/models";
 import { measureWebSearchEnabled } from "@/lib/config";
 import { promptWeight, NEUTRAL_WEIGHT } from "@/lib/pipeline/prompt-weight";
 import { volumeBandOf } from "@/lib/pipeline/volume";
@@ -125,25 +125,29 @@ export async function measureOnePrompt(
 
   if (!run) {
     // 3a — de vraag stellen (duur, web_search). Wordt NOOIT herhaald zodra dit slaagt.
-    // Model: gpt-4.1-mini i.p.v. nano. De web_search-tool werkt niet betrouwbaar
-    // op nano (meting faalde 10/10 met web_search op nano); mini is bewezen (het
-    // Brand DNA gebruikt dezelfde combinatie succesvol). Dit valt onder de
-    // fallback-regel uit abcplan.md §2. De web_search-kosten (vast tarief per call)
-    // domineren toch, dus het modelverschil is verwaarloosbaar (~$0,003/prompt).
+    // Model: de quality-tier, historisch omdat de web_search-tool niet betrouwbaar
+    // werkte op de goedkoopste tier (meting faalde 10/10 met web_search op
+    // gpt-4.1-nano). Sinds de overstap naar GPT-5.6 wijzen `volume` en `quality`
+    // naar hetzelfde model (`gpt-5.6-luna`); de tier-aanduiding blijft staan omdat
+    // hij vastlegt wélke keuze hier bewust gemaakt is. De web_search-kosten (vast
+    // tarief per call) domineren toch: ~$0,025 tegen enkele tienden van een cent
+    // aan tokens.
     //
     // Grounding (web_search) is via MEASURE_WEB_SEARCH uitschakelbaar voor de
     // ontwikkelfase (kostenbesparend). Uit → de AI antwoordt uit eigen kennis.
-    // Bewust GEEN temperature (SIMULATION_TEMPERATURE): we willen weten wat een
+    // Bewust GEEN soort werk meegeven (`work: "simulation"`): dan gaan er géén
+    // temperatuur en géén redeneerinspanning mee. We willen weten wat een
     // AI-assistent een echte gebruiker antwoordt, en die draait ook op de
-    // standaardinstellingen. Zelf temperatuur forceren maakt de meting juist
-    // onrealistisch. De ruis die dit oplevert lossen we op met méér metingen
-    // per vraag (optimalisatie.md 2.1), niet met een lagere temperatuur.
+    // standaardinstellingen van het model (bij GPT-5.6: effort `medium`). Zelf
+    // aan die knoppen draaien maakt de meting juist onrealistisch. De ruis die
+    // dit oplevert lossen we op met méér metingen per vraag (optimalisatie.md
+    // 2.1), niet met een lagere temperatuur.
     const a = await callPlain({
       model: MODELS.quality,
       system: SIMULATE_SYSTEM,
       user: prompt.text,
       webSearch: measureWebSearchEnabled,
-      temperature: SIMULATION_TEMPERATURE,
+      work: "simulation",
       meta: { kind: "measure_simulate", analysisId: analysis.id, profileId: analysis.profile_id },
     });
 
@@ -218,7 +222,7 @@ export async function measureOnePrompt(
     schema: Mention,
     schemaName: "mention",
     webSearch: false,
-    temperature: TEMPERATURES.deterministic,
+    work: "deterministic",
     meta: { kind: "measure_mention", analysisId: analysis.id, profileId: analysis.profile_id },
   });
 

@@ -21,7 +21,7 @@ import "server-only";
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { callStructured } from "@/lib/openai/structured";
-import { MODELS, TEMPERATURES } from "@/lib/openai/models";
+import { MODELS } from "@/lib/openai/models";
 import { SourcePresence } from "@/lib/schemas/source-presence";
 import { webSearchEnabled } from "@/lib/config";
 import type { SourceLandscapeRow } from "@/lib/types/database";
@@ -101,7 +101,7 @@ export async function checkPresence(
       schema: SourcePresence,
       schemaName: "source_presence",
       webSearch: true,
-      temperature: TEMPERATURES.deterministic,
+      work: "deterministic",
       meta: { kind: "source_presence", analysisId: args.analysisId, profileId: args.profileId },
     });
     parsed = result.parsed;

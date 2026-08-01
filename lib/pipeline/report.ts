@@ -9,7 +9,7 @@ import "server-only";
  */
 import { createAdminClient } from "@/lib/supabase/admin";
 import { callStructured } from "@/lib/openai/structured";
-import { MODELS, TEMPERATURES } from "@/lib/openai/models";
+import { MODELS } from "@/lib/openai/models";
 import { GapAnalysis } from "@/lib/schemas/gap-analysis";
 import { Report } from "@/lib/schemas/report";
 import { NEUTRAL_WEIGHT } from "@/lib/pipeline/prompt-weight";
@@ -252,7 +252,7 @@ async function computeMissedPrompts(
   // aanbieder noemt, is niet-genoemd-worden geen gemiste kans — er valt niets te
   // winnen. Zulke vragen als contentdoel opvoeren is de duurste fout die het
   // product kan maken: bij Van der Valk was de aanbeveling met prioriteit 1
-  // gebouwd op precies zo'n vraag, en die zou als eerste door gpt-4.1 geschreven
+  // gebouwd op precies zo'n vraag, en die zou als eerste door het premium model geschreven
   // worden. `null` (nog niet geteld, oude meting) laten we staan — dat is
   // onbekend, geen bewijs van kansloosheid.
   const runs = allRuns.filter((r) => r.brands_in_answer !== 0);
@@ -547,7 +547,7 @@ export async function generateReport(id: string, weekNo = 0): Promise<AnalysisSt
       schema: GapAnalysis,
       schemaName: "gap_analysis",
       webSearch: false,
-      temperature: TEMPERATURES.analytical,
+      work: "analytical",
       meta: { kind: "gap_analysis", analysisId: id, profileId: analysis.profile_id },
     });
 
@@ -567,7 +567,7 @@ export async function generateReport(id: string, weekNo = 0): Promise<AnalysisSt
       schema: Report,
       schemaName: "report",
       webSearch: false,
-      temperature: TEMPERATURES.analytical,
+      work: "analytical",
       meta: { kind: "report", analysisId: id, profileId: analysis.profile_id },
     });
 

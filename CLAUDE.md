@@ -23,13 +23,20 @@ een branch/project weggooien) eerst expliciet afstemmen.
 | Styling | Tailwind v4 (`@theme inline`), tokens in `app/globals.css`, Geist Sans + JetBrains Mono |
 | Data & auth | Supabase (Postgres, Auth, RLS, pg_cron) |
 | Hosting | Vercel |
-| LLM | OpenAI, drie tiers vast in code (`lib/openai/models.ts`) — géén env-variabele |
+| LLM | OpenAI GPT-5.6, drie tiers vast in code (`lib/openai/models.ts`) — géén env-variabele |
 | Validatie | Zod (`lib/schemas/`) |
 | Mail | Resend (standaard uit, `EMAILS_ENABLED`) |
 
-Modeltiers: `gpt-4.1-nano` (volume/classificatie) · `gpt-4.1-mini` (kwaliteit, incl. de meting
-zelf) · `gpt-4.1` (uitsluitend content schrijven/herschrijven). De meting draait bewust op mini:
-met `web_search` faalde nano 10 van de 10 keer.
+Modeltiers (sinds augustus 2026 de GPT-5.6-familie): `gpt-5.6-luna` voor `volume` én `quality` —
+classificatie, research, de meting zelf — en `gpt-5.6-sol`, het duurste model dat OpenAI levert,
+uitsluitend voor het schrijven/herschrijven van content. Volume en quality wijzen naar hetzelfde
+model; het verschil zit nu in de **redeneerinspanning per soort werk** (`lib/openai/sampling.ts`):
+`none` bij classificeren en promptgeneratie, `low` bij onderzoek/rapport, `medium` bij content.
+
+`temperature` is geen vrije knop meer: een redeneermodel accepteert hem alleen bij effort `none`.
+Aanroepplekken geven daarom geen temperatuur meer op maar een **soort werk** (`work: "analytical"`);
+`resolveTuning()` vertaalt dat naar wat er de deur uit mag. Weigert de API de temperatuur toch, dan
+zet `structured.ts` hem voor de rest van het proces uit in plaats van de taak te laten vallen.
 
 ## Commando's
 
@@ -37,7 +44,7 @@ met `web_search` faalde nano 10 van de 10 keer.
 npm run dev              # localhost:3000
 npm run build            # productiebuild
 npx tsc --noEmit         # typecheck — moet schoon zijn
-npm run test:unit        # 384 tests, pure functies, geen DB/API-key
+npm run test:unit        # 416 tests, pure functies, geen DB/API-key
 npm run test:chain       # 25 ketentests, echte handlers tegen echte Postgres, geen netwerk
 npm run test:openai      # rooktest — MAAKT ECHTE, BETAALDE CALLS
 npm run eval:mention     # accuratesse mention-classificatie (vereist API-key)
@@ -92,7 +99,7 @@ app/api/           analyses · profiles · cron (worker/tracking/reminders) · h
 components/        gedeelde UI-primitieven (kaarten, chips, rail, skeletons)
 lib/pipeline/      elke pijplijnstap: profiel-research → meting → rapport → content → impact
 lib/jobs/          achtergrondwachtrij: types, queue, handlers, worker
-lib/openai/        client, structured output, modellen, pricing, kostenlogboek
+lib/openai/        client, structured output, modellen, sampling/redeneerinspanning, pricing, kostenlogboek
 lib/entities/      merknaam-normalisatie en -matching
 lib/schemas/       Zod-contracten      lib/stats/  onzekerheidsmarges
 lib/audit/         robots.txt / AI-crawlertoegang     lib/offsite/  off-site aanwezigheid

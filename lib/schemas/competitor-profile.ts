@@ -3,7 +3,8 @@ import { z } from "zod";
 /**
  * R4.2 — waaróm wordt een concurrent genoemd? (implementatieplan.md)
  *
- * Model `gpt-4.1-mini`, geen web_search, temperatuur 0 — dit is een
+ * De quality-tier (`gpt-5.6-luna`), geen web_search, `work: "deterministic"`
+ * (geen redeneertijd, temperatuur 0) — dit is een
  * DESTILLATIE van bestaande tekst, geen creatieve taak. Het model mag niets
  * toevoegen wat niet in de meegegeven antwoorden staat.
  */

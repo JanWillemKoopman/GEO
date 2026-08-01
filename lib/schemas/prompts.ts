@@ -1,8 +1,8 @@
 import { z } from "zod";
 
 /**
- * Halte 2 — Prompt-generatie (abcplan.md §6 A2). Eén call per FUNNELFASE; model
- * gpt-4.1-mini. Elke prompt krijgt fijnere tags mee voor latere analyse (intent,
+ * Halte 2 — Prompt-generatie (abcplan.md §6 A2). Eén call per FUNNELFASE, op de
+ * quality-tier. Elke prompt krijgt fijnere tags mee voor latere analyse (intent,
  * head/long-tail, koopintentie, cluster, geschat zoekvolume). De funnelfase zelf
  * komt niet uit het model (die is bekend per call).
  */

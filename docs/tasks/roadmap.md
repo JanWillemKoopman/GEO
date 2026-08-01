@@ -1,9 +1,30 @@
 # Roadmap — wat er nog open staat
 
-Op volgorde. Stand: 1 augustus 2026, alles gemerged op `main`, 384 unittests + 25 ketentests groen,
+Op volgorde. Stand: 1 augustus 2026, alles gemerged op `main`, 416 unittests + 25 ketentests groen,
 migraties t/m `0037` toegepast (`0033` gereserveerd, nooit gedraaid).
 
-## 1. Verificatieronde R8 + S1–S8 — eerst
+## 0. De GPT-5.6-overstap natrekken — vóór alles (~$3, een uur)
+
+De modellen zijn omgezet (`logbook.md` §10) en de vier vaste controles zijn groen, maar er is nog
+**geen enkele echte call** op GPT-5.6 gemaakt: alle tests draaien op stubs. Wat nagetrokken moet
+worden, in deze volgorde:
+
+1. `npm run test:openai` — verifieert de drie parametercombinaties die de pijplijn verstuurt
+   (effort `none` + temperatuur 0, effort `low`, effort `medium` op Sol) plus web_search. Faalt de
+   eerste met een unsupported-parameter-fout, dan klopt de aanname in `sampling.ts` niet meer en
+   moet `WORK.deterministic`/`WORK.creative` de temperatuur laten vallen. (Het vangnet in
+   `structured.ts` vangt dat in productie op, maar dan draait de classificatie op de
+   modelstandaard — dat wil je weten, niet ontdekken.)
+2. `npm run eval:mention -- --compare` — de classificatie draait nu op een ánder model dan waarop de
+   mention-prompt is afgeregeld. Drempel 90%; het script vergelijkt Luna tegen Terra.
+3. **Doorlooptijd van één `content_draft` meten.** De effort staat op `medium` en niet op `high`
+   omdat één call binnen `TIMEOUT_MS` (100 s) moet passen. Blijkt een pagina ruim binnen de tijd
+   klaar, dan is `high` de gratis kwaliteitswinst op de duurste stap van het product.
+4. **Kosten narekenen tegen `ai_calls`.** De schatting van ~$0,40 per meetronde (was $0,82) komt
+   uit de gepubliceerde tarieven, niet uit gemeten data. Let specifiek op de zoekactie-tokens: die
+   worden op een redeneermodel wél als input afgerekend en waren op de oude preview gratis.
+
+## 1. Verificatieronde R8 + S1–S8
 
 Zie `verificatie-r8-s8.md`. ~$2, een halve dag. **Gebouwd is niet geverifieerd**: R8 en S1–S8 zijn
 met unittests op de echte gevallen getoetst, maar er is nog geen nieuwe pagina mee geschreven op
@@ -56,4 +77,6 @@ als concurrent meetellen.** De helft van R0.5 is intussen meegelift op R8.5: de 
   API-sleutel. `lib/openai/mention-prompt.ts` omschrijft zichzelf als "de meest load-bearing prompt
   van het hele product" — daar hoort een evaluatie bij.
 - De kostencijfers in code-commentaar gaan op sommige plekken nog uit van $0,356 per periode. De
-  actuele cijfers staan in `architecture.md` §6: ~$0,82 per ronde, ~$1,06 met herhalingen.
+  actuele cijfers staan in `architecture.md` §6: op de GPT-4.1-familie ~$0,82 per ronde en ~$1,06
+  met herhalingen; na de overstap naar GPT-5.6 naar schatting ~$0,40 — zie punt 0 hierboven, die
+  schatting is nog niet nagerekend.

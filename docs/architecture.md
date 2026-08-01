@@ -23,7 +23,7 @@ Vercel — Next.js 15 / Node.js  (code: GitHub, deploy op push naar main)
  │    • /api/cron/reminders  wekelijks, maandag 09:00 UTC (staat nu uit vercel.json)
  └─ /api/cron/worker — de motor, elke MINUUT aangeroepen door Supabase pg_cron
    │
-   ├──────► OpenAI Responses API (nano / mini / gpt-4.1, + web_search)
+   ├──────► OpenAI Responses API (gpt-5.6-luna / gpt-5.6-sol, + web_search)
    ▼
 Supabase (Postgres + Auth)
  ├─ auth.users
@@ -123,43 +123,62 @@ Bron: `lib/jobs/{types,queue,worker,handlers,pending}.ts`.
 | # | Stap | AI | Kern |
 |---|---|---|---|
 | 1 | Profiel aanmaken | — | Onboarding-wizard, 5 stappen. Klant-input is leidend (`prepare-profile.ts`): scalars van de klant blijven staan, lijsten worden een unie, lege velden vult de AI. |
-| 2 | Profielonderzoek | mini, web_search | Merk, branche, tone-of-voice, persona's, concurrenten, `proofPoints`, `styleSamples`. |
+| 2 | Profielonderzoek | luna, web_search | Merk, branche, tone-of-voice, persona's, concurrenten, `proofPoints`, `styleSamples`. |
 | 3 | Contentinventaris | — | Crawl via robots.txt → sitemap (recursief) → homepage-links. Productpagina's uitgesloten. Instelbaar per profiel (`sitemap_url`, `max_inventory_pages` 5–150). |
 | 4 | Technische GEO-audit | — | `robots.txt` tegen bekende AI-crawlers. Staat de site dicht, dan blokkeert dit contentgeneratie: meer content heeft dan geen zin. |
 | 5 | Analyse aanmaken | — | Verplicht onderwerp + optionele content-brief. |
-| 6 | Onderwerp-onderzoek (A1') | mini, web_search | Wat de site over dít onderwerp zegt + welke concurrenten hier relevant zijn. |
-| 7 | Promptgeneratie (A2) | mini ×3 parallel, temp 0,8 | 10 per funnelfase. Merk- en concurrentneutraal geformuleerd. Aparte calls per fase, want één grote call levert herhaling op. |
-| 8 | Volumekalibratie | mini | Relatief gekalibreerd over álle prompts tegelijk — consistenter dan losse schattingen. Drie banden, geen verzonnen 0–100. |
+| 6 | Onderwerp-onderzoek (A1') | luna, web_search | Wat de site over dít onderwerp zegt + welke concurrenten hier relevant zijn. |
+| 7 | Promptgeneratie (A2) | luna ×3 parallel, temp 0,8 (effort none) | 10 per funnelfase. Merk- en concurrentneutraal geformuleerd. Aparte calls per fase, want één grote call levert herhaling op. |
+| 8 | Volumekalibratie | luna | Relatief gekalibreerd over álle prompts tegelijk — consistenter dan losse schattingen. Drie banden, geen verzonnen 0–100. |
 | 9 | **Goedkeuringspoort** | — | De pijplijn stopt. De klant ziet en bewerkt onderzoek + alle prompts, en klikt pas dan "Bevestig en start meting". Geen black box, en niets betaalds start zonder akkoord. |
-| 10 | Meting (A3) | 3a: mini + web_search · 3b: nano | Per prompt: een gesimuleerd AI-antwoord, daarna een beoordeling per entiteit. 3a en 3b zijn los herhaalbaar — een mislukte 3b draait nooit opnieuw de dure 3a. |
+| 10 | Meting (A3) | 3a: luna + web_search, modelstandaard · 3b: luna, effort none | Per prompt: een gesimuleerd AI-antwoord, daarna een beoordeling per entiteit. 3a en 3b zijn los herhaalbaar — een mislukte 3b draait nooit opnieuw de dure 3a. |
 | 11 | Gelaagd hermeten | — | De zwaarste `REPEATED_PROMPT_COUNT` (8) vragen worden `MEASURE_REPEATS` (3) keer gemeten. Alle aggregatie telt per **vraag**, met gewicht `1/aantal metingen van die vraag` (`question-share.ts`). |
-| 12 | Aggregatie | mini (alleen nieuwe merken) | Entiteitclassificatie + deduplicatie, scores, concurrent-uitsplitsing. |
-| 13 | Gap-analyse (B1) | mini | Wáár concurrenten winnen, met bewijs uit de database. |
-| 14 | Rapport (B2) | mini | Verwoordt B1; leidt niets zelf af. Een claimvalidator verwijdert achteraf elke merknaam die niet in het bewijsdossier van díe vraag staat. |
-| 15 | Contentbriefing | mini, temp 0 | Feitenkaart bouwen → claim-audit → max 8 vragen aan de klant. Eén slot is gereserveerd voor de positioneringsvraag. |
-| 16 | Content schrijven | **gpt-4.1** → mini-kritiek → gpt-4.1 herschrijven → mini-herbeoordeling | Uitsluitend binnen bevestigde feiten, met per bewering het feit dat hem dekt. Deterministische poort (`content-gate.ts`) in plaats van zelfrapportage. |
+| 12 | Aggregatie | luna (alleen nieuwe merken) | Entiteitclassificatie + deduplicatie, scores, concurrent-uitsplitsing. |
+| 13 | Gap-analyse (B1) | luna | Wáár concurrenten winnen, met bewijs uit de database. |
+| 14 | Rapport (B2) | luna | Verwoordt B1; leidt niets zelf af. Een claimvalidator verwijdert achteraf elke merknaam die niet in het bewijsdossier van díe vraag staat. |
+| 15 | Contentbriefing | luna, temp 0 | Feitenkaart bouwen → claim-audit → max 8 vragen aan de klant. Eén slot is gereserveerd voor de positioneringsvraag. |
+| 16 | Content schrijven | **sol** → luna-kritiek → sol herschrijven → luna-herbeoordeling | Uitsluitend binnen bevestigde feiten, met per bewering het feit dat hem dekt. Deterministische poort (`content-gate.ts`) in plaats van zelfrapportage. |
 | 17 | Publiceren | — | Klant vult live-URL in; de app verifieert de pagina. |
-| 18 | Effect meten | mini | Hermeetgolven + statistisch verdict of de zichtbaarheid meetbaar veranderd is. |
-| 19 | Off-site | mini, gegrond | Op welke externe domeinen het merk wél/niet aanwezig is. |
+| 18 | Effect meten | luna | Hermeetgolven + statistisch verdict of de zichtbaarheid meetbaar veranderd is. |
+| 19 | Off-site | luna, gegrond | Op welke externe domeinen het merk wél/niet aanwezig is. |
 | 20 | Maandelijkse ronde | — | Alleen voor analyses met tracking aan. Structureel merkloze vragen worden overgeslagen. |
 
-## 6. Modellen, temperaturen, feature-flags
+## 6. Modellen, redeneerinspanning, feature-flags
 
-Bron: `lib/openai/models.ts`, `lib/config.ts`. **Vast in code, niet als env-variabele.**
+Bron: `lib/openai/models.ts`, `lib/openai/sampling.ts`, `lib/config.ts`. **Vast in code, niet als
+env-variabele.**
 
-| Constante | Waarde | Voor |
-|---|---|---|
-| `MODELS.volume` | `gpt-4.1-nano` | Mention-beoordeling (3b) |
-| `MODELS.quality` | `gpt-4.1-mini` | Research, prompts, kalibratie, simulatie (3a), gap-analyse, rapport, entiteiten, redactie, bronanalyse |
-| `MODELS.content` | `gpt-4.1` | Uitsluitend content schrijven/herschrijven |
+| Constante | Waarde | Tarief (in/uit per 1M) | Voor |
+|---|---|---|---|
+| `MODELS.volume` | `gpt-5.6-luna` | $0,20 / $1,20 | Mention-beoordeling (3b) |
+| `MODELS.quality` | `gpt-5.6-luna` | $0,20 / $1,20 | Research, prompts, kalibratie, simulatie (3a), gap-analyse, rapport, entiteiten, redactie, bronanalyse |
+| `MODELS.content` | `gpt-5.6-sol` | $5 / $30 | Uitsluitend content schrijven/herschrijven |
 
-| Temperatuur | Waarde | Voor |
-|---|---|---|
-| `deterministic` | 0 | Classificeren/beoordelen, claim-audit, content-kritiek |
-| `analytical` | 0,2 | Research, kalibratie, gap-analyse, rapport |
-| `creative` | 0,8 | Promptgeneratie — variatie is gewenst |
-| `content` | 0,7 | Content schrijven/herschrijven |
-| `SIMULATION_TEMPERATURE` | `undefined` | Bewust geen eigen waarde: meet wat een AI-assistent op standaardinstellingen doet |
+`volume` en `quality` wijzen sinds augustus 2026 naar hetzelfde model; de tiers blijven bestaan
+omdat ze vastleggen wélke keuze per stap bewust gemaakt is. Het onderscheid dat vroeger in het
+model zat (nano vs. mini) zit nu in de **redeneerinspanning**.
+
+**Soort werk → parameters** (`resolveTuning()` in `lib/openai/sampling.ts`). Aanroepplekken geven
+alleen nog `work: "..."` op; de vertaling naar `temperature` en `reasoning.effort` staat op één
+plek. Reden: GPT-5.6 accepteert `temperature` uitsluitend bij effort `none` — bij elke hogere
+stand is het een unsupported parameter en faalt de call.
+
+| `work` | effort | temperature | Voor |
+|---|---|---|---|
+| `deterministic` | `none` | 0 | Classificeren/beoordelen, claim-audit, content-kritiek |
+| `analytical` | `low` | — | Research, kalibratie, gap-analyse, rapport, bronanalyse |
+| `creative` | `none` | 0,8 | Promptgeneratie — variatie is gewenst, redeneren maakt de vragen juist gelijkvormig |
+| `content` | `medium` | — | Content schrijven/herschrijven |
+| `simulation` | — | — | Halte 3a: bewust niets meegeven, meet wat een AI-assistent op standaardinstellingen doet |
+
+De effort-standen staan bewust laag: één aanroep moet binnen `TIMEOUT_MS` (100 s,
+`lib/openai/client.ts`) passen, en de onderzoeks- en meetstappen doen daar óók web_search bij
+(20–40 s). Omhoog draaien kan pas nadat de doorlooptijd op productie is nagemeten en
+`HEAVY_JOB_RESERVE_MS` in `lib/jobs/worker.ts` is bijgesteld.
+
+**Vangnet.** Weigert de API `temperature` toch (OpenAI kan de regel aanscherpen), dan herhaalt
+`structured.ts` die ene call zonder temperatuur en stuurt hem de rest van het proces niet meer
+mee — een zelfherstellende hik in plaats van een meetronde die halverwege omvalt.
 
 | Env | Standaard | Effect |
 |---|---|---|
@@ -174,9 +193,23 @@ Bron: `lib/openai/models.ts`, `lib/config.ts`. **Vast in code, niet als env-vari
 | `MAX_MEASUREMENT_PERIODS` | onbeperkt | Plafond op periodieke metingen. |
 | `WORKER_TIME_BUDGET_MS` | 240000 | Tijdbudget per werker-aanroep. |
 
-**Kosten.** Een meetronde ≈ **$0,82** zonder herhalingen; de meting is daarvan ~95% en web_search
-~94% dáárvan. Met herhalingen ≈ **$1,06** per vervolgperiode. Contentgeneratie (`gpt-4.1`) is de
-enige duurdere post.
+**Kosten.** Op de GPT-4.1-familie was een meetronde ≈ **$0,82** zonder herhalingen; de meting was
+daarvan ~95% en web_search ~94% dáárvan (30 × $0,025). Met herhalingen ≈ **$1,06** per
+vervolgperiode.
+
+De overstap naar GPT-5.6 verschuift dat beeld twee kanten op:
+
+- **Zoeken werd goedkoper.** Op een redeneermodel kost web_search $10 per 1000 calls in plaats van
+  $25 — 30 vragen gaan van $0,75 naar $0,30.
+- **Maar de opgehaalde pagina's worden nu wél als input afgerekend** (op de niet-redeneerpreview
+  waren die tokens gratis). Bij ~8k tokens per zoekactie op Luna is dat ~$0,05 per ronde.
+- De tokenkosten zelf blijven in dezelfde orde: `quality` halveerde (mini → Luna), `volume` werd
+  duurder (nano → Luna), en samen wogen die twee al maar ~5% van een ronde.
+
+Reken dus op **ruwweg $0,40 per meetronde** — een schatting op basis van de gepubliceerde tarieven,
+nog niet nagerekend tegen `ai_calls` op productie (conventie 10). Contentgeneratie (`gpt-5.6-sol`)
+is de enige duurdere post en werd juist ~5× duurder per pagina: Sol is 2,5×/3,75× het tarief van
+gpt-4.1 en de redeneertokens tellen als output.
 
 ## 7. E-mail
 
@@ -195,7 +228,7 @@ iets de deur uit gaat.
 
 ## 8. Lokaal draaien
 
-Vereist: Node ≥ 20, een Supabase-project, een OpenAI-key met toegang tot alle drie de modellen.
+Vereist: Node ≥ 20, een Supabase-project, een OpenAI-key met toegang tot `gpt-5.6-luna` én `gpt-5.6-sol`.
 
 ```bash
 npm install

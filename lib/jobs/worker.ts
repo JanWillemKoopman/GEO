@@ -147,7 +147,7 @@ export async function runWorker(): Promise<WorkerResult> {
     }
 
     // Zware taken één voor één, en alleen als er nog genoeg tijd is. Anders
-    // teruggelegd: half beginnen aan een pagina die gpt-4.1 moet schrijven is
+    // teruggelegd: half beginnen aan een pagina die het premium model moet schrijven is
     // duur en levert niets op.
     for (const job of heavy) {
       // Past deze taak nog volledig binnen het budget? Zo niet: terugleggen. De
