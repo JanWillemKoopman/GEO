@@ -26,6 +26,11 @@ export const JOB_TYPES = [
    * Voedt straks de core topics.
    */
   "profile_offering",
+  /**
+   * Fase 1c: 5-8 core topics voorstellen uit de aanbodboom (blok D). Eén
+   * goedkope aanroep, geen meting — die volgt pas na goedkeuring.
+   */
+  "propose_topics",
   /** Onderwerp-onderzoek voor één analyse. Ketent naar generate_prompts. */
   "prepare_analysis",
   /** Promptgeneratie voor één analyse (2e helft van de voorbereiding). */
@@ -80,6 +85,7 @@ export interface JobPayloads {
   profile_discover: Record<string, never>;
   profile_research: Record<string, never>;
   profile_offering: Record<string, never>;
+  propose_topics: Record<string, never>;
   prepare_analysis: Record<string, never>;
   generate_prompts: Record<string, never>;
   calibrate_volumes: Record<string, never>;
@@ -137,7 +143,12 @@ export const HEAVY_JOB_TYPES: ReadonlySet<JobType> = new Set<JobType>([
   // trage site is dat ruim een minuut netwerk — zwaar in tijd, niet in geld.
   "profile_discover",
   "profile_research", // crawlt de hele site + AI-onderzoek met web_search
-  "profile_offering", // één aanroep over 55.000 tekens sitetekst
+  "profile_offering",
+  /**
+   * Fase 1c: 5-8 core topics voorstellen uit de aanbodboom (blok D). Eén
+   * goedkope aanroep, geen meting — die volgt pas na goedkeuring.
+   */
+  "propose_topics", // één aanroep over 55.000 tekens sitetekst
   "prepare_analysis", // onderwerp-onderzoek: één gegrondde AI-aanroep
   "generate_prompts", // 3 parallelle prompt-calls, elk met een bijvul-ronde
   "profile_competitors", // destilleert eigenschappen uit alle antwoordfragmenten

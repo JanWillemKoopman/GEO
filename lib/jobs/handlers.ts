@@ -16,6 +16,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { prepareProfile } from "@/lib/pipeline/prepare-profile";
 import { discoverSite } from "@/lib/pipeline/discover";
 import { buildOfferingTree } from "@/lib/pipeline/offering";
+import { proposeTopics } from "@/lib/pipeline/propose-topics";
 import {
   prepareTopicResearch,
   generateAnalysisPrompts,
@@ -166,9 +167,25 @@ const handlers: { [T in JobType]: Handler<T> } = {
     });
   },
 
-  profile_offering: async ({ job }) => {
+  profile_offering: async ({ admin, job }) => {
     if (!job.profile_id) throw new Error("profile_offering zonder profile_id.");
-    await buildOfferingTree(job.profile_id);
+    const { nodes } = await buildOfferingTree(job.profile_id);
+
+    // Geen boom, geen topics. Voorstellen op basis van alleen een branchenaam
+    // levert generieke onderwerpen op die precies niet over deze klant gaan.
+    if (nodes === 0) return;
+
+    await enqueue(admin, {
+      type: "propose_topics",
+      payload: {},
+      profileId: job.profile_id,
+      dedupeKey: dedupe.proposeTopics(job.profile_id),
+    });
+  },
+
+  propose_topics: async ({ job }) => {
+    if (!job.profile_id) throw new Error("propose_topics zonder profile_id.");
+    await proposeTopics(job.profile_id);
   },
 
   // ── Voorbereiding stap 1: onderwerp-onderzoek ─────────────────────────────

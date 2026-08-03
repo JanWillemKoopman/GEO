@@ -10,10 +10,20 @@ import { AuditPanel } from "@/components/audit-panel";
 import { FactRequests } from "./fact-requests";
 import { ProfileGaps } from "./profile-gaps";
 import { AssignBox } from "./assign-box";
+import { TopicsPanel } from "./topics-panel";
 import type { AuditCheck } from "@/lib/audit/technical";
-import type { Entity, FactRequest, TechnicalAudit as TechnicalAuditRow } from "@/lib/types/database";
+import type {
+  Entity,
+  FactRequest,
+  ProfileTopic,
+  TechnicalAudit as TechnicalAuditRow,
+} from "@/lib/types/database";
 
-export default async function ProfilePage({ params }: { params: Promise<{ id: string }> }) {
+export default async function ProfilePage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
   const { id } = await params;
   const profile = await getProfile(id);
   if (!profile) notFound();
@@ -28,12 +38,25 @@ export default async function ProfilePage({ params }: { params: Promise<{ id: st
   }
 
   const supabase = await createClient();
-  const [{ count }, { data: entityRows }, { data: auditRow }, { data: factRows }] = await Promise.all([
-    supabase.from("profile_pages").select("id", { count: "exact", head: true }).eq("profile_id", id),
+  const [
+    { count },
+    { data: entityRows },
+    { data: auditRow },
+    { data: factRows },
+    { data: topicRows },
+  ] = await Promise.all([
+    supabase
+      .from("profile_pages")
+      .select("id", { count: "exact", head: true })
+      .eq("profile_id", id),
     // Concurrenten horen bij het PROFIEL, niet bij één analyse (optimalisatie.md
     // 2.4/2.7): dezelfde concurrent duikt op bij meerdere onderwerpen van
     // hetzelfde merk, en die moet dan één rij zijn.
-    supabase.from("entities").select("*").eq("profile_id", id).order("canonical_name"),
+    supabase
+      .from("entities")
+      .select("*")
+      .eq("profile_id", id)
+      .order("canonical_name"),
     // De laatste technische controle (optimalisatie.md 3B).
     supabase
       .from("technical_audits")
@@ -50,6 +73,12 @@ export default async function ProfilePage({ params }: { params: Promise<{ id: st
       .eq("profile_id", id)
       .in("status", ["open", "beantwoord"])
       .order("created_at"),
+    // De core topics (blok D): afgeleid uit de aanbodboom, handmatig aan/uit.
+    supabase
+      .from("profile_topics")
+      .select("*")
+      .eq("profile_id", id)
+      .order("priority", { ascending: false }),
   ]);
 
   const audit = auditRow as TechnicalAuditRow | null;
@@ -69,6 +98,11 @@ export default async function ProfilePage({ params }: { params: Promise<{ id: st
         />
       )}
 
+      <TopicsPanel
+        profileId={id}
+        initial={(topicRows ?? []) as ProfileTopic[]}
+      />
+
       <ProfileEditor initial={profile} inventoryCount={count ?? 0} />
       {audit ? (
         <AuditPanel
@@ -80,13 +114,19 @@ export default async function ProfilePage({ params }: { params: Promise<{ id: st
         <div className="card flex flex-col gap-2">
           <span className="mono-label">Technische controle</span>
           <p className="text-secondary">
-            We controleren nog of AI-assistenten je site mogen lezen. De uitslag verschijnt hier
-            zodra dat klaar is — je hoeft niets te doen.
+            We controleren nog of AI-assistenten je site mogen lezen. De uitslag
+            verschijnt hier zodra dat klaar is — je hoeft niets te doen.
           </p>
         </div>
       )}
-      <FactRequests profileId={id} initial={(factRows ?? []) as FactRequest[]} />
-      <EntitiesManager profileId={id} initial={(entityRows ?? []) as Entity[]} />
+      <FactRequests
+        profileId={id}
+        initial={(factRows ?? []) as FactRequest[]}
+      />
+      <EntitiesManager
+        profileId={id}
+        initial={(entityRows ?? []) as Entity[]}
+      />
     </div>
   );
 }

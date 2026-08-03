@@ -34,6 +34,7 @@ const TYPICAL_SECONDS: Record<JobType, number> = {
   profile_discover: 70,
   profile_research: 50, // sitemap-crawl + AI-onderzoek met web_search
   profile_offering: 45, // één aanroep over de hele sitetekst, geen web_search
+  propose_topics: 12, // korte aanroep over alleen de aanbodboom
   prepare_analysis: 30, // onderwerp-onderzoek: één gegrondde AI-aanroep
   generate_prompts: 40, // 3 parallelle prompt-calls, elk met een bijvul-ronde
   calibrate_volumes: 15, // één aanroep over alle vragen samen
@@ -70,6 +71,9 @@ const NON_BLOCKING_TYPES: ReadonlySet<JobType> = new Set<JobType>([
   // analyse werkt. Een rood kruis op het voortgangsscherm zou suggereren dat
   // het onderzoek is misgelopen, en dat is niet zo.
   "profile_offering",
+  // Zelfde redenering: zonder topicvoorstellen typt de klant zijn onderwerp
+  // gewoon zelf in, zoals hij dat altijd deed.
+  "propose_topics",
 ]);
 
 /**
