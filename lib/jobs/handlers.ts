@@ -14,6 +14,7 @@ import "server-only";
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { prepareProfile } from "@/lib/pipeline/prepare-profile";
+import { discoverSite } from "@/lib/pipeline/discover";
 import {
   prepareTopicResearch,
   generateAnalysisPrompts,
@@ -131,6 +132,24 @@ async function scheduleImpactIfLastRun(
 
 const handlers: { [T in JobType]: Handler<T> } = {
   // ── Profielonderzoek ──────────────────────────────────────────────────────
+  // ── Fase 0: ontdekken. Nul AI-kosten, en het fundament onder al het
+  // volgende (docs/tasks/onboarding-2.0.md blok B).
+  profile_discover: async ({ admin, job }) => {
+    if (!job.profile_id) throw new Error("profile_discover zonder profile_id.");
+    await discoverSite(job.profile_id);
+
+    // Het onderzoek volgt hier pas ná, en niet parallel zoals voorheen. Dat is
+    // het hele punt: `prepare-profile.ts` startte de inventaris naast de
+    // AI-aanroep en sloeg hem pas erna op, waardoor die 60 pagina's het
+    // onderzoek nooit in kwamen. Nu staan ze er al als het onderzoek begint.
+    await enqueue(admin, {
+      type: "profile_research",
+      payload: {},
+      profileId: job.profile_id,
+      dedupeKey: dedupe.profileResearch(job.profile_id),
+    });
+  },
+
   profile_research: async ({ job }) => {
     if (!job.profile_id) throw new Error("profile_research zonder profile_id.");
     await prepareProfile(job.profile_id);

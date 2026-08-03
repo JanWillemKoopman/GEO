@@ -75,6 +75,7 @@ export async function enqueue<T extends JobType>(
 // aanroepplek opnieuw bedacht.
 
 export const dedupe = {
+  profileDiscover: (profileId: string) => `profile_discover:${profileId}`,
   profileResearch: (profileId: string) => `profile_research:${profileId}`,
   prepareAnalysis: (analysisId: string) => `prepare:${analysisId}`,
   generatePrompts: (analysisId: string) => `prompts:${analysisId}`,

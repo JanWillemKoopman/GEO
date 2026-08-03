@@ -118,11 +118,14 @@ export async function POST(request: Request) {
 
   // Zie de analyse-route: het onderzoek hangt aan de wachtrij, niet aan een
   // openstaande browsertab (optimalisatie.md 1.5).
+  // Fase 0 eerst (docs/tasks/onboarding-2.0.md blok B): de site uitkammen kost
+  // niets en levert de context waar het onderzoek op leunt. Deze taak ketent
+  // zelf door naar `profile_research`.
   await enqueue(admin, {
-    type: "profile_research",
+    type: "profile_discover",
     payload: {},
     profileId: data.id as string,
-    dedupeKey: dedupe.profileResearch(data.id as string),
+    dedupeKey: dedupe.profileDiscover(data.id as string),
   });
 
   // Technische GEO-audit meteen erachteraan (optimalisatie.md 3B). Als de site

@@ -77,6 +77,17 @@ import { detectClaimSentences, claimMatchesSentence, detectedCoverage } from "@/
 import { resolveTuning, isReasoningModel, isUnsupportedTemperatureError } from "@/lib/openai/sampling";
 import { estimateCostUsd, hasKnownRate } from "@/lib/openai/pricing";
 import { MODELS } from "@/lib/openai/models";
+import {
+  harvestStructuredData,
+  extractJsonLdBlocks,
+  extractMetaTags,
+  assessRendering,
+} from "@/lib/pipeline/structured-data";
+import {
+  assessInventory,
+  looksLikeProductPage,
+  buildTaxonomy,
+} from "@/lib/pipeline/inventory-quality";
 
 let passed = 0;
 let failed = 0;
@@ -1854,6 +1865,156 @@ group("kosten per model", () => {
   // Onbekend model → de dure terugval (Sol-tarief), nooit stil een te laag bedrag.
   const onbekend = estimateCostUsd({ model: "gpt-6-mystery", inputTokens: 1e6, outputTokens: 0, webSearch: false });
   ok("onbekend model rekent duur", Math.abs(onbekend - 5) < 1e-6, `${onbekend}`);
+});
+
+group("gestructureerde data oogsten (fase 0, nul API-kosten)", () => {
+  const html = `
+    <html><head>
+      <title>Fysi-Unique — fysiotherapie Amersfoort</title>
+      <meta property="og:site_name" content="Fysi Unique" />
+      <script type="application/ld+json">
+      {"@context":"https://schema.org","@type":"LocalBusiness","name":"Fysi-Unique Fysiotherapie",
+       "telephone":"033 123 4567","priceRange":"€€",
+       "address":{"@type":"PostalAddress","streetAddress":"Stationsweg 1","postalCode":"3811 MH","addressLocality":"Amersfoort"},
+       "openingHours":["Mo-Fr 08:00-18:00"],
+       "sameAs":["https://www.linkedin.com/company/fysi-unique","https://nl.wikipedia.org/wiki/Fysiotherapie"],
+       "aggregateRating":{"@type":"AggregateRating","ratingValue":"9.4","reviewCount":"87"}}
+      </script>
+      <script type="application/ld+json">{ dit is kapotte json </script>
+    </head><body><p>Welkom</p></body></html>`;
+
+  const h = harvestStructuredData(html);
+  const waarde = (k: string) => h.facts.find((f) => f.key === k)?.value;
+
+  ok("het type is herkend", h.types.includes("LocalBusiness"), h.types.join(","));
+  ok("de naam komt eruit", waarde("naam") === "Fysi-Unique Fysiotherapie", waarde("naam"));
+  ok("het telefoonnummer komt eruit", waarde("telefoon") === "033 123 4567");
+  // Het adres komt als genest object binnen en moet één leesbare regel worden.
+  ok(
+    "het adres wordt één regel",
+    waarde("adres") === "Stationsweg 1, 3811 MH, Amersfoort",
+    waarde("adres"),
+  );
+  ok("openingstijden komen eruit", waarde("openingstijden") === "Mo-Fr 08:00-18:00");
+  // Een beoordeling is een van de sterkste trust-signalen en zit vrijwel altijd
+  // in een genest object — precies het geval waar een platte parser op stukloopt.
+  ok(
+    "de beoordeling krijgt het aantal erbij",
+    waarde("beoordeling") === "9.4 (87 beoordelingen)",
+    waarde("beoordeling"),
+  );
+  ok("sameAs levert twee profielen", h.sameAs.length === 2, String(h.sameAs.length));
+
+  // Twee schrijfwijzen van dezelfde naam: dát is wat de entiteitsconsistentie-
+  // check straks moet melden, dus ze moeten allebei bewaard blijven.
+  ok(
+    "beide naamvarianten blijven staan",
+    h.names.includes("Fysi-Unique Fysiotherapie") && h.names.includes("Fysi Unique"),
+    h.names.join(" | "),
+  );
+
+  // Eén kapot JSON-LD-blok is doodnormaal op een MKB-site met plugins. Het mag
+  // het goede blok niet meeslepen.
+  ok("kapotte JSON-LD sloopt de rest niet", extractJsonLdBlocks(html).length === 1);
+
+  ok("metatags worden gelezen", extractMetaTags(html)["og:site_name"] === "Fysi Unique");
+});
+
+group("@graph en dubbele feiten", () => {
+  const html = `<script type="application/ld+json">
+    {"@graph":[{"@type":"Organization","name":"Acme"},{"@type":"WebSite","name":"Acme"}]}
+    </script>`;
+  const h = harvestStructuredData(html);
+  ok("@graph wordt uitgevlakt", h.types.includes("Organization") && h.types.includes("WebSite"));
+  // Dezelfde organisatie staat vaak in élk blok van élke pagina; zonder
+  // ontdubbeling loopt de feitenlijst vol met identieke regels.
+  ok("dezelfde naam telt één keer", h.facts.filter((f) => f.key === "naam").length === 1);
+});
+
+group("draait de site op JavaScript? (de zwaarste bevinding die er is)", () => {
+  // AI-crawlers voeren geen JS uit: staat de tekst niet in de HTML, dan bestaat
+  // de pagina voor ChatGPT niet — hoe goed de content ook is.
+  const spa = `<html><body><div id="root"></div><script>${"x".repeat(50_000)}</script></body></html>`;
+  ok("een lege SPA-shell valt op", assessRendering(spa, 12).likelyClientRendered);
+
+  const gewoon = `<html><body>${"tekst ".repeat(300)}<script>var a=1;</script></body></html>`;
+  ok("een gewone pagina niet", !assessRendering(gewoon, 1800).likelyClientRendered);
+
+  // Randgeval: weinig tekst maar ook nauwelijks script. Dat is een dunne
+  // pagina, geen JavaScript-probleem — en het advies verschilt.
+  ok(
+    "weinig tekst zonder script is geen JS-probleem",
+    !assessRendering("<html><body>Kort.</body></html>", 5).likelyClientRendered,
+  );
+});
+
+group("productpagina-heuristiek (R6.2)", () => {
+  // Bij HEMA eindigt elke productpagina op een artikelnummer: -200302.html
+  ok("HEMA-artikelnummer", looksLikeProductPage("https://hema.nl/koken/pan-200302.html"));
+  ok("Shopify-pad", looksLikeProductPage("https://shop.nl/products/blauwe-trui"));
+  ok("Nederlands productpad", looksLikeProductPage("https://winkel.nl/producten/fiets"));
+  ok("diep pad met nummer", looksLikeProductPage("https://a.nl/b/c/d/item-4821"));
+
+  // Deze mogen NIET als product tellen: het zijn juist de inhoudelijke
+  // pagina's waar het contentadvies op moet rusten.
+  ok("dienstenpagina niet", !looksLikeProductPage("https://praktijk.nl/diensten/sportmassage"));
+  ok("blog niet", !looksLikeProductPage("https://praktijk.nl/blog/hardlopen-in-de-winter"));
+  ok("homepage niet", !looksLikeProductPage("https://praktijk.nl/"));
+});
+
+group("inventariskwaliteit: Bol, HEMA en een gewone praktijk", () => {
+  const pagina = (url: string, tekens: number) => ({ url, text: "a".repeat(tekens) });
+
+  // Bol leverde 1 pagina op. Het rapport draaide daar gewoon op door.
+  const bol = assessInventory([pagina("https://bol.com/", 4000)]);
+  ok("Bol: dun", bol.verdict === "dun", bol.verdict);
+  ok("Bol: met een concrete handeling", (bol.advice ?? "").length > 20);
+
+  // HEMA: 40 pagina's, vrijwel allemaal producten.
+  const hema = assessInventory(
+    Array.from({ length: 40 }, (_, i) => pagina(`https://hema.nl/koken/pan-${20000 + i}.html`, 800)),
+  );
+  ok("HEMA: vervuild", hema.verdict === "vervuild", hema.verdict);
+  ok("HEMA: het percentage staat in het advies", (hema.advice ?? "").includes("%"));
+
+  const praktijk = assessInventory([
+    pagina("https://praktijk.nl/", 900),
+    pagina("https://praktijk.nl/diensten/sportmassage", 900),
+    pagina("https://praktijk.nl/diensten/dry-needling", 900),
+    pagina("https://praktijk.nl/over-ons", 900),
+    pagina("https://praktijk.nl/blog/hardlopen", 900),
+    pagina("https://praktijk.nl/contact", 900),
+  ]);
+  ok("gewone praktijk: voldoende", praktijk.verdict === "voldoende", praktijk.verdict);
+  ok("voldoende geeft geen advies", praktijk.advice === null);
+
+  // Wél genoeg pagina's, maar bijna geen tekst — dat is het JavaScript-geval,
+  // en het advies moet dáárover gaan en niet over de sitemap.
+  const leeg = assessInventory(
+    Array.from({ length: 20 }, (_, i) => pagina(`https://spa.nl/pagina-${i}`, 30)),
+  );
+  ok("veel pagina's zonder tekst: dun", leeg.verdict === "dun", leeg.verdict);
+  ok("en het advies noemt JavaScript", (leeg.advice ?? "").includes("JavaScript"));
+
+  const niets = assessInventory([]);
+  ok("nul pagina's: dun", niets.verdict === "dun");
+  ok("nul pagina's: geen deling door nul", niets.usableTextRatio === 0);
+});
+
+group("sitestructuur uit de URL-lijst", () => {
+  const secties = buildTaxonomy([
+    "https://a.nl/",
+    "https://a.nl/diensten/massage",
+    "https://a.nl/diensten/dry-needling",
+    "https://a.nl/diensten/echografie",
+    "https://a.nl/blog/een",
+    "https://a.nl/over-ons",
+  ]);
+  ok("grootste sectie eerst", secties[0].segment === "/diensten", secties[0].segment);
+  ok("met het juiste aantal", secties[0].count === 3, String(secties[0].count));
+  // De homepage is geen sectie met één pagina maar dé pagina.
+  ok("de wortel krijgt een eigen bak", secties.some((s) => s.segment === "/"));
+  ok("voorbeelden worden meegegeven", secties[0].examples.length === 3);
 });
 
 // ════════════════════════════════════════════════════════════════════════════

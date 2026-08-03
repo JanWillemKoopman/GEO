@@ -29,6 +29,9 @@ type Admin = SupabaseClient;
  * een die tegenvalt kost vertrouwen.
  */
 const TYPICAL_SECONDS: Record<JobType, number> = {
+  // Tot 150 pagina's in batches van 8. Geen AI, wel het meeste netwerk van de
+  // hele pijplijn — bij een trage site loopt dit richting anderhalve minuut.
+  profile_discover: 70,
   profile_research: 50, // sitemap-crawl + AI-onderzoek met web_search
   prepare_analysis: 30, // onderwerp-onderzoek: één gegrondde AI-aanroep
   generate_prompts: 40, // 3 parallelle prompt-calls, elk met een bijvul-ronde

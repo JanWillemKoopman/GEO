@@ -11,6 +11,13 @@ import type { ContentAction, ContentType } from "@/lib/types/database";
 import type { RecommendationTarget } from "@/lib/pipeline/recommendation";
 
 export const JOB_TYPES = [
+  /**
+   * Fase 0 van de onboarding: de site uitkammen zonder één AI-aanroep
+   * (docs/tasks/onboarding-2.0.md blok B). Crawlt tot 150 pagina's, oogst
+   * JSON-LD/OpenGraph, beoordeelt de inventaris en meet of de tekst überhaupt
+   * zonder JavaScript zichtbaar is. Ketent naar profile_research.
+   */
+  "profile_discover",
   /** Eenmalig profielonderzoek: crawl + merk/branche/concurrenten. */
   "profile_research",
   /** Onderwerp-onderzoek voor één analyse. Ketent naar generate_prompts. */
@@ -64,6 +71,7 @@ export interface RecommendationPayload {
 
 /** Wat elke taaksoort in `payload_json` meekrijgt. */
 export interface JobPayloads {
+  profile_discover: Record<string, never>;
   profile_research: Record<string, never>;
   prepare_analysis: Record<string, never>;
   generate_prompts: Record<string, never>;
@@ -118,6 +126,9 @@ export interface JobPayloads {
  * samen, één zware taak vult de aanroep in z'n eentje.
  */
 export const HEAVY_JOB_TYPES: ReadonlySet<JobType> = new Set<JobType>([
+  // Geen AI-aanroep, maar wel tot 150 pagina's ophalen in batches van 8. Bij een
+  // trage site is dat ruim een minuut netwerk — zwaar in tijd, niet in geld.
+  "profile_discover",
   "profile_research", // crawlt de hele site + AI-onderzoek met web_search
   "prepare_analysis", // onderwerp-onderzoek: één gegrondde AI-aanroep
   "generate_prompts", // 3 parallelle prompt-calls, elk met een bijvul-ronde

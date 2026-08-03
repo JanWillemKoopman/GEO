@@ -56,8 +56,14 @@ export async function generateProfileResearch(args: {
   intake?: ClientIntake;
   /** Voor de kostenregistratie (optimalisatie.md 0.6). */
   profileId: string;
+  /**
+   * Hoeveel pagina's er in de context zitten. Alleen voor de instructie: het
+   * verschil tussen "hier is de homepage" en "hier is de hele site" bepaalt hoe
+   * stellig het model mag zijn over wat het bedrijf NIET doet.
+   */
+  pageCount?: number;
 }): Promise<StructuredCallResult<ProfileResearch>> {
-  const { url, siteText, intake } = args;
+  const { url, siteText, intake, pageCount = 0 } = args;
 
   const brandNameRule =
     `Bepaal ook de canonieke merknaam (brandName) zoals klanten die kennen — de naam die in gewone taal gebruikt wordt, ` +
@@ -98,8 +104,21 @@ export async function generateProfileResearch(args: {
     `van het HELE bedrijf (niet van één product/segment — dat wordt per analyse apart bepaald). ` +
     `${brandNameRule} ${businessModelRule} ${writingBasisRule} ${groundingRule} Antwoord in het Nederlands.`;
 
+  // Hoeveel de context waard is, hangt af van hoeveel pagina's erin zitten. Bij
+  // één homepage moet het model voorzichtig zijn over wat het bedrijf níét doet;
+  // bij 80 pagina's is een ontbrekende dienst een echt signaal. Dat verschil
+  // benoemen is gratis en scheelt verzonnen stelligheid.
+  const scopeRule =
+    pageCount >= 10
+      ? `De tekst hieronder komt van ${pageCount} pagina's van de site — dat is een ruime dekking. ` +
+        `Wat er in dit materiaal niet voorkomt, biedt het bedrijf waarschijnlijk ook niet aan.`
+      : pageCount > 0
+        ? `De tekst hieronder komt van ${pageCount} pagina('s) — een beperkte dekking. Trek geen ` +
+          `conclusies uit wat er ONTBREEKT.`
+        : `Je hebt alleen losse tekst, geen paginadekking. Trek geen conclusies uit wat ontbreekt.`;
+
   const user =
-    `Website: ${url}\n\n` +
+    `Website: ${url}\n\n${scopeRule}\n\n` +
     `Geëxtraheerde website-tekst (kan onvolledig zijn):\n"""\n${
       siteText ||
       (webSearchEnabled
