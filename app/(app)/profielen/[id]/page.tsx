@@ -12,6 +12,12 @@ import { ProfileGaps } from "./profile-gaps";
 import { AssignBox } from "./assign-box";
 import { TopicsPanel } from "./topics-panel";
 import { LlmKnowledgePanel } from "./llm-knowledge-panel";
+import { StrategyBox } from "./strategy-box";
+import {
+  parseContextFactors,
+  technicalAdviceStale,
+  staleAdviceNotice,
+} from "@/lib/pipeline/context-factors";
 import type { AuditCheck } from "@/lib/audit/technical";
 import type {
   Entity,
@@ -47,6 +53,7 @@ export default async function ProfilePage({
     { data: factRows },
     { data: topicRows },
     { data: baselineRows },
+    { data: strategyRow },
   ] = await Promise.all([
     supabase
       .from("profile_pages")
@@ -88,9 +95,23 @@ export default async function ProfilePage({
       .select("*")
       .eq("profile_id", id)
       .order("measured_at"),
+    // Wat er uit het gesprek kwam (blok C).
+    supabase
+      .from("profile_strategy")
+      .select("*")
+      .eq("profile_id", id)
+      .maybeSingle(),
   ]);
 
   const audit = auditRow as TechnicalAuditRow | null;
+
+  // Een aanstaande sitemigratie maakt het technische advies tijdelijk
+  // waardeloos: die bevindingen gaan over pagina's die straks niet bestaan.
+  // Dat hoort bóven de audit te staan, niet als notitie ergens anders.
+  const factors = parseContextFactors(
+    (strategyRow as { context_factors?: unknown } | null)?.context_factors,
+  );
+  const staleFactor = technicalAdviceStale(factors);
 
   return (
     <div className="flex flex-col gap-4">
@@ -113,6 +134,11 @@ export default async function ProfilePage({
       />
 
       <ProfileEditor initial={profile} inventoryCount={count ?? 0} />
+      {staleFactor && (
+        <p className="card text-sm text-[var(--status-warning)]" role="status">
+          {staleAdviceNotice(staleFactor)}
+        </p>
+      )}
       {audit ? (
         <AuditPanel
           checks={(audit.checks_json ?? []) as AuditCheck[]}

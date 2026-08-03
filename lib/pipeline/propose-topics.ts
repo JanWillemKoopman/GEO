@@ -30,6 +30,7 @@ import { z } from "zod";
 import { callStructured } from "@/lib/openai/structured";
 import { MODELS } from "@/lib/openai/models";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { discontinuedNames, parseContextFactors } from "@/lib/pipeline/context-factors";
 import type { Profile, ProfileOffering } from "@/lib/types/database";
 
 export const TopicProposals = z.object({
@@ -74,12 +75,22 @@ export async function proposeTopics(profileId: string): Promise<TopicResult> {
     .eq("profile_id", profileId);
   if ((existing ?? 0) > 0) return { proposed: existing ?? 0, costUsd: 0 };
 
-  const { data: offeringRows } = await admin
-    .from("profile_offerings")
-    .select("*")
-    .eq("profile_id", profileId)
-    .order("sort_order");
-  const offerings = (offeringRows ?? []) as ProfileOffering[];
+  const [{ data: offeringRows }, { data: strategyRow }] = await Promise.all([
+    admin.from("profile_offerings").select("*").eq("profile_id", profileId).order("sort_order"),
+    admin.from("profile_strategy").select("context_factors").eq("profile_id", profileId).maybeSingle(),
+  ]);
+
+  // Wat de klant in het gesprek als gestopt opgaf, hoort niet in de voorstellen
+  // (blok C). De crawl vindt zo'n dienst nog wel — hij staat vaak nog maanden
+  // op de site — dus zonder deze filter stelt de app een analyse voor op iets
+  // wat het bedrijf niet meer levert.
+  const gestopt = discontinuedNames(
+    parseContextFactors((strategyRow as { context_factors?: unknown } | null)?.context_factors),
+  );
+
+  const offerings = ((offeringRows ?? []) as ProfileOffering[]).filter(
+    (o) => !gestopt.some((naam) => o.name.toLowerCase().includes(naam)),
+  );
 
   if (offerings.length === 0) {
     // Zonder aanbodboom zou dit een model zijn dat onderwerpen verzint op basis

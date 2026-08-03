@@ -101,6 +101,14 @@ import {
   admitsUnknown,
   describeVerdict,
 } from "@/lib/pipeline/baseline-verdict";
+import {
+  parseContextFactors,
+  technicalAdviceStale,
+  staleAdviceNotice,
+  extraAliasesFrom,
+  extraRegionsFrom,
+  discontinuedNames,
+} from "@/lib/pipeline/context-factors";
 
 let passed = 0;
 let failed = 0;
@@ -2254,6 +2262,40 @@ group("het volledige oordeel en hoe de klant het leest", () => {
 
   const onbekend = buildVerdict("Ik ken dit bedrijf niet.", "Fysi-Unique", [], []);
   ok("niet gekend levert een andere zin", describeVerdict(onbekend, "Gemini", "Fysi-Unique").includes("niet te kennen"));
+});
+
+group("contextfactoren: wat de pijplijn niet kan zien (blok C)", () => {
+  const factors = parseContextFactors([
+    { kind: "nieuwe_website", description: "gaat live in het najaar", effective_from: "2026-10-01" },
+    { kind: "naamswijziging", description: "Jansen Bouwgroep", effective_from: null },
+    { kind: "gestopte_dienst", description: "Dakkapellen", effective_from: null },
+    { kind: "nieuwe_regio", description: "Amersfoort", effective_from: null },
+    // Ongeldige soort én een niet-object: allebei horen weg te vallen. Dit is
+    // een jsonb-kolom, dus er kán van alles in staan.
+    { kind: "verzonnen_soort", description: "x" },
+    "geen object",
+  ]);
+  ok("vier geldige factoren over", factors.length === 4, String(factors.length));
+  ok("de onzin is weggevallen", !factors.some((f) => f.description === "x"));
+
+  // Het gevolg dat er het meest toe doet: een audit die zegt "voeg schema.org
+  // toe aan /diensten/massage" is erger dan waardeloos als die pagina straks
+  // niet bestaat — de klant gaat er wél mee aan de slag.
+  const stale = technicalAdviceStale(factors);
+  ok("een nieuwe website maakt het advies tijdelijk", stale !== null);
+  const melding = staleAdviceNotice(stale!);
+  ok("de melding noemt de datum", melding.includes("oktober"), melding);
+  ok("en is verder heel", !melding.includes("hUidige"), melding);
+
+  // Zonder deze alias telt de meting de helft van de vermeldingen niet mee: de
+  // mention-classificatie eist de letterlijke naam in de tekst.
+  ok("de andere naam wordt een alias", extraAliasesFrom(factors)[0] === "Jansen Bouwgroep");
+  ok("de nieuwe regio komt eruit", extraRegionsFrom(factors)[0] === "Amersfoort");
+  ok("de gestopte dienst komt er in kleine letters uit", discontinuedNames(factors)[0] === "dakkapellen");
+
+  ok("geen factoren = geen melding", technicalAdviceStale([]) === null);
+  ok("rommel in de kolom levert een lege lijst", parseContextFactors("nee").length === 0);
+  ok("null ook", parseContextFactors(null).length === 0);
 });
 
 // ════════════════════════════════════════════════════════════════════════════
