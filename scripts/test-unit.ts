@@ -2423,13 +2423,37 @@ group("het model dat de naam niet kan thuisbrengen, kent het merk niet", () => {
     "Ik weet niet zeker welke organisatie je bedoelt: er zijn mogelijk meerdere " +
     "bedrijven met de naam Fysi-Unique. Kun je de plaats of website delen?";
 
-  ok("'niet met zekerheid' telt als niet kennen", admitsUnknown(a1));
-  ok("'ik weet niet zeker' ook", admitsUnknown(a2));
+  ok("'welke organisatie je bedoelt' telt als niet kennen", admitsUnknown(a1));
+  ok("'meerdere bedrijven met de naam' ook", admitsUnknown(a2));
   ok(
     "en dus kent het model het merk niet",
     !knowsBrand(a1, "Fysi-Unique", ["Fysi Unique"]) &&
       !knowsBrand(a2, "Fysi-Unique", ["Fysi Unique"]),
   );
+
+  // ── En de andere kant op, uit de hermeting van diezelfde dag ──────────────
+  //
+  // Zodra het werkgebied in de vraag stond ("Fysi-Unique uit Amersfoort"),
+  // antwoordde het model wél raak. De eerste reparatie nam ook losse hedges mee
+  // als "niet met zekerheid", en die twee antwoorden werden daardoor als "kent
+  // het merk niet" gemeld — vals negatief. De grens ligt bij identiteit, niet
+  // bij details.
+  const b1 =
+    "Fysi-Unique in Amersfoort is een fysiotherapiepraktijk. Ze helpen bij klachten " +
+    "aan het bewegingsapparaat. Ik kan zonder actuele website-informatie niet met " +
+    "zekerheid zeggen welke specialisaties zij momenteel aanbieden.";
+  const b2 =
+    "Fysi-Unique lijkt een fysiotherapiepraktijk in Amersfoort te zijn. Ik heb zonder " +
+    "actuele webtoegang geen betrouwbare details over bijvoorbeeld het adres, " +
+    "behandelaren, openingstijden, specialisaties of reviews.";
+
+  ok("twijfel over een detail is geen twijfel over het merk", !admitsUnknown(b1));
+  ok("'geen betrouwbare details' evenmin", !admitsUnknown(b2));
+  ok(
+    "het model kent het merk in allebei",
+    knowsBrand(b1, "Fysi-Unique", []) && knowsBrand(b2, "Fysi-Unique", []),
+  );
+
   // Het omgekeerde moet blijven werken: een echt antwoord is geen twijfel.
   ok(
     "een stellig antwoord telt nog steeds als kennen",
@@ -2438,6 +2462,11 @@ group("het model dat de naam niet kan thuisbrengen, kent het merk niet", () => {
       "Fysi-Unique",
       [],
     ),
+  );
+  // En "geen betrouwbare informatie" — over het merk zelf — blijft wél tellen.
+  ok(
+    "geen betrouwbare informatie over het merk telt nog steeds",
+    admitsUnknown("Ik heb geen betrouwbare informatie over dit bedrijf."),
   );
 });
 

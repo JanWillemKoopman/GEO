@@ -133,19 +133,29 @@ function digitsOnly(s: string): string {
  * antwoord als onbekend markeren, en juist de nuance is wat een goed antwoord
  * onderscheidt van een verzonnen antwoord.
  *
- * ⚠️ DE TWEEDE GROEP IS ER BIJ GEKOMEN NA DE EERSTE ECHTE MEETRONDE (3 aug 2026)
+ * ⚠️ DE TWEEDE GROEP GAAT OVER IDENTITEIT, NIET OVER DETAILS (3 aug 2026)
  *
- * Bij Fysi-Unique antwoordde het model op béíde `kent`-vragen letterlijk "zonder
- * plaatsnaam of website kan ik niet met zekerheid zeggen welke organisatie je
- * bedoelt" en "ik weet niet zeker welke organisatie je bedoelt". Geen van de
- * zinnen hierboven kwam daarin voor, dus `admitsUnknown` gaf false, dus
- * `knowsBrand` gaf true — enkel omdat de merknaam in het antwoord stond, en die
- * stond er omdat hij in de VRAAG stond. Het profielscherm meldde "ChatGPT kent
- * Fysi-Unique" en de synthese schreef het over als "ChatGPT kent het bedrijf al".
+ * Bij Fysi-Unique antwoordde het model op béíde `kent`-vragen "zonder plaatsnaam
+ * of website kan ik niet met zekerheid zeggen WELKE ORGANISATIE je bedoelt" en
+ * "ik weet niet zeker welke organisatie je bedoelt: er zijn mogelijk MEERDERE
+ * BEDRIJVEN MET DE NAAM Fysi-Unique". Geen van de zinnen hierboven kwam daarin
+ * voor, dus `admitsUnknown` gaf false, dus `knowsBrand` gaf true — enkel omdat de
+ * merknaam in het antwoord stond, en die stond er omdat hij in de VRAAG stond.
+ * Het profielscherm meldde "ChatGPT kent Fysi-Unique" en de synthese schreef het
+ * over als "ChatGPT kent het bedrijf al".
  *
- * Dit is geen voorzichtige formulering maar het tegendeel van kennen: het model
- * kan de naam niet aan één organisatie koppelen. Dat is precies de bevinding
- * waar dit blok voor bestaat.
+ * De eerste reparatie voegde óók losse fragmenten toe — "niet met zekerheid",
+ * "ik weet niet zeker". Die zijn er dezelfde dag weer uit gehaald, want de
+ * hermeting liet zien dat ze te veel vangen. Toen het werkgebied eenmaal in de
+ * vraag zat, antwoordde het model: *"Fysi-Unique in Amersfoort is een
+ * fysiotherapiepraktijk. (…) Ik kan zonder actuele website-informatie niet met
+ * zekerheid zeggen welke SPECIALISATIES zij momenteel aanbieden."* Dat is een
+ * model dat het merk wél kent en alleen de details niet — en dat werd zo als
+ * "kent Fysi-Unique niet" gemeld. Vals negatief in plaats van vals positief.
+ *
+ * De grens ligt dus bij IDENTITEIT: "ik weet niet wélk bedrijf je bedoelt" is het
+ * tegendeel van kennen, "ik weet de openingstijden niet" is een detail dat
+ * `checkFacts()` afhandelt. Alleen zinnen van de eerste soort horen hier.
  */
 const UNKNOWN_PHRASES = [
   "geen informatie",
@@ -160,17 +170,15 @@ const UNKNOWN_PHRASES = [
   "i don't have",
   "no information",
   "not familiar",
-  // Het model kan de naam niet aan één organisatie koppelen.
-  "niet met zekerheid",
-  // Beide woordvolgorden: "ik weet niet zeker welke…" en "welke … weet ik niet
-  // zeker". `normalize()` haalt leestekens weg maar laat de volgorde staan.
-  "ik weet niet zeker",
-  "weet ik niet zeker",
+  // Het model kan de naam niet aan één organisatie koppelen. Bewust alléén
+  // formuleringen over WELK bedrijf bedoeld wordt — geen losse hedges als "niet
+  // met zekerheid", want die slaan net zo vaak op een detail als op de identiteit.
   "welke organisatie je bedoelt",
   "welk bedrijf je bedoelt",
-  "welke je bedoelt",
+  "welke organisatie bedoel je",
+  "welk bedrijf bedoel je",
   "meerdere bedrijven met de naam",
-  "geen specifieke informatie",
+  "meerdere organisaties met de naam",
 ];
 
 /**
