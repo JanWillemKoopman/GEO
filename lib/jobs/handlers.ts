@@ -150,6 +150,17 @@ const handlers: { [T in JobType]: Handler<T> } = {
       profileId: job.profile_id,
       dedupeKey: dedupe.profileResearch(job.profile_id),
     });
+
+    // De technische audit hoort hier en niet parallel aan de crawl: hij leest de
+    // naamvarianten, de schema-dekking en de renderbaarheid die fase 0 zojuist
+    // heeft vastgesteld. Een lichte taak, dus hij loopt gewoon naast het
+    // onderzoek mee in dezelfde werker-aanroep.
+    await enqueue(admin, {
+      type: "technical_audit",
+      payload: {},
+      profileId: job.profile_id,
+      dedupeKey: dedupe.technicalAudit(job.profile_id),
+    });
   },
 
   profile_research: async ({ admin, job }) => {

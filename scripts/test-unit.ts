@@ -88,6 +88,11 @@ import {
   looksLikeProductPage,
   buildTaxonomy,
 } from "@/lib/pipeline/inventory-quality";
+import {
+  entityConsistencyChecks,
+  normalizeBrand,
+  sameBrand,
+} from "@/lib/audit/entity-consistency";
 
 let passed = 0;
 let failed = 0;
@@ -2015,6 +2020,109 @@ group("sitestructuur uit de URL-lijst", () => {
   // De homepage is geen sectie met één pagina maar dé pagina.
   ok("de wortel krijgt een eigen bak", secties.some((s) => s.segment === "/"));
   ok("voorbeelden worden meegegeven", secties[0].examples.length === 3);
+});
+
+group("entiteitsconsistentie: heet het bedrijf overal hetzelfde?", () => {
+  // Een B.V. achter de naam is geen afwijking. Zonder deze normalisatie krijgt
+  // élke klant met een rechtsvorm een waarschuwing die niets betekent — en dan
+  // leest niemand de audit meer.
+  ok("rechtsvorm telt niet mee", sameBrand("Jansen Bouw B.V.", "Jansen Bouw"));
+  ok("hoofdletters tellen niet mee", sameBrand("JANSEN BOUW", "jansen bouw"));
+  ok("een toevoeging telt niet als andere naam", sameBrand("Jansen Bouw", "Jansen Bouw Amersfoort"));
+  ok("een ander bedrijf wél", !sameBrand("Jansen Bouw", "De Vries Installaties"));
+  ok("leeg is nooit hetzelfde", !sameBrand("", "Jansen Bouw"));
+  ok("normalisatie strippen", normalizeBrand("Jansen Bouw B.V.") === "jansen bouw");
+
+  const basis = {
+    brandName: "Jansen Bouw",
+    aliases: [] as string[],
+    sameAs: ["https://www.linkedin.com/company/jansen-bouw"],
+    schemaTypes: ["Organization", "WebSite"],
+    pagesWithSchema: 20,
+    pagesCrawled: 25,
+    clientRenderedPages: 0,
+    wikidataId: null,
+    wikipediaUrl: null,
+  };
+
+  const netjes = entityConsistencyChecks({ ...basis, foundNames: ["Jansen Bouw B.V."] });
+  ok(
+    "consequente naam = ok",
+    netjes.find((c) => c.id === "entity.name")?.severity === "ok",
+    netjes.find((c) => c.id === "entity.name")?.severity,
+  );
+
+  const rommelig = entityConsistencyChecks({
+    ...basis,
+    foundNames: ["Jansen Bouw B.V.", "Bouwbedrijf Jansen"],
+  });
+  const naamCheck = rommelig.find((c) => c.id === "entity.name");
+  ok("een echte afwijking = waarschuwing", naamCheck?.severity === "warning");
+  ok("en de afwijkende naam staat erin", (naamCheck?.finding ?? "").includes("Bouwbedrijf Jansen"));
+
+  // Een alias die de klant zelf opgaf is bewust beleid, geen fout.
+  const metAlias = entityConsistencyChecks({
+    ...basis,
+    aliases: ["Bouwbedrijf Jansen"],
+    foundNames: ["Jansen Bouw B.V.", "Bouwbedrijf Jansen"],
+  });
+  ok(
+    "een opgegeven alias is geen afwijking",
+    metAlias.find((c) => c.id === "entity.name")?.severity === "ok",
+  );
+
+  // Niets gevonden is 'unknown' en niet 'warning': dat zegt iets over ons
+  // kijken, niet over hun site (conventie 3).
+  ok(
+    "geen naam gevonden = onbekend, niet fout",
+    entityConsistencyChecks({ ...basis, foundNames: [] }).find((c) => c.id === "entity.name")
+      ?.severity === "unknown",
+  );
+});
+
+group("de zwaarste bevinding: tekst pas na JavaScript", () => {
+  const basis = {
+    brandName: "SPA Corp",
+    foundNames: ["SPA Corp"],
+    aliases: [] as string[],
+    sameAs: [] as string[],
+    schemaTypes: [] as string[],
+    pagesWithSchema: 0,
+    pagesCrawled: 20,
+    wikidataId: null,
+    wikipediaUrl: null,
+  };
+
+  // Boven de helft is dit geen aandachtspunt maar een blokkade: de site is dan
+  // voor een AI-assistent grotendeels leeg en betere content helpt niets.
+  const veel = entityConsistencyChecks({ ...basis, clientRenderedPages: 15 });
+  ok(
+    "15 van 20 pagina's = blocker",
+    veel.find((c) => c.id === "entity.rendering")?.severity === "blocker",
+  );
+
+  const weinig = entityConsistencyChecks({ ...basis, clientRenderedPages: 2 });
+  ok(
+    "2 van 20 = waarschuwing",
+    weinig.find((c) => c.id === "entity.rendering")?.severity === "warning",
+  );
+
+  // Geen probleem = geen regel. Een audit die bij elke klant vijftien groene
+  // vinkjes toont, verbergt de twee die ertoe doen.
+  ok(
+    "geen JS-probleem = geen regel",
+    !entityConsistencyChecks({ ...basis, clientRenderedPages: 0 }).some(
+      (c) => c.id === "entity.rendering",
+    ),
+  );
+
+  // Ontbreken in Wikidata is voor een MKB'er de norm, geen fout.
+  ok(
+    "geen Wikidata = kans, geen waarschuwing",
+    entityConsistencyChecks({ ...basis, clientRenderedPages: 0 }).find(
+      (c) => c.id === "entity.knowledge",
+    )?.severity === "unknown",
+  );
 });
 
 // ════════════════════════════════════════════════════════════════════════════

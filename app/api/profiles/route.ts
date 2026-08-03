@@ -128,16 +128,11 @@ export async function POST(request: Request) {
     dedupeKey: dedupe.profileDiscover(data.id as string),
   });
 
-  // Technische GEO-audit meteen erachteraan (optimalisatie.md 3B). Als de site
-  // AI-crawlers weigert, moet de klant dat weten vóórdat hij content laat
-  // schrijven — niet erna. Losse taak, want een onbereikbare site mag het
-  // profielonderzoek niet laten mislukken.
-  await enqueue(admin, {
-    type: "technical_audit",
-    payload: {},
-    profileId: data.id as string,
-    dedupeKey: dedupe.technicalAudit(data.id as string),
-  });
+  // De technische audit stond hier ook, parallel aan het onderzoek. Sinds de
+  // audit óók naar naamconsistentie en renderbaarheid kijkt (blok B fase 4)
+  // heeft hij de uitkomst van fase 0 nodig, en parallel draaien betekende in de
+  // praktijk dat hij eerder klaar was dan de crawl. `profile_discover` plant hem
+  // nu zelf in zodra hij klaar is.
 
   return NextResponse.json({ id: data.id }, { status: 201 });
 }
