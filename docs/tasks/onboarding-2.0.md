@@ -50,7 +50,7 @@ verandert van eigenaar.
 | # | Fase | Wie | Wat |
 |---|---|---|---|
 | **0** | **Voorbereiding** | consultant | Voert URL + naam in. Pipeline draait ~10 min. |
-| **1** | **Profiel** | pipeline | Zes onderzoeksfases, alles met bron en zekerheid |
+| **1** | **Profiel** | pipeline | Zes taken, alles met bron en zekerheid |
 | **1b** | **Het gesprek** | superuser + klant | Corrigeren, aanvullen, strategie vastleggen, toewijzen |
 | **1c** | **Core topics** | consultant | 5–8 voorstellen, handmatig aan/uit |
 | 2–5 | Analyse opstellen → runnen → content → monitoren | ongewijzigd | Een goedgekeurde topic start de bestaande fase 2 |
@@ -232,6 +232,11 @@ half-aangemaakte gebruikers, geen e-mailbezorging in de kritieke flow.
    steeds niet bij andermans profiel kan.
 3. **Aanmaken:** `created_by_user_id = auth.uid()`, `user_id = auth.uid()`. De superuser is dus
    gewoon eigenaar tot hij toewijst — een prospect hoeft nog geen account te hebben.
+3b. **Wat een klant mag: alles op zijn eigen profiel.** Bewerken, analyses starten uit de
+   goedgekeurde topics, een vrij onderwerp intypen op `/analyses/new`, content laten schrijven. De
+   enige grens is andermans profiel. Dat is precies wat de bestaande RLS al doet (`user_id =
+   auth.uid()`), dus er hoeft niets bij — behalve dat de verruiming uit punt 2 geen enkele klant
+   per ongeluk staf mag maken.
 4. **Toewijzen** — `POST /api/profiles/[id]/assign { userId }`, alleen superuser:
    - zet `profiles.user_id` **en** `analyses.user_id` voor de analyses van dit profiel;
    - zet `assigned_at`.
@@ -262,17 +267,23 @@ Zeven nieuwe taaksoorten in `lib/jobs/types.ts`. Elke taak ketent naar de volgen
 | Fase | Jobtype | AI | Web search | Kosten | Duur |
 |---|---|---|---|---|---|
 | 0 | `profile_discover` | nee | nee | **$0,00** | ~60 s |
-| 1 | `profile_identity` | 1 | ja | ~$0,03 | ~30 s |
-| 2 | `profile_offering` | 2–4 parallel | nee | ~$0,05 | ~60 s |
-| 3 | `profile_market` | 3 parallel | ja | ~$0,10 | ~60 s |
-| 4 | `profile_llm_baseline` | 8–12 parallel | deels | ~$0,30 | ~90 s |
-| 5 | `technical_audit` (bestaand, uitgebreid) | nee | nee | $0,00 | ~30 s |
-| 6 | `profile_synthesis` | 1 | nee | $0,02 of $0,49 | ~60 s |
-| | **Totaal** | | | **$0,50–0,97** | **~7 min** |
+| 1 | `profile_offering` | 1 + 2–4 parallel | ja | ~$0,08 | ~70 s |
+| 2 | `profile_market` | 3 parallel | ja | ~$0,10 | ~60 s |
+| 3 | `profile_llm_baseline` | 8–12 parallel | deels | ~$0,30 | ~90 s |
+| 4 | `technical_audit` (bestaand, uitgebreid) | nee | nee | $0,00 | ~30 s |
+| 5 | `profile_synthesis` | 1 | nee | $0,49 | ~60 s |
+| | **Totaal** | | | **~$0,97** | **~6 min** |
 
-Zeven zware taken × één per werkeraanroep (`HEAVY_JOB_RESERVE_MS` 220 s tegen een budget van
-240 s, `pg_cron` 1×/min) = **~7 minuten wachttijd**, binnen de 10 die je acceptabel noemt. Dat is de
-échte beperking, niet het geld: het budget is voor minder dan de helft benut.
+Zes zware taken × één per werkeraanroep (`HEAVY_JOB_RESERVE_MS` 220 s tegen een budget van 240 s,
+`pg_cron` 1×/min) = **~6 minuten wachttijd**, binnen de 10 die je acceptabel noemt. Dat is de échte
+beperking, niet het geld: het budget is voor minder dan de helft benut.
+
+**Identiteit is samengevoegd met het aanbod** (was fase 1 en 2 apart). Dat scheelt een taak en een
+minuut wachttijd. De bepaling van `businessModel` is één goedkope aanroep die niet los hoeft te
+staan — hij bepaalt alleen wélke aanbodtak daarna draait, en dat kan binnen dezelfde taak. Twee
+opeenvolgende AI-rondes van ~30 s passen ruim binnen de 220 s die een zware taak krijgt. Wel wordt
+de identiteit **direct na de eerste aanroep weggeschreven** naar `profile_facets`, zodat een retry
+die stap overslaat (conventie 9) — anders zou de samenvoeging elke herhaling duurder maken.
 
 ### Fase 0 — Ontdekken (`lib/pipeline/discover.ts`, nieuw)
 
@@ -297,13 +308,14 @@ meeste kennis vandaan komt.
 Belangrijk: **fase 0 bepaalt het budget van de rest.** Levert de crawl weinig op, dan is web search
 de betere besteding en mag fase 3 ruimer; is de site rijk, dan gaat het geld naar extractie.
 
-### Fase 1 — Identiteit en bedrijfsmodel
+### Fase 1 — Identiteit en het aanbod, per bedrijfsmodel
 
-Eén goedkope aanroep die één ding beslist: `businessModel` (de enum uit `0032` bestaat al). Die
-waarde **stuurt welke takken van fase 2 draaien**. Verder: canonieke merknaam, aliassen,
-naamvarianten die op de site voorkomen.
+**Ronde 1 (goedkoop, met web search):** canonieke merknaam, aliassen, naamvarianten die op de site
+voorkomen, en `businessModel` (de enum uit `0032` bestaat al). Meteen wegschrijven naar
+`profile_facets`.
 
-### Fase 2 — Het aanbod, per bedrijfsmodel
+**Ronde 2 (parallel, zonder web search):** het aanbod zelf. Welke tak draait, hangt af van het
+bedrijfsmodel uit ronde 1.
 
 Ander schema, andere brontekst, andere vragen per model. Vult `profile_offerings`.
 
@@ -316,13 +328,13 @@ Ander schema, andere brontekst, andere vragen per model. Vult `profile_offerings
 Elk knooppunt krijgt `evidence_url` + `evidence_quote`. Zonder klantinvoer is herleidbaarheid het
 enige wat een fout profiel corrigeerbaar maakt.
 
-### Fase 3 — Markt en concurrentie
+### Fase 2 — Markt en concurrentie
 
 Concurrenten mét bewijs (waarom, waar genoemd), positionering, prijsklasse, en het **merkbrede**
 bronnenlandschap. `source_landscape` bestaat al maar hangt aan een analyse; op merkniveau is hij
 herbruikbaar over alle analyses heen.
 
-### Fase 4 — De LLM-kennisbasislijn
+### Fase 3 — De LLM-kennisbasislijn
 
 Het onderscheidende deel, en de brug naar fase 2 van de app. Vijf blokken, parallel binnen één taak,
 per beschikbare engine (zie blok E).
@@ -345,7 +357,7 @@ De uitsluitingen die hier uitkomen, voeden `lib/entities/`.
 **Nieuwe tabel** `profile_llm_baseline` (profile_id, engine, block, question, raw_response,
 verdict_json, cost_usd, measured_at) — hoort bij `0040`.
 
-### Fase 5 — Technische audit, uitgebreid
+### Fase 4 — Technische audit, uitgebreid
 
 `lib/audit/technical.ts` kijkt nu alleen naar robots.txt en AI-crawlers. Erbij, allemaal uit wat
 fase 0 al ophaalde en dus **nul extra kosten**:
@@ -365,7 +377,7 @@ fase 0 al ophaalde en dus **nul extra kosten**:
 Alles past in het bestaande `AuditCheck`-contract (`id`, `label`, `severity`, `finding`, `fix`,
 `who`) en `technical_audits.checks_json` is al `jsonb` — **geen migratie nodig**.
 
-### Fase 6 — Synthese
+### Fase 5 — Synthese
 
 Eén aanroep die er een leesbaar dossier van maakt, gaten benoemt en per veld een zekerheid geeft.
 Schrijft door naar de bestaande kolommen (`products`, `competitors`, `tone_of_voice`, `personas`,
@@ -375,9 +387,10 @@ werken — **geen big bang**.
 Vult ook `brand_facts` (de feitenbank uit `0036`, met `fact_key`-ontdubbeling en
 tegenspraakdetectie). Dat is waar de investering meetbaar terugkomt.
 
-**Aanbeveling:** deze ene aanroep op `gpt-5.6-sol` ($0,49). Het is de call die alles samenbrengt en
-doorwerkt in élke latere analyse, en het past ruim binnen €2. Zet hem achter een schakelaar
-(`SYNTHESIS_PREMIUM`) zodat de keuze meetbaar is in plaats van definitief.
+**Besloten:** deze ene aanroep draait op `gpt-5.6-sol` ($0,49). Het is de call die alles
+samenbrengt en doorwerkt in élke latere analyse, en hij past ruim binnen €2. Achter een schakelaar
+(`SYNTHESIS_PREMIUM`, standaard aan) zodat de keuze meetbaar blijft in plaats van definitief te
+zijn — zet hem uit en de synthese valt terug op Luna voor $0,02.
 
 ### De budgetpoort
 
@@ -517,32 +530,71 @@ plan en de enige die de maandelijkse kosten per klant structureel raakt — reke
 
 ---
 
-## 8. Bouwvolgorde
+## 8. Vormgeving en gebruikservaring
+
+De vormgeving staat al. `app/globals.css` implementeert het InSpace-tokensysteem uit
+[`../designsystem.md`](../designsystem.md) volledig: de paars/groen-merkkleuren, de pil-vormige
+knoppen, de mono-labels, de gekleurde gloed in plaats van harde randen, de 28×28px rasterachtergrond
+en één easing (`--ease-standard`). Er zijn kant-en-klare primitieven — `.card`, `.card-interactive`,
+`.btn-primary`, `.btn-outline`, `.chip` (+ `-green/-success/-danger/-warning/-neutral`), `.field`,
+`.mono-label`, `.skeleton`, `.live-dot`, `.glow-orb`, `.brand-gradient-text`.
+
+**Regel voor dit hele traject: geen nieuwe kleuren, geen nieuwe radii, geen losse `style`-attributen
+met hardgecodeerde hex-waarden.** Alles wat we bouwen gebruikt die primitieven. Componentregels
+staan in `docs/ux-design.md` §3; wijkt iets af, dan hoort de reden erbij.
+
+### Vier dingen die de onboarding gebruiksvriendelijk maken
+
+**1. Voortgang met tussenresultaten, geen spinner.** Zes minuten naar een draaiend wieltje kijken is
+lang; zes minuten zien binnenkomen wát er gevonden wordt, is een demo op zich. De poller bestaat al
+(`profile-progress.tsx`, `GET /api/profiles/[id]/status`). Uitbreiden zodat hij per afgeronde fase
+toont wat er is opgeleverd — "31 pagina's gevonden", "12 diensten in kaart", "ChatGPT kent je merk".
+Een `.live-dot` bij de fase die nu draait.
+
+**2. Zekerheid als kleur, niet als getal.** "0.62" zegt niemand iets. Drie niveaus, afgeleid in een
+pure functie (`confidenceLevel()`): **zeker** (geen markering), **onzeker** (amberkleurige rand,
+`--status-warning`), **niet vastgesteld** (leeg veld met een mono-label "niet gevonden"). Conform
+designsystem-principe 5: kleur is nooit het enige signaal — er staat altijd ook een chip of label
+bij.
+
+**3. Eén knop "onderzoek opnieuw".** Na een gesprek waarin blijkt dat de site net vernieuwd is, wil
+je opnieuw kunnen draaien zonder je correcties kwijt te raken. Veilig te maken dankzij
+`profile_field_sources`: wat bron `klant` of `gesprek` heeft, blijft staan. Zonder die knop wordt
+een verouderd profiel een handmatige klus of een nieuw profiel.
+
+**4. Het profiel leest als een dossier, niet als een formulier.** De profielpagina heeft al
+`Chapter` en `SectionRail`. Het uitgebreide profiel krijgt dezelfde behandeling: identiteit ·
+aanbod · markt · hoe AI je kent · techniek. Elk met een samenvatting bovenaan en de details
+inklapbaar (`CollapsibleSection` bestaat). Niet 40 invoervelden onder elkaar.
+
+---
+
+## 9. Bouwvolgorde
 
 | # | Blok | Dagen | Waarom hier |
 |---|---|---|---|
 | 1 | **B fase 0** (ontdekken, gratis) | 2 | Grootste kwaliteitssprong, nul kosten, blokkeert al het andere |
 | 2 | **A** (superuser + toewijzing + inloggen) | 1,5 | Zonder dit is er geen consultantflow om op te bouwen |
-| 3 | **B fase 1–3, 6** (onderzoek) | 3 | Het profiel zelf |
+| 3 | **B fase 1–2, 5** (onderzoek) | 3 | Het profiel zelf |
 | 4 | **C** (correctie + strategiekaart) | 2 | Maakt fase 3 bruikbaar; zonder dit is het onbevestigde data |
-| 5 | **D** (topics) | 2 | Klein, en het leunt op het aanbod uit fase 2 |
-| 6 | **B fase 4–5** (LLM-basislijn + audit) | 2 | Kan los; fase 5 is gratis |
+| 5 | **D** (topics) | 2 | Klein, en het leunt op het aanbod uit fase 1 |
+| 6 | **B fase 3–4** (LLM-basislijn + audit) | 2 | Kan los; de audit is gratis |
 | 7 | **E** (multi-engine) | 3 + 1 | Abstractie nu, Gemini-adapter zodra de key er is |
 
 Blok 1 en 2 kunnen parallel: ze raken elkaars bestanden niet.
 
 ---
 
-## 9. Verificatiecriteria
+## 10. Verificatiecriteria
 
 Conventie 10: gebouwd is niet geverifieerd. Per blok, tegen echte data:
 
 | Blok | Criterium |
 |---|---|
-| A | Superuser ziet alle profielen; klant alleen het eigene; na toewijzing zijn profiel **én analyses** van de klant. `/register` geeft 404, wachtwoordherstel levert een werkende inlog. Ketentest voor de eerste drie. |
+| A | **Per tabel met een selectpolicy** een ketentest: superuser ziet alles, klant alleen het eigene. Niet één test op `profiles` — de verbreding raakt elke policy. Daarnaast: na toewijzing zijn profiel **én analyses** van de klant. `/register` geeft 404, wachtwoordherstel levert een werkende inlog. Ketentest voor de eerste drie. |
 | B fase 0 | Bol wordt als "onvoldoende" gemarkeerd (1 pagina), HEMA als "vervuild" (overwegend productpagina's), de andere drie als voldoende. Dit is het bestaande R6.2-criterium. |
-| B fase 2 | Bij Fysi-Unique (dienstverlener) staat de dienstenboom met minstens 4 diensten, elk met `evidence_url`. Bij HEMA (retailer) staat de categorieboom uit de sitemap. |
-| B fase 4 | Blok B levert per feit een oordeel dat **deterministisch** herleidbaar is — geen enkel oordeel komt uit het model zelf. |
+| B fase 1 | Bij Fysi-Unique (dienstverlener) staat de dienstenboom met minstens 4 diensten, elk met `evidence_url`. Bij HEMA (retailer) staat de categorieboom uit de sitemap. |
+| B fase 3 | Blok B levert per feit een oordeel dat **deterministisch** herleidbaar is — geen enkel oordeel komt uit het model zelf. |
 | B budget | p95 van de onboardingkosten over 5 profielen ligt onder $2,15, gemeten in `ai_calls`, niet geschat. |
 | C | Een veld dat in het gesprek is aangepast, overleeft een tweede onderzoeksronde ongewijzigd. Unittest op `field-merge.ts`. |
 | C | Een contextfactor `nieuwe_website` zet de houdbaarheidsmelding op de technische audit **en** in de rapportinvoer; `naamswijziging` levert beide namen in `aliases`. Unittest op `context-factors.ts` per soort. |
@@ -557,7 +609,7 @@ vorige traject.
 
 ---
 
-## 10. Risico's
+## 11. Risico's
 
 **De RLS-verbreding is het gevaarlijkst.** `is_staff()` geeft leestoegang tot alles. Eén fout in de
 policy en klanten zien elkaars gegevens. Dit blok verdient een expliciete ketentest per tabel, en
@@ -572,7 +624,7 @@ service maar een **kwaliteitspoort**.
 
 **Naamsverwarring bij alleen een naam en een URL.** Anker alles aan het **domein**, niet aan de naam:
 wat web search oplevert zonder koppeling aan dat domein is een aanwijzing, geen feit. Daarom draait
-blok D van fase 4 vroeg.
+blok D van fase 3 vroeg.
 
 **De Gemini-tarieven zijn onbekend.** De verdubbeling naar ~$0,80 per meetronde is een schatting op
 basis van OpenAI-prijzen. Kan er flink naast zitten, beide kanten op.
@@ -582,7 +634,7 @@ verlopen facetten ververst — en nooit een veld met bron `klant` of `gesprek` a
 
 ---
 
-## 11. Buiten scope
+## 12. Buiten scope
 
 - **CMS-koppeling.** Expliciet later.
 - **Backfill van bestaande profielen.** Helemaal niet: geen automatische ronde en ook geen
@@ -590,6 +642,8 @@ verlopen facetten ververst — en nooit een veld met bron `klant` of `gesprek` a
 - **Apart gespreksleidraad-scherm.** De oplopende sortering van `ProfileGaps` is de leidraad.
 - **Gebruikersbeheer in de app.** Accounts maakt de eigenaar in het Supabase-dashboard. De app kent
   alleen inloggen, uitloggen en wachtwoordherstel; registratie blijft uit.
+- **Een aparte klantenlijst voor de superuser.** De profielenlijst toont alle profielen en bij elk
+  de eigenaar; een tweede overzicht met dezelfde inhoud voegt niets toe.
 - **Meting per topic vóór goedkeuring.** Besloten: alleen een voorstellijst.
 - **Meer engines dan OpenAI en Gemini.** De abstractie maakt het mogelijk; de beslissing is een
   aparte.

@@ -113,6 +113,7 @@ scripts/           test-unit · test-chain · test-openai · eval-mention
 |---|---|
 | `docs/architecture.md` | Datamodel, RLS, jobwachtrij, pijplijn per stap, alle AI-calls, env, deploy, cron |
 | `docs/ux-design.md` | Design tokens, componentregels, responsive-strategie, loading/error/lege states |
+| `docs/designsystem.md` | Bronanalyse van de live inspace.io-CSS: waar elke kleur, radius en gloed vandaan komt |
 | `docs/logbook.md` | Waarom het is zoals het is: beslissingen en bouwrondes, met de cijfers eronder |
 | `docs/tasks/roadmap.md` | Wat er nog open staat, op volgorde |
 | `supabase/README.md` | Migratie-index en toepasinstructies |
