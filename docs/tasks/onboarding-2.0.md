@@ -1,6 +1,6 @@
 # Onboarding 2.0 — consultant-gedreven klantprofiel, core topics en multi-engine
 
-**Status:** open · **Effort:** ~15 werkdagen in 5 blokken · **Opgesteld:** 3 augustus 2026
+**Status:** open · **Effort:** ~14 werkdagen in 5 blokken · **Opgesteld:** 3 augustus 2026
 **Vertrekpunt:** `main` op `cb34ed3`, migraties t/m `0037`, 416 unittests + 25 ketentests groen.
 
 ---
@@ -27,22 +27,18 @@ bedrijfsnaam, eventuele andere schrijfwijzen.**
 | Topics zijn een voorstellijst zonder meting | `propose_topics` is één goedkope aanroep (blok D) |
 | Gemini in de kennistest **én** de maandelijkse meting | Enginelaag moet tot in de aggregatie (blok E) |
 
-### Aannames waarop dit plan rust — corrigeer ze vóór de bouw begint
+### Drie aanvullende beslissingen (3 augustus 2026)
 
-Drie vragen bleven open. Ik heb ze ingevuld met wat ik zou doen; wijk je af, dan raakt dat vooral
-blok C en D.
-
-1. **Wat het gesprek gestructureerd oplevert.** Aangenomen: prioriteitsvolgorde van de topics,
-   doelgroepfocus, prijspositionering (`premium|midden|prijsvechter`), een verbodenlijst
-   ("dit mogen we niet beweren"), en interne feiten die nergens op de site staan. Die laatste gaan
-   rechtstreeks de feitenbank in — dat is de hoogste opbrengst van het uur.
-2. **Bestaande profielen op productie.** Aangenomen: **geen automatische backfill.** Het nieuwe
-   onderzoek geldt voor nieuwe profielen; voor de vijf bestaande komt een handmatig aan te roepen
-   `POST /api/profiles/[id]/deep-research`. Reden: een backfill van vijf profielen kost ~$5 en
-   overschrijft velden waar al met de hand aan gewerkt is.
-3. **Intern gespreksleidraad-scherm.** Aangenomen: **ja, bouwen.** Zonder dat scherm is de
-   voorbereiding een dossier dat de consultant zelf moet uitpluizen, en dan levert de pipeline
-   tijdwinst op de verkeerde plek.
+1. **Wat het gesprek moet opleveren.** Twee dingen, en verder niets: (a) **welke topics er
+   commercieel toe doen** voor deze klant, en (b) **wat de pipeline onmogelijk kan weten** — een
+   nieuwe website in aanbouw, een naamswijziging, een dienst die stopt of net start, een nieuwe
+   regio. Dat tweede is geen notitieveld: een aanstaande sitemigratie maakt de hele technische audit
+   en het content-advies tijdelijk waardeloos, en dat hoort de app te weten.
+2. **Geen backfill van bestaande profielen.** Het nieuwe onderzoek geldt alleen voor nieuwe
+   profielen. Geen handmatige route, geen migratiepad.
+3. **Geen apart gespreksleidraad-scherm.** Het gesprek landt op de bestaande profielpagina. Wat
+   daarvoor nodig is bestaat al grotendeels: `dossier-box` voor geplakt materiaal, `fact-requests`
+   voor feiten, en het topicpaneel uit blok D. Er komt één kaart bij.
 
 ---
 
@@ -164,21 +160,25 @@ create table if not exists public.profile_topics (
   rationale     text,                   -- waarom dit onderwerp, met verwijzing naar het aanbod
   offering_ids  uuid[] not null default '{}',
   priority      integer not null default 0,
+  -- Wat de klant er in het gesprek zelf over zei. Dit is het antwoord op
+  -- "welke topics zijn belangrijk" en het overrulet de AI-prioritering.
+  client_note   text,
   status        text not null default 'voorgesteld',  -- voorgesteld|goedgekeurd|afgewezen
   analysis_id   uuid references public.analyses (id) on delete set null,
   created_at    timestamptz not null default now(),
   updated_at    timestamptz not null default now()
 );
 
--- Wat uit het gesprek komt en wat de pijplijn ervan gebruikt.
+-- Wat uit het gesprek komt. Bewust klein: de topicprioriteit staat hierboven op
+-- profile_topics, dus wat hier overblijft is de vrije strategie-uitleg plus de
+-- context die de pijplijn niet zelf kan waarnemen.
 create table if not exists public.profile_strategy (
-  profile_id           uuid primary key references public.profiles (id) on delete cascade,
-  audience_focus       text,
-  price_positioning    text,            -- premium|midden|prijsvechter
-  forbidden_claims     text[] not null default '{}',
-  notes                text,
-  recorded_by          uuid references auth.users (id),
-  recorded_at          timestamptz
+  profile_id      uuid primary key references public.profiles (id) on delete cascade,
+  strategy_notes  text,
+  -- [{ kind, description, effective_from }] — zie de kind-enum in blok C.
+  context_factors jsonb not null default '[]'::jsonb,
+  recorded_by     uuid references auth.users (id),
+  recorded_at     timestamptz
 );
 ```
 
@@ -366,11 +366,14 @@ automatisch de juiste keuze. Dit is conventie 3 (*onbekend > verkeerd*) en 8 (*a
 
 ---
 
-## 5. Blok C — Corrigeren, aanvullen en het gesprek (3 d)
+## 5. Blok C — Corrigeren, aanvullen en het gesprek (2 d)
 
 **Bestanden:** `app/(app)/profielen/nieuw/onboarding-wizard.tsx` (uitkleden),
-`app/(app)/profielen/[id]/` (dossier, editor), nieuw `_gesprek/` en
-`app/api/profiles/[id]/strategy/route.ts`.
+`app/(app)/profielen/[id]/profile-editor.tsx`, `profile-gaps.tsx`, nieuw
+`app/(app)/profielen/[id]/strategy-box.tsx` en `app/api/profiles/[id]/strategy/route.ts`.
+
+Geen apart gespreksscherm. Alles landt op de bestaande profielpagina, die al een editor, een
+`dossier-box` voor geplakt materiaal en `fact-requests` heeft. Er komt één kaart bij.
 
 1. **Wizard terug naar één scherm.** Stappen 1–3 en de knop "Eerst meer vertellen" eruit;
    `isStepValid` houdt alleen `case 0` over. De kolommen blijven bestaan (additief) — ze worden
@@ -381,16 +384,36 @@ automatisch de juiste keuze. Dit is conventie 3 (*onbekend > verkeerd*) en 8 (*a
 3. **De mens wint, en dat is afdwingbaar.** Een latere onderzoeksronde mag een veld met bron
    `klant` of `gesprek` **nooit** overschrijven. Dat hoort in een pure functie
    (`lib/pipeline/field-merge.ts`) met unittests, niet in een promptinstructie — conventie 1.
-4. **Het gespreksleidraad-scherm** (`/profielen/[id]/gesprek`, alleen staf):
-   - **Bovenaan wat onzeker is.** Gesorteerd op zekerheid oplopend — de consultant begint bij wat de
-     pipeline niet wist, niet bij wat hij al goed heeft.
-   - Daarnaast de strategievragen met invulvelden → `profile_strategy`.
-   - Een blok "interne feiten" dat rechtstreeks in `brand_facts` landt met bron `gesprek`. Dit is de
-     hoogste opbrengst van het uur: kennis die nergens op de site staat, en precies wat content
-     onderscheidend maakt van de generieke vergelijkers.
-   - Inline corrigeren, geen apart bewerkscherm.
-5. `ProfileGaps` verandert van *"vul dit nog in"* naar *"dit konden we niet vaststellen"* — het is nu
-   een bevinding van de pipeline, niet huiswerk voor de klant.
+4. `ProfileGaps` verandert van *"vul dit nog in"* naar *"dit konden we niet vaststellen"*, gesorteerd
+   op zekerheid oplopend. Dat is meteen de gespreksagenda: de consultant begint bij wat de pipeline
+   niet wist. Geen apart scherm nodig — de sortering ís de leidraad.
+5. **Interne feiten uit het gesprek** gaan via de bestaande route
+   `POST /api/profiles/[id]/dossier` en `PATCH /api/profiles/[id]/facts` naar `brand_facts`, met
+   bron `gesprek`. Nul nieuw bouwwerk; alleen de bronwaarde erbij.
+
+### De strategiekaart
+
+Eén kaart, twee velden, en het tweede is het interessante.
+
+**a) Vrije strategie-uitleg** (`strategy_notes`). Wat de klant wil bereiken, in zijn eigen woorden.
+Gaat als contextblok mee naar de promptgeneratie en het rapport.
+
+**b) Contextfactoren die de pipeline niet kan waarnemen** (`context_factors`). Een lijstje met een
+gesloten soort, een omschrijving en optioneel een ingangsdatum. Dit is geen notitieveld — elke soort
+heeft een gevolg in code:
+
+| `kind` | Wat de app ermee doet |
+|---|---|
+| `nieuwe_website` | Technische audit en het nieuw/verbeteren-advies krijgen een houdbaarheidsmelding: de bevindingen gelden voor een site die straks niet meer bestaat. Zichtbaar op het profiel én in de rapportinvoer. |
+| `naamswijziging` · `rebranding` | Oude én nieuwe naam moeten in `aliases`, anders telt de meting de vermeldingen van één van beide niet mee. |
+| `gestopte_dienst` | Valt uit de aanbodboom en uit de topicvoorstellen. |
+| `nieuwe_dienst` | Staat nog niet op de site, dus de crawl vindt hem nooit — handmatig toe te voegen als `profile_offerings`-rij met bron `gesprek`. |
+| `nieuwe_regio` | Gaat mee in `service_regions` en dus in de lokale promptgeneratie. |
+| `overig` | Alleen zichtbaar, geen gedrag. |
+
+Die tabel is de reden dat dit een gestructureerd veld is en geen tekstvak: *"we bouwen een nieuwe
+site"* verandert wat het advies waard is, en dat mag niet in een notitie verdwijnen die niemand meer
+leest. De afhandeling hoort in een pure module (`lib/pipeline/context-factors.ts`) met unittests.
 
 ---
 
@@ -476,7 +499,7 @@ plan en de enige die de maandelijkse kosten per klant structureel raakt — reke
 | 1 | **B fase 0** (ontdekken, gratis) | 2 | Grootste kwaliteitssprong, nul kosten, blokkeert al het andere |
 | 2 | **A** (staf + overdracht) | 2 | Zonder dit is er geen consultantflow om op te bouwen |
 | 3 | **B fase 1–3, 6** (onderzoek) | 3 | Het profiel zelf |
-| 4 | **C** (correctie + gesprek) | 3 | Maakt fase 3 bruikbaar; zonder dit is het onbevestigde data |
+| 4 | **C** (correctie + strategiekaart) | 2 | Maakt fase 3 bruikbaar; zonder dit is het onbevestigde data |
 | 5 | **D** (topics) | 2 | Klein, en het leunt op het aanbod uit fase 2 |
 | 6 | **B fase 4–5** (LLM-basislijn + audit) | 2 | Kan los; fase 5 is gratis |
 | 7 | **E** (multi-engine) | 3 + 1 | Abstractie nu, Gemini-adapter zodra de key er is |
@@ -497,7 +520,8 @@ Conventie 10: gebouwd is niet geverifieerd. Per blok, tegen echte data:
 | B fase 4 | Blok B levert per feit een oordeel dat **deterministisch** herleidbaar is — geen enkel oordeel komt uit het model zelf. |
 | B budget | p95 van de onboardingkosten over 5 profielen ligt onder $2,15, gemeten in `ai_calls`, niet geschat. |
 | C | Een veld dat in het gesprek is aangepast, overleeft een tweede onderzoeksronde ongewijzigd. Unittest op `field-merge.ts`. |
-| D | Voor alle vijf testprofielen komen er 5–8 topics, elk met een verwijzing naar een bestaand `profile_offerings`-record. |
+| C | Een contextfactor `nieuwe_website` zet de houdbaarheidsmelding op de technische audit **en** in de rapportinvoer; `naamswijziging` levert beide namen in `aliases`. Unittest op `context-factors.ts` per soort. |
+| D | Voor alle vijf testprofielen komen er 5–8 topics, elk met een verwijzing naar een bestaand `profile_offerings`-record. Een ingevulde `client_note` overrulet de AI-prioritering in de sortering. |
 | E | Eén analyse gemeten op twee engines geeft twee sets `tracking_runs` met dezelfde prompt-ID's en verschillende `engine`, en `per_engine_json` bevat twee scores. |
 | Keten | **Het aantal briefingvragen in fase 4 daalt.** Nu tot 8 omdat de feitenkaart leeg is; met een gevulde feitenbank hoort dat lager te liggen. Dit is het bewijs dat de investering doorwerkt. |
 
@@ -516,7 +540,7 @@ policy en klanten zien elkaars gegevens. Dit blok verdient een expliciete ketent
 
 **Het correctieanker verdwijnt.** Nu vangt klantinvoer modelfouten af; straks is er niets tot het
 gesprek. Een fout profiel vervuilt élke latere analyse. Mitigatie: zekerheid per veld, herkomst per
-veld, en een gespreksscherm dat de twijfelgevallen bovenaan zet. Het gesprek is daarmee geen
+veld, en een `ProfileGaps` die de twijfelgevallen bovenaan zet. Het gesprek is daarmee geen
 service maar een **kwaliteitspoort**.
 
 **Naamsverwarring bij alleen een naam en een URL.** Anker alles aan het **domein**, niet aan de naam:
@@ -534,7 +558,9 @@ verlopen facetten ververst — en nooit een veld met bron `klant` of `gesprek` a
 ## 11. Buiten scope
 
 - **CMS-koppeling.** Expliciet later.
-- **Automatische backfill van bestaande profielen.** Handmatige route, zie aanname 2.
+- **Backfill van bestaande profielen.** Helemaal niet: geen automatische ronde en ook geen
+  handmatige route. Het nieuwe onderzoek geldt alleen voor nieuwe profielen.
+- **Apart gespreksleidraad-scherm.** De oplopende sortering van `ProfileGaps` is de leidraad.
 - **Meting per topic vóór goedkeuring.** Besloten: alleen een voorstellijst.
 - **Meer engines dan OpenAI en Gemini.** De abstractie maakt het mogelijk; de beslissing is een
   aparte.
