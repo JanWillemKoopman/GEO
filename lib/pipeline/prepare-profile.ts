@@ -26,10 +26,29 @@ import { crawlSite } from "@/lib/crawler";
 import { generateProfileResearch } from "@/lib/pipeline/profile-research";
 import {
   filterProtectedFields,
+  describeMerge,
   type FieldOwnership,
 } from "@/lib/pipeline/field-merge";
 import type { HarvestedFact } from "@/lib/pipeline/structured-data";
 import type { Profile, ProfileStatus } from "@/lib/types/database";
+
+/**
+ * Kolomnaam → hoe de klant het veld kent. Voor de melding na een herhaalronde:
+ * "brand_name is blijven staan" zegt hem niets, "de merknaam" wel.
+ */
+const PROFILE_FIELD_LABELS: Record<string, string> = {
+  brand_name: "de merknaam",
+  industry: "de branche",
+  business_model: "het bedrijfsmodel",
+  tone_of_voice: "de tone of voice",
+  summary: "de samenvatting",
+  products: "de producten en diensten",
+  value_props: "de waardeproposities",
+  competitors: "de concurrenten",
+  personas: "de doelgroepen",
+  aliases: "de naamvarianten",
+  service_regions: "het werkgebied",
+};
 
 /** Niet-lege string? (voor "klant leidend": alleen echt ingevulde waarden winnen). */
 function filled(v: string | null | undefined): v is string {
@@ -208,8 +227,10 @@ export async function prepareProfile(id: string): Promise<ProfileStatus> {
       (ownershipRows ?? []) as FieldOwnership[],
     );
     if (blocked.length > 0) {
+      // Dezelfde zin die de klant straks te zien krijgt na een herhaalronde.
+      // Eén formulering, één plek: anders zegt de log iets anders dan het scherm.
       console.info(
-        `Profiel ${id}: ${blocked.length} veld(en) niet overschreven omdat een mens ze zette (${blocked.join(", ")}).`,
+        `Profiel ${id}: ${describeMerge(blocked, PROFILE_FIELD_LABELS)}`,
       );
     }
 

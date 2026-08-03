@@ -94,7 +94,7 @@ export function filterProtectedFields<T extends Record<string, unknown>>(
  */
 export type ConfidenceLevel = "zeker" | "onzeker" | "onbekend";
 
-export const CONFIDENCE_THRESHOLD = 0.7;
+const CONFIDENCE_THRESHOLD = 0.7;
 
 export function confidenceLevel(
   confidence: number | null | undefined,

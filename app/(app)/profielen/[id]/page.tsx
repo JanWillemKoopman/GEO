@@ -15,6 +15,7 @@ import { LlmKnowledgePanel } from "./llm-knowledge-panel";
 import { StrategyBox } from "./strategy-box";
 import { ResearchStepsStrip } from "./research-steps-strip";
 import { OfferingsPanel } from "./offerings-panel";
+import { ConfidenceChip } from "@/components/confidence-chip";
 import {
   parseContextFactors,
   technicalAdviceStale,
@@ -58,6 +59,7 @@ export default async function ProfilePage({
     { data: baselineRows },
     { data: strategyRow },
     { data: offeringRows },
+    { data: offeringFacetRow },
     { data: synthesisRow },
   ] = await Promise.all([
     supabase
@@ -113,10 +115,18 @@ export default async function ProfilePage({
       .select("*")
       .eq("profile_id", id)
       .order("sort_order"),
+    // De zekerheid van de aanbodboom: het aandeel knopen dat een geldige bron
+    // overleefde (fase 1). Onder de drempel hoort daar een markering bij.
+    supabase
+      .from("profile_facets")
+      .select("confidence")
+      .eq("profile_id", id)
+      .eq("facet", "aanbod")
+      .maybeSingle(),
     // De synthese (fase 5): het dossier in gewone taal plus de gespreksagenda.
     supabase
       .from("profile_facets")
-      .select("summary, raw_json")
+      .select("summary, raw_json, confidence")
       .eq("profile_id", id)
       .eq("facet", "synthese")
       .maybeSingle(),
@@ -131,9 +141,14 @@ export default async function ProfilePage({
     (strategyRow as { context_factors?: unknown } | null)?.context_factors,
   );
   const staleFactor = technicalAdviceStale(factors);
+  const offeringConfidence =
+    (offeringFacetRow as { confidence?: number | null } | null)?.confidence ??
+    null;
 
   const dossier =
     (synthesisRow as { summary?: string | null } | null)?.summary ?? null;
+  const dossierConfidence =
+    (synthesisRow as { confidence?: number | null } | null)?.confidence ?? null;
   const researchGaps = (
     ((synthesisRow as { raw_json?: { gaps?: unknown } } | null)?.raw_json
       ?.gaps ?? []) as unknown[]
@@ -150,7 +165,10 @@ export default async function ProfilePage({
           zien draaien en weet waar het voor dient. */}
       {dossier && (
         <div className="card flex flex-col gap-2">
-          <span className="mono-label">Het dossier</span>
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="mono-label">Het dossier</span>
+            <ConfidenceChip confidence={dossierConfidence} />
+          </div>
           <p className="text-secondary">{dossier}</p>
         </div>
       )}

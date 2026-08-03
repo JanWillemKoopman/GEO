@@ -1,5 +1,6 @@
 import { CollapsibleSection } from "@/components/collapsible-section";
 import { RerunResearchButton } from "./rerun-research-button";
+import { ConfidenceChip } from "@/components/confidence-chip";
 import type { InventoryQuality, ProfileOffering } from "@/lib/types/database";
 
 /**
@@ -32,10 +33,13 @@ export function OfferingsPanel({
   profileId,
   offerings,
   inventory,
+  confidence,
 }: {
   profileId: string;
   offerings: ProfileOffering[];
   inventory: InventoryQuality | null;
+  /** Het aandeel knopen dat een geldige bron overleefde (fase 1). */
+  confidence?: number | null;
 }) {
   if (offerings.length === 0 && !inventory) return null;
 
@@ -91,7 +95,10 @@ export function OfferingsPanel({
   return (
     <div className="card flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <span className="mono-label">Wat je aanbiedt</span>
+        <span className="mono-label flex items-center gap-2">
+          Wat je aanbiedt
+          <ConfidenceChip confidence={confidence} />
+        </span>
         {offerings.length > 0 && (
           <span className="mono-label text-muted">
             {offerings.length} onderdelen
