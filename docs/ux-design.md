@@ -153,6 +153,19 @@ pagina in de bibliotheek en de feitenvragen — elk met eigen woorden, kleuren e
 De klant groepeert niet naar "on-site of off-site" — dat is onze indeling. Hij groepeert naar
 "moet ik hier iets?". Vandaar de staat als hoofdas.
 
+**De opgerolde `nu`-lijst hoort bij de analyse, niet bij het overzicht ervoor.** `/analyses`
+(`lib/dashboard.ts`) toonde die lijst eerder ook, over alle analyses heen — bedoeld als "waar moet
+ik als eerste zijn", maar bij meerdere lopende analyses liep dat op tientallen punten in één kaart
+en werd het overzicht zélf de rommel die het werkmodel per analyse juist moest voorkomen. `/analyses`
+toont nu alleen nog de drie statusblokken (`DashboardStats`, `components/dashboard-stats.tsx`) en
+de analysenlijst; de werklijst blijft uitsluitend in hoofdstuk 03 van het dossier, per analyse.
+
+Elke rij in de analysenlijst toont in plaats daarvan vier vaste kaartcijfers plus het aantal
+metingen (`AnalysisCardMetrics`, `components/analysis-card-metrics.tsx`): zichtbaarheidsscore,
+aantal openstaande vragen, aantal voorgestelde en aantal geschreven pagina's, en "N metingen". Die
+cijfers komen uit dezelfde bronnen als het werkmodel (`visibility_scores`, `content_pieces`,
+`reports`) — het kaartje kan dus nooit iets anders beweren dan de analyse zelf verderop laat zien.
+
 ## 7. Responsive
 
 **Desktop is het ontwerpuitgangspunt** (daar zit de meerderheid), maar mobiel is nadrukkelijk
