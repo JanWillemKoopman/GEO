@@ -1,5 +1,7 @@
 import { notFound } from "next/navigation";
 import { getProfile } from "@/lib/profiles";
+import { requireUser } from "@/lib/auth";
+import { isStaff } from "@/lib/staff";
 import { createClient } from "@/lib/supabase/server";
 import { ProfileProgress } from "./profile-progress";
 import { ProfileEditor } from "./profile-editor";
@@ -7,6 +9,7 @@ import { EntitiesManager } from "./entities-manager";
 import { AuditPanel } from "@/components/audit-panel";
 import { FactRequests } from "./fact-requests";
 import { ProfileGaps } from "./profile-gaps";
+import { AssignBox } from "./assign-box";
 import type { AuditCheck } from "@/lib/audit/technical";
 import type { Entity, FactRequest, TechnicalAudit as TechnicalAuditRow } from "@/lib/types/database";
 
@@ -14,6 +17,11 @@ export default async function ProfilePage({ params }: { params: Promise<{ id: st
   const { id } = await params;
   const profile = await getProfile(id);
   if (!profile) notFound();
+
+  // De toewijsknop is een beheerdersding: een klant mag zijn eigen merk niet
+  // weggeven. Zie lib/staff.ts.
+  const user = await requireUser();
+  const staff = await isStaff(user.id);
 
   if (profile.status !== "klaar") {
     return <ProfileProgress profileId={id} initialStatus={profile.status} />;
@@ -52,6 +60,14 @@ export default async function ProfilePage({ params }: { params: Promise<{ id: st
           en website; de rest vragen we hier, nu de klant het onderzoek heeft
           zien draaien en weet waar het voor dient. */}
       <ProfileGaps profile={profile} />
+
+      {staff && (
+        <AssignBox
+          profileId={id}
+          currentUserId={profile.user_id}
+          assignedAt={profile.assigned_at}
+        />
+      )}
 
       <ProfileEditor initial={profile} inventoryCount={count ?? 0} />
       {audit ? (
