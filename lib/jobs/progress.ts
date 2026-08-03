@@ -29,7 +29,15 @@ type Admin = SupabaseClient;
  * een die tegenvalt kost vertrouwen.
  */
 const TYPICAL_SECONDS: Record<JobType, number> = {
+  // Tot 150 pagina's in batches van 8. Geen AI, wel het meeste netwerk van de
+  // hele pijplijn — bij een trage site loopt dit richting anderhalve minuut.
+  profile_discover: 70,
   profile_research: 50, // sitemap-crawl + AI-onderzoek met web_search
+  profile_offering: 45, // één aanroep over de hele sitetekst, geen web_search
+  propose_topics: 12, // korte aanroep over alleen de aanbodboom
+  profile_market: 35, // één gegrondde aanroep; web_search kost 20-40 s
+  profile_llm_baseline: 60, // 6 parallelle aanroepen per engine, deels met web_search
+  profile_synthesis: 55, // één aanroep op het premium model
   prepare_analysis: 30, // onderwerp-onderzoek: één gegrondde AI-aanroep
   generate_prompts: 40, // 3 parallelle prompt-calls, elk met een bijvul-ronde
   calibrate_volumes: 15, // één aanroep over alle vragen samen
@@ -57,7 +65,29 @@ const TYPICAL_SECONDS: Record<JobType, number> = {
  * taken van een analyse, dus zonder deze uitzondering zou zo'n cosmetische
  * misser als "de meting is misgelopen" gemeld worden.
  */
-const NON_BLOCKING_TYPES: ReadonlySet<JobType> = new Set<JobType>(["calibrate_volumes"]);
+const NON_BLOCKING_TYPES: ReadonlySet<JobType> = new Set<JobType>([
+  "calibrate_volumes",
+  // De aanbodboom is VERRIJKING, geen voorwaarde (zelfde redenering als
+  // competitor_intel bij het rapport). Het profiel staat al op 'klaar' als
+  // deze taak begint; mislukt hij, dan mist de klant zijn dienstenoverzicht en
+  // de topicvoorstellen — vervelend, maar zijn merk is bruikbaar en elke
+  // analyse werkt. Een rood kruis op het voortgangsscherm zou suggereren dat
+  // het onderzoek is misgelopen, en dat is niet zo.
+  "profile_offering",
+  // Zelfde redenering: zonder topicvoorstellen typt de klant zijn onderwerp
+  // gewoon zelf in, zoals hij dat altijd deed.
+  "propose_topics",
+  // Ook verrijking: zonder kennisbasislijn mist de klant het antwoord op "wat
+  // weet ChatGPT al over mij", maar zijn profiel en al zijn analyses werken.
+  "profile_llm_baseline",
+  // Verrijking, zelfde afspraak als competitor_intel bij het rapport: zonder
+  // dit houdt de klant zijn concurrentenlijst, alleen zonder het "waarom".
+  "profile_market",
+  // De synthese is de laatste verrijking: valt hij weg, dan mist de klant zijn
+  // samenvattende dossier maar staan alle facetten er nog, elk met een eigen
+  // samenvatting.
+  "profile_synthesis",
+]);
 
 /**
  * Hoeveel lichte taken de werker gelijktijdig afwerkt. Moet overeenkomen met

@@ -1,7 +1,48 @@
 # Onboarding 2.0 — consultant-gedreven klantprofiel, core topics en multi-engine
 
-**Status:** open · **Effort:** ~13,5 werkdagen in 5 blokken · **Opgesteld:** 3 augustus 2026
+**Status:** gebouwd, nog niet op productie geverifieerd · **Effort:** ~13,5 werkdagen in 5 blokken · **Opgesteld:** 3 augustus 2026
 **Vertrekpunt:** `main` op `cb34ed3`, migraties t/m `0037`, 416 unittests + 25 ketentests groen.
+
+## Voortgang (3 augustus 2026)
+
+| Onderdeel | Stand |
+|---|---|
+| Migraties `0038`–`0042` | **Klaar**, toegepast op productie en nagerekend |
+| Blok A — superuser, toewijzing, wachtwoordherstel | **Klaar**, ketentest per geval |
+| Blok B fase 0 — ontdekken | **Klaar** (crawl 150, JSON-LD, taxonomie, inventariskwaliteit, renderbaarheid) |
+| Blok B fase 1 — aanbodboom | **Klaar**, per bedrijfsmodel, met bron per knoop |
+| Blok B fase 3 — LLM-kennisbasislijn | **Klaar**, met deterministisch oordeel |
+| Blok B fase 4 — entiteitsconsistentie | **Klaar**, nul kosten |
+| Blok C — wizard, strategiekaart, contextfactoren, veldbescherming | **Klaar** |
+| Blok D — core topics | **Klaar** |
+| Blok E — enginelaag + Gemini-adapter | **Klaar als bedrading**; uitwaaieren per engine bewust nog niet, zie §7 |
+| §8 — voortgang met tussenresultaten, zekerheid als niveau, "onderzoek opnieuw" | **Klaar** |
+| Blok B fase 2 — markt verdiepen | **Klaar** — reden per concurrent met bron, plus het bronnenlandschap op merkniveau |
+| Blok B fase 5 — synthese op Sol | **Klaar** — dossier, gespreksagenda en geverifieerde feiten in `brand_facts` |
+
+Tests: **551 unittests, 34 ketentests**, `tsc` en `build` schoon.
+
+### Verificatiecriteria uit §10 — wat is afgetekend en wat niet
+
+| Criterium | Stand |
+|---|---|
+| C — veld uit het gesprek overleeft een tweede ronde | ✅ unittest op `field-merge.ts` |
+| C — `nieuwe_website` op de audit **en** in de rapportinvoer, `naamswijziging` in aliases | ✅ unittest + beide plekken aangesloten |
+| B fase 3 — elk oordeel deterministisch herleidbaar | ✅ `baseline-verdict.ts`, geen enkel oordeel van het model |
+| A — na toewijzing zijn profiel én analyses van de klant | ✅ ketentest |
+| A — **per tabel** met een selectpolicy een ketentest | ❌ er is één scenario op `getOwnedProfile`/`getOwnedAnalysis` (3 gevallen elk), niet 26 tabellen |
+| A — `/register` geeft 404, herstel levert werkende inlog | ❌ 404 volgt uit `SIGNUPS_ENABLED`, niet nagelopen op productie; herstel vraagt een echte mail |
+| B fase 0 — Bol "dun", HEMA "vervuild", drie andere voldoende | ❌ unittest dekt de heuristiek, niet de echte sites |
+| B fase 1 — Fysi-Unique ≥ 4 diensten met `evidence_url` | ❌ nooit tegen een echte site gedraaid |
+| B budget — p95 over 5 profielen onder $2,15, **gemeten** in `ai_calls` | ❌ nog geen enkele echte aanroep |
+| D — 5–8 topics per testprofiel, elk met een bestaande offering | ❌ idem |
+| E — twee engines, twee sets `tracking_runs`, `per_engine_json` gevuld | ❌ kan niet: geen `GEMINI_API_KEY`, en de fan-out staat bewust uit |
+| Keten — het aantal briefingvragen in fase 4 **daalt** | ❌ de meetlat van het hele traject; vraagt een echte contentronde |
+
+Vier van de twaalf zijn afgetekend. De overige acht hebben één ding gemeen: ze
+vragen een echte website, een echte aanroep of een echte engine. Conventie 10 —
+gebouwd is niet geverifieerd. Eén profiel aanmaken op productie kost ~$1 en
+tekent er in één klap vijf van af.
 
 ---
 
@@ -62,7 +103,9 @@ vervanging.
 
 ## 2. Migraties
 
-Vier stuks, additief en idempotent. `0033` blijft ongebruikt: de inventariskwaliteit waarvoor hij
+Vijf stuks, additief en idempotent — `0042` kwam er bij nadat de Supabase-linter twee dingen
+meldde over de verbreding uit `0038`; zie de aparte kop onderaan deze sectie. `0033` blijft
+ongebruikt: de inventariskwaliteit waarvoor hij
 gereserveerd stond (R6.2) zit nu in `0039`. Markeer `0033` in `supabase/README.md` als **vervallen**
 in plaats van gereserveerd.
 
@@ -205,6 +248,22 @@ blijft het gewogen gemiddelde over de engines heen.
 ⚠️ Controleer vóór het aanmaken van die unieke index of de bestaande rijen hem niet schenden
 (oude metingen zonder `purpose`/`repeat_index`). Zo nodig eerst een `select` met `group by … having
 count(*) > 1`.
+
+---
+
+### `0042_rls_aanscherping.sql`
+
+Nagekomen, na de linter-controle op productie. Twee dingen, en ze horen in één migratie:
+`is_staff()` was aanroepbaar door `anon` (onschadelijk — `auth.uid()` is dan null, dus altijd
+`false` — maar een `security definer`-functie die zonder inloggen aan te roepen is, hoort dicht),
+en de stafpolicies golden voor élke rol omdat een `create policy` zonder `to`-clausule dat doet.
+Los toegepast levert het intrekken van de EXECUTE-rechten een *permission denied* op waar nul
+rijen hoort te staan.
+
+Plus een vast `search_path` op `set_updated_at()` — bestond al vanaf `0001`, maar `0039` en `0040`
+hingen er drie nieuwe triggers aan.
+
+Nagerekend op productie: 26 stafpolicies, alle op `authenticated`, geen enkele te breed.
 
 ---
 

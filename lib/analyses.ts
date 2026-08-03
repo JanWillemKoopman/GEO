@@ -7,6 +7,7 @@ import "server-only";
  */
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { isStaff } from "@/lib/staff";
 import type { Analysis } from "@/lib/types/database";
 
 export async function getAnalysis(id: string): Promise<Analysis | null> {
@@ -20,6 +21,10 @@ export async function getAnalysis(id: string): Promise<Analysis | null> {
  * service-role client (die RLS omzeilt) en geeft alleen iets terug als de
  * analyse écht van deze user is. Geeft null bij "niet gevonden" ÉN "niet van jou"
  * — geen onderscheid, om niet te lekken of een id bestaat.
+ *
+ * Sinds migratie 0038 is er een tweede uitweg: de beheerder. Die begeleidt de
+ * klant ná de toewijzing en moet dus bij analyses kunnen die niet van hem zijn.
+ * Zie lib/staff.ts voor waarom die rol bestaat en wat hem in toom houdt.
  */
 export async function getOwnedAnalysis(
   admin: ReturnType<typeof createAdminClient>,
@@ -27,6 +32,8 @@ export async function getOwnedAnalysis(
   userId: string,
 ): Promise<Analysis | null> {
   const { data } = await admin.from("analyses").select("*").eq("id", id).maybeSingle();
-  if (!data || data.user_id !== userId) return null;
-  return data as Analysis;
+  if (!data) return null;
+  if (data.user_id === userId) return data as Analysis;
+  if (await isStaff(userId)) return data as Analysis;
+  return null;
 }

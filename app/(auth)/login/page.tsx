@@ -5,12 +5,16 @@ import { signupsEnabled } from "@/lib/config";
 export default async function LoginPage({
   searchParams,
 }: {
-  searchParams: Promise<{ check_email?: string }>;
+  searchParams: Promise<{ check_email?: string; reset_sent?: string }>;
 }) {
   const params = await searchParams;
-  const notice = params.check_email
-    ? "Account aangemaakt. Check je e-mail om te bevestigen en log daarna in."
-    : null;
+  // Bewust dezelfde tekst ongeacht of het adres bestaat: zou dat verschillen,
+  // dan is het herstelformulier een manier om te achterhalen wie een account heeft.
+  const notice = params.reset_sent
+    ? "Staat er een account op dat adres, dan is er een herstel-link onderweg. Check ook je spam."
+    : params.check_email
+      ? "Account aangemaakt. Check je e-mail om te bevestigen en log daarna in."
+      : null;
 
   return (
     <>

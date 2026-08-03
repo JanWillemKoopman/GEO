@@ -7,12 +7,46 @@
  * Zo is "30 vragen meten" een kwestie van 30 taken plannen in plaats van een
  * architectuurwijziging — precies wat fase 2 (drie metingen per vraag) nodig heeft.
  */
-import type { ContentAction, ContentType } from "@/lib/types/database";
+import type { ContentAction, ContentType, EngineId } from "@/lib/types/database";
 import type { RecommendationTarget } from "@/lib/pipeline/recommendation";
 
 export const JOB_TYPES = [
+  /**
+   * Fase 0 van de onboarding: de site uitkammen zonder één AI-aanroep
+   * (docs/tasks/onboarding-2.0.md blok B). Crawlt tot 150 pagina's, oogst
+   * JSON-LD/OpenGraph, beoordeelt de inventaris en meet of de tekst überhaupt
+   * zonder JavaScript zichtbaar is. Ketent naar profile_research.
+   */
+  "profile_discover",
   /** Eenmalig profielonderzoek: crawl + merk/branche/concurrenten. */
   "profile_research",
+  /**
+   * Fase 1 van de onboarding: het aanbod als boom (blok B). Bij een
+   * dienstverlener de dienstverlening, bij een productverkoper het assortiment.
+   * Voedt straks de core topics.
+   */
+  "profile_offering",
+  /**
+   * Fase 1c: 5-8 core topics voorstellen uit de aanbodboom (blok D). Eén
+   * goedkope aanroep, geen meting — die volgt pas na goedkeuring.
+   */
+  "propose_topics",
+  /**
+   * Fase 2: markt en concurrentie verdiepen (blok B). Waarom winnen die
+   * concurrenten, en welke domeinen bepalen deze markt?
+   */
+  "profile_market",
+  /**
+   * Fase 3: wat weten AI-assistenten al over dit merk, en klopt dat? (blok B)
+   * Draait per beschikbare engine; het oordeel is deterministisch en komt niet
+   * van het model zelf.
+   */
+  "profile_llm_baseline",
+  /**
+   * Fase 5: alles samenbrengen tot een leesbaar dossier en citeerbare feiten
+   * (blok B). De enige onboarding-stap op het dure model.
+   */
+  "profile_synthesis",
   /** Onderwerp-onderzoek voor één analyse. Ketent naar generate_prompts. */
   "prepare_analysis",
   /** Promptgeneratie voor één analyse (2e helft van de voorbereiding). */
@@ -64,7 +98,13 @@ export interface RecommendationPayload {
 
 /** Wat elke taaksoort in `payload_json` meekrijgt. */
 export interface JobPayloads {
+  profile_discover: Record<string, never>;
   profile_research: Record<string, never>;
+  profile_offering: Record<string, never>;
+  propose_topics: Record<string, never>;
+  profile_market: Record<string, never>;
+  profile_llm_baseline: Record<string, never>;
+  profile_synthesis: Record<string, never>;
   prepare_analysis: Record<string, never>;
   generate_prompts: Record<string, never>;
   calibrate_volumes: Record<string, never>;
@@ -83,6 +123,11 @@ export interface JobPayloads {
      * veld is het een gewone periodieke meting.
      */
     impact?: { purpose: "impact" | "control"; contentPieceId: string; wave: number };
+    /**
+     * Welke AI-assistent deze vraag beantwoordt (migratie 0041, blok E).
+     * Afwezig = 'openai', wat élke meting tot augustus 2026 was.
+     */
+    engine?: EngineId;
   };
   aggregate_week: { weekNo: number };
   profile_competitors: { weekNo: number };
@@ -118,7 +163,32 @@ export interface JobPayloads {
  * samen, één zware taak vult de aanroep in z'n eentje.
  */
 export const HEAVY_JOB_TYPES: ReadonlySet<JobType> = new Set<JobType>([
+  // Geen AI-aanroep, maar wel tot 150 pagina's ophalen in batches van 8. Bij een
+  // trage site is dat ruim een minuut netwerk — zwaar in tijd, niet in geld.
+  "profile_discover",
   "profile_research", // crawlt de hele site + AI-onderzoek met web_search
+  "profile_offering",
+  /**
+   * Fase 1c: 5-8 core topics voorstellen uit de aanbodboom (blok D). Eén
+   * goedkope aanroep, geen meting — die volgt pas na goedkeuring.
+   */
+  "propose_topics",
+  /**
+   * Fase 2: markt en concurrentie verdiepen (blok B). Waarom winnen die
+   * concurrenten, en welke domeinen bepalen deze markt?
+   */
+  "profile_market",
+  /**
+   * Fase 3: wat weten AI-assistenten al over dit merk, en klopt dat? (blok B)
+   * Draait per beschikbare engine; het oordeel is deterministisch en komt niet
+   * van het model zelf.
+   */
+  "profile_llm_baseline",
+  /**
+   * Fase 5: alles samenbrengen tot een leesbaar dossier en citeerbare feiten
+   * (blok B). De enige onboarding-stap op het dure model.
+   */
+  "profile_synthesis", // één aanroep over 55.000 tekens sitetekst
   "prepare_analysis", // onderwerp-onderzoek: één gegrondde AI-aanroep
   "generate_prompts", // 3 parallelle prompt-calls, elk met een bijvul-ronde
   "profile_competitors", // destilleert eigenschappen uit alle antwoordfragmenten

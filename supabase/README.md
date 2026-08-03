@@ -67,8 +67,25 @@ Alle migraties zijn toegepast op productie, behalve `0033`.
 | `0030_concurrent_intelligence.sql` | `competitor_breakdown.attributes_json` / `why_summary` |
 | `0031_gelaagd_hermeten.sql` | `tracking_runs.repeat_index` + index |
 | `0032_bedrijfsmodel.sql` | `profiles.business_model` (nullable + check-constraint) |
-| *`0033`* | **Gereserveerd voor R6.2** (inventariskwaliteit) — nooit gedraaid, blokkeert niets |
+| *`0033`* | **VERVALLEN.** Stond gereserveerd voor R6.2 (inventariskwaliteit); die kolom zit sinds `0039` in de onboarding-pijplijn. Nooit gedraaid, en dat blijft zo. |
 | `0034_vrijgave.sql` | `content_pieces.reviewed_at`/`reviewed_by` + partiële index |
 | `0035_merkdocumenten.sql` | `brand_documents`: brontekst, sha256-hash, extractietellers |
 | `0036_feitenbank.sql` | `brand_facts`: feit met identiteit, scope en `superseded_by` |
 | `0037_winbaarheid_als_kans.sql` | `prompts.elicit_successes`/`elicit_samples` + backfill |
+| `0038_superuser_en_toewijzing.sql` | `staff_users` + `is_staff()` + één extra selectpolicy per tabel; `profiles.created_by_user_id`/`assigned_at` |
+| `0039_profielverdieping.sql` | `profile_facets`, `profile_offerings` (aanbodboom), `profile_field_sources` (herkomst per veld); `inventory_quality_json`, `onboarding_budget_usd`, `deep_research_at` |
+| `0040_topics_en_strategie.sql` | `profile_topics` (5–8 core topics) en `profile_strategy` (gespreksuitkomst + contextfactoren) |
+| `0041_multi_engine.sql` | `ai_calls.engine`, `profiles.engines_enabled`, de idempotentie-index van `tracking_runs` mét engine, en `profile_llm_baseline` |
+| `0042_rls_aanscherping.sql` | `is_staff()` niet meer aanroepbaar door `anon`, stafpolicies expliciet op `authenticated`, vast zoekpad op `set_updated_at()` |
+
+## Na `0038` — eenmalig, met de hand
+
+De migratie maakt `staff_users` leeg aan. De eigenaar zet zichzelf erin:
+
+```sql
+insert into public.staff_users (user_id)
+select id from auth.users where email = '<eigenaar>' on conflict do nothing;
+```
+
+Bewust niet in de migratie: een hardgecodeerd account-ID in versiebeheer is een achterdeur die
+niemand meer terugvindt.

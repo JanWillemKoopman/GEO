@@ -391,6 +391,86 @@ async function main(): Promise<void> {
       ).rows[0].n === 1,
     );
 
+    // ══════════════════════════════════════════════════════════════════════
+    // Eigenaarschap en de beheerdersrol (migratie 0038, blok A)
+    //
+    // Dit is de gevoeligste wijziging van het onboarding-traject: getOwnedProfile
+    // en getOwnedAnalysis kregen een tweede uitweg, en die twee functies zijn
+    // samen de enige poort tussen een verzoek en andermans data. Een `||` er
+    // verkeerd neerzetten geeft iedereen toegang tot alles — en dat merk je aan
+    // niets, want de happy path blijft gewoon werken.
+    //
+    // Vandaar drie gevallen per functie, waarvan het middelste het echte:
+    // een gewone gebruiker mag er NIET bij.
+    // ══════════════════════════════════════════════════════════════════════
+    console.log("\nEigenaarschap: eigenaar, vreemde, beheerder");
+
+    const { getOwnedProfile } = await import("@/lib/profiles");
+    const { getOwnedAnalysis } = await import("@/lib/analyses");
+
+    const vreemdeId = randomUUID();
+    const beheerderId = randomUUID();
+    await db.client.query("insert into auth.users (id, email) values ($1, $2), ($3, $4)", [
+      vreemdeId,
+      "vreemde@example.com",
+      beheerderId,
+      "beheerder@example.com",
+    ]);
+    await db.client.query("insert into public.staff_users (user_id) values ($1)", [beheerderId]);
+
+    const adminClient = createShimClient(db.client) as never;
+
+    ok(
+      "0038: de eigenaar komt bij zijn eigen profiel",
+      (await getOwnedProfile(adminClient, profileId, userId))?.id === profileId,
+    );
+    ok(
+      "0038: een vreemde komt NIET bij dat profiel",
+      (await getOwnedProfile(adminClient, profileId, vreemdeId)) === null,
+    );
+    ok(
+      "0038: de beheerder komt er wel bij",
+      (await getOwnedProfile(adminClient, profileId, beheerderId))?.id === profileId,
+    );
+
+    ok(
+      "0038: de eigenaar komt bij zijn eigen analyse",
+      (await getOwnedAnalysis(adminClient, analysisId, userId))?.id === analysisId,
+    );
+    ok(
+      "0038: een vreemde komt NIET bij die analyse",
+      (await getOwnedAnalysis(adminClient, analysisId, vreemdeId)) === null,
+    );
+    ok(
+      "0038: de beheerder komt er wel bij",
+      (await getOwnedAnalysis(adminClient, analysisId, beheerderId))?.id === analysisId,
+    );
+
+    // Toewijzen verplaatst het profiel ÉN de analyses. Alleen het profiel
+    // verzetten levert een klant op die zijn merk ziet maar geen enkele
+    // analyse — precies het scherm waar hij voor betaalt.
+    await db.client.query(
+      "update public.profiles set user_id = $1, assigned_at = now() where id = $2",
+      [vreemdeId, profileId],
+    );
+    await db.client.query("update public.analyses set user_id = $1 where profile_id = $2", [
+      vreemdeId,
+      profileId,
+    ]);
+
+    ok(
+      "0038: na toewijzing is de analyse van de nieuwe eigenaar",
+      (await getOwnedAnalysis(adminClient, analysisId, vreemdeId))?.id === analysisId,
+    );
+    ok(
+      "0038: de vorige eigenaar komt er niet meer bij",
+      (await getOwnedAnalysis(adminClient, analysisId, userId)) === null,
+    );
+    ok(
+      "0038: de beheerder houdt toegang na toewijzing",
+      (await getOwnedProfile(adminClient, profileId, beheerderId))?.id === profileId,
+    );
+
     __setTestAdminClient(null);
     __setTestTransport(null);
   } finally {

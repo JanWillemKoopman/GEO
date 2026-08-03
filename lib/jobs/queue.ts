@@ -15,6 +15,7 @@ import { type JobType, type JobPayloads } from "@/lib/jobs/types";
 import { promptWeight } from "@/lib/pipeline/prompt-weight";
 import { volumeBandOf } from "@/lib/pipeline/volume";
 import { measureRepeats, repeatedPromptCount } from "@/lib/config";
+import { dedupe } from "@/lib/jobs/dedupe";
 
 type Admin = SupabaseClient;
 
@@ -74,49 +75,7 @@ export async function enqueue<T extends JobType>(
 // Zodat "wanneer is dit hetzelfde werk?" één keer beantwoord wordt en niet per
 // aanroepplek opnieuw bedacht.
 
-export const dedupe = {
-  profileResearch: (profileId: string) => `profile_research:${profileId}`,
-  prepareAnalysis: (analysisId: string) => `prepare:${analysisId}`,
-  generatePrompts: (analysisId: string) => `prompts:${analysisId}`,
-  calibrateVolumes: (analysisId: string) => `volumes:${analysisId}`,
-  // De herhalingsindex hoort in de sleutel (R6.1): drie metingen van dezelfde
-  // vraag in dezelfde periode zijn drie verschillende taken, geen duplicaat.
-  // Index 0 houdt bewust de OUDE sleutelvorm, zodat taken die al in de wachtrij
-  // stonden bij het uitrollen van R6.1 niet ineens als nieuw werk gelden.
-  measurePrompt: (analysisId: string, promptId: string, weekNo: number, repeat = 0) =>
-    repeat === 0
-      ? `measure:${analysisId}:${promptId}:w${weekNo}`
-      : `measure:${analysisId}:${promptId}:w${weekNo}:r${repeat}`,
-  aggregateWeek: (analysisId: string, weekNo: number) => `aggregate:${analysisId}:w${weekNo}`,
-  competitorIntel: (analysisId: string, weekNo: number) => `compintel:${analysisId}:w${weekNo}`,
-  generateReport: (analysisId: string, weekNo: number) => `report:${analysisId}:w${weekNo}`,
-  // Content is idempotent op de aanbeveling, niet op de pagina: twee keer op
-  // dezelfde knop drukken mag niet twee pagina's opleveren.
-  contentDraft: (analysisId: string, title: string) => `content:${analysisId}:${title}`,
-  // Eén briefing per BATCH (contentbriefing.md §2), dus de sleutel is de set
-  // gekozen titels — niet één titel. Kiest de klant dezelfde drie pagina's nog
-  // een keer, dan is dat dezelfde briefing; kiest hij er een vierde bij, dan is
-  // het een nieuwe vragenronde.
-  contentBrief: (analysisId: string, titles: string[]) =>
-    `brief:${analysisId}:${[...titles].sort().join("|")}`,
-  contentRevise: (contentPieceId: string) => `content_revise:${contentPieceId}`,
-  // Per DAG, niet per profiel: de audit draait bij het aanmaken én maandelijks,
-  // en moet dan echt opnieuw kijken. Zonder de datum erin zou een afgeronde
-  // audit van vorig jaar de hermeting van deze maand blokkeren.
-  technicalAudit: (profileId: string, day = new Date().toISOString().slice(0, 10)) =>
-    `audit:${profileId}:${day}`,
-  // Publicatie en effect (optimalisatie.md fase 5). De golf zit in de sleutel:
-  // golf 1 en golf 2 zijn twee verschillende metingen van dezelfde vragen.
-  verifyPublication: (contentPieceId: string) => `verify:${contentPieceId}`,
-  measureImpact: (contentPieceId: string, wave: number) => `impact:${contentPieceId}:w${wave}`,
-  measureImpactPrompt: (contentPieceId: string, wave: number, promptId: string) =>
-    `impact_run:${contentPieceId}:w${wave}:${promptId}`,
-  computeImpact: (contentPieceId: string, wave: number) => `impact_calc:${contentPieceId}:w${wave}`,
-  // Per DAG: de scan mag opnieuw draaien na een nieuwe meting, maar niet twee
-  // keer op dezelfde dag — de aanwezigheidscontrole kost een web-zoekactie.
-  offsiteScan: (analysisId: string, day = new Date().toISOString().slice(0, 10)) =>
-    `offsite:${analysisId}:${day}`,
-};
+export { dedupe } from "@/lib/jobs/dedupe";
 
 /**
  * Zet voor elke ACTIEVE prompt van een analyse een meettaak klaar
@@ -236,6 +195,27 @@ export async function enqueueMeasurement(
   // index is PARTIEEL, dus `.upsert(..., { onConflict })` kan hem niet als
   // ON CONFLICT-doel gebruiken (Postgres eist dezelfde WHERE-clausule); dit
   // filtert vooraf i.p.v. op de index te vertrouwen.
+  // ── WAAROM HIER (NOG) GEEN UITWAAIERING PER ENGINE STAAT ─────────────────
+  //
+  // De bedrading is klaar: `measure_prompt` draagt een engine in zijn payload,
+  // de dedupe-sleutel kent hem, `measureOnePrompt` roept de juiste adapter aan
+  // en migratie 0041 dwingt de idempotentie per engine af. Wat nog ontbreekt is
+  // de AGGREGATIE: `computeAggregates`, `measurementIsUsable` en
+  // `countOpenPeriodicMeasurements` tellen alle runs van een periode, ongeacht
+  // engine.
+  //
+  // Zou je hier nu per engine inplannen, dan telt elke vraag dubbel mee in de
+  // score en klopt de foutmarge niet meer — precies het soort stille
+  // degradatie waar dit project drie vangnetten tegen heeft. Bovendien is er
+  // nog geen GEMINI_API_KEY, dus het zou vandaag niets opleveren en morgen een
+  // verkeerd cijfer.
+  //
+  // Wat er moet gebeuren zodra die sleutel er is, in deze volgorde:
+  //   1. de drie tellers hierboven engine-bewust maken (score op de primaire
+  //      engine, per-engine-uitsplitsing in `visibility_scores.per_engine_json`,
+  //      dat veld bestaat sinds migratie 0001 en is nooit gevuld);
+  //   2. de tarieven van Gemini in `lib/openai/pricing.ts` zetten;
+  //   3. pas dán hier `enginesForProfile()` gebruiken om per engine in te plannen.
   const candidateKeys = candidates.map((c) =>
     dedupe.measurePrompt(analysisId, c.promptId, weekNo, c.repeat),
   );

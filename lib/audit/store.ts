@@ -9,26 +9,88 @@ import "server-only";
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { runTechnicalAudit, type TechnicalAudit as AuditResult } from "@/lib/audit/technical";
-import type { TechnicalAudit as AuditRow } from "@/lib/types/database";
+import { entityConsistencyChecks } from "@/lib/audit/entity-consistency";
+import type { Profile, TechnicalAudit as AuditRow } from "@/lib/types/database";
 
 type Admin = SupabaseClient;
 
 export async function runAuditForProfile(admin: Admin, profileId: string): Promise<AuditResult> {
-  const { data: profile } = await admin.from("profiles").select("url").eq("id", profileId).maybeSingle();
-  if (!profile?.url) throw new Error(`Profiel ${profileId} heeft geen URL.`);
+  const { data: row } = await admin.from("profiles").select("*").eq("id", profileId).maybeSingle();
+  if (!row?.url) throw new Error(`Profiel ${profileId} heeft geen URL.`);
+  const profile = row as Profile;
 
-  const audit = await runTechnicalAudit(profile.url as string);
+  const audit = await runTechnicalAudit(profile.url);
+
+  // ── Entiteitsconsistentie erbovenop (blok B fase 4) ──────────────────────
+  //
+  // Nul extra kosten: alle invoer komt uit fase 0, die de site toch al uitkamde.
+  // Heeft die nog niet gedraaid — bijvoorbeeld bij een profiel van vóór deze
+  // ronde — dan slaan we dit deel over in plaats van bevindingen te doen op
+  // lege invoer. Een waarschuwing "geen schema.org gevonden" die alleen zegt
+  // dat wíj niet gekeken hebben, is erger dan geen waarschuwing.
+  const { data: facet } = await admin
+    .from("profile_facets")
+    .select("raw_json")
+    .eq("profile_id", profileId)
+    .eq("facet", "techniek")
+    .maybeSingle();
+
+  const discovery = facet?.raw_json as
+    | {
+        names?: string[];
+        sameAs?: string[];
+        schemaTypes?: string[];
+        pagesWithSchema?: number;
+        clientRenderedPages?: number;
+      }
+    | null
+    | undefined;
+
+  let checks = audit.checks;
+  if (discovery) {
+    const { count: pagesCrawled } = await admin
+      .from("profile_pages")
+      .select("id", { count: "exact", head: true })
+      .eq("profile_id", profileId);
+
+    checks = [
+      ...checks,
+      ...entityConsistencyChecks({
+        brandName: profile.brand_name ?? profile.name,
+        foundNames: discovery.names ?? [],
+        aliases: profile.aliases ?? [],
+        sameAs: discovery.sameAs ?? [],
+        schemaTypes: discovery.schemaTypes ?? [],
+        pagesWithSchema: discovery.pagesWithSchema ?? 0,
+        pagesCrawled: pagesCrawled ?? 0,
+        clientRenderedPages: discovery.clientRenderedPages ?? 0,
+        wikidataId: profile.wikidata_id,
+        wikipediaUrl: profile.wikipedia_url,
+      }),
+    ];
+  }
+
+  // Opnieuw tellen: de tellers in `audit` gaan alleen over de robots-controles,
+  // en de UI leest ze om te bepalen of er iets urgents is. Zonder dit zou een
+  // JavaScript-blokkade wél in de lijst staan maar niet meetellen — en dat is
+  // precies de bevinding die niet gemist mag worden.
+  const result: AuditResult = {
+    ...audit,
+    checks,
+    blockers: checks.filter((c) => c.severity === "blocker").length,
+    warnings: checks.filter((c) => c.severity === "warning").length,
+  };
 
   await admin.from("technical_audits").insert({
     profile_id: profileId,
-    checked_at: audit.checkedAt,
-    site_url: audit.siteUrl,
-    blockers: audit.blockers,
-    warnings: audit.warnings,
-    checks_json: audit.checks as never,
+    checked_at: result.checkedAt,
+    site_url: result.siteUrl,
+    blockers: result.blockers,
+    warnings: result.warnings,
+    checks_json: result.checks as never,
   });
 
-  return audit;
+  return result;
 }
 
 /** De meest recente uitslag, of null als er nog nooit een audit gedraaid is. */

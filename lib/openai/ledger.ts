@@ -21,6 +21,12 @@ export interface CallMeta {
   kind: string;
   analysisId?: string | null;
   profileId?: string | null;
+  /**
+   * Welke AI-assistent (migratie 0041). Weglaten = 'openai', want dat is wat
+   * élke aanroep tot augustus 2026 was — de kolom heeft dezelfde default, zodat
+   * de historie klopt zonder terugwerkende invulling.
+   */
+  engine?: string;
 }
 
 export interface LoggedCall {
@@ -40,6 +46,7 @@ export async function logAiCall(meta: CallMeta, call: LoggedCall): Promise<void>
       analysis_id: meta.analysisId ?? null,
       profile_id: meta.profileId ?? null,
       kind: meta.kind,
+      engine: meta.engine ?? "openai",
       model: call.model,
       input_tokens: call.inputTokens,
       output_tokens: call.outputTokens,

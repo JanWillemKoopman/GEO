@@ -375,3 +375,86 @@ uitschrijven waard zijn:
 
 `components/action-list.tsx` (de oude `ActionList`) is vervallen; `DashboardStats` verhuisde naar
 `components/dashboard-stats.tsx`.
+
+---
+
+## 11. Onboarding 2.0 — de eerste helft (3 augustus 2026)
+
+Volledige bouwspec: [`tasks/onboarding-2.0.md`](./tasks/onboarding-2.0.md). Hieronder wat er
+gebouwd is en het cijfer dat elke keuze droeg.
+
+**Het cijfer dat de hele ronde droeg: 6.000 tegen 60.** Het profielonderzoek deed één AI-aanroep op
+`crawlSite()` — de homepage, afgekapt op 6.000 tekens. De content-inventaris van 60 pagina's draaide
+er parallel aan en werd pas ná de aanroep opgeslagen, dus die kwam het onderzoek nooit in. Alles wat
+het model over diensten, prijzen, vestigingen en team "wist", kwam uit die ene pagina plus een gok.
+`profile_discover` draait nu vóór het onderzoek en levert 60.000 tekens context aan voor ~$0,003 aan
+invoer. De duurste kennisbron bleek gratis en werd weggegooid.
+
+**Verkoopgedreven in plaats van self-serve.** De onboarding vroeg vier wizardstappen met elf velden
+uit voordat er iets gebeurde. Nu drie velden — webadres, bedrijfsnaam, andere schrijfwijzen — en de
+pijplijn doet de rest. De oude kolommen bestaan nog en worden door het onderzoek gevuld. Corrigeren
+gebeurt achteraf op de profielpagina, als er iets te corrigeren vált.
+
+**De stafrol als extra policy, niet als herschrijving.** Er staan 19 tabellen met een
+`*_select_own`-policy. Postgres OR't permissieve policies, dus één extra policy per tabel doet
+hetzelfde als alle 19 herschrijven — maar additief, en met één `drop` per tabel weer weg.
+`staff_users` heeft RLS aan en nul policies (zoals `jobs`), en `is_staff()` is daarom
+`security definer` met een vaste `search_path`: als aanroeper zou hij die tabel mét RLS lezen en
+altijd `false` geven — de hele verbreding zou dan stil niet werken.
+
+**Toewijzen raakt precies twee tabellen.** `user_id` komt alleen voor in `profiles` (0004) en
+`analyses` (0001); nagelopen over alle 41 migraties. De rest hangt via `analysis_id` aan de analyse
+en verhuist mee met de RLS-join. Faalt de tweede update, dan wordt de eerste teruggedraaid — een
+profiel bij de klant en de analyses bij de beheerder is erger dan een mislukte toewijzing.
+
+**Wachtwoordherstel is een route handler, geen pagina.** Het inwisselen van de herstelcode schrijft
+een cookie, en een Server Component mag dat niet in Next 15: dat faalt stil in de try/catch van
+`lib/supabase/server.ts`, waarna de klant een nieuw wachtwoord intypt dat nergens heen gaat.
+
+**R6.2 opgelost op de plek waar hij thuishoort.** Bol leverde 1 pagina in de inventaris op, HEMA 40
+productpagina's; in beide gevallen degradeerde het rapport zonder melding. Het oordeel valt nu in
+fase 0, waar constateren nog nul euro kost. Migratie `0033` vervalt daarmee definitief.
+
+**De renderbaarheidstest is de zwaarste bevinding die er bestaat en kost niets.** AI-crawlers voeren
+geen JavaScript uit. Boven de 50% JavaScript-pagina's is dat een blocker en geen aandachtspunt: de
+site is dan voor een AI-assistent grotendeels leeg, en betere content helpt niets.
+
+**Van "verzin een onderwerp" naar "kies uit wat je aanbiedt".** De aanbodboom
+(`profile_offerings`) is bewust een boom en geen `text[]`: een core topic zit op het niveau tússen
+categorie en product in — categorieniveau meet een hele markt, productniveau wordt door niemand
+gevraagd. `propose_topics` kost ~$0,01 en doet bewust geen meting per voorstel; dat zou 8 × $0,40
+zijn vóórdat iemand ja heeft gezegd.
+
+**De enginelaag is bedrading zonder fan-out.** `lib/engines/` is er, de Gemini-adapter is er, de
+meetsleutel kent de engine en migratie `0041` dwingt hem af. Wat er bewust nog níét is: uitwaaieren
+per engine in de planning. `computeAggregates`, `measurementIsUsable` en
+`countOpenPeriodicMeasurements` tellen alle runs van een periode ongeacht engine — nu per engine
+inplannen zou elke vraag dubbel laten meetellen in de score. Het stappenplan staat in
+`lib/jobs/queue.ts`, bij de plek waar het moet gebeuren.
+
+**`dedupe` verhuisde naar een eigen module zonder `server-only`.** Die sleutels bepalen of werk
+dubbel wordt ingepland; één tekenverschil is het verschil tussen een genegeerde dubbele taak en een
+tweede betaalde web-zoekactie per vraag. Ze waren onbereikbaar voor de unittests, en dat viel pas op
+toen de engine erbij kwam — precies conventie 2, twaalf migraties te laat toegepast.
+
+**Aanvulling, later op 3 augustus.** De tweede helft van de ronde: de
+LLM-kennisbasislijn met een oordeel dat in code wordt geveld en niet door het
+model (`baseline-verdict.ts` — het model vragen of zijn eigen antwoord klopt is
+de meting aan de gemetene vragen), de strategiekaart met contextfactoren die
+elk een gevolg in code hebben, en `field-merge.ts`, dat "een mens wint van een
+model" afdwingbaar maakt. Dat laatste is wat "onderzoek opnieuw" van een
+gevaarlijke knop in een bruikbare verandert.
+
+Eén bevinding onderweg die het noteren waard is: `dedupe` stond in een
+`server-only`-module en was daardoor onbereikbaar voor de unittests — twaalf
+migraties lang, want conventie 2 bestaat sinds ronde één. Het viel pas op toen
+de engine in de sleutel moest en juist die sleutel getoetst wilde worden. Eén
+tekenverschil daar is het verschil tussen een genegeerde dubbele taak en een
+tweede betaalde web-zoekactie per vraag.
+
+En na de RLS-verbreding meldde de Supabase-linter dat `is_staff()` aanroepbaar
+was door `anon`. Onschadelijk — `auth.uid()` is dan null, dus altijd `false` —
+maar migratie `0042` zet hem dicht, samen met een `to authenticated` op de 26
+stafpolicies. Die twee horen in één migratie: los toegepast levert het intrekken
+van de EXECUTE-rechten een "permission denied" op waar nul rijen hoort te staan.
+

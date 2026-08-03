@@ -58,6 +58,17 @@ export function AuthForm({ mode, action, notice, signupsEnabled = false }: AuthF
         {pending ? "Even geduld…" : isLogin ? "Inloggen" : "Account aanmaken"}
       </button>
 
+      {isLogin && (
+        <p className="text-center text-sm">
+          <Link
+            href="/wachtwoord-vergeten"
+            className="text-[var(--accent-purple-soft)] hover:underline"
+          >
+            Wachtwoord vergeten?
+          </Link>
+        </p>
+      )}
+
       {isLogin && signupsEnabled && (
         <p className="mt-2 text-center text-sm text-secondary">
           Nog geen account?{" "}

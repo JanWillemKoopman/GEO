@@ -135,6 +135,26 @@ export interface Profile {
   wikidata_id: string | null;
   wikipedia_url: string | null;
   entity_checked_at: string | null;
+  /**
+   * Eigenaarschap en toewijzing (migratie 0038). De superuser maakt het profiel
+   * aan vóór het demogesprek en is dan zelf `user_id`; na de verkoop gaat
+   * `user_id` naar de klant en blijft `created_by_user_id` op de superuser
+   * staan, zodat zichtbaar blijft dat het een voorbereid profiel was.
+   */
+  created_by_user_id: string | null;
+  assigned_at: string | null;
+  /**
+   * Inventariskwaliteit (migratie 0039, was R6.2/0033). Bol had 1 pagina in de
+   * inventaris en HEMA 40 productpagina's; in beide gevallen degradeerde het
+   * rapport zonder foutmelding. Null = nog niet beoordeeld.
+   */
+  inventory_quality_json: InventoryQuality | null;
+  /** Kostenplafond van het onboarding-onderzoek in USD. $2,15 ≈ €2. */
+  onboarding_budget_usd: number;
+  /** Wanneer het uitgebreide onderzoek (blok B) voor het laatst draaide. */
+  deep_research_at: string | null;
+  /** Welke engines meedoen (migratie 0041). Doorsnede met de beschikbare sleutels. */
+  engines_enabled: EngineId[];
   created_at: string;
   updated_at: string;
 }
@@ -148,6 +168,141 @@ export interface TopicResearch {
   raw_json: unknown | null;
   edited_by_user: boolean;
   updated_at: string;
+}
+
+/**
+ * Welke AI-engine een meting of onderzoeksstap uitvoerde (migratie 0041).
+ * `tracking_runs.engine` bestond al sinds 0001 met default 'openai'; pas nu
+ * kan er ook echt iets anders in staan.
+ */
+export type EngineId = "openai" | "gemini";
+
+/**
+ * Herkomst van een profielveld (migratie 0039). Alleen `ai` mag door een
+ * volgende onderzoeksronde overschreven worden — wat een mens zette blijft
+ * staan. Zie lib/pipeline/field-merge.ts.
+ */
+export type FieldSource = "ai" | "klant" | "gesprek";
+
+/** Oordeel over de content-inventaris (migratie 0039, R6.2). */
+export interface InventoryQuality {
+  pages: number;
+  /** Aandeel pagina's met bruikbare tekst (>= 200 tekens), 0-1. */
+  usableTextRatio: number;
+  /** Aandeel vermoedelijke productpagina's, 0-1. Bij HEMA was dat ~1,0. */
+  productPageRatio: number;
+  /** voldoende = bruikbaar · dun = te weinig pagina's · vervuild = overwegend productpagina's. */
+  verdict: "voldoende" | "dun" | "vervuild";
+  /** Wat de klant of consultant eraan kan doen. Leeg bij 'voldoende'. */
+  advice: string | null;
+}
+
+/** Eén onderzoeksfacet van het uitgebreide profiel (migratie 0039). */
+export interface ProfileFacet {
+  id: string;
+  profile_id: string;
+  facet: "identiteit" | "aanbod" | "markt" | "llm_kennis" | "techniek" | "synthese";
+  summary: string | null;
+  raw_json: unknown | null;
+  confidence: number | null;
+  sources: string[];
+  model_used: string | null;
+  engine: EngineId;
+  cost_usd: number | null;
+  researched_at: string;
+}
+
+/** Eén knoop in de aanbodboom (migratie 0039). */
+export interface ProfileOffering {
+  id: string;
+  profile_id: string;
+  parent_id: string | null;
+  kind: "dienst" | "product" | "categorie" | "merk" | "vestiging";
+  name: string;
+  description: string | null;
+  audience: string | null;
+  price_indication: string | null;
+  evidence_url: string | null;
+  evidence_quote: string | null;
+  confidence: number | null;
+  source: FieldSource;
+  sort_order: number;
+  created_at: string;
+  updated_at: string;
+}
+
+/** Herkomst per profielveld (migratie 0039). */
+export interface ProfileFieldSource {
+  profile_id: string;
+  field: string;
+  source: FieldSource;
+  confidence: number | null;
+  evidence_url: string | null;
+  evidence_quote: string | null;
+  set_by: string | null;
+  set_at: string;
+}
+
+export type TopicStatus = "voorgesteld" | "goedgekeurd" | "afgewezen";
+
+/** Een voorgesteld core topic (migratie 0040). */
+export interface ProfileTopic {
+  id: string;
+  profile_id: string;
+  title: string;
+  rationale: string | null;
+  offering_ids: string[];
+  priority: number;
+  /** Wat de klant er in het gesprek over zei; overrulet de AI-prioritering. */
+  client_note: string | null;
+  status: TopicStatus;
+  analysis_id: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+/**
+ * Wat de pijplijn niet kan waarnemen (migratie 0040). Gestructureerd en niet
+ * vrij, omdat elke soort gevolg heeft — zie lib/pipeline/context-factors.ts.
+ */
+export type ContextFactorKind =
+  | "nieuwe_website"
+  | "rebranding"
+  | "naamswijziging"
+  | "nieuwe_dienst"
+  | "gestopte_dienst"
+  | "nieuwe_regio"
+  | "overig";
+
+export interface ContextFactor {
+  kind: ContextFactorKind;
+  description: string;
+  /** ISO-datum, of null als de klant het niet wist. */
+  effective_from: string | null;
+}
+
+export interface ProfileStrategy {
+  profile_id: string;
+  strategy_notes: string | null;
+  context_factors: ContextFactor[];
+  recorded_by: string | null;
+  recorded_at: string | null;
+  updated_at: string;
+}
+
+/** Eén meting uit de LLM-kennisbasislijn (migratie 0041). */
+export interface ProfileLlmBaseline {
+  id: string;
+  profile_id: string;
+  engine: EngineId;
+  block: "kent" | "klopt" | "citeert" | "verwarring" | "categorie";
+  question: string;
+  raw_response: string | null;
+  verdict_json: unknown | null;
+  web_search: boolean;
+  model_used: string | null;
+  cost_usd: number | null;
+  measured_at: string;
 }
 
 /**

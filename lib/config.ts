@@ -144,6 +144,19 @@ export const contentWebSearchEnabled =
 export const minProofPointsForConcreteContent = 3;
 
 /**
+ * De synthese van de onboarding op het duurste model (blok B fase 5).
+ *
+ * Standaard AAN. Dit is de enige stap van de onboarding die alles naast elkaar
+ * legt, en de uitkomst werkt door in élke latere analyse van deze klant —
+ * ~$0,49 van een plafond van $2,15. Uit betekent terugvallen op Luna voor
+ * ~$0,02, zodat de keuze meetbaar blijft in plaats van definitief te zijn.
+ *
+ * De budgetpoort kan hem alsnog naar het goedkope model duwen als het plafond
+ * in zicht komt; zie lib/pipeline/synthesis.ts.
+ */
+export const synthesisPremium = process.env.SYNTHESIS_PREMIUM !== "false";
+
+/**
  * Gelaagd hermeten (implementatieplan.md R6.1).
  *
  * ── WAAROM ──────────────────────────────────────────────────────────────────

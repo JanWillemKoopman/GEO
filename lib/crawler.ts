@@ -8,6 +8,12 @@ import "server-only";
  */
 
 import { sanitizeForPostgres } from "@/lib/pg-text";
+import {
+  harvestStructuredData,
+  assessRendering,
+  type StructuredHarvest,
+  type RenderAssessment,
+} from "@/lib/pipeline/structured-data";
 
 /** Eén plek voor de bot-identiteit, zodat een site ons kan herkennen en toelaten. */
 export const USER_AGENT = "GEO-Tracker-Bot/1.0 (+https://geo-tracker.app)";
@@ -290,21 +296,54 @@ export interface CrawledPage {
   url: string;
   title: string | null;
   text: string;
+  /**
+   * Wat er aan gestructureerde data op deze pagina stond (fase 0 van de
+   * onboarding). Alleen gevuld als `crawlPages` met `harvest: true` draait.
+   *
+   * Bewust HIER berekend en niet later uit bewaarde HTML: 150 pagina's ruwe
+   * HTML vasthouden is tientallen megabytes voor gegevens waarvan we maar een
+   * handvol regels nodig hebben. De HTML wordt gelezen, uitgekamd en meteen
+   * losgelaten.
+   */
+  harvest?: StructuredHarvest;
+  rendering?: RenderAssessment;
+}
+
+export interface CrawlPagesOptions {
+  /** Gestructureerde data en renderbaarheid meenemen (fase 0). Kost geen netwerk. */
+  harvest?: boolean;
 }
 
 /**
  * Haalt meerdere pagina's op in batches (niet alles tegelijk — voorkomt dat we
  * een site platleggen of de 60s-route overschrijden). Faalt per pagina zacht.
  */
-export async function crawlPages(urls: string[]): Promise<CrawledPage[]> {
+export async function crawlPages(
+  urls: string[],
+  opts: CrawlPagesOptions = {},
+): Promise<CrawledPage[]> {
   const out: CrawledPage[] = [];
   for (let i = 0; i < urls.length; i += CRAWL_BATCH_SIZE) {
     const batch = urls.slice(i, i + CRAWL_BATCH_SIZE);
     const results = await Promise.allSettled(
-      batch.map(async (url) => {
+      batch.map(async (url): Promise<CrawledPage | null> => {
         const html = await fetchText(url);
         if (!html) return null;
-        return { url, title: extractTitle(html), text: htmlToText(html).slice(0, PAGE_MAX_CHARS) };
+        const volledigeTekst = htmlToText(html);
+        const page: CrawledPage = {
+          url,
+          title: extractTitle(html),
+          text: volledigeTekst.slice(0, PAGE_MAX_CHARS),
+        };
+        if (opts.harvest) {
+          page.harvest = harvestStructuredData(html);
+          // Op de VOLLEDIGE tekst, niet op de afgekapte: PAGE_MAX_CHARS is 1500
+          // en de drempel voor "verdacht weinig tekst" ligt op 600. Meten op de
+          // afgekapte tekst zou elke lange pagina op precies 1500 zetten en de
+          // verhouding met de scriptomvang zinloos maken.
+          page.rendering = assessRendering(html, volledigeTekst.length);
+        }
+        return page;
       }),
     );
     for (const r of results) {

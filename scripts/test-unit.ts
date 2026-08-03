@@ -77,6 +77,45 @@ import { detectClaimSentences, claimMatchesSentence, detectedCoverage } from "@/
 import { resolveTuning, isReasoningModel, isUnsupportedTemperatureError } from "@/lib/openai/sampling";
 import { estimateCostUsd, hasKnownRate } from "@/lib/openai/pricing";
 import { MODELS } from "@/lib/openai/models";
+import {
+  harvestStructuredData,
+  extractJsonLdBlocks,
+  extractMetaTags,
+  assessRendering,
+} from "@/lib/pipeline/structured-data";
+import {
+  assessInventory,
+  looksLikeProductPage,
+  buildTaxonomy,
+} from "@/lib/pipeline/inventory-quality";
+import {
+  entityConsistencyChecks,
+  normalizeBrand,
+  sameBrand,
+} from "@/lib/audit/entity-consistency";
+import { dedupe } from "@/lib/jobs/dedupe";
+import {
+  buildVerdict,
+  checkFacts,
+  knowsBrand,
+  admitsUnknown,
+  describeVerdict,
+} from "@/lib/pipeline/baseline-verdict";
+import { buildSteps, researchRunning } from "@/lib/pipeline/research-steps";
+import {
+  filterProtectedFields,
+  confidenceLevel,
+  isHumanSet,
+  describeMerge,
+} from "@/lib/pipeline/field-merge";
+import {
+  parseContextFactors,
+  technicalAdviceStale,
+  staleAdviceNotice,
+  extraAliasesFrom,
+  extraRegionsFrom,
+  discontinuedNames,
+} from "@/lib/pipeline/context-factors";
 
 let passed = 0;
 let failed = 0;
@@ -1854,6 +1893,515 @@ group("kosten per model", () => {
   // Onbekend model → de dure terugval (Sol-tarief), nooit stil een te laag bedrag.
   const onbekend = estimateCostUsd({ model: "gpt-6-mystery", inputTokens: 1e6, outputTokens: 0, webSearch: false });
   ok("onbekend model rekent duur", Math.abs(onbekend - 5) < 1e-6, `${onbekend}`);
+});
+
+group("gestructureerde data oogsten (fase 0, nul API-kosten)", () => {
+  const html = `
+    <html><head>
+      <title>Fysi-Unique — fysiotherapie Amersfoort</title>
+      <meta property="og:site_name" content="Fysi Unique" />
+      <script type="application/ld+json">
+      {"@context":"https://schema.org","@type":"LocalBusiness","name":"Fysi-Unique Fysiotherapie",
+       "telephone":"033 123 4567","priceRange":"€€",
+       "address":{"@type":"PostalAddress","streetAddress":"Stationsweg 1","postalCode":"3811 MH","addressLocality":"Amersfoort"},
+       "openingHours":["Mo-Fr 08:00-18:00"],
+       "sameAs":["https://www.linkedin.com/company/fysi-unique","https://nl.wikipedia.org/wiki/Fysiotherapie"],
+       "aggregateRating":{"@type":"AggregateRating","ratingValue":"9.4","reviewCount":"87"}}
+      </script>
+      <script type="application/ld+json">{ dit is kapotte json </script>
+    </head><body><p>Welkom</p></body></html>`;
+
+  const h = harvestStructuredData(html);
+  const waarde = (k: string) => h.facts.find((f) => f.key === k)?.value;
+
+  ok("het type is herkend", h.types.includes("LocalBusiness"), h.types.join(","));
+  ok("de naam komt eruit", waarde("naam") === "Fysi-Unique Fysiotherapie", waarde("naam"));
+  ok("het telefoonnummer komt eruit", waarde("telefoon") === "033 123 4567");
+  // Het adres komt als genest object binnen en moet één leesbare regel worden.
+  ok(
+    "het adres wordt één regel",
+    waarde("adres") === "Stationsweg 1, 3811 MH, Amersfoort",
+    waarde("adres"),
+  );
+  ok("openingstijden komen eruit", waarde("openingstijden") === "Mo-Fr 08:00-18:00");
+  // Een beoordeling is een van de sterkste trust-signalen en zit vrijwel altijd
+  // in een genest object — precies het geval waar een platte parser op stukloopt.
+  ok(
+    "de beoordeling krijgt het aantal erbij",
+    waarde("beoordeling") === "9.4 (87 beoordelingen)",
+    waarde("beoordeling"),
+  );
+  ok("sameAs levert twee profielen", h.sameAs.length === 2, String(h.sameAs.length));
+
+  // Twee schrijfwijzen van dezelfde naam: dát is wat de entiteitsconsistentie-
+  // check straks moet melden, dus ze moeten allebei bewaard blijven.
+  ok(
+    "beide naamvarianten blijven staan",
+    h.names.includes("Fysi-Unique Fysiotherapie") && h.names.includes("Fysi Unique"),
+    h.names.join(" | "),
+  );
+
+  // Eén kapot JSON-LD-blok is doodnormaal op een MKB-site met plugins. Het mag
+  // het goede blok niet meeslepen.
+  ok("kapotte JSON-LD sloopt de rest niet", extractJsonLdBlocks(html).length === 1);
+
+  ok("metatags worden gelezen", extractMetaTags(html)["og:site_name"] === "Fysi Unique");
+});
+
+group("@graph en dubbele feiten", () => {
+  const html = `<script type="application/ld+json">
+    {"@graph":[{"@type":"Organization","name":"Acme"},{"@type":"WebSite","name":"Acme"}]}
+    </script>`;
+  const h = harvestStructuredData(html);
+  ok("@graph wordt uitgevlakt", h.types.includes("Organization") && h.types.includes("WebSite"));
+  // Dezelfde organisatie staat vaak in élk blok van élke pagina; zonder
+  // ontdubbeling loopt de feitenlijst vol met identieke regels.
+  ok("dezelfde naam telt één keer", h.facts.filter((f) => f.key === "naam").length === 1);
+});
+
+group("draait de site op JavaScript? (de zwaarste bevinding die er is)", () => {
+  // AI-crawlers voeren geen JS uit: staat de tekst niet in de HTML, dan bestaat
+  // de pagina voor ChatGPT niet — hoe goed de content ook is.
+  const spa = `<html><body><div id="root"></div><script>${"x".repeat(50_000)}</script></body></html>`;
+  ok("een lege SPA-shell valt op", assessRendering(spa, 12).likelyClientRendered);
+
+  const gewoon = `<html><body>${"tekst ".repeat(300)}<script>var a=1;</script></body></html>`;
+  ok("een gewone pagina niet", !assessRendering(gewoon, 1800).likelyClientRendered);
+
+  // Randgeval: weinig tekst maar ook nauwelijks script. Dat is een dunne
+  // pagina, geen JavaScript-probleem — en het advies verschilt.
+  ok(
+    "weinig tekst zonder script is geen JS-probleem",
+    !assessRendering("<html><body>Kort.</body></html>", 5).likelyClientRendered,
+  );
+});
+
+group("productpagina-heuristiek (R6.2)", () => {
+  // Bij HEMA eindigt elke productpagina op een artikelnummer: -200302.html
+  ok("HEMA-artikelnummer", looksLikeProductPage("https://hema.nl/koken/pan-200302.html"));
+  ok("Shopify-pad", looksLikeProductPage("https://shop.nl/products/blauwe-trui"));
+  ok("Nederlands productpad", looksLikeProductPage("https://winkel.nl/producten/fiets"));
+  ok("diep pad met nummer", looksLikeProductPage("https://a.nl/b/c/d/item-4821"));
+
+  // Deze mogen NIET als product tellen: het zijn juist de inhoudelijke
+  // pagina's waar het contentadvies op moet rusten.
+  ok("dienstenpagina niet", !looksLikeProductPage("https://praktijk.nl/diensten/sportmassage"));
+  ok("blog niet", !looksLikeProductPage("https://praktijk.nl/blog/hardlopen-in-de-winter"));
+  ok("homepage niet", !looksLikeProductPage("https://praktijk.nl/"));
+});
+
+group("inventariskwaliteit: Bol, HEMA en een gewone praktijk", () => {
+  const pagina = (url: string, tekens: number) => ({ url, text: "a".repeat(tekens) });
+
+  // Bol leverde 1 pagina op. Het rapport draaide daar gewoon op door.
+  const bol = assessInventory([pagina("https://bol.com/", 4000)]);
+  ok("Bol: dun", bol.verdict === "dun", bol.verdict);
+  ok("Bol: met een concrete handeling", (bol.advice ?? "").length > 20);
+
+  // HEMA: 40 pagina's, vrijwel allemaal producten.
+  const hema = assessInventory(
+    Array.from({ length: 40 }, (_, i) => pagina(`https://hema.nl/koken/pan-${20000 + i}.html`, 800)),
+  );
+  ok("HEMA: vervuild", hema.verdict === "vervuild", hema.verdict);
+  ok("HEMA: het percentage staat in het advies", (hema.advice ?? "").includes("%"));
+
+  const praktijk = assessInventory([
+    pagina("https://praktijk.nl/", 900),
+    pagina("https://praktijk.nl/diensten/sportmassage", 900),
+    pagina("https://praktijk.nl/diensten/dry-needling", 900),
+    pagina("https://praktijk.nl/over-ons", 900),
+    pagina("https://praktijk.nl/blog/hardlopen", 900),
+    pagina("https://praktijk.nl/contact", 900),
+  ]);
+  ok("gewone praktijk: voldoende", praktijk.verdict === "voldoende", praktijk.verdict);
+  ok("voldoende geeft geen advies", praktijk.advice === null);
+
+  // Wél genoeg pagina's, maar bijna geen tekst — dat is het JavaScript-geval,
+  // en het advies moet dáárover gaan en niet over de sitemap.
+  const leeg = assessInventory(
+    Array.from({ length: 20 }, (_, i) => pagina(`https://spa.nl/pagina-${i}`, 30)),
+  );
+  ok("veel pagina's zonder tekst: dun", leeg.verdict === "dun", leeg.verdict);
+  ok("en het advies noemt JavaScript", (leeg.advice ?? "").includes("JavaScript"));
+
+  const niets = assessInventory([]);
+  ok("nul pagina's: dun", niets.verdict === "dun");
+  ok("nul pagina's: geen deling door nul", niets.usableTextRatio === 0);
+});
+
+group("sitestructuur uit de URL-lijst", () => {
+  const secties = buildTaxonomy([
+    "https://a.nl/",
+    "https://a.nl/diensten/massage",
+    "https://a.nl/diensten/dry-needling",
+    "https://a.nl/diensten/echografie",
+    "https://a.nl/blog/een",
+    "https://a.nl/over-ons",
+  ]);
+  ok("grootste sectie eerst", secties[0].segment === "/diensten", secties[0].segment);
+  ok("met het juiste aantal", secties[0].count === 3, String(secties[0].count));
+  // De homepage is geen sectie met één pagina maar dé pagina.
+  ok("de wortel krijgt een eigen bak", secties.some((s) => s.segment === "/"));
+  ok("voorbeelden worden meegegeven", secties[0].examples.length === 3);
+});
+
+group("entiteitsconsistentie: heet het bedrijf overal hetzelfde?", () => {
+  // Een B.V. achter de naam is geen afwijking. Zonder deze normalisatie krijgt
+  // élke klant met een rechtsvorm een waarschuwing die niets betekent — en dan
+  // leest niemand de audit meer.
+  ok("rechtsvorm telt niet mee", sameBrand("Jansen Bouw B.V.", "Jansen Bouw"));
+  ok("hoofdletters tellen niet mee", sameBrand("JANSEN BOUW", "jansen bouw"));
+  ok("een toevoeging telt niet als andere naam", sameBrand("Jansen Bouw", "Jansen Bouw Amersfoort"));
+  ok("een ander bedrijf wél", !sameBrand("Jansen Bouw", "De Vries Installaties"));
+  ok("leeg is nooit hetzelfde", !sameBrand("", "Jansen Bouw"));
+  ok("normalisatie strippen", normalizeBrand("Jansen Bouw B.V.") === "jansen bouw");
+
+  const basis = {
+    brandName: "Jansen Bouw",
+    aliases: [] as string[],
+    sameAs: ["https://www.linkedin.com/company/jansen-bouw"],
+    schemaTypes: ["Organization", "WebSite"],
+    pagesWithSchema: 20,
+    pagesCrawled: 25,
+    clientRenderedPages: 0,
+    wikidataId: null,
+    wikipediaUrl: null,
+  };
+
+  const netjes = entityConsistencyChecks({ ...basis, foundNames: ["Jansen Bouw B.V."] });
+  ok(
+    "consequente naam = ok",
+    netjes.find((c) => c.id === "entity.name")?.severity === "ok",
+    netjes.find((c) => c.id === "entity.name")?.severity,
+  );
+
+  const rommelig = entityConsistencyChecks({
+    ...basis,
+    foundNames: ["Jansen Bouw B.V.", "Bouwbedrijf Jansen"],
+  });
+  const naamCheck = rommelig.find((c) => c.id === "entity.name");
+  ok("een echte afwijking = waarschuwing", naamCheck?.severity === "warning");
+  ok("en de afwijkende naam staat erin", (naamCheck?.finding ?? "").includes("Bouwbedrijf Jansen"));
+
+  // Een alias die de klant zelf opgaf is bewust beleid, geen fout.
+  const metAlias = entityConsistencyChecks({
+    ...basis,
+    aliases: ["Bouwbedrijf Jansen"],
+    foundNames: ["Jansen Bouw B.V.", "Bouwbedrijf Jansen"],
+  });
+  ok(
+    "een opgegeven alias is geen afwijking",
+    metAlias.find((c) => c.id === "entity.name")?.severity === "ok",
+  );
+
+  // Niets gevonden is 'unknown' en niet 'warning': dat zegt iets over ons
+  // kijken, niet over hun site (conventie 3).
+  ok(
+    "geen naam gevonden = onbekend, niet fout",
+    entityConsistencyChecks({ ...basis, foundNames: [] }).find((c) => c.id === "entity.name")
+      ?.severity === "unknown",
+  );
+});
+
+group("de zwaarste bevinding: tekst pas na JavaScript", () => {
+  const basis = {
+    brandName: "SPA Corp",
+    foundNames: ["SPA Corp"],
+    aliases: [] as string[],
+    sameAs: [] as string[],
+    schemaTypes: [] as string[],
+    pagesWithSchema: 0,
+    pagesCrawled: 20,
+    wikidataId: null,
+    wikipediaUrl: null,
+  };
+
+  // Boven de helft is dit geen aandachtspunt maar een blokkade: de site is dan
+  // voor een AI-assistent grotendeels leeg en betere content helpt niets.
+  const veel = entityConsistencyChecks({ ...basis, clientRenderedPages: 15 });
+  ok(
+    "15 van 20 pagina's = blocker",
+    veel.find((c) => c.id === "entity.rendering")?.severity === "blocker",
+  );
+
+  const weinig = entityConsistencyChecks({ ...basis, clientRenderedPages: 2 });
+  ok(
+    "2 van 20 = waarschuwing",
+    weinig.find((c) => c.id === "entity.rendering")?.severity === "warning",
+  );
+
+  // Geen probleem = geen regel. Een audit die bij elke klant vijftien groene
+  // vinkjes toont, verbergt de twee die ertoe doen.
+  ok(
+    "geen JS-probleem = geen regel",
+    !entityConsistencyChecks({ ...basis, clientRenderedPages: 0 }).some(
+      (c) => c.id === "entity.rendering",
+    ),
+  );
+
+  // Ontbreken in Wikidata is voor een MKB'er de norm, geen fout.
+  ok(
+    "geen Wikidata = kans, geen waarschuwing",
+    entityConsistencyChecks({ ...basis, clientRenderedPages: 0 }).find(
+      (c) => c.id === "entity.knowledge",
+    )?.severity === "unknown",
+  );
+});
+
+group("de meetsleutel per engine (migratie 0041)", () => {
+  const a = "11111111-1111-1111-1111-111111111111";
+  const p = "22222222-2222-2222-2222-222222222222";
+
+  // OpenAI houdt de OUDE sleutel zonder achtervoegsel. Er staan taken in de
+  // database van vóór deze wijziging; een andere sleutel zou een lopende
+  // meetronde alles opnieuw laten inplannen — een tweede betaalde web-zoekactie
+  // per vraag.
+  ok(
+    "openai houdt de bestaande sleutel",
+    dedupe.measurePrompt(a, p, 3) === `measure:${a}:${p}:w3`,
+    dedupe.measurePrompt(a, p, 3),
+  );
+  ok(
+    "expliciet openai geeft hetzelfde",
+    dedupe.measurePrompt(a, p, 3, 0, "openai") === dedupe.measurePrompt(a, p, 3),
+  );
+
+  // En dit is het hele punt van de migratie: zonder engine in de sleutel ziet
+  // een Gemini-meting de OpenAI-meting als "al gedaan" en meet hij nooit.
+  ok(
+    "gemini krijgt een eigen sleutel",
+    dedupe.measurePrompt(a, p, 3, 0, "gemini") !== dedupe.measurePrompt(a, p, 3),
+  );
+  ok(
+    "en herhalingen blijven daarbinnen uniek",
+    dedupe.measurePrompt(a, p, 3, 1, "gemini") !== dedupe.measurePrompt(a, p, 3, 2, "gemini"),
+  );
+});
+
+group("kent een AI-assistent dit merk? (fase 3, blok A)", () => {
+  const merk = "Fysi-Unique";
+
+  ok(
+    "een inhoudelijk antwoord telt als kennen",
+    knowsBrand(
+      "Fysi-Unique is een fysiotherapiepraktijk in Amersfoort die zich richt op sportblessures.",
+      merk,
+    ),
+  );
+
+  // "Ik ken Fysi-Unique niet" BEVAT de merknaam. Zonder de toegeef-detectie zou
+  // elk eerlijk niet-weten-antwoord als herkenning tellen — en dan meet dit
+  // blok precies het tegenovergestelde van wat het moet meten.
+  ok(
+    "een eerlijk niet-weten telt NIET als kennen",
+    !knowsBrand("Ik ken Fysi-Unique niet en heb hier geen betrouwbare informatie over.", merk),
+  );
+  ok("en dat wordt apart vastgelegd", admitsUnknown("Ik heb hier geen informatie over."));
+
+  ok("een te kort antwoord telt niet", !knowsBrand("Fysi-Unique.", merk));
+  ok(
+    "een alias telt ook",
+    knowsBrand(
+      "Fysi Unique is een praktijk voor fysiotherapie in Amersfoort met vier therapeuten.",
+      merk,
+      ["Fysi Unique"],
+    ),
+  );
+  ok(
+    "een heel ander bedrijf telt niet",
+    !knowsBrand("De Vries Fysiotherapie is een praktijk in Utrecht met zes behandelkamers.", merk),
+  );
+});
+
+group("klopt het? — het oordeel dat het model niet zelf mag vellen", () => {
+  const feiten = [
+    { key: "telefoon", value: "033 123 4567" },
+    { key: "adres", value: "3811 MH" },
+    { key: "opgericht", value: "2012" },
+  ];
+
+  // Letterlijk genoemd = bevestigd.
+  const goed = checkFacts("Je bereikt ze op 033 123 4567, ze zitten op 3811 MH en bestaan sinds 2012.", feiten);
+  ok("alles bevestigd", goed.every((c) => c.verdict === "bevestigd"), JSON.stringify(goed));
+
+  // Hetzelfde nummer, andere schrijfwijze. Dit als "niet genoemd" tellen zou de
+  // uitslag onterecht drukken — +31 33 en 033 zijn hetzelfde nummer.
+  const anders = checkFacts("Bel +31 33 123 45 67.", [feiten[0]]);
+  ok("andere schrijfwijze telt als bevestigd", anders[0].verdict === "bevestigd", anders[0].verdict);
+
+  // DIT is de bevinding waar het hele blok om draait.
+  const fout = checkFacts("Het nummer is 020 999 8877 en ze bestaan sinds 1998.", feiten);
+  ok(
+    "een ánder telefoonnummer = tegengesproken",
+    fout[0].verdict === "tegengesproken",
+    fout[0].verdict,
+  );
+  ok("en het gevonden nummer staat erbij", (fout[0].found ?? "").includes("020"));
+  ok("een ánder jaartal = tegengesproken", fout[2].verdict === "tegengesproken", fout[2].verdict);
+
+  // Niets gezegd is geen fout (conventie 3): dat ChatGPT je openingstijden niet
+  // noemt is iets anders dan dat hij ze fout heeft.
+  const stil = checkFacts("Het is een fysiotherapiepraktijk.", feiten);
+  ok("niets gezegd = niet_genoemd", stil.every((c) => c.verdict === "niet_genoemd"));
+
+  // Vrije tekst kan deze module niet beoordelen, en dan zwijgt hij liever dan
+  // dat hij beschuldigt.
+  const vrij = checkFacts("Ze doen iets met gezondheid.", [{ key: "omschrijving", value: "fysiotherapie" }]);
+  ok("vrije tekst wordt nooit tegengesproken", vrij[0].verdict === "niet_genoemd");
+});
+
+group("het volledige oordeel en hoe de klant het leest", () => {
+  const v = buildVerdict(
+    "Fysi-Unique is een fysiotherapiepraktijk. Het telefoonnummer is 020 999 8877.",
+    "Fysi-Unique",
+    [],
+    [
+      { key: "telefoon", value: "033 123 4567" },
+      { key: "adres", value: "3811 MH" },
+    ],
+  );
+  ok("het merk wordt gekend", v.knowsBrand);
+  ok("één tegenspraak geteld", v.contradicted === 1, String(v.contradicted));
+  ok("één niet genoemd", v.notMentioned === 1, String(v.notMentioned));
+
+  const tekst = describeVerdict(v, "ChatGPT", "Fysi-Unique");
+  ok("de zin noemt de tegenspraak", tekst.includes("tegengesproken"), tekst);
+
+  const onbekend = buildVerdict("Ik ken dit bedrijf niet.", "Fysi-Unique", [], []);
+  ok("niet gekend levert een andere zin", describeVerdict(onbekend, "Gemini", "Fysi-Unique").includes("niet te kennen"));
+});
+
+group("contextfactoren: wat de pijplijn niet kan zien (blok C)", () => {
+  const factors = parseContextFactors([
+    { kind: "nieuwe_website", description: "gaat live in het najaar", effective_from: "2026-10-01" },
+    { kind: "naamswijziging", description: "Jansen Bouwgroep", effective_from: null },
+    { kind: "gestopte_dienst", description: "Dakkapellen", effective_from: null },
+    { kind: "nieuwe_regio", description: "Amersfoort", effective_from: null },
+    // Ongeldige soort én een niet-object: allebei horen weg te vallen. Dit is
+    // een jsonb-kolom, dus er kán van alles in staan.
+    { kind: "verzonnen_soort", description: "x" },
+    "geen object",
+  ]);
+  ok("vier geldige factoren over", factors.length === 4, String(factors.length));
+  ok("de onzin is weggevallen", !factors.some((f) => f.description === "x"));
+
+  // Het gevolg dat er het meest toe doet: een audit die zegt "voeg schema.org
+  // toe aan /diensten/massage" is erger dan waardeloos als die pagina straks
+  // niet bestaat — de klant gaat er wél mee aan de slag.
+  const stale = technicalAdviceStale(factors);
+  ok("een nieuwe website maakt het advies tijdelijk", stale !== null);
+  const melding = staleAdviceNotice(stale!);
+  ok("de melding noemt de datum", melding.includes("oktober"), melding);
+  ok("en is verder heel", !melding.includes("hUidige"), melding);
+
+  // Zonder deze alias telt de meting de helft van de vermeldingen niet mee: de
+  // mention-classificatie eist de letterlijke naam in de tekst.
+  ok("de andere naam wordt een alias", extraAliasesFrom(factors)[0] === "Jansen Bouwgroep");
+  ok("de nieuwe regio komt eruit", extraRegionsFrom(factors)[0] === "Amersfoort");
+  ok("de gestopte dienst komt er in kleine letters uit", discontinuedNames(factors)[0] === "dakkapellen");
+
+  ok("geen factoren = geen melding", technicalAdviceStale([]) === null);
+  ok("rommel in de kolom levert een lege lijst", parseContextFactors("nee").length === 0);
+  ok("null ook", parseContextFactors(null).length === 0);
+});
+
+group("onderzoeksstappen met tussenresultaten (§8)", () => {
+  const leeg = { topics: 0, auditChecks: 0, researchDone: false };
+
+  // Halverwege: fase 0 en het onderzoek zijn geweest, het aanbod draait, de
+  // rest wacht. Dat onderscheid is wat de klant wil zien.
+  const halverwege = buildSteps({
+    pendingByType: { profile_offering: 1 },
+    facetSummaries: { techniek: "31 pagina's gevonden · 12 met gestructureerde data." },
+    counts: { ...leeg, researchDone: true },
+  });
+  const stand = (job: string) => halverwege.find((s) => s.job === job)?.state;
+  ok("de crawl is klaar", stand("profile_discover") === "klaar", stand("profile_discover"));
+  ok("het onderzoek is klaar", stand("profile_research") === "klaar");
+  ok("het aanbod is bezig", stand("profile_offering") === "bezig", stand("profile_offering"));
+  ok("de kennistest wacht", stand("profile_llm_baseline") === "wacht");
+  ok(
+    "en het tussenresultaat staat erbij",
+    (halverwege[0].result ?? "").includes("31 pagina's"),
+    halverwege[0].result ?? "",
+  );
+  ok("er loopt nog iets", researchRunning(halverwege));
+
+  // Een stap die draaide maar niets vond, moet er ANDERS uitzien dan een stap
+  // die iets vond. Anders leest "0 diensten gevonden" als geslaagd — precies
+  // het stille degraderen waar dit project vangnetten tegen bouwt.
+  const nietsGevonden = buildSteps({
+    pendingByType: {},
+    facetSummaries: { techniek: "12 pagina's gevonden." },
+    counts: { topics: 0, auditChecks: 5, researchDone: true },
+  });
+  ok(
+    "aanbod zonder resultaat = overgeslagen",
+    nietsGevonden.find((s) => s.job === "profile_offering")?.state === "overgeslagen",
+  );
+  ok(
+    "audit mét controlepunten = klaar",
+    nietsGevonden.find((s) => s.job === "technical_audit")?.state === "klaar",
+  );
+  ok("niets loopt meer", !researchRunning(nietsGevonden));
+
+  // Helemaal aan het begin staat alles te wachten op de eerste taak.
+  const start = buildSteps({
+    pendingByType: { profile_discover: 1 },
+    facetSummaries: {},
+    counts: leeg,
+  });
+  ok("de eerste stap is bezig", start[0].state === "bezig");
+  ok("de rest wacht", start.slice(1).every((s) => s.state === "wacht"));
+});
+
+group("een mens wint van een model (blok C)", () => {
+  const patch = {
+    industry: "fysiotherapie",
+    tone_of_voice: "zakelijk",
+    products: ["massage"],
+    summary: "Een praktijk.",
+  };
+
+  // Eerste ronde: er staat nog niets in profile_field_sources, dus alles mag.
+  const eerste = filterProtectedFields(patch, []);
+  ok("eerste ronde schrijft alles", Object.keys(eerste.allowed).length === 4);
+  ok("en houdt niets tegen", eerste.blocked.length === 0);
+
+  // Herhaalronde ná een gesprek. Dit is waar het om gaat: zonder deze filter
+  // is "onderzoek opnieuw" een knop die je niet durft te gebruiken.
+  const tweede = filterProtectedFields(patch, [
+    { field: "tone_of_voice", source: "gesprek" },
+    { field: "industry", source: "klant" },
+    { field: "summary", source: "ai" },
+  ]);
+  ok("wat een mens zette gaat niet mee", !("tone_of_voice" in tweede.allowed));
+  ok("ook niet wat de klant zette", !("industry" in tweede.allowed));
+  ok("wat de AI zette mag wél opnieuw", "summary" in tweede.allowed);
+  ok("een veld zonder herkomst mag ook", "products" in tweede.allowed);
+  ok("en er wordt geteld wat is tegengehouden", tweede.blocked.length === 2, String(tweede.blocked.length));
+
+  ok("gesprek telt als mens", isHumanSet("gesprek"));
+  ok("klant telt als mens", isHumanSet("klant"));
+  ok("ai niet", !isHumanSet("ai"));
+  ok("onbekend ook niet", !isHumanSet(null));
+
+  // Stil overschrijven én stil overslaan zijn allebei fout: het eerste kost de
+  // klant zijn correcties, het tweede laat hem denken dat er niets gebeurde.
+  const zin = describeMerge(tweede.blocked, { tone_of_voice: "tone of voice", industry: "branche" });
+  ok("de melding noemt wat bleef staan", zin.includes("tone of voice") && zin.includes("branche"), zin);
+  ok("zonder blokkades een korte melding", describeMerge([]) === "Het profiel is bijgewerkt.");
+});
+
+group("zekerheid als drie niveaus, niet als kommagetal (§8)", () => {
+  ok("hoog is zeker", confidenceLevel(0.9) === "zeker");
+  ok("de drempel zelf telt als zeker", confidenceLevel(0.7) === "zeker");
+  ok("daaronder is onzeker", confidenceLevel(0.69) === "onzeker");
+  // null is een echt antwoord en geen nul (conventie 3): "niet vastgesteld"
+  // is iets anders dan "zeker onjuist".
+  ok("null is onbekend", confidenceLevel(null) === "onbekend");
+  ok("ontbrekend ook", confidenceLevel(undefined) === "onbekend");
+  ok("nul is onzeker, niet onbekend", confidenceLevel(0) === "onzeker");
 });
 
 // ════════════════════════════════════════════════════════════════════════════

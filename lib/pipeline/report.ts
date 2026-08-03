@@ -14,10 +14,29 @@ import { GapAnalysis } from "@/lib/schemas/gap-analysis";
 import { Report } from "@/lib/schemas/report";
 import { NEUTRAL_WEIGHT } from "@/lib/pipeline/prompt-weight";
 import { resolveTargets } from "@/lib/pipeline/recommendation";
-import { buildEvidenceDossier, loadBrandsByRun, loadKnownBrandNames } from "@/lib/pipeline/evidence";
-import { formatEvidenceDossier, type EvidenceEntry } from "@/lib/pipeline/evidence-format";
-import { validateField, type StrippedClaim } from "@/lib/pipeline/validate-claims";
-import { computePeriodChange, buildChangeBlock, isWorthEmailing } from "@/lib/pipeline/period-change";
+import {
+  buildEvidenceDossier,
+  loadBrandsByRun,
+  loadKnownBrandNames,
+} from "@/lib/pipeline/evidence";
+import {
+  parseContextFactors,
+  technicalAdviceStale,
+  staleAdviceNotice,
+} from "@/lib/pipeline/context-factors";
+import {
+  formatEvidenceDossier,
+  type EvidenceEntry,
+} from "@/lib/pipeline/evidence-format";
+import {
+  validateField,
+  type StrippedClaim,
+} from "@/lib/pipeline/validate-claims";
+import {
+  computePeriodChange,
+  buildChangeBlock,
+  isWorthEmailing,
+} from "@/lib/pipeline/period-change";
 import { sendReportEmail } from "@/lib/email/report-email";
 import { emailsEnabled } from "@/lib/env";
 import { enqueue, dedupe } from "@/lib/jobs/queue";
@@ -59,8 +78,8 @@ const REPORT_SYSTEM =
   "op de zwaarwegende vragen (populair en/of koopklaar) waar de klant slecht scoort — die leveren het " +
   "meeste op. Eindig met concrete, uitvoerbare aanbevelingen. Bepaal per aanbeveling of dit een BESTAANDE " +
   "pagina van de klant verbetert (kies dan de meest relevante URL uit de meegegeven paginalijst, action = " +
-  "\"verbeteren\") of dat er een GEHEEL NIEUWE pagina nodig is (action = \"nieuw\", existingUrl = null) — kies " +
-  "alleen \"verbeteren\" als een pagina uit de lijst daadwerkelijk over hetzelfde onderwerp gaat. " +
+  '"verbeteren") of dat er een GEHEEL NIEUWE pagina nodig is (action = "nieuw", existingUrl = null) — kies ' +
+  'alleen "verbeteren" als een pagina uit de lijst daadwerkelijk over hetzelfde onderwerp gaat. ' +
   // Fase 4: de aanbeveling moet aanwijzen WELKE gemiste vraag hij gaat winnen.
   // Zonder die koppeling weet de schrijver later niet waarvoor hij schrijft, en
   // is achteraf niet te zeggen of de pagina iets uithaalde.
@@ -143,7 +162,9 @@ function scoreLine(score: VisibilityScore | null): string {
 
 function briefLine(analysis: Analysis): string[] {
   return analysis.content_brief?.trim()
-    ? [`Gewenste content-richting van de klant: ${analysis.content_brief.trim()} — laat de aanbevelingen hierop aansluiten.`]
+    ? [
+        `Gewenste content-richting van de klant: ${analysis.content_brief.trim()} — laat de aanbevelingen hierop aansluiten.`,
+      ]
     : [];
 }
 
@@ -160,7 +181,9 @@ function buildGapInput(
     `Branche: ${profile?.industry ?? "onbekend"}`,
     ...briefLine(analysis),
     ...(topicResearch?.content_summary
-      ? [`Wat de website al zegt over dit onderwerp: ${topicResearch.content_summary}`]
+      ? [
+          `Wat de website al zegt over dit onderwerp: ${topicResearch.content_summary}`,
+        ]
       : []),
     scoreLine(score),
     formatEvidenceDossier(dossier),
@@ -179,12 +202,15 @@ function buildGapInput(
     // Het gedestilleerde "waarom" (R4.2) staat vooraan: dát is wat de klant wil
     // weten en waar de aanbeveling op moet sturen. De ruwe cijfers erachter.
     const waarom = c.why_summary ? ` WAAROM GENOEMD: ${c.why_summary}` : "";
-    const eigenschappen = Array.isArray(c.attributes_json) && c.attributes_json.length > 0
-      ? ` Genoemd op: ${(c.attributes_json as { attribute: string }[]).map((a) => a.attribute).join(", ")}.`
-      : "";
+    const eigenschappen =
+      Array.isArray(c.attributes_json) && c.attributes_json.length > 0
+        ? ` Genoemd op: ${(c.attributes_json as { attribute: string }[]).map((a) => a.attribute).join(", ")}.`
+        : "";
     lines.push(
       `- ${c.competitor_name}: ${c.mentions_count} vermeldingen` +
-        (c.avg_position != null ? `, gemiddelde positie ${c.avg_position}` : "") +
+        (c.avg_position != null
+          ? `, gemiddelde positie ${c.avg_position}`
+          : "") +
         `.${waarom}${eigenschappen} ` +
         `Per categorie: ${JSON.stringify(c.mentions_by_category_json ?? {})}. ` +
         `Meest geciteerde bronnen: ${(c.top_cited_sources ?? []).join(", ") || "geen"}. ` +
@@ -203,10 +229,19 @@ function buildReportInput(
   pages: ProfilePage[],
   dossier: EvidenceEntry[],
   changeBlock: string,
+  /**
+   * Komt er een nieuwe website aan? (blok C, `context-factors.ts`)
+   *
+   * Dan rust de nieuw/verbeteren-beslissing op URL's die straks verdwijnen. Het
+   * model moet dat weten vóórdat het "verbeter /diensten/massage" adviseert —
+   * de klant gaat daar namelijk mee aan de slag.
+   */
+  siteMigrationNotice: string | null,
 ): string {
   return [
     `Eigen merk: ${ownLabel(analysis, profile)}`,
     ...briefLine(analysis),
+    ...(siteMigrationNotice ? ["", `LET OP — ${siteMigrationNotice}`, ""] : []),
     scoreLine(score),
     changeBlock,
     formatEvidenceDossier(dossier),
@@ -215,6 +250,12 @@ function buildReportInput(
     JSON.stringify(gap, null, 2),
     "",
     "Bestaande pagina's op de website van de klant (voor de nieuw/verbeteren-beslissing):",
+    ...(siteMigrationNotice
+      ? [
+          "Deze lijst gaat over de HUIDIGE site. Kies bij twijfel 'nieuw' boven 'verbeteren', " +
+            "en verwijs niet naar een bestaande URL als je er niet zeker van bent dat hij blijft.",
+        ]
+      : []),
     buildPagesBlock(pages),
     "",
     "Schrijf op basis hiervan een kort, jargonvrij rapport. Noem in elk gap-item expliciet welke " +
@@ -239,7 +280,9 @@ async function computeMissedPrompts(
 ): Promise<MissedPrompt[]> {
   const { data: runRows } = await admin
     .from("tracking_runs")
-    .select("id, prompt_id, prompt_text_snapshot, prompt_category_snapshot, prompt_weight, brands_in_answer")
+    .select(
+      "id, prompt_id, prompt_text_snapshot, prompt_category_snapshot, prompt_weight, brands_in_answer",
+    )
     .eq("analysis_id", analysisId)
     .eq("week_no", weekNo)
     // Alleen de gewone meting; impact- en controlemetingen (5.3) betreffen een
@@ -279,7 +322,12 @@ async function computeMissedPrompts(
   // Voorheen liepen die laatste twee door elkaar: een mislukte classificatie
   // werd als gemiste kans het rapport in geduwd en leverde een aanbeveling op
   // voor een vraag waar de klant misschien juist wél genoemd werd.
-  const ownMentioned = new Map((ownRows ?? []).map((m) => [m.tracking_run_id as string, m.mentioned as boolean]));
+  const ownMentioned = new Map(
+    (ownRows ?? []).map((m) => [
+      m.tracking_run_id as string,
+      m.mentioned as boolean,
+    ]),
+  );
   const unjudged = runs.filter((r) => !ownMentioned.has(r.id as string)).length;
   if (unjudged > 0) {
     console.warn(
@@ -305,12 +353,19 @@ async function computeMissedPrompts(
   // z'n beoordeelde metingen ontbrak. Word je bij dezelfde vraag twee van de
   // drie keer wél genoemd, dan is dat geen gemiste kans maar een wisselvallige
   // — een ander probleem, en geen reden om er een pagina voor te schrijven.
-  const perVraag = new Map<string, { beoordeeld: number; gemist: number; eersteGemisteRun: string }>();
+  const perVraag = new Map<
+    string,
+    { beoordeeld: number; gemist: number; eersteGemisteRun: string }
+  >();
   for (const r of runs) {
     const oordeel = ownMentioned.get(r.id as string);
     if (oordeel === undefined) continue;
     const key = (r.prompt_id as string | null) ?? `run:${r.id as string}`;
-    const entry = perVraag.get(key) ?? { beoordeeld: 0, gemist: 0, eersteGemisteRun: "" };
+    const entry = perVraag.get(key) ?? {
+      beoordeeld: 0,
+      gemist: 0,
+      eersteGemisteRun: "",
+    };
     entry.beoordeeld++;
     if (oordeel === false) {
       entry.gemist++;
@@ -325,31 +380,36 @@ async function computeMissedPrompts(
   // de fabricage zijn die R1 uitbant.
   const gemisteRunIds = new Set<string>();
   for (const entry of perVraag.values()) {
-    if (entry.gemist * 2 > entry.beoordeeld) gemisteRunIds.add(entry.eersteGemisteRun);
+    if (entry.gemist * 2 > entry.beoordeeld)
+      gemisteRunIds.add(entry.eersteGemisteRun);
   }
 
-  return runs
-    // Alleen expliciet beoordeeld-en-niet-genoemd telt als gemiste kans, en per
-    // vraag hooguit één keer.
-    .filter((r) => gemisteRunIds.has(r.id as string))
-    .map((r) => {
-      const tag = r.prompt_id ? tagByPrompt.get(r.prompt_id as string) : undefined;
-      return {
-        // De code wordt hierna toegekend, ná het sorteren, zodat V1 ook echt de
-        // zwaarste gemiste vraag is en de nummering betekenis heeft.
-        code: "",
-        promptId: (r.prompt_id as string | null) ?? null,
-        runId: r.id as string,
-        text: r.prompt_text_snapshot as string,
-        category: r.prompt_category_snapshot as string,
-        weight: Number(r.prompt_weight ?? NEUTRAL_WEIGHT),
-        cluster: (tag?.cluster as string | null) ?? null,
-        intent_type: (tag?.intent_type as string | null) ?? null,
-      };
-    })
-    .sort((a, b) => b.weight - a.weight)
-    .slice(0, MISSED_CAP)
-    .map((m, i) => ({ ...m, code: `V${i + 1}` }));
+  return (
+    runs
+      // Alleen expliciet beoordeeld-en-niet-genoemd telt als gemiste kans, en per
+      // vraag hooguit één keer.
+      .filter((r) => gemisteRunIds.has(r.id as string))
+      .map((r) => {
+        const tag = r.prompt_id
+          ? tagByPrompt.get(r.prompt_id as string)
+          : undefined;
+        return {
+          // De code wordt hierna toegekend, ná het sorteren, zodat V1 ook echt de
+          // zwaarste gemiste vraag is en de nummering betekenis heeft.
+          code: "",
+          promptId: (r.prompt_id as string | null) ?? null,
+          runId: r.id as string,
+          text: r.prompt_text_snapshot as string,
+          category: r.prompt_category_snapshot as string,
+          weight: Number(r.prompt_weight ?? NEUTRAL_WEIGHT),
+          cluster: (tag?.cluster as string | null) ?? null,
+          intent_type: (tag?.intent_type as string | null) ?? null,
+        };
+      })
+      .sort((a, b) => b.weight - a.weight)
+      .slice(0, MISSED_CAP)
+      .map((m, i) => ({ ...m, code: `V${i + 1}` }))
+  );
 }
 
 /**
@@ -383,7 +443,10 @@ async function saveFactRequests(
     onConflict: "profile_id,question",
     ignoreDuplicates: true,
   });
-  if (error) console.warn(`Feitenvragen opslaan mislukt voor analyse ${analysis.id}: ${error.message}`);
+  if (error)
+    console.warn(
+      `Feitenvragen opslaan mislukt voor analyse ${analysis.id}: ${error.message}`,
+    );
 }
 
 /** Meer dan een handvol vragen is geen uitnodiging meer maar een formulier. */
@@ -424,7 +487,8 @@ async function validateReportClaims(
     for (const t of rec.targets) if (t.runId) referenced.add(t.runId);
   }
   for (const gap of gaps) {
-    for (const runId of gap.evidenceRunIds ?? []) if (runId) referenced.add(runId);
+    for (const runId of gap.evidenceRunIds ?? [])
+      if (runId) referenced.add(runId);
   }
 
   const [knownNames, brandsByRun] = await Promise.all([
@@ -443,7 +507,9 @@ async function validateReportClaims(
   const stripped: StrippedClaim[] = [];
 
   const checkedRecommendations = recommendations.map((rec) => {
-    const allowed = rec.targets.flatMap((t) => (t.runId ? namesForRun(t.runId) : []));
+    const allowed = rec.targets.flatMap((t) =>
+      t.runId ? namesForRun(t.runId) : [],
+    );
     const result = validateField(rec.why, {
       knownNames,
       allowedNames: allowed,
@@ -454,7 +520,9 @@ async function validateReportClaims(
   });
 
   const checkedGaps = gaps.map((gap) => {
-    const allowed = (gap.evidenceRunIds ?? []).flatMap((runId) => namesForRun(runId));
+    const allowed = (gap.evidenceRunIds ?? []).flatMap((runId) =>
+      namesForRun(runId),
+    );
     const result = validateField(gap.problem, {
       knownNames,
       allowedNames: allowed,
@@ -464,20 +532,33 @@ async function validateReportClaims(
     return { ...gap, problem: result.text };
   });
 
-  return { recommendations: checkedRecommendations, gaps: checkedGaps, stripped };
+  return {
+    recommendations: checkedRecommendations,
+    gaps: checkedGaps,
+    stripped,
+  };
 }
 
-export async function generateReport(id: string, weekNo = 0): Promise<AnalysisStatus> {
+export async function generateReport(
+  id: string,
+  weekNo = 0,
+): Promise<AnalysisStatus> {
   const admin = createAdminClient();
 
-  const { data: analysisRow } = await admin.from("analyses").select("*").eq("id", id).single();
+  const { data: analysisRow } = await admin
+    .from("analyses")
+    .select("*")
+    .eq("id", id)
+    .single();
   if (!analysisRow) throw new Error(`Analyse ${id} niet gevonden.`);
   const analysis = analysisRow as Analysis;
 
   // De nulmeting brengt de analyse op 'gemeten'; latere periodes draaien terwijl
   // hij al 'gereed' is. Beide moeten een rapport kunnen opleveren (6.1).
   const eligible =
-    analysis.status === "gemeten" || analysis.status === "mislukt" || (weekNo > 0 && analysis.status === "gereed");
+    analysis.status === "gemeten" ||
+    analysis.status === "mislukt" ||
+    (weekNo > 0 && analysis.status === "gereed");
   if (!eligible) return analysis.status;
 
   if (analysis.status === "mislukt") {
@@ -504,16 +585,59 @@ export async function generateReport(id: string, weekNo = 0): Promise<AnalysisSt
     return "gereed";
   }
 
-  const [{ data: profile }, { data: topicResearch }, { data: score }, { data: competitors }, { data: pageRows }] =
-    await Promise.all([
-      admin.from("profiles").select("*").eq("id", analysis.profile_id).maybeSingle(),
-      admin.from("topic_research").select("*").eq("analysis_id", id).maybeSingle(),
-      admin.from("visibility_scores").select("*").eq("analysis_id", id).eq("week_no", weekNo).maybeSingle(),
-      admin.from("competitor_breakdown").select("*").eq("analysis_id", id).eq("week_no", weekNo),
-      admin.from("profile_pages").select("*").eq("profile_id", analysis.profile_id),
-    ]);
+  const [
+    { data: profile },
+    { data: topicResearch },
+    { data: score },
+    { data: competitors },
+    { data: pageRows },
+    { data: strategyRow },
+  ] = await Promise.all([
+    admin
+      .from("profiles")
+      .select("*")
+      .eq("id", analysis.profile_id)
+      .maybeSingle(),
+    admin
+      .from("topic_research")
+      .select("*")
+      .eq("analysis_id", id)
+      .maybeSingle(),
+    admin
+      .from("visibility_scores")
+      .select("*")
+      .eq("analysis_id", id)
+      .eq("week_no", weekNo)
+      .maybeSingle(),
+    admin
+      .from("competitor_breakdown")
+      .select("*")
+      .eq("analysis_id", id)
+      .eq("week_no", weekNo),
+    admin
+      .from("profile_pages")
+      .select("*")
+      .eq("profile_id", analysis.profile_id),
+    // Wat de klant in het gesprek vertelde en de pijplijn niet kan zien (blok C).
+    admin
+      .from("profile_strategy")
+      .select("context_factors")
+      .eq("profile_id", analysis.profile_id)
+      .maybeSingle(),
+  ]);
   const profileTyped = profile as Profile | null;
   const pages = (pageRows ?? []) as ProfilePage[];
+
+  // Komt er een nieuwe website aan, dan rust de nieuw/verbeteren-beslissing op
+  // URL's die straks verdwijnen. Dat hoort in de rapportinvoer te staan en niet
+  // alleen op het profielscherm — het rapport is wat de klant leest en waarnaar
+  // hij handelt.
+  const migratie = technicalAdviceStale(
+    parseContextFactors(
+      (strategyRow as { context_factors?: unknown } | null)?.context_factors,
+    ),
+  );
+  const migratieMelding = migratie ? staleAdviceNotice(migratie) : null;
 
   // Gemiste hoog-gewicht vragen (klant niet genoemd), gesorteerd op gewicht — zodat
   // B1/B2 de aanbevelingen richten op de waardevolste kansen (§6 A3 / §7).
@@ -523,7 +647,11 @@ export async function generateReport(id: string, weekNo = 0): Promise<AnalysisSt
   // stonden (implementatieplan.md R1.1). Deterministisch uit de database, zodat
   // het model de koppeling vraag↔concurrent niet hoeft af te leiden — en hem dus
   // ook niet verkeerd kán afleiden.
-  const dossier = await buildEvidenceDossier(admin, analysis.profile_id, missed);
+  const dossier = await buildEvidenceDossier(
+    admin,
+    analysis.profile_id,
+    missed,
+  );
 
   // Wat er veranderd is sinds de vorige periode (optimalisatie.md 6.2). Puur
   // databasewerk: het model hoeft niet zelf twee periodes te vergelijken — dat
@@ -548,7 +676,11 @@ export async function generateReport(id: string, weekNo = 0): Promise<AnalysisSt
       schemaName: "gap_analysis",
       webSearch: false,
       work: "analytical",
-      meta: { kind: "gap_analysis", analysisId: id, profileId: analysis.profile_id },
+      meta: {
+        kind: "gap_analysis",
+        analysisId: id,
+        profileId: analysis.profile_id,
+      },
     });
 
     // B2 — leesbaar rapport + aanbevelingen
@@ -563,6 +695,7 @@ export async function generateReport(id: string, weekNo = 0): Promise<AnalysisSt
         pages,
         dossier,
         changeBlock,
+        migratieMelding,
       ),
       schema: Report,
       schemaName: "report",
@@ -581,12 +714,15 @@ export async function generateReport(id: string, weekNo = 0): Promise<AnalysisSt
     // voorkomen in het bewijs van de vraag waaraan hij hangt. Wat dat niet
     // haalt, gaat eruit — en wordt bewaard, zodat te zien is of de instructie
     // uit R1.2 streng genoeg is.
-    const { recommendations, gaps, stripped } = await validateReportClaims(admin, {
-      profileId: analysis.profile_id,
-      recommendations: enriched,
-      gaps: report.parsed.gaps,
-      dossier,
-    });
+    const { recommendations, gaps, stripped } = await validateReportClaims(
+      admin,
+      {
+        profileId: analysis.profile_id,
+        recommendations: enriched,
+        gaps: report.parsed.gaps,
+        dossier,
+      },
+    );
     if (stripped.length > 0) {
       console.warn(
         `Analyse ${id} periode ${weekNo}: ${stripped.length} niet-onderbouwde bewering(en) ` +
@@ -594,18 +730,22 @@ export async function generateReport(id: string, weekNo = 0): Promise<AnalysisSt
       );
     }
 
-    const { data: reportRow, error: reportError } = await admin.from("reports").insert({
-      analysis_id: id,
-      week_no: weekNo,
-      period: weekNo === 0 ? "nulmeting" : `periode ${weekNo}`,
-      change_json: change as never,
-      summary: report.parsed.summary,
-      gaps_json: gaps as never,
-      recommendations_json: recommendations as never,
-      stripped_claims_json: stripped as never,
-      gap_analysis_raw_json: gap.raw as never, // volledige ruwe OpenAI-output B1 (§5)
-      raw_json: report.raw as never, // volledige ruwe OpenAI-output B2 (§5)
-    }).select("id").single();
+    const { data: reportRow, error: reportError } = await admin
+      .from("reports")
+      .insert({
+        analysis_id: id,
+        week_no: weekNo,
+        period: weekNo === 0 ? "nulmeting" : `periode ${weekNo}`,
+        change_json: change as never,
+        summary: report.parsed.summary,
+        gaps_json: gaps as never,
+        recommendations_json: recommendations as never,
+        stripped_claims_json: stripped as never,
+        gap_analysis_raw_json: gap.raw as never, // volledige ruwe OpenAI-output B1 (§5)
+        raw_json: report.raw as never, // volledige ruwe OpenAI-output B2 (§5)
+      })
+      .select("id")
+      .single();
 
     // Zonder deze controle liep de code door naar status 'gereed' terwijl er
     // geen rapport in de database stond: de analyse meldde zich klaar, het
@@ -645,12 +785,24 @@ export async function generateReport(id: string, weekNo = 0): Promise<AnalysisSt
     // die er nooit was.
     const worthEmailing = isWorthEmailing(change);
     if (!emailsEnabled()) {
-      console.log(`E-mail staat uit (EMAILS_ENABLED) — geen rapport-mail voor analyse ${id}.`);
+      console.log(
+        `E-mail staat uit (EMAILS_ENABLED) — geen rapport-mail voor analyse ${id}.`,
+      );
     } else if (analysis.notify_by_email && worthEmailing) {
-      const { data: authUser } = await admin.auth.admin.getUserById(analysis.user_id);
+      const { data: authUser } = await admin.auth.admin.getUserById(
+        analysis.user_id,
+      );
       if (authUser?.user?.email) {
-        await sendReportEmail(analysis, authUser.user.email, report.parsed, change).catch((err) =>
-          console.error(`Rapport-mail versturen mislukt voor analyse ${id}:`, err),
+        await sendReportEmail(
+          analysis,
+          authUser.user.email,
+          report.parsed,
+          change,
+        ).catch((err) =>
+          console.error(
+            `Rapport-mail versturen mislukt voor analyse ${id}:`,
+            err,
+          ),
         );
         await admin
           .from("reports")
@@ -658,7 +810,9 @@ export async function generateReport(id: string, weekNo = 0): Promise<AnalysisSt
           .eq("id", reportRow.id);
       }
     } else if (!worthEmailing) {
-      console.log(`Analyse ${id} periode ${weekNo}: niets betekenisvols veranderd, geen mail verstuurd.`);
+      console.log(
+        `Analyse ${id} periode ${weekNo}: niets betekenisvols veranderd, geen mail verstuurd.`,
+      );
     }
 
     return "gereed";
