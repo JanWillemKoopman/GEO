@@ -36,6 +36,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { ProfileSynthesis } from "@/lib/schemas/synthesis";
 import { claimKey } from "@/lib/pipeline/factcard";
 import { remainingBudgetUsd } from "@/lib/pipeline/onboarding-budget";
+import { quoteOnPage } from "@/lib/pipeline/quote-check";
 import { synthesisPremium } from "@/lib/config";
 import type {
   Profile,
@@ -186,17 +187,13 @@ export async function synthesiseProfile(
 
   // ── Het vangnet: alleen letterlijk onderbouwde feiten overleven ──────────
   const tekstPerUrl = new Map(
-    pages.map((p) => [
-      p.url as string,
-      normalise((p.text_excerpt as string) ?? ""),
-    ]),
+    pages.map((p) => [p.url as string, (p.text_excerpt as string) ?? ""]),
   );
   const geldig = parsed.facts
     .filter((f) => {
       const bron = tekstPerUrl.get(f.sourceUrl);
-      if (!bron) return false;
-      const citaat = normalise(f.quote);
-      return citaat.length >= 12 && bron.includes(citaat);
+      if (bron === undefined) return false;
+      return quoteOnPage(f.quote, bron);
     })
     .slice(0, MAX_FACTS);
 
@@ -326,15 +323,6 @@ function buildPageBlock(
     totaal += blok.length;
   }
   return blokken.join("\n\n");
-}
-
-/**
- * Witruimte gelijktrekken vóór het vergelijken. Een citaat dat over twee regels
- * liep zou anders niet matchen terwijl het er letterlijk staat — en dan gooien
- * we een goed feit weg om een opmaakverschil.
- */
-function normalise(s: string): string {
-  return s.replace(/\s+/g, " ").trim().toLowerCase();
 }
 
 function pathOf(url: string): string {

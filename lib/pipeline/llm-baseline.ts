@@ -38,7 +38,11 @@ import "server-only";
  */
 import { createAdminClient } from "@/lib/supabase/admin";
 import { enginesForProfile } from "@/lib/engines/registry";
-import { buildVerdict, type KnownFact } from "@/lib/pipeline/baseline-verdict";
+import {
+  buildVerdict,
+  checkableFacts,
+  type KnownFact,
+} from "@/lib/pipeline/baseline-verdict";
 import { remainingBudgetUsd } from "@/lib/pipeline/onboarding-budget";
 import { measureWebSearchEnabled } from "@/lib/config";
 import type { EngineAdapter } from "@/lib/engines/types";
@@ -180,9 +184,17 @@ export async function runLlmBaseline(
   const harvested = ((facetRow?.raw_json as { facts?: HarvestedFact[] } | null)
     ?.facts ?? []) as HarvestedFact[];
 
-  const facts: KnownFact[] = harvested
-    .filter((f) => CHECKABLE_KEYS.has(f.key))
-    .map((f) => ({ key: f.key, value: f.value }));
+  // Eerst op sleutel (welk soort gegeven), dan op herkomst en circulariteit
+  // (`checkableFacts`). Die tweede stap haalde bij Fysi-Unique 19 feiten terug
+  // naar 0 — zeventien paginatitels en twee keer de merknaam zelf.
+  const facts: KnownFact[] = checkableFacts(
+    harvested
+      .filter((f) => CHECKABLE_KEYS.has(f.key))
+      .map((f) => ({ key: f.key, value: f.value, fromType: f.fromType })),
+    [profile.brand_name, profile.name, ...profile.aliases].filter(
+      (n): n is string => Boolean(n),
+    ),
+  );
 
   // Idempotent (conventie 9): wat al gemeten is, niet opnieuw. Migratie 0041
   // dwingt dezelfde sleutel af met een unieke index, zodat code en database het

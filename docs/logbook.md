@@ -458,3 +458,70 @@ maar migratie `0042` zet hem dicht, samen met een `to authenticated` op de 26
 stafpolicies. Die twee horen in één migratie: los toegepast levert het intrekken
 van de EXECUTE-rechten een "permission denied" op waar nul rijen hoort te staan.
 
+
+### 3 augustus 2026 — de eerste echte onboarding, en wat hij liet zien
+
+Onboarding 2.0 ging naar `main` en draaide daarna één keer volledig op productie:
+Fysi-Unique, een fysiotherapiepraktijk in Amersfoort. **7,5 minuut van invoer tot
+afgerond dossier, $0,24 van de $2,15.** De keten liep zonder één mislukte taak —
+`profile_discover` → `technical_audit` → `profile_research` → `profile_offering` →
+`propose_topics` → `profile_market` → `profile_llm_baseline` → `profile_synthesis`.
+
+Wat er goed uit kwam, en waarom het de bouwronde rechtvaardigt: 30 pagina's
+gecrawld (was: één homepage van 6000 tekens), een aanbodboom van 20 knopen mét de
+tarieven van de tarievenpagina — intake € 59,00, manuele therapie € 57,50,
+jaarabonnement medische fitness € 370,00 — en met diensten die alleen op diepe
+pagina's staan (seksuologie, loopanalyse, inloopspreekuur). Het oude onderzoek zag
+daar niets van. Acht core topics, acht concurrenten met onderbouwing, zestien
+technische controles waaronder de vier entiteitschecks.
+
+**En zes fouten die geen enkele test had kunnen vangen, want ze zaten er alle zes
+tússen.** Conventie 10, opnieuw bevestigd: gebouwd is niet geverifieerd.
+
+1. **De kennistest gaf een vals positief, en dat is de ernstigste die er is.**
+   ChatGPT antwoordde twee keer letterlijk *"zonder plaatsnaam of website kan ik
+   niet met zekerheid zeggen welke organisatie je bedoelt"*. `admitsUnknown()`
+   kende die formulering niet, dus `knowsBrand()` gaf `true` — enkel omdat de
+   merknaam in het antwoord stond, en die stond er omdat hij in de **vraag** stond.
+   Het profielscherm meldde "ChatGPT kent Fysi-Unique" en de synthese schreef het
+   over als *"ChatGPT kent het bedrijf al"*. Precies het cijfer waar een
+   ondernemer op afgaat, precies de verkeerde kant op.
+2. **De 19 gecontroleerde "feiten" waren 17 paginatitels en 2× de merknaam.** De
+   `WebPage`-opmaak levert per pagina een `name` op ("Tarieven | Fysi-Unique"), en
+   die gingen ongefilterd de controle in. `checkableFacts()` gooit nu
+   paginaniveau-opmaak en de merknaam zelf eruit. Bij deze site blijft er dan nul
+   over — en dat is het eerlijke antwoord: er staat geen adres, telefoonnummer of
+   oprichtingsjaar in de opmaak.
+3. **`service_scope`, `service_regions` en `market_language` bleven leeg.** De
+   oude wizard vroeg ze aan de klant; de nieuwe onboarding van drie velden doet dat
+   niet meer, en het onderzoek leverde ze nooit. Gevolg: `prompts.ts` zet de regel
+   "dit is een LOKAAL bedrijf, verwerk de plaatsnaam" alleen neer als bereik én
+   regio gevuld zijn, dus een praktijk in Amersfoort had zich gemeten tegen de
+   landelijke markt. De kennistest vroeg dan ook "aanbieders van
+   sportfysiotherapie **in Nederland**" in plaats van in Amersfoort. Nu in het
+   onderzoeksschema, met `'onbekend'` als eerste enum-waarde — structured output
+   kiest bij twijfel de eerste, dus die hoort de eerlijkste te zijn — en met
+   `resolveScope()` als vangnet: 'lokaal' zonder regio wordt `null`.
+4. **Alle acht topics hadden een lege `offering_ids`.** De aanbodlijst in de prompt
+   toont elke knoop als "Ouder › Kind" en vraagt de namen letterlijk over te nemen;
+   het model deed dat, de koppeling zocht alleen op `o.name`. Acht onderbouwingen
+   die op het scherm nergens naar terug te klikken zijn.
+5. **`profile_field_sources` bleef leeg, dus de bescherming was inert.** Alleen de
+   strategieroute schreef herkomst, en dan nog alleen voor aliassen en werkgebied
+   uit de contextfactoren. `PATCH /api/profiles/[id]` — de gewone manier waarop
+   iemand een profiel corrigeert — zette `edited_by_user = true` en verder niets.
+   `filterProtectedFields()` kon dus nooit iets blokkeren en "onderzoek opnieuw"
+   zou elke correctie stil overschrijven: exact het scenario waarvoor migratie
+   `0039` gemaakt is.
+6. **Twintig grijze "niet vastgesteld"-chips naast een goed onderbouwde
+   aanbodboom.** `confidence` stond hard op `null`. Nu deterministisch, dezelfde
+   regel als in `synthesis.ts` en verhuisd naar één gedeelde module
+   (`quote-check.ts`): staat het citaat letterlijk op de pagina waar de knoop naar
+   verwijst, dan is het 1,00 — anders 0,50. Alleen het twijfelgeval valt nog op,
+   en dat is wat die chip hoort te doen.
+
+De kostenverdeling verraste: `profile_synthesis` is met $0,127 (52%) de duurste
+stap, niet de web-zoekacties. Dat is het Sol-model achter `SYNTHESIS_PREMIUM`.
+De drie categorievragen van de kennistest samen $0,044; de rest valt in het niet.
+Het budget van $2,15 is geen knellende grens — er is ruimte voor een tweede engine
+zonder aan de plafonds te komen.

@@ -71,5 +71,47 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     return NextResponse.json({ error: "Opslaan mislukt." }, { status: 500 });
   }
 
+  // ── Herkomst vastleggen (3 aug 2026) ──────────────────────────────────────
+  //
+  // `edited_by_user = true` zegt dát er iets met de hand is aangepast, niet WÁT.
+  // `filterProtectedFields()` in prepare-profile.ts beslist per veld, en leest
+  // daarvoor `profile_field_sources`. Die tabel werd tot nu alleen gevuld door
+  // de strategieroute, en dan nog uitsluitend voor aliassen en werkgebied uit de
+  // contextfactoren.
+  //
+  // Gevolg: dit — de gewone manier waarop iemand een profiel corrigeert — liet
+  // geen spoor achter, en de knop "onderzoek opnieuw" zou elke correctie zonder
+  // waarschuwing overschrijven. Precies het scenario waar migratie 0039 voor
+  // gemaakt is, en precies het scenario dat hij niet dekte.
+  //
+  // 'klant' als de eigenaar zelf bewerkt, 'gesprek' als de consultant het voor
+  // hem doet. Allebei menselijk (`isHumanSet`), dus voor de bescherming maakt
+  // het niet uit — voor de vraag "wie zei dit?" een halfjaar later wel.
+  const bewerkteVelden = EDITABLE_FIELDS.filter((f) => f in body);
+  if (bewerkteVelden.length > 0) {
+    const bron = profile.user_id === user.id ? "klant" : "gesprek";
+    const nu = new Date().toISOString();
+    const { error: bronError } = await admin.from("profile_field_sources").upsert(
+      bewerkteVelden.map((field) => ({
+        profile_id: id,
+        field,
+        source: bron,
+        confidence: 1,
+        set_by: user.id,
+        set_at: nu,
+      })),
+      { onConflict: "profile_id,field" },
+    );
+    // Bewust geen 500: het profiel ís opgeslagen. Een mislukte herkomstregel
+    // teruggeven als "opslaan mislukt" zou de klant zijn wijziging laten
+    // overtypen terwijl hij er al staat.
+    if (bronError) {
+      console.error(
+        `Herkomst vastleggen mislukt voor profiel ${id} ` +
+          `(${bewerkteVelden.length} veld(en) wél opgeslagen): ${bronError.message}`,
+      );
+    }
+  }
+
   return NextResponse.json({ ok: true });
 }

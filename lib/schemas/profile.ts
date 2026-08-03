@@ -20,6 +20,31 @@ export const ProfileResearch = z.object({
    */
   businessModel: z.enum(["retailer", "platform", "dienstverlener", "fabrikant", "overig"]),
   products: z.array(z.string()),
+  /**
+   * ⚠️ HET BEREIK, EN WAAROM 'onbekend' VOORAAN STAAT (3 aug 2026)
+   *
+   * De oude onboarding vroeg dit aan de klant in een wizard van elf velden. De
+   * nieuwe vraagt drie velden, en niemand nam deze drie over — met als gevolg
+   * dat de eerste echte proefonboarding (Fysi-Unique, een fysiotherapiepraktijk
+   * in Amersfoort) eindigde met `service_scope = null` en `service_regions = []`.
+   *
+   * Dat is geen cosmetisch gat. `lib/pipeline/prompts.ts` zet de regel "dit is
+   * een LOKAAL bedrijf, verwerk de plaatsnaam in een deel van de vragen" alleen
+   * neer als bereik én regio gevuld zijn; `llm-baseline.ts` hangt zijn
+   * categorievragen eraan op ("aanbieders van sportfysiotherapie in Amersfoort"
+   * werd "in Nederland"). Zonder deze velden meet een lokale praktijk zichzelf
+   * af tegen de landelijke markt, en dat zonder één foutmelding.
+   *
+   * 'onbekend' staat VOORAAN omdat structured output bij twijfel de eerste
+   * enum-waarde kiest (conventie 1: dat is in dit project gemeten — 10 van de 27
+   * niet-genoemde merken kregen zo een rol toebedeeld). De eerste waarde hoort
+   * dus de eerlijkste te zijn, niet de meest waarschijnlijke.
+   */
+  serviceScope: z.enum(["onbekend", "lokaal", "landelijk", "internationaal"]),
+  /** Plaatsen/regio's waar het bedrijf werkt. Leeg bij niet-lokaal of onbekend. */
+  serviceRegions: z.array(z.string()),
+  /** Land en taal van de markt, bv. "Nederland, Nederlands". Leeg = onbekend. */
+  marketLanguage: z.string(),
   toneOfVoice: z.string(),
   personas: z.array(
     z.object({

@@ -98,11 +98,23 @@ export async function generateProfileResearch(args: {
     `'overig' = past in geen van deze. Twijfel je tussen retailer en fabrikant, kijk of ` +
     `de producten het merk van het bedrijf zelf dragen.`;
 
+  // Het BEREIK (3 aug 2026). Zie het commentaar bij `serviceScope` in
+  // lib/schemas/profile.ts voor waarom dit erbij moest.
+  const scopeFieldRule =
+    `Bepaal het BEREIK (serviceScope): 'lokaal' = klanten komen uit een stad of streek ` +
+    `(praktijk, kapper, installateur); 'landelijk' = het hele land is de markt; ` +
+    `'internationaal' = meerdere landen; 'onbekend' = je kunt het niet uit het materiaal afleiden. ` +
+    `Bij 'lokaal' zet je in serviceRegions de plaatsen of streken die de site noemt, zoals een ` +
+    `klant ze zou uitspreken ("Amersfoort", "regio Utrecht") — niet het adres. Bij niet-lokaal laat ` +
+    `je die lijst leeg. Zet in marketLanguage het land en de taal van de markt ` +
+    `(bv. "Nederland, Nederlands"). Weet je het niet, kies 'onbekend' en laat leeg — dat is een ` +
+    `beter antwoord dan een gok.`;
+
   const system =
     `Je bent een merk- en marktanalist. Analyseer dit bedrijf op basis van de website-tekst en het web. ` +
     `Bepaal: branche, kernproducten/-diensten, tone-of-voice, doelgroep-persona's, waardeproposities en 3–5 belangrijkste concurrenten ` +
     `van het HELE bedrijf (niet van één product/segment — dat wordt per analyse apart bepaald). ` +
-    `${brandNameRule} ${businessModelRule} ${writingBasisRule} ${groundingRule} Antwoord in het Nederlands.`;
+    `${brandNameRule} ${businessModelRule} ${scopeFieldRule} ${writingBasisRule} ${groundingRule} Antwoord in het Nederlands.`;
 
   // Hoeveel de context waard is, hangt af van hoeveel pagina's erin zitten. Bij
   // één homepage moet het model voorzichtig zijn over wat het bedrijf níét doet;

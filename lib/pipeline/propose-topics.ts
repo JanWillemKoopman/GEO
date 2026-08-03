@@ -153,7 +153,23 @@ export async function proposeTopics(profileId: string): Promise<TopicResult> {
   // dat ook — zonder deze filter zou één dubbel voorstel de hele batch-insert
   // laten mislukken en de klant nul topics opleveren.
   const gezien = new Set<string>();
-  const namen = new Set(offerings.map((o) => o.name.toLowerCase()));
+
+  // ⚠️ ZOWEL DE NAAM ALS HET PAD (3 aug 2026)
+  //
+  // De aanbodlijst hierboven toont elke knoop als "Ouder › Kind", en regel 1
+  // vraagt de namen LETTERLIJK over te nemen. Het model doet dat dus ook — het
+  // gaf "Specialismen › Sportfysiotherapie" terug — terwijl deze koppeling
+  // alleen op `o.name` zocht. Uitkomst bij Fysi-Unique: acht topics, nul
+  // verwijzingen naar het aanbod waar ze uit volgden, en dus een onderbouwing
+  // die op het scherm nergens naar terug te klikken is.
+  const byLabel = new Map<string, string>();
+  for (const o of offerings) {
+    const parent = o.parent_id ? byId.get(o.parent_id) : null;
+    byLabel.set(o.name.trim().toLowerCase(), o.id);
+    if (parent) {
+      byLabel.set(`${parent.name} › ${o.name}`.trim().toLowerCase(), o.id);
+    }
+  }
   const voorstellen = result.parsed.topics
     .filter((t) => {
       const key = t.title.trim().toLowerCase();
@@ -171,10 +187,16 @@ export async function proposeTopics(profileId: string): Promise<TopicResult> {
       title: t.title.trim(),
       rationale: t.rationale.trim() || null,
       // Alleen verwijzingen die echt bestaan. Een verzonnen aanbodnaam zou een
-      // topic opleveren dat nergens op terug te voeren is.
-      offering_ids: t.offerings
-        .filter((naam) => namen.has(naam.trim().toLowerCase()))
-        .map((naam) => offerings.find((o) => o.name.toLowerCase() === naam.trim().toLowerCase())!.id),
+      // topic opleveren dat nergens op terug te voeren is. Ontdubbeld, want
+      // "Sportfysiotherapie" en "Specialismen › Sportfysiotherapie" wijzen naar
+      // dezelfde knoop.
+      offering_ids: [
+        ...new Set(
+          t.offerings
+            .map((naam) => byLabel.get(naam.trim().toLowerCase()))
+            .filter((id): id is string => Boolean(id)),
+        ),
+      ],
       // Aflopend: hoogste prioriteit bovenaan bij `order by priority desc`.
       priority: Math.max(0, MAX_TOPICS - (Number.isFinite(t.priority) ? t.priority : i + 1)),
       status: "voorgesteld",

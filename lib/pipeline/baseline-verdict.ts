@@ -37,6 +37,61 @@ export interface KnownFact {
   /** 'telefoon', 'adres', 'opgericht', 'naam', … — de sleutel uit fase 0. */
   key: string;
   value: string;
+  /** Uit welk schema-type het feit komt ('Organization', 'WebPage', …). */
+  fromType?: string;
+}
+
+/**
+ * Schema-typen die iets over de PAGINA zeggen en niets over het bedrijf. Hun
+ * `name` is de paginatitel — "Tarieven | Fysi-Unique" — en die als feit
+ * controleren levert alleen ruis op.
+ */
+const PAGE_LEVEL_TYPES = new Set([
+  "WebPage",
+  "Article",
+  "BlogPosting",
+  "ImageObject",
+  "OpenGraph",
+  "BreadcrumbList",
+  "CollectionPage",
+  "ItemPage",
+]);
+
+/**
+ * Welke geoogste feiten zich lenen voor een kennistest — en welke niet.
+ *
+ * ── WAAROM DIT EEN EIGEN FUNCTIE IS, EN GEEN FILTER TER PLEKKE ──────────────
+ *
+ * Bij Fysi-Unique (3 aug 2026) gingen er 19 feiten de controle in. Zeventien
+ * daarvan waren paginatitels uit `WebPage`-opmaak ("Vacature: Algemeen
+ * Fysiotherapeut - Fysi-Unique"), en de twee die als `bevestigd` uit de bus
+ * kwamen waren de merknaam zelf. Die staat in het antwoord omdat hij in de
+ * VRAAG staat — een controle die niet kán mislukken meet niets, en telde hier
+ * wél mee als bewijs dat het model het merk kent.
+ *
+ * Twee regels dus, allebei deterministisch:
+ *   1. Weg met paginaniveau-opmaak: alleen feiten over de ENTITEIT tellen.
+ *   2. Weg met de merknaam en zijn aliassen: circulair bewijs.
+ *
+ * Blijft er niets over, dan is dat een echt antwoord (conventie 3): deze site
+ * zet geen adres, telefoonnummer of oprichtingsjaar in zijn opmaak, en dan valt
+ * er niets na te rekenen.
+ */
+export function checkableFacts(
+  facts: KnownFact[],
+  brandNames: string[],
+): KnownFact[] {
+  const eigen = new Set(
+    brandNames.filter(Boolean).map((n) => normalize(n)).filter((n) => n !== ""),
+  );
+
+  return facts.filter((f) => {
+    if (f.fromType && PAGE_LEVEL_TYPES.has(f.fromType)) return false;
+    if (f.key === "naam" || f.key === "naam_opengraph") {
+      return !eigen.has(normalize(f.value));
+    }
+    return true;
+  });
 }
 
 export interface FactCheck {
@@ -77,6 +132,20 @@ function digitsOnly(s: string): string {
  * expliciete lijst: elke "voorzichtige" formulering meetellen zou elk genuanceerd
  * antwoord als onbekend markeren, en juist de nuance is wat een goed antwoord
  * onderscheidt van een verzonnen antwoord.
+ *
+ * ⚠️ DE TWEEDE GROEP IS ER BIJ GEKOMEN NA DE EERSTE ECHTE MEETRONDE (3 aug 2026)
+ *
+ * Bij Fysi-Unique antwoordde het model op béíde `kent`-vragen letterlijk "zonder
+ * plaatsnaam of website kan ik niet met zekerheid zeggen welke organisatie je
+ * bedoelt" en "ik weet niet zeker welke organisatie je bedoelt". Geen van de
+ * zinnen hierboven kwam daarin voor, dus `admitsUnknown` gaf false, dus
+ * `knowsBrand` gaf true — enkel omdat de merknaam in het antwoord stond, en die
+ * stond er omdat hij in de VRAAG stond. Het profielscherm meldde "ChatGPT kent
+ * Fysi-Unique" en de synthese schreef het over als "ChatGPT kent het bedrijf al".
+ *
+ * Dit is geen voorzichtige formulering maar het tegendeel van kennen: het model
+ * kan de naam niet aan één organisatie koppelen. Dat is precies de bevinding
+ * waar dit blok voor bestaat.
  */
 const UNKNOWN_PHRASES = [
   "geen informatie",
@@ -91,6 +160,17 @@ const UNKNOWN_PHRASES = [
   "i don't have",
   "no information",
   "not familiar",
+  // Het model kan de naam niet aan één organisatie koppelen.
+  "niet met zekerheid",
+  // Beide woordvolgorden: "ik weet niet zeker welke…" en "welke … weet ik niet
+  // zeker". `normalize()` haalt leestekens weg maar laat de volgorde staan.
+  "ik weet niet zeker",
+  "weet ik niet zeker",
+  "welke organisatie je bedoelt",
+  "welk bedrijf je bedoelt",
+  "welke je bedoelt",
+  "meerdere bedrijven met de naam",
+  "geen specifieke informatie",
 ];
 
 /**

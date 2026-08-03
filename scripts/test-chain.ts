@@ -471,6 +471,63 @@ async function main(): Promise<void> {
       (await getOwnedProfile(adminClient, profileId, beheerderId))?.id === profileId,
     );
 
+    // ══════════════════════════════════════════════════════════════════════
+    // Een correctie overleeft een tweede onderzoeksronde (migratie 0039)
+    //
+    // Dit is samenhang tussen twee dingen die elk apart werkten: de bewerkroute
+    // schrijft `profile_field_sources`, en `prepare-profile.ts` leest die tabel
+    // vóór hij een AI-patch wegschrijft. Tot 3 augustus 2026 schreef alleen de
+    // strategieroute die rijen — en dan nog alleen voor aliassen en werkgebied.
+    // De gewone manier waarop iemand een profiel corrigeert liet geen spoor na,
+    // dus `filterProtectedFields()` blokkeerde nooit iets en de knop "onderzoek
+    // opnieuw" zou elke correctie stil overschrijven.
+    //
+    // Geen unittest kon dit vangen: die functie deed precies wat hij moest doen
+    // op de invoer die hij kreeg. Het gat zat ertussen.
+    // ══════════════════════════════════════════════════════════════════════
+    console.log("\nEen correctie overleeft een tweede onderzoeksronde");
+
+    const { filterProtectedFields } = await import("@/lib/pipeline/field-merge");
+
+    // Wat de bewerkroute nu doet als de klant de branche corrigeert.
+    await db.client.query(
+      `insert into public.profile_field_sources (profile_id, field, source, confidence, set_by)
+       values ($1, 'industry', 'klant', 1, $2)
+       on conflict (profile_id, field) do update set source = excluded.source`,
+      [profileId, vreemdeId],
+    );
+
+    const { rows: herkomst } = await db.client.query(
+      "select field, source from public.profile_field_sources where profile_id = $1",
+      [profileId],
+    );
+
+    const { allowed, blocked } = filterProtectedFields(
+      { industry: "iets wat het model bedacht", summary: "nieuwe samenvatting" },
+      herkomst as { field: string; source: "ai" | "klant" | "gesprek" }[],
+    );
+
+    ok("0039: de gecorrigeerde branche wordt tegengehouden", blocked.includes("industry"));
+    ok("0039: en staat niet in de patch", !("industry" in allowed));
+    ok("0039: de rest gaat gewoon door", allowed.summary === "nieuwe samenvatting");
+
+    // 'ai' is geen mens: een veld dat een vorige ronde zette mag ververst worden.
+    await db.client.query(
+      "update public.profile_field_sources set source = 'ai' where profile_id = $1 and field = 'industry'",
+      [profileId],
+    );
+    const { rows: herkomst2 } = await db.client.query(
+      "select field, source from public.profile_field_sources where profile_id = $1",
+      [profileId],
+    );
+    ok(
+      "0039: wat de AI zelf zette mag wél overschreven worden",
+      filterProtectedFields(
+        { industry: "een nieuwere afleiding" },
+        herkomst2 as { field: string; source: "ai" | "klant" | "gesprek" }[],
+      ).blocked.length === 0,
+    );
+
     __setTestAdminClient(null);
     __setTestTransport(null);
   } finally {

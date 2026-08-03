@@ -97,16 +97,19 @@ import { dedupe } from "@/lib/jobs/dedupe";
 import {
   buildVerdict,
   checkFacts,
+  checkableFacts,
   knowsBrand,
   admitsUnknown,
   describeVerdict,
 } from "@/lib/pipeline/baseline-verdict";
+import { quoteOnPage, quoteConfidence } from "@/lib/pipeline/quote-check";
 import { buildSteps, researchRunning } from "@/lib/pipeline/research-steps";
 import {
   filterProtectedFields,
   confidenceLevel,
   isHumanSet,
   describeMerge,
+  resolveScope,
 } from "@/lib/pipeline/field-merge";
 import {
   parseContextFactors,
@@ -2402,6 +2405,120 @@ group("zekerheid als drie niveaus, niet als kommagetal (§8)", () => {
   ok("null is onbekend", confidenceLevel(null) === "onbekend");
   ok("ontbrekend ook", confidenceLevel(undefined) === "onbekend");
   ok("nul is onzeker, niet onbekend", confidenceLevel(0) === "onzeker");
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+// De verificatieronde van 3 augustus 2026 (Fysi-Unique op productie). Elk van
+// deze groepen hoort bij een fout die pas zichtbaar werd toen de pijplijn één
+// keer helemaal doorliep — geen enkele bestaande test ving hem.
+// ════════════════════════════════════════════════════════════════════════════
+
+group("het model dat de naam niet kan thuisbrengen, kent het merk niet", () => {
+  // Letterlijk de twee antwoorden die de kennistest op 3 augustus terugkreeg.
+  const a1 =
+    "Fysi-Unique lijkt de naam van een fysiotherapiepraktijk of gezondheidscentrum te " +
+    "zijn, maar zonder plaatsnaam of website kan ik niet met zekerheid zeggen welke " +
+    "organisatie je bedoelt.";
+  const a2 =
+    "Ik weet niet zeker welke organisatie je bedoelt: er zijn mogelijk meerdere " +
+    "bedrijven met de naam Fysi-Unique. Kun je de plaats of website delen?";
+
+  ok("'niet met zekerheid' telt als niet kennen", admitsUnknown(a1));
+  ok("'ik weet niet zeker' ook", admitsUnknown(a2));
+  ok(
+    "en dus kent het model het merk niet",
+    !knowsBrand(a1, "Fysi-Unique", ["Fysi Unique"]) &&
+      !knowsBrand(a2, "Fysi-Unique", ["Fysi Unique"]),
+  );
+  // Het omgekeerde moet blijven werken: een echt antwoord is geen twijfel.
+  ok(
+    "een stellig antwoord telt nog steeds als kennen",
+    knowsBrand(
+      "Fysi-Unique is een fysiotherapiepraktijk aan de Henry Dunantstraat in Amersfoort.",
+      "Fysi-Unique",
+      [],
+    ),
+  );
+});
+
+group("de merknaam is geen bewijs dat het model je kent", () => {
+  const feiten = [
+    { key: "naam", value: "Fysi-Unique", fromType: "WebSite" },
+    { key: "naam", value: "Fysi Unique", fromType: "Person" },
+    { key: "naam", value: "Tarieven | Fysi-Unique", fromType: "WebPage" },
+    { key: "telefoon", value: "033 455 89 45", fromType: "Organization" },
+  ];
+  const overgebleven = checkableFacts(feiten, ["Fysi-Unique", "Fysi Unique"]);
+
+  ok("de merknaam zelf valt af", !overgebleven.some((f) => f.key === "naam"));
+  ok(
+    "een paginatitel valt af",
+    !overgebleven.some((f) => f.value.includes("Tarieven")),
+  );
+  ok(
+    "het telefoonnummer blijft — dát is na te rekenen",
+    overgebleven.length === 1 && overgebleven[0].key === "telefoon",
+  );
+  // Niets over houden is een geldige uitkomst en geen fout (conventie 3).
+  ok(
+    "een site zonder entiteitsopmaak levert nul controles op",
+    checkableFacts(
+      [{ key: "naam", value: "Fysi-Unique", fromType: "WebPage" }],
+      ["Fysi-Unique"],
+    ).length === 0,
+  );
+});
+
+group("bereik en werkgebied horen bij elkaar", () => {
+  ok(
+    "lokaal mét regio blijft staan",
+    resolveScope("lokaal", ["Amersfoort"]).scope === "lokaal",
+  );
+  // 'lokaal' zonder regio doet nergens iets: prompts.ts eist beide, en
+  // llm-baseline.ts valt terug op "in Nederland". Dan liever niets beweren.
+  ok(
+    "lokaal zonder regio wordt null",
+    resolveScope("lokaal", []).scope === null,
+  );
+  ok(
+    "'onbekend' wordt null en niet een gok",
+    resolveScope("onbekend", []).scope === null,
+  );
+  // Andersom is wél informatie: wie regio's noemt, is lokaal.
+  ok(
+    "regio's zonder bereik maken het lokaal",
+    resolveScope("onbekend", ["Amersfoort"]).scope === "lokaal",
+  );
+  ok(
+    "landelijk houdt zijn waarde",
+    resolveScope("landelijk", []).scope === "landelijk",
+  );
+  ok(
+    "dubbele regio's worden ontdubbeld",
+    resolveScope("lokaal", ["Amersfoort", "amersfoort", " "]).regions.length ===
+      1,
+  );
+});
+
+group("een citaat telt pas als het er letterlijk staat", () => {
+  const pagina =
+    "Bij Fysi-Unique werken we\n  zonder standaardprotocollen. Intake € 59,00.";
+
+  ok(
+    "over twee regels afgebroken citaat matcht toch",
+    quoteOnPage("we werken zonder standaardprotocollen", pagina) === false &&
+      quoteOnPage("werken we zonder standaardprotocollen", pagina),
+  );
+  ok("een citaat dat er niet staat matcht niet", !quoteOnPage("gratis parkeren", pagina));
+  // Een los woord staat op bijna elke pagina; dat bevestigt niets.
+  ok("te kort telt niet", !quoteOnPage("Intake", pagina));
+
+  ok("gevonden citaat is zeker", quoteConfidence("Intake € 59,00", pagina) === 1);
+  ok(
+    "niet gevonden citaat is onzeker, niet onbekend",
+    quoteConfidence("Intake € 99,00", pagina) === 0.5,
+  );
+  ok("geen citaat is onbekend", quoteConfidence("", pagina) === null);
 });
 
 // ════════════════════════════════════════════════════════════════════════════
