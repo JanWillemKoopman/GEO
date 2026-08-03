@@ -1,6 +1,6 @@
 # Onboarding 2.0 — consultant-gedreven klantprofiel, core topics en multi-engine
 
-**Status:** open · **Effort:** ~14 werkdagen in 5 blokken · **Opgesteld:** 3 augustus 2026
+**Status:** open · **Effort:** ~13,5 werkdagen in 5 blokken · **Opgesteld:** 3 augustus 2026
 **Vertrekpunt:** `main` op `cb34ed3`, migraties t/m `0037`, 416 unittests + 25 ketentests groen.
 
 ---
@@ -22,7 +22,7 @@ bedrijfsnaam, eventuele andere schrijfwijzen.**
 
 | Beslissing | Gevolg |
 |---|---|
-| Consultant zet klaar, klant krijgt later toegang | Stafrol + eigendomsoverdracht in datamodel en RLS (blok A) |
+| Superuser zet klaar, wijst daarna toe aan een klantaccount | Superuserrol in RLS + toewijzing; accounts maakt de eigenaar zelf in Supabase (blok A) |
 | €2 plafond voor de onboarding; topicverkenning valt erbuiten | Budgetpoort per profiel (blok B) |
 | Topics zijn een voorstellijst zonder meting | `propose_topics` is één goedkope aanroep (blok D) |
 | Gemini in de kennistest **én** de maandelijkse meting | Enginelaag moet tot in de aggregatie (blok E) |
@@ -51,7 +51,7 @@ verandert van eigenaar.
 |---|---|---|---|
 | **0** | **Voorbereiding** | consultant | Voert URL + naam in. Pipeline draait ~10 min. |
 | **1** | **Profiel** | pipeline | Zes onderzoeksfases, alles met bron en zekerheid |
-| **1b** | **Het gesprek** | consultant + klant | Corrigeren, aanvullen, strategie vastleggen, overdragen |
+| **1b** | **Het gesprek** | superuser + klant | Corrigeren, aanvullen, strategie vastleggen, toewijzen |
 | **1c** | **Core topics** | consultant | 5–8 voorstellen, handmatig aan/uit |
 | 2–5 | Analyse opstellen → runnen → content → monitoren | ongewijzigd | Een goedgekeurde topic start de bestaande fase 2 |
 
@@ -66,30 +66,34 @@ Vier stuks, additief en idempotent. `0033` blijft ongebruikt: de inventariskwali
 gereserveerd stond (R6.2) zit nu in `0039`. Markeer `0033` in `supabase/README.md` als **vervallen**
 in plaats van gereserveerd.
 
-### `0038_staf_en_overdracht.sql`
+### `0038_superuser_en_toewijzing.sql`
 
 ```sql
 create table if not exists public.staff_users (
   user_id    uuid primary key references auth.users (id) on delete cascade,
-  role       text not null default 'consultant',
+  role       text not null default 'superuser',
   created_at timestamptz not null default now()
 );
 
 alter table public.profiles
   add column if not exists created_by_user_id uuid references auth.users (id),
-  add column if not exists handover_state text not null default 'intern',
-  add column if not exists handover_at timestamptz;
-
-alter table public.profiles
-  drop constraint if exists profiles_handover_state_check,
-  add  constraint profiles_handover_state_check
-       check (handover_state in ('intern', 'overgedragen'));
+  add column if not exists assigned_at timestamptz;
 ```
 
 Plus een `is_staff()`-hulpfunctie (`security definer`, leest `staff_users`) en een **verruimde
-selectpolicy** op elke tabel die de consultant moet kunnen inzien: `user_id = auth.uid() or
-public.is_staff()`. Dat is een bewuste verbreding — staf ziet álles. Documenteer hem als zodanig;
-hij is niet per ongeluk te maken en mag niet stilzwijgend blijven staan.
+selectpolicy** op elke tabel die de superuser moet kunnen inzien: `user_id = auth.uid() or
+public.is_staff()`. Dat is een bewuste verbreding — de superuser ziet álles. Documenteer hem als
+zodanig; hij is niet per ongeluk te maken en mag niet stilzwijgend blijven staan.
+
+**Na de migratie, handmatig, éénmalig:** de eigenaar zet zichzelf erin.
+
+```sql
+insert into public.staff_users (user_id)
+select id from auth.users where email = '<eigenaar>' on conflict do nothing;
+```
+
+Bewust niet in de migratie: een hardgecodeerd account-ID in versiebeheer is een achterdeur die
+niemand meer terugvindt.
 
 ⚠️ **Het gevaarlijkste stuk van dit plan.** `is_staff()` binnen een policy die zelf `staff_users`
 leest, geeft oneindige recursie als die tabel ook RLS krijgt. Houd `staff_users` **zonder policies**
@@ -204,29 +208,50 @@ count(*) > 1`.
 
 ---
 
-## 3. Blok A — Stafrol en overdracht (2 d)
+## 3. Blok A — Superuser, toewijzing en inloggen (1,5 d)
 
 **Bestanden:** `lib/auth.ts`, `lib/profiles.ts`, `lib/analyses.ts`, `app/api/profiles/route.ts`,
-nieuw `app/api/profiles/[id]/handover/route.ts`, `app/(app)/profielen/[id]/handover-box.tsx`.
+nieuw `app/api/profiles/[id]/assign/route.ts`, `app/(app)/profielen/[id]/assign-box.tsx`,
+`app/(auth)/actions.ts`, nieuw `app/(auth)/wachtwoord-vergeten/` en `app/(auth)/wachtwoord/`.
 
-1. `isStaff(userId)` naast `getUser()`. Eén plek, gecached per request.
-2. `getOwnedProfile()` en `getOwnedAnalysis()` krijgen een tweede uitweg: eigenaar **of** staf.
-   Dit is de gevoeligste wijziging van het hele plan — elke schrijfroute hangt eraan. Alle 30+
-   aanroepplekken moeten mee, en er hoort een ketentest bij die bewijst dat een gewone gebruiker
-   nog steeds niet bij het profiel van een ander kan.
-3. Aanmaken: `created_by_user_id = auth.uid()`, `user_id = auth.uid()` (de consultant is tijdelijk
-   eigenaar), `handover_state = 'intern'`.
-4. **Overdracht** — `POST /api/profiles/[id]/handover { email }`:
-   - zoekt of maakt de auth-gebruiker (Supabase invite);
-   - zet `profiles.user_id`, **en cascadeert naar `analyses.user_id`, `content_pieces` en al het
-     andere dat `user_id` draagt van dat profiel** — in één transactie. Vergeet je dit, dan ziet de
-     klant zijn profiel maar niet zijn analyses;
-   - zet `handover_state = 'overgedragen'` en `handover_at`.
-5. UI: een overdrachtblok op de profielpagina, alleen zichtbaar voor staf.
+### Accounts maakt de eigenaar zelf
 
-**Verificatie:** een consultantaccount ziet alle profielen; een klantaccount ziet alleen het zijne;
-na overdracht is het profiel én al zijn analyses van de klant, en de consultant houdt toegang via
-`is_staff()`. Ketentest voor alle drie.
+Geen registratie, geen uitnodigingsmails, geen gebruikersbeheer in de app. De eigenaar maakt een
+klantaccount aan in het Supabase-dashboard. De app hoeft daar niets van te weten. `SIGNUPS_ENABLED`
+staat al in `lib/config.ts` en de registratiepagina zit er al achter — die knop gaat definitief uit.
+
+Dat scheelt het hele stuk dat ik eerder als "de gevaarlijkste kant" aanmerkte: geen invite-API, geen
+half-aangemaakte gebruikers, geen e-mailbezorging in de kritieke flow.
+
+### Wat er wél gebouwd wordt
+
+1. **`isStaff(userId)`** naast `getUser()`. Eén plek, gecached per request.
+2. **`getOwnedProfile()` en `getOwnedAnalysis()` krijgen een tweede uitweg:** eigenaar **of**
+   superuser. Dit blijft de gevoeligste wijziging van het plan — elke schrijfroute hangt eraan.
+   Alle aanroepplekken moeten mee, met een ketentest die bewijst dat een gewóne gebruiker nog
+   steeds niet bij andermans profiel kan.
+3. **Aanmaken:** `created_by_user_id = auth.uid()`, `user_id = auth.uid()`. De superuser is dus
+   gewoon eigenaar tot hij toewijst — een prospect hoeft nog geen account te hebben.
+4. **Toewijzen** — `POST /api/profiles/[id]/assign { userId }`, alleen superuser:
+   - zet `profiles.user_id` **en** `analyses.user_id` voor de analyses van dit profiel;
+   - zet `assigned_at`.
+
+   Dat zijn precies twee tabellen: `user_id` komt alleen voor in `profiles` (`0004`) en `analyses`
+   (`0001`); al het andere — `content_pieces`, `prompts`, `tracking_runs`, `reports` — hangt via
+   joins aan de analyse en verhuist vanzelf mee. Nagekeken op 3 augustus 2026 over alle migraties.
+5. **UI:** een toewijsblok op de profielpagina, alleen zichtbaar voor de superuser, met een
+   keuzelijst van bestaande gebruikers (`auth.admin.listUsers()` via de service-role key). Geen
+   e-mailveld — kiezen uit wat bestaat, niet typen wat misschien bestaat.
+6. **Wachtwoord vergeten.** Twee pagina's en twee server actions naast de bestaande `signIn`:
+   `resetPasswordForEmail()` (stuurt de mail) en `updateUser({ password })` (op de terugkomlink).
+   ⚠️ Dit is de enige plek in de app die e-mail **moet** kunnen versturen. `EMAILS_ENABLED` staat op
+   `false` en dat is voor rapportmail prima, maar wachtwoordherstel loopt via Supabase Auth zelf en
+   niet via Resend — die staat dus los van die schakelaar. Controleer wel de SMTP-instelling van het
+   Supabase-project: de standaard-mailer heeft een lage limiet en is niet bedoeld voor productie.
+
+**Verificatie:** superuser ziet alle profielen; een klantaccount alleen het eigene; na toewijzing is
+het profiel én zijn analyses van de klant en houdt de superuser toegang via `is_staff()`;
+`/register` geeft een 404. Ketentest voor de eerste drie.
 
 ---
 
@@ -497,7 +522,7 @@ plan en de enige die de maandelijkse kosten per klant structureel raakt — reke
 | # | Blok | Dagen | Waarom hier |
 |---|---|---|---|
 | 1 | **B fase 0** (ontdekken, gratis) | 2 | Grootste kwaliteitssprong, nul kosten, blokkeert al het andere |
-| 2 | **A** (staf + overdracht) | 2 | Zonder dit is er geen consultantflow om op te bouwen |
+| 2 | **A** (superuser + toewijzing + inloggen) | 1,5 | Zonder dit is er geen consultantflow om op te bouwen |
 | 3 | **B fase 1–3, 6** (onderzoek) | 3 | Het profiel zelf |
 | 4 | **C** (correctie + strategiekaart) | 2 | Maakt fase 3 bruikbaar; zonder dit is het onbevestigde data |
 | 5 | **D** (topics) | 2 | Klein, en het leunt op het aanbod uit fase 2 |
@@ -514,7 +539,7 @@ Conventie 10: gebouwd is niet geverifieerd. Per blok, tegen echte data:
 
 | Blok | Criterium |
 |---|---|
-| A | Consultant ziet alle profielen; klant alleen het eigene; na overdracht zijn profiel **én analyses** van de klant. Ketentest voor alle drie. |
+| A | Superuser ziet alle profielen; klant alleen het eigene; na toewijzing zijn profiel **én analyses** van de klant. `/register` geeft 404, wachtwoordherstel levert een werkende inlog. Ketentest voor de eerste drie. |
 | B fase 0 | Bol wordt als "onvoldoende" gemarkeerd (1 pagina), HEMA als "vervuild" (overwegend productpagina's), de andere drie als voldoende. Dit is het bestaande R6.2-criterium. |
 | B fase 2 | Bij Fysi-Unique (dienstverlener) staat de dienstenboom met minstens 4 diensten, elk met `evidence_url`. Bij HEMA (retailer) staat de categorieboom uit de sitemap. |
 | B fase 4 | Blok B levert per feit een oordeel dat **deterministisch** herleidbaar is — geen enkel oordeel komt uit het model zelf. |
@@ -536,7 +561,9 @@ vorige traject.
 
 **De RLS-verbreding is het gevaarlijkst.** `is_staff()` geeft leestoegang tot alles. Eén fout in de
 policy en klanten zien elkaars gegevens. Dit blok verdient een expliciete ketentest per tabel, en
-`staff_users` moet zonder policies blijven om recursie te voorkomen.
+`staff_users` moet zonder policies blijven om recursie te voorkomen. Zolang er één superuser en een
+handvol klanten zijn is de schade begrensd, maar de policy is geschreven voor de dag dat dat niet
+meer waar is.
 
 **Het correctieanker verdwijnt.** Nu vangt klantinvoer modelfouten af; straks is er niets tot het
 gesprek. Een fout profiel vervuilt élke latere analyse. Mitigatie: zekerheid per veld, herkomst per
@@ -561,6 +588,8 @@ verlopen facetten ververst — en nooit een veld met bron `klant` of `gesprek` a
 - **Backfill van bestaande profielen.** Helemaal niet: geen automatische ronde en ook geen
   handmatige route. Het nieuwe onderzoek geldt alleen voor nieuwe profielen.
 - **Apart gespreksleidraad-scherm.** De oplopende sortering van `ProfileGaps` is de leidraad.
+- **Gebruikersbeheer in de app.** Accounts maakt de eigenaar in het Supabase-dashboard. De app kent
+  alleen inloggen, uitloggen en wachtwoordherstel; registratie blijft uit.
 - **Meting per topic vóór goedkeuring.** Besloten: alleen een voorstellijst.
 - **Meer engines dan OpenAI en Gemini.** De abstractie maakt het mogelijk; de beslissing is een
   aparte.
