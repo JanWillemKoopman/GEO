@@ -1,6 +1,7 @@
 # Onboarding 2.0 — consultant-gedreven klantprofiel, core topics en multi-engine
 
 **Status:** in uitvoering · **Effort:** ~13,5 werkdagen in 5 blokken · **Opgesteld:** 3 augustus 2026
+**Vertrekpunt:** `main` op `cb34ed3`, migraties t/m `0037`, 416 unittests + 25 ketentests groen.
 
 ## Voortgang (3 augustus 2026)
 
@@ -20,7 +21,6 @@
 | Blok B fase 5 — synthese op Sol | **Open** — de facetten hebben elk een eigen samenvatting, dus het profiel is leesbaar; wat ontbreekt is één samenvattend dossier en het vullen van `brand_facts` |
 
 Tests: **551 unittests, 34 ketentests**, `tsc` en `build` schoon.
-**Vertrekpunt:** `main` op `cb34ed3`, migraties t/m `0037`, 416 unittests + 25 ketentests groen.
 
 ---
 
@@ -81,7 +81,9 @@ vervanging.
 
 ## 2. Migraties
 
-Vier stuks, additief en idempotent. `0033` blijft ongebruikt: de inventariskwaliteit waarvoor hij
+Vijf stuks, additief en idempotent — `0042` kwam er bij nadat de Supabase-linter twee dingen
+meldde over de verbreding uit `0038`; zie de aparte kop onderaan deze sectie. `0033` blijft
+ongebruikt: de inventariskwaliteit waarvoor hij
 gereserveerd stond (R6.2) zit nu in `0039`. Markeer `0033` in `supabase/README.md` als **vervallen**
 in plaats van gereserveerd.
 
@@ -224,6 +226,22 @@ blijft het gewogen gemiddelde over de engines heen.
 ⚠️ Controleer vóór het aanmaken van die unieke index of de bestaande rijen hem niet schenden
 (oude metingen zonder `purpose`/`repeat_index`). Zo nodig eerst een `select` met `group by … having
 count(*) > 1`.
+
+---
+
+### `0042_rls_aanscherping.sql`
+
+Nagekomen, na de linter-controle op productie. Twee dingen, en ze horen in één migratie:
+`is_staff()` was aanroepbaar door `anon` (onschadelijk — `auth.uid()` is dan null, dus altijd
+`false` — maar een `security definer`-functie die zonder inloggen aan te roepen is, hoort dicht),
+en de stafpolicies golden voor élke rol omdat een `create policy` zonder `to`-clausule dat doet.
+Los toegepast levert het intrekken van de EXECUTE-rechten een *permission denied* op waar nul
+rijen hoort te staan.
+
+Plus een vast `search_path` op `set_updated_at()` — bestond al vanaf `0001`, maar `0039` en `0040`
+hingen er drie nieuwe triggers aan.
+
+Nagerekend op productie: 26 stafpolicies, alle op `authenticated`, geen enkele te breed.
 
 ---
 
