@@ -520,6 +520,32 @@ tússen.** Conventie 10, opnieuw bevestigd: gebouwd is niet geverifieerd.
    verwijst, dan is het 1,00 — anders 0,50. Alleen het twijfelgeval valt nog op,
    en dat is wat die chip hoort te doen.
 
+**De hermeting op de gerepareerde code, diezelfde avond.** Tweede schone
+onboarding van dezelfde site: **$0,2463**, alle acht taken groen. Vier van de zes
+reparaties tekenden zichzelf af — `service_scope = lokaal`, `service_regions =
+["Amersfoort"]`, `market_language = "Nederland, Nederlands"`; 22 aanbodknopen
+allemaal op `confidence 1.00` (elk citaat letterlijk teruggevonden, dus nul grijze
+chips); acht topics met 2–4 aanbodkoppelingen elk in plaats van nul; en de
+categorievragen van de kennistest vroegen nu "aanbieders van fysiotherapie **in
+Amersfoort**" in plaats van "in Nederland", met FitForum, SMC Amersfoort en
+Praktijk Boshuijzen als antwoord.
+
+**En de kennistest liet zien dat reparatie 1 te ver ging.** Met het werkgebied in
+de vraag antwoordde het model wél raak — *"Fysi-Unique in Amersfoort is een
+fysiotherapiepraktijk (…) Ik kan zonder actuele website-informatie niet met
+zekerheid zeggen welke specialisaties zij momenteel aanbieden"* — en dát werd nu
+als "kent het merk niet" gemeld. Vals negatief, waar het eerst vals positief was.
+De oorzaak: de reparatie nam naast de identiteitszinnen ook losse hedges mee
+("niet met zekerheid", "ik weet niet zeker"), en die slaan net zo vaak op een
+detail als op het merk.
+
+De grens ligt bij **identiteit**: "ik weet niet wélk bedrijf je bedoelt" is het
+tegendeel van kennen; "ik weet de openingstijden niet" is een detail dat
+`checkFacts()` afhandelt. De losse hedges zijn eruit, de vier antwoorden uit beide
+meetronden staan als testgevallen in `test-unit.ts` — twee die wél en twee die
+niet als onbekend mogen tellen. Zonder die tweede ronde was de overcorrectie pas
+opgevallen bij een klant die wél bekend is.
+
 De kostenverdeling verraste: `profile_synthesis` is met $0,127 (52%) de duurste
 stap, niet de web-zoekacties. Dat is het Sol-model achter `SYNTHESIS_PREMIUM`.
 De drie categorievragen van de kennistest samen $0,044; de rest valt in het niet.
