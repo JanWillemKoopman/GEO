@@ -37,6 +37,11 @@ export const JOB_TYPES = [
    * van het model zelf.
    */
   "profile_llm_baseline",
+  /**
+   * Fase 5: alles samenbrengen tot een leesbaar dossier en citeerbare feiten
+   * (blok B). De enige onboarding-stap op het dure model.
+   */
+  "profile_synthesis",
   /** Onderwerp-onderzoek voor één analyse. Ketent naar generate_prompts. */
   "prepare_analysis",
   /** Promptgeneratie voor één analyse (2e helft van de voorbereiding). */
@@ -93,6 +98,7 @@ export interface JobPayloads {
   profile_offering: Record<string, never>;
   propose_topics: Record<string, never>;
   profile_llm_baseline: Record<string, never>;
+  profile_synthesis: Record<string, never>;
   prepare_analysis: Record<string, never>;
   generate_prompts: Record<string, never>;
   calibrate_volumes: Record<string, never>;
@@ -166,7 +172,12 @@ export const HEAVY_JOB_TYPES: ReadonlySet<JobType> = new Set<JobType>([
    * Draait per beschikbare engine; het oordeel is deterministisch en komt niet
    * van het model zelf.
    */
-  "profile_llm_baseline", // één aanroep over 55.000 tekens sitetekst
+  "profile_llm_baseline",
+  /**
+   * Fase 5: alles samenbrengen tot een leesbaar dossier en citeerbare feiten
+   * (blok B). De enige onboarding-stap op het dure model.
+   */
+  "profile_synthesis", // één aanroep over 55.000 tekens sitetekst
   "prepare_analysis", // onderwerp-onderzoek: één gegrondde AI-aanroep
   "generate_prompts", // 3 parallelle prompt-calls, elk met een bijvul-ronde
   "profile_competitors", // destilleert eigenschappen uit alle antwoordfragmenten

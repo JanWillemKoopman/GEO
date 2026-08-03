@@ -58,6 +58,7 @@ export default async function ProfilePage({
     { data: baselineRows },
     { data: strategyRow },
     { data: offeringRows },
+    { data: synthesisRow },
   ] = await Promise.all([
     supabase
       .from("profile_pages")
@@ -112,6 +113,13 @@ export default async function ProfilePage({
       .select("*")
       .eq("profile_id", id)
       .order("sort_order"),
+    // De synthese (fase 5): het dossier in gewone taal plus de gespreksagenda.
+    supabase
+      .from("profile_facets")
+      .select("summary, raw_json")
+      .eq("profile_id", id)
+      .eq("facet", "synthese")
+      .maybeSingle(),
   ]);
 
   const audit = auditRow as TechnicalAuditRow | null;
@@ -124,6 +132,13 @@ export default async function ProfilePage({
   );
   const staleFactor = technicalAdviceStale(factors);
 
+  const dossier =
+    (synthesisRow as { summary?: string | null } | null)?.summary ?? null;
+  const researchGaps = (
+    ((synthesisRow as { raw_json?: { gaps?: unknown } } | null)?.raw_json
+      ?.gaps ?? []) as unknown[]
+  ).filter((g): g is string => typeof g === "string" && g.trim().length > 0);
+
   return (
     <div className="flex flex-col gap-4">
       {/* Het profiel gaat op 'klaar' na stap 2 van 6; deze strip laat zien wat
@@ -133,7 +148,14 @@ export default async function ProfilePage({
       {/* Waarde vóór inspanning (bijlage A9): de onboarding vraagt alleen naam
           en website; de rest vragen we hier, nu de klant het onderzoek heeft
           zien draaien en weet waar het voor dient. */}
-      <ProfileGaps profile={profile} />
+      {dossier && (
+        <div className="card flex flex-col gap-2">
+          <span className="mono-label">Het dossier</span>
+          <p className="text-secondary">{dossier}</p>
+        </div>
+      )}
+
+      <ProfileGaps profile={profile} researchGaps={researchGaps} />
 
       {staff && (
         <AssignBox

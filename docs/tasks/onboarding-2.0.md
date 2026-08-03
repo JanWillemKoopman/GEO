@@ -17,8 +17,8 @@
 | Blok D — core topics | **Klaar** |
 | Blok E — enginelaag + Gemini-adapter | **Klaar als bedrading**; uitwaaieren per engine bewust nog niet, zie §7 |
 | §8 — voortgang met tussenresultaten, zekerheid als niveau, "onderzoek opnieuw" | **Klaar** |
-| Blok B fase 2 — markt verdiepen | **Open** — het bestaande `profile_research` dekt de basis (concurrenten, positionering); wat ontbreekt is bewijs per concurrent en het merkbrede bronnenlandschap |
-| Blok B fase 5 — synthese op Sol | **Open** — de facetten hebben elk een eigen samenvatting, dus het profiel is leesbaar; wat ontbreekt is één samenvattend dossier en het vullen van `brand_facts` |
+| Blok B fase 2 — markt verdiepen | **Open, als enige** — het bestaande `profile_research` dekt concurrenten en positionering; wat ontbreekt is bewijs per concurrent en het merkbrede bronnenlandschap op merkniveau |
+| Blok B fase 5 — synthese op Sol | **Klaar** — dossier, gespreksagenda en geverifieerde feiten in `brand_facts` |
 
 Tests: **551 unittests, 34 ketentests**, `tsc` en `build` schoon.
 

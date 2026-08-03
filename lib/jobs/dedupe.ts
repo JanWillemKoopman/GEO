@@ -22,6 +22,7 @@ export const dedupe = {
   profileOffering: (profileId: string) => `profile_offering:${profileId}`,
   proposeTopics: (profileId: string) => `propose_topics:${profileId}`,
   llmBaseline: (profileId: string) => `llm_baseline:${profileId}`,
+  profileSynthesis: (profileId: string) => `profile_synthesis:${profileId}`,
   prepareAnalysis: (analysisId: string) => `prepare:${analysisId}`,
   generatePrompts: (analysisId: string) => `prompts:${analysisId}`,
   calibrateVolumes: (analysisId: string) => `volumes:${analysisId}`,

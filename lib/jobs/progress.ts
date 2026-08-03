@@ -36,6 +36,7 @@ const TYPICAL_SECONDS: Record<JobType, number> = {
   profile_offering: 45, // één aanroep over de hele sitetekst, geen web_search
   propose_topics: 12, // korte aanroep over alleen de aanbodboom
   profile_llm_baseline: 60, // 6 parallelle aanroepen per engine, deels met web_search
+  profile_synthesis: 55, // één aanroep op het premium model
   prepare_analysis: 30, // onderwerp-onderzoek: één gegrondde AI-aanroep
   generate_prompts: 40, // 3 parallelle prompt-calls, elk met een bijvul-ronde
   calibrate_volumes: 15, // één aanroep over alle vragen samen
@@ -78,6 +79,10 @@ const NON_BLOCKING_TYPES: ReadonlySet<JobType> = new Set<JobType>([
   // Ook verrijking: zonder kennisbasislijn mist de klant het antwoord op "wat
   // weet ChatGPT al over mij", maar zijn profiel en al zijn analyses werken.
   "profile_llm_baseline",
+  // De synthese is de laatste verrijking: valt hij weg, dan mist de klant zijn
+  // samenvattende dossier maar staan alle facetten er nog, elk met een eigen
+  // samenvatting.
+  "profile_synthesis",
 ]);
 
 /**

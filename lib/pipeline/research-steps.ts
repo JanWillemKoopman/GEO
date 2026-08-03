@@ -45,6 +45,7 @@ const STEPS: { job: JobType; label: string; facet: string | null }[] = [
     label: "Testen wat AI-assistenten al weten",
     facet: "llm_kennis",
   },
+  { job: "profile_synthesis", label: "Alles samenbrengen", facet: "synthese" },
 ];
 
 export interface StepInput {

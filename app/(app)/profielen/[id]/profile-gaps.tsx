@@ -26,7 +26,7 @@ function findGaps(profile: Profile): Gap[] {
     gaps.push({
       label: "Andere schrijfwijzen van je naam",
       effect:
-        "Noemt een AI je als \"Jansen BV\" terwijl je profiel \"Bakkerij Jansen\" zegt, dan tellen we die vermelding nu niet mee. Je score is dan te laag.",
+        'Noemt een AI je als "Jansen BV" terwijl je profiel "Bakkerij Jansen" zegt, dan tellen we die vermelding nu niet mee. Je score is dan te laag.',
     });
   }
 
@@ -57,19 +57,42 @@ function findGaps(profile: Profile): Gap[] {
   return gaps;
 }
 
-export function ProfileGaps({ profile }: { profile: Profile }) {
+export function ProfileGaps({
+  profile,
+  researchGaps = [],
+}: {
+  profile: Profile;
+  /**
+   * Wat het onderzoek zelf niet kon vaststellen (blok B fase 5). Bewust
+   * bovenaan: dit zijn concrete, in dertig seconden te beantwoorden vragen die
+   * de synthese formuleerde, en daarmee de agenda van het gesprek. De vaste
+   * punten hieronder zijn algemener en horen daaronder.
+   */
+  researchGaps?: string[];
+}) {
   const gaps = findGaps(profile);
-  if (gaps.length === 0) return null;
+  if (gaps.length === 0 && researchGaps.length === 0) return null;
 
   return (
     <div className="card card-accent flex flex-col gap-3">
       <span className="mono-label flex items-center gap-1">
         Dit zou de meting scherper maken
         <InfoHint label="Moet dit?">
-          Nee. Alles werkt ook zonder. Maar elk punt hieronder haalt een specifieke onnauwkeurigheid
-          weg — daarom staat erbij wát het verbetert.
+          Nee. Alles werkt ook zonder. Maar elk punt hieronder haalt een
+          specifieke onnauwkeurigheid weg — daarom staat erbij wát het
+          verbetert.
         </InfoHint>
       </span>
+
+      {researchGaps.length > 0 && (
+        <ul className="flex flex-col gap-2">
+          {researchGaps.map((vraag) => (
+            <li key={vraag} className="text-sm">
+              <span className="font-medium">{vraag}</span>
+            </li>
+          ))}
+        </ul>
+      )}
 
       <ul className="flex flex-col gap-2">
         {gaps.map((gap) => (
@@ -80,7 +103,10 @@ export function ProfileGaps({ profile }: { profile: Profile }) {
         ))}
       </ul>
 
-      <Link href={`/profielen/${profile.id}#profiel`} className="btn-outline btn-sm w-fit">
+      <Link
+        href={`/profielen/${profile.id}#profiel`}
+        className="btn-outline btn-sm w-fit"
+      >
         Profiel aanvullen
       </Link>
     </div>

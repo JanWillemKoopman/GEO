@@ -18,6 +18,7 @@ import { discoverSite } from "@/lib/pipeline/discover";
 import { buildOfferingTree } from "@/lib/pipeline/offering";
 import { proposeTopics } from "@/lib/pipeline/propose-topics";
 import { runLlmBaseline } from "@/lib/pipeline/llm-baseline";
+import { synthesiseProfile } from "@/lib/pipeline/synthesis";
 import {
   prepareTopicResearch,
   generateAnalysisPrompts,
@@ -214,9 +215,23 @@ const handlers: { [T in JobType]: Handler<T> } = {
     await proposeTopics(job.profile_id);
   },
 
-  profile_llm_baseline: async ({ job }) => {
+  profile_llm_baseline: async ({ admin, job }) => {
     if (!job.profile_id) throw new Error("profile_llm_baseline zonder profile_id.");
     await runLlmBaseline(job.profile_id);
+
+    // De synthese sluit de keten. Als laatste omdat hij op het dure model
+    // draait: is het budget op, dan valt hij als eerste terug of weg.
+    await enqueue(admin, {
+      type: "profile_synthesis",
+      payload: {},
+      profileId: job.profile_id,
+      dedupeKey: dedupe.profileSynthesis(job.profile_id),
+    });
+  },
+
+  profile_synthesis: async ({ job }) => {
+    if (!job.profile_id) throw new Error("profile_synthesis zonder profile_id.");
+    await synthesiseProfile(job.profile_id);
   },
 
   // ── Voorbereiding stap 1: onderwerp-onderzoek ─────────────────────────────
