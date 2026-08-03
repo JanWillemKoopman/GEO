@@ -6,21 +6,20 @@
 
 | Onderdeel | Stand |
 |---|---|
-| Migraties `0038`–`0041` | **Klaar**, toegepast op productie |
-| Blok A — superuser, toewijzing, wachtwoordherstel | **Klaar**, met ketentest per geval |
+| Migraties `0038`–`0042` | **Klaar**, toegepast op productie en nagerekend |
+| Blok A — superuser, toewijzing, wachtwoordherstel | **Klaar**, ketentest per geval |
 | Blok B fase 0 — ontdekken | **Klaar** (crawl 150, JSON-LD, taxonomie, inventariskwaliteit, renderbaarheid) |
-| Blok B fase 1 — aanbodboom | **Klaar** (`profile_offering`, per bedrijfsmodel) |
-| Blok B fase 4 — entiteitsconsistentie in de audit | **Klaar**, nul kosten |
-| Blok C — wizard uitgekleed | **Klaar** (4 stappen → 1 scherm, 11 velden → 3) |
-| Blok D — core topics | **Klaar** (`propose_topics` + paneel + analyse starten) |
+| Blok B fase 1 — aanbodboom | **Klaar**, per bedrijfsmodel, met bron per knoop |
+| Blok B fase 3 — LLM-kennisbasislijn | **Klaar**, met deterministisch oordeel |
+| Blok B fase 4 — entiteitsconsistentie | **Klaar**, nul kosten |
+| Blok C — wizard, strategiekaart, contextfactoren, veldbescherming | **Klaar** |
+| Blok D — core topics | **Klaar** |
 | Blok E — enginelaag + Gemini-adapter | **Klaar als bedrading**; uitwaaieren per engine bewust nog niet, zie §7 |
-| Blok B fase 2 — markt verdiepen | Open (het bestaande `profile_research` dekt de basis) |
-| Blok B fase 3 — LLM-kennisbasislijn | Open |
-| Blok B fase 5 — synthese op Sol | Open |
-| Blok C — herkomst-UI, strategiekaart, contextfactoren | Open |
-| §8 — voortgang met tussenresultaten, zekerheid als kleur, "onderzoek opnieuw" | Open |
+| §8 — voortgang met tussenresultaten, zekerheid als niveau, "onderzoek opnieuw" | **Klaar** |
+| Blok B fase 2 — markt verdiepen | **Open** — het bestaande `profile_research` dekt de basis (concurrenten, positionering); wat ontbreekt is bewijs per concurrent en het merkbrede bronnenlandschap |
+| Blok B fase 5 — synthese op Sol | **Open** — de facetten hebben elk een eigen samenvatting, dus het profiel is leesbaar; wat ontbreekt is één samenvattend dossier en het vullen van `brand_facts` |
 
-Tests: 492 unittests, 34 ketentests, `tsc` en `build` schoon.
+Tests: **551 unittests, 34 ketentests**, `tsc` en `build` schoon.
 **Vertrekpunt:** `main` op `cb34ed3`, migraties t/m `0037`, 416 unittests + 25 ketentests groen.
 
 ---

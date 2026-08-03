@@ -437,3 +437,24 @@ dubbel wordt ingepland; één tekenverschil is het verschil tussen een genegeerd
 tweede betaalde web-zoekactie per vraag. Ze waren onbereikbaar voor de unittests, en dat viel pas op
 toen de engine erbij kwam — precies conventie 2, twaalf migraties te laat toegepast.
 
+**Aanvulling, later op 3 augustus.** De tweede helft van de ronde: de
+LLM-kennisbasislijn met een oordeel dat in code wordt geveld en niet door het
+model (`baseline-verdict.ts` — het model vragen of zijn eigen antwoord klopt is
+de meting aan de gemetene vragen), de strategiekaart met contextfactoren die
+elk een gevolg in code hebben, en `field-merge.ts`, dat "een mens wint van een
+model" afdwingbaar maakt. Dat laatste is wat "onderzoek opnieuw" van een
+gevaarlijke knop in een bruikbare verandert.
+
+Eén bevinding onderweg die het noteren waard is: `dedupe` stond in een
+`server-only`-module en was daardoor onbereikbaar voor de unittests — twaalf
+migraties lang, want conventie 2 bestaat sinds ronde één. Het viel pas op toen
+de engine in de sleutel moest en juist die sleutel getoetst wilde worden. Eén
+tekenverschil daar is het verschil tussen een genegeerde dubbele taak en een
+tweede betaalde web-zoekactie per vraag.
+
+En na de RLS-verbreding meldde de Supabase-linter dat `is_staff()` aanroepbaar
+was door `anon`. Onschadelijk — `auth.uid()` is dan null, dus altijd `false` —
+maar migratie `0042` zet hem dicht, samen met een `to authenticated` op de 26
+stafpolicies. Die twee horen in één migratie: los toegepast levert het intrekken
+van de EXECUTE-rechten een "permission denied" op waar nul rijen hoort te staan.
+
