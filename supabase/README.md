@@ -76,6 +76,7 @@ Alle migraties zijn toegepast op productie, behalve `0033`.
 | `0039_profielverdieping.sql` | `profile_facets`, `profile_offerings` (aanbodboom), `profile_field_sources` (herkomst per veld); `inventory_quality_json`, `onboarding_budget_usd`, `deep_research_at` |
 | `0040_topics_en_strategie.sql` | `profile_topics` (5–8 core topics) en `profile_strategy` (gespreksuitkomst + contextfactoren) |
 | `0041_multi_engine.sql` | `ai_calls.engine`, `profiles.engines_enabled`, de idempotentie-index van `tracking_runs` mét engine, en `profile_llm_baseline` |
+| `0042_rls_aanscherping.sql` | `is_staff()` niet meer aanroepbaar door `anon`, stafpolicies expliciet op `authenticated`, vast zoekpad op `set_updated_at()` |
 
 ## Na `0038` — eenmalig, met de hand
 
