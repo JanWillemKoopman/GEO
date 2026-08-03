@@ -3,6 +3,22 @@
 Op volgorde. Stand: 1 augustus 2026, alles gemerged op `main`, 416 unittests + 25 ketentests groen,
 migraties t/m `0037` toegepast (`0033` gereserveerd, nooit gedraaid).
 
+## Nieuw hoofdspoor: Onboarding 2.0 (~15 d)
+
+Volledige bouwspec: [`onboarding-2.0.md`](./onboarding-2.0.md). Besloten 3 augustus 2026.
+
+Het product gaat van self-serve naar **sales-led**: een consultant zet het profiel klaar, de
+pipeline doet het onderzoek (~7 min, ≤ $2,15), en het uur consultancy gaat over strategie. De klant
+vult nog drie dingen in — webadres, bedrijfsnaam, andere schrijfwijzen. Daarnaast: 5–8 core topics
+als expliciete uitkomst, en Gemini erbij als tweede engine in zowel de kennistest als de meting.
+
+Dit spoor absorbeert twee openstaande punten hieronder: **R6.2** (inventariskwaliteit — wordt fase 0
+van de nieuwe pijplijn, migratie `0033` vervalt daarmee) en de helft van **R0.5** (`business_model`
+gaat de entiteitclassificatie eindelijk sturen).
+
+Punt 0 hieronder blijft er wél vóór gaan: zonder nagerekende GPT-5.6-kosten is de €2-budgetpoort
+gebouwd op een schatting.
+
 ## 0. De GPT-5.6-overstap natrekken — vóór alles (~$3, een uur)
 
 De modellen zijn omgezet (`logbook.md` §10) en de vier vaste controles zijn groen, maar er is nog
