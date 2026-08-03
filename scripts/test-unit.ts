@@ -93,6 +93,7 @@ import {
   normalizeBrand,
   sameBrand,
 } from "@/lib/audit/entity-consistency";
+import { dedupe } from "@/lib/jobs/dedupe";
 
 let passed = 0;
 let failed = 0;
@@ -2122,6 +2123,36 @@ group("de zwaarste bevinding: tekst pas na JavaScript", () => {
     entityConsistencyChecks({ ...basis, clientRenderedPages: 0 }).find(
       (c) => c.id === "entity.knowledge",
     )?.severity === "unknown",
+  );
+});
+
+group("de meetsleutel per engine (migratie 0041)", () => {
+  const a = "11111111-1111-1111-1111-111111111111";
+  const p = "22222222-2222-2222-2222-222222222222";
+
+  // OpenAI houdt de OUDE sleutel zonder achtervoegsel. Er staan taken in de
+  // database van vóór deze wijziging; een andere sleutel zou een lopende
+  // meetronde alles opnieuw laten inplannen — een tweede betaalde web-zoekactie
+  // per vraag.
+  ok(
+    "openai houdt de bestaande sleutel",
+    dedupe.measurePrompt(a, p, 3) === `measure:${a}:${p}:w3`,
+    dedupe.measurePrompt(a, p, 3),
+  );
+  ok(
+    "expliciet openai geeft hetzelfde",
+    dedupe.measurePrompt(a, p, 3, 0, "openai") === dedupe.measurePrompt(a, p, 3),
+  );
+
+  // En dit is het hele punt van de migratie: zonder engine in de sleutel ziet
+  // een Gemini-meting de OpenAI-meting als "al gedaan" en meet hij nooit.
+  ok(
+    "gemini krijgt een eigen sleutel",
+    dedupe.measurePrompt(a, p, 3, 0, "gemini") !== dedupe.measurePrompt(a, p, 3),
+  );
+  ok(
+    "en herhalingen blijven daarbinnen uniek",
+    dedupe.measurePrompt(a, p, 3, 1, "gemini") !== dedupe.measurePrompt(a, p, 3, 2, "gemini"),
   );
 });
 

@@ -246,6 +246,7 @@ const handlers: { [T in JobType]: Handler<T> } = {
       payload.weekNo,
       payload.impact,
       payload.repeatIndex ?? 0,
+      payload.engine ?? "openai",
     );
 
     // Een hermeting ná publicatie (optimalisatie.md 5.3) hoort bij een pagina,

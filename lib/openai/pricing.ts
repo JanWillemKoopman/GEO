@@ -51,6 +51,21 @@ const RATES: Record<string, ModelRate> = {
 };
 
 /**
+ * ⚠️ GEMINI: TARIEVEN NOG NIET GEVERIFIEERD.
+ *
+ * Er is nog geen GEMINI_API_KEY, dus er is ook nog geen enkele aanroep gedaan
+ * en geen enkele factuur om tegen te toetsen. Bewust GEEN gokwaarden in de
+ * tabel hierboven: een verzonnen tarief dat er 2x naast zit, ziet er in de
+ * kostenrapportage precies zo betrouwbaar uit als een echt tarief.
+ *
+ * Zolang er niets staat valt elk gemini-model op FALLBACK_RATE — het duurste
+ * tarief dat we kennen. Dat overschat de kosten, en dat is de veilige kant voor
+ * een budgetberekening. Vul dit in zodra de sleutel er is, samen met
+ * RATES_CHECKED_ON, en reken de eerste meetronde met twee engines na tegen
+ * `ai_calls` (conventie 10).
+ */
+
+/**
  * Terugval voor een model dat (nog) niet in de tabel staat — bewust aan de dure
  * kant, en dus gelijk aan het duurste model dat we draaien (Sol). Stond op het
  * gpt-4.1-tarief; dat zou een onbekend GPT-5.6-model 2,5× te goedkoop schatten,

@@ -7,7 +7,7 @@
  * Zo is "30 vragen meten" een kwestie van 30 taken plannen in plaats van een
  * architectuurwijziging — precies wat fase 2 (drie metingen per vraag) nodig heeft.
  */
-import type { ContentAction, ContentType } from "@/lib/types/database";
+import type { ContentAction, ContentType, EngineId } from "@/lib/types/database";
 import type { RecommendationTarget } from "@/lib/pipeline/recommendation";
 
 export const JOB_TYPES = [
@@ -104,6 +104,11 @@ export interface JobPayloads {
      * veld is het een gewone periodieke meting.
      */
     impact?: { purpose: "impact" | "control"; contentPieceId: string; wave: number };
+    /**
+     * Welke AI-assistent deze vraag beantwoordt (migratie 0041, blok E).
+     * Afwezig = 'openai', wat élke meting tot augustus 2026 was.
+     */
+    engine?: EngineId;
   };
   aggregate_week: { weekNo: number };
   profile_competitors: { weekNo: number };

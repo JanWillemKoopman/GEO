@@ -13,6 +13,8 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { callPlain, callStructured } from "@/lib/openai/structured";
 import { MODELS } from "@/lib/openai/models";
+import { getEngine } from "@/lib/engines/registry";
+import type { EngineId } from "@/lib/engines/types";
 import { measureWebSearchEnabled } from "@/lib/config";
 import { promptWeight, NEUTRAL_WEIGHT } from "@/lib/pipeline/prompt-weight";
 import { volumeBandOf } from "@/lib/pipeline/volume";
@@ -97,6 +99,15 @@ export async function measureOnePrompt(
    * blijft op 0 staan, precies zoals alle metingen van vóór migratie 0031.
    */
   repeatIndex = 0,
+  /**
+   * Welke AI-assistent deze vraag beantwoordt (migratie 0041, blok E).
+   *
+   * ⚠️ Alleen halte 3a wisselt mee. De BEOORDELING (3b) blijft altijd op één
+   * vast model: zouden we ook de beoordelaar laten meewisselen, dan meten we
+   * het verschil tussen twee beoordelaars in plaats van tussen twee engines, en
+   * is geen enkele vergelijking tussen ChatGPT en Gemini nog iets waard.
+   */
+  engineId: EngineId = "openai",
 ): Promise<void> {
   // De idempotentie-sleutel verschilt per soort meting. Bij een periodieke
   // meting is (analyse, prompt, periode, herhaling) genoeg; bij een
@@ -109,13 +120,20 @@ export async function measureOnePrompt(
     .eq("analysis_id", analysis.id)
     .eq("prompt_id", prompt.id);
 
+  // De engine hoort ONVOORWAARDELIJK in de sleutel. Zonder dit ziet een
+  // Gemini-meting de OpenAI-meting van dezelfde vraag als "al gedaan" en slaat
+  // hij zichzelf over — zonder foutmelding, met een lege score per engine
+  // terwijl alles groen lijkt. Migratie 0041 dwingt dezelfde sleutel af met een
+  // unieke index, zodat de code en de database het niet oneens kunnen worden.
   const { data: existing } = impact
     ? await query
+        .eq("engine", engineId)
         .eq("content_piece_id", impact.contentPieceId)
         .eq("impact_wave", impact.wave)
         .eq("purpose", impact.purpose)
         .maybeSingle()
     : await query
+        .eq("engine", engineId)
         .eq("week_no", weekNo)
         .eq("purpose", "periodic")
         .eq("repeat_index", repeatIndex)
@@ -142,13 +160,17 @@ export async function measureOnePrompt(
     // aan die knoppen draaien maakt de meting juist onrealistisch. De ruis die
     // dit oplevert lossen we op met méér metingen per vraag (optimalisatie.md
     // 2.1), niet met een lagere temperatuur.
-    const a = await callPlain({
-      model: MODELS.quality,
+    const engine = getEngine(engineId);
+    const a = await engine.callPlain({
       system: SIMULATE_SYSTEM,
       user: prompt.text,
       webSearch: measureWebSearchEnabled,
-      work: "simulation",
-      meta: { kind: "measure_simulate", analysisId: analysis.id, profileId: analysis.profile_id },
+      meta: {
+        kind: "measure_simulate",
+        analysisId: analysis.id,
+        profileId: analysis.profile_id,
+        engine: engineId,
+      },
     });
 
     // Vóór het opslaan controleren, niet erna: eenmaal opgeslagen wordt 3a nooit
@@ -173,8 +195,8 @@ export async function measureOnePrompt(
         // vanaf de volgende meting — een score met terugwerkende kracht
         // veranderen maakt de trend onvergelijkbaar.
         prompt_weight: promptWeight(volumeBandOf(prompt), prompt.intent_type),
-        engine: "openai",
-        model_used: MODELS.quality,
+        engine: engineId,
+        model_used: a.model,
         week_no: weekNo,
         purpose: impact?.purpose ?? "periodic",
         // Een impactmeting kent geen herhalingen: die gaat over een handvol
@@ -185,7 +207,8 @@ export async function measureOnePrompt(
         raw_response: a.text,
         raw_response_received_at: new Date().toISOString(),
         openai_response_id: a.responseId,
-        tokens_used: a.tokensUsed,
+        tokens_used:
+          a.inputTokens !== null && a.outputTokens !== null ? a.inputTokens + a.outputTokens : null,
         // Kosten van 3a op de meting zelf (optimalisatie.md 0.6). De kolom
         // bestond al vanaf migratie 0001 maar werd nooit gevuld. De 3b-kosten
         // staan in het ai_calls-logboek; 3a is verreweg de grootste post omdat
@@ -926,6 +949,15 @@ export async function measurePromptById(
   weekNo: number,
   impact?: MeasurePurpose,
   repeatIndex = 0,
+  /**
+   * Welke AI-assistent deze vraag beantwoordt (migratie 0041, blok E).
+   *
+   * ⚠️ Alleen halte 3a wisselt mee. De BEOORDELING (3b) blijft altijd op één
+   * vast model: zouden we ook de beoordelaar laten meewisselen, dan meten we
+   * het verschil tussen twee beoordelaars in plaats van tussen twee engines, en
+   * is geen enkele vergelijking tussen ChatGPT en Gemini nog iets waard.
+   */
+  engineId: EngineId = "openai",
 ): Promise<void> {
   const admin = createAdminClient();
   const ctx = await loadMeasureContext(admin, analysisId);
@@ -946,6 +978,7 @@ export async function measurePromptById(
     weekNo,
     impact,
     repeatIndex,
+    engineId,
   );
 }
 
