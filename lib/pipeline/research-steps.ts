@@ -38,6 +38,11 @@ const STEPS: { job: JobType; label: string; facet: string | null }[] = [
     label: "Diensten en producten in kaart brengen",
     facet: "aanbod",
   },
+  {
+    job: "profile_market",
+    label: "Concurrenten en marktbronnen uitzoeken",
+    facet: "markt",
+  },
   { job: "technical_audit", label: "Technische controle", facet: null },
   { job: "propose_topics", label: "Onderwerpen voorstellen", facet: null },
   {

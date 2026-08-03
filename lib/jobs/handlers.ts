@@ -17,6 +17,7 @@ import { prepareProfile } from "@/lib/pipeline/prepare-profile";
 import { discoverSite } from "@/lib/pipeline/discover";
 import { buildOfferingTree } from "@/lib/pipeline/offering";
 import { proposeTopics } from "@/lib/pipeline/propose-topics";
+import { researchMarket } from "@/lib/pipeline/market";
 import { runLlmBaseline } from "@/lib/pipeline/llm-baseline";
 import { synthesiseProfile } from "@/lib/pipeline/synthesis";
 import {
@@ -24,7 +25,11 @@ import {
   generateAnalysisPrompts,
   calibratePromptVolumes,
 } from "@/lib/pipeline/prepare";
-import { measurePromptById, computeAggregates, measurementIsUsable } from "@/lib/pipeline/measure";
+import {
+  measurePromptById,
+  computeAggregates,
+  measurementIsUsable,
+} from "@/lib/pipeline/measure";
 import { runBriefing } from "@/lib/pipeline/briefing";
 import { generateReport } from "@/lib/pipeline/report";
 import { profileCompetitors } from "@/lib/pipeline/competitor-intel";
@@ -35,7 +40,11 @@ import { verifyPublication } from "@/lib/pipeline/publish";
 import { runOffsiteScan } from "@/lib/offsite/scan";
 import { enqueue, dedupe } from "@/lib/jobs/queue";
 import { countOpenPeriodicMeasurements } from "@/lib/jobs/pending";
-import type { JobType, JobPayloads, RecommendationPayload } from "@/lib/jobs/types";
+import type {
+  JobType,
+  JobPayloads,
+  RecommendationPayload,
+} from "@/lib/jobs/types";
 import type { Job } from "@/lib/types/database";
 
 type Admin = SupabaseClient;
@@ -45,7 +54,10 @@ export interface JobContext {
   job: Job;
 }
 
-type Handler<T extends JobType> = (ctx: JobContext, payload: JobPayloads[T]) => Promise<void>;
+type Handler<T extends JobType> = (
+  ctx: JobContext,
+  payload: JobPayloads[T],
+) => Promise<void>;
 
 /** Payload → de vorm die de contentpijplijn verwacht. */
 function toRecommendation(r: RecommendationPayload) {
@@ -121,7 +133,9 @@ async function scheduleImpactIfLastRun(
     .eq("analysis_id", analysisId)
     .eq("type", "measure_prompt")
     .in("status", ["queued", "running"])
-    .contains("payload_json", { impact: { contentPieceId: impact.contentPieceId, wave: impact.wave } })
+    .contains("payload_json", {
+      impact: { contentPieceId: impact.contentPieceId, wave: impact.wave },
+    })
     .neq("id", currentJobId);
 
   if ((remaining ?? 0) > 0) return;
@@ -184,18 +198,16 @@ const handlers: { [T in JobType]: Handler<T> } = {
     if (!job.profile_id) throw new Error("profile_offering zonder profile_id.");
     const { nodes } = await buildOfferingTree(job.profile_id);
 
-    // De kennistest hangt NIET aan de aanbodboom: "wat weet ChatGPT over dit
-    // merk" is te beantwoorden zonder één dienst te kennen. Hem achter de
-    // topics hangen zou hem laten verdwijnen bij precies de klanten waar de
-    // crawl weinig opleverde — en dat zijn er niet weinig.
-    //
-    // Laatste in de keten omdat hij de duurste stap is (~$0,30): als het budget
-    // op is, hoort hij als eerste te sneuvelen. De volgorde ís de prioritering.
+    // Het marktonderzoek draagt de rest van de keten: het ketent zelf door naar
+    // de kennistest, die op zijn beurt naar de synthese ketent. Bewust NIET
+    // achter de topics gehangen — die vallen weg zonder aanbodboom, en dan zou
+    // de hele staart verdwijnen bij precies de klanten waar de crawl weinig
+    // opleverde. En dat zijn er niet weinig.
     await enqueue(admin, {
-      type: "profile_llm_baseline",
+      type: "profile_market",
       payload: {},
       profileId: job.profile_id,
-      dedupeKey: dedupe.llmBaseline(job.profile_id),
+      dedupeKey: dedupe.profileMarket(job.profile_id),
     });
 
     // Geen boom, geen topics. Voorstellen op basis van alleen een branchenaam
@@ -215,8 +227,36 @@ const handlers: { [T in JobType]: Handler<T> } = {
     await proposeTopics(job.profile_id);
   },
 
+  profile_market: async ({ admin, job }) => {
+    if (!job.profile_id) throw new Error("profile_market zonder profile_id.");
+
+    // Verrijking, geen voorwaarde (zelfde patroon als profile_competitors bij
+    // het rapport): de fout wordt gelogd, maar de keten loopt door. Zou hij hier
+    // breken, dan zou een mislukt marktonderzoek ook de kennistest en de
+    // synthese meenemen — en dat zijn de twee stappen waar de klant voor komt.
+    try {
+      await researchMarket(job.profile_id);
+    } catch (err) {
+      console.error(
+        `Marktonderzoek mislukt voor profiel ${job.profile_id}:`,
+        err,
+      );
+    }
+
+    // De kennistest is de duurste stap (~$0,30) en staat daarom laat: is het
+    // budget op, dan hoort hij als eerste te sneuvelen. De volgorde ís de
+    // prioritering.
+    await enqueue(admin, {
+      type: "profile_llm_baseline",
+      payload: {},
+      profileId: job.profile_id,
+      dedupeKey: dedupe.llmBaseline(job.profile_id),
+    });
+  },
+
   profile_llm_baseline: async ({ admin, job }) => {
-    if (!job.profile_id) throw new Error("profile_llm_baseline zonder profile_id.");
+    if (!job.profile_id)
+      throw new Error("profile_llm_baseline zonder profile_id.");
     await runLlmBaseline(job.profile_id);
 
     // De synthese sluit de keten. Als laatste omdat hij op het dure model
@@ -230,7 +270,8 @@ const handlers: { [T in JobType]: Handler<T> } = {
   },
 
   profile_synthesis: async ({ job }) => {
-    if (!job.profile_id) throw new Error("profile_synthesis zonder profile_id.");
+    if (!job.profile_id)
+      throw new Error("profile_synthesis zonder profile_id.");
     await synthesiseProfile(job.profile_id);
   },
 
@@ -238,7 +279,8 @@ const handlers: { [T in JobType]: Handler<T> } = {
   // Bewust los van de promptgeneratie: samen passen ze niet binnen de zestig
   // seconden van één werker-aanroep (zie de toelichting in lib/pipeline/prepare.ts).
   prepare_analysis: async ({ admin, job }) => {
-    if (!job.analysis_id) throw new Error("prepare_analysis zonder analysis_id.");
+    if (!job.analysis_id)
+      throw new Error("prepare_analysis zonder analysis_id.");
     const { needsPrompts } = await prepareTopicResearch(job.analysis_id);
     if (!needsPrompts) return;
 
@@ -255,7 +297,8 @@ const handlers: { [T in JobType]: Handler<T> } = {
   // is een bewuste stop. De kalibratie die nog volgt is een verfijning van de
   // volumebanden en houdt de klant niet tegen.
   generate_prompts: async ({ admin, job }) => {
-    if (!job.analysis_id) throw new Error("generate_prompts zonder analysis_id.");
+    if (!job.analysis_id)
+      throw new Error("generate_prompts zonder analysis_id.");
     await generateAnalysisPrompts(job.analysis_id);
 
     await enqueue(admin, {
@@ -268,7 +311,8 @@ const handlers: { [T in JobType]: Handler<T> } = {
 
   // ── Nabewerking: zoekvolume relatief kalibreren ───────────────────────────
   calibrate_volumes: async ({ job }) => {
-    if (!job.analysis_id) throw new Error("calibrate_volumes zonder analysis_id.");
+    if (!job.analysis_id)
+      throw new Error("calibrate_volumes zonder analysis_id.");
     await calibratePromptVolumes(job.analysis_id);
   },
 
@@ -288,10 +332,20 @@ const handlers: { [T in JobType]: Handler<T> } = {
     // niet bij een periode: hij ketent naar de effectberekening en NIET naar de
     // aggregatie, want hij mag de zichtbaarheidsscore niet raken.
     if (payload.impact) {
-      await scheduleImpactIfLastRun(admin, job.analysis_id, payload.impact, job.id);
+      await scheduleImpactIfLastRun(
+        admin,
+        job.analysis_id,
+        payload.impact,
+        job.id,
+      );
       return;
     }
-    await scheduleAggregateIfLastPrompt(admin, job.analysis_id, payload.weekNo, job.id);
+    await scheduleAggregateIfLastPrompt(
+      admin,
+      job.analysis_id,
+      payload.weekNo,
+      job.id,
+    );
   },
 
   // ── Aggregatie (3c) — geen AI-aanroep ─────────────────────────────────────
@@ -302,9 +356,17 @@ const handlers: { [T in JobType]: Handler<T> } = {
 
     // Drempelcontrole (optimalisatie.md 0.4b) staat nu hier: de aggregatie is
     // het eerste moment waarop het volledige beeld bekend is.
-    const { usable, measured, expected } = await measurementIsUsable(admin, analysisId, weekNo);
+    const { usable, measured, expected } = await measurementIsUsable(
+      admin,
+      analysisId,
+      weekNo,
+    );
     if (!usable) {
-      if (weekNo === 0) await admin.from("analyses").update({ status: "mislukt" }).eq("id", analysisId);
+      if (weekNo === 0)
+        await admin
+          .from("analyses")
+          .update({ status: "mislukt" })
+          .eq("id", analysisId);
       throw new Error(
         `Te weinig vragen gemeten om een score op te baseren: ${measured} van ${expected}.`,
       );
@@ -323,7 +385,10 @@ const handlers: { [T in JobType]: Handler<T> } = {
     // (optimalisatie.md 6.1) — voorheen alleen periode 0, waardoor er twaalf
     // periodes aan meetkosten gemaakt werden voor data die niemand ooit zag.
     if (weekNo === 0) {
-      await admin.from("analyses").update({ status: "gemeten" }).eq("id", analysisId);
+      await admin
+        .from("analyses")
+        .update({ status: "gemeten" })
+        .eq("id", analysisId);
     }
 
     // Eerst de concurrenten profileren (R4.2), dán pas het rapport: B1/B2
@@ -342,14 +407,24 @@ const handlers: { [T in JobType]: Handler<T> } = {
   // zijn rapport — alleen zonder de "waarom"-laag. Vandaar dat de fout hier
   // gevangen wordt en de keten hoe dan ook doorloopt naar het rapport.
   profile_competitors: async ({ admin, job }, payload) => {
-    if (!job.analysis_id) throw new Error("profile_competitors zonder analysis_id.");
+    if (!job.analysis_id)
+      throw new Error("profile_competitors zonder analysis_id.");
     const analysisId = job.analysis_id;
 
     try {
-      const { profiled } = await profileCompetitors(admin, analysisId, payload.weekNo);
-      console.log(`Analyse ${analysisId} periode ${payload.weekNo}: ${profiled} concurrenten geprofileerd.`);
+      const { profiled } = await profileCompetitors(
+        admin,
+        analysisId,
+        payload.weekNo,
+      );
+      console.log(
+        `Analyse ${analysisId} periode ${payload.weekNo}: ${profiled} concurrenten geprofileerd.`,
+      );
     } catch (err) {
-      console.error(`Concurrenten profileren mislukt voor analyse ${analysisId}:`, err);
+      console.error(
+        `Concurrenten profileren mislukt voor analyse ${analysisId}:`,
+        err,
+      );
     }
 
     await enqueue(admin, {
@@ -362,7 +437,8 @@ const handlers: { [T in JobType]: Handler<T> } = {
 
   // ── Rapport (B1 + B2) + mail ──────────────────────────────────────────────
   generate_report: async ({ job }, payload) => {
-    if (!job.analysis_id) throw new Error("generate_report zonder analysis_id.");
+    if (!job.analysis_id)
+      throw new Error("generate_report zonder analysis_id.");
     await generateReport(job.analysis_id, payload.weekNo);
   },
 
@@ -435,7 +511,8 @@ const handlers: { [T in JobType]: Handler<T> } = {
   // Geen AI-aanroep: één pagina ophalen en de tekst vergelijken. Vindt hij niets,
   // dan is dat geen mislukking van de taak maar een bevinding voor de klant.
   verify_publication: async ({ admin, job }, payload) => {
-    if (!job.analysis_id) throw new Error("verify_publication zonder analysis_id.");
+    if (!job.analysis_id)
+      throw new Error("verify_publication zonder analysis_id.");
     await verifyPublication(admin, payload.contentPieceId);
   },
 
@@ -498,15 +575,28 @@ const handlers: { [T in JobType]: Handler<T> } = {
  * Wordt aangeroepen NADAT de taak op 'failed' staat, dus hij telt niet meer mee
  * als openstaand werk.
  */
-export async function scheduleFollowUpAfterFailure(admin: Admin, job: Job): Promise<void> {
+export async function scheduleFollowUpAfterFailure(
+  admin: Admin,
+  job: Job,
+): Promise<void> {
   if ((job.type as JobType) !== "measure_prompt" || !job.analysis_id) return;
 
   const payload = (job.payload_json ?? {}) as JobPayloads["measure_prompt"];
   if (payload.impact) {
-    await scheduleImpactIfLastRun(admin, job.analysis_id, payload.impact, job.id);
+    await scheduleImpactIfLastRun(
+      admin,
+      job.analysis_id,
+      payload.impact,
+      job.id,
+    );
     return;
   }
-  await scheduleAggregateIfLastPrompt(admin, job.analysis_id, payload.weekNo, job.id);
+  await scheduleAggregateIfLastPrompt(
+    admin,
+    job.analysis_id,
+    payload.weekNo,
+    job.id,
+  );
 }
 
 /** Voert één taak uit. Gooit bij mislukking — de werker regelt de nieuwe poging. */

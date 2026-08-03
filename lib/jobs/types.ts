@@ -32,6 +32,11 @@ export const JOB_TYPES = [
    */
   "propose_topics",
   /**
+   * Fase 2: markt en concurrentie verdiepen (blok B). Waarom winnen die
+   * concurrenten, en welke domeinen bepalen deze markt?
+   */
+  "profile_market",
+  /**
    * Fase 3: wat weten AI-assistenten al over dit merk, en klopt dat? (blok B)
    * Draait per beschikbare engine; het oordeel is deterministisch en komt niet
    * van het model zelf.
@@ -97,6 +102,7 @@ export interface JobPayloads {
   profile_research: Record<string, never>;
   profile_offering: Record<string, never>;
   propose_topics: Record<string, never>;
+  profile_market: Record<string, never>;
   profile_llm_baseline: Record<string, never>;
   profile_synthesis: Record<string, never>;
   prepare_analysis: Record<string, never>;
@@ -167,6 +173,11 @@ export const HEAVY_JOB_TYPES: ReadonlySet<JobType> = new Set<JobType>([
    * goedkope aanroep, geen meting — die volgt pas na goedkeuring.
    */
   "propose_topics",
+  /**
+   * Fase 2: markt en concurrentie verdiepen (blok B). Waarom winnen die
+   * concurrenten, en welke domeinen bepalen deze markt?
+   */
+  "profile_market",
   /**
    * Fase 3: wat weten AI-assistenten al over dit merk, en klopt dat? (blok B)
    * Draait per beschikbare engine; het oordeel is deterministisch en komt niet

@@ -1,6 +1,6 @@
 # Onboarding 2.0 — consultant-gedreven klantprofiel, core topics en multi-engine
 
-**Status:** in uitvoering · **Effort:** ~13,5 werkdagen in 5 blokken · **Opgesteld:** 3 augustus 2026
+**Status:** gebouwd, nog niet op productie geverifieerd · **Effort:** ~13,5 werkdagen in 5 blokken · **Opgesteld:** 3 augustus 2026
 **Vertrekpunt:** `main` op `cb34ed3`, migraties t/m `0037`, 416 unittests + 25 ketentests groen.
 
 ## Voortgang (3 augustus 2026)
@@ -17,10 +17,15 @@
 | Blok D — core topics | **Klaar** |
 | Blok E — enginelaag + Gemini-adapter | **Klaar als bedrading**; uitwaaieren per engine bewust nog niet, zie §7 |
 | §8 — voortgang met tussenresultaten, zekerheid als niveau, "onderzoek opnieuw" | **Klaar** |
-| Blok B fase 2 — markt verdiepen | **Open, als enige** — het bestaande `profile_research` dekt concurrenten en positionering; wat ontbreekt is bewijs per concurrent en het merkbrede bronnenlandschap op merkniveau |
+| Blok B fase 2 — markt verdiepen | **Klaar** — reden per concurrent met bron, plus het bronnenlandschap op merkniveau |
 | Blok B fase 5 — synthese op Sol | **Klaar** — dossier, gespreksagenda en geverifieerde feiten in `brand_facts` |
 
 Tests: **551 unittests, 34 ketentests**, `tsc` en `build` schoon.
+
+**Wat er nu nog tussen zit en "af":** de keten is nog nooit tegen een echte
+website gedraaid — alle tests draaien op stubs. Conventie 10: gebouwd is niet
+geverifieerd. Eén profiel aanmaken op productie kost ~$1 en toetst in één klap
+de zeven taken, de budgetpoort en de kostenschatting.
 
 ---
 
