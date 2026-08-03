@@ -1,0 +1,151 @@
+import { CollapsibleSection } from "@/components/collapsible-section";
+import type { InventoryQuality, ProfileOffering } from "@/lib/types/database";
+
+/**
+ * Het aanbod zoals wij het op de site vonden (blok B fase 1).
+ *
+ * ── WAAROM DE BRON ZICHTBAAR IS ─────────────────────────────────────────────
+ *
+ * De klant vulde drie velden in; alles hier komt van een model dat naar
+ * gecrawlde pagina's keek. Zonder de bron-URL erbij is een verkeerde dienst niet
+ * te corrigeren — niemand gaat bij dertig regels handmatig uitzoeken waar er één
+ * vandaan komt. Vandaar dat elke knoop zijn pagina toont.
+ *
+ * ── EN WAAROM DE INVENTARISKWALITEIT ERBOVEN STAAT ──────────────────────────
+ *
+ * Bij Bol leverde de crawl één pagina op, bij HEMA veertig productpagina's. In
+ * beide gevallen draaide de pijplijn gewoon door en zei het rapport nergens dat
+ * het op vrijwel niets rustte (R6.2). Als het aanbod dun is omdat de crawl dun
+ * was, hoort dat hier te staan — bóven de lijst, niet eronder.
+ */
+
+const KIND_LABELS: Record<ProfileOffering["kind"], string> = {
+  dienst: "dienst",
+  product: "product",
+  categorie: "categorie",
+  merk: "merk",
+  vestiging: "vestiging",
+};
+
+export function OfferingsPanel({
+  offerings,
+  inventory,
+}: {
+  offerings: ProfileOffering[];
+  inventory: InventoryQuality | null;
+}) {
+  if (offerings.length === 0 && !inventory) return null;
+
+  const byParent = new Map<string | null, ProfileOffering[]>();
+  for (const o of offerings) {
+    const list = byParent.get(o.parent_id) ?? [];
+    list.push(o);
+    byParent.set(o.parent_id, list);
+  }
+  const roots = byParent.get(null) ?? [];
+
+  function renderNode(o: ProfileOffering, depth: number) {
+    const kinderen = byParent.get(o.id) ?? [];
+    return (
+      <li key={o.id} className="flex flex-col gap-1">
+        <div className="flex flex-wrap items-baseline gap-2">
+          <span className="chip chip-neutral">{KIND_LABELS[o.kind]}</span>
+          <span className="font-medium">{o.name}</span>
+          {o.price_indication && (
+            <span className="mono-label text-muted">{o.price_indication}</span>
+          )}
+          {o.source !== "ai" && (
+            <span className="chip chip-green">{o.source}</span>
+          )}
+        </div>
+        {o.description && (
+          <p className="text-sm text-secondary">{o.description}</p>
+        )}
+        {o.audience && (
+          <p className="text-sm text-muted">
+            <span className="mono-label">voor</span> {o.audience}
+          </p>
+        )}
+        {o.evidence_url && (
+          <a
+            href={o.evidence_url}
+            target="_blank"
+            rel="noreferrer noopener"
+            className="text-sm text-[var(--accent-purple-soft)] hover:underline"
+          >
+            gevonden op {shortUrl(o.evidence_url)}
+          </a>
+        )}
+        {kinderen.length > 0 && (
+          <ul className="mt-1 flex flex-col gap-3 border-l border-[var(--border-subtle)] pl-4">
+            {kinderen.map((k) => renderNode(k, depth + 1))}
+          </ul>
+        )}
+      </li>
+    );
+  }
+
+  return (
+    <div className="card flex flex-col gap-4">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <span className="mono-label">Wat je aanbiedt</span>
+        {offerings.length > 0 && (
+          <span className="mono-label text-muted">
+            {offerings.length} onderdelen
+          </span>
+        )}
+      </div>
+
+      {inventory && inventory.verdict !== "voldoende" && (
+        <div
+          className="rounded-[var(--radius-md)] border border-[var(--status-warning)] px-3 py-2 text-sm"
+          role="status"
+        >
+          <span className="mono-label">
+            {inventory.verdict === "dun"
+              ? "Weinig gevonden"
+              : "Vooral productpagina's"}
+          </span>
+          <p className="mt-1 text-secondary">{inventory.advice}</p>
+        </div>
+      )}
+
+      {offerings.length === 0 ? (
+        <p className="text-sm text-secondary">
+          We konden het aanbod niet uit de website halen. Vul het hieronder aan
+          tijdens het gesprek, of controleer of de site zonder JavaScript
+          leesbaar is.
+        </p>
+      ) : (
+        <ul className="flex flex-col gap-3">
+          {roots.map((o) => renderNode(o, 0))}
+        </ul>
+      )}
+
+      {inventory && (
+        <CollapsibleSection title="Hoe volledig was de crawl?">
+          <ul className="flex flex-col gap-1 text-sm text-secondary">
+            <li>{inventory.pages} pagina&apos;s gevonden</li>
+            <li>
+              {Math.round(inventory.usableTextRatio * 100)}% met bruikbare tekst
+            </li>
+            <li>
+              {Math.round(inventory.productPageRatio * 100)}% vermoedelijke
+              productpagina&apos;s
+            </li>
+          </ul>
+        </CollapsibleSection>
+      )}
+    </div>
+  );
+}
+
+/** Alleen het pad, want het domein staat overal hetzelfde bovenaan. */
+function shortUrl(url: string): string {
+  try {
+    const u = new URL(url);
+    return u.pathname === "/" ? u.hostname : u.pathname;
+  } catch {
+    return url;
+  }
+}

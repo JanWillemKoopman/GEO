@@ -14,6 +14,7 @@ import { TopicsPanel } from "./topics-panel";
 import { LlmKnowledgePanel } from "./llm-knowledge-panel";
 import { StrategyBox } from "./strategy-box";
 import { ResearchStepsStrip } from "./research-steps-strip";
+import { OfferingsPanel } from "./offerings-panel";
 import {
   parseContextFactors,
   technicalAdviceStale,
@@ -24,6 +25,7 @@ import type {
   Entity,
   FactRequest,
   ProfileLlmBaseline,
+  ProfileOffering,
   ProfileTopic,
   TechnicalAudit as TechnicalAuditRow,
 } from "@/lib/types/database";
@@ -55,6 +57,7 @@ export default async function ProfilePage({
     { data: topicRows },
     { data: baselineRows },
     { data: strategyRow },
+    { data: offeringRows },
   ] = await Promise.all([
     supabase
       .from("profile_pages")
@@ -102,6 +105,13 @@ export default async function ProfilePage({
       .select("*")
       .eq("profile_id", id)
       .maybeSingle(),
+    // De aanbodboom uit fase 1 — met bron per knoop, zodat een verkeerde dienst
+    // te corrigeren is zonder handmatig uit te zoeken waar hij vandaan kwam.
+    supabase
+      .from("profile_offerings")
+      .select("*")
+      .eq("profile_id", id)
+      .order("sort_order"),
   ]);
 
   const audit = auditRow as TechnicalAuditRow | null;
