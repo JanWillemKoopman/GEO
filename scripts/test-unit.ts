@@ -103,6 +103,12 @@ import {
 } from "@/lib/pipeline/baseline-verdict";
 import { buildSteps, researchRunning } from "@/lib/pipeline/research-steps";
 import {
+  filterProtectedFields,
+  confidenceLevel,
+  isHumanSet,
+  describeMerge,
+} from "@/lib/pipeline/field-merge";
+import {
   parseContextFactors,
   technicalAdviceStale,
   staleAdviceNotice,
@@ -2347,6 +2353,55 @@ group("onderzoeksstappen met tussenresultaten (§8)", () => {
   });
   ok("de eerste stap is bezig", start[0].state === "bezig");
   ok("de rest wacht", start.slice(1).every((s) => s.state === "wacht"));
+});
+
+group("een mens wint van een model (blok C)", () => {
+  const patch = {
+    industry: "fysiotherapie",
+    tone_of_voice: "zakelijk",
+    products: ["massage"],
+    summary: "Een praktijk.",
+  };
+
+  // Eerste ronde: er staat nog niets in profile_field_sources, dus alles mag.
+  const eerste = filterProtectedFields(patch, []);
+  ok("eerste ronde schrijft alles", Object.keys(eerste.allowed).length === 4);
+  ok("en houdt niets tegen", eerste.blocked.length === 0);
+
+  // Herhaalronde ná een gesprek. Dit is waar het om gaat: zonder deze filter
+  // is "onderzoek opnieuw" een knop die je niet durft te gebruiken.
+  const tweede = filterProtectedFields(patch, [
+    { field: "tone_of_voice", source: "gesprek" },
+    { field: "industry", source: "klant" },
+    { field: "summary", source: "ai" },
+  ]);
+  ok("wat een mens zette gaat niet mee", !("tone_of_voice" in tweede.allowed));
+  ok("ook niet wat de klant zette", !("industry" in tweede.allowed));
+  ok("wat de AI zette mag wél opnieuw", "summary" in tweede.allowed);
+  ok("een veld zonder herkomst mag ook", "products" in tweede.allowed);
+  ok("en er wordt geteld wat is tegengehouden", tweede.blocked.length === 2, String(tweede.blocked.length));
+
+  ok("gesprek telt als mens", isHumanSet("gesprek"));
+  ok("klant telt als mens", isHumanSet("klant"));
+  ok("ai niet", !isHumanSet("ai"));
+  ok("onbekend ook niet", !isHumanSet(null));
+
+  // Stil overschrijven én stil overslaan zijn allebei fout: het eerste kost de
+  // klant zijn correcties, het tweede laat hem denken dat er niets gebeurde.
+  const zin = describeMerge(tweede.blocked, { tone_of_voice: "tone of voice", industry: "branche" });
+  ok("de melding noemt wat bleef staan", zin.includes("tone of voice") && zin.includes("branche"), zin);
+  ok("zonder blokkades een korte melding", describeMerge([]) === "Het profiel is bijgewerkt.");
+});
+
+group("zekerheid als drie niveaus, niet als kommagetal (§8)", () => {
+  ok("hoog is zeker", confidenceLevel(0.9) === "zeker");
+  ok("de drempel zelf telt als zeker", confidenceLevel(0.7) === "zeker");
+  ok("daaronder is onzeker", confidenceLevel(0.69) === "onzeker");
+  // null is een echt antwoord en geen nul (conventie 3): "niet vastgesteld"
+  // is iets anders dan "zeker onjuist".
+  ok("null is onbekend", confidenceLevel(null) === "onbekend");
+  ok("ontbrekend ook", confidenceLevel(undefined) === "onbekend");
+  ok("nul is onzeker, niet onbekend", confidenceLevel(0) === "onzeker");
 });
 
 // ════════════════════════════════════════════════════════════════════════════

@@ -24,6 +24,10 @@ import "server-only";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { crawlSite } from "@/lib/crawler";
 import { generateProfileResearch } from "@/lib/pipeline/profile-research";
+import {
+  filterProtectedFields,
+  type FieldOwnership,
+} from "@/lib/pipeline/field-merge";
 import type { HarvestedFact } from "@/lib/pipeline/structured-data";
 import type { Profile, ProfileStatus } from "@/lib/types/database";
 
@@ -33,7 +37,10 @@ function filled(v: string | null | undefined): v is string {
 }
 
 /** Gededupliceerde unie: klantwaarden eerst, dan de AI-aanvullingen. */
-function unionList(clientList: string[] | null | undefined, aiList: string[]): string[] {
+function unionList(
+  clientList: string[] | null | undefined,
+  aiList: string[],
+): string[] {
   return Array.from(new Set([...(clientList ?? []), ...aiList]));
 }
 
@@ -52,7 +59,9 @@ const MAX_SITE_CHARS = 60_000;
  * een navigatiepagina van 200 tekens draagt niets bij, en bij afkappen wil je
  * dat die eraf valt en niet de dienstenpagina.
  */
-function buildSiteText(pages: { url: string; title: string | null; text: string | null }[]): string {
+function buildSiteText(
+  pages: { url: string; title: string | null; text: string | null }[],
+): string {
   const usable = pages
     .filter((p) => (p.text ?? "").trim().length > 0)
     .sort((a, b) => (b.text ?? "").length - (a.text ?? "").length);
@@ -71,7 +80,9 @@ function buildSiteText(pages: { url: string; title: string | null; text: string 
 /** De uit de opmaak geoogste feiten als leesbaar blok. */
 function buildFactBlock(facts: HarvestedFact[]): string {
   if (facts.length === 0) return "";
-  const lines = facts.slice(0, 30).map((f) => `${f.key}: ${f.value} (uit ${f.fromType})`);
+  const lines = facts
+    .slice(0, 30)
+    .map((f) => `${f.key}: ${f.value} (uit ${f.fromType})`);
   return (
     `\n\nUit de GESTRUCTUREERDE DATA van de site (schema.org/OpenGraph) is dit letterlijk ` +
     `gelezen. Dit zijn harde feiten, geen interpretatie — neem ze over en spreek ze niet tegen:\n` +
@@ -82,7 +93,11 @@ function buildFactBlock(facts: HarvestedFact[]): string {
 export async function prepareProfile(id: string): Promise<ProfileStatus> {
   const admin = createAdminClient();
 
-  const { data: profile } = await admin.from("profiles").select("*").eq("id", id).single();
+  const { data: profile } = await admin
+    .from("profiles")
+    .select("*")
+    .eq("id", id)
+    .single();
   if (!profile) throw new Error(`Profiel ${id} niet gevonden.`);
 
   if (profile.status === "klaar") return "klaar";
@@ -91,15 +106,23 @@ export async function prepareProfile(id: string): Promise<ProfileStatus> {
     const prof = profile as Profile;
 
     // ── Context uit fase 0 ────────────────────────────────────────────────
-    const [{ data: pageRows }, { data: facetRow }] = await Promise.all([
-      admin.from("profile_pages").select("url, title, text_excerpt").eq("profile_id", id),
-      admin
-        .from("profile_facets")
-        .select("raw_json")
-        .eq("profile_id", id)
-        .eq("facet", "techniek")
-        .maybeSingle(),
-    ]);
+    const [{ data: pageRows }, { data: facetRow }, { data: ownershipRows }] =
+      await Promise.all([
+        admin
+          .from("profile_pages")
+          .select("url, title, text_excerpt")
+          .eq("profile_id", id),
+        admin
+          .from("profile_facets")
+          .select("raw_json")
+          .eq("profile_id", id)
+          .eq("facet", "techniek")
+          .maybeSingle(),
+        admin
+          .from("profile_field_sources")
+          .select("field, source")
+          .eq("profile_id", id),
+      ]);
 
     const pages = (pageRows ?? []).map((p) => ({
       url: p.url as string,
@@ -116,8 +139,9 @@ export async function prepareProfile(id: string): Promise<ProfileStatus> {
       siteText = crawl.text;
     }
 
-    const harvested = ((facetRow?.raw_json as { facts?: HarvestedFact[] } | null)?.facts ??
-      []) as HarvestedFact[];
+    const harvested = ((
+      facetRow?.raw_json as { facts?: HarvestedFact[] } | null
+    )?.facts ?? []) as HarvestedFact[];
 
     const research = await generateProfileResearch({
       url: prof.url,
@@ -148,25 +172,53 @@ export async function prepareProfile(id: string): Promise<ProfileStatus> {
     // op 'bezig' bleef staan. De taak werd dan afgevinkt, maar het profiel hing —
     // en elke poging om er een analyse mee te starten liep op een 409 ("nog niet
     // klaar met onderzoeken") zonder dat er nog iets draaide om dat op te lossen.
+    const voorstel = {
+      brand_name: filled(prof.brand_name)
+        ? prof.brand_name
+        : p.brandName || prof.name,
+      industry: filled(prof.industry) ? prof.industry : p.industry,
+      // Het bedrijfsmodel (R8.5, migratie 0032). Een handmatig gezette waarde
+      // wint: de klant weet beter dan het model of hij een retailer of een
+      // fabrikant is, en dit stuurt welke vragen hij straks krijgt.
+      business_model: filled(prof.business_model)
+        ? prof.business_model
+        : p.businessModel,
+      tone_of_voice: filled(prof.tone_of_voice)
+        ? prof.tone_of_voice
+        : p.toneOfVoice,
+      summary: filled(prof.summary) ? prof.summary : p.summary,
+      products: unionList(prof.products, p.products),
+      value_props: unionList(prof.value_props, p.valueProps),
+      competitors: unionList(prof.competitors, p.competitors),
+      personas: prof.personas?.length ? prof.personas : p.personas,
+      // Contentkwaliteit-grondslag (A2/A3): puur uit de site geëxtraheerd, geen
+      // klant-input — dus altijd de AI-waarde.
+      proof_points: p.proofPoints,
+      style_samples: p.styleSamples,
+    };
+
+    // ── Een mens wint van een model ──────────────────────────────────────────
+    //
+    // Bij de EERSTE ronde staat er niets in `profile_field_sources` en gaat
+    // alles gewoon door. Bij een herhaalronde — na een gesprek waarin bleek dat
+    // de site vernieuwd is — blijven de velden staan die een mens heeft gezet.
+    // Zonder dit is "onderzoek opnieuw" een knop die je niet durft te gebruiken.
+    const { allowed, blocked } = filterProtectedFields(
+      voorstel,
+      (ownershipRows ?? []) as FieldOwnership[],
+    );
+    if (blocked.length > 0) {
+      console.info(
+        `Profiel ${id}: ${blocked.length} veld(en) niet overschreven omdat een mens ze zette (${blocked.join(", ")}).`,
+      );
+    }
+
     const { error: saveError } = await admin
       .from("profiles")
       .update({
-        brand_name: filled(prof.brand_name) ? prof.brand_name : p.brandName || prof.name,
-        industry: filled(prof.industry) ? prof.industry : p.industry,
-        // Het bedrijfsmodel (R8.5, migratie 0032). Een handmatig gezette waarde
-        // wint: de klant weet beter dan het model of hij een retailer of een
-        // fabrikant is, en dit stuurt welke vragen hij straks krijgt.
-        business_model: filled(prof.business_model) ? prof.business_model : p.businessModel,
-        tone_of_voice: filled(prof.tone_of_voice) ? prof.tone_of_voice : p.toneOfVoice,
-        summary: filled(prof.summary) ? prof.summary : p.summary,
-        products: unionList(prof.products, p.products),
-        value_props: unionList(prof.value_props, p.valueProps),
-        competitors: unionList(prof.competitors, p.competitors),
-        personas: prof.personas?.length ? prof.personas : p.personas,
-        // Contentkwaliteit-grondslag (A2/A3): puur uit de site geëxtraheerd, geen
-        // klant-input — dus altijd de AI-waarde.
-        proof_points: p.proofPoints,
-        style_samples: p.styleSamples,
+        ...allowed,
+        // Deze twee gaan buiten de bescherming om: het zijn geen inhoudelijke
+        // velden maar boekhouding over de ronde zelf.
         raw_json: research.raw as never,
         deep_research_at: new Date().toISOString(),
         status: "klaar",
@@ -174,7 +226,9 @@ export async function prepareProfile(id: string): Promise<ProfileStatus> {
       .eq("id", id);
 
     if (saveError) {
-      throw new Error(`Profielonderzoek opslaan mislukt voor profiel ${id}: ${saveError.message}`);
+      throw new Error(
+        `Profielonderzoek opslaan mislukt voor profiel ${id}: ${saveError.message}`,
+      );
     }
 
     return "klaar";

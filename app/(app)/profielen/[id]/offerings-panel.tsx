@@ -1,4 +1,5 @@
 import { CollapsibleSection } from "@/components/collapsible-section";
+import { RerunResearchButton } from "./rerun-research-button";
 import type { InventoryQuality, ProfileOffering } from "@/lib/types/database";
 
 /**
@@ -28,9 +29,11 @@ const KIND_LABELS: Record<ProfileOffering["kind"], string> = {
 };
 
 export function OfferingsPanel({
+  profileId,
   offerings,
   inventory,
 }: {
+  profileId: string;
   offerings: ProfileOffering[];
   inventory: InventoryQuality | null;
 }) {
@@ -121,6 +124,10 @@ export function OfferingsPanel({
           {roots.map((o) => renderNode(o, 0))}
         </ul>
       )}
+
+      {/* De knop staat hier en niet ergens in de instellingen: als de crawl dun
+          was of het aanbod klopt niet, is dit de plek waar je dat ziet. */}
+      <RerunResearchButton profileId={profileId} />
 
       {inventory && (
         <CollapsibleSection title="Hoe volledig was de crawl?">
