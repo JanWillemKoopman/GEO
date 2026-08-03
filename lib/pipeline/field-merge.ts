@@ -82,6 +82,55 @@ export function filterProtectedFields<T extends Record<string, unknown>>(
 }
 
 /**
+ * Het bereik van een bedrijf, met het vangnet erbij (conventie 1).
+ *
+ * ── WAAROM DIT NIET RECHTSTREEKS UIT HET MODEL MAG ──────────────────────────
+ *
+ * `service_scope` heeft in de database drie geldige waarden — 'lokaal',
+ * 'landelijk', 'internationaal' — en het onderzoeksschema heeft er vier, want
+ * daar staat 'onbekend' bij als eerlijke uitweg. Die vertaling hoort in code:
+ * 'onbekend' wordt `null`, niet een gok (conventie 3).
+ *
+ * En één inconsistentie is deterministisch te zien: 'lokaal' zonder één regio.
+ * Dat is geen bereik maar een half antwoord — `lib/pipeline/prompts.ts` doet er
+ * niets mee (die eist bereik én regio) en `llm-baseline.ts` valt terug op "in
+ * Nederland". Zo'n waarde wegschrijven suggereert kennis die er niet is, dus hij
+ * wordt `null`.
+ *
+ * Andersom mag wél: regio's zonder bereik zijn bruikbaar, en 'lokaal' is dan de
+ * enige lezing die klopt.
+ */
+export interface ScopeProposal {
+  scope: string | null;
+  regions: string[];
+}
+
+export function resolveScope(
+  scope: string | null | undefined,
+  regions: string[] | null | undefined,
+): ScopeProposal {
+  const schoon = (regions ?? [])
+    .map((r) => r.trim())
+    .filter((r) => r !== "")
+    // Ontdubbelen op kleine letters: "Amersfoort" en "amersfoort" zijn één regio.
+    .filter(
+      (r, i, all) =>
+        all.findIndex((x) => x.toLowerCase() === r.toLowerCase()) === i,
+    );
+
+  if (scope === "lokaal") {
+    return schoon.length > 0
+      ? { scope: "lokaal", regions: schoon }
+      : { scope: null, regions: [] };
+  }
+  if (scope === "landelijk" || scope === "internationaal") {
+    return { scope, regions: schoon };
+  }
+  // 'onbekend', null, of iets wat we niet kennen.
+  return { scope: schoon.length > 0 ? "lokaal" : null, regions: schoon };
+}
+
+/**
  * Zekerheid als drie niveaus in plaats van een kommagetal (§8, punt 2).
  *
  * "0.62" zegt niemand iets. Drie standen die je met een kleur kunt tonen wél —

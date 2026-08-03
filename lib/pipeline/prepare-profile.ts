@@ -27,6 +27,7 @@ import { generateProfileResearch } from "@/lib/pipeline/profile-research";
 import {
   filterProtectedFields,
   describeMerge,
+  resolveScope,
   type FieldOwnership,
 } from "@/lib/pipeline/field-merge";
 import type { HarvestedFact } from "@/lib/pipeline/structured-data";
@@ -47,7 +48,9 @@ const PROFILE_FIELD_LABELS: Record<string, string> = {
   competitors: "de concurrenten",
   personas: "de doelgroepen",
   aliases: "de naamvarianten",
+  service_scope: "het bereik",
   service_regions: "het werkgebied",
+  market_language: "de markt en taal",
 };
 
 /** Niet-lege string? (voor "klant leidend": alleen echt ingevulde waarden winnen). */
@@ -191,6 +194,12 @@ export async function prepareProfile(id: string): Promise<ProfileStatus> {
     // op 'bezig' bleef staan. De taak werd dan afgevinkt, maar het profiel hing —
     // en elke poging om er een analyse mee te starten liep op een 409 ("nog niet
     // klaar met onderzoeken") zonder dat er nog iets draaide om dat op te lossen.
+    // Het bereik en het werkgebied (3 aug 2026). De oude wizard vroeg ze aan de
+    // klant; de nieuwe onboarding van drie velden doet dat niet meer, en zonder
+    // deze regels bleven ze voorgoed leeg — zie het commentaar bij `serviceScope`
+    // in lib/schemas/profile.ts voor wat dat kost.
+    const bereik = resolveScope(p.serviceScope, p.serviceRegions);
+
     const voorstel = {
       brand_name: filled(prof.brand_name)
         ? prof.brand_name
@@ -210,6 +219,17 @@ export async function prepareProfile(id: string): Promise<ProfileStatus> {
       value_props: unionList(prof.value_props, p.valueProps),
       competitors: unionList(prof.competitors, p.competitors),
       personas: prof.personas?.length ? prof.personas : p.personas,
+      // Klant leidend, net als hierboven: wie zelf 'landelijk' invulde, houdt
+      // dat — ook als het model naar de plaatsnaam in de voettekst keek.
+      service_scope: filled(prof.service_scope)
+        ? prof.service_scope
+        : bereik.scope,
+      service_regions: prof.service_regions?.length
+        ? prof.service_regions
+        : bereik.regions,
+      market_language: filled(prof.market_language)
+        ? prof.market_language
+        : p.marketLanguage.trim() || null,
       // Contentkwaliteit-grondslag (A2/A3): puur uit de site geëxtraheerd, geen
       // klant-input — dus altijd de AI-waarde.
       proof_points: p.proofPoints,

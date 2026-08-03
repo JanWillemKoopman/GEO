@@ -20,7 +20,7 @@
 | Blok B fase 2 — markt verdiepen | **Klaar** — reden per concurrent met bron, plus het bronnenlandschap op merkniveau |
 | Blok B fase 5 — synthese op Sol | **Klaar** — dossier, gespreksagenda en geverifieerde feiten in `brand_facts` |
 
-Tests: **551 unittests, 34 ketentests**, `tsc` en `build` schoon.
+Tests: **571 unittests, 38 ketentests**, `tsc` en `build` schoon.
 
 ### Verificatiecriteria uit §10 — wat is afgetekend en wat niet
 
@@ -32,17 +32,21 @@ Tests: **551 unittests, 34 ketentests**, `tsc` en `build` schoon.
 | A — na toewijzing zijn profiel én analyses van de klant | ✅ ketentest |
 | A — **per tabel** met een selectpolicy een ketentest | ❌ er is één scenario op `getOwnedProfile`/`getOwnedAnalysis` (3 gevallen elk), niet 26 tabellen |
 | A — `/register` geeft 404, herstel levert werkende inlog | ❌ 404 volgt uit `SIGNUPS_ENABLED`, niet nagelopen op productie; herstel vraagt een echte mail |
-| B fase 0 — Bol "dun", HEMA "vervuild", drie andere voldoende | ❌ unittest dekt de heuristiek, niet de echte sites |
-| B fase 1 — Fysi-Unique ≥ 4 diensten met `evidence_url` | ❌ nooit tegen een echte site gedraaid |
-| B budget — p95 over 5 profielen onder $2,15, **gemeten** in `ai_calls` | ❌ nog geen enkele echte aanroep |
-| D — 5–8 topics per testprofiel, elk met een bestaande offering | ❌ idem |
+| B fase 0 — Bol "dun", HEMA "vervuild", drie andere voldoende | ⚠️ Fysi-Unique gaf "voldoende" (30 pagina's, 100% bruikbare tekst); Bol en HEMA nog niet opnieuw gedraaid |
+| B fase 1 — Fysi-Unique ≥ 4 diensten met `evidence_url` | ✅ **16 diensten, 3 categorieën, 1 vestiging**, elk met een `evidence_url` uit de crawl |
+| B budget — p95 over 5 profielen onder $2,15, **gemeten** in `ai_calls` | ⚠️ één profiel gemeten: **$0,2438**. Vijf profielen voor een p95 nog niet |
+| D — 5–8 topics per testprofiel, elk met een bestaande offering | ✅ **8 topics**; de koppeling naar het aanbod was stuk en is gerepareerd (zie logboek 3 aug) |
 | E — twee engines, twee sets `tracking_runs`, `per_engine_json` gevuld | ❌ kan niet: geen `GEMINI_API_KEY`, en de fan-out staat bewust uit |
 | Keten — het aantal briefingvragen in fase 4 **daalt** | ❌ de meetlat van het hele traject; vraagt een echte contentronde |
 
-Vier van de twaalf zijn afgetekend. De overige acht hebben één ding gemeen: ze
-vragen een echte website, een echte aanroep of een echte engine. Conventie 10 —
-gebouwd is niet geverifieerd. Eén profiel aanmaken op productie kost ~$1 en
-tekent er in één klap vijf van af.
+**Zes van de twaalf afgetekend, twee half.** De verificatieronde van 3 augustus
+(Fysi-Unique op productie, 7,5 minuut, $0,24) tekende er drie af en legde zes
+fouten bloot die alle zes tússen de onderdelen zaten — geen enkele bestaande test
+kon ze vangen. Ze staan uitgeschreven in `docs/logbook.md`, met de cijfers eronder;
+alle zes zijn dezelfde dag gerepareerd, met een test per stuk.
+
+Wat nog openstaat vraagt iets wat er nu niet is: vier extra profielen voor een
+echte p95, een `GEMINI_API_KEY`, of een volledige contentronde.
 
 ---
 

@@ -3,9 +3,10 @@
 Backend, Supabase, pijplijn en deploy. Voor het *waarom* achter een keuze: `logbook.md`.
 Voor UI/UX: `ux-design.md`.
 
-> **Geverifieerd tegen de code op 1 augustus 2026** (branch `main`, t/m migratie `0037`),
-> plus de eind-tot-eind-ronde van diezelfde dag (`logbook.md` §10) — die raakte de crawler,
-> de werker en de OpenAI-client, en die wijzigingen staan hieronder verwerkt.
+> **Geverifieerd tegen de code op 3 augustus 2026** (branch `main`, t/m migratie `0042`),
+> plus de eind-tot-eind-ronde van 1 augustus (`logbook.md` §10) en de eerste echte
+> onboarding op productie van 3 augustus (`logbook.md`, Fysi-Unique) — die laatste legde
+> zes fouten bloot in de samenhang tussen de onboardingstappen; alle zes zijn verwerkt.
 > Dit document beschrijft wat de code dóet, niet wat een plan voorschrijft — wijkt het af, dan is
 > de code leidend en is dit document fout. Werk deze datum bij zodra je hem hebt nagetrokken.
 
@@ -104,10 +105,16 @@ Daarom pg_cron.
 
 Bron: `lib/jobs/{types,queue,worker,handlers,pending}.ts`.
 
-- **Taaksoorten:** `profile_research`, `prepare_analysis`, `generate_prompts`, `calibrate_volumes`,
-  `measure_prompt`, `aggregate_week`, `generate_report`, `content_brief`, `content_draft`,
-  `content_revise`, `technical_audit`, `verify_publication`, `measure_impact`, `compute_impact`,
-  `offsite_scan`.
+- **Taaksoorten:** `profile_discover`, `profile_research`, `profile_offering`, `propose_topics`,
+  `profile_market`, `profile_llm_baseline`, `profile_synthesis`, `prepare_analysis`,
+  `generate_prompts`, `calibrate_volumes`, `measure_prompt`, `aggregate_week`, `generate_report`,
+  `content_brief`, `content_draft`, `content_revise`, `technical_audit`, `verify_publication`,
+  `measure_impact`, `compute_impact`, `offsite_scan`.
+- **De onboardingketen** (de eerste zeven) hangt aan één `enqueue` vanuit `POST /api/profiles`:
+  `profile_discover` plant `technical_audit` én `profile_research` in, en vanaf daar ketent elke
+  stap zijn opvolger. `profile_offering` plant `profile_market` **onvoorwaardelijk** in — niet via
+  `propose_topics`, want die keert vroeg terug als er geen aanbodboom is, en dan zou juist bij de
+  klanten met een magere crawl de hele staart van de keten stil verdwijnen.
 - **Eén taak = hoogstens één zware AI-aanroep**, zodat elke taak binnen één werker-aanroep past.
   Meting is daarom per prompt opgeknipt, contentgeneratie in twee taken.
 - **Ketening:** elke handler plant zijn eigen vervolgtaak in. Het werk hangt aan de server, niet
@@ -122,10 +129,15 @@ Bron: `lib/jobs/{types,queue,worker,handlers,pending}.ts`.
 
 | # | Stap | AI | Kern |
 |---|---|---|---|
-| 1 | Profiel aanmaken | — | Onboarding-wizard, 5 stappen. Klant-input is leidend (`prepare-profile.ts`): scalars van de klant blijven staan, lijsten worden een unie, lege velden vult de AI. |
-| 2 | Profielonderzoek | luna, web_search | Merk, branche, tone-of-voice, persona's, concurrenten, `proofPoints`, `styleSamples`. |
-| 3 | Contentinventaris | — | Crawl via robots.txt → sitemap (recursief) → homepage-links. Productpagina's uitgesloten. Instelbaar per profiel (`sitemap_url`, `max_inventory_pages` 5–150). |
-| 4 | Technische GEO-audit | — | `robots.txt` tegen bekende AI-crawlers. Staat de site dicht, dan blokkeert dit contentgeneratie: meer content heeft dan geen zin. |
+| 1 | Profiel aanmaken | — | Eén scherm, drie velden: webadres, bedrijfsnaam, andere schrijfwijzen. De rest doet de pijplijn. |
+| 2 | Ontdekken (fase 0) | — | `discover.ts`: tot 150 pagina's crawlen, JSON-LD/OpenGraph oogsten, inventariskwaliteit beoordelen, renderbaarheid vaststellen. **Nul AI-kosten**, en de context waar alle volgende stappen op leunen. |
+| 3 | Technische GEO-audit | — | `robots.txt` tegen bekende AI-crawlers, plus vier entiteitschecks (naamconsistentie, `sameAs`, schema-dekking, Wikidata). Staat de site dicht, dan blokkeert dit contentgeneratie. |
+| 4 | Profielonderzoek | luna, web_search | Merk, branche, bedrijfsmodel, **bereik en werkgebied**, tone-of-voice, persona's, concurrenten, `proofPoints`, `styleSamples` — nu op alle gecrawlde pagina's in plaats van op de homepage. Klant-input is leidend (`prepare-profile.ts`), en wat een mens zette blijft staan (`field-merge.ts` tegen `profile_field_sources`). |
+| 4a | Aanbodboom | luna | `offering.ts`: het aanbod als boom (`profile_offerings`), per bedrijfsmodel een andere briefing. Een knoop zonder gecrawlde bron-URL vervalt; het citaat bepaalt de zekerheid (`quote-check.ts`). |
+| 4b | Core topics | luna | `propose-topics.ts`: 5–8 onderwerpen uit de aanbodboom, elk met verwijzing naar de knopen waar ze uit volgen. Voorstel, geen meting — goedkeuring is een aparte handeling. |
+| 4c | Markt | luna, web_search | `market.ts`: per concurrent wáárom die wint, plus het bronnenlandschap van de markt. |
+| 4d | LLM-kennisbasislijn | luna, deels web_search | `llm-baseline.ts`: vijf blokken (`kent`, `klopt`, `citeert`, `verwarring`, `categorie`). Het oordeel wordt in code geveld (`baseline-verdict.ts`), nooit door het model over zichzelf. |
+| 4e | Synthese | **sol** (`SYNTHESIS_PREMIUM`) | `synthesis.ts`: dossier, gespreksagenda en `brand_facts` — alleen feiten waarvan het citaat letterlijk op de bronpagina staat. |
 | 5 | Analyse aanmaken | — | Verplicht onderwerp + optionele content-brief. |
 | 6 | Onderwerp-onderzoek (A1') | luna, web_search | Wat de site over dít onderwerp zegt + welke concurrenten hier relevant zijn. |
 | 7 | Promptgeneratie (A2) | luna ×3 parallel, temp 0,8 (effort none) | 10 per funnelfase. Merk- en concurrentneutraal geformuleerd. Aparte calls per fase, want één grote call levert herhaling op. |

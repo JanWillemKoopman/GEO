@@ -33,6 +33,7 @@ import { MODELS } from "@/lib/openai/models";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { OfferingTree } from "@/lib/schemas/offering";
 import { buildTaxonomy } from "@/lib/pipeline/inventory-quality";
+import { quoteConfidence } from "@/lib/pipeline/quote-check";
 import type { BusinessModel, Profile } from "@/lib/types/database";
 
 /** Hoeveel sitetekst er de aanroep in gaat. Zelfde orde als het profielonderzoek. */
@@ -195,7 +196,15 @@ export async function buildOfferingTree(profileId: string): Promise<OfferingResu
   });
 
   const tree = result.parsed;
-  const saved = await persistTree(admin, profileId, tree.nodes, pages.map((p) => p.url as string));
+  const saved = await persistTree(
+    admin,
+    profileId,
+    tree.nodes,
+    pages.map((p) => ({
+      url: p.url as string,
+      text: (p.text_excerpt as string) ?? "",
+    })),
+  );
 
   // Het bedrijfsmodel dat na de hele site bekeken te hebben uitkomt, is beter
   // onderbouwd dan het oordeel op alleen de homepage — maar een handmatig
@@ -268,12 +277,12 @@ async function persistTree(
   admin: ReturnType<typeof createAdminClient>,
   profileId: string,
   nodes: OfferingTree["nodes"],
-  knownUrls: string[],
+  knownPages: Array<{ url: string; text: string }>,
 ): Promise<StoredNode[]> {
-  const urlSet = new Set(knownUrls);
+  const textByUrl = new Map(knownPages.map((p) => [p.url, p.text]));
   const geldig = nodes
     .filter((n) => n.name.trim() !== "")
-    .filter((n) => urlSet.has(n.evidenceUrl))
+    .filter((n) => textByUrl.has(n.evidenceUrl))
     .slice(0, MAX_NODES);
 
   if (geldig.length === 0) return [];
@@ -291,7 +300,21 @@ async function persistTree(
         price_indication: n.priceIndication.trim() || null,
         evidence_url: n.evidenceUrl,
         evidence_quote: n.evidenceQuote.trim() || null,
-        confidence: null,
+        // ⚠️ ZEKERHEID PER KNOOP (3 aug 2026)
+        //
+        // Stond hier hard op `null`, en dat betekent in `ConfidenceChip`
+        // "niet vastgesteld". Bij Fysi-Unique leverde dat twintig grijze chips
+        // op naast een aanbodboom die juist góéd onderbouwd was — en dat is het
+        // omgekeerde van wat die chip moet doen ("alleen het twijfelgeval valt
+        // op", components/confidence-chip.tsx).
+        //
+        // Nu deterministisch, dezelfde regel als `verifyDossierFacts()` in
+        // synthesis.ts: staat het citaat letterlijk op de pagina waar de knoop
+        // naar verwijst, dan is dit geen afleiding maar een vondst.
+        confidence: quoteConfidence(
+          n.evidenceQuote,
+          textByUrl.get(n.evidenceUrl) ?? "",
+        ),
         source: "ai",
         sort_order: i,
       })),

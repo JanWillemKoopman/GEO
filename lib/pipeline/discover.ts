@@ -23,12 +23,18 @@ import "server-only";
  *   • `profile_pages`  — de content-inventaris (bestond al, nu breder)
  *   • `profiles.inventory_quality_json` — deugt die inventaris? (R6.2)
  *   • `profile_facets` rij 'techniek' — sitestructuur, gestructureerde data,
- *     renderbaarheid, naamvarianten
- *   • `brand_facts`    — de harde feiten uit JSON-LD, mét bron-URL
+ *     renderbaarheid, naamvarianten én de geoogste feiten in `raw_json.facts`
  *
  * Bij een MKB-site met een SEO-plugin komt daar in één klap het adres, het
  * telefoonnummer, de openingstijden en de beoordelingen uit. Dat een model
  * daarnaar laten raden is geld uitgeven aan een slechter antwoord.
+ *
+ * ⚠️ NIET `brand_facts`. Die tabel wordt gevuld door `synthesis.ts`, aan het
+ * eind van de pijplijn en alleen met feiten waarvan het citaat letterlijk op de
+ * bronpagina staat. Wat hier geoogst wordt is de RUWE opbrengst — inclusief
+ * paginatitels uit `WebPage`-opmaak, die op entiteitsniveau niets betekenen.
+ * Vandaar dat `llm-baseline.ts` ze door `checkableFacts()` haalt voordat hij er
+ * een kennistest op baseert.
  */
 import { createAdminClient } from "@/lib/supabase/admin";
 import { crawlPages, discoverPageUrls, MAX_PAGES_HARD_CAP } from "@/lib/crawler";
