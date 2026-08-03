@@ -11,10 +11,12 @@ import { FactRequests } from "./fact-requests";
 import { ProfileGaps } from "./profile-gaps";
 import { AssignBox } from "./assign-box";
 import { TopicsPanel } from "./topics-panel";
+import { LlmKnowledgePanel } from "./llm-knowledge-panel";
 import type { AuditCheck } from "@/lib/audit/technical";
 import type {
   Entity,
   FactRequest,
+  ProfileLlmBaseline,
   ProfileTopic,
   TechnicalAudit as TechnicalAuditRow,
 } from "@/lib/types/database";
@@ -44,6 +46,7 @@ export default async function ProfilePage({
     { data: auditRow },
     { data: factRows },
     { data: topicRows },
+    { data: baselineRows },
   ] = await Promise.all([
     supabase
       .from("profile_pages")
@@ -79,6 +82,12 @@ export default async function ProfilePage({
       .select("*")
       .eq("profile_id", id)
       .order("priority", { ascending: false }),
+    // Wat AI-assistenten al over dit merk weten (blok B fase 3).
+    supabase
+      .from("profile_llm_baseline")
+      .select("*")
+      .eq("profile_id", id)
+      .order("measured_at"),
   ]);
 
   const audit = auditRow as TechnicalAuditRow | null;

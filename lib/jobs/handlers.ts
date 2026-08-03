@@ -17,6 +17,7 @@ import { prepareProfile } from "@/lib/pipeline/prepare-profile";
 import { discoverSite } from "@/lib/pipeline/discover";
 import { buildOfferingTree } from "@/lib/pipeline/offering";
 import { proposeTopics } from "@/lib/pipeline/propose-topics";
+import { runLlmBaseline } from "@/lib/pipeline/llm-baseline";
 import {
   prepareTopicResearch,
   generateAnalysisPrompts,
@@ -182,6 +183,20 @@ const handlers: { [T in JobType]: Handler<T> } = {
     if (!job.profile_id) throw new Error("profile_offering zonder profile_id.");
     const { nodes } = await buildOfferingTree(job.profile_id);
 
+    // De kennistest hangt NIET aan de aanbodboom: "wat weet ChatGPT over dit
+    // merk" is te beantwoorden zonder één dienst te kennen. Hem achter de
+    // topics hangen zou hem laten verdwijnen bij precies de klanten waar de
+    // crawl weinig opleverde — en dat zijn er niet weinig.
+    //
+    // Laatste in de keten omdat hij de duurste stap is (~$0,30): als het budget
+    // op is, hoort hij als eerste te sneuvelen. De volgorde ís de prioritering.
+    await enqueue(admin, {
+      type: "profile_llm_baseline",
+      payload: {},
+      profileId: job.profile_id,
+      dedupeKey: dedupe.llmBaseline(job.profile_id),
+    });
+
     // Geen boom, geen topics. Voorstellen op basis van alleen een branchenaam
     // levert generieke onderwerpen op die precies niet over deze klant gaan.
     if (nodes === 0) return;
@@ -197,6 +212,11 @@ const handlers: { [T in JobType]: Handler<T> } = {
   propose_topics: async ({ job }) => {
     if (!job.profile_id) throw new Error("propose_topics zonder profile_id.");
     await proposeTopics(job.profile_id);
+  },
+
+  profile_llm_baseline: async ({ job }) => {
+    if (!job.profile_id) throw new Error("profile_llm_baseline zonder profile_id.");
+    await runLlmBaseline(job.profile_id);
   },
 
   // ── Voorbereiding stap 1: onderwerp-onderzoek ─────────────────────────────

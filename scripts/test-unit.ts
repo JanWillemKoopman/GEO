@@ -94,6 +94,13 @@ import {
   sameBrand,
 } from "@/lib/audit/entity-consistency";
 import { dedupe } from "@/lib/jobs/dedupe";
+import {
+  buildVerdict,
+  checkFacts,
+  knowsBrand,
+  admitsUnknown,
+  describeVerdict,
+} from "@/lib/pipeline/baseline-verdict";
 
 let passed = 0;
 let failed = 0;
@@ -2154,6 +2161,99 @@ group("de meetsleutel per engine (migratie 0041)", () => {
     "en herhalingen blijven daarbinnen uniek",
     dedupe.measurePrompt(a, p, 3, 1, "gemini") !== dedupe.measurePrompt(a, p, 3, 2, "gemini"),
   );
+});
+
+group("kent een AI-assistent dit merk? (fase 3, blok A)", () => {
+  const merk = "Fysi-Unique";
+
+  ok(
+    "een inhoudelijk antwoord telt als kennen",
+    knowsBrand(
+      "Fysi-Unique is een fysiotherapiepraktijk in Amersfoort die zich richt op sportblessures.",
+      merk,
+    ),
+  );
+
+  // "Ik ken Fysi-Unique niet" BEVAT de merknaam. Zonder de toegeef-detectie zou
+  // elk eerlijk niet-weten-antwoord als herkenning tellen — en dan meet dit
+  // blok precies het tegenovergestelde van wat het moet meten.
+  ok(
+    "een eerlijk niet-weten telt NIET als kennen",
+    !knowsBrand("Ik ken Fysi-Unique niet en heb hier geen betrouwbare informatie over.", merk),
+  );
+  ok("en dat wordt apart vastgelegd", admitsUnknown("Ik heb hier geen informatie over."));
+
+  ok("een te kort antwoord telt niet", !knowsBrand("Fysi-Unique.", merk));
+  ok(
+    "een alias telt ook",
+    knowsBrand(
+      "Fysi Unique is een praktijk voor fysiotherapie in Amersfoort met vier therapeuten.",
+      merk,
+      ["Fysi Unique"],
+    ),
+  );
+  ok(
+    "een heel ander bedrijf telt niet",
+    !knowsBrand("De Vries Fysiotherapie is een praktijk in Utrecht met zes behandelkamers.", merk),
+  );
+});
+
+group("klopt het? — het oordeel dat het model niet zelf mag vellen", () => {
+  const feiten = [
+    { key: "telefoon", value: "033 123 4567" },
+    { key: "adres", value: "3811 MH" },
+    { key: "opgericht", value: "2012" },
+  ];
+
+  // Letterlijk genoemd = bevestigd.
+  const goed = checkFacts("Je bereikt ze op 033 123 4567, ze zitten op 3811 MH en bestaan sinds 2012.", feiten);
+  ok("alles bevestigd", goed.every((c) => c.verdict === "bevestigd"), JSON.stringify(goed));
+
+  // Hetzelfde nummer, andere schrijfwijze. Dit als "niet genoemd" tellen zou de
+  // uitslag onterecht drukken — +31 33 en 033 zijn hetzelfde nummer.
+  const anders = checkFacts("Bel +31 33 123 45 67.", [feiten[0]]);
+  ok("andere schrijfwijze telt als bevestigd", anders[0].verdict === "bevestigd", anders[0].verdict);
+
+  // DIT is de bevinding waar het hele blok om draait.
+  const fout = checkFacts("Het nummer is 020 999 8877 en ze bestaan sinds 1998.", feiten);
+  ok(
+    "een ánder telefoonnummer = tegengesproken",
+    fout[0].verdict === "tegengesproken",
+    fout[0].verdict,
+  );
+  ok("en het gevonden nummer staat erbij", (fout[0].found ?? "").includes("020"));
+  ok("een ánder jaartal = tegengesproken", fout[2].verdict === "tegengesproken", fout[2].verdict);
+
+  // Niets gezegd is geen fout (conventie 3): dat ChatGPT je openingstijden niet
+  // noemt is iets anders dan dat hij ze fout heeft.
+  const stil = checkFacts("Het is een fysiotherapiepraktijk.", feiten);
+  ok("niets gezegd = niet_genoemd", stil.every((c) => c.verdict === "niet_genoemd"));
+
+  // Vrije tekst kan deze module niet beoordelen, en dan zwijgt hij liever dan
+  // dat hij beschuldigt.
+  const vrij = checkFacts("Ze doen iets met gezondheid.", [{ key: "omschrijving", value: "fysiotherapie" }]);
+  ok("vrije tekst wordt nooit tegengesproken", vrij[0].verdict === "niet_genoemd");
+});
+
+group("het volledige oordeel en hoe de klant het leest", () => {
+  const v = buildVerdict(
+    "Fysi-Unique is een fysiotherapiepraktijk. Het telefoonnummer is 020 999 8877.",
+    "Fysi-Unique",
+    [],
+    [
+      { key: "telefoon", value: "033 123 4567" },
+      { key: "adres", value: "3811 MH" },
+    ],
+  );
+  ok("het merk wordt gekend", v.knowsBrand);
+  ok("één tegenspraak geteld", v.contradicted === 1, String(v.contradicted));
+  ok("één niet genoemd", v.notMentioned === 1, String(v.notMentioned));
+
+  const tekst = describeVerdict(v, "ChatGPT", "Fysi-Unique");
+  ok("de zin noemt de tegenspraak", tekst.includes("tegengesproken"), tekst);
+
+  const onbekend = buildVerdict("Ik ken dit bedrijf niet.", "Fysi-Unique", [], []);
+  ok("niet gekend levert een andere zin", describeVerdict(onbekend, "Gemini", "Fysi-Unique").includes("niet te kennen"));
 });
 
 // ════════════════════════════════════════════════════════════════════════════
