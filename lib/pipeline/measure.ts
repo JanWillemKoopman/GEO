@@ -18,7 +18,7 @@ import { promptWeight, NEUTRAL_WEIGHT } from "@/lib/pipeline/prompt-weight";
 import { volumeBandOf } from "@/lib/pipeline/volume";
 import { Mention } from "@/lib/schemas/mention";
 import { loadEntityIndex, resolveEntity } from "@/lib/entities/resolve";
-import { looksLikeBrandName } from "@/lib/entities/normalize";
+import { looksLikeBrandName, textContainsName } from "@/lib/entities/normalize";
 import { domainOf } from "@/lib/offsite/domain";
 import { normalizePosition, weightedAveragePosition } from "@/lib/pipeline/position";
 import { shareByRun, sumShare, roundQuestions } from "@/lib/pipeline/question-share";
@@ -235,23 +235,39 @@ export async function measureOnePrompt(
   // geslaagd voor de drempel, maar als ONBEOORDEELD in de score. Nu is
   // `mention_json` het sluitstuk: staat hij er, dan staat de rest er ook.
   await admin.from("tracking_run_mentions").delete().eq("tracking_run_id", run.id);
-  const rows = b.parsed.mentions.map((m) => ({
-    tracking_run_id: run!.id,
-    entity_name: m.entity,
-    is_own_brand: m.isOwnBrand,
-    mentioned: m.mentioned,
-    position: normalizePosition(m.position),
-    // `sentiment` wordt sinds R3 niet meer gevuld (migratie 0029): het leverde
-    // in 650 metingen geen enkele keer 'negative' op en werd nergens getoond.
-    // `mention_role` neemt zijn plaats in — die varieert wél.
-    // Vangnet, net als bij de positie: het model vulde bij 10 van de 27
-    // niet-genoemde merken tóch een rol in ('eerste_aanbeveling'), terwijl de
-    // prompt expliciet null vraagt. Structured output vult bij twijfel de eerste
-    // enum-waarde in. Een merk dat niet genoemd wordt kán geen eerste
-    // aanbeveling zijn, dus dwingen we die tegenspraak hier weg.
-    mention_role: m.mentioned ? m.role : null,
-    cited_sources: m.citedSources,
-  }));
+  const rawText = run.raw_response ?? "";
+  // `ownLabel` is "Merknaam (onderwerp)" (loadMeasureContext) — voor de
+  // tekstcontrole hieronder hebben we de kale merknaam nodig, niet die
+  // toevoeging, want "(onderwerp)" staat nooit letterlijk in een AI-antwoord.
+  const ownBrandName = ownLabel.replace(/\s*\([^()]*\)\s*$/, "").trim() || ownLabel;
+  const rows = b.parsed.mentions.map((m) => {
+    // VANGNET op de LLM-classificatie (lib/openai/mention-prompt.ts): het model
+    // krijgt de instructie zich uitsluitend op de tekst te baseren, maar bleek
+    // in de praktijk soms `mentioned: true` te geven voor het eigen merk terwijl
+    // de merknaam nergens in `raw_response` voorkomt (steekproef op de
+    // Swapfiets-analyse: 5 van de 26 als "genoemd" gemarkeerde metingen bevatten
+    // de merknaam letterlijk niet in de tekst). Bronnen/URL's tellen hier
+    // bewust niet mee — alleen of de naam daadwerkelijk in de tekst staat.
+    const candidateNames = m.isOwnBrand ? [ownBrandName, ...ownAliases] : [m.entity];
+    const mentioned = m.mentioned && candidateNames.some((name) => textContainsName(rawText, name));
+    return {
+      tracking_run_id: run!.id,
+      entity_name: m.entity,
+      is_own_brand: m.isOwnBrand,
+      mentioned,
+      position: mentioned ? normalizePosition(m.position) : null,
+      // `sentiment` wordt sinds R3 niet meer gevuld (migratie 0029): het leverde
+      // in 650 metingen geen enkele keer 'negative' op en werd nergens getoond.
+      // `mention_role` neemt zijn plaats in — die varieert wél.
+      // Vangnet, net als bij de positie: het model vulde bij 10 van de 27
+      // niet-genoemde merken tóch een rol in ('eerste_aanbeveling'), terwijl de
+      // prompt expliciet null vraagt. Structured output vult bij twijfel de eerste
+      // enum-waarde in. Een merk dat niet genoemd wordt kán geen eerste
+      // aanbeveling zijn, dus dwingen we die tegenspraak hier weg.
+      mention_role: mentioned ? m.role : null,
+      cited_sources: m.citedSources,
+    };
+  });
   if (rows.length > 0) {
     const { error: rowsError } = await admin.from("tracking_run_mentions").insert(rows);
     if (rowsError) {

@@ -18,7 +18,13 @@
  * database toetst vooral of je nabootsing klopt.
  */
 import { binomialStderr, weightedScoreStderr, confidenceBand, changeIsMeaningful } from "@/lib/stats/uncertainty";
-import { normalizeEntityName, isSameEntity, pickCanonicalName, looksLikeBrandName } from "@/lib/entities/normalize";
+import {
+  normalizeEntityName,
+  isSameEntity,
+  pickCanonicalName,
+  looksLikeBrandName,
+  textContainsName,
+} from "@/lib/entities/normalize";
 import { bandFromEstimate, volumeBandOf, isVolumeBand, VOLUME_BANDS, VOLUME_FACTOR } from "@/lib/pipeline/volume";
 import { promptWeight, NEUTRAL_WEIGHT } from "@/lib/pipeline/prompt-weight";
 import { parseRobots, isAllowed, sitemapsFrom } from "@/lib/audit/robots";
@@ -171,6 +177,29 @@ group("gelijk of niet", () => {
   ok("bijna-gelijke namen NIET samenvoegen", !isSameEntity("Bakkerij Jansen", "Bakkerij Hansen"));
   ok("lege naam matcht nooit", !isSameEntity("", ""));
   ok("mooiste schrijfwijze wint", pickCanonicalName(["coolblue.nl", "Coolblue"]) === "Coolblue");
+});
+
+group("staat de naam echt in de tekst? (vangnet op de mention-classificatie)", () => {
+  // Aanleiding: de Swapfiets-analyse toonde "Jij wordt genoemd" op een antwoord
+  // dat de merknaam nergens bevatte — het model had `mentioned: true` gegeven
+  // zonder dat in de tekst terug te vinden.
+  const swapfietsAntwoord =
+    "De belangrijkste voordelen van een fietsabonnement ten opzichte van het kopen van een " +
+    "eigen fiets zijn lagere kosten en onderhoud inbegrepen.";
+  ok("merk niet in tekst → geen match", !textContainsName(swapfietsAntwoord, "Swapfiets"));
+  ok(
+    "merk wél in tekst → match",
+    textContainsName("Swapfiets is een populaire aanbieder van fietsabonnementen.", "Swapfiets"),
+  );
+  ok(
+    "hoofdletters en leestekens maken niet uit",
+    textContainsName("Kies voor SWAP-FIETS als je flexibel wilt blijven.", "Swap Fiets"),
+  );
+  ok(
+    "geen woordgrens → geen valse match",
+    !textContainsName("De vakantie naar Kaapstad was geweldig.", "Aap"),
+  );
+  ok("lege naam matcht nooit", !textContainsName("Swapfiets is top.", ""));
 });
 
 // ════════════════════════════════════════════════════════════════════════════
