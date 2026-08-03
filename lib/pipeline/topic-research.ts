@@ -52,6 +52,7 @@ export async function generateTopicResearch(args: {
     `jouw taak is ALLEEN het specifieke onderwerp "${topic}" te onderzoeken: ` +
     `(1) wat zegt de website specifiek over dit product/thema (contentSummary), en ` +
     `(2) welke 3–5 concurrenten zijn relevant VOOR DIT SPECIFIEKE ONDERWERP (niet per se dezelfde als de algemene concurrenten van het bedrijf). ` +
+    `Geef bij (2) per concurrent ALLEEN de bedrijfs-/merknaam (2–4 woorden) — geen toelichting, geen onderbouwing en geen bronvermelding of link; dat is geen leesbare lijst op een klantscherm. ` +
     `${groundingRule} Antwoord in het Nederlands.`;
 
   const briefLine = contentBrief?.trim()
