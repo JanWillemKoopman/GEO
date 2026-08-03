@@ -2,7 +2,8 @@ import Link from "next/link";
 import { requireUser } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { StatusBadge } from "@/components/status-badge";
-import { ActionList, DashboardStats } from "@/components/action-list";
+import { DashboardStats } from "@/components/dashboard-stats";
+import { AnalysisCardMetrics } from "@/components/analysis-card-metrics";
 import { EmptyState } from "@/components/empty-state";
 import { PageHeader } from "@/components/page-header";
 import { STATUS_META } from "@/lib/analysis-status";
@@ -58,10 +59,7 @@ export default async function AnalysesPage() {
       />
 
       {analyses.length > 0 && (
-        <div className="flex flex-col gap-4">
-          <ActionList work={dashboard.work} stats={dashboard.stats} />
-          <DashboardStats stats={dashboard.stats} biggestChange={dashboard.biggestChange} />
-        </div>
+        <DashboardStats stats={dashboard.stats} biggestChange={dashboard.biggestChange} />
       )}
 
       {analyses.length > 1 && <span className="mono-label">Je analyses</span>}
@@ -85,13 +83,16 @@ export default async function AnalysesPage() {
             <li key={a.id}>
               <Link
                 href={`/analyses/${a.id}`}
-                className="card card-interactive flex flex-wrap items-center justify-between gap-4"
+                className="card card-interactive flex flex-col gap-3"
               >
-                <div className="min-w-0">
-                  <p className="truncate text-lg font-semibold">{a.name}</p>
-                  <p className="mono-label mt-1">Bijgewerkt {formatDate(a.updated_at)}</p>
+                <div className="flex flex-wrap items-center justify-between gap-4">
+                  <div className="min-w-0">
+                    <p className="truncate text-lg font-semibold">{a.name}</p>
+                    <p className="mono-label mt-1">Bijgewerkt {formatDate(a.updated_at)}</p>
+                  </div>
+                  <StatusBadge status={a.status} />
                 </div>
-                <StatusBadge status={a.status} />
+                <AnalysisCardMetrics metrics={dashboard.cardMetrics[a.id]} />
               </Link>
             </li>
           ))}
