@@ -13,6 +13,7 @@ import { AssignBox } from "./assign-box";
 import { TopicsPanel } from "./topics-panel";
 import { LlmKnowledgePanel } from "./llm-knowledge-panel";
 import { StrategyBox } from "./strategy-box";
+import { ResearchStepsStrip } from "./research-steps-strip";
 import {
   parseContextFactors,
   technicalAdviceStale,
@@ -115,6 +116,10 @@ export default async function ProfilePage({
 
   return (
     <div className="flex flex-col gap-4">
+      {/* Het profiel gaat op 'klaar' na stap 2 van 6; deze strip laat zien wat
+          er nog binnenkomt en verdwijnt zodra alles er is. */}
+      <ResearchStepsStrip profileId={id} />
+
       {/* Waarde vóór inspanning (bijlage A9): de onboarding vraagt alleen naam
           en website; de rest vragen we hier, nu de klant het onderzoek heeft
           zien draaien en weet waar het voor dient. */}

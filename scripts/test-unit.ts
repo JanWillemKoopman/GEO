@@ -101,6 +101,7 @@ import {
   admitsUnknown,
   describeVerdict,
 } from "@/lib/pipeline/baseline-verdict";
+import { buildSteps, researchRunning } from "@/lib/pipeline/research-steps";
 import {
   parseContextFactors,
   technicalAdviceStale,
@@ -2296,6 +2297,56 @@ group("contextfactoren: wat de pijplijn niet kan zien (blok C)", () => {
   ok("geen factoren = geen melding", technicalAdviceStale([]) === null);
   ok("rommel in de kolom levert een lege lijst", parseContextFactors("nee").length === 0);
   ok("null ook", parseContextFactors(null).length === 0);
+});
+
+group("onderzoeksstappen met tussenresultaten (§8)", () => {
+  const leeg = { topics: 0, auditChecks: 0, researchDone: false };
+
+  // Halverwege: fase 0 en het onderzoek zijn geweest, het aanbod draait, de
+  // rest wacht. Dat onderscheid is wat de klant wil zien.
+  const halverwege = buildSteps({
+    pendingByType: { profile_offering: 1 },
+    facetSummaries: { techniek: "31 pagina's gevonden · 12 met gestructureerde data." },
+    counts: { ...leeg, researchDone: true },
+  });
+  const stand = (job: string) => halverwege.find((s) => s.job === job)?.state;
+  ok("de crawl is klaar", stand("profile_discover") === "klaar", stand("profile_discover"));
+  ok("het onderzoek is klaar", stand("profile_research") === "klaar");
+  ok("het aanbod is bezig", stand("profile_offering") === "bezig", stand("profile_offering"));
+  ok("de kennistest wacht", stand("profile_llm_baseline") === "wacht");
+  ok(
+    "en het tussenresultaat staat erbij",
+    (halverwege[0].result ?? "").includes("31 pagina's"),
+    halverwege[0].result ?? "",
+  );
+  ok("er loopt nog iets", researchRunning(halverwege));
+
+  // Een stap die draaide maar niets vond, moet er ANDERS uitzien dan een stap
+  // die iets vond. Anders leest "0 diensten gevonden" als geslaagd — precies
+  // het stille degraderen waar dit project vangnetten tegen bouwt.
+  const nietsGevonden = buildSteps({
+    pendingByType: {},
+    facetSummaries: { techniek: "12 pagina's gevonden." },
+    counts: { topics: 0, auditChecks: 5, researchDone: true },
+  });
+  ok(
+    "aanbod zonder resultaat = overgeslagen",
+    nietsGevonden.find((s) => s.job === "profile_offering")?.state === "overgeslagen",
+  );
+  ok(
+    "audit mét controlepunten = klaar",
+    nietsGevonden.find((s) => s.job === "technical_audit")?.state === "klaar",
+  );
+  ok("niets loopt meer", !researchRunning(nietsGevonden));
+
+  // Helemaal aan het begin staat alles te wachten op de eerste taak.
+  const start = buildSteps({
+    pendingByType: { profile_discover: 1 },
+    facetSummaries: {},
+    counts: leeg,
+  });
+  ok("de eerste stap is bezig", start[0].state === "bezig");
+  ok("de rest wacht", start.slice(1).every((s) => s.state === "wacht"));
 });
 
 // ════════════════════════════════════════════════════════════════════════════
