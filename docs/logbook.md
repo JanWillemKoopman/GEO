@@ -347,3 +347,31 @@ meetronde.
   Luna tegen Terra.
 - **De regressieset is vijf analyses van 30 juli 2026.** Na een wijziging moeten de cijfers óf
   gelijk blijven, óf aantoonbaar beter worden om de reden die in de stap staat.
+
+## 13. Analyses-overzicht ontdaan van de opgerolde werklijst (3 augustus 2026)
+
+`/analyses` toonde bovenaan dezelfde "Wat je nu kunt doen"-lijst als het dossier, maar dan opgerold
+over alle analyses heen. Bij één analyse was dat zinvol; bij meerdere liep hij op **27 losse
+punten** in één kaart — precies de rommel die het werkmodel (`lib/work.ts`, §9) per analyse juist
+had opgelost. De lijst is weg van dit overzicht: dat werk komt uit een analyse en staat daar ook,
+in hoofdstuk 03 van het dossier. `/analyses` toont nu alleen nog de drie statusblokken en de
+analysenlijst zelf.
+
+Ter compensatie kreeg elke rij in die lijst vier kaartcijfers plus het aantal metingen:
+zichtbaarheidsscore, aantal openstaande vragen, aantal voorgestelde en aantal geschreven pagina's,
+en "N metingen" (`AnalysisCardMetrics`, `lib/dashboard.ts`). Twee dingen die de moeite van het
+uitschrijven waard zijn:
+
+- **Openstaande vragen is afgeleid, niet apart bevraagd.** `visibility_scores.score` is exact
+  `genoemd / winnable_runs × 100`; door dat om te keren (`winnable_runs − round(score/100 ×
+  winnable_runs)`) volgt het aantal gemiste vragen zonder een extra join op
+  `tracking_run_mentions` — die tabel heeft geen `analysis_id` en zou per analyse een aparte query
+  op de laatste week hebben gekost.
+- **"Geschreven" en "voorgesteld" gebruiken dezelfde statusgrens als `_chapters/werk.tsx`**: een
+  `content_pieces`-rij telt pas als geschreven zodra de status voorbij `briefing` is (die heeft nog
+  geen tekst); een aanbeveling telt als "voorgesteld" zolang er geen rij met status ≠ `draft` en
+  dezelfde titel bestaat. Twee losse berekeningen voor "is dit al gedaan" hadden hier gegarandeerd
+  uit elkaar gelopen.
+
+`components/action-list.tsx` (de oude `ActionList`) is vervallen; `DashboardStats` verhuisde naar
+`components/dashboard-stats.tsx`.
