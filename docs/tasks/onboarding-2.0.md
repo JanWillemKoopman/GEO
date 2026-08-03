@@ -22,10 +22,27 @@
 
 Tests: **551 unittests, 34 ketentests**, `tsc` en `build` schoon.
 
-**Wat er nu nog tussen zit en "af":** de keten is nog nooit tegen een echte
-website gedraaid — alle tests draaien op stubs. Conventie 10: gebouwd is niet
-geverifieerd. Eén profiel aanmaken op productie kost ~$1 en toetst in één klap
-de zeven taken, de budgetpoort en de kostenschatting.
+### Verificatiecriteria uit §10 — wat is afgetekend en wat niet
+
+| Criterium | Stand |
+|---|---|
+| C — veld uit het gesprek overleeft een tweede ronde | ✅ unittest op `field-merge.ts` |
+| C — `nieuwe_website` op de audit **en** in de rapportinvoer, `naamswijziging` in aliases | ✅ unittest + beide plekken aangesloten |
+| B fase 3 — elk oordeel deterministisch herleidbaar | ✅ `baseline-verdict.ts`, geen enkel oordeel van het model |
+| A — na toewijzing zijn profiel én analyses van de klant | ✅ ketentest |
+| A — **per tabel** met een selectpolicy een ketentest | ❌ er is één scenario op `getOwnedProfile`/`getOwnedAnalysis` (3 gevallen elk), niet 26 tabellen |
+| A — `/register` geeft 404, herstel levert werkende inlog | ❌ 404 volgt uit `SIGNUPS_ENABLED`, niet nagelopen op productie; herstel vraagt een echte mail |
+| B fase 0 — Bol "dun", HEMA "vervuild", drie andere voldoende | ❌ unittest dekt de heuristiek, niet de echte sites |
+| B fase 1 — Fysi-Unique ≥ 4 diensten met `evidence_url` | ❌ nooit tegen een echte site gedraaid |
+| B budget — p95 over 5 profielen onder $2,15, **gemeten** in `ai_calls` | ❌ nog geen enkele echte aanroep |
+| D — 5–8 topics per testprofiel, elk met een bestaande offering | ❌ idem |
+| E — twee engines, twee sets `tracking_runs`, `per_engine_json` gevuld | ❌ kan niet: geen `GEMINI_API_KEY`, en de fan-out staat bewust uit |
+| Keten — het aantal briefingvragen in fase 4 **daalt** | ❌ de meetlat van het hele traject; vraagt een echte contentronde |
+
+Vier van de twaalf zijn afgetekend. De overige acht hebben één ding gemeen: ze
+vragen een echte website, een echte aanroep of een echte engine. Conventie 10 —
+gebouwd is niet geverifieerd. Eén profiel aanmaken op productie kost ~$1 en
+tekent er in één klap vijf van af.
 
 ---
 
