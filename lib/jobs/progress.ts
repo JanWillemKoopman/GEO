@@ -33,6 +33,7 @@ const TYPICAL_SECONDS: Record<JobType, number> = {
   // hele pijplijn — bij een trage site loopt dit richting anderhalve minuut.
   profile_discover: 70,
   profile_research: 50, // sitemap-crawl + AI-onderzoek met web_search
+  profile_offering: 45, // één aanroep over de hele sitetekst, geen web_search
   prepare_analysis: 30, // onderwerp-onderzoek: één gegrondde AI-aanroep
   generate_prompts: 40, // 3 parallelle prompt-calls, elk met een bijvul-ronde
   calibrate_volumes: 15, // één aanroep over alle vragen samen
@@ -60,7 +61,16 @@ const TYPICAL_SECONDS: Record<JobType, number> = {
  * taken van een analyse, dus zonder deze uitzondering zou zo'n cosmetische
  * misser als "de meting is misgelopen" gemeld worden.
  */
-const NON_BLOCKING_TYPES: ReadonlySet<JobType> = new Set<JobType>(["calibrate_volumes"]);
+const NON_BLOCKING_TYPES: ReadonlySet<JobType> = new Set<JobType>([
+  "calibrate_volumes",
+  // De aanbodboom is VERRIJKING, geen voorwaarde (zelfde redenering als
+  // competitor_intel bij het rapport). Het profiel staat al op 'klaar' als
+  // deze taak begint; mislukt hij, dan mist de klant zijn dienstenoverzicht en
+  // de topicvoorstellen — vervelend, maar zijn merk is bruikbaar en elke
+  // analyse werkt. Een rood kruis op het voortgangsscherm zou suggereren dat
+  // het onderzoek is misgelopen, en dat is niet zo.
+  "profile_offering",
+]);
 
 /**
  * Hoeveel lichte taken de werker gelijktijdig afwerkt. Moet overeenkomen met

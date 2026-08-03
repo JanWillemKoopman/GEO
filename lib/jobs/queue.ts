@@ -77,6 +77,7 @@ export async function enqueue<T extends JobType>(
 export const dedupe = {
   profileDiscover: (profileId: string) => `profile_discover:${profileId}`,
   profileResearch: (profileId: string) => `profile_research:${profileId}`,
+  profileOffering: (profileId: string) => `profile_offering:${profileId}`,
   prepareAnalysis: (analysisId: string) => `prepare:${analysisId}`,
   generatePrompts: (analysisId: string) => `prompts:${analysisId}`,
   calibrateVolumes: (analysisId: string) => `volumes:${analysisId}`,

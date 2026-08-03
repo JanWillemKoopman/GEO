@@ -15,6 +15,7 @@ import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { prepareProfile } from "@/lib/pipeline/prepare-profile";
 import { discoverSite } from "@/lib/pipeline/discover";
+import { buildOfferingTree } from "@/lib/pipeline/offering";
 import {
   prepareTopicResearch,
   generateAnalysisPrompts,
@@ -150,9 +151,24 @@ const handlers: { [T in JobType]: Handler<T> } = {
     });
   },
 
-  profile_research: async ({ job }) => {
+  profile_research: async ({ admin, job }) => {
     if (!job.profile_id) throw new Error("profile_research zonder profile_id.");
     await prepareProfile(job.profile_id);
+
+    // Het aanbod erachteraan: dat leunt op `business_model`, dat hierboven pas
+    // gezet wordt. Een eigen taak omdat het een tweede zware aanroep is over
+    // dezelfde 55.000 tekens — samen passen ze niet in één werker-aanroep.
+    await enqueue(admin, {
+      type: "profile_offering",
+      payload: {},
+      profileId: job.profile_id,
+      dedupeKey: dedupe.profileOffering(job.profile_id),
+    });
+  },
+
+  profile_offering: async ({ job }) => {
+    if (!job.profile_id) throw new Error("profile_offering zonder profile_id.");
+    await buildOfferingTree(job.profile_id);
   },
 
   // ── Voorbereiding stap 1: onderwerp-onderzoek ─────────────────────────────
