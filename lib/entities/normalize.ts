@@ -162,3 +162,34 @@ export function looksLikeBrandName(name: string): boolean {
   // Een hoofdletter ergens in de naam.
   return /\p{Lu}/u.test(trimmed);
 }
+
+/** Leestekens/accenten weg, spaties inklappen — voor woordgrens-bewuste vergelijking. */
+function normalizeForContains(s: string): string {
+  return s
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim()
+    .replace(/\s+/g, " ");
+}
+
+/**
+ * Staat `name` LETTERLIJK in `text` (op hoofdletters, leestekens en accenten
+ * na)? Geen fuzzy matching — zelfde conservatieve keuze als `isSameEntity`
+ * hierboven, maar dan voor "komt deze naam voor in deze tekst" in plaats van
+ * "zijn dit twee schrijfwijzen van hetzelfde bedrijf".
+ *
+ * Bestaat om de mention-classificatie (lib/pipeline/measure.ts) te controleren:
+ * de LLM-beoordeling van `mentioned` bleek soms `true` terug te geven terwijl
+ * het merk nergens in `raw_response` voorkomt — puur een oordeel van het model,
+ * niet gegrond in de tekst. Deze functie is het onafhankelijke, deterministische
+ * vangnet daarop: de tekst zelf beslist, niet het model.
+ */
+export function textContainsName(text: string, name: string): boolean {
+  const needle = normalizeForContains(name);
+  if (!needle) return false;
+  const haystack = ` ${normalizeForContains(text)} `;
+  const escaped = needle.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return new RegExp(`(^|\\s)${escaped}($|\\s)`).test(haystack);
+}
