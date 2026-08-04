@@ -252,6 +252,12 @@ export interface ProfileTopic {
   title: string;
   rationale: string | null;
   offering_ids: string[];
+  /**
+   * Dezelfde knopen op NAAM (migratie 0043). Een herhaalronde bouwt de
+   * aanbodboom opnieuw op met nieuwe id's; hiermee legt `offering.ts` de
+   * koppeling terug.
+   */
+  offering_names: string[];
   priority: number;
   /** Wat de klant er in het gesprek over zei; overrulet de AI-prioritering. */
   client_note: string | null;

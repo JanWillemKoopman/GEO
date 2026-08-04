@@ -528,6 +528,106 @@ async function main(): Promise<void> {
       ).blocked.length === 0,
     );
 
+    // ══════════════════════════════════════════════════════════════════════
+    // Een onderwerp overleeft "onderzoek opnieuw" mét zijn aanbod (0043)
+    //
+    // De herhaalroute verwijdert de aanbodknopen met bron `ai` en laat de
+    // topics staan. `profile_topics.offering_ids` is een `uuid[]` en kan dus
+    // geen foreign key hebben — na die verwijdering wijst hij naar rijen die
+    // niet meer bestaan, zonder dat er iets omvalt. Precies het soort fout dat
+    // alleen zichtbaar wordt als je de twee stappen achter elkaar zet.
+    // ══════════════════════════════════════════════════════════════════════
+    console.log("\nEen onderwerp overleeft een herbouw van de aanbodboom");
+
+    const { relinkOfferingIds } = await import("@/lib/pipeline/topic-link");
+
+    const { rows: oudeKnopen } = await db.client.query(
+      `insert into public.profile_offerings (profile_id, kind, name, source, sort_order)
+       values ($1, 'dienst', 'Bekkenfysiotherapie', 'ai', 0),
+              ($1, 'dienst', 'Zwangerschapsbegeleiding', 'ai', 1),
+              ($1, 'dienst', 'Eigen toevoeging', 'klant', 2)
+       returning id, name, source`,
+      [profileId],
+    );
+    const oudId = (naam: string) =>
+      (oudeKnopen as { id: string; name: string }[]).find((o) => o.name === naam)!
+        .id;
+
+    await db.client.query(
+      `insert into public.profile_topics (profile_id, title, offering_ids, offering_names, priority)
+       values ($1, 'Bekkenbodemklachten behandelen', $2, $3, 5)`,
+      [
+        profileId,
+        [oudId("Bekkenfysiotherapie"), oudId("Eigen toevoeging")],
+        ["Bekkenfysiotherapie"],
+      ],
+    );
+
+    // Wat de herhaalroute doet: alleen de AI-knopen weg.
+    await db.client.query(
+      "delete from public.profile_offerings where profile_id = $1 and source = 'ai'",
+      [profileId],
+    );
+
+    const { rows: dangling } = await db.client.query(
+      `select cardinality(t.offering_ids) as gekoppeld,
+              (select count(*) from public.profile_offerings o where o.id = any (t.offering_ids)) as bestaat_nog
+       from public.profile_topics t where t.profile_id = $1`,
+      [profileId],
+    );
+    ok(
+      "0043: na de verwijdering wijst de koppeling naar een verdwenen knoop",
+      Number(dangling[0].gekoppeld) === 2 && Number(dangling[0].bestaat_nog) === 1,
+    );
+
+    // En wat `buildOfferingTree()` erna doet: de boom opnieuw opbouwen…
+    const { rows: nieuweKnopen } = await db.client.query(
+      `insert into public.profile_offerings (profile_id, kind, name, source, sort_order)
+       values ($1, 'dienst', 'Bekkenfysiotherapie', 'ai', 0)
+       returning id, name`,
+      [profileId],
+    );
+    const { rows: alleKnopen } = await db.client.query(
+      "select id, name from public.profile_offerings where profile_id = $1",
+      [profileId],
+    );
+
+    const { rows: teHerstellen } = await db.client.query(
+      "select id, offering_ids, offering_names from public.profile_topics where profile_id = $1",
+      [profileId],
+    );
+    const nieuweIds = relinkOfferingIds(
+      teHerstellen[0] as { offering_ids: string[]; offering_names: string[] },
+      alleKnopen as { id: string; name: string }[],
+    );
+    if (nieuweIds) {
+      await db.client.query(
+        "update public.profile_topics set offering_ids = $1 where id = $2",
+        [nieuweIds, teHerstellen[0].id],
+      );
+    }
+
+    const { rows: naHerbouw } = await db.client.query(
+      `select (select count(*) from public.profile_offerings o where o.id = any (t.offering_ids)) as bestaat_nog,
+              cardinality(t.offering_ids) as gekoppeld
+       from public.profile_topics t where t.profile_id = $1`,
+      [profileId],
+    );
+    ok(
+      "0043: na de herbouw wijst elke koppeling weer naar een bestaande knoop",
+      Number(naHerbouw[0].gekoppeld) === Number(naHerbouw[0].bestaat_nog),
+    );
+    ok(
+      "0043: de nieuwe AI-knoop is teruggekoppeld",
+      (nieuweIds ?? []).includes(
+        (nieuweKnopen as { id: string }[])[0].id,
+      ),
+    );
+    ok(
+      "0043: en de knoop van de klant is niet gesneuveld",
+      (nieuweIds ?? []).includes(oudId("Eigen toevoeging")),
+    );
+
     __setTestAdminClient(null);
     __setTestTransport(null);
   } finally {

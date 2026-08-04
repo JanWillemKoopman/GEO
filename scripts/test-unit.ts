@@ -101,8 +101,16 @@ import {
   knowsBrand,
   admitsUnknown,
   describeVerdict,
+  scoreCategoryAnswer,
+  describeCategory,
+  cleanCompetitorName,
+  summariseKnows,
+  describeKnows,
+  type BaselineVerdict,
 } from "@/lib/pipeline/baseline-verdict";
 import { quoteOnPage, quoteConfidence } from "@/lib/pipeline/quote-check";
+import { harvestTextFacts, isCanonicalPage } from "@/lib/pipeline/text-facts";
+import { relinkOfferingIds } from "@/lib/pipeline/topic-link";
 import { buildSteps, researchRunning } from "@/lib/pipeline/research-steps";
 import {
   filterProtectedFields,
@@ -2548,6 +2556,226 @@ group("een citaat telt pas als het er letterlijk staat", () => {
     quoteConfidence("Intake € 99,00", pagina) === 0.5,
   );
   ok("geen citaat is onbekend", quoteConfidence("", pagina) === null);
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+// De vijf verbeteringen van 4 augustus 2026, na twee volledige meetronden.
+// ════════════════════════════════════════════════════════════════════════════
+
+group("de nulmeting geeft nu wél een antwoord", () => {
+  const antwoord =
+    "Op basis van specialisaties en waarderingen zou ik deze praktijken in Amersfoort " +
+    "overwegen: FitForum – goede allround keuze met manuele therapie; SMC Amersfoort – " +
+    "sterk in sportrevalidatie.";
+
+  const v = scoreCategoryAnswer(antwoord, ["Fysi-Unique", "Fysi Unique"], [
+    "FitForum",
+    "SMC Amersfoort",
+    "Praktijk Boshuijzen",
+  ]);
+
+  ok("het eigen merk staat er niet in", !v.mentioned);
+  ok(
+    "de twee concurrenten die er wél staan worden herkend",
+    v.competitorsFound.length === 2 &&
+      v.competitorsFound.includes("FitForum") &&
+      v.competitorsFound.includes("SMC Amersfoort"),
+  );
+  ok(
+    "een concurrent die er niet staat wordt niet gemeld",
+    !v.competitorsFound.includes("Praktijk Boshuijzen"),
+  );
+
+  // Een alias telt net zo goed als de merknaam.
+  ok(
+    "een alias telt als vermelding",
+    scoreCategoryAnswer("Ik raad Fysi Unique aan.", ["Fysi-Unique", "Fysi Unique"])
+      .mentioned,
+  );
+
+  // De regel die de klant leest: een getal mét noemer.
+  ok(
+    "de regel noemt de verhouding en wie er wél staat",
+    describeCategory([v, v, v], "Fysi-Unique") ===
+      "Fysi-Unique wordt genoemd bij 0 van de 3 koopvragen. Wél genoemd: FitForum, SMC Amersfoort.",
+  );
+  ok(
+    "zonder meting geen verzonnen nul",
+    describeCategory([], "Fysi-Unique") === "Nog geen koopvragen gemeten.",
+  );
+});
+
+group("concurrentnamen uit een onderbouwde regel halen", () => {
+  // Letterlijk wat het profielonderzoek in profiles.competitors zette.
+  const regel =
+    "Fysio Amersfoort — lokale fysiotherapiepraktijk met onder meer manuele therapie " +
+    "en algemene fysiotherapie in Amersfoort. ([fysioamersfoort.nl](https://fysioamersfoort.nl/))";
+  ok(
+    "alleen de naam blijft over",
+    cleanCompetitorName(regel) === "Fysio Amersfoort",
+  );
+  ok(
+    "een kale naam blijft ongemoeid",
+    cleanCompetitorName("SMC Amersfoort") === "SMC Amersfoort",
+  );
+  // Blijft er een halve zin over, dan liever niets dan een verzonnen naam die
+  // toevallig ergens in een antwoord voorkomt (conventie 3).
+  ok(
+    "een hele zin zonder streepje levert null",
+    cleanCompetitorName(
+      "Een grote landelijke keten die op vrijwel elk vlak meer capaciteit heeft dan deze praktijk",
+    ) === null,
+  );
+  ok("leeg levert null", cleanCompetitorName("   ") === null);
+});
+
+group("kent hij je merk? een verhouding, geen muntworp", () => {
+  const kent = { knowsBrand: true } as BaselineVerdict;
+  const kentNiet = { knowsBrand: false } as BaselineVerdict;
+
+  ok(
+    "allemaal raak is 'kent'",
+    summariseKnows([kent, kent, kent]).level === "kent",
+  );
+  ok(
+    "geen enkele raak is 'kent niet'",
+    summariseKnows([kentNiet, kentNiet]).level === "kent_niet",
+  );
+  // Precies het geval van 3 augustus: dezelfde site, andere vraagstelling,
+  // ander antwoord. Dat is 'wisselend' en geen van beide uitersten.
+  const gemengd = summariseKnows([kent, kentNiet, kentNiet, kent, kent, kentNiet]);
+  ok("gemengd is 'wisselend'", gemengd.level === "wisselend");
+  ok("met de telling erbij", gemengd.recognised === 3 && gemengd.asked === 6);
+  ok(
+    "en dat staat ook zo op het scherm",
+    describeKnows(gemengd, "Fysi-Unique") ===
+      "herkent Fysi-Unique wisselend (3 van de 6 vragen)",
+  );
+  // Geen metingen is geen kennis — maar ook geen bewering over een verhouding.
+  ok("nul vragen is 'kent niet'", summariseKnows([]).level === "kent_niet");
+});
+
+group("harde feiten uit de lopende tekst (fase 0, nul kosten)", () => {
+  ok("de homepage telt mee", isCanonicalPage("https://fysi-unique.nl/"));
+  ok("de contactpagina ook", isCanonicalPage("https://fysi-unique.nl/contact/"));
+  ok(
+    "een dienstpagina niet",
+    !isCanonicalPage("https://fysi-unique.nl/specialismen/revalidatie/"),
+  );
+
+  const voettekst =
+    "Fysi-Unique, Henry Dunantstraat 32, 3822 XE Amersfoort. Bel ons op 033 455 89 45 " +
+    "of mail info@fysi-unique.nl. KvK 12345678.";
+  const facts = harvestTextFacts([
+    { url: "https://fysi-unique.nl/", text: voettekst },
+    { url: "https://fysi-unique.nl/contact/", text: voettekst },
+  ]);
+  const waarde = (key: string) => facts.find((f) => f.key === key)?.value ?? null;
+
+  ok("het telefoonnummer komt eruit", waarde("telefoon") === "033 455 89 45");
+  ok(
+    "het adres ook",
+    waarde("adres") === "Henry Dunantstraat 32, 3822 XE Amersfoort",
+  );
+  ok("het e-mailadres ook", waarde("email") === "info@fysi-unique.nl");
+  ok("en het KvK-nummer", waarde("kvk") === "12345678");
+  ok(
+    "alles komt uit 'Tekst', niet uit opmaak",
+    facts.every((f) => f.fromType === "Tekst"),
+  );
+
+  // ⚠️ Het vangnet dat vals alarm voorkomt. Twee verschillende nummers op even
+  // veel canonieke pagina's: dan weten we niet welke de echte is, en een
+  // verkeerde zou ChatGPT's juiste antwoord als 'tegengesproken' markeren.
+  const geenUitsluitsel = harvestTextFacts([
+    { url: "https://x.nl/", text: "Bel 033 455 89 45" },
+    { url: "https://x.nl/contact/", text: "Bel 020 123 45 67" },
+  ]);
+  ok(
+    "bij een gelijkspel geven we niets terug",
+    !geenUitsluitsel.some((f) => f.key === "telefoon"),
+  );
+  ok(
+    "een blogpagina levert geen feiten",
+    harvestTextFacts([
+      { url: "https://x.nl/blog/tips", text: "Bel 020 123 45 67" },
+    ]).length === 0,
+  );
+  // Een KvK-nummer van acht cijfers valt binnen het telefoonpatroon.
+  ok(
+    "een los KvK-nummer wordt geen telefoonnummer",
+    !harvestTextFacts([
+      { url: "https://x.nl/contact/", text: "Ingeschreven onder KvK 01234567." },
+    ]).some((f) => f.key === "telefoon"),
+  );
+});
+
+group("een onderwerp houdt zijn aanbod na een herbouw van de boom", () => {
+  // De boom zoals hij er ná "onderzoek opnieuw" uitziet: andere id's, zelfde
+  // namen.
+  const nieuweBoom = [
+    { id: "nieuw-1", name: "Bekkenfysiotherapie" },
+    { id: "nieuw-2", name: "Zwangerschapsbegeleiding" },
+  ];
+
+  const verweesd = {
+    offering_ids: ["oud-1", "oud-2"],
+    offering_names: ["Bekkenfysiotherapie", "Zwangerschapsbegeleiding"],
+  };
+  const hersteld = relinkOfferingIds(verweesd, nieuweBoom);
+  ok(
+    "de verweesde id's worden vervangen door de nieuwe",
+    hersteld !== null &&
+      hersteld.length === 2 &&
+      hersteld.includes("nieuw-1") &&
+      hersteld.includes("nieuw-2"),
+  );
+
+  // Een knoop met bron 'klant' blijft bij een herhaalronde staan; die
+  // verwijzing is nog goed en mag niet sneuvelen omdat hij niet in de namen
+  // voorkomt.
+  const gemengd = relinkOfferingIds(
+    {
+      offering_ids: ["nieuw-1", "oud-9"],
+      offering_names: ["Zwangerschapsbegeleiding"],
+    },
+    nieuweBoom,
+  );
+  ok(
+    "een nog bestaande koppeling blijft staan",
+    gemengd !== null && gemengd.includes("nieuw-1") && gemengd.includes("nieuw-2"),
+  );
+  ok(
+    "en een verdwenen id gaat weg",
+    gemengd !== null && !gemengd.includes("oud-9"),
+  );
+
+  // Een dienst die van de site verdwenen is: de naam komt nergens meer op uit.
+  // Dan is een lege lijst eerlijker dan een verwijzing naar iets wat er niet is.
+  ok(
+    "een verdwenen dienst levert een lege koppeling",
+    JSON.stringify(
+      relinkOfferingIds(
+        { offering_ids: ["oud-3"], offering_names: ["Dry Needling"] },
+        nieuweBoom,
+      ),
+    ) === "[]",
+  );
+
+  // Niets te doen mag ook echt niets doen — anders schrijft elke herbouw alle
+  // topics opnieuw weg.
+  ok(
+    "een kloppende koppeling wordt niet aangeraakt",
+    relinkOfferingIds(
+      { offering_ids: ["nieuw-1"], offering_names: ["Bekkenfysiotherapie"] },
+      nieuweBoom,
+    ) === null,
+  );
+  ok(
+    "zonder namen valt er niets te herstellen",
+    relinkOfferingIds({ offering_ids: ["oud-1"], offering_names: [] }, nieuweBoom) ===
+      null,
+  );
 });
 
 // ════════════════════════════════════════════════════════════════════════════

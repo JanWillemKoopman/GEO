@@ -77,6 +77,7 @@ Alle migraties zijn toegepast op productie, behalve `0033`.
 | `0040_topics_en_strategie.sql` | `profile_topics` (5–8 core topics) en `profile_strategy` (gespreksuitkomst + contextfactoren) |
 | `0041_multi_engine.sql` | `ai_calls.engine`, `profiles.engines_enabled`, de idempotentie-index van `tracking_runs` mét engine, en `profile_llm_baseline` |
 | `0042_rls_aanscherping.sql` | `is_staff()` niet meer aanroepbaar door `anon`, stafpolicies expliciet op `authenticated`, vast zoekpad op `set_updated_at()` |
+| `0043_topic_aanbodnamen.sql` | `profile_topics.offering_names` — de aanbodkoppeling van een onderwerp overleeft een herbouw van de boom, want een `uuid[]` kan geen foreign key hebben |
 
 ## Na `0038` — eenmalig, met de hand
 
