@@ -38,7 +38,27 @@ function engineLabel(id: string): string {
 }
 
 export function LlmKnowledgePanel({ rows }: { rows: ProfileLlmBaseline[] }) {
-  if (rows.length === 0) return null;
+  // ⚠️ NIET `return null`. Zie `ux-design.md` §4: een lege staat wijst altijd
+  // naar de volgende stap. Stil verdwijnen is een stap erger dan een dood
+  // einde — de klant weet dan niet eens dát deze test bestaat, en de consultant
+  // kan het gat niet uitleggen omdat er geen gat te zien is.
+  if (rows.length === 0) {
+    return (
+      <div className="card flex flex-col gap-2">
+        <span className="mono-label">Wat AI-assistenten over je weten</span>
+        <p className="text-secondary">
+          De kennistest is nog niet gedraaid. Hij vraagt een AI-assistent op zes
+          manieren wat hij over je merk weet, en legt de antwoorden naast de
+          feiten van je eigen site.
+        </p>
+        <p className="text-sm text-muted">
+          Loopt het onderzoek nog, dan verschijnt de uitslag hier vanzelf. Staat
+          het er over een paar minuten nog niet, gebruik dan &quot;Onderzoek
+          opnieuw&quot; bij je aanbod.
+        </p>
+      </div>
+    );
+  }
 
   const engines = [...new Set(rows.map((r) => r.engine))];
 

@@ -117,6 +117,10 @@ import {
 } from "@/lib/pipeline/text-facts";
 import { relinkOfferingIds } from "@/lib/pipeline/topic-link";
 import {
+  onboardingStats,
+  onboardingHeadline,
+} from "@/lib/pipeline/onboarding-summary";
+import {
   assessStructureCoverage,
   describeCoverage,
   formatCoverageForReport,
@@ -3173,6 +3177,92 @@ group("de kwaliteitspoort staat NAAST de GEO-score, niet erin", () => {
   ok(
     "checkQuality levert geen score op die in geo_score kan lekken",
     !("score" in dubbel),
+  );
+});
+
+
+// ════════════════════════════════════════════════════════════════════════════
+// De kop van het profielscherm (UX-ronde 4 augustus 2026)
+// ════════════════════════════════════════════════════════════════════════════
+
+group("de drie kerncijfers en de zin erboven", () => {
+  const kent = { knowsBrand: true, contradicted: 0 } as BaselineVerdict;
+  const kentNiet = { knowsBrand: false, contradicted: 0 } as BaselineVerdict;
+  const genoemd = { mentioned: true, competitorsFound: [] };
+  const nietGenoemd = { mentioned: false, competitorsFound: ["FitForum"] };
+  const dekking = (missing: number, assessed: number) =>
+    ({ coverage: [], missing, weak: 0, assessed }) as never;
+
+  // Precies de stand van de derde meetronde op Fysi-Unique.
+  const echt = {
+    brandName: "Fysi-Unique",
+    knowsVerdicts: [kent, kent, kent, kent, kent, kent],
+    categoryVerdicts: [genoemd, nietGenoemd, nietGenoemd],
+    coverage: dekking(2, 12),
+  };
+  const stats = onboardingStats(echt);
+
+  ok("drie tegels, niet meer", stats.length === 3);
+  ok("herkenning met noemer", stats[0].value === "6/6");
+  ok("koopvragen met noemer", stats[1].value === "1/3");
+  ok("dekking als absoluut getal", stats[2].value === "2");
+  ok(
+    "en de hint zet dat getal in verhouding",
+    stats[2].hint === "Van de 12 onderdelen in je aanbod",
+  );
+  ok("volledige herkenning is 'goed'", stats[0].tone === "goed");
+  ok("ontbrekende pagina's vragen aandacht", stats[2].tone === "aandacht");
+
+  // ⚠️ De duidingszin. Zonder deze regel leest "1/3" als een cijfer op een
+  // rapport; voor vrijwel elk MKB-merk is dit gewoon de startsituatie.
+  ok(
+    "kent wel, deels genoemd → nulmeting",
+    (onboardingHeadline(echt) ?? "").includes("nulmeting"),
+  );
+
+  // Een tegenspraak wint van alles: dat is de alarmerendste uitkomst die er is.
+  const metTegenspraak = onboardingHeadline({
+    ...echt,
+    knowsVerdicts: [{ knowsBrand: true, contradicted: 2 } as BaselineVerdict],
+  });
+  ok(
+    "een tegenspraak staat vooraan",
+    (metTegenspraak ?? "").includes("niet klopt"),
+  );
+
+  // Het meest voorkomende geval, en de toon waar het om gaat.
+  const onbekend = onboardingHeadline({
+    ...echt,
+    knowsVerdicts: [kentNiet, kentNiet],
+    categoryVerdicts: [nietGenoemd, nietGenoemd, nietGenoemd],
+  });
+  ok(
+    "onbekend merk krijgt duiding, geen verwijt",
+    (onbekend ?? "").includes("niet raar") &&
+      (onbekend ?? "").includes("uitgangssituatie"),
+  );
+
+  // Kent wel, nergens genoemd: het verschil tussen bekend en aanbevolen.
+  const bekendNietGenoemd = onboardingHeadline({
+    ...echt,
+    categoryVerdicts: [nietGenoemd, nietGenoemd, nietGenoemd],
+  });
+  ok(
+    "bekend maar niet genoemd wordt als twee dingen uitgelegd",
+    (bekendNietGenoemd ?? "").includes("twee verschillende dingen"),
+  );
+
+  // Niets gemeten is geen uitspraak.
+  const leeg = {
+    brandName: "X",
+    knowsVerdicts: [],
+    categoryVerdicts: [],
+    coverage: dekking(0, 0),
+  };
+  ok("zonder meting geen kop", onboardingHeadline(leeg) === null);
+  ok(
+    "en de tegels tonen een streepje in plaats van een nul",
+    onboardingStats(leeg).every((s) => s.value === "—"),
   );
 });
 

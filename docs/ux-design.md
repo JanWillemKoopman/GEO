@@ -139,6 +139,29 @@ meting) — iets wat een tabbalk niet doet.
 De bibliotheek blijft een eigen plek: het is een eindproduct, geen takenlijst die zich als archief
 voordoet. Het conceptscherm is een eigen route.
 
+### Het profielscherm
+
+Geen sectie-rail: de blokken hebben geen vaste chronologie zoals de vier
+hoofdstukken van een analyse, en een rail belooft een volgorde die er niet is.
+Wel een kop met **de merknaam, één duidingszin en drie cijfers** — herkenning,
+koopvragen, structurele dekking (`profile-hero.tsx`, gerekend in
+`lib/pipeline/onboarding-summary.ts`).
+
+De volgorde ís het demogesprek: kop → voortgang → dossier → wat AI over je weet →
+aanbod → onderwerpen → gesprek → techniek → profielgegevens → beheer. Eerst wat we
+vonden, dan wat er mist, dan wat we gaan doen. De gespreksagenda (`ProfileGaps`)
+staat bewust ná de opbrengst en niet ervoor: waarde vóór inspanning, en die
+agenda ís de inspanning. Toewijzen staat onderaan en alleen voor beheerders — het
+is een handeling van ná het gesprek, op een scherm dat de klant meekijkt.
+
+Elk blok is een `ProfileSection`: op desktop open, op mobiel ingeklapt, met een
+`id` zodat de springlinks in de kop er rechtstreeks naartoe gaan.
+
+**Een paneel dat niets te tonen heeft, verdwijnt niet.** Het toont waaróm het
+leeg is en wat de volgende stap is. Stil verdwijnen is erger dan het dode einde
+uit §4: de klant weet dan niet dat de functie bestaat, en de consultant kan het
+gat niet uitleggen omdat er geen gat te zien is.
+
 ## 6. Eén werkmodel
 
 `lib/work.ts` is de enige statusmachine voor "werk". Daarvoor bestond werk in vijf vormen die

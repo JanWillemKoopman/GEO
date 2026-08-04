@@ -35,7 +35,26 @@ export function TopicsPanel({
   const [noteFor, setNoteFor] = useState<string | null>(null);
   const [noteText, setNoteText] = useState("");
 
-  if (topics.length === 0) return null;
+  // Geen voorstellen betekent bijna altijd: geen aanbodboom, want die is de
+  // invoer. Dat is een uitlegbare situatie en geen reden om het blok te laten
+  // verdwijnen (`ux-design.md` §4) — de klant kan altijd zelf een onderwerp
+  // kiezen, en dat is precies de volgende stap waar een lege staat naar hoort
+  // te wijzen.
+  if (topics.length === 0) {
+    return (
+      <div className="card flex flex-col gap-3">
+        <span className="mono-label">Onderwerpen om op te meten</span>
+        <p className="text-secondary">
+          We konden geen onderwerpen afleiden uit je aanbod. Dat gebeurt als de
+          crawl te weinig opleverde om diensten uit te herkennen — bijvoorbeeld
+          bij een site die zijn tekst pas via JavaScript toont.
+        </p>
+        <Link href="/analyses/nieuw" className="btn-primary w-fit">
+          Kies zelf een onderwerp
+        </Link>
+      </div>
+    );
+  }
 
   // Wat de klant in het gesprek zei, wint van wat het model dacht: een topic
   // met een notitie staat bovenaan, ongeacht de AI-prioriteit.
