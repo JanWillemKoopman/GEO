@@ -39,7 +39,7 @@ import "server-only";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { crawlPages, discoverPageUrls, MAX_PAGES_HARD_CAP } from "@/lib/crawler";
 import { assessInventory, buildTaxonomy, type SiteSection } from "@/lib/pipeline/inventory-quality";
-import { harvestTextFacts } from "@/lib/pipeline/text-facts";
+import { mergeTextFacts } from "@/lib/pipeline/text-facts";
 import type { HarvestedFact } from "@/lib/pipeline/structured-data";
 import type { InventoryQuality, Profile } from "@/lib/types/database";
 
@@ -108,8 +108,12 @@ export async function discoverSite(profileId: string): Promise<DiscoveryResult> 
   // contact-/over-pagina's, en neemt per soort de waarde die op de meeste
   // daarvan staat. Staat hetzelfde nummer óók in de JSON-LD, dan filtert de
   // ontdubbeling hieronder het tweede exemplaar weg.
-  const facts: HarvestedFact[] = harvestTextFacts(
-    pages.map((p) => ({ url: p.url, text: p.text })),
+  // De crawler heeft ze al geoogst, op de VOLLEDIGE tekst van elke pagina —
+  // `p.text` hierboven is afgekapt op 1500 tekens en bij Fysi-Unique viel het
+  // telefoonnummer daar net buiten. Hier alleen nog samenvoegen en de canonieke
+  // waarde per soort kiezen (`mergeTextFacts`).
+  const facts: HarvestedFact[] = mergeTextFacts(
+    pages.map((p) => ({ url: p.url, facts: p.textFacts ?? [] })),
   );
 
   for (const page of pages) {

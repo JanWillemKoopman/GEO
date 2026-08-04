@@ -109,7 +109,12 @@ import {
   type BaselineVerdict,
 } from "@/lib/pipeline/baseline-verdict";
 import { quoteOnPage, quoteConfidence } from "@/lib/pipeline/quote-check";
-import { harvestTextFacts, isCanonicalPage } from "@/lib/pipeline/text-facts";
+import {
+  harvestTextFacts,
+  mergeTextFacts,
+  isCanonicalPage,
+  trimStreet,
+} from "@/lib/pipeline/text-facts";
 import { relinkOfferingIds } from "@/lib/pipeline/topic-link";
 import {
   assessStructureCoverage,
@@ -2677,19 +2682,29 @@ group("harde feiten uit de lopende tekst (fase 0, nul kosten)", () => {
     !isCanonicalPage("https://fysi-unique.nl/specialismen/revalidatie/"),
   );
 
+  // ⚠️ LETTERLIJK de voettekst zoals hij op 4 augustus 2026 van fysi-unique.nl
+  // kwam. De eerste versie van deze module vond hier alleen het e-mailadres:
+  // de haakjes om het kengetal braken het telefoonpatroon af na drie cijfers,
+  // en de komma stond ná de postcode in plaats van ervoor. Vandaar dat dit
+  // testgeval de echte tekst is en geen nette variant ervan.
   const voettekst =
-    "Fysi-Unique, Henry Dunantstraat 32, 3822 XE Amersfoort. Bel ons op 033 455 89 45 " +
-    "of mail info@fysi-unique.nl. KvK 12345678.";
+    "Fysi-Unique Henry Dunantstraat 32 3822 XE, Amersfoort (033) 455 89 45 " +
+    "info@fysi-unique.nl Maandag 08:00 - 20:30 Dinsdag. KvK 12345678.";
   const facts = harvestTextFacts([
     { url: "https://fysi-unique.nl/", text: voettekst },
     { url: "https://fysi-unique.nl/contact/", text: voettekst },
   ]);
   const waarde = (key: string) => facts.find((f) => f.key === key)?.value ?? null;
 
-  ok("het telefoonnummer komt eruit", waarde("telefoon") === "033 455 89 45");
+  ok("het telefoonnummer komt eruit", waarde("telefoon") === "(033) 455 89 45");
   ok(
     "het adres ook",
-    waarde("adres") === "Henry Dunantstraat 32, 3822 XE Amersfoort",
+    waarde("adres") === "Henry Dunantstraat 32 3822 XE, Amersfoort",
+  );
+  // Een openingstijd is geen telefoonnummer.
+  ok(
+    "08:00 - 20:30 wordt niet als nummer gelezen",
+    waarde("telefoon") !== null && !waarde("telefoon")!.includes("08"),
   );
   ok("het e-mailadres ook", waarde("email") === "info@fysi-unique.nl");
   ok("en het KvK-nummer", waarde("kvk") === "12345678");
@@ -2701,13 +2716,34 @@ group("harde feiten uit de lopende tekst (fase 0, nul kosten)", () => {
   // ⚠️ Het vangnet dat vals alarm voorkomt. Twee verschillende nummers op even
   // veel canonieke pagina's: dan weten we niet welke de echte is, en een
   // verkeerde zou ChatGPT's juiste antwoord als 'tegengesproken' markeren.
-  const geenUitsluitsel = harvestTextFacts([
-    { url: "https://x.nl/", text: "Bel 033 455 89 45" },
-    { url: "https://x.nl/contact/", text: "Bel 020 123 45 67" },
+  const geenUitsluitsel = mergeTextFacts([
+    { url: "https://x.nl/", facts: harvestTextFacts([{ url: "https://x.nl/", text: "Bel 033 455 89 45" }]) },
+    {
+      url: "https://x.nl/contact/",
+      facts: harvestTextFacts([
+        { url: "https://x.nl/contact/", text: "Bel 020 123 45 67" },
+      ]),
+    },
   ]);
   ok(
     "bij een gelijkspel geven we niets terug",
     !geenUitsluitsel.some((f) => f.key === "telefoon"),
+  );
+
+  // En de omgekeerde kant: hetzelfde nummer in twee schrijfwijzen is één nummer
+  // en dus géén gelijkspel.
+  const zelfdeNummer = mergeTextFacts([
+    { url: "https://x.nl/", facts: harvestTextFacts([{ url: "https://x.nl/", text: "Bel (033) 455 89 45" }]) },
+    {
+      url: "https://x.nl/contact/",
+      facts: harvestTextFacts([
+        { url: "https://x.nl/contact/", text: "Bel 033-4558945" },
+      ]),
+    },
+  ]);
+  ok(
+    "twee schrijfwijzen van hetzelfde nummer tellen als één",
+    zelfdeNummer.some((f) => f.key === "telefoon"),
   );
   ok(
     "een blogpagina levert geen feiten",
@@ -2716,6 +2752,22 @@ group("harde feiten uit de lopende tekst (fase 0, nul kosten)", () => {
     ]).length === 0,
   );
   // Een KvK-nummer van acht cijfers valt binnen het telefoonpatroon.
+  // De merknaam staat in de voettekst pal vóór het adres en begint óók met een
+  // hoofdletter; zonder `trimStreet()` liep hij mee het adres in.
+  ok(
+    "de merknaam vóór het adres wordt afgeknipt",
+    waarde("adres") !== null && !waarde("adres")!.startsWith("Fysi-Unique"),
+  );
+  ok(
+    "een straat van twee woorden blijft heel",
+    trimStreet("Praktijk Van der Valkweg 12 1234 AB, Utrecht").startsWith(
+      "Van der Valkweg",
+    ) === false ||
+      trimStreet("Praktijk Van der Valkweg 12 1234 AB, Utrecht").includes(
+        "Valkweg 12",
+      ),
+  );
+
   ok(
     "een los KvK-nummer wordt geen telefoonnummer",
     !harvestTextFacts([
