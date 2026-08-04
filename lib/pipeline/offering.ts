@@ -34,6 +34,11 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { OfferingTree } from "@/lib/schemas/offering";
 import { buildTaxonomy } from "@/lib/pipeline/inventory-quality";
 import { quoteConfidence } from "@/lib/pipeline/quote-check";
+import {
+  relinkOfferingIds,
+  type LinkableNode,
+  type TopicLinks,
+} from "@/lib/pipeline/topic-link";
 import type { BusinessModel, Profile } from "@/lib/types/database";
 
 /** Hoeveel sitetekst er de aanroep in gaat. Zelfde orde als het profielonderzoek. */
@@ -206,6 +211,18 @@ export async function buildOfferingTree(profileId: string): Promise<OfferingResu
     })),
   );
 
+  // ── De topics weer aan de boom hangen (migratie 0043) ────────────────────
+  //
+  // "Onderzoek opnieuw" verwijdert de AI-knopen en komt hier langs om ze
+  // opnieuw op te bouwen — met nieuwe id's. De topics blijven bewust staan (dat
+  // zijn beslissingen van de klant, soms met een lopende analyse eraan), maar
+  // hun `offering_ids` wijzen daarna naar rijen die niet meer bestaan. Stil,
+  // want een `uuid[]` kan geen foreign key hebben, dus niets valt om.
+  //
+  // Op naam herstellen kan wél: "Bekkenfysiotherapie" heet na een tweede crawl
+  // nog steeds zo.
+  await relinkTopics(admin, profileId, saved);
+
   // Het bedrijfsmodel dat na de hele site bekeken te hebben uitkomt, is beter
   // onderbouwd dan het oordeel op alleen de homepage — maar een handmatig
   // gezette waarde wint nog steeds (dezelfde regel als in prepare-profile.ts).
@@ -358,4 +375,49 @@ function beschrijf(nodes: StoredNode[], model: string, gaps: string[]): string {
 
 function round2(n: number): number {
   return Math.round(n * 100) / 100;
+}
+
+/**
+ * De aanbodkoppeling van bestaande topics herstellen na een herbouw.
+ *
+ * De beslissing zelf staat in `topic-link.ts` (puur, dus testbaar); hier alleen
+ * het lezen en schrijven. Doet niets bij de eerste ronde — dan zijn er nog geen
+ * topics — en niets voor topics zonder `offering_names`.
+ */
+async function relinkTopics(
+  admin: ReturnType<typeof createAdminClient>,
+  profileId: string,
+  stored: StoredNode[],
+): Promise<void> {
+  if (stored.length === 0) return;
+
+  const { data: topicRows } = await admin
+    .from("profile_topics")
+    .select("id, offering_ids, offering_names")
+    .eq("profile_id", profileId);
+
+  const topics = (topicRows ?? []) as Array<
+    { id: string } & TopicLinks
+  >;
+  if (topics.length === 0) return;
+
+  const nodes: LinkableNode[] = stored.map((n) => ({ id: n.id, name: n.name }));
+
+  let hersteld = 0;
+  for (const t of topics) {
+    const nieuw = relinkOfferingIds(t, nodes);
+    if (nieuw === null) continue;
+
+    await admin
+      .from("profile_topics")
+      .update({ offering_ids: nieuw })
+      .eq("id", t.id);
+    hersteld++;
+  }
+
+  if (hersteld > 0) {
+    console.info(
+      `Profiel ${profileId}: aanbodkoppeling van ${hersteld} onderwerp(en) hersteld na de herbouw.`,
+    );
+  }
 }

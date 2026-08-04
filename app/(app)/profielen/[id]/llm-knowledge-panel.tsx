@@ -1,5 +1,9 @@
 import { CollapsibleSection } from "@/components/collapsible-section";
-import type { BaselineVerdict } from "@/lib/pipeline/baseline-verdict";
+import {
+  summariseKnows,
+  type BaselineVerdict,
+  type CategoryVerdict,
+} from "@/lib/pipeline/baseline-verdict";
 import type { ProfileLlmBaseline } from "@/lib/types/database";
 
 /**
@@ -51,24 +55,65 @@ export function LlmKnowledgePanel({ rows }: { rows: ProfileLlmBaseline[] }) {
         const perEngine = rows.filter((r) => r.engine === engine);
         const kentRijen = perEngine.filter((r) => r.block === "kent");
 
-        // Eén herkennend antwoord is genoeg: kent het model het merk in de ene
-        // formulering wél en in de andere niet, dan kent het het merk.
+        // ⚠️ EEN VERHOUDING, GEEN JA/NEE (4 aug 2026)
+        //
+        // Hier stond "één herkennend antwoord is genoeg". Twee meetronden op
+        // dezelfde site lieten zien waarom dat niet houdbaar is: twee woorden
+        // verschil in de vraag ("uit Amersfoort") draaide de uitkomst om. Met
+        // zes formuleringen is de eerlijke uitkomst hoe vaak hij raak is —
+        // `summariseKnows()` maakt daar drie standen van, zonder verzonnen
+        // drempel.
         const verdicts = kentRijen
           .map((r) => r.verdict_json as BaselineVerdict | null)
           .filter((v): v is BaselineVerdict => v !== null);
-        const kent = verdicts.some((v) => v.knowsBrand);
+        const knows = summariseKnows(verdicts);
+        const kent = knows.level !== "kent_niet";
         const tegenspraken = verdicts.flatMap((v) =>
           v.checks.filter((c) => c.verdict === "tegengesproken"),
         );
         const bevestigd = Math.max(0, ...verdicts.map((v) => v.confirmed));
 
+        // De koopvragen: de kop die hierboven wél gesteld werd en nergens
+        // beantwoord. Zie `describeCategory()` in baseline-verdict.ts.
+        const categorieOordelen = perEngine
+          .filter((r) => r.block === "categorie")
+          .map((r) => r.verdict_json as CategoryVerdict | null)
+          .filter((v): v is CategoryVerdict => v !== null);
+        const genoemdBij = categorieOordelen.filter((v) => v.mentioned).length;
+        const concurrentenGenoemd = [
+          ...new Set(categorieOordelen.flatMap((v) => v.competitorsFound)),
+        ].slice(0, 5);
+
         return (
           <div key={engine} className="flex flex-col gap-3">
             <div className="flex flex-wrap items-center gap-2">
               <span className="font-semibold">{engineLabel(engine)}</span>
-              <span className={kent ? "chip chip-green" : "chip chip-neutral"}>
-                {kent ? "kent je merk" : "kent je merk niet"}
+              <span
+                className={
+                  knows.level === "kent"
+                    ? "chip chip-green"
+                    : knows.level === "wisselend"
+                      ? "chip chip-warning"
+                      : "chip chip-neutral"
+                }
+                title={`Gemeten met ${knows.asked} verschillende vraagstellingen.`}
+              >
+                {knows.level === "kent"
+                  ? `kent je merk (${knows.recognised} van de ${knows.asked})`
+                  : knows.level === "wisselend"
+                    ? `herkent je merk wisselend (${knows.recognised} van de ${knows.asked})`
+                    : "kent je merk niet"}
               </span>
+              {categorieOordelen.length > 0 && (
+                <span
+                  className={
+                    genoemdBij > 0 ? "chip chip-green" : "chip chip-neutral"
+                  }
+                >
+                  genoemd bij {genoemdBij} van de {categorieOordelen.length}{" "}
+                  koopvragen
+                </span>
+              )}
               {tegenspraken.length > 0 && (
                 <span className="chip chip-danger">
                   {tegenspraken.length} gegeven
@@ -98,6 +143,25 @@ export function LlmKnowledgePanel({ rows }: { rows: ProfileLlmBaseline[] }) {
                   </li>
                 ))}
               </ul>
+            )}
+
+            {/* Wie er wél genoemd wordt is de scherpste regel van het hele
+                blok: "deze drie kwamen boven, jij niet" zegt meer dan een nul. */}
+            {genoemdBij < categorieOordelen.length &&
+              concurrentenGenoemd.length > 0 && (
+                <p className="text-sm text-secondary">
+                  Bij de koopvragen waar jij niet genoemd wordt, komen deze
+                  partijen wél boven:{" "}
+                  <strong>{concurrentenGenoemd.join(", ")}</strong>.
+                </p>
+              )}
+
+            {knows.level === "wisselend" && (
+              <p className="text-sm text-secondary">
+                De assistent herkent je alleen bij bepaalde vraagstellingen. Dat
+                betekent meestal dat je naam wel ergens is opgepikt, maar nog
+                niet als één herkenbaar bedrijf vastligt.
+              </p>
             )}
 
             {!kent && (

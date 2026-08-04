@@ -163,11 +163,19 @@ export async function proposeTopics(profileId: string): Promise<TopicResult> {
   // verwijzingen naar het aanbod waar ze uit volgden, en dus een onderbouwing
   // die op het scherm nergens naar terug te klikken is.
   const byLabel = new Map<string, string>();
+  // Van hetzelfde label naar de KALE naam van de knoop — "Specialismen ›
+  // Sportfysiotherapie" wordt "Sportfysiotherapie". Dat is wat er in
+  // `offering_names` hoort: een naam die een herbouw van de boom overleeft.
+  const byName = new Map<string, string>();
   for (const o of offerings) {
     const parent = o.parent_id ? byId.get(o.parent_id) : null;
-    byLabel.set(o.name.trim().toLowerCase(), o.id);
+    const kaal = o.name.trim();
+    byLabel.set(kaal.toLowerCase(), o.id);
+    byName.set(kaal.toLowerCase(), kaal);
     if (parent) {
-      byLabel.set(`${parent.name} › ${o.name}`.trim().toLowerCase(), o.id);
+      const pad = `${parent.name} › ${o.name}`.trim().toLowerCase();
+      byLabel.set(pad, o.id);
+      byName.set(pad, kaal);
     }
   }
   const voorstellen = result.parsed.topics
@@ -195,6 +203,18 @@ export async function proposeTopics(profileId: string): Promise<TopicResult> {
           t.offerings
             .map((naam) => byLabel.get(naam.trim().toLowerCase()))
             .filter((id): id is string => Boolean(id)),
+        ),
+      ],
+      // De NAMEN erbij (migratie 0043). Een herhaalronde gooit de AI-knopen weg
+      // en bouwt ze opnieuw op met nieuwe id's; zonder deze kolom wijzen de
+      // offering_ids daarna naar rijen die niet meer bestaan — stil, want een
+      // uuid[] kan geen foreign key hebben. `buildOfferingTree()` herstelt de
+      // koppeling hierop.
+      offering_names: [
+        ...new Set(
+          t.offerings
+            .map((naam) => byName.get(naam.trim().toLowerCase()))
+            .filter((n): n is string => Boolean(n)),
         ),
       ],
       // Aflopend: hoogste prioriteit bovenaan bij `order by priority desc`.

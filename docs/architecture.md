@@ -3,7 +3,7 @@
 Backend, Supabase, pijplijn en deploy. Voor het *waarom* achter een keuze: `logbook.md`.
 Voor UI/UX: `ux-design.md`.
 
-> **Geverifieerd tegen de code op 3 augustus 2026** (branch `main`, t/m migratie `0042`),
+> **Geverifieerd tegen de code op 4 augustus 2026** (branch `main`, t/m migratie `0043`),
 > plus de eind-tot-eind-ronde van 1 augustus (`logbook.md` §10) en de eerste echte
 > onboarding op productie van 3 augustus (`logbook.md`, Fysi-Unique) — die laatste legde
 > zes fouten bloot in de samenhang tussen de onboardingstappen; alle zes zijn verwerkt.
@@ -130,13 +130,13 @@ Bron: `lib/jobs/{types,queue,worker,handlers,pending}.ts`.
 | # | Stap | AI | Kern |
 |---|---|---|---|
 | 1 | Profiel aanmaken | — | Eén scherm, drie velden: webadres, bedrijfsnaam, andere schrijfwijzen. De rest doet de pijplijn. |
-| 2 | Ontdekken (fase 0) | — | `discover.ts`: tot 150 pagina's crawlen, JSON-LD/OpenGraph oogsten, inventariskwaliteit beoordelen, renderbaarheid vaststellen. **Nul AI-kosten**, en de context waar alle volgende stappen op leunen. |
+| 2 | Ontdekken (fase 0) | — | `discover.ts`: tot 150 pagina's crawlen, JSON-LD/OpenGraph oogsten, telefoon/adres/e-mail/KvK uit de lopende tekst van de canonieke pagina's (`text-facts.ts`), inventariskwaliteit beoordelen, renderbaarheid vaststellen. **Nul AI-kosten**, en de context waar alle volgende stappen op leunen. |
 | 3 | Technische GEO-audit | — | `robots.txt` tegen bekende AI-crawlers, plus vier entiteitschecks (naamconsistentie, `sameAs`, schema-dekking, Wikidata). Staat de site dicht, dan blokkeert dit contentgeneratie. |
 | 4 | Profielonderzoek | luna, web_search | Merk, branche, bedrijfsmodel, **bereik en werkgebied**, tone-of-voice, persona's, concurrenten, `proofPoints`, `styleSamples` — nu op alle gecrawlde pagina's in plaats van op de homepage. Klant-input is leidend (`prepare-profile.ts`), en wat een mens zette blijft staan (`field-merge.ts` tegen `profile_field_sources`). |
 | 4a | Aanbodboom | luna | `offering.ts`: het aanbod als boom (`profile_offerings`), per bedrijfsmodel een andere briefing. Een knoop zonder gecrawlde bron-URL vervalt; het citaat bepaalt de zekerheid (`quote-check.ts`). |
 | 4b | Core topics | luna | `propose-topics.ts`: 5–8 onderwerpen uit de aanbodboom, elk met verwijzing naar de knopen waar ze uit volgen. Voorstel, geen meting — goedkeuring is een aparte handeling. |
 | 4c | Markt | luna, web_search | `market.ts`: per concurrent wáárom die wint, plus het bronnenlandschap van de markt. |
-| 4d | LLM-kennisbasislijn | luna, deels web_search | `llm-baseline.ts`: vijf blokken (`kent`, `klopt`, `citeert`, `verwarring`, `categorie`). Het oordeel wordt in code geveld (`baseline-verdict.ts`), nooit door het model over zichzelf. |
+| 4d | LLM-kennisbasislijn | luna, deels web_search | `llm-baseline.ts`: vijf blokken (`kent`, `klopt`, `citeert`, `verwarring`, `categorie`). `kent` stelt **zes** formuleringen en levert een verhouding, niet een ja/nee; `categorie` kiest zijn koopvragen via de topics en krijgt een eigen oordeel (word je genoemd, en wie wél). Alle oordelen worden in code geveld (`baseline-verdict.ts`), nooit door het model over zichzelf. |
 | 4e | Synthese | **sol** (`SYNTHESIS_PREMIUM`) | `synthesis.ts`: dossier, gespreksagenda en `brand_facts` — alleen feiten waarvan het citaat letterlijk op de bronpagina staat. |
 | 5 | Analyse aanmaken | — | Verplicht onderwerp + optionele content-brief. |
 | 6 | Onderwerp-onderzoek (A1') | luna, web_search | Wat de site over dít onderwerp zegt + welke concurrenten hier relevant zijn. |

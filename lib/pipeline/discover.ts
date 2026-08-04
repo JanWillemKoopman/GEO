@@ -39,6 +39,7 @@ import "server-only";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { crawlPages, discoverPageUrls, MAX_PAGES_HARD_CAP } from "@/lib/crawler";
 import { assessInventory, buildTaxonomy, type SiteSection } from "@/lib/pipeline/inventory-quality";
+import { harvestTextFacts } from "@/lib/pipeline/text-facts";
 import type { HarvestedFact } from "@/lib/pipeline/structured-data";
 import type { InventoryQuality, Profile } from "@/lib/types/database";
 
@@ -92,9 +93,24 @@ export async function discoverSite(profileId: string): Promise<DiscoveryResult> 
   const schemaTypes = new Set<string>();
   const names = new Set<string>();
   const sameAs = new Set<string>();
-  const facts: HarvestedFact[] = [];
   let pagesWithSchema = 0;
   let clientRenderedPages = 0;
+
+  // ── Feiten uit de lopende tekst (4 aug 2026) ──────────────────────────────
+  //
+  // Deze gaan VÓÓR de opmaak-feiten in de lijst, en dat is geen smaakkwestie.
+  // De lijst wordt afgekapt op MAX_FACTS, en bij Fysi-Unique vulden 50
+  // paginatitels uit `WebPage`-opmaak hem helemaal — het telefoonnummer van de
+  // contactpagina zou er dus buiten vallen terwijl het het enige feit is dat de
+  // kennistest écht kan controleren.
+  //
+  // Ze zijn ook canonieker: `harvestTextFacts` kijkt alleen naar de homepage en
+  // contact-/over-pagina's, en neemt per soort de waarde die op de meeste
+  // daarvan staat. Staat hetzelfde nummer óók in de JSON-LD, dan filtert de
+  // ontdubbeling hieronder het tweede exemplaar weg.
+  const facts: HarvestedFact[] = harvestTextFacts(
+    pages.map((p) => ({ url: p.url, text: p.text })),
+  );
 
   for (const page of pages) {
     if (page.rendering?.likelyClientRendered) clientRenderedPages++;

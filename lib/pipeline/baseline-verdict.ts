@@ -30,6 +30,7 @@
  * verschil tussen "anders geformuleerd" en "onjuist" niet zien, en dan is
  * zwijgen beter dan een beschuldiging.
  */
+import { textContainsName } from "@/lib/entities/normalize";
 
 export type FactVerdict = "bevestigd" | "tegengesproken" | "niet_genoemd";
 
@@ -341,4 +342,171 @@ export function describeVerdict(
   }
   if (v.notMentioned > 0) delen.push(`${v.notMentioned} niet genoemd`);
   return `${delen.join(" · ")}.`;
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// HET CATEGORIEBLOK — de nulmeting die tot 4 augustus 2026 geen getal opleverde
+// ════════════════════════════════════════════════════════════════════════════
+//
+// Het profielscherm zette boven dit blok de kop "Word je genoemd bij
+// koopvragen?" en beantwoordde hem nergens. `askOne()` bouwde alleen een oordeel
+// voor het blok `kent`; de drie categorie-antwoorden werden opgeslagen als ruwe
+// tekst in een uitklapper en verder niet aangeraakt.
+//
+// Terwijl dat de op één na duurste post van de hele onboarding is: drie vragen
+// mét web search, $0,044 van de $0,2463 die een volledige ronde kostte — 18%.
+// En het is precies het getal waar een ondernemer op wacht: "bij geen van je
+// drie kerndiensten word je genoemd, deze drie concurrenten wel."
+//
+// ── WAAROM DIT DETERMINISTISCH KAN, EN DUS MOET ─────────────────────────────
+//
+// De vraag "staat mijn merknaam in dit antwoord" is geen oordeel maar een
+// tekstcontrole. `textContainsName()` doet hem al voor de betaalde meting, juist
+// omdát de LLM-beoordeling van `mentioned` daar soms `true` gaf terwijl het merk
+// nergens in het antwoord stond. Dezelfde functie, dezelfde reden, nul kosten.
+
+export interface CategoryVerdict {
+  /** Staat het merk (of een alias) letterlijk in het antwoord? */
+  mentioned: boolean;
+  /** Welke bekende concurrenten wél genoemd worden. Dat is de scherpe regel. */
+  competitorsFound: string[];
+}
+
+/**
+ * De kale naam uit een concurrentregel halen.
+ *
+ * `profiles.competitors` is een mengsel van twee bronnen. `market.ts` schrijft
+ * er kale namen in ("SMC Amersfoort"), maar `prepare-profile.ts` — die eerder
+ * draait — zet er de hele onderbouwing in die het profielonderzoek teruggaf:
+ *
+ *   "Fysio Amersfoort — lokale fysiotherapiepraktijk met onder meer manuele
+ *    therapie en algemene fysiotherapie in Amersfoort.
+ *    ([fysioamersfoort.nl](https://fysioamersfoort.nl/...))"
+ *
+ * Zo'n regel als naam door `textContainsName()` halen levert altijd `false` op.
+ * Dit knipt hem terug tot wat er vóór het gedachtestreepje staat.
+ *
+ * Blijft er iets over dat te lang is om een bedrijfsnaam te zijn, dan geven we
+ * `null` terug in plaats van een gok (conventie 3) — een halve zin die
+ * toevallig in een antwoord voorkomt, zou een concurrentvermelding verzinnen.
+ */
+const MAX_COMPETITOR_NAME_CHARS = 60;
+
+export function cleanCompetitorName(raw: string): string | null {
+  let s = raw.trim();
+  if (!s) return null;
+
+  // Markdown-links en alles wat tussen haakjes staat weg.
+  s = s.replace(/\(\[[^\]]*\]\([^)]*\)\)/g, "").replace(/\([^)]*\)/g, "");
+  // De onderbouwing achter een gedachtestreepje of dubbele punt weg.
+  s = s.split(/\s[—–-]\s|:\s/)[0];
+  // Afsluitende leestekens en opsommingstekens weg.
+  s = s.replace(/^[-*•\s]+/, "").replace(/[.,;\s]+$/, "").trim();
+
+  if (!s || s.length > MAX_COMPETITOR_NAME_CHARS) return null;
+  return s;
+}
+
+/**
+ * Eén merkneutrale koopvraag beoordelen.
+ *
+ * De concurrentenlijst komt uit het marktonderzoek van dezelfde onboarding, dus
+ * dit vergelijkt appels met appels: het zijn de partijen waarvan wij al vonden
+ * dat ze in deze markt meedoen.
+ */
+export function scoreCategoryAnswer(
+  answer: string,
+  brandNames: string[],
+  competitorNames: string[] = [],
+): CategoryVerdict {
+  const mentioned = brandNames
+    .filter((n) => n && n.trim().length >= 3)
+    .some((n) => textContainsName(answer, n));
+
+  const competitorsFound = competitorNames
+    .filter((n) => n && n.trim().length >= 3)
+    .filter((n) => textContainsName(answer, n))
+    // Ontdubbelen op kleine letters: het marktonderzoek levert soms twee
+    // schrijfwijzen van dezelfde partij.
+    .filter(
+      (n, i, all) =>
+        all.findIndex((x) => x.toLowerCase() === n.toLowerCase()) === i,
+    );
+
+  return { mentioned, competitorsFound };
+}
+
+/**
+ * De regel die de klant leest boven het categorieblok.
+ *
+ * "0 van de 3" is bewust de kop en niet "je bent niet zichtbaar": een getal met
+ * een noemer laat zien hoe hard de uitspraak is. Bij één vraag is nul geen
+ * conclusie, bij drie begint het er een te worden.
+ */
+export function describeCategory(
+  verdicts: CategoryVerdict[],
+  brandName: string,
+): string {
+  if (verdicts.length === 0) return "Nog geen koopvragen gemeten.";
+
+  const genoemd = verdicts.filter((v) => v.mentioned).length;
+  const kop = `${brandName} wordt genoemd bij ${genoemd} van de ${verdicts.length} koopvragen.`;
+
+  if (genoemd === verdicts.length) return kop;
+
+  const concurrenten = [
+    ...new Set(verdicts.flatMap((v) => v.competitorsFound)),
+  ].slice(0, 5);
+
+  return concurrenten.length > 0
+    ? `${kop} Wél genoemd: ${concurrenten.join(", ")}.`
+    : kop;
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// HOE STELLIG IS "KENT HIJ JE MERK"?
+// ════════════════════════════════════════════════════════════════════════════
+//
+// Twee meetronden op dezelfde site, dezelfde dag, gaven het tegenovergestelde
+// antwoord. Ronde 1 vroeg "Wat weet je over Fysi-Unique?" — het model kon de
+// naam aan geen enkele organisatie koppelen. Ronde 2 vroeg "Wat weet je over
+// Fysi-Unique uit Amersfoort?" — en kreeg een correcte omschrijving terug.
+//
+// Twee woorden verschil, en het was de KOPREGEL van het profielscherm die
+// omsloeg. Een blok dat $0,0003 kost voor twee vragen (geen zoekfunctie, korte
+// antwoorden) hoort er niet twee te stellen maar zes, en geen ja/nee te
+// rapporteren maar een verhouding.
+//
+// Geen drempel: 0 van de 6 is "kent je niet", 6 van de 6 is "kent je", en alles
+// daartussen is "wisselend" — wat het dan ook echt is. Een grens op 50% zou een
+// getal verzinnen dat de meting niet draagt.
+
+export type KnowsLevel = "kent" | "wisselend" | "kent_niet";
+
+export interface KnowsSummary {
+  level: KnowsLevel;
+  recognised: number;
+  asked: number;
+}
+
+export function summariseKnows(verdicts: BaselineVerdict[]): KnowsSummary {
+  const asked = verdicts.length;
+  const recognised = verdicts.filter((v) => v.knowsBrand).length;
+
+  if (asked === 0) return { level: "kent_niet", recognised: 0, asked: 0 };
+  if (recognised === 0) return { level: "kent_niet", recognised, asked };
+  if (recognised === asked) return { level: "kent", recognised, asked };
+  return { level: "wisselend", recognised, asked };
+}
+
+/** Wat er als chip op het profielscherm komt te staan. */
+export function describeKnows(s: KnowsSummary, brandName: string): string {
+  switch (s.level) {
+    case "kent":
+      return `kent ${brandName}`;
+    case "kent_niet":
+      return `kent ${brandName} niet`;
+    default:
+      return `herkent ${brandName} wisselend (${s.recognised} van de ${s.asked} vragen)`;
+  }
 }

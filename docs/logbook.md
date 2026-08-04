@@ -551,3 +551,79 @@ stap, niet de web-zoekacties. Dat is het Sol-model achter `SYNTHESIS_PREMIUM`.
 De drie categorievragen van de kennistest samen $0,044; de rest valt in het niet.
 Het budget van $2,15 is geen knellende grens — er is ruimte voor een tweede engine
 zonder aan de plafonds te komen.
+
+### 4 augustus 2026 — vijf verbeteringen die uit de meetronden zelf kwamen
+
+Niet uit een plan, maar uit wat twee volledige onboardings op productie lieten
+zien. Alle vijf kosten vrijwel niets extra aan API-calls; samen brengen ze de
+ronde van **$0,2463 naar naar schatting ~$0,247**.
+
+**1. De nulmeting stelde een vraag en gaf geen antwoord.** Het profielscherm zette
+boven het categorieblok de kop *"Word je genoemd bij koopvragen?"* en beantwoordde
+hem nergens: `askOne()` bouwde alleen een oordeel voor het blok `kent`, en de drie
+categorie-antwoorden belandden als ruwe tekst in een uitklapper. Dat terwijl dit
+blok **$0,044 van de $0,2463 kost — 18%, de op één na duurste post** van de hele
+onboarding, en het precies het cijfer is waar een ondernemer op wacht.
+
+`scoreCategoryAnswer()` beantwoordt hem nu deterministisch met `textContainsName()`
+— dezelfde functie die de betaalde meting gebruikt, en om dezelfde reden: de
+LLM-beoordeling van `mentioned` gaf daar soms `true` terwijl het merk nergens in
+het antwoord stond. Nul kosten. Erbij: welke bekende concurrenten wél genoemd
+worden, want *"deze drie kwamen boven, jij niet"* zegt meer dan een nul.
+
+Dat vroeg wel om `cleanCompetitorName()`. `profiles.competitors` is een mengsel:
+`market.ts` schrijft er kale namen in, maar `prepare-profile.ts` — die eerder
+draait — zet er de hele onderbouwing in die het onderzoek teruggaf, inclusief
+markdown-link. Zo'n regel als naam door een tekstcontrole halen levert altijd
+`false` op.
+
+**2. "Kent hij je merk" hing aan één formulering.** Ronde 1 vroeg *"Wat weet je over
+Fysi-Unique?"* → het model kon de naam aan geen enkele organisatie koppelen.
+Ronde 2 vroeg *"Wat weet je over Fysi-Unique úít Amersfoort?"* → een correcte
+omschrijving. Twee woorden verschil, en het was de kopregel van het profielscherm
+die omsloeg.
+
+Het blok kostte **$0,0003 voor twee vragen**. Nu zes formuleringen voor ~$0,001,
+mét en zónder plaatsnaam, en een verhouding in plaats van een ja/nee. Geen
+verzonnen drempel: 0 van de 6 is "kent je niet", 6 van de 6 is "kent je", alles
+daartussen is "wisselend" — wat het dan ook echt is. Dat verschil is zelf een
+bevinding: een merk dat alleen mét plaatsnaam herkend wordt, is niet als entiteit
+bekend maar als woordcombinatie.
+
+**3. De koopvragen gingen over de generiekste diensten.** `slice(0, 3)` op
+`sort_order`, en die volgorde komt van de site: fysiotherapie, manuele therapie,
+sportfysiotherapie — de drie waar élke praktijk op concurreert. Terwijl het
+marktonderzoek van dezelfde ronde schreef dat *"vooral de combinatie van
+bekkenfysiotherapie, zwangerschapsbegeleiding en seksuologie"* deze praktijk
+onderscheidt. Die drie zijn nooit gevraagd; de nulmeting mat de klant op zijn
+zwakste punt. `categoryLeaves()` kiest ze nu via de topics, die de boom al op
+commerciële relevantie gewogen hebben — en die sinds 3 augustus ook daadwerkelijk
+naar de aanbodknopen wijzen.
+
+**4. Feiten kwamen alleen uit JSON-LD.** Na filtering bleven er **nul**
+controleerbare feiten over voor Fysi-Unique: de site zet wel `Organization` in
+zijn opmaak, maar zonder adres, telefoonnummer of oprichtingsjaar. Het blok "klopt
+wat ChatGPT zegt?" had dus niets. Terwijl het `citeert`-antwoord van diezelfde
+meting ze letterlijk noemde — *"Henry Dunantstraat 32, 3822 XE"* en *"(033) 455 89
+45"* — van de contactpagina die wij zelf gecrawld hadden. Voor het merendeel van
+het MKB is dat de normale situatie.
+
+`text-facts.ts` oogst telefoon, adres, e-mail en KvK met reguliere expressies, en
+met twee beperkingen die vals alarm voorkomen: alleen canonieke pagina's
+(homepage, contact, over-ons) en per soort alleen de waarde die op de meeste
+daarvan staat. Bij een gelijkspel: niets. Een verkeerd feit zou ChatGPT's júíste
+antwoord als `tegengesproken` markeren, en dat is de melding waar een ondernemer
+van schrikt.
+
+**5. Topics verloren hun aanbod bij "onderzoek opnieuw".** De herhaalroute
+verwijdert de AI-knopen (moet wel — anders slaat `buildOfferingTree()` zichzelf
+over) en laat de topics staan. `offering_ids` is een `uuid[]` en kan dus geen
+foreign key hebben: na één herhaalronde wijst élke koppeling naar een verwijderde
+rij. Stil, want er valt niets om. Migratie `0043` zet de namen ernaast; die
+overleven een herbouw, en `relinkOfferingIds()` legt de koppeling terug — inclusief
+de knopen met bron `klant`, die de herhaalronde laat staan.
+
+Tests: **608 unittests, 42 ketentests.** De ketentest zet de twee stappen achter
+elkaar (verwijderen, herbouwen) en controleert dat er ná afloop geen enkele
+koppeling meer naar een verdwenen knoop wijst — precies de samenhang die geen
+unittest kan zien.
