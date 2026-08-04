@@ -14,6 +14,8 @@ import {
   type StructuredHarvest,
   type RenderAssessment,
 } from "@/lib/pipeline/structured-data";
+import { harvestTextFacts } from "@/lib/pipeline/text-facts";
+import type { HarvestedFact } from "@/lib/pipeline/structured-data";
 
 /** Eén plek voor de bot-identiteit, zodat een site ons kan herkennen en toelaten. */
 export const USER_AGENT = "GEO-Tracker-Bot/1.0 (+https://geo-tracker.app)";
@@ -307,6 +309,17 @@ export interface CrawledPage {
    */
   harvest?: StructuredHarvest;
   rendering?: RenderAssessment;
+  /**
+   * Telefoon, adres, e-mail en KvK uit de LOPENDE TEKST (`text-facts.ts`).
+   *
+   * ⚠️ Hier berekend en niet in `discover.ts`, om dezelfde reden als
+   * `rendering`: `text` hierboven is afgekapt op PAGE_MAX_CHARS (1500), en bij
+   * Fysi-Unique zit het telefoonnummer op de contactpagina ná die grens — de
+   * pagina begint met een navigatiemenu van ruim duizend tekens. Op de afgekapte
+   * tekst oogsten leverde alleen het e-mailadres op, terwijl telefoonnummer én
+   * adres er gewoon staan. Gemeten op 4 augustus 2026, tweede poging.
+   */
+  textFacts?: HarvestedFact[];
 }
 
 export interface CrawlPagesOptions {
@@ -342,6 +355,8 @@ export async function crawlPages(
           // afgekapte tekst zou elke lange pagina op precies 1500 zetten en de
           // verhouding met de scriptomvang zinloos maken.
           page.rendering = assessRendering(html, volledigeTekst.length);
+          // Ook op de volledige tekst — zie de toelichting bij `textFacts`.
+          page.textFacts = harvestTextFacts([{ url, text: volledigeTekst }]);
         }
         return page;
       }),
