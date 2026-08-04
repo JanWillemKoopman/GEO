@@ -3,6 +3,7 @@ import { serverEnv } from "@/lib/env";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { enqueue, enqueueMeasurement, dedupe } from "@/lib/jobs/queue";
 import { maxMeasurementPeriods } from "@/lib/config";
+import { activeOnly } from "@/lib/archive";
 
 /**
  * GET /api/cron/tracking — de terugkerende meting (abcplan.md §6 A3, §12.4).
@@ -30,11 +31,19 @@ export async function GET(request: Request) {
   }
 
   const admin = createAdminClient();
-  const { data: analyses } = await admin
-    .from("analyses")
-    .select("id, profile_id")
-    .eq("tracking_enabled", true)
-    .in("status", ["gemeten", "gereed"]);
+  // ⚠️ Gearchiveerde analyses vallen hier NIET onder (migratie 0044).
+  //
+  // Dit is de duurste plek waar het filter kan ontbreken: zonder deze regel
+  // plant de app elke maand een volledige meetronde in voor een merk dat
+  // niemand meer in de app ziet staan — ~$0,40 per ronde per analyse, en
+  // niemand die het merkt, want de uitkomst is nergens zichtbaar.
+  const { data: analyses } = await activeOnly(
+    admin
+      .from("analyses")
+      .select("id, profile_id")
+      .eq("tracking_enabled", true)
+      .in("status", ["gemeten", "gereed"]),
+  );
 
   const results: { id: string; period: number; planned: number }[] = [];
   // Eén audit per profiel, niet per analyse: meerdere analyses van hetzelfde

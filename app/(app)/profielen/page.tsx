@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { ProfileStatusBadge } from "@/components/profile-status-badge";
 import { EmptyState } from "@/components/empty-state";
 import { PageHeader } from "@/components/page-header";
+import { activeOnly } from "@/lib/archive";
 import type { Profile } from "@/lib/types/database";
 
 export const dynamic = "force-dynamic";
@@ -16,10 +17,12 @@ export default async function ProfielenPage() {
   await requireUser();
   const supabase = await createClient();
 
-  const { data } = await supabase
-    .from("profiles")
-    .select("*")
-    .order("created_at", { ascending: false });
+  // Gearchiveerde merken blijven in de database staan maar horen hier niet
+  // (migratie 0044). Zie lib/archive.ts.
+  const { data } = await activeOnly(supabase.from("profiles").select("*")).order(
+    "created_at",
+    { ascending: false },
+  );
 
   const profiles = (data ?? []) as Profile[];
 
