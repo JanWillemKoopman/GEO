@@ -6,6 +6,7 @@ import { DashboardStats } from "@/components/dashboard-stats";
 import { AnalysisCardMetrics } from "@/components/analysis-card-metrics";
 import { EmptyState } from "@/components/empty-state";
 import { PageHeader } from "@/components/page-header";
+import { activeOnly } from "@/lib/archive";
 import { STATUS_META } from "@/lib/analysis-status";
 import { loadDashboard } from "@/lib/dashboard";
 
@@ -32,7 +33,7 @@ export default async function AnalysesPage() {
   // zorgvuldig vermijdt.
   const [dashboard, { count: profileCount }] = await Promise.all([
     loadDashboard(supabase, user.id),
-    supabase.from("profiles").select("id", { count: "exact", head: true }),
+    activeOnly(supabase.from("profiles").select("id", { count: "exact", head: true })),
   ]);
   const hasProfile = (profileCount ?? 0) > 0;
   const analyses = [...dashboard.analyses];

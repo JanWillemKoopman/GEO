@@ -628,6 +628,77 @@ async function main(): Promise<void> {
       (nieuweIds ?? []).includes(oudId("Eigen toevoeging")),
     );
 
+    // ══════════════════════════════════════════════════════════════════════
+    // Archiveren: onzichtbaar in de app, aanwezig in de database (0044)
+    //
+    // Zes query's sommen merken of analyses op, en het filter moet in alle zes.
+    // De duurste is de maandelijkse meetronde: zonder filter plant die elke
+    // maand een betaalde meting in voor een merk dat niemand meer ziet staan.
+    // Dat is precies het soort samenhang dat geen unittest kan zien — de query
+    // op zich klopt, hij vraagt alleen de verkeerde rijen op.
+    // ══════════════════════════════════════════════════════════════════════
+    console.log("\nArchiveren: verborgen in de app, bewaard in de database");
+
+    await db.client.query(
+      "update public.analyses set archived_at = now(), tracking_enabled = true, status = 'gereed' where id = $1",
+      [analysisId],
+    );
+    await db.client.query(
+      "update public.profiles set archived_at = now() where id = $1",
+      [profileId],
+    );
+
+    const { rows: nogAanwezig } = await db.client.query(
+      `select (select count(*) from public.profiles where id = $1) as profielen,
+              (select count(*) from public.analyses where id = $2) as analyses,
+              (select count(*) from public.content_pieces where analysis_id = $2) as paginas`,
+      [profileId, analysisId],
+    );
+    ok(
+      "0044: de data staat er gewoon nog",
+      Number(nogAanwezig[0].profielen) === 1 &&
+        Number(nogAanwezig[0].analyses) === 1,
+    );
+    // Alles wat via `analysis_id` aan de analyse hangt blijft staan — dat is
+    // precies waarom dit een archief is en geen `delete`: één verwijdering zou
+    // via `on delete cascade` de hele contentgeschiedenis meenemen.
+    ok(
+      "0044: en alles wat eronder hangt ook",
+      Number(nogAanwezig[0].paginas) > 0,
+      `${nogAanwezig[0].paginas} pagina's`,
+    );
+
+    const { rows: zichtbaar } = await db.client.query(
+      `select (select count(*) from public.profiles where archived_at is null) as profielen,
+              (select count(*) from public.analyses where archived_at is null) as analyses`,
+    );
+    ok(
+      "0044: maar geen van beide telt nog mee in een lijst",
+      Number(zichtbaar[0].profielen) === 0 && Number(zichtbaar[0].analyses) === 0,
+    );
+
+    // ⚠️ De dure: dit is de query van /api/cron/tracking.
+    const { rows: meetronde } = await db.client.query(
+      `select count(*) as n from public.analyses
+       where tracking_enabled = true and status in ('gemeten','gereed')
+         and archived_at is null`,
+    );
+    ok(
+      "0044: de maandelijkse meetronde slaat hem over",
+      Number(meetronde[0].n) === 0,
+    );
+
+    // En terugdraaien kan: het is een archief, geen verwijdering.
+    await db.client.query(
+      "update public.analyses set archived_at = null where id = $1",
+      [analysisId],
+    );
+    const { rows: terug } = await db.client.query(
+      "select count(*) as n from public.analyses where id = $1 and archived_at is null",
+      [analysisId],
+    );
+    ok("0044: dearchiveren zet hem weer in beeld", Number(terug[0].n) === 1);
+
     __setTestAdminClient(null);
     __setTestTransport(null);
   } finally {

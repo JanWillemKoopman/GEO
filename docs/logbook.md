@@ -834,3 +834,33 @@ gokwerk zijn zolang er nog geen echt gesprek mee gevoerd is — dat wachten we a
 
 Tests: **675 unittests, 42 ketentests.** De rekenkant van de kop staat in een
 pure module met de stand van de derde meetronde als testgeval.
+
+### 4 augustus 2026 — archiveren in plaats van verwijderen
+
+De eigenaar wilde met een schone lei beginnen: de zeven testmerken en elf
+analyses uit beeld, maar wél bewaard. Migratie `0044` zet `archived_at` op
+`profiles` en `analyses`.
+
+**Waarom geen `delete`.** `on delete cascade` hangt aan vrijwel alles —
+`analyses` → `prompts` → `tracking_runs` → `tracking_run_mentions`, plus
+rapporten en contentpagina's. Eén `delete from profiles` had **352 metingen en
+32 contentpagina's** weggegooid, en die zijn niet te reconstrueren zonder
+opnieuw te betalen. Conventie 4 geldt net zo goed voor data als voor schema.
+
+**Het filter staat op zes plekken, en één ervan kost geld.** De merkenlijst, de
+analysenlijst, de telling achter "+ Nieuwe analyse", het werkmodel, de
+herinneringsmail — en `/api/cron/tracking`. Zonder dat laatste filter plant de
+app elke maand een volledige meetronde in voor een merk dat niemand meer in de
+app ziet staan: ~$0,40 per analyse per maand, onzichtbaar, want de uitkomst
+verschijnt nergens. Dat is de duurste vorm van "verborgen maar nog actief" die
+er is. `lib/archive.ts` is de ene plek die weet wat "actief" betekent; de zes
+query's gebruiken hem.
+
+**Bewust niet in RLS.** Een gearchiveerd merk hoort voor de eigenaar bereikbaar
+te blijven via zijn directe URL — het is een back-up, geen verwijdering. In de
+policies zetten zou het onbereikbaar maken, en dat is het tegenovergestelde van
+wat er gevraagd werd.
+
+De ketentest zet de twee stappen achter elkaar: archiveren, controleren dat de
+onderliggende data er nog is, dat geen enkele lijst hem nog telt, dat de
+meetronde hem overslaat, en dat dearchiveren werkt.

@@ -3,6 +3,7 @@ import { emailsEnabled, serverEnv } from "@/lib/env";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { sendPublishReminder } from "@/lib/email/publish-reminder";
 import type { Analysis } from "@/lib/types/database";
+import { activeOnly } from "@/lib/archive";
 
 /**
  * GET /api/cron/reminders — één vriendelijke herinnering bij klaarliggende
@@ -38,11 +39,16 @@ export async function GET(request: Request) {
 
   // Analyses die nog nooit een herinnering kregen. Eén keer, niet zeurend —
   // vandaar dat dit filter vóór al het andere komt.
-  const { data: analysisRows } = await admin
-    .from("analyses")
-    .select("*")
-    .is("publish_reminder_sent_at", null)
-    .eq("status", "gereed");
+  // Geen herinnering over een gearchiveerde analyse (migratie 0044): een mail
+  // over werk dat in de app niet meer bestaat, is de vervelendste vorm van
+  // "onzichtbaar maar nog actief".
+  const { data: analysisRows } = await activeOnly(
+    admin
+      .from("analyses")
+      .select("*")
+      .is("publish_reminder_sent_at", null)
+      .eq("status", "gereed"),
+  );
 
   const sent: { id: string; waiting: number }[] = [];
 

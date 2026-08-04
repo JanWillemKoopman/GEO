@@ -77,6 +77,12 @@ export interface Analysis {
   notify_by_email: boolean;
   /** Eenmalige herinnering bij klaarliggende, niet-gepubliceerde content (5.8). */
   publish_reminder_sent_at: string | null;
+  /**
+   * Gearchiveerd op (migratie 0044). Verborgen uit alle lijsten én uit de
+   * maandelijkse meetronde, zodat een onzichtbare analyse geen kosten meer
+   * maakt. Zie lib/archive.ts.
+   */
+  archived_at: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -143,6 +149,12 @@ export interface Profile {
    */
   created_by_user_id: string | null;
   assigned_at: string | null;
+  /**
+   * Gearchiveerd op (migratie 0044). Null = zichtbaar in de app. Gevuld =
+   * verborgen uit alle lijsten en tellingen, maar volledig aanwezig in de
+   * database. Zie lib/archive.ts.
+   */
+  archived_at: string | null;
   /**
    * Inventariskwaliteit (migratie 0039, was R6.2/0033). Bol had 1 pagina in de
    * inventaris en HEMA 40 productpagina's; in beide gevallen degradeerde het

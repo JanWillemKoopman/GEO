@@ -78,6 +78,7 @@ Alle migraties zijn toegepast op productie, behalve `0033`.
 | `0041_multi_engine.sql` | `ai_calls.engine`, `profiles.engines_enabled`, de idempotentie-index van `tracking_runs` mét engine, en `profile_llm_baseline` |
 | `0042_rls_aanscherping.sql` | `is_staff()` niet meer aanroepbaar door `anon`, stafpolicies expliciet op `authenticated`, vast zoekpad op `set_updated_at()` |
 | `0043_topic_aanbodnamen.sql` | `profile_topics.offering_names` — de aanbodkoppeling van een onderwerp overleeft een herbouw van de boom, want een `uuid[]` kan geen foreign key hebben |
+| `0044_archief.sql` | `archived_at` op `profiles` en `analyses` — verborgen uit alle lijsten, tellingen én de maandelijkse meetronde, maar volledig aanwezig in de database |
 
 ## Na `0038` — eenmalig, met de hand
 

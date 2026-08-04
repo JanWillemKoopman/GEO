@@ -27,6 +27,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { STATUS_META } from "@/lib/analysis-status";
 import type { AuditCheck } from "@/lib/audit/technical";
 import type { Analysis, ContentPiece, FactRequest, OffsiteTask } from "@/lib/types/database";
+import { activeOnly } from "@/lib/archive";
 
 type Db = SupabaseClient;
 
@@ -146,11 +147,11 @@ export async function loadWorkAcross(db: Db, userId: string): Promise<{
   analyses: Analysis[];
   work: WorkItem[];
 }> {
-  const { data } = await db
-    .from("analyses")
-    .select("*")
-    .eq("user_id", userId)
-    .order("created_at", { ascending: false });
+  // Gearchiveerde analyses tellen nergens mee — niet in de lijst, niet in de
+  // werkitems, niet in de kaartcijfers (migratie 0044).
+  const { data } = await activeOnly(
+    db.from("analyses").select("*").eq("user_id", userId),
+  ).order("created_at", { ascending: false });
 
   const analyses = (data ?? []) as Analysis[];
   if (analyses.length === 0) return { analyses, work: [] };
