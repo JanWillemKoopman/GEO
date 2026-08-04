@@ -762,3 +762,75 @@ Amersfoort` uit — nagerekend op productie met een gratis herhaling van fase 0.
 Het testgeval in `test-unit.ts` is nu letterlijk de voettekst van de site en geen
 nette variant ervan; twee tekens verschil was het verschil tussen drie feiten en
 één.
+
+### 4 augustus 2026 — UX-ronde op de onboarding
+
+Tien bevindingen uit een doorloop van het onboardingscherm tegen
+`docs/ux-design.md` en de strategie van InSpace Nova. Alle tien uitgevoerd; geen
+migratie, geen API-kosten.
+
+**De profielpagina had geen kop.** Twaalf kaarten, geen `PageHeader`, geen `<h1>`,
+en de merknaam pas op ~plek 9 als een regel binnenín de editor. Dit is het scherm
+dat de consultant deelt in de demo — het opende zonder te zeggen over wie het
+ging. `/profielen` gebruikte de gedeelde kop wél; de detailpagina was de
+uitzondering, en dat is waar drift begint.
+
+**Er was geen hoofdgetal**, terwijl regel 1 van `ux-design.md` dat voorschrijft.
+De drie cijfers die ervoor in aanmerking komen — herkenning (6/6), genoemd bij
+koopvragen (1/3), diensten zonder eigen pagina (2 van 12) — stonden als chip
+verspreid over drie panelen. Nu een statrij in de kop, gerekend in
+`onboarding-summary.ts`. Met een duidingszin erboven, en die is geen versiering:
+"0/3" zonder uitleg leest als een cijfer op een rapport, terwijl het voor vrijwel
+elk MKB-merk de normale startsituatie is. Een tegenspraak wint van alles — dat
+is de alarmerendste uitkomst die de onboarding kan opleveren.
+
+**De volgorde was niet die van het gesprek.** `ProfileGaps` — het huiswerk voor de
+klant — stond op plek 3, vóór de kennistest en het aanbod. Dat is de inspanning
+vóór de waarde, precies omgekeerd aan bijlage A9. En `AssignBox` stond op plek 4:
+een beheerdersactie tussen de bevindingen, op een scherm waar de klant meekijkt
+naar de knop waarmee hij wordt overgedragen. Nu vijf blokken in de volgorde van de
+demo, met beheer onderaan.
+
+**Zeven panelen verdwenen stil bij lege data** (`return null`). Bij een dunne
+crawl — Bol had één pagina, en dat is geen randgeval — zag de klant een half
+scherm en wist niet dát er een aanbodanalyse en een kennistest bestonden. Drie
+van de zeven hebben nu een lege staat met de reden erbij en de knop die hem
+oplost; de andere vier zijn terecht (een strip die niets te melden heeft hoort
+weg te zijn).
+
+**Mobiel was niet apart ontworpen.** Over alle panelen samen twee responsive
+classes, terwijl §7 letterlijk zegt dat mobiel geen verkleinde desktop is en voor
+dichte detailschermen accordion-dicht voorschrijft. Het profielscherm is inmiddels
+dichter dan het conceptscherm, dat in datzelfde document als toetssteen geldt.
+`ProfileSection` klapt nu in op mobiel — en start bewust open, zodat een blok niet
+dichtklapt omdat de bundel nog niet geladen is.
+
+**De aanbodboom stond volledig uitgeklapt**: 22 knopen × vier regels is twee tot
+drie schermen scrollen midden in een demo, terwijl de interessante regels juist de
+knopen met een dekkingsgat zijn. Nu één scanbare regel per knoop met de details in
+een native `<details>` — geen client-state, want dit paneel is een servercomponent.
+
+**Het wachten was twee ervaringen achter elkaar**: een generiek scherm van een
+minuut, dan een stappenlijst. De stappen zaten al ín de status-payload en werden
+in het eerste scherm niet gebruikt. En het afrondingsmoment — het beste moment
+van de hele flow — ging ongemarkeerd voorbij: de strip verdween en de panelen
+ploften erin. Nu één doorlopende lijst plus een expliciete afronding, alleen voor
+wie het heeft zien lopen.
+
+**Twee van de vier `ProfileGaps` waren achterhaald** door de verbeteringen van
+dezelfde week: werkgebied en concurrenten worden nu door het onderzoek zelf
+gevuld. Eruit, en vervangen door twee die wél uit de nieuwe data volgen — 'lokaal'
+zonder plaatsnaam (`resolveScope()` zet dat bewust op null in plaats van te
+gokken) en een ontbrekend bedrijfsmodel.
+
+**Er was geen volgende stap.** Nu één primaire actie in de kop, met de titel van
+het hoogst geprioriteerde onderwerp erin: *Meet "Knieklachten behandelen"* zegt
+meer dan "start een analyse".
+
+**En de strategiekaart is bewust nauwelijks aangeraakt.** Hij stond acht blokken
+naar beneden terwijl de consultant er tijdens het uur consultancy in typt; hij is
+nu bereikbaar via een springlink in de kop. Het formulier zelf herontwerpen zou
+gokwerk zijn zolang er nog geen echt gesprek mee gevoerd is — dat wachten we af.
+
+Tests: **675 unittests, 42 ketentests.** De rekenkant van de kop staat in een
+pure module met de stand van de derde meetronde als testgeval.

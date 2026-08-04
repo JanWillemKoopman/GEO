@@ -19,6 +19,27 @@ interface Gap {
   effect: string;
 }
 
+/**
+ * ⚠️ HERZIEN OP 4 AUGUSTUS 2026 — WAT HET ONDERZOEK NU ZÉLF VINDT
+ *
+ * Twee van de vier gaten hierboven zijn achterhaald geraakt door de
+ * onboarding-verbeteringen van dezelfde week:
+ *
+ *   • **werkgebied** — `profile_research` levert sinds die ronde `serviceScope`
+ *     en `serviceRegions` (zie lib/schemas/profile.ts). Bij Fysi-Unique kwam
+ *     daar "lokaal / Amersfoort" uit. Dit gat zal bij vrijwel elke klant weg
+ *     zijn, en er alsnog naar vragen is de klant huiswerk geven voor iets wat
+ *     we al weten.
+ *   • **concurrenten** — `profile_market` vult `profiles.competitors` met acht
+ *     namen mét onderbouwing. Idem.
+ *
+ * Beide zijn eruit. Wat blijft staan is wat de pijplijn principieel NIET kan
+ * vinden: hoe klanten je nog meer noemen (staat nergens op je eigen site), en
+ * harde cijfers over je bedrijf (die staan er alleen als je ze zelf hebt
+ * opgeschreven).
+ *
+ * Twee nieuwe, die wél uit de nieuwe data volgen en die een mens moet bevestigen.
+ */
 function findGaps(profile: Profile): Gap[] {
   const gaps: Gap[] = [];
 
@@ -30,14 +51,6 @@ function findGaps(profile: Profile): Gap[] {
     });
   }
 
-  if (profile.service_regions.length === 0 && !profile.service_scope) {
-    gaps.push({
-      label: "Waar je werkt",
-      effect:
-        "Zonder werkgebied stellen we landelijke vragen. Werk je in één regio, dan meten we tegen concurrenten waar je nooit tegenaan loopt.",
-    });
-  }
-
   if (profile.proof_points.length < 3) {
     gaps.push({
       label: "Concrete feiten over je bedrijf",
@@ -46,11 +59,25 @@ function findGaps(profile: Profile): Gap[] {
     });
   }
 
-  if (profile.competitors.length === 0) {
+  // Het onderzoek zegt "lokaal" maar noemde geen plaats. `resolveScope()` zet
+  // dat bewust op null in plaats van te gokken — en dan is dit precies een vraag
+  // voor het gesprek.
+  if (profile.service_scope === "lokaal" && profile.service_regions.length === 0) {
     gaps.push({
-      label: "Je belangrijkste concurrenten",
+      label: "In welke plaats of streek je werkt",
       effect:
-        "We zoeken ze zelf op, maar jij weet beter wie er écht toe doet. Dat maakt de vergelijking eerlijker.",
+        "We zien dat je lokaal werkt, maar niet waar. Zonder plaatsnaam stellen we landelijke vragen en meet je jezelf af tegen partijen waar je nooit tegenaan loopt.",
+    });
+  }
+
+  // Geen bedrijfsmodel betekent dat de aanbodanalyse op de algemene briefing
+  // draaide (zie briefingFor() in offering.ts). Eén keuze van een mens maakt de
+  // volgende ronde meteen scherper.
+  if (!profile.business_model) {
+    gaps.push({
+      label: "Wat voor bedrijf je bent",
+      effect:
+        "Dienstverlener, retailer, fabrikant of platform — dat bepaalt waar we naar zoeken in je aanbod en welke vragen we straks stellen. We konden het niet met zekerheid afleiden.",
     });
   }
 

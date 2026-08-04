@@ -18,6 +18,16 @@ import { OfferingsPanel } from "./offerings-panel";
 import { ConfidenceChip } from "@/components/confidence-chip";
 import { assessStructureCoverage } from "@/lib/pipeline/structure-gap";
 import {
+  onboardingStats,
+  onboardingHeadline,
+} from "@/lib/pipeline/onboarding-summary";
+import type {
+  BaselineVerdict,
+  CategoryVerdict,
+} from "@/lib/pipeline/baseline-verdict";
+import { ProfileHero } from "./profile-hero";
+import { ProfileSection } from "./profile-section";
+import {
   parseContextFactors,
   technicalAdviceStale,
   staleAdviceNotice,
@@ -73,10 +83,7 @@ export default async function ProfilePage({
     // volledige tekst van 150 pagina's door een servercomponent halen om er
     // termen uit te tellen is verspilling, en `scorePage()` heeft aan de titel
     // en de slug genoeg voor het onderscheid "eigen pagina of niet".
-    supabase
-      .from("profile_pages")
-      .select("url, title")
-      .eq("profile_id", id),
+    supabase.from("profile_pages").select("url, title").eq("profile_id", id),
     // Concurrenten horen bij het PROFIEL, niet bij één analyse (optimalisatie.md
     // 2.4/2.7): dezelfde concurrent duikt op bij meerdere onderwerpen van
     // hetzelfde merk, en die moet dan één rij zijn.
@@ -168,6 +175,43 @@ export default async function ProfilePage({
     })),
   );
 
+  // ── De kop: één zin en drie cijfers (ux-design.md regel 1) ───────────────
+  //
+  // De oordelen staan al in `profile_llm_baseline`; hier worden ze alleen
+  // uitgesplitst naar de twee soorten. De rekenkant zit in
+  // `onboarding-summary.ts`, puur en getest.
+  const baselines = (baselineRows ?? []) as ProfileLlmBaseline[];
+  const knowsVerdicts = baselines
+    .filter((r) => r.block === "kent")
+    .map((r) => r.verdict_json as BaselineVerdict | null)
+    .filter((v): v is BaselineVerdict => v !== null);
+  const categoryVerdicts = baselines
+    .filter((r) => r.block === "categorie")
+    .map((r) => r.verdict_json as CategoryVerdict | null)
+    .filter((v): v is CategoryVerdict => v !== null);
+
+  const merknaam = profile.brand_name ?? profile.name;
+  const samenvatting = {
+    brandName: merknaam,
+    knowsVerdicts,
+    categoryVerdicts,
+    coverage,
+  };
+
+  // De enige primaire actie op dit scherm. Het hoogst geprioriteerde
+  // openstaande onderwerp is concreter dan "start een analyse" — de klant leest
+  // waar hij op gaat meten in plaats van wat de knop technisch doet.
+  const topics = (topicRows ?? []) as ProfileTopic[];
+  const volgendeTopic = topics
+    .filter((t) => t.status !== "afgewezen" && !t.analysis_id)
+    .sort((a, b) => b.priority - a.priority)[0];
+  const primaryAction = volgendeTopic
+    ? {
+        href: `/profielen/${id}#onderwerpen`,
+        label: `Meet "${volgendeTopic.title}"`,
+      }
+    : { href: "/analyses/nieuw", label: "Start een analyse" };
+
   const dossier =
     (synthesisRow as { summary?: string | null } | null)?.summary ?? null;
   const dossierConfidence =
@@ -178,95 +222,145 @@ export default async function ProfilePage({
   ).filter((g): g is string => typeof g === "string" && g.trim().length > 0);
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-6">
+      {/* ── 1. Wie is dit, en hoe staat het ervoor ─────────────────────────
+          De pagina had geen kop en geen <h1>; de merknaam stond pas halverwege
+          in de editor. Dit is het scherm dat de consultant deelt in de demo. */}
+      <ProfileHero
+        brandName={merknaam}
+        url={profile.url}
+        headline={onboardingHeadline(samenvatting)}
+        stats={onboardingStats(samenvatting)}
+        primaryAction={primaryAction}
+      />
+
       {/* Het profiel gaat op 'klaar' na stap 2 van 6; deze strip laat zien wat
-          er nog binnenkomt en verdwijnt zodra alles er is. */}
+          er nog binnenkomt en markeert het moment waarop alles er is. */}
       <ResearchStepsStrip profileId={id} />
 
-      {/* Waarde vóór inspanning (bijlage A9): de onboarding vraagt alleen naam
-          en website; de rest vragen we hier, nu de klant het onderzoek heeft
-          zien draaien en weet waar het voor dient. */}
+      {/* ── 2. Het verhaal, in de volgorde van de demo ─────────────────────
+          Eerst wat we vonden, dan wat er mist, dan wat we gaan doen. De
+          gespreksagenda (ProfileGaps) stond hier ooit op plek 3, vóór alle
+          opbrengst — dat is precies de inspanning vóór de waarde, en dus het
+          omgekeerde van wat `ux-design.md` bijlage A9 voorschrijft. */}
       {dossier && (
-        <div className="card flex flex-col gap-2">
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="mono-label">Het dossier</span>
-            <ConfidenceChip confidence={dossierConfidence} />
+        <ProfileSection id="dossier" title="Het dossier">
+          <div className="card flex flex-col gap-2">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="mono-label">Wat we van je site begrepen</span>
+              <ConfidenceChip confidence={dossierConfidence} />
+            </div>
+            <p className="text-secondary">{dossier}</p>
           </div>
-          <p className="text-secondary">{dossier}</p>
-        </div>
+        </ProfileSection>
       )}
 
-      <ProfileGaps profile={profile} researchGaps={researchGaps} />
+      <ProfileSection id="ai-kennis" title="Wat AI-assistenten over je weten">
+        <LlmKnowledgePanel rows={baselines} />
+      </ProfileSection>
 
-      {staff && (
-        <AssignBox
-          profileId={id}
-          currentUserId={profile.user_id}
-          assignedAt={profile.assigned_at}
-        />
-      )}
-
-      {/* ⚠️ Deze drie stonden tot 4 augustus 2026 wél in de imports en in de
-          queries, maar niet in de render. De hele aanbodboom (22 knopen met
-          tarieven), de kennistest en de strategiekaart werden dus opgehaald en
-          weggegooid — het scherm toonde alleen de synthese die eroverheen
-          geschreven was. Conventie 10: gebouwd is niet geverifieerd, en dat
-          geldt ook voor een component die netjes compileert. */}
-      <LlmKnowledgePanel
-        rows={(baselineRows ?? []) as ProfileLlmBaseline[]}
-      />
-
-      <OfferingsPanel
-        profileId={id}
-        offerings={(offeringRows ?? []) as ProfileOffering[]}
-        inventory={profile.inventory_quality_json}
-        confidence={offeringConfidence}
-        coverage={coverage}
-      />
-
-      <TopicsPanel
-        profileId={id}
-        initial={(topicRows ?? []) as ProfileTopic[]}
-      />
-
-      <StrategyBox
-        profileId={id}
-        initialNotes={
-          (strategyRow as { strategy_notes?: string | null } | null)
-            ?.strategy_notes ?? null
+      <ProfileSection
+        id="aanbod"
+        title="Wat je aanbiedt"
+        badge={
+          coverage.assessed > 0
+            ? `${coverage.missing} zonder eigen pagina`
+            : undefined
         }
-        initialFactors={factors}
-      />
-
-      <ProfileEditor initial={profile} inventoryCount={count ?? 0} />
-      {staleFactor && (
-        <p className="card text-sm text-[var(--status-warning)]" role="status">
-          {staleAdviceNotice(staleFactor)}
-        </p>
-      )}
-      {audit ? (
-        <AuditPanel
-          checks={(audit.checks_json ?? []) as AuditCheck[]}
-          checkedAt={audit.checked_at}
-          siteUrl={audit.site_url}
+      >
+        <OfferingsPanel
+          profileId={id}
+          offerings={(offeringRows ?? []) as ProfileOffering[]}
+          inventory={profile.inventory_quality_json}
+          confidence={offeringConfidence}
+          coverage={coverage}
         />
-      ) : (
-        <div className="card flex flex-col gap-2">
-          <span className="mono-label">Technische controle</span>
-          <p className="text-secondary">
-            We controleren nog of AI-assistenten je site mogen lezen. De uitslag
-            verschijnt hier zodra dat klaar is — je hoeft niets te doen.
-          </p>
+      </ProfileSection>
+
+      <ProfileSection
+        id="onderwerpen"
+        title="Onderwerpen om op te meten"
+        badge={topics.length > 0 ? `${topics.length} voorgesteld` : undefined}
+      >
+        <TopicsPanel profileId={id} initial={topics} />
+      </ProfileSection>
+
+      {/* ── 3. Het gesprek ─────────────────────────────────────────────────
+          De strategiekaart en de agenda horen bij elkaar: dit is de werkvloer
+          van het uur consultancy. */}
+      <ProfileSection id="gesprek" title="Het gesprek">
+        <div className="flex flex-col gap-4">
+          <StrategyBox
+            profileId={id}
+            initialNotes={
+              (strategyRow as { strategy_notes?: string | null } | null)
+                ?.strategy_notes ?? null
+            }
+            initialFactors={factors}
+          />
+          <ProfileGaps profile={profile} researchGaps={researchGaps} />
         </div>
+      </ProfileSection>
+
+      {/* ── 4. Techniek en beheer ──────────────────────────────────────────
+          Alles wat je nakijkt of bijstelt, niet wat je presenteert. */}
+      <ProfileSection id="techniek" title="Technische controle">
+        <div className="flex flex-col gap-4">
+          {staleFactor && (
+            <p
+              className="card text-sm text-[var(--status-warning)]"
+              role="status"
+            >
+              {staleAdviceNotice(staleFactor)}
+            </p>
+          )}
+          {audit ? (
+            <AuditPanel
+              checks={(audit.checks_json ?? []) as AuditCheck[]}
+              checkedAt={audit.checked_at}
+              siteUrl={audit.site_url}
+            />
+          ) : (
+            <div className="card flex flex-col gap-2">
+              <span className="mono-label">Technische controle</span>
+              <p className="text-secondary">
+                We controleren nog of AI-assistenten je site mogen lezen. De
+                uitslag verschijnt hier zodra dat klaar is — je hoeft niets te
+                doen.
+              </p>
+            </div>
+          )}
+        </div>
+      </ProfileSection>
+
+      <ProfileSection id="profiel" title="Profielgegevens">
+        <div className="flex flex-col gap-4">
+          <ProfileEditor initial={profile} inventoryCount={count ?? 0} />
+          <FactRequests
+            profileId={id}
+            initial={(factRows ?? []) as FactRequest[]}
+          />
+          <EntitiesManager
+            profileId={id}
+            initial={(entityRows ?? []) as Entity[]}
+          />
+        </div>
+      </ProfileSection>
+
+      {/* ── 5. Beheer ──────────────────────────────────────────────────────
+          Toewijzen stond op plek 4, tussen de bevindingen — op een scherm dat
+          de consultant deelt terwijl de klant meekijkt naar de knop waarmee hij
+          wordt overgedragen. Het is bovendien een handeling van ná het gesprek,
+          niet tijdens. Dus onderaan, en alleen voor beheerders. */}
+      {staff && (
+        <ProfileSection id="beheer" title="Beheer">
+          <AssignBox
+            profileId={id}
+            currentUserId={profile.user_id}
+            assignedAt={profile.assigned_at}
+          />
+        </ProfileSection>
       )}
-      <FactRequests
-        profileId={id}
-        initial={(factRows ?? []) as FactRequest[]}
-      />
-      <EntitiesManager
-        profileId={id}
-        initial={(entityRows ?? []) as Entity[]}
-      />
     </div>
   );
 }

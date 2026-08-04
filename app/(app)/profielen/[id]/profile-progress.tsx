@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { ProfileStatus } from "@/lib/types/database";
+import type { ResearchStep } from "@/lib/pipeline/research-steps";
 import { ErrorNotice, problemFromResponse } from "@/components/error-notice";
 import { WorkInProgress, useStatusPoll } from "@/components/work-in-progress";
 import type { UserFacingError } from "@/lib/errors";
@@ -13,6 +14,13 @@ interface StatusPayload {
   failedJobs: number;
   retrying: boolean;
   etaText: string | null;
+  /**
+   * Dezelfde stappen die `ResearchStepsStrip` verderop toont. Ze stonden er al
+   * in de payload en werden hier niet gebruikt — het wachten was daardoor twee
+   * verschillende ervaringen achter elkaar: eerst een generiek scherm van een
+   * minuut, dan een stappenlijst. Nu één lijst die gewoon doorloopt.
+   */
+  steps?: ResearchStep[];
 }
 
 /**
@@ -85,7 +93,11 @@ export function ProfileProgress({
   return (
     <WorkInProgress
       title="Profiel wordt onderzocht"
-      explanation="We lezen je website, brengen in kaart welke pagina's er zijn, en zoeken uit wat je merk aanbiedt en wie je concurrenten zijn."
+      explanation="We lezen je website, brengen in kaart welke pagina's er zijn, en zoeken uit wat je merk aanbiedt en wie je concurrenten zijn. Je kunt dit scherm sluiten — het werk loopt door."
+      steps={(data?.steps ?? []).map((s) => ({
+        label: s.result ? `${s.label} — ${s.result}` : s.label,
+        done: s.state === "klaar" || s.state === "overgeslagen",
+      }))}
       etaText={data?.etaText}
       retrying={data?.retrying}
     />

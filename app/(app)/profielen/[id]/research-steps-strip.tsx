@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { ResearchStep } from "@/lib/pipeline/research-steps";
 
@@ -23,6 +23,14 @@ export function ResearchStepsStrip({ profileId }: { profileId: string }) {
   const [steps, setSteps] = useState<ResearchStep[] | null>(null);
   const [eta, setEta] = useState<string | null>(null);
   const [klaar, setKlaar] = useState(false);
+  /**
+   * Hebben we in DEZE sessie werk zien lopen?
+   *
+   * Bepaalt of we het afrondingsmoment tonen. Zonder deze vlag zou de melding
+   * "onderzoek klaar" ook verschijnen bij iemand die het profiel drie weken
+   * later opent, en dan is het geen nieuws maar ruis.
+   */
+  const zagWerk = useRef(false);
 
   useEffect(() => {
     if (klaar) return;
@@ -42,6 +50,7 @@ export function ResearchStepsStrip({ profileId }: { profileId: string }) {
         if (!active) return;
         setSteps(json.steps ?? []);
         setEta(json.etaText);
+        if (json.pendingJobs > 0) zagWerk.current = true;
         if (json.pendingJobs === 0) {
           setKlaar(true);
           // Eén keer verversen zodat de nieuw gevulde kaarten (aanbod, topics,
@@ -67,7 +76,37 @@ export function ResearchStepsStrip({ profileId }: { profileId: string }) {
   // opflitst en weer verdwijnt is vervelender dan geen strip.
   if (!steps || steps.length === 0) return null;
   const loopt = steps.some((s) => s.state === "bezig" || s.state === "wacht");
-  if (!loopt) return null;
+
+  // ── Het afrondingsmoment ──────────────────────────────────────────────────
+  //
+  // Hier stond `return null`: zodra alles klaar was verdween de strip en
+  // ploften de panelen erin na de `router.refresh()`. Het beste moment van de
+  // hele flow — het onderzoek is af en het dossier staat er — ging ongemarkeerd
+  // voorbij, en de klant die net wegkeek zag alleen dat het scherm veranderd was.
+  //
+  // Alleen voor wie het heeft zien lopen (`zagWerk`), dus niet bij een later
+  // bezoek.
+  if (!loopt) {
+    if (!zagWerk.current) return null;
+    const gedaan = steps.filter(
+      (s) => s.state === "klaar" || s.state === "overgeslagen",
+    );
+    const opbrengst = gedaan
+      .map((s) => s.result)
+      .filter((r): r is string => Boolean(r))
+      .slice(0, 3);
+
+    return (
+      <div className="card card-success flex flex-col gap-2" role="status">
+        <span className="mono-label">Onderzoek klaar</span>
+        <p className="text-secondary">
+          {gedaan.length} van de {steps.length} stappen afgerond
+          {opbrengst.length > 0 ? `: ${opbrengst.join(" · ")}.` : "."} Alles
+          hieronder is bijgewerkt.
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="card flex flex-col gap-3">

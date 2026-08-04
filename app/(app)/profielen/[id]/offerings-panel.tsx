@@ -52,7 +52,23 @@ export function OfferingsPanel({
    */
   coverage?: StructureCoverage | null;
 }) {
-  if (offerings.length === 0 && !inventory) return null;
+  // Geen aanbod én geen inventarisoordeel: het onderzoek is hier niet langs
+  // geweest. Ook dan een blok tonen, met de knop die het alsnog start — dit is
+  // het paneel waar "Onderzoek opnieuw" woont, en juist een klant met een lege
+  // boom heeft die knop nodig.
+  if (offerings.length === 0 && !inventory) {
+    return (
+      <div className="card flex flex-col gap-3">
+        <span className="mono-label">Wat je aanbiedt</span>
+        <p className="text-secondary">
+          Je aanbod is nog niet in kaart gebracht. Zodra het onderzoek klaar is
+          staat hier elke dienst of productgroep die we op je site vonden, met de
+          pagina waar we hem vandaan haalden.
+        </p>
+        <RerunResearchButton profileId={profileId} />
+      </div>
+    );
+  }
 
   const byParent = new Map<string | null, ProfileOffering[]>();
   for (const o of offerings) {
@@ -66,12 +82,25 @@ export function OfferingsPanel({
     (coverage?.coverage ?? []).map((c) => [c.offeringId, c]),
   );
 
+  /**
+   * ⚠️ EEN REGEL PER KNOOP, DETAILS ACHTER EEN KLIK
+   *
+   * Elke knoop toonde naam, omschrijving, doelgroep, prijs én bronlink onder
+   * elkaar. Bij Fysi-Unique zijn dat 22 knopen — twee tot drie schermen scrollen
+   * midden in een demo, terwijl de interessante regels juist de knopen mét een
+   * dekkingsgat zijn.
+   *
+   * Nu is de knoop één scanbare regel en zit de rest in een `<details>`. Bewust
+   * native en geen client-state: dit paneel is een servercomponent, en er is
+   * geen enkele reden om er JavaScript voor te laden.
+   */
   function renderNode(o: ProfileOffering, depth: number) {
     const kinderen = byParent.get(o.id) ?? [];
     const dekking = dekkingPerId.get(o.id);
-    return (
-      <li key={o.id} className="flex flex-col gap-1">
-        <div className="flex flex-wrap items-baseline gap-2">
+    const heeftDetails = Boolean(o.description || o.audience || o.evidence_url);
+
+    const kopregel = (
+      <span className="flex flex-wrap items-baseline gap-2">
           <span className="chip chip-neutral">{KIND_LABELS[o.kind]}</span>
           <span className="font-medium">{o.name}</span>
           {o.price_indication && (
@@ -93,7 +122,11 @@ export function OfferingsPanel({
               zwak gedekt
             </span>
           )}
-        </div>
+      </span>
+    );
+
+    const details = (
+      <div className="mt-1 flex flex-col gap-1">
         {o.description && (
           <p className="text-sm text-secondary">{o.description}</p>
         )}
@@ -112,8 +145,23 @@ export function OfferingsPanel({
             gevonden op {shortUrl(o.evidence_url)}
           </a>
         )}
+      </div>
+    );
+
+    return (
+      <li key={o.id} className="flex flex-col">
+        {heeftDetails ? (
+          <details className="group">
+            <summary className="cursor-pointer list-none marker:content-none">
+              {kopregel}
+            </summary>
+            {details}
+          </details>
+        ) : (
+          kopregel
+        )}
         {kinderen.length > 0 && (
-          <ul className="mt-1 flex flex-col gap-3 border-l border-[var(--border-subtle)] pl-4">
+          <ul className="mt-2 flex flex-col gap-2 border-l border-[var(--border-subtle)] pl-4">
             {kinderen.map((k) => renderNode(k, depth + 1))}
           </ul>
         )}
@@ -160,7 +208,7 @@ export function OfferingsPanel({
           leesbaar is.
         </p>
       ) : (
-        <ul className="flex flex-col gap-3">
+        <ul className="flex flex-col gap-2">
           {roots.map((o) => renderNode(o, 0))}
         </ul>
       )}
