@@ -16,6 +16,7 @@ import { StrategyBox } from "./strategy-box";
 import { ResearchStepsStrip } from "./research-steps-strip";
 import { OfferingsPanel } from "./offerings-panel";
 import { ConfidenceChip } from "@/components/confidence-chip";
+import { assessStructureCoverage } from "@/lib/pipeline/structure-gap";
 import {
   parseContextFactors,
   technicalAdviceStale,
@@ -52,6 +53,7 @@ export default async function ProfilePage({
   const supabase = await createClient();
   const [
     { count },
+    { data: pageRows },
     { data: entityRows },
     { data: auditRow },
     { data: factRows },
@@ -65,6 +67,15 @@ export default async function ProfilePage({
     supabase
       .from("profile_pages")
       .select("id", { count: "exact", head: true })
+      .eq("profile_id", id),
+    // De gecrawlde pagina's zelf, voor de structurele dekkingsanalyse
+    // (docs/tasks/inspace-optimalisaties-1-4.md, 1). Alleen url en titel: de
+    // volledige tekst van 150 pagina's door een servercomponent halen om er
+    // termen uit te tellen is verspilling, en `scorePage()` heeft aan de titel
+    // en de slug genoeg voor het onderscheid "eigen pagina of niet".
+    supabase
+      .from("profile_pages")
+      .select("url, title")
       .eq("profile_id", id),
     // Concurrenten horen bij het PROFIEL, niet bij één analyse (optimalisatie.md
     // 2.4/2.7): dezelfde concurrent duikt op bij meerdere onderwerpen van
@@ -145,6 +156,18 @@ export default async function ProfilePage({
     (offeringFacetRow as { confidence?: number | null } | null)?.confidence ??
     null;
 
+  // Welke onderdelen van het aanbod een eigen pagina hebben. Afgeleid bij het
+  // lezen en niet opgeslagen: de uitkomst verandert zodra er een pagina bijkomt,
+  // en een opgeslagen kopie zou een vierde plek zijn die kan verouderen.
+  const coverage = assessStructureCoverage(
+    (offeringRows ?? []) as ProfileOffering[],
+    ((pageRows ?? []) as { url: string; title: string | null }[]).map((p) => ({
+      url: p.url,
+      title: p.title,
+      text: "",
+    })),
+  );
+
   const dossier =
     (synthesisRow as { summary?: string | null } | null)?.summary ?? null;
   const dossierConfidence =
@@ -183,9 +206,36 @@ export default async function ProfilePage({
         />
       )}
 
+      {/* ⚠️ Deze drie stonden tot 4 augustus 2026 wél in de imports en in de
+          queries, maar niet in de render. De hele aanbodboom (22 knopen met
+          tarieven), de kennistest en de strategiekaart werden dus opgehaald en
+          weggegooid — het scherm toonde alleen de synthese die eroverheen
+          geschreven was. Conventie 10: gebouwd is niet geverifieerd, en dat
+          geldt ook voor een component die netjes compileert. */}
+      <LlmKnowledgePanel
+        rows={(baselineRows ?? []) as ProfileLlmBaseline[]}
+      />
+
+      <OfferingsPanel
+        profileId={id}
+        offerings={(offeringRows ?? []) as ProfileOffering[]}
+        inventory={profile.inventory_quality_json}
+        confidence={offeringConfidence}
+        coverage={coverage}
+      />
+
       <TopicsPanel
         profileId={id}
         initial={(topicRows ?? []) as ProfileTopic[]}
+      />
+
+      <StrategyBox
+        profileId={id}
+        initialNotes={
+          (strategyRow as { strategy_notes?: string | null } | null)
+            ?.strategy_notes ?? null
+        }
+        initialFactors={factors}
       />
 
       <ProfileEditor initial={profile} inventoryCount={count ?? 0} />

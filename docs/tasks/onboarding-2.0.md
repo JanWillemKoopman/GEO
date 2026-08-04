@@ -20,7 +20,7 @@
 | Blok B fase 2 — markt verdiepen | **Klaar** — reden per concurrent met bron, plus het bronnenlandschap op merkniveau |
 | Blok B fase 5 — synthese op Sol | **Klaar** — dossier, gespreksagenda en geverifieerde feiten in `brand_facts` |
 
-Tests: **575 unittests, 38 ketentests**, `tsc` en `build` schoon.
+Tests: **623 unittests, 42 ketentests**, `tsc` en `build` schoon.
 
 ### Verificatiecriteria uit §10 — wat is afgetekend en wat niet
 

@@ -111,6 +111,20 @@ import {
 import { quoteOnPage, quoteConfidence } from "@/lib/pipeline/quote-check";
 import { harvestTextFacts, isCanonicalPage } from "@/lib/pipeline/text-facts";
 import { relinkOfferingIds } from "@/lib/pipeline/topic-link";
+import {
+  assessStructureCoverage,
+  describeCoverage,
+  formatCoverageForReport,
+} from "@/lib/pipeline/structure-gap";
+import {
+  validateOrRebuildJsonLd,
+  schemaTypeFor,
+  withFreshnessLine,
+  bestaandeDatePublished,
+} from "@/lib/schema-jsonld";
+import { similarity, mostSimilar } from "@/lib/pipeline/similarity";
+import { assessReadability, describeReadability } from "@/lib/pipeline/readability";
+import { checkQuality } from "@/lib/pipeline/content-gate";
 import { buildSteps, researchRunning } from "@/lib/pipeline/research-steps";
 import {
   filterProtectedFields,
@@ -2775,6 +2789,338 @@ group("een onderwerp houdt zijn aanbod na een herbouw van de boom", () => {
     "zonder namen valt er niets te herstellen",
     relinkOfferingIds({ offering_ids: ["oud-1"], offering_names: [] }, nieuweBoom) ===
       null,
+  );
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+// Optimalisatie 1 uit de InSpace-analyse: welke pagina's mist de site?
+// ════════════════════════════════════════════════════════════════════════════
+
+group("structurele gaten: welke diensten hebben geen eigen pagina", () => {
+  const knoop = (
+    id: string,
+    name: string,
+    kind: "dienst" | "categorie" | "merk" = "dienst",
+    parent_id: string | null = null,
+  ) => ({ id, name, kind, parent_id }) as never;
+
+  const boom = [
+    knoop("c1", "Specialismen", "categorie"),
+    knoop("d1", "Bekkenfysiotherapie", "dienst", "c1"),
+    knoop("d2", "Sportfysiotherapie", "dienst", "c1"),
+    knoop("d3", "Dry Needling", "dienst", "c1"),
+    knoop("m1", "Compex", "merk", "c1"),
+  ];
+
+  const paginas = [
+    {
+      url: "https://x.nl/specialismen/bekkenfysiotherapie/",
+      title: "Bekkenfysiotherapie Amersfoort",
+      text: "Alles over bekkenfysiotherapie.",
+    },
+    {
+      url: "https://x.nl/tarieven/",
+      title: "Tarieven",
+      text: "Sportfysiotherapie kost € 42,00 per behandeling.",
+    },
+  ];
+
+  const r = assessStructureCoverage(boom, paginas);
+  const van = (naam: string) => r.coverage.find((c) => c.name === naam);
+
+  ok(
+    "een dienst met een eigen pagina is gedekt",
+    van("Bekkenfysiotherapie")?.dekking === "eigen_pagina",
+  );
+  ok(
+    "een dienst die alleen in een tarievenlijst staat is zwak gedekt",
+    van("Sportfysiotherapie")?.dekking === "zwak_gedekt",
+  );
+  ok(
+    "een dienst die nergens staat ontbreekt",
+    van("Dry Needling")?.dekking === "ontbreekt",
+  );
+
+  // ⚠️ Het vangnet: zonder dit adviseert de app vier pagina's waar er één hoort.
+  ok(
+    "een categorie met kinderen wordt niet apart beoordeeld",
+    van("Specialismen") === undefined,
+  );
+  // Een retailer hoeft geen pagina per gevoerd merk.
+  ok("een merk telt niet mee", van("Compex") === undefined);
+  ok("er zijn dus drie beoordelingen", r.assessed === 3);
+  ok("waarvan één gat en één zwakke", r.missing === 1 && r.weak === 1);
+
+  // Een categorie zónder kinderen is in de praktijk gewoon een dienst.
+  const losseCategorie = assessStructureCoverage(
+    [knoop("c9", "Medische fitness", "categorie")],
+    [],
+  );
+  ok(
+    "een categorie zonder kinderen telt wél mee",
+    losseCategorie.assessed === 1 &&
+      losseCategorie.coverage[0].dekking === "ontbreekt",
+  );
+
+  // De regel die de klant leest, met de noemer erbij.
+  ok(
+    "de samenvatting noemt de verhouding",
+    describeCoverage(r) ===
+      "1 van je 3 onderdelen heeft geen eigen pagina · 1 wordt alleen zijdelings genoemd op een pagina over iets anders.",
+  );
+  ok(
+    "een volledig gedekte site krijgt geen verwijt",
+    describeCoverage(
+      assessStructureCoverage([knoop("d1", "Bekkenfysiotherapie")], paginas),
+    ) === "Alle 1 onderdelen van je aanbod hebben een eigen pagina.",
+  );
+  ok(
+    "zonder aanbod geen uitspraak",
+    describeCoverage(assessStructureCoverage([], paginas)) ===
+      "Nog geen aanbod in kaart gebracht.",
+  );
+
+  // Het blok dat de rapportgeneratie meekrijgt.
+  const blok = formatCoverageForReport(r);
+  ok("het rapportblok noemt de ontbrekende dienst", blok.includes("Dry Needling"));
+  ok(
+    "en niet de dienst die wél een pagina heeft",
+    !blok.includes("Bekkenfysiotherapie"),
+  );
+  ok(
+    "een volledig gedekte site levert geen blok op",
+    formatCoverageForReport(
+      assessStructureCoverage([knoop("d1", "Bekkenfysiotherapie")], paginas),
+    ) === "",
+  );
+
+  // Een taalvariant mag niet als tweede dekking gelden.
+  const metEngels = assessStructureCoverage(
+    [knoop("d1", "Bekkenfysiotherapie")],
+    [
+      {
+        url: "https://x.nl/en/specialismen/bekkenfysiotherapie/",
+        title: null,
+        text: "",
+      },
+    ],
+  );
+  ok(
+    "de slug telt ook zonder titel, taalsegment weggefilterd",
+    metEngels.coverage[0].dekking === "eigen_pagina",
+  );
+});
+
+
+// ════════════════════════════════════════════════════════════════════════════
+// Optimalisatie 2, 3 en 4 uit de InSpace-analyse
+// ════════════════════════════════════════════════════════════════════════════
+
+group("het schema-type volgt het bedrijfsmodel", () => {
+  ok(
+    "een landingspagina van een dienstverlener is een Service",
+    schemaTypeFor("landing", "dienstverlener") === "Service",
+  );
+  ok(
+    "van een retailer een CollectionPage",
+    schemaTypeFor("landing", "retailer") === "CollectionPage",
+  );
+  ok(
+    "zonder bedrijfsmodel valt hij terug op WebPage",
+    schemaTypeFor("landing", null) === "WebPage",
+  );
+  // Een FAQ is een FAQ, wat voor bedrijf je ook bent.
+  ok(
+    "een FAQ blijft een FAQPage",
+    schemaTypeFor("faq", "retailer") === "FAQPage",
+  );
+
+  const basis = {
+    type: "landing" as const,
+    title: "Bekkenfysiotherapie Amersfoort",
+    description: "Hulp bij bekkenklachten.",
+    url: "https://fysi-unique.nl/bekkenfysiotherapie",
+    faq: [],
+    businessModel: "dienstverlener" as const,
+    organization: {
+      name: "Fysi-Unique",
+      url: "https://fysi-unique.nl",
+      sameAs: ["https://www.linkedin.com/company/fysi-unique"],
+    },
+    datePublished: "2026-08-04T10:00:00.000Z",
+    dateModified: "2026-08-04T10:00:00.000Z",
+  };
+
+  const gebouwd = JSON.parse(validateOrRebuildJsonLd(null, basis));
+  ok("er komt een @graph uit", Array.isArray(gebouwd["@graph"]));
+  ok(
+    "met de pagina en de organisatie",
+    gebouwd["@graph"].length === 2 &&
+      gebouwd["@graph"][0]["@type"] === "Service" &&
+      gebouwd["@graph"][1]["@type"] === "Organization",
+  );
+  ok(
+    "de sameAs uit fase 0 hangt aan de organisatie",
+    gebouwd["@graph"][1].sameAs[0].includes("linkedin"),
+  );
+  ok(
+    "en de datums staan erin",
+    gebouwd["@graph"][0].dateModified === "2026-08-04T10:00:00.000Z",
+  );
+
+  // ⚠️ Een verzonnen type wordt vervangen, niet bewaard. Tot 4 augustus 2026
+  // accepteerde de validatie alles met een @context en een @type.
+  const recept = validateOrRebuildJsonLd(
+    JSON.stringify({ "@context": "https://schema.org", "@type": "Recipe", name: "x" }),
+    basis,
+  );
+  ok(
+    "een Recipe op een dienstenpagina wordt vervangen",
+    JSON.parse(recept)["@graph"][0]["@type"] === "Service",
+  );
+
+  // Een passend type van het model blijft wél staan.
+  const eigen = validateOrRebuildJsonLd(
+    JSON.stringify({
+      "@context": "https://schema.org",
+      "@type": "ProfessionalService",
+      name: "Bekkenfysiotherapie",
+    }),
+    basis,
+  );
+  ok(
+    "een passend eigen type blijft behouden",
+    JSON.parse(eigen)["@graph"][0]["@type"] === "ProfessionalService",
+  );
+  // Maar onze velden gaan er altijd overheen.
+  ok(
+    "en krijgt onze datum er alsnog bij",
+    JSON.parse(eigen)["@graph"][0].dateModified === "2026-08-04T10:00:00.000Z",
+  );
+
+  ok(
+    "de eerdere publicatiedatum is terug te lezen",
+    bestaandeDatePublished(gebouwd ? JSON.stringify(gebouwd) : null) ===
+      "2026-08-04T10:00:00.000Z",
+  );
+  ok("onleesbare JSON levert null", bestaandeDatePublished("{kapot") === null);
+});
+
+group("de zichtbare versheidsregel", () => {
+  const met = withFreshnessLine("# Titel\n\nTekst.", "2026-08-04T10:00:00.000Z");
+  ok("de datum staat onder de tekst", met.includes("4 augustus 2026"));
+  // ⚠️ Idempotent: content_revise draait over bestaande tekst heen, en zonder
+  // deze eigenschap zou elke herziening een tweede regel toevoegen.
+  const nogmaals = withFreshnessLine(met, "2026-09-01T10:00:00.000Z");
+  ok(
+    "een tweede ronde vervangt de regel en plakt er geen bij",
+    (nogmaals.match(/Laatst bijgewerkt/g) ?? []).length === 1 &&
+      nogmaals.includes("1 september 2026"),
+  );
+  ok(
+    "zonder datum verandert er niets",
+    withFreshnessLine("Tekst.", null) === "Tekst.",
+  );
+});
+
+group("lijken twee pagina's te veel op elkaar?", () => {
+  const a =
+    "Bij onze praktijk in Amersfoort behandelen wij knieklachten met een persoonlijk " +
+    "plan. Wij kijken eerst naar de oorzaak van de klacht en stellen daarna een " +
+    "behandelplan op dat bij jouw situatie past.";
+  const bijnaGelijk =
+    "Bij onze praktijk in Amersfoort behandelen wij heupklachten met een persoonlijk " +
+    "plan. Wij kijken eerst naar de oorzaak van de klacht en stellen daarna een " +
+    "behandelplan op dat bij jouw situatie past.";
+  const anders =
+    "Medische fitness is trainen onder begeleiding van een fysiotherapeut. Je krijgt " +
+    "een schema op maat en er is altijd iemand aanwezig die meekijkt naar je houding.";
+
+  ok("bijna identieke teksten scoren hoog", similarity(a, bijnaGelijk) > 0.5);
+  ok("onafhankelijke teksten scoren laag", similarity(a, anders) < 0.1);
+  ok("identiek is 1", similarity(a, a) === 1);
+  // Te kort voor een oordeel: nul en niet één, want een vals alarm is hier
+  // duurder dan een gemist geval.
+  ok("te korte tekst levert 0", similarity("drie woorden hier", a) === 0);
+
+  const beste = mostSimilar(a, [
+    { title: "Medische fitness", body: anders },
+    { title: "Heupklachten behandelen", body: bijnaGelijk },
+  ]);
+  ok(
+    "de meest gelijkende pagina wordt gevonden",
+    beste?.title === "Heupklachten behandelen",
+  );
+  ok("zonder zusterpagina's geen oordeel", mostSimilar(a, []) === null);
+});
+
+group("leest deze tekst een beetje?", () => {
+  const kort =
+    "Wij behandelen knieklachten. De eerste afspraak duurt een half uur. " +
+    "Daarna maken we een plan. Je hoort meteen wat er aan de hand is.";
+  ok("korte zinnen zijn goed", assessReadability(kort).oordeel === "goed");
+
+  const lang = Array.from(
+    { length: 5 },
+    () =>
+      "Wanneer u bij ons in de praktijk komt voor een uitgebreide intake zullen wij " +
+      "eerst zorgvuldig in kaart brengen welke klachten er precies spelen en op welke " +
+      "manier deze klachten uw dagelijks functioneren op dit moment beperken.",
+  ).join(" ");
+  const r = assessReadability(lang);
+  ok("vijf zinnen van veertig woorden zijn moeilijk", r.oordeel === "moeilijk");
+  ok("en het aantal lange zinnen wordt geteld", r.langeZinnen === 5);
+  // Het verbeterpunt noemt het AANTAL en niet een score van 0 tot 100.
+  ok(
+    "het verbeterpunt is uitvoerbaar",
+    describeReadability(r).includes("5 zinnen zijn langer dan 30 woorden"),
+  );
+  ok(
+    "een lege tekst levert geen oordeel over lengte",
+    assessReadability("").zinnen === 0,
+  );
+});
+
+group("de kwaliteitspoort staat NAAST de GEO-score, niet erin", () => {
+  const tekst =
+    "Wij behandelen knieklachten in Amersfoort. De intake duurt dertig minuten. " +
+    "Daarna volgt een behandelplan op maat.";
+
+  const schoon = checkQuality({ bodyMarkdown: tekst, mostSimilar: null });
+  // Geen zusterpagina's betekent ONBEKEND en niet "goedgekeurd" (conventie 3).
+  ok("zonder vergelijking is 'niet dubbel' onbekend", schoon.checks.nietDubbel === null);
+  ok("een korte heldere tekst is leesbaar", schoon.checks.leesbaar === true);
+  ok("en levert geen verbeterpunten op", schoon.issues.length === 0);
+
+  const dubbel = checkQuality({
+    bodyMarkdown: tekst,
+    mostSimilar: { title: "Heupklachten behandelen", score: 0.62 },
+  });
+  ok("boven de drempel is het een duplicaat", dubbel.checks.nietDubbel === false);
+  ok(
+    "en het verbeterpunt noemt het percentage en de pagina",
+    dubbel.issues[0].includes("62%") &&
+      dubbel.issues[0].includes("Heupklachten behandelen"),
+  );
+
+  const onderDrempel = checkQuality({
+    bodyMarkdown: tekst,
+    mostSimilar: { title: "Iets anders", score: 0.2 },
+  });
+  ok("onder de drempel is het geen duplicaat", onderDrempel.checks.nietDubbel === true);
+  // De gemeten waarde wordt altijd teruggegeven, ook onder de drempel — anders
+  // kan hij nooit op echte data bijgesteld worden.
+  ok(
+    "maar de gemeten waarde staat er wel",
+    onderDrempel.gemeten.gelijkenis === 0.2,
+  );
+
+  // ⚠️ DE KERN VAN HET ONTWERP: deze poort raakt `geo_score` niet aan.
+  // `checkQuality` geeft geen score terug — er is geen veld waarmee hij de
+  // GEO-score zou kunnen beïnvloeden, en dat is met opzet zo.
+  ok(
+    "checkQuality levert geen score op die in geo_score kan lekken",
+    !("score" in dubbel),
   );
 });
 

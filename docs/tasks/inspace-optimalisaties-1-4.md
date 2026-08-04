@@ -1,6 +1,9 @@
 # Optimalisaties 1–4 — structuur-denken en geautomatiseerde QA
 
-**Status:** wacht op goedkeuring · **Effort:** ~3 dagen · **Opgesteld:** 3 augustus 2026
+**Status:** GEBOUWD op 4 augustus 2026 · **Opgesteld:** 3 augustus 2026
+**Uitkomst:** zie `logbook.md`, "de vier InSpace-optimalisaties". Alle vier gebouwd zoals
+hieronder beschreven, met één afwijking: de gap-analyse landde óók in het aanbodpaneel op het
+profielscherm, omdat bij het bouwen bleek dat dat paneel helemaal niet gerenderd werd.
 **Aanleiding:** analyse van de werkwijze van InSpace Nova (blogposts + informatie van een
 medewerker), zie `logbook.md` §12.
 

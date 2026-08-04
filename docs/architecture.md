@@ -147,9 +147,9 @@ Bron: `lib/jobs/{types,queue,worker,handlers,pending}.ts`.
 | 11 | Gelaagd hermeten | — | De zwaarste `REPEATED_PROMPT_COUNT` (8) vragen worden `MEASURE_REPEATS` (3) keer gemeten. Alle aggregatie telt per **vraag**, met gewicht `1/aantal metingen van die vraag` (`question-share.ts`). |
 | 12 | Aggregatie | luna (alleen nieuwe merken) | Entiteitclassificatie + deduplicatie, scores, concurrent-uitsplitsing. |
 | 13 | Gap-analyse (B1) | luna | Wáár concurrenten winnen, met bewijs uit de database. |
-| 14 | Rapport (B2) | luna | Verwoordt B1; leidt niets zelf af. Een claimvalidator verwijdert achteraf elke merknaam die niet in het bewijsdossier van díe vraag staat. |
+| 14 | Rapport (B2) | luna | Verwoordt B1; leidt niets zelf af. Krijgt naast de meetuitkomst de **structurele gaten** mee (`structure-gap.ts`): welke onderdelen van het aanbod geen eigen pagina hebben — dat is de enige invoer die niet reactief is. Een claimvalidator verwijdert achteraf elke merknaam die niet in het bewijsdossier van díe vraag staat. |
 | 15 | Contentbriefing | luna, temp 0 | Feitenkaart bouwen → claim-audit → max 8 vragen aan de klant. Eén slot is gereserveerd voor de positioneringsvraag. |
-| 16 | Content schrijven | **sol** → luna-kritiek → sol herschrijven → luna-herbeoordeling | Uitsluitend binnen bevestigde feiten, met per bewering het feit dat hem dekt. Deterministische poort (`content-gate.ts`) in plaats van zelfrapportage. |
+| 16 | Content schrijven | **sol** → luna-kritiek → sol herschrijven → luna-herbeoordeling | Uitsluitend binnen bevestigde feiten, met per bewering het feit dat hem dekt. Twee deterministische poorten: `checkContentGate()` (zeven GEO-checks, voedt `geo_score`) en `checkQuality()` (duplicatie + leesbaarheid, voedt alléén `needs_review` — anders was de score van vorige maand onvergelijkbaar met die van vandaag). Schema.org volgt het bedrijfsmodel en draagt een organisatieknoop met `sameAs`. |
 | 17 | Publiceren | — | Klant vult live-URL in; de app verifieert de pagina. |
 | 18 | Effect meten | luna | Hermeetgolven + statistisch verdict of de zichtbaarheid meetbaar veranderd is. |
 | 19 | Off-site | luna, gegrond | Op welke externe domeinen het merk wél/niet aanwezig is. |
