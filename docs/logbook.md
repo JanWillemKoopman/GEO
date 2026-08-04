@@ -735,3 +735,30 @@ Tests: **658 unittests, 42 ketentests.** De ketentest ving onderweg nog iets:
 `loadSiblingPages` gebruikte eerst een ingebedde join (`analyses!inner`), en de
 shim weigert die met opzet in plaats van iets plausibels terug te geven. Twee
 losse queries doen hetzelfde en lezen beter.
+
+**Verificatie van 4 augustus, derde meetronde.** Volledige onboarding op de
+gerepareerde code: **$0,2495, zestien AI-aanroepen, acht taken groen.** Wat de
+ronde afdekte:
+
+| Wat | Uitkomst |
+|---|---|
+| Kennistest, zes formuleringen | 6 van de 6 herkend → "kent je merk (6 van de 6)". Geen muntworp meer. |
+| Nulmeting | *"genoemd bij 1 van de 3 koopvragen"* — het getal dat er eerst niet was |
+| Wie wél genoemd wordt | SMC Amersfoort, FysioAmersfoort, FyZie, Fysio Atelier, FitForum |
+| Koopvragen uit de topics | knie-, nek- en schouderklachten in plaats van de drie generiekste diensten |
+| `offering_names` | gevuld naast `offering_ids`, dus de koppeling overleeft een herbouw |
+
+En de tekstfeiten hadden een tweede ronde nodig. De eerste versie vond alléén het
+e-mailadres, met drie oorzaken die pas op echte tekst zichtbaar werden:
+`crawlPages` bewaart 1500 tekens per pagina en de contactpagina begint met een
+navigatiemenu van ruim duizend, dus het telefoonnummer viel buiten beeld — het
+oogsten verhuisde naar de crawler, waar de volledige tekst nog beschikbaar is.
+Het telefoonpatroon kende geen haakjes, en "(033) 455 89 45" brak af na drie
+cijfers. En het adrespatroon stond de komma alleen vóór de postcode, terwijl deze
+site "Henry Dunantstraat 32 3822 XE, **Amersfoort**" schrijft.
+
+Na die reparatie komt er `(033) 455 89 45` en `Henry Dunantstraat 32 3822 XE,
+Amersfoort` uit — nagerekend op productie met een gratis herhaling van fase 0.
+Het testgeval in `test-unit.ts` is nu letterlijk de voettekst van de site en geen
+nette variant ervan; twee tekens verschil was het verschil tussen drie feiten en
+één.
