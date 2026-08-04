@@ -5,9 +5,14 @@
 > hoofdstuk 3 voor de AI-specialist. Bedoeld als werkdocument voor de teammeeting waarin we het
 > huidige proces evalueren en verbeterpunten verzamelen.
 >
-> **Bron.** Geverifieerd tegen de code op branch `main`, peildatum 1 augustus 2026
-> (t/m migratie `0037`). Waar dit document afwijkt van de code, is de code leidend.
+> **Bron.** Geverifieerd tegen de code op branch `main`, peildatum **4 augustus 2026**
+> (t/m migratie `0044`). Waar dit document afwijkt van de code, is de code leidend.
 > Achtergrond en historie: `docs/architecture.md`, `docs/logbook.md`, `CLAUDE.md`.
+>
+> ⚠️ **Fase 1 is op 3–4 augustus 2026 volledig vervangen.** Het product ging van self-serve naar
+> sales-led: de onboarding vraagt nog drie velden in plaats van elf, en er draait een
+> onderzoekspijplijn van acht taken achter. Wie dit document kent van vóór die datum leest
+> hoofdstuk 1.2 en 2.3 opnieuw. Het waarom staat in `docs/logbook.md` §15.
 
 ---
 
@@ -30,7 +35,7 @@ stap.
 
 | # | Fase | Wat de klant doet | Wat de app doet | Wat het oplevert |
 |---|---|---|---|---|
-| **1** | **Profiel aanmaken** | Vult een wizard van 4 stappen in (bedrijf, wat je doet, markt & concurrentie, doelgroep/stijl/techniek) | Crawlt de website, bouwt een contentinventaris, doet AI-merkonderzoek, controleert of AI-crawlers de site überhaupt mogen bezoeken | Een merkdossier dat **hergebruikt wordt door alle latere analyses**. Eenmalig werk, blijvend profijt. |
+| **1** | **Merk klaarzetten** | Vult **drie velden** in: webadres, bedrijfsnaam, andere schrijfwijzen. In het sales-led model doet de consultant dit vóór het demogesprek. | Draait acht taken in ~7,5 minuut (~$0,25): tot 150 pagina's crawlen en harde feiten oogsten, technische audit mét entiteitsconsistentie, merkonderzoek, aanbodboom, 5–8 core topics, marktonderzoek, LLM-kennistest, synthese | Een merkdossier met aanbodboom, kennistest en gespreksagenda, **hergebruikt door alle latere analyses**. Eenmalig werk, blijvend profijt. |
 | **2** | **Analyse opstellen** | Kiest een merk + vult een onderwerp in ("wasmachines", "herenkapsel"), optioneel een content-brief | Onderzoekt wat de site over dít onderwerp zegt, wie de concurrenten hier zijn, en genereert 30 realistische koopvragen (10 per funnelfase) + een volume-inschatting | Een concreet, leesbaar meetplan. **Geen black box:** de klant ziet en bewerkt élke vraag vóór er één euro aan meetkosten gemaakt wordt. |
 | **3** | **Analyse runnen** | Klikt één keer op *"Bevestig en start meting"* | Stelt alle 30 vragen aan een AI-assistent mét live web search, beoordeelt elk antwoord per merk, aggregeert tot een score met foutmarge, profileert de concurrenten en schrijft een jargonvrij rapport | Het cijfer met betrouwbaarheidsband, de trendlijn, wie er wint en **waarop**, plus concrete gemiste vragen. |
 | **4** | **Content genereren** | Kiest welke aanbevolen pagina's geschreven worden, beantwoordt max. 8 korte feitenvragen, geeft de tekst vrij en publiceert hem | Bouwt een feitenkaart, controleert welke beweringen de pagina nodig heeft en niet onderbouwd kunnen worden, schrijft de pagina op het duurste model, laat hem redigeren, herschrijft en keurt hem deterministisch | Publicatieklare pagina's (Markdown, meta-tags, FAQ, JSON-LD) waarin **elke bewering over het bedrijf herleidbaar is tot een bevestigd feit**. |
@@ -55,11 +60,13 @@ stap.
 
 ```mermaid
 flowchart TD
-    A([Registreren / inloggen]) --> B[FASE 1 · Profiel aanmaken<br/>onboarding-wizard, 4 stappen]
-    B --> B1{{App: crawl + inventaris<br/>+ merkonderzoek + crawler-audit}}
-    B1 --> B2[Profiel status: klaar]
+    A([Consultant logt in]) --> B[FASE 1 · Merk klaarzetten<br/>drie velden: url, naam, schrijfwijzen]
+    B --> B1{{App: 8 taken, ~7,5 min<br/>crawl + audit + onderzoek + aanbodboom<br/>+ topics + markt + kennistest + synthese}}
+    B1 --> B2[Merkdossier klaar]
+    B2 --> B3[/DEMOGESPREK + uur consultancy<br/>daarna: toewijzen aan klantaccount/]
+    B3 --> C
 
-    B2 --> C[FASE 2 · Analyse opstellen<br/>merk + onderwerp + content-brief]
+    C[FASE 2 · Analyse opstellen<br/>merk + onderwerp + content-brief]
     C --> C1{{App: onderwerp-onderzoek<br/>+ 30 vragen + volumekalibratie}}
     C1 --> D[/GOEDKEURINGSPOORT<br/>klant beoordeelt en bewerkt/]
 
@@ -121,7 +128,8 @@ maar de meting is dan niet representatief.
 
 ```
 app/(app)/           Ingelogde UI
-  profielen/         Merkbeheer: wizard, dossier, entiteiten, feitenvragen
+  profielen/         Merkbeheer: onboarding (3 velden), dossier, aanbodboom, kennistest,
+                     topics, gespreksnotities, entiteiten, feitenvragen, beheer
   analyses/[id]/     HET DOSSIER — 4 hoofdstukken op één streamende pagina
     _chapters/       01 stand · 02 bewijs · 03 werk · 04 resultaat
     _editors/        Conceptscherm: onderzoek, prompts, content-brief, bevestigen
@@ -141,7 +149,7 @@ lib/entities/        Merknaam-normalisatie en -matching (dedupe)
 lib/audit/           robots.txt / AI-crawlertoegang
 lib/offsite/         Off-site aanwezigheid (bronnenlandschap, Wikidata/Wikipedia)
 lib/stats/           Onzekerheidsmarges
-supabase/migrations/ 0001–0037 (0033 gereserveerd, nooit gedraaid)
+supabase/migrations/ 0001–0044 (0033 gereserveerd, nooit gedraaid — vervangen door 0039)
 scripts/             test-unit (416) · test-chain (25) · test-openai · eval-mention
 ```
 
@@ -160,10 +168,17 @@ scripts/             test-unit (416) · test-chain (25) · test-openai · eval-m
 
 Bron: `lib/jobs/{types,queue,worker,handlers,pending}.ts`.
 
-- **16 taaksoorten:** `profile_research`, `prepare_analysis`, `generate_prompts`,
-  `calibrate_volumes`, `measure_prompt`, `aggregate_week`, `profile_competitors`,
-  `generate_report`, `content_brief`, `content_draft`, `content_revise`, `technical_audit`,
-  `verify_publication`, `measure_impact`, `compute_impact`, `offsite_scan`.
+- **23 taaksoorten.** De onboarding: `profile_discover`, `profile_research`, `profile_offering`,
+  `propose_topics`, `profile_market`, `profile_llm_baseline`, `profile_synthesis`,
+  `technical_audit`. De analyse: `prepare_analysis`, `generate_prompts`, `calibrate_volumes`,
+  `measure_prompt`, `aggregate_week`, `profile_competitors`, `generate_report`. De content:
+  `content_brief`, `content_draft`, `content_revise`, `verify_publication`, `measure_impact`,
+  `compute_impact`, `offsite_scan`.
+- **De onboardingketen hangt aan één `enqueue`** vanuit `POST /api/profiles`. `profile_discover`
+  plant `technical_audit` én `profile_research` in; vanaf daar ketent elke stap zijn opvolger.
+  `profile_offering` plant `profile_market` **onvoorwaardelijk** in — niet via `propose_topics`,
+  want die keert vroeg terug als er geen aanbodboom is, en dan zou juist bij klanten met een magere
+  crawl de hele staart van de keten stil verdwijnen.
 - **Eén taak = hooguit één zware AI-aanroep.** Daarom is de meting per prompt opgeknipt en
   contentgeneratie in twee taken. Een nieuwe zware stap wordt een nieuw jobtype.
 - **Ketening:** elke handler plant zijn eigen vervolgtaak in. Het werk hangt aan de server.
@@ -175,19 +190,36 @@ Bron: `lib/jobs/{types,queue,worker,handlers,pending}.ts`.
 - **Tijdbudget:** route `maxDuration` 300 s → werkerbudget 240 s → reservering zware taak 220 s →
   totaalbudget per AI-aanroep 105 s → timeout per poging 100 s. Deze rij hoort bij elkaar; wie één
   getal verhoogt moet de rest doorrekenen.
+- **Gearchiveerd werk valt buiten de crons** (migratie `0044`, `lib/archive.ts`). Zonder dat filter
+  plant `/api/cron/tracking` elke maand een betaalde meetronde in voor een merk dat in de app niet
+  meer zichtbaar is.
 
 ## 2.3 Stap-voor-stap tech flow per fase
 
-### Fase 1 — Profiel aanmaken
+### Fase 1 — Merk klaarzetten
 
 | | |
 |---|---|
-| **Frontend** | `/profielen/nieuw` (`onboarding-wizard.tsx`, 4 stappen) → `/profielen/[id]` met `profile-progress` poller |
-| **API** | `POST /api/profiles` (aanmaken + `enqueue profile_research` + `enqueue technical_audit`) · `POST /api/profiles/[id]/research` (retry) · `GET /api/profiles/[id]/status` (poll) · `PATCH /api/profiles/[id]` · `POST /api/profiles/[id]/dossier` (brondocument plakken) · `PATCH /api/profiles/[id]/facts` · `POST /api/profiles/[id]/refresh-inventory` · `GET/POST /api/profiles/[id]/entities` |
-| **Jobs** | `profile_research` (zwaar: crawl + AI) · `technical_audit` (geen AI) |
-| **Pipeline** | `prepare-profile.ts` → `crawler.ts` (`crawlSite` + `crawlInventory` parallel) → `profile-research.ts` → `audit/{robots,ai-crawlers,store}.ts` |
-| **Tabellen** | `profiles`, `profile_pages`, `technical_audits`, `brand_documents`, `brand_facts`, `fact_requests`, `entities` |
-| **Statusmachine** | `profiles.status`: `bezig` → `klaar` \| `mislukt` |
+| **Frontend** | `/profielen/nieuw` (`onboarding-wizard.tsx`, **één scherm, drie velden**) → `/profielen/[id]`: eerst `profile-progress`, daarna het dossier met `research-steps-strip` |
+| **API** | `POST /api/profiles` (aanmaken + `enqueue profile_discover`) · `POST /api/profiles/[id]/research` (retry) · `POST /api/profiles/[id]/deep-research` (onderzoek opnieuw) · `GET /api/profiles/[id]/status` (poll, incl. stappen) · `PATCH /api/profiles/[id]` (bewerken + herkomst vastleggen) · `GET/POST /api/profiles/[id]/assign` (toewijzen, beheerder) · `POST /api/profiles/[id]/topics` · `POST /api/profiles/[id]/strategy` · de bestaande dossier-, feiten-, inventaris- en entiteitenroutes |
+| **Jobs** | `profile_discover` (crawl, **nul AI**) → `technical_audit` + `profile_research` → `profile_offering` → `propose_topics` + `profile_market` → `profile_llm_baseline` → `profile_synthesis` |
+| **Pipeline** | `discover.ts` (crawl → `structured-data.ts` + `text-facts.ts` → `inventory-quality.ts`) → `audit/{robots,ai-crawlers,entity-consistency,store}.ts` → `prepare-profile.ts` + `profile-research.ts` (mét `field-merge.ts`) → `offering.ts` (+ `quote-check.ts`, `topic-link.ts`) → `propose-topics.ts` → `market.ts` → `llm-baseline.ts` (+ `baseline-verdict.ts`) → `synthesis.ts`. Budgetpoort: `onboarding-budget.ts` |
+| **Tabellen** | `profiles`, `profile_pages`, `profile_facets`, `profile_offerings`, `profile_field_sources`, `profile_topics`, `profile_strategy`, `profile_llm_baseline`, `technical_audits`, `brand_documents`, `brand_facts`, `fact_requests`, `entities` |
+| **Statusmachine** | `profiles.status`: `bezig` → `klaar` \| `mislukt`. ⚠️ Gaat op `klaar` ná stap 3 van 8 — de klant hoeft niet op de aanbodboom te wachten om zijn merk te zien. De strip toont wat er nog binnenkomt. |
+| **Kosten** | Gemeten op productie in drie ronden: **$0,2438 / $0,2463 / $0,2495** van een plafond van $2,15. Duurste post: `profile_synthesis` op Sol ($0,127, 52%) — niet de web-zoekacties. |
+
+**De acht stappen, en wat elk oplevert:**
+
+| # | Taak | AI | Wat het toevoegt |
+|---|---|---|---|
+| 1 | `profile_discover` | — | Tot 150 pagina's, JSON-LD/OpenGraph geoogst, telefoon/adres/e-mail/KvK uit de lopende tekst van de canonieke pagina's, inventariskwaliteit, renderbaarheid. **Nul kosten**, en de context waar de rest op leunt. |
+| 2 | `technical_audit` | — | `robots.txt` tegen AI-crawlers + vier entiteitschecks (naamconsistentie, `sameAs`, schemadekking, Wikidata). |
+| 3 | `profile_research` | luna + web_search | Merk, branche, bedrijfsmodel, bereik en werkgebied, tone-of-voice, persona's, concurrenten, `proofPoints`, `styleSamples` — op álle gecrawlde pagina's, niet op de homepage. |
+| 4 | `profile_offering` | luna | Het aanbod als boom, per bedrijfsmodel een andere briefing. Een knoop zonder gecrawlde bron-URL vervalt; het citaat bepaalt de zekerheid. |
+| 5 | `propose_topics` | luna | 5–8 core topics uit de aanbodboom, elk gekoppeld aan de knopen waar ze uit volgen (id én naam). |
+| 6 | `profile_market` | luna + web_search | Per concurrent wáárom die wint, plus het bronnenlandschap van de markt. |
+| 7 | `profile_llm_baseline` | luna, deels web_search | Vijf blokken. `kent` stelt **zes** formuleringen en levert een verhouding; `categorie` stelt drie merkneutrale koopvragen en scoort ze deterministisch. Oordelen worden in code geveld, nooit door het model over zichzelf. |
+| 8 | `profile_synthesis` | **sol** | Dossier, gespreksagenda en `brand_facts` — alleen feiten waarvan het citaat letterlijk op de bronpagina staat. |
 
 Kernprincipe: **klant leidend, AI vult aan.** Scalars die de klant invulde blijven staan, lijsten
 worden een unie, lege velden vult het model.
@@ -368,7 +400,12 @@ bovengrens 400 s en klopte geen enkele reservering in de werker meer).
 
 ## 3.2 API call mapping
 
-Achttien AI-acties, in pijplijnvolgorde. Alle calls gaan via `POST /v1/responses`.
+Vijfentwintig AI-acties, in pijplijnvolgorde. Alle calls gaan via `POST /v1/responses`.
+
+⚠️ **De onboarding leverde er zeven bij op 3–4 augustus 2026.** Naast `profile_research` hieronder
+draaien nu ook `profile_offering`, `propose_topics`, `profile_market`, `profile_llm_baseline`
+(vier tot acht korte aanroepen) en `profile_synthesis`. Wat ze doen en wat ze kosten staat in de
+stappentabel bij fase 1 (§2.3); die is de actuele bron en wordt hieronder niet herhaald.
 
 ---
 
@@ -378,9 +415,9 @@ Achttien AI-acties, in pijplijnvolgorde. Alle calls gaan via `POST /v1/responses
 |---|---|
 | **Doel** | Eenmalig per merk: branche, kernproducten, tone-of-voice, persona's, waardeproposities, 3–5 concurrenten, bedrijfsmodel, plus de **schrijfgrondslag** (`proofPoints`, `styleSamples`) |
 | **Model / tuning** | `gpt-5.6-luna` · `work: analytical` (effort `low`) · **web_search aan** (`WEB_SEARCH_ENABLED`) |
-| **Payload** | *System:* rol "merk- en marktanalist" + regels voor canonieke merknaam, bedrijfsmodel (gesloten enum), schrijfgrondslag (uitsluitend letterlijk uit sitetekst), grounding-regel. *User:* URL + gecrawlde sitetekst + intake-blok van de klant ("RESPECTEER dit") |
-| **Output** | Zod `ProfileResearch` — `brandName`, `industry`, `businessModel` (`retailer\|platform\|dienstverlener\|fabrikant\|overig`), producten, waardeproposities, persona's, concurrenten, tone-of-voice, `proofPoints[]`, `styleSamples[]` |
-| **Parsing** | `prepare-profile.ts`: **klant leidend** — ingevulde scalars blijven staan, lijsten worden een unie, lege velden komen van de AI |
+| **Payload** | *System:* rol "merk- en marktanalist" + regels voor canonieke merknaam, bedrijfsmodel (gesloten enum), **bereik en werkgebied**, schrijfgrondslag (uitsluitend letterlijk uit sitetekst), grounding-regel. *User:* alle gecrawlde pagina's (~60.000 tekens, niet de homepage-6.000 van vóór 3 augustus) + de geoogste harde feiten + het intake-blok van de klant |
+| **Output** | Zod `ProfileResearch` — `brandName`, `industry`, `businessModel`, `serviceScope` (`onbekend\|lokaal\|landelijk\|internationaal` — 'onbekend' staat vooraan omdat structured output bij twijfel de eerste enum-waarde kiest), `serviceRegions`, `marketLanguage`, producten, waardeproposities, persona's, concurrenten, tone-of-voice, `proofPoints[]`, `styleSamples[]` |
+| **Parsing** | `prepare-profile.ts`: **klant leidend** — ingevulde scalars blijven staan, lijsten worden een unie, lege velden komen van de AI. Daarbovenop `field-merge.ts`: wat een MENS zette (`profile_field_sources.source` = `klant`/`gesprek`) overleeft een herhaalronde. `resolveScope()` maakt 'lokaal zonder regio' tot `null` in plaats van een halve waarde. |
 | **Bestemming** | `profiles.*` + `profiles.research_raw_json`; status → `klaar` |
 
 ---
@@ -634,6 +671,11 @@ publiceert.
 | Publicatiecontrole (`publish-check.ts`) | Pagina ophalen en tekst vergelijken. |
 | Aggregatie & impact (`measure.ts` 3c, `impact-math.ts`) | Rekenkunde hoort in een pure, testbare module. |
 | Periodeverschil (`period-change.ts`) | Het model verwoordt het verschil; het berekent het niet — dat ging mis. |
+| Fase 0 van de onboarding (`discover.ts`) | Crawl + JSON-LD/OpenGraph oogsten + telefoon/adres/KvK uit de lopende tekst + inventariskwaliteit + renderbaarheid. Een model vragen wat het adres is terwijl het letterlijk in de HTML staat, is geld uitgeven aan een slechter antwoord. |
+| Entiteitsconsistentie (`audit/entity-consistency.ts`) | Heet het bedrijf overal hetzelfde? Tekstvergelijking. |
+| Het oordeel over de kennistest (`baseline-verdict.ts`) | Het model vragen of zijn eigen antwoord klopt is de meting aan de gemetene vragen — in dit project drie keer misgegaan. |
+| Structurele gap-analyse (`structure-gap.ts`) | Aanbodboom tegen gecrawlde pagina's, met de matcher van `page-relevance.ts`. |
+| Duplicatie en leesbaarheid (`similarity.ts`, `readability.ts`) | Jaccard op vijf-grammen en vier gemeten grootheden. Geen verzonnen score. |
 
 ## 3.3 Kostenverdeling per meetronde
 
@@ -644,20 +686,36 @@ publiceert.
 | Onderzoek, prompts, gap, rapport | enkele procenten | `WEB_SEARCH_ENABLED` |
 | `content_draft` + `content_revise` (Sol) | enige duurdere post per pagina, buiten de meetronde | modelkeuze in `models.ts` |
 
+**De onboarding apart, gemeten op productie (3 ronden, augustus 2026): $0,2438 / $0,2463 / $0,2495.**
+
+| Post | Aandeel |
+|---|---|
+| `profile_synthesis` (Sol) | $0,127 — **52%**, de duurste post; schakelaar `SYNTHESIS_PREMIUM` |
+| `llm_baseline_categorie` (3× web_search) | $0,044 — 18% |
+| `profile_market`, `profile_research`, `citeert`, `verwarring` | elk ~$0,015 |
+| `profile_offering`, `propose_topics`, `llm_baseline_kent` (6×) | samen < $0,01 |
+| `profile_discover`, `technical_audit` | $0,00 |
+
 Registratie per call in `ai_calls`; uitsplitsing per stap op te vragen via
 `GET /api/analyses/[id]/costs` (per `kind`, plus het profielonderzoek apart omdat dat over meerdere
 analyses gedeeld wordt).
 
 ---
 
-# 4. Aandachtspunten voor de meeting
+# 4. Aandachtspunten — en wat ermee gebeurd is
 
-Observaties uit deze analyse, als startpunt voor de brainstorm — geen beslissingen.
+Dit hoofdstuk was het startpunt voor de teammeeting van 1 augustus. **Die meeting heeft
+plaatsgevonden en vier van de acht punten zijn afgehandeld**; ze staan hieronder met de uitkomst
+erbij, zodat het document niet blijft vragen wat al beslist is. De beslissingen zelf staan in
+`docs/logbook.md` §15.
 
-**Engine-dekking.** De hele meetlaag draait op één aanbieder: `engine` staat hard op `"openai"` in
-`tracking_runs`, en de simulatie is één model met `web_search`. Claude, Gemini en Perplexity zitten
-er niet in, terwijl de kolom er al op voorbereid is. Dat is zowel het grootste productgat als het
-grootste concurrentierisico.
+**Engine-dekking.** ✅ *Afgehandeld, deels.* De enginelaag staat er (`lib/engines/`), de
+Gemini-adapter is geschreven, en `tracking_runs.engine` zit sinds migratie `0041` in de
+idempotentiesleutel — zonder dat zou een Gemini-meting de OpenAI-meting van dezelfde vraag als "al
+gedaan" zien en zichzelf overslaan, zonder foutmelding. Wat er nog niet is: een `GEMINI_API_KEY`, en
+uitwaaieren per engine in de meetplanning. Dat laatste is een bewuste volgorde: de aggregatie telt
+alle runs van een periode ongeacht engine, dus per engine inplannen zou elke vraag dubbel laten
+meetellen. Stappenplan in `lib/jobs/queue.ts`.
 
 **Meetbetrouwbaarheid vs. kosten.** De 95%-band was ±18 punten bij 30 vragen × 1 meting; de huidige
 mix (30 vragen, 8 daarvan 3×) is een compromis. De vraag voor de meeting is of we het budget willen
@@ -671,14 +729,23 @@ vaak dat gebeurt.
 deterministisch vangnet (`content-gate`, `validate-claims`, `isSupported`). Vraag: waar staat het
 volgende vangnet nog niet, en welke stappen vertrouwen nu nog op wat het model over zichzelf zegt?
 
-**Kostencijfers zijn geschat, niet nagerekend.** De ~$0,40 per meetronde op GPT-5.6 komt uit de
-gepubliceerde tarieven en is nog niet getoetst tegen `ai_calls` op productie (conventie 10:
-gebouwd is niet geverifieerd). Kleine klus, groot effect op de businesscase.
+**Kostencijfers zijn geschat, niet nagerekend.** ⚠️ *Half afgehandeld.* De ONBOARDING is
+nagerekend: drie volledige ronden op productie kwamen uit op $0,2438 / $0,2463 / $0,2495 — 11% van
+het plafond van $2,15, en de duurste post bleek de synthese op Sol en niet `web_search`. De
+MEETRONDE is nog steeds een schatting (~$0,40); zie `roadmap.md` punt 0.
 
 **E-mail staat uit.** `EMAILS_ENABLED` is standaard `false` en de reminder-cron staat uit
 `vercel.json`. Rapporten en publicatieherinneringen bereiken de klant dus alleen als hij zelf
 inlogt — een gemiste retentie-haak.
 
-**Documentatiedrift.** `docs/architecture.md` noemt bij stap 18 ("effect meten") een AI-aanroep,
-maar `compute_impact` doet er geen; ook de taaksoortenlijst mist er één (`profile_competitors`).
-Klein, maar precies het soort afwijking dat het document ongeloofwaardig maakt.
+**Documentatiedrift.** ✅ *Afgehandeld op 4 augustus.* De taaksoortenlijst is bijgewerkt naar 23,
+de peildatum naar migratie `0044`, en fase 1 is volledig herschreven na Onboarding 2.0. De les
+eronder blijft staan en is inmiddels twee keer bevestigd op een andere manier: een component die
+netjes compileert maar nergens gerenderd wordt, is dezelfde soort drift — dat gebeurde op 3 en op
+4 augustus met in totaal zes componenten (`docs/logbook.md`, "drie panelen die nooit op het scherm
+stonden").
+
+**Nieuw sinds de meeting: het product is sales-led.** De grootste wijziging in dit document staat
+in fase 1 en volgt niet uit een van de punten hierboven, maar uit een strategische keuze: de
+onboarding ging van elf velden naar drie, met een onderzoekspijplijn van acht taken erachter, en het
+profielscherm is een demo-scherm geworden dat een consultant deelt. `docs/logbook.md` §15.

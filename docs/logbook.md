@@ -25,8 +25,16 @@ documentatie-herstructurering).
 
 GEO-tracking voor het MKB en marketeers die geen SEO-expert zijn. We concurreren niet op features
 of enterprise-diepgang, maar op eenvoud en snelheid. Bewust **niet** gebouwd: white-label
-rapportages, 10+ LLM-engines tegelijk, keyword-research suites, een tweede LLM-provider. Dat is
-waar de concurrentie complex en duur wordt.
+rapportages, 10+ LLM-engines tegelijk, keyword-research suites, een CMS-koppeling, echte
+zoekvolumes. Dat is waar de concurrentie complex en duur wordt.
+
+Sinds 3 augustus 2026 is het product **sales-led** en staat er een tweede engine (Gemini) klaar
+maar slapend. Die twee wijzigen de zin hierboven; het waarom staat in §15.
+
+⚠️ **Twee dingen die in oudere secties anders staan.** "Een tweede LLM-provider bouwen we niet"
+gold t/m §11 en is met §15 vervallen — de enginelaag staat er, alleen de sleutel niet. En
+"self-serve" is nergens meer waar: elke schermbeslissing vanaf §14 gaat uit van een consultant die
+zijn scherm deelt.
 
 ## 2. De MVP en de vastgelegde keuzes
 
@@ -378,7 +386,7 @@ uitschrijven waard zijn:
 
 ---
 
-## 11. Onboarding 2.0 — de eerste helft (3 augustus 2026)
+## 14. Onboarding 2.0 — de eerste helft (3 augustus 2026)
 
 Volledige bouwspec: [`tasks/onboarding-2.0.md`](./tasks/onboarding-2.0.md). Hieronder wat er
 gebouwd is en het cijfer dat elke keuze droeg.
@@ -864,3 +872,102 @@ wat er gevraagd werd.
 De ketentest zet de twee stappen achter elkaar: archiveren, controleren dat de
 onderliggende data er nog is, dat geen enkele lijst hem nog telt, dat de
 meetronde hem overslaat, en dat dearchiveren werkt.
+
+## 15. De strategie — sales-led, naar het model van InSpace Nova (3 augustus 2026)
+
+De bouwrondes hierboven volgen allemaal uit één beslissing die zelf nergens stond opgeschreven.
+Hier staat hij, met wat er wél en niet uit overgenomen is.
+
+### Wat er veranderde
+
+Het product was **self-serve**: wie een account maakte, vulde een wizard van vier stappen en elf
+velden in en kreeg daarna een analyse. Dat is losgelaten. Het nieuwe model is **sales-led**:
+
+1. De consultant (voorlopig de eigenaar, het enige beheeraccount) zet het merkprofiel klaar vóór
+   het demogesprek. Drie velden, ~7,5 minuut pijplijn, ~$0,25.
+2. Het **demogesprek** is een schermdeling waarin hij laat zien wat er gevonden is.
+3. Erbij hoort **een uur consultancy**, apart gefactureerd, over de twee dingen die een model niet
+   kan weten: welke onderwerpen commercieel tellen, en wat er speelt buiten de website om (een
+   nieuwe site, een naamswijziging, een gestopte dienst).
+4. Pas ná de verkoop wordt het profiel aan het klantaccount toegewezen.
+
+Dat is geen cosmetische wijziging maar de reden achter vrijwel elke ontwerpkeuze sinds §14: dat de
+onboarding van elf velden naar drie ging, dat de pijplijn ~$2 mág kosten, dat het profielscherm
+een demo-scherm is en geen formulier, en dat er een superuser bestaat.
+
+### Wat we van InSpace overnemen
+
+| Wat | Hoe het bij ons landt |
+|---|---|
+| Sales-led met demo en een success manager | De consultant zet klaar, verkoopt en begeleidt (§14, migratie `0038`) |
+| Denken in **entiteiten** in plaats van vermeldingen | De kennistest, de naamconsistentiecheck en de `sameAs`-controle vragen "kent een AI-systeem dit als één herkenbaar bedrijf?" |
+| **Structuur boven schrijven** — "everyone is building AI that writes blogs" | `structure-gap.ts`: welke diensten missen een eigen pagina, los van wat de meting toevallig vroeg |
+| 5–8 **core topics** door een strateeg bepaald | `propose_topics` leidt ze af uit de aanbodboom; de consultant keurt ze goed |
+| Volledige schema.org-dekking en een zichtbare `dateModified` | Het `@type` volgt het bedrijfsmodel, met organisatieknoop en datums |
+
+Drie dingen die zij als onderscheidend presenteren hadden wij al: het RAG-anker tegen hallucinatie
+(`brand_facts` + de feitenkaart), guardrails vóór generatie (`content-gate.ts`,
+`validate-claims.ts`) en answer-first opmaak.
+
+### Wat we bewust NIET overnemen
+
+- **De CMS-koppeling.** Dat is hun moeilijke deel en blijft uitgesteld. Wij leveren
+  publicatieklare content; de klant plaatst hem.
+- **Echte zoekvolumes.** Dat is hun SEO-verleden. Onze winbaarheidsmeting (`elicit_rate`) is voor
+  dit product een beter signaal en bestaat al.
+- **Hun prijs.** De onze gaat omhoog, maar blijft er ruim onder.
+
+### Gemini: gebouwd, slapend
+
+Besloten om een tweede engine voor te bereiden zonder dat er een sleutel is. De enginelaag
+(`lib/engines/`), de adapter en — het eigenlijke punt — de idempotentiesleutel mét engine
+(migratie `0041`) staan er. Zonder `GEMINI_API_KEY` snijdt `enginesForProfile()` de wens van het
+profiel met de beschikbare sleutels en blijft het gedrag ongewijzigd.
+
+Wat er bewust **niet** is: uitwaaieren per engine in de meetplanning. `computeAggregates`,
+`measurementIsUsable` en `countOpenPeriodicMeasurements` tellen alle runs van een periode ongeacht
+engine; nu per engine inplannen zou elke vraag dubbel laten meetellen in de score. Het stappenplan
+staat in `lib/jobs/queue.ts`, bij de plek waar het moet gebeuren.
+
+### Accounts: handmatig, en dat is de bedoeling
+
+Er komt geen uitnodigings-API en geen self-service registratie. De eigenaar maakt een account aan
+in het Supabase-dashboard; de app heeft alleen inloggen en wachtwoordherstel nodig. Dat scheelt
+half-aangemaakte gebruikers en een e-mailbezorging die de verkoop kan ophouden. De werkwijze staat
+in `architecture.md` §11.
+
+Een klant mag alles op zijn eigen profiel — inclusief zelf analyses draaien — behalve profielen van
+andere klanten zien. Dat is RLS op `user_id`; de beheerder ziet alles via `staff_users`.
+
+## 16. Documentatie weer op één lijn met de code (4 augustus 2026)
+
+Op 1 augustus is de documentatie geherstructureerd naar progressive disclosure (`b50bdc9`). In de
+drie dagen daarna gingen **21 merges** naar `main` — Onboarding 2.0, de vijf verbeterpunten uit de
+eerste productieronden, de vier InSpace-optimalisaties, de UX-ronde en het archief. Geen daarvan
+raakte de documentatie. Dat is precies hoe een herstructurering ongedaan wordt gemaakt: niet in één
+klap, maar in twintig kleine stappen die elk voor zich te klein leken om een MD-bestand voor te
+openen.
+
+Deze ronde trekt dat recht. Wat er is bijgewerkt en waarom het bij dat bestand hoort:
+
+| Bestand | Wat er niet meer klopte |
+|---|---|
+| `CLAUDE.md` | 416/25 tests en migraties t/m `0037`; geen woord over sales-led; `lib/engines/` en `lib/archive.ts` ontbraken in de structuur |
+| `README.md` | "De keten" beschreef nog de oude wizard; "een tweede LLM-provider" stond bij *niet gebouwd* terwijl de enginelaag er is |
+| `docs/architecture.md` | Geen enkele beschrijving van hoe je een klant aanmaakt en koppelt — de vraag die deze week gesteld werd. Nu §11, met de vier stappen en het archief |
+| `docs/ux-design.md` | Het profielscherm was herbouwd (kop met drie cijfers, springlinks, `ProfileSection`); zekerheid-als-niveau stond nergens |
+| `docs/logbook.md` | Twee secties heetten allebei `## 11`; §1 beweerde nog self-serve |
+| `docs/tasks/roadmap.md` | Vijf punten waren af, punt 0 begon met "er is nog geen enkele echte call op GPT-5.6" terwijl er veertig waren |
+| `APP_FLOW_DOCUMENTATION.md` | Fase 1 was volledig vervangen; 16 taaksoorten waren er 23 geworden |
+| `supabase/README.md` | Was wél bij (`0043`, `0044`) — de migratie-index is de enige die het traject heeft overleefd |
+
+`docs/tasks/inspace-optimalisaties-1-4.md` is verwijderd: gebouwd, dus hij hoort in het logboek en
+niet in de takenmap. `onboarding-2.0.md` blijft staan, met bovenaan de reden — de verificatietabel
+heeft nog drie open punten die iets vragen wat er niet is (vier profielen voor een p95, een
+`GEMINI_API_KEY`, een contentronde).
+
+**De les, en hij is dezelfde als bij de code.** Conventie: *verandert het gedrag, werk `docs/` bij in
+dezelfde commit.* Die stond er al en werd twintig keer overgeslagen omdat een merge naar `main` geen
+poort heeft die ernaar vraagt. De migratie-index bleef als enige bij, en dat is geen toeval: die
+heeft er wél een — `supabase/README.md` bijwerken staat in de toepasinstructie van elke migratie. Wat
+de andere documenten missen is niet discipline maar zo'n haakje.

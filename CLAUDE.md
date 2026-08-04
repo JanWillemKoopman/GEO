@@ -4,6 +4,13 @@ GEO-tracking voor het MKB: meet hoe zichtbaar een merk is in AI-antwoorden (Chat
 adviseert, schrijft content, publiceert en meet het effect. Nederlands is de taal van de app,
 de AI-prompts, de code-commentaren en deze documentatie.
 
+**Het product is sales-led, niet self-serve** (besloten 3 augustus 2026, naar het model van
+InSpace Nova). De eigenaar zet als consultant het merkprofiel klaar vóór een demogesprek, de
+pijplijn doet in ~7,5 minuut het onderzoek, en het uur consultancy gaat over strategie. Pas ná de
+verkoop wordt het profiel aan het klantaccount toegewezen. Dat bepaalt hoe schermen ontworpen
+worden: de profielpagina is een demo-scherm dat gedeeld wordt, geen formulier. Zie `docs/logbook.md`
+§12 voor het waarom en `docs/architecture.md` §11 voor hoe je een klant aanmaakt en koppelt.
+
 **De app staat live.** `main` is de productiebranch (Vercel). Werk op een feature-branch.
 
 ## Toegang
@@ -44,8 +51,8 @@ zet `structured.ts` hem voor de rest van het proces uit in plaats van de taak te
 npm run dev              # localhost:3000
 npm run build            # productiebuild
 npx tsc --noEmit         # typecheck — moet schoon zijn
-npm run test:unit        # 416 tests, pure functies, geen DB/API-key
-npm run test:chain       # 25 ketentests, echte handlers tegen echte Postgres, geen netwerk
+npm run test:unit        # 675 tests, pure functies, geen DB/API-key
+npm run test:chain       # 47 ketentests, echte handlers tegen echte Postgres, geen netwerk
 npm run test:openai      # rooktest — MAAKT ECHTE, BETAALDE CALLS
 npm run eval:mention     # accuratesse mention-classificatie (vereist API-key)
 ```
@@ -97,13 +104,16 @@ app/(app)/         analyses (dossier in 4 hoofdstukken), profielen, instellingen
 app/(auth)/        login/register (server actions)
 app/api/           analyses · profiles · cron (worker/tracking/reminders) · health
 components/        gedeelde UI-primitieven (kaarten, chips, rail, skeletons)
-lib/pipeline/      elke pijplijnstap: profiel-research → meting → rapport → content → impact
-lib/jobs/          achtergrondwachtrij: types, queue, handlers, worker
+lib/pipeline/      elke pijplijnstap: onboarding (discover → offering → topics → markt →
+                   kennistest → synthese) → meting → rapport → content → impact
+lib/jobs/          achtergrondwachtrij: types, queue, dedupe, handlers, worker
 lib/openai/        client, structured output, modellen, sampling/redeneerinspanning, pricing, kostenlogboek
+lib/engines/       enginelaag: types, openai, gemini (slapend), registry
 lib/entities/      merknaam-normalisatie en -matching
 lib/schemas/       Zod-contracten      lib/stats/  onzekerheidsmarges
-lib/audit/         robots.txt / AI-crawlertoegang     lib/offsite/  off-site aanwezigheid
-supabase/migrations/  0001–0037 (0033 gereserveerd, nooit gedraaid)
+lib/audit/         robots.txt / AI-crawlertoegang + entiteitsconsistentie
+lib/offsite/       off-site aanwezigheid     lib/archive.ts  wat zichtbaar is in de app
+supabase/migrations/  0001–0044 (0033 gereserveerd, nooit gedraaid — vervangen door 0039)
 scripts/           test-unit · test-chain · test-openai · eval-mention
 ```
 
@@ -116,6 +126,7 @@ scripts/           test-unit · test-chain · test-openai · eval-mention
 | `docs/designsystem.md` | Bronanalyse van de live inspace.io-CSS: waar elke kleur, radius en gloed vandaan komt |
 | `docs/logbook.md` | Waarom het is zoals het is: beslissingen en bouwrondes, met de cijfers eronder |
 | `docs/tasks/roadmap.md` | Wat er nog open staat, op volgorde |
+| `APP_FLOW_DOCUMENTATION.md` | De keten end-to-end voor drie lezersgroepen: sales, developer, AI-specialist. Staat bewust in de hoofdmap — code verwijst ernaar |
 | `supabase/README.md` | Migratie-index en toepasinstructies |
 
 **Verwijzingen in code naar oude documenten.** Code-commentaar en migraties verwijzen op ~500

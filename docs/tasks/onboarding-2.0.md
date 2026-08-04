@@ -1,9 +1,15 @@
 # Onboarding 2.0 — consultant-gedreven klantprofiel, core topics en multi-engine
 
-**Status:** gebouwd, nog niet op productie geverifieerd · **Effort:** ~13,5 werkdagen in 5 blokken · **Opgesteld:** 3 augustus 2026
-**Vertrekpunt:** `main` op `cb34ed3`, migraties t/m `0037`, 416 unittests + 25 ketentests groen.
+**Status:** gebouwd en op productie gedraaid; §10 nog niet volledig afgetekend · **Effort:** ~13,5 werkdagen in 5 blokken · **Opgesteld:** 3 augustus 2026
+**Vertrekpunt:** `main` op `cb34ed3`, migraties t/m `0037`, 416 unittests + 25 ketentests groen — de stand
+bij het opstellen van dit plan, bewust niet bijgewerkt.
 
-## Voortgang (3 augustus 2026)
+**Waarom dit bestand nog in `docs/tasks/` staat:** de bouw is af, maar de verificatietabel in §10
+heeft nog open punten die iets vragen wat er nu niet is — vier extra profielen voor een echte p95,
+een `GEMINI_API_KEY`, en een volledige contentronde. Wat wél is afgetekend staat hieronder; het
+verhaal eromheen in `../logbook.md` §14.
+
+## Voortgang (bijgewerkt 4 augustus 2026)
 
 | Onderdeel | Stand |
 |---|---|
@@ -20,7 +26,13 @@
 | Blok B fase 2 — markt verdiepen | **Klaar** — reden per concurrent met bron, plus het bronnenlandschap op merkniveau |
 | Blok B fase 5 — synthese op Sol | **Klaar** — dossier, gespreksagenda en geverifieerde feiten in `brand_facts` |
 
-Tests: **662 unittests, 42 ketentests**, `tsc` en `build` schoon.
+Tests: **675 unittests, 47 ketentests**, `tsc` en `build` schoon.
+
+**Na dit plan gebouwd, in dezelfde onboarding:** de vijf verbeterpunten uit de eerste twee
+productieronden (feiten uit lopende tekst, citaatverificatie, categorienulmeting, aanbodkoppeling,
+onderzoeksvoortgang), de vier InSpace-optimalisaties (structurele gap-analyse, rijkere schema.org,
+duplicatie- en leesbaarheidscontrole) en tien UX-bevindingen op de profielpagina. Alle drie de
+rondes staan samengevat in `../logbook.md` §14; de strategie eronder in §15.
 
 ### Verificatiecriteria uit §10 — wat is afgetekend en wat niet
 
@@ -337,6 +349,12 @@ Zeven nieuwe taaksoorten in `lib/jobs/types.ts`. Elke taak ketent naar de volgen
 | 4 | `technical_audit` (bestaand, uitgebreid) | nee | nee | $0,00 | ~30 s |
 | 5 | `profile_synthesis` | 1 | nee | $0,49 | ~60 s |
 | | **Totaal** | | | **~$0,97** | **~6 min** |
+
+**Gemeten, 3–4 augustus 2026 (drie ronden op productie):** het werden **acht** taken — `profile_entity`
+(entiteitsconsistentie, gratis) en `propose_topics` ketenen mee — en de werkelijke kosten liggen op
+**$0,2438 / $0,2463 / $0,2495**, een kwart van de schatting hierboven. Doorlooptijd **~7,5 minuut**.
+De duurste post is niet `web_search` maar de synthese op Sol: $0,127, 52% van het totaal. De
+schatting hierboven blijft staan zoals hij was — de vergelijking is het interessante.
 
 Zes zware taken × één per werkeraanroep (`HEAVY_JOB_RESERVE_MS` 220 s tegen een budget van 240 s,
 `pg_cron` 1×/min) = **~6 minuten wachttijd**, binnen de 10 die je acceptabel noemt. Dat is de échte

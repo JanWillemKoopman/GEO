@@ -1,13 +1,21 @@
-# R6.2 en R6.3 — inventariskwaliteit en brontype
+# R6.3 — brontype als signaal
 
-**Status:** open · **Effort:** 3,5 d samen
+**Status:** R6.2 is GEBOUWD (4 augustus 2026), R6.3 staat nog open · **Effort:** 1,5 d
 
-Twee stappen die allebei hetzelfde patroon aanpakken: de pijplijn draait door op materiaal dat niet
-deugt, zonder dat iemand het merkt.
+> **R6.2 is opgegaan in fase 0 van Onboarding 2.0.** De inventariskwaliteitspoort draait nu bij
+> elke onboarding als onderdeel van `discover.ts`, met `assessInventory()` in
+> `lib/pipeline/inventory-quality.ts` en de uitkomst in `profiles.inventory_quality_json`
+> (migratie `0039`, niet `0033` — die reservering is daarmee vervallen). Op het scherm staat het
+> oordeel bóven de aanbodlijst, want als het aanbod dun is omdat de crawl dun was, is dat de
+> eerste zin die je wilt lezen. De beschrijving hieronder is bewaard als achtergrond; de
+> uiteindelijke uitwerking staat in `logbook.md` §14.
+
+Wat blijft: R6.3. Hetzelfde patroon — de pijplijn draait door op materiaal dat niet deugt, zonder
+dat iemand het merkt.
 
 ---
 
-## R6.2 — Inventariskwaliteitspoort (2 d)
+## R6.2 — Inventariskwaliteitspoort (2 d) — GEBOUWD, zie de noot hierboven
 
 **Probleem:** Bol had 1 pagina in de inventaris, HEMA 40 productpagina's. In beide gevallen
 degradeert het rapport zonder foutmelding — de nieuw/verbeteren-beslissing rust dan op vrijwel

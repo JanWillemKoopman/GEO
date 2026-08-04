@@ -3,7 +3,7 @@
 Backend, Supabase, pijplijn en deploy. Voor het *waarom* achter een keuze: `logbook.md`.
 Voor UI/UX: `ux-design.md`.
 
-> **Geverifieerd tegen de code op 4 augustus 2026** (branch `main`, t/m migratie `0043`),
+> **Geverifieerd tegen de code op 4 augustus 2026** (branch `main`, t/m migratie `0044`),
 > plus de eind-tot-eind-ronde van 1 augustus (`logbook.md` §10) en de eerste echte
 > onboarding op productie van 3 augustus (`logbook.md`, Fysi-Unique) — die laatste legde
 > zes fouten bloot in de samenhang tussen de onboardingstappen; alle zes zijn verwerkt.
@@ -124,6 +124,8 @@ Bron: `lib/jobs/{types,queue,worker,handlers,pending}.ts`.
   `measure_prompt` triggert alsnog de vervolgketen (`scheduleFollowUpAfterFailure`), zodat een
   analyse niet blijft hangen.
 - **Tijdbudget:** `workerTimeBudgetMs` 240.000 ms, ruim onder de `maxDuration` van 300s.
+- **Gearchiveerd werk telt niet mee:** `/api/cron/tracking` en `/api/cron/reminders` filteren op
+  `archived_at is null` (§11). Zonder dat filter blijft een verborgen merk maandelijks geld kosten.
 
 ## 5. De pijplijn, stap voor stap
 
@@ -313,10 +315,57 @@ opnieuw door.
 | Supabase-project | `kosauqzjbpweluiqgmwv` ("GEO") |
 | Vercel-project | `prj_VyYIOCRAn5nau54fHv7IdvqyXARr`, team `team_gCNH0rm9rhi5DACbVpaJR9zq` |
 
-## 11. Migraties
+## 11. Klanten, accounts en archief
 
-`0001` t/m `0037`, alle toegepast op productie behalve `0033` (gereserveerd voor R6.2, nooit
-gedraaid — een gereserveerd nummer dat nooit draaide blokkeert niets).
+### Een nieuwe klant aanmaken en koppelen
+
+Het product is sales-led: de consultant zet het merk klaar, de klant krijgt het ná de verkoop.
+Vier stappen, en de volgorde is niet de voor de hand liggende — **het profiel maak je in de app,
+niet in Supabase.**
+
+| # | Waar | Wat |
+|---|---|---|
+| 1 | Supabase → Authentication → Users → **Add user** | E-mail + wachtwoord, **Auto Confirm User aan**. Er komt géén rij in `profiles` bij. |
+| 2 | De app, ingelogd als beheerder → **Merken → + Nieuw merk** | Webadres, bedrijfsnaam, schrijfwijzen. De pijplijn draait ~7,5 min (~$0,25). Het profiel staat nu op het account van de beheerder. |
+| 3 | Het demogesprek | Profiel doorlopen, gespreksnotities vullen, onderwerpen goedkeuren. |
+| 4 | Profielpagina → blok **Beheer** (alleen zichtbaar voor beheerders) | Kies het account uit stap 1. |
+
+Stap 4 zet `profiles.user_id` op de klant, vult `assigned_at`, laat `created_by_user_id` op de
+beheerder staan, **en verplaatst alle analyses van dat merk mee**. Dat laatste is geen detail:
+`user_id` staat in precies twee tabellen (`profiles` en `analyses`), en alleen de eerste bijwerken
+levert een klant op die zijn merk ziet maar geen enkele analyse — precies het scherm waarvoor hij
+betaalt. Al het andere hangt via `analysis_id` aan de analyse en verhuist mee met de RLS-join.
+
+**Wat je niet moet doen:** handmatig een rij in `profiles` aanmaken (dan mist het merk de hele
+onderzoeksketen — geen aanbodboom, geen kennistest, geen topics), of een klant in `staff_users`
+zetten (dan ziet hij álle merken).
+
+### Beheerders
+
+`staff_users` bepaalt wie alles ziet. RLS aan, nul policies; alleen `is_staff()` — `security
+definer`, `search_path` vast, alleen aanroepbaar door `authenticated` — komt erbij. Elke tabel met
+een `*_select_own`-policy heeft een extra permissieve `*_select_staff`-policy ernaast; Postgres
+combineert permissieve policies met OR, dus dat verbreedt zonder de bestaande regels te raken.
+Migraties `0038` en `0042`.
+
+### Archiveren
+
+`profiles.archived_at` en `analyses.archived_at` (migratie `0044`). Gevuld = verborgen uit elke
+lijst, telling en cron; leeg = zichtbaar. De data blijft volledig staan en het profiel blijft
+bereikbaar via zijn directe URL — het is een back-up, geen verwijdering.
+
+`lib/archive.ts` is de enige plek die weet wat "actief" betekent. Zes query's gebruiken hem: de
+merkenlijst, de analysenlijst, de telling achter "+ Nieuwe analyse", `loadWorkAcross`,
+`/api/cron/reminders` en `/api/cron/tracking`. **Die laatste is de dure**: zonder filter plant de
+app elke maand een betaalde meetronde in voor een merk dat niemand meer in de app ziet.
+
+Bewust **niet** in RLS: dat zou een gearchiveerd merk ook voor de eigenaar onbereikbaar maken.
+
+## 12. Migraties
+
+`0001` t/m `0044`, alle toegepast op productie behalve `0033` (gereserveerd voor R6.2, nooit
+gedraaid — de reservering verviel toen `0039` de inventariskwaliteit fase 0 van de nieuwe
+onboarding maakte; een gereserveerd nummer dat nooit draaide blokkeert niets).
 
 **Index per migratie en de regels voor het schrijven ervan: [`../supabase/README.md`](../supabase/README.md).**
 Dat is de enige plek waar die regels staan; herhaal ze hier niet.

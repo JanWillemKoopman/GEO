@@ -1,44 +1,46 @@
 # Roadmap — wat er nog open staat
 
-Op volgorde. Stand: 1 augustus 2026, alles gemerged op `main`, 416 unittests + 25 ketentests groen,
-migraties t/m `0037` toegepast (`0033` gereserveerd, nooit gedraaid).
+Op volgorde. **Stand: 4 augustus 2026**, alles gemerged op `main`, 675 unittests + 47 ketentests
+groen, migraties t/m `0044` toegepast (`0033` gereserveerd, nooit gedraaid — vervangen door `0039`).
 
-## Nieuw hoofdspoor: Onboarding 2.0 (~15 d)
+## Afgerond sinds de vorige stand
 
-Volledige bouwspec: [`onboarding-2.0.md`](./onboarding-2.0.md). Besloten 3 augustus 2026.
+- **Onboarding 2.0** — gebouwd én op productie geverifieerd in drie meetronden
+  ($0,2438 / $0,2463 / $0,2495, ~7,5 minuut, acht taken). Zie `logbook.md` §14 en de dagnotities van
+  3–4 augustus. De bouwspec staat nog in [`onboarding-2.0.md`](./onboarding-2.0.md) omdat de
+  verificatietabel daar nog open punten heeft.
+- **De vier InSpace-optimalisaties** — structurele gap-analyse, rijkere schema.org, duplicatie- en
+  leesbaarheidscontrole. Bouwspec verwijderd, samengevat in `logbook.md`.
+- **De UX-ronde op de onboarding** — tien bevindingen, alle tien uitgevoerd.
+- **R6.2** — opgegaan in fase 0 van de nieuwe onboarding.
+- **Archiveren** (migratie `0044`): de zeven testmerken en elf analyses staan uit beeld maar in de
+  database.
 
-Het product gaat van self-serve naar **sales-led**: een consultant zet het profiel klaar, de
-pipeline doet het onderzoek (~7 min, ≤ $2,15), en het uur consultancy gaat over strategie. De klant
-vult nog drie dingen in — webadres, bedrijfsnaam, andere schrijfwijzen. Daarnaast: 5–8 core topics
-als expliciete uitkomst, en Gemini erbij als tweede engine in zowel de kennistest als de meting.
+## 0. De GPT-5.6-overstap natrekken — grotendeels gedaan (~$1, een half uur)
 
-Dit spoor absorbeert twee openstaande punten hieronder: **R6.2** (inventariskwaliteit — wordt fase 0
-van de nieuwe pijplijn, migratie `0033` vervalt daarmee) en de helft van **R0.5** (`business_model`
-gaat de entiteitclassificatie eindelijk sturen).
+⚠️ **Bijgewerkt op 4 augustus 2026.** Dit punt begon met "er is nog geen enkele echte call op
+GPT-5.6 gemaakt". Dat klopt niet meer: drie volledige onboardings op productie hebben samen ruim
+veertig echte aanroepen gedaan over alle drie de effort-niveaus, mét `web_search`, zonder één
+parameterfout. Wat daarmee is afgetekend:
 
-Punt 0 hieronder blijft er wél vóór gaan: zonder nagerekende GPT-5.6-kosten is de €2-budgetpoort
-gebouwd op een schatting.
+- **De parametercombinaties werken.** Effort `none` met temperatuur 0 (classificatie en
+  promptgeneratie), `low` (onderzoek en rapport) en `medium` op Sol (synthese) draaiden alle drie.
+  Het vangnet in `structured.ts` is niet één keer aangesproken.
+- **De kosten zijn gemeten.** Een volledige onboarding kost **$0,2438 / $0,2463 / $0,2495** over
+  drie ronden — opvallend stabiel, en 11% van het plafond van $2,15. De duurste post is niet
+  `web_search` maar de synthese op Sol: $0,127, 52% van het totaal.
 
-## 0. De GPT-5.6-overstap natrekken — vóór alles (~$3, een uur)
+Wat nog openstaat:
 
-De modellen zijn omgezet (`logbook.md` §10) en de vier vaste controles zijn groen, maar er is nog
-**geen enkele echte call** op GPT-5.6 gemaakt: alle tests draaien op stubs. Wat nagetrokken moet
-worden, in deze volgorde:
-
-1. `npm run test:openai` — verifieert de drie parametercombinaties die de pijplijn verstuurt
-   (effort `none` + temperatuur 0, effort `low`, effort `medium` op Sol) plus web_search. Faalt de
-   eerste met een unsupported-parameter-fout, dan klopt de aanname in `sampling.ts` niet meer en
-   moet `WORK.deterministic`/`WORK.creative` de temperatuur laten vallen. (Het vangnet in
-   `structured.ts` vangt dat in productie op, maar dan draait de classificatie op de
-   modelstandaard — dat wil je weten, niet ontdekken.)
-2. `npm run eval:mention -- --compare` — de classificatie draait nu op een ánder model dan waarop de
-   mention-prompt is afgeregeld. Drempel 90%; het script vergelijkt Luna tegen Terra.
+1. **De MEETRONDE is nog niet nagerekend** op GPT-5.6. De cijfers hierboven gaan over de
+   onboarding; de schatting van ~$0,40 per meetronde (was $0,82) komt nog steeds uit de
+   gepubliceerde tarieven. Let specifiek op de zoekactie-tokens: die worden op een redeneermodel
+   wél als input afgerekend en waren op de oude preview gratis.
+2. **`npm run eval:mention -- --compare`** — de classificatie draait op een ánder model dan waarop
+   de mention-prompt is afgeregeld. Drempel 90%.
 3. **Doorlooptijd van één `content_draft` meten.** De effort staat op `medium` en niet op `high`
    omdat één call binnen `TIMEOUT_MS` (100 s) moet passen. Blijkt een pagina ruim binnen de tijd
    klaar, dan is `high` de gratis kwaliteitswinst op de duurste stap van het product.
-4. **Kosten narekenen tegen `ai_calls`.** De schatting van ~$0,40 per meetronde (was $0,82) komt
-   uit de gepubliceerde tarieven, niet uit gemeten data. Let specifiek op de zoekactie-tokens: die
-   worden op een redeneermodel wél als input afgerekend en waren op de oude preview gratis.
 
 ## 1. Verificatieronde R8 + S1–S8
 
@@ -65,14 +67,13 @@ dagen zoals oorspronkelijk begroot.
 Achterliggend punt: koopgids-content is het verkeerde format voor Bol/Coolblue/HEMA-achtige klanten
 zonder productfeed.
 
-## 4. R6.2 en R6.3 (3,5 d)
+## 4. R6.3 — brontype als signaal (1,5 d)
 
-Volledige bouwspec: [`r6-inventaris-en-bronnen.md`](./r6-inventaris-en-bronnen.md).
+Volledige bouwspec: [`r6-inventaris-en-bronnen.md`](./r6-inventaris-en-bronnen.md). R6.2 is
+gebouwd als fase 0 van de onboarding.
 
-- **R6.2 — Inventariskwaliteitspoort.** Bol had 1 pagina in de inventaris, HEMA 40 productpagina's;
-  in beide gevallen degradeert het rapport zonder foutmelding. Migratie `0033` staat gereserveerd.
-- **R6.3 — Brontype als signaal.** Bij Fysi-Unique zijn 8 van de 10 meest geciteerde bronnen
-  homepages — dan is "schrijf een lange blogpagina" waarschijnlijk het verkeerde advies.
+Bij Fysi-Unique zijn 8 van de 10 meest geciteerde bronnen homepages — dan is "schrijf een lange
+blogpagina" waarschijnlijk het verkeerde advies.
 
 ## 5. Blijvend uitgesteld: R0 — Fundament (8 d)
 
@@ -86,6 +87,23 @@ repareren of uitzetten.
 Eén punt is het onthouden waard: **R0.5 is de reden dat de fabrikanten die Bol verkoopt nog steeds
 als concurrent meetellen.** De helft van R0.5 is intussen meegelift op R8.5: de kolom
 `business_model` bestaat en wordt gevuld; alleen `classify-entities.ts` gebruikt hem nog niet.
+
+## 6. Wat de UX-ronde bewust heeft laten liggen
+
+- **De strategiekaart als gespreksinstrument** (`strategy-box.tsx`). Nu bereikbaar via een
+  springlink, verder onaangeraakt. Herontwerpen vraagt eerst drie echte consultancygesprekken —
+  anders is het gokwerk. ~halve dag zodra die ervaring er is.
+- **De drempels van de kwaliteitspoort afstellen op data.** `DUPLICATE_THRESHOLD` staat op 0,35 en
+  de leesbaarheidsgrenzen op 20/25 woorden per zin; allebei ruim gekozen. De gemeten waarden worden
+  gelogd, dus na tien echte pagina's kan dit op data in plaats van op gevoel.
+- **`SYNTHESIS_PREMIUM` narekenen.** De synthese op Sol is met $0,127 goed voor 52% van de
+  onboardingkosten. De schakelaar bestaat; de vergelijking met Luna vraagt vijf profielen.
+
+## 7. Eén taak per onboarding viel terug van `running` naar `queued`
+
+Gezien in beide meetronden van 3 augustus, sneller dan de reclaim-drempel van vijf minuten — dus er
+speelt iets anders. Kostte in ronde 2 minuten stilstand. Eerst loggen, dan pas repareren. Dit is het
+verschil tussen de 7,5 minuut die je in een demo belooft en 12 minuten.
 
 ## Losse punten
 
