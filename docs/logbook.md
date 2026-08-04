@@ -483,9 +483,14 @@ tússen.** Conventie 10, opnieuw bevestigd: gebouwd is niet geverifieerd.
    niet met zekerheid zeggen welke organisatie je bedoelt"*. `admitsUnknown()`
    kende die formulering niet, dus `knowsBrand()` gaf `true` — enkel omdat de
    merknaam in het antwoord stond, en die stond er omdat hij in de **vraag** stond.
-   Het profielscherm meldde "ChatGPT kent Fysi-Unique" en de synthese schreef het
-   over als *"ChatGPT kent het bedrijf al"*. Precies het cijfer waar een
-   ondernemer op afgaat, precies de verkeerde kant op.
+   Het `llm_kennis`-facet kwam daardoor uit op "ChatGPT kent Fysi-Unique", en de
+   synthese schreef dat over als *"ChatGPT kent het bedrijf al"* — precies het
+   cijfer waar een ondernemer op afgaat, precies de verkeerde kant op.
+
+   *Correctie van 4 augustus:* hier stond eerst dat het **profielscherm** het
+   meldde. Dat klopte niet. Het paneel dat die regel toont werd op dat moment
+   helemaal niet gerenderd (zie de notitie van 4 augustus hieronder); de onjuiste
+   bewering bereikte de klant via de synthesetekst, die wél op het scherm staat.
 2. **De 19 gecontroleerde "feiten" waren 17 paginatitels en 2× de merknaam.** De
    `WebPage`-opmaak levert per pagina een `name` op ("Tarieven | Fysi-Unique"), en
    die gingen ongefilterd de controle in. `checkableFacts()` gooit nu
@@ -627,3 +632,33 @@ Tests: **608 unittests, 42 ketentests.** De ketentest zet de twee stappen achter
 elkaar (verwijderen, herbouwen) en controleert dat er ná afloop geen enkele
 koppeling meer naar een verdwenen knoop wijst — precies de samenhang die geen
 unittest kan zien.
+
+### 4 augustus 2026 — drie panelen die nooit op het scherm stonden
+
+Gevonden bij het bouwen van optimalisatie 1, toen bleek dat het aanbodpaneel
+nergens een dekkingschip kon krijgen: **`OfferingsPanel`, `LlmKnowledgePanel` en
+`StrategyBox` stonden wél in de imports van `app/(app)/profielen/[id]/page.tsx`
+en hun data werd wél opgehaald — maar geen van de drie stond in de render.**
+
+Dat betekent dat de hele opbrengst van blok B, C en D onzichtbaar was: de
+aanbodboom van 22 knopen mét tarieven, de kennistest over vijf blokken, en de
+strategiekaart met contextfactoren. Het profielscherm toonde alleen de
+synthesetekst die er achteraf overheen geschreven was. Alles wat ik in de twee
+meetronden van 3 augustus in de database heb nagerekend, klopte — en niets ervan
+was voor een klant te zien.
+
+Twee dingen om te onthouden. Ten eerste: `tsc` en `build` waren de hele tijd
+schoon. Een ongebruikte import is geen fout, en een component die nergens wordt
+aangeroepen compileert prima. Conventie 10 gaat dus ook over de UI, en "de
+component bestaat" is geen verificatie.
+
+Ten tweede, en vervelender: dit is de **tweede keer** in dit traject. Op 3
+augustus stonden `staleAdviceNotice`, `confidenceLevel` en `describeMerge` in
+dezelfde toestand — gebouwd, getest, nergens aangesloten. Toen was de conclusie
+"drie dingen die ik te vroeg had afgevinkt". Nu is het een patroon, en het
+patroon heeft een oorzaak: er is geen enkele controle die zegt of een geëxporteerd
+paneel ook daadwerkelijk in een pagina terechtkomt.
+
+Daarom is bij deze ronde één regel in de verificatie erbij gekomen: **een paneel
+telt pas als af wanneer het op de gedeployde pagina is teruggezien**, niet
+wanneer het compileert.

@@ -1,6 +1,10 @@
 import { CollapsibleSection } from "@/components/collapsible-section";
 import { RerunResearchButton } from "./rerun-research-button";
 import { ConfidenceChip } from "@/components/confidence-chip";
+import {
+  describeCoverage,
+  type StructureCoverage,
+} from "@/lib/pipeline/structure-gap";
 import type { InventoryQuality, ProfileOffering } from "@/lib/types/database";
 
 /**
@@ -34,12 +38,19 @@ export function OfferingsPanel({
   offerings,
   inventory,
   confidence,
+  coverage,
 }: {
   profileId: string;
   offerings: ProfileOffering[];
   inventory: InventoryQuality | null;
   /** Het aandeel knopen dat een geldige bron overleefde (fase 1). */
   confidence?: number | null;
+  /**
+   * Welke onderdelen een eigen pagina hebben en welke niet
+   * (docs/tasks/inspace-optimalisaties-1-4.md, 1). Afgeleid bij het lezen, niet
+   * opgeslagen — hij verandert zodra er een pagina bijkomt.
+   */
+  coverage?: StructureCoverage | null;
 }) {
   if (offerings.length === 0 && !inventory) return null;
 
@@ -51,8 +62,13 @@ export function OfferingsPanel({
   }
   const roots = byParent.get(null) ?? [];
 
+  const dekkingPerId = new Map(
+    (coverage?.coverage ?? []).map((c) => [c.offeringId, c]),
+  );
+
   function renderNode(o: ProfileOffering, depth: number) {
     const kinderen = byParent.get(o.id) ?? [];
+    const dekking = dekkingPerId.get(o.id);
     return (
       <li key={o.id} className="flex flex-col gap-1">
         <div className="flex flex-wrap items-baseline gap-2">
@@ -63,6 +79,19 @@ export function OfferingsPanel({
           )}
           {o.source !== "ai" && (
             <span className="chip chip-green">{o.source}</span>
+          )}
+          {/* Alleen het gebrek krijgt een chip. Naast elk onderdeel "heeft een
+              pagina" zetten maakt van de lijst een formulier; de bedoeling is
+              dat het gat opvalt. */}
+          {dekking?.dekking === "ontbreekt" && (
+            <span className="chip chip-warning" title={dekking.reason}>
+              geen eigen pagina
+            </span>
+          )}
+          {dekking?.dekking === "zwak_gedekt" && (
+            <span className="chip chip-neutral" title={dekking.reason}>
+              zwak gedekt
+            </span>
           )}
         </div>
         {o.description && (
@@ -105,6 +134,10 @@ export function OfferingsPanel({
           </span>
         )}
       </div>
+
+      {coverage && coverage.assessed > 0 && (
+        <p className="text-sm text-secondary">{describeCoverage(coverage)}</p>
+      )}
 
       {inventory && inventory.verdict !== "voldoende" && (
         <div

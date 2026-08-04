@@ -37,6 +37,10 @@ import {
   buildChangeBlock,
   isWorthEmailing,
 } from "@/lib/pipeline/period-change";
+import {
+  assessStructureCoverage,
+  formatCoverageForReport,
+} from "@/lib/pipeline/structure-gap";
 import { sendReportEmail } from "@/lib/email/report-email";
 import { emailsEnabled } from "@/lib/env";
 import { enqueue, dedupe } from "@/lib/jobs/queue";
@@ -44,6 +48,7 @@ import type {
   Analysis,
   AnalysisStatus,
   Profile,
+  ProfileOffering,
   ProfilePage,
   TopicResearch,
   VisibilityScore,
@@ -237,6 +242,18 @@ function buildReportInput(
    * de klant gaat daar namelijk mee aan de slag.
    */
   siteMigrationNotice: string | null,
+  /**
+   * Welke onderdelen van het AANBOD geen eigen pagina hebben
+   * (docs/tasks/inspace-optimalisaties-1-4.md, 1).
+   *
+   * Dit is de enige invoer in dit rapport die NIET uit de meting komt. Alles
+   * hierboven is reactief: 30 vragen gesteld, bij 17 niet genoemd, daar volgen
+   * aanbevelingen uit. Levert een klant twaalf diensten en raakt de meting er
+   * vier, dan hoort hij over acht diensten niets — ook al heeft hij er geen
+   * pagina voor, en is dat juist de reden dat een assistent hem daar niet kan
+   * noemen.
+   */
+  structureGaps: string,
 ): string {
   return [
     `Eigen merk: ${ownLabel(analysis, profile)}`,
@@ -257,6 +274,7 @@ function buildReportInput(
         ]
       : []),
     buildPagesBlock(pages),
+    structureGaps,
     "",
     "Schrijf op basis hiervan een kort, jargonvrij rapport. Noem in elk gap-item expliciet welke " +
       "concurrent het betreft. PRIORITEER de aanbevelingen op de zwaarwegende gemiste vragen hierboven " +
@@ -659,6 +677,29 @@ export async function generateReport(
   const change = await computePeriodChange(admin, id, weekNo);
   const changeBlock = buildChangeBlock(change, weekNo);
 
+  // ── Wat de STRUCTUUR mist, los van wat de meting zag ──────────────────────
+  //
+  // Zie `structure-gap.ts`. Nul kosten en nul opslag: dit is een vergelijking
+  // tussen de aanbodboom en de gecrawlde pagina's, en die verandert zodra er een
+  // pagina bijkomt. Een lege string als er geen aanbodboom is — dan valt er
+  // niets te vergelijken en is zwijgen beter dan een blok met een aanname.
+  const { data: offeringRows } = await admin
+    .from("profile_offerings")
+    .select("*")
+    .eq("profile_id", analysis.profile_id)
+    .order("sort_order");
+
+  const structuurGaten = formatCoverageForReport(
+    assessStructureCoverage(
+      (offeringRows ?? []) as ProfileOffering[],
+      pages.map((p) => ({
+        url: p.url,
+        title: p.title,
+        text: p.text_excerpt ?? "",
+      })),
+    ),
+  );
+
   try {
     // B1 — concurrentie-gap-analyse
     const gap = await callStructured({
@@ -696,6 +737,7 @@ export async function generateReport(
         dossier,
         changeBlock,
         migratieMelding,
+        structuurGaten,
       ),
       schema: Report,
       schemaName: "report",

@@ -111,6 +111,11 @@ import {
 import { quoteOnPage, quoteConfidence } from "@/lib/pipeline/quote-check";
 import { harvestTextFacts, isCanonicalPage } from "@/lib/pipeline/text-facts";
 import { relinkOfferingIds } from "@/lib/pipeline/topic-link";
+import {
+  assessStructureCoverage,
+  describeCoverage,
+  formatCoverageForReport,
+} from "@/lib/pipeline/structure-gap";
 import { buildSteps, researchRunning } from "@/lib/pipeline/research-steps";
 import {
   filterProtectedFields,
@@ -2775,6 +2780,125 @@ group("een onderwerp houdt zijn aanbod na een herbouw van de boom", () => {
     "zonder namen valt er niets te herstellen",
     relinkOfferingIds({ offering_ids: ["oud-1"], offering_names: [] }, nieuweBoom) ===
       null,
+  );
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+// Optimalisatie 1 uit de InSpace-analyse: welke pagina's mist de site?
+// ════════════════════════════════════════════════════════════════════════════
+
+group("structurele gaten: welke diensten hebben geen eigen pagina", () => {
+  const knoop = (
+    id: string,
+    name: string,
+    kind: "dienst" | "categorie" | "merk" = "dienst",
+    parent_id: string | null = null,
+  ) => ({ id, name, kind, parent_id }) as never;
+
+  const boom = [
+    knoop("c1", "Specialismen", "categorie"),
+    knoop("d1", "Bekkenfysiotherapie", "dienst", "c1"),
+    knoop("d2", "Sportfysiotherapie", "dienst", "c1"),
+    knoop("d3", "Dry Needling", "dienst", "c1"),
+    knoop("m1", "Compex", "merk", "c1"),
+  ];
+
+  const paginas = [
+    {
+      url: "https://x.nl/specialismen/bekkenfysiotherapie/",
+      title: "Bekkenfysiotherapie Amersfoort",
+      text: "Alles over bekkenfysiotherapie.",
+    },
+    {
+      url: "https://x.nl/tarieven/",
+      title: "Tarieven",
+      text: "Sportfysiotherapie kost € 42,00 per behandeling.",
+    },
+  ];
+
+  const r = assessStructureCoverage(boom, paginas);
+  const van = (naam: string) => r.coverage.find((c) => c.name === naam);
+
+  ok(
+    "een dienst met een eigen pagina is gedekt",
+    van("Bekkenfysiotherapie")?.dekking === "eigen_pagina",
+  );
+  ok(
+    "een dienst die alleen in een tarievenlijst staat is zwak gedekt",
+    van("Sportfysiotherapie")?.dekking === "zwak_gedekt",
+  );
+  ok(
+    "een dienst die nergens staat ontbreekt",
+    van("Dry Needling")?.dekking === "ontbreekt",
+  );
+
+  // ⚠️ Het vangnet: zonder dit adviseert de app vier pagina's waar er één hoort.
+  ok(
+    "een categorie met kinderen wordt niet apart beoordeeld",
+    van("Specialismen") === undefined,
+  );
+  // Een retailer hoeft geen pagina per gevoerd merk.
+  ok("een merk telt niet mee", van("Compex") === undefined);
+  ok("er zijn dus drie beoordelingen", r.assessed === 3);
+  ok("waarvan één gat en één zwakke", r.missing === 1 && r.weak === 1);
+
+  // Een categorie zónder kinderen is in de praktijk gewoon een dienst.
+  const losseCategorie = assessStructureCoverage(
+    [knoop("c9", "Medische fitness", "categorie")],
+    [],
+  );
+  ok(
+    "een categorie zonder kinderen telt wél mee",
+    losseCategorie.assessed === 1 &&
+      losseCategorie.coverage[0].dekking === "ontbreekt",
+  );
+
+  // De regel die de klant leest, met de noemer erbij.
+  ok(
+    "de samenvatting noemt de verhouding",
+    describeCoverage(r) ===
+      "1 van je 3 onderdelen heeft geen eigen pagina · 1 wordt alleen zijdelings genoemd op een pagina over iets anders.",
+  );
+  ok(
+    "een volledig gedekte site krijgt geen verwijt",
+    describeCoverage(
+      assessStructureCoverage([knoop("d1", "Bekkenfysiotherapie")], paginas),
+    ) === "Alle 1 onderdelen van je aanbod hebben een eigen pagina.",
+  );
+  ok(
+    "zonder aanbod geen uitspraak",
+    describeCoverage(assessStructureCoverage([], paginas)) ===
+      "Nog geen aanbod in kaart gebracht.",
+  );
+
+  // Het blok dat de rapportgeneratie meekrijgt.
+  const blok = formatCoverageForReport(r);
+  ok("het rapportblok noemt de ontbrekende dienst", blok.includes("Dry Needling"));
+  ok(
+    "en niet de dienst die wél een pagina heeft",
+    !blok.includes("Bekkenfysiotherapie"),
+  );
+  ok(
+    "een volledig gedekte site levert geen blok op",
+    formatCoverageForReport(
+      assessStructureCoverage([knoop("d1", "Bekkenfysiotherapie")], paginas),
+    ) === "",
+  );
+
+  // Een taalvariant mag niet als tweede dekking gelden.
+  const metEngels = assessStructureCoverage(
+    [knoop("d1", "Bekkenfysiotherapie")],
+    [
+      {
+        url: "https://x.nl/en/specialismen/bekkenfysiotherapie/",
+        title: null,
+        text: "",
+      },
+    ],
+  );
+  ok(
+    "de slug telt ook zonder titel, taalsegment weggefilterd",
+    metEngels.coverage[0].dekking === "eigen_pagina",
   );
 });
 
