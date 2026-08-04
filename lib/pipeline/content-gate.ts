@@ -90,6 +90,9 @@ const ONTWIJKING = [
 ];
 
 /** Eén uitgevoerde controle. `null` = niet van toepassing, telt niet mee. */
+import { DUPLICATE_THRESHOLD, describeDuplicate, type SimilarPage } from "@/lib/pipeline/similarity";
+import { assessReadability, describeReadability } from "@/lib/pipeline/readability";
+
 export type CheckUitkomst = boolean | null;
 
 export interface GateChecks {
@@ -461,3 +464,91 @@ const LEGACY_GEO_LABELS: { key: string; label: string; uitleg: string }[] = [
       "Wie de hoofdvraag én de vervolgvragen beantwoordt, wordt bij meer verschillende vragen genoemd.",
   },
 ];
+
+// ════════════════════════════════════════════════════════════════════════════
+// DE TWEEDE POORT: kwaliteit, los van de GEO-score
+// (docs/tasks/inspace-optimalisaties-1-4.md, 3 en 4)
+// ════════════════════════════════════════════════════════════════════════════
+//
+// ⚠️ WAAROM DIT EEN APARTE UITKOMST IS EN GEEN ACHTSTE EN NEGENDE CHECK
+//
+// `geo_score` wordt berekend uit `checkContentGate()`: het percentage van de
+// uitvoerbare controles dat slaagt. Er twee checks bij zetten betekent dat de
+// score van een pagina van vorige maand niet meer te vergelijken is met die van
+// vandaag — een pagina die niets veranderde zou ineens 7/9 scoren waar hij 7/7
+// stond. En de app toont juist trends.
+//
+// Dat is precies het soort stille breuk waar dit project vangnetten tegen
+// bouwt. Dus: `checkContentGate()` houdt zijn zeven GEO-checks en zijn score.
+// `checkQuality()` staat ernaast, voedt `review_notes` en `needs_review`, en
+// raakt `geo_score` niet aan.
+//
+// Het verschil is ook inhoudelijk. De GEO-checks meten of een AI-assistent deze
+// pagina kan gebruiken. Deze twee meten of een MENS hem wil lezen, en of hij
+// niet de derde pagina is die hetzelfde zegt. Twee vragen, twee uitkomsten.
+
+
+export interface QualityChecks {
+  /** Lijkt deze pagina te veel op een andere pagina van hetzelfde merk? */
+  nietDubbel: CheckUitkomst;
+  /** Is de tekst te lezen voor een gewone bezoeker? */
+  leesbaar: CheckUitkomst;
+}
+
+export interface QualityResult {
+  checks: QualityChecks;
+  issues: string[];
+  /** De gemeten waarden, zodat de drempels op echte data bijgesteld kunnen worden. */
+  gemeten: {
+    gelijkenis: number | null;
+    gelijkenisMet: string | null;
+    gemiddeldeZinslengte: number;
+    langeZinnen: number;
+  };
+}
+
+export interface QualityInput {
+  bodyMarkdown: string;
+  /**
+   * De pagina waar deze tekst het meest op lijkt, van hetzelfde PROFIEL — niet
+   * alleen van dezelfde analyse. Een merk heeft meerdere analyses en die putten
+   * uit dezelfde feitenkaart; juist daar ontstaat de herhaling.
+   *
+   * `null` als er nog geen andere pagina is. Dan is "niet dubbel" niet waar maar
+   * ONBEKEND (conventie 3) — de eerste pagina van een merk kan per definitie
+   * geen duplicaat zijn, en hem groen afvinken zou suggereren dat er iets
+   * gecontroleerd is.
+   */
+  mostSimilar: SimilarPage | null;
+}
+
+export function checkQuality(input: QualityInput): QualityResult {
+  const issues: string[] = [];
+
+  // ── Duplicatie ────────────────────────────────────────────────────────────
+  const gelijkenis = input.mostSimilar;
+  const nietDubbel: CheckUitkomst =
+    gelijkenis === null ? null : gelijkenis.score < DUPLICATE_THRESHOLD;
+  if (nietDubbel === false && gelijkenis) {
+    issues.push(describeDuplicate(gelijkenis));
+  }
+
+  // ── Leesbaarheid ──────────────────────────────────────────────────────────
+  const lees = assessReadability(input.bodyMarkdown);
+  const leesbaar: CheckUitkomst =
+    lees.zinnen === 0 ? null : lees.oordeel !== "moeilijk";
+  if (lees.oordeel !== "goed" && lees.zinnen > 0) {
+    issues.push(describeReadability(lees));
+  }
+
+  return {
+    checks: { nietDubbel, leesbaar },
+    issues,
+    gemeten: {
+      gelijkenis: gelijkenis?.score ?? null,
+      gelijkenisMet: gelijkenis?.title ?? null,
+      gemiddeldeZinslengte: lees.gemiddeldeZinslengte,
+      langeZinnen: lees.langeZinnen,
+    },
+  };
+}

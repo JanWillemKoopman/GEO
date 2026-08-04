@@ -662,3 +662,76 @@ paneel ook daadwerkelijk in een pagina terechtkomt.
 Daarom is bij deze ronde één regel in de verificatie erbij gekomen: **een paneel
 telt pas als af wanneer het op de gedeployde pagina is teruggezien**, niet
 wanneer het compileert.
+
+### 4 augustus 2026 — de vier InSpace-optimalisaties
+
+Uit de analyse van hoe InSpace Nova werkt (`docs/tasks/inspace-optimalisaties-1-4.md`).
+**Nul extra API-kosten en geen nieuwe migratie**: alle vier draaien op data die er
+al ligt.
+
+**1. Structurele gap-analyse.** Onze aanbevelingen kwamen uit gemiste vragen: 30
+vragen gesteld, bij 17 niet genoemd, daar volgen pagina's uit. Dat is reactief, en
+de blinde vlek werd pas zichtbaar met de aanbodboom. Levert een klant twaalf
+diensten en raakt de meting er toevallig vier, dan hoort hij over acht diensten
+niets — ook al heeft hij er geen pagina voor, en is dát juist de reden dat een
+assistent hem daar niet kan noemen.
+
+`structure-gap.ts` vergelijkt `profile_offerings` met `profile_pages` en geeft per
+onderdeel `eigen_pagina`, `zwak_gedekt` of `ontbreekt`. Drie standen en geen twee,
+omdat het verschil het advies stuurt: zwak gedekt wordt *verbeteren*, ontbreekt
+wordt *nieuw*. De matching hergebruikt `page-relevance.ts` — een tweede algoritme
+zou twee plekken opleveren die het oneens kunnen worden over dezelfde vraag.
+
+Het vangnet: een categorie die zelf kinderen heeft telt niet mee, anders adviseert
+de app vijf pagina's waar er één hoort. En `kind: "merk"` valt er helemaal buiten;
+een retailer hoeft geen pagina per gevoerd merk. Geen opslag: de uitkomst
+verandert zodra er een pagina bijkomt, en een kopie zou een vierde plek zijn die
+kan verouderen. Landt in de rapportinvoer — daar maakt het verschil — en als chip
+per knoop in het aanbodpaneel.
+
+**2. Rijkere schema.org en een zichtbare datum.** `schema-jsonld.ts` kende drie
+uitkomsten: `FAQPage`, `WebPage`, `Article`. Dat was een gat in ons eigen verhaal:
+sinds de entiteitscontrole beoordelen wíj de klant op schemadekking, terwijl onze
+eigen pagina's het bij een kaal `WebPage` lieten. Nu volgt het `@type` het
+bedrijfsmodel (een landingspagina van een dienstverlener is een `Service`, van een
+retailer een `CollectionPage`), komt er een `@graph` met de organisatie erachter
+inclusief de `sameAs` die fase 0 al geoogst had, en staan `datePublished` en
+`dateModified` erin.
+
+Twee dingen die anders stil misgaan. De validatie accepteerde alles met een
+`@context` en een `@type` — dus ook een `Recipe` op een dienstenpagina; nu moet
+het type passen. En onze eigen velden gaan er **altijd** overheen, ook bij een
+geldig modelresultaat: een `datePublished` van een jaar geleden op een pagina die
+vanmorgen geschreven is, is een versheidssignaal dat tegen de klant werkt.
+`withFreshnessLine()` zet de datum ook zichtbaar onder de tekst — een assistent
+citeert uit de lopende tekst, niet uit de JSON-LD — en is idempotent, want
+`content_revise` draait over bestaande tekst heen.
+
+**3 en 4. Duplicatie en leesbaarheid, in een tweede poort.** Het ontwerpprobleem
+eerst: `geo_score` wordt berekend uit `checkContentGate()`, dus er twee checks bij
+zetten maakt de score van vorige maand onvergelijkbaar met die van vandaag —
+terwijl de app juist trends toont. Vandaar `checkQuality()` ernaast: voedt
+`review_notes` en `needs_review`, raakt `geo_score` niet aan. Een unittest legt
+vast dat die functie geen score teruggeeft waarmee hij erin zou kunnen lekken.
+
+Duplicatie is een echt risico en geen theorie: wij schrijven tot tien pagina's per
+merk uit dezelfde feitenkaart, met dezelfde stijlvoorbeelden en dezelfde
+merkregels. `similarity.ts` gebruikt Jaccard op woord-**vijf**-grammen, want twee
+dienstenpagina's van dezelfde praktijk delen onvermijdelijk hun vakjargon maar
+niet hun zinsbouw. Drempel 0,35, bewust ruim, en de gemeten waarde wordt altijd
+gelogd zodat hij na tien echte pagina's op data bijgesteld kan worden in plaats van
+op gevoel. De vergelijking gaat over álle huidige pagina's van het **profiel**,
+niet van één analyse: een merk heeft meerdere analyses en die putten uit dezelfde
+feiten.
+
+Leesbaarheid zonder verzonnen Flesch-score. Een getal van 0 tot 100 op Nederlandse
+tekst suggereert een precisie die de formule niet heeft, en niemand weet wat 58
+betekent — hetzelfde patroon als het verzonnen volumegetal dat migratie `0017`
+verving door drie banden. In plaats daarvan vier gemeten grootheden en een
+verbeterpunt dat een **aantal** noemt: *"5 zinnen zijn langer dan 30 woorden — knip
+ze in tweeën."* Dat kan iemand aanpakken.
+
+Tests: **658 unittests, 42 ketentests.** De ketentest ving onderweg nog iets:
+`loadSiblingPages` gebruikte eerst een ingebedde join (`analyses!inner`), en de
+shim weigert die met opzet in plaats van iets plausibels terug te geven. Twee
+losse queries doen hetzelfde en lezen beter.

@@ -34,10 +34,16 @@ import { callStructured } from "@/lib/openai/structured";
 import { MODELS } from "@/lib/openai/models";
 import { ContentPiece } from "@/lib/schemas/content-piece";
 import { Critique, geoScore, geoIssues } from "@/lib/schemas/critique";
-import { checkContentGate } from "@/lib/pipeline/content-gate";
+import { checkContentGate, checkQuality } from "@/lib/pipeline/content-gate";
+import { mostSimilar } from "@/lib/pipeline/similarity";
 import { detectClaimSentences, detectedCoverage, resolveFactId } from "@/lib/pipeline/claim-extract";
 import type { AuditedClaim } from "@/lib/schemas/claim-audit";
-import { validateOrRebuildJsonLd } from "@/lib/schema-jsonld";
+import {
+  validateOrRebuildJsonLd,
+  withFreshnessLine,
+  bestaandeDatePublished,
+  type OrganizationInfo,
+} from "@/lib/schema-jsonld";
 import { redactCompetitors, containsCompetitor } from "@/lib/pipeline/redact";
 import { analyzeCitedSources } from "@/lib/pipeline/source-analysis";
 import { contentWebSearchEnabled, minProofPointsForConcreteContent } from "@/lib/config";
@@ -58,6 +64,7 @@ import {
 import type { RecommendationTarget } from "@/lib/pipeline/recommendation";
 import type {
   Analysis,
+  BusinessModel,
   Profile,
   ProfilePage,
   TopicResearch,
@@ -495,6 +502,13 @@ interface ContentContext {
    * toe controleerde niets of het antwoord ook in de tekst belandde.
    */
   distinctiveAnswers: string[];
+  /**
+   * Wat de JSON-LD van elke gegenereerde pagina moet dragen
+   * (docs/tasks/inspace-optimalisaties-1-4.md, 2). Het bedrijfsmodel bepaalt het
+   * `@type` van een landingspagina; de organisatieknoop met `sameAs` is hoe een
+   * AI-systeem bevestigt dat het over hetzelfde bedrijf gaat.
+   */
+  schemaOrg: OrganizationInfo | null;
 }
 
 async function loadContentContext(
@@ -507,7 +521,12 @@ async function loadContentContext(
   if (!analysisRow || analysisRow.user_id !== userId) throw new Error("Analyse niet gevonden.");
   const analysis = analysisRow as Analysis;
 
-  const [{ data: profileRow }, { data: topicResearchRow }, { data: factRows }] = await Promise.all([
+  const [
+    { data: profileRow },
+    { data: topicResearchRow },
+    { data: factRows },
+    { data: techniekFacet },
+  ] = await Promise.all([
     admin.from("profiles").select("*").eq("id", analysis.profile_id).maybeSingle(),
     admin.from("topic_research").select("*").eq("analysis_id", analysisId).maybeSingle(),
     // Feiten die de klant zelf aanleverde (4.6) — vaak precies de cijfers die
@@ -520,6 +539,15 @@ async function loadContentContext(
         "id, question, answer, answer_type, answered_at, status, required, scope, analysis_id, kind",
       )
       .eq("profile_id", analysis.profile_id),
+    // De externe profielen die fase 0 uit de opmaak van de klant oogstte. Geen
+    // extra kosten: het staat er al, en het is precies het veld dat InSpace als
+    // entiteitsbevestiging noemt.
+    admin
+      .from("profile_facets")
+      .select("raw_json")
+      .eq("profile_id", analysis.profile_id)
+      .eq("facet", "techniek")
+      .maybeSingle(),
   ]);
   const profile = profileRow as Profile | null;
   const topicResearch = topicResearchRow as TopicResearch | null;
@@ -764,6 +792,17 @@ async function loadContentContext(
     competitors,
     targets,
     distinctiveAnswers,
+    schemaOrg: profile
+      ? {
+          name: profile.brand_name ?? profile.name,
+          // De hoofd-URL van het merk, niet die van de pagina. `profiles.url` is
+          // een kale hostnaam (`normalizeUrl`), dus het schema komt er hier bij.
+          url: `https://${profile.url.replace(/^https?:\/\//, "")}`,
+          sameAs:
+            ((techniekFacet?.raw_json as { sameAs?: string[] } | null)?.sameAs ??
+              []),
+        }
+      : null,
     brandName: profile?.brand_name ?? analysis.url,
     needsFactFinding: contentWebSearchEnabled && proofCount < minProofPointsForConcreteContent,
     baseInput: buildContentInput({
@@ -910,6 +949,45 @@ function assessClaims(piece: ContentPiece, facts: FactItem[], brandName: string)
   return detectedCoverage({ detected, claims: piece.claims ?? [], facts });
 }
 
+/**
+ * De andere huidige pagina's van hetzelfde MERK, om deze tekst tegen af te
+ * zetten (optimalisatie 3).
+ *
+ * Per profiel en niet per analyse: een merk heeft meerdere analyses en die
+ * putten allemaal uit dezelfde feitenkaart, dezelfde stijlvoorbeelden en
+ * dezelfde merkregels. Juist dáár ontstaat de herhaling — twee analyses over
+ * aanpalende onderwerpen leveren eerder twee gelijkende pagina's op dan twee
+ * pagina's binnen één analyse.
+ *
+ * De pagina zelf valt eruit; anders lijkt elke tekst voor 100% op zichzelf.
+ */
+async function loadSiblingPages(
+  admin: ReturnType<typeof createAdminClient>,
+  profileId: string,
+  excludePieceId: string | null,
+): Promise<{ title: string; body: string }[]> {
+  // Twee queries en geen join: de ketentest-shim ondersteunt geen ingebedde
+  // selects, en dat is hier geen beperking maar een gunst — twee expliciete
+  // stappen zijn beter na te lezen dan `analyses!inner(profile_id)`.
+  const { data: analyseRows } = await admin
+    .from("analyses")
+    .select("id")
+    .eq("profile_id", profileId);
+
+  const analyseIds = ((analyseRows ?? []) as { id: string }[]).map((a) => a.id);
+  if (analyseIds.length === 0) return [];
+
+  const { data } = await admin
+    .from("content_pieces")
+    .select("id, title, body_markdown")
+    .in("analysis_id", analyseIds)
+    .eq("is_current", true);
+
+  return ((data ?? []) as { id: string; title: string; body_markdown: string | null }[])
+    .filter((r) => r.id !== excludePieceId && (r.body_markdown ?? "").trim().length > 0)
+    .map((r) => ({ title: r.title, body: r.body_markdown as string }));
+}
+
 /** De kolommen die uit de SCHRIJFronde komen — los van het oordeel dat erna volgt. */
 function buildDraftRow(args: {
   analysisId: string;
@@ -923,6 +1001,9 @@ function buildDraftRow(args: {
   /** De kaart waartegen de beweringen nagerekend worden (R5.3). */
   facts: FactItem[];
   brandName: string;
+  /** Bepaalt het `@type` van een landingspagina (optimalisatie 2). */
+  businessModel: BusinessModel | null;
+  schemaOrg: OrganizationInfo | null;
 }) {
   const {
     analysisId,
@@ -939,6 +1020,10 @@ function buildDraftRow(args: {
 
   const { coverage, unsupported } = assessClaims(draft.parsed, facts, brandName);
 
+  // De datum die zowel in de opmaak als onderaan de tekst komt te staan. Één
+  // bron, zodat de bezoeker en de crawler niet twee verschillende dagen zien.
+  const nu = new Date().toISOString();
+
   return {
     analysis_id: analysisId,
     report_id: reportId,
@@ -954,7 +1039,9 @@ function buildDraftRow(args: {
     title: recommendation.title,
     target_intent: draft.parsed.targetIntent,
     cluster: draft.parsed.cluster,
-    body_markdown: draft.parsed.bodyMarkdown,
+    // Versheid in de opmaak die de bezoeker niet ziet, is de helft van het
+    // signaal: een assistent citeert uit de lopende tekst, niet uit de JSON-LD.
+    body_markdown: withFreshnessLine(draft.parsed.bodyMarkdown, nu),
     meta_title: draft.parsed.metaTitle,
     meta_description: draft.parsed.metaDescription,
     schema_jsonld: validateOrRebuildJsonLd(draft.parsed.schemaJsonLd, {
@@ -963,6 +1050,11 @@ function buildDraftRow(args: {
       description: draft.parsed.metaDescription,
       url: analysis.url,
       faq: draft.parsed.faq,
+      businessModel: args.businessModel,
+      organization: args.schemaOrg,
+      // Bij de eerste versie zijn publicatie en wijziging hetzelfde moment.
+      datePublished: nu,
+      dateModified: nu,
     }),
     faq_json: draft.parsed.faq as never,
     raw_json: draft.raw as never,
@@ -1179,6 +1271,8 @@ export async function draftContentPiece(args: {
     // narekenen zou een dekking opleveren die niets zegt over deze tekst.
     facts: ctx.facts,
     brandName,
+    businessModel: ctx.profile?.business_model ?? null,
+    schemaOrg: ctx.schemaOrg,
     version: nextVersion,
     supersedesId: resumeId ? null : (current?.id ?? null),
   });
@@ -1215,6 +1309,28 @@ export async function draftContentPiece(args: {
   });
   const geo_score = gate.score ?? geoScore(geo);
 
+  // ── De tweede poort: kwaliteit, los van de GEO-score ─────────────────────
+  //
+  // Bewust NIET in `geo_score` verrekend. Zie de toelichting bij `checkQuality`:
+  // twee checks erbij zou de score van vorige maand onvergelijkbaar maken met
+  // die van vandaag, terwijl de app trends toont.
+  const quality = checkQuality({
+    bodyMarkdown: draft.parsed.bodyMarkdown,
+    mostSimilar: mostSimilar(
+      draft.parsed.bodyMarkdown,
+      await loadSiblingPages(admin, analysis.profile_id, pieceId),
+    ),
+  });
+  // De gemeten waarde altijd loggen, ook onder de drempel: zonder die reeks kan
+  // de drempel van 0,35 nooit op echte data bijgesteld worden.
+  if (quality.gemeten.gelijkenis !== null) {
+    console.info(
+      `Contentpagina ${pieceId}: gelijkenis ${quality.gemeten.gelijkenis.toFixed(2)} ` +
+        `met "${quality.gemeten.gelijkenisMet}", ` +
+        `gemiddelde zinslengte ${quality.gemeten.gemiddeldeZinslengte}.`,
+    );
+  }
+
   // Zinnen die een uitspraak doen over het bedrijf zonder dat het model ze als
   // bewering aanmeldde (S3). Dat is de categorie waarin beide fabricages van
   // 31 juli vielen, en de herschrijfronde kan er iets mee: de zin staat erbij.
@@ -1235,6 +1351,7 @@ export async function draftContentPiece(args: {
     ...critique.parsed.issues,
     ...geoIssues(geo),
     ...gate.issues,
+    ...quality.issues,
     ...brononderbouwing,
   ];
 
@@ -1256,7 +1373,12 @@ export async function draftContentPiece(args: {
       // `deterministisch` is wat de code kon vaststellen. Uit elkaar houden
       // maakt achteraf zichtbaar wannéér die twee gingen afwijken — precies het
       // signaal dat deze poort nodig maakte.
-      geo_json: { zelfrapportage: geo, deterministisch: gate.checks } as never,
+      geo_json: {
+        zelfrapportage: geo,
+        deterministisch: gate.checks,
+        kwaliteit: quality.checks,
+        gemeten: quality.gemeten,
+      } as never,
       // Wat er nog aan schort, in gewone taal (4.13). Stond alleen in de ruwe
       // API-respons, en die laat je een klant niet lezen.
       review_notes: issues,
@@ -1303,6 +1425,14 @@ export async function reviseContentPiece(args: {
   const { analysis, targets, baseInput, brandName } = ctx;
   const draftPiece = pieceFromRow(pieceRow as ContentPieceRow);
 
+  // De publicatiedatum van de eerste versie behouden (optimalisatie 2). Staat
+  // hij er nog niet — een pagina van vóór deze wijziging — dan valt hij terug op
+  // wanneer de rij is aangemaakt, en dat is precies wat hij moet zijn.
+  const herzienOp = new Date().toISOString();
+  const bestaandePublicatie =
+    bestaandeDatePublished(pieceRow.schema_jsonld as string | null) ??
+    ((pieceRow.created_at as string | null) ?? herzienOp);
+
   const revised = await callStructured({
     model: MODELS.content,
     system: ctx.needsFactFinding ? CONTENT_SYSTEM + FACT_FINDING_ADDENDUM : CONTENT_SYSTEM,
@@ -1339,6 +1469,24 @@ export async function reviseContentPiece(args: {
     distinctiveAnswers: ctx.distinctiveAnswers,
   });
   const geo_score = gate.score ?? geoScore(geo);
+
+  // De tweede poort, ook hier: dit is de EINDSTAND en er volgt geen derde ronde.
+  // Raakt `geo_score` bewust niet aan — zie de toelichting bij `checkQuality`.
+  const quality = checkQuality({
+    bodyMarkdown: final.bodyMarkdown,
+    mostSimilar: mostSimilar(
+      final.bodyMarkdown,
+      await loadSiblingPages(admin, analysis.profile_id, contentPieceId),
+    ),
+  });
+  if (quality.gemeten.gelijkenis !== null) {
+    console.info(
+      `Contentpagina ${contentPieceId}: gelijkenis ${quality.gemeten.gelijkenis.toFixed(2)} ` +
+        `met "${quality.gemeten.gelijkenisMet}", ` +
+        `gemiddelde zinslengte ${quality.gemeten.gemiddeldeZinslengte}.`,
+    );
+  }
+
   const needsReview =
     !critique.parsed.followsRules ||
     critique.parsed.qualityScore < REVIEW_THRESHOLD ||
@@ -1346,7 +1494,8 @@ export async function reviseContentPiece(args: {
     // Een openstaand punt uit de poort is een harde reden om na te kijken. De
     // redacteur beoordeelt de tekst; de poort beoordeelt of de pagina zijn
     // opdracht uitvoert — en dat laatste mag niet stil wegvallen.
-    gate.issues.length > 0;
+    gate.issues.length > 0 ||
+    quality.issues.length > 0;
 
   // Ruwe kritiek van BEIDE rondes bewaren (§5: we bewaren alles).
   const previousCritiques = Array.isArray(pieceRow.critique_raw_json) ? pieceRow.critique_raw_json : [];
@@ -1387,7 +1536,10 @@ export async function reviseContentPiece(args: {
       // veranderen, niet waar de pagina heet.
       target_intent: final.targetIntent,
       cluster: final.cluster,
-      body_markdown: final.bodyMarkdown,
+      // `withFreshnessLine` is idempotent: hij vervangt een bestaande regel in
+      // plaats van er een tweede onder te zetten. Zonder dat zou elke
+      // herschrijfronde er een regel bij plakken.
+      body_markdown: withFreshnessLine(final.bodyMarkdown, herzienOp),
       meta_title: final.metaTitle,
       meta_description: final.metaDescription,
       schema_jsonld: validateOrRebuildJsonLd(final.schemaJsonLd, {
@@ -1396,6 +1548,13 @@ export async function reviseContentPiece(args: {
         description: final.metaDescription,
         url: analysis.url,
         faq: final.faq,
+        businessModel: ctx.profile?.business_model ?? null,
+        organization: ctx.schemaOrg,
+        // De publicatiedatum blijft van de eerste versie; alleen de
+        // wijzigingsdatum schuift op. Andersom zou elke herziening de pagina
+        // als "nieuw" presenteren en de opgebouwde ouderdom weggooien.
+        datePublished: bestaandePublicatie,
+        dateModified: herzienOp,
       }),
       faq_json: final.faq as never,
       raw_json: revised.raw as never,
@@ -1407,12 +1566,18 @@ export async function reviseContentPiece(args: {
       critique_raw_json: [...previousCritiques, critique.raw] as never,
       quality_score: critique.parsed.qualityScore,
       geo_score,
-      geo_json: { zelfrapportage: geo, deterministisch: gate.checks } as never,
+      geo_json: {
+        zelfrapportage: geo,
+        deterministisch: gate.checks,
+        kwaliteit: quality.checks,
+        gemeten: quality.gemeten,
+      } as never,
       // Een onherleidbare bewering is óók een reden om na te kijken, ook als de
       // redacteur tevreden was: die beoordeelt de tekst, niet de herkomst.
       review_notes: [
         ...(needsReview ? [...critique.parsed.issues, ...geoIssues(geo)] : []),
         ...gate.issues,
+        ...quality.issues,
         ...bronNotitie,
       ],
       // Een onherleidbare bewering telt, en sinds S3 ook een bewerende zin
