@@ -10,7 +10,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
  *
  * De superuser voert URL + bedrijfsnaam in, de pijplijn bouwt in ~6 minuten een
  * profiel op, en in het demogesprek wordt dat gecorrigeerd en aangevuld. Pas
- * daarna — na de verkoop — gaat het profiel naar het account van de klant.
+ * daarna, na de verkoop, gaat het profiel naar het account van de klant.
  *
  * Accounts aanmaken hoort hier NIET. Dat doet de eigenaar in het
  * Supabase-dashboard. Deze route kiest uit gebruikers die al bestaan; hij maakt
@@ -21,14 +21,14 @@ import { createAdminClient } from "@/lib/supabase/admin";
  *
  * `user_id` komt in precies twee tabellen voor: `profiles` (migratie 0004) en
  * `analyses` (0001). Nagelopen over alle migraties op 3 augustus 2026. Al het
- * andere — `prompts`, `tracking_runs`, `reports`, `content_pieces` — hangt via
+ * andere, `prompts`, `tracking_runs`, `reports`, `content_pieces`, hangt via
  * `analysis_id` aan de analyse en verhuist vanzelf mee met de RLS-join.
  *
  * Zou je hier alleen `profiles` bijwerken, dan ziet de klant zijn merk maar
- * geen enkele analyse — en dat is precies het scherm waar hij voor betaalt.
+ * geen enkele analyse, en dat is precies het scherm waar hij voor betaalt.
  */
 
-/** GET — welke gebruikers zijn er om aan toe te wijzen? Alleen voor beheerders. */
+/** GET: welke gebruikers zijn er om aan toe te wijzen? Alleen voor beheerders. */
 export async function GET() {
   const user = await getUser();
   if (!user) return NextResponse.json({ error: "Je bent niet ingelogd." }, { status: 401 });
@@ -57,7 +57,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 
   // Bewust géén getOwnedProfile: toewijzen is een beheerdersactie, ook op een
   // profiel dat de beheerder zelf bezit. Een gewone klant mag zijn profiel niet
-  // aan iemand anders geven — dat zou hem zijn eigen data laten weggeven.
+  // aan iemand anders geven. Dat zou hem zijn eigen data laten weggeven.
   if (!(await isStaff(user.id))) {
     return NextResponse.json({ error: "Niet gevonden." }, { status: 404 });
   }
@@ -84,7 +84,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   if (!profile) return NextResponse.json({ error: "Niet gevonden." }, { status: 404 });
 
   // Bestaat de doelgebruiker écht? Een typefout in een uuid zou anders een
-  // profiel toewijzen aan een account dat niet bestaat — onzichtbaar voor
+  // profiel toewijzen aan een account dat niet bestaat, onzichtbaar voor
   // iedereen, want de RLS-join levert dan gewoon niets op.
   const { data: target, error: targetError } = await admin.auth.admin.getUserById(targetUserId);
   if (targetError || !target?.user) {
@@ -107,7 +107,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 
   // Postgres kent hier geen transactie over twee losse PostgREST-verzoeken. Zou
   // deze tweede update falen, dan staat het profiel op de klant en de analyses
-  // nog op de beheerder — een half overgedragen account. Daarom draaien we het
+  // nog op de beheerder, een half overgedragen account. Daarom draaien we het
   // profiel dan terug, zodat de toestand consistent blijft en de melding klopt.
   const { error: analysesError } = await admin
     .from("analyses")

@@ -8,7 +8,7 @@ import "server-only";
  * maken (7.3/7.6).
  *
  * Dat laatste is het punt. Off-site advies dat geen taak wordt, blijft hangen
- * als goede bedoeling — "je zou eens naar reviewplatforms moeten kijken" is
+ * als goede bedoeling, "je zou eens naar reviewplatforms moeten kijken" is
  * geen advies, dat is een gevoel. Een taak met een status is iets wat je afvinkt.
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -145,8 +145,8 @@ async function createTasks(
         `Bij ${row.prompt_count} van je vragen haalt de AI ${row.domain} aan als bron.` +
         `${competitorLine} Jij staat er niet op, dus bij die vragen kan de AI je via deze weg niet vinden.`,
       action:
-        `Kijk of je een bedrijfsprofiel kunt aanmaken op ${row.domain}. Vul het volledig in — ` +
-        `naam, werkgebied, diensten en contactgegevens — want een half profiel wordt zelden aangehaald.`,
+        `Kijk of je een bedrijfsprofiel kunt aanmaken op ${row.domain}. Vul het volledig in, ` +
+        `naam, werkgebied, diensten en contactgegevens, want een half profiel wordt zelden aangehaald.`,
       // Meer vragen = hogere prioriteit. Laag getal is eerst.
       priority: Math.max(1, 50 - row.prompt_count),
     });
@@ -164,11 +164,11 @@ async function createTasks(
       why:
         "Wikidata is de open feitendatabase waar AI-systemen uit putten om te bepalen of een bedrijf " +
         "een bestaande entiteit is. Staat je merk er niet in, dan is het voor een model geen ding maar " +
-        "een woord — en dan noemt het je minder snel bij naam.",
+        "een woord, en dan noemt het je minder snel bij naam.",
       action:
         "Een Wikidata-item aanmaken kan zelf en is gratis, maar de gegevens moeten wel te " +
         "onderbouwen zijn met externe bronnen (KvK, vakpers, nieuwsberichten). Heb je die niet, " +
-        "werk daar dan eerst aan — dit is een gevolg, geen startpunt.",
+        "werk daar dan eerst aan. Dit is een gevolg, geen startpunt.",
       priority: 70,
     });
   }
@@ -184,7 +184,7 @@ async function createTasks(
       action:
         "Dit is géén doe-het-zelf-actie: een artikel over je eigen bedrijf schrijven is op Wikipedia " +
         "niet toegestaan en wordt verwijderd. Een artikel ontstaat pas als onafhankelijke bronnen " +
-        "over je schrijven. Zie dit dus als een gevolg van bekendheid, niet als een taak — we noemen " +
+        "over je schrijven. Zie dit dus als een gevolg van bekendheid, niet als een taak. We noemen " +
         "het omdat het verklaart waarom je in AI-antwoorden minder vaak opduikt dan grotere partijen.",
       priority: 90,
     });

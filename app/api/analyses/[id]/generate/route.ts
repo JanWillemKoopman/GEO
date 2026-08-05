@@ -9,7 +9,7 @@ import type { RecommendationPayload } from "@/lib/jobs/types";
 import type { RecommendationTarget } from "@/lib/pipeline/recommendation";
 
 /**
- * POST /api/analyses/[id]/generate — plant het schrijven van één pagina in
+ * POST /api/analyses/[id]/generate, plant het schrijven van één pagina in
  * (optimalisatie.md 1.4, Fase C).
  *
  * Was de meest waarschijnlijke plek om op de tijdslimiet stuk te lopen: vier
@@ -19,7 +19,7 @@ import type { RecommendationTarget } from "@/lib/pipeline/recommendation";
  *
  * Sinds fase 4 draagt de aanvraag de DOELVRAGEN mee (4.1): welke gemiste vragen
  * deze pagina moet gaan winnen. En met `regenerate: true` mag er een nieuwe
- * versie bovenop een afgeronde pagina (4.7) — voorheen liep een pagina met
+ * versie bovenop een afgeronde pagina (4.7), voorheen liep een pagina met
  * "check nodig" dood, omdat de idempotentie op de titel zat.
  */
 

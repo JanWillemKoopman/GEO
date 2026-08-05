@@ -6,7 +6,7 @@ import type { AuditCheck, AuditSeverity } from "@/lib/audit/technical";
  *
  * Volgorde is de boodschap: blokkades bovenaan, dan waarschuwingen, dan wat in
  * orde is. Wie dit scherm opent moet binnen twee seconden weten of er iets aan
- * de hand is — en zo ja, wat en wie het kan oplossen. Vandaar dat bij elke
+ * de hand is, en zo ja, wat en wie het kan oplossen. Vandaar dat bij elke
  * blokkade niet alleen staat wat er mis is, maar ook wat eraan te doen is en bij
  * wie je daarvoor moet zijn; "je robots.txt blokkeert OAI-SearchBot" is voor een
  * ondernemer geen actie maar een raadsel.
@@ -52,7 +52,7 @@ export function AuditPanel({
           Technische controle
           <InfoHint label="Technische controle">
             Aura kijkt of AI-assistenten je site überhaupt mogen en kunnen lezen. Staat die deur
-            dicht, dan heeft content laten schrijven geen zin — niemand leest hem ooit.
+            dicht, dan heeft content laten schrijven geen zin, want niemand leest hem ooit.
           </InfoHint>
         </span>
         <span className="mono-label">

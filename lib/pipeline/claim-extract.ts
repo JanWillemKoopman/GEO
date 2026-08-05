@@ -12,7 +12,7 @@
  *   4.470 woorden · ~250 zinnen · 49 getagde beweringen
  *
  * Ongeveer één op de vijf zinnen werd gemeten. De andere vier vijfde waren
- * onzichtbaar voor élke controle die dit systeem heeft — en dat is precies waar
+ * onzichtbaar voor élke controle die dit systeem heeft, en dat is precies waar
  * de twee ergste vondsten van de contentronde in verdwenen:
  *
  *   • Van der Valk: "Op valk.com zoekt en vergelijkt u snel alle opties…
@@ -86,7 +86,7 @@ function bevatMerknaam(zin: string, brandName: string): boolean {
  * De FAQ gaat mee, en dat is geen detail: `TYPE_GUIDANCE` stuurt bij het type
  * `faq` juist alles naar het FAQ-veld en houdt `bodyMarkdown` kort. Zou deze
  * functie alleen de body bekijken, dan zou precies dat contenttype ongemeten
- * blijven. De vraagregels zelf tellen niet mee — een vraag is geen bewering.
+ * blijven. De vraagregels zelf tellen niet mee, een vraag is geen bewering.
  */
 export function detectClaimSentences(
   args: { bodyMarkdown: string; faq?: { q: string; a: string }[] },
@@ -153,7 +153,7 @@ export function claimMatchesSentence(claim: string, sentence: string): boolean {
  *
  * Het model levert alleen het F-nummer; dat is de handle die het kent. De code
  * zoekt daar het feit bij op en legt het ID vast, zodat een bewering ook na een
- * herschrijfronde of een groeiende kaart nog naar hetzelfde feit wijst — een
+ * herschrijfronde of een groeiende kaart nog naar hetzelfde feit wijst, een
  * F-nummer is een positie, geen identiteit.
  *
  * Bij een samengestelde verwijzing ("F1, F2") wint het EERSTE deel dat een feit
@@ -174,7 +174,7 @@ export function resolveFactId(factRef: string | null | undefined, facts: FactIte
 export interface CoverageResult {
   /** Percentage gedetecteerde beweringen dat herleidbaar is. `null` = niets gedetecteerd. */
   coverage: number | null;
-  /** Hoeveel zinnen de code als bewering aanmerkte — de eerlijke noemer. */
+  /** Hoeveel zinnen de code als bewering aanmerkte, de eerlijke noemer. */
   detected: number;
   /** Hoeveel beweringen het model zelf tagde. */
   tagged: number;
@@ -188,7 +188,7 @@ export interface CoverageResult {
  * De bronnendekking, met een noemer die de code bepaalt.
  *
  * Een gedetecteerde zin telt als gedekt wanneer er een getagde claim bij hoort
- * die `isSupported()` overleeft. Een zin zonder claim telt als ONgedekt — dat is
+ * die `isSupported()` overleeft. Een zin zonder claim telt als ONgedekt. Dat is
  * het hele punt: niet-taggen mag geen manier zijn om aan de meting te ontsnappen.
  *
  * Nul gedetecteerde zinnen geeft `null` en niet 100. "Ik heb niets beweerd" is

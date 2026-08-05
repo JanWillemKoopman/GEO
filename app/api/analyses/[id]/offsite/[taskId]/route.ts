@@ -5,7 +5,7 @@ import { getOwnedAnalysis } from "@/lib/analyses";
 import type { OffsiteTaskStatus } from "@/lib/types/database";
 
 /**
- * PATCH /api/analyses/[id]/offsite/[taskId] — de status van een off-site taak
+ * PATCH /api/analyses/[id]/offsite/[taskId], de status van een off-site taak
  * bijwerken (optimalisatie.md 7.6).
  *
  * Zonder status blijft off-site advies hangen als goede bedoeling. "Je zou eens

@@ -1,17 +1,17 @@
 import "server-only";
 
 /**
- * Halte 2 — Prompt-generatie (abcplan.md §6 A2). Eén call per FUNNELFASE
+ * Halte 2, Prompt-generatie (abcplan.md §6 A2). Eén call per FUNNELFASE
  * (Oriëntatie/Overweging/Beslissing), PARALLEL afgevuurd, quality-tier,
  * geen web_search. Aantal per fase is configureerbaar (lib/config.ts).
  *
  * KERNPRINCIPE (merk- én concurrent-neutraliteit): een gegenereerde prompt mag
  * NOOIT de eigen merknaam/het domein van de klant bevatten, en ook GEEN
  * concurrerend bedrijf uit de concurrentenlijst. Anders is een vermelding
- * gegarandeerd (de naam staat immers al in de vraag) en meet de prompt niets —
+ * gegarandeerd (de naam staat immers al in de vraag) en meet de prompt niets,
  * het vervuilt de zichtbaarheid/share-of-voice. De meting moet SPONTANE
  * vermeldingen meten: wat vraagt iemand die de merken NOG NIET kent? Generieke
- * productmerken/categorieën (bv. "Nike-schoenen") mogen wél — die staan niet in
+ * productmerken/categorieën (bv. "Nike-schoenen") mogen wél. Die staan niet in
  * de concurrentenlijst en zijn geen concurrerend bedrijf van de klant.
  */
 import { callStructured } from "@/lib/openai/structured";
@@ -20,7 +20,7 @@ import { PromptSet, VolumeCalibration } from "@/lib/schemas/prompts";
 import { PROMPT_CATEGORIES, type PromptIntentType, type PromptSpecificity } from "@/lib/types/database";
 import { promptsPerFunnelStage } from "@/lib/config";
 
-/** Korte, sturende omschrijving per FUNNELFASE — merk- én concurrent-neutraal. */
+/** Korte, sturende omschrijving per FUNNELFASE: merk- én concurrent-neutraal. */
 const CATEGORY_BRIEF: Record<string, string> = {
   Oriëntatie:
     "AWARENESS: brede oriëntatievragen van iemand die zich net op het onderwerp inleest en nog geen aanbieder kent " +
@@ -30,7 +30,7 @@ const CATEGORY_BRIEF: Record<string, string> = {
     "of bedrijf te noemen (bv. 'Ketenzaak of zelfstandige specialist: wat is beter voor X?').",
   Beslissing:
     "DECISION: vragen van iemand die klaar is om te kiezen/kopen/boeken (bv. 'Waar koop ik X in [plaats]?', " +
-    "'Welke X-specialist is aan te raden?') — nog steeds zonder een concurrerend bedrijf bij naam te noemen.",
+    "'Welke X-specialist is aan te raden?'), nog steeds zonder een concurrerend bedrijf bij naam te noemen.",
 };
 
 export interface BrandContext {
@@ -40,7 +40,7 @@ export interface BrandContext {
   competitors: string[];
   toneOfVoice: string | null;
   summary: string | null;
-  /** Werkgebied & markt (§12.24) — sturen lokale/marktgerichte prompts. */
+  /** Werkgebied & markt (§12.24), sturen lokale/marktgerichte prompts. */
   serviceScope?: string | null;
   serviceRegions?: string[];
   marketLanguage?: string | null;
@@ -83,7 +83,7 @@ function forbiddenTokens(url: string, brandName: string | null, competitors: str
 /**
  * Woorden die weliswaar in een merknaam kunnen zitten, maar op zichzelf gewone
  * categoriewoorden zijn (optimalisatie.md 0.9). Zonder deze uitzondering wist
- * een concurrent als "Zonwering Plus" élke prompt over zonwering — precies de
+ * een concurrent als "Zonwering Plus" élke prompt over zonwering. Precies de
  * prompts die we willen meten.
  *
  * Alleen van toepassing op LOSSE woorden uit een meerwoordige naam; de volledige
@@ -124,7 +124,7 @@ function containsForbidden(text: string, tokens: string[]): boolean {
  * grens lag te laag voor een merk dat zijn eigen categorie definieert.
  *
  * Gemeten bij Swapfiets op 1 augustus 2026, onderwerp "fietsabonnement":
- * Oriëntatie leverde 2 van de 10 vragen op — 80% sneuvelde omdat het model in
+ * Oriëntatie leverde 2 van de 10 vragen op, 80% sneuvelde omdat het model in
  * een brede oriëntatievraag over fietsabonnementen vanzelf de marktleider
  * noemt, en dat is precies de klant. Overweging en Beslissing haalden allebei
  * gewoon 10. De klant zag alleen "22 actief van 22" en had geen enkele
@@ -140,7 +140,7 @@ const MAX_TOPUP_ATTEMPTS = 3;
  * Aanvullende instructie voor een vervolgronde.
  *
  * Zei eerder alleen "er ontbreken er nog N, herhaal deze niet". Daarmee wist het
- * model niet WAAROM zijn vorige vragen sneuvelden — het kreeg een lijst met
+ * model niet WAAROM zijn vorige vragen sneuvelden, het kreeg een lijst met
  * geaccepteerde vragen te zien en concludeerde daaruit niets over de merkregel.
  * Nu staat de reden er expliciet bij, met de namen die het niet mag gebruiken.
  */
@@ -150,7 +150,7 @@ function topUpNote(missing: number, existing: string[], verboden: string[]): str
     `AANVULLING: er ontbreken er nog ${missing}. Geef er precies ${missing}.\n` +
     `WAAROM ER VRAGEN ONTBREKEN: de vorige ronde bevatte vragen waarin een bedrijfsnaam voorkwam. ` +
     `Die zijn weggegooid. Noem in deze ronde dus GEEN van deze namen, in geen enkele vorm: ${namen}. ` +
-    `Ook niet als het bedrijf het meest voor de hand liggende antwoord op de vraag is — schrijf de ` +
+    `Ook niet als het bedrijf het meest voor de hand liggende antwoord op de vraag is. Schrijf de ` +
     `vraag zoals iemand die het bedrijf nog niet kent 'm zou stellen.\n` +
     `Herhaal NIET de vragen die er al zijn:\n${existing.map((t) => `- ${t}`).join("\n")}`
   );
@@ -171,7 +171,7 @@ function buildContextBlock(url: string, topic: string, brand: BrandContext): str
     `Onderwerp/scope: ${topic}\n` +
     `Branche: ${brand.industry ?? "onbekend"}\n` +
     `Producten/diensten: ${brand.products.join(", ") || "onbekend"}\n` +
-    `Concurrerende bedrijven — NOOIT bij naam noemen in een prompt: ${brand.competitors.join(", ") || "(geen bekend)"}\n` +
+    `Concurrerende bedrijven (NOOIT bij naam noemen in een vraag): ${brand.competitors.join(", ") || "(geen bekend)"}\n` +
     geoLine(brand) +
     `Samenvatting: ${brand.summary ?? ""}`
   );
@@ -191,10 +191,10 @@ async function generateForFunnelStage(args: {
 
   const scopeRule = `Alle prompts gaan UITSLUITEND over "${topic}" binnen deze branche.`;
 
-  // Content-brief van de klant (§6/§7/§8): stuurt de vragen naar de gewenste hoek/doelgroep.
+  // Content-brief van de klant (§6/§7/§8): stuurt de vragen naar de gewenste hoek en doelgroep.
   const briefRule = contentBrief?.trim()
     ? `GEWENSTE HOEK/DOELGROEP (van de klant): ${contentBrief.trim()}. Laat de gegenereerde vragen deze ` +
-      `hoek en doelgroep weerspiegelen — schrijf de vragen zoals díe specifieke zoeker ze zou stellen.`
+      `hoek en doelgroep weerspiegelen. Schrijf de vragen zoals díe specifieke zoeker ze zou stellen.`
     : "";
 
   // Lokaal bereik met bekende regio's → laat de vragen (deels) een plaatsnaam
@@ -213,7 +213,7 @@ async function generateForFunnelStage(args: {
 
   const system =
     `Je bedenkt realistische vragen ("prompts") die een echte koper aan een AI-assistent zoals ChatGPT stelt. ` +
-    `Schrijf natuurlijke, gesproken vragen — geen losse zoekwoorden. Varieer in toon en specificiteit. Nederlands. ` +
+    `Schrijf natuurlijke, gesproken vragen, geen losse zoekwoorden. Varieer in toon en specificiteit. Nederlands. ` +
     neutralityRule;
 
   const user =
@@ -223,13 +223,13 @@ async function generateForFunnelStage(args: {
     `${scopeRule}\n${geoRule ? `${geoRule}\n` : ""}${neutralityRule}\n` +
     `Geef per prompt mee: de onderliggende intentie (job-to-be-done); intentType ` +
     `(informational/commercial/transactional); specificity (head = korte brede vraag, long_tail = lange specifieke vraag); ` +
-    `purchaseIntent (koopintentie true/false); cluster (kort thema-label); en volumeEstimate — jouw SCHATTING van hoe ` +
+    `purchaseIntent (koopintentie waar of onwaar); cluster (kort thema-label); en volumeEstimate: jouw SCHATTING van hoe ` +
     `populair deze vraag is op een schaal 0-100 (0 = zeer specifiek/zelden, 100 = zeer populair/breed). Dit is een schatting, geen echte index.`;
 
   // Vangnet: gooi prompts weg die tóch de eigen merknaam of een concurrent
   // bevatten. Wordt er iets weggegooid, dan VULLEN WE AAN (optimalisatie.md 0.8):
   // eerder leverde `.slice(0, count)` na het filteren stilzwijgend minder prompts
-  // op, waardoor de meetbasis kromp zonder dat iemand het zag — en een kleinere
+  // op, waardoor de meetbasis kromp zonder dat iemand het zag, en een kleinere
   // meetbasis betekent een grovere, minder betrouwbare score.
   const collected: PromptSet["prompts"] = [];
   const seen = new Set<string>();
@@ -288,13 +288,13 @@ async function generateForFunnelStage(args: {
 
 /**
  * Kalibreert het geschatte zoekvolume RELATIEF over alle prompts van de analyse
- * in één call (abcplan.md §6 A2) — consistenter dan losse per-prompt-schattingen.
+ * in één call (abcplan.md §6 A2), consistenter dan losse per-prompt-schattingen.
  * Geeft per prompt een 0-100-waarde terug (op input-volgorde). Faalt de call,
  * dan vallen we terug op een neutrale 50 (blokkeert de analyse niet).
  *
  * We vragen nog steeds de volle schaal, want de RANGORDE die het model daarmee
  * aanbrengt is echte informatie: deze vraag is breder dan die. Alleen overleeft
- * dat getal de opslag niet als getal — prepare.ts zet het om in een band
+ * dat getal de opslag niet als getal, prepare.ts zet het om in een band
  * (hoog/midden/laag) en alleen die band weegt en verschijnt in de UI
  * (optimalisatie.md 2.6). De ruwe waarde blijft als audit-trail in
  * `volume_estimate` staan.
@@ -329,17 +329,17 @@ export async function calibrateVolumes(texts: string[], analysisId: string): Pro
 
 /**
  * Vuurt alle funnelfase-calls parallel af (geen onderlinge afhankelijkheid) en
- * bundelt het resultaat. Faalt één fase, dan faalt de hele batch — de
+ * bundelt het resultaat. Faalt één fase, dan faalt de hele batch, de
  * orchestratie (prepare.ts) markeert de analyse dan als 'mislukt' met retry.
  *
  * De volume-kalibratie zit hier BEWUST niet meer in. Elke funnelfase kan tot
  * MAX_TOPUP_ATTEMPTS aanroepen achter elkaar doen (vragen die de merknaam
  * bevatten worden weggegooid en bijgevuld), en met de kalibratie erachteraan
- * werden dat drie ronden in één taak — te veel voor de zestig seconden van één
+ * werden dat drie ronden in één taak, te veel voor de zestig seconden van één
  * werker-aanroep. De prompts krijgen hier een neutrale 50 mee; de losse taak
  * `calibrate_volumes` verfijnt dat daarna. Blijft die achterwege, dan is 50
  * precies de terugvalwaarde die deze functie bij een mislukte kalibratie ook al
- * gebruikte — de analyse werkt dus gewoon door.
+ * gebruikte, de analyse werkt dus gewoon door.
  */
 export async function generatePrompts(args: {
   /** Voor de kostenregistratie (optimalisatie.md 0.6). */
@@ -360,7 +360,7 @@ export async function generatePrompts(args: {
   // Zonder vragen is er niets te meten, en een analyse die daar tóch mee
   // doorloopt komt nooit meer verder: de meting plant nul taken in, dus de
   // aggregatie en het rapport worden nooit afgetrapt en de klant kijkt naar een
-  // voortgangsscherm dat eeuwig draait. Liever hier eerlijk falen — de wachtrij
+  // voortgangsscherm dat eeuwig draait. Liever hier eerlijk falen, de wachtrij
   // probeert het opnieuw, en lukt het dan nog niet, dan ziet de klant een
   // fout met een retry-knop in plaats van stilstand.
   if (prompts.length === 0) {

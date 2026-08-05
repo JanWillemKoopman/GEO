@@ -10,13 +10,13 @@ import type { Entity } from "@/lib/types/database";
  * Concurrenten beheren (optimalisatie.md 2.7).
  *
  * Dit is niet alleen opruimwerk. Het is het moment waarop de klant merkt dat de
- * app zijn markt begrijpt — en tegelijk het moment waarop de data beter wordt,
+ * app zijn markt begrijpt, en tegelijk het moment waarop de data beter wordt,
  * want alleen BEVESTIGDE concurrenten tellen mee in het aandeel.
  *
  * Drie groepen, in de volgorde waarin ze aandacht verdienen:
- *   1. Nieuw gevonden — wachten op een oordeel. Bovenaan, want hier is iets te doen.
- *   2. Jouw concurrenten — de vaste noemer van het aandeel.
- *   3. Weggezet — dichtgeklapt, terug te halen.
+ *   1. Nieuw gevonden, wachten op een oordeel. Bovenaan, want hier is iets te doen.
+ *   2. Jouw concurrenten, de vaste noemer van het aandeel.
+ *   3. Weggezet, dichtgeklapt, terug te halen.
  */
 export function EntitiesManager({ profileId, initial }: { profileId: string; initial: Entity[] }) {
   const [entities, setEntities] = useState(initial);
@@ -26,7 +26,7 @@ export function EntitiesManager({ profileId, initial }: { profileId: string; ini
 
   // Sinds migratie 0026 bepaalt de ROL wie meetelt, niet het bevestigingsvinkje.
   // 'pending' is daarom niet meer "wacht op de klant" maar "de classificatie is
-  // er nog niet aan toegekomen" — een tussenstand van seconden, geen werklijst.
+  // er nog niet aan toegekomen", een tussenstand van seconden, geen werklijst.
   const { pending, competitors, others, dismissed } = useMemo(() => {
     const sorted = [...entities].sort((a, b) => a.canonical_name.localeCompare(b.canonical_name, "nl"));
     const live = sorted.filter((e) => !e.dismissed);
@@ -95,7 +95,7 @@ export function EntitiesManager({ profileId, initial }: { profileId: string; ini
           Concurrenten
           <InfoHint label="Concurrenten">
             Deze lijst komt uit de metingen: elk merk dat een AI-assistent in zijn antwoorden noemt,
-            deelt Aura automatisch in. Alleen echte concurrenten tellen mee in je aandeel — een
+            deelt Aura automatisch in. Alleen echte concurrenten tellen mee in je aandeel, want een
             vergelijkingssite of brancheorganisatie zou dat cijfer vertekenen. Klopt een indeling
             niet? Pas hem hier aan; jouw keuze overschrijft Aura daarna nooit meer.
           </InfoHint>
@@ -112,7 +112,7 @@ export function EntitiesManager({ profileId, initial }: { profileId: string; ini
               {pending.length} nieuw gevonden {pending.length === 1 ? "merk" : "merken"}
             </span>{" "}
             in de laatste meting, nog niet ingedeeld. Aura doet dat bij de eerstvolgende ronde
-            automatisch — jij hoeft niets.
+            automatisch, jij hoeft niets.
           </p>
           <ul className="flex flex-col gap-2">
             {pending.map((e) => (

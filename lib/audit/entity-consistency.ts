@@ -25,7 +25,7 @@ import type { AuditCheck } from "@/lib/audit/technical";
 export interface EntityConsistencyInput {
   /** De canonieke naam zoals de klant hem opgaf. */
   brandName: string;
-  /** Naamvarianten uit JSON-LD, og:site_name en `<title>` — uit fase 0. */
+  /** Naamvarianten uit JSON-LD, og:site_name en `<title>`, uit fase 0. */
   foundNames: string[];
   /** Aliassen die de klant zelf opgaf; die tellen niet als afwijking. */
   aliases: string[];
@@ -46,7 +46,7 @@ export interface EntityConsistencyInput {
  * Vergelijkt twee namen los van hoofdletters, leestekens en rechtsvormen.
  *
  * "Jansen Bouw B.V." en "jansen bouw" zijn hetzelfde bedrijf en horen geen
- * bevinding op te leveren — anders staat er bij elke klant met een B.V. een
+ * bevinding op te leveren. Anders staat er bij elke klant met een B.V. Een
  * waarschuwing die niets betekent, en dan leest niemand de audit meer.
  */
 export function normalizeBrand(name: string): string {
@@ -118,7 +118,7 @@ export function entityConsistencyChecks(input: EntityConsistencyInput): AuditChe
       fix:
         "Kies één schrijfwijze en gebruik die overal: op de site, in de schema-opmaak en op je " +
         "sociale profielen. Zijn het bewust verschillende namen, voeg ze dan hier toe als " +
-        "alternatieve schrijfwijze — dan telt de meting ze wél mee.",
+        "alternatieve schrijfwijze. Dan telt de meting ze wél mee.",
       who: "jijzelf of je websitebouwer",
     });
   }
@@ -199,7 +199,7 @@ export function entityConsistencyChecks(input: EntityConsistencyInput): AuditChe
         `verschijnt de tekst pas nadat JavaScript is uitgevoerd. AI-crawlers doen dat niet.`,
       fix:
         "Laat de belangrijkste pagina's server-side renderen (of prerenderen). Zolang dit zo is, " +
-        "leest een AI-assistent een lege pagina — hoe goed de tekst ook is.",
+        "leest een AI-assistent een lege pagina, hoe goed de tekst ook is.",
       who: "je websitebouwer",
     });
   }
@@ -213,7 +213,7 @@ export function entityConsistencyChecks(input: EntityConsistencyInput): AuditChe
     // norm en geen fout. Het is een kans, en zo hoort het te lezen.
     severity: inKennisbank ? "ok" : "unknown",
     finding: inKennisbank
-      ? "Het bedrijf komt voor in Wikidata of Wikipedia — een sterk herkenningssignaal."
+      ? "Het bedrijf komt voor in Wikidata of Wikipedia, een sterk herkenningssignaal."
       : "Het bedrijf staat niet in Wikidata of Wikipedia. Voor een MKB-bedrijf is dat normaal.",
     fix: inKennisbank
       ? null

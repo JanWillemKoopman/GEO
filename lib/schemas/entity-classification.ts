@@ -4,7 +4,7 @@ import { z } from "zod";
  * Classificatie van ontdekte merken (migratie 0026).
  *
  * Sinds de meting puur ontdekt, komt élk merk uit een AI-antwoord binnen als
- * entiteit — inclusief AutoScout24, Marktplaats en de ANWB bij een autobedrijf.
+ * entiteit, inclusief AutoScout24, Marktplaats en de ANWB bij een autobedrijf.
  * Zonder dit onderscheid zouden die als "concurrent" in de grafiek staan en het
  * aandeel van de klant drukken. Deze stap bepaalt per merk wat het IS.
  *
@@ -13,7 +13,7 @@ import { z } from "zod";
  * en in share_of_voice.
  */
 export const ENTITY_ROLES = [
-  /** Een bedrijf dat hetzelfde aanbiedt aan dezelfde klant — telt mee. */
+  /** Een bedrijf dat hetzelfde aanbiedt aan dezelfde klant, telt mee. */
   "concurrent",
   /** Het merk van de klant zelf, in een andere schrijfwijze. */
   "eigen_merk",

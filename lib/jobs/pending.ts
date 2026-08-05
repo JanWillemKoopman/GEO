@@ -2,7 +2,7 @@
  * Wanneer is een periodieke meetronde klaar? (optimalisatie.md 1.5)
  *
  * Bewust een eigen module ZONDER `server-only`, om dezelfde reden als de andere
- * losse rekenmodules: dit is de voorwaarde waar de hele keten aan hangt — is
+ * losse rekenmodules: dit is de voorwaarde waar de hele keten aan hangt, is
  * deze meting de laatste, dan mag de aggregatie starten, en die plant op zijn
  * beurt het rapport in. Zit hier een fout in, dan blijft een analyse hangen op
  * een voortgangsscherm dat nooit verder komt, en dat is precies het soort fout
@@ -15,7 +15,7 @@
  * blijven wachten op werk dat er niets mee te maken heeft.
  */
 
-/** Alleen wat we nodig hebben van een taakrij — geen databasetype nodig. */
+/** Alleen wat we nodig hebben van een taakrij. Geen databasetype nodig. */
 export interface PendingJobRow {
   payload_json: unknown;
 }

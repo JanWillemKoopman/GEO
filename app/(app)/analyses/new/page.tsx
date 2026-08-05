@@ -25,7 +25,7 @@ export default async function NewAnalysisPage() {
         <h1 className="mt-3 text-3xl font-bold tracking-tight">Nieuwe analyse</h1>
         <p className="mt-2 text-secondary">
           Kies een merk en het product of onderwerp dat je wilt meten. Aura zoekt alleen nog uit wat
-          je website hierover zegt en wie op dít onderwerp je concurrenten zijn — de rest weet het
+          je website hierover zegt en wie op dít onderwerp je concurrenten zijn. De rest weet het
           al uit het merkdossier.
         </p>
       </div>
@@ -35,7 +35,7 @@ export default async function NewAnalysisPage() {
           <h2 className="text-xl font-semibold">Eerst een merk</h2>
           <p className="max-w-md text-secondary">
             Aura meet altijd binnen een merk. Voeg er één toe, en daarna koppel je hier zoveel
-            analyses aan als je wilt — één per product of onderwerp.
+            analyses aan als je wilt, één per product of onderwerp.
           </p>
           <Link href="/profielen/nieuw" className="btn-primary mt-2">
             Merk toevoegen
@@ -43,7 +43,7 @@ export default async function NewAnalysisPage() {
         </div>
       ) : (
         /* Staat de mail uit, dan verbergt het formulier het vinkje "mail me
-           zodra het rapport klaar is" — een keuze aanbieden die niets doet, is
+           zodra het rapport klaar is". Een keuze aanbieden die niets doet, is
            erger dan hem niet aanbieden. */
         <NewAnalysisForm profiles={profiles} emailsEnabled={emailsEnabled()} />
       )}

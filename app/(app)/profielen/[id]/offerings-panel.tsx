@@ -14,7 +14,7 @@ import type { InventoryQuality, ProfileOffering } from "@/lib/types/database";
  *
  * De klant vulde drie velden in; alles hier komt van een model dat naar
  * gecrawlde pagina's keek. Zonder de bron-URL erbij is een verkeerde dienst niet
- * te corrigeren — niemand gaat bij dertig regels handmatig uitzoeken waar er één
+ * te corrigeren. Niemand gaat bij dertig regels handmatig uitzoeken waar er één
  * vandaan komt. Vandaar dat elke knoop zijn pagina toont.
  *
  * ── EN WAAROM DE INVENTARISKWALITEIT ERBOVEN STAAT ──────────────────────────
@@ -22,7 +22,7 @@ import type { InventoryQuality, ProfileOffering } from "@/lib/types/database";
  * Bij Bol leverde de crawl één pagina op, bij HEMA veertig productpagina's. In
  * beide gevallen draaide de pijplijn gewoon door en zei het rapport nergens dat
  * het op vrijwel niets rustte (R6.2). Als het aanbod dun is omdat de crawl dun
- * was, hoort dat hier te staan — bóven de lijst, niet eronder.
+ * was, hoort dat hier te staan, bóven de lijst, niet eronder.
  */
 
 const KIND_LABELS: Record<ProfileOffering["kind"], string> = {
@@ -48,12 +48,12 @@ export function OfferingsPanel({
   /**
    * Welke onderdelen een eigen pagina hebben en welke niet
    * (docs/tasks/inspace-optimalisaties-1-4.md, 1). Afgeleid bij het lezen, niet
-   * opgeslagen — hij verandert zodra er een pagina bijkomt.
+   * opgeslagen, hij verandert zodra er een pagina bijkomt.
    */
   coverage?: StructureCoverage | null;
 }) {
   // Geen aanbod én geen inventarisoordeel: het onderzoek is hier niet langs
-  // geweest. Ook dan een blok tonen, met de knop die het alsnog start — dit is
+  // geweest. Ook dan een blok tonen, met de knop die het alsnog start. Dit is
   // het paneel waar "Onderzoek opnieuw" woont, en juist een klant met een lege
   // boom heeft die knop nodig.
   if (offerings.length === 0 && !inventory) {
@@ -62,7 +62,7 @@ export function OfferingsPanel({
         <span className="mono-label">Wat je aanbiedt</span>
         <p className="text-secondary">
           Je aanbod is nog niet in kaart gebracht. Zodra het onderzoek klaar is,
-          staat hier elke dienst en productgroep die Aura op je site vond — met de
+          staat hier elke dienst en productgroep die Aura op je site vond, met de
           pagina waar het die vandaan haalde.
         </p>
         <RerunResearchButton profileId={profileId} />
@@ -86,7 +86,7 @@ export function OfferingsPanel({
    * ⚠️ EEN REGEL PER KNOOP, DETAILS ACHTER EEN KLIK
    *
    * Elke knoop toonde naam, omschrijving, doelgroep, prijs én bronlink onder
-   * elkaar. Bij Fysi-Unique zijn dat 22 knopen — twee tot drie schermen scrollen
+   * elkaar. Bij Fysi-Unique zijn dat 22 knopen. Twee tot drie schermen scrollen
    * midden in een demo, terwijl de interessante regels juist de knopen mét een
    * dekkingsgat zijn.
    *

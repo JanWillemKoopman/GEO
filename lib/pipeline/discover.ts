@@ -8,21 +8,21 @@ import "server-only";
  * Het profielonderzoek deed één AI-aanroep op `crawlSite()`, en dat is de
  * HOMEPAGE afgekapt op 6000 tekens (`crawler.ts`, MAX_CHARS). De 60 pagina's uit
  * de content-inventaris draaiden er parallel aan en werden pas ná de aanroep
- * opgeslagen — die kwamen het onderzoek dus nooit in. Alles wat het model over
+ * opgeslagen. Die kwamen het onderzoek dus nooit in. Alles wat het model over
  * diensten, prijzen, vestigingen en team "wist", kwam uit een homepage plus een
  * gok.
  *
  * Deze fase haalt tot 150 pagina's op, kamt ze uit en zet er een feitenbasis van
  * neer waar de rest van de pijplijn op leunt in plaats van hem te herontdekken.
  * Kosten: **nul**. Geen enkele AI-aanroep. Alleen een fetch en een reguliere
- * expressie — precies de scheidslijn uit `APP_FLOW_DOCUMENTATION.md`
+ * expressie. Precies de scheidslijn uit `APP_FLOW_DOCUMENTATION.md`
  * §"Bewust géén AI".
  *
  * ── WAT HET OPLEVERT ────────────────────────────────────────────────────────
  *
- *   • `profile_pages`  — de content-inventaris (bestond al, nu breder)
- *   • `profiles.inventory_quality_json` — deugt die inventaris? (R6.2)
- *   • `profile_facets` rij 'techniek' — sitestructuur, gestructureerde data,
+ *   • `profile_pages`: de content-inventaris (bestond al, nu breder)
+ *   • `profiles.inventory_quality_json`, deugt die inventaris? (R6.2)
+ *   • `profile_facets` rij 'techniek', sitestructuur, gestructureerde data,
  *     renderbaarheid, naamvarianten én de geoogste feiten in `raw_json.facts`
  *
  * Bij een MKB-site met een SEO-plugin komt daar in één klap het adres, het
@@ -31,7 +31,7 @@ import "server-only";
  *
  * ⚠️ NIET `brand_facts`. Die tabel wordt gevuld door `synthesis.ts`, aan het
  * eind van de pijplijn en alleen met feiten waarvan het citaat letterlijk op de
- * bronpagina staat. Wat hier geoogst wordt is de RUWE opbrengst — inclusief
+ * bronpagina staat. Wat hier geoogst wordt is de RUWE opbrengst, inclusief
  * paginatitels uit `WebPage`-opmaak, die op entiteitsniveau niets betekenen.
  * Vandaar dat `llm-baseline.ts` ze door `checkableFacts()` haalt voordat hij er
  * een kennistest op baseert.
@@ -82,7 +82,7 @@ export async function discoverSite(profileId: string): Promise<DiscoveryResult> 
 
   // De inventaris beoordelen op ALLE gevonden URL's, niet alleen op wat gelukt
   // is: een site waarvan 140 van de 150 pagina's een time-out geven is geen
-  // site met 10 pagina's — dat is een probleem, en het oordeel moet dat zien.
+  // site met 10 pagina's. Dat is een probleem, en het oordeel moet dat zien.
   const inventory = assessInventory(
     urls.map((url) => {
       const page = pages.find((p) => p.url === url);
@@ -100,7 +100,7 @@ export async function discoverSite(profileId: string): Promise<DiscoveryResult> 
   //
   // Deze gaan VÓÓR de opmaak-feiten in de lijst, en dat is geen smaakkwestie.
   // De lijst wordt afgekapt op MAX_FACTS, en bij Fysi-Unique vulden 50
-  // paginatitels uit `WebPage`-opmaak hem helemaal — het telefoonnummer van de
+  // paginatitels uit `WebPage`-opmaak hem helemaal, het telefoonnummer van de
   // contactpagina zou er dus buiten vallen terwijl het het enige feit is dat de
   // kennistest écht kan controleren.
   //
@@ -108,7 +108,7 @@ export async function discoverSite(profileId: string): Promise<DiscoveryResult> 
   // contact-/over-pagina's, en neemt per soort de waarde die op de meeste
   // daarvan staat. Staat hetzelfde nummer óók in de JSON-LD, dan filtert de
   // ontdubbeling hieronder het tweede exemplaar weg.
-  // De crawler heeft ze al geoogst, op de VOLLEDIGE tekst van elke pagina —
+  // De crawler heeft ze al geoogst, op de VOLLEDIGE tekst van elke pagina,
   // `p.text` hierboven is afgekapt op 1500 tekens en bij Fysi-Unique viel het
   // telefoonnummer daar net buiten. Hier alleen nog samenvoegen en de canonieke
   // waarde per soort kiezen (`mergeTextFacts`).
@@ -236,7 +236,7 @@ function beschrijf(r: DiscoveryResult): string {
 
   if (r.clientRenderedPages > 0) {
     delen.push(
-      `${r.clientRenderedPages} pagina's tonen hun tekst pas via JavaScript — AI-crawlers lezen die niet`,
+      `${r.clientRenderedPages} pagina's tonen hun tekst pas via JavaScript en AI-crawlers lezen die niet`,
     );
   }
 

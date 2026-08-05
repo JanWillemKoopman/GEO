@@ -4,7 +4,7 @@ import "server-only";
  * De trend over de periodes (optimalisatie.md 6.4).
  *
  * Eén query-set voor de hele grafiek. Per periode: de score, de gewogen score,
- * de bandbreedte en het aandeel — plus de concurrentlijnen en de momenten waarop
+ * de bandbreedte en het aandeel, plus de concurrentlijnen en de momenten waarop
  * er iets gepubliceerd is. Die laatste maken van een grafiek een verhaal:
  * zonder markering is een stijging een toevalligheid, met markering een gevolg.
  */
@@ -53,7 +53,7 @@ export async function loadTrend(db: Db, analysisId: string): Promise<TrendData> 
     await Promise.all([
       db.from("visibility_scores").select("*").eq("analysis_id", analysisId).order("week_no"),
       db.from("competitor_breakdown").select("*").eq("analysis_id", analysisId).order("week_no"),
-      // Wanneer elke periode gemeten is, en met hoeveel vragen — dat laatste is
+      // Wanneer elke periode gemeten is, en met hoeveel vragen. Dat laatste is
       // de noemer voor de concurrentpercentages.
       db
         .from("tracking_runs")
@@ -72,7 +72,7 @@ export async function loadTrend(db: Db, analysisId: string): Promise<TrendData> 
   const runs = (runRows ?? []) as { week_no: number; ran_at: string }[];
 
   // Per periode: hoeveel metingen, en wanneer de laatste liep. Dat tweede is de
-  // datum die op de x-as hoort — een periode-index zegt de klant niets.
+  // datum die op de x-as hoort, een periode-index zegt de klant niets.
   const runsPerWeek = new Map<number, { count: number; last: string }>();
   for (const r of runs) {
     const cur = runsPerWeek.get(r.week_no);
@@ -103,7 +103,7 @@ export async function loadTrend(db: Db, analysisId: string): Promise<TrendData> 
   // ── Concurrentlijnen (6.6) ────────────────────────────────────────────────
   // "Ik loop in" is een sterker signaal dan een absoluut getal, dus de
   // concurrenten horen in dezelfde grafiek. We kiezen degene die over alle
-  // periodes samen het vaakst genoemd zijn — dat zijn de merken die ertoe doen,
+  // periodes samen het vaakst genoemd zijn. Dat zijn de merken die ertoe doen,
   // niet degene die één keer toevallig langskwamen.
   const totalByName = new Map<string, number>();
   for (const b of breakdown) {

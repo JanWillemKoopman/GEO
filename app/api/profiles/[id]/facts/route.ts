@@ -5,12 +5,12 @@ import { getOwnedProfile } from "@/lib/profiles";
 import type { FactRequest } from "@/lib/types/database";
 
 /**
- * PATCH /api/profiles/[id]/facts — de klant beantwoordt (of slaat over) een
+ * PATCH /api/profiles/[id]/facts, de klant beantwoordt (of slaat over) een
  * feitenvraag (optimalisatie.md 4.6).
  *
  * Waarom dit bestaat: de schrijfinstructie zegt "verzin geen feiten, blijf
  * algemeen bij twijfel". Bij een klant met een dunne website levert dat
- * gegarandeerd algemene tekst op — en algemeen is precies wat niet geciteerd
+ * gegarandeerd algemene tekst op, en algemeen is precies wat niet geciteerd
  * wordt. In plaats van die spanning te laten bestaan, vragen we het gewoon.
  *
  * Een antwoord gaat naar `profiles.proof_points` en verbetert daarmee ÉLKE

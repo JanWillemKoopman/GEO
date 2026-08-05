@@ -6,7 +6,7 @@ import { enqueueMeasurement } from "@/lib/jobs/queue";
 import { describeError, classifyError } from "@/lib/errors";
 
 /**
- * POST /api/analyses/[id]/measure — plant de nulmeting in (optimalisatie.md 1.4).
+ * POST /api/analyses/[id]/measure, plant de nulmeting in (optimalisatie.md 1.4).
  *
  * Zet één taak per actieve prompt in de wachtrij in plaats van alles synchroon
  * te draaien. Daarmee vervalt het 60-secondenplafond dat de meting bij 30 vragen
@@ -14,7 +14,7 @@ import { describeError, classifyError } from "@/lib/errors";
  *
  * Al gemeten vragen worden overgeslagen: meten is de duurste stap die er is.
  * De aggregatie en het rapport worden door de laatste meettaak zelf ingepland
- * — de browser hoeft daar niets meer voor te doen.
+ *, de browser hoeft daar niets meer voor te doen.
  */
 export async function POST(_request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;

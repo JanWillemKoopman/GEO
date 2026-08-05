@@ -3,10 +3,10 @@
 import { useState } from "react";
 
 /**
- * Bewerkbare content-brief van de analyse (§6/§7/§8): de gewenste hoek/doelgroep
+ * Bewerkbare content-brief van de analyse (§6/§7/§8): de gewenste hoek en doelgroep
  * van de content. Bewerken ná de voorbereiding stuurt nog het rapport + de
  * content-generatie, maar niet de al gegenereerde meet-vragen (die zijn bij het
- * aanmaken opgesteld) — dat vermelden we in de UI.
+ * aanmaken opgesteld). Dat vermelden we in de UI.
  */
 export function ContentBriefEditor({ analysisId, initial }: { analysisId: string; initial: string | null }) {
   const [brief, setBrief] = useState(initial ?? "");

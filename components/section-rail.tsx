@@ -7,7 +7,7 @@ import { useEffect, useState } from "react";
  *
  * Eén lange pagina zonder houvast is net zo verwarrend als vijf tabbladen. Deze
  * rail geeft de oriëntatie terug die de tabbalk bood, maar dan mét de volgorde:
- * je ziet dat er vier hoofdstukken zijn, in welke je bent, en — belangrijker —
+ * je ziet dat er vier hoofdstukken zijn, in welke je bent, en, belangrijker,
  * of er in een later hoofdstuk iets op je wacht.
  *
  * De vorm is hergebruik, geen uitvinding: het is exact het genummerde menu uit
@@ -29,7 +29,7 @@ export function SectionRail({ sections }: { sections: RailSection[] }) {
 
   // Scroll-spy: het hoofdstuk dat het dichtst bij de bovenkant van het venster
   // staat, wint. De rootMargin knijpt het venster tot een band net onder de
-  // bovenbalk — anders "wint" het hoofdstuk dat onderin nét binnenkomt.
+  // bovenbalk. Anders "wint" het hoofdstuk dat onderin nét binnenkomt.
   useEffect(() => {
     const observer = new IntersectionObserver(
       (entries) => {

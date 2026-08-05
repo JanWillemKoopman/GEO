@@ -3,7 +3,7 @@
 Leidend voor elk scherm. Tokens en primitieven staan in `app/globals.css`; dit document legt uit
 wat ze zijn en wanneer je welke gebruikt.
 
-> **Voor de tékst in die schermen geldt `docs/schrijfstijl.md`** — de tone-of-voice van Aura,
+> **Voor de tékst in die schermen geldt `docs/schrijfstijl.md`**: de tone-of-voice van Aura,
 > afgeleid van InSpace Nova. Dit document gaat over hoe iets eruitziet, dat over hoe het klinkt.
 > De productregels hieronder gaan vóór allebei: is een formulering kosmisch maar onduidelijk, dan
 > wint de duidelijkheid.
@@ -15,7 +15,7 @@ Het uitgangspunt: **snapt een niet-technische klant dit binnen 5 seconden zonder
 - **Eén hoofdgetal.** De klant ziet één zichtbaarheidsscore. Alles daaronder is verdieping, geen
   verplichting.
 - **Geen jargon.** Niet "share of voice" maar "hoe vaak jij genoemd wordt vs. je concurrenten".
-  Niet "klantprofiel" maar "merk" — dat eerste is bureau-jargon.
+  Niet "klantprofiel" maar "merk". Dat eerste is bureau-jargon.
 - **Slimme defaults.** 30 prompts staan automatisch klaar; de klant start nooit met een leeg
   scherm, maar kan altijd bijsturen.
 - **Transparant vóór er iets gemeten wordt.** De klant ziet en bewerkt eerst wat het systeem heeft
@@ -31,7 +31,7 @@ Het uitgangspunt: **snapt een niet-technische klant dit binnen 5 seconden zonder
 ## 2. Kleur en typografie
 
 Gebaseerd op een analyse van de live CSS van inspace.io (juli 2026). **Licht systeem, bewust geen
-dark mode** — `globals.css` kent alleen `:root`/`[data-theme="light"]` en zet
+dark mode**, `globals.css` kent alleen `:root`/`[data-theme="light"]` en zet
 `html { color-scheme: light; }`.
 
 ```css
@@ -59,7 +59,7 @@ dark mode** — `globals.css` kent alleen `:root`/`[data-theme="light"]` en zet
 ```
 
 **Fonts:** Geist Sans + JetBrains Mono via `next/font`. Dit zijn bewust de open-source vervangers
-van InSpace's Aeonik en TT Commons — die zijn commercieel gelicenseerd en mogen we niet overnemen.
+van InSpace's Aeonik en TT Commons. Die zijn commercieel gelicenseerd en mogen we niet overnemen.
 
 **Zes principes voor consistente toepassing:**
 
@@ -70,23 +70,23 @@ van InSpace's Aeonik en TT Commons — die zijn commercieel gelicenseerd en moge
 3. **Mono is gereserveerd voor technische UI-tekst.** Labels, statuscaptions, badges en
    stat-waarden in `--font-mono`, uppercase, breed getrackt (`.08em`–`.2em`). Body en koppen in
    `--font-sans`. Dit mono-in-kapitaal-trucje is de herkenbaarste typografische keuze van het
-   systeem — het geeft de "technische read-out"-uitstraling die bij een meetproduct past.
+   systeem. Het geeft de "technische read-out"-uitstraling die bij een meetproduct past.
 4. **Eén easing overal:** `--ease-standard`.
-5. **Status is kleur + vorm, nooit kleur alleen.** Een pulserende dot, een pijl (`↑`/`↓`) of een
-   chip — toegankelijkheid.
+5. **Status is kleur plus vorm, nooit kleur alleen.** Een pulserende dot, een pijl (`↑` of `↓`)
+   of een chip. Dat is toegankelijkheid.
 6. **Gloed-orbs spaarzaam:** groot en zeer vervaagd (`blur(40–90px)`) achter hero-secties, nooit
    als decoratie in kleine componenten.
 
 ## 3. Componenten
 
-Gebruik de primitieven uit `globals.css`. Ze bestaan omdat er anders drift ontstaat — er stonden
+Gebruik de primitieven uit `globals.css`. Ze bestaan omdat er anders drift ontstaat: er stonden
 ooit 30 handgebouwde inline-`style`-objecten met hardgecodeerde `rgba()`-waarden over 17 bestanden,
 waaronder twee kleuren die niet in het token-set stonden (een tweede paars en een tweede rood, op
 schermen die de gebruiker na elkaar ziet).
 
 | Primitief | Regel |
 |---|---|
-| `.card` | Statisch. **Geen hover** — een kaart die bij hover omhoog schaduwt belooft interactie. |
+| `.card` | Statisch. **Geen hover**, een kaart die bij hover omhoog schaduwt belooft interactie. |
 | `.card-interactive` | Alleen op daadwerkelijk klikbare kaarten (de lijstitems). Hier hoort de hover. |
 | `.card-accent` / `.card-danger` / `.card-success` | Getinte kaartranden. |
 | `.btn-primary` / `.btn-outline` | Beide 48px. `.btn-sm` = 40px. Eén hoogte-schaal, geen uitzonderingen. |
@@ -113,7 +113,7 @@ database-queries een dood interval zonder enige terugkoppeling.
 - **Lege staat** = `EmptyState`, en die wijst altijd naar de juiste volgende stap. Een lege
   `/analyses` die alleen "geen analyses" zegt is een dood einde bij de instap.
 - **Voortgang is server-state.** Elke live indicator wordt afgeleid van `analyses.status` + de
-  `jobs`-tabel, nooit uit een client-side animatie — een refresh of latere terugkeer moet de
+  `jobs`-tabel, nooit uit een client-side animatie. Een refresh of latere terugkeer moet de
   werkelijke stand tonen.
 
 ## 5. Navigatie en schermstructuur
@@ -121,7 +121,7 @@ database-queries een dood interval zonder enige terugkoppeling.
 **Twee bestemmingen:** `/analyses` en `/profielen` (label: "Merken"). Eén bron: `lib/nav.ts`.
 Account zit achter het profielmenu. Navigatie is een belofte over de omvang van een product; twee
 links die naar dezelfde route wijzen kosten vertrouwen in de hele balk. De routes heten nog
-`/profielen` zodat bestaande bladwijzers blijven werken — wat de klant leest is wat telt.
+`/profielen` zodat bestaande bladwijzers blijven werken. Wat de klant leest, is wat telt.
 
 **Een analyse is één dossier in vier hoofdstukken**, geen tabbalk:
 
@@ -133,14 +133,14 @@ links die naar dezelfde route wijzen kosten vertrouwen in de hele balk. De route
 ```
 
 De volgorde ís de logica: hoofdstuk 4 voedt volgende periode hoofdstuk 1. Tabs zijn juist als
-secties onafhankelijk zijn en de gebruiker weet welke hij nodig heeft — geen van beide geldt hier.
+secties onafhankelijk zijn en de gebruiker weet welke hij nodig heeft. Geen van beide geldt hier.
 Een verticale as kan volgorde uitdrukken, een horizontale tabrij niet. Bijkomend: het bewijs staat
 direct onder de bewering, in plaats van een tabblad verderop.
 
 Oriëntatie via de **sectie-rail** (`components/section-rail.tsx`): genummerde mono-labels, paarse
 actieve markering, scroll-spy. Desktop verticaal en sticky links; tablet/mobiel een sticky
 horizontale chiprij. De rail toont stand per hoofdstuk ("4 open", een `live-dot` bij een lopende
-meting) — iets wat een tabbalk niet doet.
+meting), iets wat een tabbalk niet doet.
 
 De bibliotheek blijft een eigen plek: het is een eindproduct, geen takenlijst die zich als archief
 voordoet. Het conceptscherm is een eigen route.
@@ -149,7 +149,7 @@ voordoet. Het conceptscherm is een eigen route.
 
 Geen sectie-rail: de blokken hebben geen vaste chronologie zoals de vier
 hoofdstukken van een analyse, en een rail belooft een volgorde die er niet is.
-Wel een kop met **de merknaam, één duidingszin en drie cijfers** — herkenning,
+Wel een kop met **de merknaam, één duidingszin en drie cijfers**, herkenning,
 koopvragen, structurele dekking (`profile-hero.tsx`, gerekend in
 `lib/pipeline/onboarding-summary.ts`).
 
@@ -157,7 +157,7 @@ De volgorde ís het demogesprek: kop → voortgang → dossier → wat AI over j
 aanbod → onderwerpen → gesprek → techniek → profielgegevens → beheer. Eerst wat we
 vonden, dan wat er mist, dan wat we gaan doen. De gespreksagenda (`ProfileGaps`)
 staat bewust ná de opbrengst en niet ervoor: waarde vóór inspanning, en die
-agenda ís de inspanning. Toewijzen staat onderaan en alleen voor beheerders — het
+agenda ís de inspanning. Toewijzen staat onderaan en alleen voor beheerders. Het
 is een handeling van ná het gesprek, op een scherm dat de klant meekijkt.
 
 Elk blok is een `ProfileSection`: op desktop open, op mobiel ingeklapt, met een
@@ -171,19 +171,19 @@ gat niet uitleggen omdat er geen gat te zien is.
 ## 6. Eén werkmodel
 
 `lib/work.ts` is de enige statusmachine voor "werk". Daarvoor bestond werk in vijf vormen die
-niets van elkaar wisten — dashboard-acties, rapport-aanbevelingen, off-site taken, het oordeel per
-pagina in de bibliotheek en de feitenvragen — elk met eigen woorden, kleuren en volgorde.
+niets van elkaar wisten, dashboard-acties, rapport-aanbevelingen, off-site taken, het oordeel per
+pagina in de bibliotheek en de feitenvragen, elk met eigen woorden, kleuren en volgorde.
 
 - `WorkKind` (`blokkade` · `goedkeuring` · `herstel` · `feit` · `pagina` · `offsite`) is alleen
   een etiket.
 - `WorkState` bepaalt de volgorde op het scherm: **`nu`** (klant moet iets) → **`loopt`** (wij zijn
   bezig) → **`wacht`** (gedaan, resultaat duurt weken) → **`klaar`**.
 
-De klant groepeert niet naar "on-site of off-site" — dat is onze indeling. Hij groepeert naar
+De klant groepeert niet naar "on-site of off-site". Dat is onze indeling. Hij groepeert naar
 "moet ik hier iets?". Vandaar de staat als hoofdas.
 
 **De opgerolde `nu`-lijst hoort bij de analyse, niet bij het overzicht ervoor.** `/analyses`
-(`lib/dashboard.ts`) toonde die lijst eerder ook, over alle analyses heen — bedoeld als "waar moet
+(`lib/dashboard.ts`) toonde die lijst eerder ook, over alle analyses heen, bedoeld als "waar moet
 ik als eerste zijn", maar bij meerdere lopende analyses liep dat op tientallen punten in één kaart
 en werd het overzicht zélf de rommel die het werkmodel per analyse juist moest voorkomen. `/analyses`
 toont nu alleen nog de drie statusblokken (`DashboardStats`, `components/dashboard-stats.tsx`) en
@@ -193,7 +193,7 @@ Elke rij in de analysenlijst toont in plaats daarvan vier vaste kaartcijfers plu
 metingen (`AnalysisCardMetrics`, `components/analysis-card-metrics.tsx`): zichtbaarheidsscore,
 aantal openstaande vragen, aantal voorgestelde en aantal geschreven pagina's, en "N metingen". Die
 cijfers komen uit dezelfde bronnen als het werkmodel (`visibility_scores`, `content_pieces`,
-`reports`) — het kaartje kan dus nooit iets anders beweren dan de analyse zelf verderop laat zien.
+`reports`). Het kaartje kan dus nooit iets anders beweren dan de analyse zelf verderop laat zien.
 
 ## 7. Responsive
 
@@ -218,7 +218,7 @@ implementatiedetail; het ontwerpproces blijft desktop-first.
 Vaste mobiele regels: tikdoelen ≥ 44×44px · formuliervelden ≥ 16px (anders zoomt iOS Safari in) ·
 geen interactie mag van hover afhangen.
 
-**Het conceptscherm is de toetssteen** — het informatiedichtste scherm én het enige dat iedere
+**Het conceptscherm is de toetssteen**. Het informatiedichtste scherm én het enige dat iedere
 analyse verplicht doorloopt. Desktop: ruim, secties open. Mobiel: elke veldgroep en promptcategorie
 inklapbaar en standaard dicht, met "Bevestig en start meting" sticky onderaan.
 

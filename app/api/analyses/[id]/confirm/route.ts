@@ -6,10 +6,10 @@ import { enqueueMeasurement } from "@/lib/jobs/queue";
 import { describeError, classifyError } from "@/lib/errors";
 
 /**
- * POST /api/analyses/[id]/confirm — de review-gate (abcplan.md §3.6/A2c).
+ * POST /api/analyses/[id]/confirm, de review-gate (abcplan.md §3.6/A2c).
  * De klant heeft Brand DNA + prompts gezien en (evt.) aangepast; dit is de
  * enige plek waar status concept_klaar → meten mag. Halte A3 (de meting zelf)
- * wordt in Sprint 4 gebouwd — deze route zet alleen de status.
+ * wordt in Sprint 4 gebouwd. Deze route zet alleen de status.
  */
 export async function POST(_request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -31,7 +31,7 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
   // hangen op 'meten': er komen nul taken in de rij, dus de aggregatie en het
   // rapport worden nooit afgetrapt en het voortgangsscherm draait eindeloos.
   // De klant kan dit zelf veroorzaken door in het conceptscherm alle vragen uit
-  // te zetten — dan hoort hij te horen wat er mis is, niet een spinner te zien.
+  // te zetten. Dan hoort hij te horen wat er mis is, niet een spinner te zien.
   const { count: activePrompts } = await admin
     .from("prompts")
     .select("id", { count: "exact", head: true })
@@ -50,7 +50,7 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
   // bevestigen de tab, dan werd er voorheen nooit gemeten.
   //
   // Eerst inplannen, dan pas de status omzetten. Andersom kon de analyse op
-  // 'meten' blijven staan terwijl het inplannen stukliep — een status die belooft
+  // 'meten' blijven staan terwijl het inplannen stukliep, een status die belooft
   // wat er niet gebeurt. Deze volgorde herstelt zichzelf: draaien de taken al
   // terwijl de status nog 'concept_klaar' is, dan zet de aggregatietaak hem
   // alsnog door.

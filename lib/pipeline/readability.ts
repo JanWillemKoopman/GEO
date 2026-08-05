@@ -9,7 +9,7 @@
  * aanpassing, en suggereert een getal een precisie die de formule niet heeft.
  * Ten tweede, en belangrijker: niemand weet wat 58 betekent, dus niemand doet
  * er iets mee. Dat is precies het patroon dat dit project al drie keer heeft
- * teruggedraaid — het verzonnen volumegetal 0–100 werd drie banden (migratie
+ * teruggedraaid, het verzonnen volumegetal 0–100 werd drie banden (migratie
  * 0017), en de zelfrapportage van de content-gate werd een deterministische
  * poort.
  *
@@ -23,7 +23,7 @@
 export interface ReadabilityResult {
   zinnen: number;
   gemiddeldeZinslengte: number;
-  /** Zinnen langer dan 30 woorden — die leest niemand in één keer. */
+  /** Zinnen langer dan 30 woorden. Die leest niemand in één keer. */
   langeZinnen: number;
   /** Aandeel woorden van 4+ lettergrepen, geschat op klinkergroepen. */
   langeWoordenRatio: number;
@@ -59,7 +59,7 @@ function plainText(markdown: string): string {
  * Zinnen splitsen op eindleestekens.
  *
  * Afkortingen met een punt ("bijv.", "d.w.z.") leveren losse fragmenten op, maar
- * die zijn kort en drukken het gemiddelde omláág — ze kunnen dus geen vals
+ * die zijn kort en drukken het gemiddelde omláág, ze kunnen dus geen vals
  * alarm veroorzaken, alleen een gemist geval. Dat is de goede kant om te falen.
  */
 function sentences(text: string): string[] {
@@ -134,7 +134,7 @@ export function describeReadability(r: ReadabilityResult): string {
 
   if (r.langeZinnen > 0) {
     delen.push(
-      `${r.langeZinnen} ${r.langeZinnen === 1 ? "zin is" : "zinnen zijn"} langer dan ${LANGE_ZIN} woorden — knip ze in tweeën`,
+      `${r.langeZinnen} ${r.langeZinnen === 1 ? "zin is" : "zinnen zijn"} langer dan ${LANGE_ZIN} woorden, knip ze in tweeën`,
     );
   }
   if (r.gemiddeldeZinslengte > STROEF_GEMIDDELDE) {
@@ -144,7 +144,7 @@ export function describeReadability(r: ReadabilityResult): string {
   }
   if (r.passief > 2) {
     delen.push(
-      `${r.passief} zinnen zijn in de lijdende vorm ("wordt … door") — actief leest directer`,
+      `${r.passief} zinnen zijn in de lijdende vorm ("wordt … door"); actief leest directer`,
     );
   }
 

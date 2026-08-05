@@ -7,7 +7,7 @@
  * report-progress en generate-button drie keer los herhaald werd: een rood
  * "Mislukt"-label met daaronder de ruwe serverfout in monospace. Voor een
  * ondernemer zonder technische achtergrond zegt "[429] Rate limit reached for
- * gpt-5.6-luna" niets — behalve dat er iets stuk is.
+ * gpt-5.6-luna" niets, behalve dat er iets stuk is.
  *
  * Hier: kop en uitleg in gewone taal, één duidelijke vervolgstap, en de
  * technische tekst weggevouwen achter "technische details" (nog steeds nodig
@@ -63,8 +63,8 @@ export function ErrorNotice({
 
 /**
  * Vertaalt een mislukte fetch-respons naar een UserFacingError. De server stuurt
- * de classificatie mee (`problem`); ontbreekt die — bv. bij een 502 van het
- * platform zelf, waar onze route niet eens aan bod komt — dan vallen we terug op
+ * de classificatie mee (`problem`); ontbreekt die, bv. Bij een 502 van het
+ * platform zelf, waar onze route niet eens aan bod komt. Dan vallen we terug op
  * een algemene boodschap in plaats van een lege melding.
  */
 export function problemFromResponse(json: unknown, fallbackDetail = ""): UserFacingError {
@@ -91,8 +91,8 @@ export function networkProblem(err: unknown): UserFacingError {
     kind: "ai_unavailable",
     title: "Geen verbinding",
     message:
-      "Je browser komt niet bij Aura. Controleer je internetverbinding — " +
-      "het werk op de achtergrond loopt gewoon door.",
+      "Je browser komt niet bij Aura. Controleer je internetverbinding. " +
+      "Het werk op de achtergrond loopt gewoon door.",
     canRetry: true,
     detail: err instanceof Error ? err.message : String(err),
   };

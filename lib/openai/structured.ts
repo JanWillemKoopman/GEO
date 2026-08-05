@@ -31,7 +31,7 @@ export type { CallMeta };
  * WAAROM. GPT-5.6 accepteert `temperature` alleen bij effort `none`
  * (lib/openai/sampling.ts). Dat is de regel zoals hij nu geldt, maar het is een
  * regel van OpenAI en niet van ons: scherpen ze hem aan, dan zou élke
- * classificatie-call in de app op een 400 stuklopen — midden in een meetronde
+ * classificatie-call in de app op een 400 stuklopen, midden in een meetronde
  * die per prompt al betaald web_search-werk heeft gedaan. Deze vlag maakt dat
  * een eenmalige, zelfherstellende hik in plaats van een storing. Conventie 1:
  * een aanname over het model krijgt een vangnet in code.
@@ -45,7 +45,7 @@ function tuningFor(model: string, work: WorkKind | undefined): CallTuning {
 
 /**
  * Voert de aanroep uit en herhaalt hem één keer zónder temperatuur als dat het
- * enige struikelblok was. Elke andere fout gaat ongewijzigd omhoog — de
+ * enige struikelblok was. Elke andere fout gaat ongewijzigd omhoog, de
  * retry-laag van de SDK (429/5xx) en die van de jobwachtrij zitten daar al op.
  */
 async function withTemperatureFallback<R>(
@@ -118,7 +118,7 @@ export interface StructuredCallOptions<T> {
    * Wat voor werk is dit? Daaruit volgen temperatuur én redeneerinspanning
    * (lib/openai/sampling.ts), zodat die keuze op één plek vastligt
    * (optimalisatie.md 0.5) en niet per aanroep opnieuw bedacht wordt.
-   * Weglaten = `simulation`: geen enkele parameter, puur de modelstandaard —
+   * Weglaten = `simulation`: geen enkele parameter, puur de modelstandaard,
    * wat je alleen wilt bij de simulatie-call (halte 3a).
    */
   work?: WorkKind;
@@ -130,7 +130,7 @@ export interface StructuredCallOptions<T> {
   meta?: CallMeta;
 }
 
-/** Tokens + geschatte kosten van één aanroep — gedeeld door beide call-varianten. */
+/** Tokens + geschatte kosten van één aanroep, gedeeld door beide call-varianten. */
 export interface CallUsage {
   /** OpenAI response-id (kostenbewaking / audit). */
   responseId: string | null;
@@ -138,14 +138,14 @@ export interface CallUsage {
   tokensUsed: number | null;
   inputTokens: number | null;
   outputTokens: number | null;
-  /** Geschatte kosten in USD — zie lib/openai/pricing.ts. */
+  /** Geschatte kosten in USD: zie lib/openai/pricing.ts. */
   costUsd: number;
 }
 
 export interface StructuredCallResult<T> extends CallUsage {
   /** Het geparste, type-safe object. */
   parsed: T;
-  /** De volledige ruwe response — wegschrijven naar raw_json (§5). */
+  /** De volledige ruwe response, wegschrijven naar raw_json (§5). */
   raw: unknown;
 }
 
@@ -154,7 +154,7 @@ export interface StructuredCallResult<T> extends CallUsage {
  *
  * De ketentest draait de échte jobhandlers tegen een échte Postgres, maar mag
  * geen OpenAI aanroepen: dat kost geld, is traag en geeft elke keer een ander
- * antwoord — en dan test je het model in plaats van de bedrading. De stub geeft
+ * antwoord, en dan test je het model in plaats van de bedrading. De stub geeft
  * per `schemaName` een vast, realistisch antwoord terug, ontleend aan de ruwe
  * responses die al in `ai_calls` staan.
  *
@@ -279,7 +279,7 @@ export interface PlainCallResult extends CallUsage {
 }
 
 /**
- * Vrije-tekst call (GEEN structured output) — voor halte 3a (abcplan.md §6 A3):
+ * Vrije-tekst call (GEEN structured output), voor halte 3a (abcplan.md §6 A3):
  * simuleert wat een AI-assistent een echte klant zou antwoorden. Structured
  * output zou het model dwingen tot JSON i.p.v. een natuurlijk antwoord.
  */

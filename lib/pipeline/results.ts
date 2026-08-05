@@ -18,7 +18,7 @@ export interface PieceResult {
   title: string;
   publishedAt: string;
   publishedUrl: string | null;
-  /** De laatste golf die berekend is — golf 2 als die er is, anders golf 1. */
+  /** De laatste golf die berekend is, golf 2 als die er is, anders golf 1. */
   impact: ContentImpact | null;
 }
 
@@ -33,7 +33,7 @@ export interface ResultsSummary {
     measured: number;
   };
   pieces: PieceResult[];
-  /** Opgeteld over alle gemeten pagina's — het getal voor bovenaan. */
+  /** Opgeteld over alle gemeten pagina's, het getal voor bovenaan. */
   totals: {
     publishedPages: number;
     targetQuestions: number;

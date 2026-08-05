@@ -7,7 +7,7 @@ import { maySkip } from "@/lib/pipeline/elicit-rate";
  * Alles loopt via `enqueue`, dat een `dedupeKey` afdwingt. Die sleutel is geen
  * detail: zonder dat zou dubbelklikken, een herladen scherm of twee werkers die
  * tegelijk hetzelfde vervolg plannen, dezelfde dure meting twee keer draaien.
- * De unieke index uit migratie 0013 vangt dat af op databaseniveau — dus ook
+ * De unieke index uit migratie 0013 vangt dat af op databaseniveau, dus ook
  * bij een echte race tussen twee processen, niet alleen bij netjes gedrag.
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -25,13 +25,13 @@ const UNIQUE_VIOLATION = "23505";
 export interface EnqueueArgs<T extends JobType> {
   type: T;
   payload: JobPayloads[T];
-  /** Analyse waar de taak bij hoort (of profileId — precies één van beide). */
+  /** Analyse waar de taak bij hoort (of profileId. Precies één van beide). */
   analysisId?: string | null;
   profileId?: string | null;
   /**
    * Sleutel die dit specifieke werk identificeert. Bestaat er al een OPENSTAANDE
    * taak met dezelfde sleutel, dan doet deze aanroep niets. Klaar of definitief
-   * mislukt werk blokkeert niet — anders zou een retry onmogelijk zijn.
+   * mislukt werk blokkeert niet. Anders zou een retry onmogelijk zijn.
    */
   dedupeKey: string;
   /** Pas later uitvoeren (bv. een hermeting over twee weken). */
@@ -63,7 +63,7 @@ export async function enqueue<T extends JobType>(
     .single();
 
   if (error) {
-    // Al ingepland — dat is geen fout maar precies wat de sleutel moet doen.
+    // Al ingepland. Dat is geen fout maar precies wat de sleutel moet doen.
     if (error.code === UNIQUE_VIOLATION) return { created: false, jobId: null };
     throw new Error(`Taak inplannen mislukt (${args.type}): ${error.message}`);
   }
@@ -85,13 +85,13 @@ export { dedupe } from "@/lib/jobs/dedupe";
  *
  * Deze functie draait zelf synchroon in de confirm-route (bevestigen ís het
  * startsein, zie route-commentaar). Met tot 30 actieve prompts liep een
- * sequentiële lus — twee awaits per prompt, dus tot 60 keer heen-en-weer naar
- * Supabase — de functie-tijdslimiet van die route plat, waardoor de fetch op
+ * sequentiële lus. Twee awaits per prompt, dus tot 60 keer heen-en-weer naar
+ * Supabase, de functie-tijdslimiet van die route plat, waardoor de fetch op
  * de knop "Bevestig en start de meting" strandde zonder ooit een response te
  * krijgen ("Bevestigen mislukt. Probeer het opnieuw."). Nu twee bulk-queries
  * in plaats van 2×N sequentiële round-trips.
  *
- * Geeft terug hoeveel taken er daadwerkelijk bij kwamen — bij een tweede poging
+ * Geeft terug hoeveel taken er daadwerkelijk bij kwamen, bij een tweede poging
  * na een gedeeltelijke mislukking is dat alleen het restant.
  */
 export async function enqueueMeasurement(
@@ -122,7 +122,7 @@ export async function enqueueMeasurement(
   //
   // Nu beslist het betrouwbaarheidsinterval: overslaan mag pas bij genoeg
   // metingen én een bovengrens die laag genoeg is (`maySkip`). Op productie staan
-  // negen vragen op 'nee' — alle negen op basis van precies twee metingen, en die
+  // negen vragen op 'nee', alle negen op basis van precies twee metingen, en die
   // komen met deze regel dus terug in de meting.
   //
   // Elke vierde periode tóch de volledige set, zodat een markt die verandert
@@ -150,8 +150,8 @@ export async function enqueueMeasurement(
   //
   // Eén meting per vraag bleek te onbetrouwbaar: dezelfde analyse leverde twee
   // periodes achter elkaar 17 en 11 meetbare vragen op, met scores 18 en 36,
-  // zonder dat er iets veranderd was. Alles vaker meten kan niet — de meting is
-  // 95% van de kosten — dus meten we de ZWAARSTWEGENDE vragen vaker en de rest
+  // zonder dat er iets veranderd was. Alles vaker meten kan niet, de meting is
+  // 95% van de kosten, dus meten we de ZWAARSTWEGENDE vragen vaker en de rest
   // één keer. Precisie waar het geld zit.
   const gewicht = (p: (typeof list)[number]) =>
     promptWeight(volumeBandOf(p), p.intent_type as string | null);
@@ -161,7 +161,7 @@ export async function enqueueMeasurement(
       // Gelijk gewicht? Dan op id, zodat elke periode dezelfde vragen herhaalt.
       // Zonder die vaste volgorde bepaalt de toevallige rijvolgorde uit Postgres
       // wie er herhaald wordt, en dan verandert de nauwkeurigheid van een vraag
-      // van periode tot periode — precies de ruis die R6.1 moet wegnemen.
+      // van periode tot periode. Precies de ruis die R6.1 moet wegnemen.
       .sort((a, b) => gewicht(b) - gewicht(a) || (a.id as string).localeCompare(b.id as string))
       .slice(0, repeatedPromptCount)
       .map((p) => p.id as string),
@@ -173,7 +173,7 @@ export async function enqueueMeasurement(
     return Array.from({ length: keren }, (_, r) => ({ promptId: p.id as string, repeat: r }));
   });
 
-  // Al gemeten? Dan niet opnieuw plannen — meten is de duurste stap die er is
+  // Al gemeten? Dan niet opnieuw plannen, meten is de duurste stap die er is
   // (de web-zoekactie is ~94% van de meetkosten). Eén query voor alle prompts
   // tegelijk in plaats van één query per prompt.
   const { data: measuredRows } = await admin
@@ -190,7 +190,7 @@ export async function enqueueMeasurement(
   if (candidates.length === 0) return { planned: 0, totalPrompts: list.length };
 
   // Openstaand werk (van een eerdere, deels mislukte poging) er ook in één
-  // query uit filteren — dat is precies het scenario dat de dedupe-index
+  // query uit filteren. Dat is precies het scenario dat de dedupe-index
   // (migratie 0013, alleen voor status queued/running) moet afvangen. De
   // index is PARTIEEL, dus `.upsert(..., { onConflict })` kan hem niet als
   // ON CONFLICT-doel gebruiken (Postgres eist dezelfde WHERE-clausule); dit
@@ -205,7 +205,7 @@ export async function enqueueMeasurement(
   // engine.
   //
   // Zou je hier nu per engine inplannen, dan telt elke vraag dubbel mee in de
-  // score en klopt de foutmarge niet meer — precies het soort stille
+  // score en klopt de foutmarge niet meer. Precies het soort stille
   // degradatie waar dit project drie vangnetten tegen heeft. Bovendien is er
   // nog geen GEMINI_API_KEY, dus het zou vandaag niets opleveren en morgen een
   // verkeerd cijfer.
@@ -243,7 +243,7 @@ export async function enqueueMeasurement(
 
   // Eén bulk-insert i.p.v. een taak per prompt (was tot 2×N sequentiële
   // round-trips, genoeg om de confirm-route over de functie-tijdslimiet te
-  // duwen — zie de doc-comment op deze functie). Een echte race met een
+  // duwen, zie de doc-comment op deze functie). Een echte race met een
   // gelijktijdige tweede poging is zeldzaam (de knop staat uit tijdens
   // 'pending'); mocht de index dan alsnog botsen, valt dit terug op de oude,
   // per-rij-veilige weg voor precies dat restant.

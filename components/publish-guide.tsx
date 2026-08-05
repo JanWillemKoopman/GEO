@@ -4,7 +4,7 @@ import type { ContentAction, ContentType } from "@/lib/types/database";
 /**
  * Wat moet de klant hier nu mee? (optimalisatie.md 4.15)
  *
- * De app levert tekst, metagegevens en gestructureerde data — en geen woord
+ * De app levert tekst, metagegevens en gestructureerde data, en geen woord
  * uitleg over wat je daarmee doet. Zonder dat blijft de content in de
  * bibliotheek liggen, en dan gebeurt er niets, hoe goed hij ook is. Dit is de
  * laatste meter tussen "de app heeft iets gemaakt" en "het staat live".
@@ -73,7 +73,7 @@ export function PublishGuide({
               <a href={existingUrl} target="_blank" rel="noopener noreferrer" className="underline">
                 {existingUrl}
               </a>
-              . Houd dezelfde URL aan — die heeft al waarde opgebouwd, en een nieuwe URL begint
+              . Houd dezelfde URL aan, want die heeft al waarde opgebouwd. Een nieuwe URL begint
               weer bij nul.
             </>
           ) : (
@@ -93,7 +93,7 @@ export function PublishGuide({
           <span className="font-medium text-[var(--text-primary)]">Plak de tekst.</span> Gebruik de
           knop &ldquo;Kopieer als HTML&rdquo; hierboven als je CMS een tekstveld heeft, of de
           Markdown-versie als het daarmee werkt. Zet de meta-title en meta-description in de
-          SEO-velden van je CMS — meestal onderaan de pagina-instellingen.
+          SEO-velden van je CMS, meestal onderaan de pagina-instellingen.
         </li>
 
         {hasSchema && (
@@ -112,7 +112,7 @@ export function PublishGuide({
         <li>
           <span className="font-medium text-[var(--text-primary)]">Link ernaartoe.</span> Zet vanaf
           je homepage of een relevante bestaande pagina een link naar deze nieuwe pagina. Een pagina
-          waar nergens naartoe gelinkt wordt, wordt slecht gevonden — ook door AI-crawlers.
+          waar nergens naartoe gelinkt wordt, wordt slecht gevonden, ook door AI-crawlers.
         </li>
       </ol>
 

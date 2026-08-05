@@ -5,19 +5,19 @@
  *
  * `profile_topics.offering_ids` is een `uuid[]`, en Postgres kan geen foreign
  * key leggen op een element ván een array. De verwijzing wordt dus door niets
- * bewaakt — en dat gaat één keer mis op een voorspelbaar moment:
+ * bewaakt, en dat gaat één keer mis op een voorspelbaar moment:
  *
  *   "Onderzoek opnieuw" verwijdert alle aanbodknopen met bron `ai` (anders slaat
  *   `buildOfferingTree()` zichzelf over) en laat de topics staan (dat zijn
  *   beslissingen van de klant, soms met een lopende analyse eraan). Daarna
  *   wijzen alle offering_ids naar rijen die niet meer bestaan. Geen foutmelding,
- *   geen lege lijst — een lijst met id's die nergens op uitkomen.
+ *   geen lege lijst, een lijst met id's die nergens op uitkomen.
  *
  * Migratie 0043 zet de NAMEN ernaast, want die overleven een herbouw:
  * "Bekkenfysiotherapie" heet na een tweede crawl nog steeds zo. Deze module
  * bepaalt wat de nieuwe id-lijst moet worden; `offering.ts` schrijft hem weg.
  *
- * Puur, dus testbaar (conventie 2) — en dat is hier geen formaliteit: dit is
+ * Puur, dus testbaar (conventie 2), en dat is hier geen formaliteit: dit is
  * precies het soort logica dat alleen fout gaat in de samenhang tussen twee
  * stappen, en dan zonder dat er iets omvalt.
  */

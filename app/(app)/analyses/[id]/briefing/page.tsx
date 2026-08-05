@@ -18,8 +18,8 @@ export const metadata = { title: "Contentbriefing" };
  *
  * ── WAT ER GEBEURT ALS ER NIETS TE VRAGEN IS ────────────────────────────────
  *
- * Dan is er ook geen scherm nodig. Heeft de claim-audit geen gaten gevonden — of
- * staan alle antwoorden al in de kennisbank van een eerdere analyse — dan is de
+ * Dan is er ook geen scherm nodig. Heeft de claim-audit geen gaten gevonden, of
+ * staan alle antwoorden al in de kennisbank van een eerdere analyse. Dan is de
  * enige zinnige actie "schrijven". Dat is precies wat de kennisbank op termijn
  * moet opleveren: bij de derde analyse van dezelfde klant is deze stap leeg.
  */
@@ -90,7 +90,7 @@ export default async function BriefingPage({ params }: { params: Promise<{ id: s
 
   // Alleen vragen die bij de pagina's horen die nú op schrijven wachten. Een
   // vraag uit een eerdere batch die toen is overgeslagen hoort hier niet
-  // opnieuw — dat is dezelfde vraag twee keer stellen, en dat is precies wat
+  // opnieuw. Dat is dezelfde vraag twee keer stellen, en dat is precies wat
   // contentbriefing.md §4 verbiedt.
   const questions: BriefingQuestionView[] = (questionRows ?? [])
     .filter((q) => {

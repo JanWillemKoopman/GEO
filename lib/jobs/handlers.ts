@@ -5,7 +5,7 @@ import "server-only";
  * plant zelf het vervolg in (1.5).
  *
  * Dat laatste is de kern van deze fase. Voorheen startte de BROWSER het rapport
- * nadat de meting klaar was — sloot de klant de tab, dan gebeurde er niets meer.
+ * nadat de meting klaar was, sloot de klant de tab, dan gebeurde er niets meer.
  * Nu loopt de keten op de server:
  *
  *   prepare_analysis → generate_prompts → (wacht op goedkeuring van de klant)
@@ -95,13 +95,13 @@ async function scheduleAggregateIfLastPrompt(
     .eq("analysis_id", analysisId)
     .eq("type", "measure_prompt")
     .in("status", ["queued", "running"])
-    // De taak die dit aanroept staat zélf nog op 'running' — zonder deze
+    // De taak die dit aanroept staat zélf nog op 'running'. Zonder deze
     // uitsluiting is `remaining` altijd minstens 1 en wordt de aggregatie
     // nooit ingepland.
     .neq("id", currentJobId);
 
   // De filtering op periode gebeurt hier en niet met `.contains()` in de query,
-  // omdat een impactmeting óók `weekNo: 0` meedraagt — zie de toelichting in
+  // omdat een impactmeting óók `weekNo: 0` meedraagt, zie de toelichting in
   // lib/jobs/pending.ts, waar deze voorwaarde als testbare functie staat.
   if (countOpenPeriodicMeasurements(openJobs ?? [], weekNo) > 0) return;
 
@@ -185,7 +185,7 @@ const handlers: { [T in JobType]: Handler<T> } = {
 
     // Het aanbod erachteraan: dat leunt op `business_model`, dat hierboven pas
     // gezet wordt. Een eigen taak omdat het een tweede zware aanroep is over
-    // dezelfde 55.000 tekens — samen passen ze niet in één werker-aanroep.
+    // dezelfde 55.000 tekens, samen passen ze niet in één werker-aanroep.
     await enqueue(admin, {
       type: "profile_offering",
       payload: {},
@@ -200,7 +200,7 @@ const handlers: { [T in JobType]: Handler<T> } = {
 
     // Het marktonderzoek draagt de rest van de keten: het ketent zelf door naar
     // de kennistest, die op zijn beurt naar de synthese ketent. Bewust NIET
-    // achter de topics gehangen — die vallen weg zonder aanbodboom, en dan zou
+    // achter de topics gehangen. Die vallen weg zonder aanbodboom, en dan zou
     // de hele staart verdwijnen bij precies de klanten waar de crawl weinig
     // opleverde. En dat zijn er niet weinig.
     await enqueue(admin, {
@@ -233,7 +233,7 @@ const handlers: { [T in JobType]: Handler<T> } = {
     // Verrijking, geen voorwaarde (zelfde patroon als profile_competitors bij
     // het rapport): de fout wordt gelogd, maar de keten loopt door. Zou hij hier
     // breken, dan zou een mislukt marktonderzoek ook de kennistest en de
-    // synthese meenemen — en dat zijn de twee stappen waar de klant voor komt.
+    // synthese meenemen, en dat zijn de twee stappen waar de klant voor komt.
     try {
       await researchMarket(job.profile_id);
     } catch (err) {
@@ -382,7 +382,7 @@ const handlers: { [T in JobType]: Handler<T> } = {
 
     // De nulmeting brengt de analyse naar 'gemeten'; latere periodes laten de
     // status op 'gereed' staan. Beide ketenen door naar een rapport
-    // (optimalisatie.md 6.1) — voorheen alleen periode 0, waardoor er twaalf
+    // (optimalisatie.md 6.1), voorheen alleen periode 0, waardoor er twaalf
     // periodes aan meetkosten gemaakt werden voor data die niemand ooit zag.
     if (weekNo === 0) {
       await admin
@@ -404,7 +404,7 @@ const handlers: { [T in JobType]: Handler<T> } = {
 
   // ── Waarom winnen die concurrenten? (R4.2) ────────────────────────────────
   // Verrijking, geen voorwaarde: mislukt dit, dan houdt de klant zijn cijfers en
-  // zijn rapport — alleen zonder de "waarom"-laag. Vandaar dat de fout hier
+  // zijn rapport, alleen zonder de "waarom"-laag. Vandaar dat de fout hier
   // gevangen wordt en de keten hoe dan ook doorloopt naar het rapport.
   profile_competitors: async ({ admin, job }, payload) => {
     if (!job.analysis_id)
@@ -446,7 +446,7 @@ const handlers: { [T in JobType]: Handler<T> } = {
   //
   // Hierna stopt de pijplijn bewust. Er wordt niets ingepland: de klant beslist
   // wanneer er geschreven wordt, via het briefingscherm. Dat is hetzelfde
-  // patroon als de review-gate tussen halte 2 en 3 (abcplan.md §3.6) — nooit een
+  // patroon als de review-gate tussen halte 2 en 3 (abcplan.md §3.6), nooit een
   // black box, altijd eerst kijken en bijsturen.
   content_brief: async ({ job }, payload) => {
     if (!job.analysis_id) throw new Error("content_brief zonder analysis_id.");
@@ -526,7 +526,7 @@ const handlers: { [T in JobType]: Handler<T> } = {
     });
 
     // Niets in te plannen (alles al gemeten, of geen doelvragen)? Dan meteen
-    // doorrekenen — anders blijft de golf eeuwig "bezig" zonder dat er ooit een
+    // doorrekenen. Anders blijft de golf eeuwig "bezig" zonder dat er ooit een
     // meettaak is die de berekening aftrapt.
     if (planned === 0) {
       await enqueue(admin, {
@@ -540,7 +540,7 @@ const handlers: { [T in JobType]: Handler<T> } = {
 
   // ── Off-site scan (optimalisatie.md fase 7) ───────────────────────────────
   // Draait ná het rapport: dan is er meetdata om het landschap uit af te
-  // leiden. Geen blokkerende taak — faalt hij, dan mist de klant het off-site
+  // leiden. Geen blokkerende taak, faalt hij, dan mist de klant het off-site
   // advies maar houdt hij zijn rapport.
   offsite_scan: async ({ admin, job }) => {
     if (!job.analysis_id) throw new Error("offsite_scan zonder analysis_id.");
@@ -564,7 +564,7 @@ const handlers: { [T in JobType]: Handler<T> } = {
  * Zonder dit blijft een analyse voorgoed hangen zodra één van de dertig vragen
  * niet te meten valt. De keten hangt namelijk aan de GESLAAGDE meting: die kijkt
  * of ze de laatste was en plant dan de aggregatie in. Is de laatste openstaande
- * taak juist de taak die opgeeft, dan doet niemand dat meer — de analyse blijft
+ * taak juist de taak die opgeeft, dan doet niemand dat meer, de analyse blijft
  * op 'meten' staan met een voortgangsscherm dat nooit verder komt.
  *
  * Dat terwijl de drempelcontrole (MIN_SUCCESS_RATIO, zie measurementIsUsable)
@@ -599,7 +599,7 @@ export async function scheduleFollowUpAfterFailure(
   );
 }
 
-/** Voert één taak uit. Gooit bij mislukking — de werker regelt de nieuwe poging. */
+/** Voert één taak uit. Gooit bij mislukking, de werker regelt de nieuwe poging. */
 export async function runJob(ctx: JobContext): Promise<void> {
   const type = ctx.job.type as JobType;
   const handler = handlers[type] as Handler<JobType> | undefined;

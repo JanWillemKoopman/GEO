@@ -1,14 +1,14 @@
 import { z } from "zod";
 
 /**
- * Fase C — redactie/kritiek-stap (contentkwaliteit-analyse.md C3, abcplan.md §8).
+ * Fase C, redactie/kritiek-stap (contentkwaliteit-analyse.md C3, abcplan.md §8).
  * Een aparte, goedkope call (model mini) beoordeelt de draft op een rubric en
  * markeert regel-risico's. Output stuurt de herschrijf-stap én de kwaliteitspoort.
  *
  * UITGEBREID IN FASE 4 (optimalisatie.md 4.5). De beoordelaar scoorde op vijf
  * dingen: answer-first, on-brand, concreet, scanbaar, geen slop. Allemaal
  * REDACTIONEEL. Geen enkel criterium ging over de vraag of een AI deze pagina
- * zou citeren — terwijl daar het hele product over gaat. Een tekst kan
+ * zou citeren, terwijl daar het hele product over gaat. Een tekst kan
  * vlekkeloos zijn en tegelijk volstrekt onciteerbaar.
  */
 
@@ -26,7 +26,7 @@ export const GeoCriteria = z.object({
    */
   answersTargetQuestionUpFront: z.boolean(),
   /**
-   * Bevat elke sectie minstens één zin die LOSSTAAND te citeren is —
+   * Bevat elke sectie minstens één zin die LOSSTAAND te citeren is,
    * begrijpelijk zonder de rest van de pagina? Dat is de eenheid waarin een
    * AI-assistent knipt.
    */
@@ -76,7 +76,7 @@ export const GEO_CRITERIA_LABELS: Record<keyof GeoCriteria, string> = {
  *
  * Even zwaar wegen is een keuze. Je zou "beantwoordt de doelvraag meteen"
  * zwaarder kunnen laten tellen, maar dan wordt de score een gewogen gemiddelde
- * waarvan niemand meer kan nazoeken hoe hij tot stand kwam — en de vijf
+ * waarvan niemand meer kan nazoeken hoe hij tot stand kwam, en de vijf
  * vinkjes eronder vertellen het echte verhaal.
  */
 export function geoScore(geo: GeoCriteria): number {

@@ -5,7 +5,7 @@
  *
  * Zonder dit bestand kreeg de klant de standaardpagina van het framework te
  * zien: buiten de huisstijl om, in het Engels, zonder uitweg. Terwijl er al een
- * `ErrorNotice` bestond die precies het juiste doet — gewone taal boven, de
+ * `ErrorNotice` bestond die precies het juiste doet, gewone taal boven, de
  * technische tekst weggevouwen eronder. Die gebruiken we hier.
  */
 import { useEffect } from "react";
@@ -32,7 +32,7 @@ export default function AppError({
           kind: "unknown",
           title: "Deze pagina kon niet geladen worden",
           message:
-            "Er ging iets mis bij het ophalen van je gegevens. Probeer het opnieuw — " +
+            "Er ging iets mis bij het ophalen van je gegevens. Probeer het opnieuw. " +
             "Aura werkt op de achtergrond gewoon door.",
           canRetry: true,
           // De digest hoort erbij: daarmee is de fout in de logs terug te vinden.

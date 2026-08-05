@@ -3,7 +3,7 @@ import "server-only";
 /**
  * Klantprofiel-onderzoek (accountniveau, eenmalig per merk). Quality-tier,
  * web_search AAN voor bredere marktcontext. De eigen crawltekst gaat als context
- * mee. Bedrijfsbreed — geen onderwerp-scoping (zie lib/pipeline/topic-research.ts
+ * mee. Bedrijfsbreed. Geen onderwerp-scoping (zie lib/pipeline/topic-research.ts
  * voor het per-analyse onderwerp-onderzoek dat hierop voortbouwt).
  */
 import { callStructured, type StructuredCallResult } from "@/lib/openai/structured";
@@ -11,7 +11,7 @@ import { MODELS } from "@/lib/openai/models";
 import { webSearchEnabled } from "@/lib/config";
 import { ProfileResearch } from "@/lib/schemas/profile";
 
-/** Wat de klant zelf in de onboarding aanleverde (leidend — zie prepare-profile.ts). */
+/** Wat de klant zelf in de onboarding aanleverde (leidend, zie prepare-profile.ts). */
 export interface ClientIntake {
   name?: string | null;
   aliases?: string[];
@@ -44,7 +44,7 @@ function buildIntakeBlock(intake?: ClientIntake): string {
   if (intake.audience) lines.push(`Doelgroep (door de klant): ${intake.audience}`);
   if (lines.length === 0) return "";
   return (
-    `\n\nDe klant heeft in de onboarding het volgende al aangegeven — RESPECTEER dit: verzin geen andere ` +
+    `\n\nDe klant heeft in de onboarding het volgende al aangegeven. RESPECTEER dit: verzin geen andere ` +
     `merknaam, branche of concurrenten als die gegeven zijn, en gebruik het als leidraad; VUL de rest aan ` +
     `en verrijk:\n${lines.join("\n")}`
   );
@@ -66,18 +66,18 @@ export async function generateProfileResearch(args: {
   const { url, siteText, intake, pageCount = 0 } = args;
 
   const brandNameRule =
-    `Bepaal ook de canonieke merknaam (brandName) zoals klanten die kennen — de naam die in gewone taal gebruikt wordt, ` +
+    `Bepaal ook de canonieke merknaam (brandName) zoals klanten die kennen, de naam die in gewone taal gebruikt wordt, ` +
     `niet het domein (dus bv. "Golden Fingers", niet "barbershopgoldenfingers.nl").`;
 
   // ✅ Contentkwaliteit (A2/A3): naast de merk-typering ook de SCHRIJF-GRONDSLAG
-  // extraheren — concrete feiten + letterlijke stijlvoorbeelden — zodat Fase C
+  // extraheren, concrete feiten + letterlijke stijlvoorbeelden, zodat Fase C
   // later concreet én on-brand kan schrijven zonder iets te verzinnen.
   const writingBasisRule =
     `Extraheer daarnaast, UITSLUITEND op basis van wat letterlijk in de website-tekst staat (niet verzinnen, niet uit web search): ` +
-    `(a) proofPoints — concrete, citeerbare feiten (garanties, jaartallen, aantallen, specialisaties, werkwijze, keurmerken); laat leeg als er niets hards staat; ` +
-    `(b) styleSamples — 2-3 letterlijke voorbeeldzinnen van de site die de merkstem tonen.`;
+    `(a) proofPoints: concrete, citeerbare feiten (garanties, jaartallen, aantallen, specialisaties, werkwijze, keurmerken); laat leeg als er niets hards staat; ` +
+    `(b) styleSamples: 2-3 letterlijke voorbeeldzinnen van de site die de merkstem tonen.`;
 
-  // Zonder zoekfunctie moet de instructie NIET om actuele marktcontext vragen —
+  // Zonder zoekfunctie moet de instructie NIET om actuele marktcontext vragen,
   // dan verzint het model die. Liever eerlijk: baseer je op wat er staat.
   const groundingRule = webSearchEnabled
     ? `Gebruik web search voor actuele marktcontext.`
@@ -105,15 +105,15 @@ export async function generateProfileResearch(args: {
     `(praktijk, kapper, installateur); 'landelijk' = het hele land is de markt; ` +
     `'internationaal' = meerdere landen; 'onbekend' = je kunt het niet uit het materiaal afleiden. ` +
     `Bij 'lokaal' zet je in serviceRegions de plaatsen of streken die de site noemt, zoals een ` +
-    `klant ze zou uitspreken ("Amersfoort", "regio Utrecht") — niet het adres. Bij niet-lokaal laat ` +
+    `klant ze zou uitspreken ("Amersfoort", "regio Utrecht"), niet het adres. Bij niet-lokaal laat ` +
     `je die lijst leeg. Zet in marketLanguage het land en de taal van de markt ` +
-    `(bv. "Nederland, Nederlands"). Weet je het niet, kies 'onbekend' en laat leeg — dat is een ` +
+    `(bv. "Nederland, Nederlands"). Weet je het niet, kies 'onbekend' en laat leeg. Dat is een ` +
     `beter antwoord dan een gok.`;
 
   const system =
     `Je bent een merk- en marktanalist. Analyseer dit bedrijf op basis van de website-tekst en het web. ` +
     `Bepaal: branche, kernproducten/-diensten, tone-of-voice, doelgroep-persona's, waardeproposities en 3–5 belangrijkste concurrenten ` +
-    `van het HELE bedrijf (niet van één product/segment — dat wordt per analyse apart bepaald). ` +
+    `van het HELE bedrijf, niet van één product of segment; dat wordt per analyse apart bepaald. ` +
     `${brandNameRule} ${businessModelRule} ${scopeFieldRule} ${writingBasisRule} ${groundingRule} Antwoord in het Nederlands.`;
 
   // Hoeveel de context waard is, hangt af van hoeveel pagina's erin zitten. Bij
@@ -122,10 +122,10 @@ export async function generateProfileResearch(args: {
   // benoemen is gratis en scheelt verzonnen stelligheid.
   const scopeRule =
     pageCount >= 10
-      ? `De tekst hieronder komt van ${pageCount} pagina's van de site — dat is een ruime dekking. ` +
+      ? `De tekst hieronder komt van ${pageCount} pagina's van de site. Dat is een ruime dekking. ` +
         `Wat er in dit materiaal niet voorkomt, biedt het bedrijf waarschijnlijk ook niet aan.`
       : pageCount > 0
-        ? `De tekst hieronder komt van ${pageCount} pagina('s) — een beperkte dekking. Trek geen ` +
+        ? `De tekst hieronder komt van ${pageCount} pagina('s): een beperkte dekking. Trek geen ` +
           `conclusies uit wat er ONTBREEKT.`
         : `Je hebt alleen losse tekst, geen paginadekking. Trek geen conclusies uit wat ontbreekt.`;
 
@@ -134,8 +134,8 @@ export async function generateProfileResearch(args: {
     `Geëxtraheerde website-tekst (kan onvolledig zijn):\n"""\n${
       siteText ||
       (webSearchEnabled
-        ? "(geen tekst opgehaald — leun op web search)"
-        : "(geen tekst opgehaald, en geen zoekfunctie beschikbaar — houd het onderzoek beperkt)")
+        ? "(geen tekst opgehaald, leun op web search)"
+        : "(geen tekst opgehaald, en geen zoekfunctie beschikbaar; houd het onderzoek beperkt)")
     }\n"""` +
     buildIntakeBlock(intake);
 

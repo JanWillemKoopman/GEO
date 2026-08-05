@@ -4,7 +4,7 @@
  *
  * `competitor_breakdown` groepeerde op de exacte naam die de classificatie
  * teruggaf. "Coolblue", "coolblue.nl" en "Coolblue B.V." waren daardoor drie
- * concurrenten — en over meerdere metingen viel de data verder uiteen, precies
+ * concurrenten, en over meerdere metingen viel de data verder uiteen, precies
  * op het moment dat je een trend wilt zien.
  *
  * Bewust ZONDER `server-only`: pure tekstbewerking, testbaar in een kaal script
@@ -37,7 +37,7 @@ const TLDS = [
  *   5. rechtsvorm achteraan eraf      coolblue bv → coolblue
  *
  * Blijft er niets over (iemand die letterlijk "BV" heet), dan geven we de
- * opgeschoonde vorm van vóór stap 5 terug — liever een rare sleutel dan een lege.
+ * opgeschoonde vorm van vóór stap 5 terug, liever een rare sleutel dan een lege.
  */
 export function normalizeEntityName(input: string): string {
   let s = input.trim().toLowerCase();
@@ -52,7 +52,7 @@ export function normalizeEntityName(input: string): string {
   s = s.normalize("NFD").replace(/[̀-ͯ]/g, "");
 
   // 3. Alles wat geen letter of cijfer is wordt een spatie; spaties inklappen.
-  //    De punt in "coolblue.nl" wordt daarmee ook een spatie — daarom komt de
+  //    De punt in "coolblue.nl" wordt daarmee ook een spatie, daarom komt de
   //    TLD-stap hierna en niet ervoor.
   s = s.replace(/[^a-z0-9]+/g, " ").trim().replace(/\s+/g, " ");
   if (!s) return "";
@@ -90,11 +90,11 @@ export function normalizeEntityName(input: string): string {
 
 /**
  * Horen twee namen bij dezelfde entiteit? Puur op basis van de genormaliseerde
- * vorm — géén fuzzy matching.
+ * vorm, géén fuzzy matching.
  *
  * Bewust conservatief: fuzzy matching (Levenshtein en dergelijke) zou "Bakkerij
  * Jansen" en "Bakkerij Hansen" samenvoegen, en dat zijn twee bedrijven. Twee
- * concurrenten ten onrechte samenvoegen is erger dan ze apart laten staan — het
+ * concurrenten ten onrechte samenvoegen is erger dan ze apart laten staan, het
  * eerste vervalst de data stil, het tweede is zichtbaar en door de klant op te
  * lossen in het beheerscherm (2.7).
  */
@@ -130,7 +130,7 @@ export function pickCanonicalName(variants: string[]): string {
  *
  * De mention-classificatie haalt uit een AI-antwoord niet alleen bedrijven maar
  * ook gewone woorden. De rol-classificatie daarna zet die soms in een
- * "relevante" rol in plaats van `niet_relevant` — bij een fysiopraktijk kwamen
+ * "relevante" rol in plaats van `niet_relevant`, bij een fysiopraktijk kwamen
  * "fysiotherapie", "manuele therapie", "medische fitness" en "sportfysiotherapie"
  * als `eigen_product` binnen, en "hardloopkliniek" en "fysiotherapiepraktijken"
  * zelfs als `concurrent`. Voor een praktijk zijn dat behandelvormen, geen
@@ -151,7 +151,7 @@ export function pickCanonicalName(variants: string[]): string {
  * alle echte merken uit de vijf testanalyses komen erdoor, alle acht generieke
  * termen vallen af.
  *
- * Dit is een VANGNET, geen vervanging van betere classificatie (R0.5) — ook met
+ * Dit is een VANGNET, geen vervanging van betere classificatie (R0.5), ook met
  * een scherper model zullen er generieke termen doorheen glippen.
  */
 export function looksLikeBrandName(name: string): boolean {
@@ -163,7 +163,7 @@ export function looksLikeBrandName(name: string): boolean {
   return /\p{Lu}/u.test(trimmed);
 }
 
-/** Leestekens/accenten weg, spaties inklappen — voor woordgrens-bewuste vergelijking. */
+/** Leestekens/accenten weg, spaties inklappen, voor woordgrens-bewuste vergelijking. */
 function normalizeForContains(s: string): string {
   return s
     .normalize("NFD")
@@ -176,13 +176,13 @@ function normalizeForContains(s: string): string {
 
 /**
  * Staat `name` LETTERLIJK in `text` (op hoofdletters, leestekens en accenten
- * na)? Geen fuzzy matching — zelfde conservatieve keuze als `isSameEntity`
+ * na)? Geen fuzzy matching, zelfde conservatieve keuze als `isSameEntity`
  * hierboven, maar dan voor "komt deze naam voor in deze tekst" in plaats van
  * "zijn dit twee schrijfwijzen van hetzelfde bedrijf".
  *
  * Bestaat om de mention-classificatie (lib/pipeline/measure.ts) te controleren:
  * de LLM-beoordeling van `mentioned` bleek soms `true` terug te geven terwijl
- * het merk nergens in `raw_response` voorkomt — puur een oordeel van het model,
+ * het merk nergens in `raw_response` voorkomt, puur een oordeel van het model,
  * niet gegrond in de tekst. Deze functie is het onafhankelijke, deterministische
  * vangnet daarop: de tekst zelf beslist, niet het model.
  */

@@ -7,7 +7,7 @@ import "server-only";
  * uit een AI-antwoord binnen als entiteit. Bij een autobedrijf zijn dat naast
  * echte concurrenten ook AutoScout24, Marktplaats, Gaspedaal en de ANWB. Zonder
  * deze stap zouden die als "concurrent" in de grafiek staan en het aandeel van
- * de klant drukken — precies de vervuiling waar de oude handmatige
+ * de klant drukken. Precies de vervuiling waar de oude handmatige
  * bevestigingspoort voor bedoeld was, maar dan zonder dat de klant per analyse
  * een lijst moet afvinken.
  *
@@ -47,7 +47,7 @@ export interface ClassifyContext {
   industry: string | null;
   /** Waar de analyse over gaat, bv. 'Skoda private lease'. */
   topic: string | null;
-  /** Merken/producten die de klant zélf voert — die zijn nooit concurrent. */
+  /** Merken/producten die de klant zélf voert. Die zijn nooit concurrent. */
   ownProducts: string[];
 }
 
@@ -67,7 +67,7 @@ function buildUser(names: string[], ctx: ClassifyContext): string {
     `- eigen_product: een merk of product dat ${ctx.brandName} zelf voert, verkoopt of vertegenwoordigt.`,
     "- brancheorganisatie: branchevereniging, keurmerk, kennisinstituut of belangenorganisatie.",
     "- vergelijker: marktplaats, vergelijkingssite, portal of platform waar meerdere aanbieders op staan.",
-    "- niet_relevant: al het overige — leverancier, media, software, of een naam die geen bedrijf is.",
+    "- niet_relevant: al het overige, zoals een leverancier, media, software, of een naam die geen bedrijf is.",
     "",
     "Bij twijfel tussen 'concurrent' en iets anders: kies het andere. Een merk dat onterecht als " +
       "concurrent telt, vervuilt het cijfer van de klant.",

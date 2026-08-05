@@ -2,7 +2,7 @@
  * Wachtvormen voor routeovergangen.
  *
  * De app had geen enkele `loading.tsx`, terwijl een lijstpagina vier
- * database-queries doet en een analysepagina er zeven — allemaal server-side,
+ * database-queries doet en een analysepagina er zeven, allemaal server-side,
  * allemaal vóór de eerste byte HTML. Tussen klik en scherm gebeurde er dus
  * niets zichtbaars: de app voelde traag terwijl hij dat niet per se was.
  *

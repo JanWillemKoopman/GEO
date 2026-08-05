@@ -9,19 +9,19 @@ import { PromptsManager } from "../_editors/prompts-manager";
 import { ConfirmBar } from "../_editors/confirm-bar";
 
 /**
- * Het conceptscherm — de enige stap waarop de app op de klant staat te wachten.
+ * Het conceptscherm, de enige stap waarop de app op de klant staat te wachten.
  *
  * ── WAAROM DIT EEN EIGEN SCHERM IS ──────────────────────────────────────────
  *
  * Dit stond onderaan het tabblad "Instellingen", na de analyse-gegevens, een
  * profielkaart, het onderwerp-onderzoek, de content-brief, de vragenlijst en de
  * tracking-schakelaar. Zes blokken scrollen voor de enige handeling die de
- * meting kan starten — op de plek die in elke applicatie ter wereld "hier hoef
+ * meting kan starten, op de plek die in elke applicatie ter wereld "hier hoef
  * je niet te zijn" betekent. Dat is geen vindbaarheidsprobleem maar een
  * conversieprobleem.
  *
  * Nu: één scherm, één taak, geen tabbladen die afleiden. Wat je hier ziet is
- * precies wat er gemeten gaat worden, in de volgorde waarin je het beoordeelt —
+ * precies wat er gemeten gaat worden, in de volgorde waarin je het beoordeelt,
  * eerst waar het over gaat, dan wat we gevonden hebben, dan de vragen zelf.
  * De goedkeuringsbalk blijft onderaan in beeld staan.
  */
@@ -61,7 +61,7 @@ export default async function ConceptPage({ params }: { params: Promise<{ id: st
           AI-assistenten.
         </p>
         <p className="text-sm text-muted">
-          Klopt het? Dan hoef je niets te veranderen — bevestigen is genoeg.
+          Klopt het? Dan hoef je niets te veranderen. Bevestigen is genoeg.
         </p>
       </div>
 
@@ -86,7 +86,7 @@ export default async function ConceptPage({ params }: { params: Promise<{ id: st
                 </p>
                 <p className="mt-0.5 text-sm text-muted">
                   {/* Deze lijst bepaalt sinds migratie 0026 NIET meer waar je tegen
-                      vergeleken wordt — dat komt uit de meting zelf. Hij dient nog
+                      vergeleken wordt. Dat komt uit de meting zelf. Hij dient nog
                       één doel: deze namen blijven uit de vragen, zodat we neutraal
                       meten. Vandaar het eerlijke label. */}
                   Deze merken blijven uit de vragen:{" "}
@@ -117,7 +117,7 @@ export default async function ConceptPage({ params }: { params: Promise<{ id: st
 
       {/* De poort mag alleen open als er iets te meten valt. Zonder actieve
           vragen zou de meting nul taken inplannen en zou de analyse blijven
-          hangen op een voortgangsscherm dat nooit verder komt — dus zeggen we
+          hangen op een voortgangsscherm dat nooit verder komt. Dus zeggen we
           hier wat er moet gebeuren in plaats van een knop aan te bieden die
           doodloopt. */}
       {activeCount > 0 ? (
@@ -125,7 +125,7 @@ export default async function ConceptPage({ params }: { params: Promise<{ id: st
       ) : (
         <div className="card" style={{ borderColor: "rgba(211,58,63,0.4)" }}>
           <p className="text-secondary">
-            Er staat nu geen enkele vraag aan. Zet er hierboven minstens één aan — zonder vragen
+            Er staat nu geen enkele vraag aan. Zet er hierboven minstens één aan, want zonder vragen
             valt er niets te meten en kan Aura niet starten.
           </p>
         </div>

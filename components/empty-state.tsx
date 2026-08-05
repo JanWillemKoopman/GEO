@@ -1,7 +1,7 @@
 import Link from "next/link";
 
 /**
- * De lege staat — één vorm voor de hele app.
+ * De lege staat, één vorm voor de hele app.
  *
  * Dit component bestond al, maar werd overal omzeild: `/analyses`,
  * `/profielen` en `/analyses/nieuw` bouwden hun eigen variant met de hand, elk

@@ -2,7 +2,7 @@ import Link from "next/link";
 
 /**
  * `notFound()` wordt op zes plekken aangeroepen, maar er stond geen enkel
- * scherm achter — dus kreeg de klant de kale standaardpagina van het framework,
+ * scherm achter, dus kreeg de klant de kale standaardpagina van het framework,
  * buiten de huisstijl om.
  *
  * Dit scherm valt buiten de AppShell (dat is hoe de router werkt bij een

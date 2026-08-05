@@ -9,7 +9,7 @@ import { useRouter } from "next/navigation";
  * De knop is alleen bruikbaar omdat hij veilig is: `field-merge.ts` houdt
  * profielvelden tegen die een mens zette, en de route laat aanbodknopen met
  * bron `klant` of `gesprek` staan. Zonder die twee zou dit een knop zijn die je
- * niet durft te gebruiken — en dan is het antwoord op "de site is vernieuwd"
+ * niet durft te gebruiken, en dan is het antwoord op "de site is vernieuwd"
  * weer "maak een nieuw merk aan".
  *
  * Een bevestiging ervoor, want het duurt een paar minuten en het herschrijft

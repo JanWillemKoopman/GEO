@@ -21,7 +21,7 @@ export type MentionSentiment = "positive" | "neutral" | "negative";
  * Hoe prominent een merk in een AI-antwoord staat (implementatieplan.md R3).
  * Vervangt sentiment als derde kenmerk van een vermelding: niet "hoe wordt
  * erover gesproken" (waar geen variatie in bleek te zitten) maar "word je
- * aanbevolen of alleen genoemd" — het verschil dat klanten oplevert.
+ * aanbevolen of alleen genoemd", het verschil dat klanten oplevert.
  */
 export type MentionRole = "eerste_aanbeveling" | "een_van_meerdere" | "zijdelings";
 export type ContentType = "article" | "faq" | "landing" | "comparison";
@@ -47,7 +47,7 @@ export type ContentAction = "nieuw" | "verbeteren";
 export const PROMPT_CATEGORIES = ["Oriëntatie", "Overweging", "Beslissing"] as const;
 export type PromptCategory = (typeof PROMPT_CATEGORIES)[number] | (string & {});
 
-/** Fijnere prompt-tags (abcplan.md §6 A2) — elk een eigen kolom voor analyse. */
+/** Fijnere prompt-tags (abcplan.md §6 A2), elk een eigen kolom voor analyse. */
 export type PromptIntentType = "informational" | "commercial" | "transactional";
 export type PromptSpecificity = "head" | "long_tail";
 
@@ -72,7 +72,7 @@ export interface Analysis {
   name: string;
   status: AnalysisStatus;
   tracking_enabled: boolean;
-  content_brief: string | null; // vrije toelichting: gewenste hoek/doelgroep van de content (§6/§7/§8)
+  content_brief: string | null; // vrije toelichting: gewenste hoek en doelgroep van de content (§6/§7/§8)
   /** Mail sturen zodra het rapport klaar is (optimalisatie.md 1.8). */
   notify_by_email: boolean;
   /** Eenmalige herinnering bij klaarliggende, niet-gepubliceerde content (5.8). */
@@ -96,7 +96,7 @@ export interface Analysis {
  */
 export type BusinessModel = "retailer" | "platform" | "dienstverlener" | "fabrikant" | "overig";
 
-/** Klantprofiel (accountniveau): het grondige, bedrijfsbrede onderzoek — één keer per merk. */
+/** Klantprofiel (accountniveau): het grondige, bedrijfsbrede onderzoek, één keer per merk. */
 export interface Profile {
   id: string;
   user_id: string;
@@ -171,7 +171,7 @@ export interface Profile {
   updated_at: string;
 }
 
-/** Onderwerp-onderzoek (per analyse): alleen wat specifiek is voor dít product/thema. */
+/** Onderwerp-onderzoek (per analyse): alleen wat specifiek is voor dít product of thema. */
 export interface TopicResearch {
   id: string;
   analysis_id: string;
@@ -191,7 +191,7 @@ export type EngineId = "openai" | "gemini";
 
 /**
  * Herkomst van een profielveld (migratie 0039). Alleen `ai` mag door een
- * volgende onderzoeksronde overschreven worden — wat een mens zette blijft
+ * volgende onderzoeksronde overschreven worden, wat een mens zette blijft
  * staan. Zie lib/pipeline/field-merge.ts.
  */
 export type FieldSource = "ai" | "klant" | "gesprek";
@@ -281,7 +281,7 @@ export interface ProfileTopic {
 
 /**
  * Wat de pijplijn niet kan waarnemen (migratie 0040). Gestructureerd en niet
- * vrij, omdat elke soort gevolg heeft — zie lib/pipeline/context-factors.ts.
+ * vrij, omdat elke soort gevolg heeft, zie lib/pipeline/context-factors.ts.
  */
 export type ContextFactorKind =
   | "nieuwe_website"
@@ -346,24 +346,24 @@ export interface Prompt {
   active: boolean;
   created_by: PromptOrigin;
   source_raw_json: unknown | null;
-  // Fijnere tags (§6 A2) — elk een eigen kolom, nullable voor handmatige prompts.
+  // Fijnere tags (§6 A2), elk een eigen kolom, nullable voor handmatige prompts.
   intent_type: PromptIntentType | null;
   specificity: PromptSpecificity | null;
   purchase_intent: boolean | null;
   cluster: string | null;
   /**
-   * Ruwe schatting van het model, 0-100. Blijft staan als audit-trail — dít gaf
-   * het model terug — maar weegt en toont niet meer mee (optimalisatie.md 2.6).
+   * Ruwe schatting van het model, 0-100. Blijft staan als audit-trail, dít gaf
+   * het model terug, maar weegt en toont niet meer mee (optimalisatie.md 2.6).
    */
   volume_estimate: number | null;
-  /** 'hoog' | 'midden' | 'laag' — wat er wél weegt en wat de klant ziet. */
+  /** 'hoog' | 'midden' | 'laag', wat er wél weegt en wat de klant ziet. */
   volume_band: VolumeBand | null;
   /** 'geschat' door het model, of 'klant' als hij de band zelf bijstelde. */
   volume_source: VolumeSource;
   /**
    * Levert deze vraag antwoorden op waarin aanbieders genoemd worden
    * (implementatieplan.md R2, migratie 0028)? 'nee' pas na twee metingen zonder
-   * enige aanbieder — dan wordt de vraag bij vervolgperiodes overgeslagen, want
+   * enige aanbieder. Dan wordt de vraag bij vervolgperiodes overgeslagen, want
    * elke meting is een betaalde web-zoekactie.
    */
   brand_eliciting: "ja" | "nee" | "onbekend" | null;
@@ -467,14 +467,14 @@ export interface VisibilityScore {
    * Meetbaarheid (implementatieplan.md R2, migratie 0028). `winnable_runs` is de
    * NOEMER van score/weighted_score: alleen metingen waarin de AI minstens één
    * aanbieder noemde. `brandless_runs` zijn de metingen waarin er geen enkele
-   * genoemd werd — geen gemiste kans, maar een vraag waar niemand de standaard
+   * genoemd werd. Geen gemiste kans, maar een vraag waar niemand de standaard
    * is. Samen tellen ze op tot `judged_runs`.
    */
   winnable_runs: number | null;
   brandless_runs: number | null;
   /**
    * Zichtbaarheidsprofiel (implementatieplan.md R3, migratie 0029). Naast
-   * "genoemd ja/nee": waar in het antwoord sta je (`avg_position`, lager is
+   * "genoemd, ja of nee": waar in het antwoord sta je (`avg_position`, lager is
    * beter), hoe vaak wordt je site als bron geciteerd (`citation_count`) en hoe
    * vaak word je als eerste aanbevolen (`first_mention_count`).
    */
@@ -499,7 +499,7 @@ export interface Entity {
   aliases: string[];
   /**
    * Wat dit merk IS ten opzichte van de klant (migratie 0024/0026). Alleen
-   * 'concurrent' telt mee in 'Jij vs. concurrenten' en in share_of_voice — een
+   * 'concurrent' telt mee in 'Jij vs. Concurrenten' en in share_of_voice, een
    * marktplaats of brancheorganisatie komt wél uit de meting maar hoort daar
    * niet tussen.
    */
@@ -514,7 +514,7 @@ export interface Entity {
   exclude_reason: string | null;
   /**
    * Door de klant gezien en goedgekeurd. Sinds migratie 0026 bepaalt dit niet
-   * meer of een merk meetelt — dat doet `entity_role`. Blijft bestaan als
+   * meer of een merk meetelt. Dat doet `entity_role`. Blijft bestaan als
    * signaal dat de klant er zelf naar gekeken heeft.
    */
   confirmed: boolean;
@@ -540,7 +540,7 @@ export interface CompetitorBreakdown {
   winning_run_ids: string[];
   losing_run_ids: string[];
   /**
-   * Hetzelfde profiel als voor het eigen merk (R3, migratie 0029) — zonder deze
+   * Hetzelfde profiel als voor het eigen merk (R3, migratie 0029). Zonder deze
    * twee valt er niets te vergelijken: even vaak genoemd maar structureel later
    * in het antwoord is een heel ander verhaal dan even vaak én even prominent.
    */
@@ -552,7 +552,7 @@ export interface CompetitorBreakdown {
    * meting als bewijs; `why_summary` is één leesbare zin voor de klant.
    *
    * De eigenschappen zijn de lat voor de contentstap. De NAAM van de concurrent
-   * gaat daarbij nooit mee — alleen de eigenschap; klantcontent noemt nooit een
+   * gaat daarbij nooit mee, alleen de eigenschap; klantcontent noemt nooit een
    * concurrent (lib/pipeline/content.ts).
    */
   attributes_json: { attribute: string; evidence: string }[] | null;
@@ -568,7 +568,7 @@ export interface Report {
   week_no: number;
   /** Wat er veranderd is t.o.v. de vorige periode (optimalisatie.md 6.2). */
   change_json: unknown | null;
-  /** Wanneer de mail hierover de deur uit ging — null = nooit (6.7). */
+  /** Wanneer de mail hierover de deur uit ging, null = nooit (6.7). */
   emailed_at: string | null;
   summary: string | null;
   gaps_json: unknown | null;
@@ -609,7 +609,7 @@ export interface ContentPiece {
    * Wanneer een mens deze pagina heeft vrijgegeven (S6, migratie 0034).
    *
    * `null` = nog nooit bekeken. Dat is iets anders dan `needs_review = false`,
-   * wat de kwaliteitspoort ook automatisch zet — zonder deze kolom zijn "de
+   * wat de kwaliteitspoort ook automatisch zet. Zonder deze kolom zijn "de
    * controles vonden niets" en "iemand heeft gekeken" niet te onderscheiden.
    */
   reviewed_at: string | null;
@@ -626,7 +626,7 @@ export interface ContentPiece {
    * `briefing_snapshot_json` = de feitenkaart en de aanbeveling zoals gebruikt
    * bij het schrijven, bevroren. `source_coverage` = welk deel van de
    * beweringen herleidbaar is; vervangt `geo_score` als kwaliteitsmaat, want
-   * die gaf in de praktijktest voor alle drie de pagina's 100 — ook voor de
+   * die gaf in de praktijktest voor alle drie de pagina's 100, ook voor de
    * pagina met vijf verzonnen feiten.
    */
   claims_json: unknown | null;
@@ -720,7 +720,7 @@ export interface SourceLandscapeRow {
 
 /**
  * Een off-site actie met een status (optimalisatie.md 7.6, migratie 0022).
- * Geen gegenereerde pagina maar een taak — zonder status blijft off-site advies
+ * Geen gegenereerde pagina maar een taak. Zonder status blijft off-site advies
  * hangen als goede bedoeling.
  */
 export interface OffsiteTask {
@@ -755,7 +755,7 @@ export interface TechnicalAudit {
 
 /**
  * Eén taak in de wachtrij (migratie 0013, optimalisatie.md fase 1).
- * `analysis_id` en `profile_id` zijn allebei nullable maar nooit allebei leeg —
+ * `analysis_id` en `profile_id` zijn allebei nullable maar nooit allebei leeg,
  * profielonderzoek hangt aan een profiel, de rest aan een analyse.
  */
 export interface Job {

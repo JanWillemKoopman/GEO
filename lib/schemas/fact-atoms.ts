@@ -13,17 +13,17 @@ import { z } from "zod";
  * Maar die reparatie had een prijs die pas op 31 juli zichtbaar werd: er bleven
  * over vijf analyses 24 citeerbare feiten over, allemaal merkbreed
  * (proof_points), en géén enkele over het onderwerp. De schrijver had niets
- * concreets om op te staan en werd dus generiek — precies de andere manier om de
+ * concreets om op te staan en werd dus generiek. Precies de andere manier om de
  * lat niet te halen.
  *
  * De oplossing is niet de regel versoepelen maar het blok opknippen. Een zin van
  * twaalf woorden die letterlijk op de site staat, is wél na te trekken. Vandaar
  * dat dit schema maar twee dingen vraagt en er niets bij mag verzinnen:
  *
- *   • `sentence` — de LETTERLIJKE zin uit de aangeleverde tekst. Niet
+ *   • `sentence`, de LETTERLIJKE zin uit de aangeleverde tekst. Niet
  *     samengevat, niet netter gemaakt, niet aangevuld. De code controleert dat
  *     hij er echt in staat (`atomiseSitePages`), en gooit hem weg zo niet.
- *   • `pageIndex` — uit welke van de aangeleverde pagina's hij komt, zodat de
+ *   • `pageIndex`, uit welke van de aangeleverde pagina's hij komt, zodat de
  *     bron-URL klopt.
  *
  * Er is bewust GEEN veld waarin het model mag uitleggen, samenvatten of

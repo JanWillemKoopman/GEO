@@ -6,7 +6,7 @@ import "server-only";
  * Of een bedrijf in Wikidata en Wikipedia voorkomt, is een van de sterkste
  * signalen die AI-systemen gebruiken om het überhaupt als bestaand ding te
  * herkennen. Staat een merk daar niet, dan is het voor een model geen entiteit
- * maar een woord — en een woord kun je niet aanbevelen.
+ * maar een woord, en een woord kun je niet aanbevelen.
  *
  * Bewust GEEN AI-aanroep: Wikidata en Wikipedia hebben allebei een gratis,
  * open API zonder sleutel. Een model laten raden of een bedrijf in Wikidata
@@ -54,7 +54,7 @@ interface WikipediaSearch {
  *
  * De valkuil is een naamgenoot: "Fresh" levert tientallen treffers op waarvan
  * geen enkele dit bedrijf is. Daarom eisen we dat de beschrijving óf de branche
- * óf een bedrijfswoord bevat — liever niets vinden dan de verkeerde entiteit
+ * óf een bedrijfswoord bevat, liever niets vinden dan de verkeerde entiteit
  * aan een klant koppelen en hem laten denken dat hij er al op staat.
  */
 const COMPANY_WORDS = [

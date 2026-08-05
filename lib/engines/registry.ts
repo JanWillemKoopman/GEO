@@ -6,7 +6,7 @@ import "server-only";
  * ── DE REGEL DIE ALLES BEPAALT ──────────────────────────────────────────────
  *
  * Een engine doet mee als er (a) een API-sleutel voor is én (b) hij op het
- * profiel aanstaat. Ontbreekt de sleutel, dan valt hij eruit — stil voor de
+ * profiel aanstaat. Ontbreekt de sleutel, dan valt hij eruit, stil voor de
  * klant, luid in de logs. Zonder `GEMINI_API_KEY` is de uitkomst dus
  * `['openai']` en gedraagt de hele app zich exact zoals hij deed.
  *
@@ -17,7 +17,7 @@ import "server-only";
  *
  * `profiles.engines_enabled` is een wens, geen feit. Zou de code die wens
  * blindelings volgen, dan valt een meetronde om zodra iemand `gemini` aanvinkt
- * op een omgeving zonder sleutel — of erger: hij valt half om, met dertig
+ * op een omgeving zonder sleutel, of erger: hij valt half om, met dertig
  * gelukte OpenAI-metingen en dertig mislukte taken die vier keer opnieuw
  * proberen. Een engine overslaan is altijd beter dan een halve meetronde.
  */
@@ -34,7 +34,7 @@ function openAiKey(): boolean {
   return Boolean(process.env.OPENAI_API_KEY?.trim());
 }
 
-/** Alle bekende engines, ook die zonder sleutel — voor de UI en de instellingen. */
+/** Alle bekende engines, ook die zonder sleutel, voor de UI en de instellingen. */
 export function allEngines(): EngineAdapter[] {
   return [createOpenAiEngine(openAiKey()), createGeminiEngine(geminiKey())];
 }
@@ -56,8 +56,8 @@ export function getEngine(id: EngineId): EngineAdapter {
  * De engines die voor dít profiel moeten draaien: de doorsnede van wat het
  * profiel wil en wat er beschikbaar is.
  *
- * Valt er iets af, dan wordt dat gelogd. Blijft er niets over — een profiel dat
- * alleen `gemini` wil op een omgeving zonder sleutel — dan valt hij terug op
+ * Valt er iets af, dan wordt dat gelogd. Blijft er niets over, een profiel dat
+ * alleen `gemini` wil op een omgeving zonder sleutel. Dan valt hij terug op
  * OpenAI in plaats van op een lege lijst. Nul engines betekent nul metingen, en
  * dat is een stille storing van het ergste soort: de analyse "slaagt" met een
  * leeg resultaat.
@@ -69,7 +69,7 @@ export function enginesForProfile(wanted: EngineId[] | null | undefined): Engine
   const overgeslagen = gevraagd.filter((id) => !beschikbaar.includes(id));
   if (overgeslagen.length > 0) {
     console.warn(
-      `Engine(s) overgeslagen — geen API-sleutel: ${overgeslagen.join(", ")}. ` +
+      `Engine(s) overgeslagen, geen API-sleutel: ${overgeslagen.join(", ")}. ` +
         `Beschikbaar: ${beschikbaar.join(", ") || "geen"}.`,
     );
   }

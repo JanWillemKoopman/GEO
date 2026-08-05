@@ -1,18 +1,18 @@
 import "server-only";
 
 /**
- * De contentbriefing — de vragenronde vóór het schrijven
+ * De contentbriefing, de vragenronde vóór het schrijven
  * (contentbriefing.md, implementatieplan.md R5.1).
  *
  * Deze stap zit tussen "de klant kiest welke pagina's geschreven worden" en "de
  * app schrijft ze". Hij doet drie dingen:
  *
- *   1. de FEITENINDEX opbouwen — alles wat we met bron over deze klant weten
- *   2. de CLAIM-AUDIT draaien — welke beweringen heeft de pagina nodig, en welke
+ *   1. de FEITENINDEX opbouwen, alles wat we met bron over deze klant weten
+ *   2. de CLAIM-AUDIT draaien, welke beweringen heeft de pagina nodig, en welke
  *      daarvan kunnen we niet onderbouwen?
  *   3. van elk gat een VRAAG maken, ontdubbeld over de gekozen pagina's
  *
- * Daarna stopt de pijplijn bewust en wacht op de klant — precies het patroon van
+ * Daarna stopt de pijplijn bewust en wacht op de klant. Precies het patroon van
  * de review-gate tussen halte 2 en 3 (abcplan.md §3.6), toegepast op FASE C.
  *
  * ── WAAROM DIT DE BELANGRIJKSTE STAP VAN FASE C IS ──────────────────────────
@@ -52,7 +52,7 @@ type Admin = ReturnType<typeof createAdminClient>;
 /**
  * Hoeveel van het winnende AI-antwoord er per doelvraag meegaat.
  *
- * Dit voedt de meest waardevolle vraagsoort — 'onderscheid' (contentbriefing.md
+ * Dit voedt de meest waardevolle vraagsoort, 'onderscheid' (contentbriefing.md
  * §5). We laten het model letterlijk zien wat de AI nu over de winnende partij
  * zegt, zodat het kan vragen: wat is jouw antwoord daarop? Dat is de enige
  * informatie die principieel niet uit een crawl te halen is.
@@ -69,13 +69,13 @@ const AUDIT_SYSTEM =
   "te beantwoorden. Per bewering: wordt hij gedekt door een feit op de kaart (geef dan het " +
   "F-nummer), of niet? " +
   "HARDE REGELS: " +
-  "(1) Verzin GEEN beweringen die je aannemelijk vindt — noem alleen wat de pagina echt nodig heeft. " +
+  "(1) Verzin GEEN beweringen die je aannemelijk vindt. Noem alleen wat de pagina echt nodig heeft. " +
   "(2) Markeer een bewering ALLEEN als gedekt wanneer je een concreet F-nummer kunt noemen dat hem " +
   "echt dekt, EN in supportQuote het letterlijke fragment uit dat feit overneemt dat de bewering " +
-  "dekt. Kun je die zin niet letterlijk aanwijzen, dan is de bewering NIET gedekt — hoe " +
+  "dekt. Kun je die zin niet letterlijk aanwijzen, dan is de bewering NIET gedekt, hoe " +
   "aannemelijk hij ook is. Bij twijfel: niet gedekt. Een vraag te veel stellen kost de klant " +
   "dertig seconden; een verzonnen feit kost hem zijn geloofwaardigheid. " +
-  "(3) Een feit onder 'MAG JE NIET BEWEREN' dekt niets — het verbiedt juist. Wat onder " +
+  "(3) Een feit onder 'MAG JE NIET BEWEREN' dekt niets: het verbiedt juist. Wat onder " +
   "'ACHTERGROND' staat dekt óók niets: dat is losse sitetekst zonder F-nummer, geen bevestigd " +
   "feit. Een bewering die je alleen op achtergrond kunt baseren is ONGEDEKT en wordt een vraag. " +
   "(4) Voor elke ONGEDEKTE bewering formuleer je de vraag die het gat dicht. Die vraag moet in " +
@@ -86,9 +86,9 @@ const AUDIT_SYSTEM =
   "(6) Heb je uit de gegeven informatie een waarschijnlijk antwoord, zet dat dan in suggestedAnswer " +
   "en maak er een verificatievraag van. Bevestigen is voor de klant veel goedkoper dan formuleren. " +
   "(7) importance 'kern' betekent: zonder dit feit kan de pagina zijn vraag niet eerlijk " +
-  "beantwoorden. Wees streng — als alles kern is, is niets het. " +
+  "beantwoorden. Wees streng: als alles kern is, is niets het. " +
   "(8) ÉÉN VRAAG PER ONDERWERP. Staat er een lijst 'AL GESTELDE VRAGEN', dan stel je die niet " +
-  "opnieuw — ook niet net anders geformuleerd, ook niet als deelvraag. En stel binnen je eigen " +
+  "opnieuw, ook niet net anders geformuleerd, ook niet als deelvraag. En stel binnen je eigen " +
   "antwoord nooit twee vragen die met hetzelfde antwoord beantwoord zouden worden: kies dan de " +
   "kortste. De klant krijgt er maximaal acht te zien; drie varianten van dezelfde vraag kosten " +
   "hem drie van die acht plekken en leveren één antwoord op.";
@@ -134,7 +134,7 @@ async function buildPageBlocks(
         .join("\n    ---\n");
 
       return [
-        `PAGINA ${i + 1} [id: ${pieceIds[i]}] — "${rec.title}" (type: ${rec.type})`,
+        `PAGINA ${i + 1} [id: ${pieceIds[i]}]: "${rec.title}" (type: ${rec.type})`,
         `  Doel: ${rec.targetIntent || "onbekend"}`,
         `  Achtergrond: ${rec.why || "onbekend"}`,
         `  Moet deze vragen gaan winnen:`,
@@ -153,7 +153,7 @@ async function buildPageBlocks(
  * Deze rijen zijn wat de Content Bibliotheek toont als "wacht op jouw input", en
  * hun id's zijn waar de vragen aan hangen (`fact_requests.content_piece_ids`).
  * Bestaat er al een rij met deze titel die nog niet geschreven is, dan wordt die
- * hergebruikt — twee keer op "genereer" drukken mag geen twee pagina's opleveren.
+ * hergebruikt. Twee keer op "genereer" drukken mag geen twee pagina's opleveren.
  */
 async function ensureBriefingPieces(
   admin: Admin,
@@ -245,12 +245,12 @@ async function loadKnownClaimKeys(
  * eigenschap waaróp hij genoemd wordt, met een letterlijk citaat als bewijs:
  * "Zitting manuele therapie: €60,00 per sessie", "biedt fysiotherapie aan zonder
  * dat een verwijsbrief nodig is". Die zinnen stonden er al en werden nergens
- * gebruikt — `loadContentContext()` gooide zelfs alleen de eigenschapsnamen in de
+ * gebruikt, `loadContentContext()` gooide zelfs alleen de eigenschapsnamen in de
  * schrijfprompt en liet het bewijs liggen.
  *
  * Namen gaan er dubbel uit: `redactCompetitors` haalt ze weg en
  * `containsCompetitor` controleert dat na. Een citaat dat ondanks beide nog een
- * naam bevat gaat niet mee — de harde regel dat klantcontent nooit een concurrent
+ * naam bevat gaat niet mee, de harde regel dat klantcontent nooit een concurrent
  * noemt geldt ook voor wat we de klant voorschotelen.
  */
 async function buildPositioningQuestion(
@@ -301,7 +301,7 @@ export interface BriefingResult {
  *
  * Idempotent: bestaande briefing-rijen worden hergebruikt en vragen die al
  * gesteld zijn worden niet opnieuw gesteld. Een mislukte poging kan dus gewoon
- * opnieuw — dat is wat de wachtrij doet.
+ * opnieuw. Dat is wat de wachtrij doet.
  */
 export async function runBriefing(args: {
   analysisId: string;
@@ -325,7 +325,7 @@ export async function runBriefing(args: {
   // De doelvragen gaan mee sinds S1: zij bepalen wélke gecrawlde pagina's
   // relevant zijn, en dus welke feiten er überhaupt op de kaart kunnen komen.
   // Zonder dat argument koos `buildFactBase()` de eerste acht rijen uit de
-  // database — bij Coolblue vier keer een navigatiepagina plus dezelfde vier in
+  // database, bij Coolblue vier keer een navigatiepagina plus dezelfde vier in
   // het Engels, en geen van de tien gecrawlde wasmachinepagina's.
   const doelvragen = Array.from(
     new Set(
@@ -339,14 +339,14 @@ export async function runBriefing(args: {
 
   // Tegenspraken uit de feitenbank (migratie 0036). Twee antwoorden op dezelfde
   // vraag die elkaar uitsluiten belandden vóór 0036 allebei op de kaart, en dan
-  // koos het model welk het aanhaalde. Nu wint het nieuwste — en zegt de app
+  // koos het model welk het aanhaalde. Nu wint het nieuwste, en zegt de app
   // erbij dát er iets omging, zodat de klant het kan nakijken.
   // Ze gaan hieronder mee in `briefing_snapshot_json` en komen zo op het
   // briefingscherm terecht; deze logregel is voor de ontwikkelaar, niet het
   // kanaal naar de klant.
   const tegenspraken = describeContradictions(lastContradictions());
   if (tegenspraken.length > 0) {
-    console.log(`Briefing ${analysisId}: ${tegenspraken.length} tegenspraak/tegenspraken — ${tegenspraken.join(" | ")}`);
+    console.log(`Briefing ${analysisId}: ${tegenspraken.length} tegenspraken, ${tegenspraken.join(" | ")}`);
   }
 
   const { data: profile } = await admin
@@ -365,7 +365,7 @@ export async function runBriefing(args: {
 
   // Wat er al gevraagd is, moet de audit weten (R8.4). Zonder deze lijst kan het
   // model niet zien dat het bezig is een variant te formuleren van een vraag die
-  // er al staat — bij Fysi-Unique leverde dat 17 vragen op voor 5 à 6 werkelijke
+  // er al staat, bij Fysi-Unique leverde dat 17 vragen op voor 5 à 6 werkelijke
   // onderwerpen. De code ontdubbelt achteraf nog steeds (dat blijft het vangnet),
   // maar het is goedkoper om de dubbele vraag niet te laten ontstaan.
   const bekend = await loadKnownClaimKeys(admin, profileId, analysisId);
@@ -382,7 +382,7 @@ export async function runBriefing(args: {
     bekend.questions.length > 0
       ? [
           "",
-          "AL GESTELDE VRAGEN — stel deze niet opnieuw, ook niet in andere bewoordingen:",
+          "AL GESTELDE VRAGEN: stel deze niet opnieuw, ook niet in andere bewoordingen:",
           ...bekend.questions.slice(0, 30).map((v) => `  • ${v}`),
         ].join("\n")
       : "",
@@ -405,7 +405,7 @@ export async function runBriefing(args: {
   //
   // Het model mag zichzelf niet vrijpleiten (contentbriefing.md §3.2). Zegt het
   // `supported: true` maar wijst `sourceRef` nergens naar op de kaart, dan is de
-  // claim onbewezen — anders verdwijnt juist de vraag die het gat moest dichten.
+  // claim onbewezen. Anders verdwijnt juist de vraag die het gat moest dichten.
   const ongedekt = audit.parsed.claims.filter(
     (c) => !isSupported(c.sourceRef, facts, c.supportQuote) && Boolean(c.questionIfMissing?.trim()),
   );
@@ -424,7 +424,7 @@ export async function runBriefing(args: {
   // Alle gekozen pagina's krijgen elke ongedekte claim toebedeeld die uit hun
   // doelvraag voortkomt. Het model geeft niet betrouwbaar terug bij wélke pagina
   // een claim hoort, dus koppelen we op de pagina waarvan de doelvraag in
-  // `neededFor` genoemd wordt — en anders aan alle pagina's, want dan raakt het
+  // `neededFor` genoemd wordt, en anders aan alle pagina's, want dan raakt het
   // de hele batch.
   const paginaVanClaim = (neededFor: string): string[] => {
     const treffers = recommendations
@@ -460,8 +460,8 @@ export async function runBriefing(args: {
     );
   }
 
-  // De positioneringsvraag erbij (S4). Deze kán niet uit de claim-audit komen —
-  // die kent alleen dekkingsgaten — en werd daardoor 0 van de 62 keer gesteld,
+  // De positioneringsvraag erbij (S4). Deze kán niet uit de claim-audit komen,
+  // die kent alleen dekkingsgaten, en werd daardoor 0 van de 62 keer gesteld,
   // waardoor de R8.8-controle op een lege verzameling draaide.
   const positionering = await buildPositioningQuestion(admin, analysisId, pieceIds, competitors);
   if (positionering) kandidaten.push(positionering);
@@ -479,7 +479,7 @@ export async function runBriefing(args: {
   //
   // Eén voor één en fouttolerant: de unieke index op (analyse, claim_key) is
   // PARTIEEL (alleen status 'open'), dus `.upsert(..., { onConflict })` kan hem
-  // niet als doel gebruiken — Postgres eist daar dezelfde WHERE-clausule. Botst
+  // niet als doel gebruiken, Postgres eist daar dezelfde WHERE-clausule. Botst
   // hij toch, dan staat de vraag er al en is er niets aan de hand.
   let geschreven = 0;
   for (const vraag of gekozen) {
@@ -513,7 +513,7 @@ export async function runBriefing(args: {
   // doelvragen (welke gemiste vraag deze pagina moet winnen, R4.1) zitten niet
   // in de kolommen van content_pieces. Zonder ze hier te bewaren zou de
   // schrijftaak die de klant straks start ze kwijt zijn, en dan schrijft de app
-  // weer een pagina zonder te weten welke vraag hij moet winnen — precies het
+  // weer een pagina zonder te weten welke vraag hij moet winnen. Precies het
   // gat dat fase 4 dichtte.
   for (const [i, pieceId] of pieceIds.entries()) {
     await admin
@@ -526,7 +526,7 @@ export async function runBriefing(args: {
           // De audit rekent per pagina uit WELKE beweringen hij nodig heeft en
           // waaróm. Tot nu toe gebruikten we daar alleen de GATEN van (om vragen
           // te stellen) en verdween de rest. Gemeten over de vijf testcases: 31
-          // beweringen, waarvan 19 door het model onderbouwd geacht — allemaal
+          // beweringen, waarvan 19 door het model onderbouwd geacht, allemaal
           // weggegooid, terwijl dat precies het skelet is waarmee de schrijver
           // zou moeten beginnen.
           //
@@ -537,7 +537,7 @@ export async function runBriefing(args: {
           recommendation: recommendations[i],
           // ── DE TEGENSPRAKEN BEWAREN (S8) ───────────────────────────────
           //
-          // Ze werden berekend en alleen gelogd — precies het patroon dat dit
+          // Ze werden berekend en alleen gelogd. Precies het patroon dat dit
           // hele traject drie keer eerder opleverde (de antwoorden van de klant
           // in R8.1, het paginaplan in S2, de aanbeveling in de snapshot). Een
           // uitkomst die nergens landt bestaat voor de klant niet.
@@ -575,7 +575,7 @@ export function factsFromSnapshot(snapshot: unknown): FactItem[] {
 /**
  * De tegenspraken uit de snapshot teruglezen (S8).
  *
- * Leeg bij een briefing van vóór S8, of bij een batch waarin niets omging — en
+ * Leeg bij een briefing van vóór S8, of bij een batch waarin niets omging, en
  * dat laatste is het normale geval. Alleen de tegenspraken die de klant aangaan
  * staan erin: `describeContradictions()` filtert de sitewijzigingen er al uit,
  * want een site die verandert is meestal gewoon een update.
@@ -591,7 +591,7 @@ export function contradictionsFromSnapshot(snapshot: unknown): string[] {
  *
  * Leeg bij een pagina van vóór S2, of bij een briefing die strandde vóór het
  * wegschrijven. De schrijver valt dan terug op het oude gedrag: doelvragen +
- * feitenkaart, zonder skelet. Minder goed, niet stuk — zelfde afspraak als bij
+ * feitenkaart, zonder skelet. Minder goed, niet stuk, zelfde afspraak als bij
  * `recommendationFromSnapshot()`.
  */
 export function planFromSnapshot(snapshot: unknown): AuditedClaim[] {
@@ -606,7 +606,7 @@ export function planFromSnapshot(snapshot: unknown): AuditedClaim[] {
 }
 
 /**
- * De bevroren aanbeveling teruglezen — inclusief de doelvragen.
+ * De bevroren aanbeveling teruglezen, inclusief de doelvragen.
  *
  * Geeft null als de snapshot er niet is (een pagina van vóór R5.1, of een
  * briefing die halverwege strandde). De aanroeper valt dan terug op de kolommen

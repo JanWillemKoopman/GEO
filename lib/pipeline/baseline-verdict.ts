@@ -24,7 +24,7 @@
  * een echt antwoord (conventie 3): dat ChatGPT je openingstijden niet noemt, is
  * iets anders dan dat hij ze fout heeft.
  *
- * `tegengesproken` wordt alleen gemeld waar het STRUCTUREEL vast te stellen is —
+ * `tegengesproken` wordt alleen gemeld waar het STRUCTUREEL vast te stellen is,
  * een ander telefoonnummer, een ander jaartal, een andere postcode, een ander
  * domein. Bij vrije tekst ("wat voor bedrijf is dit") kan deze module het
  * verschil tussen "anders geformuleerd" en "onjuist" niet zien, en dan is
@@ -35,7 +35,7 @@ import { textContainsName } from "@/lib/entities/normalize";
 export type FactVerdict = "bevestigd" | "tegengesproken" | "niet_genoemd";
 
 export interface KnownFact {
-  /** 'telefoon', 'adres', 'opgericht', 'naam', … — de sleutel uit fase 0. */
+  /** 'telefoon', 'adres', 'opgericht', 'naam', …, de sleutel uit fase 0. */
   key: string;
   value: string;
   /** Uit welk schema-type het feit komt ('Organization', 'WebPage', …). */
@@ -44,7 +44,7 @@ export interface KnownFact {
 
 /**
  * Schema-typen die iets over de PAGINA zeggen en niets over het bedrijf. Hun
- * `name` is de paginatitel — "Tarieven | Fysi-Unique" — en die als feit
+ * `name` is de paginatitel, "Tarieven | Fysi-Unique", en die als feit
  * controleren levert alleen ruis op.
  */
 const PAGE_LEVEL_TYPES = new Set([
@@ -59,7 +59,7 @@ const PAGE_LEVEL_TYPES = new Set([
 ]);
 
 /**
- * Welke geoogste feiten zich lenen voor een kennistest — en welke niet.
+ * Welke geoogste feiten zich lenen voor een kennistest, en welke niet.
  *
  * ── WAAROM DIT EEN EIGEN FUNCTIE IS, EN GEEN FILTER TER PLEKKE ──────────────
  *
@@ -67,7 +67,7 @@ const PAGE_LEVEL_TYPES = new Set([
  * daarvan waren paginatitels uit `WebPage`-opmaak ("Vacature: Algemeen
  * Fysiotherapeut - Fysi-Unique"), en de twee die als `bevestigd` uit de bus
  * kwamen waren de merknaam zelf. Die staat in het antwoord omdat hij in de
- * VRAAG staat — een controle die niet kán mislukken meet niets, en telde hier
+ * VRAAG staat, een controle die niet kán mislukken meet niets, en telde hier
  * wél mee als bewijs dat het model het merk kent.
  *
  * Twee regels dus, allebei deterministisch:
@@ -123,7 +123,7 @@ function normalize(s: string): string {
     .trim();
 }
 
-/** Alleen de cijfers — voor telefoonnummers, die op tien manieren geschreven worden. */
+/** Alleen de cijfers, voor telefoonnummers, die op tien manieren geschreven worden. */
 function digitsOnly(s: string): string {
   return s.replace(/\D+/g, "");
 }
@@ -140,18 +140,18 @@ function digitsOnly(s: string): string {
  * of website kan ik niet met zekerheid zeggen WELKE ORGANISATIE je bedoelt" en
  * "ik weet niet zeker welke organisatie je bedoelt: er zijn mogelijk MEERDERE
  * BEDRIJVEN MET DE NAAM Fysi-Unique". Geen van de zinnen hierboven kwam daarin
- * voor, dus `admitsUnknown` gaf false, dus `knowsBrand` gaf true — enkel omdat de
+ * voor, dus `admitsUnknown` gaf false, dus `knowsBrand` gaf true, enkel omdat de
  * merknaam in het antwoord stond, en die stond er omdat hij in de VRAAG stond.
  * Het profielscherm meldde "ChatGPT kent Fysi-Unique" en de synthese schreef het
  * over als "ChatGPT kent het bedrijf al".
  *
- * De eerste reparatie voegde óók losse fragmenten toe — "niet met zekerheid",
+ * De eerste reparatie voegde óók losse fragmenten toe, "niet met zekerheid",
  * "ik weet niet zeker". Die zijn er dezelfde dag weer uit gehaald, want de
  * hermeting liet zien dat ze te veel vangen. Toen het werkgebied eenmaal in de
  * vraag zat, antwoordde het model: *"Fysi-Unique in Amersfoort is een
  * fysiotherapiepraktijk. (…) Ik kan zonder actuele website-informatie niet met
  * zekerheid zeggen welke SPECIALISATIES zij momenteel aanbieden."* Dat is een
- * model dat het merk wél kent en alleen de details niet — en dat werd zo als
+ * model dat het merk wél kent en alleen de details niet, en dat werd zo als
  * "kent Fysi-Unique niet" gemeld. Vals negatief in plaats van vals positief.
  *
  * De grens ligt dus bij IDENTITEIT: "ik weet niet wélk bedrijf je bedoelt" is het
@@ -172,7 +172,7 @@ const UNKNOWN_PHRASES = [
   "no information",
   "not familiar",
   // Het model kan de naam niet aan één organisatie koppelen. Bewust alléén
-  // formuleringen over WELK bedrijf bedoeld wordt — geen losse hedges als "niet
+  // formuleringen over WELK bedrijf bedoeld wordt. Geen losse hedges als "niet
   // met zekerheid", want die slaan net zo vaak op een detail als op de identiteit.
   "welke organisatie je bedoelt",
   "welk bedrijf je bedoelt",
@@ -200,7 +200,7 @@ export function admitsUnknown(answer: string): boolean {
  * Drie voorwaarden, en alle drie moeten waar zijn: het antwoord is lang genoeg,
  * de merknaam (of een alias) staat erin, en het model zegt niet met zoveel
  * woorden dat het niets weet. Die laatste is nodig omdat "Ik ken Fysi-Unique
- * niet" de merknaam wél bevat — zonder deze controle zou elk eerlijk
+ * niet" de merknaam wél bevat. Zonder deze controle zou elk eerlijk
  * niet-weten-antwoord als herkenning tellen.
  */
 export function knowsBrand(
@@ -281,7 +281,7 @@ export function checkFacts(answer: string, facts: KnownFact[]): FactCheck[] {
         found: afwijkend,
       };
     }
-    // Een kandidaat die wél equivalent is telt alsnog als bevestiging — een
+    // Een kandidaat die wél equivalent is telt alsnog als bevestiging, een
     // telefoonnummer als "+31 33 123 45 67" tegenover "033 1234567" is hetzelfde
     // nummer, en dat als "niet genoemd" tellen zou de score onterecht drukken.
     if (kandidaten.length > 0) {
@@ -345,7 +345,7 @@ export function describeVerdict(
 }
 
 // ════════════════════════════════════════════════════════════════════════════
-// HET CATEGORIEBLOK — de nulmeting die tot 4 augustus 2026 geen getal opleverde
+// HET CATEGORIEBLOK: de nulmeting die tot 4 augustus 2026 geen getal opleverde
 // ════════════════════════════════════════════════════════════════════════════
 //
 // Het profielscherm zette boven dit blok de kop "Word je genoemd bij
@@ -354,7 +354,7 @@ export function describeVerdict(
 // tekst in een uitklapper en verder niet aangeraakt.
 //
 // Terwijl dat de op één na duurste post van de hele onboarding is: drie vragen
-// mét web search, $0,044 van de $0,2463 die een volledige ronde kostte — 18%.
+// mét web search, $0,044 van de $0,2463 die een volledige ronde kostte, 18%.
 // En het is precies het getal waar een ondernemer op wacht: "bij geen van je
 // drie kerndiensten word je genoemd, deze drie concurrenten wel."
 //
@@ -376,10 +376,10 @@ export interface CategoryVerdict {
  * De kale naam uit een concurrentregel halen.
  *
  * `profiles.competitors` is een mengsel van twee bronnen. `market.ts` schrijft
- * er kale namen in ("SMC Amersfoort"), maar `prepare-profile.ts` — die eerder
- * draait — zet er de hele onderbouwing in die het profielonderzoek teruggaf:
+ * er kale namen in ("SMC Amersfoort"), maar `prepare-profile.ts`. Die eerder
+ * draait, zet er de hele onderbouwing in die het profielonderzoek teruggaf:
  *
- *   "Fysio Amersfoort — lokale fysiotherapiepraktijk met onder meer manuele
+ *   "Fysio Amersfoort, lokale fysiotherapiepraktijk met onder meer manuele
  *    therapie en algemene fysiotherapie in Amersfoort.
  *    ([fysioamersfoort.nl](https://fysioamersfoort.nl/...))"
  *
@@ -387,7 +387,7 @@ export interface CategoryVerdict {
  * Dit knipt hem terug tot wat er vóór het gedachtestreepje staat.
  *
  * Blijft er iets over dat te lang is om een bedrijfsnaam te zijn, dan geven we
- * `null` terug in plaats van een gok (conventie 3) — een halve zin die
+ * `null` terug in plaats van een gok (conventie 3), een halve zin die
  * toevallig in een antwoord voorkomt, zou een concurrentvermelding verzinnen.
  */
 const MAX_COMPETITOR_NAME_CHARS = 60;
@@ -468,17 +468,17 @@ export function describeCategory(
 // ════════════════════════════════════════════════════════════════════════════
 //
 // Twee meetronden op dezelfde site, dezelfde dag, gaven het tegenovergestelde
-// antwoord. Ronde 1 vroeg "Wat weet je over Fysi-Unique?" — het model kon de
+// antwoord. Ronde 1 vroeg "Wat weet je over Fysi-Unique?", het model kon de
 // naam aan geen enkele organisatie koppelen. Ronde 2 vroeg "Wat weet je over
-// Fysi-Unique uit Amersfoort?" — en kreeg een correcte omschrijving terug.
+// Fysi-Unique uit Amersfoort?", en kreeg een correcte omschrijving terug.
 //
 // Twee woorden verschil, en het was de KOPREGEL van het profielscherm die
 // omsloeg. Een blok dat $0,0003 kost voor twee vragen (geen zoekfunctie, korte
-// antwoorden) hoort er niet twee te stellen maar zes, en geen ja/nee te
+// antwoorden) hoort er niet twee te stellen maar zes, en geen ja of nee te
 // rapporteren maar een verhouding.
 //
 // Geen drempel: 0 van de 6 is "kent je niet", 6 van de 6 is "kent je", en alles
-// daartussen is "wisselend" — wat het dan ook echt is. Een grens op 50% zou een
+// daartussen is "wisselend", wat het dan ook echt is. Een grens op 50% zou een
 // getal verzinnen dat de meting niet draagt.
 
 export type KnowsLevel = "kent" | "wisselend" | "kent_niet";

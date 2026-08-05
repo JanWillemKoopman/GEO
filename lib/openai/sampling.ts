@@ -9,7 +9,7 @@
  * toegestaan en was dat de enige knop die we hadden. De GPT-5-familie is een
  * redeneerfamilie: die accepteert `temperature` alleen zolang er niet geredeneerd
  * wordt (`reasoning.effort: "none"`), en heeft er een tweede, sterkere knop bij
- * gekregen — de redeneerinspanning zelf. Zonder vertaallaag zou elke aanroep in
+ * gekregen, de redeneerinspanning zelf. Zonder vertaallaag zou elke aanroep in
  * de pijplijn óf een 400 opleveren (temperatuur bij effort > none) óf stilletjes
  * op de standaardinstelling draaien (effort `medium`), wat de mention-classificatie
  * drie keer zo traag en duur maakt zonder dat hij er beter van wordt.
@@ -44,31 +44,31 @@ interface WorkProfile {
  * De vertaaltabel. Per soort werk: hoeveel mag het model zwerven, en hoeveel mag
  * het nadenken. De keuze per regel is niet willekeurig:
  *
- * - `deterministic` — classificeren en beoordelen (mention-detectie 30×/week,
+ * - `deterministic`, classificeren en beoordelen (mention-detectie 30×/week,
  *   claim-audit, content-kritiek). Reproduceerbaarheid gaat hier vóór alles: één
  *   verschoven oordeel verschuift direct de zichtbaarheidsscore. Effort `none`
  *   houdt het snel en goedkoop (zoals de oude nano-tier) én is de enige stand
  *   waarin `temperature: 0` nog is toegestaan.
- * - `analytical` — onderzoek, kalibratie, gap-analyse, rapport. Hier betaalt
+ * - `analytical`, onderzoek, kalibratie, gap-analyse, rapport. Hier betaalt
  *   redeneren zich wél uit. `low` en niet `medium`: de client-timeout staat op
  *   100 s (lib/openai/client.ts) en deze stappen draaien deels mét web_search,
  *   die zelf al 20–40 s kost.
- * - `creative` — promptgeneratie. Variatie is hier het product; redeneren maakt
+ * - `creative`, promptgeneratie. Variatie is hier het product; redeneren maakt
  *   de tien vragen per funnelfase juist weer op elkaar lijkend. Effort `none`,
  *   temperatuur hoog.
- * - `content` — het betaalde product, en de enige stap op het duurste model.
+ * - `content`, het betaalde product, en de enige stap op het duurste model.
  *   Expliciet `medium` en niet `high`: één schrijfcall moet binnen de 100 s van
  *   `TIMEOUT_MS` (lib/openai/client.ts) passen, en een volledige pagina op de
  *   Sol-tier mét zware redeneertijd zit daar tegenaan. Een timeout kost hier het
- *   dubbele van gewoon falen — de taak wordt opnieuw gedraaid en de duurste
+ *   dubbele van gewoon falen, de taak wordt opnieuw gedraaid en de duurste
  *   tokens van de app zijn dan twee keer betaald. `high` is de knop om aan te
  *   draaien zodra iemand de werkelijke doorlooptijd op productie heeft nagemeten
  *   en de tijdsconstanten in lib/jobs/worker.ts daarop zijn bijgesteld.
  *   De temperatuur vervalt: op effort > none accepteert de API hem niet, en
  *   natuurlijke variatie komt bij een redeneermodel uit het redeneren zelf. Dat
- *   maakt de tekst niet deterministisch — de bewaking erop is dat ook nooit
+ *   maakt de tekst niet deterministisch, de bewaking erop is dat ook nooit
  *   geweest: `content-gate.ts` keurt de uitkomst, niet de instelling.
- * - `simulation` — halte 3a. Niets meegeven, in beide kolommen. We willen weten
+ * - `simulation`, halte 3a. Niets meegeven, in beide kolommen. We willen weten
  *   wat een AI-assistent een echte gebruiker antwoordt, en die draait ook op de
  *   standaardinstellingen. Een eigen temperatuur of effort zou de meting juist
  *   onrealistisch maken.
@@ -121,7 +121,7 @@ export function resolveTuning(
   }
 
   // Redeneermodellen: temperatuur mag uitsluitend mee zolang er niet geredeneerd
-  // wordt. Dat is geen voorzorg maar de regel van de API — bij effort `low` en
+  // wordt. Dat is geen voorzorg maar de regel van de API: bij effort `low` en
   // hoger is `temperature` een unsupported parameter en faalt de hele call.
   const temperature =
     profile.effort === "none" && temperatureSupported ? profile.temperature : undefined;
@@ -136,7 +136,7 @@ export function resolveTuning(
  * Defensief uitgelezen: de SDK hangt de foutdetails aan verschillende velden
  * (`error.param`, `error.message`, `message`) afhankelijk van hoe de fout
  * ontstaat. Een gemiste herkenning is niet erg (dan faalt de taak en pakt de
- * retry-laag hem op), een valse herkenning wél — vandaar dat zowel het woord
+ * retry-laag hem op), een valse herkenning wél. Vandaar dat zowel het woord
  * "temperature" als een expliciete afwijzing aanwezig moet zijn.
  */
 export function isUnsupportedTemperatureError(err: unknown): boolean {

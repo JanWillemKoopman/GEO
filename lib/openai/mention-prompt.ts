@@ -1,7 +1,7 @@
 /**
  * De prompt voor halte 3b (mention-detectie), apart van de pijplijn.
  *
- * WAAROM APART: dit is de meest load-bearing prompt van het hele product — hij
+ * WAAROM APART: dit is de meest load-bearing prompt van het hele product, hij
  * bepaalt `mentioned`, `position`, `role` en `citedSources`, en dáár hangt
  * élk cijfer, élke gap en élke aanbeveling aan. Het evaluatiescript
  * (scripts/eval-mention.ts, optimalisatie.md 0.7) moet exact dezelfde prompt
@@ -34,11 +34,11 @@ export interface MentionPromptInput {
  * balk op 0% in de grafiek), en het model werd op díe namen gericht in plaats
  * van op wat er werkelijk stond.
  *
- * Nu wordt alleen het EIGEN merk expliciet uitgevraagd — dat moet, want een
+ * Nu wordt alleen het EIGEN merk expliciet uitgevraagd. Dat moet, want een
  * meting zonder eigen-merk-oordeel telt als onbeoordeeld en valt uit de score.
  * Alle andere merken komen uit de tekst zelf. Of zo'n merk een echte concurrent
  * is of een marktplaats/vergelijker, bepaalt de classificatie later
- * (lib/pipeline/classify-entities.ts) — niet deze prompt.
+ * (lib/pipeline/classify-entities.ts), niet deze prompt.
  */
 export function buildMentionUser(input: MentionPromptInput): string {
   const { ownLabel, ownAliases, rawResponse } = input;
@@ -56,7 +56,7 @@ export function buildMentionUser(input: MentionPromptInput): string {
     "",
     "2. Voeg een aparte entiteit toe voor ELK ANDER merk, bedrijf, winkel, platform of organisatie " +
       "dat in het antwoord DAADWERKELIJK bij naam genoemd wordt, met isOwnBrand op false en " +
-      "mentioned op true. Neem ze allemaal mee — ook webshops, marktplaatsen, vergelijkingssites, " +
+      "mentioned op true. Neem ze allemaal mee, ook webshops, marktplaatsen, vergelijkingssites, " +
       "brancheorganisaties en leveranciers; of ze een echte concurrent zijn wordt elders bepaald. " +
       "Verzin niets: een merk dat niet in de tekst staat, hoort er niet bij.",
     "",
@@ -66,7 +66,7 @@ export function buildMentionUser(input: MentionPromptInput): string {
     // AANBEVOLEN of alleen genoemd.
     // De POSITIE stond al in het schema maar werd nergens uitgelegd. Gevolg: het
     // model wisselde tussen 0-based en 1-based en gaf zelfs -1 terug. Van de 521
-    // vermeldingen in de eerste vijf analyses stonden er 215 op 0 en 2 op -1 —
+    // vermeldingen in de eerste vijf analyses stonden er 215 op 0 en 2 op -1,
     // onbruikbaar als gemiddelde. Het veld werd nooit gebruikt, dus niemand zag
     // het. Sinds R3 telt het wél mee, dus staat de telling hier expliciet.
     "3. Geef de POSITIE als het hoeveelste merk dit in het antwoord genoemd wordt, " +

@@ -7,7 +7,7 @@ import { readRecommendations } from "@/lib/pipeline/recommendation";
 import { describeError, classifyError } from "@/lib/errors";
 
 /**
- * POST /api/analyses/[id]/generate-all — alle aanbevelingen in één keer
+ * POST /api/analyses/[id]/generate-all, alle aanbevelingen in één keer
  * (optimalisatie.md 4.9).
  *
  * De belofte van het product heet "1-click content generatie", maar het waren
@@ -16,7 +16,7 @@ import { describeError, classifyError } from "@/lib/errors";
  * werker pakt ze één voor één op en de klant kan het scherm sluiten.
  *
  * De route leest de aanbevelingen zélf uit het rapport in plaats van ze van de
- * client aan te nemen. Dat scheelt niet alleen een grote request-body — het
+ * client aan te nemen. Dat scheelt niet alleen een grote request-body, het
  * voorkomt ook dat een verouderd scherm pagina's laat schrijven voor een rapport
  * dat inmiddels vervangen is.
  */

@@ -5,8 +5,8 @@ import "server-only";
  *
  * De metingen laten zien dat AI-assistenten voor koopvragen zwaar leunen op
  * ándere sites: reviewplatforms, vergelijkers, lijstjes, vakpers, fora. Die
- * bronnen stonden al in de database — `tracking_run_mentions.cited_sources`
- * wordt bij elke meting gevuld — maar werden alleen als kale URL-lijst in de
+ * bronnen stonden al in de database, `tracking_run_mentions.cited_sources`
+ * wordt bij elke meting gevuld, maar werden alleen als kale URL-lijst in de
  * uitsplitsing getoond. Het enige advies dat het product kon geven was "schrijf
  * een pagina op je eigen site", en daarmee zit er een plafond op het resultaat
  * dat je met betere teksten niet wegneemt.

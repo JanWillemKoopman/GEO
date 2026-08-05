@@ -5,7 +5,7 @@ import "server-only";
  *
  * Eén plek, omdat het rapport, de contentknop en straks de bibliotheek allemaal
  * hetzelfde moeten weten: staat de deur open? Als die vraag op drie plekken los
- * beantwoord wordt, gaan die antwoorden uit elkaar lopen — en dan blokkeert het
+ * beantwoord wordt, gaan die antwoorden uit elkaar lopen, en dan blokkeert het
  * ene scherm wel en het andere niet.
  */
 import type { SupabaseClient } from "@supabase/supabase-js";

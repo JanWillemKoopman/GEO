@@ -5,9 +5,9 @@ Voor UI/UX: `ux-design.md`.
 
 > **Geverifieerd tegen de code op 4 augustus 2026** (branch `main`, t/m migratie `0044`),
 > plus de eind-tot-eind-ronde van 1 augustus (`logbook.md` §10) en de eerste echte
-> onboarding op productie van 3 augustus (`logbook.md`, Fysi-Unique) — die laatste legde
+> onboarding op productie van 3 augustus (`logbook.md`, Fysi-Unique). Die laatste legde
 > zes fouten bloot in de samenhang tussen de onboardingstappen; alle zes zijn verwerkt.
-> Dit document beschrijft wat de code dóet, niet wat een plan voorschrijft — wijkt het af, dan is
+> Dit document beschrijft wat de code dóet, niet wat een plan voorschrijft, wijkt het af, dan is
 > de code leidend en is dit document fout. Werk deze datum bij zodra je hem hebt nagetrokken.
 
 ## 1. Hosting en dataflow
@@ -16,13 +16,13 @@ Voor UI/UX: `ux-design.md`.
 Klant (browser/mobiel)
    │
    ▼
-Vercel — Next.js 15 / Node.js  (code: GitHub, deploy op push naar main)
+Vercel: Next.js 15 op Node.js  (code: GitHub, deploy op push naar main)
  ├─ Frontend: /profielen, /analyses/[id] (dossier in 4 hoofdstukken), /instellingen
  ├─ API-routes: CRUD + schrijfacties (service-role key + ownership-check)
  ├─ Vercel Cron (vercel.json, Hobby-limiet: max 2 taken, elk max 1×/dag)
  │    • /api/cron/tracking   maandelijks, 1e van de maand 06:00 UTC
  │    • /api/cron/reminders  wekelijks, maandag 09:00 UTC (staat nu uit vercel.json)
- └─ /api/cron/worker — de motor, elke MINUUT aangeroepen door Supabase pg_cron
+ └─ /api/cron/worker: de motor, elke MINUUT aangeroepen door Supabase pg_cron
    │
    ├──────► OpenAI Responses API (gpt-5.6-luna / gpt-5.6-sol, + web_search)
    ▼
@@ -33,14 +33,14 @@ Supabase (Postgres + Auth)
  ├─ entities, reports, content_pieces, content_piece_targets, content_impact
  ├─ brand_facts, brand_documents, fact_requests
  ├─ technical_audits, source_landscape, offsite_tasks
- ├─ jobs (wachtrij — GEEN client-toegang, ook geen SELECT)
+ ├─ jobs (wachtrij: GEEN client-toegang, ook geen SELECT)
  └─ ai_calls (kostenlogboek, 1 rij per aanroep)
    │
-   └──────► Resend (rapport-mail, publicatieherinnering) — alleen bij EMAILS_ENABLED=true
+   └──────► Resend (rapport-mail, publicatieherinnering), alleen bij EMAILS_ENABLED=true
 ```
 
 **Uitvoeringsmodel.** Korte acties (CRUD, status opvragen) lopen via een gewone API-route. Al het
-zware werk — elke AI-aanroep — loopt via de jobwachtrij: de API-route zet alleen een taak klaar
+zware werk. Elke AI-aanroep, loopt via de jobwachtrij: de API-route zet alleen een taak klaar
 (`enqueue`), de werker voert hem minuutlijks uit. Nodig omdat serverless functies een tijdslimiet
 hebben (`maxDuration = 300`) en het werk moet doorlopen als de klant zijn browser sluit.
 
@@ -59,16 +59,16 @@ Daarom pg_cron.
   dus nooit afdwingen wélke velden een klant mag wijzigen.
 - **`jobs`:** RLS aan, nul policies. Alle mutaties via de werker.
 - **Cron:** alle drie de routes eisen `Authorization: Bearer <CRON_SECRET>`.
-- **Registratie:** twee lagen — Supabase "Allow new users to sign up" (harde poort, ook tegen
+- **Registratie:** twee lagen, Supabase "Allow new users to sign up" (harde poort, ook tegen
   directe API-aanroepen) en `SIGNUPS_ENABLED` in de app (verbergt UI, blokkeert de server action).
 
-## 3. Datamodel — de kern
+## 3. Datamodel, de kern
 
 | Tabel | Wat het is |
 |---|---|
 | `profiles` | Klant/merk op accountniveau. Website, branche, aliassen, concurrenten, persona's, tone-of-voice, `business_model`. Eén keer onderzocht, hergebruikt door alle analyses. |
 | `profile_pages` | Contentinventaris uit een crawl (sitemap recursief, anders homepage-links). Productpagina's uitgesloten. Geen AI. Alle tekst gaat door `sanitizeForPostgres()` (`lib/pg-text.ts`): één NUL-byte uit één pagina laat Postgres anders de hele batch-insert weigeren, en dan verdwijnt de complete inventaris. |
-| `analyses` | Eén getrackt onderwerp onder een profiel. Status, tracking aan/uit, content-brief. `topic` verplicht en niet wijzigbaar na start. |
+| `analyses` | Eén getrackt onderwerp onder een profiel. Status, tracking aan of uit, content-brief. `topic` verplicht en niet wijzigbaar na start. |
 | `prompts` | 30 per analyse (10 per funnelfase). Volledig door de klant beheerbaar. `elicit_successes`/`elicit_samples` = de kans dat deze vraag überhaupt een merk oplevert. |
 | `tracking_runs` | Eén rij per meting per prompt. `raw_response`, `brands_in_answer`, `repeat_index`, `prompt_weight` (bevroren op meetmoment). |
 | `tracking_run_mentions` | Eén rij per entiteit per meting: `mentioned`, `mention_role`, `position`, `cited_sources`. (`sentiment` bestaat nog maar wordt niet meer gevuld.) |
@@ -112,7 +112,7 @@ Bron: `lib/jobs/{types,queue,worker,handlers,pending}.ts`.
   `measure_impact`, `compute_impact`, `offsite_scan`.
 - **De onboardingketen** (de eerste zeven) hangt aan één `enqueue` vanuit `POST /api/profiles`:
   `profile_discover` plant `technical_audit` én `profile_research` in, en vanaf daar ketent elke
-  stap zijn opvolger. `profile_offering` plant `profile_market` **onvoorwaardelijk** in — niet via
+  stap zijn opvolger. `profile_offering` plant `profile_market` **onvoorwaardelijk** in, niet via
   `propose_topics`, want die keert vroeg terug als er geen aanbodboom is, en dan zou juist bij de
   klanten met een magere crawl de hele staart van de keten stil verdwijnen.
 - **Eén taak = hoogstens één zware AI-aanroep**, zodat elke taak binnen één werker-aanroep past.
@@ -131,31 +131,31 @@ Bron: `lib/jobs/{types,queue,worker,handlers,pending}.ts`.
 
 | # | Stap | AI | Kern |
 |---|---|---|---|
-| 1 | Profiel aanmaken | — | Eén scherm, drie velden: webadres, bedrijfsnaam, andere schrijfwijzen. De rest doet de pijplijn. |
-| 2 | Ontdekken (fase 0) | — | `discover.ts`: tot 150 pagina's crawlen, JSON-LD/OpenGraph oogsten, telefoon/adres/e-mail/KvK uit de lopende tekst van de canonieke pagina's (`text-facts.ts`), inventariskwaliteit beoordelen, renderbaarheid vaststellen. **Nul AI-kosten**, en de context waar alle volgende stappen op leunen. |
-| 3 | Technische GEO-audit | — | `robots.txt` tegen bekende AI-crawlers, plus vier entiteitschecks (naamconsistentie, `sameAs`, schema-dekking, Wikidata). Staat de site dicht, dan blokkeert dit contentgeneratie. |
-| 4 | Profielonderzoek | luna, web_search | Merk, branche, bedrijfsmodel, **bereik en werkgebied**, tone-of-voice, persona's, concurrenten, `proofPoints`, `styleSamples` — nu op alle gecrawlde pagina's in plaats van op de homepage. Klant-input is leidend (`prepare-profile.ts`), en wat een mens zette blijft staan (`field-merge.ts` tegen `profile_field_sources`). |
+| 1 | Profiel aanmaken |, | Eén scherm, drie velden: webadres, bedrijfsnaam, andere schrijfwijzen. De rest doet de pijplijn. |
+| 2 | Ontdekken (fase 0) |, | `discover.ts`: tot 150 pagina's crawlen, JSON-LD/OpenGraph oogsten, telefoon/adres/e-mail/KvK uit de lopende tekst van de canonieke pagina's (`text-facts.ts`), inventariskwaliteit beoordelen, renderbaarheid vaststellen. **Nul AI-kosten**, en de context waar alle volgende stappen op leunen. |
+| 3 | Technische GEO-audit |, | `robots.txt` tegen bekende AI-crawlers, plus vier entiteitschecks (naamconsistentie, `sameAs`, schema-dekking, Wikidata). Staat de site dicht, dan blokkeert dit contentgeneratie. |
+| 4 | Profielonderzoek | luna, web_search | Merk, branche, bedrijfsmodel, **bereik en werkgebied**, tone-of-voice, persona's, concurrenten, `proofPoints`, `styleSamples`. nu op alle gecrawlde pagina's in plaats van op de homepage. Klant-input is leidend (`prepare-profile.ts`), en wat een mens zette blijft staan (`field-merge.ts` tegen `profile_field_sources`). |
 | 4a | Aanbodboom | luna | `offering.ts`: het aanbod als boom (`profile_offerings`), per bedrijfsmodel een andere briefing. Een knoop zonder gecrawlde bron-URL vervalt; het citaat bepaalt de zekerheid (`quote-check.ts`). |
-| 4b | Core topics | luna | `propose-topics.ts`: 5–8 onderwerpen uit de aanbodboom, elk met verwijzing naar de knopen waar ze uit volgen. Voorstel, geen meting — goedkeuring is een aparte handeling. |
+| 4b | Core topics | luna | `propose-topics.ts`: 5–8 onderwerpen uit de aanbodboom, elk met verwijzing naar de knopen waar ze uit volgen. Voorstel, geen meting, goedkeuring is een aparte handeling. |
 | 4c | Markt | luna, web_search | `market.ts`: per concurrent wáárom die wint, plus het bronnenlandschap van de markt. |
-| 4d | LLM-kennisbasislijn | luna, deels web_search | `llm-baseline.ts`: vijf blokken (`kent`, `klopt`, `citeert`, `verwarring`, `categorie`). `kent` stelt **zes** formuleringen en levert een verhouding, niet een ja/nee; `categorie` kiest zijn koopvragen via de topics en krijgt een eigen oordeel (word je genoemd, en wie wél). Alle oordelen worden in code geveld (`baseline-verdict.ts`), nooit door het model over zichzelf. |
-| 4e | Synthese | **sol** (`SYNTHESIS_PREMIUM`) | `synthesis.ts`: dossier, gespreksagenda en `brand_facts` — alleen feiten waarvan het citaat letterlijk op de bronpagina staat. |
-| 5 | Analyse aanmaken | — | Verplicht onderwerp + optionele content-brief. |
+| 4d | LLM-kennisbasislijn | luna, deels web_search | `llm-baseline.ts`: vijf blokken (`kent`, `klopt`, `citeert`, `verwarring`, `categorie`). `kent` stelt **zes** formuleringen en levert een verhouding, niet een ja of nee; `categorie` kiest zijn koopvragen via de topics en krijgt een eigen oordeel (word je genoemd, en wie wél). Alle oordelen worden in code geveld (`baseline-verdict.ts`), nooit door het model over zichzelf. |
+| 4e | Synthese | **sol** (`SYNTHESIS_PREMIUM`) | `synthesis.ts`: dossier, gespreksagenda en `brand_facts`, alleen feiten waarvan het citaat letterlijk op de bronpagina staat. |
+| 5 | Analyse aanmaken |, | Verplicht onderwerp + optionele content-brief. |
 | 6 | Onderwerp-onderzoek (A1') | luna, web_search | Wat de site over dít onderwerp zegt + welke concurrenten hier relevant zijn. |
 | 7 | Promptgeneratie (A2) | luna ×3 parallel, temp 0,8 (effort none) | 10 per funnelfase. Merk- en concurrentneutraal geformuleerd. Aparte calls per fase, want één grote call levert herhaling op. |
-| 8 | Volumekalibratie | luna | Relatief gekalibreerd over álle prompts tegelijk — consistenter dan losse schattingen. Drie banden, geen verzonnen 0–100. |
-| 9 | **Goedkeuringspoort** | — | De pijplijn stopt. De klant ziet en bewerkt onderzoek + alle prompts, en klikt pas dan "Bevestig en start meting". Geen black box, en niets betaalds start zonder akkoord. |
-| 10 | Meting (A3) | 3a: luna + web_search, modelstandaard · 3b: luna, effort none | Per prompt: een gesimuleerd AI-antwoord, daarna een beoordeling per entiteit. 3a en 3b zijn los herhaalbaar — een mislukte 3b draait nooit opnieuw de dure 3a. |
-| 11 | Gelaagd hermeten | — | De zwaarste `REPEATED_PROMPT_COUNT` (8) vragen worden `MEASURE_REPEATS` (3) keer gemeten. Alle aggregatie telt per **vraag**, met gewicht `1/aantal metingen van die vraag` (`question-share.ts`). |
+| 8 | Volumekalibratie | luna | Relatief gekalibreerd over álle prompts tegelijk, consistenter dan losse schattingen. Drie banden, geen verzonnen 0–100. |
+| 9 | **Goedkeuringspoort** |, | De pijplijn stopt. De klant ziet en bewerkt onderzoek + alle prompts, en klikt pas dan "Bevestig en start meting". Geen black box, en niets betaalds start zonder akkoord. |
+| 10 | Meting (A3) | 3a: luna + web_search, modelstandaard · 3b: luna, effort none | Per prompt: een gesimuleerd AI-antwoord, daarna een beoordeling per entiteit. 3a en 3b zijn los herhaalbaar, een mislukte 3b draait nooit opnieuw de dure 3a. |
+| 11 | Gelaagd hermeten |, | De zwaarste `REPEATED_PROMPT_COUNT` (8) vragen worden `MEASURE_REPEATS` (3) keer gemeten. Alle aggregatie telt per **vraag**, met gewicht `1/aantal metingen van die vraag` (`question-share.ts`). |
 | 12 | Aggregatie | luna (alleen nieuwe merken) | Entiteitclassificatie + deduplicatie, scores, concurrent-uitsplitsing. |
 | 13 | Gap-analyse (B1) | luna | Wáár concurrenten winnen, met bewijs uit de database. |
-| 14 | Rapport (B2) | luna | Verwoordt B1; leidt niets zelf af. Krijgt naast de meetuitkomst de **structurele gaten** mee (`structure-gap.ts`): welke onderdelen van het aanbod geen eigen pagina hebben — dat is de enige invoer die niet reactief is. Een claimvalidator verwijdert achteraf elke merknaam die niet in het bewijsdossier van díe vraag staat. |
+| 14 | Rapport (B2) | luna | Verwoordt B1; leidt niets zelf af. Krijgt naast de meetuitkomst de **structurele gaten** mee (`structure-gap.ts`): welke onderdelen van het aanbod geen eigen pagina hebben. Dat is de enige invoer die niet reactief is. Een claimvalidator verwijdert achteraf elke merknaam die niet in het bewijsdossier van díe vraag staat. |
 | 15 | Contentbriefing | luna, temp 0 | Feitenkaart bouwen → claim-audit → max 8 vragen aan de klant. Eén slot is gereserveerd voor de positioneringsvraag. |
-| 16 | Content schrijven | **sol** → luna-kritiek → sol herschrijven → luna-herbeoordeling | Uitsluitend binnen bevestigde feiten, met per bewering het feit dat hem dekt. Twee deterministische poorten: `checkContentGate()` (zeven GEO-checks, voedt `geo_score`) en `checkQuality()` (duplicatie + leesbaarheid, voedt alléén `needs_review` — anders was de score van vorige maand onvergelijkbaar met die van vandaag). Schema.org volgt het bedrijfsmodel en draagt een organisatieknoop met `sameAs`. |
-| 17 | Publiceren | — | Klant vult live-URL in; de app verifieert de pagina. |
+| 16 | Content schrijven | **sol** → luna-kritiek → sol herschrijven → luna-herbeoordeling | Uitsluitend binnen bevestigde feiten, met per bewering het feit dat hem dekt. Twee deterministische poorten: `checkContentGate()` (zeven GEO-checks, voedt `geo_score`) en `checkQuality()` (duplicatie + leesbaarheid, voedt alléén `needs_review`. Anders was de score van vorige maand onvergelijkbaar met die van vandaag). Schema.org volgt het bedrijfsmodel en draagt een organisatieknoop met `sameAs`. |
+| 17 | Publiceren |, | Klant vult live-URL in; de app verifieert de pagina. |
 | 18 | Effect meten | luna | Hermeetgolven + statistisch verdict of de zichtbaarheid meetbaar veranderd is. |
 | 19 | Off-site | luna, gegrond | Op welke externe domeinen het merk wél/niet aanwezig is. |
-| 20 | Maandelijkse ronde | — | Alleen voor analyses met tracking aan. Structureel merkloze vragen worden overgeslagen. |
+| 20 | Maandelijkse ronde |, | Alleen voor analyses met tracking aan. Structureel merkloze vragen worden overgeslagen. |
 
 ## 6. Modellen, redeneerinspanning, feature-flags
 
@@ -174,16 +174,16 @@ model zat (nano vs. mini) zit nu in de **redeneerinspanning**.
 
 **Soort werk → parameters** (`resolveTuning()` in `lib/openai/sampling.ts`). Aanroepplekken geven
 alleen nog `work: "..."` op; de vertaling naar `temperature` en `reasoning.effort` staat op één
-plek. Reden: GPT-5.6 accepteert `temperature` uitsluitend bij effort `none` — bij elke hogere
+plek. Reden: GPT-5.6 accepteert `temperature` uitsluitend bij effort `none`, bij elke hogere
 stand is het een unsupported parameter en faalt de call.
 
 | `work` | effort | temperature | Voor |
 |---|---|---|---|
 | `deterministic` | `none` | 0 | Classificeren/beoordelen, claim-audit, content-kritiek |
-| `analytical` | `low` | — | Research, kalibratie, gap-analyse, rapport, bronanalyse |
-| `creative` | `none` | 0,8 | Promptgeneratie — variatie is gewenst, redeneren maakt de vragen juist gelijkvormig |
-| `content` | `medium` | — | Content schrijven/herschrijven |
-| `simulation` | — | — | Halte 3a: bewust niets meegeven, meet wat een AI-assistent op standaardinstellingen doet |
+| `analytical` | `low` |, | Research, kalibratie, gap-analyse, rapport, bronanalyse |
+| `creative` | `none` | 0,8 | Promptgeneratie, variatie is gewenst, redeneren maakt de vragen juist gelijkvormig |
+| `content` | `medium` |, | Content schrijven/herschrijven |
+| `simulation` |, |, | Halte 3a: bewust niets meegeven, meet wat een AI-assistent op standaardinstellingen doet |
 
 De effort-standen staan bewust laag: één aanroep moet binnen `TIMEOUT_MS` (100 s,
 `lib/openai/client.ts`) passen, en de onderzoeks- en meetstappen doen daar óók web_search bij
@@ -192,13 +192,13 @@ De effort-standen staan bewust laag: één aanroep moet binnen `TIMEOUT_MS` (100
 
 **Vangnet.** Weigert de API `temperature` toch (OpenAI kan de regel aanscherpen), dan herhaalt
 `structured.ts` die ene call zonder temperatuur en stuurt hem de rest van het proces niet meer
-mee — een zelfherstellende hik in plaats van een meetronde die halverwege omvalt.
+mee, een zelfherstellende hik in plaats van een meetronde die halverwege omvalt.
 
 | Env | Standaard | Effect |
 |---|---|---|
 | `WEB_SEARCH_ENABLED` | aan | Uit = geen web_search bij meting, profiel- en onderwerponderzoek. Grootste kostenknop. |
 | `MEASURE_WEB_SEARCH` | aan | Alleen de meting groundless. Uit = goedkoop ontwikkelen, niet representatief. |
-| `CONTENT_WEB_SEARCH` | — | Vangnet tijdens schrijven, alleen bij < 3 `proof_points`. |
+| `CONTENT_WEB_SEARCH` |, | Vangnet tijdens schrijven, alleen bij < 3 `proof_points`. |
 | `SOURCE_ANALYSIS` | aan | Analyseert geciteerde bronnen vóór het schrijven. |
 | `MEASURE_REPEATS` | 3 | Herhalingen per zware vraag. Op 1 = R6.1 uit. |
 | `REPEATED_PROMPT_COUNT` | 8 | Hoeveel vragen herhaald worden. Op 0 = R6.1 uit. |
@@ -214,20 +214,20 @@ vervolgperiode.
 De overstap naar GPT-5.6 verschuift dat beeld twee kanten op:
 
 - **Zoeken werd goedkoper.** Op een redeneermodel kost web_search $10 per 1000 calls in plaats van
-  $25 — 30 vragen gaan van $0,75 naar $0,30.
+  $25, 30 vragen gaan van $0,75 naar $0,30.
 - **Maar de opgehaalde pagina's worden nu wél als input afgerekend** (op de niet-redeneerpreview
   waren die tokens gratis). Bij ~8k tokens per zoekactie op Luna is dat ~$0,05 per ronde.
 - De tokenkosten zelf blijven in dezelfde orde: `quality` halveerde (mini → Luna), `volume` werd
   duurder (nano → Luna), en samen wogen die twee al maar ~5% van een ronde.
 
-Reken dus op **ruwweg $0,40 per meetronde** — een schatting op basis van de gepubliceerde tarieven,
+Reken dus op **ruwweg $0,40 per meetronde**, een schatting op basis van de gepubliceerde tarieven,
 nog niet nagerekend tegen `ai_calls` op productie (conventie 10). Contentgeneratie (`gpt-5.6-sol`)
 is de enige duurdere post en werd juist ~5× duurder per pagina: Sol is 2,5×/3,75× het tarief van
 gpt-4.1 en de redeneertokens tellen als output.
 
 ## 7. E-mail
 
-`EMAILS_ENABLED` is de hoofdschakelaar en staat standaard **uit**. Dan gebeurt er niets — ook
+`EMAILS_ENABLED` is de hoofdschakelaar en staat standaard **uit**. Dan gebeurt er niets, ook
 `reports.emailed_at` en `analyses.publish_reminder_sent_at` blijven leeg, zodat een eenmalige
 herinnering niet stil opgebrand wordt aan een mail die nooit ging. De reminder-cron antwoordt
 `{ "skipped": "emails_disabled" }`. Rapporten blijven gewoon zichtbaar in de app.
@@ -237,7 +237,7 @@ iets de deur uit gaat.
 
 | Mail | Wanneer | Code |
 |---|---|---|
-| Rapport klaar | Na B2, als `notify_by_email` aan staat **en** `isWorthEmailing(change)` — een periode zonder betekenisvolle verandering mailt niet | `lib/email/report-email.ts` |
+| Rapport klaar | Na B2, als `notify_by_email` aan staat **en** `isWorthEmailing(change)`, een periode zonder betekenisvolle verandering mailt niet | `lib/email/report-email.ts` |
 | Publicatieherinnering | Wekelijkse cron, één keer per analyse | `lib/email/publish-reminder.ts` |
 
 ## 8. Lokaal draaien
@@ -256,7 +256,7 @@ npm run dev                    # → localhost:3000
 | Variabele | Waar |
 |---|---|
 | `NEXT_PUBLIC_SUPABASE_URL` / `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase → Settings → API |
-| `SUPABASE_SERVICE_ROLE_KEY` | idem, `service_role` — **server-only, nooit `NEXT_PUBLIC_`** |
+| `SUPABASE_SERVICE_ROLE_KEY` | idem, `service_role`, **server-only, nooit `NEXT_PUBLIC_`** |
 | `OPENAI_API_KEY` | platform.openai.com |
 | `CRON_SECRET` | `openssl rand -hex 32` |
 | `RESEND_API_KEY` / `RESEND_FROM_EMAIL` | alleen bij `EMAILS_ENABLED=true` |
@@ -266,7 +266,7 @@ npm run dev                    # → localhost:3000
 1. Push naar `main` → Vercel deployt. Env-variabelen in Project → Settings → Environment Variables.
 2. `CRON_SECRET` zetten; Vercel Cron stuurt hem automatisch mee als `Authorization: Bearer …`.
 3. **De werker draait op pg_cron, niet op Vercel.** Migratie `0015` regelt de aanroep, maar is
-   niet genoeg — zet ook de twee Vault-geheimen:
+   niet genoeg, zet ook de twee Vault-geheimen:
 
 ```sql
 select vault.create_secret('https://jouw-app.vercel.app', 'geo_site_url');
@@ -286,9 +286,9 @@ select * from cron.job_run_details order by start_time desc limit 10;
 |---|---|---|---|
 | **Werker** | `/api/cron/worker` | elke minuut | **Supabase pg_cron**. Zonder deze taak gebeurt er niets. |
 | Terugkerende meting | `/api/cron/tracking` | 1e van de maand 06:00 UTC | Vercel |
-| Rapport-mail | `/api/cron/reminders` | maandag 09:00 UTC | Vercel (nu uit `vercel.json` gehaald — bestaat alleen om te mailen) |
+| Rapport-mail | `/api/cron/reminders` | maandag 09:00 UTC | Vercel (nu uit `vercel.json` gehaald, bestaat alleen om te mailen) |
 
-### Tijdbudgetten — waarom deze getallen bij elkaar horen
+### Tijdbudgetten, waarom deze getallen bij elkaar horen
 
 De werkerroute krijgt van Vercel **300 seconden** (`maxDuration`). Alles eronder is daarvan
 afgeleid en moet daar samen in passen; klopt de som niet, dan kapt het platform de functie af en
@@ -299,7 +299,7 @@ blijven geclaimde taken vijf minuten op 'running' staan tot de reaper ze terugze
 | Routelimiet | 300 s | `maxDuration`, `app/api/cron/worker/route.ts` |
 | Tijdbudget werker | 240 s (instelbaar) | `workerTimeBudgetMs`, `lib/config.ts` |
 | Reservering zware taak | 220 s | `HEAVY_JOB_RESERVE_MS`, `lib/jobs/worker.ts` |
-| Reservering lichte taak | 115 s | `LIGHT_JOB_RESERVE_MS`, idem — gecontroleerd vóór élke claimronde |
+| Reservering lichte taak | 115 s | `LIGHT_JOB_RESERVE_MS`, idem, gecontroleerd vóór élke claimronde |
 | Totaalbudget één AI-aanroep | 105 s | `CALL_BUDGET_MS` → `callBudget()`, `lib/openai/client.ts` |
 | Timeout per poging | 100 s | `TIMEOUT_MS`, idem |
 
@@ -320,7 +320,7 @@ opnieuw door.
 ### Een nieuwe klant aanmaken en koppelen
 
 Het product is sales-led: de consultant zet het merk klaar, de klant krijgt het ná de verkoop.
-Vier stappen, en de volgorde is niet de voor de hand liggende — **het profiel maak je in de app,
+Vier stappen, en de volgorde is niet de voor de hand liggende, **het profiel maak je in de app,
 niet in Supabase.**
 
 | # | Waar | Wat |
@@ -333,17 +333,17 @@ niet in Supabase.**
 Stap 4 zet `profiles.user_id` op de klant, vult `assigned_at`, laat `created_by_user_id` op de
 beheerder staan, **en verplaatst alle analyses van dat merk mee**. Dat laatste is geen detail:
 `user_id` staat in precies twee tabellen (`profiles` en `analyses`), en alleen de eerste bijwerken
-levert een klant op die zijn merk ziet maar geen enkele analyse — precies het scherm waarvoor hij
+levert een klant op die zijn merk ziet maar geen enkele analyse. Precies het scherm waarvoor hij
 betaalt. Al het andere hangt via `analysis_id` aan de analyse en verhuist mee met de RLS-join.
 
 **Wat je niet moet doen:** handmatig een rij in `profiles` aanmaken (dan mist het merk de hele
-onderzoeksketen — geen aanbodboom, geen kennistest, geen topics), of een klant in `staff_users`
+onderzoeksketen. Geen aanbodboom, geen kennistest, geen topics), of een klant in `staff_users`
 zetten (dan ziet hij álle merken).
 
 ### Beheerders
 
-`staff_users` bepaalt wie alles ziet. RLS aan, nul policies; alleen `is_staff()` — `security
-definer`, `search_path` vast, alleen aanroepbaar door `authenticated` — komt erbij. Elke tabel met
+`staff_users` bepaalt wie alles ziet. RLS aan, nul policies; alleen `is_staff()`, `security
+definer`, `search_path` vast, alleen aanroepbaar door `authenticated`, komt erbij. Elke tabel met
 een `*_select_own`-policy heeft een extra permissieve `*_select_staff`-policy ernaast; Postgres
 combineert permissieve policies met OR, dus dat verbreedt zonder de bestaande regels te raken.
 Migraties `0038` en `0042`.
@@ -352,7 +352,7 @@ Migraties `0038` en `0042`.
 
 `profiles.archived_at` en `analyses.archived_at` (migratie `0044`). Gevuld = verborgen uit elke
 lijst, telling en cron; leeg = zichtbaar. De data blijft volledig staan en het profiel blijft
-bereikbaar via zijn directe URL — het is een back-up, geen verwijdering.
+bereikbaar via zijn directe URL. Het is een back-up, geen verwijdering.
 
 `lib/archive.ts` is de enige plek die weet wat "actief" betekent. Zes query's gebruiken hem: de
 merkenlijst, de analysenlijst, de telling achter "+ Nieuwe analyse", `loadWorkAcross`,
@@ -364,7 +364,7 @@ Bewust **niet** in RLS: dat zou een gearchiveerd merk ook voor de eigenaar onber
 ## 12. Migraties
 
 `0001` t/m `0044`, alle toegepast op productie behalve `0033` (gereserveerd voor R6.2, nooit
-gedraaid — de reservering verviel toen `0039` de inventariskwaliteit fase 0 van de nieuwe
+gedraaid, de reservering verviel toen `0039` de inventariskwaliteit fase 0 van de nieuwe
 onboarding maakte; een gereserveerd nummer dat nooit draaide blokkeert niets).
 
 **Index per migratie en de regels voor het schrijven ervan: [`../supabase/README.md`](../supabase/README.md).**

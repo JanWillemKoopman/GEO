@@ -12,24 +12,24 @@ import { OffsitePanel } from "../_work/offsite-panel";
 import type { Analysis, OffsiteTask, Report, SourceLandscapeRow } from "@/lib/types/database";
 
 /**
- * Hoofdstuk 03 — "Wat je nu moet doen".
+ * Hoofdstuk 03, "Wat je nu moet doen".
  *
  * ── ZES SOORTEN WERK OP ZES BESTEMMINGEN ────────────────────────────────────
  *
  * Het werk van één analyse lag verspreid over vier schermen en twee secties van
  * de app: blokkades op het merkscherm, klaarliggende pagina's in de bibliotheek,
  * off-site punten onderaan het rapport, feitenvragen weer op dat merkscherm. Het
- * dashboard was de enige plek die het bij elkaar bracht — en zodra je erop
+ * dashboard was de enige plek die het bij elkaar bracht, en zodra je erop
  * klikte, spatte je uiteen.
  *
  * Hier staat het bij elkaar, in vier lagen die elk hun eigen rol hebben:
  *
  *   1. De blokkade-poort. Content laten schrijven voor een site die AI-crawlers
- *      weigert, is de klant geld laten uitgeven aan niets — dus staat dit boven
+ *      weigert, is de klant geld laten uitgeven aan niets, dus staat dit boven
  *      alles en niet als voetnoot eronder (optimalisatie.md 3.7).
  *   2. De werklijst: de index van álles, gegroepeerd op staat. Elke regel wijst
  *      naar de plek waar je het doet.
- *   3. Nieuwe pagina's laten schrijven — hier ontstaat nieuw werk.
+ *   3. Nieuwe pagina's laten schrijven, hier ontstaat nieuw werk.
  *   4. Het off-site blok: waar je de punten van buiten je site afvinkt.
  */
 export async function WerkChapter({
@@ -97,7 +97,7 @@ export async function WerkChapter({
               Pagina&apos;s die Aura voor je schrijft
               <InfoHint label="Waar komen deze vandaan?">
                 Elke pagina hieronder hangt aan concrete vragen waarop je nu niet genoemd wordt.
-                Daar wordt de tekst voor gemaakt — en daaraan meet Aura later of het gewerkt heeft.
+                Daar wordt de tekst voor gemaakt, en daaraan meet Aura later of het gewerkt heeft.
               </InfoHint>
             </span>
             <p className="text-sm text-secondary">

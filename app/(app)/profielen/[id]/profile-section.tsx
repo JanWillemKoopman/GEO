@@ -9,8 +9,8 @@ import { useEffect, useState } from "react";
  *
  * `ux-design.md` §7 is expliciet: "mobiel is nadrukkelijk geen verkleinde
  * desktop", en voor dichte detailschermen schrijft de tabel accordion-dicht
- * voor. Het profielscherm telt inmiddels twaalf kaarten — dichter dan het
- * conceptscherm, dat in datzelfde document als toetssteen geldt — en had over
+ * voor. Het profielscherm telt inmiddels twaalf kaarten, dichter dan het
+ * conceptscherm, dat in datzelfde document als toetssteen geldt, en had over
  * alle panelen samen twee responsive classes. Op een telefoon was dat één
  * scrollbaan van een meter.
  *
@@ -18,7 +18,7 @@ import { useEffect, useState } from "react";
  *
  * Die zit al ÍN de panelen (de crawl-uitleg, de antwoorden van ChatGPT, de
  * velden van de editor). Diezelfde component er ook omheen zetten geeft een
- * accordeon in een accordeon met dezelfde rand en dezelfde kop — dan weet
+ * accordeon in een accordeon met dezelfde rand en dezelfde kop. Dan weet
  * niemand meer welk kruisje welk blok sluit. Dit is een niveau hoger: geen
  * eigen omlijsting, alleen een kop die op mobiel inklapt.
  *

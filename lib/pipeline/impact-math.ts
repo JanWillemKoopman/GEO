@@ -22,7 +22,7 @@ export interface Comparison {
  *
  * Die beperking is de kern. Een vraag die vóór wél en ná niet beoordeeld werd
  * (de classificatie faalde, de prompt is verwijderd) zou anders als "niet meer
- * genoemd" tellen — en dan meet je een dataprobleem als een daling.
+ * genoemd" tellen, en dan meet je een dataprobleem als een daling.
  */
 export function compare(
   before: Map<string, boolean>,
@@ -50,7 +50,7 @@ export function deltaOf(c: Comparison): number {
  *
  * De spreiding van het VERSCHIL tussen twee metingen van dezelfde vragen: de
  * wortel uit de som van de kwadraten van de losse standaardfouten. Met een
- * handvol vragen is die drempel fors — dat is geen tekortkoming van de
+ * handvol vragen is die drempel fors. Dat is geen tekortkoming van de
  * berekening maar van de steekproef, en de klant hoort dat te weten in plaats
  * van een stijging voorgeschoteld te krijgen die er niet is.
  */

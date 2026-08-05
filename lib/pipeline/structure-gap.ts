@@ -7,7 +7,7 @@
  * wordt de klant niet genoemd, daar volgen pagina's uit. Dat is reactief, en het
  * heeft een blinde vlek die met de aanbodboom pas zichtbaar werd. Levert een
  * klant twaalf diensten en raakt de meting er toevallig vier, dan hoort hij over
- * acht diensten niets — ook al heeft hij er geen pagina voor en is dat precies
+ * acht diensten niets, ook al heeft hij er geen pagina voor en is dat precies
  * de reden dat een assistent hem daar niet kan noemen.
  *
  * Deze module draait het om: eerst vaststellen wat de STRUCTUUR mist, dan pas
@@ -19,7 +19,7 @@
  *
  * De dekking is volledig afgeleid uit twee tabellen die allebei klein zijn, en
  * hij verandert zodra er een pagina bijkomt. Opslaan zou een vierde plek
- * opleveren die kan verouderen — precies de wildgroei waar dit project van af
+ * opleveren die kan verouderen. Precies de wildgroei waar dit project van af
  * wilde. Berekenen bij het lezen.
  *
  * ── DEZELFDE MATCHING ALS DE FEITENKAART ────────────────────────────────────
@@ -71,7 +71,7 @@ export interface StructureCoverage {
  *
  * `scorePage()` geeft 3 punten voor een term in titel of URL en 1 in de body.
  * Een dienst van twee woorden waarvan er één in de lopende tekst voorkomt haalt
- * dus 1 — en dat is te weinig: "therapie" komt op elke pagina van een praktijk
+ * dus 1, en dat is te weinig: "therapie" komt op elke pagina van een praktijk
  * voor. Vandaar de eis dat de MEERDERHEID van de termen geraakt wordt.
  */
 const WEAK_TERM_RATIO = 0.5;
@@ -98,7 +98,7 @@ function isOwnPage(page: CandidatePage, terms: string[]): boolean {
  * Zonder deze regel adviseert de app vijf pagina's waar er één hoort. Een
  * categorie "Specialismen" met negen subdiensten eronder zou anders als
  * "ontbreekt" gelden zodra er geen `/specialismen`-pagina is, én elk kind
- * afzonderlijk — tien gaten voor wat in de praktijk één beslissing is.
+ * afzonderlijk, tien gaten voor wat in de praktijk één beslissing is.
  *
  * Dus: een `categorie` die zelf kinderen heeft wordt overgeslagen, en de
  * kinderen worden beoordeeld. Een categorie zonder kinderen is in de praktijk
@@ -207,7 +207,7 @@ export function describeCoverage(c: StructureCoverage): string {
  *
  * Dit is waar het verschil gemaakt wordt: zonder deze lijst baseert B2 zijn
  * aanbevelingen alleen op de vragen die de meting toevallig stelde. Bewust
- * afgekapt — een lijst van dertig gaten is geen agenda maar een verwijt.
+ * afgekapt, een lijst van dertig gaten is geen agenda maar een verwijt.
  */
 const MAX_IN_REPORT = 12;
 
@@ -232,7 +232,7 @@ export function formatCoverageForReport(c: StructureCoverage): string {
       : "";
 
   return (
-    `\n\nSTRUCTURELE GATEN IN DE SITE — dit komt uit het aanbod van de klant zelf, ` +
+    `\n\nSTRUCTURELE GATEN IN DE SITE: dit komt uit het aanbod van de klant zelf, ` +
     `niet uit de meting. Een dienst zonder eigen pagina kan door een assistent niet ` +
     `genoemd worden, ook al is er nooit een vraag over gesteld. Weeg deze mee in je ` +
     `aanbevelingen:\n${regels.join("\n")}${rest}`

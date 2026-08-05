@@ -5,7 +5,7 @@
  *
  * De kop van `scripts/test-unit.ts` zegt terecht: "een test met een nagebootste
  * database toetst vooral of je nabootsing klopt". Dat bezwaar is dodelijk voor
- * een mock — en het geldt niet voor deze opzet, want het schema komt uit
+ * een mock, en het geldt niet voor deze opzet, want het schema komt uit
  * dezelfde migratiebestanden die op productie draaien. De unieke index van
  * migratie `0023` (één huidige versie per analyse+titel) doet hier echt wat hij
  * daar doet, en het enum `content_status` weigert hier echt een onbekende
@@ -28,7 +28,7 @@ import { Client } from "pg";
 /**
  * Postgres weigert als root te draaien, en in containers is root de norm.
  *
- * `initdb` stopt met "cannot be run as root" — terecht, want een database die
+ * `initdb` stopt met "cannot be run as root", terecht, want een database die
  * als root draait kan elk bestand op de machine schrijven. We zoeken daarom een
  * gewone gebruiker om de server onder te hangen. Draait de test al als
  * niet-root, dan verandert er niets.
@@ -136,7 +136,7 @@ const ROL_STUB = `
  * `0015` installeert pg_cron en pg_net en plant de werker in. Dat gaat over de
  * MOTOR (wie roept de wachtrij aan) en niet over het datamodel; de ketentest
  * roept de handlers zelf aan, dus er valt niets te missen. Alle andere migraties
- * draaien wél — inclusief de constraints en indexen waar het om gaat.
+ * draaien wél, inclusief de constraints en indexen waar het om gaat.
  */
 const OVERSLAAN = new Set(["0015_worker_cron_via_pg_cron.sql"]);
 

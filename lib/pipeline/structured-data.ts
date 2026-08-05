@@ -1,5 +1,5 @@
 /**
- * Gestructureerde data oogsten uit ruwe HTML — JSON-LD, OpenGraph, microdata.
+ * Gestructureerde data oogsten uit ruwe HTML: JSON-LD, OpenGraph, microdata.
  *
  * ── WAAROM DIT GEEN AI-AANROEP IS ───────────────────────────────────────────
  *
@@ -11,7 +11,7 @@
  *
  * Bij een MKB-site met een WordPress-SEO-plugin levert dit vaak in één klap de
  * bedrijfsnaam, het adres, de openingstijden, het telefoonnummer en de
- * beoordelingen — allemaal harde feiten die anders uit een gok moeten komen.
+ * beoordelingen, allemaal harde feiten die anders uit een gok moeten komen.
  *
  * ── PUUR, DUS TESTBAAR ──────────────────────────────────────────────────────
  *
@@ -31,7 +31,7 @@ export interface StructuredHarvest {
   /** Alle @type-waarden die op de pagina voorkomen, ontdubbeld. */
   types: string[];
   facts: HarvestedFact[];
-  /** Externe profielen uit `sameAs` — LinkedIn, Wikipedia, Facebook, KvK. */
+  /** Externe profielen uit `sameAs`, LinkedIn, Wikipedia, Facebook, KvK. */
   sameAs: string[];
   /** Namen zoals ze in de opmaak staan. Bron voor de consistentiecheck. */
   names: string[];
@@ -213,15 +213,15 @@ export function harvestStructuredData(html: string): StructuredHarvest {
  * ── WAAROM DIT DE ZWAARSTE BEVINDING IS DIE ER BESTAAT ──────────────────────
  *
  * AI-crawlers voeren geen JavaScript uit. Staat de tekst niet in de HTML die de
- * server terugstuurt, dan bestaat de pagina voor ChatGPT niet — hoe goed de
+ * server terugstuurt, dan bestaat de pagina voor ChatGPT niet, hoe goed de
  * content ook is. Alle content die wij daarna schrijven zou aan een dichte deur
  * geleverd worden.
  *
  * De heuristiek is bewust grof: weinig zichtbare tekst én veel script. Een
  * volwaardige rendering-test zou een headless browser vragen, en dat is een
  * afhankelijkheid die niet in een serverless functie past. Deze test haalt de
- * duidelijke gevallen eruit — een React-app die 300 tekens tekst en 400 kB
- * JavaScript terugstuurt — en dat zijn precies de gevallen die ertoe doen.
+ * duidelijke gevallen eruit, een React-app die 300 tekens tekst en 400 kB
+ * JavaScript terugstuurt, en dat zijn precies de gevallen die ertoe doen.
  */
 export interface RenderAssessment {
   textChars: number;

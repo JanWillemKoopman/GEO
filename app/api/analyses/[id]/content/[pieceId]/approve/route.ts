@@ -5,7 +5,7 @@ import { getOwnedAnalysis } from "@/lib/analyses";
 import { describeError, classifyError } from "@/lib/errors";
 
 /**
- * POST /api/analyses/[id]/content/[pieceId]/approve — de klant geeft een pagina
+ * POST /api/analyses/[id]/content/[pieceId]/approve, de klant geeft een pagina
  * vrij (implementatieplan.md S6).
  *
  * ── WAAROM DEZE ROUTE BESTAAT ───────────────────────────────────────────────
@@ -14,7 +14,7 @@ import { describeError, classifyError } from "@/lib/errors";
  * bibliotheek toonde dat als "klaar om te publiceren". Dat is niet hetzelfde.
  * Uit de contentronde van 31 juli: alle tien de pagina's kwamen op `ready`, en
  * één daarvan had vijf concrete verbeterpunten van de eigen redactie in
- * `review_notes` staan — inclusief "het directe antwoord op de hoofdvraag is
+ * `review_notes` staan, inclusief "het directe antwoord op de hoofdvraag is
  * niet expliciet genoeg in de eerste twee zinnen".
  *
  * Sinds S6 betekent `needs_review = true` "nog niet vrijgegeven". Deze route is
@@ -32,7 +32,7 @@ import { describeError, classifyError } from "@/lib/errors";
  * ── DE ROUTE MAG WEINIG, EN DAT IS HET PUNT ─────────────────────────────────
  *
  * Uitsluitend `needs_review`, `reviewed_at` en `reviewed_by`. Nooit de tekst,
- * nooit de status, nooit `review_notes` — die blijven staan, want vrijgeven is
+ * nooit de status, nooit `review_notes`. Die blijven staan, want vrijgeven is
  * niet hetzelfde als "er was niets aan de hand". Zelfde patroon als de
  * briefingroute: service role plus een expliciete eigenaarschapscontrole
  * (abcplan.md §5).
@@ -53,7 +53,7 @@ export async function POST(
   try {
     // De pagina moet bij DEZE analyse horen. Zonder deze voorwaarde zou een
     // geldig ingelogde gebruiker met een gegokt pieceId een pagina van iemand
-    // anders kunnen vrijgeven — de eigenaarschapscontrole hierboven dekt de
+    // anders kunnen vrijgeven, de eigenaarschapscontrole hierboven dekt de
     // analyse, niet de pagina.
     const { data, error } = await admin
       .from("content_pieces")
@@ -61,8 +61,8 @@ export async function POST(
         needs_review: false,
         // Sinds migratie 0034 leggen we vast DAT er iemand gekeken heeft, en
         // wie. Zonder die twee kolommen betekent `needs_review = false` twee
-        // dingen tegelijk — "de poort vond niets" (automatisch) en "een mens
-        // heeft gekeken" — en zijn ze niet uit elkaar te houden.
+        // dingen tegelijk, "de poort vond niets" (automatisch) en "een mens
+        // heeft gekeken", en zijn ze niet uit elkaar te houden.
         reviewed_at: new Date().toISOString(),
         reviewed_by: user.id,
       })

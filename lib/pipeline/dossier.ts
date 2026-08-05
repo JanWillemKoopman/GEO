@@ -1,7 +1,7 @@
 import "server-only";
 
 /**
- * Het merkdossier — aangeleverd materiaal wordt bevestigde kennis
+ * Het merkdossier, aangeleverd materiaal wordt bevestigde kennis
  * (implementatieplan.md S5, contentbriefing.md §7/§8).
  *
  * ── WAAROM DIT NODIG IS ─────────────────────────────────────────────────────
@@ -10,7 +10,7 @@ import "server-only";
  * vragen per contentbatch, waarvan er 3 à 4 vaste slots zijn. Wat dat in de
  * praktijk oplevert, gemeten over vijf testklanten: 21 beantwoorde vragen, en
  * daarvan 8 praktisch (telefoon, contact-URL). Van de 35 gestelde
- * `aanvulling`-vragen werden er 7 beantwoord — 20%.
+ * `aanvulling`-vragen werden er 7 beantwoord, 20%.
  *
  * De kennisbank die `contentbriefing.md` §7 belooft ("na drie analyses heeft een
  * klant een gevulde feitenbank, en wordt elke volgende pagina beter én sneller
@@ -27,8 +27,8 @@ import "server-only";
  *
  * De aanroep hieronder levert vraag/antwoord-paren, en `verifyDossierFacts()`
  * gooit elk paar weg waarvan het antwoord niet letterlijk in het aangeleverde
- * materiaal staat. Zonder dat vangnet zouden deze feiten — die op de kaart als
- * "door de klant bevestigd" gelden, de hoogste betrouwbaarheid die er is —
+ * materiaal staat. Zonder dat vangnet zouden deze feiten. Die op de kaart als
+ * "door de klant bevestigd" gelden, de hoogste betrouwbaarheid die er is,
  * afgeronde bedragen en samengevatte voorwaarden kunnen bevatten.
  *
  * ── KOSTEN ──────────────────────────────────────────────────────────────────
@@ -57,7 +57,7 @@ const DOSSIER_SYSTEM =
   "OPDRACHT: geef vraag-antwoordparen. De vraag is wat een klant zou vragen; het antwoord is wat " +
   "er letterlijk in het materiaal staat. " +
   "HARDE REGELS: " +
-  "(1) Het ANTWOORD moet LETTERLIJK in de aangeleverde tekst voorkomen — teken voor teken. Niet " +
+  "(1) Het ANTWOORD moet LETTERLIJK in de aangeleverde tekst voorkomen, teken voor teken. Niet " +
   "afronden ('€ 45,00' wordt niet '45 euro'), niet samenvatten, niet omrekenen, geen 'ongeveer' " +
   "toevoegen. Een bijgeschaafd antwoord wordt weggegooid door de controle die hierachter zit, dus " +
   "dat kost alleen maar een feit. " +
@@ -67,7 +67,7 @@ const DOSSIER_SYSTEM =
   "consult?', niet 'Tarief consult regulier'. Eén feit per vraag. " +
   "(4) Kies alleen wat HARD is: bedragen, termijnen, aantallen, openingstijden, voorwaarden, wat " +
   "er wel of niet bij zit, namen van diensten of vestigingen. Sfeerteksten en marketingzinnen " +
-  "sla je over — daar kan een pagina niets mee bewijzen. " +
+  "sla je over. Daar kan een pagina niets mee bewijzen. " +
   "(5) Zet `perishable` op true bij alles wat verloopt: prijzen, tarieven, looptijden, " +
   "openingstijden, actievoorwaarden. Op false bij wat blijft: oprichtingsjaar, vestigingsplaats, " +
   "certificeringen. " +
@@ -83,7 +83,7 @@ export interface DossierResult {
  * Haalt bevestigde feiten uit door de klant aangeleverd materiaal.
  *
  * Faalt zacht: gaat de aanroep stuk, dan komt er een lege lijst terug. Dit is
- * een verrijking van het profiel, geen voorwaarde om verder te kunnen — zelfde
+ * een verrijking van het profiel, geen voorwaarde om verder te kunnen, zelfde
  * afspraak als bij de concurrentprofilering (R4.2) en de atomiseerstap (S1).
  */
 export async function extractDossierFacts(args: {

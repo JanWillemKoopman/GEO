@@ -2,7 +2,7 @@
  * Evaluatie van de mention-classificatie (optimalisatie.md 0.7).
  *
  * WAAROM DIT BESTAAT: het bepalen van "wordt dit merk genoemd, op welke plek,
- * met welke toon" is het fundament onder élk cijfer in de app — de score, de
+ * met welke toon" is het fundament onder élk cijfer in de app, de score, de
  * gap-analyse, de aanbevelingen, de content die daaruit volgt. Dat werk draaide
  * op het goedkoopste model zonder dat iemand ooit gemeten heeft of het klopt.
  * Een systematische fout daar corrumpeert stil het hele product.
@@ -17,7 +17,7 @@
  *
  * De testset staat in scripts/mention-goldenset.json en is bewust klein en
  * met de hand geschreven rond bekende faalpatronen. Vul hem aan met echte
- * antwoorden uit tracking_runs.raw_response — zie de _readme in dat bestand.
+ * antwoorden uit tracking_runs.raw_response, zie de _readme in dat bestand.
  */
 import "dotenv/config";
 import { config as loadEnv } from "dotenv";
@@ -33,7 +33,7 @@ loadEnv({ path: ".env.local", override: true });
 
 // Bron van waarheid: lib/openai/models.ts. Hier als losse constanten zodat het
 // script standalone draait zonder padalias-resolutie (zelfde keuze als
-// scripts/test-openai.ts). De PROMPT wordt wél geïmporteerd — die mag nooit
+// scripts/test-openai.ts). De PROMPT wordt wél geïmporteerd. Die mag nooit
 // afwijken van productie, anders test je iets anders dan er draait.
 const PRODUCTION_MODEL = "gpt-5.6-luna";
 // De naasthogere tier van dezelfde generatie. Was `gpt-4.1-mini` toen productie
@@ -89,7 +89,7 @@ function findActual(
 ) {
   if (expected.entity === "own") {
     // Meerdere eigen-merk-rijen: pas dezelfde samenvoegregel toe als de pijplijn
-    // (measure.ts, optimalisatie.md 0.3) — genoemd wint van niet-genoemd.
+    // (measure.ts, optimalisatie.md 0.3), genoemd wint van niet-genoemd.
     const own = mentions.filter((m) => m.isOwnBrand);
     if (own.length === 0) return null;
     return own.find((m) => m.mentioned) ?? own[0];
@@ -148,7 +148,7 @@ async function runModel(model: string, cases: GoldenCase[]): Promise<{
 
       // Ontbrekende entiteit is zelf een fout. Sinds migratie 0026 ontdekt de
       // prompt puur, dus de testset verwacht alleen nog het eigen merk (altijd)
-      // en merken die ECHT in het antwoord staan — precies wat er terug moet komen.
+      // en merken die ECHT in het antwoord staan. Precies wat er terug moet komen.
       if (!actual) {
         checks++;
         mismatches.push({ caseId: c.id, entity: exp.entity, field: "aanwezig", expected: true, actual: false });

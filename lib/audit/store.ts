@@ -24,8 +24,8 @@ export async function runAuditForProfile(admin: Admin, profileId: string): Promi
   // ── Entiteitsconsistentie erbovenop (blok B fase 4) ──────────────────────
   //
   // Nul extra kosten: alle invoer komt uit fase 0, die de site toch al uitkamde.
-  // Heeft die nog niet gedraaid — bijvoorbeeld bij een profiel van vóór deze
-  // ronde — dan slaan we dit deel over in plaats van bevindingen te doen op
+  // Heeft die nog niet gedraaid, bijvoorbeeld bij een profiel van vóór deze
+  // ronde. Dan slaan we dit deel over in plaats van bevindingen te doen op
   // lege invoer. Een waarschuwing "geen schema.org gevonden" die alleen zegt
   // dat wíj niet gekeken hebben, is erger dan geen waarschuwing.
   const { data: facet } = await admin
@@ -72,7 +72,7 @@ export async function runAuditForProfile(admin: Admin, profileId: string): Promi
 
   // Opnieuw tellen: de tellers in `audit` gaan alleen over de robots-controles,
   // en de UI leest ze om te bepalen of er iets urgents is. Zonder dit zou een
-  // JavaScript-blokkade wél in de lijst staan maar niet meetellen — en dat is
+  // JavaScript-blokkade wél in de lijst staan maar niet meetellen, en dat is
   // precies de bevinding die niet gemist mag worden.
   const result: AuditResult = {
     ...audit,
@@ -131,7 +131,7 @@ export async function blockerSince(
     const checks = (row.checks_json ?? []) as { id: string; severity: string }[];
     const hit = checks.find((c) => c.id === checkId);
     // Zodra we een audit tegenkomen waarin het gewoon in orde was, houdt de
-    // reeks op — verder terugkijken zegt niets meer over de huidige blokkade.
+    // reeks op, verder terugkijken zegt niets meer over de huidige blokkade.
     if (!hit || hit.severity !== "blocker") break;
     since = row.checked_at;
   }

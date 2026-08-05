@@ -9,7 +9,7 @@ import type { UserFacingError } from "@/lib/errors";
  * "Wat moet er anders?" (optimalisatie.md 4.8).
  *
  * De belangrijkste ontbrekende knop in de hele app. Een pagina die er bijna was
- * kon alleen geaccepteerd of genegeerd worden — "maak hem korter", "de toon is
+ * kon alleen geaccepteerd of genegeerd worden, "maak hem korter", "de toon is
  * te formeel", "noem onze levertijd erbij" was nergens te zeggen, en dan is het
  * hele redactieproces eenrichtingsverkeer.
  *
@@ -70,7 +70,7 @@ export function ReviseBox({ analysisId, pieceId }: { analysisId: string; pieceId
           Aura schrijft een nieuwe versie
         </span>
         <p className="text-sm text-secondary">
-          Dit duurt een paar minuten. Je kunt dit scherm sluiten — de nieuwe versie komt er vanzelf
+          Dit duurt een paar minuten. Je kunt dit scherm sluiten. De nieuwe versie komt er vanzelf
           te staan, en deze blijft bewaard voor het geval je terug wilt.
         </p>
       </div>

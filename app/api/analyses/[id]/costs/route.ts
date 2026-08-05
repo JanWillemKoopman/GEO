@@ -6,12 +6,12 @@ import { RATES_CHECKED_ON } from "@/lib/openai/pricing";
 import type { AiCall } from "@/lib/types/database";
 
 /**
- * GET /api/analyses/[id]/costs — wat heeft deze analyse aan AI-kosten gemaakt
+ * GET /api/analyses/[id]/costs, wat heeft deze analyse aan AI-kosten gemaakt
  * (optimalisatie.md 0.6)?
  *
  * `ai_calls` staat op deny-all in RLS (het is exploitatie-informatie, geen
  * klantinformatie), dus lezen gaat via de service-role client mét expliciete
- * eigenaarscontrole — hetzelfde patroon als de andere schrijfroutes.
+ * eigenaarscontrole, hetzelfde patroon als de andere schrijfroutes.
  *
  * Bedoeld om te kunnen rekenen vóórdat we het aantal metingen per vraag
  * verdrievoudigen (fase 2): zonder dit cijfer is die planning giswerk.
@@ -28,7 +28,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
 
   // Kosten van de analyse zelf + die van het profielonderzoek waar 'ie aan hangt.
   // Het profiel is gedeeld over meerdere analyses, dus dat bedrag wordt apart
-  // gerapporteerd in plaats van bij het analysetotaal opgeteld — anders zou je
+  // gerapporteerd in plaats van bij het analysetotaal opgeteld. Anders zou je
   // het bij elke analyse van hetzelfde profiel opnieuw meetellen.
   const [{ data: analysisRows }, { data: profileRows }] = await Promise.all([
     admin.from("ai_calls").select("*").eq("analysis_id", id),

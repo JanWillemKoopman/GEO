@@ -16,7 +16,7 @@ import type { ContextFactor } from "@/lib/types/database";
  * ── WAAROM DEZE ROUTE MEER DOET DAN OPSLAAN ─────────────────────────────────
  *
  * Een contextfactor is geen notitie maar een instructie. Twee ervan werken
- * meteen door in gegevens die de meting gebruikt, en dat gebeurt hier — niet
+ * meteen door in gegevens die de meting gebruikt, en dat gebeurt hier, niet
  * later, want "later" is de plek waar dit soort dingen blijven liggen:
  *
  *   • `naamswijziging` / `rebranding` → de andere naam gaat in `aliases`. Zonder
@@ -53,7 +53,7 @@ export async function PUT(
 
   // Valideren vóór opslaan, niet erna: `context_factors` is een jsonb-kolom en
   // die accepteert alles. Een onbekende soort zou stil opgeslagen worden en
-  // daarna nergens een gevolg hebben — een instructie die niemand uitvoert.
+  // daarna nergens een gevolg hebben, een instructie die niemand uitvoert.
   const factors: ContextFactor[] = [];
   if (Array.isArray(body.contextFactors)) {
     for (const raw of body.contextFactors) {

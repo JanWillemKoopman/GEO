@@ -5,12 +5,12 @@ import "server-only";
  *
  * `top_cited_sources` staat al sinds de eerste migratie in de database, maar
  * ging als KALE URL-LIJST de schrijfprompt in. Een model dat "bron:
- * https://example.nl/gids-cv-ketels" leest, weet daar niets mee te beginnen —
+ * https://example.nl/gids-cv-ketels" leest, weet daar niets mee te beginnen,
  * het ziet een string, geen inhoud.
  *
  * Terwijl dit de meest waardevolle context is die er is: dít zijn de pagina's
- * die de AI wél goed genoeg vond om te citeren. Wat die pagina's doen — welke
- * vragen ze beantwoorden, in welke vorm, met welke feiten — is de lat waar de
+ * die de AI wél goed genoeg vond om te citeren. Wat die pagina's doen, welke
+ * vragen ze beantwoorden, in welke vorm, met welke feiten, is de lat waar de
  * nieuwe pagina overheen moet.
  *
  * Dus halen we ze op met de bestaande crawler (gratis) en laten we één goedkope
@@ -24,8 +24,8 @@ import { sourceAnalysisEnabled } from "@/lib/config";
 import { redactCompetitors } from "@/lib/pipeline/redact";
 
 /**
- * Hoeveel bronnen we analyseren. Meer levert nauwelijks extra inzicht op — de
- * eerste paar zijn de pagina's die de AI het vaakst aanhaalde — en elke extra
+ * Hoeveel bronnen we analyseren. Meer levert nauwelijks extra inzicht op, de
+ * eerste paar zijn de pagina's die de AI het vaakst aanhaalde, en elke extra
  * pagina is een fetch en tokens.
  */
 const MAX_SOURCES = 4;
@@ -38,7 +38,7 @@ const SYSTEM =
   "Je taak is niet samenvatten wat er staat, maar vaststellen WAAROM deze pagina geciteerd werd: " +
   "welke concrete vragen beantwoordt hij, in welke vorm (stappenplan, tabel, FAQ, prijslijst, " +
   "definitie), en met welke harde feiten (cijfers, jaartallen, termijnen, prijzen). " +
-  "Wees specifiek en kort. Noem GEEN bedrijfsnamen in je antwoord — beschrijf alleen wat de pagina " +
+  "Wees specifiek en kort. Noem GEEN bedrijfsnamen in je antwoord. Beschrijf alleen wat de pagina " +
   "inhoudelijk doet. Antwoord in het Nederlands.";
 
 export interface AnalyzedSources {
@@ -52,12 +52,12 @@ export interface AnalyzedSources {
  *
  * Faalt zacht op elk niveau: een pagina die niet op te halen is wordt
  * overgeslagen, en gaat de AI-aanroep stuk dan levert deze functie een lege
- * blok op. De contentgeneratie moet doorgaan — dit is context die het resultaat
+ * blok op. De contentgeneratie moet doorgaan. Dit is context die het resultaat
  * beter maakt, geen voorwaarde om te kunnen schrijven.
  */
 export async function analyzeCitedSources(args: {
   urls: string[];
-  /** Waar de nieuwe pagina over moet gaan — scherpt de analyse aan. */
+  /** Waar de nieuwe pagina over moet gaan, scherpt de analyse aan. */
   targetQuestions: string[];
   competitors: string[];
   analysisId: string;
@@ -108,7 +108,7 @@ export async function analyzeCitedSources(args: {
     return {
       urls,
       block:
-        `\nDE LAT — dit zijn de pagina's die de AI WÉL citeerde bij deze vragen. Jouw pagina moet ` +
+        `\nDE LAT: dit zijn de pagina's die de AI WÉL citeerde bij deze vragen. Jouw pagina moet ` +
         `hier inhoudelijk overheen: completer, concreter, of directer antwoordend.\n${lines.join("\n")}\n` +
         (result.parsed.whatIsMissing
           ? `\nWat er in deze bronnen ONTBREEKT en waar jouw pagina het verschil kan maken: ${result.parsed.whatIsMissing}`

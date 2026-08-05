@@ -8,13 +8,13 @@ import "server-only";
  * Het rapport kreeg tot nu toe twee losse blokken: een lijst gemiste vragen
  * (code, gewicht, categorie, tekst) en daaronder de concurrentiedata per
  * concurrent, mét `winning_run_ids`. Nergens stond wélke concurrent bij wélke
- * vraag hoorde — de gemiste vragen droegen namelijk geen run-ID. Het model moest
+ * vraag hoorde, de gemiste vragen droegen namelijk geen run-ID. Het model moest
  * die koppeling dus zelf leggen, kon dat niet, en gokte.
  *
  * Wat daar in de praktijk uitkwam (kwaliteitsanalyse-5-testcases.md §2.2): bij
  * Van der Valk stond in de aanbeveling met prioriteit 1 dat "Het Oude Raadhuis
  * Hoofddorp en Dotslash Utrecht hier wel scoren". In het antwoord op díe vraag
- * werd geen enkel bedrijf genoemd — die namen kwamen uit heel andere metingen.
+ * werd geen enkel bedrijf genoemd. Die namen kwamen uit heel andere metingen.
  * Een klant die dat natrekt, vindt een rapport dat iets beweert wat de data niet
  * zegt. Precies op de plek waar het product zijn geloofwaardigheid verdient.
  *
@@ -36,11 +36,11 @@ type Admin = SupabaseClient;
  * Welke rollen als "er werd een bedrijf genoemd" tellen.
  *
  * Blijkt uit de verificatie op echte data: de mention-classificatie pikt naast
- * bedrijven ook gewone woorden op als entiteit — bij Van der Valk kwamen
+ * bedrijven ook gewone woorden op als entiteit, bij Van der Valk kwamen
  * "vergaderlocatie", "locatie", "hotel" en "Nederland" langs. Die worden verderop
  * correct als `niet_relevant` geclassificeerd, maar zouden hier ten onrechte
  * doorgaan voor een genoemd bedrijf. Dan zou het dossier bij een vraag waar
- * feitelijk niemand genoemd werd, tóch een "concurrent" tonen — precies het
+ * feitelijk niemand genoemd werd, tóch een "concurrent" tonen. Precies het
  * misverstand dat dit dossier moet uitbannen.
  *
  * `eigen_merk` hoort er evenmin in: dit dossier gaat over vragen waarop het
@@ -68,7 +68,7 @@ export interface MissedPromptInput {
  * Welke bedrijven kwamen er in wélke meting voor?
  *
  * Apart van `buildEvidenceDossier` omdat de claimvalidator (R1.3) exact deze
- * koppeling nodig heeft — hij toetst of een naam in het rapport voorkomt in het
+ * koppeling nodig heeft, hij toetst of een naam in het rapport voorkomt in het
  * bewijs van de vraag waaraan hij hangt. Eén bron voor "wat stond er in dit
  * antwoord", zodat dossier en validator niet uiteen kunnen lopen.
  */
@@ -100,7 +100,7 @@ export async function loadBrandsByRun(
     const entity = row.entity_id ? entityById.get(row.entity_id) : undefined;
     // Rommel-entiteiten eruit (zie RELEVANTE_ROLLEN). Nog niet geclassificeerd
     // (geen entiteit, of rol 'onbepaald') laten we WÉL staan: dat is een naam die
-    // in het antwoord stond en waarvan we nog niet weten wat het is — die
+    // in het antwoord stond en waarvan we nog niet weten wat het is. Die
     // weglaten zou het dossier onvolledig maken.
     if (entity && !RELEVANTE_ROLLEN.has(entity.entity_role)) continue;
     // Generieke termen zijn geen aanbieder (zie looksLikeBrandName).
@@ -155,7 +155,7 @@ export async function loadKnownBrandNames(admin: Admin, profileId: string): Prom
 /**
  * Bouwt het dossier voor een set gemiste vragen.
  *
- * Vast aantal queries, ongeacht het aantal vragen — dit draait in de rapportstap
+ * Vast aantal queries, ongeacht het aantal vragen. Dit draait in de rapportstap
  * en mag geen N+1 worden.
  */
 export async function buildEvidenceDossier(

@@ -1,5 +1,5 @@
 /**
- * Best-effort, leesbare foutomschrijving — ook voor OpenAI/Supabase SDK-errors
+ * Best-effort, leesbare foutomschrijving, ook voor OpenAI/Supabase SDK-errors
  * die hun eigenlijke boodschap verstoppen in geneste velden (error.error.message,
  * status codes, etc.). Puur voor logging/debug-weergave, geen gevoelige data.
  */
@@ -17,8 +17,8 @@ export function describeError(err: unknown): string {
 /**
  * ── Begrijpelijke foutmeldingen (optimalisatie.md 0.11) ─────────────────────
  *
- * De voortgangsschermen toonden tot nu toe de ruwe serverfout in monospace —
- * inclusief statuscodes en SDK-jargon — aan een ondernemer zonder technische
+ * De voortgangsschermen toonden tot nu toe de ruwe serverfout in monospace,
+ * inclusief statuscodes en SDK-jargon, aan een ondernemer zonder technische
  * achtergrond. In de code stond zelf al "⚠️ Tijdelijk: detail meesturen voor
  * debugging tijdens de bouwfase".
  *
@@ -37,7 +37,7 @@ export interface UserFacingError {
   message: string;
   /** Heeft opnieuw proberen zin? Stuurt of de retry-knop getoond wordt. */
   canRetry: boolean;
-  /** De ruwe technische tekst — alleen achter "technische details". */
+  /** De ruwe technische tekst, alleen achter "technische details". */
   detail: string;
 }
 
@@ -53,14 +53,14 @@ export function classifyError(err: unknown): UserFacingError {
   const status = (err as { status?: number } | null)?.status;
 
   // 1. Configuratie: een ontbrekende omgevingsvariabele is een probleem van ONS,
-  //    niet van de klant. Geen retry-knop — opnieuw proberen lost niets op.
+  //    niet van de klant. Geen retry-knop, opnieuw proberen lost niets op.
   if (lower.includes("ontbrekende omgevingsvariabele")) {
     return {
       kind: "configuration",
       title: "Aura is niet volledig ingesteld",
       message:
-        "Er ontbreekt een instelling aan onze kant. Opnieuw proberen helpt hier niet — " +
-        "laat het ons weten, dan zetten wij het recht.",
+        "Er ontbreekt een instelling aan onze kant. Opnieuw proberen helpt hier niet. " +
+        "Laat het ons weten, dan zetten wij het recht.",
       canRetry: false,
       detail,
     };
@@ -100,8 +100,8 @@ export function classifyError(err: unknown): UserFacingError {
       kind: "ai_unavailable",
       title: "De AI-dienst was even niet bereikbaar",
       message:
-        "Dat gebeurt bij drukte en gaat vanzelf over. Wat al gelukt is, blijft bewaard — " +
-        "een nieuwe poging pakt alleen op wat nog mist.",
+        "Dat gebeurt bij drukte en gaat vanzelf over. Wat al gelukt is, blijft bewaard. " +
+        "Een nieuwe poging pakt alleen op wat nog mist.",
       canRetry: true,
       detail,
     };

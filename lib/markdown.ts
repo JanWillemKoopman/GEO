@@ -1,7 +1,7 @@
 /**
  * Minimale, veilige Markdown→HTML-renderer. Bewust dependency-vrij en veilig:
  * we escapen EERST alle HTML-entiteiten en passen daarna pas de markdown-
- * transformaties toe — daardoor kan er nooit ruwe HTML (bv. <script>) uit de
+ * transformaties toe, daardoor kan er nooit ruwe HTML (bv. <script>) uit de
  * gegenereerde content in de DOM belanden. Dekt de opmaak die de content-
  * pipeline produceert: koppen, lijsten, nadruk, links, code, quotes, regels.
  */

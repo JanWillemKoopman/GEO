@@ -1,7 +1,7 @@
 /**
  * robots.txt lezen en toepassen (optimalisatie.md 3.5).
  *
- * `lib/crawler.ts` haalde robots.txt al op — maar alleen om de `Sitemap:`-regels
+ * `lib/crawler.ts` haalde robots.txt al op, maar alleen om de `Sitemap:`-regels
  * eruit te vissen; de rest werd weggegooid. Precies dáár staat of de AI-crawlers
  * überhaupt binnen mogen. Zonder die controle kan de app perfecte content laten
  * schrijven voor een site die ChatGPT de deur wijst.
@@ -26,7 +26,7 @@ export interface RobotsGroup {
  *
  * Een groep is één of meer opeenvolgende `User-agent:`-regels gevolgd door de
  * regels die voor die agents gelden. Zodra er ná een regel weer een
- * `User-agent:` komt, begint een nieuwe groep — dat onderscheid is nodig, want
+ * `User-agent:` komt, begint een nieuwe groep. Dat onderscheid is nodig, want
  *
  *     User-agent: A
  *     User-agent: B
@@ -68,7 +68,7 @@ export function parseRobots(text: string): RobotsGroup[] {
     if (!current) continue;
 
     lastWasAgent = false;
-    // "Disallow:" zonder waarde betekent "niets verboden" — geen regel dus.
+    // "Disallow:" zonder waarde betekent "niets verboden". Geen regel dus.
     if (field === "disallow" && value === "") continue;
     current.rules.push({ allow: field === "allow", path: value });
   }
@@ -100,7 +100,7 @@ function patternToRegex(pattern: string): RegExp {
  *
  * De regel uit de robots.txt-standaard: de LANGSTE naam die een prefix is van de
  * user-agent wint. Een site die `User-agent: *` op disallow zet maar
- * `User-agent: GPTBot` op allow, laat GPTBot dus wél binnen — en andersom. Alleen
+ * `User-agent: GPTBot` op allow, laat GPTBot dus wél binnen, en andersom. Alleen
  * kijken naar `*` zou hier precies het verkeerde antwoord geven.
  */
 function selectGroup(groups: RobotsGroup[], userAgent: string): RobotsGroup | null {
@@ -132,7 +132,7 @@ function selectGroup(groups: RobotsGroup[], userAgent: string): RobotsGroup | nu
  *     Disallow: /
  *     Allow: /blog
  *
- * is /blog toegestaan en de rest niet — met "eerste regel wint" zou de hele site
+ * is /blog toegestaan en de rest niet, met "eerste regel wint" zou de hele site
  * dicht zitten en zouden we de klant een blokkade melden die er niet is.
  */
 export function isAllowed(groups: RobotsGroup[], userAgent: string, path = "/"): boolean {
@@ -145,7 +145,7 @@ export function isAllowed(groups: RobotsGroup[], userAgent: string, path = "/"):
   for (const rule of group.rules) {
     if (!patternToRegex(rule.path).test(path)) continue;
     // Bij gelijke lengte wint Allow, dus alleen overschrijven bij een LANGERE
-    // regel — of bij dezelfde lengte als deze regel een Allow is.
+    // regel, of bij dezelfde lengte als deze regel een Allow is.
     if (rule.path.length > bestLength || (rule.path.length === bestLength && rule.allow)) {
       bestLength = rule.path.length;
       bestAllow = rule.allow;

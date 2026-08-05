@@ -19,7 +19,7 @@ import "server-only";
  * zonder ooit een echt antwoord gezien te hebben:
  *
  *   1. De tarieven in `lib/openai/pricing.ts`. Tot die er staan valt Gemini op
- *      `FALLBACK_RATE` en overschat de kostenregistratie — de veilige kant, maar
+ *      `FALLBACK_RATE` en overschat de kostenregistratie, de veilige kant, maar
  *      geen meetwaarde.
  *   2. Of `google_search` als tool daadwerkelijk zo heet in de versie van de API
  *      die dan geldt.
@@ -97,7 +97,7 @@ async function call(
  * kleine deelverzameling (geen `$ref`, geen `oneOf`, geen `additionalProperties`)
  * en een volledige omzetter produceert precies de constructies die hij weigert.
  * De schema's in `lib/schemas/` gebruiken alleen object, array, string, number,
- * boolean en enum — dat is wat hieronder staat.
+ * boolean en enum. Dat is wat hieronder staat.
  */
 export function zodToGeminiSchema(schema: z.ZodTypeAny): Record<string, unknown> {
   const def = schema._def as { typeName?: string } & Record<string, unknown>;

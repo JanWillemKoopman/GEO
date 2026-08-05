@@ -3,7 +3,7 @@ import { InfoHint } from "@/components/info-hint";
 import { groupWork, WORK_KIND_LABEL, WORK_STATE_LABEL, type WorkItem, type WorkState } from "@/lib/work";
 
 /**
- * De werklijst — één vorm voor al het werk in de app.
+ * De werklijst, één vorm voor al het werk in de app.
  *
  * Voorheen had elk soort werk zijn eigen weergave op zijn eigen scherm: de
  * aanbevelingen in het rapport, de off-site taken eronder, de bibliotheek als
@@ -11,11 +11,11 @@ import { groupWork, WORK_KIND_LABEL, WORK_STATE_LABEL, type WorkItem, type WorkS
  * hier iets?") kreeg vier verschillende antwoordvormen.
  *
  * Hier is het één lijst, gegroepeerd op STAAT en niet op soort. Een klant
- * groepeert niet naar "is dit off-site of on-site" — dat is onze indeling. Hij
+ * groepeert niet naar "is dit off-site of on-site". Dat is onze indeling. Hij
  * groepeert naar "moet ik hier iets?".
  */
 
-/** Chip-tint per staat — de klassen uit het design system, geen losse kleuren. */
+/** Chip-tint per staat, de klassen uit het design system, geen losse kleuren. */
 const STATE_CHIP: Record<WorkState, string> = {
   nu: "chip",
   loopt: "chip chip-neutral",
@@ -28,7 +28,7 @@ const STATE_CHIP: Record<WorkState, string> = {
  *
  * `emphasis` is voor de eerste regel van de lijst: één duidelijke volgende stap,
  * visueel dominant. Twee even zware regels naast elkaar is geen advies maar een
- * keuzemenu — en de volgorde is hier juist het advies.
+ * keuzemenu, en de volgorde is hier juist het advies.
  */
 export function WorkRow({
   item,
@@ -47,7 +47,7 @@ export function WorkRow({
       style={{
         borderColor: emphasis ? "rgba(133,17,217,0.35)" : "var(--border-subtle)",
         background: "var(--bg-elevated)",
-        // Gekleurde gloed i.p.v. een hardere rand — de InSpace-manier om nadruk
+        // Gekleurde gloed i.p.v. Een hardere rand, de InSpace-manier om nadruk
         // te leggen (designsystem.md §A3: "de gloed doet het werk").
         boxShadow: emphasis ? "0 0 0 4px rgba(133,17,217,0.07)" : undefined,
       }}
@@ -83,7 +83,7 @@ export function WorkRow({
  * De volledige werklijst van één analyse, gegroepeerd op staat.
  *
  * "Klaar" staat er wél bij maar ingeklapt: wat af is hoort niet bovenaan mee te
- * scrollen, maar het moet ook niet lijken alsof het verdwenen is — dat is
+ * scrollen, maar het moet ook niet lijken alsof het verdwenen is. Dat is
  * precies waar het gevoel "waar is mijn spullen gebleven" vandaan komt.
  */
 export function WorkList({ items }: { items: WorkItem[] }) {

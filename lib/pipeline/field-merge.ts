@@ -9,13 +9,13 @@
  * won.
  *
  * Nu vult de klant drie velden in en doet de pijplijn de rest. Daarmee verdwijnt
- * dat onderscheid uit de waarde zelf — "Tilburg" ziet er hetzelfde uit of het nu
+ * dat onderscheid uit de waarde zelf, "Tilburg" ziet er hetzelfde uit of het nu
  * getypt of geraden is. De herkomst staat daarom apart, in
  * `profile_field_sources` (migratie 0039).
  *
  * En dan is de regel afdwingbaar in plaats van hoopvol: een veld met bron
  * `klant` of `gesprek` mag door een volgende onderzoeksronde NOOIT overschreven
- * worden. Dat is conventie 1 — een promptinstructie is een intentie, code is een
+ * worden. Dat is conventie 1, een promptinstructie is een intentie, code is een
  * garantie.
  *
  * ── WAAROM DIT ERTOE DOET ───────────────────────────────────────────────────
@@ -86,13 +86,13 @@ export function filterProtectedFields<T extends Record<string, unknown>>(
  *
  * ── WAAROM DIT NIET RECHTSTREEKS UIT HET MODEL MAG ──────────────────────────
  *
- * `service_scope` heeft in de database drie geldige waarden — 'lokaal',
- * 'landelijk', 'internationaal' — en het onderzoeksschema heeft er vier, want
+ * `service_scope` heeft in de database drie geldige waarden, 'lokaal',
+ * 'landelijk', 'internationaal', en het onderzoeksschema heeft er vier, want
  * daar staat 'onbekend' bij als eerlijke uitweg. Die vertaling hoort in code:
  * 'onbekend' wordt `null`, niet een gok (conventie 3).
  *
  * En één inconsistentie is deterministisch te zien: 'lokaal' zonder één regio.
- * Dat is geen bereik maar een half antwoord — `lib/pipeline/prompts.ts` doet er
+ * Dat is geen bereik maar een half antwoord, `lib/pipeline/prompts.ts` doet er
  * niets mee (die eist bereik én regio) en `llm-baseline.ts` valt terug op "in
  * Nederland". Zo'n waarde wegschrijven suggereert kennis die er niet is, dus hij
  * wordt `null`.
@@ -133,7 +133,7 @@ export function resolveScope(
 /**
  * Zekerheid als drie niveaus in plaats van een kommagetal (§8, punt 2).
  *
- * "0.62" zegt niemand iets. Drie standen die je met een kleur kunt tonen wél —
+ * "0.62" zegt niemand iets. Drie standen die je met een kleur kunt tonen wél,
  * en `null` is er één van, want "niet vastgesteld" is een echt antwoord en geen
  * nul (conventie 3).
  *

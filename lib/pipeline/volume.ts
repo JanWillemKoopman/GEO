@@ -8,8 +8,8 @@
  * berekening deed alsof, en de klant zag "volume ~68/100" en dacht dat er iets
  * gemeten was.
  *
- * Daarom drie banden in plaats van honderd waarden. Wat het model wél kan — deze
- * vraag is breder dan die — blijft behouden; wat het niet kan — hoeveel precies —
+ * Daarom drie banden in plaats van honderd waarden. Wat het model wél kan. Deze
+ * vraag is breder dan die, blijft behouden; wat het niet kan, hoeveel precies,
  * beweren we niet meer. En de klant kan de band per vraag bijstellen: hij weet
  * beter dan het model welke vragen zijn omzet opleveren.
  *
@@ -29,13 +29,13 @@ export const VOLUME_BAND_LABEL: Record<VolumeBand, string> = {
 export const VOLUME_BAND_HELP: Record<VolumeBand, string> = {
   hoog: "Een brede vraag die veel mensen in deze markt stellen.",
   midden: "Een gewone vraag: niet de breedste, niet de smalste.",
-  laag: "Een specifieke nichevraag — weinig mensen, maar vaak wel de juiste.",
+  laag: "Een specifieke nichevraag: weinig mensen, maar vaak wel de juiste.",
 };
 
 /**
  * Wegingsfactor per band, voor de gewogen zichtbaarheidsscore.
  *
- * De verhouding 1 : 0,5 : 0,2 is een keuze, geen meting — een vaak gestelde
+ * De verhouding 1 : 0,5 : 0,2 is een keuze, geen meting, een vaak gestelde
  * vraag telt vijf keer zo zwaar als een nichevraag. Bewust grofmazig: fijnere
  * verhoudingen zouden dezelfde schijnprecisie terugbrengen die we net
  * weghaalden.
@@ -58,7 +58,7 @@ export function isVolumeBand(value: unknown): value is VolumeBand {
  *
  * De grenzen (60 en 25) zijn zo gekozen dat een normale kalibratie ruwweg in
  * drieën valt, maar NIET per definitie: staan alle vragen van een analyse laag
- * op de schaal, dan komen ze allemaal in "weinig gesteld" — en dat klopt dan
+ * op de schaal, dan komen ze allemaal in "weinig gesteld", en dat klopt dan
  * ook. Verdelen op rangorde zou elke analyse dwingen een derde "vaak gesteld"
  * te noemen, ook als dat niet zo is.
  */

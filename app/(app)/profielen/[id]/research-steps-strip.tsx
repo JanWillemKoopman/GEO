@@ -9,13 +9,13 @@ import type { ResearchStep } from "@/lib/pipeline/research-steps";
  *
  * ── WAAROM DIT OP DE PROFIELPAGINA STAAT EN NIET OP HET WACHTSCHERM ─────────
  *
- * Het profiel gaat op `klaar` zodra het merkonderzoek klaar is — stap 2 van 6.
+ * Het profiel gaat op `klaar` zodra het merkonderzoek klaar is, stap 2 van 6.
  * Dat is bewust: de klant hoeft niet op de aanbodboom te wachten om zijn merk te
  * zien. Maar het betekent wél dat hij op de profielpagina belandt terwijl de
  * aanbodboom, de topics en de kennistest nog draaien, en daar lege kaarten ziet
  * zonder uitleg.
  *
- * Deze strip vult dat gat. Hij verdwijnt zodra alles klaar is — een blijvend
+ * Deze strip vult dat gat. Hij verdwijnt zodra alles klaar is, een blijvend
  * overzicht van afgeronde stappen is ruis.
  */
 export function ResearchStepsStrip({ profileId }: { profileId: string }) {
@@ -81,7 +81,7 @@ export function ResearchStepsStrip({ profileId }: { profileId: string }) {
   //
   // Hier stond `return null`: zodra alles klaar was verdween de strip en
   // ploften de panelen erin na de `router.refresh()`. Het beste moment van de
-  // hele flow — het onderzoek is af en het dossier staat er — ging ongemarkeerd
+  // hele flow, het onderzoek is af en het dossier staat er, ging ongemarkeerd
   // voorbij, en de klant die net wegkeek zag alleen dat het scherm veranderd was.
   //
   // Alleen voor wie het heeft zien lopen (`zagWerk`), dus niet bij een later
@@ -120,7 +120,7 @@ export function ResearchStepsStrip({ profileId }: { profileId: string }) {
 
       <p className="text-sm text-secondary">
         Je merkdossier staat er al. De rest komt hieronder binnen. Je kunt dit
-        scherm sluiten — Aura werkt door.
+        scherm sluiten, Aura werkt door.
       </p>
 
       <ol className="flex flex-col gap-2">
@@ -151,7 +151,7 @@ export function ResearchStepsStrip({ profileId }: { profileId: string }) {
             <span className={s.state === "wacht" ? "text-muted" : ""}>
               {s.label}
             </span>
-            {s.result && <span className="text-secondary">— {s.result}</span>}
+            {s.result && <span className="text-secondary">· {s.result}</span>}
           </li>
         ))}
       </ol>

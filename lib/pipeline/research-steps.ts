@@ -6,7 +6,7 @@
  * De onboarding duurt ~7 minuten en toonde een spinner. Erger nog: het profiel
  * gaat al op `klaar` na de tweede van zes taken (`prepare-profile.ts` zet die
  * status), dus de klant belandt op de profielpagina terwijl de aanbodboom, de
- * topics en de kennistest nog draaien — en ziet daar lege kaarten zonder uitleg.
+ * topics en de kennistest nog draaien, en ziet daar lege kaarten zonder uitleg.
  *
  * Zeven minuten naar een draaiend wieltje kijken is lang. Zeven minuten zien
  * binnenkomen wát er gevonden wordt, is een demo op zich: "31 pagina's
@@ -66,7 +66,7 @@ export interface StepInput {
  * Bepaalt per stap de stand.
  *
  * De regel: staat er werk open van deze soort, dan is hij bezig. Staat er werk
- * open van een EERDERE soort, dan wacht hij. Anders is hij geweest — en of daar
+ * open van een EERDERE soort, dan wacht hij. Anders is hij geweest, en of daar
  * iets uitkwam, blijkt uit het resultaat.
  *
  * Dat laatste onderscheid is bewust: een stap die draaide maar niets vond

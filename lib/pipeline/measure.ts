@@ -1,12 +1,12 @@
 import "server-only";
 
 /**
- * Halte A3 — Monitoring (abcplan.md §6 A3): voor elke actieve prompt een
+ * Halte A3, Monitoring (abcplan.md §6 A3): voor elke actieve prompt een
  * nulmeting (of wekelijkse meting): 3a (vraag stellen, web_search) → 3b
  * (antwoord beoordelen, per entiteit) → 3c (aggregatie, geen AI-call).
  *
  * Idempotent per prompt: bestaat er al een tracking_run met raw_response voor
- * deze prompt/week, dan wordt 3a NOOIT herhaald (kostenbescherming, §12.18) —
+ * deze prompt/week, dan wordt 3a NOOIT herhaald (kostenbescherming, §12.18),
  * alleen een ontbrekende 3b (mention_json) wordt opnieuw geprobeerd.
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -56,7 +56,7 @@ const MIN_SUCCESS_RATIO = 0.7;
  *
  * De simulatie-call kan een lege of afgekapte string teruggeven: een weigering,
  * een web_search die niets opleverde, of een respons die alleen uit een
- * tool-aanroep bestond. `output_text` is dan "" — en dat werd tot nu toe gewoon
+ * tool-aanroep bestond. `output_text` is dan "", en dat werd tot nu toe gewoon
  * opgeslagen. Stap 3b beoordeelt vervolgens een leeg antwoord, concludeert
  * volkomen terecht "niet genoemd", en dat oordeel gaat als echte meting de score
  * in. Het resultaat is een score die te laag is zonder dat iemand het kan zien,
@@ -75,7 +75,7 @@ const MIN_ANSWER_CHARS = 40;
  * Waarvoor deze meting gedaan wordt (optimalisatie.md 5.3).
  *
  * Een impactmeting betreft maar een handvol vragen en mag daarom NOOIT
- * meetellen in de zichtbaarheidsscore — anders gaat een meting van drie vragen
+ * meetellen in de zichtbaarheidsscore. Anders gaat een meting van drie vragen
  * als score over drie vragen het dashboard op, en dat is een grafiek die liegt.
  */
 export interface MeasurePurpose {
@@ -122,7 +122,7 @@ export async function measureOnePrompt(
 
   // De engine hoort ONVOORWAARDELIJK in de sleutel. Zonder dit ziet een
   // Gemini-meting de OpenAI-meting van dezelfde vraag als "al gedaan" en slaat
-  // hij zichzelf over — zonder foutmelding, met een lege score per engine
+  // hij zichzelf over. Zonder foutmelding, met een lege score per engine
   // terwijl alles groen lijkt. Migratie 0041 dwingt dezelfde sleutel af met een
   // unieke index, zodat de code en de database het niet oneens kunnen worden.
   const { data: existing } = impact
@@ -142,7 +142,7 @@ export async function measureOnePrompt(
   let run = existing as TrackingRun | null;
 
   if (!run) {
-    // 3a — de vraag stellen (duur, web_search). Wordt NOOIT herhaald zodra dit slaagt.
+    // 3a, de vraag stellen (duur, web_search). Wordt NOOIT herhaald zodra dit slaagt.
     // Model: de quality-tier, historisch omdat de web_search-tool niet betrouwbaar
     // werkte op de goedkoopste tier (meting faalde 10/10 met web_search op
     // gpt-4.1-nano). Sinds de overstap naar GPT-5.6 wijzen `volume` en `quality`
@@ -192,7 +192,7 @@ export async function measureOnePrompt(
         prompt_category_snapshot: prompt.category,
         // Gewicht bevriezen op meetmoment (volumeband × waarde), voor de gewogen
         // score (§6 A3). Past de klant de band later aan, dan telt dat pas mee
-        // vanaf de volgende meting — een score met terugwerkende kracht
+        // vanaf de volgende meting, een score met terugwerkende kracht
         // veranderen maakt de trend onvergelijkbaar.
         prompt_weight: promptWeight(volumeBandOf(prompt), prompt.intent_type),
         engine: engineId,
@@ -222,7 +222,7 @@ export async function measureOnePrompt(
     run = inserted as TrackingRun;
   }
 
-  if (run.mention_json) return; // 3b al gedaan — niets te doen (idempotent)
+  if (run.mention_json) return; // 3b al gedaan, niets te doen (idempotent)
 
   // Een eerder opgeslagen leeg antwoord (van vóór de controle hierboven) mag
   // niet alsnog als "niet genoemd" de score in. De rij weggooien en gooien:
@@ -236,7 +236,7 @@ export async function measureOnePrompt(
     );
   }
 
-  // 3b — het antwoord beoordelen (goedkoop, geen web_search). Retry-safe: leunt
+  // 3b, het antwoord beoordelen (goedkoop, geen web_search). Retry-safe: leunt
   // op het al opgeslagen raw_response, herhaalt 3a nooit.
   const b = await callStructured({
     model: MODELS.volume,
@@ -249,17 +249,17 @@ export async function measureOnePrompt(
     meta: { kind: "measure_mention", analysisId: analysis.id, profileId: analysis.profile_id },
   });
 
-  // Genormaliseerd naar tracking_run_mentions (§5) — delete-then-insert voor idempotente retries.
+  // Genormaliseerd naar tracking_run_mentions (§5), delete-then-insert voor idempotente retries.
   //
   // De VOLGORDE is hier wezenlijk: eerst de losse oordeelsrijen, dan pas
   // `mention_json`. Dat laatste veld is namelijk waaraan de rest van de app ziet
   // dat een vraag beoordeeld is (measurementIsUsable telt erop). Andersom kon de
-  // vlag gezet worden terwijl de insert stukliep — dan telde de meting als
+  // vlag gezet worden terwijl de insert stukliep. Dan telde de meting als
   // geslaagd voor de drempel, maar als ONBEOORDEELD in de score. Nu is
   // `mention_json` het sluitstuk: staat hij er, dan staat de rest er ook.
   await admin.from("tracking_run_mentions").delete().eq("tracking_run_id", run.id);
   const rawText = run.raw_response ?? "";
-  // `ownLabel` is "Merknaam (onderwerp)" (loadMeasureContext) — voor de
+  // `ownLabel` is "Merknaam (onderwerp)" (loadMeasureContext), voor de
   // tekstcontrole hieronder hebben we de kale merknaam nodig, niet die
   // toevoeging, want "(onderwerp)" staat nooit letterlijk in een AI-antwoord.
   const ownBrandName = ownLabel.replace(/\s*\([^()]*\)\s*$/, "").trim() || ownLabel;
@@ -270,7 +270,7 @@ export async function measureOnePrompt(
     // de merknaam nergens in `raw_response` voorkomt (steekproef op de
     // Swapfiets-analyse: 5 van de 26 als "genoemd" gemarkeerde metingen bevatten
     // de merknaam letterlijk niet in de tekst). Bronnen/URL's tellen hier
-    // bewust niet mee — alleen of de naam daadwerkelijk in de tekst staat.
+    // bewust niet mee, alleen of de naam daadwerkelijk in de tekst staat.
     const candidateNames = m.isOwnBrand ? [ownBrandName, ...ownAliases] : [m.entity];
     const mentioned = m.mentioned && candidateNames.some((name) => textContainsName(rawText, name));
     return {
@@ -281,7 +281,7 @@ export async function measureOnePrompt(
       position: mentioned ? normalizePosition(m.position) : null,
       // `sentiment` wordt sinds R3 niet meer gevuld (migratie 0029): het leverde
       // in 650 metingen geen enkele keer 'negative' op en werd nergens getoond.
-      // `mention_role` neemt zijn plaats in — die varieert wél.
+      // `mention_role` neemt zijn plaats in. Die varieert wél.
       // Vangnet, net als bij de positie: het model vulde bij 10 van de 27
       // niet-genoemde merken tóch een rol in ('eerste_aanbeveling'), terwijl de
       // prompt expliciet null vraagt. Structured output vult bij twijfel de eerste
@@ -337,7 +337,7 @@ type MentionRow = {
   mentioned: boolean;
 };
 
-/** Wat een merk in één periode aan zichtbaarheid opbouwt, naast "genoemd ja/nee". */
+/** Wat een merk in één periode aan zichtbaarheid opbouwt, naast "genoemd, ja of nee". */
 export interface VisibilityProfile {
   /** Gemiddelde positie in het antwoord; null als nergens genoemd. Lager is beter. */
   avgPosition: number | null;
@@ -357,7 +357,7 @@ export interface VisibilityProfile {
  *
  * `share` is het aandeel van deze meting binnen z'n vraag (R6.1): 1 bij een
  * eenmalig gemeten vraag, 1/3 bij een drie keer gemeten vraag. Alle cijfers
- * hieronder zijn daardoor uitgedrukt in VRAGEN, niet in metingen — "in 4 vragen
+ * hieronder zijn daardoor uitgedrukt in VRAGEN, niet in metingen, "in 4 vragen
  * geciteerd" blijft 4 vragen, ook als er twaalf metingen onder liggen.
  */
 function profileVisibility(
@@ -394,7 +394,7 @@ function profileVisibility(
  *
  * Ontdubbeld op entiteit: een antwoord dat "Coolblue" en "coolblue.nl" noemt,
  * noemt één aanbieder. Het eigen merk telt mee (zie de toelichting bij de
- * aanroep) — precies één keer, hoeveel mention-rijen het ook opleverde.
+ * aanroep). Precies één keer, hoeveel mention-rijen het ook opleverde.
  */
 function countBrandsPerRun(
   mentions: MentionRow[],
@@ -416,7 +416,7 @@ function countBrandsPerRun(
 
     const set = perRun.get(m.tracking_run_id) ?? new Set<string>();
     // Zonder entiteit valt hij terug op de mention-id: die is uniek, dus telt
-    // hij als eigen aanbieder. Dat is de veilige kant — liever één te veel dan
+    // hij als eigen aanbieder. Dat is de veilige kant, liever één te veel dan
     // een vraag ten onrechte als onmeetbaar wegzetten.
     set.add(entityId ?? m.id);
     perRun.set(m.tracking_run_id, set);
@@ -431,7 +431,7 @@ function countBrandsPerRun(
     counts.set(runId, (counts.get(runId) ?? 0) + 1);
   }
 
-  // Beoordeelde runs zonder enige aanbieder expliciet op 0 — anders is niet te
+  // Beoordeelde runs zonder enige aanbieder expliciet op 0. Anders is niet te
   // onderscheiden of er niets genoemd werd of dat de telling nooit draaide.
   for (const runId of ownByRun.keys()) {
     if (!counts.has(runId)) counts.set(runId, 0);
@@ -477,13 +477,13 @@ async function persistBrandCounts(admin: Admin, counts: Map<string, number>): Pr
  *
  * Bij een vraag die één op de drie keer iets oplevert is de kans om twee keer
  * achtereen nul te trekken ongeveer 44%. Die vraag verdween dan permanent. Zo
- * kromp de meetbasis van 30 naar 21 vragen en de winbare basis van 17 naar 5 —
+ * kromp de meetbasis van 30 naar 21 vragen en de winbare basis van 17 naar 5,
  * waarmee de 95%-band op de score naar ±42 punten liep en het cijfer ophield
  * iets te betekenen.
  *
  * Nu tellen we de STEEKPROEF: hoe vaak beoordeeld, hoe vaak raak. De vlag blijft
  * bestaan en blijft gevuld (additief, §2.3), maar wordt afgeleid van die telling
- * via `elicitLabel()` — en de beslissing om over te slaan gebruikt het
+ * via `elicitLabel()`, en de beslissing om over te slaan gebruikt het
  * betrouwbaarheidsinterval in plaats van twee ongelukkige trekkingen.
  */
 async function updateBrandEliciting(admin: Admin, analysisId: string): Promise<void> {
@@ -524,7 +524,7 @@ async function updateBrandEliciting(admin: Admin, analysisId: string): Promise<v
 }
 
 /**
- * 3c — aggregatie: visibility_scores + competitor_breakdown.
+ * 3c, aggregatie: visibility_scores + competitor_breakdown.
  *
  * Doet sinds fase 2 drie dingen extra (optimalisatie.md 2.2/2.4/2.5):
  *   • merknamen samenvoegen tot één entiteit per bedrijf
@@ -535,7 +535,7 @@ async function updateBrandEliciting(admin: Admin, analysisId: string): Promise<v
  * concurrenten uit de meting komen in plaats van uit een lijst vooraf, moet er
  * per ontdekt merk bepaald worden of het écht een concurrent is of een
  * marktplaats/vergelijker. Dat is één goedkope aanroep per ~40 nieuwe merken,
- * en alleen voor merken die nog niet geclassificeerd zijn — bij een tweede
+ * en alleen voor merken die nog niet geclassificeerd zijn, bij een tweede
  * periode is dat er meestal nul. De aanroep zit in een try/catch: mislukt hij,
  * dan blijven de cijfers gewoon staan en probeert de volgende aggregatie het
  * opnieuw.
@@ -566,11 +566,11 @@ export async function computeAggregates(admin: Admin, analysisId: string, weekNo
 
   const runIds = runs.map((r) => r.id as string);
   const categoryByRun = new Map(runs.map((r) => [r.id as string, r.prompt_category_snapshot as string]));
-  // Welke vraag hoort bij welke meting — nodig om per VRAAG te kunnen tellen nu
+  // Welke vraag hoort bij welke meting, nodig om per VRAAG te kunnen tellen nu
   // de zwaarste vragen meerdere keren gemeten worden (R6.1).
   const promptByRun = new Map(runs.map((r) => [r.id as string, (r.prompt_id as string | null) ?? null]));
   // Gewicht per run (volume × waarde), bevroren op meetmoment. Ontbreekt het
-  // (oude rij, of handmatige prompt zonder tags), dan het NEUTRALE gewicht —
+  // (oude rij, of handmatige prompt zonder tags), dan het NEUTRALE gewicht,
   // niet de ondergrens, zie NEUTRAL_WEIGHT (optimalisatie.md 0.10).
   const weightByRun = new Map(runs.map((r) => [r.id as string, Number(r.prompt_weight ?? NEUTRAL_WEIGHT)]));
 
@@ -656,7 +656,7 @@ export async function computeAggregates(admin: Admin, analysisId: string, weekNo
   }
 
   // Alleen BEOORDEELDE runs tellen mee (optimalisatie.md 0.2, zelfde regel als
-  // in report.ts). Een run zonder eigen-merk-oordeel betekent dat 3b faalde —
+  // in report.ts). Een run zonder eigen-merk-oordeel betekent dat 3b faalde,
   // dat is onbekend, niet "niet genoemd".
   const judgedRunIds = runIds.filter((id) => ownByRun.has(id));
   if (judgedRunIds.length < runIds.length) {
@@ -668,7 +668,7 @@ export async function computeAggregates(admin: Admin, analysisId: string, weekNo
 
   // ── Per VRAAG tellen, niet per meting (R6.1) ───────────────────────────────
   // De zwaarstwegende vragen worden meerdere keren gemeten. Zonder deze weging
-  // zouden die drie keer zo zwaar meetellen als de rest — het omgekeerde van de
+  // zouden die drie keer zo zwaar meetellen als de rest, het omgekeerde van de
   // bedoeling. Elke meting weegt 1/(aantal beoordeelde metingen van die vraag),
   // dus elke vraag weegt precies 1. Zonder herhalingen is elk aandeel 1 en
   // verandert er getalsmatig niets. Zie lib/pipeline/question-share.ts.
@@ -688,7 +688,7 @@ export async function computeAggregates(admin: Admin, analysisId: string, weekNo
   //
   // Dat mengt twee onvergelijkbare dingen. Waar merken genoemd worden en de
   // klant er niet bij zit, is een echte gemiste kans. Waar niemand genoemd
-  // wordt, is er niets te winnen — en niets te verliezen. Vanaf hier telt alleen
+  // wordt, is er niets te winnen, en niets te verliezen. Vanaf hier telt alleen
   // het eerste mee in de score; het tweede wordt als eigen cijfer getoond.
   //
   // Het eigen merk telt mee als aanbieder: er zijn antwoorden waarin uitsluitend
@@ -750,10 +750,10 @@ export async function computeAggregates(admin: Admin, analysisId: string, weekNo
 
   // ── Zichtbaarheidsprofiel (implementatieplan.md R3) ───────────────────────
   //
-  // Genoemd-ja/nee is een grove maat. Als vijfde genoemd worden ná drie
+  // Genoemd-ja of nee is een grove maat. Als vijfde genoemd worden ná drie
   // concurrenten is iets anders dan als eerste aanbevolen worden, en geciteerd
   // worden is een derde vorm van zichtbaarheid die tot nu toe helemaal niet
-  // meetelde — terwijl dát de link is waarop de gebruiker doorklikt.
+  // meetelde, terwijl dát de link is waarop de gebruiker doorklikt.
   const ownProfile = profileVisibility(
     winnableRunIds
       .map((id) => {
@@ -768,7 +768,7 @@ export async function computeAggregates(admin: Admin, analysisId: string, weekNo
   // Voorheen: eigen ÷ (eigen + álle concurrentvermeldingen). Die noemer groeide
   // met elk merk dat de classificatie toevallig ontdekte, waardoor het aandeel
   // daalde zonder dat de klant iets verkeerd deed. De oplossing was toen een
-  // handmatige bevestigingspoort — maar die maakte het cijfer afhankelijk van
+  // handmatige bevestigingspoort, maar die maakte het cijfer afhankelijk van
   // een vooraf opgegeven lijst in plaats van van de meting.
   //
   // Nu bepaalt de ROL de noemer: alleen merken die als echte concurrent
@@ -781,7 +781,7 @@ export async function computeAggregates(admin: Admin, analysisId: string, weekNo
     return entity?.entity_role === "concurrent" && !entity.dismissed;
   };
   // Ook hier per VRAAG (R6.1): een concurrent die in alle drie de metingen van
-  // dezelfde vraag genoemd wordt, wint die ene vraag — niet drie.
+  // dezelfde vraag genoemd wordt, wint die ene vraag, niet drie.
   const basisMentions = competitorRows
     .filter((m) => m.mentioned && inBasis(m))
     .reduce((sum, m) => sum + shareOf(m.tracking_run_id as string), 0);
@@ -851,7 +851,7 @@ export async function computeAggregates(admin: Admin, analysisId: string, weekNo
 
     // Herhaalde metingen van dezelfde vraag leveren meerdere run-ids op. Die
     // lijsten zijn bewijsmateriaal ("bij welke vragen wint deze concurrent van
-    // jou"), dus hoort elke VRAAG er hooguit één keer in te staan — anders leest
+    // jou"), dus hoort elke VRAAG er hooguit één keer in te staan. Anders leest
     // de klant dezelfde vraag drie keer in het rapport (R6.1).
     const withShare = ms.map((m) => ({ ...m, share: shareOf(m.tracking_run_id as string) }));
 
@@ -869,7 +869,7 @@ export async function computeAggregates(admin: Admin, analysisId: string, weekNo
       analysis_id: analysisId,
       week_no: weekNo,
       // De weergavenaam van de entiteit, niet de toevallige schrijfwijze uit
-      // één antwoord — anders heet dezelfde concurrent elke periode anders.
+      // één antwoord. Anders heet dezelfde concurrent elke periode anders.
       competitor_name: entityById.get(entityId)?.canonical_name ?? "Onbekend",
       mentions_count: roundQuestions(
         ms
@@ -929,12 +929,12 @@ export async function loadMeasureContext(admin: Admin, analysisId: string): Prom
     .maybeSingle();
 
   // Gebruik de canonieke merknaam voor mention-detectie (een AI-antwoord noemt
-  // "Golden Fingers", niet het domein) — nauwkeuriger dan alleen de URL.
+  // "Golden Fingers", niet het domein), nauwkeuriger dan alleen de URL.
   const base = profile?.brand_name ?? analysis.url;
   return {
     analysis,
     ownLabel: `${base} (${analysis.topic})`,
-    // Aliassen (§12.24) tellen ook als het eigen merk — verbetert de detectie.
+    // Aliassen (§12.24) tellen ook als het eigen merk, verbetert de detectie.
     ownAliases: (profile?.aliases as string[] | null) ?? [],
   };
 }
@@ -964,7 +964,7 @@ export async function measurePromptById(
 
   const { data: promptRow } = await admin.from("prompts").select("*").eq("id", promptId).maybeSingle();
   if (!promptRow) {
-    // Prompt verwijderd terwijl de taak in de rij stond — geen fout, niets te doen.
+    // Prompt verwijderd terwijl de taak in de rij stond. Geen fout, niets te doen.
     console.warn(`Prompt ${promptId} bestaat niet meer; meting overgeslagen.`);
     return;
   }

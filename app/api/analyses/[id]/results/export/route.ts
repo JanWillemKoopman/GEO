@@ -5,13 +5,13 @@ import { getOwnedAnalysis } from "@/lib/analyses";
 import { loadResults } from "@/lib/pipeline/results";
 
 /**
- * GET /api/analyses/[id]/results/export — het behaalde effect als CSV
+ * GET /api/analyses/[id]/results/export, het behaalde effect als CSV
  * (optimalisatie.md 5.9).
  *
  * Voor bureaus is dit het bestand waarmee ze hun eigen klant behouden; voor
  * ondernemers de bevestiging dat het geld goed besteed was.
  *
- * CSV en geen PDF: dit gaat naar Excel, naar een rapportage, of naar een mail —
+ * CSV en geen PDF: dit gaat naar Excel, naar een rapportage, of naar een mail,
  * en een PDF genereren vraagt een bibliotheek van megabytes voor iets wat
  * niemand daarna nog kan bewerken.
  */
@@ -19,7 +19,7 @@ function csvCell(value: string | number | null): string {
   if (value == null) return "";
   const s = String(value);
   // Puntkomma als scheidingsteken (Nederlandse Excel-instelling), dus die moet
-  // ook ontsnapt worden — net als aanhalingstekens en regeleindes.
+  // ook ontsnapt worden, net als aanhalingstekens en regeleindes.
   return /[";\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
 }
 
@@ -70,7 +70,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
     [csvCell("Effect gemeten"), csvCell(results.funnel.measured)],
   ];
 
-  // BOM vooraan, anders toont Excel accenten verkeerd — een detail dat elk
+  // BOM vooraan, anders toont Excel accenten verkeerd, een detail dat elk
   // Nederlands CSV-bestand raakt en dat je één keer goed regelt.
   const csv =
     "﻿" +

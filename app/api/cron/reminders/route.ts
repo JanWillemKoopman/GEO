@@ -6,11 +6,11 @@ import type { Analysis } from "@/lib/types/database";
 import { activeOnly } from "@/lib/archive";
 
 /**
- * GET /api/cron/reminders — één vriendelijke herinnering bij klaarliggende
+ * GET /api/cron/reminders, één vriendelijke herinnering bij klaarliggende
  * content (optimalisatie.md 5.8).
  *
  * Wekelijks. Blijven er pagina's steken bij "geschreven", dan is dát het
- * probleem — en dan moet de app daarop sturen in plaats van meer content aan te
+ * probleem, en dan moet de app daarop sturen in plaats van meer content aan te
  * bieden.
  *
  * De grens ligt bij een week. Korter is opdringerig (een ondernemer publiceert
@@ -27,7 +27,7 @@ export async function GET(request: Request) {
   }
 
   // Deze cron bestaat alleen om te mailen. Staat de mail uit, dan stoppen we
-  // hier — vóór het zetten van `publish_reminder_sent_at`. Zouden we die vlag
+  // hier, vóór het zetten van `publish_reminder_sent_at`. Zouden we die vlag
   // wél zetten, dan is de enige herinnering die een analyse ooit krijgt stil
   // opgebrand aan een mail die nooit verstuurd is.
   if (!emailsEnabled()) {
@@ -37,7 +37,7 @@ export async function GET(request: Request) {
   const admin = createAdminClient();
   const cutoff = new Date(Date.now() - WAITING_DAYS * 86_400_000).toISOString();
 
-  // Analyses die nog nooit een herinnering kregen. Eén keer, niet zeurend —
+  // Analyses die nog nooit een herinnering kregen. Eén keer, niet zeurend,
   // vandaar dat dit filter vóór al het andere komt.
   // Geen herinnering over een gearchiveerde analyse (migratie 0044): een mail
   // over werk dat in de app niet meer bestaat, is de vervelendste vorm van
@@ -66,7 +66,7 @@ export async function GET(request: Request) {
     if (waiting === 0) continue;
 
     // De vlag zetten vóór het versturen. Gaat de mail stuk, dan is de kans dat
-    // hij tóch aankwam groter dan nul — en twee keer dezelfde herinnering is
+    // hij tóch aankwam groter dan nul, en twee keer dezelfde herinnering is
     // erger dan hem missen.
     await admin
       .from("analyses")

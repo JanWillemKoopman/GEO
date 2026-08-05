@@ -6,7 +6,7 @@ import { profileProgress, formatEta } from "@/lib/jobs/progress";
 import { buildSteps } from "@/lib/pipeline/research-steps";
 
 /**
- * GET /api/profiles/[id]/status — poll-endpoint voor het onderzoeksscherm.
+ * GET /api/profiles/[id]/status, poll-endpoint voor het onderzoeksscherm.
  * Zie de analyse-variant: voortgang komt uit de taakstand (optimalisatie.md 1.6).
  */
 export const dynamic = "force-dynamic";

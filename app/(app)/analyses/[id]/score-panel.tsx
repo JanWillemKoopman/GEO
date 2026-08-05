@@ -9,8 +9,8 @@ import type { VisibilityScore, CompetitorBreakdown, Entity } from "@/lib/types/d
  *
  * Herzien in fase 2 (optimalisatie.md 2.3/2.8/2.10). Wat er toen veranderde:
  *
- *   • ÉÉN hoofdgetal. Er stonden twee cijfers van 6xl naast elkaar — score en
- *     gewogen score — zonder dat duidelijk was welke leidend was. De gewogen
+ *   • ÉÉN hoofdgetal. Er stonden twee cijfers van 6xl naast elkaar, score en
+ *     gewogen score. Zonder dat duidelijk was welke leidend was. De gewogen
  *     score is nu het hoofdgetal, want die sluit aan bij wat de klant verdient;
  *     de ongewogen score staat er kleiner naast als context.
  *   • De BANDBREEDTE staat er zichtbaar bij. Met 30 vragen is de 95%-band zo'n
@@ -25,14 +25,14 @@ import type { VisibilityScore, CompetitorBreakdown, Entity } from "@/lib/types/d
  * (hoofdstuk 02). Vandaar drie losse exports in plaats van één blok.
  */
 
-/** Hoofdstuk 01 — het cijfer, de marge en de verandering. */
+/** Hoofdstuk 01, het cijfer, de marge en de verandering. */
 export function ScoreCard({
   score,
   previous,
   measuredRunCount,
 }: {
   score: VisibilityScore;
-  /** De vorige periode, als die er is — voor de verandering (2.3). */
+  /** De vorige periode, als die er is, voor de verandering (2.3). */
   previous?: VisibilityScore | null;
   measuredRunCount: number;
 }) {
@@ -62,8 +62,8 @@ export function ScoreCard({
         <InfoHint label={leadIsWeighted ? "Gewogen zichtbaarheid" : "Zichtbaarheidsscore"}>
           {leadIsWeighted ? (
             <>
-              Van alle vragen die Aura aan een AI-assistent stelde, in hoeveel word jij genoemd —
-              waarbij vaak gestelde en koopklare vragen zwaarder tellen. Gemeten over{" "}
+              Van alle vragen die Aura aan een AI-assistent stelde, in hoeveel word jij genoemd?
+              Vaak gestelde en koopklare vragen tellen daarbij zwaarder. Gemeten over{" "}
               {score.winnable_runs ?? score.judged_runs ?? measuredRunCount} vragen.
             </>
           ) : (
@@ -84,7 +84,7 @@ export function ScoreCard({
             ±{band.margin} punten
             <InfoHint label="Waarom een marge?">
               Aura stelt {score.winnable_runs ?? score.judged_runs ?? measuredRunCount} vragen, geen duizend. Een andere
-              set vragen — of dezelfde vragen op een andere dag — geeft een iets ander getal. Je
+              set vragen, of dezelfde vragen op een andere dag, geeft een iets ander getal. Je
               echte score ligt naar alle waarschijnlijkheid tussen {band.low} en {band.high}.
             </InfoHint>
           </span>
@@ -100,7 +100,7 @@ export function ScoreCard({
       <p className="text-sm text-secondary">
         {leadIsWeighted
           ? "Zo vaak word jij genoemd als een AI-assistent een relevante vraag krijgt, waarbij vaak gestelde en koopklare vragen zwaarder tellen."
-          : "Zo vaak word jij genoemd als een AI-assistent een relevante vraag krijgt — elke vraag telt even zwaar."}
+          : "Zo vaak word jij genoemd als een AI-assistent een relevante vraag krijgt. Elke vraag telt even zwaar."}
       </p>
 
       {leadIsWeighted && (
@@ -116,8 +116,8 @@ export function ScoreCard({
             )}
           </span>
           <InfoHint label="Twee getallen?">
-            Het hoofdgetal weegt mee hoe vaak een vraag gesteld wordt en hoe koopklaar hij is —
-            dichter bij wat je eraan verdient. Het ongewogen getal behandelt elke vraag gelijk en
+            Het hoofdgetal weegt mee hoe vaak een vraag gesteld wordt en hoe koopklaar hij is, en komt
+            zo dichter bij wat je eraan verdient. Het ongewogen getal behandelt elke vraag gelijk en
             is makkelijker te vergelijken met een ruwe telling.
           </InfoHint>
         </div>
@@ -126,7 +126,7 @@ export function ScoreCard({
   );
 }
 
-/** Hoofdstuk 02 — jij naast je concurrenten, over dezelfde metingen. */
+/** Hoofdstuk 02, jij naast je concurrenten, over dezelfde metingen. */
 export function CompetitorCard({
   score,
   measuredRunCount,
@@ -134,7 +134,7 @@ export function CompetitorCard({
 }: {
   score: VisibilityScore;
   /**
-   * Aantal daadwerkelijke metingen in deze periode — de enige juiste noemer voor
+   * Aantal daadwerkelijke metingen in deze periode, de enige juiste noemer voor
    * de concurrentiepercentages (optimalisatie.md 0.1). Eerder werd hier het
    * HUIDIGE aantal actieve prompts gebruikt, terwijl `mentions_count` uit
    * historische runs komt: zette de klant een prompt uit, dan schoten de balken
@@ -146,7 +146,7 @@ export function CompetitorCard({
   // ── Snoeien (implementatieplan.md R4.1) ──────────────────────────────────
   //
   // Bij HEMA stonden er 34 merken in deze vergelijking, waarvan 24 met precies
-  // één vermelding — van Kruidvat tot cadeauxfolies.fr. Dat is geen
+  // één vermelding, van Kruidvat tot cadeauxfolies.fr. Dat is geen
   // concurrentiebeeld maar een lijst toevalligheden, en "je hebt 34
   // concurrenten" is een misleidende conclusie.
   //
@@ -158,7 +158,7 @@ export function CompetitorCard({
 
   // Komt er GEEN enkele concurrent vaker dan één keer voorbij, dan is dat zelf de
   // bevinding: een versnipperde markt zonder dominante partij. Bij Van der Valk
-  // is dat precies de situatie — 18 vergaderlocaties, elk één keer genoemd. Dan
+  // is dat precies de situatie, 18 vergaderlocaties, elk één keer genoemd. Dan
   // een top-3 tonen alsof dat de concurrenten zijn, zou een rangorde suggereren
   // die er niet is.
   const versnipperd = terugkerend.length === 0 && sorted.length > 0;
@@ -170,7 +170,7 @@ export function CompetitorCard({
     ...shown.map((c) => ({
       label: c.competitor_name,
       // Vangnet: ook met de juiste noemer kan een concurrent theoretisch vaker
-      // geteld worden dan er runs zijn — dan liever afkappen op 100 dan een
+      // geteld worden dan er runs zijn. Dan liever afkappen op 100 dan een
       // onmogelijke balk tonen.
       percent:
         measuredRunCount > 0
@@ -193,7 +193,7 @@ export function CompetitorCard({
       </span>
       {versnipperd ? (
         <p className="text-secondary">
-          Geen enkele aanbieder kwam vaker dan één keer voorbij — de AI noemde {sorted.length}{" "}
+          Geen enkele aanbieder kwam vaker dan één keer voorbij. De AI noemde {sorted.length}{" "}
           verschillende partijen, elk één keer. Er is hier dus geen vaste favoriet die je moet
           verslaan; dat maakt het makkelijker om er zelf één te worden.
         </p>
@@ -226,14 +226,14 @@ const ROLE_LABELS: Record<string, string> = {
 };
 
 /**
- * Hoofdstuk 02 — merken die de meting tegenkwam maar die geen concurrent zijn
+ * Hoofdstuk 02, merken die de meting tegenkwam maar die geen concurrent zijn
  * (migratie 0026).
  *
  * Deze kaart toonde eerder "nog niet bevestigde" merken: alles wat de meting
  * ontdekte wachtte op een handmatig vinkje van de klant voordat het meetelde.
  * Dat maakte de concurrentievergelijking afhankelijk van een lijst in plaats van
  * van de meting. Nu classificeert de aggregatie elk ontdekt merk automatisch, en
- * staat hier wat er bewust NIET in de grafiek hoort — met de reden erbij, zodat
+ * staat hier wat er bewust NIET in de grafiek hoort, met de reden erbij, zodat
  * zichtbaar is waarom een merk uit de antwoorden er niet tussen staat.
  */
 export function AlsoMentionedCard({
@@ -249,11 +249,11 @@ export function AlsoMentionedCard({
   return (
     <div className="card flex flex-col gap-3">
       <span className="mono-label flex items-center gap-1">
-        Ook genoemd — geen concurrent
+        Ook genoemd, geen concurrent
         <InfoHint label="Ook genoemd">
           Deze merken kwamen wél in de antwoorden voor, maar zijn geen concurrent van je: denk aan
           vergelijkingssites, marktplaatsen en brancheorganisaties. Ze tellen daarom niet mee in je
-          aandeel — anders vertekent dat cijfer. Klopt een indeling niet? Pas hem aan bij
+          aandeel, anders vertekent dat cijfer. Klopt een indeling niet? Pas hem aan bij
           Concurrenten beheren; jouw keuze overschrijft Aura daarna nooit meer.
         </InfoHint>
       </span>
@@ -276,7 +276,7 @@ export function AlsoMentionedCard({
 }
 
 /**
- * De verandering ten opzichte van de vorige meting — of het eerlijke "gelijk
+ * De verandering ten opzichte van de vorige meting, of het eerlijke "gelijk
  * gebleven" (optimalisatie.md 2.3).
  *
  * De drempel is niet de band rond één score maar die van het VERSCHIL tussen
@@ -331,14 +331,14 @@ function ChangeLine({
  * Het tweede getal: bij hoeveel vragen noemt de AI helemaal geen aanbieder?
  * (implementatieplan.md R2.5)
  *
- * Het hoofdgetal blijft één getal — dat is het ontwerpprincipe van de app. Maar
+ * Het hoofdgetal blijft één getal. Dat is het ontwerpprincipe van de app. Maar
  * de score zegt pas iets als je weet waaróver hij gaat. Bij Van der Valk noemt
  * de AI bij 17 van de 30 vragen geen enkel bedrijf; die vragen tellen sinds R2
  * niet meer mee. Zonder deze regel zou de klant zich afvragen waarom er "30
  * vragen" gesteld zijn maar over 13 gemeten wordt.
  *
  * En het is zelf een bevinding: waar niemand genoemd wordt, valt niets te
- * verliezen — maar is er ook nog geen partij de standaard.
+ * verliezen, maar is er ook nog geen partij de standaard.
  */
 function BrandlessLine({ score }: { score: VisibilityScore }) {
   const brandless = score.brandless_runs ?? 0;
@@ -365,11 +365,11 @@ function BrandlessLine({ score }: { score: VisibilityScore }) {
 /**
  * Het zichtbaarheidsprofiel onder het hoofdgetal (implementatieplan.md R3.3).
  *
- * Het hoofdgetal blijft één getal — dat is het ontwerpprincipe van de app. Maar
- * "genoemd ja/nee" is een grove maat: als vijfde genoemd worden ná drie
+ * Het hoofdgetal blijft één getal. Dat is het ontwerpprincipe van de app. Maar
+ * "genoemd, ja of nee" is een grove maat: als vijfde genoemd worden ná drie
  * concurrenten is iets heel anders dan als eerste aanbevolen worden, en
  * geciteerd worden is een derde vorm van zichtbaarheid die tot R3 helemaal niet
- * meetelde — terwijl dát de link is waarop een gebruiker doorklikt.
+ * meetelde, terwijl dát de link is waarop een gebruiker doorklikt.
  *
  * Drie cijfers, geen tabel: dit is verdieping onder het hoofdgetal, geen tweede
  * dashboard. Verschijnt alleen als er iets te tonen valt.
@@ -425,7 +425,7 @@ function VisibilityProfileRow({ score }: { score: VisibilityScore }) {
  * Waaróm die concurrenten genoemd worden (implementatieplan.md R4.3).
  *
  * De vergelijking eronder liet alleen zien hoe vaak iemand genoemd wordt. De
- * vraag die de klant daarna stelt — waarom die ander wel en ik niet — bleef
+ * vraag die de klant daarna stelt, waarom die ander wel en ik niet, bleef
  * onbeantwoord. Dit is het antwoord, gedestilleerd uit de antwoorden zelf.
  *
  * Verschijnt alleen als de profilering gedraaid heeft; bij metingen van vóór R4
@@ -441,7 +441,7 @@ function CompetitorReasons({ competitors }: { competitors: CompetitorBreakdown[]
         Waarom zij genoemd worden
         <InfoHint label="Waarom zij genoemd worden">
           Afgeleid uit de antwoorden zelf: op welke eigenschappen de AI deze aanbieders aanhaalt.
-          Dat is de lat waar jouw content overheen moet — niet om deze bedrijven na te doen, maar
+          Dat is de lat waar jouw content overheen moet. Niet om deze bedrijven na te doen, maar
           om op dezelfde punten net zo concreet te zijn.
         </InfoHint>
       </span>
@@ -449,7 +449,7 @@ function CompetitorReasons({ competitors }: { competitors: CompetitorBreakdown[]
         {withReason.map((c) => (
           <li key={c.id} className="text-sm">
             <span className="font-medium">{c.competitor_name}</span>
-            <span className="text-secondary"> — {c.why_summary}</span>
+            <span className="text-secondary">: {c.why_summary}</span>
           </li>
         ))}
       </ul>

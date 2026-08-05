@@ -5,10 +5,10 @@ interface ComparisonRow {
 }
 
 /**
- * "Jij vs. concurrenten" — horizontale vergelijkingsbalken. Bewust maar twee
+ * "Jij vs. Concurrenten", horizontale vergelijkingsbalken. Bewust maar twee
  * kleuren (eigen merk = paars accent, concurrenten = neutraal): bij een open-
  * eindige, LLM-gedetecteerde concurrentenlijst is een categorische kleur per
- * concurrent zinloos (en een anti-pattern bij groeiende cardinaliteit) — het
+ * concurrent zinloos (en een anti-pattern bij groeiende cardinaliteit), het
  * enige onderscheid dat ertoe doet is "wij" vs "de rest". Identiteit leunt
  * nooit op kleur alleen: naam + percentage staan altijd als tekst.
  */

@@ -3,7 +3,7 @@ import "server-only";
 /**
  * De feitenindex opbouwen (contentbriefing.md §3.1, implementatieplan.md R5.1).
  *
- * Verzamelt alles wat we met bron over deze klant weten. Geen AI-aanroep — dit
+ * Verzamelt alles wat we met bron over deze klant weten. Geen AI-aanroep. Dit
  * is puur ophalen en ordenen. Wat hier niet in staat, mag de schrijver straks
  * niet beweren; dat maakt de volledigheid van deze functie belangrijker dan hij
  * eruitziet.
@@ -13,10 +13,10 @@ import "server-only";
  * lage F-nummers en staan bovenaan de kaart. Wat bovenaan een prompt staat wordt
  * het best gebruikt.
  *
- *   1. klant     — expliciet beantwoorde vragen. Hoogst: dit weet niemand anders.
- *   2. site      — proof points, en de letterlijke zinnen uit de pagina's die
+ *   1. Klant    , expliciet beantwoorde vragen. Hoogst: dit weet niemand anders.
+ *   2. Site     , proof points, en de letterlijke zinnen uit de pagina's die
  *                  over dít onderwerp gaan (S1).
- *   3. onderzoek — de samenvatting uit het onderwerp-onderzoek.
+ *   3. Onderzoek, de samenvatting uit het onderwerp-onderzoek.
  *
  * ── WAT S1 HIER VERANDERDE, EN WAAROM ───────────────────────────────────────
  *
@@ -62,7 +62,7 @@ type Admin = SupabaseClient;
  * `verbeteren`) gaan apart mee in de schrijfstap.
  *
  * Sinds S1 gaat het om de 10 MEEST RELEVANTE pagina's in plaats van de eerste 8
- * die de database teruggeeft — zie `page-relevance.ts` voor wat die willekeur in
+ * die de database teruggeeft, zie `page-relevance.ts` voor wat die willekeur in
  * productie aanrichtte (Coolblue kreeg vier Engelstalige duplicaten van de
  * homepage; nul van de tien gecrawlde wasmachinepagina's).
  */
@@ -84,7 +84,7 @@ const PAGE_POOL = 60;
  * `analysisId` bepaalt welk onderwerp-onderzoek meegaat; de klantantwoorden komen
  * uit twee lagen (contentbriefing.md §7): merkbrede feiten gelden voor álle
  * analyses van deze klant, analyse-specifieke alleen voor deze. Dat is wat de
- * kennisbank na drie analyses waardevol maakt — elke volgende pagina start met
+ * kennisbank na drie analyses waardevol maakt. Elke volgende pagina start met
  * meer bevestigde feiten dan de vorige.
  */
 export async function buildFactBase(
@@ -95,8 +95,8 @@ export async function buildFactBase(
    * De vragen die de te schrijven pagina's moeten winnen (S1).
    *
    * Sturen de relevantieselectie: dít zijn de vragen waarop een antwoord nodig
-   * is, dus dít zijn de pagina's die we nodig hebben. Leeg meegeven werkt ook —
-   * dan telt alleen het analyse-onderwerp — maar levert een bredere selectie op.
+   * is, dus dít zijn de pagina's die we nodig hebben. Leeg meegeven werkt ook,
+   * dan telt alleen het analyse-onderwerp, maar levert een bredere selectie op.
    */
   targetQuestions: string[] = [],
 ): Promise<FactItem[]> {
@@ -116,7 +116,7 @@ export async function buildFactBase(
         .limit(PAGE_POOL),
       // Merkbrede antwoorden gelden altijd; analyse-antwoorden alleen bij deze
       // analyse. Een 'pagina'-antwoord hoort bij één content_piece en gaat daar
-      // apart mee — hier zou het bij de verkeerde pagina kunnen belanden.
+      // apart mee, hier zou het bij de verkeerde pagina kunnen belanden.
       admin
         .from("fact_requests")
         .select("question, answer, answer_type, answered_at, scope, analysis_id")
@@ -182,7 +182,7 @@ export async function buildFactBase(
       source: `site ${page.url}`,
       allowed: true,
       // NIET citeerbaar: een lap van 400 tekens is context, geen feit. Zie de
-      // toelichting bij FactItem.citable — dit was precies het alibi waarmee de
+      // toelichting bij FactItem.citable. Dit was precies het alibi waarmee de
       // eerste briefingronde nul vragen opleverde. De losse, letterlijke zinnen
       // uit deze pagina's staan hierboven wél als citeerbaar feit (S1); dit blok
       // blijft eronder staan zodat de schrijver de context en de toon ziet.
@@ -207,7 +207,7 @@ export async function buildFactBase(
   // ── De feitenbank bijwerken en teruglezen (migratie 0036) ─────────────────
   //
   // De citeerbare feiten gaan door de bank heen, zodat ze een IDENTITEIT krijgen
-  // die de nummering overleeft. Klantantwoorden en proof points zijn merkbreed —
+  // die de nummering overleeft. Klantantwoorden en proof points zijn merkbreed,
   // die gelden voor elke analyse van deze klant. De geatomiseerde sitezinnen
   // horen bij DIT onderwerp: dezelfde zin kan bij een ander onderwerp irrelevant
   // zijn, en hem merkbreed maken zou elke andere analyse vervuilen.
@@ -249,7 +249,7 @@ export async function buildFactBase(
 
   // Verboden achteraan nummeren maakt niets uit voor hun werking (die staan in
   // een eigen blok op de kaart), maar de bruikbare feiten houden zo de lage
-  // nummers — en dat zijn de nummers waar de content naar verwijst.
+  // nummers, en dat zijn de nummers waar de content naar verwijst.
   const gesorteerd = [...alles].sort(
     (a, b) =>
       // Citeerbaar eerst, zodat de F-nummers aaneengesloten lopen en de
@@ -269,7 +269,7 @@ export async function buildFactBase(
  *
  * De bank bewaart `kind` wel, maar de teruglezing hierboven haalt alleen op wat
  * de kaart nodig heeft. De sortering heeft `kind` nodig, en "klant, bevestigd
- * 29-07" is eenduidig genoeg om hem uit af te leiden — dat scheelt een kolom in
+ * 29-07" is eenduidig genoeg om hem uit af te leiden. Dat scheelt een kolom in
  * elke query.
  */
 function kindVan(source: string): FactSourceKind {

@@ -7,7 +7,7 @@ import type { UserFacingError } from "@/lib/errors";
 import type { OffsiteTask, OffsiteTaskStatus, SourceLandscapeRow } from "@/lib/types/database";
 
 /**
- * "Daarbuiten" — het off-site deel van het rapport (optimalisatie.md 7.3/7.5/7.6).
+ * "Daarbuiten", het off-site deel van het rapport (optimalisatie.md 7.3/7.5/7.6).
  *
  * Bewust een eigen blok naast "op je eigen site". Dat is een ander soort werk,
  * met een andere doorlooptijd en vaak een andere verantwoordelijke: een pagina
@@ -15,7 +15,7 @@ import type { OffsiteTask, OffsiteTaskStatus, SourceLandscapeRow } from "@/lib/t
  * duren en gaat soms via een ander.
  *
  * Elke actie is een TAAK met een status, geen zin in een rapport. Off-site
- * advies zonder status blijft hangen als goede bedoeling — en dat is precies
+ * advies zonder status blijft hangen als goede bedoeling, en dat is precies
  * wat er in deze markt standaard mee gebeurt.
  */
 const STATUS_LABEL: Record<OffsiteTaskStatus, string> = {
@@ -83,7 +83,7 @@ export function OffsitePanel({
     <div className="card flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <span className="mono-label flex items-center gap-1">
-          Daarbuiten — wat er buiten je eigen site moet gebeuren
+          Daarbuiten: wat er buiten je eigen site moet gebeuren
           <InfoHint label="Waarom kijkt Aura hiernaar?">
             Bij koopvragen leunen AI-assistenten zwaar op ándere sites: reviewplatforms,
             vergelijkers en lijstjes. Sta je daar niet op, dan maakt geen enkele tekst op je eigen
@@ -200,7 +200,7 @@ function TaskCard({
  *
  * Ook de bronnen waar de klant wél op staat, en die waarvan we het niet konden
  * vaststellen. Dat laatste staat er expliciet als "niet gecontroleerd" en niet
- * als een leeg vakje — een leeg vakje leest als "nee", en dan sturen we iemand
+ * als een leeg vakje, een leeg vakje leest als "nee", en dan sturen we iemand
  * op pad voor iets wat misschien al geregeld is.
  */
 function LandscapeTable({ landscape }: { landscape: SourceLandscapeRow[] }) {

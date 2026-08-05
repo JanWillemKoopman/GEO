@@ -11,13 +11,13 @@ import type { FactRequest } from "@/lib/types/database";
  *
  * De schrijfinstructie zegt "verzin geen feiten, blijf algemeen bij twijfel".
  * Bij een klant met een dunne website levert dat gegarandeerd algemene tekst op
- * — en algemeen is precies wat een AI-assistent niet citeert. Die spanning los
+ *, en algemeen is precies wat een AI-assistent niet citeert. Die spanning los
  * je niet op met een betere prompt; je lost hem op door het te vragen.
  *
  * Dat is meteen het sterkste UX-moment van de app: de klant vult drie getallen
  * in en ziet dat élke volgende pagina er concreter van wordt. Vandaar dat er bij
  * elke vraag staat waaróm we het vragen, en dat overslaan net zo makkelijk is
- * als antwoorden — een formulier dat je moet invullen is een drempel, een vraag
+ * als antwoorden, een formulier dat je moet invullen is een drempel, een vraag
  * die je mág beantwoorden is een uitnodiging.
  */
 export function FactRequests({ profileId, initial }: { profileId: string; initial: FactRequest[] }) {
@@ -59,8 +59,8 @@ export function FactRequests({ profileId, initial }: { profileId: string; initia
         <span className="mono-label flex items-center gap-1">
           Help Aura concreter te schrijven
           <InfoHint label="Waarom deze vragen?">
-            AI-assistenten citeren harde feiten — cijfers, jaartallen, termijnen — en slaan algemene
-            beloftes over. Wat je hier invult gebruikt Aura in élke pagina die het schrijft, niet
+            AI-assistenten citeren harde feiten: cijfers, jaartallen, termijnen. Algemene beloftes
+            slaan ze over. Wat je hier invult gebruikt Aura in élke pagina die het schrijft, niet
             alleen in de eerstvolgende.
           </InfoHint>
         </span>

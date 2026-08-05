@@ -9,7 +9,7 @@ import type { ContentPiece, ContentPieceTarget } from "@/lib/types/database";
 import type { StoredRecommendation } from "@/lib/pipeline/recommendation";
 
 /**
- * POST /api/analyses/[id]/content/[pieceId] — herschrijven met feedback van de
+ * POST /api/analyses/[id]/content/[pieceId], herschrijven met feedback van de
  * klant (optimalisatie.md 4.8).
  *
  * De belangrijkste ontbrekende knop in de hele app. Een pagina die er bijna was
@@ -22,10 +22,10 @@ import type { StoredRecommendation } from "@/lib/pipeline/recommendation";
 const MAX_NOTE_LENGTH = 2000;
 
 /**
- * PATCH — de klant schaaft de tekst zelf bij (optimalisatie.md 4.12).
+ * PATCH: de klant schaaft de tekst zelf bij (optimalisatie.md 4.12).
  *
  * Tot nu toe kon hij alleen kopiëren of downloaden. Een tekst die je niet kunt
- * bijschaven, publiceer je niet — dan blijft hij in de bibliotheek liggen en
+ * bijschaven, publiceer je niet. Dan blijft hij in de bibliotheek liggen en
  * gebeurt er niets, hoe goed hij ook is.
  *
  * Geen nieuwe versie: dit is de klant die zíjn tekst aanpast, niet de app die

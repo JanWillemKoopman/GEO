@@ -7,7 +7,7 @@ import { createPortal } from "react-dom";
 import { NAV, ACCOUNT_NAV, type NavItem } from "@/lib/nav";
 
 /**
- * Het menu achter het profiel-icoon — op élk schermformaat.
+ * Het menu achter het profiel-icoon, op élk schermformaat.
  *
  * Dit was eerder alleen een mobiel menu; op desktop stonden dezelfde links plus
  * het e-mailadres en een uitlog-knop uitgestald in de bovenbalk. Twee menu's
@@ -15,18 +15,18 @@ import { NAV, ACCOUNT_NAV, type NavItem } from "@/lib/nav";
  * bevat de balk alleen nog waar je naartoe kunt.
  *
  * Erachter zit geen kleine dropdown maar een full-screen sheet (designsystem.md
- * C3) — dat is het patroon van InSpace zelf, en het maakt van accountzaken een
+ * C3). Dat is het patroon van InSpace zelf, en het maakt van accountzaken een
  * bewuste zijstap in plaats van een uitklapmenu dat je per ongeluk opent.
  *
  * Vormgeving bewust 1-op-1 afgestemd op InSpace's eigen "Pick your orbit"
  * mobiele menu (referentie-screenshot van de opdrachtgever, juli 2026):
  * genummerde rijen in het mono-font, paarse accentkleur, groot vetgedrukt
- * kopje met één gradient-woord, en een wit rond kruisje rechtsboven — allemaal
+ * kopje met één gradient-woord, en een wit rond kruisje rechtsboven, allemaal
  * met de tokens uit designsystem.md §A/§B (geen nieuwe kleuren/fonts).
  */
 
 /**
- * De links komen uit `lib/nav.ts` — dezelfde bron als de bovenbalk. Ze stonden
+ * De links komen uit `lib/nav.ts`, dezelfde bron als de bovenbalk. Ze stonden
  * hier als losse constanten, en dat leverde precies op wat je verwacht: de twee
  * menu's liepen uit elkaar, met een "Mijn bedrijfsgegevens" onder Account dat
  * naar dezelfde route wees als "Klantprofielen" onder Navigatie.
@@ -154,7 +154,7 @@ export function ProfileMenu({
             aria-label="Menu"
             className="fixed inset-0 z-50 flex flex-col overflow-hidden bg-[var(--bg-base)]"
           >
-            {/* Ambient gloed-orbs (designsystem.md A3/B) — dezelfde grote, sterk
+            {/* Ambient gloed-orbs (designsystem.md A3/B), dezelfde grote, sterk
                 vervaagde accent-cirkels als InSpace achter hun menu/hero. */}
             <div
               className="glow-orb"

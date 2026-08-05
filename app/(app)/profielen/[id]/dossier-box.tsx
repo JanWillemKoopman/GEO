@@ -13,7 +13,7 @@ import { useState } from "react";
  *
  * Voor de klant is dat ook logisch: elke vraag kost hem dertig seconden nadenken
  * en formuleren. Eén tarievenpagina plakken kost hem tien seconden en levert er
- * tien op. Dat is het hele idee — bevestigen is goedkoper dan formuleren
+ * tien op. Dat is het hele idee, bevestigen is goedkoper dan formuleren
  * (contentbriefing.md §4, regel 3), en dat geldt op schaal net zo goed.
  *
  * ── WAAROM HIER EN NIET BIJ HET AANMELDEN ───────────────────────────────────
@@ -61,7 +61,7 @@ export function DossierBox({ profileId }: { profileId: string }) {
       setSkipped(json.skipped ?? 0);
       // Sinds migratie 0035 herkent de app dezelfde tekst aan zijn hash. Zonder
       // dit onderscheid kreeg de klant "hier kwamen geen harde feiten uit" te
-      // zien op zijn tarievenpagina — een onjuiste conclusie over een prima
+      // zien op zijn tarievenpagina, een onjuiste conclusie over een prima
       // document, en precies het soort melding dat vertrouwen kost.
       setAlKnown(Boolean(json.alreadyKnown));
       setText("");
@@ -102,7 +102,7 @@ export function DossierBox({ profileId }: { profileId: string }) {
     <div className="flex flex-col gap-3">
       <p className="text-sm text-secondary">
         Staan je tarieven, voorwaarden of veelgestelde vragen al ergens? Plak ze hier. Aura haalt er
-        de harde feiten uit — bedragen, termijnen, wat er wel en niet bij zit — en gebruikt die bij
+        de harde feiten uit: bedragen, termijnen, wat er wel en niet bij zit. Die gebruikt het bij
         het schrijven. Wat er niet letterlijk in staat, neemt het niet over.
       </p>
 
@@ -129,7 +129,7 @@ export function DossierBox({ profileId }: { profileId: string }) {
         <div className="flex flex-col gap-2">
           {alKnown ? (
             <p className="text-sm text-muted">
-              Deze tekst heb je al eerder aangeleverd — de feiten eruit staan er dus al. Je hoeft
+              Deze tekst heb je al eerder aangeleverd, dus de feiten eruit staan er al. Je hoeft
               niets te doen.
             </p>
           ) : zichtbaar.length === 0 ? (
@@ -149,7 +149,7 @@ export function DossierBox({ profileId }: { profileId: string }) {
                     <span className="font-medium">{f.answer}</span>
                     {f.verifyAfter && (
                       <span className="text-muted">
-                        — vragen we opnieuw na {new Date(f.verifyAfter).toLocaleDateString("nl-NL")}
+                        opnieuw te bevestigen na {new Date(f.verifyAfter).toLocaleDateString("nl-NL")}
                       </span>
                     )}
                     <button

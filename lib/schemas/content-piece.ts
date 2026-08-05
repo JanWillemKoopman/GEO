@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 /**
- * Fase C — Content-generatie (abcplan.md §8). Model mini, geen web_search.
+ * Fase C, Content-generatie (abcplan.md §8). Model mini, geen web_search.
  * LLM-geoptimaliseerd: direct antwoord, heldere koppen, FAQ, schema-markup.
  */
 export const ContentPiece = z.object({
@@ -24,7 +24,7 @@ export const ContentPiece = z.object({
    * dekt.
    *
    * Het model moet zijn eigen tekst dus nalopen en per bewering de bron
-   * aanwijzen. Dat is niet alleen administratie — het is wat het verzinnen
+   * aanwijzen. Dat is niet alleen administratie, het is wat het verzinnen
    * duur maakt. Een bewering zonder F-nummer valt op, en `sourceCoverage()`
    * rekent in code na of het genoemde nummer echt bestaat. Alleen algemene
    * uitleg over het onderwerp hoeft hier niet in; die bevat geen belofte van
@@ -36,7 +36,7 @@ export const ContentPiece = z.object({
       factRef: z.string(),
       /**
        * Het letterlijke fragment uit dat feit dat de bewering dekt. De code
-       * controleert of het er echt in staat — een F-nummer noemen zonder de
+       * controleert of het er echt in staat, een F-nummer noemen zonder de
        * dekkende zin te kunnen aanwijzen telt niet als onderbouwing.
        */
       quote: z.string(),

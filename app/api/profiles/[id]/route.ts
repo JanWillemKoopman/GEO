@@ -5,7 +5,7 @@ import { getOwnedProfile } from "@/lib/profiles";
 import { MAX_PAGES_HARD_CAP } from "@/lib/crawler";
 
 /**
- * PATCH /api/profiles/[id] — klantprofiel bewerken. Geen AI-call: pure CRUD op
+ * PATCH /api/profiles/[id], klantprofiel bewerken. Geen AI-call: pure CRUD op
  * al bestaande data. Zet edited_by_user = true. Zelfde patroon als de vroegere
  * brand-dna-route. `sitemap_url` en `max_inventory_pages` zijn de crawl-
  * instellingen voor de content-inventaris (§12.23).
@@ -14,7 +14,7 @@ const EDITABLE_FIELDS = [
   "name",
   "industry",
   // Het bedrijfsmodel (R8.5, migratie 0032). Bewerkbaar omdat de klant beter
-  // weet dan het model of hij een retailer of een fabrikant is — en omdat deze
+  // weet dan het model of hij een retailer of een fabrikant is, en omdat deze
   // waarde stuurt welke briefingvragen hij straks krijgt. De database-constraint
   // bewaakt de toegestane waarden.
   "business_model",
@@ -79,14 +79,14 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   // de strategieroute, en dan nog uitsluitend voor aliassen en werkgebied uit de
   // contextfactoren.
   //
-  // Gevolg: dit — de gewone manier waarop iemand een profiel corrigeert — liet
+  // Gevolg: dit, de gewone manier waarop iemand een profiel corrigeert, liet
   // geen spoor achter, en de knop "onderzoek opnieuw" zou elke correctie zonder
   // waarschuwing overschrijven. Precies het scenario waar migratie 0039 voor
   // gemaakt is, en precies het scenario dat hij niet dekte.
   //
   // 'klant' als de eigenaar zelf bewerkt, 'gesprek' als de consultant het voor
   // hem doet. Allebei menselijk (`isHumanSet`), dus voor de bescherming maakt
-  // het niet uit — voor de vraag "wie zei dit?" een halfjaar later wel.
+  // het niet uit, voor de vraag "wie zei dit?" een halfjaar later wel.
   const bewerkteVelden = EDITABLE_FIELDS.filter((f) => f in body);
   if (bewerkteVelden.length > 0) {
     const bron = profile.user_id === user.id ? "klant" : "gesprek";

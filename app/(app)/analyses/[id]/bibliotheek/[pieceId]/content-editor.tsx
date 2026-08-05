@@ -9,7 +9,7 @@ import type { UserFacingError } from "@/lib/errors";
  * De tekst zelf bijschaven (optimalisatie.md 4.12).
  *
  * De klant kon alleen kopiëren of downloaden. Een tekst die je niet kunt
- * aanpassen, publiceer je niet — dan blijft hij in de bibliotheek liggen en
+ * aanpassen, publiceer je niet. Dan blijft hij in de bibliotheek liggen en
  * gebeurt er niets, hoe goed hij ook is. Vaak gaat het om één zin: een naam
  * anders schrijven, een prijs erbij, een claim eruit.
  *

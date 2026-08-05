@@ -3,7 +3,7 @@ import { confidenceLevel } from "@/lib/pipeline/field-merge";
 /**
  * Zekerheid als kleur, niet als kommagetal (docs/tasks/onboarding-2.0.md §8).
  *
- * "0.62" zegt niemand iets. Drie niveaus met een label wél — en het label staat
+ * "0.62" zegt niemand iets. Drie niveaus met een label wél, en het label staat
  * er altijd bij, want kleur mag nooit het enige signaal zijn (designsystem.md
  * §C, principe 5).
  *

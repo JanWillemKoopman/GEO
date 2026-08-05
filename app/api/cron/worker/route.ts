@@ -4,7 +4,7 @@ import { runWorker } from "@/lib/jobs/worker";
 import { describeError } from "@/lib/errors";
 
 /**
- * GET /api/cron/worker — de motor (optimalisatie.md 1.1).
+ * GET /api/cron/worker, de motor (optimalisatie.md 1.1).
  *
  * Draait elke minuut (zie vercel.json) en werkt de wachtrij af. Dit is wat de
  * belofte "je kunt dit scherm sluiten" waarmaakt: het werk hangt niet meer aan
@@ -20,7 +20,7 @@ import { describeError } from "@/lib/errors";
  * maxDuration staat op 300 en niet op 60: contentgeneratie laat het premium model een
  * volledige pagina schrijven, en dat past er niet in. 300s is het maximum dat
  * Vercel met Fluid Compute toestaat (ook op Hobby). Het tijdbudget van de
- * werker moet daar ruim onder blijven — zie workerTimeBudgetMs in lib/config.ts.
+ * werker moet daar ruim onder blijven, zie workerTimeBudgetMs in lib/config.ts.
  */
 export const maxDuration = 300;
 export const dynamic = "force-dynamic";

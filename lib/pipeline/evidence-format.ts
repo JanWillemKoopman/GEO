@@ -3,7 +3,7 @@
  *
  * Bewust gescheiden van `evidence.ts` en bewust ZONDER `server-only`, net als
  * `period-change-format.ts` naast `period-change.ts`. De opmaak van dit blok
- * bepaalt wat het model wel en niet mag concluderen — dat is precies het soort
+ * bepaalt wat het model wel en niet mag concluderen. Dat is precies het soort
  * logica dat je wilt kunnen testen zonder database (scripts/test-unit.ts).
  */
 import type { EntityRole } from "@/lib/schemas/entity-classification";
@@ -12,7 +12,7 @@ import type { EntityRole } from "@/lib/schemas/entity-classification";
 export interface EvidenceBrand {
   /** Weergavenaam van de entiteit; valt terug op de gemeten schrijfwijze. */
   name: string;
-  /** Concurrent, vergelijker, brancheorganisatie… — bepaalt hoe zwaar dit weegt. */
+  /** Concurrent, vergelijker, brancheorganisatie…, bepaalt hoe zwaar dit weegt. */
   role: EntityRole | "onbekend";
   /** Positie in het antwoord; null als de classificatie die niet vaststelde. */
   position: number | null;
@@ -22,7 +22,7 @@ export interface EvidenceBrand {
 
 /** Het dossier van één gemiste vraag: wat er feitelijk in dat antwoord stond. */
 export interface EvidenceEntry {
-  /** V1, V2, … — waarmee het rapport deze vraag aanwijst. */
+  /** V1, V2, …, waarmee het rapport deze vraag aanwijst. */
   code: string;
   runId: string;
   promptText: string;
@@ -61,7 +61,7 @@ export function excerpt(text: string): string {
  *
  * De vorm is bewust expliciet: per vraag staat er of er merken genoemd werden en
  * zo ja welke, met positie en bronnen. Bij een leeg dossier staat er een hele
- * ZIN in plaats van een lege lijst — een model dat "geen data" ziet, vult dat
+ * ZIN in plaats van een lege lijst, een model dat "geen data" ziet, vult dat
  * gat; een model dat leest "hier werd geen enkel bedrijf genoemd" heeft een
  * conclusie in handen.
  */
@@ -81,7 +81,7 @@ export function formatEvidenceDossier(entries: EvidenceEntry[]): string {
     const brands =
       e.brandsInAnswer.length === 0
         ? "  In dit antwoord werd GEEN ENKEL bedrijf bij naam genoemd. Er is hier dus geen " +
-          "concurrent die deze vraag wint — noem er ook geen."
+          "concurrent die deze vraag wint. Noem er ook geen."
         : e.brandsInAnswer
             .map((b) => {
               const positie = b.position != null ? `positie ${b.position}` : "positie onbekend";
@@ -101,12 +101,12 @@ export function formatEvidenceDossier(entries: EvidenceEntry[]): string {
   });
 
   return (
-    `\nBEWIJSDOSSIER — de vragen waarop het eigen merk NIET genoemd werd, gesorteerd op gewicht ` +
-    `(hoog gewicht = populair en/of koopklaar). Per vraag staat hieronder precies welke bedrijven ` +
+    `\nBEWIJSDOSSIER: de vragen waarop het eigen merk NIET genoemd werd, gesorteerd op gewicht ` +
+    `(hoog gewicht = populair en of koopklaar). Per vraag staat hieronder precies welke bedrijven ` +
     `er in DAT antwoord voorkwamen.\n\n` +
     `⚠️ HARDE REGEL: noem een concurrent alleen bij naam in verband met een specifieke vraag als ` +
     `die naam hieronder ONDER DIE VRAAG staat. Staat er dat er geen enkel bedrijf genoemd werd, ` +
-    `dan is dát je conclusie — haal er geen concurrent bij uit een andere vraag.\n\n` +
+    `dan is dát je conclusie. Haal er geen concurrent bij uit een andere vraag.\n\n` +
     `${blocks.join("\n\n")}`
   );
 }

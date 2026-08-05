@@ -1,5 +1,5 @@
 /**
- * De KETENTEST — de echte jobhandlers tegen een echte Postgres
+ * De KETENTEST: de echte jobhandlers tegen een echte Postgres
  * (implementatieplan.md S7).
  *
  * Draai met `npm run test:chain`. GEEN API-sleutel, GEEN netwerk, GEEN kosten.
@@ -19,7 +19,7 @@
  *   7. Auditplan weggegooid                  → de schrijver begon elke keer bij nul
  *
  * Elk van de zeven is hieronder een assertie. Ze zijn stuk voor stuk gevonden
- * met de hand, op productie, na uren en dollars — dat is wat deze test moet
+ * met de hand, op productie, na uren en dollars. Dat is wat deze test moet
  * vervangen.
  *
  * ── WAT ER ECHT IS EN WAT NIET ──────────────────────────────────────────────
@@ -65,8 +65,8 @@ function ok(name: string, condition: boolean, detail = ""): void {
     console.log(`  ✓ ${name}`);
   } else {
     failed++;
-    failures.push(`${name}${detail ? ` — ${detail}` : ""}`);
-    console.log(`  ✗ ${name}${detail ? ` — ${detail}` : ""}`);
+    failures.push(`${name}${detail ? `: ${detail}` : ""}`);
+    console.log(`  ✗ ${name}${detail ? `: ${detail}` : ""}`);
   }
 }
 
@@ -76,7 +76,7 @@ async function main(): Promise<void> {
   const { createOpenAiStub } = await import("./chain/openai-stub");
   type StubLog = import("./chain/openai-stub").StubLog;
 
-  console.log("\nKetentest — echte handlers, echte Postgres, gestubde AI\n");
+  console.log("\nKetentest · echte handlers, echte Postgres, gestubde AI\n");
   console.log("Database opstarten en migraties toepassen…");
   const db = await startTestDatabase(join(process.cwd(), "supabase/migrations"));
 
@@ -148,7 +148,7 @@ async function main(): Promise<void> {
     ok("de briefing maakt één pagina aan", briefing.contentPieceIds.length === 1);
     ok("er wordt een vraag aan de klant gesteld", briefing.questions >= 1, `${briefing.questions}`);
 
-    // S1 — het vangnet van de atomiseerstap. De stub bood twee zinnen aan;
+    // S1, het vangnet van de atomiseerstap. De stub bood twee zinnen aan;
     // alleen de zin die letterlijk op de gecrawlde pagina staat mag doorkomen.
     const kaart = await db.client.query(
       `select briefing_snapshot_json from public.content_pieces where analysis_id = $1`,
@@ -170,16 +170,16 @@ async function main(): Promise<void> {
       !citeerbaar.some((t) => t.includes("beste praktijk van Nederland")),
     );
 
-    // Bug 7 — het auditplan werd weggegooid.
+    // Bug 7, het auditplan werd weggegooid.
     ok(
       "bug 7: het paginaplan staat in de snapshot",
       Array.isArray(snapshot?.plan) && snapshot.plan.length === 2,
       `${snapshot?.plan?.length ?? 0} punten`,
     );
 
-    // S8 — de tegenspraken werden berekend en alleen gelogd. Dit scenario kent
+    // S8, de tegenspraken werden berekend en alleen gelogd. Dit scenario kent
     // er geen (de klant heeft nog niets herzien), dus de lijst hoort leeg te
-    // zijn — maar hij moet er wél STAAN. Precies dát is de regressie die deze
+    // zijn, maar hij moet er wél STAAN. Precies dát is de regressie die deze
     // assertie bewaakt: verdwijnt het veld uit de snapshot, dan kan het
     // briefingscherm het nooit tonen en merkt niemand het.
     ok(
@@ -206,7 +206,7 @@ async function main(): Promise<void> {
         where profile_id = $1`,
       [profileId],
     );
-    // En een merkbreed antwoord (analysis_id is null) — dat is wat bug 6 miste.
+    // En een merkbreed antwoord (analysis_id is null). Dat is wat bug 6 miste.
     await db.client.query(
       `insert into public.fact_requests
          (profile_id, analysis_id, question, reason, answer, status, answered_at, scope, kind,
@@ -216,7 +216,7 @@ async function main(): Promise<void> {
       [profileId],
     );
 
-    // Bug 6 — telt een merkbreed antwoord mee in de dedupe-sleutel?
+    // Bug 6, telt een merkbreed antwoord mee in de dedupe-sleutel?
     const { planContentDraft } = await import("@/lib/jobs/content-jobs");
     const eerste = await planContentDraft(admin as never, {
       analysisId,
@@ -261,19 +261,19 @@ async function main(): Promise<void> {
       [analysisId],
     );
 
-    // Bug 1 — 'briefing' gold als "al af".
+    // Bug 1, 'briefing' gold als "al af".
     ok(
       "bug 1: er staat tekst in de pagina",
       Boolean(na.rows[0]?.body_markdown),
       "de briefing-rij werd als 'al af' behandeld",
     );
 
-    // Bug 2 — de versiesprong met een lege spookrij ernaast.
+    // Bug 2, de versiesprong met een lege spookrij ernaast.
     ok("bug 2: precies één rij voor deze titel", na.rows.length === 1, `${na.rows.length} rijen`);
     ok("bug 2: het is nog steeds versie 1", na.rows[0]?.version === 1);
     ok("bug 2: en die rij is de huidige", na.rows[0]?.is_current === true);
 
-    // Bug 3 — het antwoord van de klant moet in de gebruikte kaart staan.
+    // Bug 3, het antwoord van de klant moet in de gebruikte kaart staan.
     const gebruikt = na.rows[0]?.briefing_snapshot_json as { facts?: { text: string }[] };
     ok(
       "bug 3: het antwoord van de klant staat op de gebruikte feitenkaart",
@@ -281,7 +281,7 @@ async function main(): Promise<void> {
       "de bevroren kaart werd blind hergebruikt",
     );
 
-    // Bug 7 — kreeg de schrijver het plan te zien?
+    // Bug 7, kreeg de schrijver het plan te zien?
     const schrijfprompt = log.filter((l) => l.schemaName === "content_piece").at(-1)?.user ?? "";
     ok(
       "bug 7: het paginaplan gaat mee de schrijfprompt in",
@@ -294,14 +294,14 @@ async function main(): Promise<void> {
     );
 
 
-    // Bug 4 — "F1, F2" moet als onderbouwd tellen.
+    // Bug 4, "F1, F2" moet als onderbouwd tellen.
     ok(
       "bug 4: een samengestelde bronverwijzing telt als onderbouwd",
       Number(na.rows[0]?.source_coverage ?? 0) > 0,
       `dekking ${na.rows[0]?.source_coverage}`,
     );
 
-    // S3 — de zin zonder bron ("binnen 24 uur terecht") hoort opgemerkt te zijn.
+    // S3, de zin zonder bron ("binnen 24 uur terecht") hoort opgemerkt te zijn.
     const notities = await db.client.query(
       `select review_notes from public.content_pieces where analysis_id = $1`,
       [analysisId],
@@ -313,7 +313,7 @@ async function main(): Promise<void> {
       regels.join(" | "),
     );
 
-    // S6 — 'ready' betekent niet 'vrijgegeven'.
+    // S6, 'ready' betekent niet 'vrijgegeven'.
     ok("S6: de pagina staat op nakijken", na.rows[0]?.needs_review === true);
 
     // ── 4. Nog een antwoord, dan opnieuw genereren ──────────────────────────
@@ -397,7 +397,7 @@ async function main(): Promise<void> {
     // Dit is de gevoeligste wijziging van het onboarding-traject: getOwnedProfile
     // en getOwnedAnalysis kregen een tweede uitweg, en die twee functies zijn
     // samen de enige poort tussen een verzoek en andermans data. Een `||` er
-    // verkeerd neerzetten geeft iedereen toegang tot alles — en dat merk je aan
+    // verkeerd neerzetten geeft iedereen toegang tot alles, en dat merk je aan
     // niets, want de happy path blijft gewoon werken.
     //
     // Vandaar drie gevallen per functie, waarvan het middelste het echte:
@@ -448,7 +448,7 @@ async function main(): Promise<void> {
 
     // Toewijzen verplaatst het profiel ÉN de analyses. Alleen het profiel
     // verzetten levert een klant op die zijn merk ziet maar geen enkele
-    // analyse — precies het scherm waar hij voor betaalt.
+    // analyse. Precies het scherm waar hij voor betaalt.
     await db.client.query(
       "update public.profiles set user_id = $1, assigned_at = now() where id = $2",
       [vreemdeId, profileId],
@@ -477,7 +477,7 @@ async function main(): Promise<void> {
     // Dit is samenhang tussen twee dingen die elk apart werkten: de bewerkroute
     // schrijft `profile_field_sources`, en `prepare-profile.ts` leest die tabel
     // vóór hij een AI-patch wegschrijft. Tot 3 augustus 2026 schreef alleen de
-    // strategieroute die rijen — en dan nog alleen voor aliassen en werkgebied.
+    // strategieroute die rijen, en dan nog alleen voor aliassen en werkgebied.
     // De gewone manier waarop iemand een profiel corrigeert liet geen spoor na,
     // dus `filterProtectedFields()` blokkeerde nooit iets en de knop "onderzoek
     // opnieuw" zou elke correctie stil overschrijven.
@@ -533,7 +533,7 @@ async function main(): Promise<void> {
     //
     // De herhaalroute verwijdert de aanbodknopen met bron `ai` en laat de
     // topics staan. `profile_topics.offering_ids` is een `uuid[]` en kan dus
-    // geen foreign key hebben — na die verwijdering wijst hij naar rijen die
+    // geen foreign key hebben, na die verwijdering wijst hij naar rijen die
     // niet meer bestaan, zonder dat er iets omvalt. Precies het soort fout dat
     // alleen zichtbaar wordt als je de twee stappen achter elkaar zet.
     // ══════════════════════════════════════════════════════════════════════
@@ -634,7 +634,7 @@ async function main(): Promise<void> {
     // Zes query's sommen merken of analyses op, en het filter moet in alle zes.
     // De duurste is de maandelijkse meetronde: zonder filter plant die elke
     // maand een betaalde meting in voor een merk dat niemand meer ziet staan.
-    // Dat is precies het soort samenhang dat geen unittest kan zien — de query
+    // Dat is precies het soort samenhang dat geen unittest kan zien, de query
     // op zich klopt, hij vraagt alleen de verkeerde rijen op.
     // ══════════════════════════════════════════════════════════════════════
     console.log("\nArchiveren: verborgen in de app, bewaard in de database");
@@ -659,7 +659,7 @@ async function main(): Promise<void> {
       Number(nogAanwezig[0].profielen) === 1 &&
         Number(nogAanwezig[0].analyses) === 1,
     );
-    // Alles wat via `analysis_id` aan de analyse hangt blijft staan — dat is
+    // Alles wat via `analysis_id` aan de analyse hangt blijft staan. Dat is
     // precies waarom dit een archief is en geen `delete`: één verwijdering zou
     // via `on delete cascade` de hele contentgeschiedenis meenemen.
     ok(

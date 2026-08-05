@@ -13,24 +13,24 @@ interface ReportGap {
 }
 
 /**
- * Hoofdstuk 02 — "Waar je wint en mist".
+ * Hoofdstuk 02, "Waar je wint en mist".
  *
  * ── DRIE PLEKKEN DIE ÉÉN PLEK HOORDEN TE ZIJN ───────────────────────────────
  *
  * Dezelfde vraag werd op drie tabbladen beantwoord: de concurrentiebalken op
  * Overzicht, de gemiste vragen op Vragen & antwoorden, en de gaten-analyse in
  * het Rapport. Dat laatste tabblad linkte voor elk gat terug naar het tweede
- * ("3× aangetoond — bekijk het bewijs"), en elke aanbeveling deed dat nog eens.
+ * ("3× aangetoond, bekijk het bewijs"), en elke aanbeveling deed dat nog eens.
  *
  * Die links waren het bewijs dat de scheiding niet klopte: het rapport moest je
  * naar een ander scherm sturen om zijn eigen bewering te onderbouwen. Nu staat
- * de bewering bovenaan dit hoofdstuk en het bewijs eronder — je klikt op een
+ * de bewering bovenaan dit hoofdstuk en het bewijs eronder, je klikt op een
  * gat en de vragenlijst eronder filtert zichzelf.
  */
 export async function BewijsChapter({
   analysis,
   weekNo,
-  /** Uit `?runs=` — een doorklik vanaf een gat of een aanbeveling. */
+  /** Uit `?runs=`, een doorklik vanaf een gat of een aanbeveling. */
   focusRuns,
 }: {
   analysis: Analysis;
@@ -78,7 +78,7 @@ export async function BewijsChapter({
       .eq("purpose", "periodic"),
     // Merken die de meting wél tegenkwam maar die geen concurrent zijn
     // (migratie 0026): marktplaatsen, vergelijkers, brancheorganisaties. Ze
-    // tellen niet mee in het aandeel, maar de klant moet ze zien — anders is
+    // tellen niet mee in het aandeel, maar de klant moet ze zien. Anders is
     // niet te verklaren waarom een merk uit de antwoorden niet in de grafiek
     // staat. Nog niet geclassificeerde merken ('onbepaald') laten we weg: die
     // zijn nog onderweg en zouden hier als 'geen concurrent' overkomen.
@@ -140,7 +140,7 @@ export async function BewijsChapter({
             Waar je zichtbaarheid mist
             <InfoHint label="Waar je zichtbaarheid mist">
               De patronen die Aura in de antwoorden terugzag. Klik op een punt om precies de
-              metingen te zien waarop die uitspraak rust — die staan hieronder.
+              metingen te zien waarop die uitspraak rust. Die staan hieronder.
             </InfoHint>
           </span>
           <ul className="flex flex-col gap-3">
@@ -159,7 +159,7 @@ export async function BewijsChapter({
                       href={`/analyses/${analysis.id}?runs=${g.evidenceRunIds.join(",")}#antwoorden`}
                       className="mono-label underline transition-colors hover:text-[var(--text-primary)]"
                     >
-                      {g.evidenceRunIds.length}× aangetoond — toon het bewijs
+                      {g.evidenceRunIds.length}× aangetoond, toon het bewijs
                     </Link>
                   )}
                 </div>

@@ -22,14 +22,14 @@ export default async function AnalysesPage() {
 
   // Eén overzicht over alle analyses heen (optimalisatie.md bijlage A10).
   // Alles was per analyse: wie er drie had, moest negen schermen af om te weten
-  // of er iets te doen was — en deed het dus niet.
+  // of er iets te doen was, en deed het dus niet.
   //
   // Lezen loopt rechtstreeks via RLS (SELECT-only, gefilterd op user_id); de
   // expliciete user-filter in loadDashboard is een tweede slot op dezelfde deur.
   // Bestaat er al een merk? Zonder merk is "start een analyse" een belofte die
   // de app niet kan nakomen: die knop leidde naar een pagina die zei dat je
   // eerst een klantprofiel nodig had. Drie schermen en twee knoppen voordat de
-  // eerste échte stap begon — precies de fout die de onboarding zelf zo
+  // eerste échte stap begon. Precies de fout die de onboarding zelf zo
   // zorgvuldig vermijdt.
   const [dashboard, { count: profileCount }] = await Promise.all([
     loadDashboard(supabase, user.id),
@@ -76,7 +76,7 @@ export default async function AnalysesPage() {
         >
           {hasProfile
             ? "Kies een merk en het product of onderwerp dat je wilt meten. Aura stelt de vragen die jouw klanten aan een AI stellen, en telt hoe vaak jij in het antwoord staat."
-            : "Begin met je merk. Aura onderzoekt het één keer grondig — daarna meet je er onbeperkt onderwerpen op. Twee velden, verder niets."}
+            : "Begin met je merk. Aura onderzoekt het één keer grondig. Daarna meet je er onbeperkt onderwerpen op. Twee velden, verder niets."}
         </EmptyState>
       ) : (
         <ul className="flex flex-col gap-3">

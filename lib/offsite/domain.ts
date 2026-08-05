@@ -2,7 +2,7 @@
  * Domeinen herkennen en filteren (optimalisatie.md 7.1).
  *
  * Apart van `landscape.ts`, dat de database bevraagt: dit is pure tekst- en
- * URL-bewerking, en juist het stuk waar het stil misgaat — een subdomein dat
+ * URL-bewerking, en juist het stuk waar het stil misgaat, een subdomein dat
  * als eigen bron telt, of een tweedelige TLD die tot "co.uk" wordt gereduceerd.
  *
  * Bewust ZONDER `server-only`.
@@ -13,7 +13,7 @@
  *
  * Zoekmachines en sociale platforms duiken bij vrijwel elke vraag op en zouden
  * elke ranglijst domineren; "sta jij op google.com" is geen bruikbaar advies.
- * De eigen site van de klant hoort er ook niet in — dat is on-site werk en dat
+ * De eigen site van de klant hoort er ook niet in. Dat is on-site werk en dat
  * heeft al een eigen hoofdstuk.
  */
 export const IGNORED_DOMAINS = new Set([

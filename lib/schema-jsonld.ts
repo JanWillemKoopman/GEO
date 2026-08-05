@@ -6,7 +6,7 @@
  * of gehallucineerd. In plaats van dat blind op te slaan valideren we het in
  * code: parst het en is het een plausibel schema.org-object, dan behouden we het;
  * anders bouwen we een minimaal-geldig object op uit de bekende velden. Zo staat
- * er altijd plak-klare, geldige structured data in de bibliotheek — geen API-kosten.
+ * er altijd plak-klare, geldige structured data in de bibliotheek. Geen API-kosten.
  *
  * ── UITGEBREID OP 4 AUGUSTUS 2026 (InSpace-optimalisatie 2) ─────────────────
  *
@@ -28,7 +28,7 @@
  *   3. **`datePublished` en `dateModified`.** Versheid is een signaal en wij
  *      zetten het nergens.
  *   4. **Strengere validatie.** Tot nu accepteerden we alles met een `@context`
- *      en een `@type` — dus ook een `Recipe` op een dienstenpagina. Voortaan
+ *      en een `@type`, dus ook een `Recipe` op een dienstenpagina. Voortaan
  *      moet het type in de tabel passen, en onze eigen velden (datums, de
  *      organisatieknoop) gaan er áltijd overheen: die weten wij zeker en het
  *      model gokt ze.
@@ -90,8 +90,8 @@ export function schemaTypeFor(
  *
  * Ruimer dan wat `schemaTypeFor()` zelf zou kiezen: schrijft het model een
  * `Product` op een landingspagina van een fabrikant, dan is dat een prima keuze
- * die wij niet hoeven te overrulen. Maar een `Recipe` op een dienstenpagina —
- * en dat soort dingen komt eruit — vervangen we.
+ * die wij niet hoeven te overrulen. Maar een `Recipe` op een dienstenpagina,
+ * en dat soort dingen komt eruit, vervangen we.
  */
 function acceptableTypes(
   type: ContentType,
@@ -163,7 +163,7 @@ function buildPageNode(input: RebuildInput): Record<string, unknown> {
  *
  * Áltijd, ook bij een geldig modelresultaat. Datums en de organisatie-URL weten
  * wij zeker uit de database; het model kan ze hooguit goed gokken, en gokt ze in
- * de praktijk verkeerd — een `datePublished` van een jaar geleden op een pagina
+ * de praktijk verkeerd, een `datePublished` van een jaar geleden op een pagina
  * die vanmorgen geschreven is, is een versheidssignaal dat tegen de klant werkt.
  */
 function applyOwnFields(
@@ -213,7 +213,7 @@ export function validateOrRebuildJsonLd(
       if (typeof parsed === "object" && parsed !== null) {
         const obj = parsed as Record<string, unknown>;
         // Levert het model zelf al een @graph, dan pakken we de eerste knoop die
-        // een bruikbaar type heeft — de rest gooien we weg en bouwen we zelf.
+        // een bruikbaar type heeft, de rest gooien we weg en bouwen we zelf.
         const kandidaat = Array.isArray(obj["@graph"])
           ? ((obj["@graph"] as unknown[]).find(
               (n) =>
@@ -249,7 +249,7 @@ export function validateOrRebuildJsonLd(
  * JSON-LD staat, ziet de bezoeker niet en kan een assistent niet citeren uit de
  * lopende tekst. Beide dus.
  *
- * Puur, dus testbaar — en bewust idempotent: `content_revise` draait over
+ * Puur, dus testbaar, en bewust idempotent: `content_revise` draait over
  * bestaande tekst heen, en zonder deze controle zou elke herziening een tweede
  * regel toevoegen.
  */
@@ -287,7 +287,7 @@ export function withFreshnessLine(
  *
  * De herschrijfronde mag die niet opschuiven: dan presenteert elke herziening de
  * pagina als nieuw en gooit hij de opgebouwde ouderdom weg. Geeft `null` terug
- * bij alles wat niet parst — dan valt de aanroeper terug op `created_at`, en dat
+ * bij alles wat niet parst. Dan valt de aanroeper terug op `created_at`, en dat
  * is een betere bron dan een gok.
  */
 export function bestaandeDatePublished(

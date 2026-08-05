@@ -2,7 +2,7 @@ import "server-only";
 
 /**
  * Eigen crawler (abcplan.md §2/§6 A1): haalt de klant-website op met een simpele
- * fetch en zet de HTML om naar schone platte tekst. Géén API-kosten — dit is
+ * fetch en zet de HTML om naar schone platte tekst. Géén API-kosten. Dit is
  * bewust Node.js-werk, geen OpenAI-tool. De tekst wordt als context meegegeven
  * aan de profiel-/onderwerp-onderzoekscalls.
  */
@@ -111,10 +111,10 @@ export async function crawlSite(host: string): Promise<CrawlResult> {
 /**
  * Snelle bereikbaarheidscontrole vóór het aanmaken van een profiel
  * (optimalisatie.md 0.12). Bewust apart van crawlSite: die haalt de hele pagina
- * op en faalt zacht, terwijl we hier binnen een paar seconden een ja/nee willen
+ * op en faalt zacht, terwijl we hier binnen een paar seconden een ja of nee willen
  * kunnen tonen op het formulier.
  *
- * Eerst HEAD (geen body downloaden), en bij een methode-fout alsnog GET —
+ * Eerst HEAD (geen body downloaden), en bij een methode-fout alsnog GET,
  * niet elke server accepteert HEAD. Elke 2xx/3xx telt als bereikbaar; een 403
  * ook, want dat betekent "de server is er, maar weert onze bot" en dat is geen
  * reden om de klant tegen te houden.
@@ -131,7 +131,7 @@ export async function isReachable(host: string): Promise<boolean> {
 
   try {
     let res = await fetch(url, { method: "HEAD", signal: controller.signal, redirect: "follow", headers });
-    // 405/501: server kent HEAD niet — nog één keer met GET.
+    // 405/501: server kent HEAD niet, nog één keer met GET.
     if (res.status === 405 || res.status === 501) {
       res = await fetch(url, { method: "GET", signal: controller.signal, redirect: "follow", headers });
     }
@@ -175,7 +175,7 @@ function sameDomain(candidate: string, baseHost: string): boolean {
 }
 
 /**
- * Is dit een webshop-PRODUCTpagina? Die willen we uitsluiten — een grote webshop
+ * Is dit een webshop-PRODUCTpagina? Die willen we uitsluiten, een grote webshop
  * heeft er duizenden en ze zijn geen zinvolle GEO-content-doelen. We houden het
  * bewust strak op `/product/` en `/products/` (WooCommerce, Shopify): daarmee
  * blijven categorie-/`collections`- en `product-category`-pagina's WÉL behouden
@@ -187,7 +187,7 @@ function isProductUrl(url: string): boolean {
 
 /**
  * Is dit een sitemap die (bijna) alleen productpagina's bevat? Die slaan we in
- * z'n geheel over — scheelt vaak duizenden URL's in één keer. Matcht o.a.
+ * z'n geheel over, scheelt vaak duizenden URL's in één keer. Matcht o.a.
  * Shopify (`sitemap_products_1.xml`) en Yoast/WooCommerce (`product-sitemap.xml`),
  * maar niet `product-category-sitemap.xml` (daar volgt na "product-" geen sitemap/cijfer).
  */
@@ -314,7 +314,7 @@ export interface CrawledPage {
    *
    * ⚠️ Hier berekend en niet in `discover.ts`, om dezelfde reden als
    * `rendering`: `text` hierboven is afgekapt op PAGE_MAX_CHARS (1500), en bij
-   * Fysi-Unique zit het telefoonnummer op de contactpagina ná die grens — de
+   * Fysi-Unique zit het telefoonnummer op de contactpagina ná die grens, de
    * pagina begint met een navigatiemenu van ruim duizend tekens. Op de afgekapte
    * tekst oogsten leverde alleen het e-mailadres op, terwijl telefoonnummer én
    * adres er gewoon staan. Gemeten op 4 augustus 2026, tweede poging.
@@ -328,7 +328,7 @@ export interface CrawlPagesOptions {
 }
 
 /**
- * Haalt meerdere pagina's op in batches (niet alles tegelijk — voorkomt dat we
+ * Haalt meerdere pagina's op in batches (niet alles tegelijk, voorkomt dat we
  * een site platleggen of de 60s-route overschrijden). Faalt per pagina zacht.
  */
 export async function crawlPages(
@@ -355,7 +355,7 @@ export async function crawlPages(
           // afgekapte tekst zou elke lange pagina op precies 1500 zetten en de
           // verhouding met de scriptomvang zinloos maken.
           page.rendering = assessRendering(html, volledigeTekst.length);
-          // Ook op de volledige tekst — zie de toelichting bij `textFacts`.
+          // Ook op de volledige tekst, zie de toelichting bij `textFacts`.
           page.textFacts = harvestTextFacts([{ url, text: volledigeTekst }]);
         }
         return page;

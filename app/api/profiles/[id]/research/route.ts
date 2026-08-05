@@ -6,7 +6,7 @@ import { enqueue, dedupe } from "@/lib/jobs/queue";
 import { describeError, classifyError } from "@/lib/errors";
 
 /**
- * POST /api/profiles/[id]/research — plant het profielonderzoek in
+ * POST /api/profiles/[id]/research, plant het profielonderzoek in
  * (optimalisatie.md 1.4). Zelfde patroon als de andere routes: inplannen en
  * direct antwoorden, de werker doet het werk.
  *

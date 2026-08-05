@@ -7,7 +7,7 @@
  * De GEO-beoordeling was tot nu toe een zelfrapportage: dezelfde AI-aanroep die
  * de tekst beoordeelde vulde vijf booleans in over de vraag of die tekst wel
  * citeerbaar is. In de contentronde van 31 juli gaven die vijf booleans op ALLE
- * TIEN de pagina's 100/100 — inclusief de Coolblue-pagina waarvan diezelfde
+ * TIEN de pagina's 100/100, inclusief de Coolblue-pagina waarvan diezelfde
  * aanroep in `review_notes` schreef: "Het directe antwoord op de hoofdvraag is
  * niet expliciet en concreet genoeg in de eerste twee zinnen." Eén aanroep, twee
  * tegenstrijdige oordelen, en het cijfer koos de gunstige.
@@ -20,25 +20,25 @@
  * ── WAT HIER WEL EN NIET KAN ────────────────────────────────────────────────
  *
  * Deze module toetst uitsluitend wat je zonder oordeel kunt vaststellen: staan
- * de woorden van de doelvraag in de opening, is een ja/nee-vraag ook echt met ja
+ * de woorden van de doelvraag in de opening, is een ja-of-nee-vraag ook echt met ja
  * of nee beantwoord, wordt er doorverwezen in plaats van geantwoord, staat de
  * merknaam er expliciet, staan er cijfers in, is er een zin die losstaand te
  * citeren valt, en is het onderscheidende antwoord van de klant daadwerkelijk
  * gebruikt.
  *
  * Wat hier NIET kan: beoordelen of een tekst goed geschreven is. Dat blijft aan
- * de redactieronde. De twee vullen elkaar aan — deze poort vangt precies de
+ * de redactieronde. De twee vullen elkaar aan. Deze poort vangt precies de
  * gevallen waarin het model zichzelf te mild beoordeelt.
  *
  * ── ONBEKEND IS GEEN ONVOLDOENDE ────────────────────────────────────────────
  *
- * Is een controle niet van toepassing (geen doelvraag meegegeven, geen ja/nee-
+ * Is een controle niet van toepassing (geen doelvraag meegegeven, geen ja of nee-
  * vraag, geen onderscheidend antwoord beschikbaar), dan is de uitkomst `null` en
  * telt hij niet mee in de score. Een pagina afrekenen op een toets die niet
  * uitgevoerd kon worden zou hetzelfde zijn als een verkeerde waarde invullen
  * waar `null` hoort (status-doorontwikkeling.md §2.4).
  *
- * Bewust ZONDER `server-only`: pure tekstanalyse, testbaar in een kaal script —
+ * Bewust ZONDER `server-only`: pure tekstanalyse, testbaar in een kaal script,
  * zelfde patroon als factcard.ts, question-share.ts en evidence-format.ts.
  */
 
@@ -62,11 +62,11 @@ const STOPWOORDEN = new Set([
   "heeft", "hebben", "biedt", "bieden", "worden", "wordt", "word", "maken", "maakt",
 ]);
 
-/** Werkwoorden waarmee een gesloten (ja/nee-)vraag begint. */
+/** Werkwoorden waarmee een gesloten (ja of nee-)vraag begint. */
 const JA_NEE_START =
   /^(kan|kun|kunt|kunnen|is|zijn|was|waren|heeft|hebben|heb|biedt|bieden|mag|mogen|doet|doen|klopt|bestaat|zit|zitten|krijg|krijgt|wordt|worden)\b/i;
 
-/** Woorden die een expliciet ja/nee-antwoord vormen. */
+/** Woorden die een expliciet ja of nee-antwoord vormen. */
 const BEVESTIGING = /\b(ja|jazeker|zeker|inderdaad|klopt|nee|neen|helaas niet)\b/i;
 
 /**
@@ -76,7 +76,7 @@ const BEVESTIGING = /\b(ja|jazeker|zeker|inderdaad|klopt|nee|neen|helaas niet)\b
  * er omdat de contentronde precies dit gedrag opleverde: de Coolblue-pagina over
  * "kan ik online bestellen en in de winkel afhalen" schreef in de body én in de
  * FAQ "kijk voor de actuele mogelijkheden op coolblue.nl". Dat is geen antwoord;
- * dat is de vraag teruggeven aan de lezer — en een AI-assistent citeert een
+ * dat is de vraag teruggeven aan de lezer, en een AI-assistent citeert een
  * doorverwijzing niet als antwoord.
  */
 const ONTWIJKING = [
@@ -96,19 +96,19 @@ import { assessReadability, describeReadability } from "@/lib/pipeline/readabili
 export type CheckUitkomst = boolean | null;
 
 export interface GateChecks {
-  /** R8.2 — komen de kernwoorden van de doelvraag terug in de opening? */
+  /** R8.2, komen de kernwoorden van de doelvraag terug in de opening? */
   doelvraagInOpening: CheckUitkomst;
-  /** R8.2 — is een ja/nee-vraag ook echt met ja of nee beantwoord? */
+  /** R8.2, is een ja-of-nee-vraag ook echt met ja of nee beantwoord? */
   directAntwoord: CheckUitkomst;
-  /** R8.2 — wordt er doorverwezen in plaats van geantwoord? */
+  /** R8.2, wordt er doorverwezen in plaats van geantwoord? */
   geenOntwijking: CheckUitkomst;
-  /** R8.7 — staat de merknaam expliciet in de opening (niet alleen "wij")? */
+  /** R8.7, staat de merknaam expliciet in de opening (niet alleen "wij")? */
   merknaamExpliciet: CheckUitkomst;
-  /** R8.7 — bevat de tekst concrete cijfers/bedragen/jaartallen? */
+  /** R8.7, bevat de tekst concrete cijfers/bedragen/jaartallen? */
   concreteFeiten: CheckUitkomst;
-  /** R8.7 — is er minstens één losstaand citeerbare zin? */
+  /** R8.7, is er minstens één losstaand citeerbare zin? */
   citeerbareZin: CheckUitkomst;
-  /** R8.8 — is het onderscheidende antwoord van de klant echt gebruikt? */
+  /** R8.8, is het onderscheidende antwoord van de klant echt gebruikt? */
   onderscheidGebruikt: CheckUitkomst;
 }
 
@@ -151,7 +151,7 @@ function stripMarkdown(text: string): string {
  * met de doelvraag als kop ("### Kan ik een wasmachine online bestellen en hem
  * daarna in de winkel afhalen?"). Zou die meetellen, dan zou elke pagina die
  * zijn eigen vraag als titel herhaalt automatisch slagen op "beantwoordt de
- * doelvraag" — terwijl een vraag herhalen precies het tegenovergestelde van een
+ * doelvraag", terwijl een vraag herhalen precies het tegenovergestelde van een
  * antwoord is.
  */
 export function openingVan(bodyMarkdown: string): string {
@@ -210,7 +210,7 @@ function bewerendeZinnen(text: string): string[] {
 /**
  * Toetst één geschreven pagina tegen de deterministische criteria.
  *
- * Elke controle staat los en levert een eigen verbeterpunt op — dat is wat de
+ * Elke controle staat los en levert een eigen verbeterpunt op. Dat is wat de
  * herschrijfronde kan gebruiken. "De GEO-score is 60" zegt niets; "de doelvraag
  * wordt in de opening niet met ja of nee beantwoord" is een instructie.
  */
@@ -249,7 +249,7 @@ export function checkContentGate(input: GateInput): GateResult {
   let directAntwoord: CheckUitkomst = null;
   if (geslotenVraag) {
     const openingsZinnen = bewerendeZinnen(opening).slice(0, 3).join(" ");
-    // Ofwel een letterlijk ja/nee, ofwel het werkwoord van de vraag komt
+    // Ofwel een letterlijk ja of nee, ofwel het werkwoord van de vraag komt
     // bevestigend terug ("Kan ik … bestellen?" → "Je kunt … bestellen").
     const werkwoord = (geslotenVraag.trim().match(JA_NEE_START)?.[0] ?? "").toLowerCase();
     const werkwoordTerug =
@@ -257,8 +257,8 @@ export function checkContentGate(input: GateInput): GateResult {
     directAntwoord = BEVESTIGING.test(openingsZinnen) || werkwoordTerug;
     if (!directAntwoord) {
       issues.push(
-        `"${geslotenVraag}" is een ja/nee-vraag. Begin de pagina met een expliciet ` +
-          "ja of nee — een AI-assistent citeert geen antwoord dat hij zelf moet afleiden.",
+        `"${geslotenVraag}" is een ja-of-nee-vraag. Begin de pagina met een expliciet ` +
+          "ja of nee. Een AI-assistent citeert geen antwoord dat hij zelf moet afleiden.",
       );
     }
   }
@@ -335,7 +335,7 @@ export function checkContentGate(input: GateInput): GateResult {
   // ── R8.8 — is het onderscheidende antwoord van de klant echt gebruikt? ────
   //
   // De briefing vraagt expliciet naar onderscheid (contentbriefing.md §5,
-  // vraagsoort 3) — de enige informatie die principieel niet uit een crawl te
+  // vraagsoort 3), de enige informatie die principieel niet uit een crawl te
   // halen is. Tot nu toe controleerde niets of dat antwoord ook in de tekst
   // belandde. In de contentronde bevatte geen van de tien pagina's iets dat een
   // concurrent niet had kunnen schrijven.
@@ -349,7 +349,7 @@ export function checkContentGate(input: GateInput): GateResult {
     if (!onderscheidGebruikt) {
       issues.push(
         "Wat de klant als onderscheidend heeft opgegeven, komt niet terug in de tekst. " +
-          "Juist dat is het enige dat een concurrent niet kan overschrijven — verwerk het.",
+          "Juist dat is het enige dat een concurrent niet kan overschrijven. Verwerk het.",
       );
     }
   }
@@ -375,10 +375,10 @@ export function checkContentGate(input: GateInput): GateResult {
 
 // ── Weergave voor de klant ──────────────────────────────────────────────────
 
-/** Wat elke controle betekent, in de taal van de klant — geen jargon. */
+/** Wat elke controle betekent, in de taal van de klant. Geen jargon. */
 export const GATE_LABELS: Record<keyof GateChecks, string> = {
   doelvraagInOpening: "gaat meteen over de vraag die je wilt winnen",
-  directAntwoord: "geeft direct antwoord op een ja/nee-vraag",
+  directAntwoord: "geeft direct antwoord op een ja-of-nee-vraag",
   geenOntwijking: "beantwoordt de vraag zelf, zonder door te verwijzen",
   merknaamExpliciet: "noemt je bedrijf expliciet bij naam",
   concreteFeiten: "gebruikt concrete cijfers of feiten",
@@ -391,11 +391,11 @@ export const GATE_UITLEG: Record<keyof GateChecks, string> = {
   doelvraagInOpening:
     "Een AI die een antwoord zoekt, leest de inleiding niet uit. Staat het antwoord pas in alinea drie, dan wordt het niet gevonden.",
   directAntwoord:
-    "Op een ja/nee-vraag verwacht een AI-assistent een ja of een nee. Een antwoord dat hij zelf moet afleiden, citeert hij niet.",
+    "Op een ja-of-nee-vraag verwacht een AI-assistent een ja of een nee. Een antwoord dat hij zelf moet afleiden, citeert hij niet.",
   geenOntwijking:
-    "\"Kijk voor de actuele mogelijkheden op onze site\" is geen antwoord maar een doorverwijzing — en die wordt nooit aangehaald.",
+    "\"Kijk voor de actuele mogelijkheden op onze site\" is geen antwoord maar een doorverwijzing, en die wordt nooit aangehaald.",
   merknaamExpliciet:
-    "Een model dat 'wij leveren binnen 24 uur' leest, weet niet wie 'wij' is — en noemt je dus niet in het antwoord.",
+    "Een model dat 'wij leveren binnen 24 uur' leest, weet niet wie 'wij' is, en noemt je dus niet in het antwoord.",
   concreteFeiten:
     "Cijfers, jaartallen en termijnen zijn wat een AI aanhaalt. Algemene beloftes worden overgeslagen.",
   citeerbareZin:
@@ -417,7 +417,7 @@ export interface GeoRegel {
  * Kent twee vormen, en dat is bewust: pagina's van vóór R8.7 hebben de kale
  * zelfrapportage van het model in dit veld staan (vijf booleans), daarna staat
  * er `{zelfrapportage, deterministisch}`. Een oude pagina mag niet ineens leeg
- * of fout renderen omdat het formaat veranderd is — dus lezen we allebei.
+ * of fout renderen omdat het formaat veranderd is, dus lezen we allebei.
  */
 export function geoRegels(raw: unknown): GeoRegel[] {
   const value = (raw ?? {}) as Record<string, unknown>;
@@ -475,7 +475,7 @@ const LEGACY_GEO_LABELS: { key: string; label: string; uitleg: string }[] = [
 // `geo_score` wordt berekend uit `checkContentGate()`: het percentage van de
 // uitvoerbare controles dat slaagt. Er twee checks bij zetten betekent dat de
 // score van een pagina van vorige maand niet meer te vergelijken is met die van
-// vandaag — een pagina die niets veranderde zou ineens 7/9 scoren waar hij 7/7
+// vandaag, een pagina die niets veranderde zou ineens 7/9 scoren waar hij 7/7
 // stond. En de app toont juist trends.
 //
 // Dat is precies het soort stille breuk waar dit project vangnetten tegen
@@ -510,12 +510,12 @@ export interface QualityResult {
 export interface QualityInput {
   bodyMarkdown: string;
   /**
-   * De pagina waar deze tekst het meest op lijkt, van hetzelfde PROFIEL — niet
+   * De pagina waar deze tekst het meest op lijkt, van hetzelfde PROFIEL: niet
    * alleen van dezelfde analyse. Een merk heeft meerdere analyses en die putten
    * uit dezelfde feitenkaart; juist daar ontstaat de herhaling.
    *
    * `null` als er nog geen andere pagina is. Dan is "niet dubbel" niet waar maar
-   * ONBEKEND (conventie 3) — de eerste pagina van een merk kan per definitie
+   * ONBEKEND (conventie 3), de eerste pagina van een merk kan per definitie
    * geen duplicaat zijn, en hem groen afvinken zou suggereren dat er iets
    * gecontroleerd is.
    */

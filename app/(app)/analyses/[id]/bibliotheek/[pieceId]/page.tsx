@@ -77,7 +77,7 @@ export default async function ContentDetailPage({
   // heeft (`edited_by_user`), en er is geen tweede kolom die uit de pas kan lopen
   // met de tekst waar hij over gaat.
   const releaseFacts: ReleaseFact[] = factsFromSnapshot(piece.briefing_snapshot_json).map((f) => ({
-    ref: f.ref || "—",
+    ref: f.ref || "geen bron",
     text: f.text,
     source: f.source,
     // Achtergrond zonder F-nummer is geen bron; die hoort hier niet als
@@ -87,7 +87,7 @@ export default async function ContentDetailPage({
   const alleFeiten = factsFromSnapshot(piece.briefing_snapshot_json);
   const verbodenFeiten: ReleaseFact[] = alleFeiten
     .filter((f) => !f.allowed)
-    .map((f) => ({ ref: f.ref || "—", text: f.text, source: f.source, allowed: false }));
+    .map((f) => ({ ref: f.ref || "geen bron", text: f.text, source: f.source, allowed: false }));
 
   // De merknaam komt van het profiel, niet van de analyse: `detectClaimSentences`
   // herkent een zin als bewering onder andere aan die naam, en met de kale URL
@@ -233,7 +233,7 @@ export default async function ContentDetailPage({
         {/* Bronnendekking (contentbriefing.md §9, R5.3). Bewust náást de
             redactionele kwaliteit en niet in plaats daarvan: die twee meten
             iets anders. Een tekst kan prachtig geschreven zijn én beweringen
-            bevatten die nergens vandaan komen — dat was precies de uitkomst van
+            bevatten die nergens vandaan komen. Dat was precies de uitkomst van
             de praktijktest, waar de redactionele score voor alle drie de
             pagina's 100 gaf terwijl er vijf feiten verzonnen waren. */}
         {piece.source_coverage != null && (
@@ -241,7 +241,7 @@ export default async function ContentDetailPage({
             <span className="text-muted">Onderbouwd met jouw feiten: </span>
             <span className="font-medium">{Math.round(piece.source_coverage)}%</span>
             {piece.source_coverage < 100 && (
-              <span className="text-muted"> — de rest is algemene uitleg of niet herleidbaar</span>
+              <span className="text-muted">, de rest is algemene uitleg of niet herleidbaar</span>
             )}
           </span>
         )}
@@ -318,7 +318,7 @@ export default async function ContentDetailPage({
                   {new Date(v.created_at).toLocaleDateString("nl-NL", { day: "numeric", month: "long" })}
                 </span>
                 {v.revision_note && (
-                  <span className="text-secondary">— op jouw verzoek: &ldquo;{v.revision_note}&rdquo;</span>
+                  <span className="text-secondary">op jouw verzoek: &ldquo;{v.revision_note}&rdquo;</span>
                 )}
               </li>
             ))}

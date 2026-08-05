@@ -5,13 +5,13 @@
  *
  * `structured-data.ts` oogst uit JSON-LD en OpenGraph, en dat is de betere bron:
  * expliciet gelabeld, geen giswerk. Maar bij de eerste echte onboarding bleef er
- * na filtering NUL controleerbaar feit over — Fysi-Unique zet wél `Organization`
+ * na filtering NUL controleerbaar feit over, Fysi-Unique zet wél `Organization`
  * in zijn opmaak, maar zonder adres, telefoonnummer of oprichtingsjaar. Het blok
  * "klopt wat ChatGPT over je zegt?" had daardoor niets om tegen af te zetten.
  *
  * Terwijl die gegevens er gewoon staan. Het `citeert`-antwoord van diezelfde
  * meting noemde ze letterlijk: "Henry Dunantstraat 32, 3822 XE" en
- * "(033) 455 89 45" — gevonden op de contactpagina die wij zelf gecrawld hadden.
+ * "(033) 455 89 45", gevonden op de contactpagina die wij zelf gecrawld hadden.
  *
  * Voor het merendeel van het MKB is dit de normale situatie: een SEO-plugin die
  * `WebPage` en `Article` neerzet en verder niets. Zonder deze module werkt de
@@ -20,8 +20,8 @@
  * ── DE REGEL DIE VALS ALARM VOORKOMT ────────────────────────────────────────
  *
  * Een verkeerd feit is hier duurder dan een ontbrekend feit. Zou er een tweede
- * telefoonnummer van de site komen — een samenwerkende praktijk, een
- * verwijspagina — dan zou `checkFacts()` het juiste antwoord van ChatGPT als
+ * telefoonnummer van de site komen, een samenwerkende praktijk, een
+ * verwijspagina. Dan zou `checkFacts()` het juiste antwoord van ChatGPT als
  * `tegengesproken` markeren. Dat is precies de melding waar een ondernemer van
  * schrikt, en hij zou nergens op slaan.
  *
@@ -32,7 +32,7 @@
  *      dat van iemand anders.
  *   2. Per soort maar ÉÉN waarde: degene die op de meeste van die pagina's
  *      voorkomt. Dat is in de praktijk de voettekst, en die is per definitie de
- *      canonieke. Bij een gelijkspel wint niemand en geven we niets terug —
+ *      canonieke. Bij een gelijkspel wint niemand en geven we niets terug,
  *      onbekend is beter dan een verkeerde (conventie 3).
  *
  * Puur, dus testbaar (conventie 2).
@@ -57,7 +57,7 @@ const CANONICAL_PATH_HINTS = [
  * Nederlandse telefoonnummers in de gangbare schrijfwijzen.
  *
  * ⚠️ De scheidingstekens omvatten HAAKJES. De eerste versie deed dat niet, en
- * die miste het nummer van Fysi-Unique — dat staat er als "(033) 455 89 45",
+ * die miste het nummer van Fysi-Unique. Dat staat er als "(033) 455 89 45",
  * met de kengetalhaakjes die op vrijwel elke Nederlandse praktijksite staan.
  * Zonder `(` en `)` in de klasse stopt de match na drie cijfers.
  *
@@ -71,7 +71,7 @@ const PHONE_RE = /\(?(?:\+31|0031|0)[\s.()-]{0,3}\d(?:[\s.()-]{0,3}\d){7,9}/g;
  *
  * ⚠️ Een komma mag zowel vóór als NÁ de postcode staan. De eerste versie stond
  * hem alleen ervoor, en Fysi-Unique schrijft "Henry Dunantstraat 32 3822 XE,
- * Amersfoort" — met de komma erachter. Twee tekens verschil, nul adressen
+ * Amersfoort", met de komma erachter. Twee tekens verschil, nul adressen
  * gevonden.
  */
 const ADDRESS_RE =
@@ -133,7 +133,7 @@ const STREET_SUFFIXES =
  * Het adres terugbrengen tot straat + huisnummer + postcode + plaats.
  *
  * Zoekt het laatste woord vóór het huisnummer dat op een straatachtervoegsel
- * eindigt en knipt daarvoor af — met hooguit één woord ervoor, want
+ * eindigt en knipt daarvoor af, met hooguit één woord ervoor, want
  * "Henry Dunantstraat" en "Van der Valkweg" bestaan allebei. Vindt hij geen
  * herkenbaar achtervoegsel, dan blijft het adres zoals het is: liever een
  * adres met een woord te veel dan geen adres.
@@ -166,7 +166,7 @@ function mostCommon(values: string[][], byDigits = false): string | null {
     // op dezelfde pagina staat is nog steeds één pagina.
     for (const v of new Set(perPagina.map((x) => x.replace(/\s+/g, " ")))) {
       // Bij een telefoonnummer tellen alleen de cijfers: "(033) 455 89 45" en
-      // "033-4558945" zijn hetzelfde nummer. Bij een adres juist niet — twee
+      // "033-4558945" zijn hetzelfde nummer. Bij een adres juist niet. Twee
       // straten met hetzelfde huisnummer en dezelfde postcodecijfers zouden dan
       // als één waarde tellen.
       const sleutel = byDigits
@@ -192,7 +192,7 @@ function mostCommon(values: string[][], byDigits = false): string | null {
  * Oogst telefoon, adres, e-mail en KvK uit de gecrawlde tekst.
  *
  * Geeft hooguit één feit per soort terug, met `fromType: "Tekst"` zodat in de
- * database zichtbaar blijft dat dit uit lopende tekst komt en niet uit opmaak —
+ * database zichtbaar blijft dat dit uit lopende tekst komt en niet uit opmaak,
  * en `checkableFacts()` het niet als paginaniveau-ruis wegfiltert.
  */
 export function harvestTextFacts(pages: CrawledPage[]): HarvestedFact[] {
@@ -242,12 +242,12 @@ export function harvestTextFacts(pages: CrawledPage[]): HarvestedFact[] {
  *
  * ── WAAROM DIT EEN TWEEDE STAP IS ───────────────────────────────────────────
  *
- * `harvestTextFacts()` draait in de crawler, per pagina, op de VOLLEDIGE tekst —
+ * `harvestTextFacts()` draait in de crawler, per pagina, op de VOLLEDIGE tekst,
  * en dat moet daar, want wat `crawlPages` bewaart is afgekapt op 1500 tekens en
  * bij Fysi-Unique staat het telefoonnummer op de contactpagina ná die grens.
  *
- * Maar de regel die vals alarm voorkomt — "per soort de waarde die op de MEESTE
- * canonieke pagina's staat" — kan pas als je alle pagina's hebt. Vandaar hier.
+ * Maar de regel die vals alarm voorkomt, "per soort de waarde die op de MEESTE
+ * canonieke pagina's staat", kan pas als je alle pagina's hebt. Vandaar hier.
  *
  * Bij een gelijkspel geven we niets terug. Twee verschillende telefoonnummers op
  * even veel pagina's betekent dat we niet weten welke de echte is, en een

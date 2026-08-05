@@ -12,7 +12,7 @@
  * 1 augustus 2026 bevatten 2 van de 22 gecrawlde pagina's een NUL-byte
  * (/nl-NL/data-act en /en/responsible-disclosure). De crawl meldde keurig
  * "22 pagina's", `refreshInventory()` gaf 22 terug, en er stond nul in de
- * database — de fout van de insert werd nergens gecontroleerd. Gevolg: een
+ * database, de fout van de insert werd nergens gecontroleerd. Gevolg: een
  * profiel dat er "klaar" uitziet, een lege feitenbank, en content die op niets
  * gebouwd wordt.
  *
@@ -37,7 +37,7 @@ const ONOPSLAANBAAR_BRON = `${NUL_BRON}|${LOSSE_SURROGATE_BRON}`;
 
 /**
  * Maakt tekst opslaanbaar. Verwijdert wat Postgres niet aankan en laat de rest
- * ongemoeid — emoji, accenten en niet-Latijnse schriften horen er gewoon in.
+ * ongemoeid, emoji, accenten en niet-Latijnse schriften horen er gewoon in.
  *
  * `null`/`undefined` blijven `null`: "onbekend is een betere waarde dan een
  * verkeerde" (CLAUDE.md, conventie 3).

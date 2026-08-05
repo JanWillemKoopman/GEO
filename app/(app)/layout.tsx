@@ -6,7 +6,7 @@ import { AppShell } from "@/components/app-shell";
  *
  * Dit was drie keer hetzelfde bestand: `analyses/layout.tsx`,
  * `profielen/layout.tsx` en `instellingen/layout.tsx` waren op de JSDoc-regel na
- * letterlijk identiek — `requireUser()` plus de shell. Drie plekken om te
+ * letterlijk identiek, `requireUser()` plus de shell. Drie plekken om te
  * vergeten als er ooit iets aan verandert.
  *
  * Een route group verandert de URL's niet: /analyses blijft /analyses.

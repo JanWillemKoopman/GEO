@@ -20,7 +20,7 @@ import { serverEnv } from "@/lib/env";
  * wat de ene stap opslaat en wat de volgende ervan leest. Geen ervan zat in een
  * pure functie, dus geen ervan kon door `test-unit.ts` gevangen worden. Om die
  * klasse te kunnen testen moeten de échte jobhandlers draaien tegen een échte
- * Postgres — en dan moet `createAdminClient()` iets anders teruggeven.
+ * Postgres, en dan moet `createAdminClient()` iets anders teruggeven.
  *
  * De alternatieven zijn slechter: een loader-hook die modules omleidt is magie
  * die niemand terugvindt, en de handlers een client laten meekrijgen betekent
@@ -31,7 +31,7 @@ import { serverEnv } from "@/lib/env";
  *
  * Zetten kan alleen buiten productie. Zou dit per ongeluk in een productiebuild
  * aangeroepen worden, dan gooit het in plaats van stilletjes de hele app op een
- * testdatabase te zetten — dat is precies het soort stille afwijking dat dit
+ * testdatabase te zetten. Dat is precies het soort stille afwijking dat dit
  * traject al vijf keer heeft opgeleverd.
  */
 let testClient: SupabaseClient | null = null;

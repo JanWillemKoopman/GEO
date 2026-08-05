@@ -1,7 +1,7 @@
 import Link from "next/link";
 
 /**
- * De kop van een pagina — één vorm.
+ * De kop van een pagina, één vorm.
  *
  * Er waren er vier: twee lijstpagina's met een mono-eyebrow boven een `text-3xl`
  * kop die op beide "Overzicht" zei, een instellingenpagina met een `mt-3` die
@@ -24,7 +24,7 @@ export function PageHeader({
   title: string;
   description?: string;
   backHref?: string;
-  /** De sectienaam zelf — het pijltje en het woord "terug" komen hiervandaan. */
+  /** De sectienaam zelf, het pijltje en het woord "terug" komen hiervandaan. */
   backLabel?: string;
   action?: React.ReactNode;
 }) {

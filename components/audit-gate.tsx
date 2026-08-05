@@ -6,7 +6,7 @@ import type { AuditCheck } from "@/lib/audit/technical";
  *
  * Dit is bewust een rode balk bóvenaan het rapport en niet een regeltje onderin
  * de technische controle. Een klant die content laat schrijven terwijl zijn site
- * ChatGPT weigert, geeft geld uit aan teksten die nooit gelezen worden — en dat
+ * ChatGPT weigert, geeft geld uit aan teksten die nooit gelezen worden, en dat
  * is niet iets wat je meldt op een pagina waar hij misschien komt.
  *
  * De toon is expres feitelijk en niet alarmerend: de klant heeft dit meestal niet

@@ -9,7 +9,7 @@ import type { TrendData } from "@/lib/pipeline/trend";
  *
  * Vorm: een lijngrafiek over de tijd met de bandbreedte als schaduw, plus de
  * belangrijkste concurrenten in dezelfde grafiek. "Ik loop in" is een sterker
- * signaal dan een absoluut getal — daarom staan ze erbij en niet in een aparte
+ * signaal dan een absoluut getal, daarom staan ze erbij en niet in een aparte
  * grafiek ernaast.
  *
  * De publicatiemarkeringen zijn het punt van deze hele grafiek: zonder die
@@ -46,7 +46,7 @@ const LABEL_MIN_GAP = 14;
  * Duwt eindlabels uit elkaar die anders over elkaar heen vallen.
  *
  * Zonder dit staat "Golden Fingers" bovenop "Installatiebedrijf…" zodra twee
- * lijnen op twee punten van elkaar eindigen — en dat is precies het geval dat
+ * lijnen op twee punten van elkaar eindigen, en dat is precies het geval dat
  * er het meest toe doet, want dan is de klant net aan het inlopen.
  *
  * De stip blijft op de echte waarde staan; alleen de TEKST schuift. Anders zou
@@ -98,7 +98,7 @@ export function TrendChart({ data, ownLabel }: { data: TrendData; ownLabel: stri
       <div className="card flex flex-col gap-2">
         <span className="mono-label">Verloop</span>
         <p className="text-secondary">
-          De trendlijn verschijnt zodra er een tweede meting is. We meten maandelijks — je hoeft
+          De trendlijn verschijnt zodra er een tweede meting is. Aura meet maandelijks, dus je hoeft
           niets te doen.
         </p>
       </div>
@@ -197,7 +197,7 @@ export function TrendChart({ data, ownLabel }: { data: TrendData; ownLabel: stri
             </g>
           ))}
 
-          {/* Publicatiemomenten — de markeringen die er een verhaal van maken. */}
+          {/* Publicatiemomenten, de markeringen die er een verhaal van maken. */}
           {publications.map((p) => (
             <line
               key={p.weekNo}
@@ -247,7 +247,7 @@ export function TrendChart({ data, ownLabel }: { data: TrendData; ownLabel: stri
             />
           ))}
 
-          {/* Directe labels aan het uiteinde — verplicht bij vier lijnen, en de
+          {/* Directe labels aan het uiteinde, verplicht bij vier lijnen, en de
               relief voor de kleur die de contrastdrempel net niet haalt. */}
           {spreadLabels([
             {
@@ -327,7 +327,7 @@ export function TrendChart({ data, ownLabel }: { data: TrendData; ownLabel: stri
             {hovered.measuredAt && (
               <span className="text-muted">
                 {" "}
-                — {new Date(hovered.measuredAt).toLocaleDateString("nl-NL", { day: "numeric", month: "long" })}
+                · {new Date(hovered.measuredAt).toLocaleDateString("nl-NL", { day: "numeric", month: "long" })}
               </span>
             )}
           </span>
@@ -410,7 +410,7 @@ function EndLabel({
 }: {
   x: number;
   y: number;
-  /** Waar de TEKST staat — kan verschoven zijn t.o.v. de stip (zie spreadLabels). */
+  /** Waar de TEKST staat, kan verschoven zijn t.o.v. de stip (zie spreadLabels). */
   labelY: number;
   color: string;
   text: string;
@@ -420,7 +420,7 @@ function EndLabel({
   return (
     <>
       <circle cx={x} cy={y} r="3.5" fill={color} stroke="var(--bg-surface)" strokeWidth="2" />
-      {/* Is het label weggeschoven, dan een haarlijntje terug naar de stip —
+      {/* Is het label weggeschoven, dan een haarlijntje terug naar de stip,
           anders raadt de lezer bij welke lijn de naam hoort. */}
       {shifted && (
         <line x1={x + 4} y1={y} x2={x + 8} y2={labelY - 3} stroke={color} strokeWidth="1" opacity="0.5" />

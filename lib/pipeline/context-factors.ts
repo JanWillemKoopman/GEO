@@ -6,12 +6,12 @@
  * Het uur consultancy levert twee dingen op die een model niet kan weten: welke
  * onderwerpen er commercieel toe doen (dat staat op `profile_topics.client_note`)
  * en wat er buiten de website om speelt. Dat tweede is verleidelijk om als vrije
- * notitie op te slaan — en dan verdwijnt het.
+ * notitie op te slaan, en dan verdwijnt het.
  *
  * Neem *"we bouwen een nieuwe site"*. Dat verandert wat het advies wáárd is: de
  * technische audit gaat dan over een site die straks niet meer bestaat, en het
  * nieuw/verbeteren-oordeel rust op URL's die verdwijnen. In een notitieveld leest
- * niemand dat terug op het moment dat het uitmaakt — namelijk drie weken later,
+ * niemand dat terug op het moment dat het uitmaakt, namelijk drie weken later,
  * als het rapport gegenereerd wordt.
  *
  * Dus: een gesloten lijst soorten, en per soort een gevolg dat in code staat.
@@ -40,7 +40,7 @@ export const CONTEXT_FACTOR_LABELS: Record<ContextFactorKind, string> = {
   overig: "Iets anders",
 };
 
-/** Wat de app ermee doet — één zin, zichtbaar naast het veld. */
+/** Wat de app ermee doet, één zin, zichtbaar naast het veld. */
 export const CONTEXT_FACTOR_EFFECTS: Record<ContextFactorKind, string> = {
   nieuwe_website:
     "De technische bevindingen en het advies over bestaande pagina's krijgen een houdbaarheidsmelding: ze gaan over een site die straks niet meer bestaat.",
@@ -68,7 +68,7 @@ export function isContextFactorKind(
 /**
  * Leest wat er uit de database komt en gooit weg wat niet klopt.
  *
- * `context_factors` is een `jsonb`-kolom, dus er kan van alles in staan —
+ * `context_factors` is een `jsonb`-kolom, dus er kan van alles in staan,
  * handmatig bewerkte rijen, een oudere vorm, een half opgeslagen formulier. Elke
  * consument moet daarvan uit kunnen gaan zonder zelf te controleren, anders
  * staat de controle op vijf plekken en op de zesde niet.
@@ -94,7 +94,7 @@ export function parseContextFactors(raw: unknown): ContextFactor[] {
  *
  * Dit is het gevolg dat er het meest toe doet. Een audit die zegt "voeg
  * schema.org toe aan /diensten/massage" is waardeloos als die pagina over een
- * maand niet meer bestaat — en erger dan waardeloos, want de klant gaat ermee
+ * maand niet meer bestaat, en erger dan waardeloos, want de klant gaat ermee
  * aan de slag.
  */
 export function technicalAdviceStale(
@@ -111,7 +111,7 @@ export function staleAdviceNotice(factor: ContextFactor): string {
   const toelichting = factor.description ? ` ${factor.description}` : "";
   return (
     `Er komt een nieuwe website${wanneer}. De technische bevindingen en het advies over ` +
-    `bestaande pagina's hieronder gaan over de huidige site — controleer ze opnieuw zodra de ` +
+    `bestaande pagina's hieronder gaan over de huidige site. Controleer ze opnieuw zodra de ` +
     `nieuwe live staat.${toelichting}`
   );
 }
@@ -130,7 +130,7 @@ export function extraAliasesFrom(factors: ContextFactor[]): string[] {
     .filter((d) => d.length >= 2);
 }
 
-/** Namen van diensten die gestopt zijn — die vallen uit de topicvoorstellen. */
+/** Namen van diensten die gestopt zijn. Die vallen uit de topicvoorstellen. */
 export function discontinuedNames(factors: ContextFactor[]): string[] {
   return factors
     .filter((f) => f.kind === "gestopte_dienst")

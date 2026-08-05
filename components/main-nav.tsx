@@ -8,7 +8,7 @@ import { NAV, isActive } from "@/lib/nav";
  * De hoofdnavigatie op desktop.
  *
  * De vorige versie had geen actieve staat: vier identieke mono-labels, geen
- * enkele markering van waar je was. Het mobiele menu hád die markering wel — de
+ * enkele markering van waar je was. Het mobiele menu hád die markering wel, de
  * vraag "waar ben ik" was dus op het grootste scherm het slechtst beantwoord.
  */
 export function MainNav() {

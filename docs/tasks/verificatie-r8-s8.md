@@ -24,17 +24,17 @@ te schrijven.
 
 ## Wat moet blijken
 
-1. **S1 — haalt de feitenkaart voor Coolblue nu de wasmachinepagina's?** Vorige ronde: 24 citeerbare
+1. **S1, haalt de feitenkaart voor Coolblue nu de wasmachinepagina's?** Vorige ronde: 24 citeerbare
    feiten over vijf analyses, géén over het onderwerp; tien wasmachine-adviespagina's (15.000
    tekens) bleven ongebruikt terwijl vier Engelstalige homepage-duplicaten wél op de kaart kwamen.
-2. **R8.1 — is de Fysi-Unique-tegenspraak weg?** Een met bron bevestigd "nee" op de doelvraag werd
+2. **R8.1, is de Fysi-Unique-tegenspraak weg?** Een met bron bevestigd "nee" op de doelvraag werd
    vorige ronde alsnog als "ja" gepubliceerd. Dit is de sluitende toets op de kernbelofte van R5:
    landt een *gecorrigeerd* briefingantwoord in de tekst?
-3. **R8.2/R8.7/R8.8 — markeert de poort de vier pagina's die hun doelvraag ontweken?** De
+3. **R8.2/R8.7/R8.8, markeert de poort de vier pagina's die hun doelvraag ontweken?** De
    zelfrapportage gaf vorige ronde 100/100 op alle tien pagina's.
-4. **S3 — wat doet `source_coverage` nu de code de noemer bepaalt?** Vorige ronde mat hij 49
+4. **S3, wat doet `source_coverage` nu de code de noemer bepaalt?** Vorige ronde mat hij 49
    getagde beweringen op ~250 zinnen; beide fabricages zaten in de ongemeten vier vijfde.
-5. **S8 — blijven F-nummers stabiel** als er klantantwoorden bijkomen? Die sorteren vooraan en
+5. **S8, blijven F-nummers stabiel** als er klantantwoorden bijkomen? Die sorteren vooraan en
    verschoven vorige ronde de bestaande verwijzingen.
 
 ## Randvoorwaarden

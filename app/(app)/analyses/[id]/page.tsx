@@ -18,7 +18,7 @@ import { ResultaatChapter } from "./_chapters/resultaat";
 import { countNow, loadWork } from "@/lib/work";
 
 /**
- * HET DOSSIER — één analyse, van boven naar beneden te lezen.
+ * HET DOSSIER: één analyse, van boven naar beneden te lezen.
  *
  * ── WAAROM DIT GEEN TABBLADEN MEER ZIJN ─────────────────────────────────────
  *
@@ -39,7 +39,7 @@ import { countNow, loadWork } from "@/lib/work";
  * Elk hoofdstuk is een eigen async component achter een `<Suspense>`. De score
  * verschijnt zodra die er is, terwijl het bewijs nog geladen wordt. Voorheen
  * blokkeerde het rapport-tabblad op zeven queries vóór er één byte HTML de deur
- * uit ging — één pagina met streaming is dus sneller dan vijf zonder.
+ * uit ging, één pagina met streaming is dus sneller dan vijf zonder.
  */
 export default async function DossierPage({
   params,
@@ -53,7 +53,7 @@ export default async function DossierPage({
   const analysis = await getAnalysis(id);
   if (!analysis) notFound();
 
-  // Wacht het concept op goedkeuring, dan is dát het scherm — één taak, geen
+  // Wacht het concept op goedkeuring, dan is dát het scherm, één taak, geen
   // hoofdstukken die toch nog leeg zijn.
   if (analysis.status === "concept_klaar") redirect(`/analyses/${id}/concept`);
 
@@ -84,7 +84,7 @@ export default async function DossierPage({
   const weekNo = resolvePeriod(periods, periode);
 
   // Voor de rail: hoeveel er in hoofdstuk 03 op de klant wacht. Dat is het enige
-  // wat een tabbalk nooit deed — laten zien waar iets op je ligt te wachten.
+  // wat een tabbalk nooit deed, laten zien waar iets op je ligt te wachten.
   const work = await loadWork(supabase, analysis);
   const openCount = countNow(work);
   const running = work.some((w) => w.state === "loopt");
@@ -150,7 +150,7 @@ export default async function DossierPage({
           number="04"
           title="Wat het heeft"
           accent="opgeleverd"
-          intro="Wat je gepubliceerde pagina's met je zichtbaarheid deden — afgezet tegen vragen waarvoor je niets deed. Gemeten, niet beloofd."
+          intro="Wat je gepubliceerde pagina's met je zichtbaarheid deden, afgezet tegen vragen waarvoor je niets deed. Gemeten, niet beloofd."
         >
           <Suspense fallback={<ChapterSkeleton blocks={1} />}>
             <ResultaatChapter analysis={analysis} />

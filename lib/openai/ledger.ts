@@ -23,7 +23,7 @@ export interface CallMeta {
   profileId?: string | null;
   /**
    * Welke AI-assistent (migratie 0041). Weglaten = 'openai', want dat is wat
-   * élke aanroep tot augustus 2026 was — de kolom heeft dezelfde default, zodat
+   * élke aanroep tot augustus 2026 was, de kolom heeft dezelfde default, zodat
    * de historie klopt zonder terugwerkende invulling.
    */
   engine?: string;

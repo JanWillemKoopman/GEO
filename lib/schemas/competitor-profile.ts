@@ -1,10 +1,10 @@
 import { z } from "zod";
 
 /**
- * R4.2 — waaróm wordt een concurrent genoemd? (implementatieplan.md)
+ * R4.2, waaróm wordt een concurrent genoemd? (implementatieplan.md)
  *
  * De quality-tier (`gpt-5.6-luna`), geen web_search, `work: "deterministic"`
- * (geen redeneertijd, temperatuur 0) — dit is een
+ * (geen redeneertijd, temperatuur 0). Dit is een
  * DESTILLATIE van bestaande tekst, geen creatieve taak. Het model mag niets
  * toevoegen wat niet in de meegegeven antwoorden staat.
  */
@@ -13,7 +13,7 @@ import { z } from "zod";
  * De eigenschappen waarop een aanbieder genoemd kan worden.
  *
  * Bewust een gesloten lijst en geen vrije tekst. Bij de promptgeneratie liep het
- * vrije `cluster`-veld uit de hand — daar kwam één cluster per vraag uit plus
+ * vrije `cluster`-veld uit de hand. Daar kwam één cluster per vraag uit plus
  * modelruis als "volumeEstimate: 75" in het veld. Een vaste set houdt de
  * uitkomsten vergelijkbaar tussen concurrenten én tussen periodes; dát is wat
  * een klant nodig heeft om te zien of hij terrein wint.

@@ -6,7 +6,7 @@ import type { Profile } from "@/lib/types/database";
  * "Dit zou de meting nog scherper maken" (optimalisatie.md bijlage A9).
  *
  * De tweede helft van waarde-vóór-inspanning. De onboarding vraagt nu alleen
- * naam en website; de rest vragen we hier — op het moment dat de klant het
+ * naam en website; de rest vragen we hier, op het moment dat de klant het
  * onderzoek heeft zien draaien en dus weet waar het voor dient.
  *
  * Per ontbrekend veld staat er wat het CONCREET verbetert, niet dat het "je
@@ -20,17 +20,17 @@ interface Gap {
 }
 
 /**
- * ⚠️ HERZIEN OP 4 AUGUSTUS 2026 — WAT HET ONDERZOEK NU ZÉLF VINDT
+ * ⚠️ HERZIEN OP 4 AUGUSTUS 2026: WAT HET ONDERZOEK NU ZÉLF VINDT
  *
  * Twee van de vier gaten hierboven zijn achterhaald geraakt door de
  * onboarding-verbeteringen van dezelfde week:
  *
- *   • **werkgebied** — `profile_research` levert sinds die ronde `serviceScope`
+ *   • **werkgebied**, `profile_research` levert sinds die ronde `serviceScope`
  *     en `serviceRegions` (zie lib/schemas/profile.ts). Bij Fysi-Unique kwam
  *     daar "lokaal / Amersfoort" uit. Dit gat zal bij vrijwel elke klant weg
  *     zijn, en er alsnog naar vragen is de klant huiswerk geven voor iets wat
  *     we al weten.
- *   • **concurrenten** — `profile_market` vult `profiles.competitors` met acht
+ *   • **concurrenten**, `profile_market` vult `profiles.competitors` met acht
  *     namen mét onderbouwing. Idem.
  *
  * Beide zijn eruit. Wat blijft staan is wat de pijplijn principieel NIET kan
@@ -55,12 +55,12 @@ function findGaps(profile: Profile): Gap[] {
     gaps.push({
       label: "Concrete feiten over je bedrijf",
       effect:
-        "Cijfers, jaartallen en termijnen zijn wat een AI-assistent aanhaalt. Zonder die feiten wordt elke tekst die Aura schrijft noodgedwongen algemeen — en algemeen wordt niet geciteerd.",
+        "Cijfers, jaartallen en termijnen zijn wat een AI-assistent aanhaalt. Zonder die feiten wordt elke tekst die Aura schrijft noodgedwongen algemeen, en algemeen wordt niet geciteerd.",
     });
   }
 
   // Het onderzoek zegt "lokaal" maar noemde geen plaats. `resolveScope()` zet
-  // dat bewust op null in plaats van te gokken — en dan is dit precies een vraag
+  // dat bewust op null in plaats van te gokken, en dan is dit precies een vraag
   // voor het gesprek.
   if (profile.service_scope === "lokaal" && profile.service_regions.length === 0) {
     gaps.push({
@@ -77,7 +77,7 @@ function findGaps(profile: Profile): Gap[] {
     gaps.push({
       label: "Wat voor bedrijf je bent",
       effect:
-        "Dienstverlener, retailer, fabrikant of platform — dat bepaalt waar Aura in je aanbod naar zoekt en welke vragen het straks stelt. Met zekerheid afleiden lukte niet.",
+        "Dienstverlener, retailer, fabrikant of platform: dat bepaalt waar Aura in je aanbod naar zoekt en welke vragen het straks stelt. Met zekerheid afleiden lukte niet.",
     });
   }
 
@@ -106,7 +106,7 @@ export function ProfileGaps({
         Dit zou de meting scherper maken
         <InfoHint label="Moet dit?">
           Nee. Alles werkt ook zonder. Maar elk punt hieronder haalt één
-          specifieke onnauwkeurigheid weg — daarom staat erbij wát het verbetert.
+          specifieke onnauwkeurigheid weg, en daarom staat erbij wát het verbetert.
         </InfoHint>
       </span>
 
@@ -124,7 +124,7 @@ export function ProfileGaps({
         {gaps.map((gap) => (
           <li key={gap.label} className="text-sm">
             <span className="font-medium">{gap.label}</span>
-            <span className="text-secondary"> — {gap.effect}</span>
+            <span className="text-secondary">: {gap.effect}</span>
           </li>
         ))}
       </ul>

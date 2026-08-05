@@ -4,7 +4,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { getOwnedAnalysis } from "@/lib/analyses";
 
 /**
- * PATCH /api/analyses/[id]/tracking — wekelijkse lus aan/uit (abcplan.md §6 A3,
+ * PATCH /api/analyses/[id]/tracking, wekelijkse lus aan of uit (abcplan.md §6 A3,
  * §12.4). Per analyse instelbaar, standaard uit. Geen AI-call.
  */
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -24,7 +24,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   }
 
   if (typeof body.tracking_enabled !== "boolean") {
-    return NextResponse.json({ error: "tracking_enabled moet true/false zijn." }, { status: 400 });
+    return NextResponse.json({ error: "De waarde voor wekelijks meten moet waar of onwaar zijn." }, { status: 400 });
   }
 
   const { error } = await admin

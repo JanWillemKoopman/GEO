@@ -23,7 +23,7 @@ export const ProfileSynthesis = z.object({
   dossier: z.string(),
   /**
    * Wat we NIET hebben kunnen vaststellen maar wel hadden willen weten. Dit
-   * wordt de agenda van het gesprek, dus concreet en beantwoordbaar — geen
+   * wordt de agenda van het gesprek, dus concreet en beantwoordbaar. Geen
    * "meer informatie over de doelgroep" maar "hoeveel behandelkamers zijn er?".
    */
   gaps: z.array(z.string()),
@@ -39,7 +39,7 @@ export const ProfileSynthesis = z.object({
       sourceUrl: z.string(),
       /**
        * Een LETTERLIJK fragment van die pagina dat dit feit draagt. Wordt in
-       * code nagelopen — wat niet letterlijk voorkomt, vervalt.
+       * code nagelopen, wat niet letterlijk voorkomt, vervalt.
        */
       quote: z.string(),
     }),

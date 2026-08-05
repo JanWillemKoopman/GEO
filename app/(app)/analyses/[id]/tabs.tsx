@@ -10,17 +10,17 @@ import { usePathname } from "next/navigation";
  *
  * Hier stond een tabbalk met vijf tabbladen: Overzicht, Vragen & antwoorden,
  * Rapport, Content Bibliotheek, Instellingen. Vijf gelijkwaardige, parallelle
- * keuzes voor werk dat één vaste volgorde heeft — en waarvan er tijdens de
+ * keuzes voor werk dat één vaste volgorde heeft, en waarvan er tijdens de
  * eerste minuten van een analyse vier leeg waren, zonder dat de balk dat liet
  * zien.
  *
  * Drie van die tabbladen zijn hoofdstukken van het dossier geworden. Wat
  * overblijft zijn de twee plekken die géén hoofdstuk zijn:
  *
- *   • de BIBLIOTHEEK — het eindproduct waar de klant voor betaalt. In het
+ *   • de BIBLIOTHEEK: het eindproduct waar de klant voor betaalt. In het
  *     dossier is een pagina een taak; hier staat de tekst zelf, netjes bij
  *     elkaar, ook lang nadat de taak eromheen is afgerond.
- *   • de INSTELLINGEN — configuratie, en dus bewust ondergeschikt.
+ *   • de INSTELLINGEN: configuratie, en dus bewust ondergeschikt.
  *
  * Vandaar de ongelijke opmaak: de bibliotheek is een echte bestemming, de
  * instellingen zijn een tandwiel. Twee even zware knoppen zouden suggereren dat

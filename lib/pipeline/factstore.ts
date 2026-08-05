@@ -7,7 +7,7 @@ import "server-only";
  *
  * De feitenkaart (`factcard.ts`) is een MOMENTOPNAME: de gesloten lijst die één
  * pagina meekreeg, bevroren in `briefing_snapshot_json`. Die blijft bestaan, en
- * met reden — hij is precies wat het model zág, zonder join die er later
+ * met reden, hij is precies wat het model zág, zonder join die er later
  * onderuit kan schuiven.
  *
  * Wat hij niet kan is onthouden. Elk feit bestaat alleen als positie in die ene
@@ -26,7 +26,7 @@ import "server-only";
  * ── DE BANK BEVAT ALLEEN ECHTE FEITEN ───────────────────────────────────────
  *
  * Achtergrondblokken (sitetekst van 400 tekens, de onderzoekssamenvatting) gaan
- * er NIET in. Die zijn context, geen feit — dat onderscheid kostte de eerste
+ * er NIET in. Die zijn context, geen feit. Dat onderscheid kostte de eerste
  * briefingronde al nul vragen aan de klant (zie `FactItem.citable`). Ze blijven
  * per kaart bestaan en verdwijnen daarna, want ze zeggen niets wat onthouden
  * moet worden.
@@ -43,7 +43,7 @@ import {
 type Admin = SupabaseClient;
 
 export interface SyncResult {
-  /** De actuele feiten uit de bank, mét id — klaar om genummerd te worden. */
+  /** De actuele feiten uit de bank, mét id, klaar om genummerd te worden. */
   facts: (Omit<FactItem, "ref"> & { id: string })[];
   /** Wat de klant zou moeten zien: antwoorden die elkaar tegenspreken. */
   contradictions: Contradiction[];
@@ -80,7 +80,7 @@ function toIncoming(
  *
  * Feiten van de klant en van het merk zijn MERKBREED (`analysis_id = null`): ze
  * gelden voor elke analyse. Feiten uit de sitetekst van dit onderwerp horen bij
- * DEZE analyse — dezelfde zin kan bij een ander onderwerp irrelevant zijn, en
+ * DEZE analyse, dezelfde zin kan bij een ander onderwerp irrelevant zijn, en
  * hem merkbreed maken zou elke andere analyse vervuilen.
  *
  * ── FOUTTOLERANT ────────────────────────────────────────────────────────────
@@ -88,7 +88,7 @@ function toIncoming(
  * Gaat het schrijven stuk, dan komt de aangeleverde lijst gewoon terug zonder
  * id's. De feitenkaart werkt dan precies zoals vóór 0036: minder goed (geen
  * identiteit, geen tegenspraakdetectie) maar niet stuk. Een verrijking mag nooit
- * een briefing blokkeren — zelfde afspraak als bij R4.2 en S1.
+ * een briefing blokkeren, zelfde afspraak als bij R4.2 en S1.
  */
 export async function syncBrandFacts(
   admin: Admin,
@@ -211,7 +211,7 @@ async function applyPlan(
   //
   // Het oude feit eerst afvlaggen, dan het nieuwe invoegen. De unieke index in
   // 0036 laat maar één actueel feit per sleutel toe, dus andersom zou de insert
-  // erop botsen — hetzelfde patroon als bij de contentversies (migratie 0023).
+  // erop botsen, hetzelfde patroon als bij de contentversies (migratie 0023).
   for (const { oldId, by } of plan.supersede) {
     const { data: nieuw, error } = await admin
       .from("brand_facts")
@@ -266,7 +266,7 @@ async function insertFact(
     .maybeSingle();
 
   if (error) {
-    // Botsing op de unieke index betekent dat het feit er al staat — dat is de
+    // Botsing op de unieke index betekent dat het feit er al staat. Dat is de
     // bedoeling van die index en geen fout om over te klagen.
     if (!error.message.includes("duplicate key")) {
       console.warn(`Feit opslaan mislukt (${feit.factKey}): ${error.message}`);
@@ -279,8 +279,8 @@ async function insertFact(
 /**
  * Alles wat we over een klant weten, ongeacht analyse.
  *
- * Dít is wat `contentbriefing.md` §7 belooft — "na drie analyses heeft een klant
- * een gevulde feitenbank" — en wat vóór 0036 alleen te beantwoorden was door
+ * Dít is wat `contentbriefing.md` §7 belooft, "na drie analyses heeft een klant
+ * een gevulde feitenbank", en wat vóór 0036 alleen te beantwoorden was door
  * tien JSON-blokken open te klappen.
  */
 export async function loadBrandFacts(

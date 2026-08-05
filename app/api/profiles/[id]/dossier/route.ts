@@ -7,7 +7,7 @@ import { createHash } from "node:crypto";
 import { describeError, classifyError } from "@/lib/errors";
 
 /**
- * POST /api/profiles/[id]/dossier — de klant levert materiaal aan, de app maakt
+ * POST /api/profiles/[id]/dossier, de klant levert materiaal aan, de app maakt
  * er bevestigde feiten van (implementatieplan.md S5).
  *
  * ── WAT DIT OPLOST ──────────────────────────────────────────────────────────
@@ -17,7 +17,7 @@ import { describeError, classifyError } from "@/lib/errors";
  * `aanvulling`-vragen werden er 7 beantwoord. Zo vult een kennisbank zich niet.
  *
  * Eén geplakte tarievenpagina levert er in één keer meer op dan drie
- * briefingrondes — en het kost de klant minder werk, want hij hoeft niets te
+ * briefingrondes, en het kost de klant minder werk, want hij hoeft niets te
  * formuleren.
  *
  * ── WAAROM DE FEITEN ALS `fact_requests` LANDEN ─────────────────────────────
@@ -26,7 +26,7 @@ import { describeError, classifyError } from "@/lib/errors";
  * vragen met `scope: 'merk'`. Drie redenen: `buildFactBase()` pikt ze dan zonder
  * één regel wijziging op via het pad dat er al ligt, de klant kan ze met de
  * bestaande facts-route doorstrepen, en ze gelden meteen voor élke analyse van
- * deze klant — wat precies de belofte van de kennisbank is (contentbriefing.md
+ * deze klant, wat precies de belofte van de kennisbank is (contentbriefing.md
  * §7).
  */
 
@@ -58,7 +58,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   const tekst = typeof body.text === "string" ? body.text.trim() : "";
   if (tekst.length < 40) {
     return NextResponse.json(
-      { error: "Plak wat meer tekst — hier valt nog geen feit uit te halen." },
+      { error: "Plak wat meer tekst. Hier valt nog geen feit uit te halen." },
       { status: 400 },
     );
   }
@@ -67,7 +67,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       {
         error:
           `Dit is meer dan ${MAX_DOCUMENT_CHARS.toLocaleString("nl-NL")} tekens. ` +
-          `Plak het in twee delen — dan zie je ook per stuk welke feiten eruit komen.`,
+          `Plak het in twee delen, dan zie je ook per stuk welke feiten eruit komen.`,
       },
       { status: 400 },
     );
@@ -122,7 +122,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 
     if (facts.length < proposed) {
       // Blijft dit structureel hoog, dan is dat het signaal dat de instructie
-      // niet streng genoeg is — hetzelfde patroon als `stripped_claims_json`
+      // niet streng genoeg is, hetzelfde patroon als `stripped_claims_json`
       // onder het rapport (R1.3).
       console.log(
         `Merkdossier ${id}: ${proposed - facts.length} van de ${proposed} voorgestelde feiten ` +
@@ -134,7 +134,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     //
     // Eén voor één en fouttolerant, net als bij de briefing: de unieke index op
     // (analyse, claim_key) is partieel (alleen status 'open'), dus een botsing
-    // betekent dat de vraag er al staat. Dat is geen fout maar de bedoeling —
+    // betekent dat de vraag er al staat. Dat is geen fout maar de bedoeling,
     // dezelfde tarievenpagina twee keer plakken mag niet twee keer hetzelfde
     // feit opleveren.
     const opgeslagen: DossierFactView[] = [];
@@ -186,7 +186,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 
     // De uitkomst bij het document zetten. Blijft `facts_rejected` structureel
     // hoog, dan is dat het signaal dat de extractie-instructie niet streng genoeg
-    // is — hetzelfde patroon als `reports.stripped_claims_json` onder het rapport.
+    // is, hetzelfde patroon als `reports.stripped_claims_json` onder het rapport.
     if (documentId) {
       await admin
         .from("brand_documents")

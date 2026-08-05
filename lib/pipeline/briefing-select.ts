@@ -10,7 +10,7 @@
  *
  * Maximaal 8 vragen per briefing. Wat er niet in past blijft open staan en komt
  * bij een volgende batch terug. Liever een korte lijst die iemand invult dan een
- * lange die iemand wegklikt — README.md §2. Dit is ook de reden dat de
+ * lange die iemand wegklikt, README.md §2. Dit is ook de reden dat de
  * prioritering ertoe doet: bij het afkappen moet het beste bovenaan staan.
  *
  * Bewust ZONDER `server-only`: pure selectielogica, testbaar in een kaal script.
@@ -53,7 +53,7 @@ export interface BriefingQuestion {
   /** kern-claims zijn verplicht: zonder dit feit mist de pagina z'n doel. */
   required: boolean;
   scope: "merk" | "analyse" | "pagina";
-  /** Welke pagina's beter worden van het antwoord — de klant ziet dit. */
+  /** Welke pagina's beter worden van het antwoord, de klant ziet dit. */
   contentPieceIds: string[];
   /** Alleen voor de sortering; wordt niet opgeslagen. */
   priority: number;
@@ -73,7 +73,7 @@ export interface BriefingQuestion {
  * Vaste slots per contenttype (contentbriefing.md §3.3).
  *
  * Bovenop de claim-audit, want deze gaten gaan niet over de INHOUD maar over de
- * BRUIKBAARHEID van de pagina — en juist die mist een claim-audit, omdat ze niet
+ * BRUIKBAARHEID van de pagina, en juist die mist een claim-audit, omdat ze niet
  * uit de tekst volgen maar uit het paginatype.
  *
  * De `landing`-slots lossen een concrete fout op: de gegenereerde Tilburg-pagina
@@ -176,7 +176,7 @@ function linkSlot(suggestion: string | null): Omit<BriefingQuestion, "contentPie
  * vraag voor een fysiotherapiepraktijk en een onmogelijke vraag voor Bol
  * (43.300 verkooppartners), Coolblue (22 winkels) of Van der Valk (100+
  * zelfstandige hotels). In de contentronde van 31 juli werd hij bij alle drie
- * bewust overgeslagen — de enige eerlijke uitkomst van een vraag die niet
+ * bewust overgeslagen, de enige eerlijke uitkomst van een vraag die niet
  * beantwoord kán worden.
  *
  * Een verplichte vraag zonder waar antwoord is niet neutraal: hij nodigt uit tot
@@ -207,7 +207,7 @@ const ZONDER_VESTIGING = new Set<BusinessModel>(["retailer", "platform"]);
  * Deze vraag kán niet uit de claim-audit komen, en dat is geen instelfout maar
  * een vormfout. Die audit vraagt: "welke bewering heeft deze pagina nodig, en
  * dekt de kaart hem?" Elk gat wordt een vraag. Maar "wat kun jij wat de
- * concurrent niet kan" is geen dekkingsgat — het is een positioneringsvraag, en
+ * concurrent niet kan" is geen dekkingsgat, het is een positioneringsvraag, en
  * die past niet in het schema. Vandaar 0 van de 62.
  *
  * R8.8 controleert of het onderscheidende antwoord in de tekst terechtkwam. Die
@@ -243,7 +243,7 @@ export function positioningQuestion(args: {
     claimKey: claimKey("slot onderscheid positionering"),
     question:
       "Een AI-assistent noemt bij deze vragen nu andere aanbieders, met argumenten als " +
-      `${opsomming}. Wat kun jij wat zij niet kunnen? Noem één concreet ding — een aantal, ` +
+      `${opsomming}. Wat kun jij wat zij niet kunnen? Noem één concreet ding: een aantal, ` +
       "een termijn, een dienst of een voorwaarde.",
     reason:
       "Dit is het enige wat een concurrent niet van je kan overschrijven, en het is het enige " +
@@ -306,7 +306,7 @@ export function slotQuestions(
  *
  * **Verplicht wint van optioneel** bij het samenvoegen: is dezelfde vraag voor de
  * ene pagina kern en voor de andere ondersteunend, dan is hij verplicht. En het
- * beste voorstel wint — een vraag mét voorstel is voor de klant veel goedkoper.
+ * beste voorstel wint, een vraag mét voorstel is voor de klant veel goedkoper.
  *
  * **Prioriteren** op `aantal pagina's × kern(2)/ondersteunend(1)`. Een vraag die
  * drie pagina's tegelijk redt hoort boven een detail van één pagina.
@@ -364,7 +364,7 @@ export function selectBriefingQuestions(args: {
   //
   // De sortering hierboven is `aantal pagina's × kern(2)`. Een positioneringsvraag
   // raakt zelden alle pagina's en is nooit `kern`, dus hij verliest structureel
-  // van elke verificatievraag — ook nu er eindelijk een mechanisme is dat hem
+  // van elke verificatievraag, ook nu er eindelijk een mechanisme is dat hem
   // produceert. Zonder deze reservering zou `onderscheid` 0 van de 62 blijven.
   //
   // Bewust de LAATSTE plek en niet de zwakste verplichte: de lijst staat al op
@@ -384,14 +384,14 @@ export function selectBriefingQuestions(args: {
  * `claimKey` vangt dezelfde vraag in andere woordvolgorde, maar niet dezelfde
  * vraag in een andere zinsbouw. Bij Fysi-Unique leverde dat 17 openstaande
  * vragen voor 2 pagina's op, waarvan er 4 over het persoonlijke behandelplan
- * gingen en 3 over preventieve nazorg — allemaal met een eigen `claimKey`.
+ * gingen en 3 over preventieve nazorg, allemaal met een eigen `claimKey`.
  *
  * Met een grens van acht vragen is dat niet alleen vervelend maar schadelijk:
  * zeven van de acht plekken gingen op aan twee onderwerpen, en de vragen die er
  * daardoor uit vielen waren de vragen die de pagina concreet hadden gemaakt.
  *
  * Per onderwerp blijft de BESTE vraag staan: verplicht wint, dan de vraag met
- * een voorstel (één klik in plaats van een formulering), dan de kortste — want
+ * een voorstel (één klik in plaats van een formulering), dan de kortste. Want
  * dat is de vraag die een klant binnen dertig seconden beantwoordt
  * (contentbriefing.md §4, regel 2).
  */
@@ -451,7 +451,7 @@ function kiesBesteVraag(a: BriefingQuestion, b: BriefingQuestion): BriefingQuest
 /**
  * De eerlijke telling onder de knop (contentbriefing.md §6).
  *
- * "3 van de 8 beantwoord — je pagina's worden geschreven zonder informatie over
+ * "3 van de 8 beantwoord, je pagina's worden geschreven zonder informatie over
  * looptijd, pechhulp en vervangend vervoer." De klant kan altijd door, maar hij
  * ziet precies wat het overslaan hem kost. Dat is het verschil tussen een gate
  * en een muur.

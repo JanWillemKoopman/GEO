@@ -24,7 +24,7 @@ import { z } from "zod";
  * kunnen kletsen en verdwijnt juist de vraag die het gat moest dichten.
  */
 
-/** Hoe de klant deze vraag beantwoordt — bepaalt het invoerveld in het scherm. */
+/** Hoe de klant deze vraag beantwoordt, bepaalt het invoerveld in het scherm. */
 export const ANSWER_TYPES = [
   "ja_nee",
   "bedrag",
@@ -42,7 +42,7 @@ export const ANSWER_TYPES = [
  *
  * `onderscheid` is de meest waardevolle en de meest verwaarloosde: het is de
  * enige informatie die principieel niet uit een crawl of web_search te halen is.
- * `grenzen` is de rem — wat de klant juist NIET beweerd wil hebben.
+ * `grenzen` is de rem, wat de klant juist NIET beweerd wil hebben.
  */
 export const QUESTION_KINDS = [
   "verificatie",
@@ -84,7 +84,7 @@ export const AuditedClaim = z.object({
   answerType: z.enum(ANSWER_TYPES),
   /** Alleen bij answerType 'keuze'. */
   options: z.array(z.string()),
-  /** Ons beste voorstel uit bekende data — bevestigen is goedkoper dan formuleren. */
+  /** Ons beste voorstel uit bekende data, bevestigen is goedkoper dan formuleren. */
   suggestedAnswer: z.string().nullable(),
   /**
    * Op welk niveau het antwoord herbruikbaar is (contentbriefing.md §7).

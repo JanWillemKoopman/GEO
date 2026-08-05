@@ -5,7 +5,7 @@
  * Vandaar dat de meting per PROMPT is opgeknipt in plaats van per analyse, en
  * contentgeneratie in twee stappen: één taak = hooguit één zware AI-aanroep.
  * Zo is "30 vragen meten" een kwestie van 30 taken plannen in plaats van een
- * architectuurwijziging — precies wat fase 2 (drie metingen per vraag) nodig heeft.
+ * architectuurwijziging. Precies wat fase 2 (drie metingen per vraag) nodig heeft.
  */
 import type { ContentAction, ContentType, EngineId } from "@/lib/types/database";
 import type { RecommendationTarget } from "@/lib/pipeline/recommendation";
@@ -28,7 +28,7 @@ export const JOB_TYPES = [
   "profile_offering",
   /**
    * Fase 1c: 5-8 core topics voorstellen uit de aanbodboom (blok D). Eén
-   * goedkope aanroep, geen meting — die volgt pas na goedkeuring.
+   * goedkope aanroep, geen meting. Die volgt pas na goedkeuring.
    */
   "propose_topics",
   /**
@@ -147,7 +147,7 @@ export interface JobPayloads {
     userId: string;
     contentPieceId: string;
     recommendation: RecommendationPayload;
-    /** Verbeterpunten uit de eerste beoordeling — sturen de herschrijfstap. */
+    /** Verbeterpunten uit de eerste beoordeling, sturen de herschrijfstap. */
     issues: string[];
   };
   technical_audit: Record<string, never>;
@@ -164,13 +164,13 @@ export interface JobPayloads {
  */
 export const HEAVY_JOB_TYPES: ReadonlySet<JobType> = new Set<JobType>([
   // Geen AI-aanroep, maar wel tot 150 pagina's ophalen in batches van 8. Bij een
-  // trage site is dat ruim een minuut netwerk — zwaar in tijd, niet in geld.
+  // trage site is dat ruim een minuut netwerk, zwaar in tijd, niet in geld.
   "profile_discover",
   "profile_research", // crawlt de hele site + AI-onderzoek met web_search
   "profile_offering",
   /**
    * Fase 1c: 5-8 core topics voorstellen uit de aanbodboom (blok D). Eén
-   * goedkope aanroep, geen meting — die volgt pas na goedkeuring.
+   * goedkope aanroep, geen meting. Die volgt pas na goedkeuring.
    */
   "propose_topics",
   /**
@@ -207,7 +207,7 @@ export const MAX_ATTEMPTS = 4;
 
 /**
  * Wachttijd vóór de volgende poging: 2, 4, 8 minuten. Bewust in minuten en niet
- * in seconden — de fouten die hier overblijven zijn er al doorheen gekomen
+ * in seconden, de fouten die hier overblijven zijn er al doorheen gekomen
  * ondanks de retries in de OpenAI-client zelf (die dekken de seconde-schaal af,
  * zie lib/openai/client.ts), dus dit zijn storingen van langere duur.
  */

@@ -7,7 +7,7 @@ import { z } from "zod";
  *
  * Een dienstverlener heeft diensten met subdiensten, een retailer categorieën
  * met productgroepen, een platform vraag- en aanbodzijde. Verleidelijk om daar
- * drie schema's van te maken — maar dan krijgt elke consument van deze data
+ * drie schema's van te maken, maar dan krijgt elke consument van deze data
  * drie codepaden, en een klant die van "retailer" naar "fabrikant" verschuift
  * gooit zijn hele boom weg.
  *
@@ -21,13 +21,13 @@ import { z } from "zod";
  * De klant vult in de onboarding nog drie velden in. Alles wat hier in de boom
  * staat komt van een model dat naar gecrawlde pagina's keek. Zonder `evidenceUrl`
  * is een verkeerde dienst niet te corrigeren, want niemand kan nagaan waar hij
- * vandaan kwam — en met 30 knopen gaat niemand dat handmatig uitzoeken.
+ * vandaan kwam, en met 30 knopen gaat niemand dat handmatig uitzoeken.
  */
 export const OfferingNode = z.object({
   /**
    * `categorie` is de groepering, de rest zijn bladeren. Een `merk` is een
    * gevoerd merk van een ander (relevant bij retailers: die worden anders als
-   * concurrent geteld — precies wat R0.5 moest oplossen).
+   * concurrent geteld. Precies wat R0.5 moest oplossen).
    */
   kind: z.enum(["dienst", "product", "categorie", "merk", "vestiging"]),
   name: z.string(),
@@ -35,7 +35,7 @@ export const OfferingNode = z.object({
   parent: z.string(),
   /** Wat het is en welk probleem het oplost, in de taal van de klant. */
   description: z.string(),
-  /** Voor wie. Leeg als de site dat niet zegt — niet invullen met een aanname. */
+  /** Voor wie. Leeg als de site dat niet zegt, niet invullen met een aanname. */
   audience: z.string(),
   /** "vanaf € 65", "op offerte", "€ 20–40". Leeg als er niets over prijs staat. */
   priceIndication: z.string(),
@@ -51,7 +51,7 @@ export const OfferingTree = z.object({
   /**
    * Het bedrijfsmodel zoals het model het ziet ná het bekijken van de hele site.
    * Wijkt dit af van wat `profile_research` op de homepage bepaalde, dan is dat
-   * een signaal — geen fout die stil overschreven mag worden.
+   * een signaal. Geen fout die stil overschreven mag worden.
    */
   businessModel: z.enum(["retailer", "platform", "dienstverlener", "fabrikant", "overig"]),
   nodes: z.array(OfferingNode),

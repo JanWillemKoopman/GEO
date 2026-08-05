@@ -1,7 +1,7 @@
 import "server-only";
 
 /**
- * R4.2 — waaróm wordt een concurrent genoemd? (implementatieplan.md)
+ * R4.2, waaróm wordt een concurrent genoemd? (implementatieplan.md)
  *
  * ── HET GAT DAT DIT VULT ────────────────────────────────────────────────────
  *
@@ -12,7 +12,7 @@ import "server-only";
  *
  * Dat gemis raakt twee doelen tegelijk. De klant kan niet zien waarop hij
  * verliest (doel 2), en de schrijver in Fase C krijgt het winnende antwoord
- * alleen als lap tekst mee — niet de gedestilleerde reden, terwijl dát de lat is
+ * alleen als lap tekst mee, niet de gedestilleerde reden, terwijl dát de lat is
  * waar zijn pagina overheen moet (doel 3).
  *
  * ── HOE ─────────────────────────────────────────────────────────────────────
@@ -23,7 +23,7 @@ import "server-only";
  * citaat als bewijs. Zelfde principe als het bewijsdossier (R1): wat niet na te
  * trekken is, mag niet gezegd worden.
  *
- * De naam van een concurrent gaat NOOIT mee naar de contentstap — alleen de
+ * De naam van een concurrent gaat NOOIT mee naar de contentstap, alleen de
  * eigenschap. De harde regel dat klantcontent geen concurrenten noemt blijft
  * onverkort gelden (lib/pipeline/content.ts).
  */
@@ -62,13 +62,13 @@ const SYSTEM =
   "Je DESTILLEERT alleen wat er staat: kies per aanbieder de eigenschappen die uit de fragmenten " +
   "blijken, en geef bij elke eigenschap een LETTERLIJK citaat uit die fragmenten als bewijs. " +
   "Verzin geen eigenschap die er niet uit blijkt, en citeer niets wat er niet letterlijk staat. " +
-  "Kun je voor een aanbieder geen enkele eigenschap onderbouwen, geef dan een lege lijst — dat is " +
+  "Kun je voor een aanbieder geen enkele eigenschap onderbouwen, geef dan een lege lijst. Dat is " +
   "een geldig antwoord. Schrijf de samenvatting in gewone taal, zonder jargon, in het Nederlands.";
 
 /**
  * Verzamelt per concurrent de fragmenten waarin hij voorkomt.
  *
- * Uit de al opgeslagen `raw_response` van de metingen — geen nieuwe meting, geen
+ * Uit de al opgeslagen `raw_response` van de metingen. Geen nieuwe meting, geen
  * web_search, dus alleen de kosten van de destillatie-aanroep zelf.
  */
 async function collectFragments(
@@ -136,7 +136,7 @@ export interface CompetitorIntelResult {
  * Profileert de belangrijkste concurrenten van één analyse/periode.
  *
  * Dit is wat een `profile_competitors`-taak doet. Faalt hij, dan houdt de klant
- * gewoon zijn cijfers — het profiel is verrijking, geen voorwaarde. Vandaar dat
+ * gewoon zijn cijfers, het profiel is verrijking, geen voorwaarde. Vandaar dat
  * de handler de fout logt maar de keten niet breekt.
  */
 export async function profileCompetitors(

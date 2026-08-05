@@ -1,17 +1,17 @@
 import "server-only";
 
 /**
- * FASE C — Genereren (abcplan.md §8): op klant-verzoek schrijft de app één
+ * FASE C: Genereren (abcplan.md §8): op klant-verzoek schrijft de app één
  * kant-en-klare pagina per aanbeveling, als een kleine REDACTIONELE PIJPLIJN
  * i.p.v. één blinde call:
  *
- *   1. Draft         — premium model (`gpt-5.6-sol`), on-brand, geground op de
+ *   1. Draft        , premium model (`gpt-5.6-sol`), on-brand, geground op de
  *                      concrete feiten uit het klantprofiel.
- *   2. Redactie      — goedkope call (quality-tier) scoort de draft op een rubric,
+ *   2. Redactie     , goedkope call (quality-tier) scoort de draft op een rubric,
  *                      checkt de harde regels én de GEO-criteria.
- *   3. Herschrijven  — premium model verwerkt de feedback (alleen als nodig).
- *   4. Kwaliteitspoort — onder de drempel of met regel-risico → needs_review.
- *   5. Schema.org    — programmatisch gevalideerd/gerepareerd (geen LLM-string).
+ *   3. Herschrijven , premium model verwerkt de feedback (alleen als nodig).
+ *   4. Kwaliteitspoort, onder de drempel of met regel-risico → needs_review.
+ *   5. Schema.org   , programmatisch gevalideerd/gerepareerd (geen LLM-string).
  *
  * ── WAT ER IN FASE 4 VERANDERDE (optimalisatie.md) ──────────────────────────
  *
@@ -23,7 +23,7 @@ import "server-only";
  * Nu krijgt hij dat alle drie:
  *   • de concrete GEMISTE VRAGEN uit de meting, letterlijk (4.2)
  *   • het WINNENDE ANTWOORD als context, met concurrentnamen eruit (4.3)
- *   • wat de GECITEERDE BRONNEN inhoudelijk doen — de lat (4.4)
+ *   • wat de GECITEERDE BRONNEN inhoudelijk doen, de lat (4.4)
  *
  * En de beoordelaar kijkt niet meer alleen redactioneel maar ook of een AI deze
  * pagina zou citeren (4.5).
@@ -91,7 +91,7 @@ const GEO_THRESHOLD = 60;
  * Er ging nooit een maximum mee; het aantal woorden werd achteraf geteld. Dat
  * levert bij elk type dezelfde middelmatige lap tekst op, terwijl een FAQ geen
  * artikel is. Een AI-assistent citeert bovendien liever een compacte, precieze
- * passage dan een uitgesponnen betoog — lengte is hier geen kwaliteitsmaat.
+ * passage dan een uitgesponnen betoog, lengte is hier geen kwaliteitsmaat.
  */
 const TARGET_WORDS: Record<ContentType, { min: number; max: number }> = {
   faq: { min: 250, max: 500 }, // korte inleiding; het werk zit in de vraag-antwoordparen
@@ -101,7 +101,7 @@ const TARGET_WORDS: Record<ContentType, { min: number; max: number }> = {
 };
 
 /**
- * Harde regels — dit staat op de EIGEN website van de klant:
+ * Harde regels. Dit staat op de EIGEN website van de klant:
  * 1. Nooit concurrenten of andere bedrijven bij naam noemen.
  * 2. De FEITENKAART is de enige bron van concrete beweringen over de klant
  *    (R5.3). Gesloten lijst: wat er niet op staat, wordt niet geschreven.
@@ -109,7 +109,7 @@ const TARGET_WORDS: Record<ContentType, { min: number; max: number }> = {
  *
  * De GEO-regels (4-6) zijn nieuw in fase 4 en gaan over iets anders dan
  * leesbaarheid: ze gaan over de vraag of een AI-assistent deze pagina kán
- * aanhalen. Regel 5 is de belangrijkste en de minst intuïtieve — "wij leveren
+ * aanhalen. Regel 5 is de belangrijkste en de minst intuïtieve, "wij leveren
  * binnen 24 uur" is voor een lezer duidelijk en voor een model waardeloos,
  * omdat het niet weet wie "wij" is.
  */
@@ -117,20 +117,20 @@ const CONTENT_SYSTEM =
   "Je bent een ervaren contentschrijver die pagina's schrijft voor de EIGEN website van een lokale " +
   "ondernemer, klaar om te publiceren. On-brand, Nederlands. " +
   "HARDE REGELS: " +
-  "(1) Noem NOOIT concurrenten of andere bedrijven bij naam — dit is de site van de klant zelf; " +
+  "(1) Noem NOOIT concurrenten of andere bedrijven bij naam: dit is de site van de klant zelf; " +
   "vergelijkingen met bij naam genoemde bedrijven zijn absoluut verboden. " +
   // ── R5.3: de feitenkaart is een GRENS, geen suggestie ────────────────────
   // Hier stond "je mag de concrete feiten gebruiken die onder 'Feiten over dit
   // bedrijf' staan". Dat is een uitnodiging: het zegt wat mag, niet wat niet
-  // mag. In de praktijktest schreef het model vijf feiten die er niet stonden —
-  // pechhulp, vervangend vervoer, schadeherstel, looptijden, kilometerbundels —
+  // mag. In de praktijktest schreef het model vijf feiten die er niet stonden,
+  // pechhulp, vervangend vervoer, schadeherstel, looptijden, kilometerbundels,
   // en elk daarvan op precies de plek waar de pagina een concreet detail nodig
   // had. De regel hieronder draait het om: gesloten lijst, en wat er niet op
   // staat bestaat niet.
   "(2) De FEITENKAART is de ENIGE toegestane bron van concrete beweringen over dit bedrijf. Elke " +
   "feitelijke bewering over de klant (prijzen, cijfers, voorwaarden, wat er wel/niet bij zit, " +
   "openingstijden, keurmerken, aantallen, namen van vestigingen) moet herleidbaar zijn tot een " +
-  "F-nummer op die kaart. Staat het er niet op, dan schrijf je er NIET over — niet gladstrijken, " +
+  "F-nummer op die kaart. Staat het er niet op, dan schrijf je er NIET over. Niet gladstrijken, " +
   "niet aannemen, niet 'logisch invullen', ook niet voorzichtig geformuleerd of als vraag in een " +
   "FAQ. Een pagina die iets niet noemt is beter dan een pagina die het verzint. Wat onder 'MAG JE " +
   "NIET BEWEREN' staat is een VERBOD. Algemene uitleg over het onderwerp (hoe dit in het algemeen " +
@@ -145,13 +145,18 @@ const CONTENT_SYSTEM =
   "elke inleiding. Een AI die een antwoord zoekt, leest de opwarmer niet uit. " +
   "(5) Noem het BEDRIJF EXPLICIET bij naam op de plekken waar je iets over jezelf zegt, in plaats van " +
   "'wij' en 'ons'. Schrijf dus niet 'wij leveren binnen 24 uur' maar '[Bedrijfsnaam] levert binnen 24 uur'. " +
-  "Een AI-assistent die 'wij' leest, weet niet wie hij moet noemen in zijn antwoord — en noemt je dus niet. " +
+  "Een AI-assistent die 'wij' leest, weet niet wie hij moet noemen in zijn antwoord, en noemt je dus niet. " +
   "(6) Zorg dat elke sectie minstens één zin bevat die LOSSTAAND te begrijpen is, zonder de rest van de " +
   "pagina: één zin die het complete antwoord op één deelvraag geeft. Dat is de eenheid waarin een " +
   "AI-assistent knipt. " +
   "(7) Beantwoord naast de hoofdvraag ook de logische vervolgvragen die iemand daarna stelt. " +
   "(8) Voeg geldige schema.org JSON-LD toe passend bij het type. " +
-  "Vermijd generieke 'AI-slop' en cliché-vulzinnen ('in de snel veranderende wereld van…') — elke zin moet iets toevoegen.";
+  "Vermijd generieke 'AI-slop' en cliché-vulzinnen ('in de snel veranderende wereld van…'): elke zin moet iets toevoegen. " +
+  "(9) INTERPUNCTIE. Gebruik GEEN gedachtestreepjes (— of –) en GEEN schuine streep tussen twee " +
+  "woorden. Schrijf dus 'en of' voltuit en 'product of dienst' voltuit. Dat zijn de twee leestekens " +
+  "waaraan een lezer AI-tekst herkent, en deze pagina verschijnt onder de naam van de klant zelf. " +
+  "Splits zo'n zin in twee zinnen, of gebruik een komma, een dubbele punt of het woord 'of'. " +
+  "Een koppelteken in een samenstelling ('AI-assistent') is gewoon goed en mag blijven.";
 
 /**
  * Vangnet-instructie als de klant te weinig geverifieerde feiten heeft
@@ -160,17 +165,17 @@ const CONTENT_SYSTEM =
  *
  * De spanning die dit oplost: "verzin niets" + "wees concreet" is bij een dunne
  * website een tegenspraak, en het model kiest dan altijd voor algemeen. Door
- * ALGEMENE vakkennis te laten opzoeken (geen bedrijfsclaims — die kunnen we niet
+ * ALGEMENE vakkennis te laten opzoeken (geen bedrijfsclaims. Die kunnen we niet
  * controleren) krijgt de pagina toch iets concreets om op te staan.
  */
 const FACT_FINDING_ADDENDUM =
   " AANVULLENDE OPDRACHT: er zijn weinig geverifieerde feiten over dit bedrijf beschikbaar. Zoek daarom " +
   "op internet naar ALGEMEEN GELDENDE, verifieerbare feiten over het ONDERWERP (normen, termijnen, " +
   "richtprijzen in de markt, wettelijke eisen, technische standaarden) en verwerk die met bronvermelding. " +
-  "Doe dit NOOIT voor claims over dit specifieke bedrijf — die mag je alleen uit de aangeleverde feitenlijst " +
+  "Doe dit NOOIT voor claims over dit specifieke bedrijf. Die mag je alleen uit de aangeleverde feitenlijst " +
   "halen. Een marktfeit met bron is waardevol; een verzonnen bedrijfsfeit is schadelijk.";
 
-/** Redacteur-rol voor de kritiek-stap — redactioneel én GEO (optimalisatie.md 4.5). */
+/** Redacteur-rol voor de kritiek-stap, redactioneel én GEO (optimalisatie.md 4.5). */
 const CRITIQUE_SYSTEM =
   "Je bent een strenge eindredacteur én GEO-specialist. Beoordeel de aangeleverde webpagina voor de " +
   "EIGEN site van een ondernemer. " +
@@ -178,14 +183,14 @@ const CRITIQUE_SYSTEM =
   "(zonder verzinsels), scanbaar, en waardevol (geen AI-slop/vulzinnen). " +
   "HARDE REGELS: zet followsRules op false als de tekst een concurrent/ander bedrijf bij naam noemt, " +
   "feiten lijkt te verzinnen, of niet met het directe antwoord begint. " +
-  "GEO — zou een AI-assistent deze pagina CITEREN? Beoordeel elk criterium streng en apart: " +
+  "GEO: zou een AI-assistent deze pagina CITEREN? Beoordeel elk criterium streng en apart: " +
   "wordt de DOELVRAAG hierboven letterlijk beantwoord in de eerste twee zinnen; bevat elke sectie een zin " +
   "die LOSSTAAND te begrijpen is; wordt het bedrijf EXPLICIET bij naam genoemd in plaats van 'wij'/'ons'; " +
   "staan er concrete cijfers/jaartallen/feiten in; worden de logische vervolgvragen beantwoord. " +
   "Bij twijfel: false. Een te milde beoordeling levert een pagina op die niemand citeert. " +
   "Geef concrete, korte verbeterpunten. Antwoord in het Nederlands.";
 
-/** Type-specifieke instructie — bepaalt wat voor pagina er echt uitkomt. */
+/** Type-specifieke instructie, bepaalt wat voor pagina er echt uitkomt. */
 const TYPE_GUIDANCE: Record<ContentType, string> = {
   faq:
     "Schrijf ECHTE veelgestelde klantvragen + antwoorden: dingen die klanten willen weten vóór ze " +
@@ -224,14 +229,14 @@ function countWords(markdown: string): number {
 
 /**
  * De doelvragen als blok. Dit vervangt de "vijf willekeurige vraagteksten ALLEEN
- * ter inspiratie" — een instructie die het model expliciet vertelde de vragen
+ * ter inspiratie", een instructie die het model expliciet vertelde de vragen
  * níét serieus te nemen, terwijl ze het enige waren wat de meting bijdroeg.
  */
 function buildTargetBlock(targets: RecommendationTarget[]): string {
   if (targets.length === 0) return "";
   const lines = targets.map((t) => `- "${t.text}"`);
   return (
-    `\nDOELVRAGEN — dit zijn de vragen waarop een AI-assistent jouw klant NU NIET noemt. Deze pagina ` +
+    `\nDOELVRAGEN. Dit zijn de vragen waarop een AI-assistent jouw klant NU NIET noemt. Deze pagina ` +
     `moet ze expliciet en direct beantwoorden; dat is het hele doel van deze pagina:\n${lines.join("\n")}`
   );
 }
@@ -241,7 +246,7 @@ function buildTargetBlock(targets: RecommendationTarget[]): string {
  *
  * Concurrentnamen zijn er al uit (redactCompetitors), en er staat een vangnet
  * omheen: zit er ná het opschonen tóch nog een naam in, dan laten we het blok
- * weg. Liever minder context dan de harde regel breken — een pagina die een
+ * weg. Liever minder context dan de harde regel breken, een pagina die een
  * concurrent noemt is onbruikbaar voor de klant, hoe goed hij verder ook is.
  */
 function buildWinningAnswerBlock(answers: string[], competitors: string[]): string {
@@ -268,19 +273,19 @@ function buildWinningAnswerBlock(answers: string[], competitors: string[]): stri
  *
  * De claim-audit rekent vóór het schrijven uit welke beweringen de pagina nodig
  * heeft om zijn doelvraag geloofwaardig te beantwoorden, en waaróm. Van die
- * uitkomst gebruikte de app alleen de GATEN — om vragen aan de klant van te
+ * uitkomst gebruikte de app alleen de GATEN: om vragen aan de klant van te
  * maken. De rest verdween. Gemeten over de vijf testcases: 31 beweringen in de
  * audits, waarvan 19 onderbouwd; alle 31 weggegooid na het stellen van de vragen.
  *
  * De schrijver begon dus elke keer bij nul: feitenkaart, doelvragen, succes. Nu
- * krijgt hij het skelet, met per bewering de stand van zaken op dít moment —
+ * krijgt hij het skelet, met per bewering de stand van zaken op dít moment,
  * opnieuw doorgerekend tegen de kaart inclusief de antwoorden die de klant ná de
  * briefing gaf, niet tegen de stand van tijdens de audit.
  *
  * Drie uitkomsten, en het verschil ertussen is het hele punt:
- *   • GEDEKT       — schrijf hem, met dit F-nummer erbij
- *   • WEERLEGD     — de klant heeft dit ontkend; dit is een verbod
- *   • GEEN BRON    — laat de passage weg, vul hem niet in
+ *   • GEDEKT: schrijf hem, met dit F-nummer erbij
+ *   • WEERLEGD: de klant heeft dit ontkend; dit is een verbod
+ *   • GEEN BRON   : laat de passage weg, vul hem niet in
  */
 function buildPlanBlock(plan: AuditedClaim[], facts: FactItem[]): string {
   if (plan.length === 0) return "";
@@ -289,7 +294,7 @@ function buildPlanBlock(plan: AuditedClaim[], facts: FactItem[]): string {
     const gedekt = isSupported(claim.sourceRef, facts, claim.supportQuote);
     // Een feit met `allowed: false` is een VERBOD, geen ontbrekend feit: de
     // klant heeft "nee" geantwoord. Dat onderscheid weglaten zou het model laten
-    // redeneren dat het waarschijnlijk tóch wel zo is — precies de fout uit de
+    // redeneren dat het waarschijnlijk tóch wel zo is. Precies de fout uit de
     // Udenhout-run, maar dan mét een antwoord in de hand.
     const weerlegd = facts.some(
       (f) =>
@@ -302,8 +307,8 @@ function buildPlanBlock(plan: AuditedClaim[], facts: FactItem[]): string {
     const stand = gedekt
       ? `GEDEKT door ${claim.sourceRef}`
       : weerlegd
-        ? "WEERLEGD — de klant heeft dit ontkend, dus VERBODEN"
-        : "GEEN BRON — laat deze passage weg";
+        ? "WEERLEGD: de klant heeft dit ontkend, dus VERBODEN"
+        : "GEEN BRON: laat deze passage weg";
 
     return (
       `- [${claim.importance === "kern" ? "KERN" : "ondersteunend"}] ${claim.claim}\n` +
@@ -312,9 +317,9 @@ function buildPlanBlock(plan: AuditedClaim[], facts: FactItem[]): string {
   });
 
   return (
-    `\nPAGINAPLAN — dit is wat deze pagina moet vertellen, en per punt of we het kunnen ` +
+    `\nPAGINAPLAN: dit is wat deze pagina moet vertellen, en per punt of we het kunnen ` +
     `onderbouwen. Volg dit plan: behandel de KERN-punten die gedekt zijn als eerste, laat de ` +
-    `punten zonder bron volledig weg (niet voorzichtig formuleren — WEGLATEN), en schrijf nooit ` +
+    `punten zonder bron volledig weg (niet voorzichtig formuleren maar WEGLATEN), en schrijf nooit ` +
     `iets dat als WEERLEGD staat aangemerkt.\n${regels.join("\n")}`
   );
 }
@@ -329,13 +334,13 @@ function buildContentInput(args: {
   targets: RecommendationTarget[];
   winningAnswers: string[];
   sourceBlock: string;
-  /** Waarop concurrenten genoemd worden — de lat (R4.3). Zonder namen. */
+  /** Waarop concurrenten genoemd worden, de lat (R4.3). Zonder namen. */
   competitorEdge: string;
   /** De gesloten feitenkaart (R5.3). Vervangt de open "gebruik deze feiten"-lijst. */
   facts: FactItem[];
   /** Wat deze pagina moet vertellen, uit de claim-audit (S2). */
   plan: AuditedClaim[];
-  /** Verplichte vragen die de klant liet liggen — die claims vervallen (§6). */
+  /** Verplichte vragen die de klant liet liggen. Die claims vervallen (§6). */
   unansweredRequired: string[];
 }): string {
   const {
@@ -363,15 +368,15 @@ function buildContentInput(args: {
     `Website: ${analysis.url}`,
     `Onderwerp/scope: ${analysis.topic}`,
     analysis.content_brief?.trim()
-      ? `Gewenste richting/doelgroep van de content (van de klant — VOLG dit): ${analysis.content_brief.trim()}`
+      ? `Gewenste richting en doelgroep van de content (van de klant, VOLG dit): ${analysis.content_brief.trim()}`
       : "",
     `Branche: ${profile?.industry ?? "onbekend"}`,
     `Tone of voice: ${profile?.tone_of_voice ?? "professioneel, helder"}`,
     `Diensten/producten: ${(profile?.products ?? []).join(", ") || "onbekend"}`,
     profile?.value_props?.length ? `Waardeproposities (waarom klanten kiezen): ${profile.value_props.join(", ")}` : "",
-    // ✅ De gesloten feitenkaart (R5.3) — geen uitnodiging maar een grens.
+    // ✅ De gesloten feitenkaart (R5.3). Geen uitnodiging maar een grens.
     formatFactCard(facts),
-    // ✅ Het paginaplan uit de claim-audit (S2) — wat de pagina moet vertellen,
+    // ✅ Het paginaplan uit de claim-audit (S2), wat de pagina moet vertellen,
     // met per punt of we het kunnen onderbouwen. Direct onder de kaart, want de
     // twee horen bij elkaar: het plan noemt de F-nummers die de kaart draagt.
     buildPlanBlock(plan, facts),
@@ -380,7 +385,7 @@ function buildContentInput(args: {
     // is precies de situatie waarin het gaat invullen. Nu weet het dat er
     // NAAR GEVRAAGD is en dat er geen antwoord kwam.
     unansweredRequired.length
-      ? `ONBEANTWOORD GEBLEVEN — hier is naar gevraagd, de klant heeft niet geantwoord. Schrijf ` +
+      ? `ONBEANTWOORD GEBLEVEN: hier is naar gevraagd, de klant heeft niet geantwoord. Schrijf ` +
         `hier NIETS over; laat de passage weg in plaats van hem in te vullen:\n- ${unansweredRequired.join("\n- ")}`
       : "",
     // ✅ Stijl-grounding: letterlijke voorbeeldzinnen om de toon na te bootsen.
@@ -392,22 +397,22 @@ function buildContentInput(args: {
     `Doel: ${rec.targetIntent}`,
     `Achtergrond: ${rec.why}`,
     TYPE_GUIDANCE[rec.type],
-    // 4.10 — lengte sturen in plaats van achteraf tellen.
+    // 4.10, lengte sturen in plaats van achteraf tellen.
     `Doellengte: ${words.min}-${words.max} woorden in bodyMarkdown. Een AI-assistent citeert liever een ` +
       `compacte, precieze passage dan een uitgesponnen betoog; ga niet over het maximum heen om vol te maken.`,
-    // 4.2 — de doelvraag letterlijk.
+    // 4.2, de doelvraag letterlijk.
     buildTargetBlock(targets),
-    // 4.3 — het winnende antwoord als context.
+    // 4.3, het winnende antwoord als context.
     buildWinningAnswerBlock(winningAnswers, competitors),
-    // 4.4 — wat de geciteerde bronnen doen.
+    // 4.4, wat de geciteerde bronnen doen.
     sourceBlock,
-    // R4.3 — waarop de concurrenten genoemd worden. Dit is de lat: de pagina moet
+    // R4.3, waarop de concurrenten genoemd worden. Dit is de lat: de pagina moet
     // op deze punten minstens zo concreet zijn. Bewust ZONDER namen (zie de
-    // opbouw in loadContentContext) — de harde regel blijft dat klantcontent
+    // opbouw in loadContentContext), de harde regel blijft dat klantcontent
     // nooit een concurrent noemt.
     competitorEdge,
     existingPage
-      ? `\nBESTAANDE PAGINA om te verbeteren/aanvullen (${existingPage.url}) — bouw hierop voort, herschrijf ` +
+      ? `\nBESTAANDE PAGINA om te verbeteren of aan te vullen (${existingPage.url}). Bouw hierop voort, herschrijf ` +
         `niet vanaf nul, behoud wat al goed is en vul alleen de ontbrekende delen aan:\n"""\n${existingPage.text_excerpt ?? ""}\n"""`
       : "",
     "",
@@ -421,7 +426,7 @@ function buildContentInput(args: {
 }
 
 /**
- * Input voor de redactie-stap. Krijgt sinds fase 4 de DOELVRAAG mee — zonder die
+ * Input voor de redactie-stap. Krijgt sinds fase 4 de DOELVRAAG mee. Zonder die
  * vraag kon de beoordelaar onmogelijk vaststellen of de pagina hem beantwoordt,
  * en beoordeelde hij dus alleen of de tekst lekker las.
  */
@@ -436,7 +441,7 @@ function buildCritiqueInput(
     `Bedrijfsnaam die expliciet genoemd moet worden: ${brandName}`,
     targets.length
       ? `DOELVRAGEN die deze pagina moet beantwoorden:\n- ${targets.map((t) => t.text).join("\n- ")}`
-      : "DOELVRAAG: niet opgegeven — beoordeel dan of de pagina zijn eigen titel als vraag beantwoordt.",
+      : "DOELVRAAG: niet opgegeven. Beoordeel dan of de pagina zijn eigen titel als vraag beantwoordt.",
     `Titel: ${piece.title}`,
     "",
     "Pagina-inhoud (Markdown):",
@@ -463,7 +468,7 @@ function buildReviseInput(
     // De klant gaat vóór de redacteur. Dit is zijn website; vraagt hij om een
     // andere toon of een ander accent, dan is dat geen suggestie (4.8).
     revisionNote?.trim()
-      ? `\nWAT DE KLANT ZELF VRAAGT (dit weegt het ZWAARST — dit is zijn website):\n"""\n${revisionNote.trim()}\n"""`
+      ? `\nWAT DE KLANT ZELF VRAAGT (dit weegt het ZWAARST: dit is zijn website):\n"""\n${revisionNote.trim()}\n"""`
       : "",
     issues.length ? `\nVerbeterpunten van de eindredacteur:\n${issues.map((i) => `- ${i}`).join("\n")}` : "",
     "",
@@ -498,7 +503,7 @@ interface ContentContext {
   /**
    * Wat de klant als ONDERSCHEIDEND heeft opgegeven (R8.8). De briefing vraagt
    * er expliciet naar (contentbriefing.md §5, vraagsoort 3) omdat het de enige
-   * informatie is die principieel niet uit een crawl te halen is — maar tot nu
+   * informatie is die principieel niet uit een crawl te halen is, maar tot nu
    * toe controleerde niets of het antwoord ook in de tekst belandde.
    */
   distinctiveAnswers: string[];
@@ -529,8 +534,8 @@ async function loadContentContext(
   ] = await Promise.all([
     admin.from("profiles").select("*").eq("id", analysis.profile_id).maybeSingle(),
     admin.from("topic_research").select("*").eq("analysis_id", analysisId).maybeSingle(),
-    // Feiten die de klant zelf aanleverde (4.6) — vaak precies de cijfers die
-    // nergens op de website stonden — én de vragen die ONBEANTWOORD bleven.
+    // Feiten die de klant zelf aanleverde (4.6), vaak precies de cijfers die
+    // nergens op de website stonden, én de vragen die ONBEANTWOORD bleven.
     // Beide zijn nodig: de antwoorden gaan de feitenkaart in (R8.1), de
     // onbeantwoorde verplichte vragen gaan als expliciet verbod de prompt in.
     admin
@@ -590,12 +595,12 @@ async function loadContentContext(
     });
 
   // Verplichte vragen die de klant heeft laten liggen of bewust oversloeg. De
-  // bewering vervalt dan — hij wordt niet verzonnen (contentbriefing.md §6).
+  // bewering vervalt dan, hij wordt niet verzonnen (contentbriefing.md §6).
   const unansweredRequired = (factRows ?? [])
     .filter((f) => f.required && (f.status === "open" || f.status === "overgeslagen"))
     .map((f) => f.question as string);
 
-  // Wat de klant als onderscheidend opgaf (R8.8) — apart, omdat de poort ná het
+  // Wat de klant als onderscheidend opgaf (R8.8), apart, omdat de poort ná het
   // schrijven controleert of dit ook echt in de tekst is beland.
   const distinctiveAnswers = (factRows ?? [])
     .filter((f) => f.kind === "onderscheid" && f.status === "beantwoord")
@@ -659,7 +664,7 @@ async function loadContentContext(
     profileId: analysis.profile_id,
   });
 
-  // R4.3 — waarop worden de concurrenten genoemd? Alleen de EIGENSCHAPPEN, nooit
+  // R4.3, waarop worden de concurrenten genoemd? Alleen de EIGENSCHAPPEN, nooit
   // de namen: die mogen de schrijfprompt niet in, anders belandt er vroeg of laat
   // een concurrent op de pagina van de klant.
   const { data: rivalRows } = await admin
@@ -672,7 +677,7 @@ async function loadContentContext(
 
   // ── Waaróp worden de concurrenten genoemd? (R4.3, aangescherpt in S4) ─────
   //
-  // Deze Map bevatte de bewijszinnen al — en er ging alleen `.keys()` de prompt
+  // Deze Map bevatte de bewijszinnen al, en er ging alleen `.keys()` de prompt
   // in. De schrijver kreeg dus letterlijk dit als "de lat":
   //
   //     - locatie
@@ -685,7 +690,7 @@ async function loadContentContext(
   // "biedt fysiotherapie aan zonder dat een verwijsbrief nodig is". Dat is het
   // verschil tussen weten dát je op prijs verliest en weten waarvan.
   //
-  // De namen gaan er dubbel uit — wegstrepen én controleren — want de harde
+  // De namen gaan er dubbel uit, wegstrepen én controleren. Want de harde
   // regel is dat er nooit een concurrent op de pagina van de klant komt.
   const edgeCounts = new Map<string, string>();
   for (const row of rivalRows ?? []) {
@@ -700,7 +705,7 @@ async function loadContentContext(
 
   const competitorEdge =
     edgeCounts.size > 0
-      ? `\nWAAROP DE AI NU ANDERE AANBIEDERS NOEMT (dit is de lat — jouw pagina moet op deze punten ` +
+      ? `\nWAAROP DE AI NU ANDERE AANBIEDERS NOEMT (dit is de lat: jouw pagina moet op deze punten ` +
         `minstens zo concreet zijn; de namen doen er niet toe en mogen niet op de pagina):\n` +
         Array.from(edgeCounts, ([attr, bewijs]) => `- ${attr}: "${bewijs}"`).join("\n")
       : "";
@@ -710,8 +715,8 @@ async function loadContentContext(
   // Bij voorkeur de BEVROREN kaart uit de briefing: dan is achterhaalbaar op
   // basis van welke feiten deze pagina destijds geschreven is, ook als de klant
   // later een feit bijstelt (contentbriefing.md §10, zelfde principe als
-  // prompt_text_snapshot). Bestaat die niet — een pagina van vóór R5.1, of een
-  // herschrijfronde zonder briefing — dan bouwen we hem alsnog op. Zonder kaart
+  // prompt_text_snapshot). Bestaat die niet, een pagina van vóór R5.1, of een
+  // herschrijfronde zonder briefing. Dan bouwen we hem alsnog op. Zonder kaart
   // schrijven is geen optie: dat is precies de open context waarin het model
   // ging invullen.
   const { data: pieceRow } = await admin
@@ -727,7 +732,7 @@ async function loadContentContext(
     bevroren.length > 0
       ? bevroren
       : // De doelvragen sturen de relevantieselectie (S1). Zonder ze zou de
-        // terugvalroute weer de eerste acht crawlrijen pakken — bij Coolblue vier
+        // terugvalroute weer de eerste acht crawlrijen pakken, bij Coolblue vier
         // navigatiepagina's plus dezelfde vier in het Engels.
         await buildFactBase(
           admin,
@@ -737,13 +742,13 @@ async function loadContentContext(
         );
 
   // Het paginaplan uit de audit (S2). Wordt in `buildPlanBlock()` opnieuw
-  // doorgerekend tegen de kaart hieronder — inclusief de verse antwoorden — in
+  // doorgerekend tegen de kaart hieronder, inclusief de verse antwoorden, in
   // plaats van tegen de stand van tijdens de briefing.
   const plan = planFromSnapshot(pieceRow?.briefing_snapshot_json);
 
   // ── De bevroren kaart is een MOMENTOPNAME, geen eindstand (R8.1) ──────────
   //
-  // Hij is bevroren toen de claim-audit draaide — dus vóórdat de klant ook maar
+  // Hij is bevroren toen de claim-audit draaide, dus vóórdat de klant ook maar
   // één vraag beantwoord had. Alles wat hij daarna invulde staat in
   // `fact_requests` en moet er alsnog bij, anders schrijft het model tegen een
   // kaart die het halve verhaal mist. Bij de terugvalroute (geen snapshot)
@@ -753,7 +758,7 @@ async function loadContentContext(
   // ── Eerst de bank, dan de kaart (migratie 0036) ───────────────────────────
   //
   // `buildFactBase()` zet zijn feiten in de feitenbank, maar draait tijdens de
-  // BRIEFING — dus vóórdat de klant één vraag beantwoord had. De antwoorden die
+  // BRIEFING: dus vóórdat de klant één vraag beantwoord had. De antwoorden die
   // daarna binnenkwamen zouden daardoor nooit in de bank belanden: precies de
   // feiten die het meest waard zijn om te onthouden, want ze staan nergens op de
   // site. Vandaar hier alsnog, op het moment dat ze de kaart op gaan.
@@ -773,7 +778,7 @@ async function loadContentContext(
   });
 
   // Het id terugkoppelen op tekst, met dezelfde normalisatie als de rest van de
-  // keten gebruikt — anders zou een verschil in spatie of hoofdletter het feit
+  // keten gebruikt. Anders zou een verschil in spatie of hoofdletter het feit
   // opnieuw zonder identiteit op de kaart zetten.
   const idPerTekst = new Map(bank.facts.filter((f) => f.id).map((f) => [normalizeForQuote(f.text), f.id]));
   for (const antwoord of answeredFacts) {
@@ -835,7 +840,7 @@ function pieceFromRow(row: ContentPieceRow): ContentPiece {
     targetIntent: row.target_intent ?? "",
     cluster: row.cluster ?? "",
     // Bij een hervatte poging staan de beweringen al in de kolom (R5.3). Is de
-    // rij van vóór R5.3, dan is dat een lege lijst — geen dekking bekend, wat
+    // rij van vóór R5.3, dan is dat een lege lijst. Geen dekking bekend, wat
     // eerlijker is dan doen alsof alles gedekt was.
     claims: ((row.claims_json ?? []) as WrittenClaim[])
       .filter((c) => typeof c?.claim === "string" && typeof c?.factRef === "string")
@@ -881,7 +886,7 @@ type DraftOutput = { parsed: ContentPiece; raw: unknown };
 
 /**
  * Haalt een eerder weggeschreven draft terug in de vorm die de rest van deze
- * functie van een verse AI-aanroep verwacht. `null` als er nog geen tekst staat —
+ * functie van een verse AI-aanroep verwacht. `null` als er nog geen tekst staat,
  * dan moet er alsnog geschreven worden.
  */
 async function loadSavedDraft(
@@ -921,7 +926,7 @@ async function loadSavedDraft(
  * ── WAT ER MIS WAS MET DE OUDE NOEMER ───────────────────────────────────────
  *
  * `sourceCoverage()` rekent na of de beweringen in `claims_json` standhouden
- * tegen de feitenkaart — en dat blijft precies zoals het was. Maar `claims_json`
+ * tegen de feitenkaart, en dat blijft precies zoals het was. Maar `claims_json`
  * wordt door het SCHRIJVENDE model zelf samengesteld: het bepaalt welke zinnen
  * als bewering tellen. Gemeten over de tien pagina's van 31 juli:
  *
@@ -935,7 +940,7 @@ async function loadSavedDraft(
  *
  * `detectClaimSentences()` bepaalt nu welke zinnen een bewering zijn (merknaam,
  * getal of toezegging) en een zin zonder onderbouwde claim telt als ongedekt.
- * Wat het model tagt is nog steeds nodig — het levert het F-nummer — maar het
+ * Wat het model tagt is nog steeds nodig, het levert het F-nummer, maar het
  * bepaalt niet langer waarover afgerekend wordt.
  *
  * Eén functie voor de schrijf- én de herschrijfronde, zodat die twee niet elk
@@ -955,7 +960,7 @@ function assessClaims(piece: ContentPiece, facts: FactItem[], brandName: string)
  *
  * Per profiel en niet per analyse: een merk heeft meerdere analyses en die
  * putten allemaal uit dezelfde feitenkaart, dezelfde stijlvoorbeelden en
- * dezelfde merkregels. Juist dáár ontstaat de herhaling — twee analyses over
+ * dezelfde merkregels. Juist dáár ontstaat de herhaling. Twee analyses over
  * aanpalende onderwerpen leveren eerder twee gelijkende pagina's op dan twee
  * pagina's binnen één analyse.
  *
@@ -967,7 +972,7 @@ async function loadSiblingPages(
   excludePieceId: string | null,
 ): Promise<{ title: string; body: string }[]> {
   // Twee queries en geen join: de ketentest-shim ondersteunt geen ingebedde
-  // selects, en dat is hier geen beperking maar een gunst — twee expliciete
+  // selects, en dat is hier geen beperking maar een gunst. Twee expliciete
   // stappen zijn beter na te lezen dan `analyses!inner(profile_id)`.
   const { data: analyseRows } = await admin
     .from("analyses")
@@ -988,7 +993,7 @@ async function loadSiblingPages(
     .map((r) => ({ title: r.title, body: r.body_markdown as string }));
 }
 
-/** De kolommen die uit de SCHRIJFronde komen — los van het oordeel dat erna volgt. */
+/** De kolommen die uit de SCHRIJFronde komen, los van het oordeel dat erna volgt. */
 function buildDraftRow(args: {
   analysisId: string;
   reportId: string | null;
@@ -1033,7 +1038,7 @@ function buildDraftRow(args: {
     // deze pagina op de titel uit het rapport: de poll-route van de knop, de
     // "al gegenereerd"-markering op het rapportscherm, en de dedupe-sleutel van
     // de schrijftaak. Wijkt de opgeslagen titel daarvan af, dan vindt geen van
-    // die drie de pagina nog — de knop blijft eeuwig "bezig", de teller loopt
+    // die drie de pagina nog, de knop blijft eeuwig "bezig", de teller loopt
     // niet terug, en elke volgende klik maakt een duplicaat met volle
     // premium-kosten. Eén bron van waarheid, en dat is het rapport.
     title: recommendation.title,
@@ -1069,7 +1074,7 @@ function buildDraftRow(args: {
       ...c,
       factId: resolveFactId(c.factRef, facts),
     })) as never,
-    // De kaart zoals hij BIJ HET SCHRIJVEN gebruikt is — inclusief de antwoorden
+    // De kaart zoals hij BIJ HET SCHRIJVEN gebruikt is, inclusief de antwoorden
     // die de klant ná de claim-audit gaf (R8.1). Daarmee klopt "bevriezen" weer
     // met wat er werkelijk gebeurd is, en resolven de F-nummers in `claims_json`
     // ook later nog naar het juiste feit.
@@ -1104,7 +1109,7 @@ function buildDraftRow(args: {
           ]
         : [],
     // Nog niet beoordeeld: de redactieronde zet dit zo meteen op z'n eindwaarde.
-    // 'draft' is hier de eerlijke stand — de tekst bestaat, het oordeel nog niet.
+    // 'draft' is hier de eerlijke stand, de tekst bestaat, het oordeel nog niet.
     status: "draft" as const,
     needs_review: true,
   };
@@ -1134,8 +1139,8 @@ async function persistDraft(
   }
 
   // De oude versie EERST afvlaggen, dan pas de nieuwe invoegen. Migratie 0023
-  // dwingt af dat er maar één huidige versie per (analyse, titel) bestaat —
-  // precies om de duplicaten te voorkomen die eerder ontstonden — en dus zou
+  // dwingt af dat er maar één huidige versie per (analyse, titel) bestaat,
+  // precies om de duplicaten te voorkomen die eerder ontstonden, en dus zou
   // invoegen-vóór-afvlaggen op die index botsen.
   //
   // Wat het oude commentaar hier terecht wilde beschermen (de klant mag nooit
@@ -1166,7 +1171,7 @@ async function persistDraft(
  * het dure schrijfwerk wég.
  *
  * Daarom twee taken. Deze stap schrijft en beoordeelt, en zet het resultaat hoe
- * dan ook in de database — als 'draft' wanneer er nog een herschrijfronde volgt,
+ * dan ook in de database, als 'draft' wanneer er nog een herschrijfronde volgt,
  * als 'ready' wanneer de eerste versie al door de poort komt.
  */
 export async function draftContentPiece(args: {
@@ -1186,19 +1191,19 @@ export async function draftContentPiece(args: {
   // ── Bestaat er al een versie? (optimalisatie.md 4.7) ──────────────────────
   // De idempotentie zat op de titel en blokkeerde opnieuw genereren volledig:
   // een pagina met "check nodig" liep dood. Nu is de huidige versie het
-  // aanknopingspunt — hervatten bij een draft, of een nieuwe versie beginnen.
+  // aanknopingspunt, hervatten bij een draft, of een nieuwe versie beginnen.
   //
   // Via dezelfde helper als de inplanroute (lib/jobs/content-jobs.ts). Stond
   // hier als een eigen query ZONDER `order`/`limit`, terwijl de helper daar
   // juist voor bestaat: met meerdere versies onder één titel geeft
-  // `maybeSingle()` een fout, en die werd hier niet uitgelezen — dan leek er
+  // `maybeSingle()` een fout, en die werd hier niet uitgelezen. Dan leek er
   // geen huidige versie te zijn en kwam er een duplicaat bij.
   const current = await currentPiece(admin, analysisId, recommendation.title);
 
   // 'briefing' telt hier, net als in lib/jobs/content-jobs.ts (planContentDraft),
   // als "nog niet geschreven": de rij bestaat al sinds de klant de pagina koos
   // (R5.1), maar er staat nog geen tekst in. Deze functie kende die uitzondering
-  // niet — ontdekt tijdens de contentronde van 31 juli (status-doorontwikkeling.md
+  // niet, ontdekt tijdens de contentronde van 31 juli (status-doorontwikkeling.md
   // §5): alle 10 content_draft-taken meldden zich in <2 seconden als "klaar"
   // zonder ook maar één AI-aanroep te doen, omdat "briefing" hier gewoon als
   // "al af" gold. Erger: de pollroute (`GET .../content`) toont zo'n pagina
@@ -1213,7 +1218,7 @@ export async function draftContentPiece(args: {
   //
   // Drie gevallen, waar de code er eerder twee van kende:
   //
-  //  1. Een 'draft' hervatten — een eerdere poging strandde ná het schrijven.
+  //  1. Een 'draft' hervatten, een eerdere poging strandde ná het schrijven.
   //     Schrijf in DEZELFDE rij, versie ongewijzigd.
   //  2. Een verse 'briefing'-rij voor het eerst schrijven. Ook DEZELFDE rij: er
   //     is nog geen tekst om te bewaren, dus er valt niets te superseden.
@@ -1221,7 +1226,7 @@ export async function draftContentPiece(args: {
   //     Nieuwe rij, versie + 1, oude blijft als historie staan.
   //
   // Geval 2 viel eerder onder 3. Gevolg: de briefing-rij (versie 1, leeg) bleef
-  // als niet-actuele spookrij achter naast de geschreven versie 2 — en
+  // als niet-actuele spookrij achter naast de geschreven versie 2, en
   // `fact_requests.content_piece_ids`, dat bij de briefing aan die eerste id
   // gekoppeld werd, wees daarna naar een rij die de klant nooit te zien krijgt.
   // Gemeten in de contentronde van 31 juli bij beide Fysi-Unique-pagina's.
@@ -1237,7 +1242,7 @@ export async function draftContentPiece(args: {
   //
   // Staat er al een draft mét tekst, dan is deze ronde in een eerdere poging al
   // gedaan en hergebruiken we hem. Dit is de duurste aanroep van het hele
-  // product — het premium model dat een volledige pagina schrijft — en die twee keer
+  // product, het premium model dat een volledige pagina schrijft, en die twee keer
   // betalen omdat de vórige poging ná het schrijven strandde, is puur verlies.
   const saved = resumeId ? await loadSavedDraft(admin, resumeId) : null;
   const draft =
@@ -1298,7 +1303,7 @@ export async function draftContentPiece(args: {
   //
   // Niet ná maar NAAST de zelfrapportage van het model, en zijn oordeel wint.
   // In de contentronde gaven de vijf zelfbeoordeelde booleans 100/100 op alle
-  // tien de pagina's — óók op de pagina waarvan dezelfde aanroep in z'n eigen
+  // tien de pagina's, óók op de pagina waarvan dezelfde aanroep in z'n eigen
   // verbeterpunten schreef dat de hoofdvraag niet beantwoord werd.
   const gate = checkContentGate({
     bodyMarkdown: draft.parsed.bodyMarkdown,
@@ -1371,7 +1376,7 @@ export async function draftContentPiece(args: {
       geo_score,
       // Beide oordelen bewaren: `zelfrapportage` is wat het model ervan vond,
       // `deterministisch` is wat de code kon vaststellen. Uit elkaar houden
-      // maakt achteraf zichtbaar wannéér die twee gingen afwijken — precies het
+      // maakt achteraf zichtbaar wannéér die twee gingen afwijken. Precies het
       // signaal dat deze poort nodig maakte.
       geo_json: {
         zelfrapportage: geo,
@@ -1419,14 +1424,14 @@ export async function reviseContentPiece(args: {
     .eq("id", contentPieceId)
     .maybeSingle();
   if (!pieceRow) throw new Error(`Contentpagina ${contentPieceId} niet gevonden.`);
-  if (pieceRow.status !== "draft") return; // al afgerond — niets te doen (idempotent)
+  if (pieceRow.status !== "draft") return; // al afgerond, niets te doen (idempotent)
 
   const ctx = await loadContentContext(admin, analysisId, userId, recommendation);
   const { analysis, targets, baseInput, brandName } = ctx;
   const draftPiece = pieceFromRow(pieceRow as ContentPieceRow);
 
   // De publicatiedatum van de eerste versie behouden (optimalisatie 2). Staat
-  // hij er nog niet — een pagina van vóór deze wijziging — dan valt hij terug op
+  // hij er nog niet, een pagina van vóór deze wijziging. Dan valt hij terug op
   // wanneer de rij is aangemaakt, en dat is precies wat hij moet zijn.
   const herzienOp = new Date().toISOString();
   const bestaandePublicatie =
@@ -1459,7 +1464,7 @@ export async function reviseContentPiece(args: {
   const final = revised.parsed;
   const geo = critique.parsed.geo;
   // Dezelfde deterministische poort als bij de eerste ronde (R8.2/R8.7/R8.8).
-  // Juist hier telt hij: dit is de EINDSTAND — er volgt geen derde ronde, dus
+  // Juist hier telt hij: dit is de EINDSTAND: er volgt geen derde ronde, dus
   // wat hier doorheen komt gaat zo naar de klant.
   const gate = checkContentGate({
     bodyMarkdown: final.bodyMarkdown,
@@ -1471,7 +1476,7 @@ export async function reviseContentPiece(args: {
   const geo_score = gate.score ?? geoScore(geo);
 
   // De tweede poort, ook hier: dit is de EINDSTAND en er volgt geen derde ronde.
-  // Raakt `geo_score` bewust niet aan — zie de toelichting bij `checkQuality`.
+  // Raakt `geo_score` bewust niet aan, zie de toelichting bij `checkQuality`.
   const quality = checkQuality({
     bodyMarkdown: final.bodyMarkdown,
     mostSimilar: mostSimilar(
@@ -1493,7 +1498,7 @@ export async function reviseContentPiece(args: {
     geo_score < GEO_THRESHOLD ||
     // Een openstaand punt uit de poort is een harde reden om na te kijken. De
     // redacteur beoordeelt de tekst; de poort beoordeelt of de pagina zijn
-    // opdracht uitvoert — en dat laatste mag niet stil wegvallen.
+    // opdracht uitvoert, en dat laatste mag niet stil wegvallen.
     gate.issues.length > 0 ||
     quality.issues.length > 0;
 
@@ -1501,7 +1506,7 @@ export async function reviseContentPiece(args: {
   const previousCritiques = Array.isArray(pieceRow.critique_raw_json) ? pieceRow.critique_raw_json : [];
 
   // De bronnendekking opnieuw narekenen (R5.3). De herschrijfronde levert een
-  // andere tekst op, dus ook andere beweringen — de dekking van de eerste
+  // andere tekst op, dus ook andere beweringen, de dekking van de eerste
   // versie laten staan zou een cijfer over een tekst zijn die niet meer bestaat.
   const { coverage, unsupported, untagged } = assessClaims(final, ctx.facts, brandName);
   const bronNotitie = [

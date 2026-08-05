@@ -13,14 +13,14 @@ import "server-only";
  * Beste webwinkel 2022, 22 winkels. Allemaal waar, allemaal merkbreed, geen
  * ervan over wasmachines.
  *
- * De sitetekst die het wél had kunnen leveren stond er, maar als ACHTERGROND —
+ * De sitetekst die het wél had kunnen leveren stond er, maar als ACHTERGROND,
  * blokken van 400 tekens zonder F-nummer, expliciet niet bruikbaar als bron. Dat
  * was terecht: een blok van 400 tekens dekt alles en dus niets (de eerste echte
  * briefing leverde nul vragen op omdat 6 van de 7 beweringen naar hetzelfde blok
  * verwezen).
  *
  * De uitweg is het blok opknippen. Eén zin van twaalf woorden die LETTERLIJK op
- * de site staat, is wél na te trekken — precies zo goed als een proof point.
+ * de site staat, is wél na te trekken. Precies zo goed als een proof point.
  *
  * ── EEN PROMPTINSTRUCTIE IS EEN INTENTIE, CODE IS EEN GARANTIE ──────────────
  *
@@ -62,7 +62,7 @@ const ATOMISE_SYSTEM =
   "OPDRACHT: geef de zinnen terug die een concreet, natrekbaar feit over dit bedrijf bevatten en " +
   "die te maken hebben met het opgegeven onderwerp. " +
   "HARDE REGELS: " +
-  "(1) Neem elke zin LETTERLIJK over uit de aangeleverde tekst — teken voor teken, zonder " +
+  "(1) Neem elke zin LETTERLIJK over uit de aangeleverde tekst, teken voor teken, zonder " +
   "inkorten, samenvatten, corrigeren of aanvullen. Een zin die je hebt bijgeschaafd wordt " +
   "weggegooid door de controle die hierachter zit, dus dat kost alleen maar een feit. " +
   "(2) Kies alleen zinnen met iets HARDS erin: een aantal, een bedrag, een plaats, een naam, een " +
@@ -94,7 +94,7 @@ function buildAtomiseInput(args: {
     `Bedrijf: ${brandName}`,
     `Onderwerp waar de content over gaat: ${topic}`,
     targetQuestions.length
-      ? `De pagina's die we gaan schrijven moeten deze vragen beantwoorden — feiten die daarbij ` +
+      ? `De pagina's die we gaan schrijven moeten deze vragen beantwoorden. Feiten die daarbij ` +
         `helpen zijn het waardevolst:\n- ${targetQuestions.join("\n- ")}`
       : "",
     "",
@@ -111,7 +111,7 @@ function buildAtomiseInput(args: {
  *
  * Faalt zacht: gaat de aanroep stuk, dan komt er een lege lijst terug en valt de
  * feitenkaart terug op wat hij zonder deze stap ook had (proof points +
- * achtergrondblokken). Een mislukte verrijking mag nooit een briefing blokkeren —
+ * achtergrondblokken). Een mislukte verrijking mag nooit een briefing blokkeren,
  * zelfde afspraak als bij `profile_competitors` (R4.2) en de bronanalyse (4.4).
  */
 export async function atomiseSitePages(args: {

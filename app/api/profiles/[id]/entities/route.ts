@@ -5,12 +5,12 @@ import { getOwnedProfile } from "@/lib/profiles";
 import { normalizeEntityName } from "@/lib/entities/normalize";
 
 /**
- * GET/POST /api/profiles/[id]/entities — de concurrentenlijst van een profiel
+ * GET/POST /api/profiles/[id]/entities, de concurrentenlijst van een profiel
  * (optimalisatie.md 2.7). Geen AI-call.
  *
  * Entiteiten hangen aan het PROFIEL en niet aan een analyse: dezelfde concurrent
  * duikt op bij meerdere onderwerpen van hetzelfde merk, en die moet dan één rij
- * zijn — anders valt de vergelijking alsnog uiteen.
+ * zijn. Anders valt de vergelijking alsnog uiteen.
  */
 export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -55,7 +55,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   if (!normalized) return NextResponse.json({ error: "Deze naam is niet bruikbaar." }, { status: 400 });
 
   // Bestaat hij al (mogelijk onder een andere schrijfwijze, of eerder weggezet)?
-  // Dan geen tweede rij maken maar de bestaande bevestigen — anders krijgt de
+  // Dan geen tweede rij maken maar de bestaande bevestigen. Anders krijgt de
   // klant een duplicaat terwijl hij juist orde aan het scheppen is.
   const { data: existing } = await admin
     .from("entities")
@@ -71,7 +71,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         confirmed: true,
         dismissed: false,
         // Zelf toevoegen is een handmatig oordeel "dit is een concurrent van
-        // mij" — de automatische classificatie mag dat niet terugdraaien.
+        // mij", de automatische classificatie mag dat niet terugdraaien.
         entity_role: "concurrent",
         role_source: "handmatig",
         exclude_reason: null,

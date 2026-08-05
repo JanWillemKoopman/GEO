@@ -13,13 +13,13 @@ import "server-only";
  *
  * Voor de klant betekende dat: zes soorten werk op zes bestemmingen, verspreid
  * over vier schermen en twee secties van de app. Het dashboard was de enige
- * plek die het bij elkaar bracht — en zodra je erop klikte, spatte je uiteen.
+ * plek die het bij elkaar bracht, en zodra je erop klikte, spatte je uiteen.
  *
  * Hier staat het één keer. Eén type, één statusmachine, één volgorde.
  *
  * ── DE GROEPERING IS DE STAAT, NIET DE SOORT ────────────────────────────────
  *
- * Een klant groepeert niet naar "is dit off-site of on-site" — dat is onze
+ * Een klant groepeert niet naar "is dit off-site of on-site". Dat is onze
  * indeling, niet de zijne. Hij groepeert naar "moet ik hier iets?". Vandaar
  * `WorkState` als hoofdas en `WorkKind` alleen als etiket.
  */
@@ -33,7 +33,7 @@ type Db = SupabaseClient;
 
 /** Wat voor werk het is. Bepaalt het etiket, niet de plek in de lijst. */
 export type WorkKind =
-  | "blokkade" // technische blokkade — hierdoor werkt al het andere niet
+  | "blokkade" // technische blokkade, hierdoor werkt al het andere niet
   | "goedkeuring" // het concept bevestigen, daarna start de meting
   | "herstel" // er ging iets mis in de pijplijn
   | "feit" // een feitenvraag over het bedrijf
@@ -43,10 +43,10 @@ export type WorkKind =
 /**
  * Waar het werk staat. Dit bepaalt de volgorde op het scherm.
  *
- * `nu`    — er wordt iets van de klant verwacht.
- * `loopt` — wij zijn ermee bezig; de klant hoeft niets.
- * `wacht` — gedaan, maar het resultaat is er nog niet (hermeting duurt weken).
- * `klaar` — afgerond.
+ * `nu`: er wordt iets van de klant verwacht.
+ * `loopt`, wij zijn ermee bezig; de klant hoeft niets.
+ * `wacht`, gedaan, maar het resultaat is er nog niet (hermeting duurt weken).
+ * `klaar`, afgerond.
  */
 export type WorkState = "nu" | "loopt" | "wacht" | "klaar";
 
@@ -131,14 +131,14 @@ type PieceRow = Pick<
 
 const PIECE_COLUMNS = "id, analysis_id, title, status, needs_review, published_at, created_at";
 
-/** Het werk van één analyse — voor hoofdstuk 03 van het dossier. */
+/** Het werk van één analyse, voor hoofdstuk 03 van het dossier. */
 export async function loadWork(db: Db, analysis: Analysis): Promise<WorkItem[]> {
   const sources = await fetchSources(db, [analysis]);
   return deriveWork(sources);
 }
 
 /**
- * Het werk over alle analyses heen — voor het dashboard.
+ * Het werk over alle analyses heen, voor het dashboard.
  *
  * Lezen loopt via RLS (SELECT-only, gefilterd op user_id); de expliciete
  * user-filter hieronder is een tweede slot op dezelfde deur.
@@ -147,7 +147,7 @@ export async function loadWorkAcross(db: Db, userId: string): Promise<{
   analyses: Analysis[];
   work: WorkItem[];
 }> {
-  // Gearchiveerde analyses tellen nergens mee — niet in de lijst, niet in de
+  // Gearchiveerde analyses tellen nergens mee, niet in de lijst, niet in de
   // werkitems, niet in de kaartcijfers (migratie 0044).
   const { data } = await activeOnly(
     db.from("analyses").select("*").eq("user_id", userId),
@@ -250,7 +250,7 @@ function blockersPerProfile(
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
- * Pure functie: ruwe rijen in, werk uit. Geen database, geen React — zodat het
+ * Pure functie: ruwe rijen in, werk uit. Geen database, geen React, zodat het
  * te testen is en zodat het dashboard en het dossier gegarandeerd hetzelfde
  * zeggen over hetzelfde item.
  */
@@ -355,7 +355,7 @@ export function deriveWork(sources: WorkSources): WorkItem[] {
         title: piece.title,
         why: measured
           ? "Gepubliceerd en hermeten. Het resultaat staat in hoofdstuk 04."
-          : "Gepubliceerd. Aura hermeet na twee en na vier weken — AI-assistenten pikken nieuwe content niet dezelfde dag op.",
+          : "Gepubliceerd. Aura hermeet na twee en na vier weken. AI-assistenten pikken nieuwe content niet dezelfde dag op.",
         urgency: URGENCY.gemeten,
         href,
         meta: measured
@@ -425,7 +425,7 @@ export function deriveWork(sources: WorkSources): WorkItem[] {
   // ── Feitenvragen ───────────────────────────────────────────────────────────
   // Eén item per profiel, niet per vraag: acht regels over hetzelfde onderwerp
   // is geen overzicht. Ze staan bij het PROFIEL in de database, maar het is
-  // werk dat déze analyse beter maakt — dus hoort het hier, niet weggestopt op
+  // werk dat déze analyse beter maakt, dus hoort het hier, niet weggestopt op
   // een merkscherm.
   const factsByProfile = new Map<string, number>();
   for (const fact of sources.facts) {
@@ -451,7 +451,7 @@ export function deriveWork(sources: WorkSources): WorkItem[] {
   return sortWork(items);
 }
 
-/** Eerst op staat, dan op urgentie, dan op titel — stabiel over renders heen. */
+/** Eerst op staat, dan op urgentie, dan op titel, stabiel over renders heen. */
 export function sortWork(items: WorkItem[]): WorkItem[] {
   const stateOrder = new Map(WORK_STATES.map((s, i) => [s, i]));
   return [...items].sort((a, b) => {
@@ -470,7 +470,7 @@ export function groupWork(items: WorkItem[]): { state: WorkState; items: WorkIte
   })).filter((g) => g.items.length > 0);
 }
 
-/** Hoeveel er nú van de klant wordt verwacht — het getal voor badges. */
+/** Hoeveel er nú van de klant wordt verwacht, het getal voor badges. */
 export function countNow(items: WorkItem[]): number {
   return items.filter((i) => i.state === "nu").length;
 }

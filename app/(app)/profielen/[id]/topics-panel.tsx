@@ -11,14 +11,14 @@ import type { ProfileTopic } from "@/lib/types/database";
  * ── DE UX-VERANDERING DIE HIER ZIT ──────────────────────────────────────────
  *
  * Van "verzin een onderwerp" naar "kies uit wat je aanbiedt". Het lege
- * tekstveld op /analyses/new blijft bestaan — dit is een snelpad, geen
- * vervanging — maar voor een ondernemer die niet weet welk onderwerp hij moet
+ * tekstveld op /analyses/new blijft bestaan. Dit is een snelpad, geen
+ * vervanging, maar voor een ondernemer die niet weet welk onderwerp hij moet
  * kiezen, is dit het verschil tussen wel en niet beginnen.
  *
  * ── WAAROM AFGEWEZEN TOPICS BLIJVEN STAAN ───────────────────────────────────
  *
  * Ingeklapt, maar niet weg. Een topic dat vandaag niet relevant is, is dat over
- * een half jaar misschien wel — en opnieuw laten voorstellen kan niet, want de
+ * een half jaar misschien wel, en opnieuw laten voorstellen kan niet, want de
  * generatie is idempotent (anders zou hij de keuzes van de klant overschrijven).
  */
 export function TopicsPanel({
@@ -37,7 +37,7 @@ export function TopicsPanel({
 
   // Geen voorstellen betekent bijna altijd: geen aanbodboom, want die is de
   // invoer. Dat is een uitlegbare situatie en geen reden om het blok te laten
-  // verdwijnen (`ux-design.md` §4) — de klant kan altijd zelf een onderwerp
+  // verdwijnen (`ux-design.md` §4), de klant kan altijd zelf een onderwerp
   // kiezen, en dat is precies de volgende stap waar een lege staat naar hoort
   // te wijzen.
   if (topics.length === 0) {
@@ -46,7 +46,7 @@ export function TopicsPanel({
         <span className="mono-label">Onderwerpen om op te meten</span>
         <p className="text-secondary">
           Aura kon uit je aanbod geen onderwerpen afleiden. Dat gebeurt als de
-          website te weinig prijsgaf om diensten uit te herkennen — bijvoorbeeld
+          website te weinig prijsgaf om diensten uit te herkennen, bijvoorbeeld
           bij een site die zijn tekst pas via JavaScript laadt.
         </p>
         <Link href="/analyses/nieuw" className="btn-primary w-fit">

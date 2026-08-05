@@ -1,4 +1,4 @@
-# Supabase — schema & migraties
+# Supabase, schema & migraties
 
 Datamodel en schrijfstrategie: [`../docs/architecture.md`](../docs/architecture.md) §2–§3.
 
@@ -10,7 +10,7 @@ Datamodel en schrijfstrategie: [`../docs/architecture.md`](../docs/architecture.
   cijfers, en waarom deze oplossing. Onderaan een `select` die controleert dat het gelukt is.
 - Het nummer volgt de **toepassingsvolgorde**, niet de plannings volgorde.
 - **RLS is SELECT-only.** Alle schrijfacties lopen via de Next.js API-routes met de service-role
-  key + expliciete ownership-check. `jobs` heeft RLS aan en nul policies — geen enkele
+  key + expliciete ownership-check. `jobs` heeft RLS aan en nul policies. Geen enkele
   client-toegang, ook geen SELECT.
 
 ## Toepassen
@@ -26,7 +26,7 @@ volgorde in de SQL Editor plakken, of de `RUN_*.sql`-bundels vanaf 0012.
 > **Eén valkuil in `RUN_0012_TOT_0017.sql`, STAP 3:** `alter type … add value` mag in Postgres niet
 > in dezelfde transactie gebruikt worden als waarin je hem toevoegt, en de SQL Editor draait je
 > selectie als één transactie. Selecteer die regel en voer hem los uit.
-> STAP 7 is optioneel — alleen nodig om de werker vanuit Postgres aan te sturen (zet dan eerst de
+> STAP 7 is optioneel, alleen nodig om de werker vanuit Postgres aan te sturen (zet dan eerst de
 > twee Vault-geheimen, zie `docs/architecture.md` §9).
 
 ## Index
@@ -61,7 +61,7 @@ Alle migraties zijn toegepast op productie, behalve `0033`.
 | `0024_contentbriefing_schema.sql` | Schema voor de contentbriefing (feitenkaart, claim-audit, vragen) |
 | `0025_dataopschoning_udenhout.sql` | Dataherstel na de eerste praktijktest (met rij-snapshot vooraf) |
 | `0026_concurrenten_uit_de_meting.sql` | Concurrenten komen uit de meting, niet uit een lijst vooraf |
-| `0027_bewijslaag.sql` | `reports.stripped_claims_json` — audit-trail van de claimvalidator |
+| `0027_bewijslaag.sql` | `reports.stripped_claims_json`, audit-trail van de claimvalidator |
 | `0028_meetbaarheid.sql` | `brands_in_answer`, `brand_eliciting`, `winnable_runs`/`brandless_runs` + backfill |
 | `0029_zichtbaarheidsprofiel.sql` | `mention_role`, `avg_position`, `citation_count`, `first_mention_count` |
 | `0030_concurrent_intelligence.sql` | `competitor_breakdown.attributes_json` / `why_summary` |
@@ -77,10 +77,10 @@ Alle migraties zijn toegepast op productie, behalve `0033`.
 | `0040_topics_en_strategie.sql` | `profile_topics` (5–8 core topics) en `profile_strategy` (gespreksuitkomst + contextfactoren) |
 | `0041_multi_engine.sql` | `ai_calls.engine`, `profiles.engines_enabled`, de idempotentie-index van `tracking_runs` mét engine, en `profile_llm_baseline` |
 | `0042_rls_aanscherping.sql` | `is_staff()` niet meer aanroepbaar door `anon`, stafpolicies expliciet op `authenticated`, vast zoekpad op `set_updated_at()` |
-| `0043_topic_aanbodnamen.sql` | `profile_topics.offering_names` — de aanbodkoppeling van een onderwerp overleeft een herbouw van de boom, want een `uuid[]` kan geen foreign key hebben |
-| `0044_archief.sql` | `archived_at` op `profiles` en `analyses` — verborgen uit alle lijsten, tellingen én de maandelijkse meetronde, maar volledig aanwezig in de database |
+| `0043_topic_aanbodnamen.sql` | `profile_topics.offering_names`, de aanbodkoppeling van een onderwerp overleeft een herbouw van de boom, want een `uuid[]` kan geen foreign key hebben |
+| `0044_archief.sql` | `archived_at` op `profiles` en `analyses`, verborgen uit alle lijsten, tellingen én de maandelijkse meetronde, maar volledig aanwezig in de database |
 
-## Na `0038` — eenmalig, met de hand
+## Na `0038`, eenmalig, met de hand
 
 De migratie maakt `staff_users` leeg aan. De eigenaar zet zichzelf erin:
 

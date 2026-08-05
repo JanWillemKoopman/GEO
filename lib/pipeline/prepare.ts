@@ -4,7 +4,7 @@ import "server-only";
  * Orchestratie van halte 1'+2 (abcplan.md §6 A1'/A2, na de klantprofiel-refactor):
  * onderwerp-onderzoek → prompts. Het bedrijfsbrede onderzoek (merknaam, branche,
  * tone-of-voice, persona's) gebeurt niet meer hier maar eenmalig in het
- * klantprofiel (lib/pipeline/prepare-profile.ts) — deze analyse hangt daaraan
+ * klantprofiel (lib/pipeline/prepare-profile.ts). Deze analyse hangt daaraan
  * via analyses.profile_id en moet dus een profiel met status 'klaar' hebben.
  *
  * Draait met de service-role client (schrijven, §5/§12.20). Idempotent en
@@ -20,7 +20,7 @@ import "server-only";
  * werker-route van het platform krijgt. De functie werd dan middenin afgekapt,
  * de taak bleef als 'running' in de wachtrij staan tot de reaper hem tien
  * minuten later terugzette, en de volgende poging liep tegen exact dezelfde
- * muur aan — want tussen het opslaan van het onderwerp-onderzoek en het
+ * muur aan. Want tussen het opslaan van het onderwerp-onderzoek en het
  * wegschrijven van de prompts wordt niets tussentijds bewaard. Vier pogingen
  * lang leek het scherm gewoon te werken ("nog minder dan een minuut"), waarna
  * de analyse alsnog op 'mislukt' viel.
@@ -57,7 +57,7 @@ async function loadPreparable(
     return { done: analysis.status };
   }
 
-  // 'mislukt' kan ook een mislukte MÉTING zijn (halte 3, na confirm) — die
+  // 'mislukt' kan ook een mislukte MÉTING zijn (halte 3, na confirm). Die
   // draait pas nadat A1'+A2 al succesvol prompts hebben aangemaakt. Als die er
   // al zijn, is dit dus geen mislukte voorbereiding: niet aankomen, anders zou
   // deze functie een mislukte meting stilletjes terugzetten naar 'concept_klaar'.
@@ -87,7 +87,7 @@ async function loadPreparable(
  * Fase 1 (A1'): onderwerp-onderzoek. Eén gegrondde AI-aanroep; het resultaat
  * gaat meteen naar `topic_research`, zodat een nieuwe poging deze stap overslaat.
  *
- * Geeft terug of de promptgeneratie nog moet gebeuren — de handler ketent daar
+ * Geeft terug of de promptgeneratie nog moet gebeuren, de handler ketent daar
  * dan naartoe.
  */
 export async function prepareTopicResearch(id: string): Promise<{ needsPrompts: boolean }> {
@@ -150,7 +150,7 @@ export async function generateAnalysisPrompts(id: string): Promise<AnalysisStatu
 
   try {
     // Het onderwerp-onderzoek van fase 1 is de input voor de prompts. Ontbreekt
-    // het, dan is deze taak buiten de keten om gestart — dan is falen met een
+    // het, dan is deze taak buiten de keten om gestart. Dan is falen met een
     // duidelijke melding beter dan prompts zonder context genereren.
     const { data: research } = await admin
       .from("topic_research")
@@ -238,7 +238,7 @@ export async function generateAnalysisPrompts(id: string): Promise<AnalysisStatu
 
 /**
  * Fase 3 (nabewerking): het geschatte zoekvolume relatief kalibreren over alle
- * vragen van de analyse (abcplan.md §6 A2) — consistenter dan losse schattingen
+ * vragen van de analyse (abcplan.md §6 A2), consistenter dan losse schattingen
  * per vraag.
  *
  * Bewust ná de poort naar 'concept_klaar' en als eigen taak. Twee redenen:
@@ -248,7 +248,7 @@ export async function generateAnalysisPrompts(id: string): Promise<AnalysisStatu
  *  • Het scheelt een derde ronde AI-aanroepen in `generate_prompts`, die het
  *    daardoor niet binnen één werker-aanroep haalde.
  *
- * Mislukt dit, dan blijft elke vraag op de neutrale 50 / band 'midden' staan —
+ * Mislukt dit, dan blijft elke vraag op de neutrale 50 / band 'midden' staan,
  * exact de terugval die er altijd al was. Daarom raakt een fout hier de status
  * van de analyse NIET: 'mislukt' tonen voor een cosmetische verfijning zou de
  * klant een probleem melden dat hij niet heeft.

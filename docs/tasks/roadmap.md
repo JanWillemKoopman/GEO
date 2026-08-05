@@ -1,22 +1,22 @@
-# Roadmap — wat er nog open staat
+# Roadmap, wat er nog open staat
 
 Op volgorde. **Stand: 4 augustus 2026**, alles gemerged op `main`, 675 unittests + 47 ketentests
-groen, migraties t/m `0044` toegepast (`0033` gereserveerd, nooit gedraaid — vervangen door `0039`).
+groen, migraties t/m `0044` toegepast (`0033` gereserveerd, nooit gedraaid, vervangen door `0039`).
 
 ## Afgerond sinds de vorige stand
 
-- **Onboarding 2.0** — gebouwd én op productie geverifieerd in drie meetronden
+- **Onboarding 2.0**, gebouwd én op productie geverifieerd in drie meetronden
   ($0,2438 / $0,2463 / $0,2495, ~7,5 minuut, acht taken). Zie `logbook.md` §14 en de dagnotities van
   3–4 augustus. De bouwspec staat nog in [`onboarding-2.0.md`](./onboarding-2.0.md) omdat de
   verificatietabel daar nog open punten heeft.
-- **De vier InSpace-optimalisaties** — structurele gap-analyse, rijkere schema.org, duplicatie- en
+- **De vier InSpace-optimalisaties**, structurele gap-analyse, rijkere schema.org, duplicatie- en
   leesbaarheidscontrole. Bouwspec verwijderd, samengevat in `logbook.md`.
-- **De UX-ronde op de onboarding** — tien bevindingen, alle tien uitgevoerd.
-- **R6.2** — opgegaan in fase 0 van de nieuwe onboarding.
+- **De UX-ronde op de onboarding**, tien bevindingen, alle tien uitgevoerd.
+- **R6.2**, opgegaan in fase 0 van de nieuwe onboarding.
 - **Archiveren** (migratie `0044`): de zeven testmerken en elf analyses staan uit beeld maar in de
   database.
 
-## 0. De GPT-5.6-overstap natrekken — grotendeels gedaan (~$1, een half uur)
+## 0. De GPT-5.6-overstap natrekken, grotendeels gedaan (~$1, een half uur)
 
 ⚠️ **Bijgewerkt op 4 augustus 2026.** Dit punt begon met "er is nog geen enkele echte call op
 GPT-5.6 gemaakt". Dat klopt niet meer: drie volledige onboardings op productie hebben samen ruim
@@ -27,7 +27,7 @@ parameterfout. Wat daarmee is afgetekend:
   promptgeneratie), `low` (onderzoek en rapport) en `medium` op Sol (synthese) draaiden alle drie.
   Het vangnet in `structured.ts` is niet één keer aangesproken.
 - **De kosten zijn gemeten.** Een volledige onboarding kost **$0,2438 / $0,2463 / $0,2495** over
-  drie ronden — opvallend stabiel, en 11% van het plafond van $2,15. De duurste post is niet
+  drie ronden, opvallend stabiel, en 11% van het plafond van $2,15. De duurste post is niet
   `web_search` maar de synthese op Sol: $0,127, 52% van het totaal.
 
 Wat nog openstaat:
@@ -36,7 +36,7 @@ Wat nog openstaat:
    onboarding; de schatting van ~$0,40 per meetronde (was $0,82) komt nog steeds uit de
    gepubliceerde tarieven. Let specifiek op de zoekactie-tokens: die worden op een redeneermodel
    wél als input afgerekend en waren op de oude preview gratis.
-2. **`npm run eval:mention -- --compare`** — de classificatie draait op een ánder model dan waarop
+2. **`npm run eval:mention -- --compare`**, de classificatie draait op een ánder model dan waarop
    de mention-prompt is afgeregeld. Drempel 90%.
 3. **Doorlooptijd van één `content_draft` meten.** De effort staat op `medium` en niet op `high`
    omdat één call binnen `TIMEOUT_MS` (100 s) moet passen. Blijkt een pagina ruim binnen de tijd
@@ -46,10 +46,10 @@ Wat nog openstaat:
 
 Zie `verificatie-r8-s8.md`. ~$2, een halve dag. **Gebouwd is niet geverifieerd**: R8 en S1–S8 zijn
 met unittests op de echte gevallen getoetst, maar er is nog geen nieuwe pagina mee geschreven op
-productie. Dit blokkeert alles hieronder — er is geen zin in nieuwe rondes op een keten waarvan de
+productie. Dit blokkeert alles hieronder. Er is geen zin in nieuwe rondes op een keten waarvan de
 vorige ronde niet is nagerekend.
 
-## 2. De rest van R7 — de meetbasis stabiliseren (~2 d)
+## 2. De rest van R7, de meetbasis stabiliseren (~2 d)
 
 R7.1 is gebouwd (`0037`). Wat blijft staan: bij 5 winbare vragen is de score formeel nog een getal,
 maar zegt hij niets meer. De tellers `elicit_successes`/`elicit_samples` uit `0037` zijn de invoer
@@ -67,15 +67,15 @@ dagen zoals oorspronkelijk begroot.
 Achterliggend punt: koopgids-content is het verkeerde format voor Bol/Coolblue/HEMA-achtige klanten
 zonder productfeed.
 
-## 4. R6.3 — brontype als signaal (1,5 d)
+## 4. R6.3, brontype als signaal (1,5 d)
 
 Volledige bouwspec: [`r6-inventaris-en-bronnen.md`](./r6-inventaris-en-bronnen.md). R6.2 is
 gebouwd als fase 0 van de onboarding.
 
-Bij Fysi-Unique zijn 8 van de 10 meest geciteerde bronnen homepages — dan is "schrijf een lange
+Bij Fysi-Unique zijn 8 van de 10 meest geciteerde bronnen homepages. Dan is "schrijf een lange
 blogpagina" waarschijnlijk het verkeerde advies.
 
-## 5. Blijvend uitgesteld: R0 — Fundament (8 d)
+## 5. Blijvend uitgesteld: R0, Fundament (8 d)
 
 Volledige bouwspec per stap: [`r0-fundament.md`](./r0-fundament.md).
 
@@ -91,7 +91,7 @@ als concurrent meetellen.** De helft van R0.5 is intussen meegelift op R8.5: de 
 ## 6. Wat de UX-ronde bewust heeft laten liggen
 
 - **De strategiekaart als gespreksinstrument** (`strategy-box.tsx`). Nu bereikbaar via een
-  springlink, verder onaangeraakt. Herontwerpen vraagt eerst drie echte consultancygesprekken —
+  springlink, verder onaangeraakt. Herontwerpen vraagt eerst drie echte consultancygesprekken,
   anders is het gokwerk. ~halve dag zodra die ervaring er is.
 - **De drempels van de kwaliteitspoort afstellen op data.** `DUPLICATE_THRESHOLD` staat op 0,35 en
   de leesbaarheidsgrenzen op 20/25 woorden per zin; allebei ruim gekozen. De gemeten waarden worden
@@ -101,7 +101,7 @@ als concurrent meetellen.** De helft van R0.5 is intussen meegelift op R8.5: de 
 
 ## 7. Eén taak per onboarding viel terug van `running` naar `queued`
 
-Gezien in beide meetronden van 3 augustus, sneller dan de reclaim-drempel van vijf minuten — dus er
+Gezien in beide meetronden van 3 augustus, sneller dan de reclaim-drempel van vijf minuten. Dus er
 speelt iets anders. Kostte in ronde 2 minuten stilstand. Eerst loggen, dan pas repareren. Dit is het
 verschil tussen de 7,5 minuut die je in een demo belooft en 12 minuten.
 
@@ -109,8 +109,8 @@ verschil tussen de 7,5 minuut die je in een demo belooft en 12 minuten.
 
 - `npm run eval:mention` is **nooit gedraaid tegen de gewijzigde mention-prompt**. Vereist een
   API-sleutel. `lib/openai/mention-prompt.ts` omschrijft zichzelf als "de meest load-bearing prompt
-  van het hele product" — daar hoort een evaluatie bij.
+  van het hele product". Daar hoort een evaluatie bij.
 - De kostencijfers in code-commentaar gaan op sommige plekken nog uit van $0,356 per periode. De
   actuele cijfers staan in `architecture.md` §6: op de GPT-4.1-familie ~$0,82 per ronde en ~$1,06
-  met herhalingen; na de overstap naar GPT-5.6 naar schatting ~$0,40 — zie punt 0 hierboven, die
+  met herhalingen; na de overstap naar GPT-5.6 naar schatting ~$0,40, zie punt 0 hierboven, die
   schatting is nog niet nagerekend.

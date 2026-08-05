@@ -6,7 +6,7 @@ import type { DashboardData } from "@/lib/dashboard";
  *
  * De vroegere "Wat je nu kunt doen"-lijst (het opgerolde werkmodel over alle
  * analyses heen) stond hierboven op dit dashboard. Met meerdere analyses liep
- * die op tientallen punten — precies de rommel die het werkmodel per analyse
+ * die op tientallen punten. Precies de rommel die het werkmodel per analyse
  * (`_chapters/werk.tsx`, hoofdstuk 03) juist moest voorkomen. Die lijst hoort
  * bij de analyse waar het werk vandaan komt, niet opgestapeld op het overzicht
  * ervoor; dit dashboard toont alleen nog de status.
@@ -39,7 +39,7 @@ export function DashboardStats({
           tone={biggestChange.delta > 0 ? "up" : "down"}
         />
       ) : (
-        <StatTile value="—" label="Grootste verandering" hint="Pas zichtbaar na de tweede meting" />
+        <StatTile value="-" label="Grootste verandering" hint="Pas zichtbaar na de tweede meting" />
       )}
     </div>
   );

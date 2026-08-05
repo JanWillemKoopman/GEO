@@ -3,7 +3,7 @@
  *
  * ── WAT ER MIS WAS MET DE VLAG ──────────────────────────────────────────────
  *
- * `prompts.brand_eliciting` had drie waarden — ja / nee / onbekend — en werd
+ * `prompts.brand_eliciting` had drie waarden, ja / nee / onbekend, en werd
  * 'nee' zodra een vraag in twee opeenvolgende periodes nul aanbieders opleverde
  * (R2.1). De verificatieronde van 31 juli liet zien dat die aanname niet klopt.
  * Van de 8 herhaald gemeten vragen veranderde bij 4 de winbaarheid TUSSEN de
@@ -16,7 +16,7 @@
  *   Is een persoonlijk behandelplan mogelijk…      0   4   0
  *
  * Geen enkele herhaalde vraag was alle drie de keren winbaar. Winbaarheid is dus
- * geen eigenschap van de vraag maar een kans — en een vlag kan een kans niet
+ * geen eigenschap van de vraag maar een kans, en een vlag kan een kans niet
  * dragen.
  *
  * ── WAT DE OUDE REGEL KOSTTE ────────────────────────────────────────────────
@@ -31,7 +31,7 @@
  *   2             21         5      38     21,4
  *
  * Bij 5 winbare vragen is de 95%-band ongeveer ±42 punten. Op productie staan op
- * dit moment 9 vragen op 'nee' — en alle negen op basis van precies TWEE
+ * dit moment 9 vragen op 'nee', en alle negen op basis van precies TWEE
  * metingen. Uit 0 van 2 valt niet af te leiden dat een kans laag is; de
  * bovengrens van het betrouwbaarheidsinterval ligt daar rond de 66%.
  *
@@ -41,7 +41,7 @@
  * hij zelden iets oplevert: genoeg metingen én een bovengrens onder de drempel.
  * Niet zodra hij twee keer pech had.
  *
- * Bewust ZONDER `server-only`: pure rekenkunde, testbaar in een kaal script —
+ * Bewust ZONDER `server-only`: pure rekenkunde, testbaar in een kaal script,
  * zelfde patroon als `uncertainty.ts` en `question-share.ts`.
  */
 
@@ -72,7 +72,7 @@ export const MIN_SAMPLES_TO_SKIP = 8;
  * vallen.
  *
  * We toetsen de BOVENGRENS en niet de schatting zelf: bij 0 van 10 is de
- * puntschatting 0%, maar de bovengrens 28% — en een vraag die één op de vier
+ * puntschatting 0%, maar de bovengrens 28%, en een vraag die één op de vier
  * keer winbaar is, wil je niet kwijt. Pas rond 12 metingen zonder resultaat zakt
  * die bovengrens onder de 25%.
  */
@@ -129,9 +129,9 @@ export function maySkip(e: ElicitEvidence): boolean {
  * werken. Alleen de manier waarop hij tot stand komt verandert: niet meer "twee
  * keer nul op rij" maar "wat zeggen alle metingen samen".
  *
- *   'ja'       — er is minstens één keer een aanbieder genoemd
- *   'nee'      — genoeg metingen, en zelfs optimistisch geschat is de kans laag
- *   'onbekend' — te weinig metingen, of ertussenin
+ *   'ja': er is minstens één keer een aanbieder genoemd
+ *   'nee': genoeg metingen, en zelfs optimistisch geschat is de kans laag
+ *   'onbekend', te weinig metingen, of ertussenin
  */
 export function elicitLabel(e: ElicitEvidence): "ja" | "nee" | "onbekend" {
   if (e.samples < MIN_SAMPLES_FOR_LABEL) return "onbekend";

@@ -1,14 +1,22 @@
-# Aura — werkinstructie
+# Aura: werkinstructie
 
 **De app heet Aura.** GEO-tracking voor het MKB: meet hoe zichtbaar een merk is in AI-antwoorden
 (ChatGPT e.d.), adviseert, schrijft content, publiceert en meet het effect. Nederlands is de taal
 van de app, de AI-prompts, de code-commentaren en deze documentatie.
 
-**Alle UI-copy volgt `docs/schrijfstijl.md`** — de tone-of-voice van InSpace Nova, vertaald naar
-Aura. Kort samengevat: je/jij, korte stellende zinnen, Aura als handelend onderwerp ("Aura leest je
-website uit", niet "de website wordt uitgelezen"), en het space-thema uitsluitend in namen en
+**Alle UI-copy volgt `docs/schrijfstijl.md`**: de tone-of-voice van InSpace Nova, vertaald naar
+Aura. Kort samengevat: je en jij, korte stellende zinnen, Aura als handelend onderwerp ("Aura leest
+je website uit", niet "de website wordt uitgelezen"), en het space-thema uitsluitend in namen en
 sfeer-labels, nooit in knoppen, foutmeldingen of instructies. Raadpleeg dat document bij elke
 tekstwijziging, net zoals `docs/designsystem.md` leidend is voor de vormgeving.
+
+**⚠️ Geen gedachtestreepjes (`—`, `–`) en geen schuine streep tussen woorden ("en/of").** Dit geldt
+overal: UI-copy, promptteksten, code-commentaar en documentatie. Het zijn de twee leestekens waaraan
+een lezer AI-tekst herkent, en voor een product dat content schrijft die de klant publiceert is dat
+een productfout, geen smaakkwestie. Gebruik een komma, een dubbele punt, of splits de zin.
+Richtlijn 10 in `docs/schrijfstijl.md` heeft de volledige regel, de drie functionele uitzonderingen
+en twee `grep`-commando's om het vóór een commit te controleren. Regel 9 van de schrijfprompt in
+`lib/pipeline/content.ts` legt hetzelfde op aan het model.
 
 **Het product is sales-led, niet self-serve** (besloten 3 augustus 2026, naar het model van
 InSpace Nova). De eigenaar zet als consultant het merkprofiel klaar vóór een demogesprek, de
@@ -23,7 +31,7 @@ worden: de profielpagina is een demo-scherm dat gedeeld wordt, geen formulier. Z
 
 Claude heeft volledige lees- en schrijfrechten op **Vercel** en **Supabase** (via de MCP-tools:
 `apply_migration`, `execute_sql`, deployments, logs, env-variabelen, etc.) om zelfstandig door te
-kunnen ontwikkelen — geen aparte toestemming nodig per migratie, deploy-check of query. De
+kunnen ontwikkelen. Geen aparte toestemming nodig per migratie, deploy-check of query. De
 bestaande regels blijven wel gelden: migraties additief/idempotent (nooit `drop`), nooit
 rechtstreeks schrijven vanaf de client, en bij een echt onomkeerbare actie (data verwijderen,
 een branch/project weggooien) eerst expliciet afstemmen.
@@ -36,13 +44,13 @@ een branch/project weggooien) eerst expliciet afstemmen.
 | Styling | Tailwind v4 (`@theme inline`), tokens in `app/globals.css`, Geist Sans + JetBrains Mono |
 | Data & auth | Supabase (Postgres, Auth, RLS, pg_cron) |
 | Hosting | Vercel |
-| LLM | OpenAI GPT-5.6, drie tiers vast in code (`lib/openai/models.ts`) — géén env-variabele |
+| LLM | OpenAI GPT-5.6, drie tiers vast in code (`lib/openai/models.ts`), géén env-variabele |
 | Validatie | Zod (`lib/schemas/`) |
 | Mail | Resend (standaard uit, `EMAILS_ENABLED`) |
 
-Modeltiers (sinds augustus 2026 de GPT-5.6-familie): `gpt-5.6-luna` voor `volume` én `quality` —
-classificatie, research, de meting zelf — en `gpt-5.6-sol`, het duurste model dat OpenAI levert,
-uitsluitend voor het schrijven/herschrijven van content. Volume en quality wijzen naar hetzelfde
+Modeltiers (sinds augustus 2026 de GPT-5.6-familie): `gpt-5.6-luna` doet `volume` én `quality`,
+dus classificatie, research en de meting zelf. `gpt-5.6-sol`, het duurste model dat OpenAI levert,
+gaat uitsluitend over het schrijven en herschrijven van content. Volume en quality wijzen naar hetzelfde
 model; het verschil zit nu in de **redeneerinspanning per soort werk** (`lib/openai/sampling.ts`):
 `none` bij classificeren en promptgeneratie, `low` bij onderzoek/rapport, `medium` bij content.
 
@@ -56,10 +64,10 @@ zet `structured.ts` hem voor de rest van het proces uit in plaats van de taak te
 ```bash
 npm run dev              # localhost:3000
 npm run build            # productiebuild
-npx tsc --noEmit         # typecheck — moet schoon zijn
+npx tsc --noEmit         # typecheck, moet schoon zijn
 npm run test:unit        # 675 tests, pure functies, geen DB/API-key
 npm run test:chain       # 47 ketentests, echte handlers tegen echte Postgres, geen netwerk
-npm run test:openai      # rooktest — MAAKT ECHTE, BETAALDE CALLS
+npm run test:openai      # rooktest, MAAKT ECHTE BETAALDE CALLS
 npm run eval:mention     # accuratesse mention-classificatie (vereist API-key)
 ```
 
@@ -86,10 +94,10 @@ Deze zijn over acht bouwrondes consequent toegepast. Houd ze aan.
 2. **Rekenkunde hoort in een pure module, zonder `server-only`.** Alles wat de uitkomst bepaalt
    staat in een apart, importeerbaar bestand (`period-change.ts`, `evidence-format.ts`,
    `validate-claims.ts`, `position.ts`, `question-share.ts`, `content-gate.ts`,
-   `claim-extract.ts`) — anders is het niet te testen vanuit `scripts/test-unit.ts`.
+   `claim-extract.ts`). Anders is het niet te testen vanuit `scripts/test-unit.ts`.
 3. **Onbekend is een betere waarde dan een verkeerde.** Onbruikbare modeloutput wordt `null`,
    nooit 0 en nooit een gok.
-4. **Migraties zijn additief en idempotent** — nooit `drop`. Volledige regels en de index:
+4. **Migraties zijn additief en idempotent**, nooit `drop`. Volledige regels en de index:
    `supabase/README.md`.
 5. **Commentaar legt uit wáárom, met cijfers.** "bij Van der Valk was dat 17 van de 30 vragen".
    Dat is de huisstijl; nieuw commentaar volgt hem.
@@ -119,7 +127,7 @@ lib/entities/      merknaam-normalisatie en -matching
 lib/schemas/       Zod-contracten      lib/stats/  onzekerheidsmarges
 lib/audit/         robots.txt / AI-crawlertoegang + entiteitsconsistentie
 lib/offsite/       off-site aanwezigheid     lib/archive.ts  wat zichtbaar is in de app
-supabase/migrations/  0001–0044 (0033 gereserveerd, nooit gedraaid — vervangen door 0039)
+supabase/migrations/  0001–0044 (0033 gereserveerd, nooit gedraaid, vervangen door 0039)
 scripts/           test-unit · test-chain · test-openai · eval-mention
 ```
 
@@ -133,7 +141,7 @@ scripts/           test-unit · test-chain · test-openai · eval-mention
 | `docs/schrijfstijl.md` | Tone-of-voice en microcopy: de tien richtlijnen, de woordenlijst, en wat we bewust níet van Nova overnemen |
 | `docs/logbook.md` | Waarom het is zoals het is: beslissingen en bouwrondes, met de cijfers eronder |
 | `docs/tasks/roadmap.md` | Wat er nog open staat, op volgorde |
-| `APP_FLOW_DOCUMENTATION.md` | De keten end-to-end voor drie lezersgroepen: sales, developer, AI-specialist. Staat bewust in de hoofdmap — code verwijst ernaar |
+| `APP_FLOW_DOCUMENTATION.md` | De keten end-to-end voor drie lezersgroepen: sales, developer, AI-specialist. Staat bewust in de hoofdmap, code verwijst ernaar |
 | `supabase/README.md` | Migratie-index en toepasinstructies |
 
 **Verwijzingen in code naar oude documenten.** Code-commentaar en migraties verwijzen op ~500
@@ -149,7 +157,7 @@ van oude verwijzing naar nieuwe sectie. De originelen staan in de git-historie.
   traject zaten in die samenhang en geen enkele unittest kon ze vangen.
 - Verandert het gedrag, werk dan `docs/` bij in dezelfde commit.
 
-**Waar documentatie landt — houd dit aan, anders groeit `docs/` terug naar de oude wildgroei:**
+**Waar documentatie landt, houd dit aan, anders groeit `docs/` terug naar de oude wildgroei:**
 
 | Wat | Waarheen |
 |---|---|
@@ -159,7 +167,7 @@ van oude verwijzing naar nieuwe sectie. De originelen staan in de git-historie.
 | Gedrag van de code veranderd | `docs/architecture.md` of `docs/ux-design.md`, en de peildatum bijwerken |
 | Nieuwe migratie | `supabase/README.md` |
 
-Eén feit heeft één eigenaar. Staat het al ergens, verwijs dan — herhaal het niet.
+Eén feit heeft één eigenaar. Staat het al ergens, verwijs dan, herhaal het niet.
 - Kosten zijn een ontwerpvariabele: een meetronde is ~$0,82 (~95% zit in de meting zelf, waarvan
-  ~94% in `web_search`). Zet `MEASURE_WEB_SEARCH=false` om goedkoop te ontwikkelen — de meting is
+  ~94% in `web_search`). Zet `MEASURE_WEB_SEARCH=false` om goedkoop te ontwikkelen, de meting is
   dan niet representatief.

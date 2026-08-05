@@ -2,7 +2,7 @@ import "server-only";
 
 /**
  * Rapport-e-mail via Resend (abcplan.md §7 B2). Best-effort: staat de mail uit
- * of ontbreekt RESEND_API_KEY, dan wordt hij stil overgeslagen — dit mag de
+ * of ontbreekt RESEND_API_KEY, dan wordt hij stil overgeslagen. Dit mag de
  * statusovergang naar 'gereed' nooit blokkeren (de klant kan het rapport ook
  * gewoon in de app zien).
  */
@@ -21,7 +21,7 @@ function escapeHtml(s: string): string {
  *
  * Dit is waarvoor de klant de mail opent: niet "hier is weer een rapport" maar
  * "dit is er anders". Valt de verandering binnen de meetruis, dan staat dat er
- * ook — een pijltje omhoog bij een verschil dat statistisch niet bestaat, is
+ * ook, een pijltje omhoog bij een verschil dat statistisch niet bestaat, is
  * precies wat een rapportage ongeloofwaardig maakt.
  */
 function changeBlockHtml(change?: PeriodChange | null): string {
@@ -31,7 +31,7 @@ function changeBlockHtml(change?: PeriodChange | null): string {
   parts.push(
     change.scoreMeaningful
       ? `<p style="font-size: 15px;"><strong>${change.scoreDelta > 0 ? "+" : ""}${change.scoreDelta} punten</strong> sinds de vorige meting.</p>`
-      : `<p style="font-size: 15px;"><strong>Stabiel</strong> (${change.scoreDelta > 0 ? "+" : ""}${change.scoreDelta} punten — dat valt binnen de meetruis).</p>`,
+      : `<p style="font-size: 15px;"><strong>Stabiel</strong> (${change.scoreDelta > 0 ? "+" : ""}${change.scoreDelta} punten, en dat valt binnen de meetruis).</p>`,
   );
 
   if (change.won.length > 0) {
@@ -72,13 +72,13 @@ export async function sendReportEmail(
   // Laatste vangnet: ook als een aanroeper de schakelaar vergeet te checken,
   // gaat er hier niets de deur uit.
   if (!emailsEnabled()) {
-    console.log(`E-mail staat uit (EMAILS_ENABLED) — rapport-mail overgeslagen voor analyse ${analysis.id}.`);
+    console.log(`E-mail staat uit (EMAILS_ENABLED), rapport-mail overgeslagen voor analyse ${analysis.id}.`);
     return;
   }
 
   const apiKey = process.env.RESEND_API_KEY;
   if (!apiKey) {
-    console.log(`Resend niet geconfigureerd — rapport-mail overgeslagen voor analyse ${analysis.id}.`);
+    console.log(`Resend niet geconfigureerd, rapport-mail overgeslagen voor analyse ${analysis.id}.`);
     return;
   }
 

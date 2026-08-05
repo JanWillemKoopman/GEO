@@ -4,7 +4,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { getOwnedAnalysis } from "@/lib/analyses";
 
 /**
- * PATCH /api/analyses/[id]/topic-research — het onderwerp-onderzoek van déze
+ * PATCH /api/analyses/[id]/topic-research, het onderwerp-onderzoek van déze
  * analyse bewerken (contentSummary + concurrenten voor dit onderwerp). Geen
  * AI-call: pure CRUD, zet edited_by_user = true. Het bedrijfsbrede Brand DNA
  * zit in het klantprofiel en wordt bewerkt via /api/profiles/[id].

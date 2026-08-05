@@ -13,7 +13,7 @@ import { TrackingToggle } from "./tracking-toggle";
  *
  * Deze pagina deed tot nu toe twee dingen tegelijk: configuratie én de
  * verplichte goedkeuring van het concept. Die tweede rol is verhuisd naar een
- * eigen scherm (`/concept`) — een blokkerende stap in de gebruikersreis hoort
+ * eigen scherm (`/concept`), een blokkerende stap in de gebruikersreis hoort
  * niet vermomd te gaan als een configuratiescherm, want "Instellingen" betekent
  * in elke applicatie ter wereld "hier hoef je niet te zijn".
  *
@@ -25,7 +25,7 @@ export default async function InstellingenPage({ params }: { params: Promise<{ i
   const analysis = await getAnalysis(id);
   if (!analysis) notFound();
 
-  // Nog niet bevestigd? Dan hoort de klant op het conceptscherm te zijn — daar
+  // Nog niet bevestigd? Dan hoort de klant op het conceptscherm te zijn. Daar
   // staat dezelfde inhoud, mét de stap die de meting start.
   if (analysis.status === "concept_klaar") redirect(`/analyses/${id}/concept`);
 
@@ -53,8 +53,8 @@ export default async function InstellingenPage({ params }: { params: Promise<{ i
           <span className="font-medium">{analysis.topic}</span>
         </div>
         <p className="text-sm text-muted">
-          Website en onderwerp liggen na de start vast — anders is de trend niet meer te lezen. Een
-          andere afbakening? Start een nieuwe analyse.
+          Website en onderwerp liggen na de start vast, anders is de trend niet meer te lezen. Wil je
+          een andere afbakening? Start een nieuwe analyse.
         </p>
       </div>
 
@@ -69,7 +69,7 @@ export default async function InstellingenPage({ params }: { params: Promise<{ i
               </p>
               <p className="mt-0.5 text-sm text-muted">
                 {/* Deze lijst bepaalt sinds migratie 0026 NIET meer waar je tegen
-                    vergeleken wordt — dat komt uit de meting zelf. Hij dient nog
+                    vergeleken wordt. Dat komt uit de meting zelf. Hij dient nog
                     één doel: deze namen blijven uit de vragen, zodat we neutraal
                     meten. Vandaar het eerlijke label. */}
                 Deze merken blijven uit de vragen:{" "}

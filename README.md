@@ -12,8 +12,8 @@ en meet of dat gewerkt heeft.
 
 ## De keten
 
-**Merk aanmaken → meten → adviseren → content genereren → publiceren → effect bewijzen** —
-grotendeels automatisch via een achtergrondwachtrij. De klant hoeft geen browsertab open te houden.
+**Merk aanmaken → meten → adviseren → content genereren → publiceren → effect bewijzen.**
+Dat loopt grotendeels automatisch via een achtergrondwachtrij. De klant hoeft geen browsertab open te houden.
 
 Het begint met **drie velden**: webadres, bedrijfsnaam en eventuele andere schrijfwijzen. Daarna
 draait een onderzoekspijplijn van acht taken in ongeveer 7,5 minuut (~$0,25) die de site uitkamt,
@@ -37,7 +37,7 @@ doeltreffendheid**, niet op features of enterprise-diepgang.
 
 **Sales-led, niet self-serve.** Een consultant zet het merkprofiel klaar vóór een demogesprek en
 verkoopt op wat de pijplijn heeft gevonden; het uur consultancy dat erbij hoort gaat over
-strategie — welke onderwerpen commercieel tellen, en wat er speelt buiten de website om. Dat model
+strategie: welke onderwerpen commercieel tellen, en wat er speelt buiten de website om. Dat model
 is overgenomen van InSpace Nova; de prijs niet.
 
 Bewust **niet** gebouwd: white-label rapportages, 10+ LLM-engines tegelijk, keyword-research

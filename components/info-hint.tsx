@@ -6,12 +6,12 @@ import { useEffect, useId, useRef, useState } from "react";
  * Uitleg op de plek zelf (optimalisatie.md 2.10).
  *
  * Bij elk cijfer een klein vraagteken met twee zinnen: wat is dit, en hoe zeker
- * zijn we ervan. Bewust géén aparte helppagina — daar komt niemand, en een
+ * zijn we ervan. Bewust géén aparte helppagina. Daar komt niemand, en een
  * getal dat je moet opzoeken om te begrijpen is een getal dat je verkeerd
  * onthoudt.
  *
  * Het paneeltje sluit op Escape en op een klik ergens anders, en de knop houdt
- * het formaat van een echte tikdoel (44px) zodat hij op mobiel bruikbaar is —
+ * het formaat van een echte tikdoel (44px) zodat hij op mobiel bruikbaar is,
  * ook al ziet hij er klein uit.
  */
 export function InfoHint({ label, children }: { label: string; children: React.ReactNode }) {

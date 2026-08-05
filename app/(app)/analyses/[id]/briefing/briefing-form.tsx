@@ -11,7 +11,7 @@ import { useRouter } from "next/navigation";
  * Eén scherm, alles zichtbaar. Een wizard van acht stappen voelt als acht keer
  * werk; acht vragen onder elkaar met een voortgangsbalk voelt als één taak die
  * je ziet slinken. De klant moet bovendien kunnen zien wat hij nog te gaan heeft
- * vóórdat hij begint — dat is het verschil tussen "even doen" en "later".
+ * vóórdat hij begint. Dat is het verschil tussen "even doen" en "later".
  *
  * ── DE KNOP STAAT NOOIT UIT ─────────────────────────────────────────────────
  *
@@ -38,7 +38,7 @@ export interface BriefingQuestionView {
 }
 
 /**
- * Menselijke kopjes per vraagsoort. Niet "verificatie" maar "even bevestigen" —
+ * Menselijke kopjes per vraagsoort. Niet "verificatie" maar "even bevestigen",
  * de klant leest geen categorieënmodel, hij leest een vraag van zijn leverancier.
  */
 const KIND_HEADING: Record<string, { title: string; hint: string }> = {
@@ -52,7 +52,7 @@ const KIND_HEADING: Record<string, { title: string; hint: string }> = {
   },
   onderscheid: {
     title: "Waarom jij",
-    hint: "Dit is het antwoord dat geen enkele concurrent kan geven — en het meest waardevolle wat je hier invult.",
+    hint: "Dit is het antwoord dat geen enkele concurrent kan geven, en het meest waardevolle wat je hier invult.",
   },
   bewijs: {
     title: "Cijfers en voorbeelden",
@@ -60,7 +60,7 @@ const KIND_HEADING: Record<string, { title: string; hint: string }> = {
   },
   praktisch: {
     title: "Praktisch",
-    hint: "Adres, telefoon, links — zonder dit blijven er gaten in de pagina.",
+    hint: "Adres, telefoon, links. Zonder deze gegevens blijven er gaten in de pagina.",
   },
   grenzen: {
     title: "Wat Aura juist niet mag beweren",
@@ -89,7 +89,7 @@ export function BriefingForm({
         // Een al beantwoorde vraag begint gevuld; een nog open vraag met een
         // voorstel begint LEEG. Het voorstel staat ernaast als knop. Zou het
         // voorstel voorgevuld zijn, dan is "ja" de standaard en bevestigt de
-        // klant iets wat hij niet gelezen heeft — dan is de hele ronde theater.
+        // klant iets wat hij niet gelezen heeft. Dan is de hele ronde theater.
         { value: q.answer ?? "", skipped: q.status === "overgeslagen" },
       ]),
     ),
@@ -223,7 +223,7 @@ export function BriefingForm({
                     .join(", ")}
                 </strong>
                 {openVerplicht.length > 3 ? ` en nog ${openVerplicht.length - 3} punt(en)` : ""}. Dat
-                mag — er komt dan gewoon niets over te staan.
+                mag, er komt dan gewoon niets over te staan.
               </>
             ) : (
               <>
@@ -289,7 +289,7 @@ function QuestionCard({
           "nee" op de vraag of Bol een studentengids heeft (die bestaat), en
           "nee" op de vraag of Fysi-Unique een persoonlijk behandelplan vermeldt
           (de site zegt letterlijk "we stellen altijd een behandelplan op maat
-          samen"). Wie dat als "ons voorstel" leest, klikt het door — en dan
+          samen"). Wie dat als "ons voorstel" leest, klikt het door, en dan
           staat er een fout feit in de tekst mét de bevestiging van de klant
           eronder. Vandaar dat er nu bij staat waar het vandaan komt en dat het
           nagekeken moet worden. */}
@@ -300,10 +300,10 @@ function QuestionCard({
             className="btn-outline btn-sm w-fit"
             onClick={() => onChange(question.suggestedAnswer!)}
           >
-            Gok van Aura: {question.suggestedAnswer} — dit klopt
+            Gok van Aura: {question.suggestedAnswer}. Dit klopt
           </button>
           <span className="text-sm text-muted">
-            Een inschatting, geen gecontroleerd feit. Lees hem na voordat je hem bevestigt — een
+            Een inschatting, geen gecontroleerd feit. Lees hem na voordat je hem bevestigt, want een
             fout antwoord komt zo in je tekst terecht.
           </span>
         </div>
@@ -338,7 +338,7 @@ function QuestionCard({
  * Het invoerveld volgt het antwoordtype (contentbriefing.md §8).
  *
  * Ja/nee wordt een radiogroep, een bedrag een veld met €, een keuze een
- * radiogroep met de opties. Vrije tekst alleen als het echt niet anders kan —
+ * radiogroep met de opties. Vrije tekst alleen als het echt niet anders kan,
  * een open veld is de duurste vraag die je een klant kunt stellen.
  */
 function AnswerField({

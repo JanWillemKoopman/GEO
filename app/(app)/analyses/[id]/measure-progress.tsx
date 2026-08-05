@@ -23,7 +23,7 @@ interface StatusPayload {
  * Plant per actieve vraag een meettaak in en kijkt daarna toe. De overgang naar
  * het rapport gebeurt nu OP DE SERVER (optimalisatie.md 1.5): de laatste
  * meettaak plant de aggregatie in, die plant het rapport in. Dit scherm hoeft
- * daar niets voor te doen — vandaar dat de losse handoff naar ReportProgress
+ * daar niets voor te doen. Vandaar dat de losse handoff naar ReportProgress
  * verdwenen is. Sloot de klant hier de tab, dan werd het rapport voorheen pas
  * gemaakt als hij terugkwam.
  */
@@ -32,7 +32,7 @@ const STALE_FAILURE: UserFacingError = {
   title: "De meting is eerder vastgelopen",
   message:
     "Vragen die al gemeten zijn, blijven bewaard. Een nieuwe poging pakt alleen op " +
-    "wat nog mist — geen dubbel werk, geen dubbele kosten.",
+    "wat nog mist. Geen dubbel werk, geen dubbele kosten.",
   canRetry: true,
   detail: "",
 };
@@ -59,7 +59,7 @@ export function MeasureProgress({
         setProblem(problemFromResponse(json));
       }
     } catch {
-      /* netwerkfout bij inplannen — de polling leest de echte stand */
+      /* netwerkfout bij inplannen, de polling leest de echte stand */
     }
   }
 
@@ -99,7 +99,7 @@ export function MeasureProgress({
       explanation={
         writingReport
           ? "De meting is binnen. Aura zet je nu naast je concurrenten en schrijft daar het rapport over."
-          : "Elke vraag gaat naar een AI-assistent. Aura leest het antwoord en telt of jij erin staat — en wie er nog meer."
+          : "Elke vraag gaat naar een AI-assistent. Aura leest het antwoord en telt of jij erin staat, en wie er nog meer."
       }
       etaText={data?.etaText}
       retrying={data?.retrying}

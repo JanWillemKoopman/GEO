@@ -46,16 +46,16 @@ export function buildChangeBlock(change: PeriodChange | null, weekNo: number): s
     change.scoreMeaningful
       ? `Score: ${change.scoreDelta > 0 ? "+" : ""}${change.scoreDelta} punten. Dat is een ECHTE verandering ` +
         `(buiten de meetruis van ${change.scoreThreshold} punten).`
-      : `Score: ${change.scoreDelta > 0 ? "+" : ""}${change.scoreDelta} punten — dat valt BINNEN de meetruis ` +
+      : `Score: ${change.scoreDelta > 0 ? "+" : ""}${change.scoreDelta} punten. Dat valt BINNEN de meetruis ` +
         `(${change.scoreThreshold} punten nodig). Noem dit "stabiel" en trek er GEEN conclusies uit. ` +
         `Doen alsof een verschil binnen de ruis iets betekent, is de snelste manier om ongeloofwaardig te worden.`,
   ];
 
   if (change.won.length > 0) {
-    lines.push(`\nNIEUW GEWONNEN — hier word je nu wél genoemd:\n- ${change.won.join("\n- ")}`);
+    lines.push(`\nNIEUW GEWONNEN: hier word je nu wél genoemd:\n- ${change.won.join("\n- ")}`);
   }
   if (change.lost.length > 0) {
-    lines.push(`\nVERLOREN — hier werd je eerder genoemd en nu niet meer:\n- ${change.lost.join("\n- ")}`);
+    lines.push(`\nVERLOREN: hier werd je eerder genoemd en nu niet meer:\n- ${change.lost.join("\n- ")}`);
   }
   if (change.won.length === 0 && change.lost.length === 0) {
     lines.push(`\nOp vraagniveau is er niets omgeslagen: dezelfde vragen als vorige periode.`);
@@ -86,7 +86,7 @@ export function buildChangeBlock(change: PeriodChange | null, weekNo: number): s
  * Valt er genoeg te melden om een mail te sturen? (optimalisatie.md 6.7)
  *
  * Een mail die elke periode hetzelfde zegt, wordt na drie keer niet meer
- * geopend — en dan mist de klant ook de mail die er wél toe doet. Dus: alleen
+ * geopend, en dan mist de klant ook de mail die er wél toe doet. Dus: alleen
  * bij een echte scoreverandering, een omgeslagen vraag, of een concurrent die
  * merkbaar opgerukt is.
  */

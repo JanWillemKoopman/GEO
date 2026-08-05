@@ -6,7 +6,7 @@ import { isReachable } from "@/lib/crawler";
 import { enqueue, dedupe } from "@/lib/jobs/queue";
 
 /**
- * POST /api/profiles — nieuw klantprofiel aanmaken vanuit de onboarding-wizard
+ * POST /api/profiles, nieuw klantprofiel aanmaken vanuit de onboarding-wizard
  * (abcplan.md §12.24). De klant-ingevulde velden worden meteen weggeschreven
  * (klant leidend); daarna vult de AI-research-flow de rest aan. Schrijven loopt
  * via de service-role client MET expliciete ownership (user_id op de ingelogde user).
@@ -28,7 +28,7 @@ interface ProfileIntakeBody {
   /**
    * Klant heeft de "site onbereikbaar"-waarschuwing gezien en wil tóch door
    * (optimalisatie.md 0.12). Een site kan achter een firewall zitten of onze
-   * bot weren en toch prima bestaan — dat mag de klant niet blokkeren.
+   * bot weren en toch prima bestaan. Dat mag de klant niet blokkeren.
    */
   force?: boolean;
 }
@@ -69,7 +69,7 @@ export async function POST(request: Request) {
 
   // Bereikbaarheidscontrole (optimalisatie.md 0.12): liever nu ontdekken dat de
   // site niet te bereiken is dan minuten later via een mislukt profiel. Geen
-  // harde blokkade — de klant kan bevestigen en doorgaan met `force`.
+  // harde blokkade, de klant kan bevestigen en doorgaan met `force`.
   if (!body.force) {
     const reachable = await isReachable(url);
     if (!reachable) {
@@ -77,7 +77,7 @@ export async function POST(request: Request) {
         {
           error:
             `We konden ${url} niet bereiken. Controleer of het adres klopt en of de site ` +
-            `online is. Klopt het wel? Dan kun je gewoon doorgaan — sommige sites weren ` +
+            `online is. Klopt het wel? Dan kun je gewoon doorgaan, want sommige sites weren ` +
             `automatische bezoekers.`,
           field: "url",
           canForce: true,

@@ -2,7 +2,7 @@
  * Centrale, gevalideerde toegang tot omgevingsvariabelen.
  *
  * Server-only secrets (service-role, OpenAI, Resend) worden lazy gelezen zodat
- * het importeren van dit bestand in een client-component niet meteen crasht —
+ * het importeren van dit bestand in een client-component niet meteen crasht,
  * pas bij daadwerkelijk gebruik valideren we dat de variabele bestaat.
  *
  * Zie abcplan.md §5/§12.20: de service-role key mag NOOIT in de browser komen.
@@ -19,14 +19,14 @@ function required(name: string, value: string | undefined): string {
   return value;
 }
 
-/** Publieke Supabase-config — veilig in de browser. */
+/** Publieke Supabase-config, veilig in de browser. */
 export const publicEnv = {
   supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL ?? "",
   supabaseAnonKey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "",
   siteUrl: process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000",
 };
 
-/** Server-only secrets — lazy gevalideerd, nooit naar de client. */
+/** Server-only secrets, lazy gevalideerd, nooit naar de client. */
 export const serverEnv = {
   get supabaseUrl() {
     return required("NEXT_PUBLIC_SUPABASE_URL", process.env.NEXT_PUBLIC_SUPABASE_URL);
@@ -54,7 +54,7 @@ export const serverEnv = {
 /**
  * Hoofdschakelaar voor ALLE uitgaande e-mail (Resend).
  *
- * Standaard UIT. Tijdens het bouwen wil je geen echte mail versturen — en op een
+ * Standaard UIT. Tijdens het bouwen wil je geen echte mail versturen, en op een
  * gratis Resend-account is elk verstuurd bericht er één van een klein maandbudget.
  * Zet `EMAILS_ENABLED=true` (lokaal in `.env.local`, in productie in Vercel) om
  * ze weer aan te zetten; dan is ook `RESEND_API_KEY` nodig.
@@ -78,7 +78,7 @@ export function envStatus() {
     openaiApiKey: Boolean(process.env.OPENAI_API_KEY),
     resendApiKey: Boolean(process.env.RESEND_API_KEY),
     // Staat de mailfunctionaliteit überhaupt aan? Is dit false, dan doet een
-    // ontbrekende RESEND_API_KEY er niet toe — er wordt toch niets verstuurd.
+    // ontbrekende RESEND_API_KEY er niet toe, er wordt toch niets verstuurd.
     emailsEnabled: emailsEnabled(),
     cronSecret: Boolean(process.env.CRON_SECRET),
     models: MODELS, // vastgelegd in code (lib/openai/models.ts), geen env-variabele

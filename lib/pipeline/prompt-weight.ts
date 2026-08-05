@@ -36,7 +36,7 @@ const MIN_WEIGHT = 0.02;
 /**
  * Gewicht voor een meting waarvan het gewicht niet bevroren is (rijen van vóór
  * migratie 0010, of een handmatig toegevoegde prompt zonder tags). Dit is
- * bewust het NEUTRALE gewicht — band 'midden' (0,5) × waardefactor 0,6 — en niet
+ * bewust het NEUTRALE gewicht, band 'midden' (0,5) × waardefactor 0,6, en niet
  * de ondergrens: "onbekend" betekent gemiddeld, niet onbelangrijk. Voorheen
  * stond hier op drie plekken een losse `?? 0.1`, wat onbekende prompts ten
  * onrechte als de minst waardevolle behandelde.

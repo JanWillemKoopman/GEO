@@ -9,16 +9,16 @@ import type { ProfileTopic } from "@/lib/types/database";
 /**
  * Core topics beheren (docs/tasks/onboarding-2.0.md, blok D).
  *
- * PATCH — een topic bijstellen: goedkeuren, afwijzen, of de notitie uit het
+ * PATCH: een topic bijstellen: goedkeuren, afwijzen, of de notitie uit het
  * gesprek vastleggen.
- * POST  — een goedgekeurd topic omzetten in een echte analyse.
+ * POST: een goedgekeurd topic omzetten in een echte analyse.
  *
  * ── WAAROM POST DE BESTAANDE ANALYSEPIJPLIJN AANROEPT ───────────────────────
  *
  * Een goedgekeurd topic is niet meer dan een onderwerp met een onderbouwing. De
  * analyse die eruit volgt is exact dezelfde als wanneer de klant het onderwerp
  * zelf had ingetypt op /analyses/new: dezelfde tabellen, dezelfde taken,
- * dezelfde goedkeuringspoort. Deze route dupliceert dus niets — hij vult het
+ * dezelfde goedkeuringspoort. Deze route dupliceert dus niets, hij vult het
  * tekstveld in dat de klant anders zelf had gevuld.
  */
 
@@ -112,7 +112,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   const topic = topicRow as ProfileTopic;
 
   // Twee keer starten op hetzelfde topic levert twee analyses over dezelfde 30
-  // vragen op — dubbele meetkosten zonder extra inzicht.
+  // vragen op, dubbele meetkosten zonder extra inzicht.
   if (topic.analysis_id) {
     return NextResponse.json({ id: topic.analysis_id, existing: true });
   }

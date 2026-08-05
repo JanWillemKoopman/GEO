@@ -1,7 +1,7 @@
 /**
  * Concurrentnamen uit een AI-antwoord halen (optimalisatie.md 4.3).
  *
- * Het winnende antwoord — dat waarin de concurrent wél genoemd werd — is de
+ * Het winnende antwoord. Dat waarin de concurrent wél genoemd werd, is de
  * beste context die de schrijver kan krijgen: dít geeft de AI nu, en jouw pagina
  * moet de informatie bevatten die hier ontbreekt. Maar de harde regel uit de
  * schrijfinstructie is dat er NOOIT een concurrent bij naam op de pagina van de
@@ -9,7 +9,7 @@
  * naam vroeg of laat overnemen.
  *
  * Dus vervangen we de namen door een neutrale aanduiding vóórdat de tekst
- * meegaat. De informatie blijft — wat er inhoudelijk goed aan was — de naam niet.
+ * meegaat. De informatie blijft, wat er inhoudelijk goed aan was, de naam niet.
  *
  * Bewust ZONDER `server-only`: pure tekstbewerking, testbaar in een kaal script.
  */
@@ -40,7 +40,7 @@ const RUN_OF_PLACEHOLDERS = new RegExp(
  *
  * Leunt op dezelfde matcher als de tekstmarkering (lib/highlight.ts): langste
  * naam eerst, woordgrenzen op letters/cijfers in plaats van `\b`. Dat laatste
- * doet er hier extra toe — met `\b` zou "Bol.com" als "Bol" + ".com" behandeld
+ * doet er hier extra toe, met `\b` zou "Bol.com" als "Bol" + ".com" behandeld
  * worden en bleef er "een andere aanbieder.com" staan.
  */
 export function redactCompetitors(text: string, names: string[]): string {
@@ -54,7 +54,7 @@ export function redactCompetitors(text: string, names: string[]): string {
     // Rijtjes eerst inklappen, anders blijft "X, X en X" staan.
     .replace(RUN_OF_PLACEHOLDERS, PLACEHOLDER_PLURAL)
     // Wat er van de interpunctie scheef komt te staan rechttrekken. Geen
-    // sluitende oplossing — dat zou een zinsparser vragen — maar het haalt de
+    // sluitende oplossing. Dat zou een zinsparser vragen, maar het haalt de
     // lelijkste gevallen eruit.
     .replace(/\s+([,.;:])/g, "$1")
     .replace(/\s{2,}/g, " ")

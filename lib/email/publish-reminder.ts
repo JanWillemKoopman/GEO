@@ -4,7 +4,7 @@ import "server-only";
  * Eén vriendelijke herinnering bij klaarliggende content (optimalisatie.md 5.8).
  *
  * Ligt er langer dan een week een pagina klaar zonder gepubliceerd te zijn, dan
- * is dát het punt waar het spaak loopt — niet het schrijven. Meer content
+ * is dát het punt waar het spaak loopt, niet het schrijven. Meer content
  * aanbieden helpt dan niet; even vragen of er iets in de weg zit wel.
  *
  * ÉÉN KEER. Een app die blijft herinneren wordt een app die je wegklikt, en
@@ -27,13 +27,13 @@ export async function sendPublishReminder(
   // Laatste vangnet: ook als een aanroeper de schakelaar vergeet te checken,
   // gaat er hier niets de deur uit.
   if (!emailsEnabled()) {
-    console.log(`E-mail staat uit (EMAILS_ENABLED) — herinnering overgeslagen voor analyse ${analysis.id}.`);
+    console.log(`E-mail staat uit (EMAILS_ENABLED), herinnering overgeslagen voor analyse ${analysis.id}.`);
     return;
   }
 
   const apiKey = process.env.RESEND_API_KEY;
   if (!apiKey) {
-    console.log(`Resend niet geconfigureerd — herinnering overgeslagen voor analyse ${analysis.id}.`);
+    console.log(`Resend niet geconfigureerd, herinnering overgeslagen voor analyse ${analysis.id}.`);
     return;
   }
 
@@ -54,7 +54,7 @@ export async function sendPublishReminder(
       <p>
         Loop je ergens tegenaan? De meeste mensen blijven hangen op waar de pagina precies moet
         staan, of op de gestructureerde data. Bij elke pagina in je bibliotheek staat een
-        stappenplan — en je mag ons altijd mailen als het niet lukt.
+        stappenplan, en je mag ons altijd mailen als het niet lukt.
       </p>
       <p style="margin-top: 24px;">
         <a href="${libraryUrl}" style="color: #8511D9;">Naar je bibliotheek in Aura →</a>

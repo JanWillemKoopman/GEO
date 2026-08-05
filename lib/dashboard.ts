@@ -12,7 +12,7 @@ import "server-only";
  * af. Het is een dunne bovenlaag: het werk komt uit `loadWorkAcross()`, hier
  * komen alleen de cijfers bij die je pas over analyses heen kunt berekenen.
  * Zo kan het dashboard niet meer iets anders zeggen dan het dossier zegt over
- * hetzelfde item — dat waren voorheen twee losse waarheden.
+ * hetzelfde item. Dat waren voorheen twee losse waarheden.
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { changeIsMeaningful } from "@/lib/stats/uncertainty";
@@ -25,7 +25,7 @@ type Db = SupabaseClient;
 /**
  * De vier kerncijfers per analyse op het kaartje in "Mijn analyses" (abcplan.md
  * §3.4, herzien): zichtbaarheidsscore, openstaande vragen, voorgestelde en
- * geschreven pagina's — plus het aantal metingen dat eraan ten grondslag ligt.
+ * geschreven pagina's, plus het aantal metingen dat eraan ten grondslag ligt.
  * `null` betekent "nog niet meetbaar", niet "nul".
  */
 export interface AnalysisCardMetrics {
@@ -38,7 +38,7 @@ export interface AnalysisCardMetrics {
 
 export interface DashboardData {
   analyses: Analysis[];
-  /** Al het werk, over alle analyses heen — hetzelfde model als in het dossier. */
+  /** Al het werk, over alle analyses heen, hetzelfde model als in het dossier. */
   work: WorkItem[];
   stats: {
     /** Pagina's die deze maand live zijn gegaan. */
@@ -122,7 +122,7 @@ export async function loadDashboard(db: Db, userId: string): Promise<DashboardDa
 }
 
 /**
- * Per analyse de vier kaartcijfers + het aantal metingen — dezelfde bronnen als
+ * Per analyse de vier kaartcijfers + het aantal metingen, dezelfde bronnen als
  * hoofdstuk 03 van het dossier (`lib/work.ts`), maar dan de laatste stand in
  * plaats van de losse werkpunten, zodat het kaartje nooit iets anders beweert
  * dan de analyse zelf verderop laat zien.
@@ -143,7 +143,7 @@ function buildCardMetrics(
     scoresByAnalysis.set(s.analysis_id, [...(scoresByAnalysis.get(s.analysis_id) ?? []), s]);
   }
 
-  // Laatste rapport per analyse — eerdere aanbevelingen zijn achterhaald zodra
+  // Laatste rapport per analyse, eerdere aanbevelingen zijn achterhaald zodra
   // er opnieuw gemeten is (zie ook `_chapters/werk.tsx`).
   const latestReportByAnalysis = new Map<string, (typeof reports)[number]>();
   for (const r of reports) {
@@ -155,7 +155,7 @@ function buildCardMetrics(
 
   for (const id of ids) {
     const ownPieces = piecesByAnalysis.get(id) ?? [];
-    // 'briefing' heeft nog geen tekst — pas daarna telt een pagina als geschreven
+    // 'briefing' heeft nog geen tekst, pas daarna telt een pagina als geschreven
     // (zie lib/jobs/content-jobs.ts, planContentDraft).
     const writtenArticles = ownPieces.filter((p) => p.status !== "briefing").length;
 
@@ -170,7 +170,7 @@ function buildCardMetrics(
     let openQuestions: number | null = null;
     if (latest && latest.winnable_runs != null) {
       // score = % van de winnable_runs waarin het merk genoemd wordt (ongewogen,
-      // zie VisibilityScore.score) — omgekeerd terug te rekenen naar een telling
+      // zie VisibilityScore.score), omgekeerd terug te rekenen naar een telling
       // zonder een aparte query op tracking_run_mentions nodig te hebben.
       const mentioned = Math.round((latest.score / 100) * latest.winnable_runs);
       openQuestions = Math.max(0, latest.winnable_runs - mentioned);

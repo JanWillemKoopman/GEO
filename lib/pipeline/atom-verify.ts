@@ -3,7 +3,7 @@
  *
  * ── WAAROM DIT EEN EIGEN BESTAND IS ─────────────────────────────────────────
  *
- * `fact-atomise.ts` doet de AI-aanroep en is dus `server-only` — niet te
+ * `fact-atomise.ts` doet de AI-aanroep en is dus `server-only`, niet te
  * importeren vanuit `scripts/test-unit.ts`. Deze controle bepaalt wélke feiten er
  * op de kaart belanden en is daarmee precies het soort logica dat volgens
  * werkafspraak 2 in een importeerbaar bestand hoort, samen met `position.ts`,
@@ -14,7 +14,7 @@
  * De atomiseerprompt zegt "neem de zin letterlijk over". Dat is een intentie.
  * Deze functie is de garantie: een teruggegeven zin moet na normalisatie in de
  * brontekst voorkomen, anders valt hij weg. Zonder die controle zou een
- * samengevatte of gladgestreken zin een F-nummer krijgen — en dan is de
+ * samengevatte of gladgestreken zin een F-nummer krijgen, en dan is de
  * citaatplicht (`isSupported`) uitgehold op precies de plek waar hij het hardst
  * nodig is. Onbekend is beter dan verkeerd: liever een kortere kaart.
  */
@@ -24,7 +24,7 @@ import type { CandidatePage } from "@/lib/pipeline/page-relevance";
 /**
  * Bovengrens aan wat er van deze stap op de kaart belandt.
  *
- * Niet uit kostenoverweging — die zit in de aanroep, niet in het aantal zinnen —
+ * Niet uit kostenoverweging. Die zit in de aanroep, niet in het aantal zinnen,
  * maar omdat de feitenkaart leesbaar moet blijven voor het schrijfmodel. Met de
  * proof points erbij komt een kaart zo op ongeveer 30 feiten. Dat is een
  * hanteerbare gesloten lijst; bij honderd verliest "de enige toegestane bron"
@@ -36,7 +36,7 @@ export const MAX_ATOMS = 25;
 const MIN_SENTENCE_CHARS = 25;
 
 /**
- * Langere zijn een alinea die als "zin" verkocht wordt — precies het alibi
+ * Langere zijn een alinea die als "zin" verkocht wordt. Precies het alibi
  * waarop de eerste briefingronde strandde (6 van de 7 beweringen wezen naar
  * hetzelfde blok van 400 tekens, dus nul vragen aan de klant).
  */
@@ -46,10 +46,10 @@ const MAX_SENTENCE_CHARS = 300;
  * Houdt alleen de zinnen over die ECHT in de brontekst staan.
  *
  * Wat er afvalt, en waarom:
- *   • te kort  — losse woorden en menu-items zijn geen feit
- *   • te lang  — een alinea die als zin wordt aangeboden is het oude alibi terug
- *   • niet in de brontekst — samengevat of gladgestreken, dus niet na te trekken
- *   • dubbel   — dezelfde zin uit twee pagina's levert twee F-nummers voor één
+ *   • te kort , losse woorden en menu-items zijn geen feit
+ *   • te lang , een alinea die als zin wordt aangeboden is het oude alibi terug
+ *   • niet in de brontekst, samengevat of gladgestreken, dus niet na te trekken
+ *   • dubbel: dezelfde zin uit twee pagina's levert twee F-nummers voor één
  *                feit op, en dan is de traceerbaarheid weg
  */
 export function verifyAtoms(
@@ -68,7 +68,7 @@ export function verifyAtoms(
     if (genormaliseerd.length < 12) continue;
 
     // Staat de zin echt op de pagina die het model aanwijst? Zo niet, dan
-    // proberen we de andere pagina's nog — een verkeerd paginanummer is een
+    // proberen we de andere pagina's nog, een verkeerd paginanummer is een
     // slordigheid, een verzonnen zin is een fout. Alleen het tweede is fataal.
     const aangewezen = Math.round(atom.pageIndex) - 1;
     let bron =

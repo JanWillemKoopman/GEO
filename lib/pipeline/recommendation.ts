@@ -5,7 +5,7 @@
  * Dit is bewust een eigen type en niet het Zod-schema uit `schemas/report.ts`.
  * Het model geeft vraagCODES terug (V1, V2, …); vóór opslag lossen we die op
  * naar echte `prompt_id`/`tracking_run_id`-verwijzingen. Wat er in de database
- * belandt is dus rijker dan wat het model teruggaf — en het rapportscherm, de
+ * belandt is dus rijker dan wat het model teruggaf, en het rapportscherm, de
  * generatieroute en de schrijfpijplijn lezen allemaal dezelfde vorm, zodat die
  * drie niet uit elkaar kunnen lopen.
  *
@@ -17,7 +17,7 @@ import type { ContentAction, ContentType } from "@/lib/types/database";
 /** Eén gemiste vraag die deze pagina moet gaan winnen. */
 export interface RecommendationTarget {
   promptId: string | null;
-  /** De meting die aantoont dát de vraag gemist werd — het bewijs. */
+  /** De meting die aantoont dát de vraag gemist werd, het bewijs. */
   runId: string | null;
   text: string;
   cluster: string | null;
@@ -34,7 +34,7 @@ export interface StoredRecommendation {
   existingUrl: string | null;
   /**
    * Opgelost uit de vraagcodes. Leeg betekent dat het model geen enkele vraag
-   * aanwees of alleen onbekende codes noemde — dan valt de schrijver terug op
+   * aanwees of alleen onbekende codes noemde. Dan valt de schrijver terug op
    * het oude gedrag (thematische inspiratie), wat minder goed is maar niet stuk.
    */
   targets: RecommendationTarget[];
@@ -65,7 +65,7 @@ export interface CodedMissedPrompt {
 /**
  * Zet de vraagcodes van het model om in echte verwijzingen (optimalisatie.md 4.1).
  *
- * Onbekende codes worden stil weggegooid — een model dat "V23" verzint terwijl
+ * Onbekende codes worden stil weggegooid, een model dat "V23" verzint terwijl
  * er twaalf gemiste vragen zijn, mag geen kapotte koppeling opleveren. Wijst een
  * aanbeveling nergens naar, dan blijft `targets` leeg en valt de schrijver terug
  * op het oude gedrag: minder goed, maar niet stuk.

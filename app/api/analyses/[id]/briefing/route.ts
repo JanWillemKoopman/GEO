@@ -9,7 +9,7 @@ import type { RecommendationPayload } from "@/lib/jobs/types";
 import type { ContentAction, ContentType } from "@/lib/types/database";
 
 /**
- * POST /api/analyses/[id]/briefing — antwoorden opslaan en (optioneel) het
+ * POST /api/analyses/[id]/briefing, antwoorden opslaan en (optioneel) het
  * schrijven starten (contentbriefing.md §6/§8/§10, implementatieplan.md R5.2).
  *
  * ── DE ROUTE MAG WEINIG, EN DAT IS HET PUNT ─────────────────────────────────
@@ -18,14 +18,14 @@ import type { ContentAction, ContentType } from "@/lib/types/database";
  * `claim_key` of `fact_ref` (contentbriefing.md §10). De vraag zelf is door de
  * claim-audit bepaald op basis van wat de pagina nodig heeft; als de client die
  * kon herschrijven, zou de klant een antwoord kunnen geven op een andere vraag
- * dan de kaart straks aanhaalt — en dan verwijst een F-nummer naar iets anders
+ * dan de kaart straks aanhaalt, en dan verwijst een F-nummer naar iets anders
  * dan er in de tekst staat. Precies de traceerbaarheid die R5 moet opleveren.
  *
  * ── ER IS ALTIJD EEN UITWEG ─────────────────────────────────────────────────
  *
  * `action: "write"` werkt ook met openstaande vragen. De klant kan altijd door
  * (README.md §2); wat hij overslaat kost hem geen pagina maar een passage. Die
- * consequentie wordt bij het schrijven afgedwongen (R5.3), niet hier — hier
+ * consequentie wordt bij het schrijven afgedwongen (R5.3), niet hier, hier
  * wordt alleen vastgelegd dat hij de vraag bewust liet liggen.
  */
 
@@ -66,7 +66,7 @@ function recommendationFor(piece: {
   if (bevroren) return bevroren;
 
   // Terugval voor pagina's van vóór R5.1 of een briefing die halverwege
-  // strandde. Levert een pagina zonder doelvragen op — minder goed, niet kapot.
+  // strandde. Levert een pagina zonder doelvragen op, minder goed, niet kapot.
   return {
     title: piece.title,
     type: piece.type as ContentType,
@@ -105,7 +105,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     //
     // Elke vraag wordt eerst gecontroleerd op eigenaarschap. De id's komen van
     // de client, en zonder deze controle zou iemand met een geldige sessie een
-    // vraag van een ánder profiel kunnen beantwoorden — de reden dat alle
+    // vraag van een ánder profiel kunnen beantwoorden, de reden dat alle
     // schrijfacties via een route met service role én expliciete
     // eigenaarscontrole lopen in plaats van via RLS (abcplan.md §5).
     let opgeslagen = 0;
@@ -126,7 +126,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 
         // Drie toestanden, geen twee. 'overgeslagen' is iets anders dan 'open':
         // de klant heeft de vraag gezien en bewust laten liggen. Dat betekent
-        // dat de bewering vervalt — en dat we hem niet bij elke volgende batch
+        // dat de bewering vervalt, en dat we hem niet bij elke volgende batch
         // opnieuw moeten stellen.
         const status = antwoord.skip ? "overgeslagen" : tekst ? "beantwoord" : "open";
 

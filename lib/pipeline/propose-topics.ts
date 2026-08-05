@@ -7,7 +7,7 @@ import "server-only";
  *
  * Een analyse begon met een leeg tekstveld waarin de klant een onderwerp typte
  * ("wasmachines", "herenkapsel"). Dat legt de moeilijkste vraag van het hele
- * product bij de persoon die er het minst over nagedacht heeft — en het is
+ * product bij de persoon die er het minst over nagedacht heeft, en het is
  * precies de stap die InSpace door een strateeg laat doen ("map 5 to 8 core
  * topics"). Met de aanbodboom uit fase 1 kan die lijst automatisch.
  *
@@ -67,7 +67,7 @@ export async function proposeTopics(profileId: string): Promise<TopicResult> {
   const profile = row as Profile;
 
   // Idempotent vóór de aanroep (conventie 9). Staan er al voorstellen, dan niets
-  // opnieuw doen — ook niet als de klant er intussen een paar heeft afgewezen.
+  // opnieuw doen, ook niet als de klant er intussen een paar heeft afgewezen.
   // Opnieuw voorstellen zou zijn keuzes overschrijven.
   const { count: existing } = await admin
     .from("profile_topics")
@@ -81,8 +81,8 @@ export async function proposeTopics(profileId: string): Promise<TopicResult> {
   ]);
 
   // Wat de klant in het gesprek als gestopt opgaf, hoort niet in de voorstellen
-  // (blok C). De crawl vindt zo'n dienst nog wel — hij staat vaak nog maanden
-  // op de site — dus zonder deze filter stelt de app een analyse voor op iets
+  // (blok C). De crawl vindt zo'n dienst nog wel, hij staat vaak nog maanden
+  // op de site, dus zonder deze filter stelt de app een analyse voor op iets
   // wat het bedrijf niet meer levert.
   const gestopt = discontinuedNames(
     parseContextFactors((strategyRow as { context_factors?: unknown } | null)?.context_factors),
@@ -95,7 +95,7 @@ export async function proposeTopics(profileId: string): Promise<TopicResult> {
   if (offerings.length === 0) {
     // Zonder aanbodboom zou dit een model zijn dat onderwerpen verzint op basis
     // van een branchenaam. Dat levert generieke topics op die precies niet over
-    // deze klant gaan — en de klant kan altijd nog zelf een onderwerp intypen.
+    // deze klant gaan, en de klant kan altijd nog zelf een onderwerp intypen.
     return { proposed: 0, costUsd: 0 };
   }
 
@@ -105,7 +105,7 @@ export async function proposeTopics(profileId: string): Promise<TopicResult> {
       const parent = o.parent_id ? byId.get(o.parent_id) : null;
       const pad = parent ? `${parent.name} › ${o.name}` : o.name;
       const extra = [o.audience, o.price_indication].filter(Boolean).join(", ");
-      return `- [${o.kind}] ${pad}${o.description ? ` — ${o.description}` : ""}${extra ? ` (${extra})` : ""}`;
+      return `- [${o.kind}] ${pad}${o.description ? `: ${o.description}` : ""}${extra ? ` (${extra})` : ""}`;
     })
     .join("\n");
 
@@ -119,12 +119,12 @@ export async function proposeTopics(profileId: string): Promise<TopicResult> {
     `- Te breed ("fysiotherapie", "witgoed"): dan meet je een hele markt en zegt de uitslag niets ` +
     `over dit bedrijf.\n` +
     `- Te smal ("dry needling bij frozen shoulder"): daar stelt niemand een vraag over.\n` +
-    `- Goed: het niveau waarop iemand met een probleem zoekt — "hardloopblessure behandelen", ` +
+    `- Goed: het niveau waarop iemand met een probleem zoekt, zoals "hardloopblessure behandelen", ` +
     `"wasmachine kopen", "bruiloftsfotograaf inhuren".\n\n` +
     `REGELS:\n` +
     `1. Elk onderwerp moet aantoonbaar uit het AANBOD hieronder volgen. Zet in 'offerings' de ` +
     `namen die je gebruikt hebt, LETTERLIJK zoals ze in de lijst staan.\n` +
-    `2. Geen merknamen in de titel — niet die van dit bedrijf en niet die van een ander.\n` +
+    `2. Geen merknamen in de titel, niet die van dit bedrijf en niet die van een ander.\n` +
     `3. Geen twee onderwerpen die op hetzelfde neerkomen. Liever vijf scherpe dan acht vage.\n` +
     `4. Schrijf de onderbouwing voor een ondernemer, zonder vaktermen. Zeg wat het oplevert, niet ` +
     `wat het is.\n` +
@@ -150,20 +150,20 @@ export async function proposeTopics(profileId: string): Promise<TopicResult> {
 
   // ── Vangnet (conventie 1) ────────────────────────────────────────────────
   // Ontdubbelen op kleine letters, want de unieke index in migratie 0040 doet
-  // dat ook — zonder deze filter zou één dubbel voorstel de hele batch-insert
+  // dat ook. Zonder deze filter zou één dubbel voorstel de hele batch-insert
   // laten mislukken en de klant nul topics opleveren.
   const gezien = new Set<string>();
 
   // ⚠️ ZOWEL DE NAAM ALS HET PAD (3 aug 2026)
   //
   // De aanbodlijst hierboven toont elke knoop als "Ouder › Kind", en regel 1
-  // vraagt de namen LETTERLIJK over te nemen. Het model doet dat dus ook — het
-  // gaf "Specialismen › Sportfysiotherapie" terug — terwijl deze koppeling
+  // vraagt de namen LETTERLIJK over te nemen. Het model doet dat dus ook, het
+  // gaf "Specialismen › Sportfysiotherapie" terug, terwijl deze koppeling
   // alleen op `o.name` zocht. Uitkomst bij Fysi-Unique: acht topics, nul
   // verwijzingen naar het aanbod waar ze uit volgden, en dus een onderbouwing
   // die op het scherm nergens naar terug te klikken is.
   const byLabel = new Map<string, string>();
-  // Van hetzelfde label naar de KALE naam van de knoop — "Specialismen ›
+  // Van hetzelfde label naar de KALE naam van de knoop, "Specialismen ›
   // Sportfysiotherapie" wordt "Sportfysiotherapie". Dat is wat er in
   // `offering_names` hoort: een naam die een herbouw van de boom overleeft.
   const byName = new Map<string, string>();
@@ -207,7 +207,7 @@ export async function proposeTopics(profileId: string): Promise<TopicResult> {
       ],
       // De NAMEN erbij (migratie 0043). Een herhaalronde gooit de AI-knopen weg
       // en bouwt ze opnieuw op met nieuwe id's; zonder deze kolom wijzen de
-      // offering_ids daarna naar rijen die niet meer bestaan — stil, want een
+      // offering_ids daarna naar rijen die niet meer bestaan, stil, want een
       // uuid[] kan geen foreign key hebben. `buildOfferingTree()` herstelt de
       // koppeling hierop.
       offering_names: [

@@ -108,7 +108,7 @@ export default async function ProfilePage({
       .eq("profile_id", id)
       .in("status", ["open", "beantwoord"])
       .order("created_at"),
-    // De core topics (blok D): afgeleid uit de aanbodboom, handmatig aan/uit.
+    // De core topics (blok D): afgeleid uit de aanbodboom, handmatig aan of uit.
     supabase
       .from("profile_topics")
       .select("*")
@@ -126,7 +126,7 @@ export default async function ProfilePage({
       .select("*")
       .eq("profile_id", id)
       .maybeSingle(),
-    // De aanbodboom uit fase 1 — met bron per knoop, zodat een verkeerde dienst
+    // De aanbodboom uit fase 1, met bron per knoop, zodat een verkeerde dienst
     // te corrigeren is zonder handmatig uit te zoeken waar hij vandaan kwam.
     supabase
       .from("profile_offerings")
@@ -199,7 +199,7 @@ export default async function ProfilePage({
   };
 
   // De enige primaire actie op dit scherm. Het hoogst geprioriteerde
-  // openstaande onderwerp is concreter dan "start een analyse" — de klant leest
+  // openstaande onderwerp is concreter dan "start een analyse", de klant leest
   // waar hij op gaat meten in plaats van wat de knop technisch doet.
   const topics = (topicRows ?? []) as ProfileTopic[];
   const volgendeTopic = topics
@@ -241,7 +241,7 @@ export default async function ProfilePage({
       {/* ── 2. Het verhaal, in de volgorde van de demo ─────────────────────
           Eerst wat we vonden, dan wat er mist, dan wat we gaan doen. De
           gespreksagenda (ProfileGaps) stond hier ooit op plek 3, vóór alle
-          opbrengst — dat is precies de inspanning vóór de waarde, en dus het
+          opbrengst. Dat is precies de inspanning vóór de waarde, en dus het
           omgekeerde van wat `ux-design.md` bijlage A9 voorschrijft. */}
       {dossier && (
         <ProfileSection id="dossier" title="Het dossier">
@@ -325,7 +325,7 @@ export default async function ProfilePage({
               <span className="mono-label">Technische controle · loopt</span>
               <p className="text-secondary">
                 Aura controleert nog of AI-assistenten je site mogen lezen. De
-                uitslag staat hier zodra dat klaar is — jij hoeft niets te doen.
+                uitslag staat hier zodra dat klaar is. Jij hoeft niets te doen.
               </p>
             </div>
           )}
@@ -347,7 +347,7 @@ export default async function ProfilePage({
       </ProfileSection>
 
       {/* ── 5. Beheer ──────────────────────────────────────────────────────
-          Toewijzen stond op plek 4, tussen de bevindingen — op een scherm dat
+          Toewijzen stond op plek 4, tussen de bevindingen, op een scherm dat
           de consultant deelt terwijl de klant meekijkt naar de knop waarmee hij
           wordt overgedragen. Het is bovendien een handeling van ná het gesprek,
           niet tijdens. Dus onderaan, en alleen voor beheerders. */}

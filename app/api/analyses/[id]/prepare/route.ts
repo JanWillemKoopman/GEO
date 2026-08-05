@@ -6,11 +6,11 @@ import { enqueue, dedupe } from "@/lib/jobs/queue";
 import { describeError, classifyError } from "@/lib/errors";
 
 /**
- * POST /api/analyses/[id]/prepare — plant het voorbereidingswerk in
+ * POST /api/analyses/[id]/prepare, plant het voorbereidingswerk in
  * (optimalisatie.md 1.4).
  *
  * Voert niets meer zelf uit: de route zet een taak in de wachtrij en antwoordt
- * direct. Dat is wat de belofte "je kunt dit scherm sluiten" waarmaakt — het
+ * direct. Dat is wat de belofte "je kunt dit scherm sluiten" waarmaakt, het
  * werk hangt niet meer aan een openstaande browsertab. Dubbel inplannen kan
  * niet: de dedupe-sleutel laat maar één openstaande taak per analyse toe.
  */

@@ -11,7 +11,7 @@ import { enqueue, dedupe } from "@/lib/jobs/queue";
  *
  * In het gesprek blijkt geregeld dat de site net vernieuwd is, of dat er sinds
  * de crawl diensten bij zijn gekomen. Zonder deze knop is het antwoord daarop
- * "maak een nieuw merk aan" — en dan ben je alle correcties, topics en de
+ * "maak een nieuw merk aan", en dan ben je alle correcties, topics en de
  * kennisbasislijn kwijt.
  *
  * ── WAT ER BLIJFT STAAN, EN WAAROM ──────────────────────────────────────────
@@ -31,7 +31,7 @@ import { enqueue, dedupe } from "@/lib/jobs/queue";
  *
  * ── EN WAT ER WÉL OPNIEUW GEBEURT ───────────────────────────────────────────
  *
- * De crawl, de facetten en het merkonderzoek. Samen ~$0,10 — de dure stappen
+ * De crawl, de facetten en het merkonderzoek. Samen ~$0,10, de dure stappen
  * (kennistest) blijven buiten schot, dus deze knop is goedkoop genoeg om te
  * gebruiken wanneer het nodig is.
  */
@@ -69,7 +69,7 @@ export async function POST(
     .eq("profile_id", id)
     .eq("source", "ai");
 
-  // Status terug op 'bezig', anders slaat `prepareProfile()` zichzelf over —
+  // Status terug op 'bezig', anders slaat `prepareProfile()` zichzelf over,
   // die controleert bovenaan of het profiel al klaar is.
   await admin.from("profiles").update({ status: "bezig" }).eq("id", id);
 
@@ -78,7 +78,7 @@ export async function POST(
     payload: {},
     profileId: id,
     // Zonder de datum in de sleutel zou een tweede ronde als duplicaat gelden
-    // van de eerste — de partiële dedupe-index kijkt alleen naar queued/running,
+    // van de eerste, de partiële dedupe-index kijkt alleen naar queued/running,
     // maar een afgeronde taak met dezelfde sleutel maakt de bedoeling onnavolgbaar.
     dedupeKey: `${dedupe.profileDiscover(id)}:${Date.now()}`,
   });

@@ -16,7 +16,7 @@ interface StatusPayload {
   etaText: string | null;
   /**
    * Dezelfde stappen die `ResearchStepsStrip` verderop toont. Ze stonden er al
-   * in de payload en werden hier niet gebruikt — het wachten was daardoor twee
+   * in de payload en werden hier niet gebruikt, het wachten was daardoor twee
    * verschillende ervaringen achter elkaar: eerst een generiek scherm van een
    * minuut, dan een stappenlijst. Nu één lijst die gewoon doorloopt.
    */
@@ -24,7 +24,7 @@ interface StatusPayload {
 }
 
 /**
- * Voortgang van het profielonderzoek. Plant het werk in en kijkt toe — zelfde
+ * Voortgang van het profielonderzoek. Plant het werk in en kijkt toe, zelfde
  * patroon als prepare-progress (optimalisatie.md 1.7).
  *
  * Dit is de zwaarste enkele taak in het systeem (sitemap-crawl van tot 150
@@ -36,7 +36,7 @@ const STALE_FAILURE: UserFacingError = {
   title: "Het onderzoek is eerder vastgelopen",
   message:
     "Meestal is dat een tijdelijke storing, of een website die Aura niet " +
-    "binnenliet. Probeer het opnieuw — je gegevens blijven staan.",
+    "binnenliet. Probeer het opnieuw, je gegevens blijven staan.",
   canRetry: true,
   detail: "",
 };
@@ -63,7 +63,7 @@ export function ProfileProgress({
         setProblem(problemFromResponse(json));
       }
     } catch {
-      /* netwerkfout bij inplannen — de polling leest de echte stand */
+      /* netwerkfout bij inplannen, de polling leest de echte stand */
     }
   }
 
@@ -95,7 +95,7 @@ export function ProfileProgress({
       title="Aura leert je merk kennen"
       explanation="Aura leest je website, brengt in kaart welke pagina's er staan, en zoekt uit wat je aanbiedt en wie je concurrenten zijn. Voordat het één woord schrijft, weet het wie je bent."
       steps={(data?.steps ?? []).map((s) => ({
-        label: s.result ? `${s.label} — ${s.result}` : s.label,
+        label: s.result ? `${s.label}: ${s.result}` : s.label,
         done: s.state === "klaar" || s.state === "overgeslagen",
       }))}
       etaText={data?.etaText}

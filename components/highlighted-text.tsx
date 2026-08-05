@@ -4,13 +4,13 @@
  * Merknamen markeren in een AI-antwoord (optimalisatie.md 3.1).
  *
  * Zonder markering is een antwoord van 400 woorden een muur waarin de klant zelf
- * moet zoeken waar hij staat — en dat is precies het werk dat de app hoort te
+ * moet zoeken waar hij staat, en dat is precies het werk dat de app hoort te
  * doen. Met markering ziet hij in één oogopslag: hier staat mijn concurrent drie
  * keer, en ik nergens.
  *
  * Het knipwerk zit in lib/highlight.ts (testbaar zonder React); dit component
  * doet alleen de opmaak, en zet de stukjes als echte React-elementen neer in
- * plaats van via `dangerouslySetInnerHTML` — de tekst komt van een AI-model dat
+ * plaats van via `dangerouslySetInnerHTML`, de tekst komt van een AI-model dat
  * webpagina's las, dus daar mag nooit HTML uit in de DOM belanden.
  */
 import { splitByTerms } from "@/lib/highlight";

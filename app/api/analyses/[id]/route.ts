@@ -4,10 +4,10 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { getOwnedAnalysis } from "@/lib/analyses";
 
 /**
- * PATCH /api/analyses/[id] — analyse-instellingen bewerken. Alleen de
- * content-brief (§6/§7/§8): de gewenste hoek/doelgroep van de content. `url` en
+ * PATCH /api/analyses/[id], analyse-instellingen bewerken. Alleen de
+ * content-brief (§6/§7/§8): de gewenste hoek en doelgroep van de content. `url` en
  * `topic` blijven bewust gelockt (die maken bij wijziging het onderzoek en de
- * prompts met terugwerkende kracht ongeldig — zie §3.3). Geen AI-call.
+ * prompts met terugwerkende kracht ongeldig, zie §3.3). Geen AI-call.
  */
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;

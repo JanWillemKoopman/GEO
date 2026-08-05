@@ -4,7 +4,7 @@ import "server-only";
  * Publiceren vastleggen (optimalisatie.md 5.1/5.2).
  *
  * De statuswaarde `published` bestond al sinds de eerste migratie en werd
- * nergens gezet — er was geen enkele manier om te zeggen "deze staat live". En
+ * nergens gezet, er was geen enkele manier om te zeggen "deze staat live". En
  * daarmee ook geen manier om te weten of er ooit iets met de content gebeurde,
  * laat staan of het werkte.
  */
@@ -25,7 +25,7 @@ export interface PublishResult {
  * Markeert een pagina als gepubliceerd en zet de vervolgstappen klaar.
  *
  * De CONTROLE draait bewust als aparte taak en niet hier: die haalt een externe
- * pagina op, en dat mag de klant niet laten wachten op een formulier — laat
+ * pagina op, en dat mag de klant niet laten wachten op een formulier, laat
  * staan dat een trage website zijn publicatie zou laten mislukken. Hij krijgt
  * meteen bevestiging; de uitslag van de controle verschijnt even later.
  */
@@ -74,7 +74,7 @@ export async function markPublished(
  * (pagina onbereikbaar, tekst niet gevonden), dan is dat GEEN mislukte taak
  * maar een bevinding: hij wordt opgeslagen en aan de klant getoond. Een taak die
  * faalt zou opnieuw geprobeerd worden en uiteindelijk de analyse op 'mislukt'
- * zetten — voor een typefout in een URL is dat een absurde uitkomst.
+ * zetten, voor een typefout in een URL is dat een absurde uitkomst.
  */
 export async function verifyPublication(admin: Admin, contentPieceId: string): Promise<PublishCheck | null> {
   const { data } = await admin
@@ -103,7 +103,7 @@ export async function verifyPublication(admin: Admin, contentPieceId: string): P
   return check;
 }
 
-/** Publicatie terugdraaien — de klant heeft zich vergist of de pagina is offline. */
+/** Publicatie terugdraaien, de klant heeft zich vergist of de pagina is offline. */
 export async function markUnpublished(
   admin: Admin,
   args: { analysisId: string; contentPieceId: string },
@@ -121,7 +121,7 @@ export async function markUnpublished(
     .eq("analysis_id", args.analysisId);
 
   // De geplande hermetingen weghalen: meten wat een pagina doet die er niet
-  // staat, is geld uitgeven aan ruis. Alleen wat nog niet gedraaid heeft —
+  // staat, is geld uitgeven aan ruis. Alleen wat nog niet gedraaid heeft,
   // metingen die er al zijn, blijven staan als historie.
   await admin
     .from("jobs")

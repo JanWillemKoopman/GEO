@@ -8,7 +8,7 @@ import "server-only";
  *
  * Elke voorgaande fase kijkt naar één ding: de crawl naar de HTML, het aanbod
  * naar de dienstenpagina's, de kennistest naar wat een assistent zegt. Deze stap
- * is de enige die ze naast elkaar legt — en die uitkomst werkt door in élke
+ * is de enige die ze naast elkaar legt, en die uitkomst werkt door in élke
  * latere analyse van deze klant.
  *
  * `gpt-5.6-sol` kost hier ~$0,49 van een plafond van $2,15. Achter
@@ -17,7 +17,7 @@ import "server-only";
  *
  * ── WAAR DE INVESTERING TERUGKOMT ───────────────────────────────────────────
  *
- * Niet in het dossier — dat is leesvoer. In `brand_facts`. De contentbriefing
+ * Niet in het dossier. Dat is leesvoer. In `brand_facts`. De contentbriefing
  * stelt tot acht vragen aan de klant omdat de feitenkaart leeg is; elk feit dat
  * hier al uit de site komt, is een vraag die hij niet hoeft te beantwoorden.
  * Dat is de meetlat die in het plan staat.
@@ -27,7 +27,7 @@ import "server-only";
  * Een feit met een citaat dat niet LETTERLIJK op de opgegeven pagina staat,
  * vervalt. Zelfde regel als `verifyAtoms()` en `verifyDossierFacts()`: een
  * promptinstructie is een intentie, code is een garantie (conventie 1). Deze
- * feiten gaan straks ongefilterd een contentpagina in die de klant publiceert —
+ * feiten gaan straks ongefilterd een contentpagina in die de klant publiceert,
  * dit is niet de plek om het model op zijn woord te geloven.
  */
 import { callStructured } from "@/lib/openai/structured";
@@ -130,12 +130,12 @@ export async function synthesiseProfile(
     `bedrijf is verzameld: de sitestructuur, het aanbod, het merkonderzoek en wat AI-assistenten ` +
     `er al over zeggen.\n\n` +
     `LEVER DRIE DINGEN:\n\n` +
-    `1. DOSSIER — vier tot acht zinnen, voor een ondernemer zonder vakjargon. Wat doet dit ` +
+    `1. DOSSIER: vier tot acht zinnen, voor een ondernemer zonder vakjargon. Wat doet dit ` +
     `bedrijf, voor wie, wat onderscheidt het, en waar staat het nu.\n\n` +
-    `2. GAPS — wat je NIET kon vaststellen maar wel had willen weten. Dit wordt de agenda van ` +
+    `2. GAPS: wat je NIET kon vaststellen maar wel had willen weten. Dit wordt de agenda van ` +
     `het gesprek met de klant, dus concreet en in dertig seconden te beantwoorden. Niet "meer ` +
     `over de doelgroep" maar "hoeveel behandelkamers zijn er?".\n\n` +
-    `3. FACTS — citeerbare feiten over dit bedrijf: aantallen, jaartallen, termijnen, garanties, ` +
+    `3. FACTS: citeerbare feiten over dit bedrijf: aantallen, jaartallen, termijnen, garanties, ` +
     `specialisaties, keurmerken. HARDE REGELS:\n` +
     `   - Elk feit heeft een sourceUrl uit de meegegeven pagina's en een quote die LETTERLIJK, ` +
     `teken voor teken, in de tekst van díe pagina staat. Dit wordt nagelopen; wat niet klopt ` +
@@ -153,7 +153,7 @@ export async function synthesiseProfile(
     .slice(0, 60)
     .map(
       (o) =>
-        `- [${o.kind}] ${o.name}${o.description ? ` — ${o.description}` : ""}`,
+        `- [${o.kind}] ${o.name}${o.description ? `: ${o.description}` : ""}`,
     )
     .join("\n");
 
@@ -200,7 +200,7 @@ export async function synthesiseProfile(
   const verworpen = parsed.facts.length - geldig.length;
   if (verworpen > 0) {
     console.info(
-      `Profiel ${profileId}: ${verworpen} van de ${parsed.facts.length} feiten vervallen — ` +
+      `Profiel ${profileId}: ${verworpen} van de ${parsed.facts.length} feiten vervallen, ` +
         `het citaat stond niet letterlijk op de opgegeven pagina.`,
     );
   }
@@ -244,7 +244,7 @@ export async function synthesiseProfile(
  *
  * Bewust niet via `syncBrandFacts()`: die is gebouwd voor de contentbriefing en
  * eist een `analysisId` om onderwerp-specifieke feiten aan te hangen. De
- * synthese kent geen analyse — alles wat hier uitkomt geldt voor het hele merk.
+ * synthese kent geen analyse, alles wat hier uitkomt geldt voor het hele merk.
  * Die API daarvoor buigen zou hem voor beide gevallen minder duidelijk maken.
  *
  * Wél dezelfde ontdubbelsleutel (`claimKey()`), zodat een feit dat later ook uit
@@ -317,7 +317,7 @@ function buildPageBlock(
   const blokken: string[] = [];
   let totaal = 0;
   for (const p of bruikbaar) {
-    const blok = `--- ${p.url as string}${p.title ? ` — ${p.title as string}` : ""}\n${p.text_excerpt as string}`;
+    const blok = `--- ${p.url as string}${p.title ? ` · ${p.title as string}` : ""}\n${p.text_excerpt as string}`;
     if (totaal + blok.length > MAX_PAGE_CHARS) break;
     blokken.push(blok);
     totaal += blok.length;

@@ -6,7 +6,7 @@ import "server-only";
  *
  * Wordt elke minuut door een cron aangeroepen. Draait binnen de tijdslimiet van
  * één route-aanroep, dus hij werkt met een TIJDBUDGET: zolang er tijd over is
- * pakt hij een volgende taak, en anders stopt hij netjes — de volgende aanroep
+ * pakt hij een volgende taak, en anders stopt hij netjes, de volgende aanroep
  * gaat verder. Zo is er geen enkele taak die "te lang" kan zijn voor het systeem
  * als geheel, alleen taken die te lang zijn voor één aanroep (en die bestaan
  * niet meer sinds meting per prompt en content in twee stappen gaan).
@@ -20,7 +20,7 @@ import type { Job } from "@/lib/types/database";
 
 /**
  * Hoeveel wandkloktijd de werker zichzelf gunt. Instelbaar omdat de tijdslimiet
- * per platform en abonnement verschilt — zie workerTimeBudgetMs in lib/config.ts.
+ * per platform en abonnement verschilt, zie workerTimeBudgetMs in lib/config.ts.
  * Ruim onder de limiet van de route blijven: een taak die als 'running' blijft
  * staan omdat het platform de functie afkapte, wordt pas door de reaper
  * teruggezet.
@@ -48,7 +48,7 @@ const HEAVY_JOB_RESERVE_MS = 220_000;
  * taken hadden een reservering, de lichte niet: de lus keek alleen of het budget
  * nog niet op wás, niet of het volgende werk er nog in past. Een ronde van vijf
  * metingen die op t = 239s geclaimd werd, liep dus door tot ver voorbij de 300
- * seconden die het platform de route geeft — en werd hard afgekapt, met vijf
+ * seconden die het platform de route geeft, en werd hard afgekapt, met vijf
  * taken die op 'running' bleven staan tot de reaper ze vijf minuten later
  * terugzette.
  *
@@ -59,13 +59,13 @@ const LIGHT_JOB_RESERVE_MS = 115_000;
 
 /**
  * Hoeveel taken we per ronde claimen. Lichte taken (een meting is vooral
- * wachten op een netwerkantwoord) draaien PARALLEL binnen zo'n ronde — anders
+ * wachten op een netwerkantwoord) draaien PARALLEL binnen zo'n ronde. Anders
  * zou één werker met een budget van 40s per minuut maar ~3 vragen aankunnen en
  * duurde een meting van 30 vragen meer dan tien minuten. Met parallelle
  * uitvoering is dat een paar minuten.
  *
  * Vijf tegelijk is ruim onder wat de meting vóór deze fase deed (alle prompts
- * tegelijk), dus rate-limits zijn geen zorg — en de OpenAI-client vangt een
+ * tegelijk), dus rate-limits zijn geen zorg, en de OpenAI-client vangt een
  * incidentele 429 zelf al op.
  */
 const CLAIM_BATCH = 5;
@@ -75,7 +75,7 @@ const CLAIM_BATCH = 5;
  *
  * De route waarin de werker draait wordt door het platform na 60 seconden
  * afgekapt (`maxDuration` in app/api/cron/worker/route.ts). Een taak die daarna
- * nog steeds op 'running' staat, drááít dus niet meer — die hoort bij een
+ * nog steeds op 'running' staat, drááít dus niet meer. Die hoort bij een
  * aanroep die halverwege is doodgeslagen. Vijf minuten is ruim een factor vijf
  * boven die harde grens (veilig), maar half zo lang als de tien minuten die
  * hier eerst stonden: zo lang staat de klant naar een voortgangsscherm te
@@ -87,7 +87,7 @@ const STUCK_AFTER_MINUTES = 5;
  * Taken waarvan het definitief mislukken betekent dat de ANALYSE (of het
  * profiel) mislukt is. Contentgeneratie hoort daar bewust niet bij: die draait
  * ná het rapport en raakt de analysestatus niet. De technische audit evenmin:
- * een site die net plat lag mag niet het hele profiel op 'mislukt' zetten — dan
+ * een site die net plat lag mag niet het hele profiel op 'mislukt' zetten. Dan
  * is de klant zijn onderzoek kwijt om een controle die hooguit een waarschuwing
  * had opgeleverd.
  */
@@ -127,7 +127,7 @@ export async function runWorker(): Promise<WorkerResult> {
   out.reclaimed = typeof reclaimed === "number" ? reclaimed : 0;
 
   // Claim alleen zolang de traagste taak die we terug kunnen krijgen er nog
-  // helemaal in past — zie LIGHT_JOB_RESERVE_MS. De eerste ronde mag altijd:
+  // helemaal in past, zie LIGHT_JOB_RESERVE_MS. De eerste ronde mag altijd:
   // anders zou een werker met een krap ingesteld budget nooit iets doen.
   let eersteRonde = true;
   while (eersteRonde || Date.now() - startedAt + LIGHT_JOB_RESERVE_MS <= TIME_BUDGET_MS) {
@@ -151,7 +151,7 @@ export async function runWorker(): Promise<WorkerResult> {
     // duur en levert niets op.
     for (const job of heavy) {
       // Past deze taak nog volledig binnen het budget? Zo niet: terugleggen. De
-      // uitzondering is een lege ronde — dan is dit de eerste taak van deze
+      // uitzondering is een lege ronde. Dan is dit de eerste taak van deze
       // aanroep en heeft hij de volle tijd, dus dan altijd beginnen. Zonder die
       // uitzondering zou een taak die langer duurt dan het budget nóóit starten.
       if (Date.now() - startedAt + HEAVY_JOB_RESERVE_MS > TIME_BUDGET_MS && out.processed > 0) {
@@ -253,7 +253,7 @@ async function handleFailure(
 }
 
 /**
- * Pas als een taak DEFINITIEF mislukt is, ziet de klant 'mislukt' — niet bij de
+ * Pas als een taak DEFINITIEF mislukt is, ziet de klant 'mislukt', niet bij de
  * eerste tegenslag. Dat is het hele punt van de wachtrij: tijdelijke storingen
  * worden onzichtbaar afgehandeld.
  *
@@ -265,7 +265,7 @@ async function markOwnerFailed(
   job: Job,
 ): Promise<void> {
   // Alleen taken die de analyse zélf blokkeren. Een mislukte contentpagina is
-  // vervelend, maar de analyse blijft gewoon 'gereed' — die op 'mislukt' zetten
+  // vervelend, maar de analyse blijft gewoon 'gereed'. Die op 'mislukt' zetten
   // zou de klant z'n rapport en score afpakken om een pagina die niet lukte.
   if (!BLOCKING_JOB_TYPES.has(job.type as JobType)) return;
 

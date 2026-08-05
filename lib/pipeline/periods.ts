@@ -8,7 +8,7 @@ import "server-only";
  * De periodekiezer zat vast aan het rapport-tabblad (`?periode=`) en gold
  * alleen daar. Het tabblad ernaast toonde ondertussen gewoon de nieuwste score.
  * Je kon dus een rapport van april lezen terwijl de score van juli ernaast
- * stond, zonder dat iets dat aangaf — twee periodes tegelijk op één analyse.
+ * stond, zonder dat iets dat aangaf. Twee periodes tegelijk op één analyse.
  *
  * In het dossier is de periode een eigenschap van de hele pagina. Alle
  * hoofdstukken lezen hem hier, zodat ze niet uit elkaar kunnen lopen.
@@ -19,7 +19,7 @@ type Db = SupabaseClient;
 
 export interface PeriodOption {
   weekNo: number;
-  /** "Nulmeting" of een korte datum — wat de klant op de knop ziet. */
+  /** "Nulmeting" of een korte datum, wat de klant op de knop ziet. */
   label: string;
   measuredAt: string;
 }
@@ -47,7 +47,7 @@ export async function loadPeriods(db: Db, analysisId: string): Promise<PeriodOpt
 }
 
 /**
- * Welke periode tonen we? De gevraagde, als die bestaat — anders de nieuwste.
+ * Welke periode tonen we? De gevraagde, als die bestaat. Anders de nieuwste.
  *
  * Een link uit een oude mail naar een periode die niet meer bestaat mag geen
  * leeg scherm opleveren; hij valt terug op het actuele beeld.

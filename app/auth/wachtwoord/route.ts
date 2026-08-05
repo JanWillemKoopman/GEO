@@ -9,13 +9,13 @@ import { createClient } from "@/lib/supabase/server";
  *
  * De link bevat een eenmalige code die tegen een sessie ingewisseld moet worden,
  * en dat inwisselen schrijft een cookie. Een Server Component MAG geen cookies
- * zetten in Next 15 — `cookieStore.set()` faalt daar stil (zie de try/catch in
+ * zetten in Next 15, `cookieStore.set()` faalt daar stil (zie de try/catch in
  * lib/supabase/server.ts). Het formulier zou dan gewoon verschijnen, de klant
  * zou een nieuw wachtwoord intypen, en pas bij het opslaan zou blijken dat er
  * nooit een sessie was.
  *
  * Een route handler mag het wel. Die wisselt de code in, en stuurt daarna door
- * naar het formulier — dat dan een echte sessie heeft.
+ * naar het formulier. Dat dan een echte sessie heeft.
  *
  * ── TWEE VORMEN, WANT SUPABASE HEEFT ER TWEE ────────────────────────────────
  *
@@ -42,7 +42,7 @@ export async function GET(request: Request) {
   }
 
   // Verlopen, al gebruikt, of een link zonder code. Terug naar het
-  // aanvraagformulier met uitleg — niet naar een leeg wachtwoordscherm dat pas
+  // aanvraagformulier met uitleg, niet naar een leeg wachtwoordscherm dat pas
   // bij het opslaan vertelt dat het niet gaat werken.
   return NextResponse.redirect(new URL("/wachtwoord-vergeten?verlopen=1", url.origin));
 }

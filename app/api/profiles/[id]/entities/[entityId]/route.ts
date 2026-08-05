@@ -7,13 +7,13 @@ import { ENTITY_ROLES } from "@/lib/schemas/entity-classification";
 import type { Entity } from "@/lib/types/database";
 
 /**
- * PATCH/DELETE /api/profiles/[id]/entities/[entityId] — één concurrent beheren
+ * PATCH/DELETE /api/profiles/[id]/entities/[entityId], één concurrent beheren
  * (optimalisatie.md 2.7). Geen AI-call.
  *
  * PATCH kent drie dingen, die elkaar niet uitsluiten:
- *   • `canonical_name`  — anders schrijven (de weergavenaam)
- *   • `confirmed` / `dismissed` — meetellen in het aandeel, of wegzetten
- *   • `mergeIntoId`     — "dit is dezelfde als…": deze entiteit gaat op in een
+ *   • `canonical_name`: anders schrijven (de weergavenaam)
+ *   • `confirmed` / `dismissed`, meetellen in het aandeel, of wegzetten
+ *   • `mergeIntoId`: "dit is dezelfde als…": deze entiteit gaat op in een
  *                         andere en verdwijnt
  */
 type Admin = ReturnType<typeof createAdminClient>;
@@ -40,7 +40,7 @@ async function loadOwnedEntity(
  *
  * De volgorde is niet vrijblijvend. Eerst de vermeldingen omhangen, dán pas de
  * bronrij verwijderen: andersom zou de foreign key ze op null zetten
- * (`on delete set null`) en waren de metingen hun entiteit kwijt — precies de
+ * (`on delete set null`) en waren de metingen hun entiteit kwijt. Precies de
  * data die de klant probeerde op te ruimen.
  */
 async function mergeEntities(admin: Admin, source: Entity, target: Entity) {
@@ -96,7 +96,7 @@ export async function PATCH(
     update.canonical_name = name;
 
     // De genormaliseerde vorm meeveranderen zou de koppeling met eerdere
-    // metingen kunnen breken, dus die blijft staan — de oude vorm gaat als alias
+    // metingen kunnen breken, dus die blijft staan, de oude vorm gaat als alias
     // mee zodat toekomstige metingen op beide schrijfwijzen aanhaken.
     const normalized = normalizeEntityName(name);
     if (normalized && normalized !== entity.normalized) {
@@ -106,7 +106,7 @@ export async function PATCH(
 
   // Rol handmatig zetten (migratie 0026). Zodra de klant zelf iets kiest, gaat
   // role_source op 'handmatig' en laat de automatische classificatie deze
-  // entiteit voorgoed met rust — anders zou de volgende aggregatie de correctie
+  // entiteit voorgoed met rust. Anders zou de volgende aggregatie de correctie
   // van de klant terugdraaien.
   if (typeof body.entity_role === "string") {
     if (!(ENTITY_ROLES as readonly string[]).includes(body.entity_role)) {
@@ -130,7 +130,7 @@ export async function PATCH(
     update.confirmed = body.confirmed;
     // Bevestigen en weggezet-zijn spreken elkaar tegen; bevestigen wint.
     if (body.confirmed) update.dismissed = false;
-    // Bevestigen betekent "dit is een concurrent van mij" — een handmatig
+    // Bevestigen betekent "dit is een concurrent van mij", een handmatig
     // oordeel dat de classificatie niet mag overrulen.
     if (body.confirmed && typeof body.entity_role !== "string") {
       update.entity_role = "concurrent";
@@ -167,7 +167,7 @@ export async function PATCH(
  * Definitief verwijderen. Bewust NIET de standaardactie in de UI: wie een merk
  * weghaalt dat de meting daarna opnieuw tegenkomt, krijgt hem gewoon terug als
  * onbevestigde nieuwkomer. "Geen concurrent van mij" (dismissed) onthoudt de
- * keuze wél — vandaar dat dat in het scherm de prominente knop is.
+ * keuze wél. Vandaar dat dat in het scherm de prominente knop is.
  */
 export async function DELETE(
   _request: Request,

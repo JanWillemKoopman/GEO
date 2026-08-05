@@ -7,7 +7,7 @@ import { DossierBox } from "./dossier-box";
 import type { Persona, Profile } from "@/lib/types/database";
 
 /**
- * Bewerkbaar klantprofiel — zelfde CRUD-mechaniek als de vroegere
+ * Bewerkbaar klantprofiel, zelfde CRUD-mechaniek als de vroegere
  * BrandDnaEditor, nu op profielniveau (eenmalig per merk i.p.v. per analyse).
  */
 export function ProfileEditor({ initial, inventoryCount }: { initial: Profile; inventoryCount: number }) {
@@ -111,7 +111,7 @@ export function ProfileEditor({ initial, inventoryCount }: { initial: Profile; i
           />
         </label>
         <div className="flex flex-col gap-1.5">
-          <span className="mono-label">Andere namen / schrijfwijzen (aliassen)</span>
+          <span className="mono-label">Andere namen en schrijfwijzen</span>
           <TagListEditor
             items={profile.aliases}
             onChange={(aliases) => setProfile((p) => ({ ...p, aliases }))}
@@ -145,10 +145,10 @@ export function ProfileEditor({ initial, inventoryCount }: { initial: Profile; i
             }
           >
             <option value="">Nog niet bepaald</option>
-            <option value="dienstverlener">Dienstverlener — eigen mensen leveren de dienst</option>
-            <option value="retailer">Retailer — verkoopt producten van andere merken</option>
-            <option value="platform">Platform — brengt vraag en aanbod van derden samen</option>
-            <option value="fabrikant">Fabrikant — maakt en verkoopt eigen producten</option>
+            <option value="dienstverlener">Dienstverlener: eigen mensen leveren de dienst</option>
+            <option value="retailer">Retailer: verkoopt producten van andere merken</option>
+            <option value="platform">Platform: brengt vraag en aanbod van derden samen</option>
+            <option value="fabrikant">Fabrikant: maakt en verkoopt eigen producten</option>
             <option value="overig">Overig</option>
           </select>
           <span className="text-sm text-muted">
@@ -221,7 +221,7 @@ export function ProfileEditor({ initial, inventoryCount }: { initial: Profile; i
             value={profile.service_scope ?? ""}
             onChange={(e) => setProfile((p) => ({ ...p, service_scope: e.target.value || null }))}
           >
-            <option value="">— Onbekend —</option>
+            <option value="">Onbekend</option>
             <option value="lokaal">Lokaal</option>
             <option value="landelijk">Landelijk</option>
             <option value="internationaal">Internationaal</option>
@@ -232,7 +232,7 @@ export function ProfileEditor({ initial, inventoryCount }: { initial: Profile; i
           <TagListEditor
             items={profile.service_regions}
             onChange={(service_regions) => setProfile((p) => ({ ...p, service_regions }))}
-            placeholder="Nieuwe plaats/regio…"
+            placeholder="Nieuwe plaats of regio…"
           />
           <span className="text-sm text-muted">Gebruikt voor lokale zoekvragen in de meting.</span>
         </div>
@@ -344,7 +344,7 @@ export function ProfileEditor({ initial, inventoryCount }: { initial: Profile; i
             {refreshState === "pending" ? "Aura leest je site…" : "Vernieuw inventaris"}
           </button>
           {refreshState === "done" && (
-            <span className="text-sm text-[var(--accent-green-text)]">Bijgewerkt — {count} pagina&apos;s ✓</span>
+            <span className="text-sm text-[var(--accent-green-text)]">Bijgewerkt: {count} pagina&apos;s ✓</span>
           )}
           {refreshState === "error" && (
             <span className="text-sm text-[var(--status-error)]">
@@ -356,7 +356,7 @@ export function ProfileEditor({ initial, inventoryCount }: { initial: Profile; i
 
       {/* Het merkdossier (S5). Onderaan en ingeklapt: dit is de rijkste bron die
           we hebben, maar hij mag het invullen van het profiel niet in de weg
-          zitten — dat is de stap waar de klant hier voor kwam. */}
+          zitten. Dat is de stap waar de klant hier voor kwam. */}
       <CollapsibleSection title="Wat je al hebt liggen">
         <DossierBox profileId={profile.id} />
       </CollapsibleSection>

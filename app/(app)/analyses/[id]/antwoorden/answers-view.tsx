@@ -12,7 +12,7 @@ import type { AnswerRow } from "@/lib/pipeline/answers";
  *
  * De standaardsortering is geen smaakkwestie: **gemist én hoog gewicht bovenaan**
  * is de lijst waar geld in zit. Een klant die dit tabblad opent, moet niet eerst
- * gaan filteren om te vinden waar hij iets kan winnen — dat moet er staan.
+ * gaan filteren om te vinden waar hij iets kan winnen. Dat moet er staan.
  */
 type SortMode = "kansen" | "gewicht" | "vraag";
 
@@ -26,7 +26,7 @@ export function AnswersView({
   rows,
   ownLabel,
   ownTerms,
-  /** Alleen deze metingen tonen — gezet vanuit een doorklik in het rapport (3.3). */
+  /** Alleen deze metingen tonen, gezet vanuit een doorklik in het rapport (3.3). */
   focusRunIds,
 }: {
   rows: AnswerRow[];
@@ -53,7 +53,7 @@ export function AnswersView({
       sorted.sort((a, b) => b.weight - a.weight);
     } else if (sort === "kansen") {
       // Gemist telt zwaarder dan gewicht: een zware vraag die je al wint is geen
-      // kans, een lichte die je mist wel — maar tussen twee gemiste vragen wint
+      // kans, een lichte die je mist wel, maar tussen twee gemiste vragen wint
       // de zwaarste.
       sorted.sort((a, b) => {
         const aMissed = a.ownMentioned === false ? 1 : 0;
@@ -76,7 +76,7 @@ export function AnswersView({
           <span className="mono-label flex items-center gap-1">
             Wat de AI antwoordt
             <InfoHint label="Wat de AI antwoordt">
-              De letterlijke antwoorden die een AI-assistent op jouw vragen gaf — niets
+              De letterlijke antwoorden die een AI-assistent op jouw vragen gaf. Niets
               samengevat, niets weggelaten. Jouw merknaam staat paars gemarkeerd, concurrenten grijs.
             </InfoHint>
           </span>
@@ -290,7 +290,7 @@ function CopyButton({ row, ownLabel }: { row: AnswerRow; ownLabel: string }) {
       setCopied(true);
       setTimeout(() => setCopied(false), 2500);
     } catch {
-      // Klembord geweigerd (geen https, of de gebruiker zei nee) — dan doen we
+      // Klembord geweigerd (geen https, of de gebruiker zei nee). Dan doen we
       // niets. Een foutmelding voor een kopieerknop is meer ruis dan hulp.
     }
   }

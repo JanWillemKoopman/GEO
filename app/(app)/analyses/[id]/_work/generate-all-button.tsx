@@ -10,7 +10,7 @@ import type { UserFacingError } from "@/lib/errors";
  *
  * De belofte van het product heet 1-click content generatie, maar het waren *n*
  * klikken over maximaal drie aanbevelingen. Sinds fase 1 is elke pagina een
- * losse taak in de wachtrij, dus dit legt niets plat — de werker pakt ze één
+ * losse taak in de wachtrij, dus dit legt niets plat, de werker pakt ze één
  * voor één op en de klant kan het scherm sluiten.
  *
  * Er staat bij hoeveel pagina's het worden en hoe lang het ongeveer duurt. Een
@@ -37,7 +37,7 @@ export function GenerateAllButton({
   if (remaining === 0) return null;
 
   // Ruwe schatting: twee AI-aanroepen per pagina, en de werker doet zware taken
-  // één voor één. Aan de hoge kant houden — een schatting die meevalt is prettig.
+  // één voor één. Aan de hoge kant houden, een schatting die meevalt is prettig.
   const minutes = Math.max(1, Math.ceil((remaining * 100) / 60));
 
   async function generateAll() {
@@ -72,7 +72,7 @@ export function GenerateAllButton({
         </span>
         <p className="text-sm text-secondary">
           Dit duurt ongeveer {minutes} {minutes === 1 ? "minuut" : "minuten"}. Je kunt dit scherm
-          sluiten — Aura schrijft door en zet de teksten vanzelf in je bibliotheek.
+          sluiten. Aura schrijft door en zet de teksten vanzelf in je bibliotheek.
         </p>
         <Link href={`/analyses/${analysisId}/bibliotheek`} className="btn-outline w-fit">
           Naar je bibliotheek
@@ -94,9 +94,9 @@ export function GenerateAllButton({
             <>
               {" "}
               <span className="font-medium text-[var(--text-primary)]">
-                Let op: je site houdt AI-assistenten nu buiten
+                Let op: je site houdt AI-assistenten nu buiten.
               </span>{" "}
-              — deze teksten kunnen voorlopig niet geciteerd worden.
+              Deze teksten kunnen voorlopig niet geciteerd worden.
             </>
           )}
         </p>

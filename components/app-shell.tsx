@@ -14,7 +14,7 @@ import type { User } from "@supabase/supabase-js";
  *
  * Het accountmenu zit op élk schermformaat achter hetzelfde icoon. Dat was
  * eerder alleen op mobiel zo, waardoor desktop en mobiel niet alleen anders
- * oogden maar ook een andere indeling hadden — twee menu's om uit elkaar te
+ * oogden maar ook een andere indeling hadden. Twee menu's om uit elkaar te
  * laten lopen in plaats van één.
  */
 export function AppShell({ user, children }: { user: User; children: React.ReactNode }) {

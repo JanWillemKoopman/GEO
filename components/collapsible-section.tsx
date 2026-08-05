@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 
 /**
  * Accordion-sectie die op DESKTOP standaard open staat en op MOBIEL standaard
- * dicht (designsystem.md §D2/§D4) — dit is een bewuste, apart ontworpen mobiele
+ * dicht (designsystem.md §D2/§D4). Dit is een bewuste, apart ontworpen mobiele
  * indeling, geen verkleinde desktop-versie. `lg` = 1024px, zie §D1.
  */
 const DESKTOP_QUERY = "(min-width: 1024px)";

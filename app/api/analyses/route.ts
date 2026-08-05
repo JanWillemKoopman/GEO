@@ -6,7 +6,7 @@ import { enqueue, dedupe } from "@/lib/jobs/queue";
 import { buildAnalysisName } from "@/lib/url";
 
 /**
- * POST /api/analyses — nieuwe analyse aanmaken (abcplan.md §6 A0, na de
+ * POST /api/analyses, nieuwe analyse aanmaken (abcplan.md §6 A0, na de
  * klantprofiel-refactor). Vereist een bestaand, klaar klantprofiel + een
  * onderwerp (verplicht: zonder onderwerp voegt een analyse niets toe aan wat
  * het profiel al dekt). `url` wordt overgenomen van het profiel (snapshot).

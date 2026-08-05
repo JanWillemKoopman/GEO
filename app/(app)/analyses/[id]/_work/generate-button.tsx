@@ -13,7 +13,7 @@ import type { UserFacingError } from "@/lib/errors";
  * Het schrijven draait nu op de achtergrond (optimalisatie.md 1.4): de knop
  * plant het in en pollt tot de pagina klaar is. Voorheen hield deze fetch
  * zestig seconden lang een verbinding open terwijl het premium model twee volledige
- * pagina's schreef — de meest waarschijnlijke plek om op de tijdslimiet stuk te
+ * pagina's schreef, de meest waarschijnlijke plek om op de tijdslimiet stuk te
  * lopen, en dan was het dure schrijfwerk weg.
  *
  * Sluit de klant de tab, dan gaat het schrijven gewoon door.
@@ -22,8 +22,8 @@ const GENERATION_FAILED: UserFacingError = {
   kind: "unknown",
   title: "Het schrijven van deze pagina is vastgelopen",
   message:
-    "Aura heeft het een paar keer geprobeerd. Probeer het opnieuw — lukt het dan " +
-    "nog niet, laat het ons dan weten.",
+    "Aura heeft het een paar keer geprobeerd. Probeer het opnieuw. Lukt het dan " +
+    "nog steeds niet, laat het ons dan weten.",
   canRetry: true,
   detail: "",
 };
@@ -52,7 +52,7 @@ export function GenerateButton({
   const [state, setState] = useState<"idle" | "pending" | "done" | "error">("idle");
   // Bij een blokkade genereren we niet zomaar: de klant moet eerst bevestigen
   // dat hij weet dat de tekst voorlopig niet gelezen kan worden. Bewust geen
-  // harde blokkade — hij kan een goede reden hebben (de webbouwer is al bezig,
+  // harde blokkade, hij kan een goede reden hebben (de webbouwer is al bezig,
   // of hij wil de tekst alvast klaar hebben) en dat is zijn beslissing, niet de
   // onze. Wel één die hij bewust neemt in plaats van per ongeluk.
   const [acknowledged, setAcknowledged] = useState(false);
@@ -82,7 +82,7 @@ export function GenerateButton({
           setProblem(GENERATION_FAILED);
         }
       } catch {
-        /* stil — volgende tick probeert opnieuw */
+        /* stil, volgende tick probeert opnieuw */
       }
     }, 4000);
   }
@@ -121,7 +121,7 @@ export function GenerateButton({
   if (state === "done") {
     return (
       <Link href={`/analyses/${analysisId}/bibliotheek`} className="btn-outline w-fit">
-        ✓ Klaar — lees hem in je bibliotheek
+        ✓ Klaar, lees hem in je bibliotheek
       </Link>
     );
   }
@@ -134,7 +134,7 @@ export function GenerateButton({
           Aura schrijft…
         </span>
         <span className="text-sm text-muted">
-          Dit duurt een paar minuten. Je kunt dit scherm sluiten — Aura schrijft door en zet de
+          Dit duurt een paar minuten. Je kunt dit scherm sluiten. Aura schrijft door en zet de
           tekst vanzelf in je bibliotheek.
         </span>
       </div>

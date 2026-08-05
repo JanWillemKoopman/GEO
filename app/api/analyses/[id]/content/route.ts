@@ -5,7 +5,7 @@ import { getOwnedAnalysis } from "@/lib/analyses";
 import { dedupe } from "@/lib/jobs/queue";
 
 /**
- * GET /api/analyses/[id]/content?title=… — is deze pagina al geschreven?
+ * GET /api/analyses/[id]/content?title=…, is deze pagina al geschreven?
  *
  * Nodig sinds contentgeneratie op de achtergrond draait (optimalisatie.md 1.4):
  * de knop krijgt geen pagina meer terug maar een bevestiging dat het werk is
@@ -18,13 +18,13 @@ import { dedupe } from "@/lib/jobs/queue";
  *
  * Dit telde eerst álle mislukte content-taken van de HELE analyse. Eén pagina
  * die ooit was misgelopen liet daardoor bij ELKE andere pagina binnen vier
- * seconden "het schrijven is misgelopen" verschijnen — terwijl het schrijven
+ * seconden "het schrijven is misgelopen" verschijnen, terwijl het schrijven
  * gewoon net begonnen was. En omdat een mislukte taak blijft staan, sloeg ook
  * "Opnieuw proberen" op dezelfde pagina meteen weer om in diezelfde fout.
  *
  * Daarom nu twee afbakeningen:
  *  • Op DEZE pagina, via de dedupe-sleutels van het schrijven en het
- *    herschrijven — niet op taaksoort over de hele analyse.
+ *    herschrijven, niet op taaksoort over de hele analyse.
  *  • Alleen als er GEEN openstaande taak met dezelfde sleutel is. Staat die er
  *    wel, dan is er nieuw werk onderweg en mag een oude mislukking niet over de
  *    huidige poging heen gaan.
@@ -58,7 +58,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     .maybeSingle();
 
   // Het schrijven hangt aan de titel, het herschrijven aan de pagina die daaruit
-  // ontstond — vandaar twee sleutels, waarvan de tweede pas bestaat zodra stap 1
+  // ontstond. Vandaar twee sleutels, waarvan de tweede pas bestaat zodra stap 1
   // een pagina heeft opgeleverd.
   const keys = [dedupe.contentDraft(id, title)];
   if (piece?.id) keys.push(dedupe.contentRevise(piece.id as string));

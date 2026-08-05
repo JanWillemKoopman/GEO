@@ -9,17 +9,17 @@ import type { OnboardingStat } from "@/lib/pipeline/onboarding-summary";
  *
  * De profielpagina rende twaalf kaarten zonder titel: geen `PageHeader`, geen
  * `<h1>`, en de merknaam stond pas op ~plek 9 als een regel binnenín de editor.
- * Dit is het scherm dat de consultant deelt in de demo — het opende zonder te
+ * Dit is het scherm dat de consultant deelt in de demo, het opende zonder te
  * zeggen over wie het ging. `/profielen` gebruikte de gedeelde kop wél; deze
  * pagina was de uitzondering, en dat is precies waar drift begint.
  *
  * ── DRIE CIJFERS, EN EEN ZIN ERBOVEN ────────────────────────────────────────
  *
- * `ux-design.md` regel 1: één hoofdgetal. De duidingszin doet dat werk — de drie
+ * `ux-design.md` regel 1: één hoofdgetal. De duidingszin doet dat werk, de drie
  * tegels zijn de onderbouwing. Zonder die zin leest "0/3" als een cijfer op een
  * rapport, en voor vrijwel elk MKB-merk is dat gewoon de startsituatie.
  *
- * Eén primaire actie, en dat is de volgende stap in het product — niet een
+ * Eén primaire actie, en dat is de volgende stap in het product, niet een
  * beheerdershandeling. `AssignBox` verhuisde naar een eigen beheerblok onderaan:
  * die stond tussen de bevindingen in, op een scherm dat de klant meekijkt
  * terwijl hij wordt overgedragen.
@@ -38,7 +38,7 @@ export function ProfileHero({
   /** De enige primaire actie op dit scherm. Null zolang er niets te starten is. */
   primaryAction: { href: string; label: string } | null;
 }) {
-  const iets = stats.some((s) => s.value !== "—");
+  const iets = stats.some((s) => s.value !== "-");
 
   return (
     <div className="flex flex-col gap-4">
@@ -94,7 +94,7 @@ export function ProfileHero({
 }
 
 /**
- * Eén tegel. De waarde in mono — dat is de "technische read-out" uit
+ * Eén tegel. De waarde in mono. Dat is de "technische read-out" uit
  * `designsystem.md` §C3 en de herkenbaarste typografische keuze van het systeem.
  *
  * Kleur is nooit het enige signaal (§C5): de toon zit in de kleur én in de

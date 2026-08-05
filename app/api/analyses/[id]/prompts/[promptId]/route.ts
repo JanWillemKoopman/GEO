@@ -5,7 +5,7 @@ import { getOwnedAnalysis } from "@/lib/analyses";
 import { isVolumeBand } from "@/lib/pipeline/volume";
 
 /**
- * PATCH/DELETE /api/analyses/[id]/prompts/[promptId] — prompt wijzigen/verwijderen
+ * PATCH/DELETE /api/analyses/[id]/prompts/[promptId], prompt wijzigen/verwijderen
  * (abcplan.md §3.5/§6 A2b). Geen AI-call. Ownership loopt via de analyse.
  */
 const EDITABLE_FIELDS = ["text", "category", "active"] as const;

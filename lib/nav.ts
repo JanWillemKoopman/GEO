@@ -1,5 +1,5 @@
 /**
- * De navigatie van de app — één bron voor alle menu's.
+ * De navigatie van de app, één bron voor alle menu's.
  *
  * ── WAT HIER MIS WAS ────────────────────────────────────────────────────────
  *
@@ -16,7 +16,7 @@
  * Twee bestemmingen dus, en het woord "merk" in plaats van "klantprofiel".
  * Dat laatste is bureau-jargon: voor de ondernemer die zijn eigen zichtbaarheid
  * meet is het gewoon zijn merk. Met dat ene woord was de tweede link ook niet
- * meer nodig — die bestond juist omdat "klantprofiel" niet uitlegde wat het is.
+ * meer nodig. Die bestond juist omdat "klantprofiel" niet uitlegde wat het is.
  *
  * De routes heten nog /profielen: bestaande links en bladwijzers blijven zo
  * werken. Wat de klant leest, is wat telt.
@@ -35,7 +35,7 @@ export const NAV: NavItem[] = [
   { href: "/profielen", label: "Merken" },
 ];
 
-/** Account — achter het profielmenu, geen hoofdnavigatie. */
+/** Account, achter het profielmenu, geen hoofdnavigatie. */
 export const ACCOUNT_NAV: NavItem[] = [{ href: "/instellingen", label: "Mijn instellingen" }];
 
 /** Actief = deze route of een route eronder. */

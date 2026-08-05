@@ -7,7 +7,7 @@
  * Alleen de wire-vertaling. Het schema is echt (dezelfde migraties), de
  * constraints zijn echt, de enums zijn echt, de unieke indexen zijn echt, en de
  * jobhandlers en pijplijncode die erop draaien zijn echt. Wat deze module doet
- * is `.from("x").select("*").eq("id", y).maybeSingle()` omzetten naar SQL — het
+ * is `.from("x").select("*").eq("id", y).maybeSingle()` omzetten naar SQL: het
  * stuk dat in productie PostgREST voor z'n rekening neemt.
  *
  * ── WAAROM DIT HET "JE TEST JE NABOOTSING"-BEZWAAR OVERLEEFT ────────────────
@@ -16,7 +16,7 @@
  * operator, elk onbekend filter en elke onbekende optie gooit een fout met de
  * naam erin. Een shim die stilletjes iets anders teruggeeft zou het bezwaar
  * terecht maken; een shim die niet stil kan afwijken kan hooguit een test laten
- * falen die eigenlijk had moeten slagen — en dát merk je meteen.
+ * falen die eigenlijk had moeten slagen, en dát merk je meteen.
  *
  * Bewust géén poging tot volledigheid: wat de contentketen niet gebruikt, staat
  * er niet in. Zodra een nieuwe stap iets anders nodig heeft, zegt de test dat.
@@ -33,7 +33,7 @@ interface Antwoord<T> {
    * Die code is geen bijzaak: `enqueue()` kijkt naar `error.code === "23505"`
    * om een botsing op de dedupe-index te herkennen en dan stil over te slaan in
    * plaats van te gooien. Zonder de code zou de shim gooien waar productie
-   * doorloopt — en dan test de ketentest ander gedrag dan er draait. Precies het
+   * doorloopt, en dan test de ketentest ander gedrag dan er draait. Precies het
    * soort stille afwijking dat deze opzet moet uitsluiten.
    */
   error: { message: string; code?: string } | null;
@@ -48,7 +48,7 @@ interface Filter {
 
 function fout(bericht: string): never {
   throw new Error(
-    `supabase-shim: ${bericht}. Voeg het toe aan scripts/chain/supabase-shim.ts — ` +
+    `supabase-shim: ${bericht}. Voeg het toe aan scripts/chain/supabase-shim.ts, ` +
       `de shim gooit met opzet in plaats van iets anders terug te geven.`,
   );
 }
@@ -131,7 +131,7 @@ class QueryBuilder<T> implements PromiseLike<Antwoord<T>> {
   /**
    * PostgREST's `or`-taal: "scope.eq.merk,analysis_id.eq.<uuid>".
    *
-   * Alleen `eq` en `is` — meer gebruikt de contentketen niet. Zie
+   * Alleen `eq` en `is`, meer gebruikt de contentketen niet. Zie
    * `planContentDraft()`, waar deze vorm de merkbrede antwoorden meetelt.
    */
   or(uitdrukking: string): this {
@@ -326,7 +326,7 @@ class QueryBuilder<T> implements PromiseLike<Antwoord<T>> {
  *
  * `pg` maakt van een JS-array een Postgres-array, en dat is voor een `jsonb`- of
  * `text[]`-kolom niet hetzelfde. Voor `text[]` klopt het wél, dus alleen
- * objecten en arrays-van-objecten worden geserialiseerd — precies de vorm die de
+ * objecten en arrays-van-objecten worden geserialiseerd. Precies de vorm die de
  * `*_json`-kolommen krijgen.
  */
 function serialiseer(waarde: unknown): unknown {
@@ -344,7 +344,7 @@ function serialiseer(waarde: unknown): unknown {
  *
  * Het `as never` is bewust: de echte `SupabaseClient` heeft een enorm
  * gegenereerd type dat we hier niet namaken. De vertaling wordt niet door de
- * typechecker bewaakt maar door de test zelf — en door het feit dat elke
+ * typechecker bewaakt maar door de test zelf, en door het feit dat elke
  * onbekende aanroep gooit.
  */
 export function createShimClient(client: Client) {

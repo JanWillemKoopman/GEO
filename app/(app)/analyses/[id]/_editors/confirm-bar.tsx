@@ -7,12 +7,12 @@ import { useRouter } from "next/navigation";
  * De goedkeuringsbalk van het conceptscherm (abcplan.md §3.6/A2c).
  *
  * Deze knop stond eerder onderaan het tabblad "Instellingen", na vijf kaarten
- * scrollen — de enige handeling waarop de hele app staat te wachten, verstopt op
+ * scrollen, de enige handeling waarop de hele app staat te wachten, verstopt op
  * de plek die universeel "hier hoef je niet te zijn" betekent.
  *
  * Nu is het een blijvende balk over de volle breedte, op élk schermformaat: je
  * kunt het concept van boven tot onder doorlezen zonder de actie ooit kwijt te
- * raken. De glaslaag (`backdrop-blur`) is dezelfde als die van de bovenbalk —
+ * raken. De glaslaag (`backdrop-blur`) is dezelfde als die van de bovenbalk,
  * designsystem.md §A3 gebruikt dat patroon voor alles wat over de inhoud heen
  * zweeft.
  */
@@ -28,7 +28,7 @@ export function ConfirmBar({ analysisId }: { analysisId: string }) {
     try {
       res = await fetch(`/api/analyses/${analysisId}/confirm`, { method: "POST" });
     } catch {
-      // De fetch zelf strandde (netwerk/timeout) — er is geen response om te lezen.
+      // De fetch zelf strandde (netwerk/timeout), er is geen response om te lezen.
       setError("Bevestigen is niet gelukt. Probeer het opnieuw.");
       setPending(false);
       return;

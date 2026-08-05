@@ -6,7 +6,7 @@ import { refreshInventory } from "@/lib/pipeline/refresh-inventory";
 import { describeError, classifyError } from "@/lib/errors";
 
 /**
- * POST /api/profiles/[id]/refresh-inventory — crawlt de content-inventaris
+ * POST /api/profiles/[id]/refresh-inventory, crawlt de content-inventaris
  * opnieuw met de huidige crawl-instellingen. Synchroon, kan tientallen seconden
  * duren. Raakt het merkonderzoek niet.
  */

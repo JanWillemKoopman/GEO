@@ -20,14 +20,14 @@ interface StatusPayload {
  *
  * Wordt normaal gesproken alleen nog getoond, niet gestart: de aggregatietaak
  * ketent zelf door naar het rapport (optimalisatie.md 1.5). Alleen bij een
- * DEFINITIEF mislukt rapport plant dit scherm een nieuwe poging in — dat is de
+ * DEFINITIEF mislukt rapport plant dit scherm een nieuwe poging in. Dat is de
  * retry-knop, geen automatische start.
  */
 const STALE_FAILURE: UserFacingError = {
   kind: "unknown",
   title: "Het rapport is eerder vastgelopen",
   message:
-    "Je meting blijft bewaard. Aura meet niet opnieuw — een nieuwe poging kost " +
+    "Je meting blijft bewaard. Aura meet niet opnieuw, dus een nieuwe poging kost " +
     "alleen het schrijven van het rapport.",
   canRetry: true,
   detail: "",
@@ -56,7 +56,7 @@ export function ReportProgress({
         setProblem(problemFromResponse(json));
       }
     } catch {
-      /* netwerkfout bij inplannen — de polling leest de echte stand */
+      /* netwerkfout bij inplannen, de polling leest de echte stand */
     }
   }
 
@@ -79,7 +79,7 @@ export function ReportProgress({
       void schedule();
     }
     // `schedule` is stabiel genoeg (leest alleen analysisId) en wordt bewust
-    // niet als dependency opgenomen — dat zou dit effect elke render opnieuw
+    // niet als dependency opgenomen. Dat zou dit effect elke render opnieuw
     // laten draaien en de vangnet-inplanning herhalen.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [data]);

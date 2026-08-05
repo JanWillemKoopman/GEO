@@ -4,20 +4,20 @@
  * ── WAAROM DIT ER MOEST KOMEN ───────────────────────────────────────────────
  *
  * `docs/ux-design.md` regel 1 is "één hoofdgetal". De onboarding produceert er
- * drie die daarvoor in aanmerking komen — herkenning, koopvragen, dekking — en
+ * drie die daarvoor in aanmerking komen, herkenning, koopvragen, dekking, en
  * die stonden als chip verspreid over drie panelen, elk in een andere kaart.
  * De consultant moest het verhaal in de demo zelf bij elkaar scrollen.
  *
  * Dit is ook waar het entiteitsdenken van InSpace zichtbaar wordt: de vraag is
  * niet "hoe vaak word je genoemd" maar "kent een AI-systeem dit bedrijf als één
  * herkenbaar iets, en komt het bovendrijven als iemand koopt?". Twee cijfers die
- * naast elkaar horen te staan, want ze kunnen uit elkaar lopen — een merk kan
+ * naast elkaar horen te staan, want ze kunnen uit elkaar lopen, een merk kan
  * prima bekend zijn en toch bij geen enkele koopvraag genoemd worden.
  *
  * ── DE DUIDINGSZIN IS GEEN VERSIERING ───────────────────────────────────────
  *
  * "0 van de 3" zonder duiding leest als een cijfer op een rapport. Voor vrijwel
- * elk MKB-merk is dat de normale uitgangssituatie, en dat hoort erbij te staan —
+ * elk MKB-merk is dat de normale uitgangssituatie, en dat hoort erbij te staan,
  * anders is de eerste indruk van het product een verwijt. Zelfde regel als in
  * `llm-knowledge-panel.tsx`: diagnose, geen aanklacht.
  *
@@ -52,7 +52,7 @@ export interface OnboardingSummaryInput {
 
 /**
  * Hoeveel gegevens spreekt de assistent tegen? Dat is de zwaarste bevinding die
- * er is en hoort niet weggestopt in een uitklapper — maar hij is er meestal
+ * er is en hoort niet weggestopt in een uitklapper, maar hij is er meestal
  * niet, dus hij krijgt geen eigen tegel. Hij komt in de duidingszin.
  */
 function contradictedCount(verdicts: BaselineVerdict[]): number {
@@ -71,10 +71,10 @@ export function onboardingStats(
 
   const stats: OnboardingStat[] = [];
 
-  // 1. Kent de assistent je? Een verhouding en geen ja/nee — twee woorden
+  // 1. Kent de assistent je? Een verhouding en geen ja of nee. Twee woorden
   //    verschil in de vraagstelling draaide dit ooit om (zie summariseKnows).
   stats.push({
-    value: knows.asked === 0 ? "—" : `${knows.recognised}/${knows.asked}`,
+    value: knows.asked === 0 ? "-" : `${knows.recognised}/${knows.asked}`,
     label: "Herkend door ChatGPT",
     hint:
       knows.asked === 0
@@ -97,7 +97,7 @@ export function onboardingStats(
   // 2. Word je genoemd als iemand koopt? Dit is een ander cijfer dan het
   //    eerste, en juist het verschil ertussen is het gesprek waard.
   stats.push({
-    value: gevraagd === 0 ? "—" : `${genoemd}/${gevraagd}`,
+    value: gevraagd === 0 ? "-" : `${genoemd}/${gevraagd}`,
     label: "Genoemd bij koopvragen",
     hint:
       gevraagd === 0
@@ -113,7 +113,7 @@ export function onboardingStats(
   // 3. Wat de STRUCTUUR mist. Het enige cijfer hier dat niet over een
   //    AI-antwoord gaat maar over de site zelf.
   stats.push({
-    value: assessed === 0 ? "—" : String(missing),
+    value: assessed === 0 ? "-" : String(missing),
     label: "Diensten zonder eigen pagina",
     hint:
       assessed === 0
@@ -130,7 +130,7 @@ export function onboardingStats(
 /**
  * De zin boven de cijfers: wat betekent dit bij elkaar?
  *
- * Vier gevallen, en de volgorde is de ernst. Een tegenspraak wint van alles —
+ * Vier gevallen, en de volgorde is de ernst. Een tegenspraak wint van alles,
  * "ChatGPT denkt dat je in Eindhoven zit" is de meest alarmerende uitkomst van
  * de hele onboarding en mag niet onder een verhouding verdwijnen.
  */
@@ -181,5 +181,5 @@ export function onboardingHeadline(
     );
   }
 
-  return `ChatGPT kent ${merk} en noemt het bij elke gemeten koopvraag. Sterke uitgangspositie — nu vasthouden.`;
+  return `ChatGPT kent ${merk} en noemt het bij elke gemeten koopvraag. Sterke uitgangspositie. Nu vasthouden.`;
 }

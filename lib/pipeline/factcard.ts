@@ -1,5 +1,5 @@
 /**
- * De feitenkaart — de gesloten lijst beweringen die de schrijver mag doen
+ * De feitenkaart, de gesloten lijst beweringen die de schrijver mag doen
  * (contentbriefing.md §3.1 en §9, implementatieplan.md R5.1/R5.3).
  *
  * ── WAAROM DIT BESTAAT ──────────────────────────────────────────────────────
@@ -30,15 +30,15 @@
  * Antwoordt de klant "nee, pechhulp zit er niet in", dan is dat geen ontbrekend
  * feit maar een VERBOD. Zonder dat onderscheid zou het model bij een ontkennend
  * antwoord alsnog kunnen redeneren dat het er waarschijnlijk wel in zit. Vandaar
- * `allowed: false` — die regels gaan als expliciet verbod de prompt in.
+ * `allowed: false`. Die regels gaan als expliciet verbod de prompt in.
  *
  * Bewust ZONDER `server-only`: pure opmaak en pure validatie, testbaar in een
- * kaal script — zelfde patroon als evidence-format.ts en question-share.ts.
+ * kaal script, zelfde patroon als evidence-format.ts en question-share.ts.
  */
 
 /** Eén feit op de kaart. `ref` is het F-nummer waarnaar de content verwijst. */
 export interface FactItem {
-  /** "F1", "F2", … — het nummer waarmee de schrijver dit feit aanhaalt. */
+  /** "F1", "F2", …, het nummer waarmee de schrijver dit feit aanhaalt. */
   ref: string;
   /**
    * Het id in de feitenbank (`brand_facts`, migratie 0036).
@@ -69,7 +69,7 @@ export interface FactItem {
    * samenvatting van het onderwerp-onderzoek is CONTEXT: bruikbaar om over te
    * schrijven, onbruikbaar om iets mee te bewijzen. Bij de eerste echte
    * briefingronde verwezen 6 van de 7 beweringen naar hetzelfde blok
-   * ("Wat de site over dit onderwerp zegt: …") — één alibi dat alles dekte, dus
+   * ("Wat de site over dit onderwerp zegt: …"), één alibi dat alles dekte, dus
    * nul vragen aan de klant. Precies het tegenovergestelde van de bedoeling.
    *
    * Alleen ATOMAIRE, controleerbare uitspraken zijn citeerbaar: één bewering per
@@ -102,7 +102,7 @@ export const SOURCE_ORDER: Record<FactSourceKind, number> = {
  */
 export function numberFacts(items: Omit<FactItem, "ref">[]): FactItem[] {
   // Alleen citeerbare items krijgen een nummer. Achtergrond hoort geen F-nummer
-  // te hebben — een nummer is precies de uitnodiging om ernaar te verwijzen.
+  // te hebben, een nummer is precies de uitnodiging om ernaar te verwijzen.
   let n = 0;
   return items.map((item) => ({ ...item, ref: item.citable ? `F${++n}` : "" }));
 }
@@ -117,13 +117,13 @@ export interface RawFact {
 }
 
 /**
- * Een antwoord van de klant omzetten naar een feit — of naar een VERBOD.
+ * Een antwoord van de klant omzetten naar een feit, of naar een VERBOD.
  *
  * Dit is het subtielste stukje van de hele briefing. Antwoordt de klant "nee" op
  * "zit pechhulp in het maandbedrag?", dan is dat geen ontbrekend feit maar het
  * antwoord dat de bewering verbiedt. Zonder dit onderscheid zou het model bij een
  * ontkennend antwoord alsnog kunnen redeneren dat het er waarschijnlijk wel in
- * zit — precies de fout uit de Udenhout-run, maar dan mét een antwoord in de hand.
+ * zit. Precies de fout uit de Udenhout-run, maar dan mét een antwoord in de hand.
  */
 export function factFromAnswer(row: {
   question: string;
@@ -138,7 +138,7 @@ export function factFromAnswer(row: {
   const bron = `klant, bevestigd ${datum}`;
   const vraag = row.question.replace(/\?$/, "").trim();
 
-  // Een ja/nee-antwoord is pas een bruikbaar feit als je de vraag erbij zet;
+  // Een ja of nee-antwoord is pas een bruikbaar feit als je de vraag erbij zet;
   // los is "nee" nietszeggend.
   if (row.answer_type === "ja_nee") {
     const ontkennend = /^(nee|nej|nope|niet|geen|onjuist|klopt niet)\b/i.test(antwoord);
@@ -157,14 +157,14 @@ export function factFromAnswer(row: {
 
 /** Een antwoord van de klant, klaar om in een bestaande kaart te worden gevoegd. */
 export interface AnsweredFactInput {
-  /** De vraag zelf — de sleutel waarop een ouder antwoord wordt vervangen. */
+  /** De vraag zelf, de sleutel waarop een ouder antwoord wordt vervangen. */
   question: string;
   fact: RawFact;
   /**
    * Het id uit de feitenbank (migratie 0036), als het antwoord daar staat.
    *
    * Zonder dit zou elk antwoord dat ná de briefing binnenkwam alsnog zonder
-   * identiteit op de kaart belanden — en juist die antwoorden zijn de reden dat
+   * identiteit op de kaart belanden, en juist die antwoorden zijn de reden dat
    * deze functie bestaat. Een bewering die naar zo'n feit verwijst zou dan geen
    * `factId` in `claims_json` krijgen en achteraf niet na te trekken zijn.
    */
@@ -186,7 +186,7 @@ export interface AnsweredFactInput {
  * Concreet gemeten: op de vraag "biedt Fysi-Unique een preventief
  * nazorgprogramma?" stond met bron bevestigd "nee, niet als apart benoemd
  * programma". De gepubliceerde pagina opende met "Fysi-Unique biedt preventieve
- * begeleiding na herstel van een hardloopblessure" — geen gok bij gebrek aan
+ * begeleiding na herstel van een hardloopblessure". Geen gok bij gebrek aan
  * informatie, maar een directe tegenspraak van een bevestigd antwoord.
  *
  * ── EEN NIEUWER ANTWOORD VERSLAAT EEN OUDER ─────────────────────────────────
@@ -194,7 +194,7 @@ export interface AnsweredFactInput {
  * De bevroren kaart bevat vaak al een antwoord op dezelfde vraag (van vóór de
  * briefing). Corrigeert de klant dat antwoord, dan moeten die twee elkaar niet
  * tegenspreken op één kaart. Daarom vervangt een nieuw antwoord het oude op
- * basis van de VRAAG, niet van de antwoordtekst — anders zou "…: ja" naast
+ * basis van de VRAAG, niet van de antwoordtekst. Anders zou "…: ja" naast
  * "…: NEE" belanden en mag het model kiezen.
  *
  * Alleen feiten met bron 'klant' worden zo vervangen. Een proof point uit de
@@ -218,7 +218,7 @@ export function mergeAnsweredFacts(
 
   // Antwoorden van de klant vooraan: dat is de volgorde die buildFactBase ook
   // aanhoudt (SOURCE_ORDER), en wat bovenaan een prompt staat wordt het best
-  // gebruikt. Opnieuw nummeren omdat er items bij komen én weggaan — een
+  // gebruikt. Opnieuw nummeren omdat er items bij komen én weggaan, een
   // F-nummer dat naar twee verschillende feiten wijst maakt de hele
   // traceerbaarheid waardeloos.
   //
@@ -260,12 +260,12 @@ export function formatFactCard(facts: FactItem[]): string {
 
   const regels: string[] = [];
 
-  regels.push("FEITENKAART — de ENIGE toegestane bron van beweringen over deze klant");
+  regels.push("FEITENKAART: de ENIGE toegestane bron van beweringen over deze klant");
   regels.push("─".repeat(70));
 
   if (bruikbaar.length === 0) {
     regels.push(
-      "(leeg — er zijn geen bevestigde feiten over deze klant)\n" +
+      "(leeg: er zijn geen bevestigde feiten over deze klant)\n" +
         "Schrijf uitsluitend algemene uitleg over het onderwerp. Doe GEEN ENKELE concrete " +
         "bewering over dit bedrijf: geen prijzen, geen aantallen, geen voorwaarden, geen " +
         "openingstijden, geen beloftes over wat er wel of niet bij zit.",
@@ -278,7 +278,7 @@ export function formatFactCard(facts: FactItem[]): string {
 
   if (verboden.length > 0) {
     regels.push("");
-    regels.push("⛔ MAG JE NIET BEWEREN — de klant heeft dit expliciet ontkend of verboden:");
+    regels.push("⛔ MAG JE NIET BEWEREN: de klant heeft dit expliciet ontkend of verboden:");
     for (const f of verboden) {
       regels.push(`    • ${f.text}   (bron: ${f.source})`);
     }
@@ -291,7 +291,7 @@ export function formatFactCard(facts: FactItem[]): string {
   if (achtergrond.length > 0) {
     regels.push("");
     regels.push(
-      "ACHTERGROND — GEEN BRON. Dit is losse sitetekst en onderzoek, bedoeld om de context " +
+      "ACHTERGROND: GEEN BRON. Dit is losse sitetekst en onderzoek, bedoeld om de context " +
         "en de toon te begrijpen. Het heeft met opzet GEEN F-nummer: je mag er geen enkele " +
         "bewering op baseren. Staat een feit hier wél in maar niet op de kaart hierboven, dan " +
         "is het niet bevestigd en schrijf je het niet op:",
@@ -323,7 +323,7 @@ export function formatFactCard(facts: FactItem[]): string {
  * **Het model mag zichzelf niet vrijpleiten** (contentbriefing.md §3.2). Een
  * optimistisch model markeert een claim als `supported: true` met een vage of
  * verzonnen verwijzing, en dan zou de vraag die dat gat moest dichten nooit
- * gesteld worden — precies het gat waar het in de Udenhout-run doorheen glipte.
+ * gesteld worden. Precies het gat waar het in de Udenhout-run doorheen glipte.
  * Vandaar dat de dekking in CODE bepaald wordt en niet door het model: geen
  * geldig F-nummer op de kaart betekent onbewezen, wat het model er ook van vindt.
  *
@@ -335,7 +335,7 @@ export function isSupported(
   facts: FactItem[],
   /**
    * Het letterlijke fragment uit dat feit dat de bewering dekt. Meegeven maakt
-   * de controle veel strenger — zie de toelichting hieronder.
+   * de controle veel strenger, zie de toelichting hieronder.
    */
   supportQuote?: string | null,
 ): boolean {
@@ -347,7 +347,7 @@ export function isSupported(
   // bloot: een claim die WÉL correct onderbouwd was telde als NIET onderbouwd,
   // puur omdat het model twee feiten tegelijk aanwees. Concreet bij Van der
   // Valk: factRef "F1, F2" voor "combineert 150 jaar gastvrijheid met meer dan
-  // 100 hotels". Er bestaat geen feit met ref "F1, F2" — alleen F1 en F2 los —
+  // 100 hotels". Er bestaat geen feit met ref "F1, F2", alleen F1 en F2 los,
   // dus vond de lookup niets en gold de claim als onbewezen. Dat vertekende 2
   // van de 10 gemeten pagina's (source_coverage 80 en 50 in plaats van 100).
   //
@@ -359,7 +359,7 @@ export function isSupported(
 
   // ELK genoemd nummer moet bestaan én citeerbaar zijn. Bewust streng: zou één
   // geldig nummer volstaan, dan kan een model zijn dekking optillen door een
-  // echt nummer aan te vullen met verzonnen nummers — en dan meet de dekking
+  // echt nummer aan te vullen met verzonnen nummers, en dan meet de dekking
   // opnieuw niets (zelfde redenering als bij de claim-audit hierboven).
   const gevonden = refs.map((ref) =>
     facts.find((f) => f.allowed && f.citable && f.ref.toUpperCase() === ref),
@@ -384,7 +384,7 @@ export function isSupported(
   //
   // Bij meerdere feiten levert het model ook een samengesteld citaat op ("citaat
   // uit F1; citaat uit F2"). Elk deel moet in minstens één van de aangewezen
-  // feiten staan — zo blijft de eis "wijs de dekkende zin aan" overeind, ook als
+  // feiten staan, zo blijft de eis "wijs de dekkende zin aan" overeind, ook als
   // de bewering op twee bronnen rust.
   const delen = splitQuote(supportQuote ?? "");
   if (delen.length === 0) return false;
@@ -446,7 +446,7 @@ export interface WrittenClaim {
   /**
    * Het feit-id achter `factRef`, ingevuld door de CODE bij het opslaan (0036).
    *
-   * Het model levert alleen het F-nummer — dat is de handle die het kent. De
+   * Het model levert alleen het F-nummer. Dat is de handle die het kent. De
    * code zoekt daar het feit bij op en legt het id vast, zodat een bewering ook
    * over een jaar nog naar hetzelfde feit wijst als de kaart intussen is
    * gegroeid.
@@ -463,17 +463,17 @@ export interface WrittenClaim {
  * ── WAAROM DIT DE `geo_score` VERVANGT ──────────────────────────────────────
  *
  * De bestaande `geo_score` gaf in de praktijktest voor alle drie de pagina's
- * 100 — inclusief de pagina met vijf verzonnen feiten. Een cijfer dat nooit
+ * 100, inclusief de pagina met vijf verzonnen feiten. Een cijfer dat nooit
  * differentieert meet niets. Bronnendekking differentieert wél: het is het
  * percentage beweringen waarvan de herkomst aanwijsbaar is.
  *
  * Net als bij de claim-audit wordt de dekking in CODE bepaald en niet door het
- * model. Een verwijzing naar een F-nummer dat niet bestaat — of naar een verbod —
+ * model. Een verwijzing naar een F-nummer dat niet bestaat, of naar een verbod,
  * telt niet mee. Anders zou een model de eigen score kunnen optillen door
  * plausibele nummers te noemen, en dan meet het cijfer opnieuw niets.
  *
  * Geen enkele bewering opleveren geeft `null`, niet 100. "Ik heb niets beweerd"
- * is geen perfecte dekking maar een ontbrekend oordeel — en `null` is de enige
+ * is geen perfecte dekking maar een ontbrekend oordeel, en `null` is de enige
  * eerlijke weergave daarvan.
  */
 export function sourceCoverage(
@@ -497,7 +497,7 @@ export function sourceCoverage(
  *
  * Bewust grofkorrelig: leestekens en meervouds-s eruit, alles kleine letters.
  * Liever twee net-verschillende vragen samenvoegen dan de klant twee keer
- * hetzelfde vragen — de kosten van die twee fouten zijn niet gelijk.
+ * hetzelfde vragen, de kosten van die twee fouten zijn niet gelijk.
  */
 export function claimKey(claim: string): string {
   return claim
@@ -568,7 +568,7 @@ export function topicKey(question: string): string {
       // Achter elkaar toepassen en niet als eerste-treffer-wint: anders lopen
       // enkelvoud en meervoud uit elkaar. "hardloopblessures" verliest z'n s en
       // stopt dan op "hardloopblessure", terwijl "hardloopblessure" wél z'n e
-      // verliest — twee sleutels voor hetzelfde woord, precies de fout die deze
+      // verliest. Twee sleutels voor hetzelfde woord, precies de fout die deze
       // functie moest oplossen.
       let stam = w;
       if (stam.length > 5 && stam.endsWith("en")) stam = stam.slice(0, -2);

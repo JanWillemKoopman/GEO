@@ -19,7 +19,7 @@ const TYPE_LABEL: Record<string, string> = {
  *
  * In het dossier is een pagina een taak: hij ligt klaar, hij is gepubliceerd,
  * hij wordt hermeten. Maar de tekst zélf is het eindproduct waar de klant voor
- * betaalt — en een eindproduct hoort een vaste plek te hebben waar het netjes
+ * betaalt, en een eindproduct hoort een vaste plek te hebben waar het netjes
  * bij elkaar staat, ook lang nadat de taak eromheen is afgerond.
  *
  * Vandaar de tweedeling: hoofdstuk 03 van het dossier zegt wat je moet dóén,
@@ -27,14 +27,14 @@ const TYPE_LABEL: Record<string, string> = {
  *
  * ── DE ORDENING IS DE LEVENSLOOP ────────────────────────────────────────────
  *
- * Gegroepeerd op wat er met een tekst aan de hand is — klaar om te publiceren,
- * nog na te kijken, online, nog in de maak — in plaats van één lange lijst op
+ * Gegroepeerd op wat er met een tekst aan de hand is, klaar om te publiceren,
+ * nog na te kijken, online, nog in de maak, in plaats van één lange lijst op
  * datum. Zo zoekt iemand zijn eigen content ook: "wat staat er al online" is
  * een andere vraag dan "wat moet ik nog nakijken".
  *
  * Het kwaliteitscijfer staat bewust niet op de kaartjes (optimalisatie.md
  * 4.14). "78/100" is een interne maat: is 78 goed? Moet ik iets doen bij 78?
- * Het cijfer hoort op de detailpagina, bij de onderbouwing — hier telt het
+ * Het cijfer hoort op de detailpagina, bij de onderbouwing, hier telt het
  * antwoord op de enige vraag die je bij een overzicht stelt: kan dit weg naar
  * de website of niet?
  */
@@ -44,7 +44,7 @@ const GROUP_META: Record<Group, { label: string; hint: string; chip: string }> =
   // Bovenaan, en bewust met een andere toon dan de rest: dit is het enige
   // groepje waar de app op de KLANT wacht in plaats van andersom. Blijft dat
   // onopgemerkt, dan denkt hij dat er content geschreven wordt terwijl er niets
-  // gebeurt — en dat is de ergste vorm van stilstand die een app kan hebben.
+  // gebeurt, en dat is de ergste vorm van stilstand die een app kan hebben.
   briefing: {
     label: "Wacht op jouw input",
     hint: "Een paar korte vragen, dan schrijft Aura deze pagina's zonder iets te verzinnen.",

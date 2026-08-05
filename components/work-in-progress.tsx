@@ -7,12 +7,12 @@
  * herhaald werd. Drie dingen zijn wezenlijk anders dan voorheen:
  *
  * 1. Dit component START GEEN WERK. De voortgangsschermen deden dat zelf met een
- *    fetch, terwijl er onderaan stond "je kunt dit scherm sluiten" — wat dus
+ *    fetch, terwijl er onderaan stond "je kunt dit scherm sluiten", wat dus
  *    niet klopte. Nu plant de route het werk in en doet de werker het; dit
  *    scherm kijkt alleen toe.
  * 2. De tijdsindicatie komt uit de taakstand in plaats van uit een vaste tekst
  *    ("dit duurt doorgaans een halve minuut"), en is een bereik.
- * 3. Voltooide stappen blijven voltooid — de stappenlijst kan niet terugspringen.
+ * 3. Voltooide stappen blijven voltooid, de stappenlijst kan niet terugspringen.
  */
 import { useEffect, useRef, useState } from "react";
 
@@ -38,7 +38,7 @@ export function WorkInProgress({
 }) {
   // Voltooide stappen blijven voltooid (1.10). De server kan bij een nieuwe
   // poging tijdelijk "nog niet klaar" terugmelden; dat mag een afgevinkte stap
-  // niet ongedaan maken — dat leest als achteruitgang.
+  // niet ongedaan maken. Dat leest als achteruitgang.
   const highWater = useRef<boolean[]>([]);
   const stable = (steps ?? []).map((s, i) => {
     highWater.current[i] = highWater.current[i] || s.done;
@@ -58,8 +58,8 @@ export function WorkInProgress({
 
       {retrying && (
         <p className="text-sm text-muted">
-          Er ging net iets mis aan de kant van de AI-dienst. Aura probeert het automatisch opnieuw —
-          jij hoeft niets te doen.
+          Er ging net iets mis aan de kant van de AI-dienst. Aura probeert het automatisch opnieuw.
+          Jij hoeft niets te doen.
         </p>
       )}
 
@@ -88,7 +88,7 @@ export function WorkInProgress({
         </ul>
       )}
 
-      {/* Dit is nu WAAR — het werk draait op de achtergrond, niet in deze tab.
+      {/* Dit is nu WAAR: het werk draait op de achtergrond, niet in deze tab.
           "of wacht op de e-mail" stond hier ook, en dat was het NIET: uitgaande
           mail staat standaard uit (EMAILS_ENABLED, .env.example) en op productie
           stond hij op 1 augustus 2026 inderdaad uit. Wie het scherm sloot en op
@@ -134,7 +134,7 @@ export function useStatusPoll<T extends { status: string }>(
           onTerminalRef.current(json);
         }
       } catch {
-        /* stil — netwerkfout, volgende tick probeert opnieuw */
+        /* stil, netwerkfout, volgende tick probeert opnieuw */
       }
     };
 

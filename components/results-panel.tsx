@@ -11,7 +11,7 @@ import type { ImpactVerdict } from "@/lib/types/database";
  * gewone zinnen praat en niet in maten.
  *
  * De controlegroep staat er expres naast en niet in een uitklapper (5.5).
- * "Je werd vaker genoemd" is geen bewijs dat de pagina werkte — zichtbaarheid
+ * "Je werd vaker genoemd" is geen bewijs dat de pagina werkte, zichtbaarheid
  * beweegt ook vanzelf. "Op de vragen waarvoor je publiceerde +18, op de rest +3"
  * is wél een uitspraak die standhoudt.
  */
@@ -67,7 +67,7 @@ export function ResultsPanel({ analysisId, results }: { analysisId: string; resu
           Van tekst naar resultaat
           <InfoHint label="Van tekst naar resultaat">
             Een tekst die niet gepubliceerd wordt, levert niets op. Blijven er pagina&apos;s steken,
-            dan is dát het punt om aan te pakken — niet meer content laten schrijven.
+            dan is dát het punt om aan te pakken. Niet meer content laten schrijven.
           </InfoHint>
         </span>
 
@@ -118,8 +118,7 @@ export function ResultsPanel({ analysisId, results }: { analysisId: string; resu
                     nu
                     {p.impact.verdict === "gelijk" && (
                       <>
-                        {" "}
-                        — dat verschil valt binnen de meetruis ({Math.round(
+                        , want dat verschil valt binnen de meetruis ({Math.round(
                           Number(p.impact.delta_threshold ?? 0),
                         )}{" "}
                         punten nodig)
@@ -140,7 +139,7 @@ export function ResultsPanel({ analysisId, results }: { analysisId: string; resu
                       day: "numeric",
                       month: "long",
                     })}
-                    . Aura hermeet na twee en na vier weken — AI-assistenten pikken nieuwe content
+                    . Aura hermeet na twee en na vier weken, want AI-assistenten pikken nieuwe content
                     niet dezelfde dag op.
                   </p>
                 )}

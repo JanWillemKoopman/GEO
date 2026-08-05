@@ -1,14 +1,14 @@
-# R0 — Fundament op orde
+# R0, Fundament op orde
 
 **Status:** open, blijvend uitgesteld · **Effort:** ~8 d · **Prioriteit:** laag
 
 Kleine defecten die de latere rondes anders blijven ondermijnen. In de praktijk blokkeerde deze
-ronde niets — R4 bleek prima te bouwen zonder R0.5. Eén punt is het onthouden waard: **R0.5 is de
+ronde niets, R4 bleek prima te bouwen zonder R0.5. Eén punt is het onthouden waard: **R0.5 is de
 reden dat de fabrikanten die Bol verkoopt nog steeds als concurrent meetellen.**
 
 > **Migratienummers in dit document zijn bijgewerkt.** De oorspronkelijke specs claimden `0027`;
 > dat nummer is inmiddels de bewijslaag (R1). Nieuwe migraties uit deze ronde krijgen `0038` en
-> verder — `0033` blijft gereserveerd voor R6.2.
+> verder, `0033` blijft gereserveerd voor R6.2.
 
 De cijfers hieronder komen uit de vijf regressie-analyses van 30 juli 2026 (Coolblue, Bol, HEMA,
 Van der Valk, Fysi-Unique). Die hebben opgeslagen `raw_response`-teksten, dus vrijwel elke stap is
@@ -16,7 +16,7 @@ zonder nieuwe OpenAI-kosten te verifiëren.
 
 ---
 
-## R0.1 — `existingUrl`-conventie afdwingen
+## R0.1, `existingUrl`-conventie afdwingen
 
 **Probleem:** drie conventies door elkaar (`""`, `"/"`, relatief pad), en `action: "nieuw"` mét een
 verwijzing naar een bestaande, relevante pagina. Bij Fysi-Unique levert dat vier nieuwe pagina's op
@@ -48,7 +48,7 @@ combinatie met een `existingUrl` die matcht met de inventaris.
 
 ---
 
-## R0.2 — Volumekalibratie normaliseren
+## R0.2, Volumekalibratie normaliseren
 
 **Probleem:** Van der Valk kreeg geen enkele "hoog"-band; het model schaalde absoluut in plaats van
 relatief, met een maximum van 50.
@@ -59,7 +59,7 @@ relatief, met een maximum van 50.
 
 1. Na de kalibratie: herschaal lineair zodat het hoogste antwoord binnen de analyse op 100 uitkomt,
    met behoud van de rangorde. Faalt de call, dan blijft de bestaande terugval van 50 gelden.
-2. `bandFromEstimate` blijft ongewijzigd — de banden verdelen zich dan vanzelf goed.
+2. `bandFromEstimate` blijft ongewijzigd, de banden verdelen zich dan vanzelf goed.
 3. Bewaar de ruwe modelwaarde náást de genormaliseerde: `volume_estimate` blijft ruw, de band is
    afgeleid van de genormaliseerde waarde.
 
@@ -70,18 +70,18 @@ vraag in de band `hoog`, en de onderlinge rangorde ongewijzigd.
 
 ---
 
-## R0.3 — Clusters bruikbaar maken
+## R0.3, Clusters bruikbaar maken
 
 **Probleem:** vrijwel één cluster per prompt (30 clusters voor 30 vragen), en vervuilde waarden als
 `"aankoopchecklist wasmachines, volumeEstimate=30}]}"`.
 
 **Bestanden:** `lib/pipeline/prompts.ts`, `lib/schemas/prompts.ts`, `lib/jobs/handlers.ts`.
 **Migratie:** geen nieuwe kolom nodig (`cluster` bestaat), wel een opschoon-`update` van de
-vervuilde waarden — nummer `0038` of later.
+vervuilde waarden, nummer `0038` of later.
 
 **Implementatie**
 
-1. Haal `cluster` uit het per-prompt-schema (`PromptSet`) — het model is er aantoonbaar slecht in.
+1. Haal `cluster` uit het per-prompt-schema (`PromptSet`). Het model is er aantoonbaar slecht in.
 2. Breid de bestaande `calibrate_volumes`-taak uit tot één call die zowel volume kalibreert **als**
    de vragen in 5–8 thema's groepeert: het model krijgt alle vragen genummerd en geeft per vraag
    een themanummer plus een themalijst terug.
@@ -95,7 +95,7 @@ bevat geen enkele clusterwaarde `{`, `}` of `volumeEstimate`.
 
 ---
 
-## R0.4 — Meetbasis-krimp zichtbaar maken
+## R0.4, Meetbasis-krimp zichtbaar maken
 
 **Probleem:** Coolblue kreeg 2 van 10 oriëntatievragen; alleen een `console.warn` vermeldde dat. De
 klant ziet een score die op een scheve trechter rust.
@@ -115,10 +115,10 @@ Met commentaar: per funnelfase gevraagd/geleverd aantal plus de reden van uitval
 **Implementatie**
 
 1. `generateForFunnelStage` geeft naast de prompts terug: gevraagd, geleverd, en hoeveel er op de
-   merkneutraliteitsregel sneuvelden — mét de weggegooide teksten, voor diagnose.
+   merkneutraliteitsregel sneuvelden, mét de weggegooide teksten, voor diagnose.
 2. `generateAnalysisPrompts` schrijft dat samengevat weg in `prompt_generation_json`.
 3. Het conceptscherm toont per funnelfase een regel wanneer geleverd < gevraagd, in gewone taal:
-   *"Voor Oriëntatie konden we er 2 van de 10 maken — de overige vragen bevatten telkens een
+   *"Voor Oriëntatie konden we er 2 van de 10 maken, de overige vragen bevatten telkens een
    merknaam die we uit de meting moeten houden. Je kunt hieronder zelf vragen toevoegen."*
 4. **Verzacht het filter:** weer een concurrentnaam alleen wanneer die als losstaand woord in de
    vraag staat én de vraag zonder die naam niet zinvol blijft. Laat de aanvulronde het model
@@ -133,7 +133,7 @@ geleverd is.
 
 ---
 
-## R0.5 — Entiteitclassificatie: bedrijfsmodel en productlijnen
+## R0.5, Entiteitclassificatie: bedrijfsmodel en productlijnen
 
 > **Deels al gebouwd.** De kolom `profiles.business_model` bestaat sinds migratie `0032` (R8.5), en
 > `profile-research.ts` bepaalt het model al (`businessModelRule`), `prepare-profile.ts` slaat het
@@ -141,7 +141,7 @@ geleverd is.
 > hieronder: `classify-entities.ts` gebruikt `business_model` nog niet.
 
 **Probleem:** bij Bol staan Lenovo, Dell, HP, Apple en ASUS als "concurrent" terwijl het fabrikanten
-zijn wier producten bol.com verkoopt — intern tegenstrijdig, want `Apple MacBook Air (M1 of M2)`
+zijn wier producten bol.com verkoopt, intern tegenstrijdig, want `Apple MacBook Air (M1 of M2)`
 staat in dezelfde tabel als `eigen_product`. Daarnaast zijn `Dell` / `Dell XPS` /
 `Dell XPS 13 2-in-1` drie losse entiteiten.
 
@@ -149,7 +149,7 @@ staat in dezelfde tabel als `eigen_product`. Daarnaast zijn `Dell` / `Dell XPS` 
 
 **Implementatie**
 
-1. ~~Bedrijfsmodel bepalen en opslaan~~ — gedaan in R8.5.
+1. ~~Bedrijfsmodel bepalen en opslaan~~, gedaan in R8.5.
 2. Geef `business_model` mee aan `classify-entities`, met een expliciete regel per model. Voor
    `platform` en `retailer`: *"merken waarvan dit bedrijf de producten verkoopt zijn nooit
    `concurrent` maar `eigen_product`; concurrent is alleen een andere winkel of platform waar
@@ -168,11 +168,11 @@ oordelen (`role_source = 'handmatig'`) blijven ongemoeid.
 
 ---
 
-## R0.6 — Off-site: repareren of uitzetten
+## R0.6, Off-site: repareren of uitzetten
 
 **Probleem:** `source_landscape` heeft 25 rijen, `offsite_tasks` is leeg terwijl minstens twee
 domeinen aan de drempel voldoen. En als het wél werkte, zou het adviseren *"zorg dat je op
-fysioatelieramersfoort.nl staat"* — de website van een directe concurrent.
+fysioatelieramersfoort.nl staat"*, de website van een directe concurrent.
 
 **Bestanden:** `lib/offsite/scan.ts`, `lib/offsite/landscape.ts`.
 
@@ -181,13 +181,13 @@ fysioatelieramersfoort.nl staat"* — de website van een directe concurrent.
 1. **Eerst diagnose:** waarom levert `createTasks` nul rijen op terwijl de condities gehaald worden?
    Verdachte: de `upsert` met `ignoreDuplicates: true` in combinatie met `.select("id")`, of een
    `own_present` die `null` blijft. Los op wat er ook uitkomt.
-2. **Onderscheid brontypes** — nieuw veld op `source_landscape`: is dit domein een *platform*
+2. **Onderscheid brontypes**, nieuw veld op `source_landscape`: is dit domein een *platform*
    (meerdere aanbieders, je kunt er een profiel aanmaken), een *concurrent-eigen site*, of een
    *redactionele bron*? Af te leiden in code: matcht het domein met een bekende concurrent-entiteit
    → concurrent-eigen.
 3. **Alleen platforms worden een taak.** Voor een concurrent-eigen domein is de conclusie een heel
    andere, en die hoort in het rapport en niet in een takenlijst: *"je concurrent wordt bij 8 vragen
-   via zijn eigen site aangehaald — dat is een contentsignaal, geen platform waar je op kunt."*
+   via zijn eigen site aangehaald. Dat is een contentsignaal, geen platform waar je op kunt."*
 
 **Verificatie:** draai de scan opnieuw voor Fysi-Unique. Verwacht: geen taak voor
 `fysioatelieramersfoort.nl`; wél Wikidata-/Wikipedia-taken als die ontbreken.

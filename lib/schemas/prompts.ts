@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 /**
- * Halte 2 — Prompt-generatie (abcplan.md §6 A2). Eén call per FUNNELFASE, op de
+ * Halte 2, Prompt-generatie (abcplan.md §6 A2). Eén call per FUNNELFASE, op de
  * quality-tier. Elke prompt krijgt fijnere tags mee voor latere analyse (intent,
  * head/long-tail, koopintentie, cluster, geschat zoekvolume). De funnelfase zelf
  * komt niet uit het model (die is bekend per call).
@@ -16,7 +16,7 @@ export const PromptSet = z.object({
       intentType: z.enum(["informational", "commercial", "transactional"]),
       /** head (korte, brede vraag) | long_tail (lange, specifieke vraag). */
       specificity: z.enum(["head", "long_tail"]),
-      /** Koopintentie ja/nee. */
+      /** Koopintentie ja of nee. */
       purchaseIntent: z.boolean(),
       /** Kort thema-/topic-label (bv. "hardloopschoenen") om prompts/content te groeperen. */
       cluster: z.string(),
@@ -31,7 +31,7 @@ export type PromptSet = z.infer<typeof PromptSet>;
  * van een analyse in één keer t.o.v. elkaar weegt naar verwacht zoekvolume.
  * Relatief kalibreren is consistenter dan losse per-prompt-schattingen. Elke
  * prompt wordt via z'n 1-based `index` teruggekoppeld; `volume` is 0-100
- * (0 = zeer specifiek/zelden, 100 = zeer populair/breed) — een SCHATTING, geen
+ * (0 = zeer specifiek/zelden, 100 = zeer populair/breed), een SCHATTING, geen
  * echte index.
  */
 export const VolumeCalibration = z.object({

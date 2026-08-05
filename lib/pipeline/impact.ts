@@ -3,7 +3,7 @@ import "server-only";
 /**
  * Heeft het gewerkt? (optimalisatie.md 5.3/5.4/5.5)
  *
- * Dit is de fase waarin de belofte wordt ingelost — of weerlegd, en dan weten we
+ * Dit is de fase waarin de belofte wordt ingelost, of weerlegd, en dan weten we
  * dat tenminste. Tot nu toe eindigde de keten bij "hier is je tekst".
  *
  * De moeilijkheid zit niet in het meten maar in de UITSPRAAK. "Je score steeg
@@ -28,7 +28,7 @@ type Admin = SupabaseClient;
 /**
  * Wanneer we hermeten, in dagen na publicatie.
  *
- * Niet meteen: AI-systemen nemen nieuwe content niet dezelfde dag op — een
+ * Niet meteen: AI-systemen nemen nieuwe content niet dezelfde dag op, een
  * pagina moet gecrawld en geïndexeerd worden, en bij zoekgestuurde assistenten
  * duurt dat dagen tot weken. Twee meetmomenten en niet één, omdat één moment
  * "opgepikt" niet van "toeval" kan onderscheiden.
@@ -53,7 +53,7 @@ const MAX_CONTROL_PROMPTS = 5;
  * Plant beide golven in zodra een pagina als gepubliceerd gemarkeerd is.
  *
  * De taken staan in de wachtrij met een `scheduled_for` in de toekomst; de
- * werker pikt ze vanzelf op als het zover is. Geen aparte planner nodig — dat
+ * werker pikt ze vanzelf op als het zover is. Geen aparte planner nodig. Dat
  * is precies waar de wachtrij uit fase 1 voor gebouwd is.
  */
 export async function planImpactWaves(
@@ -63,7 +63,7 @@ export async function planImpactWaves(
   const targets = await loadTargets(admin, args.contentPieceId);
   if (targets.length === 0) {
     // Geen doelvragen (een pagina van vóór fase 4, of het model wees niets aan):
-    // dan valt er niets te meten. Geen fout — wel iets om niet stil te laten.
+    // dan valt er niets te meten. Geen fout, wel iets om niet stil te laten.
     console.warn(`Pagina ${args.contentPieceId} heeft geen doelvragen; geen impactmeting ingepland.`);
     return { planned: 0 };
   }
@@ -141,7 +141,7 @@ async function pickControlPrompts(
  * Zet de meettaken voor één golf klaar: de doelvragen én de controlegroep.
  *
  * Dit is wat een `measure_impact`-taak doet. Hij plant losse `measure_prompt`-
- * taken (met een impact-markering) en daarna de berekening — zelfde patroon als
+ * taken (met een impact-markering) en daarna de berekening, zelfde patroon als
  * de gewone meting, zodat één vraag per taak binnen de tijdslimiet blijft.
  */
 export async function planImpactMeasurements(

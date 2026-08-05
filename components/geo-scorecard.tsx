@@ -21,8 +21,8 @@ import { geoRegels } from "@/lib/pipeline/content-gate";
 export function GeoScorecard({ geo, score }: { geo: unknown; score: number | null }) {
   const regels = geoRegels(geo);
   // Alleen de uitgevoerde controles tellen mee in "x van de y". Een controle die
-  // niet van toepassing was (geen ja/nee-vraag, geen onderscheidend antwoord)
-  // is geen onvoldoende — onbekend is een betere waarde dan een verkeerde.
+  // niet van toepassing was (geen ja-of-nee-vraag, geen onderscheidend antwoord)
+  // is geen onvoldoende, onbekend is een betere waarde dan een verkeerde.
   const getoetst = regels.filter((r) => r.ok !== null);
   const geslaagd = getoetst.filter((r) => r.ok).length;
 
@@ -33,7 +33,7 @@ export function GeoScorecard({ geo, score }: { geo: unknown; score: number | nul
           Citeerbaarheid voor AI-assistenten
           <InfoHint label="Citeerbaarheid voor AI-assistenten">
             Goed geschreven is één ding. Of een AI-assistent deze tekst kán aanhalen als iemand jouw
-            vraag stelt, is iets anders — en daar gaat dit over.
+            vraag stelt, is iets anders. Daar gaat dit over.
           </InfoHint>
         </span>
         <span className="mono-label">
@@ -66,10 +66,10 @@ export function GeoScorecard({ geo, score }: { geo: unknown; score: number | nul
                 {regel.label}
                 <span className="sr-only">
                   {regel.ok === null
-                    ? " — niet van toepassing"
+                    ? ", niet van toepassing"
                     : regel.ok
-                      ? " — in orde"
-                      : " — nog niet in orde"}
+                      ? ", in orde"
+                      : ", nog niet in orde"}
                 </span>
               </span>
               {regel.ok === false && <span className="text-muted">{regel.uitleg}</span>}

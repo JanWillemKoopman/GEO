@@ -13,7 +13,7 @@ import type { ContextFactor, ContextFactorKind } from "@/lib/types/database";
  * Wat er uit het gesprek komt (blok C).
  *
  * Eén kaart, twee velden. De strategie in vrije tekst, en daaronder de dingen
- * die de pijplijn niet kan waarnemen — die tweede gestructureerd, want elke
+ * die de pijplijn niet kan waarnemen. Die tweede gestructureerd, want elke
  * soort heeft een gevolg in code. Zie lib/pipeline/context-factors.ts.
  *
  * Bewust geen apart gespreksscherm: het gesprek gaat over hetzelfde profiel dat
@@ -82,7 +82,7 @@ export function StrategyBox({
       ];
       setSaved(
         doorgewerkt.length > 0
-          ? `Opgeslagen — ${doorgewerkt.join(", ")}.`
+          ? `Opgeslagen. ${doorgewerkt.join(", ")}.`
           : "Opgeslagen.",
       );
       setPending(false);
@@ -120,7 +120,7 @@ export function StrategyBox({
           <span className="mono-label">Wat Aura niet kan zien</span>
           <span className="text-sm text-secondary">
             Dingen die niet op de website staan, maar wel bepalen wat het advies
-            waard is. Aan elk hangt een gevolg — geen notitie die niemand
+            waard is. Aan elk hangt een gevolg, geen notitie die niemand
             terugleest.
           </span>
         </div>

@@ -18,7 +18,7 @@ export default async function AnalysisLayout({
   const analysis = await getAnalysis(id);
   if (!analysis) notFound();
 
-  // Zolang het concept nog bevestigd moet worden, is er maar één taak — dan
+  // Zolang het concept nog bevestigd moet worden, is er maar één taak. Dan
   // hoort er geen navigatie te staan die daarvan afleidt en die toch nergens
   // heen kan. Alle andere routes sturen in die toestand door naar /concept.
   const awaitingApproval = analysis.status === "concept_klaar";

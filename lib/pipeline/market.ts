@@ -11,14 +11,14 @@ import "server-only";
  * *waarom zij wel en ik niet?*
  *
  * Deze stap zoekt dat uit met web search, en levert per concurrent een reden met
- * een bron erbij. Zonder die bron is het een mening van een model — en precies
+ * een bron erbij. Zonder die bron is het een mening van een model, en precies
  * dat soort ongefundeerde uitspraken haalt `validate-claims.ts` verderop in de
  * pijplijn er weer uit.
  *
  * ── HET BRONNENLANDSCHAP OP MERKNIVEAU ──────────────────────────────────────
  *
  * `source_landscape` bestaat al sinds migratie 0022, maar hangt aan een ANALYSE.
- * Welke platforms deze markt bepalen — vergelijkers, reviewsites, vakpers — is
+ * Welke platforms deze markt bepalen, vergelijkers, reviewsites, vakpers, is
  * geen eigenschap van één onderwerp maar van het merk. Die lijst hier vaststellen
  * betekent dat elke analyse van deze klant hem kan hergebruiken in plaats van
  * hem opnieuw te ontdekken.
@@ -145,13 +145,13 @@ export async function researchMarket(profileId: string): Promise<MarketResult> {
     `Je bent marktanalist voor een GEO-adviesbureau. Je onderzoekt het concurrentieveld van één ` +
     `bedrijf.\n\n` +
     `LEVER DRIE DINGEN:\n` +
-    `1. COMPETITORS — per concurrent WAAROM die wint bij dit type klant. Niet "zij hebben een ` +
+    `1. COMPETITORS: per concurrent WAAROM die wint bij dit type klant. Niet "zij hebben een ` +
     `betere website" maar concreet: groter bereik, scherpere prijs, een specialisatie, een sterke ` +
     `aanwezigheid op een platform.\n` +
-    `2. SOURCEDOMAINS — de domeinen die in deze markt gezaghebbend zijn: vergelijkers, ` +
+    `2. SOURCEDOMAINS, de domeinen die in deze markt gezaghebbend zijn: vergelijkers, ` +
     `reviewplatforms, vakpers, brancheregisters. NIET de concurrenten zelf, maar de plekken waar ` +
     `over dit soort bedrijven geschreven wordt.\n` +
-    `3. POSITIONING — hoe dit bedrijf zich verhoudt tot de rest.\n\n` +
+    `3. POSITIONING: hoe dit bedrijf zich verhoudt tot de rest.\n\n` +
     `${groundingRule} Verzin geen concurrenten die niet bestaan; een korte, kloppende lijst is ` +
     `beter dan een lange. Antwoord in het Nederlands.`;
 

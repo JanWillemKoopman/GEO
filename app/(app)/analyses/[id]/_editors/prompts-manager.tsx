@@ -17,7 +17,7 @@ type PromptPatch = Partial<Pick<Prompt, "text" | "category" | "active" | "volume
 
 /**
  * Prompt-beheer, gegroepeerd per categorie (abcplan.md §3.5/§6 A2b). Mobiel:
- * elke categorie is een aparte, dichte accordion-sectie — "gegroepeerd en pas
+ * elke categorie is een aparte, dichte accordion-sectie, "gegroepeerd en pas
  * op tik uitklapbaar per categorie" (abcplan.md §3.7, designsystem.md §D4).
  */
 export function PromptsManager({ analysisId, initial }: { analysisId: string; initial: Prompt[] }) {
@@ -176,7 +176,7 @@ function PromptTags({ prompt }: { prompt: Prompt }) {
  * Hoe vaak wordt deze vraag gesteld? (optimalisatie.md 2.6)
  *
  * Drie knoppen in plaats van een getal. De AI zet een eerste inschatting neer,
- * de klant kan hem overrulen — hij weet welke vragen zijn omzet opleveren en het
+ * de klant kan hem overrulen, hij weet welke vragen zijn omzet opleveren en het
  * model niet. Zodra hij dat doet, staat er zichtbaar bij dat het zíjn keuze is,
  * zodat het verschil tussen "de app denkt" en "ik weet" niet vervaagt.
  */

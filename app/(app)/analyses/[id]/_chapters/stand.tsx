@@ -5,7 +5,7 @@ import { loadTrend } from "@/lib/pipeline/trend";
 import type { Analysis, Report, VisibilityScore } from "@/lib/types/database";
 
 /**
- * Hoofdstuk 01 — "Hoe je ervoor staat".
+ * Hoofdstuk 01, "Hoe je ervoor staat".
  *
  * Het cijfer met zijn marge, de verandering sinds de vorige meting, de duiding
  * in woorden, en de lijn over de tijd. Meer niet: dit hoofdstuk beantwoordt één

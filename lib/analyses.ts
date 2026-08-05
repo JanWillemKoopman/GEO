@@ -2,7 +2,7 @@ import "server-only";
 
 /**
  * Haalt één analyse op namens de ingelogde user. Dankzij RLS (SELECT-only,
- * gefilterd op user_id) geeft dit alleen een rij terug als de user 'm bezit —
+ * gefilterd op user_id) geeft dit alleen een rij terug als de user 'm bezit,
  * dat is meteen de ownership-check voor lezen.
  */
 import { createClient } from "@/lib/supabase/server";
@@ -20,7 +20,7 @@ export async function getAnalysis(id: string): Promise<Analysis | null> {
  * Ownership-check voor schrijfroutes (§5/§12.20): haalt de analyse op met de
  * service-role client (die RLS omzeilt) en geeft alleen iets terug als de
  * analyse écht van deze user is. Geeft null bij "niet gevonden" ÉN "niet van jou"
- * — geen onderscheid, om niet te lekken of een id bestaat.
+ *. Geen onderscheid, om niet te lekken of een id bestaat.
  *
  * Sinds migratie 0038 is er een tweede uitweg: de beheerder. Die begeleidt de
  * klant ná de toewijzing en moet dus bij analyses kunnen die niet van hem zijn.

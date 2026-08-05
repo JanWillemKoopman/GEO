@@ -2,8 +2,8 @@
  * Hoe zeker is een score? (optimalisatie.md 2.2)
  *
  * De zichtbaarheidsscore is een steekproef: we stellen 30 vragen en tellen in
- * hoeveel antwoorden het merk voorkomt. Een andere set van 30 vragen — of
- * dezelfde 30 vragen op een andere dag — geeft een ander getal, zonder dat er
+ * hoeveel antwoorden het merk voorkomt. Een andere set van 30 vragen, of
+ * dezelfde 30 vragen op een andere dag, geeft een ander getal, zonder dat er
  * iets veranderd is aan de zichtbaarheid. Zonder die bandbreedte erbij leest de
  * klant ruis als vooruitgang, en dat is precies het soort fout waar een
  * meetinstrument z'n geloofwaardigheid op verliest.
@@ -24,7 +24,7 @@ export const Z95 = 1.96;
  * prima kan horen bij een echte zichtbaarheid van 5 à 10%. Datzelfde geldt aan
  * de bovenkant bij 30 van de 30. Door bij de berekening van de spreiding te doen
  * alsof er twee successen en twee mislukkingen extra waren, houden we ook aan de
- * randen een eerlijke band over. De GETOONDE score blijft ongecorrigeerd — het
+ * randen een eerlijke band over. De GETOONDE score blijft ongecorrigeerd, het
  * gaat hier alleen om de onzekerheid eromheen.
  */
 const PSEUDO_SUCCESSES = 2;
@@ -71,9 +71,9 @@ export interface WeightedOutcome {
  *     n_eff = (Σ w)² / Σ w²
  *
  * Zijn alle gewichten gelijk, dan is n_eff gewoon n en komt er hetzelfde uit als
- * bij `binomialStderr`. Loopt één gewicht ver uit de pas, dan zakt n_eff — 30
+ * bij `binomialStderr`. Loopt één gewicht ver uit de pas, dan zakt n_eff, 30
  * metingen waarvan er één domineert gedragen zich statistisch als veel minder
- * dan 30 — en wordt de band terecht breder.
+ * dan 30, en wordt de band terecht breder.
  */
 export function weightedScoreStderr(outcomes: WeightedOutcome[]): number {
   const usable = outcomes.filter((o) => o.weight > 0);
@@ -116,7 +116,7 @@ export function confidenceBand(
  * Twee onafhankelijke metingen: de spreiding van het VERSCHIL is de wortel uit
  * de som van de kwadraten van de losse standaardfouten. Daardoor is de drempel
  * voor "er is echt iets veranderd" ruwweg 1,4× breder dan de band rond één
- * losse score — met 30 metingen zo'n 23 punten. Alles daaronder tonen we als
+ * losse score, met 30 metingen zo'n 23 punten. Alles daaronder tonen we als
  * "gelijk gebleven"; een pijltje omhoog bij +4 punten is een leugen met een
  * grafiekje eromheen.
  */

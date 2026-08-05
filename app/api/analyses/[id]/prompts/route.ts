@@ -4,7 +4,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { getOwnedAnalysis } from "@/lib/analyses";
 
 /**
- * POST /api/analyses/[id]/prompts — nieuwe prompt toevoegen door de klant
+ * POST /api/analyses/[id]/prompts, nieuwe prompt toevoegen door de klant
  * (abcplan.md §3.5/§6 A2b). created_by = 'user', geen AI-call.
  */
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {

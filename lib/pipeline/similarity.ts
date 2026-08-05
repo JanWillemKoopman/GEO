@@ -7,7 +7,7 @@
  * Wij schrijven tot tien pagina's per merk uit DEZELFDE feitenkaart, met
  * dezelfde stijlvoorbeelden, dezelfde merkregels en hetzelfde premium model. Dat
  * is het recept voor pagina's die op elkaar lijken. Niemand meet het, en de
- * klant ziet het pas als hij ze naast elkaar legt — op het moment dat hij ze al
+ * klant ziet het pas als hij ze naast elkaar legt, op het moment dat hij ze al
  * gepubliceerd heeft.
  *
  * Voor AI-zichtbaarheid is dat bovendien niet alleen een schoonheidsfout: twee
@@ -96,7 +96,7 @@ export interface SimilarPage {
  * De pagina waar deze tekst het meest op lijkt, of `null` als er niets te
  * vergelijken valt.
  *
- * Geeft altijd de hoogste score terug, ook onder de drempel — die waarde wordt
+ * Geeft altijd de hoogste score terug, ook onder de drempel. Die waarde wordt
  * gelogd, en zonder die logging kunnen we de drempel nooit op echte data
  * bijstellen.
  */
@@ -116,7 +116,7 @@ export function mostSimilar(
 export function describeDuplicate(match: SimilarPage): string {
   return (
     `Deze pagina lijkt voor ${Math.round(match.score * 100)}% op "${match.title}". ` +
-    `Overweeg ze samen te voegen, of maak scherper waarin ze van elkaar verschillen — ` +
-    `twee pagina's die hetzelfde zeggen concurreren om dezelfde vraag.`
+    `Overweeg ze samen te voegen, of maak scherper waarin ze van elkaar verschillen. ` +
+    `Twee pagina's die hetzelfde zeggen concurreren om dezelfde vraag.`
   );
 }

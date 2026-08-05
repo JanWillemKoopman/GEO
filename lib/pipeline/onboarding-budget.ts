@@ -6,7 +6,7 @@ import "server-only";
  * ── WAAROM DIT EEN POORT IS EN GEEN SCHATTING ───────────────────────────────
  *
  * Het plafond is €2 (≈ $2,15) per onboarding. Dat is ruim: het volledige
- * onderzoek landt op $0,50–1,00. Maar "ruim" is geen garantie — een site met
+ * onderzoek landt op $0,50–1,00. Maar "ruim" is geen garantie, een site met
  * 150 pagina's, een tweede engine erbij en een herhaalronde na een correctie
  * lopen samen wél op, en dan is de eerste die het merkt de creditcard.
  *
@@ -20,7 +20,7 @@ import "server-only";
  * niet gedraaid heeft, moet er anders uitzien dan een profiel waarvan de
  * kennistest niets vond.
  *
- * De volgorde van de pijplijn is daarop afgestemd — goedkoop en fundamenteel
+ * De volgorde van de pijplijn is daarop afgestemd, goedkoop en fundamenteel
  * eerst, duur en verrijkend laatst. "Budget op" is daardoor automatisch de
  * juiste keuze in plaats van een willekeurige.
  */
@@ -65,7 +65,7 @@ export async function remainingBudgetUsd(
 /**
  * Past een fase van deze geschatte omvang er nog in?
  *
- * De schatting mag ruw zijn — hij hoeft alleen te voorkomen dat een dure fase
+ * De schatting mag ruw zijn, hij hoeft alleen te voorkomen dat een dure fase
  * begint met een paar cent over. Te voorzichtig zijn kost een fase, te
  * optimistisch zijn kost geld; bij twijfel wint voorzichtig.
  */

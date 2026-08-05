@@ -4,7 +4,7 @@ import "server-only";
  * De antwoorden van één meetperiode ophalen (optimalisatie.md 3A).
  *
  * De app slaat elk AI-antwoord volledig op in `tracking_runs.raw_response`. Dat
- * werd precies één keer gelezen — door de classificatie — en daarna nooit meer.
+ * werd precies één keer gelezen, door de classificatie, en daarna nooit meer.
  * De klant zag alleen een score en balkjes, terwijl het letterlijke antwoord het
  * overtuigendste is wat het systeem bezit: "kijk, dít antwoordt ChatGPT op jouw
  * belangrijkste vraag, en het noemt drie keer je concurrent en jou niet."

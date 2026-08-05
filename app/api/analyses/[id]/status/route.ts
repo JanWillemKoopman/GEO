@@ -5,11 +5,11 @@ import { getOwnedAnalysis } from "@/lib/analyses";
 import { analysisProgress, formatEta } from "@/lib/jobs/progress";
 
 /**
- * GET /api/analyses/[id]/status — poll-endpoint voor de voortgangsschermen.
+ * GET /api/analyses/[id]/status, poll-endpoint voor de voortgangsschermen.
  *
  * Leest nu ook de TAAKSTAND (optimalisatie.md 1.6). Dat is het verschil tussen
  * "voortgang omdat deze browser het werk startte" en "voortgang omdat er werk
- * loopt" — de tweede klopt ook als de klant het scherm nooit opende.
+ * loopt", de tweede klopt ook als de klant het scherm nooit opende.
  *
  * `jobs` staat op deny-all in RLS, dus dit gaat via de service-role client mét
  * expliciete eigenaarscontrole (zelfde patroon als de kosten-route).

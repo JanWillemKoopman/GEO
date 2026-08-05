@@ -4,14 +4,14 @@
  * ── WAAROM DIT EEN EIGEN BESTAND IS, ZONDER `server-only` ───────────────────
  *
  * Conventie 2: alles wat de uitkomst bepaalt hoort in een pure, importeerbare
- * module — anders is het niet te testen vanuit `scripts/test-unit.ts`. Deze
+ * module. Anders is het niet te testen vanuit `scripts/test-unit.ts`. Deze
  * sleutels zijn precies zulke logica: een partiële unieke index op
  * `(dedupe_key)` voor status `queued|running` bepaalt of werk dubbel wordt
  * ingepland. Eén tekenverschil in een sleutel is het verschil tussen een
  * genegeerde dubbele taak en een tweede betaalde web-zoekactie per vraag.
  *
  * Stond tot augustus 2026 in `queue.ts`, en was daardoor onbereikbaar voor de
- * unittests — dat viel op toen de engine erbij kwam (migratie 0041) en juist
+ * unittests. Dat viel op toen de engine erbij kwam (migratie 0041) en juist
  * die sleutel getoetst moest worden.
  */
 import type { EngineId } from "@/lib/types/database";
@@ -32,13 +32,13 @@ export const dedupe = {
   // Index 0 houdt bewust de OUDE sleutelvorm, zodat taken die al in de wachtrij
   // stonden bij het uitrollen van R6.1 niet ineens als nieuw werk gelden.
   /**
-   * De engine hoort in de sleutel (migratie 0041, blok E) — anders zou een
+   * De engine hoort in de sleutel (migratie 0041, blok E). Anders zou een
    * Gemini-meting van dezelfde vraag als dubbele taak worden weggefilterd.
    *
    * `openai` levert bewust de OUDE sleutel zonder achtervoegsel op. Er staan
    * taken en dedupe-sleutels in de database van vóór deze wijziging; zou de
    * standaardengine nu een andere sleutel krijgen, dan zou een lopende meetronde
-   * bij de eerstvolgende poging alles opnieuw inplannen — en dat is een tweede
+   * bij de eerstvolgende poging alles opnieuw inplannen, en dat is een tweede
    * betaalde web-zoekactie per vraag.
    */
   measurePrompt: (
@@ -61,7 +61,7 @@ export const dedupe = {
   // dezelfde knop drukken mag niet twee pagina's opleveren.
   contentDraft: (analysisId: string, title: string) => `content:${analysisId}:${title}`,
   // Eén briefing per BATCH (contentbriefing.md §2), dus de sleutel is de set
-  // gekozen titels — niet één titel. Kiest de klant dezelfde drie pagina's nog
+  // gekozen titels, niet één titel. Kiest de klant dezelfde drie pagina's nog
   // een keer, dan is dat dezelfde briefing; kiest hij er een vierde bij, dan is
   // het een nieuwe vragenronde.
   contentBrief: (analysisId: string, titles: string[]) =>
@@ -80,7 +80,7 @@ export const dedupe = {
     `impact_run:${contentPieceId}:w${wave}:${promptId}`,
   computeImpact: (contentPieceId: string, wave: number) => `impact_calc:${contentPieceId}:w${wave}`,
   // Per DAG: de scan mag opnieuw draaien na een nieuwe meting, maar niet twee
-  // keer op dezelfde dag — de aanwezigheidscontrole kost een web-zoekactie.
+  // keer op dezelfde dag, de aanwezigheidscontrole kost een web-zoekactie.
   offsiteScan: (analysisId: string, day = new Date().toISOString().slice(0, 10)) =>
     `offsite:${analysisId}:${day}`,
 };

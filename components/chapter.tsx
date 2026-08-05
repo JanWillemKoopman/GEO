@@ -4,13 +4,13 @@
  * ── WAAROM HOOFDSTUKKEN EN GEEN TABBLADEN ───────────────────────────────────
  *
  * Een analyse was verdeeld over vijf tabbladen: Overzicht, Vragen & antwoorden,
- * Rapport, Bibliotheek, Instellingen. Vijf gelijkwaardige, parallelle keuzes —
+ * Rapport, Bibliotheek, Instellingen. Vijf gelijkwaardige, parallelle keuzes,
  * terwijl het werk in werkelijkheid één vaste volgorde heeft: meten, zien waar
  * je mist, iets doen, kijken of het werkte.
  *
  * Een tabbalk KAN die volgorde niet uitdrukken. Dat is geen labelprobleem dat
  * je met betere woorden oplost; het is de vorm zelf. Een verticale as kan het
- * wel — en daarom is dit een doorlopende pagina met genummerde hoofdstukken.
+ * wel, en daarom is dit een doorlopende pagina met genummerde hoofdstukken.
  *
  * De vormgeving volgt InSpace 1-op-1 (designsystem.md §A2/§A3): een genummerd
  * mono-label in paars, een grote kop waarvan één woord de merk-gradient draagt,
@@ -26,14 +26,14 @@ export function Chapter({
   children,
 }: {
   id: string;
-  /** "01" t/m "04" — hetzelfde patroon als het mobiele menu. */
+  /** "01" t/m "04", hetzelfde patroon als het mobiele menu. */
   number: string;
   title: string;
   /** Het woord dat de merk-gradient krijgt: de InSpace-vingerafdruk. */
   accent: string;
   /** Eén zin die zegt welke vraag dit hoofdstuk beantwoordt. */
   intro?: string;
-  /** Rechts van de kop — bv. een periodekiezer. */
+  /** Rechts van de kop, bv. Een periodekiezer. */
   aside?: React.ReactNode;
   children: React.ReactNode;
 }) {

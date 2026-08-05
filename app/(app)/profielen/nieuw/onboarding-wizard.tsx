@@ -12,25 +12,25 @@ import { checkUrlFormat } from "@/lib/url";
  * ── WAAROM DIT NOG MAAR ÉÉN SCHERM IS ───────────────────────────────────────
  *
  * Hier stond een wizard van vier stappen: bedrijf, wat je doet, markt &
- * concurrentie, doelgroep/stijl/techniek. Elf velden, waarvan zeven verplicht
+ * concurrentie, doelgroep, stijl en techniek. Elf velden, waarvan zeven verplicht
  * zodra je voor de uitgebreide route koos.
  *
  * Dat was de juiste oplossing bij een profielonderzoek dat één AI-aanroep op de
  * homepage deed: wat het model niet kon weten, moest de klant typen. Sinds fase
  * 0 tot 150 pagina's uitkamt, de gestructureerde data oogst en de hele
  * onderzoeksketen erachteraan draait, is die redenering omgedraaid. De pijplijn
- * weet het beter, sneller en met bronvermelding — en de klant die "branche" moet
+ * weet het beter, sneller en met bronvermelding, en de klant die "branche" moet
  * invullen levert doorgaans één woord waar het onderzoek een alinea van maakt.
  *
  * Wat overblijft is wat de pijplijn ECHT niet kan afleiden:
  *
- *   • het webadres     — het anker van alle onderzoek
- *   • de bedrijfsnaam  — zoals klanten hem kennen, niet zoals het domein heet
- *   • andere namen     — afkortingen en schrijfwijzen die de meting anders mist
+ *   • het webadres    , het anker van alle onderzoek
+ *   • de bedrijfsnaam , zoals klanten hem kennen, niet zoals het domein heet
+ *   • andere namen    , afkortingen en schrijfwijzen die de meting anders mist
  *
  * De kolommen voor de oude velden bestaan nog (additief principe) en worden nu
  * door het onderzoek gevuld. Corrigeren gebeurt op de profielpagina, ná afloop,
- * als er iets te corrigeren VALT — in plaats van vooraf, als huiswerk.
+ * als er iets te corrigeren VALT: in plaats van vooraf, als huiswerk.
  */
 
 interface FormState {
@@ -51,7 +51,7 @@ export function OnboardingWizard() {
   //
   // De server rendert dit formulier als HTML; React neemt het pas over zodra de
   // JS-bundel geladen én uitgevoerd is. In dat gat is het veld gewoon te
-  // gebruiken — en het naamveld heeft `autoFocus`, dus het NODIGT UIT om er
+  // gebruiken, en het naamveld heeft `autoFocus`, dus het NODIGT UIT om er
   // meteen in te typen. Wie dat deed, zag zijn invoer bij de eerste re-render
   // spoorloos verdwijnen: de controlled input schreef de lege React-state terug
   // over de DOM-waarde heen. Gemeten op 1 augustus 2026 tegen productie: naam
@@ -131,7 +131,7 @@ export function OnboardingWizard() {
             placeholder="bijv. MediaMarkt"
             autoFocus
           />
-          <span className="text-sm text-muted">De naam zoals klanten je kennen — niet het domein.</span>
+          <span className="text-sm text-muted">De naam zoals klanten je kennen, niet het domein.</span>
         </label>
 
         <label className="flex flex-col gap-1.5">
@@ -153,13 +153,13 @@ export function OnboardingWizard() {
             </span>
           ) : (
             <span className="text-sm text-muted">
-              Het adres van de website, bijvoorbeeld voorbeeld.nl — met of zonder https://.
+              Het adres van de website, bijvoorbeeld voorbeeld.nl, met of zonder https ervoor.
             </span>
           )}
         </label>
 
         <div className="flex flex-col gap-1.5">
-          <span className="mono-label">Andere namen / schrijfwijzen (optioneel)</span>
+          <span className="mono-label">Andere namen en schrijfwijzen (optioneel)</span>
           <TagListEditor
             items={form.aliases}
             onChange={(aliases) => set("aliases", aliases)}
@@ -183,7 +183,7 @@ export function OnboardingWizard() {
                 disabled={pending}
                 className="btn-outline w-fit disabled:opacity-60"
               >
-                Adres klopt — ga toch door
+                Adres klopt, ga toch door
               </button>
             )}
           </div>
@@ -200,7 +200,7 @@ export function OnboardingWizard() {
           </button>
           <span className="text-sm text-muted">
             Het onderzoek duurt ongeveer tien minuten en loopt door als je dit scherm sluit. Verder
-            invullen hoeft niet — wat Aura vindt kun je daarna nog corrigeren.
+            invullen hoeft niet. Wat Aura vindt kun je daarna nog corrigeren.
           </span>
         </div>
       </div>

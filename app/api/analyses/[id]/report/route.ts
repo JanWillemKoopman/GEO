@@ -6,7 +6,7 @@ import { enqueue, dedupe } from "@/lib/jobs/queue";
 import { describeError, classifyError } from "@/lib/errors";
 
 /**
- * POST /api/analyses/[id]/report — plant het rapport in (optimalisatie.md 1.4).
+ * POST /api/analyses/[id]/report, plant het rapport in (optimalisatie.md 1.4).
  *
  * Normaal gesproken hóéft deze route niet aangeroepen te worden: de aggregatie-
  * taak ketent zelf door naar het rapport zodra de meting klaar is (1.5). Dit is
@@ -24,7 +24,7 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
 
   try {
     // De periode waarvoor het rapport ontbreekt, is de LAATSTE waarvoor gemeten
-    // is — niet altijd de nulmeting. Dit stond hard op 0, waardoor de retryknop
+    // is, niet altijd de nulmeting. Dit stond hard op 0, waardoor de retryknop
     // bij een mislukt maandrapport een taak voor periode 0 inplande; die zag dat
     // dat rapport allang bestond, zette de status op 'gereed' en deed verder
     // niets. De klant drukte dan op "opnieuw" en er gebeurde zichtbaar niets.

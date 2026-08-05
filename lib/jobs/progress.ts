@@ -5,7 +5,7 @@ import "server-only";
  *
  * Voorheen leidde de UI voortgang af uit resultaten ("bestaat er al
  * onderwerp-onderzoek?"). Dat had twee problemen: het werkte alleen als de
- * browser het werk zelf had gestart, en het kon TERUGSPRINGEN — bij een nieuwe
+ * browser het werk zelf had gestart, en het kon TERUGSPRINGEN: bij een nieuwe
  * poging verdween een afgevinkte stap weer.
  *
  * De taakstand lost allebei op: hij bestaat ook als de klant het scherm nooit
@@ -22,7 +22,7 @@ type Admin = SupabaseClient;
 
 /**
  * Hoe lang een taaksoort typisch duurt, in seconden. Voor de tijdsindicatie
- * (1.9) — die stond eerder als vaste tekst in de UI ("dit duurt doorgaans een
+ * (1.9). Die stond eerder als vaste tekst in de UI ("dit duurt doorgaans een
  * halve minuut") en klopte niet meer zodra het aantal vragen veranderde.
  *
  * Bewust conservatief (aan de hoge kant): een schatting die meevalt is prettig,
@@ -30,7 +30,7 @@ type Admin = SupabaseClient;
  */
 const TYPICAL_SECONDS: Record<JobType, number> = {
   // Tot 150 pagina's in batches van 8. Geen AI, wel het meeste netwerk van de
-  // hele pijplijn — bij een trage site loopt dit richting anderhalve minuut.
+  // hele pijplijn, bij een trage site loopt dit richting anderhalve minuut.
   profile_discover: 70,
   profile_research: 50, // sitemap-crawl + AI-onderzoek met web_search
   profile_offering: 45, // één aanroep over de hele sitetekst, geen web_search
@@ -70,7 +70,7 @@ const NON_BLOCKING_TYPES: ReadonlySet<JobType> = new Set<JobType>([
   // De aanbodboom is VERRIJKING, geen voorwaarde (zelfde redenering als
   // competitor_intel bij het rapport). Het profiel staat al op 'klaar' als
   // deze taak begint; mislukt hij, dan mist de klant zijn dienstenoverzicht en
-  // de topicvoorstellen — vervelend, maar zijn merk is bruikbaar en elke
+  // de topicvoorstellen, vervelend, maar zijn merk is bruikbaar en elke
   // analyse werkt. Een rood kruis op het voortgangsscherm zou suggereren dat
   // het onderzoek is misgelopen, en dat is niet zo.
   "profile_offering",
@@ -91,7 +91,7 @@ const NON_BLOCKING_TYPES: ReadonlySet<JobType> = new Set<JobType>([
 
 /**
  * Hoeveel lichte taken de werker gelijktijdig afwerkt. Moet overeenkomen met
- * CLAIM_BATCH in lib/jobs/worker.ts — anders liegt de tijdsindicatie.
+ * CLAIM_BATCH in lib/jobs/worker.ts. Anders liegt de tijdsindicatie.
  */
 const PARALLELISM = 5;
 
@@ -107,7 +107,7 @@ export interface JobProgress {
   failed: number;
   /** Staat er een nieuwe poging gepland na een tegenslag? */
   retrying: boolean;
-  /** Verwachte resterende tijd in seconden — null als er niets openstaat. */
+  /** Verwachte resterende tijd in seconden, null als er niets openstaat. */
   etaSeconds: number | null;
   /** Aantal openstaande taken per soort, voor een fijnere stappenweergave. */
   pendingByType: Partial<Record<JobType, number>>;

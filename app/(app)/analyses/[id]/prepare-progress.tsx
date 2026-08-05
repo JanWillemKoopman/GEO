@@ -21,16 +21,16 @@ interface StatusPayload {
  * Voortgang van de voorbereiding (halte 1'+2).
  *
  * PLANT het werk in (één POST die direct antwoordt) en kijkt daarna alleen nog
- * toe (optimalisatie.md 1.7). Voorheen dééd deze fetch het werk — zestig
- * seconden lang open blijven staan — terwijl er onderaan stond dat je het
+ * toe (optimalisatie.md 1.7). Voorheen dééd deze fetch het werk, zestig
+ * seconden lang open blijven staan, terwijl er onderaan stond dat je het
  * scherm mocht sluiten. Dat klopt nu wél.
  */
 const STALE_FAILURE: UserFacingError = {
   kind: "unknown",
   title: "De voorbereiding is eerder vastgelopen",
   message:
-    "Meestal is dat een tijdelijke storing. Probeer het opnieuw — wat al gelukt is, " +
-    "blijft bewaard. Je begint niet van voren af aan.",
+    "Meestal is dat een tijdelijke storing. Probeer het opnieuw. Wat al gelukt is, " +
+    "blijft bewaard, dus je begint niet van voren af aan.",
   canRetry: true,
   detail: "",
 };

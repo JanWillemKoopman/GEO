@@ -1,11 +1,11 @@
 import "server-only";
 
 /**
- * FASE B — Adviseren (abcplan.md §7): B1 concurrentie-gap-analyse → B2 rapport
- * + aanbevelingen. Draait automatisch na de nulmeting (géén klant-klik nodig —
+ * FASE B: Adviseren (abcplan.md §7): B1 concurrentie-gap-analyse → B2 rapport
+ * + aanbevelingen. Draait automatisch na de nulmeting (géén klant-klik nodig,
  * in tegenstelling tot Fase C content-generatie, die wél op klik wacht).
  * Idempotent: bestaat er al een report-rij, dan wordt nooit opnieuw
- * gegenereerd (geen dubbele kosten) — alleen de status bijgewerkt.
+ * gegenereerd (geen dubbele kosten), alleen de status bijgewerkt.
  */
 import { createAdminClient } from "@/lib/supabase/admin";
 import { callStructured } from "@/lib/openai/structured";
@@ -59,43 +59,43 @@ const GAP_SYSTEM =
   "Je bent een GEO-analist (Generative Engine Optimization). Op basis van meetdata identificeer je " +
   "concrete zichtbaarheids-gaps: categorieën waarin concurrenten vaker door AI-assistenten genoemd " +
   "worden dan het eigen merk, mét bewijs (run-ID's, bronnen). PRIORITEER de gaps op de vragen met het " +
-  "HOOGSTE GEWICHT (populair en/of koopklaar) waar het eigen merk niet genoemd wordt — daar liggen de " +
-  "waardevolste kansen. Werk uitsluitend met de aangeleverde cijfers — verzin niets. " +
-  // R1.2 — het model VERWOORDT het bewijsdossier, het leidt niets af. Zonder deze
+  "HOOGSTE GEWICHT (populair en of koopklaar) waar het eigen merk niet genoemd wordt. Daar liggen de " +
+  "waardevolste kansen. Werk uitsluitend met de aangeleverde cijfers, verzin niets. " +
+  // R1.2, het model VERWOORDT het bewijsdossier, het leidt niets af. Zonder deze
   // regel koppelde het concurrenten aan vragen waarin ze niet voorkwamen.
   "BEWIJSREGEL: het bewijsdossier vermeldt per vraag welke bedrijven in dát antwoord genoemd werden. " +
   "Noem een concurrent alleen bij een specifieke vraag als die naam ONDER DIE VRAAG in het dossier " +
-  "staat. Staat er dat er geen enkel bedrijf genoemd werd, dan is dat je bevinding — haal er geen " +
+  "staat. Staat er dat er geen enkel bedrijf genoemd werd, dan is dat je bevinding. Haal er geen " +
   "concurrent bij uit een andere vraag of uit het marktbeeld. Antwoord in het Nederlands.";
 
 const REPORT_SYSTEM =
   "Je schrijft een kort, jargonvrij rapport voor een ondernemer zonder SEO-achtergrond over hun " +
-  "zichtbaarheid in AI-assistenten (GEO). Gebruik geen vaktermen als 'share of voice' — leg uit in " +
+  "zichtbaarheid in AI-assistenten (GEO). Gebruik geen vaktermen als 'share of voice'. Leg uit in " +
   "gewone taal. " +
-  // R1.2 — zie GAP_SYSTEM. Dit ving eerder "noem in elk probleem expliciet welke
+  // R1.2, zie GAP_SYSTEM. Dit ving eerder "noem in elk probleem expliciet welke
   // concurrent het betreft", wat het model dwong een naam te noemen óók als het
-  // dossier er geen gaf — precies de aanleiding om er dan maar een te verzinnen.
+  // dossier er geen gaf. Precies de aanleiding om er dan maar een te verzinnen.
   "BEWIJSREGEL: noem een concurrent alleen bij een specifieke vraag als die naam ONDER DIE VRAAG in " +
   "het bewijsdossier staat. Staat er dat er geen enkel bedrijf genoemd werd, schrijf dan dat de AI bij " +
-  "die vraag geen enkele aanbieder noemt — dat is een kans om de eerste te zijn, niet een concurrent " +
+  "die vraag geen enkele aanbieder noemt. Dat is een kans om de eerste te zijn, niet een concurrent " +
   "die wint. Het marktbeeld onderaan gaat over de hele meting en mag NOOIT gebruikt worden om te " +
   "zeggen wie een specifieke vraag wint. PRIORITEER je aanbevelingen " +
-  "op de zwaarwegende vragen (populair en/of koopklaar) waar de klant slecht scoort — die leveren het " +
+  "op de zwaarwegende vragen (populair en of koopklaar) waar de klant slecht scoort. Die leveren het " +
   "meeste op. Eindig met concrete, uitvoerbare aanbevelingen. Bepaal per aanbeveling of dit een BESTAANDE " +
   "pagina van de klant verbetert (kies dan de meest relevante URL uit de meegegeven paginalijst, action = " +
-  '"verbeteren") of dat er een GEHEEL NIEUWE pagina nodig is (action = "nieuw", existingUrl = null) — kies ' +
+  '"verbeteren") of dat er een GEHEEL NIEUWE pagina nodig is (action = "nieuw", existingUrl = null). Kies ' +
   'alleen "verbeteren" als een pagina uit de lijst daadwerkelijk over hetzelfde onderwerp gaat. ' +
   // Fase 4: de aanbeveling moet aanwijzen WELKE gemiste vraag hij gaat winnen.
   // Zonder die koppeling weet de schrijver later niet waarvoor hij schrijft, en
   // is achteraf niet te zeggen of de pagina iets uithaalde.
   "Wijs bij ELKE aanbeveling met de codes (V1, V2, …) aan welke gemiste vragen die pagina moet gaan " +
-  "winnen — minimaal één, en alleen vragen die inhoudelijk bij die pagina horen. Eén pagina mag " +
+  "winnen: minimaal één, en alleen vragen die inhoudelijk bij die pagina horen. Eén pagina mag " +
   "meerdere verwante vragen bedienen; verdeel de zwaarste vragen over de aanbevelingen en laat geen " +
   "zware vraag onbenoemd. " +
   "Vraag daarnaast in factRequests om CONCRETE FEITEN die je mist en die de content aantoonbaar beter " +
   "zouden maken (bv. 'Hoeveel jaar bestaan jullie?', 'Wat is jullie levertijd?', 'Hoeveel klanten per " +
   "jaar?'). Alleen feiten die een ondernemer uit zijn hoofd weet, en alleen als ze deze pagina's echt " +
-  "concreter maken — geen vragenlijst om het vragen. Antwoord in het Nederlands.";
+  "concreter maken, geen vragenlijst om het vragen. Antwoord in het Nederlands.";
 
 // De volledige URL-lijst helpt de nieuw/verbeteren-keuze; cap houdt de prompt beheersbaar.
 const REPORT_PAGES_CAP = 150;
@@ -104,7 +104,7 @@ function buildPagesBlock(pages: ProfilePage[]): string {
   if (pages.length === 0) return "(geen pagina's bekend van deze website)";
   return pages
     .slice(0, REPORT_PAGES_CAP)
-    .map((p) => `- ${p.url}${p.title ? ` — "${p.title}"` : ""}`)
+    .map((p) => `- ${p.url}${p.title ? ` · "${p.title}"` : ""}`)
     .join("\n");
 }
 
@@ -117,7 +117,7 @@ export interface MissedPrompt {
   /** Korte code (V1, V2, …) waarmee het rapport deze vraag kan aanwijzen (4.1). */
   code: string;
   promptId: string | null;
-  /** De meting die aantoont dát deze vraag gemist werd — het bewijs. */
+  /** De meting die aantoont dát deze vraag gemist werd, het bewijs. */
   runId: string;
   text: string;
   category: string;
@@ -130,7 +130,7 @@ function scoreLine(score: VisibilityScore | null): string {
   const base = `Eigen zichtbaarheidsscore: ${score?.score ?? 0}/100 (elke vraag telt gelijk)`;
   const weighted =
     score?.weighted_score != null
-      ? ` — GEWOGEN naar volumeband × koopwaarde: ${score.weighted_score}/100`
+      ? `, GEWOGEN naar volumeband × koopwaarde: ${score.weighted_score}/100`
       : "";
   const sov =
     score?.share_of_voice != null
@@ -138,8 +138,8 @@ function scoreLine(score: VisibilityScore | null): string {
       : "";
 
   // De onzekerheid meegeven aan de schrijver (optimalisatie.md 2.2). Zonder dit
-  // getal formuleert het model conclusies alsof de score exact is — "jullie
-  // zichtbaarheid is 42%" in plaats van "ergens rond de 40%" — en dat is precies
+  // getal formuleert het model conclusies alsof de score exact is, "jullie
+  // zichtbaarheid is 42%" in plaats van "ergens rond de 40%", en dat is precies
   // de overclaim die het rapport ongeloofwaardig maakt.
   const uncertainty =
     score?.score_stderr != null && score.judged_runs
@@ -156,7 +156,7 @@ function scoreLine(score: VisibilityScore | null): string {
  * Het blok gemiste vragen is vervangen door het BEWIJSDOSSIER
  * (lib/pipeline/evidence.ts, implementatieplan.md R1.1).
  *
- * De oude vorm gaf per vraag alleen code, gewicht, categorie en tekst — géén
+ * De oude vorm gaf per vraag alleen code, gewicht, categorie en tekst, géén
  * run-ID. De concurrentiedata eronder had wél run-ID's. Daarmee was de koppeling
  * "welke concurrent wint wélke vraag" nergens gelegd, en dat is precies wat het
  * model moest opschrijven. Het gokte dus, en schreef concurrenten bij vragen
@@ -168,7 +168,7 @@ function scoreLine(score: VisibilityScore | null): string {
 function briefLine(analysis: Analysis): string[] {
   return analysis.content_brief?.trim()
     ? [
-        `Gewenste content-richting van de klant: ${analysis.content_brief.trim()} — laat de aanbevelingen hierop aansluiten.`,
+        `Gewenste content-richting van de klant: ${analysis.content_brief.trim()}. Laat de aanbevelingen hierop aansluiten.`,
       ]
     : [];
 }
@@ -197,7 +197,7 @@ function buildGapInput(
     // hele meting. Zonder dat onderscheid leest het model deze cijfers als
     // uitspraken over de vragen hierboven, en dat is precies de verwarring waar
     // het dossier een eind aan maakt.
-    "MARKTBEELD over de HELE meting (niet per vraag — gebruik dit alleen voor algemene " +
+    "MARKTBEELD over de HELE meting (niet per vraag; gebruik dit alleen voor algemene " +
       "uitspraken over de markt, nooit om te zeggen wie een specifieke vraag wint):",
   ];
   if (competitors.length === 0) {
@@ -238,7 +238,7 @@ function buildReportInput(
    * Komt er een nieuwe website aan? (blok C, `context-factors.ts`)
    *
    * Dan rust de nieuw/verbeteren-beslissing op URL's die straks verdwijnen. Het
-   * model moet dat weten vóórdat het "verbeter /diensten/massage" adviseert —
+   * model moet dat weten vóórdat het "verbeter /diensten/massage" adviseert,
    * de klant gaat daar namelijk mee aan de slag.
    */
   siteMigrationNotice: string | null,
@@ -249,7 +249,7 @@ function buildReportInput(
    * Dit is de enige invoer in dit rapport die NIET uit de meting komt. Alles
    * hierboven is reactief: 30 vragen gesteld, bij 17 niet genoemd, daar volgen
    * aanbevelingen uit. Levert een klant twaalf diensten en raakt de meting er
-   * vier, dan hoort hij over acht diensten niets — ook al heeft hij er geen
+   * vier, dan hoort hij over acht diensten niets, ook al heeft hij er geen
    * pagina voor, en is dat juist de reden dat een assistent hem daar niet kan
    * noemen.
    */
@@ -258,7 +258,7 @@ function buildReportInput(
   return [
     `Eigen merk: ${ownLabel(analysis, profile)}`,
     ...briefLine(analysis),
-    ...(siteMigrationNotice ? ["", `LET OP — ${siteMigrationNotice}`, ""] : []),
+    ...(siteMigrationNotice ? ["", `LET OP: ${siteMigrationNotice}`, ""] : []),
     scoreLine(score),
     changeBlock,
     formatEvidenceDossier(dossier),
@@ -278,7 +278,7 @@ function buildReportInput(
     "",
     "Schrijf op basis hiervan een kort, jargonvrij rapport. Noem in elk gap-item expliciet welke " +
       "concurrent het betreft. PRIORITEER de aanbevelingen op de zwaarwegende gemiste vragen hierboven " +
-      "(hoog gewicht = populair en/of koopklaar). Geef 5 tot 8 concrete, geprioriteerde aanbevelingen — " +
+      "(hoog gewicht = populair en of koopklaar). Geef 5 tot 8 concrete, geprioriteerde aanbevelingen, " +
       "genoeg om de zwaarste gemiste vragen te dekken, niet zoveel dat het een boodschappenlijst wordt. " +
       "Koppel elke aanbeveling aan de vraagcodes (V1, V2, …) die hij moet winnen.",
   ].join("\n");
@@ -288,7 +288,7 @@ const MISSED_CAP = 15;
 
 /**
  * Bouwt de lijst van GEMISTE vragen (eigen merk niet genoemd), gesorteerd op het
- * bevroren gewicht (volume × waarde) — de waardevolste kansen bovenaan. Verrijkt
+ * bevroren gewicht (volume × waarde), de waardevolste kansen bovenaan. Verrijkt
  * met de prompt-tags (cluster/intent_type) via prompt_id.
  */
 async function computeMissedPrompts(
@@ -310,11 +310,11 @@ async function computeMissedPrompts(
   if (allRuns.length === 0) return [];
 
   // Kansloze vragen eruit (implementatieplan.md R2.3). Waar de AI géén enkele
-  // aanbieder noemt, is niet-genoemd-worden geen gemiste kans — er valt niets te
+  // aanbieder noemt, is niet-genoemd-worden geen gemiste kans, er valt niets te
   // winnen. Zulke vragen als contentdoel opvoeren is de duurste fout die het
   // product kan maken: bij Van der Valk was de aanbeveling met prioriteit 1
   // gebouwd op precies zo'n vraag, en die zou als eerste door het premium model geschreven
-  // worden. `null` (nog niet geteld, oude meting) laten we staan — dat is
+  // worden. `null` (nog niet geteld, oude meting) laten we staan. Dat is
   // onbekend, geen bewijs van kansloosheid.
   const runs = allRuns.filter((r) => r.brands_in_answer !== 0);
   if (runs.length < allRuns.length) {
@@ -370,7 +370,7 @@ async function computeMissedPrompts(
   // De regel: een vraag is een gemiste kans als het merk in de MEERDERHEID van
   // z'n beoordeelde metingen ontbrak. Word je bij dezelfde vraag twee van de
   // drie keer wél genoemd, dan is dat geen gemiste kans maar een wisselvallige
-  // — een ander probleem, en geen reden om er een pagina voor te schrijven.
+  //, een ander probleem, en geen reden om er een pagina voor te schrijven.
   const perVraag = new Map<
     string,
     { beoordeeld: number; gemist: number; eersteGemisteRun: string }
@@ -436,7 +436,7 @@ async function computeMissedPrompts(
  * Bij het profiel en niet bij de analyse, want "hoeveel jaar bestaan jullie?"
  * is één keer beantwoorden en daarna weten we het voor elke pagina van dit merk.
  * De unieke index op (profile_id, question) zorgt dat een tweede rapport
- * dezelfde vraag niet opnieuw stelt — ook niet als de klant hem al oversloeg.
+ * dezelfde vraag niet opnieuw stelt, ook niet als de klant hem al oversloeg.
  */
 async function saveFactRequests(
   admin: ReturnType<typeof createAdminClient>,
@@ -476,7 +476,7 @@ const FACT_REQUEST_CAP = 6;
  *
  * Per aanbeveling zijn de toegestane namen die uit de antwoorden van háár
  * doelvragen; per gap die uit z'n `evidenceRunIds`. Een naam die daar niet in
- * voorkomt, is een bewering die de meting niet draagt — de zin gaat eruit.
+ * voorkomt, is een bewering die de meting niet draagt, de zin gaat eruit.
  *
  * Waarom hier en niet in `validate-claims.ts`: die module is bewust puur en
  * testbaar zonder database. Dit is het stukje dat wél de database nodig heeft.
@@ -580,7 +580,7 @@ export async function generateReport(
   if (!eligible) return analysis.status;
 
   if (analysis.status === "mislukt") {
-    // Alleen aanpakken als de METING al gelukt is — anders is dit geen mislukt rapport.
+    // Alleen aanpakken als de METING al gelukt is. Anders is dit geen mislukt rapport.
     const { data: score } = await admin
       .from("visibility_scores")
       .select("id")
@@ -591,7 +591,7 @@ export async function generateReport(
   }
 
   // Idempotent PER PERIODE (optimalisatie.md 6.1). Stond hier als "bestaat er
-  // al een rapport voor deze analyse" — waardoor er na de nulmeting nooit meer
+  // al een rapport voor deze analyse", waardoor er na de nulmeting nooit meer
   // een rapport kwam en twaalf periodes aan meetkosten in het niets verdwenen.
   const { count: existingReport } = await admin
     .from("reports")
@@ -648,7 +648,7 @@ export async function generateReport(
 
   // Komt er een nieuwe website aan, dan rust de nieuw/verbeteren-beslissing op
   // URL's die straks verdwijnen. Dat hoort in de rapportinvoer te staan en niet
-  // alleen op het profielscherm — het rapport is wat de klant leest en waarnaar
+  // alleen op het profielscherm, het rapport is wat de klant leest en waarnaar
   // hij handelt.
   const migratie = technicalAdviceStale(
     parseContextFactors(
@@ -657,13 +657,13 @@ export async function generateReport(
   );
   const migratieMelding = migratie ? staleAdviceNotice(migratie) : null;
 
-  // Gemiste hoog-gewicht vragen (klant niet genoemd), gesorteerd op gewicht — zodat
+  // Gemiste hoog-gewicht vragen (klant niet genoemd), gesorteerd op gewicht, zodat
   // B1/B2 de aanbevelingen richten op de waardevolste kansen (§6 A3 / §7).
   const missed = await computeMissedPrompts(admin, id, weekNo);
 
   // Het bewijsdossier: per gemiste vraag welke bedrijven er in DÁT antwoord
   // stonden (implementatieplan.md R1.1). Deterministisch uit de database, zodat
-  // het model de koppeling vraag↔concurrent niet hoeft af te leiden — en hem dus
+  // het model de koppeling vraag↔concurrent niet hoeft af te leiden, en hem dus
   // ook niet verkeerd kán afleiden.
   const dossier = await buildEvidenceDossier(
     admin,
@@ -672,8 +672,8 @@ export async function generateReport(
   );
 
   // Wat er veranderd is sinds de vorige periode (optimalisatie.md 6.2). Puur
-  // databasewerk: het model hoeft niet zelf twee periodes te vergelijken — dat
-  // gaat mis — maar alleen te verwoorden wat er staat.
+  // databasewerk: het model hoeft niet zelf twee periodes te vergelijken. Dat
+  // gaat mis, maar alleen te verwoorden wat er staat.
   const change = await computePeriodChange(admin, id, weekNo);
   const changeBlock = buildChangeBlock(change, weekNo);
 
@@ -681,7 +681,7 @@ export async function generateReport(
   //
   // Zie `structure-gap.ts`. Nul kosten en nul opslag: dit is een vergelijking
   // tussen de aanbodboom en de gecrawlde pagina's, en die verandert zodra er een
-  // pagina bijkomt. Een lege string als er geen aanbodboom is — dan valt er
+  // pagina bijkomt. Een lege string als er geen aanbodboom is. Dan valt er
   // niets te vergelijken en is zwijgen beter dan een blok met een aanname.
   const { data: offeringRows } = await admin
     .from("profile_offerings")
@@ -701,7 +701,7 @@ export async function generateReport(
   );
 
   try {
-    // B1 — concurrentie-gap-analyse
+    // B1, concurrentie-gap-analyse
     const gap = await callStructured({
       model: MODELS.quality,
       system: GAP_SYSTEM,
@@ -724,7 +724,7 @@ export async function generateReport(
       },
     });
 
-    // B2 — leesbaar rapport + aanbevelingen
+    // B2, leesbaar rapport + aanbevelingen
     const report = await callStructured({
       model: MODELS.quality,
       system: REPORT_SYSTEM,
@@ -754,7 +754,7 @@ export async function generateReport(
     // ── Claimvalidatie (implementatieplan.md R1.3) ─────────────────────────
     // Het deterministische vangnet onder R1.1/R1.2: elke concurrentnaam moet
     // voorkomen in het bewijs van de vraag waaraan hij hangt. Wat dat niet
-    // haalt, gaat eruit — en wordt bewaard, zodat te zien is of de instructie
+    // haalt, gaat eruit, en wordt bewaard, zodat te zien is of de instructie
     // uit R1.2 streng genoeg is.
     const { recommendations, gaps, stripped } = await validateReportClaims(
       admin,
@@ -793,7 +793,7 @@ export async function generateReport(
     // geen rapport in de database stond: de analyse meldde zich klaar, het
     // rapporttabblad bleef leeg en "schrijf alle pagina's" antwoordde dat er nog
     // geen rapport was. Gooien betekent dat de wachtrij het gewoon opnieuw
-    // probeert — het dure denkwerk is dan hooguit één keer voor niets geweest.
+    // probeert, het dure denkwerk is dan hooguit één keer voor niets geweest.
     if (reportError || !reportRow) {
       throw new Error(
         `Rapport opslaan mislukt voor analyse ${id} (periode ${weekNo}): ` +
@@ -816,19 +816,19 @@ export async function generateReport(
     await admin.from("analyses").update({ status: "gereed" }).eq("id", id);
 
     // Bericht als het klaar is (optimalisatie.md 1.8). Nu het werk op de
-    // achtergrond draait, is de mail vaak het moment waarop de klant het hoort —
+    // achtergrond draait, is de mail vaak het moment waarop de klant het hoort,
     // vandaar dat het een keuze bij het starten is, geen automatisme.
     // Zwijgen als er niets te melden valt (optimalisatie.md 6.7). Een mail die
-    // elke periode hetzelfde zegt, wordt na drie keer niet meer geopend — en dan
+    // elke periode hetzelfde zegt, wordt na drie keer niet meer geopend, en dan
     // mist de klant ook de mail die er wél toe doet.
     // Staat de mail uit (EMAILS_ENABLED), dan slaan we het hele blok over: geen
     // opzoeken van het e-mailadres, en vooral geen `emailed_at` zetten. Dat veld
-    // moet blijven kloppen — anders lijkt er later een mail verstuurd te zijn
+    // moet blijven kloppen. Anders lijkt er later een mail verstuurd te zijn
     // die er nooit was.
     const worthEmailing = isWorthEmailing(change);
     if (!emailsEnabled()) {
       console.log(
-        `E-mail staat uit (EMAILS_ENABLED) — geen rapport-mail voor analyse ${id}.`,
+        `E-mail staat uit (EMAILS_ENABLED), geen rapport-mail voor analyse ${id}.`,
       );
     } else if (analysis.notify_by_email && worthEmailing) {
       const { data: authUser } = await admin.auth.admin.getUserById(

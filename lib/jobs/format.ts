@@ -8,7 +8,7 @@
  * Zet seconden om naar een bereik in gewone taal (optimalisatie.md 1.9).
  *
  * Een bereik en niet één getal, omdat één getal een precisie suggereert die we
- * niet hebben — en omdat "nog ongeveer 2 minuten" dat er vijf worden erger is
+ * niet hebben, en omdat "nog ongeveer 2 minuten" dat er vijf worden erger is
  * dan meteen "2 tot 4 minuten" zeggen.
  */
 export function formatEta(seconds: number | null): string | null {

@@ -4,7 +4,7 @@
  *
  * Niet elke geweigerde bot is even erg. Een site die `CCBot` weert mist wat
  * trainingsdata; een site die `OAI-SearchBot` weert kan door ChatGPT letterlijk
- * niet geciteerd worden — dan is elke euro aan contentgeneratie weggegooid. Dat
+ * niet geciteerd worden. Dan is elke euro aan contentgeneratie weggegooid. Dat
  * onderscheid moet in de data zitten en niet in de kop van de gebruiker.
  *
  * Bewust ZONDER `server-only`: alleen een tabel met feiten, ook bruikbaar in de UI.

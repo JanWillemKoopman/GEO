@@ -6,7 +6,7 @@ import type { TopicResearch } from "@/lib/types/database";
 
 /**
  * Bewerkbaar onderwerp-onderzoek van déze analyse (abcplan.md §3.5/§3.6, na de
- * klantprofiel-refactor): alleen nog wat specifiek is voor dit product/thema.
+ * klantprofiel-refactor): alleen nog wat specifiek is voor dit product of thema.
  * Het bedrijfsbrede Brand DNA leeft nu in het klantprofiel (zie ProfileCard
  * hierboven op deze pagina).
  */

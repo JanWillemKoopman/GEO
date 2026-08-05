@@ -17,7 +17,7 @@ import "server-only";
  *
  * Dus vragen we het met web-zoeken aan, één keer voor alle domeinen samen. Dat
  * kost één web-zoekactie in plaats van tien, en het model mag 'onbekend'
- * antwoorden — dat is de belangrijkste van de drie mogelijke uitkomsten.
+ * antwoorden. Dat is de belangrijkste van de drie mogelijke uitkomsten.
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { callStructured } from "@/lib/openai/structured";
@@ -42,7 +42,7 @@ const SYSTEM =
   "Per website: heeft dit bedrijf daar een eigen vermelding, profiel, bedrijfspagina of " +
   "productplaatsing? Antwoord 'ja' ALLEEN als je een concrete pagina vindt die over dit bedrijf " +
   "gaat, en geef dan de URL. Antwoord 'nee' als je vaststelt dat het bedrijf er niet op staat. " +
-  "Antwoord 'onbekend' als je het niet betrouwbaar kunt vaststellen — dat is een geldig en vaak " +
+  "Antwoord 'onbekend' als je het niet betrouwbaar kunt vaststellen. Dat is een geldig en vaak " +
   "het juiste antwoord, en veel beter dan een gok. Een gok kost de ondernemer een middag werk aan " +
   "iets wat al geregeld was, of laat hem denken dat iets geregeld is terwijl dat niet zo is. " +
   "Verwar het bedrijf niet met gelijknamige bedrijven in een andere plaats of branche. " +
@@ -69,7 +69,7 @@ export async function checkPresence(
     // Zonder grounding is deze controle zinloos: het model zou uit z'n
     // trainingsdata moeten raden of een lokale ondernemer op een platform staat,
     // en dat antwoord is altijd fout. Dan liever niets weten dan iets verzinnen.
-    console.log("Grounding staat uit — aanwezigheidscontrole overgeslagen.");
+    console.log("Grounding staat uit, aanwezigheidscontrole overgeslagen.");
     return { checked: 0, found: 0 };
   }
 

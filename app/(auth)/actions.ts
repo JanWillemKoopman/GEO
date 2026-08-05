@@ -40,7 +40,7 @@ export async function signUp(_prev: AuthState, formData: FormData): Promise<Auth
   const { data, error } = await supabase.auth.signUp({ email, password });
   if (error) return { error: `Registreren mislukt: ${error.message}` };
 
-  // Als e-mailbevestiging aanstaat, is er nog geen sessie — stuur terug naar login met uitleg.
+  // Als e-mailbevestiging aanstaat, is er nog geen sessie, stuur terug naar login met uitleg.
   if (!data.session) {
     redirect("/login?check_email=1");
   }

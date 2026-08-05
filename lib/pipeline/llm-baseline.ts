@@ -10,7 +10,7 @@ import "server-only";
  * klopt dat?**
  *
  * Dat is een andere vraag met een ander antwoord. Een bedrijf kan bij nul
- * koopvragen genoemd worden en tóch prima bekend zijn — of andersom, genoemd
+ * koopvragen genoemd worden en tóch prima bekend zijn, of andersom, genoemd
  * worden op basis van gegevens die niet kloppen. Voor een ondernemer is
  * *"ChatGPT denkt dat je in Eindhoven zit"* de meest alarmerende uitkomst van
  * de hele onboarding, en het is precies wat een concurrent die alleen
@@ -77,7 +77,7 @@ const CATEGORY_QUESTIONS = 3;
 
 /**
  * Een assistent die niets van zoeken weet, precies zoals een echte gebruiker
- * hem aantreft. Geen rolinstructie die hem slimmer maakt dan hij is — dan meet
+ * hem aantreft. Geen rolinstructie die hem slimmer maakt dan hij is. Dan meet
  * je jouw prompt en niet de assistent.
  */
 const NEUTRAL_SYSTEM =
@@ -97,7 +97,7 @@ interface PlannedQuestion {
  *
  * Dat was de oude regel: `slice(0, 3)` op `sort_order`, en die volgorde komt van
  * de site. Bij Fysi-Unique leverde dat fysiotherapie, manuele therapie en
- * sportfysiotherapie op — de drie waar élke praktijk op concurreert. Terwijl het
+ * sportfysiotherapie op, de drie waar élke praktijk op concurreert. Terwijl het
  * marktonderzoek van dezelfde ronde schreef: *"vooral de combinatie van
  * bekkenfysiotherapie, zwangerschapsbegeleiding en seksuologie geeft Fysi-Unique
  * een specialistischer profiel dan veel algemene lokale praktijken."*
@@ -106,7 +106,7 @@ interface PlannedQuestion {
  * punt, en dat is het eerste cijfer dat hij in het demogesprek ziet.
  *
  * De topics wéten het beter: `propose_topics` heeft de hele boom gewogen op
- * commerciële relevantie en heeft ze op prioriteit gezet — en sinds de reparatie
+ * commerciële relevantie en heeft ze op prioriteit gezet, en sinds de reparatie
  * van 3 augustus wijzen ze ook daadwerkelijk naar de aanbodknopen waar ze uit
  * volgen. Die koppeling verdient het om gebruikt te worden.
  *
@@ -168,7 +168,7 @@ function planQuestions(
   // van het profielscherm die omsloeg.
   //
   // Dit blok kostte $0,0003 voor twee vragen. Zes kost $0,001. Voor die prijs
-  // krijg je een verhouding in plaats van een muntworp — en de vragen mét en
+  // krijg je een verhouding in plaats van een muntworp, en de vragen mét en
   // zónder plaatsnaam staan er allebei in, want het verschil ertussen is zelf
   // een bevinding: een merk dat alleen mét plaatsnaam herkend wordt, is niet
   // als entiteit bekend maar als woordcombinatie.
@@ -186,7 +186,7 @@ function planQuestions(
 
   // Ontdubbelen (conventie 1). Zonder regio vallen de eerste en de laatste vraag
   // samen, en de unieke index uit migratie 0041 laat maar één rij per
-  // (profiel, engine, blok, vraag) toe — een dubbele in dezelfde batch zou de
+  // (profiel, engine, blok, vraag) toe, een dubbele in dezelfde batch zou de
   // hele insert laten mislukken en de kennistest nul rijen opleveren.
   const gezien = new Set<string>();
   for (const vraag of kentVragen) {
@@ -215,7 +215,7 @@ function planQuestions(
 
   // ── categorie: merkneutrale koopvragen uit het eigen aanbod. Een mini-versie
   // van de maandelijkse meting, zodat er aan het eind van de onboarding al een
-  // getal staat. Merknaam mag hier NIET in — dan is een vermelding gegarandeerd
+  // getal staat. Merknaam mag hier NIET in. Dan is een vermelding gegarandeerd
   // en meet de vraag niets (zelfde regel als in lib/pipeline/prompts.ts).
   for (const o of categoryLeaves(offerings, topics)) {
     const waar = regio ? ` in ${regio}` : " in Nederland";
@@ -290,7 +290,7 @@ export async function runLlmBaseline(
   //
   // Het marktfacet is de betere bron: `market.ts` schrijft daar kale namen weg
   // ("SMC Amersfoort"). `profiles.competitors` bevat óók de onderbouwing die het
-  // profielonderzoek teruggaf — hele zinnen met een markdown-link erachter — en
+  // profielonderzoek teruggaf, hele zinnen met een markdown-link erachter, en
   // die matchen nooit op een antwoordtekst. Vandaar allebei, met de opschoning
   // eroverheen (`cleanCompetitorName`).
   const marktNamen = (
@@ -312,7 +312,7 @@ export async function runLlmBaseline(
 
   // Eerst op sleutel (welk soort gegeven), dan op herkomst en circulariteit
   // (`checkableFacts`). Die tweede stap haalde bij Fysi-Unique 19 feiten terug
-  // naar 0 — zeventien paginatitels en twee keer de merknaam zelf.
+  // naar 0, zeventien paginatitels en twee keer de merknaam zelf.
   const facts: KnownFact[] = checkableFacts(
     harvested
       .filter((f) => CHECKABLE_KEYS.has(f.key))
@@ -430,7 +430,7 @@ async function askOne(
   profileId: string,
 ) {
   // De zoekfunctie volgt de bestaande kostenknop. Staat die uit (ontwikkelfase),
-  // dan draaien de gegronde blokken zonder zoeken — dat is een ander antwoord,
+  // dan draaien de gegronde blokken zonder zoeken. Dat is een ander antwoord,
   // en dat leggen we vast in de kolom `web_search` zodat de uitslag niet later
   // als representatief gelezen wordt.
   const webSearch = q.webSearch && measureWebSearchEnabled;
@@ -447,13 +447,13 @@ async function askOne(
   });
 
   // Alleen het `kent`-blok krijgt een feitenoordeel. Bij de andere blokken zou
-  // "noemt je telefoonnummer niet" geen bevinding zijn maar ruis — daar vroegen
+  // "noemt je telefoonnummer niet" geen bevinding zijn maar ruis. Daar vroegen
   // we er ook niet naar.
   //
   // Het `categorie`-blok krijgt sinds 4 augustus 2026 wél een eigen oordeel, van
   // een andere soort: word je genoemd, en wie wél. Tot dan werd de vraag
   // "Word je genoemd bij koopvragen?" op het scherm gesteld en nergens
-  // beantwoord — terwijl dit blok $0,044 van de $0,2463 per onboarding kost.
+  // beantwoord, terwijl dit blok $0,044 van de $0,2463 per onboarding kost.
   const verdict: BaselineVerdict | CategoryVerdict | null =
     q.block === "kent"
       ? buildVerdict(
@@ -488,7 +488,7 @@ async function askOne(
 /**
  * Eén regel voor op het profielscherm, per engine.
  *
- * Sinds 4 augustus 2026 met een VERHOUDING in plaats van een ja/nee, en met de
+ * Sinds 4 augustus 2026 met een VERHOUDING in plaats van een ja of nee, en met de
  * uitkomst van de koopvragen erbij. Zie `summariseKnows()` in
  * baseline-verdict.ts voor waarom die verhouding er moest komen: twee
  * meetronden op dezelfde site gaven het tegenovergestelde antwoord op grond van

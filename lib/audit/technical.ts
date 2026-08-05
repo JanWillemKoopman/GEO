@@ -5,7 +5,7 @@ import "server-only";
  *
  * Waarom dit bestaat: nergens in de app werd gecontroleerd of AI-crawlers de
  * site überhaupt mogen bezoeken. We konden dus perfecte content laten schrijven
- * voor een site die ChatGPT de deur wijst — de klant betaalt voor teksten die
+ * voor een site die ChatGPT de deur wijst, de klant betaalt voor teksten die
  * nooit gelezen worden. Deze audit kijkt of de deur openstaat vóórdat we hem
  * adviseren om te gaan schrijven.
  *
@@ -18,10 +18,10 @@ import { AI_CRAWLERS } from "@/lib/audit/ai-crawlers";
 const TIMEOUT_MS = 8000;
 
 /**
- * `blocker` — hier loopt de kernbelofte op vast; niets doen is geen optie.
- * `warning` — je laat bereik liggen, maar het werkt.
- * `ok`      — in orde.
- * `unknown` — niet vast te stellen (site onbereikbaar, of geen bron beschikbaar).
+ * `blocker`, hier loopt de kernbelofte op vast; niets doen is geen optie.
+ * `warning`, je laat bereik liggen, maar het werkt.
+ * `ok`: in orde.
+ * `unknown`, niet vast te stellen (site onbereikbaar, of geen bron beschikbaar).
  */
 export type AuditSeverity = "blocker" | "warning" | "ok" | "unknown";
 
@@ -33,7 +33,7 @@ export interface AuditCheck {
   finding: string;
   /** Wat er moet gebeuren, in gewone taal. Null als er niets te doen is. */
   fix: string | null;
-  /** Wie dat meestal kan doen — de klant weet vaak niet bij wie hij moet zijn. */
+  /** Wie dat meestal kan doen, de klant weet vaak niet bij wie hij moet zijn. */
   who: string | null;
 }
 
@@ -71,7 +71,7 @@ async function fetchRaw(url: string): Promise<{ status: number; body: string } |
 
 function crawlerChecks(robotsText: string | null): AuditCheck[] {
   // Géén robots.txt betekent: alles mag. Dat is geen tekortkoming, dat is de
-  // standaard — en het is de meest voorkomende situatie bij kleine sites.
+  // standaard, en het is de meest voorkomende situatie bij kleine sites.
   if (robotsText === null) {
     return [
       {
@@ -117,7 +117,7 @@ function llmsTxtCheck(found: boolean): AuditCheck {
     fix: found
       ? null
       : "Zet een llms.txt op de hoofdmap van je site. Nog geen officiële standaard, maar goedkoop en steeds breder ondersteund.",
-    who: found ? null : "Je webbouwer — of wij kunnen een voorzet maken.",
+    who: found ? null : "Je webbouwer, of wij kunnen een voorzet maken.",
   };
 }
 
@@ -126,7 +126,7 @@ function llmsTxtCheck(found: boolean): AuditCheck {
  *
  * We vergelijken de hoeveelheid leesbare tekst met de omvang van de HTML. Een
  * pagina van 300 kB die 200 woorden oplevert, is een pagina die pas ná het
- * uitvoeren van JavaScript inhoud krijgt — en dat doet lang niet elke AI-crawler.
+ * uitvoeren van JavaScript inhoud krijgt, en dat doet lang niet elke AI-crawler.
  * Bewust een grove verhouding en geen headless browser: een browser draaien kost
  * geheugen en seconden, en voor "is dit een leeg omhulsel?" is dat overkill.
  */
@@ -156,7 +156,7 @@ function javascriptCheck(html: string | null): AuditCheck {
     label: "Leesbaar zonder JavaScript",
     severity: emptyShell ? "blocker" : "ok",
     finding: emptyShell
-      ? `Je homepage levert maar ${words} woorden tekst op bij ${Math.round(html.length / 1024)} kB aan code. Dat wijst erop dat de inhoud pas verschijnt nadat JavaScript is uitgevoerd — en dat doen veel AI-crawlers niet.`
+      ? `Je homepage levert maar ${words} woorden tekst op bij ${Math.round(html.length / 1024)} kB aan code. Dat wijst erop dat de inhoud pas verschijnt nadat JavaScript is uitgevoerd, en dat doen veel AI-crawlers niet.`
       : `Je homepage levert ${words} woorden leesbare tekst op zonder JavaScript.`,
     fix: emptyShell
       ? "Laat de belangrijkste tekst meekomen in de HTML zelf (server-side rendering of pre-rendering). Voor de meeste bouwers is dit een instelling, geen verbouwing."
@@ -221,7 +221,7 @@ function structuredDataCheck(html: string | null): AuditCheck {
  * Sitemap: bestaat hij, en is hij nog actueel?
  *
  * "Actueel" leiden we af uit de nieuwste `<lastmod>`. Staat die op meer dan een
- * jaar geleden, dan is de sitemap waarschijnlijk niet meer bijgewerkt — en een
+ * jaar geleden, dan is de sitemap waarschijnlijk niet meer bijgewerkt, en een
  * sitemap die de nieuwe pagina's niet noemt is erger dan geen sitemap, want hij
  * wekt de indruk dat hij compleet is.
  */
@@ -268,7 +268,7 @@ async function sitemapCheck(base: string, robotsText: string | null): Promise<Au
 }
 
 /**
- * Vindbaarheid via Bing — met een eerlijke beperking.
+ * Vindbaarheid via Bing, met een eerlijke beperking.
  *
  * ChatGPT-zoeken leunt op de index van Bing, dus dit is geen detail. Maar of een
  * site daadwerkelijk in die index staat, kun je alleen betrouwbaar vaststellen
@@ -285,7 +285,7 @@ function bingCheck(bingbotAllowed: boolean, hasSitemap: boolean): AuditCheck {
       label: "Vindbaarheid via Bing",
       severity: "blocker",
       finding:
-        "Bingbot wordt geweigerd, dus je site kan niet in de index van Bing staan. ChatGPT-zoeken put daaruit — zonder Bing kom je daar nauwelijks voor.",
+        "Bingbot wordt geweigerd, dus je site kan niet in de index van Bing staan. ChatGPT-zoeken put daaruit. Zonder Bing kom je daar nauwelijks voor.",
       fix: "Geef Bingbot toegang in robots.txt en meld je site aan bij Bing Webmaster Tools.",
       who: "Je webbouwer.",
     };
@@ -296,11 +296,11 @@ function bingCheck(bingbotAllowed: boolean, hasSitemap: boolean): AuditCheck {
     label: "Vindbaarheid via Bing",
     severity: hasSitemap ? "ok" : "warning",
     finding: hasSitemap
-      ? "Bingbot mag binnen en er is een sitemap. Of je site echt in de index staat, kunnen we van buitenaf niet zien — dat lees je af in Bing Webmaster Tools."
+      ? "Bingbot mag binnen en er is een sitemap. Of je site echt in de index staat, kunnen we van buitenaf niet zien. Dat lees je af in Bing Webmaster Tools."
       : "Bingbot mag binnen, maar er is geen sitemap om hem de weg te wijzen. Of je site echt in de index staat, kunnen we van buitenaf niet zien.",
     fix: hasSitemap
       ? null
-      : "Publiceer een sitemap en dien 'm in bij Bing Webmaster Tools — gratis, en het versnelt de indexering aanzienlijk.",
+      : "Publiceer een sitemap en dien 'm in bij Bing Webmaster Tools. Dat is gratis en het versnelt de indexering aanzienlijk.",
     who: hasSitemap ? null : "Je webbouwer.",
   };
 }

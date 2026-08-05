@@ -6,7 +6,7 @@ import "server-only";
  * Eén plek, omdat er nu vier ingangen zijn die allemaal hetzelfde werk starten:
  * de knop per aanbeveling, "genereer alles", opnieuw genereren, en herschrijven
  * met feedback van de klant. Als die vier hun eigen payload in elkaar zetten,
- * lopen ze uit elkaar — en dan schrijft de ene ingang mét doelvragen en de
+ * lopen ze uit elkaar, en dan schrijft de ene ingang mét doelvragen en de
  * andere zonder, zonder dat iemand dat merkt.
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -72,7 +72,7 @@ export interface PlanResult {
  *
  * De dedupe-sleutel bevat de versie, zodat opnieuw genereren niet botst op de
  * sleutel van de vorige poging. Zonder dat zou "opnieuw proberen" na een
- * geslaagde generatie stil niets doen — de sleutel bestond immers al.
+ * geslaagde generatie stil niets doen, de sleutel bestond immers al.
  */
 export async function planContentDraft(
   admin: Admin,
@@ -86,8 +86,8 @@ export async function planContentDraft(
   const { analysisId, userId, recommendation, regenerate = false } = args;
 
   const existing = await currentPiece(admin, analysisId, recommendation.title);
-  // 'briefing' telt hier als "nog niet geschreven" (R5.1): de rij bestaat al —
-  // hij is aangemaakt toen de klant de pagina koos — maar er staat nog geen
+  // 'briefing' telt hier als "nog niet geschreven" (R5.1): de rij bestaat al,
+  // hij is aangemaakt toen de klant de pagina koos, maar er staat nog geen
   // tekst in. Zonder deze uitzondering zou het indrukken van "Schrijf mijn
   // pagina's" na de briefing stil niets doen, want de pagina lijkt dan al klaar.
   if (existing && existing.status !== "draft" && existing.status !== "briefing" && !regenerate) {
@@ -99,14 +99,14 @@ export async function planContentDraft(
   // Het aantal beantwoorde briefingvragen telt mee in de dedupe-sleutel (R5.1).
   // "Schrijf met wat je hebt" en "schrijf nadat ik alsnog twee vragen beantwoord
   // heb" zijn twee verschillende opdrachten met een verschillende feitenkaart.
-  // Zonder dit zou die tweede klik stil genegeerd worden — de sleutel bestond
-  // immers al — en zou het antwoord van de klant nooit in de tekst belanden.
+  // Zonder dit zou die tweede klik stil genegeerd worden, de sleutel bestond
+  // immers al, en zou het antwoord van de klant nooit in de tekst belanden.
   //
   // ⚠️ De telling liep over `analysis_id`, en dat sloeg bijna de helft van de
   // antwoorden over: vragen met `scope = 'merk'` worden bewust met
   // `analysis_id = null` opgeslagen (briefing.ts), want ze gelden voor álle
   // analyses van dit profiel. In productie is dat 9 van de 21 beantwoorde vragen
-  // (43%) — inclusief BEIDE verplichte landing-slots (telefoon/adres en de
+  // (43%), inclusief BEIDE verplichte landing-slots (telefoon/adres en de
   // contact-URL). Een klant die alleen merkbrede vragen beantwoordde en opnieuw
   // op "Schrijf mijn pagina's" klikte, kreeg dus een taak die stil op de sleutel
   // sneuvelde: exact het scenario dat deze sleutel moest voorkomen.
@@ -150,7 +150,7 @@ export async function planContentDraft(
  * (contentbriefing.md §2, implementatieplan.md R5.1).
  *
  * Dit vervangt de directe sprong naar `content_draft`. De briefing maakt de
- * pagina's aan met status 'briefing', bouwt de feitenkaart en stelt de vragen —
+ * pagina's aan met status 'briefing', bouwt de feitenkaart en stelt de vragen,
  * daarna stopt de pijplijn en beslist de klant wanneer er geschreven wordt.
  *
  * Eén briefing voor de hele batch, niet per pagina. Kiest de klant drie

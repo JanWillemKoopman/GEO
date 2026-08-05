@@ -1,16 +1,16 @@
 /**
- * Zinnen knippen — één plek, want drie controles moeten het op dezelfde manier doen.
+ * Zinnen knippen, één plek, want drie controles moeten het op dezelfde manier doen.
  *
  * Deze functie stond in `validate-claims.ts` (R1.3) en is daar ontstaan uit een
  * echte fout: de eerste versie splitste naïef op elke punt, waardoor "Bol.com"
  * uiteenviel in "Bol." en "com". Geen van beide helften bevatte de merknaam nog,
- * dus de claimvalidator zag hem niet en liet de onjuiste bewering staan — precies
+ * dus de claimvalidator zag hem niet en liet de onjuiste bewering staan. Precies
  * het geval dat hij moest vangen (gevonden op de echte rapporttekst van Coolblue).
  *
  * Sinds S3 knippen ook `claim-extract.ts` (welke zinnen zijn een bewering?) en
  * `geo-check.ts` (staat het antwoord in de eerste twee zinnen?) op zinsgrenzen.
  * Zouden die hun eigen splitser meenemen, dan zou "de eerste twee zinnen" voor de
- * ene controle iets anders betekenen dan voor de andere — en dan meten twee
+ * ene controle iets anders betekenen dan voor de andere, en dan meten twee
  * cijfers over dezelfde tekst iets verschillends zonder dat iemand dat ziet.
  *
  * Bewust ZONDER `server-only`: pure tekstbewerking, testbaar in een kaal script.

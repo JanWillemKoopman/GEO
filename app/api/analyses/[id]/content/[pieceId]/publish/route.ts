@@ -7,7 +7,7 @@ import { checkUrlFormat } from "@/lib/url";
 import { describeError, classifyError } from "@/lib/errors";
 
 /**
- * POST/DELETE /api/analyses/[id]/content/[pieceId]/publish — de klant zegt dat
+ * POST/DELETE /api/analyses/[id]/content/[pieceId]/publish, de klant zegt dat
  * de pagina live staat (optimalisatie.md 5.1/5.2/5.3).
  *
  * Dit is het scharnierpunt van fase 5. Vanaf hier weet de app dat er iets te

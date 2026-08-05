@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 /**
- * Fase B1 — Concurrentie-gap-analyse (abcplan.md §7). Model mini, geen web_search.
+ * Fase B1, Concurrentie-gap-analyse (abcplan.md §7). Model mini, geen web_search.
  * Bewijs als ID-verwijzing naar tracking_runs.id (§12.17), niet als losse tekst.
  */
 export const GapAnalysis = z.object({

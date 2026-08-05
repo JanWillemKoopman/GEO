@@ -18,13 +18,13 @@ export function normalizeUrl(input: string): string | null {
 /**
  * ── Formaatcontrole mét uitleg (optimalisatie.md 0.12) ──────────────────────
  *
- * `normalizeUrl` geeft alleen null terug bij een fout — genoeg voor de server,
+ * `normalizeUrl` geeft alleen null terug bij een fout, genoeg voor de server,
  * te weinig voor een formulier: de klant weet dan niet WAT er mis is. Deze
  * variant geeft dezelfde beoordeling plus een boodschap in gewone taal, zodat
  * de onboarding het probleem kan aanwijzen op het moment van typen.
  *
  * Zonder dit kwam een typefout ("mediamarkt" zonder extensie) pas minuten later
- * boven water als een mislukt profiel met een technische foutmelding — het
+ * boven water als een mislukt profiel met een technische foutmelding, het
  * slechtst denkbare moment, want de klant is dan al weg van het formulier.
  *
  * Bewust mild: dit weert wat aantoonbaar geen webadres is. Of de site ook echt
@@ -60,7 +60,7 @@ export function checkUrlFormat(input: string): UrlCheck {
   if (!/^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$/.test(domain)) {
     return { ok: false, message: "Dit adres bevat tekens die niet in een webadres horen." };
   }
-  // Een extensie van één letter bestaat niet — vangt de typefout "voorbeeld.n".
+  // Een extensie van één letter bestaat niet, vangt de typefout "voorbeeld.n".
   const tld = domain.split(".").pop() ?? "";
   if (tld.length < 2) {
     return { ok: false, message: "De extensie klopt niet. Bedoelde je bijvoorbeeld .nl of .com?" };
@@ -71,5 +71,5 @@ export function checkUrlFormat(input: string): UrlCheck {
 
 /** Bouwt de auto-gegenereerde analysenaam (abcplan.md §3.4). */
 export function buildAnalysisName(url: string, topic: string | null): string {
-  return topic && topic.trim() ? `${url} — ${topic.trim()}` : `${url} (hele site)`;
+  return topic && topic.trim() ? `${url} · ${topic.trim()}` : `${url} (hele site)`;
 }

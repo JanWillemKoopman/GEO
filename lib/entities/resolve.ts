@@ -3,7 +3,7 @@ import "server-only";
 /**
  * Gemeten merknamen koppelen aan één entiteit per bedrijf (optimalisatie.md 2.4).
  *
- * De classificatie geeft terug wat er letterlijk in het AI-antwoord staat —
+ * De classificatie geeft terug wat er letterlijk in het AI-antwoord staat,
  * "Coolblue" de ene keer, "coolblue.nl" de andere. Dit koppelt die schrijfwijzen
  * aan één rij in `entities`, zodat de concurrentievergelijking en de trend niet
  * uiteenvallen in varianten van hetzelfde bedrijf.
@@ -39,7 +39,7 @@ export async function loadEntityIndex(admin: Admin, profileId: string): Promise<
  * Nieuwe entiteiten komen binnen als `confirmed: false`. Dat is bewust: ze
  * tellen dan nog niet mee in de noemer van het aandeel (2.5) en verschijnen in
  * het beheerscherm, waar de klant ze bevestigt of wegzet. Anders zou elk merk
- * dat een AI-antwoord toevallig noemt — een leverancier, een vergelijkingssite —
+ * dat een AI-antwoord toevallig noemt, een leverancier, een vergelijkingssite,
  * het aandeel van de klant verwateren.
  */
 export async function resolveEntity(

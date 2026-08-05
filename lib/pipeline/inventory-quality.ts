@@ -1,5 +1,5 @@
 /**
- * Deugt de content-inventaris? (R6.2, migratie 0039 — de reservering 0033 vervalt)
+ * Deugt de content-inventaris? (R6.2, migratie 0039, de reservering 0033 vervalt)
  *
  * ── WAT HIER MIS GING ───────────────────────────────────────────────────────
  *
@@ -9,7 +9,7 @@
  * meldde dat nergens. De klant las een advies dat op één pagina gebaseerd was
  * alsof het op zijn hele site sloeg.
  *
- * Nu wordt dat oordeel geveld vóórdat er iets duurs gebeurt — in fase 0 van de
+ * Nu wordt dat oordeel geveld vóórdat er iets duurs gebeurt, in fase 0 van de
  * onboarding, waar het nog nul euro kost om te constateren.
  *
  * Puur, dus testbaar (conventie 2). Geen netwerk, geen database.
@@ -25,7 +25,7 @@ export interface InventoryPageLike {
 
 /**
  * Vanaf hoeveel tekens noemen we de tekst van een pagina bruikbaar? 200 tekens
- * is ongeveer drie zinnen — genoeg om er een feit uit te halen. Daaronder is het
+ * is ongeveer drie zinnen, genoeg om er een feit uit te halen. Daaronder is het
  * een navigatieframe of een cookiemelding.
  */
 export const USABLE_TEXT_CHARS = 200;
@@ -41,7 +41,7 @@ export const MAX_PRODUCT_RATIO = 0.7;
  *
  * Drie signalen naast elkaar, want één alleen is te grof:
  *
- *   1. Bekende webshop-paden (`/product/`, `/shop/`, `/p/`) — Shopify,
+ *   1. Bekende webshop-paden (`/product/`, `/shop/`, `/p/`), Shopify,
  *      WooCommerce en Magento gebruiken die vrijwel allemaal.
  *   2. Een artikelnummer-achtig laatste segment. Bij HEMA is dat
  *      `...-200302.html`: vier of meer cijfers op rij aan het eind.
@@ -107,7 +107,7 @@ export function assessInventory(pages: InventoryPageLike[]): InventoryQuality {
       advice:
         total < MIN_USABLE_PAGES
           ? "We vonden te weinig pagina's om een betrouwbaar beeld van de site te krijgen. Vul de sitemap-URL in, of verhoog het paginamaximum bij de instellingen van dit merk."
-          : `Van de ${total} gevonden pagina's bevatten er maar ${usable} bruikbare tekst. Vaak betekent dat de site zijn inhoud met JavaScript opbouwt — dan lezen AI-assistenten hem ook niet.`,
+          : `Van de ${total} gevonden pagina's bevatten er maar ${usable} bruikbare tekst. Vaak betekent dat de site zijn inhoud met JavaScript opbouwt. Dan lezen AI-assistenten hem ook niet.`,
     };
   }
 

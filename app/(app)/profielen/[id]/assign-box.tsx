@@ -5,11 +5,11 @@ import { useRouter } from "next/navigation";
 
 /**
  * Profiel toewijzen aan een klantaccount (blok A). Alleen zichtbaar voor de
- * beheerder — de pagina rendert dit component niet voor een gewone klant.
+ * beheerder, de pagina rendert dit component niet voor een gewone klant.
  *
  * Een KEUZELIJST en geen e-mailveld. Accounts worden in het Supabase-dashboard
  * aangemaakt, dus op het moment dat je toewijst bestaat het account al. Een
- * tekstveld zou een typefout accepteren en het profiel toewijzen aan niemand —
+ * tekstveld zou een typefout accepteren en het profiel toewijzen aan niemand,
  * onzichtbaar, want de RLS-join levert dan gewoon een leeg scherm op.
  */
 interface AccountOption {
@@ -87,7 +87,7 @@ export function AssignBox({
       <p className="text-sm text-secondary">
         {assignedAt
           ? `Dit merk staat op ${current?.email ?? "een klantaccount"}. Jij houdt toegang als beheerder.`
-          : "Dit merk staat nog op jouw eigen account. Wijs het toe zodra de klant een account heeft — de analyses gaan mee."}
+          : "Dit merk staat nog op jouw eigen account. Wijs het toe zodra de klant een account heeft. De analyses gaan mee."}
       </p>
 
       {done && (
@@ -106,7 +106,7 @@ export function AssignBox({
             disabled={accounts === null || pending}
           >
             <option value="">
-              {accounts === null ? "Accounts laden…" : "— Kies een account —"}
+              {accounts === null ? "Accounts laden…" : "Kies een account"}
             </option>
             {(accounts ?? []).map((a) => (
               <option key={a.id} value={a.id}>

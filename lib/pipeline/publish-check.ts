@@ -6,7 +6,7 @@ import "server-only";
  * De klant zegt "gepubliceerd" en geeft een URL op. Dat is precies het moment
  * waarop het mis kan gaan zonder dat iemand het merkt: een verkeerd geplakte
  * URL, een pagina die op concept staat, een CMS dat de tekst afkapte. Zonder
- * controle wacht de klant daarna wekenlang op een effect dat nooit kan komen —
+ * controle wacht de klant daarna wekenlang op een effect dat nooit kan komen,
  * en concludeert hij dat het product niet werkt.
  *
  * Dus kijken we even. Geen AI-aanroep: dit is één HTTP-verzoek en wat

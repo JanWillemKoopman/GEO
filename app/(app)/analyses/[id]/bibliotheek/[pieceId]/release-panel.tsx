@@ -18,7 +18,7 @@ import { useRouter } from "next/navigation";
  * Publiceren doet de klant zelf, buiten de app om (fase D is geen scope). Wat we
  * wél kunnen is zorgen dat hij niet publiceert zonder gezien te hebben waaróp
  * deze pagina gebouwd is. Vandaar dat dit paneel drie dingen toont die tot nu toe
- * alleen in de database stonden — de gebruikte feitenkaart, elke uitspraak over
+ * alleen in de database stonden, de gebruikte feitenkaart, elke uitspraak over
  * het bedrijf met of zonder bron, en wat er ontbreekt omdat een vraag open bleef.
  *
  * ── GEEN MUUR ───────────────────────────────────────────────────────────────
@@ -114,7 +114,7 @@ export function ReleasePanel({
               <li key={f.ref} className="flex flex-wrap gap-x-2">
                 <span className="mono-label shrink-0">{f.ref}</span>
                 <span className="text-secondary">{f.text}</span>
-                <span className="text-muted">— {f.source}</span>
+                <span className="text-muted">bron: {f.source}</span>
               </li>
             ))}
           </ul>
@@ -191,7 +191,7 @@ export function ReleasePanel({
           </button>
           <span className="text-sm text-muted">
             {needsReview
-              ? "Kopiëren kan ook zonder dit — het is een aantekening voor jezelf."
+              ? "Kopiëren kan ook zonder dit. Het is een aantekening voor jezelf."
               : "Aura's controles vonden niets, maar er heeft nog geen mens naar gekeken."}
           </span>
         </div>

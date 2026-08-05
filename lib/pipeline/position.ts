@@ -9,7 +9,7 @@
  * 521 vermeldingen in de eerste vijf analyses stonden er 215 op 0, twee op -1,
  * en de rest netjes op 1 tot en met 10. Dat is geen conventie maar een mengsel.
  *
- * Niemand merkte het, want het veld werd nergens gebruikt — precies de reden dat
+ * Niemand merkte het, want het veld werd nergens gebruikt. Precies de reden dat
  * R3 het gaat gebruiken én dat het eerst gerepareerd moest worden.
  *
  * Uit zo'n mengsel is achteraf niet te herleiden wat "0" betekende: eerste plek

@@ -12,7 +12,7 @@ import type { PublishCheck } from "@/lib/pipeline/publish-check";
  *
  * Het scharnierpunt van fase 5. Tot hier levert de app tekst; vanaf hier kan hij
  * volgen of het iets uithaalt. Vandaar dat er bij de knop staat wat er daarna
- * gebeurt — een klant die niet weet dat er over twee weken hermeten wordt, ziet
+ * gebeurt, een klant die niet weet dat er over twee weken hermeten wordt, ziet
  * later een meting waar hij niet om gevraagd heeft.
  */
 export function PublishBox({
@@ -132,7 +132,7 @@ export function PublishBox({
         <span className="mono-label flex items-center gap-1">
           Staat deze pagina al live?
           <InfoHint label="Waarom vraagt Aura dit?">
-            Zodra je hier de link invult, hermeet Aura de vragen waarvoor deze pagina gemaakt is —
+            Zodra je hier de link invult, hermeet Aura de vragen waarvoor deze pagina gemaakt is,
             twee en vier weken later. Dan zie je zwart-op-wit of het gewerkt heeft.
           </InfoHint>
         </span>

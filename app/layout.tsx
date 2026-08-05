@@ -12,7 +12,7 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Aura — AI-zichtbaarheid, gemeten",
+  title: "Aura · AI-zichtbaarheid, gemeten",
   description:
     "Aura meet hoe vaak AI-assistenten jouw merk noemen, laat zien waar je mist en schrijft de pagina's die dat verhelpen.",
 };

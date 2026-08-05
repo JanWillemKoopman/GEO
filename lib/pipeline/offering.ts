@@ -6,8 +6,8 @@ import "server-only";
  * ── WAT DIT OPLOST ──────────────────────────────────────────────────────────
  *
  * `profiles.products` is een `text[]`. Voor "wasmachines, drogers, vaatwassers"
- * is dat genoeg; voor de vraag die de app straks moet beantwoorden — welke
- * diensten levert deze klant precies, aan wie, waar en tegen welke prijs — is
+ * is dat genoeg; voor de vraag die de app straks moet beantwoorden, welke
+ * diensten levert deze klant precies, aan wie, waar en tegen welke prijs, is
  * een platte lijst het verkeerde gereedschap. Een dienst heeft subdiensten, een
  * categorie heeft productgroepen, en een core topic zit op het niveau
  * dáártussen: een topic op categorieniveau is te breed om te meten, een op
@@ -18,7 +18,7 @@ import "server-only";
  * Fase 0 leverde al gratis welke secties de site heeft en hoeveel pagina's er in
  * elke sectie zitten. `/diensten` met 12 pagina's tegenover `/blog` met 80 is
  * de structuur van het bedrijf, deterministisch afgeleid. Het model hoeft die
- * dus niet te raden — het hoeft hem alleen te benoemen en te vullen. Dat scheelt
+ * dus niet te raden, het hoeft hem alleen te benoemen en te vullen. Dat scheelt
  * zowel fouten als tokens.
  *
  * ── ÉÉN AANROEP, GEEN DRIE ──────────────────────────────────────────────────
@@ -68,7 +68,7 @@ function briefingFor(model: BusinessModel | null): string {
         `- de categoriestructuur als knopen met kind 'categorie', in de vorm die de sitestructuur hieronder laat zien;\n` +
         `- productgroepen (niet losse artikelen!) als kind 'product' onder hun categorie;\n` +
         `- de GEVOERDE MERKEN als kind 'merk'. Dit is belangrijk: die merken zijn géén concurrenten van deze klant.\n` +
-        `Noem geen individuele artikelnummers — een categorie met 400 artikelen is één knoop.`
+        `Noem geen individuele artikelnummers: een categorie met 400 artikelen is één knoop.`
       );
     case "fabrikant":
       return (
@@ -81,7 +81,7 @@ function briefingFor(model: BusinessModel | null): string {
       return (
         `Dit is een PLATFORM: het brengt vraag en aanbod van derden bij elkaar. Breng in kaart:\n` +
         `- welke categorieën aanbod erop staan (kind 'categorie');\n` +
-        `- welke diensten het platform zélf levert (kind 'dienst') — bemiddeling, garantie, betaling;\n` +
+        `- welke diensten het platform zélf levert (kind 'dienst'): bemiddeling, garantie, betaling;\n` +
         `- de partijen aan de aanbodzijde als kind 'merk', als die genoemd worden.\n` +
         `Let op het verschil tussen wat het platform aanbiedt en wat de aanbieders erop aanbieden.`
       );
@@ -145,7 +145,7 @@ export async function buildOfferingTree(profileId: string): Promise<OfferingResu
 
   const taxonomy = buildTaxonomy(pages.map((p) => p.url as string))
     .slice(0, 15)
-    .map((s) => `${s.segment} — ${s.count} pagina's`)
+    .map((s) => `${s.segment} · ${s.count} pagina's`)
     .join("\n");
 
   // Langste pagina's eerst: bij afkappen valt een navigatiepagina van 200
@@ -158,7 +158,7 @@ export async function buildOfferingTree(profileId: string): Promise<OfferingResu
   for (const p of sorted) {
     const text = (p.text_excerpt as string) ?? "";
     if (!text.trim()) continue;
-    const block = `--- ${p.url}${p.title ? ` — ${p.title}` : ""}\n${text}`;
+    const block = `--- ${p.url}${p.title ? ` · ${p.title}` : ""}\n${text}`;
     if (total + block.length > MAX_SITE_CHARS) break;
     blocks.push(block);
     total += block.length;
@@ -172,7 +172,7 @@ export async function buildOfferingTree(profileId: string): Promise<OfferingResu
     `HARDE REGELS:\n` +
     `1. Elke knoop MOET een evidenceUrl hebben uit de meegegeven pagina's, en een evidenceQuote die ` +
     `LETTERLIJK in de tekst van die pagina staat. Kun je dat niet, dan hoort de knoop er niet.\n` +
-    `2. Verzin geen aanbod. Staat een dienst er niet, dan levert het bedrijf hem niet — ook niet als ` +
+    `2. Verzin geen aanbod. Staat een dienst er niet, dan levert het bedrijf hem niet, ook niet als ` +
     `bedrijven in deze branche hem meestal wel leveren.\n` +
     `3. Laat audience en priceIndication LEEG als de site er niets over zegt. Een lege string is een ` +
     `beter antwoord dan een aanname.\n` +
@@ -193,7 +193,7 @@ export async function buildOfferingTree(profileId: string): Promise<OfferingResu
     schema: OfferingTree,
     schemaName: "offering_tree",
     // Geen web search: dit gaat uitsluitend over wat er op de eigen site staat.
-    // Marktcontext zoeken zou hier juist ruis toevoegen — het model zou dan
+    // Marktcontext zoeken zou hier juist ruis toevoegen, het model zou dan
     // aanbod van concurrenten kunnen overnemen.
     webSearch: false,
     work: "analytical",
@@ -214,7 +214,7 @@ export async function buildOfferingTree(profileId: string): Promise<OfferingResu
   // ── De topics weer aan de boom hangen (migratie 0043) ────────────────────
   //
   // "Onderzoek opnieuw" verwijdert de AI-knopen en komt hier langs om ze
-  // opnieuw op te bouwen — met nieuwe id's. De topics blijven bewust staan (dat
+  // opnieuw op te bouwen, met nieuwe id's. De topics blijven bewust staan (dat
   // zijn beslissingen van de klant, soms met een lopende analyse eraan), maar
   // hun `offering_ids` wijzen daarna naar rijen die niet meer bestaan. Stil,
   // want een `uuid[]` kan geen foreign key hebben, dus niets valt om.
@@ -224,7 +224,7 @@ export async function buildOfferingTree(profileId: string): Promise<OfferingResu
   await relinkTopics(admin, profileId, saved);
 
   // Het bedrijfsmodel dat na de hele site bekeken te hebben uitkomt, is beter
-  // onderbouwd dan het oordeel op alleen de homepage — maar een handmatig
+  // onderbouwd dan het oordeel op alleen de homepage, maar een handmatig
   // gezette waarde wint nog steeds (dezelfde regel als in prepare-profile.ts).
   if (!profile.business_model) {
     await admin
@@ -280,14 +280,14 @@ interface StoredNode {
  *
  * ── HET VANGNET (conventie 1) ───────────────────────────────────────────────
  *
- * Het model geeft `parent` als NAAM terug, niet als id — anders zou het id's
+ * Het model geeft `parent` als NAAM terug, niet als id. Anders zou het id's
  * moeten verzinnen die nog niet bestaan. Twee ronden dus: eerst alles inserten,
  * dan de verwijzingen leggen op naam. Een parent die nergens naar wijst wordt
  * stil een wortelknoop; dat is beter dan de knoop weggooien.
  *
  * En het belangrijkste: een knoop met een `evidenceUrl` die niet in de
  * gecrawlde pagina's voorkomt, verdwijnt. Dat is dezelfde regel als
- * `verifyAtoms()` en `verifyDossierFacts()` — een promptinstructie is een
+ * `verifyAtoms()` en `verifyDossierFacts()`, een promptinstructie is een
  * intentie, code is een garantie.
  */
 async function persistTree(
@@ -321,7 +321,7 @@ async function persistTree(
         //
         // Stond hier hard op `null`, en dat betekent in `ConfidenceChip`
         // "niet vastgesteld". Bij Fysi-Unique leverde dat twintig grijze chips
-        // op naast een aanbodboom die juist góéd onderbouwd was — en dat is het
+        // op naast een aanbodboom die juist góéd onderbouwd was, en dat is het
         // omgekeerde van wat die chip moet doen ("alleen het twijfelgeval valt
         // op", components/confidence-chip.tsx).
         //
@@ -381,8 +381,8 @@ function round2(n: number): number {
  * De aanbodkoppeling van bestaande topics herstellen na een herbouw.
  *
  * De beslissing zelf staat in `topic-link.ts` (puur, dus testbaar); hier alleen
- * het lezen en schrijven. Doet niets bij de eerste ronde — dan zijn er nog geen
- * topics — en niets voor topics zonder `offering_names`.
+ * het lezen en schrijven. Doet niets bij de eerste ronde. Dan zijn er nog geen
+ * topics, en niets voor topics zonder `offering_names`.
  */
 async function relinkTopics(
   admin: ReturnType<typeof createAdminClient>,

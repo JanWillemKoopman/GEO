@@ -4,12 +4,12 @@
  *
  * ── WAAROM DIT BESTAAT ──────────────────────────────────────────────────────
  *
- * `buildFactBase()` nam tot nu toe de eerste 8 rijen uit `profile_pages` — geen
+ * `buildFactBase()` nam tot nu toe de eerste 8 rijen uit `profile_pages`. Geen
  * `order by`, geen filter. Wat dat in productie oplevert, gemeten op de
  * contentronde van 31 juli:
  *
  *   Coolblue, onderwerp "wasmachine kopen". De 8 gekozen pagina's waren de
- *   homepage, /ons-assortiment, /klantenservice, /winkels — plus dezelfde vier
+ *   homepage, /ons-assortiment, /klantenservice, /winkels, plus dezelfde vier
  *   NOG EEN KEER in het Engels (/en/…). Nul wasmachinepagina's. Terwijl er
  *   TIEN gecrawld waren, 15.000 tekens, met titels als "wasmachine kopen waar
  *   op letten" en "de wasmachine voor jouw gezinssamenstelling".
@@ -17,7 +17,7 @@
  *   Fysi-Unique, onderwerp "hardloopblessure behandelen". Gekozen: heupklachten,
  *   knieklachten, hoofdpijn, medische fitness, zwangerschapsbegeleiding,
  *   revalidatie, tarieven. De pagina /fysiotherapie-bij-hardloopklachten-in-
- *   amersfoort/ was wél gecrawld en werd niet gekozen — terwijl dat exact de
+ *   amersfoort/ was wél gecrawld en werd niet gekozen, terwijl dat exact de
  *   pagina is waaruit het onderzoek de antwoorden haalde.
  *
  * Gevolg: over vijf analyses stonden er 24 citeerbare feiten op de kaart, en
@@ -46,7 +46,7 @@ export interface CandidatePage {
 export interface ScoredPage extends CandidatePage {
   /** Hoeveel van de onderwerptermen deze pagina raakt, gewogen. */
   score: number;
-  /** Het pad zonder taalsegment — twee varianten van dezelfde pagina delen dit. */
+  /** Het pad zonder taalsegment. Twee varianten van dezelfde pagina delen dit. */
   canonical: string;
 }
 
@@ -138,7 +138,7 @@ export function canonicalPath(url: string): string {
  *
  * Geteld wordt het aantal VERSCHILLENDE termen dat voorkomt, niet hoe vaak.
  * Anders wint één lange pagina die het woord "wasmachine" veertig keer noemt van
- * een pagina die alle vier de termen raakt — en die tweede is de betere bron.
+ * een pagina die alle vier de termen raakt, en die tweede is de betere bron.
  *
  * Titel en URL wegen drie keer zo zwaar als de body. Een term in de titel zegt
  * "deze pagina gáát hierover"; een term ergens in de lopende tekst zegt alleen
@@ -171,7 +171,7 @@ export function scorePage(page: CandidatePage, terms: string[]): number {
  *      stabiel is. Een selectie die per aanroep verschilt maakt de feitenkaart
  *      onverklaarbaar.
  *   3. **Aanvullen tot `max`.** Levert de scoring te weinig relevante pagina's
- *      (score 0 voor alles — een onderwerp dat nergens op de site staat), dan
+ *      (score 0 voor alles, een onderwerp dat nergens op de site staat), dan
  *      vullen we aan met de best beschikbare rest. Liever een dunne kaart met
  *      algemene pagina's dan een lege: `formatFactCard()` heeft al een eerlijke
  *      lege-kaart-instructie, maar die zet de schrijver volledig stil.

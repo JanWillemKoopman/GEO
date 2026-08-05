@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 /**
- * Fase 4.4 — analyse van de pagina's die de AI CITEERDE. Model mini, geen
+ * Fase 4.4, analyse van de pagina's die de AI CITEERDE. Model mini, geen
  * web_search (de pagina's zijn al opgehaald met de eigen crawler).
  *
  * Dit is de lat: wat deden deze pagina's goed genoeg om aangehaald te worden?

@@ -1,7 +1,7 @@
 /**
  * Sprint 1 rooktest (abcplan.md §11.1): verifieert dat beide modellen werken met
- * structured output, dat de web_search-tool draait, en — sinds de overstap naar
- * GPT-5.6 — dat de parametercombinaties die de pijplijn verstuurt daadwerkelijk
+ * structured output, dat de web_search-tool draait, en, sinds de overstap naar
+ * GPT-5.6. Dat de parametercombinaties die de pijplijn verstuurt daadwerkelijk
  * geaccepteerd worden.
  *
  * Draaien:
@@ -89,7 +89,7 @@ async function main() {
   // De combinatie die het meest kan breken: temperatuur mag alleen mee bij
   // effort `none`. Faalt dit met een unsupported-parameter-fout, dan valt de app
   // in productie terug op géén temperatuur (het vangnet in
-  // lib/openai/structured.ts) — maar dan wil je dat hier zien, niet daar.
+  // lib/openai/structured.ts), maar dan wil je dat hier zien, niet daar.
   await testStructured(client, LUNA, {
     label: "structured output (deterministic: effort none + temp 0)",
     effort: "none",
@@ -105,14 +105,14 @@ async function main() {
   });
   await testWebSearch(client, LUNA);
 
-  console.log("\n🎉 Alle checks geslaagd — de pipeline-fundamenten werken.");
+  console.log("\n🎉 Alle checks geslaagd. De pipeline-fundamenten werken.");
 }
 
 main().catch((err) => {
   console.error("\n❌ Rooktest mislukt:", err instanceof Error ? err.message : err);
   console.error(
     "\nTip: controleer de modelnamen, of de web_search-tool op jouw account/SDK-versie " +
-      "'web_search_preview' heet (anders 'web_search' — zie lib/openai/structured.ts), " +
+      "'web_search_preview' heet (anders 'web_search', zie lib/openai/structured.ts), " +
       "en of `temperature` bij effort `none` nog geaccepteerd wordt.",
   );
   process.exit(1);

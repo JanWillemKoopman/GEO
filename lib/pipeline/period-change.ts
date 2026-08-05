@@ -5,7 +5,7 @@ import "server-only";
  *
  * Het periodieke rapport moet vooral het VERSCHIL beschrijven: welke vragen
  * erbij gekomen zijn, welke verloren, welke concurrent oprukt. Een rapport dat
- * elke maand opnieuw de stand beschrijft, wordt na twee keer niet meer gelezen —
+ * elke maand opnieuw de stand beschrijft, wordt na twee keer niet meer gelezen,
  * en dan zijn alle meetkosten daarna weggegooid geld.
  *
  * Dit is pure database-vergelijking, geen AI-aanroep. De uitkomst gaat als
@@ -24,7 +24,7 @@ export { buildChangeBlock, isWorthEmailing } from "@/lib/pipeline/period-change-
 type Admin = SupabaseClient;
 
 /**
- * Vergelijkt deze periode met de vorige. Geeft null als er geen vorige is —
+ * Vergelijkt deze periode met de vorige. Geeft null als er geen vorige is,
  * dan is er niets te vergelijken en blijft het rapport een beschrijving.
  */
 export async function computePeriodChange(
@@ -49,7 +49,7 @@ export async function computePeriodChange(
 
   // Dezelfde regel als op het dashboard (2.3): een verschil telt pas als het
   // buiten de ruis valt. Anders schrijft het rapport over een stijging die er
-  // statistisch niet is — precies de overclaim die het ongeloofwaardig maakt.
+  // statistisch niet is. Precies de overclaim die het ongeloofwaardig maakt.
   const lead = (s: VisibilityScore) => s.weighted_score ?? s.score;
   const stderr = (s: VisibilityScore) =>
     (s.weighted_score != null ? s.weighted_stderr : s.score_stderr) ?? 0;

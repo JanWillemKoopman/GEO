@@ -6,7 +6,7 @@
  *
  * R1.1 geeft het model per gemiste vraag precies welke bedrijven er in dát
  * antwoord stonden, en R1.2 zegt met zoveel woorden dat het er geen mag
- * bijhalen. Dat maakt de fout onwaarschijnlijk, niet onmogelijk — een
+ * bijhalen. Dat maakt de fout onwaarschijnlijk, niet onmogelijk, een
  * taalmodel blijft een taalmodel, en dit is precies de bewering waarop een
  * klant het product afrekent ("jullie zeggen dat concurrent X hier wint; ik
  * zie hem nergens").
@@ -49,7 +49,7 @@ export interface ClaimCheckResult {
  * tekst op volgt. Dat is geen finesse maar noodzaak: de eerste versie splitste
  * naïef op elke punt, en daardoor viel "Bol.com" uiteen in "Bol." en "com". Geen
  * van beide helften bevatte de merknaam nog, dus de validator zag hem niet en
- * liet de onjuiste bewering staan — precies het geval dat hij moest vangen
+ * liet de onjuiste bewering staan. Precies het geval dat hij moest vangen
  * (gevonden bij de verificatie op de echte rapporttekst van Coolblue).
  *
  * Domeinnamen en getallen als "3.5" blijven nu heel. Afkortingen met een punt
@@ -89,7 +89,7 @@ function splitSentences(text: string): string[] {
 /**
  * Welke namen komen in deze tekst voor? Leunt op dezelfde matcher als de
  * tekstmarkering en de redactie (lib/highlight.ts): langste naam eerst,
- * woordgrenzen op letters/cijfers. Dat laatste doet ertoe — zonder zou "Spaces"
+ * woordgrenzen op letters/cijfers. Dat laatste doet ertoe. Zonder zou "Spaces"
  * ook in "Spacesworks" matchen en zouden we de verkeerde zin strippen.
  */
 function namesIn(text: string, names: string[]): string[] {
@@ -105,12 +105,12 @@ function namesIn(text: string, names: string[]): string[] {
  *
  * `allowedNames` is de vereniging van alle bedrijven die in de antwoorden van de
  * gekoppelde vragen voorkwamen. `knownNames` is het volledige entiteitenregister
- * van dit profiel — dat is waarnaar we zoeken. Een naam die wél in de tekst
+ * van dit profiel. Dat is waarnaar we zoeken. Een naam die wél in de tekst
  * staat maar niet in `allowedNames`, is een bewering die het bewijs niet draagt.
  *
  * Een zin met twee namen waarvan er één onderbouwd is, gaat er in z'n geheel
  * uit. Dat kost een correcte mededeling, maar de zin bevat óók een onjuiste, en
- * die twee zijn niet te scheiden zonder de zin te herschrijven — wat dit stukje
+ * die twee zijn niet te scheiden zonder de zin te herschrijven, wat dit stukje
  * code niet moet willen.
  */
 export function stripUnsupportedClaims(
@@ -149,7 +149,7 @@ export function stripUnsupportedClaims(
  * te doen alsof er niets stond.
  */
 export const NEUTRAL_FALLBACK =
-  "Op deze vraag noemt de AI op dit moment geen enkele aanbieder — een kans om de eerste te zijn.";
+  "Op deze vraag noemt de AI op dit moment geen enkele aanbieder. Dat is een kans om de eerste te zijn.";
 
 /** `stripUnsupportedClaims`, met de terugval erin voor een leeggelopen veld. */
 export function validateField(

@@ -1,14 +1,14 @@
 /**
  * Eenheidstests voor de rekenkundige en tekstverwerkende kern.
  *
- * Draai met `npm run test:unit`. GEEN database, GEEN API-sleutel, GEEN kosten —
+ * Draai met `npm run test:unit`. GEEN database, GEEN API-sleutel, GEEN kosten,
  * daarom kan dit bij elke wijziging draaien in plaats van alleen als iemand
  * eraan denkt.
  *
  * ── WAAROM DEZE FUNCTIES EN NIET MEER ───────────────────────────────────────
  *
  * Alles hier is puur: invoer erin, uitvoer eruit, geen netwerk. Dat is bewust de
- * scheidslijn geweest bij het bouwen — telkens als er een stuk logica ontstond
+ * scheidslijn geweest bij het bouwen, telkens als er een stuk logica ontstond
  * waar het stil mis kon gaan (een normalisatie, een drempel, een percentage),
  * is dat uit de databasecode getrokken naar een eigen module zonder
  * `server-only`. Precies die modules staan hieronder.
@@ -160,7 +160,7 @@ function ok(name: string, condition: boolean, detail = "") {
     passed++;
   } else {
     failed++;
-    failures.push(`${name}${detail ? ` — ${detail}` : ""}`);
+    failures.push(`${name}${detail ? `: ${detail}` : ""}`);
   }
 }
 
@@ -190,7 +190,7 @@ group("gewogen standaardfout", () => {
   const flat = Array.from({ length: 30 }, (_, i) => ({ weight: 1, mentioned: i < 12 }));
   ok("gelijke gewichten == binomiaal", Math.abs(weightedScoreStderr(flat) - binomialStderr(12, 30)) < 0.05);
   // Eén dominante vraag verlaagt het effectieve aantal metingen (Kish), en dan
-  // hoort de band breder te worden — niet gelijk te blijven.
+  // hoort de band breder te worden, niet gelijk te blijven.
   const skew = [{ weight: 100, mentioned: true }, ...Array.from({ length: 29 }, () => ({ weight: 1, mentioned: false }))];
   ok("scheve gewichten = bredere band", weightedScoreStderr(skew) > binomialStderr(12, 30));
   ok("leeg → 0", weightedScoreStderr([]) === 0);
@@ -254,7 +254,7 @@ group("gelijk of niet", () => {
 
 group("staat de naam echt in de tekst? (vangnet op de mention-classificatie)", () => {
   // Aanleiding: de Swapfiets-analyse toonde "Jij wordt genoemd" op een antwoord
-  // dat de merknaam nergens bevatte — het model had `mentioned: true` gegeven
+  // dat de merknaam nergens bevatte, het model had `mentioned: true` gegeven
   // zonder dat in de tekst terug te vinden.
   const swapfietsAntwoord =
     "De belangrijkste voordelen van een fietsabonnement ten opzichte van het kopen van een " +
@@ -402,7 +402,7 @@ group("vergelijken", () => {
   const m = (o: Record<string, boolean>) => new Map(Object.entries(o));
   const c = compare(m({ a: false, b: false, c: true }), m({ a: true, b: false, c: true }));
   ok("alleen gedeelde vragen", c.total === 3 && c.beforeMentioned === 1 && c.afterMentioned === 2);
-  // Een vraag die één kant niet beoordeeld is, is een dataprobleem — geen daling.
+  // Een vraag die één kant niet beoordeeld is, is een dataprobleem. Geen daling.
   ok("vraag zonder 'voor' telt niet", compare(m({ a: false }), m({ a: true, z: true })).total === 1);
   ok("vraag zonder 'na' telt niet", compare(m({ a: false, b: true }), m({ a: true })).total === 1);
 });
@@ -442,7 +442,7 @@ group("het veranderingsblok", () => {
 
 group("wanneer wél mailen", () => {
   ok("eerste keer altijd", isWorthEmailing(null));
-  // Een mail die elke periode hetzelfde zegt, wordt na drie keer niet geopend —
+  // Een mail die elke periode hetzelfde zegt, wordt na drie keer niet geopend,
   // en dan mist de klant ook de mail die er wél toe doet.
   ok("niets veranderd → geen mail", !isWorthEmailing(noChange));
   ok("echte scoreverandering → mail", isWorthEmailing({ ...noChange, scoreMeaningful: true }));
@@ -478,7 +478,7 @@ group("tekst opslaanbaar maken voor Postgres", () => {
   ok("losse high surrogate verdwijnt", sanitizeForPostgres(`a${hoog}b`) === "ab");
   ok("losse low surrogate verdwijnt", sanitizeForPostgres(`a${laag}b`) === "ab");
 
-  // Wat WÉL opslaanbaar is, mag niet sneuvelen — een emoji is een geldig paar.
+  // Wat WÉL opslaanbaar is, mag niet sneuvelen, een emoji is een geldig paar.
   ok("emoji blijft heel", sanitizeForPostgres("fiets 🚲 blauw") === "fiets 🚲 blauw");
   ok("accenten blijven heel", sanitizeForPostgres("België — €19,90") === "België — €19,90");
   ok("gewone tekst blijft gelijk", sanitizeForPostgres("Swapfiets") === "Swapfiets");
@@ -524,7 +524,7 @@ group("openstaande periodieke metingen tellen", () => {
   ok("impactmeting telt niet mee", countOpenPeriodicMeasurements([impact(0)], 0) === 0);
   ok("gemengd: alleen de periodieke", countOpenPeriodicMeasurements([periodiek(0), impact(0)], 0) === 1);
 
-  // Een payload zonder periode is geen periodieke meting van periode 0 — anders
+  // Een payload zonder periode is geen periodieke meting van periode 0. Anders
   // zou een kapotte rij de aggregatie eeuwig tegenhouden.
   ok("lege payload telt niet mee", countOpenPeriodicMeasurements([{ payload_json: null }], 0) === 0);
   ok("payload zonder weekNo", countOpenPeriodicMeasurements([{ payload_json: { promptId: "p" } }], 0) === 0);
@@ -549,7 +549,7 @@ group("Bewijsdossier (implementatieplan.md R1.1)", () => {
   // dat is precies hoe het rapport eerder concurrenten verzon.
   const leeg = formatEvidenceDossier([basis]);
   ok("merkloze vraag wordt expliciet benoemd", leeg.includes("GEEN ENKEL bedrijf bij naam genoemd"));
-  ok("merkloze vraag verbiedt een concurrent te noemen", leeg.includes("noem er ook geen"));
+  ok("merkloze vraag verbiedt een concurrent te noemen", leeg.includes("Noem er ook geen"));
   ok("de harde regel staat in de kop", leeg.includes("HARDE REGEL"));
   ok("code en vraagtekst staan erin", leeg.includes("V1") && leeg.includes("Waar boek ik"));
   ok("gewicht en tags staan erin", leeg.includes("gewicht 0.50") && leeg.includes("transactional"));
@@ -624,7 +624,7 @@ group("Claimvalidator (implementatieplan.md R1.3)", () => {
   // Een punt binnen een naam is GEEN zinseinde. Gevonden bij de verificatie op
   // echte rapporttekst: de naïeve splitser hakte "Bol.com" in "Bol." + "com",
   // waardoor geen van beide helften de merknaam nog bevatte en de onjuiste
-  // bewering ongemoeid bleef — precies het geval dat gevangen moest worden.
+  // bewering ongemoeid bleef. Precies het geval dat gevangen moest worden.
   const domeinnaam = stripUnsupportedClaims(
     "Deze vraag helpt klanten bij hun keuze. Bol.com scoort hier, Coolblue niet.",
     { knownNames: ["Bol.com", "EP.nl"], allowedNames: [], where: "aanbeveling: test" },
@@ -692,7 +692,7 @@ group("Positie van een vermelding (implementatieplan.md R3.2)", () => {
   ok("NaN is onbruikbaar", normalizePosition(Number.NaN) === null);
 
   // Het gemiddelde slaat onbruikbare waarden over in plaats van ze als 0 mee te
-  // tellen — anders trekt één ontspoorde meting het cijfer omlaag.
+  // tellen. Anders trekt één ontspoorde meting het cijfer omlaag.
   ok("gemiddelde over geldige waarden", averagePosition([1, 3]) === 2);
   ok("onbruikbare waarden tellen niet mee", averagePosition([0, 2, 4]) === 3);
   ok("alles onbruikbaar → null", averagePosition([0, -1, null]) === null);
@@ -734,7 +734,7 @@ group("Per vraag tellen in plaats van per meting (implementatieplan.md R6.1)", (
   // De aanleiding staat in migratie 0031: dezelfde analyse leverde in twee
   // opeenvolgende periodes 17 vs 11 meetbare vragen en score 18 vs 36 op, zonder
   // dat er iets veranderd was. De zwaarste vragen worden daarom meerdere keren
-  // gemeten — maar dan moeten ze niet ook zwaarder gaan MEEtellen.
+  // gemeten, maar dan moeten ze niet ook zwaarder gaan MEEtellen.
   const shares = shareByRun([
     { runId: "a1", promptId: "A" },
     { runId: "a2", promptId: "A" },
@@ -749,14 +749,14 @@ group("Per vraag tellen in plaats van per meting (implementatieplan.md R6.1)", (
   ok("deelresultaat telt fractioneel mee", Math.abs(sumShare(["a1", "a2"], shares) - 2 / 3) < 1e-9);
 
   // Faalt de beoordeling van één herhaling, dan wegen de overgebleven twee elk
-  // 1/2 — de vraag blijft in totaal 1 wegen in plaats van te verdampen.
+  // 1/2, de vraag blijft in totaal 1 wegen in plaats van te verdampen.
   const naUitval = shareByRun([
     { runId: "a1", promptId: "A" },
     { runId: "a2", promptId: "A" },
   ]);
   ok("uitval verandert de deler, niet het totaal", sumShare(["a1", "a2"], naUitval) === 1);
 
-  // Zonder herhalingen komt er exact hetzelfde uit als vóór R6.1 — bewust, zodat
+  // Zonder herhalingen komt er exact hetzelfde uit als vóór R6.1, bewust, zodat
   // historische scores vergelijkbaar blijven met de nieuwe.
   const zonderHerhaling = shareByRun([
     { runId: "x", promptId: "X" },
@@ -793,21 +793,21 @@ group("Feitenkaart (contentbriefing.md §9 / R5.1)", () => {
   ]);
 
   ok("nummering begint bij F1", facts[0].ref === "F1" && facts[1].ref === "F2");
-  // Achtergrond krijgt met opzet GEEN nummer — een nummer is de uitnodiging om
+  // Achtergrond krijgt met opzet GEEN nummer, een nummer is de uitnodiging om
   // ernaar te verwijzen, en dat was precies het alibi van 31 juli.
   ok("achtergrond krijgt geen F-nummer", facts[2].ref === "");
 
   const kaart = formatFactCard(facts);
   ok("bruikbaar feit staat op de kaart", kaart.includes("F1") && kaart.includes("€419"));
   // Verboden staan in een EIGEN blok. Tussen de feiten leest een model ze als
-  // materiaal; onder een verbodskop leest het ze als grens — dat verschil is
+  // materiaal; onder een verbodskop leest het ze als grens. Dat verschil is
   // precies waar het in de Udenhout-run misging.
   ok("verbod staat onder een eigen kop", kaart.includes("MAG JE NIET BEWEREN"));
   ok("verbod krijgt geen F-nummer op de kaartregel", !/F2\s+Pechhulp/.test(kaart));
 
-  // Zonder feiten mag er niets concreets beweerd worden — dat moet er expliciet
+  // Zonder feiten mag er niets concreets beweerd worden. Dat moet er expliciet
   // staan, want een leeg blok leest een model als "verzin het zelf maar".
-  ok("achtergrond staat in een eigen blok", kaart.includes("ACHTERGROND — GEEN BRON"));
+  ok("achtergrond staat in een eigen blok", kaart.includes("ACHTERGROND: GEEN BRON"));
 
   const leeg = formatFactCard([]);
   ok("lege kaart verbiedt expliciet", leeg.includes("GEEN ENKELE concrete bewering"));
@@ -850,7 +850,7 @@ group("Bronnendekking van geschreven content (contentbriefing.md §9 / R5.3)", (
   ]);
 
   // Dit is de maat die geo_score vervangt. Die gaf in de praktijktest voor alle
-  // drie de pagina's 100 — ook voor de pagina met vijf verzonnen feiten. Een
+  // drie de pagina's 100, ook voor de pagina met vijf verzonnen feiten. Een
   // cijfer dat nooit differentieert meet niets.
   const alles = sourceCoverage(
     [
@@ -922,7 +922,7 @@ group("Briefingvragen selecteren (contentbriefing.md §3.4 / R5.1)", () => {
   // Verplicht wint van optioneel: is de vraag voor één pagina kern, dan is hij kern.
   ok("verplicht wint van optioneel", samengevoegd[0].required === true);
 
-  // Nooit vragen wat we al weten — dat is geloofwaardigheidsverlies (§4 regel 6).
+  // Nooit vragen wat we al weten. Dat is geloofwaardigheidsverlies (§4 regel 6).
   const bekend = selectBriefingQuestions({
     candidates: [{ ...basis, claimKey: "a", question: "Al bekend?", required: true, contentPieceIds: ["p1"] }],
     alreadyKnown: new Set(["a"]),
@@ -1013,7 +1013,7 @@ group("Citaatplicht bij meerdere feiten (implementatieplan.md R8.3)", () => {
 
   // Het echte geval uit de contentronde van 31 juli: één bewering die twee
   // bevestigde feiten combineert. Telde als ONBEWEZEN omdat er geen feit met
-  // ref "F1, F2" bestaat — en trok source_coverage van 100 naar 80.
+  // ref "F1, F2" bestaat, en trok source_coverage van 100 naar 80.
   ok(
     "twee feiten in één bewering tellen als onderbouwd",
     isSupported(
@@ -1054,7 +1054,7 @@ group("Antwoorden van de klant in de feitenkaart (implementatieplan.md R8.1)", (
 
   // Het geval dat de hele contentronde blootlegde: de klant CORRIGEERT een
   // eerder antwoord. De twee mogen niet naast elkaar op de kaart belanden,
-  // want dan mag het model kiezen — en het koos de gunstige.
+  // want dan mag het model kiezen, en het koos de gunstige.
   const gecorrigeerd = mergeAnsweredFacts(bevroren, [
     {
       question: "Biedt Fysi-Unique preventieve begeleiding",
@@ -1096,7 +1096,7 @@ group("Antwoorden van de klant in de feitenkaart (implementatieplan.md R8.1)", (
   ok("het antwoord van de klant staat bovenaan", aangevuld[0].text.includes("shin splints"));
   ok("nummering blijft sluitend", aangevuld[0].ref === "F1" && aangevuld[1].ref === "F2");
 
-  // Zonder antwoorden verandert er niets — geen nummerwissel om niets.
+  // Zonder antwoorden verandert er niets. Geen nummerwissel om niets.
   ok("geen antwoorden laat de kaart ongemoeid", mergeAnsweredFacts(bevroren, []) === bevroren);
 
   // ── Het bank-id overleeft het hernummeren (migratie 0036) ─────────────────
@@ -1140,7 +1140,7 @@ group("Bijna-dezelfde vraag samenvoegen (implementatieplan.md R8.4)", () => {
   ok("drie formuleringen, één onderwerp", topicKey(a) === topicKey(b) && topicKey(b) === topicKey(c));
   ok("claimKey zag ze nog als verschillend", claimKey(a) !== claimKey(b));
 
-  // Enkelvoud en meervoud mogen niet uit elkaar lopen — dat was de eerste bug
+  // Enkelvoud en meervoud mogen niet uit elkaar lopen. Dat was de eerste bug
   // in deze functie: "hardloopblessures" verloor z'n s en stopte, terwijl
   // "hardloopblessure" wél z'n e verloor.
   ok(
@@ -1249,7 +1249,7 @@ group("Deterministische kwaliteitspoort (implementatieplan.md R8.2/R8.7/R8.8)", 
     targetQuestions: [doelvraag],
     distinctiveAnswers: [],
   });
-  ok("een ja/nee-vraag zonder ja of nee valt door de poort", ontwijkend.checks.directAntwoord === false);
+  ok("een ja-of-nee-vraag zonder ja of nee valt door de poort", ontwijkend.checks.directAntwoord === false);
   ok("doorverwijzen telt als ontwijken", ontwijkend.checks.geenOntwijking === false);
   ok("de poort levert concrete verbeterpunten", ontwijkend.issues.length >= 2);
 
@@ -1268,7 +1268,7 @@ group("Deterministische kwaliteitspoort (implementatieplan.md R8.2/R8.7/R8.8)", 
   ok("de merknaam staat er expliciet in", direct.checks.merknaamExpliciet === true);
   ok("er staan concrete cijfers in", direct.checks.concreteFeiten === true);
 
-  // Een open vraag ("welke", "waar") is geen ja/nee-vraag: dan is die controle
+  // Een open vraag ("welke", "waar") is geen ja-of-nee-vraag: dan is die controle
   // niet van toepassing en telt hij niet mee. Onbekend is geen onvoldoende.
   const openVraag = checkContentGate({
     bodyMarkdown: "Fysi-Unique in Amersfoort behandelt shin splints en hielspoor bij 200 hardlopers.",
@@ -1277,10 +1277,10 @@ group("Deterministische kwaliteitspoort (implementatieplan.md R8.2/R8.7/R8.8)", 
     targetQuestions: ["Welke praktijk in Amersfoort behandelt hardloopblessures?"],
     distinctiveAnswers: [],
   });
-  ok("geen ja/nee-vraag → controle niet van toepassing", openVraag.checks.directAntwoord === null);
+  ok("geen ja-of-nee-vraag → controle niet van toepassing", openVraag.checks.directAntwoord === null);
   ok("niet-uitgevoerde controles tellen niet mee", openVraag.score !== null && openVraag.score > 0);
 
-  // R8.8 — het onderscheidende antwoord van de klant moet terugkomen.
+  // R8.8, het onderscheidende antwoord van de klant moet terugkomen.
   const zonderOnderscheid = checkContentGate({
     bodyMarkdown: "Fysi-Unique in Amersfoort behandelt hardloopblessures met 20 jaar ervaring.",
     faq: [],
@@ -1411,7 +1411,7 @@ group("de echte Coolblue-selectie", () => {
 
 
 // ════════════════════════════════════════════════════════════════════════════
-console.log("\nSitetekst atomiseren — het vangnet (S1)");
+console.log("\nSitetekst atomiseren: het vangnet (S1)");
 
 group("alleen letterlijke zinnen overleven", () => {
   const pagina = [
@@ -1556,12 +1556,12 @@ group("de vraag die 0 van de 62 keer gesteld werd", () => {
   ok("van de juiste soort", vraag?.kind === "onderscheid");
   ok("met het letterlijke bewijs erin", vraag?.question.includes("€60,00 per sessie") === true);
   ok("merkbreed, want dit geldt voor elke pagina", vraag?.scope === "merk");
-  ok("niet verplicht — je moet door kunnen", vraag?.required === false);
+  ok("niet verplicht, je moet door kunnen", vraag?.required === false);
   ok("zonder bewijs geen vraag", positioningQuestion({ evidence: [], contentPieceIds: ["p1"] }) === null);
 });
 
 group("de gereserveerde plek", () => {
-  // Acht inhoudelijk verschillende, verplichte vragen die alle pagina's raken —
+  // Acht inhoudelijk verschillende, verplichte vragen die alle pagina's raken,
   // precies de soort die in productie alle acht plekken innam.
   const onderwerpen = [
     "tarieven vergoeding zorgverzekeraar",
@@ -1609,7 +1609,7 @@ group("de gereserveerde plek", () => {
 });
 
 // ════════════════════════════════════════════════════════════════════════════
-console.log("\nMerkdossier — het vangnet (implementatieplan.md S5)");
+console.log("\nMerkdossier: het vangnet (implementatieplan.md S5)");
 
 group("alleen letterlijke antwoorden overleven", () => {
   const document =
@@ -1750,7 +1750,7 @@ group("wanneer een vraag mag vervallen", () => {
   ok("0 van 2 is niet genoeg om te schrappen", !maySkip({ successes: 0, samples: 2 }));
   ok("0 van 8 nog steeds niet", !maySkip({ successes: 0, samples: 8 }));
   ok("0 van 12 wel", maySkip({ successes: 0, samples: 12 }));
-  // Een vraag die één op de drie keer raak is, mag nooit verdwijnen — dat is
+  // Een vraag die één op de drie keer raak is, mag nooit verdwijnen. Dat is
   // precies de vraag die de contentronde liet zien.
   ok("4 van 12 mag nooit vervallen", !maySkip({ successes: 4, samples: 12 }));
   // Wél vervallen bij véél bewijs van bijna niets: 1 op 30 is 3%, en dertig
@@ -1959,7 +1959,7 @@ group("gestructureerde data oogsten (fase 0, nul API-kosten)", () => {
   );
   ok("openingstijden komen eruit", waarde("openingstijden") === "Mo-Fr 08:00-18:00");
   // Een beoordeling is een van de sterkste trust-signalen en zit vrijwel altijd
-  // in een genest object — precies het geval waar een platte parser op stukloopt.
+  // in een genest object. Precies het geval waar een platte parser op stukloopt.
   ok(
     "de beoordeling krijgt het aantal erbij",
     waarde("beoordeling") === "9.4 (87 beoordelingen)",
@@ -1995,7 +1995,7 @@ group("@graph en dubbele feiten", () => {
 
 group("draait de site op JavaScript? (de zwaarste bevinding die er is)", () => {
   // AI-crawlers voeren geen JS uit: staat de tekst niet in de HTML, dan bestaat
-  // de pagina voor ChatGPT niet — hoe goed de content ook is.
+  // de pagina voor ChatGPT niet, hoe goed de content ook is.
   const spa = `<html><body><div id="root"></div><script>${"x".repeat(50_000)}</script></body></html>`;
   ok("een lege SPA-shell valt op", assessRendering(spa, 12).likelyClientRendered);
 
@@ -2003,7 +2003,7 @@ group("draait de site op JavaScript? (de zwaarste bevinding die er is)", () => {
   ok("een gewone pagina niet", !assessRendering(gewoon, 1800).likelyClientRendered);
 
   // Randgeval: weinig tekst maar ook nauwelijks script. Dat is een dunne
-  // pagina, geen JavaScript-probleem — en het advies verschilt.
+  // pagina, geen JavaScript-probleem, en het advies verschilt.
   ok(
     "weinig tekst zonder script is geen JS-probleem",
     !assessRendering("<html><body>Kort.</body></html>", 5).likelyClientRendered,
@@ -2050,7 +2050,7 @@ group("inventariskwaliteit: Bol, HEMA en een gewone praktijk", () => {
   ok("gewone praktijk: voldoende", praktijk.verdict === "voldoende", praktijk.verdict);
   ok("voldoende geeft geen advies", praktijk.advice === null);
 
-  // Wél genoeg pagina's, maar bijna geen tekst — dat is het JavaScript-geval,
+  // Wél genoeg pagina's, maar bijna geen tekst. Dat is het JavaScript-geval,
   // en het advies moet dáárover gaan en niet over de sitemap.
   const leeg = assessInventory(
     Array.from({ length: 20 }, (_, i) => pagina(`https://spa.nl/pagina-${i}`, 30)),
@@ -2081,7 +2081,7 @@ group("sitestructuur uit de URL-lijst", () => {
 
 group("entiteitsconsistentie: heet het bedrijf overal hetzelfde?", () => {
   // Een B.V. achter de naam is geen afwijking. Zonder deze normalisatie krijgt
-  // élke klant met een rechtsvorm een waarschuwing die niets betekent — en dan
+  // élke klant met een rechtsvorm een waarschuwing die niets betekent, en dan
   // leest niemand de audit meer.
   ok("rechtsvorm telt niet mee", sameBrand("Jansen Bouw B.V.", "Jansen Bouw"));
   ok("hoofdletters tellen niet mee", sameBrand("JANSEN BOUW", "jansen bouw"));
@@ -2188,7 +2188,7 @@ group("de meetsleutel per engine (migratie 0041)", () => {
 
   // OpenAI houdt de OUDE sleutel zonder achtervoegsel. Er staan taken in de
   // database van vóór deze wijziging; een andere sleutel zou een lopende
-  // meetronde alles opnieuw laten inplannen — een tweede betaalde web-zoekactie
+  // meetronde alles opnieuw laten inplannen, een tweede betaalde web-zoekactie
   // per vraag.
   ok(
     "openai houdt de bestaande sleutel",
@@ -2224,7 +2224,7 @@ group("kent een AI-assistent dit merk? (fase 3, blok A)", () => {
   );
 
   // "Ik ken Fysi-Unique niet" BEVAT de merknaam. Zonder de toegeef-detectie zou
-  // elk eerlijk niet-weten-antwoord als herkenning tellen — en dan meet dit
+  // elk eerlijk niet-weten-antwoord als herkenning tellen, en dan meet dit
   // blok precies het tegenovergestelde van wat het moet meten.
   ok(
     "een eerlijk niet-weten telt NIET als kennen",
@@ -2247,7 +2247,7 @@ group("kent een AI-assistent dit merk? (fase 3, blok A)", () => {
   );
 });
 
-group("klopt het? — het oordeel dat het model niet zelf mag vellen", () => {
+group("klopt het? Het oordeel dat het model niet zelf mag vellen", () => {
   const feiten = [
     { key: "telefoon", value: "033 123 4567" },
     { key: "adres", value: "3811 MH" },
@@ -2259,7 +2259,7 @@ group("klopt het? — het oordeel dat het model niet zelf mag vellen", () => {
   ok("alles bevestigd", goed.every((c) => c.verdict === "bevestigd"), JSON.stringify(goed));
 
   // Hetzelfde nummer, andere schrijfwijze. Dit als "niet genoemd" tellen zou de
-  // uitslag onterecht drukken — +31 33 en 033 zijn hetzelfde nummer.
+  // uitslag onterecht drukken, +31 33 en 033 zijn hetzelfde nummer.
   const anders = checkFacts("Bel +31 33 123 45 67.", [feiten[0]]);
   ok("andere schrijfwijze telt als bevestigd", anders[0].verdict === "bevestigd", anders[0].verdict);
 
@@ -2321,7 +2321,7 @@ group("contextfactoren: wat de pijplijn niet kan zien (blok C)", () => {
 
   // Het gevolg dat er het meest toe doet: een audit die zegt "voeg schema.org
   // toe aan /diensten/massage" is erger dan waardeloos als die pagina straks
-  // niet bestaat — de klant gaat er wél mee aan de slag.
+  // niet bestaat, de klant gaat er wél mee aan de slag.
   const stale = technicalAdviceStale(factors);
   ok("een nieuwe website maakt het advies tijdelijk", stale !== null);
   const melding = staleAdviceNotice(stale!);
@@ -2362,7 +2362,7 @@ group("onderzoeksstappen met tussenresultaten (§8)", () => {
   ok("er loopt nog iets", researchRunning(halverwege));
 
   // Een stap die draaide maar niets vond, moet er ANDERS uitzien dan een stap
-  // die iets vond. Anders leest "0 diensten gevonden" als geslaagd — precies
+  // die iets vond. Anders leest "0 diensten gevonden" als geslaagd. Precies
   // het stille degraderen waar dit project vangnetten tegen bouwt.
   const nietsGevonden = buildSteps({
     pendingByType: {},
@@ -2441,7 +2441,7 @@ group("zekerheid als drie niveaus, niet als kommagetal (§8)", () => {
 // ════════════════════════════════════════════════════════════════════════════
 // De verificatieronde van 3 augustus 2026 (Fysi-Unique op productie). Elk van
 // deze groepen hoort bij een fout die pas zichtbaar werd toen de pijplijn één
-// keer helemaal doorliep — geen enkele bestaande test ving hem.
+// keer helemaal doorliep. Geen enkele bestaande test ving hem.
 // ════════════════════════════════════════════════════════════════════════════
 
 group("het model dat de naam niet kan thuisbrengen, kent het merk niet", () => {
@@ -2467,7 +2467,7 @@ group("het model dat de naam niet kan thuisbrengen, kent het merk niet", () => {
   // Zodra het werkgebied in de vraag stond ("Fysi-Unique uit Amersfoort"),
   // antwoordde het model wél raak. De eerste reparatie nam ook losse hedges mee
   // als "niet met zekerheid", en die twee antwoorden werden daardoor als "kent
-  // het merk niet" gemeld — vals negatief. De grens ligt bij identiteit, niet
+  // het merk niet" gemeld, vals negatief. De grens ligt bij identiteit, niet
   // bij details.
   const b1 =
     "Fysi-Unique in Amersfoort is een fysiotherapiepraktijk. Ze helpen bij klachten " +
@@ -2494,7 +2494,7 @@ group("het model dat de naam niet kan thuisbrengen, kent het merk niet", () => {
       [],
     ),
   );
-  // En "geen betrouwbare informatie" — over het merk zelf — blijft wél tellen.
+  // En "geen betrouwbare informatie", over het merk zelf, blijft wél tellen.
   ok(
     "geen betrouwbare informatie over het merk telt nog steeds",
     admitsUnknown("Ik heb geen betrouwbare informatie over dit bedrijf."),
@@ -2516,7 +2516,7 @@ group("de merknaam is geen bewijs dat het model je kent", () => {
     !overgebleven.some((f) => f.value.includes("Tarieven")),
   );
   ok(
-    "het telefoonnummer blijft — dát is na te rekenen",
+    "het telefoonnummer blijft, dát is na te rekenen",
     overgebleven.length === 1 && overgebleven[0].key === "telefoon",
   );
   // Niets over houden is een geldige uitkomst en geen fout (conventie 3).
@@ -2674,7 +2674,7 @@ group("kent hij je merk? een verhouding, geen muntworp", () => {
     describeKnows(gemengd, "Fysi-Unique") ===
       "herkent Fysi-Unique wisselend (3 van de 6 vragen)",
   );
-  // Geen metingen is geen kennis — maar ook geen bewering over een verhouding.
+  // Geen metingen is geen kennis, maar ook geen bewering over een verhouding.
   ok("nul vragen is 'kent niet'", summariseKnows([]).level === "kent_niet");
 });
 
@@ -2832,7 +2832,7 @@ group("een onderwerp houdt zijn aanbod na een herbouw van de boom", () => {
     ) === "[]",
   );
 
-  // Niets te doen mag ook echt niets doen — anders schrijft elke herbouw alle
+  // Niets te doen mag ook echt niets doen. Anders schrijft elke herbouw alle
   // topics opnieuw weg.
   ok(
     "een kloppende koppeling wordt niet aangeraakt",
@@ -3164,7 +3164,7 @@ group("de kwaliteitspoort staat NAAST de GEO-score, niet erin", () => {
     mostSimilar: { title: "Iets anders", score: 0.2 },
   });
   ok("onder de drempel is het geen duplicaat", onderDrempel.checks.nietDubbel === true);
-  // De gemeten waarde wordt altijd teruggegeven, ook onder de drempel — anders
+  // De gemeten waarde wordt altijd teruggegeven, ook onder de drempel. Anders
   // kan hij nooit op echte data bijgesteld worden.
   ok(
     "maar de gemeten waarde staat er wel",
@@ -3172,7 +3172,7 @@ group("de kwaliteitspoort staat NAAST de GEO-score, niet erin", () => {
   );
 
   // ⚠️ DE KERN VAN HET ONTWERP: deze poort raakt `geo_score` niet aan.
-  // `checkQuality` geeft geen score terug — er is geen veld waarmee hij de
+  // `checkQuality` geeft geen score terug, er is geen veld waarmee hij de
   // GEO-score zou kunnen beïnvloeden, en dat is met opzet zo.
   ok(
     "checkQuality levert geen score op die in geo_score kan lekken",
@@ -3262,7 +3262,7 @@ group("de drie kerncijfers en de zin erboven", () => {
   ok("zonder meting geen kop", onboardingHeadline(leeg) === null);
   ok(
     "en de tegels tonen een streepje in plaats van een nul",
-    onboardingStats(leeg).every((s) => s.value === "—"),
+    onboardingStats(leeg).every((s) => s.value === "-"),
   );
 });
 

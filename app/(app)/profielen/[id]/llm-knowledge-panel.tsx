@@ -12,8 +12,8 @@ import type { ProfileLlmBaseline } from "@/lib/types/database";
  * ── WAAROM DIT BOVENAAN HET PROFIEL HOORT ───────────────────────────────────
  *
  * Dit is de uitkomst waar een ondernemer van rechtop gaat zitten. Niet "je
- * zichtbaarheidsscore is 34" — dat is een getal waar hij geen gevoel bij heeft
- * — maar "ChatGPT denkt dat je telefoonnummer 020 999 8877 is". Dat is concreet,
+ * zichtbaarheidsscore is 34". Dat is een getal waar hij geen gevoel bij heeft
+ *, maar "ChatGPT denkt dat je telefoonnummer 020 999 8877 is". Dat is concreet,
  * verifieerbaar en meteen zorgwekkend.
  *
  * Vandaar dat een tegenspraak hier de eerste regel is en niet een detail
@@ -40,7 +40,7 @@ function engineLabel(id: string): string {
 export function LlmKnowledgePanel({ rows }: { rows: ProfileLlmBaseline[] }) {
   // ⚠️ NIET `return null`. Zie `ux-design.md` §4: een lege staat wijst altijd
   // naar de volgende stap. Stil verdwijnen is een stap erger dan een dood
-  // einde — de klant weet dan niet eens dát deze test bestaat, en de consultant
+  // einde, de klant weet dan niet eens dát deze test bestaat, en de consultant
   // kan het gat niet uitleggen omdat er geen gat te zien is.
   if (rows.length === 0) {
     return (
@@ -80,7 +80,7 @@ export function LlmKnowledgePanel({ rows }: { rows: ProfileLlmBaseline[] }) {
         // Hier stond "één herkennend antwoord is genoeg". Twee meetronden op
         // dezelfde site lieten zien waarom dat niet houdbaar is: twee woorden
         // verschil in de vraag ("uit Amersfoort") draaide de uitkomst om. Met
-        // zes formuleringen is de eerlijke uitkomst hoe vaak hij raak is —
+        // zes formuleringen is de eerlijke uitkomst hoe vaak hij raak is,
         // `summariseKnows()` maakt daar drie standen van, zonder verzonnen
         // drempel.
         const verdicts = kentRijen
@@ -188,7 +188,7 @@ export function LlmKnowledgePanel({ rows }: { rows: ProfileLlmBaseline[] }) {
               <p className="text-sm text-secondary">
                 Dat is geen fout van jou: voor de meeste MKB-bedrijven is dit de
                 uitgangssituatie. Het betekent wel dat een assistent je alleen
-                noemt als hij je op dat moment toevallig vindt — niet omdat hij
+                noemt als hij je op dat moment toevallig vindt, niet omdat hij
                 je kent.
               </p>
             )}

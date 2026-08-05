@@ -22,7 +22,7 @@ export async function getProfile(id: string): Promise<Profile | null> {
  * De beheerdersuitweg is nodig omdat de superuser een profiel opbouwt vóór het
  * demogesprek en het daarna toewijst aan de klant (migratie 0038). Zonder deze
  * regel kon hij het profiel dat hij zelf aanmaakte niet meer bijwerken zodra
- * hij het had overgedragen — precies wanneer de begeleiding begint.
+ * hij het had overgedragen. Precies wanneer de begeleiding begint.
  *
  * ⚠️ Dit is samen met `getOwnedAnalysis()` de enige poort tussen een verzoek en
  * andermans data. Een `||` er verkeerd neerzetten geeft iedereen toegang tot

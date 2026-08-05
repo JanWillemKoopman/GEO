@@ -27,7 +27,7 @@ function escapeRegex(s: string): string {
  * eerst geeft altijd de volledige naam.
  *
  * De randen zijn `(?<![\p{L}\p{N}])` in plaats van `\b`: zo matcht "Coolblue"
- * niet binnen "Coolbluezaken", maar wordt "Bol.com" wél als geheel gevonden —
+ * niet binnen "Coolbluezaken", maar wordt "Bol.com" wél als geheel gevonden,
  * `\b` breekt op de punt en zou hier precies het verkeerde doen.
  */
 function buildPattern(terms: string[]): RegExp | null {

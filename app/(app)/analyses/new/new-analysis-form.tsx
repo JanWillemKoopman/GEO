@@ -6,7 +6,7 @@ import type { Profile } from "@/lib/types/database";
 
 export function NewAnalysisForm({
   profiles,
-  /** Uit tijdens het bouwen (EMAILS_ENABLED) — dan tonen we het mailvinkje niet. */
+  /** Uit tijdens het bouwen (EMAILS_ENABLED). Dan tonen we het mailvinkje niet. */
   emailsEnabled = false,
 }: {
   profiles: Profile[];
@@ -68,7 +68,7 @@ export function NewAnalysisForm({
       </label>
 
       <label className="flex flex-col gap-1.5">
-        <span className="mono-label">Product / onderwerp *</span>
+        <span className="mono-label">Product of onderwerp *</span>
         <input
           type="text"
           required
@@ -91,7 +91,7 @@ export function NewAnalysisForm({
           rows={4}
           placeholder={
             "bijv. 'Richt de content op sollicitanten die zich voorbereiden op een gesprek " +
-            "(hoe kleed ik me, welke vragen kan ik verwachten) — niet op algemene info voor wie " +
+            "(hoe kleed ik me, welke vragen kan ik verwachten), niet op algemene info voor wie " +
             "niet actief naar werk zoekt.'"
           }
           className="field"
@@ -103,7 +103,7 @@ export function NewAnalysisForm({
       </label>
 
       {/* Bericht als het klaar is (optimalisatie.md 1.8). Het werk draait op de
-          achtergrond en duurt minuten — dan hoort de klant te weten wanneer hij
+          achtergrond en duurt minuten. Dan hoort de klant te weten wanneer hij
           terug kan komen, in plaats van te moeten blijven kijken.
 
           Staat de mail uit (EMAILS_ENABLED), dan verdwijnt het vinkje: een vakje
@@ -120,7 +120,7 @@ export function NewAnalysisForm({
             <span className="text-sm font-medium">Mail me zodra het rapport klaar is</span>
             <span className="text-sm text-muted">
               Aura werkt op de achtergrond door, ook als je dit scherm sluit. Blijven wachten hoeft
-              niet — je krijgt bericht.
+              niet, je krijgt bericht.
             </span>
           </span>
         </label>

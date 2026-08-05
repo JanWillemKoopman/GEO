@@ -8,7 +8,7 @@ import OpenAI from "openai";
 import { serverEnv } from "@/lib/env";
 
 /**
- * Nieuwe pogingen bij tijdelijke fouten (429 rate-limit, 5xx, netwerk) —
+ * Nieuwe pogingen bij tijdelijke fouten (429 rate-limit, 5xx, netwerk),
  * optimalisatie.md 0.4. Zonder dit liet één tijdelijke 429 tussen de parallelle
  * meet-calls de HELE meting mislukken via Promise.allSettled.
  *
@@ -24,17 +24,17 @@ const MAX_RETRIES = 3;
  *
  * Stond op 50s toen de route nog op 60s stond. Dat was te krap geworden: een
  * meting met web_search duurt 20-40s, maar het premium model dat een volledige
- * pagina schrijft doet er regelmatig langer over — die werd dus afgebroken
+ * pagina schrijft doet er regelmatig langer over. Die werd dus afgebroken
  * vóórdat hij klaar was. Nu de route op 300s staat past 100s daar comfortabel
  * in, met nog ruimte voor de tweede aanroep van dezelfde taak (schrijven +
- * redactie) — zie HEAVY_JOB_RESERVE_MS in lib/jobs/worker.ts, dat op deze
+ * redactie), zie HEAVY_JOB_RESERVE_MS in lib/jobs/worker.ts, dat op deze
  * waarde is afgestemd.
  *
  * ⚠️ Sinds GPT-5.6 komt er redeneertijd bij elke aanroep bovenop. Deze 100s is
  * daarom de reden dat de redeneerinspanning per soort werk bewust laag staat
  * (lib/openai/sampling.ts): `none` waar het kan, `low` bij onderzoek dat óók
  * web_search doet, `medium` bij het schrijven. Wie die knop omhoog draait, moet
- * eerst hier en in lib/jobs/worker.ts nameten — niet andersom.
+ * eerst hier en in lib/jobs/worker.ts nameten, niet andersom.
  */
 const TIMEOUT_MS = 100_000;
 
@@ -45,14 +45,14 @@ const TIMEOUT_MS = 100_000;
  *
  * `timeout` hierboven geldt PER POGING, en de SDK herhaalt ook een timeout.
  * Met MAX_RETRIES = 3 was de echte bovengrens van één aanroep dus 4 × 100s =
- * 400 seconden — meer dan de 300s die de werkerroute van het platform krijgt.
+ * 400 seconden, meer dan de 300s die de werkerroute van het platform krijgt.
  * De rekensom in lib/jobs/worker.ts (HEAVY_JOB_RESERVE_MS = 220s voor twee
  * aanroepen van 100s) ging er stilzwijgend van uit dat er niet herhaald werd.
  *
  * Op 1 augustus 2026 stonden er twee 504's op /api/cron/worker in de
  * Vercel-logs ("Task timed out after 300 seconds"). Alles wat op dat moment
  * geclaimd was bleef op 'running' staan tot de reaper het vijf minuten later
- * terugzette — de klant kijkt dan naar een voortgangsscherm waarachter niets
+ * terugzette, de klant kijkt dan naar een voortgangsscherm waarachter niets
  * gebeurt.
  *
  * 105 seconden is de bovengrens die de rekensom wél waarmaakt: twee aanroepen

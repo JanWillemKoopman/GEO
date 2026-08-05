@@ -10,14 +10,14 @@
  * Dat is geen theoretisch risico. Het hele merkdossier bestaat omdat een
  * ondernemer zijn tarieven en voorwaarden al ergens heeft staan, en juist bij
  * dat soort materiaal is de verleiding om af te ronden of samen te vatten het
- * grootst — "vanaf ongeveer €45" is een andere belofte dan "€ 45,00", en de
+ * grootst, "vanaf ongeveer €45" is een andere belofte dan "€ 45,00", en de
  * klant is degene die daarop afgerekend wordt. Onbekend is beter dan verkeerd.
  *
  * Deze feiten komen bovendien op de feitenkaart terecht als door de klant
  * bevestigd, met de hoogste betrouwbaarheid van alle bronnen (`SOURCE_ORDER`).
  * Precies daarom mag hier niets doorheen glippen dat niet is aangeleverd.
  *
- * Bewust ZONDER `server-only`: pure controle, testbaar in een kaal script —
+ * Bewust ZONDER `server-only`: pure controle, testbaar in een kaal script,
  * zelfde patroon als `atom-verify.ts`, `position.ts` en `validate-claims.ts`.
  */
 import { normalizeForQuote, claimKey, topicKey } from "@/lib/pipeline/factcard";
@@ -38,7 +38,7 @@ export interface VerifiedDossierFact {
 /**
  * Hoeveel feiten er per aangeleverd document doorkomen.
  *
- * Niet uit kostenoverweging — die zit in de aanroep — maar omdat de klant de
+ * Niet uit kostenoverweging. Die zit in de aanroep, maar omdat de klant de
  * lijst moet kunnen nalopen. Veertig feiten in één keer is geen bevestiging
  * meer maar een muur tekst, en dan klikt hij hem weg zonder te lezen. Dat is
  * precies het risico dat deze stap moet vermijden: deze feiten gelden straks als
@@ -59,7 +59,7 @@ const MAX_QUESTION_CHARS = 160;
  *
  * Zes maanden, en dat is een compromis: prijzen veranderen sneller, maar een
  * verificatievraag die elke maand terugkomt voelt als zeuren. Het is bovendien
- * geen harde vervaldatum — een verlopen feit wordt een verificatievraag mét het
+ * geen harde vervaldatum, een verlopen feit wordt een verificatievraag mét het
  * oude antwoord als voorstel, dus één klik.
  */
 const VERIFY_AFTER_MONTHS = 6;
@@ -85,15 +85,15 @@ export function answerTypeOf(answer: string): AnswerType {
  * Houdt alleen de feiten over die écht in het aangeleverde materiaal staan.
  *
  * Wat er afvalt, en waarom:
- *   • antwoord niet in de brontekst — samengevat of afgerond, dus niet na te
+ *   • antwoord niet in de brontekst, samengevat of afgerond, dus niet na te
  *     trekken. Dit is de belangrijkste regel van deze module.
- *   • bronzin niet in de brontekst — het model wijst een zin aan die er niet
+ *   • bronzin niet in de brontekst, het model wijst een zin aan die er niet
  *     staat; dan is de herkomst van het antwoord onbekend.
- *   • antwoord niet in de bronzin — de zin dekt het antwoord niet, en dan zegt
+ *   • antwoord niet in de bronzin, de zin dekt het antwoord niet, en dan zegt
  *     de verwijzing niets (dezelfde fout als een F-nummer dat bestaat maar niet
  *     dekt, R5-verificatie 31 juli).
- *   • te kort of te lang — een fragment of een alinea, geen atomair feit.
- *   • dubbel — twee formuleringen van hetzelfde levert twee feiten op die elkaar
+ *   • te kort of te lang, een fragment of een alinea, geen atomair feit.
+ *   • dubbel. Twee formuleringen van hetzelfde levert twee feiten op die elkaar
  *     op de kaart kunnen tegenspreken.
  */
 export function verifyDossierFacts(
