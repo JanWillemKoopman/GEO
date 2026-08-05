@@ -62,13 +62,13 @@ export function ScoreCard({
         <InfoHint label={leadIsWeighted ? "Gewogen zichtbaarheid" : "Zichtbaarheidsscore"}>
           {leadIsWeighted ? (
             <>
-              Van alle vragen die we aan een AI-assistent stelden, in hoeveel word jij genoemd —
+              Van alle vragen die Aura aan een AI-assistent stelde, in hoeveel word jij genoemd —
               waarbij vaak gestelde en koopklare vragen zwaarder tellen. Gemeten over{" "}
               {score.winnable_runs ?? score.judged_runs ?? measuredRunCount} vragen.
             </>
           ) : (
             <>
-              Van alle vragen die we aan een AI-assistent stelden, in hoeveel word jij genoemd.
+              Van alle vragen die Aura aan een AI-assistent stelde, in hoeveel word jij genoemd.
               Elke vraag telt even zwaar. Gemeten over {score.winnable_runs ?? score.judged_runs ?? measuredRunCount}{" "}
               vragen.
             </>
@@ -83,8 +83,8 @@ export function ScoreCard({
           <span className="mb-2 flex items-center gap-1 text-sm text-muted">
             ±{band.margin} punten
             <InfoHint label="Waarom een marge?">
-              We stellen {score.winnable_runs ?? score.judged_runs ?? measuredRunCount} vragen, geen duizend. Een andere
-              set vragen — of dezelfde vragen op een andere dag — geeft een iets ander getal. De
+              Aura stelt {score.winnable_runs ?? score.judged_runs ?? measuredRunCount} vragen, geen duizend. Een andere
+              set vragen — of dezelfde vragen op een andere dag — geeft een iets ander getal. Je
               echte score ligt naar alle waarschijnlijkheid tussen {band.low} en {band.high}.
             </InfoHint>
           </span>
@@ -187,8 +187,8 @@ export function CompetitorCard({
         <InfoHint label="Jij vs. concurrenten">
           Het percentage van de {measuredRunCount} gestelde vragen waarin dit merk voorkwam. Meer
           dan één merk kan in hetzelfde antwoord staan, dus de percentages tellen niet op tot 100.
-          Deze concurrenten zijn niet vooraf opgegeven: het zijn de bedrijven die de AI-assistent
-          in zijn antwoorden daadwerkelijk naast jou noemde.
+          Deze concurrenten zijn niet vooraf opgegeven: het zijn de bedrijven die de AI-assistent in
+          zijn antwoorden daadwerkelijk naast jou noemde. Gemeten, niet aangenomen.
         </InfoHint>
       </span>
       {versnipperd ? (
@@ -202,8 +202,8 @@ export function CompetitorCard({
           <EntityComparison rows={rows} />
           {tail > 0 && (
             <p className="text-sm text-muted">
-              Daarnaast kwamen nog {tail} andere merken één keer voorbij. Die laten we hier weg:
-              één vermelding is toeval, geen patroon.
+              Daarnaast kwamen nog {tail} andere merken één keer voorbij. Die blijven hier buiten
+              beeld: één vermelding is toeval, geen patroon.
             </p>
           )}
           <CompetitorReasons competitors={shown} />
@@ -253,8 +253,8 @@ export function AlsoMentionedCard({
         <InfoHint label="Ook genoemd">
           Deze merken kwamen wél in de antwoorden voor, maar zijn geen concurrent van je: denk aan
           vergelijkingssites, marktplaatsen en brancheorganisaties. Ze tellen daarom niet mee in je
-          aandeel — anders zou dat cijfer vertekenen. Klopt een indeling niet? Pas hem aan bij
-          Concurrenten beheren; jouw keuze wordt daarna nooit meer automatisch overschreven.
+          aandeel — anders vertekent dat cijfer. Klopt een indeling niet? Pas hem aan bij
+          Concurrenten beheren; jouw keuze overschrijft Aura daarna nooit meer.
         </InfoHint>
       </span>
       <ul className="flex flex-col gap-2">
@@ -300,9 +300,9 @@ function ChangeLine({
           {change.delta} punten)
         </span>
         <InfoHint label="Waarom 'gelijk gebleven'?">
-          Het verschil met de vorige meting is {Math.abs(change.delta)} punten, en pas vanaf{" "}
-          {change.threshold} punten weten we zeker dat er echt iets veranderd is. Daaronder kan het
-          net zo goed toeval zijn.
+          Het verschil met de vorige meting is {Math.abs(change.delta)} punten. Pas vanaf{" "}
+          {change.threshold} punten staat vast dat er écht iets veranderd is; daaronder kan het net
+          zo goed toeval zijn. Gemeten, niet gegokt.
         </InfoHint>
       </p>
     );
@@ -320,8 +320,8 @@ function ChangeLine({
       </span>
       <span className="text-secondary">sinds de vorige meting</span>
       <InfoHint label="Echte verandering">
-        Dit verschil is groter dan de {change.threshold} punten die we nodig hebben om toeval uit
-        te sluiten. Er is dus echt iets veranderd.
+        Dit verschil is groter dan de {change.threshold} punten die nodig zijn om toeval uit te
+        sluiten. Er is dus echt iets veranderd.
       </InfoHint>
     </p>
   );
@@ -349,8 +349,8 @@ function BrandlessLine({ score }: { score: VisibilityScore }) {
   return (
     <p className="flex items-start gap-1 text-sm text-muted">
       <span>
-        Bij {brandless} van je {total} vragen noemt de AI helemaal geen bedrijf. Die tellen niet
-        mee in je score.
+        Bij {brandless} van je {total} vragen noemt de AI helemaal geen bedrijf. Die tellen niet mee
+        in je score.
       </span>
       <InfoHint label="Waarom tellen die niet mee?">
         Op vragen als &ldquo;waar moet ik op letten bij het kiezen?&rdquo; geeft een AI-assistent

@@ -43,7 +43,7 @@ export function ProfileHero({
   return (
     <div className="flex flex-col gap-4">
       <PageHeader
-        eyebrow="Merk"
+        eyebrow="Merkdossier"
         title={brandName}
         backHref="/profielen"
         backLabel="Merken"

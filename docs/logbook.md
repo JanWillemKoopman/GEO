@@ -971,3 +971,47 @@ dezelfde commit.* Die stond er al en werd twintig keer overgeslagen omdat een me
 poort heeft die ernaar vraagt. De migratie-index bleef als enige bij, en dat is geen toeval: die
 heeft er wél een — `supabase/README.md` bijwerken staat in de toepasinstructie van elke migratie. Wat
 de andere documenten missen is niet discipline maar zo'n haakje.
+
+---
+
+## 27. De app heet Aura, en schrijft als Nova (5 augustus 2026)
+
+Tot deze ronde heette het product intern én in de UI "GEO Tracker" — een omschrijving, geen naam.
+De schrijfstijl was op zichzelf goed (informeel, jargonvrij, eerlijk over onzekerheid) maar had geen
+vastgelegde bron: elke tekst was los beoordeeld op "is dit duidelijk", nooit op "klinkt dit als ons".
+
+**Wat er is gebeurd.** De marketingsite en het productverhaal van InSpace Nova (inspace.io) zijn
+letterlijk uitgelezen en tot een stijlgids teruggebracht: `docs/schrijfstijl.md`, tien richtlijnen
+met de brontekst erbij. Daarna is alle UI-copy daarlangs gelegd — schermen, knoppen, foutmeldingen,
+tooltips, lege staten, statuslabels, voortgangsteksten, de twee e-mailsjablonen en de foutteksten
+die de API-routes teruggeven.
+
+**De vier veranderingen die het meeste doen:**
+
+1. **Aura is een handelend onderwerp.** Nova schrijft over zichzelf in de derde persoon — *"Nova
+   learns your business first"*. Wij dus ook: "Aura leest je website uit", niet "de website wordt
+   uitgelezen". Dat verving tegelijk de institutionele wij-vorm ("wij meten", "wij schrijven"), die
+   in een sales-led product ongemakkelijk dubbelzinnig was: bedoelden we de software of de
+   consultant? Nu is dat altijd te zien.
+2. **Bewijstaal boven beloftetaal.** Nova's kernclaim is *"Measured, not promised"*. Op de drie
+   plekken waar de app een uitspraak doet over effect staat nu de meetlat erbij in plaats van een
+   bijvoeglijk naamwoord.
+3. **"mislukt" is overal "is niet gelukt" geworden**, inclusief de statuschip (`Mislukt` → `Niet
+   gelukt`) en 37 API-routes. "Mislukt" is een oordeel over de gebruiker; "niet gelukt" is een
+   mededeling over het systeem — en in vrijwel alle gevallen is het ook feitelijk het systeem.
+4. **Het thema is begrensd.** Ruimtemetaforen mogen in de naam, in sfeer-eyebrows en in één
+   afsluitende regel van een lege staat. Nooit in een knop, een validatietekst of een foutmelding.
+   Nova doet dat zelf ook precies zo: de namen zijn kosmisch (Nova, Aura, Stratosphere, Milky Way),
+   de instructies klinisch (*"Benchmark your rivals"*, *"Crawl, speed & structure"*).
+
+**Wat we bewust NIET overnamen.** Nova's `04 Automated publishing` en de CMS-logo's: die koppeling
+hebben wij niet, dus belooft de copy hem nergens. En "volledig autonoom" — Aura vraagt bewust om
+goedkeuring vóór de meting en vóór publicatie, dus daar staat "Aura doet het werk, jij zet de knopen
+door".
+
+**De code is niet aangeraakt.** Alleen tekstuele content: geen props, geen routes, geen
+variabelenamen, geen JSX-structuur. `lib/crawler.ts` houdt zijn `USER_AGENT` (`GEO-Tracker-Bot/1.0`)
+— dat is een functionele identificatie waarop site-eigenaren hun robots.txt kunnen hebben
+afgestemd, en hernoemen is daar een gedragswijziging, geen copywijziging.
+
+Vier controles groen: `tsc --noEmit`, 675 unittests, 47 ketentests, productiebuild.

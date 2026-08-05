@@ -57,11 +57,11 @@ export function FactRequests({ profileId, initial }: { profileId: string; initia
     <div id="feiten" className="card flex scroll-mt-4 flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <span className="mono-label flex items-center gap-1">
-          Help ons concreter te schrijven
+          Help Aura concreter te schrijven
           <InfoHint label="Waarom deze vragen?">
-            AI-assistenten citeren concrete feiten — cijfers, jaartallen, termijnen — en slaan
-            algemene beloftes over. Wat je hier invult gebruiken we in élke pagina die we voor je
-            schrijven, niet alleen in de eerstvolgende.
+            AI-assistenten citeren harde feiten — cijfers, jaartallen, termijnen — en slaan algemene
+            beloftes over. Wat je hier invult gebruikt Aura in élke pagina die het schrijft, niet
+            alleen in de eerstvolgende.
           </InfoHint>
         </span>
         <span className="mono-label">
@@ -73,7 +73,7 @@ export function FactRequests({ profileId, initial }: { profileId: string; initia
 
       {open.length === 0 ? (
         <p className="text-sm text-secondary">
-          Je hebt alle vragen gehad. Duiken er nieuwe op bij een volgend rapport, dan zie je ze hier.
+          Alle vragen gehad. Komen er bij een volgend rapport nieuwe bij, dan staan ze hier.
         </p>
       ) : (
         <ul className="flex flex-col gap-3">
@@ -152,7 +152,7 @@ function FactCard({
             className="text-sm text-secondary hover:underline"
             // Overslaan blijft bewaard, zodat een volgend rapport dezelfde vraag
             // niet opnieuw stelt. Niets is vervelender dan een app die blijft zeuren.
-            title="We vragen het niet nog een keer."
+            title="Aura vraagt het niet nog een keer."
           >
             Weet ik niet
           </button>

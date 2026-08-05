@@ -67,11 +67,11 @@ export function ReviseBox({ analysisId, pieceId }: { analysisId: string; pieceId
       <div className="card card-accent flex flex-col gap-2">
         <span className="flex items-center gap-2 font-medium">
           <span className="live-dot" />
-          We schrijven een nieuwe versie
+          Aura schrijft een nieuwe versie
         </span>
         <p className="text-sm text-secondary">
-          Dit duurt een paar minuten. Je kunt dit scherm sluiten — de nieuwe versie verschijnt
-          vanzelf, en deze versie blijft bewaard voor het geval je terug wilt.
+          Dit duurt een paar minuten. Je kunt dit scherm sluiten — de nieuwe versie komt er vanzelf
+          te staan, en deze blijft bewaard voor het geval je terug wilt.
         </p>
       </div>
     );
@@ -90,7 +90,7 @@ export function ReviseBox({ analysisId, pieceId }: { analysisId: string; pieceId
       <div className="flex flex-col gap-1">
         <span className="mono-label">Wat moet er anders?</span>
         <p className="text-sm text-secondary">
-          Schrijf het gewoon in je eigen woorden. We maken een nieuwe versie; deze blijft bewaard.
+          Schrijf het in je eigen woorden. Aura maakt een nieuwe versie; deze blijft bewaard.
         </p>
       </div>
 
@@ -132,7 +132,7 @@ export function ReviseBox({ analysisId, pieceId }: { analysisId: string; pieceId
           disabled={state === "busy" || !note.trim()}
           className="btn-primary w-fit"
         >
-          {state === "busy" ? "Bezig…" : "Schrijf een nieuwe versie"}
+          {state === "busy" ? "Doorgeven aan Aura…" : "Schrijf een nieuwe versie"}
         </button>
         <button type="button" onClick={() => setOpen(false)} className="text-sm text-secondary hover:underline">
           Annuleren

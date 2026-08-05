@@ -27,7 +27,7 @@ export const maxDuration = 60;
 export async function GET(request: Request) {
   const authHeader = request.headers.get("authorization");
   if (authHeader !== `Bearer ${serverEnv.cronSecret}`) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return NextResponse.json({ error: "Je bent niet ingelogd." }, { status: 401 });
   }
 
   const admin = createAdminClient();

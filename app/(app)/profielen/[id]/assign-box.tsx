@@ -62,7 +62,7 @@ export function AssignBox({
       });
       const json = await res.json();
       if (!res.ok) {
-        setError(json.error ?? "Toewijzen mislukt.");
+        setError(json.error ?? "Toewijzen is niet gelukt.");
         setPending(false);
         return;
       }
@@ -70,7 +70,7 @@ export function AssignBox({
       setPending(false);
       router.refresh();
     } catch {
-      setError("Toewijzen mislukt. Controleer je verbinding.");
+      setError("Toewijzen is niet gelukt. Controleer je verbinding.");
       setPending(false);
     }
   }

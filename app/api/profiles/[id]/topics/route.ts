@@ -26,7 +26,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   const { id } = await params;
 
   const user = await getUser();
-  if (!user) return NextResponse.json({ error: "Niet ingelogd." }, { status: 401 });
+  if (!user) return NextResponse.json({ error: "Je bent niet ingelogd." }, { status: 401 });
 
   const admin = createAdminClient();
   const profile = await getOwnedProfile(admin, id, user.id);
@@ -72,7 +72,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     // De unieke index op (profile_id, lower(title)) uit migratie 0040.
     const dubbel = error.message.includes("profile_topics_unique_title");
     return NextResponse.json(
-      { error: dubbel ? "Er is al een onderwerp met deze naam." : "Opslaan mislukt." },
+      { error: dubbel ? "Er is al een onderwerp met deze naam." : "Opslaan is niet gelukt." },
       { status: dubbel ? 409 : 500 },
     );
   }
@@ -85,13 +85,13 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   const { id } = await params;
 
   const user = await getUser();
-  if (!user) return NextResponse.json({ error: "Niet ingelogd." }, { status: 401 });
+  if (!user) return NextResponse.json({ error: "Je bent niet ingelogd." }, { status: 401 });
 
   const admin = createAdminClient();
   const profile = await getOwnedProfile(admin, id, user.id);
   if (!profile) return NextResponse.json({ error: "Niet gevonden." }, { status: 404 });
   if (profile.status !== "klaar") {
-    return NextResponse.json({ error: "Dit merk is nog niet klaar met onderzoeken." }, { status: 409 });
+    return NextResponse.json({ error: "Aura is nog bezig met dit merk. Wacht tot het onderzoek klaar is." }, { status: 409 });
   }
 
   let body: { topicId?: string };
@@ -136,7 +136,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     .single();
 
   if (error || !created) {
-    return NextResponse.json({ error: "Analyse aanmaken mislukt." }, { status: 500 });
+    return NextResponse.json({ error: "De analyse kon niet worden aangemaakt." }, { status: 500 });
   }
 
   const analysisId = created.id as string;

@@ -25,10 +25,10 @@ interface StatusPayload {
  */
 const STALE_FAILURE: UserFacingError = {
   kind: "unknown",
-  title: "Het rapport kon eerder niet worden opgesteld",
+  title: "Het rapport is eerder vastgelopen",
   message:
-    "Je meting blijft bewaard — er wordt niet opnieuw gemeten, dus een nieuwe " +
-    "poging kost alleen het opstellen van het rapport.",
+    "Je meting blijft bewaard. Aura meet niet opnieuw — een nieuwe poging kost " +
+    "alleen het schrijven van het rapport.",
   canRetry: true,
   detail: "",
 };
@@ -90,8 +90,8 @@ export function ReportProgress({
 
   return (
     <WorkInProgress
-      title="Rapport wordt opgesteld"
-      explanation="We vergelijken je meting met die van je concurrenten en zetten de belangrijkste kansen op een rij."
+      title="Aura schrijft je rapport"
+      explanation="Aura zet je meting naast die van je concurrenten en legt de grootste kansen bovenop."
       etaText={data?.etaText}
       retrying={data?.retrying}
     />

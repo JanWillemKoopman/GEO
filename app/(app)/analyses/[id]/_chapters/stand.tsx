@@ -30,7 +30,7 @@ export async function StandChapter({
       <div className="card flex flex-col gap-2">
         <span className="mono-label">Nog geen meting</span>
         <p className="text-secondary">
-          Je score en de lijn over de tijd verschijnen hier zodra de eerste meting gedraaid heeft.
+          Zodra de eerste meting gedraaid heeft, staan je score en de lijn over de tijd hier.
         </p>
       </div>
     );
@@ -72,7 +72,7 @@ export async function StandChapter({
       <div className="card flex flex-col gap-2">
         <span className="mono-label">Nog geen score</span>
         <p className="text-secondary">
-          Voor deze periode is nog geen score berekend. Zodra de meting is uitgevoerd staat hij
+          Voor deze periode is nog geen score berekend. Zodra de meting gedraaid heeft, staat hij
           hier.
         </p>
       </div>

@@ -61,9 +61,9 @@ export function OfferingsPanel({
       <div className="card flex flex-col gap-3">
         <span className="mono-label">Wat je aanbiedt</span>
         <p className="text-secondary">
-          Je aanbod is nog niet in kaart gebracht. Zodra het onderzoek klaar is
-          staat hier elke dienst of productgroep die we op je site vonden, met de
-          pagina waar we hem vandaan haalden.
+          Je aanbod is nog niet in kaart gebracht. Zodra het onderzoek klaar is,
+          staat hier elke dienst en productgroep die Aura op je site vond — met de
+          pagina waar het die vandaan haalde.
         </p>
         <RerunResearchButton profileId={profileId} />
       </div>
@@ -203,8 +203,8 @@ export function OfferingsPanel({
 
       {offerings.length === 0 ? (
         <p className="text-sm text-secondary">
-          We konden het aanbod niet uit de website halen. Vul het hieronder aan
-          tijdens het gesprek, of controleer of de site zonder JavaScript
+          Aura kon je aanbod niet uit de website halen. Vul het hieronder aan
+          tijdens het gesprek, of controleer of de site ook zonder JavaScript
           leesbaar is.
         </p>
       ) : (
@@ -218,7 +218,7 @@ export function OfferingsPanel({
       <RerunResearchButton profileId={profileId} />
 
       {inventory && (
-        <CollapsibleSection title="Hoe volledig was de crawl?">
+        <CollapsibleSection title="Hoeveel heeft Aura van je site gelezen?">
           <ul className="flex flex-col gap-1 text-sm text-secondary">
             <li>{inventory.pages} pagina&apos;s gevonden</li>
             <li>

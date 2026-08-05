@@ -54,7 +54,7 @@ export const WORK_STATES: WorkState[] = ["nu", "loopt", "wacht", "klaar"];
 
 export const WORK_STATE_LABEL: Record<WorkState, string> = {
   nu: "Nu doen",
-  loopt: "Wij zijn ermee bezig",
+  loopt: "Aura is bezig",
   wacht: "Wacht op hermeting",
   klaar: "Klaar",
 };
@@ -279,7 +279,7 @@ export function deriveWork(sources: WorkSources): WorkItem[] {
             n === 1
               ? "Je website houdt AI-assistenten buiten"
               : `Je website houdt AI-assistenten buiten (${n} blokkades)`,
-          why: "Zolang dit er staat, kan geen enkele pagina die je publiceert door een AI geciteerd worden. Alle andere punten hieronder leveren pas iets op als dit opgelost is.",
+          why: "Zolang dit zo staat, kan geen enkele pagina die je publiceert door een AI geciteerd worden. Alles hieronder levert pas iets op als dit opgelost is.",
           urgency: URGENCY.blokkade,
           href: `/profielen/${analysis.profile_id}#techniek`,
           actionLabel: "Bekijk wat er mis is",
@@ -296,7 +296,7 @@ export function deriveWork(sources: WorkSources): WorkItem[] {
         kind: "goedkeuring",
         state: "nu",
         title: "Bekijk en bevestig het concept",
-        why: "De vragen en het onderzoek staan klaar. Zodra jij akkoord bent, start de meting.",
+        why: "Het onderzoek en de vragen staan klaar. Jij geeft akkoord, Aura begint te meten.",
         urgency: URGENCY.goedkeuring,
         href: `/analyses/${analysis.id}/concept`,
         actionLabel: "Naar het concept",
@@ -326,7 +326,7 @@ export function deriveWork(sources: WorkSources): WorkItem[] {
         kind: "goedkeuring",
         state: "loopt",
         title: analysis.status === "meten" ? "De meting draait" : "Het onderzoek draait",
-        why: "Dit loopt op de achtergrond door, ook als je de browser sluit. Je hoeft niets te doen.",
+        why: "Aura werkt op de achtergrond door, ook als je de browser sluit. Jij hoeft niets.",
         urgency: URGENCY.goedkeuring,
         href: `/analyses/${analysis.id}`,
         analysisId: analysis.id,
@@ -355,7 +355,7 @@ export function deriveWork(sources: WorkSources): WorkItem[] {
         title: piece.title,
         why: measured
           ? "Gepubliceerd en hermeten. Het resultaat staat in hoofdstuk 04."
-          : "Gepubliceerd. We hermeten twee en vier weken later — AI-systemen nemen nieuwe content niet dezelfde dag op.",
+          : "Gepubliceerd. Aura hermeet na twee en na vier weken — AI-assistenten pikken nieuwe content niet dezelfde dag op.",
         urgency: URGENCY.gemeten,
         href,
         meta: measured
@@ -373,7 +373,7 @@ export function deriveWork(sources: WorkSources): WorkItem[] {
         kind: "pagina",
         state: "loopt",
         title: piece.title,
-        why: "Wordt nu geschreven. Zodra de tekst klaar is verschijnt hij hier om na te kijken.",
+        why: "Aura schrijft dit nu. Zodra de tekst klaar is, staat hij hier om na te kijken.",
         urgency: URGENCY.schrijven,
         href,
         analysisId: piece.analysis_id,
@@ -390,7 +390,7 @@ export function deriveWork(sources: WorkSources): WorkItem[] {
       title: piece.title,
       why: piece.needs_review
         ? "De tekst is klaar, maar de eindredactie zag nog iets. Kijk het na en publiceer daarna."
-        : "De tekst is klaar om te publiceren. Zolang hij niet op je website staat, verandert er niets aan je zichtbaarheid.",
+        : "De tekst is klaar om te publiceren. Zolang hij niet op je site staat, beweegt je zichtbaarheid niet.",
       urgency: piece.needs_review ? URGENCY.nakijken : URGENCY.publiceren,
       href,
       actionLabel: piece.needs_review ? "Nakijken" : "Publiceren",
@@ -439,7 +439,7 @@ export function deriveWork(sources: WorkSources): WorkItem[] {
       kind: "feit",
       state: "nu",
       title: count === 1 ? "Eén vraag over je bedrijf" : `${count} vragen over je bedrijf`,
-      why: "Concrete cijfers en jaartallen zijn wat een AI-assistent aanhaalt. Eén keer invullen, en élke pagina die we daarna schrijven wordt citeerbaarder.",
+      why: "Concrete cijfers en jaartallen zijn precies wat een AI-assistent aanhaalt. Eén keer invullen, en élke pagina die Aura daarna schrijft wordt citeerbaarder.",
       urgency: URGENCY.feit,
       href: `/profielen/${profileId}#feiten`,
       actionLabel: "Beantwoorden",

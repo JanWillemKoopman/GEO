@@ -33,9 +33,9 @@ interface StatusPayload {
  */
 const STALE_FAILURE: UserFacingError = {
   kind: "unknown",
-  title: "Het onderzoek is eerder misgelopen",
+  title: "Het onderzoek is eerder vastgelopen",
   message:
-    "Dit lag vaak aan een tijdelijke storing, of aan een website die ons niet " +
+    "Meestal is dat een tijdelijke storing, of een website die Aura niet " +
     "binnenliet. Probeer het opnieuw — je gegevens blijven staan.",
   canRetry: true,
   detail: "",
@@ -92,8 +92,8 @@ export function ProfileProgress({
 
   return (
     <WorkInProgress
-      title="Profiel wordt onderzocht"
-      explanation="We lezen je website, brengen in kaart welke pagina's er zijn, en zoeken uit wat je merk aanbiedt en wie je concurrenten zijn. Je kunt dit scherm sluiten — het werk loopt door."
+      title="Aura leert je merk kennen"
+      explanation="Aura leest je website, brengt in kaart welke pagina's er staan, en zoekt uit wat je aanbiedt en wie je concurrenten zijn. Voordat het één woord schrijft, weet het wie je bent."
       steps={(data?.steps ?? []).map((s) => ({
         label: s.result ? `${s.label} — ${s.result}` : s.label,
         done: s.state === "klaar" || s.state === "overgeslagen",

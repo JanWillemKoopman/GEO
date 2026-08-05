@@ -20,9 +20,9 @@ import type { UserFacingError } from "@/lib/errors";
  */
 const GENERATION_FAILED: UserFacingError = {
   kind: "unknown",
-  title: "Het schrijven van deze pagina is misgelopen",
+  title: "Het schrijven van deze pagina is vastgelopen",
   message:
-    "We hebben het een paar keer geprobeerd. Probeer het opnieuw — lukt het dan " +
+    "Aura heeft het een paar keer geprobeerd. Probeer het opnieuw — lukt het dan " +
     "nog niet, laat het ons dan weten.",
   canRetry: true,
   detail: "",
@@ -121,7 +121,7 @@ export function GenerateButton({
   if (state === "done") {
     return (
       <Link href={`/analyses/${analysisId}/bibliotheek`} className="btn-outline w-fit">
-        ✓ Klaar — bekijk in de Bibliotheek
+        ✓ Klaar — lees hem in je bibliotheek
       </Link>
     );
   }
@@ -131,11 +131,11 @@ export function GenerateButton({
       <div className="flex flex-col gap-2">
         <span className="flex items-center gap-2 text-sm text-secondary">
           <span className="live-dot" />
-          Pagina wordt geschreven…
+          Aura schrijft…
         </span>
         <span className="text-sm text-muted">
-          Dit duurt een paar minuten. Je kunt deze pagina sluiten — het schrijven loopt door en de
-          tekst verschijnt vanzelf in je bibliotheek.
+          Dit duurt een paar minuten. Je kunt dit scherm sluiten — Aura schrijft door en zet de
+          tekst vanzelf in je bibliotheek.
         </span>
       </div>
     );
@@ -148,8 +148,8 @@ export function GenerateButton({
           <span className="font-medium text-[var(--text-primary)]">
             Je site houdt AI-assistenten nu buiten.
           </span>{" "}
-          Deze pagina kan dan wel geschreven worden, maar nog niet door ChatGPT geciteerd. Los eerst
-          de blokkade hierboven op, of schrijf hem alvast klaar.
+          Aura kan deze pagina wel schrijven, maar ChatGPT kan hem nog niet citeren. Los eerst de
+          blokkade hierboven op, of laat hem alvast schrijven.
         </p>
         <button onClick={() => setAcknowledged(true)} className="btn-outline w-fit">
           Toch alvast schrijven
@@ -160,7 +160,7 @@ export function GenerateButton({
 
   return (
     <button onClick={() => void generate()} className="btn-primary w-fit">
-      Genereer deze pagina
+      Laat Aura deze pagina schrijven
     </button>
   );
 }

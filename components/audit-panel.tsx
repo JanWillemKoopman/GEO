@@ -51,8 +51,8 @@ export function AuditPanel({
         <span className="mono-label flex items-center gap-1">
           Technische controle
           <InfoHint label="Technische controle">
-            We kijken of AI-assistenten je site überhaupt mogen en kunnen lezen. Staat de deur dicht,
-            dan heeft het geen zin om content te laten schrijven — die wordt dan nooit gelezen.
+            Aura kijkt of AI-assistenten je site überhaupt mogen en kunnen lezen. Staat die deur
+            dicht, dan heeft content laten schrijven geen zin — niemand leest hem ooit.
           </InfoHint>
         </span>
         <span className="mono-label">

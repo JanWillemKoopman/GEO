@@ -57,8 +57,8 @@ export function PublishGuide({
       <span className="mono-label flex items-center gap-1">
         Wat doe je hiermee?
         <InfoHint label="Publiceren">
-          Een tekst die in deze bibliotheek blijft staan, levert niets op. Deze vier stappen zijn
-          alles wat er tussen zit.
+          Een tekst die in je bibliotheek blijft liggen, levert niets op. Deze stappen zijn alles
+          wat er nog tussen zit.
         </InfoHint>
       </span>
 
@@ -117,8 +117,8 @@ export function PublishGuide({
       </ol>
 
       <p className="text-sm text-muted">
-        Staat hij live? Dan zie je het effect bij de volgende maandelijkse meting. Nieuwe pagina&apos;s
-        worden meestal binnen enkele weken opgepikt.
+        Staat hij live? Dan zie je het effect bij de volgende maandelijkse meting. AI-assistenten
+        pikken een nieuwe pagina meestal binnen enkele weken op.
       </p>
     </div>
   );

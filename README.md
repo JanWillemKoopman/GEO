@@ -1,14 +1,13 @@
-# GEO Tracker
+# Aura
 
-> Simpele GEO-tracking voor iedereen. Vul een website in (en optioneel een product of onderwerp),
-> en zie hoe zichtbaar dat merk is in ChatGPT en andere AI-assistenten.
+> Zichtbaar zijn in AI-antwoorden. Gemeten, niet gegokt.
 
 Waar SEO gaat over ranken in Google, gaat **GEO** over genoemd en aanbevolen worden door
 AI-assistenten. Steeds meer mensen stellen hun oriëntatie- en aankoopvragen aan een chatbot. Wordt
 jouw merk daar niet genoemd, dan besta je voor die gebruiker niet.
 
-De app beantwoordt drie vragen: **word ik genoemd**, **hoe vaak vergeleken met mijn concurrenten**,
-en **waar haalt de AI die informatie vandaan**. Daarna schrijft hij de content die het gat dicht,
+Aura beantwoordt drie vragen: **word ik genoemd**, **hoe vaak vergeleken met mijn concurrenten**,
+en **waar haalt de AI die informatie vandaan**. Daarna schrijft het de content die het gat dicht,
 en meet of dat gewerkt heeft.
 
 ## De keten
@@ -68,6 +67,7 @@ npm run dev                  # → http://localhost:3000
 | [`CLAUDE.md`](./CLAUDE.md) | Werkinstructie: commando's, conventies, structuur |
 | [`docs/architecture.md`](./docs/architecture.md) | Datamodel, pijplijn, jobwachtrij, env, deploy |
 | [`docs/ux-design.md`](./docs/ux-design.md) | Design system, componentregels, responsive |
+| [`docs/schrijfstijl.md`](./docs/schrijfstijl.md) | Tone-of-voice en microcopy-regels, afgeleid van InSpace Nova |
 | [`docs/logbook.md`](./docs/logbook.md) | Waarom het is zoals het is |
 | [`docs/tasks/`](./docs/tasks/) | Wat er nog open staat |
 | [`APP_FLOW_DOCUMENTATION.md`](./APP_FLOW_DOCUMENTATION.md) | De keten end-to-end, voor sales, developers en de AI-specialist |

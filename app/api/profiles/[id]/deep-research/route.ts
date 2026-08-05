@@ -43,7 +43,7 @@ export async function POST(
 
   const user = await getUser();
   if (!user)
-    return NextResponse.json({ error: "Niet ingelogd." }, { status: 401 });
+    return NextResponse.json({ error: "Je bent niet ingelogd." }, { status: 401 });
 
   const admin = createAdminClient();
   const profile = await getOwnedProfile(admin, id, user.id);
@@ -52,7 +52,7 @@ export async function POST(
 
   if (profile.status === "bezig") {
     return NextResponse.json(
-      { error: "Er loopt al een onderzoek." },
+      { error: "Er loopt al een onderzoek voor dit merk." },
       { status: 409 },
     );
   }

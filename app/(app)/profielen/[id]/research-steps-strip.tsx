@@ -98,10 +98,10 @@ export function ResearchStepsStrip({ profileId }: { profileId: string }) {
 
     return (
       <div className="card card-success flex flex-col gap-2" role="status">
-        <span className="mono-label">Onderzoek klaar</span>
+        <span className="mono-label">Onderzoek afgerond</span>
         <p className="text-secondary">
-          {gedaan.length} van de {steps.length} stappen afgerond
-          {opbrengst.length > 0 ? `: ${opbrengst.join(" · ")}.` : "."} Alles
+          {gedaan.length} van de {steps.length} stappen klaar
+          {opbrengst.length > 0 ? `: ${opbrengst.join(" · ")}.` : "."} Je dossier
           hieronder is bijgewerkt.
         </p>
       </div>
@@ -113,14 +113,14 @@ export function ResearchStepsStrip({ profileId }: { profileId: string }) {
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-2">
           <span className="live-dot" aria-hidden />
-          <span className="mono-label">Onderzoek loopt nog</span>
+          <span className="mono-label">Aura onderzoekt · live</span>
         </div>
         {eta && <span className="mono-label text-muted">{eta}</span>}
       </div>
 
       <p className="text-sm text-secondary">
-        Je merkprofiel staat er al. De rest komt hieronder binnen — je kunt dit
-        scherm sluiten, het werk loopt door.
+        Je merkdossier staat er al. De rest komt hieronder binnen. Je kunt dit
+        scherm sluiten — Aura werkt door.
       </p>
 
       <ol className="flex flex-col gap-2">

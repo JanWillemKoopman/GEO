@@ -47,7 +47,7 @@ const GROUP_META: Record<Group, { label: string; hint: string; chip: string }> =
   // gebeurt — en dat is de ergste vorm van stilstand die een app kan hebben.
   briefing: {
     label: "Wacht op jouw input",
-    hint: "Een paar korte vragen, dan schrijven we deze pagina's zonder iets te verzinnen.",
+    hint: "Een paar korte vragen, dan schrijft Aura deze pagina's zonder iets te verzinnen.",
     chip: "chip chip-warning",
   },
   klaar: {
@@ -61,13 +61,13 @@ const GROUP_META: Record<Group, { label: string; hint: string; chip: string }> =
     chip: "chip chip-warning",
   },
   live: {
-    label: "Staat online",
-    hint: "Het effect meten we twee en vier weken na publicatie.",
+    label: "Live",
+    hint: "Aura hermeet het effect twee en vier weken na publicatie.",
     chip: "chip chip-success",
   },
   bezig: {
-    label: "Wordt geschreven",
-    hint: "Dit loopt op de achtergrond. Je hoeft er niet op te wachten.",
+    label: "Aura schrijft",
+    hint: "Dit loopt op de achtergrond. Wachten hoeft niet.",
     chip: "chip chip-neutral",
   },
 };
@@ -118,8 +118,8 @@ export function LibraryList({ analysisId, pieces }: { analysisId: string; pieces
             {wachtend > 0
               ? `${wachtend} ${wachtend === 1 ? "pagina wacht" : "pagina's wachten"} op een paar antwoorden van jou.`
               : liveCount === 0
-                ? "Nog niets online. Een tekst die niet gepubliceerd is, kan door geen enkele AI-assistent geciteerd worden."
-                : `Waarvan er ${liveCount} online ${liveCount === 1 ? "staat" : "staan"}.`}
+                ? "Nog niets live. Een tekst die niet gepubliceerd is, kan geen enkele AI-assistent citeren."
+                : `Waarvan er ${liveCount} live ${liveCount === 1 ? "staat" : "staan"}.`}
           </p>
         </div>
 
@@ -161,7 +161,7 @@ export function LibraryList({ analysisId, pieces }: { analysisId: string; pieces
 
       {groups.length === 0 ? (
         <div className="card">
-          <p className="text-secondary">Geen pagina&apos;s die aan dit filter voldoen.</p>
+          <p className="text-secondary">Geen pagina&apos;s binnen dit filter. Zet het filter breder.</p>
         </div>
       ) : (
         groups.map(({ group, items }) => (

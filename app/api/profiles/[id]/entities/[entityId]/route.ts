@@ -62,7 +62,7 @@ export async function PATCH(
 ) {
   const { id, entityId } = await params;
   const user = await getUser();
-  if (!user) return NextResponse.json({ error: "Niet ingelogd." }, { status: 401 });
+  if (!user) return NextResponse.json({ error: "Je bent niet ingelogd." }, { status: 401 });
 
   const admin = createAdminClient();
   const entity = await loadOwnedEntity(admin, id, entityId, user.id);
@@ -159,7 +159,7 @@ export async function PATCH(
     .select("*")
     .single();
 
-  if (error || !data) return NextResponse.json({ error: "Opslaan mislukt." }, { status: 500 });
+  if (error || !data) return NextResponse.json({ error: "Opslaan is niet gelukt." }, { status: 500 });
   return NextResponse.json(data);
 }
 
@@ -175,7 +175,7 @@ export async function DELETE(
 ) {
   const { id, entityId } = await params;
   const user = await getUser();
-  if (!user) return NextResponse.json({ error: "Niet ingelogd." }, { status: 401 });
+  if (!user) return NextResponse.json({ error: "Je bent niet ingelogd." }, { status: 401 });
 
   const admin = createAdminClient();
   if (!(await loadOwnedEntity(admin, id, entityId, user.id))) {
@@ -183,6 +183,6 @@ export async function DELETE(
   }
 
   const { error } = await admin.from("entities").delete().eq("id", entityId);
-  if (error) return NextResponse.json({ error: "Verwijderen mislukt." }, { status: 500 });
+  if (error) return NextResponse.json({ error: "Verwijderen is niet gelukt." }, { status: 500 });
   return NextResponse.json({ ok: true });
 }

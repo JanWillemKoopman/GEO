@@ -20,8 +20,8 @@ export default async function WachtwoordVergetenPage({
         </p>
       )}
       <p className="mb-6 text-sm text-secondary">
-        Vul je e-mailadres in. Staat er een account op dat adres, dan sturen we een link waarmee je
-        een nieuw wachtwoord kunt kiezen.
+        Vul je e-mailadres in. Staat er een account op dat adres, dan is er binnen een minuut een
+        link onderweg waarmee je een nieuw wachtwoord kiest.
       </p>
       <PasswordResetRequestForm />
       <p className="mt-4 text-center text-sm text-secondary">

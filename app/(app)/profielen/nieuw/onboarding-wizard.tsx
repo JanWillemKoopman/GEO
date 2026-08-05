@@ -101,7 +101,7 @@ export function OnboardingWizard() {
       }
       router.push(`/profielen/${json.id}`);
     } catch {
-      setError("Er ging iets mis. Controleer je verbinding en probeer opnieuw.");
+      setError("We konden Aura niet bereiken. Controleer je verbinding en probeer het opnieuw.");
       setPending(false);
     }
   }
@@ -114,8 +114,8 @@ export function OnboardingWizard() {
         </Link>
         <h1 className="text-3xl font-bold tracking-tight">Nieuw merk</h1>
         <p className="mt-2 text-secondary">
-          Twee velden, en we gaan aan de slag. We lezen de hele website uit, brengen het aanbod in
-          kaart, zoeken uit wie de concurrenten zijn en testen wat AI-assistenten al over het merk
+          Twee velden, en Aura gaat aan de slag. Het leest de hele website uit, brengt het aanbod in
+          kaart, zoekt uit wie de concurrenten zijn en test wat AI-assistenten nu al over je merk
           weten.
         </p>
       </div>
@@ -131,7 +131,7 @@ export function OnboardingWizard() {
             placeholder="bijv. MediaMarkt"
             autoFocus
           />
-          <span className="text-sm text-muted">De naam zoals klanten je kennen (niet het domein).</span>
+          <span className="text-sm text-muted">De naam zoals klanten je kennen — niet het domein.</span>
         </label>
 
         <label className="flex flex-col gap-1.5">
@@ -166,8 +166,8 @@ export function OnboardingWizard() {
             placeholder="bijv. afkorting of merknaam-variant…"
           />
           <span className="text-sm text-muted">
-            Wordt het merk ook anders geschreven? Zonder die varianten telt een vermelding niet mee
-            en valt de score te laag uit.
+            Wordt je merk ook anders geschreven? Zonder die varianten telt een vermelding niet mee
+            en valt je score te laag uit.
           </span>
         </div>
 
@@ -199,8 +199,8 @@ export function OnboardingWizard() {
             {pending ? "Onderzoek starten…" : "Start het onderzoek"}
           </button>
           <span className="text-sm text-muted">
-            Het onderzoek duurt ongeveer tien minuten en loopt door als je dit scherm sluit. Je
-            hoeft verder niets in te vullen — wat we vinden kun je daarna nog corrigeren.
+            Het onderzoek duurt ongeveer tien minuten en loopt door als je dit scherm sluit. Verder
+            invullen hoeft niet — wat Aura vindt kun je daarna nog corrigeren.
           </span>
         </div>
       </div>

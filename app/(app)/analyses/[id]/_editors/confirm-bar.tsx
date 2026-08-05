@@ -29,13 +29,13 @@ export function ConfirmBar({ analysisId }: { analysisId: string }) {
       res = await fetch(`/api/analyses/${analysisId}/confirm`, { method: "POST" });
     } catch {
       // De fetch zelf strandde (netwerk/timeout) — er is geen response om te lezen.
-      setError("Bevestigen mislukt. Probeer het opnieuw.");
+      setError("Bevestigen is niet gelukt. Probeer het opnieuw.");
       setPending(false);
       return;
     }
     if (!res.ok) {
       const json = await res.json().catch(() => ({}));
-      setError(json.error ?? "Bevestigen mislukt.");
+      setError(json.error ?? "Bevestigen is niet gelukt.");
       setPending(false);
       return;
     }
@@ -56,7 +56,7 @@ export function ConfirmBar({ analysisId }: { analysisId: string }) {
             disabled={pending}
             className="btn-primary w-full disabled:opacity-60 sm:w-auto"
           >
-            {pending ? "Bezig…" : "Bevestig en start de meting"}
+            {pending ? "Meting starten…" : "Bevestig en start de meting"}
           </button>
           {error ? (
             <span className="text-sm text-[var(--status-error)]" role="alert">
@@ -64,7 +64,7 @@ export function ConfirmBar({ analysisId }: { analysisId: string }) {
             </span>
           ) : (
             <span className="hidden text-sm text-muted sm:inline">
-              De vragen en het onderzoek kun je hierna nog steeds aanpassen.
+              Je kunt de vragen en het onderzoek hierna nog steeds aanpassen.
             </span>
           )}
         </div>

@@ -247,7 +247,7 @@ export default async function ProfilePage({
         <ProfileSection id="dossier" title="Het dossier">
           <div className="card flex flex-col gap-2">
             <div className="flex flex-wrap items-center gap-2">
-              <span className="mono-label">Wat we van je site begrepen</span>
+              <span className="mono-label">Wat Aura van je site begreep</span>
               <ConfidenceChip confidence={dossierConfidence} />
             </div>
             <p className="text-secondary">{dossier}</p>
@@ -322,11 +322,10 @@ export default async function ProfilePage({
             />
           ) : (
             <div className="card flex flex-col gap-2">
-              <span className="mono-label">Technische controle</span>
+              <span className="mono-label">Technische controle · loopt</span>
               <p className="text-secondary">
-                We controleren nog of AI-assistenten je site mogen lezen. De
-                uitslag verschijnt hier zodra dat klaar is — je hoeft niets te
-                doen.
+                Aura controleert nog of AI-assistenten je site mogen lezen. De
+                uitslag staat hier zodra dat klaar is — jij hoeft niets te doen.
               </p>
             </div>
           )}

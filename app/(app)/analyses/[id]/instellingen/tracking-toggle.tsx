@@ -25,9 +25,9 @@ export function TrackingToggle({ analysisId, initial }: { analysisId: string; in
   return (
     <div className="card flex items-center justify-between gap-4">
       <div>
-        <span className="mono-label">Wekelijkse tracking</span>
+        <span className="mono-label">Wekelijks meten</span>
         <p className="mt-1 text-sm text-secondary">
-          Meet elke week opnieuw (tot 10 weken) om de trend te zien in plaats van alleen de
+          Aura meet tien weken lang elke week opnieuw. Zo zie je een lijn in plaats van één
           nulmeting.
         </p>
       </div>

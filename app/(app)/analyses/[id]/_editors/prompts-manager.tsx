@@ -63,7 +63,7 @@ export function PromptsManager({ analysisId, initial }: { analysisId: string; in
   return (
     <div className="card flex flex-col gap-4">
       <div className="flex items-center justify-between">
-        <span className="mono-label">Prompts</span>
+        <span className="mono-label">Vragen aan de AI</span>
         <span className="mono-label">{prompts.filter((p) => p.active).length} actief van {prompts.length}</span>
       </div>
 
@@ -91,7 +91,7 @@ function PromptCategoryList({
   onDelete: (id: string) => void;
 }) {
   if (prompts.length === 0) {
-    return <p className="text-sm text-muted">Nog geen prompts in deze categorie.</p>;
+    return <p className="text-sm text-muted">Nog geen vragen in deze categorie.</p>;
   }
   return (
     <ul className="flex flex-col gap-2">
@@ -190,7 +190,7 @@ function VolumeBandPicker({ prompt, onChange }: { prompt: Prompt; onChange: (ban
       ? "door jou ingesteld"
       : prompt.volume_band == null && prompt.volume_estimate == null
         ? "standaardwaarde"
-        : "schatting van de AI";
+        : "schatting van Aura";
 
   return (
     <div className="flex flex-wrap items-center gap-1.5">
@@ -247,7 +247,7 @@ function AddPromptForm({ category, onAdd }: { category: string; onAdd: (text: st
         className="field flex-1"
         value={text}
         onChange={(e) => setText(e.target.value)}
-        placeholder={`Nieuwe prompt in "${category}"…`}
+        placeholder={`Nieuwe vraag in "${category}"…`}
       />
       <button type="submit" className="btn-outline shrink-0">
         + Toevoegen

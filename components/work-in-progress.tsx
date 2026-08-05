@@ -58,8 +58,8 @@ export function WorkInProgress({
 
       {retrying && (
         <p className="text-sm text-muted">
-          Er ging net iets mis aan de kant van de AI-dienst. We proberen het automatisch opnieuw —
-          je hoeft niets te doen.
+          Er ging net iets mis aan de kant van de AI-dienst. Aura probeert het automatisch opnieuw —
+          jij hoeft niets te doen.
         </p>
       )}
 
@@ -96,8 +96,8 @@ export function WorkInProgress({
           component en kan de serverschakelaar niet zien, dus staat er nu alleen
           wat onder alle omstandigheden waar is. */}
       <p className="rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--bg-elevated)] px-4 py-3 text-sm text-secondary">
-        <strong className="font-medium">Je kunt dit scherm sluiten.</strong> Het werk draait op de
-        achtergrond door en loopt gewoon af, ook als je de browser afsluit — kom gerust later terug.
+        <strong className="font-medium">Je kunt dit scherm sluiten.</strong> Aura draait op de
+        achtergrond door en maakt het werk af, ook als je de browser afsluit. Kom gerust later terug.
       </p>
     </div>
   );

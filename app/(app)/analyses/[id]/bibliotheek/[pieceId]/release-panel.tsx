@@ -77,7 +77,7 @@ export function ReleasePanel({
       });
       if (!res.ok) {
         const data = (await res.json().catch(() => ({}))) as { error?: string };
-        throw new Error(data.error ?? "Vrijgeven mislukt.");
+        throw new Error(data.error ?? "Vrijgeven is niet gelukt.");
       }
       router.refresh();
     } catch (err) {
@@ -92,8 +92,8 @@ export function ReleasePanel({
       <div className="flex flex-col gap-1">
         <span className="mono-label">Waarop deze pagina gebouwd is</span>
         <p className="text-sm text-secondary">
-          Alles wat hieronder staat is wat de schrijver aan bevestigde informatie had. Wat er niet
-          in staat, staat ook niet in de tekst — dat is met opzet.
+          Dit is alle bevestigde informatie die Aura had toen het schreef. Wat hier niet staat, staat
+          ook niet in de tekst. Met opzet.
         </p>
       </div>
 
@@ -142,7 +142,7 @@ export function ReleasePanel({
           </span>
           {zonderBron.length > 0 && (
             <p className="text-sm" style={{ color: "rgb(200,140,40)" }}>
-              {zonderBron.length} hiervan konden we niet herleiden tot een bevestigd feit. Lees ze
+              {zonderBron.length} daarvan kon Aura niet herleiden tot een bevestigd feit. Lees ze
               na voordat je publiceert.
             </p>
           )}
@@ -187,12 +187,12 @@ export function ReleasePanel({
       ) : (
         <div className="flex flex-wrap items-center gap-3">
           <button type="button" className="btn-primary btn-sm" onClick={approve} disabled={busy}>
-            {busy ? "Bezig…" : "Ik heb dit gecontroleerd"}
+            {busy ? "Vastleggen…" : "Ik heb dit gecontroleerd"}
           </button>
           <span className="text-sm text-muted">
             {needsReview
-              ? "Je kunt de tekst ook zonder dit gewoon kopiëren — dit is een aantekening voor jezelf."
-              : "De controles vonden niets, maar er heeft nog niemand naar gekeken."}
+              ? "Kopiëren kan ook zonder dit — het is een aantekening voor jezelf."
+              : "Aura's controles vonden niets, maar er heeft nog geen mens naar gekeken."}
           </span>
         </div>
       )}

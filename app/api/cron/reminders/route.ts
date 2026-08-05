@@ -23,7 +23,7 @@ const WAITING_DAYS = 7;
 export async function GET(request: Request) {
   const authHeader = request.headers.get("authorization");
   if (authHeader !== `Bearer ${serverEnv.cronSecret}`) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return NextResponse.json({ error: "Je bent niet ingelogd." }, { status: 401 });
   }
 
   // Deze cron bestaat alleen om te mailen. Staat de mail uit, dan stoppen we

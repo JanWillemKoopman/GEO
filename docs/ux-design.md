@@ -3,6 +3,11 @@
 Leidend voor elk scherm. Tokens en primitieven staan in `app/globals.css`; dit document legt uit
 wat ze zijn en wanneer je welke gebruikt.
 
+> **Voor de tékst in die schermen geldt `docs/schrijfstijl.md`** — de tone-of-voice van Aura,
+> afgeleid van InSpace Nova. Dit document gaat over hoe iets eruitziet, dat over hoe het klinkt.
+> De productregels hieronder gaan vóór allebei: is een formulering kosmisch maar onduidelijk, dan
+> wint de duidelijkheid.
+
 ## 1. Productregels
 
 Het uitgangspunt: **snapt een niet-technische klant dit binnen 5 seconden zonder na te denken?**

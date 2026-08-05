@@ -47,7 +47,7 @@ function findGaps(profile: Profile): Gap[] {
     gaps.push({
       label: "Andere schrijfwijzen van je naam",
       effect:
-        'Noemt een AI je als "Jansen BV" terwijl je profiel "Bakkerij Jansen" zegt, dan tellen we die vermelding nu niet mee. Je score is dan te laag.',
+        'Noemt een AI je als "Jansen BV" terwijl je dossier "Bakkerij Jansen" zegt, dan telt die vermelding niet mee. Je score valt dan te laag uit.',
     });
   }
 
@@ -55,7 +55,7 @@ function findGaps(profile: Profile): Gap[] {
     gaps.push({
       label: "Concrete feiten over je bedrijf",
       effect:
-        "Cijfers, jaartallen en termijnen zijn wat een AI-assistent aanhaalt. Zonder die feiten wordt elke tekst die we schrijven noodgedwongen algemeen — en algemeen wordt niet geciteerd.",
+        "Cijfers, jaartallen en termijnen zijn wat een AI-assistent aanhaalt. Zonder die feiten wordt elke tekst die Aura schrijft noodgedwongen algemeen — en algemeen wordt niet geciteerd.",
     });
   }
 
@@ -66,7 +66,7 @@ function findGaps(profile: Profile): Gap[] {
     gaps.push({
       label: "In welke plaats of streek je werkt",
       effect:
-        "We zien dat je lokaal werkt, maar niet waar. Zonder plaatsnaam stellen we landelijke vragen en meet je jezelf af tegen partijen waar je nooit tegenaan loopt.",
+        "Aura ziet dat je lokaal werkt, maar niet waar. Zonder plaatsnaam gaan de vragen landelijk, en meet je jezelf af tegen partijen waar je nooit tegenaan loopt.",
     });
   }
 
@@ -77,7 +77,7 @@ function findGaps(profile: Profile): Gap[] {
     gaps.push({
       label: "Wat voor bedrijf je bent",
       effect:
-        "Dienstverlener, retailer, fabrikant of platform — dat bepaalt waar we naar zoeken in je aanbod en welke vragen we straks stellen. We konden het niet met zekerheid afleiden.",
+        "Dienstverlener, retailer, fabrikant of platform — dat bepaalt waar Aura in je aanbod naar zoekt en welke vragen het straks stelt. Met zekerheid afleiden lukte niet.",
     });
   }
 
@@ -105,9 +105,8 @@ export function ProfileGaps({
       <span className="mono-label flex items-center gap-1">
         Dit zou de meting scherper maken
         <InfoHint label="Moet dit?">
-          Nee. Alles werkt ook zonder. Maar elk punt hieronder haalt een
-          specifieke onnauwkeurigheid weg — daarom staat erbij wát het
-          verbetert.
+          Nee. Alles werkt ook zonder. Maar elk punt hieronder haalt één
+          specifieke onnauwkeurigheid weg — daarom staat erbij wát het verbetert.
         </InfoHint>
       </span>
 

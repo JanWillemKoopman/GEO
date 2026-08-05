@@ -31,26 +31,26 @@ export interface ResearchStep {
 
 /** De keten, in de volgorde waarin hij draait. */
 const STEPS: { job: JobType; label: string; facet: string | null }[] = [
-  { job: "profile_discover", label: "De website uitlezen", facet: "techniek" },
-  { job: "profile_research", label: "Merk en markt onderzoeken", facet: null },
+  { job: "profile_discover", label: "Je website uitlezen", facet: "techniek" },
+  { job: "profile_research", label: "Je merk en je markt leren kennen", facet: null },
   {
     job: "profile_offering",
-    label: "Diensten en producten in kaart brengen",
+    label: "Je diensten en producten in kaart brengen",
     facet: "aanbod",
   },
   {
     job: "profile_market",
-    label: "Concurrenten en marktbronnen uitzoeken",
+    label: "Je concurrenten en marktbronnen uitzoeken",
     facet: "markt",
   },
-  { job: "technical_audit", label: "Technische controle", facet: null },
+  { job: "technical_audit", label: "Technische controle uitvoeren", facet: null },
   { job: "propose_topics", label: "Onderwerpen voorstellen", facet: null },
   {
     job: "profile_llm_baseline",
     label: "Testen wat AI-assistenten al weten",
     facet: "llm_kennis",
   },
-  { job: "profile_synthesis", label: "Alles samenbrengen", facet: "synthese" },
+  { job: "profile_synthesis", label: "Alles samenbrengen tot één dossier", facet: "synthese" },
 ];
 
 export interface StepInput {
@@ -108,7 +108,7 @@ function resultFor(
 ): string | null {
   if (facet) return facetSummaries[facet]?.trim() || null;
   if (job === "profile_research")
-    return counts.researchDone ? "Merkprofiel opgebouwd." : null;
+    return counts.researchDone ? "Merkdossier opgebouwd." : null;
   if (job === "technical_audit") {
     return counts.auditChecks > 0
       ? `${counts.auditChecks} controlepunten nagelopen.`

@@ -68,12 +68,11 @@ export function GenerateAllButton({
       <div className="card card-accent flex flex-col gap-2">
         <span className="flex items-center gap-2 font-medium">
           <span className="live-dot" />
-          {planned} {planned === 1 ? "pagina wordt" : "pagina's worden"} geschreven
+          Aura schrijft {planned} {planned === 1 ? "pagina" : "pagina's"}
         </span>
         <p className="text-sm text-secondary">
           Dit duurt ongeveer {minutes} {minutes === 1 ? "minuut" : "minuten"}. Je kunt dit scherm
-          sluiten — het schrijven loopt door en de teksten verschijnen vanzelf in de Content
-          Bibliotheek.
+          sluiten — Aura schrijft door en zet de teksten vanzelf in je bibliotheek.
         </p>
         <Link href={`/analyses/${analysisId}/bibliotheek`} className="btn-outline w-fit">
           Naar je bibliotheek
@@ -86,18 +85,18 @@ export function GenerateAllButton({
     <div className="card card-accent flex flex-col gap-3">
       <div className="flex flex-col gap-1">
         <span className="font-medium">
-          Alles laten schrijven ({remaining} van de {total})
+          Laat Aura alles schrijven ({remaining} van de {total})
         </span>
         <p className="text-sm text-secondary">
-          We zetten alle nog ontbrekende pagina&apos;s in de wachtrij. Duurt ongeveer {minutes}{" "}
-          {minutes === 1 ? "minuut" : "minuten"}; je hoeft er niet bij te blijven.
+          Aura zet alle ontbrekende pagina&apos;s in de rij. Duurt ongeveer {minutes}{" "}
+          {minutes === 1 ? "minuut" : "minuten"}, en je hoeft er niet bij te blijven.
           {blocked && (
             <>
               {" "}
               <span className="font-medium text-[var(--text-primary)]">
                 Let op: je site houdt AI-assistenten nu buiten
               </span>{" "}
-              — deze teksten kunnen dan nog niet geciteerd worden.
+              — deze teksten kunnen voorlopig niet geciteerd worden.
             </>
           )}
         </p>
@@ -107,7 +106,7 @@ export function GenerateAllButton({
         disabled={state === "busy"}
         className="btn-primary w-fit"
       >
-        {state === "busy" ? "Bezig…" : `Schrijf alle ${remaining} pagina's`}
+        {state === "busy" ? "In de rij zetten…" : `Schrijf alle ${remaining} pagina's`}
       </button>
     </div>
   );

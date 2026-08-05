@@ -94,16 +94,15 @@ export async function WerkChapter({
         <div className="card flex flex-col gap-4">
           <div className="flex flex-col gap-1">
             <span className="mono-label flex items-center gap-1">
-              Pagina&apos;s die we voor je kunnen schrijven
+              Pagina&apos;s die Aura voor je schrijft
               <InfoHint label="Waar komen deze vandaan?">
-                Elke pagina hieronder is gekoppeld aan concrete vragen waarop je nu niet genoemd
-                wordt. Dat is waar de tekst voor gemaakt wordt — en waaraan we later kunnen meten
-                of het gewerkt heeft.
+                Elke pagina hieronder hangt aan concrete vragen waarop je nu niet genoemd wordt.
+                Daar wordt de tekst voor gemaakt — en daaraan meet Aura later of het gewerkt heeft.
               </InfoHint>
             </span>
             <p className="text-sm text-secondary">
-              Dit doe je zelf en het kan vandaag. Zodra een pagina geschreven is, verschijnt hij
-              hierboven in de lijst en in je bibliotheek.
+              Dit kan vandaag. Zodra een pagina geschreven is, staat hij hierboven in de lijst en in
+              je bibliotheek klaar om na te lezen.
             </p>
           </div>
 
@@ -174,7 +173,7 @@ export async function WerkChapter({
                           .join(",")}#antwoorden`}
                         className="mono-label w-fit underline transition-colors hover:text-[var(--text-primary)]"
                       >
-                        Bekijk wat de AI hier nu antwoordt
+                        Zie wat de AI hier nu antwoordt
                       </Link>
                     )}
                   </div>

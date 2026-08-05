@@ -18,7 +18,7 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
   const { id } = await params;
 
   const user = await getUser();
-  if (!user) return NextResponse.json({ error: "Niet ingelogd." }, { status: 401 });
+  if (!user) return NextResponse.json({ error: "Je bent niet ingelogd." }, { status: 401 });
 
   const admin = createAdminClient();
   const analysis = await getOwnedAnalysis(admin, id, user.id);

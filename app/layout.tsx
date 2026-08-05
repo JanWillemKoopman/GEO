@@ -12,9 +12,9 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "GEO Tracker",
+  title: "Aura — AI-zichtbaarheid, gemeten",
   description:
-    "Simpele GEO-tracking: zie hoe zichtbaar jouw merk is in ChatGPT en andere AI-assistenten.",
+    "Aura meet hoe vaak AI-assistenten jouw merk noemen, laat zien waar je mist en schrijft de pagina's die dat verhelpen.",
 };
 
 export const viewport: Viewport = {

@@ -47,13 +47,13 @@ export function LlmKnowledgePanel({ rows }: { rows: ProfileLlmBaseline[] }) {
       <div className="card flex flex-col gap-2">
         <span className="mono-label">Wat AI-assistenten over je weten</span>
         <p className="text-secondary">
-          De kennistest is nog niet gedraaid. Hij vraagt een AI-assistent op zes
-          manieren wat hij over je merk weet, en legt de antwoorden naast de
-          feiten van je eigen site.
+          De kennistest is nog niet gedraaid. Aura vraagt een AI-assistent op zes
+          manieren wat hij over je merk weet, en legt die antwoorden naast de
+          feiten op je eigen site.
         </p>
         <p className="text-sm text-muted">
-          Loopt het onderzoek nog, dan verschijnt de uitslag hier vanzelf. Staat
-          het er over een paar minuten nog niet, gebruik dan &quot;Onderzoek
+          Loopt het onderzoek nog, dan komt de uitslag hier vanzelf te staan. Is
+          hij er over een paar minuten nog niet, gebruik dan &quot;Onderzoek
           opnieuw&quot; bij je aanbod.
         </p>
       </div>
@@ -186,10 +186,10 @@ export function LlmKnowledgePanel({ rows }: { rows: ProfileLlmBaseline[] }) {
 
             {!kent && (
               <p className="text-sm text-secondary">
-                Dat is geen fout van jou — voor de meeste MKB-bedrijven is dit
-                de uitgangssituatie. Het betekent wel dat een assistent je
-                alleen kan noemen als hij je op dat moment vindt, en niet omdat
-                hij je kent.
+                Dat is geen fout van jou: voor de meeste MKB-bedrijven is dit de
+                uitgangssituatie. Het betekent wel dat een assistent je alleen
+                noemt als hij je op dat moment toevallig vindt — niet omdat hij
+                je kent.
               </p>
             )}
 

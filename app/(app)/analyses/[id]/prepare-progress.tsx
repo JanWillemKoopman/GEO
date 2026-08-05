@@ -27,10 +27,10 @@ interface StatusPayload {
  */
 const STALE_FAILURE: UserFacingError = {
   kind: "unknown",
-  title: "Het voorbereiden is eerder misgelopen",
+  title: "De voorbereiding is eerder vastgelopen",
   message:
-    "Dit lag vaak aan een tijdelijke storing. Probeer het opnieuw — wat al gelukt " +
-    "is blijft bewaard, dus je begint niet van voren af aan.",
+    "Meestal is dat een tijdelijke storing. Probeer het opnieuw — wat al gelukt is, " +
+    "blijft bewaard. Je begint niet van voren af aan.",
   canRetry: true,
   detail: "",
 };
@@ -89,13 +89,13 @@ export function PrepareProgress({
 
   return (
     <WorkInProgress
-      title="Analyse wordt voorbereid"
-      explanation="We lezen je website op dit onderwerp, zoeken uit wie je concurrenten zijn en stellen de vragen op die we straks aan de AI gaan stellen."
+      title="Aura bereidt je analyse voor"
+      explanation="Aura leest je website op dit onderwerp, zoekt uit wie hier je concurrenten zijn en stelt de vragen op die straks naar de AI-assistenten gaan."
       etaText={data?.etaText}
       retrying={data?.retrying}
       steps={[
-        { label: "Website lezen voor dit onderwerp", done: Boolean(data?.hasTopicResearch) },
-        { label: "Concurrenten voor dit onderwerp zoeken", done: Boolean(data?.hasTopicResearch) },
+        { label: "Website lezen op dit onderwerp", done: Boolean(data?.hasTopicResearch) },
+        { label: "Concurrenten op dit onderwerp zoeken", done: Boolean(data?.hasTopicResearch) },
         {
           label: `Vragen opstellen${data?.promptCount ? ` (${data.promptCount})` : ""}`,
           done: (data?.promptCount ?? 0) > 0,

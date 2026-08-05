@@ -55,7 +55,7 @@ export function AuthForm({ mode, action, notice, signupsEnabled = false }: AuthF
       )}
 
       <button type="submit" disabled={pending} className="btn-primary mt-1 w-full disabled:opacity-60">
-        {pending ? "Even geduld…" : isLogin ? "Inloggen" : "Account aanmaken"}
+        {pending ? "Bezig…" : isLogin ? "Inloggen" : "Account aanmaken"}
       </button>
 
       {isLogin && (
@@ -78,7 +78,7 @@ export function AuthForm({ mode, action, notice, signupsEnabled = false }: AuthF
         </p>
       )}
       {isLogin && !signupsEnabled && (
-        <p className="mt-2 text-center text-sm text-muted">Toegang is op uitnodiging.</p>
+        <p className="mt-2 text-center text-sm text-muted">Aura is op uitnodiging. Vraag je contactpersoon om toegang.</p>
       )}
       {!isLogin && (
         <p className="mt-2 text-center text-sm text-secondary">

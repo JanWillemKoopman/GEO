@@ -57,10 +57,10 @@ export function classifyError(err: unknown): UserFacingError {
   if (lower.includes("ontbrekende omgevingsvariabele")) {
     return {
       kind: "configuration",
-      title: "De app is niet volledig ingesteld",
+      title: "Aura is niet volledig ingesteld",
       message:
-        "Er ontbreekt een instelling aan onze kant. Opnieuw proberen helpt niet — " +
-        "laat het ons weten, dan lossen we het op.",
+        "Er ontbreekt een instelling aan onze kant. Opnieuw proberen helpt hier niet — " +
+        "laat het ons weten, dan zetten wij het recht.",
       canRetry: false,
       detail,
     };
@@ -76,10 +76,10 @@ export function classifyError(err: unknown): UserFacingError {
   ) {
     return {
       kind: "website_unreachable",
-      title: "We konden je website niet bereiken",
+      title: "Aura komt niet op je website",
       message:
-        "Controleer of het webadres klopt en of de site online is. Staat er een " +
-        "beveiliging of firewall voor? Dan kunnen wij er mogelijk niet bij.",
+        "Controleer of het webadres klopt en of de site online staat. Zit er een " +
+        "beveiliging of firewall voor? Dan komt Aura er mogelijk niet langs.",
       canRetry: true,
       detail,
     };
@@ -98,10 +98,10 @@ export function classifyError(err: unknown): UserFacingError {
   ) {
     return {
       kind: "ai_unavailable",
-      title: "De AI-dienst was even niet beschikbaar",
+      title: "De AI-dienst was even niet bereikbaar",
       message:
-        "Dit gebeurt af en toe bij drukte en gaat vanzelf weer over. Wat al gelukt " +
-        "is blijft bewaard — een nieuwe poging pakt alleen op wat nog mist.",
+        "Dat gebeurt bij drukte en gaat vanzelf over. Wat al gelukt is, blijft bewaard — " +
+        "een nieuwe poging pakt alleen op wat nog mist.",
       canRetry: true,
       detail,
     };
@@ -111,8 +111,8 @@ export function classifyError(err: unknown): UserFacingError {
     kind: "unknown",
     title: "Er ging iets onverwachts mis",
     message:
-      "We weten niet precies wat. Probeer het opnieuw; blijft het misgaan, laat " +
-      "het ons dan weten met de technische details hieronder.",
+      "Wat precies, weten we niet. Probeer het opnieuw. Blijft het misgaan, stuur ons " +
+      "dan de technische details hieronder.",
     canRetry: true,
     detail,
   };

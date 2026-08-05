@@ -1,8 +1,14 @@
-# GEO Tracker — werkinstructie
+# Aura — werkinstructie
 
-GEO-tracking voor het MKB: meet hoe zichtbaar een merk is in AI-antwoorden (ChatGPT e.d.),
-adviseert, schrijft content, publiceert en meet het effect. Nederlands is de taal van de app,
-de AI-prompts, de code-commentaren en deze documentatie.
+**De app heet Aura.** GEO-tracking voor het MKB: meet hoe zichtbaar een merk is in AI-antwoorden
+(ChatGPT e.d.), adviseert, schrijft content, publiceert en meet het effect. Nederlands is de taal
+van de app, de AI-prompts, de code-commentaren en deze documentatie.
+
+**Alle UI-copy volgt `docs/schrijfstijl.md`** — de tone-of-voice van InSpace Nova, vertaald naar
+Aura. Kort samengevat: je/jij, korte stellende zinnen, Aura als handelend onderwerp ("Aura leest je
+website uit", niet "de website wordt uitgelezen"), en het space-thema uitsluitend in namen en
+sfeer-labels, nooit in knoppen, foutmeldingen of instructies. Raadpleeg dat document bij elke
+tekstwijziging, net zoals `docs/designsystem.md` leidend is voor de vormgeving.
 
 **Het product is sales-led, niet self-serve** (besloten 3 augustus 2026, naar het model van
 InSpace Nova). De eigenaar zet als consultant het merkprofiel klaar vóór een demogesprek, de
@@ -124,6 +130,7 @@ scripts/           test-unit · test-chain · test-openai · eval-mention
 | `docs/architecture.md` | Datamodel, RLS, jobwachtrij, pijplijn per stap, alle AI-calls, env, deploy, cron |
 | `docs/ux-design.md` | Design tokens, componentregels, responsive-strategie, loading/error/lege states |
 | `docs/designsystem.md` | Bronanalyse van de live inspace.io-CSS: waar elke kleur, radius en gloed vandaan komt |
+| `docs/schrijfstijl.md` | Tone-of-voice en microcopy: de tien richtlijnen, de woordenlijst, en wat we bewust níet van Nova overnemen |
 | `docs/logbook.md` | Waarom het is zoals het is: beslissingen en bouwrondes, met de cijfers eronder |
 | `docs/tasks/roadmap.md` | Wat er nog open staat, op volgorde |
 | `APP_FLOW_DOCUMENTATION.md` | De keten end-to-end voor drie lezersgroepen: sales, developer, AI-specialist. Staat bewust in de hoofdmap — code verwijst ernaar |

@@ -33,9 +33,9 @@ export function ResultsPanel({ analysisId, results }: { analysisId: string; resu
           <span className="mono-label flex items-center gap-1">
             Wat het heeft opgeleverd
             <InfoHint label="Wat het heeft opgeleverd">
-              We hebben precies de vragen hermeten waarvoor je publiceerde, en tegelijk een groep
-              vragen waar je géén pagina voor maakte. Het verschil tussen die twee is wat je
-              publicatie heeft gedaan.
+              Aura hermat precies de vragen waarvoor je publiceerde, én een groep vragen waar je
+              géén pagina voor maakte. Het verschil tussen die twee is wat je publicatie deed.
+              Gemeten, niet beloofd.
             </InfoHint>
           </span>
 
@@ -74,15 +74,15 @@ export function ResultsPanel({ analysisId, results }: { analysisId: string; resu
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
           <FunnelStep label="Geschreven" value={funnel.generated} />
           <FunnelStep label="Nagekeken" value={funnel.reviewed} of={funnel.generated} />
-          <FunnelStep label="Gepubliceerd" value={funnel.published} of={funnel.generated} />
+          <FunnelStep label="Live" value={funnel.published} of={funnel.generated} />
           <FunnelStep label="Effect gemeten" value={funnel.measured} of={funnel.published} />
         </div>
 
         {funnel.published === 0 && funnel.generated > 0 && (
           <p className="text-sm text-secondary">
             Er staat {funnel.generated === 1 ? "een pagina" : `${funnel.generated} pagina's`} klaar die
-            nog niet online {funnel.generated === 1 ? "staat" : "staan"}. Zolang dat zo is, kan er
-            niets veranderen aan je zichtbaarheid.{" "}
+            nog niet live {funnel.generated === 1 ? "staat" : "staan"}. Zolang dat zo is, beweegt je
+            zichtbaarheid niet.{" "}
             <Link href={`/analyses/${analysisId}/bibliotheek`} className="underline">
               Naar je bibliotheek
             </Link>
@@ -140,8 +140,8 @@ export function ResultsPanel({ analysisId, results }: { analysisId: string; resu
                       day: "numeric",
                       month: "long",
                     })}
-                    . We hermeten twee en vier weken later — AI-systemen nemen nieuwe content niet
-                    dezelfde dag op.
+                    . Aura hermeet na twee en na vier weken — AI-assistenten pikken nieuwe content
+                    niet dezelfde dag op.
                   </p>
                 )}
               </li>

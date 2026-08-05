@@ -91,7 +91,7 @@ export function networkProblem(err: unknown): UserFacingError {
     kind: "ai_unavailable",
     title: "Geen verbinding",
     message:
-      "We konden de server niet bereiken. Controleer je internetverbinding — " +
+      "Je browser komt niet bij Aura. Controleer je internetverbinding — " +
       "het werk op de achtergrond loopt gewoon door.",
     canRetry: true,
     detail: err instanceof Error ? err.message : String(err),

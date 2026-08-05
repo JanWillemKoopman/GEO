@@ -84,10 +84,10 @@ export function OffsitePanel({
       <div className="flex flex-wrap items-center justify-between gap-2">
         <span className="mono-label flex items-center gap-1">
           Daarbuiten — wat er buiten je eigen site moet gebeuren
-          <InfoHint label="Waarom kijken we hiernaar?">
+          <InfoHint label="Waarom kijkt Aura hiernaar?">
             Bij koopvragen leunen AI-assistenten zwaar op ándere sites: reviewplatforms,
-            vergelijkers en lijstjes. Sta je daar niet op, dan kan geen enkele tekst op je eigen
-            site dat goedmaken.
+            vergelijkers en lijstjes. Sta je daar niet op, dan maakt geen enkele tekst op je eigen
+            site dat goed.
           </InfoHint>
         </span>
         {open.length > 0 && <span className="mono-label">{open.length} open</span>}
@@ -97,8 +97,8 @@ export function OffsitePanel({
 
       {open.length === 0 && closed.length > 0 && (
         <p className="text-sm text-secondary">
-          Alle off-site punten zijn afgehandeld. Duiken er bij een volgende meting nieuwe bronnen
-          op, dan verschijnen ze hier.
+          Alle off-site punten afgehandeld. Vindt Aura bij een volgende meting nieuwe bronnen, dan
+          staan ze hier.
         </p>
       )}
 

@@ -92,10 +92,10 @@ export function WorkList({ items }: { items: WorkItem[] }) {
   if (groups.length === 0) {
     return (
       <div className="card flex flex-col gap-2">
-        <span className="mono-label">Niets te doen</span>
+        <span className="mono-label">Niets te doen · Aura draait door</span>
         <p className="text-secondary">
-          Er wacht geen actie op jou. We meten maandelijks door en laten het weten zodra er iets
-          verandert.
+          Er ligt niets op jou te wachten. Aura meet maandelijks door en laat het weten zodra er
+          iets beweegt.
         </p>
       </div>
     );
@@ -123,8 +123,8 @@ export function WorkList({ items }: { items: WorkItem[] }) {
                 {WORK_STATE_LABEL[group.state]}
                 {group.state === "nu" && (
                   <InfoHint label="Volgorde">
-                    Op volgorde van belang. Bovenaan staat waar het vastloopt zonder jou; daaronder
-                    waar het meeste te winnen valt.
+                    Op volgorde van belang. Bovenaan staat wat zonder jou stilligt, daaronder waar
+                    het meeste te winnen valt.
                   </InfoHint>
                 )}
               </span>

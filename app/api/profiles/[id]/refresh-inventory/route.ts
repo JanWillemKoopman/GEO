@@ -16,7 +16,7 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
   const { id } = await params;
 
   const user = await getUser();
-  if (!user) return NextResponse.json({ error: "Niet ingelogd." }, { status: 401 });
+  if (!user) return NextResponse.json({ error: "Je bent niet ingelogd." }, { status: 401 });
 
   const admin = createAdminClient();
   const profile = await getOwnedProfile(admin, id, user.id);
@@ -27,6 +27,6 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
     return NextResponse.json({ count });
   } catch (err) {
     console.error(`refreshInventory(${id}) mislukt:`, err);
-    return NextResponse.json({ error: "Vernieuwen mislukt.", detail: describeError(err), problem: classifyError(err) }, { status: 500 });
+    return NextResponse.json({ error: "Vernieuwen is niet gelukt.", detail: describeError(err), problem: classifyError(err) }, { status: 500 });
   }
 }

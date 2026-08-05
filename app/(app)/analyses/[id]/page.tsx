@@ -113,7 +113,7 @@ export default async function DossierPage({
           number="01"
           title="Hoe je ervoor"
           accent="staat"
-          intro="Hoe vaak een AI-assistent jou noemt op de vragen die er voor jouw markt toe doen."
+          intro="Eén cijfer: hoe vaak AI-assistenten jou noemen op de vragen die er in jouw markt toe doen."
           aside={<PeriodPicker analysisId={id} periods={periods} selected={weekNo} />}
         >
           <Suspense fallback={<ChapterSkeleton blocks={2} />}>
@@ -126,7 +126,7 @@ export default async function DossierPage({
           number="02"
           title="Waar je wint"
           accent="en mist"
-          intro="Het bewijs onder het cijfer: tegen wie je het opneemt en op welke vragen je nu niet genoemd wordt."
+          intro="Het bewijs onder het cijfer. Tegen wie je het opneemt, en op welke vragen je nu niet genoemd wordt."
         >
           <Suspense fallback={<ChapterSkeleton blocks={2} />}>
             <BewijsChapter analysis={analysis} weekNo={weekNo} focusRuns={runs} />
@@ -138,7 +138,7 @@ export default async function DossierPage({
           number="03"
           title="Wat je nu"
           accent="moet doen"
-          intro="Alles wat er te doen valt, op volgorde van belang. Bovenaan staat waar het vastloopt zonder jou."
+          intro="Alles wat er te doen valt, op volgorde van belang. Bovenaan staat wat zonder jou stilligt."
         >
           <Suspense fallback={<ChapterSkeleton blocks={2} />}>
             <WerkChapter analysis={analysis} work={work} />
@@ -150,7 +150,7 @@ export default async function DossierPage({
           number="04"
           title="Wat het heeft"
           accent="opgeleverd"
-          intro="Wat de pagina's die je publiceerde met je zichtbaarheid gedaan hebben — afgezet tegen vragen waarvoor je niets deed."
+          intro="Wat je gepubliceerde pagina's met je zichtbaarheid deden — afgezet tegen vragen waarvoor je niets deed. Gemeten, niet beloofd."
         >
           <Suspense fallback={<ChapterSkeleton blocks={1} />}>
             <ResultaatChapter analysis={analysis} />
@@ -158,7 +158,7 @@ export default async function DossierPage({
         </Chapter>
 
         <p className="text-sm text-muted">
-          Klopt er iets niet aan de vragen of de scope?{" "}
+          Klopt er iets niet aan de vragen of de afbakening?{" "}
           <Link href={`/analyses/${id}/instellingen`} className="underline">
             Naar de instellingen van deze analyse
           </Link>

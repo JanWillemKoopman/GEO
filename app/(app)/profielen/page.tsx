@@ -29,9 +29,9 @@ export default async function ProfielenPage() {
   return (
     <div className="flex flex-col gap-8">
       <PageHeader
-        eyebrow="GEO Tracker"
+        eyebrow="Aura · merkdossiers"
         title="Merken"
-        description="Het grondige merkonderzoek — branche, concurrenten, persona's, tone-of-voice — gebeurt hier één keer per merk, en wordt door al je analyses voor dat merk hergebruikt."
+        description="Aura leert je merk eerst kennen: branche, aanbod, concurrenten, doelgroep en tone-of-voice. Dat onderzoek doen we één keer per merk, en elke analyse eronder bouwt erop voort."
         action={
           <Link href="/profielen/nieuw" className="btn-primary">
             + Nieuw merk
@@ -44,8 +44,8 @@ export default async function ProfielenPage() {
           title="Nog geen merken"
           action={{ href: "/profielen/nieuw", label: "Eerste merk toevoegen" }}
         >
-          Voeg eerst het merk toe waarvan je de zichtbaarheid wilt meten. Daarna koppel je er
-          analyses aan voor de losse producten en onderwerpen.
+          Begin met het merk waarvan je de zichtbaarheid wilt meten. Aura brengt het in kaart;
+          daarna koppel je er analyses aan voor losse producten en onderwerpen.
         </EmptyState>
       ) : (
         <ul className="flex flex-col gap-3">

@@ -10,10 +10,10 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
       <div className="relative z-10 w-full max-w-sm">
         <div className="mb-8 text-center">
           <Link href="/" className="text-2xl font-bold tracking-tight">
-            <span className="brand-gradient-text">GEO Tracker</span>
+            <span className="brand-gradient-text">Aura</span>
           </Link>
           <p className="mt-2 text-sm text-secondary">
-            Zie hoe zichtbaar jouw merk is in ChatGPT en andere AI-assistenten.
+            Zichtbaar zijn in AI-antwoorden. Gemeten, niet gegokt.
           </p>
         </div>
         <div className="card">{children}</div>

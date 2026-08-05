@@ -10,7 +10,7 @@ import { getOwnedAnalysis } from "@/lib/analyses";
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const user = await getUser();
-  if (!user) return NextResponse.json({ error: "Niet ingelogd." }, { status: 401 });
+  if (!user) return NextResponse.json({ error: "Je bent niet ingelogd." }, { status: 401 });
 
   const admin = createAdminClient();
   const analysis = await getOwnedAnalysis(admin, id, user.id);
@@ -31,7 +31,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     .from("analyses")
     .update({ tracking_enabled: body.tracking_enabled })
     .eq("id", id);
-  if (error) return NextResponse.json({ error: "Opslaan mislukt." }, { status: 500 });
+  if (error) return NextResponse.json({ error: "Opslaan is niet gelukt." }, { status: 500 });
 
   return NextResponse.json({ ok: true });
 }

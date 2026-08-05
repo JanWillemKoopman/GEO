@@ -24,10 +24,10 @@ export async function ResultaatChapter({ analysis }: { analysis: Analysis }) {
       <div className="card flex flex-col gap-2">
         <span className="mono-label">Nog niets om te meten</span>
         <p className="text-secondary">
-          Zodra je de eerste pagina hebt laten schrijven en gepubliceerd, meten we twee en vier
-          weken later of je op díe vragen vaker genoemd wordt. Dat verschil staat dan hier —
-          naast een controlegroep van vragen waarvoor je niets publiceerde, zodat je weet wat het
-          jouw pagina&apos;s zijn geweest en niet het toeval.
+          Zodra je eerste pagina live staat, hermeet Aura na twee en na vier weken of je op díe
+          vragen vaker genoemd wordt. Dat verschil komt hier te staan — naast een controlegroep van
+          vragen waarvoor je niets publiceerde. Zo weet je of het je pagina&apos;s waren, en niet
+          het toeval.
         </p>
         <Link href={`/analyses/${analysis.id}#werk`} className="btn-outline mt-1 w-fit">
           Naar wat je nu kunt doen

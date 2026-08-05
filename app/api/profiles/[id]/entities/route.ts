@@ -15,7 +15,7 @@ import { normalizeEntityName } from "@/lib/entities/normalize";
 export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const user = await getUser();
-  if (!user) return NextResponse.json({ error: "Niet ingelogd." }, { status: 401 });
+  if (!user) return NextResponse.json({ error: "Je bent niet ingelogd." }, { status: 401 });
 
   const admin = createAdminClient();
   if (!(await getOwnedProfile(admin, id, user.id))) {
@@ -34,7 +34,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const user = await getUser();
-  if (!user) return NextResponse.json({ error: "Niet ingelogd." }, { status: 401 });
+  if (!user) return NextResponse.json({ error: "Je bent niet ingelogd." }, { status: 401 });
 
   const admin = createAdminClient();
   if (!(await getOwnedProfile(admin, id, user.id))) {
@@ -95,6 +95,6 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     .select("*")
     .single();
 
-  if (error || !data) return NextResponse.json({ error: "Opslaan mislukt." }, { status: 500 });
+  if (error || !data) return NextResponse.json({ error: "Opslaan is niet gelukt." }, { status: 500 });
   return NextResponse.json(data, { status: 201 });
 }

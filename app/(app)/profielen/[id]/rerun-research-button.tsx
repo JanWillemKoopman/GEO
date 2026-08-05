@@ -30,13 +30,13 @@ export function RerunResearchButton({ profileId }: { profileId: string }) {
       });
       const json = await res.json();
       if (!res.ok) {
-        setError(json.error ?? "Opnieuw onderzoeken mislukt.");
+        setError(json.error ?? "Opnieuw onderzoeken is niet gelukt.");
         setPending(false);
         return;
       }
       router.refresh();
     } catch {
-      setError("Opnieuw onderzoeken mislukt. Controleer je verbinding.");
+      setError("Opnieuw onderzoeken is niet gelukt. Controleer je verbinding.");
       setPending(false);
     }
   }
@@ -63,10 +63,10 @@ export function RerunResearchButton({ profileId }: { profileId: string }) {
   return (
     <div className="flex flex-col gap-2 rounded-[var(--radius-md)] border border-[var(--border-subtle)] p-3">
       <p className="text-sm text-secondary">
-        We lezen de website opnieuw uit en bouwen het aanbod opnieuw op. Dat
+        Aura leest de website opnieuw uit en bouwt het aanbod opnieuw op. Dat
         duurt een paar minuten.
-        <strong> Wat jij of de klant heeft ingevuld blijft staan</strong>, net
-        als de onderwerpen en de AI-kennistest.
+        <strong> Wat jij of de klant invulde blijft staan</strong>, net als de
+        onderwerpen en de AI-kennistest.
       </p>
       <div className="flex flex-wrap gap-2">
         <button

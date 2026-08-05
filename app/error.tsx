@@ -33,7 +33,7 @@ export default function AppError({
           title: "Deze pagina kon niet geladen worden",
           message:
             "Er ging iets mis bij het ophalen van je gegevens. Probeer het opnieuw — " +
-            "je werk op de achtergrond loopt gewoon door.",
+            "Aura werkt op de achtergrond gewoon door.",
           canRetry: true,
           // De digest hoort erbij: daarmee is de fout in de logs terug te vinden.
           detail: [describeError(error), error.digest && `digest ${error.digest}`]

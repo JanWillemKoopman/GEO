@@ -66,9 +66,9 @@ export function AuditGate({
       </ul>
 
       <p className="text-sm text-secondary">
-        Zolang dit zo is, kan geen enkele pagina die je publiceert door ChatGPT geciteerd worden.
-        Meestal staat dit standaard aan in een thema of beveiligingsplug-in en is het in een paar
-        minuten opgelost door je webbouwer.
+        Zolang dit zo staat, kan ChatGPT geen enkele pagina van je citeren. Meestal staat het
+        standaard aan in een thema of beveiligingsplug-in, en lost je webbouwer het in een paar
+        minuten op.
       </p>
 
       <Link href={`/profielen/${profileId}#techniek`} className="btn-outline w-fit">

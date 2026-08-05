@@ -182,7 +182,7 @@ export default async function ContentDetailPage({
                 .join(",")}`}
               className="mono-label w-fit underline transition-colors hover:text-[var(--text-primary)]"
             >
-              Bekijk wat de AI hier nu antwoordt
+              Zie wat de AI hier nu antwoordt
             </Link>
           )}
         </div>
@@ -195,8 +195,8 @@ export default async function ContentDetailPage({
         <div className="card flex flex-col gap-2" style={{ borderColor: "rgba(240,180,60,0.45)" }}>
           <span className="mono-label">Kijk hier even naar</span>
           <p className="text-sm text-secondary">
-            De eindredacteur twijfelt over de volgende punten. Je kunt de tekst zelf bijschaven, of
-            hieronder om een nieuwe versie vragen.
+            De eindredactie van Aura twijfelt over deze punten. Schaaf de tekst zelf bij, of vraag
+            hieronder om een nieuwe versie.
           </p>
           <ul className="flex list-disc flex-col gap-1 pl-5 text-sm text-secondary">
             {piece.review_notes.map((note, i) => (

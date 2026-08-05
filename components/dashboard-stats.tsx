@@ -23,13 +23,13 @@ export function DashboardStats({
     <div className="grid gap-3 sm:grid-cols-3">
       <StatTile
         value={String(stats.publishedThisMonth)}
-        label="Gepubliceerd deze maand"
-        hint={stats.publishedThisMonth === 0 ? "Nog niets live gezet" : undefined}
+        label="Live deze maand"
+        hint={stats.publishedThisMonth === 0 ? "Nog niets gepubliceerd" : undefined}
       />
       <StatTile
         value={String(stats.waitingToPublish)}
-        label="Ligt klaar om te publiceren"
-        hint={stats.waitingToPublish > 0 ? "Levert pas iets op als het online staat" : undefined}
+        label="Klaar om te publiceren"
+        hint={stats.waitingToPublish > 0 ? "Telt pas mee zodra het online staat" : undefined}
       />
       {biggestChange ? (
         <StatTile
@@ -39,7 +39,7 @@ export function DashboardStats({
           tone={biggestChange.delta > 0 ? "up" : "down"}
         />
       ) : (
-        <StatTile value="—" label="Grootste verandering" hint="Nog geen tweede meting" />
+        <StatTile value="—" label="Grootste verandering" hint="Pas zichtbaar na de tweede meting" />
       )}
     </div>
   );

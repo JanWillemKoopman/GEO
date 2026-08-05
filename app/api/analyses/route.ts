@@ -15,7 +15,7 @@ import { buildAnalysisName } from "@/lib/url";
 export async function POST(request: Request) {
   const user = await getUser();
   if (!user) {
-    return NextResponse.json({ error: "Niet ingelogd." }, { status: 401 });
+    return NextResponse.json({ error: "Je bent niet ingelogd." }, { status: 401 });
   }
 
   let body: { profileId?: string; topic?: string; content_brief?: string; notify_by_email?: boolean };
@@ -45,7 +45,7 @@ export async function POST(request: Request) {
   }
   if (profile.status !== "klaar") {
     return NextResponse.json(
-      { error: "Dit merk is nog niet klaar met onderzoeken." },
+      { error: "Aura is nog bezig met dit merk. Wacht tot het onderzoek klaar is." },
       { status: 409 },
     );
   }
@@ -68,7 +68,7 @@ export async function POST(request: Request) {
     .single();
 
   if (error) {
-    return NextResponse.json({ error: "Aanmaken mislukt. Probeer het opnieuw." }, { status: 500 });
+    return NextResponse.json({ error: "Aanmaken is niet gelukt. Probeer het opnieuw." }, { status: 500 });
   }
 
   // Werk meteen inplannen (optimalisatie.md 1.5). Voorheen startte het

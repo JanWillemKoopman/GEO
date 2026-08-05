@@ -79,11 +79,11 @@ export function PublishBox({
       <div className="card card-success flex flex-col gap-3">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <span className="mono-label flex items-center gap-1">
-            Gepubliceerd
+            Live
             <InfoHint label="Wat gebeurt er nu?">
-              We meten de vragen waarvoor deze pagina gemaakt is opnieuw, twee en vier weken na
-              publicatie. AI-systemen nemen nieuwe content niet dezelfde dag op, dus eerder meten
-              zegt niets.
+              Aura hermeet de vragen waarvoor deze pagina gemaakt is, twee en vier weken na
+              publicatie. AI-assistenten pikken nieuwe content niet dezelfde dag op, dus eerder
+              meten zegt niets.
             </InfoHint>
           </span>
           <span className="mono-label">
@@ -109,8 +109,8 @@ export function PublishBox({
         <PublishCheckNotice check={check} checkedAt={checkedAt} />
 
         <p className="text-sm text-secondary">
-          We hermeten de bijbehorende vragen over twee en vier weken. Het resultaat verschijnt
-          vanzelf in hoofdstuk 04 van je analyse — je hoeft niets te doen.
+          Aura hermeet de bijbehorende vragen over twee en over vier weken. Het resultaat komt
+          vanzelf in hoofdstuk 04 van je analyse te staan. Jij hoeft niets.
         </p>
 
         <button
@@ -130,15 +130,15 @@ export function PublishBox({
     <div className="card flex flex-col gap-3">
       <div className="flex flex-col gap-1">
         <span className="mono-label flex items-center gap-1">
-          Staat deze pagina al online?
-          <InfoHint label="Waarom vragen we dit?">
-            Zodra je hier de link invult, meten we de vragen waarvoor deze pagina gemaakt is
-            opnieuw — twee en vier weken later. Dan zie je zwart-op-wit of het gewerkt heeft.
+          Staat deze pagina al live?
+          <InfoHint label="Waarom vraagt Aura dit?">
+            Zodra je hier de link invult, hermeet Aura de vragen waarvoor deze pagina gemaakt is —
+            twee en vier weken later. Dan zie je zwart-op-wit of het gewerkt heeft.
           </InfoHint>
         </span>
         <p className="text-sm text-secondary">
-          Geef de link en we controleren of de tekst er echt op staat. Daarna volgen we of je op de
-          bijbehorende vragen vaker genoemd wordt.
+          Geef de link, dan controleert Aura of de tekst er echt op staat. Daarna volgt het of je op
+          de bijbehorende vragen vaker genoemd wordt.
         </p>
       </div>
 
@@ -158,7 +158,7 @@ export function PublishBox({
           disabled={state === "busy"}
         />
         <button type="submit" className="btn-primary shrink-0" disabled={state === "busy" || !url.trim()}>
-          {state === "busy" ? "Bezig…" : "Dit staat live"}
+          {state === "busy" ? "Controleren…" : "Dit staat live"}
         </button>
       </form>
     </div>
@@ -177,7 +177,7 @@ function PublishCheckNotice({ check, checkedAt }: { check: PublishCheck | null; 
     return (
       <p className="flex items-center gap-2 text-sm text-secondary">
         <span className="live-dot" />
-        We controleren de pagina…
+        Aura controleert de pagina…
       </p>
     );
   }

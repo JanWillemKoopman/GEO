@@ -21,7 +21,7 @@ export async function POST(
   const { id, pieceId } = await params;
 
   const user = await getUser();
-  if (!user) return NextResponse.json({ error: "Niet ingelogd." }, { status: 401 });
+  if (!user) return NextResponse.json({ error: "Je bent niet ingelogd." }, { status: 401 });
 
   const admin = createAdminClient();
   if (!(await getOwnedAnalysis(admin, id, user.id))) {
@@ -59,7 +59,7 @@ export async function POST(
   } catch (err) {
     console.error(`publicatie vastleggen mislukt voor pagina ${pieceId}:`, err);
     return NextResponse.json(
-      { error: "Opslaan mislukt.", detail: describeError(err), problem: classifyError(err) },
+      { error: "Opslaan is niet gelukt.", detail: describeError(err), problem: classifyError(err) },
       { status: 500 },
     );
   }
@@ -72,7 +72,7 @@ export async function DELETE(
   const { id, pieceId } = await params;
 
   const user = await getUser();
-  if (!user) return NextResponse.json({ error: "Niet ingelogd." }, { status: 401 });
+  if (!user) return NextResponse.json({ error: "Je bent niet ingelogd." }, { status: 401 });
 
   const admin = createAdminClient();
   if (!(await getOwnedAnalysis(admin, id, user.id))) {

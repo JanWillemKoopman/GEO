@@ -41,7 +41,7 @@ export async function PATCH(
   const { id, pieceId } = await params;
 
   const user = await getUser();
-  if (!user) return NextResponse.json({ error: "Niet ingelogd." }, { status: 401 });
+  if (!user) return NextResponse.json({ error: "Je bent niet ingelogd." }, { status: 401 });
 
   const admin = createAdminClient();
   if (!(await getOwnedAnalysis(admin, id, user.id))) {
@@ -75,7 +75,7 @@ export async function PATCH(
     .eq("id", pieceId)
     .eq("analysis_id", id);
 
-  if (error) return NextResponse.json({ error: "Opslaan mislukt." }, { status: 500 });
+  if (error) return NextResponse.json({ error: "Opslaan is niet gelukt." }, { status: 500 });
   return NextResponse.json({ ok: true });
 }
 
@@ -86,7 +86,7 @@ export async function POST(
   const { id, pieceId } = await params;
 
   const user = await getUser();
-  if (!user) return NextResponse.json({ error: "Niet ingelogd." }, { status: 401 });
+  if (!user) return NextResponse.json({ error: "Je bent niet ingelogd." }, { status: 401 });
 
   const admin = createAdminClient();
   const analysis = await getOwnedAnalysis(admin, id, user.id);
@@ -171,7 +171,7 @@ export async function POST(
   } catch (err) {
     console.error(`herschrijven inplannen mislukt voor pagina ${pieceId}:`, err);
     return NextResponse.json(
-      { error: "Herschrijven inplannen mislukt.", detail: describeError(err), problem: classifyError(err) },
+      { error: "Aura kon het herschrijven niet inplannen.", detail: describeError(err), problem: classifyError(err) },
       { status: 500 },
     );
   }

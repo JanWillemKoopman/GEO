@@ -37,7 +37,7 @@ export async function PUT(
 
   const user = await getUser();
   if (!user)
-    return NextResponse.json({ error: "Niet ingelogd." }, { status: 401 });
+    return NextResponse.json({ error: "Je bent niet ingelogd." }, { status: 401 });
 
   const admin = createAdminClient();
   const profile = await getOwnedProfile(admin, id, user.id);
@@ -92,7 +92,7 @@ export async function PUT(
     { onConflict: "profile_id" },
   );
   if (error)
-    return NextResponse.json({ error: "Opslaan mislukt." }, { status: 500 });
+    return NextResponse.json({ error: "Opslaan is niet gelukt." }, { status: 500 });
 
   // ── Doorwerken in wat de meting gebruikt ─────────────────────────────────
   const nieuweAliassen = extraAliasesFrom(factors).filter(

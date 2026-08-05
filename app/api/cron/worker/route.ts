@@ -28,7 +28,7 @@ export const dynamic = "force-dynamic";
 export async function GET(request: Request) {
   const authHeader = request.headers.get("authorization");
   if (authHeader !== `Bearer ${serverEnv.cronSecret}`) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return NextResponse.json({ error: "Je bent niet ingelogd." }, { status: 401 });
   }
 
   try {
@@ -36,6 +36,6 @@ export async function GET(request: Request) {
     return NextResponse.json(result);
   } catch (err) {
     console.error("Werker mislukt:", err);
-    return NextResponse.json({ error: "Werker mislukt.", detail: describeError(err) }, { status: 500 });
+    return NextResponse.json({ error: "De achtergrondwerker liep vast.", detail: describeError(err) }, { status: 500 });
   }
 }

@@ -106,7 +106,7 @@ export function onboardingStats(
           ? "Bij geen van de gemeten vragen"
           : genoemd === gevraagd
             ? "Bij alle gemeten vragen"
-            : "Nulmeting, vóór er iets is aangepast",
+            : "Nulmeting, vóór er iets veranderd is",
     tone: gevraagd === 0 ? "neutraal" : genoemd === 0 ? "aandacht" : "goed",
   });
 
@@ -148,14 +148,14 @@ export function onboardingHeadline(
   if (tegengesproken > 0) {
     return (
       `ChatGPT noemt ${tegengesproken} gegeven over ${merk} dat niet klopt met wat er op de ` +
-      `site staat. Dat weegt zwaarder dan zichtbaarheid: een verkeerd antwoord kost een klant.`
+      `site staat. Dat weegt zwaarder dan zichtbaarheid. Een verkeerd antwoord kost een klant.`
     );
   }
 
   if (knows.level === "kent_niet") {
     return (
-      `ChatGPT kent ${merk} nog niet als bedrijf. Dat is niet raar — het is de ` +
-      `uitgangssituatie van vrijwel elk MKB-merk, en precies wat hier verandert.`
+      `ChatGPT kent ${merk} nog niet als bedrijf. Dat is niet raar: het is de ` +
+      `uitgangssituatie van vrijwel elk MKB-merk. En precies wat Aura hier verandert.`
     );
   }
 
@@ -170,16 +170,16 @@ export function onboardingHeadline(
   if (gevraagd > 0 && genoemd === 0) {
     return (
       `ChatGPT kent ${merk}, maar noemt het bij geen van de ${gevraagd} koopvragen. ` +
-      `Bekend zijn en aanbevolen worden zijn twee verschillende dingen — het tweede is wat ` +
-      `klanten oplevert.`
+      `Bekend zijn en aanbevolen worden zijn twee verschillende dingen. Het tweede levert ` +
+      `klanten op.`
     );
   }
   if (gevraagd > 0 && genoemd < gevraagd) {
     return (
       `ChatGPT kent ${merk} en noemt het bij ${genoemd} van de ${gevraagd} koopvragen. ` +
-      `Dat is de nulmeting: hier gaan we vanaf meten.`
+      `Dat is de nulmeting. Vanaf hier is elke beweging meetbaar.`
     );
   }
 
-  return `ChatGPT kent ${merk} en noemt het bij elke gemeten koopvraag. Een sterke uitgangspositie.`;
+  return `ChatGPT kent ${merk} en noemt het bij elke gemeten koopvraag. Sterke uitgangspositie — nu vasthouden.`;
 }

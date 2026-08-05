@@ -53,8 +53,8 @@ export default async function InstellingenPage({ params }: { params: Promise<{ i
           <span className="font-medium">{analysis.topic}</span>
         </div>
         <p className="text-sm text-muted">
-          Website en onderwerp liggen na de start vast. Wil je een andere scope? Start dan een
-          nieuwe analyse.
+          Website en onderwerp liggen na de start vast — anders is de trend niet meer te lezen. Een
+          andere afbakening? Start een nieuwe analyse.
         </p>
       </div>
 
@@ -72,7 +72,7 @@ export default async function InstellingenPage({ params }: { params: Promise<{ i
                     vergeleken wordt — dat komt uit de meting zelf. Hij dient nog
                     één doel: deze namen blijven uit de vragen, zodat we neutraal
                     meten. Vandaar het eerlijke label. */}
-                Deze merken houden we uit de vragen:{" "}
+                Deze merken blijven uit de vragen:{" "}
                 {profile.competitors.join(", ") || "onbekend"}
               </p>
             </div>
@@ -83,7 +83,7 @@ export default async function InstellingenPage({ params }: { params: Promise<{ i
         </div>
       ) : (
         <div className="card">
-          <p className="text-secondary">Merkprofiel niet gevonden.</p>
+          <p className="text-secondary">Het merkdossier bij deze analyse is niet gevonden.</p>
         </div>
       )}
 

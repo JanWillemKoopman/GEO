@@ -56,7 +56,7 @@ export function DossierBox({ profileId }: { profileId: string }) {
         alreadyKnown?: boolean;
         error?: string;
       };
-      if (!res.ok) throw new Error(json.error ?? "Verwerken mislukt.");
+      if (!res.ok) throw new Error(json.error ?? "Verwerken is niet gelukt.");
       setFacts(json.facts ?? []);
       setSkipped(json.skipped ?? 0);
       // Sinds migratie 0035 herkent de app dezelfde tekst aan zijn hash. Zonder
@@ -101,9 +101,9 @@ export function DossierBox({ profileId }: { profileId: string }) {
   return (
     <div className="flex flex-col gap-3">
       <p className="text-sm text-secondary">
-        Heb je je tarieven, voorwaarden of veelgestelde vragen al ergens staan? Plak ze hier. We
-        halen er de harde feiten uit — bedragen, termijnen, wat er wel en niet bij zit — en
-        gebruiken die bij het schrijven. Wat er niet letterlijk in staat, nemen we niet over.
+        Staan je tarieven, voorwaarden of veelgestelde vragen al ergens? Plak ze hier. Aura haalt er
+        de harde feiten uit — bedragen, termijnen, wat er wel en niet bij zit — en gebruikt die bij
+        het schrijven. Wat er niet letterlijk in staat, neemt het niet over.
       </p>
 
       <textarea
@@ -120,7 +120,7 @@ export function DossierBox({ profileId }: { profileId: string }) {
           disabled={busy || text.trim().length < 40}
           className="btn-outline disabled:opacity-60"
         >
-          {busy ? "Bezig met lezen…" : "Haal de feiten eruit"}
+          {busy ? "Aura leest…" : "Haal de feiten eruit"}
         </button>
         {error && <span className="text-sm text-[var(--status-error)]">{error}</span>}
       </div>

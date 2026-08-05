@@ -58,7 +58,7 @@ export function ProfileEditor({ initial, inventoryCount }: { initial: Profile; i
       if (!res.ok) throw new Error();
       setSaved(true);
     } catch {
-      setError("Opslaan mislukt. Probeer het opnieuw.");
+      setError("Opslaan is niet gelukt. Probeer het opnieuw.");
     } finally {
       setSaving(false);
     }
@@ -297,11 +297,11 @@ export function ProfileEditor({ initial, inventoryCount }: { initial: Profile; i
         </div>
       </CollapsibleSection>
 
-      <CollapsibleSection title="Content-inventaris (crawl)">
+      <CollapsibleSection title="Wat er al op je site staat">
         <p className="text-sm text-secondary">
-          We brengen in kaart welke pagina&apos;s er al op de website staan, zodat aanbevelingen
-          bestaande content kunnen verbeteren i.p.v. altijd iets nieuws voor te stellen.
-          Productpagina&apos;s van webshops worden overgeslagen. Dit staat nu op{" "}
+          Aura brengt in kaart welke pagina&apos;s je website al heeft, zodat een aanbeveling
+          bestaande content kan verbeteren in plaats van altijd iets nieuws voor te stellen.
+          Productpagina&apos;s van webshops blijven buiten beschouwing. Nu op{" "}
           <span className="font-medium">{count} pagina&apos;s</span>.
         </p>
 
@@ -314,8 +314,8 @@ export function ProfileEditor({ initial, inventoryCount }: { initial: Profile; i
             placeholder="https://voorbeeld.nl/sitemap.xml"
           />
           <span className="text-sm text-muted">
-            Weet je de sitemap-locatie? Vul die hier in — dan gebruikt de crawler die met zekerheid.
-            Laat leeg om automatisch te zoeken (robots.txt + standaardlocaties).
+            Weet je waar je sitemap staat? Vul het adres in, dan gebruikt Aura die met zekerheid.
+            Laat leeg en Aura zoekt hem zelf (robots.txt + de standaardlocaties).
           </span>
         </label>
 
@@ -341,14 +341,14 @@ export function ProfileEditor({ initial, inventoryCount }: { initial: Profile; i
             disabled={refreshState === "pending"}
             className="btn-outline disabled:opacity-60"
           >
-            {refreshState === "pending" ? "Bezig met crawlen…" : "Vernieuw inventaris"}
+            {refreshState === "pending" ? "Aura leest je site…" : "Vernieuw inventaris"}
           </button>
           {refreshState === "done" && (
             <span className="text-sm text-[var(--accent-green-text)]">Bijgewerkt — {count} pagina&apos;s ✓</span>
           )}
           {refreshState === "error" && (
             <span className="text-sm text-[var(--status-error)]">
-              Vernieuwen mislukt{refreshError ? `: ${refreshError}` : "."}
+              Vernieuwen is niet gelukt{refreshError ? `: ${refreshError}` : "."}
             </span>
           )}
         </div>

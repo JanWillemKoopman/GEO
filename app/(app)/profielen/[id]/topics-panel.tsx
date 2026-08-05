@@ -45,9 +45,9 @@ export function TopicsPanel({
       <div className="card flex flex-col gap-3">
         <span className="mono-label">Onderwerpen om op te meten</span>
         <p className="text-secondary">
-          We konden geen onderwerpen afleiden uit je aanbod. Dat gebeurt als de
-          crawl te weinig opleverde om diensten uit te herkennen — bijvoorbeeld
-          bij een site die zijn tekst pas via JavaScript toont.
+          Aura kon uit je aanbod geen onderwerpen afleiden. Dat gebeurt als de
+          website te weinig prijsgaf om diensten uit te herkennen — bijvoorbeeld
+          bij een site die zijn tekst pas via JavaScript laadt.
         </p>
         <Link href="/analyses/nieuw" className="btn-primary w-fit">
           Kies zelf een onderwerp
@@ -77,12 +77,12 @@ export function TopicsPanel({
       });
       const json = await res.json();
       if (!res.ok) {
-        setError(json.error ?? "Opslaan mislukt.");
+        setError(json.error ?? "Opslaan is niet gelukt.");
         return;
       }
       setTopics((list) => list.map((t) => (t.id === topicId ? (json.topic as ProfileTopic) : t)));
     } catch {
-      setError("Opslaan mislukt. Controleer je verbinding.");
+      setError("Opslaan is niet gelukt. Controleer je verbinding.");
     } finally {
       setBusy(null);
     }
@@ -99,13 +99,13 @@ export function TopicsPanel({
       });
       const json = await res.json();
       if (!res.ok) {
-        setError(json.error ?? "Analyse starten mislukt.");
+        setError(json.error ?? "De analyse kon niet starten.");
         setBusy(null);
         return;
       }
       router.push(`/analyses/${json.id}`);
     } catch {
-      setError("Analyse starten mislukt. Controleer je verbinding.");
+      setError("De analyse kon niet starten. Controleer je verbinding.");
       setBusy(null);
     }
   }
@@ -174,7 +174,7 @@ export function TopicsPanel({
                 disabled={bezig}
                 onClick={() => void start(t.id)}
               >
-                {bezig ? "Bezig…" : "Analyse starten"}
+                {bezig ? "Starten…" : "Analyse starten"}
               </button>
             )}
             <button
@@ -221,8 +221,8 @@ export function TopicsPanel({
         <span className="mono-label text-muted">{open.length} voorgesteld</span>
       </div>
       <p className="text-sm text-secondary">
-        Afgeleid uit wat we op de website aan diensten en producten vonden. Kies waarop je wilt
-        meten — of maak een analyse met een eigen onderwerp.
+        Afgeleid uit de diensten en producten die Aura op je website vond. Kies waarop je wilt
+        meten, of start een analyse met een eigen onderwerp.
       </p>
 
       <ul className="flex flex-col gap-3">{open.map(renderTopic)}</ul>

@@ -11,12 +11,12 @@ export const STATUS_META: Record<
   AnalysisStatus,
   { label: string; tone: StatusTone; actionRequired: boolean }
 > = {
-  bezig: { label: "Bezig…", tone: "progress", actionRequired: false },
-  concept_klaar: { label: "Wacht op jouw goedkeuring", tone: "attention", actionRequired: true },
-  meten: { label: "Meten…", tone: "progress", actionRequired: false },
-  gemeten: { label: "Score klaar, rapport volgt", tone: "info", actionRequired: false },
+  bezig: { label: "Aura werkt…", tone: "progress", actionRequired: false },
+  concept_klaar: { label: "Klaar voor jouw akkoord", tone: "attention", actionRequired: true },
+  meten: { label: "Meting loopt…", tone: "progress", actionRequired: false },
+  gemeten: { label: "Score binnen · rapport volgt", tone: "info", actionRequired: false },
   gereed: { label: "Gereed", tone: "success", actionRequired: false },
-  mislukt: { label: "Mislukt", tone: "error", actionRequired: false },
+  mislukt: { label: "Niet gelukt", tone: "error", actionRequired: false },
 };
 
 /** Inline-stijl per tone (lichte thema-kleuren, designsystem.md §A). */

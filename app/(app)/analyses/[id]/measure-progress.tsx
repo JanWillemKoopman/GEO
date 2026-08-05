@@ -29,10 +29,10 @@ interface StatusPayload {
  */
 const STALE_FAILURE: UserFacingError = {
   kind: "unknown",
-  title: "De meting is eerder misgelopen",
+  title: "De meting is eerder vastgelopen",
   message:
-    "Vragen die al gemeten zijn blijven bewaard — een nieuwe poging pakt alleen " +
-    "op wat nog mist, en kost dus geen dubbel werk.",
+    "Vragen die al gemeten zijn, blijven bewaard. Een nieuwe poging pakt alleen op " +
+    "wat nog mist — geen dubbel werk, geen dubbele kosten.",
   canRetry: true,
   detail: "",
 };
@@ -95,11 +95,11 @@ export function MeasureProgress({
 
   return (
     <WorkInProgress
-      title={writingReport ? "Rapport wordt opgesteld" : "Bezig met meten"}
+      title={writingReport ? "Aura schrijft je rapport" : "Aura meet je zichtbaarheid"}
       explanation={
         writingReport
-          ? "De meting is klaar. We vergelijken je nu met je concurrenten en schrijven daar een rapport over."
-          : "Elke vraag gaat naar een AI-assistent om te zien of jij (en je concurrenten) genoemd worden."
+          ? "De meting is binnen. Aura zet je nu naast je concurrenten en schrijft daar het rapport over."
+          : "Elke vraag gaat naar een AI-assistent. Aura leest het antwoord en telt of jij erin staat — en wie er nog meer."
       }
       etaText={data?.etaText}
       retrying={data?.retrying}

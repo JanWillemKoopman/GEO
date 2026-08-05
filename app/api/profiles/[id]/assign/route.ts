@@ -31,7 +31,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 /** GET — welke gebruikers zijn er om aan toe te wijzen? Alleen voor beheerders. */
 export async function GET() {
   const user = await getUser();
-  if (!user) return NextResponse.json({ error: "Niet ingelogd." }, { status: 401 });
+  if (!user) return NextResponse.json({ error: "Je bent niet ingelogd." }, { status: 401 });
   if (!(await isStaff(user.id))) {
     return NextResponse.json({ error: "Niet gevonden." }, { status: 404 });
   }
@@ -39,7 +39,7 @@ export async function GET() {
   const admin = createAdminClient();
   const { data, error } = await admin.auth.admin.listUsers({ page: 1, perPage: 200 });
   if (error) {
-    return NextResponse.json({ error: "Gebruikers ophalen mislukt." }, { status: 500 });
+    return NextResponse.json({ error: "De gebruikers konden niet worden opgehaald." }, { status: 500 });
   }
 
   const users = data.users
@@ -53,7 +53,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   const { id } = await params;
 
   const user = await getUser();
-  if (!user) return NextResponse.json({ error: "Niet ingelogd." }, { status: 401 });
+  if (!user) return NextResponse.json({ error: "Je bent niet ingelogd." }, { status: 401 });
 
   // Bewust géén getOwnedProfile: toewijzen is een beheerdersactie, ook op een
   // profiel dat de beheerder zelf bezit. Een gewone klant mag zijn profiel niet
@@ -102,7 +102,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     .update({ user_id: targetUserId, assigned_at: assignedAt })
     .eq("id", id);
   if (profileError) {
-    return NextResponse.json({ error: "Toewijzen mislukt." }, { status: 500 });
+    return NextResponse.json({ error: "Toewijzen is niet gelukt." }, { status: 500 });
   }
 
   // Postgres kent hier geen transactie over twee losse PostgREST-verzoeken. Zou
@@ -119,7 +119,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       .update({ user_id: profile.user_id, assigned_at: null })
       .eq("id", id);
     return NextResponse.json(
-      { error: "Toewijzen mislukt bij de analyses; het profiel is teruggezet." },
+      { error: "Toewijzen is bij de analyses misgegaan; het merk is teruggezet." },
       { status: 500 },
     );
   }

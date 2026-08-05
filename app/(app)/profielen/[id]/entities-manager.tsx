@@ -95,10 +95,9 @@ export function EntitiesManager({ profileId, initial }: { profileId: string; ini
           Concurrenten
           <InfoHint label="Concurrenten">
             Deze lijst komt uit de metingen: elk merk dat een AI-assistent in zijn antwoorden noemt,
-            wordt automatisch ingedeeld. Alleen echte concurrenten tellen mee in je aandeel — een
-            vergelijkingssite of brancheorganisatie zou dat cijfer anders vertekenen. Klopt een
-            indeling niet? Pas hem hier aan; jouw keuze wordt daarna nooit meer automatisch
-            overschreven.
+            deelt Aura automatisch in. Alleen echte concurrenten tellen mee in je aandeel — een
+            vergelijkingssite of brancheorganisatie zou dat cijfer vertekenen. Klopt een indeling
+            niet? Pas hem hier aan; jouw keuze overschrijft Aura daarna nooit meer.
           </InfoHint>
         </span>
         <span className="mono-label">{competitors.length} concurrenten</span>
@@ -112,8 +111,8 @@ export function EntitiesManager({ profileId, initial }: { profileId: string; ini
             <span className="font-medium text-[var(--text-primary)]">
               {pending.length} nieuw gevonden {pending.length === 1 ? "merk" : "merken"}
             </span>{" "}
-            in de laatste meting, nog niet ingedeeld. Dat gebeurt automatisch bij de eerstvolgende
-            aggregatie — je hoeft er niets voor te doen.
+            in de laatste meting, nog niet ingedeeld. Aura doet dat bij de eerstvolgende ronde
+            automatisch — jij hoeft niets.
           </p>
           <ul className="flex flex-col gap-2">
             {pending.map((e) => (

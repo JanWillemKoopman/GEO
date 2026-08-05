@@ -19,7 +19,7 @@ export async function GET(
 
   const user = await getUser();
   if (!user)
-    return NextResponse.json({ error: "Niet ingelogd." }, { status: 401 });
+    return NextResponse.json({ error: "Je bent niet ingelogd." }, { status: 401 });
 
   const admin = createAdminClient();
   const profile = await getOwnedProfile(admin, id, user.id);

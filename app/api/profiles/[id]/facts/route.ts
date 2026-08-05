@@ -23,7 +23,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   const { id } = await params;
 
   const user = await getUser();
-  if (!user) return NextResponse.json({ error: "Niet ingelogd." }, { status: 401 });
+  if (!user) return NextResponse.json({ error: "Je bent niet ingelogd." }, { status: 401 });
 
   const admin = createAdminClient();
   const profile = await getOwnedProfile(admin, id, user.id);
@@ -70,7 +70,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     .eq("id", factId)
     .select("*")
     .single();
-  if (error || !updated) return NextResponse.json({ error: "Opslaan mislukt." }, { status: 500 });
+  if (error || !updated) return NextResponse.json({ error: "Opslaan is niet gelukt." }, { status: 500 });
 
   // Het antwoord ook als geverifieerd feit bij het profiel zetten. Dubbelop met
   // `fact_requests`, maar bewust: `proof_points` is waar de hele schrijfpijplijn

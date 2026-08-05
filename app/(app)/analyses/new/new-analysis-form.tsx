@@ -44,7 +44,7 @@ export function NewAnalysisForm({
       }
       router.push(`/analyses/${json.id}`);
     } catch {
-      setError("Er ging iets mis. Controleer je verbinding en probeer opnieuw.");
+      setError("We konden Aura niet bereiken. Controleer je verbinding en probeer het opnieuw.");
       setPending(false);
     }
   }
@@ -79,7 +79,7 @@ export function NewAnalysisForm({
           autoFocus
         />
         <span className="text-sm text-muted">
-          Elke analyse meet één specifiek product of onderwerp binnen dit merk.
+          Eén analyse = één product of onderwerp. Scherp afbakenen levert scherpere vragen op.
         </span>
       </label>
 
@@ -97,8 +97,8 @@ export function NewAnalysisForm({
           className="field"
         />
         <span className="text-sm text-muted">
-          Stuur de hoek en doelgroep van de content. Dit werkt door in de meet-vragen, de
-          aanbevelingen én het schrijven van de content.
+          Bepaal de hoek en de doelgroep. Aura neemt dit mee in de vragen die het stelt, in de
+          aanbevelingen én in de content die het schrijft.
         </span>
       </label>
 
@@ -119,8 +119,8 @@ export function NewAnalysisForm({
           <span className="flex flex-col gap-0.5">
             <span className="text-sm font-medium">Mail me zodra het rapport klaar is</span>
             <span className="text-sm text-muted">
-              De analyse draait op de achtergrond en duurt een paar minuten. Je hoeft niet te
-              wachten — we laten het weten.
+              Aura werkt op de achtergrond door, ook als je dit scherm sluit. Blijven wachten hoeft
+              niet — je krijgt bericht.
             </span>
           </span>
         </label>

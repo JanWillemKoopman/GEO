@@ -30,10 +30,10 @@ export function GeoScorecard({ geo, score }: { geo: unknown; score: number | nul
     <div className="card flex flex-col gap-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <span className="mono-label flex items-center gap-1">
-          Vindbaarheid in AI-assistenten
-          <InfoHint label="Vindbaarheid in AI-assistenten">
-            Of deze tekst goed geschreven is, is één ding. Of een AI-assistent hem kán aanhalen als
-            iemand jouw vraag stelt, is iets anders — en daar gaat dit over.
+          Citeerbaarheid voor AI-assistenten
+          <InfoHint label="Citeerbaarheid voor AI-assistenten">
+            Goed geschreven is één ding. Of een AI-assistent deze tekst kán aanhalen als iemand jouw
+            vraag stelt, is iets anders — en daar gaat dit over.
           </InfoHint>
         </span>
         <span className="mono-label">

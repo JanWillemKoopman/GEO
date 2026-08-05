@@ -53,15 +53,15 @@ export default async function ConceptPage({ params }: { params: Promise<{ id: st
           Klaar om te starten
         </span>
         <h2 className="text-2xl font-bold tracking-tight">
-          Dit gaan we <span className="brand-gradient-text">meten</span>
+          Dit gaat Aura <span className="brand-gradient-text">meten</span>
         </h2>
         <p className="text-secondary">
-          We hebben je website en je merkprofiel doorgenomen en hieruit een meetplan afgeleid.
-          Loop het door, pas aan wat niet klopt, en bevestig onderaan. Daarna stellen we deze
-          vragen aan de AI-assistenten en meten we of jij genoemd wordt.
+          Aura heeft je website en je merkdossier doorgenomen en daaruit dit meetplan afgeleid. Loop
+          het door, pas aan wat niet klopt, en bevestig onderaan. Pas dan gaan deze vragen naar de
+          AI-assistenten.
         </p>
         <p className="text-sm text-muted">
-          Je hoeft niets te veranderen als het klopt — bevestigen is genoeg.
+          Klopt het? Dan hoef je niets te veranderen — bevestigen is genoeg.
         </p>
       </div>
 
@@ -89,7 +89,7 @@ export default async function ConceptPage({ params }: { params: Promise<{ id: st
                       vergeleken wordt — dat komt uit de meting zelf. Hij dient nog
                       één doel: deze namen blijven uit de vragen, zodat we neutraal
                       meten. Vandaar het eerlijke label. */}
-                  Deze merken houden we uit de vragen:{" "}
+                  Deze merken blijven uit de vragen:{" "}
                   {profile.competitors.join(", ") || "onbekend"}
                 </p>
               </>
@@ -107,7 +107,7 @@ export default async function ConceptPage({ params }: { params: Promise<{ id: st
         <TopicResearchEditor analysisId={id} initial={research} />
       ) : (
         <div className="card">
-          <p className="text-secondary">Onderwerp-onderzoek wordt nog voorbereid…</p>
+          <p className="text-secondary">Aura is het onderwerp nog aan het uitzoeken…</p>
         </div>
       )}
 
@@ -125,8 +125,8 @@ export default async function ConceptPage({ params }: { params: Promise<{ id: st
       ) : (
         <div className="card" style={{ borderColor: "rgba(211,58,63,0.4)" }}>
           <p className="text-secondary">
-            Er staat op dit moment geen enkele vraag aan. Zet minstens één vraag aan hierboven —
-            zonder vragen valt er niets te meten en kan de meting niet starten.
+            Er staat nu geen enkele vraag aan. Zet er hierboven minstens één aan — zonder vragen
+            valt er niets te meten en kan Aura niet starten.
           </p>
         </div>
       )}

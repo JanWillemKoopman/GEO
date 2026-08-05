@@ -42,8 +42,8 @@ export async function BewijsChapter({
       <div className="card flex flex-col gap-2">
         <span className="mono-label">Nog geen metingen</span>
         <p className="text-secondary">
-          Zodra de meting gedraaid heeft staan hier de letterlijke antwoorden die een AI-assistent
-          op jouw vragen gaf, met daarin gemarkeerd waar jij en je concurrenten genoemd worden.
+          Hier komen straks de letterlijke antwoorden die AI-assistenten op jouw vragen gaven, met
+          jouw merk en dat van je concurrenten erin gemarkeerd.
         </p>
       </div>
     );
@@ -139,8 +139,8 @@ export async function BewijsChapter({
           <span className="mono-label flex items-center gap-1">
             Waar je zichtbaarheid mist
             <InfoHint label="Waar je zichtbaarheid mist">
-              De patronen die we in de antwoorden zagen. Klik op een punt om precies de metingen
-              te zien waarop die uitspraak rust — die staan hieronder.
+              De patronen die Aura in de antwoorden terugzag. Klik op een punt om precies de
+              metingen te zien waarop die uitspraak rust — die staan hieronder.
             </InfoHint>
           </span>
           <ul className="flex flex-col gap-3">
@@ -181,7 +181,7 @@ export async function BewijsChapter({
         ) : (
           <div className="card">
             <p className="text-secondary">
-              De letterlijke antwoorden verschijnen hier zodra de meting gedraaid heeft.
+              De letterlijke antwoorden staan hier zodra de meting gedraaid heeft.
             </p>
           </div>
         )}

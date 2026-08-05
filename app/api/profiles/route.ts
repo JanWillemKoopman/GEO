@@ -50,7 +50,7 @@ function toTextOrNull(value: string | undefined): string | null {
 export async function POST(request: Request) {
   const user = await getUser();
   if (!user) {
-    return NextResponse.json({ error: "Niet ingelogd." }, { status: 401 });
+    return NextResponse.json({ error: "Je bent niet ingelogd." }, { status: 401 });
   }
 
   let body: ProfileIntakeBody;
@@ -113,7 +113,7 @@ export async function POST(request: Request) {
     .single();
 
   if (error) {
-    return NextResponse.json({ error: "Aanmaken mislukt. Probeer het opnieuw." }, { status: 500 });
+    return NextResponse.json({ error: "Aanmaken is niet gelukt. Probeer het opnieuw." }, { status: 500 });
   }
 
   // Zie de analyse-route: het onderzoek hangt aan de wachtrij, niet aan een

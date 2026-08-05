@@ -24,10 +24,10 @@ export default function NotFound() {
       />
       <div className="relative z-10 flex w-full max-w-md flex-col items-center gap-5 text-center">
         <Link href="/analyses" className="text-2xl font-bold tracking-tight">
-          <span className="brand-gradient-text">GEO Tracker</span>
+          <span className="brand-gradient-text">Aura</span>
         </Link>
         <div className="card flex flex-col items-center gap-4 py-14">
-          <span className="mono-label">Niet gevonden</span>
+          <span className="mono-label">404 · buiten bereik</span>
           <h1 className="text-xl font-semibold">Deze pagina bestaat niet</h1>
           <p className="max-w-sm text-secondary">
             De link klopt niet meer, of het item is verwijderd. Vanaf je overzicht kom je overal.

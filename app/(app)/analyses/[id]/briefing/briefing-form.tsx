@@ -44,11 +44,11 @@ export interface BriefingQuestionView {
 const KIND_HEADING: Record<string, { title: string; hint: string }> = {
   verificatie: {
     title: "Even bevestigen",
-    hint: "Dit vonden we op je site. Klopt het nog?",
+    hint: "Dit vond Aura op je site. Klopt het nog?",
   },
   aanvulling: {
-    title: "Wat wij niet kunnen weten",
-    hint: "Dit staat nergens online, en zonder jouw antwoord blijft het uit de tekst.",
+    title: "Wat Aura niet kan weten",
+    hint: "Dit staat nergens online. Zonder jouw antwoord blijft het uit de tekst.",
   },
   onderscheid: {
     title: "Waarom jij",
@@ -63,8 +63,8 @@ const KIND_HEADING: Record<string, { title: string; hint: string }> = {
     hint: "Adres, telefoon, links — zonder dit blijven er gaten in de pagina.",
   },
   grenzen: {
-    title: "Wat we juist niet mogen beweren",
-    hint: "Zeg je hier nee, dan schrijven we het niet. Ook niet voorzichtig.",
+    title: "Wat Aura juist niet mag beweren",
+    hint: "Zeg je hier nee, dan schrijft Aura het niet. Ook niet voorzichtig.",
   },
 };
 
@@ -128,7 +128,7 @@ export function BriefingForm({
       });
       if (!res.ok) {
         const data = (await res.json().catch(() => ({}))) as { error?: string };
-        throw new Error(data.error ?? "Opslaan mislukt.");
+        throw new Error(data.error ?? "Opslaan is niet gelukt.");
       }
       if (action === "write") router.push(`/analyses/${analysisId}/bibliotheek`);
       else router.refresh();
@@ -150,12 +150,12 @@ export function BriefingForm({
   return (
     <div className="flex flex-col gap-6">
       <header className="flex flex-col gap-3">
-        <h1 className="text-2xl font-semibold">Nog even dit, dan schrijven we je pagina&apos;s</h1>
+        <h1 className="text-2xl font-semibold">Nog even dit, dan schrijft Aura je pagina&apos;s</h1>
         <p style={{ color: "var(--text-secondary)" }}>
-          Je hebt {pageCount} {pageCount === 1 ? "pagina" : "pagina's"} gekozen. Deze{" "}
+          Je koos {pageCount} {pageCount === 1 ? "pagina" : "pagina's"}. Deze{" "}
           {questions.length} {questions.length === 1 ? "vraag zorgt" : "vragen zorgen"} dat er
-          alleen kloppende informatie in komt te staan. Wat je niet beantwoordt, laten we weg — we
-          verzinnen het niet.
+          alleen kloppende informatie in komt te staan. Wat je niet beantwoordt, laat Aura weg. Het
+          verzint niets.
         </p>
 
         <div className="flex items-center gap-3">
@@ -241,7 +241,7 @@ export function BriefingForm({
             onClick={() => submit("write")}
             disabled={busy !== null}
           >
-            {busy === "write" ? "Bezig…" : `Schrijf mijn ${pageCount === 1 ? "pagina" : "pagina's"}`}
+            {busy === "write" ? "Schrijven starten…" : `Schrijf mijn ${pageCount === 1 ? "pagina" : "pagina's"}`}
           </button>
           <button
             type="button"
@@ -249,7 +249,7 @@ export function BriefingForm({
             onClick={() => submit("save")}
             disabled={busy !== null}
           >
-            {busy === "save" ? "Bezig…" : "Later verder"}
+            {busy === "save" ? "Opslaan…" : "Later verder"}
           </button>
         </div>
       </footer>
@@ -300,11 +300,11 @@ function QuestionCard({
             className="btn-outline btn-sm w-fit"
             onClick={() => onChange(question.suggestedAnswer!)}
           >
-            Onze gok: {question.suggestedAnswer} — dit klopt
+            Gok van Aura: {question.suggestedAnswer} — dit klopt
           </button>
           <span className="text-sm text-muted">
-            Dit is een inschatting van ons systeem, niet iets wat we gecontroleerd hebben. Lees hem
-            na voor je hem bevestigt — een fout antwoord komt zo in je tekst terecht.
+            Een inschatting, geen gecontroleerd feit. Lees hem na voordat je hem bevestigt — een
+            fout antwoord komt zo in je tekst terecht.
           </span>
         </div>
       )}

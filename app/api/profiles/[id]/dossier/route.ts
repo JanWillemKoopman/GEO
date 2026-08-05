@@ -42,7 +42,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   const { id } = await params;
 
   const user = await getUser();
-  if (!user) return NextResponse.json({ error: "Niet ingelogd." }, { status: 401 });
+  if (!user) return NextResponse.json({ error: "Je bent niet ingelogd." }, { status: 401 });
 
   const admin = createAdminClient();
   const profile = await getOwnedProfile(admin, id, user.id);
@@ -202,7 +202,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   } catch (err) {
     console.error(`merkdossier verwerken mislukt voor profiel ${id}:`, err);
     return NextResponse.json(
-      { error: "Verwerken mislukt.", detail: describeError(err), problem: classifyError(err) },
+      { error: "Verwerken is niet gelukt.", detail: describeError(err), problem: classifyError(err) },
       { status: 500 },
     );
   }

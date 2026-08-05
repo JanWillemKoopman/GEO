@@ -24,18 +24,18 @@ export default async function NewAnalysisPage() {
         </Link>
         <h1 className="mt-3 text-3xl font-bold tracking-tight">Nieuwe analyse</h1>
         <p className="mt-2 text-secondary">
-          Kies een merk en vul het product of onderwerp in dat je wilt meten. We zoeken
-          alleen nog uit wat de website hierover zegt en wie de concurrenten zijn voor dít
-          onderwerp — de rest komt uit het merkprofiel.
+          Kies een merk en het product of onderwerp dat je wilt meten. Aura zoekt alleen nog uit wat
+          je website hierover zegt en wie op dít onderwerp je concurrenten zijn — de rest weet het
+          al uit het merkdossier.
         </p>
       </div>
 
       {profiles.length === 0 ? (
         <div className="card flex flex-col items-center gap-4 py-12 text-center">
-          <h2 className="text-xl font-semibold">Eerst een merk nodig</h2>
+          <h2 className="text-xl font-semibold">Eerst een merk</h2>
           <p className="max-w-md text-secondary">
-            Voeg eerst het merk toe — daarna kun je hier analyses op
-            verschillende producten/onderwerpen aan koppelen.
+            Aura meet altijd binnen een merk. Voeg er één toe, en daarna koppel je hier zoveel
+            analyses aan als je wilt — één per product of onderwerp.
           </p>
           <Link href="/profielen/nieuw" className="btn-primary mt-2">
             Merk toevoegen

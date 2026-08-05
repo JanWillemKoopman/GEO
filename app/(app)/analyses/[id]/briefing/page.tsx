@@ -39,7 +39,7 @@ function Tegenspraken({ regels }: { regels: string[] }) {
         ))}
       </ul>
       <p className="text-sm text-muted">
-        We gebruiken steeds het nieuwste antwoord. Klopt dat niet, pas het dan hieronder aan.
+        Aura gebruikt altijd het nieuwste antwoord. Klopt dat niet? Pas het hieronder aan.
       </p>
     </div>
   );
@@ -117,10 +117,10 @@ export default async function BriefingPage({ params }: { params: Promise<{ id: s
     return (
       <EmptyState
         title="Er wacht geen pagina op je input"
-        action={{ href: `/analyses/${id}#werk`, label: "Kies wat we gaan schrijven" }}
+        action={{ href: `/analyses/${id}#werk`, label: "Kies wat Aura gaat schrijven" }}
       >
-        Zodra je in hoofdstuk 03 pagina&apos;s kiest, stellen we hier de vragen die nodig zijn om
-        ze te kunnen schrijven zonder iets te verzinnen.
+        Zodra je in hoofdstuk 03 pagina&apos;s kiest, stelt Aura hier de vragen die het nodig heeft
+        om te schrijven zonder ook maar iets te verzinnen.
       </EmptyState>
     );
   }
@@ -128,13 +128,13 @@ export default async function BriefingPage({ params }: { params: Promise<{ id: s
   if (questions.length === 0) {
     return (
       <div className="card card-success flex flex-col gap-3">
-        <h1 className="text-xl font-semibold">We weten genoeg</h1>
+        <h1 className="text-xl font-semibold">Aura weet genoeg</h1>
         <p style={{ color: "var(--text-secondary)" }}>
           Voor{" "}
           {pieces.length === 1
             ? `"${pieces[0].title as string}"`
             : `deze ${pieces.length} pagina's`}{" "}
-          hebben we geen open vragen: alles wat nodig is staat al in je profiel of is bij een
+          staan er geen vragen open: alles wat nodig is, staat al in je merkdossier of is bij een
           eerdere analyse beantwoord.
         </p>
         <Tegenspraken regels={tegenspraken} />

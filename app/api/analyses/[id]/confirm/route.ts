@@ -14,7 +14,7 @@ import { describeError, classifyError } from "@/lib/errors";
 export async function POST(_request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const user = await getUser();
-  if (!user) return NextResponse.json({ error: "Niet ingelogd." }, { status: 401 });
+  if (!user) return NextResponse.json({ error: "Je bent niet ingelogd." }, { status: 401 });
 
   const admin = createAdminClient();
   const analysis = await getOwnedAnalysis(admin, id, user.id);
@@ -61,13 +61,13 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
   } catch (err) {
     console.error(`meting inplannen mislukt bij bevestigen van ${id}:`, err);
     return NextResponse.json(
-      { error: "Meting inplannen mislukt.", detail: describeError(err), problem: classifyError(err) },
+      { error: "Aura kon de meting niet inplannen.", detail: describeError(err), problem: classifyError(err) },
       { status: 500 },
     );
   }
 
   const { error } = await admin.from("analyses").update({ status: "meten" }).eq("id", id);
-  if (error) return NextResponse.json({ error: "Bevestigen mislukt." }, { status: 500 });
+  if (error) return NextResponse.json({ error: "Bevestigen is niet gelukt." }, { status: 500 });
 
   return NextResponse.json({ status: "meten", planned, totalPrompts });
 }

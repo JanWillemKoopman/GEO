@@ -76,8 +76,8 @@ export function AnswersView({
           <span className="mono-label flex items-center gap-1">
             Wat de AI antwoordt
             <InfoHint label="Wat de AI antwoordt">
-              Dit zijn de letterlijke antwoorden die een AI-assistent gaf op jouw vragen. Jouw
-              merknaam is paars gemarkeerd, concurrenten grijs.
+              De letterlijke antwoorden die een AI-assistent op jouw vragen gaf — niets
+              samengevat, niets weggelaten. Jouw merknaam staat paars gemarkeerd, concurrenten grijs.
             </InfoHint>
           </span>
           <span className="mono-label">
@@ -88,7 +88,7 @@ export function AnswersView({
         {focused && focused.length > 0 && (
           <div className="flex flex-wrap items-center gap-3 rounded-[var(--radius-md)] border border-[rgba(165,120,240,0.4)] p-3 text-sm">
             <span className="text-secondary">
-              Je bekijkt het bewijs bij één punt uit het rapport: {focused.length}{" "}
+              Het bewijs bij één punt uit je rapport: {focused.length}{" "}
               {focused.length === 1 ? "meting" : "metingen"}.
             </span>
             <button type="button" onClick={() => setFocused(null)} className="hover:underline">
@@ -144,8 +144,8 @@ export function AnswersView({
       {visible.length === 0 ? (
         <div className="card">
           <p className="text-secondary">
-            Geen vragen die aan dit filter voldoen.{" "}
-            {onlyMissed && "Je wordt dus overal genoemd — dat is goed nieuws."}
+            Geen vragen binnen dit filter.{" "}
+            {onlyMissed && "Je wordt dus overal genoemd. Sterke stand."}
           </p>
         </div>
       ) : (
@@ -212,7 +212,7 @@ function AnswerCard({
           aria-expanded={open}
           className="btn-outline btn-sm w-fit"
         >
-          {open ? "Verberg het antwoord" : "Bekijk het antwoord"}
+          {open ? "Verberg het antwoord" : "Lees het antwoord"}
         </button>
         {open && <CopyButton row={row} ownLabel={ownLabel} />}
       </div>
@@ -236,7 +236,7 @@ function AnswerCard({
           {row.sources.length > 0 && (
             <div className="flex flex-col gap-1">
               <span className="mono-label" style={{ fontSize: "0.65rem" }}>
-                Bronnen waar de AI naar verwees
+                Bronnen die de AI aanhaalde
               </span>
               <ul className="flex flex-col gap-0.5">
                 {row.sources.map((s) => (

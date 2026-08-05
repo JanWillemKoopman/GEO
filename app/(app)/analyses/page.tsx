@@ -48,7 +48,7 @@ export default async function AnalysesPage() {
   return (
     <div className="flex flex-col gap-8">
       <PageHeader
-        eyebrow="GEO Tracker"
+        eyebrow="Aura · altijd aan"
         title="Analyses"
         action={
           hasProfile ? (
@@ -67,7 +67,7 @@ export default async function AnalysesPage() {
 
       {analyses.length === 0 ? (
         <EmptyState
-          title={hasProfile ? "Nog geen analyses" : "Welkom — begin met je merk"}
+          title={hasProfile ? "Nog geen analyses" : "Welkom bij Aura"}
           action={
             hasProfile
               ? { href: "/analyses/new", label: "Start je eerste analyse" }
@@ -75,8 +75,8 @@ export default async function AnalysesPage() {
           }
         >
           {hasProfile
-            ? "Kies een merk en vul het product of onderwerp in dat je wilt meten. Wij zoeken uit hoe zichtbaar je daarop bent in ChatGPT en andere AI-assistenten."
-            : "We onderzoeken je merk één keer grondig — daarna meet je er onbeperkt onderwerpen op. Twee velden, en het onderzoek duurt ongeveer een minuut."}
+            ? "Kies een merk en het product of onderwerp dat je wilt meten. Aura stelt de vragen die jouw klanten aan een AI stellen, en telt hoe vaak jij in het antwoord staat."
+            : "Begin met je merk. Aura onderzoekt het één keer grondig — daarna meet je er onbeperkt onderwerpen op. Twee velden, verder niets."}
         </EmptyState>
       ) : (
         <ul className="flex flex-col gap-3">
