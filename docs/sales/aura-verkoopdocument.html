@@ -1,0 +1,746 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<title>Aura — Verkoopdocument</title>
+<style>
+  @page { size: A4; margin: 0; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg-base:        #0B0B0C;
+    --bg-elevated:    #14141A;
+    --bg-surface:     #171128;
+    --bg-surface-2:   #1C1730;
+
+    --accent-purple:      #8511D9;
+    --accent-purple-soft: #A24DEC;
+    --accent-purple-glow: rgba(133,17,217,.42);
+    --accent-green:       #B9EFA3;
+    --accent-green-text:  #6FDB7E;
+    --accent-green-dark:  #54B86A;
+    --accent-gold:        #D9C08A;
+
+    --text-primary:   #FFFFFF;
+    --text-secondary: rgba(255,255,255,.68);
+    --text-muted:     rgba(255,255,255,.46);
+
+    --border-subtle:  rgba(255,255,255,.10);
+    --border-strong:  rgba(255,255,255,.24);
+
+    --status-error:   #F0898D;
+
+    --font-sans: 'Liberation Sans', Arial, 'Helvetica Neue', sans-serif;
+    --font-mono: 'DejaVu Sans Mono', 'Liberation Mono', 'Courier New', monospace;
+  }
+
+  html, body { background: var(--bg-base); }
+  body { font-family: var(--font-sans); color: var(--text-primary); }
+
+  .page {
+    position: relative;
+    width: 210mm;
+    height: 297mm;
+    overflow: hidden;
+    background: var(--bg-base);
+    page-break-after: always;
+    padding: 16mm 17mm 14mm 17mm;
+    display: flex;
+    flex-direction: column;
+  }
+  .page:last-child { page-break-after: auto; }
+
+  /* ---------- decorative glow orbs ---------- */
+  .orb { position: absolute; border-radius: 50%; filter: blur(60px); pointer-events: none; z-index: 0; }
+  .orb-purple { background: rgba(133,17,217,.38); }
+  .orb-green  { background: rgba(185,239,163,.20); }
+
+  /* ---------- shared type ---------- */
+  .eyebrow {
+    font-family: var(--font-mono);
+    font-size: 8.6px;
+    letter-spacing: .22em;
+    text-transform: uppercase;
+    color: var(--accent-green-text);
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+  }
+  .eyebrow .dot {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--accent-green);
+    box-shadow: 0 0 0 3px rgba(185,239,163,.18);
+    flex: none;
+  }
+  .eyebrow.muted { color: var(--text-muted); }
+
+  h1 { font-size: 30px; font-weight: 700; letter-spacing: -.01em; line-height: 1.12; }
+  h2 { font-size: 21px; font-weight: 700; letter-spacing: -.005em; margin-bottom: 3mm; }
+  h3 { font-size: 13.5px; font-weight: 700; margin-bottom: 1.6mm; }
+
+  p { font-size: 10.3px; line-height: 1.62; color: var(--text-secondary); }
+  p + p { margin-top: 2.4mm; }
+  strong { color: var(--text-primary); font-weight: 700; }
+  em.brand { color: var(--accent-green-text); font-style: normal; font-weight: 700; }
+
+  .grad-text {
+    display: inline-block;
+    background: linear-gradient(96deg, var(--accent-green-dark) 0%, var(--accent-purple-soft) 96%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    color: transparent;
+  }
+
+  .content { position: relative; z-index: 1; flex: 1; display: flex; flex-direction: column; }
+
+  /* ---------- footer ---------- */
+  .footer {
+    position: relative; z-index: 1;
+    display: flex; align-items: center; justify-content: space-between;
+    padding-top: 5mm; margin-top: auto;
+    border-top: 1px solid var(--border-subtle);
+  }
+  .footer-brand { display: flex; align-items: center; gap: 6px; }
+  .footer-mark { width: 12px; height: 12px; border-radius: 4px; background: var(--accent-purple); position: relative; flex: none; }
+  .footer-mark::after {
+    content: ""; position: absolute; left: 3px; top: 3px; width: 5px; height: 5px;
+    border-radius: 50%; border: 1.3px solid var(--accent-green);
+  }
+  .footer-text { font-family: var(--font-mono); font-size: 7.6px; letter-spacing: .08em; color: var(--text-muted); text-transform: uppercase; }
+  .footer-page { font-family: var(--font-mono); font-size: 7.6px; letter-spacing: .08em; color: var(--text-muted); }
+
+  /* ---------- badges / pills ---------- */
+  .pill {
+    display: inline-flex; align-items: center; gap: 5px;
+    font-family: var(--font-mono); font-size: 7.4px; letter-spacing: .09em; text-transform: uppercase;
+    padding: 3px 9px; border-radius: 999px;
+    background: rgba(133,17,217,.16); color: #D9C6F5; border: 1px solid rgba(165,120,240,.4);
+  }
+  .pill.green { background: rgba(185,239,163,.14); color: var(--accent-green); border-color: rgba(185,239,163,.35); }
+  .pill.gold  { background: rgba(217,192,138,.14); color: var(--accent-gold); border-color: rgba(217,192,138,.35); }
+
+  /* ---------- cards ---------- */
+  .card {
+    background: var(--bg-surface);
+    border: 1px solid var(--border-subtle);
+    border-radius: 12px;
+    padding: 4mm 5mm;
+  }
+
+  /* ---------- stat row (cover) ---------- */
+  .stat-row { display: flex; gap: 4mm; }
+  .stat {
+    flex: 1;
+    background: var(--bg-surface);
+    border: 1px solid var(--border-subtle);
+    border-radius: 12px;
+    padding: 4.2mm 4mm;
+  }
+  .stat .num { font-family: var(--font-mono); font-size: 17px; font-weight: 700; color: var(--accent-green); letter-spacing: -.01em; }
+  .stat .label { font-size: 8px; color: var(--text-muted); margin-top: 1.3mm; line-height: 1.4; }
+
+  /* ---------- tables ---------- */
+  table { width: 100%; border-collapse: collapse; }
+  th {
+    font-family: var(--font-mono); font-size: 7.3px; letter-spacing: .08em; text-transform: uppercase;
+    color: var(--text-muted); text-align: left; padding: 2.4mm 3mm; border-bottom: 1px solid var(--border-strong);
+  }
+  td { font-size: 9.3px; color: var(--text-secondary); padding: 2.6mm 3mm; border-bottom: 1px solid var(--border-subtle); vertical-align: top; line-height: 1.5; }
+  tr:last-child td { border-bottom: none; }
+  td.num, th.num { font-family: var(--font-mono); }
+  td strong { display: block; color: var(--text-primary); font-size: 9.6px; margin-bottom: .6mm; }
+
+  /* ---------- USP list ---------- */
+  .usp-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 3.4mm; }
+  .usp {
+    background: var(--bg-surface);
+    border: 1px solid var(--border-subtle);
+    border-radius: 12px;
+    padding: 3.6mm 4.2mm;
+  }
+  .usp .usp-num {
+    font-family: var(--font-mono); font-size: 8px; color: var(--accent-purple-soft);
+    letter-spacing: .1em; margin-bottom: 1.2mm;
+  }
+  .usp h3 { font-size: 11px; margin-bottom: 1.2mm; }
+  .usp p { font-size: 8.7px; line-height: 1.55; }
+
+  /* ---------- flow (5 phases) ---------- */
+  .flow { display: flex; gap: 2.2mm; }
+  .flow-step {
+    flex: 1;
+    background: var(--bg-surface);
+    border: 1px solid var(--border-subtle);
+    border-radius: 12px;
+    padding: 3.4mm 3mm;
+    position: relative;
+  }
+  .flow-step .n {
+    width: 16px; height: 16px; border-radius: 50%;
+    background: linear-gradient(135deg, var(--accent-green-dark), var(--accent-purple));
+    color: #0B0B0C; font-family: var(--font-mono); font-weight: 700; font-size: 8px;
+    display: flex; align-items: center; justify-content: center;
+    margin-bottom: 2mm;
+  }
+  .flow-step h4 { font-size: 9px; font-weight: 700; margin-bottom: 1.3mm; line-height: 1.3; }
+  .flow-step p { font-size: 7.6px; line-height: 1.45; color: var(--text-muted); }
+  .flow-arrow { align-self: center; color: var(--border-strong); font-size: 11px; padding: 0 .5px; }
+
+  /* ---------- callout ---------- */
+  .callout {
+    border-left: 2px solid var(--accent-purple-soft);
+    background: rgba(133,17,217,.08);
+    border-radius: 0 10px 10px 0;
+    padding: 3.4mm 4.5mm;
+  }
+  .callout p { color: var(--text-primary); font-size: 10.2px; }
+  .callout .attrib { font-family: var(--font-mono); font-size: 7.4px; color: var(--text-muted); letter-spacing: .06em; margin-top: 1.6mm; text-transform: uppercase; }
+
+  ul.check { list-style: none; }
+  ul.check li {
+    font-size: 9.6px; color: var(--text-secondary); line-height: 1.55;
+    padding-left: 5mm; position: relative; margin-bottom: 1.6mm;
+  }
+  ul.check li::before {
+    content: ""; position: absolute; left: 0; top: 5px;
+    width: 6px; height: 6px; border-radius: 2px;
+    background: var(--accent-green); opacity: .85;
+  }
+  ul.check li strong { color: var(--text-primary); }
+
+  .divider { height: 1px; background: var(--border-subtle); margin: 4mm 0; }
+
+  .two-col { display: flex; gap: 6mm; }
+  .two-col > div { flex: 1; }
+
+  .quote-grid { display: flex; flex-direction: column; gap: 2.4mm; }
+  .quote-row { display: flex; gap: 3mm; align-items: baseline; }
+  .quote-tag {
+    font-family: var(--font-mono); font-size: 7.4px; letter-spacing: .06em; color: var(--accent-green-text);
+    text-transform: uppercase; width: 26mm; flex: none;
+  }
+  .quote-row p { font-size: 9.6px; font-style: normal; color: var(--text-primary); }
+
+  /* ---------- mock chat example ---------- */
+  .mock-chat {
+    background: var(--bg-surface);
+    border: 1px solid var(--border-subtle);
+    border-radius: 12px;
+    padding: 4mm 5mm;
+  }
+  .mock-chat .mock-label {
+    font-family: var(--font-mono); font-size: 7.4px; letter-spacing: .1em; text-transform: uppercase;
+    color: var(--text-muted); margin-bottom: 1.6mm;
+  }
+  .mock-chat .mock-q {
+    font-size: 9.8px; color: var(--text-primary); font-style: italic; margin-bottom: 3mm;
+  }
+  .mock-chat .mock-a {
+    font-size: 9.3px; line-height: 1.65; color: var(--text-secondary);
+    border-left: 2px solid var(--border-strong); padding-left: 4mm;
+  }
+  .mock-chat .mock-a .miss { color: var(--status-error); font-weight: 700; }
+  .mock-chat .mock-a .hit { color: var(--accent-green); font-weight: 700; }
+</style>
+</head>
+<body>
+
+<!-- ============================================================ -->
+<!-- PAGINA 1 — COVER                                              -->
+<!-- ============================================================ -->
+<div class="page">
+  <div class="orb orb-purple" style="width:340px;height:340px;top:-140px;right:-120px;"></div>
+  <div class="orb orb-green" style="width:260px;height:260px;bottom:60px;left:-100px;"></div>
+
+  <div class="content" style="justify-content: space-between;">
+    <div>
+      <div style="display:flex; align-items:center; justify-content:space-between;">
+        <span class="eyebrow"><span class="dot"></span>Intern verkoopdocument · salesafdeling</span>
+        <span class="pill">Peildatum 5 aug. 2026</span>
+      </div>
+
+      <div style="margin-top:34mm;">
+        <div style="display:flex; align-items:center; gap:5mm;">
+          <svg width="56" height="56" viewBox="0 0 32 32" style="flex:none;">
+            <rect width="32" height="32" rx="7" fill="#8511d9"/>
+            <circle cx="14" cy="14" r="6.5" fill="none" stroke="#b9efa3" stroke-width="2.5"/>
+            <line x1="18.8" y1="18.8" x2="25" y2="25" stroke="#b9efa3" stroke-width="3" stroke-linecap="round"/>
+          </svg>
+          <h1 style="font-size:56px;">Aura</h1>
+        </div>
+        <p style="font-size:17px; font-weight:700; margin-top:5mm; letter-spacing:-.005em;">
+          <span style="color:var(--accent-green);">Zichtbaar zijn in AI-antwoorden.</span>
+          <span style="color:var(--accent-purple-soft);">Gemeten, niet gegokt.</span>
+        </p>
+
+        <p style="font-size:12px; line-height:1.7; color: var(--text-secondary); margin-top:8mm; max-width:150mm;">
+          Steeds meer mensen stellen hun oriëntatie- en aankoopvraag niet meer aan Google, maar aan
+          ChatGPT. <strong>Aura meet of onze klant daarin genoemd wordt</strong>, verklaart waarom
+          concurrenten winnen, schrijft de content die het gat dicht, en bewijst weken later of dat
+          werkelijk effect had. Dit document legt aan het salesteam uit wat Aura is, welk probleem
+          het oplost, wat het onderscheidend maakt, en waarom elke ondernemer die dit leest een
+          demogesprek verdient.
+        </p>
+      </div>
+
+      <div class="two-col" style="margin-top:16mm; max-width:165mm;">
+        <div>
+          <div class="pill green" style="margin-bottom:2.6mm;">Meten</div>
+          <p style="font-size:9.6px; line-height:1.6;">30 koopvragen met live websearch naar een
+          AI-assistent, per antwoord beoordeeld op vermelding, positie en rol. Een score met
+          foutmarge, geen los percentage.</p>
+        </div>
+        <div>
+          <div class="pill" style="margin-bottom:2.6mm;">Verklaren</div>
+          <p style="font-size:9.6px; line-height:1.6;">Doorklikbaar bewijs per vraag, plus waarom
+          concurrenten wél genoemd worden: op prijs, locatie, specialisatie, met een letterlijk
+          citaat erbij.</p>
+        </div>
+        <div>
+          <div class="pill gold" style="margin-bottom:2.6mm;">Bewijzen</div>
+          <p style="font-size:9.6px; line-height:1.6;">Publicatieklare content op basis van
+          bevestigde feiten, en een hermeting mét controlegroep die laat zien of het écht
+          werkte.</p>
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <div class="stat-row">
+        <div class="stat">
+          <div class="num">3</div>
+          <div class="label">velden om een merk te starten: webadres, naam, schrijfwijzen</div>
+        </div>
+        <div class="stat">
+          <div class="num">~7,5<span style="font-size:10px;"> min</span></div>
+          <div class="label">tot een compleet merkdossier, volledig automatisch</div>
+        </div>
+        <div class="stat">
+          <div class="num">30</div>
+          <div class="label">echte koopvragen per meting, door de klant zelf te bewerken</div>
+        </div>
+        <div class="stat">
+          <div class="num">$0,25</div>
+          <div class="label">gemiddelde kostprijs van dat hele onderzoek, gemeten op productie</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer">
+    <div class="footer-brand">
+      <div class="footer-mark"></div>
+      <span class="footer-text">Aura · GEO-tracking voor het MKB</span>
+    </div>
+    <span class="footer-page">01 / 05</span>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- PAGINA 2 — HET PROBLEEM                                       -->
+<!-- ============================================================ -->
+<div class="page">
+  <div class="orb orb-purple" style="width:260px;height:260px;top:-100px;left:60%;"></div>
+
+  <div class="content">
+    <span class="eyebrow"><span class="dot"></span>01 · Het probleem</span>
+    <h2 style="margin-top:3mm; font-size:24px;">Google is niet meer de enige plek waar een klant je vindt</h2>
+
+    <p style="margin-top:2mm;">
+      Een MKB-ondernemer wil weten of ChatGPT hem noemt wanneer een potentiële klant vraagt
+      <em style="font-style:italic; color:var(--text-primary);">"welke fysiotherapeut in Tilburg is goed bij
+      rugklachten?"</em>. Dat is geen hypothetische vraag meer. Een groeiend deel van oriëntatie- en
+      aankoopvragen gaat inmiddels naar een AI-assistent in plaats van naar een zoekmachine, en die
+      assistent geeft niet tien blauwe linkjes terug, maar <strong>één antwoord met een handvol
+      namen erin</strong>. Sta je daar niet tussen, dan besta je voor die gebruiker op dat moment
+      niet.
+    </p>
+
+    <div class="callout" style="margin-top:5mm;">
+      <p>SEO optimaliseert voor een resultatenpagina die de gebruiker zelf nog moet doorlopen. GEO
+      optimaliseert voor het antwoord zelf, vaak het <strong>enige</strong> antwoord dat iemand nog
+      te zien krijgt.</p>
+    </div>
+
+    <div class="two-col" style="margin-top:6mm;">
+      <div>
+        <h3>Waarom dit onzichtbaar mis kan gaan</h3>
+        <ul class="check">
+          <li><strong>Geen meetpunt.</strong> Vrijwel geen enkele ondernemer weet of, hoe vaak en in
+          welke positie hij in AI-antwoorden voorkomt. Het gebeurt buiten zijn eigen kanalen om.</li>
+          <li><strong>Concurrenten winnen stil.</strong> Als een concurrent wél genoemd wordt en
+          jij niet, ziet niemand dat gebeuren, behalve de klant die net afhaakte.</li>
+          <li><strong>SEO-investeringen dekken dit niet.</strong> Rankings in Google zeggen niets
+          over wat een AI-assistent citeert of hoe hij het bedrijf samenvat.</li>
+          <li><strong>Traditionele bureaus kunnen dit niet meten</strong>, laat staan bewijzen of
+          een aanpassing werkte. Zonder meting is elk advies een gok.</li>
+        </ul>
+      </div>
+      <div>
+        <h3>De drie vragen die elk gesprek opent</h3>
+        <div class="card" style="margin-bottom:3mm;">
+          <p style="font-size:9.6px; color:var(--text-primary);"><strong>1. Word ik genoemd?</strong><br>
+          <span style="color:var(--text-muted); font-size:8.6px;">op de vragen die een echte koper aan een
+          AI-assistent stelt</span></p>
+        </div>
+        <div class="card" style="margin-bottom:3mm;">
+          <p style="font-size:9.6px; color:var(--text-primary);"><strong>2. Hoe vaak, vergeleken met
+          mijn concurrenten?</strong><br>
+          <span style="color:var(--text-muted); font-size:8.6px;">niet als los cijfer, maar als
+          verhouding met wie er wél steeds genoemd wordt</span></p>
+        </div>
+        <div class="card">
+          <p style="font-size:9.6px; color:var(--text-primary);"><strong>3. Waar haalt de AI die
+          informatie vandaan?</strong><br>
+          <span style="color:var(--text-muted); font-size:8.6px;">doorklikbaar bewijs, geen
+          beweringen zonder bron</span></p>
+        </div>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <h3 style="margin-bottom:2.6mm;">Precies zo klinkt het in de praktijk</h3>
+    <div class="mock-chat">
+      <div class="mock-label">Voorbeeldvraag aan een AI-assistent</div>
+      <p class="mock-q">"Welke fysiotherapeut in Tilburg is goed bij rugklachten?"</p>
+      <p class="mock-a">"In Tilburg zijn er een paar goede opties. <span class="hit">FysioCentrum
+      Tilburg</span> wordt vaak aangeraden voor rugklachten vanwege de specialisatie in manuele
+      therapie. Ook <span class="hit">Praktijk De Reeshof</span> heeft goede reviews voor
+      rugbehandelingen…" <span class="miss">(uw praktijk komt in dit antwoord niet voor)</span></p>
+    </div>
+    <p style="margin-top:3mm;">
+      <strong>Aura is gebouwd om precies deze drie vragen te beantwoorden</strong>, en niet te
+      stoppen bij het antwoord: het schrijft de content die het gat dicht en meet weken later,
+      met een controlegroep, of dat daadwerkelijk werkte. Geen "je zichtbaarheid is verbeterd",
+      maar een cijfer met bewijs erachter.
+    </p>
+  </div>
+
+  <div class="footer">
+    <div class="footer-brand">
+      <div class="footer-mark"></div>
+      <span class="footer-text">Aura · GEO-tracking voor het MKB</span>
+    </div>
+    <span class="footer-page">02 / 05</span>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- PAGINA 3 — DE OPLOSSING                                       -->
+<!-- ============================================================ -->
+<div class="page">
+  <div class="orb orb-green" style="width:280px;height:280px;top:-120px;right:-90px;"></div>
+
+  <div class="content">
+    <span class="eyebrow"><span class="dot"></span>02 · De oplossing</span>
+    <h2 style="margin-top:3mm; font-size:24px;">Eén gesloten lus: meten, verklaren, maken, bewijzen</h2>
+
+    <p style="margin-top:2mm;">
+      Het onderscheidende punt van Aura is niet het meten alleen, maar de <strong>gesloten lus</strong>:
+      meten → verklaren → maken → publiceren → hermeten met controlegroep. De app doet nooit een
+      uitspraak over effect zonder die laatste stap. Dat loopt grotendeels automatisch via een
+      achtergrondwachtrij: de klant hoeft geen browsertab open te houden.
+    </p>
+
+    <h3 style="margin-top:6mm; margin-bottom:3mm; font-size:12px;">De vijf fases</h3>
+    <div class="flow">
+      <div class="flow-step">
+        <div class="n">1</div>
+        <h4>Merk klaarzetten</h4>
+        <p>Drie velden: webadres, naam, schrijfwijzen. Acht taken kammen de site uit, brengen het
+        aanbod in kaart en testen wat AI-assistenten al weten.</p>
+      </div>
+      <div class="flow-arrow">›</div>
+      <div class="flow-step">
+        <div class="n">2</div>
+        <h4>Analyse opstellen</h4>
+        <p>Onderwerp kiezen. Aura genereert 30 realistische koopvragen. De klant ziet en bewerkt ze
+        vóór er kosten worden gemaakt.</p>
+      </div>
+      <div class="flow-arrow">›</div>
+      <div class="flow-step">
+        <div class="n">3</div>
+        <h4>Analyse runnen</h4>
+        <p>Alle vragen gaan met live websearch naar een AI-assistent. Score met foutmarge, wie wint
+        en waarop, concreet gemiste vragen.</p>
+      </div>
+      <div class="flow-arrow">›</div>
+      <div class="flow-step">
+        <div class="n">4</div>
+        <h4>Content genereren</h4>
+        <p>Publicatieklare pagina's waarin elke bewering herleidbaar is tot een bevestigd feit.
+        Niets verzonnen, alles gecontroleerd.</p>
+      </div>
+      <div class="flow-arrow">›</div>
+      <div class="flow-step">
+        <div class="n">5</div>
+        <h4>Resultaten monitoren</h4>
+        <p>Hermeting na 14 en 28 dagen, mét controlegroep. Een verdedigbaar verdict, geen "het lijkt
+        beter te gaan".</p>
+      </div>
+    </div>
+
+    <h3 style="margin-top:6mm; margin-bottom:2mm; font-size:12px;">Wat dit per fase betekent, in verkooptaal</h3>
+    <table>
+      <tr><th style="width:26mm;">Fase</th><th>Het argument</th></tr>
+      <tr><td><strong>1 · Profiel</strong></td><td>"Eén keer je merk vastleggen, altijd profijt." Het profiel is
+      accountbreed: analyse drie voor dezelfde klant is aanzienlijk goedkoper en sneller dan analyse één.</td></tr>
+      <tr><td><strong>2 · Opstellen</strong></td><td>"Je ziet precies wat we gaan meten, vóórdat we meten."
+      De goedkeuringspoort is zelf een verkoopargument: geen black box, geen kosten zonder akkoord.</td></tr>
+      <tr><td><strong>3 · Runnen</strong></td><td>"Een cijfer met een eerlijke marge." Aura toont onzekerheid
+      en telt vragen waar géén enkele aanbieder wordt genoemd apart, niet als verlies. Dat maakt het cijfer
+      verdedigbaar in plaats van indrukwekkend.</td></tr>
+      <tr><td><strong>4 · Content</strong></td><td>"Content die niets verzint." De feitenkaart is een gesloten
+      lijst: staat een feit er niet op, dan komt het niet in de tekst. De belangrijkste vertrouwensbron voor
+      een ondernemer die zijn naam onder de pagina zet.</td></tr>
+      <tr><td><strong>5 · Monitoren</strong></td><td>"We tonen of het gewerkt heeft, ook als het niet zo is."
+      De controlegroep maakt het verschil tussen marketing en meten.</td></tr>
+    </table>
+
+    <h3 style="margin-top:6mm; margin-bottom:2.6mm; font-size:12px;">De twee bewuste stops</h3>
+    <div class="two-col">
+      <div class="card">
+        <div class="pill" style="margin-bottom:2mm;">Tussen fase 2 en 3</div>
+        <h3 style="font-size:11px;">De goedkeuringspoort</h3>
+        <p style="font-size:8.9px;">Na het onderwerp-onderzoek en de 30 gegenereerde vragen stopt
+        de pijplijn en wacht op de klant. Pas na "Bevestig en start meting" gaat er geld naar de
+        meting. Wie twijfelt aan de vragen, past ze eerst aan.</p>
+      </div>
+      <div class="card">
+        <div class="pill green" style="margin-bottom:2mm;">Tussen fase 3 en 4</div>
+        <h3 style="font-size:11px;">De briefingpoort</h3>
+        <p style="font-size:8.9px;">Vóór er geschreven wordt, stelt Aura maximaal acht korte
+        feitenvragen: precies de interne kennis die nergens op de site staat, en die content laat
+        verschillen van een generieke pagina.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer">
+    <div class="footer-brand">
+      <div class="footer-mark"></div>
+      <span class="footer-text">Aura · GEO-tracking voor het MKB</span>
+    </div>
+    <span class="footer-page">03 / 05</span>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- PAGINA 4 — USP'S                                              -->
+<!-- ============================================================ -->
+<div class="page">
+  <div class="orb orb-purple" style="width:300px;height:300px;bottom:-140px;left:-90px;"></div>
+
+  <div class="content">
+    <span class="eyebrow"><span class="dot"></span>03 · USP's</span>
+    <h2 style="margin-top:3mm; font-size:24px;">Waarom Aura wint, en waarom bewust niet op features</h2>
+
+    <p style="margin-top:2mm;">
+      Aura is gebouwd voor het MKB en marketeers zonder SEO-achtergrond. We winnen op
+      <strong>eenvoud, snelheid en doeltreffendheid</strong>, niet op een featurelijst. Bewust
+      <strong>niet</strong> gebouwd: white-label rapportages, tien of meer AI-engines tegelijk,
+      keyword-research suites, een CMS-koppeling, echte zoekvolumes. Dat is precies waar de
+      concurrentie complex en duur wordt.
+    </p>
+
+    <div class="usp-grid" style="margin-top:5mm;">
+      <div class="usp">
+        <div class="usp-num">01</div>
+        <h3>De gesloten lus met controlegroep</h3>
+        <p>Geen tool die alleen meet of alleen schrijft. Aura meet, verklaart, schrijft, publiceert
+        en hermeet tegen een controlegroep. Resultaat: "op de vragen waarvoor je publiceerde +18, op
+        de rest +3" in plaats van een vage trendlijn.</p>
+      </div>
+      <div class="usp">
+        <div class="usp-num">02</div>
+        <h3>Nul verzinsels, aantoonbaar</h3>
+        <p>Elke pagina bouwt op een feitenkaart van letterlijke citaten uit de eigen site. Een
+        claim-audit toetst iedere bewering; wat niet gedekt is wordt een korte vraag aan de klant,
+        nooit een gok van het model.</p>
+      </div>
+      <div class="usp">
+        <div class="usp-num">03</div>
+        <h3>Eerlijke onzekerheid in plaats van indrukwekkende cijfers</h3>
+        <p>De score komt met een foutmarge. Vragen waarbij geen enkele aanbieder wordt genoemd
+        tellen apart, niet als verlies. Dat maakt het cijfer verdedigbaar tegenover een
+        kritische klant.</p>
+      </div>
+      <div class="usp">
+        <div class="usp-num">04</div>
+        <h3>Doorklikbaar bewijs, geen black box</h3>
+        <p>Elk cijfer, elke concurrentievergelijking en elke aanbeveling wijst terug naar de echte
+        AI-conversatie waaruit hij komt. De klant kan zelf meelezen, niet alleen vertrouwen.</p>
+      </div>
+      <div class="usp">
+        <div class="usp-num">05</div>
+        <h3>Twee bewuste stops, nul verrassingen</h3>
+        <p>Een goedkeuringspoort vóór er gemeten wordt en een briefingpoort vóór er geschreven
+        wordt. Niets betaalds start zonder een klik van de klant. Verkoopt zichzelf in de demo.</p>
+      </div>
+      <div class="usp">
+        <div class="usp-num">06</div>
+        <h3>Snel en goedkoop op te zetten</h3>
+        <p>Drie velden, ~7,5 minuut, gemiddeld $0,25 aan onderzoekskosten, gemeten op productie.
+        Geen weken implementatietraject en geen instaptarief dat een MKB-budget breekt.</p>
+      </div>
+      <div class="usp">
+        <div class="usp-num">07</div>
+        <h3>Techniek die het verdient te winnen</h3>
+        <p>675 geautomatiseerde tests, een volledige audit-trail per AI-aanroep, en een
+        deterministische controle onder iedere promptinstructie. Elke belofte aan de klant staat
+        ook in code, niet alleen in een prompt.</p>
+      </div>
+      <div class="usp">
+        <div class="usp-num">08</div>
+        <h3>Sales-led, met een consultant als onderdeel van het product</h3>
+        <p>De consultant zet het merkprofiel klaar vóór het gesprek en verkoopt op wat de pijplijn
+        al heeft gevonden. Het bijbehorende uur consultancy gaat over strategie: welke onderwerpen
+        commercieel tellen, en wat er speelt buiten de website om.</p>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <table>
+      <tr><th style="width:44mm;"></th><th>Aura</th><th>Doorsnee GEO/SEO-aanpak</th></tr>
+      <tr>
+        <td><strong>Tijd tot eerste resultaat</strong></td>
+        <td class="num">~7,5 minuten voor een merkprofiel</td>
+        <td class="num">Weken onderzoek en implementatie</td>
+      </tr>
+      <tr>
+        <td><strong>Bewijs van effect</strong></td>
+        <td>Hermeting met controlegroep, per vraag</td>
+        <td>Zelden gemeten, laat staan met controlegroep</td>
+      </tr>
+      <tr>
+        <td><strong>Transparantie</strong></td>
+        <td>Klant keurt vragen en briefing goed vóór kosten</td>
+        <td>Vaak een black box rapport achteraf</td>
+      </tr>
+      <tr>
+        <td><strong>Complexiteit</strong></td>
+        <td>Bewust smal: geen CMS-koppeling, geen keyword-suite</td>
+        <td>Enterprise-diepgang, hoge instapdrempel</td>
+      </tr>
+    </table>
+
+    <h3 style="margin-top:6mm; margin-bottom:2.6mm; font-size:12px;">Twee tegenwerpingen, en het antwoord erop</h3>
+    <div class="two-col">
+      <div class="card">
+        <p style="font-size:9px; color:var(--text-primary);"><strong>"We doen al aan SEO."</strong></p>
+        <p style="font-size:8.7px; margin-top:1.4mm;">Terecht, en dat blijft nodig. Alleen meet SEO
+        een ranking, geen antwoord. Aura laat zien wat er gebeurt op het moment dat een klant de
+        zoekmachine overslaat en direct het antwoord vraagt.</p>
+      </div>
+      <div class="card">
+        <p style="font-size:9px; color:var(--text-primary);"><strong>"Hoe weten we dat de tekst klopt?"</strong></p>
+        <p style="font-size:8.7px; margin-top:1.4mm;">Elke bewering in gepubliceerde content draagt
+        een verwijzing naar het feit dat hem dekt, en dat feit is een letterlijk citaat uit de eigen
+        site. Aantoonbaar, niet beloofd.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer">
+    <div class="footer-brand">
+      <div class="footer-mark"></div>
+      <span class="footer-text">Aura · GEO-tracking voor het MKB</span>
+    </div>
+    <span class="footer-page">04 / 05</span>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- PAGINA 5 — WAAROM NU / BUSINESS CASE                          -->
+<!-- ============================================================ -->
+<div class="page">
+  <div class="orb orb-green" style="width:260px;height:260px;top:40%;right:-100px;"></div>
+
+  <div class="content">
+    <span class="eyebrow"><span class="dot"></span>04 · Waarom een bedrijf dit niet kan missen</span>
+    <h2 style="margin-top:3mm; font-size:24px;">Onzichtbaarheid is geen risico dat wacht, het loopt nu al</h2>
+
+    <p style="margin-top:2mm;">
+      Elke maand dat een bedrijf niet gemeten wordt in AI-antwoorden, bouwen de concurrenten die wél
+      genoemd worden een voorsprong op die niemand ziet ontstaan, tot een klant hem zelf voelt.
+      Er komt geen melding, geen daling in een dashboard dat een ondernemer al bijhoudt. Het gebeurt
+      in een gesprek tussen een potentiële klant en een AI-assistent waar niemand van het bedrijf bij
+      is. <strong>Aura is het enige moment waarop dat gesprek zichtbaar wordt.</strong>
+    </p>
+
+    <div class="two-col" style="margin-top:5mm;">
+      <div>
+        <h3>Wat er gebeurt als een bedrijf wacht</h3>
+        <ul class="check">
+          <li>Concurrenten die al gemeten en geoptimaliseerd zijn, worden structureel vaker
+          genoemd, en die voorsprong is voor een AI-model precies zo lastig in te halen als een
+          jarenlange SEO-achterstand.</li>
+          <li>Zonder meting is elke marketingbeslissing een gok op een kanaal dat inmiddels
+          meetelt in de aankoopbeslissing.</li>
+          <li>De ondernemer die het eerst met bewijs komt in plaats van met een gevoel, wint het
+          gesprek. Dat bewijs is precies wat Aura in de eerste 7,5 minuut al oplevert.</li>
+        </ul>
+      </div>
+      <div>
+        <h3>Wat het kost, per klant</h3>
+        <table>
+          <tr><td><strong>Profielonderzoek</strong><br><span style="color:var(--text-muted); font-size:8.4px;">eenmalig, hergebruikt door elke analyse</span></td><td class="num" style="text-align:right;">~$0,25</td></tr>
+          <tr><td><strong>Meetronde</strong><br><span style="color:var(--text-muted); font-size:8.4px;">30 vragen, live websearch</span></td><td class="num" style="text-align:right;">~$0,40</td></tr>
+          <tr><td><strong>Contentpagina</strong><br><span style="color:var(--text-muted); font-size:8.4px;">geschreven, geredigeerd, herschreven</span></td><td class="num" style="text-align:right;">enkele dubbeltjes</td></tr>
+        </table>
+        <p style="font-size:8.2px; margin-top:2mm; color:var(--text-muted);">Marge die ruimte laat voor een consultancy-uur bovenop de licentie, in plaats van dat de meting zelf het budget opeet.</p>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <h3 style="font-size:12px; margin-bottom:2.4mm;">Het verkoopmodel in het kort</h3>
+    <p>
+      Aura is <strong>sales-led, niet self-serve</strong>, naar het model van InSpace Nova, de
+      categoriepionier in dit vakgebied, maar geprijsd er ruim onder. De consultant zet het
+      merkprofiel klaar vóór het demogesprek en laat tijdens dat gesprek zien wat de pijplijn al
+      heeft gevonden, geen lege pitch maar een dossier met het bedrijf van de prospect erin. Het uur
+      consultancy dat daarbij hoort gaat over wat een model niet kan weten: welke onderwerpen
+      commercieel het zwaarst wegen, en wat er buiten de website om speelt.
+    </p>
+
+    <div class="callout" style="margin-top:4mm;">
+      <p>Drie dingen die concurrenten als hun onderscheidende technologie presenteren, had Aura al
+      vóór dit document geschreven werd: bewijs tegen verzinsels via de feitenkaart, controles vóór
+      elke gepubliceerde tekst, en answer-first opmaak. Dat is geen belofte voor de roadmap. Dat
+      staat live.</p>
+    </div>
+
+    <div style="margin-top:5mm;">
+      <h3 style="font-size:11px; margin-bottom:2mm;">Vragen over dit document of over een concrete demo</h3>
+      <p style="font-size:9.6px;">
+        <strong>Jan Willem Koopman</strong> · productverantwoordelijke Aura ·
+        <span style="color:var(--accent-green-text);">koopman.janwillem@gmail.com</span>
+      </p>
+    </div>
+
+    <div style="margin-top:auto; padding-top:10mm; text-align:center;">
+      <p style="font-size:19px; font-weight:700; letter-spacing:-.005em; line-height:1.4;">
+        <span style="color:var(--accent-green);">Het volgende gesprek dat een klant met een AI-assistent voert over dit bedrijf,</span><br>
+        <span style="color:var(--accent-purple-soft);">kan Aura al gemeten hebben.</span>
+      </p>
+      <p style="font-size:8.6px; color:var(--text-muted); margin-top:3mm; text-align:center;">
+        Zet het merkprofiel klaar. Laat het bewijs het gesprek voeren.
+      </p>
+    </div>
+  </div>
+
+  <div class="footer">
+    <div class="footer-brand">
+      <div class="footer-mark"></div>
+      <span class="footer-text">Aura · GEO-tracking voor het MKB</span>
+    </div>
+    <span class="footer-page">05 / 05</span>
+  </div>
+</div>
+
+</body>
+</html>
