@@ -97,7 +97,24 @@ enkele `published_url`, geen enkele rij in `content_impact`. De keten publiceren
 effect meten heeft dus nog nooit met echte data gedraaid, en dat is precies de keten waar de
 sterkste toepassing van Search Console aan hangt.
 
-## 6. Blijvend uitgesteld: R0, Fundament (8 d)
+## 6. De tien dingen uit Nova die Aura beter maken (~4 d)
+
+Volledige ontleding van de InSpace-apps, met IA, functiematrix, statusmachines, flows en 44
+detailvondsten: [`nova-analyse.md`](./nova-analyse.md). Gereconstrueerd uit 2.447 letterlijke
+interfaceteksten die beide apps publiek in hun inlogpagina zetten.
+
+Voorstel is één ronde van vijf punten, in deze volgorde: statustaal in twee lagen (een leesbare
+staat naast de technische, "Wacht op jou" tegenover `briefing`), lege staten die de oorzaak noemen
+in plaats van alleen leeg te zijn, verboden woorden plus compliance-aantekeningen naar de
+schrijfprompt en de claimvalidator, faders voor de tone of voice in plaats van één vrij tekstveld,
+en publiceren onomkeerbaar maken met het domein vast en alleen het pad bewerkbaar.
+
+**Wat we bewust niet overnemen** staat in §6.2 van dat document, met de reden erbij. De sterkste is
+niet van ons maar van hen: bij de herbouw van hun eigen app zijn de kalender, de chatassistent, de
+handmatige editor, de clustervisualisatie en het puntensysteem allemaal gesneuveld. Alles wat weg
+is gaf de klant meer knoppen; wat bleef geeft hem meer duidelijkheid.
+
+## 7. Blijvend uitgesteld: R0, Fundament (8 d)
 
 Volledige bouwspec per stap: [`r0-fundament.md`](./r0-fundament.md).
 
@@ -110,7 +127,7 @@ Eén punt is het onthouden waard: **R0.5 is de reden dat de fabrikanten die Bol 
 als concurrent meetellen.** De helft van R0.5 is intussen meegelift op R8.5: de kolom
 `business_model` bestaat en wordt gevuld; alleen `classify-entities.ts` gebruikt hem nog niet.
 
-## 7. Wat de UX-ronde bewust heeft laten liggen
+## 8. Wat de UX-ronde bewust heeft laten liggen
 
 - **De strategiekaart als gespreksinstrument** (`strategy-box.tsx`). Nu bereikbaar via een
   springlink, verder onaangeraakt. Herontwerpen vraagt eerst drie echte consultancygesprekken,
@@ -121,7 +138,7 @@ als concurrent meetellen.** De helft van R0.5 is intussen meegelift op R8.5: de 
 - **`SYNTHESIS_PREMIUM` narekenen.** De synthese op Sol is met $0,127 goed voor 52% van de
   onboardingkosten. De schakelaar bestaat; de vergelijking met Luna vraagt vijf profielen.
 
-## 8. Eén taak per onboarding viel terug van `running` naar `queued`
+## 9. Eén taak per onboarding viel terug van `running` naar `queued`
 
 Gezien in beide meetronden van 3 augustus, sneller dan de reclaim-drempel van vijf minuten. Dus er
 speelt iets anders. Kostte in ronde 2 minuten stilstand. Eerst loggen, dan pas repareren. Dit is het
