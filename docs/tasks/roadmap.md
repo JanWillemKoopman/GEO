@@ -75,7 +75,25 @@ gebouwd als fase 0 van de onboarding.
 Bij Fysi-Unique zijn 8 van de 10 meest geciteerde bronnen homepages. Dan is "schrijf een lange
 blogpagina" waarschijnlijk het verkeerde advies.
 
-## 5. Blijvend uitgesteld: R0, Fundament (8 d)
+## 5. Search Console koppelen, onderzocht en klaar om in te plannen (~5 d)
+
+Volledig onderzoek, ontwerp en verificatiecriteria:
+[`zoekdata-koppeling.md`](./zoekdata-koppeling.md). Uitgezocht op 6 augustus 2026, nog niets gebouwd.
+
+De korte versie: InSpace koppelt bij Nova de Search Console van de klant via een service account dat
+de klant zelf als gebruiker aan zijn property toevoegt, niet via OAuth, en dat draagt hun hele
+klantdashboard. Google Analytics houden ze bewust buiten het product; dat is een afspraak met de
+customer success manager, geen integratie. Voor Aura is hetzelfde onderscheid het juiste: GSC wel,
+GA niet.
+
+Waarde voor ons zit op drie plekken, oplopend: de publicatiecontrole weet nu niet of een pagina
+geïndexeerd is, de effectmeting krijgt een tweede onafhankelijke as naast de AI-zichtbaarheid, en de
+30 vragen per analyse kunnen op echte zoekopdrachten met vertoningen rusten in plaats van op een
+schatting van het model. Kosten nul, want geen enkele AI-aanroep.
+
+**Staat achter punt 0 en 1**, en fase 2 is pas te verifiëren met een echte contentronde.
+
+## 6. Blijvend uitgesteld: R0, Fundament (8 d)
 
 Volledige bouwspec per stap: [`r0-fundament.md`](./r0-fundament.md).
 
@@ -88,7 +106,7 @@ Eén punt is het onthouden waard: **R0.5 is de reden dat de fabrikanten die Bol 
 als concurrent meetellen.** De helft van R0.5 is intussen meegelift op R8.5: de kolom
 `business_model` bestaat en wordt gevuld; alleen `classify-entities.ts` gebruikt hem nog niet.
 
-## 6. Wat de UX-ronde bewust heeft laten liggen
+## 7. Wat de UX-ronde bewust heeft laten liggen
 
 - **De strategiekaart als gespreksinstrument** (`strategy-box.tsx`). Nu bereikbaar via een
   springlink, verder onaangeraakt. Herontwerpen vraagt eerst drie echte consultancygesprekken,
@@ -99,7 +117,7 @@ als concurrent meetellen.** De helft van R0.5 is intussen meegelift op R8.5: de 
 - **`SYNTHESIS_PREMIUM` narekenen.** De synthese op Sol is met $0,127 goed voor 52% van de
   onboardingkosten. De schakelaar bestaat; de vergelijking met Luna vraagt vijf profielen.
 
-## 7. Eén taak per onboarding viel terug van `running` naar `queued`
+## 8. Eén taak per onboarding viel terug van `running` naar `queued`
 
 Gezien in beide meetronden van 3 augustus, sneller dan de reclaim-drempel van vijf minuten. Dus er
 speelt iets anders. Kostte in ronde 2 minuten stilstand. Eerst loggen, dan pas repareren. Dit is het
