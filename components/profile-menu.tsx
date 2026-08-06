@@ -158,11 +158,11 @@ export function ProfileMenu({
                 vervaagde accent-cirkels als InSpace achter hun menu/hero. */}
             <div
               className="glow-orb"
-              style={{ width: 320, height: 320, top: -100, right: -120, background: "rgba(133,17,217,0.16)" }}
+              style={{ width: 320, height: 320, top: -100, right: -120, background: "var(--accent-purple-glow)" }}
             />
             <div
               className="glow-orb"
-              style={{ width: 280, height: 280, bottom: -80, left: -100, background: "rgba(185,239,163,0.22)" }}
+              style={{ width: 280, height: 280, bottom: -80, left: -100, background: "color-mix(in srgb, var(--accent-green) 22%, transparent)" }}
             />
 
             <div className="relative z-10 flex h-16 items-center justify-between border-b border-[var(--border-subtle)] px-6">
@@ -174,7 +174,7 @@ export function ProfileMenu({
                 type="button"
                 onClick={() => setOpen(false)}
                 aria-label="Menu sluiten"
-                className="flex h-11 w-11 items-center justify-center rounded-full bg-[var(--bg-surface)] text-xl text-[var(--text-primary)] shadow-[0_1px_2px_rgba(11,11,12,0.08)] transition-colors hover:text-[var(--accent-purple)]"
+                className="flex h-11 w-11 items-center justify-center rounded-full bg-[var(--bg-surface)] text-xl text-[var(--text-primary)] shadow-[var(--shadow-sm)] transition-colors hover:text-[var(--accent-purple)]"
               >
                 ×
               </button>

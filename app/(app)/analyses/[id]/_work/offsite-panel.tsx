@@ -25,15 +25,14 @@ const STATUS_LABEL: Record<OffsiteTaskStatus, string> = {
   niet_relevant: "Niet relevant",
 };
 
-const STATUS_STYLE: Record<OffsiteTaskStatus, React.CSSProperties> = {
-  open: { background: "rgba(165,120,240,0.12)", color: "#6b21a8", borderColor: "rgba(165,120,240,0.4)" },
-  bezig: { background: "rgba(240,180,60,0.12)", color: "#8a6100", borderColor: "rgba(240,180,60,0.35)" },
-  gedaan: { background: "rgba(46,158,80,0.1)", color: "#1f7a3d", borderColor: "rgba(46,158,80,0.3)" },
-  niet_relevant: {
-    background: "rgba(11,11,12,0.05)",
-    color: "var(--text-muted)",
-    borderColor: "var(--border-subtle)",
-  },
+/* Vier inline-stijlen die de bestaande chip-varianten nabouwden, met een paars
+   dat in geen enkel token voorkwam. `.chip` zelf is al de paarse
+   variant, dus "open" heeft geen extra klasse nodig. */
+const STATUS_CHIP: Record<OffsiteTaskStatus, string> = {
+  open: "",
+  bezig: "chip-warning",
+  gedaan: "chip-success",
+  niet_relevant: "chip-neutral",
 };
 
 const NEXT_STATUS: OffsiteTaskStatus[] = ["open", "bezig", "gedaan", "niet_relevant"];
@@ -158,7 +157,7 @@ function TaskCard({
     >
       <div className="flex flex-wrap items-start justify-between gap-2">
         <span className="flex-1 font-medium">{task.title}</span>
-        <span className="chip shrink-0" style={STATUS_STYLE[task.status]}>
+        <span className={`chip shrink-0 ${STATUS_CHIP[task.status]}`}>
           {STATUS_LABEL[task.status]}
         </span>
       </div>

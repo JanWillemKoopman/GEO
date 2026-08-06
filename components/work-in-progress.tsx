@@ -70,7 +70,7 @@ export function WorkInProgress({
               <span
                 className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-xs"
                 style={{
-                  background: step.done ? "rgba(46,158,80,0.2)" : "transparent",
+                  background: step.done ? "color-mix(in srgb, var(--intent-growth-solid) 20%, transparent)" : "transparent",
                   border: step.done ? "none" : "1px solid var(--border-strong)",
                   color: step.done ? "var(--accent-green-text)" : "var(--text-muted)",
                 }}

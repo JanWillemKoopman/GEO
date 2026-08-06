@@ -34,11 +34,98 @@
   --border-subtle: rgba(11, 11, 12, 0.1);
   --border-strong: rgba(11, 11, 12, 0.22);
 
-  /* Status */
-  --status-success: #2e9e50;
-  --status-error: #d33a3f;
-  --status-warning: #b9a27a;
-  --status-info: #8511d9;
+  /* ── Betekenislaag ───────────────────────────────────────────────────────
+     Een kleur heeft een BETEKENIS, geen naam. Overgenomen uit het tokensysteem
+     van de Nova-app (designsystem.md §D): de systematiek van hen, de waarden
+     van ons. Vijf velden per betekenis, want zo worden ze in deze app
+     daadwerkelijk gebruikt:
+
+       -solid     gevulde vlakken (knop, gevulde badge)
+       -on-solid  tekstkleur ÓP dat gevulde vlak
+       -text      dezelfde betekenis als leesbare tekst op een licht vlak
+       -surface   de 10%-tint als achtergrond van een chip of kaart
+       -border    de 30%-tint als rand
+
+     Waarom -text apart bestaat: #2e9e50 als tekst op wit haalt geen 4,5:1, en
+     dat is precies de kleur waarin "gelukt" stond. De donkere variant wel.
+     Waarom -on-solid apart bestaat: op --accent-green (#b9efa3, lichtmint)
+     moet donkere tekst en op --accent-purple witte. Dat was tot nu toe per
+     component een oordeel. */
+
+  --intent-intelligence-solid: var(--accent-purple);
+  --intent-intelligence-on-solid: #ffffff;
+  --intent-intelligence-text: #7a13c9;
+  --intent-intelligence-surface: rgba(133, 17, 217, 0.1);
+  --intent-intelligence-border: rgba(133, 17, 217, 0.3);
+
+  --intent-growth-solid: #2e9e50;
+  --intent-growth-on-solid: #ffffff;
+  --intent-growth-text: #1f7a3d;
+  --intent-growth-surface: rgba(46, 158, 80, 0.1);
+  --intent-growth-border: rgba(46, 158, 80, 0.3);
+
+  /* Nieuw. Stond hiervoor op hetzelfde paars als het merk, waardoor een
+     mededeling niet te onderscheiden was van een merkactie. */
+  --intent-information-solid: #0069a8;
+  --intent-information-on-solid: #ffffff;
+  --intent-information-text: #00598a;
+  --intent-information-surface: rgba(0, 105, 168, 0.1);
+  --intent-information-border: rgba(0, 105, 168, 0.3);
+
+  /* De oude --status-warning was #b9a27a, een gedempt brons. Dat is bij Nova
+     de kleur voor "premium", niet voor een waarschuwing, en als tekst op wit
+     haalt het 2,1:1. De chips gebruikten daarom allang een eigen amber. Die
+     amber is nu de waarheid. */
+  --intent-warning-solid: #b45309;
+  --intent-warning-on-solid: #ffffff;
+  --intent-warning-text: #8a6100;
+  --intent-warning-surface: rgba(240, 180, 60, 0.12);
+  --intent-warning-border: rgba(240, 180, 60, 0.35);
+
+  --intent-danger-solid: #d33a3f;
+  --intent-danger-on-solid: #ffffff;
+  --intent-danger-text: #c2282d;
+  --intent-danger-surface: rgba(211, 58, 63, 0.1);
+  --intent-danger-border: rgba(211, 58, 63, 0.3);
+
+  --intent-neutral-text: var(--text-muted);
+  --intent-neutral-surface: rgba(11, 11, 12, 0.05);
+  --intent-neutral-border: var(--border-subtle);
+
+  /* Grafiekkleuren wijzen naar dezelfde betekenissen. Ze stonden als losse
+     hexwaarden in trend-chart.tsx, waarvan er drie in geen enkel token
+     voorkwamen. Ook de as en het raster zijn hier een token: dat is het deel
+     dat iedereen vergeet, en de reden dat een grafiek er altijd nét naast
+     ligt. */
+  --chart-own: var(--intent-intelligence-solid);
+  --chart-own-band: var(--accent-purple-glow);
+  --chart-rival-1: #eb6834;
+  --chart-rival-2: #1baf7a;
+  --chart-rival-3: #2a78d6;
+  --chart-axis: var(--text-muted); /* astekst */
+  --chart-grid: var(--border-subtle); /* horizontale rasterlijnen */
+  --chart-reference: var(--border-strong); /* gestreepte referentielijnen */
+
+  /* Randdiktes als schaal, zodat 1px-tegen-2px geen toevalstreffer meer is. */
+  --border-width-xs: 1px;
+  --border-width-sm: 2px;
+  --border-width-md: 4px;
+
+  /* Doorschijnende paginakleur onder de sticky balken met backdrop-blur. Stond
+     op drie plekken los, met twee verschillende doorzichtigheden (0,8 en 0,85)
+     die op mobiel pal boven elkaar staan: de kopbalk en de sectie-rail. Eén
+     waarde, één plek. */
+  --bg-base-blur: rgba(247, 248, 246, 0.85);
+
+  /* Eén schaduwstand, naar het voorbeeld van Nova. Meer schaduwvarianten maken
+     een interface niet dieper, alleen rommeliger. */
+  --shadow-sm: 0 1px 2px rgba(11, 11, 12, 0.08);
+
+  /* Status. Nu een verwijzing naar de betekenislaag, geen eigen waarde meer. */
+  --status-success: var(--intent-growth-solid);
+  --status-error: var(--intent-danger-solid);
+  --status-warning: var(--intent-warning-text);
+  --status-info: var(--intent-information-solid);
 
   /* Typografie — fonts geladen via next/font in layout.tsx */
   --font-sans: var(--font-geist-sans), -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
@@ -75,6 +162,11 @@
   --color-error: var(--status-error);
   --color-warning: var(--status-warning);
   --color-info: var(--status-info);
+
+  --color-intelligence: var(--intent-intelligence-solid);
+  --color-growth: var(--intent-growth-solid);
+  --color-information: var(--intent-information-solid);
+  --color-danger: var(--intent-danger-solid);
 
   --font-sans: var(--font-sans);
   --font-mono: var(--font-mono);
@@ -218,14 +310,14 @@ body {
   text-transform: uppercase;
   padding: 3px 10px;
   border-radius: var(--radius-pill);
-  background-color: rgba(133, 17, 217, 0.1);
-  color: #7a13c9;
-  border: 1px solid rgba(133, 17, 217, 0.2);
+  background-color: var(--intent-intelligence-surface);
+  color: var(--intent-intelligence-text);
+  border: var(--border-width-xs) solid var(--intent-intelligence-border);
 }
 .chip-green {
   background-color: rgba(46, 158, 80, 0.14);
   color: var(--accent-green-text);
-  border-color: rgba(46, 158, 80, 0.3);
+  border-color: var(--intent-growth-border);
 }
 
 /* ── Status-tinten ──────────────────────────────────────────────────────────
@@ -235,27 +327,34 @@ body {
    naast --status-error — twee roden die nét verschillen op schermen die
    elkaar opvolgen. Hier staat het één keer. */
 .chip-success {
-  background-color: rgba(46, 158, 80, 0.1);
-  color: #1f7a3d;
-  border-color: rgba(46, 158, 80, 0.3);
+  background-color: var(--intent-growth-surface);
+  color: var(--intent-growth-text);
+  border-color: var(--intent-growth-border);
 }
 .chip-danger {
-  background-color: rgba(211, 58, 63, 0.1);
-  color: #c2282d;
-  border-color: rgba(211, 58, 63, 0.3);
+  background-color: var(--intent-danger-surface);
+  color: var(--intent-danger-text);
+  border-color: var(--intent-danger-border);
 }
 .chip-warning {
-  background-color: rgba(240, 180, 60, 0.12);
-  color: #8a6100;
-  border-color: rgba(240, 180, 60, 0.35);
+  background-color: var(--intent-warning-surface);
+  color: var(--intent-warning-text);
+  border-color: var(--intent-warning-border);
+}
+.chip-info {
+  background-color: var(--intent-information-surface);
+  color: var(--intent-information-text);
+  border-color: var(--intent-information-border);
 }
 .chip-neutral {
-  background-color: rgba(11, 11, 12, 0.05);
-  color: var(--text-muted);
-  border-color: var(--border-subtle);
+  background-color: var(--intent-neutral-surface);
+  color: var(--intent-neutral-text);
+  border-color: var(--intent-neutral-border);
 }
 
-/* Kaart-accenten — vervangt de losse borderColor-overrides met rauwe rgba. */
+/* Kaart-accenten, in plaats van losse borderColor-overrides met rauwe rgba.
+   `.card-warning` kwam erbij omdat dezelfde amber rand op drie plekken met de
+   hand was nagebouwd (rgba(240,180,60,0.45)) op schermen die elkaar opvolgen. */
 .card-accent {
   border-color: color-mix(in srgb, var(--accent-purple) 32%, transparent);
 }
@@ -264,6 +363,9 @@ body {
 }
 .card-success {
   border-color: color-mix(in srgb, var(--status-success) 40%, transparent);
+}
+.card-warning {
+  border-color: color-mix(in srgb, var(--intent-warning-solid) 40%, transparent);
 }
 
 /* Invoervelden — recessed grijs op witte kaart, paarse focus-gloed. */

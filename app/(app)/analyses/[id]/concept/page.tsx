@@ -48,7 +48,7 @@ export default async function ConceptPage({ params }: { params: Promise<{ id: st
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="card flex flex-col gap-3" style={{ borderColor: "rgba(133,17,217,0.3)" }}>
+      <div className="card card-accent flex flex-col gap-3">
         <span className="mono-label" style={{ color: "var(--accent-purple)" }}>
           Klaar om te starten
         </span>
@@ -123,7 +123,7 @@ export default async function ConceptPage({ params }: { params: Promise<{ id: st
       {activeCount > 0 ? (
         <ConfirmBar analysisId={id} />
       ) : (
-        <div className="card" style={{ borderColor: "rgba(211,58,63,0.4)" }}>
+        <div className="card card-danger">
           <p className="text-secondary">
             Er staat nu geen enkele vraag aan. Zet er hierboven minstens één aan, want zonder vragen
             valt er niets te meten en kan Aura niet starten.

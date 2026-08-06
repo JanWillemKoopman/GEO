@@ -5,7 +5,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
     <main className="relative flex min-h-dvh items-center justify-center px-6 py-12">
       <div
         className="glow-orb"
-        style={{ width: 420, height: 420, top: -140, left: "50%", marginLeft: -210, background: "rgba(133,17,217,0.22)" }}
+        style={{ width: 420, height: 420, top: -140, left: "50%", marginLeft: -210, background: "color-mix(in srgb, var(--accent-purple) 22%, transparent)" }}
       />
       <div className="relative z-10 w-full max-w-sm">
         <div className="mb-8 text-center">

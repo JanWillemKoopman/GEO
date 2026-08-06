@@ -141,7 +141,7 @@ export function ReleasePanel({
             Uitspraken over je bedrijf in deze tekst ({claims.length})
           </span>
           {zonderBron.length > 0 && (
-            <p className="text-sm" style={{ color: "rgb(200,140,40)" }}>
+            <p className="text-sm" style={{ color: "var(--intent-warning-text)" }}>
               {zonderBron.length} daarvan kon Aura niet herleiden tot een bevestigd feit. Lees ze
               na voordat je publiceert.
             </p>

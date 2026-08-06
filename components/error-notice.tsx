@@ -28,12 +28,7 @@ export function ErrorNotice({
   return (
     <div className="card card-danger flex flex-col gap-4">
       <div className="flex flex-col gap-2">
-        <span
-          className="chip w-fit"
-          style={{ background: "rgba(211,58,63,0.1)", color: "#c2282d", borderColor: "rgba(211,58,63,0.3)" }}
-        >
-          Niet gelukt
-        </span>
+        <span className="chip chip-danger w-fit">Niet gelukt</span>
         {/* role="alert" zodat een schermlezer de fout aankondigt zodra hij verschijnt. */}
         <h3 className="text-lg font-semibold" role="alert">
           {error.title}

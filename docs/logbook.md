@@ -1065,3 +1065,47 @@ Richtlijn 10 in `docs/schrijfstijl.md` legt de regel vast, met de drie uitzonder
 `grep`-commando's om vóór een commit te controleren.
 
 Vier controles groen: `tsc --noEmit`, 675 unittests, 47 ketentests, productiebuild.
+
+## 29. Een kleur heeft een betekenis, geen naam (6 augustus 2026)
+
+**Aanleiding.** De ontleding van de Nova-app (`tasks/nova-analyse.md`) leverde één vondst op die
+niets met functies te maken had: hun designtokens heten naar **betekenis**, niet naar kleur.
+`--ds-background-intelligence`, `growth`, `information`, `warning`, `danger`. Elk met een eigen
+randkleur, een eigen tekstkleur, en een `foreground-on-{betekenis}` die vastlegt welke tekstkleur op
+dat vlak mag. De grafiekkleuren wijzen naar diezelfde tokens, inclusief de as en het raster.
+
+**Wat de opruiming blootlegde.** De drift die §3 van `ux-design.md` beschrijft als opgeruimd, was
+volledig teruggegroeid: **13 hardgecodeerde hexwaarden en 22 losse `rgba()`-waarden** over de
+componenten. Vier van die kleuren kwamen in geen enkel token voor, drie concurrentkleuren in
+`trend-chart.tsx` (`#eb6834`, `#1baf7a`, `#2a78d6`) en een vierde paars in `offsite-panel.tsx`. Vijf
+componenten bouwden `.chip-danger`, `.chip-warning`, `.chip-success` en `.chip-neutral` met de hand
+na, terwijl die klassen al bestonden. De vorige opruiming telde 30 inline-stijlen over 17 bestanden;
+deze telde er 35. Het groeit dus terug op precies dezelfde snelheid, en dat is de eigenlijke les:
+een regel zonder controle is een voornemen.
+
+**Twee kleuren bleken fout, niet alleen inconsistent.**
+
+1. `--status-info` was `#8511d9`, exact de merkkleur. Een mededeling was daarmee niet te
+   onderscheiden van een merkactie. Nu blauw (`#0069a8`), zoals Nova het splitst in `intelligence`
+   en `information`.
+2. `--status-warning` was `#b9a27a`, een gedempt brons. Bij Nova is dat de kleur voor *premium*, en
+   als tekst op wit haalt het **2,1:1**, ruim onder de drempel van 4,5. Het stond op drie plekken
+   als tekstkleur van een waarschuwing. De chips gebruikten allang hun eigen amber (`#8a6100`,
+   ruim boven de drempel); die amber is nu de waarheid.
+
+**Wat er staat.** Vijf velden per betekenis (`-solid`, `-on-solid`, `-text`, `-surface`, `-border`),
+grafiektokens inclusief `--chart-axis`, `--chart-grid` en `--chart-reference`, randdiktes als
+schaal, één schaduwstand, en één doorschijnende paginakleur voor de sticky balken. Die laatste stond
+op drie plekken los, met 0,8 en 0,85 door elkaar, op mobiel pal boven elkaar.
+
+**Wat we bewust niet overnamen:** `attention` (roze) en `premium` (brons), want niets in Aura
+betekent dat; de licht- en donkerparen, want er is bewust geen donkere modus; hun negen radii, want
+vier volstaan; en hun hexwaarden, want dan wordt Aura visueel een InSpace-product. De systematiek is
+van hen, de kleuren blijven van ons.
+
+**Het vangnet.** Regel 7 in `ux-design.md` met twee `grep`-commando's die vóór een commit nul regels
+moeten geven. Zelfde patroon als richtlijn 10 over de gedachtestreepjes (§28): de regel staat in het
+document, de controle dwingt hem af. Zonder die tweede helft was dit de derde keer geweest.
+
+Beide controles geven nul. Vier controles groen: `tsc --noEmit`, 675 unittests, 47 ketentests,
+productiebuild.

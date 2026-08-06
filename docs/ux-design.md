@@ -76,6 +76,20 @@ van InSpace's Aeonik en TT Commons. Die zijn commercieel gelicenseerd en mogen w
    of een chip. Dat is toegankelijkheid.
 6. **Gloed-orbs spaarzaam:** groot en zeer vervaagd (`blur(40–90px)`) achter hero-secties, nooit
    als decoratie in kleine componenten.
+7. **Een kleur heeft een betekenis, geen naam.** Gebruik `--intent-growth-text`, nooit
+   `--accent-green`, en nooit een hexwaarde of een rauwe `rgba()` in een component. Elke kleur die
+   in een `.tsx` staat, is een fout die zich verspreidt: die kleur mist de volgende
+   paletwijziging, en niemand ziet dat totdat twee schermen die elkaar opvolgen twee tinten groen
+   tonen. De betekenislaag staat in `globals.css` en is uitgelegd in `designsystem.md` §D.
+   **Controle vóór een commit, beide moeten nul regels geven:**
+
+   ```bash
+   grep -rnE "#[0-9a-fA-F]{6}\b" app components --include="*.tsx" | grep -v themeColor
+   grep -rnE "rgba?\([0-9]" app components --include="*.tsx"
+   ```
+
+   De uitzondering is `themeColor` in `app/layout.tsx`: die gaat naar de browserbalk van het
+   besturingssysteem en kan geen CSS-variabele zijn.
 
 ## 3. Componenten
 
@@ -88,10 +102,9 @@ schermen die de gebruiker na elkaar ziet).
 |---|---|
 | `.card` | Statisch. **Geen hover**, een kaart die bij hover omhoog schaduwt belooft interactie. |
 | `.card-interactive` | Alleen op daadwerkelijk klikbare kaarten (de lijstitems). Hier hoort de hover. |
-| `.card-accent` / `.card-danger` / `.card-success` | Getinte kaartranden. |
+| `.card-accent` / `.card-danger` / `.card-success` / `.card-warning` | Getinte kaartranden. |
 | `.btn-primary` / `.btn-outline` | Beide 48px. `.btn-sm` = 40px. Eén hoogte-schaal, geen uitzonderingen. |
-| `.btn-green` | De positieve afronding: publiceren, bevestigen. |
-| `.chip` + `.chip-success` / `-danger` / `-warning` / `-neutral` / `-green` | Nooit met de hand een tint nabouwen. |
+| `.chip` + `.chip-success` / `-danger` / `-warning` / `-info` / `-neutral` / `-green` | Nooit met de hand een tint nabouwen. Dat gebeurde toch, in vijf componenten tegelijk; zie regel 7 hierboven en de `grep` die het nu tegenhoudt. |
 | `.mono-label` | Kleine uppercase labels in mono. |
 | `.field` | Formuliervelden, inclusief focus-state. |
 | `.live-dot` | Pulserende indicator voor "loopt nu". |

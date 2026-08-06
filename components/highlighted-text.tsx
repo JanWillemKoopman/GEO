@@ -22,15 +22,15 @@ export interface HighlightGroup {
 
 const STYLES: Record<HighlightGroup["variant"], React.CSSProperties> = {
   own: {
-    background: "rgba(165,120,240,0.22)",
-    borderBottom: "2px solid var(--accent-purple)",
+    background: "color-mix(in srgb, var(--intent-intelligence-solid) 22%, transparent)",
+    borderBottom: "var(--border-width-sm) solid var(--intent-intelligence-solid)",
     fontWeight: 600,
     borderRadius: "2px",
     padding: "0 2px",
   },
   competitor: {
-    background: "rgba(11,11,12,0.07)",
-    borderBottom: "2px solid var(--border-strong)",
+    background: "var(--intent-neutral-surface)",
+    borderBottom: "var(--border-width-sm) solid var(--border-strong)",
     borderRadius: "2px",
     padding: "0 2px",
   },

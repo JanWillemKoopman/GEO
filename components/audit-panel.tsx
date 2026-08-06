@@ -13,23 +13,14 @@ import type { AuditCheck, AuditSeverity } from "@/lib/audit/technical";
  */
 const ORDER: Record<AuditSeverity, number> = { blocker: 0, warning: 1, unknown: 2, ok: 3 };
 
-const BADGE: Record<AuditSeverity, { text: string; style: React.CSSProperties }> = {
-  blocker: {
-    text: "Blokkade",
-    style: { background: "rgba(211,58,63,0.1)", color: "#c2282d", borderColor: "rgba(211,58,63,0.3)" },
-  },
-  warning: {
-    text: "Aandacht",
-    style: { background: "rgba(240,180,60,0.12)", color: "#8a6100", borderColor: "rgba(240,180,60,0.35)" },
-  },
-  unknown: {
-    text: "Onbekend",
-    style: { background: "rgba(11,11,12,0.05)", color: "var(--text-muted)", borderColor: "var(--border-subtle)" },
-  },
-  ok: {
-    text: "In orde",
-    style: { background: "rgba(46,158,80,0.1)", color: "#1f7a3d", borderColor: "rgba(46,158,80,0.3)" },
-  },
+/* De vier badges waren vier inline-stijlen met rauwe rgba, terwijl `.chip-danger`,
+   `.chip-warning`, `.chip-neutral` en `.chip-success` in globals.css exact
+   hetzelfde doen. Dezelfde drift die ux-design.md §3 al één keer opruimde. */
+const BADGE: Record<AuditSeverity, { text: string; chip: string }> = {
+  blocker: { text: "Blokkade", chip: "chip-danger" },
+  warning: { text: "Aandacht", chip: "chip-warning" },
+  unknown: { text: "Onbekend", chip: "chip-neutral" },
+  ok: { text: "In orde", chip: "chip-success" },
 };
 
 export function AuditPanel({
@@ -81,12 +72,14 @@ export function AuditPanel({
             key={check.id}
             className="flex flex-col gap-2 rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--bg-elevated)] p-3"
             style={
-              check.severity === "blocker" ? { borderColor: "rgba(211,58,63,0.4)" } : undefined
+              check.severity === "blocker"
+                ? { borderColor: "var(--intent-danger-border)" }
+                : undefined
             }
           >
             <div className="flex flex-wrap items-center justify-between gap-2">
               <span className="font-medium">{check.label}</span>
-              <span className="chip" style={BADGE[check.severity].style}>
+              <span className={`chip ${BADGE[check.severity].chip}`}>
                 {BADGE[check.severity].text}
               </span>
             </div>

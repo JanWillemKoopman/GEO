@@ -192,7 +192,7 @@ export default async function ContentDetailPage({
           niet WÁT er gecheckt moest worden; die punten stonden alleen in de ruwe
           API-respons, en die laat je een klant niet lezen. */}
       {piece.needs_review && piece.review_notes.length > 0 && (
-        <div className="card flex flex-col gap-2" style={{ borderColor: "rgba(240,180,60,0.45)" }}>
+        <div className="card card-warning flex flex-col gap-2">
           <span className="mono-label">Kijk hier even naar</span>
           <p className="text-sm text-secondary">
             De eindredactie van Aura twijfelt over deze punten. Schaaf de tekst zelf bij, of vraag

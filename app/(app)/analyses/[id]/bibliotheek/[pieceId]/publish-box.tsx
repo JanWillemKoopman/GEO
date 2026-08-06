@@ -199,8 +199,7 @@ function PublishCheckNotice({ check, checkedAt }: { check: PublishCheck | null; 
 
   return (
     <div
-      className="flex flex-col gap-1 rounded-[var(--radius-md)] border p-3"
-      style={{ borderColor: "rgba(240,180,60,0.45)" }}
+      className="card-warning flex flex-col gap-1 rounded-[var(--radius-md)] border p-3"
     >
       <span className="text-sm font-medium">Even controleren</span>
       <ul className="flex list-disc flex-col gap-1 pl-5 text-sm text-secondary">

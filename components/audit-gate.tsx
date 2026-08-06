@@ -27,14 +27,11 @@ export function AuditGate({
 
   return (
     <div
-      className="card flex flex-col gap-3"
-      style={{ borderColor: "rgba(211,58,63,0.5)", background: "rgba(211,58,63,0.04)" }}
+      className="card card-danger flex flex-col gap-3"
+      style={{ background: "color-mix(in srgb, var(--intent-danger-solid) 4%, transparent)" }}
     >
       <div className="flex flex-wrap items-center gap-2">
-        <span
-          className="chip"
-          style={{ background: "rgba(211,58,63,0.1)", color: "#c2282d", borderColor: "rgba(211,58,63,0.3)" }}
-        >
+        <span className="chip chip-danger">
           {blockers.length === 1 ? "Blokkade" : `${blockers.length} blokkades`}
         </span>
         {since && (

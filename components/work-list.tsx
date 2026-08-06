@@ -45,11 +45,11 @@ export function WorkRow({
       href={item.href}
       className="group flex flex-col gap-1.5 rounded-[var(--radius-md)] border p-4 transition-all"
       style={{
-        borderColor: emphasis ? "rgba(133,17,217,0.35)" : "var(--border-subtle)",
+        borderColor: emphasis ? "var(--intent-intelligence-border)" : "var(--border-subtle)",
         background: "var(--bg-elevated)",
         // Gekleurde gloed i.p.v. Een hardere rand, de InSpace-manier om nadruk
         // te leggen (designsystem.md §A3: "de gloed doet het werk").
-        boxShadow: emphasis ? "0 0 0 4px rgba(133,17,217,0.07)" : undefined,
+        boxShadow: emphasis ? "0 0 0 4px color-mix(in srgb, var(--accent-purple) 7%, transparent)" : undefined,
       }}
     >
       <div className="flex flex-wrap items-baseline justify-between gap-2">

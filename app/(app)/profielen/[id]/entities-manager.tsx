@@ -106,7 +106,7 @@ export function EntitiesManager({ profileId, initial }: { profileId: string; ini
       {problem && <ErrorNotice error={problem} />}
 
       {pending.length > 0 && (
-        <section className="flex flex-col gap-2 rounded-[var(--radius-md)] border border-[rgba(165,120,240,0.4)] p-3">
+        <section className="flex flex-col gap-2 rounded-[var(--radius-md)] border border-[var(--intent-intelligence-border)] p-3">
           <p className="text-sm text-secondary">
             <span className="font-medium text-[var(--text-primary)]">
               {pending.length} nieuw gevonden {pending.length === 1 ? "merk" : "merken"}

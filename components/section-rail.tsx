@@ -64,7 +64,7 @@ export function SectionRail({ sections }: { sections: RailSection[] }) {
           Glaslaag zoals de header (§A3) zodat de inhoud eronder doorschemert. */}
       <nav
         aria-label="Hoofdstukken"
-        className="sticky top-[57px] z-10 -mx-6 mb-2 flex gap-2 overflow-x-auto border-b border-[var(--border-subtle)] bg-[rgba(247,248,246,0.85)] px-6 py-2.5 backdrop-blur-md lg:hidden"
+        className="sticky top-[57px] z-10 -mx-6 mb-2 flex gap-2 overflow-x-auto border-b border-[var(--border-subtle)] bg-[var(--bg-base-blur)] px-6 py-2.5 backdrop-blur-md lg:hidden"
       >
         {sections.map((s, i) => {
           const on = active === s.id;

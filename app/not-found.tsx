@@ -19,7 +19,7 @@ export default function NotFound() {
           top: -140,
           left: "50%",
           marginLeft: -210,
-          background: "rgba(133,17,217,0.16)",
+          background: "var(--accent-purple-glow)",
         }}
       />
       <div className="relative z-10 flex w-full max-w-md flex-col items-center gap-5 text-center">

@@ -27,8 +27,11 @@ import type { TrendData } from "@/lib/pipeline/trend";
  * voor. Een bibliotheek zou honderden kilobytes kosten voor iets wat in tachtig
  * regels past.
  */
-const OWN_COLOR = "#8511d9";
-const COMPETITOR_COLORS = ["#eb6834", "#1baf7a", "#2a78d6"];
+/* De kleuren staan in globals.css, niet hier. Ze stonden hier wel, en drie van
+   de vier kwamen in geen enkel token voor: een grafiek die zijn eigen palet
+   meebrengt, is een grafiek die bij elke kleurwijziging achterblijft. */
+const OWN_COLOR = "var(--chart-own)";
+const COMPETITOR_COLORS = ["var(--chart-rival-1)", "var(--chart-rival-2)", "var(--chart-rival-3)"];
 
 const W = 760;
 const H = 260;
@@ -154,7 +157,7 @@ export function TrendChart({ data, ownLabel }: { data: TrendData; ownLabel: stri
                 y1="0"
                 x2="7"
                 y2="12"
-                stroke="var(--border-strong)"
+                stroke="var(--chart-reference)"
                 strokeWidth="2"
                 strokeDasharray="3 3"
               />
@@ -188,10 +191,10 @@ export function TrendChart({ data, ownLabel }: { data: TrendData; ownLabel: stri
                 x2={W - PAD.right}
                 y1={y(v)}
                 y2={y(v)}
-                stroke="var(--border-subtle)"
+                stroke="var(--chart-grid)"
                 strokeWidth="1"
               />
-              <text x={PAD.left - 8} y={y(v) + 4} textAnchor="end" fontSize="10" fill="var(--text-muted)">
+              <text x={PAD.left - 8} y={y(v) + 4} textAnchor="end" fontSize="10" fill="var(--chart-axis)">
                 {v}
               </text>
             </g>
@@ -205,7 +208,7 @@ export function TrendChart({ data, ownLabel }: { data: TrendData; ownLabel: stri
               x2={x(p.weekNo)}
               y1={PAD.top}
               y2={H - PAD.bottom}
-              stroke="var(--border-strong)"
+              stroke="var(--chart-reference)"
               strokeWidth="2"
               strokeDasharray="3 3"
             />
@@ -300,7 +303,7 @@ export function TrendChart({ data, ownLabel }: { data: TrendData; ownLabel: stri
               x2={x(hovered.weekNo)}
               y1={PAD.top}
               y2={H - PAD.bottom}
-              stroke="var(--border-strong)"
+              stroke="var(--chart-reference)"
               strokeWidth="1"
             />
           )}
@@ -312,7 +315,7 @@ export function TrendChart({ data, ownLabel }: { data: TrendData; ownLabel: stri
               y={H - PAD.bottom + 16}
               textAnchor="middle"
               fontSize="10"
-              fill="var(--text-muted)"
+              fill="var(--chart-axis)"
             >
               {p.weekNo === 0 ? "start" : formatShortDate(p.measuredAt) ?? `#${p.weekNo}`}
             </text>

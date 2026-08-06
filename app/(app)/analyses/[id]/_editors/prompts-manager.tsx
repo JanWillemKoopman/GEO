@@ -121,12 +121,7 @@ function PromptCategoryList({
             <button
               type="button"
               onClick={() => onUpdate(p.id, { active: !p.active })}
-              className="chip"
-              style={
-                p.active
-                  ? undefined
-                  : { background: "rgba(11,11,12,0.05)", color: "var(--text-muted)", borderColor: "var(--border-subtle)" }
-              }
+              className={`chip ${p.active ? "" : "chip-neutral"}`}
             >
               {p.active ? "Actief" : "Gepauzeerd"}
             </button>

@@ -86,7 +86,7 @@ export function AnswersView({
         </div>
 
         {focused && focused.length > 0 && (
-          <div className="flex flex-wrap items-center gap-3 rounded-[var(--radius-md)] border border-[rgba(165,120,240,0.4)] p-3 text-sm">
+          <div className="flex flex-wrap items-center gap-3 rounded-[var(--radius-md)] border border-[var(--intent-intelligence-border)] p-3 text-sm">
             <span className="text-secondary">
               Het bewijs bij één punt uit je rapport: {focused.length}{" "}
               {focused.length === 1 ? "meting" : "metingen"}.

@@ -49,7 +49,7 @@ export function Chapter({
           height: 300,
           top: -90,
           right: -130,
-          background: "rgba(133,17,217,0.06)",
+          background: "color-mix(in srgb, var(--accent-purple) 6%, transparent)",
         }}
       />
 

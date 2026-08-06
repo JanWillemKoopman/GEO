@@ -246,7 +246,81 @@ Dit is de **aanbevolen synthese**: InSpace's merk-DNA (kleuren, typografie, radi
 
 ---
 
+## §D, Het tokensysteem van de Nova-app (geanalyseerd 6 augustus 2026)
+
+> **Dit is een ánder systeem dan §A tot §C hierboven.** Die gaan over de marketingsite
+> (`inspace.io`, juli 2026). Dit gaat over de ingelogde productomgeving (`nova.inspace.io`), en dat
+> is aantoonbaar het volwassen systeem: waar de marketingsite kleuren bij naam noemt, noemt de app
+> ze bij betekenis. De volledige ontleding van die app staat in
+> [`tasks/nova-analyse.md`](./tasks/nova-analyse.md); hier staat alleen wat het voor onze CSS
+> betekent.
+
+### D1. Wat we overnamen, en wat niet
+
+| Uit Nova | Overgenomen | Toelichting |
+|---|---|---|
+| Namen naar betekenis (`intelligence`, `growth`, `information`, `warning`, `danger`, `neutral`) | **Ja** | Je kunt de kleur wijzigen zonder één component aan te raken |
+| Vijf velden per betekenis | **Ja**, in onze eigen indeling | Zie D2 |
+| `foreground-on-{betekenis}` | **Ja**, als `-on-solid` | Contrast is een tokenkeuze, geen oordeel per component |
+| Grafiektokens, inclusief as en raster | **Ja** | Zie D3 |
+| Randdiktes als schaal | **Ja**, drie standen | `--border-width-xs/sm/md` |
+| `attention` (roze) en `premium` (brons) | **Nee** | Niets in Aura betekent dat. Een ongebruikt token is bloat |
+| Licht- en donkerparen per token | **Nee, nog niet** | Er is bewust geen donkere modus. De namen staan nu wel goed, dus dat wordt later een dag werk in plaats van een week |
+| Hun negen radii en hun exacte hexwaarden | **Nee** | Vier radii volstaan, en de kleuren blijven van ons. Anders wordt Aura visueel een InSpace-product |
+
+### D2. De vijf velden per betekenis
+
+Nova heeft `background`, `background-subtle`, `background-hover`, `background-subtle-hover`,
+`border` en `foreground`. Wij hebben er vijf, gekozen naar hoe deze app ze daadwerkelijk gebruikt:
+
+| Veld | Waarvoor |
+|---|---|
+| `--intent-x-solid` | Gevulde vlakken: een knop, een gevulde badge |
+| `--intent-x-on-solid` | De tekstkleur ÓP dat gevulde vlak |
+| `--intent-x-text` | Dezelfde betekenis als leesbare tekst op een licht vlak |
+| `--intent-x-surface` | De 10%-tint als achtergrond van een chip of kaart |
+| `--intent-x-border` | De 30%-tint als rand |
+
+**Waarom `-text` los van `-solid` bestaat:** `#2e9e50` als tekst op wit haalt de contrastdrempel van
+4,5:1 niet, en dat was precies de kleur waarin "gelukt" stond. De donkere variant `#1f7a3d` wel.
+**Waarom `-on-solid` bestaat:** op `--accent-green` (`#b9efa3`, lichtmint) moet donkere tekst en op
+`--accent-purple` witte. Dat was tot 6 augustus 2026 per component een beoordeling.
+
+### D3. Grafiekkleuren horen in het tokensysteem
+
+`--chart-own`, `--chart-rival-1` tot `-3`, plus `--chart-axis` (astekst), `--chart-grid`
+(rasterlijnen) en `--chart-reference` (gestreepte referentielijnen).
+
+Die laatste drie zijn het punt. Nova heeft ze ook (`--chart-axis`, `--chart-grid`,
+`--chart-cursor`) en het is het deel dat iedereen vergeet, waardoor een grafiek er altijd nét naast
+ligt zodra de rest van het systeem verandert.
+
+### D4. Twee kleuren die we bij deze gelegenheid gerepareerd hebben
+
+1. **`--status-info` was `#8511d9`, exact de merkkleur.** Een mededeling was dus niet te
+   onderscheiden van een merkactie. Nova splitst dit in `intelligence` (paars, merk en AI) en
+   `information` (blauw, feitelijke mededeling). Wij nu ook.
+2. **`--status-warning` was `#b9a27a`, een gedempt brons.** Dat is bij Nova de kleur voor *premium*,
+   niet voor een waarschuwing, en als tekst op wit haalt het 2,1:1. De chips gebruikten daarom
+   allang hun eigen amber (`#8a6100`). Die amber is nu de waarheid, en de bronzen variant is
+   verdwenen.
+
+### D5. Wat de opruiming opleverde
+
+Bij het doorvoeren bleek de drift uit `ux-design.md` §3 volledig teruggegroeid: **dertien
+hardgecodeerde hexwaarden en tweeëntwintig losse `rgba()`-waarden** verspreid over de componenten,
+waaronder vier kleuren die in geen enkel token voorkwamen (drie concurrentkleuren in
+`trend-chart.tsx` en een vierde paars in `offsite-panel.tsx`). Vijf componenten bouwden bovendien
+`.chip-danger`, `.chip-warning`, `.chip-success` en `.chip-neutral` met de hand na, terwijl die
+klassen al bestonden.
+
+Sinds 6 augustus 2026 is het aantal nul, en `ux-design.md` regel 7 heeft er een `grep` bij die het
+zo houdt. Zonder die controle groeit het terug; dat is nu twee keer bewezen.
+
+---
+
 ## Bronnen (rechtstreeks geanalyseerd, juli 2026)
 - `https://inspace.io/`, homepage HTML + 10 inline `<style>`-blokken
 - `https://inspace.io/wp-content/themes/inspace/front/build/assets/main-*.css`, hoofd-Tailwind-bundel (root-tokens, utility-classes)
 - `https://inspace.io/wp-content/themes/inspace/assets/navbar/inspace-navbar.css`, navigatie- en Aura/Nova-mockup-styling
+- **§D:** de CSS-bundels van `nova.inspace.io` en `app.inspace.io`, de `--ds-*`-tokens, opgehaald 6 augustus 2026
