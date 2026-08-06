@@ -1,7 +1,8 @@
 # Zoekdata koppelen: wat InSpace doet, en of het voor Aura kan
 
 **Status:** onderzoek, nog niets gebouwd · **Opgesteld:** 6 augustus 2026 · **Vertrekpunt:** `main` op
-`99cfba0`, migraties t/m `0044`
+`99cfba0`, de deployment die op dat moment op Vercel op `production` stond
+(`dpl_6hE579cdFAZ6vFALooiiNYKzni4k`), migraties t/m `0044`, nagerekend tegen de productiedatabase
 
 Onderzoeksvraag: hoe koppelt InSpace de Google Analytics en Search Console van de klant aan Nova, is
 dat voor Aura realistisch, wat komt erbij kijken, hoe moeilijk is het bij de klant in te richten, en
@@ -12,6 +13,46 @@ InSpace doet precies datzelfde onderscheid.** De koppeling loopt niet via OAuth 
 account dat de klant als gebruiker aan zijn property toevoegt, wat de bouw halveert en de
 verificatieplicht bij Google helemaal weghaalt. Het echte werk zit niet in de code, ~5 dagen, maar
 in de onboarding: dit wordt het eerste dat Aura ooit écht van de klant vraagt.
+
+---
+
+## 0. Wat er op dit moment op productie staat
+
+Dit is nagerekend, niet aangenomen, en het verandert de volgorde van het advies in §6.
+
+| | Stand op 6 augustus 2026 |
+|---|---|
+| Live deployment | `main` op `99cfba0`, target `production` |
+| Migraties | t/m `0044` (`archief`) |
+| Profielen | 8, waarvan **7 gearchiveerd** en 1 actief |
+| Analyses | 0 actief (alle 11 gearchiveerd) |
+| Contentpagina's | 32: 21 op `ready`, 11 op `briefing` |
+| **Gepubliceerd** | **0.** Geen enkele `published_url`, geen enkele rij in `content_impact` |
+| Metingen | 352 `tracking_runs` over 313 prompts, alle op gearchiveerde analyses |
+| AI-kosten totaal | $11,58 over 989 aanroepen, laatste op 2 augustus |
+
+Drie gevolgen, en ze zijn alle drie belangrijker dan de techniek in §2.
+
+**1. De keten publiceren, controleren en effect meten heeft op productie nog nooit gedraaid.**
+Eenentwintig pagina's staan op `ready` en zijn nooit live gezet. `markPublished()`,
+`checkPublication()` en `planImpactWaves()` hebben dus nul echte gevallen gezien. De sterkste
+toepassing van Search Console uit §3b hangt precies aan die keten. Er bovenop bouwen is conventie 10
+in het kwadraat: een onbeproefde laag op een onbeproefde laag.
+
+**2. Deze koppeling is de eerste die niet droog te oefenen is op een willekeurige klant.** Elke
+bestaande pijplijnstap draait op elk webadres zonder iemand iets te vragen; daarom staan HEMA, Bol,
+Coolblue, Van der Valk, Swapfiets en Van den Udenhout in de database. Op géén van die acht
+properties krijgen we ooit toegang. De mechaniek is wél te verifiëren op een eigen domein, de
+Vercel-domeinen zijn gewoon in Search Console te verifiëren, dus punt 1 tot en met 4 van de
+verificatietabel in §7 kan vandaag. Maar de onboarding zelf, de drie scenario's uit §4 en hoe lang
+ze duren, is pas te toetsen met de eerste betalende klant. Dat is een planningsfeit, geen technisch
+feit, en het is de reden dat dit werk niet vooruit te trekken is.
+
+**3. De pijplijn ligt nu stil om een andere reden.** Het enige actieve profiel (Van den Udenhout,
+5 augustus, 107 pagina's gecrawld) staat op `mislukt`: `profile_discover` en `technical_audit` zijn
+klaar, maar `profile_research` faalde vier keer op `[429] You have no credits remaining` bij OpenAI.
+Dat verklaart ook waarom `ai_calls` op 2 augustus stopt. Los van dit onderzoek, maar het staat elke
+verificatie in de weg die geld kost.
 
 ---
 
@@ -339,35 +380,45 @@ De conventies van de app geven het meeste antwoord al. Wat hier specifiek geldt:
 
 ## 6. Advies en volgorde
 
-Bouwen, maar niet nu, en in drie fasen.
+Bouwen, maar niet nu, en in drie fasen. **De volgorde hieronder is niet die van de waarde maar die
+van wat op productie te verifiëren is**, en dat is na §0 een ander lijstje.
 
-| Fase | Wat | Effort | Waarde |
+| Fase | Wat | Effort | Verifieerbaar wanneer |
 |---|---|---|---|
-| 1 | Migratie `0045`, service account, koppelscherm, `gsc_verify`, `gsc_sync`, zichtbare status | ~2 d | Nog geen, dit is het fundament |
-| 2 | Indexcontrole in de publicatiecontrole, tweede as in de effectmeting | ~1 d | De grootste, hier wordt "het werkte" verdedigbaar |
-| 3 | Echte zoekopdrachten als invoer voor topics, promptgeneratie en de rapportinvoer | ~2 d | Structureel, raakt de kwaliteit van elke meetronde |
+| 1 | Migratie `0045`, service account, koppelscherm, `gsc_verify`, `gsc_sync`, zichtbare status | ~2 d | **Vandaag**, op een eigen geverifieerd domein. Vraagt geen klant |
+| 2 | Echte zoekopdrachten als invoer voor topics, promptgeneratie en de rapportinvoer | ~2 d | Zodra één klant gekoppeld is. Vraagt geen gepubliceerde pagina |
+| 3 | Indexcontrole in de publicatiecontrole, tweede as in de effectmeting | ~1 d | Pas na de eerste echt gepubliceerde pagina, plus 28 dagen |
+
+Fase 3 is inhoudelijk de sterkste en staat daarom in §3 bovenaan, maar hij is nu onverifieerbaar:
+er staan nul gepubliceerde pagina's op productie en de golven duren vier weken. Hem naar voren
+halen levert code op die niemand kan nakijken, en dat is precies wat conventie 10 verbiedt.
 
 Google Analytics: niet doen. Als een klant erom vraagt, is het antwoord hetzelfde als dat van
 InSpace, toegang op de property zodat de consultant meekijkt in het gesprek, geen koppeling.
 
-**Wanneer.** Dit staat achter roadmap-punten 0 en 1. De meetronde op GPT-5.6 is nog niet nagerekend
-en R8 met S1 tot S8 is nog niet op productie geverifieerd. Conventie 10 geldt onverkort: er is geen
-zin in een nieuwe ronde bovenop een keten waarvan de vorige ronde niet is nagerekend. Bovendien is
-fase 2 pas te verifiëren met een echte contentronde, en die staat er ook nog niet.
+**Wanneer.** Dit staat achter roadmap-punten 0 en 1: de meetronde op GPT-5.6 is nog niet nagerekend
+en R8 met S1 tot S8 is nog niet op productie geverifieerd. Daar komt na §0 een derde blokkade bij die
+zwaarder weegt dan allebei: **er is nog nooit een pagina gepubliceerd.** Eenentwintig stuks staan op
+`ready`. Die stap zetten is goedkoper dan dit hele traject, en zonder die stap is fase 3 hierboven
+niet meer dan een aanname. En eerst moet er weer krediet op de OpenAI-rekening staan, anders komt er
+sowieso geen enkele nieuwe ronde doorheen.
 
 ## 7. Verificatiecriteria
 
-Af is dit pas als deze op productie staan, niet als de code er is.
+Af is dit pas als deze op productie staan, niet als de code er is. De kolom rechts zegt of het
+criterium een klant nodig heeft; dat onderscheid volgt uit §0 en bepaalt wat je kunt afronden
+voordat er iemand getekend heeft.
 
-| # | Criterium |
-|---|---|
-| 1 | Eén echte klant heeft het service account toegevoegd, "Controleer toegang" wordt groen, en de status overleeft een herlaadbeurt |
-| 2 | De dagelijkse sync draait zeven dagen achter elkaar zonder handmatige actie, en een tweede sync van dezelfde dag verandert geen enkele rij (idempotent) |
-| 3 | Een herziening door Google wordt zichtbaar overgenomen: de cijfers van drie dagen geleden wijken af van wat er gisteren stond, en er zijn geen dubbele rijen |
-| 4 | Toegang intrekken bij de klant zet de status binnen 24 uur op `toegang_ingetrokken`, zichtbaar in de app, en de sync stopt |
-| 5 | Een profiel **zonder** koppeling doorloopt de volledige pijplijn, meting, rapport en content, zonder één afwijking ten opzichte van vandaag |
-| 6 | Bij één gepubliceerde pagina staan na 28 dagen beide assen naast elkaar, AI-zichtbaarheid en zoekprestatie, elk met eigen controlegroep en eigen oordeel |
-| 7 | De onboardingstap is bij drie klanten gedaan, met genoteerd welk van de drie scenario's uit §4 het was en hoe lang het duurde |
+| # | Criterium | Klant nodig |
+|---|---|---|
+| 1 | Het service account is toegevoegd aan een property, "Controleer toegang" wordt groen, en de status overleeft een herlaadbeurt | Nee, eigen domein |
+| 2 | De dagelijkse sync draait zeven dagen achter elkaar zonder handmatige actie, en een tweede sync van dezelfde dag verandert geen enkele rij (idempotent) | Nee |
+| 3 | Een herziening door Google wordt zichtbaar overgenomen: de cijfers van drie dagen geleden wijken af van wat er gisteren stond, en er zijn geen dubbele rijen | Nee |
+| 4 | Toegang intrekken zet de status binnen 24 uur op `toegang_ingetrokken`, zichtbaar in de app, en de sync stopt | Nee |
+| 5 | Een profiel **zonder** koppeling doorloopt de volledige pijplijn, meting, rapport en content, zonder één afwijking ten opzichte van vandaag | Nee |
+| 6 | De topics en de 30 vragen van één analyse zijn aantoonbaar beïnvloed door echte zoekopdrachten, en de uitkomst is beter dan de vorige ronde zonder | Ja, één |
+| 7 | Bij één gepubliceerde pagina staan na 28 dagen beide assen naast elkaar, AI-zichtbaarheid en zoekprestatie, elk met eigen controlegroep en eigen oordeel | Ja, plus een **eerste publicatie**, die er nog nooit geweest is |
+| 8 | De onboardingstap is bij drie klanten gedaan, met genoteerd welk van de drie scenario's uit §4 het was en hoe lang het duurde | Ja, drie |
 
 ## Bronnen
 
@@ -377,3 +428,5 @@ Af is dit pas als deze op productie staan, niet als de code er is.
 - Google Search Console API: quota en limieten, `searchanalytics.query`-referentie, de rechtentabel
   voor Eigenaar, Volledig en Beperkt, en de Indexing API-quickstart met de beperking tot `JobPosting`
   en `BroadcastEvent`
+- De cijfers in §0 komen uit de productiedatabase (Supabase `kosauqzjbpweluiqgmwv`) en de
+  deploymentlijst van het Vercel-project `geo`, allebei opgevraagd op 6 augustus 2026

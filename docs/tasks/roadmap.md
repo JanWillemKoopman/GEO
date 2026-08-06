@@ -91,7 +91,11 @@ geïndexeerd is, de effectmeting krijgt een tweede onafhankelijke as naast de AI
 30 vragen per analyse kunnen op echte zoekopdrachten met vertoningen rusten in plaats van op een
 schatting van het model. Kosten nul, want geen enkele AI-aanroep.
 
-**Staat achter punt 0 en 1**, en fase 2 is pas te verifiëren met een echte contentronde.
+**Staat achter punt 0 en 1**, en er is een derde blokkade die zwaarder weegt: nagerekend op de
+productiedatabase staan er 32 contentpagina's, waarvan 21 op `ready`, en **nul gepubliceerd**. Geen
+enkele `published_url`, geen enkele rij in `content_impact`. De keten publiceren, controleren en
+effect meten heeft dus nog nooit met echte data gedraaid, en dat is precies de keten waar de
+sterkste toepassing van Search Console aan hangt.
 
 ## 6. Blijvend uitgesteld: R0, Fundament (8 d)
 
