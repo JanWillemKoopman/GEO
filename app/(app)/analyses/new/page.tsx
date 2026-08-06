@@ -22,7 +22,7 @@ export default async function NewAnalysisPage() {
         <Link href="/analyses" className="mono-label transition-colors hover:text-[var(--text-primary)]">
           ← Terug naar Mijn analyses
         </Link>
-        <h1 className="mt-3 text-3xl font-bold tracking-tight">Nieuwe analyse</h1>
+        <h1 className="mt-3 text-2xl font-bold tracking-tight">Nieuwe analyse</h1>
         <p className="mt-2 text-secondary">
           Kies een merk en het product of onderwerp dat je wilt meten. Aura zoekt alleen nog uit wat
           je website hierover zegt en wie op dít onderwerp je concurrenten zijn. De rest weet het

@@ -172,7 +172,7 @@ export function BriefingForm({
               className="h-full transition-all"
               style={{
                 width: `${questions.length ? (beantwoord / questions.length) * 100 : 0}%`,
-                background: "var(--accent)",
+                background: "var(--intent-intelligence-solid)",
               }}
             />
           </div>

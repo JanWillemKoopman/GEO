@@ -112,7 +112,7 @@ export function OnboardingWizard() {
         <Link href="/profielen" className="mono-label transition-colors hover:text-[var(--text-primary)]">
           ← Merken
         </Link>
-        <h1 className="text-3xl font-bold tracking-tight">Nieuw merk</h1>
+        <h1 className="text-2xl font-bold tracking-tight">Nieuw merk</h1>
         <p className="mt-2 text-secondary">
           Twee velden, en Aura gaat aan de slag. Het leest de hele website uit, brengt het aanbod in
           kaart, zoekt uit wie de concurrenten zijn en test wat AI-assistenten nu al over je merk

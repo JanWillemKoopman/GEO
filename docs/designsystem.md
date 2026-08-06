@@ -180,6 +180,7 @@ de reden dat een grafiek er altijd nét naast ligt zodra de rest van het systeem
 
 | Token | Waarde | Waarvoor |
 |---|---|---|
+| `--radius-2xs` | 2px | Tekstmarkeringen |
 | `--radius-xs` | 4px | Kleine markeringen |
 | `--radius-sm` | 6px | Code-blokjes, geneste vlakjes |
 | `--radius-md` | 8px | **Knoppen, velden, navigatie-items, menu's** |
@@ -331,6 +332,26 @@ grep -rnE "rgba?\([0-9]" app components --include="*.tsx"
 
 De enige uitzondering is `themeColor` in `app/layout.tsx`: die gaat naar de browserbalk van het
 besturingssysteem en kan geen CSS-variabele zijn.
+
+**En een derde controle: verwijst elke `var(--...)` naar een token dat bestaat?**
+
+```bash
+python3 - <<'EOF'
+import re, glob, io
+css = io.open("app/globals.css").read()
+defined = set(re.findall(r'^\s*(--[a-z0-9-]+):', css, re.M)) | {"--font-geist-sans", "--font-geist-mono"}
+used = set()
+for p in glob.glob("app/**/*.tsx", recursive=True) + glob.glob("components/*.tsx") + ["app/globals.css"]:
+    used |= set(re.findall(r'var\((--[a-z0-9-]+)\)', io.open(p).read()))
+print(sorted(used - defined) or "geen ongedefinieerde tokens")
+EOF
+```
+
+Deze derde vond op 6 augustus 2026 twee verwijzingen die **nooit** hebben gewerkt: `var(--danger)`
+op een foutmelding, die daardoor in gewone tekstkleur stond, en `var(--accent)` op de gevulde balk
+van de briefingvoortgang, die daardoor volledig doorzichtig was. Die balk stond dus altijd op leeg,
+hoeveel vragen de klant ook had beantwoord. Geen van beide viel op, want een ontbrekende
+CSS-variabele geeft geen fout: hij valt stil terug op niets.
 
 **Dit is geen formaliteit.** De drift is twee keer teruggegroeid: de eerste opruiming telde 30
 inline-stijlen over 17 bestanden, de tweede 35. Een regel zonder controle is een voornemen.

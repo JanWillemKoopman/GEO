@@ -172,7 +172,7 @@ export function ReleasePanel({
       )}
 
       {error && (
-        <p className="text-sm" role="alert" style={{ color: "var(--danger)" }}>
+        <p className="text-sm" role="alert" style={{ color: "var(--intent-danger-text)" }}>
           {error}
         </p>
       )}

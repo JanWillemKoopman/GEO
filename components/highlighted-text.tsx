@@ -25,13 +25,13 @@ const STYLES: Record<HighlightGroup["variant"], React.CSSProperties> = {
     background: "color-mix(in srgb, var(--intent-intelligence-solid) 22%, transparent)",
     borderBottom: "var(--border-width-sm) solid var(--intent-intelligence-solid)",
     fontWeight: 600,
-    borderRadius: "2px",
+    borderRadius: "var(--radius-2xs)",
     padding: "0 2px",
   },
   competitor: {
     background: "var(--intent-neutral-surface)",
     borderBottom: "var(--border-width-sm) solid var(--border-strong)",
-    borderRadius: "2px",
+    borderRadius: "var(--radius-2xs)",
     padding: "0 2px",
   },
 };

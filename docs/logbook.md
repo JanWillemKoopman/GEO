@@ -1158,6 +1158,19 @@ vorige set haalde ΔE 9,2 en paars naast roze is nu het zwakste paar. Zolang dat
 draagt elke lijn een naam aan het uiteinde en staat er een tabel onder. En een knop van 40px haalt de
 mobiele tikdoel-eis van 44px niet, dus daar is een `.btn-lg` nodig.
 
+**De naronde vond twee bugs die er al stonden.** Een controle op "verwijst elke `var(--...)` naar een
+token dat bestaat" leverde er twee op die **nooit** hebben gewerkt: `var(--danger)` op een
+foutmelding, die daardoor in gewone tekstkleur stond, en `var(--accent)` op de gevulde balk van de
+briefingvoortgang, die daardoor volledig doorzichtig was. Die balk stond dus altijd op leeg, hoeveel
+vragen de klant ook had beantwoord. Geen van beide viel op, want een ontbrekende CSS-variabele geeft
+geen fout: hij valt stil terug op niets. Die controle staat nu als derde in `designsystem.md` §11,
+naast de twee greps op hexwaarden en `rgba()`.
+
+Diezelfde ronde bracht de paginakoppen van 30 naar 24 pixels (de KPI-cijfers blijven groot, dat is
+het hoofdgetal uit `ux-design.md` regel 1), zette de uitleg-popover op de ene schaduw in plaats van
+Tailwinds `shadow-lg`, en voegde `--radius-2xs` toe zodat de laatste twee losse pixelwaarden ook een
+token hebben.
+
 **Geverifieerd.** Vier controles groen: `tsc --noEmit`, 675 unittests, 47 ketentests, productiebuild.
 Beide kleurcontroles geven nul. De inlogpagina is met een echte browser bekeken op 1280 bij 900; de
 schermen achter de login vragen een database en zijn dus niet lokaal te renderen. Conventie 10 blijft

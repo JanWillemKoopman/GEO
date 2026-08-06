@@ -180,6 +180,7 @@
      de standaard: die is voorbehouden aan chips en badges. Knoppen, velden en
      navigatie-items krijgen --radius-md. Dat is de meest zichtbare enkele
      wijziging van deze hele omzetting. */
+  --radius-2xs: 2px;
   --radius-xs: 4px;
   --radius-sm: 6px;
   --radius-md: 8px;
@@ -242,6 +243,7 @@
   --font-sans: var(--font-sans);
   --font-mono: var(--font-mono);
 
+  --radius-2xs: var(--radius-2xs);
   --radius-xs: var(--radius-xs);
   --radius-sm: var(--radius-sm);
   --radius-md: var(--radius-md);

@@ -62,7 +62,7 @@ export function InfoHint({ label, children }: { label: string; children: React.R
         <span
           id={panelId}
           role="note"
-          className="absolute left-0 top-8 z-20 block w-64 rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--bg-elevated)] p-3 text-sm font-normal text-secondary shadow-lg"
+          className="absolute left-0 top-8 z-20 block w-64 rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-3 text-sm font-normal text-secondary shadow-[var(--shadow-overlay)]"
         >
           <span className="mono-label mb-1 block" style={{ fontSize: "0.65rem" }}>
             {label}
