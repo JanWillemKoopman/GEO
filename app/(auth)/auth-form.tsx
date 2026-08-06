@@ -19,7 +19,7 @@ export function AuthForm({ mode, action, notice, signupsEnabled = false }: AuthF
   return (
     <form action={formAction} className="flex flex-col gap-4">
       {notice && (
-        <p className="rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--intent-growth-surface)] px-4 py-3 text-sm text-[var(--accent-green-text)]">
+        <p className="rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--intent-growth-surface)] px-4 py-3 text-sm text-[var(--intent-growth-text)]">
           {notice}
         </p>
       )}
@@ -62,7 +62,7 @@ export function AuthForm({ mode, action, notice, signupsEnabled = false }: AuthF
         <p className="text-center text-sm">
           <Link
             href="/wachtwoord-vergeten"
-            className="text-[var(--accent-purple-soft)] hover:underline"
+            className="text-[var(--intent-intelligence-text)] hover:underline"
           >
             Wachtwoord vergeten?
           </Link>
@@ -72,7 +72,7 @@ export function AuthForm({ mode, action, notice, signupsEnabled = false }: AuthF
       {isLogin && signupsEnabled && (
         <p className="mt-2 text-center text-sm text-secondary">
           Nog geen account?{" "}
-          <Link href="/register" className="text-[var(--accent-purple-soft)] hover:underline">
+          <Link href="/register" className="text-[var(--intent-intelligence-text)] hover:underline">
             Registreren
           </Link>
         </p>
@@ -83,7 +83,7 @@ export function AuthForm({ mode, action, notice, signupsEnabled = false }: AuthF
       {!isLogin && (
         <p className="mt-2 text-center text-sm text-secondary">
           Al een account?{" "}
-          <Link href="/login" className="text-[var(--accent-purple-soft)] hover:underline">
+          <Link href="/login" className="text-[var(--intent-intelligence-text)] hover:underline">
             Inloggen
           </Link>
         </p>

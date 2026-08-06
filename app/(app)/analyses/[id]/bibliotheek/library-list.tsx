@@ -226,7 +226,7 @@ function PieceCard({ analysisId, piece }: { analysisId: string; piece: ContentPi
       </div>
 
       {piece.published_url ? (
-        <span className="mono-label truncate" style={{ color: "var(--accent-green-text)" }}>
+        <span className="mono-label truncate" style={{ color: "var(--intent-growth-text)" }}>
           {piece.published_url}
         </span>
       ) : piece.action === "verbeteren" && piece.existing_url ? (

@@ -1,15 +1,11 @@
 import type { Metadata, Viewport } from "next";
 import { GeistSans } from "geist/font/sans";
-import { JetBrains_Mono } from "next/font/google";
+import { GeistMono } from "geist/font/mono";
 import "./globals.css";
 
-// Aeonik-vervanger (geometrische grotesk) + TT-Commons-vervanger (technische mono),
-// conform designsystem.md §A2/§C-aanbeveling (open-source substituten).
-const jetbrainsMono = JetBrains_Mono({
-  subsets: ["latin"],
-  variable: "--font-jetbrains-mono",
-  display: "swap",
-});
+// Geist Sans en Geist Mono, het paar dat de NOVA-workspace zelf gebruikt.
+// Mono was JetBrains Mono: twee families van twee makers naast elkaar is precies
+// het soort verschil dat je niet ziet maar wel voelt. Zie designsystem.md §3.
 
 export const metadata: Metadata = {
   title: "Aura · AI-zichtbaarheid, gemeten",
@@ -18,7 +14,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#f7f8f6",
+  themeColor: "#f8fafc",
   width: "device-width",
   initialScale: 1,
 };
@@ -27,7 +23,7 @@ export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="nl" data-theme="light" className={`${GeistSans.variable} ${jetbrainsMono.variable}`}>
+    <html lang="nl" data-theme="light" className={`${GeistSans.variable} ${GeistMono.variable}`}>
       <body>{children}</body>
     </html>
   );

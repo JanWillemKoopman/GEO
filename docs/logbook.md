@@ -1109,3 +1109,56 @@ document, de controle dwingt hem af. Zonder die tweede helft was dit de derde ke
 
 Beide controles geven nul. Vier controles groen: `tsc --noEmit`, 675 unittests, 47 ketentests,
 productiebuild.
+
+## 30. De vormgeving over op het product van InSpace, niet op hun website (6 augustus 2026)
+
+**De bevinding waar alles op rust.** `designsystem.md` was gebaseerd op de marketingsite
+`inspace.io`. Maar InSpace draait een tweede, ingelogde omgeving, `nova.inspace.io`, en die ziet er
+fundamenteel anders uit. De website is warm, rond en gloeiend; het product is koel, strak en plat.
+Wij bouwden de website na. Wie Nova echt gebruikt, zou Aura niet als familie herkennen.
+
+Acht verschillen, allemaal nagemeten in hun eigen CSS-bundel:
+
+| | marketingsite | product | Aura nu |
+|---|---|---|---|
+| Grondtoon | `#f5f6f3` warm | `#f8fafc` koel | koel |
+| Tekst | `#0b0b0c` | `#17212b` | `#17212b` |
+| Randen | doorschijnend zwart | echte tint | echte tint |
+| Radii | pillen, 18px | 8px en 12px | 8px en 12px |
+| Diepte | gekleurde gloed | één platte schaduw | één schaduw |
+| Gradient | overal | nul keer | woordmerk |
+| Mono | TT Commons | Geist Mono | Geist Mono |
+| Achtergrond | lijnenraster | vlak | vlak |
+
+**Wat er is gebeurd.** De volledige tokenset is vervangen: koele neutralen, zeven betekenissen met
+elk vijf velden, zes grafiekkleuren gebonden aan die betekenissen, zes radii, drie randdiktes, één
+schaduw. Knoppen van 48 naar 40 pixels, velden van grijs verzonken naar wit met een rand,
+kaartpadding van 26 naar 20. Vier ambient gloed-cirkels weg, de ringgloed om de primaire knop weg,
+de hover-lift weg, het lijnenraster op de body weg. De merk-gradient stond op vier accentwoorden in
+koppen en staat nu alleen nog op het woordmerk.
+
+**Eén bewuste afwijking van Nova.** Zij kennen twee paarse standen en gebruiken de lichte (`#9e21fc`)
+als solide vlak. Wit daarop haalt **4,0:1** en zakt daarmee onder de drempel van 4,5 voor knoptekst;
+op `#8511d9` is het 5,4:1. Bij hen is de lichte stand te verdedigen omdat dezelfde token ook in
+donkere modus dienstdoet, wij hebben alleen licht. Dit kwam pas boven water door het scherm echt te
+bekijken in plaats van de waarden over te nemen: de knop stond er neon bij.
+
+**Eén bug onderweg gevonden en gerepareerd.** `--accent-purple-soft` was een lichter paars en werd op
+vijf plekken als linkkleur gebruikt. In het nieuwe systeem betekent `soft` een vlaktint (`#f3e6ff`),
+dus die vijf links waren wit-op-wit geworden. De token heet nu `--accent-purple-surface` en de links
+wijzen naar `--intent-intelligence-text`.
+
+**Wat bewust NIET is overgenomen:** de donkere modus (die blijft uit, maar de tokennamen zijn er nu
+op ingericht, dus het is een dag werk in plaats van een week), Nova's negen radii, en hun indeling.
+Zijbalknavigatie, klantkiezer en toasts zijn IA-wijzigingen, geen vormgeving; ze staan beschreven in
+`tasks/nova-analyse.md` en zijn hier niet aangeraakt.
+
+**Wat open blijft.** De zes grafiekkleuren zijn niet opnieuw gevalideerd op kleurenblindheid; de
+vorige set haalde ΔE 9,2 en paars naast roze is nu het zwakste paar. Zolang dat niet is nagemeten
+draagt elke lijn een naam aan het uiteinde en staat er een tabel onder. En een knop van 40px haalt de
+mobiele tikdoel-eis van 44px niet, dus daar is een `.btn-lg` nodig.
+
+**Geverifieerd.** Vier controles groen: `tsc --noEmit`, 675 unittests, 47 ketentests, productiebuild.
+Beide kleurcontroles geven nul. De inlogpagina is met een echte browser bekeken op 1280 bij 900; de
+schermen achter de login vragen een database en zijn dus niet lokaal te renderen. Conventie 10 blijft
+dus half openstaan tot iemand ingelogd door de app loopt.

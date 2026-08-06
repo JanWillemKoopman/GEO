@@ -344,7 +344,7 @@ export function ProfileEditor({ initial, inventoryCount }: { initial: Profile; i
             {refreshState === "pending" ? "Aura leest je site…" : "Vernieuw inventaris"}
           </button>
           {refreshState === "done" && (
-            <span className="text-sm text-[var(--accent-green-text)]">Bijgewerkt: {count} pagina&apos;s ✓</span>
+            <span className="text-sm text-[var(--intent-growth-text)]">Bijgewerkt: {count} pagina&apos;s ✓</span>
           )}
           {refreshState === "error" && (
             <span className="text-sm text-[var(--status-error)]">
@@ -365,7 +365,7 @@ export function ProfileEditor({ initial, inventoryCount }: { initial: Profile; i
         <button onClick={() => void save()} disabled={saving} className="btn-primary disabled:opacity-60">
           {saving ? "Opslaan…" : "Wijzigingen opslaan"}
         </button>
-        {saved && <span className="text-sm text-[var(--accent-green-text)]">Opgeslagen ✓</span>}
+        {saved && <span className="text-sm text-[var(--intent-growth-text)]">Opgeslagen ✓</span>}
         {error && <span className="text-sm text-[var(--status-error)]">{error}</span>}
       </div>
     </div>

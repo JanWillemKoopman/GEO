@@ -72,7 +72,7 @@ export function WorkInProgress({
                 style={{
                   background: step.done ? "color-mix(in srgb, var(--intent-growth-solid) 20%, transparent)" : "transparent",
                   border: step.done ? "none" : "1px solid var(--border-strong)",
-                  color: step.done ? "var(--accent-green-text)" : "var(--text-muted)",
+                  color: step.done ? "var(--intent-growth-text)" : "var(--text-muted)",
                 }}
               >
                 {step.done ? "✓" : ""}

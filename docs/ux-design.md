@@ -1,7 +1,9 @@
 # UX & Design
 
 Leidend voor elk scherm. Tokens en primitieven staan in `app/globals.css`; dit document legt uit
-wat ze zijn en wanneer je welke gebruikt.
+wat ze zijn en wanneer je welke gebruikt. **Peildatum: 6 augustus 2026**, de dag dat de vormgeving
+overging op het systeem van de NOVA-workspace. De volledige verantwoording staat in
+`designsystem.md`.
 
 > **Voor de tékst in die schermen geldt `docs/schrijfstijl.md`**: de tone-of-voice van Aura,
 > afgeleid van InSpace Nova. Dit document gaat over hoe iets eruitziet, dat over hoe het klinkt.
@@ -30,58 +32,50 @@ Het uitgangspunt: **snapt een niet-technische klant dit binnen 5 seconden zonder
 
 ## 2. Kleur en typografie
 
-Gebaseerd op een analyse van de live CSS van inspace.io (juli 2026). **Licht systeem, bewust geen
-dark mode**, `globals.css` kent alleen `:root`/`[data-theme="light"]` en zet
-`html { color-scheme: light; }`.
+**Bron: de NOVA-workspace van InSpace** (`nova.inspace.io`), hun ingelogde productomgeving, niet hun
+marketingsite. Dat onderscheid is het hele punt; `designsystem.md` §1 legt uit waarom.
+**Licht systeem, bewust geen donkere modus**: `globals.css` kent alleen `:root` en
+`[data-theme="light"]` en zet `html { color-scheme: light; }`.
+
+De volledige tokenlijst staat in `designsystem.md` §2 en hoeft hier niet herhaald te worden. Wat je
+moet weten om een scherm te bouwen:
 
 ```css
-/* Achtergronden: pagina → kaart → veld */
---bg-base: #f7f8f6;  --bg-surface: #ffffff;  --bg-elevated: #f1f2ee;  --bg-surface-2: #e9ebe5;
+/* Neutralen: koel leiblauw, geen warm groengrijs */
+--bg-base: #f8fafc;  --bg-surface: #ffffff;  --bg-elevated: #e7edf2;  --bg-surface-2: #dce3ea;
+--text-primary: #17212b;  --text-secondary: #43505d;  --text-muted: #788795;
+--border-subtle: #e7edf2;  --border-strong: #c2ccd6;  --border-contrast: #9daab6;
 
-/* Merk */
---accent-purple: #8511d9;       --accent-purple-soft: #a24dec;
---accent-purple-glow: rgba(133,17,217,.14);
---accent-green: #b9efa3;        --accent-green-text: #2e9e50;  --accent-green-dark: #54b86a;
---brand-gradient: linear-gradient(96deg, #54b86a 0%, #8511d9 96%);   /* de signatuur */
+/* Betekenissen, elk met -solid, -on-solid, -text, -surface en -border */
+--intent-intelligence-*   het merk, AI, de primaire actie
+--intent-growth-*         gelukt, gestegen, gepubliceerd
+--intent-information-*    een mededeling
+--intent-warning-*        kijk hier even naar
+--intent-attention-*      vraagt een keuze, is niet fout
+--intent-danger-*         blokkade, mislukt, onomkeerbaar
+--intent-premium-*        betaald, hoogste plan
+--intent-neutral-*        uit, niet van toepassing
 
-/* Tekst en randen */
---text-primary: #0b0b0c;  --text-secondary: rgba(11,11,12,.62);  --text-muted: rgba(11,11,12,.45);
---border-subtle: rgba(11,11,12,.1);  --border-strong: rgba(11,11,12,.22);
+/* Vorm: de pil is NIET meer de standaard */
+--radius-md: 8px;    knoppen, velden, navigatie
+--radius-lg: 12px;   kaarten
+--radius-pill;       alleen chips, badges en voortgangsbalken
 
-/* Status */
---status-success: #2e9e50;  --status-error: #d33a3f;
---status-warning: #b9a27a;  --status-info: #8511d9;
-
-/* Radii, motion */
---radius-pill: 999px;  --radius-lg: 18px;  --radius-md: 14px;  --radius-sm: 9px;
---ease-standard: cubic-bezier(.2,.7,.2,1);
---duration-fast: .2s;  --duration-base: .3s;  --duration-slow: .45s;
+/* Diepte: één schaduw, voor wat zweeft. Verder plat. */
+--shadow-overlay: 0 4px 6px -4px rgba(0,0,0,.1), 0 10px 15px -3px rgba(0,0,0,.1);
 ```
 
-**Fonts:** Geist Sans + JetBrains Mono via `next/font`. Dit zijn bewust de open-source vervangers
-van InSpace's Aeonik en TT Commons. Die zijn commercieel gelicenseerd en mogen we niet overnemen.
+**Fonts:** Geist Sans en Geist Mono via `next/font`, het paar dat Nova zelf gebruikt. Mono was
+JetBrains Mono. Aeonik en TT Commons van InSpace zijn commercieel gelicenseerd en mogen we niet
+overnemen; Geist is daar de open-source tegenhanger van.
 
-**Zes principes voor consistente toepassing:**
+**Acht principes voor consistente toepassing:**
 
-1. **Gloed in plaats van harde randen.** Elevatie en focus communiceren via een gekleurde
-   `box-shadow` in de accentkleur bij lage opaciteit, niet via felle borders.
-2. **Interactieve elementen zijn pilvormig.** Knoppen, badges en chips op `--radius-pill`; alleen
-   containers en kaarten gebruiken de kleinere radii.
-3. **Mono is gereserveerd voor technische UI-tekst.** Labels, statuscaptions, badges en
-   stat-waarden in `--font-mono`, uppercase, breed getrackt (`.08em`–`.2em`). Body en koppen in
-   `--font-sans`. Dit mono-in-kapitaal-trucje is de herkenbaarste typografische keuze van het
-   systeem. Het geeft de "technische read-out"-uitstraling die bij een meetproduct past.
-4. **Eén easing overal:** `--ease-standard`.
-5. **Status is kleur plus vorm, nooit kleur alleen.** Een pulserende dot, een pijl (`↑` of `↓`)
-   of een chip. Dat is toegankelijkheid.
-6. **Gloed-orbs spaarzaam:** groot en zeer vervaagd (`blur(40–90px)`) achter hero-secties, nooit
-   als decoratie in kleine componenten.
-7. **Een kleur heeft een betekenis, geen naam.** Gebruik `--intent-growth-text`, nooit
+1. **Een kleur heeft een betekenis, geen naam.** Gebruik `--intent-growth-text`, nooit
    `--accent-green`, en nooit een hexwaarde of een rauwe `rgba()` in een component. Elke kleur die
    in een `.tsx` staat, is een fout die zich verspreidt: die kleur mist de volgende
    paletwijziging, en niemand ziet dat totdat twee schermen die elkaar opvolgen twee tinten groen
-   tonen. De betekenislaag staat in `globals.css` en is uitgelegd in `designsystem.md` §D.
-   **Controle vóór een commit, beide moeten nul regels geven:**
+   tonen. **Controle vóór een commit, beide moeten nul regels geven:**
 
    ```bash
    grep -rnE "#[0-9a-fA-F]{6}\b" app components --include="*.tsx" | grep -v themeColor
@@ -90,6 +84,20 @@ van InSpace's Aeonik en TT Commons. Die zijn commercieel gelicenseerd en mogen w
 
    De uitzondering is `themeColor` in `app/layout.tsx`: die gaat naar de browserbalk van het
    besturingssysteem en kan geen CSS-variabele zijn.
+2. **Plat, niet gloeiend.** Rand en vlak dragen de hiërarchie. De ene schaduw is voor wat boven de
+   pagina zweeft: menu's, dialogen, de hover van een klikbare kaart. Een gewone kaart is plat.
+   De enige gloed die overblijft is de focusring, en die is toegankelijkheid.
+3. **De pil is voor chips.** Knoppen, velden en navigatie-items krijgen `--radius-md`. De oude regel
+   "interactieve elementen zijn pilvormig" was de marketingsite.
+4. **Status is kleur plus vorm, nooit kleur alleen.** Een pulserende dot, een pijl (`↑` of `↓`) of
+   een chip met tekst. Dat is toegankelijkheid.
+5. **Mono is voor cijfers, niet voor labels.** `.stat-value` voor waarden die je vergelijkt,
+   `.mono-label` als kicker boven een titel, en die is sinds de overstap sans.
+6. **Contrast is een tokenkeuze.** `-text` op een licht vlak, `-on-solid` op een gevuld vlak, en
+   `--text-muted` (3,7:1) nooit voor iets wat gelezen moet worden.
+7. **Eén easing overal** (`--ease-standard`), en korte duur: 0,12s tot 0,3s.
+8. **De merk-gradient is het woordmerk.** Nergens anders. In de Nova-werkomgeving komt hij nul keer
+   voor.
 
 ## 3. Componenten
 
@@ -100,16 +108,18 @@ schermen die de gebruiker na elkaar ziet).
 
 | Primitief | Regel |
 |---|---|
-| `.card` | Statisch. **Geen hover**, een kaart die bij hover omhoog schaduwt belooft interactie. |
+| `.card` | Wit, één rand, **plat**. Geen schaduw, geen hover; een kaart die bij hover omhoog komt belooft interactie. |
 | `.card-interactive` | Alleen op daadwerkelijk klikbare kaarten (de lijstitems). Hier hoort de hover. |
 | `.card-accent` / `.card-danger` / `.card-success` / `.card-warning` | Getinte kaartranden. |
-| `.btn-primary` / `.btn-outline` | Beide 48px. `.btn-sm` = 40px. Eén hoogte-schaal, geen uitzonderingen. |
-| `.chip` + `.chip-success` / `-danger` / `-warning` / `-info` / `-neutral` / `-green` | Nooit met de hand een tint nabouwen. Dat gebeurde toch, in vijf componenten tegelijk; zie regel 7 hierboven en de `grep` die het nu tegenhoudt. |
-| `.mono-label` | Kleine uppercase labels in mono. |
-| `.field` | Formuliervelden, inclusief focus-state. |
+| `.btn-primary` / `.btn-outline` | Beide 40px, `--radius-md`, geen pil meer. `.btn-sm` = 32px. Eén hoogte-schaal, geen uitzonderingen. |
+| `.chip` + `-success` / `-danger` / `-warning` / `-info` / `-attention` / `-neutral` / `-green` | Pilvormig, sans, schrijftaal. Nooit met de hand een tint nabouwen. Dat gebeurde toch, in vijf componenten tegelijk; zie regel 1 hierboven en de `grep` die het nu tegenhoudt. |
+| `.mono-label` | De kicker bóven een titel: klein, uppercase, **sans**. Heet nog "mono" omdat hij op tientallen plekken staat; hernoemen raakt te veel bestanden voor alleen een naam. |
+| `.stat-value` | Cijfers die je vergelijkt, in mono met `tabular-nums`. |
+| `.field` | Formuliervelden, 40px, wit met een rand, inclusief focusring. |
 | `.live-dot` | Pulserende indicator voor "loopt nu". |
 | `.skeleton` | Laadvlak, respecteert `prefers-reduced-motion`. |
 | `.prose` | Lange tekst (rapport, contentpagina). |
+| `.brand-gradient-text` | **Alleen het woordmerk Aura.** Nergens anders. |
 | `PageHeader`, `EmptyState`, `Narrow` | Eén variant per patroon, geen lokale kopieën. |
 | `ConfidenceChip` (`components/confidence-chip.tsx`) | Zekerheid is een **niveau**, nooit een getal: zeker (geen markering) · onzeker (amber) · niet vastgesteld (mono-label "niet gevonden"). "0.62" zegt een MKB'er niets. |
 
@@ -227,6 +237,10 @@ implementatiedetail; het ontwerpproces blijft desktop-first.
 | Primaire CTA op lang scherm | Aan het eind van de sectie | Sticky onderbalk |
 | Grafieken | Volledige multi-serie grafiek | Kernwaarde + sparkline |
 | Modals | Gecentreerd | Full-screen sheet |
+
+⚠️ **Open punt sinds de overstap:** een `.btn-primary` is 40px hoog en haalt de 44px hieronder dus
+niet. Op mobiel moet een primaire actie extra verticale padding of een eigen `.btn-lg` krijgen. Dat
+is nog niet gebouwd.
 
 Vaste mobiele regels: tikdoelen ≥ 44×44px · formuliervelden ≥ 16px (anders zoomt iOS Safari in) ·
 geen interactie mag van hover afhangen.

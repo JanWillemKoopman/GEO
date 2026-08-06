@@ -73,16 +73,7 @@ export function SectionRail({ sections }: { sections: RailSection[] }) {
               key={s.id}
               href={`#${s.id}`}
               aria-current={on ? "true" : undefined}
-              className="chip shrink-0"
-              style={
-                on
-                  ? undefined
-                  : {
-                      background: "transparent",
-                      color: "var(--text-muted)",
-                      borderColor: "var(--border-subtle)",
-                    }
-              }
+              className={`chip shrink-0 ${on ? "" : "chip-neutral"}`}
             >
               <span style={{ opacity: 0.7 }}>{String(i + 1).padStart(2, "0")}</span>
               {s.label}
@@ -110,13 +101,13 @@ function RailItem({
       aria-current={active ? "true" : undefined}
       className="flex items-baseline gap-3 py-2.5 transition-colors"
       style={{
-        borderLeft: active ? "2px solid var(--accent-purple)" : "2px solid var(--border-subtle)",
+        borderLeft: active ? "var(--border-width-sm) solid var(--intent-intelligence-solid)" : "var(--border-width-sm) solid var(--border-subtle)",
         paddingLeft: 14,
       }}
     >
       <span
         className="mono-label"
-        style={{ color: active ? "var(--accent-purple)" : "var(--text-muted)", fontSize: "0.68rem" }}
+        style={{ color: active ? "var(--intent-intelligence-text)" : "var(--text-muted)", fontSize: "0.68rem" }}
       >
         {String(index + 1).padStart(2, "0")}
       </span>

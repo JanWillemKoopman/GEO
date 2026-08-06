@@ -49,7 +49,6 @@ export function WorkRow({
         background: "var(--bg-elevated)",
         // Gekleurde gloed i.p.v. Een hardere rand, de InSpace-manier om nadruk
         // te leggen (designsystem.md §A3: "de gloed doet het werk").
-        boxShadow: emphasis ? "0 0 0 4px color-mix(in srgb, var(--accent-purple) 7%, transparent)" : undefined,
       }}
     >
       <div className="flex flex-wrap items-baseline justify-between gap-2">
@@ -64,7 +63,7 @@ export function WorkRow({
       {(item.meta || item.actionLabel) && (
         <div className="mt-1 flex flex-wrap items-center gap-3">
           {item.actionLabel && (
-            <span className="mono-label transition-colors group-hover:text-[var(--accent-purple)]">
+            <span className="mono-label transition-colors group-hover:text-[var(--intent-intelligence-text)]">
               {item.actionLabel} →
             </span>
           )}

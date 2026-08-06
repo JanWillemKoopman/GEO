@@ -54,7 +54,7 @@ function NumberedNav({
 }) {
   return (
     <div className="flex flex-col gap-1">
-      <span className="mono-label" style={{ color: "var(--accent-purple)" }}>
+      <span className="mono-label" style={{ color: "var(--intent-intelligence-text)" }}>
         {label}
       </span>
       <nav className="flex flex-col">
@@ -68,24 +68,24 @@ function NumberedNav({
               className="group flex items-center justify-between gap-4 border-b py-4 transition-colors"
               style={{
                 borderColor: "var(--border-subtle)",
-                borderLeft: active ? "3px solid var(--accent-purple)" : "3px solid transparent",
+                borderLeft: active ? "var(--border-width-sm) solid var(--intent-intelligence-solid)" : "var(--border-width-sm) solid transparent",
                 paddingLeft: active ? 13 : 16,
               }}
             >
               <span className="flex items-baseline gap-4">
-                <span className="mono-label" style={{ color: "var(--accent-purple)", fontSize: "0.8rem" }}>
+                <span className="mono-label" style={{ color: "var(--intent-intelligence-text)", fontSize: "0.8rem" }}>
                   {String(i + 1).padStart(2, "0")}
                 </span>
                 <span
-                  className="text-2xl font-bold tracking-tight transition-colors"
-                  style={{ color: active ? "var(--accent-purple)" : "var(--text-primary)" }}
+                  className="text-xl font-semibold tracking-tight transition-colors"
+                  style={{ color: active ? "var(--intent-intelligence-text)" : "var(--text-primary)" }}
                 >
                   {link.label}
                 </span>
               </span>
               <span
-                className="transition-colors group-hover:text-[var(--accent-purple)]"
-                style={{ color: active ? "var(--accent-purple)" : "var(--text-muted)" }}
+                className="transition-colors group-hover:text-[var(--intent-intelligence-text)]"
+                style={{ color: active ? "var(--intent-intelligence-text)" : "var(--text-muted)" }}
               >
                 <ChevronIcon />
               </span>
@@ -137,7 +137,7 @@ export function ProfileMenu({
         onClick={() => setOpen(true)}
         aria-label="Menu openen"
         aria-haspopup="dialog"
-        className="flex h-11 w-11 items-center justify-center rounded-full text-[var(--text-muted)] transition-colors hover:text-[var(--accent-purple)]"
+        className="flex h-9 w-9 items-center justify-center rounded-[var(--radius-md)] text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-elevated)] hover:text-[var(--text-primary)]"
       >
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
           <circle cx="12" cy="8" r="4" stroke="currentColor" strokeWidth="1.6" />
@@ -154,17 +154,6 @@ export function ProfileMenu({
             aria-label="Menu"
             className="fixed inset-0 z-50 flex flex-col overflow-hidden bg-[var(--bg-base)]"
           >
-            {/* Ambient gloed-orbs (designsystem.md A3/B), dezelfde grote, sterk
-                vervaagde accent-cirkels als InSpace achter hun menu/hero. */}
-            <div
-              className="glow-orb"
-              style={{ width: 320, height: 320, top: -100, right: -120, background: "var(--accent-purple-glow)" }}
-            />
-            <div
-              className="glow-orb"
-              style={{ width: 280, height: 280, bottom: -80, left: -100, background: "color-mix(in srgb, var(--accent-green) 22%, transparent)" }}
-            />
-
             <div className="relative z-10 flex h-16 items-center justify-between border-b border-[var(--border-subtle)] px-6">
               <span className="text-lg font-bold tracking-tight">
                 <span className="brand-gradient-text">Aura</span>
@@ -174,7 +163,7 @@ export function ProfileMenu({
                 type="button"
                 onClick={() => setOpen(false)}
                 aria-label="Menu sluiten"
-                className="flex h-11 w-11 items-center justify-center rounded-full bg-[var(--bg-surface)] text-xl text-[var(--text-primary)] shadow-[var(--shadow-sm)] transition-colors hover:text-[var(--accent-purple)]"
+                className="flex h-11 w-11 items-center justify-center rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--bg-surface)] text-xl text-[var(--text-primary)] transition-colors hover:bg-[var(--bg-elevated)]"
               >
                 ×
               </button>
@@ -182,12 +171,8 @@ export function ProfileMenu({
 
             <div className="relative z-10 flex flex-1 flex-col gap-8 overflow-y-auto px-6 py-8">
               <div>
-                <span className="mono-label" style={{ color: "var(--accent-purple)" }}>
-                  Menu
-                </span>
-                <h2 className="mt-1 text-4xl font-bold tracking-tight">
-                  Waar wil je <span className="brand-gradient-text">heen</span>?
-                </h2>
+                <span className="mono-label">Menu</span>
+                <h2 className="mt-1 text-2xl font-bold tracking-tight">Waar wil je heen?</h2>
               </div>
 
               <NumberedNav label="Navigatie" links={NAV} pathname={pathname} onNavigate={() => setOpen(false)} />

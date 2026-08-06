@@ -1,147 +1,216 @@
 @import "tailwindcss";
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   Aura — design system (LICHT)
-   Bron: designsystem.md §A (het lichte kernsysteem dat InSpace daadwerkelijk
-   overal gebruikt) + analyse van live inspace.io-screenshots (juli 2026).
-   Wit/off-white vlakken, zwarte tekst, subtiele randen, neutrale schaduwen,
-   met InSpace's merk-DNA (paars/groen-gradient, pil-vormen, mono-labels).
+   Aura, design system (LICHT)
+
+   Bron: het tokensysteem van de NOVA-workspace van InSpace (nova.inspace.io),
+   geanalyseerd op 6 augustus 2026. Volledige verantwoording en de regels voor
+   toepassing: docs/designsystem.md.
+
+   ⚠️ Dit is NIET het systeem van de marketingsite inspace.io. Dat was de bron
+   tot 6 augustus 2026 en het leverde een warme, ronde, gloeiende interface op:
+   goed voor een landingspagina, verkeerd voor een dashboard waar iemand een uur
+   per week in zit. InSpace doet dat in hun eigen product ook niet. De
+   productomgeving is koel, strak en plat:
+
+     warm off-white  →  koel leiblauw          (#f7f8f6 → #f8fafc)
+     pillen overal   →  8px en 12px            (radius 18/14/9 → 12/8/6)
+     gekleurde gloed →  één platte schaduw     (glow-orbs weg)
+     gradient overal →  alleen het woordmerk
+
+   Er is bewust GEEN donkere modus. De tokennamen zijn er wel op ingericht,
+   dus die is later een dag werk in plaats van een week. Zie designsystem.md §5.
    ═══════════════════════════════════════════════════════════════════════════ */
 
 :root,
 :root[data-theme="light"] {
-  /* Achtergrondlagen — pagina (off-white) → kaart (wit) → veld (recessed grijs) */
-  --bg-base: #f7f8f6; /* pagina-achtergrond, InSpace §A --paper-2-achtig */
+  /* ── Neutralen ────────────────────────────────────────────────────────────
+     Koel leiblauw, niet warm groengrijs. Dit is 70% van het verschil tussen
+     "ziet eruit als een landingspagina" en "ziet eruit als software".
+
+     De randen zijn een echte tint en geen doorschijnend zwart: doorschijnend
+     zwart maakt een rand vuil zodra hij op een gekleurd vlak ligt, een echte
+     tint niet. */
+  --bg-base: #f8fafc; /* pagina */
   --bg-surface: #ffffff; /* kaarten */
-  --bg-elevated: #f1f2ee; /* invoervelden / geneste vlakjes in een kaart */
-  --bg-surface-2: #e9ebe5; /* nog een tint dieper (hover op accordion e.d.) */
+  --bg-elevated: #e7edf2; /* geneste vlakken, tabelkoppen, chips */
+  --bg-surface-2: #dce3ea; /* een tint dieper, hover op een genest vlak */
 
-  /* Merkkleuren (rechtstreeks uit InSpace) */
+  --text-primary: #17212b; /* blauwzwart, niet zwart */
+  --text-secondary: #43505d;
+  --text-muted: #788795; /* ALLEEN voor bijzaak: 3,7:1, geen bodytekst */
+
+  --border-subtle: #e7edf2;
+  --border-strong: #c2ccd6;
+  --border-contrast: #9daab6; /* alleen waar een rand echt moet spreken */
+
+  /* ── Merkkleuren ──────────────────────────────────────────────────────────
+     Paars en groen blijven van ons; de systematiek eromheen is van Nova. Het
+     groen is wel bijgetrokken naar dat van hun product (#37941c) in plaats van
+     dat van hun marketingsite (#2e9e50): die twee verschillen zichtbaar zodra
+     ze naast elkaar staan. */
   --accent-purple: #8511d9;
-  --accent-purple-soft: #a24dec;
-  --accent-purple-glow: rgba(133, 17, 217, 0.14);
+  --accent-purple-strong: #7414b5; /* hover */
+  --accent-purple-surface: #f3e6ff;
+  --accent-purple-glow: rgba(133, 17, 217, 0.14); /* alleen de grafiekband */
   --accent-green: #b9efa3;
-  --accent-green-text: #2e9e50;
-  --accent-green-dark: #54b86a;
-  --brand-gradient: linear-gradient(96deg, #54b86a 0%, #8511d9 96%);
+  --accent-green-text: #2c711a;
+  --accent-green-dark: #37941c;
+  --brand-gradient: linear-gradient(96deg, #37941c 0%, #8511d9 96%);
 
-  /* Tekst op licht (InSpace --ink / --muted / --muted-2) */
-  --text-primary: #0b0b0c;
-  --text-secondary: rgba(11, 11, 12, 0.62);
-  --text-muted: rgba(11, 11, 12, 0.45);
+  /* ── Betekenislaag ────────────────────────────────────────────────────────
+     Een kleur heeft een betekenis, geen naam. Zeven betekenissen, elk met vijf
+     velden, exact zoals Nova ze uitsplitst:
 
-  /* Randen op licht (InSpace --line) */
-  --border-subtle: rgba(11, 11, 12, 0.1);
-  --border-strong: rgba(11, 11, 12, 0.22);
-
-  /* ── Betekenislaag ───────────────────────────────────────────────────────
-     Een kleur heeft een BETEKENIS, geen naam. Overgenomen uit het tokensysteem
-     van de Nova-app (designsystem.md §D): de systematiek van hen, de waarden
-     van ons. Vijf velden per betekenis, want zo worden ze in deze app
-     daadwerkelijk gebruikt:
-
-       -solid     gevulde vlakken (knop, gevulde badge)
-       -on-solid  tekstkleur ÓP dat gevulde vlak
+       -solid     gevulde vlakken (knop, gevulde badge, grafieklijn)
+       -on-solid  de tekstkleur ÓP dat gevulde vlak
        -text      dezelfde betekenis als leesbare tekst op een licht vlak
-       -surface   de 10%-tint als achtergrond van een chip of kaart
-       -border    de 30%-tint als rand
+       -surface   de lichtste tint als achtergrond van een chip of kaart
+       -border    de randtint
 
-     Waarom -text apart bestaat: #2e9e50 als tekst op wit haalt geen 4,5:1, en
-     dat is precies de kleur waarin "gelukt" stond. De donkere variant wel.
-     Waarom -on-solid apart bestaat: op --accent-green (#b9efa3, lichtmint)
-     moet donkere tekst en op --accent-purple witte. Dat was tot nu toe per
-     component een oordeel. */
+     De waarden zijn Nova's eigen schaal. Elke -text haalt op wit minstens
+     5,0:1, ruim boven de drempel van 4,5. De oude set haalde dat op twee
+     plekken niet. */
 
-  --intent-intelligence-solid: var(--accent-purple);
+  /* Nova kent twee paarse standen, #9e21fc en #8511d9. Wij nemen de donkere als
+     solide vlak: wit op #9e21fc haalt 4,0:1 en zakt daarmee onder de drempel van
+     4,5 voor knoptekst, wit op #8511d9 haalt 5,4:1. Bij hen is de lichte stand
+     te verdedigen omdat hij ook in donkere modus dienstdoet; wij hebben alleen
+     licht. */
+  --intent-intelligence-solid: #8511d9;
+  --intent-intelligence-hover: #7414b5;
   --intent-intelligence-on-solid: #ffffff;
-  --intent-intelligence-text: #7a13c9;
-  --intent-intelligence-surface: rgba(133, 17, 217, 0.1);
-  --intent-intelligence-border: rgba(133, 17, 217, 0.3);
+  --intent-intelligence-text: #8511d9;
+  --intent-intelligence-surface: #faf4ff;
+  --intent-intelligence-surface-hover: #f3e6ff;
+  --intent-intelligence-border: #e9d1ff;
 
-  --intent-growth-solid: #2e9e50;
+  --intent-growth-solid: #37941c;
+  --intent-growth-hover: #2c711a;
   --intent-growth-on-solid: #ffffff;
-  --intent-growth-text: #1f7a3d;
-  --intent-growth-surface: rgba(46, 158, 80, 0.1);
-  --intent-growth-border: rgba(46, 158, 80, 0.3);
+  --intent-growth-text: #2c711a;
+  --intent-growth-surface: #effce9;
+  --intent-growth-surface-hover: #dcf7d0;
+  --intent-growth-border: #b9efa3;
 
-  /* Nieuw. Stond hiervoor op hetzelfde paars als het merk, waardoor een
-     mededeling niet te onderscheiden was van een merkactie. */
-  --intent-information-solid: #0069a8;
+  --intent-information-solid: #0084d1;
+  --intent-information-hover: #0069a8;
   --intent-information-on-solid: #ffffff;
-  --intent-information-text: #00598a;
-  --intent-information-surface: rgba(0, 105, 168, 0.1);
-  --intent-information-border: rgba(0, 105, 168, 0.3);
+  --intent-information-text: #0069a8;
+  --intent-information-surface: #f0f9ff;
+  --intent-information-surface-hover: #dff2fe;
+  --intent-information-border: #b8e6fe;
 
-  /* De oude --status-warning was #b9a27a, een gedempt brons. Dat is bij Nova
-     de kleur voor "premium", niet voor een waarschuwing, en als tekst op wit
-     haalt het 2,1:1. De chips gebruikten daarom allang een eigen amber. Die
-     amber is nu de waarheid. */
-  --intent-warning-solid: #b45309;
+  --intent-warning-solid: #e17100;
+  --intent-warning-hover: #bb4d00;
   --intent-warning-on-solid: #ffffff;
-  --intent-warning-text: #8a6100;
-  --intent-warning-surface: rgba(240, 180, 60, 0.12);
-  --intent-warning-border: rgba(240, 180, 60, 0.35);
+  --intent-warning-text: #bb4d00;
+  --intent-warning-surface: #fffbeb;
+  --intent-warning-surface-hover: #fef3c7;
+  --intent-warning-border: #fee685;
 
-  --intent-danger-solid: #d33a3f;
+  --intent-attention-solid: #e60076;
+  --intent-attention-hover: #c6005c;
+  --intent-attention-on-solid: #ffffff;
+  --intent-attention-text: #c6005c;
+  --intent-attention-surface: #fdf2f8;
+  --intent-attention-surface-hover: #fce7f3;
+  --intent-attention-border: #fccee8;
+
+  --intent-danger-solid: #e7000b;
+  --intent-danger-hover: #c10007;
   --intent-danger-on-solid: #ffffff;
-  --intent-danger-text: #c2282d;
-  --intent-danger-surface: rgba(211, 58, 63, 0.1);
-  --intent-danger-border: rgba(211, 58, 63, 0.3);
+  --intent-danger-text: #c10007;
+  --intent-danger-surface: #fef2f2;
+  --intent-danger-surface-hover: #ffe2e2;
+  --intent-danger-border: #ffc9c9;
+
+  --intent-premium-solid: #9f7d57;
+  --intent-premium-hover: #84664a;
+  --intent-premium-on-solid: #ffffff;
+  --intent-premium-text: #84664a;
+  --intent-premium-surface: #f9f7f3;
+  --intent-premium-surface-hover: #f1eee3;
+  --intent-premium-border: #e2dac6;
 
   --intent-neutral-text: var(--text-muted);
-  --intent-neutral-surface: rgba(11, 11, 12, 0.05);
+  --intent-neutral-surface: var(--bg-elevated);
   --intent-neutral-border: var(--border-subtle);
 
-  /* Grafiekkleuren wijzen naar dezelfde betekenissen. Ze stonden als losse
-     hexwaarden in trend-chart.tsx, waarvan er drie in geen enkel token
-     voorkwamen. Ook de as en het raster zijn hier een token: dat is het deel
-     dat iedereen vergeet, en de reden dat een grafiek er altijd nét naast
-     ligt. */
-  --chart-own: var(--intent-intelligence-solid);
+  /* ── Grafieken ────────────────────────────────────────────────────────────
+     Zes categorische kleuren, gebonden aan dezelfde betekenissen. Nova doet dit
+     ook zo (--chart-1 tot --chart-6), en het is de reden dat een groeireeks
+     daar overal exact dezelfde tint heeft.
+
+     ⚠️ Kleurenblindheid: deze zes zijn NIET opnieuw gevalideerd na de overstap.
+     Paars naast roze is het paar dat er als eerste doorheen zakt. Daarom draagt
+     elke lijn een naam aan het uiteinde en staat er een tabel onder: identiteit
+     leunt nooit alleen op kleur. Zie designsystem.md §4. */
+  --chart-1: var(--intent-intelligence-solid);
+  --chart-2: var(--intent-growth-solid);
+  --chart-3: var(--intent-information-solid);
+  --chart-4: var(--intent-warning-solid);
+  --chart-5: var(--intent-attention-solid);
+  --chart-6: var(--intent-premium-solid);
+
+  --chart-own: var(--chart-1);
   --chart-own-band: var(--accent-purple-glow);
-  --chart-rival-1: #eb6834;
-  --chart-rival-2: #1baf7a;
-  --chart-rival-3: #2a78d6;
+  --chart-rival-1: var(--chart-4);
+  --chart-rival-2: var(--chart-3);
+  --chart-rival-3: var(--chart-5);
   --chart-axis: var(--text-muted); /* astekst */
-  --chart-grid: var(--border-subtle); /* horizontale rasterlijnen */
+  --chart-grid: var(--border-subtle); /* rasterlijnen */
   --chart-reference: var(--border-strong); /* gestreepte referentielijnen */
 
-  /* Randdiktes als schaal, zodat 1px-tegen-2px geen toevalstreffer meer is. */
-  --border-width-xs: 1px;
-  --border-width-sm: 2px;
-  --border-width-md: 4px;
-
-  /* Doorschijnende paginakleur onder de sticky balken met backdrop-blur. Stond
-     op drie plekken los, met twee verschillende doorzichtigheden (0,8 en 0,85)
-     die op mobiel pal boven elkaar staan: de kopbalk en de sectie-rail. Eén
-     waarde, één plek. */
-  --bg-base-blur: rgba(247, 248, 246, 0.85);
-
-  /* Eén schaduwstand, naar het voorbeeld van Nova. Meer schaduwvarianten maken
-     een interface niet dieper, alleen rommeliger. */
-  --shadow-sm: 0 1px 2px rgba(11, 11, 12, 0.08);
-
-  /* Status. Nu een verwijzing naar de betekenislaag, geen eigen waarde meer. */
+  /* ── Status, verwijzingen naar de betekenislaag ─────────────────────────── */
   --status-success: var(--intent-growth-solid);
   --status-error: var(--intent-danger-solid);
   --status-warning: var(--intent-warning-text);
   --status-info: var(--intent-information-solid);
 
-  /* Typografie — fonts geladen via next/font in layout.tsx */
+  /* ── Typografie ───────────────────────────────────────────────────────────
+     Geist Sans én Geist Mono, het paar dat Nova zelf gebruikt. Mono was
+     JetBrains Mono; twee families van twee makers naast elkaar is precies het
+     soort verschil dat je niet ziet maar wel voelt. */
   --font-sans: var(--font-geist-sans), -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  --font-mono: var(--font-jetbrains-mono), "Space Mono", ui-monospace, monospace;
+  --font-mono: var(--font-geist-mono), ui-monospace, SFMono-Regular, monospace;
 
-  /* Radii (rechtstreeks uit InSpace) */
-  --radius-pill: 999px;
-  --radius-lg: 18px;
-  --radius-md: 14px;
-  --radius-sm: 9px;
+  /* ── Vorm ─────────────────────────────────────────────────────────────────
+     Nova's schaal. Fors kleiner dan de oude 18/14/9, en de pil is NIET langer
+     de standaard: die is voorbehouden aan chips en badges. Knoppen, velden en
+     navigatie-items krijgen --radius-md. Dat is de meest zichtbare enkele
+     wijziging van deze hele omzetting. */
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --radius-pill: 9999px;
 
-  /* Motion — één consistente easing overal (designsystem.md §A3) */
+  --border-width-xs: 1px;
+  --border-width-sm: 2px;
+  --border-width-md: 4px;
+
+  /* ── Diepte ───────────────────────────────────────────────────────────────
+     Eén schaduw in het hele systeem, letterlijk die van Nova, en hij is
+     voorbehouden aan wat boven de pagina zweeft: menu's, dialogen, de
+     hover-staat van een klikbare kaart. Een gewone kaart is plat en heeft
+     alleen een rand. Meer schaduwstanden maken een interface niet dieper,
+     alleen rommeliger. */
+  --shadow-overlay:
+    0 4px 6px -4px rgba(0, 0, 0, 0.1),
+    0 10px 15px -3px rgba(0, 0, 0, 0.1);
+
+  /* Doorschijnende paginakleur onder de sticky balken met backdrop-blur. */
+  --bg-base-blur: rgba(248, 250, 252, 0.85);
+
+  /* ── Motion ───────────────────────────────────────────────────────────────
+     Eén easing overal. De duur ging omlaag: Nova's product beweegt korter dan
+     hun marketingsite, en 0,3 s voelt in een dashboard traag. */
   --ease-standard: cubic-bezier(0.2, 0.7, 0.2, 1);
-  --duration-fast: 0.2s;
-  --duration-base: 0.3s;
-  --duration-slow: 0.45s;
+  --duration-fast: 0.12s;
+  --duration-base: 0.18s;
+  --duration-slow: 0.3s;
 }
 
 /* Tailwind-utilities koppelen aan de tokens (v4 @theme inline). */
@@ -151,7 +220,7 @@
   --color-surface: var(--bg-surface);
   --color-surface-2: var(--bg-surface-2);
   --color-purple: var(--accent-purple);
-  --color-purple-soft: var(--accent-purple-soft);
+  --color-purple-surface: var(--accent-purple-surface);
   --color-green: var(--accent-green);
   --color-green-text: var(--accent-green-text);
   --color-green-dark: var(--accent-green-dark);
@@ -166,15 +235,19 @@
   --color-intelligence: var(--intent-intelligence-solid);
   --color-growth: var(--intent-growth-solid);
   --color-information: var(--intent-information-solid);
+  --color-attention: var(--intent-attention-solid);
   --color-danger: var(--intent-danger-solid);
+  --color-premium: var(--intent-premium-solid);
 
   --font-sans: var(--font-sans);
   --font-mono: var(--font-mono);
 
-  --radius-pill: var(--radius-pill);
-  --radius-lg: var(--radius-lg);
-  --radius-md: var(--radius-md);
+  --radius-xs: var(--radius-xs);
   --radius-sm: var(--radius-sm);
+  --radius-md: var(--radius-md);
+  --radius-lg: var(--radius-lg);
+  --radius-xl: var(--radius-xl);
+  --radius-pill: var(--radius-pill);
 
   --ease-standard: var(--ease-standard);
 }
@@ -197,135 +270,156 @@ body {
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
+}
+/* Het lijnenraster van 28×28px op de body is weg. Dat was een sfeermiddel van
+   de marketingsite; de Nova-werkomgeving heeft een vlak vlak. Op een scherm met
+   twaalf kaarten vecht een raster met de inhoud. */
 
-  /* Subtiel 28×28px lijnenraster (designsystem.md §A3) — zeer lichte grijstint. */
-  background-image:
-    linear-gradient(rgba(11, 11, 12, 0.028) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(11, 11, 12, 0.028) 1px, transparent 1px);
-  background-size: 28px 28px;
+/* Focus is functioneel, geen decoratie: de gloed is overal weg BEHALVE hier.
+   Zonder zichtbare focus is de app niet met een toetsenbord te bedienen. */
+:focus-visible {
+  outline: var(--border-width-sm) solid var(--accent-purple);
+  outline-offset: 2px;
 }
 
-/* ── Herbruikbare component-primitieven (designsystem.md §A4) ──────────────── */
+/* ── Herbruikbare primitieven ──────────────────────────────────────────────
+   Gebruik deze, nooit een eigen tint. docs/ux-design.md regel 7 heeft de
+   grep-controle die dat afdwingt. */
 
-/* Mono-label: klein, uppercase, breed getrackt — de "technische read-out"-stijl. */
+/* Kicker: klein, uppercase, boven een titel. Bij Nova is dit de "YOUR BRAND"-
+   regel. Was uppercase mono met .14em tracking op elk paneel; dat is de
+   read-out-stijl van de marketingsite. Nu sans, rustiger, en bedoeld als
+   bovenschrift in plaats van als standaardlabel. */
 .mono-label {
-  font-family: var(--font-mono);
-  font-size: 0.72rem;
-  letter-spacing: 0.14em;
+  font-family: var(--font-sans);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: var(--text-secondary);
+  color: var(--text-muted);
 }
 
-/* Kaart: wit, subtiele rand + zachte neutrale schaduw; bij hover iets sterker. */
+/* Getalswaarden in mono: cijfers die je vergelijkt horen onder elkaar uit te
+   lijnen. Dit is wat er van het mono-gebruik overblijft. */
+.stat-value {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
+
+/* Kaart: wit, één rand, PLAT. Geen schaduw, geen hover-lift. */
 .card {
   background-color: var(--bg-surface);
-  border: 1px solid var(--border-subtle);
+  border: var(--border-width-xs) solid var(--border-subtle);
   border-radius: var(--radius-lg);
-  padding: 26px 24px 22px;
-  box-shadow: 0 1px 2px rgba(11, 11, 12, 0.04);
+  padding: 20px;
   transition:
-    transform var(--duration-base) var(--ease-standard),
-    box-shadow var(--duration-base) var(--ease-standard),
-    border-color var(--duration-base) var(--ease-standard);
+    box-shadow var(--duration-fast) var(--ease-standard),
+    border-color var(--duration-fast) var(--ease-standard);
 }
-/* Alleen wat klikbaar IS, gedraagt zich klikbaar. De hover-lift zat op .card
-   zelf en gold dus voor alle ~70 kaarten in de app, waarvan er hooguit acht
-   ergens heen gaan: score, rapport, foutmeldingen en wachtschermen lagen mee te
-   liften zonder bestemming. Een kaart die omhoog schaduwt belooft interactie. */
+/* Alleen wat klikbaar IS, gedraagt zich klikbaar. */
 .card-interactive {
   cursor: pointer;
 }
 .card-interactive:hover {
-  border-color: rgba(11, 11, 12, 0.16);
-  box-shadow: 0 14px 34px rgba(11, 11, 12, 0.08);
+  border-color: var(--border-strong);
+  box-shadow: var(--shadow-overlay);
+}
+
+/* Kaart-accenten in plaats van losse borderColor-overrides met rauwe rgba. */
+.card-accent {
+  border-color: var(--intent-intelligence-border);
+}
+.card-danger {
+  border-color: var(--intent-danger-border);
+}
+.card-success {
+  border-color: var(--intent-growth-border);
+}
+.card-warning {
+  border-color: var(--intent-warning-border);
 }
 
 /* ── Knoppen ────────────────────────────────────────────────────────────────
-   Eén hoogteschaal: 48px normaal, 40px compact. Primair was 52px en outline
-   44px, wat overal waar ze naast of onder elkaar stonden (onboarding, rapport,
-   profiel) een verschil van 8px opleverde — dat leest als slordigheid, niet
-   als hiërarchie. Het verschil in gewicht doen de kleur en de gloed. */
-
-/* Primaire pil-knop (paars, met zachte ring-gloed i.p.v. harde rand). */
+   40px en 32px, tegen 48px en 40px hiervoor. Nova's product is dichter dan
+   hun marketingsite, en een knop van 48px naast een veld van 48px vult een
+   dashboardscherm met knoppen. De vorm is --radius-md, geen pil meer. */
 .btn-primary {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  height: 48px;
-  padding: 0 26px;
-  border-radius: var(--radius-pill);
-  background-color: var(--accent-purple);
-  color: #fff;
+  gap: 8px;
+  height: 40px;
+  padding: 0 16px;
+  border-radius: var(--radius-md);
+  background-color: var(--intent-intelligence-solid);
+  color: var(--intent-intelligence-on-solid);
   font-weight: 600;
-  font-size: 1rem;
-  box-shadow: 0 0 0 5px rgba(133, 17, 217, 0.1);
-  transition:
-    transform var(--duration-fast) var(--ease-standard),
-    box-shadow var(--duration-fast) var(--ease-standard);
+  font-size: 0.9375rem;
+  transition: background-color var(--duration-fast) var(--ease-standard);
 }
 .btn-primary:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 6px 16px -8px rgba(133, 17, 217, 0.55);
+  background-color: var(--intent-intelligence-hover);
+}
+.btn-primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
-/* Secundaire/outline-knop: op licht inverteert 'ie bij hover naar solide zwart. */
+/* Secundair: rand plus een lichte vulling bij hover. Inverteert NIET meer naar
+   solide zwart; dat was een marketing-effect en het liet een rustige
+   knoppenrij bij hover omslaan in een zwart blok. */
 .btn-outline {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  height: 48px;
-  padding: 0 26px;
-  border-radius: var(--radius-pill);
-  border: 1px solid var(--border-strong);
+  gap: 8px;
+  height: 40px;
+  padding: 0 16px;
+  border-radius: var(--radius-md);
+  border: var(--border-width-xs) solid var(--border-strong);
   color: var(--text-primary);
   font-weight: 600;
-  background-color: transparent;
+  font-size: 0.9375rem;
+  background-color: var(--bg-surface);
   transition:
     background-color var(--duration-fast) var(--ease-standard),
-    color var(--duration-fast) var(--ease-standard),
     border-color var(--duration-fast) var(--ease-standard);
 }
 .btn-outline:hover {
-  background-color: var(--text-primary);
-  color: #fff;
-  border-color: var(--text-primary);
+  background-color: var(--bg-base);
+  border-color: var(--border-contrast);
+}
+.btn-outline:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
-/* Compacte variant, voor knoppen binnen een kaart of lijstregel — daar is 48px
-   te dominant naast de tekst waar hij bij hoort. */
 .btn-sm {
-  height: 40px;
-  padding: 0 18px;
-  font-size: 0.9375rem;
+  height: 32px;
+  padding: 0 12px;
+  font-size: 0.875rem;
 }
 
-/* Chip/badge: pil-vormig, mono, uppercase, gedempte accentkleur. */
+/* ── Chip en badge ──────────────────────────────────────────────────────────
+   Nova's badges zijn klein, pilvormig, in schrijftaal en in de sans. Ze waren
+   hier uppercase mono met brede tracking: dat leest als een technische
+   read-out en dat is de stijl van de marketingsite, niet van het product.
+   De pil blijft hier wél, want dit is precies waar Nova hem voor gebruikt. */
 .chip {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  font-family: var(--font-mono);
-  font-size: 0.68rem;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
+  font-family: var(--font-sans);
+  font-size: 0.75rem;
+  font-weight: 500;
+  line-height: 1.4;
   padding: 3px 10px;
   border-radius: var(--radius-pill);
   background-color: var(--intent-intelligence-surface);
   color: var(--intent-intelligence-text);
   border: var(--border-width-xs) solid var(--intent-intelligence-border);
 }
-.chip-green {
-  background-color: rgba(46, 158, 80, 0.14);
-  color: var(--accent-green-text);
-  border-color: var(--intent-growth-border);
-}
-
-/* ── Status-tinten ──────────────────────────────────────────────────────────
-   Dezelfde chip werd op zeventien plekken met de hand nagebouwd, in dertig
-   losse inline-stijlen. Twee van de gebruikte kleuren stonden niet eens in het
-   token-set: een paars dat 30 punten afweek van --accent-purple, en een rood
-   naast --status-error — twee roden die nét verschillen op schermen die
-   elkaar opvolgen. Hier staat het één keer. */
 .chip-success {
   background-color: var(--intent-growth-surface);
   color: var(--intent-growth-text);
@@ -346,39 +440,36 @@ body {
   color: var(--intent-information-text);
   border-color: var(--intent-information-border);
 }
+.chip-attention {
+  background-color: var(--intent-attention-surface);
+  color: var(--intent-attention-text);
+  border-color: var(--intent-attention-border);
+}
 .chip-neutral {
   background-color: var(--intent-neutral-surface);
   color: var(--intent-neutral-text);
   border-color: var(--intent-neutral-border);
 }
-
-/* Kaart-accenten, in plaats van losse borderColor-overrides met rauwe rgba.
-   `.card-warning` kwam erbij omdat dezelfde amber rand op drie plekken met de
-   hand was nagebouwd (rgba(240,180,60,0.45)) op schermen die elkaar opvolgen. */
-.card-accent {
-  border-color: color-mix(in srgb, var(--accent-purple) 32%, transparent);
-}
-.card-danger {
-  border-color: color-mix(in srgb, var(--status-error) 40%, transparent);
-}
-.card-success {
-  border-color: color-mix(in srgb, var(--status-success) 40%, transparent);
-}
-.card-warning {
-  border-color: color-mix(in srgb, var(--intent-warning-solid) 40%, transparent);
+.chip-green {
+  background-color: var(--intent-growth-surface);
+  color: var(--intent-growth-text);
+  border-color: var(--intent-growth-border);
 }
 
-/* Invoervelden — recessed grijs op witte kaart, paarse focus-gloed. */
+/* ── Invoervelden ──────────────────────────────────────────────────────────
+   Wit met een rand, niet grijs verzonken. Verzonken velden zijn een
+   marketing-esthetiek; in een formulier van twaalf velden maakt het de pagina
+   onrustig. De focusring blijft: dat is toegankelijkheid, geen sier. */
 .field {
   width: 100%;
-  height: 48px;
-  padding: 0 16px;
+  height: 40px;
+  padding: 0 12px;
   border-radius: var(--radius-md);
-  background-color: var(--bg-elevated);
-  border: 1px solid var(--border-subtle);
+  background-color: var(--bg-surface);
+  border: var(--border-width-xs) solid var(--border-strong);
   color: var(--text-primary);
   font-family: var(--font-sans);
-  font-size: 1rem;
+  font-size: 0.9375rem;
   transition:
     border-color var(--duration-fast) var(--ease-standard),
     box-shadow var(--duration-fast) var(--ease-standard);
@@ -388,21 +479,19 @@ body {
 }
 .field:focus {
   outline: none;
-  border-color: var(--accent-purple-soft);
-  box-shadow: 0 0 0 4px rgba(133, 17, 217, 0.14);
+  border-color: var(--accent-purple);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent-purple) 18%, transparent);
 }
 textarea.field {
   height: auto;
-  min-height: 96px;
-  padding: 12px 16px;
+  min-height: 88px;
+  padding: 10px 12px;
   resize: vertical;
   line-height: 1.5;
 }
 
-/* Skeleton — de vorm van wat er komt, in de vlakken en easing van het systeem.
-   Een skeleton zegt WAAR de inhoud komt; een spinner zegt alleen DAT er
-   gewacht wordt. Bij server-gerenderde pagina's met meerdere queries is dat
-   verschil het verschil tussen "hij laadt" en "hij doet niets". */
+/* Skeleton: de vorm van wat er komt. Een skeleton zegt WAAR de inhoud komt,
+   een spinner alleen DAT er gewacht wordt. */
 .skeleton {
   background: linear-gradient(
     90deg,
@@ -423,37 +512,30 @@ textarea.field {
   }
 }
 
-/* Pulserende live-dot (§A4) — "autonoom actief". */
+/* Pulserende live-dot: "loopt nu". Kleur en vorm samen, nooit kleur alleen. */
 .live-dot {
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background-color: var(--accent-green-dark);
-  box-shadow: 0 0 0 0 rgba(84, 184, 106, 0.5);
+  background-color: var(--intent-growth-solid);
+  box-shadow: 0 0 0 0 color-mix(in srgb, var(--intent-growth-solid) 50%, transparent);
   animation: live-pulse 2s infinite var(--ease-standard);
 }
 @keyframes live-pulse {
   0% {
-    box-shadow: 0 0 0 0 rgba(84, 184, 106, 0.5);
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--intent-growth-solid) 50%, transparent);
   }
   70% {
-    box-shadow: 0 0 0 7px rgba(84, 184, 106, 0);
+    box-shadow: 0 0 0 7px transparent;
   }
   100% {
-    box-shadow: 0 0 0 0 rgba(84, 184, 106, 0);
+    box-shadow: 0 0 0 0 transparent;
   }
 }
 
-/* Ambient gloed-orb (§A3) — groot, sterk vervaagd; op wit een zachte pastelwash. */
-.glow-orb {
-  position: absolute;
-  border-radius: 50%;
-  filter: blur(90px);
-  pointer-events: none;
-  z-index: 0;
-}
-
-/* Merk-gradient tekst (de InSpace-vingerafdruk). */
+/* Het woordmerk, en verder niets. De gradient stond ook op accentwoorden in
+   koppen; in de Nova-werkomgeving komt hij nul keer voor. Eén plek is genoeg om
+   herkenbaar te zijn, overal is een landingspagina. */
 .brand-gradient-text {
   background: var(--brand-gradient);
   -webkit-background-clip: text;
@@ -461,7 +543,7 @@ textarea.field {
   color: transparent;
 }
 
-/* Gerenderde Markdown-content (Content Bibliotheek). Rustige, leesbare typografie. */
+/* Gerenderde Markdown (contentbibliotheek, rapport). */
 .prose {
   color: var(--text-secondary);
   line-height: 1.7;
@@ -494,7 +576,7 @@ textarea.field {
   color: var(--text-primary);
 }
 .prose a {
-  color: var(--accent-purple);
+  color: var(--intent-intelligence-text);
   text-decoration: underline;
 }
 .prose ul,
@@ -518,13 +600,13 @@ textarea.field {
   border-radius: var(--radius-sm);
 }
 .prose blockquote {
-  border-left: 2px solid var(--accent-purple);
+  border-left: var(--border-width-sm) solid var(--intent-intelligence-border);
   padding-left: 1em;
   color: var(--text-muted);
 }
 .prose hr {
   border: none;
-  border-top: 1px solid var(--border-subtle);
+  border-top: var(--border-width-xs) solid var(--border-subtle);
 }
 
 @media (prefers-reduced-motion: reduce) {

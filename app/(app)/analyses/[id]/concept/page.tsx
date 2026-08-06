@@ -49,12 +49,8 @@ export default async function ConceptPage({ params }: { params: Promise<{ id: st
   return (
     <div className="flex flex-col gap-4">
       <div className="card card-accent flex flex-col gap-3">
-        <span className="mono-label" style={{ color: "var(--accent-purple)" }}>
-          Klaar om te starten
-        </span>
-        <h2 className="text-2xl font-bold tracking-tight">
-          Dit gaat Aura <span className="brand-gradient-text">meten</span>
-        </h2>
+        <span className="mono-label">Klaar om te starten</span>
+        <h2 className="text-2xl font-bold tracking-tight">Dit gaat Aura meten</h2>
         <p className="text-secondary">
           Aura heeft je website en je merkdossier doorgenomen en daaruit dit meetplan afgeleid. Loop
           het door, pas aan wat niet klopt, en bevestig onderaan. Pas dan gaan deze vragen naar de

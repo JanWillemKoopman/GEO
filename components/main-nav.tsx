@@ -23,7 +23,7 @@ export function MainNav() {
             key={item.href}
             href={item.href}
             aria-current={active ? "page" : undefined}
-            className="mono-label rounded-[var(--radius-pill)] px-3 py-1.5 transition-colors"
+            className="rounded-[var(--radius-md)] px-3 py-1.5 text-sm font-medium transition-colors"
             style={{
               color: active ? "var(--text-primary)" : "var(--text-secondary)",
               background: active ? "var(--bg-elevated)" : "transparent",

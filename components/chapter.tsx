@@ -39,27 +39,16 @@ export function Chapter({
 }) {
   return (
     <section id={id} className="relative scroll-mt-24">
-      {/* Ambient gloed-orb (§A3). Zeer laag in dekking: hij mag het lezen niet
-          storen, alleen de sectiegrens voelbaar maken. */}
-      <div
-        className="glow-orb"
-        aria-hidden
-        style={{
-          width: 300,
-          height: 300,
-          top: -90,
-          right: -130,
-          background: "color-mix(in srgb, var(--accent-purple) 6%, transparent)",
-        }}
-      />
-
       <header className="relative z-10 mb-5 flex flex-wrap items-end justify-between gap-4">
         <div className="flex flex-col gap-1">
-          <span className="mono-label" style={{ color: "var(--accent-purple)" }}>
+          <span className="mono-label" style={{ color: "var(--intent-intelligence-text)" }}>
             {number}
           </span>
-          <h2 className="text-3xl font-bold tracking-tight">
-            {title} <span className="brand-gradient-text">{accent}</span>
+          {/* Het accentwoord stond in de merk-gradient. In de NOVA-werkomgeving
+              komt die gradient nul keer voor; hij is nu voorbehouden aan het
+              woordmerk. Het accent draagt nu gewicht in plaats van kleur. */}
+          <h2 className="text-2xl font-bold tracking-tight">
+            {title} <span className="text-[var(--intent-intelligence-text)]">{accent}</span>
           </h2>
           {intro && <p className="mt-1 max-w-xl text-secondary">{intro}</p>}
         </div>

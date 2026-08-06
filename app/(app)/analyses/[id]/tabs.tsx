@@ -80,7 +80,7 @@ function NavLink({
     <Link
       href={href}
       aria-current={active ? "page" : undefined}
-      className="flex items-center gap-2 rounded-[var(--radius-pill)] px-4 py-2 text-sm font-medium transition-colors"
+      className="flex items-center gap-2 rounded-[var(--radius-md)] px-3 py-1.5 text-sm font-medium transition-colors"
       style={{
         color: active ? "var(--text-primary)" : "var(--text-secondary)",
         background: active ? "var(--bg-elevated)" : "transparent",

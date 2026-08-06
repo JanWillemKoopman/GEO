@@ -34,7 +34,7 @@ export function EntityComparison({ rows }: { rows: ComparisonRow[] }) {
               className="h-full rounded-full"
               style={{
                 width: `${Math.max(row.percent, 2)}%`,
-                background: row.isOwnBrand ? "var(--accent-purple)" : "var(--border-strong)",
+                background: row.isOwnBrand ? "var(--intent-intelligence-solid)" : "var(--border-strong)",
               }}
             />
           </div>

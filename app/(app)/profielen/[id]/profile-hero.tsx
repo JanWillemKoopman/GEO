@@ -105,7 +105,7 @@ function StatTile({ stat }: { stat: OnboardingStat }) {
     stat.tone === "goed"
       ? "var(--status-success)"
       : stat.tone === "aandacht"
-        ? "var(--accent-purple)"
+        ? "var(--intent-intelligence-solid)"
         : "var(--text-primary)";
 
   return (

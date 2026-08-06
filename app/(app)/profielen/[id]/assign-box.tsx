@@ -91,7 +91,7 @@ export function AssignBox({
       </p>
 
       {done && (
-        <p className="text-sm text-[var(--accent-green-text)]" role="status">
+        <p className="text-sm text-[var(--intent-growth-text)]" role="status">
           Toegewezen aan {done}. De analyses zijn meeverhuisd.
         </p>
       )}

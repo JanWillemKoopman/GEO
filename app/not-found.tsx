@@ -11,17 +11,6 @@ import Link from "next/link";
 export default function NotFound() {
   return (
     <main className="relative flex min-h-dvh items-center justify-center px-6 py-12">
-      <div
-        className="glow-orb"
-        style={{
-          width: 420,
-          height: 420,
-          top: -140,
-          left: "50%",
-          marginLeft: -210,
-          background: "var(--accent-purple-glow)",
-        }}
-      />
       <div className="relative z-10 flex w-full max-w-md flex-col items-center gap-5 text-center">
         <Link href="/analyses" className="text-2xl font-bold tracking-tight">
           <span className="brand-gradient-text">Aura</span>

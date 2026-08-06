@@ -140,7 +140,7 @@ export function OfferingsPanel({
             href={o.evidence_url}
             target="_blank"
             rel="noreferrer noopener"
-            className="text-sm text-[var(--accent-purple-soft)] hover:underline"
+            className="text-sm text-[var(--intent-intelligence-text)] hover:underline"
           >
             gevonden op {shortUrl(o.evidence_url)}
           </a>

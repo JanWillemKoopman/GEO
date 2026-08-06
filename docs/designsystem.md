@@ -1,326 +1,372 @@
-# Design System, gebaseerd op InSpace (inspace.io / InSpace Nova)
+# Design System
 
-> Bronanalyse van de daadwerkelijke, live CSS van inspace.io (juli 2026). Geen aannames of gegokte kleuren. Elke waarde in dit document is geëxtraheerd uit de geminificeerde productie-stylesheets (`main-*.css`, `inspace-navbar.css`) en de inline `<style>`-blokken van de homepage. Waar iets een interpretatie/aanbeveling is (niet 1-op-1 overgenomen), staat dat expliciet vermeld.
+> **Bron: de NOVA-workspace van InSpace** (`nova.inspace.io`), hun ingelogde productomgeving,
+> geanalyseerd op 6 augustus 2026 uit de CSS-bundel en de i18n-bundel van de app.
+> **Peildatum van dit document: 6 augustus 2026.** De code is leidend; wijkt `app/globals.css` af,
+> dan is dit document fout en moet het bijgewerkt worden.
 
----
-
-## ⚠️ Belangrijke eerlijke bevinding vóór je verder leest
-
-**De marketingsite van InSpace is overwegend lícht getint, niet donker.** De basis is wit/off-white (`#FFFFFF`, `#F5F6F3`) met zwarte tekst (`#0B0B0C`) en een **paars-naar-groen merk-gradient** als signatuur-accent. Een echt donker, "futuristisch tech"-paneel, dichtbij navy/zwart met neon-paarse glow, bestaat op dit moment alleen in één specifiek onderdeel: de **"Aura"-teaser** (hun aangekondigde, nog niet gelanceerde uitbreiding, zichtbaar in een wisselpaneel in de navigatie-megamenu).
-
-Dit document documenteert **beide systemen eerlijk**:
-- **§A, Het lichte kernsysteem**, wat InSpace daadwerkelijk overal gebruikt (kleuren, type, cards, knoppen, micro-interacties).
-- **§B, Het donkere "Aura"-paneel**, de enige plek waar InSpace zelf een dark-mode-esthetiek toont.
-
-**Aanbeveling voor onze app:** omdat jij expliciet een modern, donker, futuristisch dashboard wilt, raad ik aan het **Aura-palet als basis van onze dark mode** te nemen en dat **consistent door de hele app door te trekken**, met InSpace's merk-DNA (de paars/groen-gradient, Aeonik/TTCommons-typografie, pil-vormige radii, gloed-techniek) er bovenop toegepast. Dat is de meest authentieke weg naar "InSpace-gevoel, maar dan volledig dark-mode", zonder iets te verzinnen dat niet in hun eigen merk zit. Zie §C voor de samengevoegde, praktisch bruikbare tokenset.
+Dit document beschrijft **hoe Aura eruitziet en waarom**. Voor de tekst in die schermen geldt
+`schrijfstijl.md`, voor de opbouw van schermen `ux-design.md`, voor het waarom achter beslissingen
+`logbook.md` §30.
 
 ---
 
-## §A, Het lichte kernsysteem (wat InSpace overal gebruikt)
+## 1. Het uitgangspunt: het product, niet de website
 
-### A1. Kleurpalet
+Tot 6 augustus 2026 was dit document gebaseerd op de **marketingsite** `inspace.io`. Dat leverde een
+warme, ronde, gloeiende interface op. Goed voor een landingspagina; verkeerd voor een dashboard waar
+iemand een uur per week in zit.
 
-**Neutrale basis:**
-| Token | Waarde | Gebruik |
-|-------|--------|---------|
-| `--paper` | `#FFFFFF` | Primaire achtergrond |
-| `--paper-2` | `#F5F6F3` | Secundaire/off-white achtergrond (sectiewisseling) |
-| `--ink` / `--black` | `#0B0B0C` | Primaire tekst, primaire "zwarte" knoppen |
-| `--muted` | `rgba(11,11,12,.62)` | Secundaire tekst |
-| `--muted-2` | `rgba(11,11,12,.56)` | Tertiaire/label-tekst |
-| `--line` | `rgba(11,11,12,.10)` | Standaard 1px-randen op cards/dividers |
+InSpace doet dat in hun eigen product namelijk ook niet. Hun werkomgeving is koel, strak en plat.
+Het verschil is groot genoeg om het uit te schrijven:
 
-**Merkkleuren (het paars/groen-duo, dé signatuur van InSpace):**
-| Token | Waarde | Gebruik |
-|-------|--------|---------|
-| `--purple` | `#8511D9` | Primaire accentkleur, CTA's, links, actieve states, gloed |
-| `--purple-soft` | `#A24DEC` | Lichtere paars-variant (hover/secundair) |
-| `--green` | `#B9EFA3` | Secundaire accent, success/"on"-states, groene knoppen |
-| `--green-text` | `#2E9E50` | Tekstversie van groen (labels, "+12%"-indicators) |
-| `--green-dark` | `#54B86A` | Donkerdere groene tint (gradient-eindpunt) |
-| `--gold` | `#B9A27A` | Tertiaire, spaarzaam gebruikte warme accent |
+| | inspace.io (marketing) | nova.inspace.io (product) | Aura nu |
+|---|---|---|---|
+| Grondtoon | warm off-white `#f5f6f3` | koel leiblauw `#f8fafc` | **koel leiblauw** |
+| Tekst | `#0b0b0c` bijna zwart | `#17212b` blauwzwart | **`#17212b`** |
+| Randen | doorschijnend zwart | echte grijsblauwe tint | **echte tint** |
+| Radii | pillen overal, 18px kaarten | 8px en 12px, pil alleen op chips | **8px en 12px** |
+| Diepte | gekleurde gloed, hover-lift | één platte schaduw | **één schaduw** |
+| Gradient | overal | komt nul keer voor | **alleen het woordmerk** |
+| Mono | TT Commons | Geist Mono | **Geist Mono** |
+| Achtergrond | lijnenraster | vlak | **vlak** |
 
-**Signatuur-gradient:** `linear-gradient(96deg, #54B86A 0%, #8511D9 96%)`, groen-naar-paars, gebruikt als merk-statement (bv. op logo's/hero-accenten). Dit is dé InSpace-vingerafdruk.
+De historische analyse van de marketingsite staat nog in **bijlage A**, want daar komen onze
+merkkleuren vandaan en dat is het waard om te kunnen navertellen.
 
-**Statuskleuren:**
-| Status | Waarde | Bron |
-|--------|--------|------|
-| Success/positief | `#2E9E50` (tekst), `#B9EFA3` (achtergrond) | groen-token hierboven |
-| Error/destructive | `oklch(57.7% .245 27.325)` ≈ `#E5484D`-achtig rood | Tailwind-root `--destructive` |
-| Warning | niet apart gedefinieerd, InSpace gebruikt het gouden accent (`#B9A27A`) informeel hiervoor | interpretatie |
-| Info/neutraal | het paars-token (`#8511D9`) wordt ook informatief gebruikt (bv. badges) | geëxtraheerd |
-
-### A2. Typografie
-
-**Font-families (twee custom, gelicenseerde fonts):**
-- **`Aeonik`**, primaire sans-serif voor headings én body. Gewichten: 400 (Regular), 700 (Bold). Fallback-stack: `'Aeonik','Aeonik Fallback',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif`.
-- **`TTCommons`** (specifiek: TT Commons Pro Mono Trial), een **mono-stijl technisch font**, uitsluitend gebruikt voor labels, badges, stat-captions en kleine uppercase UI-tekst met brede tracking. Gewichten: 400, 700. Fallback: `'TTCommons','TT Commons','SFMono-Regular','Space Mono',ui-monospace,monospace`.
-
-> **⚠️ Licentie-caveat:** Aeonik en TT Commons zijn **commerciële, gelicenseerde fonts**, InSpace's productie-CSS bevat zelfs zelf-gehoste base64-embedded font-bestanden. We mogen die niet 1-op-1 overnemen/hergebruiken zonder licentie. Twee opties: (a) zelf een licentie aanschaffen voor Aeonik + TT Commons, of (b) een visueel zeer vergelijkbaar open-source alternatief gebruiken, bv. **Geist** of **General Sans** als Aeonik-vervanger (geometrische grotesk, vergelijkbare x-hoogte/karakter), en **Space Mono** of **JetBrains Mono** als TT Commons-vervanger (dat laatste wordt zelfs letterlijk als fallback gebruikt in hun eigen `--mono`-stack hierboven). Zie §C voor de aanbevolen combinatie.
-
-**Het karakteristieke gebruik van het mono-font:** InSpace's meest herkenbare typografische trucje is **kleine, uppercase, breed getrackte labels in het mono-font** (bv. Stat-captions, badges, statusindicators). Dit geeft de "technische read-out"-uitstraling die bij een AI/SEO-tool past. Letter-spacing op deze labels loopt van `.08em` tot `.3em`.
-
-**Schaal (fluid, via `clamp()`):**
-| Niveau | `clamp()`-waarde | Toepassing |
-|--------|-------------------|------------|
-| Display/hero (extreem groot) | `clamp(6rem, 14vw, 11.5rem)` | Enkel merk-statement, zeer spaarzaam |
-| H1 | `clamp(3.2rem, 5.6vw, 5.2rem)` | Hero-headline |
-| H2 | `clamp(2.6rem, 6vw, 5.9rem)` / `clamp(2.4rem, 5.1vw, 4.5rem)` | Sectie-titels |
-| H3 | `clamp(2rem, 5vw, 3.6rem)` | Subsectie-titels |
-| H4 | `clamp(1.7rem, 3.1vw, 2.7rem)` | Kaart-titels |
-| H5/lead | `clamp(1.4rem, 2.6vw, 2.15rem)` | Intro-alinea's |
-| Body-groot | `clamp(1.02rem, 1.5vw, 1.22rem)` | Standaard leestekst |
-| UI/labels (mono) | `.5rem – .95rem` (vast, niet fluid) | Badges, stat-captions, knoplabels |
-
-**Letter-spacing-schaal:** negatief voor grote koppen (`-.005em` tot `-.04em`, hoe groter de tekst, hoe negatiever, standaard optische correctie), positief en breed voor mono-labels (`.01em` tot `.3em`, uppercase).
-
-### A3. Layout, Spacing & Radii
-
-**Border-radius-schaal:**
-| Categorie | Waarden |
-|-----------|---------|
-| Pillen/knoppen/badges | `99px` / `999px` / `9999px` / `100px` (functioneel identiek: "volledig rond") |
-| Grote kaarten/containers | `18px`, `20px`, `22px` |
-| Standaard kaarten | `12px`, `14px`, `16px` |
-| Kleine elementen (iconen, mini-badges) | `8px`, `9px`, `10px` |
-| Avatars/dots | `50%` |
-
-**Grid-achtergrondpatroon:** een subtiel lijnenraster via herhaalde lineaire gradients (`linear-gradient(#eef2ef 1px, transparent 1px)` verticaal + horizontaal), met `background-size: 28px 28px`. Dus een raster van **28×28px cellen**, in een zeer lichte, bijna-onzichtbare grijstint.
-
-**Elevatie/schaduw (glow-techniek):** schaduwen zijn vrijwel altijd **gekleurd naar de accentkleur van het element**, niet neutraal grijs:
-- Paarse gloed: `0 20px 50px rgba(133,17,217,.14)` tot `.18`, of scherper `0 6px 16px -8px rgba(133,17,217,.45)` voor knop-hover.
-- Groene gloed: `0 18px 44px rgba(185,239,163,.13)`, `0 22px 52px rgba(185,239,163,.18)`.
-- Neutrale kaart-elevatie (subtiel): `0 1px 2px rgba(11,11,12,.04-.08)` voor rust-status, oplopend bij hover.
-- **Achtergrond-gloed-orbs** (ambient sfeerverlichting): grote, sterk vervaagde cirkels, `filter: blur(40px)` tot zelfs `blur(90px)`, in paars of groen, achter secties geplaatst voor de "gloeiende tech"-sfeer.
-
-**Glassmorphism:** `backdrop-filter: blur(6px–12px) saturate(1.08–1.7)`, gebruikt op overlay-panelen, sticky nav en modals. Altijd gecombineerd met een halfdoorzichtige witte/zwarte achtergrond (`rgba(255,255,255,.x)` of `rgba(11,11,12,.44)` voor een dark overlay).
-
-**Motion/easing:** één consistente custom easing-curve door de hele site: `--ease: cubic-bezier(.2,.7,.2,1)`. Duur: `.2s–.45s` voor hover/interactie-states, `.8s–.9s` voor data/chart-reveal-animaties (bv. een lijn die "intekent").
-
-### A4. Componenten
-
-**Knoppen:**
-```css
-/* Primair (paars) */
-.btn-purple {
-  height: 56px; padding: 0 30px; border-radius: 99px;
-  background: #8511D9; color: #fff; font-weight: 600; font-size: 1.02rem;
-  box-shadow: 0 0 0 6px rgba(133,17,217,.12);
-  transition: transform .25s cubic-bezier(.2,.7,.2,1), box-shadow .25s cubic-bezier(.2,.7,.2,1);
-}
-/* Secundair (groen) */
-.btn-green {
-  height: 44px; padding: 0 20px; border-radius: 99px;
-  background: #B9EFA3; color: #0B0B0C; font-weight: 600;
-}
-/* Ghost/donker (op lichte achtergrond) */
-.nv-btn.dark {
-  background: #0B0B0C; color: #fff; border-radius: 9px; padding: 7px 10px; font-size: .6rem;
-}
-```
-Kenmerk: primaire knoppen zijn **altijd volledig rond** (pil), met een zachte "ring"-gloed (`box-shadow: 0 0 0 Npx rgba(accent,.1-.14)`) in plaats van een harde rand.
-
-**Cards:**
-```css
-.q-card {
-  background: #fff; border: 1px solid rgba(11,11,12,.10); border-radius: 18px;
-  padding: 26px 24px 22px; box-shadow: 0 1px 2px rgba(11,11,12,.04);
-  transition: transform .3s ease, box-shadow .3s ease, border-color .3s ease;
-}
-```
-Kaarten zijn subtiel elevated in rust, en krijgen bij hover een **sterkere, gekleurde** schaduw + lichte transform (geen felle borders, de gloed doet het werk).
-
-**Badges/chips:** pil-vormig, mono-font, uppercase, breed getrackt, met een gedempte accentkleur-achtergrond:
-```css
-.imd-tab-chip { background: rgba(46,158,80,.16); color: #2E9E50; border-radius: 99px; padding: 2px 6px; font-size: 8px; letter-spacing: .1em; text-transform: uppercase; }
-```
-
-**Status-indicator (pulserende live-dot):** een klein rond puntje met een `box-shadow`-animatie die naar buiten "pulseert" (`0 0 0 0 rgba(accent,.5)` → `0 0 0 7px rgba(accent,0)`), gebruikt om "live/autonoom actief" te communiceren. Precies het soort micro-interactie dat bij een automatische trackingtool past.
+**De regel die hieruit volgt:** bij twijfel kijken we naar hoe de Nova-wérkomgeving iets doet, niet
+naar hoe de InSpace-website het doet.
 
 ---
 
-## §B, Het donkere "Aura"-paneel (enige echte dark-mode-referentie bij InSpace)
+## 2. Kleur
 
-Dit paneel verschijnt in een wisselpaneel binnen de mega-menu-navigatie ("Nova" vs. "Aura" tabs) en is InSpace's enige zelf-gebouwde donkere UI-oppervlak. Dit is de basis voor onze eigen dark mode (zie §C).
+### 2.1 Neutralen
 
-**Achtergrond:**
-```css
-background:
-  radial-gradient(120% 92% at 88% 6%, rgba(133,17,217,.42), transparent 52%),
-  linear-gradient(180deg, #0B0B0C, #171128);
-border: 1px solid rgba(255,255,255,.1);
-```
-Dus: een bijna-zwarte basis (`#0B0B0C`) die naar een donker paars-getint navy verloopt (`#171128`), met een **paarse radiale gloed rechtsboven**, exact de "deep space, glow in the corner"-esthetiek.
+Koel leiblauw, niet warm groengrijs. Dit is 70% van het verschil tussen "ziet eruit als een
+landingspagina" en "ziet eruit als software".
 
-**Tekst op donker:**
-| Token | Waarde |
-|-------|--------|
-| Primaire tekst | `#fff` |
-| Secundaire/muted tekst | `rgba(255,255,255,.62)` |
-| Border (subtiel, op donker) | `rgba(255,255,255,.1)` tot `.28` |
-
-**Badge op donker:**
-```css
-.imd-aura-chip {
-  color: #D9C6F5; background: rgba(133,17,217,.24);
-  border: 1px solid rgba(165,120,240,.5); border-radius: 99px;
-  font-family: mono; font-size: 9px; letter-spacing: .14em; text-transform: uppercase;
-}
-```
-Lila-lichte tekst (`#D9C6F5`) op een gedempte paarse achtergrond. Het "donkere equivalent" van de lichte badge-stijl uit §A4.
-
-**CTA op donker:**
-```css
-.imd-aura-cta {
-  height: 40px; border-radius: 99px; border: 1px solid rgba(255,255,255,.28); color: #fff;
-}
-.imd-aura-cta:hover { background: #fff; color: #0B0B0C; border-color: #fff; }
-```
-Op donker is de knop-hover-logica **omgekeerd**: een outline-knop die bij hover naar een solide wit blok inverteert (in plaats van een gekleurde gloed zoals op licht).
-
-**Accent-orb:** een los, zwevend "glow orb"-icoontje met `filter: drop-shadow(0 12px 22px rgba(133,17,217,.4))`, decoratief paars gloed-element, typisch voor de "AI/tech" sfeer.
-
----
-
-## §C, Samengevoegd, praktisch tokensysteem voor onze app
-
-Dit is de **aanbevolen synthese**: InSpace's merk-DNA (kleuren, typografie, radii, gloed-techniek uit §A) volledig toegepast op een dark-mode-fundament (uit §B), zodat het resultaat authentiek "InSpace" aanvoelt terwijl de hele app consistent donker is, in plaats van maar één geïsoleerd donker paneel.
-
-```css
-:root[data-theme="dark"] {
-  /* Achtergrondlagen: van diepste naar hoogste laag */
-  --bg-base:        #0B0B0C;
-  --bg-elevated:     #14141A;   /* interpretatie: iets lichter dan base, voor top-level containers */
-  --bg-surface:      #171128;   /* uit Aura-gradient: kaarten/panelen met paarse ondertoon */
-  --bg-surface-2:    #1C1730;   /* interpretatie: nog een laag hoger, voor gestapelde cards/modals */
-
-  /* Merkkleuren (rechtstreeks uit InSpace) */
-  --accent-purple:       #8511D9;
-  --accent-purple-soft:  #A24DEC;
-  --accent-purple-glow:  rgba(133,17,217,.42);
-  --accent-green:        #B9EFA3;
-  --accent-green-text:   #2E9E50;
-  --accent-green-dark:   #54B86A;
-  --brand-gradient: linear-gradient(96deg, #54B86A 0%, #8511D9 96%);
-
-  /* Tekst op donker */
-  --text-primary:    #FFFFFF;
-  --text-secondary:  rgba(255,255,255,.62);
-  --text-muted:      rgba(255,255,255,.42);   /* interpretatie: placeholder/disabled */
-
-  /* Randen op donker */
-  --border-subtle:   rgba(255,255,255,.10);
-  --border-strong:   rgba(255,255,255,.28);
-
-  /* Status (aangepast aan dark, zie A1) */
-  --status-success:  #2E9E50;
-  --status-error:    #E5484D;   /* afgeleid van Tailwind-root oklch(57.7% .245 27.325) */
-  --status-warning:  #B9A27A;  /* InSpace's gouden accent, informeel als warning gebruikt */
-  --status-info:     #8511D9;
-
-  /* Typografie */
-  --font-sans: 'Geist', 'Aeonik', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  --font-mono: 'JetBrains Mono', 'Space Mono', 'TTCommons', ui-monospace, monospace;
-
-  /* Radii (rechtstreeks uit InSpace) */
-  --radius-pill: 999px;
-  --radius-lg:   18px;
-  --radius-md:   14px;
-  --radius-sm:   9px;
-
-  /* Motion */
-  --ease-standard: cubic-bezier(.2,.7,.2,1);
-  --duration-fast: .2s;
-  --duration-base: .3s;
-  --duration-slow: .45s;
-}
-```
-
-**Kernprincipes voor consistente toepassing:**
-1. **Gloed in plaats van harde randen.** Elevatie en focus-states communiceren via een gekleurde `box-shadow`-gloed (accentkleur, lage opaciteit), niet via felle borders. Zie §A3.
-2. **Pil-vormige interactieve elementen.** Alle knoppen, badges en chips zijn volledig rond (`--radius-pill`); alleen containers/cards gebruiken de kleinere radii.
-3. **Mono-font is gereserveerd voor "technische" UI-tekst.** Labels, statuscaptions, badges en stat-waarden in `--font-mono`, uppercase, breed getrackt (`.08em`–`.2em`). Precies zoals InSpace's `.imd-*`- en `.q-card`-labels. Body-tekst en koppen blijven in `--font-sans`.
-4. **Eén consistente easing overal:** `--ease-standard` voor elke hover/transitie. Dit is een klein detail dat opvalt als het ontbreekt.
-5. **Statusindicatie is kleur + vorm, nooit kleur alleen:** een pulserende dot, een pijltje (`↑`/`↓`), of een chip, nooit alleen een kleurverschil (toegankelijkheid).
-6. **Achtergrond-gloed-orbs spaarzaam, groot en zeer vervaagd** (`blur(40–90px)`) achter hero/belangrijke secties, nooit als decoratie in kleine componenten.
-
----
-
-## §D, Het tokensysteem van de Nova-app (geanalyseerd 6 augustus 2026)
-
-> **Dit is een ánder systeem dan §A tot §C hierboven.** Die gaan over de marketingsite
-> (`inspace.io`, juli 2026). Dit gaat over de ingelogde productomgeving (`nova.inspace.io`), en dat
-> is aantoonbaar het volwassen systeem: waar de marketingsite kleuren bij naam noemt, noemt de app
-> ze bij betekenis. De volledige ontleding van die app staat in
-> [`tasks/nova-analyse.md`](./tasks/nova-analyse.md); hier staat alleen wat het voor onze CSS
-> betekent.
-
-### D1. Wat we overnamen, en wat niet
-
-| Uit Nova | Overgenomen | Toelichting |
+| Token | Waarde | Waarvoor |
 |---|---|---|
-| Namen naar betekenis (`intelligence`, `growth`, `information`, `warning`, `danger`, `neutral`) | **Ja** | Je kunt de kleur wijzigen zonder één component aan te raken |
-| Vijf velden per betekenis | **Ja**, in onze eigen indeling | Zie D2 |
-| `foreground-on-{betekenis}` | **Ja**, als `-on-solid` | Contrast is een tokenkeuze, geen oordeel per component |
-| Grafiektokens, inclusief as en raster | **Ja** | Zie D3 |
-| Randdiktes als schaal | **Ja**, drie standen | `--border-width-xs/sm/md` |
-| `attention` (roze) en `premium` (brons) | **Nee** | Niets in Aura betekent dat. Een ongebruikt token is bloat |
-| Licht- en donkerparen per token | **Nee, nog niet** | Er is bewust geen donkere modus. De namen staan nu wel goed, dus dat wordt later een dag werk in plaats van een week |
-| Hun negen radii en hun exacte hexwaarden | **Nee** | Vier radii volstaan, en de kleuren blijven van ons. Anders wordt Aura visueel een InSpace-product |
+| `--bg-base` | `#f8fafc` | De pagina |
+| `--bg-surface` | `#ffffff` | Kaarten |
+| `--bg-elevated` | `#e7edf2` | Geneste vlakken, tabelkoppen, neutrale chips |
+| `--bg-surface-2` | `#dce3ea` | Een tint dieper, hover op een genest vlak |
+| `--text-primary` | `#17212b` | Blauwzwart, niet zwart |
+| `--text-secondary` | `#43505d` | Lopende tekst die niet de kop is. 7,5:1 |
+| `--text-muted` | `#788795` | **Alleen bijzaak.** 3,7:1, dus nooit bodytekst |
+| `--border-subtle` | `#e7edf2` | De standaardrand |
+| `--border-strong` | `#c2ccd6` | Invoervelden, hover op een kaart |
+| `--border-contrast` | `#9daab6` | Alleen waar een rand echt moet spreken |
 
-### D2. De vijf velden per betekenis
+**Waarom de randen een echte tint zijn en geen doorschijnend zwart:** doorschijnend zwart wordt vuil
+zodra het op een gekleurd vlak ligt. Een chip met een amber vulling kreeg zo een grijsbruine rand.
+Een echte tint heeft dat probleem niet.
 
-Nova heeft `background`, `background-subtle`, `background-hover`, `background-subtle-hover`,
-`border` en `foreground`. Wij hebben er vijf, gekozen naar hoe deze app ze daadwerkelijk gebruikt:
+**`--text-muted` is de enige token met een contrastwaarschuwing.** 3,7:1 is prima voor een label of
+een tijdstempel en te weinig voor een zin die iemand moet lezen. Nova gebruikt hem net zo.
+
+### 2.2 Merkkleuren
+
+Paars en groen blijven van Aura; de systematiek eromheen komt van Nova.
+
+| Token | Waarde | Toelichting |
+|---|---|---|
+| `--accent-purple` | `#8511d9` | Het merkpaars |
+| `--accent-purple-strong` | `#7414b5` | Hover |
+| `--accent-purple-surface` | `#f3e6ff` | Vlaktint |
+| `--accent-green` | `#b9efa3` | Lichtmint, alleen als vlak |
+| `--accent-green-dark` | `#37941c` | Nova's productgroen |
+| `--accent-green-text` | `#2c711a` | Leesbaar groen als tekst |
+| `--brand-gradient` | groen naar paars, 96° | **Alleen het woordmerk** |
+
+**Twee dingen zijn hier bijgetrokken.** Het groen was `#2e9e50`, dat van hun marketingsite; het is nu
+`#37941c`, dat van hun product. Die twee verschillen zichtbaar zodra ze naast elkaar staan. En de
+gradient stond op accentwoorden in koppen; in de Nova-werkomgeving komt hij nul keer voor, dus hij is
+teruggebracht tot het woordmerk. Eén plek is genoeg om herkenbaar te zijn, overal is een
+landingspagina.
+
+### 2.3 De betekenislaag
+
+**Een kleur heeft een betekenis, geen naam.** Zeven betekenissen, elk met vijf velden, exact zoals
+Nova ze uitsplitst.
 
 | Veld | Waarvoor |
 |---|---|
-| `--intent-x-solid` | Gevulde vlakken: een knop, een gevulde badge |
-| `--intent-x-on-solid` | De tekstkleur ÓP dat gevulde vlak |
+| `--intent-x-solid` | Gevulde vlakken: knop, gevulde badge, grafieklijn |
+| `--intent-x-on-solid` | De tekstkleur **op** dat gevulde vlak |
 | `--intent-x-text` | Dezelfde betekenis als leesbare tekst op een licht vlak |
-| `--intent-x-surface` | De 10%-tint als achtergrond van een chip of kaart |
-| `--intent-x-border` | De 30%-tint als rand |
+| `--intent-x-surface` | De lichtste tint als achtergrond van een chip of kaart |
+| `--intent-x-border` | De randtint |
 
-**Waarom `-text` los van `-solid` bestaat:** `#2e9e50` als tekst op wit haalt de contrastdrempel van
-4,5:1 niet, en dat was precies de kleur waarin "gelukt" stond. De donkere variant `#1f7a3d` wel.
-**Waarom `-on-solid` bestaat:** op `--accent-green` (`#b9efa3`, lichtmint) moet donkere tekst en op
-`--accent-purple` witte. Dat was tot 6 augustus 2026 per component een beoordeling.
+| Betekenis | Waarvoor | solid | text | surface | border |
+|---|---|---|---|---|---|
+| `intelligence` | Het merk, AI, de primaire actie | `#8511d9` | `#8511d9` | `#faf4ff` | `#e9d1ff` |
+| `growth` | Gelukt, gestegen, gepubliceerd | `#37941c` | `#2c711a` | `#effce9` | `#b9efa3` |
+| `information` | Een mededeling, een toelichting | `#0084d1` | `#0069a8` | `#f0f9ff` | `#b8e6fe` |
+| `warning` | Kijk hier even naar | `#e17100` | `#bb4d00` | `#fffbeb` | `#fee685` |
+| `attention` | Vraagt een keuze, is niet fout | `#e60076` | `#c6005c` | `#fdf2f8` | `#fccee8` |
+| `danger` | Blokkade, mislukt, onomkeerbaar | `#e7000b` | `#c10007` | `#fef2f2` | `#ffc9c9` |
+| `premium` | Betaald, hoogste plan | `#9f7d57` | `#84664a` | `#f9f7f3` | `#e2dac6` |
+| `neutral` | Uit, niet van toepassing | , | `--text-muted` | `--bg-elevated` | `--border-subtle` |
 
-### D3. Grafiekkleuren horen in het tokensysteem
+**Elke `-text` haalt op wit minstens 5,0:1**, ruim boven de drempel van 4,5. Dat was voor de overstap
+op twee plekken niet zo.
 
-`--chart-own`, `--chart-rival-1` tot `-3`, plus `--chart-axis` (astekst), `--chart-grid`
-(rasterlijnen) en `--chart-reference` (gestreepte referentielijnen).
+**Waarom `-text` los van `-solid` bestaat:** `#37941c` als tekst op wit haalt de drempel niet, en dat
+was de kleur waarin "gelukt" stond. De donkere variant wel.
+**Waarom `-on-solid` bestaat:** op `--accent-green` (lichtmint) moet donkere tekst en op het merkpaars
+witte. Dat was hiervoor per component een beoordeling.
 
-Die laatste drie zijn het punt. Nova heeft ze ook (`--chart-axis`, `--chart-grid`,
-`--chart-cursor`) en het is het deel dat iedereen vergeet, waardoor een grafiek er altijd nét naast
-ligt zodra de rest van het systeem verandert.
-
-### D4. Twee kleuren die we bij deze gelegenheid gerepareerd hebben
-
-1. **`--status-info` was `#8511d9`, exact de merkkleur.** Een mededeling was dus niet te
-   onderscheiden van een merkactie. Nova splitst dit in `intelligence` (paars, merk en AI) en
-   `information` (blauw, feitelijke mededeling). Wij nu ook.
-2. **`--status-warning` was `#b9a27a`, een gedempt brons.** Dat is bij Nova de kleur voor *premium*,
-   niet voor een waarschuwing, en als tekst op wit haalt het 2,1:1. De chips gebruikten daarom
-   allang hun eigen amber (`#8a6100`). Die amber is nu de waarheid, en de bronzen variant is
-   verdwenen.
-
-### D5. Wat de opruiming opleverde
-
-Bij het doorvoeren bleek de drift uit `ux-design.md` §3 volledig teruggegroeid: **dertien
-hardgecodeerde hexwaarden en tweeëntwintig losse `rgba()`-waarden** verspreid over de componenten,
-waaronder vier kleuren die in geen enkel token voorkwamen (drie concurrentkleuren in
-`trend-chart.tsx` en een vierde paars in `offsite-panel.tsx`). Vijf componenten bouwden bovendien
-`.chip-danger`, `.chip-warning`, `.chip-success` en `.chip-neutral` met de hand na, terwijl die
-klassen al bestonden.
-
-Sinds 6 augustus 2026 is het aantal nul, en `ux-design.md` regel 7 heeft er een `grep` bij die het
-zo houdt. Zonder die controle groeit het terug; dat is nu twee keer bewezen.
+**Eén bewuste afwijking van Nova.** Zij kennen twee paarse standen, `#9e21fc` en `#8511d9`, en
+gebruiken de lichte als solide vlak. Wij nemen de donkere: wit op `#9e21fc` haalt 4,0:1 en zakt
+daarmee onder de drempel voor knoptekst, wit op `#8511d9` haalt 5,4:1. Bij hen is de lichte stand te
+verdedigen omdat dezelfde token ook in donkere modus dienstdoet; wij hebben alleen licht.
 
 ---
 
-## Bronnen (rechtstreeks geanalyseerd, juli 2026)
-- `https://inspace.io/`, homepage HTML + 10 inline `<style>`-blokken
-- `https://inspace.io/wp-content/themes/inspace/front/build/assets/main-*.css`, hoofd-Tailwind-bundel (root-tokens, utility-classes)
-- `https://inspace.io/wp-content/themes/inspace/assets/navbar/inspace-navbar.css`, navigatie- en Aura/Nova-mockup-styling
-- **§D:** de CSS-bundels van `nova.inspace.io` en `app.inspace.io`, de `--ds-*`-tokens, opgehaald 6 augustus 2026
+## 3. Typografie
+
+**Geist Sans en Geist Mono**, het paar dat Nova zelf gebruikt. Mono was JetBrains Mono: twee families
+van twee makers naast elkaar is precies het soort verschil dat je niet ziet maar wel voelt.
+
+| Waar | Wat |
+|---|---|
+| Alles | `--font-sans` |
+| Cijfers die je vergelijkt | `--font-mono` via `.stat-value`, met `tabular-nums` |
+| Kickers boven een titel | `.mono-label`: sans, 11px, uppercase, `.08em`, gewicht 600 |
+| Code en URL's | `--font-mono` |
+
+**De grootste typografische wijziging is dat mono niet langer de standaard is voor labels.** De oude
+stijl zette elk paneelkopje in mono, uppercase, met `.14em` tracking. Dat is de "technische
+read-out"-esthetiek van de marketingsite. Nova gebruikt dat patroon alleen als kicker boven een titel
+("YOUR BRAND"), en verder gewoon sans. `.mono-label` heet nog zo omdat hij op tientallen plekken
+gebruikt wordt, maar hij ís nu sans. **Hernoem hem niet in een losse commit;** dat raakt te veel
+bestanden tegelijk voor een naamswijziging.
+
+Koppen zijn een stap kleiner geworden. Een `text-4xl` in een menu en een `text-3xl` boven een
+hoofdstuk zijn marketingformaten; het product zit op `text-2xl` en lager.
+
+---
+
+## 4. Grafieken
+
+Zes categorische kleuren, gebonden aan dezelfde betekenissen. Nova doet dit ook zo (`--chart-1` tot
+`--chart-6`), en het is de reden dat een groeireeks daar overal exact dezelfde tint heeft.
+
+| Token | Wijst naar |
+|---|---|
+| `--chart-1` tot `--chart-6` | intelligence, growth, information, warning, attention, premium |
+| `--chart-own` | Het eigen merk, `--chart-1` |
+| `--chart-rival-1/2/3` | De concurrenten, `--chart-4/3/5` |
+| `--chart-axis` | Astekst |
+| `--chart-grid` | Rasterlijnen |
+| `--chart-reference` | Gestreepte referentielijnen |
+
+**De as, het raster en de referentielijn zijn óók tokens.** Dat is het deel dat iedereen vergeet, en
+de reden dat een grafiek er altijd nét naast ligt zodra de rest van het systeem verandert.
+
+> ⚠️ **Openstaand:** de zes kleuren zijn **niet opnieuw gevalideerd op kleurenblindheid** na de
+> overstap. De vorige set (paars, oranje, aqua, blauw) haalde ΔE 9,2 op het slechtste aangrenzende
+> paar. Paars naast roze is het paar dat er nu als eerste doorheen zakt. Zolang dat niet nagemeten
+> is, geldt onverkort: **elke lijn draagt een naam aan het uiteinde en er staat een tabel onder.**
+> Identiteit leunt nooit alleen op kleur.
+
+---
+
+## 5. Vorm en diepte
+
+### 5.1 Radii
+
+| Token | Waarde | Waarvoor |
+|---|---|---|
+| `--radius-xs` | 4px | Kleine markeringen |
+| `--radius-sm` | 6px | Code-blokjes, geneste vlakjes |
+| `--radius-md` | 8px | **Knoppen, velden, navigatie-items, menu's** |
+| `--radius-lg` | 12px | Kaarten |
+| `--radius-xl` | 16px | Grote panelen, dialogen |
+| `--radius-pill` | 9999px | **Alleen chips, badges en voortgangsbalken** |
+
+**De pil is niet langer de standaard.** Dat is de meest zichtbare enkele wijziging van deze omzetting.
+De oude regel luidde "interactieve elementen zijn pilvormig"; dat is de marketingsite. In de
+Nova-werkomgeving is de pil voorbehouden aan chips en badges, en krijgen knoppen `--radius-md`.
+
+### 5.2 Randdiktes
+
+`--border-width-xs` 1px · `--border-width-sm` 2px · `--border-width-md` 4px. Drie standen, zodat
+1px-tegen-2px geen toevalstreffer meer is.
+
+### 5.3 Diepte
+
+**Eén schaduw in het hele systeem**, letterlijk die van Nova:
+
+```css
+--shadow-overlay: 0 4px 6px -4px rgba(0,0,0,.1), 0 10px 15px -3px rgba(0,0,0,.1);
+```
+
+Hij is voorbehouden aan wat **boven de pagina zweeft**: menu's, dialogen, en de hover-staat van een
+kaart die echt klikbaar is. Een gewone kaart is plat en heeft alleen een rand.
+
+**Alle gloed is weg.** De ring om de primaire knop, de hover-lift, de paarse focusgloed op velden en
+de vier ambient `glow-orb`-cirkels achter de inlogpagina, het menu, de 404 en elk hoofdstuk. Meer
+schaduwstanden maken een interface niet dieper, alleen rommeliger.
+
+**De enige uitzondering is focus, en die is functioneel.** `:focus-visible` krijgt een 2px omlijning
+in de merkkleur en een veld krijgt bij focus een ring van 3px. Zonder zichtbare focus is de app niet
+met een toetsenbord te bedienen. Dat is toegankelijkheid, geen sier.
+
+### 5.4 Maatvoering
+
+| Element | Was | Nu |
+|---|---|---|
+| Knop | 48px, `.btn-sm` 40px | **40px, `.btn-sm` 32px** |
+| Invoerveld | 48px, grijs verzonken | **40px, wit met een rand** |
+| Kaartpadding | 26px 24px 22px | **20px** |
+
+Nova's product is dichter dan hun marketingsite. Een knop van 48px naast een veld van 48px vult een
+dashboardscherm met knoppen, en verzonken grijze velden maken een formulier van twaalf velden
+onrustig.
+
+> ⚠️ **Mobiel:** `ux-design.md` §7 eist tikdoelen van minstens 44 bij 44 pixels. Een knop van 40px
+> haalt dat niet. Op mobiel moet een primaire actie dus extra verticale padding of `.btn-lg` krijgen;
+> dat is nog niet gebouwd en staat open.
+
+---
+
+## 6. Motion
+
+Eén easing overal: `--ease-standard: cubic-bezier(.2,.7,.2,1)`.
+
+De duur ging omlaag naar 0,12s (`fast`), 0,18s (`base`) en 0,3s (`slow`). Nova's product beweegt
+korter dan hun marketingsite, en 0,3s voelt in een dashboard traag.
+
+`prefers-reduced-motion` zet alle transities op 0,01ms en haalt de pulsering en de laadsweep weg.
+
+---
+
+## 7. De primitieven
+
+Gebruik deze, nooit een eigen tint of een eigen maat.
+
+| Primitief | Regel |
+|---|---|
+| `.card` | Wit, één rand, **plat**. Geen schaduw, geen hover |
+| `.card-interactive` | Alleen op wat écht klikbaar is. Krijgt de rand-plus-schaduw bij hover |
+| `.card-accent` / `-success` / `-warning` / `-danger` | Getinte kaartrand, uit de betekenislaag |
+| `.btn-primary` / `.btn-outline` | Beide 40px, `--radius-md`. `.btn-sm` is 32px |
+| `.chip` + `-success` / `-danger` / `-warning` / `-info` / `-attention` / `-neutral` | Pilvormig, sans, schrijftaal. Nooit met de hand een tint nabouwen |
+| `.mono-label` | De kicker boven een titel. Sans, uppercase, klein |
+| `.stat-value` | Cijfers die je vergelijkt, in mono met `tabular-nums` |
+| `.field` | Wit met een rand, 40px, focusring |
+| `.live-dot` | Pulserend, in `growth`. "Loopt nu" |
+| `.skeleton` | Laadvlak. De vorm van wat er komt |
+| `.prose` | Lange tekst: rapport, contentpagina |
+| `.brand-gradient-text` | **Alleen het woordmerk Aura** |
+| `PageHeader`, `EmptyState`, `Narrow`, `ConfidenceChip` | Eén variant per patroon |
+
+---
+
+## 8. De acht regels
+
+1. **Een kleur heeft een betekenis, geen naam.** `--intent-growth-text`, nooit `--accent-green`, en
+   nooit een hexwaarde of rauwe `rgba()` in een component. Zie §11 voor de controle.
+2. **Plat, niet gloeiend.** Rand en vlak dragen de hiërarchie. De ene schaduw is voor wat zweeft.
+3. **De pil is voor chips.** Knoppen, velden en navigatie krijgen `--radius-md`.
+4. **Status is kleur plus vorm, nooit kleur alleen.** Een dot, een pijl, een chip met tekst.
+5. **Mono is voor cijfers**, niet voor labels. De kicker is sans.
+6. **Contrast is een tokenkeuze.** Gebruik `-text` op licht en `-on-solid` op gevuld, en vertrouw
+   `--text-muted` nooit voor iets wat gelezen moet worden.
+7. **Eén easing, korte duur.**
+8. **De gradient is het woordmerk.** Nergens anders.
+
+---
+
+## 9. Wat we van Nova overnamen en wat niet
+
+| Uit Nova | Overgenomen | Waarom |
+|---|---|---|
+| Betekenisnamen voor kleuren | **Ja**, alle zeven | De kleur kan wijzigen zonder één component aan te raken |
+| Vijf velden per betekenis | **Ja** | In onze eigen indeling, naar hoe deze app ze gebruikt |
+| Koele leiblauwe neutralen | **Ja** | Het grootste enkele verschil |
+| Radiusschaal en randdiktes | **Ja**, teruggebracht tot zes standen | Negen was meer dan we gebruiken |
+| Eén schaduw | **Ja** | En alle gloed eruit |
+| Geist Sans plus Geist Mono | **Ja** | Eén makerspaar |
+| Zes grafiekkleuren aan betekenissen | **Ja** | Nog wel te valideren, zie §4 |
+| Hun lichte paars als solide vlak | **Nee** | Haalt de contrastdrempel niet, zie §2.3 |
+| Licht- en donkerparen | **Nee, nog niet** | Zie §10 |
+| Hun negen radii | **Nee** | Zes volstaan |
+| Zijbalknavigatie, klantkiezer, toasts | **Nee** | Dat is indeling, geen vormgeving. Zie `tasks/nova-analyse.md` |
+
+---
+
+## 10. Donkere modus, als hij ooit komt
+
+**Er is er bewust geen.** `globals.css` kent alleen `:root` en `[data-theme="light"]`, en
+`html { color-scheme: light; }` staat vast.
+
+Maar de tokennamen zijn er nu wel op ingericht: elke betekenis heeft al een `-solid`, `-text`,
+`-surface` en `-border`, dus een donkere modus is een tweede blok met dezelfde namen en andere
+waarden. Nova's donkere neutralen zijn bekend en genoteerd, zodat niemand ze opnieuw hoeft af te
+leiden:
+
+```
+achtergrond   #121a22  →  #17212b  →  #27323d  →  #43505d
+tekst         #ffffff  ·  #c2ccd6  ·  #788795
+randen        #27323d  ·  #43505d  ·  #788795
+accenten      paars #ad45ff · groen #4cb929 · blauw #00a6f4 · oranje #fe9a00 · rood #fb2c36
+```
+
+Werk: ongeveer een dag, inclusief elk scherm nalopen. Vóór de overstap zou het een week zijn geweest.
+
+---
+
+## 11. Controle vóór een commit
+
+Beide moeten **nul regels** geven:
+
+```bash
+grep -rnE "#[0-9a-fA-F]{6}\b" app components --include="*.tsx" | grep -v themeColor
+grep -rnE "rgba?\([0-9]" app components --include="*.tsx"
+```
+
+De enige uitzondering is `themeColor` in `app/layout.tsx`: die gaat naar de browserbalk van het
+besturingssysteem en kan geen CSS-variabele zijn.
+
+**Dit is geen formaliteit.** De drift is twee keer teruggegroeid: de eerste opruiming telde 30
+inline-stijlen over 17 bestanden, de tweede 35. Een regel zonder controle is een voornemen.
+
+---
+
+## Bijlage A, de marketingsite van inspace.io (historisch, juli 2026)
+
+> Dit was tot 6 augustus 2026 de basis van dit document. Het staat er nog om twee redenen: onze
+> merkkleuren komen hiervandaan, en het legt uit waarom de app er tot die datum uitzag zoals hij
+> eruitzag. **Het is geen bron meer voor nieuw werk.**
+
+**Neutrale basis:** `--paper` `#FFFFFF` · `--paper-2` `#F5F6F3` · `--ink` `#0B0B0C` · `--muted`
+`rgba(11,11,12,.62)` · `--line` `rgba(11,11,12,.10)`.
+
+**Merkkleuren:** `--purple` `#8511D9` · `--purple-soft` `#A24DEC` · `--green` `#B9EFA3` ·
+`--green-text` `#2E9E50` · `--green-dark` `#54B86A`, met de gradient
+`linear-gradient(96deg, #54B86A 0%, #8511D9 96%)`.
+
+**Typografie:** Aeonik en TT Commons, allebei commercieel gelicenseerd en dus niet overneembaar.
+Geist Sans en Geist Mono zijn de open-source substituten.
+
+**Componenten:** knoppen van 56px, volledig rond, met een ringgloed
+`box-shadow: 0 0 0 6px rgba(133,17,217,.12)`. Kaarten met `border-radius: 18px` en een
+hover-transform. Badges in mono, uppercase, breed getrackt. Een pulserende live-dot.
+
+**Het donkere "Aura"-paneel** in hun mega-menu was ooit onze beoogde basis voor een donkere modus:
+`#0B0B0C` naar `#171128` met een paarse ondertoon. Dat plan is vervallen. Als er ooit een donkere
+modus komt, volgt hij de Nova-werkomgeving uit §10, niet dit paneel.
+
+---
+
+## Bronnen
+
+- **Primair:** de CSS- en i18n-bundels van `nova.inspace.io` en `app.inspace.io`, opgehaald op
+  6 augustus 2026. De `--ds-*`-tokens, de radiusschaal, de randdiktes en de ene schaduw komen daar
+  letterlijk uit. De volledige ontleding van die apps staat in [`tasks/nova-analyse.md`](./tasks/nova-analyse.md)
+- **Historisch (bijlage A):** `inspace.io` homepage plus inline stijlblokken, `main-*.css` en
+  `inspace-navbar.css`, juli 2026

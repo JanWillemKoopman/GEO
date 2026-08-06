@@ -25,7 +25,7 @@ export default async function WachtwoordVergetenPage({
       </p>
       <PasswordResetRequestForm />
       <p className="mt-4 text-center text-sm text-secondary">
-        <Link href="/login" className="text-[var(--accent-purple-soft)] hover:underline">
+        <Link href="/login" className="text-[var(--intent-intelligence-text)] hover:underline">
           Terug naar inloggen
         </Link>
       </p>

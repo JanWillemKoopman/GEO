@@ -37,7 +37,7 @@ export function TrackingToggle({ analysisId, initial }: { analysisId: string; in
         disabled={pending}
         aria-pressed={enabled}
         className="relative h-7 w-12 shrink-0 rounded-full transition-colors disabled:opacity-60"
-        style={{ background: enabled ? "var(--accent-purple)" : "var(--bg-elevated)", border: "1px solid var(--border-subtle)" }}
+        style={{ background: enabled ? "var(--intent-intelligence-solid)" : "var(--bg-elevated)", border: "var(--border-width-xs) solid var(--border-subtle)" }}
       >
         <span
           className="absolute top-0.5 h-5 w-5 rounded-full bg-white transition-transform"

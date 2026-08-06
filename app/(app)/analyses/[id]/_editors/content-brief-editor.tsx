@@ -51,7 +51,7 @@ export function ContentBriefEditor({ analysisId, initial }: { analysisId: string
         <button onClick={() => void save()} disabled={saving} className="btn-primary disabled:opacity-60">
           {saving ? "Opslaan…" : "Wijzigingen opslaan"}
         </button>
-        {saved && <span className="text-sm text-[var(--accent-green-text)]">Opgeslagen ✓</span>}
+        {saved && <span className="text-sm text-[var(--intent-growth-text)]">Opgeslagen ✓</span>}
         {error && <span className="text-sm text-[var(--status-error)]">{error}</span>}
       </div>
     </div>

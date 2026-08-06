@@ -193,7 +193,7 @@ export function StrategyBox({
       </div>
 
       {saved && (
-        <p className="text-sm text-[var(--accent-green-text)]" role="status">
+        <p className="text-sm text-[var(--intent-growth-text)]" role="status">
           {saved}
         </p>
       )}
