@@ -107,6 +107,13 @@ export interface JobProgress {
   failed: number;
   /** Staat er een nieuwe poging gepland na een tegenslag? */
   retrying: boolean;
+  /**
+   * Hoeveelste poging loopt er nu (E, "pogingen tonen")? 0 zolang niets een
+   * eerdere tegenslag had. Het hoogste aantal onder de openstaande taken: een
+   * klant die naar één voortgangsscherm kijkt met meerdere taken erachter wil
+   * weten hoe ver de meest problematische ervan is, niet het gemiddelde.
+   */
+  attempts: number;
   /** Verwachte resterende tijd in seconden, null als er niets openstaat. */
   etaSeconds: number | null;
   /** Aantal openstaande taken per soort, voor een fijnere stappenweergave. */
@@ -118,6 +125,7 @@ const EMPTY: JobProgress = {
   running: 0,
   failed: 0,
   retrying: false,
+  attempts: 0,
   etaSeconds: null,
   pendingByType: {},
 };
@@ -153,6 +161,7 @@ function summarize(jobs: Job[]): JobProgress {
     running: open.filter((j) => j.status === "running").length,
     failed: failed.length,
     retrying: retryWait > 0,
+    attempts: open.reduce((max, j) => Math.max(max, j.attempts ?? 0), 0),
     etaSeconds:
       open.length === 0
         ? null
@@ -165,7 +174,7 @@ function summarize(jobs: Job[]): JobProgress {
 export async function analysisProgress(admin: Admin, analysisId: string): Promise<JobProgress> {
   const { data } = await admin
     .from("jobs")
-    .select("id, type, status, scheduled_for")
+    .select("id, type, status, scheduled_for, attempts")
     .eq("analysis_id", analysisId)
     .in("status", ["queued", "running", "failed"]);
   return summarize((data ?? []) as Job[]);
@@ -175,7 +184,7 @@ export async function analysisProgress(admin: Admin, analysisId: string): Promis
 export async function profileProgress(admin: Admin, profileId: string): Promise<JobProgress> {
   const { data } = await admin
     .from("jobs")
-    .select("id, type, status, scheduled_for")
+    .select("id, type, status, scheduled_for, attempts")
     .eq("profile_id", profileId)
     .in("status", ["queued", "running", "failed"]);
   return summarize((data ?? []) as Job[]);

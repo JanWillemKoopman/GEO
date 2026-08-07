@@ -22,7 +22,13 @@ export default async function ProfielenPage() {
     { ascending: false },
   );
 
-  const profiles = (data ?? []) as Profile[];
+  let profiles = (data ?? []) as Profile[];
+
+  // E, "centrale foutmeldingenplek": mislukte merkonderzoeken bovenaan, zelfde
+  // reden als bij "Mijn analyses". Stabiele sort, dus binnen elke groep blijft
+  // de bestaande volgorde (nieuwste eerst) staan.
+  const failedProfiles = profiles.filter((p) => p.status === "mislukt");
+  profiles = [...failedProfiles, ...profiles.filter((p) => p.status !== "mislukt")];
 
   return (
     <div className="flex flex-col gap-8">
@@ -36,6 +42,25 @@ export default async function ProfielenPage() {
           </Link>
         }
       />
+
+      {failedProfiles.length > 0 && (
+        <div className="card card-danger flex flex-col gap-2">
+          <span className="chip chip-danger w-fit">
+            {failedProfiles.length === 1
+              ? "1 merkonderzoek niet gelukt"
+              : `${failedProfiles.length} merkonderzoeken niet gelukt`}
+          </span>
+          <ul className="flex flex-col gap-1">
+            {failedProfiles.map((p) => (
+              <li key={p.id}>
+                <Link href={`/profielen/${p.id}`} className="text-sm underline">
+                  {p.name}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       {profiles.length === 0 ? (
         <EmptyState

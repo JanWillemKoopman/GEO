@@ -14,6 +14,7 @@ interface StatusPayload {
   pendingJobs: number;
   failedJobs: number;
   retrying: boolean;
+  attempts: number;
   etaText: string | null;
 }
 
@@ -103,6 +104,7 @@ export function MeasureProgress({
       }
       etaText={data?.etaText}
       retrying={data?.retrying}
+      attempts={data?.attempts}
       steps={[
         {
           label: total > 0 ? `Vragen stellen (${measured} van ${total})` : "Vragen stellen",

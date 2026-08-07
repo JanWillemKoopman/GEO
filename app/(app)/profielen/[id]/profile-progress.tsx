@@ -13,6 +13,7 @@ interface StatusPayload {
   pendingJobs: number;
   failedJobs: number;
   retrying: boolean;
+  attempts: number;
   etaText: string | null;
   /**
    * Dezelfde stappen die `ResearchStepsStrip` verderop toont. Ze stonden er al
@@ -100,6 +101,7 @@ export function ProfileProgress({
       }))}
       etaText={data?.etaText}
       retrying={data?.retrying}
+      attempts={data?.attempts}
     />
   );
 }

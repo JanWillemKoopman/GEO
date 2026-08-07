@@ -15,6 +15,9 @@
  * 3. Voltooide stappen blijven voltooid, de stappenlijst kan niet terugspringen.
  */
 import { useEffect, useRef, useState } from "react";
+// Rechtstreeks uit types.ts, niet uit progress.ts: dat laatste is
+// `server-only` en dit is een clientcomponent.
+import { MAX_ATTEMPTS } from "@/lib/jobs/types";
 
 export interface WorkStep {
   label: string;
@@ -27,6 +30,7 @@ export function WorkInProgress({
   steps,
   etaText,
   retrying,
+  attempts,
 }: {
   title: string;
   explanation: string;
@@ -35,6 +39,12 @@ export function WorkInProgress({
   etaText?: string | null;
   /** Loopt er een nieuwe poging na een tegenslag? Dan zeggen we dat eerlijk. */
   retrying?: boolean;
+  /**
+   * E, "pogingen tonen": de hoeveelste poging dit is. "Aura probeert het
+   * automatisch opnieuw" zonder getal laat een klant niet weten of dit de
+   * eerste of de laatste kans is; "poging 3 van 4" wel.
+   */
+  attempts?: number;
 }) {
   // Voltooide stappen blijven voltooid (1.10). De server kan bij een nieuwe
   // poging tijdelijk "nog niet klaar" terugmelden; dat mag een afgevinkte stap
@@ -58,8 +68,8 @@ export function WorkInProgress({
 
       {retrying && (
         <p className="text-sm text-muted">
-          Er ging net iets mis aan de kant van de AI-dienst. Aura probeert het automatisch opnieuw.
-          Jij hoeft niets te doen.
+          Er ging net iets mis aan de kant van de AI-dienst. Aura probeert het automatisch opnieuw
+          {attempts ? ` (poging ${attempts} van ${MAX_ATTEMPTS})` : ""}. Jij hoeft niets te doen.
         </p>
       )}
 

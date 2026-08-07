@@ -126,6 +126,19 @@ export async function runWorker(): Promise<WorkerResult> {
   });
   out.reclaimed = typeof reclaimed === "number" ? reclaimed : 0;
 
+  // E, "logging bij reclaim": een teruggevorderde taak betekent dat een vorige
+  // werker-aanroep het niet afmaakte, platform-timeout, crash, of een taak die
+  // langer duurde dan STUCK_AFTER_MINUTES. `out.reclaimed` werd al jaren
+  // geteld maar nergens gelogd, dus dit soort incident was alleen zichtbaar
+  // als de klant zelf een vastgelopen scherm meldde. Een teller kwam nooit
+  // ergens uit.
+  if (out.reclaimed > 0) {
+    console.warn(
+      `${out.reclaimed} taak/taken teruggevorderd van een eerdere, kennelijk vastgelopen werker-aanroep ` +
+        `(ouder dan ${STUCK_AFTER_MINUTES} minuten in 'running').`,
+    );
+  }
+
   // Claim alleen zolang de traagste taak die we terug kunnen krijgen er nog
   // helemaal in past, zie LIGHT_JOB_RESERVE_MS. De eerste ronde mag altijd:
   // anders zou een werker met een krap ingesteld budget nooit iets doen.

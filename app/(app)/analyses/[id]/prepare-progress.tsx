@@ -14,6 +14,7 @@ interface StatusPayload {
   pendingJobs: number;
   failedJobs: number;
   retrying: boolean;
+  attempts: number;
   etaText: string | null;
 }
 
@@ -93,6 +94,7 @@ export function PrepareProgress({
       explanation="Aura leest je website op dit onderwerp, zoekt uit wie hier je concurrenten zijn en stelt de vragen op die straks naar de AI-assistenten gaan."
       etaText={data?.etaText}
       retrying={data?.retrying}
+      attempts={data?.attempts}
       steps={[
         { label: "Website lezen op dit onderwerp", done: Boolean(data?.hasTopicResearch) },
         { label: "Concurrenten op dit onderwerp zoeken", done: Boolean(data?.hasTopicResearch) },

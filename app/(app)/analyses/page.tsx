@@ -36,10 +36,15 @@ export default async function AnalysesPage() {
   const hasProfile = (profileCount ?? 0) > 0;
   const analyses = [...dashboard.analyses];
 
-  // "Wacht op jouw goedkeuring" bovenaan (abcplan.md §3.4).
+  // "Wacht op jouw goedkeuring" bovenaan (abcplan.md §3.4). Sinds E ("centrale
+  // foutmeldingenplek") telt ook `whoseTurn === "jij"` mee, niet alleen
+  // `actionRequired`: een mislukte analyse wacht net zo goed op de klant (een
+  // nieuwe poging, of contact), maar stond voorheen ergens middenin de lijst,
+  // even onopvallend als een analyse die gewoon nog loopt. Wie drie analyses
+  // heeft en er één mislukt, moet dat kunnen zien zonder alle drie te openen.
   analyses.sort((a, b) => {
-    const aAction = STATUS_META[a.status].actionRequired ? 1 : 0;
-    const bAction = STATUS_META[b.status].actionRequired ? 1 : 0;
+    const aAction = STATUS_META[a.status].whoseTurn === "jij" ? 1 : 0;
+    const bAction = STATUS_META[b.status].whoseTurn === "jij" ? 1 : 0;
     return bAction - aAction;
   });
 
@@ -56,6 +61,31 @@ export default async function AnalysesPage() {
           ) : null
         }
       />
+
+      {/* E, "centrale foutmeldingenplek": vroeger stond een mislukte analyse
+          alleen op de eigen pagina, dus wie niet net dáár keek zag hem niet.
+          Bij meer dan één analyse is dit overzicht de plek waar de klant komt
+          kijken "moet ik iets", dus hier hoort een storing meteen te staan. */}
+      {(() => {
+        const failed = analyses.filter((a) => a.status === "mislukt");
+        if (failed.length === 0) return null;
+        return (
+          <div className="card card-danger flex flex-col gap-2">
+            <span className="chip chip-danger w-fit">
+              {failed.length === 1 ? "1 analyse niet gelukt" : `${failed.length} analyses niet gelukt`}
+            </span>
+            <ul className="flex flex-col gap-1">
+              {failed.map((a) => (
+                <li key={a.id}>
+                  <Link href={`/analyses/${a.id}`} className="text-sm underline">
+                    {a.name}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </div>
+        );
+      })()}
 
       {analyses.length > 0 && (
         <DashboardStats stats={dashboard.stats} biggestChange={dashboard.biggestChange} />

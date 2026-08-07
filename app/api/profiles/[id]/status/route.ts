@@ -74,6 +74,7 @@ export async function GET(
     runningJobs: progress.running,
     failedJobs: progress.failed,
     retrying: progress.retrying,
+    attempts: progress.attempts,
     etaText: formatEta(progress.etaSeconds),
     steps,
   });
