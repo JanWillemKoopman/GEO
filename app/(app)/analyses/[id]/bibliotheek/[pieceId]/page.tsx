@@ -16,6 +16,7 @@ import { ReleasePanel, type ReleaseClaim, type ReleaseFact } from "./release-pan
 import { factsFromSnapshot } from "@/lib/pipeline/briefing";
 import { detectClaimSentences, claimMatchesSentence } from "@/lib/pipeline/claim-extract";
 import { isSupported, type WrittenClaim } from "@/lib/pipeline/factcard";
+import { versionReasonOf } from "@/lib/pipeline/version-reason";
 import type { ContentPiece, ContentPieceTarget } from "@/lib/types/database";
 
 interface Faq {
@@ -72,7 +73,7 @@ export default async function ContentDetailPage({
     supabase.from("content_piece_targets").select("*").eq("content_piece_id", pieceId),
     supabase
       .from("content_pieces")
-      .select("id, version, created_at, is_current, revision_note")
+      .select("id, version, created_at, is_current, revision_note, edited_by_user")
       .eq("analysis_id", id)
       .eq("title", piece.title)
       .order("version", { ascending: false }),
@@ -81,7 +82,7 @@ export default async function ContentDetailPage({
   const targets = (targetRows ?? []) as ContentPieceTarget[];
   const versions = (versionRows ?? []) as Pick<
     ContentPiece,
-    "id" | "version" | "created_at" | "is_current" | "revision_note"
+    "id" | "version" | "created_at" | "is_current" | "revision_note" | "edited_by_user"
   >[];
   // Bewust ongetypeerd doorgegeven: `geoRegels()` in de scorekaart kent twee
   // vormen (de zelfrapportage van vóór R8.7 en de deterministische controle
@@ -328,23 +329,31 @@ export default async function ContentDetailPage({
         <div className="card flex flex-col gap-2">
           <span className="mono-label">Eerdere versies</span>
           <ul className="flex flex-col gap-1.5">
-            {versions.map((v) => (
-              <li key={v.id} className="flex flex-wrap items-baseline gap-2 text-sm">
-                {v.id === pieceId ? (
-                  <span className="font-medium">Versie {v.version} (je bekijkt deze)</span>
-                ) : (
-                  <Link href={`/analyses/${id}/bibliotheek/${v.id}`} className="underline">
-                    Versie {v.version}
-                  </Link>
-                )}
-                <span className="text-muted">
-                  {formatDateLong(v.created_at)}
-                </span>
-                {v.revision_note && (
-                  <span className="text-secondary">op jouw verzoek: &ldquo;{v.revision_note}&rdquo;</span>
-                )}
-              </li>
-            ))}
+            {versions.map((v) => {
+              // C.24: waarom deze versie bestaat, in mensentaal. Voorheen stond
+              // hier alleen iets bij een revision_note; een automatische
+              // herschrijving na de eigen kritiekronde van Aura (geen notitie,
+              // geen klant-bewerking) toonde niets, alsof er zomaar een nieuwe
+              // versie verscheen.
+              const reason = versionReasonOf({
+                version: v.version,
+                revisionNote: v.revision_note,
+                editedByUser: v.edited_by_user,
+              });
+              return (
+                <li key={v.id} className="flex flex-wrap items-baseline gap-2 text-sm">
+                  {v.id === pieceId ? (
+                    <span className="font-medium">Versie {v.version} (je bekijkt deze)</span>
+                  ) : (
+                    <Link href={`/analyses/${id}/bibliotheek/${v.id}`} className="underline">
+                      Versie {v.version}
+                    </Link>
+                  )}
+                  <span className="text-muted">{formatDateLong(v.created_at)}</span>
+                  <span className="text-secondary">{reason.label}</span>
+                </li>
+              );
+            })}
           </ul>
         </div>
       )}

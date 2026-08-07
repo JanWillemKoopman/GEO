@@ -4,7 +4,54 @@ import { useState } from "react";
 import { CollapsibleSection } from "@/components/collapsible-section";
 import { TagListEditor } from "@/components/tag-list-editor";
 import { DossierBox } from "./dossier-box";
+import { FORMALITY, ENERGY, COMPLEXITY, HUMOR } from "@/lib/pipeline/tone-sliders";
 import type { Persona, Profile } from "@/lib/types/database";
+
+/**
+ * Eén schuif: drie knoppen, geen getal. Nogmaals klikken op de actieve knop
+ * zet hem terug op "onbekend", zodat "niets ingesteld" altijd bereikbaar
+ * blijft zonder een aparte resetknop (C.28, migratie 0045).
+ */
+function ToneSliderRow({
+  label,
+  value,
+  options,
+  onChange,
+}: {
+  label: string;
+  value: 1 | 2 | 3 | null;
+  options: Record<1 | 2 | 3, string>;
+  onChange: (value: 1 | 2 | 3 | null) => void;
+}) {
+  return (
+    <div className="flex flex-col gap-1.5">
+      <span className="mono-label">{label}</span>
+      <div className="flex flex-wrap gap-1.5">
+        {([1, 2, 3] as const).map((n) => {
+          const selected = value === n;
+          return (
+            <button
+              key={n}
+              type="button"
+              aria-pressed={selected}
+              onClick={() => onChange(selected ? null : n)}
+              className="chip"
+              style={{
+                fontSize: "0.8rem",
+                cursor: "pointer",
+                ...(selected
+                  ? undefined
+                  : { background: "transparent", color: "var(--text-muted)", borderColor: "var(--border-subtle)" }),
+              }}
+            >
+              {options[n]}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
 
 /**
  * Bewerkbaar klantprofiel, zelfde CRUD-mechaniek als de vroegere
@@ -53,6 +100,16 @@ export function ProfileEditor({ initial, inventoryCount }: { initial: Profile; i
           market_language: profile.market_language,
           sitemap_url: profile.sitemap_url,
           max_inventory_pages: profile.max_inventory_pages,
+          taboo_phrases: profile.taboo_phrases,
+          compliance_notes: profile.compliance_notes,
+          author_name: profile.author_name,
+          author_role: profile.author_role,
+          author_bio: profile.author_bio,
+          author_linkedin_url: profile.author_linkedin_url,
+          tone_formality: profile.tone_formality,
+          tone_energy: profile.tone_energy,
+          tone_complexity: profile.tone_complexity,
+          tone_humor: profile.tone_humor,
         }),
       });
       if (!res.ok) throw new Error();
@@ -354,6 +411,113 @@ export function ProfileEditor({ initial, inventoryCount }: { initial: Profile; i
             </span>
           )}
         </div>
+      </CollapsibleSection>
+
+      {/* Schrijfregels (migratie 0045, C.28/C.29). De vier schuiven en de
+          verboden-woordenlijst zijn de "intentie"; de garantie zit in code
+          (describeToneSliders → de schrijfprompt, checkTabooWords → de
+          deterministische poort in lib/pipeline/content-gate.ts). */}
+      <CollapsibleSection title="Schrijfregels">
+        <p className="text-sm text-secondary">
+          Stuurt hoe Aura schrijft. Los van &quot;Tone of voice&quot; hierboven: dat is jouw eigen
+          omschrijving, dit zijn vier knoppen die het model letterlijk krijgt voorgelegd.
+        </p>
+        <ToneSliderRow
+          label="Formaliteit"
+          value={profile.tone_formality}
+          options={FORMALITY}
+          onChange={(tone_formality) => setProfile((p) => ({ ...p, tone_formality }))}
+        />
+        <ToneSliderRow
+          label="Energie"
+          value={profile.tone_energy}
+          options={ENERGY}
+          onChange={(tone_energy) => setProfile((p) => ({ ...p, tone_energy }))}
+        />
+        <ToneSliderRow
+          label="Complexiteit"
+          value={profile.tone_complexity}
+          options={COMPLEXITY}
+          onChange={(tone_complexity) => setProfile((p) => ({ ...p, tone_complexity }))}
+        />
+        <ToneSliderRow
+          label="Humor"
+          value={profile.tone_humor}
+          options={HUMOR}
+          onChange={(tone_humor) => setProfile((p) => ({ ...p, tone_humor }))}
+        />
+
+        <div className="flex flex-col gap-1.5">
+          <span className="mono-label">Verboden woorden en claims</span>
+          <TagListEditor
+            items={profile.taboo_phrases}
+            onChange={(taboo_phrases) => setProfile((p) => ({ ...p, taboo_phrases }))}
+            placeholder="Nieuw verboden woord of claim…"
+          />
+          <span className="text-sm text-muted">
+            Elke tekst die Aura schrijft wordt hierop gecontroleerd, vóór publicatie. Staat een woord
+            er toch in, dan gaat de pagina eerst terug de kwaliteitscontrole in.
+          </span>
+        </div>
+
+        <label className="flex flex-col gap-1.5">
+          <span className="mono-label">Regels waar elke pagina aan moet voldoen</span>
+          <textarea
+            className="field"
+            rows={3}
+            value={profile.compliance_notes ?? ""}
+            onChange={(e) => setProfile((p) => ({ ...p, compliance_notes: e.target.value }))}
+            placeholder="Bijvoorbeeld: noem nooit een concreet rendement, vermeld altijd dat advies vrijblijvend is."
+          />
+          <span className="text-sm text-muted">
+            Voor branches met eigen regels (AFM, KOA, medisch). Aura neemt dit letterlijk mee in de
+            schrijfopdracht.
+          </span>
+        </label>
+      </CollapsibleSection>
+
+      {/* Auteur (migratie 0045, H.66-achtig maar hoort inhoudelijk hier: het
+          bepaalt "wie schreef dit", niet vormgeving). Optioneel: E-E-A-T-
+          signaal voor content die als menselijk geschreven wil overkomen. */}
+      <CollapsibleSection title="Auteur">
+        <p className="text-sm text-secondary">
+          Optioneel. Vul dit in als je content onder een naam wilt publiceren in plaats van anoniem.
+        </p>
+        <label className="flex flex-col gap-1.5">
+          <span className="mono-label">Naam</span>
+          <input
+            className="field"
+            value={profile.author_name ?? ""}
+            onChange={(e) => setProfile((p) => ({ ...p, author_name: e.target.value }))}
+          />
+        </label>
+        <label className="flex flex-col gap-1.5">
+          <span className="mono-label">Functie</span>
+          <input
+            className="field"
+            value={profile.author_role ?? ""}
+            onChange={(e) => setProfile((p) => ({ ...p, author_role: e.target.value }))}
+            placeholder="bijv. Oprichter, Financieel adviseur"
+          />
+        </label>
+        <label className="flex flex-col gap-1.5">
+          <span className="mono-label">Korte bio</span>
+          <textarea
+            className="field"
+            rows={2}
+            value={profile.author_bio ?? ""}
+            onChange={(e) => setProfile((p) => ({ ...p, author_bio: e.target.value }))}
+          />
+        </label>
+        <label className="flex flex-col gap-1.5">
+          <span className="mono-label">LinkedIn-profiel</span>
+          <input
+            className="field"
+            value={profile.author_linkedin_url ?? ""}
+            onChange={(e) => setProfile((p) => ({ ...p, author_linkedin_url: e.target.value }))}
+            placeholder="https://linkedin.com/in/…"
+          />
+        </label>
       </CollapsibleSection>
 
       {/* Het merkdossier (S5). Onderaan en ingeklapt: dit is de rijkste bron die

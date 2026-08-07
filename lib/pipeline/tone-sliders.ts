@@ -21,25 +21,28 @@ export interface ToneSliders {
   humor: ToneSliderValue;
 }
 
-const FORMALITY: Record<1 | 2 | 3, string> = {
+// Geëxporteerd (niet alleen intern gebruikt): het profielformulier toont
+// dezelfde vier labels als knoptekst, zodat de UI en de schrijfprompt nooit
+// uit elkaar kunnen lopen. Eén woordenlijst, twee gebruikers.
+export const FORMALITY: Record<1 | 2 | 3, string> = {
   1: "informeel, je en jij, spreektaal",
   2: "gemiddeld formeel",
   3: "formeel, u en uw",
 };
 
-const ENERGY: Record<1 | 2 | 3, string> = {
+export const ENERGY: Record<1 | 2 | 3, string> = {
   1: "rustig en ingetogen",
   2: "gebalanceerd",
   3: "energiek en gedreven",
 };
 
-const COMPLEXITY: Record<1 | 2 | 3, string> = {
+export const COMPLEXITY: Record<1 | 2 | 3, string> = {
   1: "eenvoudig, geen vakjargon, uitgelegd voor een leek",
   2: "toegankelijk voor een expert: vakjargon mag, licht toegelicht",
   3: "diepgaand expertniveau, vakjargon zonder uitleg",
 };
 
-const HUMOR: Record<1 | 2 | 3, string> = {
+export const HUMOR: Record<1 | 2 | 3, string> = {
   1: "geen humor",
   2: "af en toe een lichte, subtiele knipoog",
   3: "speels, met humor",

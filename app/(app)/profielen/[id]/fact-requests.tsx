@@ -25,9 +25,14 @@ export function FactRequests({ profileId, initial }: { profileId: string; initia
   const [problem, setProblem] = useState<UserFacingError | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [showAnswered, setShowAnswered] = useState(false);
+  const [showSkipped, setShowSkipped] = useState(false);
 
   const open = facts.filter((f) => f.status === "open");
   const answered = facts.filter((f) => f.status === "beantwoord");
+  // C: "overslaan" veranderde tot nu toe niets zichtbaars, de vraag verdween
+  // gewoon uit de lijst zonder enige bevestiging van wat er gebeurd was. Een
+  // klant die per ongeluk klikte kon dat nergens terugzien of terugdraaien.
+  const skipped = facts.filter((f) => f.status === "overgeslagen");
 
   async function send(factId: string, payload: { answer?: string; skip?: boolean }) {
     setBusy(factId);
@@ -105,6 +110,26 @@ export function FactRequests({ profileId, initial }: { profileId: string; initia
           )}
         </div>
       )}
+
+      {skipped.length > 0 && (
+        <div className="flex flex-col gap-2 border-t border-[var(--border-subtle)] pt-3">
+          <button
+            type="button"
+            onClick={() => setShowSkipped((s) => !s)}
+            className="w-fit text-sm text-secondary hover:underline"
+            aria-expanded={showSkipped}
+          >
+            {showSkipped ? "Verberg" : "Toon"} wat je oversloeg ({skipped.length})
+          </button>
+          {showSkipped && (
+            <ul className="flex flex-col gap-3">
+              {skipped.map((fact) => (
+                <FactCard key={fact.id} fact={fact} busy={busy === fact.id} onSend={send} skipped />
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -113,16 +138,22 @@ function FactCard({
   fact,
   busy,
   onSend,
+  skipped = false,
 }: {
   fact: FactRequest;
   busy: boolean;
   onSend: (factId: string, payload: { answer?: string; skip?: boolean }) => void;
+  /** Deze kaart staat in de "overgeslagen"-lijst: nog steeds te beantwoorden, geen skip-knop nodig. */
+  skipped?: boolean;
 }) {
   const [answer, setAnswer] = useState("");
 
   return (
     <li className="flex flex-col gap-2 rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--bg-elevated)] p-3">
-      <p className="font-medium">{fact.question}</p>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="font-medium">{fact.question}</p>
+        {skipped && <span className="chip chip-neutral shrink-0">Overgeslagen</span>}
+      </div>
       {fact.reason && <p className="text-sm text-muted">{fact.reason}</p>}
 
       <form
@@ -145,17 +176,19 @@ function FactCard({
           <button type="submit" className="btn-outline" disabled={busy || !answer.trim()}>
             Opslaan
           </button>
-          <button
-            type="button"
-            onClick={() => onSend(fact.id, { skip: true })}
-            disabled={busy}
-            className="text-sm text-secondary hover:underline"
-            // Overslaan blijft bewaard, zodat een volgend rapport dezelfde vraag
-            // niet opnieuw stelt. Niets is vervelender dan een app die blijft zeuren.
-            title="Aura vraagt het niet nog een keer."
-          >
-            Weet ik niet
-          </button>
+          {!skipped && (
+            <button
+              type="button"
+              onClick={() => onSend(fact.id, { skip: true })}
+              disabled={busy}
+              className="text-sm text-secondary hover:underline"
+              // Overslaan blijft bewaard, zodat een volgend rapport dezelfde vraag
+              // niet opnieuw stelt. Niets is vervelender dan een app die blijft zeuren.
+              title="Aura vraagt het niet nog een keer."
+            >
+              Weet ik niet
+            </button>
+          )}
         </div>
       </form>
     </li>

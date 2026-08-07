@@ -183,10 +183,10 @@ export interface Profile {
   author_role: string | null;
   author_bio: string | null;
   author_linkedin_url: string | null;
-  tone_formality: number | null;
-  tone_energy: number | null;
-  tone_complexity: number | null;
-  tone_humor: number | null;
+  tone_formality: 1 | 2 | 3 | null;
+  tone_energy: 1 | 2 | 3 | null;
+  tone_complexity: 1 | 2 | 3 | null;
+  tone_humor: 1 | 2 | 3 | null;
   created_at: string;
   updated_at: string;
 }
