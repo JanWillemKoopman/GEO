@@ -4,6 +4,7 @@ import {
   type BaselineVerdict,
   type CategoryVerdict,
 } from "@/lib/pipeline/baseline-verdict";
+import { engineLabel } from "@/lib/engines/label";
 import type { ProfileLlmBaseline } from "@/lib/types/database";
 
 /**
@@ -27,15 +28,6 @@ const BLOCK_LABELS: Record<ProfileLlmBaseline["block"], string> = {
   verwarring: "Wordt je naam verward?",
   categorie: "Word je genoemd bij koopvragen?",
 };
-
-const ENGINE_LABELS: Record<string, string> = {
-  openai: "ChatGPT",
-  gemini: "Gemini",
-};
-
-function engineLabel(id: string): string {
-  return ENGINE_LABELS[id] ?? id;
-}
 
 export function LlmKnowledgePanel({ rows }: { rows: ProfileLlmBaseline[] }) {
   // ⚠️ NIET `return null`. Zie `ux-design.md` §4: een lege staat wijst altijd

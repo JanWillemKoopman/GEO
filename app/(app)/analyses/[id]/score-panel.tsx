@@ -2,6 +2,8 @@ import Link from "next/link";
 import { EntityComparison } from "@/components/entity-comparison";
 import { InfoHint } from "@/components/info-hint";
 import { confidenceBand, changeIsMeaningful } from "@/lib/stats/uncertainty";
+import { formatDateLong } from "@/lib/format";
+import { engineLabel } from "@/lib/engines/label";
 import type { VisibilityScore, CompetitorBreakdown, Entity } from "@/lib/types/database";
 
 /**
@@ -30,11 +32,14 @@ export function ScoreCard({
   score,
   previous,
   measuredRunCount,
+  engines = [],
 }: {
   score: VisibilityScore;
   /** De vorige periode, als die er is, voor de verandering (2.3). */
   previous?: VisibilityScore | null;
   measuredRunCount: number;
+  /** D: welke AI-assistent(en) bevraagd zijn, voor "meetdatum + model". */
+  engines?: string[];
 }) {
   const lead = score.weighted_score ?? score.score;
   const leadStderr = (score.weighted_score != null ? score.weighted_stderr : score.score_stderr) ?? 0;
@@ -74,6 +79,13 @@ export function ScoreCard({
             </>
           )}
         </InfoHint>
+      </span>
+
+      {/* D: meetdatum + model. Een getal zonder bron oogt als een bewering; een
+          getal met "gemeten op 6 augustus via ChatGPT" oogt als een meting. */}
+      <span className="text-sm text-muted">
+        Gemeten op {formatDateLong(score.computed_at)}
+        {engines.length > 0 && ` · via ${engines.map(engineLabel).join(" en ")}`}
       </span>
 
       <div className="flex flex-wrap items-end gap-x-4 gap-y-2">

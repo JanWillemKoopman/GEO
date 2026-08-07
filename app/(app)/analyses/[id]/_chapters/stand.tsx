@@ -36,31 +36,41 @@ export async function StandChapter({
     );
   }
 
-  const [{ data: scoreRows }, { data: reportRow }, { count: runCount }, trend] = await Promise.all([
-    // Deze periode én de vorige: de vorige is nodig voor de verandering (2.3).
-    supabase
-      .from("visibility_scores")
-      .select("*")
-      .eq("analysis_id", analysis.id)
-      .lte("week_no", weekNo)
-      .order("week_no", { ascending: false })
-      .limit(2),
-    supabase
-      .from("reports")
-      .select("*")
-      .eq("analysis_id", analysis.id)
-      .eq("week_no", weekNo)
-      .maybeSingle(),
-    // De noemer voor percentages is het aantal METINGEN van deze periode, niet
-    // het huidige aantal actieve vragen (optimalisatie.md 0.1).
-    supabase
-      .from("tracking_runs")
-      .select("id", { count: "exact", head: true })
-      .eq("analysis_id", analysis.id)
-      .eq("week_no", weekNo)
-      .eq("purpose", "periodic"),
-    loadTrend(supabase, analysis.id),
-  ]);
+  const [{ data: scoreRows }, { data: reportRow }, { count: runCount }, { data: engineRows }, trend] =
+    await Promise.all([
+      // Deze periode én de vorige: de vorige is nodig voor de verandering (2.3).
+      supabase
+        .from("visibility_scores")
+        .select("*")
+        .eq("analysis_id", analysis.id)
+        .lte("week_no", weekNo)
+        .order("week_no", { ascending: false })
+        .limit(2),
+      supabase
+        .from("reports")
+        .select("*")
+        .eq("analysis_id", analysis.id)
+        .eq("week_no", weekNo)
+        .maybeSingle(),
+      // De noemer voor percentages is het aantal METINGEN van deze periode, niet
+      // het huidige aantal actieve vragen (optimalisatie.md 0.1).
+      supabase
+        .from("tracking_runs")
+        .select("id", { count: "exact", head: true })
+        .eq("analysis_id", analysis.id)
+        .eq("week_no", weekNo)
+        .eq("purpose", "periodic"),
+      // D: welke assistent(en) is er bevraagd? De klant leest een score sneller
+      // als "harde meting" als hij weet wie de bron is, niet alleen dat er een
+      // getal uitrolde.
+      supabase
+        .from("tracking_runs")
+        .select("engine")
+        .eq("analysis_id", analysis.id)
+        .eq("week_no", weekNo)
+        .eq("purpose", "periodic"),
+      loadTrend(supabase, analysis.id),
+    ]);
 
   const scores = (scoreRows ?? []) as VisibilityScore[];
   const score = scores[0] ?? null;
@@ -85,9 +95,11 @@ export async function StandChapter({
     .eq("id", analysis.profile_id)
     .maybeSingle();
 
+  const engines = Array.from(new Set((engineRows ?? []).map((r) => r.engine as string)));
+
   return (
     <>
-      <ScoreCard score={score} previous={previous} measuredRunCount={runCount ?? 0} />
+      <ScoreCard score={score} previous={previous} measuredRunCount={runCount ?? 0} engines={engines} />
 
       {report?.summary && (
         <div className="card flex flex-col gap-2">
