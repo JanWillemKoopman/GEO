@@ -9,7 +9,7 @@ import { PageHeader } from "@/components/page-header";
 import { activeOnly } from "@/lib/archive";
 import { STATUS_META } from "@/lib/analysis-status";
 import { loadDashboard } from "@/lib/dashboard";
-import { formatRelativeTime } from "@/lib/format";
+import { LastUpdated } from "@/components/last-updated";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Mijn analyses" };
@@ -117,7 +117,7 @@ export default async function AnalysesPage() {
                 <div className="flex flex-wrap items-center justify-between gap-4">
                   <div className="min-w-0">
                     <p className="truncate text-lg font-semibold">{a.name}</p>
-                    <p className="mono-label mt-1">Bijgewerkt {formatRelativeTime(a.updated_at)}</p>
+                    <LastUpdated at={a.updated_at} className="mono-label mt-1 block" />
                   </div>
                   <StatusBadge status={a.status} />
                 </div>

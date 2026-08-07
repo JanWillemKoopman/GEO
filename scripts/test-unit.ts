@@ -67,6 +67,7 @@ import type { BriefingQuestion } from "@/lib/pipeline/briefing-select";
 import { checkContentGate, openingVan, geoRegels } from "@/lib/pipeline/content-gate";
 
 import { splitSentences, stripMarkdown, firstSentences } from "@/lib/pipeline/sentences";
+import { extractHeadings, renderMarkdown } from "@/lib/markdown";
 import { topicTerms, canonicalPath, scorePage, selectRelevantPages } from "@/lib/pipeline/page-relevance";
 import { verifyAtoms } from "@/lib/pipeline/atom-verify";
 import { verifyDossierFacts, answerTypeOf } from "@/lib/pipeline/dossier-verify";
@@ -1365,6 +1366,30 @@ group("zinnen knippen en markdown strippen", () => {
   );
   ok("eerste twee zinnen, zonder opmaak", opening.includes("Fysi-Unique") && !opening.includes("**"));
   ok("derde zin blijft buiten", !opening.includes("verder nog dit"));
+});
+
+group("kop-ankers voor de inhoudsopgave (H.68)", () => {
+  const md = "## Wat het kost\n\ntekst\n\n## Veelgestelde vragen\n\n### Hoe lang duurt het\n\ntekst\n\n## Veelgestelde vragen\n\ntekst";
+  const headings = extractHeadings(md);
+  ok("vier koppen gevonden", headings.length === 4);
+  ok("niveau klopt", headings[2].level === 3);
+  ok("basis-slug is leesbaar", headings[0].slug === "wat-het-kost");
+  ok(
+    "twee gelijke koppen krijgen verschillende ankers",
+    headings[1].slug === "veelgestelde-vragen" && headings[3].slug === "veelgestelde-vragen-2",
+  );
+
+  const html = renderMarkdown(md);
+  ok(
+    "renderMarkdown zet dezelfde ankers als extractHeadings",
+    headings.every((h) => html.includes(`id="${h.slug}"`)),
+  );
+
+  ok("lege markdown geeft lege lijst, geen crash", extractHeadings("").length === 0);
+  ok(
+    "opmaaktekens uit de koptekst voor de inhoudsopgave",
+    extractHeadings("## **Vet** kopje")[0].text === "Vet kopje",
+  );
 });
 
 

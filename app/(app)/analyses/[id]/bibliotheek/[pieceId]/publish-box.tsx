@@ -4,6 +4,8 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { InfoHint } from "@/components/info-hint";
 import { ErrorNotice, problemFromResponse, networkProblem } from "@/components/error-notice";
+import { ExternalLink } from "@/components/external-link";
+import { CopyButton } from "@/components/copy-button";
 import type { UserFacingError } from "@/lib/errors";
 import type { PublishCheck } from "@/lib/pipeline/publish-check";
 import { formatDateLong } from "@/lib/format";
@@ -97,14 +99,12 @@ export function PublishBox({
         </div>
 
         {publishedUrl && (
-          <a
-            href={publishedUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="w-fit break-all text-sm underline"
-          >
-            {publishedUrl}
-          </a>
+          <div className="flex flex-wrap items-center gap-3">
+            <ExternalLink href={publishedUrl} className="w-fit break-all text-sm underline">
+              {publishedUrl}
+            </ExternalLink>
+            <CopyButton value={publishedUrl} label="Kopieer link" className="text-sm text-secondary hover:underline" />
+          </div>
         )}
 
         <PublishCheckNotice check={check} checkedAt={checkedAt} />

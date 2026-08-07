@@ -573,6 +573,10 @@ textarea.field {
   font-weight: 700;
   line-height: 1.25;
   margin-top: 1.5em;
+  /* H.68: elke kop heeft nu een anker-id (lib/markdown.ts). Zonder deze marge
+     springt de sticky bovenbalk (of, op mobiel, de hoofdstuk-rail eronder)
+     precies over de kop heen zodra je vanuit de inhoudsopgave klikt. */
+  scroll-margin-top: 5rem;
 }
 .prose h1 {
   font-size: 1.7rem;

@@ -6,7 +6,7 @@ import { EmptyState } from "@/components/empty-state";
 import { PageHeader } from "@/components/page-header";
 import { activeOnly } from "@/lib/archive";
 import type { Profile } from "@/lib/types/database";
-import { formatRelativeTime } from "@/lib/format";
+import { LastUpdated } from "@/components/last-updated";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Merken" };
@@ -81,7 +81,7 @@ export default async function ProfielenPage() {
                 <div className="min-w-0">
                   <p className="truncate text-lg font-semibold">{p.name}</p>
                   <p className="mono-label mt-1">
-                    {p.url} · Bijgewerkt {formatRelativeTime(p.updated_at)}
+                    {p.url} · <LastUpdated at={p.updated_at} className="" />
                   </p>
                 </div>
                 <ProfileStatusBadge status={p.status} />

@@ -4,7 +4,8 @@ import type { Metadata } from "next";
 import { getAnalysis } from "@/lib/analyses";
 import { formatDateLong } from "@/lib/format";
 import { createClient } from "@/lib/supabase/server";
-import { renderMarkdown } from "@/lib/markdown";
+import { renderMarkdown, extractHeadings } from "@/lib/markdown";
+import { TableOfContents } from "@/components/table-of-contents";
 import { ContentActions } from "./content-actions";
 import { ReviseBox } from "./revise-box";
 import { ContentEditor } from "./content-editor";
@@ -17,6 +18,7 @@ import { factsFromSnapshot } from "@/lib/pipeline/briefing";
 import { detectClaimSentences, claimMatchesSentence } from "@/lib/pipeline/claim-extract";
 import { isSupported, type WrittenClaim } from "@/lib/pipeline/factcard";
 import { versionReasonOf } from "@/lib/pipeline/version-reason";
+import { ExternalLink } from "@/components/external-link";
 import type { ContentPiece, ContentPieceTarget } from "@/lib/types/database";
 
 interface Faq {
@@ -65,6 +67,7 @@ export default async function ContentDetailPage({
   if (!data) notFound();
   const piece = data as ContentPiece;
   const bodyHtml = renderMarkdown(piece.body_markdown ?? "");
+  const headings = extractHeadings(piece.body_markdown ?? "");
   const faq = (piece.faq_json ?? []) as Faq[];
 
   // Waar deze pagina voor gemaakt is (optimalisatie.md 4.1) en welke versies er
@@ -160,9 +163,7 @@ export default async function ContentDetailPage({
               {piece.existing_url && (
                 <>
                   {": "}
-                  <a href={piece.existing_url} target="_blank" rel="noopener noreferrer" className="underline">
-                    {piece.existing_url}
-                  </a>
+                  <ExternalLink href={piece.existing_url}>{piece.existing_url}</ExternalLink>
                 </>
               )}
             </>
@@ -292,6 +293,8 @@ export default async function ContentDetailPage({
           )}
         </div>
       )}
+
+      <TableOfContents headings={headings} />
 
       <article className="card prose max-w-none" dangerouslySetInnerHTML={{ __html: bodyHtml }} />
 

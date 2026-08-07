@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { PageHeader } from "@/components/page-header";
+import { ExternalLink } from "@/components/external-link";
 import type { OnboardingStat } from "@/lib/pipeline/onboarding-summary";
 
 /**
@@ -56,14 +57,12 @@ export function ProfileHero({
         }
       />
 
-      <a
+      <ExternalLink
         href={`https://${url.replace(/^https?:\/\//, "")}`}
-        target="_blank"
-        rel="noreferrer noopener"
         className="mono-label w-fit transition-colors hover:text-[var(--text-primary)]"
       >
-        {url} ↗
-      </a>
+        {url}
+      </ExternalLink>
 
       {headline && <p className="max-w-2xl text-secondary">{headline}</p>}
 

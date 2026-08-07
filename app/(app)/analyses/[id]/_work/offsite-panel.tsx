@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { InfoHint } from "@/components/info-hint";
 import { ErrorNotice, problemFromResponse, networkProblem } from "@/components/error-notice";
+import { ExternalLink } from "@/components/external-link";
 import type { UserFacingError } from "@/lib/errors";
 import type { OffsiteTask, OffsiteTaskStatus, SourceLandscapeRow } from "@/lib/types/database";
 
@@ -230,9 +231,7 @@ function LandscapeTable({ landscape }: { landscape: SourceLandscapeRow[] }) {
                       {row.own_url && (
                         <>
                           {" "}
-                          <a href={row.own_url} target="_blank" rel="noopener noreferrer" className="underline">
-                            bekijk
-                          </a>
+                          <ExternalLink href={row.own_url}>bekijk</ExternalLink>
                         </>
                       )}
                     </span>

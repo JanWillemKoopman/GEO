@@ -1,4 +1,5 @@
 import { InfoHint } from "@/components/info-hint";
+import { ExternalLink } from "@/components/external-link";
 import type { ContentAction, ContentType } from "@/lib/types/database";
 
 /**
@@ -70,9 +71,7 @@ export function PublishGuide({
                 Werk je bestaande pagina bij.
               </span>{" "}
               Deze tekst is bedoeld als vervanging voor{" "}
-              <a href={existingUrl} target="_blank" rel="noopener noreferrer" className="underline">
-                {existingUrl}
-              </a>
+              <ExternalLink href={existingUrl}>{existingUrl}</ExternalLink>
               . Houd dezelfde URL aan, want die heeft al waarde opgebouwd. Een nieuwe URL begint
               weer bij nul.
             </>

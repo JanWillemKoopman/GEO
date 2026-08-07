@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { CopyButton } from "@/components/copy-button";
 
 /** Kopiëren / downloaden van een gegenereerde pagina (abcplan.md §8). */
 export function ContentActions({
@@ -14,18 +14,6 @@ export function ContentActions({
   html: string;
   schemaJsonLd: string | null;
 }) {
-  const [copied, setCopied] = useState<string | null>(null);
-
-  async function copy(label: string, text: string) {
-    try {
-      await navigator.clipboard.writeText(text);
-      setCopied(label);
-      setTimeout(() => setCopied(null), 1800);
-    } catch {
-      setCopied(null);
-    }
-  }
-
   function download(filename: string, content: string, mime: string) {
     const blob = new Blob([content], { type: mime });
     const url = URL.createObjectURL(blob);
@@ -41,9 +29,7 @@ export function ContentActions({
 
   return (
     <div className="flex flex-wrap gap-2">
-      <button onClick={() => void copy("markdown", markdown)} className="btn-outline">
-        {copied === "markdown" ? "Gekopieerd ✓" : "Kopieer tekst"}
-      </button>
+      <CopyButton value={markdown} label="Kopieer tekst" copiedLabel="Gekopieerd" className="btn-outline" />
       <button onClick={() => download(`${slug}.md`, markdown, "text/markdown")} className="btn-outline">
         Download .md
       </button>
@@ -51,9 +37,12 @@ export function ContentActions({
         Download .html
       </button>
       {schemaJsonLd && (
-        <button onClick={() => void copy("schema", schemaJsonLd)} className="btn-outline">
-          {copied === "schema" ? "Gekopieerd ✓" : "Kopieer schema-markup"}
-        </button>
+        <CopyButton
+          value={schemaJsonLd}
+          label="Kopieer schema-markup"
+          copiedLabel="Gekopieerd"
+          className="btn-outline"
+        />
       )}
     </div>
   );
