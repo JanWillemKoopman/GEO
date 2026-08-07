@@ -5,6 +5,8 @@ import { createClient } from "@/lib/supabase/server";
 import type { Profile } from "@/lib/types/database";
 import { NewAnalysisForm } from "./new-analysis-form";
 
+export const metadata = { title: "Nieuwe analyse" };
+
 export default async function NewAnalysisPage() {
   await requireUser();
   const supabase = await createClient();

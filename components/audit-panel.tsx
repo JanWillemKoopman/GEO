@@ -1,5 +1,6 @@
 import { InfoHint } from "@/components/info-hint";
 import type { AuditCheck, AuditSeverity } from "@/lib/audit/technical";
+import { formatDateLong } from "@/lib/format";
 
 /**
  * De uitslag van de technische GEO-audit (optimalisatie.md 3B).
@@ -58,11 +59,7 @@ export function AuditPanel({
       {checkedAt && (
         <p className="text-sm text-muted">
           {siteUrl} · gecontroleerd op{" "}
-          {new Date(checkedAt).toLocaleDateString("nl-NL", {
-            day: "numeric",
-            month: "long",
-            year: "numeric",
-          })}
+          {formatDateLong(checkedAt)}
         </p>
       )}
 

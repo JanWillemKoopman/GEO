@@ -3,6 +3,7 @@
 import { useId, useMemo, useState } from "react";
 import { InfoHint } from "@/components/info-hint";
 import type { TrendData } from "@/lib/pipeline/trend";
+import { formatDateShort, formatDateLong } from "@/lib/format";
 
 /**
  * De trendlijn (optimalisatie.md 6.5/6.6).
@@ -330,7 +331,7 @@ export function TrendChart({ data, ownLabel }: { data: TrendData; ownLabel: stri
             {hovered.measuredAt && (
               <span className="text-muted">
                 {" "}
-                · {new Date(hovered.measuredAt).toLocaleDateString("nl-NL", { day: "numeric", month: "long" })}
+                · {formatDateLong(hovered.measuredAt)}
               </span>
             )}
           </span>
@@ -443,5 +444,5 @@ function EndLabel({
 
 function formatShortDate(iso: string | null): string | null {
   if (!iso) return null;
-  return new Date(iso).toLocaleDateString("nl-NL", { day: "numeric", month: "short" });
+  return formatDateShort(iso);
 }

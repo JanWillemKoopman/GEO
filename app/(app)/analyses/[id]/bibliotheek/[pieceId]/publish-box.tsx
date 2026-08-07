@@ -6,6 +6,7 @@ import { InfoHint } from "@/components/info-hint";
 import { ErrorNotice, problemFromResponse, networkProblem } from "@/components/error-notice";
 import type { UserFacingError } from "@/lib/errors";
 import type { PublishCheck } from "@/lib/pipeline/publish-check";
+import { formatDateLong } from "@/lib/format";
 
 /**
  * "Deze pagina staat live" (optimalisatie.md 5.1/5.2/5.3).
@@ -34,6 +35,10 @@ export function PublishBox({
   const [url, setUrl] = useState(publishedUrl ?? "");
   const [state, setState] = useState<"idle" | "busy" | "error">("idle");
   const [problem, setProblem] = useState<UserFacingError | null>(null);
+  // A.9: bevestiging vóór een handeling die niet zomaar ongedaan te maken is,
+  // dit zet twee hermetingen in de rij (over twee en vier weken). Zelfde
+  // patroon als RerunResearchButton: geen modaal venster, één klik wordt twee.
+  const [confirming, setConfirming] = useState(false);
 
   async function publish() {
     setState("busy");
@@ -87,11 +92,7 @@ export function PublishBox({
             </InfoHint>
           </span>
           <span className="mono-label">
-            {new Date(publishedAt).toLocaleDateString("nl-NL", {
-              day: "numeric",
-              month: "long",
-              year: "numeric",
-            })}
+            {formatDateLong(publishedAt)}
           </span>
         </div>
 
@@ -142,25 +143,53 @@ export function PublishBox({
         </p>
       </div>
 
-      <form
-        className="flex flex-col gap-2 sm:flex-row"
-        onSubmit={(e) => {
-          e.preventDefault();
-          if (url.trim()) void publish();
-        }}
-      >
-        <input
-          className="field flex-1"
-          value={url}
-          onChange={(e) => setUrl(e.target.value)}
-          placeholder="https://jouwsite.nl/de-nieuwe-pagina"
-          aria-label="Link naar de gepubliceerde pagina"
-          disabled={state === "busy"}
-        />
-        <button type="submit" className="btn-primary shrink-0" disabled={state === "busy" || !url.trim()}>
-          {state === "busy" ? "Controleren…" : "Dit staat live"}
-        </button>
-      </form>
+      {!confirming ? (
+        <form
+          className="flex flex-col gap-2 sm:flex-row"
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (url.trim()) setConfirming(true);
+          }}
+        >
+          <input
+            className="field flex-1"
+            value={url}
+            onChange={(e) => setUrl(e.target.value)}
+            placeholder="https://jouwsite.nl/de-nieuwe-pagina"
+            aria-label="Link naar de gepubliceerde pagina"
+            disabled={state === "busy"}
+          />
+          <button type="submit" className="btn-primary shrink-0" disabled={state === "busy" || !url.trim()}>
+            Dit staat live
+          </button>
+        </form>
+      ) : (
+        <div className="flex flex-col gap-2 rounded-[var(--radius-md)] border border-[var(--border-subtle)] p-3">
+          <p className="text-sm text-secondary">
+            Aura zet nu twee hermetingen in de rij, over twee en over vier weken, om te zien of deze
+            pagina het verschil maakt. Klopt de link?
+          </p>
+          <p className="w-fit break-all text-sm font-medium">{url.trim()}</p>
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              className="btn-primary btn-sm disabled:opacity-60"
+              disabled={state === "busy"}
+              onClick={() => void publish()}
+            >
+              {state === "busy" ? "Controleren…" : "Ja, dit staat live"}
+            </button>
+            <button
+              type="button"
+              className="btn-outline btn-sm"
+              disabled={state === "busy"}
+              onClick={() => setConfirming(false)}
+            >
+              Annuleren
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -190,7 +219,7 @@ function PublishCheckNotice({ check, checkedAt }: { check: PublishCheck | null; 
         {checkedAt && (
           <span className="text-muted">
             {" "}
-            ({new Date(checkedAt).toLocaleDateString("nl-NL", { day: "numeric", month: "long" })})
+            ({formatDateLong(checkedAt)})
           </span>
         )}
       </p>

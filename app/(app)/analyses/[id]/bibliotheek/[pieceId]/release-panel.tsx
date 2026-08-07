@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { formatDateLong } from "@/lib/format";
 
 /**
  * Het vrijgavepaneel (implementatieplan.md S6).
@@ -182,7 +183,7 @@ export function ReleasePanel({
           "iemand heeft gekeken". */}
       {reviewedAt ? (
         <span className="text-sm text-muted">
-          Vrijgegeven op {new Date(reviewedAt).toLocaleDateString("nl-NL")}.
+          Vrijgegeven op {formatDateLong(reviewedAt)}.
         </span>
       ) : (
         <div className="flex flex-wrap items-center gap-3">

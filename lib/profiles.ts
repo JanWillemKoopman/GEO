@@ -5,16 +5,22 @@ import "server-only";
  * lezen loopt via RLS (SELECT-only, gefilterd op user_id), schrijven altijd via
  * de service-role client met expliciete ownership-check.
  */
+import { cache } from "react";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { isStaff } from "@/lib/staff";
 import type { Profile } from "@/lib/types/database";
 
-export async function getProfile(id: string): Promise<Profile | null> {
+/**
+ * Gememoïseerd per request (net als `isStaff`, zie lib/staff.ts): de
+ * profielpagina en `generateMetadata` (A.4, paginatitels) roepen dit allebei
+ * voor hetzelfde profiel aan, zonder cache twee keer dezelfde query.
+ */
+export const getProfile = cache(async (id: string): Promise<Profile | null> => {
   const supabase = await createClient();
   const { data } = await supabase.from("profiles").select("*").eq("id", id).maybeSingle();
   return (data as Profile | null) ?? null;
-}
+});
 
 /**
  * Mag deze gebruiker aan dit profiel schrijven? Eigenaar, of beheerder.

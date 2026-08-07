@@ -6,17 +6,29 @@ import { useState } from "react";
 export function TrackingToggle({ analysisId, initial }: { analysisId: string; initial: boolean }) {
   const [enabled, setEnabled] = useState(initial);
   const [pending, setPending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   async function toggle() {
     const next = !enabled;
     setEnabled(next);
     setPending(true);
+    setError(null);
     try {
-      await fetch(`/api/analyses/${analysisId}/tracking`, {
+      const res = await fetch(`/api/analyses/${analysisId}/tracking`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ tracking_enabled: next }),
       });
+      // A.10: een optimistische schakelaar die stil terugvalt bij een mislukte
+      // opslag is erger dan geen bevestiging, hij toont dan een staat die niet
+      // is opgeslagen. Bij een fout dus de knop terugzetten én dat zeggen.
+      if (!res.ok) {
+        setEnabled(!next);
+        setError("Opslaan is niet gelukt. Probeer het opnieuw.");
+      }
+    } catch {
+      setEnabled(!next);
+      setError("We konden Aura niet bereiken. Controleer je verbinding.");
     } finally {
       setPending(false);
     }
@@ -30,6 +42,11 @@ export function TrackingToggle({ analysisId, initial }: { analysisId: string; in
           Aura meet tien weken lang elke week opnieuw. Zo zie je een lijn in plaats van één
           nulmeting.
         </p>
+        {error && (
+          <p className="mt-1 text-sm text-[var(--status-error)]" role="alert">
+            {error}
+          </p>
+        )}
       </div>
       <button
         type="button"

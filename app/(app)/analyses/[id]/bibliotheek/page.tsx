@@ -5,6 +5,8 @@ import { EmptyState } from "@/components/empty-state";
 import { LibraryList } from "./library-list";
 import type { ContentPiece } from "@/lib/types/database";
 
+export const metadata = { title: "Bibliotheek" };
+
 /**
  * Content Bibliotheek (abcplan.md §8): de opleverplek per analyse. Vult zich
  * verder zodra de klant vanuit het Rapport pagina's laat genereren.

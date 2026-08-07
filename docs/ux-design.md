@@ -72,18 +72,25 @@ overnemen; Geist is daar de open-source tegenhanger van.
 **Acht principes voor consistente toepassing:**
 
 1. **Een kleur heeft een betekenis, geen naam.** Gebruik `--intent-growth-text`, nooit
-   `--accent-green`, en nooit een hexwaarde of een rauwe `rgba()` in een component. Elke kleur die
-   in een `.tsx` staat, is een fout die zich verspreidt: die kleur mist de volgende
-   paletwijziging, en niemand ziet dat totdat twee schermen die elkaar opvolgen twee tinten groen
-   tonen. **Controle vóór een commit, beide moeten nul regels geven:**
+   `--accent-green`, en nooit een hexwaarde of een rauwe `rgba()` in een component of een
+   hulpfunctie. Elke kleur buiten `globals.css` is een fout die zich verspreidt: die kleur mist
+   de volgende paletwijziging, en niemand ziet dat totdat twee schermen die elkaar opvolgen twee
+   tinten groen tonen. Dat gebeurde letterlijk: `lib/analysis-status.ts` had `info` en `success`
+   allebei op hetzelfde oude marketingsite-groen staan, ontdekt op 6 augustus 2026, ná de eerste
+   opruimronde, omdat die controle destijds alleen `.tsx` bestreek en dit een `.ts`-bestand is.
+   **Controle vóór een commit, beide moeten nul regels geven (nu ook op `.ts`):**
 
    ```bash
-   grep -rnE "#[0-9a-fA-F]{6}\b" app components --include="*.tsx" | grep -v themeColor
-   grep -rnE "rgba?\([0-9]" app components --include="*.tsx"
+   grep -rnE "#[0-9a-fA-F]{6}\b" app components lib --include="*.tsx" --include="*.ts" \
+     | grep -v themeColor | grep -v "lib/email/"
+   grep -rnE "rgba?\([0-9]" app components lib --include="*.tsx" --include="*.ts" \
+     | grep -v "lib/email/"
    ```
 
-   De uitzondering is `themeColor` in `app/layout.tsx`: die gaat naar de browserbalk van het
-   besturingssysteem en kan geen CSS-variabele zijn.
+   Twee uitzonderingen, allebei functioneel en geen van beide een gemiste opruiming:
+   `themeColor` in `app/layout.tsx` gaat naar de browserbalk van het besturingssysteem en kan geen
+   CSS-variabele zijn, en `lib/email/*.ts` is HTML voor e-mailclients, die begrijpen geen
+   `var(--...)`.
 2. **Plat, niet gloeiend.** Rand en vlak dragen de hiërarchie. De ene schaduw is voor wat boven de
    pagina zweeft: menu's, dialogen, de hover van een klikbare kaart. Een gewone kaart is plat.
    De enige gloed die overblijft is de focusring, en die is toegankelijkheid.

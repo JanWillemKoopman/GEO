@@ -8,6 +8,8 @@ import { ContentBriefEditor } from "../_editors/content-brief-editor";
 import { PromptsManager } from "../_editors/prompts-manager";
 import { TrackingToggle } from "./tracking-toggle";
 
+export const metadata = { title: "Instellingen" };
+
 /**
  * Instellingen = de doorlopende beheerplek (abcplan.md §3.5).
  *

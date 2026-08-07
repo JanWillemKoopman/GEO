@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import type { Metadata } from "next";
 import { getProfile } from "@/lib/profiles";
 import { requireUser } from "@/lib/auth";
 import { isStaff } from "@/lib/staff";
@@ -41,6 +42,20 @@ import type {
   ProfileTopic,
   TechnicalAudit as TechnicalAuditRow,
 } from "@/lib/types/database";
+
+// A.4: geen layout.tsx boven deze route, dus de titel staat direct op de
+// pagina. `getProfile` is gememoïseerd (lib/profiles.ts), dus dit is geen
+// tweede query naast de pagina zelf.
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}): Promise<Metadata> {
+  const { id } = await params;
+  const profile = await getProfile(id);
+  if (!profile) return {};
+  return { title: profile.brand_name ?? profile.name };
+}
 
 export default async function ProfilePage({
   params,

@@ -6,12 +6,10 @@ import { EmptyState } from "@/components/empty-state";
 import { PageHeader } from "@/components/page-header";
 import { activeOnly } from "@/lib/archive";
 import type { Profile } from "@/lib/types/database";
+import { formatRelativeTime } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
-
-function formatDate(iso: string): string {
-  return new Date(iso).toLocaleDateString("nl-NL", { day: "numeric", month: "short", year: "numeric" });
-}
+export const metadata = { title: "Merken" };
 
 export default async function ProfielenPage() {
   await requireUser();
@@ -58,7 +56,7 @@ export default async function ProfielenPage() {
                 <div className="min-w-0">
                   <p className="truncate text-lg font-semibold">{p.name}</p>
                   <p className="mono-label mt-1">
-                    {p.url} · Bijgewerkt {formatDate(p.updated_at)}
+                    {p.url} · Bijgewerkt {formatRelativeTime(p.updated_at)}
                   </p>
                 </div>
                 <ProfileStatusBadge status={p.status} />

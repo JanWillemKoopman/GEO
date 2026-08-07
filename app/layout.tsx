@@ -7,8 +7,15 @@ import "./globals.css";
 // Mono was JetBrains Mono: twee families van twee makers naast elkaar is precies
 // het soort verschil dat je niet ziet maar wel voelt. Zie designsystem.md §3.
 
+// A.4: elke pagina een eigen tabbladtitel. Het sjabloon hier is de bodem: een
+// pagina die alleen `title: "Merken"` opgeeft wordt automatisch "Merken · Aura".
+// `analyses/[id]/layout.tsx` legt voor alles daaronder een eigen, specifieker
+// sjabloon overheen (met de analysenaam erin); die van dichterbij wint.
 export const metadata: Metadata = {
-  title: "Aura · AI-zichtbaarheid, gemeten",
+  title: {
+    template: "%s · Aura",
+    default: "Aura · AI-zichtbaarheid, gemeten",
+  },
   description:
     "Aura meet hoe vaak AI-assistenten jouw merk noemen, laat zien waar je mist en schrijft de pagina's die dat verhelpen.",
 };

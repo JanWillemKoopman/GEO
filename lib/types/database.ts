@@ -167,6 +167,26 @@ export interface Profile {
   deep_research_at: string | null;
   /** Welke engines meedoen (migratie 0041). Doorsnede met de beschikbare sleutels. */
   engines_enabled: EngineId[];
+  /**
+   * Verboden woorden en tone-of-voice-sliders (migratie 0045), naar het
+   * voorbeeld van InSpace Nova's "Words & language" en "Voice"-onboardingstap
+   * (`docs/tasks/nova-analyse.md` §3.3). Verboden woorden gaan als harde regel
+   * de schrijfprompt in (`lib/pipeline/content.ts`) en worden na het schrijven
+   * deterministisch teruggecontroleerd (`lib/pipeline/content-gate.ts`,
+   * conventie 1). De sliders zijn 1-3 of `null` (niet ingesteld); de vertaling
+   * naar prompttaal staat in `lib/pipeline/tone-sliders.ts`, nooit het cijfer
+   * zelf naar het model.
+   */
+  taboo_phrases: string[];
+  compliance_notes: string | null;
+  author_name: string | null;
+  author_role: string | null;
+  author_bio: string | null;
+  author_linkedin_url: string | null;
+  tone_formality: number | null;
+  tone_energy: number | null;
+  tone_complexity: number | null;
+  tone_humor: number | null;
   created_at: string;
   updated_at: string;
 }

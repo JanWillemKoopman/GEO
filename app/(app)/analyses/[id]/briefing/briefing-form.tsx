@@ -127,13 +127,16 @@ export function BriefingForm({
         }),
       });
       if (!res.ok) {
+        // A.5: server- en netwerkfouten apart afhandelen, anders komt een
+        // weggevallen verbinding op het scherm als "Failed to fetch".
         const data = (await res.json().catch(() => ({}))) as { error?: string };
-        throw new Error(data.error ?? "Opslaan is niet gelukt.");
+        setError(data.error ?? "Opslaan is niet gelukt. Probeer het opnieuw.");
+        return;
       }
       if (action === "write") router.push(`/analyses/${analysisId}/bibliotheek`);
       else router.refresh();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Er ging iets mis.");
+    } catch {
+      setError("We konden Aura niet bereiken. Controleer je verbinding en probeer het opnieuw.");
     } finally {
       setBusy(null);
     }

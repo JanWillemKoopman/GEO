@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { AuditCheck } from "@/lib/audit/technical";
+import { formatDateLong } from "@/lib/format";
 
 /**
  * Blokkades als poort, niet als voetnoot (optimalisatie.md 3.7).
@@ -37,7 +38,7 @@ export function AuditGate({
         {since && (
           <span className="mono-label">
             al vastgesteld op{" "}
-            {new Date(since).toLocaleDateString("nl-NL", { day: "numeric", month: "long" })}
+            {formatDateLong(since)}
           </span>
         )}
       </div>

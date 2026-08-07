@@ -2,6 +2,7 @@ import Link from "next/link";
 import { InfoHint } from "@/components/info-hint";
 import type { ResultsSummary } from "@/lib/pipeline/results";
 import type { ImpactVerdict } from "@/lib/types/database";
+import { formatDateLong } from "@/lib/format";
 
 /**
  * Het resultaatpaneel (optimalisatie.md 5.6).
@@ -135,10 +136,7 @@ export function ResultsPanel({ analysisId, results }: { analysisId: string; resu
                 ) : (
                   <p className="text-sm text-muted">
                     Gepubliceerd op{" "}
-                    {new Date(p.publishedAt).toLocaleDateString("nl-NL", {
-                      day: "numeric",
-                      month: "long",
-                    })}
+                    {formatDateLong(p.publishedAt)}
                     . Aura hermeet na twee en na vier weken, want AI-assistenten pikken nieuwe content
                     niet dezelfde dag op.
                   </p>

@@ -3,6 +3,7 @@ import { getUser } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getOwnedProfile } from "@/lib/profiles";
 import { MAX_PAGES_HARD_CAP } from "@/lib/crawler";
+import { clampToneSlider } from "@/lib/pipeline/tone-sliders";
 
 /**
  * PATCH /api/profiles/[id], klantprofiel bewerken. Geen AI-call: pure CRUD op
@@ -31,7 +32,22 @@ const EDITABLE_FIELDS = [
   "service_regions",
   "market_language",
   "sitemap_url",
+  // Migratie 0045, naar het voorbeeld van InSpace Nova's onboardingstappen
+  // "Words & language", "Voice" en "Author" (docs/tasks/nova-analyse.md §3.3).
+  "taboo_phrases",
+  "compliance_notes",
+  "author_name",
+  "author_role",
+  "author_bio",
+  "author_linkedin_url",
+  "tone_formality",
+  "tone_energy",
+  "tone_complexity",
+  "tone_humor",
 ] as const;
+
+/** Velden die als 1-3 geklemd worden in plaats van rechtstreeks opgeslagen. */
+const TONE_SLIDER_FIELDS = ["tone_formality", "tone_energy", "tone_complexity", "tone_humor"] as const;
 
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -64,6 +80,26 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     if (Number.isFinite(n)) {
       update.max_inventory_pages = Math.min(Math.max(n, 5), MAX_PAGES_HARD_CAP);
     }
+  }
+  // Tone-sliders: geklemd naar 1-3, of null bij een lege/ontbrekende waarde.
+  // Nooit rechtstreeks een client-getal doorlaten naar de databaseconstraint.
+  for (const field of TONE_SLIDER_FIELDS) {
+    if (field in update) {
+      const raw = update[field];
+      update[field] = raw === null || raw === "" || raw === undefined ? null : clampToneSlider(raw);
+    }
+  }
+  // taboo_phrases: lege of niet-tekstuele items eruit, net als TagListEditor
+  // dat elders al doet voor products/value_props/competitors.
+  if ("taboo_phrases" in update) {
+    const raw = update.taboo_phrases;
+    update.taboo_phrases = Array.isArray(raw)
+      ? raw.filter((v): v is string => typeof v === "string" && v.trim().length > 0).map((v) => v.trim())
+      : [];
+  }
+  if ("compliance_notes" in update) {
+    const raw = update.compliance_notes;
+    update.compliance_notes = typeof raw === "string" && raw.trim() ? raw.trim() : null;
   }
 
   const { error } = await admin.from("profiles").update(update).eq("id", id);

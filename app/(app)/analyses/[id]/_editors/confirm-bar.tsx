@@ -16,7 +16,14 @@ import { useRouter } from "next/navigation";
  * designsystem.md §A3 gebruikt dat patroon voor alles wat over de inhoud heen
  * zweeft.
  */
-export function ConfirmBar({ analysisId }: { analysisId: string }) {
+export function ConfirmBar({
+  analysisId,
+  activeCount,
+}: {
+  analysisId: string;
+  /** Aantal actieve vragen (A.8): wat er gaat gebeuren, niet alleen dat er iets gebeurt. */
+  activeCount: number;
+}) {
   const router = useRouter();
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -64,7 +71,10 @@ export function ConfirmBar({ analysisId }: { analysisId: string }) {
             </span>
           ) : (
             <span className="hidden text-sm text-muted sm:inline">
-              Je kunt de vragen en het onderzoek hierna nog steeds aanpassen.
+              {/* A.8: aankondigen wat er gaat gebeuren, niet alleen dat er iets gebeurt. */}
+              Aura stelt {activeCount} {activeCount === 1 ? "vraag" : "vragen"} aan AI-assistenten
+              en verwerkt de antwoorden. Je kunt de vragen en het onderzoek hierna nog steeds
+              aanpassen.
             </span>
           )}
         </div>

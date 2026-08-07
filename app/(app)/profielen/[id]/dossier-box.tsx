@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { formatDateLong } from "@/lib/format";
 
 /**
  * Het merkdossier (implementatieplan.md S5, contentbriefing.md §8).
@@ -56,7 +57,14 @@ export function DossierBox({ profileId }: { profileId: string }) {
         alreadyKnown?: boolean;
         error?: string;
       };
-      if (!res.ok) throw new Error(json.error ?? "Verwerken is niet gelukt.");
+      // A.5: een serverfout ("dit document is te kort") is een ander soort
+      // fout dan een verbinding die wegvalt. Beide door dezelfde `catch` laten
+      // lopen zou "Failed to fetch" op het scherm zetten, dat zegt niets over
+      // wat de klant eraan kan doen.
+      if (!res.ok) {
+        setError(json.error ?? "Verwerken is niet gelukt. Probeer het opnieuw.");
+        return;
+      }
       setFacts(json.facts ?? []);
       setSkipped(json.skipped ?? 0);
       // Sinds migratie 0035 herkent de app dezelfde tekst aan zijn hash. Zonder
@@ -65,8 +73,8 @@ export function DossierBox({ profileId }: { profileId: string }) {
       // document, en precies het soort melding dat vertrouwen kost.
       setAlKnown(Boolean(json.alreadyKnown));
       setText("");
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Er ging iets mis.");
+    } catch {
+      setError("We konden Aura niet bereiken. Controleer je verbinding en probeer het opnieuw.");
     } finally {
       setBusy(false);
     }
@@ -149,7 +157,7 @@ export function DossierBox({ profileId }: { profileId: string }) {
                     <span className="font-medium">{f.answer}</span>
                     {f.verifyAfter && (
                       <span className="text-muted">
-                        opnieuw te bevestigen na {new Date(f.verifyAfter).toLocaleDateString("nl-NL")}
+                        opnieuw te bevestigen na {formatDateLong(f.verifyAfter)}
                       </span>
                     )}
                     <button

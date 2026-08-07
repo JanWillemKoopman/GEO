@@ -1,5 +1,7 @@
 import { NewPasswordForm } from "../password-forms";
 
+export const metadata = { title: "Nieuw wachtwoord" };
+
 /**
  * Waar de herstel-link uit de mail op uitkomt. Supabase zet de sessie op basis
  * van het token in de URL-fragment; die verwerking gebeurt client-side door de

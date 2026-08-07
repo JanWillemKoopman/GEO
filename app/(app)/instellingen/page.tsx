@@ -1,6 +1,8 @@
 import { requireUser } from "@/lib/auth";
 import { PageHeader } from "@/components/page-header";
 
+export const metadata = { title: "Mijn instellingen" };
+
 export default async function InstellingenPage() {
   const user = await requireUser();
 

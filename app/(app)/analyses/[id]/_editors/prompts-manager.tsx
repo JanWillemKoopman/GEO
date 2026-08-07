@@ -22,6 +22,10 @@ type PromptPatch = Partial<Pick<Prompt, "text" | "category" | "active" | "volume
  */
 export function PromptsManager({ analysisId, initial }: { analysisId: string; initial: Prompt[] }) {
   const [prompts, setPrompts] = useState(initial);
+  // A.10: elke schrijfactie hier is optimistisch (het scherm verandert meteen
+  // op een klik). Faalt de server-kant toch, dan meldt deze regel dat, in
+  // plaats van een staat te laten staan die stilletjes niet is opgeslagen.
+  const [error, setError] = useState<string | null>(null);
 
   const knownOrder = [...PROMPT_CATEGORIES] as string[];
   const categories = Array.from(new Set(prompts.map((p) => p.category))).sort(
@@ -31,32 +35,61 @@ export function PromptsManager({ analysisId, initial }: { analysisId: string; in
   for (const cat of knownOrder) if (!categories.includes(cat)) categories.push(cat);
 
   async function updatePrompt(id: string, patch: PromptPatch) {
+    const previous = prompts.find((p) => p.id === id);
     // De server zet volume_source op 'klant' zodra de band handmatig wijzigt;
     // lokaal meteen meenemen zodat het label "door jou ingesteld" niet pas na
     // een herlaadbeurt verschijnt.
     const local = patch.volume_band ? { ...patch, volume_source: "klant" as const } : patch;
     setPrompts((ps) => ps.map((p) => (p.id === id ? { ...p, ...local } : p)));
-    await fetch(`/api/analyses/${analysisId}/prompts/${id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(patch),
-    });
+    setError(null);
+    try {
+      const res = await fetch(`/api/analyses/${analysisId}/prompts/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(patch),
+      });
+      if (!res.ok && previous) {
+        setPrompts((ps) => ps.map((p) => (p.id === id ? previous : p)));
+        setError("Wijzigen is niet gelukt. Probeer het opnieuw.");
+      }
+    } catch {
+      if (previous) setPrompts((ps) => ps.map((p) => (p.id === id ? previous : p)));
+      setError("We konden Aura niet bereiken. Controleer je verbinding.");
+    }
   }
 
   async function deletePrompt(id: string) {
+    const previous = prompts;
     setPrompts((ps) => ps.filter((p) => p.id !== id));
-    await fetch(`/api/analyses/${analysisId}/prompts/${id}`, { method: "DELETE" });
+    setError(null);
+    try {
+      const res = await fetch(`/api/analyses/${analysisId}/prompts/${id}`, { method: "DELETE" });
+      if (!res.ok) {
+        setPrompts(previous);
+        setError("Verwijderen is niet gelukt. Probeer het opnieuw.");
+      }
+    } catch {
+      setPrompts(previous);
+      setError("We konden Aura niet bereiken. Controleer je verbinding.");
+    }
   }
 
   async function addPrompt(category: string, text: string) {
-    const res = await fetch(`/api/analyses/${analysisId}/prompts`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ text, category }),
-    });
-    if (res.ok) {
-      const created = (await res.json()) as Prompt;
-      setPrompts((ps) => [...ps, created]);
+    setError(null);
+    try {
+      const res = await fetch(`/api/analyses/${analysisId}/prompts`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text, category }),
+      });
+      if (res.ok) {
+        const created = (await res.json()) as Prompt;
+        setPrompts((ps) => [...ps, created]);
+      } else {
+        setError("Toevoegen is niet gelukt. Probeer het opnieuw.");
+      }
+    } catch {
+      setError("We konden Aura niet bereiken. Controleer je verbinding.");
     }
   }
 
@@ -66,6 +99,12 @@ export function PromptsManager({ analysisId, initial }: { analysisId: string; in
         <span className="mono-label">Vragen aan de AI</span>
         <span className="mono-label">{prompts.filter((p) => p.active).length} actief van {prompts.length}</span>
       </div>
+
+      {error && (
+        <p className="text-sm text-[var(--status-error)]" role="alert">
+          {error}
+        </p>
+      )}
 
       {categories.map((cat) => (
         <CollapsibleSection key={cat} title={cat} badge={String(prompts.filter((p) => p.category === cat).length)}>

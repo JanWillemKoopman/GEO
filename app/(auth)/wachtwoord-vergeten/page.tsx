@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { PasswordResetRequestForm } from "../password-forms";
 
+export const metadata = { title: "Wachtwoord vergeten" };
+
 export default async function WachtwoordVergetenPage({
   searchParams,
 }: {

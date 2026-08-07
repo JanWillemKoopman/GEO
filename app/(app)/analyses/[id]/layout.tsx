@@ -1,10 +1,36 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import type { Metadata } from "next";
 import { requireUser } from "@/lib/auth";
 import { getAnalysis } from "@/lib/analyses";
 import { createClient } from "@/lib/supabase/server";
 import { StatusBadge } from "@/components/status-badge";
 import { AnalysisNav } from "./tabs";
+
+/**
+ * A.4: elk scherm een eigen tabbladtitel. Deze laag zet de analysenaam als
+ * `%s`-sjabloon neer, elke subpagina hoeft alleen zijn eigen kort woord op te
+ * geven (`export const metadata = { title: "Bibliotheek" }`) en Next.js vult
+ * het patroon aan tot "Bibliotheek · Acme B.V. · Aura". Ontbreekt die
+ * subtitel, dan valt het terug op de analysenaam alleen (`default`).
+ * `getAnalysis` is gememoïseerd (lib/analyses.ts) dus dit is geen tweede query
+ * naast de layout zelf.
+ */
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}): Promise<Metadata> {
+  const { id } = await params;
+  const analysis = await getAnalysis(id);
+  if (!analysis) return {};
+  return {
+    title: {
+      template: `%s · ${analysis.name} · Aura`,
+      default: `${analysis.name} · Aura`,
+    },
+  };
+}
 
 export default async function AnalysisLayout({
   children,
@@ -47,7 +73,7 @@ export default async function AnalysisLayout({
         </Link>
         <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
           <h1 className="text-2xl font-bold tracking-tight">{analysis.name}</h1>
-          <StatusBadge status={analysis.status} />
+          <StatusBadge status={analysis.status} showWhoseTurn />
         </div>
       </div>
 

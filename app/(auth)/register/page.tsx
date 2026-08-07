@@ -3,6 +3,8 @@ import { AuthForm } from "../auth-form";
 import { signUp } from "../actions";
 import { signupsEnabled } from "@/lib/config";
 
+export const metadata = { title: "Account aanmaken" };
+
 export default function RegisterPage() {
   // Registratie dicht tijdens de bouwfase → terug naar login.
   if (!signupsEnabled) {

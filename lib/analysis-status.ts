@@ -3,27 +3,82 @@ import type { AnalysisStatus } from "@/lib/types/database";
 export type StatusTone = "attention" | "progress" | "info" | "success" | "error";
 
 /**
+ * Bij wie de bal ligt (A.1, naar Nova's tweelaags-statustaal: een technische
+ * staat naast een leesbare "Waiting in your CMS" / "Waiting for you",
+ * `docs/tasks/nova-analyse.md` §3.2). De technische status (`AnalysisStatus`)
+ * blijft de bron van waarheid; dit is de vertaling ernaast, niet in de plaats
+ * ervan. `null` = niemand hoeft iets, de staat is af of informatief.
+ */
+export type WhoseTurn = "jij" | "aura" | null;
+
+export const WHOSE_TURN_LABEL: Record<Exclude<WhoseTurn, null>, string> = {
+  jij: "Wacht op jou",
+  aura: "Aura is bezig",
+};
+
+/**
  * Metadata per status voor de UI (abcplan.md §3.4). `concept_klaar` is bewust
  * "attention" + actionRequired: het enige moment waarop de klant iets MOET doen,
  * en wordt daarom bovenaan de lijst geprioriteerd.
  */
 export const STATUS_META: Record<
   AnalysisStatus,
-  { label: string; tone: StatusTone; actionRequired: boolean }
+  { label: string; tone: StatusTone; actionRequired: boolean; whoseTurn: WhoseTurn }
 > = {
-  bezig: { label: "Aura werkt…", tone: "progress", actionRequired: false },
-  concept_klaar: { label: "Klaar voor jouw akkoord", tone: "attention", actionRequired: true },
-  meten: { label: "Meting loopt…", tone: "progress", actionRequired: false },
-  gemeten: { label: "Score binnen · rapport volgt", tone: "info", actionRequired: false },
-  gereed: { label: "Gereed", tone: "success", actionRequired: false },
-  mislukt: { label: "Niet gelukt", tone: "error", actionRequired: false },
+  bezig: { label: "Aura werkt…", tone: "progress", actionRequired: false, whoseTurn: "aura" },
+  concept_klaar: {
+    label: "Klaar voor jouw akkoord",
+    tone: "attention",
+    actionRequired: true,
+    whoseTurn: "jij",
+  },
+  meten: { label: "Meting loopt…", tone: "progress", actionRequired: false, whoseTurn: "aura" },
+  gemeten: {
+    label: "Score binnen · rapport volgt",
+    tone: "info",
+    actionRequired: false,
+    whoseTurn: "aura",
+  },
+  gereed: { label: "Gereed", tone: "success", actionRequired: false, whoseTurn: null },
+  mislukt: { label: "Niet gelukt", tone: "error", actionRequired: false, whoseTurn: "jij" },
 };
 
-/** Inline-stijl per tone (lichte thema-kleuren, designsystem.md §A). */
+/**
+ * Inline-stijl per tone, uit de betekenislaag (designsystem.md §2.3).
+ *
+ * ⚠️ Repareerd 6 augustus 2026: dit bestand had de kleuren-opruiming van de
+ * vormgevingsronde gemist, de kleurcontrole draaide toen alleen over `.tsx`
+ * en dit is een `.ts`-bestand. Er stonden nog vijf rauwe `rgba()`-kleuren in,
+ * waarvan `info` en `success` letterlijk dezelfde waarde deelden (het oude
+ * marketingsite-groen, zie designsystem.md bijlage A): een "score binnen, rapport volgt"-melding
+ * was zo niet te onderscheiden van "gereed". Nu wijzen ze naar aparte
+ * betekenissen: `information` (blauw) voor een mededeling, `growth` (groen)
+ * voor een afgeronde, geslaagde staat.
+ */
 export const TONE_STYLE: Record<StatusTone, React.CSSProperties> = {
-  attention: { background: "rgba(133,17,217,0.1)", color: "#7a13c9", borderColor: "rgba(133,17,217,0.28)" },
-  progress: { background: "rgba(11,11,12,0.05)", color: "rgba(11,11,12,0.62)", borderColor: "rgba(11,11,12,0.12)" },
-  info: { background: "rgba(46,158,80,0.12)", color: "#2e9e50", borderColor: "rgba(46,158,80,0.28)" },
-  success: { background: "rgba(46,158,80,0.14)", color: "#2e9e50", borderColor: "rgba(46,158,80,0.32)" },
-  error: { background: "rgba(211,58,63,0.1)", color: "#c2282d", borderColor: "rgba(211,58,63,0.3)" },
+  attention: {
+    background: "var(--intent-intelligence-surface)",
+    color: "var(--intent-intelligence-text)",
+    borderColor: "var(--intent-intelligence-border)",
+  },
+  progress: {
+    background: "var(--intent-neutral-surface)",
+    color: "var(--text-secondary)",
+    borderColor: "var(--intent-neutral-border)",
+  },
+  info: {
+    background: "var(--intent-information-surface)",
+    color: "var(--intent-information-text)",
+    borderColor: "var(--intent-information-border)",
+  },
+  success: {
+    background: "var(--intent-growth-surface)",
+    color: "var(--intent-growth-text)",
+    borderColor: "var(--intent-growth-border)",
+  },
+  error: {
+    background: "var(--intent-danger-surface)",
+    color: "var(--intent-danger-text)",
+    borderColor: "var(--intent-danger-border)",
+  },
 };

@@ -34,7 +34,8 @@ import { callStructured } from "@/lib/openai/structured";
 import { MODELS } from "@/lib/openai/models";
 import { ContentPiece } from "@/lib/schemas/content-piece";
 import { Critique, geoScore, geoIssues } from "@/lib/schemas/critique";
-import { checkContentGate, checkQuality } from "@/lib/pipeline/content-gate";
+import { checkContentGate, checkQuality, checkTabooWords } from "@/lib/pipeline/content-gate";
+import { describeToneSliders } from "@/lib/pipeline/tone-sliders";
 import { mostSimilar } from "@/lib/pipeline/similarity";
 import { detectClaimSentences, detectedCoverage, resolveFactId } from "@/lib/pipeline/claim-extract";
 import type { AuditedClaim } from "@/lib/schemas/claim-audit";
@@ -371,8 +372,31 @@ function buildContentInput(args: {
       ? `Gewenste richting en doelgroep van de content (van de klant, VOLG dit): ${analysis.content_brief.trim()}`
       : "",
     `Branche: ${profile?.industry ?? "onbekend"}`,
-    `Tone of voice: ${profile?.tone_of_voice ?? "professioneel, helder"}`,
+    `Tone of voice: ${profile?.tone_of_voice ?? "professioneel, helder"}` +
+      // ✅ Migratie 0045, de vier schuiven (formaliteit/energie/complexiteit/humor).
+      // Aanvullend op het vrije tekstveld hierboven, niet in de plaats ervan: een
+      // klant die allebei invulde, bedoelde ze allebei.
+      (() => {
+        const schuiven = describeToneSliders({
+          formality: profile?.tone_formality as 1 | 2 | 3 | null,
+          energy: profile?.tone_energy as 1 | 2 | 3 | null,
+          complexity: profile?.tone_complexity as 1 | 2 | 3 | null,
+          humor: profile?.tone_humor as 1 | 2 | 3 | null,
+        });
+        return schuiven ? ` (${schuiven})` : "";
+      })(),
     `Diensten/producten: ${(profile?.products ?? []).join(", ") || "onbekend"}`,
+    // ✅ Migratie 0045, verboden woorden (C.29). Een VERBOD, geen suggestie, zelfde
+    // toon als de feitenkaart hierboven: gesloten lijst voor wat niet mag, in
+    // plaats van een losse waarschuwing die het model kan wegwuiven.
+    profile?.taboo_phrases?.length
+      ? `VERBODEN WOORDEN EN CLAIMS. Gebruik deze woorden of formuleringen NERGENS op deze pagina, ` +
+        `ook niet in een andere vervoeging: ${profile.taboo_phrases.join(", ")}.`
+      : "",
+    // ✅ Migratie 0045, regels en wetten (C.30).
+    profile?.compliance_notes?.trim()
+      ? `REGELS WAAR DEZE PAGINA AAN MOET VOLDOEN: ${profile.compliance_notes.trim()}`
+      : "",
     profile?.value_props?.length ? `Waardeproposities (waarom klanten kiezen): ${profile.value_props.join(", ")}` : "",
     // ✅ De gesloten feitenkaart (R5.3). Geen uitnodiging maar een grens.
     formatFactCard(facts),
@@ -1350,6 +1374,10 @@ export async function draftContentPiece(args: {
         ]
       : [];
 
+  // ✅ Migratie 0045 (C.29): verboden woorden, deterministisch teruggecontroleerd.
+  // Nooit een gok of de prompt gewerkt heeft; nagemeten op de daadwerkelijke tekst.
+  const taboo = checkTabooWords(draft.parsed.bodyMarkdown, draft.parsed.faq ?? [], ctx.profile?.taboo_phrases ?? []);
+
   // De GEO-tekortkomingen worden gewone verbeterpunten: de herschrijfronde weet
   // dan precies wát er moet veranderen in plaats van "beter maken".
   const issues = [
@@ -1358,6 +1386,7 @@ export async function draftContentPiece(args: {
     ...gate.issues,
     ...quality.issues,
     ...brononderbouwing,
+    ...taboo.issues,
   ];
 
   const needsRevise =
@@ -1492,6 +1521,11 @@ export async function reviseContentPiece(args: {
     );
   }
 
+  // ✅ Migratie 0045 (C.29), ook op de eindstand: er volgt geen derde ronde, dus
+  // een verboden woord dat de herschrijfronde er alsnog in liet staan, moet nu
+  // gevonden worden, niet later door de klant.
+  const taboo = checkTabooWords(final.bodyMarkdown, final.faq ?? [], ctx.profile?.taboo_phrases ?? []);
+
   const needsReview =
     !critique.parsed.followsRules ||
     critique.parsed.qualityScore < REVIEW_THRESHOLD ||
@@ -1500,7 +1534,8 @@ export async function reviseContentPiece(args: {
     // redacteur beoordeelt de tekst; de poort beoordeelt of de pagina zijn
     // opdracht uitvoert, en dat laatste mag niet stil wegvallen.
     gate.issues.length > 0 ||
-    quality.issues.length > 0;
+    quality.issues.length > 0 ||
+    taboo.issues.length > 0;
 
   // Ruwe kritiek van BEIDE rondes bewaren (§5: we bewaren alles).
   const previousCritiques = Array.isArray(pieceRow.critique_raw_json) ? pieceRow.critique_raw_json : [];
@@ -1584,11 +1619,12 @@ export async function reviseContentPiece(args: {
         ...gate.issues,
         ...quality.issues,
         ...bronNotitie,
+        ...taboo.issues,
       ],
       // Een onherleidbare bewering telt, en sinds S3 ook een bewerende zin
       // zónder claim: dat is precies de vorm waarin de twee fabricages van
       // 31 juli aan elke controle ontsnapten.
-      needs_review: needsReview || unsupported.length > 0 || untagged.length > 0,
+      needs_review: needsReview || unsupported.length > 0 || untagged.length > 0 || taboo.issues.length > 0,
       status: "ready" as const,
       word_count: countWords(final.bodyMarkdown),
     })

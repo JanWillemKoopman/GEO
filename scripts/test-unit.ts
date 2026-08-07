@@ -150,6 +150,10 @@ import {
   extraRegionsFrom,
   discontinuedNames,
 } from "@/lib/pipeline/context-factors";
+import { formatDateShort, formatDateLong, formatRelativeTime, formatNumber } from "@/lib/format";
+import { describeToneSliders, clampToneSlider } from "@/lib/pipeline/tone-sliders";
+import { versionReasonLabel } from "@/lib/pipeline/version-reason";
+import { checkTabooWords } from "@/lib/pipeline/content-gate";
 
 let passed = 0;
 let failed = 0;
@@ -3264,6 +3268,101 @@ group("de drie kerncijfers en de zin erboven", () => {
     "en de tegels tonen een streepje in plaats van een nul",
     onboardingStats(leeg).every((s) => s.value === "-"),
   );
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+console.log("\nGetallen, datums en relatieve tijd (H.60/H.61/H.62)");
+
+group("formatNumber", () => {
+  ok("duizendtal met punt", formatNumber(1248) === "1.248");
+  ok("klein getal ongewijzigd", formatNumber(7) === "7");
+});
+
+group("formatDateShort/Long", () => {
+  const iso = "2026-08-06T10:00:00Z";
+  ok("kort heeft geen jaar", !formatDateShort(iso).includes("2026"));
+  ok("lang heeft wel een jaar", formatDateLong(iso).includes("2026"));
+  ok("lang spelt de maand voluit", formatDateLong(iso).toLowerCase().includes("augustus"));
+});
+
+group("formatRelativeTime", () => {
+  const nu = new Date();
+  const dagenGeleden = (n: number) => new Date(nu.getTime() - n * 24 * 60 * 60 * 1000).toISOString();
+  ok("vandaag", formatRelativeTime(nu.toISOString()) === "vandaag");
+  ok("gisteren", formatRelativeTime(dagenGeleden(1)) === "gisteren");
+  ok("3 dagen geleden", formatRelativeTime(dagenGeleden(3)) === "3 dagen geleden");
+  ok("2 weken geleden", formatRelativeTime(dagenGeleden(14)) === "2 weken geleden");
+  ok("ver terug valt terug op een datum", formatRelativeTime(dagenGeleden(90)).includes("2026"));
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+console.log("\nTone-of-voice-schuiven (migratie 0045, C.28)");
+
+group("describeToneSliders", () => {
+  ok("niets ingesteld geeft lege string", describeToneSliders({ formality: null, energy: null, complexity: null, humor: null }) === "");
+  ok(
+    "één slider geeft één zin",
+    describeToneSliders({ formality: 1, energy: null, complexity: null, humor: null }).includes("informeel"),
+  );
+  const alle = describeToneSliders({ formality: 3, energy: 3, complexity: 1, humor: 3 });
+  ok("formeel", alle.includes("formeel") && !alle.includes("informeel"));
+  ok("energiek", alle.includes("energiek"));
+  ok("eenvoudig", alle.includes("eenvoudig"));
+  ok("speels", alle.includes("speels"));
+});
+
+group("clampToneSlider", () => {
+  ok("0 klemt naar 1", clampToneSlider(0) === 1);
+  ok("2 blijft 2", clampToneSlider(2) === 2);
+  ok("5 klemt naar 3", clampToneSlider(5) === 3);
+  ok("niet-getal geeft null", clampToneSlider("abc") === null);
+  ok("leeg geeft null", clampToneSlider("") === null);
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+console.log("\nWaarom een contentversie bestaat (C.24)");
+
+group("versionReasonLabel", () => {
+  ok(
+    "versie 1 is altijd origineel",
+    versionReasonLabel({ version: 1, revisionNote: "iets", editedByUser: true }).includes("Aura geschreven"),
+  );
+  ok(
+    "door de klant bewerkt wint van een oud verzoek",
+    versionReasonLabel({ version: 2, revisionNote: "maak het korter", editedByUser: true }).includes("bewerkt"),
+  );
+  ok(
+    "een verzoek zonder eigen bewerking",
+    versionReasonLabel({ version: 2, revisionNote: "maak het korter", editedByUser: false }).includes("herschreven"),
+  );
+  ok(
+    "geen verzoek en geen bewerking komt uit de kritiekronde",
+    versionReasonLabel({ version: 2, revisionNote: null, editedByUser: false }).includes("eigen kritiekronde"),
+  );
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+console.log("\nVerboden woorden, deterministisch (migratie 0045, C.29)");
+
+group("checkTabooWords", () => {
+  const leeg = checkTabooWords("Wij zijn gratis en de beste.", [], []);
+  ok("geen verboden lijst = niets gevonden", leeg.found.length === 0);
+
+  const schoon = checkTabooWords("Wij helpen je snel en persoonlijk.", [], ["gratis", "beste"]);
+  ok("schone tekst blijft schoon", schoon.found.length === 0 && schoon.issues.length === 0);
+
+  const vuil = checkTabooWords("Bij ons is alles gratis, wij zijn de beste.", [], ["gratis", "beste"]);
+  ok("vindt beide verboden woorden", vuil.found.length === 2, vuil.found.join(","));
+  ok("levert een verbeterpunt op", vuil.issues.length === 1);
+
+  const woordgrens = checkTabooWords("Onze specialiteit is uitgebreide zorg.", [], ["breid"]);
+  ok(
+    "woordgrens: 'breid' matcht niet binnen 'uitgebreide'",
+    woordgrens.found.length === 0,
+  );
+
+  const inFaq = checkTabooWords("Nette tekst.", [{ q: "Is het gratis?", a: "Ja, altijd gratis." }], ["gratis"]);
+  ok("verboden woord in de FAQ telt ook mee", inFaq.found.length === 1);
 });
 
 // ════════════════════════════════════════════════════════════════════════════

@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import type { Metadata } from "next";
 import { getAnalysis } from "@/lib/analyses";
+import { formatDateLong } from "@/lib/format";
 import { createClient } from "@/lib/supabase/server";
 import { renderMarkdown } from "@/lib/markdown";
 import { ContentActions } from "./content-actions";
@@ -19,6 +21,27 @@ import type { ContentPiece, ContentPieceTarget } from "@/lib/types/database";
 interface Faq {
   q: string;
   a: string;
+}
+
+/**
+ * A.4: deze route heeft geen `layout.tsx` boven zich die de titel al zet, dus
+ * elke paginaweergave haalt de titel zelf op. Eigen `select("title")` in
+ * plaats van de volle rij, dit hoeft niet dezelfde query als de pagina zelf
+ * te zijn: een tabbladtitel heeft geen `body_markdown` nodig.
+ */
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ id: string; pieceId: string }>;
+}): Promise<Metadata> {
+  const { pieceId } = await params;
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("content_pieces")
+    .select("title")
+    .eq("id", pieceId)
+    .maybeSingle();
+  return { title: (data as { title: string } | null)?.title ?? "Contentpagina" };
 }
 
 export default async function ContentDetailPage({
@@ -315,7 +338,7 @@ export default async function ContentDetailPage({
                   </Link>
                 )}
                 <span className="text-muted">
-                  {new Date(v.created_at).toLocaleDateString("nl-NL", { day: "numeric", month: "long" })}
+                  {formatDateLong(v.created_at)}
                 </span>
                 {v.revision_note && (
                   <span className="text-secondary">op jouw verzoek: &ldquo;{v.revision_note}&rdquo;</span>

@@ -8,6 +8,8 @@ import { ContentBriefEditor } from "../_editors/content-brief-editor";
 import { PromptsManager } from "../_editors/prompts-manager";
 import { ConfirmBar } from "../_editors/confirm-bar";
 
+export const metadata = { title: "Concept beoordelen" };
+
 /**
  * Het conceptscherm, de enige stap waarop de app op de klant staat te wachten.
  *
@@ -117,7 +119,7 @@ export default async function ConceptPage({ params }: { params: Promise<{ id: st
           hier wat er moet gebeuren in plaats van een knop aan te bieden die
           doodloopt. */}
       {activeCount > 0 ? (
-        <ConfirmBar analysisId={id} />
+        <ConfirmBar analysisId={id} activeCount={activeCount} />
       ) : (
         <div className="card card-danger">
           <p className="text-secondary">

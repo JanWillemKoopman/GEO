@@ -79,6 +79,7 @@ Alle migraties zijn toegepast op productie, behalve `0033`.
 | `0042_rls_aanscherping.sql` | `is_staff()` niet meer aanroepbaar door `anon`, stafpolicies expliciet op `authenticated`, vast zoekpad op `set_updated_at()` |
 | `0043_topic_aanbodnamen.sql` | `profile_topics.offering_names`, de aanbodkoppeling van een onderwerp overleeft een herbouw van de boom, want een `uuid[]` kan geen foreign key hebben |
 | `0044_archief.sql` | `archived_at` op `profiles` en `analyses`, verborgen uit alle lijsten, tellingen én de maandelijkse meetronde, maar volledig aanwezig in de database |
+| `0045_klantprofiel_verrijking.sql` | `profiles.taboo_phrases`/`compliance_notes`/`author_*`/`tone_*` (formality, energy, complexity, humor), naar het voorbeeld van InSpace Nova's onboardingstappen (`docs/tasks/nova-analyse.md`) |
 
 ## Na `0038`, eenmalig, met de hand
 

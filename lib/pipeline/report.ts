@@ -127,7 +127,14 @@ export interface MissedPrompt {
 }
 
 function scoreLine(score: VisibilityScore | null): string {
-  const base = `Eigen zichtbaarheidsscore: ${score?.score ?? 0}/100 (elke vraag telt gelijk)`;
+  // A.6: "0/100" is een uitspraak ("nul keer genoemd"), geen "we weten het niet".
+  // Zonder score horen te worden gerapporteerd komt dit pad in de praktijk niet
+  // voor (het rapport draait pas ná de meting), maar een prompt die toch een
+  // gefabriceerd cijfer als feit aanbiedt is precies de fout die conventie 3
+  // (`docs/logbook.md`) wil voorkomen.
+  const base = score?.score != null
+    ? `Eigen zichtbaarheidsscore: ${score.score}/100 (elke vraag telt gelijk)`
+    : `Eigen zichtbaarheidsscore: onbekend (nog geen meting beschikbaar)`;
   const weighted =
     score?.weighted_score != null
       ? `, GEWOGEN naar volumeband × koopwaarde: ${score.weighted_score}/100`

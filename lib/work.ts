@@ -28,6 +28,7 @@ import { STATUS_META } from "@/lib/analysis-status";
 import type { AuditCheck } from "@/lib/audit/technical";
 import type { Analysis, ContentPiece, FactRequest, OffsiteTask } from "@/lib/types/database";
 import { activeOnly } from "@/lib/archive";
+import { formatDateShort } from "@/lib/format";
 
 type Db = SupabaseClient;
 
@@ -283,7 +284,7 @@ export function deriveWork(sources: WorkSources): WorkItem[] {
           urgency: URGENCY.blokkade,
           href: `/profielen/${analysis.profile_id}#techniek`,
           actionLabel: "Bekijk wat er mis is",
-          meta: blocked.since ? `Onveranderd sinds ${shortDate(blocked.since)}` : undefined,
+          meta: blocked.since ? `Onveranderd sinds ${formatDateShort(blocked.since)}` : undefined,
           analysisId: analysis.id,
           analysisName: name,
         });
@@ -359,8 +360,8 @@ export function deriveWork(sources: WorkSources): WorkItem[] {
         urgency: URGENCY.gemeten,
         href,
         meta: measured
-          ? `Gepubliceerd ${shortDate(piece.published_at)}`
-          : `Hermeting rond ${shortDate(addDays(piece.published_at, 14))}`,
+          ? `Gepubliceerd ${formatDateShort(piece.published_at)}`
+          : `Hermeting rond ${formatDateShort(addDays(piece.published_at, 14))}`,
         analysisId: piece.analysis_id,
         analysisName: analysis.name,
       });
@@ -475,9 +476,7 @@ export function countNow(items: WorkItem[]): number {
   return items.filter((i) => i.state === "nu").length;
 }
 
-function shortDate(iso: string): string {
-  return new Date(iso).toLocaleDateString("nl-NL", { day: "numeric", month: "short" });
-}
+
 
 function addDays(iso: string, days: number): string {
   const d = new Date(iso);

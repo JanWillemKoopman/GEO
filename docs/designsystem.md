@@ -323,15 +323,25 @@ Werk: ongeveer een dag, inclusief elk scherm nalopen. Vóór de overstap zou het
 
 ## 11. Controle vóór een commit
 
-Beide moeten **nul regels** geven:
+Beide moeten **nul regels** geven, en **op `.ts` én `.tsx`**, niet alleen op componenten:
 
 ```bash
-grep -rnE "#[0-9a-fA-F]{6}\b" app components --include="*.tsx" | grep -v themeColor
-grep -rnE "rgba?\([0-9]" app components --include="*.tsx"
+grep -rnE "#[0-9a-fA-F]{6}\b" app components lib --include="*.tsx" --include="*.ts" \
+  | grep -v themeColor | grep -v "lib/email/"
+grep -rnE "rgba?\([0-9]" app components lib --include="*.tsx" --include="*.ts" \
+  | grep -v "lib/email/"
 ```
 
-De enige uitzondering is `themeColor` in `app/layout.tsx`: die gaat naar de browserbalk van het
-besturingssysteem en kan geen CSS-variabele zijn.
+Twee uitzonderingen: `themeColor` in `app/layout.tsx` (de browserbalk van het besturingssysteem
+kan geen CSS-variabele zijn) en `lib/email/*.ts` (HTML voor e-mailclients, die begrijpen geen
+`var(--...)`).
+
+**Waarom nu ook `.ts`.** De eerste versie van deze controle liep alleen over `.tsx` en miste
+daardoor `lib/analysis-status.ts`: vijf rauwe `rgba()`-kleuren, waarvan `info` en `success`
+allebei letterlijk hetzelfde oude marketingsite-groen (`rgba(46,158,80,…)`) hadden. Gevolg: een
+"score binnen, rapport volgt"-melding was in de kleur niet te onderscheiden van "gereed". Gevonden
+op 6 augustus 2026, ná de eerste twee opruimrondes, bij het nalopen van een derde. Dezelfde soort
+kleur, een andere bestandsextensie, en dat was genoeg om erdoorheen te glippen.
 
 **En een derde controle: verwijst elke `var(--...)` naar een token dat bestaat?**
 
@@ -353,8 +363,11 @@ van de briefingvoortgang, die daardoor volledig doorzichtig was. Die balk stond 
 hoeveel vragen de klant ook had beantwoord. Geen van beide viel op, want een ontbrekende
 CSS-variabele geeft geen fout: hij valt stil terug op niets.
 
-**Dit is geen formaliteit.** De drift is twee keer teruggegroeid: de eerste opruiming telde 30
-inline-stijlen over 17 bestanden, de tweede 35. Een regel zonder controle is een voornemen.
+**Dit is geen formaliteit.** De drift is nu drie keer teruggegroeid: de eerste opruiming telde 30
+inline-stijlen over 17 bestanden, de tweede 35, de derde vijf in één bestand dat de eerste twee
+controles allebei misten omdat hij een `.ts` was, geen `.tsx`. Een regel zonder controle is een
+voornemen, en een controle die maar de helft van de bestanden bestrijkt is een gedeeltelijk
+voornemen.
 
 ---
 

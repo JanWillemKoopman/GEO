@@ -552,3 +552,52 @@ export function checkQuality(input: QualityInput): QualityResult {
     },
   };
 }
+
+// ════════════════════════════════════════════════════════════════════════════
+// VERBODEN WOORDEN (migratie 0045, C.29): het deterministische vangnet
+// ════════════════════════════════════════════════════════════════════════════
+//
+// Conventie 1: een promptinstructie is een intentie, code is een garantie.
+// `CONTENT_SYSTEM` in content.ts draagt het model al op de verboden lijst
+// nooit te gebruiken; dit is de code-garantie ernaast, hetzelfde patroon als
+// `mention_role: m.mentioned ? m.role : null` en `normalizePosition()`. Een
+// model dat "gebruik dit woord nooit" krijgt, gebruikt het soms toch, precies
+// zoals het bij 10 van 27 niet-genoemde merken toch een rol invulde.
+
+export interface TabooCheckResult {
+  /** Welke verboden woorden daadwerkelijk in de tekst staan. Leeg = schoon. */
+  found: string[];
+  issues: string[];
+}
+
+/**
+ * Hoofdletterongevoelige woordgrens-match, geen stam-vergelijking: een
+ * verboden woord moet exact staan, niet een verwant woord (anders keurt
+ * "gratis" ook "vrijgesteld" af).
+ */
+function bevatVerbodenWoord(tekst: string, woord: string): boolean {
+  const escaped = woord.trim().replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  if (!escaped) return false;
+  return new RegExp(`\\b${escaped}\\b`, "i").test(tekst);
+}
+
+export function checkTabooWords(
+  bodyMarkdown: string,
+  faq: { q: string; a: string }[],
+  tabooPhrases: string[],
+): TabooCheckResult {
+  if (tabooPhrases.length === 0) return { found: [], issues: [] };
+
+  const heleTekst = [stripMarkdown(bodyMarkdown), ...faq.map((f) => `${f.q} ${f.a}`)].join(" ");
+  const found = tabooPhrases.filter((w) => bevatVerbodenWoord(heleTekst, w));
+
+  if (found.length === 0) return { found: [], issues: [] };
+
+  return {
+    found,
+    issues: [
+      `De pagina bevat ${found.length === 1 ? "een woord" : "woorden"} die je hebt uitgesloten: ` +
+        `"${found.join('", "')}". Verwijder ${found.length === 1 ? "dit" : "deze"} of formuleer het anders.`,
+    ],
+  };
+}

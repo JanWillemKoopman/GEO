@@ -9,12 +9,10 @@ import { PageHeader } from "@/components/page-header";
 import { activeOnly } from "@/lib/archive";
 import { STATUS_META } from "@/lib/analysis-status";
 import { loadDashboard } from "@/lib/dashboard";
+import { formatRelativeTime } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
-
-function formatDate(iso: string): string {
-  return new Date(iso).toLocaleDateString("nl-NL", { day: "numeric", month: "short", year: "numeric" });
-}
+export const metadata = { title: "Mijn analyses" };
 
 export default async function AnalysesPage() {
   const user = await requireUser();
@@ -89,7 +87,7 @@ export default async function AnalysesPage() {
                 <div className="flex flex-wrap items-center justify-between gap-4">
                   <div className="min-w-0">
                     <p className="truncate text-lg font-semibold">{a.name}</p>
-                    <p className="mono-label mt-1">Bijgewerkt {formatDate(a.updated_at)}</p>
+                    <p className="mono-label mt-1">Bijgewerkt {formatRelativeTime(a.updated_at)}</p>
                   </div>
                   <StatusBadge status={a.status} />
                 </div>

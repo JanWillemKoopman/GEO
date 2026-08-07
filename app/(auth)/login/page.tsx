@@ -2,6 +2,8 @@ import { AuthForm } from "../auth-form";
 import { signIn } from "../actions";
 import { signupsEnabled } from "@/lib/config";
 
+export const metadata = { title: "Inloggen" };
+
 export default async function LoginPage({
   searchParams,
 }: {

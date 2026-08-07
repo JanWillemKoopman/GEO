@@ -80,9 +80,11 @@ export function ProfileEditor({ initial, inventoryCount }: { initial: Profile; i
       }
       setCount(json.count ?? 0);
       setRefreshState("done");
-    } catch (err) {
+    } catch {
+      // A.5: geen rauwe JS-foutmelding ("Failed to fetch") op het scherm, dat
+      // zegt niets over wat de klant eraan kan doen.
       setRefreshState("error");
-      setRefreshError(err instanceof Error ? err.message : String(err));
+      setRefreshError("We konden Aura niet bereiken. Controleer je verbinding en probeer het opnieuw.");
     }
   }
 
