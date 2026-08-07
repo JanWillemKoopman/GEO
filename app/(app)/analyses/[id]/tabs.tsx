@@ -41,7 +41,7 @@ export function AnalysisNav({
   const onSettings = pathname.startsWith(`${base}/instellingen`);
 
   return (
-    <div className="flex flex-wrap items-center gap-2 border-b border-[var(--border-subtle)] pb-3">
+    <div className="no-print flex flex-wrap items-center gap-2 border-b border-[var(--border-subtle)] pb-3">
       <NavLink href={base} active={onDossier}>
         Analyse
       </NavLink>

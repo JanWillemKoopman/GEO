@@ -403,6 +403,18 @@ body {
   font-size: 0.875rem;
 }
 
+/* B.15: 44px, de aanbevolen minimale tikdoelgrootte (WCAG 2.5.5, Apple HIG).
+   Niet de standaard, `.btn-primary`/`.btn-outline` blijven bewust 40px (zie
+   hierboven), een scherm vol 44px-knoppen zou de dichtheid weer opgeven die
+   Nova's product juist onderscheidt van hun marketingsite. Dit is voor de ÉNE
+   hoofdactie van een scherm dat vaak op een telefoon bediend wordt: bevestigen,
+   publiceren, "schrijf alles". Combineren met `.btn-primary` of `.btn-outline`. */
+.btn-lg {
+  height: 44px;
+  padding: 0 20px;
+  font-size: 1rem;
+}
+
 /* ── Chip en badge ──────────────────────────────────────────────────────────
    Nova's badges zijn klein, pilvormig, in schrijftaal en in de sans. Ze waren
    hier uppercase mono met brede tracking: dat leest als een technische
@@ -621,5 +633,45 @@ textarea.field {
   }
   * {
     transition-duration: 0.01ms !important;
+  }
+}
+
+/**
+ * Printen/PDF (B.13). Het "rapport" is geen aparte pagina, het IS het dossier
+ * (`analyses/[id]/page.tsx`, vier hoofdstukken): een klant die het wil delen
+ * met een collega die niet inlogt, drukt dit scherm af of bewaart het als PDF.
+ *
+ * `.no-print` staat op de chrome die alleen op scherm iets betekent: bovenbalk,
+ * hoofdstuk-rail, tabbladen, de vaste goedkeuringsbalk. Knoppen verdwijnen in
+ * hun geheel, op papier doet geen enkele knop iets.
+ */
+@media print {
+  .no-print,
+  button,
+  a.btn-primary,
+  a.btn-outline,
+  a.btn-danger {
+    display: none !important;
+  }
+
+  html,
+  body {
+    background: #ffffff !important;
+  }
+
+  * {
+    box-shadow: none !important;
+    backdrop-filter: none !important;
+    animation: none !important;
+  }
+
+  .card {
+    break-inside: avoid;
+    border-color: #d0d7de !important;
+  }
+
+  a {
+    color: inherit;
+    text-decoration: underline;
   }
 }

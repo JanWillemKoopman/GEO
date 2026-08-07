@@ -11,6 +11,7 @@ import { Chapter } from "@/components/chapter";
 import { SectionRail } from "@/components/section-rail";
 import { PeriodPicker } from "@/components/period-picker";
 import { ChapterSkeleton } from "@/components/skeleton";
+import { SectionErrorBoundary } from "@/components/section-error-boundary";
 import { StandChapter } from "./_chapters/stand";
 import { BewijsChapter } from "./_chapters/bewijs";
 import { WerkChapter } from "./_chapters/werk";
@@ -116,9 +117,11 @@ export default async function DossierPage({
           intro="Eén cijfer: hoe vaak AI-assistenten jou noemen op de vragen die er in jouw markt toe doen."
           aside={<PeriodPicker analysisId={id} periods={periods} selected={weekNo} />}
         >
-          <Suspense fallback={<ChapterSkeleton blocks={2} />}>
-            <StandChapter analysis={analysis} weekNo={weekNo} />
-          </Suspense>
+          <SectionErrorBoundary label="Hoofdstuk 01, Hoe je ervoor staat">
+            <Suspense fallback={<ChapterSkeleton blocks={2} />}>
+              <StandChapter analysis={analysis} weekNo={weekNo} />
+            </Suspense>
+          </SectionErrorBoundary>
         </Chapter>
 
         <Chapter
@@ -128,9 +131,11 @@ export default async function DossierPage({
           accent="en mist"
           intro="Het bewijs onder het cijfer. Tegen wie je het opneemt, en op welke vragen je nu niet genoemd wordt."
         >
-          <Suspense fallback={<ChapterSkeleton blocks={2} />}>
-            <BewijsChapter analysis={analysis} weekNo={weekNo} focusRuns={runs} />
-          </Suspense>
+          <SectionErrorBoundary label="Hoofdstuk 02, Waar je wint en mist">
+            <Suspense fallback={<ChapterSkeleton blocks={2} />}>
+              <BewijsChapter analysis={analysis} weekNo={weekNo} focusRuns={runs} />
+            </Suspense>
+          </SectionErrorBoundary>
         </Chapter>
 
         <Chapter
@@ -140,9 +145,11 @@ export default async function DossierPage({
           accent="moet doen"
           intro="Alles wat er te doen valt, op volgorde van belang. Bovenaan staat wat zonder jou stilligt."
         >
-          <Suspense fallback={<ChapterSkeleton blocks={2} />}>
-            <WerkChapter analysis={analysis} work={work} />
-          </Suspense>
+          <SectionErrorBoundary label="Hoofdstuk 03, Wat je nu moet doen">
+            <Suspense fallback={<ChapterSkeleton blocks={2} />}>
+              <WerkChapter analysis={analysis} work={work} />
+            </Suspense>
+          </SectionErrorBoundary>
         </Chapter>
 
         <Chapter
@@ -152,9 +159,11 @@ export default async function DossierPage({
           accent="opgeleverd"
           intro="Wat je gepubliceerde pagina's met je zichtbaarheid deden, afgezet tegen vragen waarvoor je niets deed. Gemeten, niet beloofd."
         >
-          <Suspense fallback={<ChapterSkeleton blocks={1} />}>
-            <ResultaatChapter analysis={analysis} />
-          </Suspense>
+          <SectionErrorBoundary label="Hoofdstuk 04, Wat het heeft opgeleverd">
+            <Suspense fallback={<ChapterSkeleton blocks={1} />}>
+              <ResultaatChapter analysis={analysis} />
+            </Suspense>
+          </SectionErrorBoundary>
         </Chapter>
 
         <p className="text-sm text-muted">

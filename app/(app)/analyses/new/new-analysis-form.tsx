@@ -132,7 +132,7 @@ export function NewAnalysisForm({
         </p>
       )}
 
-      <button type="submit" disabled={pending} className="btn-primary w-full disabled:opacity-60">
+      <button type="submit" disabled={pending} className="btn-primary btn-lg w-full disabled:opacity-60">
         {pending ? "Analyse aanmaken…" : "Start analyse"}
       </button>
     </form>

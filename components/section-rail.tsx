@@ -53,7 +53,7 @@ export function SectionRail({ sections }: { sections: RailSection[] }) {
       {/* Desktop: verticale rail naast de inhoud. */}
       <nav
         aria-label="Hoofdstukken"
-        className="sticky top-24 hidden w-44 shrink-0 flex-col self-start lg:flex"
+        className="no-print sticky top-24 hidden w-44 shrink-0 flex-col self-start lg:flex"
       >
         {sections.map((s, i) => (
           <RailItem key={s.id} section={s} index={i} active={active === s.id} />
@@ -64,7 +64,7 @@ export function SectionRail({ sections }: { sections: RailSection[] }) {
           Glaslaag zoals de header (§A3) zodat de inhoud eronder doorschemert. */}
       <nav
         aria-label="Hoofdstukken"
-        className="sticky top-[57px] z-10 -mx-6 mb-2 flex gap-2 overflow-x-auto border-b border-[var(--border-subtle)] bg-[var(--bg-base-blur)] px-6 py-2.5 backdrop-blur-md lg:hidden"
+        className="no-print sticky top-[57px] z-10 -mx-6 mb-2 flex gap-2 overflow-x-auto border-b border-[var(--border-subtle)] bg-[var(--bg-base-blur)] px-6 py-2.5 backdrop-blur-md lg:hidden"
       >
         {sections.map((s, i) => {
           const on = active === s.id;

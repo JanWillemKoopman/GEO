@@ -104,7 +104,7 @@ export function GenerateAllButton({
       <button
         onClick={() => void generateAll()}
         disabled={state === "busy"}
-        className="btn-primary w-fit"
+        className="btn-primary btn-lg w-fit"
       >
         {state === "busy" ? "In de rij zetten…" : `Schrijf alle ${remaining} pagina's`}
       </button>

@@ -159,7 +159,7 @@ export function PublishBox({
             aria-label="Link naar de gepubliceerde pagina"
             disabled={state === "busy"}
           />
-          <button type="submit" className="btn-primary shrink-0" disabled={state === "busy" || !url.trim()}>
+          <button type="submit" className="btn-primary btn-lg shrink-0" disabled={state === "busy" || !url.trim()}>
             Dit staat live
           </button>
         </form>

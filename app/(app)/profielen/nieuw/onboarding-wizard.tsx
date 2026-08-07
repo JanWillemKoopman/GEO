@@ -194,7 +194,7 @@ export function OnboardingWizard() {
             type="button"
             onClick={() => void submit(false)}
             disabled={pending || !canSubmit}
-            className="btn-primary disabled:opacity-60"
+            className="btn-primary btn-lg disabled:opacity-60"
           >
             {pending ? "Onderzoek starten…" : "Start het onderzoek"}
           </button>

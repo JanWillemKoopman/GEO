@@ -20,7 +20,7 @@ import type { User } from "@supabase/supabase-js";
 export function AppShell({ user, children }: { user: User; children: React.ReactNode }) {
   return (
     <div className="flex min-h-dvh flex-col">
-      <header className="sticky top-0 z-20 border-b border-[var(--border-subtle)] bg-[var(--bg-base-blur)] backdrop-blur-md">
+      <header className="no-print sticky top-0 z-20 border-b border-[var(--border-subtle)] bg-[var(--bg-base-blur)] backdrop-blur-md">
         <div className="mx-auto flex max-w-5xl items-center justify-between gap-4 px-6 py-3">
           <Link href="/analyses" className="text-lg font-bold tracking-tight">
             <span className="brand-gradient-text">Aura</span>

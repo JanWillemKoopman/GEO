@@ -55,13 +55,13 @@ export function ConfirmBar({
   return (
     <>
       {/* Spacer, zodat de balk het einde van de inhoud nooit bedekt. */}
-      <div className="h-24" aria-hidden />
-      <div className="fixed inset-x-0 bottom-0 z-30 border-t border-[var(--border-subtle)] bg-[var(--bg-base-blur)] px-6 py-3 backdrop-blur-md">
+      <div className="no-print h-24" aria-hidden />
+      <div className="no-print fixed inset-x-0 bottom-0 z-30 border-t border-[var(--border-subtle)] bg-[var(--bg-base-blur)] px-6 py-3 backdrop-blur-md">
         <div className="mx-auto flex max-w-5xl flex-wrap items-center gap-x-4 gap-y-2">
           <button
             onClick={() => void confirm()}
             disabled={pending}
-            className="btn-primary w-full disabled:opacity-60 sm:w-auto"
+            className="btn-primary btn-lg w-full disabled:opacity-60 sm:w-auto"
           >
             {pending ? "Meting starten…" : "Bevestig en start de meting"}
           </button>

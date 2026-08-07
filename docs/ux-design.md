@@ -118,7 +118,9 @@ schermen die de gebruiker na elkaar ziet).
 | `.card` | Wit, één rand, **plat**. Geen schaduw, geen hover; een kaart die bij hover omhoog komt belooft interactie. |
 | `.card-interactive` | Alleen op daadwerkelijk klikbare kaarten (de lijstitems). Hier hoort de hover. |
 | `.card-accent` / `.card-danger` / `.card-success` / `.card-warning` | Getinte kaartranden. |
-| `.btn-primary` / `.btn-outline` | Beide 40px, `--radius-md`, geen pil meer. `.btn-sm` = 32px. Eén hoogte-schaal, geen uitzonderingen. |
+| `.btn-primary` / `.btn-outline` | Beide 40px, `--radius-md`, geen pil meer. `.btn-sm` = 32px, `.btn-lg` = 44px. |
+| `.btn-lg` | 44px, de aanbevolen minimale tikdoelgrootte (WCAG 2.5.5). Combineren met `.btn-primary`/`.btn-outline`, alleen op de ÉNE hoofdactie van een scherm dat vaak op een telefoon bediend wordt (bevestigen, publiceren, "schrijf alles"). Niet de standaard, anders verdwijnt de dichtheid die 40px juist opleverde. |
+| `.no-print` | Verbergt chrome (bovenbalk, hoofdstuk-rail, tabbladen, vaste actiebalken) in het printstijlblad onderaan `globals.css` (B.13). Het dossier IS het rapport, er is geen aparte printpagina. |
 | `.chip` + `-success` / `-danger` / `-warning` / `-info` / `-attention` / `-neutral` / `-green` | Pilvormig, sans, schrijftaal. Nooit met de hand een tint nabouwen. Dat gebeurde toch, in vijf componenten tegelijk; zie regel 1 hierboven en de `grep` die het nu tegenhoudt. |
 | `.mono-label` | De kicker bóven een titel: klein, uppercase, **sans**. Heet nog "mono" omdat hij op tientallen plekken staat; hernoemen raakt te veel bestanden voor alleen een naam. |
 | `.stat-value` | Cijfers die je vergelijkt, in mono met `tabular-nums`. |
@@ -140,6 +142,11 @@ database-queries een dood interval zonder enige terugkoppeling.
   vorm van de kaarten die eronder komen.
 - **`app/error.tsx`** en **`app/not-found.tsx`** renderen binnen de AppShell, via `ErrorNotice`:
   mensentaal boven, techniek weggevouwen. Nooit een kale Next.js-foutpagina.
+- **`SectionErrorBoundary`** (`components/section-error-boundary.tsx`) isoleert een crash tot één
+  sectie. `app/error.tsx` vangt de HELE pagina; het dossier (`analyses/[id]/page.tsx`) heeft vier
+  onafhankelijke hoofdstukken achter elk hun eigen `<Suspense>`, en die staan nu ook elk achter een
+  eigen boundary. Crasht hoofdstuk 02 op een onverwachte datavorm, dan blijven 01, 03 en 04 gewoon
+  werken.
 - **Lege staat** = `EmptyState`, en die wijst altijd naar de juiste volgende stap. Een lege
   `/analyses` die alleen "geen analyses" zegt is een dood einde bij de instap.
 - **Voortgang is server-state.** Elke live indicator wordt afgeleid van `analyses.status` + de
