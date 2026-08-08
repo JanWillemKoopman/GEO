@@ -18,7 +18,11 @@ import { factsFromSnapshot } from "@/lib/pipeline/briefing";
 import { detectClaimSentences, claimMatchesSentence } from "@/lib/pipeline/claim-extract";
 import { isSupported, type WrittenClaim } from "@/lib/pipeline/factcard";
 import { versionReasonOf } from "@/lib/pipeline/version-reason";
+import { resolvedContentUrl } from "@/lib/pipeline/slug";
 import { ExternalLink } from "@/components/external-link";
+import { WhyThisPage } from "@/components/why-this-page";
+import { SearchPreview } from "@/components/search-preview";
+import { VersionDiff } from "@/components/version-diff";
 import type { ContentPiece, ContentPieceTarget } from "@/lib/types/database";
 
 interface Faq {
@@ -145,6 +149,19 @@ export default async function ContentDetailPage({
     .in("status", ["open", "overgeslagen"]);
   const unansweredRequired = (openVragen ?? []).map((v) => v.question as string);
 
+  // Content-editie, onderdeel 2: welke URL toon je in het zoekresultaat-
+  // voorbeeld? Eenmalig hier bepaald (verandert niet tijdens het bewerken),
+  // en doorgegeven aan zowel de statische preview hieronder als de live
+  // preview binnen ContentEditor.
+  const previewUrl = resolvedContentUrl({
+    publishedUrl: piece.published_url,
+    action: piece.action,
+    existingUrl: piece.existing_url,
+    siteUrl: analysis.url,
+    title: piece.title,
+    type: piece.type,
+  });
+
   return (
     <div className="flex flex-col gap-5">
       <Link
@@ -186,32 +203,18 @@ export default async function ContentDetailPage({
         )}
       </div>
 
-      {/* Waar deze pagina voor gemaakt is (optimalisatie.md 4.1/4.11). Zonder dit
-          blok is een gegenereerde tekst een tekst; mét dit blok is het een
-          antwoord op een vraag waarop de klant nu niet genoemd wordt. */}
-      {targets.length > 0 && (
-        <div className="card flex flex-col gap-2">
-          <span className="mono-label">Deze pagina moet deze vragen winnen</span>
-          <ul className="flex flex-col gap-1">
-            {targets.map((t) => (
-              <li key={t.id} className="text-sm text-secondary">
-                &ldquo;{t.prompt_text}&rdquo;
-              </li>
-            ))}
-          </ul>
-          {targets.some((t) => t.tracking_run_id) && (
-            <Link
-              href={`/analyses/${id}?runs=${targets
-                .map((t) => t.tracking_run_id)
-                .filter(Boolean)
-                .join(",")}`}
-              className="mono-label w-fit underline transition-colors hover:text-[var(--text-primary)]"
-            >
-              Zie wat de AI hier nu antwoordt
-            </Link>
-          )}
-        </div>
-      )}
+      {/* Context: waarom deze pagina (optimalisatie.md 4.1/4.11, content-editie
+          onderdeel 5). Zonder dit blok is een gegenereerde tekst een tekst; mét
+          dit blok is het een antwoord op een vraag waarop de klant nu niet
+          genoemd wordt. */}
+      <WhyThisPage
+        analysisId={id}
+        targets={targets}
+        targetIntent={piece.target_intent}
+        cluster={piece.cluster}
+        action={piece.action}
+        existingUrl={piece.existing_url}
+      />
 
       {/* "Check nodig" uitleggen (optimalisatie.md 4.13). Het gele label zei
           niet WÁT er gecheckt moest worden; die punten stonden alleen in de ruwe
@@ -231,10 +234,38 @@ export default async function ContentDetailPage({
         </div>
       )}
 
+      {/* Wat er nu staat: het zoekresultaat-voorbeeld (content-editie,
+          onderdeel 2), en daarna het artikel zelf. */}
+      <SearchPreview
+        title={piece.title}
+        metaTitle={piece.meta_title ?? ""}
+        metaDescription={piece.meta_description ?? ""}
+        url={previewUrl.url}
+        isReal={previewUrl.isReal}
+      />
+
+      <TableOfContents headings={headings} />
+
+      <article className="card prose max-w-none" dangerouslySetInnerHTML={{ __html: bodyHtml }} />
+
+      {faq.length > 0 && (
+        <div className="card flex flex-col gap-4">
+          <span className="mono-label">FAQ</span>
+          <div className="flex flex-col gap-3">
+            {faq.map((item, i) => (
+              <div key={i} className="border-b border-[var(--border-subtle)] pb-3 last:border-0 last:pb-0">
+                <p className="font-medium">{item.q}</p>
+                <p className="mt-1 text-secondary">{item.a}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Kwaliteitscontrole: de GEO-score, het vrijgavepaneel en de
+          redactionele samenvatting, als groep vóór het bewerken. */}
       {geo && <GeoScorecard geo={geo} score={piece.geo_score} />}
 
-      {/* Het vrijgavepaneel (S6). Toont waarop deze pagina gebouwd is, en maakt
-          van "klaar" een handeling in plaats van een restwaarde. */}
       <ReleasePanel
         analysisId={id}
         pieceId={pieceId}
@@ -276,28 +307,61 @@ export default async function ContentDetailPage({
         {piece.edited_by_user && <span className="text-sm text-muted">door jou bewerkt</span>}
       </div>
 
-      {(piece.meta_title || piece.meta_description) && (
+      {/* Bewerken: tekst, titel, meta, FAQ, met een live voorbeeld. */}
+      <ContentEditor
+        analysisId={id}
+        pieceId={pieceId}
+        initial={{
+          title: piece.title,
+          bodyMarkdown: piece.body_markdown ?? "",
+          metaTitle: piece.meta_title ?? "",
+          metaDescription: piece.meta_description ?? "",
+          faq,
+        }}
+        previewUrl={previewUrl}
+      />
+
+      <ReviseBox analysisId={id} pieceId={pieceId} />
+
+      {/* Geschiedenis en vergelijken. */}
+      {versions.length > 1 && (
         <div className="card flex flex-col gap-2">
-          <span className="mono-label">Meta</span>
-          {piece.meta_title && (
-            <p className="text-sm">
-              <span className="text-muted">Title: </span>
-              <span className="text-secondary">{piece.meta_title}</span>
-            </p>
-          )}
-          {piece.meta_description && (
-            <p className="text-sm">
-              <span className="text-muted">Description: </span>
-              <span className="text-secondary">{piece.meta_description}</span>
-            </p>
-          )}
+          <span className="mono-label">Eerdere versies</span>
+          <ul className="flex flex-col gap-1.5">
+            {versions.map((v, i) => {
+              // C.24: waarom deze versie bestaat, in mensentaal. Voorheen stond
+              // hier alleen iets bij een revision_note; een automatische
+              // herschrijving na de eigen kritiekronde van Aura (geen notitie,
+              // geen klant-bewerking) toonde niets, alsof er zomaar een nieuwe
+              // versie verscheen.
+              const reason = versionReasonOf({
+                version: v.version,
+                revisionNote: v.revision_note,
+                editedByUser: v.edited_by_user,
+              });
+              const vorige = versions[i + 1];
+              return (
+                <li key={v.id} className="flex flex-col gap-1">
+                  <div className="flex flex-wrap items-baseline gap-2 text-sm">
+                    {v.id === pieceId ? (
+                      <span className="font-medium">Versie {v.version} (je bekijkt deze)</span>
+                    ) : (
+                      <Link href={`/analyses/${id}/bibliotheek/${v.id}`} className="underline">
+                        Versie {v.version}
+                      </Link>
+                    )}
+                    <span className="text-muted">{formatDateLong(v.created_at)}</span>
+                    <span className="text-secondary">{reason.label}</span>
+                  </div>
+                  {vorige && <VersionDiff analysisId={id} pieceId={v.id} previousId={vorige.id} />}
+                </li>
+              );
+            })}
+          </ul>
         </div>
       )}
 
-      <TableOfContents headings={headings} />
-
-      <article className="card prose max-w-none" dangerouslySetInnerHTML={{ __html: bodyHtml }} />
-
+      {/* Publiceren. */}
       <PublishBox
         analysisId={id}
         pieceId={pieceId}
@@ -315,65 +379,6 @@ export default async function ContentDetailPage({
         siteUrl={analysis.url}
         hasSchema={Boolean(piece.schema_jsonld?.trim())}
       />
-
-      <ContentEditor
-        analysisId={id}
-        pieceId={pieceId}
-        initial={{
-          bodyMarkdown: piece.body_markdown ?? "",
-          metaTitle: piece.meta_title ?? "",
-          metaDescription: piece.meta_description ?? "",
-        }}
-      />
-
-      <ReviseBox analysisId={id} pieceId={pieceId} />
-
-      {versions.length > 1 && (
-        <div className="card flex flex-col gap-2">
-          <span className="mono-label">Eerdere versies</span>
-          <ul className="flex flex-col gap-1.5">
-            {versions.map((v) => {
-              // C.24: waarom deze versie bestaat, in mensentaal. Voorheen stond
-              // hier alleen iets bij een revision_note; een automatische
-              // herschrijving na de eigen kritiekronde van Aura (geen notitie,
-              // geen klant-bewerking) toonde niets, alsof er zomaar een nieuwe
-              // versie verscheen.
-              const reason = versionReasonOf({
-                version: v.version,
-                revisionNote: v.revision_note,
-                editedByUser: v.edited_by_user,
-              });
-              return (
-                <li key={v.id} className="flex flex-wrap items-baseline gap-2 text-sm">
-                  {v.id === pieceId ? (
-                    <span className="font-medium">Versie {v.version} (je bekijkt deze)</span>
-                  ) : (
-                    <Link href={`/analyses/${id}/bibliotheek/${v.id}`} className="underline">
-                      Versie {v.version}
-                    </Link>
-                  )}
-                  <span className="text-muted">{formatDateLong(v.created_at)}</span>
-                  <span className="text-secondary">{reason.label}</span>
-                </li>
-              );
-            })}
-          </ul>
-        </div>
-      )}
-
-      {faq.length > 0 && (
-        <div className="card flex flex-col gap-4">
-          <span className="mono-label">FAQ</span>
-          <div className="flex flex-col gap-3">
-            {faq.map((item, i) => (
-              <div key={i} className="border-b border-[var(--border-subtle)] pb-3 last:border-0 last:pb-0">
-                <p className="font-medium">{item.q}</p>
-                <p className="mt-1 text-secondary">{item.a}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
     </div>
   );
 }

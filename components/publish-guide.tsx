@@ -1,5 +1,6 @@
 import { InfoHint } from "@/components/info-hint";
 import { ExternalLink } from "@/components/external-link";
+import { suggestedPath } from "@/lib/pipeline/slug";
 import type { ContentAction, ContentType } from "@/lib/types/database";
 
 /**
@@ -13,25 +14,6 @@ import type { ContentAction, ContentType } from "@/lib/types/database";
  * De toon is die van een collega die het even voordoet, niet die van een
  * handleiding: de doelgroep is een ondernemer, niet een webbouwer.
  */
-function slugFrom(title: string): string {
-  return (
-    title
-      .toLowerCase()
-      .normalize("NFD")
-      .replace(/[̀-ͯ]/g, "")
-      .replace(/[^a-z0-9]+/g, "-")
-      .replace(/^-+|-+$/g, "")
-      .slice(0, 60) || "nieuwe-pagina"
-  );
-}
-
-/** Waar dit type pagina doorgaans hoort te staan. */
-const PATH_HINT: Record<ContentType, string> = {
-  article: "kennis",
-  faq: "veelgestelde-vragen",
-  landing: "",
-  comparison: "vergelijken",
-};
 
 export function PublishGuide({
   title,
@@ -48,9 +30,7 @@ export function PublishGuide({
   siteUrl: string;
   hasSchema: boolean;
 }) {
-  const slug = slugFrom(title);
-  const prefix = PATH_HINT[type];
-  const suggestedPath = prefix ? `/${prefix}/${slug}` : `/${slug}`;
+  const path = suggestedPath(title, type);
   const host = siteUrl.replace(/^https?:\/\//, "").replace(/\/+$/, "");
 
   return (
@@ -81,7 +61,7 @@ export function PublishGuide({
               Voorstel voor het adres:{" "}
               <code className="rounded bg-[var(--bg-elevated)] px-1 py-0.5 text-xs">
                 {host}
-                {suggestedPath}
+                {path}
               </code>
               . Kort, met woorden uit de vraag erin, en zonder datum of nummers.
             </>

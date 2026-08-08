@@ -540,6 +540,56 @@ interface ContentContext {
   schemaOrg: OrganizationInfo | null;
 }
 
+/**
+ * Bouwt de organisatieknoop voor JSON-LD uit een profiel plus zijn `sameAs`-
+ * lijst (content-editie, FAQ-editing: geëxtraheerd uit wat hier eerder alleen
+ * inline in `loadContentContext()` stond). Puur, geen database: zowel
+ * `loadContentContext()` hieronder als `loadSchemaOrg()` (voor een losse
+ * FAQ-bewerking via de PATCH-route) roepen deze aan, zodat de regel voor "wat
+ * is de organisatieknoop" op precies één plek staat (conventie 1).
+ */
+export function buildSchemaOrg(
+  profile: Pick<Profile, "brand_name" | "name" | "url"> | null,
+  sameAs: string[],
+): OrganizationInfo | null {
+  if (!profile) return null;
+  return {
+    name: profile.brand_name ?? profile.name,
+    // De hoofd-URL van het merk, niet die van de pagina. `profiles.url` is
+    // een kale hostnaam (`normalizeUrl`), dus het schema komt er hier bij.
+    url: `https://${profile.url.replace(/^https?:\/\//, "")}`,
+    sameAs,
+  };
+}
+
+/**
+ * Haalt profiel plus techniek-facet zelf op en bouwt de organisatieknoop
+ * (`buildSchemaOrg()`). Voor plekken die de rest van `ContentContext` niet
+ * nodig hebben, zoals de PATCH-route die alleen `schema_jsonld` moet
+ * herbouwen na een FAQ-bewerking: die zou anders de volle
+ * `loadContentContext()` moeten aanroepen, of zelf een tweede kopie van deze
+ * query bouwen. Geen extra kosten: dezelfde twee lichte queries als
+ * `loadContentContext()` al deed, nu alleen op verzoek.
+ */
+export async function loadSchemaOrg(
+  admin: ReturnType<typeof createAdminClient>,
+  profileId: string,
+): Promise<OrganizationInfo | null> {
+  const [{ data: profileRow }, { data: techniekFacet }] = await Promise.all([
+    admin.from("profiles").select("brand_name, name, url").eq("id", profileId).maybeSingle(),
+    admin
+      .from("profile_facets")
+      .select("raw_json")
+      .eq("profile_id", profileId)
+      .eq("facet", "techniek")
+      .maybeSingle(),
+  ]);
+  return buildSchemaOrg(
+    profileRow as Pick<Profile, "brand_name" | "name" | "url"> | null,
+    (techniekFacet?.raw_json as { sameAs?: string[] } | null)?.sameAs ?? [],
+  );
+}
+
 async function loadContentContext(
   admin: ReturnType<typeof createAdminClient>,
   analysisId: string,
@@ -821,17 +871,10 @@ async function loadContentContext(
     competitors,
     targets,
     distinctiveAnswers,
-    schemaOrg: profile
-      ? {
-          name: profile.brand_name ?? profile.name,
-          // De hoofd-URL van het merk, niet die van de pagina. `profiles.url` is
-          // een kale hostnaam (`normalizeUrl`), dus het schema komt er hier bij.
-          url: `https://${profile.url.replace(/^https?:\/\//, "")}`,
-          sameAs:
-            ((techniekFacet?.raw_json as { sameAs?: string[] } | null)?.sameAs ??
-              []),
-        }
-      : null,
+    schemaOrg: buildSchemaOrg(
+      profile,
+      (techniekFacet?.raw_json as { sameAs?: string[] } | null)?.sameAs ?? [],
+    ),
     brandName: profile?.brand_name ?? analysis.url,
     needsFactFinding: contentWebSearchEnabled && proofCount < minProofPointsForConcreteContent,
     baseInput: buildContentInput({

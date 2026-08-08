@@ -45,3 +45,29 @@ export const ContentPiece = z.object({
 });
 
 export type ContentPiece = z.infer<typeof ContentPiece>;
+
+/**
+ * De FAQ zoals de klant hem zelf bewerkt (content-editie, onderdeel 3). Los
+ * van `ContentPiece.faq` hierboven: dat schema is voor wat het model
+ * TERUGGEEFT, dit is voor wat een mens via de PATCH-route INSTUURT, en die
+ * twee mogen verschillende regels hebben, een klant tikt geen `targetIntent`
+ * of `claims` in.
+ *
+ * Grenzen (12 paren, 200/600 tekens) zijn een inschatting, geen meting, net
+ * als `DUPLICATE_THRESHOLD` in `lib/pipeline/similarity.ts`. Aan te passen
+ * zodra er echte gevallen zijn die ertegenaan lopen.
+ */
+const FAQ_EDIT_MAX_ITEMS = 12;
+const FAQ_EDIT_MAX_QUESTION_LENGTH = 200;
+const FAQ_EDIT_MAX_ANSWER_LENGTH = 600;
+
+export const FaqEdit = z
+  .array(
+    z.object({
+      q: z.string().trim().min(1, "Een vraag mag niet leeg zijn").max(FAQ_EDIT_MAX_QUESTION_LENGTH),
+      a: z.string().trim().min(1, "Een antwoord mag niet leeg zijn").max(FAQ_EDIT_MAX_ANSWER_LENGTH),
+    }),
+  )
+  .max(FAQ_EDIT_MAX_ITEMS, `Maximaal ${FAQ_EDIT_MAX_ITEMS} vraag-en-antwoordparen`);
+
+export type FaqEditItem = z.infer<typeof FaqEdit>[number];

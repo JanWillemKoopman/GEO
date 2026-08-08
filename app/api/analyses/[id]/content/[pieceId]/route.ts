@@ -4,6 +4,9 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { getOwnedAnalysis } from "@/lib/analyses";
 import { planContentDraft, toPayload } from "@/lib/jobs/content-jobs";
 import { readRecommendations } from "@/lib/pipeline/recommendation";
+import { loadSchemaOrg } from "@/lib/pipeline/content";
+import { validateOrRebuildJsonLd, bestaandeDatePublished } from "@/lib/schema-jsonld";
+import { FaqEdit } from "@/lib/schemas/content-piece";
 import { describeError, classifyError } from "@/lib/errors";
 import type { ContentPiece, ContentPieceTarget } from "@/lib/types/database";
 import type { StoredRecommendation } from "@/lib/pipeline/recommendation";
@@ -22,7 +25,8 @@ import type { StoredRecommendation } from "@/lib/pipeline/recommendation";
 const MAX_NOTE_LENGTH = 2000;
 
 /**
- * PATCH: de klant schaaft de tekst zelf bij (optimalisatie.md 4.12).
+ * PATCH: de klant schaaft de tekst zelf bij (optimalisatie.md 4.12, content-
+ * editie onderdeel 3/4).
  *
  * Tot nu toe kon hij alleen kopiëren of downloaden. Een tekst die je niet kunt
  * bijschaven, publiceer je niet. Dan blijft hij in de bibliotheek liggen en
@@ -44,7 +48,8 @@ export async function PATCH(
   if (!user) return NextResponse.json({ error: "Je bent niet ingelogd." }, { status: 401 });
 
   const admin = createAdminClient();
-  if (!(await getOwnedAnalysis(admin, id, user.id))) {
+  const analysis = await getOwnedAnalysis(admin, id, user.id);
+  if (!analysis) {
     return NextResponse.json({ error: "Niet gevonden." }, { status: 404 });
   }
 
@@ -59,6 +64,22 @@ export async function PATCH(
   for (const field of EDITABLE_FIELDS) {
     if (typeof body[field] === "string") update[field] = (body[field] as string).trim();
   }
+
+  // FAQ zit niet in EDITABLE_FIELDS: het is een array, geen string, en komt
+  // dus niet door de lus hierboven. Eigen validatie via het zod-schema dat
+  // ook het invoerformulier gebruikt, zodat client en server exact dezelfde
+  // grenzen hanteren.
+  if (Array.isArray(body.faq_json)) {
+    const parsed = FaqEdit.safeParse(body.faq_json);
+    if (!parsed.success) {
+      return NextResponse.json(
+        { error: "De FAQ kon niet worden opgeslagen: controleer de vragen en antwoorden." },
+        { status: 400 },
+      );
+    }
+    update.faq_json = parsed.data;
+  }
+
   if (Object.keys(update).length === 1) {
     return NextResponse.json({ error: "Niets om op te slaan." }, { status: 400 });
   }
@@ -67,6 +88,42 @@ export async function PATCH(
   // getal dat niet meer klopt met de tekst die eronder staat.
   if (typeof update.body_markdown === "string") {
     update.word_count = (update.body_markdown as string).trim().split(/\s+/).filter(Boolean).length;
+  }
+
+  // ── FAQ gewijzigd op een FAQ-pagina: schema.org meebewegen ────────────────
+  //
+  // `validateOrRebuildJsonLd()` zet FAQ-items alleen in `mainEntity` als
+  // `type === "faq"` (zie `buildPageNode()` in lib/schema-jsonld.ts), dus dat
+  // typeveld is het exacte signaal, geen stringmatch op de opgeslagen
+  // JSON-LD-tekst nodig. Zonder deze stap zou de klant een vraag kunnen
+  // aanpassen terwijl de gestructureerde data die AI-crawlers lezen de oude
+  // vraag blijft tonen, precies het soort verrassing dat conventie 1 wil
+  // voorkomen.
+  if (update.faq_json) {
+    const { data: pieceRow } = await admin
+      .from("content_pieces")
+      .select("type, title, meta_description, schema_jsonld, published_url, created_at")
+      .eq("id", pieceId)
+      .eq("analysis_id", id)
+      .maybeSingle();
+
+    if (pieceRow?.type === "faq") {
+      const [{ data: profileRow }, schemaOrg] = await Promise.all([
+        admin.from("profiles").select("business_model").eq("id", analysis.profile_id).maybeSingle(),
+        loadSchemaOrg(admin, analysis.profile_id),
+      ]);
+      update.schema_jsonld = validateOrRebuildJsonLd(pieceRow.schema_jsonld, {
+        type: "faq",
+        title: (update.title as string) ?? pieceRow.title,
+        description: (update.meta_description as string) ?? pieceRow.meta_description ?? "",
+        url: pieceRow.published_url ?? analysis.url,
+        faq: update.faq_json as { q: string; a: string }[],
+        businessModel: profileRow?.business_model ?? null,
+        organization: schemaOrg,
+        datePublished: bestaandeDatePublished(pieceRow.schema_jsonld) ?? pieceRow.created_at,
+        dateModified: new Date().toISOString(),
+      });
+    }
   }
 
   const { error } = await admin

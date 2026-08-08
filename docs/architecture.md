@@ -79,7 +79,7 @@ Daarom pg_cron.
 | `brand_facts` | De feitenbank (`0036`). Elk feit heeft een `fact_key` (identiteit, geen positie), een scope (merkbreed / per analyse) en `superseded_by` in plaats van overschrijven. |
 | `brand_documents` | Door de klant geplakte brontekst + sha256-hash, met `facts_extracted`/`facts_rejected`. |
 | `fact_requests` | De briefingvragen aan de klant, max 8 per batch. `scope: 'merk'` slaat op met `analysis_id = null`. |
-| `content_pieces` | Gegenereerde pagina's. Versiebeheer per (analyse, titel) via `version`/`is_current`/`supersedes_id`, plus `briefing_snapshot_json`, `claims_json`, `source_coverage`, `quality_score`, `geo_score`, `needs_review`, `reviewed_at`/`reviewed_by`. |
+| `content_pieces` | Gegenereerde pagina's. Versiebeheer per (analyse, titel) via `version`/`is_current`/`supersedes_id`, plus `briefing_snapshot_json`, `claims_json`, `source_coverage`, `quality_score`, `geo_score`, `needs_review`, `reviewed_at`/`reviewed_by`. `faq_json` is sinds de content-editie (§5, stap 16) ook door de klant bewerkbaar via de PATCH-route, niet alleen door het model. |
 | `content_impact` | Hermeetgolven na publicatie + statistisch verdict. |
 | `technical_audits` | Kunnen AI-crawlers de site bereiken (robots.txt vs GPTBot, CCBot, …). Geen AI. |
 | `source_landscape` / `offsite_tasks` | Off-site aanwezigheid: welke externe domeinen relevant zijn en of het merk er staat. |
@@ -156,6 +156,23 @@ Bron: `lib/jobs/{types,queue,worker,handlers,pending}.ts`.
 | 18 | Effect meten | luna | Hermeetgolven + statistisch verdict of de zichtbaarheid meetbaar veranderd is. |
 | 19 | Off-site | luna, gegrond | Op welke externe domeinen het merk wél/niet aanwezig is. |
 | 20 | Maandelijkse ronde |, | Alleen voor analyses met tracking aan. Structureel merkloze vragen worden overgeslagen. |
+
+**De content-editie** (naast stap 16, geen AI-kosten): de contentdetailpagina is niet alleen een
+resultaat maar ook een bewerkoppervlak, naar het voorbeeld van InSpace Nova's contentreview
+(`docs/logbook.md`, content-editie-paragraaf). Drie nieuwe pure modules voeden dat scherm, naast
+de al bestaande `version-reason.ts` en `similarity.ts`:
+
+- `lib/pipeline/content-diff.ts` (`diffContent()`): het woord-voor-woord-verschil tussen twee
+  versies, klassieke LCS, met een terugval op alineaniveau bij een ongebruikelijk lange tekst.
+  Gevoed via `GET /api/analyses/[id]/content/[pieceId]/diff?met=<versionId>`, lazy, alleen op
+  verzoek.
+- `lib/pipeline/slug.ts` (`slugFrom()`, `suggestedPath()`, `resolvedContentUrl()`): de
+  voorgestelde of echte URL van een pagina, gedeeld door `PublishGuide` en `SearchPreview`.
+- `lib/schemas/content-piece.ts` (`FaqEdit`): validatie voor een door de klant bewerkte FAQ, los
+  van `ContentPiece` (wat het model teruggeeft). De PATCH-route herbouwt `schema_jsonld` via
+  `validateOrRebuildJsonLd()` zodra de FAQ van een `type: "faq"`-pagina wijzigt, met
+  `loadSchemaOrg()` (`lib/pipeline/content.ts`) als gedeelde bron voor de organisatieknoop, zodat
+  die niet verdwijnt bij een herbouw.
 
 ## 6. Modellen, redeneerinspanning, feature-flags
 

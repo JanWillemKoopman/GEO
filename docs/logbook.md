@@ -1175,3 +1175,50 @@ token hebben.
 Beide kleurcontroles geven nul. De inlogpagina is met een echte browser bekeken op 1280 bij 900; de
 schermen achter de login vragen een database en zijn dus niet lokaal te renderen. Conventie 10 blijft
 dus half openstaan tot iemand ingelogd door de app loopt.
+
+## 31. De content-editie, en waarom hij niet op Nova's oude editor lijkt (8 augustus 2026)
+
+Nova's HUIDIGE generatie heeft geen rijke contenteditor. De contentpagina daar is een read/review-
+oppervlak binnen "Strategy": versiegeschiedenis, een contentvoorbeeld met diff (rood is oud, groen is
+nieuw), een kopieerknop, FAQ-blokken, schema, afbeeldingsvergroting, en een gemockte search preview
+(`docs/tasks/nova-analyse.md` §1.1). Een écht rijke editor, eigen werkbalk, chatassistent per pagina,
+sleepbare kalender, clustervisualisatie, bestond in Nova's vóórganger-product en is bewust geschrapt
+bij de herbouw. Letterlijk citaat uit de analyse: "Content Assistant, chat per pagina | Weg | Duur,
+moeilijk te sturen, en het maakt de kwaliteitscontrole onbetrouwbaar" en "Handmatige editor | Weg |
+Elke handmatige bewerking ondermijnt de garanties van het systeem" (§8). Conclusie van de analyse:
+"Alles wat weg is, gaf de klant meer knoppen. Wat is gebleven, geeft hem meer duidelijkheid."
+
+Die conclusie is precies conventie 1 van dit project. Dus bewust wél gebouwd: een versiediff, een
+search preview, FAQ-editing (bestond nergens, ook niet via de API), een "waarom deze pagina"-
+contextpaneel, en een Bewerken/Voorbeeld-toggle in `ContentEditor`. Bewust NIET gebouwd: een
+chatgebaseerde AI-editing-assistent (zou `checkContentGate()`/`checkTabooWords()` omzeilen), een
+sleepbare kalender, een clustervisualisatie, een WYSIWYG-rich-text-library (zou de bestaande, goed
+onderbouwde keuze voor markdown-als-brontekst omkeren), multi-user samenwerking, en een verzonnen
+"wint deze vraag al"-percentage per doelvraag (conventie 3: onbekend is een betere waarde dan een
+verkeerde).
+
+**Twee randgevallen die het scherpst waren.** Ten eerste: `faq_json` bewerken op een FAQ-pagina moet
+`schema_jsonld` meebewegen, anders blijft de gestructureerde data die AI-crawlers lezen de oude
+vraag tonen. `validateOrRebuildJsonLd()` zet FAQ-items alleen in `mainEntity` als `type === "faq"`
+(niet stringmatchen op de opgeslagen JSON-LD-tekst, dat is fragieler dan het typeveld dat er al
+staat). Ten tweede: een naïeve rebuild zou de organisatieknoop (`sameAs`) laten verdwijnen als je
+`organization: null` meegeeft. De opbouwlogica daarvoor stond alleen inline in
+`loadContentContext()`; die is nu `buildSchemaOrg()` plus `loadSchemaOrg()` in
+`lib/pipeline/content.ts`, gebruikt door zowel de generatiepijplijn als de PATCH-route, zodat de
+regel op precies één plek staat.
+
+**Waarom de diff een eigen, lazy route kreeg** in plaats van `body_markdown` aan de bestaande
+versiegeschiedenis-query toe te voegen: die query is al bewust smal
+(`select("id, version, created_at, is_current, revision_note, edited_by_user")`) zodat één
+paginaweergave niet de volle tekst van alle versies meestuurt. "Bekijk verschil" is een opt-in
+handeling, de kosten (de LCS-diff over twee teksten van 800 tot 1500 woorden) vallen nu pas op het
+moment dat erom gevraagd wordt.
+
+**Geen tabbladen.** De contentdetailpagina blijft één doorlopende scroll, zoals het dossier
+(`docs/ux-design.md` §5). Wat veranderde is de volgorde: context (`WhyThisPage`) → wat er nu staat
+(`SearchPreview`, artikel, FAQ) → kwaliteitscontrole → bewerken → geschiedenis/vergelijken →
+publiceren.
+
+**Geverifieerd.** Vier controles groen: `tsc --noEmit`, 735 unittests (22 nieuwe: `slugFrom`/
+`suggestedPath`/`resolvedContentUrl`, `diffContent` inclusief de terugval naar alineaniveau, en
+`FaqEdit`), 47 ketentests, productiebuild.

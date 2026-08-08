@@ -133,6 +133,10 @@ schermen die de gebruiker na elkaar ziet).
 | `ConfidenceChip` (`components/confidence-chip.tsx`) | Zekerheid is een **niveau**, nooit een getal: zeker (geen markering) · onzeker (amber) · niet vastgesteld (mono-label "niet gevonden"). "0.62" zegt een MKB'er niets. |
 | `CopyButton`, `ExternalLink`, `LastUpdated` (`components/`) | H.63-65: drie kleine primitieven tegen herhaling, klembord, "verlaat de app"-pijltje, relatieve datum met volledige datum als tooltip. Elke plek die zelf `navigator.clipboard` of `target="_blank"` opnieuw uittypte, hoort hierheen te verhuizen. |
 | `TableOfContents` (`components/table-of-contents.tsx`) | H.68: inhoudsopgave bij een contentpagina met 3+ koppen, gevoed door `extractHeadings()` in `lib/markdown.ts`. De ankers komen uit dezelfde functie die `renderMarkdown()` zijn `id`'s geeft, dus ze kunnen nooit uit de pas lopen. |
+| `SearchPreview` (`components/search-preview.tsx`) | Content-editie: een gemockt zoekresultaat, naar Nova's "Search preview". Puur presentationeel, tweemaal ingezet op dezelfde contentpagina: statisch met de opgeslagen tekst, en live binnen `ContentEditor` met de lokale invoerstate. `isReal` voorkomt dat een voorgestelde URL (`lib/pipeline/slug.ts`) als feit oogt. |
+| `VersionDiff` (`components/version-diff.tsx`) | Content-editie: het verschil met de vorige versie, lazy opgehaald bij uitklappen. `<del>`/`<ins>` met `--intent-danger`/`--intent-growth`-tokens, nooit hardgecodeerd. |
+| `FaqEditor` (`components/faq-editor.tsx`) | Content-editie: zelfde vorm als `TagListEditor` (`items`/`onChange`), nu voor vraag-antwoordparen. Herordenen met ↑/↓-knoppen, geen sleep-library. |
+| `WhyThisPage` (`components/why-this-page.tsx`) | Content-editie: het "waarom deze pagina"-contextpaneel, naar Nova's "Why This Page Exists?". Toont Aura's eigen metriek (echt gemeten AI-vragen) in plaats van geschat zoekvolume. |
 
 ## 4. Loading, error en lege staten
 
@@ -180,6 +184,15 @@ Oriëntatie via de **sectie-rail** (`components/section-rail.tsx`): genummerde m
 actieve markering, scroll-spy. Desktop verticaal en sticky links; tablet/mobiel een sticky
 horizontale chiprij. De rail toont stand per hoofdstuk ("4 open", een `live-dot` bij een lopende
 meting), iets wat een tabbalk niet doet.
+
+**Dezelfde regel geldt op de contentdetailpagina** (`analyses/[id]/bibliotheek/[pieceId]/page.tsx`,
+content-editie): geen tabbladen, wél een leesvolgorde die van context naar handeling loopt.
+Context (`WhyThisPage`, waarom deze pagina) → wat er nu staat (`SearchPreview`, inhoudsopgave,
+artikel, FAQ) → kwaliteitscontrole (GEO-score, vrijgavepaneel) → bewerken (`ContentEditor`, met
+een Bewerken/Voorbeeld-toggle in plaats van een aparte route) → geschiedenis en vergelijken
+(`VersionDiff`) → publiceren. Elke stap bouwt op de vorige: je leest eerst waarom de pagina
+bestaat en wat erop staat, vóór je hem aanpast, en de kwaliteitscontrole staat vóór de
+bewerkknop, niet erna.
 
 De bibliotheek blijft een eigen plek: het is een eindproduct, geen takenlijst die zich als archief
 voordoet. Het conceptscherm is een eigen route.

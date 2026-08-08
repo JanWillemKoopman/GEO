@@ -155,6 +155,9 @@ import { formatDateShort, formatDateLong, formatRelativeTime, formatNumber } fro
 import { describeToneSliders, clampToneSlider } from "@/lib/pipeline/tone-sliders";
 import { versionReasonLabel } from "@/lib/pipeline/version-reason";
 import { checkTabooWords } from "@/lib/pipeline/content-gate";
+import { slugFrom, suggestedPath, resolvedContentUrl } from "@/lib/pipeline/slug";
+import { diffContent } from "@/lib/pipeline/content-diff";
+import { FaqEdit } from "@/lib/schemas/content-piece";
 
 let passed = 0;
 let failed = 0;
@@ -3388,6 +3391,107 @@ group("checkTabooWords", () => {
 
   const inFaq = checkTabooWords("Nette tekst.", [{ q: "Is het gratis?", a: "Ja, altijd gratis." }], ["gratis"]);
   ok("verboden woord in de FAQ telt ook mee", inFaq.found.length === 1);
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+console.log("\nVoorgestelde URL van een pagina (content-editie, slug.ts)");
+
+group("slugFrom, suggestedPath, resolvedContentUrl", () => {
+  ok("gewone titel", slugFrom("Wat kost een keukenrenovatie?") === "wat-kost-een-keukenrenovatie");
+  ok("diakrieten weg, letters blijven", slugFrom("Café en Wéér") === "cafe-en-weer");
+  ok("lege titel krijgt een terugval", slugFrom("   ") === "nieuwe-pagina");
+  ok("extreem lange titel wordt afgekapt", slugFrom("a".repeat(200)).length <= 60);
+
+  ok("artikel krijgt het kennis-pad", suggestedPath("Titel", "article").startsWith("/kennis/"));
+  ok("faq krijgt het veelgestelde-vragen-pad", suggestedPath("Titel", "faq").startsWith("/veelgestelde-vragen/"));
+  ok("landing krijgt geen prefix", suggestedPath("Titel", "landing").match(/^\/[a-z0-9-]+$/) !== null);
+
+  const gepubliceerd = resolvedContentUrl({
+    publishedUrl: "https://klant.nl/live-pagina",
+    action: "nieuw",
+    existingUrl: null,
+    siteUrl: "https://klant.nl",
+    title: "Titel",
+    type: "article",
+  });
+  ok("een gepubliceerde URL wint altijd", gepubliceerd.url === "https://klant.nl/live-pagina" && gepubliceerd.isReal);
+
+  const verbeteren = resolvedContentUrl({
+    publishedUrl: null,
+    action: "verbeteren",
+    existingUrl: "https://klant.nl/oude-pagina",
+    siteUrl: "https://klant.nl",
+    title: "Titel",
+    type: "article",
+  });
+  ok(
+    "zonder publicatie wint de bestaande URL bij een verbeterslag",
+    verbeteren.url === "https://klant.nl/oude-pagina" && verbeteren.isReal,
+  );
+
+  const voorstel = resolvedContentUrl({
+    publishedUrl: null,
+    action: "nieuw",
+    existingUrl: null,
+    siteUrl: "https://klant.nl",
+    title: "Nieuwe pagina",
+    type: "article",
+  });
+  ok("zonder allebei is het een voorstel, geen feit", !voorstel.isReal && voorstel.url.includes("klant.nl"));
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+console.log("\nVerschil tussen twee versies (content-editie, content-diff.ts)");
+
+group("diffContent", () => {
+  const gelijk = diffContent("precies dezelfde tekst", "precies dezelfde tekst");
+  ok("identieke tekst geeft alleen 'gelijk'", gelijk.ops.every((o) => o.type === "gelijk"));
+
+  const vervangen = diffContent("de prijs is laag", "de prijs is hoog");
+  const verwijderdIdx = vervangen.ops.findIndex((o) => o.type === "verwijderd");
+  const toegevoegdIdx = vervangen.ops.findIndex((o) => o.type === "toegevoegd");
+  ok("een vervangen woord geeft verwijderd én toegevoegd", verwijderdIdx !== -1 && toegevoegdIdx !== -1);
+  ok("verwijderd komt vóór toegevoegd", verwijderdIdx < toegevoegdIdx);
+
+  const toevoeging = diffContent("start einde", "start midden einde");
+  ok("een toegevoegd stuk in het midden", toevoeging.ops.some((o) => o.type === "toegevoegd" && o.text.includes("midden")));
+
+  const eersteVersie = diffContent("", "helemaal nieuwe tekst");
+  ok(
+    "een lege oude tekst (eerste versie) is helemaal 'toegevoegd'",
+    eersteVersie.ops.every((o) => o.type !== "verwijderd"),
+  );
+
+  ok("normale lengtes blijven op woordniveau", vervangen.granularity === "woord");
+
+  const groteTekst = "woord ".repeat(500);
+  const forceer = diffContent(groteTekst, groteTekst + "erbij", 10);
+  ok("een lage maxProduct forceert de terugval naar alineaniveau", forceer.granularity === "alinea");
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+console.log("\nFAQ-invoer valideren bij bewerken (content-editie, FaqEdit)");
+
+group("FaqEdit", () => {
+  const geldig = FaqEdit.safeParse([{ q: "Wat kost het?", a: "Vanaf 500 euro." }]);
+  ok("een geldig paar gaat door", geldig.success);
+
+  const legeVraag = FaqEdit.safeParse([{ q: "  ", a: "Antwoord." }]);
+  ok("een lege vraag wordt geweigerd", !legeVraag.success);
+
+  const teVeel = FaqEdit.safeParse(
+    Array.from({ length: 13 }, (_, i) => ({ q: `Vraag ${i}`, a: "Antwoord." })),
+  );
+  ok("meer dan 12 paren wordt geweigerd", !teVeel.success);
+
+  const teLang = FaqEdit.safeParse([{ q: "Vraag", a: "a".repeat(601) }]);
+  ok("een te lang antwoord wordt geweigerd", !teLang.success);
+
+  const metWitruimte = FaqEdit.safeParse([{ q: "  Vraag?  ", a: "  Antwoord.  " }]);
+  ok(
+    "omringende witruimte wordt getrimd",
+    metWitruimte.success && metWitruimte.data[0].q === "Vraag?" && metWitruimte.data[0].a === "Antwoord.",
+  );
 });
 
 // ════════════════════════════════════════════════════════════════════════════
