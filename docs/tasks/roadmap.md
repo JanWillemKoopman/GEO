@@ -17,7 +17,7 @@ groen, migraties t/m `0045` toegepast (`0033` gereserveerd, nooit gedraaid, verv
   database.
 - **De vormgeving over op het NOVA-systeem** (6 augustus): tokens, componenten en het `docs/
   designsystem.md`-brondocument. Zie `logbook.md` §29-30.
-- **De grote duidelijkheidsronde** (8 augustus): bijna vijftig punten uit een vergelijking met
+- **De grote duidelijkheidsronde** (7 augustus): bijna vijftig punten uit een vergelijking met
   Nova, in blokken A t/m H (statustaal, foutmeldingen, print/PDF, deelvoorbeeld, schrijfregels-UI,
   meetdatum+model, centrale foutmeldingenplek, inhoudsopgave). Migratie `0045`
   (`taboo_phrases`/`compliance_notes`/auteursvelden/tone-sliders) hoort hierbij. Zie `logbook.md`

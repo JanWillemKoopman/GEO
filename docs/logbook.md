@@ -1176,7 +1176,7 @@ Beide kleurcontroles geven nul. De inlogpagina is met een echte browser bekeken 
 schermen achter de login vragen een database en zijn dus niet lokaal te renderen. Conventie 10 blijft
 dus half openstaan tot iemand ingelogd door de app loopt.
 
-## 31. De grote duidelijkheidsronde: statustaal, foutmeldingen, print, en zes andere blokken (8 augustus 2026)
+## 31. De grote duidelijkheidsronde: statustaal, foutmeldingen, print, en zes andere blokken (7 augustus 2026)
 
 Een lijst van bijna vijftig kleine en middelgrote punten, in blokken A tot en met H, uit een
 vergelijking met InSpace Nova. Blok F (verkoop en klantgesprek) is bewust overgeslagen, dat hoort
@@ -1236,9 +1236,9 @@ contentpagina's: `lib/markdown.ts` kreeg `extractHeadings()`, en `renderMarkdown
 een `id` op elke kop met hetzelfde ontdubbelalgoritme, zodat de ankers van de inhoudsopgave en de
 gerenderde HTML nooit uit de pas kunnen lopen.
 
-**Geverifieerd.** Van 706 naar 735 unittests over de zes commits heen (de laatste stap in deze
-ronde, de content-editie hieronder, telt daar ook in mee), 47 ketentests, `tsc --noEmit` en de
-productiebuild groen bij elke commit.
+**Geverifieerd.** Van 706 naar 713 unittests over de zes commits heen (H voegde de kop-anker-tests
+toe), 47 ketentests, `tsc --noEmit` en de productiebuild groen bij elke commit. De content-editie
+hieronder volgde de dag erna, met zijn eigen 22 tests erbovenop.
 
 ## 32. De content-editie, en waarom hij niet op Nova's oude editor lijkt (8 augustus 2026)
 
