@@ -65,7 +65,7 @@ zet `structured.ts` hem voor de rest van het proces uit in plaats van de taak te
 npm run dev              # localhost:3000
 npm run build            # productiebuild
 npx tsc --noEmit         # typecheck, moet schoon zijn
-npm run test:unit        # 675 tests, pure functies, geen DB/API-key
+npm run test:unit        # 735 tests, pure functies, geen DB/API-key
 npm run test:chain       # 47 ketentests, echte handlers tegen echte Postgres, geen netwerk
 npm run test:openai      # rooktest, MAAKT ECHTE BETAALDE CALLS
 npm run eval:mention     # accuratesse mention-classificatie (vereist API-key)
@@ -127,7 +127,7 @@ lib/entities/      merknaam-normalisatie en -matching
 lib/schemas/       Zod-contracten      lib/stats/  onzekerheidsmarges
 lib/audit/         robots.txt / AI-crawlertoegang + entiteitsconsistentie
 lib/offsite/       off-site aanwezigheid     lib/archive.ts  wat zichtbaar is in de app
-supabase/migrations/  0001–0044 (0033 gereserveerd, nooit gedraaid, vervangen door 0039)
+supabase/migrations/  0001–0045 (0033 gereserveerd, nooit gedraaid, vervangen door 0039)
 scripts/           test-unit · test-chain · test-openai · eval-mention
 ```
 

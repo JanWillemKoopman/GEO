@@ -1176,7 +1176,71 @@ Beide kleurcontroles geven nul. De inlogpagina is met een echte browser bekeken 
 schermen achter de login vragen een database en zijn dus niet lokaal te renderen. Conventie 10 blijft
 dus half openstaan tot iemand ingelogd door de app loopt.
 
-## 31. De content-editie, en waarom hij niet op Nova's oude editor lijkt (8 augustus 2026)
+## 31. De grote duidelijkheidsronde: statustaal, foutmeldingen, print, en zes andere blokken (8 augustus 2026)
+
+Een lijst van bijna vijftig kleine en middelgrote punten, in blokken A tot en met H, uit een
+vergelijking met InSpace Nova. Blok F (verkoop en klantgesprek) is bewust overgeslagen, dat hoort
+niet bij de consultant-gedreven verkoopstrategie van dit product (`logbook.md` §15). De rest is in
+zes commits doorgevoerd, elk met alle vier controles groen.
+
+**A, duidelijkheid voor de klant.** De belangrijkste toevoeging is `WhoseTurn`
+(`lib/analysis-status.ts`/`lib/profile-status.ts`, uitgewerkt in `ux-design.md` §4): een leesbare
+laag naast de technische status, "Wacht op jou" of "Aura is bezig", naar Nova's tweelaags-
+statustaal. Verder: elke pagina een eigen tabbladtitel (`generateMetadata` met een titelsjabloon
+dat vanaf `analyses/[id]/layout.tsx` naar alle subroutes cascadeert), server- en netwerkfouten
+apart afgehandeld op drie plekken waar ze nog door elkaar liepen (`dossier-box.tsx`,
+`briefing-form.tsx`, `profile-editor.tsx` toonden bij een weggevallen verbinding de rauwe
+"Failed to fetch" in plaats van iets leesbaars), een "0/100" in het rapportprompt vervangen door
+"onbekend" wanneer er nog geen score is (conventie 3), de goedkeuringsbalk kondigt nu aan hoeveel
+vragen de meting gaat stellen vóór je bevestigt, publiceren vraagt een bevestiging omdat het twee
+hermetingen in de rij zet, en optimistische updates (de tracking-schakelaar, prompt-beheer) draaien
+terug bij een mislukte server-call in plaats van een staat te tonen die niet is opgeslagen.
+
+**B, vormgeving.** Vijf ontbrekende `loading.tsx`-skeletons. `SectionErrorBoundary` om elk van de
+vier hoofdstukken van het dossier: `app/error.tsx` ving al de hele pagina, maar één hoofdstuk dat
+crasht op een onverwachte datavorm hoefde de andere drie niet mee te trekken. Een WCAG-
+contrastberekening over alle tekst- en intent-tokens (alles haalt AA, `--text-muted` is bewust
+gereserveerd voor bijzaak en al zo gedocumenteerd). Een printstijlblad (`.no-print` in
+`globals.css`): het dossier IS het rapport, er is geen aparte printpagina, dus verdwijnt de chrome
+(bovenbalk, hoofdstuk-rail, tabbladen, vaste actiebalken) en elke knop op papier. Een deelvoorbeeld
+(`app/opengraph-image.tsx`, `next/og`): een link naar Aura in Slack of e-mail toonde tot dan een
+kale URL. En `.btn-lg` (44px, WCAG 2.5.5) naast de bestaande 40px-knoppen, toegepast op de vijf
+knoppen die de ÉNE hoofdactie van hun scherm zijn.
+
+**C, schermen en werkwijzen.** Migratie `0045` bracht `taboo_phrases`, `compliance_notes`, de
+auteursvelden en de vier tone-of-voice-schuiven op `profiles`; deze ronde bouwde het formulier
+ervoor (twee nieuwe secties in `profile-editor.tsx`, met `FORMALITY`/`ENERGY`/`COMPLEXITY`/
+`HUMOR`-labels geëxporteerd uit `tone-sliders.ts` zodat de knoptekst en de promptinstructie nooit
+uit elkaar kunnen lopen). De reden achter elke contentversie (`versionReasonOf()`, bestond al,
+was nog nergens gekoppeld) staat nu bij de versiegeschiedenis. Een overgeslagen profielvraag
+verdween voorheen stilletjes uit de lijst; `fact-requests.tsx` toont die groep nu met een
+"Overgeslagen"-badge en de kans om hem alsnog te beantwoorden.
+
+**D, vertrouwen en bewijs.** De zichtbaarheidsscore toonde een getal zonder herkomst. `StandChapter`
+haalt nu op welke engines voor deze periode bevraagd zijn (uit `tracking_runs`, dat het al jaren
+bijhield) en `ScoreCard` toont "Gemeten op 6 augustus via ChatGPT" naast het cijfer. `engineLabel()`
+verhuisde van een lokale kopie in `llm-knowledge-panel.tsx` naar `lib/engines/label.ts`, één bron
+voor beide plekken.
+
+**E, techniek en betrouwbaarheid.** "Mijn analyses" en "Merken" sorteerden een mislukte analyse of
+een mislukt merkonderzoek ergens middenin de lijst; ze staan nu bovenaan met een rode kaart, en de
+sortering kijkt naar `whoseTurn === "jij"` in plaats van alleen `actionRequired`. `JobProgress`
+kreeg een `attempts`-veld, zodat het wachtscherm "poging 2 van 4" kan zeggen in plaats van een
+blanco belofte. En `runWorker()` logt nu wanneer `reclaim_stuck_jobs` iets terugvordert van een
+kennelijk vastgelopen vorige aanroep, dat werd al geteld maar kwam nergens in de logs terecht.
+
+**H, kleine dingen.** Drie eerder gebouwde, nog ongebruikte primitieven (`CopyButton`,
+`ExternalLink`, `LastUpdated`) daadwerkelijk ingezet op vijf plekken die zelf
+`navigator.clipboard` of `target="_blank"` opnieuw uittypten. En een inhoudsopgave voor lange
+contentpagina's: `lib/markdown.ts` kreeg `extractHeadings()`, en `renderMarkdown()` zet sindsdien
+een `id` op elke kop met hetzelfde ontdubbelalgoritme, zodat de ankers van de inhoudsopgave en de
+gerenderde HTML nooit uit de pas kunnen lopen.
+
+**Geverifieerd.** Van 706 naar 735 unittests over de zes commits heen (de laatste stap in deze
+ronde, de content-editie hieronder, telt daar ook in mee), 47 ketentests, `tsc --noEmit` en de
+productiebuild groen bij elke commit.
+
+## 32. De content-editie, en waarom hij niet op Nova's oude editor lijkt (8 augustus 2026)
 
 Nova's HUIDIGE generatie heeft geen rijke contenteditor. De contentpagina daar is een read/review-
 oppervlak binnen "Strategy": versiegeschiedenis, een contentvoorbeeld met diff (rood is oud, groen is

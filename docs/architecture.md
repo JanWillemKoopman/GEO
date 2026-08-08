@@ -3,7 +3,7 @@
 Backend, Supabase, pijplijn en deploy. Voor het *waarom* achter een keuze: `logbook.md`.
 Voor UI/UX: `ux-design.md`.
 
-> **Geverifieerd tegen de code op 4 augustus 2026** (branch `main`, t/m migratie `0044`),
+> **Geverifieerd tegen de code op 8 augustus 2026** (branch `main`, t/m migratie `0045`),
 > plus de eind-tot-eind-ronde van 1 augustus (`logbook.md` §10) en de eerste echte
 > onboarding op productie van 3 augustus (`logbook.md`, Fysi-Unique). Die laatste legde
 > zes fouten bloot in de samenhang tussen de onboardingstappen; alle zes zijn verwerkt.
@@ -66,7 +66,7 @@ Daarom pg_cron.
 
 | Tabel | Wat het is |
 |---|---|
-| `profiles` | Klant/merk op accountniveau. Website, branche, aliassen, concurrenten, persona's, tone-of-voice, `business_model`. Eén keer onderzocht, hergebruikt door alle analyses. |
+| `profiles` | Klant/merk op accountniveau. Website, branche, aliassen, concurrenten, persona's, tone-of-voice, `business_model`. Eén keer onderzocht, hergebruikt door alle analyses. Sinds migratie `0045` ook `taboo_phrases` en `compliance_notes` (harde schrijfregels, deterministisch teruggecontroleerd door `checkTabooWords()` in `lib/pipeline/content-gate.ts`), `author_name`/`author_role`/`author_bio`/`author_linkedin_url`, en vier tone-of-voice-schuiven `tone_formality`/`tone_energy`/`tone_complexity`/`tone_humor` (1-3 of `null`, vertaald naar prompttaal door `lib/pipeline/tone-sliders.ts`, nooit het cijfer zelf naar het model). |
 | `profile_pages` | Contentinventaris uit een crawl (sitemap recursief, anders homepage-links). Productpagina's uitgesloten. Geen AI. Alle tekst gaat door `sanitizeForPostgres()` (`lib/pg-text.ts`): één NUL-byte uit één pagina laat Postgres anders de hele batch-insert weigeren, en dan verdwijnt de complete inventaris. |
 | `analyses` | Eén getrackt onderwerp onder een profiel. Status, tracking aan of uit, content-brief. `topic` verplicht en niet wijzigbaar na start. |
 | `prompts` | 30 per analyse (10 per funnelfase). Volledig door de klant beheerbaar. `elicit_successes`/`elicit_samples` = de kans dat deze vraag überhaupt een merk oplevert. |
@@ -126,6 +126,16 @@ Bron: `lib/jobs/{types,queue,worker,handlers,pending}.ts`.
 - **Tijdbudget:** `workerTimeBudgetMs` 240.000 ms, ruim onder de `maxDuration` van 300s.
 - **Gearchiveerd werk telt niet mee:** `/api/cron/tracking` en `/api/cron/reminders` filteren op
   `archived_at is null` (§11). Zonder dat filter blijft een verborgen merk maandelijks geld kosten.
+- **Reclaim, geen stille corruptie:** elke `runWorker()`-aanroep begint met `reclaim_stuck_jobs`
+  (RPC, `STUCK_AFTER_MINUTES = 5`): een taak die `running` bleef staan na een afgebroken vorige
+  aanroep (platform-timeout, crash) gaat terug de rij in. Zo'n reclaim wordt sinds de
+  betrouwbaarheidsronde ook gelogd (`console.warn`, `lib/jobs/worker.ts`), eerder telde
+  `out.reclaimed` alleen mee maar kwam nergens in de logs terecht.
+- **Poging zichtbaar voor de klant:** `JobProgress.attempts` (`lib/jobs/progress.ts`, het hoogste
+  aantal pogingen onder de openstaande taken van een analyse of profiel) gaat mee in de
+  status-routes en verschijnt in `WorkInProgress` als "poging 2 van 4" zodra er een nieuwe poging
+  na een tegenslag loopt, in plaats van alleen "Aura probeert het automatisch opnieuw" zonder
+  getal.
 
 ## 5. De pijplijn, stap voor stap
 

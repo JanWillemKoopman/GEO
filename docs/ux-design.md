@@ -1,9 +1,10 @@
 # UX & Design
 
 Leidend voor elk scherm. Tokens en primitieven staan in `app/globals.css`; dit document legt uit
-wat ze zijn en wanneer je welke gebruikt. **Peildatum: 6 augustus 2026**, de dag dat de vormgeving
-overging op het systeem van de NOVA-workspace. De volledige verantwoording staat in
-`designsystem.md`.
+wat ze zijn en wanneer je welke gebruikt. **Peildatum: 8 augustus 2026.** De vormgeving zelf ging
+op 6 augustus over op het systeem van de NOVA-workspace (volledige verantwoording in
+`designsystem.md`); deze datum volgt de gedragspatronen die daarna zijn bijgekomen (statustaal,
+foutafhandeling, de content-editie).
 
 > **Voor de tékst in die schermen geldt `docs/schrijfstijl.md`**: de tone-of-voice van Aura,
 > afgeleid van InSpace Nova. Dit document gaat over hoe iets eruitziet, dat over hoe het klinkt.
@@ -158,6 +159,39 @@ database-queries een dood interval zonder enige terugkoppeling.
 - **Voortgang is server-state.** Elke live indicator wordt afgeleid van `analyses.status` + de
   `jobs`-tabel, nooit uit een client-side animatie. Een refresh of latere terugkeer moet de
   werkelijke stand tonen.
+- **Server- en netwerkfouten apart afvangen.** Een `catch` die zowel een `!res.ok`-server-antwoord
+  als een mislukte `fetch()` zelf opvangt, toont bij een weggevallen verbinding al snel de rauwe
+  JS-foutmelding ("Failed to fetch") in plaats van iets leesbaars. Het patroon staat in
+  `lib/errors.ts`/`components/error-notice.tsx` (`classifyError`/`problemFromResponse`/
+  `networkProblem`): elke schrijfactie splitst "de server zei nee" (boodschap van de server) van
+  "de server was niet te bereiken" (vaste, geruststellende tekst), nooit één generieke vangst voor
+  allebei.
+- **Optimistische updates draaien terug bij een mislukking.** Een schakelaar of chip die meteen
+  van staat verandert (`tracking-toggle.tsx`, `prompts-manager.tsx`) moet bij een mislukte
+  server-call de oude waarde herstellen én dat zeggen. Een staat die verandert maar niet is
+  opgeslagen, is erger dan geen directe terugkoppeling.
+- **Bij wie ligt de bal? (`WhoseTurn`, `lib/analysis-status.ts`/`lib/profile-status.ts`)** Naast de
+  technische status (`AnalysisStatus`/`ProfileStatus`, de bron van waarheid) een leesbare laag
+  ernaast: "Wacht op jou" · "Aura is bezig" · niets als de staat af of informatief is (`null`).
+  Naar Nova's tweelaags-statustaal ("Waiting in your CMS" naast de technische status,
+  `docs/tasks/nova-analyse.md` §3.2). `showWhoseTurn` staat aan op `StatusBadge`/
+  `ProfileStatusBadge` waar de klant maar één status per keer ziet (de kop van een analyse of een
+  profiel); in een lijst met tien analyses zou een tweede regel per rij meer ruis dan hulp zijn,
+  daar telt de chip zelf al.
+- **Bevestiging vóór een onomkeerbare handeling.** Geen modaal venster: één klik wordt twee
+  (`RerunResearchButton` was het eerste voorbeeld, `PublishBox` volgt hetzelfde patroon voordat
+  het twee hermetingen in de rij zet). Eerst de knop, dan pas bij een tweede klik de handeling
+  zelf, met een korte zin erbij wat er gaat gebeuren.
+- **Mislukte analyses en profielen bovenaan, niet verstopt.** "Mijn analyses" en "Merken" sorteren
+  op `whoseTurn === "jij"` (dus zowel "wacht op je goedkeuring" als "niet gelukt") en tonen bij een
+  mislukking een rode kaart bovenaan de lijst. Zonder dat moest een klant met meerdere analyses ze
+  stuk voor stuk openen om een storing te vinden, er was geen centrale plek waar een fout
+  zichtbaar werd.
+- **Elke pagina een eigen tabbladtitel.** `generateMetadata`/`export const metadata`, met een
+  titelsjabloon op `analyses/[id]/layout.tsx` (`%s · {analysenaam} · Aura`) dat naar alle
+  subroutes cascadeert. `getAnalysis()`/`getProfile()` zijn gememoïseerd (React `cache()`, zelfde
+  patroon als `isStaff()` in `lib/staff.ts`) zodat `generateMetadata` geen tweede query naast de
+  pagina zelf doet.
 
 ## 5. Navigatie en schermstructuur
 

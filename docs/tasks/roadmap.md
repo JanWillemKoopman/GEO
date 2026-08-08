@@ -1,7 +1,7 @@
 # Roadmap, wat er nog open staat
 
-Op volgorde. **Stand: 4 augustus 2026**, alles gemerged op `main`, 675 unittests + 47 ketentests
-groen, migraties t/m `0044` toegepast (`0033` gereserveerd, nooit gedraaid, vervangen door `0039`).
+Op volgorde. **Stand: 8 augustus 2026**, alles gemerged op `main`, 735 unittests + 47 ketentests
+groen, migraties t/m `0045` toegepast (`0033` gereserveerd, nooit gedraaid, vervangen door `0039`).
 
 ## Afgerond sinds de vorige stand
 
@@ -15,6 +15,16 @@ groen, migraties t/m `0044` toegepast (`0033` gereserveerd, nooit gedraaid, verv
 - **R6.2**, opgegaan in fase 0 van de nieuwe onboarding.
 - **Archiveren** (migratie `0044`): de zeven testmerken en elf analyses staan uit beeld maar in de
   database.
+- **De vormgeving over op het NOVA-systeem** (6 augustus): tokens, componenten en het `docs/
+  designsystem.md`-brondocument. Zie `logbook.md` §29-30.
+- **De grote duidelijkheidsronde** (8 augustus): bijna vijftig punten uit een vergelijking met
+  Nova, in blokken A t/m H (statustaal, foutmeldingen, print/PDF, deelvoorbeeld, schrijfregels-UI,
+  meetdatum+model, centrale foutmeldingenplek, inhoudsopgave). Migratie `0045`
+  (`taboo_phrases`/`compliance_notes`/auteursvelden/tone-sliders) hoort hierbij. Zie `logbook.md`
+  §31.
+- **De content-editie** (8 augustus): versiediff, search preview, FAQ-editing, een "waarom deze
+  pagina"-paneel en een Bewerken/Voorbeeld-toggle op de contentdetailpagina, naar Nova's
+  contentreview-oppervlak. Zie `logbook.md` §32.
 
 ## 0. De GPT-5.6-overstap natrekken, grotendeels gedaan (~$1, een half uur)
 

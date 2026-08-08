@@ -5,8 +5,8 @@
 > hoofdstuk 3 voor de AI-specialist. Bedoeld als werkdocument voor de teammeeting waarin we het
 > huidige proces evalueren en verbeterpunten verzamelen.
 >
-> **Bron.** Geverifieerd tegen de code op branch `main`, peildatum **4 augustus 2026**
-> (t/m migratie `0044`). Waar dit document afwijkt van de code, is de code leidend.
+> **Bron.** Geverifieerd tegen de code op branch `main`, peildatum **8 augustus 2026**
+> (t/m migratie `0045`). Waar dit document afwijkt van de code, is de code leidend.
 > Achtergrond en historie: `docs/architecture.md`, `docs/logbook.md`, `CLAUDE.md`.
 >
 > ⚠️ **Fase 1 is op 3–4 augustus 2026 volledig vervangen.** Het product ging van self-serve naar
@@ -264,8 +264,8 @@ Drie kwaliteitsregels in deze fase:
 
 | | |
 |---|---|
-| **Frontend** | Hoofdstuk 03 (`_chapters/werk.tsx`) → `_work/generate-button` \| `generate-all-button` → `/analyses/[id]/briefing` → `/analyses/[id]/bibliotheek/[pieceId]` (editor, vrijgave, publicatie) |
-| **API** | `POST /api/analyses/[id]/generate` · `POST /api/analyses/[id]/generate-all` · `POST /api/analyses/[id]/briefing` (antwoorden + start schrijven) · `GET /api/analyses/[id]/content?title=` (poll) · `PATCH /api/analyses/[id]/content/[pieceId]` (klant bewerkt tekst) · `POST` idem (herschrijven met feedback) · `POST .../approve` (vrijgeven) · `POST/DELETE .../publish` |
+| **Frontend** | Hoofdstuk 03 (`_chapters/werk.tsx`) → `_work/generate-button` \| `generate-all-button` → `/analyses/[id]/briefing` → `/analyses/[id]/bibliotheek/[pieceId]` (de content-editie: context, zoekresultaat-preview, artikel, kwaliteitscontrole, editor met titel/tekst/meta/FAQ en een Bewerken/Voorbeeld-toggle, versiegeschiedenis met verschilweergave, vrijgave, publicatie) |
+| **API** | `POST /api/analyses/[id]/generate` · `POST /api/analyses/[id]/generate-all` · `POST /api/analyses/[id]/briefing` (antwoorden + start schrijven) · `GET /api/analyses/[id]/content?title=` (poll) · `PATCH /api/analyses/[id]/content/[pieceId]` (klant bewerkt titel, tekst, meta of FAQ; herbouwt `schema_jsonld` op een FAQ-pagina) · `POST` idem (herschrijven met feedback) · `POST .../approve` (vrijgeven) · `POST/DELETE .../publish` · `GET .../diff?met=` (verschil met een eerdere versie, lazy) |
 | **Jobs** | `content_brief` → **stop, wacht op klant** → `content_draft` → (indien nodig) `content_revise` |
 | **Pipeline** | `briefing.ts` · `factbase.ts` · `factcard.ts` · `factstore.ts` · `fact-atomise.ts` · `page-relevance.ts` · `fact-merge.ts` · `briefing-select.ts` · `content.ts` · `content-gate.ts` · `claim-extract.ts` · `source-analysis.ts` · `redact.ts` · `schema-jsonld.ts` |
 | **Tabellen** | `content_pieces`, `content_piece_targets`, `fact_requests`, `brand_facts`, `brand_documents` |
