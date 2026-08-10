@@ -1444,3 +1444,48 @@ klantreis, zoekwoordclusters en "SEO + GEO gaps" staan niet in de i18n maar in �
 de marketingsite. Het is dus hun belofte, niet aantoonbaar hun app. Wat ervan overgenomen hoort te
 worden is de gedachte dat het merkbrein **telbaar** is ("238 zoekopdrachten in kaart, 91 gaten"), en
 die getallen heeft Aura al.
+
+## Dertien besluiten, en het plan opnieuw doorgerekend (10 augustus 2026, derde ronde)
+
+De eigenaar beantwoordde de dertien openstaande vragen. `docs/Nova.md` §0 heeft ze nu allemaal als
+besluitentabel, §13 is nieuw (de complete veldenlijst van de onboarding) en §8 is opnieuw
+doorgerekend. Totaal ging van 51 naar **47 dagen**, en de volgorde is veranderd.
+
+**Twee antwoorden hadden een groter gevolg dan ze op het oog lijken.**
+
+*Doorlopend opzegbaar* (in plaats van een contract van twaalf maanden) sloopt Nova's belangrijkste
+retentiemiddel. Bij hen staat overal "contract month {current} of {total}": de klant zit vast en het
+scherm herinnert hem daaraan. Hier kan hij morgen weg. Het plan blijft twaalf maanden vooruitkijken,
+want een programma zonder horizon is geen programma, maar de teller heet nu "maand 4 sinds de start"
+en nergens staat hoeveel er nog te gaan is. In ruil daarvoor wordt het opbrengstblok ("actief sinds",
+"zoveel vaker genoemd sinds de start") van een extraatje het middel dat opzeggen tegenhoudt. Het
+verhuisde daarom naar fase 5, en fase 5 kreeg een streepje in het keuze-advies.
+
+*Meerdere websites per klant, plus bureaus, plus twintig klanten in jaar één* maakt de opsplitsing
+van `profiles` verplicht in plaats van netjes. Eén platte tabel is nu tegelijk het account en de
+website. Dat wordt `accounts` en `brands`, elke `profile_id` wordt een `brand_id`, en dat raakt
+vrijwel elke query in `lib/`. Fase 1 ging daardoor van 5 naar 7 dagen en is nu de fase met het
+hoogste risico. Het CSM-paneel schoof van plek negen naar plek zes: twintig klanten met meerdere
+websites houd je niet meer met SQL bij.
+
+**De veldenlijst (§13) is de winst van deze ronde.** Beide i18n-bestanden uitgekamd op wat InSpace
+in de onboarding uitvraagt: ongeveer veertig velden. Naast Aura's `profiles`-kolommen gelegd blijkt:
+veertien heeft Aura al (de ronde van 7 augustus met migratie `0045` leverde de tone-of-voice-schuiven,
+verboden woorden en auteursvelden), elf kan de pijplijn zelf afleiden, elf moet de klant typen, en
+vier vervallen (taalkeuze, CMS, auteurspagina, Google Analytics).
+
+Dat laatste getal is het punt: **de klant hoeft er elf in te typen en dat zijn precies de elf die
+niemand kan raden**, bedrijfsgegevens en facturatie. De rest staat vooringevuld met het label "uit je
+website gehaald" en is corrigeerbaar. InSpace laat de klant twintig minuten uittrekken
+(`landingTimeNote`); Aura kan het in vier stappen omdat het onderzoek vóór de onboarding draait in
+plaats van erna. Fase 3 ging daardoor van 8 naar 7 dagen.
+
+Kleinere uitkomsten: één tone-of-voice-schuif ontbreekt nog (`tone_emotional`, vier standen), de
+aanspreekvorm van de klant moet een eigen veld worden (Aura's eigen "je en jij" uit `schrijfstijl.md`
+geldt voor de interface, niet voor wat Aura vóór een advocatenkantoor schrijft), en alleen Nederlands
+(besluit 13) laat `next-intl` vervallen, waardoor fase 7 van 5 naar 2 dagen krimpt.
+
+**De naam blijft Aura.** Het advies was wijzigen omdat InSpace een gelijknamig product aankondigt;
+de eigenaar weegt dat anders en kiest houden. Vastgelegd in §12.1 als genomen besluit, niet als open
+punt. Wat wel blijft staan als schrijfregel: de eerste vermelding van Aura zegt altijd wát het meet,
+niet alleen hoe het heet.

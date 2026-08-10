@@ -63,16 +63,44 @@ zonder tekst. Daarvoor staan per fase de openstaande analyses in §7.
 Aanvullend geanalyseerd: de gecompileerde CSS (`nova.inspace.io`, 86 kB), goed voor 381 design
 tokens, negen radii, de volledige animatieset en het bewijs dat er een donkere modus is.
 
-### De vier besluiten die dit plan sturen
+### De dertien besluiten die dit plan sturen
 
-Op 10 augustus 2026 vastgelegd, in overleg:
+Op 10 augustus 2026 vastgelegd, in overleg. De eerste vier bepalen de vorm, de rest de invulling.
 
-| Besluit | Keuze |
-|---|---|
-| Navigatie | **Merk-werkruimte**. Je kiest bovenin een merk, daarna gaat de hele app over dat merk. |
-| Gebruiker | **Klantportaal plus admin**. De klant logt in en keurt goed, jij krijgt een CSM-overzicht. |
-| Contentplan | **Twaalfmaandsplan als kernobject**, met maanden, statussen en goedkeuring per maand. |
-| Meten | **Beide**: AI-zichtbaarheid blijft de eigen metriek, Google Search Console komt erbij. |
+| # | Besluit | Keuze | Raakt |
+|---|---|---|---|
+| 1 | Navigatie | **Merk-werkruimte**. Je kiest bovenin een merk, daarna gaat de hele app over dat merk. | Fase 1 |
+| 2 | Gebruiker | **Klantportaal plus admin**. De klant logt in en keurt goed, jij krijgt een CSM-overzicht. | Fase 2, 8 |
+| 3 | Contentplan | **Twaalfmaandsplan als kernobject**, met maanden, statussen en goedkeuring per maand. | Fase 4 |
+| 4 | Meten | **Beide**: AI-zichtbaarheid is het hoofdgerecht, Search Console is het bewijsstuk. | Fase 5 |
+| 5 | **De naam** | **Aura blijft Aura.** Zie §12.1: het advies was wijzigen, de eigenaar kiest houden. Besluit genomen, discussie gesloten. | Niets |
+| 6 | Pakketten | **10, 20 of 40 pagina's per maand**, drie pakketten, net als InSpace. | Fase 4 |
+| 7 | Looptijd | **Doorlopend opzegbaar**, géén contract van twaalf maanden. | Fase 4, en het verandert de taal, zie hieronder |
+| 8 | Publiceren | **Zowel de eigenaar als de klant** kan een pagina als geplaatst markeren. | Fase 4 |
+| 9 | Klantsoort | **Ondernemers én marketingbureaus.** Eén inlog kan meerdere merken beheren. | Fase 2 |
+| 10 | Websites | **Een klant kan meerdere websites hebben.** | Fase 1, 2 |
+| 11 | Volume | **Ongeveer 20 klanten in het eerste jaar.** | Fase 8 schuift naar voren |
+| 12 | Bewerken | **De klant mag teksten zelf aanpassen**, niet alleen goedkeuren. Aura's editor blijft. | Niets, blijft zoals het is |
+| 13 | Taal | **Uitsluitend Nederlands.** Geen meertaligheid. | Fase 7 krimpt fors |
+
+#### Twee besluiten met een groter gevolg dan ze lijken
+
+**Besluit 7, doorlopend opzegbaar, sloopt Nova's belangrijkste retentiemiddel.** Bij InSpace staat
+overal "contract month {current} of {total}" en "Growing with NOVA since": de klant zit vast, en het
+scherm herinnert hem eraan dat er nog maanden te gaan zijn. Dat kan hier niet, want hij kan morgen
+opzeggen.
+
+Het plan blijft twaalf maanden vooruitkijken, want een programma zonder horizon is geen programma.
+Maar de taal verandert: geen "contractmaand 4 van 12" maar **"maand 4 sinds de start"**, en de
+nadruk verschuift van *wat je nog tegoed hebt* naar *wat het tot nu toe opleverde*. Daarmee wordt
+het opbrengstblok (`analytics.milestones` bij Nova, §3.6) geen leuk extraatje maar het middel dat
+opzeggen tegenhoudt. Het staat daarom in fase 5, niet achteraan.
+
+**Besluit 10 en 11 samen maken de opsplitsing verplicht.** Twintig klanten die allemaal meerdere
+websites kunnen hebben, deels via bureaus, is precies de situatie waarin één platte `profiles`-tabel
+vastloopt. `profiles` moet in tweeën: een **account** (de klant of het bureau, met facturatie en
+gebruikers) en een **merk** (één website, met zijn eigen dossier, plan en metingen). Dat is de
+zwaarste technische ingreep van het plan en hij zit in fase 1.
 
 ### De grens van dit plan: alles zit achter de inlog
 
@@ -653,9 +681,23 @@ Geen zichtbare functie, maar alles daarna leunt erop.
 
 ### Fase 1. De merk-werkruimte
 
-**Effort: 5 dagen · Impact: zeer hoog · Risico: middel**
+**Effort: 7 dagen · Impact: zeer hoog · Risico: hoog**
 
-Dit is de structurele ingreep waar besluit 1 om vroeg.
+Dit is de structurele ingreep waar besluit 1 om vroeg, en sinds besluit 10 is hij zwaarder dan
+eerst geraamd.
+
+⚠️ **`profiles` moet in tweeën.** Een klant kan meerdere websites hebben (besluit 10) en kan een
+bureau zijn met meerdere klanten (besluit 9). De huidige platte `profiles`-tabel is allebei tegelijk:
+het account én de website. Dat wordt:
+
+```
+accounts     de klant of het bureau: bedrijfsgegevens, facturatie, gebruikers, pakket
+brands       één website: dossier, aanbod, onderwerpen, metingen, plan
+```
+
+Elke bestaande `profile_id` wordt een `brand_id`. Dat raakt vrijwel elke query in `lib/`, dus dit is
+de fase met het hoogste risico van het hele plan. Additief migreren (conventie 4): `accounts`
+erbij, `brands` als hernoemde weergave van `profiles`, en pas opruimen als alles draait.
 
 - **Sidebar** in plaats van bovenbalk, inklapbaar, met mobiele variant.
 - **Merkkiezer** bovenin, doorzoekbaar, met de lege staat `noClientsMatch`.
@@ -690,6 +732,9 @@ de publieke bundel, plus de marketingsite en documentatie op inspace.io.
 Besluit 2. Zonder dit is er geen abonnementsproduct.
 
 - Rollenmodel: `admin` en `member`, op accountniveau. `staff_users` gaat hierin op.
+- ⚠️ **Bureaus** (besluit 9). Eén gebruiker kan bij meerdere accounts horen, en een bureau ziet in de
+  merkkiezer de merken van al zijn klanten. Dat is geen extra rol maar een koppeltabel tussen
+  gebruiker en account. Nu meenemen is een halve dag; later toevoegen raakt opnieuw elke query.
 - **Uitnodigingsstroom**: jij nodigt uit vanuit het admin-paneel, de klant krijgt een link, activeert
   met een wachtwoord (live afgevinkte regels), en landt in zijn merk.
   Vier eindtoestanden van de link, elk met een eigen scherm.
@@ -709,9 +754,15 @@ ontwerpbeslissing die we zelf nemen. Ik stel voor dat we die grens vastleggen v�
 
 ### Fase 3. De onboarding als wizard
 
-**Effort: 8 dagen · Impact: hoog · Risico: middel**
+**Effort: 7 dagen · Impact: hoog · Risico: middel**
 
 Nova's best uitgewerkte deel, en Aura's magerste (twee velden).
+
+📋 **De complete veldenlijst staat in §13.** Daar staat per veld of Aura het al heeft, of het vanzelf
+gevuld kan worden, en wat de klant zelf moet invullen. Kort: van de veertig velden die InSpace
+uitvraagt hoeft de klant er bij Aura **elf** te typen, want de rest leidt de pijplijn af en zet hij
+er vooringevuld neer met het label "uit je website gehaald". Daarom vier stappen in plaats van zes,
+en daarom een dag minder dan eerst geraamd.
 
 - Stappenrail met kicker, titel en subtitel per stap, en een voortgangsrail die meegroeit
   ("Your strategy taking shape", "Up next").
@@ -745,10 +796,21 @@ de pijplijn de ingevulde velden ook echt gebruikt in de schrijfprompt.
 
 Besluit 3, en de grootste fase. Dit is wat van Aura een programma maakt.
 
+⚠️ **Twee besluiten veranderen dit ontwerp:**
+
+- **Besluit 7, doorlopend opzegbaar.** Geen contractduur, dus geen "contractmaand 4 van 12". Het
+  plan kijkt wél twaalf maanden vooruit, maar de teller heet **"maand 4 sinds de start"** en er
+  staat nergens hoeveel er nog te gaan is. Wat er in de plaats komt is het opbrengstblok uit fase 5.
+- **Besluit 8, beiden publiceren.** "Markeer als geplaatst" moet zowel door de eigenaar als door de
+  klant gedaan kunnen worden, en er wordt vastgelegd wie het deed. Dat is één kolom en één regel in
+  de weergave, maar zonder die kolom is later niet meer na te gaan wie wat live zette.
+- **Besluit 6, drie pakketten.** 10, 20 of 40 pagina's per maand. De quota is een eigenschap van het
+  pakket op het account, niet een vrij veld per merk.
+
 **Datamodel** (nieuw, additief):
 
 ```
-content_plans        merk, startdatum, looptijd (12), pagina's per maand (quota)
+content_plans        merk, startdatum, pagina's per maand (uit het pakket)
 plan_months          plan, maandnummer 1..12, status, goedgekeurd_op
 planned_pages        plan_month, url_pad, paginatype, funnelfase, onderwerp,
                      status, volgorde, is_buffer, content_piece_id
@@ -816,7 +878,12 @@ Besluit 4. Dit maakt het effect hard aantoonbaar.
   paginering.
 - Overzicht krijgt de prestatieblokken.
 - **De eigen draai**: Nova toont clicks. Aura toont clicks **naast** AI-zichtbaarheid, in één
-  grafiek. Dat is een beeld dat niemand anders heeft.
+  grafiek. Dat is een beeld dat niemand anders heeft, en het maakt besluit 4 waar: AI-zichtbaarheid
+  is het verhaal, Google is het bewijsstuk.
+- ⚠️ **Het opbrengstblok is hier geen extraatje.** Door besluit 7 (doorlopend opzegbaar) is dit het
+  middel dat opzeggen tegenhoudt. Nova's `analytics.milestones` in Aura's vorm: "actief sinds
+  {datum}", "zoveel vaker genoemd sinds de start", "zoveel pagina's gepubliceerd". Eén blok, drie
+  getallen, en het staat op het overzicht en niet weggestopt in Analytics.
 - Alle vier de lege staten van Nova overnemen, inclusief "we zijn nog aan het verzamelen".
 
 **Verificatie**: tegen een echte property, en de cijfers naleggen naast de Search Console-interface
@@ -829,9 +896,10 @@ gedocumenteerd.
 
 ### Fase 6. De lus sluiten
 
-**Effort: 6 dagen · Impact: zeer hoog · Risico: middel**
+**Effort: 4 dagen · Impact: zeer hoog · Risico: middel**
 
-Dit is waar Aura Nova voorbijgaat, en het is de reden dat de rest gebouwd wordt.
+Dit is waar Aura Nova voorbijgaat, en het is de reden dat de rest gebouwd wordt. Gekrompen van 6
+naar 4 dagen omdat "Nova insights" één zin bleek te zijn (§11.4), geen module.
 
 - **Impact terug in het plan.** `content_impact` meet al of een pagina de AI-zichtbaarheid
   veranderde. Nieuw: een pagina die na 60 dagen niets deed leidt tot een voorstel (herschrijven,
@@ -853,27 +921,32 @@ publieke bron is, wil ik die lezen.
 
 ---
 
-### Fase 7. Meertaligheid, donkere modus, account
+### Fase 7. Donkere modus en het accountscherm
 
-**Effort: 5 dagen · Impact: middel · Risico: laag**
+**Effort: 2 dagen · Impact: laag · Risico: laag**
 
-Het afmaakwerk, bewust achteraan.
+⚠️ **Deze fase is gekrompen van 5 naar 2 dagen door besluit 13**: de app blijft uitsluitend
+Nederlands, dus `next-intl` en de hele vertaalslag vervallen. Dat scheelt drie dagen en, belangrijker,
+het houdt alle UI-tekst gewoon in de componenten waar hij nu staat. Meertaligheid later alsnog
+invoeren kost dan wel meer, maar dat is de juiste afweging bij één taalgebied.
 
-- **`next-intl` invoeren**, met dezelfde namespacestructuur als Nova. Nederlands blijft de bron,
-  Engels erbij. Dit is een grote maar mechanische ingreep: alle UI-tekst verhuist naar
-  berichtenbestanden.
 - **Donkere modus**. De tokennamen zijn er al op ingericht (`designsystem.md` §5 noemt het "een dag
   werk in plaats van een week"). Drie standen: systeem, licht, donker.
-- **Accountscherm** afmaken: weergavenaam, communicatietaal, thema, e-mail wijzigen met
-  bevestigingsmail, wachtwoord wijzigen met controle op het huidige.
+- **Accountscherm** afmaken: weergavenaam, thema, e-mail wijzigen met bevestigingsmail, wachtwoord
+  wijzigen met controle op het huidige.
 
-**Nova-analyse nodig**: nee, maar wel een besluit van jou: nemen we Duits mee of alleen Engels?
+**Nova-analyse nodig**: nee.
 
 ---
 
 ### Fase 8. Het CSM-paneel
 
 **Effort: 4 dagen · Impact: hoog voor jou, nul voor de klant · Risico: laag**
+
+⚠️ **Schuift naar voren door besluit 11.** Twintig klanten in het eerste jaar, die allemaal meerdere
+websites kunnen hebben en deels via bureaus binnenkomen, is geen situatie meer die je met de
+database bijhoudt. De oorspronkelijke redenering ("bij minder dan tien klanten kun je dit met SQL")
+gaat niet meer op. **Bouw dit direct na fase 4**, zodra er plannen zijn om te overzien.
 
 - **Klantentabel** met de zeven segmenten, elk met banner en lege staat.
 - **CSM-overzicht**: "waar lopen we achter". Vier KPI's, tabel met quota tegenover werkelijkheid,
@@ -890,25 +963,41 @@ gedocumenteerde van allemaal.
 
 ## 8. Samengevat: effort tegenover impact
 
-| Fase | Wat | Dagen | Impact | Risico | Volgorde-argument |
-|---|---|---|---|---|---|
-| 0 | Fundament, primitieven | 2 | Middel | Laag | Alles leunt erop |
-| 1 | Merk-werkruimte | 5 | Zeer hoog | Middel | Bepaalt alle routes daarna |
-| 2 | Rollen en uitnodigingen | 6 | Hoog | **Hoog** | Zonder dit geen abonnement |
-| 3 | Onboarding-wizard | 8 | Hoog | Middel | Voedt de kwaliteit van alles |
-| 4 | Contentplan 12 maanden | 10 | Zeer hoog | **Hoog** | Het kernobject |
-| 5 | Search Console | 5 | Hoog | Middel | Maakt resultaat aantoonbaar |
-| 6 | De lus sluiten | 6 | Zeer hoog | Middel | Het onderscheid |
-| 7 | i18n, donker, account | 5 | Middel | Laag | Afmaakwerk |
-| 8 | CSM-paneel | 4 | Hoog voor jou | Laag | Kan wachten tot 10 klanten |
+Bijgewerkt na de dertien besluiten van 10 augustus. De volgorde is gewijzigd: het CSM-paneel schuift
+naar voren, meertaligheid vervalt.
 
-**Totaal: ongeveer 51 dagen.**
+| Volg­orde | Fase | Wat | Dagen | Impact | Risico |
+|---|---|---|---|---|---|
+| 1 | 0 | Fundament, primitieven | 2 | Middel | Laag |
+| 2 | 1 | Merk-werkruimte, plus account en merk splitsen | 7 | Zeer hoog | **Hoog** |
+| 3 | 2 | Rollen, uitnodigingen, bureaus | 6 | Hoog | **Hoog** |
+| 4 | 3 | Onboarding-wizard, vier stappen | 7 | Hoog | Middel |
+| 5 | 4 | Contentplan, 12 maanden doorlopend | 10 | Zeer hoog | **Hoog** |
+| 6 | 8 | CSM-paneel | 4 | Hoog voor jou | Laag |
+| 7 | 5 | Search Console plus het opbrengstblok | 5 | Hoog | Middel |
+| 8 | 6 | De lus sluiten | 4 | Zeer hoog | Middel |
+| 9 | 7 | Donkere modus en account | 2 | Laag | Laag |
+
+**Totaal: ongeveer 47 dagen**, vier minder dan de eerste raming.
+
+**Wat er veranderde en waarom:**
+
+| Verandering | Oorzaak |
+|---|---|
+| Fase 1 van 5 naar **7** dagen | Besluit 10: `profiles` moet in account en merk gesplitst worden. Dat is een migratie plus een herschrijving van elke query die nu op `profile_id` staat. |
+| Fase 3 van 8 naar **7** dagen | §13: de merkstappen zijn nakijkwerk geworden in plaats van invulwerk, want Aura leidt 25 van de 40 velden zelf af. |
+| Fase 8 van plek 9 naar **plek 6** | Besluit 11: twintig klanten met meerdere websites redt je niet met SQL. |
+| Fase 7 van 5 naar **2** dagen | Besluit 13: alleen Nederlands, dus geen `next-intl`. |
+| Fase 6 van 6 naar **4** dagen | §11.4: "Nova insights" bleek één zin, geen module. |
 
 ### Als je moet kiezen
 
-Zou je maar drie fases kunnen doen, doe dan **1, 4 en 6**. Dat is de merk-werkruimte, het
-twaalfmaandsplan en de gesloten lus: samen zijn dat precies de drie dingen die van een meetinstrument
-een programma maken. Fase 2 wordt dan wel urgent zodra de eerste klant zelf wil inloggen.
+Zou je maar drie fases kunnen doen, doe dan **1, 4 en 6**: de merk-werkruimte, het contentplan en de
+gesloten lus. Dat zijn precies de drie die van een meetinstrument een programma maken.
+
+Maar met besluit 7 erbij (doorlopend opzegbaar) verdient **fase 5 een streepje**: bij een klant die
+elke maand kan opzeggen is "kijk wat het opleverde" geen luxe maar het middel dat hem vasthoudt. Als
+je vier fases doet, is dat de vierde.
 
 ---
 
@@ -1130,7 +1219,14 @@ InSpace brengt een product uit dat **Aura** heet, in dezelfde categorie, met de 
 naam niet gaat winnen van een partij met dit budget, en de tijd die je erin steekt beter naar het
 product gaat. De kosten zijn nu het laagst die ze ooit zullen zijn.
 
-Dit is jouw besluit, niet het mijne. Zolang het niet genomen is verandert er niets aan de code.
+**BESLUIT, 10 augustus 2026: de app blijft Aura heten.** De eigenaar heeft het advies gewogen en
+kiest voor houden. Daarmee is dit gesloten; het staat hier alleen nog als vastgelegde afweging, niet
+als open punt. Er verandert niets aan de code, de documentatie of het woordmerk.
+
+Wat wél verstandig is, en geen naamswijziging vraagt: zorg dat de eerste vermelding van Aura altijd
+zegt wát het meet ("Aura meet je zichtbaarheid in AI-antwoorden"), niet alleen hoe het heet. Bij
+verwarring wint de partij die het duidelijkst uitlegt wat hij doet, en dat is een schrijfregel, geen
+merkregistratie.
 
 ### 12.2 De volgorde, herzien
 
@@ -1148,7 +1244,162 @@ voorloopt is precies de kant die InSpace nog niet heeft.
 
 ---
 
-## 13. Hoe dit document zich verhoudt tot de rest
+## 13. De velden van de onboarding, compleet
+
+Besluit: **overnemen wat InSpace uitvraagt, automatisch invullen wat Aura kan afleiden, en alles
+corrigeerbaar maken.** Dit hoofdstuk is de complete inventaris, uit beide i18n-bestanden, met per
+veld of Aura het al heeft en of het vanzelf gevuld kan worden.
+
+**Drie kolommen om te lezen:**
+
+- **Aura nu**: staat het al in de database? (`profiles`-kolom, of nieuw)
+- **Vanzelf**: kan de pijplijn dit invullen zonder de klant iets te vragen?
+- **Vragen**: moet de klant het alsnog zien en kunnen corrigeren?
+
+De regel die overal geldt: **wat Aura zelf invult krijgt het label "Uit je website gehaald"** (Nova's
+`brand.draftedBadge`), staat in een gewoon invoerveld, en is dus altijd te overschrijven. De klant
+ziet nooit een leeg formulier van dertig velden, maar wel dertig velden die hij mág nakijken.
+
+### 13.1 Bedrijfs- en facturatiegegevens
+
+Allemaal nieuw voor Aura, en geen ervan is af te leiden. Dit hoort bij het account, niet bij het
+merk (besluit 10: één account, meerdere websites).
+
+| Veld | Bij InSpace | Aura nu | Vanzelf | Opmerking |
+|---|---|---|---|---|
+| Bedrijfsnaam (juridisch) | `companyName` | Nieuw | Nee | |
+| Adres, postcode, plaats, land | `address`, `postalCode`, `city`, `country` | Nieuw | Nee | Land als keuzelijst |
+| Btw-nummer | `vatNumber` | Nieuw | Nee | InSpace valideert live tegen VIES en heeft een "ik heb er geen"-vinkje |
+| Factuur-e-mail | `invoiceEmail` | Nieuw | Nee | |
+| Contactpersoon, e-mail, telefoon | `contactPerson`, `contactEmail`, `contactPhone` | Nieuw | Nee | ⚠️ InSpace waarschuwt expliciet dat dit e-mailadres óók het inlogadres is |
+| Communicatietaal | `languageLabel` | Nieuw | Nee | Bij Aura altijd Nederlands (besluit 13), dus **weglaten** |
+
+**Overnemen, met twee afwijkingen**: de VIES-validatie slaan we over (leuk, maar het is een externe
+koppeling voor een veld dat je één keer invult), en de taalkeuze vervalt.
+
+### 13.2 De website
+
+| Veld | Bij InSpace | Aura nu | Vanzelf | Opmerking |
+|---|---|---|---|---|
+| Domein | `domainLabel`, hint "geen https:// of www." | `profiles.url` | Deels | Aura vraagt dit al in `onboarding-wizard.tsx` |
+| Bevestiging met voorvertoning | `websiteCheckTitle` "Is this your website?" | Nieuw | n.v.t. | Schermafbeelding van de site naast het domein |
+| Meerdere websites | `domainProgress` "Website {current} of {total}" | Nieuw | Nee | Volgt uit besluit 10 |
+| Sitemap, maximum pagina's | geen | `sitemap_url`, `max_inventory_pages` | Ja | **Aura heeft dit en InSpace niet.** Blijft achter "geavanceerd" |
+
+### 13.3 Merkfundament
+
+Hier zit de meeste winst, want Aura leidt dit al af maar laat het niet zien.
+
+| Veld | Bij InSpace | Aura nu | Vanzelf | Opmerking |
+|---|---|---|---|---|
+| Kerncategorie | `brandCoreCategory` "B2B SaaS, E-commerce fashion" | `industry`, `business_model` | **Ja** | `profile_research` levert dit |
+| Branche (keuzelijst) | `industry`, 16 opties plus "anders" | `industry` als vrije tekst | **Ja** | Overnemen als keuzelijst met dezelfde 16 |
+| Missie | `brandMission` | Nieuw | **Ja** | Af te leiden uit de synthese |
+| Kernwaarden | `brandValuePillars` | `value_props` | **Ja** | |
+| Positionering | `brandPositioning` | Nieuw | **Ja** | Af te leiden uit `profile_market` |
+| Bewijspunten | `brandProofPoints` "500+ klanten, 10 jaar ervaring" | `proof_points` | **Ja** | Aura heeft dit al en gebruikt het in de schrijfprompt |
+| USP | `uspLabel` | Nieuw | Deels | Overlapt met `value_props`, samenvoegen |
+| Kernboodschappen | `keyMessagesLabel` | Nieuw | **Ja** | |
+| Identiteitswoorden | `identityKeywords` "innovatief, betrouwbaar" | Nieuw | **Ja** | |
+| Concurrenten (max 3) | `competitors` | `competitors`, plus `entities` | **Ja** | **Aura is hier verder**: acht namen mét onderbouwing, en een eigen tabel. Geen maximum van drie. |
+| Onderscheid | `usVsThem` | Nieuw | **Ja** | |
+
+### 13.4 Doelgroep
+
+| Veld | Bij InSpace | Aura nu | Vanzelf | Opmerking |
+|---|---|---|---|---|
+| Primaire doelgroep | `primaryAudience` | `personas`, `intake_audience` | **Ja** | |
+| Secundaire doelgroep | `secondaryAudience` | `personas` | **Ja** | |
+| Kennisniveau | `audienceKnowledgeLevel`: basis, professional, expert | Nieuw | Deels | Drie standen, hoort bij de schuiven |
+| Geografische identiteit | `geoIdentity` "Nederland, DACH, wereldwijd" | `service_scope`, `service_regions` | **Ja** | Aura heeft dit al fijnmaziger |
+
+### 13.5 Tone of voice
+
+Aura heeft vier van de vijf schuiven al (migratie `0045`).
+
+| Schuif | Standen bij InSpace | Aura nu |
+|---|---|---|
+| Formaliteit | Informeel, semi-formeel, formeel | `tone_formality` ✅ |
+| Energie | Rustig, gebalanceerd, energiek | `tone_energy` ✅ |
+| Complexiteit | Eenvoudig, toegankelijk expert, diep expert | `tone_complexity` ✅ |
+| Humor | Geen, subtiel, speels | `tone_humor` ✅ |
+| **Emotionele lading** | Neutraal, geruststellend, enthousiast, urgent | **Ontbreekt** |
+| Merkpersoonlijkheid (vrije tekst) | `tovPersonality` | `tone_of_voice` ✅ |
+| Schrijfstijl (vrije tekst) | `writingStyleLabel` | `tone_of_voice` ✅, samenvoegen |
+
+**Te doen**: één schuif toevoegen (`tone_emotional`, vier standen), en die net als de andere door
+`tone-sliders.ts` naar prompttaal vertalen, nooit het cijfer zelf naar het model.
+
+### 13.6 Woorden en taalgebruik
+
+| Veld | Bij InSpace | Aura nu | Vanzelf |
+|---|---|---|---|
+| Vaste uitdrukkingen | `signaturePhrases` | Nieuw | **Ja**, uit `style_samples` |
+| Verboden woorden | `tabooPhrases` | `taboo_phrases` ✅ | Nee |
+| Aanspreekvorm | `pronounLabel`: informeel, formeel, wij | Nieuw | Deels | 
+| Wet- en regelgeving | `lawsAndRegulations` | `compliance_notes` ✅ | Nee |
+| Extra nalevingsnotities | `additionalComplianceNotes` | `compliance_notes` ✅ | Nee |
+
+De aanspreekvorm is de moeite waard: `docs/schrijfstijl.md` legt "je en jij" vast voor Aura's eigen
+interface, maar de content die Aura vóór een klant schrijft moet de aanspreekvorm van díe klant
+volgen. Een advocatenkantoor wil "u".
+
+### 13.7 Auteur
+
+Aura heeft de kern al (migratie `0045`).
+
+| Veld | Bij InSpace | Aura nu |
+|---|---|---|
+| Naam, functie, korte biografie | `authorName`, `authorRole`, `shortDescription` | ✅ |
+| LinkedIn | `linkedIn` | ✅ |
+| Foto | `authorPhoto`, max 2 MB | Ontbreekt |
+| Facebook, overige socials | `facebook`, `otherSocials` | Ontbreekt |
+| Auteurspagina laten maken | `createAuthorPage` | Ontbreekt, en **niet overnemen** |
+
+InSpace publiceert desgewenst zelf een auteurspagina op de site van de klant. Dat kan niet zonder
+CMS-koppeling, dus dat vervalt. De foto en de extra socials wel overnemen: die gaan mee in de
+`schema.org`-opbouw die Aura al heeft (`lib/schema-jsonld.ts`), en dat is precies een signaal waar
+AI-assistenten entiteiten mee herkennen.
+
+Let op de eis die InSpace erbij zet, en die is inhoudelijk goed: *"de auteur moet een echt persoon
+zijn die bij het bedrijf werkt en online vindbaar is"*. Die zin hoort erbij te staan.
+
+### 13.8 Koppelingen
+
+| Veld | Bij InSpace | Aura |
+|---|---|---|
+| Google Search Console | Verplicht, blokkerend, met verifieerknop | **Overnemen**, fase 5 |
+| Google Analytics | Optioneel | **Niet overnemen**, zie `zoekdata-koppeling.md` |
+| Microsoft Clarity | Optioneel | Niet overnemen |
+| CMS | Verplicht | **Buiten scope** |
+
+### 13.9 Wat dit bij elkaar betekent
+
+Van de ongeveer **veertig velden** die InSpace uitvraagt:
+
+| | Aantal | Wat we ermee doen |
+|---|---|---|
+| Aura heeft ze al | 14 | Zichtbaar maken in de wizard, met het "uit je website gehaald"-label |
+| Aura kan ze afleiden | 11 | Nieuw veld, gevuld door de pijplijn, corrigeerbaar |
+| Moet de klant invullen | 11 | Bedrijfs- en facturatiegegevens, verboden woorden, auteur |
+| Vervalt | 4 | Taalkeuze, CMS, auteurspagina, Google Analytics |
+
+**De belangrijkste uitkomst**: de klant hoeft er maar elf zelf in te typen, en dat zijn precies de
+elf die niemand kan raden. De rest staat er al ingevuld als hij het scherm opent. Dat is een
+wezenlijk betere onboarding dan die van InSpace, waar de klant twintig minuten uittrekt
+(`landingTimeNote`), en het kan omdat Aura's onderzoek vooraf draait in plaats van erna.
+
+**Gevolg voor fase 3**: de wizard krijgt vier stappen in plaats van zes, want de merkstappen zijn
+grotendeels nakijkwerk geworden:
+
+1. **Bedrijfsgegevens** (elf velden, leeg, verplicht)
+2. **Je website** (bevestigen, plus de scan)
+3. **Je merk** (alles vooringevuld, in vier blokken: fundament, doelgroep, stem, woorden)
+4. **Nakijken en starten** (`assessReadiness()`, bestaat al)
+
+---
+
+## 14. Hoe dit document zich verhoudt tot de rest
 
 | Bestand | Wat er in blijft staan |
 |---|---|
