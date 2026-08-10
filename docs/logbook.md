@@ -1502,3 +1502,38 @@ overtuigend, maar eerlijk, en het is conventie 3. Om te voorkomen dat dit later 
 krijgt de rekenkant nu al de waarde per bezoeker als **optionele** parameter: `null` toont aantallen,
 een bedrag toont geld, en er hoeft geen scherm om zodra de prijzen bekend zijn. Tien minuten nu tegen
 een dag later.
+
+## Fase 1 begonnen: de accountlaag staat (10 augustus 2026)
+
+Migratie `0046_accounts`, toegepast op productie en nageteld. `accounts` (de klant of het bureau,
+met facturatie, pakket en opzegdatum), `account_users` (koppeltabel met rol) en `profiles.account_id`.
+Backfill: elke bestaande eigenaar werd één account met al zijn merken erin, want wie nu onder
+dezelfde `user_id` staat hoorde ook bij elkaar. Uitkomst: 1 account, 9 merken gekoppeld, 0 wezen.
+
+**Afgeweken van het eigen plan, en dat is de belangrijkste beslissing van deze ronde.** `docs/Nova.md`
+schreef voor dat `profiles` hernoemd zou worden naar `brands`. Bij het natellen bleek dat vijftien
+tabellen een `profile_id` dragen, dat alle RLS-regels eraan hangen en dat de code er op ~500 plekken
+naar verwijst. Die hernoeming levert nul functionaliteit op: `profiles` ís het merk al (één website,
+één dossier, één set metingen) en `lib/nav.ts` zegt in de interface allang "Merken". Wat écht
+ontbrak was de laag eróven. Die is er nu, `profiles` bleef staan, en daarmee ging fase 1 van de
+risicovolste fase naar een additieve.
+
+**De toegangsregel is drielaags geworden** (`getOwnedProfile`): eerst het account, dan de historische
+eigenaar (`profiles.user_id`), dan de beheerder (`isStaff`). Elke laag is een aparte vraag met een
+eigen `return`, nooit één samengestelde voorwaarde, want dit is samen met `getOwnedAnalysis` de enige
+poort tussen een verzoek en andermans data. Laag 2 blijft bewust bestaan zolang niet is nageteld dat
+élk merk een account heeft; hem meteen weghalen zou betekenen dat de backfill foutloos moest zijn
+vóórdat er iemand inlogt, en dat is precies het soort aanname waar dit project vangnetten tegen bouwt.
+Op RLS-niveau hetzelfde: de twee bestaande policies bleven staan en er kwam er één bij. Policies zijn
+een OR van elkaar, dus de verruiming kon niets breken.
+
+`isActiveAccount()` en `monthsSinceStart()` staan in `lib/account-status.ts` en niet in
+`lib/accounts.ts`: die laatste heeft `server-only` en dan is de rekenkunde niet te testen vanuit
+`scripts/test-unit.ts` (conventie 2). Dat bleek meteen, want de eerste versie stond op de verkeerde
+plek en de testrunner viel erover.
+
+`monthsSinceStart` draagt besluit 7: doorlopend opzegbaar, dus geen "contractmaand 4 van 12" zoals
+Nova, maar "maand 4 sinds de start". Een teller die zegt hoeveel je nog tegoed hebt suggereert een
+contract dat er niet is.
+
+Vier controles groen: `tsc`, 766 unittests (11 nieuwe), 47 ketentests, productiebuild.

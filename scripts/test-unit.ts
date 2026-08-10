@@ -125,6 +125,7 @@ import {
   assessReadiness,
   readinessHeadline,
 } from "@/lib/pipeline/profile-readiness";
+import { isActiveAccount, monthsSinceStart } from "@/lib/account-status";
 import {
   assessStructureCoverage,
   describeCoverage,
@@ -3326,6 +3327,55 @@ group("de drie kerncijfers en de zin erboven", () => {
   ok(
     "en de tegels tonen een streepje in plaats van een nul",
     onboardingStats(leeg).every((s) => s.value === "-"),
+  );
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+console.log("\nOpzeggen verwijdert niets (accounts, migratie 0046)");
+
+group("isActiveAccount", () => {
+  const nu = new Date("2026-08-10T12:00:00Z");
+
+  ok("nooit opgezegd is actief", isActiveAccount({ cancelled_at: null }, nu) === true);
+
+  // ⚠️ Besluit 14: opzeggen sluit niet af op de dag zelf. De klant houdt toegang
+  // tot het einde van de betaalde maand, en ziet daar zijn opbrengst nog één
+  // keer. Dat is de beste kans op terugkeer die er is.
+  ok(
+    "opgezegd per een datum in de toekomst is nog actief",
+    isActiveAccount({ cancelled_at: "2026-08-31T23:59:59Z" }, nu) === true,
+  );
+  ok(
+    "pas ná die datum vervalt de toegang",
+    isActiveAccount({ cancelled_at: "2026-07-31T23:59:59Z" }, nu) === false,
+  );
+  // De grens zelf: precies op het moment is hij niet meer actief. Eén kant
+  // kiezen en die vastleggen, anders verschilt het per aanroep.
+  ok(
+    "op het moment zelf is hij verlopen",
+    isActiveAccount({ cancelled_at: nu.toISOString() }, nu) === false,
+  );
+});
+
+group("monthsSinceStart", () => {
+  const nu = new Date("2026-08-10T12:00:00Z");
+
+  // ⚠️ Besluit 7: doorlopend opzegbaar, dus NIET "contractmaand 4 van 12" zoals
+  // bij Nova. De klant zit nergens aan vast, en een teller die zegt hoeveel hij
+  // nog tegoed heeft zou dat suggereren.
+  ok("de eerste maand is maand 1", monthsSinceStart({ started_at: "2026-08-01" }, nu) === 1);
+  ok("zelfde dag is ook maand 1", monthsSinceStart({ started_at: "2026-08-10" }, nu) === 1);
+  ok("een maand later is maand 2", monthsSinceStart({ started_at: "2026-07-10" }, nu) === 2);
+  ok(
+    "vóór de verjaardag van de maand telt hij nog niet mee",
+    monthsSinceStart({ started_at: "2026-07-11" }, nu) === 1,
+  );
+  ok("over een jaargrens heen", monthsSinceStart({ started_at: "2025-08-10" }, nu) === 13);
+  // Conventie 3: onbekend is een betere waarde dan een gok.
+  ok("zonder startdatum geen getal", monthsSinceStart({ started_at: null }, nu) === null);
+  ok(
+    "een startdatum in de toekomst levert niets op",
+    monthsSinceStart({ started_at: "2026-09-01" }, nu) === null,
   );
 });
 

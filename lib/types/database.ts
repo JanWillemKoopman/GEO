@@ -35,6 +35,59 @@ export type ContentType = "article" | "faq" | "landing" | "comparison";
 export type ContentStatus = "briefing" | "draft" | "ready" | "archived" | "published";
 export type JobStatus = "queued" | "running" | "done" | "failed";
 export type ProfileStatus = "bezig" | "klaar" | "mislukt";
+
+/**
+ * Twee rollen binnen een account, niet meer. Net als Nova (`roleAdmin`,
+ * `roleMember`). Dit is iets anders dan `staff_users`: dat gaat over wie Aura
+ * beheert, dit over wie bij de gegevens van één klant mag.
+ */
+export type AccountRole = "admin" | "member";
+
+/**
+ * Het account: de klant of het bureau (migratie 0046).
+ *
+ * De facturatievelden komen uit de veldeninventaris (`docs/Nova.md` §13.1),
+ * overgenomen van wat InSpace in hun onboarding uitvraagt. Allemaal nullable:
+ * een account bestaat zodra er een merk aan hangt, de gegevens komen pas bij de
+ * verkoop (conventie 3).
+ */
+export interface Account {
+  id: string;
+  /** Werknaam, wat er in de merkkiezer staat. */
+  name: string;
+  legal_name: string | null;
+  address: string | null;
+  postal_code: string | null;
+  city: string | null;
+  country: string | null;
+  vat_number: string | null;
+  /**
+   * Nova's "I don't have a VAT number"-vinkje. Het verschil tussen "nog niet
+   * ingevuld" en "bestaat niet" is hier echt; `null` zou die twee op één hoop
+   * gooien.
+   */
+  vat_not_applicable: boolean;
+  invoice_email: string | null;
+  contact_person: string | null;
+  /** ⚠️ Dit is ook het inlogadres. Nova waarschuwt daar expliciet voor. */
+  contact_email: string | null;
+  contact_phone: string | null;
+  /** Het pakket (besluit 6): 10, 20 of 40 pagina's per maand. Null = nog niet gekozen. */
+  package_pages_per_month: 10 | 20 | 40 | null;
+  /** Waar de teller "maand 4 sinds de start" op rekent (besluit 7). */
+  started_at: string | null;
+  /** Opzeggen verwijdert niets (besluit 14). Zie `isActiveAccount()`. */
+  cancelled_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AccountUser {
+  account_id: string;
+  user_id: string;
+  role: AccountRole;
+  created_at: string;
+}
 export type ContentAction = "nieuw" | "verbeteren";
 
 /**
@@ -100,6 +153,12 @@ export type BusinessModel = "retailer" | "platform" | "dienstverlener" | "fabrik
 export interface Profile {
   id: string;
   user_id: string;
+  /**
+   * Het account waar dit merk bij hoort (migratie 0046). Nullable zolang de
+   * historische eigenaarscontrole (`user_id`) nog meedoet als tweede laag; zie
+   * `getOwnedProfile()`.
+   */
+  account_id: string | null;
   name: string;
   url: string;
   brand_name: string | null;

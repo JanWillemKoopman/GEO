@@ -706,18 +706,29 @@ Geen zichtbare functie, maar alles daarna leunt erop.
 Dit is de structurele ingreep waar besluit 1 om vroeg, en sinds besluit 10 is hij zwaarder dan
 eerst geraamd.
 
-⚠️ **`profiles` moet in tweeën.** Een klant kan meerdere websites hebben (besluit 10) en kan een
-bureau zijn met meerdere klanten (besluit 9). De huidige platte `profiles`-tabel is allebei tegelijk:
-het account én de website. Dat wordt:
+⚠️ **Er komt een accountlaag boven het merk.** Een klant kan meerdere websites hebben (besluit 10)
+en kan een bureau zijn met meerdere klanten (besluit 9). De huidige platte `profiles`-tabel is
+allebei tegelijk: het account én de website.
+
+**✅ GEBOUWD op 10 augustus 2026, migratie `0046_accounts`, toegepast en nageteld op productie.**
 
 ```
-accounts     de klant of het bureau: bedrijfsgegevens, facturatie, gebruikers, pakket
-brands       één website: dossier, aanbod, onderwerpen, metingen, plan
+accounts       de klant of het bureau: bedrijfsgegevens, facturatie, pakket, opzegdatum
+account_users  koppeltabel gebruiker ↔ account met rol. Dít maakt een bureau mogelijk
+profiles       + account_id. Blijft het merk: één website, één dossier, één set metingen
 ```
 
-Elke bestaande `profile_id` wordt een `brand_id`. Dat raakt vrijwel elke query in `lib/`, dus dit is
-de fase met het hoogste risico van het hele plan. Additief migreren (conventie 4): `accounts`
-erbij, `brands` als hernoemde weergave van `profiles`, en pas opruimen als alles draait.
+⚠️ **Afwijking van wat hier eerst stond.** Het plan schreef voor dat `profiles` `brands` zou worden
+en elke `profile_id` een `brand_id`. Dat is afgevallen na het natellen: vijftien tabellen dragen een
+`profile_id`, alle RLS-regels hangen eraan, en de code verwijst er op ~500 plekken naar. Die
+hernoeming levert nul functionaliteit op, want `profiles` ís het merk al, en de navigatie zegt
+bovendien al "Merken". Wat écht ontbrak was de laag eróven, en die is er nu.
+
+Daarmee is dit ook niet meer de fase met het hoogste risico: er is niets hernoemd en niets
+verplaatst. De toegangsregel is drielaags geworden (account, historische eigenaar, beheerder) en de
+twee bestaande RLS-policies zijn blijven staan, dus de verruiming kon niets breken.
+
+**Nageteld op productie**: 1 account, 9 merken gekoppeld, 0 wezen, Van den Udenhout op zijn plek.
 
 - **Sidebar** in plaats van bovenbalk, inklapbaar, met mobiele variant.
 - **Merkkiezer** bovenin, doorzoekbaar, met de lege staat `noClientsMatch`.
