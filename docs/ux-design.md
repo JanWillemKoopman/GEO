@@ -261,6 +261,31 @@ bewerkknop, niet erna.
 De bibliotheek blijft een eigen plek: het is een eindproduct, geen takenlijst die zich als archief
 voordoet. Het conceptscherm is een eigen route.
 
+### Wat de klant ziet en wat alleen jij ziet
+
+Vastgelegd op 10 augustus 2026, en **gegrond in wat Nova daadwerkelijk toont**, niet in een aanname.
+
+Een Nova-klant ziet precies vier bestemmingen (`nav`: Overview, Strategy, Analytics, Account). Alles
+wat de CSM ÓVER een klant vastlegt zit in de aparte `admin`-namespace, inclusief
+`admin.onboardingProfile` ("View onboarding profile for {domain}"). Er is in hun hele
+berichtenbestand geen enkele sleutel waarmee een klant de notities van zijn CSM zou kunnen lezen.
+
+Toegepast op Aura's merkdossier:
+
+| Blok | Klant | Consultant | Waarom |
+|---|---|---|---|
+| Dossier, nulmeting, aanbod, onderwerpen | ✅ | ✅ | Dit is wat de klant komt halen |
+| Wat Aura nog wil weten | ✅ | ✅ | De vragen zijn áán hem gericht |
+| Technische controle, profielgegevens | ✅ | ✅ | Zijn site, zijn gegevens |
+| **Het gesprek** (notities, contextfactoren) | ❌ | ✅ | Aantekeningen óver hem, niet vóór hem |
+| **Beheer** (toewijzen) | ❌ | ✅ | Handeling van ná het gesprek |
+
+De grens loopt langs `isStaff()`, niet langs de accountrol: het gaat om Aura's eigen team tegenover
+iedereen daarbuiten. Een accountbeheerder bij een bureau is nog steeds een klant.
+
+⚠️ **Een afgeschermd blok haalt ook zijn springlink weg** (`showNotes` in `ProfileHero`). Een link
+naar een blok dat er niet is, is een dode link, en dat is zichtbaarder dan het blok zelf.
+
 ### Het profielscherm
 
 Geen sectie-rail: de blokken hebben geen vaste chronologie zoals de vier

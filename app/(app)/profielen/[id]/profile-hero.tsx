@@ -32,11 +32,17 @@ export function ProfileHero({
   headline,
   stats,
   primaryAction,
+  showNotes = false,
 }: {
   brandName: string;
   url: string;
   headline: string | null;
   stats: OnboardingStat[];
+  /**
+   * Staan de gespreksnotities op deze pagina? Alleen de consultant ziet die
+   * sectie, en een springlink naar een blok dat er niet is, is een dode link.
+   */
+  showNotes?: boolean;
   /** De enige primaire actie op dit scherm. Null zolang er niets te starten is. */
   primaryAction: { href: string; label: string } | null;
 }) {
@@ -80,7 +86,7 @@ export function ProfileHero({
         <JumpLink href="#ai-kennis">Wat AI weet</JumpLink>
         <JumpLink href="#aanbod">Aanbod</JumpLink>
         <JumpLink href="#onderwerpen">Onderwerpen</JumpLink>
-        <JumpLink href="#gesprek">Gespreksnotities</JumpLink>
+        {showNotes && <JumpLink href="#gesprek">Gespreksnotities</JumpLink>}
       </nav>
 
       {iets && (

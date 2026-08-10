@@ -1611,3 +1611,31 @@ Vier controles groen: `tsc`, 788 unittests (22 nieuwe), 47 ketentests, productie
 geverifieerd dat de opzoekquery de rij op hash vindt inclusief accountnaam, en dat de vier
 eindtoestanden zich gedragen zoals de unittests beschrijven. De vier testrijen die daarvoor zijn
 aangemaakt, zijn na afloop weer verwijderd.
+
+**Uitnodigingen beheren, en de grens tussen klant en consultant (10 augustus 2026).** Twee
+afrondingen op fase 2.
+
+Openstaande uitnodigingen staan nu op het instellingenscherm, met een knop om ze in te trekken.
+Intrekken en niet verwijderen (conventie 8): "deze link werkte ooit en is toen ingetrokken" is
+navraagbaar, een verwijderde rij niet, en dan is bij een klant die klaagt dat zijn link niet werkt
+de enige mogelijke conclusie: geen idee. Verlopen uitnodigingen blijven in de lijst staan om
+dezelfde reden, die verklaren juist waarom iemand niet binnenkomt. De route heet `/revoke` en geen
+DELETE, want die methode belooft iets anders dan er gebeurt. In de update staat `eq("account_id")`
+naast `eq("id")`, en dat is geen dubbelop maar de echte controle: zonder die regel zou een beheerder
+van account A een uitnodiging van account B kunnen intrekken door het id te raden.
+
+**De klantweergave is gegrond in Nova's eigen berichtenbestand, niet in een aanname.** Een
+Nova-klant ziet vier bestemmingen (Overview, Strategy, Analytics, Account). Alles wat de CSM óver
+een klant vastlegt zit in de aparte `admin`-namespace, inclusief `admin.onboardingProfile`. Er is
+geen enkele sleutel waarmee een klant de notities van zijn CSM kan lezen.
+
+Toegepast: **"Het gesprek" is nu afgeschermd op `isStaff()`.** Dat blok bevat aantekeningen óver de
+klant, niet vóór hem: wat er speelt, wat gevoelig ligt, welke contextfactoren het advies kleuren.
+Dat hoort niet op het scherm van degene over wie het gaat. De rest van het dossier blijft voor
+allebei zichtbaar, want het dossier, de nulmeting, het aanbod en de onderwerpen zijn precies wat de
+klant komt halen.
+
+De grens loopt langs `isStaff()` en niet langs de accountrol: het gaat om Aura's eigen team
+tegenover iedereen daarbuiten. Een accountbeheerder bij een bureau is nog steeds een klant. En het
+afgeschermde blok haalt ook zijn springlink weg, want een link naar een blok dat er niet is, is
+zichtbaarder dan het blok zelf.

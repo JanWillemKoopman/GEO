@@ -4,6 +4,7 @@ import { TeamBox } from "./team-box";
 import { accountsOf, membershipsOf } from "@/lib/accounts";
 import { isStaff } from "@/lib/staff";
 import { mayInvite } from "@/lib/invite-rules";
+import { listPendingInvites } from "@/lib/invites";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { AccountRole } from "@/lib/types/database";
 
@@ -29,6 +30,7 @@ export default async function InstellingenPage() {
         account,
         rol,
         members: await listMembers(account.id, user.id),
+        pending: await listPendingInvites(account.id),
         magUitnodigen: mayInvite(rol, staff),
       };
     }),
@@ -59,6 +61,7 @@ export default async function InstellingenPage() {
           accountId={t.account.id}
           accountName={t.account.name}
           members={t.members}
+          pending={t.pending}
           mayInvite={t.magUitnodigen}
         />
       ))}

@@ -1,9 +1,20 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { useToast } from "@/components/toast";
 import { CopyButton } from "@/components/copy-button";
+import { inviteState } from "@/lib/invite-rules";
 import type { AccountRole } from "@/lib/types/database";
+
+export interface PendingInvite {
+  id: string;
+  email: string;
+  role: AccountRole;
+  expires_at: string;
+  accepted_at: string | null;
+  revoked_at: string | null;
+}
 
 /**
  * Iemand uitnodigen voor dit account.
@@ -24,14 +35,18 @@ export function TeamBox({
   accountId,
   accountName,
   members,
+  pending,
   mayInvite,
 }: {
   accountId: string;
   accountName: string;
   members: { email: string; role: AccountRole; isYou: boolean }[];
+  pending: PendingInvite[];
   mayInvite: boolean;
 }) {
   const toast = useToast();
+  const router = useRouter();
+  const [intrekken, setIntrekken] = useState<string | null>(null);
   const [email, setEmail] = useState("");
   const [role, setRole] = useState<AccountRole>("member");
   const [busy, setBusy] = useState(false);
@@ -63,6 +78,7 @@ export function TeamBox({
 
       setLink(json.link);
       setEmail("");
+      router.refresh();
       toast({
         intent: "succes",
         title: `Uitnodiging klaar voor ${email.trim()}`,
@@ -105,6 +121,74 @@ export function TeamBox({
           </li>
         ))}
       </ul>
+
+      {pending.length > 0 && (
+        <div className="flex flex-col gap-2 border-t border-[var(--border-subtle)] pt-3">
+          <span className="mono-label">Nog niet geaccepteerd</span>
+          <ul className="flex flex-col gap-2">
+            {pending.map((p) => {
+              const stand = inviteState(p);
+              return (
+                <li
+                  key={p.id}
+                  className="flex flex-wrap items-center justify-between gap-2 text-sm"
+                >
+                  <span className="flex min-w-0 flex-wrap items-center gap-2">
+                    <span className="break-url">{p.email}</span>
+                    {/* Een verlopen uitnodiging blijft staan: die verklaart
+                        waarom een klant niet binnenkomt, en is dus juist het
+                        antwoord op een vraag. */}
+                    <span
+                      className={
+                        stand === "verlopen" ? "chip chip-warning" : "chip chip-neutral"
+                      }
+                    >
+                      {stand === "verlopen" ? "verlopen" : "wacht"}
+                    </span>
+                  </span>
+                  {mayInvite && (
+                    <button
+                      type="button"
+                      disabled={intrekken === p.id}
+                      onClick={async () => {
+                        setIntrekken(p.id);
+                        try {
+                          const res = await fetch(
+                            `/api/accounts/${accountId}/invites/${p.id}/revoke`,
+                            { method: "POST" },
+                          );
+                          if (!res.ok) {
+                            const j = (await res.json().catch(() => null)) as
+                              | { error?: string }
+                              | null;
+                            toast({
+                              intent: "fout",
+                              title: "Intrekken is niet gelukt",
+                              description: j?.error ?? "Probeer het opnieuw.",
+                            });
+                            return;
+                          }
+                          toast({
+                            intent: "succes",
+                            title: "Uitnodiging ingetrokken",
+                            description: `De link naar ${p.email} werkt niet meer.`,
+                          });
+                          router.refresh();
+                        } finally {
+                          setIntrekken(null);
+                        }
+                      }}
+                      className="text-sm text-secondary hover:underline"
+                    >
+                      {intrekken === p.id ? "Bezig…" : "Intrekken"}
+                    </button>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      )}
 
       {mayInvite ? (
         <form onSubmit={nodigUit} className="flex flex-col gap-3">

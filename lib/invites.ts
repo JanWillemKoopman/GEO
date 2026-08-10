@@ -219,3 +219,27 @@ async function findUserByEmail(email: string): Promise<string | null> {
     return null;
   }
 }
+
+/**
+ * De openstaande uitnodigingen van een account, voor het instellingenscherm.
+ *
+ * Alleen wat nog iets kan worden: niet geaccepteerd, niet ingetrokken. Verlopen
+ * blijven er wél bij staan, want die verklaren waarom een klant niet binnenkomt
+ * en zijn dus juist het antwoord op een vraag.
+ */
+export async function listPendingInvites(accountId: string): Promise<Invite[]> {
+  const admin = createAdminClient();
+  const { data, error } = await admin
+    .from("account_invites")
+    .select("id, account_id, email, role, expires_at, accepted_at, revoked_at, created_at")
+    .eq("account_id", accountId)
+    .is("accepted_at", null)
+    .is("revoked_at", null)
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    console.error("Uitnodigingen ophalen mislukt:", error.message);
+    return [];
+  }
+  return (data ?? []) as Invite[];
+}

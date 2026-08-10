@@ -254,6 +254,7 @@ export default async function ProfilePage({
         headline={onboardingHeadline(samenvatting)}
         stats={onboardingStats(samenvatting)}
         primaryAction={primaryAction}
+        showNotes={staff}
       />
 
       {/* Het profiel gaat op 'klaar' na stap 2 van 8. Dit blok toont eerst wat
@@ -334,23 +335,43 @@ export default async function ProfilePage({
       </ProfileSection>
 
       {/* ── 4. Het gesprek ─────────────────────────────────────────────────
-          De werkvloer van het uur consultancy. */}
-      <ProfileSection
-        id="gesprek"
-        title="Het gesprek"
-        description="Je aantekeningen bij dit merk, en wat er speelt dat het advies beïnvloedt."
-      >
-        <div className="flex flex-col gap-4">
-          <StrategyBox
-            profileId={id}
-            initialNotes={
-              (strategyRow as { strategy_notes?: string | null } | null)
-                ?.strategy_notes ?? null
-            }
-            initialFactors={factors}
-          />
-        </div>
-      </ProfileSection>
+          De werkvloer van het uur consultancy.
+
+          ⚠️ ALLEEN VOOR DE CONSULTANT, NIET VOOR DE KLANT.
+
+          Dit zijn aantekeningen ÓVER de klant, geen aantekeningen vóór hem: wat
+          er speelt, wat er gevoelig ligt, welke contextfactoren het advies
+          kleuren. Dat hoort niet op het scherm van degene over wie het gaat.
+
+          Zo doet Nova het ook, en dat is na te lezen in hun berichtenbestand:
+          een klant ziet daar precies vier bestemmingen (`nav`: Overview,
+          Strategy, Analytics, Account). Alles wat de CSM over een klant
+          vastlegt zit in de aparte `admin`-namespace, inclusief
+          `admin.onboardingProfile` ("View onboarding profile for {domain}").
+          Er is geen enkele sleutel waarmee een klant de notities van zijn CSM
+          zou kunnen lezen.
+
+          De rest van dit scherm is wél voor allebei: het dossier, de nulmeting,
+          het aanbod, de onderwerpen en de vragen zijn precies wat de klant
+          komt halen. */}
+      {staff && (
+        <ProfileSection
+          id="gesprek"
+          title="Het gesprek"
+          description="Je aantekeningen bij dit merk, en wat er speelt dat het advies beïnvloedt. Alleen jij ziet dit."
+        >
+          <div className="flex flex-col gap-4">
+            <StrategyBox
+              profileId={id}
+              initialNotes={
+                (strategyRow as { strategy_notes?: string | null } | null)
+                  ?.strategy_notes ?? null
+              }
+              initialFactors={factors}
+            />
+          </div>
+        </ProfileSection>
+      )}
 
       {/* ── 5. Naslag ──────────────────────────────────────────────────────
           Alles wat je nakijkt of bijstelt, niet wat je presenteert. Standaard
