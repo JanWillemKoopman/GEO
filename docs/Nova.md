@@ -74,6 +74,23 @@ Op 10 augustus 2026 vastgelegd, in overleg:
 | Contentplan | **Twaalfmaandsplan als kernobject**, met maanden, statussen en goedkeuring per maand. |
 | Meten | **Beide**: AI-zichtbaarheid blijft de eigen metriek, Google Search Console komt erbij. |
 
+### De grens van dit plan: alles zit achter de inlog
+
+**Dit plan gaat uitsluitend over de applicatie, niet over een marketingsite.** Vastgesteld op
+10 augustus 2026, en het is ook de feitelijke stand: `app/page.tsx` stuurt door naar `/analyses`, de
+middleware stuurt van daar naar `/login`, en de enige publieke pagina's zijn inloggen, registreren en
+wachtwoord vergeten. Er ís geen publieke site in dit project, en geen enkele fase hieronder bouwt er
+een. Geen prijzenpagina, geen demo-aanvraag, geen landingspagina.
+
+Drie plekken waar het plan de voordeur wél raakt, zodat dat geen verrassing wordt:
+
+1. **Fase 2** verandert `/register` in een activatiepagina en sluit zelfregistratie. Dat zijn schermen
+   zonder inlog, maar het is app-chrome, geen marketing.
+2. **De naamkwestie** (§12.1) raakt het woordmerk in de balk, de paginatitels en deze documentatie.
+   Dat staat los van het bestaan van een marketingsite.
+3. **Betaling** is bewust weggelaten (§9.2). Facturatiegegevens vastleggen kan achter de inlog;
+   automatische incasso hoort bij een verkoopproces dat hier niet gebouwd wordt.
+
 Buiten scope, op jouw verzoek: **een directe koppeling met het CMS**. Publiceren blijft handmatig,
 met "markeer als geplaatst" als sluitstuk. Dat is overigens ook Nova's terugvalpad
 (`runningStatus.waitingInYourCms`, `status.manualPosting`), dus we verliezen er geen structuur mee.
