@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { InfoHint } from "@/components/info-hint";
 import { FactRequests } from "./fact-requests";
+import { overallProgress } from "@/lib/pipeline/brand-fields";
 import type { FactRequest, Profile } from "@/lib/types/database";
 
 /**
@@ -124,14 +125,20 @@ export function OpenQuestions({
   const openFacts = facts.filter((f) => f.status === "open");
   const totaal = openFacts.length + researchGaps.length + gaps.length;
 
+  // ⚠️ Ook zonder openstaande vragen blijft het merkprofiel bereikbaar. Anders
+  // verdwijnt de link precies op het moment dat de klant klaar is met de rest,
+  // en dat is nou juist wanneer hij eraan toe is.
   if (totaal === 0) {
     return (
-      <div className="card card-success flex flex-col gap-1">
-        <span className="mono-label">Niets open</span>
-        <p className="text-secondary">
-          Aura heeft alles wat het nodig heeft. Komen er bij een volgende meting
-          nieuwe vragen bij, dan staan ze hier.
-        </p>
+      <div className="flex flex-col gap-4">
+        <div className="card card-success flex flex-col gap-1">
+          <span className="mono-label">Niets open</span>
+          <p className="text-secondary">
+            Aura heeft alles wat het nodig heeft. Komen er bij een volgende meting
+            nieuwe vragen bij, dan staan ze hier.
+          </p>
+        </div>
+        <MerkprofielRegel profile={profile} />
       </div>
     );
   }
@@ -158,6 +165,11 @@ export function OpenQuestions({
           élke pagina die het schrijft, niet alleen in de eerstvolgende.
         </p>
       </div>
+
+      {/* Het merkprofiel. Eén regel, want het is een eigen werkscherm van
+          dertig velden en dat hoort niet in een leesscherm uitgeklapt te staan.
+          De teller erbij, anders is het een link zonder aanleiding. */}
+      <MerkprofielRegel profile={profile} />
 
       {/* 1. De vragen met een invoerveld: laagste drempel, hoogste opbrengst. */}
       {facts.length > 0 && <FactRequests profileId={profile.id} initial={facts} />}
@@ -196,6 +208,37 @@ export function OpenQuestions({
           </Link>
         </div>
       )}
+    </div>
+  );
+}
+
+/**
+ * De verwijzing naar het merkprofiel.
+ *
+ * Toont de verhouding en niet een percentage: `docs/ux-design.md` verbiedt
+ * schijnprecisie, en "22 van de 28" zegt bovendien meer dan "79%" omdat je er
+ * meteen bij ziet hoeveel werk er nog ligt.
+ */
+function MerkprofielRegel({ profile }: { profile: Profile }) {
+  const { gevuld, totaal } = overallProgress(profile);
+  const compleet = gevuld === totaal;
+
+  return (
+    <div className="card flex flex-wrap items-center justify-between gap-3">
+      <div className="flex min-w-0 flex-col gap-1">
+        <span className="mono-label">Je merkprofiel</span>
+        <p className="text-sm text-secondary">
+          {compleet
+            ? "Alles staat erin. Aura gebruikt dit in elke pagina die het schrijft."
+            : `${gevuld} van de ${totaal} velden ingevuld. Hoe completer dit is, hoe concreter Aura schrijft.`}
+        </p>
+      </div>
+      <Link
+        href={`/profielen/${profile.id}/merkprofiel`}
+        className={compleet ? "btn-outline btn-sm shrink-0" : "btn-primary btn-sm shrink-0"}
+      >
+        {compleet ? "Nakijken" : "Aanvullen"}
+      </Link>
     </div>
   );
 }

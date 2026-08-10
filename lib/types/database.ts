@@ -246,6 +246,36 @@ export interface Profile {
   tone_energy: 1 | 2 | 3 | null;
   tone_complexity: 1 | 2 | 3 | null;
   tone_humor: 1 | 2 | 3 | null;
+  /**
+   * Het merkprofiel compleet (migratie 0048). De laatste dertien velden uit de
+   * inventaris in `docs/Nova.md` §13: wat InSpace uitvraagt en Aura nog niet
+   * had. Alles wat al een eigenaar had staat er bewust niet nóg een keer bij;
+   * de vertaaltabel staat bovenaan die migratie.
+   */
+  brand_mission: string | null;
+  brand_positioning: string | null;
+  /** Het ene ding waarop je wint. Apart van `value_props`: dat zijn er meerdere. */
+  usp: string | null;
+  key_messages: string[];
+  identity_keywords: string[];
+  /** Nova's "Us vs. Them". */
+  differentiator: string | null;
+  /** De primaire doelgroep staat in `intake_audience`; dit is de tweede. */
+  audience_secondary: string | null;
+  /** 1 = weinig, 2 = redelijk wat, 3 = vakgenoot. */
+  audience_knowledge_level: 1 | 2 | 3 | null;
+  /** De vijfde schuif, en de enige met vier standen. */
+  tone_emotional: 1 | 2 | 3 | 4 | null;
+  signature_phrases: string[];
+  /**
+   * ⚠️ Hoe de CONTENT de lezer aanspreekt, niet hoe Aura zijn eigen gebruiker
+   * aanspreekt. `docs/schrijfstijl.md` legt "je en jij" vast voor de interface;
+   * een advocatenkantoor wil dat Aura vóór hem "u" schrijft.
+   */
+  pronoun_preference: "je" | "u" | "wij" | null;
+  author_photo_url: string | null;
+  author_facebook_url: string | null;
+  author_other_url: string | null;
   created_at: string;
   updated_at: string;
 }

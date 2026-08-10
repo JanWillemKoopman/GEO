@@ -1639,3 +1639,45 @@ De grens loopt langs `isStaff()` en niet langs de accountrol: het gaat om Aura's
 tegenover iedereen daarbuiten. Een accountbeheerder bij een bureau is nog steeds een klant. En het
 afgeschermde blok haalt ook zijn springlink weg, want een link naar een blok dat er niet is, is
 zichtbaarder dan het blok zelf.
+
+## Fase 3: het merkprofiel, dertig velden die de klant nakijkt in plaats van invult (10 augustus 2026)
+
+Migratie `0048_merkprofiel_compleet`, toegepast en geverifieerd op productie, plus een wizard van
+vijf stappen op `/profielen/[id]/merkprofiel`.
+
+**Dertien nieuwe velden, en dat is minder dan Nova er uitvraagt.** De inventaris in `docs/Nova.md`
+§13 legde hun ~40 onboardingvelden naast Aura's kolommen. Veertien had Aura al, elf kan de pijplijn
+afleiden, vier vervielen (taalkeuze, CMS, auteurspagina, Google Analytics). Wat overbleef zijn deze
+dertien. Alles wat al een eigenaar had is er bewust níet nóg een keer bijgezet: `value_props` ís
+Nova's "value pillars", `intake_audience` ís de primaire doelgroep, `industry` ís de kerncategorie.
+Eén feit heeft één eigenaar, en een tweede kolom met dezelfde betekenis is een kolom die gaat
+afwijken. De volledige vertaaltabel staat bovenaan de migratie.
+
+**Het scherm vraagt niets, het laat nakijken.** Dat is het verschil met Nova, en het volgt uit iets
+dat Aura al had: het onderzoek draait hier vóór de kennismaking in plaats van erna. Nova laat hun
+klant twintig minuten uittrekken (`landingTimeNote`) voor dertig lege velden. Hier staat het
+merendeel al ingevuld, met het label **"uit je website gehaald"** erbij, Nova's `draftedBadge`. De
+gegevens daarvoor lagen er al in `profile_field_sources` (migratie 0039); dit is de eerste plek waar
+ze zichtbaar worden voor de klant. Een leeg veld dat de pijplijn niet kán vinden krijgt "vul jij in"
+in plaats van "niets gevonden": dat verschil is het verschil tussen een tekortkoming van de app en
+een vraag aan de klant.
+
+**De schuiven zijn knoppen geworden, geen schuifbalken.** Nova benoemt elke stand (`formality1` tot
+`formality3`), en dan is een rij knoppen eerlijker dan een balk: je kiest een woord, geen positie.
+De vijfde schuif, de emotionele lading, is de enige met vier standen, net als bij hen.
+
+**Eén veld dat Nova niet heeft en wij wel nodig hadden: de aanspreekvorm.** `docs/schrijfstijl.md`
+legt "je en jij" vast, maar dat is een keuze over Aura's eigen interface. Wat Aura vóór een
+advocatenkantoor schrijft hoort "u" te zeggen. Die twee vielen samen zolang er één regel was; nu
+staan ze los.
+
+**⚠️ De verificatie ving een echte bug.** Na het bouwen zijn de 27 wizardsleutels tweemaal
+nagelopen: tegen de kolommen op productie (alle 27 bestaan) en tegen de lijst van bewerkbare velden
+in de PATCH-route. Daar zat er één niet in: `proof_points`. De route negeerde dat veld dan zonder
+fout, dus de klant vulde zijn bewijspunten in, kreeg "opgeslagen" te zien, en de waarde was weg.
+Twee lijsten die hetzelfde moeten zeggen is een intentie; de lijst is nu één gedeelde module
+(`lib/profile-editable.ts`) met een unittest die controleert dat élk wizardveld erin staat. Conventie
+1, en dit is precies waarom die conventie bestaat.
+
+Vier controles groen: `tsc`, 810 unittests (24 nieuwe), 47 ketentests, productiebuild. Nagemeten met
+Playwright op 390 en 1280: geen horizontale overflow.

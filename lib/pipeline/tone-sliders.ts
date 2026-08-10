@@ -74,3 +74,21 @@ export function clampToneSlider(value: unknown): 1 | 2 | 3 | null {
   if (n >= 3) return 3;
   return 2;
 }
+
+/**
+ * De emotionele lading (migratie 0048), de enige schuif met VIER standen:
+ * neutraal, geruststellend, enthousiast, urgent. Nova heeft hem ook als enige
+ * met vier (`emotional1` tot `emotional4`).
+ *
+ * Eigen functie en geen parameter op `clampToneSlider`: die is op tientallen
+ * plekken in gebruik en zou met een optionele bovengrens stilzwijgend van
+ * betekenis kunnen veranderen als iemand hem vergeet mee te geven.
+ */
+export function clampEmotional(value: unknown): 1 | 2 | 3 | 4 | null {
+  if (value === "" || value === null || value === undefined) return null;
+  const n = Math.round(Number(value));
+  if (!Number.isFinite(n)) return null;
+  if (n <= 1) return 1;
+  if (n >= 4) return 4;
+  return n as 2 | 3;
+}

@@ -3,7 +3,8 @@ import { getUser } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getOwnedProfile } from "@/lib/profiles";
 import { MAX_PAGES_HARD_CAP } from "@/lib/crawler";
-import { clampToneSlider } from "@/lib/pipeline/tone-sliders";
+import { clampToneSlider, clampEmotional } from "@/lib/pipeline/tone-sliders";
+import { EDITABLE_PROFILE_FIELDS } from "@/lib/profile-editable";
 
 /**
  * PATCH /api/profiles/[id], klantprofiel bewerken. Geen AI-call: pure CRUD op
@@ -11,40 +12,31 @@ import { clampToneSlider } from "@/lib/pipeline/tone-sliders";
  * brand-dna-route. `sitemap_url` en `max_inventory_pages` zijn de crawl-
  * instellingen voor de content-inventaris (§12.23).
  */
-const EDITABLE_FIELDS = [
-  "name",
-  "industry",
-  // Het bedrijfsmodel (R8.5, migratie 0032). Bewerkbaar omdat de klant beter
-  // weet dan het model of hij een retailer of een fabrikant is, en omdat deze
-  // waarde stuurt welke briefingvragen hij straks krijgt. De database-constraint
-  // bewaakt de toegestane waarden.
-  "business_model",
-  "tone_of_voice",
-  "summary",
-  "products",
-  "value_props",
-  "competitors",
-  "personas",
-  "intake_description",
-  "intake_audience",
-  "aliases",
-  "service_scope",
-  "service_regions",
-  "market_language",
-  "sitemap_url",
-  // Migratie 0045, naar het voorbeeld van InSpace Nova's onboardingstappen
-  // "Words & language", "Voice" en "Author" (docs/tasks/nova-analyse.md §3.3).
+const EDITABLE_FIELDS = EDITABLE_PROFILE_FIELDS;
+
+/** Lijstvelden: lege en niet-tekstuele items eruit, de rest getrimd. */
+const LIST_FIELDS = [
   "taboo_phrases",
-  "compliance_notes",
-  "author_name",
-  "author_role",
-  "author_bio",
-  "author_linkedin_url",
-  "tone_formality",
-  "tone_energy",
-  "tone_complexity",
-  "tone_humor",
+  "key_messages",
+  "identity_keywords",
+  "signature_phrases",
 ] as const;
+
+/** Vrije tekst: een leeg veld wordt `null`, nooit een lege string. */
+const NULLABLE_TEXT_FIELDS = [
+  "compliance_notes",
+  "brand_mission",
+  "brand_positioning",
+  "usp",
+  "differentiator",
+  "audience_secondary",
+  "author_photo_url",
+  "author_facebook_url",
+  "author_other_url",
+] as const;
+
+/** De aanspreekvorm van de CONTENT, niet van Aura's eigen interface. */
+const PRONOUNS = ["je", "u", "wij"] as const;
 
 /** Velden die als 1-3 geklemd worden in plaats van rechtstreeks opgeslagen. */
 const TONE_SLIDER_FIELDS = ["tone_formality", "tone_energy", "tone_complexity", "tone_humor"] as const;
@@ -89,17 +81,41 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       update[field] = raw === null || raw === "" || raw === undefined ? null : clampToneSlider(raw);
     }
   }
-  // taboo_phrases: lege of niet-tekstuele items eruit, net als TagListEditor
-  // dat elders al doet voor products/value_props/competitors.
-  if ("taboo_phrases" in update) {
-    const raw = update.taboo_phrases;
-    update.taboo_phrases = Array.isArray(raw)
-      ? raw.filter((v): v is string => typeof v === "string" && v.trim().length > 0).map((v) => v.trim())
-      : [];
+  // Het kennisniveau van de doelgroep loopt óók van 1 tot 3, dus dezelfde klem.
+  if ("audience_knowledge_level" in update) {
+    const raw = update.audience_knowledge_level;
+    update.audience_knowledge_level =
+      raw === null || raw === "" || raw === undefined ? null : clampToneSlider(raw);
   }
-  if ("compliance_notes" in update) {
-    const raw = update.compliance_notes;
-    update.compliance_notes = typeof raw === "string" && raw.trim() ? raw.trim() : null;
+  // De emotionele lading is de enige met vier standen (migratie 0048).
+  if ("tone_emotional" in update) {
+    update.tone_emotional = clampEmotional(update.tone_emotional);
+  }
+  // Aanspreekvorm: alleen de drie bekende waarden, anders null. Nooit een
+  // client-string rechtstreeks naar de databaseconstraint.
+  if ("pronoun_preference" in update) {
+    const raw = String(update.pronoun_preference ?? "");
+    update.pronoun_preference = (PRONOUNS as readonly string[]).includes(raw) ? raw : null;
+  }
+  // Lijstvelden: lege of niet-tekstuele items eruit, net als TagListEditor
+  // dat elders al doet voor products/value_props/competitors.
+  for (const field of LIST_FIELDS) {
+    if (field in update) {
+      const raw = update[field];
+      update[field] = Array.isArray(raw)
+        ? raw
+            .filter((v): v is string => typeof v === "string" && v.trim().length > 0)
+            .map((v) => v.trim())
+        : [];
+    }
+  }
+  // Vrije tekst: leeg wordt null. Conventie 3, en het scheelt overal een
+  // controle op twee soorten leegte.
+  for (const field of NULLABLE_TEXT_FIELDS) {
+    if (field in update) {
+      const raw = update[field];
+      update[field] = typeof raw === "string" && raw.trim() ? raw.trim() : null;
+    }
   }
 
   const { error } = await admin.from("profiles").update(update).eq("id", id);

@@ -132,6 +132,15 @@ import {
   passwordOk,
   mayInvite,
 } from "@/lib/invite-rules";
+import { EDITABLE_PROFILE_FIELDS } from "@/lib/profile-editable";
+import {
+  BRAND_FIELDS,
+  STEP_ORDER,
+  fieldsOfStep,
+  isFilled,
+  stepProgress,
+  overallProgress,
+} from "@/lib/pipeline/brand-fields";
 import {
   assessStructureCoverage,
   describeCoverage,
@@ -3361,6 +3370,102 @@ group("isActiveAccount", () => {
     "op het moment zelf is hij verlopen",
     isActiveAccount({ cancelled_at: nu.toISOString() }, nu) === false,
   );
+});
+
+group("het merkprofiel als veldenlijst (brand-fields)", () => {
+  // ⚠️ Eén feit heeft één eigenaar. Deze test bewaakt dat er geen tweede veld
+  // bijkomt dat hetzelfde betekent als een bestaand veld: dat is precies hoe
+  // twee kolommen uit elkaar gaan lopen.
+  const sleutels = BRAND_FIELDS.map((f) => f.key);
+  ok("geen dubbele velden", new Set(sleutels).size === sleutels.length);
+
+  // ⚠️ HET VANGNET DAT ÉÉN ECHTE BUG VING, 10 augustus 2026.
+  //
+  // `proof_points` stond in de wizard en niet in de lijst van bewerkbare velden
+  // van de PATCH-route. De route negeerde dat veld dan zonder fout: de klant
+  // vulde zijn bewijspunten in, kreeg "opgeslagen" te zien, en de waarde was weg.
+  // Conventie 1: twee lijsten die hetzelfde moeten zeggen is een intentie, één
+  // gedeelde lijst met deze test eromheen is een garantie.
+  const nietOpslaanbaar = sleutels.filter(
+    (k) => !(EDITABLE_PROFILE_FIELDS as readonly string[]).includes(k as string),
+  );
+  ok(
+    `elk wizardveld is opslaanbaar${nietOpslaanbaar.length ? " (mist: " + nietOpslaanbaar.join(", ") + ")" : ""}`,
+    nietOpslaanbaar.length === 0,
+  );
+  ok(
+    "geen dubbele velden in de bewerkbare lijst",
+    new Set(EDITABLE_PROFILE_FIELDS).size === EDITABLE_PROFILE_FIELDS.length,
+  );
+
+  ok(
+    "elk veld hoort bij een bestaande stap",
+    BRAND_FIELDS.every((f) => STEP_ORDER.includes(f.step)),
+  );
+  ok(
+    "elke stap heeft velden",
+    STEP_ORDER.every((s) => fieldsOfStep(s).length > 0),
+  );
+
+  // Nova geeft élk veld drie lagen uitleg: label, omschrijving, voorbeeld. De
+  // eerste twee zijn hier verplicht; een placeholder heeft alleen zin bij een
+  // veld waar je iets in typt.
+  ok(
+    "elk veld heeft een label en een omschrijving",
+    BRAND_FIELDS.every((f) => f.label.length > 2 && f.description.length > 10),
+  );
+  ok(
+    "elke schuif en keuze heeft benoemde standen",
+    BRAND_FIELDS.filter((f) => f.kind === "schuif" || f.kind === "keuze").every(
+      (f) => (f.options?.length ?? 0) >= 2,
+    ),
+  );
+  // De vijfde schuif is de enige met vier standen, net als bij Nova.
+  const lading = BRAND_FIELDS.find((f) => f.key === "tone_emotional");
+  ok("de emotionele lading heeft vier standen", lading?.options?.length === 4);
+
+  // ── isFilled: per soort betekent "gevuld" iets anders ────────────────────
+  ok("een lege string telt niet", isFilled("") === false);
+  ok("spaties tellen ook niet", isFilled("   ") === false);
+  ok("tekst telt wel", isFilled("iets") === true);
+  ok("een lege lijst telt niet", isFilled([]) === false);
+  ok("een gevulde lijst telt wel", isFilled(["a"]) === true);
+  ok("null telt niet", isFilled(null) === false);
+  // De schuiven lopen vanaf 1, dus 0 bestaat niet en betekent "niet ingesteld".
+  ok("0 telt niet", isFilled(0) === false);
+  ok("1 telt wel", isFilled(1) === true);
+
+  // ── Voortgang ────────────────────────────────────────────────────────────
+  const leeg = {};
+  ok(
+    "een leeg profiel heeft nul gevulde velden",
+    overallProgress(leeg).gevuld === 0,
+  );
+  ok(
+    "en de noemer is de hele lijst",
+    overallProgress(leeg).totaal === BRAND_FIELDS.length,
+  );
+  ok("geen enkele stap is compleet", allStepsIncompleet(leeg));
+
+  const stem = {
+    tone_formality: 2,
+    tone_energy: 2,
+    tone_complexity: 2,
+    tone_humor: 1,
+    tone_emotional: 2,
+    tone_of_voice: "Een ervaren monteur",
+  } as never;
+  const p = stepProgress(stem, "stem");
+  ok("een volledig ingevulde stap is compleet", p.compleet === true);
+  ok("en telt al zijn velden", p.gevuld === p.totaal && p.totaal === 6);
+  ok(
+    "terwijl een andere stap dan nog leeg is",
+    stepProgress(stem, "auteur").gevuld === 0,
+  );
+
+  function allStepsIncompleet(prof: Record<string, unknown>): boolean {
+    return STEP_ORDER.every((s) => !stepProgress(prof, s).compleet);
+  }
 });
 
 group("uitnodigingen: de vier eindtoestanden", () => {
