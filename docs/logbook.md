@@ -1489,3 +1489,16 @@ geldt voor de interface, niet voor wat Aura vóór een advocatenkantoor schrijft
 de eigenaar weegt dat anders en kiest houden. Vastgelegd in §12.1 als genomen besluit, niet als open
 punt. Wat wel blijft staan als schrijfregel: de eerste vermelding van Aura zegt altijd wát het meet,
 niet alleen hoe het heet.
+
+**Drie laatste besluiten (10 augustus 2026), waarmee het plan compleet is.** Bij opzeggen blijft de
+toegang staan tot het einde van de betaalde maand en wordt de opbrengst nog één keer getoond: een
+account krijgt een `opgezegd_per`-datum in plaats van dat er iets verwijderd wordt, wat een
+uitbreiding is van het patroon dat `lib/archive.ts` al voor merken hanteert. Bij een bureau keurt het
+bureau goed, want dat is de contractpartij; doorzetten naar de eindklant is later een uitbreiding.
+
+En er zijn nog geen prijzen per pakket. Dat heeft één concreet gevolg voor de bouw: het opbrengstblok
+rekent in aantallen ("340 extra bezoekers, 3 keer vaker genoemd") en niet in geld. Minder
+overtuigend, maar eerlijk, en het is conventie 3. Om te voorkomen dat dit later een verbouwing wordt,
+krijgt de rekenkant nu al de waarde per bezoeker als **optionele** parameter: `null` toont aantallen,
+een bedrag toont geld, en er hoeft geen scherm om zodra de prijzen bekend zijn. Tien minuten nu tegen
+een dag later.

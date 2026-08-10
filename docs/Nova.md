@@ -82,6 +82,26 @@ Op 10 augustus 2026 vastgelegd, in overleg. De eerste vier bepalen de vorm, de r
 | 11 | Volume | **Ongeveer 20 klanten in het eerste jaar.** | Fase 8 schuift naar voren |
 | 12 | Bewerken | **De klant mag teksten zelf aanpassen**, niet alleen goedkeuren. Aura's editor blijft. | Niets, blijft zoals het is |
 | 13 | Taal | **Uitsluitend Nederlands.** Geen meertaligheid. | Fase 7 krimpt fors |
+| 14 | Opzeggen | **Toegang blijft tot het einde van de betaalde maand**, en de opbrengst wordt nog één keer getoond. Niet meteen dichtgooien. | Fase 2, 5 |
+| 15 | Goedkeuren bij bureaus | **Het bureau keurt goed**, want dat is de contractpartij. Doorzetten naar de eindklant is later een uitbreiding, geen voorwaarde. | Fase 2, 4 |
+| 16 | Prijs per pakket | **Nog niet bepaald.** Het opbrengstblok rekent daarom in aantallen, niet in geld. | Fase 5 |
+
+#### Wat besluit 14 en 16 betekenen voor de bouw
+
+**Besluit 14** is geen instelling maar een toestand: een account krijgt een `opgezegd_per`-datum in
+plaats van dat er iets verwijderd wordt. Tot die datum verandert er niets aan wat de klant ziet,
+daarna valt hij terug op een leesweergave met zijn cijfers erin. Niets weggooien is sowieso de regel
+hier (conventie 8, en `lib/archive.ts` doet dit al voor merken), dus dit is een uitbreiding van een
+patroon dat er staat, geen nieuw mechanisme.
+
+**Besluit 16 bepaalt hoe het opbrengstblok gebouwd wordt.** Zonder prijs kan het niet zeggen "dit
+leverde € 340 op", alleen "340 extra bezoekers en 3 keer vaker genoemd". Dat is minder overtuigend,
+maar het is wél eerlijk, en het is precies conventie 3: onbekend is beter dan een gok.
+
+⚠️ Wat er nu al moet gebeuren, zodat het later geen verbouwing is: **de rekenkant van dat blok komt
+in een pure module met de waarde per bezoeker als optionele parameter.** Staat hij op `null`, dan
+toont het blok aantallen. Vul je hem later, dan verschijnt het bedrag zonder dat er een scherm
+verandert. Dat kost nu tien minuten en later een dag.
 
 #### Twee besluiten met een groter gevolg dan ze lijken
 
@@ -884,6 +904,11 @@ Besluit 4. Dit maakt het effect hard aantoonbaar.
   middel dat opzeggen tegenhoudt. Nova's `analytics.milestones` in Aura's vorm: "actief sinds
   {datum}", "zoveel vaker genoemd sinds de start", "zoveel pagina's gepubliceerd". Eén blok, drie
   getallen, en het staat op het overzicht en niet weggestopt in Analytics.
+  Rekenkant in een pure module met de waarde per bezoeker als **optionele** parameter (besluit 16):
+  `null` toont aantallen, een bedrag toont geld. Zo hoeft er geen scherm om zodra de prijzen er zijn.
+- **Bij opzegging** (besluit 14) wordt dit blok het laatste wat de klant ziet, tot het einde van de
+  betaalde maand. Dat is de enige plek in de app waar "wat het opleverde" belangrijker is dan "wat
+  er nu staat".
 - Alle vier de lege staten van Nova overnemen, inclusief "we zijn nog aan het verzamelen".
 
 **Verificatie**: tegen een echte property, en de cijfers naleggen naast de Search Console-interface
