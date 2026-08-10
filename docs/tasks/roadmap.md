@@ -1,7 +1,17 @@
 # Roadmap, wat er nog open staat
 
-Op volgorde. **Stand: 8 augustus 2026**, alles gemerged op `main`, 735 unittests + 47 ketentests
-groen, migraties t/m `0045` toegepast (`0033` gereserveerd, nooit gedraaid, vervangen door `0039`).
+Op volgorde. **Stand: 10 augustus 2026**, 755 unittests + 47 ketentests groen, migraties t/m `0045`
+toegepast (`0033` gereserveerd, nooit gedraaid, vervangen door `0039`).
+
+> ⚠️ **De richting van het product staat sinds 10 augustus 2026 in [`../Nova.md`](../Nova.md).**
+> Dat document bevat vier vastgelegde besluiten (merk-werkruimte, klantportaal met admin,
+> twaalfmaandsplan als kernobject, Search Console naast AI-zichtbaarheid) en een bouwplan van acht
+> fases, ongeveer 51 dagen. **Lees dat eerst.** Wat hieronder staat is het oude werk dat nog open
+> stond; per punt is aangegeven of het opgaat in een fase van dat plan.
+>
+> De volgorde daar is: fundament, merk-werkruimte, rollen en uitnodigingen, onboarding-wizard,
+> contentplan, Search Console, de lus sluiten, i18n en donkere modus, CSM-paneel. Moet je kiezen,
+> doe dan fase 1, 4 en 6.
 
 ## Afgerond sinds de vorige stand
 

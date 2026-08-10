@@ -1346,3 +1346,53 @@ catalogus van tien namespaces, inclusief schermen waar je alleen ná inloggen ko
 **Geverifieerd.** Vier controles groen: `tsc --noEmit`, 755 unittests (20 nieuwe: de aangepaste
 kerncijfers inclusief hun `explain`, en `assessReadiness`/`readinessHeadline` met de vier gevallen
 compleet/open-punten/loopt/kapot), 47 ketentests, productiebuild.
+
+## De richting vastgelegd: Nova gereconstrueerd, vier besluiten, acht fases (10 augustus 2026)
+
+Aansluitend op de vijf bevindingen hierboven: `docs/Nova.md`. De aanleiding was de vraag om Nova
+niet alleen te vergelijken maar te **reconstrueren**, en er een bouwplan uit te trekken.
+
+**Wat er nieuw bij kwam ten opzichte van de analyse van 6 augustus.** Die analyse
+(`docs/tasks/nova-analyse.md`) had de functiematrix van bèide InSpace-apps al in kaart en blijft de
+diepe inventaris. Wat ontbrak was een besluit. Dat is er nu, en het zijn er vier:
+
+| Besluit | Keuze | Gevolg |
+|---|---|---|
+| Navigatie | Merk-werkruimte | Alle routes gaan onder een merk hangen |
+| Gebruiker | Klantportaal plus admin | Rollen, uitnodigingen, RLS per account |
+| Contentplan | Twaalfmaandsplan als kernobject | Vier nieuwe tabellen, een nieuw jobtype |
+| Meten | AI-zichtbaarheid plus Search Console | De koppeling uit `zoekdata-koppeling.md` |
+
+Buiten scope op verzoek: een directe CMS-koppeling. Publiceren blijft handmatig met "markeer als
+geplaatst", wat overigens ook Nova's eigen terugvalpad is (`runningStatus.waitingInYourCms`).
+
+**De spanning die dit document moest oplossen.** De analyse van 6 augustus eindigde met een
+waarschuwing: "de verleiding is een lijst van veertig functies, de les uit hun eigen herbouw is dat
+er hooguit tien overleven". Het plan dat er nu ligt beslaat 51 dagen, en dat lijkt daar recht tegenin
+te gaan. De verzoening staat bovenaan §7: de acht fases voegen bijna geen functies toe maar
+**structuur**. Een merk-werkruimte is geen knop, het is de plek waar de bestaande knoppen eindelijk
+bij elkaar staan. Van de zes dingen die InSpace in hun herbouw liet vallen staat er geen enkele in
+het plan; ze staan in §9.1 met de reden erbij, zodat ze er ook niet via een omweg alsnog in komen.
+
+**Twee correcties op mijn eerste versie van dat document**, allebei gevonden door de eigen map
+tegen te lezen in plaats van alleen de bron:
+
+- Ik schreef dat Aura Nova's tweelaags-statustaal miste. Onjuist: `lib/analysis-status.ts` heeft
+  `WhoseTurn` al sinds 7 augustus, en ontleende die toen aan dezelfde bron. Wat wél mist is de
+  derde laag (`runningDate`, "Publishes once approved"), en die telt pas als er een plan met
+  toekomstige publicatiedata is. Verplaatst naar fase 4.
+- Ik zette "quota per maand" als openstaande vraag. Die was al beantwoord: de prijspagina van
+  inspace.io noemt 10, 20 en 40 pagina's per maand. `pages_per_month` is dus een eigenschap van het
+  abonnement, geen vrij veld.
+
+**De vondst die het document draagt.** Nova gebruikt `next-intl`, en dat zet de volledige
+berichtencatalogus in de RSC-payload van de inlogpagina, dus vóór authenticatie. Tien namespaces,
+~900 sleutels, uitgepakt naar `docs/nova-i18n.json`. Daarmee is elk scherm, elk invoerveld, elke
+status, elke foutmelding en elke bevestigingsdialoog letterlijk bekend, inclusief schermen waar je
+alleen ná inloggen komt. Wat er níet in zit staat als openstaande analyse in §10, met per vraag
+welke fase erdoor geblokkeerd wordt. De belangrijkste twee gaan over fase 4: hoe er uit de
+admin-invoer twaalf maanden pagina's rollen, en hoe de bufferlogica werkt.
+
+**Volgorde.** Fundament, merk-werkruimte, rollen, onboarding-wizard, contentplan, Search Console,
+de lus sluiten, i18n en donkere modus, CSM-paneel. Moet je kiezen, doe dan fase 1, 4 en 6: dat zijn
+precies de drie die van een meetinstrument een programma maken.

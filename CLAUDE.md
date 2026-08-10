@@ -140,6 +140,8 @@ scripts/           test-unit · test-chain · test-openai · eval-mention
 | `docs/designsystem.md` | Bronanalyse van de live inspace.io-CSS: waar elke kleur, radius en gloed vandaan komt |
 | `docs/schrijfstijl.md` | Tone-of-voice en microcopy: de tien richtlijnen, de woordenlijst, en wat we bewust níet van Nova overnemen |
 | `docs/logbook.md` | Waarom het is zoals het is: beslissingen en bouwrondes, met de cijfers eronder |
+| `docs/Nova.md` | **De richting.** InSpace Nova gereconstrueerd uit hun eigen berichtenbestand, de gap-analyse tegenover Aura, en het bouwplan in acht fases. Bevat de vier vastgelegde besluiten (merk-werkruimte, klantportaal, twaalfmaandsplan, Search Console erbij) |
+| `docs/nova-i18n.json` | De ruwe bron onder `Nova.md`: Nova's volledige berichtencatalogus, tien namespaces. Niet bewerken |
 | `docs/tasks/roadmap.md` | Wat er nog open staat, op volgorde |
 | `APP_FLOW_DOCUMENTATION.md` | De keten end-to-end voor drie lezersgroepen: sales, developer, AI-specialist. Staat bewust in de hoofdmap, code verwijst ernaar |
 | `supabase/README.md` | Migratie-index en toepasinstructies |
