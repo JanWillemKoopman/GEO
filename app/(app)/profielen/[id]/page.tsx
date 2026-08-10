@@ -8,13 +8,12 @@ import { ProfileProgress } from "./profile-progress";
 import { ProfileEditor } from "./profile-editor";
 import { EntitiesManager } from "./entities-manager";
 import { AuditPanel } from "@/components/audit-panel";
-import { FactRequests } from "./fact-requests";
-import { ProfileGaps } from "./profile-gaps";
+import { OpenQuestions, countOpenQuestions } from "./open-questions";
 import { AssignBox } from "./assign-box";
 import { TopicsPanel } from "./topics-panel";
 import { LlmKnowledgePanel } from "./llm-knowledge-panel";
 import { StrategyBox } from "./strategy-box";
-import { ResearchStepsStrip } from "./research-steps-strip";
+import { ProfileReadinessPanel } from "./profile-readiness-panel";
 import { OfferingsPanel } from "./offerings-panel";
 import { ConfidenceChip } from "@/components/confidence-chip";
 import { assessStructureCoverage } from "@/lib/pipeline/structure-gap";
@@ -236,6 +235,14 @@ export default async function ProfilePage({
       ?.gaps ?? []) as unknown[]
   ).filter((g): g is string => typeof g === "string" && g.trim().length > 0);
 
+  // De teller in de kop van het vragenblok. Eén bron, zodat de badge en de
+  // banner binnenín nooit uit elkaar kunnen lopen.
+  const openVragen = countOpenQuestions(
+    profile,
+    (factRows ?? []) as FactRequest[],
+    researchGaps,
+  );
+
   return (
     <div className="flex flex-col gap-6">
       {/* ── 1. Wie is dit, en hoe staat het ervoor ─────────────────────────
@@ -249,17 +256,37 @@ export default async function ProfilePage({
         primaryAction={primaryAction}
       />
 
-      {/* Het profiel gaat op 'klaar' na stap 2 van 6; deze strip laat zien wat
-          er nog binnenkomt en markeert het moment waarop alles er is. */}
-      <ResearchStepsStrip profileId={id} />
+      {/* Het profiel gaat op 'klaar' na stap 2 van 8. Dit blok toont eerst wat
+          er nog binnenkomt, en daarna of het dossier compleet is. Het meldt het
+          afrondingsmoment ook actief, met een broodroostermelding. */}
+      <ProfileReadinessPanel profileId={id} brandName={merknaam} />
 
-      {/* ── 2. Het verhaal, in de volgorde van de demo ─────────────────────
-          Eerst wat we vonden, dan wat er mist, dan wat we gaan doen. De
-          gespreksagenda (ProfileGaps) stond hier ooit op plek 3, vóór alle
-          opbrengst. Dat is precies de inspanning vóór de waarde, en dus het
-          omgekeerde van wat `ux-design.md` bijlage A9 voorschrijft. */}
+      {/* ── 2. Wat Aura nog van je wil weten ───────────────────────────────
+          Stond op twee plekken, allebei onder de vouw: de vragen mét invoerveld
+          op plek 7 binnen "Profielgegevens", de open punten op plek 5 binnen
+          "Het gesprek". Voor de gebruiker is dat één ding, dus staat het nu op
+          één plek, hoog, met de teller in de kop. */}
+      <ProfileSection
+        id="vragen"
+        title="Wat Aura nog van je wil weten"
+        description="Elk antwoord maakt de meting scherper en de teksten concreter. Overslaan mag altijd."
+        badge={openVragen > 0 ? `${openVragen} open` : "niets open"}
+      >
+        <OpenQuestions
+          profile={profile}
+          facts={(factRows ?? []) as FactRequest[]}
+          researchGaps={researchGaps}
+        />
+      </ProfileSection>
+
+      {/* ── 3. Het verhaal, in de volgorde van de demo ─────────────────────
+          Eerst wat we vonden, dan wat we gaan doen. */}
       {dossier && (
-        <ProfileSection id="dossier" title="Het dossier">
+        <ProfileSection
+          id="dossier"
+          title="Het dossier"
+          description="Wat Aura van je website begreep, in gewone taal. De basis onder alles hieronder."
+        >
           <div className="card flex flex-col gap-2">
             <div className="flex flex-wrap items-center gap-2">
               <span className="mono-label">Wat Aura van je site begreep</span>
@@ -270,13 +297,18 @@ export default async function ProfilePage({
         </ProfileSection>
       )}
 
-      <ProfileSection id="ai-kennis" title="Wat AI-assistenten over je weten">
+      <ProfileSection
+        id="ai-kennis"
+        title="Wat AI-assistenten over je weten"
+        description="De nulmeting, uitgesplitst per vraag: wat ChatGPT antwoordde en waar dat vandaan kwam."
+      >
         <LlmKnowledgePanel rows={baselines} />
       </ProfileSection>
 
       <ProfileSection
         id="aanbod"
         title="Wat je aanbiedt"
+        description="Je diensten en producten zoals Aura ze op je site vond, en welke nog geen eigen pagina hebben."
         badge={
           coverage.assessed > 0
             ? `${coverage.missing} zonder eigen pagina`
@@ -295,15 +327,19 @@ export default async function ProfilePage({
       <ProfileSection
         id="onderwerpen"
         title="Onderwerpen om op te meten"
+        description="Waar Aura je zichtbaarheid op gaat volgen. Zet uit wat niet past, start wat wel past."
         badge={topics.length > 0 ? `${topics.length} voorgesteld` : undefined}
       >
         <TopicsPanel profileId={id} initial={topics} />
       </ProfileSection>
 
-      {/* ── 3. Het gesprek ─────────────────────────────────────────────────
-          De strategiekaart en de agenda horen bij elkaar: dit is de werkvloer
-          van het uur consultancy. */}
-      <ProfileSection id="gesprek" title="Het gesprek">
+      {/* ── 4. Het gesprek ─────────────────────────────────────────────────
+          De werkvloer van het uur consultancy. */}
+      <ProfileSection
+        id="gesprek"
+        title="Het gesprek"
+        description="Je aantekeningen bij dit merk, en wat er speelt dat het advies beïnvloedt."
+      >
         <div className="flex flex-col gap-4">
           <StrategyBox
             profileId={id}
@@ -313,13 +349,18 @@ export default async function ProfilePage({
             }
             initialFactors={factors}
           />
-          <ProfileGaps profile={profile} researchGaps={researchGaps} />
         </div>
       </ProfileSection>
 
-      {/* ── 4. Techniek en beheer ──────────────────────────────────────────
-          Alles wat je nakijkt of bijstelt, niet wat je presenteert. */}
-      <ProfileSection id="techniek" title="Technische controle">
+      {/* ── 5. Naslag ──────────────────────────────────────────────────────
+          Alles wat je nakijkt of bijstelt, niet wat je presenteert. Standaard
+          dicht: dit is gereedschap, geen verhaal. */}
+      <ProfileSection
+        id="techniek"
+        title="Technische controle"
+        description="Of AI-assistenten je site mogen lezen, en of je gegevens overal hetzelfde zijn."
+        variant="naslag"
+      >
         <div className="flex flex-col gap-4">
           {staleFactor && (
             <p
@@ -347,13 +388,14 @@ export default async function ProfilePage({
         </div>
       </ProfileSection>
 
-      <ProfileSection id="profiel" title="Profielgegevens">
+      <ProfileSection
+        id="profiel"
+        title="Profielgegevens"
+        description="De gegevens waar Aura mee rekent: naam, schrijfwijzen, werkgebied en concurrenten."
+        variant="naslag"
+      >
         <div className="flex flex-col gap-4">
           <ProfileEditor initial={profile} inventoryCount={count ?? 0} />
-          <FactRequests
-            profileId={id}
-            initial={(factRows ?? []) as FactRequest[]}
-          />
           <EntitiesManager
             profileId={id}
             initial={(entityRows ?? []) as Entity[]}
@@ -367,7 +409,12 @@ export default async function ProfilePage({
           wordt overgedragen. Het is bovendien een handeling van ná het gesprek,
           niet tijdens. Dus onderaan, en alleen voor beheerders. */}
       {staff && (
-        <ProfileSection id="beheer" title="Beheer">
+        <ProfileSection
+          id="beheer"
+          title="Beheer"
+          description="Dit merk aan een klantaccount koppelen. Doe je ná het gesprek, niet tijdens."
+          variant="naslag"
+        >
           <AssignBox
             profileId={id}
             currentUserId={profile.user_id}

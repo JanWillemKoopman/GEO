@@ -222,7 +222,7 @@ function LandscapeTable({ landscape }: { landscape: SourceLandscapeRow[] }) {
           <tbody>
             {landscape.map((row) => (
               <tr key={row.id} className="border-t border-[var(--border-subtle)]">
-                <td className="py-1 pr-4 font-medium">{row.domain}</td>
+                <td className="break-url py-1 pr-4 font-medium">{row.domain}</td>
                 <td className="py-1 pr-4 text-secondary">{row.prompt_count}</td>
                 <td className="py-1 pr-4">
                   {row.own_present === true ? (

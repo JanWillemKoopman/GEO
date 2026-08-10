@@ -39,6 +39,25 @@ export interface OnboardingStat {
   /** Eén korte regel eronder. Null = niets te melden. */
   hint: string | null;
   tone: StatTone;
+  /**
+   * Wat er precies gemeten is, in één zin, achter een vraagteken.
+   *
+   * ── WAAROM DIT VELD ER MOEST KOMEN ────────────────────────────────────────
+   *
+   * De drie tegels stonden er als "6/6", "2/3" en "1" en de eerste reactie van
+   * de eigenaar was letterlijk "die slaan volgens mij nergens op". Terecht: de
+   * noemers waren onzichtbaar. 6 was het aantal formuleringen waarin we naar het
+   * merk vroegen, 3 het aantal koopvragen, en de 1 was geen verhouding maar een
+   * aantal diensten. Drie eenheden in dezelfde vorm, zonder één van de drie te
+   * benoemen.
+   *
+   * Nova doet dit nergens: daar staat de eenheid altijd in het label zelf
+   * ("Total clicks this plan month", "Month {number} of 12", "{posted} of
+   * {total}"). Dit veld is die regel, hier toegepast.
+   */
+  explain: string;
+  /** Waar de onderbouwing staat. Maakt de tegel klikbaar. */
+  href?: string;
 }
 
 export interface OnboardingSummaryInput {
@@ -73,17 +92,28 @@ export function onboardingStats(
 
   // 1. Kent de assistent je? Een verhouding en geen ja of nee. Twee woorden
   //    verschil in de vraagstelling draaide dit ooit om (zie summariseKnows).
+  //
+  //    De noemer is het aantal FORMULERINGEN, niet het aantal vragen: we vragen
+  //    hetzelfde op meerdere manieren ("wat is X", "ken je X", "X bedrijf"),
+  //    omdat een merk bij de ene formulering wél en bij de andere niet
+  //    bovenkomt. Dat stond nergens en maakte "6/6" een cijfer zonder eenheid.
   stats.push({
     value: knows.asked === 0 ? "-" : `${knows.recognised}/${knows.asked}`,
-    label: "Herkend door ChatGPT",
+    label: "Kent ChatGPT je bedrijf?",
     hint:
       knows.asked === 0
         ? "Nog niet getest"
         : knows.level === "kent"
-          ? "Bij elke manier van vragen"
+          ? `Ja, bij alle ${knows.asked} manieren van vragen`
           : knows.level === "wisselend"
-            ? "Alleen bij bepaalde vraagstellingen"
-            : "Bij geen enkele vraagstelling",
+            ? `Wisselend: bij ${knows.recognised} van de ${knows.asked} manieren van vragen`
+            : `Nee, bij geen van de ${knows.asked} manieren van vragen`,
+    explain:
+      `Aura vraagt ChatGPT op ${knows.asked || "meerdere"} verschillende manieren naar je bedrijf, ` +
+      "bijvoorbeeld op merknaam, op merknaam plus plaats, en als losse vraag. " +
+      "Bij de ene formulering komt een merk soms wél boven en bij de andere niet, " +
+      "en dat verschil is precies wat je wilt weten.",
+    href: "#ai-kennis",
     tone:
       knows.asked === 0
         ? "neutraal"
@@ -96,31 +126,48 @@ export function onboardingStats(
 
   // 2. Word je genoemd als iemand koopt? Dit is een ander cijfer dan het
   //    eerste, en juist het verschil ertussen is het gesprek waard.
+  //
+  //    "Koopvraag" is jargon zolang er niet bij staat wat het is: een vraag
+  //    waarin je merknaam NIET voorkomt. Dat is de hele clou, want daar kies je
+  //    niet zelf of je genoemd wordt.
   stats.push({
     value: gevraagd === 0 ? "-" : `${genoemd}/${gevraagd}`,
-    label: "Genoemd bij koopvragen",
+    label: "Noemt ChatGPT je als iemand wil kopen?",
     hint:
       gevraagd === 0
         ? "Nog niet gemeten"
         : genoemd === 0
-          ? "Bij geen van de gemeten vragen"
+          ? `Nee, bij geen van de ${gevraagd} koopvragen`
           : genoemd === gevraagd
-            ? "Bij alle gemeten vragen"
-            : "Nulmeting, vóór er iets veranderd is",
+            ? `Ja, bij alle ${gevraagd} koopvragen`
+            : `Bij ${genoemd} van de ${gevraagd} koopvragen. Dit is de nulmeting`,
+    explain:
+      `Aura stelt ${gevraagd || "een aantal"} vragen zoals een klant ze stelt, zonder je merknaam erin: ` +
+      '"welke aanbieder kies ik voor…". Je merk moet daar dus uit zichzelf bovenkomen. ' +
+      "Bekend zijn en aanbevolen worden zijn twee verschillende dingen; dit cijfer meet het tweede.",
+    href: "#ai-kennis",
     tone: gevraagd === 0 ? "neutraal" : genoemd === 0 ? "aandacht" : "goed",
   });
 
   // 3. Wat de STRUCTUUR mist. Het enige cijfer hier dat niet over een
-  //    AI-antwoord gaat maar over de site zelf.
+  //    AI-antwoord gaat maar over de site zelf, en het enige dat geen
+  //    verhouding is. Daarom staat de noemer nu ín de waarde ("1 van de 15")
+  //    en niet alleen in de regel eronder: twee verhoudingen en een los getal
+  //    naast elkaar lazen als drie cijfers van dezelfde soort.
   stats.push({
-    value: assessed === 0 ? "-" : String(missing),
+    value: assessed === 0 ? "-" : `${missing}/${assessed}`,
     label: "Diensten zonder eigen pagina",
     hint:
       assessed === 0
         ? "Aanbod nog niet in kaart"
         : missing === 0
-          ? `Alle ${assessed} onderdelen gedekt`
-          : `Van de ${assessed} onderdelen in je aanbod`,
+          ? `Alle ${assessed} onderdelen hebben een pagina`
+          : `${missing} van je ${assessed} onderdelen heeft er nog geen`,
+    explain:
+      "Dit gaat over je eigen site, niet over ChatGPT. Aura legt je aanbod naast je pagina's: " +
+      "een dienst zonder eigen pagina heeft geen plek waar een AI-assistent iets over kan lezen. " +
+      "Dit is meestal het snelst te verhelpen punt van de drie.",
+    href: "#aanbod",
     tone: assessed === 0 ? "neutraal" : missing === 0 ? "goed" : "aandacht",
   });
 

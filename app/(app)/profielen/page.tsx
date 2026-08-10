@@ -80,7 +80,7 @@ export default async function ProfielenPage() {
               >
                 <div className="min-w-0">
                   <p className="truncate text-lg font-semibold">{p.name}</p>
-                  <p className="mono-label mt-1">
+                  <p className="mono-label break-url mt-1">
                     {p.url} · <LastUpdated at={p.updated_at} className="" />
                   </p>
                 </div>

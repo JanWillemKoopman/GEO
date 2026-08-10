@@ -1,5 +1,6 @@
 import { requireUser } from "@/lib/auth";
 import { AppShell } from "@/components/app-shell";
+import { ToastProvider } from "@/components/toast";
 
 /**
  * Het ingelogde gedeelte van de app.
@@ -15,5 +16,9 @@ import { AppShell } from "@/components/app-shell";
  */
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const user = await requireUser();
-  return <AppShell user={user}>{children}</AppShell>;
+  return (
+    <ToastProvider>
+      <AppShell user={user}>{children}</AppShell>
+    </ToastProvider>
+  );
 }

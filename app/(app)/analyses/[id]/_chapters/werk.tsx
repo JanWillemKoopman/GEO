@@ -135,7 +135,7 @@ export async function WerkChapter({
                             href={r.existingUrl}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="underline"
+                            className="break-url underline"
                           >
                             {r.existingUrl}
                           </a>

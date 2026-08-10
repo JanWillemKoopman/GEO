@@ -263,6 +263,17 @@
 html {
   -webkit-text-size-adjust: 100%;
   color-scheme: light;
+  /* Het slot op de deur. De regels hieronder halen de oorzaken weg; dit
+     garandeert de uitkomst, ook bij een fout die er later in sluipt: de pagina
+     is nooit breder dan het toestel en zijwaarts scrollen bestaat niet.
+
+     Op `html` en niet op `body`: dan blijft `html` de scroll-container en
+     blijven de `position: sticky`-balken (bovenbalk, hoofdstuk-rail,
+     goedkeuringsbalk) gewoon plakken. Nagemeten met Playwright op 390px, zie
+     docs/ux-design.md §7. `clip` in plaats van `hidden` kan hier niet: op het
+     wortelelement trekt `clip` de verticale as mee en dan scrolt de pagina
+     helemaal niet meer. */
+  overflow-x: hidden;
 }
 
 body {
@@ -272,6 +283,48 @@ body {
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
+  /* Zie het blok "Niets is breder dan het scherm" hieronder. */
+  overflow-wrap: break-word;
+}
+
+/* ── Niets is breder dan het scherm ─────────────────────────────────────────
+   Op een iPhone was de pagina breder dan het toestel: je kon horizontaal
+   scrollen en de rechterkant viel weg. De oorzaak is niet één kapotte kaart
+   maar één soort inhoud: strings zonder spatie die niet mogen afbreken.
+
+   Aura rendert die op ~15 plekken. Een occasion-URL van 100 tekens is bij 14px
+   ongeveer 840px breed, en hij staat in een kaart die op een telefoon 302px
+   krijgt. Dat is 538px die buiten het scherm hangt, en precies het beeld dat
+   "er valt veel weg aan de rechterkant" oplevert.
+
+   Drie regels, van algemeen naar specifiek:
+
+   1. `overflow-wrap: break-word` op de body. Breekt een woord alleen als het
+      anders niet past, en laat normale tekst met rust. Dit is het vangnet.
+   2. `.break-url` voor wat écht een URL, slug of domein is. `anywhere` in
+      plaats van `break-word`, want alleen `anywhere` verkleint óók de
+      min-content-breedte. Zonder dat weigert een flex- of grid-kind te krimpen
+      en duwt het zijn container alsnog open, hoe netjes de tekst ook afbreekt.
+   3. `min-width: 0` op de kaart. De standaard `min-width: auto` van een
+      flex-kind is de tweede helft van dezelfde fout.
+
+   Controle na een wijziging: `document.documentElement.scrollWidth` moet op
+   390px viewport gelijk zijn aan 390. Zie docs/ux-design.md §7. */
+.break-url {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+/* Alles wat van nature een eigen breedte meebrengt, krimpt mee. De grafiek in
+   `trend-chart.tsx` houdt zijn `min-width: 480` (min-width wint van max-width)
+   en scrolt in zijn eigen `overflow-x-auto`, zoals bedoeld. */
+img,
+svg,
+video,
+canvas,
+iframe,
+table {
+  max-width: 100%;
 }
 /* Het lijnenraster van 28×28px op de body is weg. Dat was een sfeermiddel van
    de marketingsite; de Nova-werkomgeving heeft een vlak vlak. Op een scherm met
@@ -315,6 +368,9 @@ body {
   border: var(--border-width-xs) solid var(--border-subtle);
   border-radius: var(--radius-lg);
   padding: 20px;
+  /* Een kaart is bijna altijd een flex- of grid-kind. Zonder dit houdt hij zijn
+     min-content-breedte aan en duwt de breedste regel erin de hele pagina open. */
+  min-width: 0;
   transition:
     box-shadow var(--duration-fast) var(--ease-standard),
     border-color var(--duration-fast) var(--ease-standard);
@@ -526,6 +582,77 @@ textarea.field {
   }
 }
 
+/* ── Broodroostermelding ────────────────────────────────────────────────────
+   De bewegingen komen uit de gecompileerde CSS van nova.inspace.io: 0,15s in,
+   0,12s uit, en een streepje dat leegloopt over de levensduur van de melding.
+   Zie components/toast.tsx voor het waarom. */
+.toast-card {
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 12px 14px;
+  border-radius: var(--radius-lg);
+  background-color: var(--bg-surface);
+  border: var(--border-width-xs) solid var(--border-subtle);
+  box-shadow: var(--shadow-overlay);
+  animation: toast-in var(--duration-base) var(--ease-standard);
+}
+.toast-card[data-leaving] {
+  animation: toast-out var(--duration-fast) ease-in forwards;
+}
+.toast-progress {
+  position: absolute;
+  inset-inline: 0;
+  bottom: 0;
+  height: 2px;
+  transform-origin: left;
+  animation-name: toast-progress;
+  animation-timing-function: linear;
+  animation-fill-mode: forwards;
+}
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateX(1rem);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+@keyframes toast-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+@keyframes toast-progress {
+  from {
+    transform: scaleX(1);
+  }
+  to {
+    transform: scaleX(0);
+  }
+}
+/* Op een telefoon komt de melding van onderen: daar is de duim, en de
+   bovenkant is bezet door de browserbalk. */
+@media (max-width: 639px) {
+  @keyframes toast-in {
+    from {
+      opacity: 0;
+      transform: translateY(1rem);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+}
+
 /* Pulserende live-dot: "loopt nu". Kleur en vorm samen, nooit kleur alleen. */
 .live-dot {
   width: 8px;
@@ -596,6 +723,19 @@ textarea.field {
 .prose a {
   color: var(--intent-intelligence-text);
   text-decoration: underline;
+  /* Een link in gegenereerde content is vaak een kale URL. */
+  overflow-wrap: anywhere;
+}
+/* Een tabel of codeblok uit de generator kan breder zijn dan een telefoon.
+   Die scrolt dan in zijn eigen baan, niet met de hele pagina mee. */
+.prose pre,
+.prose table {
+  display: block;
+  max-width: 100%;
+  overflow-x: auto;
+}
+.prose code {
+  overflow-wrap: anywhere;
 }
 .prose ul,
 .prose ol {
@@ -629,6 +769,13 @@ textarea.field {
 
 @media (prefers-reduced-motion: reduce) {
   .live-dot {
+    animation: none;
+  }
+  /* De melding verschijnt en verdwijnt nog steeds, alleen zonder beweging. Het
+     voortgangsstreepje blijft wél lopen: dat is informatie (hoe lang blijft
+     deze melding staan), geen versiering. */
+  .toast-card,
+  .toast-card[data-leaving] {
     animation: none;
   }
   .skeleton {

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { PageHeader } from "@/components/page-header";
 import { ExternalLink } from "@/components/external-link";
+import { InfoHint } from "@/components/info-hint";
 import type { OnboardingStat } from "@/lib/pipeline/onboarding-summary";
 
 /**
@@ -59,7 +60,7 @@ export function ProfileHero({
 
       <ExternalLink
         href={`https://${url.replace(/^https?:\/\//, "")}`}
-        className="mono-label w-fit transition-colors hover:text-[var(--text-primary)]"
+        className="mono-label break-url w-fit transition-colors hover:text-[var(--text-primary)]"
       >
         {url}
       </ExternalLink>
@@ -75,6 +76,7 @@ export function ProfileHero({
           klik is genoeg; een herontwerp van dat formulier zou gokwerk zijn
           zolang er nog geen echt gesprek mee gevoerd is. */}
       <nav className="flex flex-wrap gap-2" aria-label="Snel naar">
+        <JumpLink href="#vragen">Wat Aura nog wil weten</JumpLink>
         <JumpLink href="#ai-kennis">Wat AI weet</JumpLink>
         <JumpLink href="#aanbod">Aanbod</JumpLink>
         <JumpLink href="#onderwerpen">Onderwerpen</JumpLink>
@@ -82,10 +84,16 @@ export function ProfileHero({
       </nav>
 
       {iets && (
-        <div className="grid gap-3 sm:grid-cols-3">
-          {stats.map((s) => (
-            <StatTile key={s.label} stat={s} />
-          ))}
+        <div className="flex flex-col gap-2">
+          {/* Eén kop boven de drie tegels. Zonder die kop is niet duidelijk dat
+              dit één samenhangende meting is met één moment: het is de stand
+              van vandaag, vóór er iets veranderd is. */}
+          <span className="mono-label">De nulmeting</span>
+          <div className="grid gap-3 sm:grid-cols-3">
+            {stats.map((s) => (
+              <StatTile key={s.label} stat={s} />
+            ))}
+          </div>
         </div>
       )}
     </div>
@@ -110,13 +118,30 @@ function StatTile({ stat }: { stat: OnboardingStat }) {
   return (
     <div className="card flex flex-col gap-1">
       <span
-        className="text-3xl font-bold tracking-tight"
-        style={{ color: kleur, fontFamily: "var(--font-mono)" }}
+        className="stat-value text-3xl font-bold"
+        style={{ color: kleur }}
       >
         {stat.value}
       </span>
-      <span className="mono-label">{stat.label}</span>
+
+      {/* Het label is een hele vraag geworden in plaats van twee woorden. Een
+          tegel die "Herkend door ChatGPT" heet laat de lezer zelf raden wat de
+          noemer is; een tegel die "Kent ChatGPT je bedrijf?" heet niet. */}
+      <span className="flex items-start gap-1 text-sm font-semibold">
+        {stat.label}
+        <InfoHint label={`Wat meet "${stat.label}"?`}>{stat.explain}</InfoHint>
+      </span>
+
       {stat.hint && <span className="text-sm text-muted">{stat.hint}</span>}
+
+      {stat.href && (
+        <a
+          href={stat.href}
+          className="mono-label mt-1 w-fit transition-colors hover:text-[var(--text-primary)]"
+        >
+          Bekijk de onderbouwing
+        </a>
+      )}
     </div>
   );
 }

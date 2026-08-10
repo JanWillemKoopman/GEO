@@ -32,7 +32,12 @@ export function AppShell({ user, children }: { user: User; children: React.React
           </div>
         </div>
       </header>
-      <div className="mx-auto w-full max-w-5xl flex-1 px-6 py-10">{children}</div>
+      {/* `min-w-0` is hier geen sier: dit is een flex-kind, en een flex-kind
+          krijgt standaard `min-width: auto`. Eén lange URL diep in een kaart
+          zet daarmee de minimale breedte van de hele kolom, en dan schuift de
+          pagina op een telefoon zijwaarts weg. Zie het blok "Niets is breder
+          dan het scherm" in globals.css. */}
+      <div className="mx-auto w-full max-w-5xl min-w-0 flex-1 px-6 py-10">{children}</div>
     </div>
   );
 }

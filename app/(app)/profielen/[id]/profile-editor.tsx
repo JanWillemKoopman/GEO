@@ -151,7 +151,7 @@ export function ProfileEditor({ initial, inventoryCount }: { initial: Profile; i
 
       <div className="flex justify-between gap-4 border-b border-[var(--border-subtle)] pb-3">
         <span className="text-secondary">Website</span>
-        <span className="font-medium">{profile.url}</span>
+        <span className="break-url font-medium">{profile.url}</span>
       </div>
       {profile.brand_name && (
         <div className="flex justify-between gap-4 border-b border-[var(--border-subtle)] pb-3">

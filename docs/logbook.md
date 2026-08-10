@@ -1286,3 +1286,63 @@ publiceren.
 **Geverifieerd.** Vier controles groen: `tsc --noEmit`, 735 unittests (22 nieuwe: `slugFrom`/
 `suggestedPath`/`resolvedContentUrl`, `diffContent` inclusief de terugval naar alineaniveau, en
 `FaqEdit`), 47 ketentests, productiebuild.
+
+---
+
+## Vijf bevindingen uit het eerste echte doorloop op een telefoon (10 augustus 2026)
+
+De eigenaar liep de app voor het eerst helemaal door op een iPhone, met een echte klant erin
+(Van den Udenhout). Vijf bevindingen, en ze hangen samen: vier van de vijf gaan over hetzelfde
+scherm, het merkdossier.
+
+**1. De pagina was breder dan het toestel.** Niet één kapotte kaart maar één soort inhoud: strings
+zonder spatie die niet mogen afbreken. Aura rendert die op ~15 plekken (URL's, slugs, domeinen).
+Een occasion-URL van 100 tekens is bij 14px ongeveer 840px breed en staat in een kaart die op een
+telefoon 302px krijgt: 538px hangt buiten beeld. Opgelost met vier regels, van vangnet tot slot op
+de deur, uitgeschreven in `docs/ux-design.md` §7. Nagemeten met Playwright op 320/390/430px:
+`documentElement.scrollWidth` is nu gelijk aan de viewport, en de sticky balken blijven plakken
+(dat laatste is de reden dat `overflow-x: hidden` op `html` staat en niet op `body`).
+
+**2. De drie kerncijfers "sloegen nergens op".** Letterlijk de reactie, en terecht. Er stond
+`6/6`, `2/3` en `1`. De 6 was het aantal formuleringen waarin we naar het merk vroegen, de 3 het
+aantal koopvragen, en de 1 was geen verhouding maar een aantal diensten. Drie eenheden in dezelfde
+vorm, geen enkele benoemd. Nu is het label een hele vraag, staat de noemer ín de waarde (`1/15`) en
+legt een `explain`-veld achter een vraagteken uit wat er geteld is. Dat "koopvraag" betekent: een
+vraag waar je merknaam níet in voorkomt, stond nergens, terwijl dat de hele clou is.
+
+**3. De uitvraag zat verstopt.** Op twee plekken, allebei onder de vouw: de vragen mét invoerveld
+op plek 7 binnen "Profielgegevens", de open punten op plek 5 binnen "Het gesprek". Voor de
+gebruiker is dat één ding. Samengevoegd tot `OpenQuestions` op plek 3, met de teller in de kop.
+
+**4. Niemand kon zien wanneer het onderzoek klaar was.** Dit was de scherpste van de vijf, want het
+is een ontwerpfout die uit een bewuste keuze volgde: het profiel gaat op status `klaar` na taak 2
+van 8, zodat de klant niet op de aanbodboom hoeft te wachten. Daardoor betekende "klaar" voor de
+consultant niets, en was er geen enkel moment waarop de app zei: dit dossier is af, je kunt het
+delen. Twee dingen gebouwd:
+
+- **Broodroostermeldingen** (`components/toast.tsx`). De app kende alleen kaarten in de pagina, en
+  die werken voor een uitslag maar niet voor een gebeurtenis. Vorm en timing komen uit de
+  gecompileerde CSS van nova.inspace.io: 0,15s in, 0,12s uit, en een streepje dat leegloopt over de
+  levensduur. Dat streepje is het detail dat het af maakt, het zegt "deze melding gaat vanzelf weg"
+  zonder één woord uitleg.
+- **`assessReadiness()`** (`lib/pipeline/profile-readiness.ts`), Nova's "Review & launch" toegepast:
+  zes verplichte onderdelen met een stand per regel, en één zin die zegt of je het scherm kunt
+  delen. De belangrijkste ontwerpkeuze zit in wat *niet* blokkeert: openstaande feitvragen tellen
+  wel mee als open punt maar niet als tekortkoming. Zonder dat onderscheid staat elk profiel eeuwig
+  op 90% omdat de klant drie vragen niet invulde, en dan betekent het balkje niets meer.
+
+**5. Het merkdossier was overweldigend.** Acht blokken, alle acht altijd open, samen meters scroll.
+Twee ingrepen: elk blok heeft nu een omschrijving onder de titel (Nova geeft élk blok een `title`
+én een `description`, dat is het goedkoopste middel tegen "overweldigend"), en blokken zijn
+gesplitst in `verhaal` (open, wat de consultant laat zien) en `naslag` (overal dicht: techniek,
+profielgegevens, beheer). Dat haalt ruim de helft van de paginahoogte weg zonder één functie te
+kosten.
+
+**De bron voor de Nova-patronen.** Nova's berichtenbestand blijkt volledig in de HTML van de
+inlogpagina te zitten: `next-intl` zet de messages in de RSC-payload, en dat is de complete
+catalogus van tien namespaces, inclusief schermen waar je alleen ná inloggen komt. Uitgepakt naar
+`docs/nova-i18n.json`. Dat bestand is de feitelijke basis onder `docs/Nova.md`.
+
+**Geverifieerd.** Vier controles groen: `tsc --noEmit`, 755 unittests (20 nieuwe: de aangepaste
+kerncijfers inclusief hun `explain`, en `assessReadiness`/`readinessHeadline` met de vier gevallen
+compleet/open-punten/loopt/kapot), 47 ketentests, productiebuild.

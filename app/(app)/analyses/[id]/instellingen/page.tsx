@@ -48,7 +48,7 @@ export default async function InstellingenPage({ params }: { params: Promise<{ i
         <span className="mono-label">Analyse</span>
         <div className="flex justify-between gap-4 border-b border-[var(--border-subtle)] pb-3">
           <span className="text-secondary">Website</span>
-          <span className="font-medium">{analysis.url}</span>
+          <span className="break-url font-medium">{analysis.url}</span>
         </div>
         <div className="flex justify-between gap-4">
           <span className="text-secondary">Onderwerp</span>

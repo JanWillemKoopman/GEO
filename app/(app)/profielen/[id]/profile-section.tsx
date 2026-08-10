@@ -30,13 +30,40 @@ const DESKTOP_QUERY = "(min-width: 1024px)";
 export function ProfileSection({
   id,
   title,
+  description,
   badge,
+  variant = "verhaal",
   children,
 }: {
   id: string;
   title: string;
+  /**
+   * Eén regel onder de kop: waar gaat dit blok over, en waarom staat het er?
+   *
+   * Overgenomen van Nova, waar élk blok een `title` en een `description` heeft
+   * (`strategyMixDescription`, `monthlyPerformanceDescription`,
+   * `clicksByPageTypeDescription`, en zo nog een stuk of twintig). Het is het
+   * goedkoopste middel tegen "overweldigend": een scherm met acht koppen zonder
+   * uitleg dwingt de lezer elk blok open te maken om te weten of het voor hem
+   * bedoeld is.
+   */
+  description?: string;
   /** Kort cijfer of woord naast de kop, bv. "22 onderdelen". */
   badge?: string;
+  /**
+   * `verhaal` is wat de consultant in de demo laat zien: open op desktop.
+   * `naslag` is wat je erbij pakt als je iets moet nakijken of bijstellen, en
+   * staat overal dicht.
+   *
+   * ── WAAROM DIT ONDERSCHEID ────────────────────────────────────────────────
+   *
+   * De pagina telde acht blokken die alle acht altijd openstonden, samen goed
+   * voor een scrollbaan van meters. Alleen de eerste vier vertellen het verhaal;
+   * de rest (techniek, profielgegevens, entiteiten, beheer) is gereedschap. Dat
+   * gereedschap dichtklappen haalt ruim de helft van de pagina weg zonder één
+   * functie te kosten.
+   */
+  variant?: "verhaal" | "naslag";
   children: React.ReactNode;
 }) {
   // Standaard open: zonder JavaScript, en in de eerste render vóór hydratie, is
@@ -45,24 +72,38 @@ export function ProfileSection({
   const [open, setOpen] = useState(true);
 
   useEffect(() => {
-    setOpen(window.matchMedia(DESKTOP_QUERY).matches);
-  }, []);
+    setOpen(
+      variant === "naslag" ? false : window.matchMedia(DESKTOP_QUERY).matches,
+    );
+  }, [variant]);
+
+  // Een naslagblok is op élk formaat een knop, dus daar hoort het pijltje er
+  // altijd bij. Bij een verhaalblok alleen op mobiel.
+  const altijdKlapbaar = variant === "naslag";
 
   return (
-    <section id={id} className="flex flex-col gap-2 scroll-mt-4">
+    <section id={id} className="flex flex-col gap-2 scroll-mt-20">
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
         aria-expanded={open}
-        className="flex w-full items-center justify-between gap-3 py-1 text-left lg:cursor-default"
+        className={`flex w-full items-start justify-between gap-3 py-1 text-left ${
+          altijdKlapbaar ? "" : "lg:cursor-default"
+        }`}
       >
-        <span className="flex items-baseline gap-2">
-          <h2 className="text-lg font-semibold tracking-tight">{title}</h2>
-          {badge && <span className="mono-label text-muted">{badge}</span>}
+        <span className="flex min-w-0 flex-col gap-0.5">
+          <span className="flex flex-wrap items-baseline gap-2">
+            <h2 className="text-lg font-semibold tracking-tight">{title}</h2>
+            {badge && <span className="mono-label text-muted">{badge}</span>}
+          </span>
+          {description && (
+            <span className="text-sm text-muted">{description}</span>
+          )}
         </span>
-        {/* Het pijltje alleen op mobiel: op desktop staat alles open en is de
-            kop geen knop maar een kop. */}
-        <span className="mono-label text-muted lg:hidden" aria-hidden>
+        <span
+          className={`mono-label shrink-0 text-muted ${altijdKlapbaar ? "" : "lg:hidden"}`}
+          aria-hidden
+        >
           {open ? "sluit" : "open"}
         </span>
       </button>

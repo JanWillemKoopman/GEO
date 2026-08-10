@@ -138,6 +138,7 @@ schermen die de gebruiker na elkaar ziet).
 | `VersionDiff` (`components/version-diff.tsx`) | Content-editie: het verschil met de vorige versie, lazy opgehaald bij uitklappen. `<del>`/`<ins>` met `--intent-danger`/`--intent-growth`-tokens, nooit hardgecodeerd. |
 | `FaqEditor` (`components/faq-editor.tsx`) | Content-editie: zelfde vorm als `TagListEditor` (`items`/`onChange`), nu voor vraag-antwoordparen. Herordenen met ↑/↓-knoppen, geen sleep-library. |
 | `WhyThisPage` (`components/why-this-page.tsx`) | Content-editie: het "waarom deze pagina"-contextpaneel, naar Nova's "Why This Page Exists?". Toont Aura's eigen metriek (echt gemeten AI-vragen) in plaats van geschat zoekvolume. |
+| `ToastProvider` / `useToast` (`components/toast.tsx`) | Broodroostermeldingen. **Voor gebeurtenissen, niet voor uitslagen**: een uitslag hoort in de pagina, een gebeurtenis (het onderzoek is klaar, je wijziging is opgeslagen) hoort in een melding. Altijd `title` én `description`, net als bij Nova. Vorm en timing zijn letterlijk die van Nova: 0,15s in vanaf `translateX(1rem)`, 0,12s uit, en een streepje onderaan dat leegloopt over de levensduur. Standaard 6s; een fout blijft staan tot je hem wegklikt. Op mobiel komt hij van onderen, daar is de duim. |
 
 ## 4. Loading, error en lege staten
 
@@ -239,15 +240,36 @@ Wel een kop met **de merknaam, één duidingszin en drie cijfers**, herkenning,
 koopvragen, structurele dekking (`profile-hero.tsx`, gerekend in
 `lib/pipeline/onboarding-summary.ts`).
 
-De volgorde ís het demogesprek: kop → voortgang → dossier → wat AI over je weet →
-aanbod → onderwerpen → gesprek → techniek → profielgegevens → beheer. Eerst wat we
-vonden, dan wat er mist, dan wat we gaan doen. De gespreksagenda (`ProfileGaps`)
-staat bewust ná de opbrengst en niet ervoor: waarde vóór inspanning, en die
-agenda ís de inspanning. Toewijzen staat onderaan en alleen voor beheerders. Het
-is een handeling van ná het gesprek, op een scherm dat de klant meekijkt.
+**Elk cijfer draagt zijn eigen eenheid.** De drie tegels stonden er als "6/6",
+"2/3" en "1" en de eerste reactie van de eigenaar was "die slaan nergens op".
+Terecht: de noemers waren onzichtbaar, en de derde was geen verhouding maar een
+aantal. Nu is het label een hele vraag ("Kent ChatGPT je bedrijf?"), staat de
+noemer ín de waarde (`1/15`), en legt een `explain`-veld achter een vraagteken
+uit wát er precies geteld is. Dat is Nova's regel: daar staat de eenheid altijd
+in het label zelf ("Total clicks this plan month", "Month {number} of 12").
 
-Elk blok is een `ProfileSection`: op desktop open, op mobiel ingeklapt, met een
-`id` zodat de springlinks in de kop er rechtstreeks naartoe gaan.
+De volgorde ís het demogesprek: kop → **is het af** → **wat Aura nog wil weten** →
+dossier → wat AI over je weet → aanbod → onderwerpen → gesprek → techniek →
+profielgegevens → beheer.
+
+**Is het af** (`ProfileReadinessPanel`, gerekend in
+`lib/pipeline/profile-readiness.ts`) is Nova's "Review & launch" toegepast: zes
+verplichte onderdelen met een stand per regel, een balk, en één zin die zegt of
+je het scherm kunt delen. Nodig omdat het profiel op status `klaar` gaat na taak
+2 van 8, waardoor "klaar" voor de consultant niets betekende. Openstaande
+feitvragen blokkeren `compleet` bewust **niet**: anders staat elk profiel eeuwig
+op 90% en betekent de melding niets meer.
+
+**Wat Aura nog wil weten** (`OpenQuestions`) is één blok waar er twee waren: de
+vragen mét invoerveld zaten op plek 7 binnen "Profielgegevens", de open punten op
+plek 5 binnen "Het gesprek". Voor de gebruiker is dat één ding, dus staat het op
+één plek, hoog, met de teller in de kop.
+
+Elk blok is een `ProfileSection` met een **titel én een omschrijving** (Nova geeft
+élk blok allebei). Twee soorten: `verhaal` staat op desktop open en is wat de
+consultant laat zien; `naslag` (techniek, profielgegevens, beheer) staat overal
+dicht, want dat is gereedschap. Dat haalt ruim de helft van de paginahoogte weg
+zonder één functie te kosten.
 
 **Een paneel dat niets te tonen heeft, verdwijnt niet.** Het toont waaróm het
 leeg is en wat de volgende stap is. Stil verdwijnen is erger dan het dode einde
@@ -307,6 +329,37 @@ is nog niet gebouwd.
 
 Vaste mobiele regels: tikdoelen ≥ 44×44px · formuliervelden ≥ 16px (anders zoomt iOS Safari in) ·
 geen interactie mag van hover afhangen.
+
+### Niets is breder dan het scherm
+
+Op een iPhone was de pagina breder dan het toestel: je kon zijwaarts scrollen en de rechterkant
+viel weg. De oorzaak was niet één kapotte kaart maar één soort inhoud: **strings zonder spatie die
+niet mogen afbreken**. Aura rendert die op zo'n vijftien plekken (URL's, slugs, domeinen,
+entiteitsnamen). Een occasion-URL van 100 tekens is bij 14px ongeveer 840px breed en staat in een
+kaart die op een telefoon 302px krijgt.
+
+Vier regels, in `app/globals.css`:
+
+1. `html { overflow-x: hidden }`, het slot op de deur. Op `html` en niet op `body`, dan blijft
+   `html` de scroll-container en blijven de `position: sticky`-balken plakken. `clip` kan hier
+   niet: op het wortelelement trekt die de verticale as mee.
+2. `body { overflow-wrap: break-word }`, het vangnet. Breekt een woord alleen als het anders niet
+   past.
+3. `.break-url` op alles wat écht een URL, slug of domein is. `overflow-wrap: anywhere`, want
+   alleen `anywhere` verkleint óók de **min-content-breedte**. Zonder dat weigert een flex- of
+   grid-kind te krimpen en duwt het zijn container alsnog open, hoe netjes de tekst ook afbreekt.
+4. `min-width: 0` op `.card` en op de contentkolom in `AppShell`. De standaard `min-width: auto`
+   van een flex-kind is de tweede helft van dezelfde fout.
+
+**Controle na een wijziging.** Zet een pagina op 390px breed en meet in de console:
+
+```js
+document.documentElement.scrollWidth === document.documentElement.clientWidth
+```
+
+Moet `true` zijn. Wil je weten wélk element het doet, loop dan alle elementen langs en vergelijk
+`el.scrollWidth` met `el.clientWidth`; alleen elementen met een eigen `overflow-x: auto` (de
+grafiek, de brede tabellen, de sectie-rail) mogen daar afwijken.
 
 **Het conceptscherm is de toetssteen**. Het informatiedichtste scherm én het enige dat iedere
 analyse verplicht doorloopt. Desktop: ruim, secties open. Mobiel: elke veldgroep en promptcategorie

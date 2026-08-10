@@ -122,6 +122,10 @@ import {
   onboardingHeadline,
 } from "@/lib/pipeline/onboarding-summary";
 import {
+  assessReadiness,
+  readinessHeadline,
+} from "@/lib/pipeline/profile-readiness";
+import {
   assessStructureCoverage,
   describeCoverage,
   formatCoverageForReport,
@@ -3237,13 +3241,40 @@ group("de drie kerncijfers en de zin erboven", () => {
   ok("drie tegels, niet meer", stats.length === 3);
   ok("herkenning met noemer", stats[0].value === "6/6");
   ok("koopvragen met noemer", stats[1].value === "1/3");
-  ok("dekking als absoluut getal", stats[2].value === "2");
+  // ⚠️ Was "2", een kaal getal naast twee verhoudingen. De eigenaar las de drie
+  // tegels als drie cijfers van dezelfde soort en concludeerde dat ze nergens
+  // op sloegen; de noemer stond alleen in de kleine regel eronder. Nu staat hij
+  // in de waarde zelf, net als bij de andere twee.
+  ok("dekking óók als verhouding", stats[2].value === "2/12");
   ok(
-    "en de hint zet dat getal in verhouding",
-    stats[2].hint === "Van de 12 onderdelen in je aanbod",
+    "en de hint zegt in gewone taal hetzelfde",
+    stats[2].hint === "2 van je 12 onderdelen heeft er nog geen",
   );
   ok("volledige herkenning is 'goed'", stats[0].tone === "goed");
   ok("ontbrekende pagina's vragen aandacht", stats[2].tone === "aandacht");
+
+  // Elke tegel moet kunnen uitleggen wát er geteld is. Dat was de kern van de
+  // klacht: "6/6" zonder eenheid is geen cijfer maar een raadsel.
+  ok(
+    "elke tegel legt zijn eigen noemer uit",
+    stats.every((s) => s.explain.length > 40),
+  );
+  ok(
+    "de herkenningstegel benoemt dat het om formuleringen gaat",
+    stats[0].explain.includes("manieren"),
+  );
+  ok(
+    "de koopvraagtegel legt uit dat de merknaam er níet in staat",
+    stats[1].explain.includes("zonder je merknaam"),
+  );
+  ok(
+    "de dekkingstegel zegt dat hij niet over ChatGPT gaat",
+    stats[2].explain.includes("je eigen site"),
+  );
+  ok(
+    "elke tegel wijst naar zijn onderbouwing",
+    stats.every((s) => typeof s.href === "string" && s.href.startsWith("#")),
+  );
 
   // ⚠️ De duidingszin. Zonder deze regel leest "1/3" als een cijfer op een
   // rapport; voor vrijwel elk MKB-merk is dit gewoon de startsituatie.
@@ -3295,6 +3326,95 @@ group("de drie kerncijfers en de zin erboven", () => {
   ok(
     "en de tegels tonen een streepje in plaats van een nul",
     onboardingStats(leeg).every((s) => s.value === "-"),
+  );
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+console.log("\nIs het merkdossier af? (profile-readiness)");
+
+group("assessReadiness", () => {
+  const stap = (job: string, state: string) =>
+    ({ job, label: job, state, result: null }) as never;
+
+  // Alle acht taken gedaan, alles gevuld: dit is het moment waarop de
+  // consultant het scherm mag delen.
+  const compleet = {
+    steps: [
+      stap("profile_discover", "klaar"),
+      stap("profile_synthesis", "klaar"),
+      stap("profile_offering", "klaar"),
+      stap("profile_llm_baseline", "klaar"),
+      stap("propose_topics", "klaar"),
+      stap("technical_audit", "klaar"),
+    ],
+    pages: 31,
+    offerings: 12,
+    topics: 5,
+    auditChecks: 9,
+    baselineRows: 6,
+    dossier: true,
+    openFactRequests: 0,
+    researchGaps: 0,
+  };
+
+  const r = assessReadiness(compleet);
+  ok("alles gevuld is compleet", r.compleet === true);
+  ok("zes onderdelen zijn verplicht", r.nodigAantal === 6);
+  ok("en alle zes staan er", r.klaarAantal === 6);
+  ok("er loopt niets meer", r.loopt === false);
+  ok("dus niets ontbreekt", r.ontbreekt.length === 0);
+  ok(
+    "de kop zegt dat je het gesprek in kunt",
+    readinessHeadline(r, "Fysi-Unique").includes("compleet"),
+  );
+
+  // ⚠️ DE KERN: openstaande feitvragen mogen "compleet" NIET blokkeren.
+  // Anders staat elk profiel eeuwig op 90% omdat de klant drie vragen niet
+  // invulde, en dan betekent de melding niets meer.
+  const metOpenVragen = assessReadiness({
+    ...compleet,
+    openFactRequests: 6,
+    researchGaps: 10,
+  });
+  ok(
+    "open vragen blokkeren 'compleet' niet",
+    metOpenVragen.compleet === true,
+  );
+  ok(
+    "maar ze staan er wel als open punt",
+    metOpenVragen.optioneelOpen.length === 2,
+  );
+  ok(
+    "en de kop noemt ze als agenda, niet als fout",
+    readinessHeadline(metOpenVragen, "X").includes("agenda voor het gesprek"),
+  );
+
+  // Draait er nog werk, dan is een lege kaart geen bevinding maar een
+  // tussenstand. Zonder dit onderscheid geeft de app in de eerste zeven minuten
+  // vals alarm.
+  const loopt = assessReadiness({
+    ...compleet,
+    steps: [...compleet.steps.slice(0, 4), stap("propose_topics", "bezig")],
+    topics: 0,
+  });
+  ok("een draaiende stap heet 'loopt'", loopt.loopt === true);
+  ok(
+    "en de rij staat op 'loopt', niet op 'leeg'",
+    loopt.rows.find((x) => x.label === "Onderwerpen voorgesteld")?.state ===
+      "loopt",
+  );
+  ok(
+    "de kop meldt de tussenstand",
+    readinessHeadline(loopt, "X").includes("nog bezig"),
+  );
+
+  // Echt mislukt: het onderzoek is klaar maar een verplicht onderdeel is leeg.
+  const kapot = assessReadiness({ ...compleet, offerings: 0, topics: 0 });
+  ok("een leeg verplicht onderdeel blokkeert", kapot.compleet === false);
+  ok("en wordt bij naam genoemd", kapot.ontbreekt.length === 2);
+  ok(
+    "de kop zegt wat er mist",
+    readinessHeadline(kapot, "X").includes("aanbod in kaart"),
   );
 });
 

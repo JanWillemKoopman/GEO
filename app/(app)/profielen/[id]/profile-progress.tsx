@@ -16,7 +16,7 @@ interface StatusPayload {
   attempts: number;
   etaText: string | null;
   /**
-   * Dezelfde stappen die `ResearchStepsStrip` verderop toont. Ze stonden er al
+   * Dezelfde stappen die `ProfileReadinessPanel` verderop toont. Ze stonden er al
    * in de payload en werden hier niet gebruikt, het wachten was daardoor twee
    * verschillende ervaringen achter elkaar: eerst een generiek scherm van een
    * minuut, dan een stappenlijst. Nu één lijst die gewoon doorloopt.
