@@ -1560,3 +1560,54 @@ cookie levert dus niets op, hij zet hooguit de kiezer in een vreemde staat, en d
 Nagemeten met Playwright op 390 en 1280: geen horizontale overflow, nul uitstekende elementen, en de
 sticky balken blijven plakken. De zijbalk heeft vaste breedtes (240px, ingeklapt 64px) omdat een
 balk die meegroeit met de langste merknaam de pagina laat verspringen bij elke wissel.
+
+## Fase 2: uitnodigingen, de enige deur naar binnen (10 augustus 2026)
+
+Migratie `0047_uitnodigingen`, toegepast en geverifieerd op productie. Registreren stond al dicht
+(`signupsEnabled` in `lib/config.ts`), maar daarmee was er ook geen wég naar binnen behalve met de
+hand een gebruiker aanmaken in Supabase. Besluit 2 maakt dat een blokkade: de klant logt zelf in en
+keurt goed.
+
+**Vier eindtoestanden, vier schermen.** Nova heeft er precies deze vier
+(`onboarding.activation`), en dat onderscheid is de moeite waard: "deze link is verlopen, vraag een
+nieuwe" is een heel ander bericht dan "je account is al actief, log gewoon in". Met één generieke
+foutmelding belt de klant, en dat is precies het gesprek dat je niet wilt voeren op de dag dat hij
+begint. De volgorde in `inviteState()` is bewust: **ingetrokken wint van verlopen, en verlopen wint
+van gebruikt**. Een ingetrokken link mag nooit als "al gebruikt" lezen, want dan denkt de ontvanger
+dat hij een account heeft en gaat hij een wachtwoord resetten dat niet bestaat.
+
+**Het token staat niet in de database, alleen zijn SHA-256.** Wie de database kan lezen mag geen
+geldige uitnodigingslinks kunnen maken. Dat kost hier niets, want opzoeken gaat op de hash; het ruwe
+token bestaat precies één keer, op het moment van aanmaken. Gevolg voor het scherm: de link
+verschijnt één keer met de waarschuwing erbij dat hij niet opnieuw te tonen is. Dat is geen
+beperking maar het ontwerp.
+
+**`account_invites` heeft nul RLS-policies**, net als `jobs`. Een tabel die alleen de server leest
+geeft de client ook geen leesrecht. Nageteld op productie: RLS aan, nul policies, terwijl `accounts`
+en `account_users` er elk twee hebben.
+
+**Twee veiligheidskeuzes die uitleg verdienen.** Ten eerste: een uitnodiging voor een adres dat al
+een gebruiker heeft, maakt géén nieuw wachtwoord. Dat lijkt onvriendelijk maar het is de enige
+veilige variant, anders is een uitnodiging een overnameroute: wie een adres kent, nodigt uit en zet
+er een nieuw wachtwoord op. Bij een bureau (besluit 9) is dat geval juist normaal, dezelfde persoon
+bij een tweede klant, en dan komt er alleen een lidmaatschap bij. Ten tweede: de uitnodiging wordt
+pas afgevinkt nádat het lidmaatschap er staat. Andersom zou een storing halverwege een verbruikte
+link zonder toegang opleveren, en dat is niet te herstellen zonder nieuwe uitnodiging.
+
+**Uitnodigen mag alleen een `admin` van het account of een beheerder van Aura** (`mayInvite`). Een
+`member` kan meekijken en goedkeuren maar de kring niet uitbreiden; bij een bureau is dat het
+verschil tussen een collega en de contractpartij.
+
+De wachtwoordregels zijn die van Nova (`rule8`, `ruleNumber`, `ruleUppercase`) en vinken live af
+terwijl je typt. Ze staan in `lib/invite-rules.ts` zónder `server-only`, zodat de browser en de
+server dezelfde functie draaien: een client die iets goedkeurt wat de server weigert is de ergste
+variant van dat scherm.
+
+Geen uitnodigingsmail: `EMAILS_ENABLED` staat uit en de eerste klanten komen via een demogesprek.
+De link komt op het scherm met een kopieerknop. Dat is niet de armoedige variant maar de
+betrouwbare, hij werkt ook als de mail in een spamfilter blijft hangen.
+
+Vier controles groen: `tsc`, 788 unittests (22 nieuwe), 47 ketentests, productiebuild. Op productie
+geverifieerd dat de opzoekquery de rij op hash vindt inclusief accountnaam, en dat de vier
+eindtoestanden zich gedragen zoals de unittests beschrijven. De vier testrijen die daarvoor zijn
+aangemaakt, zijn na afloop weer verwijderd.

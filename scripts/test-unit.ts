@@ -127,6 +127,12 @@ import {
 } from "@/lib/pipeline/profile-readiness";
 import { isActiveAccount, monthsSinceStart } from "@/lib/account-status";
 import {
+  inviteState,
+  passwordRules,
+  passwordOk,
+  mayInvite,
+} from "@/lib/invite-rules";
+import {
   assessStructureCoverage,
   describeCoverage,
   formatCoverageForReport,
@@ -3355,6 +3361,69 @@ group("isActiveAccount", () => {
     "op het moment zelf is hij verlopen",
     isActiveAccount({ cancelled_at: nu.toISOString() }, nu) === false,
   );
+});
+
+group("uitnodigingen: de vier eindtoestanden", () => {
+  const nu = new Date("2026-08-10T12:00:00Z");
+  const basis = { expires_at: "2026-08-24T12:00:00Z", accepted_at: null, revoked_at: null };
+
+  ok("een verse link is geldig", inviteState(basis, nu) === "geldig");
+  ok("geen rij is ongeldig", inviteState(null, nu) === "ongeldig");
+  ok(
+    "over de datum heen is verlopen",
+    inviteState({ ...basis, expires_at: "2026-08-01T12:00:00Z" }, nu) === "verlopen",
+  );
+  ok(
+    "al geaccepteerd is gebruikt",
+    inviteState({ ...basis, accepted_at: "2026-08-05T12:00:00Z" }, nu) === "gebruikt",
+  );
+
+  // ⚠️ De volgorde is de bedoeling. Een INGETROKKEN link mag nooit als "al
+  // gebruikt" lezen, want dan denkt de ontvanger dat hij een account heeft en
+  // gaat hij een wachtwoord resetten dat niet bestaat.
+  ok(
+    "ingetrokken wint van gebruikt",
+    inviteState(
+      { ...basis, accepted_at: "2026-08-05T12:00:00Z", revoked_at: "2026-08-06T12:00:00Z" },
+      nu,
+    ) === "ongeldig",
+  );
+  ok(
+    "ingetrokken wint ook van verlopen",
+    inviteState(
+      { ...basis, expires_at: "2026-08-01T12:00:00Z", revoked_at: "2026-08-06T12:00:00Z" },
+      nu,
+    ) === "ongeldig",
+  );
+  // De grens zelf: precies op de vervaldatum is hij verlopen.
+  ok(
+    "op het moment zelf is hij verlopen",
+    inviteState({ ...basis, expires_at: nu.toISOString() }, nu) === "verlopen",
+  );
+});
+
+group("wachtwoordregels", () => {
+  // Precies die van Nova: rule8, ruleNumber, ruleUppercase. Drie, niet meer.
+  ok("drie regels", passwordRules("").length === 3);
+  ok("leeg voldoet aan niets", passwordRules("").every((r) => !r.ok));
+  ok("acht tekens is genoeg lengte", passwordRules("abcdefgh")[0].ok === true);
+  ok("zeven tekens niet", passwordRules("abcdefg")[0].ok === false);
+  ok("cijfer wordt gezien", passwordRules("abcdefg1")[1].ok === true);
+  ok("hoofdletter wordt gezien", passwordRules("Abcdefgh")[2].ok === true);
+  ok("alledrie samen is goed", passwordOk("Wachtwoord1") === true);
+  ok("zonder hoofdletter niet", passwordOk("wachtwoord1") === false);
+  ok("zonder cijfer niet", passwordOk("Wachtwoorden") === false);
+  ok("te kort niet", passwordOk("Aa1") === false);
+});
+
+group("wie mag uitnodigen", () => {
+  // Een member kan meekijken en goedkeuren maar de kring niet uitbreiden. Bij
+  // een bureau is dat het verschil tussen een collega en de contractpartij.
+  ok("een accountbeheerder mag", mayInvite("admin", false) === true);
+  ok("een gewoon lid mag niet", mayInvite("member", false) === false);
+  ok("een beheerder van Aura mag altijd", mayInvite(null, true) === true);
+  ok("een lid van Aura-staf ook", mayInvite("member", true) === true);
+  ok("zonder rol en zonder staf niet", mayInvite(null, false) === false);
 });
 
 group("monthsSinceStart", () => {
