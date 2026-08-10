@@ -1396,3 +1396,51 @@ admin-invoer twaalf maanden pagina's rollen, en hoe de bufferlogica werkt.
 **Volgorde.** Fundament, merk-werkruimte, rollen, onboarding-wizard, contentplan, Search Console,
 de lus sluiten, i18n en donkere modus, CSM-paneel. Moet je kiezen, doe dan fase 1, 4 en 6: dat zijn
 precies de drie die van een meetinstrument een programma maken.
+
+## De strategie uitgepakt, en twee vondsten die het plan raken (10 augustus 2026, tweede ronde)
+
+`docs/Nova.md` §11 en §12. Doel was de vier vragen die het bouwplan blokkeerden. Drie nieuwe
+bronnen: de i18n van de oudere `app.inspace.io` (1.469 sleutels, 21 namespaces, dezelfde truc als
+bij Nova), de marketingsite en de prijspagina.
+
+**Vier van de zes openstaande vragen zijn beantwoord.** De belangrijkste: hoe er een jaarplan
+ontstaat. De oudere app is expliciet waar Nova zwijgt. `creation.subscriptionPlan` ("Subscription
+plan 0{plan} · {count} items per month") bewijst dat de quota uit het **abonnement** komt;
+`strategy.monthOfTotal` ("You are in contract month {current} of {total}") dat de twaalf maanden de
+**contractduur** zijn; en `strategy.annualPlan` plus de vier paginatypen dat het jaarplan een
+**verdeling van paginatypen met aantallen** is, geen lijst URL's. Een agent stelt het op, de
+strategie is geversioneerd, en purgen laat geplaatste en goedgekeurde content staan.
+
+Gevolg voor Aura: `propose_topics` kan hierop worden uitgebouwd, er hoeft geen nieuwe zware
+pijplijnstap te komen. Wat erbij moet is de verdeling over maanden, paginatypen en funnelfasen met
+de quota als randvoorwaarde, en dat is rekenwerk, dus een pure module (conventie 2).
+
+Ook opgelost: "Nova insights" bestaat echt, maar het is **één zin** met een vervolgstap
+("Finishing the Bankencollectie funnel unlocks your first fully-ranked topic cluster"). Fase 6 gaat
+daardoor van 6 naar 4 dagen. En "domein" is inderdaad een niveau ónder "klant", dus `profiles` moet
+in tweeën: account en merk.
+
+**Twee vondsten die verder reiken dan het plan.**
+
+**1. InSpace brengt zelf een product uit dat Aura heet.** In hun productmenu staat "Nova" (live) en
+"Aura, Binnenkort beschikbaar", met als omschrijving "Een nieuwe manier om te groeien voorbij
+zoekmachines" en een pre-registratieknop. Dezelfde naam, dezelfde categorie. §12.1 zet de drie
+opties op een rij met een advies (wijzigen, en snel, niet omdat je ongelijk hebt maar omdat je dat
+gevecht niet wint van een partij met 400 klanten en negen openstaande vacatures). Besluit ligt bij
+de eigenaar; zolang het niet genomen is verandert er niets aan de code.
+
+**2. Nova meet geen AI-zichtbaarheid.** Nul treffers op `citation`, `chatgpt`, `perplexity`, `llm`
+en `mention` over 2.447 interfaceteksten van beide apps. De enige "geo"-treffers gaan over
+geografische identiteit, niet over Generative Engine Optimization. De "AI-citaties 312" op hun
+website hoort bij het product dat nog moet komen.
+
+Dat tweede is de strategisch belangrijkste zin van dit hele onderzoek: **Aura levert vandaag wat
+InSpace pas belooft.** Het gat zit niet in de meetkant, daar loopt Aura vóór, maar in het programma,
+het plan en het portaal eromheen. Dat maakt het advies uit §7 sterker, niet zwakker: doe fase 1, 4
+en 6, want dat is de structuur rond een motor die al draait.
+
+Als bijvangst is jouw eigen structuurschets thuisgebracht: Brand Intelligence, buyer persona's,
+klantreis, zoekwoordclusters en "SEO + GEO gaps" staan niet in de i18n maar in één visueel blok op
+de marketingsite. Het is dus hun belofte, niet aantoonbaar hun app. Wat ervan overgenomen hoort te
+worden is de gedachte dat het merkbrein **telbaar** is ("238 zoekopdrachten in kaart, 91 gaten"), en
+die getallen heeft Aura al.

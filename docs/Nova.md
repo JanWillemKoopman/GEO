@@ -11,6 +11,26 @@ er ontbreekt, en het geeft een bouwplan in fases om dat gat te dichten.
 
 ---
 
+> ## ⚠️ Twee vondsten van 10 augustus die alles kleuren, lees deze eerst
+>
+> **1. InSpace brengt zelf een product uit dat "Aura" heet.** Op `inspace.io` staat in het
+> productmenu: *"Nova"* (live) en *"Aura, Binnenkort beschikbaar"*, met als omschrijving
+> **"Een nieuwe manier om te groeien voorbij zoekmachines"** en een knop "Pre-registreer". Dat is
+> dezelfde naam en dezelfde categorie als deze app. Zie §12.1, daar staat wat de opties zijn. Dit is
+> een besluit dat jij moet nemen, en liever nu dan na de eerste betalende klant.
+>
+> **2. Nova meet helemaal geen AI-zichtbaarheid.** In geen van beide InSpace-apps komt één sleutel
+> voor over citaties, ChatGPT, LLM's of vermeldingen: nul treffers op `citation`, `chatgpt`,
+> `perplexity`, `llm` en `mention` over 2.447 interfaceteksten. De enige treffers op "geo" gaan over
+> *geografische identiteit*, niet over Generative Engine Optimization. De "AI-citaties 312" en
+> "Organische + AI-zichtbaarheid" op hun website horen bij het product dat nog moet komen.
+>
+> **Wat dat samen betekent**: Aura levert vandaag wat InSpace pas belooft. Het gat zit niet in de
+> meetkant, daar loopt Aura vóór, maar in alles eromheen: het programma, het plan, het portaal. Dat
+> is precies wat het bouwplan hieronder doet. De klok tikt wel.
+
+---
+
 > **Dit document staat niet alleen.** Op 6 augustus 2026 is er al een analyse gedaan van bèide
 > InSpace-apps: [`docs/tasks/nova-analyse.md`](./tasks/nova-analyse.md), 2.447 interfaceteksten uit
 > `nova.inspace.io` én uit de oudere `app.inspace.io`. Dat blijft **de diepe inventaris**: de
@@ -920,35 +940,204 @@ hier zodat ze niet alsnog via een omweg in Aura belanden. De onderbouwing per st
 
 Wat er nog uitgezocht moet worden, op volgorde van urgentie:
 
-| # | Vraag | Blokkeert | Hoe |
-|---|---|---|---|
-| 1 | Hoe rolt er uit de admin-invoer een plan van 12 maanden? | **Fase 4** | Strategy-bundel uitpakken, anders demo-account |
-| 2 | Bufferlogica: hoeveel per maand, wanneer schuift er een in? | **Fase 4** | Idem |
-| 3 | Is "domein" een niveau ónder "klant"? Zo ja, moet `profiles` in tweeën. | Fase 1 en 4 | Admin-bundel, marketingsite |
-| 4 | Indeling per onboardingstap, en of de scan bestaande invoer overschrijft | Fase 3 | Bundel van de onboarding-route |
-| 5 | Wat ziet een `member` niet ten opzichte van een `admin`? | Fase 2 | Eigen ontwerpbesluit, samen vast te leggen |
-| 6 | Waar komt "Nova insights" vandaan? | Fase 6 | Jouw bron |
+**Bijgewerkt na de tweede ronde van 10 augustus (§11). Vier van de zes zijn beantwoord.**
 
-**Al beantwoord, dus niet meer op deze lijst:** de quota per maand (10, 20 of 40 pagina's, uit de
-prijspagina van `inspace.io/nl`), en de vorm van de Search Console-koppeling (service account, niet
-OAuth, zie `zoekdata-koppeling.md`).
+| # | Vraag | Stand |
+|---|---|---|
+| 1 | Hoe rolt er uit de admin-invoer een plan van 12 maanden? | ✅ **Beantwoord**, §11.1. Abonnement geeft de quota, een agent verdeelt over vier paginatypen en 12 contractmaanden. |
+| 2 | Bufferlogica | ⚠️ **Deels**, §11.2. Niet publiek op te halen. Voorstel: zelf ontwerpen, quota plus marge. |
+| 3 | Is "domein" een niveau ónder "klant"? | ✅ **Ja**, §11.1 en de admin-tabel (`client` naast `domain`, `strategySubtitle` per klant, meerdere websites per klant in de onboarding). `profiles` moet in tweeën: **account** en **merk**. Raakt fase 1 en 4. |
+| 4 | Indeling per onboardingstap, en of de scan bestaande invoer overschrijft | ⚠️ **Open**, alleen relevant voor fase 3. |
+| 5 | Wat ziet een `member` niet ten opzichte van een `admin`? | Eigen ontwerpbesluit, samen vast te leggen bij fase 2. |
+| 6 | Waar komt "Nova insights" vandaan? | ✅ **Beantwoord**, §11.4. Marketingsite, één zin plus een vervolgstap. |
 
-Vraag 6 is de enige die ik niet zelf kan oplossen: "Nova insights" komt uit jouw structuurschets en
-staat niet in het berichtenbestand. Als dat uit een publieke bron komt wil ik die lezen; komt het
-uit je eigen denken, dan is het een ontwerpvrijheid en ontwerpen we het zelf in fase 6.
+**Ook al beantwoord:** de quota per maand (uit het abonnement, `creation.subscriptionPlan`), en de
+vorm van de Search Console-koppeling (service account, niet OAuth, zie `zoekdata-koppeling.md`).
 
-Voor 1 tot en met 4 geldt: die zijn deels te achterhalen door meer van Nova's JavaScript-bundels
-uit te pakken, zoals nu met de inlogpagina is gedaan. De i18n-catalogus was de rijkste vondst, maar
-de bundels bevatten ook routepaden, formuliervalidatie en de opbouw van de tabellen. Dat is één
-ronde werk en het hoort vóór fase 4 te gebeuren, niet erin.
+**Wat er niet meer uit te halen valt.** Alleen de inlogpagina geeft zijn bundels prijs; elke route
+erachter geeft een redirect. Verder komen vraagt een demo-account bij InSpace. Mijn advies: niet
+doen. Vraag 2 en 4 zijn ontwerpvrijheden geworden, en die zijn goedkoper zelf te beantwoorden dan
+na te bouwen.
 
 ---
 
-## 11. Hoe dit document zich verhoudt tot de rest
+## 11. De strategie uitgepakt (aanvulling 10 augustus, tweede ronde)
+
+Deze ronde ging over de vragen die §10 blokkeerden. Drie nieuwe bronnen: de i18n van de oudere
+`app.inspace.io` (**`docs/inspace-app-i18n.json`**, 1.469 sleutels, 21 namespaces), de
+marketingsite (**`docs/inspace-marketing.txt`**) en de prijspagina.
+
+### 11.1 Hoe een jaarplan tot stand komt, beantwoord
+
+De oudere app is hier expliciet waar Nova zwijgt.
+
+| Sleutel | Wat het bewijst |
+|---|---|
+| `creation.subscriptionPlan` = "Subscription plan 0{plan} · {count} items per month" | **De quota komt uit het abonnement.** Niet uit een instelling per klant. |
+| `strategy.monthOfTotal` = "You are in contract month {current} of {total}" | De twaalf maanden zijn de **contractduur**, geen kalenderjaar. |
+| `strategy.annualPlan`, `annualPlanDescription` = "The following type of items will be created" | Het jaarplan is een **samenstelling van paginatypen met aantallen**, niet een lijst URL's. |
+| `strategy.itemType`, `totalCount`, `totalPlanned`, `remaining`, `progress` | Per type een totaal, en een teller die afloopt. |
+| `pageTypeCategory`, `pageTypeService`, `pageTypeInformative`, `pageTypeOther` | **Vier paginatypen.** Plus `servicePage`, `categoryPage`, `blogKnowledge` als labels. |
+| `creation.proposedStrategy` = "Our system has identified and scheduled the following items" | Een **agent** stelt het plan op, de CSM keurt het goed. |
+| `creation.createStrategyDescription` = "The agent will build a fresh strategy. The note below is shared with the agent as context." | Er is een **vrij tekstveld** dat als context aan de agent meegaat. |
+| `creation.strategyLabel` = "Strategy 0{version}" | Strategieën zijn **geversioneerd**. |
+| `creation.purgeStrategyDescription` | Purgen verwijdert het conceptjaarplan, alle maandplannen en alle voorgestelde URL's. **Geplaatste en goedgekeurde content blijft.** |
+
+**De ketting is dus**: abonnement geeft N items per maand → agent stelt een jaarplan op als een
+verdeling over vier paginatypen → dat wordt uitgerold over 12 contractmaanden → CSM keurt goed →
+klant keurt per maand goed → tien dagen voor publicatie wordt er geschreven.
+
+**Gevolg voor Aura**: `propose_topics` kan hierop worden uitgebouwd en er hoeft geen nieuwe zware
+pijplijnstap te komen. Wat erbij moet is de **verdeling**: van een lijst onderwerpen met prioriteit
+naar een verdeling over maanden, paginatypen en funnelfasen, met een quota als randvoorwaarde. Dat
+is rekenwerk, dus een pure module (conventie 2), geen AI-aanroep.
+
+### 11.2 Wat er nog van de bufferlogica onbekend blijft
+
+`common.buffer` ("+{count} buffer") en `bufferUrlsAvailable` bestaan alleen in Nova, niet in de
+oudere app, en de strategy-route is niet publiek op te halen omdat alleen de inlogpagina zijn
+bundels prijsgeeft. Wat vaststaat uit `deleteUrl.body`: bij het verwijderen van een URL schuift er
+een buffer-URL van diezelfde maand in, als die er is.
+
+**Voorstel**: niet verder zoeken. Dit is een detail dat we zelf mogen ontwerpen, en de regel ligt
+voor de hand: genereer per maand de quota plus een marge, markeer de marge als buffer, en laat er
+één inschuiven zodra er een sneuvelt. Wordt vastgelegd in de taak van fase 4.
+
+### 11.3 Het merkbrein, en waar jouw schets vandaan komt
+
+Jouw structuurschets (Brand Intelligence, buying personas, customer journey, keyword clusters,
+markets & regions, SEO plus GEO gaps) staat **niet in de i18n**. Hij komt van de marketingsite, uit
+één visueel blok dat laat zien wat Nova over een merk weet:
+
+```
+Tone of voice · Producten & diensten · Concurrenten · Buyer persona's · Klantreis
+238  zoekopdrachten & AI-vragen   (mapped automatically)
+ 14  Markten & regio's
+238  Zoekwoordclusters
+ 91  SEO + GEO gaps
+ 62d Contentkalender
+```
+
+Dat is dus **de belofte**, niet aantoonbaar de gebouwde app. In de i18n bestaan wel `cluster` en
+`subCluster` (op de contentdetailpagina), `searchIntent`, `targetPersona`, `funnelLevel`,
+`primaryKeyword` en `recommendedKeywords`. Er is geen scherm dat "keyword clusters" of
+"buying personas" als eigen object beheert.
+
+**Wat Aura hiervan zou moeten overnemen**: de gedachte dat het merkbrein een **telbaar** ding is.
+"238 zoekopdrachten in kaart, 91 gaten" is overtuigender dan een lap tekst, en Aura heeft die
+getallen al (aanbodknopen, onderwerpen, prompts, dekkingsgaten). Dat is een presentatiekwestie van
+een halve dag, niet een module. Hoort bij fase 1, op het overzicht.
+
+### 11.4 "NOVA-inzicht" bestaat, en het is één zin
+
+Openstaande vraag 6 uit §10 is beantwoord. Op het overzichtsscherm van de marketingsite staat een
+blok **"NOVA-inzicht"** met precies één zin:
+
+> "Finishing the Bankencollectie funnel unlocks your first fully-ranked topic cluster. Open the
+> assistant for the next moves."
+
+De vorm: één waarneming die aan de funnelvoortgang hangt, plus één vervolgstap. Geen lijst, geen
+score. Dat is goed nieuws voor fase 6, want het is veel kleiner dan ik had begroot.
+
+### 11.5 De doorlopende optimalisatie, bevestigd
+
+Ook van de marketingsite: **"Continue optimalisatie · live, 188 pagina's gemonitord, Auto-fixes
+today · 3"**. Er is dus een laag die gepubliceerde pagina's blijft volgen en er zelf kleine dingen
+aan repareert. In de i18n van beide apps staat daar niets over, dus of het draait weet ik niet.
+
+Voor Aura is de bewaakte variant hiervan wél verstandig, en `lib/audit/` is er al: staat de pagina
+er nog, is hij gewijzigd, mogen AI-crawlers er nog bij. **Voorstellen in plaats van zelf repareren**,
+want automatisch je klant zijn site aanpassen zonder CMS-koppeling kan toch niet, en met koppeling
+zou je het niet willen.
+
+### 11.6 Het overzichtsscherm, exact
+
+Uit de marketingmock, en het klopt met de i18n:
+
+```
+Hoofdmenu: Overzicht · Analytics · Strategie          [HV Home Venture ▾]  Beheer
+
+  "NOVA schrijft je content"
+  69 pagina's live · Bankenfunnel 88% · Gem. positie 14,6
+  [Bekijk analytics] [Beoordeel pagina's]
+
+  Pagina's live 69/188 (+12 deze maand) | Totaal kliks 1.840 | Gem. positie 14,6
+
+  Zoekprestaties            [Kliks | Vertoningen]
+  "De groei is hervat na de piek in april, de indexering is bijgewerkt."
+
+  Best scorende pagina's                    Funnel-voortgang · 5 funnels
+   /sustainable-living-guide   ↑4  #3        Duurzaam wonen      88%
+   /eco-materials/bamboo…      ↑2  #5        Eco-materialen      73%
+   /room-guides/small-living…   –  #7        Kamergidsen         55%
+                                             Bankencollectie     38%
+                                             Eetkamercollectie   21%
+                                             69/188 gepubliceerd
+  NOVA-inzicht: één zin plus een vervolgstap
+```
+
+Twee dingen die het vermelden waard zijn: onder de grafiek staat **een zin die de grafiek uitlegt**
+("de groei is hervat na de piek in april"), en de kop van het scherm is geen titel maar een
+**mededeling** ("NOVA schrijft je content") met twee knoppen eronder. Allebei goedkoop over te
+nemen en allebei precies het verschil tussen een dashboard en een product.
+
+### 11.7 Wat de oudere app extra had, en wat daarvan meetelt
+
+Naast §9.1 (wat ze weggooiden) staan hier twee dingen die ze hielden en die Aura mist:
+
+- **Strategy Efficiency**: `clicksPerPage` ("clicks on average per page") en `trafficTop3`. Eén
+  getal dat zegt of het programma rendeert. Aura's equivalent zou zijn: gemiddelde verandering in
+  AI-zichtbaarheid per gepubliceerde pagina.
+- **Actions Needed** met `approvalsNeeded` en een `Go`-knop. Eén teller die zegt hoeveel er op de
+  klant wacht. Hoort in fase 2, bij het klantportaal.
+
+En de kalender (`calendarView`, `dayFull` = "Day is full (max 5 items)", `dragToSchedule`,
+`backlog`) is in Nova gesneuveld. Blijft gesneuveld, zie §9.1.
+
+---
+
+## 12. Twee besluiten die dit onderzoek oplevert
+
+### 12.1 De naam
+
+InSpace brengt een product uit dat **Aura** heet, in dezelfde categorie, met de omschrijving
+"een nieuwe manier om te groeien voorbij zoekmachines". Wat dat betekent:
+
+| Optie | Voor | Tegen |
+|---|---|---|
+| **Naam wijzigen, nu** | Eén keer pijn, en het is nu goedkoop: de app is nog niet verkocht, de domeinnaam is nog niet gedrukt. Voorkomt dat je straks als kopie oogt, terwijl je er eerder was. | Alle UI-copy, documentatie en het woordmerk moeten om. Ongeveer een dag werk, plus het bedenken. |
+| **Naam houden** | Nul werk. En je was er eerder. | Zodra InSpace lanceert ben jij in de perceptie de kopie, niet zij. Zij hebben 400 klanten, negen vacatures en een marketingmachine. Bij verwarring verliest de kleinste partij. |
+| **Naam houden, merk vastleggen** | Behoudt de naam en bouwt een verdediging. | Kost geld en tijd, en een Benelux-merkregistratie op een generiek woord in dezelfde klasse is geen zekerheid. |
+
+**Mijn advies: wijzigen, en snel.** Niet omdat je ongelijk hebt, maar omdat je het gevecht om een
+naam niet gaat winnen van een partij met dit budget, en de tijd die je erin steekt beter naar het
+product gaat. De kosten zijn nu het laagst die ze ooit zullen zijn.
+
+Dit is jouw besluit, niet het mijne. Zolang het niet genomen is verandert er niets aan de code.
+
+### 12.2 De volgorde, herzien
+
+Het onderzoek verandert één ding aan het plan uit §7: **fase 6 wordt kleiner en fase 1 iets groter.**
+
+- "Nova insights" bleek één zin te zijn (§11.4), niet een module. Fase 6 gaat van 6 naar **4 dagen**.
+- Het merkbrein als telbaar ding (§11.3) en de uitleg-zin onder de grafiek (§11.6) horen op het
+  overzicht van fase 1. Die gaat van 5 naar **6 dagen**.
+
+Totaal blijft daarmee ongeveer 51 dagen.
+
+Wat níet verandert: de vier besluiten uit §0, en de aanbeveling om fase 1, 4 en 6 te doen als je
+moet kiezen. Dat advies wordt door dit onderzoek juist sterker, want de meetkant waar Aura op
+voorloopt is precies de kant die InSpace nog niet heeft.
+
+---
+
+## 13. Hoe dit document zich verhoudt tot de rest
 
 | Bestand | Wat er in blijft staan |
 |---|---|
-| `docs/nova-i18n.json` | De ruwe bron. Niet bewerken, dit is een kopie van wat Nova uitzendt. |
+| `docs/nova-i18n.json` | De ruwe bron. Niet bewerken, dit is een kopie van wat Nova uitzendt. Tien namespaces, ~900 sleutels. |
+| `docs/inspace-app-i18n.json` | Dezelfde truc op de oudere `app.inspace.io`: 21 namespaces, 1.469 sleutels. Bevat de strategie- en creation-schermen die Nova niet prijsgeeft. De bron onder §11.1. |
+| `docs/inspace-marketing.txt` | De zichtbare tekst van `inspace.io/nl-nl`. De bron onder §11.3 tot §11.6, en onder de naamvondst in §12.1. |
 | `docs/tasks/nova-analyse.md` | **De diepe inventaris** van bèide InSpace-apps: functiematrix, statusmachines, flows, en §8 met wat ze in de herbouw lieten vallen. Dit document verwijst ernaar, herhaalt het niet. |
 | `docs/tasks/zoekdata-koppeling.md` | De Search Console-koppeling, al uitgezocht tot op de implementatiekeuze. De bron voor fase 5. |
 | `docs/architecture.md` | Het datamodel zoals het nú is. Per fase bijwerken. |
