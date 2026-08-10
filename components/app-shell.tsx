@@ -1,43 +1,48 @@
 import Link from "next/link";
 import { signOut } from "@/app/(auth)/actions";
+import { selectBrand } from "@/app/(app)/workspace-actions";
 import { ProfileMenu } from "@/components/profile-menu";
-import { MainNav } from "@/components/main-nav";
+import { WorkspaceChrome } from "@/components/workspace-chrome";
+import type { Workspace } from "@/lib/workspace";
 import type { User } from "@supabase/supabase-js";
 
 /**
- * App-shell voor het ingelogde gedeelte.
+ * App-shell voor het ingelogde gedeelte: zijbalk links, merkkiezer bovenin.
  *
- * De balk telde acht elementen: vier navigatielinks (waarvan twee naar dezelfde
- * route), het e-mailadres en een uitlog-knop, plus op mobiel nog een icoon. Nu
- * zijn het er drie: logo, twee bestemmingen, en één menu waarin het account
- * zit.
+ * ── WAAROM DIT VERANDERDE ───────────────────────────────────────────────────
  *
- * Het accountmenu zit op élk schermformaat achter hetzelfde icoon. Dat was
- * eerder alleen op mobiel zo, waardoor desktop en mobiel niet alleen anders
- * oogden maar ook een andere indeling hadden. Twee menu's om uit elkaar te
- * laten lopen in plaats van één.
+ * Het was een bovenbalk met twee bestemmingen. Besluit 1 (`docs/Nova.md` §0)
+ * maakt van de app een merk-werkruimte, en dan komen er twee soorten navigatie
+ * naast elkaar te staan: wat over dít merk gaat en wat over de app gaat. Dat
+ * onderscheid past niet horizontaal. Zie `components/sidebar.tsx`.
+ *
+ * De opbouw blijft server-side: dit component leest de werkruimte en geeft hem
+ * door. Alleen het openklappen, zoeken en wisselen is client-werk, en dat zit in
+ * `WorkspaceChrome`. Zo staat er geen `"use client"` boven de hele shell, en
+ * blijft de merkenlijst uit de client-bundel.
  */
-export function AppShell({ user, children }: { user: User; children: React.ReactNode }) {
+export function AppShell({
+  user,
+  workspace,
+  children,
+}: {
+  user: User;
+  workspace: Workspace;
+  children: React.ReactNode;
+}) {
   return (
-    <div className="flex min-h-dvh flex-col">
-      <header className="no-print sticky top-0 z-20 border-b border-[var(--border-subtle)] bg-[var(--bg-base-blur)] backdrop-blur-md">
-        <div className="mx-auto flex max-w-5xl items-center justify-between gap-4 px-6 py-3">
-          <Link href="/analyses" className="text-lg font-bold tracking-tight">
-            <span className="brand-gradient-text">Aura</span>
-          </Link>
-
-          <div className="flex items-center gap-2">
-            <MainNav />
-            <ProfileMenu email={user.email ?? ""} signOutAction={signOut} />
-          </div>
-        </div>
-      </header>
-      {/* `min-w-0` is hier geen sier: dit is een flex-kind, en een flex-kind
-          krijgt standaard `min-width: auto`. Eén lange URL diep in een kaart
-          zet daarmee de minimale breedte van de hele kolom, en dan schuift de
-          pagina op een telefoon zijwaarts weg. Zie het blok "Niets is breder
-          dan het scherm" in globals.css. */}
-      <div className="mx-auto w-full max-w-5xl min-w-0 flex-1 px-6 py-10">{children}</div>
-    </div>
+    <WorkspaceChrome
+      brands={workspace.brands}
+      activeBrand={workspace.active}
+      onSelectBrand={selectBrand}
+      logo={
+        <Link href="/profielen" className="text-lg font-bold tracking-tight">
+          <span className="brand-gradient-text">Aura</span>
+        </Link>
+      }
+      accountMenu={<ProfileMenu email={user.email ?? ""} signOutAction={signOut} />}
+    >
+      {children}
+    </WorkspaceChrome>
   );
 }

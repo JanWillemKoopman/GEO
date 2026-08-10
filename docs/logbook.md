@@ -1537,3 +1537,26 @@ Nova, maar "maand 4 sinds de start". Een teller die zegt hoeveel je nog tegoed h
 contract dat er niet is.
 
 Vier controles groen: `tsc`, 766 unittests (11 nieuwe), 47 ketentests, productiebuild.
+
+**De werkruimte zelf, aansluitend op de accountlaag (10 augustus 2026).** De bovenbalk is een
+zijbalk geworden. Aanleiding is besluit 1: zodra de app over één merk tegelijk gaat, komen er twee
+soorten navigatie naast elkaar te staan, wat over dít merk gaat en wat over de app gaat. Horizontaal
+is dat onderscheid niet te maken zonder scheidingstekens die niets betekenen; verticaal is het één
+tussenkopje.
+
+Drie keuzes die het vermelden waard zijn. **De kiezer verdwijnt bij één merk**: dan staat de naam er
+als tekst, want een kiezer met één optie belooft een keuze die er niet is. Dat is dezelfde redenering
+waarmee `lib/nav.ts` eerder al twee dubbele menu-items opruimde, en Nova doet het ook zo. **Het
+zoekveld verschijnt pas vanaf acht merken**, daaronder is het ruis. **De routes zijn niet verhuisd**:
+`/profielen/[id]` blijft waar het staat, want er zijn bladwijzers en gedeelde demolinks, en een
+werkruimte is context en geen ander adres. `/analyses?merk=` filtert de lijst met een zichtbare chip
+en een uitweg terug, want een lijst die stilletjes korter is dan je verwacht leest als data die weg is.
+
+De cookie `aura_merk` is een voorkeur, nooit een recht: `listBrands()` controleert bij elke aanroep
+opnieuw of de gebruiker bij dat merk mag, en de echte poort blijft `getOwnedProfile()`. Een geplakte
+cookie levert dus niets op, hij zet hooguit de kiezer in een vreemde staat, en daarom valt
+`selectBrand()` stil terug op de merkenlijst als het merk niet klopt.
+
+Nagemeten met Playwright op 390 en 1280: geen horizontale overflow, nul uitstekende elementen, en de
+sticky balken blijven plakken. De zijbalk heeft vaste breedtes (240px, ingeklapt 64px) omdat een
+balk die meegroeit met de langste merknaam de pagina laat verspringen bij elke wissel.

@@ -5,40 +5,82 @@
  *
  * De bovenbalk had vier links, waarvan er twee naar dezelfde route wezen:
  * "Klantprofielen" en "Mijn bedrijfsgegevens" gingen allebei naar /profielen.
- * Het mobiele menu herhaalde dat, keurig verdeeld over twee koppen ("Navigatie"
- * en "Account"), wat de suggestie versterkte dat het om twee verschillende
- * dingen ging.
+ * Navigatie is een belofte over de omvang van een product; blijken twee items
+ * hetzelfde, dan verliest de gebruiker vertrouwen in de rest van de balk. Dat
+ * werd teruggebracht tot twee bestemmingen, met het woord "merk" in plaats van
+ * het bureau-jargon "klantprofiel".
  *
- * Navigatie is een belofte over de omvang van een product. Vier items
- * suggereren vier plekken; blijken er twee hetzelfde, dan verliest de gebruiker
- * vertrouwen in de rest van de balk.
+ * ── WAT ER NU BIJ KOMT ──────────────────────────────────────────────────────
  *
- * Twee bestemmingen dus, en het woord "merk" in plaats van "klantprofiel".
- * Dat laatste is bureau-jargon: voor de ondernemer die zijn eigen zichtbaarheid
- * meet is het gewoon zijn merk. Met dat ene woord was de tweede link ook niet
- * meer nodig. Die bestond juist omdat "klantprofiel" niet uitlegde wat het is.
+ * Besluit 1 (`docs/Nova.md` §0) maakt van de app een merk-werkruimte: je kiest
+ * bovenin een merk en daarna gaat alles over dát merk. Daarmee vallen de
+ * bestemmingen in twee soorten uiteen:
  *
- * De routes heten nog /profielen: bestaande links en bladwijzers blijven zo
- * werken. Wat de klant leest, is wat telt.
+ *   • wat over ÉÉN merk gaat        (`brandNav`)
+ *   • wat over de app als geheel gaat (`generalNav`)
  *
- * Bewust ZONDER `server-only`: zowel de server-shell als het client-menu leest
- * dit.
+ * Dat onderscheid is horizontaal niet te maken zonder scheidingstekens die
+ * niets betekenen, en verticaal is het één tussenkopje. Vandaar de zijbalk.
+ *
+ * ⚠️ De routes zelf zijn NIET verhuisd. `/profielen/[id]` blijft `/profielen/[id]`
+ * en `/analyses` blijft `/analyses`. Er staan bladwijzers en gedeelde demolinks
+ * naar die adressen, en een merk-werkruimte is een kwestie van context, niet van
+ * andere URL's. Zodra Overzicht, Strategie en Analytics bestaan (fase 4 en 5)
+ * krijgen die wél een merk-gebonden pad.
+ *
+ * Bewust ZONDER `server-only`: zowel de server-shell als het client-menu leest dit.
  */
 export interface NavItem {
   href: string;
   label: string;
+  /**
+   * Eén teken, zichtbaar als de zijbalk is ingeklapt. Bewust geen icoonset:
+   * die vraagt een bibliotheek, een kleurregel en een tweede manier om
+   * betekenis over te brengen, voor negen items.
+   */
+  teken: string;
 }
 
-/** De twee plekken waar het werk gebeurt. */
-export const NAV: NavItem[] = [
-  { href: "/analyses", label: "Analyses" },
-  { href: "/profielen", label: "Merken" },
-];
+/** Wat over dít merk gaat. Leeg zolang er geen merk gekozen is. */
+export function brandNav(brandId: string): NavItem[] {
+  return [
+    { href: `/profielen/${brandId}`, label: "Merkdossier", teken: "◆" },
+    { href: `/analyses?merk=${brandId}`, label: "Analyses", teken: "▲" },
+  ];
+}
+
+/** Wat over de app als geheel gaat. */
+export function generalNav(): NavItem[] {
+  return [
+    { href: "/profielen", label: "Alle merken", teken: "▤" },
+    { href: "/analyses", label: "Alle analyses", teken: "▦" },
+    { href: "/instellingen", label: "Instellingen", teken: "⚙" },
+  ];
+}
+
+/**
+ * Actief = deze route of een route eronder.
+ *
+ * De querystring telt niet mee: `/analyses?merk=x` en `/analyses` zijn dezelfde
+ * pagina, en twee items tegelijk laten oplichten is erger dan één die net niet
+ * klopt. Daarom wint het merk-item alleen als er ook echt een merk in het pad
+ * staat.
+ */
+export function isActive(pathname: string, href: string): boolean {
+  const pad = href.split("?")[0];
+  return pathname === pad || pathname.startsWith(`${pad}/`);
+}
 
 /** Account, achter het profielmenu, geen hoofdnavigatie. */
-export const ACCOUNT_NAV: NavItem[] = [{ href: "/instellingen", label: "Mijn instellingen" }];
+export const ACCOUNT_NAV: NavItem[] = [
+  { href: "/instellingen", label: "Mijn instellingen", teken: "⚙" },
+];
 
-/** Actief = deze route of een route eronder. */
-export function isActive(pathname: string, href: string): boolean {
-  return pathname === href || pathname.startsWith(`${href}/`);
-}
+/**
+ * De oude platte lijst. Blijft bestaan zolang `MainNav` en `ProfileMenu` hem
+ * lezen; die twee verdwijnen zodra de zijbalk overal doorgevoerd is.
+ */
+export const NAV: NavItem[] = [
+  { href: "/analyses", label: "Analyses", teken: "▦" },
+  { href: "/profielen", label: "Merken", teken: "▤" },
+];

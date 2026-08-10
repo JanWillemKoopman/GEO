@@ -14,9 +14,20 @@ import { LastUpdated } from "@/components/last-updated";
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Mijn analyses" };
 
-export default async function AnalysesPage() {
+export default async function AnalysesPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ merk?: string }>;
+}) {
   const user = await requireUser();
   const supabase = await createClient();
+
+  // De merk-werkruimte (besluit 1). `?merk=` filtert deze lijst tot één merk;
+  // de zijbalk zet die parameter erop. Bewust een querystring en niet de cookie:
+  // "alle analyses" en "analyses van dit merk" zijn twee bestemmingen die naast
+  // elkaar in de zijbalk staan, en dan moet je aan de link kunnen zien welke je
+  // krijgt. De cookie bepaalt alleen wélk merk de zijbalk aanbiedt.
+  const { merk } = await searchParams;
 
   // Eén overzicht over alle analyses heen (optimalisatie.md bijlage A10).
   // Alles was per analyse: wie er drie had, moest negen schermen af om te weten
@@ -34,7 +45,16 @@ export default async function AnalysesPage() {
     activeOnly(supabase.from("profiles").select("id", { count: "exact", head: true })),
   ]);
   const hasProfile = (profileCount ?? 0) > 0;
-  const analyses = [...dashboard.analyses];
+
+  // Filteren gebeurt ná het laden en niet in de query: `loadDashboard` berekent
+  // ook de cijfers over analyses heen, en die horen bij het merk dat je aankijkt.
+  // Een merk-id dat niets oplevert leidt tot een lege lijst met uitleg, niet tot
+  // een foutmelding: dat overkomt iemand die een merk archiveert en een oude
+  // link nog open heeft staan.
+  const alleAnalyses = [...dashboard.analyses];
+  const analyses = merk
+    ? alleAnalyses.filter((a) => a.profile_id === merk)
+    : alleAnalyses;
 
   // "Wacht op jouw goedkeuring" bovenaan (abcplan.md §3.4). Sinds E ("centrale
   // foutmeldingenplek") telt ook `whoseTurn === "jij"` mee, niet alleen
@@ -51,8 +71,13 @@ export default async function AnalysesPage() {
   return (
     <div className="flex flex-col gap-8">
       <PageHeader
-        eyebrow="Aura · altijd aan"
-        title="Analyses"
+        eyebrow={merk ? "Eén merk" : "Aura · altijd aan"}
+        title={merk ? "Analyses van dit merk" : "Alle analyses"}
+        description={
+          merk
+            ? `${analyses.length} van je ${alleAnalyses.length} analyses horen bij dit merk.`
+            : undefined
+        }
         action={
           hasProfile ? (
             <Link href="/analyses/new" className="btn-primary">
@@ -91,11 +116,28 @@ export default async function AnalysesPage() {
         <DashboardStats stats={dashboard.stats} biggestChange={dashboard.biggestChange} />
       )}
 
+      {/* Zichtbaar maken dát er gefilterd is, en hoe je eruit komt. Een lijst
+          die stilletjes korter is dan je verwacht leest als data die weg is. */}
+      {merk && (
+        <div className="flex flex-wrap items-center gap-3">
+          <span className="chip">Alleen dit merk</span>
+          <Link href="/analyses" className="text-sm text-secondary hover:underline">
+            Toon alle {alleAnalyses.length} analyses
+          </Link>
+        </div>
+      )}
+
       {analyses.length > 1 && <span className="mono-label">Je analyses</span>}
 
       {analyses.length === 0 ? (
         <EmptyState
-          title={hasProfile ? "Nog geen analyses" : "Welkom bij Aura"}
+          title={
+            merk
+              ? "Nog geen analyses voor dit merk"
+              : hasProfile
+                ? "Nog geen analyses"
+                : "Welkom bij Aura"
+          }
           action={
             hasProfile
               ? { href: "/analyses/new", label: "Start je eerste analyse" }

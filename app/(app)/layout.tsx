@@ -1,6 +1,7 @@
 import { requireUser } from "@/lib/auth";
 import { AppShell } from "@/components/app-shell";
 import { ToastProvider } from "@/components/toast";
+import { loadWorkspace } from "@/lib/workspace";
 
 /**
  * Het ingelogde gedeelte van de app.
@@ -16,9 +17,14 @@ import { ToastProvider } from "@/components/toast";
  */
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const user = await requireUser();
+  // De werkruimte hoort bij de shell en niet bij een pagina: de merkkiezer staat
+  // op élk scherm, ook op de schermen die zelf geen merk kennen.
+  const workspace = await loadWorkspace(user.id);
   return (
     <ToastProvider>
-      <AppShell user={user}>{children}</AppShell>
+      <AppShell user={user} workspace={workspace}>
+        {children}
+      </AppShell>
     </ToastProvider>
   );
 }

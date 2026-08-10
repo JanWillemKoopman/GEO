@@ -196,6 +196,35 @@ database-queries een dood interval zonder enige terugkoppeling.
 
 ## 5. Navigatie en schermstructuur
 
+### De merk-werkruimte
+
+Sinds besluit 1 (`docs/Nova.md` §0) is de app een **merk-werkruimte**: je kiest bovenin een merk en
+daarna gaat alles over dát merk. De navigatie valt daarmee in twee soorten uiteen, en dat onderscheid
+past horizontaal niet zonder scheidingstekens die niets betekenen. Vandaar een **zijbalk**
+(`components/sidebar.tsx`), met twee groepen:
+
+| Groep | Wat erin staat |
+|---|---|
+| De merknaam | Merkdossier, Analyses van dit merk |
+| Algemeen | Alle merken, Alle analyses, Instellingen |
+
+**De kiezer verschijnt niet altijd.** Bij precies één merk staat de naam er als tekst en niet als
+knop: een kiezer met één optie belooft een keuze die er niet is. Het zoekveld erin verschijnt pas
+vanaf acht merken. Nova doet allebei ook zo.
+
+**De keuze staat in een cookie** (`aura_merk`) en niet in de URL: hij moet blijven staan op schermen
+die zelf geen merk kennen (`/instellingen`), en een querystring zou aan élke link geplakt moeten
+worden. ⚠️ Die cookie is een **voorkeur, nooit een recht**: `listBrands()` controleert altijd opnieuw
+of je bij dat merk mag, en de toegangscontrole zelf zit in `getOwnedProfile()`.
+
+**De routes zijn niet verhuisd.** `/profielen/[id]` blijft `/profielen/[id]`: er staan bladwijzers en
+gedeelde demolinks naar die adressen, en een werkruimte is een kwestie van context, niet van andere
+URL's. `/analyses?merk=` filtert de lijst, met een zichtbare chip en een uitweg terug, want een lijst
+die stilletjes korter is dan je verwacht leest als data die weg is.
+
+**Vaste breedtes in de zijbalk** (240px, ingeklapt 64px). Een zijbalk die meegroeit met de langste
+merknaam laat de hele pagina verspringen zodra je wisselt.
+
 **Twee bestemmingen:** `/analyses` en `/profielen` (label: "Merken"). Eén bron: `lib/nav.ts`.
 Account zit achter het profielmenu. Navigatie is een belofte over de omvang van een product; twee
 links die naar dezelfde route wijzen kosten vertrouwen in de hele balk. De routes heten nog
