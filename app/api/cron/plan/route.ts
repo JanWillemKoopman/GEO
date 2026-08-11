@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { serverEnv } from "@/lib/env";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { planContentDraft } from "@/lib/jobs/content-jobs";
+import { enqueue, dedupe } from "@/lib/jobs/queue";
 import { writeDecision, planBriefing, type WriteBlock } from "@/lib/plan-writing";
 import { SCHRIJFVOORSPRONG_DAGEN } from "@/lib/plan-status";
 import type { AnalysisStatus, PageType, PlanMonthStatus } from "@/lib/types/database";
@@ -182,12 +183,54 @@ export async function GET(request: Request) {
     }
   }
 
+  // ── De zoekcijfers, in dezelfde dagelijkse ronde ──────────────────────────
+  //
+  // Bewust géén tweede cron. Beide taken zijn dagelijks, allebei plannen ze
+  // alleen werk in, en twee pg_cron-taken die een minuut na elkaar hetzelfde
+  // doen zijn twee dingen om te vergeten bij de volgende migratie.
+  const zoekdata = await planSearchConsoleSync(admin, nu);
+
   return NextResponse.json({
     bekeken: pages.length,
     ingepland,
     alBezig,
     geblokkeerd,
+    zoekdata,
   });
+}
+
+/**
+ * Zet voor elk gekoppeld merk een ophaaltaak klaar (fase 5, migratie 0052).
+ *
+ * Eén per merk per dag; de dedupe-sleutel draagt de datum, want twee rondes op
+ * dezelfde dag halen exact dezelfde cijfers op (Google levert pas definitieve
+ * data met twee dagen vertraging).
+ */
+async function planSearchConsoleSync(
+  admin: ReturnType<typeof createAdminClient>,
+  nu: Date,
+): Promise<{ merken: number; ingepland: number }> {
+  const { data } = await admin
+    .from("profiles")
+    .select("id")
+    .not("gsc_property", "is", null)
+    .is("archived_at", null);
+
+  const merken = (data ?? []) as { id: string }[];
+  const dag = nu.toISOString().slice(0, 10);
+  let ingepland = 0;
+
+  for (const m of merken) {
+    const { created } = await enqueue(admin, {
+      type: "gsc_sync",
+      payload: {},
+      profileId: m.id,
+      dedupeKey: dedupe.gscSync(m.id, dag),
+    });
+    if (created) ingepland++;
+  }
+
+  return { merken: merken.length, ingepland };
 }
 
 function tel(teller: Record<string, number>, sleutel: WriteBlock | "inplannen_mislukt"): void {

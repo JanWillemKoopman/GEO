@@ -315,7 +315,7 @@ select * from cron.job_run_details order by start_time desc limit 10;
 | **Werker** | `/api/cron/worker` | elke minuut | **Supabase pg_cron**. Zonder deze taak gebeurt er niets. |
 | Terugkerende meting | `/api/cron/tracking` | 1e van de maand 06:00 UTC | Vercel |
 | Rapport-mail | `/api/cron/reminders` | maandag 09:00 UTC | Vercel (nu uit `vercel.json` gehaald, bestaat alleen om te mailen) |
-| Schrijfronde contentplan | `/api/cron/plan` | dagelijks 04:00 UTC | **Supabase pg_cron** (migratie `0050`, taak `aura-plan-writer`) |
+| Schrijfronde contentplan **en zoekdata** | `/api/cron/plan` | dagelijks 04:00 UTC | **Supabase pg_cron** (migratie `0050`, taak `aura-plan-writer`) |
 
 **De schrijfronde in één alinea.** Pagina's van een GOEDGEKEURDE maand die binnen tien dagen
 gepubliceerd moeten worden, krijgen een schrijftaak; de route plant alleen, de werker schrijft.
@@ -325,6 +325,15 @@ staat in `lib/plan-writing.ts` (`writeDecision`), de reden per pagina staat in h
 tussen plan en contentpijplijn is `plannedPageId` in de payload van `content_draft`: daarmee weet de
 plan-pagina welke tekst het geworden is, en zet de werker hem op `mislukt` als het schrijven
 definitief niet lukt.
+
+**Dezelfde ronde haalt de zoekcijfers op.** Elk merk met een `gsc_property` krijgt één `gsc_sync`-taak
+per dag (migratie `0052`). Bewust geen tweede cron: allebei dagelijks, allebei alleen plannend, en
+twee pg_cron-taken die een minuut na elkaar hetzelfde doen zijn twee dingen om te vergeten. De
+koppeling loopt via een **service account** en niet via OAuth, want de `webmasters`-scopes zijn bij
+Google "sensitive" en vragen dan een verificatietraject van weken. De sleutel staat in één
+env-variabele (`GOOGLE_SERVICE_ACCOUNT_JSON`); ontbreekt hij, dan is de koppeling niet ingericht en
+zegt het scherm dat. Aura vraagt alleen leesrecht, dus de klant voegt het adres toe met het recht
+"Beperkt".
 
 ### Tijdbudgetten, waarom deze getallen bij elkaar horen
 

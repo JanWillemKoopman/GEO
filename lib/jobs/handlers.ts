@@ -38,6 +38,7 @@ import { runAuditForProfile } from "@/lib/audit/store";
 import { planImpactMeasurements, computeImpact } from "@/lib/pipeline/impact";
 import { verifyPublication } from "@/lib/pipeline/publish";
 import { runOffsiteScan } from "@/lib/offsite/scan";
+import { syncSearchConsole } from "@/lib/search-console/sync";
 import { enqueue, dedupe } from "@/lib/jobs/queue";
 import { countOpenPeriodicMeasurements } from "@/lib/jobs/pending";
 import type {
@@ -592,6 +593,23 @@ const handlers: { [T in JobType]: Handler<T> } = {
   offsite_scan: async ({ admin, job }) => {
     if (!job.analysis_id) throw new Error("offsite_scan zonder analysis_id.");
     await runOffsiteScan(admin, job.analysis_id);
+  },
+
+  // ── Zoekcijfers ophalen bij Google (fase 5, migratie 0052) ────────────────
+  //
+  // ⚠️ Gooit bewust NIET bij een fout van Google. De reden staat vastgelegd op
+  // het profiel (`gsc_last_error`) en het scherm toont hem; de taak opnieuw
+  // laten proberen helpt niet als de klant ons adres nog moet toevoegen, en na
+  // vier pogingen zou het merk in het CSM-paneel onder "Vastgelopen" belanden
+  // voor iets wat aan de kant van de klant ligt.
+  gsc_sync: async ({ admin, job }) => {
+    if (!job.profile_id) throw new Error("gsc_sync zonder profile_id.");
+    const result = await syncSearchConsole(admin, job.profile_id);
+    console.log(
+      result.ok
+        ? `Search Console ${job.profile_id}: ${result.rijen} rijen over ${result.start} tot ${result.eind}.`
+        : `Search Console ${job.profile_id}: ${result.reason}`,
+    );
   },
 
   // ── Effect berekenen (5.4/5.5) — geen AI-aanroep ──────────────────────────

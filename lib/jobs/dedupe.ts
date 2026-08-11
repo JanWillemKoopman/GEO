@@ -67,6 +67,10 @@ export const dedupe = {
   contentBrief: (analysisId: string, titles: string[]) =>
     `brief:${analysisId}:${[...titles].sort().join("|")}`,
   contentRevise: (contentPieceId: string) => `content_revise:${contentPieceId}`,
+  // Per DAG en per merk: twee rondes op dezelfde dag halen exact dezelfde
+  // cijfers op, want Google levert pas definitieve data met twee dagen
+  // vertraging (`lib/search-console/window.ts`).
+  gscSync: (profileId: string, dag: string) => `gsc_sync:${profileId}:${dag}`,
   // Per DAG, niet per profiel: de audit draait bij het aanmaken én maandelijks,
   // en moet dan echt opnieuw kijken. Zonder de datum erin zou een afgeronde
   // audit van vorig jaar de hermeting van deze maand blokkeren.

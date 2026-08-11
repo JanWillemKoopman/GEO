@@ -268,6 +268,15 @@ export interface Profile {
   style_samples: string[]; // ✅ contentkwaliteit (A3): letterlijke stijlvoorbeelden
   raw_json: unknown | null;
   status: ProfileStatus;
+  /** Search Console (migratie 0052). Leeg = niet gekoppeld. */
+  gsc_property: string | null;
+  /** Wanneer Aura voor het laatst kon lezen. Leeg mét property = de klant moet ons adres nog toevoegen. */
+  gsc_verified_at: string | null;
+  /** De laatste fout in gewone taal, zodat het scherm kan zeggen wát er mis is. */
+  gsc_last_error: string | null;
+  gsc_last_sync_at: string | null;
+  /** De eerste dag met cijfers. Het nulpunt van "sinds de start". */
+  gsc_first_day: string | null;
   edited_by_user: boolean;
   /** Onboarding-intake (§12.24): vrije-tekst seeds die de klant zelf aanleverde. */
   intake_description: string | null;

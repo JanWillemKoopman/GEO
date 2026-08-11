@@ -53,6 +53,7 @@ const TYPICAL_SECONDS: Record<JobType, number> = {
   measure_impact: 2, // plant alleen taken in
   compute_impact: 3, // puur rekenwerk
   offsite_scan: 40, // gegroundde aanroep + Wikidata/Wikipedia
+  gsc_sync: 6, // één HTTP-verzoek naar Google plus een bulk-upsert, geen AI
 };
 
 /**
@@ -87,6 +88,12 @@ const NON_BLOCKING_TYPES: ReadonlySet<JobType> = new Set<JobType>([
   // samenvattende dossier maar staan alle facetten er nog, elk met een eigen
   // samenvatting.
   "profile_synthesis",
+  // Zoekcijfers zijn een bewijsstuk náást de AI-meting, geen voorwaarde ervoor
+  // (besluit 4). Lukt het ophalen niet, dan mist de klant zijn kliklijn en staat
+  // de reden op zijn merkdossier; zijn analyses en zijn contentplan werken
+  // gewoon door. Een rood kruis op het voortgangsscherm zou het tegendeel
+  // suggereren.
+  "gsc_sync",
 ]);
 
 /**

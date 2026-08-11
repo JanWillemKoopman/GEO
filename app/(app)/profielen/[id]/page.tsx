@@ -10,6 +10,8 @@ import { EntitiesManager } from "./entities-manager";
 import { AuditPanel } from "@/components/audit-panel";
 import { OpenQuestions, countOpenQuestions } from "./open-questions";
 import { MilestonesBlock } from "@/components/milestones-block";
+import { SearchConsoleBox } from "./search-console-box";
+import { serviceAccountEmail } from "@/lib/search-console/auth";
 import { loadMilestones } from "@/lib/milestones-data";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { AssignBox } from "./assign-box";
@@ -243,7 +245,15 @@ export default async function ProfilePage({
   // Het opbrengstblok (fase 5, besluit 16). Leest het account, de scores en de
   // gepubliceerde pagina's; dat laatste kan niet met de klant-client, want dat
   // telt over álle analyses van het merk.
-  const mijlpalen = await loadMilestones(createAdminClient(), id, profile.account_id);
+  const beheerClient = createAdminClient();
+  const mijlpalen = await loadMilestones(beheerClient, id, profile.account_id);
+
+  // Zoekdata (fase 5). Alleen het aantal dagen: de grafiek zelf komt in het
+  // analysescherm, hier hoort de stand van de koppeling.
+  const { count: gscDagen } = await beheerClient
+    .from("search_console_days")
+    .select("day", { count: "exact", head: true })
+    .eq("profile_id", id);
 
   const openVragen = countOpenQuestions(
     profile,
@@ -291,6 +301,26 @@ export default async function ProfilePage({
           profile={profile}
           facts={(factRows ?? []) as FactRequest[]}
           researchGaps={researchGaps}
+        />
+      </ProfileSection>
+
+      {/* ── Zoekdata koppelen ──────────────────────────────────────────────
+          Besluit 4: AI-zichtbaarheid is het verhaal, Google is het bewijsstuk.
+          Dit is het eerste dat Aura écht van de klant vraagt, dus de instructie
+          staat voluit in het scherm. */}
+      <ProfileSection
+        id="zoekdata"
+        title="Zoekdata uit Google"
+        description="De klikken uit Google naast je zichtbaarheid in AI-antwoorden. Het bewijsstuk onder het verhaal."
+        badge={profile.gsc_verified_at ? "gekoppeld" : "niet gekoppeld"}
+      >
+        <SearchConsoleBox
+          profileId={id}
+          property={profile.gsc_property}
+          verifiedAt={profile.gsc_verified_at}
+          lastError={profile.gsc_last_error}
+          serviceAccountEmail={serviceAccountEmail()}
+          dagen={gscDagen ?? 0}
         />
       </ProfileSection>
 

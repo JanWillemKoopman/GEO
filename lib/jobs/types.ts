@@ -77,6 +77,12 @@ export const JOB_TYPES = [
   "compute_impact",
   /** Bronnenlandschap + aanwezigheid + entiteitscontrole (optimalisatie.md fase 7). */
   "offsite_scan",
+  /**
+   * Zoekcijfers van één merk ophalen bij Google Search Console (fase 5,
+   * migratie 0052). Geen AI-aanroep: één HTTP-verzoek plus een bulk-upsert, dus
+   * licht werk. Draait dagelijks per gekoppeld merk.
+   */
+  "gsc_sync",
 ] as const;
 
 export type JobType = (typeof JOB_TYPES)[number];
@@ -168,6 +174,7 @@ export interface JobPayloads {
   measure_impact: { contentPieceId: string; wave: number };
   compute_impact: { contentPieceId: string; wave: number };
   offsite_scan: Record<string, never>;
+  gsc_sync: Record<string, never>;
 }
 
 /**

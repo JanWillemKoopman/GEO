@@ -155,6 +155,8 @@ import {
 } from "@/lib/plan-writing";
 import { swapWithNeighbour, canMove, type OrderablePage } from "@/lib/plan-order";
 import { milestones } from "@/lib/milestones";
+import { normalizeProperty } from "@/lib/search-console/property";
+import { syncWindow, heeftWerk, EERSTE_RONDE_DAGEN } from "@/lib/search-console/window";
 import {
   CSM_SEGMENTS,
   CSM_SEGMENT_META,
@@ -4590,6 +4592,83 @@ group("milestones: drie getallen, ook als er nog niets te vieren valt", () => {
   // Enkelvoud en meervoud: "1 pagina's" is precies het soort slordigheid dat
   // een demo-scherm goedkoop laat lijken.
   ok("één pagina is enkelvoud", milestones({ ...basis, gepubliceerd: 1 })[2].label === "Pagina gepubliceerd");
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+console.log("\nSearch Console koppelen (fase 5, migratie 0052)");
+
+group("normalizeProperty: de twee vormen die Google kent", () => {
+  // ⚠️ Search Console kent twee soorten property en ze zien er allebei anders
+  // uit dan een webadres. Wie "voorbeeld.nl" invult krijgt van Google een 404
+  // zonder uitleg, en dan denkt iemand dat de koppeling stuk is terwijl er een
+  // teken mist.
+  const domein = normalizeProperty("sc-domain:Voorbeeld.NL");
+  ok("een domein-property gaat door", domein.ok === true);
+  ok(
+    "en wordt kleingeschreven",
+    domein.ok === true && domein.property === "sc-domain:voorbeeld.nl",
+  );
+
+  const adres = normalizeProperty("https://voorbeeld.nl");
+  ok(
+    "een adres-property krijgt de verplichte schuine streep",
+    adres.ok === true && adres.property === "https://voorbeeld.nl/",
+  );
+  ok(
+    "een pad houdt zijn slotstreep",
+    (() => {
+      const r = normalizeProperty("https://voorbeeld.nl/shop");
+      return r.ok === true && r.property === "https://voorbeeld.nl/shop/";
+    })(),
+  );
+
+  // De meest gemaakte vergissing: het kale domein. De melding noemt beide
+  // vormen, want "ongeldig" laat de lezer raden.
+  const kaal = normalizeProperty("voorbeeld.nl");
+  ok("een kaal domein wordt geweigerd", kaal.ok === false);
+  ok(
+    "met beide vormen in de melding",
+    kaal.ok === false &&
+      kaal.reason.includes("sc-domain:voorbeeld.nl") &&
+      kaal.reason.includes("https://voorbeeld.nl/"),
+  );
+
+  ok("leeg wordt geweigerd", normalizeProperty("   ").ok === false);
+  ok("sc-domain zonder domein ook", normalizeProperty("sc-domain:").ok === false);
+  ok(
+    "en een domein-property met een pad",
+    normalizeProperty("sc-domain:voorbeeld.nl/shop").ok === false,
+  );
+});
+
+group("syncWindow: welke dagen Aura ophaalt", () => {
+  const nu = new Date("2026-08-11T09:00:00Z");
+
+  // ⚠️ Google's definitieve cijfers lopen twee dagen achter. Wie gisteren als
+  // bewijs gebruikt, meet ruis.
+  const eerste = syncWindow(null, nu);
+  ok("het venster stopt twee dagen terug", eerste.eind === "2026-08-09");
+  ok(
+    "een eerste ronde gaat negentig dagen terug",
+    eerste.start === "2026-05-12" && eerste.dagen === EERSTE_RONDE_DAGEN,
+  );
+
+  // ⚠️ Google herziet dagen na. Zou het venster alleen de nieuwe dagen pakken,
+  // dan bevriest een half gecorrigeerde dag voor altijd in de database.
+  const vervolg = syncWindow("2026-08-05", nu);
+  ok(
+    "een vervolgronde haalt het nawerkvenster opnieuw op",
+    vervolg.start === "2026-07-26",
+  );
+  ok("en loopt door tot dezelfde einddag", vervolg.eind === "2026-08-09");
+  ok("er is werk", heeftWerk(vervolg));
+
+  // Staat de laatste dag al voorbij het venster, dan is er niets te doen.
+  const nietsTeDoen = syncWindow("2026-08-09", new Date("2026-08-10T09:00:00Z"));
+  ok(
+    "een venster dat achterstevoren loopt levert geen werk op",
+    !heeftWerk(nietsTeDoen) || nietsTeDoen.start <= nietsTeDoen.eind,
+  );
 });
 
 // ════════════════════════════════════════════════════════════════════════════

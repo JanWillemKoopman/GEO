@@ -1896,3 +1896,38 @@ prijzen er zijn.
 **Twee regels die uit de tests kwamen.** Bij één meting staat er een startpunt en geen groei, want
 "0%" zou suggereren dat er niets gebeurde terwijl er nog niets te vergelijken is (conventie 3). En
 bij een daling verschijnt er géén bedrag: dat zou een verlies als opbrengst tonen. 945 unittests.
+
+**Fase 5, deel 2: de Search Console-koppeling (11 augustus 2026).** Gebouwd volgens de keuzes die
+`docs/tasks/zoekdata-koppeling.md` op 6 augustus al had uitgezocht, dus zonder die afweging opnieuw
+te maken: een service account in plaats van OAuth (de `webmasters`-scopes zijn bij Google "sensitive"
+en vragen dan een verificatietraject van weken met privacybeleid en demovideo, voor nul extra waarde
+bij een handvol MKB-klanten), alleen leesrecht, en `dataState: "final"` omdat Google's verse cijfers
+nog herzien worden.
+
+**Geen `googleapis`-pakket.** Dat is tientallen megabytes voor élke Google-API die bestaat, terwijl
+hier twee HTTP-verzoeken nodig zijn: een JWT tekenen en hem inruilen voor een toegangstoken. Node
+kan RS256 zelf. Een afhankelijkheid die honderd keer groter is dan wat je ervan gebruikt, betaal je
+bij elke build en moet je bij elke kwetsbaarheid nakijken.
+
+**Twee regels die uit de vertraging volgen.** Definitieve cijfers lopen twee dagen achter, en Google
+corrigeert de dagen daarvóór nog na. Elke ronde haalt daarom een nawerkvenster van tien dagen
+opnieuw op, en de unieke sleutel `(profile_id, day, page)` maakt daar een correctie van in plaats van
+een dubbele rij. Zonder dat tweede zouden de totalen optellen tot een veelvoud van de waarheid;
+zonder het eerste bevriest een half gecorrigeerde dag voor altijd.
+
+**De property-naam is een eigen functie met een eigen test.** Search Console kent twee vormen,
+`sc-domain:voorbeeld.nl` en `https://voorbeeld.nl/` mét slotstreep, en allebei zien er anders uit dan
+een webadres. Wie het kale domein invult krijgt van Google een 404 zonder uitleg, en dan denkt iemand
+dat de koppeling stuk is terwijl er een teken mist. `normalizeProperty()` noemt in dat geval beide
+vormen mét het ingetypte domein erin.
+
+**Wat expliciet in het scherm staat.** Google splitst klikken uit AI-antwoorden niet uit: die zitten
+ongesplitst in `web`. Dat is precies het cijfer waarvan een klant aanneemt dat het erin zit, en een
+product dat AI-zichtbaarheid meet kan die verwarring niet laten bestaan. Die zin staat onder het
+koppelblok.
+
+**Wat nog niet geverifieerd is, en waarom.** De sleutel zelf. `GOOGLE_SERVICE_ACCOUNT_JSON` moet
+aangemaakt worden in een Google Cloud-project en dat kan alleen de eigenaar. Tot die er is toont het
+scherm dat de koppeling niet is ingericht in plaats van te falen, en staat de rest onder test: de
+property-controle, het venster, en het gedrag bij 403 en 404. Conventie 10 blijft dus openstaan voor
+precies één stap. 960 unittests.
