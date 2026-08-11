@@ -2,6 +2,7 @@ import { requireUser } from "@/lib/auth";
 import { AppShell } from "@/components/app-shell";
 import { ToastProvider } from "@/components/toast";
 import { loadWorkspace } from "@/lib/workspace";
+import { isStaff } from "@/lib/staff";
 
 /**
  * Het ingelogde gedeelte van de app.
@@ -20,9 +21,12 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   // De werkruimte hoort bij de shell en niet bij een pagina: de merkkiezer staat
   // op élk scherm, ook op de schermen die zelf geen merk kennen.
   const workspace = await loadWorkspace(user.id);
+  // Gememoïseerd per request (`lib/staff.ts`), dus dit kost geen extra query
+  // bovenop de ownership-checks die de pagina's zelf al doen.
+  const staff = await isStaff(user.id);
   return (
     <ToastProvider>
-      <AppShell user={user} workspace={workspace}>
+      <AppShell user={user} workspace={workspace} staff={staff}>
         {children}
       </AppShell>
     </ToastProvider>

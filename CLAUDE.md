@@ -114,7 +114,7 @@ Deze zijn over acht bouwrondes consequent toegepast. Houd ze aan.
 ## Structuur
 
 ```
-app/(app)/         analyses (dossier in 4 hoofdstukken), profielen, instellingen
+app/(app)/         analyses (dossier in 4 hoofdstukken), profielen, instellingen, beheer (CSM)
 app/(auth)/        login/register (server actions)
 app/api/           analyses · profiles · cron (worker/tracking/reminders) · health
 components/        gedeelde UI-primitieven (kaarten, chips, rail, skeletons)

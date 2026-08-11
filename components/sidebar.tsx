@@ -30,9 +30,12 @@ const OPSLAG = "aura_zijbalk_ingeklapt";
 
 export function Sidebar({
   activeBrand,
+  staff = false,
   onMobileClose,
 }: {
   activeBrand: BrandOption | null;
+  /** Beheerder? Dan staat het CSM-paneel erbij (fase 8). */
+  staff?: boolean;
   /** Alleen gezet in de mobiele lade: dan sluit een klik het menu. */
   onMobileClose?: () => void;
 }) {
@@ -86,7 +89,7 @@ export function Sidebar({
       )}
 
       {!smal && <span className="mono-label px-3 pb-1">Algemeen</span>}
-      {generalNav().map((item) => (
+      {generalNav(staff).map((item) => (
         <Item
           key={item.href}
           item={item}

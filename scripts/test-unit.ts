@@ -154,6 +154,16 @@ import {
   type PageForWriting,
 } from "@/lib/plan-writing";
 import {
+  CSM_SEGMENTS,
+  CSM_SEGMENT_META,
+  segmentOf,
+  flagsOf,
+  needsAttention,
+  totals,
+  sortForCsm,
+  type CsmBrand,
+} from "@/lib/csm";
+import {
   BRAND_FIELDS,
   STEP_ORDER,
   fieldsOfStep,
@@ -4266,6 +4276,133 @@ group("FaqEdit", () => {
     "omringende witruimte wordt getrimd",
     metWitruimte.success && metWitruimte.data[0].q === "Vraag?" && metWitruimte.data[0].a === "Antwoord.",
   );
+});
+
+
+// ════════════════════════════════════════════════════════════════════════════
+console.log("\nHet CSM-paneel (fase 8, csm.ts)");
+
+group("segmentOf: elk merk in precies één segment", () => {
+  const merk = (over: Partial<CsmBrand> = {}): CsmBrand => ({
+    profileId: "p1",
+    name: "Van den Udenhout",
+    accountName: "Van den Udenhout",
+    profileStatus: "klaar",
+    profielCompleet: true,
+    analyseStatussen: ["gereed"],
+    quota: 10,
+    heeftPlan: true,
+    maandenTerGoedkeuring: 0,
+    paginasTerGoedkeuring: 0,
+    paginasTePlaatsen: 0,
+    paginasTeLaat: 0,
+    geplaatstDezeMaand: 10,
+    laatstGeplaatst: "2026-08-01",
+    pijplijnfouten: 0,
+    ...over,
+  });
+
+  ok("een merk waar alles loopt", segmentOf(merk()) === "loopt");
+  ok(
+    "onderzoek dat nog draait",
+    segmentOf(merk({ profileStatus: "bezig" })) === "onderzoek_loopt",
+  );
+  ok(
+    "een half ingevuld merkprofiel wacht op nakijkwerk",
+    segmentOf(merk({ profielCompleet: false })) === "nakijken",
+  );
+  ok(
+    "zonder enige analyse is er niets om over te praten",
+    segmentOf(merk({ analyseStatussen: [] })) === "geen_meting",
+  );
+  ok(
+    "een maand die op akkoord wacht legt de bal bij de klant",
+    segmentOf(merk({ maandenTerGoedkeuring: 1 })) === "wacht_op_klant",
+  );
+  ok(
+    "een gemeten merk zonder plan",
+    segmentOf(merk({ heeftPlan: false })) === "geen_plan",
+  );
+
+  // ⚠️ De volgorde ÍS de prioriteit. Een merk dat zowel vastloopt als op een
+  // akkoord wacht, hoort in één lijst te staan, anders telt hij dubbel in elke
+  // teller op het scherm.
+  ok(
+    "een pijplijnfout wint van alles",
+    segmentOf(merk({ pijplijnfouten: 2, maandenTerGoedkeuring: 3 })) === "vastgelopen",
+  );
+  ok(
+    "een mislukt profiel ook",
+    segmentOf(merk({ profileStatus: "mislukt" })) === "vastgelopen",
+  );
+
+  // Elk merk valt in precies één segment: de som over de segmenten moet gelijk
+  // zijn aan het aantal merken. Zonder die eigenschap kloppen de tabbladtellers
+  // niet met de tabel eronder.
+  const merken = [
+    merk(),
+    merk({ profileStatus: "bezig" }),
+    merk({ profielCompleet: false }),
+    merk({ analyseStatussen: [] }),
+    merk({ maandenTerGoedkeuring: 1 }),
+    merk({ heeftPlan: false }),
+    merk({ pijplijnfouten: 1 }),
+  ];
+  const perSegment = CSM_SEGMENTS.map(
+    (s) => merken.filter((m) => segmentOf(m) === s).length,
+  );
+  ok(
+    "de segmenten tellen samen op tot het aantal merken",
+    perSegment.reduce((a, b) => a + b, 0) === merken.length,
+  );
+
+  // Elk segment heeft een banner en een lege staat: een segment zonder banner
+  // laat de lezer zelf uitzoeken wat de volgende stap is.
+  ok(
+    "elk segment zegt wat je moet doen",
+    CSM_SEGMENTS.every(
+      (s) => CSM_SEGMENT_META[s].banner.length > 0 && CSM_SEGMENT_META[s].leeg.length > 0,
+    ),
+  );
+
+  // ── De vlaggen ────────────────────────────────────────────────────────────
+  ok("een merk waar alles loopt heeft geen vlaggen", flagsOf(merk()).length === 0);
+  ok(
+    "onder de quota is een vlag",
+    flagsOf(merk({ geplaatstDezeMaand: 3 })).some((v) => v.includes("3 van 10")),
+  );
+  ok(
+    "en klaar om te plaatsen ook",
+    flagsOf(merk({ paginasTePlaatsen: 2 })).some((v) => v.includes("klaar om te plaatsen")),
+  );
+  ok(
+    "een merk zonder vlaggen dat loopt, vraagt niets",
+    needsAttention(merk()) === false,
+  );
+  ok(
+    "een vastgelopen merk wel",
+    needsAttention(merk({ pijplijnfouten: 1 })) === true,
+  );
+
+  // ── De KPI's ──────────────────────────────────────────────────────────────
+  const k = totals([
+    merk({ paginasTePlaatsen: 2, paginasTeLaat: 1 }),
+    merk({ maandenTerGoedkeuring: 1, paginasTerGoedkeuring: 4 }),
+    merk({ pijplijnfouten: 3 }),
+  ]);
+  ok("achter op plaatsen telt op", k.achterOpPlaatsen === 2);
+  ok("achter op schrijven ook", k.achterOpSchrijven === 1);
+  ok("maanden en pagina's samen wachten op akkoord", k.wachtOpAkkoord === 5);
+  ok("en de fouten", k.pijplijnfouten === 3);
+
+  // ── De volgorde ───────────────────────────────────────────────────────────
+  // Sorteren op naam zou een vastgelopen merk onderaan kunnen zetten omdat het
+  // toevallig met een Z begint.
+  const gesorteerd = sortForCsm([
+    merk({ profileId: "a", name: "Aaa" }),
+    merk({ profileId: "z", name: "Zzz", pijplijnfouten: 1 }),
+  ]);
+  ok("wat vastloopt staat bovenaan", gesorteerd[0].profileId === "z");
 });
 
 // ════════════════════════════════════════════════════════════════════════════

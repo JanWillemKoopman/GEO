@@ -23,6 +23,7 @@ import type { BrandOption } from "@/lib/workspace";
 export function WorkspaceChrome({
   brands,
   activeBrand,
+  staff,
   onSelectBrand,
   logo,
   accountMenu,
@@ -30,6 +31,8 @@ export function WorkspaceChrome({
 }: {
   brands: BrandOption[];
   activeBrand: BrandOption | null;
+  /** Beheerder? Dan komt het CSM-paneel in de zijbalk (fase 8). */
+  staff: boolean;
   onSelectBrand: (brandId: string) => void;
   logo: React.ReactNode;
   accountMenu: React.ReactNode;
@@ -69,7 +72,7 @@ export function WorkspaceChrome({
         {/* Vaste zijbalk vanaf lg. Sticky onder de bovenbalk, met een eigen
             scrollbaan zodat een lange merknaam de pagina niet meeneemt. */}
         <aside className="no-print sticky top-[57px] hidden h-[calc(100dvh-57px)] shrink-0 overflow-y-auto overflow-x-hidden border-r border-[var(--border-subtle)] lg:block">
-          <Sidebar activeBrand={activeBrand} />
+          <Sidebar activeBrand={activeBrand} staff={staff} />
         </aside>
 
         {/* `min-w-0` is hier geen sier: dit is een flex-kind, en zonder deze
@@ -103,6 +106,7 @@ export function WorkspaceChrome({
               </button>
             </div>
             <Sidebar
+              staff={staff}
               activeBrand={activeBrand}
               onMobileClose={() => setLadeOpen(false)}
             />

@@ -50,11 +50,19 @@ export function brandNav(brandId: string): NavItem[] {
   ];
 }
 
-/** Wat over de app als geheel gaat. */
-export function generalNav(): NavItem[] {
+/**
+ * Wat over de app als geheel gaat.
+ *
+ * `staff` voegt het CSM-paneel toe (fase 8). Het staat bewust in dezelfde lijst
+ * en niet in een derde groep: het is voor de eigenaar gewoon een bestemming, en
+ * een aparte kop "Beheer" boven één item is een kop te veel. Een gewone klant
+ * ziet het item niet, en de pagina zelf geeft hem een 404 (`app/(app)/beheer`).
+ */
+export function generalNav(staff = false): NavItem[] {
   return [
     { href: "/profielen", label: "Alle merken", teken: "▤" },
     { href: "/analyses", label: "Alle analyses", teken: "▦" },
+    ...(staff ? [{ href: "/beheer", label: "Beheer", teken: "◈" }] : []),
     { href: "/instellingen", label: "Instellingen", teken: "⚙" },
   ];
 }

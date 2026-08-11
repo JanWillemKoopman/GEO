@@ -1809,3 +1809,31 @@ nu vijf ketentests omheen. Eén ervan wees meteen iets aan wat ook in de cron zi
 uit `analyses.user_id` komen en niet uit het profiel, want een toegewezen analyse hoort bij de klant
 en de contentpijplijn weigert te schrijven voor iemand die geen eigenaar is. 899 unittests, 52
 ketentests.
+
+**Fase 8, het CSM-paneel (11 augustus 2026).** Het stond oorspronkelijk achteraan met de redenering
+"bij minder dan tien klanten kun je dit met SQL". Besluit 11 haalde die onderuit: twintig klanten in
+het eerste jaar, allemaal met mogelijk meerdere websites en deels via bureaus. `/beheer` toont nu
+alle merken van alle klanten, gesorteerd op wat het eerst aandacht vraagt. Alleen voor beheerders,
+en bij een gewone gebruiker een 404 en geen 403: een 403 bevestigt dat het scherm bestaat.
+
+**Zeven segmenten, maar niet die van Nova.** Nova's zeven gaan over funnels, talen en doellanden
+invullen. Die velden vult Aura zelf in: besluit 13 schrapte meertaligheid en de vier funnelfasen
+komen uit `plan-build.ts`. Wat overblijft is de vraag die er wél toe doet, en dat werden er ook
+zeven: vastgelopen, onderzoek loopt, wacht op jouw nakijkwerk, nog niet gemeten, wacht op de klant,
+geen contentplan, loopt. Elk segment heeft Nova's banner die zegt wát je moet doen, en een eigen
+lege staat, want een leeg segment is hier goed nieuws.
+
+**De volgorde van de controles ís de prioriteit.** Een merk valt in het eerste segment dat past, en
+een pijplijnfout wint van een openstaand akkoord. Zonder die regel staat een merk in twee lijsten en
+telt hij dubbel in elke teller boven de tabel. Er staat een test op die eist dat de segmenten samen
+optellen tot het aantal merken; dat is de enige manier om te zien of de tabbladtellers kloppen met
+de tabel eronder.
+
+**Zes query's, geen zes per merk.** Dit scherm toont álle merken. Zou het per merk zijn tellers
+ophalen, dan is dat bij twintig klanten al honderden ronden naar Supabase op één pagina. Dezelfde
+afweging als bij `enqueueMeasurement()`, waar 2×N sequentiële aanroepen ooit de bevestigroute omver
+duwden.
+
+**De drempel voor "nagekeken" staat op 80% en niet op 100%.** Van de 27 merkvelden leidt Aura er 25
+zelf af en de laatste paar weet alleen de klant. Op 100 zou élk merk eeuwig in "wacht op jouw
+nakijkwerk" blijven staan en werd het segment betekenisloos. 919 unittests.

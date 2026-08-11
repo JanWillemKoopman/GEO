@@ -24,16 +24,20 @@ import type { User } from "@supabase/supabase-js";
 export function AppShell({
   user,
   workspace,
+  staff,
   children,
 }: {
   user: User;
   workspace: Workspace;
+  /** Beheerder? Dan staat het CSM-paneel in de zijbalk (fase 8). */
+  staff: boolean;
   children: React.ReactNode;
 }) {
   return (
     <WorkspaceChrome
       brands={workspace.brands}
       activeBrand={workspace.active}
+      staff={staff}
       onSelectBrand={selectBrand}
       logo={
         <Link href="/profielen" className="text-lg font-bold tracking-tight">
