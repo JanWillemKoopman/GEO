@@ -212,6 +212,7 @@ import {
   isHumanSet,
   describeMerge,
   resolveScope,
+  scopeSummary,
 } from "@/lib/pipeline/field-merge";
 import {
   parseContextFactors,
@@ -4039,12 +4040,14 @@ group("assessReadiness", () => {
     dossier: true,
     openFactRequests: 0,
     researchGaps: 0,
+    scopeKnown: true,
+    scopeDetail: "Lokaal: Amersfoort",
   };
 
   const r = assessReadiness(compleet);
   ok("alles gevuld is compleet", r.compleet === true);
-  ok("zes onderdelen zijn verplicht", r.nodigAantal === 6);
-  ok("en alle zes staan er", r.klaarAantal === 6);
+  ok("zeven onderdelen zijn verplicht", r.nodigAantal === 7);
+  ok("en alle zeven staan er", r.klaarAantal === 7);
   ok("er loopt niets meer", r.loopt === false);
   ok("dus niets ontbreekt", r.ontbreekt.length === 0);
   ok(
@@ -4100,6 +4103,40 @@ group("assessReadiness", () => {
     "de kop zegt wat er mist",
     readinessHeadline(kapot, "X").includes("aanbod in kaart"),
   );
+
+  // ── Het werkgebied blokkeert (spoor R6) ──────────────────────────────────
+  //
+  // ⚠️ Zonder `service_scope` vuurt de regionale promptregel niet, en dan krijgt
+  // een Brabantse dealer vragen over heel Nederland. Op productie stond dit veld
+  // bij vier van de negen profielen op null, waaronder Fysi-Unique. Precies het
+  // merk waarvan de cijfers de hele vondst droegen.
+  const zonderBereik = assessReadiness({ ...compleet, scopeKnown: false, scopeDetail: null });
+  ok("een leeg werkgebied blokkeert het dossier", zonderBereik.compleet === false);
+  ok(
+    "en de kop noemt het bij naam",
+    readinessHeadline(zonderBereik, "X").includes("werkgebied vastgesteld"),
+  );
+});
+
+group("scopeSummary (spoor R6)", () => {
+  ok("lokaal met plaatsen is bekend", scopeSummary("lokaal", ["Breda", "Oss"]).known);
+  ok(
+    "en toont ze, zodat de consultant ziet waarop gemeten wordt",
+    scopeSummary("lokaal", ["Breda", "Oss"]).detail === "Lokaal: Breda, Oss",
+  );
+
+  // ⚠️ 'lokaal' zonder één regio telt als onbekend, want dat is precies wat
+  // `isLokaal()` ervan maakt: die eist bereik én regio. Zou dit als "bekend"
+  // gelden, dan meldt het scherm groen terwijl de promptregel niet vuurt.
+  ok("lokaal zonder regio is niet bekend", !scopeSummary("lokaal", []).known);
+  ok("lege regio's tellen niet mee", !scopeSummary("lokaal", ["", "  "]).known);
+
+  ok("landelijk is een echt antwoord", scopeSummary("landelijk", []).known);
+  ok("internationaal ook", scopeSummary("internationaal", []).known);
+
+  // Conventie 3: onbekend is een echte waarde en geen gok naar 'landelijk'.
+  ok("null is onbekend", !scopeSummary(null, []).known);
+  ok("en levert geen detailregel op", scopeSummary(null, []).detail === null);
 });
 
 // ════════════════════════════════════════════════════════════════════════════

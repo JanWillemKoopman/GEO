@@ -2209,3 +2209,18 @@ niet" betekent, en bij een MKB-klant is lokaal de regel. Staat als R6 in `docs/t
 een vraag toevoegen of herschrijven zonder enige controle. De generator betaalt drie bijvulrondes voor
 de regionale garantie; één tekstveld haalde hem onderuit. `regionGateMessage()` weigert nu, met een
 melding die de plaatsen noemt zodat de volgende poging meteen goed is. 1039 unittests.
+
+**R6 dicht: het werkgebied blokkeert nu het dossier.** Het eerste voorstel was een harde stop in de
+pijplijn vóór de promptgeneratie. Dat bleek de verkeerde plek: het zou de bestaande profielen met een
+leeg bereik laten vastlopen op iets dat in tien seconden te repareren is, en de consultant pas een
+melding geven op het moment dat hij er niets meer aan kan doen. De juiste plek is het afrondingsblok,
+en wel omdat het product sales-led is: de consultant zet het profiel klaar vóór het demogesprek, en
+dat is precies wanneer hij dit ziet en kan zetten. "Werkgebied vastgesteld" is daar nu een blokkerende
+regel, en de kop noemt hem bij naam.
+
+`scopeSummary()` staat in `field-merge.ts` naast `resolveScope()`: de een stelt de vraag, de ander
+beantwoordt hem. 'lokaal' zonder één regio telt als onbekend, want dat is exact wat `isLokaal()` ervan
+maakt. Zou dat als bekend gelden, dan meldt het scherm groen terwijl de promptregel niet vuurt, en dat
+is van de twee de ergere fout. De vier profielen op productie met een leeg bereik zijn bewust niet
+aangeraakt: dat invullen zou een gok zijn, en conventie 3 zegt dat onbekend beter is dan verkeerd.
+1049 unittests.

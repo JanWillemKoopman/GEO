@@ -55,6 +55,13 @@ export interface ReadinessInput {
   openFactRequests: number;
   /** Wat het onderzoek zelf niet kon vaststellen (synthese). */
   researchGaps: number;
+  /**
+   * Staat het werkgebied vast? `service_scope` gevuld, en bij 'lokaal' ook
+   * minstens één regio. Zie de regel "Werkgebied vastgesteld" hieronder.
+   */
+  scopeKnown: boolean;
+  /** Wat er staat, voor het detailregeltje. Null als het leeg is. */
+  scopeDetail?: string | null;
 }
 
 export interface Readiness {
@@ -149,6 +156,33 @@ export function assessReadiness(input: ReadinessInput): Readiness {
       true,
       "#techniek",
       stepRunning(s, "technical_audit"),
+    ),
+    // ── Het werkgebied, en waarom het blokkeert (spoor R6) ──────────────────
+    //
+    // ⚠️ Toegevoegd op 11 augustus 2026. Sinds spoor R krijgt een lokaal merk
+    // uitsluitend regionale vragen, en dat hangt volledig aan één veld:
+    // `service_scope`. Staat het op `null`, dan vuurt de hele garantie niet en
+    // krijgt een Brabantse dealer vragen over heel Nederland.
+    //
+    // Dat is geen theoretisch risico. Op productie stond dat veld bij vier van
+    // de negen profielen op `null`, waaronder Fysi-Unique: een fysiopraktijk in
+    // Amersfoort waarvan élke vermelding die het ooit verdiende uit een
+    // regionale vraag kwam, en die er 57 betaalde metingen op landelijke vragen
+    // naast had liggen met nul resultaat.
+    //
+    // Het staat hier en niet als harde stop in de pijplijn, om twee redenen.
+    // Het product is sales-led: de consultant zet het profiel klaar vóór het
+    // gesprek, dus dit is precies het moment waarop hij het ziet en het
+    // eenvoudig kan zetten. En een harde stop zou de bestaande profielen met
+    // een leeg bereik alsnog laten vastlopen, terwijl die gewoon te repareren
+    // zijn. Blokkeren doet het wel: zonder werkgebied is het dossier niet af.
+    row(
+      "Werkgebied vastgesteld",
+      input.scopeKnown,
+      input.scopeDetail ?? null,
+      true,
+      "#profiel",
+      stepRunning(s, "profile_research"),
     ),
     // Vanaf hier: scherper, niet noodzakelijk. Deze twee blokkeren nooit.
     row(

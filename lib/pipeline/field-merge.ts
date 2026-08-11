@@ -131,6 +131,48 @@ export function resolveScope(
 }
 
 /**
+ * Staat het werkgebied vast, en wat staat er dan?
+ *
+ * ── WAAROM DIT EEN EIGEN FUNCTIE IS ─────────────────────────────────────────
+ *
+ * Sinds spoor R (11 augustus 2026) krijgt een lokaal merk uitsluitend regionale
+ * vragen, en die hele garantie hangt aan `service_scope`. Staat dat veld op
+ * `null`, dan vuurt hij niet en krijgt een Brabantse dealer vragen over heel
+ * Nederland. `resolveScope()` hierboven zet 'onbekend' terecht op `null`
+ * (conventie 3: onbekend is beter dan een gok), maar daarmee is de vraag alleen
+ * verplaatst: voor de promptgeneratie is een leeg bereik niet te onderscheiden
+ * van "landelijk", terwijl het "we weten het niet" betekent. Bij een MKB-klant
+ * is lokaal de regel, dus dat is de verkeerde kant om stil op terug te vallen.
+ *
+ * Deze functie stelt de vraag expliciet, zodat het afrondingsblok hem kan tonen
+ * en de consultant hem kan beantwoorden vóór het gesprek.
+ *
+ * 'lokaal' zonder één regio telt als onbekend, want dat is wat de promptregel
+ * er ook van maakt (`isLokaal()` eist bereik én regio).
+ */
+export interface ScopeSummary {
+  known: boolean;
+  /** Wat er staat, kort. Null als het leeg is. */
+  detail: string | null;
+}
+
+export function scopeSummary(
+  scope: string | null | undefined,
+  regions: string[] | null | undefined,
+): ScopeSummary {
+  const schoon = (regions ?? []).map((r) => r.trim()).filter((r) => r !== "");
+
+  if (scope === "lokaal") {
+    return schoon.length > 0
+      ? { known: true, detail: `Lokaal: ${schoon.join(", ")}` }
+      : { known: false, detail: null };
+  }
+  if (scope === "landelijk") return { known: true, detail: "Heel Nederland" };
+  if (scope === "internationaal") return { known: true, detail: "Internationaal" };
+  return { known: false, detail: null };
+}
+
+/**
  * Zekerheid als drie niveaus in plaats van een kommagetal (§8, punt 2).
  *
  * "0.62" zegt niemand iets. Drie standen die je met een kleur kunt tonen wél,

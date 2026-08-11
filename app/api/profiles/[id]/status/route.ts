@@ -4,6 +4,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { getOwnedProfile } from "@/lib/profiles";
 import { profileProgress, formatEta } from "@/lib/jobs/progress";
 import { buildSteps } from "@/lib/pipeline/research-steps";
+import { scopeSummary } from "@/lib/pipeline/field-merge";
 
 /**
  * GET /api/profiles/[id]/status, poll-endpoint voor het onderzoeksscherm.
@@ -27,6 +28,7 @@ export async function GET(
     return NextResponse.json({ error: "Niet gevonden." }, { status: 404 });
 
   const progress = await profileProgress(admin, id);
+  const bereik = scopeSummary(profile.service_scope, profile.service_regions);
 
   // De stappen mét tussenresultaten (docs/tasks/onboarding-2.0.md §8). Het
   // profiel gaat al op `klaar` na de tweede van zes taken, dus zonder dit ziet
@@ -130,6 +132,11 @@ export async function GET(
       dossier: Boolean(synthese?.summary),
       openFactRequests: openFacts ?? 0,
       researchGaps,
+      // Het werkgebied (spoor R6). Zonder dit veld vuurt de regionale
+      // promptregel niet, en dan meet een lokaal merk vragen die het per
+      // definitie niet kan winnen. Zie lib/pipeline/field-merge.ts.
+      scopeKnown: bereik.known,
+      scopeDetail: bereik.detail,
     },
   });
 }

@@ -412,7 +412,7 @@ dagen**, en het hoort in week 1.
 | R3 | **Bestaande merken opnieuw beoordelen** | Uitzetten is gratis en meet daarna iets echts | **Af.** 55 vragen uitgezet, zie hieronder |
 | R4 | **Het scherm laat het onderscheid zien.** Een chip "regionaal" bij de vraag, en in het rapport de score apart voor regionale vragen | Zonder dit blijft het een verborgen aanname. De klant hoort te zien waarop hij beoordeeld wordt | Open, ~halve dag |
 | R5 | **De trendlijn markeren waar de vragenset wijzigde** | Zie de waarschuwing hieronder | Open |
-| R6 | **`service_scope` mag niet stil leeg blijven** | Zie "het gat boven het vangnet" | Open, en dit is de belangrijkste van de twee open punten |
+| R6 | **`service_scope` mag niet stil leeg blijven** | Zie "het gat boven het vangnet" | **Af.** Blokkerende regel in het afrondingsblok |
 
 #### Waarom de drempel van 70% naar 100% ging
 
@@ -459,9 +459,24 @@ maar daarmee is de vraag alleen verplaatst: een leeg bereik is voor de promptgen
 onderscheiden van "landelijk", terwijl het "we weten het niet" betekent. Bij een MKB-klant is
 "lokaal" de regel en niet de uitzondering, dus de verkeerde kant om stil op terug te vallen.
 
-Voorstel: het bereik hoort een blokkerende vraag te zijn vóór de promptgeneratie, net zoals de
-onderwerp-research dat al is. Onbekend bereik is geen detail maar een reden om te stoppen en te
-vragen.
+**Opgelost, en niet waar ik het eerst zocht.** Het eerste voorstel was een harde stop in de
+pijplijn, vóór de promptgeneratie. Dat is bij nader inzien de verkeerde plek: het zou de bestaande
+profielen met een leeg bereik laten vastlopen op iets dat in tien seconden te repareren is, en het
+zou de consultant pas een melding geven op het moment dat hij er niets meer aan kan doen.
+
+De juiste plek is het afrondingsblok (`profile-readiness.ts`), en wel omdat het product sales-led is:
+de consultant zet het profiel klaar vóór het demogesprek, en dat is precies het moment waarop hij dit
+ziet en kan zetten. "Werkgebied vastgesteld" is nu een **blokkerende** regel: zonder bereik is het
+dossier niet af, staat het in de kop bij naam genoemd, en deelt de consultant het scherm niet.
+
+`scopeSummary()` in `field-merge.ts` stelt de vraag, naast `resolveScope()` die hem beantwoordt.
+'lokaal' zonder één regio telt als onbekend, want dat is exact wat `isLokaal()` ervan maakt. Zou dat
+als "bekend" gelden, dan meldt het scherm groen terwijl de promptregel niet vuurt, en dat is de ergste
+van de twee fouten.
+
+⚠️ **De vier profielen op productie zijn bewust niet aangeraakt.** Hun bereik invullen zou een gok
+zijn, en conventie 3 zegt dat onbekend beter is dan verkeerd. Ze staan nu in het afrondingsblok als
+onvolledig, wat ze ook zijn.
 
 ### Wat dit betekent voor `gasservice-brabant.nl`
 
