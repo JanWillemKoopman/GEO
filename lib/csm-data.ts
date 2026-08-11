@@ -16,7 +16,7 @@ import "server-only";
  */
 import { createAdminClient } from "@/lib/supabase/admin";
 import { overallProgress } from "@/lib/pipeline/brand-fields";
-import { sortForCsm, type CsmBrand } from "@/lib/csm";
+import { sortForCsm, unresolvedFailures, type CsmBrand, type JobOutcome } from "@/lib/csm";
 import type { AnalysisStatus, Profile } from "@/lib/types/database";
 
 type Admin = ReturnType<typeof createAdminClient>;
@@ -91,9 +91,18 @@ export async function loadCsmBrands(admin: Admin): Promise<CsmBrand[]> {
       .from("planned_pages")
       .select("profile_id, status, scheduled_for, posted_at, is_buffer")
       .in("profile_id", profileIds),
-    // Definitief mislukte taken. `failed` is pas de eindstand na vier pogingen
-    // (`MAX_ATTEMPTS`), dus dit is echt kapot en geen tegenslag onderweg.
-    admin.from("jobs").select("profile_id, analysis_id").eq("status", "failed"),
+    // ⚠️ Ook de GESLAAGDE taken, niet alleen de mislukte.
+    //
+    // `failed` is pas de eindstand na vier pogingen (`MAX_ATTEMPTS`), dus zo'n
+    // rij is echt kapot geweest. Maar hij blijft voor altijd staan (conventie 8),
+    // en werk dat later alsnog lukte is geen probleem meer. Zonder de geslaagde
+    // taken erbij stond Van den Udenhout eeuwig onder "Vastgelopen" om drie
+    // onderzoekstaken van 5 augustus die op 9 augustus gewoon doorliepen.
+    // `unresolvedFailures()` legt die twee naast elkaar.
+    admin
+      .from("jobs")
+      .select("type, status, profile_id, analysis_id, finished_at, created_at")
+      .in("status", ["failed", "done"]),
   ]);
 
   const account = new Map(
@@ -174,13 +183,33 @@ export async function loadCsmBrands(admin: Admin): Promise<CsmBrand[]> {
     tellers.set(p.profile_id, t);
   }
 
+  // De eigenaar van een taak is een merk óf een analyse, en die twee mogen niet
+  // op één hoop: een mislukte meting van analyse A zegt niets over analyse B van
+  // hetzelfde merk. Vandaar een sleutel per eigenaar, en pas daarna optellen
+  // naar het merk.
+  const uitkomsten: (JobOutcome & { profileId: string | null })[] = (
+    (jobRows ?? []) as {
+      type: string;
+      status: string;
+      profile_id: string | null;
+      analysis_id: string | null;
+      finished_at: string | null;
+      created_at: string;
+    }[]
+  ).map((j) => ({
+    type: j.type,
+    ownerKey: j.analysis_id ? `analysis:${j.analysis_id}` : `profile:${j.profile_id ?? "?"}`,
+    status: j.status === "failed" ? "failed" : "done",
+    at: j.finished_at ?? j.created_at,
+    // Een taak aan een analyse leidt via de analyse naar het merk; staat die er
+    // niet meer, dan telt hij nergens mee, en dat klopt: er is geen merk om hem
+    // bij te tonen.
+    profileId: j.profile_id ?? (j.analysis_id ? analyseProfiel.get(j.analysis_id) ?? null : null),
+  }));
+
   const fouten = new Map<string, number>();
-  for (const j of (jobRows ?? []) as { profile_id: string | null; analysis_id: string | null }[]) {
-    // Een taak hangt aan een merk of aan een analyse. Bij het tweede leidt de
-    // analyse naar het merk; staat die er niet meer, dan telt hij nergens mee,
-    // en dat klopt: er is geen merk om hem bij te tonen.
-    const profileId =
-      j.profile_id ?? (j.analysis_id ? analyseProfiel.get(j.analysis_id) ?? null : null);
+  for (const j of unresolvedFailures(uitkomsten)) {
+    const profileId = (j as JobOutcome & { profileId: string | null }).profileId;
     if (!profileId) continue;
     fouten.set(profileId, (fouten.get(profileId) ?? 0) + 1);
   }

@@ -1854,3 +1854,18 @@ de werkelijkheid geworden.
 Staat het filter op "vraagt actie", dan zijn de buren van een pagina meestal onzichtbaar, en dan
 springt hij over die buren heen met de datum van de verkeerde pagina. Ze rekenen nu op de volledige
 maand. 928 unittests.
+
+**Het CSM-paneel telde mislukkingen die geen mislukkingen meer waren (11 augustus 2026).** Direct
+gevonden op productie, bij het eerste merk dat het scherm liet zien. Het merkonderzoek van Van den
+Udenhout faalde op 5 en 6 augustus drie keer met "You have no credits remaining", en op 9 augustus
+liep precies datzelfde onderzoek gewoon door tot en met de synthese. Het merk is dus af, maar stond
+bovenaan onder "Vastgelopen" met een rode teller die nooit meer op nul zou komen. Dat is precies hoe
+je iemand leert een teller te negeren, en daarmee was het duurste segment van het scherm waardeloos
+geweest.
+
+**De regel is geen tijdvenster maar een feit uit de wachtrij.** Een mislukte taak telt alleen als er
+daarná geen geslaagde taak van hetzélfde soort voor dezelfde eigenaar is (`unresolvedFailures()`).
+"Alles ouder dan dertig dagen negeren" zou een gok zijn geweest en zou een echt kapotte taak na een
+maand laten verdwijnen. Eigenaar is bewust de analyse óf het merk en niet allebei op één hoop: een
+mislukte meting van analyse A zegt niets over analyse B van hetzelfde merk. Vier tests, waarvan één
+letterlijk de rijen van productie. 932 unittests.

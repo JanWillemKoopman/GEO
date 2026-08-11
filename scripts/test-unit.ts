@@ -162,7 +162,9 @@ import {
   needsAttention,
   totals,
   sortForCsm,
+  unresolvedFailures,
   type CsmBrand,
+  type JobOutcome,
 } from "@/lib/csm";
 import {
   BRAND_FIELDS,
@@ -4353,6 +4355,52 @@ group("de volgorde binnen een maand (plan-order)", () => {
 
 // ════════════════════════════════════════════════════════════════════════════
 console.log("\nHet CSM-paneel (fase 8, csm.ts)");
+
+
+group("welke mislukkingen tellen nog? (unresolvedFailures)", () => {
+  // ⚠️ HET ECHTE GEVAL, van productie, 11 augustus 2026.
+  //
+  // Het merkonderzoek van Van den Udenhout faalde op 5 en 6 augustus drie keer
+  // met "You have no credits remaining", en op 9 augustus liep datzelfde
+  // onderzoek gewoon door tot en met de synthese. Het CSM-paneel telde alle drie
+  // de mislukkingen en zette het merk daardoor eeuwig bovenaan onder
+  // "Vastgelopen". Een teller die nooit meer op nul komt, leer je negeren.
+  const merk = "profile:78ddba40";
+  const echt: JobOutcome[] = [
+    { type: "profile_research", ownerKey: merk, status: "failed", at: "2026-08-05T21:30:15Z" },
+    { type: "profile_research", ownerKey: merk, status: "failed", at: "2026-08-05T21:50:14Z" },
+    { type: "profile_research", ownerKey: merk, status: "failed", at: "2026-08-06T21:49:18Z" },
+    { type: "profile_research", ownerKey: merk, status: "done", at: "2026-08-09T20:27:17Z" },
+    { type: "profile_synthesis", ownerKey: merk, status: "done", at: "2026-08-09T20:32:51Z" },
+  ];
+  ok("werk dat later alsnog lukte telt niet meer", unresolvedFailures(echt).length === 0);
+
+  // Andersom telt hij wél: eerst gelukt, daarna stuk, is stuk.
+  const opnieuwStuk: JobOutcome[] = [
+    { type: "profile_research", ownerKey: merk, status: "done", at: "2026-08-01T10:00:00Z" },
+    { type: "profile_research", ownerKey: merk, status: "failed", at: "2026-08-09T10:00:00Z" },
+  ];
+  ok("een nieuwe mislukking ná een succes telt wel", unresolvedFailures(opnieuwStuk).length === 1);
+
+  // Een ander soort taak lost niets op: dat de synthese lukte, zegt niets over
+  // een mislukte meting.
+  const anderSoort: JobOutcome[] = [
+    { type: "measure_prompt", ownerKey: merk, status: "failed", at: "2026-08-01T10:00:00Z" },
+    { type: "profile_synthesis", ownerKey: merk, status: "done", at: "2026-08-02T10:00:00Z" },
+  ];
+  ok("een ander taaksoort lost de mislukking niet op", unresolvedFailures(anderSoort).length === 1);
+
+  // En een andere eigenaar ook niet: een geslaagde meting van analyse B zegt
+  // niets over de mislukte meting van analyse A.
+  const andereEigenaar: JobOutcome[] = [
+    { type: "measure_prompt", ownerKey: "analysis:a", status: "failed", at: "2026-08-01T10:00:00Z" },
+    { type: "measure_prompt", ownerKey: "analysis:b", status: "done", at: "2026-08-02T10:00:00Z" },
+  ];
+  ok(
+    "een geslaagde taak van een andere analyse telt niet mee",
+    unresolvedFailures(andereEigenaar).length === 1,
+  );
+});
 
 group("segmentOf: elk merk in precies één segment", () => {
   const merk = (over: Partial<CsmBrand> = {}): CsmBrand => ({

@@ -97,6 +97,57 @@ export const CSM_SEGMENT_META: Record<CsmSegment, SegmentMeta> = {
   },
 };
 
+/**
+ * Eén afgeronde taak, alleen wat nodig is om te bepalen of een mislukking nog
+ * telt.
+ */
+export interface JobOutcome {
+  type: string;
+  /** `profile:<id>` of `analysis:<id>`. Twee eigenaren, één sleutel. */
+  ownerKey: string;
+  status: "failed" | "done";
+  /** ISO-tijd waarop de taak eindigde. */
+  at: string;
+}
+
+/**
+ * Welke mislukkingen tellen nog?
+ *
+ * ── DE FOUT DIE DIT REPAREERT, GEVONDEN OP PRODUCTIE ────────────────────────
+ *
+ * Het CSM-paneel telde eerst álle taken met status `failed`, zonder grens. Bij
+ * het eerste merk dat het scherm liet zien ging dat meteen mis: het merkonderzoek
+ * van Van den Udenhout faalde op 5 en 6 augustus drie keer met "You have no
+ * credits remaining", en op 9 augustus liep precies datzelfde onderzoek gewoon
+ * door tot en met de synthese. Het merk is dus af, maar stond in het paneel
+ * eeuwig onder "Vastgelopen", bovenaan, met een rode teller.
+ *
+ * Een teller die nooit meer op nul komt, is een teller die je leert negeren, en
+ * daarmee zou het duurste segment van het scherm waardeloos zijn geworden.
+ *
+ * ── DE REGEL ────────────────────────────────────────────────────────────────
+ *
+ * Een mislukte taak telt alleen als er daarná geen geslaagde taak van hetzélfde
+ * soort voor dezelfde eigenaar is. Dat is precies wat "vastgelopen" hoort te
+ * betekenen: het werk is nooit alsnog gelukt. Geen tijdvenster van zoveel dagen,
+ * want dat is een gok; dit is een feit uit de wachtrij zelf.
+ */
+export function unresolvedFailures(jobs: JobOutcome[]): JobOutcome[] {
+  const laatsteSucces = new Map<string, string>();
+  for (const j of jobs) {
+    if (j.status !== "done") continue;
+    const sleutel = `${j.ownerKey}|${j.type}`;
+    const huidig = laatsteSucces.get(sleutel);
+    if (!huidig || j.at > huidig) laatsteSucces.set(sleutel, j.at);
+  }
+
+  return jobs.filter((j) => {
+    if (j.status !== "failed") return false;
+    const succes = laatsteSucces.get(`${j.ownerKey}|${j.type}`);
+    return !succes || succes <= j.at;
+  });
+}
+
 /** Eén merk, zoals het CSM-paneel het ziet. */
 export interface CsmBrand {
   profileId: string;
