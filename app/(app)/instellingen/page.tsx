@@ -1,6 +1,7 @@
 import { requireUser } from "@/lib/auth";
 import { PageHeader } from "@/components/page-header";
 import { TeamBox } from "./team-box";
+import { AccountBox } from "./account-box";
 import { accountsOf, membershipsOf } from "@/lib/accounts";
 import { isStaff } from "@/lib/staff";
 import { mayInvite } from "@/lib/invite-rules";
@@ -54,6 +55,15 @@ export default async function InstellingenPage() {
           binnenkort.
         </p>
       </div>
+
+      {teams.map((t) => (
+        <AccountBox
+          key={`account-${t.account.id}`}
+          account={t.account}
+          // Alleen een admin van dít account mag wijzigen; een member leest mee.
+          mayEdit={t.rol === "admin" || staff}
+        />
+      ))}
 
       {teams.map((t) => (
         <TeamBox

@@ -1968,3 +1968,27 @@ auditpagina.
 `Math.random()` benaderd. Dan kan dezelfde meting bij de ene render "gelijk gebleven" zeggen en bij
 de volgende "een echte stijging". Hij komt nu uit het werkelijke aantal metingen van die periode.
 983 unittests.
+
+**Fase 7, het accountscherm (11 augustus 2026).** Uitgesteld uit fase 3, nu af. Bedrijfsgegevens,
+factuuradres en contactpersoon staan bij het ACCOUNT en niet bij het merk, want een bureau met vijf
+merken factureert één keer (besluit 9). Het btw-nummer heeft Nova's aparte vinkje "niet van
+toepassing": het verschil tussen "nog niet ingevuld" en "bestaat niet" is echt, een stichting hééft
+geen btw-nummer, en één leeg veld zou die twee op één hoop gooien en het scherm eeuwig onaf laten
+lijken.
+
+**Opzeggen is een datum, geen knop die iets weggooit** (besluit 14). De bevestiging zegt met zoveel
+woorden wat er blijft staan en wat er verandert, want "abonnement opzeggen" leest anders als "alles
+kwijt".
+
+**Wat een klant NIET zelf mag zetten, met een test eromheen.** Het pakket is een verkoopafspraak, geen
+instelling: kon een klant zichzelf op 40 zetten, dan is de afspraak een suggestie. `started_at`,
+`cancelled_at` en de waarde per vermelding staan er om dezelfde reden buiten. `lib/account-editable.ts`
+is dezelfde constructie als `lib/profile-editable.ts`, en die bestaat omdat daar één veld wél in de
+wizard stond en niet in de opslagroute, en dus stilzwijgend niets bewaarde terwijl de melding
+"opgeslagen" zei. De test controleert nu beide kanten: elk zichtbaar veld is opslaanbaar, en de
+verboden velden zitten er niet in.
+
+**De donkere modus is bewust niet in deze ronde gedaan.** 107 kleur-tokens hebben elk een doordachte
+donkere tegenhanger nodig, en mechanisch omkeren levert grijze modder op. Het resultaat moet je op elk
+scherm zien om het te kunnen beoordelen, en dat kan niet blind. Staat in `docs/tasks/roadmap.md` met
+de volgorde erbij. 986 unittests.

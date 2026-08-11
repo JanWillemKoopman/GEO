@@ -155,6 +155,7 @@ import {
 } from "@/lib/plan-writing";
 import { swapWithNeighbour, canMove, type OrderablePage } from "@/lib/plan-order";
 import { milestones } from "@/lib/milestones";
+import { EDITABLE_ACCOUNT_FIELDS } from "@/lib/account-editable";
 import { opportunities, shareLabel } from "@/lib/opportunities";
 import { insights } from "@/lib/insights";
 import { normalizeProperty } from "@/lib/search-console/property";
@@ -4795,6 +4796,52 @@ group("insights: drie zinnen, en de ruis is de hoofdregel", () => {
   ok(
     "publiceren gaat voor op nieuwe kansen",
     wachtOpPublicatie[2].text.includes("online"),
+  );
+});
+
+group("de bewerkbare accountvelden (fase 7)", () => {
+  // ⚠️ HETZELFDE VANGNET DAT BIJ HET MERKPROFIEL EEN ECHTE BUG VING.
+  //
+  // `proof_points` stond wél in de wizard maar niet in de bewerkbare velden van
+  // de PATCH-route, en sloeg dus stilzwijgend niets op terwijl de melding
+  // "opgeslagen" zei. Dit is dezelfde controle voor het account: elk veld dat
+  // het scherm toont, moet opslaanbaar zijn.
+  const opHetScherm = [
+    "legal_name",
+    "contact_person",
+    "address",
+    "postal_code",
+    "city",
+    "country",
+    "invoice_email",
+    "contact_phone",
+    "vat_number",
+    "vat_not_applicable",
+  ];
+  ok(
+    "elk veld op het accountscherm is ook opslaanbaar",
+    opHetScherm.every((v) => (EDITABLE_ACCOUNT_FIELDS as readonly string[]).includes(v)),
+  );
+
+  // ⚠️ En andersom: wat er NIET in mag, mag er ook niet in sluipen. Zou een
+  // klant zijn eigen pakket kunnen zetten, dan is de verkoopafspraak een
+  // suggestie; zou hij `cancelled_at` kunnen zetten, dan gaat opzeggen zonder
+  // bevestiging.
+  const verboden = [
+    "package_pages_per_month",
+    "started_at",
+    "cancelled_at",
+    "value_per_mention_eur",
+    "name",
+    "id",
+  ];
+  ok(
+    "het pakket en de levenscyclus staan er niet in",
+    verboden.every((v) => !(EDITABLE_ACCOUNT_FIELDS as readonly string[]).includes(v)),
+  );
+  ok(
+    "geen dubbele velden",
+    new Set(EDITABLE_ACCOUNT_FIELDS).size === EDITABLE_ACCOUNT_FIELDS.length,
   );
 });
 

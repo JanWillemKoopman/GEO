@@ -187,3 +187,27 @@ rekenen:
 De goedkoopste manier om dit te deblokkeren: één van de twee geschreven pagina's van Van den Udenhout
 echt publiceren en in het plan als geplaatst markeren. Daarna draait de keten publiceren, controleren,
 effect meten voor het eerst van begin tot eind.
+
+## Fase 5, wat er wacht op de Google-sleutel (11 augustus 2026)
+
+| Wat | Waarom het wacht |
+|---|---|
+| Het analysescherm met kliks naast AI-zichtbaarheid in één grafiek | Er is nog geen enkele rij in `search_console_days`, want `GOOGLE_SERVICE_ACCOUNT_JSON` is nog niet ingesteld. Een grafiek met één lege lijn is niet na te rekenen |
+
+De koppeling zelf staat er wél: het scherm, de controle, de dagelijkse taak en het gedrag bij 403 en
+404. Zodra de sleutel er is en één property gekoppeld is, is dat scherm ongeveer een halve dag werk
+en meteen te verifiëren.
+
+## Fase 7, wat er nog open staat (11 augustus 2026)
+
+Het accountscherm is af: bedrijfsgegevens, het btw-vinkje, het pakket, en opzeggen als datum
+(besluit 14). Wat rest is de **donkere modus**.
+
+Dat is bewust niet in dezelfde ronde gedaan. `app/globals.css` heeft 107 kleur-tokens in het
+`:root`-blok, en die hebben elk een doordachte donkere tegenhanger nodig; mechanisch omkeren levert
+grijze modder op. Het haakje staat er al (`:root[data-theme="light"]`), dus de structuur hoeft niet
+om, maar het resultaat moet je op elk scherm zien om het te kunnen beoordelen. Reken op een halve
+tot een hele dag, en doe het in een ronde waarin je de schermen naast elkaar kunt leggen.
+
+Volgorde als je hem oppakt: eerst de neutralen en de vlakken, dan de zeven intents, dan de
+gloed-effecten uit `docs/designsystem.md`, en pas daarna de schakelaar in het accountscherm.
