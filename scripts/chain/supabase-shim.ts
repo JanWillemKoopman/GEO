@@ -67,6 +67,7 @@ class QueryBuilder<T> implements PromiseLike<Antwoord<T>> {
   private telling: "exact" | null = null;
   private headOnly = false;
   private kolommen = "*";
+  private genest: Embed[] = [];
 
   constructor(
     private client: Client,
@@ -81,7 +82,18 @@ class QueryBuilder<T> implements PromiseLike<Antwoord<T>> {
     // een echte select bepaalt hij de kolommen. In beide gevallen halen we
     // gewoon alles op: minder kolommen levert hier geen snelheid en wél de kans
     // dat een test iets mist wat de productiecode wél zou zien.
-    this.kolommen = kolommen.includes("(") ? "*" : "*";
+    this.kolommen = "*";
+    // ⚠️ GENESTE SELECTS WERDEN HIER STIL WEGGEGOOID.
+    //
+    // `"*, accounts(name)"` werd simpelweg `*`, en dan mist het antwoord de
+    // geneste tabel zonder dat iemand iets merkt. Dat is precies het "stil
+    // afwijken" dat de kop van dit bestand verbiedt, en het kostte een valse
+    // testfout: `lookupInvite()` leek de accountnaam niet terug te geven,
+    // terwijl PostgREST hem op productie gewoon levert.
+    //
+    // Nu worden ze uitgevoerd (zie `voegGenesteToe`), en wat de shim niet kan
+    // gooit met de reden erin.
+    this.genest = parseEmbeds(kolommen);
     if (opties?.count) this.telling = opties.count;
     if (opties?.head) this.headOnly = true;
     return this;
@@ -147,6 +159,18 @@ class QueryBuilder<T> implements PromiseLike<Antwoord<T>> {
         params.push(waarde);
       } else if (op === "is" && waarde === "null") {
         stukken.push(`${kolom(kol)} is null`);
+      } else if (op === "in") {
+        // PostgREST schrijft dit als `kolom.in.(a,b,c)`. Gebruikt door
+        // `listBrands()`: "mijn eigen merken OF de merken van mijn accounts".
+        // Een lege lijst is `()` en betekent "niets", niet "alles".
+        const binnen = waarde.replace(/^\(/, "").replace(/\)$/, "");
+        const items = binnen.split(",").map((x) => x.trim()).filter(Boolean);
+        if (items.length === 0) {
+          stukken.push("false");
+        } else {
+          stukken.push(`${kolom(kol)} = any($$)`);
+          params.push(items);
+        }
       } else {
         fout(`.or() met "${deel}"`);
       }
@@ -206,6 +230,9 @@ class QueryBuilder<T> implements PromiseLike<Antwoord<T>> {
   private async run(): Promise<Antwoord<T>> {
     try {
       const rijen = await this.execute();
+      if (this.genest.length > 0 && rijen.length > 0) {
+        await voegGenesteToe(this.client, this.tabel, rijen, this.genest);
+      }
 
       if (this.enkel === "single") {
         if (rijen.length !== 1) {
@@ -347,6 +374,122 @@ function serialiseer(waarde: unknown): unknown {
  * typechecker bewaakt maar door de test zelf, en door het feit dat elke
  * onbekende aanroep gooit.
  */
+/** Eén geneste tabel uit een select, bv. `accounts(name)`. */
+interface Embed {
+  tabel: string;
+  /** De naam waaronder hij in het antwoord komt te staan. */
+  alias: string;
+}
+
+/**
+ * Haalt de geneste tabellen uit een selectstring.
+ *
+ * Gooit bij alles wat deze shim niet kan: `!inner`, `!left` en geneste filters
+ * veranderen de RIJEN van de hoofdquery, en dat stil negeren zou een test laten
+ * slagen op data die productie nooit zou teruggeven.
+ */
+function parseEmbeds(kolommen: string): Embed[] {
+  if (!kolommen.includes("(")) return [];
+
+  const embeds: Embed[] = [];
+  let diepte = 0;
+  let huidig = "";
+  const delen: string[] = [];
+  for (const teken of kolommen) {
+    if (teken === "(") diepte++;
+    if (teken === ")") diepte--;
+    if (teken === "," && diepte === 0) {
+      delen.push(huidig);
+      huidig = "";
+      continue;
+    }
+    huidig += teken;
+  }
+  if (huidig.trim()) delen.push(huidig);
+
+  for (const deel of delen) {
+    const schoon = deel.trim();
+    const haakje = schoon.indexOf("(");
+    if (haakje === -1) continue; // gewone kolom
+
+    const naam = schoon.slice(0, haakje).trim();
+    if (naam.includes("!")) {
+      fout(
+        `geneste select met "${naam}" wordt niet ondersteund: !inner en !left bepalen ` +
+          `welke rijen de hoofdquery teruggeeft, en dat kan deze shim niet nabootsen`,
+      );
+    }
+    if (schoon.slice(haakje + 1, schoon.length - 1).includes("(")) {
+      fout(`dubbel geneste select ("${naam}") wordt niet ondersteund`);
+    }
+    embeds.push({ tabel: naam, alias: naam });
+  }
+  return embeds;
+}
+
+/** Gevonden foreign keys, per (ouder → kind). Eén keer opzoeken is genoeg. */
+const fkCache = new Map<string, string>();
+
+/**
+ * Vult de geneste tabellen aan op de opgehaalde rijen.
+ *
+ * De koppeling komt uit de ECHTE foreign keys van de testdatabase en niet uit
+ * een naamconventie: `profile_topics` hangt aan `analyses` via `analysis_id`,
+ * maar `planned_pages` hangt aan `profile_topics` via `topic_id`. Een conventie
+ * zou daar omvallen; de catalogus weet het gewoon.
+ */
+async function voegGenesteToe(
+  client: Client,
+  ouder: string,
+  rijen: Rij[],
+  embeds: Embed[],
+): Promise<void> {
+  for (const embed of embeds) {
+    const sleutel = `${ouder}→${embed.tabel}`;
+    let fkKolom = fkCache.get(sleutel);
+
+    if (!fkKolom) {
+      const { rows } = await client.query(
+        `select kcu.column_name
+           from information_schema.table_constraints tc
+           join information_schema.key_column_usage kcu
+             on kcu.constraint_name = tc.constraint_name
+           join information_schema.constraint_column_usage ccu
+             on ccu.constraint_name = tc.constraint_name
+          where tc.constraint_type = 'FOREIGN KEY'
+            and tc.table_name = $1
+            and ccu.table_name = $2
+          limit 1`,
+        [ouder, embed.tabel],
+      );
+      if (rows.length === 0) {
+        fout(
+          `geen foreign key gevonden van "${ouder}" naar "${embed.tabel}", ` +
+            `dus deze geneste select is niet na te bootsen`,
+        );
+      }
+      fkKolom = rows[0].column_name as string;
+      fkCache.set(sleutel, fkKolom);
+    }
+
+    const ids = [...new Set(rijen.map((r) => r[fkKolom]).filter((v) => v !== null && v !== undefined))];
+    if (ids.length === 0) {
+      for (const r of rijen) r[embed.alias] = null;
+      continue;
+    }
+
+    const { rows: kinderen } = await client.query(
+      `select * from public.${embed.tabel} where id = any($1::uuid[])`,
+      [ids],
+    );
+    const opId = new Map(kinderen.map((k) => [k.id, k]));
+    for (const r of rijen) {
+      const id = r[fkKolom];
+      r[embed.alias] = id ? (opId.get(id) ?? null) : null;
+    }
+  }
+}
+
 export function createShimClient(client: Client) {
   return {
     from(tabel: string) {
@@ -362,6 +505,50 @@ export function createShimClient(client: Client) {
     },
     rpc() {
       fout("rpc() wordt niet ondersteund");
+    },
+
+    /**
+     * De auth-beheerkant, net genoeg om het uitnodigingspad te kunnen testen.
+     *
+     * ── WAAROM DIT ERBIJ MOEST ──────────────────────────────────────────────
+     *
+     * `acceptInvite()` maakt de gebruiker aan met `admin.auth.admin.createUser`,
+     * en dat is precies de stap waar het misgaat als hij misgaat: de link is dan
+     * verbruikt en de klant staat buiten. Zonder deze drie functies was dat pad
+     * alleen met de hand te testen, en het is het eerste dat een échte klant
+     * doet.
+     *
+     * `auth.users` bestaat gewoon in de testdatabase (de migraties maken hem
+     * aan), dus dit schrijft naar de echte tabel en niet naar een lijstje in
+     * geheugen. Daardoor gelden de foreign keys en de unieke index op het adres
+     * ook echt: een tweede uitnodiging voor hetzelfde adres botst hier net zo
+     * hard als op productie.
+     */
+    auth: {
+      admin: {
+        async createUser(input: { email: string; password?: string; email_confirm?: boolean }) {
+          try {
+            const { rows } = await client.query(
+              `insert into auth.users (id, email) values (gen_random_uuid(), $1) returning id, email`,
+              [input.email],
+            );
+            return { data: { user: { id: rows[0].id, email: rows[0].email } }, error: null };
+          } catch (err) {
+            return {
+              data: { user: null },
+              error: { message: err instanceof Error ? err.message : String(err) },
+            };
+          }
+        },
+        async listUsers(_opties?: { page?: number; perPage?: number }) {
+          const { rows } = await client.query(`select id, email from auth.users order by email`);
+          return { data: { users: rows }, error: null };
+        },
+        async deleteUser(id: string) {
+          await client.query(`delete from auth.users where id = $1`, [id]);
+          return { data: null, error: null };
+        },
+      },
     },
   } as never;
 }

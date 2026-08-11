@@ -874,6 +874,218 @@ async function main(): Promise<void> {
       `status is ${naFout[0].status}`,
     );
 
+    // ══════════════════════════════════════════════════════════════════════
+    // Het uitnodigingspad (0046/0047, fase 2)
+    //
+    // ⚠️ DIT IS HET EERSTE WAT EEN ECHTE KLANT DOET, en het was nog nooit van
+    // begin tot eind gelopen. De keten is: de consultant maakt een uitnodiging,
+    // stuurt de link door, de klant kiest een wachtwoord, en ziet daarna zijn
+    // merk. Breekt er één schakel, dan staat de klant buiten met een verbruikte
+    // link, en dat is niet te herstellen zonder nieuwe uitnodiging.
+    //
+    // Registreren staat dicht (`signupsEnabled`), dus dit is de ENIGE deur naar
+    // binnen. Er is geen tweede pad dat het opvangt.
+    // ══════════════════════════════════════════════════════════════════════
+    console.log("\nHet uitnodigingspad: van link tot toegang");
+
+    const { createInvite, lookupInvite, acceptInvite } = await import("@/lib/invites");
+    const { getOwnedProfile: ownedProfile } = await import("@/lib/profiles");
+
+    // Het account waar het merk aan hangt. De backfill van 0046 maakte er één
+    // per eigenaar; hier zetten we hem expliciet zodat de test niet afhangt van
+    // wat eerdere scenario's deden.
+    const accountId = randomUUID();
+    await db.client.query(
+      `insert into public.accounts (id, name) values ($1, 'Fysi-Unique BV')`,
+      [accountId],
+    );
+    await db.client.query(`update public.profiles set account_id = $1 where id = $2`, [
+      accountId,
+      profileId,
+    ]);
+
+    const klantAdres = `klant-${Date.now()}@voorbeeld.nl`;
+    const uitnodiging = await createInvite({
+      accountId,
+      email: klantAdres.toUpperCase(), // hoofdletters: adressen zijn ongevoelig
+      role: "member",
+      invitedBy: userId,
+    });
+    ok("de uitnodiging wordt aangemaakt", uitnodiging !== null);
+    ok(
+      "het adres wordt kleingeschreven opgeslagen",
+      uitnodiging?.invite.email === klantAdres.toLowerCase(),
+    );
+
+    // ⚠️ Alleen de HASH staat in de database. Het ruwe token bestaat precies één
+    // keer, in het antwoord van de route, en wordt nergens bewaard.
+    const { rows: hashRij } = await db.client.query(
+      `select token_hash from public.account_invites where id = $1`,
+      [uitnodiging!.invite.id],
+    );
+    ok(
+      "het ruwe token staat niet in de database",
+      hashRij[0].token_hash !== uitnodiging!.token && String(hashRij[0].token_hash).length === 64,
+    );
+
+    const gevonden = await lookupInvite(uitnodiging!.token);
+    ok("de link vindt zijn uitnodiging terug", gevonden.state === "geldig");
+    ok("met de accountnaam erbij, voor op het scherm", gevonden.accountName === "Fysi-Unique BV");
+    ok("een verzonnen token vindt niets", (await lookupInvite("bestaat-niet")).state === "ongeldig");
+
+    // Een te zwak wachtwoord mag de link NIET verbruiken: anders staat de klant
+    // buiten omdat hij één keer iets te kort typte.
+    const zwak = await acceptInvite(uitnodiging!.token, "kort");
+    ok("een zwak wachtwoord wordt geweigerd", !zwak.ok && zwak.reason === "zwak");
+    ok(
+      "en verbruikt de link niet",
+      (await lookupInvite(uitnodiging!.token)).state === "geldig",
+    );
+
+    const geaccepteerd = await acceptInvite(uitnodiging!.token, "Wachtwoord1");
+    ok("met een geldig wachtwoord komt de klant binnen", geaccepteerd.ok);
+
+    const { rows: nieuweGebruiker } = await db.client.query(
+      `select id from auth.users where email = $1`,
+      [klantAdres.toLowerCase()],
+    );
+    ok("er is een gebruiker aangemaakt", nieuweGebruiker.length === 1);
+
+    const { rows: lidmaatschap } = await db.client.query(
+      `select role from public.account_users where account_id = $1 and user_id = $2`,
+      [accountId, nieuweGebruiker[0].id],
+    );
+    ok("met een lidmaatschap op het account", lidmaatschap.length === 1);
+    ok("in de rol uit de uitnodiging", lidmaatschap[0].role === "member");
+
+    // ⚠️ DE ASSERTIE WAAR HET OM DRAAIT. Een klant die binnenkomt en zijn merk
+    // niet ziet, is een mislukte onboarding, ook al klopte elke stap ervoor.
+    // Dit loopt over de derde toegangslaag van migratie 0046: hij is niet de
+    // eigenaar van het profiel en geen beheerder, alleen lid van het account.
+    const merkVoorKlant = await ownedProfile(adminClient, profileId, nieuweGebruiker[0].id);
+    ok(
+      "en de klant ziet zijn merk via het account",
+      merkVoorKlant?.id === profileId,
+      "de derde toegangslaag (account_users) liet hem er niet in",
+    );
+
+    // De link is nu op. Twee keer dezelfde link gebruiken zou betekenen dat een
+    // doorgestuurde mail een tweede toegang oplevert.
+    ok(
+      "de link is verbruikt",
+      (await lookupInvite(uitnodiging!.token)).state === "gebruikt",
+    );
+    ok(
+      "en een tweede poging wordt geweigerd",
+      !(await acceptInvite(uitnodiging!.token, "Wachtwoord1")).ok,
+    );
+
+    // Een uitnodiging voor iemand die al een account heeft, voegt alleen het
+    // lidmaatschap toe. Zou hij een wachtwoord zetten, dan was een uitnodiging
+    // een overnameroute voor een bestaand account.
+    const tweedeUitnodiging = await createInvite({
+      accountId,
+      email: klantAdres,
+      role: "admin",
+      invitedBy: userId,
+    });
+    const nogmaals = await acceptInvite(tweedeUitnodiging!.token, "Wachtwoord2");
+    ok("een bestaand adres krijgt alleen het lidmaatschap", nogmaals.ok);
+    const { rows: naTweede } = await db.client.query(
+      `select count(*) as n from auth.users where email = $1`,
+      [klantAdres.toLowerCase()],
+    );
+    ok("er komt geen tweede gebruiker bij", Number(naTweede[0].n) === 1);
+    const { rows: rolNa } = await db.client.query(
+      `select role from public.account_users where account_id = $1 and user_id = $2`,
+      [accountId, nieuweGebruiker[0].id],
+    );
+    ok("en de rol wordt bijgewerkt", rolNa[0].role === "admin");
+
+    // Een ingetrokken uitnodiging werkt niet meer, ook al is hij niet verlopen.
+    const derde = await createInvite({
+      accountId,
+      email: `ander-${Date.now()}@voorbeeld.nl`,
+      role: "member",
+      invitedBy: userId,
+    });
+    await db.client.query(
+      `update public.account_invites set revoked_at = now() where id = $1`,
+      [derde!.invite.id],
+    );
+    ok(
+      // ⚠️ Ingetrokken leest als "ongeldig" en NIET als "gebruikt": anders denkt
+      // de ontvanger dat hij een account heeft dat hij nooit gekregen heeft.
+      "een ingetrokken uitnodiging is ongeldig en niet 'al gebruikt'",
+      (await lookupInvite(derde!.token)).state === "ongeldig",
+    );
+
+    // ══════════════════════════════════════════════════════════════════════
+    // Wat de klant ziet als hij binnen is
+    //
+    // ⚠️ Een klant is GEEN eigenaar en GEEN beheerder. Hij komt binnen via de
+    // derde toegangslaag van migratie 0046: lid van het account. Elke lees-query
+    // in de app loopt over `getOwnedProfile` of `getOwnedAnalysis`, en als daar
+    // één van de drie lagen ontbreekt ziet de klant een lege app terwijl alles
+    // er gewoon staat. Dat is de duurste denkbare eerste indruk.
+    // ══════════════════════════════════════════════════════════════════════
+    console.log("\nWat de klant ziet als hij binnen is");
+
+    const klantId = nieuweGebruiker[0].id as string;
+    const { getOwnedAnalysis: ownedAnalysis } = await import("@/lib/analyses");
+    const { listBrands } = await import("@/lib/workspace");
+    const { accountIdsOf, isMember } = await import("@/lib/accounts");
+
+    ok("de klant is lid van het account", await isMember(klantId, accountId));
+    ok(
+      "en dat account staat in zijn lijst",
+      (await accountIdsOf(klantId)).includes(accountId),
+    );
+
+    const merken = await listBrands(klantId);
+    ok(
+      "zijn merk staat in de merkkiezer",
+      merken.some((m) => m.id === profileId),
+      `${merken.length} merken gevonden`,
+    );
+
+    // ⚠️ De analyse hangt aan een ANDERE gebruiker (0038 wees hem toe), en de
+    // klant komt er alleen bij via het account van het merk. Zonder die route
+    // ziet hij zijn merk wél en zijn metingen niet.
+    ok(
+      "hij ziet de analyse van zijn merk",
+      (await ownedAnalysis(adminClient, analysisId, klantId))?.id === analysisId,
+    );
+
+    // En het omgekeerde moet ook kloppen: een merk van een ánder account blijft
+    // dicht. Zonder deze assertie zou een te ruime regel onopgemerkt blijven,
+    // want alle andere tests kijken alleen of iemand er wél in komt.
+    const vreemdAccount = randomUUID();
+    const vreemdProfiel = randomUUID();
+    await db.client.query(
+      `insert into public.accounts (id, name) values ($1, 'Ander bedrijf')`,
+      [vreemdAccount],
+    );
+    await db.client.query(
+      `insert into public.profiles (id, user_id, account_id, name, url, status)
+       values ($1, $2, $3, 'Ander merk', 'https://ander.nl', 'klaar')`,
+      [vreemdProfiel, userId, vreemdAccount],
+    );
+    ok(
+      "een merk van een ander account blijft dicht",
+      (await ownedProfile(adminClient, vreemdProfiel, klantId)) === null,
+    );
+
+    // Het contentplan van zijn merk moet leesbaar zijn: dat is het scherm waar
+    // hij maandelijks iets moet goedkeuren.
+    const { loadPlan } = await import("@/lib/plans");
+    const planVoorKlant = await loadPlan(adminClient, profileId);
+    ok(
+      "het contentplan is te laden voor zijn merk",
+      planVoorKlant !== null && planVoorKlant.months.length > 0,
+      planVoorKlant === null ? "geen plan gevonden" : `${planVoorKlant.months.length} maanden`,
+    );
+
     __setTestAdminClient(null);
     __setTestTransport(null);
   } finally {

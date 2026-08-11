@@ -1998,3 +1998,36 @@ designronde voor de enige fase in het plan met impact "laag", bij een product da
 demogesprek verkocht wordt en dus altijd op één scherm in één stand getoond wordt. Fase 7 krimpt
 daarmee van 2 naar 1 dag en het totaal van 47 naar 46. De tokennamen blijven op twee standen
 ingericht, maar dat is nu gewoon betere naamgeving en geen voorbereiding meer.
+
+**Het uitnodigingspad nagespeeld, en het legde een echte fout bloot (11 augustus 2026).** Van den
+Udenhout wordt binnenkort echt onboard, en het pad dat hij aflegt was nog nooit van begin tot eind
+gelopen: uitnodiging aanmaken, link doorsturen, wachtwoord kiezen, binnenkomen, merk zien. Registreren
+staat dicht, dus dit is de énige deur naar binnen; er is geen tweede pad dat het opvangt.
+
+**De vondst: `getOwnedAnalysis()` miste de accountlaag.** `getOwnedProfile()` kreeg bij migratie 0046
+een derde laag (lid van het account) en deze functie niet. De RLS op `analyses` kreeg hem wél
+(`analyses_select_account`), en juist dáárdoor was het bijna onzichtbaar: een uitgenodigde klant zág
+zijn analyses gewoon, want lezen loopt over RLS. Maar élke schrijfactie loopt over deze functie,
+vragen bevestigen, content laten schrijven, een pagina goedkeuren, archiveren, en die gaven allemaal
+404 voor precies de persoon voor wie het product bedoeld is. In Nova's model is "de klant keurt goed"
+de hele rol van de klant, en goedkeuren is een schrijfactie. Dit had de eerste dag van de eerste
+echte klant geraakt.
+
+**De ketentest kon dit pas zien nadat de harnas zelf gerepareerd was.** Twee gaten:
+
+1. **Geen auth-laag.** `acceptInvite()` maakt de gebruiker aan met `admin.auth.admin.createUser`, en
+   dat kon de shim niet. Nu schrijft hij naar de échte `auth.users` van de testdatabase, dus de
+   foreign keys en de unieke index op het adres gelden ook echt.
+2. **Geneste selects werden STIL weggegooid.** `"*, accounts(name)"` werd simpelweg `*`. Dat is
+   precies het "stil afwijken" dat de kop van dat bestand verbiedt, en het kostte meteen een valse
+   testfout: `lookupInvite()` leek de accountnaam niet terug te geven terwijl PostgREST hem op
+   productie gewoon levert. Ze worden nu echt uitgevoerd, met de koppeling uit de **werkelijke**
+   foreign keys van de testdatabase en niet uit een naamconventie: `profile_topics` hangt aan
+   `analyses` via `analysis_id`, maar `planned_pages` hangt aan `profile_topics` via `topic_id`, en
+   een conventie valt daar om. Wat de shim niet kan (`!inner`, geneste filters, dubbel geneste
+   selects) gooit nu mét de reden erin.
+
+**Zeventien nieuwe ketentests**, waarvan de scherpste: een uitgenodigde klant ziet zijn merk én zijn
+analyses, en een merk van een ánder account blijft dicht. Die laatste stond er niet voor niets: alle
+andere asserties kijken of iemand er wél in komt, en dan blijft een te ruime regel onopgemerkt.
+77 ketentests, 986 unittests.
