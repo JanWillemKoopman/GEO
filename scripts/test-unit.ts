@@ -5000,14 +5000,16 @@ group("geoBalance en het vangnet", () => {
 
   const b = geoBalance(tien, regios, 10);
   ok("drie van de tien zijn regionaal", b.regionaal === 3);
-  // ⚠️ Dit is precies het geval van Van den Udenhout: 38% waar 70% nodig is.
-  ok("bij tien vragen zijn er zeven nodig", b.nodig === 7);
-  ok("dus vier tekort", b.tekort === 4);
+  // ⚠️ Bij een lokaal merk moeten ze ALLEMAAL regionaal zijn. Een score is een
+  // aandeel, en een vraag die dit bedrijf per definitie niet kan winnen maakt
+  // dat aandeel niet "iets te laag" maar onwaar.
+  ok("bij tien vragen zijn er tien nodig", b.nodig === 10);
+  ok("dus zeven tekort", b.tekort === 7);
   ok("het aandeel klopt", Math.abs(b.aandeel - 0.3) < 0.001);
 
   // Het doel is het EINDaantal en niet wat er nu ligt: tijdens het bijvullen is
   // de set nog niet compleet en dan zou de drempel te laag uitvallen.
-  ok("halverwege rekent hij nog steeds op het eindaantal", geoBalance(tien.slice(0, 5), regios, 10).nodig === 7);
+  ok("halverwege rekent hij nog steeds op het eindaantal", geoBalance(tien.slice(0, 5), regios, 10).nodig === 10);
 
   ok("een volle set heeft geen tekort", geoBalance(
     ["In Eindhoven?", "In Breda?", "Bij mij in de buurt?"], regios, 3,
@@ -5027,7 +5029,7 @@ group("geoBalance en het vangnet", () => {
   ok("een lokaal merk met regio's telt", isLokaal("lokaal", ["Breda"]));
   ok("zonder regio's niet", !isLokaal("lokaal", []));
   ok("en een landelijk merk niet", !isLokaal("landelijk", ["Breda"]));
-  ok("de drempel staat op 70%", REGIO_DREMPEL === 0.7);
+  ok("bij een lokaal merk moeten alle vragen regionaal zijn", REGIO_DREMPEL === 1.0);
 });
 
 // ════════════════════════════════════════════════════════════════════════════

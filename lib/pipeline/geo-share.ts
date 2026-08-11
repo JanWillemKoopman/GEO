@@ -31,18 +31,30 @@
  */
 
 /**
- * Welk aandeel van de vragen regionaal moet zijn bij een lokaal merk.
+ * Welk aandeel van de vragen regionaal moet zijn bij een lokaal merk: ALLE.
  *
- * ── WAAROM 70% EN NIET 100% ─────────────────────────────────────────────────
+ * ── WAAROM 100% EN NIET 70% ─────────────────────────────────────────────────
  *
- * Honderd procent zou fout zijn. Ook een lokale ondernemer wint af en toe een
- * landelijke vraag ("welke merken hebben de beste garantie"), en dát is
- * informatie waar hij iets aan heeft: het zegt of hij überhaupt in beeld is
- * buiten zijn eigen straat. Zeventig procent verlegt het zwaartepunt zonder dat
- * signaal weg te gooien, en het laat drie van de tien vragen over om de bredere
- * markt te peilen.
+ * De eerste versie stond op 70%, met het argument dat een lokale ondernemer ook
+ * af en toe een landelijke vraag wint en dat dát informatie is: het zegt of hij
+ * buiten zijn eigen streek in beeld is.
+ *
+ * ⚠️ Dat argument is teruggedraaid op 11 augustus 2026, en de reden is beter dan
+ * het argument was. Een score is een AANDEEL: in hoeveel van de gemeten vragen
+ * word je genoemd. Meng je daar vragen doorheen die dit bedrijf per definitie
+ * niet kan winnen, dan is de uitkomst niet "iets te laag" maar onwaar. Van den
+ * Udenhout werkt uitsluitend in Brabant; dat hij in Drenthe niet genoemd wordt,
+ * is geen tekortkoming die je in zijn cijfer hoort te verwerken.
+ *
+ * Het signaal dat we ermee opgeven is bovendien niets waard voor de klant die
+ * dit product koopt: een installateur die alleen in Den Bosch komt, heeft geen
+ * beslissing te nemen op basis van zijn landelijke zichtbaarheid.
+ *
+ * De constante blijft bestaan en is geen `true`/`false` geworden, want een merk
+ * met bereik `landelijk` heeft hem gewoon niet nodig en een toekomstig merk met
+ * twee thuismarkten misschien wel weer op iets ertussenin.
  */
-export const REGIO_DREMPEL = 0.7;
+export const REGIO_DREMPEL = 1.0;
 
 /**
  * De twaalf provincies.

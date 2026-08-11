@@ -350,12 +350,24 @@ async function generateForFunnelStage(args: {
       if (collected.length > count) collected.length = count;
     }
 
-    const eind = geoBalance(collected.map((p) => p.text), regios, collected.length);
-    if (eind.tekort > 0) {
+    // ⚠️ WAT ER OVERBLIJFT GAAT ERUIT, en dat is de kern van deze regel.
+    //
+    // Een score is een aandeel: in hoeveel van de gemeten vragen word je
+    // genoemd. Laat je bij een lokaal merk één landelijke vraag staan, dan telt
+    // die mee in de noemer terwijl hij per definitie verloren is, en dan is het
+    // getal niet "iets te laag" maar onwaar. Liever een kleinere set die klopt:
+    // de onzekerheidsband wordt breder bij minder vragen, en dat is eerlijk
+    // zichtbaar (`lib/stats/uncertainty.ts`) in plaats van verborgen.
+    //
+    // Het scheelt bovendien geld: elke geschrapte vraag is een betaalde
+    // web_search minder, en web_search is ~94% van de meetkosten.
+    const landelijk = droppableIndices(collected.map((p) => p.text), regios, collected.length);
+    if (landelijk.length > 0) {
+      for (const i of landelijk) collected.splice(i, 1);
       console.warn(
-        `Funnelfase "${category}": ${eind.regionaal} van ${collected.length} vragen regionaal ` +
-          `(${Math.round(eind.aandeel * 100)}%), doel was ${eind.nodig}. Het model kwam er na ` +
-          `${MAX_TOPUP_ATTEMPTS} rondes niet. Regio's: ${regios.join(", ")}.`,
+        `Funnelfase "${category}": ${landelijk.length} landelijke vragen geschrapt na ` +
+          `${MAX_TOPUP_ATTEMPTS} bijvulrondes; ${collected.length} regionale vragen over. ` +
+          `Regio's: ${regios.join(", ")}.`,
       );
     }
   }
