@@ -134,6 +134,19 @@ import {
 } from "@/lib/invite-rules";
 import { EDITABLE_PROFILE_FIELDS } from "@/lib/profile-editable";
 import {
+  buildPlan,
+  BUFFERS_PER_MONTH,
+  MONTHS_AHEAD,
+  DEFAULT_FUNNELS,
+} from "@/lib/pipeline/plan-build";
+import {
+  PLAN_STATUS_META,
+  planRunningDate,
+  shouldStartWriting,
+  countActionRequired,
+  SCHRIJFVOORSPRONG_DAGEN,
+} from "@/lib/plan-status";
+import {
   BRAND_FIELDS,
   STEP_ORDER,
   fieldsOfStep,
@@ -3369,6 +3382,235 @@ group("isActiveAccount", () => {
   ok(
     "op het moment zelf is hij verlopen",
     isActiveAccount({ cancelled_at: nu.toISOString() }, nu) === false,
+  );
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+console.log("\nHet contentplan (fase 4, migratie 0049)");
+
+group("buildPlan: de verdeling over twaalf maanden", () => {
+  const funnels = DEFAULT_FUNNELS.map((label, i) => ({
+    id: `f${i}`,
+    label,
+    sortOrder: i,
+  }));
+  const topics = Array.from({ length: 7 }, (_, i) => ({
+    id: `t${i}`,
+    title: `Onderwerp ${i}`,
+    priority: 10 - i,
+  }));
+  const start = new Date("2026-09-01T00:00:00Z");
+
+  const r = buildPlan({ startedOn: start, pagesPerMonth: 10, topics, funnels });
+  ok("geen problemen bij een compleet merk", r.problems.length === 0);
+  ok(
+    "twaalf maanden, elk met de quota plus de buffer",
+    r.pages.length === MONTHS_AHEAD * (10 + BUFFERS_PER_MONTH),
+  );
+
+  const maand1 = r.pages.filter((p) => p.monthNumber === 1);
+  ok("tien echte pagina's in maand 1", maand1.filter((p) => !p.isBuffer).length === 10);
+  ok("plus één buffer", maand1.filter((p) => p.isBuffer).length === BUFFERS_PER_MONTH);
+
+  // ⚠️ Regel 1: een klant die na drie maanden opzegt (besluit 7: dat kan) moet
+  // de béste drie maanden gehad hebben, niet een willekeurige greep.
+  ok(
+    "het hoogst geprioriteerde onderwerp staat vooraan",
+    maand1[0].topicId === "t0",
+  );
+
+  // Regel 2: elke maand raakt alle fasen aan, anders ziet de klant pas in maand
+  // zeven een pagina die iets oplevert.
+  const fasenInMaand1 = new Set(maand1.map((p) => p.funnelStageId));
+  ok("alle vier de funnelfasen komen in maand 1 voor", fasenInMaand1.size === 4);
+
+  // Regel 4: een buffer heeft geen datum, anders loopt hij mee in de cron.
+  ok(
+    "buffers hebben geen publicatiedatum",
+    r.pages.filter((p) => p.isBuffer).every((p) => p.scheduledFor === ""),
+  );
+  ok(
+    "echte pagina's hebben er wel een",
+    r.pages.filter((p) => !p.isBuffer).every((p) => /^\d{4}-\d{2}-\d{2}$/.test(p.scheduledFor)),
+  );
+
+  // De data lopen door de maanden heen vooruit, en blijven binnen dag 1 tot 28
+  // zodat februari geen uitzondering is.
+  const dagen = r.pages
+    .filter((p) => !p.isBuffer)
+    .map((p) => Number(p.scheduledFor.slice(8, 10)));
+  ok("nooit na de 28e", dagen.every((d) => d >= 1 && d <= 28));
+  ok(
+    "maand 2 ligt na maand 1",
+    r.pages.find((p) => p.monthNumber === 2 && !p.isBuffer)!.scheduledFor >
+      r.pages.find((p) => p.monthNumber === 1 && !p.isBuffer)!.scheduledFor,
+  );
+
+  // Regel 3: minder onderwerpen dan plekken is geen reden om te stoppen.
+  const weinig = buildPlan({
+    startedOn: start,
+    pagesPerMonth: 10,
+    topics: topics.slice(0, 2),
+    funnels,
+  });
+  ok(
+    "twee onderwerpen vullen alsnog het hele jaar",
+    weinig.pages.length === MONTHS_AHEAD * 11,
+  );
+
+  // ⚠️ Gevonden bij de praktijkcheck tegen Van den Udenhout: met acht
+  // onderwerpen en tien pagina's per maand kwam "Auto financieren" twee keer in
+  // maand één te staan, met exact dezelfde titel. Een plan waarin twee regels
+  // hetzelfde heten leest als een fout.
+  const titelsInMaand1 = maand1.filter((p) => !p.isBuffer).map((p) => p.title);
+  ok(
+    "geen twee pagina's met dezelfde titel in één maand",
+    new Set(titelsInMaand1).size === titelsInMaand1.length,
+  );
+  ok(
+    "de titel draagt de invalshoek",
+    maand1[0].title.includes("Auto") === false && maand1[0].title.includes("·"),
+  );
+
+  // Twee keer draaien op dezelfde invoer geeft hetzelfde plan. Zonder die
+  // eigenschap is "opnieuw genereren" een gok.
+  const nogmaals = buildPlan({ startedOn: start, pagesPerMonth: 10, topics, funnels });
+  ok(
+    "twee runs geven hetzelfde plan",
+    JSON.stringify(nogmaals.pages) === JSON.stringify(r.pages),
+  );
+});
+
+group("buildPlan: wat het weigert", () => {
+  const funnels = DEFAULT_FUNNELS.map((label, i) => ({ id: `f${i}`, label, sortOrder: i }));
+  const topics = [{ id: "t", title: "Iets", priority: 1 }];
+  const start = new Date("2026-09-01T00:00:00Z");
+
+  ok(
+    "zonder pakket geen plan",
+    buildPlan({ startedOn: start, pagesPerMonth: 0, topics, funnels }).problems.length > 0,
+  );
+  ok(
+    "zonder onderwerpen geen plan",
+    buildPlan({ startedOn: start, pagesPerMonth: 10, topics: [], funnels }).problems.length > 0,
+  );
+  // Nova eist er drie tot vijf vóór ze een strategie laten genereren.
+  ok(
+    "met twee funnelfasen geen plan",
+    buildPlan({ startedOn: start, pagesPerMonth: 10, topics, funnels: funnels.slice(0, 2) })
+      .problems.length > 0,
+  );
+  ok(
+    "met zes funnelfasen ook niet",
+    buildPlan({
+      startedOn: start,
+      pagesPerMonth: 10,
+      topics,
+      funnels: [...funnels, { id: "x", label: "x", sortOrder: 4 }, { id: "y", label: "y", sortOrder: 5 }],
+    }).problems.length > 0,
+  );
+  ok(
+    "en dan komt er ook geen halve lijst uit",
+    buildPlan({ startedOn: start, pagesPerMonth: 10, topics: [], funnels }).pages.length === 0,
+  );
+});
+
+group("de drie statustalen (plan-status)", () => {
+  // ⚠️ Nova's vondst: dezelfde toestand in drie talen. Een klant die
+  // "ter_goedkeuring" ziet weet niet of hij moet wachten of iets moet doen.
+  ok(
+    "elke status heeft een label én een 'wie is er aan zet'",
+    Object.values(PLAN_STATUS_META).every(
+      (m) => m.label.length > 2 && m.running.length > 2,
+    ),
+  );
+  ok(
+    "wachten op akkoord vraagt een handeling van de klant",
+    PLAN_STATUS_META.ter_goedkeuring.actionRequired === true &&
+      PLAN_STATUS_META.ter_goedkeuring.whoseTurn === "klant",
+  );
+  // Zonder CMS-koppeling zet een mens de pagina live. Dat is de stap waar dit
+  // programma stilvalt als niemand hem ziet, dus hij telt mee als handeling.
+  ok(
+    "goedgekeurd vraagt óók nog iets: iemand moet hem plaatsen",
+    PLAN_STATUS_META.goedgekeurd.actionRequired === true,
+  );
+  ok(
+    "geplaatst vraagt niets meer",
+    PLAN_STATUS_META.geplaatst.actionRequired === false &&
+      PLAN_STATUS_META.geplaatst.whoseTurn === null,
+  );
+
+  const nu = new Date("2026-09-10T12:00:00Z");
+  const basis = { scheduled_for: null as string | null, posted_at: null as string | null };
+
+  // De derde laag: wannéér. Bij een pagina die op akkoord wacht hangt de datum
+  // van de klant af, en dan is een belofte eerlijker dan een datum.
+  ok(
+    "wachtend op akkoord noemt geen datum",
+    planRunningDate({ ...basis, status: "ter_goedkeuring" }, nu) ===
+      "Publiceert zodra je akkoord geeft",
+  );
+  ok(
+    "morgen heet morgen",
+    planRunningDate({ ...basis, status: "gepland", scheduled_for: "2026-09-11" }, nu) ===
+      "Morgen gepland",
+  );
+  ok(
+    "over een week telt in dagen",
+    planRunningDate({ ...basis, status: "gepland", scheduled_for: "2026-09-17" }, nu) ===
+      "Over 7 dagen",
+  );
+  ok(
+    "ver weg krijgt een datum in plaats van een aantal dagen",
+    (planRunningDate({ ...basis, status: "gepland", scheduled_for: "2026-12-01" }, nu) ?? "").startsWith(
+      "Gepland voor",
+    ),
+  );
+  ok(
+    "een gemiste datum wordt als zodanig benoemd",
+    (planRunningDate({ ...basis, status: "gepland", scheduled_for: "2026-09-01" }, nu) ?? "").startsWith(
+      "Stond gepland",
+    ),
+  );
+
+  ok("drie wachten op de klant", countActionRequired([
+    { status: "ter_goedkeuring" },
+    { status: "goedgekeurd" },
+    { status: "ter_goedkeuring" },
+    { status: "gepland" },
+    { status: "geplaatst" },
+  ]) === 3);
+});
+
+group("wanneer Aura begint te schrijven", () => {
+  const nu = new Date("2026-09-10T12:00:00Z");
+  const gepland = (datum: string) => ({ status: "gepland" as const, scheduled_for: datum });
+
+  // Nova schrijft ongeveer tien dagen vóór de publicatiedatum.
+  ok("tien dagen vooruit is de grens", SCHRIJFVOORSPRONG_DAGEN === 10);
+  ok(
+    "precies op de grens begint hij",
+    shouldStartWriting(gepland("2026-09-20"), true, nu) === true,
+  );
+  ok(
+    "een dag te vroeg nog niet",
+    shouldStartWriting(gepland("2026-09-21"), true, nu) === false,
+  );
+
+  // ⚠️ De belangrijkste regel van deze module. Elke pagina kost geld, en een
+  // afgewezen maand die tóch geschreven is, is weggegooid budget.
+  ok(
+    "nooit schrijven voor een niet-goedgekeurde maand",
+    shouldStartWriting(gepland("2026-09-11"), false, nu) === false,
+  );
+  ok(
+    "en niet nog een keer als hij al geschreven is",
+    shouldStartWriting({ status: "geplaatst", scheduled_for: "2026-09-11" }, true, nu) === false,
+  );
+  ok(
+    "een pagina zonder datum wordt nooit opgepakt",
+    shouldStartWriting({ status: "gepland", scheduled_for: null }, true, nu) === false,
   );
 });
 

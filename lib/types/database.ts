@@ -37,6 +37,87 @@ export type JobStatus = "queued" | "running" | "done" | "failed";
 export type ProfileStatus = "bezig" | "klaar" | "mislukt";
 
 /**
+ * Het contentplan (migratie 0049). Besluit 3: het kernobject waar het programma
+ * aan hangt. De statuslabels en de "wie is er aan zet"-vertaling staan in
+ * `lib/plan-status.ts`, niet hier: dat is een presentatiekeuze die mag
+ * veranderen zonder migratie.
+ */
+export type PlanStatus = "concept" | "actief" | "gestopt";
+export type PlanMonthStatus =
+  | "concept"
+  | "ter_goedkeuring"
+  | "goedgekeurd"
+  | "afgewezen";
+export type PlannedPageStatus =
+  | "gepland"
+  | "schrijven"
+  | "ter_goedkeuring"
+  | "goedgekeurd"
+  | "geplaatst"
+  | "afgewezen"
+  | "mislukt";
+/** Nova's vier (`pageTypeCategory` en de drie andere). Globaal, niet per merk. */
+export type PageType = "categorie" | "dienst" | "informatief" | "overig";
+
+export interface FunnelStage {
+  id: string;
+  profile_id: string;
+  label: string;
+  sort_order: number;
+  created_at: string;
+}
+
+export interface ContentPlan {
+  id: string;
+  profile_id: string;
+  /** Waar "maand 4 sinds de start" op rekent. Géén looptijd: besluit 7. */
+  started_on: string;
+  /** Gekopieerd uit het pakket, niet verwezen: een upgrade verandert een lopend plan niet. */
+  pages_per_month: number;
+  status: PlanStatus;
+  /** Vrije context die met de agent meegaat bij het (her)opstellen. */
+  strategy_note: string | null;
+  version: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PlanMonth {
+  id: string;
+  plan_id: string;
+  /** 1 tot 12, geteld vanaf de start en niet vanaf januari. */
+  month_number: number;
+  status: PlanMonthStatus;
+  approved_at: string | null;
+  approved_by_user_id: string | null;
+  created_at: string;
+}
+
+export interface PlannedPage {
+  id: string;
+  plan_month_id: string;
+  /** Gedenormaliseerd, zie de toelichting in migratie 0049. */
+  profile_id: string;
+  title: string;
+  url_path: string | null;
+  page_type: PageType;
+  funnel_stage_id: string | null;
+  topic_id: string | null;
+  status: PlannedPageStatus;
+  sort_order: number;
+  /** Reserve die inschuift als er een pagina sneuvelt. Telt niet mee in het maandtotaal. */
+  is_buffer: boolean;
+  scheduled_for: string | null;
+  content_piece_id: string | null;
+  posted_at: string | null;
+  posted_url: string | null;
+  /** Besluit 8: zowel de eigenaar als de klant mag plaatsen, en we leggen vast wie. */
+  posted_by_user_id: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+/**
  * Twee rollen binnen een account, niet meer. Net als Nova (`roleAdmin`,
  * `roleMember`). Dit is iets anders dan `staff_users`: dat gaat over wie Aura
  * beheert, dit over wie bij de gegevens van één klant mag.

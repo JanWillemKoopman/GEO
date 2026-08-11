@@ -1681,3 +1681,44 @@ Twee lijsten die hetzelfde moeten zeggen is een intentie; de lijst is nu één g
 
 Vier controles groen: `tsc`, 810 unittests (24 nieuwe), 47 ketentests, productiebuild. Nagemeten met
 Playwright op 390 en 1280: geen horizontale overflow.
+
+## Fase 4 begonnen: het contentplan als kernobject (10 augustus 2026)
+
+Migratie `0049_contentplan`, toegepast en geverifieerd op productie, plus twee pure modules met 35
+nieuwe tests. Dit is het fundament onder besluit 3: twaalf maanden vooruit, pagina's per maand,
+goedkeuring per maand.
+
+**Wat dit expliciet níet is: een contract.** Nova zet overal "contract month {current} of {total}",
+en dat kan hier niet want de klant kan morgen opzeggen (besluit 7). Er staat daarom geen looptijd in
+`content_plans` en geen einddatum, alleen een startdatum. Het plan kijkt wél twaalf maanden vooruit,
+want een programma zonder horizon is geen programma. Het verschil zit in de taal, niet in de data.
+
+**De derde statuslaag is er nu ook.** `lib/analysis-status.ts` nam in augustus Nova's technische
+status en hun "wie is er aan zet" al over. Wat ontbrak was `runningDate`, en die telt pas als er
+pagina's zijn die over zes weken verschijnen: bij een plan van twaalf maanden is het verschil tussen
+een lijst en een agenda precies dat je ziet wánneer er iets gebeurt. Eén detail daarin verdient
+uitleg: een pagina die op akkoord wacht krijgt géén datum maar "publiceert zodra je akkoord geeft".
+Die datum hangt van de klant af, niet van ons, en een datum tonen zou een belofte zijn die wij niet
+kunnen waarmaken.
+
+**`buildPlan()` verdeelt, het bedenkt niet.** Uit de analyse in `Nova.md` §11.1 bleek dat Nova een
+agent het hele plan laat opstellen. Aura heeft de bedenkkant al (`propose_topics` levert onderwerpen
+mét prioriteit) en miste alleen de verdeling. Dat scheelt een zware AI-stap: deze taak heeft er nul
+nodig, het is rekenwerk. Vier regels sturen hem, en de eerste volgt rechtstreeks uit besluit 7:
+hoogste prioriteit in de eerste maanden, want een klant die na drie maanden opzegt moet de béste drie
+maanden gehad hebben.
+
+**⚠️ De praktijkcheck tegen Van den Udenhout ving een echt probleem.** Het plan is gedraaid met zijn
+acht echte onderwerpen en tien pagina's per maand. Uitkomst: 132 pagina's, netjes verdeeld, alle
+funnelfasen in elke maand. Maar "Auto financieren" stond twee keer in maand één, met exact dezelfde
+titel, omdat acht onderwerpen bij tien plekken al in de eerste maand rondlopen. Een plan waarin twee
+regels hetzelfde heten leest als een fout. De werktitel draagt nu de funnelfase als invalshoek
+("Auto financieren · Oriëntatie"), en er is een test die bewaakt dat geen twee pagina's in dezelfde
+maand dezelfde titel dragen. Dit is precies waarom conventie 10 bestaat: op papier klopte de
+verdeling, en pas tegen echte data zag je waaróm hij niet bruikbaar was.
+
+Nog te bouwen in deze fase: de lijst met maandsegmenten, de vier dialogen (goedkeuren, alles
+goedkeuren, maand goedkeuren met afwijzen-en-hergenereren, markeren als geplaatst), het herordenen,
+de bufferlogica bij verwijderen, en de cron die tien dagen vooruit schrijft.
+
+Vier controles groen: `tsc`, 845 unittests (35 nieuwe), 47 ketentests, productiebuild.
