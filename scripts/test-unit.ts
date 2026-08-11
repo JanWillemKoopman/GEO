@@ -154,6 +154,7 @@ import {
   type PageForWriting,
 } from "@/lib/plan-writing";
 import { swapWithNeighbour, canMove, type OrderablePage } from "@/lib/plan-order";
+import { milestones } from "@/lib/milestones";
 import {
   CSM_SEGMENTS,
   CSM_SEGMENT_META,
@@ -4523,6 +4524,72 @@ group("segmentOf: elk merk in precies één segment", () => {
     merk({ profileId: "z", name: "Zzz", pijplijnfouten: 1 }),
   ]);
   ok("wat vastloopt staat bovenaan", gesorteerd[0].profileId === "z");
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+console.log("\nHet opbrengstblok (fase 5, milestones.ts)");
+
+group("milestones: drie getallen, ook als er nog niets te vieren valt", () => {
+  const nu = new Date("2026-11-15T12:00:00Z");
+  const basis = {
+    startedAt: "2026-08-11T00:00:00Z",
+    eersteScore: 22,
+    laatsteScore: 34,
+    metingen: 3,
+    gepubliceerd: 12,
+    now: nu,
+  };
+
+  const m = milestones(basis);
+  ok("altijd precies drie blokken", m.length === 3);
+
+  // ⚠️ Een blok dat verdwijnt zodra het getal nul is, laat de klant precies op
+  // het moment dat hij twijfelt een leeg scherm zien.
+  const leeg = milestones({
+    startedAt: null,
+    eersteScore: null,
+    laatsteScore: null,
+    metingen: 0,
+    gepubliceerd: 0,
+    now: nu,
+  });
+  ok("ook zonder enige data drie blokken", leeg.length === 3);
+  ok(
+    "en dan staat er waaróm het leeg is",
+    leeg.every((b) => b.detail !== null && b.detail.length > 0),
+  );
+
+  ok("de groei staat er met een plusteken", m[1].waarde === "+12 punten");
+  ok("met het startpunt erbij", m[1].detail?.includes("22") === true);
+  ok("de maandteller telt vanaf de start", m[0].detail?.includes("Maand 4") === true);
+  ok("en het aantal pagina's staat er los", m[2].waarde === "12");
+
+  // ⚠️ Conventie 3: bij één meting is er geen groei, alleen een startpunt. "0%"
+  // zou suggereren dat er niets gebeurde, terwijl er nog niets te vergelijken is.
+  const eenMeting = milestones({ ...basis, metingen: 1, eersteScore: 22, laatsteScore: 22 });
+  ok(
+    "bij één meting staat er een startpunt en geen groei",
+    eenMeting[1].detail?.includes("startpunt") === true,
+  );
+
+  // Achteruitgang wordt niet verstopt.
+  const omlaag = milestones({ ...basis, eersteScore: 40, laatsteScore: 31 });
+  ok("een daling staat er gewoon", omlaag[1].waarde === "-9 punten");
+
+  // Besluit 16: zonder bedrag aantallen, met bedrag geld. Zo hoeft er geen
+  // scherm om zodra de prijzen er zijn.
+  ok("zonder waarde per vermelding geen bedrag", m[1].detail?.includes("€") === false);
+  const metGeld = milestones({ ...basis, waardePerVermelding: 25 });
+  ok("met waarde per vermelding wél", metGeld[1].detail?.includes("€ 300") === true);
+  ok(
+    "maar niet bij een daling, want dat zou een verlies als opbrengst tonen",
+    milestones({ ...basis, eersteScore: 40, laatsteScore: 31, waardePerVermelding: 25 })[1]
+      .detail?.includes("€") === false,
+  );
+
+  // Enkelvoud en meervoud: "1 pagina's" is precies het soort slordigheid dat
+  // een demo-scherm goedkoop laat lijken.
+  ok("één pagina is enkelvoud", milestones({ ...basis, gepubliceerd: 1 })[2].label === "Pagina gepubliceerd");
 });
 
 // ════════════════════════════════════════════════════════════════════════════

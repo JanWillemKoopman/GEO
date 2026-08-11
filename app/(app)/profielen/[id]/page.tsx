@@ -9,6 +9,9 @@ import { ProfileEditor } from "./profile-editor";
 import { EntitiesManager } from "./entities-manager";
 import { AuditPanel } from "@/components/audit-panel";
 import { OpenQuestions, countOpenQuestions } from "./open-questions";
+import { MilestonesBlock } from "@/components/milestones-block";
+import { loadMilestones } from "@/lib/milestones-data";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { AssignBox } from "./assign-box";
 import { TopicsPanel } from "./topics-panel";
 import { LlmKnowledgePanel } from "./llm-knowledge-panel";
@@ -237,6 +240,11 @@ export default async function ProfilePage({
 
   // De teller in de kop van het vragenblok. Eén bron, zodat de badge en de
   // banner binnenín nooit uit elkaar kunnen lopen.
+  // Het opbrengstblok (fase 5, besluit 16). Leest het account, de scores en de
+  // gepubliceerde pagina's; dat laatste kan niet met de klant-client, want dat
+  // telt over álle analyses van het merk.
+  const mijlpalen = await loadMilestones(createAdminClient(), id, profile.account_id);
+
   const openVragen = countOpenQuestions(
     profile,
     (factRows ?? []) as FactRequest[],
@@ -256,6 +264,12 @@ export default async function ProfilePage({
         primaryAction={primaryAction}
         showNotes={staff}
       />
+
+      {/* ── Wat dit tot nu toe opleverde ───────────────────────────────────
+          `docs/Nova.md` §5: door besluit 7 (doorlopend opzegbaar) is dit het
+          blok dat opzeggen tegenhoudt. Het staat daarom hoog en niet weggestopt
+          in een analysescherm. */}
+      <MilestonesBlock milestones={mijlpalen} />
 
       {/* Het profiel gaat op 'klaar' na stap 2 van 8. Dit blok toont eerst wat
           er nog binnenkomt, en daarna of het dossier compleet is. Het meldt het

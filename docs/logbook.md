@@ -1869,3 +1869,30 @@ daarná geen geslaagde taak van hetzélfde soort voor dezelfde eigenaar is (`unr
 maand laten verdwijnen. Eigenaar is bewust de analyse óf het merk en niet allebei op één hoop: een
 mislukte meting van analyse A zegt niets over analyse B van hetzelfde merk. Vier tests, waarvan één
 letterlijk de rijen van productie. 932 unittests.
+
+**De contentketen van het plan is met echt geld nagerekend (11 augustus 2026).** Conventie 10:
+gebouwd is niet geverifieerd. Maand 1 van Van den Udenhout goedgekeurd op productie en de cron
+afgetrapt. De uitkomst: 10 pagina's bekeken, 2 ingepland, 2 geblokkeerd op een lopende meting en 6
+op een ontbrekende analyse. Precies de voorspelling, en de eerste keer dat die verdeling uit de
+werkelijkheid kwam in plaats van uit een test.
+
+**De brug tussen plan en pijplijn houdt.** `plannedPageId` ging mee in de schrijftaak, de handler
+koppelde de tekst terug, de eerste versie haalde de poort niet en ketende naar een herschrijfronde,
+en daarna stond de plan-pagina op `ter_goedkeuring` met 878 woorden eronder. Onderweg legde de
+werker een tweede zware taak netjes terug in de rij omdat hij niet meer in het tijdbudget paste; dat
+zag er even uit als een vastloper maar was precies het ontworpen gedrag.
+
+**Kosten: $0,42 voor anderhalve pagina**, dus ongeveer $0,25 tot $0,30 per pagina inclusief de
+herschrijfronde op `gpt-5.6-sol`. Bij pakket 10 is dat ruwweg $3 per maand aan schrijfkosten per
+merk. Dat is een bruikbaar getal voor de prijsstelling en het stond nergens eerder.
+
+**Fase 5 begint met het opbrengstblok en niet met Google.** Drie getallen bovenaan het merkdossier:
+actief sinds, groei in AI-zichtbaarheid, pagina's gepubliceerd. `docs/Nova.md` §5 noemt dit het
+middel dat opzeggen tegenhoudt (besluit 7, doorlopend opzegbaar), en het is vandaag te verifiëren
+omdat het aan geen enkele externe koppeling hangt. De waarde per vermelding is optioneel (besluit 16,
+migratie 0051): leeg toont aantallen, een bedrag toont geld, dus het scherm hoeft niet om zodra de
+prijzen er zijn.
+
+**Twee regels die uit de tests kwamen.** Bij één meting staat er een startpunt en geen groei, want
+"0%" zou suggereren dat er niets gebeurde terwijl er nog niets te vergelijken is (conventie 3). En
+bij een daling verschijnt er géén bedrag: dat zou een verlies als opbrengst tonen. 945 unittests.

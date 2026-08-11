@@ -159,6 +159,13 @@ export interface Account {
   started_at: string | null;
   /** Opzeggen verwijdert niets (besluit 14). Zie `isActiveAccount()`. */
   cancelled_at: string | null;
+  /**
+   * Wat één punt extra AI-zichtbaarheid dit account per maand waard is, in euro
+   * (migratie 0051, besluit 16). Leeg = onbekend, en dan toont het opbrengstblok
+   * aantallen in plaats van geld. Bewust geen standaardwaarde: een gemiddelde
+   * invullen zet een bedrag op het scherm dat de klant als belofte leest.
+   */
+  value_per_mention_eur: number | null;
   created_at: string;
   updated_at: string;
 }
