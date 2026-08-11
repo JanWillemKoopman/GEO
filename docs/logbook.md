@@ -2068,3 +2068,31 @@ een bevestigingsmail op en verandert nog niets, het wachtwoord wijzigen is metee
 twee beloftes is precies hoe iemand denkt dat hij iets deed wat hij niet deed. De wachtwoordregels
 staan live onder het veld, dezelfde drie als bij de uitnodiging: twee verschillende sterktes voor
 hetzelfde wachtwoord is een verschil dat niemand kan uitleggen. 998 unittests, 82 ketentests.
+
+**Het lanceerplan (11 augustus 2026).** `docs/tasks/lanceerplan.md`: het pad van "gebouwd" naar "Van
+den Udenhout is klant", in vijf testsporen over twee weken. Aanleiding: in negen bouwrondes is het
+Nova-plan afgebouwd, maar niemand heeft het geheel één keer als klant doorlopen.
+
+**De kern is dat "InSpace-kwaliteit" toetsbaar gemaakt is.** Dat was een gevoel en daar kun je niet op
+afvinken. Uit de reconstructie komen vijf eigenschappen die in hun berichtenbestand aantoonbaar zijn
+en dus ook in Aura te controleren: elke toestand een eigen scherm (zij hebben vier lege staten voor
+één tabel), elke foutmelding specifiek (zestien in alleen het accountscherm), de taal zegt wie aan
+zet is, onomkeerbaar wordt vooraf in een eigen kader benoemd, en bulk is eerlijk over gedeeltelijk
+succes. Die vijf zijn de kolom "Nova-kwaliteit" per scherm.
+
+**Met de grens van dat oordeel er expliciet bij.** Ik heb Nova nooit gezien; het beeld komt uit 900
+berichtsleutels, hun CSS en hun marketingtekst. Dat is genoeg voor gedrag, toestanden en taal, en
+niet voor vormgeving en ritme. Tien schermafdrukken zouden spoor C twee keer zo scherp maken.
+
+**De drie fouten van vandaag zijn in het plan verwerkt als voorspelling.** Ze hebben één patroon: een
+laag toegevoegd en één aanroeper vergeten. Daarom jagen spoor B (de rolmatrix, met de "nee"-vakjes
+eerst) en spoor D (wedstrijdcondities) expliciet op naden en niet op nieuwe modules.
+
+**Eén som staat er nu vast in plaats van als vermoeden.** De maandelijkse meetronde plant bij twintig
+klanten 4.800 taken tegelijk in; bij vijf per worker-ronde en ~18 seconden per meting is dat ongeveer
+16 uur. Dat past binnen een etmaal, dus het is geen storing maar een grens die rond dertig klanten in
+zicht komt. Uitrekenen nu, oplossen bij klant tien.
+
+**Twee dingen die het plan bewust NIET doet:** geen nieuwe functionaliteit (de twee wachtende
+onderdelen zouden bij een klant in maand één toch leeg zijn), en geen prestatieoptimalisatie
+(optimaliseren zonder meten is de duurste manier om niets te doen).

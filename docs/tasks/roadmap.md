@@ -207,6 +207,13 @@ Bedrijfsgegevens, het btw-vinkje, het pakket, opzeggen als datum (besluit 14), e
 wijzigen. **De donkere modus is geschrapt, niet uitgesteld** (besluit 17); hij staat nergens meer op
 een lijst.
 
+## Het lanceerplan
+
+> **Vóór de lancering en de eerste echte klant geldt [`lanceerplan.md`](./lanceerplan.md).** Dat
+> document toetst in vijf sporen of alles werkt, of er niets gebroken is, en of elk scherm de vijf
+> eigenschappen haalt die "InSpace-kwaliteit" toetsbaar maken. Inclusief de afvinklijst waarmee het
+> lanceerbesluit genomen wordt.
+
 ## Wat er nog open staat, en waarop het wacht
 
 | Wat | Wacht op |
