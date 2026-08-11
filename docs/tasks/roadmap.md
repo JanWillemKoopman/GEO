@@ -201,10 +201,18 @@ De koppeling zelf staat er wél: het scherm, de controle, de dagelijkse taak en 
 404. Zodra de sleutel er is en één property gekoppeld is, is dat scherm ongeveer een halve dag werk
 en meteen te verifiëren.
 
-## Fase 7 (11 augustus 2026)
+## Fase 7 (11 augustus 2026): af
 
-Het accountscherm is af: bedrijfsgegevens, het btw-vinkje, het pakket, en opzeggen als datum
-(besluit 14). Wat rest is e-mail wijzigen met bevestigingsmail en wachtwoord wijzigen met controle op
-het huidige, ongeveer een halve dag.
+Bedrijfsgegevens, het btw-vinkje, het pakket, opzeggen als datum (besluit 14), en e-mail en wachtwoord
+wijzigen. **De donkere modus is geschrapt, niet uitgesteld** (besluit 17); hij staat nergens meer op
+een lijst.
 
-**De donkere modus is geschrapt, niet uitgesteld** (besluit 17). Hij staat nergens meer op een lijst.
+## Wat er nog open staat, en waarop het wacht
+
+| Wat | Wacht op |
+|---|---|
+| Het analysescherm met kliks naast AI-zichtbaarheid (fase 5) | `GOOGLE_SERVICE_ACCOUNT_JSON` |
+| Impact terug in het plan (fase 6) | de eerste écht gepubliceerde pagina |
+| Automatische controles op gepubliceerde pagina's (fase 6) | idem |
+
+Alles wat zónder die twee kan, is gebouwd en getest.

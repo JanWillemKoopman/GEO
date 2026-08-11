@@ -1086,6 +1086,52 @@ async function main(): Promise<void> {
       planVoorKlant === null ? "geen plan gevonden" : `${planVoorKlant.months.length} maanden`,
     );
 
+    // ══════════════════════════════════════════════════════════════════════
+    // Een nieuw merk krijgt een account (0046, gat gedicht 11 augustus 2026)
+    //
+    // ⚠️ Migratie 0046 vulde `account_id` met terugwerkende kracht voor élk
+    // bestaand merk, maar de route die NIEUWE merken aanmaakt zette hem niet.
+    // Elk merk dat daarna via de app ontstond kwam zonder account binnen, en
+    // dan vindt het contentplan geen pakket en ziet een uitgenodigde klant het
+    // merk niet. Dat is precies het scenario van de eerste echte onboarding,
+    // want die begint met een nieuw merk aanmaken.
+    // ══════════════════════════════════════════════════════════════════════
+    console.log("\nEen nieuw merk krijgt een account");
+
+    const { defaultAccountFor } = await import("@/lib/accounts");
+
+    // Een gebruiker die al bij een account hoort, krijgt dát account.
+    ok(
+      "een bestaand lid krijgt zijn eigen account",
+      (await defaultAccountFor(klantId)) === accountId,
+    );
+
+    // Een gebruiker zonder account krijgt er één, op zijn e-mailadres, met
+    // zichzelf als beheerder. Zelfde regel als de backfill van 0046.
+    const verseId = randomUUID();
+    await db.client.query("insert into auth.users (id, email) values ($1, $2)", [
+      verseId,
+      "vers@voorbeeld.nl",
+    ]);
+    const versAccount = await defaultAccountFor(verseId);
+    ok("een gebruiker zonder account krijgt er één", versAccount !== null);
+
+    const { rows: versRij } = await db.client.query(
+      `select a.name, au.role
+         from public.accounts a
+         join public.account_users au on au.account_id = a.id
+        where a.id = $1 and au.user_id = $2`,
+      [versAccount, verseId],
+    );
+    ok("met zijn e-mailadres als naam", versRij[0]?.name === "vers@voorbeeld.nl");
+    ok("en zichzelf als beheerder van dat account", versRij[0]?.role === "admin");
+
+    // En twee keer aanroepen levert hetzelfde account op, geen tweede.
+    ok(
+      "een tweede aanroep maakt geen tweede account",
+      (await defaultAccountFor(verseId)) === versAccount,
+    );
+
     __setTestAdminClient(null);
     __setTestTransport(null);
   } finally {

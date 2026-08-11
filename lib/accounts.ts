@@ -97,3 +97,74 @@ export const accountsOf = cache(async (userId: string): Promise<Account[]> => {
   }
   return (data ?? []) as Account[];
 });
+
+/**
+ * Het account waar een nieuw merk aan gehangen wordt.
+ *
+ * ── DE FOUT DIE DIT REPAREERT ───────────────────────────────────────────────
+ *
+ * ⚠️ Gevonden op 11 augustus 2026, bij het nalopen van elke schrijfroute vóór de
+ * eerste echte klant. Migratie 0046 vulde `account_id` met terugwerkende kracht
+ * voor élk bestaand merk, maar de route die NIEUWE merken aanmaakt zette hem
+ * niet. Elk merk dat vanaf dat moment via de app werd aangemaakt kwam dus zonder
+ * account binnen, en dat is geen cosmetisch gemis:
+ *
+ *   • het contentplan vindt geen pakket, want de quota hangt aan het account,
+ *     en zegt dan eeuwig "er is nog geen pakket gekozen";
+ *   • een uitgenodigde klant ziet het merk niet, want dat loopt over laag 1;
+ *   • het CSM-paneel toont het merk zonder klantnaam.
+ *
+ * Precies het scenario van de eerste echte onboarding, want dat begint met een
+ * nieuw merk aanmaken.
+ *
+ * ── DE REGEL, DEZELFDE ALS DIE VAN DE BACKFILL ──────────────────────────────
+ *
+ * Hoort de gebruiker al bij een account, dan dat account. Hoort hij bij meerdere
+ * (een bureau, besluit 9), dan het oudste: dat is zijn eigen account, want de
+ * backfill maakte dat als eerste en een bureau komt er later bij. Hoort hij
+ * nergens bij, dan wordt er één gemaakt op zijn e-mailadres, precies zoals
+ * migratie 0046 het deed.
+ *
+ * Faalt zacht naar `null`: een merk zonder account is onvolledig maar bruikbaar
+ * (laag 2 vangt het op), en een mislukte accountaanmaak mag nooit het aanmaken
+ * van het merk zelf blokkeren.
+ */
+export async function defaultAccountFor(userId: string): Promise<string | null> {
+  try {
+    const admin = createAdminClient();
+
+    const bestaande = await accountsOf(userId);
+    if (bestaande.length > 0) {
+      // Oudste eerst: `accountsOf` sorteert niet, dus hier expliciet.
+      const oudste = [...bestaande].sort((a, b) => a.created_at.localeCompare(b.created_at))[0];
+      return oudste.id;
+    }
+
+    const { data: gebruiker } = await admin.auth.admin.getUserById(userId);
+    const naam = gebruiker?.user?.email ?? "Account";
+
+    const { data: nieuw, error } = await admin
+      .from("accounts")
+      .insert({ name: naam })
+      .select("id")
+      .single();
+    if (error || !nieuw) {
+      console.error("Account aanmaken mislukt:", error?.message);
+      return null;
+    }
+
+    // De eerste gebruiker van een account is beheerder ervan. Dat is iets anders
+    // dan `staff_users`: dat gaat over Aura, dit over de klant.
+    await admin
+      .from("account_users")
+      .upsert(
+        { account_id: nieuw.id as string, user_id: userId, role: "admin" },
+        { onConflict: "account_id,user_id" },
+      );
+
+    return nieuw.id as string;
+  } catch (err) {
+    console.error("Standaardaccount bepalen mislukt:", err);
+    return null;
+  }
+}

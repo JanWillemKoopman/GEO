@@ -156,6 +156,7 @@ import {
 import { swapWithNeighbour, canMove, type OrderablePage } from "@/lib/plan-order";
 import { milestones } from "@/lib/milestones";
 import { EDITABLE_ACCOUNT_FIELDS } from "@/lib/account-editable";
+import { checkNewEmail, checkNewPassword } from "@/lib/account-security";
 import { opportunities, shareLabel } from "@/lib/opportunities";
 import { insights } from "@/lib/insights";
 import { normalizeProperty } from "@/lib/search-console/property";
@@ -4842,6 +4843,62 @@ group("de bewerkbare accountvelden (fase 7)", () => {
   ok(
     "geen dubbele velden",
     new Set(EDITABLE_ACCOUNT_FIELDS).size === EDITABLE_ACCOUNT_FIELDS.length,
+  );
+});
+
+group("e-mail en wachtwoord wijzigen (fase 7)", () => {
+  // ⚠️ De bevestigingsmail is wat een tikfout onschadelijk maakt: zonder die
+  // stap werkt het oude adres niet meer en bestaat het nieuwe niet, en dan zit
+  // iemand permanent buiten zijn eigen account.
+  const goed = checkNewEmail("  Nieuw@Bedrijf.NL ", "oud@bedrijf.nl");
+  ok("een geldig adres gaat door", goed.ok === true);
+  ok(
+    "en wordt getrimd en kleingeschreven",
+    goed.ok === true && goed.email === "nieuw@bedrijf.nl",
+  );
+  ok("leeg wordt geweigerd", checkNewEmail("  ", "oud@bedrijf.nl").ok === false);
+  ok("iets zonder apenstaartje ook", checkNewEmail("geenadres", "oud@bedrijf.nl").ok === false);
+  // Hetzelfde adres opnieuw insturen zou een bevestigingsmail opleveren voor een
+  // wijziging die er niet is, en dat leest als een inbraakpoging.
+  ok(
+    "het huidige adres opnieuw insturen wordt geweigerd",
+    checkNewEmail("OUD@bedrijf.nl", "oud@bedrijf.nl").ok === false,
+  );
+
+  // ── Het wachtwoord ────────────────────────────────────────────────────────
+  ok("een sterk wachtwoord gaat door", checkNewPassword("Wachtwoord1", "Oud12345").ok === true);
+  ok("leeg wordt geweigerd", checkNewPassword("", "Oud12345").ok === false);
+
+  const zwak = checkNewPassword("kort", "Oud12345");
+  ok("te zwak wordt geweigerd", zwak.ok === false);
+  // ⚠️ Alleen de ONTBREKENDE regels noemen. Wie er twee goed heeft, hoeft niet
+  // te lezen wat hij al deed.
+  ok(
+    "en de melding noemt alleen wat nog mist",
+    zwak.ok === false &&
+      zwak.message.includes("cijfer") &&
+      zwak.message.includes("hoofdletter") &&
+      zwak.message.includes("8 tekens"),
+  );
+  const bijnaGoed = checkNewPassword("wachtwoord1", "Oud12345");
+  ok(
+    "bij één ontbrekende regel staat alleen die erin",
+    bijnaGoed.ok === false &&
+      bijnaGoed.message.includes("hoofdletter") &&
+      !bijnaGoed.message.includes("cijfer"),
+  );
+
+  ok(
+    "hetzelfde wachtwoord opnieuw wordt geweigerd",
+    checkNewPassword("Wachtwoord1", "Wachtwoord1").ok === false,
+  );
+
+  // Dezelfde drie regels als bij de uitnodiging: twee verschillende sterktes
+  // voor hetzelfde wachtwoord is een verschil dat niemand kan uitleggen.
+  ok(
+    "de regels zijn dezelfde als bij de uitnodiging",
+    passwordRules("Wachtwoord1").every((r) => r.ok) &&
+      checkNewPassword("Wachtwoord1", "iets anders").ok === true,
   );
 });
 

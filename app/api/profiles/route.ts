@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getUser } from "@/lib/auth";
+import { defaultAccountFor } from "@/lib/accounts";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { normalizeUrl, checkUrlFormat } from "@/lib/url";
 import { isReachable } from "@/lib/crawler";
@@ -90,10 +91,16 @@ export async function POST(request: Request) {
   const name = body.name?.trim() ? body.name.trim() : url;
 
   const admin = createAdminClient();
+
+  // ⚠️ Zonder account is een merk onvolledig: het contentplan vindt geen pakket
+  // en een uitgenodigde klant ziet het niet. Zie `defaultAccountFor()`.
+  const accountId = await defaultAccountFor(user.id);
+
   const { data, error } = await admin
     .from("profiles")
     .insert({
       user_id: user.id,
+      account_id: accountId,
       name,
       url,
       status: "bezig",

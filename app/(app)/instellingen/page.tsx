@@ -2,6 +2,7 @@ import { requireUser } from "@/lib/auth";
 import { PageHeader } from "@/components/page-header";
 import { TeamBox } from "./team-box";
 import { AccountBox } from "./account-box";
+import { SecurityBox } from "./security-box";
 import { accountsOf, membershipsOf } from "@/lib/accounts";
 import { isStaff } from "@/lib/staff";
 import { mayInvite } from "@/lib/invite-rules";
@@ -45,16 +46,7 @@ export default async function InstellingenPage() {
         description="Je persoonlijke account. Instellingen per merk en per analyse staan bij het merk of de analyse zelf."
       />
 
-      <div className="card flex flex-col gap-4">
-        <div className="flex flex-wrap justify-between gap-4 border-b border-[var(--border-subtle)] pb-3">
-          <span className="text-secondary">E-mailadres</span>
-          <span className="break-url font-medium">{user.email}</span>
-        </div>
-        <p className="text-secondary">
-          Wachtwoord wijzigen en de overige accountinstellingen komen hier
-          binnenkort.
-        </p>
-      </div>
+      <SecurityBox email={user.email ?? ""} />
 
       {teams.map((t) => (
         <AccountBox

@@ -544,6 +544,13 @@ export function createShimClient(client: Client) {
           const { rows } = await client.query(`select id, email from auth.users order by email`);
           return { data: { users: rows }, error: null };
         },
+        async getUserById(id: string) {
+          const { rows } = await client.query(
+            `select id, email from auth.users where id = $1`,
+            [id],
+          );
+          return { data: { user: rows[0] ?? null }, error: null };
+        },
         async deleteUser(id: string) {
           await client.query(`delete from auth.users where id = $1`, [id]);
           return { data: null, error: null };

@@ -2031,3 +2031,40 @@ echte klant geraakt.
 analyses, en een merk van een ánder account blijft dicht. Die laatste stond er niet voor niets: alle
 andere asserties kijken of iemand er wél in komt, en dan blijft een te ruime regel onopgemerkt.
 77 ketentests, 986 unittests.
+
+**Elke schrijfroute nagelopen vóór de eerste echte klant (11 augustus 2026).** Alle 44 API-routes in
+kaart gebracht met hun bewaker. De uitkomst was geruststellender dan verwacht: 22 routes gaan over
+`getOwnedAnalysis` en 15 over `getOwnedProfile`, dus de reparatie van de accountlaag werkt in één
+klap door in allemaal. Drie routes hebben geen bewaker, en twee daarvan horen dat zo (`health` en
+`invites/accept`, waar het token zélf de autorisatie is).
+
+**De derde legde een tweede echte fout bloot: een nieuw merk kreeg geen account.** Migratie 0046
+vulde `account_id` met terugwerkende kracht voor élk bestaand merk, maar `POST /api/profiles` zette
+hem niet. Elk merk dat daarna via de app ontstond kwam dus zonder account binnen, en dat is geen
+cosmetisch gemis: het contentplan vindt geen pakket (de quota hangt aan het account) en zegt dan
+eeuwig "er is nog geen pakket gekozen", een uitgenodigde klant ziet het merk niet omdat dat over laag
+1 loopt, en het CSM-paneel toont het zonder klantnaam. Precies het scenario van de eerste echte
+onboarding, want die begint met een nieuw merk aanmaken.
+
+`defaultAccountFor()` hanteert dezelfde regel als de backfill: bestaand account gebruiken, bij
+meerdere het oudste (dat is je eigen account, een bureau komt er later bij), en anders er één maken op
+het e-mailadres met jezelf als beheerder. Faalt zacht naar `null`, want een mislukte accountaanmaak
+mag nooit het aanmaken van het merk zelf blokkeren. Op productie stond de teller op nul merken zonder
+account, dus dit was puur een toekomstig gat.
+
+**Fase 7 is af: e-mail en wachtwoord wijzigen.** Beide van Nova overgenomen omdat ze allebei een echt
+probleem oplossen. Zonder bevestigingsmail kan een tikfout iemand permanent buitensluiten, het oude
+adres werkt dan niet meer en het nieuwe bestaat niet; Supabase stuurt die mail zelf naar het nieuwe
+adres en het oude blijft werken tot hij bevestigd is. Zonder controle op het huidige wachtwoord is
+een openstaande laptop genoeg om een account over te nemen.
+
+**Die controle loopt bewust met de publieke sleutel.** Een wachtwoordcontrole heeft geen enkele
+verhoogde bevoegdheid nodig, en een mislukte inlogpoging doen met de sleutel die overal bij mag, is
+het verkeerde gereedschap voor een alledaagse handeling. De eerste versie gebruikte de service-role;
+dat werkte, maar het is de verkeerde sleutel voor de klus.
+
+**Twee knoppen, geen gezamenlijk formulier.** Ze hebben een andere uitkomst: het adres wijzigen levert
+een bevestigingsmail op en verandert nog niets, het wachtwoord wijzigen is meteen klaar. Eén knop voor
+twee beloftes is precies hoe iemand denkt dat hij iets deed wat hij niet deed. De wachtwoordregels
+staan live onder het veld, dezelfde drie als bij de uitnodiging: twee verschillende sterktes voor
+hetzelfde wachtwoord is een verschil dat niemand kan uitleggen. 998 unittests, 82 ketentests.
