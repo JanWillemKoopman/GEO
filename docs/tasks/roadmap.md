@@ -10,8 +10,11 @@ toegepast (`0033` gereserveerd, nooit gedraaid, vervangen door `0039`).
 > stond; per punt is aangegeven of het opgaat in een fase van dat plan.
 >
 > De volgorde daar is: fundament, merk-werkruimte, rollen en uitnodigingen, onboarding-wizard,
-> contentplan, Search Console, de lus sluiten, i18n en donkere modus, CSM-paneel. Moet je kiezen,
+> contentplan, CSM-paneel, Search Console, de lus sluiten, accountscherm. Moet je kiezen,
 > doe dan fase 1, 4 en 6.
+>
+> ⚠️ Twee dingen die in oudere alinea's hieronder nog wél genoemd worden, zijn geschrapt en géén
+> werk meer: **meertaligheid** (besluit 13) en de **donkere modus** (besluit 17).
 
 ## Afgerond sinds de vorige stand
 
@@ -198,16 +201,10 @@ De koppeling zelf staat er wél: het scherm, de controle, de dagelijkse taak en 
 404. Zodra de sleutel er is en één property gekoppeld is, is dat scherm ongeveer een halve dag werk
 en meteen te verifiëren.
 
-## Fase 7, wat er nog open staat (11 augustus 2026)
+## Fase 7 (11 augustus 2026)
 
 Het accountscherm is af: bedrijfsgegevens, het btw-vinkje, het pakket, en opzeggen als datum
-(besluit 14). Wat rest is de **donkere modus**.
+(besluit 14). Wat rest is e-mail wijzigen met bevestigingsmail en wachtwoord wijzigen met controle op
+het huidige, ongeveer een halve dag.
 
-Dat is bewust niet in dezelfde ronde gedaan. `app/globals.css` heeft 107 kleur-tokens in het
-`:root`-blok, en die hebben elk een doordachte donkere tegenhanger nodig; mechanisch omkeren levert
-grijze modder op. Het haakje staat er al (`:root[data-theme="light"]`), dus de structuur hoeft niet
-om, maar het resultaat moet je op elk scherm zien om het te kunnen beoordelen. Reken op een halve
-tot een hele dag, en doe het in een ronde waarin je de schermen naast elkaar kunt leggen.
-
-Volgorde als je hem oppakt: eerst de neutralen en de vlakken, dan de zeven intents, dan de
-gloed-effecten uit `docs/designsystem.md`, en pas daarna de schakelaar in het accountscherm.
+**De donkere modus is geschrapt, niet uitgesteld** (besluit 17). Hij staat nergens meer op een lijst.

@@ -85,6 +85,7 @@ Op 10 augustus 2026 vastgelegd, in overleg. De eerste vier bepalen de vorm, de r
 | 14 | Opzeggen | **Toegang blijft tot het einde van de betaalde maand**, en de opbrengst wordt nog één keer getoond. Niet meteen dichtgooien. | Fase 2, 5 |
 | 15 | Goedkeuren bij bureaus | **Het bureau keurt goed**, want dat is de contractpartij. Doorzetten naar de eindklant is later een uitbreiding, geen voorwaarde. | Fase 2, 4 |
 | 16 | Prijs per pakket | **Nog niet bepaald.** Het opbrengstblok rekent daarom in aantallen, niet in geld. | Fase 5 |
+| 17 | Donkere modus | **Vervalt.** Niet uitgesteld maar geschrapt: 107 kleur-tokens die elk een doordachte tegenhanger nodig hebben, voor de enige fase met impact "laag". Aura wordt in een demogesprek getoond, op één scherm, in één stand. | Fase 7, 11 augustus 2026 |
 
 #### Wat besluit 14 en 16 betekenen voor de bouw
 
@@ -229,7 +230,7 @@ Aura heeft deze laag al overgenomen, en dat blijkt uit de vergelijking: `--inten
 | `--ds-background-*-hover` op elke betekenis | Alleen op `intelligence` en `growth` | Aanvullen |
 | `--ds-switch-*`, vijf tokens voor de schakelaar | Geen schakelaarcomponent | Bij fase 3 |
 | Negen radii, `2xs` tot `full` | Zeven | Aanvullen met `2xl` |
-| Donkere modus via `prefers-color-scheme` | Bewust niet | Fase 7, zie §7 |
+| Donkere modus via `prefers-color-scheme` | Bewust niet | **Vervalt** (besluit 17) |
 
 ### 2.2 Beweging is functioneel en kort
 
@@ -489,7 +490,7 @@ abonnement zichtbaar als opbrengst.
 ### 3.7 Account
 
 Profiel (weergavenaam, communicatietaal), voorkeuren (**thema**: system, light, dark;
-**weergavetaal**: en, nl, de), en beveiliging (e-mail wijzigen met bevestigingsmail, wachtwoord
+**weergavetaal**: en, nl, de; Aura neemt geen van beide over, zie besluit 13 en 17), en beveiliging (e-mail wijzigen met bevestigingsmail, wachtwoord
 wijzigen met huidige-wachtwoordcontrole). Zestien specifieke foutmeldingen.
 
 ### 3.8 Admin, het CSM-paneel
@@ -532,8 +533,8 @@ Feitelijk, per module. "Deels" betekent dat het idee er is maar de vorm afwijkt.
 | Bewegingsset | 18 keyframes | Toast overgenomen | Modal, dropdown, tooltip, accordion |
 | Titel plus omschrijving per blok | Overal | `ProfileSection` heeft het | Rest van de app nog niet |
 | Statustaal in twee lagen | Ja | `analysis-status.ts`, `WhoseTurn` | Geen, wel de derde laag (`runningDate`) |
-| Donkere modus | Ja | Bewust niet | Fase 7 |
-| Meertaligheid | en, nl, de | Alleen nl, hardgecodeerd | Fase 7 |
+| Donkere modus | Ja | Bewust niet | **Vervalt** (besluit 17) |
+| Meertaligheid | en, nl, de | Alleen nl, hardgecodeerd | **Vervalt** (besluit 13) |
 | Toasts | Radix | Eigen, zelfde vorm | Geen |
 | Sidebar | Inklapbaar | Bovenbalk | Fase 1 |
 | Klant- en domeinkiezer | Ja, doorzoekbaar | Geen | Fase 1 |
@@ -957,19 +958,20 @@ publieke bron is, wil ik die lezen.
 
 ---
 
-### Fase 7. Donkere modus en het accountscherm
+### Fase 7. Het accountscherm
 
-**Effort: 2 dagen · Impact: laag · Risico: laag**
+**Effort: 1 dag · Impact: laag · Risico: laag**
 
-⚠️ **Deze fase is gekrompen van 5 naar 2 dagen door besluit 13**: de app blijft uitsluitend
-Nederlands, dus `next-intl` en de hele vertaalslag vervallen. Dat scheelt drie dagen en, belangrijker,
-het houdt alle UI-tekst gewoon in de componenten waar hij nu staat. Meertaligheid later alsnog
-invoeren kost dan wel meer, maar dat is de juiste afweging bij één taalgebied.
+⚠️ **Deze fase is twee keer gekrompen.** Eerst van 5 naar 2 dagen door besluit 13 (de app blijft
+uitsluitend Nederlands, dus `next-intl` en de hele vertaalslag vervallen). Daarna van 2 naar 1 dag
+door **besluit 17, 11 augustus 2026: de donkere modus vervalt volledig.** Niet uitgesteld maar
+geschrapt; hij staat nergens meer op een lijst. De reden staat in `logbook.md`: 107 kleur-tokens die
+elk een doordachte tegenhanger nodig hebben, voor de enige fase in het plan met impact "laag", bij een
+product dat sales-led in een demogesprek verkocht wordt en dus altijd op één scherm in één stand
+getoond wordt.
 
-- **Donkere modus**. De tokennamen zijn er al op ingericht (`designsystem.md` §5 noemt het "een dag
-  werk in plaats van een week"). Drie standen: systeem, licht, donker.
-- **Accountscherm** afmaken: weergavenaam, thema, e-mail wijzigen met bevestigingsmail, wachtwoord
-  wijzigen met controle op het huidige.
+- **Accountscherm**: bedrijfsgegevens, e-mail wijzigen met bevestigingsmail, wachtwoord wijzigen met
+  controle op het huidige. De bedrijfsgegevens staan er sinds 11 augustus 2026.
 
 **Nova-analyse nodig**: nee.
 
@@ -1012,9 +1014,9 @@ naar voren, meertaligheid vervalt.
 | 6 | 8 | CSM-paneel | 4 | Hoog voor jou | Laag |
 | 7 | 5 | Search Console plus het opbrengstblok | 5 | Hoog | Middel |
 | 8 | 6 | De lus sluiten | 4 | Zeer hoog | Middel |
-| 9 | 7 | Donkere modus en account | 2 | Laag | Laag |
+| 9 | 7 | Accountscherm | 1 | Laag | Laag |
 
-**Totaal: ongeveer 47 dagen**, vier minder dan de eerste raming.
+**Totaal: ongeveer 46 dagen**, vijf minder dan de eerste raming.
 
 **Wat er veranderde en waarom:**
 
@@ -1023,7 +1025,7 @@ naar voren, meertaligheid vervalt.
 | Fase 1 van 5 naar **7** dagen | Besluit 10: `profiles` moet in account en merk gesplitst worden. Dat is een migratie plus een herschrijving van elke query die nu op `profile_id` staat. |
 | Fase 3 van 8 naar **7** dagen | §13: de merkstappen zijn nakijkwerk geworden in plaats van invulwerk, want Aura leidt 25 van de 40 velden zelf af. |
 | Fase 8 van plek 9 naar **plek 6** | Besluit 11: twintig klanten met meerdere websites redt je niet met SQL. |
-| Fase 7 van 5 naar **2** dagen | Besluit 13: alleen Nederlands, dus geen `next-intl`. |
+| Fase 7 van 5 naar **1** dag | Besluit 13: alleen Nederlands, dus geen `next-intl`. Besluit 17: de donkere modus vervalt. |
 | Fase 6 van 6 naar **4** dagen | §11.4: "Nova insights" bleek één zin, geen module. |
 
 ### Als je moet kiezen

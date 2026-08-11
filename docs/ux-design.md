@@ -35,8 +35,9 @@ Het uitgangspunt: **snapt een niet-technische klant dit binnen 5 seconden zonder
 
 **Bron: de NOVA-workspace van InSpace** (`nova.inspace.io`), hun ingelogde productomgeving, niet hun
 marketingsite. Dat onderscheid is het hele punt; `designsystem.md` §1 legt uit waarom.
-**Licht systeem, bewust geen donkere modus**: `globals.css` kent alleen `:root` en
-`[data-theme="light"]` en zet `html { color-scheme: light; }`.
+**Licht systeem, geen donkere modus**: `globals.css` kent alleen `:root` en `[data-theme="light"]` en
+zet `html { color-scheme: light; }`. Dat is definitief, niet voorlopig: besluit 17 van 11 augustus
+2026 schrapte de donkere modus uit het plan, zie `designsystem.md` §10.
 
 De volledige tokenlijst staat in `designsystem.md` §2 en hoeft hier niet herhaald te worden. Wat je
 moet weten om een scherm te bouwen:

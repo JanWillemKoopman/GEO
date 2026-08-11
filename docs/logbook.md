@@ -1988,7 +1988,13 @@ wizard stond en niet in de opslagroute, en dus stilzwijgend niets bewaarde terwi
 "opgeslagen" zei. De test controleert nu beide kanten: elk zichtbaar veld is opslaanbaar, en de
 verboden velden zitten er niet in.
 
-**De donkere modus is bewust niet in deze ronde gedaan.** 107 kleur-tokens hebben elk een doordachte
-donkere tegenhanger nodig, en mechanisch omkeren levert grijze modder op. Het resultaat moet je op elk
-scherm zien om het te kunnen beoordelen, en dat kan niet blind. Staat in `docs/tasks/roadmap.md` met
-de volgorde erbij. 986 unittests.
+**De donkere modus is eerst uitgesteld en daarna geschrapt.** 986 unittests.
+
+**Besluit 17: de donkere modus vervalt (11 augustus 2026).** Niet uitgesteld maar geschrapt; hij
+staat nergens meer op een lijst. Het `:root`-blok heeft 107 kleur-tokens die elk een doordachte
+tegenhanger nodig hebben, mechanisch omkeren geeft grijze modder, en het resultaat is pas te
+beoordelen door elk scherm in beide standen naast elkaar te leggen. Dat is een dag werk plus een
+designronde voor de enige fase in het plan met impact "laag", bij een product dat sales-led in een
+demogesprek verkocht wordt en dus altijd op één scherm in één stand getoond wordt. Fase 7 krimpt
+daarmee van 2 naar 1 dag en het totaal van 47 naar 46. De tokennamen blijven op twee standen
+ingericht, maar dat is nu gewoon betere naamgeving en geen voorbereiding meer.

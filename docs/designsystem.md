@@ -300,15 +300,23 @@ Gebruik deze, nooit een eigen tint of een eigen maat.
 
 ---
 
-## 10. Donkere modus, als hij ooit komt
+## 10. Donkere modus: geschrapt
 
-**Er is er bewust geen.** `globals.css` kent alleen `:root` en `[data-theme="light"]`, en
-`html { color-scheme: light; }` staat vast.
+**Besluit 17, 11 augustus 2026.** Niet uitgesteld maar geschrapt; hij staat nergens meer op een lijst.
+`globals.css` kent alleen `:root` en `[data-theme="light"]`, en `html { color-scheme: light; }` staat
+vast. Dat blijft zo.
 
-Maar de tokennamen zijn er nu wel op ingericht: elke betekenis heeft al een `-solid`, `-text`,
-`-surface` en `-border`, dus een donkere modus is een tweede blok met dezelfde namen en andere
-waarden. Nova's donkere neutralen zijn bekend en genoteerd, zodat niemand ze opnieuw hoeft af te
-leiden:
+De redenering: het `:root`-blok heeft 107 kleur-tokens, en die hebben elk een doordachte tegenhanger
+nodig. Mechanisch omkeren geeft grijze modder, en het resultaat is pas te beoordelen door elk scherm
+in beide standen naast elkaar te leggen. Dat is een dag werk plus een designronde, voor de enige fase
+in het plan met impact "laag", bij een product dat sales-led in een demogesprek verkocht wordt en dus
+altijd op één scherm in één stand getoond wordt.
+
+De tokennamen blijven wél ingericht op twee standen: elke betekenis heeft een `-solid`, `-text`,
+`-surface` en `-border`. Dat is geen voorbereiding op een donkere modus maar gewoon een betere
+naamgeving; hij houdt de betekenis los van de kleur. Zou het besluit ooit terugkomen, dan is het
+een tweede blok met dezelfde namen, en Nova's donkere neutralen staan hieronder genoteerd zodat
+niemand ze opnieuw hoeft af te leiden. Dat is geen belofte, alleen archief.
 
 ```
 achtergrond   #121a22  →  #17212b  →  #27323d  →  #43505d
@@ -316,8 +324,6 @@ tekst         #ffffff  ·  #c2ccd6  ·  #788795
 randen        #27323d  ·  #43505d  ·  #788795
 accenten      paars #ad45ff · groen #4cb929 · blauw #00a6f4 · oranje #fe9a00 · rood #fb2c36
 ```
-
-Werk: ongeveer een dag, inclusief elk scherm nalopen. Vóór de overstap zou het een week zijn geweest.
 
 ---
 
