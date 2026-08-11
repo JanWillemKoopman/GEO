@@ -165,6 +165,13 @@ import {
   regionGateMessage,
 } from "@/lib/pipeline/geo-share";
 import { COST_DENIED } from "@/lib/cost-rules";
+import {
+  spendVerdict,
+  combinedVerdict,
+  limitFromEnv,
+  DEFAULT_MONTHLY_LIMIT_EUR,
+  DEFAULT_DAILY_LIMIT_EUR,
+} from "@/lib/spend-rules";
 import { EDITABLE_ACCOUNT_FIELDS } from "@/lib/account-editable";
 import { checkNewEmail, checkNewPassword } from "@/lib/account-security";
 import { opportunities, shareLabel } from "@/lib/opportunities";
@@ -4980,6 +4987,14 @@ group("elke dure route vraagt het aan dezelfde functie", () => {
       `${pad.replace("app/api/", "")} vraagt mayTriggerCost`,
       bron.includes("mayTriggerCost("),
     );
+    // ⚠️ En de TWEEDE rem, om dezelfde reden (F1). Besluit 18 zegt WIE er mag
+    // uitgeven, het budgetplafond zegt HOEVEEL er nog over is. Een route die
+    // alleen de eerste stelt, laat een beheerder met een vastgelopen lus
+    // ongehinderd doorgaan.
+    ok(
+      `${pad.replace("app/api/", "")} vraagt ook het budget`,
+      bron.includes("checkBudget"),
+    );
   }
 
   // En de melding is per handeling anders (K2 uit het lanceerplan: elke
@@ -4990,6 +5005,95 @@ group("elke dure route vraagt het aan dezelfde functie", () => {
   ok(
     "geen enkele melding zegt alleen 'geen toegang'",
     zinnen.every((z) => z.length > 40 && !/geen toegang/i.test(z)),
+  );
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+console.log("\nHet budgetplafond (F1)");
+
+group("spendVerdict: onder, op en over het plafond", () => {
+  // €50 plafond bij koers 1,08 is $54. De grens is `>=`: staat er precies het
+  // plafond op, dan is het op.
+  const onder = spendVerdict("maand", 40, 50);
+  ok("ruim onder het plafond mag door", onder.ok);
+  ok("en er is geen melding", onder.message === null);
+  ok("het bedrag staat in euro's, niet in dollars", Math.abs(onder.spentEur - 37.04) < 0.01);
+
+  const precies = spendVerdict("maand", 54, 50);
+  ok("precies op het plafond is op", !precies.ok);
+
+  const over = spendVerdict("maand", 60, 50);
+  ok("erover blokkeert", !over.ok);
+  ok("en noemt de maand", over.scope === "maand");
+
+  // K2 uit het lanceerplan: elke foutmelding is specifiek. Drie dingen horen
+  // erin, en de derde het meest: een blokkade zonder uitweg is een storing.
+  const m = over.message ?? "";
+  ok("de melding noemt het bedrag dat er staat", m.includes("55,56"));
+  ok("en het plafond", m.includes("50,00"));
+  ok("en waar je het verhoogt", m.includes("beheerscherm"));
+
+  // Nederlandse notatie, met een vaste locale: de server in Vercel staat niet
+  // op Nederlands en het bedrag hoort er voor iedereen hetzelfde uit te zien.
+  ok("komma als decimaalteken", m.includes("€50,00") && !m.includes("€50.00"));
+});
+
+group("spendVerdict: het dagplafond heeft een eigen verhaal", () => {
+  const dag = spendVerdict("dag", 200, 150);
+  ok("het dagplafond blokkeert ook", !dag.ok);
+  ok("en zegt dat het over alle klanten samen gaat", (dag.message ?? "").includes("alle klanten"));
+  ok(
+    "en dat dit de noodrem is, niet een normale grens",
+    (dag.message ?? "").includes("noodrem"),
+  );
+
+  // ⚠️ Zit je tegen allebei aan, dan gaat het dagplafond voor: dat betekent dat
+  // er iets aan de hand is over alle klanten heen, en dat wil je weten vóór je
+  // het maandplafond van één account gaat verhogen.
+  const beide = combinedVerdict(spendVerdict("dag", 200, 150), spendVerdict("maand", 60, 50));
+  ok("het dagplafond wint van het maandplafond", beide.scope === "dag");
+
+  const alleenMaand = combinedVerdict(spendVerdict("dag", 10, 150), spendVerdict("maand", 60, 50));
+  ok("gaat de dag goed, dan telt de maand", alleenMaand.scope === "maand");
+
+  const allebeiGoed = combinedVerdict(spendVerdict("dag", 10, 150), spendVerdict("maand", 10, 50));
+  ok("en gaan ze allebei goed, dan mag het door", allebeiGoed.ok);
+});
+
+group("limitFromEnv: een typefout mag geen open kraan zijn", () => {
+  ok("leeg valt terug op de standaard", limitFromEnv(undefined, 50) === 50);
+  ok("spaties ook", limitFromEnv("   ", 50) === 50);
+  ok("een getal wordt overgenomen", limitFromEnv("120", 50) === 120);
+  ok("kommagetal ook", limitFromEnv("12.5", 50) === 12.5);
+
+  // ⚠️ Dit is de kern: onzin in een omgevingsvariabele mag de rem niet
+  // uitschakelen. Een `Number("abc")` is NaN, en NaN vergelijkt met alles als
+  // `false`, dus `spentEur < NaN` zou élke uitgave doorlaten.
+  ok("onzin valt terug op de standaard", limitFromEnv("abc", 50) === 50);
+  ok("negatief ook", limitFromEnv("-10", 50) === 50);
+
+  // Nul is wél een echte waarde: dat is "alles op slot".
+  ok("nul is geldig en betekent op slot", limitFromEnv("0", 50) === 0);
+  ok("en blokkeert dan ook echt alles", !spendVerdict("maand", 0, 0).ok);
+});
+
+group("de standaardbedragen staan waar ze op gekozen zijn", () => {
+  // Gekozen op de echte cijfers van 11 augustus 2026: een klant met vier
+  // onderwerpen kost ~$3,30 per maand aan metingen plus ~$2,80 aan tien
+  // pagina's, ruwweg €6. Het plafond hoort daar een veelvoud boven te liggen,
+  // anders raakt het een normale klant.
+  ok("het maandplafond staat op €50", DEFAULT_MONTHLY_LIMIT_EUR === 50);
+  ok("het dagplafond op €150", DEFAULT_DAILY_LIMIT_EUR === 150);
+  ok(
+    "en een normale klantmaand van ~€6 komt er niet in de buurt",
+    spendVerdict("maand", 6 * 1.08, DEFAULT_MONTHLY_LIMIT_EUR).ok,
+  );
+  // Het dagplafond gaat over alle klanten samen en hoort een ramp te vangen,
+  // geen drukke dag: twintig klanten die tegelijk hun maand goedgekeurd krijgen
+  // is ~€52 en moet gewoon door kunnen.
+  ok(
+    "twintig goedkeuringen op één dag mag gewoon",
+    spendVerdict("dag", 20 * 2.8, DEFAULT_DAILY_LIMIT_EUR).ok,
   );
 });
 

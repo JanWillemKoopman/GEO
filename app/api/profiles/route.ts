@@ -6,6 +6,7 @@ import { normalizeUrl, checkUrlFormat } from "@/lib/url";
 import { isReachable } from "@/lib/crawler";
 import { enqueue, dedupe } from "@/lib/jobs/queue";
 import { mayTriggerCost, COST_DENIED } from "@/lib/cost-guard";
+import { checkBudget } from "@/lib/spend-limit";
 
 /**
  * POST /api/profiles, nieuw klantprofiel aanmaken vanuit de onboarding-wizard
@@ -60,6 +61,16 @@ export async function POST(request: Request) {
   // dollars uitgeven zonder dat iemand het merkt.
   if (!(await mayTriggerCost(user.id))) {
     return NextResponse.json({ error: COST_DENIED.merk_onderzoeken }, { status: 403 });
+  }
+
+  // ⚠️ De TWEEDE rem (F1, lib/spend-limit.ts). Hier alleen het DAGplafond, want
+  // er is nog geen merk en dus nog geen account om op af te rekenen. Dat is
+  // geen gat: de onboarding heeft al een eigen plafond van $2,15 per merk
+  // (lib/pipeline/onboarding-budget.ts), en het dagplafond vangt het geval dat
+  // iemand er twintig achter elkaar aanmaakt.
+  const budget = await checkBudget(null);
+  if (!budget.ok) {
+    return NextResponse.json({ error: budget.message }, { status: 402 });
   }
 
   let body: ProfileIntakeBody;

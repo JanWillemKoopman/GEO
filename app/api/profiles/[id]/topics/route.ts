@@ -4,6 +4,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { getOwnedProfile } from "@/lib/profiles";
 import { enqueue, dedupe } from "@/lib/jobs/queue";
 import { mayTriggerCost, COST_DENIED } from "@/lib/cost-guard";
+import { checkBudgetForProfile } from "@/lib/spend-limit";
 import { buildAnalysisName } from "@/lib/url";
 import type { ProfileTopic } from "@/lib/types/database";
 
@@ -92,6 +93,15 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   // ~$0,82. Alleen de beheerder (besluit 18, zie lib/cost-guard.ts).
   if (!(await mayTriggerCost(user.id))) {
     return NextResponse.json({ error: COST_DENIED.analyse_starten }, { status: 403 });
+  }
+
+  // ⚠️ De TWEEDE rem, en hij staat los van de eerste (F1, lib/spend-limit.ts).
+  // Besluit 18 hierboven haalde de klant weg als risicobron. Wat het niet
+  // wegneemt: een beheerder die zich vergist in een lus, of een cron die
+  // twintig keer vuurt. Die vragen niemand om toestemming.
+  const budget = await checkBudgetForProfile(id);
+  if (!budget.ok) {
+    return NextResponse.json({ error: budget.message }, { status: 402 });
   }
 
   const admin = createAdminClient();

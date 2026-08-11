@@ -524,11 +524,58 @@ Dit spoor bouwt, de andere vijf toetsen. Het staat er omdat vier van de zeven pu
 
 | # | Wat | Waarom nu | Werk |
 |---|---|---|---|
-| F1 | **Maandplafond per account plus een dagplafond over alles** | P3. Een klant kan sinds vandaag zelf geld uitgeven en er is geen rem | 0,5 dag |
+| F1 | ~~**Maandplafond per account plus een dagplafond over alles**~~ | P3 | **Af.** Zie hieronder |
 | F2 | **Kosten bij de knop** die geld kost | P3, en het is beter dan Nova | 2 uur |
 | F3 | **Eén toegangsfunctie** in plaats van een tweeling | P2. De structuur die de fout van vandaag mogelijk maakte, staat er nog | 0,5 dag |
 | F4 | **Een klant volledig verwijderen** | P5, en het is een AVG-plicht zodra er echte bedrijfsgegevens in staan | 0,5 dag |
 | F5 | **De stille-fout-ronde**: elke `catch` en elke `?? null` in `lib/` nalopen | P1. Twee van de vijf fouten van vandaag waren precies dit | 0,5 dag |
+
+#### F1 is af, en hier staat wat hij doet
+
+Gebouwd op 11 augustus 2026: `lib/spend-rules.ts` (puur, de bedragen en de meldingen),
+`lib/spend-limit.ts` (het opzoekwerk) en migratie `0053`.
+
+**Twee plafonds, want ze vangen verschillende rampen.** Het maandplafond per account (€50 standaard,
+per account te overschrijven) vangt de klant die structureel te veel kost. Het dagplafond over alle
+accounts samen (€150) vangt het ongeluk: een lus die doordraait, een cron die twintig keer vuurt.
+Eén plafond zou altijd één van die twee missen. Beide instelbaar via `MONTHLY_BUDGET_EUR` en
+`DAILY_BUDGET_EUR`.
+
+**De bedragen staan waar ze op gekozen zijn.** Een klant met vier onderwerpen kost ~$3,30 per maand
+aan metingen plus ~$2,80 aan tien pagina's, ruwweg €6. Het plafond van €50 laat daarmee een factor
+acht ruimte: het raakt een normale klant nooit en stopt een ontspoorde wel. Twintig klanten die op
+één dag hun maand goedgekeurd krijgen is ~€52 en past ruim onder het dagplafond.
+
+**Het blokkeert hard**, met status 402 en een melding die drie dingen noemt: wat er staat, wat het
+plafond is, en waar je het verhoogt. Dat derde is geen beleefdheid maar de reden dat het een rem is
+en geen storing.
+
+⚠️ **Drie dingen die bewust anders zijn dan je zou verwachten.**
+
+- **De rem faalt naar "doorlaten", niet naar "blokkeren".** Dat is de andere kant op dan
+  `mayTriggerCost`, en met reden: bij de vraag "wie" is het ergste geval dat iemand even niets kan,
+  bij de vraag "hoeveel" zou zacht falen betekenen dat één trage query de hele pijplijn stilzet voor
+  alle klanten, inclusief werk dat allang betaald is. Het wordt wel gelogd, want een rem die stil
+  niet werkt is erger dan geen rem. **Dat gedrag is meteen getest ook**: de ketentest liet de shim
+  crashen op een ontbrekende `.gte`, en de rem liet het werk keurig door met een luide melding.
+- **Het is geen exacte boekhouding.** De grens wordt gecontroleerd vóór een taak begint, niet
+  tijdens. Een meetronde die al loopt wordt niet halverwege afgekapt, dus een enkele ronde kan het
+  plafond met ~$1 overschrijden. Halverwege stoppen laat een analyse in een halve toestand achter, en
+  dat is een groter probleem dan een dollar.
+- **Afwijzen valt er niet onder.** Een maand goedkeuren zet ~$2,80 in gang en gaat door de rem; die
+  maand afwijzen kost niets en gaat eromheen. Een account met een vol plafond moet zijn maand nog wél
+  kunnen afwijzen.
+
+**Waar het geld op geboekt wordt.** `ai_calls` kende alleen `analysis_id` en `profile_id`, en optellen
+per account zou bij elke dure handeling een drieweg-join kosten. Migratie 0053 geeft de tabel een
+`account_id`, gevuld door een trigger in de database en niet door `ledger.ts`: dat logboek is
+best-effort en mag geen extra netwerkronde doen, want een mislukte logregel mag nooit een meting laten
+falen. Alle 1.140 bestaande rijen zijn bijgewerkt, nul bleven er onverdeeld.
+
+**Waar dit niet in zit.** De worker. Een taak die al in de wachtrij staat, draait door: de rem zit op
+de elf routes die werk in gang zetten, niet op de uitvoering. Dat is bewust (zie "geen exacte
+boekhouding"), maar het betekent dat een wachtrij die vollopen is vóór het plafond bereikt wordt,
+alsnog leegloopt.
 
 **F1 tot en met F4 zijn lanceervoorwaarden.** F5 is dat niet, en hij levert waarschijnlijk het meeste
 op per uur: het is de enige die zoekt naar fouten die nog niemand gezien heeft.
@@ -545,7 +592,7 @@ Zodra er vijf klanten zijn, hoort P4 alsnog gebouwd te worden.
 | Week | Dagen | Wat | Wie |
 |---|---|---|---|
 | 1 | ma | **Spoor R**: het regionale vangnet (§6b). Vóór spoor A, want anders meet de repetitie de verkeerde vragen | ik |
-| 1 | di | **Spoor R** afmaken plus **F1**: het budgetplafond | ik |
+| 1 | di | ~~**Spoor R** afmaken plus **F1**: het budgetplafond~~ **Allebei af op 11 augustus.** R4 en R5 staan nog open | ik |
 | 1 | wo-do | **Spoor A**: de generale repetitie op `gasservice-brabant.nl` | ik, jij leest de uitkomst |
 | 1 | vr | **Spoor B**: de rolmatrix, met de "nee"-vakjes eerst | ik |
 | 2 | ma | **Spoor D**: de foutpaden, met D4, D7 en D10 voorop | ik |

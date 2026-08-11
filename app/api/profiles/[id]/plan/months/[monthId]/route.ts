@@ -4,6 +4,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { getOwnedProfile } from "@/lib/profiles";
 import { approveMonth } from "@/lib/plans";
 import { mayTriggerCost, COST_DENIED } from "@/lib/cost-guard";
+import { checkBudgetForProfile } from "@/lib/spend-limit";
 
 /**
  * POST /api/profiles/[id]/plan/months/[monthId], een hele maand goedkeuren of
@@ -72,6 +73,16 @@ export async function POST(
   }
 
   if (body.actie === "goedkeuren") {
+    // ⚠️ De TWEEDE rem (F1, lib/spend-limit.ts), en hij staat bewust hier en
+    // niet bij `mayTriggerCost` hierboven. Goedkeuren zet ~$2,80 aan schrijfwerk
+    // in gang, afwijzen kost niets. Die twee mogen dezelfde rechten delen, maar
+    // niet hetzelfde budget: een account met een vol plafond moet zijn maand nog
+    // wél kunnen afwijzen.
+    const budget = await checkBudgetForProfile(id);
+    if (!budget.ok) {
+      return NextResponse.json({ error: budget.message }, { status: 402 });
+    }
+
     const ok = await approveMonth(admin, monthId, user.id);
     if (!ok) {
       return NextResponse.json({ error: "Goedkeuren is niet gelukt." }, { status: 500 });

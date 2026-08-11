@@ -2224,3 +2224,33 @@ maakt. Zou dat als bekend gelden, dan meldt het scherm groen terwijl de promptre
 is van de twee de ergere fout. De vier profielen op productie met een leeg bereik zijn bewust niet
 aangeraakt: dat invullen zou een gok zijn, en conventie 3 zegt dat onbekend beter is dan verkeerd.
 1049 unittests.
+
+**F1: het budgetplafond, de tweede rem.** Besluit 18 haalde de klant weg als risicobron, maar niet
+het risico. Een beheerder die zich vergist in een lus blaast een rekening net zo hard op, en een cron
+die twintig keer vuurt vraagt niemand om toestemming. Tot 11 augustus 2026 was er precies één plafond
+in de hele app, en dat gold alleen de onboarding van één merk ($2,15). Alles daarna kon doorlopen.
+
+Nu twee plafonds, want ze vangen verschillende rampen: €50 per account per maand (de klant die
+structureel te veel kost) en €150 per dag over alle accounts samen (het ongeluk). De bedragen komen
+uit de echte cijfers: een klant met vier onderwerpen kost ruwweg €6 per maand, dus €50 laat een
+factor acht ruimte en raakt een normale klant nooit. Twintig goedkeuringen op één dag is ~€52 en past
+ruim onder het dagplafond. Elf routes stellen nu allebei de vragen, en de broncodecontrole in
+`test-unit.ts` bewaakt dat er geen twaalfde bijkomt die er één vergeet.
+
+**Drie keuzes die de andere kant op vallen dan je zou verwachten.** De rem faalt naar doorlaten en
+niet naar blokkeren: bij "wie mag dit" is het ergste geval dat iemand even niets kan, bij "hoeveel is
+er over" zou zacht falen één trage query de hele pijplijn laten stilzetten voor alle klanten. Hij is
+geen exacte boekhouding: de grens wordt gecontroleerd vóór een taak, niet tijdens, dus een lopende
+meetronde wordt niet halverwege afgekapt (een halve analyse is een groter probleem dan een dollar).
+En een maand afwijzen gaat om de rem heen, want dat kost niets en een account met een vol plafond
+moet zijn maand nog wél kunnen afwijzen.
+
+**Migratie 0053 geeft `ai_calls` een `account_id`,** gevuld door een trigger in de database. Niet in
+`ledger.ts`: dat logboek is best-effort en mag geen extra netwerkronde doen om een account op te
+zoeken, want een mislukte logregel mag nooit een meting laten falen. Alle 1.140 bestaande rijen zijn
+bijgewerkt, nul bleven er onverdeeld. Totaal uitgegeven sinds de start: $13,38.
+
+**En de ketentest bewees meteen twee dingen tegelijk.** Hij viel om op een `.gte` die de shim niet
+kende, precies de klasse fout waar die shim voor gewaarschuwd is. Maar de melding eronder liet zien
+dat de zachte terugval werkt zoals bedoeld: de handeling ging door, luid gelogd, en niet stil
+geblokkeerd. De shim kent nu `gte`, `gt`, `lte`, `lt` en `range`. 1088 unittests, 92 ketentests.

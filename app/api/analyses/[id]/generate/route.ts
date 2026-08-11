@@ -8,6 +8,7 @@ import type { ContentAction } from "@/lib/types/database";
 import type { RecommendationPayload } from "@/lib/jobs/types";
 import type { RecommendationTarget } from "@/lib/pipeline/recommendation";
 import { mayTriggerCost, COST_DENIED } from "@/lib/cost-guard";
+import { checkBudgetForProfile } from "@/lib/spend-limit";
 
 /**
  * POST /api/analyses/[id]/generate, plant het schrijven van één pagina in
@@ -68,6 +69,15 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   // dollars uitgeven zonder dat iemand het merkt.
   if (!(await mayTriggerCost(user.id))) {
     return NextResponse.json({ error: COST_DENIED.content_schrijven }, { status: 403 });
+  }
+
+  // ⚠️ De TWEEDE rem, en hij staat los van de eerste (F1, lib/spend-limit.ts).
+  // Besluit 18 hierboven haalde de klant weg als risicobron. Wat het niet
+  // wegneemt: een beheerder die zich vergist in een lus, of een cron die
+  // twintig keer vuurt. Die vragen niemand om toestemming.
+  const budget = await checkBudgetForProfile(analysis.profile_id);
+  if (!budget.ok) {
+    return NextResponse.json({ error: budget.message }, { status: 402 });
   }
 
   const title = body.title?.trim();

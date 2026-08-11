@@ -99,3 +99,14 @@ select id from auth.users where email = '<eigenaar>' on conflict do nothing;
 
 Bewust niet in de migratie: een hardgecodeerd account-ID in versiebeheer is een achterdeur die
 niemand meer terugvindt.
+
+## 0053 · budgetplafond
+
+`ai_calls.account_id` (gevuld door trigger `ai_calls_set_account`, plus backfill van alle bestaande
+rijen), twee indexen voor de twee tellingen, en `accounts.monthly_budget_eur`. De trigger leidt het
+account af uit `profile_id` of anders uit `analysis_id` via het profiel eronder; hij zit in de
+database en niet in `lib/openai/ledger.ts`, omdat dat logboek best-effort is en geen extra
+netwerkronde mag doen. Zie `lib/spend-rules.ts` en `docs/tasks/lanceerplan.md` F1.
+
+Toegepast op productie op 11 augustus 2026: 1.140 bestaande rijen kregen allemaal een account, nul
+bleven er over.

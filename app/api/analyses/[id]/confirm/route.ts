@@ -5,6 +5,7 @@ import { getOwnedAnalysis } from "@/lib/analyses";
 import { enqueueMeasurement } from "@/lib/jobs/queue";
 import { describeError, classifyError } from "@/lib/errors";
 import { mayTriggerCost, COST_DENIED } from "@/lib/cost-guard";
+import { checkBudgetForProfile } from "@/lib/spend-limit";
 
 /**
  * POST /api/analyses/[id]/confirm, de review-gate (abcplan.md §3.6/A2c).
@@ -33,6 +34,15 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
   // dollars uitgeven zonder dat iemand het merkt.
   if (!(await mayTriggerCost(user.id))) {
     return NextResponse.json({ error: COST_DENIED.meting_starten }, { status: 403 });
+  }
+
+  // ⚠️ De TWEEDE rem, en hij staat los van de eerste (F1, lib/spend-limit.ts).
+  // Besluit 18 hierboven haalde de klant weg als risicobron. Wat het niet
+  // wegneemt: een beheerder die zich vergist in een lus, of een cron die
+  // twintig keer vuurt. Die vragen niemand om toestemming.
+  const budget = await checkBudgetForProfile(analysis.profile_id);
+  if (!budget.ok) {
+    return NextResponse.json({ error: budget.message }, { status: 402 });
   }
 
   // Zonder actieve vragen valt er niets te meten, en zou de analyse blijven

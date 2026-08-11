@@ -62,6 +62,7 @@ function kolom(naam: string): string {
 class QueryBuilder<T> implements PromiseLike<Antwoord<T>> {
   private filters: Filter[] = [];
   private orderBy: { kolom: string; oplopend: boolean }[] = [];
+  private vanaf: number | null = null;
   private limiet: number | null = null;
   private enkel: "single" | "maybeSingle" | null = null;
   private telling: "exact" | null = null;
@@ -116,6 +117,35 @@ class QueryBuilder<T> implements PromiseLike<Antwoord<T>> {
       return this;
     }
     this.filters.push({ sql: `${kolom(kol)} = any($$)`, params: [waarden] });
+    return this;
+  }
+
+  /**
+   * De vier vergelijkingen. Toegevoegd voor het budgetplafond (F1), dat telt
+   * wat er "sinds het begin van deze maand" is uitgegeven.
+   *
+   * ⚠️ Ze staan hier omdat de ketentest ze nodig had en NIET omdat ze compleet
+   * zijn: deze shim mag nooit stilletjes iets anders doen dan de echte client.
+   * Een operator die hier ontbreekt hoort te crashen (zoals `.gte` deed), niet
+   * genegeerd te worden.
+   */
+  gte(kol: string, waarde: unknown): this {
+    this.filters.push({ sql: `${kolom(kol)} >= $$`, params: [waarde] });
+    return this;
+  }
+
+  gt(kol: string, waarde: unknown): this {
+    this.filters.push({ sql: `${kolom(kol)} > $$`, params: [waarde] });
+    return this;
+  }
+
+  lte(kol: string, waarde: unknown): this {
+    this.filters.push({ sql: `${kolom(kol)} <= $$`, params: [waarde] });
+    return this;
+  }
+
+  lt(kol: string, waarde: unknown): this {
+    this.filters.push({ sql: `${kolom(kol)} < $$`, params: [waarde] });
     return this;
   }
 
@@ -192,6 +222,17 @@ class QueryBuilder<T> implements PromiseLike<Antwoord<T>> {
 
   limit(n: number): this {
     this.limiet = n;
+    return this;
+  }
+
+  /**
+   * `range(van, tot)` is inclusief aan beide kanten, net als bij PostgREST.
+   * Het budgetplafond pagineert ermee, want `select` geeft standaard maximaal
+   * duizend rijen terug en `ai_calls` stond na zes weken al op 1.140.
+   */
+  range(van: number, tot: number): this {
+    this.vanaf = van;
+    this.limiet = tot - van + 1;
     return this;
   }
 
@@ -285,8 +326,9 @@ class QueryBuilder<T> implements PromiseLike<Antwoord<T>> {
         ? ` order by ${this.orderBy.map((o) => `${kolom(o.kolom)} ${o.oplopend ? "asc" : "desc"}`).join(", ")}`
         : "";
       const lim = this.limiet != null ? ` limit ${Number(this.limiet)}` : "";
+      const vanaf = this.vanaf != null ? ` offset ${Number(this.vanaf)}` : "";
       const res = await this.client.query(
-        `select ${this.kolommen} from ${tabel}${sql}${orde}${lim}`,
+        `select ${this.kolommen} from ${tabel}${sql}${orde}${lim}${vanaf}`,
         params,
       );
       return res.rows as Rij[];

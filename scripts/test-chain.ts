@@ -1132,6 +1132,100 @@ async function main(): Promise<void> {
       (await defaultAccountFor(verseId)) === versAccount,
     );
 
+    // ══════════════════════════════════════════════════════════════════════
+    // Het budgetplafond (F1, migratie 0053)
+    //
+    // ⚠️ Hoort hier en niet in test-unit.ts, want de helft van dit mechanisme
+    // is databasegedrag: de trigger `ai_calls_set_account` leidt het account af
+    // uit het profiel of de analyse, en zonder die trigger telt het plafond
+    // altijd nul en remt het nooit. Een unittest op `spendVerdict()` zou dat
+    // niet zien, want die krijgt het bedrag al aangereikt.
+    // ══════════════════════════════════════════════════════════════════════
+    console.log("\nHet budgetplafond");
+
+    const { checkBudget, checkBudgetForProfile } = await import("@/lib/spend-limit");
+
+    // Een leeg logboek remt niets: dit is de normale toestand en die moet
+    // gewoon doorlaten.
+    await db.client.query("delete from public.ai_calls");
+    ok("zonder uitgaven mag alles door", (await checkBudget(accountId)).ok);
+
+    // De trigger: een aanroep die alleen een profiel noemt, hoort vanzelf op
+    // het juiste account te landen.
+    await db.client.query(
+      `insert into public.ai_calls (profile_id, kind, model, web_search, cost_usd)
+       values ($1, 'test', 'gpt-5.6-luna', false, 1.00)`,
+      [profileId],
+    );
+    const { rows: viaProfiel } = await db.client.query(
+      "select account_id from public.ai_calls where profile_id = $1",
+      [profileId],
+    );
+    ok(
+      "de trigger leidt het account af uit het profiel",
+      viaProfiel[0]?.account_id !== null && viaProfiel[0]?.account_id !== undefined,
+    );
+
+    // En een aanroep die alleen een analyse noemt, komt er via de andere weg.
+    await db.client.query(
+      `insert into public.ai_calls (analysis_id, kind, model, web_search, cost_usd)
+       values ($1, 'test', 'gpt-5.6-luna', false, 1.00)`,
+      [analysisId],
+    );
+    const { rows: viaAnalyse } = await db.client.query(
+      "select account_id from public.ai_calls where analysis_id = $1",
+      [analysisId],
+    );
+    ok(
+      "en ook uit de analyse, via het profiel eronder",
+      viaAnalyse[0]?.account_id !== null && viaAnalyse[0]?.account_id !== undefined,
+    );
+
+    // Nu de rem zelf. Het account krijgt een plafond van €1; er staat $2 op,
+    // oftewel ~€1,85, dus het is op.
+    const budgetAccount = viaProfiel[0].account_id as string;
+    await db.client.query(
+      "update public.accounts set monthly_budget_eur = 1 where id = $1",
+      [budgetAccount],
+    );
+    const geblokkeerd = await checkBudget(budgetAccount);
+    ok("boven het maandplafond blokkeert het", !geblokkeerd.ok);
+    ok("en het zegt welk plafond", geblokkeerd.scope === "maand");
+    ok(
+      "en de melding noemt een bedrag in euro's",
+      (geblokkeerd.message ?? "").includes("€"),
+    );
+
+    // ⚠️ Nul is een echte waarde en geen "niet ingesteld". Zonder deze regel
+    // zou `?? standaard` of `||` een account op slot stilletjes weer openzetten.
+    await db.client.query(
+      "update public.accounts set monthly_budget_eur = 0 where id = $1",
+      [budgetAccount],
+    );
+    ok("een plafond van nul zet het account op slot", !(await checkBudget(budgetAccount)).ok);
+
+    // Ruim plafond: het mag weer.
+    await db.client.query(
+      "update public.accounts set monthly_budget_eur = 500 where id = $1",
+      [budgetAccount],
+    );
+    ok("met een ruim plafond mag het weer", (await checkBudget(budgetAccount)).ok);
+
+    // De route-ingang loopt via het profiel en hoort hetzelfde te zeggen.
+    await db.client.query(
+      "update public.accounts set monthly_budget_eur = 1 where id = $1",
+      [budgetAccount],
+    );
+    ok(
+      "checkBudgetForProfile komt op hetzelfde uit",
+      !(await checkBudgetForProfile(profileId)).ok,
+    );
+
+    // En een account dat niets heeft uitgegeven, wordt niet geraakt door de
+    // uitgaven van een ander: het plafond is per account.
+    await db.client.query("delete from public.ai_calls");
+    ok("een leeg account begint weer op nul", (await checkBudget(budgetAccount)).ok);
+
     __setTestAdminClient(null);
     __setTestTransport(null);
   } finally {
