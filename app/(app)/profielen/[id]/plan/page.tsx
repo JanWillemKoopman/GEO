@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { getProfile } from "@/lib/profiles";
 import { requireUser } from "@/lib/auth";
+import { isStaff } from "@/lib/staff";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { loadPlan } from "@/lib/plans";
 import { PageHeader } from "@/components/page-header";
@@ -38,7 +39,11 @@ export default async function PlanPage({
   const { id } = await params;
   const profile = await getProfile(id);
   if (!profile) notFound();
-  await requireUser();
+  const user = await requireUser();
+  // Besluit 18: betaald werk start alleen de beheerder. De klant ziet het plan
+  // volledig en keurt in het gesprek goed; de knop die geld kost, staat er voor
+  // hem niet. Een knop tonen die een 403 oplevert is erger dan geen knop.
+  const staff = await isStaff(user.id);
 
   const admin = createAdminClient();
   const bundle = await loadPlan(admin, id);
@@ -81,10 +86,12 @@ export default async function PlanPage({
           pages={bundle.pages}
           funnels={bundle.funnels}
           topics={bundle.topics}
+          staff={staff}
         />
       ) : (
         <CreatePlanBox
           profileId={id}
+          staff={staff}
           quota={quota}
           topicCount={topicCount ?? 0}
           accountName={(account?.name as string | undefined) ?? null}

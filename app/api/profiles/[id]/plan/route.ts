@@ -3,6 +3,7 @@ import { getUser } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getOwnedProfile } from "@/lib/profiles";
 import { createPlan } from "@/lib/plans";
+import { mayTriggerCost, COST_DENIED } from "@/lib/cost-guard";
 
 /**
  * POST /api/profiles/[id]/plan, een contentplan opstellen.
@@ -26,6 +27,13 @@ export async function POST(
   const user = await getUser();
   if (!user) {
     return NextResponse.json({ error: "Je bent niet ingelogd." }, { status: 401 });
+  }
+
+  // ⚠️ Betaald werk start alleen de beheerder (besluit 18). Zie lib/cost-guard.ts
+  // voor de rekensom eronder: zonder deze regel kan een klant op één middag
+  // dollars uitgeven zonder dat iemand het merkt.
+  if (!(await mayTriggerCost(user.id))) {
+    return NextResponse.json({ error: COST_DENIED.content_schrijven }, { status: 403 });
   }
 
   const admin = createAdminClient();

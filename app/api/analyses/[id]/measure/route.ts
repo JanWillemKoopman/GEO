@@ -4,6 +4,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { getOwnedAnalysis } from "@/lib/analyses";
 import { enqueueMeasurement } from "@/lib/jobs/queue";
 import { describeError, classifyError } from "@/lib/errors";
+import { mayTriggerCost, COST_DENIED } from "@/lib/cost-guard";
 
 /**
  * POST /api/analyses/[id]/measure, plant de nulmeting in (optimalisatie.md 1.4).
@@ -29,6 +30,13 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
   // Alleen vanuit 'meten' (na goedkeuring) of 'mislukt' (retry).
   if (analysis.status !== "meten" && analysis.status !== "mislukt") {
     return NextResponse.json({ queued: false, status: analysis.status });
+  }
+
+  // ⚠️ Betaald werk start alleen de beheerder (besluit 18). Zie lib/cost-guard.ts
+  // voor de rekensom eronder: zonder deze regel kan een klant op één middag
+  // dollars uitgeven zonder dat iemand het merkt.
+  if (!(await mayTriggerCost(user.id))) {
+    return NextResponse.json({ error: COST_DENIED.meting_starten }, { status: 403 });
   }
 
   try {

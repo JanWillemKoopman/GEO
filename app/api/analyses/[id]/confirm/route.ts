@@ -4,6 +4,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { getOwnedAnalysis } from "@/lib/analyses";
 import { enqueueMeasurement } from "@/lib/jobs/queue";
 import { describeError, classifyError } from "@/lib/errors";
+import { mayTriggerCost, COST_DENIED } from "@/lib/cost-guard";
 
 /**
  * POST /api/analyses/[id]/confirm, de review-gate (abcplan.md §3.6/A2c).
@@ -25,6 +26,13 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
       { error: "Deze analyse staat niet klaar om bevestigd te worden." },
       { status: 409 },
     );
+  }
+
+  // ⚠️ Betaald werk start alleen de beheerder (besluit 18). Zie lib/cost-guard.ts
+  // voor de rekensom eronder: zonder deze regel kan een klant op één middag
+  // dollars uitgeven zonder dat iemand het merkt.
+  if (!(await mayTriggerCost(user.id))) {
+    return NextResponse.json({ error: COST_DENIED.meting_starten }, { status: 403 });
   }
 
   // Zonder actieve vragen valt er niets te meten, en zou de analyse blijven

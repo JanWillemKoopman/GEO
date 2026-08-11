@@ -2131,3 +2131,49 @@ CV- en warmtepompinstallateur uit Den Bosch. Zelfde soort bedrijf en zelfde regi
 Udenhout, andere branche dus geen besmetting, WordPress met 214 links op de homepage, en een
 `robots.txt` die alles toestaat zodat de technische audit niet het hele beeld overstemt. Bewust niet
 HEMA of Bol: een merk dat elke AI-assistent uit zijn hoofd kent, meet niets.
+
+**Besluit 18: alleen de beheerder start betaald werk (11 augustus 2026).** 's Ochtends was besloten
+dat een account-admin zelf een meting mocht starten en een member een maand mocht goedkeuren.
+Diezelfde dag teruggedraaid toen de rekensom zichtbaar werd: een klant met acht onderwerpen kon op één
+middag $6,56 uitgeven zonder enige rem, en twintig klanten die hun plan goedkeuren is $56 in één
+nacht. Het sluit ook beter aan op `Nova.md` §1.2, waar uit hun berichtenbestand blijkt dat de klant
+goedkeurt en niet maakt: zijn hele rol past in drie werkwoorden.
+
+**De scheidslijn loopt langs geld en niet langs rol.** Elf routes stellen dezelfde vraag aan dezelfde
+functie (`lib/cost-guard.ts`), en de meldingen staan in een pure module ernaast zodat ze te testen
+zijn (conventie 2). Gratis handelingen blijven bij de klant: een pagina goedkeuren, als geplaatst
+markeren, een feitvraag beantwoorden, het merkprofiel corrigeren. De test die erbij hoort is bewust
+een broncodecontrole en geen gedragstest: de fout die je wilt vangen is niet "de controle werkt niet"
+maar "er komt een route bij en iemand vergeet hem". Dat is precies hoe `getOwnedAnalysis` de
+accountlaag miste.
+
+**En de knop is weg waar het recht weg is.** Op het planscherm ziet een klant geen goedkeurknop meer
+maar de zin dat hij zijn consultant akkoord geeft. Een knop tonen die een 403 oplevert is erger dan
+geen knop.
+
+**Spoor R: de meting mat de verkeerde vragen, en dat is met cijfers aangetoond.** De eigenaar merkte
+op dat Van den Udenhout alleen in Brabant werkt en dat landelijke vragen hem niets zeggen. Nagerekend
+op productie, en het is erger dan een smaakkwestie:
+
+| | vragen | metingen | genoemd | score |
+|---|---|---|---|---|
+| Fysi-Unique, niet-regionaal | 20 | 57 | **0** | **0** |
+| Fysi-Unique, regionaal | 10 | 40 | 11 | **28** |
+
+Élke vermelding die dat merk ooit verdiende, kwam uit een regionale vraag. Van 57 betaalde metingen op
+landelijke vragen leverde er niet één iets op. Drie gevolgen: twee derde van het meetbudget kocht
+niets (en `web_search` is ~94% van de meetkosten), de getoonde score van 18/36/38 was systematisch
+lager dan de 28 op de vragen die ertoe doen, en de gap-analyse stelde pagina's voor over een markt
+waar de klant niet in zit.
+
+**De oorzaak was conventie 1 in het klein.** Er stónd een regionale regel in `prompts.ts`, en hij
+vuurde ook: Van den Udenhout had scope `lokaal` en negen plaatsen. Maar hij zei "verwerk in een deel
+van de prompts een plaatsnaam", en dat is een intentie. Uitkomst: 38%. Nu staat er een aantal in de
+instructie (minstens 70%) én een deterministisch vangnet erachter dat bijvult tot het klopt, met
+dezelfde bijvullus die de merkneutraliteitsregel al had.
+
+**Twee details die het verschil maken tussen werkt en werkt-bijna.** De twaalf provincies staan in de
+lijst, want `service_regions` bevat alleen plaatsen terwijl een zoeker net zo vaak "in Brabant" zegt;
+zonder die lijst zou precies de vraag waar het om gaat als landelijk tellen. En de woordgrenzen zijn
+geen theorie: "Oss" staat letterlijk in de regio's van een Brabantse dealer en zou zonder grens
+aanslaan op "grossier". 1032 unittests.

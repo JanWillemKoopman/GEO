@@ -3,6 +3,7 @@ import { getUser } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getOwnedProfile } from "@/lib/profiles";
 import { enqueue, dedupe } from "@/lib/jobs/queue";
+import { mayTriggerCost, COST_DENIED } from "@/lib/cost-guard";
 import { buildAnalysisName } from "@/lib/url";
 import type { ProfileTopic } from "@/lib/types/database";
 
@@ -86,6 +87,12 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 
   const user = await getUser();
   if (!user) return NextResponse.json({ error: "Je bent niet ingelogd." }, { status: 401 });
+
+  // ⚠️ Een onderwerp starten maakt een analyse aan en zet een meetronde in gang:
+  // ~$0,82. Alleen de beheerder (besluit 18, zie lib/cost-guard.ts).
+  if (!(await mayTriggerCost(user.id))) {
+    return NextResponse.json({ error: COST_DENIED.analyse_starten }, { status: 403 });
+  }
 
   const admin = createAdminClient();
   const profile = await getOwnedProfile(admin, id, user.id);

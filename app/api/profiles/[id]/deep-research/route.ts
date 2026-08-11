@@ -3,6 +3,7 @@ import { getUser } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getOwnedProfile } from "@/lib/profiles";
 import { enqueue, dedupe } from "@/lib/jobs/queue";
+import { mayTriggerCost, COST_DENIED } from "@/lib/cost-guard";
 
 /**
  * Onderzoek opnieuw draaien (docs/tasks/onboarding-2.0.md §8, punt 3).
@@ -55,6 +56,13 @@ export async function POST(
       { error: "Er loopt al een onderzoek voor dit merk." },
       { status: 409 },
     );
+  }
+
+  // ⚠️ Betaald werk start alleen de beheerder (besluit 18). Zie lib/cost-guard.ts
+  // voor de rekensom eronder: zonder deze regel kan een klant op één middag
+  // dollars uitgeven zonder dat iemand het merkt.
+  if (!(await mayTriggerCost(user.id))) {
+    return NextResponse.json({ error: COST_DENIED.merk_onderzoeken }, { status: 403 });
   }
 
   // Facetten weg: die worden opnieuw geschreven, en een oude samenvatting laten

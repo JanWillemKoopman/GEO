@@ -155,6 +155,15 @@ import {
 } from "@/lib/plan-writing";
 import { swapWithNeighbour, canMove, type OrderablePage } from "@/lib/plan-order";
 import { milestones } from "@/lib/milestones";
+import { readFileSync } from "node:fs";
+import {
+  containsRegion,
+  geoBalance,
+  droppableIndices,
+  isLokaal,
+  REGIO_DREMPEL,
+} from "@/lib/pipeline/geo-share";
+import { COST_DENIED } from "@/lib/cost-rules";
 import { EDITABLE_ACCOUNT_FIELDS } from "@/lib/account-editable";
 import { checkNewEmail, checkNewPassword } from "@/lib/account-security";
 import { opportunities, shareLabel } from "@/lib/opportunities";
@@ -4900,6 +4909,125 @@ group("e-mail en wachtwoord wijzigen (fase 7)", () => {
     passwordRules("Wachtwoord1").every((r) => r.ok) &&
       checkNewPassword("Wachtwoord1", "iets anders").ok === true,
   );
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+console.log("\nDe kostenrem (besluit 18)");
+
+group("elke dure route vraagt het aan dezelfde functie", () => {
+  // ⚠️ DIT IS EEN BRONCODECONTROLE EN GEEN GEDRAGSTEST, en dat is met opzet.
+  //
+  // De fout die dit voorkomt is niet "de controle werkt niet" maar "er komt een
+  // route bij en iemand vergeet de controle". Dat is precies hoe
+  // `getOwnedAnalysis` de accountlaag miste: een laag toegevoegd, één aanroeper
+  // vergeten. Een gedragstest per route zou elke nieuwe route mét test hebben en
+  // de route zónder test niet zien.
+  const duur = [
+    "app/api/profiles/route.ts",
+    "app/api/profiles/[id]/research/route.ts",
+    "app/api/profiles/[id]/deep-research/route.ts",
+    "app/api/profiles/[id]/topics/route.ts",
+    "app/api/profiles/[id]/plan/route.ts",
+    "app/api/profiles/[id]/plan/months/[monthId]/route.ts",
+    "app/api/analyses/[id]/confirm/route.ts",
+    "app/api/analyses/[id]/measure/route.ts",
+    "app/api/analyses/[id]/generate/route.ts",
+    "app/api/analyses/[id]/generate-all/route.ts",
+    "app/api/analyses/[id]/briefing/route.ts",
+  ];
+
+  for (const pad of duur) {
+    const bron = readFileSync(pad, "utf8");
+    ok(
+      `${pad.replace("app/api/", "")} vraagt mayTriggerCost`,
+      bron.includes("mayTriggerCost("),
+    );
+  }
+
+  // En de melding is per handeling anders (K2 uit het lanceerplan: elke
+  // foutmelding is specifiek). Vijf handelingen, vijf zinnen, geen dubbele.
+  const zinnen = Object.values(COST_DENIED);
+  ok("vijf handelingen hebben elk een eigen melding", zinnen.length === 5);
+  ok("en geen twee zijn hetzelfde", new Set(zinnen).size === zinnen.length);
+  ok(
+    "geen enkele melding zegt alleen 'geen toegang'",
+    zinnen.every((z) => z.length > 40 && !/geen toegang/i.test(z)),
+  );
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+console.log("\nRegionale vragen bij een lokaal merk (spoor R)");
+
+group("containsRegion: plaats, provincie of nabijheid", () => {
+  const regios = ["'s-Hertogenbosch", "Eindhoven", "Oss", "Breda"];
+
+  ok("een plaatsnaam telt", containsRegion("Welke autodealer in Eindhoven is goed?", regios));
+  ok(
+    "een plaats met apostrof en koppelteken ook",
+    containsRegion("Waar kan ik in 's-Hertogenbosch terecht?", regios),
+  );
+  // ⚠️ De provincie staat er los bij: `service_regions` bevat alleen plaatsen,
+  // maar een zoeker zegt net zo vaak "in Brabant". Zonder die lijst zou precies
+  // de vraag waar de klant om gaf als landelijk tellen.
+  ok("de provincie telt ook", containsRegion("Welke dealer in Brabant?", regios));
+  ok("nabijheid telt ook", containsRegion("Welke garage bij mij in de buurt?", regios));
+
+  ok(
+    "een landelijke vraag telt niet",
+    !containsRegion("Waar moet ik op letten bij private lease in Nederland?", regios),
+  );
+
+  // ⚠️ Woordgrenzen zijn hier geen theorie: "Oss" staat écht in de regio's van
+  // een Brabantse dealer, en zonder grenzen slaat hij aan op "grossier".
+  ok("geen deelwoord: Oss in grossier telt niet", !containsRegion("Bij welke grossier?", regios));
+  ok("en Breda niet in bredaad", !containsRegion("Een bredaad verhaal", regios));
+});
+
+group("geoBalance en het vangnet", () => {
+  const regios = ["Eindhoven", "Breda"];
+  const tien = [
+    "Welke dealer in Eindhoven?",
+    "Waar in Breda terecht?",
+    "Welke garage in Eindhoven is open?",
+    "Hoe werkt private lease?",
+    "Wat kost een occasion?",
+    "Welke merken zijn betrouwbaar?",
+    "Hoeveel kilometer per jaar?",
+    "Wat is het verschil tussen lease en kopen?",
+    "Welke garantie krijg ik?",
+    "Hoe lang duurt een APK?",
+  ];
+
+  const b = geoBalance(tien, regios, 10);
+  ok("drie van de tien zijn regionaal", b.regionaal === 3);
+  // ⚠️ Dit is precies het geval van Van den Udenhout: 38% waar 70% nodig is.
+  ok("bij tien vragen zijn er zeven nodig", b.nodig === 7);
+  ok("dus vier tekort", b.tekort === 4);
+  ok("het aandeel klopt", Math.abs(b.aandeel - 0.3) < 0.001);
+
+  // Het doel is het EINDaantal en niet wat er nu ligt: tijdens het bijvullen is
+  // de set nog niet compleet en dan zou de drempel te laag uitvallen.
+  ok("halverwege rekent hij nog steeds op het eindaantal", geoBalance(tien.slice(0, 5), regios, 10).nodig === 7);
+
+  ok("een volle set heeft geen tekort", geoBalance(
+    ["In Eindhoven?", "In Breda?", "Bij mij in de buurt?"], regios, 3,
+  ).tekort === 0);
+
+  // ⚠️ Wat er mag wijken: alleen landelijke vragen, en van achteren naar voren.
+  // Het model zet zijn beste voorstel vooraan; de staart is inwisselbaar.
+  const weg = droppableIndices(tien, regios, 2);
+  ok("er wijken er twee", weg.length === 2);
+  ok("en het zijn de laatste twee landelijke", weg[0] === 9 && weg[1] === 8);
+  ok(
+    "een regionale vraag wijkt nooit",
+    droppableIndices(tien, regios, 10).every((i) => !containsRegion(tien[i], regios)),
+  );
+
+  // De drempel geldt alleen voor een lokaal merk.
+  ok("een lokaal merk met regio's telt", isLokaal("lokaal", ["Breda"]));
+  ok("zonder regio's niet", !isLokaal("lokaal", []));
+  ok("en een landelijk merk niet", !isLokaal("landelijk", ["Breda"]));
+  ok("de drempel staat op 70%", REGIO_DREMPEL === 0.7);
 });
 
 // ════════════════════════════════════════════════════════════════════════════

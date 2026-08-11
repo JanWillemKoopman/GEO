@@ -22,11 +22,14 @@ import { MONTHS_AHEAD } from "@/lib/pipeline/plan-build";
  */
 export function CreatePlanBox({
   profileId,
+  staff,
   quota,
   topicCount,
   accountName,
 }: {
   profileId: string;
+  /** Besluit 18: het plan opstellen kost geld en doet de beheerder. */
+  staff: boolean;
   quota: number | null;
   topicCount: number;
   accountName: string | null;
@@ -36,7 +39,7 @@ export function CreatePlanBox({
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState("");
 
-  const mag = Boolean(quota) && topicCount > 0;
+  const mag = staff && Boolean(quota) && topicCount > 0;
 
   async function maak() {
     setBusy(true);
@@ -82,6 +85,15 @@ export function CreatePlanBox({
           klantreis. Je keurt per maand goed, en Aura begint tien dagen voor elke
           publicatiedatum met schrijven.
         </p>
+
+        {!staff && (
+          // K1: een leeg scherm zegt waaróm het leeg is. Voor de klant is dat
+          // niet "er ontbreekt iets" maar "je consultant is aan zet".
+          <p className="text-sm text-muted">
+            Je consultant stelt het plan op. Zodra het klaarstaat, zie je hier de
+            twaalf maanden en keur je ze maand voor maand samen met hem goed.
+          </p>
+        )}
 
         <ul className="flex flex-col gap-2">
           <Voorwaarde

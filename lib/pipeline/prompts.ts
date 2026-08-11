@@ -18,6 +18,13 @@ import { callStructured } from "@/lib/openai/structured";
 import { MODELS } from "@/lib/openai/models";
 import { PromptSet, VolumeCalibration } from "@/lib/schemas/prompts";
 import { PROMPT_CATEGORIES, type PromptIntentType, type PromptSpecificity } from "@/lib/types/database";
+import {
+  isLokaal,
+  geoBalance,
+  containsRegion,
+  droppableIndices,
+  REGIO_DREMPEL,
+} from "@/lib/pipeline/geo-share";
 import { promptsPerFunnelStage } from "@/lib/config";
 
 /** Korte, sturende omschrijving per FUNNELFASE: merk- én concurrent-neutraal. */
@@ -144,6 +151,25 @@ const MAX_TOPUP_ATTEMPTS = 3;
  * geaccepteerde vragen te zien en concludeerde daaruit niets over de merkregel.
  * Nu staat de reden er expliciet bij, met de namen die het niet mag gebruiken.
  */
+/**
+ * De bijvulronde die specifiek om REGIONALE vragen vraagt.
+ *
+ * ⚠️ Apart van `topUpNote`, met opzet. Die legt uit waarom er vragen sneuvelden
+ * op de merknaamregel; deze legt uit dat er te weinig plaatsnamen in zaten. Twee
+ * verschillende redenen in één melding maakt allebei de instructies vager, en
+ * het model volgt dan geen van beide goed.
+ */
+function geoTopUpNote(missing: number, regions: string[], existing: string[]): string {
+  return (
+    `AANVULLING: geef er precies ${missing}, en in ELKE vraag moet een van deze plaatsen of de ` +
+    `provincie voorkomen: ${regions.join(", ")}.\n` +
+    `WAAROM: dit bedrijf werkt uitsluitend in dit gebied. Een vraag zonder plaatsnaam gaat over heel ` +
+    `Nederland, en daar concurreert dit bedrijf niet. Schrijf ze zoals een zoeker uit die streek ze ` +
+    `stelt: "welke ... in ${regions[0]}", "waar kan ik in ${regions[0]} terecht voor ...".\n` +
+    `Herhaal NIET de vragen die er al zijn:\n${existing.map((t) => `- ${t}`).join("\n")}`
+  );
+}
+
 function topUpNote(missing: number, existing: string[], verboden: string[]): string {
   const namen = verboden.length ? verboden.join(", ") : "de eigen merknaam";
   return (
@@ -199,10 +225,19 @@ async function generateForFunnelStage(args: {
 
   // Lokaal bereik met bekende regio's → laat de vragen (deels) een plaatsnaam
   // bevatten, zoals een echte lokale zoeker die zou stellen (§12.24).
+  // ⚠️ "Een deel" leverde 38% op bij Van den Udenhout, en de metingen lieten zien
+  // dat élke vermelding uit een regionale vraag kwam (zie lib/pipeline/geo-share.ts).
+  // Nu staat er een AANTAL in plaats van "een deel", en er staat een
+  // deterministisch vangnet achter dat bijvult als het model het niet haalt.
+  const geoNodig = isLokaal(brand.serviceScope, brand.serviceRegions)
+    ? Math.ceil(count * REGIO_DREMPEL)
+    : 0;
   const geoRule =
-    brand.serviceScope === "lokaal" && brand.serviceRegions?.length
-      ? `Dit is een LOKAAL bedrijf (${brand.serviceRegions.join(", ")}): verwerk in een deel van de prompts een ` +
-        `van deze plaatsen/regio's, zoals een lokale zoeker dat zou doen.`
+    geoNodig > 0
+      ? `Dit is een LOKAAL bedrijf dat uitsluitend werkt in: ${brand.serviceRegions!.join(", ")}. ` +
+        `MINSTENS ${geoNodig} van de ${count} vragen moeten een van deze plaatsen of de provincie bevatten, ` +
+        `zoals een zoeker uit die streek ze stelt. Een vraag zonder plaats gaat over heel Nederland, en ` +
+        `daar concurreert dit bedrijf niet.`
       : "";
 
   const neutralityRule =
@@ -270,6 +305,59 @@ async function generateForFunnelStage(args: {
         `${MAX_TOPUP_ATTEMPTS} pogingen. De rest sneuvelde op de merkneutraliteitsregel ` +
         `(verboden namen: ${tokens.join(", ")}).`,
     );
+  }
+
+  // ── Het regionale vangnet (conventie 1) ───────────────────────────────────
+  //
+  // De instructie hierboven vraagt om een aantal; deze lus garandeert het. Zonder
+  // dit haalde het model 38% waar 70% nodig is, en dan meet twee derde van het
+  // budget vragen die dit bedrijf structureel niet kan winnen.
+  const regios = brand.serviceRegions ?? [];
+  if (geoNodig > 0 && collected.length > 0) {
+    for (let ronde = 0; ronde < MAX_TOPUP_ATTEMPTS; ronde++) {
+      const balans = geoBalance(collected.map((p) => p.text), regios, collected.length);
+      if (balans.tekort === 0) break;
+
+      const result = await callStructured({
+        model: MODELS.quality,
+        system,
+        user: `${user}\n\n${geoTopUpNote(balans.tekort, regios, collected.map((p) => p.text))}`,
+        schema: PromptSet,
+        schemaName: "prompt_set",
+        webSearch: false,
+        work: "creative",
+        meta: { kind: "prompts", analysisId: args.analysisId },
+      });
+      lastRaw = result.raw;
+
+      const nieuw = result.parsed.prompts.filter((p) => {
+        const key = p.text.trim().toLowerCase();
+        if (seen.has(key)) return false;
+        if (containsForbidden(p.text, tokens)) return false;
+        // Alleen wat écht regionaal is telt mee; anders vervangt de bijvulronde
+        // een landelijke vraag door een andere landelijke vraag.
+        if (!containsRegion(p.text, regios)) return false;
+        seen.add(key);
+        return true;
+      });
+      if (nieuw.length === 0) break; // het model komt er niet uit, niet blijven betalen
+
+      // Een regionale vraag erbij betekent een landelijke eruit: het aantal ligt
+      // vast, want het bepaalt de meetkosten en de noemer van de score.
+      const weg = droppableIndices(collected.map((p) => p.text), regios, nieuw.length);
+      for (const i of weg) collected.splice(i, 1);
+      collected.push(...nieuw.slice(0, weg.length || nieuw.length));
+      if (collected.length > count) collected.length = count;
+    }
+
+    const eind = geoBalance(collected.map((p) => p.text), regios, collected.length);
+    if (eind.tekort > 0) {
+      console.warn(
+        `Funnelfase "${category}": ${eind.regionaal} van ${collected.length} vragen regionaal ` +
+          `(${Math.round(eind.aandeel * 100)}%), doel was ${eind.nodig}. Het model kwam er na ` +
+          `${MAX_TOPUP_ATTEMPTS} rondes niet. Regio's: ${regios.join(", ")}.`,
+      );
+    }
   }
 
   return collected

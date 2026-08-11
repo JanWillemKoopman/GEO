@@ -82,34 +82,41 @@ dit een maand kan draaien met echte klanten en echt geld.
 | **P6** | **Grenzen getest.** Nul onderwerpen, 150 pagina's, een merknaam van 200 tekens | **Nee.** Nooit gedaan |
 | **P7** | **Geen wedstrijdcondities.** Twee mensen die tegelijk hetzelfde doen | **Onbekend.** Zie D4, D7 en D10 |
 
-### P3 is een lanceervoorwaarde geworden, door een besluit van vandaag
+### P3: besluit 18, en de eerste helft is gebouwd
 
 Er is één kostenplafond in de hele app: de onboarding stopt bij $2,15 per merk
-(`lib/pipeline/onboarding-budget.ts`). Daarbuiten is er niets. En vandaag is besloten dat een
-account-admin zelf een meting mag starten en een member een maand mag goedkeuren. Allebei terecht,
-want dat ís het product, maar reken de gevolgen door:
+(`lib/pipeline/onboarding-budget.ts`). Daarbuiten was er niets, terwijl de klant sinds de ochtend van
+11 augustus zelf een meting mocht starten en een maand mocht goedkeuren. De rekensom eronder:
 
-| Handeling | Kosten per klik | Wie mag het | Rem |
-|---|---|---|---|
-| Onderzoek bij een nieuw merk | ~$0,25 | iedereen met een inlog | plafond $2,15 |
-| Analyse starten | ~$0,82 | **nu ook de klant** | **geen** |
-| Maand goedkeuren, 10 pagina's | ~$2,80 | **nu ook de klant** | **geen** |
-| Pagina opnieuw laten schrijven | ~$0,28 | de klant | **geen** |
+| Handeling | Kosten per klik |
+|---|---|
+| Onderzoek bij een nieuw merk | ~$0,25 |
+| Analyse starten | ~$0,82 |
+| Maand goedkeuren, 10 pagina's | ~$2,80 |
+| Pagina opnieuw laten schrijven | ~$0,28 |
 
 Een klant met acht onderwerpen die op één middag alles start, geeft $6,56 uit zonder dat iemand het
-merkt. Twintig klanten die elk hun plan goedkeuren, is $56 in één nacht. Dat is geen ramp, en het is
-wél een bedrag dat je zelf wilt bepalen in plaats van ontdekken.
+merkt. Twintig klanten die hun plan goedkeuren, is $56 in één nacht.
 
-**Wat ik voorstel, in oplopende zwaarte:**
+**Besluit 18 (11 augustus 2026): alleen de beheerder start betaald werk.** Het besluit van diezelfde
+ochtend is teruggedraaid toen de som zichtbaar werd. Dat past ook beter bij hoe dit verkocht wordt:
+de consultant zet klaar, de klant kijkt na en geeft akkoord. Akkoord geven is gratis; het in gang
+zetten van betaald werk is een handeling van de eigenaar.
 
-1. **Een maandplafond per account** (een halve dag). Een kolom `monthly_budget_usd`, een controle vóór
-   elke dure taak, en een melding die zegt "je hebt deze maand het afgesproken budget bereikt, bel me".
-   Dit is de minimale versie en hij hoort vóór de lancering.
-2. **Een dagplafond over álle accounts** (twee uur). De noodrem: bij een fout in de code die taken
-   verveelvoudigt, stopt de worker in plaats van je rekening leeg te trekken.
-3. Een waarschuwing per e-mail bij 80% (later, hoort bij P4).
+**Gebouwd op 11 augustus** (`lib/cost-guard.ts` plus `lib/cost-rules.ts`): elf dure routes stellen
+dezelfde vraag aan dezelfde functie, elke geweigerde handeling heeft een eigen Nederlandse zin die
+zegt bij wie de klant moet zijn, en de knoppen die geld kosten staan er voor een klant niet meer. Er
+is een broncodetest die valt zodra er een dure route bijkomt zonder de controle: dat is de fout die
+je wilt vangen, niet "de controle werkt niet" maar "iemand vergat hem".
 
-Zonder minstens punt 1 en 2 zou ik niet lanceren met een klant die zelf knoppen kan indrukken.
+**Wat er nog moet, en het blijft nodig ook al mag de klant nu niets:**
+
+1. **Een maandplafond per account** (halve dag). Ook een beheerder vergist zich, en één fout in een
+   lus is duurder dan alle klantklikken bij elkaar.
+2. **Een dagplafond over alle accounts** (twee uur). De noodrem, los van wie de knop indrukte.
+
+Zonder die twee zou ik nog steeds niet lanceren. De rem die er nu is, gaat over wie; de rem die nog
+moet komen, gaat over hoeveel.
 
 ### P2 verdient een structurele oplossing en geen tweede pleister
 
@@ -157,8 +164,10 @@ gegroeid. Spoor B en D gaan daar expliciet op jagen.
 | **D** | Wat gebeurt er als het misgaat? | K2, P1, P7 | ik | 1,5 dag | ~$1 |
 | **E** | Kan dit een maand draaien zonder toezicht? | P3 t/m P6 | ik | 1,5 dag | 0 |
 | **F** | De ingenieursschuld inlossen | P2, P3 | ik | 1 dag | 0 |
+| **R** | **De meting meet de verkeerde vragen** (§6b) | de kern van het product | ik | 2 dagen | 0 |
 
-Samen 8 werkdagen. **Search Console en de eerste publicatie staan bewust NIET op het kritieke pad**:
+Samen 10 werkdagen. **Spoor R is nieuw en het is het zwaarste punt van dit document**: bij een lokale
+ondernemer koopt twee derde van het meetbudget niets en is de score systematisch te laag. Zie §6b. **Search Console en de eerste publicatie staan bewust NIET op het kritieke pad**:
 je hebt geen Google-sleutel en publiceren kan nog niet, en daar hoeft de lancering niet op te wachten.
 Beide onderdelen zijn gebouwd en getest voor zover dat zonder kan; ze gaan aan zodra het kan.
 
@@ -230,24 +239,32 @@ alle andere tests kijken of iemand er wél in komt.
 | Merkdossier van eigen merk | ja | ja | ja | **nee** |
 | Merk toewijzen aan een account | ja | **nee** | **nee** | **nee** |
 | Contentplan lezen | ja | ja | ja | **nee** |
-| Maand goedkeuren | ja | ja | **ja** (besloten 11 aug) | **nee** |
+| Maand goedkeuren (kost ~$2,80) | ja | **nee** (besluit 18) | **nee** | **nee** |
 | Bedrijfsgegevens wijzigen | ja | ja | **nee, leest mee** | **nee** |
 | Iemand uitnodigen | ja | ja | **nee** | **nee** |
 | Uitnodiging intrekken | ja | ja | **nee** | **nee** |
 | Merk archiveren | ja | ja | **nee** | **nee** |
-| Analyse starten (kost geld) | ja | **ja** (besloten 11 aug) | **nee** | **nee** |
+| Analyse starten (kost ~$0,82) | ja | **nee** (besluit 18) | **nee** | **nee** |
+| Een merk aanmaken (kost ~$0,25) | ja | **nee** | **nee** | **nee** |
+| Pagina goedkeuren (gratis) | ja | ja | ja | **nee** |
+| Pagina als geplaatst markeren (gratis) | ja | ja | ja | **nee** |
+| Feitvraag beantwoorden (gratis) | ja | ja | ja | **nee** |
 
-**Beide open vragen zijn op 11 augustus beantwoord: een member mag goedkeuren, een admin mag een
-meting starten.** Dat is de juiste keuze, want een klant die zijn eigen onderwerpen kan meten is het
-product en een klant die daarvoor moet bellen is een dienst.
+**De scheidslijn is besluit 18 en hij loopt langs geld, niet langs rol.** Alles wat een betaalde
+AI-aanroep in gang zet, doet de beheerder. Alles wat gratis is en over beoordelen gaat, doet de klant:
+een pagina goedkeuren, een pagina als geplaatst markeren, een feitvraag beantwoorden, het merkprofiel
+corrigeren.
 
-⚠️ **Maar het besluit heeft een gevolg dat het niet mag verliezen: er zit nu geen rem meer op de
-uitgaven.** Zie §0b P3. Twee dingen die daarom bij dit spoor horen en niet later:
+Dat is precies de rolverdeling die `Nova.md` §1.2 uit hun berichtenbestand haalde: **de klant keurt
+goed, hij maakt niet.** Zijn hele rol past bij Nova in drie werkwoorden, goedkeuren, afwijzen en
+bevestigen dat het live staat, en er is nergens een sleutel waarmee hij zelf iets laat schrijven. Dat
+Aura daar vanochtend even van afweek en er nu weer op uitkomt, is geen omweg geweest: de rekensom die
+het besluit terugdraaide, staat nu op papier.
 
-- Bij elke knop die geld kost, staat wat het kost. "Start de meting" wordt "Start de meting (~€0,75)".
-  Nova doet dit niet, want zij factureren per pakket en de klant ziet nooit een aanroepprijs. Aura
-  wél, en dat is een verbetering: wie de prijs ziet, klikt bewuster en belt niet achteraf verbaasd.
-- Een maandplafond per account, met een melding die zegt wie hij moet bellen als hij eraan zit.
+⚠️ **Wat dit spoor daarom extra moet toetsen:** de klant mag geen knop zíen die hij niet mag
+indrukken. Een knop die een 403 oplevert is erger dan geen knop. Op het planscherm is dat gebouwd (de
+maandknop is voor de klant een zin die zegt dat hij zijn consultant akkoord geeft); de andere schermen
+moeten nog na.
 
 **Hoe ik dit test.** In de ketentest, met echte gebruikers in echte Postgres, want dan draait elke
 regel écht en niet in mijn hoofd. Per vakje één assertie, en de "nee"-vakjes eerst.
@@ -326,6 +343,88 @@ op het slechtste moment. Ze horen in de ketentest, want daar kan ik de volgorde 
 
 ---
 
+## 6b. De scherpste inhoudelijke vondst: de meting meet de verkeerde vragen
+
+Dit spoor stond niet in de eerste versie van dit plan. Het komt uit een observatie van de eigenaar op
+11 augustus, en het onderzoek eronder maakt het het zwaarste punt van het hele document.
+
+### De observatie
+
+Van den Udenhout werkt alleen in Brabant. Dat ze in de elf andere provincies niet gevonden worden,
+maakt hen niets uit. "Bij welke autodealer kan ik terecht voor mijn Volkswagen" is voor hen een
+oninteressante vraag; "bij welke autodealer **in Brabant**" is de vraag waar hun omzet aan hangt.
+
+### Wat de code doet, en waarom dat niet genoeg is
+
+Er ís een regionale regel (`lib/pipeline/prompts.ts`). Hij vuurt als het merk op `service_scope =
+lokaal` staat en er regio's bekend zijn, en luidt: *"verwerk in een deel van de prompts een van deze
+plaatsen of regio's."* Bij Van den Udenhout stond de scope goed en waren er negen plaatsen bekend, dus
+de regel deed wat hij moest doen.
+
+**En toch bevat maar 38% van zijn zestig vragen een plaatsnaam.** "Een deel" is een intentie, en
+conventie 1 van deze codebase zegt precies wat daar mis mee is: *een promptinstructie is een intentie,
+code is een garantie.* Er staat geen enkel deterministisch vangnet achter. Wat er ontstond:
+
+> "Waar moet ik op letten als ik aanbieders van private lease **in Nederland** met elkaar vergelijk?"
+
+Dat is niet alleen niet-regionaal, dat is actief landelijk.
+
+### Het bewijs dat dit geen smaakkwestie is
+
+Fysi-Unique is het enige merk met genoeg meetgeschiedenis (drie ronden). Een fysiopraktijk in
+Amersfoort, net zo lokaal als Van den Udenhout. De uitsplitsing van al zijn metingen:
+
+| Soort vraag | Vragen | Metingen | Genoemd | Score |
+|---|---|---|---|---|
+| **Niet-regionaal** | 20 | 57 | **0** | **0** |
+| **Regionaal** | 10 | 40 | 11 | **28** |
+
+**Elke vermelding die dit merk ooit verdiende, kwam uit een regionale vraag.** Van 57 betaalde
+metingen op landelijke vragen leverde er niet één iets op.
+
+### Drie gevolgen, en ze zijn alle drie ernstig
+
+1. **Twee derde van het meetbudget koopt niets.** 57 van de 97 metingen gingen over vragen die dit
+   merk structureel niet kan winnen. Bij ~$0,026 per meting is dat ~$1,50 per ronde per analyse, en
+   `web_search` is ~94% van de meetkosten. Dit is de grootste kostenpost van het hele product, en
+   twee derde ervan is weggegooid.
+
+2. **De score is systematisch te laag, en niet een beetje.** De klant zag 18, 36 en 38. Op de vragen
+   die er voor hem toe doen was het 28 in dezelfde periode. Het getal waar het hele product op rust,
+   wordt verdund door vragen die per definitie verloren zijn. Een lokale ondernemer kan bij dit
+   ontwerp nooit hoog scoren, hoe goed hij het ook doet.
+
+3. **De aanbevelingen wijzen de verkeerde kant op.** De gap-analyse leest de gemiste vragen en stelt
+   pagina's voor. Bij 62% landelijke vragen komen daar landelijke onderwerpen uit, en dan schrijft
+   Aura content voor een markt waar de klant niet in zit. Dat is niet alleen nutteloos, het kost ook
+   nog ~$0,28 per pagina.
+
+### Wat ik voorstel, en waarom in deze volgorde
+
+Dit is te groot voor een pleister en te belangrijk om na de lancering te doen. **Werk: ongeveer 2
+dagen**, en het hoort in week 1.
+
+| # | Wat | Waarom deze en niet iets anders |
+|---|---|---|
+| R1 | **Een deterministisch vangnet op het aandeel.** Na de generatie tellen hoeveel prompts een bekende plaats of regio bevatten. Onder de drempel: de ontbrekende bijgenereren, niet de hele ronde weggooien | Conventie 1. Dit is exact het patroon van `mention_role: m.mentioned ? m.role : null`: de instructie blijft, de code garandeert |
+| R2 | **De drempel is instelbaar per merk en heeft een eerlijke standaard.** Voorstel: bij `scope = lokaal` minstens 70% regionaal | 100% zou fout zijn: ook een lokale ondernemer wint soms een landelijke vraag, en die informatie is wat waard. 70% laat ruimte en verlegt het zwaartepunt |
+| R3 | **Bestaande merken opnieuw beoordelen.** Van den Udenhout heeft 60 vragen waarvan 37 landelijk. Die uitzetten is gratis en verhoogt zijn score onmiddellijk naar wat hij werkelijk waard is | De volgende meetronde kost dan een derde minder en meet iets echts |
+| R4 | **Het scherm laat het onderscheid zien.** Een chip "regionaal" bij de vraag, en in het rapport de score apart voor regionale vragen | Zonder dit blijft het een verborgen aanname. De klant hoort te zien waarop hij beoordeeld wordt |
+
+⚠️ **R3 raakt de vergelijkbaarheid van de trendlijn.** Zet je vragen uit, dan verandert de noemer, en
+dan is periode 3 niet meer met periode 2 te vergelijken. Dat is precies de fout die `logbook.md` in
+juli al een keer maakte. De uitweg: de uitgezette vragen blijven staan met `active = false`, en de
+trendlijn krijgt een markering op het moment van de wijziging. Bij Van den Udenhout is dat gratis,
+want zijn score is nul en er valt niets te breken.
+
+### Wat dit betekent voor `gasservice-brabant.nl`
+
+Dat is óók een lokaal bedrijf, in dezelfde provincie. Spoor A wordt daarmee meteen de proef op de som:
+als R1 werkt, hoort minstens 70% van zijn vragen een Brabantse plaats te bevatten, en dat is te tellen
+zonder één extra euro uit te geven.
+
+---
+
 ## 7. Spoor E: kan dit een maand draaien zonder toezicht?
 
 | # | Vraag | Hoe ik het toets |
@@ -383,17 +482,20 @@ Zodra er vijf klanten zijn, hoort P4 alsnog gebouwd te worden.
 
 | Week | Dagen | Wat | Wie |
 |---|---|---|---|
-| 1 | ma | **Spoor F1 en F2**: de kostenrem, vóór al het andere | ik |
-| 1 | di-wo | **Spoor A**: de generale repetitie op `gasservice-brabant.nl` | ik, jij leest de uitkomst |
-| 1 | do | **Spoor B**: de rolmatrix, met de "nee"-vakjes eerst | ik |
-| 1 | vr | **Spoor D**: de foutpaden, met D4, D7 en D10 voorop | ik |
-| 2 | ma | **Spoor D** afmaken, plus **F3** (één toegangsfunctie) | ik |
-| 2 | di-wo | **Spoor C**: de lat per scherm, plus de taalronde | ik, jij levert de afdrukken |
+| 1 | ma | **Spoor R**: het regionale vangnet (§6b). Vóór spoor A, want anders meet de repetitie de verkeerde vragen | ik |
+| 1 | di | **Spoor R** afmaken plus **F1**: het budgetplafond | ik |
+| 1 | wo-do | **Spoor A**: de generale repetitie op `gasservice-brabant.nl` | ik, jij leest de uitkomst |
+| 1 | vr | **Spoor B**: de rolmatrix, met de "nee"-vakjes eerst | ik |
+| 2 | ma | **Spoor D**: de foutpaden, met D4, D7 en D10 voorop | ik |
+| 2 | di | **Spoor D** afmaken plus **F3** (één toegangsfunctie) | ik |
+| 2 | wo | **Spoor C**: de lat per scherm, plus de taalronde | ik, jij levert de afdrukken |
 | 2 | do | **Spoor E** en **F4**, plus alles repareren wat A tot D opleverde | ik |
 | 2 | vr | **Lanceerbesluit** aan de hand van §9 | jij |
 
-**F1 staat op maandag en niet later, met opzet.** Vanaf spoor A geef ik echt geld uit op een app waar
-geen rem op zit. De rem hoort er eerder te zijn dan de test die hem nodig heeft.
+**Spoor R staat vóór spoor A, met opzet.** De generale repetitie draait op een lokaal Brabants
+bedrijf. Zonder het regionale vangnet meet die repetitie precies de vragen waarvan we nu weten dat ze
+niets opleveren, en dan betaal ik $0,82 om te bewijzen wat ik al weet. F1 staat er direct achter om
+dezelfde reden: de rem hoort er eerder te zijn dan de test die hem nodig heeft.
 
 **Wat jij deze twee weken moet doen:**
 
@@ -430,12 +532,20 @@ maandag op" zegt, lanceert niet.
 - [ ] Een klant kan volledig verwijderd worden (F4)
 - [ ] Geen enkele sleutel in de code of in een commit
 
-**Kan het niet op hol slaan** (§0b P3, en dit is nieuw)
+**Kan het niet op hol slaan** (§0b P3)
 
+- [x] Alleen de beheerder start betaald werk, in elf routes, via één functie (besluit 18)
+- [x] Een broncodetest valt zodra er een dure route bijkomt zonder die controle
 - [ ] Er is een maandplafond per account, en het staat op een getal dat jij hebt gekozen
 - [ ] Er is een dagplafond over alle accounts samen, als noodrem
-- [ ] Bij elke knop die geld kost, staat wat het kost
 - [ ] Eén toegangsfunctie in plaats van twee die uit elkaar kunnen drijven (F3)
+
+**Meet het de juiste vragen** (§6b, en dit is de zwaarste)
+
+- [ ] Bij een lokaal merk bevat minstens 70% van de vragen een plaats of regio, en dat is een garantie in code en geen instructie aan het model
+- [ ] Van den Udenhout is opnieuw beoordeeld: de landelijke vragen staan uit
+- [ ] Het scherm laat zien welke vragen regionaal zijn
+- [ ] De trendlijn is gemarkeerd op het moment dat de vragenset wijzigde
 
 **Is het Nova-waardig**
 

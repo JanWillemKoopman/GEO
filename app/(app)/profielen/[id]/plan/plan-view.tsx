@@ -47,6 +47,7 @@ export function PlanView({
   pages,
   funnels,
   topics,
+  staff,
 }: {
   profileId: string;
   plan: ContentPlan;
@@ -54,6 +55,8 @@ export function PlanView({
   pages: PlannedPage[];
   funnels: FunnelStage[];
   topics: TopicWritingState[];
+  /** Besluit 18: alleen de beheerder zet betaald werk in gang. */
+  staff: boolean;
 }) {
   const router = useRouter();
   const toast = useToast();
@@ -317,16 +320,23 @@ export function PlanView({
                       </span>
                     </span>
 
-                    {month.status === "ter_goedkeuring" && (
-                      <button
-                        type="button"
-                        className="btn-primary btn-sm"
-                        onClick={() => setMonthDialog(month)}
-                        disabled={busy === month.id}
-                      >
-                        Deze maand goedkeuren
-                      </button>
-                    )}
+                    {month.status === "ter_goedkeuring" &&
+                      (staff ? (
+                        <button
+                          type="button"
+                          className="btn-primary btn-sm"
+                          onClick={() => setMonthDialog(month)}
+                          disabled={busy === month.id}
+                        >
+                          Deze maand goedkeuren
+                        </button>
+                      ) : (
+                        // Besluit 18. De klant ziet wél dat er iets van hem
+                        // gevraagd wordt, en bij wie hij daarvoor moet zijn.
+                        <span className="text-sm text-secondary">
+                          Loop deze maand door en geef je consultant akkoord
+                        </span>
+                      ))}
                   </div>
 
                   <ul className="flex flex-col gap-2">

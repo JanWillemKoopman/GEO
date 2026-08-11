@@ -4,6 +4,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { getOwnedProfile } from "@/lib/profiles";
 import { enqueue, dedupe } from "@/lib/jobs/queue";
 import { describeError, classifyError } from "@/lib/errors";
+import { mayTriggerCost, COST_DENIED } from "@/lib/cost-guard";
 
 /**
  * POST /api/profiles/[id]/research, plant het profielonderzoek in
@@ -28,6 +29,13 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
     if (profile.status === "mislukt") {
       await admin.from("profiles").update({ status: "bezig" }).eq("id", id);
     }
+
+  // ⚠️ Betaald werk start alleen de beheerder (besluit 18). Zie lib/cost-guard.ts
+  // voor de rekensom eronder: zonder deze regel kan een klant op één middag
+  // dollars uitgeven zonder dat iemand het merkt.
+  if (!(await mayTriggerCost(user.id))) {
+    return NextResponse.json({ error: COST_DENIED.merk_onderzoeken }, { status: 403 });
+  }
 
     const { created } = await enqueue(admin, {
       type: "profile_research",

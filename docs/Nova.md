@@ -86,6 +86,7 @@ Op 10 augustus 2026 vastgelegd, in overleg. De eerste vier bepalen de vorm, de r
 | 15 | Goedkeuren bij bureaus | **Het bureau keurt goed**, want dat is de contractpartij. Doorzetten naar de eindklant is later een uitbreiding, geen voorwaarde. | Fase 2, 4 |
 | 16 | Prijs per pakket | **Nog niet bepaald.** Het opbrengstblok rekent daarom in aantallen, niet in geld. | Fase 5 |
 | 17 | Donkere modus | **Vervalt.** Niet uitgesteld maar geschrapt: 107 kleur-tokens die elk een doordachte tegenhanger nodig hebben, voor de enige fase met impact "laag". Aura wordt in een demogesprek getoond, op één scherm, in één stand. | Fase 7, 11 augustus 2026 |
+| 18 | Wie betaald werk start | **Alleen de beheerder.** De klant keurt goed, hij start niets dat geld kost. Teruggedraaid besluit van diezelfde dag, toen bleek dat een klant op één middag $6,56 kon uitgeven zonder rem. Sluit aan op §1.2: bij Nova keurt de klant goed, hij maakt niet. | Alle dure routes, 11 augustus 2026 |
 
 #### Wat besluit 14 en 16 betekenen voor de bouw
 

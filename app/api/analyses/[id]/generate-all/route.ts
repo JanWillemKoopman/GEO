@@ -5,6 +5,7 @@ import { getOwnedAnalysis } from "@/lib/analyses";
 import { planContentBriefing, toPayload } from "@/lib/jobs/content-jobs";
 import { readRecommendations } from "@/lib/pipeline/recommendation";
 import { describeError, classifyError } from "@/lib/errors";
+import { mayTriggerCost, COST_DENIED } from "@/lib/cost-guard";
 
 /**
  * POST /api/analyses/[id]/generate-all, alle aanbevelingen in één keer
@@ -40,6 +41,13 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
 
   if (!report) {
     return NextResponse.json({ error: "Voor deze analyse is nog geen rapport geschreven." }, { status: 409 });
+  }
+
+  // ⚠️ Betaald werk start alleen de beheerder (besluit 18). Zie lib/cost-guard.ts
+  // voor de rekensom eronder: zonder deze regel kan een klant op één middag
+  // dollars uitgeven zonder dat iemand het merkt.
+  if (!(await mayTriggerCost(user.id))) {
+    return NextResponse.json({ error: COST_DENIED.content_schrijven }, { status: 403 });
   }
 
   const recommendations = readRecommendations(report.recommendations_json);

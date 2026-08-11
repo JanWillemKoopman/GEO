@@ -5,6 +5,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { normalizeUrl, checkUrlFormat } from "@/lib/url";
 import { isReachable } from "@/lib/crawler";
 import { enqueue, dedupe } from "@/lib/jobs/queue";
+import { mayTriggerCost, COST_DENIED } from "@/lib/cost-guard";
 
 /**
  * POST /api/profiles, nieuw klantprofiel aanmaken vanuit de onboarding-wizard
@@ -52,6 +53,13 @@ export async function POST(request: Request) {
   const user = await getUser();
   if (!user) {
     return NextResponse.json({ error: "Je bent niet ingelogd." }, { status: 401 });
+  }
+
+  // ⚠️ Betaald werk start alleen de beheerder (besluit 18). Zie lib/cost-guard.ts
+  // voor de rekensom eronder: zonder deze regel kan een klant op één middag
+  // dollars uitgeven zonder dat iemand het merkt.
+  if (!(await mayTriggerCost(user.id))) {
+    return NextResponse.json({ error: COST_DENIED.merk_onderzoeken }, { status: 403 });
   }
 
   let body: ProfileIntakeBody;

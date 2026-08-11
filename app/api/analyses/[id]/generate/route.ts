@@ -7,6 +7,7 @@ import { describeError, classifyError } from "@/lib/errors";
 import type { ContentAction } from "@/lib/types/database";
 import type { RecommendationPayload } from "@/lib/jobs/types";
 import type { RecommendationTarget } from "@/lib/pipeline/recommendation";
+import { mayTriggerCost, COST_DENIED } from "@/lib/cost-guard";
 
 /**
  * POST /api/analyses/[id]/generate, plant het schrijven van één pagina in
@@ -60,6 +61,13 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     body = await request.json();
   } catch {
     return NextResponse.json({ error: "Ongeldige aanvraag." }, { status: 400 });
+  }
+
+  // ⚠️ Betaald werk start alleen de beheerder (besluit 18). Zie lib/cost-guard.ts
+  // voor de rekensom eronder: zonder deze regel kan een klant op één middag
+  // dollars uitgeven zonder dat iemand het merkt.
+  if (!(await mayTriggerCost(user.id))) {
+    return NextResponse.json({ error: COST_DENIED.content_schrijven }, { status: 403 });
   }
 
   const title = body.title?.trim();

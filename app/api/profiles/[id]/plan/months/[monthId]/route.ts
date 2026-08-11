@@ -3,6 +3,7 @@ import { getUser } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getOwnedProfile } from "@/lib/profiles";
 import { approveMonth } from "@/lib/plans";
+import { mayTriggerCost, COST_DENIED } from "@/lib/cost-guard";
 
 /**
  * POST /api/profiles/[id]/plan/months/[monthId], een hele maand goedkeuren of
@@ -29,6 +30,17 @@ export async function POST(
   const user = await getUser();
   if (!user) {
     return NextResponse.json({ error: "Je bent niet ingelogd." }, { status: 401 });
+  }
+
+  // ⚠️ Een maand goedkeuren is de duurste knop van de app: hij zet tien pagina's
+  // op het premium model in gang, ~$2,80 bij pakket 10. Alleen de beheerder
+  // (besluit 18). De klant zegt akkoord, de consultant drukt.
+  //
+  // Afwijzen valt hier bewust ook onder. Dat kost niets, maar het gaat over
+  // dezelfde maand en dezelfde afspraak, en twee verschillende rechten op één
+  // scherm is precies het soort verschil dat niemand kan uitleggen.
+  if (!(await mayTriggerCost(user.id))) {
+    return NextResponse.json({ error: COST_DENIED.plan_goedkeuren }, { status: 403 });
   }
 
   const admin = createAdminClient();
