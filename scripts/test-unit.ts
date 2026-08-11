@@ -147,6 +147,13 @@ import {
   SCHRIJFVOORSPRONG_DAGEN,
 } from "@/lib/plan-status";
 import {
+  writeDecision,
+  writeBlockNotice,
+  planBriefing,
+  contentTypeFor,
+  type PageForWriting,
+} from "@/lib/plan-writing";
+import {
   BRAND_FIELDS,
   STEP_ORDER,
   fieldsOfStep,
@@ -3686,6 +3693,114 @@ group("wanneer Aura begint te schrijven", () => {
     shouldStartWriting({ status: "gepland", scheduled_for: null }, true, nu) === false,
   );
 });
+
+group("mag Aura deze pagina schrijven? (plan-writing)", () => {
+  const nu = new Date("2026-09-10T12:00:00Z");
+  const pagina = (over: Partial<PageForWriting> = {}): PageForWriting => ({
+    status: "gepland",
+    scheduled_for: "2026-09-15",
+    is_buffer: false,
+    topic_id: "t1",
+    ...over,
+  });
+  const gemeten = { analysis_id: "a1", analysis_status: "gereed" as const };
+
+  const goed = writeDecision(pagina(), "goedgekeurd", gemeten, nu);
+  ok("een gemeten onderwerp binnen het venster mag", goed.schrijven === true);
+  ok(
+    "en levert de analyse waarop geschreven wordt",
+    goed.schrijven === true && goed.analysisId === "a1",
+  );
+
+  // ⚠️ De duurste regel: elke pagina kost geld.
+  ok(
+    "een niet-goedgekeurde maand blokkeert alles",
+    besluitReden(writeDecision(pagina(), "ter_goedkeuring", gemeten, nu)) ===
+      "maand_niet_goedgekeurd",
+  );
+
+  // ⚠️ HET GEVAL DAT DEZE MODULE BESTAANSRECHT GEEFT, gemeten op productie:
+  // Van den Udenhout heeft acht onderwerpen en twee daarvan zijn ooit als
+  // analyse gestart. Zes van de tien pagina's in maand 1 kunnen dus niet
+  // geschreven worden, en een cron die dat stil overslaat laat ze een jaar op
+  // "Gepland" staan.
+  ok(
+    "een onderwerp zonder analyse kan niet geschreven worden",
+    besluitReden(
+      writeDecision(pagina(), "goedgekeurd", { analysis_id: null, analysis_status: null }, nu),
+    ) === "geen_analyse",
+  );
+  ok(
+    "en een analyse die nog niet gemeten is ook niet",
+    besluitReden(
+      writeDecision(
+        pagina(),
+        "goedgekeurd",
+        { analysis_id: "a1", analysis_status: "concept_klaar" },
+        nu,
+      ),
+    ) === "meting_nog_niet_klaar",
+  );
+  ok(
+    "een lopende meting evenmin",
+    besluitReden(
+      writeDecision(pagina(), "goedgekeurd", { analysis_id: "a1", analysis_status: "meten" }, nu),
+    ) === "meting_nog_niet_klaar",
+  );
+  // 'gemeten' telt wél: de score is binnen, alleen het rapport nog niet.
+  ok(
+    "een gemeten analyse zonder rapport mag wel",
+    writeDecision(pagina(), "goedgekeurd", { analysis_id: "a1", analysis_status: "gemeten" }, nu)
+      .schrijven === true,
+  );
+
+  ok(
+    "buiten het venster gebeurt er niets",
+    besluitReden(writeDecision(pagina({ scheduled_for: "2026-09-30" }), "goedgekeurd", gemeten, nu)) ===
+      "nog_niet_aan_de_beurt",
+  );
+  ok(
+    "een buffer wordt nooit geschreven",
+    besluitReden(writeDecision(pagina({ is_buffer: true }), "goedgekeurd", gemeten, nu)) ===
+      "is_buffer",
+  );
+  ok(
+    "en een pagina die al onderweg is ook niet nog een keer",
+    besluitReden(writeDecision(pagina({ status: "schrijven" }), "goedgekeurd", gemeten, nu)) ===
+      "al_onderweg",
+  );
+
+  // De meldingen: alleen wat om een handeling vraagt krijgt tekst. Een melding
+  // tonen bij iets wat gewoon goed gaat, leert mensen meldingen negeren.
+  ok("nog niet aan de beurt is geen melding", writeBlockNotice("nog_niet_aan_de_beurt") === null);
+  ok("een buffer ook niet", writeBlockNotice("is_buffer") === null);
+  ok(
+    "geen analyse is een melding voor de klant",
+    writeBlockNotice("geen_analyse")?.whoseTurn === "klant",
+  );
+  ok(
+    "een lopende meting is er een voor Aura",
+    writeBlockNotice("meting_nog_niet_klaar")?.whoseTurn === "aura",
+  );
+
+  // De briefing die met de schrijftaak meegaat.
+  const briefing = planBriefing({
+    title: "Auto financieren · Oriëntatie",
+    pageType: "dienst",
+    topicTitle: "Auto financieren",
+    funnelLabel: "Oriëntatie",
+    monthNumber: 1,
+  });
+  ok("een dienstpagina wordt een landingspagina", briefing.type === "landing");
+  ok("een informatieve pagina wordt een artikel", contentTypeFor("informatief") === "article");
+  ok("de fase staat in het doelpubliek", briefing.targetIntent.includes("oriëntatie"));
+  ok("en het onderwerp in de reden", briefing.why.includes("Auto financieren"));
+});
+
+/** Leest de reden uit een afwijzende beslissing. Geeft "" bij een toewijzing. */
+function besluitReden(d: ReturnType<typeof writeDecision>): string {
+  return d.schrijven ? "" : d.reden;
+}
 
 group("het merkprofiel als veldenlijst (brand-fields)", () => {
   // ⚠️ Eén feit heeft één eigenaar. Deze test bewaakt dat er geen tweede veld

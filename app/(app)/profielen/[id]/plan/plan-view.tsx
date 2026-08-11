@@ -10,6 +10,11 @@ import {
   countActionRequired,
   planRunningDate,
 } from "@/lib/plan-status";
+import {
+  writeDecision,
+  writeBlockNotice,
+  type TopicWritingState,
+} from "@/lib/plan-writing";
 import type {
   ContentPlan,
   FunnelStage,
@@ -40,12 +45,14 @@ export function PlanView({
   months,
   pages,
   funnels,
+  topics,
 }: {
   profileId: string;
   plan: ContentPlan;
   months: PlanMonth[];
   pages: PlannedPage[];
   funnels: FunnelStage[];
+  topics: TopicWritingState[];
 }) {
   const router = useRouter();
   const toast = useToast();
@@ -59,6 +66,37 @@ export function PlanView({
     () => new Map(funnels.map((f) => [f.id, f.label])),
     [funnels],
   );
+
+  const maandVan = useMemo(() => new Map(months.map((m) => [m.id, m])), [months]);
+  const onderwerp = useMemo(
+    () => new Map(topics.map((t) => [t.topicId, t])),
+    [topics],
+  );
+
+  /**
+   * Waarom staat deze pagina stil?
+   *
+   * Alleen voor pagina's die nog niets gedaan hebben; bij een geschreven pagina
+   * is de status zelf het antwoord. `writeBlockNotice()` geeft `null` terug voor
+   * de blokkades die géén probleem zijn (nog niet aan de beurt), zodat er geen
+   * melding staat bij iets wat gewoon goed gaat.
+   */
+  function blokkade(page: PlannedPage) {
+    if (page.status !== "gepland") return null;
+    const maand = maandVan.get(page.plan_month_id);
+    if (!maand) return null;
+    const besluit = writeDecision(
+      page,
+      maand.status,
+      page.topic_id
+        ? {
+            analysis_id: onderwerp.get(page.topic_id)?.analysisId ?? null,
+            analysis_status: onderwerp.get(page.topic_id)?.analysisStatus ?? null,
+          }
+        : null,
+    );
+    return besluit.schrijven ? null : writeBlockNotice(besluit.reden);
+  }
 
   // Buffers horen niet in de lijst: ze zijn reserve, geen belofte. Ze tellen
   // ook niet mee in het maandtotaal dat de klant afneemt.
@@ -265,6 +303,7 @@ export function PlanView({
                             ? (funnelNaam.get(page.funnel_stage_id) ?? null)
                             : null
                         }
+                        blokkade={blokkade(page)}
                         busy={busy === page.id}
                         onApprove={() => void paginaActie(page, "goedkeuren")}
                         onPost={() => {
@@ -369,6 +408,7 @@ function Segment({
 function PageRow({
   page,
   funnel,
+  blokkade,
   busy,
   onApprove,
   onPost,
@@ -376,6 +416,8 @@ function PageRow({
 }: {
   page: PlannedPage;
   funnel: string | null;
+  /** Waarom Aura deze pagina niet kan schrijven. `null` = er is niets aan de hand. */
+  blokkade: { text: string; whoseTurn: "klant" | "aura" | null } | null;
   busy: boolean;
   onApprove: () => void;
   onPost: () => void;
@@ -393,6 +435,22 @@ function PageRow({
           {funnel && <span>{funnel}</span>}
           {wanneer && <span>· {wanneer}</span>}
         </span>
+        {/* De reden staat ONDER de regel en niet als chip ernaast: het is een
+            zin, geen etiket, en een zin die je moet lezen hoort op zijn eigen
+            regel te staan. */}
+        {blokkade && (
+          <span
+            className="text-sm"
+            style={{
+              color:
+                blokkade.whoseTurn === "klant"
+                  ? "var(--intent-warning-text)"
+                  : "var(--text-secondary)",
+            }}
+          >
+            {blokkade.text}
+          </span>
+        )}
       </div>
 
       <div className="flex shrink-0 flex-wrap items-center gap-2">

@@ -81,6 +81,8 @@ export async function planContentDraft(
     userId: string;
     recommendation: RecommendationPayload;
     regenerate?: boolean;
+    /** De pagina uit het contentplan, als deze taak daaruit voortkomt (fase 4). */
+    plannedPageId?: string;
   },
 ): Promise<{ created: boolean; alreadyDone: boolean }> {
   const { analysisId, userId, recommendation, regenerate = false } = args;
@@ -135,7 +137,7 @@ export async function planContentDraft(
 
   const { created } = await enqueue(admin, {
     type: "content_draft",
-    payload: { userId, recommendation, regenerate },
+    payload: { userId, recommendation, regenerate, plannedPageId: args.plannedPageId },
     analysisId,
     dedupeKey:
       `${dedupe.contentDraft(analysisId, recommendation.title)}:v${nextVersion}` +

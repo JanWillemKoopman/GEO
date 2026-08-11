@@ -80,6 +80,7 @@ export default async function PlanPage({
           months={bundle.months}
           pages={bundle.pages}
           funnels={bundle.funnels}
+          topics={bundle.topics}
         />
       ) : (
         <CreatePlanBox

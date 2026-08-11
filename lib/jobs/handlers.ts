@@ -59,6 +59,37 @@ type Handler<T extends JobType> = (
   payload: JobPayloads[T],
 ) => Promise<void>;
 
+/**
+ * Meldt een geschreven tekst terug aan de pagina in het contentplan (fase 4).
+ *
+ * ⚠️ Best-effort, met opzet. Mislukt deze koppeling, dan is er wél een tekst
+ * geschreven, en die alsnog als mislukte taak markeren zou hem opnieuw laten
+ * schrijven: een tweede betaalde aanroep op het duurste model om een
+ * administratieve regel. De tekst staat onder de analyse en is daar te vinden;
+ * het plan loopt dan achter, en dat is de goedkoopste van de twee fouten.
+ */
+async function linkPlannedPage(
+  admin: Admin,
+  plannedPageId: string | undefined,
+  result: { contentPieceId: string; klaar: boolean },
+): Promise<void> {
+  if (!plannedPageId) return;
+  try {
+    await admin
+      .from("planned_pages")
+      .update({
+        content_piece_id: result.contentPieceId,
+        status: result.klaar ? "ter_goedkeuring" : "schrijven",
+      })
+      .eq("id", plannedPageId)
+      // Een pagina die de klant intussen heeft afgewezen of zelf geplaatst
+      // heeft, mag niet teruggezet worden door een taak die nog liep.
+      .in("status", ["gepland", "schrijven"]);
+  } catch (err) {
+    console.error(`Plan-pagina ${plannedPageId} koppelen faalde:`, err);
+  }
+}
+
 /** Payload → de vorm die de contentpijplijn verwacht. */
 function toRecommendation(r: RecommendationPayload) {
   return {
@@ -471,6 +502,15 @@ const handlers: { [T in JobType]: Handler<T> } = {
       regenerate: payload.regenerate ?? false,
     });
 
+    // Komt deze tekst uit het contentplan, dan hoort de plan-pagina te weten
+    // welke tekst het geworden is. Meteen na het schrijven, niet pas na de
+    // eventuele herschrijfronde: valt de werker daartussen om, dan is de tekst
+    // nog steeds terug te vinden vanaf het plan.
+    await linkPlannedPage(admin, payload.plannedPageId, {
+      contentPieceId: result.contentPieceId,
+      klaar: !result.needsRevise,
+    });
+
     if (!result.needsRevise) return; // eerste versie kwam al door de poort
 
     await enqueue(admin, {
@@ -480,6 +520,7 @@ const handlers: { [T in JobType]: Handler<T> } = {
         contentPieceId: result.contentPieceId,
         recommendation: payload.recommendation,
         issues: result.issues,
+        plannedPageId: payload.plannedPageId,
       },
       analysisId: job.analysis_id,
       dedupeKey: dedupe.contentRevise(result.contentPieceId),
@@ -487,7 +528,7 @@ const handlers: { [T in JobType]: Handler<T> } = {
   },
 
   // ── Content stap 2: herschrijven + herbeoordelen ──────────────────────────
-  content_revise: async ({ job }, payload) => {
+  content_revise: async ({ admin, job }, payload) => {
     if (!job.analysis_id) throw new Error("content_revise zonder analysis_id.");
     await reviseContentPiece({
       analysisId: job.analysis_id,
@@ -495,6 +536,12 @@ const handlers: { [T in JobType]: Handler<T> } = {
       contentPieceId: payload.contentPieceId,
       recommendation: toRecommendation(payload.recommendation),
       issues: payload.issues,
+    });
+
+    // De herschreven versie is de definitieve: nu ligt de bal bij de klant.
+    await linkPlannedPage(admin, payload.plannedPageId, {
+      contentPieceId: payload.contentPieceId,
+      klaar: true,
     });
   },
 

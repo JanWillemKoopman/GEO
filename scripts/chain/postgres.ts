@@ -137,8 +137,15 @@ const ROL_STUB = `
  * MOTOR (wie roept de wachtrij aan) en niet over het datamodel; de ketentest
  * roept de handlers zelf aan, dus er valt niets te missen. Alle andere migraties
  * draaien wél, inclusief de constraints en indexen waar het om gaat.
+ *
+ * `0050` doet hetzelfde voor de dagelijkse schrijfronde van het contentplan: ook
+ * pg_cron, ook alleen een aanroeper. Wat die route beslist staat in
+ * `lib/plan-writing.ts` en wordt hierboven wél getest.
  */
-const OVERSLAAN = new Set(["0015_worker_cron_via_pg_cron.sql"]);
+const OVERSLAAN = new Set([
+  "0015_worker_cron_via_pg_cron.sql",
+  "0050_plan_cron.sql",
+]);
 
 /** Start een lege Postgres, past alle migraties toe, en geeft een verbinding terug. */
 export async function startTestDatabase(migrationsDir: string): Promise<TestDatabase> {

@@ -3,7 +3,7 @@
 Backend, Supabase, pijplijn en deploy. Voor het *waarom* achter een keuze: `logbook.md`.
 Voor UI/UX: `ux-design.md`.
 
-> **Geverifieerd tegen de code op 8 augustus 2026** (branch `main`, t/m migratie `0045`),
+> **Geverifieerd tegen de code op 11 augustus 2026** (branch `main`, t/m migratie `0050`),
 > plus de eind-tot-eind-ronde van 1 augustus (`logbook.md` §10) en de eerste echte
 > onboarding op productie van 3 augustus (`logbook.md`, Fysi-Unique). Die laatste legde
 > zes fouten bloot in de samenhang tussen de onboardingstappen; alle zes zijn verwerkt.
@@ -22,7 +22,8 @@ Vercel: Next.js 15 op Node.js  (code: GitHub, deploy op push naar main)
  ├─ Vercel Cron (vercel.json, Hobby-limiet: max 2 taken, elk max 1×/dag)
  │    • /api/cron/tracking   maandelijks, 1e van de maand 06:00 UTC
  │    • /api/cron/reminders  wekelijks, maandag 09:00 UTC (staat nu uit vercel.json)
- └─ /api/cron/worker: de motor, elke MINUUT aangeroepen door Supabase pg_cron
+ ├─ /api/cron/worker: de motor, elke MINUUT aangeroepen door Supabase pg_cron
+ └─ /api/cron/plan:   de schrijfronde van het contentplan, DAGELIJKS via pg_cron
    │
    ├──────► OpenAI Responses API (gpt-5.6-luna / gpt-5.6-sol, + web_search)
    ▼
@@ -314,6 +315,16 @@ select * from cron.job_run_details order by start_time desc limit 10;
 | **Werker** | `/api/cron/worker` | elke minuut | **Supabase pg_cron**. Zonder deze taak gebeurt er niets. |
 | Terugkerende meting | `/api/cron/tracking` | 1e van de maand 06:00 UTC | Vercel |
 | Rapport-mail | `/api/cron/reminders` | maandag 09:00 UTC | Vercel (nu uit `vercel.json` gehaald, bestaat alleen om te mailen) |
+| Schrijfronde contentplan | `/api/cron/plan` | dagelijks 04:00 UTC | **Supabase pg_cron** (migratie `0050`, taak `aura-plan-writer`) |
+
+**De schrijfronde in één alinea.** Pagina's van een GOEDGEKEURDE maand die binnen tien dagen
+gepubliceerd moeten worden, krijgen een schrijftaak; de route plant alleen, de werker schrijft.
+Wat er níet geschreven kan worden telt de route apart en verzwijgt hij niet: schrijven leunt op een
+gemeten analyse, en bij Van den Udenhout hebben zes van de acht onderwerpen er nog geen. De regel
+staat in `lib/plan-writing.ts` (`writeDecision`), de reden per pagina staat in het scherm. De brug
+tussen plan en contentpijplijn is `plannedPageId` in de payload van `content_draft`: daarmee weet de
+plan-pagina welke tekst het geworden is, en zet de werker hem op `mislukt` als het schrijven
+definitief niet lukt.
 
 ### Tijdbudgetten, waarom deze getallen bij elkaar horen
 

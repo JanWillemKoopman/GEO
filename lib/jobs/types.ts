@@ -142,6 +142,17 @@ export interface JobPayloads {
     recommendation: RecommendationPayload;
     /** Opnieuw genereren bovenop een afgeronde versie (optimalisatie.md 4.7). */
     regenerate?: boolean;
+    /**
+     * De pagina uit het contentplan waar deze tekst bij hoort (fase 4).
+     * Afwezig bij een schrijftaak die uit een rapport-aanbeveling komt; dat is
+     * elke schrijftaak van vóór augustus 2026.
+     *
+     * Hierdoor kan de taak terugmelden: de plan-pagina krijgt zijn
+     * `content_piece_id` en gaat van `schrijven` naar `ter_goedkeuring`. Zonder
+     * dit veld schrijft de pijplijn wel, maar blijft de pagina in het plan op
+     * "Aura is bezig" staan tot iemand het handmatig opmerkt.
+     */
+    plannedPageId?: string;
   };
   content_revise: {
     userId: string;
@@ -149,6 +160,8 @@ export interface JobPayloads {
     recommendation: RecommendationPayload;
     /** Verbeterpunten uit de eerste beoordeling, sturen de herschrijfstap. */
     issues: string[];
+    /** Zie `content_draft.plannedPageId`; de herschrijfstap meldt hetzelfde terug. */
+    plannedPageId?: string;
   };
   technical_audit: Record<string, never>;
   verify_publication: { contentPieceId: string };

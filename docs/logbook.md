@@ -1775,3 +1775,37 @@ Zeven en vier hebben geen deler gemeen, dus daar viel het toevallig goed uit. He
 van een merk is niets om op te vertrouwen, en dus loopt de test nu langs 1 tot en met 16 onderwerpen
 maal alle drie de pakketten, met per combinatie de eis dat geen titel twee keer in dezelfde maand
 staat. 881 unittests, waarvan 36 nieuw.
+
+**Het plan schrijft zichzelf (11 augustus 2026).** De laatste ontbrekende schakel van fase 4: een
+dagelijkse cron (`/api/cron/plan`, pg_cron-taak `aura-plan-writer`, migratie 0050) zet schrijftaken
+klaar voor pagina's van een goedgekeurde maand die binnen tien dagen gepubliceerd moeten worden. De
+route plant alleen, de werker schrijft, precies zoals `/api/cron/tracking`.
+
+**Bij het bouwen bleek de echte blokkade een andere dan tien dagen.** Schrijven leunt op een gemeten
+analyse: de contentpijplijn gebruikt de gemiste vragen en de winnende antwoorden als briefing.
+Zonder meting schrijft het model iets algemeens, en dat is het soort tekst waarvoor niemand betaalt.
+Bij Van den Udenhout hebben twee van de acht onderwerpen een analyse, en beide zijn ooit gestart via
+de topic-knop. Zes van de tien pagina's in maand 1 kunnen dus vandaag niet geschreven worden, met
+pakket 10.
+
+**Dat is geen randgeval maar de normale toestand, en dus krijgt het een plek in het scherm.**
+`lib/plan-writing.ts` geeft geen boolean maar een beslissing mét reden, en die reden staat onder de
+regel in het plan, in Nova's wie-is-aan-zet-taal: "Start eerst de meting van dit onderwerp, anders
+schrijft Aura zonder cijfers" (bal bij de klant) of "De meting van dit onderwerp loopt nog" (bal bij
+Aura). Blokkades die géén probleem zijn, zoals "nog niet aan de beurt", krijgen bewust geen melding:
+een melding bij iets wat gewoon goed gaat, leert mensen meldingen negeren.
+
+**De brug tussen plan en contentpijplijn is één veld.** De pijplijn kent alleen analyses, het plan
+alleen merken. `plannedPageId` in de payload van `content_draft` verbindt ze: de handler schrijft
+`content_piece_id` terug en zet de pagina op `ter_goedkeuring`, en de werker zet hem op `mislukt`
+als het schrijven definitief niet lukt. Dat laatste stond er eerst niet in, en zonder die regel
+blijft een pagina op "Aura is bezig" staan terwijl er niets meer gebeurt: de ergste van alle
+statussen, want hij vraagt om geduld dat nergens toe leidt.
+
+**Getest waar de fout zou zitten.** Die brug bestaat uit drie stukken (de cron zet het veld, de
+handler koppelt terug, de werker meldt de mislukking) en valt er één weg, dan schrijft Aura wél maar
+loopt het plan achter. Dat is samenhang tussen taken en dus onzichtbaar voor een unittest: er staan
+nu vijf ketentests omheen. Eén ervan wees meteen iets aan wat ook in de cron zit: de eigenaar moet
+uit `analyses.user_id` komen en niet uit het profiel, want een toegewezen analyse hoort bij de klant
+en de contentpijplijn weigert te schrijven voor iemand die geen eigenaar is. 899 unittests, 52
+ketentests.

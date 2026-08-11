@@ -699,6 +699,181 @@ async function main(): Promise<void> {
     );
     ok("0044: dearchiveren zet hem weer in beeld", Number(terug[0].n) === 1);
 
+    // ══════════════════════════════════════════════════════════════════════
+    // Het contentplan schrijft zichzelf (0049/0050, fase 4)
+    //
+    // ⚠️ Dit is bij uitstek samenhang tussen taken, en dus onzichtbaar voor een
+    // unittest. De schrijfpijplijn kent alleen analyses; het plan kent alleen
+    // merken. De brug is `plannedPageId` in de payload, en die brug bestaat uit
+    // drie stukken die alle drie moeten kloppen: de cron zet hem erin, de
+    // handler koppelt terug, en de werker meldt een definitieve mislukking.
+    // Valt er één weg, dan schrijft Aura wel maar blijft het plan op "Aura is
+    // bezig" staan, en dat merkt niemand tot de klant ernaar vraagt.
+    // ══════════════════════════════════════════════════════════════════════
+    console.log("\nHet contentplan: van goedgekeurde maand naar geschreven tekst");
+
+    await db.client.query(
+      "update public.profiles set archived_at = null where id = $1",
+      [profileId],
+    );
+    const { rows: funnelRij } = await db.client.query(
+      `insert into public.profile_funnel_stages (profile_id, label, sort_order)
+       values ($1, 'Oriëntatie', 0) returning id`,
+      [profileId],
+    );
+    const { rows: topicRij } = await db.client.query(
+      `insert into public.profile_topics (profile_id, title, priority, status, analysis_id)
+       values ($1, 'Hardloopblessures', 9, 'goedgekeurd', $2) returning id`,
+      [profileId, analysisId],
+    );
+    const { rows: planRij } = await db.client.query(
+      `insert into public.content_plans (profile_id, pages_per_month, started_on, version, status)
+       values ($1, 10, current_date, 1, 'actief') returning id`,
+      [profileId],
+    );
+    const { rows: maandRij } = await db.client.query(
+      `insert into public.plan_months (plan_id, month_number, status, approved_at)
+       values ($1, 1, 'goedgekeurd', now()) returning id`,
+      [planRij[0].id],
+    );
+    // Twee pagina's: één binnen het venster van tien dagen, één ver daarbuiten.
+    const { rows: paginaRijen } = await db.client.query(
+      `insert into public.planned_pages
+         (plan_month_id, profile_id, title, page_type, funnel_stage_id, topic_id,
+          sort_order, is_buffer, scheduled_for)
+       values ($1, $2, 'Hardloopblessures · Oriëntatie', 'informatief', $3, $4, 0, false,
+               current_date + 5),
+              ($1, $2, 'Hardloopblessures · Later', 'informatief', $3, $4, 1, false,
+               current_date + 60)
+       returning id, title`,
+      [maandRij[0].id, profileId, funnelRij[0].id, topicRij[0].id],
+    );
+    const binnenVenster = (paginaRijen as { id: string; title: string }[]).find((p) =>
+      p.title.endsWith("Oriëntatie"),
+    )!.id;
+    const buitenVenster = (paginaRijen as { id: string; title: string }[]).find((p) =>
+      p.title.endsWith("Later"),
+    )!.id;
+
+    // ── De query van /api/cron/plan, in SQL ────────────────────────────────
+    // Precies de vier voorwaarden die de route stelt. Een test die de route zelf
+    // aanroept zou een HTTP-laag en een cron-geheim nodig hebben; wat hier
+    // getoetst moet worden is of het SCHEMA deze selectie ondersteunt.
+    const { rows: aanDeBeurt } = await db.client.query(
+      `select p.id from public.planned_pages p
+         join public.plan_months m on m.id = p.plan_month_id
+        where p.status = 'gepland' and p.is_buffer = false
+          and p.scheduled_for is not null
+          and p.scheduled_for <= current_date + 10
+          and m.status = 'goedgekeurd'`,
+    );
+    ok(
+      "de cron ziet precies de pagina binnen tien dagen",
+      aanDeBeurt.length === 1 && aanDeBeurt[0].id === binnenVenster,
+      `${aanDeBeurt.length} pagina's`,
+    );
+
+    // ── De beslissing, met de echte rijen erbij ────────────────────────────
+    const { writeDecision } = await import("@/lib/plan-writing");
+    const { rows: besluitRij } = await db.client.query(
+      `select p.status, p.scheduled_for, p.is_buffer, p.topic_id,
+              m.status as maand_status, t.analysis_id, a.status as analyse_status
+         from public.planned_pages p
+         join public.plan_months m on m.id = p.plan_month_id
+         left join public.profile_topics t on t.id = p.topic_id
+         left join public.analyses a on a.id = t.analysis_id
+        where p.id = $1`,
+      [binnenVenster],
+    );
+    const r = besluitRij[0];
+    const besluit = writeDecision(
+      {
+        status: r.status,
+        scheduled_for: r.scheduled_for,
+        is_buffer: r.is_buffer,
+        topic_id: r.topic_id,
+      },
+      r.maand_status,
+      { analysis_id: r.analysis_id, analysis_status: r.analyse_status },
+    );
+    ok(
+      "en mag hem schrijven op de analyse van het onderwerp",
+      besluit.schrijven === true && besluit.analysisId === analysisId,
+    );
+
+    // ── De terugkoppeling: schrijft de handler het plan bij? ────────────────
+    //
+    // ⚠️ De eigenaar komt uit de database en niet uit een variabele. De analyse
+    // is hierboven toegewezen aan een andere gebruiker (0038), en de
+    // contentpijplijn weigert te schrijven voor iemand die geen eigenaar is.
+    // Dat is precies waarom `/api/cron/plan` `analyses.user_id` uitleest in
+    // plaats van de klant af te leiden uit het profiel.
+    const { rows: eigenaarRij } = await db.client.query(
+      "select user_id from public.analyses where id = $1",
+      [analysisId],
+    );
+    const planUserId = eigenaarRij[0].user_id as string;
+
+    const { runJob } = await import("@/lib/jobs/handlers");
+    const { rows: taakRij } = await db.client.query(
+      `insert into public.jobs (analysis_id, type, payload_json, dedupe_key, status)
+       values ($1, 'content_draft', $2, $3, 'running') returning *`,
+      [
+        analysisId,
+        JSON.stringify({
+          userId: planUserId,
+          plannedPageId: binnenVenster,
+          recommendation: { ...aanbeveling, title: "Hardloopblessures · Oriëntatie" },
+        }),
+        `chain-plan:${binnenVenster}`,
+      ],
+    );
+    await runJob({ admin: admin as never, job: taakRij[0] });
+
+    const { rows: naSchrijven } = await db.client.query(
+      "select status, content_piece_id from public.planned_pages where id = $1",
+      [binnenVenster],
+    );
+    ok(
+      "de plan-pagina weet welke tekst het geworden is",
+      Boolean(naSchrijven[0].content_piece_id),
+      "content_piece_id bleef leeg: het plan verwijst nergens naar",
+    );
+    ok(
+      "en staat niet meer op 'gepland'",
+      naSchrijven[0].status !== "gepland",
+      `status is ${naSchrijven[0].status}`,
+    );
+
+    // ── Het vangnet: een definitief mislukte taak ──────────────────────────
+    // Zonder deze regel blijft een pagina op "Aura is bezig" staan terwijl er
+    // niets meer gebeurt: de status die om geduld vraagt dat nergens toe leidt.
+    const { rows: mislukteTaak } = await db.client.query(
+      `insert into public.jobs (analysis_id, type, payload_json, dedupe_key, status, attempts)
+       values ($1, 'content_draft', $2, $3, 'running', 4) returning *`,
+      [
+        analysisId,
+        JSON.stringify({
+          userId: planUserId,
+          plannedPageId: buitenVenster,
+          recommendation: aanbeveling,
+        }),
+        `chain-plan-fout:${buitenVenster}`,
+      ],
+    );
+    const { handleFailure } = await import("@/lib/jobs/worker");
+    await handleFailure(admin as never, mislukteTaak[0], "de stub weigerde");
+
+    const { rows: naFout } = await db.client.query(
+      "select status from public.planned_pages where id = $1",
+      [buitenVenster],
+    );
+    ok(
+      "een definitief mislukte schrijftaak is zichtbaar in het plan",
+      naFout[0].status === "mislukt",
+      `status is ${naFout[0].status}`,
+    );
+
     __setTestAdminClient(null);
     __setTestTransport(null);
   } finally {

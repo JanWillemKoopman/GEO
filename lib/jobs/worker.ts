@@ -204,6 +204,34 @@ async function processJob(
   }
 }
 
+/**
+ * Een definitief mislukte schrijftaak zichtbaar maken in het contentplan (fase 4).
+ *
+ * ⚠️ Dit staat bewust NAAST `markOwnerFailed`, dat alleen taken meeneemt die de
+ * analyse zelf blokkeren. Een mislukte contentpagina laat de analyse met rust,
+ * maar in het plan is hij wél het enige dat telt: zonder deze regel blijft de
+ * pagina op "Aura is bezig" staan terwijl er niets meer gebeurt, en dat is de
+ * ergste van alle statussen, want hij vraagt om geduld dat nergens toe leidt.
+ */
+async function markPlannedPageFailed(
+  admin: ReturnType<typeof createAdminClient>,
+  job: Job,
+): Promise<void> {
+  const payload = job.payload_json as { plannedPageId?: string } | null;
+  const pageId = payload?.plannedPageId;
+  if (!pageId) return;
+
+  try {
+    await admin
+      .from("planned_pages")
+      .update({ status: "mislukt" })
+      .eq("id", pageId)
+      .in("status", ["gepland", "schrijven"]);
+  } catch (err) {
+    console.error(`Plan-pagina ${pageId} op 'mislukt' zetten faalde:`, err);
+  }
+}
+
 /** Zet een geclaimde taak terug zonder een poging te verbruiken. */
 async function releaseJob(admin: ReturnType<typeof createAdminClient>, job: Job): Promise<void> {
   await admin
@@ -223,8 +251,13 @@ async function releaseJob(admin: ReturnType<typeof createAdminClient>, job: Job)
 /**
  * Bepaalt of een mislukte taak opnieuw geprobeerd wordt (optimalisatie.md 1.2).
  * Geeft true terug als er een nieuwe poging is ingepland.
+ *
+ * Geëxporteerd omdat de ketentest hem rechtstreeks aanroept: wat er bij een
+ * DEFINITIEVE mislukking gebeurt (de analyse op 'mislukt', de plan-pagina op
+ * 'mislukt', het vervolg alsnog inplannen) is samenhang tussen drie tabellen, en
+ * die is niet te bereiken via `runWorker()` zonder vier echte pogingen te doen.
  */
-async function handleFailure(
+export async function handleFailure(
   admin: ReturnType<typeof createAdminClient>,
   job: Job,
   detail: string,
@@ -237,6 +270,7 @@ async function handleFailure(
       .update({ status: "failed", finished_at: new Date().toISOString(), last_error: detail })
       .eq("id", job.id);
     await markOwnerFailed(admin, job);
+    await markPlannedPageFailed(admin, job);
 
     // Opgeven is óók een uitkomst waar de keten mee verder moet. Was dit de
     // laatste openstaande meting, dan moet de aggregatie alsnog starten: die

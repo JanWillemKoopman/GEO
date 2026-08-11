@@ -9,7 +9,9 @@ import "server-only";
  */
 import { createAdminClient } from "@/lib/supabase/admin";
 import { buildPlan, DEFAULT_FUNNELS, MONTHS_AHEAD } from "@/lib/pipeline/plan-build";
+import type { TopicWritingState } from "@/lib/plan-writing";
 import type {
+  AnalysisStatus,
   ContentPlan,
   FunnelStage,
   PlanMonth,
@@ -24,6 +26,7 @@ export interface PlanBundle {
   months: PlanMonth[];
   pages: PlannedPage[];
   funnels: FunnelStage[];
+  topics: TopicWritingState[];
 }
 
 /** Het lopende plan van een merk, met alles eromheen. Null als er nog geen is. */
@@ -43,7 +46,7 @@ export async function loadPlan(
   if (!planRow) return null;
   const plan = planRow as ContentPlan;
 
-  const [{ data: months }, { data: pages }, { data: funnels }] = await Promise.all([
+  const [{ data: months }, { data: pages }, { data: funnels }, { data: topics }] = await Promise.all([
     admin
       .from("plan_months")
       .select("*")
@@ -59,6 +62,14 @@ export async function loadPlan(
       .select("*")
       .eq("profile_id", profileId)
       .order("sort_order"),
+    // Schrijven leunt op een gemeten analyse (`lib/plan-writing.ts`). Zonder
+      // deze query kan het scherm alleen "Gepland" tonen bij een pagina die
+      // nooit aan de beurt komt, en dat is de stilste manier om iemand te laten
+      // wachten op iets wat niet gaat gebeuren.
+    admin
+      .from("profile_topics")
+      .select("id, title, analysis_id, analyses(status)")
+      .eq("profile_id", profileId),
   ]);
 
   return {
@@ -66,7 +77,20 @@ export async function loadPlan(
     months: (months ?? []) as PlanMonth[],
     pages: (pages ?? []) as PlannedPage[],
     funnels: (funnels ?? []) as FunnelStage[],
+    topics: ((topics ?? []) as unknown as TopicRow[]).map((t) => ({
+      topicId: t.id,
+      title: t.title,
+      analysisId: t.analysis_id,
+      analysisStatus: t.analyses?.status ?? null,
+    })),
   };
+}
+
+interface TopicRow {
+  id: string;
+  title: string;
+  analysis_id: string | null;
+  analyses: { status: AnalysisStatus } | null;
 }
 
 /**
