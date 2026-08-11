@@ -3,6 +3,7 @@ import { getUser } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getOwnedProfile } from "@/lib/profiles";
 import { markPosted, removePage } from "@/lib/plans";
+import { swapWithNeighbour, type OrderablePage } from "@/lib/plan-order";
 
 /**
  * POST /api/profiles/[id]/plan/pages/[pageId], een handeling op één pagina.
@@ -17,7 +18,7 @@ import { markPosted, removePage } from "@/lib/plans";
  */
 export const dynamic = "force-dynamic";
 
-type Actie = "goedkeuren" | "afwijzen" | "geplaatst";
+type Actie = "goedkeuren" | "afwijzen" | "geplaatst" | "verplaats";
 
 export async function POST(
   request: Request,
@@ -38,7 +39,7 @@ export async function POST(
   // De pagina moet écht bij dít merk horen.
   const { data: page } = await admin
     .from("planned_pages")
-    .select("id, profile_id, status")
+    .select("id, profile_id, status, plan_month_id")
     .eq("id", pageId)
     .eq("profile_id", id)
     .maybeSingle();
@@ -46,14 +47,50 @@ export async function POST(
     return NextResponse.json({ error: "Niet gevonden." }, { status: 404 });
   }
 
-  let body: { actie?: string; url?: string };
+  let body: { actie?: string; url?: string; richting?: string };
   try {
-    body = (await request.json()) as { actie?: string; url?: string };
+    body = (await request.json()) as { actie?: string; url?: string; richting?: string };
   } catch {
     return NextResponse.json({ error: "Ongeldig verzoek." }, { status: 400 });
   }
 
   const actie = body.actie as Actie | undefined;
+
+  if (actie === "verplaats") {
+    const richting = body.richting === "omhoog" ? "omhoog" : "omlaag";
+
+    // De hele maand, want verwisselen gaat over twee rijen en welke tweede dat
+    // is, hangt van de volgorde af.
+    const { data: maandPaginas } = await admin
+      .from("planned_pages")
+      .select("id, sort_order, scheduled_for, is_buffer, status")
+      .eq("plan_month_id", page.plan_month_id as string)
+      .order("sort_order");
+
+    const result = swapWithNeighbour(
+      (maandPaginas ?? []) as OrderablePage[],
+      pageId,
+      richting,
+    );
+    if (result.problem) {
+      return NextResponse.json({ error: result.problem }, { status: 409 });
+    }
+
+    // Twee losse updates en geen transactie: gaat de tweede mis, dan staan er
+    // twee pagina's op dezelfde plek in de lijst. Vervelend, en zelf te
+    // herstellen met nog een klik. Een transactie zou hier een databasefunctie
+    // vragen voor iets wat de klant hooguit een verkeerde volgorde kost.
+    for (const u of result.updates) {
+      const { error } = await admin
+        .from("planned_pages")
+        .update({ sort_order: u.sort_order, scheduled_for: u.scheduled_for })
+        .eq("id", u.id);
+      if (error) {
+        return NextResponse.json({ error: "Verplaatsen is niet gelukt." }, { status: 500 });
+      }
+    }
+    return NextResponse.json({ ok: true });
+  }
 
   if (actie === "goedkeuren") {
     const { error } = await admin

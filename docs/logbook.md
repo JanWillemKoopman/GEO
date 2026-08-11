@@ -1837,3 +1837,20 @@ duwden.
 **De drempel voor "nagekeken" staat op 80% en niet op 100%.** Van de 27 merkvelden leidt Aura er 25
 zelf af en de laatste paar weet alleen de klant. Op 100 zou élk merk eeuwig in "wacht op jouw
 nakijkwerk" blijven staan en werd het segment betekenisloos. 919 unittests.
+
+**Herordenen zonder slepen (11 augustus 2026).** De laatste open post van fase 4. Nova laat je
+slepen; dat is op een muis prettig en op een telefoon onbetrouwbaar, want HTML5-drag werkt daar niet
+en de vervangers vragen dat je een rij eerst een halve seconde vasthoudt zonder te scrollen. De
+eerste klacht van dit hele traject ging over mobiel, dus dat is geen theoretisch bezwaar. Twee
+pijltjes doen hetzelfde werk, werken overal, en zijn met het toetsenbord te bedienen.
+
+**Wat er verwisselt is de plek én de datum.** Alleen de plek zou een lijst opleveren waarin de
+bovenste pagina later verschijnt dan de onderste, en dan is het geen agenda meer. Alleen de datum
+zou de lijst laten verspringen bij de volgende keer verversen. Twee regels eromheen: buffers doen
+niet mee (die hebben geen datum om te ruilen) en een geplaatste pagina houdt zijn datum, want die is
+de werkelijkheid geworden.
+
+**Eén fout onderweg, gevangen vóór hij bestond.** De pijlen rekenden eerst op de zichtbare lijst.
+Staat het filter op "vraagt actie", dan zijn de buren van een pagina meestal onzichtbaar, en dan
+springt hij over die buren heen met de datum van de verkeerde pagina. Ze rekenen nu op de volledige
+maand. 928 unittests.

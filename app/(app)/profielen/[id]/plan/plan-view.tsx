@@ -15,6 +15,7 @@ import {
   writeBlockNotice,
   type TopicWritingState,
 } from "@/lib/plan-writing";
+import { canMove } from "@/lib/plan-order";
 import type {
   ContentPlan,
   FunnelStage,
@@ -160,6 +161,35 @@ export function PlanView({
     }
   }
 
+  /**
+   * Een pagina een plek omhoog of omlaag binnen zijn maand.
+   *
+   * Bewust knoppen en geen slepen: HTML5-drag werkt niet op een telefoon, en de
+   * eerste klacht van dit traject ging over mobiel. Zie `lib/plan-order.ts`.
+   */
+  async function verplaats(page: PlannedPage, richting: "omhoog" | "omlaag") {
+    setBusy(page.id);
+    try {
+      const res = await fetch(`/api/profiles/${profileId}/plan/pages/${page.id}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ actie: "verplaats", richting }),
+      });
+      if (!res.ok) {
+        const j = (await res.json().catch(() => null)) as { error?: string } | null;
+        toast({
+          intent: "fout",
+          title: "Verplaatsen lukte niet",
+          description: j?.error ?? "Probeer het opnieuw.",
+        });
+        return;
+      }
+      router.refresh();
+    } finally {
+      setBusy(null);
+    }
+  }
+
   async function maandActie(month: PlanMonth, actie: "goedkeuren" | "afwijzen") {
     setBusy(month.id);
     try {
@@ -256,6 +286,12 @@ export function PlanView({
               const maandPaginas = zichtbaar.filter(
                 (p) => p.plan_month_id === month.id,
               );
+              // ⚠️ Verplaatsen rekent op de VOLLEDIGE maand en niet op wat er
+              // door het filter heen komt. Staat het filter op "vraagt actie",
+              // dan zijn de buren van een pagina meestal onzichtbaar, en een pijl
+              // die rekent op de zichtbare lijst laat hem over die buren heen
+              // springen, met de datum van de verkeerde pagina.
+              const heleMaand = echt.filter((p) => p.plan_month_id === month.id);
               const meta = MONTH_STATUS_META[month.status];
               return (
                 <section key={month.id} className="flex flex-col gap-2">
@@ -304,6 +340,9 @@ export function PlanView({
                             : null
                         }
                         blokkade={blokkade(page)}
+                        kanOmhoog={canMove(heleMaand, page.id, "omhoog")}
+                        kanOmlaag={canMove(heleMaand, page.id, "omlaag")}
+                        onMove={(richting) => void verplaats(page, richting)}
                         busy={busy === page.id}
                         onApprove={() => void paginaActie(page, "goedkeuren")}
                         onPost={() => {
@@ -409,6 +448,9 @@ function PageRow({
   page,
   funnel,
   blokkade,
+  kanOmhoog,
+  kanOmlaag,
+  onMove,
   busy,
   onApprove,
   onPost,
@@ -418,6 +460,9 @@ function PageRow({
   funnel: string | null;
   /** Waarom Aura deze pagina niet kan schrijven. `null` = er is niets aan de hand. */
   blokkade: { text: string; whoseTurn: "klant" | "aura" | null } | null;
+  kanOmhoog: boolean;
+  kanOmlaag: boolean;
+  onMove: (richting: "omhoog" | "omlaag") => void;
   busy: boolean;
   onApprove: () => void;
   onPost: () => void;
@@ -454,6 +499,32 @@ function PageRow({
       </div>
 
       <div className="flex shrink-0 flex-wrap items-center gap-2">
+        {/* Verplaatsen wisselt de plek én de publicatiedatum met de buurman:
+            alleen de plek zou een lijst opleveren waarin de bovenste pagina
+            later verschijnt dan de onderste, en dan is het geen agenda meer. */}
+        {(kanOmhoog || kanOmlaag) && (
+          <span className="flex items-center">
+            <button
+              type="button"
+              className="rounded-[var(--radius-md)] px-2 py-1 text-secondary transition-colors hover:bg-[var(--bg-elevated)] disabled:opacity-40"
+              onClick={() => onMove("omhoog")}
+              disabled={busy || !kanOmhoog}
+              aria-label={`"${page.title}" een plek eerder publiceren`}
+            >
+              ↑
+            </button>
+            <button
+              type="button"
+              className="rounded-[var(--radius-md)] px-2 py-1 text-secondary transition-colors hover:bg-[var(--bg-elevated)] disabled:opacity-40"
+              onClick={() => onMove("omlaag")}
+              disabled={busy || !kanOmlaag}
+              aria-label={`"${page.title}" een plek later publiceren`}
+            >
+              ↓
+            </button>
+          </span>
+        )}
+
         <span
           className={
             meta.tone === "wacht"

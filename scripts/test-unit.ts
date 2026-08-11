@@ -153,6 +153,7 @@ import {
   contentTypeFor,
   type PageForWriting,
 } from "@/lib/plan-writing";
+import { swapWithNeighbour, canMove, type OrderablePage } from "@/lib/plan-order";
 import {
   CSM_SEGMENTS,
   CSM_SEGMENT_META,
@@ -4278,6 +4279,77 @@ group("FaqEdit", () => {
   );
 });
 
+
+
+group("de volgorde binnen een maand (plan-order)", () => {
+  const p = (
+    id: string,
+    sort: number,
+    datum: string | null,
+    over: Partial<OrderablePage> = {},
+  ): OrderablePage => ({
+    id,
+    sort_order: sort,
+    scheduled_for: datum,
+    is_buffer: false,
+    status: "gepland",
+    ...over,
+  });
+
+  const maand = [
+    p("a", 0, "2026-09-01"),
+    p("b", 1, "2026-09-03"),
+    p("c", 2, "2026-09-05"),
+    p("buffer", 3, null, { is_buffer: true }),
+  ];
+
+  const omhoog = swapWithNeighbour(maand, "b", "omhoog");
+  ok("verplaatsen omhoog kan", omhoog.problem === null);
+  // ⚠️ De plek én de datum wisselen. Alleen de plek zou een lijst opleveren
+  // waarin de bovenste pagina later verschijnt dan de onderste.
+  ok(
+    "de pagina neemt de plek van zijn buurman over",
+    omhoog.updates.find((u) => u.id === "b")?.sort_order === 0,
+  );
+  ok(
+    "en ook zijn publicatiedatum",
+    omhoog.updates.find((u) => u.id === "b")?.scheduled_for === "2026-09-01",
+  );
+  ok(
+    "de buurman schuift precies de andere kant op",
+    omhoog.updates.find((u) => u.id === "a")?.scheduled_for === "2026-09-03",
+  );
+
+  ok(
+    "de bovenste kan niet verder omhoog",
+    swapWithNeighbour(maand, "a", "omhoog").problem !== null,
+  );
+  // ⚠️ De buffer telt niet mee, anders zou "c" naar beneden wisselen met een
+  // reserve en daarbij zijn publicatiedatum kwijtraken.
+  ok(
+    "de onderste echte pagina kan niet omlaag, de buffer telt niet mee",
+    swapWithNeighbour(maand, "c", "omlaag").problem !== null,
+  );
+
+  // Een geplaatste pagina houdt zijn datum: die is de werkelijkheid geworden.
+  const metGeplaatst = [
+    p("x", 0, "2026-09-01", { status: "geplaatst" }),
+    p("y", 1, "2026-09-03"),
+  ];
+  ok(
+    "wisselen met een geplaatste pagina mag niet",
+    swapWithNeighbour(metGeplaatst, "y", "omhoog").problem !== null,
+  );
+  ok(
+    "en de geplaatste pagina zelf ook niet",
+    swapWithNeighbour(metGeplaatst, "x", "omlaag").problem !== null,
+  );
+
+  ok(
+    "canMove volgt dezelfde regel",
+    canMove(maand, "b", "omhoog") && !canMove(maand, "a", "omhoog"),
+  );
+});
 
 // ════════════════════════════════════════════════════════════════════════════
 console.log("\nHet CSM-paneel (fase 8, csm.ts)");
