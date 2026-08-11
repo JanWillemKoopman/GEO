@@ -204,6 +204,9 @@
 
   /* Doorschijnende paginakleur onder de sticky balken met backdrop-blur. */
   --bg-base-blur: rgba(248, 250, 252, 0.85);
+  /* Het waas achter een dialoog. Afgeleid van --text-primary (#17212b), niet van
+     zwart: zwart oogt vuil op een koel leiblauwe pagina. */
+  --overlay-scrim: rgba(23, 33, 43, 0.4);
 
   /* ── Motion ───────────────────────────────────────────────────────────────
      Eén easing overal. De duur ging omlaag: Nova's product beweegt korter dan
@@ -653,6 +656,42 @@ textarea.field {
   }
 }
 
+/* ── Dialoog ────────────────────────────────────────────────────────────────
+   De bewegingen komen uit de gecompileerde CSS van nova.inspace.io: de overlay
+   in 0,15s, het paneel in 0,15s vanaf `scale(.96)`. Niet vanaf onder en niet
+   met een veer: een dialoog die opvalt door zijn beweging leidt af van waar hij
+   over gaat. Zie components/confirm-dialog.tsx. */
+.modal-overlay {
+  background: var(--overlay-scrim);
+  animation: modal-overlay-in var(--duration-base) var(--ease-standard);
+}
+.modal-panel {
+  background-color: var(--bg-surface);
+  border: var(--border-width-xs) solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  padding: 20px;
+  box-shadow: var(--shadow-overlay);
+  animation: modal-content-in var(--duration-base) var(--ease-standard);
+}
+@keyframes modal-overlay-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes modal-content-in {
+  from {
+    opacity: 0;
+    scale: 0.96;
+  }
+  to {
+    opacity: 1;
+    scale: 1;
+  }
+}
+
 /* Pulserende live-dot: "loopt nu". Kleur en vorm samen, nooit kleur alleen. */
 .live-dot {
   width: 8px;
@@ -775,7 +814,9 @@ textarea.field {
      voortgangsstreepje blijft wél lopen: dat is informatie (hoe lang blijft
      deze melding staan), geen versiering. */
   .toast-card,
-  .toast-card[data-leaving] {
+  .toast-card[data-leaving],
+  .modal-overlay,
+  .modal-panel {
     animation: none;
   }
   .skeleton {

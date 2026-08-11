@@ -45,6 +45,7 @@ export interface NavItem {
 export function brandNav(brandId: string): NavItem[] {
   return [
     { href: `/profielen/${brandId}`, label: "Merkdossier", teken: "◆" },
+    { href: `/profielen/${brandId}/plan`, label: "Contentplan", teken: "▣" },
     { href: `/analyses?merk=${brandId}`, label: "Analyses", teken: "▲" },
   ];
 }

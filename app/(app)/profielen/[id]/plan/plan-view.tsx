@@ -1,0 +1,436 @@
+"use client";
+
+import { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import { useToast } from "@/components/toast";
+import { ConfirmDialog } from "@/components/confirm-dialog";
+import {
+  MONTH_STATUS_META,
+  PLAN_STATUS_META,
+  countActionRequired,
+  planRunningDate,
+} from "@/lib/plan-status";
+import type {
+  ContentPlan,
+  FunnelStage,
+  PlanMonth,
+  PlannedPage,
+} from "@/lib/types/database";
+
+/**
+ * Het contentplan: twaalf maanden, per maand goed te keuren.
+ *
+ * ── DE INDELING KOMT VAN NOVA, DE TAAL NIET ─────────────────────────────────
+ *
+ * Nova groepeert per maand met een segmentfilter erboven ("Awaiting your
+ * approval", "Approved") en dat is hier overgenomen: bij 132 rijen is een platte
+ * lijst onbruikbaar, en de vraag die iemand heeft is bijna altijd "wat moet ik
+ * nú".
+ *
+ * Wat NIET is overgenomen is hun teller. Bij hen staat overal "contract month 4
+ * of 12"; hier is het "maand 4 sinds de start" (besluit 7: doorlopend
+ * opzegbaar). Een teller die zegt hoeveel je nog tegoed hebt suggereert een
+ * contract dat er niet is.
+ */
+type Filter = "actie" | "alles" | "gepland" | "live";
+
+export function PlanView({
+  profileId,
+  plan,
+  months,
+  pages,
+  funnels,
+}: {
+  profileId: string;
+  plan: ContentPlan;
+  months: PlanMonth[];
+  pages: PlannedPage[];
+  funnels: FunnelStage[];
+}) {
+  const router = useRouter();
+  const toast = useToast();
+  const [filter, setFilter] = useState<Filter>("actie");
+  const [busy, setBusy] = useState<string | null>(null);
+  const [postDialog, setPostDialog] = useState<PlannedPage | null>(null);
+  const [postUrl, setPostUrl] = useState("");
+  const [monthDialog, setMonthDialog] = useState<PlanMonth | null>(null);
+
+  const funnelNaam = useMemo(
+    () => new Map(funnels.map((f) => [f.id, f.label])),
+    [funnels],
+  );
+
+  // Buffers horen niet in de lijst: ze zijn reserve, geen belofte. Ze tellen
+  // ook niet mee in het maandtotaal dat de klant afneemt.
+  const echt = useMemo(() => pages.filter((p) => !p.is_buffer), [pages]);
+  const teDoen = countActionRequired(echt);
+
+  const zichtbaar = useMemo(() => {
+    if (filter === "alles") return echt;
+    if (filter === "actie")
+      return echt.filter((p) => PLAN_STATUS_META[p.status].actionRequired);
+    if (filter === "live") return echt.filter((p) => p.status === "geplaatst");
+    return echt.filter((p) => p.status === "gepland" || p.status === "schrijven");
+  }, [echt, filter]);
+
+  async function paginaActie(
+    page: PlannedPage,
+    actie: "goedkeuren" | "afwijzen" | "geplaatst",
+    url?: string,
+  ) {
+    setBusy(page.id);
+    try {
+      const res = await fetch(
+        `/api/profiles/${profileId}/plan/pages/${page.id}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ actie, url }),
+        },
+      );
+      const j = (await res.json().catch(() => null)) as
+        | { error?: string; bufferUsed?: boolean }
+        | null;
+      if (!res.ok) {
+        toast({
+          intent: "fout",
+          title: "Dat lukte niet",
+          description: j?.error ?? "Probeer het opnieuw.",
+        });
+        return;
+      }
+      toast({
+        intent: "succes",
+        title:
+          actie === "goedkeuren"
+            ? "Goedgekeurd"
+            : actie === "geplaatst"
+              ? "Gemarkeerd als geplaatst"
+              : "Uit het plan gehaald",
+        description:
+          actie === "afwijzen"
+            ? j?.bufferUsed
+              ? "Een reservepagina van dezelfde maand is ervoor in de plaats gekomen."
+              : "Er was geen reserve meer voor deze maand, dus het maandtotaal is één lager."
+            : `"${page.title}"`,
+      });
+      router.refresh();
+    } finally {
+      setBusy(null);
+      setPostDialog(null);
+      setPostUrl("");
+    }
+  }
+
+  async function maandActie(month: PlanMonth, actie: "goedkeuren" | "afwijzen") {
+    setBusy(month.id);
+    try {
+      const res = await fetch(
+        `/api/profiles/${profileId}/plan/months/${month.id}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ actie }),
+        },
+      );
+      if (!res.ok) {
+        const j = (await res.json().catch(() => null)) as { error?: string } | null;
+        toast({
+          intent: "fout",
+          title: "Dat lukte niet",
+          description: j?.error ?? "Probeer het opnieuw.",
+        });
+        return;
+      }
+      toast({
+        intent: actie === "goedkeuren" ? "succes" : "info",
+        title:
+          actie === "goedkeuren"
+            ? `Maand ${month.month_number} goedgekeurd`
+            : `Maand ${month.month_number} afgewezen`,
+        description:
+          actie === "goedkeuren"
+            ? "Aura begint tien dagen voor elke publicatiedatum met schrijven."
+            : "Aura stelt een nieuw voorstel op voor deze maand.",
+      });
+      router.refresh();
+    } finally {
+      setBusy(null);
+      setMonthDialog(null);
+    }
+  }
+
+  return (
+    <div className="flex flex-col gap-6">
+      {/* ── De kop ────────────────────────────────────────────────────────
+          Nova's overzicht opent met een mededeling en niet met een titel
+          ("NOVA schrijft je content"). Dat werkt: het zegt wat er gebeurt in
+          plaats van hoe het scherm heet. */}
+      <div className="card flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-col gap-1">
+          <span className="mono-label">
+            {plan.pages_per_month} pagina&apos;s per maand · plan {plan.version}
+          </span>
+          <p className="text-secondary">
+            {teDoen === 0
+              ? "Er wacht niets op jou. Aura werkt het plan af."
+              : teDoen === 1
+                ? "Er wacht 1 pagina op jou."
+                : `Er wachten ${teDoen} pagina's op jou.`}
+          </p>
+        </div>
+      </div>
+
+      {/* ── Segmenten ─────────────────────────────────────────────────────
+          Nova's `strategy.segments`. Vier standen, en "wat moet ik nu" staat
+          vooraan omdat dat de vraag is waarmee iemand inlogt. */}
+      <nav className="flex flex-wrap gap-2" aria-label="Filter">
+        <Segment actief={filter === "actie"} onClick={() => setFilter("actie")}>
+          Wacht op jou {teDoen > 0 && <span className="chip chip-warning">{teDoen}</span>}
+        </Segment>
+        <Segment actief={filter === "gepland"} onClick={() => setFilter("gepland")}>
+          Staat gepland
+        </Segment>
+        <Segment actief={filter === "live"} onClick={() => setFilter("live")}>
+          Staat live
+        </Segment>
+        <Segment actief={filter === "alles"} onClick={() => setFilter("alles")}>
+          Alles ({echt.length})
+        </Segment>
+      </nav>
+
+      {zichtbaar.length === 0 ? (
+        <div className="card flex flex-col gap-1">
+          <span className="mono-label">Niets te zien hier</span>
+          <p className="text-secondary">
+            {filter === "actie"
+              ? "Er wacht op dit moment niets op jou. Zodra Aura een pagina heeft geschreven, staat hij hier."
+              : filter === "live"
+                ? "Er staat nog niets live. Zodra je een pagina publiceert en hier afvinkt, verschijnt hij in deze lijst."
+                : "Geen pagina's in deze selectie."}
+          </p>
+        </div>
+      ) : (
+        <div className="flex flex-col gap-6">
+          {months
+            .filter((m) => zichtbaar.some((p) => p.plan_month_id === m.id))
+            .map((month) => {
+              const maandPaginas = zichtbaar.filter(
+                (p) => p.plan_month_id === month.id,
+              );
+              const meta = MONTH_STATUS_META[month.status];
+              return (
+                <section key={month.id} className="flex flex-col gap-2">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <span className="flex flex-wrap items-baseline gap-2">
+                      {/* Besluit 7: "maand 4 sinds de start", nooit "van 12". */}
+                      <h2 className="text-lg font-semibold tracking-tight">
+                        Maand {month.month_number}
+                      </h2>
+                      <span className="mono-label text-muted">
+                        {maandPaginas.length} pagina&apos;s
+                      </span>
+                      <span
+                        className={
+                          month.status === "goedgekeurd"
+                            ? "chip chip-success"
+                            : month.status === "ter_goedkeuring"
+                              ? "chip chip-warning"
+                              : "chip chip-neutral"
+                        }
+                      >
+                        {meta.label}
+                      </span>
+                    </span>
+
+                    {month.status === "ter_goedkeuring" && (
+                      <button
+                        type="button"
+                        className="btn-primary btn-sm"
+                        onClick={() => setMonthDialog(month)}
+                        disabled={busy === month.id}
+                      >
+                        Deze maand goedkeuren
+                      </button>
+                    )}
+                  </div>
+
+                  <ul className="flex flex-col gap-2">
+                    {maandPaginas.map((page) => (
+                      <PageRow
+                        key={page.id}
+                        page={page}
+                        funnel={
+                          page.funnel_stage_id
+                            ? (funnelNaam.get(page.funnel_stage_id) ?? null)
+                            : null
+                        }
+                        busy={busy === page.id}
+                        onApprove={() => void paginaActie(page, "goedkeuren")}
+                        onPost={() => {
+                          setPostDialog(page);
+                          setPostUrl(page.url_path ?? "");
+                        }}
+                        onRemove={() => void paginaActie(page, "afwijzen")}
+                      />
+                    ))}
+                  </ul>
+                </section>
+              );
+            })}
+        </div>
+      )}
+
+      {/* ── Markeren als geplaatst ────────────────────────────────────────
+          Nova zet hier een `cannotBeUndone`-blok bij, en terecht: dit legt vast
+          dat de pagina live staat op dit adres. */}
+      <ConfirmDialog
+        open={postDialog !== null}
+        title="Markeer als geplaatst"
+        body={`Bevestig het pad waar "${postDialog?.title ?? ""}" nu live staat. Aura gebruikt dat adres om te meten wat de pagina oplevert.`}
+        irreversible={{
+          title: "Dit kun je niet terugdraaien",
+          description:
+            "De pagina telt vanaf nu als gepubliceerd, en Aura begint hem te volgen op dit adres.",
+        }}
+        confirmLabel="Markeer als geplaatst"
+        confirmingLabel="Bezig…"
+        busy={busy === postDialog?.id}
+        onCancel={() => setPostDialog(null)}
+        onConfirm={() =>
+          postDialog && void paginaActie(postDialog, "geplaatst", postUrl)
+        }
+      >
+        <input
+          className="field"
+          value={postUrl}
+          onChange={(e) => setPostUrl(e.target.value)}
+          placeholder="/diensten/auto-financieren"
+          aria-label="Het pad waar de pagina live staat"
+        />
+      </ConfirmDialog>
+
+      {/* ── Maand goedkeuren ──────────────────────────────────────────────── */}
+      <ConfirmDialog
+        open={monthDialog !== null}
+        title={`Maand ${monthDialog?.month_number ?? ""} goedkeuren`}
+        body={`Je keurt ${echt.filter((p) => p.plan_month_id === monthDialog?.id).length} pagina's in één keer goed. Aura begint tien dagen voor elke publicatiedatum met schrijven.`}
+        irreversible={{
+          title: "Dit zet het schrijven in gang",
+          description:
+            "Elke pagina die geschreven wordt kost geld. Wijs de maand af als de onderwerpen niet kloppen; Aura maakt dan een nieuw voorstel.",
+        }}
+        confirmLabel="Goedkeuren"
+        confirmingLabel="Bezig…"
+        busy={busy === monthDialog?.id}
+        onCancel={() => setMonthDialog(null)}
+        onConfirm={() => monthDialog && void maandActie(monthDialog, "goedkeuren")}
+      >
+        <button
+          type="button"
+          className="w-fit text-sm text-secondary hover:underline"
+          onClick={() => monthDialog && void maandActie(monthDialog, "afwijzen")}
+          disabled={busy === monthDialog?.id}
+        >
+          Of wijs deze maand af, dan stelt Aura iets nieuws voor
+        </button>
+      </ConfirmDialog>
+    </div>
+  );
+}
+
+function Segment({
+  actief,
+  onClick,
+  children,
+}: {
+  actief: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={actief}
+      className="flex items-center gap-2 rounded-[var(--radius-md)] border px-3 py-2 text-sm font-medium transition-colors"
+      style={{
+        borderColor: actief ? "var(--intent-intelligence-border)" : "var(--border-subtle)",
+        background: actief ? "var(--intent-intelligence-surface)" : "var(--bg-surface)",
+        color: actief ? "var(--text-primary)" : "var(--text-secondary)",
+      }}
+    >
+      {children}
+    </button>
+  );
+}
+
+/** Eén regel in het plan. De drie statuslagen staan er alle drie op. */
+function PageRow({
+  page,
+  funnel,
+  busy,
+  onApprove,
+  onPost,
+  onRemove,
+}: {
+  page: PlannedPage;
+  funnel: string | null;
+  busy: boolean;
+  onApprove: () => void;
+  onPost: () => void;
+  onRemove: () => void;
+}) {
+  const meta = PLAN_STATUS_META[page.status];
+  const wanneer = planRunningDate(page);
+
+  return (
+    <li className="card flex flex-wrap items-center justify-between gap-3">
+      <div className="flex min-w-0 flex-col gap-1">
+        <span className="font-medium">{page.title}</span>
+        <span className="flex flex-wrap items-center gap-2 text-sm text-muted">
+          <span className="chip chip-neutral">{page.page_type}</span>
+          {funnel && <span>{funnel}</span>}
+          {wanneer && <span>· {wanneer}</span>}
+        </span>
+      </div>
+
+      <div className="flex shrink-0 flex-wrap items-center gap-2">
+        <span
+          className={
+            meta.tone === "wacht"
+              ? "chip chip-warning"
+              : meta.tone === "klaar"
+                ? "chip chip-success"
+                : meta.tone === "fout"
+                  ? "chip chip-danger"
+                  : "chip chip-neutral"
+          }
+        >
+          {meta.running}
+        </span>
+
+        {page.status === "ter_goedkeuring" && (
+          <button type="button" className="btn-primary btn-sm" onClick={onApprove} disabled={busy}>
+            Goedkeuren
+          </button>
+        )}
+        {page.status === "goedgekeurd" && (
+          <button type="button" className="btn-primary btn-sm" onClick={onPost} disabled={busy}>
+            Ik heb hem geplaatst
+          </button>
+        )}
+        {(page.status === "gepland" || page.status === "ter_goedkeuring") && (
+          <button
+            type="button"
+            className="text-sm text-secondary hover:underline"
+            onClick={onRemove}
+            disabled={busy}
+          >
+            Verwijderen
+          </button>
+        )}
+      </div>
+    </li>
+  );
+}

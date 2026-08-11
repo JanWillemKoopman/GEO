@@ -1722,3 +1722,34 @@ goedkeuren, maand goedkeuren met afwijzen-en-hergenereren, markeren als geplaats
 de bufferlogica bij verwijderen, en de cron die tien dagen vooruit schrijft.
 
 Vier controles groen: `tsc`, 845 unittests (35 nieuwe), 47 ketentests, productiebuild.
+
+**Fase 4 vervolgd: het plan is bedienbaar (10 augustus 2026).** Op het datamodel van 0049 staan nu
+de serverkant (`lib/plans.ts`), drie API-routes, een bevestigingsdialoog en het strategiescherm.
+
+**De bufferlogica werkt zoals Nova hem beschrijft** (`deleteUrl.body`: "A buffer URL for its month
+will backfill the slot if one is available"). Een verwijderde pagina gaat op `afgewezen` en verdwijnt
+niet (conventie 8), en de eerste reserve van diezelfde maand neemt zijn plek én zijn datum over. Twee
+regels eromheen die er niet vanzelf in zitten: een buffer schuift alleen in voor een pagina die nog
+niet geschreven wás (bij een geschreven pagina is er niets te vervangen), en de melding zegt
+expliciet óf er een reserve gebruikt is. Zonder dat laatste ziet de klant een maandtotaal dat
+onveranderd blijft zonder verklaring.
+
+**Twee dingen die bewust níet automatisch gaan.** Een maand afwijzen genereert géén nieuw plan in
+dezelfde route: dat zou betekenen dat één klik het hele jaarplan vervangt, inclusief maanden die al
+goedgekeurd waren. Twee handelingen, twee bevestigingen. En de quota komt uit het pakket op het
+account en nooit uit het verzoek: zou de client dat mogen meesturen, dan is de afspraak een suggestie
+en kan iemand met een pakket van 10 er 40 vragen.
+
+**De bevestigingsdialoog heeft Nova's `cannotBeUndone`-blok.** Niet als waarschuwing tússen de
+uitleg maar als eigen, omkaderd blok, want een waarschuwing in een alinea wordt gelezen als toon en
+een waarschuwing in een kader als feit. Bij "maand goedkeuren" staat er wat het kost: elke pagina die
+geschreven wordt kost geld, dus afwijzen is de goedkopere fout. De bewegingen (overlay 0,15s, paneel
+vanaf `scale(.96)`) komen uit Nova's gecompileerde CSS.
+
+**Geverifieerd op productie.** Een volledig plan ingevoegd met de vorm die `buildPlan()` oplevert: 12
+maanden, 132 pagina's, 12 buffers zonder datum. Alle check-constraints hielden, en het verwijderen
+van het plan nam maanden en pagina's mee via de cascade. Daarna is alles weer opgeruimd; er staat nu
+niets in die vier tabellen.
+
+Nog open in deze fase: herordenen met slepen, en de cron die tien dagen vooruit schrijft
+(`shouldStartWriting()` is er al en getest, de taak eromheen nog niet).
