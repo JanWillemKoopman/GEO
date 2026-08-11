@@ -155,6 +155,8 @@ import {
 } from "@/lib/plan-writing";
 import { swapWithNeighbour, canMove, type OrderablePage } from "@/lib/plan-order";
 import { milestones } from "@/lib/milestones";
+import { opportunities, shareLabel } from "@/lib/opportunities";
+import { insights } from "@/lib/insights";
 import { normalizeProperty } from "@/lib/search-console/property";
 import { syncWindow, heeftWerk, EERSTE_RONDE_DAGEN } from "@/lib/search-console/window";
 import {
@@ -4668,6 +4670,131 @@ group("syncWindow: welke dagen Aura ophaalt", () => {
   ok(
     "een venster dat achterstevoren loopt levert geen werk op",
     !heeftWerk(nietsTeDoen) || nietsTeDoen.start <= nietsTeDoen.eind,
+  );
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+console.log("\nDe lus sluiten (fase 6): kansen en inzichten");
+
+group("opportunities: één lijst, gesorteerd op wat het oplevert", () => {
+  const basis = {
+    profileId: "p1",
+    recommendations: [
+      { title: "Klein", why: "x", targets: [{ weight: 0.05 }] },
+      { title: "Groot", why: "y", targets: [{ weight: 0.2 }, { weight: 0.1 }] },
+      { title: "Onbekend", why: "z", targets: null },
+    ],
+    unmeasuredTopics: [{ id: "t1", title: "Auto leasen" }],
+    crawlerBlocked: false,
+    readyToPublish: 0,
+    hasPlan: true,
+  };
+
+  const lijst = opportunities(basis);
+  ok("de grootste kans staat bovenaan", lijst[0].title === "Groot");
+  ok("de gewichten worden opgeteld", lijst[0].share === 0.30000000000000004 || Math.abs((lijst[0].share ?? 0) - 0.3) < 1e-9);
+
+  // ⚠️ Conventie 3: geen gewichten betekent geen getal, niet nul. Nul zou zeggen
+  // dat er niets te winnen valt, en dat is iets anders dan "we weten het niet".
+  const onbekend = lijst.find((o) => o.title === "Onbekend")!;
+  ok("zonder gewichten geen getal", onbekend.share === null);
+  ok("en dus ook geen percentage op het scherm", shareLabel(onbekend.share) === null);
+  ok("een klein aandeel wordt niet naar nul afgerond", shareLabel(0.004) === "minder dan 1% van de gemeten vragen");
+
+  // ⚠️ De belangrijkste regel van deze module: zolang een AI-assistent de site
+  // niet kan lezen, levert élke geschreven pagina niets op. Een lijst die dat
+  // als vierde item toont, laat iemand maanden schrijven voor de prullenbak.
+  const geblokkeerd = opportunities({ ...basis, crawlerBlocked: true });
+  ok("een geblokkeerde crawler staat altijd bovenaan", geblokkeerd[0].source === "techniek");
+  ok(
+    "ook al heeft hij geen getal",
+    geblokkeerd[0].share === null && geblokkeerd[0].title.includes("niet lezen"),
+  );
+
+  // De goedkoopste kans die er is: het werk is al gedaan en betaald.
+  const klaar = opportunities({ ...basis, readyToPublish: 3 });
+  ok(
+    "geschreven maar niet gepubliceerde pagina's staan boven de aanbevelingen",
+    klaar.findIndex((o) => o.source === "plan") < klaar.findIndex((o) => o.source === "meting"),
+  );
+  ok("met het aantal erin", klaar.find((o) => o.source === "plan")!.title.includes("3"));
+
+  ok(
+    "een ongemeten onderwerp is ook een kans",
+    lijst.some((o) => o.source === "onderwerp" && o.title.includes("Auto leasen")),
+  );
+  ok("elke kans heeft één handeling", lijst.every((o) => o.action.length > 0));
+});
+
+group("insights: drie zinnen, en de ruis is de hoofdregel", () => {
+  // ⚠️ DE ECHTE CIJFERS VAN FYSI-UNIQUE, van productie: 18 → 36 → 38 over drie
+  // meetronden. Die sprong van 18 naar 36 ziet eruit als een verdubbeling en
+  // valt tóch binnen de meetonzekerheid van ~23 punten bij 30 vragen. "Je
+  // zichtbaarheid is verdubbeld" zou daar een leugen zijn met een grafiekje
+  // eromheen.
+  const ruis = insights({
+    scores: [
+      { period: 0, score: 18, stderr: 8 },
+      { period: 1, score: 36, stderr: 8 },
+    ],
+    gepubliceerdDezeMaand: 0,
+    klaarOmTePubliceren: 0,
+    openKansen: 2,
+    crawlerBlocked: false,
+  });
+  ok("altijd precies drie zinnen", ruis.length === 3);
+  ok("een sprong binnen de ruis telt als gelijk gebleven", ruis[0].text.includes("gelijk gebleven"));
+  ok("met de getallen er wél bij", ruis[0].text.includes("18") && ruis[0].text.includes("36"));
+  ok("en de drempel erbij, anders is het een belofte", ruis[0].text.includes("meetonzekerheid"));
+  ok("de toon is dan neutraal en niet groen", ruis[0].toon === "neutraal");
+
+  // Een verschil dat de drempel wél haalt, mag gewoon een stijging heten.
+  const echt = insights({
+    scores: [
+      { period: 0, score: 18, stderr: 2 },
+      { period: 1, score: 45, stderr: 2 },
+    ],
+    gepubliceerdDezeMaand: 2,
+    klaarOmTePubliceren: 0,
+    openKansen: 0,
+    crawlerBlocked: false,
+  });
+  ok("een echte stijging heet een stijging", echt[0].text.includes("echte stijging"));
+  ok("en kleurt groen", echt[0].toon === "goed");
+
+  // ⚠️ Een geblokkeerde crawler overstemt alles: de rest is dan theorie.
+  const geblokkeerd = insights({
+    scores: [{ period: 0, score: 20, stderr: 3 }],
+    gepubliceerdDezeMaand: 5,
+    klaarOmTePubliceren: 4,
+    openKansen: 9,
+    crawlerBlocked: true,
+  });
+  ok("een geblokkeerde crawler wint van alles", geblokkeerd[1].text.includes("niet lezen"));
+  ok("en bepaalt de volgende stap", geblokkeerd[2].text.includes("robots.txt"));
+
+  // Zonder enige meting geen conclusie.
+  const leeg = insights({
+    scores: [],
+    gepubliceerdDezeMaand: 0,
+    klaarOmTePubliceren: 0,
+    openKansen: 0,
+    crawlerBlocked: false,
+  });
+  ok("zonder meting nog steeds drie zinnen", leeg.length === 3);
+  ok("maar geen conclusie", leeg[0].text.includes("nog geen meting"));
+
+  // De goedkoopste stap krijgt voorrang boven de kansenlijst.
+  const wachtOpPublicatie = insights({
+    scores: [{ period: 0, score: 20, stderr: 3 }],
+    gepubliceerdDezeMaand: 0,
+    klaarOmTePubliceren: 2,
+    openKansen: 9,
+    crawlerBlocked: false,
+  });
+  ok(
+    "publiceren gaat voor op nieuwe kansen",
+    wachtOpPublicatie[2].text.includes("online"),
   );
 });
 

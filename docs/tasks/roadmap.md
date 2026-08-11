@@ -173,3 +173,17 @@ verschil tussen de 7,5 minuut die je in een demo belooft en 12 minuten.
   actuele cijfers staan in `architecture.md` §6: op de GPT-4.1-familie ~$0,82 per ronde en ~$1,06
   met herhalingen; na de overstap naar GPT-5.6 naar schatting ~$0,40, zie punt 0 hierboven, die
   schatting is nog niet nagerekend.
+
+## Fase 6, wat er nog wacht op de eerste publicatie (11 augustus 2026)
+
+Twee onderdelen van "de lus sluiten" zijn bewust niet gebouwd, omdat er niets is om ze tegen na te
+rekenen:
+
+| Wat | Waarom het wacht | Wanneer het kan |
+|---|---|---|
+| Impact terug in het plan: een pagina die na 60 dagen niets deed leidt tot een voorstel, een onderwerp dat wél werkte krijgt meer ruimte | `content_impact` heeft nul rijen, want er is nog nooit een pagina gepubliceerd | Zodra één echte pagina live staat, plus de golven van 30 en 60 dagen |
+| Automatische controles op gepubliceerde pagina's: staat hij er nog, is hij gewijzigd, is hij nog vindbaar voor AI-crawlers | Zelfde reden. `verifyPublication()` heeft nul echte gevallen gezien | Zodra één echte pagina live staat |
+
+De goedkoopste manier om dit te deblokkeren: één van de twee geschreven pagina's van Van den Udenhout
+echt publiceren en in het plan als geplaatst markeren. Daarna draait de keten publiceren, controleren,
+effect meten voor het eerst van begin tot eind.

@@ -10,6 +10,8 @@ import { EntitiesManager } from "./entities-manager";
 import { AuditPanel } from "@/components/audit-panel";
 import { OpenQuestions, countOpenQuestions } from "./open-questions";
 import { MilestonesBlock } from "@/components/milestones-block";
+import { InsightsBlock, OpportunitiesBlock } from "@/components/loop-blocks";
+import { loadLoop } from "@/lib/insights-data";
 import { SearchConsoleBox } from "./search-console-box";
 import { serviceAccountEmail } from "@/lib/search-console/auth";
 import { loadMilestones } from "@/lib/milestones-data";
@@ -250,6 +252,9 @@ export default async function ProfilePage({
 
   // Zoekdata (fase 5). Alleen het aantal dagen: de grafiek zelf komt in het
   // analysescherm, hier hoort de stand van de koppeling.
+  // De lus (fase 6): drie zinnen over wat er gebeurde, en één kansenlijst.
+  const lus = await loadLoop(beheerClient, id);
+
   const { count: gscDagen } = await beheerClient
     .from("search_console_days")
     .select("day", { count: "exact", head: true })
@@ -281,6 +286,11 @@ export default async function ProfilePage({
           in een analysescherm. */}
       <MilestonesBlock milestones={mijlpalen} />
 
+      {/* ── Wat er deze maand gebeurde ─────────────────────────────────────
+          Fase 6. Drie zinnen, en de meetonzekerheid staat erin: een sprong die
+          binnen de ruis valt heet hier "gelijk gebleven". */}
+      <InsightsBlock insights={lus.insights} />
+
       {/* Het profiel gaat op 'klaar' na stap 2 van 8. Dit blok toont eerst wat
           er nog binnenkomt, en daarna of het dossier compleet is. Het meldt het
           afrondingsmoment ook actief, met een broodroostermelding. */}
@@ -302,6 +312,19 @@ export default async function ProfilePage({
           facts={(factRows ?? []) as FactRequest[]}
           researchGaps={researchGaps}
         />
+      </ProfileSection>
+
+      {/* ── Waar begin je ──────────────────────────────────────────────────
+          Fase 6: adviezen zaten verspreid over het rapport, de onderwerpen en de
+          audit. Eén lijst, gesorteerd op wat het oplevert, met de handeling
+          erbij. */}
+      <ProfileSection
+        id="kansen"
+        title="Waar begin je"
+        description="Alle kansen op één rij, gesorteerd op wat ze opleveren. Wat al betaald is of alles blokkeert, staat bovenaan."
+        badge={lus.opportunities.length > 0 ? `${lus.opportunities.length} open` : "niets open"}
+      >
+        <OpportunitiesBlock opportunities={lus.opportunities} />
       </ProfileSection>
 
       {/* ── Zoekdata koppelen ──────────────────────────────────────────────

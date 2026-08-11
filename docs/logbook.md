@@ -1931,3 +1931,40 @@ aangemaakt worden in een Google Cloud-project en dat kan alleen de eigenaar. Tot
 scherm dat de koppeling niet is ingericht in plaats van te falen, en staat de rest onder test: de
 property-controle, het venster, en het gedrag bij 403 en 404. Conventie 10 blijft dus openstaan voor
 precies één stap. 960 unittests.
+
+**Fase 6, de lus sluiten: twee van de vier onderdelen (11 augustus 2026).** Vóór het bouwen
+nagerekend wat er te verifiëren viel, en dat veranderde de omvang van de fase. `content_impact` heeft
+**nul rijen** en er is **nooit een pagina gepubliceerd**. Twee van de vier onderdelen hangen daar
+volledig aan: "impact terug in het plan" (een pagina die na 60 dagen niets deed leidt tot een
+voorstel) en de automatische controles op gepubliceerde pagina's. Die bouwen zou een onbeproefde laag
+op een onbeproefde laag zetten, precies wat conventie 10 verbiedt en wat
+`docs/tasks/zoekdata-koppeling.md` §0 al als risico had opgeschreven.
+
+**Wat wél kon, is gebouwd en tegen echte data nagerekend.** De kansenlijst (`lib/opportunities.ts`)
+en het inzichtenblok (`lib/insights.ts`). Voor het tweede was er precies één merk met genoeg
+geschiedenis: Fysi-Unique, drie meetronden, 18 naar 36 naar 38.
+
+**Die 18 naar 36 is waarom dit blok geen AI-aanroep is.** Het ziet eruit als een verdubbeling en valt
+tóch binnen de meetonzekerheid van 23 punten bij dertig vragen. Een model zou daar "je zichtbaarheid
+is verdubbeld" van maken, en dat is een leugen met een grafiekje eromheen. De drie zinnen volgen
+rechtstreeks uit cijfers die er al staan, dus dit hoort een garantie te zijn en geen intentie
+(conventie 1). Nagerekend op productiecijfers: beide overgangen lezen als "gelijk gebleven", met het
+getal én de drempel in de zin.
+
+**De sortering van de kansenlijst ging de eerste keer mis en de test ving het.** Sorteren op omvang
+zette een aanbeveling van 30% boven "er staan twee geschreven pagina's die nog niet online zijn".
+Maar die aanbeveling kost nog een schrijfronde op het duurste model, en die twee pagina's zijn al
+geschreven, goedgekeurd en betaald en leveren zolang ze offline staan gegarandeerd nul op. Werk dat
+af is gaat vóór werk dat nog moet beginnen; een geblokkeerde AI-crawler gaat vóór allebei, want dan
+levert élke pagina niets op.
+
+**De blokkade-teller komt uit de audit zelf en niet uit een eigen regel.** `technical_audits.blockers`
+bevat het oordeel al: bij Van den Udenhout staan de zoek-crawlers toe en zijn alleen de
+trainings-crawlers geweigerd, wat daar terecht als waarschuwing telt en niet als blokkade. Zelf op
+`severity` filteren zou dat onderscheid opnieuw bedenken en vroeg of laat anders uitkomen dan de
+auditpagina.
+
+**Eén fout in eigen werk gevangen vóór hij live ging.** De onzekerheid per periode werd eerst met
+`Math.random()` benaderd. Dan kan dezelfde meting bij de ene render "gelijk gebleven" zeggen en bij
+de volgende "een echte stijging". Hij komt nu uit het werkelijke aantal metingen van die periode.
+983 unittests.
