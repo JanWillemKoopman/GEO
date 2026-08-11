@@ -7,11 +7,18 @@ In negen bouwrondes is het Nova-plan (`docs/Nova.md`) afgebouwd: de merk-werkrui
 uitnodigingen, de merkprofiel-wizard, het contentplan, het CSM-paneel, Search Console, de lus, en het
 accountscherm. Wat er niet is gebeurd, is dat iemand het geheel één keer als klant heeft doorlopen.
 
-Dit document is dat plan. Het beantwoordt drie vragen per onderdeel:
+Dit document is dat plan. Het beantwoordt vier vragen per onderdeel:
 
 1. **Werkt het?** Doet de code wat hij belooft, tegen echte data.
 2. **Is het stuk?** Heeft de nieuwe laag iets gebroken dat eerder werkte.
-3. **Is dit InSpace-kwaliteit?** Ja of nee, en zo nee: wat er precies aan moet gebeuren.
+3. **Is dit InSpace-kwaliteit?** Ja of nee, en zo nee: wat er precies aan moet gebeuren (§0).
+4. **Is dit productiewaardig?** Los van Nova, als bouwer van deze app: kan dit een maand draaien met
+   echte klanten en echt geld (§0b).
+
+Die vierde vraag is de belangrijkste toevoeging. Nova is zelf software van mensen die keuzes maakten
+onder tijdsdruk, en op sommige punten hoort Aura beter te zijn dan zijn voorbeeld. **De scherpste
+vondst van dit document zit dan ook niet in de Nova-vergelijking maar in §0b: er zit geen enkele rem
+op wat een klant kan uitgeven, en sinds vandaag mag hij zelf de dure knoppen indrukken.**
 
 ---
 
@@ -41,9 +48,80 @@ reconstrueren, en niet genoeg om over vormgeving, ritme en gevoel te oordelen. W
 "Nova-kwaliteit: nee" schrijf, gaat dat over een **aantoonbaar ontbrekende toestand, melding of
 regel**, nooit over smaak.
 
-Wat dat gat zou dichten: tien schermafdrukken van Nova in gebruik, met name Overview, Strategy en de
-paginadetailpagina. Eén uur van jou, en het maakt spoor C hieronder twee keer zo scherp. Zonder is
-spoor C nog steeds waardevol, alleen begrensd tot wat meetbaar is.
+**En ik kan die schermafdrukken niet zelf maken.** Twee losse redenen, allebei hard:
+
+- **Van Nova niet**, want Nova zit achter een inlog op `nova.inspace.io` en ik heb geen account.
+  Alles wat ik van hun product weet, komt uit bestanden die zij publiek serveren.
+- **Van Aura ook niet.** De browser in deze omgeving komt niet door de uitgaande proxy heen; drie
+  configuraties geprobeerd, alle drie `ERR_CONNECTION_RESET`. `curl` werkt wél, dus ik kan HTML en
+  statuscodes lezen, maar geen pixel zien. Ik beoordeel schermen dus uit de code en het gedrag, niet
+  uit hun aanblik.
+
+Dat maakt jouw ogen een onderdeel van dit plan en geen extraatje. Wat ik van je vraag in spoor C:
+tien schermafdrukken van **Aura zelf**, na het inloggen, van de schermen in §5. Dat kost je vijf
+minuten en het vult precies het gat dat ik niet kan vullen. Nova-afdrukken zijn mooi meegenomen als
+je er nog bij kunt; noodzakelijk zijn ze niet, want de vijf eigenschappen hierboven zijn ook zonder
+te toetsen.
+
+---
+
+## 0b. De tweede lat: productiewaardig, los van Nova
+
+Nova-pariteit is één maatstaf en niet de enige. Nova is zelf software van mensen die keuzes maakten
+onder tijdsdruk, en op sommige punten kan Aura beter zijn dan zijn voorbeeld. Deze zeven punten komen
+niet uit hun berichtenbestand maar uit mijn eigen oordeel als bouwer van deze app, en ze bepalen of
+dit een maand kan draaien met echte klanten en echt geld.
+
+| # | Eigenschap | Stand vandaag |
+|---|---|---|
+| **P1** | **Geen stille fout.** Elke `catch` die slikt en elke `?? null` die een storing als "leeg" toont, is een fout die je pas maanden later ontdekt | **Deels.** De shim gooide geneste selects stil weg, de onzekerheid werd met `Math.random()` benaderd. Beide gerepareerd, nooit systematisch nagelopen |
+| **P2** | **Eén waarheid, geen tweeling.** Twee functies die hetzelfde zouden moeten doen, drijven uit elkaar | **Nee.** `getOwnedProfile` en `getOwnedAnalysis` dreven precies zo uit elkaar. Gerepareerd, maar de structuur die het herhaalt staat er nog |
+| **P3** | **Kosten hebben een plafond.** Geen enkel pad waarlangs iemand ongelimiteerd geld kan uitgeven | **Nee, en dit is nu dringend.** Zie hieronder |
+| **P4** | **Waarneembaar bij storing.** Als het om drie uur 's nachts breekt, zie je dat dan | **Nee.** Alles gaat naar `console.log` in Vercel. Er is geen melding, geen drempel, niemand die iets hoort |
+| **P5** | **Herstelbaar.** Backups, en een klant volledig kunnen verwijderen | **Deels.** Supabase maakt backups; een klant verwijderen kan niet |
+| **P6** | **Grenzen getest.** Nul onderwerpen, 150 pagina's, een merknaam van 200 tekens | **Nee.** Nooit gedaan |
+| **P7** | **Geen wedstrijdcondities.** Twee mensen die tegelijk hetzelfde doen | **Onbekend.** Zie D4, D7 en D10 |
+
+### P3 is een lanceervoorwaarde geworden, door een besluit van vandaag
+
+Er is één kostenplafond in de hele app: de onboarding stopt bij $2,15 per merk
+(`lib/pipeline/onboarding-budget.ts`). Daarbuiten is er niets. En vandaag is besloten dat een
+account-admin zelf een meting mag starten en een member een maand mag goedkeuren. Allebei terecht,
+want dat ís het product, maar reken de gevolgen door:
+
+| Handeling | Kosten per klik | Wie mag het | Rem |
+|---|---|---|---|
+| Onderzoek bij een nieuw merk | ~$0,25 | iedereen met een inlog | plafond $2,15 |
+| Analyse starten | ~$0,82 | **nu ook de klant** | **geen** |
+| Maand goedkeuren, 10 pagina's | ~$2,80 | **nu ook de klant** | **geen** |
+| Pagina opnieuw laten schrijven | ~$0,28 | de klant | **geen** |
+
+Een klant met acht onderwerpen die op één middag alles start, geeft $6,56 uit zonder dat iemand het
+merkt. Twintig klanten die elk hun plan goedkeuren, is $56 in één nacht. Dat is geen ramp, en het is
+wél een bedrag dat je zelf wilt bepalen in plaats van ontdekken.
+
+**Wat ik voorstel, in oplopende zwaarte:**
+
+1. **Een maandplafond per account** (een halve dag). Een kolom `monthly_budget_usd`, een controle vóór
+   elke dure taak, en een melding die zegt "je hebt deze maand het afgesproken budget bereikt, bel me".
+   Dit is de minimale versie en hij hoort vóór de lancering.
+2. **Een dagplafond over álle accounts** (twee uur). De noodrem: bij een fout in de code die taken
+   verveelvoudigt, stopt de worker in plaats van je rekening leeg te trekken.
+3. Een waarschuwing per e-mail bij 80% (later, hoort bij P4).
+
+Zonder minstens punt 1 en 2 zou ik niet lanceren met een klant die zelf knoppen kan indrukken.
+
+### P2 verdient een structurele oplossing en geen tweede pleister
+
+`getOwnedProfile` en `getOwnedAnalysis` waren twee functies die dezelfde vraag beantwoordden ("mag
+deze gebruiker hierbij") over twee objecten die aan elkaar hangen. Ze dreven uit elkaar en dat kostte
+een fout die pas de eerste klant zou raken.
+
+De patch van vandaag herstelt de gelijkheid en niet de oorzaak. **Voorstel (een halve dag):** één
+`mayAccess(userId, { profile })`-functie met de drie lagen, en `getOwnedAnalysis` haalt zijn merk op
+en stelt diezelfde vraag. Dan is er nog één plek waar de regel staat, en de volgende laag kan niet
+meer half doorgevoerd worden. Plus een test die de twee functies naast elkaar zet met dezelfde
+gebruiker en dezelfde verwachting; die had de fout van vandaag gevangen.
 
 ---
 
@@ -71,16 +149,18 @@ gegroeid. Spoor B en D gaan daar expliciet op jagen.
 
 ## 2. Vijf sporen, en wat ze elk uitsluiten
 
-| Spoor | Vraag | Wie | Duur | Kosten |
-|---|---|---|---|---|
-| **A** | Werkt de keten van nul tot klant? | ik, jij kijkt mee | 1 dag | ~$3 |
-| **B** | Ziet en mag elke rol precies het juiste? | ik | 1 dag | 0 |
-| **C** | Haalt elk scherm de vijf eigenschappen van §0? | ik, jij beslist | 2 dagen | 0 |
-| **D** | Wat gebeurt er als het misgaat? | ik | 1,5 dag | ~$1 |
-| **E** | Kan dit een maand draaien zonder toezicht? | ik | 1 dag | 0 |
+| Spoor | Vraag | Toetst | Wie | Duur | Kosten |
+|---|---|---|---|---|---|
+| **A** | Werkt de keten van nul tot klant? | werkt het | ik | 1 dag | ~$3 |
+| **B** | Ziet en mag elke rol precies het juiste? | K3, P2 | ik | 1 dag | 0 |
+| **C** | Haalt elk scherm de lat van §0? | K1 t/m K5 | ik, jij levert tien afdrukken | 2 dagen | 0 |
+| **D** | Wat gebeurt er als het misgaat? | K2, P1, P7 | ik | 1,5 dag | ~$1 |
+| **E** | Kan dit een maand draaien zonder toezicht? | P3 t/m P6 | ik | 1,5 dag | 0 |
+| **F** | De ingenieursschuld inlossen | P2, P3 | ik | 1 dag | 0 |
 
-Samen 6,5 werkdag, met twee weken kalendertijd eromheen voor jouw beslissingen en de dingen die
-alleen jij kunt (de Google-sleutel, de eerste publicatie).
+Samen 8 werkdagen. **Search Console en de eerste publicatie staan bewust NIET op het kritieke pad**:
+je hebt geen Google-sleutel en publiceren kan nog niet, en daar hoeft de lancering niet op te wachten.
+Beide onderdelen zijn gebouwd en getest voor zover dat zonder kan; ze gaan aan zodra het kan.
 
 ---
 
@@ -89,10 +169,22 @@ alleen jij kunt (de Google-sleutel, de eerste publicatie).
 **Eén vers merk, van nul, precies zoals bij een echte klant.** Geen bestaande data, geen shortcuts.
 Ik doe elke stap en leg per stap vast wat er gebeurde, hoe lang het duurde en wat het kostte.
 
-**Het proefkonijn.** Een echt Nederlands MKB-bedrijf dat lijkt op je doelgroep, niet op Van den
-Udenhout zelf: die wil je vers houden voor het echte gesprek. Voorstel: een fysiotherapiepraktijk of
-een installatiebedrijf met een gewone site van 30 tot 100 pagina's. Als jij een naam hebt die je
-straks tóch wilt benaderen, is dat een dubbelslag.
+**Het proefkonijn: `gasservice-brabant.nl`.** Een CV- en warmtepompinstallateur uit Den Bosch. Ik heb
+hem gekozen en nagekeken, en dit zijn de redenen:
+
+- **Zelfde soort bedrijf en zelfde regio als Van den Udenhout**, andere branche. Wat de pijplijn hier
+  moeilijk vindt, vindt hij daar ook moeilijk, zonder dat er iets van het echte dossier besmet raakt.
+- **De site is er een van de goede maat.** WordPress met Yoast, 214 links op de homepage, dus tientallen
+  pagina's. Groot genoeg om de crawler serieus te belasten, klein genoeg om binnen het budget te blijven.
+- **`robots.txt` staat alles toe**, dus de technische audit levert een schone uitslag en niet een
+  scherm vol blokkades dat de rest van de test overstemt.
+- **Het is niet HEMA, Bol of Coolblue.** Die staan al als proef in de database, en een merk dat elke
+  AI-assistent uit zijn hoofd kent, meet niets: de score zegt dan meer over de bekendheid dan over
+  het product.
+
+⚠️ Dit bedrijf weet hier niets van, en dat hoeft ook niet: Aura leest alleen wat publiek op hun site
+staat, precies zoals elke zoekmachine. Er wordt niets naar hen verstuurd en niets over hen
+gepubliceerd. Zodra het merk zijn werk gedaan heeft, archiveer ik het.
 
 | # | Stap | Verwachte uitkomst | Wat het bewijst |
 |---|---|---|---|
@@ -138,21 +230,24 @@ alle andere tests kijken of iemand er wél in komt.
 | Merkdossier van eigen merk | ja | ja | ja | **nee** |
 | Merk toewijzen aan een account | ja | **nee** | **nee** | **nee** |
 | Contentplan lezen | ja | ja | ja | **nee** |
-| Maand goedkeuren | ja | ja | ja? **beslissen** | **nee** |
+| Maand goedkeuren | ja | ja | **ja** (besloten 11 aug) | **nee** |
 | Bedrijfsgegevens wijzigen | ja | ja | **nee, leest mee** | **nee** |
 | Iemand uitnodigen | ja | ja | **nee** | **nee** |
 | Uitnodiging intrekken | ja | ja | **nee** | **nee** |
-| Merk archiveren | ja | ja? **beslissen** | **nee** | **nee** |
-| Analyse starten (kost geld) | ja | ja? **beslissen** | **nee** | **nee** |
+| Merk archiveren | ja | ja | **nee** | **nee** |
+| Analyse starten (kost geld) | ja | **ja** (besloten 11 aug) | **nee** | **nee** |
 
-**Twee open vragen voor jou**, en ze zijn allebei een productbeslissing en geen bug:
+**Beide open vragen zijn op 11 augustus beantwoord: een member mag goedkeuren, een admin mag een
+meting starten.** Dat is de juiste keuze, want een klant die zijn eigen onderwerpen kan meten is het
+product en een klant die daarvoor moet bellen is een dienst.
 
-1. **Mag een `member` een maand goedkeuren?** Bij Nova keurt het bureau goed (besluit 15), en een
-   member ís vaak dat bureau. Maar goedkeuren zet geld in beweging. Mijn voorstel: **ja**, want de
-   rol heet niet voor niets member en de klant kiest zelf wie hij uitnodigt.
-2. **Mag een `admin` een analyse starten?** Dat kost ~$0,82 per keer. Mijn voorstel: **ja**, met de
-   kosten zichtbaar bij de knop. Een klant die zijn eigen onderwerpen kan meten is het product; een
-   klant die daarvoor moet bellen is een dienst.
+⚠️ **Maar het besluit heeft een gevolg dat het niet mag verliezen: er zit nu geen rem meer op de
+uitgaven.** Zie §0b P3. Twee dingen die daarom bij dit spoor horen en niet later:
+
+- Bij elke knop die geld kost, staat wat het kost. "Start de meting" wordt "Start de meting (~€0,75)".
+  Nova doet dit niet, want zij factureren per pakket en de klant ziet nooit een aanroepprijs. Aura
+  wél, en dat is een verbetering: wie de prijs ziet, klikt bewuster en belt niet achteraf verbaasd.
+- Een maandplafond per account, met een melding die zegt wie hij moet bellen als hij eraan zit.
 
 **Hoe ik dit test.** In de ketentest, met echte gebruikers in echte Postgres, want dan draait elke
 regel écht en niet in mijn hoofd. Per vakje één assertie, en de "nee"-vakjes eerst.
@@ -261,27 +356,58 @@ iets anders. Werk: een halve dag, en het hoort vóór de lancering.
 
 ---
 
+## 7b. Spoor F: de ingenieursschuld inlossen
+
+Dit spoor bouwt, de andere vijf toetsen. Het staat er omdat vier van de zeven punten uit §0b nu op
+"nee" staan, en drie daarvan zijn met een dag werk op "ja" te krijgen.
+
+| # | Wat | Waarom nu | Werk |
+|---|---|---|---|
+| F1 | **Maandplafond per account plus een dagplafond over alles** | P3. Een klant kan sinds vandaag zelf geld uitgeven en er is geen rem | 0,5 dag |
+| F2 | **Kosten bij de knop** die geld kost | P3, en het is beter dan Nova | 2 uur |
+| F3 | **Eén toegangsfunctie** in plaats van een tweeling | P2. De structuur die de fout van vandaag mogelijk maakte, staat er nog | 0,5 dag |
+| F4 | **Een klant volledig verwijderen** | P5, en het is een AVG-plicht zodra er echte bedrijfsgegevens in staan | 0,5 dag |
+| F5 | **De stille-fout-ronde**: elke `catch` en elke `?? null` in `lib/` nalopen | P1. Twee van de vijf fouten van vandaag waren precies dit | 0,5 dag |
+
+**F1 tot en met F4 zijn lanceervoorwaarden.** F5 is dat niet, en hij levert waarschijnlijk het meeste
+op per uur: het is de enige die zoekt naar fouten die nog niemand gezien heeft.
+
+**Wat P4 betreft (waarneembaarheid) doe ik bewust niets.** Een meldingssysteem bouwen voor één klant
+is gereedschap voor een probleem dat je nog niet hebt. Het alternatief kost niets: zet één keer per
+week `/beheer` open en kijk of de teller "pijplijnfouten" op nul staat. Dat scherm is er precies voor.
+Zodra er vijf klanten zijn, hoort P4 alsnog gebouwd te worden.
+
+---
+
 ## 8. De twee weken
 
 | Week | Dagen | Wat | Wie |
 |---|---|---|---|
-| 1 | ma-di | **Spoor A**: de generale repetitie op een vers merk | ik, jij kijkt de uitkomst na |
-| 1 | wo | **Spoor B**: de rolmatrix, plus de twee beslissingen uit §4 | ik, jij beslist |
-| 1 | do-vr | **Spoor D**: de foutpaden, met D4, D7 en D10 voorop | ik |
-| 2 | ma-di | **Spoor C**: de vijf eigenschappen per scherm, plus de taalronde | ik, jij beslist over §5.3 |
-| 2 | wo | **Spoor E**: productiegereedheid, en E6 bouwen | ik |
-| 2 | do | Alles wat uit A tot E kwam repareren | ik |
+| 1 | ma | **Spoor F1 en F2**: de kostenrem, vóór al het andere | ik |
+| 1 | di-wo | **Spoor A**: de generale repetitie op `gasservice-brabant.nl` | ik, jij leest de uitkomst |
+| 1 | do | **Spoor B**: de rolmatrix, met de "nee"-vakjes eerst | ik |
+| 1 | vr | **Spoor D**: de foutpaden, met D4, D7 en D10 voorop | ik |
+| 2 | ma | **Spoor D** afmaken, plus **F3** (één toegangsfunctie) | ik |
+| 2 | di-wo | **Spoor C**: de lat per scherm, plus de taalronde | ik, jij levert de afdrukken |
+| 2 | do | **Spoor E** en **F4**, plus alles repareren wat A tot D opleverde | ik |
 | 2 | vr | **Lanceerbesluit** aan de hand van §9 | jij |
 
-**Wat jij deze twee weken moet doen, en wanneer het uiterlijk moet:**
+**F1 staat op maandag en niet later, met opzet.** Vanaf spoor A geef ik echt geld uit op een app waar
+geen rem op zit. De rem hoort er eerder te zijn dan de test die hem nodig heeft.
+
+**Wat jij deze twee weken moet doen:**
 
 | Wat | Uiterlijk | Waarom |
 |---|---|---|
-| De Google-sleutel aanmaken | week 1, wo | Anders haalt Search Console de lancering niet |
-| Beslissen over de twee rolvragen (§4) | week 1, wo | Spoor B kan niet af zonder |
-| Beslissen over de Overview (§5.3) | week 2, ma | Bepaalt of er nog een scherm bij komt |
-| Eén pagina echt publiceren | week 2, ma | Deblokkeert de laatste helft van fase 6 |
-| Tien schermafdrukken van Nova | week 1, wanneer het uitkomt | Maakt spoor C twee keer zo scherp |
+| Tien schermafdrukken van **Aura** na het inloggen | week 2, ma | Ik kan geen pixel zien; dit is het enige gat dat jij moet vullen |
+| Beslissen over de Overview (§5.3) | week 2, ma | Mijn advies: pas ná de eerste klant |
+| Het maandbudget per account bepalen | week 1, wo | Ik bouw de rem, jij bepaalt het getal |
+
+**Wat er NIET op deze lijst staat, en waarom dat goed is:** de Google-sleutel en de eerste publicatie.
+Je hebt ze allebei niet, en de lancering hangt er niet op. Search Console is een bewijsstuk náást de
+AI-meting en geen voorwaarde ervoor; de impactlus heeft pas betekenis als er een pagina live staat en
+dat is bij een klant in maand één sowieso niet zo. Ze gaan aan zodra het kan, en tot die tijd zeggen
+de schermen zelf netjes waarom ze leeg zijn.
 
 ---
 
@@ -301,8 +427,15 @@ maandag op" zegt, lanceert niet.
 
 - [ ] De rolmatrix uit §4 klopt, inclusief elk "nee"-vakje
 - [ ] Elke tabel heeft RLS aan; `jobs` en `account_invites` hebben nul policies
-- [ ] Een klant kan volledig verwijderd worden (E6)
+- [ ] Een klant kan volledig verwijderd worden (F4)
 - [ ] Geen enkele sleutel in de code of in een commit
+
+**Kan het niet op hol slaan** (§0b P3, en dit is nieuw)
+
+- [ ] Er is een maandplafond per account, en het staat op een getal dat jij hebt gekozen
+- [ ] Er is een dagplafond over alle accounts samen, als noodrem
+- [ ] Bij elke knop die geld kost, staat wat het kost
+- [ ] Eén toegangsfunctie in plaats van twee die uit elkaar kunnen drijven (F3)
 
 **Is het Nova-waardig**
 
@@ -321,7 +454,32 @@ maandag op" zegt, lanceert niet.
 - [ ] Zijn merkdossier is compleet: alle acht onderwerpen gemeten
 - [ ] Zijn contentplan staat, maand 1 goedgekeurd, de eerste pagina's geschreven
 - [ ] De dubbele profielen zijn opgeruimd
+- [ ] Het proefmerk `gasservice-brabant.nl` is gearchiveerd
 - [ ] De uitnodigingslink is klaar om te versturen
+
+---
+
+## 9b. Wat ik zou tegenhouden op vrijdag, en wat niet
+
+Om te voorkomen dat "productiewaardig" een gevoel blijft: dit is waar ik hard op ben en waar niet.
+
+**Ik zou de lancering tegenhouden voor:**
+
+- Een ontbrekende kostenrem (F1). Eén fout in een lus kost dan honderden euro's voordat iemand kijkt.
+- Een klant die niet verwijderd kan worden (F4). Dat is een wettelijke plicht, geen functie.
+- Eén "nee"-vakje in de rolmatrix dat "ja" blijkt. Dat is een datalek in wording.
+- Spoor A dat niet volledig doorloopt. Als de keten op een vers merk struikelt, struikelt hij bij de
+  klant ook.
+
+**Ik zou de lancering NIET tegenhouden voor:**
+
+- Search Console. Een bewijsstuk náást de meting, en de klant heeft in maand één nog geen kliks.
+- De impactlus. Zonder gepubliceerde pagina heeft hij niets te tonen.
+- Nova's Overview-scherm. Bij één klant met één merk is dat een scherm zonder inhoud.
+- Een scherm dat één van de vijf eigenschappen mist op een plek die de klant zelden ziet. Noteren,
+  na de lancering oplossen.
+- Waarneembaarheid (P4). Bij één klant is `/beheer` één keer per week openen goed genoeg, en
+  gereedschap bouwen voor een probleem dat je nog niet hebt, is de duurste vorm van uitstel.
 
 ---
 

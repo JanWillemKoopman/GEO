@@ -2096,3 +2096,38 @@ zicht komt. Uitrekenen nu, oplossen bij klant tien.
 **Twee dingen die het plan bewust NIET doet:** geen nieuwe functionaliteit (de twee wachtende
 onderdelen zouden bij een klant in maand één toch leeg zijn), en geen prestatieoptimalisatie
 (optimaliseren zonder meten is de duurste manier om niets te doen).
+
+**Het lanceerplan kreeg een tweede lat: productiewaardig, los van Nova (11 augustus 2026).** Op
+verzoek, en terecht: Nova-pariteit is één maatstaf en Nova is zelf software van mensen die keuzes
+maakten onder tijdsdruk. §0b van `lanceerplan.md` heeft zeven eigenschappen die uit eigen oordeel
+komen en niet uit hun berichtenbestand. Vier ervan staan op "nee".
+
+**De scherpste vondst zit in die tweede lat en niet in de Nova-vergelijking: er is geen rem op de
+uitgaven.** Er is precies één plafond in de hele app, $2,15 voor de onboarding
+(`onboarding-budget.ts`). Daarbuiten niets. En op 11 augustus is besloten dat een account-admin zelf
+een meting mag starten (~$0,82) en een member een maand mag goedkeuren (~$2,80 aan schrijfwerk). Beide
+terecht, want dat ís het product, maar een klant met acht onderwerpen kan op één middag $6,56
+uitgeven zonder dat iemand het merkt, en twintig klanten die hun plan goedkeuren is $56 in één nacht.
+Een maandplafond per account en een dagplafond als noodrem zijn daarmee lanceervoorwaarden geworden,
+en ze staan op maandag van week 1: de rem hoort er eerder te zijn dan de test die hem nodig heeft.
+
+**Eén verbetering op Nova, en het is er een die uit dit besluit volgt.** Bij elke knop die geld kost,
+komt te staan wat het kost. Nova doet dat niet, want zij factureren per pakket en de klant ziet nooit
+een aanroepprijs. Aura wel: wie de prijs ziet, klikt bewuster en belt niet achteraf verbaasd.
+
+**Twee dingen rechtgezet die ik eerder te makkelijk had opgeschreven.** Ik kán geen schermafdrukken
+maken: van Nova niet (dat zit achter een inlog waar ik geen account voor heb) en van Aura ook niet,
+want de browser komt hier niet door de uitgaande proxy heen, drie configuraties geprobeerd, alle drie
+`ERR_CONNECTION_RESET`. `curl` werkt wel, dus HTML en statuscodes kan ik lezen, pixels niet. Daarmee
+zijn tien afdrukken van Aura zelf het enige wat de eigenaar in dit plan moet leveren.
+
+**Search Console en de eerste publicatie zijn van het kritieke pad gehaald.** Er is geen Google-sleutel
+en publiceren kan nog niet, en de lancering hangt er niet op: Search Console is een bewijsstuk náást
+de AI-meting, en de impactlus heeft pas betekenis als er een pagina live staat, wat bij een klant in
+maand één sowieso niet zo is.
+
+**Het proefmerk voor de generale repetitie is gekozen en nagekeken:** `gasservice-brabant.nl`, een
+CV- en warmtepompinstallateur uit Den Bosch. Zelfde soort bedrijf en zelfde regio als Van den
+Udenhout, andere branche dus geen besmetting, WordPress met 214 links op de homepage, en een
+`robots.txt` die alles toestaat zodat de technische audit niet het hele beeld overstemt. Bewust niet
+HEMA of Bol: een merk dat elke AI-assistent uit zijn hoofd kent, meet niets.
