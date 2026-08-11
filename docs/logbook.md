@@ -1753,3 +1753,25 @@ niets in die vier tabellen.
 
 Nog open in deze fase: herordenen met slepen, en de cron die tien dagen vooruit schrijft
 (`shouldStartWriting()` is er al en getest, de taak eromheen nog niet).
+
+**Het eerste echte plan legde een verdeelfout bloot (11 augustus 2026).** Het pakket van het account
+staat op 10 pagina's per maand en Van den Udenhout heeft een plan gekregen: 12 maanden, 132 pagina's,
+12 buffers. Bij het nalopen van maand 1 stond "Auto financieren · Oriëntatie" er twee keer in, op
+plek 1 en plek 9. Dat is dezelfde fout als bij de praktijkcheck van 10 augustus, maar een laag dieper:
+toen kreeg de titel de funnelfase erbij, en dat lost het op zolang het páár verschilt. Hier verschilde
+het paar niet. Van den Udenhout heeft acht onderwerpen en er zijn vier fasen, en beide tellers liepen
+één omhoog per pagina. 8 is deelbaar door 4, dus na acht pagina's stonden ze allebei weer op hun
+beginstand.
+
+**De oplossing is een schuif, geen uitzondering.** Elke keer dat de onderwerpenlijst rondgaat schuift
+de fase een extra stap op, met een stapgrootte die zo gekozen is dat het paar pas terugkomt na álle
+combinaties: 32 in plaats van 8 bij dit merk. En omdat er merken zijn waar dat rekenkundig niet
+uitkan (40 pagina's per maand, 8 onderwerpen, 4 fasen: 41 plekken op 32 combinaties) krijgt de
+onvermijdelijke herhaling "(deel 2)" achter de titel. Twee regels die letterlijk hetzelfde heten
+leest als een fout in het plan; "(deel 2)" leest als een tweede artikel over hetzelfde, en dat is het.
+
+**Waarom de test dit niet zag, en wat er nu getest wordt.** De unittest hield zeven onderwerpen aan.
+Zeven en vier hebben geen deler gemeen, dus daar viel het toevallig goed uit. Het aantal onderwerpen
+van een merk is niets om op te vertrouwen, en dus loopt de test nu langs 1 tot en met 16 onderwerpen
+maal alle drie de pakketten, met per combinatie de eis dat geen titel twee keer in dezelfde maand
+staat. 881 unittests, waarvan 36 nieuw.

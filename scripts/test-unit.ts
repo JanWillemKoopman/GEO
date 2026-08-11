@@ -3472,6 +3472,79 @@ group("buildPlan: de verdeling over twaalf maanden", () => {
     maand1[0].title.includes("Auto") === false && maand1[0].title.includes("·"),
   );
 
+  // ⚠️⚠️ En dit is de test die de vorige had moeten zijn. Zeven onderwerpen en
+  // vier fasen vallen toevallig goed uit; acht en vier niet, want dan lopen de
+  // tellers in de pas. Bij het echte plan van Van den Udenhout stond
+  // "Auto financieren · Oriëntatie" daardoor twee keer in maand 1, op plek 1 en
+  // plek 9. Het aantal onderwerpen van een merk is niets om op te vertrouwen,
+  // dus dit loopt langs alle aantallen die in de praktijk voorkomen.
+  for (const aantalOnderwerpen of [1, 2, 3, 4, 5, 6, 7, 8, 9, 12, 16]) {
+    for (const perMaand of [10, 20, 40]) {
+      const p = buildPlan({
+        startedOn: start,
+        pagesPerMonth: perMaand,
+        topics: topics.slice(0, 1).concat(
+          Array.from({ length: aantalOnderwerpen - 1 }, (_, i) => ({
+            id: `x${i}`,
+            title: `Extra ${i}`,
+            priority: 5 - i,
+          })),
+        ),
+        funnels,
+      });
+      const dubbel = p.pages.some((page, _, alle) => {
+        const gelijk = alle.filter(
+          (q) => q.monthNumber === page.monthNumber && q.title === page.title,
+        );
+        return gelijk.length > 1;
+      });
+      ok(
+        `${aantalOnderwerpen} onderwerpen bij ${perMaand} per maand: elke titel uniek binnen zijn maand`,
+        !dubbel,
+      );
+    }
+  }
+
+  // Herhaling die rekenkundig onvermijdelijk is (8 onderwerpen × 4 fasen = 32
+  // combinaties, 41 plekken) wordt zichtbaar gemaakt en niet verstopt.
+  const krap = buildPlan({
+    startedOn: start,
+    pagesPerMonth: 40,
+    topics: Array.from({ length: 8 }, (_, i) => ({
+      id: `k${i}`,
+      title: `Krap ${i}`,
+      priority: 8 - i,
+    })),
+    funnels,
+  });
+  ok(
+    "bij meer plekken dan combinaties krijgt de herhaling '(deel 2)'",
+    krap.pages.filter((p) => p.monthNumber === 1).some((p) => p.title.endsWith("(deel 2)")),
+  );
+
+  // Het echte geval, met de echte aantallen van Van den Udenhout.
+  const udenhout = buildPlan({
+    startedOn: start,
+    pagesPerMonth: 10,
+    topics: Array.from({ length: 8 }, (_, i) => ({
+      id: `u${i}`,
+      title: `Onderwerp ${i}`,
+      priority: 8 - i,
+    })),
+    funnels,
+  });
+  const parenMaand1 = udenhout.pages
+    .filter((p) => p.monthNumber === 1)
+    .map((p) => `${p.topicId}|${p.funnelStageId}`);
+  ok(
+    "acht onderwerpen en vier fasen: elk paar hoogstens één keer per maand",
+    new Set(parenMaand1).size === parenMaand1.length,
+  );
+  ok(
+    "en zonder '(deel 2)', want 32 combinaties passen ruim in elf plekken",
+    udenhout.pages.every((p) => !p.title.includes("(deel")),
+  );
+
   // Twee keer draaien op dezelfde invoer geeft hetzelfde plan. Zonder die
   // eigenschap is "opnieuw genereren" een gok.
   const nogmaals = buildPlan({ startedOn: start, pagesPerMonth: 10, topics, funnels });

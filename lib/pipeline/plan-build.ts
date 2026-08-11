@@ -102,6 +102,16 @@ export interface BuildResult {
  *    invalshoek: hetzelfde onderwerp bekeken vanuit oriëntatie is een andere
  *    pagina dan vanuit kiezen.
  *
+ *    ⚠️⚠️ En dat was niet genoeg. Bij het echte plan van Van den Udenhout stond
+ *    "Auto financieren · Oriëntatie" alsnog twee keer in maand 1, op plek 1 en
+ *    plek 9. Oorzaak: acht onderwerpen en vier fasen, en beide tellers liepen
+ *    één omhoog per pagina. Dan zit het paar (onderwerp, fase) na acht pagina's
+ *    weer op zijn beginstand, want 8 is deelbaar door 4. `funnelShift()` haalt
+ *    ze uit de pas, en `uniekeTitel()` is het vangnet voor het geval er écht
+ *    meer plekken zijn dan combinaties (conventie 1: een regel in code, geen
+ *    aanname). De unittest hield 7 onderwerpen aan; 7 en 4 vallen toevallig
+ *    goed uit, en daarom zag de test niets.
+ *
  * 4. **De buffer staat achteraan de maand.** Hij telt niet mee in het
  *    maandtotaal en schuift pas in als er iets sneuvelt.
  */
@@ -133,29 +143,34 @@ export function buildPlan(input: BuildInput): BuildResult {
   const funnels = [...input.funnels].sort((a, b) => a.sortOrder - b.sortOrder);
 
   const pages: PlannedPageDraft[] = [];
-  let topicCursor = 0;
-  let funnelCursor = 0;
+  const shift = funnelShift(topics.length, funnels.length);
+  // De teller loopt door over de maandgrens heen. Zou hij per maand resetten,
+  // dan kreeg fase 1 structureel de meeste pagina's bij een maandtotaal dat
+  // niet deelbaar is door het aantal fasen.
+  let n = 0;
 
   for (let m = 1; m <= months; m++) {
     const perMaand = input.pagesPerMonth + BUFFERS_PER_MONTH;
+    // Regel 3: binnen één maand mag geen titel twee keer voorkomen.
+    const titelsDezeMaand = new Map<string, number>();
 
     for (let i = 0; i < perMaand; i++) {
       const isBuffer = i >= input.pagesPerMonth;
       // Regel 3: rondlopen door de onderwerpen.
-      const topic = topics[topicCursor % topics.length];
-      topicCursor++;
-      // Regel 2: de fasen roteren, en ze lopen door over de maandgrens heen.
-      // Zou de teller per maand resetten, dan kreeg fase 1 structureel de meeste
-      // pagina's bij een maandtotaal dat niet deelbaar is door het aantal fasen.
-      const funnel = funnels[funnelCursor % funnels.length];
-      funnelCursor++;
+      const topic = topics[n % topics.length];
+      // Regel 2: de fasen roteren, maar één stap per pagina is niet genoeg. Elke
+      // keer dat de onderwerpenlijst rondgaat schuift de fase een extra stap op,
+      // zodat het paar pas na alle combinaties terugkomt.
+      const ronde = Math.floor(n / topics.length);
+      const funnel = funnels[(n + ronde * shift) % funnels.length];
+      n++;
 
       pages.push({
         monthNumber: m,
         // De invalshoek hoort in de titel, zie regel 3. Dit is een werktitel:
         // de definitieve kop komt uit de schrijfstap, die het onderwerp en de
         // fase samen als briefing krijgt.
-        title: `${topic.title} · ${funnel.label}`,
+        title: uniekeTitel(`${topic.title} · ${funnel.label}`, titelsDezeMaand),
         pageType: typeForFunnel(funnel, funnels.length),
         funnelStageId: funnel.id,
         topicId: topic.id,
@@ -171,6 +186,50 @@ export function buildPlan(input: BuildInput): BuildResult {
   }
 
   return { pages, problems: [] };
+}
+
+/**
+ * Hoeveel schuift de fase op als de onderwerpenlijst rondgaat?
+ *
+ * ── HET REKENSOMMETJE ───────────────────────────────────────────────────────
+ *
+ * Pagina `n` krijgt onderwerp `n mod T` en fase `(n + ronde·s) mod F`, waarbij
+ * `ronde = n div T`. Hetzelfde paar komt pas terug als `n` een veelvoud van `T`
+ * is én `ronde·(T + s)` deelbaar is door `F`. Kies `s` zó dat `T + s` geen
+ * deler gemeen heeft met `F`, en dat gebeurt pas na `T · F` pagina's: alle
+ * combinaties zijn dan geweest.
+ *
+ * Zo'n `s` bestaat altijd. Tussen 1 en `F` liggen `F` opeenvolgende waarden van
+ * `T + s`, dus daar zit er gegarandeerd één bij die 1 is modulo `F`, en 1 heeft
+ * met niets een deler gemeen.
+ *
+ * Bij Van den Udenhout (8 onderwerpen, 4 fasen) geeft dat `s = 1` en een cyclus
+ * van 32 in plaats van 8. Elf pagina's per maand passen daar ruim in.
+ */
+function funnelShift(topicCount: number, funnelCount: number): number {
+  for (let s = 1; s <= funnelCount; s++) {
+    if (gcd(topicCount + s, funnelCount) === 1) return s;
+  }
+  return 1; // onbereikbaar, maar een functie hoort altijd iets terug te geven
+}
+
+function gcd(a: number, b: number): number {
+  return b === 0 ? Math.abs(a) : gcd(b, a % b);
+}
+
+/**
+ * Het vangnet voor het geval er meer plekken zijn dan combinaties.
+ *
+ * Bij 40 pagina's per maand, 8 onderwerpen en 4 fasen zijn er 32 combinaties en
+ * 41 plekken. Dan is herhaling rekenkundig onvermijdelijk, en de vraag is alleen
+ * nog hoe je hem toont. Twee regels die letterlijk hetzelfde heten leest als een
+ * fout in het plan; "(deel 2)" leest als een tweede artikel over hetzelfde, en
+ * dat is precies wat het is.
+ */
+function uniekeTitel(basis: string, gezien: Map<string, number>): string {
+  const eerder = gezien.get(basis) ?? 0;
+  gezien.set(basis, eerder + 1);
+  return eerder === 0 ? basis : `${basis} (deel ${eerder + 1})`;
 }
 
 /**
