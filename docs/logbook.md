@@ -2177,3 +2177,35 @@ lijst, want `service_regions` bevat alleen plaatsen terwijl een zoeker net zo va
 zonder die lijst zou precies de vraag waar het om gaat als landelijk tellen. En de woordgrenzen zijn
 geen theorie: "Oss" staat letterlijk in de regio's van een Brabantse dealer en zou zonder grens
 aanslaan op "grossier". 1032 unittests.
+
+**De drempel ging van 70% naar 100%, en het argument ertegen was zwakker dan het leek.** De eigenaar
+draaide dezelfde dag het "70% laat ruimte"-argument terug: een regionale klant wil alleen op
+regionaal niveau beoordeeld worden, anders klopt het beeld niet. Dat is de sterkere redenering, want
+een score is een **aandeel**. Meng je er vragen doorheen die dit bedrijf per definitie niet kan
+winnen, dan is de uitkomst niet "iets te laag" maar onwaar. Dat Van den Udenhout in Drenthe niet
+genoemd wordt, is geen tekortkoming die in zijn cijfer thuishoort. `prompts.ts` schrapt daarom na de
+bijvulrondes wat er aan landelijke vragen overblijft, in plaats van het te laten staan.
+
+**De 55 vragen zijn uitgezet op productie, en de cijfers eronder verrasten.** Alle 150 vragen blijven
+bewaard (`active = false`, conventie 8); alleen de meting verandert. Drie van de vijf analyses stonden
+er al goed voor: APK 25 van 30 regionaal, Private Lease Skoda 23, Schadeherstel 25. De twee nieuwste
+juist niet: Auto financieren 9 en Auto leasen 13. **Hetzelfde merk, dezelfde prompt, en het model
+haalde de ene keer 83% en de andere keer 30%.** Dat is niet een prompt die "meestal wel werkt", dat is
+precies waarom een instructie geen garantie is.
+
+De prijs is zichtbaar en eerlijk: met negen vragen is de onzekerheidsband ±15,0 punten in plaats van
+±9. Aanvullen tot dertig regionale vragen kost ~$0,001 aan generatie maar ~$0,57 extra per meetronde,
+want meten rekent per vraag. Dat is een uitgave en dus een besluit van de eigenaar.
+
+**Het gat boven het vangnet is nog open, en het is het grootste.** Het vangnet hangt aan
+`service_scope === "lokaal"`. Op productie staat dat veld bij vier van de negen profielen op `null`,
+waaronder Fysi-Unique: de fysiopraktijk in Amersfoort wiens meetcijfers deze hele vondst dróegen. Voor
+dat merk zou de garantie dus nog steeds niet gevuurd hebben. `resolveScope()` zet 'onbekend' bewust op
+`null` (conventie 3) en dat klopt, maar daarmee is de vraag alleen verplaatst: voor de
+promptgeneratie is een leeg bereik niet te onderscheiden van "landelijk", terwijl het "we weten het
+niet" betekent, en bij een MKB-klant is lokaal de regel. Staat als R6 in `docs/tasks/lanceerplan.md`.
+
+**En de poort geldt nu ook voor handwerk.** `POST` en `PATCH` op `/api/analyses/[id]/prompts` lieten
+een vraag toevoegen of herschrijven zonder enige controle. De generator betaalt drie bijvulrondes voor
+de regionale garantie; één tekstveld haalde hem onderuit. `regionGateMessage()` weigert nu, met een
+melding die de plaatsen noemt zodat de volgende poging meteen goed is. 1039 unittests.

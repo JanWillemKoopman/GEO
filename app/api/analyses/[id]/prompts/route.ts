@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getUser } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getOwnedAnalysis } from "@/lib/analyses";
+import { regionGateMessage } from "@/lib/pipeline/geo-share";
 
 /**
  * POST /api/analyses/[id]/prompts, nieuwe prompt toevoegen door de klant
@@ -28,6 +29,20 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   if (!text || !category) {
     return NextResponse.json({ error: "Vul een prompt-tekst en categorie in." }, { status: 400 });
   }
+
+  // Dezelfde regionale regel als de generator, want een handmatige vraag telt
+  // net zo hard mee in de noemer van de score (zie lib/pipeline/geo-share.ts).
+  const { data: profile } = await admin
+    .from("profiles")
+    .select("service_scope, service_regions")
+    .eq("id", analysis.profile_id)
+    .maybeSingle();
+  const gate = regionGateMessage(
+    profile?.service_scope as string | null,
+    (profile?.service_regions as string[] | null) ?? [],
+    text,
+  );
+  if (gate) return NextResponse.json({ error: gate }, { status: 400 });
 
   const { data, error } = await admin
     .from("prompts")

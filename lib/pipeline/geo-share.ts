@@ -133,6 +133,38 @@ export function containsRegion(text: string, regions: string[]): boolean {
   return false;
 }
 
+/**
+ * Mag deze handgeschreven vraag erbij, of gaat hij over heel Nederland?
+ *
+ * ── WAAROM DE ROUTE DIT MOET VRAGEN ─────────────────────────────────────────
+ *
+ * De generator garandeert sinds 11 augustus 2026 dat een lokaal merk uitsluitend
+ * regionale vragen krijgt. `POST /api/analyses/[id]/prompts` liet daarnaast een
+ * vraag met de hand toevoegen, zonder enige controle. Dat is een gat ter grootte
+ * van één tekstveld: één landelijke vraag erbij en de noemer van de score klopt
+ * weer niet, terwijl de generator er drie bijvulrondes voor betaalde.
+ *
+ * Weigeren en niet waarschuwen, want een waarschuwing die je kunt wegklikken is
+ * geen garantie. De melding noemt de plaatsen, zodat de volgende poging meteen
+ * goed is.
+ *
+ * Geeft `null` als de vraag mag: een merk zonder lokaal bereik heeft deze regel
+ * niet, en dan is elke vraag goed.
+ */
+export function regionGateMessage(
+  scope: string | null | undefined,
+  regions: string[] | null | undefined,
+  text: string,
+): string | null {
+  if (!isLokaal(scope, regions)) return null;
+  if (containsRegion(text, regions!)) return null;
+  return (
+    `Deze vraag noemt geen plaats. Dit merk werkt uitsluitend in ${regions!.join(", ")}, ` +
+    `dus een vraag zonder plaats gaat over heel Nederland en telt wel mee in de score ` +
+    `terwijl hij niet te winnen is. Zet er een plaats of de provincie in.`
+  );
+}
+
 export interface GeoBalance {
   /** Hoeveel er regionaal zijn. */
   regionaal: number;

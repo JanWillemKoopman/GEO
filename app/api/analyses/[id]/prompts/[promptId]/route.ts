@@ -3,6 +3,7 @@ import { getUser } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getOwnedAnalysis } from "@/lib/analyses";
 import { isVolumeBand } from "@/lib/pipeline/volume";
+import { regionGateMessage } from "@/lib/pipeline/geo-share";
 
 /**
  * PATCH/DELETE /api/analyses/[id]/prompts/[promptId], prompt wijzigen/verwijderen
@@ -23,6 +24,11 @@ function volumeUpdate(body: Record<string, unknown>): Record<string, unknown> | 
   return { volume_band: body.volume_band, volume_source: "klant" };
 }
 
+/**
+ * Geeft de analyse terug in plaats van een `boolean`: de PATCH heeft er het
+ * `profile_id` van nodig om de regionale regel te kunnen stellen, en die
+ * nog een keer ophalen zou een tweede query zijn voor iets dat we al hadden.
+ */
 async function assertOwnedPrompt(
   admin: ReturnType<typeof createAdminClient>,
   analysisId: string,
@@ -30,14 +36,14 @@ async function assertOwnedPrompt(
   userId: string,
 ) {
   const analysis = await getOwnedAnalysis(admin, analysisId, userId);
-  if (!analysis) return false;
+  if (!analysis) return null;
   const { data } = await admin
     .from("prompts")
     .select("id")
     .eq("id", promptId)
     .eq("analysis_id", analysisId)
     .maybeSingle();
-  return Boolean(data);
+  return data ? analysis : null;
 }
 
 export async function PATCH(
@@ -49,9 +55,8 @@ export async function PATCH(
   if (!user) return NextResponse.json({ error: "Je bent niet ingelogd." }, { status: 401 });
 
   const admin = createAdminClient();
-  if (!(await assertOwnedPrompt(admin, id, promptId, user.id))) {
-    return NextResponse.json({ error: "Niet gevonden." }, { status: 404 });
-  }
+  const owned = await assertOwnedPrompt(admin, id, promptId, user.id);
+  if (!owned) return NextResponse.json({ error: "Niet gevonden." }, { status: 404 });
 
   let body: Record<string, unknown>;
   try {
@@ -63,6 +68,22 @@ export async function PATCH(
   const update: Record<string, unknown> = {};
   for (const field of EDITABLE_FIELDS) {
     if (field in body) update[field] = body[field];
+  }
+
+  // Herschrijven is net zo goed een manier om een landelijke vraag binnen te
+  // krijgen als toevoegen, dus dezelfde poort (zie de POST-route hiernaast).
+  if (typeof update.text === "string") {
+    const { data: profile } = await admin
+      .from("profiles")
+      .select("service_scope, service_regions")
+      .eq("id", owned.profile_id)
+      .maybeSingle();
+    const gate = regionGateMessage(
+      profile?.service_scope as string | null,
+      (profile?.service_regions as string[] | null) ?? [],
+      update.text,
+    );
+    if (gate) return NextResponse.json({ error: gate }, { status: 400 });
   }
 
   const volume = volumeUpdate(body);

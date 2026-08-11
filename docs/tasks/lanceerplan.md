@@ -404,24 +404,71 @@ metingen op landelijke vragen leverde er niet één iets op.
 Dit is te groot voor een pleister en te belangrijk om na de lancering te doen. **Werk: ongeveer 2
 dagen**, en het hoort in week 1.
 
-| # | Wat | Waarom deze en niet iets anders |
-|---|---|---|
-| R1 | **Een deterministisch vangnet op het aandeel.** Na de generatie tellen hoeveel prompts een bekende plaats of regio bevatten. Onder de drempel: de ontbrekende bijgenereren, niet de hele ronde weggooien | Conventie 1. Dit is exact het patroon van `mention_role: m.mentioned ? m.role : null`: de instructie blijft, de code garandeert |
-| R2 | **De drempel is instelbaar per merk en heeft een eerlijke standaard.** Voorstel: bij `scope = lokaal` minstens 70% regionaal | 100% zou fout zijn: ook een lokale ondernemer wint soms een landelijke vraag, en die informatie is wat waard. 70% laat ruimte en verlegt het zwaartepunt |
-| R3 | **Bestaande merken opnieuw beoordelen.** Van den Udenhout heeft 60 vragen waarvan 37 landelijk. Die uitzetten is gratis en verhoogt zijn score onmiddellijk naar wat hij werkelijk waard is | De volgende meetronde kost dan een derde minder en meet iets echts |
-| R4 | **Het scherm laat het onderscheid zien.** Een chip "regionaal" bij de vraag, en in het rapport de score apart voor regionale vragen | Zonder dit blijft het een verborgen aanname. De klant hoort te zien waarop hij beoordeeld wordt |
+| # | Wat | Waarom deze en niet iets anders | Stand |
+|---|---|---|---|
+| R1 | **Een deterministisch vangnet op het aandeel.** Na de generatie tellen hoeveel prompts een bekende plaats of regio bevatten. Onder de drempel: de ontbrekende bijgenereren, niet de hele ronde weggooien | Conventie 1. Dit is exact het patroon van `mention_role: m.mentioned ? m.role : null`: de instructie blijft, de code garandeert | **Af.** `lib/pipeline/geo-share.ts` plus de bijvullus in `prompts.ts` |
+| R2 | **De drempel bij `scope = lokaal`: alle vragen regionaal** | Zie hieronder, dit is teruggedraaid van 70% naar 100% | **Af.** `REGIO_DREMPEL = 1.0` |
+| R2b | **De poort geldt ook voor handgeschreven vragen.** `POST` en `PATCH` op `/api/analyses/[id]/prompts` weigeren een vraag zonder plaats bij een lokaal merk | De generator betaalt drie bijvulrondes voor de garantie; één tekstveld haalde hem onderuit | **Af.** `regionGateMessage()` |
+| R3 | **Bestaande merken opnieuw beoordelen** | Uitzetten is gratis en meet daarna iets echts | **Af.** 55 vragen uitgezet, zie hieronder |
+| R4 | **Het scherm laat het onderscheid zien.** Een chip "regionaal" bij de vraag, en in het rapport de score apart voor regionale vragen | Zonder dit blijft het een verborgen aanname. De klant hoort te zien waarop hij beoordeeld wordt | Open, ~halve dag |
+| R5 | **De trendlijn markeren waar de vragenset wijzigde** | Zie de waarschuwing hieronder | Open |
+| R6 | **`service_scope` mag niet stil leeg blijven** | Zie "het gat boven het vangnet" | Open, en dit is de belangrijkste van de twee open punten |
 
-⚠️ **R3 raakt de vergelijkbaarheid van de trendlijn.** Zet je vragen uit, dan verandert de noemer, en
-dan is periode 3 niet meer met periode 2 te vergelijken. Dat is precies de fout die `logbook.md` in
-juli al een keer maakte. De uitweg: de uitgezette vragen blijven staan met `active = false`, en de
-trendlijn krijgt een markering op het moment van de wijziging. Bij Van den Udenhout is dat gratis,
-want zijn score is nul en er valt niets te breken.
+#### Waarom de drempel van 70% naar 100% ging
+
+De eerste versie stond op 70%, met het argument dat een lokale ondernemer ook af en toe een
+landelijke vraag wint en dat dát informatie is. Teruggedraaid op 11 augustus 2026, op instructie van
+de eigenaar, en de reden is beter dan het argument was: **een score is een aandeel.** Meng je er
+vragen doorheen die dit bedrijf per definitie niet kan winnen, dan is de uitkomst niet "iets te laag"
+maar onwaar. Dat Van den Udenhout in Drenthe niet genoemd wordt, hoort niet in zijn cijfer te zitten.
+
+#### Wat R3 opleverde, met de cijfers
+
+Uitgevoerd op productie, 11 augustus 2026. Alle 150 vragen blijven bewaard (`active = false`,
+conventie 8); alleen wat er gemeten wordt verandert.
+
+| Analyse | Actief vóór | Actief ná | Onzekerheidsband ná |
+|---|---|---|---|
+| APK | 30 | 25 | ±9,0 pp |
+| Private Lease Skoda | 30 | 23 | ±9,4 pp |
+| Schadeherstel | 30 | 25 | ±9,0 pp |
+| Auto financieren | 30 | **9** | **±15,0 pp** |
+| Auto leasen | 30 | **13** | ±12,5 pp |
+
+Drie van de vijf stonden er al goed voor (23 tot 25 regionaal van de 30). De twee nieuwste juist
+niet, en dat is de vondst achter de vondst: **hetzelfde merk, dezelfde prompt, twee heel andere
+uitkomsten.** Het model haalde de ene keer 83% en de andere keer 30%. Precies waarom een instructie
+geen garantie is.
+
+⚠️ **Twee gevolgen die aandacht nodig hebben.** De trendlijn van "Auto financieren" verspringt: de
+noemer gaat van 30 naar 9 en periode 3 is niet meer met periode 2 te vergelijken (R5). En met negen
+vragen is de band ±15 punten, bijna twee keer zo breed als bij dertig. Aanvullen tot dertig
+regionale vragen kost verwaarloosbaar weinig aan generatie (~$0,001) maar wél ~$0,57 extra per
+meetronde, want meten is per vraag. Dat is een uitgave, dus een besluit van de eigenaar en niet van
+de code.
+
+#### Het gat boven het vangnet (R6)
+
+Het hele vangnet hangt aan `isLokaal()`, en die kijkt naar `service_scope === "lokaal"`. Op
+productie staat dat veld bij **vier van de negen profielen op `null`**, waaronder Fysi-Unique: een
+fysiopraktijk in Amersfoort, het merk waarvan de meetcijfers deze hele vondst dróegen. Voor dat merk
+zou de garantie dus nog steeds niet gevuurd hebben.
+
+`resolveScope()` in `field-merge.ts` doet het goed en zet 'onbekend' bewust op `null` (conventie 3),
+maar daarmee is de vraag alleen verplaatst: een leeg bereik is voor de promptgeneratie niet te
+onderscheiden van "landelijk", terwijl het "we weten het niet" betekent. Bij een MKB-klant is
+"lokaal" de regel en niet de uitzondering, dus de verkeerde kant om stil op terug te vallen.
+
+Voorstel: het bereik hoort een blokkerende vraag te zijn vóór de promptgeneratie, net zoals de
+onderwerp-research dat al is. Onbekend bereik is geen detail maar een reden om te stoppen en te
+vragen.
 
 ### Wat dit betekent voor `gasservice-brabant.nl`
 
-Dat is óók een lokaal bedrijf, in dezelfde provincie. Spoor A wordt daarmee meteen de proef op de som:
-als R1 werkt, hoort minstens 70% van zijn vragen een Brabantse plaats te bevatten, en dat is te tellen
-zonder één extra euro uit te geven.
+Dat is óók een lokaal bedrijf, in dezelfde provincie. Spoor A wordt daarmee meteen de proef op de
+som: als R1 en R2 werken, hoort **elke** vraag een Brabantse plaats of de provincie te bevatten, en
+dat is te tellen zonder één extra euro uit te geven. En de eerste controle van spoor A is niet de
+prompts maar R6: staat `service_scope` op `lokaal` en staan de plaatsen erin?
 
 ---
 

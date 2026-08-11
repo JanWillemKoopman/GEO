@@ -344,10 +344,18 @@ async function generateForFunnelStage(args: {
 
       // Een regionale vraag erbij betekent een landelijke eruit: het aantal ligt
       // vast, want het bepaalt de meetkosten en de noemer van de score.
+      //
+      // ⚠️ Er wordt er nooit méér ingeruild dan er landelijke vragen zijn. De
+      // eerdere vorm (`nieuw.slice(0, weg.length || nieuw.length)`) duwde bij nul
+      // ruilbare vragen de hele nieuwe lading erin en kapte daarna de staart af
+      // met `collected.length = count`, precies de zojuist toegevoegde regionale
+      // vragen. Bij drempel 1.0 is dat pad onbereikbaar (geen tekort betekent
+      // geen landelijke vraag), maar het zou terugkomen zodra de drempel ooit
+      // lager gezet wordt, en dan stil.
       const weg = droppableIndices(collected.map((p) => p.text), regios, nieuw.length);
+      if (weg.length === 0) break;
       for (const i of weg) collected.splice(i, 1);
-      collected.push(...nieuw.slice(0, weg.length || nieuw.length));
-      if (collected.length > count) collected.length = count;
+      collected.push(...nieuw.slice(0, weg.length));
     }
 
     // ⚠️ WAT ER OVERBLIJFT GAAT ERUIT, en dat is de kern van deze regel.

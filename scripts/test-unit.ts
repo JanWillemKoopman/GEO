@@ -162,6 +162,7 @@ import {
   droppableIndices,
   isLokaal,
   REGIO_DREMPEL,
+  regionGateMessage,
 } from "@/lib/pipeline/geo-share";
 import { COST_DENIED } from "@/lib/cost-rules";
 import { EDITABLE_ACCOUNT_FIELDS } from "@/lib/account-editable";
@@ -5030,6 +5031,46 @@ group("geoBalance en het vangnet", () => {
   ok("zonder regio's niet", !isLokaal("lokaal", []));
   ok("en een landelijk merk niet", !isLokaal("landelijk", ["Breda"]));
   ok("bij een lokaal merk moeten alle vragen regionaal zijn", REGIO_DREMPEL === 1.0);
+});
+
+group("De poort voor handgeschreven vragen", () => {
+  // ⚠️ De generator garandeert de regionale set met drie bijvulrondes. Zonder
+  // deze poort haalde één tekstveld die garantie onderuit: een handmatig
+  // toegevoegde landelijke vraag telt net zo hard mee in de noemer.
+  const regios = ["Eindhoven", "Breda"];
+
+  ok(
+    "een landelijke vraag wordt geweigerd bij een lokaal merk",
+    regionGateMessage("lokaal", regios, "Wat kost een occasion?") !== null,
+  );
+  ok(
+    "en de melding noemt de plaatsen, zodat de volgende poging goed is",
+    (regionGateMessage("lokaal", regios, "Wat kost een occasion?") ?? "").includes("Eindhoven, Breda"),
+  );
+  ok(
+    "een regionale vraag mag gewoon",
+    regionGateMessage("lokaal", regios, "Wat kost een occasion in Breda?") === null,
+  );
+  ok(
+    "de provincie telt ook, die staat niet in service_regions",
+    regionGateMessage("lokaal", regios, "Welke dealer in Brabant?") === null,
+  );
+  ok(
+    "en 'bij mij in de buurt' ook: de assistent kent de locatie van de vrager",
+    regionGateMessage("lokaal", regios, "Welke garage bij mij in de buurt?") === null,
+  );
+
+  // Een merk zonder lokaal bereik heeft deze regel niet. Dat is geen detail:
+  // vier van de negen profielen op productie hadden op 11 augustus 2026
+  // `service_scope = null`, en dan mag de poort niet dichtslaan.
+  ok(
+    "een landelijk merk mag elke vraag",
+    regionGateMessage("landelijk", [], "Wat kost een occasion?") === null,
+  );
+  ok(
+    "en een merk zonder bereik ook",
+    regionGateMessage(null, null, "Wat kost een occasion?") === null,
+  );
 });
 
 // ════════════════════════════════════════════════════════════════════════════
