@@ -2391,3 +2391,21 @@ ingepland. De klant beantwoordt drie vragen, verwacht een herschreven pagina, en
 en dat scherm haalt daarna zelf de stand op. Hard falen zou een zelfherstellend schoonheidsfoutje
 inruilen voor een pagina die het niet doet. Die afweging staat in de code, anders repareert iemand hem
 later alsnog. 1131 unittests, 109 ketentests.
+
+**F4 heette af en was dat niet.** De veiligheidscontrole van Supabase vond binnen een minuut wat ik
+gemist had: migratie 0025 maakte bij een dataopschoning van elke aangeraakte rij een kopie in
+`_backup_20260729`, 51 momentopnamen van vragen, entiteiten, geschreven pagina's, rapporten en scores.
+Die tabel heeft geen verwijzing naar `profiles`, dus de cascade raakt hem niet. Een "volledig
+verwijderde" klant was uit elk scherm verdwenen terwijl zijn teksten er nog stonden, in een tabel die
+niemand meer bekijkt. Dat is precies het restant waar de AVG over gaat.
+
+Nu wordt de opruiming vóór de merken gedaan, want daarna zijn de id's zelf verdwenen en is er niets
+meer om op te matchen. De ketentest zet er een momentopname neer en controleert dat hij verdwijnt, dus
+dit kan niet opnieuw wegglippen.
+
+**Wat de controle verder liet zien.** Geen enkele tabel staat zonder rijbeveiliging, en de tabellen
+zonder regels (`jobs`, `account_invites`, `ai_calls`, `staff_users`) zijn juist de dichtgetimmerde:
+dat is een gesloten deur, geen open deur. Wel open: bescherming tegen gelekte wachtwoorden staat uit
+in Supabase Auth, en drie functies met verhoogde rechten zijn aanroepbaar via de REST-API, waaronder
+de trigger die ik vanochtend zelf toevoegde. Die staan in het lanceerplan als openstaand.
+110 ketentests.

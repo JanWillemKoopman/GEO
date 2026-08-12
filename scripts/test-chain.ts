@@ -1280,6 +1280,16 @@ async function main(): Promise<void> {
       [wegAnalyse, wegPrompt],
     );
 
+    // ⚠️ Een momentopname uit migratie 0025. Die tabel heeft GEEN verwijzing
+    // naar het merk, dus de cascade raakt hem niet. Zonder de reparatie van
+    // 12 augustus 2026 bleef de tekst van deze klant hier gewoon staan nadat
+    // hij "volledig verwijderd" was.
+    await db.client.query(
+      `insert into public._backup_20260729 (source_table, source_id, snapshot, reason)
+       values ('prompts', $1, '{"text":"Waar in Breda?"}'::jsonb, 'ketentest')`,
+      [wegPrompt],
+    );
+
     // Eerst het overzicht: wat zou er verdwijnen? Dit verandert niets.
     const plan = await deletionPlan(wegAccount);
     ok("het plan vindt het account", plan?.accountName === "Te Verwijderen BV");
@@ -1338,6 +1348,15 @@ async function main(): Promise<void> {
       [anderAccount],
     );
     ok("en het andere account staat er nog", anderNog.length === 1);
+
+    // ⚠️ En de momentopname is ook weg. Dit is precies het restant waar de AVG
+    // over gaat: de klant is uit elk scherm verdwenen en zijn teksten staan er
+    // nog, in een tabel die niemand meer bekijkt.
+    const { rows: kopie } = await db.client.query(
+      "select 1 from public._backup_20260729 where source_id = $1",
+      [wegPrompt],
+    );
+    ok("de bewaarde kopie van zijn tekst is ook weg", kopie.length === 0);
 
     __setTestAdminClient(null);
     __setTestTransport(null);

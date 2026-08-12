@@ -697,6 +697,18 @@ plicht: het dossier weghalen en de inlog laten staan is geen verwijdering. Wie o
 ander account houdt zijn inlog, anders sluit het opruimen van klant A per ongeluk klant B buiten. Een
 beheerder van Aura raakt zijn inlog nooit kwijt.
 
+⚠️ **Correctie van 12 augustus, ná de veiligheidscontrole.** F4 heette af terwijl hij dat niet was.
+Migratie `0025` maakte bij een dataopschoning van elke aangeraakte rij een kopie in
+`_backup_20260729`: 51 momentopnamen van vragen, entiteiten, geschreven pagina's, rapporten en
+scores. Die tabel heeft géén verwijzing naar `profiles`, dus de cascade raakt hem niet. De klant was
+uit elk scherm verdwenen en zijn teksten stonden er nog, in een tabel die niemand meer bekijkt.
+Precies het restant waar de AVG over gaat. Nu opgeruimd vóór de merken (daarna zijn de id's weg om op
+te matchen), en de ketentest zet er een momentopname neer en controleert dat hij verdwijnt.
+
+**Wat dit zegt over de rest van dit document:** "af" betekent hier "gebouwd en getest", niet "elke
+tabel in de database is nagelopen". De veiligheidscontrole van Supabase vond dit binnen een minuut,
+en die had ik eerder moeten draaien.
+
 ⚠️ **Twee dingen die eerlijk benoemd moeten worden.** Er is geen transactie omheen, want de
 Supabase-client praat over HTTP en kent er geen. Faalt het halverwege, dan zijn de merken weg en het
 account nog niet; dat is herstelbaar (het account is dan leeg en opnieuw te verwijderen) en het
