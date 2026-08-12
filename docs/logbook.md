@@ -2336,3 +2336,23 @@ meten. Dat hoort in het commentaar te staan in plaats van gesuggereerd te worden
 
 De beslissings- en overwegingsvragen waren wél goed. "Wie kan mijn cv-ketel in Den Bosch vakkundig
 onderhouden?" is precies de vraag waar deze klant gevonden wil worden.
+
+**De meting van de repetitie: score 30, en de keten hield stand.** Dertig vragen, dertig metingen,
+nul mislukkingen, 2,2 minuten. Negen vermeldingen op dertig vragen. De hele repetitie (onboarding,
+analyse, meting, rapport) kostte **$0,77**, waarvan $0,61 aan `web_search`, onder de geschatte $1,10.
+
+**Drie dingen bleken goed zonder dat er iets voor gerepareerd hoefde te worden.** De concurrentenlijst
+bevat alleen echte installateurs: Rijksoverheid werd zestien keer genoemd en de Consumentenbond vijf
+keer, maar allebei landen ze in `zijdelings` en niet in de concurrentenlijst. Ik verwachtte daar een
+fout en vond er geen. De toelichting per concurrent is bruikbaar in plaats van alleen waar. En het
+rapport noemt zijn eigen onzekerheid: "ongeveer 30 op 100, marge ongeveer ±17 punten, zie dit als een
+orde van grootte, niet als een exact cijfer". Dat cijfer klopt ook: bij dertig vragen en een score van
+30 is de band ±16,4.
+
+Gasservice Brabant staat bij de eerste aanbevelingen, gemiddelde positie 2,9. Van de echte
+concurrenten staat alleen Kemkens hoger.
+
+**Wat de repetitie niet kon toetsen.** A1 is niet via de knop in de app gedaan maar met precies de
+rijen die de route schrijft, want deze omgeving kan niet inloggen. Daarmee zijn de nieuwe 403
+(besluit 18) en 402 (budgetplafond) nog niet in het echt gezien. Datzelfde geldt voor A6 tot en met
+A10: het contentplan, de uitnodiging en het klantpad vragen allemaal een ingelogde browser.

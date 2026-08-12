@@ -217,6 +217,62 @@ geeft. Een knop tonen die 403 oplevert is erger dan geen knop.
 over wat er van me verwacht werd. Dat laatste is de belangrijkste kolom, en hij is alleen bij de
 eerste doorloop eerlijk in te vullen.
 
+### De uitslag van A1 tot en met A5, gedraaid op 12 augustus 2026
+
+| Stap | Uitkomst | Oordeel |
+|---|---|---|
+| A1 Merk aanmaken | Profiel op `bezig`, account gekoppeld, acht taken in de rij | Goed, maar niet via de knop gedaan, zie hieronder |
+| A2 Onboarding | **8,0 minuten, $0,235**, acht van de acht klaar, nul mislukkingen, nul herkansingen, 148 pagina's | Goed, en precies op de verwachte $0,25 en 7,5 minuut |
+| A3 Merkdossier | 7 onderwerpen, 17 onderdelen aanbod, 10 concurrenten, 17 technische controlepunten, nul blokkades | Goed |
+| A4 Werkgebied | `lokaal` met zeven Brabantse plaatsen, door het onderzoek zélf ingevuld | Goed, en het ontkracht de R6-zorg |
+| A5 Meten | 30 vragen, **30 van 30 regionaal**, 30 metingen, nul mislukkingen, 2,2 minuten, score **30** met 9 vermeldingen | Goed, ná één reparatie |
+
+**Totale kosten van de repetitie: $0,77**, waarvan $0,61 aan `web_search`. Onder de geschatte $1,10.
+
+⚠️ **A1 is niet via de knop gedaan.** Mijn omgeving kan niet inloggen op de app, dus het merk is
+aangemaakt met precies de rijen die de route zelf schrijft. Wat daarmee níet getoetst is: de route
+zelf, en dus ook de nieuwe 403 (besluit 18) en 402 (budgetplafond) in het echt. Dat blijft staan voor
+jou, en het is één klik.
+
+#### De vondst van A5, en waarom hij de repetitie zijn geld waard maakte
+
+De regionale regel haalde meteen 30 van de 30. Maar **vier van die dertig vragen waren geforceerd**,
+allemaal in de oriëntatiefase. Het scherpste voorbeeld:
+
+> "Heeft regelmatig onderhoud invloed op de levensduur van een cv-ketel in Den Bosch?"
+
+De levensduur van een ketel heeft niets met Den Bosch te maken en niemand stelt die vraag zo. Een
+AI-assistent antwoordt er algemeen op, noemt geen enkel bedrijf, en de vraag meet dus niets terwijl
+hij de score wél omlaag drukt.
+
+Het probleem was niet de drempel maar wát het model met de plaats deed: hij werd achter een
+informatieve vraag geplakt in plaats van dat de vraag omgebouwd werd naar het zoeken van een
+aanbieder. Na de reparatie van de instructie, dezelfde funnelfase:
+
+> "Waar moet ik op letten bij het kiezen van een bedrijf voor cv-ketelonderhoud in Den Bosch?"
+
+Alle tien de oriëntatievragen gaan nu over het vinden of kiezen van een installateur. Opnieuw
+genereren kostte $0,0225, dus de correctie was praktisch gratis vergeleken met de $0,53 aan meten die
+erop volgde. **Dit is precies waarvoor spoor A bestaat: het kwam niet uit een test, het kwam uit
+kijken naar wat er werkelijk uitrolde.**
+
+⚠️ De reparatie is een promptinstructie en géén garantie, en dat staat ook zo in de code. Het vangnet
+kan tellen óf er een plaats in staat, niet óf de vraag natuurlijk klinkt. Dat laatste is niet
+deterministisch te meten, en dan hoort dat opgeschreven te worden in plaats van gesuggereerd.
+
+#### Wat er goed bleek zonder dat het gerepareerd hoefde
+
+- **De concurrentenlijst bevat alleen echte installateurs.** Rijksoverheid (16 keer genoemd), de
+  Consumentenbond en ketelmerken als Remeha en Vaillant komen er terecht niet in. Ze landen in
+  `zijdelings genoemd`, precies waar ze horen. Ik verwachtte hier een fout en vond er geen.
+- **De toelichting per concurrent is bruikbaar**, niet alleen waar: "Lixus wordt genoemd vanwege
+  ervaring met alle merken en vanwege onderhoud, reparatie en rookgasmeting in Eindhoven."
+- **Het rapport zegt eerlijk hoe zeker het is.** "Ongeveer 30 op 100, marge ongeveer ±17 punten, zie
+  dit als een orde van grootte, niet als een exact cijfer." Dat is de K-lat gehaald zonder dat er iets
+  voor aangepast hoefde te worden.
+- **Gasservice Brabant staat bij de eerste aanbevelingen**, met een gemiddelde positie van 2,9. Van de
+  echte concurrenten staat alleen Kemkens hoger.
+
 ### Wie doet welke stap, en wanneer dit kan
 
 **A1 tot en met A7 kan ik alleen doen, zonder jou.** Ze lopen allemaal via de app en de pijplijn.
