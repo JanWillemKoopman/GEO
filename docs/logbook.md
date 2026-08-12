@@ -388,8 +388,8 @@ uitschrijven waard zijn:
 
 ## 14. Onboarding 2.0, de eerste helft (3 augustus 2026)
 
-Volledige bouwspec: [`tasks/onboarding-2.0.md`](./tasks/onboarding-2.0.md). Hieronder wat er
-gebouwd is en het cijfer dat elke keuze droeg.
+De bouwspec (`tasks/onboarding-2.0.md`) is verwijderd nu de bouw af is en er nieuwere lagen
+overheen staan. Hieronder wat er gebouwd is en het cijfer dat elke keuze droeg.
 
 **Het cijfer dat de hele ronde droeg: 6.000 tegen 60.** Het profielonderzoek deed één AI-aanroep op
 `crawlSite()`, de homepage, afgekapt op 6.000 tekens. De content-inventaris van 60 pagina's draaide
