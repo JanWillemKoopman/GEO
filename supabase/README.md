@@ -121,3 +121,17 @@ moest uitroeien.
 
 De database bewaakt alleen het bereik per kolom, niet het totaal van 90: dat laatste is een
 productbesluit over kosten en staat in `lib/prompt-mix.ts`, waar de melding erbij past.
+
+## 0055 · interne functies en de les eronder
+
+Trekt het uitvoerrecht in op `ai_calls_resolve_account()`, de triggerfunctie uit 0053. Die hoort niet
+in de publieke API en geen enkele RLS-regel gebruikt hem.
+
+⚠️ **De eerste versie deed dit ook bij `is_staff()`, `readable_profile_ids()` en
+`user_account_ids()`, en dat brak de app.** Een RLS-regel wordt geëvalueerd namens de bevragende rol,
+dus die rol moet de functie in die regel mogen aanroepen. Zonder dat recht faalt niet de regel maar de
+hele query, met "permission denied for function is_staff", op alle 28 tabellen tegelijk. Direct
+teruggedraaid; de migratie zet die rechten nu expliciet terug als vangnet.
+
+`scripts/test-chain.ts` controleert sindsdien dat élke functie die in een RLS-regel voorkomt
+aanroepbaar is door `authenticated`. Die test is rood gemaakt om te bewijzen dat hij de fout vangt.

@@ -545,8 +545,35 @@ export function createShimClient(client: Client) {
         delete: () => new QueryBuilder(client, tabel, "delete"),
       };
     },
-    rpc() {
-      fout("rpc() wordt niet ondersteund");
+    /**
+     * Roept de ECHTE databasefunctie aan, niet een nabootsing.
+     *
+     * ⚠️ Dat is het hele punt. `claim_jobs` en `reclaim_stuck_jobs` staan als
+     * SQL-functie in de migraties, en die migraties draaien in deze test ook.
+     * Een nagebouwde versie zou precies de divergentie opleveren waar de kop van
+     * dit bestand voor waarschuwt: de test blijft groen terwijl productie iets
+     * anders doet. Doorgeven aan Postgres is trouwer én minder werk.
+     *
+     * Supabase geeft bij een functie die een verzameling teruggeeft de rijen
+     * terug, en bij een scalaire functie de waarde zelf. Dat verschil is hier
+     * nagebouwd, want `reclaim_stuck_jobs` geeft een getal en `claim_jobs` rijen.
+     */
+    async rpc(naam: string, args?: Record<string, unknown>) {
+      const namen = Object.keys(args ?? {});
+      const waarden = namen.map((n) => (args as Record<string, unknown>)[n]);
+      const argumenten = namen.map((n, i) => `${n} => $${i + 1}`).join(", ");
+      try {
+        const res = await client.query(`select * from public.${naam}(${argumenten})`, waarden);
+        // Eén kolom die net zo heet als de functie: dat is een scalaire functie,
+        // en dan hoort de waarde eruit te komen en geen rij eromheen.
+        const kolommen = res.fields.map((f) => f.name);
+        if (kolommen.length === 1 && kolommen[0] === naam) {
+          return { data: res.rows[0]?.[naam] ?? null, error: null };
+        }
+        return { data: res.rows, error: null };
+      } catch (err) {
+        return { data: null, error: { message: String(err) } };
+      }
     },
 
     /**

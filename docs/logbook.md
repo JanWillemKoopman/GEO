@@ -2447,3 +2447,37 @@ hoort te hebben, ze ook heeft.
 bepaalt of de vragen al bestaan, stond nog op het oude `if (!count)`. Exact het patroon dat F5 moest
 uitroeien: gaat de telling stuk, dan luidt de conclusie "er staat nog niets" en wordt een hele
 funnelfase opnieuw gegenereerd en betaald. Nu ook op `requireCount`. 1154 unittests, 119 ketentests.
+
+**De maandmeting heeft een tijdslot gekregen (12 augustus 2026).** De maandelijkse taak keek alleen of
+er al een volgende periode bestond, niet of de vorige meting lang genoeg geleden was. Het bewijs stond
+in de database: Fysi-Unique had periode 0, 1 en 2 op 30, 30 en 31 juli. Bij die analyse waren dat
+handmatige testrondes, maar dezelfde weg staat open voor een echte klant, en daar gebeurt het vanzelf:
+onboard je iemand op 28 augustus, dan meet de taak op 1 september alweer. Een volle betaalde ronde
+vier dagen later, en een punt op de trendlijn dat vier dagen verandering toont alsof het een maand is.
+
+De grens staat op 21 dagen en niet op 28, omdat een maand 28 tot 31 dagen duurt: bij 28 valt een klant
+die op de 3e gemeten is er nét binnen en een klant van de 5e er nét buiten, zonder dat er iets aan hem
+anders is. Overslaan kost niets; te vroeg meten kost geld en zet een punt in een grafiek dat er nooit
+meer uitgaat. De taak meldt nu ook wát hij oversloeg en waarom, want "waarom is deze klant niet
+gemeten" is precies de vraag die je dan stelt.
+
+**Gearchiveerd werk wordt overgeslagen.** De maandronde filtert gearchiveerde analyses al, maar de
+taken die er op dat moment al stonden niet. Nu slaat de werker ze over. Dit is geen fout die een klant
+kan uitlokken, want archiveren gebeurt met SQL en niet met een knop; het maakt die handmatige actie
+wel veilig.
+
+⚠️ **En er is vandaag iets echt kapotgegaan, kort maar volledig.** Migratie 0055 trok het uitvoerrecht
+in op vier functies die de veiligheidscontrole van Supabase aanwees als "aanroepbaar via de API".
+Drie daarvan worden in RLS-regels gebruikt, en een RLS-regel wordt geëvalueerd namens de bevragende
+rol. Zonder dat recht faalt niet de regel maar de héle query: een ingelogde gebruiker kon niets meer
+lezen, op 28 tabellen tegelijk. Een paar minuten zo op productie gestaan, meteen teruggedraaid.
+
+De les zit niet in de fout maar in wat eromheen ontbrak: er was geen enkele test die "een ingelogde
+gebruiker kan lezen" bewaakte. Die is er nu, en algemener dan het geval dat hem brak: élke functie die
+in een RLS-regel voorkomt moet aanroepbaar zijn door `authenticated`. Ik heb die test rood gemaakt om
+te bewijzen dat hij de fout vangt, want een test die nooit gefaald heeft bewijst niets.
+
+De melding voor de andere drie blijft dus staan, en dat is een bewuste keuze: ze leunen op
+`auth.uid()` en geven een niet-ingelogde bezoeker een lege lijst terug. De nette oplossing is ze naar
+een niet-aangeboden schema verplaatsen, maar dat betekent 36 RLS-regels opnieuw aanmaken. Dat is
+echt risico voor een melding zonder echt gevolg. 1166 unittests, 125 ketentests.

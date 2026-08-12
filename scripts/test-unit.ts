@@ -166,6 +166,7 @@ import {
 } from "@/lib/pipeline/geo-share";
 import { COST_DENIED } from "@/lib/cost-rules";
 import { requireCount } from "@/lib/require-count";
+import { mayMeasureAgain, MIN_DAGEN_TUSSEN_PERIODES } from "@/lib/measure-cadence";
 import {
   DEFAULT_MIX,
   checkMix,
@@ -5022,6 +5023,41 @@ group("elke dure route vraagt het aan dezelfde functie", () => {
     "geen enkele melding zegt alleen 'geen toegang'",
     zinnen.every((z) => z.length > 40 && !/geen toegang/i.test(z)),
   );
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+console.log("\nDe meetcadans");
+
+group("mayMeasureAgain: niet opnieuw meten wat net gemeten is", () => {
+  const nu = new Date("2026-09-01T06:00:00Z");
+
+  // ⚠️ HET GEVAL DAT DIT AFVANGT. Een klant die op 28 augustus is aangesloten en
+  // gemeten, zou op 1 september alweer een volle betaalde ronde krijgen. Vier
+  // dagen later, met een punt op de trendlijn dat een maand suggereert.
+  const vers = mayMeasureAgain("2026-08-28T06:00:00Z", nu);
+  ok("vier dagen geleden is te vers", !vers.ok);
+  ok("en de melding noemt het aantal dagen", !vers.ok && vers.reason.includes("4 dagen"));
+  ok("en de grens", !vers.ok && vers.reason.includes("21"));
+
+  // Het bewijs uit de database: Fysi-Unique had drie periodes in twee dagen.
+  ok("dezelfde dag mag zeker niet", !mayMeasureAgain("2026-09-01T05:00:00Z", nu).ok);
+  ok("één dag ook niet", !mayMeasureAgain("2026-08-31T06:00:00Z", nu).ok);
+
+  // Een normale maand mag gewoon.
+  ok("een maand geleden mag", mayMeasureAgain("2026-08-01T06:00:00Z", nu).ok);
+  ok("precies 21 dagen mag ook", mayMeasureAgain("2026-08-11T06:00:00Z", nu).ok);
+  ok("20 dagen net niet", !mayMeasureAgain("2026-08-12T06:00:00Z", nu).ok);
+
+  // Nooit eerder gemeten: er is niets om te vroeg aan te zijn.
+  ok("zonder vorige meting mag het altijd", mayMeasureAgain(null, nu).ok);
+  ok("en undefined ook", mayMeasureAgain(undefined, nu).ok);
+
+  // ⚠️ Een onleesbare datum blokkeert niet. Deze controle hoort te falen
+  // richting "gewoon meten": het alternatief is dat de hele maandronde stilvalt
+  // op één rare waarde, en dat is erger dan één ronde te veel.
+  ok("een onleesbare datum blokkeert niet", mayMeasureAgain("geen datum", nu).ok);
+
+  ok("de grens staat op 21 dagen", MIN_DAGEN_TUSSEN_PERIODES === 21);
 });
 
 // ════════════════════════════════════════════════════════════════════════════

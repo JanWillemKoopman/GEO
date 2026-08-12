@@ -1227,6 +1227,95 @@ async function main(): Promise<void> {
     ok("een leeg account begint weer op nul", (await checkBudget(budgetAccount)).ok);
 
     // ══════════════════════════════════════════════════════════════════════
+    // Een ingelogde gebruiker moet kunnen lezen (migratie 0055)
+    //
+    // ⚠️ Deze test bestaat door schade. Op 12 augustus 2026 trok een migratie het
+    // uitvoerrecht op `is_staff()` in bij de rollen `anon` en `authenticated`,
+    // omdat de veiligheidscontrole van Supabase klaagde dat de functie van
+    // buitenaf aanroepbaar was. Gevolg: een ingelogde gebruiker kon NIETS meer
+    // lezen. Een RLS-regel wordt geëvalueerd namens de bevragende rol, dus die
+    // rol moet de functie in die regel mogen aanroepen; zonder dat recht faalt
+    // niet de regel maar de hele query. Dat raakte 28 tabellen tegelijk, en op
+    // productie stond het een paar minuten zo.
+    // ══════════════════════════════════════════════════════════════════════
+    console.log("\nEen ingelogde gebruiker kan lezen");
+
+    // De invariant, algemener dan het geval dat hem brak: ELKE functie die in
+    // een RLS-regel voorkomt, moet door `authenticated` aangeroepen kunnen
+    // worden. Zo vangt deze test ook de volgende functie die iemand ooit
+    // dichtzet, en niet alleen `is_staff`.
+    const { rows: regelFuncties } = await db.client.query(`
+      select distinct p.proname, has_function_privilege('authenticated', p.oid, 'execute') as mag
+        from pg_proc p
+        join pg_namespace n on n.oid = p.pronamespace
+       where n.nspname = 'public'
+         and exists (
+           select 1 from pg_policies pol
+            where pol.schemaname = 'public'
+              and coalesce(pol.qual, '') like '%' || p.proname || '(%'
+         )
+       order by p.proname
+    `);
+
+    ok(
+      "er zijn functies die in leesregels gebruikt worden",
+      regelFuncties.length > 0,
+      "geen enkele functie gevonden in een RLS-regel: klopt de query nog?",
+    );
+
+    for (const fn of regelFuncties as { proname: string; mag: boolean }[]) {
+      ok(
+        `${fn.proname}() is aanroepbaar door een ingelogde gebruiker`,
+        fn.mag === true,
+        `zonder dit recht faalt niet de regel maar de hele query, op elke tabel die ${fn.proname}() gebruikt`,
+      );
+    }
+
+    // ══════════════════════════════════════════════════════════════════════
+    // Gearchiveerd werk kost geen geld meer
+    //
+    // ⚠️ De maandronde filtert gearchiveerde analyses al, maar de taken die er
+    // op dat moment al stonden niet. Zonder deze controle loopt een merk dat net
+    // uit beeld is gehaald zijn hele wachtrij nog leeg: betaald werk waarvan de
+    // uitkomst nergens meer te zien is.
+    // ══════════════════════════════════════════════════════════════════════
+    console.log("\nGearchiveerd werk wordt overgeslagen");
+
+    const { runWorker } = await import("@/lib/jobs/worker");
+
+    const archiefAnalyse = randomUUID();
+    await db.client.query(
+      `insert into public.analyses (id, user_id, profile_id, name, url, topic, status, archived_at)
+       values ($1, $2, $3, 'Gearchiveerd', 'https://fysi-unique.nl', 'iets', 'gereed', now())`,
+      [archiefAnalyse, userId, profileId],
+    );
+    // Een taak die zonder de controle een betaalde AI-aanroep zou doen.
+    await db.client.query(
+      `insert into public.jobs (analysis_id, type, payload_json, dedupe_key, status, scheduled_for)
+       values ($1, 'generate_report', '{}'::jsonb, $2, 'queued', now())`,
+      [archiefAnalyse, `chain-archief:${archiefAnalyse}`],
+    );
+
+    await runWorker();
+
+    const { rows: naWerker } = await db.client.query(
+      "select status, last_error from public.jobs where analysis_id = $1",
+      [archiefAnalyse],
+    );
+    ok(
+      "de taak van een gearchiveerde analyse is afgehandeld",
+      naWerker[0]?.status === "done",
+      `status was ${naWerker[0]?.status}`,
+    );
+    // De AI-stub gooit bij een onbekend schema. Dat er geen rapport is, bewijst
+    // dus dat de taak is overgeslagen en niet gewoon gedraaid heeft.
+    const { rows: rapporten } = await db.client.query(
+      "select 1 from public.reports where analysis_id = $1",
+      [archiefAnalyse],
+    );
+    ok("en er is geen betaald werk gedaan", rapporten.length === 0);
+
+    // ══════════════════════════════════════════════════════════════════════
     // De promptgeneratie per funnelfase (migratie 0054)
     //
     // ⚠️ Dit hoort in de KETENtest en niet in test-unit.ts, want de hele vondst

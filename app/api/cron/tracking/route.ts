@@ -3,6 +3,7 @@ import { serverEnv } from "@/lib/env";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { enqueue, enqueueMeasurement, dedupe } from "@/lib/jobs/queue";
 import { maxMeasurementPeriods } from "@/lib/config";
+import { mayMeasureAgain } from "@/lib/measure-cadence";
 import { activeOnly } from "@/lib/archive";
 
 /**
@@ -46,6 +47,10 @@ export async function GET(request: Request) {
   );
 
   const results: { id: string; period: number; planned: number }[] = [];
+  // Overgeslagen analyses komen in het antwoord terecht en niet alleen in een
+  // logregel: dit endpoint is het enige venster op wat de maandronde deed, en
+  // "waarom is deze klant niet gemeten" is precies de vraag die je dan stelt.
+  const overgeslagen: { id: string; reden: string }[] = [];
   // Eén audit per profiel, niet per analyse: meerdere analyses van hetzelfde
   // merk delen dezelfde website, en die twee keer controleren levert twee
   // identieke uitslagen op.
@@ -68,11 +73,23 @@ export async function GET(request: Request) {
 
     const { data: lastWeek } = await admin
       .from("visibility_scores")
-      .select("week_no")
+      .select("week_no, computed_at")
       .eq("analysis_id", a.id)
       .order("week_no", { ascending: false })
       .limit(1)
       .maybeSingle();
+
+    // ⚠️ Niet alleen "is er al een volgende periode", maar ook "is de vorige
+    // lang genoeg geleden" (12 augustus 2026). Zonder deze controle meet een
+    // klant die op 28 augustus is aangesloten alweer op 1 september: een volle
+    // betaalde ronde vier dagen later, en een punt op de trendlijn dat vier
+    // dagen verandering toont alsof het een maand is. Zie lib/measure-cadence.ts
+    // voor het bewijs uit de database.
+    const cadans = mayMeasureAgain(lastWeek?.computed_at as string | null);
+    if (!cadans.ok) {
+      overgeslagen.push({ id: a.id as string, reden: cadans.reason });
+      continue;
+    }
 
     // `week_no` is een PERIODE-index, geen kalenderweek, met een maandelijkse
     // cadans is periode 1 de eerste hermeting, een maand na de nulmeting. De
@@ -84,5 +101,10 @@ export async function GET(request: Request) {
     results.push({ id: a.id as string, period: nextPeriod, planned });
   }
 
-  return NextResponse.json({ analyses: results.length, results });
+  return NextResponse.json({
+    analyses: results.length,
+    results,
+    overgeslagen: overgeslagen.length,
+    overgeslagenDetails: overgeslagen,
+  });
 }

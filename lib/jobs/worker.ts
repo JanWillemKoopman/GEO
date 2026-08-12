@@ -180,6 +180,43 @@ export async function runWorker(): Promise<WorkerResult> {
 }
 
 /**
+ * Is het merk of de analyse van deze taak gearchiveerd?
+ *
+ * Faalt zacht naar `false`: kunnen we het niet vaststellen, dan draait de taak
+ * gewoon. Dat is de kant waarop deze controle hoort te falen, want het
+ * alternatief is een wachtrij die stilvalt omdat één query hapert. Het ergste
+ * geval hier is dat er één ronde te veel draait voor een merk dat uit beeld is;
+ * het ergste geval andersom is dat er niets meer gebeurt voor iedereen.
+ */
+async function isArchived(
+  admin: ReturnType<typeof createAdminClient>,
+  job: Job,
+): Promise<boolean> {
+  try {
+    if (job.analysis_id) {
+      const { data } = await admin
+        .from("analyses")
+        .select("archived_at")
+        .eq("id", job.analysis_id)
+        .maybeSingle();
+      if (data?.archived_at) return true;
+    }
+    if (job.profile_id) {
+      const { data } = await admin
+        .from("profiles")
+        .select("archived_at")
+        .eq("id", job.profile_id)
+        .maybeSingle();
+      if (data?.archived_at) return true;
+    }
+    return false;
+  } catch (err) {
+    console.error(`Archiefcontrole mislukt voor taak ${job.id}, taak draait door:`, err);
+    return false;
+  }
+}
+
+/**
  * Vinkt een gelukte taak af, en geeft niet op na één poging.
  *
  * ── WAAROM DIT DE DUURSTE STILLE FOUT VAN DE HELE APP WAS ───────────────────
@@ -231,6 +268,21 @@ async function processJob(
 ): Promise<void> {
   out.processed++;
   try {
+    // ⚠️ Archiveren gebeurt met SQL en niet met een knop, dus dit is geen fout
+    // die een klant kan uitlokken. Maar zonder deze controle loopt een merk dat
+    // net uit beeld is gehaald zijn hele wachtrij nog leeg, en dat is betaald
+    // werk waarvan de uitkomst nergens meer te zien is. De maandronde filtert
+    // gearchiveerde analyses al; de taken die er op dat moment al stonden niet.
+    if (await isArchived(admin, job)) {
+      await markDone(admin, job);
+      out.succeeded++;
+      out.results.push({ id: job.id, type: job.type, ok: true });
+      console.log(
+        `Taak ${job.type} (${job.id}) overgeslagen: het merk of de analyse is gearchiveerd.`,
+      );
+      return;
+    }
+
     await runJob({ admin, job });
     await markDone(admin, job);
     out.succeeded++;
