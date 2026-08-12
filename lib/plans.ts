@@ -315,33 +315,60 @@ export async function approveMonth(
  *
  * ⚠️ Zonder deze logica daalt het maandtotaal stilzwijgend onder wat de klant
  * betaalt, en dat merkt niemand tot het einde van de maand.
+ *
+ * ── DE WEDSTRIJDCONDITIE, EN WAAROM DE UPDATE HET SLOT BEPAALT ─────────────
+ *
+ * ⚠️ Gevonden op 12 augustus 2026 bij het narekenen van wat er misgaat als twee
+ * dingen tegelijk gebeuren. De eerste versie las eerst `status` (`gepland` of
+ * niet) en besliste daarna, op die verouderde lezing, of de buffer moest
+ * inschuiven. Precies tussen die lezing en die beslissing kan de content-taak
+ * klaar zijn gekomen en de pagina op `geschreven` gezet hebben: dan schuift de
+ * buffer alsnog in voor een slot dat al gevuld was, en staat er een
+ * verweesde geschreven pagina naast een buffer die er niet had hoeven komen.
+ *
+ * De oplossing: de voorwaardelijke `UPDATE ... WHERE status = 'gepland'` zelf
+ * bepaalt of de buffer inschuift, niet een lezing ervoor. Matcht de update geen
+ * rij, dan was de pagina op dat exacte moment al iets anders dan `gepland`
+ * (geschreven, geplaatst, of al verwijderd), en dan is er niets te vervangen.
+ * Zelfde patroon als `approveMonth()` hierboven.
  */
 export async function removePage(
   admin: Admin,
   pageId: string,
 ): Promise<{ ok: boolean; bufferUsed: boolean }> {
-  const { data: page } = await admin
-    .from("planned_pages")
-    .select("*")
-    .eq("id", pageId)
-    .maybeSingle();
-
-  if (!page) return { ok: false, bufferUsed: false };
-  const p = page as PlannedPage;
-
-  const { error } = await admin
+  // De atomaire poging: matcht alleen als de pagina op dit exacte moment nog
+  // `gepland` is. Dat is de enige toestand waarin een buffer iets te vervangen
+  // heeft.
+  const { data: nogGepland, error: geplandError } = await admin
     .from("planned_pages")
     .update({ status: "afgewezen" })
-    .eq("id", pageId);
-  if (error) {
-    console.error("Pagina verwijderen mislukt:", error.message);
+    .eq("id", pageId)
+    .eq("status", "gepland")
+    .select("plan_month_id, sort_order, scheduled_for")
+    .maybeSingle();
+
+  if (geplandError) {
+    console.error("Pagina verwijderen mislukt:", geplandError.message);
     return { ok: false, bufferUsed: false };
   }
 
-  // Een buffer schuift alleen in voor een pagina die nog niet geschreven was.
-  // Bij een geschreven of geplaatste pagina is er niets te vervangen: het werk
-  // is al gedaan.
-  if (p.status !== "gepland") return { ok: true, bufferUsed: false };
+  if (!nogGepland) {
+    // Was al iets anders dan `gepland` (geschreven, geplaatst) of bestaat niet.
+    // Gewoon afwijzen, zonder buffer: die had hier niets te vervangen.
+    const { data: bestaatWel, error } = await admin
+      .from("planned_pages")
+      .update({ status: "afgewezen" })
+      .eq("id", pageId)
+      .select("id")
+      .maybeSingle();
+    if (error) {
+      console.error("Pagina verwijderen mislukt:", error.message);
+      return { ok: false, bufferUsed: false };
+    }
+    return { ok: Boolean(bestaatWel), bufferUsed: false };
+  }
+
+  const p = nogGepland as Pick<PlannedPage, "plan_month_id" | "sort_order" | "scheduled_for">;
 
   const { data: buffer } = await admin
     .from("planned_pages")
@@ -355,16 +382,26 @@ export async function removePage(
 
   if (!buffer) return { ok: true, bufferUsed: false };
 
-  await admin
+  // ⚠️ Dezelfde soort race, één stap verderop: twee pagina's die vrijwel
+  // tegelijk verwijderd worden in dezelfde maand kunnen allebei DEZELFDE buffer
+  // uitkiezen (de `select` hierboven is geen lock). Zonder de `is_buffer`-guard
+  // hier zou de tweede update de eerste stilzwijgend overschrijven, en denkt
+  // één van de twee verwijderde pagina's dat hij is opgevuld terwijl dat niet
+  // zo is. De guard maakt ook déze stap een voorwaardelijke update: matcht hij
+  // niet, dan greep een gelijktijdige aanroep de buffer al weg.
+  const { data: geclaimd } = await admin
     .from("planned_pages")
     .update({
       is_buffer: false,
       sort_order: p.sort_order,
       scheduled_for: p.scheduled_for,
     })
-    .eq("id", buffer.id as string);
+    .eq("id", buffer.id as string)
+    .eq("is_buffer", true)
+    .select("id")
+    .maybeSingle();
 
-  return { ok: true, bufferUsed: true };
+  return { ok: true, bufferUsed: Boolean(geclaimd) };
 }
 
 /**

@@ -82,7 +82,7 @@ npm run dev              # localhost:3000
 npm run build            # productiebuild
 npx tsc --noEmit         # typecheck, moet schoon zijn
 npm run test:unit        # 1166 tests, pure functies, geen DB/API-key
-npm run test:chain       # 132 ketentests, echte handlers tegen echte Postgres, geen netwerk
+npm run test:chain       # 145 ketentests, echte handlers tegen echte Postgres, geen netwerk
 npm run test:openai      # rooktest, MAAKT ECHTE BETAALDE CALLS
 npm run eval:mention     # accuratesse mention-classificatie (vereist API-key)
 ```

@@ -1538,6 +1538,180 @@ async function main(): Promise<void> {
     ok("en er staan vijf vragen, precies 0 + 2 + 3", totaal[0].n === 5, `kreeg ${totaal[0].n}`);
 
     // ══════════════════════════════════════════════════════════════════════
+    // Wedstrijdcondities: twee dingen die tegelijk gebeuren
+    //
+    // ⚠️ Dit soort fout duikt bij een gewone test nooit op, want een tester doet
+    // nooit twee dingen op exact hetzelfde moment. Het gebeurt pas met een
+    // echte klant, en dan op het slechtste moment. Beide gevallen hier zijn
+    // met `Promise.all` afgedwongen: twee aanroepen die ECHT tegelijk bij de
+    // database aankomen, niet kort na elkaar.
+    // ══════════════════════════════════════════════════════════════════════
+    console.log("\nWedstrijdcondities");
+
+    const { approveMonth, removePage } = await import("@/lib/plans");
+
+    // ── Twee mensen keuren dezelfde maand tegelijk goed ──────────────────────
+    const raceePlan = randomUUID();
+    await db.client.query(
+      `insert into public.content_plans (id, profile_id, pages_per_month, started_on, version, status)
+       values ($1, $2, 10, current_date, 1, 'concept')`,
+      [raceePlan, profileId],
+    );
+    const { rows: raceeMaandRij } = await db.client.query(
+      `insert into public.plan_months (plan_id, month_number, status)
+       values ($1, 1, 'concept') returning id`,
+      [raceePlan],
+    );
+    const raceeMaand = raceeMaandRij[0].id as string;
+
+    const eersteGebruiker = randomUUID();
+    const tweedeGebruiker = randomUUID();
+    for (const [id, mail] of [
+      [eersteGebruiker, "race-een@example.com"],
+      [tweedeGebruiker, "race-twee@example.com"],
+    ]) {
+      await db.client.query("insert into auth.users (id, email) values ($1, $2)", [id, mail]);
+    }
+
+    // Twee ECHT gelijktijdige aanroepen op dezelfde maand.
+    const [uitslagEen, uitslagTwee] = await Promise.all([
+      approveMonth(admin as never, raceeMaand, eersteGebruiker),
+      approveMonth(admin as never, raceeMaand, tweedeGebruiker),
+    ]);
+    ok("de eerste aanroep meldt geen fout", uitslagEen === true);
+    ok("de tweede aanroep meldt ook geen fout", uitslagTwee === true, "een race hoort geen 500 op te leveren");
+
+    const { rows: raceeUitkomst } = await db.client.query(
+      "select status, approved_by_user_id from public.plan_months where id = $1",
+      [raceeMaand],
+    );
+    ok("de maand staat op goedgekeurd", raceeUitkomst[0].status === "goedgekeurd");
+    // ⚠️ DE KERN: precies één van de twee heeft 'm daadwerkelijk goedgekeurd.
+    // De atomaire voorwaardelijke update (`neq status 'goedgekeurd'`) zorgt
+    // ervoor dat de database, niet de applicatiecode, de wedstrijd beslist.
+    ok(
+      "en precies één van de twee staat als goedkeurder geregistreerd",
+      raceeUitkomst[0].approved_by_user_id === eersteGebruiker ||
+        raceeUitkomst[0].approved_by_user_id === tweedeGebruiker,
+    );
+
+    const { rows: raceePlanNa } = await db.client.query(
+      "select status from public.content_plans where id = $1",
+      [raceePlan],
+    );
+    ok("en het plan zelf is precies één keer op actief gezet", raceePlanNa[0].status === "actief");
+
+    // ── Een pagina wordt verwijderd terwijl hij net geschreven is ────────────
+    //
+    // Dit dwingt de wedstrijdconditie zelf af: de content-taak wint de race
+    // (zijn UPDATE committeert eerst), en pas dáárna probeert de klant de
+    // pagina te verwijderen. Vóór de reparatie besliste `removePage` op een
+    // lezing van vóór die race en schoof de buffer alsnog in voor een slot dat
+    // al gevuld was.
+    const { rows: raceeFunnelRij } = await db.client.query(
+      `insert into public.profile_funnel_stages (profile_id, label, sort_order)
+       values ($1, 'Beslissing', 1) returning id`,
+      [profileId],
+    );
+    const { rows: raceePaginaRijen } = await db.client.query(
+      `insert into public.planned_pages
+         (plan_month_id, profile_id, title, page_type, funnel_stage_id, sort_order, is_buffer, scheduled_for, status)
+       values ($1, $2, 'Racepagina', 'informatief', $3, 5, false, current_date + 5, 'gepland'),
+              ($1, $2, 'Racebuffer', 'informatief', $3, 6, true, null, 'gepland')
+       returning id, title`,
+      [raceeMaand, profileId, raceeFunnelRij[0].id],
+    );
+    const raceePagina = (raceePaginaRijen as { id: string; title: string }[]).find((p) =>
+      p.title === "Racepagina",
+    )!.id;
+    const raceeBuffer = (raceePaginaRijen as { id: string; title: string }[]).find((p) =>
+      p.title === "Racebuffer",
+    )!.id;
+
+    // De content-taak "wint": zet de pagina op geschreven vóórdat de klant
+    // verwijdert. Dit is precies wat `linkPlannedPage` in productie doet.
+    await db.client.query(
+      "update public.planned_pages set status = 'ter_goedkeuring' where id = $1",
+      [raceePagina],
+    );
+
+    const raceeUitkomstVerwijderen = await removePage(admin as never, raceePagina);
+    ok("verwijderen zelf lukt", raceeUitkomstVerwijderen.ok === true);
+    // ⚠️ DE KERN: geen buffer, want de pagina was op het moment van de
+    // verwijdering al 'geschreven' en niet meer 'gepland'. De voorwaardelijke
+    // UPDATE zag dat, een lezing-vooraf had dat gemist.
+    ok(
+      "en de buffer schuift NIET in, want het werk was al gedaan",
+      raceeUitkomstVerwijderen.bufferUsed === false,
+    );
+
+    const { rows: bufferNa } = await db.client.query(
+      "select is_buffer, status from public.planned_pages where id = $1",
+      [raceeBuffer],
+    );
+    ok("de buffer staat nog gewoon als buffer", bufferNa[0].is_buffer === true);
+
+    const { rows: geschrevenPaginaNa } = await db.client.query(
+      "select status from public.planned_pages where id = $1",
+      [raceePagina],
+    );
+    ok(
+      "de geschreven pagina is nu afgewezen, de tekst blijft bewaard (conventie 8)",
+      geschrevenPaginaNa[0].status === "afgewezen",
+    );
+    // status is hier alleen op 'afgewezen' overschreven, verder niets: de
+    // koppeling naar de geschreven tekst (content_piece_id) blijft intact,
+    // want removePage raakt alleen de statuskolom aan.
+
+    // ── En de omgekeerde volgorde: verwijderen vóórdat er iets geschreven is ──
+    // Hier hoort de buffer wél in te schuiven.
+    const { rows: raceePagina2Rijen } = await db.client.query(
+      `insert into public.planned_pages
+         (plan_month_id, profile_id, title, page_type, funnel_stage_id, sort_order, is_buffer, scheduled_for, status)
+       values ($1, $2, 'Racepagina twee', 'informatief', $3, 7, false, current_date + 9, 'gepland')
+       returning id`,
+      [raceeMaand, profileId, raceeFunnelRij[0].id],
+    );
+    const raceePagina2 = raceePagina2Rijen[0].id as string;
+
+    const uitkomst2 = await removePage(admin as never, raceePagina2);
+    ok("verwijderen van een nog niet geschreven pagina lukt", uitkomst2.ok === true);
+    ok("en nu schuift de overgebleven buffer wél in", uitkomst2.bufferUsed === true);
+
+    // ── Twee gelijktijdige verwijderingen die om dezelfde buffer strijden ────
+    const { rows: raceeBuffer2Rij } = await db.client.query(
+      `insert into public.planned_pages
+         (plan_month_id, profile_id, title, page_type, funnel_stage_id, sort_order, is_buffer, scheduled_for, status)
+       values ($1, $2, 'Racebuffer twee', 'informatief', $3, 8, true, null, 'gepland')
+       returning id`,
+      [raceeMaand, profileId, raceeFunnelRij[0].id],
+    );
+    const { rows: tweeStrijders } = await db.client.query(
+      `insert into public.planned_pages
+         (plan_month_id, profile_id, title, page_type, funnel_stage_id, sort_order, is_buffer, scheduled_for, status)
+       values ($1, $2, 'Strijder A', 'informatief', $3, 9, false, current_date + 11, 'gepland'),
+              ($1, $2, 'Strijder B', 'informatief', $3, 10, false, current_date + 12, 'gepland')
+       returning id`,
+      [raceeMaand, profileId, raceeFunnelRij[0].id],
+    );
+    const [strijderA, strijderB] = (tweeStrijders as { id: string }[]).map((r) => r.id);
+
+    const [uitkomstA, uitkomstB] = await Promise.all([
+      removePage(admin as never, strijderA),
+      removePage(admin as never, strijderB),
+    ]);
+    const aantalBufferClaims = [uitkomstA.bufferUsed, uitkomstB.bufferUsed].filter(Boolean).length;
+    ok("allebei de verwijderingen lukken", uitkomstA.ok && uitkomstB.ok);
+    // ⚠️ DE KERN: er was maar één buffer, dus hoogstens één van de twee mag
+    // 'm claimen. Zonder de `is_buffer`-guard op de tweede update konden beide
+    // "bufferUsed: true" melden terwijl er maar één buffer was.
+    ok(
+      "precies één van de twee claimt de ene overgebleven buffer, niet allebei",
+      aantalBufferClaims === 1,
+      `${aantalBufferClaims} claims op één buffer`,
+    );
+
+        // ══════════════════════════════════════════════════════════════════════
     // Een klant volledig verwijderen (F4, AVG)
     //
     // ⚠️ Dit hoort bij uitstek in de ketentest en niet in test-unit.ts, want het

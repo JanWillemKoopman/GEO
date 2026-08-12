@@ -80,7 +80,7 @@ dit een maand kan draaien met echte klanten en echt geld.
 | **P4** | **Waarneembaar bij storing.** Als het om drie uur 's nachts breekt, zie je dat dan | **Nee.** Alles gaat naar `console.log` in Vercel. Er is geen melding, geen drempel, niemand die iets hoort |
 | **P5** | **Herstelbaar.** Backups, en een klant volledig kunnen verwijderen | **Deels.** Supabase maakt backups; een klant verwijderen kan niet |
 | **P6** | **Grenzen getest.** Nul onderwerpen, 150 pagina's, een merknaam van 200 tekens | **Nee.** Nooit gedaan |
-| **P7** | **Geen wedstrijdcondities.** Twee mensen die tegelijk hetzelfde doen | **Onbekend.** Zie D4, D7 en D10 |
+| **P7** | ~~**Geen wedstrijdcondities.** Twee mensen die tegelijk hetzelfde doen~~ | **Af.** Zie D4, D7 en D10 hieronder |
 
 ### P3: besluit 18, en de eerste helft is gebouwd
 
@@ -298,6 +298,25 @@ is de enige manier om te weten of de pijplijn na negen bouwrondes nog intact is.
 Hier jaagt het plan op het patroon uit §1. Vier rollen, en elke rol moet op elk scherm precies het
 juiste zien en mogen.
 
+**Af, leeskant. Gevonden: een echt gat, niet een randgeval.** Bij het narekenen bleek dat
+`analyses` en `profiles` een leesregel voor het hele account hebben (`readable_profile_ids()`,
+migratie 0046), maar de 23 tabellen die aan een merk of analyse hangen (`prompts`, `reports`,
+`visibility_scores`, `content_pieces`, `profile_topics`, en twintig andere) alleen een regel voor
+de historische eigenaar en de beheerder. Zodra je een tweede persoon bij een klantaccount
+uitnodigt, de collega, het bureau, komt hij binnen via `account_users` en niet via `user_id`. Het
+dossier zelf toont hij nog wel (`analyses`/`profiles` kende hem al), maar elk hoofdstuk erbinnen
+leest rechtstreeks met zijn sessie: nul vragen, geen score, een leeg rapport. Niet een foutmelding,
+gewoon niets. **Elk tweede teamlid dat ooit wordt uitgenodigd, liep hier middenin.**
+
+Gerepareerd in migratie `0056_leesregels_account.sql`: één extra leesregel per tabel naast de
+bestaande (Postgres combineert met OR, dus niets bestaands verandert), gebouwd op dezelfde
+`readable_profile_ids()`. Bewezen op productie zelf (met een echte tweede gebruiker, vóór en na de
+migratie) én met een permanente ketentest die vier rollen (eigenaar, teamlid, beheerder, vreemde)
+tegen echte RLS-regels in echte Postgres laat lezen. Diezelfde test dwong een langer openstaande
+tekortkoming in de testopstelling zelf open: `auth.uid()` gaf in de ketentest altijd `null` terug,
+dus geen enkele eerdere test kon ooit "de juiste persoon ziet het, de verkeerde niet" controleren.
+Nu leest hij, net als op productie, `request.jwt.claim.sub`.
+
 | Rol | Wie | Hoe hij binnenkomt |
 |---|---|---|
 | **Beheerder** | jij | `staff_users`, ziet alles |
@@ -405,17 +424,38 @@ je product leert kennen.
 | D1 | OpenAI-krediet raakt op halverwege een meting | Taken falen na vier pogingen, analyse op `mislukt`, melding zegt wat er is | Deels: dit gebeurde op 5 augustus |
 | D2 | De website van de klant is onbereikbaar tijdens de crawl | Duidelijke melding, doorgaan met `force` | Gebouwd, nooit getest |
 | D3 | Een klant keurt een maand af | Plan blijft staan, Aura stelt iets nieuws voor | Gebouwd, nooit getest |
-| D4 | Twee mensen keuren dezelfde maand tegelijk goed | Eén wint, de ander krijgt geen fout | **Onbekend** |
+| D4 | Twee mensen keuren dezelfde maand tegelijk goed | Eén wint, de ander krijgt geen fout | **Was al veilig, nu bewezen.** `approveMonth()` gebruikt een voorwaardelijke atomaire update; de database beslist de wedstrijd, niet de applicatiecode |
 | D5 | De klant sluit de tab tijdens de onboarding | Alles loopt door, hij ziet het bij terugkomst | Ontworpen, nooit getest |
 | D6 | Search Console: verkeerde property ingevuld | 404 van Google wordt een Nederlandse zin | Gebouwd, wacht op de sleutel |
-| D7 | Een pagina wordt geschreven terwijl de klant hem verwijdert | De buffer schuift in, geen spookpagina | **Onbekend** |
+| D7 | Een pagina wordt geschreven terwijl de klant hem verwijdert | De buffer schuift in, geen spookpagina | **Was stuk, nu gerepareerd.** `removePage()` besliste op een lezing van vóór de race of de buffer moest inschuiven. Gerepareerd: de voorwaardelijke update zelf bepaalt het, op het moment van schrijven |
 | D8 | Uitnodigingslink wordt twee keer geopend | Tweede keer: "al gebruikt" | Getest in de keten |
 | D9 | De worker valt om midden in een zware taak | Taak wordt na 5 minuten teruggevorderd | Gebouwd, één keer gezien |
-| D10 | Een merk wordt gearchiveerd terwijl er taken lopen | Taken lopen door, niets is zichtbaar | **Onbekend** |
+| D10 | Een merk wordt gearchiveerd terwijl er taken lopen | Taken lopen door, niets is zichtbaar | **Af**, gerepareerd op 12 augustus toen dit spoor voor het eerst werd opgepakt: de werker controleert per taak, vlak vóór hij hem uitvoert, of het merk of de analyse gearchiveerd is |
 
-**D4, D7 en D10 zijn de interessantste**, want dat zijn wedstrijdcondities: twee dingen die tegelijk
-gebeuren. Die zijn nooit getest en ze zijn precies het soort fout dat pas bij een echte klant opduikt,
-op het slechtste moment. Ze horen in de ketentest, want daar kan ik de volgorde afdwingen.
+**D4, D7 en D10 waren de interessantste, en D7 bleek ook echt stuk.** Wedstrijdcondities zijn
+precies het soort fout dat pas bij een echte klant opduikt, op het slechtste moment, en ze zijn met
+een gewone test niet te vinden: een tester doet nooit twee dingen op exact hetzelfde moment.
+
+**D4 (twee goedkeuringen tegelijk) bleek al veilig.** `approveMonth()` gebruikt een voorwaardelijke
+`UPDATE ... WHERE status <> 'goedgekeurd'`: Postgres serialiseert de twee gelijktijdige updates zelf,
+en de tweede vindt de rij al gewijzigd en doet niets. Geen fout voor de tweede klikker, geen dubbele
+facturatie. Nu bewezen met een ketentest die twee écht gelijktijdige aanroepen afdwingt
+(`Promise.all`), niet aangenomen.
+
+**D7 (verwijderen tijdens schrijven) was stuk.** `removePage()` las eerst de status van de pagina en
+besliste dáárna, op die verouderde lezing, of de buffer moest inschuiven. Precies tussen die lezing en
+die beslissing kan de content-taak de pagina op `ter_goedkeuring` gezet hebben: dan schuift de buffer
+alsnog in voor een slot dat al gevuld was, en staat er een verweesde geschreven pagina naast een
+buffer die er niet had hoeven komen. Gerepareerd door de voorwaardelijke update zelf te laten bepalen
+of de buffer inschuift (hetzelfde patroon als `approveMonth`), en meteen een tweede, verwante race
+gedicht: twee gelijktijdige verwijderingen die om dezelfde ene buffer streden, konden hem allebei
+claimen. Beide vastgelegd in een ketentest die eerst bewijst dat de fout zonder de guard optreedt
+("2 claims op één buffer"), en dan dat de guard hem voorkomt.
+
+**D10 (archiveren tijdens lopende taken) was al gerepareerd** in dezelfde ronde als F5, eerder op 12
+augustus: de werker controleert per taak, vlak vóór hij hem uitvoert, of het merk of de analyse
+gearchiveerd is. Die controle zit op het laatst mogelijke moment vóór er geld wordt uitgegeven, dus de
+volgorde waarin archiveren en inplannen gebeuren maakt niet uit.
 
 ---
 

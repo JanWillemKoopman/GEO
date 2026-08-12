@@ -2510,3 +2510,33 @@ repareert een deur die te veel dichtzat en opent er geen die open hoort te blijv
 migraties om al deed. Een nieuwe ketentest zet vier rollen tegenover elkaar (eigenaar, teamlid,
 beheerder, vreemde) en is met opzet rood gemaakt om te bewijzen dat hij dit gat vangt. 1166
 unittests, 132 ketentests.
+
+**Wedstrijdcondities: drie situaties nagerekend, één bleek echt kapot.** Aansluitend op de
+rolmatrix drie vragen doorgerekend over wat er gebeurt als twee dingen op precies hetzelfde moment
+gebeuren, met echte gelijktijdige aanroepen (`Promise.all`) tegen echte Postgres, niet in mijn
+hoofd.
+
+Een maand twee keer tegelijk goedkeuren (`approveMonth`) bleek al veilig: de `UPDATE ... WHERE
+status <> 'goedgekeurd'` in `lib/plans.ts` laat de database zelf beslissen wie wint, dus precies één
+van de twee aanroepen zet `approved_by_user_id`. Dat is bewezen, niet aangenomen.
+
+Een pagina verwijderen (`removePage`) bleek dat niet. De functie las eerst of een pagina nog
+`gepland` was, en besliste dáárna, op die verouderde lezing, of de buffer van die maand moest
+inschuiven. Precies tussen die lezing en die beslissing kan de content-taak de pagina al naar
+`geschreven` hebben gezet: dan schuift de buffer alsnog in voor een plek die al gevuld was, en
+staat er een geschreven pagina naast een buffer die er niet had hoeven komen. Voor de klant
+betekent dat een maand die stilzwijgend een pagina te veel toont, of een buffer die "verdwenen" is
+zonder dat iemand hem gebruikt heeft.
+
+Gerepareerd door dezelfde soort voorwaardelijke `UPDATE` als bij `approveMonth`: de database
+beslist met `WHERE status = 'gepland'` op het moment zelf, niet een `SELECT` ervoor. Bij het
+nabouwen van de proef kwam er een tweede, kleinere race boven water in dezelfde functie: twee
+pagina's die vrijwel gelijktijdig verwijderd worden in dezelfde maand konden dezelfde buffer allebei
+claimen, zodat de ene verwijdering denkt dat hij is opgevuld terwijl dat niet zo is. Eén extra
+voorwaarde (`is_buffer = true` in de claim-update) sluit ook dat. Beide routes zijn met opzet eerst
+rood gemaakt (de guard tijdelijk weggehaald) om te bewijzen dat de proef het gat echt vangt, en
+daarna weer dichtgezet.
+
+De derde vraag, of twee tegelijk lopende achtergrondtaken elkaar dezelfde klus kunnen laten doen, was
+al gesloten door het werk van eerder deze week: `claim_jobs()` pakt een taak atomisch met een
+databaseslot, en dat is al met een ketentest bewezen. 1166 unittests, 145 ketentests.
