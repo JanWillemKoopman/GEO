@@ -8,8 +8,7 @@ import "server-only";
 import { cache } from "react";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { isStaff } from "@/lib/staff";
-import { isMember } from "@/lib/accounts";
+import { hasAccess } from "@/lib/access";
 import type { Profile } from "@/lib/types/database";
 
 /**
@@ -54,8 +53,13 @@ export async function getOwnedProfile(
   const { data } = await admin.from("profiles").select("*").eq("id", id).maybeSingle();
   if (!data) return null;
   const profile = data as Profile;
-  if (await isMember(userId, profile.account_id)) return profile;
-  if (profile.user_id === userId) return profile;
-  if (await isStaff(userId)) return profile;
-  return null;
+
+  // Het oordeel staat in `lib/access.ts` en niet hier: deze functie en
+  // `getOwnedAnalysis` dreven precies op dit punt uit elkaar. Zie de kop van
+  // dat bestand voor wat dat kostte.
+  const ok = await hasAccess(userId, {
+    ownerId: profile.user_id,
+    accountId: profile.account_id,
+  });
+  return ok ? profile : null;
 }

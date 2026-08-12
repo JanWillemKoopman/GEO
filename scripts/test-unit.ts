@@ -5009,6 +5009,40 @@ group("elke dure route vraagt het aan dezelfde functie", () => {
 });
 
 // ════════════════════════════════════════════════════════════════════════════
+console.log("\nDe toegangscontrole (F3)");
+
+group("er is nog maar één plek met de drie lagen", () => {
+  // ⚠️ BRONCODECONTROLE, om dezelfde reden als bij de kostenrem: de fout die
+  // dit voorkomt is niet "de controle werkt niet" maar "er komt een laag bij en
+  // één van de twee functies krijgt hem niet". Precies dat gebeurde op 11
+  // augustus 2026 met migratie 0046: `getOwnedProfile` kreeg de accountlaag,
+  // `getOwnedAnalysis` niet, en een uitgenodigde klant kon daardoor niets
+  // goedkeuren terwijl hij alles wél zag staan.
+  const profielBron = readFileSync("lib/profiles.ts", "utf8");
+  const analyseBron = readFileSync("lib/analyses.ts", "utf8");
+  const accessBron = readFileSync("lib/access.ts", "utf8");
+
+  ok("profiles.ts vraagt het aan hasAccess", profielBron.includes("hasAccess("));
+  ok("analyses.ts ook", analyseBron.includes("hasAccess("));
+
+  // En ze mogen het niet meer zélf beslissen. Staat `isStaff(` of `isMember(`
+  // weer in een van beide, dan is er een tweede oordeel bijgekomen.
+  ok(
+    "profiles.ts velt zelf geen oordeel meer",
+    !profielBron.includes("isStaff(") && !profielBron.includes("isMember("),
+  );
+  ok(
+    "analyses.ts ook niet",
+    !analyseBron.includes("isStaff(") && !analyseBron.includes("isMember("),
+  );
+
+  // De drie lagen staan er alle drie, op die ene plek.
+  ok("access.ts kent de eigenaarslaag", accessBron.includes("subject.ownerId === userId"));
+  ok("access.ts kent de accountlaag", accessBron.includes("isMember(userId"));
+  ok("access.ts kent de beheerderslaag", accessBron.includes("isStaff(userId)"));
+});
+
+// ════════════════════════════════════════════════════════════════════════════
 console.log("\nHet budgetplafond (F1)");
 
 group("spendVerdict: onder, op en over het plafond", () => {

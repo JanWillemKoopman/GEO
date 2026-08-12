@@ -205,12 +205,32 @@ gepubliceerd. Zodra het merk zijn werk gedaan heeft, archiveer ik het.
 | A6 | Pakket zetten en plan opstellen | 12 maanden, 132 pagina's, maand 1 ter goedkeuring | Fase 4 op verse data |
 | A7 | Maand 1 goedkeuren, cron aftrappen | Pagina's van gemeten onderwerpen gaan schrijven, de rest zegt waarom niet | De brug plan-naar-pijplijn |
 | A8 | Uitnodiging maken, link openen in een privévenster, wachtwoord zetten | Klant komt binnen en ziet zijn merk | Het pad van fase 2, nu met een echte browser |
-| A9 | Als klant: maand goedkeuren, pagina goedkeuren, feitvraag beantwoorden | Alle drie lukken | De reparatie van `getOwnedAnalysis`, in het echt |
+| A9 | Als klant: feitvraag beantwoorden, en kijken wat er NIET staat | De feitvraag lukt. De knoppen die geld kosten staan er niet, met een zin die zegt waarom | Besluit 18 en de reparatie van de rechtencontrole, in het echt |
 | A10 | Als klant: uitloggen, inloggen, wachtwoord wijzigen | Werkt, en de oude sessie blijft geldig | Fase 7 |
+
+⚠️ **A9 is op 11 augustus 2026 herschreven.** Er stond "als klant: maand goedkeuren, pagina
+goedkeuren". Dat kan sinds besluit 18 niet meer, en dat is precies wat deze stap nu moet aantonen:
+niet dat de klant het kan, maar dat hij een uitleg ziet in plaats van een knop die een foutmelding
+geeft. Een knop tonen die 403 oplevert is erger dan geen knop.
 
 **Wat ik per stap vastleg:** duur, kosten, elke melding die ik zag, elk moment waarop ik moest nadenken
 over wat er van me verwacht werd. Dat laatste is de belangrijkste kolom, en hij is alleen bij de
 eerste doorloop eerlijk in te vullen.
+
+### Wie doet welke stap, en wanneer dit kan
+
+**A1 tot en met A7 kan ik alleen doen, zonder jou.** Ze lopen allemaal via de app en de pijplijn.
+Kosten samen ~$1,10, doorlooptijd ongeveer een half uur, waarvan de onboarding ~7,5 minuut wachten is
+en de meetronde het meeste van de rest.
+
+**A8 tot en met A10 kan ik niet doen en jij wel.** Ze vragen een echte browser: een uitnodigingslink
+openen in een privévenster, een wachtwoord zetten, in- en uitloggen. De browser in mijn omgeving komt
+niet door de uitgaande proxy heen (drie configuraties geprobeerd, alle drie een verbroken verbinding),
+dus ik kan wel HTML en statuscodes lezen maar geen scherm bedienen. Dat kost jou ongeveer een kwartier.
+
+**Er is geen technische reden om te wachten.** Alles wat spoor A nodig heeft, staat sinds 11 augustus
+2026 op productie: de regionale regel, de kostenrem, het budgetplafond en de blokkerende
+werkgebiedregel. Het enige dat nodig is, is akkoord om ~$1,10 uit te geven.
 
 ⚠️ **A2 en A5 kosten samen ongeveer $1,10 per merk.** Dat is het hele budget van dit spoor waard: het
 is de enige manier om te weten of de pijplijn na negen bouwrondes nog intact is.
@@ -526,7 +546,7 @@ Dit spoor bouwt, de andere vijf toetsen. Het staat er omdat vier van de zeven pu
 |---|---|---|---|
 | F1 | ~~**Maandplafond per account plus een dagplafond over alles**~~ | P3 | **Af.** Zie hieronder |
 | F2 | **Kosten bij de knop** die geld kost | P3, en het is beter dan Nova | 2 uur |
-| F3 | **Eén toegangsfunctie** in plaats van een tweeling | P2. De structuur die de fout van vandaag mogelijk maakte, staat er nog | 0,5 dag |
+| F3 | ~~**Eén toegangsfunctie** in plaats van een tweeling~~ | P2 | **Af.** `lib/access.ts`, zie hieronder |
 | F4 | **Een klant volledig verwijderen** | P5, en het is een AVG-plicht zodra er echte bedrijfsgegevens in staan | 0,5 dag |
 | F5 | **De stille-fout-ronde**: elke `catch` en elke `?? null` in `lib/` nalopen | P1. Twee van de vijf fouten van vandaag waren precies dit | 0,5 dag |
 
@@ -576,6 +596,23 @@ falen. Alle 1.140 bestaande rijen zijn bijgewerkt, nul bleven er onverdeeld.
 de elf routes die werk in gang zetten, niet op de uitvoering. Dat is bewust (zie "geen exacte
 boekhouding"), maar het betekent dat een wachtrij die vollopen is vóór het plafond bereikt wordt,
 alsnog leegloopt.
+
+#### F3 is af: het oordeel staat nog op één plek
+
+`lib/access.ts` beantwoordt sinds 11 augustus 2026 als enige de vraag "mag deze gebruiker hierbij".
+De drie lagen (zit je in het account, ben je de historische eigenaar, ben je beheerder van Aura)
+staan daar één keer. `getOwnedProfile` en `getOwnedAnalysis` zoeken alleen nog de rij op en vragen
+het oordeel.
+
+**Wat er bewust NIET samengevoegd is:** het ophalen zelf. Een merk draagt zijn account direct, een
+analyse niet: die hangt aan een merk en het merk hangt aan een account. Dat verschil is echt en moet
+blijven, want een merk kan bij een toewijzing van account wisselen en dan verhuizen zijn analyses
+vanzelf mee. Het samenvoegen van dát verschil zou een fout zijn geweest, geen opruiming.
+
+Een broncodecontrole in `scripts/test-unit.ts` houdt het zo: staat er ooit weer een eigen
+`isStaff(` of `isMember(` in een van de twee functies, dan is er een tweede oordeel bijgekomen en
+valt de test om. Dat is de fout die migratie 0046 maakte, en die kostte de eerste uitgenodigde klant
+elke schrijfactie die het product voor hem bedoelde.
 
 **F1 tot en met F4 zijn lanceervoorwaarden.** F5 is dat niet, en hij levert waarschijnlijk het meeste
 op per uur: het is de enige die zoekt naar fouten die nog niemand gezien heeft.

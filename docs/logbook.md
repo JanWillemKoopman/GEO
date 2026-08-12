@@ -2254,3 +2254,25 @@ bijgewerkt, nul bleven er onverdeeld. Totaal uitgegeven sinds de start: $13,38.
 kende, precies de klasse fout waar die shim voor gewaarschuwd is. Maar de melding eronder liet zien
 dat de zachte terugval werkt zoals bedoeld: de handeling ging door, luid gelogd, en niet stil
 geblokkeerd. De shim kent nu `gte`, `gt`, `lte`, `lt` en `range`. 1088 unittests, 92 ketentests.
+
+**F3: de tweeling is opgeheven.** `getOwnedProfile` en `getOwnedAnalysis` hadden allebei dezelfde
+drie lagen, op twee plekken uitgeschreven. Toen migratie 0046 de accountlaag toevoegde, kreeg de
+eerste hem wel en de tweede niet, en dat bleef bijna onzichtbaar doordat lezen over RLS loopt en die
+de laag wel had: een uitgenodigde klant zag zijn analyses gewoon staan. Maar élke schrijfactie loopt
+over deze controle, dus precies de persoon voor wie het product bedoeld is kon niets bevestigen,
+niets laten schrijven en niets goedkeuren.
+
+De reparatie van die dag was de tweede functie bijwerken. `lib/access.ts` is de reparatie van de
+oorzaak: de drie lagen staan er één keer, en een vierde laag verandert voortaan één plek. Een
+broncodecontrole houdt het zo, want zodra er weer een eigen `isStaff(` of `isMember(` in een van de
+twee functies staat, is er een tweede oordeel bijgekomen.
+
+**Wat er bewust niet is samengevoegd:** het ophalen van de rij. Een merk draagt zijn account direct,
+een analyse niet, die hangt aan een merk en het merk hangt aan een account. Dat verschil is echt en
+moet blijven, want een merk kan bij een toewijzing van account wisselen en dan verhuizen zijn
+analyses vanzelf mee. Alleen het OORDEEL was dubbel, niet het opzoeken. 1095 unittests.
+
+**Stap A9 van het lanceerplan is herschreven.** Er stond "als klant: maand goedkeuren, pagina
+goedkeuren", en dat kan sinds besluit 18 niet meer. De stap toetst nu het omgekeerde: ziet de klant
+een uitleg in plaats van een knop die een foutmelding geeft. Een plan dat nog uitgaat van de oude
+rolverdeling toetst het verkeerde en geeft groen licht op iets dat niet meer bestaat.

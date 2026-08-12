@@ -8,8 +8,7 @@ import "server-only";
 import { cache } from "react";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { isStaff } from "@/lib/staff";
-import { isMember } from "@/lib/accounts";
+import { hasAccess } from "@/lib/access";
 import type { Analysis } from "@/lib/types/database";
 
 /**
@@ -59,22 +58,23 @@ export async function getOwnedAnalysis(
   if (!data) return null;
   const analyse = data as Analysis;
 
-  if (analyse.user_id === userId) return analyse;
-
   // Via het merk naar het account. Een analyse heeft zelf geen `account_id`:
   // hij hangt aan een merk, en het merk hangt aan een account. Die sprong hoort
   // hier en niet in een kolom, want een merk kan van account wisselen bij een
   // toewijzing en dan moeten de analyses vanzelf meeverhuizen.
+  //
+  // Dit ophalen is het ENIGE wat hier anders is dan bij `getOwnedProfile`. Het
+  // oordeel zelf staat in `lib/access.ts`, want daar liep het een keer mis.
+  let accountId: string | null = null;
   if (analyse.profile_id) {
     const { data: profielRij } = await admin
       .from("profiles")
       .select("account_id")
       .eq("id", analyse.profile_id)
       .maybeSingle();
-    const accountId = (profielRij?.account_id as string | null) ?? null;
-    if (await isMember(userId, accountId)) return analyse;
+    accountId = (profielRij?.account_id as string | null) ?? null;
   }
 
-  if (await isStaff(userId)) return analyse;
-  return null;
+  const ok = await hasAccess(userId, { ownerId: analyse.user_id, accountId });
+  return ok ? analyse : null;
 }
