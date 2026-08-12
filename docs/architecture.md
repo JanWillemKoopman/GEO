@@ -63,6 +63,32 @@ Daarom pg_cron.
 - **Registratie:** twee lagen, Supabase "Allow new users to sign up" (harde poort, ook tegen
   directe API-aanroepen) en `SIGNUPS_ENABLED` in de app (verbergt UI, blokkeert de server action).
 
+### Betaald werk: twee onafhankelijke remmen
+
+Elf routes zetten werk in gang dat geld kost. Ze stellen allemaal dezelfde twee vragen, in deze
+volgorde, en een route die er één vergeet wordt door een broncodecontrole in `scripts/test-unit.ts`
+tegengehouden.
+
+| | Vraag | Waar | Antwoord bij weigering |
+|---|---|---|---|
+| 1 | **Wie** mag dit starten? | `lib/cost-guard.ts` | 403, met een eigen zin per handeling (`lib/cost-rules.ts`) |
+| 2 | **Hoeveel** is er nog over? | `lib/spend-limit.ts` | 402, met bedrag, plafond en waar je het verhoogt |
+
+Vraag 1 is besluit 18: alleen de beheerder. Vraag 2 zijn twee plafonds, €50 per account per maand en
+€150 per dag over alle accounts samen, allebei instelbaar (`MONTHLY_BUDGET_EUR`, `DAILY_BUDGET_EUR`)
+en per account te overschrijven via `accounts.monthly_budget_eur`. De regels en bedragen staan puur
+en testbaar in `lib/spend-rules.ts`.
+
+⚠️ **De twee remmen falen expres de andere kant op.** Vraag 1 faalt naar "nee": gaat de controle
+stuk, dan kan iemand even niets, en dat is het veiligste. Vraag 2 faalt naar "ja": zou die naar
+"geblokkeerd" vallen, dan legt één trage query de hele pijplijn plat voor alle klanten, inclusief
+werk dat allang betaald is. Dat wordt wel luid gelogd, want een rem die stil niet werkt is erger dan
+geen rem.
+
+De rem zit op het **starten** van werk, niet op de werker. Een taak die al in de wachtrij staat
+draait door, en een meetronde wordt nooit halverwege afgekapt: een halve analyse is een groter
+probleem dan een dollar.
+
 ## 3. Datamodel, de kern
 
 | Tabel | Wat het is |
@@ -153,7 +179,7 @@ Bron: `lib/jobs/{types,queue,worker,handlers,pending}.ts`.
 | 4e | Synthese | **sol** (`SYNTHESIS_PREMIUM`) | `synthesis.ts`: dossier, gespreksagenda en `brand_facts`, alleen feiten waarvan het citaat letterlijk op de bronpagina staat. |
 | 5 | Analyse aanmaken |, | Verplicht onderwerp + optionele content-brief. |
 | 6 | Onderwerp-onderzoek (A1') | luna, web_search | Wat de site over dít onderwerp zegt + welke concurrenten hier relevant zijn. |
-| 7 | Promptgeneratie (A2) | luna ×3 parallel, temp 0,8 (effort none) | 10 per funnelfase. Merk- en concurrentneutraal geformuleerd. Aparte calls per fase, want één grote call levert herhaling op. |
+| 7 | Promptgeneratie (A2) | luna ×3 parallel, temp 0,8 (effort none) | 10 per funnelfase. Merk- en concurrentneutraal geformuleerd. Aparte calls per fase, want één grote call levert herhaling op. **Bij een lokaal merk zijn alle vragen regionaal**, zie hieronder. |
 | 8 | Volumekalibratie | luna | Relatief gekalibreerd over álle prompts tegelijk, consistenter dan losse schattingen. Drie banden, geen verzonnen 0–100. |
 | 9 | **Goedkeuringspoort** |, | De pijplijn stopt. De klant ziet en bewerkt onderzoek + alle prompts, en klikt pas dan "Bevestig en start meting". Geen black box, en niets betaalds start zonder akkoord. |
 | 10 | Meting (A3) | 3a: luna + web_search, modelstandaard · 3b: luna, effort none | Per prompt: een gesimuleerd AI-antwoord, daarna een beoordeling per entiteit. 3a en 3b zijn los herhaalbaar, een mislukte 3b draait nooit opnieuw de dure 3a. |
@@ -184,6 +210,32 @@ de al bestaande `version-reason.ts` en `similarity.ts`:
   `validateOrRebuildJsonLd()` zodra de FAQ van een `type: "faq"`-pagina wijzigt, met
   `loadSchemaOrg()` (`lib/pipeline/content.ts`) als gedeelde bron voor de organisatieknoop, zodat
   die niet verdwijnt bij een herbouw.
+
+### De regionale regel bij een lokaal merk
+
+Staat `profiles.service_scope` op `lokaal` én zijn er regio's bekend, dan moet **elke** vraag een
+plaats, een provincie of een nabijheidswoord ("bij mij in de buurt") bevatten. Niet een deel, alle.
+
+**Waarom alles en niet een deel.** Een score is een aandeel: in hoeveel van de gemeten vragen word je
+genoemd. Zit er een vraag in die dit bedrijf per definitie niet kan winnen, dan is de uitkomst niet
+iets te laag maar onwaar. Gemeten bij Fysi-Unique, het enige merk met drie meetronden: van 57
+betaalde metingen op landelijke vragen leverde er niet één een vermelding op, terwijl de tien
+regionale vragen op score 28 uitkwamen.
+
+**Hoe het afgedwongen wordt** (conventie 1, een instructie is een intentie en code is een garantie):
+
+1. De promptinstructie noemt een concreet aantal, geen "een deel".
+2. `lib/pipeline/geo-share.ts` telt na afloop hoeveel er regionaal zijn.
+3. Klopt het niet, dan volgen maximaal drie bijvulronden die om regionale vragen vragen.
+4. Wat er dan nog landelijk is, wordt **geschrapt**. Liever een kleinere set die klopt: de
+   onzekerheidsband wordt breder bij minder vragen en dat is eerlijk zichtbaar, in plaats van een
+   precies getal dat niet waar is.
+5. Handmatig toevoegen of herschrijven van een vraag gaat door dezelfde poort
+   (`regionGateMessage()`), anders haalt één tekstveld de garantie onderuit.
+
+⚠️ **De hele regel hangt aan `service_scope`.** Staat dat veld leeg, dan vuurt er niets. Daarom is
+"Werkgebied vastgesteld" een blokkerende regel in het afrondingsblok van het merkdossier
+(`lib/pipeline/profile-readiness.ts`): zonder bereik is het dossier niet af.
 
 ## 6. Modellen, redeneerinspanning, feature-flags
 
@@ -410,7 +462,7 @@ Bewust **niet** in RLS: dat zou een gearchiveerd merk ook voor de eigenaar onber
 
 ## 12. Migraties
 
-`0001` t/m `0044`, alle toegepast op productie behalve `0033` (gereserveerd voor R6.2, nooit
+`0001` t/m `0053`, alle toegepast op productie behalve `0033` (gereserveerd voor R6.2, nooit
 gedraaid, de reservering verviel toen `0039` de inventariskwaliteit fase 0 van de nieuwe
 onboarding maakte; een gereserveerd nummer dat nooit draaide blokkeert niets).
 

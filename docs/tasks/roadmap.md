@@ -1,7 +1,11 @@
 # Roadmap, wat er nog open staat
 
-Op volgorde. **Stand: 10 augustus 2026**, 755 unittests + 47 ketentests groen, migraties t/m `0045`
+Op volgorde. **Stand: 11 augustus 2026**, 1088 unittests + 92 ketentests groen, migraties t/m `0053`
 toegepast (`0033` gereserveerd, nooit gedraaid, vervangen door `0039`).
+
+> ⚠️ **Het pad naar de lancering staat in [`lanceerplan.md`](./lanceerplan.md), niet hier.** Dat
+> document heeft de zes testsporen (A tot en met F plus R), de afvinklijst voor het lanceerbesluit en
+> de tweeweekse planning. Wat hieronder staat is het oudere werk. **Lees het lanceerplan eerst.**
 
 > ⚠️ **De richting van het product staat sinds 10 augustus 2026 in [`../Nova.md`](../Nova.md).**
 > Dat document bevat vier vastgelegde besluiten (merk-werkruimte, klantportaal met admin,
@@ -17,6 +21,16 @@ toegepast (`0033` gereserveerd, nooit gedraaid, vervangen door `0039`).
 > werk meer: **meertaligheid** (besluit 13) en de **donkere modus** (besluit 17).
 
 ## Afgerond sinds de vorige stand
+
+- **De acht Nova-fases** (10-11 augustus): merk-werkruimte, rollen en uitnodigingen,
+  merkprofiel-wizard, contentplan, CSM-paneel, Search Console, de lus gesloten, accountscherm.
+  Migraties `0046` t/m `0052`. Zie `logbook.md`.
+- **Besluit 18, de kostenrem**: alleen de beheerder start betaald werk (`lib/cost-guard.ts`).
+- **Spoor R, de regionale vragen**: een lokaal merk wordt uitsluitend op regionale vragen beoordeeld.
+  Vangnet in `lib/pipeline/geo-share.ts`, poort op handmatige invoer, en 55 landelijke vragen van
+  Van den Udenhout uitgezet. Open blijft R4 (het onderscheid tonen in het scherm) en R5 (de trendlijn
+  markeren waar de vragenset wijzigde).
+- **F1, het budgetplafond** (migratie `0053`): €50 per account per maand en €150 per dag over alles.
 
 - **Onboarding 2.0**, gebouwd én op productie geverifieerd in drie meetronden
   ($0,2438 / $0,2463 / $0,2495, ~7,5 minuut, acht taken). Zie `logbook.md` §14 en de dagnotities van

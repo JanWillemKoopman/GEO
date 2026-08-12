@@ -4,6 +4,22 @@
 (ChatGPT e.d.), adviseert, schrijft content, publiceert en meet het effect. Nederlands is de taal
 van de app, de AI-prompts, de code-commentaren en deze documentatie.
 
+**⚠️ Het antwoord aan de gebruiker is altijd in het Nederlands, en altijd te volgen zonder
+technische kennis.** Dit gaat over de samenvatting waarmee Claude Code een vraag of opdracht afsluit,
+niet over de code of de commits. Drie regels:
+
+1. **Nederlands**, ook als de vraag deels Engels was.
+2. **Begrijpelijk voor de product owner**, die geen ontwikkelaar is. Bestandsnamen, functienamen en
+   tabelnamen mogen erin, maar nooit als drager van de betekenis: de zin moet ook kloppen als je die
+   namen wegstreept. Dus niet "`getOwnedAnalysis` miste de accountlaag", maar "een uitgenodigde klant
+   kon niets goedkeuren, omdat de rechtencontrole zijn account niet meetelde".
+3. **Zeg wat het betekent, niet alleen wat er gebeurd is.** Een cijfer zonder gevolg is geen
+   informatie. Niet "55 vragen uitgezet", maar "55 vragen uitgezet, waardoor de volgende meting
+   alleen nog meet waar deze klant echt kan winnen".
+
+Wat er niet verandert: geen gedachtestreepjes (zie hieronder), geen verkooppraat, en een probleem
+wordt benoemd en niet weggeschreven. Begrijpelijk is niet hetzelfde als geruststellend.
+
 **Alle UI-copy volgt `docs/schrijfstijl.md`**: de tone-of-voice van InSpace Nova, vertaald naar
 Aura. Kort samengevat: je en jij, korte stellende zinnen, Aura als handelend onderwerp ("Aura leest
 je website uit", niet "de website wordt uitgelezen"), en het space-thema uitsluitend in namen en
@@ -65,8 +81,8 @@ zet `structured.ts` hem voor de rest van het proces uit in plaats van de taak te
 npm run dev              # localhost:3000
 npm run build            # productiebuild
 npx tsc --noEmit         # typecheck, moet schoon zijn
-npm run test:unit        # 735 tests, pure functies, geen DB/API-key
-npm run test:chain       # 47 ketentests, echte handlers tegen echte Postgres, geen netwerk
+npm run test:unit        # 1088 tests, pure functies, geen DB/API-key
+npm run test:chain       # 92 ketentests, echte handlers tegen echte Postgres, geen netwerk
 npm run test:openai      # rooktest, MAAKT ECHTE BETAALDE CALLS
 npm run eval:mention     # accuratesse mention-classificatie (vereist API-key)
 ```
@@ -127,7 +143,7 @@ lib/entities/      merknaam-normalisatie en -matching
 lib/schemas/       Zod-contracten      lib/stats/  onzekerheidsmarges
 lib/audit/         robots.txt / AI-crawlertoegang + entiteitsconsistentie
 lib/offsite/       off-site aanwezigheid     lib/archive.ts  wat zichtbaar is in de app
-supabase/migrations/  0001–0045 (0033 gereserveerd, nooit gedraaid, vervangen door 0039)
+supabase/migrations/  0001-0053 (0033 gereserveerd, nooit gedraaid, vervangen door 0039)
 scripts/           test-unit · test-chain · test-openai · eval-mention
 ```
 
