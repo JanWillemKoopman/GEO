@@ -1226,6 +1226,119 @@ async function main(): Promise<void> {
     await db.client.query("delete from public.ai_calls");
     ok("een leeg account begint weer op nul", (await checkBudget(budgetAccount)).ok);
 
+    // ══════════════════════════════════════════════════════════════════════
+    // Een klant volledig verwijderen (F4, AVG)
+    //
+    // ⚠️ Dit hoort bij uitstek in de ketentest en niet in test-unit.ts, want het
+    // hele mechanisme leunt op wat de DATABASE doet: bijna alles hangt met
+    // `on delete cascade` aan `profiles`, en `profiles.account_id` staat bewust
+    // op `no action` zodat een account met merken eraan niet zomaar weg kan.
+    // Een unittest zou alleen de teksten zien en geen van beide.
+    // ══════════════════════════════════════════════════════════════════════
+    console.log("\nEen klant volledig verwijderen");
+
+    const { deletionPlan, deleteAccount } = await import("@/lib/deletion");
+
+    // Vers decor, los van de rest van deze test: een klant met een merk, een
+    // analyse, een vraag en een meting, plus twee mensen erin.
+    const wegAccount = randomUUID();
+    const wegProfiel = randomUUID();
+    const wegAnalyse = randomUUID();
+    const wegPrompt = randomUUID();
+    const alleenHier = randomUUID();
+    const ookElders = randomUUID();
+    const anderAccount = randomUUID();
+
+    await db.client.query("insert into public.accounts (id, name) values ($1, 'Te Verwijderen BV')", [wegAccount]);
+    await db.client.query("insert into public.accounts (id, name) values ($1, 'Blijft Bestaan BV')", [anderAccount]);
+    for (const [id, mail] of [[alleenHier, "alleenhier@example.com"], [ookElders, "ookelders@example.com"]]) {
+      await db.client.query("insert into auth.users (id, email) values ($1, $2)", [id, mail]);
+    }
+    await db.client.query(
+      `insert into public.account_users (account_id, user_id, role) values
+       ($1, $2, 'admin'), ($1, $3, 'member'), ($4, $3, 'member')`,
+      [wegAccount, alleenHier, ookElders, anderAccount],
+    );
+    await db.client.query(
+      `insert into public.profiles (id, user_id, account_id, name, url, brand_name, status)
+       values ($1, $2, $3, 'Weg', 'https://weg.nl', 'Weg', 'klaar')`,
+      [wegProfiel, alleenHier, wegAccount],
+    );
+    await db.client.query(
+      `insert into public.analyses (id, user_id, profile_id, name, url, topic, status)
+       values ($1, $2, $3, 'Weg analyse', 'https://weg.nl', 'iets', 'gereed')`,
+      [wegAnalyse, alleenHier, wegProfiel],
+    );
+    await db.client.query(
+      `insert into public.prompts (id, analysis_id, text, category, active)
+       values ($1, $2, 'Waar in Breda?', 'Beslissing', true)`,
+      [wegPrompt, wegAnalyse],
+    );
+    await db.client.query(
+      `insert into public.tracking_runs (analysis_id, prompt_id, week_no, engine, prompt_text_snapshot, prompt_category_snapshot)
+       values ($1, $2, 1, 'openai', 'Waar in Breda?', 'Beslissing')`,
+      [wegAnalyse, wegPrompt],
+    );
+
+    // Eerst het overzicht: wat zou er verdwijnen? Dit verandert niets.
+    const plan = await deletionPlan(wegAccount);
+    ok("het plan vindt het account", plan?.accountName === "Te Verwijderen BV");
+    ok("en telt het merk", plan?.counts.merken === 1);
+    ok("en de analyse", plan?.counts.analyses === 1);
+    ok("en de meting", plan?.counts.metingen === 1);
+    ok("en de twee mensen erin", plan?.counts.gebruikers === 2);
+    ok("de regels noemen enkelvoud waar het één is", plan?.regels.includes("1 merk") === true);
+
+    // ⚠️ En het overzicht heeft niets weggegooid. Zonder deze controle zou een
+    // scherm dat alleen kijkt al kunnen verwijderen.
+    const { rows: nogSteedsDaar } = await db.client.query(
+      "select id from public.profiles where id = $1",
+      [wegProfiel],
+    );
+    ok("het opvragen van het plan verwijdert niets", nogSteedsDaar.length === 1);
+
+    // Nu echt.
+    const resultaat = await deleteAccount(wegAccount);
+    ok("er is één merk verwijderd", resultaat.merken === 1);
+
+    for (const [tabel, kolom, waarde] of [
+      ["accounts", "id", wegAccount],
+      ["profiles", "id", wegProfiel],
+      ["analyses", "id", wegAnalyse],
+      ["prompts", "id", wegPrompt],
+      ["account_users", "account_id", wegAccount],
+    ] as const) {
+      const { rows } = await db.client.query(
+        `select 1 from public.${tabel} where ${kolom} = $1`,
+        [waarde],
+      );
+      ok(`${tabel} is leeg voor deze klant`, rows.length === 0);
+    }
+
+    // De meting hangt via de analyse en gaat dus mee, ook al noemt de code hem
+    // nergens. Dat is precies wat de cascade hoort te doen.
+    const { rows: metingen } = await db.client.query(
+      "select 1 from public.tracking_runs where analysis_id = $1",
+      [wegAnalyse],
+    );
+    ok("en de metingen zijn via de cascade meegegaan", metingen.length === 0);
+
+    // ⚠️ De kern van de AVG-plicht: het dossier weghalen maar de inlog laten
+    // staan is geen verwijdering. Wie nergens anders bij hoort, gaat mee.
+    const { rows: weg } = await db.client.query("select 1 from auth.users where id = $1", [alleenHier]);
+    ok("de inlog van wie hier alleen zat, is weg", weg.length === 0);
+
+    // Maar wie nog bij een ander account hoort, blijft. Anders sluit het
+    // opruimen van klant A per ongeluk klant B buiten.
+    const { rows: blijft } = await db.client.query("select 1 from auth.users where id = $1", [ookElders]);
+    ok("wie nog elders lid is, houdt zijn inlog", blijft.length === 1);
+
+    const { rows: anderNog } = await db.client.query(
+      "select 1 from public.accounts where id = $1",
+      [anderAccount],
+    );
+    ok("en het andere account staat er nog", anderNog.length === 1);
+
     __setTestAdminClient(null);
     __setTestTransport(null);
   } finally {

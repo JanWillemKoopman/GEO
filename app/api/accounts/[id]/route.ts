@@ -4,6 +4,13 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { membershipsOf } from "@/lib/accounts";
 import { isStaff } from "@/lib/staff";
 import { EDITABLE_ACCOUNT_FIELDS } from "@/lib/account-editable";
+import { deletionPlan, deleteAccount } from "@/lib/deletion";
+import {
+  confirmationMatches,
+  deletionBlockade,
+  deletionWarning,
+  DELETION_BLOCKED,
+} from "@/lib/deletion-rules";
 
 /**
  * PATCH /api/accounts/[id], de bedrijfsgegevens van één account.
@@ -83,4 +90,116 @@ export async function PATCH(
     return NextResponse.json({ error: "Opslaan is niet gelukt." }, { status: 500 });
   }
   return NextResponse.json({ ok: true });
+}
+
+/**
+ * GET /api/accounts/[id]?plan=verwijderen, wat verdwijnt er als je dit weggooit?
+ *
+ * Verandert niets. Staat er zodat het scherm de aantallen kan tonen vóór de
+ * bevestiging: "dit verwijdert 3 merken, 5 analyses en 412 metingen" is een
+ * ander besluit dan "dit verwijdert een account".
+ */
+export async function GET(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  const { id } = await params;
+  const user = await getUser();
+  if (!user) return NextResponse.json({ error: "Je bent niet ingelogd." }, { status: 401 });
+
+  if (new URL(request.url).searchParams.get("plan") !== "verwijderen") {
+    return NextResponse.json({ error: "Onbekende opvraag." }, { status: 400 });
+  }
+
+  // Verwijderen is uitsluitend een handeling van de beheerder van Aura, ook al
+  // mag een account-admin de bedrijfsgegevens wél wijzigen. Het verschil: een
+  // wijziging draai je terug, dit niet.
+  if (!(await isStaff(user.id))) {
+    return NextResponse.json({ error: DELETION_BLOCKED.niet_gevonden }, { status: 404 });
+  }
+
+  const plan = await deletionPlan(id);
+  if (!plan) return NextResponse.json({ error: DELETION_BLOCKED.niet_gevonden }, { status: 404 });
+
+  const memberships = await membershipsOf(user.id);
+  const blokkade = deletionBlockade({
+    accountId: id,
+    eigenAccountIds: memberships.map((m) => m.accountId),
+  });
+
+  return NextResponse.json({
+    accountName: plan.accountName,
+    regels: plan.regels,
+    counts: plan.counts,
+    waarschuwing: deletionWarning(plan.accountName, plan.counts),
+    blokkade,
+  });
+}
+
+/**
+ * DELETE /api/accounts/[id], een klant volledig verwijderen (F4, AVG).
+ *
+ * ⚠️ ONOMKEERBAAR, en dat is het hele punt. Archiveren bestaat al en is het
+ * normale pad (besluit 14: opzeggen zet een datum en verwijdert niets). Dit is
+ * de uitzondering voor het geval dat de AVG afdwingt, en hij is met opzet
+ * omslachtig: alleen een beheerder van Aura, niet je eigen account, en de naam
+ * moet worden overgetypt.
+ *
+ * De naamcontrole staat hier en niet alleen in het scherm. Een bevestiging die
+ * je met een rechtstreekse aanroep kunt overslaan, is geen bevestiging.
+ */
+export async function DELETE(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  const { id } = await params;
+  const user = await getUser();
+  if (!user) return NextResponse.json({ error: "Je bent niet ingelogd." }, { status: 401 });
+
+  if (!(await isStaff(user.id))) {
+    return NextResponse.json({ error: DELETION_BLOCKED.niet_gevonden }, { status: 404 });
+  }
+
+  const plan = await deletionPlan(id);
+  if (!plan) return NextResponse.json({ error: DELETION_BLOCKED.niet_gevonden }, { status: 404 });
+
+  const memberships = await membershipsOf(user.id);
+  const blokkade = deletionBlockade({
+    accountId: id,
+    eigenAccountIds: memberships.map((m) => m.accountId),
+  });
+  if (blokkade) return NextResponse.json({ error: blokkade }, { status: 409 });
+
+  let body: { bevestiging?: string };
+  try {
+    body = (await request.json()) as { bevestiging?: string };
+  } catch {
+    return NextResponse.json({ error: "Ongeldige aanvraag." }, { status: 400 });
+  }
+
+  if (!confirmationMatches(body.bevestiging ?? "", plan.accountName)) {
+    return NextResponse.json({ error: DELETION_BLOCKED.naam_klopt_niet }, { status: 400 });
+  }
+
+  try {
+    const resultaat = await deleteAccount(id);
+    // Loggen en niet alleen antwoorden: dit is de enige handeling in de app
+    // waarvan het spoor niet in de database terug te vinden is, want de rijen
+    // die het bewijs zouden zijn, zijn juist weg.
+    console.warn(
+      `Account ${id} ("${plan.accountName}") verwijderd door ${user.id}: ` +
+        `${resultaat.merken} merken, ${resultaat.gebruikersVerwijderd} inlogaccounts.`,
+    );
+    return NextResponse.json({ ok: true, ...resultaat });
+  } catch (err) {
+    console.error(`Account ${id} verwijderen mislukt:`, err);
+    return NextResponse.json(
+      {
+        error:
+          "Het verwijderen is halverwege gestopt. Een deel kan al weg zijn. Probeer het opnieuw, " +
+          "de handeling maakt af wat er nog staat.",
+      },
+      { status: 500 },
+    );
+  }
 }

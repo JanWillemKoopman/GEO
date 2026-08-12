@@ -166,6 +166,12 @@ import {
 } from "@/lib/pipeline/geo-share";
 import { COST_DENIED } from "@/lib/cost-rules";
 import {
+  confirmationMatches,
+  deletionLines,
+  deletionWarning,
+  deletionBlockade,
+} from "@/lib/deletion-rules";
+import {
   spendVerdict,
   combinedVerdict,
   limitFromEnv,
@@ -5005,6 +5011,77 @@ group("elke dure route vraagt het aan dezelfde functie", () => {
   ok(
     "geen enkele melding zegt alleen 'geen toegang'",
     zinnen.every((z) => z.length > 40 && !/geen toegang/i.test(z)),
+  );
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+console.log("\nEen klant volledig verwijderen (F4)");
+
+group("de bevestiging is een handeling, geen vinkje", () => {
+  // ⚠️ Naam overtypen en niet "weet je het zeker". Dit is K4 uit het
+  // lanceerplan: onomkeerbaar wordt vooraf benoemd, en Nova doet het net zo.
+  ok("de juiste naam klopt", confirmationMatches("Van den Udenhout", "Van den Udenhout"));
+  ok("spaties eromheen mogen", confirmationMatches("  Van den Udenhout  ", "Van den Udenhout"));
+
+  // Hoofdletters tellen wél mee: hoofdletterongevoelig maken haalt er precies
+  // genoeg vanaf om het per ongeluk te kunnen doen.
+  ok("hoofdletters tellen mee", !confirmationMatches("van den udenhout", "Van den Udenhout"));
+  ok("een andere naam klopt niet", !confirmationMatches("Udenhout", "Van den Udenhout"));
+
+  // ⚠️ Een leeg account mag nooit met een lege invoer te verwijderen zijn.
+  ok("leeg tegen leeg klopt niet", !confirmationMatches("", ""));
+  ok("leeg tegen een naam ook niet", !confirmationMatches("", "Van den Udenhout"));
+});
+
+group("het scherm zegt wat er verdwijnt, met aantallen", () => {
+  const vol = { merken: 3, analyses: 5, metingen: 412, paginas: 12, gebruikers: 2 };
+  const regels = deletionLines(vol);
+  ok("alle vijf de soorten staan erin", regels.length === 5);
+  ok("meervoud klopt", regels[0] === "3 merken" && regels[2] === "412 metingen");
+
+  const een = deletionLines({ merken: 1, analyses: 1, metingen: 1, paginas: 1, gebruikers: 1 });
+  ok("enkelvoud ook", een[0] === "1 merk" && een[1] === "1 analyse");
+
+  // Een lijst met nullen leest als ruis en verbergt de aantallen die er wél
+  // toe doen, dus die regels komen er niet in.
+  const deels = deletionLines({ merken: 2, analyses: 0, metingen: 0, paginas: 0, gebruikers: 1 });
+  ok("nul-regels worden weggelaten", deels.length === 2);
+  ok("en wat er is blijft staan", deels[0] === "2 merken" && deels[1] === "1 inlogaccount");
+
+  // Helemaal leeg krijgt één zin, want geen enkele regel zou lezen als een fout.
+  const leeg = deletionLines({ merken: 0, analyses: 0, metingen: 0, paginas: 0, gebruikers: 0 });
+  ok("een leeg account zegt dat het leeg is", leeg.length === 1 && leeg[0].includes("leeg"));
+
+  // De waarschuwing zegt drie dingen, in deze volgorde: het kan niet terug, dit
+  // gaat weg, en dit moet je doen. Begin je met de instructie, dan leest
+  // niemand de waarschuwing meer.
+  const w = deletionWarning("Van den Udenhout", vol);
+  ok("de waarschuwing noemt het merk", w.includes("Van den Udenhout"));
+  ok("en dat het niet terug kan", w.includes("niet ongedaan"));
+  ok("en dat er geen prullenbak is", w.includes("geen prullenbak"));
+  ok("en wat je moet doen", w.includes("Typ de naam"));
+  ok("de aantallen staan erin", w.includes("412 metingen"));
+});
+
+group("je kunt jezelf niet buitensluiten", () => {
+  // ⚠️ Geen beleefdheid maar een slot: een beheerder die zijn eigen account
+  // weggooit, verwijdert zijn eigen inlog. Dat draai je niet terug met een
+  // backup, want de sessie is dan al weg.
+  ok(
+    "je eigen account verwijderen mag niet",
+    deletionBlockade({ accountId: "a", eigenAccountIds: ["a", "b"] }) !== null,
+  );
+  ok(
+    "en de melding zegt wat je dan wel kunt doen",
+    (deletionBlockade({ accountId: "a", eigenAccountIds: ["a"] }) ?? "").includes("andere beheerder"),
+  );
+  ok(
+    "een ander account mag wel",
+    deletionBlockade({ accountId: "c", eigenAccountIds: ["a", "b"] }) === null,
+  );
+  ok(
+    "en zonder eigen accounts ook",
+    deletionBlockade({ accountId: "c", eigenAccountIds: [] }) === null,
   );
 });
 

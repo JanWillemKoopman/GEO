@@ -547,7 +547,7 @@ Dit spoor bouwt, de andere vijf toetsen. Het staat er omdat vier van de zeven pu
 | F1 | ~~**Maandplafond per account plus een dagplafond over alles**~~ | P3 | **Af.** Zie hieronder |
 | F2 | **Kosten bij de knop** die geld kost | P3, en het is beter dan Nova | 2 uur |
 | F3 | ~~**Eén toegangsfunctie** in plaats van een tweeling~~ | P2 | **Af.** `lib/access.ts`, zie hieronder |
-| F4 | **Een klant volledig verwijderen** | P5, en het is een AVG-plicht zodra er echte bedrijfsgegevens in staan | 0,5 dag |
+| F4 | ~~**Een klant volledig verwijderen**~~ | P5, AVG-plicht | **Af.** Zie hieronder |
 | F5 | **De stille-fout-ronde**: elke `catch` en elke `?? null` in `lib/` nalopen | P1. Twee van de vijf fouten van vandaag waren precies dit | 0,5 dag |
 
 #### F1 is af, en hier staat wat hij doet
@@ -614,6 +614,40 @@ Een broncodecontrole in `scripts/test-unit.ts` houdt het zo: staat er ooit weer 
 valt de test om. Dat is de fout die migratie 0046 maakte, en die kostte de eerste uitgenodigde klant
 elke schrijfactie die het product voor hem bedoelde.
 
+#### F4 is af: verwijderen bestaat nu echt, en het is met opzet omslachtig
+
+Conventie 8 is "alles bewaren" en besluit 14 zegt dat opzeggen een datum zet en niets verwijdert.
+Die regels blijven staan: archiveren is het normale pad. Maar de AVG kent een recht op verwijdering
+en dat koop je niet af met een archief, dus er is nu een tweede pad, en dat is bewust de uitzondering.
+
+**Drie sloten voordat er iets weggaat.** Alleen een beheerder van Aura (een account-admin mag zijn
+bedrijfsgegevens wél wijzigen, maar een wijziging draai je terug en dit niet). Niet je eigen account,
+want dat verwijdert je eigen inlog en dat herstel je niet met een backup omdat de sessie dan al weg
+is. En de naam moet worden overgetypt, serverkant gecontroleerd: een bevestiging die je met een
+rechtstreekse aanroep kunt overslaan, is geen bevestiging.
+
+**Je ziet eerst wat er verdwijnt, met aantallen.** "Dit verwijdert 3 merken, 5 analyses en 412
+metingen" is een ander besluit dan "dit verwijdert een account". Het opvragen van dat overzicht
+verandert niets, en de ketentest bewijst dat ook apart.
+
+**Wat de database doet, en waarom dat goed uitkwam.** Bijna alles hangt met `on delete cascade` aan
+`profiles`, dus één merk verwijderen neemt zijn analyses, vragen, metingen, content, plannen en taken
+mee. Eén verband is bewust géén cascade: `profiles.account_id` staat op `no action`, waardoor de
+database weigert een account weg te gooien zolang er merken aan hangen. Dat maakt "per ongeluk een
+account verwijderen" onmogelijk in plaats van stil.
+
+**De inlogaccounts gaan mee, maar alleen van wie nergens anders bij hoort.** Dat is de kern van de
+plicht: het dossier weghalen en de inlog laten staan is geen verwijdering. Wie ook lid is van een
+ander account houdt zijn inlog, anders sluit het opruimen van klant A per ongeluk klant B buiten. Een
+beheerder van Aura raakt zijn inlog nooit kwijt.
+
+⚠️ **Twee dingen die eerlijk benoemd moeten worden.** Er is geen transactie omheen, want de
+Supabase-client praat over HTTP en kent er geen. Faalt het halverwege, dan zijn de merken weg en het
+account nog niet; dat is herstelbaar (het account is dan leeg en opnieuw te verwijderen) en het
+omgekeerde zou erger zijn. En het kostenlogboek van die klant gaat mee, waardoor het dagplafond die
+dag iets ruimer staat. Verwaarloosbaar in bedrag, en het alternatief maakt een onomkeerbare handeling
+ingewikkelder. Ingewikkeld en onomkeerbaar is een slechte combinatie.
+
 **F1 tot en met F4 zijn lanceervoorwaarden.** F5 is dat niet, en hij levert waarschijnlijk het meeste
 op per uur: het is de enige die zoekt naar fouten die nog niemand gezien heeft.
 
@@ -675,7 +709,7 @@ maandag op" zegt, lanceert niet.
 
 - [ ] De rolmatrix uit §4 klopt, inclusief elk "nee"-vakje
 - [ ] Elke tabel heeft RLS aan; `jobs` en `account_invites` hebben nul policies
-- [ ] Een klant kan volledig verwijderd worden (F4)
+- [x] Een klant kan volledig verwijderd worden (F4)
 - [ ] Geen enkele sleutel in de code of in een commit
 
 **Kan het niet op hol slaan** (§0b P3)
@@ -684,7 +718,7 @@ maandag op" zegt, lanceert niet.
 - [x] Een broncodetest valt zodra er een dure route bijkomt zonder die controle
 - [ ] Er is een maandplafond per account, en het staat op een getal dat jij hebt gekozen
 - [ ] Er is een dagplafond over alle accounts samen, als noodrem
-- [ ] Eén toegangsfunctie in plaats van twee die uit elkaar kunnen drijven (F3)
+- [x] Eén toegangsfunctie in plaats van twee die uit elkaar kunnen drijven (F3)
 
 **Meet het de juiste vragen** (§6b, en dit is de zwaarste)
 

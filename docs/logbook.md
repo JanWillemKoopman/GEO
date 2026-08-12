@@ -2276,3 +2276,34 @@ analyses vanzelf mee. Alleen het OORDEEL was dubbel, niet het opzoeken. 1095 uni
 goedkeuren", en dat kan sinds besluit 18 niet meer. De stap toetst nu het omgekeerde: ziet de klant
 een uitleg in plaats van een knop die een foutmelding geeft. Een plan dat nog uitgaat van de oude
 rolverdeling toetst het verkeerde en geeft groen licht op iets dat niet meer bestaat.
+
+**F4: verwijderen bestaat nu echt.** Conventie 8 is "alles bewaren" en besluit 14 zegt dat opzeggen
+een datum zet en niets weghaalt. Die regels blijven staan, want archiveren is negen van de tien keer
+precies wat iemand bedoelt met "verwijder dit". Maar de AVG kent een recht op verwijdering en dat koop
+je niet af met een archief. Er is nu een tweede pad, bewust de uitzondering, en bewust omslachtig.
+
+**Drie sloten.** Alleen een beheerder van Aura: een account-admin mag zijn bedrijfsgegevens wel
+wijzigen, maar een wijziging draai je terug en dit niet. Niet je eigen account, want dat verwijdert je
+eigen inlog en dat herstel je niet met een backup omdat de sessie dan al weg is. En de naam moet
+worden overgetypt, serverkant gecontroleerd, want een bevestiging die je met een rechtstreekse aanroep
+kunt overslaan is geen bevestiging.
+
+**Je ziet eerst wat er verdwijnt.** "Dit verwijdert 3 merken, 5 analyses en 412 metingen" is een ander
+besluit dan "dit verwijdert een account". De ketentest controleert apart dat het opvragen van dat
+overzicht zelf niets weggooit, want een scherm dat alleen kijkt zou anders al kunnen verwijderen.
+
+**De structuur werkte mee, en één ding was al goed geregeld zonder dat het daarvoor bedoeld was.**
+Bijna alles hangt met `on delete cascade` aan `profiles`. Maar `profiles.account_id` staat op
+`no action`, en daardoor weigert de database een account weg te gooien zolang er merken aan hangen.
+Dat maakt "per ongeluk een account verwijderen" onmogelijk in plaats van stil, en het bepaalt de
+volgorde: eerst de merken, dan het account, dan de inlogaccounts.
+
+**De inlogaccounts gaan mee, maar alleen van wie nergens anders bij hoort.** Dat is de kern van de
+plicht: het dossier weghalen en de inlog laten staan is geen verwijdering. Wie ook lid is van een
+ander account houdt zijn inlog, anders sluit het opruimen van klant A per ongeluk klant B buiten.
+
+⚠️ **Twee dingen die eerlijk in de code staan.** Er is geen transactie omheen, want de Supabase-client
+praat over HTTP en kent er geen; faalt het halverwege, dan zijn de merken weg en het account nog niet,
+en dat is herstelbaar terwijl het omgekeerde dat niet is. En het kostenlogboek van die klant gaat mee,
+waardoor het dagplafond die dag iets ruimer staat. Verwaarloosbaar, en het alternatief maakt een
+onomkeerbare handeling ingewikkelder. 1116 unittests, 109 ketentests.

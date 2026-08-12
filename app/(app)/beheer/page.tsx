@@ -7,6 +7,7 @@ import { loadCsmBrands } from "@/lib/csm-data";
 import { totals } from "@/lib/csm";
 import { PageHeader } from "@/components/page-header";
 import { CsmView } from "./csm-view";
+import { DeleteAccountBox } from "./delete-account-box";
 
 export const dynamic = "force-dynamic";
 
@@ -38,6 +39,19 @@ export default async function BeheerPage() {
   const admin = createAdminClient();
   const brands = await loadCsmBrands(admin);
 
+  // De accounts waar deze beheerder ZELF niet in zit. Zijn eigen account
+  // verwijderen zou zijn eigen inlog weghalen, en dat draai je niet terug met
+  // een backup omdat de sessie dan al weg is. De server weigert het ook, maar
+  // een knop tonen die altijd weigert is erger dan geen knop.
+  const [{ data: alleAccounts }, { data: eigen }] = await Promise.all([
+    admin.from("accounts").select("id, name").order("name"),
+    admin.from("account_users").select("account_id").eq("user_id", user.id),
+  ]);
+  const eigenIds = new Set((eigen ?? []).map((r) => r.account_id as string));
+  const verwijderbaar = (alleAccounts ?? [])
+    .filter((a) => !eigenIds.has(a.id as string))
+    .map((a) => ({ id: a.id as string, name: (a.name as string) ?? "" }));
+
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
@@ -46,6 +60,7 @@ export default async function BeheerPage() {
         description="Alle merken van alle klanten, gesorteerd op wat het eerst aandacht vraagt. Dit scherm ziet alleen jij."
       />
       <CsmView brands={brands} kpi={totals(brands)} />
+      <DeleteAccountBox accounts={verwijderbaar} />
     </div>
   );
 }
