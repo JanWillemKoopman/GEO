@@ -166,6 +166,9 @@ function geoTopUpNote(missing: number, regions: string[], existing: string[]): s
     `WAAROM: dit bedrijf werkt uitsluitend in dit gebied. Een vraag zonder plaatsnaam gaat over heel ` +
     `Nederland, en daar concurreert dit bedrijf niet. Schrijf ze zoals een zoeker uit die streek ze ` +
     `stelt: "welke ... in ${regions[0]}", "waar kan ik in ${regions[0]} terecht voor ...".\n` +
+    `⚠️ Plak de plaats niet achter een informatieve vraag. De vraag hoort te gaan over het VINDEN, ` +
+    `KIEZEN of INSCHAKELEN van een aanbieder in die streek, of over iets dat per streek verschilt. ` +
+    `Een geforceerde vraag levert een algemeen antwoord op waarin geen enkel bedrijf genoemd wordt.\n` +
     `Herhaal NIET de vragen die er al zijn:\n${existing.map((t) => `- ${t}`).join("\n")}`
   );
 }
@@ -232,12 +235,35 @@ async function generateForFunnelStage(args: {
   const geoNodig = isLokaal(brand.serviceScope, brand.serviceRegions)
     ? Math.ceil(count * REGIO_DREMPEL)
     : 0;
+  // ⚠️ De tweede alinea komt uit de generale repetitie op `gasservice-brabant.nl`
+  // (12 augustus 2026). De eerste versie haalde 30 van de 30 regionaal, maar
+  // vier vragen waren geforceerd, allemaal in de oriëntatiefase: "Heeft
+  // regelmatig onderhoud invloed op de levensduur van een cv-ketel in Den
+  // Bosch?" De levensduur van een ketel heeft niets met Den Bosch te maken, en
+  // zo'n vraag stelt niemand. Een AI-assistent antwoordt er algemeen op en
+  // noemt geen enkel bedrijf, dus de vraag meet niets en drukt de score.
+  //
+  // Het probleem was niet de drempel maar wát het model met de plaats deed: het
+  // plakte hem achter een informatieve vraag in plaats van de vraag óm te
+  // bouwen naar het zoeken van een aanbieder. Vandaar de expliciete
+  // tegenvoorbeelden. Dit blijft een intentie (conventie 1); het vangnet
+  // eronder telt of er een plaats in staat, niet of de vraag natuurlijk klinkt.
+  // Dat laatste is niet deterministisch te meten, en dat hoort hier te staan in
+  // plaats van gesuggereerd te worden.
   const geoRule =
     geoNodig > 0
       ? `Dit is een LOKAAL bedrijf dat uitsluitend werkt in: ${brand.serviceRegions!.join(", ")}. ` +
-        `MINSTENS ${geoNodig} van de ${count} vragen moeten een van deze plaatsen of de provincie bevatten, ` +
+        `ALLE ${count} vragen moeten een van deze plaatsen of de provincie bevatten, ` +
         `zoals een zoeker uit die streek ze stelt. Een vraag zonder plaats gaat over heel Nederland, en ` +
-        `daar concurreert dit bedrijf niet.`
+        `daar concurreert dit bedrijf niet.\n` +
+        `⚠️ De plaats moet de vraag ECHT lokaal maken, niet er los achter geplakt worden. Een vraag ` +
+        `hoort te gaan over het VINDEN, KIEZEN of INSCHAKELEN van een aanbieder in die streek, of over ` +
+        `iets dat per streek verschilt (prijzen, beschikbaarheid, hoe snel iemand kan komen).\n` +
+        `FOUT: "Heeft regelmatig onderhoud invloed op de levensduur van een cv-ketel in Den Bosch?" ` +
+        `(de levensduur is overal hetzelfde, niemand stelt deze vraag zo).\n` +
+        `GOED: "Welke installateur in Den Bosch kan beoordelen of mijn cv-ketel aan vervanging toe is?"\n` +
+        `Kun je een vraag niet natuurlijk lokaal maken, bedenk dan een andere vraag. Een geforceerde ` +
+        `vraag levert een algemeen antwoord op waarin geen enkel bedrijf genoemd wordt, en meet dus niets.`
       : "";
 
   const neutralityRule =

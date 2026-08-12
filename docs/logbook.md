@@ -2307,3 +2307,32 @@ praat over HTTP en kent er geen; faalt het halverwege, dan zijn de merken weg en
 en dat is herstelbaar terwijl het omgekeerde dat niet is. En het kostenlogboek van die klant gaat mee,
 waardoor het dagplafond die dag iets ruimer staat. Verwaarloosbaar, en het alternatief maakt een
 onomkeerbare handeling ingewikkelder. 1116 unittests, 109 ketentests.
+
+**De generale repetitie op `gasservice-brabant.nl` (12 augustus 2026).** Een vers merk, van nul, met
+echt geld. De onboarding: **8,0 minuten, $0,235, acht van de acht stappen klaar, nul mislukkingen en
+nul herkansingen.** 148 pagina's gelezen, 7 onderwerpen, 17 onderdelen aanbod, 10 concurrenten, 17
+technische controlepunten zonder blokkades.
+
+**De R6-zorg bleek kleiner dan gedacht.** Het onderzoek vulde zélf in dat dit een lokaal bedrijf is,
+met zeven plaatsen in Brabant. De vier lege werkgebieden die op productie stonden zijn dus oude
+gegevens en geen structureel gat. De blokkerende regel blijft nuttig als vangnet, maar hij zal bij een
+nieuwe klant zelden aanslaan.
+
+**De regionale regel deed wat hij belooft: 30 van de 30 vragen regionaal**, tegenover 9 van 30 en 13
+van 30 bij Van den Udenhout vóór de reparatie.
+
+⚠️ **En de repetitie vond meteen waar hij voor bedoeld was.** Vier van de dertig vragen waren
+geforceerd, allemaal in de oriëntatiefase. Het scherpste voorbeeld: "Heeft regelmatig onderhoud
+invloed op de levensduur van een cv-ketel in Den Bosch?" De levensduur van een ketel heeft niets met
+Den Bosch te maken en niemand stelt die vraag zo. Een AI-assistent antwoordt er algemeen op, noemt
+geen enkel bedrijf, en de vraag meet dus niets terwijl hij de score wél omlaag drukt.
+
+Het probleem was niet de drempel maar wát het model met de plaats deed: het plakte hem achter een
+informatieve vraag in plaats van de vraag om te bouwen naar het zoeken van een aanbieder. De
+instructie noemt nu expliciet een fout en een goed voorbeeld, en zegt dat het model een andere vraag
+moet bedenken als lokaal maken niet natuurlijk lukt. Dat blijft een intentie: het vangnet telt of er
+een plaats in staat, niet of de vraag natuurlijk klinkt, en dat laatste is niet deterministisch te
+meten. Dat hoort in het commentaar te staan in plaats van gesuggereerd te worden dat het afgedekt is.
+
+De beslissings- en overwegingsvragen waren wél goed. "Wie kan mijn cv-ketel in Den Bosch vakkundig
+onderhouden?" is precies de vraag waar deze klant gevonden wil worden.
