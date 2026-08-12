@@ -166,6 +166,14 @@ import {
 } from "@/lib/pipeline/geo-share";
 import { COST_DENIED } from "@/lib/cost-rules";
 import { requireCount } from "@/lib/require-count";
+import {
+  DEFAULT_MIX,
+  checkMix,
+  describeMix,
+  isDefaultMix,
+  mixTotal,
+  resolveMix,
+} from "@/lib/prompt-mix";
 import { readKey } from "@/lib/search-console/key-state";
 import {
   confirmationMatches,
@@ -5014,6 +5022,80 @@ group("elke dure route vraagt het aan dezelfde functie", () => {
     "geen enkele melding zegt alleen 'geen toegang'",
     zinnen.every((z) => z.length > 40 && !/geen toegang/i.test(z)),
   );
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+console.log("\nDe promptverdeling per analyse (migratie 0054)");
+
+group("resolveMix: null is de standaard, nul is een keuze", () => {
+  ok(
+    "een lege rij geeft 10/10/10",
+    isDefaultMix(resolveMix({ prompts_orientatie: null, prompts_overweging: null, prompts_beslissing: null })),
+  );
+  ok("en null als geheel ook", isDefaultMix(resolveMix(null)));
+
+  // Per fase apart terugvallen, niet als geheel: zet iemand alleen de
+  // beslissingsfase en laat hij de rest leeg, dan hoort dat 10/10/20 te worden
+  // en niet 10/10/10 met een genegeerde instelling.
+  const deels = resolveMix({ prompts_orientatie: null, prompts_overweging: null, prompts_beslissing: 20 });
+  ok("één fase gezet laat de rest op de standaard", deels["Oriëntatie"] === 10 && deels["Overweging"] === 10);
+  ok("en neemt de gezette fase over", deels["Beslissing"] === 20);
+
+  // ⚠️ DE KERN. Nul is een echte waarde en geen "niet ingevuld". Een analyse
+  // zonder oriëntatievragen is een geldige keuze voor een lokale ondernemer die
+  // alleen op koopmomenten beoordeeld wil worden. Met `??` zou dat stil 10
+  // worden en zou hij tien vragen betalen die hij niet wilde.
+  const metNul = resolveMix({ prompts_orientatie: 0, prompts_overweging: 10, prompts_beslissing: 20 });
+  ok("nul blijft nul", metNul["Oriëntatie"] === 0);
+  ok("en telt mee in het totaal", mixTotal(metNul) === 30);
+});
+
+group("checkMix: de grenzen, en waarom ze er zijn", () => {
+  const goed = checkMix({ "Oriëntatie": 5, "Overweging": 10, "Beslissing": 25 });
+  ok("een geldige verdeling komt erdoor", goed.ok);
+  ok("en houdt de getallen", goed.ok && mixTotal(goed.mix) === 40);
+
+  ok("nul in één fase mag", checkMix({ "Oriëntatie": 0, "Overweging": 10, "Beslissing": 10 }).ok);
+
+  // Alles nul is een val: die analyse kan niets meten en blijft eeuwig op
+  // 'meten' staan, zonder dat iemand ziet waarom.
+  const leeg = checkMix({ "Oriëntatie": 0, "Overweging": 0, "Beslissing": 0 });
+  ok("alles nul wordt geweigerd", !leeg.ok);
+  ok("en de melding legt uit waarom", !leeg.ok && leeg.reason.includes("minstens één vraag"));
+
+  const teveelPerFase = checkMix({ "Oriëntatie": 41, "Overweging": 10, "Beslissing": 10 });
+  ok("meer dan 40 per fase wordt geweigerd", !teveelPerFase.ok);
+  ok(
+    "en de melding noemt de fase die fout is",
+    !teveelPerFase.ok && teveelPerFase.reason.startsWith("Oriëntatie"),
+  );
+
+  const teveelTotaal = checkMix({ "Oriëntatie": 40, "Overweging": 40, "Beslissing": 40 });
+  ok("meer dan 90 in totaal wordt geweigerd", !teveelTotaal.ok);
+  ok(
+    "en de melding noemt wat het zou kosten",
+    !teveelTotaal.ok && teveelTotaal.reason.includes("$"),
+  );
+
+  ok("negatief mag niet", !checkMix({ "Oriëntatie": -1, "Overweging": 10, "Beslissing": 10 }).ok);
+  ok("kommagetal mag niet", !checkMix({ "Oriëntatie": 5.5, "Overweging": 10, "Beslissing": 10 }).ok);
+  ok("onzin mag niet", !checkMix({ "Oriëntatie": "veel", "Overweging": 10, "Beslissing": 10 }).ok);
+});
+
+group("describeMix: wat het kost en wat het oplevert", () => {
+  const zin = describeMix(DEFAULT_MIX);
+  ok("noemt het totaal", zin.includes("30 vragen"));
+  // $0,024 per vraag maal 30 is $0,72. Gemeten over 428 echte metingen.
+  ok("noemt de maandkosten", zin.includes("$0.72"));
+  // Bij dertig vragen en een score rond 30 is de 95%-band ±16,4 punten.
+  ok("en de onzekerheidsmarge", zin.includes("16,4"));
+
+  // ⚠️ De marge schaalt met de wortel: verdubbelen levert een kwart smallere
+  // band, niet de helft. Dat is precies wat iemand moet weten vóórdat hij het
+  // getal omhoog zet.
+  const zestig = describeMix({ "Oriëntatie": 20, "Overweging": 20, "Beslissing": 20 });
+  ok("zestig vragen kost twee keer zoveel", zestig.includes("$1.44"));
+  ok("maar de marge wordt maar een kwart smaller", zestig.includes("11,6"));
 });
 
 // ════════════════════════════════════════════════════════════════════════════

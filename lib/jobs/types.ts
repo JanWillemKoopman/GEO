@@ -112,7 +112,8 @@ export interface JobPayloads {
   profile_llm_baseline: Record<string, never>;
   profile_synthesis: Record<string, never>;
   prepare_analysis: Record<string, never>;
-  generate_prompts: Record<string, never>;
+  /** Welke funnelfase deze taak opstelt (migratie 0054, splitsing per fase). */
+  generate_prompts: { category: string };
   calibrate_volumes: Record<string, never>;
   measure_prompt: {
     promptId: string;
@@ -210,7 +211,7 @@ export const HEAVY_JOB_TYPES: ReadonlySet<JobType> = new Set<JobType>([
    */
   "profile_synthesis", // één aanroep over 55.000 tekens sitetekst
   "prepare_analysis", // onderwerp-onderzoek: één gegrondde AI-aanroep
-  "generate_prompts", // 3 parallelle prompt-calls, elk met een bijvul-ronde
+  "generate_prompts", // één funnelfase, met bijvul- en geo-rondes
   "profile_competitors", // destilleert eigenschappen uit alle antwoordfragmenten
   "content_brief", // claim-audit over de hele batch, plus alle winnende antwoorden
   "content_draft", // het premium model schrijft een volledige pagina

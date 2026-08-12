@@ -23,6 +23,7 @@ import { synthesiseProfile } from "@/lib/pipeline/synthesis";
 import {
   prepareTopicResearch,
   generateAnalysisPrompts,
+  finishPromptGeneration,
   calibratePromptVolumes,
 } from "@/lib/pipeline/prepare";
 import {
@@ -48,6 +49,8 @@ import type {
 } from "@/lib/jobs/types";
 import type { Job } from "@/lib/types/database";
 import { requireCount } from "@/lib/require-count";
+import { resolveMix } from "@/lib/prompt-mix";
+import { PROMPT_CATEGORIES } from "@/lib/types/database";
 
 type Admin = SupabaseClient;
 
@@ -323,22 +326,62 @@ const handlers: { [T in JobType]: Handler<T> } = {
     const { needsPrompts } = await prepareTopicResearch(job.analysis_id);
     if (!needsPrompts) return;
 
-    await enqueue(admin, {
-      type: "generate_prompts",
-      payload: {},
-      analysisId: job.analysis_id,
-      dedupeKey: dedupe.generatePrompts(job.analysis_id),
-    });
+    // ⚠️ Eén taak PER FUNNELFASE sinds 12 augustus 2026. De gezamenlijke taak
+    // liep op productie één keer 228 seconden van de 300 die hij heeft, en met
+    // de verdeling per analyse instelbaar (migratie 0054) kan het aantal vragen
+    // omhoog. Fasen met nul vragen krijgen geen taak: dat is een geldige keuze
+    // en geen werk.
+    const { data: analyseRij } = await admin
+      .from("analyses")
+      .select("prompts_orientatie, prompts_overweging, prompts_beslissing")
+      .eq("id", job.analysis_id)
+      .maybeSingle();
+    const mix = resolveMix(analyseRij);
+
+    for (const fase of PROMPT_CATEGORIES) {
+      if (mix[fase] === 0) continue;
+      await enqueue(admin, {
+        type: "generate_prompts",
+        payload: { category: fase },
+        analysisId: job.analysis_id,
+        dedupeKey: dedupe.generatePrompts(job.analysis_id, fase),
+      });
+    }
   },
 
   // ── Voorbereiding stap 2: de vragen opstellen ─────────────────────────────
   // Hierna wacht de analyse op goedkeuring van de klant (de review-gate); dat
   // is een bewuste stop. De kalibratie die nog volgt is een verfijning van de
   // volumebanden en houdt de klant niet tegen.
-  generate_prompts: async ({ admin, job }) => {
+  generate_prompts: async ({ admin, job }, payload) => {
     if (!job.analysis_id)
       throw new Error("generate_prompts zonder analysis_id.");
-    await generateAnalysisPrompts(job.analysis_id);
+    if (!payload.category)
+      throw new Error("generate_prompts zonder funnelfase.");
+
+    await generateAnalysisPrompts(job.analysis_id, payload.category);
+
+    // ⚠️ Alleen de LAATSTE fase opent de poort. Deze taak weet niet of hij de
+    // laatste is, de wachtrij wel: tel hoeveel fasetaken er nog openstaan voor
+    // deze analyse, deze taak zelf niet meegerekend (die staat op dit moment nog
+    // op 'running'). Dezelfde vorm als `scheduleImpactIfLastRun`.
+    //
+    // `requireCount` en niet `?? 0`: gaat deze telling stuk en wordt hij nul,
+    // dan gaat de analyse naar 'concept_klaar' terwijl er nog twee fasen aan het
+    // genereren zijn, en ziet de klant een derde van zijn vragen.
+    const openstaand = requireCount(
+      await admin
+        .from("jobs")
+        .select("id", { count: "exact", head: true })
+        .eq("analysis_id", job.analysis_id)
+        .eq("type", "generate_prompts")
+        .in("status", ["queued", "running"])
+        .neq("id", job.id),
+      "de nog lopende funnelfasen van deze analyse",
+    );
+    if (openstaand > 0) return;
+
+    await finishPromptGeneration(job.analysis_id);
 
     await enqueue(admin, {
       type: "calibrate_volumes",

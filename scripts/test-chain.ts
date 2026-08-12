@@ -1227,6 +1227,129 @@ async function main(): Promise<void> {
     ok("een leeg account begint weer op nul", (await checkBudget(budgetAccount)).ok);
 
     // ══════════════════════════════════════════════════════════════════════
+    // De promptgeneratie per funnelfase (migratie 0054)
+    //
+    // ⚠️ Dit hoort in de KETENtest en niet in test-unit.ts, want de hele vondst
+    // zit in de samenhang tussen taken: drie taken die onafhankelijk draaien en
+    // waarvan alleen de laatste de poort naar klant-goedkeuring mag openen. Een
+    // unittest ziet één functie en zou nooit merken dat de analyse al op
+    // 'concept_klaar' staat terwijl er nog twee fasen lopen.
+    // ══════════════════════════════════════════════════════════════════════
+    console.log("\nDe promptgeneratie per funnelfase");
+
+    const { resolveMix: mixVan } = await import("@/lib/prompt-mix");
+
+    // Vers decor: een analyse in voorbereiding, met onderwerp-onderzoek zodat de
+    // generatie zijn invoer heeft.
+    const mixAnalyse = randomUUID();
+    await db.client.query(
+      `insert into public.analyses (id, user_id, profile_id, name, url, topic, status,
+                                    prompts_orientatie, prompts_overweging, prompts_beslissing)
+       values ($1, $2, $3, 'Mix-analyse', 'https://fysi-unique.nl', 'iets', 'bezig', 0, 2, 3)`,
+      [mixAnalyse, userId, profileId],
+    );
+    await db.client.query(
+      `insert into public.topic_research (analysis_id, content_summary, competitors, raw_json)
+       values ($1, 'samenvatting', array['Concurrent A'], '{}'::jsonb)`,
+      [mixAnalyse],
+    );
+
+    // De verdeling komt eruit zoals hij erin ging, en nul blijft nul.
+    const { rows: mixRij } = await db.client.query(
+      "select prompts_orientatie, prompts_overweging, prompts_beslissing from public.analyses where id = $1",
+      [mixAnalyse],
+    );
+    const gelezen = mixVan(mixRij[0]);
+    ok("nul in de database blijft nul", gelezen["Oriëntatie"] === 0);
+    ok("en de andere fasen houden hun eigen aantal", gelezen["Overweging"] === 2 && gelezen["Beslissing"] === 3);
+
+    // ⚠️ De kern: een fase met nul vragen krijgt géén taak. Zou hij die wel
+    // krijgen, dan zou de generatie een lege uitkomst als storing zien en de
+    // analyse op 'mislukt' zetten, terwijl nul juist de bedoeling was.
+    const { rows: naPrepare } = await db.client.query(
+      `insert into public.jobs (analysis_id, type, payload_json, dedupe_key, status)
+       values ($1, 'prepare_analysis', '{}'::jsonb, $2, 'running') returning *`,
+      [mixAnalyse, `chain-mix-prepare:${mixAnalyse}`],
+    );
+    await runJob({ admin: admin as never, job: naPrepare[0] });
+
+    const { rows: fasetaken } = await db.client.query(
+      `select payload_json->>'category' as fase from public.jobs
+        where analysis_id = $1 and type = 'generate_prompts' order by fase`,
+      [mixAnalyse],
+    );
+    ok("er zijn twee fasetaken en niet drie", fasetaken.length === 2);
+    ok(
+      "en de fase met nul vragen zit er niet bij",
+      !fasetaken.some((r: { fase: string }) => r.fase === "Oriëntatie"),
+    );
+    ok(
+      "de fase staat in de taak zelf",
+      fasetaken.some((r: { fase: string }) => r.fase === "Beslissing"),
+    );
+
+    // ⚠️ En de tweede kern: de EERSTE fasetaak mag de poort niet openen. Zonder
+    // die telling zou de klant een derde van zijn vragen te zien krijgen met de
+    // mededeling dat ze klaar zijn.
+    const { rows: eersteFase } = await db.client.query(
+      `select * from public.jobs where analysis_id = $1 and type = 'generate_prompts'
+        and payload_json->>'category' = 'Overweging'`,
+      [mixAnalyse],
+    );
+    await db.client.query("update public.jobs set status = 'running' where id = $1", [
+      eersteFase[0].id,
+    ]);
+    await runJob({ admin: admin as never, job: { ...eersteFase[0], status: "running" } });
+
+    const { rows: naEerste } = await db.client.query(
+      "select status from public.analyses where id = $1",
+      [mixAnalyse],
+    );
+    ok(
+      "na de eerste fase staat de analyse nog NIET op concept_klaar",
+      naEerste[0].status === "bezig",
+      `status was ${naEerste[0].status}, dus de poort ging te vroeg open`,
+    );
+
+    const { rows: aantalNaEerste } = await db.client.query(
+      "select category, count(*)::int as n from public.prompts where analysis_id = $1 group by category",
+      [mixAnalyse],
+    );
+    ok(
+      "en de fase leverde precies het gevraagde aantal",
+      aantalNaEerste.length === 1 && aantalNaEerste[0].n === 2,
+      `kreeg ${JSON.stringify(aantalNaEerste)}`,
+    );
+
+    // De laatste fase opent de poort wél.
+    const { rows: laatsteFase } = await db.client.query(
+      `select * from public.jobs where analysis_id = $1 and type = 'generate_prompts'
+        and payload_json->>'category' = 'Beslissing'`,
+      [mixAnalyse],
+    );
+    await db.client.query(
+      "update public.jobs set status = 'done' where id = $1",
+      [eersteFase[0].id],
+    );
+    await runJob({ admin: admin as never, job: { ...laatsteFase[0], status: "running" } });
+
+    const { rows: naLaatste } = await db.client.query(
+      "select status from public.analyses where id = $1",
+      [mixAnalyse],
+    );
+    ok(
+      "na de laatste fase gaat de poort open",
+      naLaatste[0].status === "concept_klaar",
+      `status was ${naLaatste[0].status}`,
+    );
+
+    const { rows: totaal } = await db.client.query(
+      "select count(*)::int as n from public.prompts where analysis_id = $1",
+      [mixAnalyse],
+    );
+    ok("en er staan vijf vragen, precies 0 + 2 + 3", totaal[0].n === 5, `kreeg ${totaal[0].n}`);
+
+    // ══════════════════════════════════════════════════════════════════════
     // Een klant volledig verwijderen (F4, AVG)
     //
     // ⚠️ Dit hoort bij uitstek in de ketentest en niet in test-unit.ts, want het

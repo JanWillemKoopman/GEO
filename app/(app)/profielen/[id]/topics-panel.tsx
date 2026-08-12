@@ -4,6 +4,14 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import type { ProfileTopic } from "@/lib/types/database";
+import { PROMPT_CATEGORIES } from "@/lib/types/database";
+import {
+  DEFAULT_MIX,
+  checkMix,
+  describeMix,
+  isDefaultMix,
+  type PromptMix,
+} from "@/lib/prompt-mix";
 
 /**
  * De core topics (docs/tasks/onboarding-2.0.md, blok D).
@@ -34,6 +42,11 @@ export function TopicsPanel({
   const [error, setError] = useState<string | null>(null);
   const [noteFor, setNoteFor] = useState<string | null>(null);
   const [noteText, setNoteText] = useState("");
+  // De verdeling over de funnelfasen (migratie 0054). Dicht bij de startknop,
+  // want dit is het enige moment waarop hij nog telt: zodra de vragen er zijn,
+  // ligt de verdeling vast.
+  const [mixFor, setMixFor] = useState<string | null>(null);
+  const [mix, setMix] = useState<PromptMix>(DEFAULT_MIX);
 
   // Geen voorstellen betekent bijna altijd: geen aanbodboom, want die is de
   // invoer. Dat is een uitlegbare situatie en geen reden om het blok te laten
@@ -88,14 +101,19 @@ export function TopicsPanel({
     }
   }
 
-  async function start(topicId: string) {
+  async function start(topicId: string, eigenMix?: PromptMix) {
     setBusy(topicId);
     setError(null);
     try {
       const res = await fetch(`/api/profiles/${profileId}/topics`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ topicId }),
+        // De verdeling gaat alleen mee als hij afwijkt. Zo blijven de kolommen
+        // leeg bij de standaard, en telt een latere wijziging van die standaard
+        // vanzelf mee voor alle analyses die hem niet expliciet zetten.
+        body: JSON.stringify(
+          eigenMix && !isDefaultMix(eigenMix) ? { topicId, mix: eigenMix } : { topicId },
+        ),
       });
       const json = await res.json();
       if (!res.ok) {
@@ -139,6 +157,64 @@ export function TopicsPanel({
           </p>
         )}
 
+        {mixFor === t.id && (
+          <div className="flex flex-col gap-3 rounded-[var(--radius-md)] border border-[var(--border-subtle)] p-3">
+            <div className="flex flex-col gap-1">
+              <span className="mono-label">Hoeveel vragen per fase?</span>
+              <p className="text-sm text-secondary">
+                Standaard tien per fase. Meet je een onderwerp waar iemand al klaar is
+                om te kiezen, zet dan Beslissing hoger. Bij een onderwerp waar hij nog
+                aan het uitzoeken is, juist Oriëntatie.
+              </p>
+            </div>
+
+            <div className="grid gap-2 sm:grid-cols-3">
+              {PROMPT_CATEGORIES.map((fase) => (
+                <label key={fase} className="flex flex-col gap-1 text-sm">
+                  <span>{fase}</span>
+                  <input
+                    type="number"
+                    min={0}
+                    max={40}
+                    className="field"
+                    value={mix[fase]}
+                    onChange={(e) =>
+                      setMix((huidig) => ({ ...huidig, [fase]: Number(e.target.value) }))
+                    }
+                  />
+                </label>
+              ))}
+            </div>
+
+            {/* Het getal veranderen is gratis, de gevolgen niet. Dus staan de
+                kosten en de onzekerheidsmarge eronder, en niet pas op de rekening. */}
+            <p className="text-sm text-secondary">{describeMix(mix)}</p>
+            {!checkMix(mix).ok && (
+              <p className="text-sm" style={{ color: "var(--intent-danger-text)" }}>
+                {(checkMix(mix) as { ok: false; reason: string }).reason}
+              </p>
+            )}
+
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                className="btn-primary btn-sm disabled:opacity-50"
+                disabled={bezig || !checkMix(mix).ok}
+                onClick={() => void start(t.id, mix)}
+              >
+                {bezig ? "Starten…" : "Starten met deze verdeling"}
+              </button>
+              <button
+                type="button"
+                className="btn-outline btn-sm"
+                onClick={() => setMixFor(null)}
+              >
+                Annuleren
+              </button>
+            </div>
+          </div>
+        )}
+
         {noteFor === t.id ? (
           <div className="flex flex-col gap-2">
             <textarea
@@ -175,6 +251,22 @@ export function TopicsPanel({
                 onClick={() => void start(t.id)}
               >
                 {bezig ? "Starten…" : "Analyse starten"}
+              </button>
+            )}
+            {/* ⚠️ Een aparte knop en geen veld dat altijd openstaat. Negen van de
+                tien keer is 10/10/10 goed, en dan hoort er één klik te zijn.
+                Wie het anders wil, klapt het open en ziet meteen wat het kost. */}
+            {!t.analysis_id && mixFor !== t.id && (
+              <button
+                type="button"
+                className="btn-outline btn-sm disabled:opacity-50"
+                disabled={bezig}
+                onClick={() => {
+                  setMix(DEFAULT_MIX);
+                  setMixFor(t.id);
+                }}
+              >
+                Verdeling aanpassen
               </button>
             )}
             <button

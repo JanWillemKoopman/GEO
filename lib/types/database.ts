@@ -216,6 +216,15 @@ export interface Analysis {
   content_brief: string | null; // vrije toelichting: gewenste hoek en doelgroep van de content (§6/§7/§8)
   /** Mail sturen zodra het rapport klaar is (optimalisatie.md 1.8). */
   notify_by_email: boolean;
+  /**
+   * Aantal vragen per funnelfase (migratie 0054). Null per fase = de standaard
+   * van 10 uit `lib/prompt-mix.ts`. Per ANALYSE en niet per merk, want de juiste
+   * verdeling hangt aan het onderwerp: bij "cv-ketel onderhoud" wil je vooral
+   * beslissingsvragen, bij "warmtepomp subsidie" juist oriëntatievragen.
+   */
+  prompts_orientatie: number | null;
+  prompts_overweging: number | null;
+  prompts_beslissing: number | null;
   /** Eenmalige herinnering bij klaarliggende, niet-gepubliceerde content (5.8). */
   publish_reminder_sent_at: string | null;
   /**

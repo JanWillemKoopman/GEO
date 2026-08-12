@@ -33,8 +33,10 @@ import "server-only";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { generateTopicResearch } from "@/lib/pipeline/topic-research";
-import { generatePrompts, calibrateVolumes, type BrandContext } from "@/lib/pipeline/prompts";
+import { generatePromptsForStage, calibrateVolumes, type BrandContext } from "@/lib/pipeline/prompts";
+import { resolveMix, DEFAULT_STAGE_COUNT, type FunnelStage } from "@/lib/prompt-mix";
 import { bandFromEstimate } from "@/lib/pipeline/volume";
+import { PROMPT_CATEGORIES } from "@/lib/types/database";
 import type { Analysis, AnalysisStatus, Profile, ProfilePage } from "@/lib/types/database";
 import { requireCount } from "@/lib/require-count";
 
@@ -62,15 +64,31 @@ async function loadPreparable(
   // draait pas nadat A1'+A2 al succesvol prompts hebben aangemaakt. Als die er
   // al zijn, is dit dus geen mislukte voorbereiding: niet aankomen, anders zou
   // deze functie een mislukte meting stilletjes terugzetten naar 'concept_klaar'.
+  //
+  // ⚠️ "Zijn er al vragen" is sinds de splitsing per funnelfase (12 augustus
+  // 2026) niet meer het juiste criterium. Slaagt fase één en mislukt fase twee,
+  // dan ZIJN er vragen en zou de herkansing van fase twee hier afketsen. De
+  // analyse blijft dan voorgoed op 'mislukt' staan met een derde van zijn
+  // vragen. De vraag is dus niet "zijn er vragen" maar "is de voorbereiding
+  // compleet": heeft elke fase die vragen hóórt te hebben, ze ook?
   if (analysis.status === "mislukt") {
-    const count = requireCount(
-      await admin
-        .from("prompts")
-        .select("*", { count: "exact", head: true })
-        .eq("analysis_id", id),
-      "de vragen van deze analyse",
+    const mix = resolveMix(analysis);
+    const gevraagd = PROMPT_CATEGORIES.filter((fase) => mix[fase] > 0);
+
+    const perFase = await Promise.all(
+      gevraagd.map(async (fase) =>
+        requireCount(
+          await admin
+            .from("prompts")
+            .select("*", { count: "exact", head: true })
+            .eq("analysis_id", id)
+            .eq("category", fase),
+          `de vragen van de fase "${fase}"`,
+        ),
+      ),
     );
-    if (count > 0) return { done: "mislukt" };
+    const compleet = gevraagd.length > 0 && perFase.every((n) => n > 0);
+    if (compleet) return { done: "mislukt" };
   }
 
   const { data: profileRow } = await admin
@@ -141,11 +159,23 @@ export async function prepareTopicResearch(id: string): Promise<{ needsPrompts: 
 }
 
 /**
- * Fase 2 (A2): promptgeneratie + volume-kalibratie, en daarna de poort naar
- * klant-goedkeuring. Draait als losse taak zodat deze ronde AI-aanroepen de
- * tijdslimiet van één werker-aanroep niet deelt met het onderwerp-onderzoek.
+ * Fase 2 (A2): de vragen van ÉÉN funnelfase opstellen.
+ *
+ * ⚠️ Sinds 12 augustus 2026 één taak per fase, en niet meer drie fasen in één
+ * taak. De gezamenlijke taak liep op productie één keer 228 seconden van de 300
+ * die hij heeft, en sinds de verdeling per analyse instelbaar is (migratie 0054)
+ * kan het aantal vragen omhoog. Drie taken van ~76 seconden houdt ruimte over;
+ * één taak van 228 seconden niet. Dat is ook conventie 7: één taak doet hooguit
+ * één zware AI-aanroep.
+ *
+ * De poort naar klant-goedkeuring zit NIET hier maar in `finishPromptGeneration`,
+ * die pas draait als alle drie de fasen klaar zijn. Anders zou de analyse al op
+ * `concept_klaar` staan terwijl er nog twee fasen aan het genereren zijn.
  */
-export async function generateAnalysisPrompts(id: string): Promise<AnalysisStatus> {
+export async function generateAnalysisPrompts(
+  id: string,
+  category: string,
+): Promise<AnalysisStatus> {
   const admin = createAdminClient();
 
   const loaded = await loadPreparable(admin, id);
@@ -166,13 +196,25 @@ export async function generateAnalysisPrompts(id: string): Promise<AnalysisStatu
     }
     const topicCompetitors: string[] = research.competitors ?? [];
 
-    // Skip als er al prompts zijn (idempotent bij een nieuwe poging).
-    const { count } = await admin
-      .from("prompts")
-      .select("*", { count: "exact", head: true })
-      .eq("analysis_id", id);
+    // Idempotent per FASE (conventie 9). Dit was een controle over álle vragen
+    // van de analyse; sinds de splitsing zou dat betekenen dat fase twee en drie
+    // overgeslagen worden zodra fase één klaar is.
+    //
+    // ⚠️ En hij staat nu op `requireCount`. Deze controle werd op 12 augustus
+    // 2026 over het hoofd gezien in de stille-fout-ronde (F5), terwijl het exact
+    // het patroon is dat die ronde moest uitroeien: gaat de telling stuk, dan is
+    // `count` null, luidt de conclusie "er staat nog niets" en wordt een hele
+    // funnelfase opnieuw gegenereerd en betaald.
+    const count = requireCount(
+      await admin
+        .from("prompts")
+        .select("*", { count: "exact", head: true })
+        .eq("analysis_id", id)
+        .eq("category", category),
+      `de vragen van de fase "${category}"`,
+    );
 
-    if (!count) {
+    if (count === 0) {
       const brand: BrandContext = {
         brandName: profile.brand_name,
         industry: profile.industry,
@@ -187,12 +229,15 @@ export async function generateAnalysisPrompts(id: string): Promise<AnalysisStatu
         marketLanguage: profile.market_language,
       };
 
-      const prompts = await generatePrompts({
+      const mix = resolveMix(analysis);
+      const prompts = await generatePromptsForStage({
         analysisId: id,
         url: profile.url,
         topic: analysis.topic,
         brand,
         contentBrief: analysis.content_brief,
+        category,
+        count: mix[category as FunnelStage] ?? DEFAULT_STAGE_COUNT,
       });
       const rows = prompts.map((p) => ({
         analysis_id: id,
@@ -221,30 +266,46 @@ export async function generateAnalysisPrompts(id: string): Promise<AnalysisStatu
       }
     }
 
-    // ── Klaar → wacht op klant-goedkeuring (review-gate, Sprint 3) ─────────
-    // Laatste controle vóór de poort: er MOET minstens één vraag staan. Zonder
-    // dat is 'concept_klaar' een belofte die de meting niet kan waarmaken.
-    // `requireCount` en niet `!finalCount`: allebei stoppen ze, maar met een
-    // andere melding. "Deze analyse heeft geen vragen" stuurt iemand op zoek
-    // naar een lege vragenlijst, terwijl de telling misschien gewoon niet
-    // antwoordde. Een verkeerde diagnose kost meer tijd dan geen diagnose.
-    const finalCount = requireCount(
-      await admin
-        .from("prompts")
-        .select("id", { count: "exact", head: true })
-        .eq("analysis_id", id),
-      "de vragen van deze analyse",
-    );
-    if (finalCount === 0) {
-      throw new Error(`Analyse ${id} heeft geen vragen; de meting zou niets te meten hebben.`);
-    }
-
-    await admin.from("analyses").update({ status: "concept_klaar" }).eq("id", id);
-    return "concept_klaar";
+    // De poort naar klant-goedkeuring staat NIET hier. Deze taak weet niet of
+    // hij de laatste van de drie fasen is; de wachtrij weet dat wel. Zie
+    // `finishPromptGeneration` hieronder.
+    return "bezig";
   } catch (err) {
     await admin.from("analyses").update({ status: "mislukt" }).eq("id", id);
     throw err;
   }
+}
+
+/**
+ * De poort naar klant-goedkeuring, na de laatste fasetaak.
+ *
+ * Staat los van `generateAnalysisPrompts` omdat een fasetaak niet weet of hij de
+ * laatste is. De wachtrij weet dat wel: `handlers.ts` telt hoeveel fasetaken er
+ * nog openstaan en roept dit pas aan als dat er nul zijn.
+ */
+export async function finishPromptGeneration(id: string): Promise<AnalysisStatus> {
+  const admin = createAdminClient();
+
+  // Laatste controle vóór de poort: er MOET minstens één vraag staan. Zonder
+  // dat is 'concept_klaar' een belofte die de meting niet kan waarmaken.
+  // `requireCount` en niet `!finalCount`: allebei stoppen ze, maar met een
+  // andere melding. "Deze analyse heeft geen vragen" stuurt iemand op zoek
+  // naar een lege vragenlijst, terwijl de telling misschien gewoon niet
+  // antwoordde. Een verkeerde diagnose kost meer tijd dan geen diagnose.
+  const finalCount = requireCount(
+    await admin
+      .from("prompts")
+      .select("id", { count: "exact", head: true })
+      .eq("analysis_id", id),
+    "de vragen van deze analyse",
+  );
+  if (finalCount === 0) {
+    await admin.from("analyses").update({ status: "mislukt" }).eq("id", id);
+    throw new Error(`Analyse ${id} heeft geen vragen; de meting zou niets te meten hebben.`);
+  }
+
+  await admin.from("analyses").update({ status: "concept_klaar" }).eq("id", id);
+  return "concept_klaar";
 }
 
 /**

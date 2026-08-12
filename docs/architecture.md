@@ -179,7 +179,7 @@ Bron: `lib/jobs/{types,queue,worker,handlers,pending}.ts`.
 | 4e | Synthese | **sol** (`SYNTHESIS_PREMIUM`) | `synthesis.ts`: dossier, gespreksagenda en `brand_facts`, alleen feiten waarvan het citaat letterlijk op de bronpagina staat. |
 | 5 | Analyse aanmaken |, | Verplicht onderwerp + optionele content-brief. |
 | 6 | Onderwerp-onderzoek (A1') | luna, web_search | Wat de site over dít onderwerp zegt + welke concurrenten hier relevant zijn. |
-| 7 | Promptgeneratie (A2) | luna ×3 parallel, temp 0,8 (effort none) | 10 per funnelfase. Merk- en concurrentneutraal geformuleerd. Aparte calls per fase, want één grote call levert herhaling op. **Bij een lokaal merk zijn alle vragen regionaal**, zie hieronder. |
+| 7 | Promptgeneratie (A2) | luna, temp 0,8 (effort none) | **Eén taak PER funnelfase** (sinds 12 aug 2026). Standaard 10 per fase, per analyse instelbaar (migratie 0054, `lib/prompt-mix.ts`). Merk- en concurrentneutraal geformuleerd. **Bij een lokaal merk zijn alle vragen regionaal**, zie hieronder. |
 | 8 | Volumekalibratie | luna | Relatief gekalibreerd over álle prompts tegelijk, consistenter dan losse schattingen. Drie banden, geen verzonnen 0–100. |
 | 9 | **Goedkeuringspoort** |, | De pijplijn stopt. De klant ziet en bewerkt onderzoek + alle prompts, en klikt pas dan "Bevestig en start meting". Geen black box, en niets betaalds start zonder akkoord. |
 | 10 | Meting (A3) | 3a: luna + web_search, modelstandaard · 3b: luna, effort none | Per prompt: een gesimuleerd AI-antwoord, daarna een beoordeling per entiteit. 3a en 3b zijn los herhaalbaar, een mislukte 3b draait nooit opnieuw de dure 3a. |
@@ -210,6 +210,28 @@ de al bestaande `version-reason.ts` en `similarity.ts`:
   `validateOrRebuildJsonLd()` zodra de FAQ van een `type: "faq"`-pagina wijzigt, met
   `loadSchemaOrg()` (`lib/pipeline/content.ts`) als gedeelde bron voor de organisatieknoop, zodat
   die niet verdwijnt bij een herbouw.
+
+### De promptverdeling, en waarom de generatie in drie taken zit
+
+Standaard tien vragen per funnelfase, dertig in totaal. Per **analyse** aan te passen tussen 0 en 40
+per fase, met een maximum van 90 in totaal (`lib/prompt-mix.ts`). Per analyse en niet per merk: de
+juiste verdeling hangt aan het onderwerp, niet aan het bedrijf.
+
+⚠️ **Nul is een keuze en geen leegte.** Een fase op nul zetten is geldig, en dat is overal expliciet
+afgehandeld: de terugval naar de standaard gebeurt per fase en gebruikt geen `??` (dat zou nul
+wegrekenen), een fase met nul krijgt geen taak, en een lege uitkomst geldt dan niet als storing.
+
+**De generatie is één taak per fase**, sinds 12 augustus 2026. De gezamenlijke taak liep op productie
+één keer 228 seconden van de 300 die hij heeft; met meer vragen per fase zou hij daaroverheen gaan en
+middenin afgekapt worden. Drie taken van ~76 seconden houdt ruimte over, en het volgt conventie 7.
+
+De poort naar klant-goedkeuring (`concept_klaar`) gaat pas open als álle fasen klaar zijn. De
+fasetaak weet niet of hij de laatste is; de wachtrij telt hoeveel er nog openstaan.
+
+**Wat een vraag kost:** $0,024 per meting, gemeten over 428 metingen op productie. Dertig vragen is
+dus ~$0,72 per meetronde per onderwerp, zestig ~$1,44, negentig ~$2,16. De onzekerheidsband schaalt
+met de wortel: ±16,4 punten bij 30, ±11,6 bij 60, ±9,5 bij 90. Het scherm toont beide getallen vóór
+het starten.
 
 ### De regionale regel bij een lokaal merk
 
@@ -462,7 +484,7 @@ Bewust **niet** in RLS: dat zou een gearchiveerd merk ook voor de eigenaar onber
 
 ## 12. Migraties
 
-`0001` t/m `0053`, alle toegepast op productie behalve `0033` (gereserveerd voor R6.2, nooit
+`0001` t/m `0054`, alle toegepast op productie behalve `0033` (gereserveerd voor R6.2, nooit
 gedraaid, de reservering verviel toen `0039` de inventariskwaliteit fase 0 van de nieuwe
 onboarding maakte; een gereserveerd nummer dat nooit draaide blokkeert niets).
 

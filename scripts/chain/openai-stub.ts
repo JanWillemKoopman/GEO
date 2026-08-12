@@ -73,6 +73,33 @@ function citaatUit(tekst: string, woorden = 6): string {
 
 const ANTWOORDEN: Record<string, (user: string) => unknown> = {
   /**
+   * De promptgeneratie, per funnelfase (migratie 0054).
+   *
+   * ⚠️ Leest het GEVRAAGDE AANTAL en de FASE uit de opdracht terug, in plaats
+   * van een vaste lijst terug te geven. Dat is het hele punt van de test: sinds
+   * de verdeling per analyse instelbaar is, moet elke fase precies zoveel vragen
+   * opleveren als er gevraagd zijn. Een stub met een vast aantal zou groen
+   * blijven terwijl productie het verkeerde aantal genereert.
+   *
+   * De vragen bevatten bewust geen merk- of concurrentnaam, anders gooit het
+   * vangnet in `prompts.ts` ze weg en gaat de generatie eindeloos bijvullen.
+   */
+  prompt_set: (user: string) => {
+    const aantal = Number(/Genereer precies (\d+) prompts/.exec(user)?.[1] ?? 0);
+    const fase = /FUNNELFASE "([^"]+)"/.exec(user)?.[1] ?? "Oriëntatie";
+    return {
+      prompts: Array.from({ length: aantal }, (_, i) => ({
+        text: `Vraag ${i + 1} over dit onderwerp in de fase ${fase}?`,
+        intent: "iets weten",
+        intentType: "informational" as const,
+        specificity: "long_tail" as const,
+        purchaseIntent: false,
+        cluster: fase.toLowerCase(),
+      })),
+    };
+  },
+
+  /**
    * De atomiseerstap (S1). Geeft één zin terug die letterlijk in de gecrawlde
    * pagina van het scenario staat, plus één die er NIET in staat, zodat de
    * test aantoont dat het vangnet in `atom-verify.ts` de tweede weggooit.

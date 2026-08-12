@@ -2409,3 +2409,41 @@ dat is een gesloten deur, geen open deur. Wel open: bescherming tegen gelekte wa
 in Supabase Auth, en drie functies met verhoogde rechten zijn aanroepbaar via de REST-API, waaronder
 de trigger die ik vanochtend zelf toevoegde. Die staan in het lanceerplan als openstaand.
 110 ketentests.
+
+**De promptverdeling is per analyse instelbaar (12 augustus 2026, migratie 0054).** Standaard blijft
+10/10/10, en per analyse kun je dat wijzigen. Per ANALYSE en niet per merk, op verzoek van de
+eigenaar en om de juiste reden: de goede verdeling hangt aan het onderwerp, niet aan het bedrijf.
+Dezelfde installateur wil bij "cv-ketel onderhoud" vooral beslissingsvragen ("wie kan dit voor mij
+doen in Den Bosch") en bij "warmtepomp subsidie" juist oriëntatievragen, want daar is de koper nog
+aan het uitzoeken wát hij wil.
+
+**Nul is een keuze en geen leegte.** Een analyse zonder oriëntatievragen is geldig voor een lokale
+ondernemer die alleen op koopmomenten beoordeeld wil worden. Overal in de keten is dat expliciet
+afgehandeld: `resolveMix` valt per fase apart terug op de standaard en gebruikt geen `??` (dat zou
+nul wegrekenen), een fase met nul krijgt géén taak, en de generatie ziet een lege uitkomst dan niet
+als storing.
+
+**Het scherm zegt wat het kost vóórdat je op start drukt.** "60 vragen per meetronde, ongeveer $1.44
+per maand voor dit onderwerp. De onzekerheidsmarge op de score is dan ongeveer ±11,6 punten." Beide
+getallen komen uit echte data: $0,024 per vraag, gemeten over 428 metingen op productie, en de marge
+uit dezelfde binomiale rekensom als `lib/stats/uncertainty.ts`. De marge schaalt met de wortel, dus
+verdubbelen levert een kwart smallere band en niet de helft. Dat hoort iemand te weten vóór hij het
+getal omhoog zet en niet pas op de rekening.
+
+**De generatie is gesplitst in één taak per funnelfase, en dat moest sowieso.** De gezamenlijke taak
+liep op productie één keer 228 seconden van de 300 die hij heeft. Met meer vragen per fase zou hij
+daar overheen gaan en middenin worden afgekapt. Drie taken van ~76 seconden houdt ruimte over, en het
+is bovendien conventie 7: één taak doet hooguit één zware AI-aanroep.
+
+**Twee vallen die de splitsing zelf introduceerde, allebei afgevangen.** De poort naar
+klant-goedkeuring mag pas open als álle fasen klaar zijn; zou de eerste fasetaak hem openen, dan ziet
+de klant een derde van zijn vragen met de mededeling dat ze klaar zijn. En de controle "is dit een
+mislukte voorbereiding of een mislukte meting" keek naar "zijn er al vragen"; slaagt fase één en
+mislukt fase twee, dan zíjn er vragen en zou de herkansing afketsen, waarna de analyse voorgoed op
+'mislukt' blijft staan met een derde van zijn vragen. Die controle vraagt nu of élke fase die vragen
+hoort te hebben, ze ook heeft.
+
+⚠️ **En de ronde van vanochtend had er één gemist.** De idempotentiecontrole in `prepare.ts` die
+bepaalt of de vragen al bestaan, stond nog op het oude `if (!count)`. Exact het patroon dat F5 moest
+uitroeien: gaat de telling stuk, dan luidt de conclusie "er staat nog niets" en wordt een hele
+funnelfase opnieuw gegenereerd en betaald. Nu ook op `requireCount`. 1154 unittests, 119 ketentests.

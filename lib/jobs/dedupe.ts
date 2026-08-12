@@ -25,7 +25,14 @@ export const dedupe = {
   llmBaseline: (profileId: string) => `llm_baseline:${profileId}`,
   profileSynthesis: (profileId: string) => `profile_synthesis:${profileId}`,
   prepareAnalysis: (analysisId: string) => `prepare:${analysisId}`,
-  generatePrompts: (analysisId: string) => `prompts:${analysisId}`,
+  /**
+   * Sinds 12 augustus 2026 één taak per funnelfase, dus de fase hoort in de
+   * sleutel. Zonder dat zou de tweede fase gezien worden als een dubbele van de
+   * eerste en nooit ingepland worden, en had de analyse tien vragen in plaats
+   * van dertig.
+   */
+  generatePrompts: (analysisId: string, category: string) =>
+    `prompts:${analysisId}:${category}`,
   calibrateVolumes: (analysisId: string) => `volumes:${analysisId}`,
   // De herhalingsindex hoort in de sleutel (R6.1): drie metingen van dezelfde
   // vraag in dezelfde periode zijn drie verschillende taken, geen duplicaat.

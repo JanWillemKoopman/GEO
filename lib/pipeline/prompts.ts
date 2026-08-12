@@ -2,8 +2,16 @@ import "server-only";
 
 /**
  * Halte 2, Prompt-generatie (abcplan.md §6 A2). Eén call per FUNNELFASE
- * (Oriëntatie/Overweging/Beslissing), PARALLEL afgevuurd, quality-tier,
- * geen web_search. Aantal per fase is configureerbaar (lib/config.ts).
+ * (Oriëntatie/Overweging/Beslissing), quality-tier, geen web_search.
+ *
+ * ⚠️ Sinds 12 augustus 2026 is elke funnelfase een EIGEN TAAK en draaien ze niet
+ * meer parallel binnen één taak. Reden: de gezamenlijke taak liep op productie
+ * één keer 228 seconden van de 300 die hij heeft, en met de verdeling per
+ * analyse instelbaar (migratie 0054) kan het aantal vragen omhoog. Drie taken
+ * van ~76 seconden houdt ruimte over; één taak van 228 niet. Dat is ook
+ * conventie 7: één taak doet hooguit één zware AI-aanroep.
+ *
+ * Het aantal per fase komt uit `lib/prompt-mix.ts`, standaard 10.
  *
  * KERNPRINCIPE (merk- én concurrent-neutraliteit): een gegenereerde prompt mag
  * NOOIT de eigen merknaam/het domein van de klant bevatten, en ook GEEN
@@ -17,7 +25,7 @@ import "server-only";
 import { callStructured } from "@/lib/openai/structured";
 import { MODELS } from "@/lib/openai/models";
 import { PromptSet, VolumeCalibration } from "@/lib/schemas/prompts";
-import { PROMPT_CATEGORIES, type PromptIntentType, type PromptSpecificity } from "@/lib/types/database";
+import type { PromptIntentType, PromptSpecificity } from "@/lib/types/database";
 import {
   isLokaal,
   geoBalance,
@@ -25,7 +33,6 @@ import {
   droppableIndices,
   REGIO_DREMPEL,
 } from "@/lib/pipeline/geo-share";
-import { promptsPerFunnelStage } from "@/lib/config";
 
 /** Korte, sturende omschrijving per FUNNELFASE: merk- én concurrent-neutraal. */
 const CATEGORY_BRIEF: Record<string, string> = {
@@ -475,21 +482,25 @@ export async function calibrateVolumes(texts: string[], analysisId: string): Pro
  * precies de terugvalwaarde die deze functie bij een mislukte kalibratie ook al
  * gebruikte, de analyse werkt dus gewoon door.
  */
-export async function generatePrompts(args: {
+export async function generatePromptsForStage(args: {
   /** Voor de kostenregistratie (optimalisatie.md 0.6). */
   analysisId: string;
   url: string;
   topic: string;
   brand: BrandContext;
   contentBrief?: string | null;
+  /** Welke funnelfase deze taak doet. */
+  category: string;
+  /** Hoeveel vragen deze fase moet opleveren (migratie 0054, per analyse). */
+  count: number;
 }): Promise<GeneratedPrompt[]> {
+  // Nul is een geldige keuze: een lokale ondernemer die alleen op koopmomenten
+  // beoordeeld wil worden, zet de oriëntatiefase op nul. Dan is er niets te
+  // genereren en ook niets mis.
+  if (args.count === 0) return [];
+
   const tokens = forbiddenTokens(args.url, args.brand.brandName, args.brand.competitors);
-  const perStage = await Promise.all(
-    PROMPT_CATEGORIES.map((category) =>
-      generateForFunnelStage({ ...args, category, count: promptsPerFunnelStage, tokens }),
-    ),
-  );
-  const prompts = perStage.flat();
+  const prompts = await generateForFunnelStage({ ...args, tokens });
 
   // Zonder vragen is er niets te meten, en een analyse die daar tóch mee
   // doorloopt komt nooit meer verder: de meting plant nul taken in, dus de
@@ -497,10 +508,15 @@ export async function generatePrompts(args: {
   // voortgangsscherm dat eeuwig draait. Liever hier eerlijk falen, de wachtrij
   // probeert het opnieuw, en lukt het dan nog niet, dan ziet de klant een
   // fout met een retry-knop in plaats van stilstand.
+  //
+  // ⚠️ Alleen falen als er om vragen GEVRAAGD is. Sinds de verdeling per analyse
+  // instelbaar is (migratie 0054) kan een fase legitiem nul opleveren, en dan is
+  // een lege uitkomst geen storing maar de bedoeling.
   if (prompts.length === 0) {
     throw new Error(
-      "Promptgeneratie leverde geen enkele bruikbare vraag op. Meestal komt dat doordat de " +
-        "merk- of concurrentnaam samenvalt met de categoriewoorden van het onderwerp.",
+      `Promptgeneratie leverde geen enkele bruikbare vraag op voor de fase "${args.category}". ` +
+        "Meestal komt dat doordat de merk- of concurrentnaam samenvalt met de categoriewoorden " +
+        "van het onderwerp.",
     );
   }
 

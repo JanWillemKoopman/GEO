@@ -110,3 +110,14 @@ netwerkronde mag doen. Zie `lib/spend-rules.ts` en `docs/tasks/lanceerplan.md` F
 
 Toegepast op productie op 11 augustus 2026: 1.140 bestaande rijen kregen allemaal een account, nul
 bleven er over.
+
+## 0054 · promptverdeling per analyse
+
+`analyses.prompts_orientatie` / `prompts_overweging` / `prompts_beslissing`, alle drie nullable met
+een check op 0 t/m 40. Null per fase betekent de standaard van 10 uit `lib/prompt-mix.ts`; nul is een
+geldige keuze en géén "niet ingevuld". Drie kolommen en geen jsonb, omdat een typefout in een
+jsonb-sleutel stilzwijgend niets doet en dat precies de fout is die de ronde van 12 augustus (F5)
+moest uitroeien.
+
+De database bewaakt alleen het bereik per kolom, niet het totaal van 90: dat laatste is een
+productbesluit over kosten en staat in `lib/prompt-mix.ts`, waar de melding erbij past.

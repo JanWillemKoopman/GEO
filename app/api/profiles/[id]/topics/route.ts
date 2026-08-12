@@ -4,6 +4,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { getOwnedProfile } from "@/lib/profiles";
 import { enqueue, dedupe } from "@/lib/jobs/queue";
 import { mayTriggerCost, COST_DENIED } from "@/lib/cost-guard";
+import { checkMix, type FunnelStage } from "@/lib/prompt-mix";
 import { checkBudgetForProfile } from "@/lib/spend-limit";
 import { buildAnalysisName } from "@/lib/url";
 import type { ProfileTopic } from "@/lib/types/database";
@@ -111,13 +112,27 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     return NextResponse.json({ error: "Aura is nog bezig met dit merk. Wacht tot het onderzoek klaar is." }, { status: 409 });
   }
 
-  let body: { topicId?: string };
+  let body: { topicId?: string; mix?: Record<string, unknown> };
   try {
     body = await request.json();
   } catch {
     return NextResponse.json({ error: "Ongeldige aanvraag." }, { status: 400 });
   }
   if (!body.topicId) return NextResponse.json({ error: "Geen onderwerp." }, { status: 400 });
+
+  // De verdeling over de funnelfasen (migratie 0054). Weggelaten is de normale
+  // gang van zaken en betekent de standaard 10/10/10; de kolommen blijven dan
+  // null, zodat een latere wijziging van die standaard vanzelf meetelt.
+  let mixUpdate: Record<string, number> | null = null;
+  if (body.mix) {
+    const check = checkMix(body.mix as Partial<Record<FunnelStage, unknown>>);
+    if (!check.ok) return NextResponse.json({ error: check.reason }, { status: 400 });
+    mixUpdate = {
+      prompts_orientatie: check.mix["Oriëntatie"],
+      prompts_overweging: check.mix["Overweging"],
+      prompts_beslissing: check.mix["Beslissing"],
+    };
+  }
 
   const { data: topicRow } = await admin
     .from("profile_topics")
@@ -148,6 +163,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       status: "bezig",
       content_brief: topic.client_note,
       notify_by_email: true,
+      ...(mixUpdate ?? {}),
     })
     .select("id")
     .single();
