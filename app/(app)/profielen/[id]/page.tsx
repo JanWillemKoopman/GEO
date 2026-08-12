@@ -25,10 +25,7 @@ import { ProfileReadinessPanel } from "./profile-readiness-panel";
 import { OfferingsPanel } from "./offerings-panel";
 import { ConfidenceChip } from "@/components/confidence-chip";
 import { assessStructureCoverage } from "@/lib/pipeline/structure-gap";
-import {
-  onboardingStats,
-  onboardingHeadline,
-} from "@/lib/pipeline/onboarding-summary";
+import { onboardingHeadline } from "@/lib/pipeline/onboarding-summary";
 import type {
   BaselineVerdict,
   CategoryVerdict,
@@ -289,7 +286,6 @@ export default async function ProfilePage({
         brandName={merknaam}
         url={profile.url}
         headline={onboardingHeadline(samenvatting)}
-        stats={onboardingStats(samenvatting)}
         primaryAction={primaryAction}
         showNotes={staff}
       />

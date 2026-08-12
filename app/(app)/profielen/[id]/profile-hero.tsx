@@ -1,8 +1,6 @@
 import Link from "next/link";
 import { PageHeader } from "@/components/page-header";
 import { ExternalLink } from "@/components/external-link";
-import { InfoHint } from "@/components/info-hint";
-import type { OnboardingStat } from "@/lib/pipeline/onboarding-summary";
 
 /**
  * De kop van het profielscherm.
@@ -15,11 +13,20 @@ import type { OnboardingStat } from "@/lib/pipeline/onboarding-summary";
  * zeggen over wie het ging. `/profielen` gebruikte de gedeelde kop wél; deze
  * pagina was de uitzondering, en dat is precies waar drift begint.
  *
- * ── DRIE CIJFERS, EN EEN ZIN ERBOVEN ────────────────────────────────────────
+ * ── DE DRIE NULMETING-TEGELS ZIJN ERUIT (12 augustus 2026) ──────────────────
  *
- * `ux-design.md` regel 1: één hoofdgetal. De duidingszin doet dat werk, de drie
- * tegels zijn de onderbouwing. Zonder die zin leest "0/3" als een cijfer op een
- * rapport, en voor vrijwel elk MKB-merk is dat gewoon de startsituatie.
+ * Hier stonden drie tegels: "Kent ChatGPT je bedrijf?" (6 formuleringen, geen
+ * web search), "Noemt ChatGPT je als iemand wil kopen?" (3 vooraf gekozen
+ * onderwerpen) en "Diensten zonder eigen pagina" (een automatische woordmatch
+ * op een nog niet nagekeken aanbodboom). Alle drie kregen de vorm van een
+ * afgeronde score, terwijl het losse steekproeven zijn op een fractie van het
+ * aanbod, vóór het gesprek. Dat leest als een uitspraak en is er geen; zie
+ * `docs/logbook.md` voor de volledige afweging. De onderliggende rekenkant
+ * (`lib/pipeline/onboarding-summary.ts`) staat er nog, alleen dit scherm
+ * gebruikt hem niet meer. Wat AI wél zegt over dit merk staat uitgebreider,
+ * met bewijs per antwoord, onder "Wat AI weet" (`#ai-kennis`); de paginadekking
+ * staat onder "Aanbod" (`#aanbod`), waar hij naast de aanbodboom te lezen is
+ * in plaats van als los cijfer vooraf.
  *
  * Eén primaire actie, en dat is de volgende stap in het product, niet een
  * beheerdershandeling. `AssignBox` verhuisde naar een eigen beheerblok onderaan:
@@ -30,14 +37,12 @@ export function ProfileHero({
   brandName,
   url,
   headline,
-  stats,
   primaryAction,
   showNotes = false,
 }: {
   brandName: string;
   url: string;
   headline: string | null;
-  stats: OnboardingStat[];
   /**
    * Staan de gespreksnotities op deze pagina? Alleen de consultant ziet die
    * sectie, en een springlink naar een blok dat er niet is, is een dode link.
@@ -46,8 +51,6 @@ export function ProfileHero({
   /** De enige primaire actie op dit scherm. Null zolang er niets te starten is. */
   primaryAction: { href: string; label: string } | null;
 }) {
-  const iets = stats.some((s) => s.value !== "-");
-
   return (
     <div className="flex flex-col gap-4">
       <PageHeader
@@ -88,66 +91,6 @@ export function ProfileHero({
         <JumpLink href="#onderwerpen">Onderwerpen</JumpLink>
         {showNotes && <JumpLink href="#gesprek">Gespreksnotities</JumpLink>}
       </nav>
-
-      {iets && (
-        <div className="flex flex-col gap-2">
-          {/* Eén kop boven de drie tegels. Zonder die kop is niet duidelijk dat
-              dit één samenhangende meting is met één moment: het is de stand
-              van vandaag, vóór er iets veranderd is. */}
-          <span className="mono-label">De nulmeting</span>
-          <div className="grid gap-3 sm:grid-cols-3">
-            {stats.map((s) => (
-              <StatTile key={s.label} stat={s} />
-            ))}
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-/**
- * Eén tegel. De waarde in mono. Dat is de "technische read-out" uit
- * `designsystem.md` §C3 en de herkenbaarste typografische keuze van het systeem.
- *
- * Kleur is nooit het enige signaal (§C5): de toon zit in de kleur én in de
- * hint eronder, die in gewone taal zegt wat het getal betekent.
- */
-function StatTile({ stat }: { stat: OnboardingStat }) {
-  const kleur =
-    stat.tone === "goed"
-      ? "var(--status-success)"
-      : stat.tone === "aandacht"
-        ? "var(--intent-intelligence-solid)"
-        : "var(--text-primary)";
-
-  return (
-    <div className="card flex flex-col gap-1">
-      <span
-        className="stat-value text-3xl font-bold"
-        style={{ color: kleur }}
-      >
-        {stat.value}
-      </span>
-
-      {/* Het label is een hele vraag geworden in plaats van twee woorden. Een
-          tegel die "Herkend door ChatGPT" heet laat de lezer zelf raden wat de
-          noemer is; een tegel die "Kent ChatGPT je bedrijf?" heet niet. */}
-      <span className="flex items-start gap-1 text-sm font-semibold">
-        {stat.label}
-        <InfoHint label={`Wat meet "${stat.label}"?`}>{stat.explain}</InfoHint>
-      </span>
-
-      {stat.hint && <span className="text-sm text-muted">{stat.hint}</span>}
-
-      {stat.href && (
-        <a
-          href={stat.href}
-          className="mono-label mt-1 w-fit transition-colors hover:text-[var(--text-primary)]"
-        >
-          Bekijk de onderbouwing
-        </a>
-      )}
     </div>
   );
 }
