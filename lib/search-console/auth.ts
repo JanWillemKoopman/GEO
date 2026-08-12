@@ -1,5 +1,7 @@
 import "server-only";
 
+import { readKey, type KeyState } from "@/lib/search-console/key-state";
+
 /**
  * Inloggen bij Google met een service account, zonder bibliotheek.
  *
@@ -47,23 +49,22 @@ export interface TokenProblem {
   reason: string;
 }
 
-/** De sleutel, of null als hij niet is ingesteld. Gooit nooit. */
+/**
+ * De sleutel in zijn drie toestanden: er niet, kapot, of goed.
+ *
+ * ⚠️ Dit gaf tot 12 augustus 2026 gewoon `null` terug in alle drie de gevallen,
+ * en de aanroeper maakte daar één melding van: "de sleutel is nog niet
+ * ingesteld". Bij een kapotte sleutel stuurde die zin je dus iets instellen dat
+ * er al stond. Zie `lib/search-console/key-state.ts` voor de hele redenering.
+ */
+export function serviceAccountState(): KeyState {
+  return readKey(process.env.GOOGLE_SERVICE_ACCOUNT_JSON);
+}
+
+/** De sleutel, of null als hij er niet is of onbruikbaar is. Gooit nooit. */
 export function serviceAccount(): ServiceAccount | null {
-  const ruw = process.env.GOOGLE_SERVICE_ACCOUNT_JSON;
-  if (!ruw || ruw.trim().length === 0) return null;
-  try {
-    const j = JSON.parse(ruw) as Partial<ServiceAccount>;
-    if (!j.client_email || !j.private_key) return null;
-    // Sommige omgevingen bewaren `\n` als twee tekens. Dan is de sleutel
-    // syntactisch één regel en weigert OpenSSL hem, met een foutmelding die
-    // nergens naar de oorzaak wijst.
-    return {
-      client_email: j.client_email,
-      private_key: j.private_key.replace(/\\n/g, "\n"),
-    };
-  } catch {
-    return null;
-  }
+  const stand = serviceAccountState();
+  return stand.state === "ok" ? stand.key : null;
 }
 
 /** Het adres dat de klant moet toevoegen. Null zolang de sleutel ontbreekt. */
@@ -79,14 +80,22 @@ export function serviceAccountEmail(): string | null {
  * hergebruikt wordt. Binnen één taak is er precies één aanroep nodig.
  */
 export async function accessToken(): Promise<TokenResult | TokenProblem> {
-  const sa = serviceAccount();
-  if (!sa) {
+  const stand = serviceAccountState();
+  if (stand.state === "afwezig") {
     return {
       ok: false,
       reason:
         "De Google-sleutel is nog niet ingesteld. Zet GOOGLE_SERVICE_ACCOUNT_JSON in de omgevingsvariabelen.",
     };
   }
+  // ⚠️ Een kapotte sleutel krijgt zijn eigen zin, en dat is het hele punt van
+  // deze splitsing: hierboven moet je iets instellen, hier moet je iets
+  // repareren. Dezelfde melding voor allebei stuurt de helft van de gevallen
+  // de verkeerde kant op.
+  if (stand.state === "onbruikbaar") {
+    return { ok: false, reason: stand.reason };
+  }
+  const sa = stand.key;
 
   const nu = Math.floor(Date.now() / 1000);
   const header = { alg: "RS256", typ: "JWT" };

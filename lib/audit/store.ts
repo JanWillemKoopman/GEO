@@ -11,6 +11,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { runTechnicalAudit, type TechnicalAudit as AuditResult } from "@/lib/audit/technical";
 import { entityConsistencyChecks } from "@/lib/audit/entity-consistency";
 import type { Profile, TechnicalAudit as AuditRow } from "@/lib/types/database";
+import { requireCount } from "@/lib/require-count";
 
 type Admin = SupabaseClient;
 
@@ -48,10 +49,15 @@ export async function runAuditForProfile(admin: Admin, profileId: string): Promi
 
   let checks = audit.checks;
   if (discovery) {
-    const { count: pagesCrawled } = await admin
-      .from("profile_pages")
-      .select("id", { count: "exact", head: true })
-      .eq("profile_id", profileId);
+    // Niet `?? 0`: nul gecrawlde pagina's is een oordeel over de site van de
+    // klant, en dat mag geen gevolg zijn van een haperende telling.
+    const pagesCrawled = requireCount(
+      await admin
+        .from("profile_pages")
+        .select("id", { count: "exact", head: true })
+        .eq("profile_id", profileId),
+      "de gecrawlde pagina's van dit merk",
+    );
 
     checks = [
       ...checks,
@@ -62,7 +68,7 @@ export async function runAuditForProfile(admin: Admin, profileId: string): Promi
         sameAs: discovery.sameAs ?? [],
         schemaTypes: discovery.schemaTypes ?? [],
         pagesWithSchema: discovery.pagesWithSchema ?? 0,
-        pagesCrawled: pagesCrawled ?? 0,
+        pagesCrawled,
         clientRenderedPages: discovery.clientRenderedPages ?? 0,
         wikidataId: profile.wikidata_id,
         wikipediaUrl: profile.wikipedia_url,

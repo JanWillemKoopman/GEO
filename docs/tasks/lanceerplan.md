@@ -604,7 +604,7 @@ Dit spoor bouwt, de andere vijf toetsen. Het staat er omdat vier van de zeven pu
 | F2 | **Kosten bij de knop** die geld kost | P3, en het is beter dan Nova | 2 uur |
 | F3 | ~~**Eén toegangsfunctie** in plaats van een tweeling~~ | P2 | **Af.** `lib/access.ts`, zie hieronder |
 | F4 | ~~**Een klant volledig verwijderen**~~ | P5, AVG-plicht | **Af.** Zie hieronder |
-| F5 | **De stille-fout-ronde**: elke `catch` en elke `?? null` in `lib/` nalopen | P1. Twee van de vijf fouten van vandaag waren precies dit | 0,5 dag |
+| F5 | ~~**De stille-fout-ronde**: elke `catch` en elke `?? null` in `lib/` nalopen~~ | P1 | **Af.** Zie hieronder |
 
 #### F1 is af, en hier staat wat hij doet
 
@@ -703,6 +703,62 @@ account nog niet; dat is herstelbaar (het account is dan leeg en opnieuw te verw
 omgekeerde zou erger zijn. En het kostenlogboek van die klant gaat mee, waardoor het dagplafond die
 dag iets ruimer staat. Verwaarloosbaar in bedrag, en het alternatief maakt een onomkeerbare handeling
 ingewikkelder. Ingewikkeld en onomkeerbaar is een slechte combinatie.
+
+#### F5 is af, en de vondst was groter dan verwacht
+
+**De aanpak: sorteren op gevolg, niet op aantal.** In `lib/` staan 118 queries zonder foutcontrole en
+97 schrijfacties zonder foutcontrole. Die allemaal mechanisch omhullen levert meer ruis dan waarde:
+de meeste lezen één rij waar `null` een echte toestand is die het scherm ook netjes toont. De vraag
+was dus niet "waar ontbreekt een controle" maar "waar leidt een storing tot geld, een verkeerd getal,
+of stil verlies".
+
+**Vondst 1: elke idempotentiecontrole faalde de verkeerde kant op.** Conventie 9 zegt dat elke stap
+controleert of zijn werk al gedaan is vóór een dure aanroep. Overal stond dat zo:
+
+```ts
+const { count } = await admin.from("profile_offerings").select(...);
+if ((count ?? 0) > 0) return;   // al gedaan, niets doen
+```
+
+Gaat die telling stuk, dan is `count` niet een getal maar `null`, en `null ?? 0` is 0, dus "er staat
+nog niets", dus de dure aanroep gaat alsnog. **De bescherming tegen dubbel betalen faalde precies op
+het moment waarop een taak opnieuw geprobeerd wordt**, want dat is hetzelfde moment waarop de database
+hapert. Het commentaar bij `offering.ts` zei letterlijk "een retry mag geen tweede keer betaald
+worden", terwijl de code dat niet waarmaakte.
+
+`lib/require-count.ts` maakt hier één functie van die gooit in plaats van gokt. Toegepast op zeven
+plekken: de aanbodboom, de onderwerpen, de vragen, het rapport, de effectmeting, de technische
+controle en de contenttaken.
+
+**Vondst 2: de duurste stille fout zat in de werker.** Het afvinken van een gelukte taak stond er als
+een kale `await` zonder foutcontrole. Mislukt die update, dan blijft de taak op `running`, pakt
+`reclaim_stuck_jobs` hem later terug, en wordt het werk **opnieuw** gedaan. Bij een meting is dat
+dertig betaalde web-zoekacties voor een uitkomst die er al was. Nu drie pogingen, en daarna een harde
+logregel die uitlegt waarom er dubbel betaald gaat worden.
+
+**Vondst 3: een storing die zich voordeed als een afwezigheid.** De Google-sleutel gaf `null` terug in
+drie verschillende gevallen: de variabele is leeg, de JSON is kapot, of er ontbreken velden. De
+aanroeper maakte daar één melding van: "de sleutel is nog niet ingesteld, zet hem in de
+omgevingsvariabelen". Bij een kapotte sleutel stuurt die zin je dus iets instellen dat er al staat.
+Dat is geen onhandige tekst maar een verkeerde diagnose, en die kost meer tijd dan geen diagnose.
+`lib/search-console/key-state.ts` kent nu drie toestanden met drie meldingen.
+
+**Vondst 4: een stille nul die werk liet verdwijnen.** Het aantal beantwoorde feitvragen zit in de
+dedupe-sleutel van een contenttaak. Faalt die telling en wordt hij 0, dan is de sleutel gelijk aan die
+van een eerdere poging waarin er écht nul antwoorden waren. De taak wordt dan als dubbel gezien en
+niet ingepland: **de klant heeft net drie vragen beantwoord, verwacht een herschreven pagina, en er
+gebeurt niets.** Geen foutmelding, geen taak, niets om terug te vinden.
+
+**Eén plek blijft bewust zacht, en dat staat in de code.** `determineStage()` kiest alleen wélk
+voortgangsscherm getoond wordt, en dat scherm haalt daarna zelf de stand op. Faalt de telling, dan zie
+je een tel lang het verkeerde scherm en corrigeert het zichzelf. Hard falen zou dat inruilen voor een
+pagina die het helemaal niet doet. Die afweging hoort opgeschreven te worden, anders "repareert"
+iemand hem later alsnog.
+
+⚠️ **Wat deze ronde niet gedaan heeft.** De ruim negentig statuswijzigingen zonder foutcontrole zijn
+bekeken maar niet allemaal omhuld. De ergste gevolgen daarvan (een klant die naar een eeuwig draaiend
+voortgangsscherm kijkt) zijn echt maar zelfherstellend zodra de volgende taak draait, en het
+alternatief is een helper langs negentig plekken. Dat is een opruimronde en geen lanceervoorwaarde.
 
 **F1 tot en met F4 zijn lanceervoorwaarden.** F5 is dat niet, en hij levert waarschijnlijk het meeste
 op per uur: het is de enige die zoekt naar fouten die nog niemand gezien heeft.

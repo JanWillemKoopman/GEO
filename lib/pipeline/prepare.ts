@@ -36,6 +36,7 @@ import { generateTopicResearch } from "@/lib/pipeline/topic-research";
 import { generatePrompts, calibrateVolumes, type BrandContext } from "@/lib/pipeline/prompts";
 import { bandFromEstimate } from "@/lib/pipeline/volume";
 import type { Analysis, AnalysisStatus, Profile, ProfilePage } from "@/lib/types/database";
+import { requireCount } from "@/lib/require-count";
 
 type Admin = SupabaseClient;
 
@@ -62,11 +63,14 @@ async function loadPreparable(
   // al zijn, is dit dus geen mislukte voorbereiding: niet aankomen, anders zou
   // deze functie een mislukte meting stilletjes terugzetten naar 'concept_klaar'.
   if (analysis.status === "mislukt") {
-    const { count } = await admin
-      .from("prompts")
-      .select("*", { count: "exact", head: true })
-      .eq("analysis_id", id);
-    if (count) return { done: "mislukt" };
+    const count = requireCount(
+      await admin
+        .from("prompts")
+        .select("*", { count: "exact", head: true })
+        .eq("analysis_id", id),
+      "de vragen van deze analyse",
+    );
+    if (count > 0) return { done: "mislukt" };
   }
 
   const { data: profileRow } = await admin
@@ -220,11 +224,18 @@ export async function generateAnalysisPrompts(id: string): Promise<AnalysisStatu
     // ── Klaar → wacht op klant-goedkeuring (review-gate, Sprint 3) ─────────
     // Laatste controle vóór de poort: er MOET minstens één vraag staan. Zonder
     // dat is 'concept_klaar' een belofte die de meting niet kan waarmaken.
-    const { count: finalCount } = await admin
-      .from("prompts")
-      .select("id", { count: "exact", head: true })
-      .eq("analysis_id", id);
-    if (!finalCount) {
+    // `requireCount` en niet `!finalCount`: allebei stoppen ze, maar met een
+    // andere melding. "Deze analyse heeft geen vragen" stuurt iemand op zoek
+    // naar een lege vragenlijst, terwijl de telling misschien gewoon niet
+    // antwoordde. Een verkeerde diagnose kost meer tijd dan geen diagnose.
+    const finalCount = requireCount(
+      await admin
+        .from("prompts")
+        .select("id", { count: "exact", head: true })
+        .eq("analysis_id", id),
+      "de vragen van deze analyse",
+    );
+    if (finalCount === 0) {
       throw new Error(`Analyse ${id} heeft geen vragen; de meting zou niets te meten hebben.`);
     }
 

@@ -165,6 +165,8 @@ import {
   regionGateMessage,
 } from "@/lib/pipeline/geo-share";
 import { COST_DENIED } from "@/lib/cost-rules";
+import { requireCount } from "@/lib/require-count";
+import { readKey } from "@/lib/search-console/key-state";
 import {
   confirmationMatches,
   deletionLines,
@@ -5011,6 +5013,74 @@ group("elke dure route vraagt het aan dezelfde functie", () => {
   ok(
     "geen enkele melding zegt alleen 'geen toegang'",
     zinnen.every((z) => z.length > 40 && !/geen toegang/i.test(z)),
+  );
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+console.log("\nDe stille-fout-ronde (F5)");
+
+group("requireCount: 'bestaat dit al?' mag nooit stil 'nee' worden", () => {
+  ok("een gewone telling komt er gewoon uit", requireCount({ count: 3, error: null }, "iets") === 3);
+  ok("en nul is een echt antwoord", requireCount({ count: 0, error: null }, "iets") === 0);
+
+  // ⚠️ DE KERN. Het oude patroon was `(count ?? 0) > 0`. Bij een storing is
+  // `count` null, wordt dat 0, en luidt de conclusie "er staat nog niets" dus
+  // "doe het werk maar". De bescherming tegen dubbel betalen faalde precies op
+  // het moment waarop een taak opnieuw geprobeerd werd.
+  let gegooid = false;
+  try {
+    requireCount({ count: null, error: { message: "connection reset" } }, "de aanbodboom");
+  } catch (err) {
+    gegooid = true;
+    const tekst = (err as Error).message;
+    ok("de melding noemt waar het over ging", tekst.includes("de aanbodboom"));
+    ok("en de oorspronkelijke fout", tekst.includes("connection reset"));
+    ok("en waarom er gestopt wordt", tekst.includes("dubbel betaald"));
+  }
+  ok("een fout wordt een fout en geen nul", gegooid);
+
+  // Geen fout maar toch geen getal hoort niet te kunnen. Gebeurt het toch, dan
+  // is het dezelfde gok en dus ook een fout.
+  let tweede = false;
+  try {
+    requireCount({ count: null, error: null }, "de vragen");
+  } catch {
+    tweede = true;
+  }
+  ok("null zonder fout is ook geen nul", tweede);
+});
+
+group("readKey: er niet, kapot en goed zijn drie dingen", () => {
+  const geldig = JSON.stringify({ client_email: "a@b.iam.gserviceaccount.com", private_key: "sleutel" });
+
+  ok("een lege variabele is afwezig", readKey(undefined).state === "afwezig");
+  ok("spaties ook", readKey("   ").state === "afwezig");
+  ok("een geldige sleutel is ok", readKey(geldig).state === "ok");
+
+  // ⚠️ DE KERN. Dit gaf tot 12 augustus 2026 allemaal `null`, en de aanroeper
+  // maakte daar "de sleutel is nog niet ingesteld" van. Bij een kapotte sleutel
+  // stuurt die zin je iets instellen dat er al staat: een verkeerde diagnose,
+  // en die kost meer tijd dan geen diagnose.
+  const kapot = readKey("{dit is geen json");
+  ok("kapotte JSON is onbruikbaar, niet afwezig", kapot.state === "onbruikbaar");
+  ok(
+    "en de melding zegt dat hij er wél staat",
+    kapot.state === "onbruikbaar" && kapot.reason.includes("staat wél"),
+  );
+
+  const half = readKey(JSON.stringify({ client_email: "a@b.nl" }));
+  ok("een ontbrekend veld is ook onbruikbaar", half.state === "onbruikbaar");
+  ok(
+    "en de melding noemt welk veld",
+    half.state === "onbruikbaar" && half.reason.includes("private_key"),
+  );
+
+  // Sommige omgevingen bewaren een regeleinde als twee tekens. Dan weigert
+  // OpenSSL de sleutel met een melding die nergens naar de oorzaak wijst.
+  const metSlashN = readKey(JSON.stringify({ client_email: "a@b.nl", private_key: "regel1\\nregel2" }));
+  ok(
+    "een ontsnapt regeleinde wordt een echt regeleinde",
+    metSlashN.state === "ok" && metSlashN.key.private_key === "regel1\nregel2",
   );
 });
 

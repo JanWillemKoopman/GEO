@@ -47,6 +47,7 @@ import type {
   RecommendationPayload,
 } from "@/lib/jobs/types";
 import type { Job } from "@/lib/types/database";
+import { requireCount } from "@/lib/require-count";
 
 type Admin = SupabaseClient;
 
@@ -159,18 +160,24 @@ async function scheduleImpactIfLastRun(
   impact: { contentPieceId: string; wave: number },
   currentJobId: string,
 ): Promise<void> {
-  const { count: remaining } = await admin
-    .from("jobs")
-    .select("id", { count: "exact", head: true })
-    .eq("analysis_id", analysisId)
-    .eq("type", "measure_prompt")
-    .in("status", ["queued", "running"])
-    .contains("payload_json", {
-      impact: { contentPieceId: impact.contentPieceId, wave: impact.wave },
-    })
-    .neq("id", currentJobId);
+  // ⚠️ Faalt deze telling, dan mag hij géén nul worden: dan zou de
+  // effectmeting worden afgerond terwijl er nog metingen lopen, en dat levert
+  // een impactcijfer op dat de klant te zien krijgt en dat niet klopt.
+  const remaining = requireCount(
+    await admin
+      .from("jobs")
+      .select("id", { count: "exact", head: true })
+      .eq("analysis_id", analysisId)
+      .eq("type", "measure_prompt")
+      .in("status", ["queued", "running"])
+      .contains("payload_json", {
+        impact: { contentPieceId: impact.contentPieceId, wave: impact.wave },
+      })
+      .neq("id", currentJobId),
+    "de nog lopende metingen van deze effectmeting",
+  );
 
-  if ((remaining ?? 0) > 0) return;
+  if (remaining > 0) return;
 
   await enqueue(admin, {
     type: "compute_impact",

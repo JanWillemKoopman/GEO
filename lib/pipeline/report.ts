@@ -44,6 +44,7 @@ import {
 import { sendReportEmail } from "@/lib/email/report-email";
 import { emailsEnabled } from "@/lib/env";
 import { enqueue, dedupe } from "@/lib/jobs/queue";
+import { requireCount } from "@/lib/require-count";
 import type {
   Analysis,
   AnalysisStatus,
@@ -600,12 +601,15 @@ export async function generateReport(
   // Idempotent PER PERIODE (optimalisatie.md 6.1). Stond hier als "bestaat er
   // al een rapport voor deze analyse", waardoor er na de nulmeting nooit meer
   // een rapport kwam en twaalf periodes aan meetkosten in het niets verdwenen.
-  const { count: existingReport } = await admin
-    .from("reports")
-    .select("id", { count: "exact", head: true })
-    .eq("analysis_id", id)
-    .eq("week_no", weekNo);
-  if (existingReport) {
+  const existingReport = requireCount(
+    await admin
+      .from("reports")
+      .select("id", { count: "exact", head: true })
+      .eq("analysis_id", id)
+      .eq("week_no", weekNo),
+    `het rapport van periode ${weekNo}`,
+  );
+  if (existingReport > 0) {
     await admin.from("analyses").update({ status: "gereed" }).eq("id", id);
     return "gereed";
   }

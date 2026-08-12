@@ -179,6 +179,50 @@ export async function runWorker(): Promise<WorkerResult> {
   return out;
 }
 
+/**
+ * Vinkt een gelukte taak af, en geeft niet op na één poging.
+ *
+ * ── WAAROM DIT DE DUURSTE STILLE FOUT VAN DE HELE APP WAS ───────────────────
+ *
+ * ⚠️ Gevonden op 12 augustus 2026 in de stille-fout-ronde (F5). Het afvinken
+ * stond er als een kale `await` zonder foutcontrole. Mislukt die ene update, dan
+ * blijft de taak op `running` staan, pakt `reclaim_stuck_jobs` hem later terug,
+ * en wordt het werk OPNIEUW gedaan. Bij een meting is dat dertig betaalde
+ * web-zoekacties voor een uitkomst die er al was.
+ *
+ * ── WAAROM HET NIET GOOIT ───────────────────────────────────────────────────
+ *
+ * Het werk is op dat moment al gelukt. Een fout gooien zou hem in `handleFailure`
+ * laten belanden, die hem als mislukt markeert en opnieuw inplant, en dan
+ * betalen we precies wat we wilden voorkomen. De juiste reactie is de
+ * BOEKHOUDING opnieuw proberen, niet het werk.
+ *
+ * Lukt het na drie pogingen nog niet, dan blijft er niets anders over dan hard
+ * loggen: de wachtrij zal hem terugpakken en het werk overdoen, en dan hoort er
+ * tenminste een regel te staan die uitlegt waarom er twee keer betaald is.
+ */
+async function markDone(admin: ReturnType<typeof createAdminClient>, job: Job): Promise<void> {
+  for (let poging = 1; poging <= 3; poging++) {
+    const { error } = await admin
+      .from("jobs")
+      .update({ status: "done", finished_at: new Date().toISOString(), last_error: null })
+      .eq("id", job.id);
+    if (!error) return;
+
+    if (poging === 3) {
+      console.error(
+        `⚠️ Taak ${job.type} (${job.id}) is GELUKT maar kon na 3 pogingen niet op 'done' gezet ` +
+          `worden: ${error.message}. De wachtrij pakt hem terug en doet het werk opnieuw, dus dit ` +
+          `wordt dubbel betaald.`,
+      );
+      return;
+    }
+    // Korte oplopende pauze: een tijdelijke hapering is meestal binnen een
+    // seconde over, en langer wachten kost de werker zijn tijdslimiet.
+    await new Promise((r) => setTimeout(r, poging * 200));
+  }
+}
+
 /** Voert één geclaimde taak uit en werkt de tellers bij. Gooit nooit. */
 async function processJob(
   admin: ReturnType<typeof createAdminClient>,
@@ -188,10 +232,7 @@ async function processJob(
   out.processed++;
   try {
     await runJob({ admin, job });
-    await admin
-      .from("jobs")
-      .update({ status: "done", finished_at: new Date().toISOString(), last_error: null })
-      .eq("id", job.id);
+    await markDone(admin, job);
     out.succeeded++;
     out.results.push({ id: job.id, type: job.type, ok: true });
   } catch (err) {

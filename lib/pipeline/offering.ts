@@ -40,6 +40,7 @@ import {
   type TopicLinks,
 } from "@/lib/pipeline/topic-link";
 import type { BusinessModel, Profile } from "@/lib/types/database";
+import { requireCount } from "@/lib/require-count";
 
 /** Hoeveel sitetekst er de aanroep in gaat. Zelfde orde als het profielonderzoek. */
 const MAX_SITE_CHARS = 55_000;
@@ -111,13 +112,16 @@ export async function buildOfferingTree(profileId: string): Promise<OfferingResu
   // Idempotent vóór de dure aanroep (conventie 9): staat de boom er al, dan
   // niets opnieuw doen. Een retry na een mislukte vervolgtaak mag geen tweede
   // keer betaald worden.
-  const { count: existing } = await admin
-    .from("profile_offerings")
-    .select("id", { count: "exact", head: true })
-    .eq("profile_id", profileId);
-  if ((existing ?? 0) > 0) {
+  const existing = requireCount(
+    await admin
+      .from("profile_offerings")
+      .select("id", { count: "exact", head: true })
+      .eq("profile_id", profileId),
+    "de aanbodboom van dit merk",
+  );
+  if (existing > 0) {
     return {
-      nodes: existing ?? 0,
+      nodes: existing,
       businessModel: profile.business_model ?? "overig",
       gaps: [],
       costUsd: 0,

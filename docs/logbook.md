@@ -2356,3 +2356,38 @@ concurrenten staat alleen Kemkens hoger.
 rijen die de route schrijft, want deze omgeving kan niet inloggen. Daarmee zijn de nieuwe 403
 (besluit 18) en 402 (budgetplafond) nog niet in het echt gezien. Datzelfde geldt voor A6 tot en met
 A10: het contentplan, de uitnodiging en het klantpad vragen allemaal een ingelogde browser.
+
+**F5, de stille-fout-ronde: vier vondsten, en de eerste raakt de hele pijplijn.** In `lib/` staan 118
+queries en 97 schrijfacties zonder foutcontrole. Die allemaal omhullen levert meer ruis dan waarde,
+want de meeste lezen één rij waar `null` een echte toestand is. De vraag was dus niet waar een
+controle ontbreekt, maar waar een storing leidt tot geld, een verkeerd getal, of stil verlies.
+
+**Elke idempotentiecontrole faalde de verkeerde kant op.** Conventie 9 zegt dat elke stap controleert
+of zijn werk al gedaan is vóór een dure aanroep, en dat stond overal als `if ((count ?? 0) > 0)
+return`. Gaat die telling stuk, dan is `count` niet een getal maar `null`, en `null ?? 0` is 0, dus
+"er staat nog niets", dus de dure aanroep gaat alsnog. De bescherming tegen dubbel betalen faalde
+precies op het moment waarop een taak opnieuw geprobeerd wordt, want dat is hetzelfde moment waarop de
+database hapert. Het commentaar bij `offering.ts` zei letterlijk "een retry mag geen tweede keer
+betaald worden", terwijl de code dat niet waarmaakte. `lib/require-count.ts` gooit nu in plaats van te
+gokken, op zeven plekken.
+
+**De duurste zat in de werker.** Het afvinken van een gelukte taak was een kale `await`. Mislukt die
+update, dan blijft de taak op `running`, pakt `reclaim_stuck_jobs` hem terug, en wordt het werk
+opnieuw gedaan: bij een meting dertig betaalde web-zoekacties voor een uitkomst die er al was. Nu drie
+pogingen op de boekhouding en niet op het werk, want het werk is dan al gelukt en opnieuw gooien zou
+precies veroorzaken wat we willen voorkomen.
+
+**Een storing die zich voordeed als een afwezigheid.** De Google-sleutel gaf `null` in drie gevallen:
+leeg, kapotte JSON, of ontbrekende velden. Eén melding voor alle drie: "de sleutel is nog niet
+ingesteld". Bij een kapotte sleutel stuurt die zin je iets instellen dat er al staat. Een verkeerde
+diagnose kost meer tijd dan geen diagnose. Nu drie toestanden met drie meldingen.
+
+**En een stille nul die werk liet verdwijnen.** Het aantal beantwoorde feitvragen zit in de
+dedupe-sleutel van een contenttaak. Faalt die telling en wordt hij 0, dan botst de sleutel met een
+eerdere poging waarin er écht nul antwoorden waren, en wordt de taak als dubbel gezien en niet
+ingepland. De klant beantwoordt drie vragen, verwacht een herschreven pagina, en er gebeurt niets.
+
+**Eén plek blijft bewust zacht.** `determineStage()` kiest alleen welk voortgangsscherm getoond wordt,
+en dat scherm haalt daarna zelf de stand op. Hard falen zou een zelfherstellend schoonheidsfoutje
+inruilen voor een pagina die het niet doet. Die afweging staat in de code, anders repareert iemand hem
+later alsnog. 1131 unittests, 109 ketentests.

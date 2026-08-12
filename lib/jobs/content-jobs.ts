@@ -11,6 +11,7 @@ import "server-only";
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { enqueue, dedupe } from "@/lib/jobs/queue";
+import { requireCount } from "@/lib/require-count";
 import type { RecommendationPayload } from "@/lib/jobs/types";
 import type { StoredRecommendation } from "@/lib/pipeline/recommendation";
 import type { ContentType, ContentAction } from "@/lib/types/database";
@@ -122,18 +123,27 @@ export async function planContentDraft(
     .eq("id", analysisId)
     .maybeSingle();
 
-  const { count: beantwoord } = analyseRij?.profile_id
-    ? await admin
-        .from("fact_requests")
-        .select("id", { count: "exact", head: true })
-        .eq("profile_id", analyseRij.profile_id)
-        .eq("status", "beantwoord")
-        .or(`scope.eq.merk,analysis_id.eq.${analysisId}`)
-    : await admin
-        .from("fact_requests")
-        .select("id", { count: "exact", head: true })
-        .eq("analysis_id", analysisId)
-        .eq("status", "beantwoord");
+  // ⚠️ Dit getal zit IN de dedupe-sleutel, en dat maakt een stille nul hier
+  // erger dan hij lijkt. Faalt de telling en wordt hij 0, dan is de sleutel
+  // gelijk aan die van een eerdere poging waarin er echt nul antwoorden waren.
+  // De taak wordt dan als dubbel gezien en NIET ingepland: de klant heeft net
+  // drie feitvragen beantwoord, verwacht een herschreven pagina, en er gebeurt
+  // niets. Geen foutmelding, geen taak, niets om terug te vinden.
+  const beantwoord = requireCount(
+    analyseRij?.profile_id
+      ? await admin
+          .from("fact_requests")
+          .select("id", { count: "exact", head: true })
+          .eq("profile_id", analyseRij.profile_id)
+          .eq("status", "beantwoord")
+          .or(`scope.eq.merk,analysis_id.eq.${analysisId}`)
+      : await admin
+          .from("fact_requests")
+          .select("id", { count: "exact", head: true })
+          .eq("analysis_id", analysisId)
+          .eq("status", "beantwoord"),
+    "de beantwoorde feitvragen van dit merk",
+  );
 
   const { created } = await enqueue(admin, {
     type: "content_draft",
@@ -141,7 +151,7 @@ export async function planContentDraft(
     analysisId,
     dedupeKey:
       `${dedupe.contentDraft(analysisId, recommendation.title)}:v${nextVersion}` +
-      `:f${beantwoord ?? 0}`,
+      `:f${beantwoord}`,
   });
 
   return { created, alreadyDone: false };

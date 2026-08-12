@@ -18,6 +18,16 @@ export async function determineStage(
   supabase: Awaited<ReturnType<typeof createClient>>,
   analysisId: string,
 ): Promise<PipelineStage> {
+  // ⚠️ Deze telling gebruikt BEWUST geen `requireCount` (F5, 12 augustus 2026),
+  // en dat is de enige plek waar dat zo is. Overal elders betekent een
+  // haperende telling dat er duur werk dubbel gedaan wordt of dat de klant een
+  // verkeerd getal ziet; daar hoort de taak te stoppen.
+  //
+  // Hier niet. Deze functie kiest alleen wélk voortgangsscherm er getoond
+  // wordt, en beide schermen blijven daarna zelf de stand ophalen. Faalt de
+  // telling, dan zie je een tel lang het verkeerde voortgangsscherm en corrigeert
+  // het zichzelf. Een fout gooien zou dat inruilen voor een pagina die het
+  // helemaal niet doet, en dat is de slechtere ruil.
   const { count: promptCount } = await supabase
     .from("prompts")
     .select("id", { count: "exact", head: true })

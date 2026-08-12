@@ -32,6 +32,7 @@ import { MODELS } from "@/lib/openai/models";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { discontinuedNames, parseContextFactors } from "@/lib/pipeline/context-factors";
 import type { Profile, ProfileOffering } from "@/lib/types/database";
+import { requireCount } from "@/lib/require-count";
 
 export const TopicProposals = z.object({
   topics: z.array(
@@ -69,11 +70,14 @@ export async function proposeTopics(profileId: string): Promise<TopicResult> {
   // Idempotent vóór de aanroep (conventie 9). Staan er al voorstellen, dan niets
   // opnieuw doen, ook niet als de klant er intussen een paar heeft afgewezen.
   // Opnieuw voorstellen zou zijn keuzes overschrijven.
-  const { count: existing } = await admin
-    .from("profile_topics")
-    .select("id", { count: "exact", head: true })
-    .eq("profile_id", profileId);
-  if ((existing ?? 0) > 0) return { proposed: existing ?? 0, costUsd: 0 };
+  const existing = requireCount(
+    await admin
+      .from("profile_topics")
+      .select("id", { count: "exact", head: true })
+      .eq("profile_id", profileId),
+    "de onderwerpen van dit merk",
+  );
+  if (existing > 0) return { proposed: existing, costUsd: 0 };
 
   const [{ data: offeringRows }, { data: strategyRow }] = await Promise.all([
     admin.from("profile_offerings").select("*").eq("profile_id", profileId).order("sort_order"),
