@@ -1227,6 +1227,105 @@ async function main(): Promise<void> {
     ok("een leeg account begint weer op nul", (await checkBudget(budgetAccount)).ok);
 
     // ══════════════════════════════════════════════════════════════════════
+    // De rolmatrix, leeskant (migratie 0056)
+    //
+    // ⚠️ Dit is de eerste ketentest die ECHTE RLS toetst en niet de service-role.
+    // Tot 12 augustus 2026 gaf de \`auth.uid()\`-stub altijd null, met als
+    // redenering dat de pijplijn toch met de service-role draait. Dat klopt voor
+    // de pijplijn, niet voor een dossierpagina: die leest met de sessie van de
+    // klant, dus mét RLS. Precies dat gat liet toe dat 23 tabellen wél de
+    // eigenaars- en beheerderslaag hadden maar niet de accountlaag: elk tweede
+    // teamlid dat je bij een klantaccount uitnodigt, zag een leeg dossier. Zie
+    // lib/access.ts voor dezelfde les op de SCHRIJFKANT, elf maanden eerder.
+    // ══════════════════════════════════════════════════════════════════════
+    console.log("\nDe rolmatrix, leeskant: wie ziet het dossier van een klant");
+
+    const matrixAccount = randomUUID();
+    const matrixProfiel = randomUUID();
+    const matrixAnalyse = randomUUID();
+    const matrixEigenaarId = randomUUID();
+    const matrixTeamlidId = randomUUID();
+    const matrixVreemdeId = randomUUID();
+    const matrixStaffId = randomUUID();
+
+    await db.client.query("insert into public.accounts (id, name) values ($1, 'Matrix BV')", [matrixAccount]);
+    for (const [id, mail] of [
+      [matrixEigenaarId, "matrix-eigenaar@example.com"],
+      [matrixTeamlidId, "matrix-teamlid@example.com"],
+      [matrixVreemdeId, "matrix-vreemde@example.com"],
+      [matrixStaffId, "matrix-staff@example.com"],
+    ]) {
+      await db.client.query("insert into auth.users (id, email) values ($1, $2)", [id, mail]);
+    }
+    // De eigenaar is lid via account_users (de gewone weg sinds fase 2); het
+    // teamlid ook, maar is NOOIT de user_id op profiel of analyse. Dat is
+    // precies het onderscheid dat migratie 0056 moest dichten.
+    await db.client.query(
+      `insert into public.account_users (account_id, user_id, role) values ($1, $2, 'admin'), ($1, $3, 'member')`,
+      [matrixAccount, matrixEigenaarId, matrixTeamlidId],
+    );
+    await db.client.query("insert into public.staff_users (user_id) values ($1)", [matrixStaffId]);
+    await db.client.query(
+      `insert into public.profiles (id, user_id, account_id, name, url, brand_name, status)
+       values ($1, $2, $3, 'Matrix BV', 'https://matrix-bv.nl', 'Matrix BV', 'klaar')`,
+      [matrixProfiel, matrixEigenaarId, matrixAccount],
+    );
+    await db.client.query(
+      `insert into public.analyses (id, user_id, profile_id, name, url, topic, status)
+       values ($1, $2, $3, 'Matrix-analyse', 'https://matrix-bv.nl', 'iets', 'gereed')`,
+      [matrixAnalyse, matrixEigenaarId, matrixProfiel],
+    );
+    const matrixPrompt = randomUUID();
+    await db.client.query(
+      `insert into public.prompts (id, analysis_id, text, category, active) values ($1, $2, 'Een vraag?', 'Beslissing', true)`,
+      [matrixPrompt, matrixAnalyse],
+    );
+
+    /** Leest `tabel` als `wie`, met echte RLS. Geeft het aantal zichtbare rijen. */
+    async function zichtbaarAls(wie: string, tabel: string, kolom: string, waarde: string): Promise<number> {
+      await db.client.query("begin");
+      await db.client.query("set local role authenticated");
+      await db.client.query("select set_config('request.jwt.claim.sub', $1, true)", [wie]);
+      const { rows } = await db.client.query(
+        `select count(*)::int as n from public.${tabel} where ${kolom} = $1`,
+        [waarde],
+      );
+      await db.client.query("commit");
+      return rows[0].n;
+    }
+
+    ok(
+      "de eigenaar ziet de vraag",
+      (await zichtbaarAls(matrixEigenaarId, "prompts", "analysis_id", matrixAnalyse)) === 1,
+    );
+    // ⚠️ DE KERN VAN DE VONDST. Vóór migratie 0056 was dit 0.
+    ok(
+      "een teamlid dat geen eigenaar is, ziet de vraag ook",
+      (await zichtbaarAls(matrixTeamlidId, "prompts", "analysis_id", matrixAnalyse)) === 1,
+      "0 vragen zichtbaar: de accountlaag ontbreekt weer op prompts",
+    );
+    ok(
+      "de beheerder ziet de vraag",
+      (await zichtbaarAls(matrixStaffId, "prompts", "analysis_id", matrixAnalyse)) === 1,
+    );
+    ok(
+      "een vreemde ziet niets",
+      (await zichtbaarAls(matrixVreemdeId, "prompts", "analysis_id", matrixAnalyse)) === 0,
+      "een vreemde zag de vraag: dit is een lek, geen ontbrekende garantie",
+    );
+
+    // Dezelfde proef op het profiel zelf, met een andere tabel, om aan te tonen
+    // dat het geen toeval van één tabel is.
+    ok(
+      "een teamlid ziet ook het profiel",
+      (await zichtbaarAls(matrixTeamlidId, "profiles", "id", matrixProfiel)) === 1,
+    );
+    ok(
+      "een vreemde ziet het profiel niet",
+      (await zichtbaarAls(matrixVreemdeId, "profiles", "id", matrixProfiel)) === 0,
+    );
+
+        // ══════════════════════════════════════════════════════════════════════
     // Een ingelogde gebruiker moet kunnen lezen (migratie 0055)
     //
     // ⚠️ Deze test bestaat door schade. Op 12 augustus 2026 trok een migratie het

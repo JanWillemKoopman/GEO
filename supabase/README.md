@@ -135,3 +135,28 @@ teruggedraaid; de migratie zet die rechten nu expliciet terug als vangnet.
 
 `scripts/test-chain.ts` controleert sindsdien dat élke functie die in een RLS-regel voorkomt
 aanroepbaar is door `authenticated`. Die test is rood gemaakt om te bewijzen dat hij de fout vangt.
+
+## 0056 · de accountlaag op alle leesregels
+
+Voegt op 23 tabellen een `_select_account`-regel toe naast de bestaande `_select_own` en
+`_select_staff` (Postgres combineert PERMISSIVE policies met OR, dus dit raakt niets bestaands, zie
+0038 voor dezelfde afweging). Plus een nieuwe helperfunctie `readable_analysis_ids()`, gebouwd op
+`readable_profile_ids()` (0046).
+
+⚠️ **De vondst erachter.** `analyses` en `profiles` kenden al drie lagen: eigenaar, account, beheerder.
+De 23 tabellen die eraan hangen (`prompts`, `tracking_runs`, `reports`, `content_pieces`,
+`profile_topics`, en meer) hadden er maar twee: eigenaar en beheerder. Gevolg: elk tweede teamlid dat
+je ooit bij een klantaccount uitnodigt (de route "Merk toewijzen" zet `user_id` op precies één
+gekozen gebruiker) zag zijn hele dossier leeg, niet een foutmelding, gewoon nul vragen, geen score,
+een leeg rapport. Getest op productie met een echte tijdelijke gebruiker en teruggedraaid: vóór de
+migratie 0 vragen zichtbaar, erna 30; een vreemde blijft op 0.
+
+Bewust géén lek naar een vreemde: `readable_profile_ids()` beperkt zich tot wie er echt bij hoort.
+Dit repareert een deur die te veel dichtzat, niet een die openstond.
+
+`scripts/chain/postgres.ts` geeft `auth.uid()` sindsdien zijn echte definitie (leest
+`request.jwt.claim.sub`) in plaats van altijd `null`, en `anon`/`authenticated` krijgen de
+tabelrechten die Supabase normaal buiten onze migraties om geeft. Zonder die twee kon geen enkele
+ketentest ooit RLS echt narekenen. `scripts/test-chain.ts` bewaakt nu met een vier-rollen-proef
+(eigenaar, teamlid, beheerder, vreemde) dat dit niet terugkomt; de test is rood gemaakt om te
+bewijzen dat hij het gat vangt.

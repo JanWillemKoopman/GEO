@@ -98,11 +98,27 @@ const AUTH_STUB = `
     email text
   );
   -- Supabase levert deze functies; de RLS-migratie (0002) verwijst ernaar.
-  -- De policies zelf doen in deze test niets: de pijplijn draait met de
-  -- service-role en die omzeilt RLS (abcplan.md §5). Ze moeten alleen kunnen
-  -- worden AANGEMAAKT, zodat het schema gelijk is aan dat op productie.
+  --
+  -- ⚠️ Tot 12 augustus 2026 gaf \`auth.uid()\` hier altijd \`null\` terug, met als
+  -- redenering "de pijplijn draait met de service-role en die omzeilt RLS
+  -- toch". Dat klopt voor de PIJPLIJN, maar niet voor wat een SCHERM leest: de
+  -- dossierpagina's lezen met de sessie van de ingelogde gebruiker, dus mét
+  -- RLS. Doordat deze stub altijd null gaf, kon geen enkele ketentest ooit
+  -- controleren of de juiste persoon iets ziet en de verkeerde niet. Precies
+  -- dat gat liet toe dat 23 tabellen wél de eigenaars- en beheerderslaag hadden
+  -- maar niet de accountlaag: gevonden op 12 augustus, gerepareerd in
+  -- migratie 0056, en tot dan toe onzichtbaar voor elke test die hier draaide.
+  --
+  -- Nu dezelfde definitie als productie: leest \`request.jwt.claim.sub\`. Een
+  -- test zet die met \`set_config('request.jwt.claim.sub', userId, true)\` en
+  -- \`set local role authenticated\`, en krijgt dan een echte RLS-uitkomst.
   create or replace function auth.uid() returns uuid
-    language sql stable as $$ select null::uuid $$;
+    language sql stable as $$
+      select coalesce(
+        nullif(current_setting('request.jwt.claim.sub', true), ''),
+        (nullif(current_setting('request.jwt.claims', true), '')::jsonb ->> 'sub')
+      )::uuid
+    $$;
   create or replace function auth.role() returns text
     language sql stable as $$ select 'service_role'::text $$;
 `;
@@ -188,6 +204,18 @@ export async function startTestDatabase(migrationsDir: string): Promise<TestData
     await client.query(ROL_STUB);
     await client.query(AUTH_STUB);
     await applyMigrations(client, migrationsDir);
+    // ⚠️ Ná de migraties, en pas sinds 12 augustus 2026. Op Supabase zelf krijgen
+    // `anon` en `authenticated` tabelrechten van het PLATFORM, niet van onze
+    // migraties: RLS is dáár de enige rem, niet de GRANT. Zonder dit hier
+    // faalde elke RLS-proef met "permission denied", en dat verbergt het
+    // verschil tussen "geen rij door de policy" en "helemaal geen toegang tot
+    // de tabel". Precies dat verschil moest zichtbaar worden om de leesregels
+    // (migratie 0056) na te kunnen rekenen.
+    await client.query(`
+      grant usage on schema public to anon, authenticated;
+      grant select, insert, update, delete on all tables in schema public to anon, authenticated;
+      grant execute on all functions in schema public to anon, authenticated;
+    `);
   } catch (err) {
     await stop();
     throw err;

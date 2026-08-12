@@ -2481,3 +2481,32 @@ De melding voor de andere drie blijft dus staan, en dat is een bewuste keuze: ze
 `auth.uid()` en geven een niet-ingelogde bezoeker een lege lijst terug. De nette oplossing is ze naar
 een niet-aangeboden schema verplaatsen, maar dat betekent 36 RLS-regels opnieuw aanmaken. Dat is
 echt risico voor een melding zonder echt gevolg. 1166 unittests, 125 ketentests.
+
+**De rolmatrix, leeskant: elk tweede teamlid zag een leeg dossier, en geen enkele test kon dat ooit
+zien.** Bij het narekenen van wie wat mag zien bleek: `analyses` en `profiles` kennen drie lagen om
+te lezen (eigenaar, account, beheerder), maar de 23 tabellen die eraan hangen, de vragen, de
+metingen, het rapport, de geschreven pagina's, hadden er maar twee: eigenaar en beheerder. De
+accountlaag ontbrak.
+
+De historische eigenaar (`user_id`) is precies de ene gebruiker die "Merk toewijzen" kiest. Elke
+volgende collega of bureaumedewerker die je bij hetzelfde account uitnodigt, komt binnen via
+`account_users`, en voor hem kwam elk hoofdstuk van het dossier leeg terug. Niet een foutmelding: nul
+vragen, geen score, een leeg rapport. Dezelfde soort fout als `getOwnedAnalysis` op 11 augustus, nu op
+de leeskant en over 23 tabellen tegelijk in plaats van één functie.
+
+**En geen enkele test kon dit ooit zien, om een structurele reden.** De ketentest draait bewust met de
+service-role, die RLS omzeilt, om de pijplijn te kunnen testen. Maar een dossierpagina leest met de
+sessie van de klant, dus mét RLS, en die kant werd nergens getoetst. `auth.uid()` gaf in de testopzet
+altijd `null` terug, dus zelfs een test die het geprobeerd had, was nergens gekomen.
+
+**Migratie 0056 voegt op 23 tabellen een accountregel toe**, naast de bestaande regels en niet in de
+plaats ervan (Postgres combineert regels met OR, hetzelfde patroon als migratie 0038). Getest op
+productie met een tijdelijke echte gebruiker: vóór de reparatie 0 vragen zichtbaar voor een teamlid,
+erna 30, 30 metingen, het rapport, 52 concurrentregels, 148 pagina's. Een vreemde bleef op 0, dus dit
+repareert een deur die te veel dichtzat en opent er geen die open hoort te blijven.
+
+**En de testopzet zelf is voortaan in staat dit na te rekenen.** `auth.uid()` leest nu echt
+`request.jwt.claim.sub`, en de test kent voortaan tabelrechten toe zoals Supabase dat buiten onze
+migraties om al deed. Een nieuwe ketentest zet vier rollen tegenover elkaar (eigenaar, teamlid,
+beheerder, vreemde) en is met opzet rood gemaakt om te bewijzen dat hij dit gat vangt. 1166
+unittests, 132 ketentests.
