@@ -16,6 +16,7 @@ import {
 } from "@/lib/pipeline/structured-data";
 import { harvestTextFacts } from "@/lib/pipeline/text-facts";
 import type { HarvestedFact } from "@/lib/pipeline/structured-data";
+import { detectPageTemplate, type PageTemplateSignals } from "@/lib/pipeline/template-detect";
 
 /** Eén plek voor de bot-identiteit, zodat een site ons kan herkennen en toelaten. */
 export const USER_AGENT = "GEO-Tracker-Bot/1.0 (+https://geo-tracker.app)";
@@ -320,6 +321,13 @@ export interface CrawledPage {
    * adres er gewoon staan. Gemeten op 4 augustus 2026, tweede poging.
    */
   textFacts?: HarvestedFact[];
+  /**
+   * Hoe deze pagina technisch is opgebouwd: welk CMS, of er FAQ-accordions of
+   * citaatblokken zijn (`template-detect.ts`). Zelfde reden als bij `harvest`
+   * hierboven, alleen op de RUWE HTML te herkennen, en die wordt na deze batch
+   * meteen losgelaten.
+   */
+  template?: PageTemplateSignals;
 }
 
 export interface CrawlPagesOptions {
@@ -357,6 +365,9 @@ export async function crawlPages(
           page.rendering = assessRendering(html, volledigeTekst.length);
           // Ook op de volledige tekst, zie de toelichting bij `textFacts`.
           page.textFacts = harvestTextFacts([{ url, text: volledigeTekst }]);
+          // Op de RUWE HTML: het CMS en accordion-patronen zitten in tags en
+          // classnamen, niet in de platte tekst.
+          page.template = detectPageTemplate(html);
         }
         return page;
       }),

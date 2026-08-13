@@ -41,6 +41,11 @@ import { crawlPages, discoverPageUrls, MAX_PAGES_HARD_CAP } from "@/lib/crawler"
 import { assessInventory, buildTaxonomy, type SiteSection } from "@/lib/pipeline/inventory-quality";
 import { mergeTextFacts } from "@/lib/pipeline/text-facts";
 import type { HarvestedFact } from "@/lib/pipeline/structured-data";
+import {
+  aggregateTemplateProfile,
+  templateSummary,
+  type SiteTemplateProfile,
+} from "@/lib/pipeline/template-detect";
 import type { InventoryQuality, Profile } from "@/lib/types/database";
 
 /** Wat fase 0 aan de volgende fases doorgeeft. */
@@ -58,6 +63,8 @@ export interface DiscoveryResult {
   sameAs: string[];
   /** Naamvarianten zoals ze in de opmaak van de site staan. */
   names: string[];
+  /** Hoe de site technisch is opgebouwd: CMS, FAQ-accordions, citaatblokken. */
+  templateProfile: SiteTemplateProfile;
 }
 
 /**
@@ -141,6 +148,9 @@ export async function discoverSite(profileId: string): Promise<DiscoveryResult> 
     facts,
     sameAs: [...sameAs],
     names: [...names],
+    templateProfile: aggregateTemplateProfile(
+      pages.map((p) => p.template).filter((t): t is NonNullable<typeof t> => Boolean(t)),
+    ),
   };
 
   await persist(admin, profileId, pages, result);
@@ -208,6 +218,28 @@ async function persist(
     .from("profiles")
     .update({ inventory_quality_json: result.inventory as never })
     .eq("id", profileId);
+
+  // ── Het sjabloonfacet ──────────────────────────────────────────────────────
+  //
+  // Los van het techniek-facet hierboven, want dit gaat over iets anders: niet
+  // "is de site vindbaar voor een AI-crawler" maar "in welke vorm past
+  // gegenereerde content technisch op deze site". `content-export.ts` leest dit
+  // terug bij het aanbieden van een sjabloongerichte downloadknop.
+  await admin.from("profile_facets").upsert(
+    {
+      profile_id: profileId,
+      facet: "sjabloon",
+      summary: templateSummary(result.templateProfile),
+      raw_json: result.templateProfile as never,
+      // Zelfde reden als bij het techniek-facet: dit komt letterlijk uit de
+      // HTML, geen AI-oordeel, dus geen onzekerheid te melden.
+      confidence: 1,
+      sources: [],
+      cost_usd: 0,
+      researched_at: new Date().toISOString(),
+    },
+    { onConflict: "profile_id,facet" },
+  );
 }
 
 /**

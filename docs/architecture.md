@@ -184,7 +184,7 @@ Bron: `lib/jobs/{types,queue,worker,handlers,pending}.ts`.
 | # | Stap | AI | Kern |
 |---|---|---|---|
 | 1 | Profiel aanmaken |, | Eén scherm, drie velden: webadres, bedrijfsnaam, andere schrijfwijzen. De rest doet de pijplijn. |
-| 2 | Ontdekken (fase 0) |, | `discover.ts`: tot 150 pagina's crawlen, JSON-LD/OpenGraph oogsten, telefoon/adres/e-mail/KvK uit de lopende tekst van de canonieke pagina's (`text-facts.ts`), inventariskwaliteit beoordelen, renderbaarheid vaststellen. **Nul AI-kosten**, en de context waar alle volgende stappen op leunen. |
+| 2 | Ontdekken (fase 0) |, | `discover.ts`: tot 150 pagina's crawlen, JSON-LD/OpenGraph oogsten, telefoon/adres/e-mail/KvK uit de lopende tekst van de canonieke pagina's (`text-facts.ts`), inventariskwaliteit beoordelen, renderbaarheid vaststellen, sjabloon herkennen (`template-detect.ts`: welk CMS, FAQ-accordions, citaatblokken, opgeslagen als facet `sjabloon`). **Nul AI-kosten**, en de context waar alle volgende stappen op leunen. |
 | 3 | Technische GEO-audit |, | `robots.txt` tegen bekende AI-crawlers, plus vier entiteitschecks (naamconsistentie, `sameAs`, schema-dekking, Wikidata). Staat de site dicht, dan blokkeert dit contentgeneratie. |
 | 4 | Profielonderzoek | luna, web_search | Merk, branche, bedrijfsmodel, **bereik en werkgebied**, tone-of-voice, persona's, concurrenten, `proofPoints`, `styleSamples`. nu op alle gecrawlde pagina's in plaats van op de homepage. Klant-input is leidend (`prepare-profile.ts`), en wat een mens zette blijft staan (`field-merge.ts` tegen `profile_field_sources`). |
 | 4a | Aanbodboom | luna | `offering.ts`: het aanbod als boom (`profile_offerings`), per bedrijfsmodel een andere briefing. Een knoop zonder gecrawlde bron-URL vervalt; het citaat bepaalt de zekerheid (`quote-check.ts`). |
@@ -226,6 +226,40 @@ de al bestaande `version-reason.ts` en `similarity.ts`:
   `validateOrRebuildJsonLd()` zodra de FAQ van een `type: "faq"`-pagina wijzigt, met
   `loadSchemaOrg()` (`lib/pipeline/content.ts`) als gedeelde bron voor de organisatieknoop, zodat
   die niet verdwijnt bij een herbouw.
+
+### Sjabloondetectie en sjabloongerichte export (13 augustus 2026)
+
+Content komt eruit als platte Markdown/HTML, ongeacht of de klant een WordPress-site met een
+FAQ-accordion heeft of een custom site zonder één uitklapblok. Twee nieuwe, pure modules dichten dat
+gat zonder de schrijvende AI-aanroep zelf iets over opmaak te laten bedenken (conventie 1: de AI
+levert de intentie, code levert de garantie):
+
+- `lib/pipeline/template-detect.ts` (`detectPageTemplate()`, `aggregateTemplateProfile()`): draait
+  tijdens stap 2 (Ontdekken) op de RUWE HTML van elke gecrawlde pagina, vóórdat die wordt weggegooid
+  (`lib/crawler.ts`, `CrawledPage.template`). Herkent aan concrete asset-vingerafdrukken welk CMS de
+  site waarschijnlijk gebruikt (WordPress, Shopify, Webflow, Wix, Squarespace, anders `onbekend`),
+  of er al FAQ-accordions (`<details>` of bekende accordion-classnamen) of citaatblokken
+  (`<blockquote>`/testimonial-classnamen) gebruikt worden, en hoe diep de koppenstructuur gaat. Nul
+  AI-kosten, nul extra netwerkverkeer: dezelfde HTML die stap 2 toch al ophaalt. Opgeslagen als een
+  nieuw `profile_facets`-facet `sjabloon`, los van het bestaande `techniek`-facet: dat gaat over
+  vindbaarheid voor AI-crawlers, dit over de technische vorm van gegenereerde content.
+- `lib/pipeline/content-export.ts` (`buildTemplateExport()`): leest dat facet terug op de
+  contentdetailpagina en biedt, alleen als er ook echt iets te winnen is, een extra downloadknop aan
+  naast de bestaande generieke export. Bij een herkende WordPress-site: de hele pagina als
+  Gutenberg-blokken (`markdownToGutenbergBlocks()`, spiegelt de regelherkenning van
+  `renderMarkdown()` in `lib/markdown.ts` één op één maar wikkelt elk element in
+  `<!-- wp:... -->`-blokcommentaar), met de FAQ als "Aangepast HTML"-blok (bewust niet het
+  `core/details`-blok, dat bestaat pas sinds WordPress 6.5). Zonder herkend CMS maar mét een
+  FAQ-accordion op de site: alleen de FAQ in diezelfde `<details>`-vorm. Zonder enig signaal: `null`,
+  geen knop, want een knop die niets toevoegt is ruis (conventie 3).
+
+⚠️ **Bug gevonden tijdens het bouwen hiervan, in bestaande code.** `renderMarkdown()` escapet een
+regel EERST (om ruwe HTML/scripts buiten te houden) en herkent de structuur DAARNA. De citaatregex
+zocht nog naar het kale `>`, dat na het escapen al `&gt;` was geworden, en matchte daardoor nooit: elk
+citaat dat het schrijvende model ooit met `> ` opmaakte, verscheen als kale tekst `&gt; ...` op de
+pagina in plaats van als `<blockquote>`. Onopgemerkt omdat er geen test op stond en de tekst zelf
+leesbaar bleef, alleen de opmaak ontbrak. Gerepareerd in dezelfde ronde, met een regressietest in
+`scripts/test-unit.ts`.
 
 ### De promptverdeling, en waarom de generatie in drie taken zit
 

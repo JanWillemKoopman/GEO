@@ -2599,3 +2599,26 @@ Bewust laten liggen: de gewogen zichtbaarheidsscore die al maanden op elk scherm
 overstappen van de grove volumeband naar de nieuwe index. Dat cijfer draagt de trendlijn van elke
 klant, en het met terugwerkende kracht laten meebewegen is een eigen afweging die deze bouwronde niet
 vanzelf mocht meenemen. 1201 unittests, 160 ketentests.
+
+**Sjabloondetectie: content die technisch past op de site van de klant, niet alleen inhoudelijk klopt
+(13 augustus 2026).** Aura leverde content altijd als platte Markdown/HTML, ongeacht of de klant een
+WordPress-site met een FAQ-accordion had of een custom site zonder één uitklapblok. De klant moest dan
+zelf ombouwen, precies het "technisch één op één plakbaar" dat het product beloofde niet waarmaakte.
+
+De crawl in fase 0 haalt toch al de ruwe HTML van elke pagina op en gooit die daarna weg; er hoefde dus
+niets extra opgehaald te worden, alleen iets extra herkend vóórdat die HTML verdwijnt
+(`lib/pipeline/template-detect.ts`): welk CMS de site waarschijnlijk gebruikt (aan concrete
+asset-vingerafdrukken, geen gok), of er al FAQ-accordions of citaatblokken zijn, hoe diep de
+koppenstructuur gaat. Opgeslagen als een nieuw `profile_facets`-facet `sjabloon`, nul AI-kosten. Een
+tweede, aparte module (`lib/pipeline/content-export.ts`) vertaalt daarna dezelfde gegenereerde content
+naar die vorm: bij WordPress de hele pagina als Gutenberg-blokken, elders alleen de FAQ als
+`<details>`-accordion als de site dat patroon al kent. Geen van beide is een AI-aanroep: de schrijver
+levert de inhoud, code levert de garantie over de opmaak (conventie 1). Zonder enig herkend signaal
+toont het scherm gewoon de bestaande generieke exportknoppen, geen knop die niets toevoegt (conventie 3).
+
+Terzijde gevonden: `renderMarkdown()` (`lib/markdown.ts`) escapet een regel eerst en herkent de
+structuur daarna, en de citaatregex zocht nog naar het kale `>` terwijl dat na het escapen allang
+`&gt;` was. Elk citaat dat het schrijvende model ooit met `> ` opmaakte, stond dus als kale tekst
+`&gt; ...` op een gepubliceerde pagina in plaats van als opgemaakt citaatblok, sinds de bouw van deze
+functie, zonder dat een test dat ooit had gezien. Gerepareerd in dezelfde ronde. 1233 unittests, 160
+ketentests.

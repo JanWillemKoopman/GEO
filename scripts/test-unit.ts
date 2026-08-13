@@ -85,6 +85,12 @@ import {
   assessRendering,
 } from "@/lib/pipeline/structured-data";
 import {
+  detectPageTemplate,
+  aggregateTemplateProfile,
+  templateSummary,
+} from "@/lib/pipeline/template-detect";
+import { buildTemplateExport, markdownToGutenbergBlocks } from "@/lib/pipeline/content-export";
+import {
   assessInventory,
   looksLikeProductPage,
   buildTaxonomy,
@@ -1491,6 +1497,18 @@ group("kop-ankers voor de inhoudsopgave (H.68)", () => {
   );
 });
 
+group("een citaat wordt een <blockquote> (gevonden tijdens de sjabloonexport)", () => {
+  // De regel wordt EERST ge-escaped (om ruwe HTML/scripts buiten te houden),
+  // dus ">" is op het moment van matchen al "&gt;". De oude regex zocht nog
+  // naar het kale ">" en matchte daardoor nooit: elk citaat dat het schrijvende
+  // model ooit met "> " opmaakte, verscheen als kale tekst "&gt; ..." op de
+  // pagina in plaats van als opgemaakt citaat. Nergens gemerkt omdat de tekst
+  // zelf leesbaar bleef, alleen de opmaak ontbrak.
+  const html = renderMarkdown("Een inleiding.\n\n> Dit is het citaat.\n\nEn de rest.");
+  ok("het citaat wordt een <blockquote>", html.includes("<blockquote>Dit is het citaat.</blockquote>"), html);
+  ok("staat niet meer als kale &gt;-tekst in de uitvoer", !html.includes("&gt; Dit is het citaat"));
+});
+
 
 // ════════════════════════════════════════════════════════════════════════════
 console.log("\nRelevante pagina's kiezen (S1)");
@@ -2136,6 +2154,103 @@ group("draait de site op JavaScript? (de zwaarste bevinding die er is)", () => {
     "weinig tekst zonder script is geen JS-probleem",
     !assessRendering("<html><body>Kort.</body></html>", 5).likelyClientRendered,
   );
+});
+
+group("sjabloondetectie: welk CMS, en welke blokken (fase 0, nul API-kosten)", () => {
+  const wordpress = `<html><head><meta name="generator" content="WordPress 6.4" /></head>
+    <body><script src="/wp-content/themes/twentytwentyfour/script.js"></script>
+    <h1>Titel</h1><h2>Sectie</h2>
+    <details><summary>Wat kost dit?</summary><p>Antwoord</p></details>
+    </body></html>`;
+  const wp = detectPageTemplate(wordpress);
+  ok("herkent WordPress aan wp-content", wp.cms === "wordpress", wp.cms);
+  ok("herkent de <details>-accordion als FAQ", wp.heeftFaqAccordion);
+  ok("telt twee kopniveaus (H1+H2)", wp.headingNiveaus === 2, String(wp.headingNiveaus));
+  ok("geen citaatblok gevonden", !wp.heeftCitaatblok);
+
+  const shopify = `<html><body><script src="https://cdn.shopify.com/s/files/1/theme.js"></script>
+    <h1>Winkel</h1></body></html>`;
+  ok("herkent Shopify aan de cdn", detectPageTemplate(shopify).cms === "shopify");
+
+  const custom = `<html><body><h1>Over ons</h1><blockquote>Top bedrijf!</blockquote></body></html>`;
+  const c = detectPageTemplate(custom);
+  ok("custom site geeft geen CMS", c.cms === "onbekend", c.cms);
+  ok("herkent het citaatblok", c.heeftCitaatblok);
+  ok("geen FAQ-accordion op deze pagina", !c.heeftFaqAccordion);
+
+  // Twee wp-pagina's en één losse widget van een ander domein: het sitebeeld
+  // mag niet omslaan naar de zeldzame afwijkende pagina.
+  const agg = aggregateTemplateProfile([wp, wp, detectPageTemplate(shopify)]);
+  ok("meerderheid wint bij het samenvoegen", agg.cms === "wordpress", agg.cms);
+  ok("FAQ-accordion telt zodra ÉÉN pagina hem heeft", agg.heeftFaqAccordion);
+  ok("headingNiveaus is het maximum over de pagina's", agg.headingNiveaus === 2, String(agg.headingNiveaus));
+  ok("pagesAnalysed telt mee", agg.pagesAnalysed === 3);
+
+  // Geen enkele pagina geanalyseerd: eerlijk "onbekend", geen gegokt CMS.
+  const leeg = aggregateTemplateProfile([]);
+  ok("zonder pagina's blijft alles onbekend/nul", leeg.cms === "onbekend" && leeg.pagesAnalysed === 0);
+
+  ok(
+    "de samenvatting noemt het CMS en de FAQ",
+    templateSummary(agg).includes("WordPress") && templateSummary(agg).includes("FAQ"),
+    templateSummary(agg),
+  );
+  ok("zonder pagina's een expliciete melding", templateSummary(leeg).includes("Nog geen"));
+});
+
+group("content-export: dezelfde inhoud, andere technische vorm", () => {
+  const piece = {
+    title: "Wat kost een cv-ketel?",
+    bodyMarkdown: "## Prijzen\n\nEen **nieuwe** ketel kost al snel > € 1.500.\n\n- Model A\n- Model B",
+    faq: [{ q: "Is dit inclusief installatie?", a: "Ja, altijd." }],
+  };
+
+  // Onbekend CMS, geen FAQ-accordion op de site: de bestaande generieke export
+  // is dan al het beste wat er is, dus GEEN extra, misleidende knop.
+  ok(
+    "zonder herkend sjabloon geen exportoptie",
+    buildTemplateExport(piece, { cms: "onbekend", heeftFaqAccordion: false, heeftCitaatblok: false, headingNiveaus: 1, pagesAnalysed: 4 }) === null,
+  );
+  ok("zonder enige analyse geen exportoptie", buildTemplateExport(piece, null) === null);
+
+  // Custom site met een FAQ-accordion: alleen de FAQ krijgt de accordion-vorm.
+  const faqOnly = buildTemplateExport(piece, {
+    cms: "onbekend",
+    heeftFaqAccordion: true,
+    heeftCitaatblok: false,
+    headingNiveaus: 2,
+    pagesAnalysed: 4,
+  });
+  ok("biedt een FAQ-accordion-export", faqOnly !== null && faqOnly.content.includes("<details>"));
+  ok(
+    "de vraag staat in de summary",
+    faqOnly !== null && faqOnly.content.includes("Is dit inclusief installatie?"),
+  );
+
+  // WordPress: de hele pagina als Gutenberg-blokken, FAQ als Aangepast-HTML-blok.
+  const wp = buildTemplateExport(piece, {
+    cms: "wordpress",
+    heeftFaqAccordion: true,
+    heeftCitaatblok: false,
+    headingNiveaus: 2,
+    pagesAnalysed: 6,
+  });
+  ok("WordPress-export bestaat", wp !== null);
+  ok("bevat een heading-blok", wp !== null && wp.content.includes('<!-- wp:heading {"level":2} -->'));
+  ok("bevat een paragraph-blok", wp !== null && wp.content.includes("<!-- wp:paragraph -->"));
+  ok("bevat een lijst-blok", wp !== null && wp.content.includes("<!-- wp:list -->"));
+  ok("FAQ zit in een Aangepast-HTML-blok", wp !== null && wp.content.includes("<!-- wp:html -->") && wp.content.includes("<details>"));
+  ok("bestandsnaam is een leesbare slug", wp !== null && wp.filename === "wat-kost-een-cv-ketel-wordpress.html", wp?.filename);
+
+  // De markdown→Gutenberg-vertaling zelf, los van de knop eromheen.
+  const blocks = markdownToGutenbergBlocks("# Kop\n\nGewone alinea.\n\n> Een citaat.\n\n1. Eerst\n2. Dan");
+  ok("kop wordt een heading-blok", blocks.includes('<!-- wp:heading {"level":1} -->'));
+  ok("alinea wordt een paragraph-blok", blocks.includes("<p>Gewone alinea.</p>"));
+  ok("citaat wordt een quote-blok", blocks.includes("<!-- wp:quote -->"));
+  ok("genummerde lijst krijgt het ordered-attribuut", blocks.includes('{"ordered":true}'));
+  // HTML wordt eerst ge-escaped: een "<" in de brontekst mag geen kapot blok geven.
+  const veilig = markdownToGutenbergBlocks("Prijs is < € 10");
+  ok("HTML-tekens in de tekst worden ge-escaped", veilig.includes("&lt;"), veilig);
 });
 
 group("productpagina-heuristiek (R6.2)", () => {

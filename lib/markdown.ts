@@ -5,7 +5,7 @@
  * gegenereerde content in de DOM belanden. Dekt de opmaak die de content-
  * pipeline produceert: koppen, lijsten, nadruk, links, code, quotes, regels.
  */
-function escapeHtml(s: string): string {
+export function escapeHtml(s: string): string {
   return s
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
@@ -66,7 +66,14 @@ export function extractHeadings(markdown: string): MarkdownHeading[] {
   return headings;
 }
 
-function inline(text: string): string {
+/**
+ * Inline-opmaak (vet, cursief, code, links) binnen een regel.
+ *
+ * Geëxporteerd zodat `content-export.ts` dezelfde regels gebruikt voor het
+ * CMS-specifieke export: één plek die bepaalt hoe `**vet**` wordt, niet twee
+ * die uit de pas kunnen lopen.
+ */
+export function inline(text: string): string {
   return text
     .replace(/`([^`]+)`/g, "<code>$1</code>")
     .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
@@ -126,7 +133,13 @@ export function renderMarkdown(markdown: string): string {
       continue;
     }
 
-    const quote = line.match(/^>\s?(.*)$/);
+    // ⚠️ De regel is al ge-escaped (zie `escaped` hierboven), dus een citaat
+    // begint hier niet meer met ">" maar met de entiteit "&gt;". Stond hier
+    // eerder `/^>\s?(.*)$/`, en dat matchte dus NOOIT: elk citaat in gegenereerde
+    // content belandde als kale tekst "&gt; ..." op de pagina in plaats van als
+    // `<blockquote>`. Onopgemerkt omdat er geen test op stond en de tekst zelf
+    // prima leesbaar bleef, alleen niet als citaat opgemaakt.
+    const quote = line.match(/^&gt;\s?(.*)$/);
     if (quote) {
       flushParagraph();
       closeList();

@@ -1,6 +1,7 @@
 "use client";
 
 import { CopyButton } from "@/components/copy-button";
+import { InfoHint } from "@/components/info-hint";
 
 /** Kopiëren / downloaden van een gegenereerde pagina (abcplan.md §8). */
 export function ContentActions({
@@ -8,11 +9,19 @@ export function ContentActions({
   markdown,
   html,
   schemaJsonLd,
+  templateExport,
 }: {
   title: string;
   markdown: string;
   html: string;
   schemaJsonLd: string | null;
+  /**
+   * De sjabloongerichte variant, als Aura tijdens het onderzoek een CMS of een
+   * FAQ-accordion op de site van de klant herkende (`content-export.ts`). `null`
+   * of `undefined`: geen bekend sjabloon, dan tonen we alleen de generieke
+   * export hierboven. Zie `docs/architecture.md` §"Sjabloondetectie".
+   */
+  templateExport?: { label: string; filename: string; content: string } | null;
 }) {
   function download(filename: string, content: string, mime: string) {
     const blob = new Blob([content], { type: mime });
@@ -43,6 +52,20 @@ export function ContentActions({
           copiedLabel="Gekopieerd"
           className="btn-outline"
         />
+      )}
+      {templateExport && (
+        <span className="flex items-center gap-1">
+          <button
+            onClick={() => download(templateExport.filename, templateExport.content, "text/html")}
+            className="btn-outline"
+          >
+            {templateExport.label}
+          </button>
+          <InfoHint label="Wat is dit?">
+            Aura herkende tijdens het onderzoek hoe jouw site is opgebouwd, en heeft deze pagina
+            alvast in diezelfde vorm klaargezet. Zo hoef je bij het plakken niets meer om te bouwen.
+          </InfoHint>
+        </span>
       )}
     </div>
   );

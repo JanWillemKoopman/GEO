@@ -25,6 +25,8 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { loadContentPotential } from "@/lib/potential-data";
 import { SearchPreview } from "@/components/search-preview";
 import { VersionDiff } from "@/components/version-diff";
+import { buildTemplateExport } from "@/lib/pipeline/content-export";
+import type { SiteTemplateProfile } from "@/lib/pipeline/template-detect";
 import type { ContentPiece, ContentPieceTarget } from "@/lib/types/database";
 
 interface Faq {
@@ -79,7 +81,7 @@ export default async function ContentDetailPage({
   // Waar deze pagina voor gemaakt is (optimalisatie.md 4.1) en welke versies er
   // eerder waren (4.7).
   const admin = createAdminClient();
-  const [{ data: targetRows }, { data: versionRows }, potentie] = await Promise.all([
+  const [{ data: targetRows }, { data: versionRows }, potentie, { data: templateFacet }] = await Promise.all([
     supabase.from("content_piece_targets").select("*").eq("content_piece_id", pieceId),
     supabase
       .from("content_pieces")
@@ -88,7 +90,21 @@ export default async function ContentDetailPage({
       .eq("title", piece.title)
       .order("version", { ascending: false }),
     loadContentPotential(admin, pieceId),
+    // Het sjabloon van de site (discover.ts): welk CMS, FAQ-accordions,
+    // citaatblokken. Bepaalt of ContentActions een extra downloadknop toont.
+    supabase
+      .from("profile_facets")
+      .select("raw_json")
+      .eq("profile_id", analysis.profile_id)
+      .eq("facet", "sjabloon")
+      .maybeSingle(),
   ]);
+
+  const templateProfile = (templateFacet?.raw_json as SiteTemplateProfile | null) ?? null;
+  const templateExport = buildTemplateExport(
+    { title: piece.title, bodyMarkdown: piece.body_markdown ?? "", faq },
+    templateProfile,
+  );
 
   const targets = (targetRows ?? []) as ContentPieceTarget[];
   const versions = (versionRows ?? []) as Pick<
@@ -197,6 +213,7 @@ export default async function ContentDetailPage({
           markdown={piece.body_markdown ?? ""}
           html={bodyHtml}
           schemaJsonLd={piece.schema_jsonld}
+          templateExport={templateExport}
         />
 
         {!piece.is_current && (
