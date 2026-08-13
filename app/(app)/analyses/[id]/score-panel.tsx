@@ -173,6 +173,7 @@ export function BrandRankingsTable({
       mentionsCount: c.mentions_count,
       avgPosition: c.avg_position,
       firstMentionCount: c.first_mention_count,
+      citationCount: c.citation_count,
     })),
     measuredRunCount,
   });
@@ -200,7 +201,18 @@ export function BrandRankingsTable({
               <th className="py-1 pr-4 font-normal">Vermeldingen</th>
               <th className="py-1 pr-4 font-normal">Gem. positie</th>
               <th className="py-1 pr-4 font-normal">Aanbevolen</th>
-              <th className="py-1 pr-4 font-normal">Bron gebruikt</th>
+              <th className="py-1 pr-4 font-normal">
+                <span className="flex items-center gap-1">
+                  Bron gebruikt
+                  <InfoHint label="Bron gebruikt">
+                    Hoe vaak de AI naar de eigen site van dit merk verwijst. Bij jezelf is dat een
+                    exacte match op je domein. Bij concurrenten herkent Aura hun site aan de
+                    domeinnaam die op hun merknaam lijkt, dus een enkele citatie kan gemist worden
+                    als hun domein er heel anders uitziet dan hun naam. Een streepje betekent dat
+                    dit voor deze periode nog niet is berekend, niet dat er geen citaties waren.
+                  </InfoHint>
+                </span>
+              </th>
               <th className="py-1 pr-4 font-normal">Aandeel</th>
             </tr>
           </thead>
@@ -224,22 +236,7 @@ export function BrandRankingsTable({
                   {r.recommendationRate != null ? `${r.recommendationRate}%` : "-"}
                 </td>
                 <td className="py-1.5 pr-4 text-secondary">
-                  {r.isOwnBrand ? (
-                    r.citationRate != null ? (
-                      `${r.citationRate}%`
-                    ) : (
-                      "-"
-                    )
-                  ) : (
-                    <span className="flex items-center gap-1 text-muted">
-                      n.v.t.
-                      <InfoHint label="Waarom n.v.t.?">
-                        Aura meet alleen hoe vaak JOUW site als bron wordt gebruikt, niet die van
-                        concurrenten. Dat vraagt te weten welk domein bij welk merk hoort, voor elke
-                        concurrent apart, en dat is nu niet betrouwbaar vast te stellen.
-                      </InfoHint>
-                    </span>
-                  )}
+                  {r.citationRate != null ? `${r.citationRate}%` : "-"}
                 </td>
                 <td className="py-1.5 pr-4 font-medium">
                   {r.shareOfVoice != null ? `${r.shareOfVoice}%` : "-"}

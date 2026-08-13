@@ -10,6 +10,7 @@
  * Bewust ZONDER `server-only`: pure tekstbewerking, testbaar in een kaal script
  * en bruikbaar in de UI om te laten zien wat er samengevoegd wordt.
  */
+import { domainOf } from "@/lib/offsite/domain";
 
 /**
  * Rechtsvormen en bedrijfssuffixen die niets zeggen over wélk bedrijf het is.
@@ -161,6 +162,37 @@ export function looksLikeBrandName(name: string): boolean {
   if (/\.[a-z]{2,}$/i.test(trimmed)) return true;
   // Een hoofdletter ergens in de naam.
   return /\p{Lu}/u.test(trimmed);
+}
+
+/**
+ * Ziet dit domein eruit als de EIGEN site van dit merk, op naam beoordeeld?
+ *
+ * ── WAAROM OP NAAM, EN NIET OP EEN OPGESLAGEN DOMEIN ─────────────────────────
+ *
+ * Voor het eigen merk kent Aura het echte domein (`profiles.url`), dus daar is
+ * een exacte match genoeg. Van een concurrent is nergens een domein
+ * geregistreerd, de klant vult bij onboarding alleen namen in en de meting
+ * ontdekt de rest uit AI-antwoorden. `citesOwnSite()` gebruikt daarom dezelfde
+ * normalisatie als `isSameEntity()`: "coolblue.nl" en "Coolblue" normaliseren
+ * allebei naar "coolblue", dus een geciteerde bron telt als de eigen site van
+ * die concurrent zodra de domeinnaam er zelf op lijkt.
+ *
+ * ── DE GRENS VAN DEZE HEURISTIEK ─────────────────────────────────────────────
+ *
+ * Een concurrent wiens domeinnaam niets met zijn merknaam te maken heeft (een
+ * los gekochte domeinnaam, een rebrand) wordt hierdoor gemist: `false` terwijl
+ * het antwoord eigenlijk `true` had moeten zijn. Dat is conventie 3 in de
+ * praktijk, een gemiste citatie levert een iets te lage telling op, een
+ * onterecht toegekende citatie zou een concurrent krediet geven voor een bron
+ * die niet van hem is. Het eerste is een tekortkoming, het tweede een fout, en
+ * de eerste is de veiligere kant om op te vallen.
+ */
+export function citesOwnSite(citedSources: string[], entityName: string): boolean {
+  for (const url of citedSources) {
+    const domain = domainOf(url);
+    if (domain && isSameEntity(domain, entityName)) return true;
+  }
+  return false;
 }
 
 /** Leestekens/accenten weg, spaties inklappen, voor woordgrens-bewuste vergelijking. */

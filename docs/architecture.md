@@ -227,14 +227,28 @@ eigen merk, over precies dezelfde noemer (`measuredRunCount`) en zet ze in één
 `BrandRankingsTable` (`score-panel.tsx`) toont dit bovenaan hoofdstuk 02, vóór de bestaande
 balkjes, die blijven staan voor het "versnipperde markt"-verhaal dat een tabel niet vertelt.
 
-Eén kolom is bewust leeg bij een concurrent: **"Bron gebruikt"** (citatiepercentage) wordt alleen
-voor het eigen domein gemeten (`measure.ts`, `profileVisibility()`: "het eigen domein is hier niet
-van toepassing"). Een concurrent-citatiepercentage verzinnen zou conventie 3 breken; de tabel toont
-daar `n.v.t.` met een uitleg, geen gegokte 0.
-
-`ownMentionCount()` (dezelfde functie) leidt de kale telling af uit `score.score` en
+`ownMentionCount()` (dezelfde module) leidt de kale telling af uit `score.score` en
 `winnable_runs`; `lib/dashboard.ts` gebruikte hiervoor al een eigen inline versie en verwijst er nu
 naar (één feit, één eigenaar).
+
+**"Bron gebruikt" per concurrent (migratie `0058`, dezelfde dag).** Deze kolom stond bij de eerste
+versie van de tabel nog vast op `n.v.t.` voor concurrenten: het eigen citatiepercentage kent het
+echte domein (`profiles.url`), een concurrent heeft nergens een geregistreerd domein. Opgelost
+zonder dat domein te hoeven opslaan: `citesOwnSite()` (`lib/entities/normalize.ts`) normaliseert het
+geciteerde domein op dezelfde manier als `isSameEntity()` ("coolblue.nl" en "Coolblue" worden allebei
+"coolblue") en telt een citatie mee zodra die overeenkomt met de merknaam. `measure.ts` vult
+`competitor_breakdown.citation_count` voortaan bij elke nieuwe aggregatie.
+
+Twee grenzen, allebei bewust: (1) een concurrent wiens domeinnaam niets met zijn merknaam te maken
+heeft, wordt gemist. Dat is conventie 3 in de praktijk, een te lage telling is veiliger dan een
+verzonnen citatie een concurrent toeschrijven. (2) bestaande periodes blijven op `null` staan tot ze
+opnieuw gemeten worden, geen SQL-backfill (zie `supabase/README.md`, migratie 0058, voor waarom). De
+tabel toont `null` als een streepje en een echte 0 als "0%": dat onderscheid ("nog niet berekend"
+versus "berekend en nul") geldt sinds deze ronde ook voor "Aanbevolen" en voor het eigen merk zelf,
+niet alleen voor concurrenten. **Nog niet geverifieerd tegen een echte nieuwe meting op productie**:
+de ketentest dekt `measure.ts`'s aggregatiestap tot op vandaag niet (een bestaand gat, zie
+`docs/logbook.md` bij de potentiescore-fase-1-alinea), dus deze stap is alleen op eenheidsniveau
+getoetst (`citesOwnSite()`, `buildBrandRankings()`), niet end-to-end tegen een echte meting.
 
 **De content-editie** (naast stap 16, geen AI-kosten): de contentdetailpagina is niet alleen een
 resultaat maar ook een bewerkoppervlak, naar het voorbeeld van InSpace Nova's contentreview

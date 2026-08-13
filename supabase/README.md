@@ -174,3 +174,23 @@ aanroep tegen elkaar afzet, getriggerd zodra een analyse haar eerste rapport kri
 onderwerpen herschrijft, niet alleen het nieuwe. Zo trekt een groot onderwerp uit een latere analyse
 de score van een eerder, kleiner onderwerp aantoonbaar naar beneden, in plaats van dat elke analyse
 zijn eigen, niet-vergelijkbare 0-100 houdt.
+
+## 0058 · citatiepercentage per concurrent
+
+Eén kolom op `competitor_breakdown`: `citation_count` (nullable integer, `>= 0`). Het eigen merk
+heeft dit cijfer al sinds migratie 0029 (`visibility_scores.citation_count`), berekend met een
+exacte match op het bekende domein (`profiles.url`). Van een concurrent is nergens een domein
+geregistreerd, alleen een naam, dus de aggregatie liet deze kolom voor concurrenten altijd leeg.
+
+`citesOwnSite()` (`lib/entities/normalize.ts`) lost dat op zonder een domein te hoeven opslaan: hij
+normaliseert het geciteerde domein op dezelfde manier als `isSameEntity()` en telt een citatie mee
+zodra die overeenkomt met de merknaam ("coolblue.nl" en "Coolblue" worden allebei "coolblue").
+`measure.ts` vult de kolom voortaan bij elke nieuwe aggregatie van `competitor_breakdown`.
+
+⚠️ Bestaande periodes blijven op `null` staan, ook na deze migratie: het is een afgeleide kolom uit
+al opgeslagen `tracking_run_mentions.cited_sources` (conventie 8), maar wordt pas herberekend
+wanneer die analyse opnieuw gemeten wordt. `null` betekent hier "nog niet berekend", nooit "geen
+citaties gevonden"; de rangordetabel in `score-panel.tsx` toont dat onderscheid als een streepje
+in plaats van 0%. Een backfill van bestaande periodes is bewust niet gedaan: dat zou de matching
+logica in SQL moeten naspiegelen, met het risico dat de twee implementaties uiteenlopen (één feit,
+één eigenaar).

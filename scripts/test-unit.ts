@@ -24,6 +24,7 @@ import {
   pickCanonicalName,
   looksLikeBrandName,
   textContainsName,
+  citesOwnSite,
 } from "@/lib/entities/normalize";
 import { bandFromEstimate, volumeBandOf, isVolumeBand, VOLUME_BANDS, VOLUME_FACTOR } from "@/lib/pipeline/volume";
 import { promptWeight, NEUTRAL_WEIGHT } from "@/lib/pipeline/prompt-weight";
@@ -384,6 +385,27 @@ group("staat de naam echt in de tekst? (vangnet op de mention-classificatie)", (
     !textContainsName("De vakantie naar Kaapstad was geweldig.", "Aap"),
   );
   ok("lege naam matcht nooit", !textContainsName("Swapfiets is top.", ""));
+});
+
+group("citesOwnSite: de site van een concurrent herkennen zonder opgeslagen domein", () => {
+  ok(
+    "coolblue.nl hoort bij Coolblue",
+    citesOwnSite(["https://www.coolblue.nl/product/12345"], "Coolblue"),
+  );
+  ok(
+    "een subdomein telt ook mee (shop.coolblue.nl → coolblue.nl → coolblue)",
+    citesOwnSite(["https://shop.coolblue.nl/aanbieding"], "Coolblue B.V."),
+  );
+  ok(
+    "een heel ander domein matcht niet",
+    !citesOwnSite(["https://www.tweakers.net/artikel/1"], "Coolblue"),
+  );
+  ok("geen bronnen is geen citatie", !citesOwnSite([], "Coolblue"));
+  ok(
+    "meerdere bronnen: al is er maar één de juiste",
+    citesOwnSite(["https://www.tweakers.net/artikel/1", "https://www.coolblue.nl/"], "Coolblue"),
+  );
+  ok("een onleesbare URL crasht niet en matcht niet", !citesOwnSite(["niet-een-url"], "Coolblue"));
 });
 
 // ════════════════════════════════════════════════════════════════════════════
@@ -5345,9 +5367,11 @@ group("buildBrandRankings: iedereen door dezelfde noemer, niet 'Jij' apart", () 
       citationCount: 2,
     },
     competitors: [
-      { name: "Concurrent A", mentionsCount: 18, avgPosition: 1.4, firstMentionCount: 10 },
-      { name: "Concurrent B", mentionsCount: 6, avgPosition: 2.8, firstMentionCount: 1 },
-      { name: "Toevalstreffer", mentionsCount: 1, avgPosition: 3.0, firstMentionCount: 0 },
+      // citationCount bekend (migratie 0058 is voor deze periode al gedraaid).
+      { name: "Concurrent A", mentionsCount: 18, avgPosition: 1.4, firstMentionCount: 10, citationCount: 4 },
+      // citationCount nog nooit berekend (oude periode): moet "-" blijven, geen 0%.
+      { name: "Concurrent B", mentionsCount: 6, avgPosition: 2.8, firstMentionCount: 1, citationCount: null },
+      { name: "Toevalstreffer", mentionsCount: 1, avgPosition: 3.0, firstMentionCount: 0, citationCount: 0 },
     ],
     measuredRunCount: 30,
   };
@@ -5355,7 +5379,7 @@ group("buildBrandRankings: iedereen door dezelfde noemer, niet 'Jij' apart", () 
   const { rows, omitted, fragmented } = buildBrandRankings(basis);
   ok("niet versnipperd: er zijn terugkerende concurrenten", !fragmented);
   ok("de eenmalige treffer valt weg", omitted === 1);
-  ok("vier merken blijven over (jij + twee concurrenten)", rows.length === 3, String(rows.length));
+  ok("drie merken blijven over (jij + twee concurrenten)", rows.length === 3, String(rows.length));
 
   // ⚠️ HET KERNPUNT: "Jij" heeft 40% van de WINBARE vragen (score.score), maar
   // in deze tabel telt iedereen over measuredRunCount (30). Jouw kale telling
@@ -5373,15 +5397,25 @@ group("buildBrandRankings: iedereen door dezelfde noemer, niet 'Jij' apart", () 
   // is dus 18/32 = 56%, met de hand nagerekend.
   ok("aandeel klopt met de hand (18/32 ≈ 56%)", rows[0].shareOfVoice === 56, String(rows[0].shareOfVoice));
 
-  // Concurrenten hebben geen citatiemeting: eerlijk null, geen gegokte 0.
+  // Concurrenten kunnen nu ook een citatiepercentage hebben (migratie 0058,
+  // citesOwnSite): 4 van de 30 gemeten vragen is 13%.
   const concurrentA = rows.find((r) => r.name === "Concurrent A")!;
-  ok("citationRate is null bij een concurrent", concurrentA.citationRate === null);
+  ok("citationRate bekend bij een concurrent", concurrentA.citationRate === 13, String(concurrentA.citationRate));
   ok("citationRate is wél bekend bij jezelf", jij.citationRate !== null);
+
+  // ⚠️ HET ONDERSCHEID DAT NIET VERLOREN MAG GAAN: null (nooit berekend) is
+  // iets anders dan 0 (berekend, en het antwoord is nul). Concurrent B heeft
+  // de eerste, Toevalstreffer zou de tweede hebben als hij niet al bij de
+  // eenmalige-vermelding-drempel wegviel.
+  const concurrentB = rows.find((r) => r.name === "Concurrent B")!;
+  ok("citationRate blijft null als het nooit berekend is, geen gegokte 0%", concurrentB.citationRate === null);
 
   // Een compleet versnipperde markt: geen enkele concurrent komt twee keer voor.
   const versnipperd = buildBrandRankings({
     ...basis,
-    competitors: [{ name: "Eenmalig", mentionsCount: 1, avgPosition: 1, firstMentionCount: 0 }],
+    competitors: [
+      { name: "Eenmalig", mentionsCount: 1, avgPosition: 1, firstMentionCount: 0, citationCount: 0 },
+    ],
   });
   ok("een versnipperde markt geeft fragmented", versnipperd.fragmented);
 

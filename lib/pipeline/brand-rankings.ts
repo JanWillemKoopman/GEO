@@ -38,6 +38,12 @@ export interface CompetitorInput {
   mentionsCount: number;
   avgPosition: number | null;
   firstMentionCount: number | null;
+  /**
+   * `null` = deze periode is aangemaakt vóór migratie 0058 of nog niet
+   * opnieuw geaggregeerd, NIET "geen citaties gevonden" (conventie 3). Zie
+   * `citesOwnSite()` in `lib/entities/normalize.ts`.
+   */
+  citationCount: number | null;
 }
 
 export interface BrandRankingsInput {
@@ -62,13 +68,25 @@ export interface BrandRankingRow {
   /** % van `measuredRunCount` waarin dit merk als EERSTE aanbevolen werd. */
   recommendationRate: number | null;
   /**
-   * % van `measuredRunCount` waarin de EIGEN site als bron werd gebruikt.
-   * `null` bij een concurrent: dat wordt niet gemeten (measure.ts, R3), en een
-   * lege tabelcel is dan eerlijker dan een gegokte 0.
+   * % van `measuredRunCount` waarin de EIGEN site als bron werd gebruikt, op
+   * naam herkend (`citesOwnSite()`, migratie 0058). `null` = nog niet
+   * berekend voor deze periode (oude data, of nog niet opnieuw gemeten), niet
+   * "geen citaties gevonden".
    */
   citationRate: number | null;
   /** % aandeel binnen jij + bevestigde concurrenten samen (share of voice). */
   shareOfVoice: number | null;
+}
+
+/**
+ * `null` blijft `null` (onbekend), een echte 0 blijft 0 (gemeten, geen enkele
+ * citatie). `pct(teller ?? 0, ...)` zou beide op "0%" laten uitkomen, en dan is
+ * "nog nooit berekend" niet meer te onderscheiden van "berekend en nul"
+ * (conventie 3, bij zowel het eigen merk als een concurrent: `citation_count`
+ * is bij allebei pas sinds een bepaalde migratie gevuld).
+ */
+function pctOrUnknown(teller: number | null, noemer: number): number | null {
+  return teller == null ? null : pct(teller, noemer);
 }
 
 export interface BrandRankings {
@@ -121,8 +139,8 @@ export function buildBrandRankings(input: BrandRankingsInput): BrandRankings {
     mentions: ownMentions,
     mentionRate: pct(ownMentions, noemer),
     avgPosition: input.own.avgPosition,
-    recommendationRate: pct(input.own.firstMentionCount ?? 0, noemer),
-    citationRate: pct(input.own.citationCount ?? 0, noemer),
+    recommendationRate: pctOrUnknown(input.own.firstMentionCount, noemer),
+    citationRate: pctOrUnknown(input.own.citationCount, noemer),
     shareOfVoice: pct(ownMentions, totaalVoorAandeel),
   };
 
@@ -132,10 +150,10 @@ export function buildBrandRankings(input: BrandRankingsInput): BrandRankings {
     mentions: c.mentionsCount,
     mentionRate: pct(c.mentionsCount, noemer),
     avgPosition: c.avgPosition,
-    recommendationRate: pct(c.firstMentionCount ?? 0, noemer),
-    // Niet gemeten voor concurrenten (measure.ts: "het eigen domein is hier
-    // niet van toepassing"). `null` is hier de eerlijke uitkomst, geen gok.
-    citationRate: null,
+    recommendationRate: pctOrUnknown(c.firstMentionCount, noemer),
+    // Herkend op naam (citesOwnSite, migratie 0058). `null` = nog niet
+    // berekend voor deze periode, niet "geen citaties gevonden".
+    citationRate: pctOrUnknown(c.citationCount, noemer),
     shareOfVoice: pct(c.mentionsCount, totaalVoorAandeel),
   }));
 

@@ -20,7 +20,7 @@ import { promptWeight, NEUTRAL_WEIGHT } from "@/lib/pipeline/prompt-weight";
 import { volumeBandOf } from "@/lib/pipeline/volume";
 import { Mention } from "@/lib/schemas/mention";
 import { loadEntityIndex, resolveEntity } from "@/lib/entities/resolve";
-import { looksLikeBrandName, textContainsName } from "@/lib/entities/normalize";
+import { looksLikeBrandName, textContainsName, citesOwnSite } from "@/lib/entities/normalize";
 import { domainOf } from "@/lib/offsite/domain";
 import { normalizePosition, weightedAveragePosition } from "@/lib/pipeline/position";
 import { shareByRun, sumShare, roundQuestions } from "@/lib/pipeline/question-share";
@@ -865,12 +865,26 @@ export async function computeAggregates(admin: Admin, analysisId: string, weekNo
       });
     };
 
+    // De weergavenaam van de entiteit, niet de toevallige schrijfwijze uit één
+    // antwoord. Anders heet dezelfde concurrent elke periode anders, én de
+    // citatiematch hieronder (`citesOwnSite`) heeft juist deze schone naam
+    // nodig om een geciteerd domein op te herkennen.
+    const competitorName = entityById.get(entityId)?.canonical_name ?? "Onbekend";
+
+    // ── Citaties van de EIGEN site van deze concurrent (migratie 0058) ────────
+    // Zelfde soort cijfer als `citation_count` voor het eigen merk (R3), maar
+    // zonder een geregistreerd domein: herkend op naam. Een genoemde partij
+    // telt mee zodra minstens één van zijn geciteerde bronnen normaliseert naar
+    // dezelfde entiteit als zijn merknaam (conventie 3: een gemiste match geeft
+    // een te lage telling, nooit een verzonnen citatie).
+    const citationTotal = ms
+      .filter((m) => m.mentioned && citesOwnSite(m.cited_sources ?? [], competitorName))
+      .reduce((sum, m) => sum + shareOf(m.tracking_run_id as string), 0);
+
     return {
       analysis_id: analysisId,
       week_no: weekNo,
-      // De weergavenaam van de entiteit, niet de toevallige schrijfwijze uit
-      // één antwoord. Anders heet dezelfde concurrent elke periode anders.
-      competitor_name: entityById.get(entityId)?.canonical_name ?? "Onbekend",
+      competitor_name: competitorName,
       mentions_count: roundQuestions(
         ms
           .filter((m) => m.mentioned)
@@ -884,10 +898,10 @@ export async function computeAggregates(admin: Admin, analysisId: string, weekNo
       losing_run_ids: eersteRunPerVraag(losingRunIds),
       // Zelfde profiel als voor het eigen merk (R3), anders valt er niets te
       // vergelijken: even vaak genoemd maar structureel later in het antwoord is
-      // een heel ander verhaal dan even vaak én even prominent. Het eigen domein
-      // is hier niet van toepassing, dus geen citatietelling.
+      // een heel ander verhaal dan even vaak én even prominent.
       avg_position: profileVisibility(withShare, null).avgPosition,
       first_mention_count: profileVisibility(withShare, null).firstMentionCount,
+      citation_count: roundQuestions(citationTotal),
     };
   });
 

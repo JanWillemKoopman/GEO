@@ -2672,3 +2672,19 @@ precies andersom dan de oude balkjes het altijd toonden.
 Bewust een lege cel in plaats van een gegokt getal: het percentage "eigen site als bron gebruikt"
 wordt alleen voor het eigen domein gemeten, een concurrent-versie ervan zou een cijfer zijn dat nooit
 gemeten is. 1250 unittests, 160 ketentests.
+
+**Diezelfde dag alsnog opgelost: de citatiekolom werkt nu ook voor concurrenten.** "Is dit mogelijk
+alsnog te repareren" was de logische vervolgvraag, en het antwoord was ja, zonder dat er ooit een
+domein van een concurrent is opgeslagen. `citesOwnSite()` (`lib/entities/normalize.ts`) hergebruikt
+de al bestaande merknaam-normalisatie (`isSameEntity()`) om een geciteerd domein tegen een merknaam
+te leggen, "coolblue.nl" en "Coolblue" normaliseren toch al allebei naar "coolblue". Migratie `0058`
+voegt `competitor_breakdown.citation_count` toe, `measure.ts` vult hem bij elke nieuwe aggregatie.
+
+Twee dingen bewust niet gedaan. Geen backfill van bestaande periodes: dat zou de matchlogica in SQL
+moeten naspiegelen, en twee implementaties van dezelfde regel lopen vroeg of laat uiteen. Bestaande
+periodes tonen dus een streepje tot de eerstvolgende meting, nooit een 0% die er niet hoort te staan,
+en dat onderscheid (nooit berekend versus berekend-en-nul) is in dezelfde ronde ook op "Aanbevolen"
+en op het eigen merk toegepast, waar diezelfde stille aanname al langer sluimerde. En geen
+ketentest tegen een echte aggregatie: `measure.ts` heeft dat spoor nooit gehad (hetzelfde gat als bij
+de generate_report-trigger, fase 1 hierboven), dus dit is getoetst tot op de pure functies, niet
+end-to-end op productie. 1257 unittests, 160 ketentests.

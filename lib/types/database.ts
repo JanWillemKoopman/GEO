@@ -769,6 +769,14 @@ export interface CompetitorBreakdown {
   avg_position: number | null;
   first_mention_count: number | null;
   /**
+   * Hoe vaak deze concurrent zijn EIGEN site als bron zag gebruikt (migratie
+   * 0058). Herkend op naam, niet op een opgeslagen domein: `citesOwnSite()`
+   * (lib/entities/normalize.ts) normaliseert het geciteerde domein tegen de
+   * merknaam. `null` = deze periode is aangemaakt vóór migratie 0058 of nog
+   * niet opnieuw geaggregeerd, NIET "geen citaties gevonden" (conventie 3).
+   */
+  citation_count: number | null;
+  /**
    * Waaróm wordt deze concurrent genoemd (implementatieplan.md R4.2, migratie
    * 0030)? `attributes_json` bevat per eigenschap een letterlijk citaat uit de
    * meting als bewijs; `why_summary` is één leesbare zin voor de klant.
