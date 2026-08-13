@@ -242,7 +242,7 @@ function LandscapeTable({ landscape }: { landscape: SourceLandscapeRow[] }) {
                   )}
                 </td>
                 <td className="py-1 pr-4 text-secondary">
-                  {row.competitors.length > 0 ? row.competitors.slice(0, 2).join(", ") : "–"}
+                  {row.competitors.length > 0 ? row.competitors.slice(0, 2).join(", ") : "-"}
                 </td>
               </tr>
             ))}

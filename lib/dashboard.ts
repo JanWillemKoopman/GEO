@@ -18,6 +18,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { changeIsMeaningful } from "@/lib/stats/uncertainty";
 import { loadWorkAcross, type WorkItem } from "@/lib/work";
 import { readRecommendations } from "@/lib/pipeline/recommendation";
+import { ownMentionCount } from "@/lib/pipeline/brand-rankings";
 import type { Analysis, VisibilityScore } from "@/lib/types/database";
 
 type Db = SupabaseClient;
@@ -171,8 +172,9 @@ function buildCardMetrics(
     if (latest && latest.winnable_runs != null) {
       // score = % van de winnable_runs waarin het merk genoemd wordt (ongewogen,
       // zie VisibilityScore.score), omgekeerd terug te rekenen naar een telling
-      // zonder een aparte query op tracking_run_mentions nodig te hebben.
-      const mentioned = Math.round((latest.score / 100) * latest.winnable_runs);
+      // zonder een aparte query op tracking_run_mentions nodig te hebben. Zelfde
+      // afleiding als de rangordetabel (`brand-rankings.ts`), vandaar gedeeld.
+      const mentioned = ownMentionCount(latest.score, latest.winnable_runs);
       openQuestions = Math.max(0, latest.winnable_runs - mentioned);
     }
 

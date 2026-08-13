@@ -2652,3 +2652,23 @@ Wat overblijft op `/profielen/[id]` is precies twee dingen: is het dossier compl
 uit de nulmeting (de samenvatting plus de nulmeting per vraag). De primaire knop en de springlinkbalk
 bovenaan (`ProfileHero`) zijn weg: beide wezen naar blokken die nu een eigen bestemming in de zijbalk
 hebben, dus is een tweede navigatielaag erbovenop overbodig. 1233 unittests, 160 ketentests.
+
+**De rangordetabel: "Jij" hoort niet altijd bovenaan te staan (13 augustus 2026).** Aanleiding was
+een screenshot van een concurrent met een nette ranglijst: merk, vermeldingen, positie, aandeel. De
+eerste vraag was welke van die cijfers Aura al had, en het antwoord was: bijna allemaal, alleen
+verspreid. `competitor_breakdown` bewaart sinds migratie `0029` al `avg_position` en
+`first_mention_count` per concurrent, maar de bestaande balkjes (`CompetitorCard`) lazen daar alleen
+`mentions_count` uit.
+
+Belangrijker dan het ontbrekende scherm was een scheve aanname die pas opviel bij het bouwen: de
+balk van "Jij" toont het percentage van de hoofdscore (genoemd ÷ **winbare** vragen), de balken van
+concurrenten tonen genoemd ÷ **alle gemeten** vragen. Twee verschillende noemers, onzichtbaar zolang
+je zelf altijd de eerste rij was. Een rangorde-tabel die belooft "hier sta je écht tussen de rest"
+houdt die belofte niet als de rekensom voor jezelf anders is dan voor de rest. `brand-rankings.ts`
+rekent daarom iedereen over dezelfde noemer, en "Jij" komt op de plek terecht die de cijfers
+aanwijzen: in de testcase staat een concurrent met 18 vermeldingen boven een eigen merk met 8,
+precies andersom dan de oude balkjes het altijd toonden.
+
+Bewust een lege cel in plaats van een gegokt getal: het percentage "eigen site als bron gebruikt"
+wordt alleen voor het eigen domein gemeten, een concurrent-versie ervan zou een cijfer zijn dat nooit
+gemeten is. 1250 unittests, 160 ketentests.

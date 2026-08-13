@@ -210,6 +210,32 @@ Bron: `lib/jobs/{types,queue,worker,handlers,pending}.ts`.
 | 19 | Off-site | luna, gegrond | Op welke externe domeinen het merk wél/niet aanwezig is. |
 | 20 | Maandelijkse ronde |, | Alleen voor analyses met tracking aan. Structureel merkloze vragen worden overgeslagen. |
 
+### De rangordetabel (13 augustus 2026): alle merken op één schaal, geen AI-aanroep
+
+Hoofdstuk 02 ("Waar je wint en mist") opende altijd met balkjes (`CompetitorCard`) die "Jij" vast
+als eerste rij tonen, met het percentage van de hoofdscore (`score.score`, ÷ **winbare** vragen).
+De concurrenten daaronder krijgen een ander percentage: genoemd ÷ **alle gemeten** vragen
+(`measuredRunCount`). Dat is bewust zo (de balk van "Jij" moet hetzelfde getal tonen als de rest
+van de pagina), maar het betekent dat twee schalen door elkaar liepen, onzichtbaar zolang je zelf
+altijd bovenaan stond.
+
+`lib/pipeline/brand-rankings.ts` (`buildBrandRankings()`) rekent daarom alle merken, inclusief het
+eigen merk, over precies dezelfde noemer (`measuredRunCount`) en zet ze in één rangorde op aandeel
+(share of voice). Geen nieuwe meting, geen AI-aanroep: alle onderliggende cijfers
+(`avg_position`, `first_mention_count` per concurrent) liggen al sinds migratie `0029` in
+`competitor_breakdown`, ze werden alleen nooit uit die tabel gehaald naar het scherm.
+`BrandRankingsTable` (`score-panel.tsx`) toont dit bovenaan hoofdstuk 02, vóór de bestaande
+balkjes, die blijven staan voor het "versnipperde markt"-verhaal dat een tabel niet vertelt.
+
+Eén kolom is bewust leeg bij een concurrent: **"Bron gebruikt"** (citatiepercentage) wordt alleen
+voor het eigen domein gemeten (`measure.ts`, `profileVisibility()`: "het eigen domein is hier niet
+van toepassing"). Een concurrent-citatiepercentage verzinnen zou conventie 3 breken; de tabel toont
+daar `n.v.t.` met een uitleg, geen gegokte 0.
+
+`ownMentionCount()` (dezelfde functie) leidt de kale telling af uit `score.score` en
+`winnable_runs`; `lib/dashboard.ts` gebruikte hiervoor al een eigen inline versie en verwijst er nu
+naar (één feit, één eigenaar).
+
 **De content-editie** (naast stap 16, geen AI-kosten): de contentdetailpagina is niet alleen een
 resultaat maar ook een bewerkoppervlak, naar het voorbeeld van InSpace Nova's contentreview
 (`docs/logbook.md`, content-editie-paragraaf). Drie nieuwe pure modules voeden dat scherm, naast

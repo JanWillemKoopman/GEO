@@ -90,6 +90,7 @@ import {
   templateSummary,
 } from "@/lib/pipeline/template-detect";
 import { buildTemplateExport, markdownToGutenbergBlocks } from "@/lib/pipeline/content-export";
+import { buildBrandRankings, ownMentionCount } from "@/lib/pipeline/brand-rankings";
 import {
   assessInventory,
   looksLikeProductPage,
@@ -5321,6 +5322,73 @@ group("potentialExplanation: nooit een gegokte zin", () => {
     "met beide bekend staat het gemiste percentage erin",
     potentialExplanation(40, 80).includes("60%"),
   );
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+console.log("\nMerken op een rij: iedereen op dezelfde manier geteld");
+
+group("ownMentionCount: de kale telling terug uit het percentage", () => {
+  ok("50% van 30 winbare vragen is 15", ownMentionCount(50, 30) === 15);
+  ok("0% is 0", ownMentionCount(0, 30) === 0);
+  ok("100% is alles", ownMentionCount(100, 12) === 12);
+  ok("geen winbare vragen is 0", ownMentionCount(40, 0) === 0);
+});
+
+group("buildBrandRankings: iedereen door dezelfde noemer, niet 'Jij' apart", () => {
+  const basis = {
+    own: {
+      name: "Jij",
+      score: 40, // 40% van de winbare vragen, dus een ANDER cijfer dan de tabel zo meteen toont
+      winnableRuns: 20,
+      avgPosition: 2.1,
+      firstMentionCount: 3,
+      citationCount: 2,
+    },
+    competitors: [
+      { name: "Concurrent A", mentionsCount: 18, avgPosition: 1.4, firstMentionCount: 10 },
+      { name: "Concurrent B", mentionsCount: 6, avgPosition: 2.8, firstMentionCount: 1 },
+      { name: "Toevalstreffer", mentionsCount: 1, avgPosition: 3.0, firstMentionCount: 0 },
+    ],
+    measuredRunCount: 30,
+  };
+
+  const { rows, omitted, fragmented } = buildBrandRankings(basis);
+  ok("niet versnipperd: er zijn terugkerende concurrenten", !fragmented);
+  ok("de eenmalige treffer valt weg", omitted === 1);
+  ok("vier merken blijven over (jij + twee concurrenten)", rows.length === 3, String(rows.length));
+
+  // ⚠️ HET KERNPUNT: "Jij" heeft 40% van de WINBARE vragen (score.score), maar
+  // in deze tabel telt iedereen over measuredRunCount (30). Jouw kale telling
+  // is dus round(40/100 * 20) = 8, dat is 8/30 ≈ 27%, niet 40%.
+  const jij = rows.find((r) => r.isOwnBrand)!;
+  ok("de kale telling klopt (8 van de 20 winbare)", jij.mentions === 8, String(jij.mentions));
+  ok("het percentage rekent over measuredRunCount, niet winnableRuns", jij.mentionRate === 27, String(jij.mentionRate));
+
+  // Concurrent A (18 vermeldingen) staat hoger in aandeel dan "Jij" (8): die
+  // moet dus BOVEN "Jij" in de rangorde staan, niet eronder vastgezet.
+  ok("Concurrent A staat op de eerste plek", rows[0].name === "Concurrent A", rows[0].name);
+  ok("'Jij' staat niet altijd bovenaan", rows[0].isOwnBrand === false);
+
+  // Aandeel = jij + getoonde concurrenten samen (8 + 18 + 6 = 32), Concurrent A
+  // is dus 18/32 = 56%, met de hand nagerekend.
+  ok("aandeel klopt met de hand (18/32 ≈ 56%)", rows[0].shareOfVoice === 56, String(rows[0].shareOfVoice));
+
+  // Concurrenten hebben geen citatiemeting: eerlijk null, geen gegokte 0.
+  const concurrentA = rows.find((r) => r.name === "Concurrent A")!;
+  ok("citationRate is null bij een concurrent", concurrentA.citationRate === null);
+  ok("citationRate is wél bekend bij jezelf", jij.citationRate !== null);
+
+  // Een compleet versnipperde markt: geen enkele concurrent komt twee keer voor.
+  const versnipperd = buildBrandRankings({
+    ...basis,
+    competitors: [{ name: "Eenmalig", mentionsCount: 1, avgPosition: 1, firstMentionCount: 0 }],
+  });
+  ok("een versnipperde markt geeft fragmented", versnipperd.fragmented);
+
+  // Geen concurrenten aangetroffen: geen versnippering, gewoon leeg.
+  const geenConcurrenten = buildBrandRankings({ ...basis, competitors: [] });
+  ok("geen concurrenten is niet hetzelfde als versnipperd", !geenConcurrenten.fragmented);
+  ok("dan blijft alleen 'Jij' over", geenConcurrenten.rows.length === 1);
 });
 
 // ════════════════════════════════════════════════════════════════════════════

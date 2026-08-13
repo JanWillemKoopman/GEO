@@ -4,6 +4,7 @@ import { InfoHint } from "@/components/info-hint";
 import { confidenceBand, changeIsMeaningful } from "@/lib/stats/uncertainty";
 import { formatDateLong } from "@/lib/format";
 import { engineLabel } from "@/lib/engines/label";
+import { buildBrandRankings } from "@/lib/pipeline/brand-rankings";
 import type { VisibilityScore, CompetitorBreakdown, Entity } from "@/lib/types/database";
 
 /**
@@ -133,6 +134,127 @@ export function ScoreCard({
             is makkelijker te vergelijken met een ruwe telling.
           </InfoHint>
         </div>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Hoofdstuk 02, bovenaan: alle merken op één rangorde, inclusief jezelf.
+ *
+ * ── WAAROM "JIJ" HIER NIET ALTIJD BOVENAAN STAAT ─────────────────────────────
+ *
+ * De balkjes in `CompetitorCard` hieronder zetten "Jij" altijd als eerste rij
+ * neer. Deze tabel doet dat bewust niet: elk merk wordt op precies dezelfde
+ * manier geteld (`brand-rankings.ts`) en de sortering volgt het aandeel, ook
+ * als dat betekent dat je zelf vijfde staat. "Gemeten, niet beloofd" geldt ook
+ * voor je eigen plek in de lijst.
+ */
+export function BrandRankingsTable({
+  score,
+  measuredRunCount,
+  competitors,
+}: {
+  score: VisibilityScore;
+  measuredRunCount: number;
+  competitors: CompetitorBreakdown[];
+}) {
+  const { rows, omitted, fragmented } = buildBrandRankings({
+    own: {
+      name: "Jij",
+      score: score.score,
+      winnableRuns: score.winnable_runs ?? 0,
+      avgPosition: score.avg_position,
+      firstMentionCount: score.first_mention_count,
+      citationCount: score.citation_count,
+    },
+    competitors: competitors.map((c) => ({
+      name: c.competitor_name,
+      mentionsCount: c.mentions_count,
+      avgPosition: c.avg_position,
+      firstMentionCount: c.first_mention_count,
+    })),
+    measuredRunCount,
+  });
+
+  if (fragmented) return null; // CompetitorCard hieronder legt dit geval al uit.
+
+  return (
+    <div className="card flex flex-col gap-3">
+      <span className="mono-label flex items-center gap-1">
+        Merken op een rij
+        <InfoHint label="Merken op een rij">
+          Elk merk geteld op dezelfde manier: als percentage van de {measuredRunCount} gestelde
+          vragen deze periode, ook de vragen waarin de AI niemand noemde. Dat is een andere,
+          strengere noemer dan het hoofdcijfer bovenaan (dat rekent alleen over de vragen waarin wél
+          iemand genoemd werd), en precies daarom is dit de eerlijke manier om jezelf tussen je
+          concurrenten te zetten in plaats van er los boven.
+        </InfoHint>
+      </span>
+
+      <div className="overflow-x-auto">
+        <table className="w-full text-left text-sm">
+          <thead>
+            <tr className="text-muted">
+              <th className="py-1 pr-4 font-normal">Merk</th>
+              <th className="py-1 pr-4 font-normal">Vermeldingen</th>
+              <th className="py-1 pr-4 font-normal">Gem. positie</th>
+              <th className="py-1 pr-4 font-normal">Aanbevolen</th>
+              <th className="py-1 pr-4 font-normal">Bron gebruikt</th>
+              <th className="py-1 pr-4 font-normal">Aandeel</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((r) => (
+              <tr
+                key={r.name}
+                className="border-t border-[var(--border-subtle)]"
+                style={r.isOwnBrand ? { background: "var(--bg-elevated)" } : undefined}
+              >
+                <td className="py-1.5 pr-4 font-medium">
+                  {r.name}
+                  {r.isOwnBrand && <span className="chip ml-2" style={{ fontSize: "0.7rem" }}>jij</span>}
+                </td>
+                <td className="py-1.5 pr-4 text-secondary">
+                  {r.mentions}
+                  {r.mentionRate != null && <span className="text-muted"> ({r.mentionRate}%)</span>}
+                </td>
+                <td className="py-1.5 pr-4 text-secondary">{r.avgPosition ?? "-"}</td>
+                <td className="py-1.5 pr-4 text-secondary">
+                  {r.recommendationRate != null ? `${r.recommendationRate}%` : "-"}
+                </td>
+                <td className="py-1.5 pr-4 text-secondary">
+                  {r.isOwnBrand ? (
+                    r.citationRate != null ? (
+                      `${r.citationRate}%`
+                    ) : (
+                      "-"
+                    )
+                  ) : (
+                    <span className="flex items-center gap-1 text-muted">
+                      n.v.t.
+                      <InfoHint label="Waarom n.v.t.?">
+                        Aura meet alleen hoe vaak JOUW site als bron wordt gebruikt, niet die van
+                        concurrenten. Dat vraagt te weten welk domein bij welk merk hoort, voor elke
+                        concurrent apart, en dat is nu niet betrouwbaar vast te stellen.
+                      </InfoHint>
+                    </span>
+                  )}
+                </td>
+                <td className="py-1.5 pr-4 font-medium">
+                  {r.shareOfVoice != null ? `${r.shareOfVoice}%` : "-"}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {omitted > 0 && (
+        <p className="text-sm text-muted">
+          Daarnaast kwamen nog {omitted} andere merken minder dan twee keer voorbij. Die staan hier
+          niet tussen: één vermelding is toeval, geen patroon.
+        </p>
       )}
     </div>
   );

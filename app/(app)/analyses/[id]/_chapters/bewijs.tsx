@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
-import { CompetitorCard, AlsoMentionedCard } from "../score-panel";
+import { BrandRankingsTable, CompetitorCard, AlsoMentionedCard } from "../score-panel";
 import { AnswersView } from "../antwoorden/answers-view";
 import { loadAnswers } from "@/lib/pipeline/answers";
 import { InfoHint } from "@/components/info-hint";
@@ -123,6 +123,12 @@ export async function BewijsChapter({
 
   return (
     <>
+      <BrandRankingsTable
+        score={score}
+        measuredRunCount={runCount ?? 0}
+        competitors={(competitorRows ?? []) as CompetitorBreakdown[]}
+      />
+
       <CompetitorCard
         score={score}
         measuredRunCount={runCount ?? 0}
