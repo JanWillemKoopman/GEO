@@ -9,6 +9,13 @@ Voor UI/UX: `ux-design.md`.
 > zes fouten bloot in de samenhang tussen de onboardingstappen; alle zes zijn verwerkt.
 > Dit document beschrijft wat de code dóet, niet wat een plan voorschrijft, wijkt het af, dan is
 > de code leidend en is dit document fout. Werk deze datum bij zodra je hem hebt nagetrokken.
+>
+> ⚠️ **Migraties `0051` t/m `0057` zijn er sindsdien bijgekomen** (budgetplafond, promptverdeling,
+> de rolmatrix-leesregels, de potentiescore), en §4 hieronder (jobwachtrij) is op 13 augustus
+> bijgewerkt met de twee taaksoorten die daarbij kwamen (`gsc_sync`, `recalculate_potential`).
+> De rest van dit document is niet opnieuw regel voor regel nagelopen tegen die migraties; ga bij
+> twijfel uit van `supabase/README.md` (de migratie-index) en `docs/logbook.md` (waarom), niet
+> van de peildatum hierboven.
 
 ## 1. Hosting en dataflow
 

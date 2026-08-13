@@ -128,7 +128,7 @@ function MetricTile({
         className="text-3xl font-bold tracking-tight"
         style={tone === "up" ? { color: "var(--status-success)" } : undefined}
       >
-        {value === null ? "—" : value}
+        {value === null ? "-" : value}
         {value !== null && (
           <span className="text-muted" style={{ fontSize: "0.9rem", fontWeight: 400 }}>
             {" "}

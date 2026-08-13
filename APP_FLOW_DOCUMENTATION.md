@@ -9,6 +9,12 @@
 > (t/m migratie `0045`). Waar dit document afwijkt van de code, is de code leidend.
 > Achtergrond en historie: `docs/architecture.md`, `docs/logbook.md`, `CLAUDE.md`.
 >
+> ⚠️ **Niet opnieuw volledig nagelopen sinds 8 augustus**, terwijl er intussen twaalf migraties
+> bijkwamen (`0046` t/m `0057`): het budgetplafond, de instelbare promptverdeling, de
+> rolmatrix-leesregels, de wedstrijdcondities-reparaties en de potentiescore. De jobwachtrij
+> hierboven is bijgewerkt (13 augustus); de rest van dit document niet. Voor de actuele stand:
+> `docs/architecture.md` (met dezelfde kanttekening) en `docs/logbook.md`.
+>
 > ⚠️ **Fase 1 is op 3–4 augustus 2026 volledig vervangen.** Het product ging van self-serve naar
 > sales-led: de onboarding vraagt nog drie velden in plaats van elf, en er draait een
 > onderzoekspijplijn van acht taken achter. Wie dit document kent van vóór die datum leest
@@ -168,12 +174,14 @@ scripts/             test-unit (416) · test-chain (25) · test-openai · eval-m
 
 Bron: `lib/jobs/{types,queue,worker,handlers,pending}.ts`.
 
-- **23 taaksoorten.** De onboarding: `profile_discover`, `profile_research`, `profile_offering`,
+- **24 taaksoorten.** De onboarding: `profile_discover`, `profile_research`, `profile_offering`,
   `propose_topics`, `profile_market`, `profile_llm_baseline`, `profile_synthesis`,
   `technical_audit`. De analyse: `prepare_analysis`, `generate_prompts`, `calibrate_volumes`,
   `measure_prompt`, `aggregate_week`, `profile_competitors`, `generate_report`. De content:
   `content_brief`, `content_draft`, `content_revise`, `verify_publication`, `measure_impact`,
-  `compute_impact`, `offsite_scan`.
+  `compute_impact`, `offsite_scan`. Profielbreed, niet aan één analyse gekoppeld: `gsc_sync`
+  (zoekcijfers ophalen, migratie 0052) en `recalculate_potential` (de potentiescore over alle
+  onderwerpen van een merk herberekenen, `docs/tasks/potentiescore.md`).
 - **De onboardingketen hangt aan één `enqueue`** vanuit `POST /api/profiles`. `profile_discover`
   plant `technical_audit` én `profile_research` in; vanaf daar ketent elke stap zijn opvolger.
   `profile_offering` plant `profile_market` **onvoorwaardelijk** in, niet via `propose_topics`,

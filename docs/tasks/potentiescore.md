@@ -211,7 +211,7 @@ er nu (`loadContentPotential()`), dus het label staat er nu, als onderdeel van d
 als los, ongefundeerd percentage.
 
 **Zolang er geen index is** (vóór de eerste profielbrede herberekening) staat er een streepje, nooit
-een gegokt getal (conventie 3): `MetricTile` toont `—` in plaats van `0` of een placeholder-cijfer.
+een gegokt getal (conventie 3): `MetricTile` toont `-` (gewoon koppelteken) in plaats van `0` of een placeholder-cijfer.
 
 ## 4a. Fase 2 en 3 (gebouwd, 13 augustus)
 
@@ -290,7 +290,7 @@ je een van de vier anders wilt, dan pas ik het ontwerp aan vóór de bouw begint
 | 2 | Een derde onderwerp dat klaar komt met een duidelijk hoger zoekvolume, verlaagt aantoonbaar de index van een bestaand onderwerp dat zelf niet veranderd is | **Bewezen**: "Grote markt" daalt van 100 naar 84 zodra "Enorme markt" meedoet, met de hand nagerekend |
 | 3 | Gearchiveerde onderwerpen tellen niet mee in de herkalibratie | **Bewezen** |
 | 4 | De potentiescore van een onderwerp is nooit hoger dan wanneer het zichtbaarheidsgat 0 is (score dan exact 0) | **Bewezen**, unittest `potentialScore` |
-| 5 | Een profiel zonder herberekening toont "—", nooit een gegokt getal | **Bewezen**, `MetricTile` |
+| 5 | Een profiel zonder herberekening toont "-", nooit een gegokt getal | **Bewezen**, `MetricTile` |
 | 6 | Twee pagina's binnen hetzelfde onderwerp met verschillende doelvragen tonen een verschillende zichtbaarheid, gelijk zoekvolume | Nog niet met een echte klant bevestigd (conventie 10): de rekenkant is bewezen, maar er is nog geen productieprofiel met twee geschreven pagina's op hetzelfde onderwerp om dit op te toetsen |
 | 7 | De herberekening kost één AI-aanroep per keer, niet één per onderwerp, en draait nooit op het kritieke pad van een meting | **Bewezen**: `recalibrateSearchVolume()` doet één `callStructured`-aanroep over alle onderwerpen samen, getriggerd ná `generate_report`, niet ervoor |
 | 7a | Werkt ook echt op productie, niet alleen in de ketentest | **Bewezen, 13 augustus.** Handmatig een `recalculate_potential`-taak ingepland voor Gasservice Brabant (het enige merk met een gemeten, niet-gearchiveerd onderwerp op dat moment). Binnen een minuut opgepakt door de echte werker, taak op `done`, geen fout. "Cv-ketel onderhoud" kreeg index 68 met een zinnige, Nederlandse onderbouwing die expliciet naar de ijkpunten verwijst. De vijf onderwerpen zonder eigen analyse bleven terecht op `null` |
