@@ -1,6 +1,7 @@
 # De potentiescore: zichtbaarheidsgat × zoekvolume, eerlijk over analyses heen
 
-**Status:** fase 1 gebouwd en op productie, 13 augustus 2026. Fase 2 en 3 (§6) staan nog open.
+**Status:** fase 1, 2 en 3 gebouwd en op productie, 13 augustus 2026. Zie §6 voor wat expliciet nog
+niet gebouwd is (de vervanging van de volumebanden in `promptWeight()`, een apart besluit).
 **Opgesteld:** 13 augustus 2026 · **Aanleiding:** vraag van de product owner: hoeveel is er te winnen
 op een onderwerp of een pagina, en is dat overal in de app op dezelfde manier te vergelijken.
 
@@ -212,13 +213,39 @@ als los, ongefundeerd percentage.
 **Zolang er geen index is** (vóór de eerste profielbrede herberekening) staat er een streepje, nooit
 een gegokt getal (conventie 3): `MetricTile` toont `—` in plaats van `0` of een placeholder-cijfer.
 
-**Wat nog niet gebouwd is.** De Kansen-lijst (`lib/opportunities.ts`) laten hersorteren op de nieuwe
-potentiescore, en de volgorde van het contentplan (`plan-build.ts`, dat nu op de bevroren
-dag-1-gok van `profile_topics.priority` sorteert) laten meebewegen met een score die na de lancering
-van een onderwerp blijft veranderen. Allebei een logisch vervolg, allebei een aparte, grotere
-wijziging (de eerste raakt de sortering die de klant als "wat moet ik eerst doen" leest, de tweede
-raakt een lopend, al aan de klant getoond jaarplan). Genoemd in §6 als fase 2 en fase 3, nog niet
-gebouwd.
+## 4a. Fase 2 en 3 (gebouwd, 13 augustus)
+
+**Fase 2, de Kansen-lijst.** `lib/opportunities.ts` kreeg een derde veld, `potential`, naast het
+bestaande `share`. De sortering kijkt eerst naar de potentiescore (vergelijkbaar over alle
+onderwerpen van het merk); ontbreekt die, dan valt hij terug op `share` zoals voorheen. Een kans MET
+potentiescore gaat altijd voor een kans zonder. Op het scherm (`components/loop-blocks.tsx`) toont de
+chip nu "Potentie 72/100 (hoog)" in plaats van het vagere aandeel-percentage, zodra er een
+potentiescore is; anders blijft de oude tekst staan. `lib/insights-data.ts` berekent de potentiescore
+per aanbeveling met dezelfde kern als een voorgestelde pagina in hoofdstuk 03
+(`loadRecommendationPotential`).
+
+**Fase 3, de contentplanvolgorde.** `buildPlan()` (`lib/pipeline/plan-build.ts`) sorteert onderwerpen
+nu eerst op potentiescore, met `priority` als vangnet én als tiebreaker: een onderwerp MET
+potentiescore gaat altijd voor een onderwerp zonder, ook als diens `priority` lager is. Zonder één
+potentiescore in de hele lijst verandert er niets (bewezen met een aparte test): de eerste analyse van
+een gloednieuw merk krijgt precies hetzelfde plan als vóór deze wijziging. `createPlan()`
+(`lib/plans.ts`) haalt de potentiescore per onderwerp op vóórdat hij `buildPlan()` aanroept.
+
+⚠️ **Raakt bewust alleen een NIEUW gebouwd plan, nooit een al aan de klant getoond jaarplan.** Zie de
+uitgebreide toelichting in `plan-build.ts` zelf (regel 1). Een bestaand plan herordent niet vanzelf.
+
+**Ook meegenomen, niet expliciet in het oorspronkelijke ontwerp:** de onderwerpenlijst op de
+profielpagina (`topics-panel.tsx`) toont nu per onderwerp met een lopende analyse dezelfde compacte
+regel (`PotentialInline`) en sorteert op dezelfde manier als het contentplan, zodat de klant vóór hij
+een plan maakt al ziet welk onderwerp waarschijnlijk vooraan komt te staan.
+
+**Bewust NIET gedaan: de gewogen zichtbaarheidsscore of `promptWeight()` laten overstappen van de
+3-bandenschatting naar de nieuwe index.** Dit stond in het oorspronkelijke ontwerp als "en/of"-optie
+binnen fase 3, en is de enige van de twee die ik bewust heb laten liggen. Reden: `weighted_score` is
+het cijfer dat al maanden op elk scherm staat en de trendlijn draagt; dat cijfer laten meebewegen met
+een nieuwe rekenwijze verandert historische periodes waar de klant al naar gekeken heeft, en dat vergt
+een eigen, kleinere afweging (met terugwerkende kracht herrekenen of niet, hoe dat aan de klant valt
+uit te leggen) die deze bouwronde niet vanzelf mag meenemen.
 
 ---
 
@@ -251,8 +278,9 @@ je een van de vier anders wilt, dan pas ik het ontwerp aan vóór de bouw begint
 | Fase | Wat | Status | Raakt |
 |---|---|---|---|
 | 1 | Migratie 0057 (2 kolommen), `lib/potential.ts`, `lib/potential-data.ts`, aangepaste `calibrateVolumes()` (ankers + effort medium), nieuw jobtype `recalculate_potential` + trigger vanuit `generate_report`, drie getallen zichtbaar op analyse- en content-niveau (voorstel én geschreven) | **Af, 13 augustus** | `lib/pipeline/prompts.ts`, `lib/pipeline/search-demand.ts`, `lib/jobs/*`, `lib/pipeline/report.ts`, `components/potential-metrics.tsx`, `stand.tsx`, `werk.tsx`, `why-this-page.tsx` |
-| 2 | De Kansen-lijst (`opportunities.ts`) laten sorteren op potentiescore in plaats van (of naast) het huidige gewicht uit de aanbevelingen | Nog niet gebouwd | `lib/opportunities.ts`, `lib/insights-data.ts` |
-| 3 (apart besluit) | Contentplan-volgorde en/of de gewogen zichtbaarheidsscore laten overstappen van de 3-bandenschatting naar de nieuwe index | Nog niet gebouwd | `lib/pipeline/plan-build.ts`, `lib/pipeline/prompt-weight.ts` |
+| 2 | De Kansen-lijst (`opportunities.ts`) sorteert op potentiescore, met `share` als vangnet | **Af, 13 augustus** | `lib/opportunities.ts`, `lib/insights-data.ts`, `components/loop-blocks.tsx` |
+| 3 | Contentplanvolgorde (`plan-build.ts`) sorteert op potentiescore, met `priority` als vangnet én tiebreaker. Onderwerpenlijst op de profielpagina toont en sorteert hetzelfde | **Af, 13 augustus** | `lib/pipeline/plan-build.ts`, `lib/plans.ts`, `topics-panel.tsx`, `app/(app)/profielen/[id]/page.tsx` |
+| 3b (apart besluit) | De gewogen zichtbaarheidsscore/`promptWeight()` laten overstappen van de 3-bandenschatting naar de nieuwe index | **Bewust niet gebouwd**, zie §4a | `lib/pipeline/prompt-weight.ts`, `lib/pipeline/volume.ts` |
 
 ## 7. Verificatiecriteria
 
@@ -267,3 +295,7 @@ je een van de vier anders wilt, dan pas ik het ontwerp aan vóór de bouw begint
 | 7 | De herberekening kost één AI-aanroep per keer, niet één per onderwerp, en draait nooit op het kritieke pad van een meting | **Bewezen**: `recalibrateSearchVolume()` doet één `callStructured`-aanroep over alle onderwerpen samen, getriggerd ná `generate_report`, niet ervoor |
 | 7a | Werkt ook echt op productie, niet alleen in de ketentest | **Bewezen, 13 augustus.** Handmatig een `recalculate_potential`-taak ingepland voor Gasservice Brabant (het enige merk met een gemeten, niet-gearchiveerd onderwerp op dat moment). Binnen een minuut opgepakt door de echte werker, taak op `done`, geen fout. "Cv-ketel onderhoud" kreeg index 68 met een zinnige, Nederlandse onderbouwing die expliciet naar de ijkpunten verwijst. De vijf onderwerpen zonder eigen analyse bleven terecht op `null` |
 | 8 | De trigger in `generate_report` (alleen bij `weekNo === 0`) is nagerekend tegen een echte, volledige rapportgeneratie | **Nog niet.** `generateReport()` heeft in deze codebase nog geen enkele ketentest (geen stub voor `gap_analysis`/`report`); dat is een bestaand gat, niet nieuw door dit werk, maar dit ene `if`-regeltje deelt dat gat. De onderliggende mechaniek (de taak zelf, de dedupe-sleutel) is wél bewezen |
+| 9 | Fase 2: een kans met een lager `share` maar een hogere potentiescore staat toch bovenaan | **Bewezen**, unittest "opportunities: de potentiescore wint van share" |
+| 10 | Fase 2: zonder ENIGE potentiescore in de lijst blijft de oude sortering op `share` exact hetzelfde | **Bewezen**, zelfde test |
+| 11 | Fase 3: een onderwerp met een lagere `priority` maar een hogere potentiescore komt eerder in het contentplan | **Bewezen**, tweemaal: als pure functie (unittest `buildPlan`) én end-to-end tegen echte Postgres via de echte `createPlan()` (ketentest "Het contentplan volgt de potentiescore") |
+| 12 | Fase 3: zonder ENIGE potentiescore in de onderwerpenlijst geeft `buildPlan()` precies hetzelfde plan als vóór deze wijziging | **Bewezen**, zelfde unittest |

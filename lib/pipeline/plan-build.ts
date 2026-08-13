@@ -41,8 +41,15 @@ export const BUFFERS_PER_MONTH = 1;
 export interface TopicInput {
   id: string;
   title: string;
-  /** Hoger telt eerder. Komt uit `profile_topics.priority`. */
+  /** Hoger telt eerder. Komt uit `profile_topics.priority`, de dag-1-gok van het model. */
   priority: number;
+  /**
+   * De potentiescore (docs/tasks/potentiescore.md, fase 3), 0-100, of `null`
+   * zolang dit onderwerp nog geen gemeten analyse en/of nog geen profielbrede
+   * herberekening heeft gehad. Weegt zwaarder dan `priority` bij het sorteren:
+   * zie regel 1 hieronder.
+   */
+  potential?: number | null;
 }
 
 export interface FunnelInput {
@@ -82,9 +89,24 @@ export interface BuildResult {
  *
  * ── DE VIER REGELS ──────────────────────────────────────────────────────────
  *
- * 1. **Prioriteit eerst.** Onderwerpen met de hoogste prioriteit belanden in de
- *    eerste maanden. Een klant die na drie maanden opzegt (besluit 7: dat kan)
- *    moet de béste drie maanden gehad hebben, niet een willekeurige greep.
+ * 1. **De potentiescore eerst, de dag-1-gok als vangnet.** Onderwerpen met de
+ *    hoogste potentiescore belanden in de eerste maanden: dat is een gemeten
+ *    combinatie van zichtbaarheidsgat en zoekvolume, en dus een sterker signaal
+ *    dan de eenmalige LLM-inschatting waar `priority` op rust. Heeft een
+ *    onderwerp nog geen potentiescore (nog geen analyse gehad, of dit merk had
+ *    nog geen profielbrede herberekening), dan valt de sortering terug op
+ *    `priority`, en een onderwerp MET potentiescore gaat altijd voor een
+ *    onderwerp zonder: gemeten weegt zwaarder dan gegokt. Een klant die na drie
+ *    maanden opzegt (besluit 7: dat kan) moet de béste drie maanden gehad
+ *    hebben, niet een willekeurige greep.
+ *
+ *    ⚠️ Dit raakt alleen een NIEUW gebouwd plan (`createPlan()`), nooit een al
+ *    aan de klant getoond jaarplan met eigen data. Een al bestaand plan
+ *    herordenen zonder dat de klant iets deed, zou een schema dat hij al
+ *    gezien heeft onder hem laten verschuiven, en dat is verwarrend, geen
+ *    verduidelijking. Bouwt de consultant het plan opnieuw (wat al kon, en
+ *    zet de vorige versie op `gestopt`, conventie 8), dan telt de actuele
+ *    potentiescore mee.
  *
  * 2. **Funnelfasen roteren.** Elke maand raakt alle fasen aan in plaats van
  *    eerst drie maanden bewustwording en dan drie maanden beslissing. Anders
@@ -137,9 +159,18 @@ export function buildPlan(input: BuildInput): BuildResult {
   }
   if (problems.length > 0) return { pages: [], problems };
 
-  // Regel 1: hoogste prioriteit eerst. Bij gelijke prioriteit de oorspronkelijke
-  // volgorde aanhouden, zodat twee runs op dezelfde data hetzelfde plan geven.
-  const topics = [...input.topics].sort((a, b) => b.priority - a.priority);
+  // Regel 1: hoogste potentiescore eerst, `priority` als vangnet en als
+  // tiebreaker. Bij een echte gelijke stand de oorspronkelijke volgorde
+  // aanhouden (stabiele sort), zodat twee runs op dezelfde data hetzelfde plan
+  // geven.
+  const topics = [...input.topics].sort((a, b) => {
+    const pa = a.potential ?? null;
+    const pb = b.potential ?? null;
+    if (pa !== null && pb !== null && pa !== pb) return pb - pa;
+    // Gemeten (potentiescore bekend) gaat altijd voor gegokt (nog niet bekend).
+    if ((pa === null) !== (pb === null)) return pa === null ? 1 : -1;
+    return b.priority - a.priority;
+  });
   const funnels = [...input.funnels].sort((a, b) => a.sortOrder - b.sortOrder);
 
   const pages: PlannedPageDraft[] = [];

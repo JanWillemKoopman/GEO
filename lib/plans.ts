@@ -9,6 +9,7 @@ import "server-only";
  */
 import { createAdminClient } from "@/lib/supabase/admin";
 import { buildPlan, DEFAULT_FUNNELS, MONTHS_AHEAD } from "@/lib/pipeline/plan-build";
+import { loadAnalysisPotential } from "@/lib/potential-data";
 import type { TopicWritingState } from "@/lib/plan-writing";
 import type {
   AnalysisStatus,
@@ -164,17 +165,30 @@ export async function createPlan(
   const [{ data: topicRows }, funnels] = await Promise.all([
     admin
       .from("profile_topics")
-      .select("id, title, priority, status")
+      .select("id, title, priority, status, analysis_id")
       .eq("profile_id", input.profileId)
       .neq("status", "afgewezen")
       .order("priority", { ascending: false }),
     ensureFunnels(admin, input.profileId),
   ]);
 
-  const topics = ((topicRows ?? []) as ProfileTopic[]).map((t) => ({
+  const topicRowsTyped = (topicRows ?? []) as (ProfileTopic & { analysis_id: string | null })[];
+
+  // Potentiescore per onderwerp (docs/tasks/potentiescore.md, fase 3): sterker
+  // signaal dan de bevroren dag-1-gok van `priority`, zie `buildPlan()` regel 1.
+  // Alleen onderwerpen met een analyse hebben er één; de rest blijft `null` en
+  // `buildPlan()` valt voor hen terug op `priority`.
+  const potenties = await Promise.all(
+    topicRowsTyped.map((t) =>
+      t.analysis_id ? loadAnalysisPotential(admin, t.analysis_id) : Promise.resolve(null),
+    ),
+  );
+
+  const topics = topicRowsTyped.map((t, i) => ({
     id: t.id,
     title: t.title,
     priority: t.priority,
+    potential: potenties[i]?.potential ?? null,
   }));
 
   const startedOn = input.startedOn ?? new Date();

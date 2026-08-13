@@ -1861,6 +1861,101 @@ async function main(): Promise<void> {
     })());
 
     // ══════════════════════════════════════════════════════════════════════
+    // Het contentplan volgt de potentiescore (fase 3, docs/tasks/potentiescore.md)
+    // ══════════════════════════════════════════════════════════════════════
+    console.log("\nHet contentplan volgt de potentiescore");
+
+    const { createPlan } = await import("@/lib/plans");
+
+    const planPotUserId = randomUUID();
+    const planPotProfileId = randomUUID();
+    await db.client.query("insert into auth.users (id, email) values ($1, $2)", [
+      planPotUserId,
+      "planpotentie@example.com",
+    ]);
+    await db.client.query(
+      `insert into public.profiles (id, user_id, name, url, brand_name, status)
+       values ($1, $2, 'Planpotentie BV', 'https://planpotentie-bv.nl', 'Planpotentie BV', 'klaar')`,
+      [planPotProfileId, planPotUserId],
+    );
+
+    async function onderwerpMetPotentie(
+      titel: string,
+      priority: number,
+      zichtbaarheid: number,
+      zoekvolume: number,
+    ): Promise<{ analyseId: string; topicId: string }> {
+      const analyseId = randomUUID();
+      const topicId = randomUUID();
+      await db.client.query(
+        `insert into public.analyses (id, user_id, profile_id, name, url, topic, status)
+         values ($1, $2, $3, $4, 'https://planpotentie-bv.nl', $4, 'gereed')`,
+        [analyseId, planPotUserId, planPotProfileId, titel],
+      );
+      await db.client.query(
+        `insert into public.profile_topics (id, profile_id, analysis_id, title, priority, status, search_volume_index)
+         values ($1, $2, $3, $4, $5, 'goedgekeurd', $6)`,
+        [topicId, planPotProfileId, analyseId, titel, priority, zoekvolume],
+      );
+      await db.client.query(
+        "insert into public.visibility_scores (analysis_id, week_no, score) values ($1, 0, $2)",
+        [analyseId, zichtbaarheid],
+      );
+      return { analyseId, topicId };
+    }
+
+    // Hoge PRIORITY (de dag-1-gok), maar amper nog iets te winnen: bijna overal
+    // al zichtbaar (95) en weinig zoekvolume (10). Potentie ≈ 0,05 × 10 ≈ 1.
+    const hogePrioriteitLagePotentie = await onderwerpMetPotentie(
+      "Hoge prioriteit, lage potentie",
+      9,
+      95,
+      10,
+    );
+    // Lage PRIORITY, maar de echte kans: nog nergens zichtbaar (10) en veel
+    // zoekvolume (90). Potentie ≈ 0,90 × 90 = 81.
+    const lagePrioriteitHogePotentie = await onderwerpMetPotentie(
+      "Lage prioriteit, hoge potentie",
+      1,
+      10,
+      90,
+    );
+
+    const planResultaat = await createPlan(admin as never, {
+      profileId: planPotProfileId,
+      pagesPerMonth: 2,
+    });
+    ok(
+      "het plan wordt gemaakt",
+      planResultaat.ok,
+      planResultaat.ok ? "" : JSON.stringify((planResultaat as { problems: string[] }).problems),
+    );
+
+    const { rows: maand1Paginas } = await db.client.query(
+      `select pp.topic_id, pp.sort_order
+         from public.planned_pages pp
+         join public.plan_months pm on pm.id = pp.plan_month_id
+         join public.content_plans cp on cp.id = pm.plan_id
+        where cp.profile_id = $1 and pm.month_number = 1 and pp.is_buffer = false
+        order by pp.sort_order`,
+      [planPotProfileId],
+    );
+    // ⚠️ DE KERN: zonder fase 3 zou "Hoge prioriteit, lage potentie" vooraan
+    // staan (priority 9 tegen 1). Met fase 3 wint de gemeten potentiescore, en
+    // staat "Lage prioriteit, hoge potentie" (potentie ≈ 81) vooraan, want die
+    // levert écht iets op.
+    ok(
+      "het onderwerp met de hoogste potentiescore staat vooraan, ondanks de lagere priority",
+      maand1Paginas[0]?.topic_id === lagePrioriteitHogePotentie.topicId,
+      `eerste plek was ${maand1Paginas[0]?.topic_id}`,
+    );
+    ok(
+      "en het onderwerp met de hoge priority maar lage potentie staat op de tweede plek",
+      maand1Paginas[1]?.topic_id === hogePrioriteitLagePotentie.topicId,
+      `tweede plek was ${maand1Paginas[1]?.topic_id}`,
+    );
+
+    // ══════════════════════════════════════════════════════════════════════
     // Een klant volledig verwijderen (F4, AVG)
     //
     // ⚠️ Dit hoort bij uitstek in de ketentest en niet in test-unit.ts, want het

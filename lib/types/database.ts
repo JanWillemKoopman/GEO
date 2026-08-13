@@ -490,6 +490,13 @@ export interface ProfileTopic {
   client_note: string | null;
   status: TopicStatus;
   analysis_id: string | null;
+  /**
+   * Zoekvolume 0-100, profielbreed herkalibreerd (docs/tasks/potentiescore.md,
+   * migratie 0057). Null tot de eerste herberekening.
+   */
+  search_volume_index: number | null;
+  /** Eén zin van het model erbij, voor de tooltip. */
+  search_volume_reasoning: string | null;
   created_at: string;
   updated_at: string;
 }

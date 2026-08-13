@@ -15,6 +15,7 @@ import { loadLoop } from "@/lib/insights-data";
 import { SearchConsoleBox } from "./search-console-box";
 import { serviceAccountEmail } from "@/lib/search-console/auth";
 import { loadMilestones } from "@/lib/milestones-data";
+import { loadAnalysisPotential } from "@/lib/potential-data";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { AssignBox } from "./assign-box";
 import { TopicsPanel } from "./topics-panel";
@@ -250,6 +251,19 @@ export default async function ProfilePage({
   const beheerClient = createAdminClient();
   const mijlpalen = await loadMilestones(beheerClient, id, profile.account_id);
 
+  // Potentiescore per onderwerp (docs/tasks/potentiescore.md), voor de
+  // onderwerpenlijst hieronder: laat direct zien welk onderwerp het meest
+  // oplevert, in plaats van dat alleen de contentplanvolgorde (onzichtbaar)
+  // erop rekent.
+  const potentiePerTopic: Record<string, { visibility: number | null; volume: number | null; potential: number | null }> = {};
+  await Promise.all(
+    topics
+      .filter((t) => t.analysis_id)
+      .map(async (t) => {
+        potentiePerTopic[t.id] = await loadAnalysisPotential(beheerClient, t.analysis_id!);
+      }),
+  );
+
   // Zoekdata (fase 5). Alleen het aantal dagen: de grafiek zelf komt in het
   // analysescherm, hier hoort de stand van de koppeling.
   // De lus (fase 6): drie zinnen over wat er gebeurde, en één kansenlijst.
@@ -398,7 +412,7 @@ export default async function ProfilePage({
         description="Waar Aura je zichtbaarheid op gaat volgen. Zet uit wat niet past, start wat wel past."
         badge={topics.length > 0 ? `${topics.length} voorgesteld` : undefined}
       >
-        <TopicsPanel profileId={id} initial={topics} />
+        <TopicsPanel profileId={id} initial={topics} potenties={potentiePerTopic} />
       </ProfileSection>
 
       {/* ── 4. Het gesprek ─────────────────────────────────────────────────

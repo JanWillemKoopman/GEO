@@ -12,6 +12,8 @@ import {
   isDefaultMix,
   type PromptMix,
 } from "@/lib/prompt-mix";
+import { PotentialInline } from "@/components/potential-metrics";
+import type { PotentialTriple } from "@/lib/potential";
 
 /**
  * De core topics (docs/tasks/onboarding-2.0.md, blok D).
@@ -32,9 +34,12 @@ import {
 export function TopicsPanel({
   profileId,
   initial,
+  potenties,
 }: {
   profileId: string;
   initial: ProfileTopic[];
+  /** Potentiescore per onderwerp-id, alleen gevuld voor onderwerpen met een analyse. */
+  potenties: Record<string, PotentialTriple>;
 }) {
   const router = useRouter();
   const [topics, setTopics] = useState(initial);
@@ -70,10 +75,19 @@ export function TopicsPanel({
   }
 
   // Wat de klant in het gesprek zei, wint van wat het model dacht: een topic
-  // met een notitie staat bovenaan, ongeacht de AI-prioriteit.
+  // met een notitie staat bovenaan, ongeacht prioriteit of potentiescore.
+  // Daarna, net als het contentplan (docs/tasks/potentiescore.md fase 3): de
+  // potentiescore eerst als hij er is, anders de dag-1-gok van het model.
   const sorted = [...topics].sort((a, b) => {
     const rang = (t: ProfileTopic) => (t.status === "afgewezen" ? 2 : t.client_note ? 0 : 1);
-    return rang(a) - rang(b) || b.priority - a.priority;
+    const rangVerschil = rang(a) - rang(b);
+    if (rangVerschil !== 0) return rangVerschil;
+
+    const pa = potenties[a.id]?.potential ?? null;
+    const pb = potenties[b.id]?.potential ?? null;
+    if (pa !== null && pb !== null && pa !== pb) return pb - pa;
+    if ((pa === null) !== (pb === null)) return pa === null ? 1 : -1;
+    return b.priority - a.priority;
   });
 
   const open = sorted.filter((t) => t.status !== "afgewezen");
@@ -147,6 +161,10 @@ export function TopicsPanel({
             <span className="chip chip-neutral">Afgewezen</span>
           ) : null}
         </div>
+
+        {t.analysis_id && potenties[t.id] && (
+          <PotentialInline triple={potenties[t.id]} />
+        )}
 
         {t.rationale && <p className="text-sm text-secondary">{t.rationale}</p>}
 

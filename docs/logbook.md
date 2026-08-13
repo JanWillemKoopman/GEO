@@ -2574,3 +2574,28 @@ dag-1-gok van `profile_topics.priority` aanhouden in plaats van mee te bewegen m
 de lancering van een onderwerp blijft veranderen. En de trigger die dit alles in gang zet, ligt in
 `generate_report`, een functie die in deze codebase nog geen enkele ketentest heeft: een bestaand gat
 dat dit werk erft, niet zelf veroorzaakt. 1191 unittests, 157 ketentests.
+
+**De potentiescore, fase 2 en 3: het getal moest ook ergens iets DOEN, niet alleen staan.** Fase 1
+toonde het getal, maar liet de twee plekken waar Aura zelf al een volgorde koos, de Kansen-lijst en
+het contentplan, ongemoeid op hun oude sortering staan: de eerste op een grover, per-analyse gewicht
+(`share`), de tweede op de eenmalige dag-1-gok van het model (`profile_topics.priority`). Dat was het
+overgebleven gat: een klant kon een hoge potentiescore op een pagina zien staan, en toch zag hij die
+pagina niet bovenaan de lijst van wat hij eerst zou moeten doen.
+
+Beide sorteringen kregen de potentiescore als eerste sleutel, met hun oude gedrag als vangnet: mist een
+kans of onderwerp de potentiescore nog (dit merk had nog geen enkele profielbrede herberekening), dan
+valt de sortering terug op precies wat er vóór vandaag stond. Bewust géén nieuw gedrag voor een merk
+dat nog niets gemeten heeft. Voor het contentplan geldt bovendien: dit raakt alleen een NIEUW gebouwd
+plan, nooit een jaarplan dat een klant al gezien heeft, dat zou onder hem verschuiven zonder dat hij
+iets deed.
+
+Bewezen tot op het niveau van de echte functie, niet alleen de rekenkern: een ketentest roept de echte
+`createPlan()` aan tegen een echte Postgres, met twee onderwerpen waarvan het ene de hoogste
+dag-1-prioriteit heeft (9) maar amper nog iets oplevert, en het andere de laagste prioriteit (1) maar
+de echte kans is (nog nergens zichtbaar, hoog zoekvolume). Het contentplan zet het tweede onderwerp
+vooraan.
+
+Bewust laten liggen: de gewogen zichtbaarheidsscore die al maanden op elk scherm staat, laten
+overstappen van de grove volumeband naar de nieuwe index. Dat cijfer draagt de trendlijn van elke
+klant, en het met terugwerkende kracht laten meebewegen is een eigen afweging die deze bouwronde niet
+vanzelf mocht meenemen. 1201 unittests, 160 ketentests.

@@ -3617,6 +3617,53 @@ group("buildPlan: de verdeling over twaalf maanden", () => {
   );
 });
 
+group("buildPlan: de potentiescore wint van de dag-1-gok (fase 3, docs/tasks/potentiescore.md)", () => {
+  const funnels = DEFAULT_FUNNELS.map((label, i) => ({ id: `f${i}`, label, sortOrder: i }));
+  const start = new Date("2026-09-01T00:00:00Z");
+
+  // t0 heeft de hoogste PRIORITY (de gegokte dag-1-inschatting), maar t1 heeft
+  // de hoogste POTENTIESCORE (gemeten). De potentiescore hoort te winnen.
+  const topics = [
+    { id: "t0", title: "Hoogste prioriteit, lage potentie", priority: 10, potential: 20 },
+    { id: "t1", title: "Lage prioriteit, hoogste potentie", priority: 1, potential: 90 },
+    { id: "t2", title: "Geen potentiescore, gemiddelde prioriteit", priority: 5 },
+  ];
+
+  const r = buildPlan({ startedOn: start, pagesPerMonth: 3, topics, funnels });
+  const maand1 = r.pages.filter((p) => p.monthNumber === 1 && !p.isBuffer);
+
+  ok(
+    "het onderwerp met de hoogste potentiescore staat vooraan, niet het onderwerp met de hoogste priority",
+    maand1[0].topicId === "t1",
+  );
+  ok(
+    "een onderwerp MET potentiescore gaat altijd voor een onderwerp ZONDER, ook al is de priority lager",
+    maand1[1].topicId === "t0",
+  );
+  ok(
+    "het onderwerp zonder potentiescore staat als laatste, op zijn priority",
+    maand1[2].topicId === "t2",
+  );
+
+  // Zonder potentiescore op GEEN van de onderwerpen verandert er niets: exact
+  // hetzelfde gedrag als vóór fase 3 (achterwaartse compatibiliteit).
+  const zonderPotentie = buildPlan({
+    startedOn: start,
+    pagesPerMonth: 3,
+    topics: topics.map(({ id, title, priority }) => ({ id, title, priority })),
+    funnels,
+  });
+  const maand1ZonderPotentie = zonderPotentie.pages.filter(
+    (p) => p.monthNumber === 1 && !p.isBuffer,
+  );
+  ok(
+    "zonder potentiescores sorteert alles gewoon op priority, zoals vroeger",
+    maand1ZonderPotentie[0].topicId === "t0" &&
+      maand1ZonderPotentie[1].topicId === "t2" &&
+      maand1ZonderPotentie[2].topicId === "t1",
+  );
+});
+
 group("buildPlan: wat het weigert", () => {
   const funnels = DEFAULT_FUNNELS.map((label, i) => ({ id: `f${i}`, label, sortOrder: i }));
   const topics = [{ id: "t", title: "Iets", priority: 1 }];
@@ -4798,6 +4845,48 @@ group("opportunities: één lijst, gesorteerd op wat het oplevert", () => {
     lijst.some((o) => o.source === "onderwerp" && o.title.includes("Auto leasen")),
   );
   ok("elke kans heeft één handeling", lijst.every((o) => o.action.length > 0));
+});
+
+group("opportunities: de potentiescore wint van share (fase 2, docs/tasks/potentiescore.md)", () => {
+  const basis = {
+    profileId: "p1",
+    recommendations: [
+      // "Groot gewicht" heeft het hoogste `share`, maar het laagste `potential`:
+      // een hoog aandeel gemiste vragen van een onderwerp dat verder amper
+      // gezocht wordt. "Klein gewicht" heeft het omgekeerde: minder gemiste
+      // vragen, maar een onderwerp dat veel gezocht wordt.
+      { title: "Groot gewicht, lage potentie", why: "x", targets: [{ weight: 0.4 }], potential: 15 },
+      { title: "Klein gewicht, hoge potentie", why: "y", targets: [{ weight: 0.05 }], potential: 85 },
+      { title: "Geen potentiescore", why: "z", targets: [{ weight: 0.2 }] },
+    ],
+    unmeasuredTopics: [],
+    crawlerBlocked: false,
+    readyToPublish: 0,
+    hasPlan: true,
+  };
+
+  const lijst = opportunities(basis);
+  ok(
+    "de potentiescore bepaalt de volgorde, niet het aandeel",
+    lijst[0].title === "Klein gewicht, hoge potentie",
+  );
+  ok("het potentiegetal staat op de kans", lijst[0].potential === 85);
+  ok(
+    "een kans MET potentiescore gaat voor een kans zonder, ook al is diens share hoger",
+    lijst[1].title === "Groot gewicht, lage potentie",
+  );
+  ok("de kans zonder potentiescore staat als laatste", lijst[2].title === "Geen potentiescore");
+  ok("en heeft wel nog gewoon een share", lijst[2].share === 0.2);
+
+  // Zonder ENIGE potentiescore blijft de oude sortering op `share` intact.
+  const zonderPotentie = opportunities({
+    ...basis,
+    recommendations: basis.recommendations.map(({ title, why, targets }) => ({ title, why, targets })),
+  });
+  ok(
+    "zonder potentiescores sorteert alles gewoon op share, zoals vroeger",
+    zonderPotentie[0].title === "Groot gewicht, lage potentie",
+  );
 });
 
 group("insights: drie zinnen, en de ruis is de hoofdregel", () => {

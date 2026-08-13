@@ -16,6 +16,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { insights, type Insight } from "@/lib/insights";
 import { opportunities, type Opportunity } from "@/lib/opportunities";
 import { binomialStderr } from "@/lib/stats/uncertainty";
+import { loadRecommendationPotential } from "@/lib/potential-data";
 
 type Admin = ReturnType<typeof createAdminClient>;
 
@@ -133,7 +134,9 @@ export async function loadLoop(admin: Admin, profileId: string): Promise<LoopBun
     why: string;
     action?: string | null;
     existingUrl?: string | null;
-    targets?: { weight?: number | null }[] | null;
+    targets?: { weight?: number | null; promptId?: string | null }[] | null;
+    /** Voor de potentiescore hieronder: welke analyse deze aanbeveling voedt. */
+    analysisId: string;
   }[] = [];
   for (const r of (reportRows ?? []) as {
     analysis_id: string;
@@ -150,11 +153,28 @@ export async function loadLoop(admin: Admin, profileId: string): Promise<LoopBun
         action: typeof item.action === "string" ? item.action : null,
         existingUrl: typeof item.existingUrl === "string" ? item.existingUrl : null,
         targets: Array.isArray(item.targets)
-          ? (item.targets as { weight?: number | null }[])
+          ? (item.targets as { weight?: number | null; promptId?: string | null }[])
           : null,
+        analysisId: r.analysis_id,
       });
     }
   }
+
+  // ── De potentiescore per aanbeveling (fase 2, docs/tasks/potentiescore.md) ──
+  //
+  // Zelfde rekenkern als bij een voorgestelde pagina in hoofdstuk 03
+  // (`werk.tsx`): de doelvragen van de aanbeveling plus het zoekvolume van het
+  // onderwerp erachter. Eén aanroep per aanbeveling, parallel: bij een merk
+  // met tien openstaande aanbevelingen tien lichte leesqueries, geen AI-call.
+  const potenties = await Promise.all(
+    recommendations.map((r) =>
+      loadRecommendationPotential(
+        admin,
+        r.analysisId,
+        (r.targets ?? []).map((t) => t.promptId ?? null),
+      ),
+    ),
+  );
 
   const paginas = (pageRows ?? []) as { status: string; posted_at: string | null }[];
   const klaarOmTePubliceren = paginas.filter((p) => p.status === "goedgekeurd").length;
@@ -169,7 +189,7 @@ export async function loadLoop(admin: Admin, profileId: string): Promise<LoopBun
 
   const kansen = opportunities({
     profileId,
-    recommendations,
+    recommendations: recommendations.map((r, i) => ({ ...r, potential: potenties[i].potential })),
     unmeasuredTopics: ((topicRows ?? []) as { id: string; title: string; analysis_id: string | null }[])
       .filter((t) => !t.analysis_id)
       .map((t) => ({ id: t.id, title: t.title })),

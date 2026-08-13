@@ -21,6 +21,19 @@
  * een betere waarde dan een verkeerde. Een verzonnen percentage naast een advies
  * is precies het soort cijfer dat een klant onthoudt en later terugvraagt.
  *
+ * ── FASE 2 VAN docs/tasks/potentiescore.md ──────────────────────────────────
+ *
+ * `share` was tot 13 augustus het enige getal, en het is eigenlijk een
+ * benadering van precies wat de potentiescore nu ECHT uitrekent: hoeveel is
+ * hier te winnen. Het verschil: `share` weegt met de oude, grove volumeband
+ * (`promptWeight()`) en is niet vergelijkbaar tussen analyses; de potentiescore
+ * (`lib/potential.ts`) weegt met de profielbrede, herkalibreerde zoekvolume-index
+ * en IS vergelijkbaar. Waar de potentiescore bekend is (`potential`, aangeleverd
+ * door de aanroeper, want dat vergt een databasequery, conventie 2), sorteert en
+ * toont deze lijst op dat getal. Waar hij nog onbekend is (het merk heeft nog
+ * geen enkele profielbrede herberekening gehad), valt de sortering terug op
+ * `share`, dat blijft dus bestaan als vangnet en niet als doel op zich.
+ *
  * Puur, dus testbaar (conventie 2).
  */
 
@@ -42,8 +55,16 @@ export interface Opportunity {
   /**
    * Het aandeel van de gemeten vragen dat hiermee te winnen is, 0 tot 1.
    * `null` = niet te becijferen, en dan staat er geen getal op het scherm.
+   * Vangnet-sortering zolang `potential` er nog niet is (zie boven).
    */
   share: number | null;
+  /**
+   * De potentiescore (docs/tasks/potentiescore.md): zichtbaarheidsgat ×
+   * profielbreed herkalibreerd zoekvolume, 0-100. `null` zolang dit merk nog
+   * geen enkele herberekening had, of voor kansen waar geen analyse achter zit
+   * (techniek, onderwerp zonder meting).
+   */
+  potential: number | null;
   /** Waar de knop heen gaat. Null = er is geen scherm voor. */
   href: string | null;
 }
@@ -57,6 +78,8 @@ export interface OpportunityInput {
     action?: string | null;
     existingUrl?: string | null;
     targets?: { weight?: number | null }[] | null;
+    /** Vooraf berekend door de aanroeper (`loadRecommendationPotential`). */
+    potential?: number | null;
   }[];
   /** Onderwerpen die nog geen analyse hebben: nooit gemeten, dus onbekend terrein. */
   unmeasuredTopics: { id: string; title: string }[];
@@ -87,6 +110,7 @@ export function opportunities(input: OpportunityInput): Opportunity[] {
       action: "Geef de AI-crawlers toegang in robots.txt",
       source: "techniek",
       share: null,
+      potential: null,
       href: `/profielen/${input.profileId}#techniek`,
     });
   }
@@ -108,6 +132,7 @@ export function opportunities(input: OpportunityInput): Opportunity[] {
       // Geen gewichten betekent geen getal, niet nul: nul zou zeggen dat er
       // niets te winnen valt, en dat is iets anders dan "we weten het niet".
       share: gewichten.length > 0 ? som(gewichten) : null,
+      potential: typeof r.potential === "number" ? r.potential : null,
       href: input.hasPlan ? `/profielen/${input.profileId}/plan` : null,
     });
   }
@@ -126,6 +151,7 @@ export function opportunities(input: OpportunityInput): Opportunity[] {
       action: "Publiceer ze en markeer ze als geplaatst",
       source: "plan",
       share: null,
+      potential: null,
       href: input.hasPlan ? `/profielen/${input.profileId}/plan` : null,
     });
   }
@@ -138,6 +164,7 @@ export function opportunities(input: OpportunityInput): Opportunity[] {
       action: "Start de meting van dit onderwerp",
       source: "onderwerp",
       share: null,
+      potential: null,
       href: `/profielen/${input.profileId}#onderwerpen`,
     });
   }
@@ -159,8 +186,12 @@ export function opportunities(input: OpportunityInput): Opportunity[] {
  * is, gaat vóór werk dat nog moet beginnen.
  *
  * Vandaar twee groepen. `techniek` en `plan` staan altijd bovenaan, in die
- * volgorde. Daarbinnen, en in de tweede groep, telt het aandeel; kansen zonder
- * getal komen daar achteraan, want een onbekende omvang is niet te vergelijken.
+ * volgorde. Daarbinnen, en in de tweede groep, telt eerst de potentiescore
+ * (fase 2, docs/tasks/potentiescore.md): die weegt zichtbaarheidsgat én
+ * zoekvolume tegelijk en is vergelijkbaar over alle onderwerpen van het merk.
+ * Ontbreekt hij (dit merk had nog geen profielbrede herberekening), dan valt
+ * de sortering terug op `share`. Kansen zonder ENIG getal komen achteraan,
+ * want een onbekende omvang is niet te vergelijken.
  */
 function sorteer(lijst: Opportunity[]): Opportunity[] {
   const bronRang: Record<OpportunitySource, number> = {
@@ -175,6 +206,11 @@ function sorteer(lijst: Opportunity[]): Opportunity[] {
   return [...lijst].sort((a, b) => {
     if (eersteGroep(a) !== eersteGroep(b)) return eersteGroep(a) ? -1 : 1;
     if (eersteGroep(a)) return bronRang[a.source] - bronRang[b.source];
+
+    if (a.potential !== null && b.potential !== null && a.potential !== b.potential) {
+      return b.potential - a.potential;
+    }
+    if ((a.potential === null) !== (b.potential === null)) return a.potential === null ? 1 : -1;
 
     if (a.share !== null && b.share !== null && a.share !== b.share) {
       return b.share - a.share;
