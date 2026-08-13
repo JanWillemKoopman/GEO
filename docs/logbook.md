@@ -2540,3 +2540,37 @@ daarna weer dichtgezet.
 De derde vraag, of twee tegelijk lopende achtergrondtaken elkaar dezelfde klus kunnen laten doen, was
 al gesloten door het werk van eerder deze week: `claim_jobs()` pakt een taak atomisch met een
 databaseslot, en dat is al met een ketentest bewezen. 1166 unittests, 145 ketentests.
+
+**De potentiescore: hoeveel is er te winnen, en is dat overal met dezelfde meetlat gemeten.** De
+product owner wilde zien wat het advies al impliciet deed: een pagina is pas een grote kans als de
+klant er nog niet zichtbaar is ÉN veel mensen ernaar zoeken, niet bij één van de twee alleen. De
+eerste helft (zichtbaarheidsgat) stond er al. De tweede (zoekvolume) bestond ook, maar als een losse
+gok per analyse: elke analyse kreeg de opdracht "gebruik de volle schaal 0 tot 100" op zijn eigen
+dertig vragen, waardoor de zwaarste vraag van een piepklein nichemarktje op precies dezelfde manier
+bij 100 uitkwam als de zwaarste vraag van een grote markt. Twee analyses met elk hun eigen 0-100 zijn
+niet te vergelijken, en dat is precies wat "eerlijk over analyses heen" moest oplossen.
+
+De oplossing raakt niet de per-analyse-schatting zelf, die blijft bestaan als ruwe invoer
+(`prompts.volume_estimate`). Er komt een tweede, nieuwe stap overheen die ALLE onderwerpen van een
+merk in één aanroep tegen elkaar afzet, met vier vaste ijkpunten in de instructie ("wasmachine kopen"
+is bijna altijd hoog, een specifieke behandelvraag binnen één vakgebied ligt in het midden), zodat de
+schaal bij elke herberekening hetzelfde blijft betekenen. Die stap draait zodra een onderwerp zijn
+eerste rapport krijgt, en herschrijft dan ALLE onderwerpen van het merk, ook de onderwerpen die zelf
+niet veranderd zijn. Bewezen met een ketentest die twee onderwerpen kalibreert (het zwaarste komt op
+100), er dan een derde, groter onderwerp bij zet, en narekent dat het EERSTE onderwerp zakt van 100
+naar 84, puur omdat er nu een groter onderwerp meedoet: exact het gedrag dat de vraag beschreef.
+
+Drie getallen, niet één, allemaal 0-100: zichtbaarheid, zoekvolume, en de potentie die het product van
+de twee is (vermenigvuldigen, niet optellen: een onderwerp waar het merk al overal genoemd wordt heeft
+potentie 0, hoe hoog het zoekvolume ook is). Zichtbaar op het analysedossier, bij elke voorgestelde
+pagina vóór hij geschreven wordt, en bij elke geschreven pagina in de bibliotheek. Eén addertje
+onderweg: de score die al op het scherm stond (`weighted_score`) is zelf al vermenigvuldigd met een
+grove volumeschatting, dus de nieuwe "zichtbaarheid" moest een verse, ongewogen telling worden, anders
+was zoekvolume twee keer meegeteld in de potentiescore.
+
+Wat nog niet gebouwd is, staat met opzet in `docs/tasks/potentiescore.md` en niet stilzwijgend
+weggelaten: de Kansen-lijst sorteert nog niet op dit nieuwe getal, en het contentplan blijft nog de
+dag-1-gok van `profile_topics.priority` aanhouden in plaats van mee te bewegen met een score die na
+de lancering van een onderwerp blijft veranderen. En de trigger die dit alles in gang zet, ligt in
+`generate_report`, een functie die in deze codebase nog geen enkele ketentest heeft: een bestaand gat
+dat dit werk erft, niet zelf veroorzaakt. 1191 unittests, 157 ketentests.

@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { ExternalLink } from "@/components/external-link";
+import { PotentialMetrics } from "@/components/potential-metrics";
+import type { PotentialTriple } from "@/lib/potential";
 import type { ContentAction, ContentPieceTarget } from "@/lib/types/database";
 
 /**
@@ -10,14 +12,19 @@ import type { ContentAction, ContentPieceTarget } from "@/lib/types/database";
  * de nieuw/verbeteren-status).
  *
  * Puur lay-out van al bestaande, al opgehaalde velden: geen nieuwe query,
- * geen rekenkunde, dus geen eigen unit-test nodig.
+ * geen rekenkunde, dus geen eigen unit-test nodig. `potentie` is de enige
+ * uitzondering, en die komt al berekend binnen vanuit `loadContentPotential()`
+ * (lib/potential-data.ts), om diezelfde reden.
  *
  * Aura's eigen, betere metriek: Nova toont geschat zoekvolume, Aura's
  * `targets` bestaan uit ECHT GEMETEN AI-vragen (elke rij hangt via
- * `tracking_run_id` aan een concrete meetronde). Bewust GEEN "wint deze vraag
- * nu al"-percentage toegevoegd: dat zou een nieuwe join vergen die nu niet
- * bestaat, en een verzonnen getal zou conventie 3 ("onbekend is een betere
- * waarde dan een verkeerde") direct schenden.
+ * `tracking_run_id` aan een concrete meetronde).
+ *
+ * ⚠️ Tot 13 augustus stond hier bewust GEEN "wint deze vraag nu al"-percentage:
+ * dat zou een nieuwe join vergen die toen niet bestond, en een verzonnen getal
+ * zou conventie 3 direct schenden. Die join is er nu (`lib/potential-data.ts`),
+ * dus het label staat er nu wel, als onderdeel van de potentiescore
+ * (docs/tasks/potentiescore.md), nooit als los, ongefundeerd percentage.
  */
 export function WhyThisPage({
   analysisId,
@@ -26,6 +33,7 @@ export function WhyThisPage({
   cluster,
   action,
   existingUrl,
+  potentie,
 }: {
   analysisId: string;
   targets: ContentPieceTarget[];
@@ -33,13 +41,17 @@ export function WhyThisPage({
   cluster: string | null;
   action: ContentAction;
   existingUrl: string | null;
+  potentie: PotentialTriple;
 }) {
   const heeftContext = Boolean(targetIntent || cluster || (action === "verbeteren" && existingUrl));
-  if (!heeftContext && targets.length === 0) return null;
+  const heeftPotentie = potentie.visibility !== null || potentie.volume !== null;
+  if (!heeftContext && targets.length === 0 && !heeftPotentie) return null;
 
   return (
     <div className="card flex flex-col gap-3">
       <span className="mono-label">Waarom deze pagina</span>
+
+      {heeftPotentie && <PotentialMetrics triple={potentie} level="pagina" />}
 
       {heeftContext && (
         <p className="text-sm text-secondary">

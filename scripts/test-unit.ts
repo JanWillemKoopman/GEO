@@ -167,6 +167,7 @@ import {
 import { COST_DENIED } from "@/lib/cost-rules";
 import { requireCount } from "@/lib/require-count";
 import { mayMeasureAgain, MIN_DAGEN_TUSSEN_PERIODES } from "@/lib/measure-cadence";
+import { visibilityIndex, potentialScore, potentialBand, potentialExplanation } from "@/lib/potential";
 import {
   DEFAULT_MIX,
   checkMix,
@@ -5058,6 +5059,63 @@ group("mayMeasureAgain: niet opnieuw meten wat net gemeten is", () => {
   ok("een onleesbare datum blokkeert niet", mayMeasureAgain("geen datum", nu).ok);
 
   ok("de grens staat op 21 dagen", MIN_DAGEN_TUSSEN_PERIODES === 21);
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+console.log("\nDe potentiescore (docs/tasks/potentiescore.md)");
+
+group("visibilityIndex: het aandeel dat genoemd wordt", () => {
+  ok("de helft genoemd is 50", visibilityIndex(5, 10) === 50);
+  ok("alles genoemd is 100", visibilityIndex(10, 10) === 100);
+  ok("niets genoemd is 0", visibilityIndex(0, 10) === 0);
+  ok("geen vragen is onbekend, niet 0", visibilityIndex(0, 0) === null);
+  ok("negatief aantal wordt niet negatief", visibilityIndex(-3, 10) === 0);
+});
+
+group("potentialScore: een product, geen gemiddelde", () => {
+  // ⚠️ Het kernvoorbeeld uit de vraag: niet zichtbaar én hoog zoekvolume is de
+  // grootste kans, niet zichtbaar op een nichonderwerp een kleinere.
+  const groot = potentialScore(0, 90);
+  const klein = potentialScore(0, 10);
+  ok("hoog zoekvolume geeft hoge potentie", groot !== null && groot >= 85);
+  ok("laag zoekvolume geeft lage potentie, zelfde zichtbaarheidsgat", klein !== null && klein <= 15);
+  ok("groot > klein", (groot ?? 0) > (klein ?? 0));
+
+  // Volledig zichtbaar: niets meer te winnen, ongeacht het zoekvolume.
+  ok("zichtbaarheid 100 geeft potentie 0", potentialScore(100, 100) === 0);
+  ok("ook bij het maximale zoekvolume", potentialScore(100, 90) === 0);
+
+  // Eén van de twee helften onbekend: geen gegokt getal.
+  ok("onbekende zichtbaarheid geeft null", potentialScore(null, 80) === null);
+  ok("onbekend zoekvolume geeft null", potentialScore(40, null) === null);
+  ok("allebei onbekend geeft null", potentialScore(null, null) === null);
+
+  // Middenwaarde, met de hand nagerekend: gat 60% × volume 50 = 30.
+  ok("een middenwaarde klopt met de hand", potentialScore(40, 50) === 30);
+});
+
+group("potentialBand: de grenzen", () => {
+  ok("null is onbekend", potentialBand(null) === "onbekend");
+  ok("0 is beperkt", potentialBand(0) === "beperkt");
+  ok("24 is nog beperkt", potentialBand(24) === "beperkt");
+  ok("25 is gemiddeld", potentialBand(25) === "gemiddeld");
+  ok("54 is nog gemiddeld", potentialBand(54) === "gemiddeld");
+  ok("55 is hoog", potentialBand(55) === "hoog");
+  ok("100 is hoog", potentialBand(100) === "hoog");
+});
+
+group("potentialExplanation: nooit een gegokte zin", () => {
+  ok(
+    "beide onbekend zegt dat het allebei onbekend is",
+    potentialExplanation(null, null).includes("zichtbaarheid") &&
+      potentialExplanation(null, null).includes("zoekvolume"),
+  );
+  ok("alleen zichtbaarheid onbekend noemt dat", potentialExplanation(null, 80).includes("zichtbaarheid"));
+  ok("alleen zoekvolume onbekend noemt dat", potentialExplanation(40, null).includes("zoekvolume"));
+  ok(
+    "met beide bekend staat het gemiste percentage erin",
+    potentialExplanation(40, 80).includes("60%"),
+  );
 });
 
 // ════════════════════════════════════════════════════════════════════════════

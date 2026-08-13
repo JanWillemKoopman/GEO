@@ -1,10 +1,13 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { WorkList } from "@/components/work-list";
 import type { WorkItem } from "@/lib/work";
 import { AuditGate } from "@/components/audit-gate";
 import { loadAuditGate } from "@/lib/audit/gate";
 import { InfoHint } from "@/components/info-hint";
+import { PotentialInline } from "@/components/potential-metrics";
+import { loadRecommendationPotential } from "@/lib/potential-data";
 import { readRecommendations } from "@/lib/pipeline/recommendation";
 import { GenerateButton } from "../_work/generate-button";
 import { GenerateAllButton } from "../_work/generate-all-button";
@@ -84,6 +87,20 @@ export async function WerkChapter({
   );
   const openRecommendations = recommendations.filter((r) => !generatedTitles.has(r.title));
 
+  // Potentie per voorstel (docs/tasks/potentiescore.md): zichtbaarheid, zoekvolume
+  // en de score die de twee combineert, zodat de klant ziet welke voorgestelde
+  // pagina het meeste oplevert vóórdat hij op "schrijf" drukt.
+  const admin = createAdminClient();
+  const potenties = await Promise.all(
+    openRecommendations.map((r) =>
+      loadRecommendationPotential(
+        admin,
+        analysis.id,
+        r.targets.map((t) => t.promptId),
+      ),
+    ),
+  );
+
   return (
     <>
       <AuditGate blockers={gate.blockers} profileId={analysis.profile_id} since={gate.since} />
@@ -146,6 +163,8 @@ export async function WerkChapter({
                     <span className="chip">Nieuwe pagina</span>
                   )}
                 </div>
+
+                <PotentialInline triple={potenties[i]} />
 
                 <p className="text-sm text-secondary">{r.why}</p>
 

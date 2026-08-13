@@ -160,3 +160,17 @@ tabelrechten die Supabase normaal buiten onze migraties om geeft. Zonder die twe
 ketentest ooit RLS echt narekenen. `scripts/test-chain.ts` bewaakt nu met een vier-rollen-proef
 (eigenaar, teamlid, beheerder, vreemde) dat dit niet terugkomt; de test is rood gemaakt om te
 bewijzen dat hij het gat vangt.
+
+## 0057 · de potentiescore, zoekvolume-helft
+
+Twee kolommen op `profile_topics`: `search_volume_index` (0-100) en `search_volume_reasoning`. Zie
+`docs/tasks/potentiescore.md` voor het volledige ontwerp.
+
+`search_volume_index` is nooit de ruwe uitkomst van één AI-aanroep over de vragen van één analyse
+(die bestaat al langer als `prompts.volume_estimate`, migratie 0009/0017, en is dat nooit
+vergelijkbaar tussen analyses). Deze kolom komt uit `recalibrateSearchVolume()`
+(`lib/pipeline/search-demand.ts`), die alle niet-gearchiveerde onderwerpen van een merk in één
+aanroep tegen elkaar afzet, getriggerd zodra een analyse haar eerste rapport krijgt, en ALTIJD alle
+onderwerpen herschrijft, niet alleen het nieuwe. Zo trekt een groot onderwerp uit een latere analyse
+de score van een eerder, kleiner onderwerp aantoonbaar naar beneden, in plaats van dat elke analyse
+zijn eigen, niet-vergelijkbare 0-100 houdt.

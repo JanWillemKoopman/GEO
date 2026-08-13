@@ -83,6 +83,13 @@ export const JOB_TYPES = [
    * licht werk. Draait dagelijks per gekoppeld merk.
    */
   "gsc_sync",
+  /**
+   * Zoekvolume herberekenen over ALLE onderwerpen van een merk tegelijk
+   * (docs/tasks/potentiescore.md). Draait per profiel, niet per analyse: zonder
+   * dat zou elk onderwerp zijn eigen, niet-vergelijkbare schaal houden.
+   * Getriggerd zodra een analyse haar eerste rapport krijgt.
+   */
+  "recalculate_potential",
 ] as const;
 
 export type JobType = (typeof JOB_TYPES)[number];
@@ -176,6 +183,7 @@ export interface JobPayloads {
   compute_impact: { contentPieceId: string; wave: number };
   offsite_scan: Record<string, never>;
   gsc_sync: Record<string, never>;
+  recalculate_potential: Record<string, never>;
 }
 
 /**

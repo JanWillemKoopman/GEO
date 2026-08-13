@@ -220,4 +220,33 @@ const ANTWOORDEN: Record<string, (user: string) => unknown> = {
   }),
 
   source_analysis: () => ({ sources: [], whatIsMissing: null }),
+
+  /**
+   * De profielbrede zoekvolume-herkalibratie (docs/tasks/potentiescore.md, stap
+   * B, `lib/pipeline/search-demand.ts`).
+   *
+   * ⚠️ Simuleert een ECHTE relatieve kalibratie, niet een vaste lijst: elke
+   * onderwerptitel in de ketentest draagt zijn "ware omvang" in een `(getal)`
+   * aan het eind, bijvoorbeeld "Kleine niche (20)". De stub berekent per
+   * aanroep het volume relatief tot het ZWAARSTE onderwerp IN DIE AANROEP, net
+   * als de echte instructie vraagt. Dat is precies wat de test moet bewijzen:
+   * komt er een groter onderwerp bij, dan daalt het cijfer van een onderwerp
+   * dat zelf niet veranderd is, want de noemer (het zwaarste onderwerp) is
+   * groter geworden. Een vaste lijst zou dat gat niet kunnen laten zien.
+   */
+  search_demand_calibration: (user: string) => {
+    const regels = user.split("\n").filter((r) => /^\d+\.\s/.test(r.trim()));
+    const parsed = regels.map((r) => ({
+      index: Number(/^(\d+)\./.exec(r.trim())?.[1] ?? 0),
+      wareOmvang: Number(/\((\d+)\)/.exec(r)?.[1] ?? 50),
+    }));
+    const max = Math.max(1, ...parsed.map((p) => p.wareOmvang));
+    return {
+      scores: parsed.map((p) => ({
+        index: p.index,
+        volume: Math.round((p.wareOmvang / max) * 100),
+        reasoning: `Testschatting: ware omvang ${p.wareOmvang} relatief tot het zwaarste onderwerp in deze aanroep (${max}).`,
+      })),
+    };
+  },
 };

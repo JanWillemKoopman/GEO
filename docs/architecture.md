@@ -136,7 +136,11 @@ Bron: `lib/jobs/{types,queue,worker,handlers,pending}.ts`.
   `profile_market`, `profile_llm_baseline`, `profile_synthesis`, `prepare_analysis`,
   `generate_prompts`, `calibrate_volumes`, `measure_prompt`, `aggregate_week`, `generate_report`,
   `content_brief`, `content_draft`, `content_revise`, `technical_audit`, `verify_publication`,
-  `measure_impact`, `compute_impact`, `offsite_scan`.
+  `measure_impact`, `compute_impact`, `offsite_scan`, `gsc_sync`, `recalculate_potential`.
+  `recalculate_potential` is profielbreed (geen `analysis_id`), getriggerd vanuit `generate_report`
+  zodra een analyse haar eerste rapport krijgt: herberekent `search_volume_index` op ALLE
+  onderwerpen van dat merk in één aanroep (`lib/pipeline/search-demand.ts`), zie
+  `docs/tasks/potentiescore.md`.
 - **De onboardingketen** (de eerste zeven) hangt aan één `enqueue` vanuit `POST /api/profiles`:
   `profile_discover` plant `technical_audit` én `profile_research` in, en vanaf daar ketent elke
   stap zijn opvolger. `profile_offering` plant `profile_market` **onvoorwaardelijk** in, niet via

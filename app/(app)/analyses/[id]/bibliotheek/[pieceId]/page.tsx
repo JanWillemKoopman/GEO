@@ -21,6 +21,8 @@ import { versionReasonOf } from "@/lib/pipeline/version-reason";
 import { resolvedContentUrl } from "@/lib/pipeline/slug";
 import { ExternalLink } from "@/components/external-link";
 import { WhyThisPage } from "@/components/why-this-page";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { loadContentPotential } from "@/lib/potential-data";
 import { SearchPreview } from "@/components/search-preview";
 import { VersionDiff } from "@/components/version-diff";
 import type { ContentPiece, ContentPieceTarget } from "@/lib/types/database";
@@ -76,7 +78,8 @@ export default async function ContentDetailPage({
 
   // Waar deze pagina voor gemaakt is (optimalisatie.md 4.1) en welke versies er
   // eerder waren (4.7).
-  const [{ data: targetRows }, { data: versionRows }] = await Promise.all([
+  const admin = createAdminClient();
+  const [{ data: targetRows }, { data: versionRows }, potentie] = await Promise.all([
     supabase.from("content_piece_targets").select("*").eq("content_piece_id", pieceId),
     supabase
       .from("content_pieces")
@@ -84,6 +87,7 @@ export default async function ContentDetailPage({
       .eq("analysis_id", id)
       .eq("title", piece.title)
       .order("version", { ascending: false }),
+    loadContentPotential(admin, pieceId),
   ]);
 
   const targets = (targetRows ?? []) as ContentPieceTarget[];
@@ -214,6 +218,7 @@ export default async function ContentDetailPage({
         cluster={piece.cluster}
         action={piece.action}
         existingUrl={piece.existing_url}
+        potentie={potentie}
       />
 
       {/* "Check nodig" uitleggen (optimalisatie.md 4.13). Het gele label zei

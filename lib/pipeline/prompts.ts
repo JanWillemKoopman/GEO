@@ -34,6 +34,25 @@ import {
   REGIO_DREMPEL,
 } from "@/lib/pipeline/geo-share";
 
+/**
+ * Vaste ijkpunten voor elke zoekvolumeschatting, in deze stap én in de
+ * profielbrede herkalibratie (`lib/pipeline/search-demand.ts`).
+ *
+ * Zonder ankers is "gebruik de volle schaal 0-100" een schaal die bij elke
+ * aanroep opnieuw wordt uitgevonden: twee losse aanroepen kunnen allebei hun
+ * eigen zwaarste vraag dicht bij 100 leggen, ook als de één in werkelijkheid
+ * tien keer zo vaak gezocht wordt als de ander. Dezelfde vier voorbeelden in
+ * elke aanroep geven het nulpunt en het maximum een vaste, herkenbare
+ * betekenis (docs/tasks/potentiescore.md §2).
+ */
+export const SEARCH_VOLUME_ANCHORS =
+  "Gebruik deze vaste ijkpunten om de schaal steeds hetzelfde te laten betekenen, ook al gaat dit " +
+  "keer over een heel andere markt:\n" +
+  "- 95-100: \"wasmachine kopen\", een aankoop die vrijwel elk huishouden ooit doet.\n" +
+  "- 70-80: \"beste hypotheekadviseur in [regio]\", een brede, veelgezochte dienst binnen één regio.\n" +
+  "- 40-50: \"dry needling bij een frozen shoulder\", een specifieke behandelvraag binnen één vakgebied.\n" +
+  "- 5-15: een sterk technische of zeer smalle B2B-vraag die alleen specialisten stellen.";
+
 /** Korte, sturende omschrijving per FUNNELFASE: merk- én concurrent-neutraal. */
 const CATEGORY_BRIEF: Record<string, string> = {
   Oriëntatie:
@@ -450,12 +469,17 @@ export async function calibrateVolumes(texts: string[], analysisId: string): Pro
         "Je bent een zoekgedrag-analist. Schat hoe vaak elke onderstaande vraag door echte mensen aan een " +
         "AI-assistent/zoekmachine gesteld wordt, RELATIEF ten opzichte van elkaar. Gebruik de VOLLE schaal 0-100: " +
         "de meest gezochte, brede vragen richting 100, de meest specifieke/niche-vragen richting 0-10. Dit is een " +
-        "schatting, geen echte index. Antwoord voor ELKE vraag met haar nummer (index) en een volume 0-100.",
+        "schatting, geen echte index. Antwoord voor ELKE vraag met haar nummer (index) en een volume 0-100.\n\n" +
+        SEARCH_VOLUME_ANCHORS,
       user: `Vragen:\n${numbered}`,
       schema: VolumeCalibration,
       schemaName: "volume_calibration",
       webSearch: false,
-      work: "analytical",
+      // ⚠️ Was `analytical` (effort `low`) tot 13 augustus. Deze schatting voedt
+      // sinds `lib/pipeline/search-demand.ts` ook de potentiescore die de klant
+      // rechtstreeks ziet, dus verdient dezelfde redeneerinspanning als het
+      // schrijven zelf, niet die van een classificatietaak.
+      work: "content",
       meta: { kind: "volume_calibration", analysisId },
     });
     const byIndex = new Map<number, number>();

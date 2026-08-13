@@ -824,6 +824,20 @@ export async function generateReport(
       dedupeKey: dedupe.offsiteScan(id),
     });
 
+    // Zoekvolume herberekenen over het hele merk (docs/tasks/potentiescore.md),
+    // maar alleen bij het EERSTE rapport van deze analyse: dat is het moment
+    // waarop een nieuw onderwerp de vergelijking binnenkomt. Een herhaalde
+    // maandmeting van een onderwerp dat al meetelde verandert diens zoekvolume
+    // niet, dus die triggert dit bewust niet opnieuw.
+    if (weekNo === 0) {
+      await enqueue(admin, {
+        type: "recalculate_potential",
+        payload: {},
+        profileId: analysis.profile_id,
+        dedupeKey: dedupe.recalculatePotential(analysis.profile_id),
+      });
+    }
+
     await admin.from("analyses").update({ status: "gereed" }).eq("id", id);
 
     // Bericht als het klaar is (optimalisatie.md 1.8). Nu het werk op de

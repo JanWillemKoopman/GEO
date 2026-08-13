@@ -1,7 +1,10 @@
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { ScoreCard } from "../score-panel";
 import { TrendChart } from "@/components/trend-chart";
+import { PotentialMetrics } from "@/components/potential-metrics";
 import { loadTrend } from "@/lib/pipeline/trend";
+import { loadAnalysisPotential } from "@/lib/potential-data";
 import type { Analysis, Report, VisibilityScore } from "@/lib/types/database";
 
 /**
@@ -36,7 +39,9 @@ export async function StandChapter({
     );
   }
 
-  const [{ data: scoreRows }, { data: reportRow }, { count: runCount }, { data: engineRows }, trend] =
+  const admin = createAdminClient();
+
+  const [{ data: scoreRows }, { data: reportRow }, { count: runCount }, { data: engineRows }, trend, potentie] =
     await Promise.all([
       // Deze periode én de vorige: de vorige is nodig voor de verandering (2.3).
       supabase
@@ -70,6 +75,7 @@ export async function StandChapter({
         .eq("week_no", weekNo)
         .eq("purpose", "periodic"),
       loadTrend(supabase, analysis.id),
+      loadAnalysisPotential(admin, analysis.id),
     ]);
 
   const scores = (scoreRows ?? []) as VisibilityScore[];
@@ -100,6 +106,8 @@ export async function StandChapter({
   return (
     <>
       <ScoreCard score={score} previous={previous} measuredRunCount={runCount ?? 0} engines={engines} />
+
+      <PotentialMetrics triple={potentie} level="analyse" />
 
       {report?.summary && (
         <div className="card flex flex-col gap-2">

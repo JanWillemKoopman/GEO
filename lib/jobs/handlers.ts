@@ -40,6 +40,7 @@ import { planImpactMeasurements, computeImpact } from "@/lib/pipeline/impact";
 import { verifyPublication } from "@/lib/pipeline/publish";
 import { runOffsiteScan } from "@/lib/offsite/scan";
 import { syncSearchConsole } from "@/lib/search-console/sync";
+import { recalibrateSearchVolume } from "@/lib/pipeline/search-demand";
 import { enqueue, dedupe } from "@/lib/jobs/queue";
 import { countOpenPeriodicMeasurements } from "@/lib/jobs/pending";
 import type {
@@ -659,6 +660,19 @@ const handlers: { [T in JobType]: Handler<T> } = {
       result.ok
         ? `Search Console ${job.profile_id}: ${result.rijen} rijen over ${result.start} tot ${result.eind}.`
         : `Search Console ${job.profile_id}: ${result.reason}`,
+    );
+  },
+
+  // ── Zoekvolume herberekenen over het hele merk (docs/tasks/potentiescore.md) ─
+  //
+  // Getriggerd vanuit generate_report zodra een analyse haar eerste rapport
+  // krijgt. Loopt over ALLE onderwerpen van het profiel, niet alleen de nieuwe
+  // analyse: precies dat maakt de index eerlijk over analyses heen.
+  recalculate_potential: async ({ job }) => {
+    if (!job.profile_id) throw new Error("recalculate_potential zonder profile_id.");
+    const result = await recalibrateSearchVolume(job.profile_id);
+    console.log(
+      `Zoekvolume-herkalibratie profiel ${job.profile_id}: ${result.updated} onderwerpen bijgewerkt.`,
     );
   },
 

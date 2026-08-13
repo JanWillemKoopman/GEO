@@ -78,6 +78,13 @@ export const dedupe = {
   // cijfers op, want Google levert pas definitieve data met twee dagen
   // vertraging (`lib/search-console/window.ts`).
   gscSync: (profileId: string, dag: string) => `gsc_sync:${profileId}:${dag}`,
+  // Per DAG, niet per analyse: twee analyses van hetzelfde merk die toevallig
+  // op dezelfde dag hun eerste rapport krijgen, triggeren zo één herberekening
+  // in plaats van twee. De taak leest bij het draaien de actuele stand van de
+  // database, dus beide onderwerpen tellen sowieso mee, ook als de tweede
+  // trigger hierdoor wordt genegeerd.
+  recalculatePotential: (profileId: string, day = new Date().toISOString().slice(0, 10)) =>
+    `potential:${profileId}:${day}`,
   // Per DAG, niet per profiel: de audit draait bij het aanmaken én maandelijks,
   // en moet dan echt opnieuw kijken. Zonder de datum erin zou een afgeronde
   // audit van vorig jaar de hermeting van deze maand blokkeren.

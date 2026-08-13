@@ -1,8 +1,12 @@
 # De potentiescore: zichtbaarheidsgat × zoekvolume, eerlijk over analyses heen
 
-**Status:** ontwerp, nog niets gebouwd · **Opgesteld:** 13 augustus 2026 · **Aanleiding:** vraag van
-de product owner: hoeveel is er te winnen op een onderwerp of een pagina, en is dat overal in de app
-op dezelfde manier te vergelijken.
+**Status:** fase 1 gebouwd en op productie, 13 augustus 2026. Fase 2 en 3 (§6) staan nog open.
+**Opgesteld:** 13 augustus 2026 · **Aanleiding:** vraag van de product owner: hoeveel is er te winnen
+op een onderwerp of een pagina, en is dat overal in de app op dezelfde manier te vergelijken.
+
+**Uitgebreid tijdens de bouw (13 augustus):** de opdracht om dit door te voeren voegde een eis toe die
+in het oorspronkelijke ontwerp niet stond: alle DRIE de getallen (zichtbaarheid, zoekvolume, potentie)
+moeten zichtbaar zijn, niet alleen de potentiescore. Dat is gebouwd, zie §4a hieronder voor waar precies.
 
 Antwoord in één alinea: **potentie is het product van twee onafhankelijke getallen**, hoeveel van de
 vragen dit merk nu mist (het zichtbaarheidsgat, al goed gebouwd) en hoe vaak dat onderwerp gezocht
@@ -132,12 +136,16 @@ vergelijkbare versie ernaast, nooit een overschrijving (conventie 4-stijl, addit
 ### Wanneer stap B draait
 
 Getriggerd vanuit `generate_report`, op het moment dat een analyse zijn **eerste** rapport krijgt
-(niet bij elke herhaalde maandmeting van een onderwerp dat al meetelde, dat onderwerp zit al in de
-vergelijking). Eén nieuw jobtype, `recalculate_potential`, met `analysisId` leeg en `profileId` erin
-(net als `gsc_sync` een profiel-brede taak is, geen analyse-taak), en een dedupe-sleutel die het
-aantal afgeronde onderwerpen van dit profiel op het moment van inplannen meeneemt: twee analyses die
-toevallig binnen dezelfde minuut hun eerste rapport krijgen, plannen zo niet twee identieke
-herberekeningen na elkaar.
+(`weekNo === 0`, niet bij elke herhaalde maandmeting van een onderwerp dat al meetelde, dat onderwerp
+zit al in de vergelijking). Eén nieuw jobtype, `recalculate_potential`, met `analysisId` leeg en
+`profileId` erin (net als `gsc_sync` een profiel-brede taak is, geen analyse-taak).
+
+⚠️ **Gebouwd met een eenvoudiger dedupe-sleutel dan hier oorspronkelijk stond.** Niet "het aantal
+afgeronde onderwerpen op het moment van inplannen" maar gewoon per profiel per DAG
+(`dedupe.recalculatePotential`, hetzelfde patroon als `gscSync`/`technicalAudit`/`offsiteScan`). Twee
+analyses die op dezelfde dag hun eerste rapport krijgen, plannen zo één herberekening in plaats van
+twee, en dat is geen verlies: de taak leest bij het UITVOEREN de actuele stand van de database, dus
+beide nieuwe onderwerpen tellen sowieso mee, ook als de tweede trigger genegeerd wordt.
 
 Geen AI-call op de kritieke pad van de meting zelf: dit loopt ná `generate_report`, dus vertraagt niets
 wat de klant al ziet.
@@ -175,28 +183,42 @@ export function potentialLabel(score: number | null): string // "hoge potentie",
 
 ---
 
-## 4. Waar de klant het ziet
+## 4. Waar de klant het ziet (gebouwd)
 
-**Analyse-niveau.** Naast de bestaande score op de analysepagina (`app/(app)/analyses/[id]/score-
-panel.tsx`) en op het onderwerpenoverzicht (`app/(app)/profielen/[id]/topics-panel.tsx`) komt een
-compact label: "Potentie: hoog (78/100)" met een tooltip die de twee helften uitlegt in gewone taal,
-"38% van de vragen mist dit merk nog, en dit onderwerp wordt relatief vaak gezocht binnen jouw
-onderwerpen." Zolang `search_volume_index` nog `null` is (vóór de eerste herberekening) staat er
-"Potentie: nog niet te bepalen", nooit een gegokt getal, conventie 3.
+De opdracht om dit door te voeren voegde een eis toe: niet alleen de potentiescore, maar alle DRIE de
+getallen zichtbaar, apart en herkenbaar, "op analyse-niveau en op content-niveau". Gebouwd als één
+herbruikbare component (`components/potential-metrics.tsx`, `PotentialMetrics` voor drie tegels naast
+elkaar en `PotentialInline` voor een compacte regel in een lijst), gevoed door `lib/potential-data.ts`.
 
-**Content-niveau.** `components/why-this-page.tsx` krijgt hetzelfde compacte label per pagina, direct
-onder "Deze pagina moet deze vragen winnen". Dit is ook de plek waar het scherm nu al bewust GEEN
-percentage toont (zie het commentaar in dat bestand van 3 augustus); dat commentaar klopte toen, er
-was toen geen eerlijke manier om zo'n getal te tonen. Dit plan is precies de "nieuwe join" die het
-commentaar toen miste.
+**Analyse-niveau.** Hoofdstuk 01 van het analysedossier (`app/(app)/analyses/[id]/_chapters/stand.tsx`),
+direct onder de bestaande scorekaart: drie tegels, Zichtbaarheid, Zoekvolume, Potentie, elk 0-100 met
+een eigen uitlegknopje, plus één zin eronder ("38% van de vragen mist dit merk nog, bij een zoekvolume
+van 84/100 binnen dit merk"). Bewust een EIGEN blok en geen extra kolom op de bestaande scorekaart:
+dat cijfer daar (`weighted_score`) is al vermenigvuldigd met de grove volumeband uit `volume.ts`, en
+zou zoekvolume dubbel laten meetellen als de potentiescore erop verder rekende. De nieuwe zichtbaarheid
+komt daarom uit de ONGEWOGEN `visibility_scores.score`.
 
-**Wat dit plan bewust NIET doet.** De Kansen-lijst (`lib/opportunities.ts`) laten hersorteren op de
-nieuwe potentiescore, en de volgorde van het contentplan (`plan-build.ts`, dat nu op de bevroren
+**Content-niveau, voorstel.** Hoofdstuk 03, "Pagina's die Aura voor je schrijft"
+(`app/(app)/analyses/[id]/_chapters/werk.tsx`): één compacte regel per voorgestelde pagina, vóórdat er
+een `content_pieces`-rij bestaat. Rekent op dat moment nog met de doelvragen uit
+`RecommendationTarget[]` (het rapport), niet met `content_piece_targets`.
+
+**Content-niveau, geschreven.** `components/why-this-page.tsx`, boven aan het "Waarom deze pagina"-blok
+in de bibliotheek. Dit is ook de plek waar het scherm tot 13 augustus bewust GEEN percentage toonde
+(het commentaar van 3 augustus zei "dat zou een nieuwe join vergen die nu niet bestaat"); die join is
+er nu (`loadContentPotential()`), dus het label staat er nu, als onderdeel van de potentiescore, nooit
+als los, ongefundeerd percentage.
+
+**Zolang er geen index is** (vóór de eerste profielbrede herberekening) staat er een streepje, nooit
+een gegokt getal (conventie 3): `MetricTile` toont `—` in plaats van `0` of een placeholder-cijfer.
+
+**Wat nog niet gebouwd is.** De Kansen-lijst (`lib/opportunities.ts`) laten hersorteren op de nieuwe
+potentiescore, en de volgorde van het contentplan (`plan-build.ts`, dat nu op de bevroren
 dag-1-gok van `profile_topics.priority` sorteert) laten meebewegen met een score die na de lancering
 van een onderwerp blijft veranderen. Allebei een logisch vervolg, allebei een aparte, grotere
 wijziging (de eerste raakt de sortering die de klant als "wat moet ik eerst doen" leest, de tweede
-raakt een lopend, al aan de klant getoond jaarplan). Genoemd in §6 als fase 2 en fase 3, niet in de
-eerste bouwronde.
+raakt een lopend, al aan de klant getoond jaarplan). Genoemd in §6 als fase 2 en fase 3, nog niet
+gebouwd.
 
 ---
 
@@ -226,19 +248,21 @@ je een van de vier anders wilt, dan pas ik het ontwerp aan vóór de bouw begint
 
 ## 6. Bouwvolgorde
 
-| Fase | Wat | Effort | Raakt |
+| Fase | Wat | Status | Raakt |
 |---|---|---|---|
-| 1 | Migratie (2 kolommen), `lib/potential.ts`, aangepaste `calibrateVolumes()` (ankers + effort medium), nieuw jobtype `recalculate_potential` + trigger vanuit `generate_report`, weergave op analyse- en content-niveau | ~2-3 d | `lib/pipeline/prompts.ts`, `lib/jobs/handlers.ts`, `lib/jobs/types.ts`, `score-panel.tsx`, `topics-panel.tsx`, `why-this-page.tsx` |
-| 2 | De Kansen-lijst (`opportunities.ts`) laten sorteren op potentiescore in plaats van (of naast) het huidige gewicht uit de aanbevelingen | ~1 d | `lib/opportunities.ts`, `lib/insights-data.ts` |
-| 3 (apart besluit) | Contentplan-volgorde en/of de gewogen zichtbaarheidsscore laten overstappen van de 3-bandenschatting naar de nieuwe index | ~2 d | `lib/pipeline/plan-build.ts`, `lib/pipeline/prompt-weight.ts` |
+| 1 | Migratie 0057 (2 kolommen), `lib/potential.ts`, `lib/potential-data.ts`, aangepaste `calibrateVolumes()` (ankers + effort medium), nieuw jobtype `recalculate_potential` + trigger vanuit `generate_report`, drie getallen zichtbaar op analyse- en content-niveau (voorstel én geschreven) | **Af, 13 augustus** | `lib/pipeline/prompts.ts`, `lib/pipeline/search-demand.ts`, `lib/jobs/*`, `lib/pipeline/report.ts`, `components/potential-metrics.tsx`, `stand.tsx`, `werk.tsx`, `why-this-page.tsx` |
+| 2 | De Kansen-lijst (`opportunities.ts`) laten sorteren op potentiescore in plaats van (of naast) het huidige gewicht uit de aanbevelingen | Nog niet gebouwd | `lib/opportunities.ts`, `lib/insights-data.ts` |
+| 3 (apart besluit) | Contentplan-volgorde en/of de gewogen zichtbaarheidsscore laten overstappen van de 3-bandenschatting naar de nieuwe index | Nog niet gebouwd | `lib/pipeline/plan-build.ts`, `lib/pipeline/prompt-weight.ts` |
 
 ## 7. Verificatiecriteria
 
-| # | Criterium |
-|---|---|
-| 1 | Twee analyses van hetzelfde profiel, met aantoonbaar verschillend zoekvolume qua onderwerp, krijgen na de herberekening een index die dat verschil weerspiegelt, nagerekend tegen de vaste ankers |
-| 2 | Een derde analyse die klaar komt met een duidelijk hoger zoekvolume, verlaagt aantoonbaar de index van de twee bestaande onderwerpen (niet hun ruwe `volume_estimate`, wel hun `search_volume_index`) |
-| 3 | De potentiescore van een onderwerp is nooit hoger dan wanneer het zichtbaarheidsgat 0 is (score dan exact 0, geen afronding die iets anders dan 0 toont) |
-| 4 | Een profiel zonder herberekening (nog maar 1 analyse, eerste rapport nog niet klaar) toont "nog niet te bepalen", nooit een getal |
-| 5 | Twee pagina's binnen hetzelfde onderwerp met verschillende doelvragen tonen een verschillende potentiescore, gelijk zoekvolume, ander zichtbaarheidsgat |
-| 6 | De herberekening kost één AI-aanroep per keer, niet één per onderwerp, en draait nooit op het kritieke pad van een meting |
+| # | Criterium | Status |
+|---|---|---|
+| 1 | Twee onderwerpen van hetzelfde profiel, met aantoonbaar verschillend zoekvolume, krijgen na de herberekening een index die dat verschil weerspiegelt | **Bewezen**, ketentest "De potentiescore" |
+| 2 | Een derde onderwerp dat klaar komt met een duidelijk hoger zoekvolume, verlaagt aantoonbaar de index van een bestaand onderwerp dat zelf niet veranderd is | **Bewezen**: "Grote markt" daalt van 100 naar 84 zodra "Enorme markt" meedoet, met de hand nagerekend |
+| 3 | Gearchiveerde onderwerpen tellen niet mee in de herkalibratie | **Bewezen** |
+| 4 | De potentiescore van een onderwerp is nooit hoger dan wanneer het zichtbaarheidsgat 0 is (score dan exact 0) | **Bewezen**, unittest `potentialScore` |
+| 5 | Een profiel zonder herberekening toont "—", nooit een gegokt getal | **Bewezen**, `MetricTile` |
+| 6 | Twee pagina's binnen hetzelfde onderwerp met verschillende doelvragen tonen een verschillende zichtbaarheid, gelijk zoekvolume | Nog niet met een echte klant bevestigd (conventie 10): de rekenkant is bewezen, maar er is nog geen productieprofiel met twee geschreven pagina's op hetzelfde onderwerp om dit op te toetsen |
+| 7 | De herberekening kost één AI-aanroep per keer, niet één per onderwerp, en draait nooit op het kritieke pad van een meting | **Bewezen**: `recalibrateSearchVolume()` doet één `callStructured`-aanroep over alle onderwerpen samen, getriggerd ná `generate_report`, niet ervoor |
+| 8 | De trigger in `generate_report` (alleen bij `weekNo === 0`) is nagerekend tegen een echte, volledige rapportgeneratie | **Nog niet.** `generateReport()` heeft in deze codebase nog geen enkele ketentest (geen stub voor `gap_analysis`/`report`); dat is een bestaand gat, niet nieuw door dit werk, maar dit ene `if`-regeltje deelt dat gat. De onderliggende mechaniek (de taak zelf, de dedupe-sleutel) is wél bewezen |

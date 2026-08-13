@@ -54,6 +54,7 @@ const TYPICAL_SECONDS: Record<JobType, number> = {
   compute_impact: 3, // puur rekenwerk
   offsite_scan: 40, // gegroundde aanroep + Wikidata/Wikipedia
   gsc_sync: 6, // één HTTP-verzoek naar Google plus een bulk-upsert, geen AI
+  recalculate_potential: 15, // één aanroep over een handvol onderwerpen samen
 };
 
 /**
@@ -94,6 +95,11 @@ const NON_BLOCKING_TYPES: ReadonlySet<JobType> = new Set<JobType>([
   // gewoon door. Een rood kruis op het voortgangsscherm zou het tegendeel
   // suggereren.
   "gsc_sync",
+  // De zoekvolume-index is verrijking op het rapport, geen voorwaarde: mislukt
+  // de herberekening, dan blijft het rapport gewoon staan en toont het scherm
+  // "nog niet te bepalen" bij het zoekvolume, precies zoals vóór de eerste
+  // geslaagde herberekening.
+  "recalculate_potential",
 ]);
 
 /**

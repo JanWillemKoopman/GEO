@@ -1711,7 +1711,156 @@ async function main(): Promise<void> {
       `${aantalBufferClaims} claims op één buffer`,
     );
 
-        // ══════════════════════════════════════════════════════════════════════
+    // ══════════════════════════════════════════════════════════════════════
+    // De potentiescore: zoekvolume eerlijk over analyses heen (docs/tasks/potentiescore.md)
+    // ══════════════════════════════════════════════════════════════════════
+    console.log("\nDe potentiescore: zoekvolume eerlijk over analyses heen");
+
+    const { recalibrateSearchVolume } = await import("@/lib/pipeline/search-demand");
+    const { visibilityIndex: viIndex, potentialScore: potScore } = await import("@/lib/potential");
+
+    const potUserId = randomUUID();
+    const potProfileId = randomUUID();
+    await db.client.query("insert into auth.users (id, email) values ($1, $2)", [
+      potUserId,
+      "potentie@example.com",
+    ]);
+    await db.client.query(
+      `insert into public.profiles (id, user_id, name, url, brand_name, status)
+       values ($1, $2, 'Potentie BV', 'https://potentie-bv.nl', 'Potentie BV', 'klaar')`,
+      [potProfileId, potUserId],
+    );
+
+    // Elke titel draagt zijn "ware omvang" mee als (getal), die de stub in
+    // openai-stub.ts uitleest. Dat is een testtruc, geen productiegedrag: in
+    // het echt kent alleen het model die omvang, hier moeten WIJ hem kennen om
+    // te kunnen navragen of de herkalibratie er correct mee omgaat.
+    async function nieuwOnderwerp(titel: string): Promise<{ analyseId: string; topicId: string }> {
+      const analyseId = randomUUID();
+      const topicId = randomUUID();
+      await db.client.query(
+        `insert into public.analyses (id, user_id, profile_id, name, url, topic, status)
+         values ($1, $2, $3, $4, 'https://potentie-bv.nl', $4, 'gereed')`,
+        [analyseId, potUserId, potProfileId, titel],
+      );
+      await db.client.query(
+        `insert into public.profile_topics (id, profile_id, analysis_id, title, status)
+         values ($1, $2, $3, $4, 'goedgekeurd')`,
+        [topicId, potProfileId, analyseId, titel],
+      );
+      // De taak heeft ten minste één rapport nodig om mee te tellen: dat is
+      // "de analyse is afgerond" uit de vraag.
+      await db.client.query("insert into public.reports (analysis_id) values ($1)", [analyseId]);
+      return { analyseId, topicId };
+    }
+
+    const klein = await nieuwOnderwerp("Kleine niche (20)");
+    const groot = await nieuwOnderwerp("Grote markt (80)");
+
+    const eersteRonde = await recalibrateSearchVolume(potProfileId);
+    ok("de eerste herkalibratie werkt beide onderwerpen bij", eersteRonde.updated === 2, `kreeg ${eersteRonde.updated}`);
+
+    const { rows: naEerstePotentie } = await db.client.query(
+      "select title, search_volume_index, search_volume_reasoning from public.profile_topics where profile_id = $1 order by title",
+      [potProfileId],
+    );
+    ok("allebei kregen een index", naEerstePotentie.every((r: { search_volume_index: number | null }) => r.search_volume_index !== null));
+    ok(
+      "allebei kregen ook een reden, voor de tooltip",
+      naEerstePotentie.every((r: { search_volume_reasoning: string | null }) => Boolean(r.search_volume_reasoning)),
+    );
+    const grootEersteRonde = naEerstePotentie.find((r: { title: string }) => r.title === "Grote markt (80)")!
+      .search_volume_index as number;
+    // Het zwaarste onderwerp van deze aanroep staat op (bijna) het maximum:
+    // ware omvang 80 was hier de grootste, dus relatief 100.
+    ok("het zwaarste onderwerp van de aanroep staat op 100", grootEersteRonde === 100, `kreeg ${grootEersteRonde}`);
+
+    // ── Nu komt er een veel groter onderwerp bij, en één gearchiveerd ────────
+    const enorm = await nieuwOnderwerp("Enorme markt (95)");
+    const gearchiveerd = await nieuwOnderwerp("Gearchiveerd onderwerp (99)");
+    await db.client.query("update public.analyses set archived_at = now() where id = $1", [
+      gearchiveerd.analyseId,
+    ]);
+
+    const tweedeRonde = await recalibrateSearchVolume(potProfileId);
+    // ⚠️ DE KERN VAN DE VRAAG: drie actieve onderwerpen bijgewerkt, niet vier.
+    // Het gearchiveerde onderwerp telt niet mee (keuze 2, docs/tasks/potentiescore.md
+    // §5) en wordt niet aangeraakt.
+    ok(
+      "de tweede ronde werkt drie onderwerpen bij, het gearchiveerde niet",
+      tweedeRonde.updated === 3,
+      `kreeg ${tweedeRonde.updated}`,
+    );
+
+    const { rows: naTweedePotentie } = await db.client.query(
+      "select title, search_volume_index from public.profile_topics where profile_id = $1 order by title",
+      [potProfileId],
+    );
+    const indexVan = (titel: string) =>
+      naTweedePotentie.find((r: { title: string }) => r.title === titel)?.search_volume_index as number | null;
+
+    ok(
+      "het gearchiveerde onderwerp heeft nog steeds geen index (nooit meegenomen)",
+      indexVan("Gearchiveerd onderwerp (99)") === null,
+    );
+
+    // ⚠️ DE KERN VAN DE VRAAG, TWEEDE HELFT: "Grote markt" (ware omvang 80) is
+    // zelf niet veranderd, maar staat nu niet meer op 100, want "Enorme markt"
+    // (95) is de nieuwe noemer. Zonder een profielbrede herkalibratie zou dit
+    // onderwerp voor altijd op zijn dag-1-schatting blijven staan, ook al kwam
+    // er een groter onderwerp bij.
+    ok(
+      "'Grote markt' daalt zodra een groter onderwerp meedoet, al is hij zelf niet veranderd",
+      (indexVan("Grote markt (80)") ?? 0) < grootEersteRonde,
+      `stond op ${indexVan("Grote markt (80)")}, was ${grootEersteRonde}`,
+    );
+    ok(
+      "en 'Enorme markt' is nu het zwaarste, dus die staat op 100",
+      indexVan("Enorme markt (95)") === 100,
+    );
+    // Met de hand nagerekend: ware omvang 80 / 95 × 100 ≈ 84.
+    ok(
+      "de nieuwe waarde van 'Grote markt' klopt met de hand (80/95 × 100 ≈ 84)",
+      Math.abs((indexVan("Grote markt (80)") ?? 0) - 84) <= 1,
+    );
+
+    // ── De taak zelf, niet alleen de bare functie ─────────────────────────
+    const nogEenOnderwerp = await nieuwOnderwerp("Vierde onderwerp (50)");
+    const { rows: potentieTaak } = await db.client.query(
+      `insert into public.jobs (profile_id, type, payload_json, dedupe_key, status)
+       values ($1, 'recalculate_potential', '{}'::jsonb, $2, 'running') returning *`,
+      [potProfileId, `chain-potentie:${potProfileId}`],
+    );
+    await runJob({ admin: admin as never, job: potentieTaak[0] });
+    const { rows: naTaak } = await db.client.query(
+      "select search_volume_index from public.profile_topics where analysis_id = $1",
+      [nogEenOnderwerp.analyseId],
+    );
+    ok(
+      "de taak zelf (niet alleen de bare functie) werkt de index bij",
+      naTaak[0]?.search_volume_index !== null,
+    );
+
+    // De handler weigert zonder profiel, net als gsc_sync zonder profiel.
+    let weigerdeZonderProfiel = false;
+    try {
+      await runJob({
+        admin: admin as never,
+        job: { ...potentieTaak[0], id: randomUUID(), profile_id: null },
+      });
+    } catch {
+      weigerdeZonderProfiel = true;
+    }
+    ok("de taak weigert zonder profile_id", weigerdeZonderProfiel);
+
+    // ── De rekenkant zelf, ook los van de database (conventie 2) ────────────
+    ok("visibilityIndex en potentialScore komen overeen met wat er in de tabel staat", (() => {
+      const zichtbaarheid = viIndex(1, 4); // 25
+      const potentie = potScore(zichtbaarheid, indexVan("Enorme markt (95)"));
+      return zichtbaarheid === 25 && potentie === 75; // 0,75 × 100
+    })());
+
+    // ══════════════════════════════════════════════════════════════════════
     // Een klant volledig verwijderen (F4, AVG)
     //
     // ⚠️ Dit hoort bij uitstek in de ketentest en niet in test-unit.ts, want het
