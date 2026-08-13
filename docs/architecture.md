@@ -3,19 +3,18 @@
 Backend, Supabase, pijplijn en deploy. Voor het *waarom* achter een keuze: `logbook.md`.
 Voor UI/UX: `ux-design.md`.
 
-> **Geverifieerd tegen de code op 11 augustus 2026** (branch `main`, t/m migratie `0050`),
+> **Geverifieerd tegen de code op 13 augustus 2026** (branch `main`, t/m migratie `0057`),
 > plus de eind-tot-eind-ronde van 1 augustus (`logbook.md` §10) en de eerste echte
 > onboarding op productie van 3 augustus (`logbook.md`, Fysi-Unique). Die laatste legde
 > zes fouten bloot in de samenhang tussen de onboardingstappen; alle zes zijn verwerkt.
 > Dit document beschrijft wat de code dóet, niet wat een plan voorschrijft, wijkt het af, dan is
 > de code leidend en is dit document fout. Werk deze datum bij zodra je hem hebt nagetrokken.
 >
-> ⚠️ **Migraties `0051` t/m `0057` zijn er sindsdien bijgekomen** (budgetplafond, promptverdeling,
-> de rolmatrix-leesregels, de potentiescore), en §4 hieronder (jobwachtrij) is op 13 augustus
-> bijgewerkt met de twee taaksoorten die daarbij kwamen (`gsc_sync`, `recalculate_potential`).
-> De rest van dit document is niet opnieuw regel voor regel nagelopen tegen die migraties; ga bij
-> twijfel uit van `supabase/README.md` (de migratie-index) en `docs/logbook.md` (waarom), niet
-> van de peildatum hierboven.
+> §1 t/m §9 en §11 zijn op 13 augustus regel voor regel tegen de code van migraties `0051` t/m
+> `0057` nagelopen (budgetplafond, promptverdeling, de rolmatrix-leesregels, de potentiescore).
+> Daarbij kwam één gat boven water: `profile_competitors` (de concurrentdestillatie na de
+> aggregatie) ontbrak in de taaksoortenlijst en had geen eigen rij in de pijplijntabel, allebei
+> hersteld. Niet apart nagelopen: §10 (omgeving, twee vaste ID's, laag risico op drift).
 
 ## 1. Hosting en dataflow
 
@@ -139,11 +138,16 @@ probleem dan een dollar.
 
 Bron: `lib/jobs/{types,queue,worker,handlers,pending}.ts`.
 
-- **Taaksoorten:** `profile_discover`, `profile_research`, `profile_offering`, `propose_topics`,
+- **24 taaksoorten:** `profile_discover`, `profile_research`, `profile_offering`, `propose_topics`,
   `profile_market`, `profile_llm_baseline`, `profile_synthesis`, `prepare_analysis`,
-  `generate_prompts`, `calibrate_volumes`, `measure_prompt`, `aggregate_week`, `generate_report`,
-  `content_brief`, `content_draft`, `content_revise`, `technical_audit`, `verify_publication`,
-  `measure_impact`, `compute_impact`, `offsite_scan`, `gsc_sync`, `recalculate_potential`.
+  `generate_prompts`, `calibrate_volumes`, `measure_prompt`, `aggregate_week`,
+  `profile_competitors`, `generate_report`, `content_brief`, `content_draft`, `content_revise`,
+  `technical_audit`, `verify_publication`, `measure_impact`, `compute_impact`, `offsite_scan`,
+  `gsc_sync`, `recalculate_potential`.
+  `profile_competitors` hangt tussen `aggregate_week` en `generate_report`: destilleert per
+  concurrent de eigenschappen uit de antwoordfragmenten van die periode (`competitor-intel.ts`),
+  een eigen taak omdat het een eigen AI-aanroep is (conventie 7), niet omdat het inhoudelijk apart
+  van de aggregatie staat.
   `recalculate_potential` is profielbreed (geen `analysis_id`), getriggerd vanuit `generate_report`
   zodra een analyse haar eerste rapport krijgt: herberekent `search_volume_index` op ALLE
   onderwerpen van dat merk in één aanroep (`lib/pipeline/search-demand.ts`), zie
@@ -195,7 +199,8 @@ Bron: `lib/jobs/{types,queue,worker,handlers,pending}.ts`.
 | 9 | **Goedkeuringspoort** |, | De pijplijn stopt. De klant ziet en bewerkt onderzoek + alle prompts, en klikt pas dan "Bevestig en start meting". Geen black box, en niets betaalds start zonder akkoord. |
 | 10 | Meting (A3) | 3a: luna + web_search, modelstandaard · 3b: luna, effort none | Per prompt: een gesimuleerd AI-antwoord, daarna een beoordeling per entiteit. 3a en 3b zijn los herhaalbaar, een mislukte 3b draait nooit opnieuw de dure 3a. |
 | 11 | Gelaagd hermeten |, | De zwaarste `REPEATED_PROMPT_COUNT` (8) vragen worden `MEASURE_REPEATS` (3) keer gemeten. Alle aggregatie telt per **vraag**, met gewicht `1/aantal metingen van die vraag` (`question-share.ts`). |
-| 12 | Aggregatie | luna (alleen nieuwe merken) | Entiteitclassificatie + deduplicatie, scores, concurrent-uitsplitsing. |
+| 12 | Aggregatie | luna (alleen nieuwe merken) | Entiteitclassificatie + deduplicatie, scores. |
+| 12a | Concurrentdestillatie | luna | `profile_competitors`: per concurrent wélke eigenschappen uit de antwoordfragmenten van deze periode volgen, met letterlijk citaat als bewijs (`competitor-intel.ts`). Voedt `competitor_breakdown.attributes_json`/`why_summary`. |
 | 13 | Gap-analyse (B1) | luna | Wáár concurrenten winnen, met bewijs uit de database. |
 | 14 | Rapport (B2) | luna | Verwoordt B1; leidt niets zelf af. Krijgt naast de meetuitkomst de **structurele gaten** mee (`structure-gap.ts`): welke onderdelen van het aanbod geen eigen pagina hebben. Dat is de enige invoer die niet reactief is. Een claimvalidator verwijdert achteraf elke merknaam die niet in het bewijsdossier van díe vraag staat. |
 | 15 | Contentbriefing | luna, temp 0 | Feitenkaart bouwen → claim-audit → max 8 vragen aan de klant. Eén slot is gereserveerd voor de positioneringsvraag. |
@@ -495,7 +500,7 @@ Bewust **niet** in RLS: dat zou een gearchiveerd merk ook voor de eigenaar onber
 
 ## 12. Migraties
 
-`0001` t/m `0054`, alle toegepast op productie behalve `0033` (gereserveerd voor R6.2, nooit
+`0001` t/m `0057`, alle toegepast op productie behalve `0033` (gereserveerd voor R6.2, nooit
 gedraaid, de reservering verviel toen `0039` de inventariskwaliteit fase 0 van de nieuwe
 onboarding maakte; een gereserveerd nummer dat nooit draaide blokkeert niets).
 

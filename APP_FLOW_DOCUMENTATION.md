@@ -144,19 +144,22 @@ app/(app)/           Ingelogde UI
     briefing/        De feitenvragen vóór het schrijven
     concept/         De goedkeuringspoort
 app/(auth)/          Login/registratie via server actions
-app/api/             Alle schrijfacties + poll-endpoints + 3 cron-routes
+app/api/             Alle schrijfacties + poll-endpoints + 4 cron-routes (worker, tracking,
+                     reminders, plan)
 components/          Gedeelde UI-primitieven (kaarten, chips, rail, skeletons)
 
-lib/pipeline/        Elke pijplijnstap als eigen module (44 bestanden)
+lib/pipeline/        Elke pijplijnstap als eigen module (76 bestanden)
 lib/jobs/            De achtergrondwachtrij: types, queue, worker, handlers
-lib/openai/          Client, structured output, modellen, sampling, pricing, ledger
+lib/engines/         Enginelaag: types, openai, gemini (slapend), registry
+lib/openai/          Client, structured output, modellen, sampling, pricing, kostenlogboek
+lib/search-console/  De Google Search Console-koppeling: auth, property, sync, het meetvenster
 lib/schemas/         Zod-contracten: één bestand per AI-output
 lib/entities/        Merknaam-normalisatie en -matching (dedupe)
-lib/audit/           robots.txt / AI-crawlertoegang
+lib/audit/           robots.txt / AI-crawlertoegang + entiteitsconsistentie
 lib/offsite/         Off-site aanwezigheid (bronnenlandschap, Wikidata/Wikipedia)
 lib/stats/           Onzekerheidsmarges
-supabase/migrations/ 0001–0044 (0033 gereserveerd, nooit gedraaid, vervangen door 0039)
-scripts/             test-unit (416) · test-chain (25) · test-openai · eval-mention
+supabase/migrations/ 0001–0057 (0033 gereserveerd, nooit gedraaid, vervangen door 0039)
+scripts/             test-unit (1201) · test-chain (160) · test-openai · eval-mention
 ```
 
 ### Twee architectuurregels die alles verklaren

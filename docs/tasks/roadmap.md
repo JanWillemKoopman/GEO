@@ -1,7 +1,10 @@
 # Roadmap, wat er nog open staat
 
-Op volgorde. **Stand: 11 augustus 2026**, 1088 unittests + 92 ketentests groen, migraties t/m `0053`
-toegepast (`0033` gereserveerd, nooit gedraaid, vervangen door `0039`).
+Op volgorde. **Stand: 13 augustus 2026**, 1201 unittests + 160 ketentests groen, migraties t/m
+`0057` toegepast (`0033` gereserveerd, nooit gedraaid, vervangen door `0039`). De punten hieronder
+zelf zijn niet allemaal opnieuw doorgelopen sinds 11 augustus; alleen de teller en de nieuwe regel
+bij "Afgerond sinds de vorige stand" zijn bijgewerkt. Voor wat er sindsdien is gebouwd (de
+potentiescore), zie `potentiescore.md` en `logbook.md`.
 
 > ⚠️ **Het pad naar de lancering staat in [`lanceerplan.md`](./lanceerplan.md), niet hier.** Dat
 > document heeft de zes testsporen (A tot en met F plus R), de afvinklijst voor het lanceerbesluit en
@@ -22,6 +25,11 @@ toegepast (`0033` gereserveerd, nooit gedraaid, vervangen door `0039`).
 
 ## Afgerond sinds de vorige stand
 
+- **De potentiescore** (13 augustus, migratie `0057`): zichtbaarheidsgat × zoekvolume, één getal
+  dat over alle onderwerpen van een merk eerlijk vergelijkbaar is, in drie fases gebouwd en op
+  productie geverifieerd. Zichtbaar op het analysedossier en bij elke pagina, en stuurt sinds fase
+  2 en 3 ook de volgorde van de Kansen-lijst en het contentplan. Volledige bouwspec en
+  verificatietabel: `potentiescore.md`.
 - **De acht Nova-fases** (10-11 augustus): merk-werkruimte, rollen en uitnodigingen,
   merkprofiel-wizard, contentplan, CSM-paneel, Search Console, de lus gesloten, accountscherm.
   Migraties `0046` t/m `0052`. Zie `logbook.md`.
@@ -112,27 +120,29 @@ gebouwd als fase 0 van de onboarding.
 Bij Fysi-Unique zijn 8 van de 10 meest geciteerde bronnen homepages. Dan is "schrijf een lange
 blogpagina" waarschijnlijk het verkeerde advies.
 
-## 5. Search Console koppelen, onderzocht en klaar om in te plannen (~5 d)
+## 5. Search Console koppelen: GEBOUWD op 11 augustus, wacht nu op de Google-sleutel
+
+⚠️ **Dit punt is achterhaald sinds de acht Nova-fases.** Het onderzoek hieronder was de aanleiding,
+maar de koppeling zelf is inmiddels gebouwd: het scherm, de controle, de dagelijkse `gsc_sync`-taak
+(migratie `0052`, `lib/search-console/`) en het gedrag bij 403 en 404. Zie de actuele stand onderaan
+dit document bij **"Fase 5, wat er wacht op de Google-sleutel"**, en `logbook.md` (Fase 5, deel 2,
+11 augustus). Wat volgt is de oorspronkelijke onderzoeksvraag, met historische waarde voor het
+"waarom zo", niet meer als openstaand werk.
 
 Volledig onderzoek, ontwerp en verificatiecriteria:
-[`zoekdata-koppeling.md`](./zoekdata-koppeling.md). Uitgezocht op 6 augustus 2026, nog niets gebouwd.
+[`zoekdata-koppeling.md`](./zoekdata-koppeling.md). Uitgezocht op 6 augustus 2026.
 
 De korte versie: InSpace koppelt bij Nova de Search Console van de klant via een service account dat
 de klant zelf als gebruiker aan zijn property toevoegt, niet via OAuth, en dat draagt hun hele
 klantdashboard. Google Analytics houden ze bewust buiten het product; dat is een afspraak met de
 customer success manager, geen integratie. Voor Aura is hetzelfde onderscheid het juiste: GSC wel,
-GA niet.
+GA niet. Kosten nul, want geen enkele AI-aanroep.
 
-Waarde voor ons zit op drie plekken, oplopend: de publicatiecontrole weet nu niet of een pagina
-geïndexeerd is, de effectmeting krijgt een tweede onafhankelijke as naast de AI-zichtbaarheid, en de
-30 vragen per analyse kunnen op echte zoekopdrachten met vertoningen rusten in plaats van op een
-schatting van het model. Kosten nul, want geen enkele AI-aanroep.
-
-**Staat achter punt 0 en 1**, en er is een derde blokkade die zwaarder weegt: nagerekend op de
-productiedatabase staan er 32 contentpagina's, waarvan 21 op `ready`, en **nul gepubliceerd**. Geen
-enkele `published_url`, geen enkele rij in `content_impact`. De keten publiceren, controleren en
-effect meten heeft dus nog nooit met echte data gedraaid, en dat is precies de keten waar de
-sterkste toepassing van Search Console aan hangt.
+De derde waarde uit het onderzoek, "de publicatiecontrole weet nu of een pagina geïndexeerd is",
+staat nog steeds achter dezelfde blokkade als bij het schrijven van dit punt: nagerekend op de
+productiedatabase staan er content-pagina's op `ready` en nul gepubliceerd. Geen enkele
+`published_url`, geen enkele rij in `content_impact`. De keten publiceren, controleren en effect
+meten heeft dus nog nooit met echte data gedraaid, zie Fase 6 verderop in dit document.
 
 ## 6. De tien dingen uit Nova die Aura beter maken (~4 d)
 
@@ -140,11 +150,19 @@ Volledige ontleding van de InSpace-apps, met IA, functiematrix, statusmachines, 
 detailvondsten: [`nova-analyse.md`](./nova-analyse.md). Gereconstrueerd uit 2.447 letterlijke
 interfaceteksten die beide apps publiek in hun inlogpagina zetten.
 
-Voorstel is één ronde van vijf punten, in deze volgorde: statustaal in twee lagen (een leesbare
+Voorstel was één ronde van vijf punten, in deze volgorde: statustaal in twee lagen (een leesbare
 staat naast de technische, "Wacht op jou" tegenover `briefing`), lege staten die de oorzaak noemen
 in plaats van alleen leeg te zijn, verboden woorden plus compliance-aantekeningen naar de
 schrijfprompt en de claimvalidator, faders voor de tone of voice in plaats van één vrij tekstveld,
 en publiceren onomkeerbaar maken met het domein vast en alleen het pad bewerkbaar.
+
+⚠️ **Drie van de vijf zijn intussen gebouwd**, via de grote duidelijkheidsronde (7 augustus,
+migratie `0045`) en niet apart als "Nova-punt" afgevinkt: statustaal in twee lagen, verboden woorden
+plus compliance-aantekeningen (`taboo_phrases`/`compliance_notes`), en de tone-of-voice-faders
+(`tone_formality`/`tone_energy`/`tone_complexity`/`tone_humor`). **Nog open:** publiceren
+onomkeerbaar maken, het publicatieveld in `publish-box.tsx` is nu nog gewoon een vrij URL-veld. Lege
+staten met oorzaak: `components/empty-state.tsx` bracht één consistente vorm met verplichte
+volgende-stap-knop, maar of elke lege staat ook de oorzaak benoemt is niet apart nagelopen.
 
 **Wat we bewust niet overnemen** staat in §6.2 van dat document, met de reden erbij. De sterkste is
 niet van ons maar van hen: bij de herbouw van hun eigen app zijn de kalender, de chatassistent, de

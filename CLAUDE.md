@@ -132,18 +132,19 @@ Deze zijn over acht bouwrondes consequent toegepast. Houd ze aan.
 ```
 app/(app)/         analyses (dossier in 4 hoofdstukken), profielen, instellingen, beheer (CSM)
 app/(auth)/        login/register (server actions)
-app/api/           analyses · profiles · cron (worker/tracking/reminders) · health
+app/api/           analyses · profiles · accounts · invites · cron (worker/tracking/reminders/plan) · health
 components/        gedeelde UI-primitieven (kaarten, chips, rail, skeletons)
 lib/pipeline/      elke pijplijnstap: onboarding (discover → offering → topics → markt →
                    kennistest → synthese) → meting → rapport → content → impact
 lib/jobs/          achtergrondwachtrij: types, queue, dedupe, handlers, worker
 lib/openai/        client, structured output, modellen, sampling/redeneerinspanning, pricing, kostenlogboek
 lib/engines/       enginelaag: types, openai, gemini (slapend), registry
+lib/search-console/ Google Search Console-koppeling: auth, property, sync, meetvenster
 lib/entities/      merknaam-normalisatie en -matching
 lib/schemas/       Zod-contracten      lib/stats/  onzekerheidsmarges
 lib/audit/         robots.txt / AI-crawlertoegang + entiteitsconsistentie
 lib/offsite/       off-site aanwezigheid     lib/archive.ts  wat zichtbaar is in de app
-supabase/migrations/  0001-0056 (0033 gereserveerd, nooit gedraaid, vervangen door 0039)
+supabase/migrations/  0001-0057 (0033 gereserveerd, nooit gedraaid, vervangen door 0039)
 scripts/           test-unit · test-chain · test-openai · eval-mention
 ```
 

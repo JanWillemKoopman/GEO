@@ -1,6 +1,9 @@
 # Zoekdata koppelen: wat InSpace doet, en of het voor Aura kan
 
-**Status:** onderzoek, nog niets gebouwd · **Opgesteld:** 6 augustus 2026 · **Vertrekpunt:** `main` op
+**Status:** onderzoek, ontwerp is inmiddels GEBOUWD (Fase 5, 11 augustus 2026, migratie `0052`,
+`lib/search-console/`). Dit document is het onderzoek dat aan die bouw voorafging, bewaard voor het
+"waarom zo"; de actuele stand staat in `roadmap.md` ("Fase 5, wat er wacht op de Google-sleutel") en
+`docs/architecture.md` §9. · **Opgesteld:** 6 augustus 2026 · **Vertrekpunt:** `main` op
 `99cfba0`, de deployment die op dat moment op Vercel op `production` stond
 (`dpl_6hE579cdFAZ6vFALooiiNYKzni4k`), migraties t/m `0044`, nagerekend tegen de productiedatabase
 
