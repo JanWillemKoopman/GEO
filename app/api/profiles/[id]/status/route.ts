@@ -73,10 +73,15 @@ export async function GET(
       .from("profile_llm_baseline")
       .select("id", { count: "exact", head: true })
       .eq("profile_id", id),
+    // Alleen de vragen uit de onboarding zelf tellen hier mee: dat is wat de
+    // subpagina "Aanvullen" toont. Vragen die een latere analyse opwierp
+    // (`analysis_id` gezet) horen bij die analyse, niet bij de afrondingsstatus
+    // van het merkdossier.
     admin
       .from("fact_requests")
       .select("id", { count: "exact", head: true })
       .eq("profile_id", id)
+      .is("analysis_id", null)
       .eq("status", "open"),
   ]);
 
@@ -122,6 +127,7 @@ export async function GET(
     // Alles wat `assessReadiness()` nodig heeft, zodat het afrondingsblok
     // meebeweegt met de polling in plaats van pas na een harde herlaadbeurt.
     counts: {
+      profileId: id,
       pages: pages ?? 0,
       offerings: offerings ?? 0,
       topics: topics ?? 0,

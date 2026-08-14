@@ -111,7 +111,7 @@ export function opportunities(input: OpportunityInput): Opportunity[] {
       source: "techniek",
       share: null,
       potential: null,
-      href: `/profielen/${input.profileId}#techniek`,
+      href: `/profielen/${input.profileId}/techniek`,
     });
   }
 
@@ -165,7 +165,7 @@ export function opportunities(input: OpportunityInput): Opportunity[] {
       source: "onderwerp",
       share: null,
       potential: null,
-      href: `/profielen/${input.profileId}#onderwerpen`,
+      href: `/analyses/aanbevolen?merk=${input.profileId}`,
     });
   }
 

@@ -12,7 +12,14 @@ import { readRecommendations } from "@/lib/pipeline/recommendation";
 import { GenerateButton } from "../_work/generate-button";
 import { GenerateAllButton } from "../_work/generate-all-button";
 import { OffsitePanel } from "../_work/offsite-panel";
-import type { Analysis, OffsiteTask, Report, SourceLandscapeRow } from "@/lib/types/database";
+import { FactRequests } from "@/app/(app)/profielen/[id]/fact-requests";
+import type {
+  Analysis,
+  FactRequest,
+  OffsiteTask,
+  Report,
+  SourceLandscapeRow,
+} from "@/lib/types/database";
 
 /**
  * Hoofdstuk 03, "Wat je nu moet doen".
@@ -49,7 +56,7 @@ export async function WerkChapter({
 }) {
   const supabase = await createClient();
 
-  const [gate, { data: reportRow }, { data: offsiteRows }, { data: landscapeRows }] =
+  const [gate, { data: reportRow }, { data: offsiteRows }, { data: landscapeRows }, { data: factRows }] =
     await Promise.all([
       loadAuditGate(supabase, analysis.profile_id),
       // Het nieuwste rapport levert de aanbevelingen; oudere aanbevelingen zijn
@@ -67,6 +74,16 @@ export async function WerkChapter({
         .select("*")
         .eq("analysis_id", analysis.id)
         .order("prompt_count", { ascending: false }),
+      // Feitenvragen die uit déze analyse kwamen (optimalisatie.md 4.6). Vragen
+      // uit de onboarding zelf (`analysis_id is null`) staan bij het merkdossier,
+      // onder "Aanvullen"; dit zijn de vragen die specifiek gaan over content
+      // voor dit cluster, dus die horen hier, bij het schrijfwerk.
+      supabase
+        .from("fact_requests")
+        .select("*")
+        .eq("analysis_id", analysis.id)
+        .in("status", ["open", "beantwoord"])
+        .order("created_at"),
     ]);
 
   const report = reportRow as Report | null;
@@ -106,6 +123,14 @@ export async function WerkChapter({
       <AuditGate blockers={gate.blockers} profileId={analysis.profile_id} since={gate.since} />
 
       <WorkList items={work} />
+
+      {/* Vragen die uit déze analyse kwamen (optimalisatie.md 4.6). Stond eerder
+          op het merkdossier onder "Help Aura concreter te schrijven"; verhuisd
+          hierheen omdat het antwoord rechtstreeks de content hieronder scherper
+          maakt, niet het merk in het algemeen. */}
+      {(factRows ?? []).length > 0 && (
+        <FactRequests profileId={analysis.profile_id} initial={(factRows ?? []) as FactRequest[]} />
+      )}
 
       {openRecommendations.length > 0 && (
         <div className="card flex flex-col gap-4">

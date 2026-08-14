@@ -39,6 +39,7 @@ interface StatusPayload {
   etaText: string | null;
   pendingJobs: number;
   counts?: {
+    profileId: string;
     pages: number;
     offerings: number;
     topics: number;

@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { PageHeader } from "@/components/page-header";
 import { ExternalLink } from "@/components/external-link";
 
@@ -23,49 +22,29 @@ import { ExternalLink } from "@/components/external-link";
  * aanbod, vóór het gesprek. Dat leest als een uitspraak en is er geen; zie
  * `docs/logbook.md` voor de volledige afweging. De onderliggende rekenkant
  * (`lib/pipeline/onboarding-summary.ts`) staat er nog, alleen dit scherm
- * gebruikt hem niet meer. Wat AI wél zegt over dit merk staat uitgebreider,
- * met bewijs per antwoord, onder "Wat AI weet" (`#ai-kennis`); de paginadekking
- * staat onder "Aanbod" (`#aanbod`), waar hij naast de aanbodboom te lezen is
- * in plaats van als los cijfer vooraf.
+ * gebruikt hem niet meer.
  *
- * Eén primaire actie, en dat is de volgende stap in het product, niet een
- * beheerdershandeling. `AssignBox` verhuisde naar een eigen beheerblok onderaan:
- * die stond tussen de bevindingen in, op een scherm dat de klant meekijkt
- * terwijl hij wordt overgedragen.
+ * ── GEEN KNOP EN GEEN SPRINGLINKS MEER (HERSTRUCTURERING AUGUSTUS 2026) ─────
+ *
+ * Er stond hier een primaire knop ("Meet 'X'") die naar een heel ander scherm
+ * verwees dan waar hij op stond, en een springlinkbalk naar blokken die
+ * inmiddels allemaal eigen subpagina's zijn (zie `lib/nav.ts`). Beide bestonden
+ * omdat het dossier zelf negen dingen tegelijk deed; nu het er nog maar twee
+ * doet — is het compleet, en wat weet Aura — is een navigatiehulpmiddel erbovenop
+ * overbodig. De zijbalk is de navigatie.
  */
 export function ProfileHero({
   brandName,
   url,
   headline,
-  primaryAction,
-  showNotes = false,
 }: {
   brandName: string;
   url: string;
   headline: string | null;
-  /**
-   * Staan de gespreksnotities op deze pagina? Alleen de consultant ziet die
-   * sectie, en een springlink naar een blok dat er niet is, is een dode link.
-   */
-  showNotes?: boolean;
-  /** De enige primaire actie op dit scherm. Null zolang er niets te starten is. */
-  primaryAction: { href: string; label: string } | null;
 }) {
   return (
     <div className="flex flex-col gap-4">
-      <PageHeader
-        eyebrow="Merkdossier"
-        title={brandName}
-        backHref="/profielen"
-        backLabel="Merken"
-        action={
-          primaryAction ? (
-            <Link href={primaryAction.href} className="btn-primary">
-              {primaryAction.label}
-            </Link>
-          ) : undefined
-        }
-      />
+      <PageHeader eyebrow="Merkdossier" title={brandName} backHref="/profielen" backLabel="Merken" />
 
       <ExternalLink
         href={`https://${url.replace(/^https?:\/\//, "")}`}
@@ -75,40 +54,6 @@ export function ProfileHero({
       </ExternalLink>
 
       {headline && <p className="max-w-2xl text-secondary">{headline}</p>}
-
-      {/* ── Springlinks ────────────────────────────────────────────────────
-          Bewust géén sectie-rail zoals bij de analyse: die is er voor een
-          dossier met een vaste volgorde van vier hoofdstukken, en hier zijn de
-          blokken niet chronologisch.
-          Wat wél nodig was: de consultant typt tijdens het uur consultancy in
-          de gespreksnotities, en die stonden acht blokken naar beneden. Eén
-          klik is genoeg; een herontwerp van dat formulier zou gokwerk zijn
-          zolang er nog geen echt gesprek mee gevoerd is. */}
-      <nav className="flex flex-wrap gap-2" aria-label="Snel naar">
-        <JumpLink href="#vragen">Wat Aura nog wil weten</JumpLink>
-        <JumpLink href="#ai-kennis">Wat AI weet</JumpLink>
-        <JumpLink href="#aanbod">Aanbod</JumpLink>
-        <JumpLink href="#onderwerpen">Onderwerpen</JumpLink>
-        {showNotes && <JumpLink href="#gesprek">Gespreksnotities</JumpLink>}
-      </nav>
     </div>
-  );
-}
-
-/** Eén springlink. Pilvormig, want interactief (designsystem.md §C2). */
-function JumpLink({
-  href,
-  children,
-}: {
-  href: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <a
-      href={href}
-      className="chip chip-neutral transition-colors hover:text-[var(--text-primary)]"
-    >
-      {children}
-    </a>
   );
 }

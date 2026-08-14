@@ -39,14 +39,59 @@ export interface NavItem {
    * betekenis over te brengen, voor negen items.
    */
   teken: string;
+  /**
+   * Subpagina's van dit item (herstructurering augustus 2026, zie
+   * `docs/logbook.md`). Het merkdossier was één pagina van 500+ regels met
+   * negen ongelijksoortige blokken: een leesscherm ("wat weten we"), drie
+   * werkschermen ("vul aan", "corrigeer", "wijs toe") en gereedschap
+   * ("techniek", "profielgegevens") stonden allemaal onder elkaar. Elk blok
+   * heeft nu zijn eigen bestemming met één duidelijk doel; deze `children`
+   * zijn hoe de zijbalk dat zichtbaar maakt zonder de hoofdlijst plat te
+   * slaan tot vijftien gelijkwaardige items.
+   */
+  children?: NavItem[];
 }
 
-/** Wat over dít merk gaat. Leeg zolang er geen merk gekozen is. */
-export function brandNav(brandId: string): NavItem[] {
+/**
+ * Wat over dít merk gaat. Leeg zolang er geen merk gekozen is.
+ *
+ * `staff` verbergt "Beheer": dat blok bestond al alleen voor beheerders
+ * (toewijzen aan een klantaccount is geen klanthandeling), en de route zelf
+ * geeft een klant nog steeds een 404 als hij hem toch raadt.
+ */
+export function brandNav(brandId: string, staff = false): NavItem[] {
   return [
-    { href: `/profielen/${brandId}`, label: "Merkdossier", teken: "◆" },
+    {
+      href: `/profielen/${brandId}`,
+      label: "Merkdossier",
+      teken: "◆",
+      children: [
+        { href: `/profielen/${brandId}/merkprofiel`, label: "Merkprofiel", teken: "○" },
+        { href: `/profielen/${brandId}/producten`, label: "Producten", teken: "○" },
+        { href: `/profielen/${brandId}/aanvullen`, label: "Aanvullen", teken: "○" },
+        { href: `/profielen/${brandId}/toevoegingen`, label: "Toevoegingen", teken: "○" },
+        { href: `/profielen/${brandId}/search-console`, label: "Search console", teken: "○" },
+        { href: `/profielen/${brandId}/techniek`, label: "Techniek", teken: "○" },
+        { href: `/profielen/${brandId}/profielgegevens`, label: "Profielgegevens", teken: "○" },
+        { href: `/profielen/${brandId}/concurrenten`, label: "Concurrenten", teken: "○" },
+        ...(staff
+          ? [{ href: `/profielen/${brandId}/beheer`, label: "Beheer", teken: "○" }]
+          : []),
+      ],
+    },
     { href: `/profielen/${brandId}/plan`, label: "Contentplan", teken: "▣" },
-    { href: `/analyses?merk=${brandId}`, label: "Analyses", teken: "▲" },
+    {
+      href: `/analyses?merk=${brandId}`,
+      label: "Clusters",
+      teken: "▲",
+      children: [
+        {
+          href: `/analyses/aanbevolen?merk=${brandId}`,
+          label: "Aanbevolen clusters",
+          teken: "○",
+        },
+      ],
+    },
   ];
 }
 

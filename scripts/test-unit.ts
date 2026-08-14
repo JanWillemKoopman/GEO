@@ -4211,6 +4211,7 @@ group("assessReadiness", () => {
   // Alle acht taken gedaan, alles gevuld: dit is het moment waarop de
   // consultant het scherm mag delen.
   const compleet = {
+    profileId: "test-profiel",
     steps: [
       stap("profile_discover", "klaar"),
       stap("profile_synthesis", "klaar"),

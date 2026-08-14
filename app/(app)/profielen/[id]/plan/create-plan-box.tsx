@@ -120,7 +120,7 @@ export function CreatePlanBox({
               topicCount > 0 ? null : (
                 <>
                   Aura stelt onderwerpen voor tijdens het merkonderzoek. Kijk op{" "}
-                  <Link href={`/profielen/${profileId}#onderwerpen`} className="underline">
+                  <Link href={`/analyses/aanbevolen?merk=${profileId}`} className="underline">
                     het merkdossier
                   </Link>
                   .

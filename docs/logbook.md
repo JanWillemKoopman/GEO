@@ -2622,3 +2622,33 @@ structuur daarna, en de citaatregex zocht nog naar het kale `>` terwijl dat na h
 `&gt; ...` op een gepubliceerde pagina in plaats van als opgemaakt citaatblok, sinds de bouw van deze
 functie, zonder dat een test dat ooit had gezien. Gerepareerd in dezelfde ronde. 1233 unittests, 160
 ketentests.
+
+**Het merkdossier gesplitst in subpagina's, klant-feedback op het scherm zelf (14 augustus 2026).**
+`/profielen/[id]/page.tsx` was 525 regels en negen ongelijksoortige blokken: een leesscherm ("wat
+weten we"), drie werkschermen ("vul aan", "corrigeer", "wijs toe") en gereedschap ("techniek",
+"profielgegevens", "concurrenten", "beheer") stonden allemaal onder elkaar, met een primaire knop
+bovenaan die naar een heel ander scherm verwees. De klant die het scherm bij Gasservice Brabant
+opende, noemde het letterlijk een vergaarbak.
+
+Elk blok dat geen leesstof was kreeg een eigen subpagina onder "Merkdossier" in de zijbalk (`lib/nav.ts`,
+negen kinderen: Merkprofiel, Producten, Aanvullen, Toevoegingen, Search console, Techniek,
+Profielgegevens, Concurrenten, Beheer). De zijbalk (`components/sidebar.tsx`) klapt zo'n groep nu
+automatisch open zodra je op de hoofdpagina of een van zijn subpagina's zit, en dicht overal elders —
+geen knop, geen te onthouden state.
+
+Twee blokken bleken bij nader inzien output van analyses, niet van het merkdossier, en verhuisden mee:
+"Onderwerpen om op te meten" (de `TopicsPanel`) werd `/analyses/aanbevolen`, onder "Clusters" (de
+zijbalk noemt "Analyses" nu "Clusters"). "Waar begin je" (`OpportunitiesBlock`) is in werkelijkheid geen
+output van één analyse maar van `loadLoop()` over ALLE analyses van een merk heen (`lib/insights-data.ts`
+deelt die query bewust met "Wat er deze maand gebeurde"); die twee blijven daarom samen, en verhuisden
+naar de merk-gefilterde `/analyses`-lijst in plaats van naar één analysescherm. De feitenvragen die uit
+een specifieke analyse komen (`fact_requests.analysis_id` gezet, bv. "CV-ketel onderhoud") verschenen
+voorheen op het merkscherm; ze staan nu bij hoofdstuk 03 van díe analyse ("Wat je nu moet doen"), naast
+de aanbevolen pagina's die ze mogelijk maken. Vragen uit de nulmeting zelf (`analysis_id is null`) bleven
+"Aanvullen" onder Merkdossier.
+
+Wat overblijft op `/profielen/[id]` is precies twee dingen: is het dossier compleet
+(`ProfileReadinessPanel`, ankers verwijzen nu naar de juiste subpagina's) en wat weet Aura over de klant
+uit de nulmeting (de samenvatting plus de nulmeting per vraag). De primaire knop en de springlinkbalk
+bovenaan (`ProfileHero`) zijn weg: beide wezen naar blokken die nu een eigen bestemming in de zijbalk
+hebben, dus is een tweede navigatielaag erbovenop overbodig. 1233 unittests, 160 ketentests.

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { requireUser } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { StatusBadge } from "@/components/status-badge";
 import { DashboardStats } from "@/components/dashboard-stats";
 import { AnalysisCardMetrics } from "@/components/analysis-card-metrics";
@@ -9,6 +10,8 @@ import { PageHeader } from "@/components/page-header";
 import { activeOnly } from "@/lib/archive";
 import { STATUS_META } from "@/lib/analysis-status";
 import { loadDashboard } from "@/lib/dashboard";
+import { loadLoop } from "@/lib/insights-data";
+import { OpportunitiesBlock } from "@/components/loop-blocks";
 import { LastUpdated } from "@/components/last-updated";
 
 export const dynamic = "force-dynamic";
@@ -45,6 +48,14 @@ export default async function AnalysesPage({
     activeOnly(supabase.from("profiles").select("id", { count: "exact", head: true })),
   ]);
   const hasProfile = (profileCount ?? 0) > 0;
+
+  // "Waar begin je" (fase 6): alle kansen van dit merk op één rij, met de
+  // handeling erbij. Was een blok op het merkdossier, maar is output over
+  // analyses heen, geen deel van wat Aura over het merk weet — vandaar hier,
+  // bij de lijst van analyses van dit merk (docs/logbook.md, augustus 2026).
+  const opportunities = merk
+    ? (await loadLoop(createAdminClient(), merk)).opportunities
+    : [];
 
   // Filteren gebeurt ná het laden en niet in de query: `loadDashboard` berekent
   // ook de cijfers over analyses heen, en die horen bij het merk dat je aankijkt.
@@ -86,6 +97,19 @@ export default async function AnalysesPage({
           ) : null
         }
       />
+
+      {merk && opportunities.length > 0 && (
+        <div className="flex flex-col gap-3">
+          <div className="flex flex-col gap-1">
+            <span className="mono-label">Waar begin je</span>
+            <p className="text-sm text-secondary">
+              Alle kansen van dit merk op één rij, gesorteerd op wat ze opleveren. Wat al betaald
+              is of alles blokkeert, staat bovenaan.
+            </p>
+          </div>
+          <OpportunitiesBlock opportunities={opportunities} />
+        </div>
+      )}
 
       {/* E, "centrale foutmeldingenplek": vroeger stond een mislukte analyse
           alleen op de eigen pagina, dus wie niet net dáár keek zag hem niet.

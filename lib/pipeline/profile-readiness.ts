@@ -44,6 +44,13 @@ export interface ReadinessRow {
 }
 
 export interface ReadinessInput {
+  /**
+   * Voor de springlinks. Sinds de herstructurering van augustus 2026 staan
+   * "Aanbod", "Profielgegevens" en "Vragen" niet meer op het merkdossier zelf
+   * maar op eigen subpagina's; zonder het profiel-id kan een rij daar niet
+   * meer naar wijzen.
+   */
+  profileId: string;
   steps: ResearchStep[];
   pages: number;
   offerings: number;
@@ -107,6 +114,7 @@ function row(
 
 export function assessReadiness(input: ReadinessInput): Readiness {
   const s = input.steps;
+  const p = input.profileId;
 
   const rows: ReadinessRow[] = [
     row(
@@ -114,7 +122,7 @@ export function assessReadiness(input: ReadinessInput): Readiness {
       input.pages > 0,
       `${input.pages} pagina's`,
       true,
-      "#profiel",
+      `/profielen/${p}/profielgegevens`,
       stepRunning(s, "profile_discover"),
     ),
     row(
@@ -130,7 +138,7 @@ export function assessReadiness(input: ReadinessInput): Readiness {
       input.offerings > 0,
       `${input.offerings} onderdelen`,
       true,
-      "#aanbod",
+      `/profielen/${p}/producten`,
       stepRunning(s, "profile_offering"),
     ),
     row(
@@ -146,7 +154,7 @@ export function assessReadiness(input: ReadinessInput): Readiness {
       input.topics > 0,
       `${input.topics} onderwerpen`,
       true,
-      "#onderwerpen",
+      `/analyses/aanbevolen?merk=${p}`,
       stepRunning(s, "propose_topics"),
     ),
     row(
@@ -154,7 +162,7 @@ export function assessReadiness(input: ReadinessInput): Readiness {
       input.auditChecks > 0,
       `${input.auditChecks} controlepunten`,
       true,
-      "#techniek",
+      `/profielen/${p}/techniek`,
       stepRunning(s, "technical_audit"),
     ),
     // ── Het werkgebied, en waarom het blokkeert (spoor R6) ──────────────────
@@ -181,7 +189,7 @@ export function assessReadiness(input: ReadinessInput): Readiness {
       input.scopeKnown,
       input.scopeDetail ?? null,
       true,
-      "#profiel",
+      `/profielen/${p}/profielgegevens`,
       stepRunning(s, "profile_research"),
     ),
     // Vanaf hier: scherper, niet noodzakelijk. Deze twee blokkeren nooit.
@@ -190,7 +198,7 @@ export function assessReadiness(input: ReadinessInput): Readiness {
       input.openFactRequests === 0,
       "Alle vragen gehad",
       false,
-      "#vragen",
+      `/profielen/${p}/aanvullen`,
       false,
     ),
     row(
@@ -198,7 +206,7 @@ export function assessReadiness(input: ReadinessInput): Readiness {
       input.researchGaps === 0,
       "Niets open",
       false,
-      "#vragen",
+      `/profielen/${p}/toevoegingen`,
       false,
     ),
   ];

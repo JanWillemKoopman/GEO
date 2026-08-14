@@ -28,8 +28,11 @@ export async function generateMetadata({
  * twee door elkaar zetten maakt het dossier weer wat het in de ronde van
  * 10 augustus net niet meer was, een pagina van meters lang.
  *
- * Het staat er wél op als één regel, in het blok "Wat Aura nog van je wil
- * weten": daar hoort het thuis, want het is precies dat.
+ * Sinds de herstructurering van augustus 2026 staat dit als eigen subpagina
+ * "Merkprofiel" in de zijbalk onder Merkdossier, naast "Aanvullen" (de losse
+ * feitenvragen uit de nulmeting) en "Toevoegingen" (wat een gesprek vraagt).
+ * Drie werkschermen met elk één invoersoort, in plaats van één blok dat ze
+ * alle drie probeerde te zijn.
  */
 export default async function MerkprofielPage({
   params,

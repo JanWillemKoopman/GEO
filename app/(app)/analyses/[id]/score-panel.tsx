@@ -280,7 +280,7 @@ export function AlsoMentionedCard({
           </li>
         ))}
       </ul>
-      <Link href={`/profielen/${profileId}#concurrenten`} className="btn-outline btn-sm w-fit">
+      <Link href={`/profielen/${profileId}/concurrenten`} className="btn-outline btn-sm w-fit">
         Concurrenten beheren
       </Link>
     </div>
