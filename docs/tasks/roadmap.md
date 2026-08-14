@@ -42,8 +42,9 @@ potentiescore), zie `potentiescore.md` en `logbook.md`.
 
 - **Onboarding 2.0**, gebouwd én op productie geverifieerd in drie meetronden
   ($0,2438 / $0,2463 / $0,2495, ~7,5 minuut, acht taken). Zie `logbook.md` §14 en de dagnotities van
-  3–4 augustus. De bouwspec staat nog in [`onboarding-2.0.md`](./onboarding-2.0.md) omdat de
-  verificatietabel daar nog open punten heeft.
+  3–4 augustus. De bouwspec (`onboarding-2.0.md`) is verwijderd nu de bouw af is en er nieuwere
+  lagen overheen staan (accounts, uitnodigingen, besluit 18); wat nog telt staat hierboven en in
+  `logbook.md`.
 - **De vier InSpace-optimalisaties**, structurele gap-analyse, rijkere schema.org, duplicatie- en
   leesbaarheidscontrole. Bouwspec verwijderd, samengevat in `logbook.md`.
 - **De UX-ronde op de onboarding**, tien bevindingen, alle tien uitgevoerd.
