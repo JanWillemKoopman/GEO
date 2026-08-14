@@ -5,7 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import type { Profile } from "@/lib/types/database";
 import { NewAnalysisForm } from "./new-analysis-form";
 
-export const metadata = { title: "Nieuwe analyse" };
+export const metadata = { title: "Nieuw cluster" };
 
 export default async function NewAnalysisPage() {
   await requireUser();
@@ -22,9 +22,9 @@ export default async function NewAnalysisPage() {
     <div className="mx-auto flex max-w-xl flex-col gap-6">
       <div>
         <Link href="/analyses" className="mono-label transition-colors hover:text-[var(--text-primary)]">
-          ← Terug naar Mijn analyses
+          ← Terug naar Mijn clusters
         </Link>
-        <h1 className="mt-3 text-2xl font-bold tracking-tight">Nieuwe analyse</h1>
+        <h1 className="mt-3 text-2xl font-bold tracking-tight">Nieuw cluster</h1>
         <p className="mt-2 text-secondary">
           Kies een merk en het product of onderwerp dat je wilt meten. Aura zoekt alleen nog uit wat
           je website hierover zegt en wie op dít onderwerp je concurrenten zijn. De rest weet het
@@ -37,7 +37,7 @@ export default async function NewAnalysisPage() {
           <h2 className="text-xl font-semibold">Eerst een merk</h2>
           <p className="max-w-md text-secondary">
             Aura meet altijd binnen een merk. Voeg er één toe, en daarna koppel je hier zoveel
-            analyses aan als je wilt, één per product of onderwerp.
+            clusters aan als je wilt, één per product of onderwerp.
           </p>
           <Link href="/profielen/nieuw" className="btn-primary mt-2">
             Merk toevoegen

@@ -69,7 +69,7 @@ export default async function AnalysisLayout({
           href="/analyses"
           className="mono-label transition-colors hover:text-[var(--text-primary)]"
         >
-          ← Mijn analyses
+          ← Mijn clusters
         </Link>
         <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
           <h1 className="text-2xl font-bold tracking-tight">{analysis.name}</h1>

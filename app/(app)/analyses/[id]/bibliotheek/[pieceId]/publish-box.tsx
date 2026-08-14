@@ -111,7 +111,7 @@ export function PublishBox({
 
         <p className="text-sm text-secondary">
           Aura hermeet de bijbehorende vragen over twee en over vier weken. Het resultaat komt
-          vanzelf in hoofdstuk 04 van je analyse te staan. Jij hoeft niets.
+          vanzelf in hoofdstuk 04 van je cluster te staan. Jij hoeft niets.
         </p>
 
         <button

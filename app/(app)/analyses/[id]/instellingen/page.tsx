@@ -45,7 +45,7 @@ export default async function InstellingenPage({ params }: { params: Promise<{ i
   return (
     <div className="flex flex-col gap-4">
       <div className="card flex flex-col gap-3">
-        <span className="mono-label">Analyse</span>
+        <span className="mono-label">Cluster</span>
         <div className="flex justify-between gap-4 border-b border-[var(--border-subtle)] pb-3">
           <span className="text-secondary">Website</span>
           <span className="break-url font-medium">{analysis.url}</span>
@@ -56,7 +56,7 @@ export default async function InstellingenPage({ params }: { params: Promise<{ i
         </div>
         <p className="text-sm text-muted">
           Website en onderwerp liggen na de start vast, anders is de trend niet meer te lezen. Wil je
-          een andere afbakening? Start een nieuwe analyse.
+          een andere afbakening? Start een nieuw cluster.
         </p>
       </div>
 
@@ -85,7 +85,7 @@ export default async function InstellingenPage({ params }: { params: Promise<{ i
         </div>
       ) : (
         <div className="card">
-          <p className="text-secondary">Het merkdossier bij deze analyse is niet gevonden.</p>
+          <p className="text-secondary">Het merkdossier bij dit cluster is niet gevonden.</p>
         </div>
       )}
 

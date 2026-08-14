@@ -67,7 +67,7 @@ export function TopicsPanel({
           website te weinig prijsgaf om diensten uit te herkennen, bijvoorbeeld
           bij een site die zijn tekst pas via JavaScript laadt.
         </p>
-        <Link href="/analyses/nieuw" className="btn-primary w-fit">
+        <Link href="/analyses/new" className="btn-primary w-fit">
           Kies zelf een onderwerp
         </Link>
       </div>
@@ -131,13 +131,13 @@ export function TopicsPanel({
       });
       const json = await res.json();
       if (!res.ok) {
-        setError(json.error ?? "De analyse kon niet starten.");
+        setError(json.error ?? "Het cluster kon niet starten.");
         setBusy(null);
         return;
       }
       router.push(`/analyses/${json.id}`);
     } catch {
-      setError("De analyse kon niet starten. Controleer je verbinding.");
+      setError("Het cluster kon niet starten. Controleer je verbinding.");
       setBusy(null);
     }
   }
@@ -153,7 +153,7 @@ export function TopicsPanel({
           <span className="font-semibold">{t.title}</span>
           {t.analysis_id ? (
             <Link href={`/analyses/${t.analysis_id}`} className="chip chip-success">
-              Analyse loopt →
+              Cluster loopt →
             </Link>
           ) : t.status === "goedgekeurd" ? (
             <span className="chip chip-green">Goedgekeurd</span>
@@ -268,7 +268,7 @@ export function TopicsPanel({
                 disabled={bezig}
                 onClick={() => void start(t.id)}
               >
-                {bezig ? "Starten…" : "Analyse starten"}
+                {bezig ? "Starten…" : "Cluster starten"}
               </button>
             )}
             {/* ⚠️ Een aparte knop en geen veld dat altijd openstaat. Negen van de
@@ -332,7 +332,7 @@ export function TopicsPanel({
       </div>
       <p className="text-sm text-secondary">
         Afgeleid uit de diensten en producten die Aura op je website vond. Kies waarop je wilt
-        meten, of start een analyse met een eigen onderwerp.
+        meten, of start een cluster met een eigen onderwerp.
       </p>
 
       <ul className="flex flex-col gap-3">{open.map(renderTopic)}</ul>

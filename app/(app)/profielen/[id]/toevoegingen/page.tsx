@@ -20,7 +20,7 @@ export async function generateMetadata({
   const { id } = await params;
   const profile = await getProfile(id);
   return {
-    title: profile ? `Toevoegingen · ${profile.brand_name ?? profile.name}` : "Toevoegingen",
+    title: profile ? `Openstaande punten · ${profile.brand_name ?? profile.name}` : "Openstaande punten",
   };
 }
 
@@ -79,7 +79,7 @@ function findGaps(profile: Profile): Gap[] {
  *
  * Allebei zijn het aanvullingen op het dossier die geen simpel invulveld hebben
  * en dus een gesprek vragen, in plaats van vragen die de klant in dertig
- * seconden zelf beantwoordt (dat is "Aanvullen", een eigen subpagina). De open
+ * seconden zelf beantwoordt (dat is "Feitenvragen", een eigen subpagina). De open
  * punten zijn de agenda van dat gesprek; de gespreksnotities zijn wat eruit
  * kwam. Het tweede blok is alleen zichtbaar voor de beheerder: dit zijn
  * aantekeningen ÓVER de klant, niet vóór hem.
@@ -122,7 +122,7 @@ export default async function ToevoegingenPage({
     <div className="flex flex-col gap-6">
       <PageHeader
         eyebrow="Merkdossier"
-        title="Toevoegingen"
+        title="Openstaande punten"
         backHref={`/profielen/${id}`}
         backLabel="Merkdossier"
         description="Wat een gesprek vraagt, niet een invulveld: de open punten uit het onderzoek en de aantekeningen die daarbij horen."

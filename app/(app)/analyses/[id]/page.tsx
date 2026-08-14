@@ -169,7 +169,7 @@ export default async function DossierPage({
         <p className="text-sm text-muted">
           Klopt er iets niet aan de vragen of de afbakening?{" "}
           <Link href={`/analyses/${id}/instellingen`} className="underline">
-            Naar de instellingen van deze analyse
+            Naar de instellingen van dit cluster
           </Link>
           .
         </p>

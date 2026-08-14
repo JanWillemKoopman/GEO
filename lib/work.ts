@@ -312,7 +312,7 @@ export function deriveWork(sources: WorkSources): WorkItem[] {
         kind: "herstel",
         state: "nu",
         title: "Er is iets misgegaan",
-        why: "Open de analyse om te zien waar het spaak liep en het opnieuw te proberen.",
+        why: "Open het cluster om te zien waar het spaak liep en het opnieuw te proberen.",
         urgency: URGENCY.herstel,
         href: `/analyses/${analysis.id}`,
         actionLabel: "Bekijk wat er misging",

@@ -135,7 +135,7 @@ export default async function BriefingPage({ params }: { params: Promise<{ id: s
             ? `"${pieces[0].title as string}"`
             : `deze ${pieces.length} pagina's`}{" "}
           staan er geen vragen open: alles wat nodig is, staat al in je merkdossier of is bij een
-          eerdere analyse beantwoord.
+          eerder cluster beantwoord.
         </p>
         <Tegenspraken regels={tegenspraken} />
         <BriefingForm analysisId={id} questions={[]} pageCount={pieces.length} />

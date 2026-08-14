@@ -11,7 +11,7 @@ import { loadAnalysisPotential } from "@/lib/potential-data";
 import type { ProfileTopic } from "@/lib/types/database";
 
 export const dynamic = "force-dynamic";
-export const metadata: Metadata = { title: "Aanbevolen clusters" };
+export const metadata: Metadata = { title: "Voorgestelde clusters" };
 
 /**
  * "Onderwerpen om op te meten" (docs/tasks/onboarding-2.0.md, blok D), sinds de
@@ -37,12 +37,12 @@ export default async function AanbevolenClustersPage({
   if (!merk) {
     return (
       <div className="flex flex-col gap-6">
-        <PageHeader eyebrow="Clusters" title="Aanbevolen clusters" />
+        <PageHeader eyebrow="Clusters" title="Voorgestelde clusters" />
         <EmptyState
           title="Kies eerst een merk"
           action={{ href: "/profielen", label: "Naar mijn merken" }}
         >
-          Aanbevolen clusters horen bij één merk. Kies een merk in de zijbalk om de voorstellen uit
+          Voorgestelde clusters horen bij één merk. Kies een merk in de zijbalk om de voorstellen uit
           de nulmeting te zien.
         </EmptyState>
       </div>
@@ -53,7 +53,7 @@ export default async function AanbevolenClustersPage({
   if (!profile) {
     return (
       <div className="flex flex-col gap-6">
-        <PageHeader eyebrow="Clusters" title="Aanbevolen clusters" />
+        <PageHeader eyebrow="Clusters" title="Voorgestelde clusters" />
         <EmptyState title="Dit merk bestaat niet meer" action={{ href: "/profielen", label: "Naar mijn merken" }}>
           Mogelijk is dit merk gearchiveerd of verwijderd.
         </EmptyState>
@@ -84,7 +84,7 @@ export default async function AanbevolenClustersPage({
     <div className="flex flex-col gap-6">
       <PageHeader
         eyebrow="Clusters"
-        title="Aanbevolen clusters"
+        title="Voorgestelde clusters"
         backHref={`/analyses?merk=${merk}`}
         backLabel="Clusters"
         description="Waar Aura je zichtbaarheid op kan gaan volgen. Zet uit wat niet past, start wat wel past."

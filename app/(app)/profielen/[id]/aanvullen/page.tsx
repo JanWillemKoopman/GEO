@@ -17,7 +17,7 @@ export async function generateMetadata({
   const { id } = await params;
   const profile = await getProfile(id);
   return {
-    title: profile ? `Aanvullen · ${profile.brand_name ?? profile.name}` : "Aanvullen",
+    title: profile ? `Feitenvragen · ${profile.brand_name ?? profile.name}` : "Feitenvragen",
   };
 }
 
@@ -59,7 +59,7 @@ export default async function AanvullenPage({
     <div className="flex flex-col gap-6">
       <PageHeader
         eyebrow="Merkdossier"
-        title="Aanvullen"
+        title="Feitenvragen"
         backHref={`/profielen/${id}`}
         backLabel="Merkdossier"
         description="Elk antwoord maakt de meting scherper en de teksten concreter. Overslaan mag altijd."

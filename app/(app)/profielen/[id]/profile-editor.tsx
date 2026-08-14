@@ -315,7 +315,7 @@ export function ProfileEditor({ initial, inventoryCount }: { initial: Profile; i
             placeholder="Nieuwe concurrent…"
           />
           <span className="text-sm text-muted">
-            Analyses vullen dit per onderwerp aan met eigen, specifieke concurrenten.
+            Clusters vullen dit per onderwerp aan met eigen, specifieke concurrenten.
           </span>
         </div>
 

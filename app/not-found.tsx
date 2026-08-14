@@ -22,7 +22,7 @@ export default function NotFound() {
             De link klopt niet meer, of het item is verwijderd. Vanaf je overzicht kom je overal.
           </p>
           <Link href="/analyses" className="btn-primary mt-1">
-            Naar je analyses
+            Naar je clusters
           </Link>
         </div>
       </div>

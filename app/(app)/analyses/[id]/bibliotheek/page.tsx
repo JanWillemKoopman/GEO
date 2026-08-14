@@ -35,7 +35,7 @@ export default async function BibliotheekPage({ params }: { params: Promise<{ id
         title="Je bibliotheek is nog leeg"
         action={{ href: `/analyses/${id}#werk`, label: "Kies wat Aura gaat schrijven" }}
       >
-        In hoofdstuk 03 van je analyse staat welke pagina&apos;s Aura voor je kan schrijven, met per
+        In hoofdstuk 03 van je cluster staat welke pagina&apos;s Aura voor je kan schrijven, met per
         pagina de vragen die hij moet winnen. Alles wat geschreven is, staat hier klaar om te
         lezen, te bewerken, te kopiëren en te downloaden.
       </EmptyState>

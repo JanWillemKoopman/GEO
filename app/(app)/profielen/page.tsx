@@ -35,7 +35,7 @@ export default async function ProfielenPage() {
       <PageHeader
         eyebrow="Aura · merkdossiers"
         title="Merken"
-        description="Aura leert je merk eerst kennen: branche, aanbod, concurrenten, doelgroep en tone-of-voice. Dat onderzoek doen we één keer per merk, en elke analyse eronder bouwt erop voort."
+        description="Aura leert je merk eerst kennen: branche, aanbod, concurrenten, doelgroep en tone-of-voice. Dat onderzoek doen we één keer per merk, en elk cluster eronder bouwt erop voort."
         action={
           <Link href="/profielen/nieuw" className="btn-primary">
             + Nieuw merk
@@ -68,7 +68,7 @@ export default async function ProfielenPage() {
           action={{ href: "/profielen/nieuw", label: "Eerste merk toevoegen" }}
         >
           Begin met het merk waarvan je de zichtbaarheid wilt meten. Aura brengt het in kaart;
-          daarna koppel je er analyses aan voor losse producten en onderwerpen.
+          daarna koppel je er clusters aan voor losse producten en onderwerpen.
         </EmptyState>
       ) : (
         <ul className="flex flex-col gap-3">

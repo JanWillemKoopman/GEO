@@ -87,12 +87,12 @@ export function AssignBox({
       <p className="text-sm text-secondary">
         {assignedAt
           ? `Dit merk staat op ${current?.email ?? "een klantaccount"}. Jij houdt toegang als beheerder.`
-          : "Dit merk staat nog op jouw eigen account. Wijs het toe zodra de klant een account heeft. De analyses gaan mee."}
+          : "Dit merk staat nog op jouw eigen account. Wijs het toe zodra de klant een account heeft. De clusters gaan mee."}
       </p>
 
       {done && (
         <p className="text-sm text-[var(--intent-growth-text)]" role="status">
-          Toegewezen aan {done}. De analyses zijn meeverhuisd.
+          Toegewezen aan {done}. De clusters zijn meeverhuisd.
         </p>
       )}
 

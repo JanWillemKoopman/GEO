@@ -16,7 +16,7 @@ export async function generateMetadata({
   const { id } = await params;
   const profile = await getProfile(id);
   return {
-    title: profile ? `Beheer · ${profile.brand_name ?? profile.name}` : "Beheer",
+    title: profile ? `Toewijzen · ${profile.brand_name ?? profile.name}` : "Toewijzen",
   };
 }
 
@@ -43,7 +43,7 @@ export default async function BeheerPage({
     <div className="flex flex-col gap-6">
       <PageHeader
         eyebrow="Merkdossier"
-        title="Beheer"
+        title="Toewijzen"
         backHref={`/profielen/${id}`}
         backLabel="Merkdossier"
         description="Dit merk aan een klantaccount koppelen."

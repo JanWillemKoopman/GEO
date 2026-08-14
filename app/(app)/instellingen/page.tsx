@@ -43,7 +43,7 @@ export default async function InstellingenPage() {
       <PageHeader
         eyebrow="Aura · account"
         title="Mijn instellingen"
-        description="Je persoonlijke account. Instellingen per merk en per analyse staan bij het merk of de analyse zelf."
+        description="Je persoonlijke account. Instellingen per merk en per cluster staan bij het merk of het cluster zelf."
       />
 
       <SecurityBox email={user.email ?? ""} />

@@ -90,7 +90,7 @@ export function PrepareProgress({
 
   return (
     <WorkInProgress
-      title="Aura bereidt je analyse voor"
+      title="Aura bereidt je cluster voor"
       explanation="Aura leest je website op dit onderwerp, zoekt uit wie hier je concurrenten zijn en stelt de vragen op die straks naar de AI-assistenten gaan."
       etaText={data?.etaText}
       retrying={data?.retrying}

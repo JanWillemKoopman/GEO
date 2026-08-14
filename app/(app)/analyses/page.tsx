@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { requireUser } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
-import { createAdminClient } from "@/lib/supabase/admin";
 import { StatusBadge } from "@/components/status-badge";
 import { DashboardStats } from "@/components/dashboard-stats";
 import { AnalysisCardMetrics } from "@/components/analysis-card-metrics";
@@ -10,12 +9,10 @@ import { PageHeader } from "@/components/page-header";
 import { activeOnly } from "@/lib/archive";
 import { STATUS_META } from "@/lib/analysis-status";
 import { loadDashboard } from "@/lib/dashboard";
-import { loadLoop } from "@/lib/insights-data";
-import { OpportunitiesBlock } from "@/components/loop-blocks";
 import { LastUpdated } from "@/components/last-updated";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Mijn analyses" };
+export const metadata = { title: "Mijn clusters" };
 
 export default async function AnalysesPage({
   searchParams,
@@ -49,14 +46,6 @@ export default async function AnalysesPage({
   ]);
   const hasProfile = (profileCount ?? 0) > 0;
 
-  // "Waar begin je" (fase 6): alle kansen van dit merk op één rij, met de
-  // handeling erbij. Was een blok op het merkdossier, maar is output over
-  // analyses heen, geen deel van wat Aura over het merk weet — vandaar hier,
-  // bij de lijst van analyses van dit merk (docs/logbook.md, augustus 2026).
-  const opportunities = merk
-    ? (await loadLoop(createAdminClient(), merk)).opportunities
-    : [];
-
   // Filteren gebeurt ná het laden en niet in de query: `loadDashboard` berekent
   // ook de cijfers over analyses heen, en die horen bij het merk dat je aankijkt.
   // Een merk-id dat niets oplevert leidt tot een lege lijst met uitleg, niet tot
@@ -83,37 +72,29 @@ export default async function AnalysesPage({
     <div className="flex flex-col gap-8">
       <PageHeader
         eyebrow={merk ? "Eén merk" : "Aura · altijd aan"}
-        title={merk ? "Analyses van dit merk" : "Alle analyses"}
+        title={merk ? "Mijn clusters" : "Alle clusters"}
         description={
           merk
-            ? `${analyses.length} van je ${alleAnalyses.length} analyses horen bij dit merk.`
+            ? `${analyses.length} van je ${alleAnalyses.length} clusters horen bij dit merk.`
             : undefined
         }
         action={
           hasProfile ? (
             <Link href="/analyses/new" className="btn-primary">
-              + Nieuwe analyse
+              + Nieuw cluster
             </Link>
           ) : null
         }
       />
 
-      {merk && opportunities.length > 0 && (
-        <div className="flex flex-col gap-3">
-          <div className="flex flex-col gap-1">
-            <span className="mono-label">Waar begin je</span>
-            <p className="text-sm text-secondary">
-              Alle kansen van dit merk op één rij, gesorteerd op wat ze opleveren. Wat al betaald
-              is of alles blokkeert, staat bovenaan.
-            </p>
-          </div>
-          <OpportunitiesBlock opportunities={opportunities} />
-        </div>
-      )}
+      {/* "Waar begin je" stond hier tot 14 augustus 2026. Het bleek geen
+          samenvatting over deze lijst maar per cluster andere content, dus
+          staat het nu bij het cluster zelf (hoofdstuk 03, "Wat je nu moet
+          doen"), inclusief de potentie per aanbeveling. Zie docs/logbook.md. */}
 
-      {/* E, "centrale foutmeldingenplek": vroeger stond een mislukte analyse
+      {/* E, "centrale foutmeldingenplek": vroeger stond een mislukt cluster
           alleen op de eigen pagina, dus wie niet net dáár keek zag hem niet.
-          Bij meer dan één analyse is dit overzicht de plek waar de klant komt
+          Bij meer dan één cluster is dit overzicht de plek waar de klant komt
           kijken "moet ik iets", dus hier hoort een storing meteen te staan. */}
       {(() => {
         const failed = analyses.filter((a) => a.status === "mislukt");
@@ -121,7 +102,7 @@ export default async function AnalysesPage({
         return (
           <div className="card card-danger flex flex-col gap-2">
             <span className="chip chip-danger w-fit">
-              {failed.length === 1 ? "1 analyse niet gelukt" : `${failed.length} analyses niet gelukt`}
+              {failed.length === 1 ? "1 cluster niet gelukt" : `${failed.length} clusters niet gelukt`}
             </span>
             <ul className="flex flex-col gap-1">
               {failed.map((a) => (
@@ -146,25 +127,25 @@ export default async function AnalysesPage({
         <div className="flex flex-wrap items-center gap-3">
           <span className="chip">Alleen dit merk</span>
           <Link href="/analyses" className="text-sm text-secondary hover:underline">
-            Toon alle {alleAnalyses.length} analyses
+            Toon alle {alleAnalyses.length} clusters
           </Link>
         </div>
       )}
 
-      {analyses.length > 1 && <span className="mono-label">Je analyses</span>}
+      {analyses.length > 1 && <span className="mono-label">Mijn clusters</span>}
 
       {analyses.length === 0 ? (
         <EmptyState
           title={
             merk
-              ? "Nog geen analyses voor dit merk"
+              ? "Nog geen clusters voor dit merk"
               : hasProfile
-                ? "Nog geen analyses"
+                ? "Nog geen clusters"
                 : "Welkom bij Aura"
           }
           action={
             hasProfile
-              ? { href: "/analyses/new", label: "Start je eerste analyse" }
+              ? { href: "/analyses/new", label: "Start je eerste cluster" }
               : { href: "/profielen/nieuw", label: "Merk toevoegen" }
           }
         >

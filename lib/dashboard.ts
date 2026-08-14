@@ -225,7 +225,7 @@ function findBiggestChange(
     if (!best || Math.abs(change.delta) > Math.abs(best.delta)) {
       best = {
         analysisId,
-        analysisName: byAnalysis.get(analysisId)?.name ?? "Analyse",
+        analysisName: byAnalysis.get(analysisId)?.name ?? "Cluster",
         delta: change.delta,
       };
     }

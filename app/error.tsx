@@ -44,7 +44,7 @@ export default function AppError({
         retryLabel="Opnieuw laden"
       />
       <Link href="/analyses" className="mono-label w-fit transition-colors hover:text-[var(--text-primary)]">
-        ← Terug naar je analyses
+        ← Terug naar je clusters
       </Link>
     </div>
   );

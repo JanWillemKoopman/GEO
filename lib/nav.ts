@@ -48,34 +48,79 @@ export interface NavItem {
    * heeft nu zijn eigen bestemming met één duidelijk doel; deze `children`
    * zijn hoe de zijbalk dat zichtbaar maakt zonder de hoofdlijst plat te
    * slaan tot vijftien gelijkwaardige items.
+   *
+   * ⚠️ Een item MET `children` is in de zijbalk geen link meer, alleen een
+   * klap-knop (14 augustus 2026, tweede ronde). "Mijn merk" en "Clusters"
+   * waren allebei zelf ook een bestemming én een kopje boven hun subpagina's
+   * tegelijk, en dat is precies verwarrend: een klik op de kop deed twee
+   * dingen door elkaar (navigeren én uitklappen). Wat eerst de eigen pagina
+   * van de kop was, staat nu als eerste kind in de lijst (`Merkdossier` onder
+   * "Mijn merk", `Mijn clusters` onder "Clusters"). Zie `components/sidebar.tsx`.
    */
   children?: NavItem[];
+  /**
+   * Label boven een blokje kinderen, voor de leesbaarheid bij negen
+   * subpagina's onder elkaar. Alleen het EERSTE kind van een nieuwe groep
+   * draagt dit veld; de zijbalk toont het als kopje vóór dat kind.
+   */
+  group?: string;
+  /**
+   * Alleen voor jou, nooit voor de klant (zie `docs/ux-design.md`, "Wat de
+   * klant ziet en wat alleen jij ziet"). De zijbalk zet er een klein teken
+   * bij, zodat je nooit per ongeluk tijdens een gedeeld scherm op een
+   * interne pagina klikt.
+   */
+  staffOnly?: boolean;
 }
 
 /**
  * Wat over dít merk gaat. Leeg zolang er geen merk gekozen is.
  *
- * `staff` verbergt "Beheer": dat blok bestond al alleen voor beheerders
- * (toewijzen aan een klantaccount is geen klanthandeling), en de route zelf
+ * `staff` verbergt "Toewijzen": die handeling bestond al alleen voor
+ * beheerders (een klant mag zijn eigen merk niet weggeven), en de route zelf
  * geeft een klant nog steeds een 404 als hij hem toch raadt.
  */
 export function brandNav(brandId: string, staff = false): NavItem[] {
   return [
     {
       href: `/profielen/${brandId}`,
-      label: "Merkdossier",
+      label: "Mijn merk",
       teken: "◆",
       children: [
-        { href: `/profielen/${brandId}/merkprofiel`, label: "Merkprofiel", teken: "○" },
+        { href: `/profielen/${brandId}`, label: "Merkdossier", teken: "○" },
+        {
+          href: `/profielen/${brandId}/merkprofiel`,
+          label: "Merkprofiel",
+          teken: "○",
+          group: "Bewerken",
+        },
         { href: `/profielen/${brandId}/producten`, label: "Producten", teken: "○" },
-        { href: `/profielen/${brandId}/aanvullen`, label: "Aanvullen", teken: "○" },
-        { href: `/profielen/${brandId}/toevoegingen`, label: "Toevoegingen", teken: "○" },
-        { href: `/profielen/${brandId}/search-console`, label: "Search console", teken: "○" },
+        { href: `/profielen/${brandId}/concurrenten`, label: "Concurrenten", teken: "○" },
+        {
+          href: `/profielen/${brandId}/aanvullen`,
+          label: "Feitenvragen",
+          teken: "○",
+          group: "Vraagt jouw input",
+        },
+        { href: `/profielen/${brandId}/toevoegingen`, label: "Openstaande punten", teken: "○" },
+        {
+          href: `/profielen/${brandId}/search-console`,
+          label: "Search console",
+          teken: "○",
+          group: "Naslag",
+        },
         { href: `/profielen/${brandId}/techniek`, label: "Techniek", teken: "○" },
         { href: `/profielen/${brandId}/profielgegevens`, label: "Profielgegevens", teken: "○" },
-        { href: `/profielen/${brandId}/concurrenten`, label: "Concurrenten", teken: "○" },
         ...(staff
-          ? [{ href: `/profielen/${brandId}/beheer`, label: "Beheer", teken: "○" }]
+          ? [
+              {
+                href: `/profielen/${brandId}/beheer`,
+                label: "Toewijzen",
+                teken: "○",
+                group: "Beheer",
+                staffOnly: true,
+              },
+            ]
           : []),
       ],
     },
@@ -85,9 +130,10 @@ export function brandNav(brandId: string, staff = false): NavItem[] {
       label: "Clusters",
       teken: "▲",
       children: [
+        { href: `/analyses?merk=${brandId}`, label: "Mijn clusters", teken: "○" },
         {
           href: `/analyses/aanbevolen?merk=${brandId}`,
-          label: "Aanbevolen clusters",
+          label: "Voorgestelde clusters",
           teken: "○",
         },
       ],
@@ -106,7 +152,7 @@ export function brandNav(brandId: string, staff = false): NavItem[] {
 export function generalNav(staff = false): NavItem[] {
   return [
     { href: "/profielen", label: "Alle merken", teken: "▤" },
-    { href: "/analyses", label: "Alle analyses", teken: "▦" },
+    { href: "/analyses", label: "Alle clusters", teken: "▦" },
     ...(staff ? [{ href: "/beheer", label: "Beheer", teken: "◈" }] : []),
     { href: "/instellingen", label: "Instellingen", teken: "⚙" },
   ];
@@ -135,6 +181,6 @@ export const ACCOUNT_NAV: NavItem[] = [
  * lezen; die twee verdwijnen zodra de zijbalk overal doorgevoerd is.
  */
 export const NAV: NavItem[] = [
-  { href: "/analyses", label: "Analyses", teken: "▦" },
+  { href: "/analyses", label: "Clusters", teken: "▦" },
   { href: "/profielen", label: "Merken", teken: "▤" },
 ];

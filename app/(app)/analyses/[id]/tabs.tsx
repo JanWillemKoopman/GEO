@@ -43,7 +43,7 @@ export function AnalysisNav({
   return (
     <div className="no-print flex flex-wrap items-center gap-2 border-b border-[var(--border-subtle)] pb-3">
       <NavLink href={base} active={onDossier}>
-        Analyse
+        Cluster
       </NavLink>
       <NavLink href={`${base}/bibliotheek`} active={onLibrary}>
         Bibliotheek
@@ -56,7 +56,7 @@ export function AnalysisNav({
 
       <Link
         href={`${base}/instellingen`}
-        aria-label="Instellingen van deze analyse"
+        aria-label="Instellingen van dit cluster"
         aria-current={onSettings ? "page" : undefined}
         className="mono-label ml-auto px-3 py-2 transition-colors hover:text-[var(--text-primary)]"
         style={onSettings ? { color: "var(--text-primary)" } : undefined}

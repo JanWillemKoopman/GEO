@@ -46,7 +46,7 @@ export function PotentialMetrics({
           value={triple.volume}
           hint={
             "Hoe vaak dit onderwerp gezocht wordt, geschat door Aura. Geen meting: een onderbouwde " +
-            "schatting die opnieuw wordt berekend zodra er een analyse van dit merk bij komt, zodat het " +
+            "schatting die opnieuw wordt berekend zodra er een cluster van dit merk bij komt, zodat het " +
             "getal eerlijk blijft ten opzichte van je andere onderwerpen."
           }
         />

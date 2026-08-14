@@ -79,7 +79,7 @@ export function NewAnalysisForm({
           autoFocus
         />
         <span className="text-sm text-muted">
-          Eén analyse = één product of onderwerp. Scherp afbakenen levert scherpere vragen op.
+          Eén cluster = één product of onderwerp. Scherp afbakenen levert scherpere vragen op.
         </span>
       </label>
 
@@ -133,7 +133,7 @@ export function NewAnalysisForm({
       )}
 
       <button type="submit" disabled={pending} className="btn-primary btn-lg w-full disabled:opacity-60">
-        {pending ? "Analyse aanmaken…" : "Start analyse"}
+        {pending ? "Cluster aanmaken…" : "Start cluster"}
       </button>
     </form>
   );
