@@ -962,9 +962,10 @@ Deze ronde trekt dat recht. Wat er is bijgewerkt en waarom het bij dat bestand h
 | `supabase/README.md` | Was wél bij (`0043`, `0044`), de migratie-index is de enige die het traject heeft overleefd |
 
 `docs/tasks/inspace-optimalisaties-1-4.md` is verwijderd: gebouwd, dus hij hoort in het logboek en
-niet in de takenmap. `onboarding-2.0.md` blijft staan, met bovenaan de reden, de verificatietabel
-heeft nog drie open punten die iets vragen wat er niet is (vier profielen voor een p95, een
-`GEMINI_API_KEY`, een contentronde).
+niet in de takenmap. `onboarding-2.0.md` blijft op dit moment nog staan, met bovenaan de reden, de
+verificatietabel heeft nog drie open punten die iets vragen wat er niet is (vier profielen voor een
+p95, een `GEMINI_API_KEY`, een contentronde). *(Inmiddels, na §14 hierboven, wél verwijderd: de
+verificatietabel is afgerond en de bouwspec staat niet meer in de takenmap.)*
 
 **De les, en hij is dezelfde als bij de code.** Conventie: *verandert het gedrag, werk `docs/` bij in
 dezelfde commit.* Die stond er al en werd twintig keer overgeslagen omdat een merge naar `main` geen
@@ -2633,7 +2634,7 @@ opende, noemde het letterlijk een vergaarbak.
 Elk blok dat geen leesstof was kreeg een eigen subpagina onder "Merkdossier" in de zijbalk (`lib/nav.ts`,
 negen kinderen: Merkprofiel, Producten, Aanvullen, Toevoegingen, Search console, Techniek,
 Profielgegevens, Concurrenten, Beheer). De zijbalk (`components/sidebar.tsx`) klapt zo'n groep nu
-automatisch open zodra je op de hoofdpagina of een van zijn subpagina's zit, en dicht overal elders —
+automatisch open zodra je op de hoofdpagina of een van zijn subpagina's zit, en dicht overal elders:
 geen knop, geen te onthouden state.
 
 Twee blokken bleken bij nader inzien output van analyses, niet van het merkdossier, en verhuisden mee:
