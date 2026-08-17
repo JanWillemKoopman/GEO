@@ -189,7 +189,7 @@ scripts/           test-unit · test-chain · test-openai · eval-mention
 | `docs/tasks/roadmap.md` | Wat er nog open staat, op volgorde |
 | `docs/tasks/lanceerplan.md` | **Het pad naar de lancering.** De testsporen A tot en met F, de vijf eigenschappen die "InSpace-kwaliteit" toetsbaar maken, de tweeweekse planning en de afvinklijst voor het lanceerbesluit |
 | Overige bestanden in `docs/tasks/` | Werk dat nog open staat of net af is, met bestanden en verificatiecriteria. **Tijdelijk van aard:** af is weg, samengevat in `logbook.md`. Staat er iets tussen dat allang gebouwd is, ruim het dan op in plaats van het te laten liggen |
-| `APP_FLOW_DOCUMENTATION.md` | De keten end-to-end voor drie lezersgroepen: sales, developer, AI-specialist. Staat bewust in de hoofdmap, code verwijst ernaar. ⚠️ **Verklaart zichzelf als niet nagelopen sinds 8 augustus 2026**, terwijl er sindsdien dertien migraties bij kwamen. Behandel het als achtergrond, niet als bron: `architecture.md` en `logbook.md` zijn actueler |
+| `APP_FLOW_DOCUMENTATION.md` | **Het enige document zonder techniek erin**, voor sales en management: wat het product doet, de vijf fases, de klantreis en wat een klant kost. Staat bewust in de hoofdmap. Het technische en het AI-hoofdstuk zijn op 17 augustus 2026 verwijderd omdat ze `architecture.md` dubbelden en achterliepen |
 | `supabase/README.md` | Migratie-index en toepasinstructies |
 
 **Verwijzingen in code naar oude documenten.** Code-commentaar en migraties verwijzen op ~500

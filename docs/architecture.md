@@ -356,6 +356,27 @@ regionale vragen op score 28 uitkwamen.
 Bron: `lib/openai/models.ts`, `lib/openai/sampling.ts`, `lib/config.ts`. **Vast in code, niet als
 env-variabele.**
 
+### Bewust géén AI
+
+De scheidslijn van dit product. Elke stap hieronder zou met een model kúnnen, en doet het bewust
+niet. De regel eronder: een model vragen naar iets dat letterlijk in de HTML staat of exact te
+berekenen is, is geld uitgeven aan een slechter antwoord.
+
+| Stap | Waarom |
+|---|---|
+| Contentinventaris (`crawler.ts`) | robots.txt → sitemap (recursief) → homepage-links. Deterministisch en gratis. |
+| Technische GEO-audit (`audit/`) | robots.txt vergelijken met bekende AI-crawlers. Feitelijk, niet interpretatief. |
+| Pagina-relevantie (`page-relevance.ts`) | Termmatching op het onderwerp. |
+| Entiteitscontrole (`offsite/entity-presence.ts`) | Wikidata en Wikipedia hebben gratis open API's. Een model laten raden wat je exact kunt opzoeken is geld uitgeven aan een slechter antwoord. |
+| Publicatiecontrole (`publish-check.ts`) | Pagina ophalen en tekst vergelijken. |
+| Aggregatie en impact (`measure.ts` 3c, `impact-math.ts`) | Rekenkunde hoort in een pure, testbare module (conventie 2). |
+| Periodeverschil (`period-change.ts`) | Het model verwoordt het verschil, het berekent het niet. Dat ging mis. |
+| Fase 0 van de onboarding (`discover.ts`) | Crawl plus JSON-LD en OpenGraph oogsten, telefoon, adres en KvK uit de lopende tekst, inventariskwaliteit, renderbaarheid. Het adres staat letterlijk in de HTML. |
+| Entiteitsconsistentie (`audit/entity-consistency.ts`) | Heet het bedrijf overal hetzelfde? Tekstvergelijking. |
+| Het oordeel over de kennistest (`baseline-verdict.ts`) | Het model vragen of zijn eigen antwoord klopt is de meting aan de gemetene vragen. In dit project drie keer misgegaan. |
+| Structurele gap-analyse (`structure-gap.ts`) | Aanbodboom tegen gecrawlde pagina's, met de matcher van `page-relevance.ts`. |
+| Duplicatie en leesbaarheid (`similarity.ts`, `readability.ts`) | Jaccard op vijf-grammen en vier gemeten grootheden. Geen verzonnen score. |
+
 | Constante | Waarde | Tarief (in/uit per 1M) | Voor |
 |---|---|---|---|
 | `MODELS.volume` | `gpt-5.6-luna` | $0,20 / $1,20 | Mention-beoordeling (3b) |
@@ -414,10 +435,26 @@ De overstap naar GPT-5.6 verschuift dat beeld twee kanten op:
 - De tokenkosten zelf blijven in dezelfde orde: `quality` halveerde (mini → Luna), `volume` werd
   duurder (nano → Luna), en samen wogen die twee al maar ~5% van een ronde.
 
-Reken dus op **ruwweg $0,40 per meetronde**, een schatting op basis van de gepubliceerde tarieven,
-nog niet nagerekend tegen `ai_calls` op productie (conventie 10). Contentgeneratie (`gpt-5.6-sol`)
-is de enige duurdere post en werd juist ~5× duurder per pagina: Sol is 2,5×/3,75× het tarief van
-gpt-4.1 en de redeneertokens tellen als output.
+**Nagerekend op productie (17 augustus 2026), en de schatting was te laag.** Hierboven stond
+"ruwweg $0,40 per meetronde", afgeleid uit de gepubliceerde tarieven en met de kanttekening dat het
+nog niet tegen `ai_calls` was nagerekend. Dat is nu gedaan, over de 13 meetrondes van minstens 40
+aanroepen die op productie in `ai_calls` staan, alle met web_search aan:
+
+| | Per meetronde |
+|---|---|
+| Gemiddeld | **$0,855** |
+| Laagste | $0,495 |
+| Hoogste | $1,562 |
+
+De spreiding is groot omdat een ronde niet altijd evenveel vragen telt en web_search per vraag
+verschilt in hoeveel pagina's het ophaalt. De verdeling binnen een ronde is nog schever dan gedacht:
+**`measure_simulate` is 98,8% van de kosten, `measure_mention` 1,2%.** Er is dus precies één
+kostenknop die telt, en dat is web_search bij het stellen van de vraag.
+
+Dit is conventie 10 in de praktijk: de schatting stond er ruim een week met de eigen waarschuwing
+erbij, en week bij narekenen ruim een factor twee af. Contentgeneratie (`gpt-5.6-sol`) blijft de
+enige duurdere post per pagina en werd ~5× duurder: Sol is 2,5×/3,75× het tarief van gpt-4.1 en de
+redeneertokens tellen als output.
 
 ## 7. E-mail
 

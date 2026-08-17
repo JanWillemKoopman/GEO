@@ -15,8 +15,8 @@ import "server-only";
  * Deze fase haalt tot 150 pagina's op, kamt ze uit en zet er een feitenbasis van
  * neer waar de rest van de pijplijn op leunt in plaats van hem te herontdekken.
  * Kosten: **nul**. Geen enkele AI-aanroep. Alleen een fetch en een reguliere
- * expressie. Precies de scheidslijn uit `APP_FLOW_DOCUMENTATION.md`
- * §"Bewust géén AI".
+ * expressie. Precies de scheidslijn uit `docs/architecture.md` §6
+ * "Bewust géén AI".
  *
  * ── WAT HET OPLEVERT ────────────────────────────────────────────────────────
  *

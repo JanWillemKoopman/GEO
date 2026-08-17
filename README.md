@@ -70,4 +70,4 @@ npm run dev                  # → http://localhost:3000
 | [`docs/schrijfstijl.md`](./docs/schrijfstijl.md) | Tone-of-voice en microcopy-regels, afgeleid van InSpace Nova |
 | [`docs/logbook.md`](./docs/logbook.md) | Waarom het is zoals het is |
 | [`docs/tasks/`](./docs/tasks/) | Wat er nog open staat |
-| [`APP_FLOW_DOCUMENTATION.md`](./APP_FLOW_DOCUMENTATION.md) | De keten end-to-end, voor sales, developers en de AI-specialist |
+| [`APP_FLOW_DOCUMENTATION.md`](./APP_FLOW_DOCUMENTATION.md) | De keten uitgelegd zonder techniek, voor sales en management |
