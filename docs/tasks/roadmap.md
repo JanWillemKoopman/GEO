@@ -78,10 +78,10 @@ parameterfout. Wat daarmee is afgetekend:
 
 Wat nog openstaat:
 
-1. **De MEETRONDE is nog niet nagerekend** op GPT-5.6. De cijfers hierboven gaan over de
-   onboarding; de schatting van ~$0,40 per meetronde (was $0,82) komt nog steeds uit de
-   gepubliceerde tarieven. Let specifiek op de zoekactie-tokens: die worden op een redeneermodel
-   wél als input afgerekend en waren op de oude preview gratis.
+1. ~~De MEETRONDE is nog niet nagerekend op GPT-5.6.~~ **Gedaan op 17 augustus 2026.** De schatting
+   van ~$0,40 was ruim twee keer te laag: over de 13 meetrondes in `ai_calls` is het gemiddelde
+   **$0,855** (laagste $0,50, hoogste $1,56). De verdeling is schever dan gedacht, `measure_simulate`
+   is 98,8% en `measure_mention` 1,2%. Cijfers en onderbouwing in `architecture.md` §6.
 2. **`npm run eval:mention -- --compare`**, de classificatie draait op een ánder model dan waarop
    de mention-prompt is afgeregeld. Drempel 90%.
 3. **Doorlooptijd van één `content_draft` meten.** De effort staat op `medium` en niet op `high`
@@ -130,8 +130,8 @@ dit document bij **"Fase 5, wat er wacht op de Google-sleutel"**, en `logbook.md
 11 augustus). Wat volgt is de oorspronkelijke onderzoeksvraag, met historische waarde voor het
 "waarom zo", niet meer als openstaand werk.
 
-Volledig onderzoek, ontwerp en verificatiecriteria:
-[`zoekdata-koppeling.md`](./zoekdata-koppeling.md). Uitgezocht op 6 augustus 2026.
+Het onderzoeksdocument is 17 augustus 2026 verwijderd: de koppeling is gebouwd en de twee regels
+die eruit kwamen staan nu in `lib/search-console/window.ts` zelf.
 
 De korte versie: InSpace koppelt bij Nova de Search Console van de klant via een service account dat
 de klant zelf als gebruiker aan zijn property toevoegt, niet via OAuth, en dat draagt hun hele
@@ -147,9 +147,9 @@ meten heeft dus nog nooit met echte data gedraaid, zie Fase 6 verderop in dit do
 
 ## 6. De tien dingen uit Nova die ORBIT ENGINE beter maken (~4 d)
 
-Volledige ontleding van de InSpace-apps, met IA, functiematrix, statusmachines, flows en 44
-detailvondsten: [`nova-analyse.md`](./nova-analyse.md). Gereconstrueerd uit 2.447 letterlijke
-interfaceteksten die beide apps publiek in hun inlogpagina zetten.
+De ontleding van de InSpace-apps (IA, functiematrix, statusmachines, flows, 44 detailvondsten,
+gereconstrueerd uit 2.447 letterlijke interfaceteksten) is samengevat in `logbook.md` §29 en §30.
+Het losse analysedocument is 17 augustus 2026 verwijderd, de conclusies zijn gebouwd.
 
 Voorstel was één ronde van vijf punten, in deze volgorde: statustaal in twee lagen (een leesbare
 staat naast de technische, "Wacht op jou" tegenover `briefing`), lege staten die de oorzaak noemen
@@ -172,7 +172,8 @@ is gaf de klant meer knoppen; wat bleef geeft hem meer duidelijkheid.
 
 ## 7. Blijvend uitgesteld: R0, Fundament (8 d)
 
-Volledige bouwspec per stap: [`r0-fundament.md`](./r0-fundament.md).
+De losse bouwspec is 17 augustus 2026 verwijderd: nul codebestanden verwezen ernaar en de zes
+stappen zijn nooit gebouwd. Wat eronder stond, staat hier.
 
 Hygiëne die in de praktijk niets blokkeerde; R4 bleek prima te bouwen zonder R0.5. Zes stappen:
 `existingUrl`-conventie afdwingen · volumekalibratie normaliseren · clusters bruikbaar maken ·

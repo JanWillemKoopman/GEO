@@ -176,8 +176,8 @@ database-queries een dood interval zonder enige terugkoppeling.
 - **Bij wie ligt de bal? (`WhoseTurn`, `lib/analysis-status.ts`/`lib/profile-status.ts`)** Naast de
   technische status (`AnalysisStatus`/`ProfileStatus`, de bron van waarheid) een leesbare laag
   ernaast: "Wacht op jou" · "ORBIT ENGINE is bezig" · niets als de staat af of informatief is (`null`).
-  Naar Nova's tweelaags-statustaal ("Waiting in your CMS" naast de technische status,
-  `docs/tasks/nova-analyse.md` §3.2). `showWhoseTurn` staat aan op `StatusBadge`/
+  Naar Nova's tweelaags-statustaal ("Waiting in your CMS" naast de technische status).
+  `showWhoseTurn` staat aan op `StatusBadge`/
   `ProfileStatusBadge` waar de klant maar één status per keer ziet (de kop van een analyse of een
   profiel); in een lijst met tien analyses zou een tweede regel per rij meer ruis dan hulp zijn,
   daar telt de chip zelf al.

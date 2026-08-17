@@ -334,8 +334,8 @@ export interface Profile {
   engines_enabled: EngineId[];
   /**
    * Verboden woorden en tone-of-voice-sliders (migratie 0045), naar het
-   * voorbeeld van InSpace Nova's "Words & language" en "Voice"-onboardingstap
-   * (`docs/tasks/nova-analyse.md` §3.3). Verboden woorden gaan als harde regel
+   * voorbeeld van InSpace Nova's "Words & language" en "Voice"-onboardingstap.
+   * Verboden woorden gaan als harde regel
    * de schrijfprompt in (`lib/pipeline/content.ts`) en worden na het schrijven
    * deterministisch teruggecontroleerd (`lib/pipeline/content-gate.ts`,
    * conventie 1). De sliders zijn 1-3 of `null` (niet ingesteld); de vertaling

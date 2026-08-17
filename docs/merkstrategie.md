@@ -965,8 +965,9 @@ vervanging van "Nova" naar "ORBIT ENGINE" heeft die middenin het woord geraakt. 
 
 **2. Het merk heette op vier plekken InSpace.** In §22.2, §24, §25 en §28 stond "InSpace" waar het
 over het eigen merk ging, terwijl §1 en §2 consequent Outer Orbit aanhouden. InSpace is in dit
-project juist de **concurrent**: `docs/tasks/nova-analyse.md` is een ontleding van hun twee live
-applicaties, en `docs/designsystem.md` en `docs/schrijfstijl.md` zijn op hun product gebaseerd.
+project juist de **concurrent**: hun twee live applicaties zijn uit hun eigen berichtenbestand
+gereconstrueerd (`docs/logbook.md` §29 en §30), en `docs/designsystem.md` en
+`docs/schrijfstijl.md` zijn op hun product gebaseerd.
 Overal gecorrigeerd naar Outer Orbit. Dit is de correctie om te controleren: als er ergens tóch
 InSpace bedoeld werd, staat het nu fout.
 

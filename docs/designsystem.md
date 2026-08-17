@@ -296,7 +296,7 @@ Gebruik deze, nooit een eigen tint of een eigen maat.
 | Hun lichte paars als solide vlak | **Nee** | Haalt de contrastdrempel niet, zie §2.3 |
 | Licht- en donkerparen | **Nee, nog niet** | Zie §10 |
 | Hun negen radii | **Nee** | Zes volstaan |
-| Zijbalknavigatie, klantkiezer, toasts | **Nee** | Dat is indeling, geen vormgeving. Zie `tasks/nova-analyse.md` |
+| Zijbalknavigatie, klantkiezer, toasts | **Nee** | Dat is indeling, geen vormgeving, en het hoort dus in `ux-design.md` |
 
 ---
 
@@ -407,6 +407,6 @@ modus komt, volgt hij de Nova-werkomgeving uit §10, niet dit paneel.
 
 - **Primair:** de CSS- en i18n-bundels van `nova.inspace.io` en `app.inspace.io`, opgehaald op
   6 augustus 2026. De `--ds-*`-tokens, de radiusschaal, de randdiktes en de ene schaduw komen daar
-  letterlijk uit. De volledige ontleding van die apps staat in [`tasks/nova-analyse.md`](./tasks/nova-analyse.md)
+  letterlijk uit. De volledige ontleding van die apps is samengevat in `logbook.md` §29 en §30
 - **Historisch (bijlage A):** `inspace.io` homepage plus inline stijlblokken, `main-*.css` en
   `inspace-navbar.css`, juli 2026

@@ -1,7 +1,6 @@
 /**
  * Waarom een contentversie bestaat, in mensentaal (C.24, naar Nova's
- * `versionCategory`: original / aiChanges / manualEdit, zie
- * `docs/tasks/nova-analyse.md` §3.2).
+ * `versionCategory`: original, aiChanges, manualEdit, restored, unknown).
  *
  * Geen nieuwe kolom nodig: de drie velden waaruit dit af te leiden is
  * (`version`, `revision_note`, `edited_by_user`) bestaan al sinds migratie
