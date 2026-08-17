@@ -1,7 +1,7 @@
 import "server-only";
 
 /**
- * Een klant volledig verwijderen (F4 / P5 uit `docs/tasks/lanceerplan.md`).
+ * Een klant volledig verwijderen (P5, zie `docs/logbook.md`).
  *
  * De regels, de teksten en de bevestiging staan in `lib/deletion-rules.ts`,
  * want dat bepaalt de uitkomst en hoort puur en testbaar te zijn (conventie 2).

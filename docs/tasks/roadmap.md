@@ -6,10 +6,6 @@ zelf zijn niet allemaal opnieuw doorgelopen sinds 11 augustus; alleen de teller 
 bij "Afgerond sinds de vorige stand" zijn bijgewerkt. Voor wat er sindsdien is gebouwd (de
 potentiescore), zie `potentiescore.md` en `logbook.md`.
 
-> ⚠️ **Het pad naar de lancering staat in [`lanceerplan.md`](./lanceerplan.md), niet hier.** Dat
-> document heeft de zes testsporen (A tot en met F plus R), de afvinklijst voor het lanceerbesluit en
-> de tweeweekse planning. Wat hieronder staat is het oudere werk. **Lees het lanceerplan eerst.**
-
 > ⚠️ **Het achtfasenplan uit `Nova.md` is afgebouwd** (fundament, merk-werkruimte, rollen en
 > uitnodigingen, onboarding-wizard, contentplan, CSM-paneel, Search Console, de lus sluiten,
 > accountscherm), zie `docs/logbook.md` voor per fase wat er gebouwd is. Het document zelf is
@@ -18,7 +14,7 @@ potentiescore), zie `potentiescore.md` en `logbook.md`.
 >
 > **De richting nu staat in [`../visie.md`](../visie.md).** Dat document is een bestemming, geen
 > bouwopdracht: het beschrijft waar ORBIT ENGINE naartoe groeit, niet wat er als eerstvolgende al
-> gepland staat. Voor dat laatste blijft dit bestand en `lanceerplan.md` leidend.
+> gepland staat. Voor dat laatste is dit bestand leidend.
 >
 > ⚠️ Twee dingen die in oudere alinea's hieronder nog wél genoemd worden, zijn geschrapt en géén
 > werk meer: **meertaligheid** (besluit 13) en de **donkere modus** (besluit 17).
@@ -243,10 +239,12 @@ een lijst.
 
 ## Het lanceerplan
 
-> **Vóór de lancering en de eerste echte klant geldt [`lanceerplan.md`](./lanceerplan.md).** Dat
-> document toetst in vijf sporen of alles werkt, of er niets gebroken is, en of elk scherm de vijf
-> eigenschappen haalt die "InSpace-kwaliteit" toetsbaar maken. Inclusief de afvinklijst waarmee het
-> lanceerbesluit genomen wordt.
+Het losse lanceerplan van 11 augustus is op 17 augustus 2026 verwijderd: de sporen zijn afgelopen
+en de tweeweekse planning was verstreken. Wat blijvend geldt zijn de twee kwaliteitslatten,
+**K1 t/m K5** (elke toestand een eigen scherm, elke foutmelding specifiek, de taal zegt wie aan zet
+is, onomkeerbaar vooraf benoemd, bulk eerlijk over half succes) en **P1 t/m P7** (geen stille fout,
+geen tweelingen, kosten met een plafond, waarneembaar bij storing, herstelbaar, grenzen getest).
+Beide staan voluit in `docs/logbook.md`, en twaalf codebestanden verwijzen ernaar.
 
 ## Wat er nog open staat, en waarop het wacht
 

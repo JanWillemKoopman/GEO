@@ -22,7 +22,7 @@ import { useToast } from "@/components/toast";
  * account", en het verschil hoort op het scherm te staan en niet in het hoofd
  * van degene die klikt.
  *
- * Daarna de naam overtypen. Dat is K4 uit `docs/tasks/lanceerplan.md`
+ * Daarna de naam overtypen. Dat is K4 (`docs/logbook.md`, de twee kwaliteitslatten)
  * (onomkeerbaar wordt vooraf benoemd, in een eigen blok) en het is de reden dat
  * `ConfirmDialog` een `irreversible`-blok en een `children`-vak heeft.
  */

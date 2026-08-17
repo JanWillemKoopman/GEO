@@ -5243,7 +5243,7 @@ group("elke dure route vraagt het aan dezelfde functie", () => {
     );
   }
 
-  // En de melding is per handeling anders (K2 uit het lanceerplan: elke
+  // En de melding is per handeling anders (K2, zie docs/logbook.md: elke
   // foutmelding is specifiek). Vijf handelingen, vijf zinnen, geen dubbele.
   const zinnen = Object.values(COST_DENIED);
   ok("vijf handelingen hebben elk een eigen melding", zinnen.length === 5);
@@ -5572,7 +5572,7 @@ console.log("\nEen klant volledig verwijderen (F4)");
 
 group("de bevestiging is een handeling, geen vinkje", () => {
   // ⚠️ Naam overtypen en niet "weet je het zeker". Dit is K4 uit het
-  // lanceerplan: onomkeerbaar wordt vooraf benoemd, en Nova doet het net zo.
+  // K4 (docs/logbook.md): onomkeerbaar wordt vooraf benoemd, en Nova doet het net zo.
   ok("de juiste naam klopt", confirmationMatches("Van den Udenhout", "Van den Udenhout"));
   ok("spaties eromheen mogen", confirmationMatches("  Van den Udenhout  ", "Van den Udenhout"));
 
@@ -5690,7 +5690,7 @@ group("spendVerdict: onder, op en over het plafond", () => {
   ok("erover blokkeert", !over.ok);
   ok("en noemt de maand", over.scope === "maand");
 
-  // K2 uit het lanceerplan: elke foutmelding is specifiek. Drie dingen horen
+  // K2 (docs/logbook.md): elke foutmelding is specifiek. Drie dingen horen
   // erin, en de derde het meest: een blokkade zonder uitweg is een storing.
   const m = over.message ?? "";
   ok("de melding noemt het bedrag dat er staat", m.includes("55,56"));

@@ -14,7 +14,7 @@
  * diagnose kost meer tijd dan geen diagnose: je gaat de omgevingsvariabele
  * opnieuw zetten, precies het enige wat níet het probleem is.
  *
- * Dit is P1 uit `docs/tasks/lanceerplan.md` in zijn zuiverste vorm: een STORING
+ * Dit is P1 (`docs/logbook.md`) in zijn zuiverste vorm: een STORING
  * die zich voordoet als een AFWEZIGHEID.
  *
  * Puur, dus testbaar vanuit `scripts/test-unit.ts` (conventie 2). `auth.ts` zelf

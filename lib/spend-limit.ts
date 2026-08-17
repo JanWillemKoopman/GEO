@@ -1,7 +1,7 @@
 import "server-only";
 
 /**
- * Hoeveel er nog uitgegeven mag worden (F1 / P3 uit `docs/tasks/lanceerplan.md`).
+ * Hoeveel er nog uitgegeven mag worden (P3, zie `docs/logbook.md`).
  *
  * De regels, de bedragen en de meldingen staan in `lib/spend-rules.ts`, want dat
  * bepaalt de uitkomst en hoort dus puur en testbaar te zijn (conventie 2). Hier
@@ -138,7 +138,7 @@ export async function checkBudget(accountId: string | null): Promise<SpendVerdic
  *
  * De routes hebben een profiel of een analyse in handen, nooit een account. Dit
  * staat hier en niet in elke route, zodat er één plek is die weet hoe je van een
- * profiel bij een account komt (P2 uit het lanceerplan: geen tweelingen).
+ * profiel bij een account komt (P2: geen tweelingen).
  */
 export async function checkBudgetForProfile(profileId: string): Promise<SpendVerdict> {
   const admin = createAdminClient();

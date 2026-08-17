@@ -18,7 +18,7 @@
  *
  * 1. Je moet de naam van het account overtypen. Niet "weet je het zeker", maar
  *    een handeling die je niet per ongeluk doet. Dit is K4 uit
- *    `docs/tasks/lanceerplan.md`: onomkeerbaar wordt vooraf benoemd, in een
+ *    K4 (`docs/logbook.md`): onomkeerbaar wordt vooraf benoemd, in een
  *    eigen blok, en Nova doet het net zo (`cannotBeUndoneDescription`).
  * 2. Je krijgt van tevoren te zien wát er verdwijnt, met aantallen. "Dit
  *    verwijdert 3 merken, 5 analyses en 412 metingen" is een ander besluit dan

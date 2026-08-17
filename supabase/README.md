@@ -106,7 +106,7 @@ niemand meer terugvindt.
 rijen), twee indexen voor de twee tellingen, en `accounts.monthly_budget_eur`. De trigger leidt het
 account af uit `profile_id` of anders uit `analysis_id` via het profiel eronder; hij zit in de
 database en niet in `lib/openai/ledger.ts`, omdat dat logboek best-effort is en geen extra
-netwerkronde mag doen. Zie `lib/spend-rules.ts` en `docs/tasks/lanceerplan.md` F1.
+netwerkronde mag doen. Zie `lib/spend-rules.ts`; de conventie P3 staat in `docs/logbook.md`.
 
 Toegepast op productie op 11 augustus 2026: 1.140 bestaande rijen kregen allemaal een account, nul
 bleven er over.

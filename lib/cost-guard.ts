@@ -18,7 +18,7 @@ import "server-only";
  *
  * ── WAAROM ÉÉN FUNCTIE EN GEEN CONTROLE PER ROUTE ───────────────────────────
  *
- * ⚠️ Conventie P2 uit `docs/tasks/lanceerplan.md` §0b: twee functies die
+ * ⚠️ Conventie P2 (`docs/logbook.md`): twee functies die
  * hetzelfde zouden moeten doen, drijven uit elkaar. Precies dat gebeurde met
  * `getOwnedProfile` en `getOwnedAnalysis`, en het kostte een fout die de eerste
  * klant zou hebben geraakt. Elke dure route stelt daarom dezelfde vraag aan

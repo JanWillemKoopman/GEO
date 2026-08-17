@@ -27,10 +27,46 @@ verwijzing in de code straks nergens meer heen.
 | `tasks/nova-analyse.md` §3.2/§3.3 | InSpace Nova ontleed uit 2.447 interfaceteksten: hun statusmachines (§3.2) en de velden van hun merkprofiel (§3.3) | §29 en §30 hieronder. Wat we ervan overnamen zit in migratie `0045` (tone-schuiven, verboden woorden, auteursvelden), `lib/analysis-status.ts` (de tweelaagse statustaal) en `lib/pipeline/version-reason.ts`. Verwijderd 17 augustus 2026 |
 | `tasks/zoekdata-koppeling.md` §0/§2 | Het onderzoek vóór de Search Console-koppeling: service account in plaats van OAuth, en het meetvenster van twee dagen | Gebouwd in fase 5 (migratie `0052`, `lib/search-console/`). De twee regels over naijlende cijfers staan nu in `lib/search-console/window.ts` zelf. Verwijderd 17 augustus 2026 |
 | `tasks/r0-fundament.md` R0.1 t/m R0.6 | Zes hygiënestappen die in de praktijk niets blokkeerden | Nooit gebouwd, bewust. Het enige punt dat telt staat in `tasks/roadmap.md`: R0.5 is de reden dat de fabrikanten die Bol verkoopt nog als concurrent meetellen. Verwijderd 17 augustus 2026 |
+| `tasks/lanceerplan.md` K1-K5, P1-P7, F1-F5, D4/D7/D10, R6 | Het pad van "gebouwd" naar de eerste betalende klant: zes testsporen, twee kwaliteitslatten, een tweeweekse planning | **De twee latten staan hieronder als eigen sectie**, want twaalf codebestanden noemen ze bij naam. De sporen en de planning zijn ingehaald: F1 (budgetplafond) is migratie `0053`, F4/P5 (klant verwijderen) is `lib/deletion.ts`, D4/D7/D10 (wedstrijdcondities) zijn af. Verwijderd 17 augustus 2026 |
 | `Nova.md` | InSpace Nova gereconstrueerd, de gap-analyse en het achtfasenbouwplan dat daaruit volgde | Bouwplan afgebouwd, zie de secties hieronder per fase. Zelf verwijderd op 17 augustus 2026, de citaten die er verderop in dit logboek nog naar verwijzen zijn historisch en blijven staan zoals ze geschreven zijn. De richting daarna staat in `visie.md` |
 
 De volledige originelen staan in de git-historie (laatste versie: de commit vóór de
 documentatie-herstructurering).
+
+## De twee kwaliteitslatten: K1 t/m K5 en P1 t/m P7
+
+**Geen geschiedenis maar woordenschat.** Twaalf codebestanden en `scripts/test-unit.ts` verwijzen
+naar deze codes bij naam ("K2 uit het lanceerplan", "P2: geen tweelingen"). Ze komen uit
+`tasks/lanceerplan.md`, dat op 17 augustus 2026 is verwijderd toen de lancering was ingehaald door
+de gebeurtenissen. De latten zelf gelden nog steeds, dus staan ze hier.
+
+**Lat 1, K1 t/m K5: het moment waarop software vertrouwen wint of verliest.** Afgeleid uit het
+berichtenbestand van InSpace Nova, alle vijf te controleren zonder hun product te zien.
+
+| # | Eigenschap | Hoe je hem toetst |
+|---|---|---|
+| **K1** | Elke toestand heeft een eigen scherm. Leeg is geen afwezigheid maar een boodschap | Zet het scherm in elke toestand die kan bestaan. Staat er iets, en klopt het? |
+| **K2** | Elke foutmelding is specifiek. Nooit "er ging iets mis" | Forceer elke fout. Zegt de melding wát er mis is en wie het kan oplossen? |
+| **K3** | De taal zegt wie aan zet is, naast de technische status | Staat er bij elke wachtende toestand wie er iets moet doen? |
+| **K4** | Onomkeerbaar wordt vooraf benoemd, in een eigen blok en niet als zin in een alinea | Elke handeling die niet terug kan: staat de waarschuwing er, en apart? |
+| **K5** | Bulk is eerlijk over gedeeltelijk succes | Laat een bulkactie half mislukken. Wordt dat eerlijk gemeld? |
+
+**Lat 2, P1 t/m P7: kan dit een maand draaien met echte klanten en echt geld.** Niet afgeleid van
+Nova maar uit eigen oordeel.
+
+| # | Eigenschap |
+|---|---|
+| **P1** | Geen stille fout. Elke `catch` die slikt en elke `?? null` die een storing als "leeg" toont, is een fout die je maanden later pas ontdekt |
+| **P2** | Eén waarheid, geen tweeling. Twee functies die hetzelfde zouden moeten doen, drijven uit elkaar. `getOwnedProfile` en `getOwnedAnalysis` deden dat precies zo |
+| **P3** | Kosten hebben een plafond. Geen enkel pad waarlangs iemand ongelimiteerd geld kan uitgeven. Gebouwd als besluit 18, migratie `0053` |
+| **P4** | Waarneembaar bij storing. Als het om drie uur 's nachts breekt, zie je dat dan |
+| **P5** | Herstelbaar. Backups, en een klant volledig kunnen verwijderen. Gebouwd, zie `lib/deletion.ts` |
+| **P6** | Grenzen getest. Nul onderwerpen, 150 pagina's, een merknaam van 200 tekens |
+| **P7** | ~~Geen wedstrijdcondities.~~ Afgerond |
+
+Waar deze codes in de code staan: `lib/access.ts` en `lib/spend-limit.ts` (P2), `lib/cost-guard.ts`
+(P2), `lib/spend-rules.ts` en `lib/spend-limit.ts` (P3, K2), `lib/search-console/key-state.ts` (P1),
+`lib/deletion.ts` en `lib/deletion-rules.ts` (P5, K4), `lib/cost-rules.ts` (K2).
 
 ## 1. Het product
 
