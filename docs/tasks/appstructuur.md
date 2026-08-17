@@ -40,6 +40,7 @@ Vastgelegd door de eigenaar op 17 augustus 2026.
 | **1** | **Het clusterdossier blijft heel.** De vier hoofdstukken (Stand, Bewijs, Werk, Resultaat) blijven één scherm in vaste leesvolgorde. De vijf menu-hoofdstukken zijn ingangen op merkniveau, geen ontleding van het dossier | Het dossier opknippen langs de vijf hoofdstukken. Dat zou de herstructurering van augustus terugdraaien, waarbij één stuk werk juist ophield vier schermen te kruisen |
 | **2** | **De merk-werkruimte blijft het uitgangspunt.** Alle vijf hoofdstukken gaan over het gekozen merk. "Alle merken" verdwijnt als menu-item en verhuist naar de merkkiezer | Portfolio-eerst. Dat kost een klant met één merk een extra klik bij elke sessie |
 | **3** | **Analytics toont alleen wat echt gemeten wordt.** AI-zichtbaarheid met foutmarge, trend, concurrentranglijst, bronnen, en Search Console op paginaniveau | Zoekwoordniveau en een tweede AI-engine. Zie §7 |
+| **3b** | **De Search Console-schermen worden volledig gebouwd**, inclusief de grafieken, ook al is de Google-sleutel er nog niet. Die sleutel is een losse to-do voor de eigenaar (§8) en blokkeert de bouw niet | Wachten met bouwen tot de sleutel er is |
 | **4** | **De klant ziet wat ORBIT ENGINE weet en hoe zeker dat is, niet hoe ORBIT ENGINE eraan kwam.** Alles wat daarbuiten valt gaat naar Admin | Interne stof alleen wegvouwen. De klant kan het dan nog steeds tegenkomen |
 | **5** | **Eén bibliotheek per merk**, met filters op cluster en status. Het cluster houdt zijn eigen lijst als doorklik | Vier bibliotheken bij vier clusters |
 | **6** | **Clusters en Voorgestelde clusters worden één lijst**, lopende bovenaan, voorstellen daaronder op potentiescore | Twee menu-items voor twee toestanden van hetzelfde ding |
@@ -255,7 +256,7 @@ gevuld zijn: 14 rapporten, 14 zichtbaarheidsscores, 474 meetronden, 343 concurre
    trendlijn, per cluster uitsplitsbaar. Daaronder de technische diagnose (besluit 7): mogen
    AI-crawlers erin, kloppen de gegevens overal. Een blokkade staat bovenaan, want die verklaart het
    cijfer.
-2. **Zoekverkeer:** de Search Console-cijfers per pagina en per dag. ⚠️ Zie §8, de sleutel.
+2. **Zoekverkeer:** volledig uitgebouwd, zie de aparte specificatie hieronder.
 3. **Concurrenten:** de ranglijst over dezelfde noemer (`brand-rankings.ts`, gebouwd op 13 augustus)
    plus het bronnenlandschap.
 4. Zijbalk: hoofdstuk ANALYTICS verschijnt.
@@ -263,6 +264,45 @@ gevuld zijn: 14 rapporten, 14 zichtbaarheidsscores, 474 meetronden, 343 concurre
 **Verificatie:** de score op Analytics is identiek aan de score in hoofdstuk 01 van het clusterdossier
 voor dezelfde periode. Twee schermen die hetzelfde getal anders berekenen is precies de fout die
 `lib/dashboard.ts` ooit oploste.
+
+#### Fase 4b: het scherm Zoekverkeer, uitgeschreven
+
+Besluit 3b. Dit wordt volledig gebouwd, ook zolang de sleutel er nog niet is.
+
+**Wat er in de tabel zit, en dus wat er getoond kan worden.** `search_console_days` heeft per rij:
+merk, dag, pagina, klikken, vertoningen, gemiddelde positie. CTR is daaruit te rekenen (klikken
+gedeeld door vertoningen), en die rekensom hoort in een pure module zodat hij te testen is
+(conventie 2). Wat er **niet** in zit: zoekopdrachten, apparaten, landen. Elk voorstel voor een
+zoekwoordgrafiek loopt daarom op niets uit tot de koppeling uitgebreid wordt, zie §7.
+
+**Vijf blokken, van samenvatting naar detail:**
+
+| # | Blok | Inhoud | Bron |
+|---|---|---|---|
+| 1 | Vier kerncijfers | Klikken, vertoningen, CTR, gemiddelde positie over het gekozen venster, elk met de verandering ten opzichte van het vorige even lange venster | `search_console_days` |
+| 2 | Verloop over tijd | Klikken en vertoningen op twee assen, per dag. Op mobiel de kernwaarde plus een sparkline (`docs/ux-design.md` §7) | idem |
+| 3 | **Klikken naast AI-zichtbaarheid** | De kliklijn uit Google en de zichtbaarheidslijn uit de metingen in één grafiek. Dit is het blok waar de roadmap sinds 11 augustus op wacht en het enige scherm dat het hele verhaal van het product in één beeld vertelt | `search_console_days` plus `visibility_scores` |
+| 4 | Pagina's | Tabel per pagina: klikken, vertoningen, CTR, positie, met sortering. Pagina's die ORBIT ENGINE zelf schreef krijgen een markering, zodat je ze eruit pikt | `search_console_days` plus `content_pieces.published_url` |
+| 5 | Wat ORBIT ENGINE schreef | Alleen de gepubliceerde pagina's, met de datum van publicatie in de grafiek als verticale markering | idem |
+
+**Vier regels die het scherm eerlijk houden:**
+
+1. **De grafiek in blok 3 kent twee tijdschalen.** Google levert per dag, de meting levert per
+   periode. De zichtbaarheidslijn wordt dus getekend als punten met een lijn ertussen, niet als een
+   doorlopende dagcurve die precisie suggereert die er niet is.
+2. **Google splitst klikken uit AI-antwoorden niet uit.** Die zitten in het gewone totaal. Dat staat
+   met zoveel woorden op het scherm, want anders leest een klant de kliklijn als AI-effect.
+3. **Definitieve cijfers lopen twee dagen achter.** De laatste twee dagen worden gemarkeerd als nog
+   niet definitief, dat gedrag zit al in `lib/search-console/window.ts`.
+4. **Geen koppeling betekent geen lege grafiek maar uitleg.** Zonder gekoppelde property toont het
+   scherm wat de koppeling oplevert en de knop ernaartoe. Mislukt de synchronisatie, dan staat de
+   reden er in gewone taal, uit `profiles.gsc_last_error`. Beide gevallen zijn nu al in de database
+   te zien: het ene merk heeft geen property, het andere heeft er wel een en een foutmelding erbij.
+
+**Verificatie:** de vier kerncijfers over 15 juli tot 13 augustus 2026 komen uit op 600 klikken en
+5.253 vertoningen, want dat is wat er in de tabel staat. ⚠️ Dat is testdata, geen klantdata, dus dit
+toetst de rekensom en de vorm, niet de koppeling. Die is pas geverifieerd als de sleutel er is en er
+één echte synchronisatie is gedraaid (conventie 10).
 
 ---
 
@@ -339,19 +379,30 @@ en hij hoort in `test-chain.ts` als scenario terug te komen voor de routes die d
 
 ## 8. Risico's en wat er nog onzeker is
 
-**De Google-sleutel is niet ingesteld, en dat raakt fase 4.** Nagerekend op productie op 17 augustus
-2026: er staan 91 rijen in `search_console_days`, over 4 pagina's en 30 dagen (15 juli tot 13
-augustus), goed voor 600 klikken en 5.253 vertoningen. Maar het foutveld op dat merk zegt letterlijk
-*"De Google-sleutel is nog niet ingesteld. Zet GOOGLE_SERVICE_ACCOUNT_JSON in de
+**De Google-sleutel is een to-do van de eigenaar, geen blokkade voor de bouw.** Nagerekend op
+productie op 17 augustus 2026: er staan 91 rijen in `search_console_days`, over 4 pagina's en 30
+dagen (15 juli tot 13 augustus), goed voor 600 klikken en 5.253 vertoningen. Maar het foutveld op dat
+merk zegt letterlijk *"De Google-sleutel is nog niet ingesteld. Zet GOOGLE_SERVICE_ACCOUNT_JSON in de
 omgevingsvariabelen."* Dat is dus testdata, geen klantdata, en er komt niets bij.
 
-Gevolg voor fase 4: **het scherm Zoekverkeer is bouwbaar en tegen die 91 rijen te toetsen, maar hij
-is pas geverifieerd zodra de sleutel er is.** Conventie 10: gebouwd is niet geverifieerd. Twee
-mogelijkheden, en dit is een keuze voor de eigenaar:
+Besluit 3b: **de schermen worden volledig gebouwd, inclusief de grafieken.** Die 91 rijen zijn genoeg
+om elke rekensom en elke grafiekvorm tegen te toetsen. Wat er open blijft staan is de laatste stap
+van conventie 10, en die staat hieronder als to-do.
 
-- De sleutel regelen vóór fase 4. Dan is het scherm meteen echt.
-- Fase 4 bouwen met het scherm dat eerlijk zegt dat de koppeling nog niet actief is (`gsc_last_error`
-  staat er al voor klaar), en het later verifiëren.
+> ### ✅ To-do voor de eigenaar: de Google-sleutel
+>
+> Drie handelingen, en pas daarna staat er klantdata in het scherm:
+>
+> 1. Een service account aanmaken in Google Cloud met de Search Console API aan, en de JSON-sleutel
+>    downloaden.
+> 2. Die JSON als `GOOGLE_SERVICE_ACCOUNT_JSON` in de omgevingsvariabelen van Vercel zetten. Het
+>    e-mailadres van dat account is in de app zichtbaar op het koppelscherm
+>    (`serviceAccountEmail()`).
+> 3. Dat e-mailadres bij de klant als gebruiker toevoegen aan zijn Search Console-property. De klant
+>    doet dat zelf, dat is de hele reden dat het een service account is en geen OAuth-koppeling.
+>
+> Daarna draait de dagelijkse taak `gsc_sync` vanzelf en vult hij de tabel. Kosten: nul, er zit geen
+> enkele AI-aanroep in.
 
 **De review-wachtrij draait een eerder besluit terug.** Dat mag, het is bewust, en de grens van vijf
 regels is de reden dat het deze keer wel kan. Blijkt hij in de praktijk toch vol te lopen, dan is de
@@ -376,10 +427,11 @@ vóór fase 2 begint.
 | 1 · Fundament | Niets zichtbaars, alle adressen kloppen | Laag |
 | 2 · Merkprofiel | Vijf schermen worden drie, negen menu-items worden er drie | Laag, geen nieuwe data |
 | 3 · Strategie | Eén clusterlijst, één bibliotheek per merk | Laag |
-| 4 · Analytics | Drie nieuwe schermen uit bestaande data | Midden, zie §8 |
+| 4 · Analytics | Drie nieuwe schermen uit bestaande data, waarvan Zoekverkeer met vijf blokken | Midden, de grafieken zijn te toetsen maar de koppeling pas na de sleutel |
 | 5 · Overzicht | De startpagina die er nooit was | Midden, de wachtrij moet kort blijven |
 | 6 · Admin | De scheiding tussen klant en beheerder | Midden, vraagt een handmatige doorloop |
 | 7 · Opruimen | Oude routes en documentatie bij | Laag |
 
 Fase 2 en 3 zijn de fases die de klacht direct verlichten. Fase 5 is de fase die het product beter
-maakt. Fase 4 hangt aan de Google-sleutel.
+maakt. Fase 4 wordt volledig gebouwd; alleen de laatste verificatie ervan wacht op de Google-sleutel
+uit de to-do in §8.
