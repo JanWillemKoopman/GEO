@@ -21,7 +21,7 @@ export async function generateMetadata({
 }
 
 /**
- * De gegevens waar Aura mee rekent: naam, schrijfwijzen, werkgebied, toon.
+ * De gegevens waar ORBIT ENGINE mee rekent: naam, schrijfwijzen, werkgebied, toon.
  * Eigen subpagina sinds de herstructurering van augustus 2026: naslag, geen
  * verhaal, dus geen plek tussen de leesschermen van het dossier.
  */
@@ -49,7 +49,7 @@ export default async function ProfielgegevensPage({
         title="Profielgegevens"
         backHref={`/profielen/${id}`}
         backLabel="Merkdossier"
-        description="De gegevens waar Aura mee rekent: naam, schrijfwijzen, werkgebied en toon."
+        description="De gegevens waar ORBIT ENGINE mee rekent: naam, schrijfwijzen, werkgebied en toon."
       />
 
       <ProfileEditor initial={profile} inventoryCount={count ?? 0} />

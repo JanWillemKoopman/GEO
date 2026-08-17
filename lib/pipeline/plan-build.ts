@@ -9,7 +9,7 @@
  * type, in welke funnelfase, en op welke datum.
  *
  * Dat onderscheid volgt uit de analyse in `docs/Nova.md` §11.1. Nova laat een
- * agent het hele plan opstellen; Aura heeft de bedenkkant al staan en had alleen
+ * agent het hele plan opstellen; ORBIT ENGINE heeft de bedenkkant al staan en had alleen
  * de verdeling nog niet. Dat scheelt een zware AI-stap (conventie 7: één taak is
  * hooguit één zware aanroep, en deze taak heeft er nul nodig).
  *
@@ -142,10 +142,10 @@ export function buildPlan(input: BuildInput): BuildResult {
   const months = input.months ?? MONTHS_AHEAD;
 
   if (input.pagesPerMonth < 1) {
-    problems.push("Er is geen pakket gekozen, dus Aura weet niet hoeveel pagina's per maand.");
+    problems.push("Er is geen pakket gekozen, dus ORBIT ENGINE weet niet hoeveel pagina's per maand.");
   }
   if (input.topics.length === 0) {
-    problems.push("Er zijn nog geen onderwerpen. Aura stelt die voor tijdens het merkonderzoek.");
+    problems.push("Er zijn nog geen onderwerpen. ORBIT ENGINE stelt die voor tijdens het merkonderzoek.");
   }
   if (input.funnels.length < MIN_FUNNELS) {
     problems.push(

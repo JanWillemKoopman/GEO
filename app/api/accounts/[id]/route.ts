@@ -15,7 +15,7 @@ import {
 /**
  * PATCH /api/accounts/[id], de bedrijfsgegevens van één account.
  *
- * ⚠️ Alleen een ADMIN van dit account, of een beheerder van Aura. Een `member`
+ * ⚠️ Alleen een ADMIN van dit account, of een beheerder van ORBIT ENGINE. Een `member`
  * mag meelezen maar niet wijzigen: het factuuradres van een klant is niet iets
  * wat een meekijkende collega van een bureau hoort te kunnen veranderen.
  *
@@ -111,7 +111,7 @@ export async function GET(
     return NextResponse.json({ error: "Onbekende opvraag." }, { status: 400 });
   }
 
-  // Verwijderen is uitsluitend een handeling van de beheerder van Aura, ook al
+  // Verwijderen is uitsluitend een handeling van de beheerder van ORBIT ENGINE, ook al
   // mag een account-admin de bedrijfsgegevens wél wijzigen. Het verschil: een
   // wijziging draai je terug, dit niet.
   if (!(await isStaff(user.id))) {
@@ -142,7 +142,7 @@ export async function GET(
  * ⚠️ ONOMKEERBAAR, en dat is het hele punt. Archiveren bestaat al en is het
  * normale pad (besluit 14: opzeggen zet een datum en verwijdert niets). Dit is
  * de uitzondering voor het geval dat de AVG afdwingt, en hij is met opzet
- * omslachtig: alleen een beheerder van Aura, niet je eigen account, en de naam
+ * omslachtig: alleen een beheerder van ORBIT ENGINE, niet je eigen account, en de naam
  * moet worden overgetypt.
  *
  * De naamcontrole staat hier en niet alleen in het scherm. Een bevestiging die

@@ -5,7 +5,7 @@ import "server-only";
  *
  * ── HET BESLUIT ─────────────────────────────────────────────────────────────
  *
- * **Alleen de beheerder van Aura** (besluit 18, 11 augustus 2026). Op 11 augustus
+ * **Alleen de beheerder van ORBIT ENGINE** (besluit 18, 11 augustus 2026). Op 11 augustus
  * was eerst besloten dat een account-admin zelf een meting mocht starten en een
  * member een maand mocht goedkeuren; datzelfde besluit is dezelfde dag
  * teruggedraaid toen de rekensom eronder zichtbaar werd. Een klant met acht

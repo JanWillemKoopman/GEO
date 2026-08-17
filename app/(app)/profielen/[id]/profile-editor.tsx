@@ -141,7 +141,7 @@ export function ProfileEditor({ initial, inventoryCount }: { initial: Profile; i
       // A.5: geen rauwe JS-foutmelding ("Failed to fetch") op het scherm, dat
       // zegt niets over wat de klant eraan kan doen.
       setRefreshState("error");
-      setRefreshError("We konden Aura niet bereiken. Controleer je verbinding en probeer het opnieuw.");
+      setRefreshError("We konden ORBIT ENGINE niet bereiken. Controleer je verbinding en probeer het opnieuw.");
     }
   }
 
@@ -358,7 +358,7 @@ export function ProfileEditor({ initial, inventoryCount }: { initial: Profile; i
 
       <CollapsibleSection title="Wat er al op je site staat">
         <p className="text-sm text-secondary">
-          Aura brengt in kaart welke pagina&apos;s je website al heeft, zodat een aanbeveling
+          ORBIT ENGINE brengt in kaart welke pagina&apos;s je website al heeft, zodat een aanbeveling
           bestaande content kan verbeteren in plaats van altijd iets nieuws voor te stellen.
           Productpagina&apos;s van webshops blijven buiten beschouwing. Nu op{" "}
           <span className="font-medium">{count} pagina&apos;s</span>.
@@ -373,8 +373,8 @@ export function ProfileEditor({ initial, inventoryCount }: { initial: Profile; i
             placeholder="https://voorbeeld.nl/sitemap.xml"
           />
           <span className="text-sm text-muted">
-            Weet je waar je sitemap staat? Vul het adres in, dan gebruikt Aura die met zekerheid.
-            Laat leeg en Aura zoekt hem zelf (robots.txt + de standaardlocaties).
+            Weet je waar je sitemap staat? Vul het adres in, dan gebruikt ORBIT ENGINE die met zekerheid.
+            Laat leeg en ORBIT ENGINE zoekt hem zelf (robots.txt + de standaardlocaties).
           </span>
         </label>
 
@@ -400,7 +400,7 @@ export function ProfileEditor({ initial, inventoryCount }: { initial: Profile; i
             disabled={refreshState === "pending"}
             className="btn-outline disabled:opacity-60"
           >
-            {refreshState === "pending" ? "Aura leest je site…" : "Vernieuw inventaris"}
+            {refreshState === "pending" ? "ORBIT ENGINE leest je site…" : "Vernieuw inventaris"}
           </button>
           {refreshState === "done" && (
             <span className="text-sm text-[var(--intent-growth-text)]">Bijgewerkt: {count} pagina&apos;s ✓</span>
@@ -419,7 +419,7 @@ export function ProfileEditor({ initial, inventoryCount }: { initial: Profile; i
           deterministische poort in lib/pipeline/content-gate.ts). */}
       <CollapsibleSection title="Schrijfregels">
         <p className="text-sm text-secondary">
-          Stuurt hoe Aura schrijft. Los van &quot;Tone of voice&quot; hierboven: dat is jouw eigen
+          Stuurt hoe ORBIT ENGINE schrijft. Los van &quot;Tone of voice&quot; hierboven: dat is jouw eigen
           omschrijving, dit zijn vier knoppen die het model letterlijk krijgt voorgelegd.
         </p>
         <ToneSliderRow
@@ -455,7 +455,7 @@ export function ProfileEditor({ initial, inventoryCount }: { initial: Profile; i
             placeholder="Nieuw verboden woord of claim…"
           />
           <span className="text-sm text-muted">
-            Elke tekst die Aura schrijft wordt hierop gecontroleerd, vóór publicatie. Staat een woord
+            Elke tekst die ORBIT ENGINE schrijft wordt hierop gecontroleerd, vóór publicatie. Staat een woord
             er toch in, dan gaat de pagina eerst terug de kwaliteitscontrole in.
           </span>
         </div>
@@ -470,7 +470,7 @@ export function ProfileEditor({ initial, inventoryCount }: { initial: Profile; i
             placeholder="Bijvoorbeeld: noem nooit een concreet rendement, vermeld altijd dat advies vrijblijvend is."
           />
           <span className="text-sm text-muted">
-            Voor branches met eigen regels (AFM, KOA, medisch). Aura neemt dit letterlijk mee in de
+            Voor branches met eigen regels (AFM, KOA, medisch). ORBIT ENGINE neemt dit letterlijk mee in de
             schrijfopdracht.
           </span>
         </label>

@@ -44,7 +44,7 @@ export const serverEnv = {
     return required("RESEND_API_KEY", process.env.RESEND_API_KEY);
   },
   get resendFromEmail() {
-    return process.env.RESEND_FROM_EMAIL ?? "Aura <onboarding@resend.dev>";
+    return process.env.RESEND_FROM_EMAIL ?? "ORBIT ENGINE <onboarding@resend.dev>";
   },
   get cronSecret() {
     return required("CRON_SECRET", process.env.CRON_SECRET);

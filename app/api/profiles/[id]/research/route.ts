@@ -58,7 +58,7 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
   } catch (err) {
     console.error(`profielonderzoek inplannen mislukt voor ${id}:`, err);
     return NextResponse.json(
-      { error: "Aura kon het onderzoek niet inplannen.", detail: describeError(err), problem: classifyError(err) },
+      { error: "ORBIT ENGINE kon het onderzoek niet inplannen.", detail: describeError(err), problem: classifyError(err) },
       { status: 500 },
     );
   }

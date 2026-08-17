@@ -14,8 +14,8 @@
  *
  * Nova heeft er drie: hoe lang je meedoet, hoeveel je zichtbaarheid groeide,
  * hoeveel pagina's er staan. Een vierde zou de lezer laten kiezen welk getal hij
- * gelooft. Aura's tweede getal is een ander getal dan dat van Nova, en dat is
- * het hele punt van het product: zij tellen kliks uit Google, Aura telt hoe vaak
+ * gelooft. ORBIT ENGINE's tweede getal is een ander getal dan dat van Nova, en dat is
+ * het hele punt van het product: zij tellen kliks uit Google, ORBIT ENGINE telt hoe vaak
  * een merk genoemd wordt in AI-antwoorden. Zodra Search Console eraan hangt komt
  * die kliklijn erbij als bewijsstuk, niet als vervanging (besluit 4).
  *
@@ -147,7 +147,7 @@ function paginaMilestone(gepubliceerd: number): Milestone {
     detail:
       gepubliceerd === 0
         ? "Zodra de eerste pagina live staat, telt hij hier mee."
-        : "Geschreven door Aura, gepubliceerd door jou.",
+        : "Geschreven door ORBIT ENGINE, gepubliceerd door jou.",
   };
 }
 

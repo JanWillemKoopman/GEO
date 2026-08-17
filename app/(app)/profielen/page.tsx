@@ -33,9 +33,9 @@ export default async function ProfielenPage() {
   return (
     <div className="flex flex-col gap-8">
       <PageHeader
-        eyebrow="Aura · merkdossiers"
+        eyebrow="ORBIT ENGINE · merkdossiers"
         title="Merken"
-        description="Aura leert je merk eerst kennen: branche, aanbod, concurrenten, doelgroep en tone-of-voice. Dat onderzoek doen we één keer per merk, en elk cluster eronder bouwt erop voort."
+        description="ORBIT ENGINE leert je merk eerst kennen: branche, aanbod, concurrenten, doelgroep en tone-of-voice. Dat onderzoek doen we één keer per merk, en elk cluster eronder bouwt erop voort."
         action={
           <Link href="/profielen/nieuw" className="btn-primary">
             + Nieuw merk
@@ -67,7 +67,7 @@ export default async function ProfielenPage() {
           title="Nog geen merken"
           action={{ href: "/profielen/nieuw", label: "Eerste merk toevoegen" }}
         >
-          Begin met het merk waarvan je de zichtbaarheid wilt meten. Aura brengt het in kaart;
+          Begin met het merk waarvan je de zichtbaarheid wilt meten. ORBIT ENGINE brengt het in kaart;
           daarna koppel je er clusters aan voor losse producten en onderwerpen.
         </EmptyState>
       ) : (

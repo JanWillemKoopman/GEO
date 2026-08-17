@@ -43,7 +43,7 @@ export function AuditPanel({
         <span className="mono-label flex items-center gap-1">
           Technische controle
           <InfoHint label="Technische controle">
-            Aura kijkt of AI-assistenten je site überhaupt mogen en kunnen lezen. Staat die deur
+            ORBIT ENGINE kijkt of AI-assistenten je site überhaupt mogen en kunnen lezen. Staat die deur
             dicht, dan heeft content laten schrijven geen zin, want niemand leest hem ooit.
           </InfoHint>
         </span>

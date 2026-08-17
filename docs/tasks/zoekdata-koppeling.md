@@ -1,4 +1,4 @@
-# Zoekdata koppelen: wat InSpace doet, en of het voor Aura kan
+# Zoekdata koppelen: wat InSpace doet, en of het voor ORBIT ENGINE kan
 
 **Status:** onderzoek, ontwerp is inmiddels GEBOUWD (Fase 5, 11 augustus 2026, migratie `0052`,
 `lib/search-console/`). Dit document is het onderzoek dat aan die bouw voorafging, bewaard voor het
@@ -8,14 +8,14 @@
 (`dpl_6hE579cdFAZ6vFALooiiNYKzni4k`), migraties t/m `0044`, nagerekend tegen de productiedatabase
 
 Onderzoeksvraag: hoe koppelt InSpace de Google Analytics en Search Console van de klant aan Nova, is
-dat voor Aura realistisch, wat komt erbij kijken, hoe moeilijk is het bij de klant in te richten, en
+dat voor ORBIT ENGINE realistisch, wat komt erbij kijken, hoe moeilijk is het bij de klant in te richten, en
 hoe gebruik je die data stabiel in het product.
 
 Antwoord in één alinea: **Search Console is realistisch en waardevol, Google Analytics niet, en
 InSpace doet precies datzelfde onderscheid.** De koppeling loopt niet via OAuth maar via een service
 account dat de klant als gebruiker aan zijn property toevoegt, wat de bouw halveert en de
 verificatieplicht bij Google helemaal weghaalt. Het echte werk zit niet in de code, ~5 dagen, maar
-in de onboarding: dit wordt het eerste dat Aura ooit écht van de klant vraagt.
+in de onboarding: dit wordt het eerste dat ORBIT ENGINE ooit écht van de klant vraagt.
 
 ---
 
@@ -128,7 +128,7 @@ customer success manager kijkt er zelf in. Het is een dienstverleningsafspraak, 
 
 **Dat is de belangrijkste bevinding van dit hele onderzoek.** InSpace bouwt hun productdata op
 Search Console en houdt Analytics erbuiten. De redenen daarvoor zijn niet mysterieus, ze staan in
-§2, en ze gelden voor Aura even hard.
+§2, en ze gelden voor ORBIT ENGINE even hard.
 
 ---
 
@@ -168,7 +168,7 @@ Geverifieerd tegen de documentatie van Google op 6 augustus 2026:
 - **Sitemaps indienen** (`sitemaps.submit`), vereist Volledig recht. Dit is vrijwel zeker wat
   InSpace bedoelt met "ingediend voor indexering".
 - **Lezen mag met de rol Beperkt.** Google's rechtentabel bevestigt dat een `Restricted user` het
-  volledige Performance-rapport ziet. Aura hoeft niets in te dienen, dus **beperkt recht is voor ons
+  volledige Performance-rapport ziet. ORBIT ENGINE hoeft niets in te dienen, dus **beperkt recht is voor ons
   genoeg**, en dat is één adres in plaats van twee.
 
 **Niet:**
@@ -191,7 +191,7 @@ Technisch kan het: de GA4 Data API werkt met hetzelfde service-accountpatroon, h
 op de property. Vier redenen om het toch niet te doen, in volgorde van zwaarte:
 
 1. **Het zijn persoonsgegevens.** Search Console levert geaggregeerde zoekcijfers zonder personen.
-   GA4 gaat over bezoekers. Zodra Aura die data ophaalt en opslaat, is Aura verwerker en is er een
+   GA4 gaat over bezoekers. Zodra ORBIT ENGINE die data ophaalt en opslaat, is ORBIT ENGINE verwerker en is er een
    verwerkersovereenkomst nodig, met alles eromheen. Voor GSC speelt dat niet.
 2. **De data is niet te vertrouwen zonder de inrichting te kennen.** Consent mode, filters,
    datastreams, drempelwaarden bij kleine aantallen, en bij het MKB regelmatig een property die al
@@ -209,7 +209,7 @@ niet GA maar een eigen meetpunt op de gepubliceerde pagina, en dat is een apart 
 
 ---
 
-## 3. Is het realistisch voor Aura, en wat betekent het voor de app
+## 3. Is het realistisch voor ORBIT ENGINE, en wat betekent het voor de app
 
 Ja, en opvallend goed passend. Het werk raakt geen enkele bestaande aanname.
 
@@ -282,9 +282,9 @@ aanbod géén eigen pagina hebben, maar niet naar welke bestaande pagina's onder
 
 ### Waar de grens ligt
 
-**Aura wordt hier geen SEO-dashboard van.** Dat is de valkuil, en hij is groot, want zodra de data
+**ORBIT ENGINE wordt hier geen SEO-dashboard van.** Dat is de valkuil, en hij is groot, want zodra de data
 binnen is, is elke grafiek een halve dag werk en ziet elke grafiek er goed uit. Nova mág een
-SEO-dashboard zijn, dat is hun product. Aura meet zichtbaarheid in AI-antwoorden, en Search Console
+SEO-dashboard zijn, dat is hun product. ORBIT ENGINE meet zichtbaarheid in AI-antwoorden, en Search Console
 is daarvoor bewijsmateriaal en invoer, geen tweede product.
 
 Praktische regel: elke GSC-weergave in de app moet naast een AI-cijfer staan waar hij iets over zegt.
@@ -298,7 +298,7 @@ De code is twee dagen. Dit is het echte werk.
 
 ### Het uitgangspunt is ongunstiger dan bij InSpace
 
-Aura is sales-led: de consultant maakt het profiel, de pijplijn draait 7,5 minuut, en de klant krijgt
+ORBIT ENGINE is sales-led: de consultant maakt het profiel, de pijplijn draait 7,5 minuut, en de klant krijgt
 het merk pas ná de verkoop toegewezen (`architecture.md` §11). **De klant vult vandaag helemaal
 niets in.** Dat is een sterk punt van het product en de GSC-koppeling doorbreekt het: dit wordt de
 eerste keer dat je iets van de klant vraagt dat hij zelf moet regelen, in een systeem van een derde
@@ -322,10 +322,10 @@ een maand.
 
 ### Het ontwerp van de stap
 
-Gemodelleerd naar Nova, maar simpeler, want Aura hoeft niets in te dienen:
+Gemodelleerd naar Nova, maar simpeler, want ORBIT ENGINE hoeft niets in te dienen:
 
 1. **Eén adres, niet twee.** Alleen het service account, met de rol **Beperkt**. Volledig recht heeft
-   Aura nergens voor nodig, en minder rechten vragen is minder weerstand.
+   ORBIT ENGINE nergens voor nodig, en minder rechten vragen is minder weerstand.
 2. **Kopieerknop naast het adres**, en het property-adres erbij afgeleid uit het webadres van het
    profiel, met een keuze tussen domein-property en URL-prefix. Dit is de plek waar het in de praktijk
    misgaat: de verkeerde property levert een geldige koppeling met nul rijen op.
@@ -335,7 +335,7 @@ Gemodelleerd naar Nova, maar simpeler, want Aura hoeft niets in te dienen:
 4. **De tekst over vertraging overnemen.** Nova's `"It can take a few minutes for Google to process
    the change"` is geen detail maar het verschil tussen "het werkt niet" en "wacht even". Zonder die
    zin belt de klant.
-5. **Niet blokkerend.** Nova maakt GSC verplicht omdat Nova zonder GSC geen enkel cijfer heeft. Aura
+5. **Niet blokkerend.** Nova maakt GSC verplicht omdat Nova zonder GSC geen enkel cijfer heeft. ORBIT ENGINE
    meet AI-zichtbaarheid en die staat er volledig los van. Overslaan mag dus, met een zichtbare
    staat "nog niet gekoppeld" op de profielpagina en een herinnering in het dossier. Dit verlaagt de
    drempel in het verkoopgesprek aanzienlijk, en het is eerlijk: het product werkt zonder.

@@ -245,7 +245,7 @@ export default async function ContentDetailPage({
         <div className="card card-warning flex flex-col gap-2">
           <span className="mono-label">Kijk hier even naar</span>
           <p className="text-sm text-secondary">
-            De eindredactie van Aura twijfelt over deze punten. Schaaf de tekst zelf bij, of vraag
+            De eindredactie van ORBIT ENGINE twijfelt over deze punten. Schaaf de tekst zelf bij, of vraag
             hieronder om een nieuwe versie.
           </p>
           <ul className="flex list-disc flex-col gap-1 pl-5 text-sm text-secondary">
@@ -353,7 +353,7 @@ export default async function ContentDetailPage({
             {versions.map((v, i) => {
               // C.24: waarom deze versie bestaat, in mensentaal. Voorheen stond
               // hier alleen iets bij een revision_note; een automatische
-              // herschrijving na de eigen kritiekronde van Aura (geen notitie,
+              // herschrijving na de eigen kritiekronde van ORBIT ENGINE (geen notitie,
               // geen klant-bewerking) toonde niets, alsof er zomaar een nieuwe
               // versie verscheen.
               const reason = versionReasonOf({

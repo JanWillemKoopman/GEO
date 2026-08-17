@@ -23,7 +23,7 @@
  * 2. Je krijgt van tevoren te zien wát er verdwijnt, met aantallen. "Dit
  *    verwijdert 3 merken, 5 analyses en 412 metingen" is een ander besluit dan
  *    "dit verwijdert een account".
- * 3. Een beheerder van Aura kan zichzelf er niet uit verwijderen, en het laatste
+ * 3. Een beheerder van ORBIT ENGINE kan zichzelf er niet uit verwijderen, en het laatste
  *    beheerdersaccount blijft bestaan. Anders sluit je jezelf buiten.
  *
  * Puur, dus testbaar vanuit `scripts/test-unit.ts` (conventie 2).

@@ -96,11 +96,11 @@ export function MeasureProgress({
 
   return (
     <WorkInProgress
-      title={writingReport ? "Aura schrijft je rapport" : "Aura meet je zichtbaarheid"}
+      title={writingReport ? "ORBIT ENGINE schrijft je rapport" : "ORBIT ENGINE meet je zichtbaarheid"}
       explanation={
         writingReport
-          ? "De meting is binnen. Aura zet je nu naast je concurrenten en schrijft daar het rapport over."
-          : "Elke vraag gaat naar een AI-assistent. Aura leest het antwoord en telt of jij erin staat, en wie er nog meer."
+          ? "De meting is binnen. ORBIT ENGINE zet je nu naast je concurrenten en schrijft daar het rapport over."
+          : "Elke vraag gaat naar een AI-assistent. ORBIT ENGINE leest het antwoord en telt of jij erin staat, en wie er nog meer."
       }
       etaText={data?.etaText}
       retrying={data?.retrying}

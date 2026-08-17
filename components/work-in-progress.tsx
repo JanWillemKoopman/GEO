@@ -40,7 +40,7 @@ export function WorkInProgress({
   /** Loopt er een nieuwe poging na een tegenslag? Dan zeggen we dat eerlijk. */
   retrying?: boolean;
   /**
-   * E, "pogingen tonen": de hoeveelste poging dit is. "Aura probeert het
+   * E, "pogingen tonen": de hoeveelste poging dit is. "ORBIT ENGINE probeert het
    * automatisch opnieuw" zonder getal laat een klant niet weten of dit de
    * eerste of de laatste kans is; "poging 3 van 4" wel.
    */
@@ -68,7 +68,7 @@ export function WorkInProgress({
 
       {retrying && (
         <p className="text-sm text-muted">
-          Er ging net iets mis aan de kant van de AI-dienst. Aura probeert het automatisch opnieuw
+          Er ging net iets mis aan de kant van de AI-dienst. ORBIT ENGINE probeert het automatisch opnieuw
           {attempts ? ` (poging ${attempts} van ${MAX_ATTEMPTS})` : ""}. Jij hoeft niets te doen.
         </p>
       )}
@@ -106,7 +106,7 @@ export function WorkInProgress({
           component en kan de serverschakelaar niet zien, dus staat er nu alleen
           wat onder alle omstandigheden waar is. */}
       <p className="rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--bg-elevated)] px-4 py-3 text-sm text-secondary">
-        <strong className="font-medium">Je kunt dit scherm sluiten.</strong> Aura draait op de
+        <strong className="font-medium">Je kunt dit scherm sluiten.</strong> ORBIT ENGINE draait op de
         achtergrond door en maakt het werk af, ook als je de browser afsluit. Kom gerust later terug.
       </p>
     </div>

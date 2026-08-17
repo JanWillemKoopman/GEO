@@ -4,7 +4,7 @@
 --
 -- WAT HET PROBLEEM WAS
 --
--- Aura schrijft content op verzoek, per analyse. Dat werkt, maar het maakt van
+-- ORBIT ENGINE schrijft content op verzoek, per analyse. Dat werkt, maar het maakt van
 -- het product een gereedschap: er loopt niets, er staat niets vooruit gepland,
 -- en een klant die een maand geen tijd heeft merkt niet dat hij iets mist.
 --

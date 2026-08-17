@@ -5,7 +5,7 @@
 > **Peildatum van dit document: 6 augustus 2026.** De code is leidend; wijkt `app/globals.css` af,
 > dan is dit document fout en moet het bijgewerkt worden.
 
-Dit document beschrijft **hoe Aura eruitziet en waarom**. Voor de tekst in die schermen geldt
+Dit document beschrijft **hoe ORBIT ENGINE eruitziet en waarom**. Voor de tekst in die schermen geldt
 `schrijfstijl.md`, voor de opbouw van schermen `ux-design.md`, voor het waarom achter beslissingen
 `logbook.md` §30.
 
@@ -20,7 +20,7 @@ iemand een uur per week in zit.
 InSpace doet dat in hun eigen product namelijk ook niet. Hun werkomgeving is koel, strak en plat.
 Het verschil is groot genoeg om het uit te schrijven:
 
-| | inspace.io (marketing) | nova.inspace.io (product) | Aura nu |
+| | inspace.io (marketing) | nova.inspace.io (product) | ORBIT ENGINE nu |
 |---|---|---|---|
 | Grondtoon | warm off-white `#f5f6f3` | koel leiblauw `#f8fafc` | **koel leiblauw** |
 | Tekst | `#0b0b0c` bijna zwart | `#17212b` blauwzwart | **`#17212b`** |
@@ -68,7 +68,7 @@ een tijdstempel en te weinig voor een zin die iemand moet lezen. Nova gebruikt h
 
 ### 2.2 Merkkleuren
 
-Paars en groen blijven van Aura; de systematiek eromheen komt van Nova.
+Paars en groen blijven van ORBIT ENGINE; de systematiek eromheen komt van Nova.
 
 | Token | Waarde | Toelichting |
 |---|---|---|
@@ -262,7 +262,7 @@ Gebruik deze, nooit een eigen tint of een eigen maat.
 | `.live-dot` | Pulserend, in `growth`. "Loopt nu" |
 | `.skeleton` | Laadvlak. De vorm van wat er komt |
 | `.prose` | Lange tekst: rapport, contentpagina |
-| `.brand-gradient-text` | **Alleen het woordmerk Aura** |
+| `.brand-gradient-text` | **Alleen het woordmerk ORBIT ENGINE** |
 | `PageHeader`, `EmptyState`, `Narrow`, `ConfidenceChip` | Eén variant per patroon |
 
 ---
@@ -397,7 +397,7 @@ Geist Sans en Geist Mono zijn de open-source substituten.
 `box-shadow: 0 0 0 6px rgba(133,17,217,.12)`. Kaarten met `border-radius: 18px` en een
 hover-transform. Badges in mono, uppercase, breed getrackt. Een pulserende live-dot.
 
-**Het donkere "Aura"-paneel** in hun mega-menu was ooit onze beoogde basis voor een donkere modus:
+**Het donkere "ORBIT ENGINE"-paneel** in hun mega-menu was ooit onze beoogde basis voor een donkere modus:
 `#0B0B0C` naar `#171128` met een paarse ondertoon. Dat plan is vervallen. Als er ooit een donkere
 modus komt, volgt hij de Nova-werkomgeving uit §10, niet dit paneel.
 

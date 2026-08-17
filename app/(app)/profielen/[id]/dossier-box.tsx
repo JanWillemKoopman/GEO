@@ -74,7 +74,7 @@ export function DossierBox({ profileId }: { profileId: string }) {
       setAlKnown(Boolean(json.alreadyKnown));
       setText("");
     } catch {
-      setError("We konden Aura niet bereiken. Controleer je verbinding en probeer het opnieuw.");
+      setError("We konden ORBIT ENGINE niet bereiken. Controleer je verbinding en probeer het opnieuw.");
     } finally {
       setBusy(false);
     }
@@ -109,7 +109,7 @@ export function DossierBox({ profileId }: { profileId: string }) {
   return (
     <div className="flex flex-col gap-3">
       <p className="text-sm text-secondary">
-        Staan je tarieven, voorwaarden of veelgestelde vragen al ergens? Plak ze hier. Aura haalt er
+        Staan je tarieven, voorwaarden of veelgestelde vragen al ergens? Plak ze hier. ORBIT ENGINE haalt er
         de harde feiten uit: bedragen, termijnen, wat er wel en niet bij zit. Die gebruikt het bij
         het schrijven. Wat er niet letterlijk in staat, neemt het niet over.
       </p>
@@ -128,7 +128,7 @@ export function DossierBox({ profileId }: { profileId: string }) {
           disabled={busy || text.trim().length < 40}
           className="btn-outline disabled:opacity-60"
         >
-          {busy ? "Aura leest…" : "Haal de feiten eruit"}
+          {busy ? "ORBIT ENGINE leest…" : "Haal de feiten eruit"}
         </button>
         {error && <span className="text-sm text-[var(--status-error)]">{error}</span>}
       </div>

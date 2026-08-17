@@ -16,7 +16,7 @@ import type { ContentAction, ContentPieceTarget } from "@/lib/types/database";
  * uitzondering, en die komt al berekend binnen vanuit `loadContentPotential()`
  * (lib/potential-data.ts), om diezelfde reden.
  *
- * Aura's eigen, betere metriek: Nova toont geschat zoekvolume, Aura's
+ * ORBIT ENGINE's eigen, betere metriek: Nova toont geschat zoekvolume, ORBIT ENGINE's
  * `targets` bestaan uit ECHT GEMETEN AI-vragen (elke rij hangt via
  * `tracking_run_id` aan een concrete meetronde).
  *

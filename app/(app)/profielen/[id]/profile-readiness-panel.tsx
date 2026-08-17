@@ -143,7 +143,7 @@ export function ProfileReadinessPanel({
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-2">
             <span className="live-dot" aria-hidden />
-            <span className="mono-label">Aura onderzoekt · live</span>
+            <span className="mono-label">ORBIT ENGINE onderzoekt · live</span>
           </div>
           {data?.etaText && (
             <span className="mono-label text-muted">{data.etaText}</span>
@@ -154,7 +154,7 @@ export function ProfileReadinessPanel({
 
         <p className="text-sm text-secondary">
           Je merkdossier staat er al. De rest komt hieronder binnen. Je kunt dit
-          scherm sluiten, Aura werkt door en meldt zich als het klaar is.
+          scherm sluiten, ORBIT ENGINE werkt door en meldt zich als het klaar is.
         </p>
 
         <ol className="flex flex-col gap-2">

@@ -25,7 +25,7 @@ export async function generateMetadata({
 /**
  * "Wat je aanbiedt" (optimalisatie.md blok B fase 1), sinds de herstructurering
  * van augustus 2026 een eigen subpagina onder Merkdossier in plaats van een blok
- * op die pagina zelf. Eén doel: laten zien wat Aura als aanbod op de site vond,
+ * op die pagina zelf. Eén doel: laten zien wat ORBIT ENGINE als aanbod op de site vond,
  * en welke onderdelen daarvan nog geen eigen pagina hebben.
  */
 export default async function ProductenPage({
@@ -70,7 +70,7 @@ export default async function ProductenPage({
         title="Producten"
         backHref={`/profielen/${id}`}
         backLabel="Merkdossier"
-        description="Je diensten en producten zoals Aura ze op je site vond, en welke nog geen eigen pagina hebben."
+        description="Je diensten en producten zoals ORBIT ENGINE ze op je site vond, en welke nog geen eigen pagina hebben."
       />
 
       <OfferingsPanel

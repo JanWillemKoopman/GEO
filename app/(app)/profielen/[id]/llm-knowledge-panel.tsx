@@ -39,7 +39,7 @@ export function LlmKnowledgePanel({ rows }: { rows: ProfileLlmBaseline[] }) {
       <div className="card flex flex-col gap-2">
         <span className="mono-label">Wat AI-assistenten over je weten</span>
         <p className="text-secondary">
-          De kennistest is nog niet gedraaid. Aura vraagt een AI-assistent op zes
+          De kennistest is nog niet gedraaid. ORBIT ENGINE vraagt een AI-assistent op zes
           manieren wat hij over je merk weet, en legt die antwoorden naast de
           feiten op je eigen site.
         </p>

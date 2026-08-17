@@ -72,7 +72,7 @@ export function ConfirmBar({
           ) : (
             <span className="hidden text-sm text-muted sm:inline">
               {/* A.8: aankondigen wat er gaat gebeuren, niet alleen dat er iets gebeurt. */}
-              Aura stelt {activeCount} {activeCount === 1 ? "vraag" : "vragen"} aan AI-assistenten
+              ORBIT ENGINE stelt {activeCount} {activeCount === 1 ? "vraag" : "vragen"} aan AI-assistenten
               en verwerkt de antwoorden. Je kunt de vragen en het onderzoek hierna nog steeds
               aanpassen.
             </span>

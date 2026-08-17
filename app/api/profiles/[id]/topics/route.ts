@@ -109,7 +109,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   const profile = await getOwnedProfile(admin, id, user.id);
   if (!profile) return NextResponse.json({ error: "Niet gevonden." }, { status: 404 });
   if (profile.status !== "klaar") {
-    return NextResponse.json({ error: "Aura is nog bezig met dit merk. Wacht tot het onderzoek klaar is." }, { status: 409 });
+    return NextResponse.json({ error: "ORBIT ENGINE is nog bezig met dit merk. Wacht tot het onderzoek klaar is." }, { status: 409 });
   }
 
   let body: { topicId?: string; mix?: Record<string, unknown> };

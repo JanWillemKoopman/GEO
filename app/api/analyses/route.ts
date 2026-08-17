@@ -45,7 +45,7 @@ export async function POST(request: Request) {
   }
   if (profile.status !== "klaar") {
     return NextResponse.json(
-      { error: "Aura is nog bezig met dit merk. Wacht tot het onderzoek klaar is." },
+      { error: "ORBIT ENGINE is nog bezig met dit merk. Wacht tot het onderzoek klaar is." },
       { status: 409 },
     );
   }

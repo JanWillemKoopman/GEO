@@ -3904,7 +3904,7 @@ group("de drie statustalen (plan-status)", () => {
   ]) === 3);
 });
 
-group("wanneer Aura begint te schrijven", () => {
+group("wanneer ORBIT ENGINE begint te schrijven", () => {
   const nu = new Date("2026-09-10T12:00:00Z");
   const gepland = (datum: string) => ({ status: "gepland" as const, scheduled_for: datum });
 
@@ -3935,7 +3935,7 @@ group("wanneer Aura begint te schrijven", () => {
   );
 });
 
-group("mag Aura deze pagina schrijven? (plan-writing)", () => {
+group("mag ORBIT ENGINE deze pagina schrijven? (plan-writing)", () => {
   const nu = new Date("2026-09-10T12:00:00Z");
   const pagina = (over: Partial<PageForWriting> = {}): PageForWriting => ({
     status: "gepland",
@@ -4020,8 +4020,8 @@ group("mag Aura deze pagina schrijven? (plan-writing)", () => {
     writeBlockNotice("geen_analyse")?.whoseTurn === "klant",
   );
   ok(
-    "een lopende meting is er een voor Aura",
-    writeBlockNotice("meting_nog_niet_klaar")?.whoseTurn === "aura",
+    "een lopende meting is er een voor ORBIT ENGINE",
+    writeBlockNotice("meting_nog_niet_klaar")?.whoseTurn === "orbit_engine",
   );
 
   // De briefing die met de schrijftaak meegaat.
@@ -4197,8 +4197,8 @@ group("wie mag uitnodigen", () => {
   // een bureau is dat het verschil tussen een collega en de contractpartij.
   ok("een accountbeheerder mag", mayInvite("admin", false) === true);
   ok("een gewoon lid mag niet", mayInvite("member", false) === false);
-  ok("een beheerder van Aura mag altijd", mayInvite(null, true) === true);
-  ok("een lid van Aura-staf ook", mayInvite("member", true) === true);
+  ok("een beheerder van ORBIT ENGINE mag altijd", mayInvite(null, true) === true);
+  ok("een lid van ORBIT ENGINE-staf ook", mayInvite("member", true) === true);
   ok("zonder rol en zonder staf niet", mayInvite(null, false) === false);
 });
 
@@ -4405,7 +4405,7 @@ console.log("\nWaarom een contentversie bestaat (C.24)");
 group("versionReasonLabel", () => {
   ok(
     "versie 1 is altijd origineel",
-    versionReasonLabel({ version: 1, revisionNote: "iets", editedByUser: true }).includes("Aura geschreven"),
+    versionReasonLabel({ version: 1, revisionNote: "iets", editedByUser: true }).includes("ORBIT ENGINE geschreven"),
   );
   ok(
     "door de klant bewerkt wint van een oud verzoek",
@@ -4903,7 +4903,7 @@ group("normalizeProperty: de twee vormen die Google kent", () => {
   );
 });
 
-group("syncWindow: welke dagen Aura ophaalt", () => {
+group("syncWindow: welke dagen ORBIT ENGINE ophaalt", () => {
   const nu = new Date("2026-08-11T09:00:00Z");
 
   // ⚠️ Google's definitieve cijfers lopen twee dagen achter. Wie gisteren als

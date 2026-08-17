@@ -48,7 +48,7 @@ function findGaps(profile: Profile): Gap[] {
     gaps.push({
       label: "Concrete feiten over je bedrijf",
       effect:
-        "Cijfers, jaartallen en termijnen zijn wat een AI-assistent aanhaalt. Zonder die feiten wordt elke tekst die Aura schrijft noodgedwongen algemeen, en algemeen wordt niet geciteerd.",
+        "Cijfers, jaartallen en termijnen zijn wat een AI-assistent aanhaalt. Zonder die feiten wordt elke tekst die ORBIT ENGINE schrijft noodgedwongen algemeen, en algemeen wordt niet geciteerd.",
     });
   }
 
@@ -56,7 +56,7 @@ function findGaps(profile: Profile): Gap[] {
     gaps.push({
       label: "In welke plaats of streek je werkt",
       effect:
-        "Aura ziet dat je lokaal werkt, maar niet waar. Zonder plaatsnaam gaan de vragen landelijk, en meet je jezelf af tegen partijen waar je nooit tegenaan loopt.",
+        "ORBIT ENGINE ziet dat je lokaal werkt, maar niet waar. Zonder plaatsnaam gaan de vragen landelijk, en meet je jezelf af tegen partijen waar je nooit tegenaan loopt.",
     });
   }
 
@@ -64,7 +64,7 @@ function findGaps(profile: Profile): Gap[] {
     gaps.push({
       label: "Wat voor bedrijf je bent",
       effect:
-        "Dienstverlener, retailer, fabrikant of platform: dat bepaalt waar Aura in je aanbod naar zoekt en welke vragen het straks stelt. Met zekerheid afleiden lukte niet.",
+        "Dienstverlener, retailer, fabrikant of platform: dat bepaalt waar ORBIT ENGINE in je aanbod naar zoekt en welke vragen het straks stelt. Met zekerheid afleiden lukte niet.",
     });
   }
 

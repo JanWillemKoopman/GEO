@@ -22,7 +22,7 @@ export async function generateMetadata({
 }
 
 /**
- * Wat Aura na de nulmeting nog van de klant wil weten (optimalisatie.md 4.6).
+ * Wat ORBIT ENGINE na de nulmeting nog van de klant wil weten (optimalisatie.md 4.6).
  *
  * ── WAAROM ALLEEN DE ONBOARDING-VRAGEN ──────────────────────────────────────
  *
@@ -69,7 +69,7 @@ export default async function AanvullenPage({
         <div className="card card-success flex flex-col gap-1">
           <span className="mono-label">Niets open</span>
           <p className="text-secondary">
-            Aura heeft alles wat het nodig heeft uit de nulmeting. Komen er bij een volgende meting
+            ORBIT ENGINE heeft alles wat het nodig heeft uit de nulmeting. Komen er bij een volgende meting
             nieuwe vragen bij, dan staan ze hier.
           </p>
         </div>

@@ -81,8 +81,8 @@ export function CreatePlanBox({
         <span className="mono-label">Nog geen contentplan</span>
         <p className="text-secondary">
           Een contentplan zet {MONTHS_AHEAD} maanden vooruit welke pagina&apos;s
-          Aura schrijft, verdeeld over je onderwerpen en de fasen van je
-          klantreis. Je keurt per maand goed, en Aura begint tien dagen voor elke
+          ORBIT ENGINE schrijft, verdeeld over je onderwerpen en de fasen van je
+          klantreis. Je keurt per maand goed, en ORBIT ENGINE begint tien dagen voor elke
           publicatiedatum met schrijven.
         </p>
 
@@ -119,7 +119,7 @@ export function CreatePlanBox({
             uitleg={
               topicCount > 0 ? null : (
                 <>
-                  Aura stelt onderwerpen voor tijdens het merkonderzoek. Kijk op{" "}
+                  ORBIT ENGINE stelt onderwerpen voor tijdens het merkonderzoek. Kijk op{" "}
                   <Link href={`/analyses/aanbevolen?merk=${profileId}`} className="underline">
                     het merkdossier
                   </Link>
@@ -134,7 +134,7 @@ export function CreatePlanBox({
       {mag && (
         <div className="card flex flex-col gap-3">
           <label htmlFor="notitie" className="mono-label">
-            Iets wat Aura moet weten (mag leeg)
+            Iets wat ORBIT ENGINE moet weten (mag leeg)
           </label>
           <p className="text-sm text-muted">
             Bijvoorbeeld: een nieuwe vestiging, een product dat eruit gaat, een

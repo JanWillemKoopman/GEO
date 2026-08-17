@@ -88,7 +88,7 @@ export function PublishBox({
           <span className="mono-label flex items-center gap-1">
             Live
             <InfoHint label="Wat gebeurt er nu?">
-              Aura hermeet de vragen waarvoor deze pagina gemaakt is, twee en vier weken na
+              ORBIT ENGINE hermeet de vragen waarvoor deze pagina gemaakt is, twee en vier weken na
               publicatie. AI-assistenten pikken nieuwe content niet dezelfde dag op, dus eerder
               meten zegt niets.
             </InfoHint>
@@ -110,7 +110,7 @@ export function PublishBox({
         <PublishCheckNotice check={check} checkedAt={checkedAt} />
 
         <p className="text-sm text-secondary">
-          Aura hermeet de bijbehorende vragen over twee en over vier weken. Het resultaat komt
+          ORBIT ENGINE hermeet de bijbehorende vragen over twee en over vier weken. Het resultaat komt
           vanzelf in hoofdstuk 04 van je cluster te staan. Jij hoeft niets.
         </p>
 
@@ -132,13 +132,13 @@ export function PublishBox({
       <div className="flex flex-col gap-1">
         <span className="mono-label flex items-center gap-1">
           Staat deze pagina al live?
-          <InfoHint label="Waarom vraagt Aura dit?">
-            Zodra je hier de link invult, hermeet Aura de vragen waarvoor deze pagina gemaakt is,
+          <InfoHint label="Waarom vraagt ORBIT ENGINE dit?">
+            Zodra je hier de link invult, hermeet ORBIT ENGINE de vragen waarvoor deze pagina gemaakt is,
             twee en vier weken later. Dan zie je zwart-op-wit of het gewerkt heeft.
           </InfoHint>
         </span>
         <p className="text-sm text-secondary">
-          Geef de link, dan controleert Aura of de tekst er echt op staat. Daarna volgt het of je op
+          Geef de link, dan controleert ORBIT ENGINE of de tekst er echt op staat. Daarna volgt het of je op
           de bijbehorende vragen vaker genoemd wordt.
         </p>
       </div>
@@ -166,7 +166,7 @@ export function PublishBox({
       ) : (
         <div className="flex flex-col gap-2 rounded-[var(--radius-md)] border border-[var(--border-subtle)] p-3">
           <p className="text-sm text-secondary">
-            Aura zet nu twee hermetingen in de rij, over twee en over vier weken, om te zien of deze
+            ORBIT ENGINE zet nu twee hermetingen in de rij, over twee en over vier weken, om te zien of deze
             pagina het verschil maakt. Klopt de link?
           </p>
           <p className="w-fit break-all text-sm font-medium">{url.trim()}</p>
@@ -206,7 +206,7 @@ function PublishCheckNotice({ check, checkedAt }: { check: PublishCheck | null; 
     return (
       <p className="flex items-center gap-2 text-sm text-secondary">
         <span className="live-dot" />
-        Aura controleert de pagina…
+        ORBIT ENGINE controleert de pagina…
       </p>
     );
   }

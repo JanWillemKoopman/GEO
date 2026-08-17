@@ -11,7 +11,7 @@ import { AnalysisNav } from "./tabs";
  * A.4: elk scherm een eigen tabbladtitel. Deze laag zet de analysenaam als
  * `%s`-sjabloon neer, elke subpagina hoeft alleen zijn eigen kort woord op te
  * geven (`export const metadata = { title: "Bibliotheek" }`) en Next.js vult
- * het patroon aan tot "Bibliotheek · Acme B.V. · Aura". Ontbreekt die
+ * het patroon aan tot "Bibliotheek · Acme B.V. · ORBIT ENGINE". Ontbreekt die
  * subtitel, dan valt het terug op de analysenaam alleen (`default`).
  * `getAnalysis` is gememoïseerd (lib/analyses.ts) dus dit is geen tweede query
  * naast de layout zelf.
@@ -26,8 +26,8 @@ export async function generateMetadata({
   if (!analysis) return {};
   return {
     title: {
-      template: `%s · ${analysis.name} · Aura`,
-      default: `${analysis.name} · Aura`,
+      template: `%s · ${analysis.name} · ORBIT ENGINE`,
+      default: `${analysis.name} · ORBIT ENGINE`,
     },
   };
 }

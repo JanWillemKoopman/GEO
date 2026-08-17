@@ -1,6 +1,6 @@
-# Aura: werkinstructie
+# ORBIT ENGINE: werkinstructie
 
-**De app heet Aura.** GEO-tracking voor het MKB: meet hoe zichtbaar een merk is in AI-antwoorden
+**De app heet ORBIT ENGINE.** GEO-tracking voor het MKB: meet hoe zichtbaar een merk is in AI-antwoorden
 (ChatGPT e.d.), adviseert, schrijft content, publiceert en meet het effect. Nederlands is de taal
 van de app, de AI-prompts, de code-commentaren en deze documentatie.
 
@@ -21,7 +21,7 @@ Wat er niet verandert: geen gedachtestreepjes (zie hieronder), geen verkooppraat
 wordt benoemd en niet weggeschreven. Begrijpelijk is niet hetzelfde als geruststellend.
 
 **Alle UI-copy volgt `docs/schrijfstijl.md`**: de tone-of-voice van InSpace Nova, vertaald naar
-Aura. Kort samengevat: je en jij, korte stellende zinnen, Aura als handelend onderwerp ("Aura leest
+ORBIT ENGINE. Kort samengevat: je en jij, korte stellende zinnen, ORBIT ENGINE als handelend onderwerp ("ORBIT ENGINE leest
 je website uit", niet "de website wordt uitgelezen"), en het space-thema uitsluitend in namen en
 sfeer-labels, nooit in knoppen, foutmeldingen of instructies. Raadpleeg dat document bij elke
 tekstwijziging, net zoals `docs/designsystem.md` leidend is voor de vormgeving.
@@ -157,7 +157,7 @@ scripts/           test-unit · test-chain · test-openai · eval-mention
 | `docs/designsystem.md` | Bronanalyse van de live inspace.io-CSS: waar elke kleur, radius en gloed vandaan komt |
 | `docs/schrijfstijl.md` | Tone-of-voice en microcopy: de tien richtlijnen, de woordenlijst, en wat we bewust níet van Nova overnemen |
 | `docs/logbook.md` | Waarom het is zoals het is: beslissingen en bouwrondes, met de cijfers eronder |
-| `docs/Nova.md` | **De richting.** InSpace Nova gereconstrueerd uit hun eigen berichtenbestand, de gap-analyse tegenover Aura, en het bouwplan in acht fases. Bevat de vier vastgelegde besluiten (merk-werkruimte, klantportaal, twaalfmaandsplan, Search Console erbij) |
+| `docs/Nova.md` | **De richting.** InSpace Nova gereconstrueerd uit hun eigen berichtenbestand, de gap-analyse tegenover ORBIT ENGINE, en het bouwplan in acht fases. Bevat de vier vastgelegde besluiten (merk-werkruimte, klantportaal, twaalfmaandsplan, Search Console erbij) |
 | `docs/nova-i18n.json` · `docs/inspace-app-i18n.json` · `docs/inspace-marketing.txt` | De ruwe bronnen onder `Nova.md`: de berichtencatalogi van beide InSpace-apps (900 en 1.469 sleutels) en de tekst van hun marketingsite. Niet bewerken |
 | `docs/tasks/roadmap.md` | Wat er nog open staat, op volgorde |
 | `docs/tasks/lanceerplan.md` | **Het pad naar de lancering.** Vijf testsporen, de vijf eigenschappen die "InSpace-kwaliteit" toetsbaar maken, de tweeweekse planning en de afvinklijst voor het lanceerbesluit |

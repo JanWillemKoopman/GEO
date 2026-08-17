@@ -52,9 +52,9 @@ export default async function ConceptPage({ params }: { params: Promise<{ id: st
     <div className="flex flex-col gap-4">
       <div className="card card-accent flex flex-col gap-3">
         <span className="mono-label">Klaar om te starten</span>
-        <h2 className="text-2xl font-bold tracking-tight">Dit gaat Aura meten</h2>
+        <h2 className="text-2xl font-bold tracking-tight">Dit gaat ORBIT ENGINE meten</h2>
         <p className="text-secondary">
-          Aura heeft je website en je merkdossier doorgenomen en daaruit dit meetplan afgeleid. Loop
+          ORBIT ENGINE heeft je website en je merkdossier doorgenomen en daaruit dit meetplan afgeleid. Loop
           het door, pas aan wat niet klopt, en bevestig onderaan. Pas dan gaan deze vragen naar de
           AI-assistenten.
         </p>
@@ -105,7 +105,7 @@ export default async function ConceptPage({ params }: { params: Promise<{ id: st
         <TopicResearchEditor analysisId={id} initial={research} />
       ) : (
         <div className="card">
-          <p className="text-secondary">Aura is het onderwerp nog aan het uitzoeken…</p>
+          <p className="text-secondary">ORBIT ENGINE is het onderwerp nog aan het uitzoeken…</p>
         </div>
       )}
 
@@ -124,7 +124,7 @@ export default async function ConceptPage({ params }: { params: Promise<{ id: st
         <div className="card card-danger">
           <p className="text-secondary">
             Er staat nu geen enkele vraag aan. Zet er hierboven minstens één aan, want zonder vragen
-            valt er niets te meten en kan Aura niet starten.
+            valt er niets te meten en kan ORBIT ENGINE niet starten.
           </p>
         </div>
       )}

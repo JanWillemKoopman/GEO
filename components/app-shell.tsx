@@ -41,7 +41,7 @@ export function AppShell({
       onSelectBrand={selectBrand}
       logo={
         <Link href="/profielen" className="text-lg font-bold tracking-tight">
-          <span className="brand-gradient-text">Aura</span>
+          <span className="brand-gradient-text">ORBIT ENGINE</span>
         </Link>
       }
       accountMenu={<ProfileMenu email={user.email ?? ""} signOutAction={signOut} />}

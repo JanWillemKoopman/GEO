@@ -147,7 +147,7 @@ begin
       returning id into account;
 
       -- De eerste gebruiker van een account is beheerder ervan. Dat is niet
-      -- hetzelfde als `staff_users`: dat gaat over Aura zelf, dit over de klant.
+      -- hetzelfde als `staff_users`: dat gaat over ORBIT ENGINE zelf, dit over de klant.
       insert into public.account_users (account_id, user_id, role)
       values (account, eigenaar.user_id, 'admin')
       on conflict do nothing;

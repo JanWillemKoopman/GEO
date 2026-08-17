@@ -111,13 +111,13 @@ export function StrategyBox({
           rows={4}
           value={notes}
           onChange={(e) => setNotes(e.target.value)}
-          placeholder="Wat wil de klant bereiken, en waarom? Aura neemt dit mee in de vragen die het bedenkt en in het rapport."
+          placeholder="Wat wil de klant bereiken, en waarom? ORBIT ENGINE neemt dit mee in de vragen die het bedenkt en in het rapport."
         />
       </label>
 
       <div className="flex flex-col gap-3">
         <div className="flex flex-col gap-1">
-          <span className="mono-label">Wat Aura niet kan zien</span>
+          <span className="mono-label">Wat ORBIT ENGINE niet kan zien</span>
           <span className="text-sm text-secondary">
             Dingen die niet op de website staan, maar wel bepalen wat het advies
             waard is. Aan elk hangt een gevolg, geen notitie die niemand

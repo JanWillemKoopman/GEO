@@ -1,5 +1,5 @@
 -- ═══════════════════════════════════════════════════════════════════════════
--- Aura — de dagelijkse schrijfronde van het contentplan
+-- ORBIT ENGINE — de dagelijkse schrijfronde van het contentplan
 -- Migratie 0050 (fase 4, docs/Nova.md §7).
 --
 -- WAAROM VIA pg_cron EN NIET VIA vercel.json: hetzelfde als bij de werker
@@ -60,3 +60,4 @@ select cron.schedule('aura-plan-writer', '0 4 * * *', 'select public.trigger_pla
 --               select * from cron.job_run_details order by start_time desc limit 20;
 -- Met de hand:  select public.trigger_plan_writer();
 -- Uitzetten:    select cron.unschedule('aura-plan-writer');
+-- Hernoemd naar 'orbit-engine-plan-writer' in migratie 0059 (rebrand Aura → ORBIT ENGINE).

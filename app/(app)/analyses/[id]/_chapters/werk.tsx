@@ -125,7 +125,7 @@ export async function WerkChapter({
       <WorkList items={work} />
 
       {/* Vragen die uit déze analyse kwamen (optimalisatie.md 4.6). Stond eerder
-          op het merkdossier onder "Help Aura concreter te schrijven"; verhuisd
+          op het merkdossier onder "Help ORBIT ENGINE concreter te schrijven"; verhuisd
           hierheen omdat het antwoord rechtstreeks de content hieronder scherper
           maakt, niet het merk in het algemeen. */}
       {(factRows ?? []).length > 0 && (
@@ -136,10 +136,10 @@ export async function WerkChapter({
         <div className="card flex flex-col gap-4">
           <div className="flex flex-col gap-1">
             <span className="mono-label flex items-center gap-1">
-              Pagina&apos;s die Aura voor je schrijft
+              Pagina&apos;s die ORBIT ENGINE voor je schrijft
               <InfoHint label="Waar komen deze vandaan?">
                 Elke pagina hieronder hangt aan concrete vragen waarop je nu niet genoemd wordt.
-                Daar wordt de tekst voor gemaakt, en daaraan meet Aura later of het gewerkt heeft.
+                Daar wordt de tekst voor gemaakt, en daaraan meet ORBIT ENGINE later of het gewerkt heeft.
               </InfoHint>
             </span>
             <p className="text-sm text-secondary">

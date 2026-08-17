@@ -119,7 +119,7 @@ export interface PlannedPage {
 
 /**
  * Twee rollen binnen een account, niet meer. Net als Nova (`roleAdmin`,
- * `roleMember`). Dit is iets anders dan `staff_users`: dat gaat over wie Aura
+ * `roleMember`). Dit is iets anders dan `staff_users`: dat gaat over wie ORBIT ENGINE
  * beheert, dit over wie bij de gegevens van één klant mag.
  */
 export type AccountRole = "admin" | "member";
@@ -279,7 +279,7 @@ export interface Profile {
   status: ProfileStatus;
   /** Search Console (migratie 0052). Leeg = niet gekoppeld. */
   gsc_property: string | null;
-  /** Wanneer Aura voor het laatst kon lezen. Leeg mét property = de klant moet ons adres nog toevoegen. */
+  /** Wanneer ORBIT ENGINE voor het laatst kon lezen. Leeg mét property = de klant moet ons adres nog toevoegen. */
   gsc_verified_at: string | null;
   /** De laatste fout in gewone taal, zodat het scherm kan zeggen wát er mis is. */
   gsc_last_error: string | null;
@@ -354,7 +354,7 @@ export interface Profile {
   tone_humor: 1 | 2 | 3 | null;
   /**
    * Het merkprofiel compleet (migratie 0048). De laatste dertien velden uit de
-   * inventaris in `docs/Nova.md` §13: wat InSpace uitvraagt en Aura nog niet
+   * inventaris in `docs/Nova.md` §13: wat InSpace uitvraagt en ORBIT ENGINE nog niet
    * had. Alles wat al een eigenaar had staat er bewust niet nóg een keer bij;
    * de vertaaltabel staat bovenaan die migratie.
    */
@@ -374,9 +374,9 @@ export interface Profile {
   tone_emotional: 1 | 2 | 3 | 4 | null;
   signature_phrases: string[];
   /**
-   * ⚠️ Hoe de CONTENT de lezer aanspreekt, niet hoe Aura zijn eigen gebruiker
+   * ⚠️ Hoe de CONTENT de lezer aanspreekt, niet hoe ORBIT ENGINE zijn eigen gebruiker
    * aanspreekt. `docs/schrijfstijl.md` legt "je en jij" vast voor de interface;
-   * een advocatenkantoor wil dat Aura vóór hem "u" schrijft.
+   * een advocatenkantoor wil dat ORBIT ENGINE vóór hem "u" schrijft.
    */
   pronoun_preference: "je" | "u" | "wij" | null;
   author_photo_url: string | null;

@@ -39,7 +39,7 @@ function Tegenspraken({ regels }: { regels: string[] }) {
         ))}
       </ul>
       <p className="text-sm text-muted">
-        Aura gebruikt altijd het nieuwste antwoord. Klopt dat niet? Pas het hieronder aan.
+        ORBIT ENGINE gebruikt altijd het nieuwste antwoord. Klopt dat niet? Pas het hieronder aan.
       </p>
     </div>
   );
@@ -117,9 +117,9 @@ export default async function BriefingPage({ params }: { params: Promise<{ id: s
     return (
       <EmptyState
         title="Er wacht geen pagina op je input"
-        action={{ href: `/analyses/${id}#werk`, label: "Kies wat Aura gaat schrijven" }}
+        action={{ href: `/analyses/${id}#werk`, label: "Kies wat ORBIT ENGINE gaat schrijven" }}
       >
-        Zodra je in hoofdstuk 03 pagina&apos;s kiest, stelt Aura hier de vragen die het nodig heeft
+        Zodra je in hoofdstuk 03 pagina&apos;s kiest, stelt ORBIT ENGINE hier de vragen die het nodig heeft
         om te schrijven zonder ook maar iets te verzinnen.
       </EmptyState>
     );
@@ -128,7 +128,7 @@ export default async function BriefingPage({ params }: { params: Promise<{ id: s
   if (questions.length === 0) {
     return (
       <div className="card card-success flex flex-col gap-3">
-        <h1 className="text-xl font-semibold">Aura weet genoeg</h1>
+        <h1 className="text-xl font-semibold">ORBIT ENGINE weet genoeg</h1>
         <p style={{ color: "var(--text-secondary)" }}>
           Voor{" "}
           {pieces.length === 1

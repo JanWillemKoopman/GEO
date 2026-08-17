@@ -109,7 +109,7 @@ export function onboardingStats(
             ? `Wisselend: bij ${knows.recognised} van de ${knows.asked} manieren van vragen`
             : `Nee, bij geen van de ${knows.asked} manieren van vragen`,
     explain:
-      `Aura vraagt ChatGPT op ${knows.asked || "meerdere"} verschillende manieren naar je bedrijf, ` +
+      `ORBIT ENGINE vraagt ChatGPT op ${knows.asked || "meerdere"} verschillende manieren naar je bedrijf, ` +
       "bijvoorbeeld op merknaam, op merknaam plus plaats, en als losse vraag. " +
       "Bij de ene formulering komt een merk soms wél boven en bij de andere niet, " +
       "en dat verschil is precies wat je wilt weten.",
@@ -142,7 +142,7 @@ export function onboardingStats(
             ? `Ja, bij alle ${gevraagd} koopvragen`
             : `Bij ${genoemd} van de ${gevraagd} koopvragen. Dit is de nulmeting`,
     explain:
-      `Aura stelt ${gevraagd || "een aantal"} vragen zoals een klant ze stelt, zonder je merknaam erin: ` +
+      `ORBIT ENGINE stelt ${gevraagd || "een aantal"} vragen zoals een klant ze stelt, zonder je merknaam erin: ` +
       '"welke aanbieder kies ik voor…". Je merk moet daar dus uit zichzelf bovenkomen. ' +
       "Bekend zijn en aanbevolen worden zijn twee verschillende dingen; dit cijfer meet het tweede.",
     href: "#ai-kennis",
@@ -164,7 +164,7 @@ export function onboardingStats(
           ? `Alle ${assessed} onderdelen hebben een pagina`
           : `${missing} van je ${assessed} onderdelen heeft er nog geen`,
     explain:
-      "Dit gaat over je eigen site, niet over ChatGPT. Aura legt je aanbod naast je pagina's: " +
+      "Dit gaat over je eigen site, niet over ChatGPT. ORBIT ENGINE legt je aanbod naast je pagina's: " +
       "een dienst zonder eigen pagina heeft geen plek waar een AI-assistent iets over kan lezen. " +
       "Dit is meestal het snelst te verhelpen punt van de drie.",
     href: "#aanbod",
@@ -202,7 +202,7 @@ export function onboardingHeadline(
   if (knows.level === "kent_niet") {
     return (
       `ChatGPT kent ${merk} nog niet als bedrijf. Dat is niet raar: het is de ` +
-      `uitgangssituatie van vrijwel elk MKB-merk. En precies wat Aura hier verandert.`
+      `uitgangssituatie van vrijwel elk MKB-merk. En precies wat ORBIT ENGINE hier verandert.`
     );
   }
 

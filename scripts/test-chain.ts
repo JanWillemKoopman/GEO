@@ -707,7 +707,7 @@ async function main(): Promise<void> {
     // merken. De brug is `plannedPageId` in de payload, en die brug bestaat uit
     // drie stukken die alle drie moeten kloppen: de cron zet hem erin, de
     // handler koppelt terug, en de werker meldt een definitieve mislukking.
-    // Valt er één weg, dan schrijft Aura wel maar blijft het plan op "Aura is
+    // Valt er één weg, dan schrijft ORBIT ENGINE wel maar blijft het plan op "ORBIT ENGINE is
     // bezig" staan, en dat merkt niemand tot de klant ernaar vraagt.
     // ══════════════════════════════════════════════════════════════════════
     console.log("\nHet contentplan: van goedgekeurde maand naar geschreven tekst");
@@ -846,7 +846,7 @@ async function main(): Promise<void> {
     );
 
     // ── Het vangnet: een definitief mislukte taak ──────────────────────────
-    // Zonder deze regel blijft een pagina op "Aura is bezig" staan terwijl er
+    // Zonder deze regel blijft een pagina op "ORBIT ENGINE is bezig" staan terwijl er
     // niets meer gebeurt: de status die om geduld vraagt dat nergens toe leidt.
     const { rows: mislukteTaak } = await db.client.query(
       `insert into public.jobs (analysis_id, type, payload_json, dedupe_key, status, attempts)

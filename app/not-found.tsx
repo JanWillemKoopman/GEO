@@ -13,7 +13,7 @@ export default function NotFound() {
     <main className="relative flex min-h-dvh items-center justify-center px-6 py-12">
       <div className="relative z-10 flex w-full max-w-md flex-col items-center gap-5 text-center">
         <Link href="/analyses" className="text-2xl font-bold tracking-tight">
-          <span className="brand-gradient-text">Aura</span>
+          <span className="brand-gradient-text">ORBIT ENGINE</span>
         </Link>
         <div className="card flex flex-col items-center gap-4 py-14">
           <span className="mono-label">404 · buiten bereik</span>

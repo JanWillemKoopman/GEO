@@ -90,7 +90,7 @@ function watDatBetekent(input: InsightInput): Insight {
   if (input.crawlerBlocked) {
     return {
       // Dit overstemt alles: zolang de crawler eruit ligt, is de rest theorie.
-      text: "AI-assistenten kunnen je site op dit moment niet lezen. Zolang dat zo is, kan geen enkele pagina die Aura schrijft je zichtbaarheid verbeteren.",
+      text: "AI-assistenten kunnen je site op dit moment niet lezen. Zolang dat zo is, kan geen enkele pagina die ORBIT ENGINE schrijft je zichtbaarheid verbeteren.",
       toon: "let_op",
     };
   }

@@ -232,7 +232,7 @@ export function TeamBox({
           <span className="mono-label">De uitnodigingslink</span>
           <p className="text-sm text-secondary">
             Stuur deze link naar je klant. Hij is twee weken geldig en werkt één
-            keer. <strong>Je ziet hem nu voor het laatst</strong>: Aura bewaart
+            keer. <strong>Je ziet hem nu voor het laatst</strong>: ORBIT ENGINE bewaart
             alleen een versleutelde versie, dus opnieuw tonen kan niet.
           </p>
           <p className="break-url rounded-[var(--radius-md)] bg-[var(--bg-elevated)] p-3 font-mono text-xs">

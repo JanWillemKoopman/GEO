@@ -36,7 +36,7 @@ const STALE_FAILURE: UserFacingError = {
   kind: "unknown",
   title: "Het onderzoek is eerder vastgelopen",
   message:
-    "Meestal is dat een tijdelijke storing, of een website die Aura niet " +
+    "Meestal is dat een tijdelijke storing, of een website die ORBIT ENGINE niet " +
     "binnenliet. Probeer het opnieuw, je gegevens blijven staan.",
   canRetry: true,
   detail: "",
@@ -93,8 +93,8 @@ export function ProfileProgress({
 
   return (
     <WorkInProgress
-      title="Aura leert je merk kennen"
-      explanation="Aura leest je website, brengt in kaart welke pagina's er staan, en zoekt uit wat je aanbiedt en wie je concurrenten zijn. Voordat het één woord schrijft, weet het wie je bent."
+      title="ORBIT ENGINE leert je merk kennen"
+      explanation="ORBIT ENGINE leest je website, brengt in kaart welke pagina's er staan, en zoekt uit wat je aanbiedt en wie je concurrenten zijn. Voordat het één woord schrijft, weet het wie je bent."
       steps={(data?.steps ?? []).map((s) => ({
         label: s.result ? `${s.label}: ${s.result}` : s.label,
         done: s.state === "klaar" || s.state === "overgeslagen",

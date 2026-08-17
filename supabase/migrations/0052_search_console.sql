@@ -1,5 +1,5 @@
 -- ═══════════════════════════════════════════════════════════════════════════
--- Aura: Google Search Console koppelen
+-- ORBIT ENGINE: Google Search Console koppelen
 -- Migratie 0052 (fase 5, docs/tasks/zoekdata-koppeling.md, besluit 4).
 --
 -- WAAROM EEN SERVICE ACCOUNT EN GEEN OAUTH
@@ -15,7 +15,7 @@
 --
 --   • Geen tokens. Er is niets per klant op te slaan: één sleutel in een secret,
 --     verder niets. Dat is precies de winst van het service account.
---   • Geen Google Analytics. Dat zijn persoonsgegevens en dan wordt Aura
+--   • Geen Google Analytics. Dat zijn persoonsgegevens en dan wordt ORBIT ENGINE
 --     verwerker (§2). InSpace maakt hetzelfde onderscheid.
 --   • Geen aparte kolom voor AI Overviews. Google levert die niet: klikken uit
 --     een AI-antwoord zitten ongesplitst in `web`. Dat is precies het cijfer
@@ -34,7 +34,7 @@ alter table public.profiles
 comment on column public.profiles.gsc_property is
   'De property zoals Search Console hem kent: "sc-domain:voorbeeld.nl" of "https://voorbeeld.nl/". Leeg = niet gekoppeld.';
 comment on column public.profiles.gsc_verified_at is
-  'Wanneer Aura voor het laatst kon lezen. Leeg terwijl er wél een property staat = de klant moet ons adres nog toevoegen.';
+  'Wanneer ORBIT ENGINE voor het laatst kon lezen. Leeg terwijl er wél een property staat = de klant moet ons adres nog toevoegen.';
 comment on column public.profiles.gsc_last_error is
   'De laatste fout in gewone taal, zodat het scherm kan zeggen wát er mis is in plaats van "mislukt".';
 comment on column public.profiles.gsc_first_day is
@@ -43,7 +43,7 @@ comment on column public.profiles.gsc_first_day is
 -- ── 2. De cijfers, per pagina per dag ──────────────────────────────────────
 --
 -- Per PAGINA en niet per zoekopdracht: de vraag die dit product stelt is "doet
--- de pagina die Aura schreef iets", en dat is een paginavraag. Zoekopdrachten
+-- de pagina die ORBIT ENGINE schreef iets", en dat is een paginavraag. Zoekopdrachten
 -- zijn een tweede tabel waard zodra ze echt gebruikt worden (fase 2 van
 -- zoekdata-koppeling.md); ze nu al ophalen levert rijen op die niemand leest.
 create table if not exists public.search_console_days (

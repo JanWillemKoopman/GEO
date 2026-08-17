@@ -24,7 +24,7 @@ import type { Profile } from "@/lib/types/database";
  * ── WAAROM DIT GEEN LEEG FORMULIER IS ───────────────────────────────────────
  *
  * Nova laat hun klant twintig minuten uittrekken (`landingTimeNote`) voor een
- * onboarding van dertig velden die hij van nul invult. Aura kan dat korter,
+ * onboarding van dertig velden die hij van nul invult. ORBIT ENGINE kan dat korter,
  * omdat het onderzoek hier vóór de kennismaking draait in plaats van erna: van
  * de veertig velden staat het merendeel er al, gevonden op de site van de klant.
  *
@@ -110,7 +110,7 @@ export function BrandWizard({
         intent: "succes",
         title: "Je merkprofiel is bijgewerkt",
         description:
-          "Aura gebruikt dit vanaf nu in élke pagina die het schrijft, niet alleen in de eerstvolgende.",
+          "ORBIT ENGINE gebruikt dit vanaf nu in élke pagina die het schrijft, niet alleen in de eerstvolgende.",
       });
       router.refresh();
       daarna?.();
@@ -249,7 +249,7 @@ export function BrandWizard({
 /**
  * Eén veld: label, uitleg, herkomst, invoer.
  *
- * De herkomstchip is het hele punt van dit scherm. `onderzoek` betekent "Aura
+ * De herkomstchip is het hele punt van dit scherm. `onderzoek` betekent "ORBIT ENGINE
  * heeft dit van je site gehaald, kijk het na"; `klant` of `gesprek` betekent
  * "dit heeft een mens vastgelegd, en een volgende onderzoeksronde laat het met
  * rust" (zie `lib/pipeline/field-merge.ts`).
@@ -339,7 +339,7 @@ function Herkomst({
   derivable: boolean;
 }) {
   if (!gevuld) {
-    // Een leeg veld dat Aura niet kán vinden, is geen tekortkoming van de app
+    // Een leeg veld dat ORBIT ENGINE niet kán vinden, is geen tekortkoming van de app
     // maar een vraag aan de klant. Dat verschil hoort zichtbaar te zijn.
     return (
       <span className="chip chip-neutral">

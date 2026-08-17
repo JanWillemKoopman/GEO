@@ -10,7 +10,7 @@ import "server-only";
  * met twintig klanten nog te overzien is: er is altijd precies één context, en
  * elk scherm hoort erbij.
  *
- * Aura had twee losse lijsten, Analyses en Merken, die naast elkaar stonden
+ * ORBIT ENGINE had twee losse lijsten, Analyses en Merken, die naast elkaar stonden
  * zonder dat er ergens stond welk merk bij welke analyse hoorde. De gebruiker
  * legde dat verband zelf, elke keer opnieuw.
  *
@@ -31,7 +31,7 @@ import { accountIdsOf } from "@/lib/accounts";
 import { isStaff } from "@/lib/staff";
 import type { Profile } from "@/lib/types/database";
 
-export const BRAND_COOKIE = "aura_merk";
+export const BRAND_COOKIE = "orbit_engine_merk";
 
 /** Wat de kiezer nodig heeft. Bewust smal: dit gaat over elke pagina mee. */
 export interface BrandOption {

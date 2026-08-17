@@ -145,7 +145,7 @@ export async function BewijsChapter({
           <span className="mono-label flex items-center gap-1">
             Waar je zichtbaarheid mist
             <InfoHint label="Waar je zichtbaarheid mist">
-              De patronen die Aura in de antwoorden terugzag. Klik op een punt om precies de
+              De patronen die ORBIT ENGINE in de antwoorden terugzag. Klik op een punt om precies de
               metingen te zien waarop die uitspraak rust. Die staan hieronder.
             </InfoHint>
           </span>

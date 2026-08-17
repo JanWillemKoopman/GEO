@@ -71,7 +71,7 @@ export default async function AnalysesPage({
   return (
     <div className="flex flex-col gap-8">
       <PageHeader
-        eyebrow={merk ? "Eén merk" : "Aura · altijd aan"}
+        eyebrow={merk ? "Eén merk" : "ORBIT ENGINE · altijd aan"}
         title={merk ? "Mijn clusters" : "Alle clusters"}
         description={
           merk
@@ -141,7 +141,7 @@ export default async function AnalysesPage({
               ? "Nog geen clusters voor dit merk"
               : hasProfile
                 ? "Nog geen clusters"
-                : "Welkom bij Aura"
+                : "Welkom bij ORBIT ENGINE"
           }
           action={
             hasProfile
@@ -150,8 +150,8 @@ export default async function AnalysesPage({
           }
         >
           {hasProfile
-            ? "Kies een merk en het product of onderwerp dat je wilt meten. Aura stelt de vragen die jouw klanten aan een AI stellen, en telt hoe vaak jij in het antwoord staat."
-            : "Begin met je merk. Aura onderzoekt het één keer grondig. Daarna meet je er onbeperkt onderwerpen op. Twee velden, verder niets."}
+            ? "Kies een merk en het product of onderwerp dat je wilt meten. ORBIT ENGINE stelt de vragen die jouw klanten aan een AI stellen, en telt hoe vaak jij in het antwoord staat."
+            : "Begin met je merk. ORBIT ENGINE onderzoekt het één keer grondig. Daarna meet je er onbeperkt onderwerpen op. Twee velden, verder niets."}
         </EmptyState>
       ) : (
         <ul className="flex flex-col gap-3">

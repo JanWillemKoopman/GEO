@@ -68,13 +68,13 @@ export function ScoreCard({
         <InfoHint label={leadIsWeighted ? "Gewogen zichtbaarheid" : "Zichtbaarheidsscore"}>
           {leadIsWeighted ? (
             <>
-              Van alle vragen die Aura aan een AI-assistent stelde, in hoeveel word jij genoemd?
+              Van alle vragen die ORBIT ENGINE aan een AI-assistent stelde, in hoeveel word jij genoemd?
               Vaak gestelde en koopklare vragen tellen daarbij zwaarder. Gemeten over{" "}
               {score.winnable_runs ?? score.judged_runs ?? measuredRunCount} vragen.
             </>
           ) : (
             <>
-              Van alle vragen die Aura aan een AI-assistent stelde, in hoeveel word jij genoemd.
+              Van alle vragen die ORBIT ENGINE aan een AI-assistent stelde, in hoeveel word jij genoemd.
               Elke vraag telt even zwaar. Gemeten over {score.winnable_runs ?? score.judged_runs ?? measuredRunCount}{" "}
               vragen.
             </>
@@ -96,7 +96,7 @@ export function ScoreCard({
           <span className="mb-2 flex items-center gap-1 text-sm text-muted">
             ±{band.margin} punten
             <InfoHint label="Waarom een marge?">
-              Aura stelt {score.winnable_runs ?? score.judged_runs ?? measuredRunCount} vragen, geen duizend. Een andere
+              ORBIT ENGINE stelt {score.winnable_runs ?? score.judged_runs ?? measuredRunCount} vragen, geen duizend. Een andere
               set vragen, of dezelfde vragen op een andere dag, geeft een iets ander getal. Je
               echte score ligt naar alle waarschijnlijkheid tussen {band.low} en {band.high}.
             </InfoHint>
@@ -206,7 +206,7 @@ export function BrandRankingsTable({
                   Bron gebruikt
                   <InfoHint label="Bron gebruikt">
                     Hoe vaak de AI naar de eigen site van dit merk verwijst. Bij jezelf is dat een
-                    exacte match op je domein. Bij concurrenten herkent Aura hun site aan de
+                    exacte match op je domein. Bij concurrenten herkent ORBIT ENGINE hun site aan de
                     domeinnaam die op hun merknaam lijkt, dus een enkele citatie kan gemist worden
                     als hun domein er heel anders uitziet dan hun naam. Een streepje betekent dat
                     dit voor deze periode nog niet is berekend, niet dat er geen citaties waren.
@@ -385,7 +385,7 @@ export function AlsoMentionedCard({
           Deze merken kwamen wél in de antwoorden voor, maar zijn geen concurrent van je: denk aan
           vergelijkingssites, marktplaatsen en brancheorganisaties. Ze tellen daarom niet mee in je
           aandeel, anders vertekent dat cijfer. Klopt een indeling niet? Pas hem aan bij
-          Concurrenten beheren; jouw keuze overschrijft Aura daarna nooit meer.
+          Concurrenten beheren; jouw keuze overschrijft ORBIT ENGINE daarna nooit meer.
         </InfoHint>
       </span>
       <ul className="flex flex-col gap-2">

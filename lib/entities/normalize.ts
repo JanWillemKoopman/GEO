@@ -169,7 +169,7 @@ export function looksLikeBrandName(name: string): boolean {
  *
  * ── WAAROM OP NAAM, EN NIET OP EEN OPGESLAGEN DOMEIN ─────────────────────────
  *
- * Voor het eigen merk kent Aura het echte domein (`profiles.url`), dus daar is
+ * Voor het eigen merk kent ORBIT ENGINE het echte domein (`profiles.url`), dus daar is
  * een exacte match genoeg. Van een concurrent is nergens een domein
  * geregistreerd, de klant vult bij onboarding alleen namen in en de meting
  * ontdekt de rest uit AI-antwoorden. `citesOwnSite()` gebruikt daarom dezelfde

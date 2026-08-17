@@ -7,7 +7,7 @@ import { useToast } from "@/components/toast";
 /**
  * Google Search Console koppelen (fase 5, `docs/tasks/zoekdata-koppeling.md`).
  *
- * ── DIT IS HET EERSTE DAT AURA ÉCHT VAN DE KLANT VRAAGT ─────────────────────
+ * ── DIT IS HET EERSTE DAT ORBIT ENGINE ÉCHT VAN DE KLANT VRAAGT ─────────────────────
  *
  * Elke andere stap draait op een webadres zonder dat iemand iets hoeft te doen.
  * Hier moet een geverifieerde eigenaar van de property ons adres toevoegen. Het
@@ -58,7 +58,7 @@ export function SearchConsoleBox({
       if (!res.ok || !j?.ok) {
         toast({
           intent: "fout",
-          title: "Aura kan de cijfers nog niet ophalen",
+          title: "ORBIT ENGINE kan de cijfers nog niet ophalen",
           description: j?.error ?? j?.reason ?? "Probeer het opnieuw.",
         });
         router.refresh();
@@ -68,7 +68,7 @@ export function SearchConsoleBox({
       toast({
         intent: "succes",
         title: "Search Console is gekoppeld",
-        description: `Aura haalde ${j.rijen ?? 0} regels op en werkt de cijfers voortaan elke dag bij.`,
+        description: `ORBIT ENGINE haalde ${j.rijen ?? 0} regels op en werkt de cijfers voortaan elke dag bij.`,
       });
       router.refresh();
     } catch {
@@ -99,12 +99,12 @@ export function SearchConsoleBox({
     <div className="flex flex-col gap-4">
       {gekoppeld ? (
         <p className="text-secondary">
-          Aura leest {property} en heeft {dagen} {dagen === 1 ? "dag" : "dagen"} aan
+          ORBIT ENGINE leest {property} en heeft {dagen} {dagen === 1 ? "dag" : "dagen"} aan
           cijfers binnen. De volgende ronde draait vannacht.
         </p>
       ) : (
         <p className="text-secondary">
-          Koppel Search Console en Aura zet de klikken uit Google naast je
+          Koppel Search Console en ORBIT ENGINE zet de klikken uit Google naast je
           zichtbaarheid in AI-antwoorden. Dat is het bewijsstuk onder het verhaal.
         </p>
       )}
@@ -124,11 +124,11 @@ export function SearchConsoleBox({
       {/* ── Stap 1: het adres ────────────────────────────────────────────── */}
       {serviceAccountEmail ? (
         <div className="flex flex-col gap-2">
-          <span className="mono-label">1. Geef Aura leestoegang</span>
+          <span className="mono-label">1. Geef ORBIT ENGINE leestoegang</span>
           <p className="text-sm text-muted">
             Ga in Search Console naar Instellingen, dan Gebruikers en machtigingen,
             en voeg dit adres toe met het recht <strong>Beperkt</strong>. Meer recht
-            is niet nodig: Aura leest alleen.
+            is niet nodig: ORBIT ENGINE leest alleen.
           </p>
           <div className="flex flex-wrap items-center gap-2">
             <code className="break-url rounded-[var(--radius-md)] bg-[var(--bg-elevated)] px-2 py-1 text-sm">
@@ -187,7 +187,7 @@ export function SearchConsoleBox({
       {/* ⚠️ Zie de toelichting bovenaan dit bestand. */}
       <p className="text-sm text-muted">
         Google splitst klikken uit AI-antwoorden niet apart uit: die zitten in het
-        gewone zoekverkeer. Hoe vaak een AI-assistent je noemt, meet Aura zelf.
+        gewone zoekverkeer. Hoe vaak een AI-assistent je noemt, meet ORBIT ENGINE zelf.
       </p>
     </div>
   );

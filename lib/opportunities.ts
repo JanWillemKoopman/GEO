@@ -106,7 +106,7 @@ export function opportunities(input: OpportunityInput): Opportunity[] {
     lijst.push({
       id: "techniek",
       title: "AI-assistenten kunnen je site niet lezen",
-      why: "Je robots.txt houdt de crawlers van AI-assistenten tegen. Zolang dat zo is, levert elke pagina die Aura schrijft niets op.",
+      why: "Je robots.txt houdt de crawlers van AI-assistenten tegen. Zolang dat zo is, levert elke pagina die ORBIT ENGINE schrijft niets op.",
       action: "Geef de AI-crawlers toegang in robots.txt",
       source: "techniek",
       share: null,
@@ -127,7 +127,7 @@ export function opportunities(input: OpportunityInput): Opportunity[] {
       action:
         r.action === "verbeteren" && r.existingUrl
           ? `Werk ${r.existingUrl} bij`
-          : "Laat Aura deze pagina schrijven",
+          : "Laat ORBIT ENGINE deze pagina schrijven",
       source: "meting",
       // Geen gewichten betekent geen getal, niet nul: nul zou zeggen dat er
       // niets te winnen valt, en dat is iets anders dan "we weten het niet".
@@ -160,7 +160,7 @@ export function opportunities(input: OpportunityInput): Opportunity[] {
     lijst.push({
       id: `onderwerp-${t.id}`,
       title: `"${t.title}" is nog nooit gemeten`,
-      why: "Aura weet niet hoe zichtbaar je bent rond dit onderwerp, en kan er dus ook niet gericht over schrijven.",
+      why: "ORBIT ENGINE weet niet hoe zichtbaar je bent rond dit onderwerp, en kan er dus ook niet gericht over schrijven.",
       action: "Start de meting van dit onderwerp",
       source: "onderwerp",
       share: null,

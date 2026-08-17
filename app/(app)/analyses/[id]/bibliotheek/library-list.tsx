@@ -47,7 +47,7 @@ const GROUP_META: Record<Group, { label: string; hint: string; chip: string }> =
   // gebeurt, en dat is de ergste vorm van stilstand die een app kan hebben.
   briefing: {
     label: "Wacht op jouw input",
-    hint: "Een paar korte vragen, dan schrijft Aura deze pagina's zonder iets te verzinnen.",
+    hint: "Een paar korte vragen, dan schrijft ORBIT ENGINE deze pagina's zonder iets te verzinnen.",
     chip: "chip chip-warning",
   },
   klaar: {
@@ -62,11 +62,11 @@ const GROUP_META: Record<Group, { label: string; hint: string; chip: string }> =
   },
   live: {
     label: "Live",
-    hint: "Aura hermeet het effect twee en vier weken na publicatie.",
+    hint: "ORBIT ENGINE hermeet het effect twee en vier weken na publicatie.",
     chip: "chip chip-success",
   },
   bezig: {
-    label: "Aura schrijft",
+    label: "ORBIT ENGINE schrijft",
     hint: "Dit loopt op de achtergrond. Wachten hoeft niet.",
     chip: "chip chip-neutral",
   },

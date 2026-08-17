@@ -27,7 +27,7 @@ export const getProfile = cache(async (id: string): Promise<Profile | null> => {
  *
  *   1. hij zit in het account waar het merk aan hangt   (migratie 0046)
  *   2. of hij is de historische eigenaar                 (`profiles.user_id`)
- *   3. of hij is beheerder van Aura                      (`isStaff`)
+ *   3. of hij is beheerder van ORBIT ENGINE                      (`isStaff`)
  *
  * Laag 1 is nieuw en is de hoofdregel: sinds besluit 9 en 10 kan een klant een
  * bureau zijn met meerdere merken, en dan is "eigenaar" geen bruikbaar begrip

@@ -62,10 +62,10 @@ export function FactRequests({ profileId, initial }: { profileId: string; initia
     <div id="feiten" className="card flex scroll-mt-4 flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <span className="mono-label flex items-center gap-1">
-          Help Aura concreter te schrijven
+          Help ORBIT ENGINE concreter te schrijven
           <InfoHint label="Waarom deze vragen?">
             AI-assistenten citeren harde feiten: cijfers, jaartallen, termijnen. Algemene beloftes
-            slaan ze over. Wat je hier invult gebruikt Aura in élke pagina die het schrijft, niet
+            slaan ze over. Wat je hier invult gebruikt ORBIT ENGINE in élke pagina die het schrijft, niet
             alleen in de eerstvolgende.
           </InfoHint>
         </span>
@@ -184,7 +184,7 @@ function FactCard({
               className="text-sm text-secondary hover:underline"
               // Overslaan blijft bewaard, zodat een volgend rapport dezelfde vraag
               // niet opnieuw stelt. Niets is vervelender dan een app die blijft zeuren.
-              title="Aura vraagt het niet nog een keer."
+              title="ORBIT ENGINE vraagt het niet nog een keer."
             >
               Weet ik niet
             </button>

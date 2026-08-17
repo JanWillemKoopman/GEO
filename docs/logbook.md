@@ -975,7 +975,7 @@ de andere documenten missen is niet discipline maar zo'n haakje.
 
 ---
 
-## 27. De app heet Aura, en schrijft als Nova (5 augustus 2026)
+## 27. De app heet ORBIT ENGINE, en schrijft als Nova (5 augustus 2026)
 
 Tot deze ronde heette het product intern én in de UI "GEO Tracker", een omschrijving, geen naam.
 De schrijfstijl was op zichzelf goed (informeel, jargonvrij, eerlijk over onzekerheid) maar had geen
@@ -989,8 +989,8 @@ die de API-routes teruggeven.
 
 **De vier veranderingen die het meeste doen:**
 
-1. **Aura is een handelend onderwerp.** Nova schrijft over zichzelf in de derde persoon, *"Nova
-   learns your business first"*. Wij dus ook: "Aura leest je website uit", niet "de website wordt
+1. **ORBIT ENGINE is een handelend onderwerp.** Nova schrijft over zichzelf in de derde persoon, *"Nova
+   learns your business first"*. Wij dus ook: "ORBIT ENGINE leest je website uit", niet "de website wordt
    uitgelezen". Dat verving tegelijk de institutionele wij-vorm ("wij meten", "wij schrijven"), die
    in een sales-led product ongemakkelijk dubbelzinnig was: bedoelden we de software of de
    consultant? Nu is dat altijd te zien.
@@ -1002,12 +1002,12 @@ die de API-routes teruggeven.
    mededeling over het systeem, en in vrijwel alle gevallen is het ook feitelijk het systeem.
 4. **Het thema is begrensd.** Ruimtemetaforen mogen in de naam, in sfeer-eyebrows en in één
    afsluitende regel van een lege staat. Nooit in een knop, een validatietekst of een foutmelding.
-   Nova doet dat zelf ook precies zo: de namen zijn kosmisch (Nova, Aura, Stratosphere, Milky Way),
+   Nova doet dat zelf ook precies zo: de namen zijn kosmisch (Nova, ORBIT ENGINE, Stratosphere, Milky Way),
    de instructies klinisch (*"Benchmark your rivals"*, *"Crawl, speed & structure"*).
 
 **Wat we bewust NIET overnamen.** Nova's `04 Automated publishing` en de CMS-logo's: die koppeling
-hebben wij niet, dus belooft de copy hem nergens. En "volledig autonoom", Aura vraagt bewust om
-goedkeuring vóór de meting en vóór publicatie, dus daar staat "Aura doet het werk, jij zet de knopen
+hebben wij niet, dus belooft de copy hem nergens. En "volledig autonoom", ORBIT ENGINE vraagt bewust om
+goedkeuring vóór de meting en vóór publicatie, dus daar staat "ORBIT ENGINE doet het werk, jij zet de knopen
 door".
 
 **De code is niet aangeraakt.** Alleen tekstuele content: geen props, geen routes, geen
@@ -1021,13 +1021,13 @@ Vier controles groen: `tsc --noEmit`, 675 unittests, 47 ketentests, productiebui
 
 ## 28. Twee leestekens eruit, want ze verraden de schrijver (5 augustus 2026)
 
-Direct na de Aura-ronde hierboven kwam de scherpste correctie van dit traject, en hij ging niet
+Direct na de ORBIT ENGINE-ronde hierboven kwam de scherpste correctie van dit traject, en hij ging niet
 over inhoud maar over interpunctie: **het gedachtestreepje en de schuine streep zijn eruit.**
 
 **De reden is commercieel, niet esthetisch.** Een lezer herkent AI-tekst tegenwoordig aan twee
 tekens: het kastlijntje (`—`) waar een komma of een punt hoort, en de schuine streep in "en/of" of
 "product/dienst". Voor een product dat content schrijft die de klant onder zijn eigen naam
-publiceert, is dat geen stijlkwestie maar een productfout. De pagina die Aura oplevert moet
+publiceert, is dat geen stijlkwestie maar een productfout. De pagina die ORBIT ENGINE oplevert moet
 overkomen als geschreven door het bedrijf zelf.
 
 **Waar het overal zat.** 2.055 plekken, verdeeld over vier lagen die elk een ander gewicht hebben:
@@ -1099,9 +1099,9 @@ grafiektokens inclusief `--chart-axis`, `--chart-grid` en `--chart-reference`, r
 schaal, één schaduwstand, en één doorschijnende paginakleur voor de sticky balken. Die laatste stond
 op drie plekken los, met 0,8 en 0,85 door elkaar, op mobiel pal boven elkaar.
 
-**Wat we bewust niet overnamen:** `attention` (roze) en `premium` (brons), want niets in Aura
+**Wat we bewust niet overnamen:** `attention` (roze) en `premium` (brons), want niets in ORBIT ENGINE
 betekent dat; de licht- en donkerparen, want er is bewust geen donkere modus; hun negen radii, want
-vier volstaan; en hun hexwaarden, want dan wordt Aura visueel een InSpace-product. De systematiek is
+vier volstaan; en hun hexwaarden, want dan wordt ORBIT ENGINE visueel een InSpace-product. De systematiek is
 van hen, de kleuren blijven van ons.
 
 **Het vangnet.** Regel 7 in `ux-design.md` met twee `grep`-commando's die vóór een commit nul regels
@@ -1116,11 +1116,11 @@ productiebuild.
 **De bevinding waar alles op rust.** `designsystem.md` was gebaseerd op de marketingsite
 `inspace.io`. Maar InSpace draait een tweede, ingelogde omgeving, `nova.inspace.io`, en die ziet er
 fundamenteel anders uit. De website is warm, rond en gloeiend; het product is koel, strak en plat.
-Wij bouwden de website na. Wie Nova echt gebruikt, zou Aura niet als familie herkennen.
+Wij bouwden de website na. Wie Nova echt gebruikt, zou ORBIT ENGINE niet als familie herkennen.
 
 Acht verschillen, allemaal nagemeten in hun eigen CSS-bundel:
 
-| | marketingsite | product | Aura nu |
+| | marketingsite | product | ORBIT ENGINE nu |
 |---|---|---|---|
 | Grondtoon | `#f5f6f3` warm | `#f8fafc` koel | koel |
 | Tekst | `#0b0b0c` | `#17212b` | `#17212b` |
@@ -1186,7 +1186,7 @@ zes commits doorgevoerd, elk met alle vier controles groen.
 
 **A, duidelijkheid voor de klant.** De belangrijkste toevoeging is `WhoseTurn`
 (`lib/analysis-status.ts`/`lib/profile-status.ts`, uitgewerkt in `ux-design.md` §4): een leesbare
-laag naast de technische status, "Wacht op jou" of "Aura is bezig", naar Nova's tweelaags-
+laag naast de technische status, "Wacht op jou" of "ORBIT ENGINE is bezig", naar Nova's tweelaags-
 statustaal. Verder: elke pagina een eigen tabbladtitel (`generateMetadata` met een titelsjabloon
 dat vanaf `analyses/[id]/layout.tsx` naar alle subroutes cascadeert), server- en netwerkfouten
 apart afgehandeld op drie plekken waar ze nog door elkaar liepen (`dossier-box.tsx`,
@@ -1204,7 +1204,7 @@ contrastberekening over alle tekst- en intent-tokens (alles haalt AA, `--text-mu
 gereserveerd voor bijzaak en al zo gedocumenteerd). Een printstijlblad (`.no-print` in
 `globals.css`): het dossier IS het rapport, er is geen aparte printpagina, dus verdwijnt de chrome
 (bovenbalk, hoofdstuk-rail, tabbladen, vaste actiebalken) en elke knop op papier. Een deelvoorbeeld
-(`app/opengraph-image.tsx`, `next/og`): een link naar Aura in Slack of e-mail toonde tot dan een
+(`app/opengraph-image.tsx`, `next/og`): een link naar ORBIT ENGINE in Slack of e-mail toonde tot dan een
 kale URL. En `.btn-lg` (44px, WCAG 2.5.5) naast de bestaande 40px-knoppen, toegepast op de vijf
 knoppen die de ÉNE hoofdactie van hun scherm zijn.
 
@@ -1297,7 +1297,7 @@ De eigenaar liep de app voor het eerst helemaal door op een iPhone, met een echt
 scherm, het merkdossier.
 
 **1. De pagina was breder dan het toestel.** Niet één kapotte kaart maar één soort inhoud: strings
-zonder spatie die niet mogen afbreken. Aura rendert die op ~15 plekken (URL's, slugs, domeinen).
+zonder spatie die niet mogen afbreken. ORBIT ENGINE rendert die op ~15 plekken (URL's, slugs, domeinen).
 Een occasion-URL van 100 tekens is bij 14px ongeveer 840px breed en staat in een kaart die op een
 telefoon 302px krijgt: 538px hangt buiten beeld. Opgelost met vier regels, van vangnet tot slot op
 de deur, uitgeschreven in `docs/ux-design.md` §7. Nagemeten met Playwright op 320/390/430px:
@@ -1378,7 +1378,7 @@ het plan; ze staan in §9.1 met de reden erbij, zodat ze er ook niet via een omw
 **Twee correcties op mijn eerste versie van dat document**, allebei gevonden door de eigen map
 tegen te lezen in plaats van alleen de bron:
 
-- Ik schreef dat Aura Nova's tweelaags-statustaal miste. Onjuist: `lib/analysis-status.ts` heeft
+- Ik schreef dat ORBIT ENGINE Nova's tweelaags-statustaal miste. Onjuist: `lib/analysis-status.ts` heeft
   `WhoseTurn` al sinds 7 augustus, en ontleende die toen aan dezelfde bron. Wat wél mist is de
   derde laag (`runningDate`, "Publishes once approved"), en die telt pas als er een plan met
   toekomstige publicatiedata is. Verplaatst naar fase 4.
@@ -1412,7 +1412,7 @@ plan 0{plan} · {count} items per month") bewijst dat de quota uit het **abonnem
 **verdeling van paginatypen met aantallen** is, geen lijst URL's. Een agent stelt het op, de
 strategie is geversioneerd, en purgen laat geplaatste en goedgekeurde content staan.
 
-Gevolg voor Aura: `propose_topics` kan hierop worden uitgebouwd, er hoeft geen nieuwe zware
+Gevolg voor ORBIT ENGINE: `propose_topics` kan hierop worden uitgebouwd, er hoeft geen nieuwe zware
 pijplijnstap te komen. Wat erbij moet is de verdeling over maanden, paginatypen en funnelfasen met
 de quota als randvoorwaarde, en dat is rekenwerk, dus een pure module (conventie 2).
 
@@ -1423,8 +1423,8 @@ in tweeën: account en merk.
 
 **Twee vondsten die verder reiken dan het plan.**
 
-**1. InSpace brengt zelf een product uit dat Aura heet.** In hun productmenu staat "Nova" (live) en
-"Aura, Binnenkort beschikbaar", met als omschrijving "Een nieuwe manier om te groeien voorbij
+**1. InSpace brengt zelf een product uit dat ORBIT ENGINE heet.** In hun productmenu staat "Nova" (live) en
+"ORBIT ENGINE, Binnenkort beschikbaar", met als omschrijving "Een nieuwe manier om te groeien voorbij
 zoekmachines" en een pre-registratieknop. Dezelfde naam, dezelfde categorie. §12.1 zet de drie
 opties op een rij met een advies (wijzigen, en snel, niet omdat je ongelijk hebt maar omdat je dat
 gevecht niet wint van een partij met 400 klanten en negen openstaande vacatures). Besluit ligt bij
@@ -1435,8 +1435,8 @@ en `mention` over 2.447 interfaceteksten van beide apps. De enige "geo"-treffers
 geografische identiteit, niet over Generative Engine Optimization. De "AI-citaties 312" op hun
 website hoort bij het product dat nog moet komen.
 
-Dat tweede is de strategisch belangrijkste zin van dit hele onderzoek: **Aura levert vandaag wat
-InSpace pas belooft.** Het gat zit niet in de meetkant, daar loopt Aura vóór, maar in het programma,
+Dat tweede is de strategisch belangrijkste zin van dit hele onderzoek: **ORBIT ENGINE levert vandaag wat
+InSpace pas belooft.** Het gat zit niet in de meetkant, daar loopt ORBIT ENGINE vóór, maar in het programma,
 het plan en het portaal eromheen. Dat maakt het advies uit §7 sterker, niet zwakker: doe fase 1, 4
 en 6, want dat is de structuur rond een motor die al draait.
 
@@ -1444,7 +1444,7 @@ Als bijvangst is jouw eigen structuurschets thuisgebracht: Brand Intelligence, b
 klantreis, zoekwoordclusters en "SEO + GEO gaps" staan niet in de i18n maar in één visueel blok op
 de marketingsite. Het is dus hun belofte, niet aantoonbaar hun app. Wat ervan overgenomen hoort te
 worden is de gedachte dat het merkbrein **telbaar** is ("238 zoekopdrachten in kaart, 91 gaten"), en
-die getallen heeft Aura al.
+die getallen heeft ORBIT ENGINE al.
 
 ## Dertien besluiten, en het plan opnieuw doorgerekend (10 augustus 2026, derde ronde)
 
@@ -1470,25 +1470,25 @@ hoogste risico. Het CSM-paneel schoof van plek negen naar plek zes: twintig klan
 websites houd je niet meer met SQL bij.
 
 **De veldenlijst (§13) is de winst van deze ronde.** Beide i18n-bestanden uitgekamd op wat InSpace
-in de onboarding uitvraagt: ongeveer veertig velden. Naast Aura's `profiles`-kolommen gelegd blijkt:
-veertien heeft Aura al (de ronde van 7 augustus met migratie `0045` leverde de tone-of-voice-schuiven,
+in de onboarding uitvraagt: ongeveer veertig velden. Naast ORBIT ENGINE's `profiles`-kolommen gelegd blijkt:
+veertien heeft ORBIT ENGINE al (de ronde van 7 augustus met migratie `0045` leverde de tone-of-voice-schuiven,
 verboden woorden en auteursvelden), elf kan de pijplijn zelf afleiden, elf moet de klant typen, en
 vier vervallen (taalkeuze, CMS, auteurspagina, Google Analytics).
 
 Dat laatste getal is het punt: **de klant hoeft er elf in te typen en dat zijn precies de elf die
 niemand kan raden**, bedrijfsgegevens en facturatie. De rest staat vooringevuld met het label "uit je
 website gehaald" en is corrigeerbaar. InSpace laat de klant twintig minuten uittrekken
-(`landingTimeNote`); Aura kan het in vier stappen omdat het onderzoek vóór de onboarding draait in
+(`landingTimeNote`); ORBIT ENGINE kan het in vier stappen omdat het onderzoek vóór de onboarding draait in
 plaats van erna. Fase 3 ging daardoor van 8 naar 7 dagen.
 
 Kleinere uitkomsten: één tone-of-voice-schuif ontbreekt nog (`tone_emotional`, vier standen), de
-aanspreekvorm van de klant moet een eigen veld worden (Aura's eigen "je en jij" uit `schrijfstijl.md`
-geldt voor de interface, niet voor wat Aura vóór een advocatenkantoor schrijft), en alleen Nederlands
+aanspreekvorm van de klant moet een eigen veld worden (ORBIT ENGINE's eigen "je en jij" uit `schrijfstijl.md`
+geldt voor de interface, niet voor wat ORBIT ENGINE vóór een advocatenkantoor schrijft), en alleen Nederlands
 (besluit 13) laat `next-intl` vervallen, waardoor fase 7 van 5 naar 2 dagen krimpt.
 
-**De naam blijft Aura.** Het advies was wijzigen omdat InSpace een gelijknamig product aankondigt;
+**De naam blijft ORBIT ENGINE.** Het advies was wijzigen omdat InSpace een gelijknamig product aankondigt;
 de eigenaar weegt dat anders en kiest houden. Vastgelegd in §12.1 als genomen besluit, niet als open
-punt. Wat wel blijft staan als schrijfregel: de eerste vermelding van Aura zegt altijd wát het meet,
+punt. Wat wel blijft staan als schrijfregel: de eerste vermelding van ORBIT ENGINE zegt altijd wát het meet,
 niet alleen hoe het heet.
 
 **Drie laatste besluiten (10 augustus 2026), waarmee het plan compleet is.** Bij opzeggen blijft de
@@ -1553,7 +1553,7 @@ zoekveld verschijnt pas vanaf acht merken**, daaronder is het ruis. **De routes 
 werkruimte is context en geen ander adres. `/analyses?merk=` filtert de lijst met een zichtbare chip
 en een uitweg terug, want een lijst die stilletjes korter is dan je verwacht leest als data die weg is.
 
-De cookie `aura_merk` is een voorkeur, nooit een recht: `listBrands()` controleert bij elke aanroep
+De cookie `orbit_engine_merk` is een voorkeur, nooit een recht: `listBrands()` controleert bij elke aanroep
 opnieuw of de gebruiker bij dat merk mag, en de echte poort blijft `getOwnedProfile()`. Een geplakte
 cookie levert dus niets op, hij zet hooguit de kiezer in een vreemde staat, en daarom valt
 `selectBrand()` stil terug op de merkenlijst als het merk niet klopt.
@@ -1595,7 +1595,7 @@ bij een tweede klant, en dan komt er alleen een lidmaatschap bij. Ten tweede: de
 pas afgevinkt nádat het lidmaatschap er staat. Andersom zou een storing halverwege een verbruikte
 link zonder toegang opleveren, en dat is niet te herstellen zonder nieuwe uitnodiging.
 
-**Uitnodigen mag alleen een `admin` van het account of een beheerder van Aura** (`mayInvite`). Een
+**Uitnodigen mag alleen een `admin` van het account of een beheerder van ORBIT ENGINE** (`mayInvite`). Een
 `member` kan meekijken en goedkeuren maar de kring niet uitbreiden; bij een bureau is dat het
 verschil tussen een collega en de contractpartij.
 
@@ -1636,7 +1636,7 @@ Dat hoort niet op het scherm van degene over wie het gaat. De rest van het dossi
 allebei zichtbaar, want het dossier, de nulmeting, het aanbod en de onderwerpen zijn precies wat de
 klant komt halen.
 
-De grens loopt langs `isStaff()` en niet langs de accountrol: het gaat om Aura's eigen team
+De grens loopt langs `isStaff()` en niet langs de accountrol: het gaat om ORBIT ENGINE's eigen team
 tegenover iedereen daarbuiten. Een accountbeheerder bij een bureau is nog steeds een klant. En het
 afgeschermde blok haalt ook zijn springlink weg, want een link naar een blok dat er niet is, is
 zichtbaarder dan het blok zelf.
@@ -1647,7 +1647,7 @@ Migratie `0048_merkprofiel_compleet`, toegepast en geverifieerd op productie, pl
 vijf stappen op `/profielen/[id]/merkprofiel`.
 
 **Dertien nieuwe velden, en dat is minder dan Nova er uitvraagt.** De inventaris in `docs/Nova.md`
-§13 legde hun ~40 onboardingvelden naast Aura's kolommen. Veertien had Aura al, elf kan de pijplijn
+§13 legde hun ~40 onboardingvelden naast ORBIT ENGINE's kolommen. Veertien had ORBIT ENGINE al, elf kan de pijplijn
 afleiden, vier vervielen (taalkeuze, CMS, auteurspagina, Google Analytics). Wat overbleef zijn deze
 dertien. Alles wat al een eigenaar had is er bewust níet nóg een keer bijgezet: `value_props` ís
 Nova's "value pillars", `intake_audience` ís de primaire doelgroep, `industry` ís de kerncategorie.
@@ -1655,7 +1655,7 @@ Eén feit heeft één eigenaar, en een tweede kolom met dezelfde betekenis is ee
 afwijken. De volledige vertaaltabel staat bovenaan de migratie.
 
 **Het scherm vraagt niets, het laat nakijken.** Dat is het verschil met Nova, en het volgt uit iets
-dat Aura al had: het onderzoek draait hier vóór de kennismaking in plaats van erna. Nova laat hun
+dat ORBIT ENGINE al had: het onderzoek draait hier vóór de kennismaking in plaats van erna. Nova laat hun
 klant twintig minuten uittrekken (`landingTimeNote`) voor dertig lege velden. Hier staat het
 merendeel al ingevuld, met het label **"uit je website gehaald"** erbij, Nova's `draftedBadge`. De
 gegevens daarvoor lagen er al in `profile_field_sources` (migratie 0039); dit is de eerste plek waar
@@ -1668,7 +1668,7 @@ een vraag aan de klant.
 De vijfde schuif, de emotionele lading, is de enige met vier standen, net als bij hen.
 
 **Eén veld dat Nova niet heeft en wij wel nodig hadden: de aanspreekvorm.** `docs/schrijfstijl.md`
-legt "je en jij" vast, maar dat is een keuze over Aura's eigen interface. Wat Aura vóór een
+legt "je en jij" vast, maar dat is een keuze over ORBIT ENGINE's eigen interface. Wat ORBIT ENGINE vóór een
 advocatenkantoor schrijft hoort "u" te zeggen. Die twee vielen samen zolang er één regel was; nu
 staan ze los.
 
@@ -1703,7 +1703,7 @@ Die datum hangt van de klant af, niet van ons, en een datum tonen zou een beloft
 kunnen waarmaken.
 
 **`buildPlan()` verdeelt, het bedenkt niet.** Uit de analyse in `Nova.md` §11.1 bleek dat Nova een
-agent het hele plan laat opstellen. Aura heeft de bedenkkant al (`propose_topics` levert onderwerpen
+agent het hele plan laat opstellen. ORBIT ENGINE heeft de bedenkkant al (`propose_topics` levert onderwerpen
 mét prioriteit) en miste alleen de verdeling. Dat scheelt een zware AI-stap: deze taak heeft er nul
 nodig, het is rekenwerk. Vier regels sturen hem, en de eerste volgt rechtstreeks uit besluit 7:
 hoogste prioriteit in de eerste maanden, want een klant die na drie maanden opzegt moet de béste drie
@@ -1778,7 +1778,7 @@ maal alle drie de pakketten, met per combinatie de eis dat geen titel twee keer 
 staat. 881 unittests, waarvan 36 nieuw.
 
 **Het plan schrijft zichzelf (11 augustus 2026).** De laatste ontbrekende schakel van fase 4: een
-dagelijkse cron (`/api/cron/plan`, pg_cron-taak `aura-plan-writer`, migratie 0050) zet schrijftaken
+dagelijkse cron (`/api/cron/plan`, pg_cron-taak `aura-plan-writer`, migratie 0050, sinds migratie 0059 `orbit-engine-plan-writer`) zet schrijftaken
 klaar voor pagina's van een goedgekeurde maand die binnen tien dagen gepubliceerd moeten worden. De
 route plant alleen, de werker schrijft, precies zoals `/api/cron/tracking`.
 
@@ -1792,19 +1792,19 @@ pakket 10.
 **Dat is geen randgeval maar de normale toestand, en dus krijgt het een plek in het scherm.**
 `lib/plan-writing.ts` geeft geen boolean maar een beslissing mét reden, en die reden staat onder de
 regel in het plan, in Nova's wie-is-aan-zet-taal: "Start eerst de meting van dit onderwerp, anders
-schrijft Aura zonder cijfers" (bal bij de klant) of "De meting van dit onderwerp loopt nog" (bal bij
-Aura). Blokkades die géén probleem zijn, zoals "nog niet aan de beurt", krijgen bewust geen melding:
+schrijft ORBIT ENGINE zonder cijfers" (bal bij de klant) of "De meting van dit onderwerp loopt nog" (bal bij
+ORBIT ENGINE). Blokkades die géén probleem zijn, zoals "nog niet aan de beurt", krijgen bewust geen melding:
 een melding bij iets wat gewoon goed gaat, leert mensen meldingen negeren.
 
 **De brug tussen plan en contentpijplijn is één veld.** De pijplijn kent alleen analyses, het plan
 alleen merken. `plannedPageId` in de payload van `content_draft` verbindt ze: de handler schrijft
 `content_piece_id` terug en zet de pagina op `ter_goedkeuring`, en de werker zet hem op `mislukt`
 als het schrijven definitief niet lukt. Dat laatste stond er eerst niet in, en zonder die regel
-blijft een pagina op "Aura is bezig" staan terwijl er niets meer gebeurt: de ergste van alle
+blijft een pagina op "ORBIT ENGINE is bezig" staan terwijl er niets meer gebeurt: de ergste van alle
 statussen, want hij vraagt om geduld dat nergens toe leidt.
 
 **Getest waar de fout zou zitten.** Die brug bestaat uit drie stukken (de cron zet het veld, de
-handler koppelt terug, de werker meldt de mislukking) en valt er één weg, dan schrijft Aura wél maar
+handler koppelt terug, de werker meldt de mislukking) en valt er één weg, dan schrijft ORBIT ENGINE wél maar
 loopt het plan achter. Dat is samenhang tussen taken en dus onzichtbaar voor een unittest: er staan
 nu vijf ketentests omheen. Eén ervan wees meteen iets aan wat ook in de cron zit: de eigenaar moet
 uit `analyses.user_id` komen en niet uit het profiel, want een toegewezen analyse hoort bij de klant
@@ -1818,7 +1818,7 @@ alle merken van alle klanten, gesorteerd op wat het eerst aandacht vraagt. Allee
 en bij een gewone gebruiker een 404 en geen 403: een 403 bevestigt dat het scherm bestaat.
 
 **Zeven segmenten, maar niet die van Nova.** Nova's zeven gaan over funnels, talen en doellanden
-invullen. Die velden vult Aura zelf in: besluit 13 schrapte meertaligheid en de vier funnelfasen
+invullen. Die velden vult ORBIT ENGINE zelf in: besluit 13 schrapte meertaligheid en de vier funnelfasen
 komen uit `plan-build.ts`. Wat overblijft is de vraag die er wél toe doet, en dat werden er ook
 zeven: vastgelopen, onderzoek loopt, wacht op jouw nakijkwerk, nog niet gemeten, wacht op de klant,
 geen contentplan, loopt. Elk segment heeft Nova's banner die zegt wát je moet doen, en een eigen
@@ -1835,7 +1835,7 @@ ophalen, dan is dat bij twintig klanten al honderden ronden naar Supabase op é�
 afweging als bij `enqueueMeasurement()`, waar 2×N sequentiële aanroepen ooit de bevestigroute omver
 duwden.
 
-**De drempel voor "nagekeken" staat op 80% en niet op 100%.** Van de 27 merkvelden leidt Aura er 25
+**De drempel voor "nagekeken" staat op 80% en niet op 100%.** Van de 27 merkvelden leidt ORBIT ENGINE er 25
 zelf af en de laatste paar weet alleen de klant. Op 100 zou élk merk eeuwig in "wacht op jouw
 nakijkwerk" blijven staan en werd het segment betekenisloos. 919 unittests.
 
@@ -2076,7 +2076,7 @@ Nova-plan afgebouwd, maar niemand heeft het geheel één keer als klant doorlope
 
 **De kern is dat "InSpace-kwaliteit" toetsbaar gemaakt is.** Dat was een gevoel en daar kun je niet op
 afvinken. Uit de reconstructie komen vijf eigenschappen die in hun berichtenbestand aantoonbaar zijn
-en dus ook in Aura te controleren: elke toestand een eigen scherm (zij hebben vier lege staten voor
+en dus ook in ORBIT ENGINE te controleren: elke toestand een eigen scherm (zij hebben vier lege staten voor
 één tabel), elke foutmelding specifiek (zestien in alleen het accountscherm), de taal zegt wie aan
 zet is, onomkeerbaar wordt vooraf in een eigen kader benoemd, en bulk is eerlijk over gedeeltelijk
 succes. Die vijf zijn de kolom "Nova-kwaliteit" per scherm.
@@ -2114,13 +2114,13 @@ en ze staan op maandag van week 1: de rem hoort er eerder te zijn dan de test di
 
 **Eén verbetering op Nova, en het is er een die uit dit besluit volgt.** Bij elke knop die geld kost,
 komt te staan wat het kost. Nova doet dat niet, want zij factureren per pakket en de klant ziet nooit
-een aanroepprijs. Aura wel: wie de prijs ziet, klikt bewuster en belt niet achteraf verbaasd.
+een aanroepprijs. ORBIT ENGINE wel: wie de prijs ziet, klikt bewuster en belt niet achteraf verbaasd.
 
 **Twee dingen rechtgezet die ik eerder te makkelijk had opgeschreven.** Ik kán geen schermafdrukken
-maken: van Nova niet (dat zit achter een inlog waar ik geen account voor heb) en van Aura ook niet,
+maken: van Nova niet (dat zit achter een inlog waar ik geen account voor heb) en van ORBIT ENGINE ook niet,
 want de browser komt hier niet door de uitgaande proxy heen, drie configuraties geprobeerd, alle drie
 `ERR_CONNECTION_RESET`. `curl` werkt wel, dus HTML en statuscodes kan ik lezen, pixels niet. Daarmee
-zijn tien afdrukken van Aura zelf het enige wat de eigenaar in dit plan moet leveren.
+zijn tien afdrukken van ORBIT ENGINE zelf het enige wat de eigenaar in dit plan moet leveren.
 
 **Search Console en de eerste publicatie zijn van het kritieke pad gehaald.** Er is geen Google-sleutel
 en publiceren kan nog niet, en de lancering hangt er niet op: Search Console is een bewijsstuk náást
@@ -2283,7 +2283,7 @@ een datum zet en niets weghaalt. Die regels blijven staan, want archiveren is ne
 precies wat iemand bedoelt met "verwijder dit". Maar de AVG kent een recht op verwijdering en dat koop
 je niet af met een archief. Er is nu een tweede pad, bewust de uitzondering, en bewust omslachtig.
 
-**Drie sloten.** Alleen een beheerder van Aura: een account-admin mag zijn bedrijfsgegevens wel
+**Drie sloten.** Alleen een beheerder van ORBIT ENGINE: een account-admin mag zijn bedrijfsgegevens wel
 wijzigen, maar een wijziging draai je terug en dit niet. Niet je eigen account, want dat verwijdert je
 eigen inlog en dat herstel je niet met een backup omdat de sessie dan al weg is. En de naam moet
 worden overgetypt, serverkant gecontroleerd, want een bevestiging die je met een rechtstreekse aanroep
@@ -2577,7 +2577,7 @@ de lancering van een onderwerp blijft veranderen. En de trigger die dit alles in
 dat dit werk erft, niet zelf veroorzaakt. 1191 unittests, 157 ketentests.
 
 **De potentiescore, fase 2 en 3: het getal moest ook ergens iets DOEN, niet alleen staan.** Fase 1
-toonde het getal, maar liet de twee plekken waar Aura zelf al een volgorde koos, de Kansen-lijst en
+toonde het getal, maar liet de twee plekken waar ORBIT ENGINE zelf al een volgorde koos, de Kansen-lijst en
 het contentplan, ongemoeid op hun oude sortering staan: de eerste op een grover, per-analyse gewicht
 (`share`), de tweede op de eenmalige dag-1-gok van het model (`profile_topics.priority`). Dat was het
 overgebleven gat: een klant kon een hoge potentiescore op een pagina zien staan, en toch zag hij die
@@ -2602,7 +2602,7 @@ klant, en het met terugwerkende kracht laten meebewegen is een eigen afweging di
 vanzelf mocht meenemen. 1201 unittests, 160 ketentests.
 
 **Sjabloondetectie: content die technisch past op de site van de klant, niet alleen inhoudelijk klopt
-(13 augustus 2026).** Aura leverde content altijd als platte Markdown/HTML, ongeacht of de klant een
+(13 augustus 2026).** ORBIT ENGINE leverde content altijd als platte Markdown/HTML, ongeacht of de klant een
 WordPress-site met een FAQ-accordion had of een custom site zonder één uitklapblok. De klant moest dan
 zelf ombouwen, precies het "technisch één op één plakbaar" dat het product beloofde niet waarmaakte.
 
@@ -2649,14 +2649,14 @@ de aanbevolen pagina's die ze mogelijk maken. Vragen uit de nulmeting zelf (`ana
 "Aanvullen" onder Merkdossier.
 
 Wat overblijft op `/profielen/[id]` is precies twee dingen: is het dossier compleet
-(`ProfileReadinessPanel`, ankers verwijzen nu naar de juiste subpagina's) en wat weet Aura over de klant
+(`ProfileReadinessPanel`, ankers verwijzen nu naar de juiste subpagina's) en wat weet ORBIT ENGINE over de klant
 uit de nulmeting (de samenvatting plus de nulmeting per vraag). De primaire knop en de springlinkbalk
 bovenaan (`ProfileHero`) zijn weg: beide wezen naar blokken die nu een eigen bestemming in de zijbalk
 hebben, dus is een tweede navigatielaag erbovenop overbodig. 1233 unittests, 160 ketentests.
 
 **De rangordetabel: "Jij" hoort niet altijd bovenaan te staan (13 augustus 2026).** Aanleiding was
 een screenshot van een concurrent met een nette ranglijst: merk, vermeldingen, positie, aandeel. De
-eerste vraag was welke van die cijfers Aura al had, en het antwoord was: bijna allemaal, alleen
+eerste vraag was welke van die cijfers ORBIT ENGINE al had, en het antwoord was: bijna allemaal, alleen
 verspreid. `competitor_breakdown` bewaart sinds migratie `0029` al `avg_position` en
 `first_mention_count` per concurrent, maar de bestaande balkjes (`CompetitorCard`) lazen daar alleen
 `mentions_count` uit.

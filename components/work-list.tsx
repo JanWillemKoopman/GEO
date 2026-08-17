@@ -91,9 +91,9 @@ export function WorkList({ items }: { items: WorkItem[] }) {
   if (groups.length === 0) {
     return (
       <div className="card flex flex-col gap-2">
-        <span className="mono-label">Niets te doen · Aura draait door</span>
+        <span className="mono-label">Niets te doen · ORBIT ENGINE draait door</span>
         <p className="text-secondary">
-          Er ligt niets op jou te wachten. Aura meet maandelijks door en laat het weten zodra er
+          Er ligt niets op jou te wachten. ORBIT ENGINE meet maandelijks door en laat het weten zodra er
           iets beweegt.
         </p>
       </div>

@@ -14,7 +14,7 @@ export default function RegisterPage() {
   return (
     <>
       <h1 className="mb-1 text-xl font-bold">Account aanmaken</h1>
-      <p className="mb-6 text-sm text-secondary">Eén adres, één wachtwoord. Daarna zet Aura je merk op de kaart.</p>
+      <p className="mb-6 text-sm text-secondary">Eén adres, één wachtwoord. Daarna zet ORBIT ENGINE je merk op de kaart.</p>
       <AuthForm mode="register" action={signUp} signupsEnabled />
     </>
   );

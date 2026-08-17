@@ -13,7 +13,7 @@ import type { Account } from "@/lib/types/database";
  * ── WAT HIER WEL EN NIET IN ZIT ─────────────────────────────────────────────
  *
  * De velden komen uit de inventaris in `docs/Nova.md` §13.1: wat InSpace in hun
- * onboarding uitvraagt, vertaald naar Aura. Ze staan hier en niet in de
+ * onboarding uitvraagt, vertaald naar ORBIT ENGINE. Ze staan hier en niet in de
  * merkwizard, want ze horen bij het bedrijf en niet bij één website: een bureau
  * met vijf merken factureert één keer (besluit 9).
  *
@@ -190,7 +190,7 @@ export function AccountBox({
         irreversible={{
           title: "Wat er wél verandert",
           description:
-            "Aan het einde van de betaalde maand stopt Aura met meten en schrijven. Tot dat moment verandert er niets aan wat je ziet.",
+            "Aan het einde van de betaalde maand stopt ORBIT ENGINE met meten en schrijven. Tot dat moment verandert er niets aan wat je ziet.",
         }}
         confirmLabel="Ja, zeg op"
         confirmingLabel="Bezig…"

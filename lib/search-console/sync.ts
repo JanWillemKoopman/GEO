@@ -13,7 +13,7 @@ import "server-only";
  *
  * Geen zoekopdrachten (nog niet: fase 2 van `docs/tasks/zoekdata-koppeling.md`),
  * geen apparaten, geen landen. Alleen pagina's per dag, want de vraag die dit
- * product stelt is "doet de pagina die Aura schreef iets".
+ * product stelt is "doet de pagina die ORBIT ENGINE schreef iets".
  */
 import { createAdminClient } from "@/lib/supabase/admin";
 import { accessToken } from "@/lib/search-console/auth";
@@ -161,7 +161,7 @@ export async function syncSearchConsole(
  */
 async function uitleg(res: Response): Promise<string> {
   if (res.status === 403) {
-    return "Aura mag deze property nog niet lezen. Voeg het adres hieronder toe als gebruiker in Search Console, met het recht Beperkt.";
+    return "ORBIT ENGINE mag deze property nog niet lezen. Voeg het adres hieronder toe als gebruiker in Search Console, met het recht Beperkt.";
   }
   if (res.status === 404) {
     return "Deze property bestaat niet in Search Console. Controleer of hij precies zo geschreven is als daar, inclusief sc-domain: of https://.";

@@ -42,7 +42,7 @@ export interface AccessSubject {
  *
  *   1. Zit je in het account waar dit aan hangt?  (de hoofdregel sinds 0046)
  *   2. Of ben je de historische eigenaar?          (`user_id`)
- *   3. Of ben je beheerder van Aura?               (`isStaff`)
+ *   3. Of ben je beheerder van ORBIT ENGINE?               (`isStaff`)
  *
  * Laag 2 blijft bestaan zolang niet op productie is nageteld dat élk merk een
  * account heeft. Zie de toelichting bovenaan migratie 0046.

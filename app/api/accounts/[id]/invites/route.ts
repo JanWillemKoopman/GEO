@@ -14,7 +14,7 @@ import type { AccountRole } from "@/lib/types/database";
  * stappen, net als in `getOwnedProfile()`: ingelogd, lid van dít account, en
  * met de juiste rol. Nooit één samengestelde voorwaarde.
  *
- * Alleen een `admin` van het account of een beheerder van Aura mag uitnodigen
+ * Alleen een `admin` van het account of een beheerder van ORBIT ENGINE mag uitnodigen
  * (`mayInvite`). Een `member` kan meekijken en goedkeuren maar de kring niet
  * uitbreiden; bij een bureau is dat het verschil tussen een collega en de
  * contractpartij.

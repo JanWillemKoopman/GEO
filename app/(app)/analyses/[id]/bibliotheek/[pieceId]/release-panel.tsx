@@ -93,7 +93,7 @@ export function ReleasePanel({
       <div className="flex flex-col gap-1">
         <span className="mono-label">Waarop deze pagina gebouwd is</span>
         <p className="text-sm text-secondary">
-          Dit is alle bevestigde informatie die Aura had toen het schreef. Wat hier niet staat, staat
+          Dit is alle bevestigde informatie die ORBIT ENGINE had toen het schreef. Wat hier niet staat, staat
           ook niet in de tekst. Met opzet.
         </p>
       </div>
@@ -143,7 +143,7 @@ export function ReleasePanel({
           </span>
           {zonderBron.length > 0 && (
             <p className="text-sm" style={{ color: "var(--intent-warning-text)" }}>
-              {zonderBron.length} daarvan kon Aura niet herleiden tot een bevestigd feit. Lees ze
+              {zonderBron.length} daarvan kon ORBIT ENGINE niet herleiden tot een bevestigd feit. Lees ze
               na voordat je publiceert.
             </p>
           )}
@@ -193,7 +193,7 @@ export function ReleasePanel({
           <span className="text-sm text-muted">
             {needsReview
               ? "Kopiëren kan ook zonder dit. Het is een aantekening voor jezelf."
-              : "Aura's controles vonden niets, maar er heeft nog geen mens naar gekeken."}
+              : "ORBIT ENGINE's controles vonden niets, maar er heeft nog geen mens naar gekeken."}
           </span>
         </div>
       )}

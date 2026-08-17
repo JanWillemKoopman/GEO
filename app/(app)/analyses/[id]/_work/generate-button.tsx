@@ -22,7 +22,7 @@ const GENERATION_FAILED: UserFacingError = {
   kind: "unknown",
   title: "Het schrijven van deze pagina is vastgelopen",
   message:
-    "Aura heeft het een paar keer geprobeerd. Probeer het opnieuw. Lukt het dan " +
+    "ORBIT ENGINE heeft het een paar keer geprobeerd. Probeer het opnieuw. Lukt het dan " +
     "nog steeds niet, laat het ons dan weten.",
   canRetry: true,
   detail: "",
@@ -131,10 +131,10 @@ export function GenerateButton({
       <div className="flex flex-col gap-2">
         <span className="flex items-center gap-2 text-sm text-secondary">
           <span className="live-dot" />
-          Aura schrijft…
+          ORBIT ENGINE schrijft…
         </span>
         <span className="text-sm text-muted">
-          Dit duurt een paar minuten. Je kunt dit scherm sluiten. Aura schrijft door en zet de
+          Dit duurt een paar minuten. Je kunt dit scherm sluiten. ORBIT ENGINE schrijft door en zet de
           tekst vanzelf in je bibliotheek.
         </span>
       </div>
@@ -148,7 +148,7 @@ export function GenerateButton({
           <span className="font-medium text-[var(--text-primary)]">
             Je site houdt AI-assistenten nu buiten.
           </span>{" "}
-          Aura kan deze pagina wel schrijven, maar ChatGPT kan hem nog niet citeren. Los eerst de
+          ORBIT ENGINE kan deze pagina wel schrijven, maar ChatGPT kan hem nog niet citeren. Los eerst de
           blokkade hierboven op, of laat hem alvast schrijven.
         </p>
         <button onClick={() => setAcknowledged(true)} className="btn-outline w-fit">
@@ -160,7 +160,7 @@ export function GenerateButton({
 
   return (
     <button onClick={() => void generate()} className="btn-primary w-fit">
-      Laat Aura deze pagina schrijven
+      Laat ORBIT ENGINE deze pagina schrijven
     </button>
   );
 }

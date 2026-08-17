@@ -47,7 +47,7 @@ export async function generateMetadata({
  * Nu twee blokken, precies wat het woord "dossier" belooft:
  *
  *   1. Is het compleet?             (`ProfileReadinessPanel`)
- *   2. Wat weet Aura over de klant, uit de nulmeting? (dossier + AI-kennis)
+ *   2. Wat weet ORBIT ENGINE over de klant, uit de nulmeting? (dossier + AI-kennis)
  *
  * Alles wat een werkscherm is (aanvullen, corrigeren, toewijzen) of gereedschap
  * (techniek, profielgegevens, concurrenten) heeft een eigen subpagina onder
@@ -118,7 +118,7 @@ export default async function ProfilePage({
 
   // De lus (fase 6): drie zinnen over wat er gebeurde. De kansenlijst
   // ("waar begin je") staat sinds deze herstructurering bij "Clusters": dat is
-  // output over analyses heen, geen deel van wat Aura over het merk weet.
+  // output over analyses heen, geen deel van wat ORBIT ENGINE over het merk weet.
   const lus = await loadLoop(beheerClient, id);
 
   return (
@@ -143,17 +143,17 @@ export default async function ProfilePage({
       <ProfileReadinessPanel profileId={id} brandName={merknaam} />
 
       {/* ── 2. Het dossier ───────────────────────────────────────────────────
-          Alles wat Aura over de klant weet uit de nulmeting: de samenvatting in
+          Alles wat ORBIT ENGINE over de klant weet uit de nulmeting: de samenvatting in
           gewone taal, en de nulmeting zelf, uitgesplitst per vraag. */}
       {dossier && (
         <ProfileSection
           id="dossier"
           title="Het dossier"
-          description="Wat Aura van je website begreep, in gewone taal. De basis onder alles wat Aura schrijft."
+          description="Wat ORBIT ENGINE van je website begreep, in gewone taal. De basis onder alles wat ORBIT ENGINE schrijft."
         >
           <div className="card flex flex-col gap-2">
             <div className="flex flex-wrap items-center gap-2">
-              <span className="mono-label">Wat Aura van je site begreep</span>
+              <span className="mono-label">Wat ORBIT ENGINE van je site begreep</span>
               <ConfidenceChip confidence={dossierConfidence} />
             </div>
             <p className="text-secondary">{dossier}</p>

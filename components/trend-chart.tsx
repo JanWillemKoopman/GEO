@@ -102,7 +102,7 @@ export function TrendChart({ data, ownLabel }: { data: TrendData; ownLabel: stri
       <div className="card flex flex-col gap-2">
         <span className="mono-label">Verloop</span>
         <p className="text-secondary">
-          De trendlijn verschijnt zodra er een tweede meting is. Aura meet maandelijks, dus je hoeft
+          De trendlijn verschijnt zodra er een tweede meting is. ORBIT ENGINE meet maandelijks, dus je hoeft
           niets te doen.
         </p>
       </div>

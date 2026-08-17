@@ -200,7 +200,7 @@ export async function deleteAccount(accountId: string): Promise<DeletionResult> 
       .map((r) => r.user_id as string),
   );
 
-  // Een beheerder van Aura raakt zijn inlog nooit kwijt, ook niet als hij
+  // Een beheerder van ORBIT ENGINE raakt zijn inlog nooit kwijt, ook niet als hij
   // toevallig lid was van dit account. Zonder deze regel kan het opruimen van
   // een testklant de eigenaar buitensluiten.
   const { data: staf } = await admin.from("staff_users").select("user_id");

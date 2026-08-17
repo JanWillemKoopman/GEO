@@ -84,7 +84,7 @@ Alle migraties zijn toegepast op productie, behalve `0033`.
 | `0047_uitnodigingen.sql` | `account_invites`. De enige deur naar binnen: registreren staat dicht (`signupsEnabled`), dus toegang loopt via een uitnodigingslink. Bewaart alleen de SHA-256 van het token, nooit het token zelf. **Nul RLS-policies**, net als `jobs`: alleen de service-role komt erbij |
 | `0048_merkprofiel_compleet.sql` | De laatste dertien velden van het merkprofiel uit de inventaris in `docs/Nova.md` §13: missie, positionering, USP, kernboodschappen, identiteitswoorden, onderscheid, tweede doelgroep, kennisniveau, de vijfde tone-schuif, vaste uitdrukkingen, aanspreekvorm en drie auteursvelden. Alles wat al een eigenaar had staat er bewust niet nóg een keer bij; de vertaaltabel staat bovenaan de migratie |
 | `0049_contentplan.sql` | `profile_funnel_stages` + `content_plans` + `plan_months` + `planned_pages`. Het kernobject van besluit 3: twaalf maanden vooruit, goedkeuring per maand, buffers per maand. Géén looptijd, want doorlopend opzegbaar (besluit 7). Nieuwe hulpfunctie `readable_profile_ids()` deelt de drielaagse toegangsregel over de vier tabellen |
-| `0050_plan_cron.sql` | `trigger_plan_writer()` + een dagelijkse pg_cron-taak (`aura-plan-writer`, 04:00 UTC) die `/api/cron/plan` aanroept. Zelfde patroon en dezelfde twee vault-geheimen als `0015`: dit is alleen de aanroeper, de beslissing staat in `lib/plan-writing.ts`. Draait NIET in de ketentest (pg_cron ontbreekt daar), zie de overslaglijst in `scripts/chain/postgres.ts` |
+| `0050_plan_cron.sql` | `trigger_plan_writer()` + een dagelijkse pg_cron-taak (`aura-plan-writer`, 04:00 UTC, sinds `0059` hernoemd naar `orbit-engine-plan-writer`) die `/api/cron/plan` aanroept. Zelfde patroon en dezelfde twee vault-geheimen als `0015`: dit is alleen de aanroeper, de beslissing staat in `lib/plan-writing.ts`. Draait NIET in de ketentest (pg_cron ontbreekt daar), zie de overslaglijst in `scripts/chain/postgres.ts` |
 | `0051_opbrengst.sql` | `accounts.value_per_mention_eur`. Besluit 16: de waarde per vermelding is een OPTIONELE parameter van het opbrengstblok. Leeg toont aantallen, een bedrag toont geld, dus er hoeft geen scherm om zodra de prijzen er zijn. Per account en niet per merk, want wat een vermelding waard is hangt aan het bedrijf en zijn marge. Bewust geen standaardwaarde (conventie 3) |
 | `0052_search_console.sql` | `profiles.gsc_*` (property, verificatie, laatste fout, eerste dag) en `search_console_days` (klikken, vertoningen, positie per pagina per dag). Service account in plaats van OAuth, want de `webmasters`-scopes zijn bij Google "sensitive" en dat betekent weken verificatie voor nul extra waarde; zie `docs/tasks/zoekdata-koppeling.md` §2. De unieke sleutel `(profile_id, day, page)` maakt van Google's naijlende correcties een correctie in plaats van een dubbele rij |
 
@@ -194,3 +194,12 @@ citaties gevonden"; de rangordetabel in `score-panel.tsx` toont dat onderscheid 
 in plaats van 0%. Een backfill van bestaande periodes is bewust niet gedaan: dat zou de matching
 logica in SQL moeten naspiegelen, met het risico dat de twee implementaties uiteenlopen (één feit,
 één eigenaar).
+
+## 0059 · pg_cron-taak hernoemd na de rebrand naar ORBIT ENGINE
+
+De app heette Aura en heet vanaf nu ORBIT ENGINE. Migraties zijn geschiedenis en worden niet
+herschreven, dus `0050_plan_cron.sql` blijft letterlijk staan zoals hij gedraaid heeft, inclusief de
+oude taaknaam `aura-plan-writer`. Deze migratie doet het enige wat een rebrand aan een levende
+database mag doen: de bestaande pg_cron-taak `unschedule()`n en onder de nieuwe naam
+`orbit-engine-plan-writer` opnieuw `schedule()`n, met exact hetzelfde schema (04:00 UTC) en dezelfde
+functie (`trigger_plan_writer()`). Er verandert verder niets aan schema, rechten of gedrag.

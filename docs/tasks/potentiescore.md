@@ -199,7 +199,7 @@ dat cijfer daar (`weighted_score`) is al vermenigvuldigd met de grove volumeband
 zou zoekvolume dubbel laten meetellen als de potentiescore erop verder rekende. De nieuwe zichtbaarheid
 komt daarom uit de ONGEWOGEN `visibility_scores.score`.
 
-**Content-niveau, voorstel.** Hoofdstuk 03, "Pagina's die Aura voor je schrijft"
+**Content-niveau, voorstel.** Hoofdstuk 03, "Pagina's die ORBIT ENGINE voor je schrijft"
 (`app/(app)/analyses/[id]/_chapters/werk.tsx`): één compacte regel per voorgestelde pagina, vóórdat er
 een `content_pieces`-rij bestaat. Rekent op dat moment nog met de doelvragen uit
 `RecommendationTarget[]` (het rapport), niet met `content_piece_targets`.
@@ -254,7 +254,7 @@ uit te leggen) die deze bouwronde niet vanzelf mag meenemen.
 Vier plekken waar een andere keuze ook verdedigbaar was. Ik leg ze hier neer met de reden, zeg het als
 je een van de vier anders wilt, dan pas ik het ontwerp aan vóór de bouw begint.
 
-1. **Vergelijkingsbereik is één merk, niet de hele Aura-portefeuille.** "Zoekvolume" van "wasmachine
+1. **Vergelijkingsbereik is één merk, niet de hele ORBIT ENGINE-portefeuille.** "Zoekvolume" van "wasmachine
    kopen" bij een witgoedretailer en van een fysiotherapiepraktijk zijn geen vergelijkbare markten, en
    niets in de app vergelijkt vandaag klanten met elkaar. Eerlijk "over analyses heen" lees ik daarom
    als over de analyses van hetzelfde merk.

@@ -19,7 +19,7 @@ import "server-only";
  *
  *   1. je zit in het account waar het merk aan hangt   (de hoofdregel)
  *   2. of je bent de historische eigenaar               (`profiles.user_id`)
- *   3. of je bent beheerder van Aura                    (`isStaff`)
+ *   3. of je bent beheerder van ORBIT ENGINE                    (`isStaff`)
  *
  * Regel 2 blijft bewust bestaan zolang niet op productie is nageteld dat élk
  * merk een account heeft. Zie de toelichting bovenaan migratie 0046.
@@ -154,7 +154,7 @@ export async function defaultAccountFor(userId: string): Promise<string | null> 
     }
 
     // De eerste gebruiker van een account is beheerder ervan. Dat is iets anders
-    // dan `staff_users`: dat gaat over Aura, dit over de klant.
+    // dan `staff_users`: dat gaat over ORBIT ENGINE, dit over de klant.
     await admin
       .from("account_users")
       .upsert(
