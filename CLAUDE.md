@@ -5,20 +5,30 @@ zichtbaar een merk is in AI-antwoorden (ChatGPT e.d.), adviseert, schrijft conte
 meet het effect. Nederlands is de taal van de app, de AI-prompts, de code-commentaren en deze
 documentatie.
 
-**⚠️ Dit is de huidige bouw, niet de eindbestemming.** Twee documenten beschrijven waar ORBIT ENGINE
-naartoe gaat, en allebei lopen ze vooruit op wat er staat:
+## Waar we naartoe bouwen
 
-- `docs/visie.md`, de **productrichting**: een autonome groeimotor voor SEO én GEO, voor
-  organisaties met meer kansen dan een team handmatig aankan.
-- `docs/merkstrategie.md`, de **merkstrategie** van Outer Orbit voor de Nederlandse markt, bedoeld
-  voor externe bureaus.
+**Twee documenten vormen samen de bestemming. Ze zijn leidend voor elke ontwerpkeuze.**
 
-Die twee spreken dit document tegen op doelgroep (MKB tegenover schaal), omvang (alleen GEO
-tegenover SEO plus GEO) en autonomiegraad (goedkeuring per stap tegenover zelfstandig handelen), en
-dat is met opzet. Dit document en de rest van `docs/` blijven vertellen wat er vandaag daadwerkelijk
-staat. Verwar ze niet met elkaar, en **schrijf nooit dat iets al kan wat nog niet gebouwd is.** De
-scherpste valkuil op dit moment: de merkstrategie belooft publicatie via het CMS, en die koppeling
-bestaat niet. `merkstrategie.md` §30 heeft de volledige lijst met verschillen.
+- `docs/visie.md`, de **productrichting**: ORBIT ENGINE als autonome groeimotor die kansen ontdekt,
+  ze naar strategie vertaalt, het werk uitvoert, meet en opnieuw optimaliseert. Voor SEO én GEO,
+  voor organisaties met meer kansen dan een team handmatig aankan.
+- `docs/merkstrategie.md`, de **merkstrategie** van Outer Orbit voor de Nederlandse markt.
+
+**Wat dat praktisch betekent bij een opdracht.** Staan er twee redelijke oplossingen tegenover
+elkaar, kies dan die welke richting die bestemming beweegt. Concreet: een stap die het systeem
+zelfstandig kan zetten is te verkiezen boven een stap die weer een handmatige handeling toevoegt.
+Iets dat op schaal werkt boven iets dat bij tien klanten al omvalt. Een kans die het systeem zelf
+vindt boven een lijstje dat iemand moet invullen. Kom je een keuze tegen die duidelijk van de
+bestemming áf beweegt, zeg dat dan in plaats van hem stil te maken.
+
+**⚠️ Maar: bestemming is geen stand van zaken.** De bouw van vandaag is smaller dan de visie, op
+drie punten en met opzet: doelgroep (MKB tegenover schaal), omvang (alleen GEO tegenover SEO plus
+GEO) en autonomiegraad (goedkeuring per stap tegenover zelfstandig handelen). Dit document en de
+rest van `docs/` blijven vertellen wat er daadwerkelijk staat. **Schrijf nooit dat iets al kan wat
+nog niet gebouwd is**, niet in UI-copy, niet in commentaar, niet in een samenvatting aan de
+gebruiker. De scherpste valkuil op dit moment: de merkstrategie belooft publicatie via het CMS, en
+die koppeling bestaat niet. `merkstrategie.md` §30 heeft de volledige lijst met verschillen, en die
+lijst hoort korter te worden naarmate er gebouwd wordt.
 
 **⚠️ Het antwoord aan de gebruiker is altijd in het Nederlands, en altijd te volgen zonder
 technische kennis.** Dit gaat over de samenvatting waarmee Claude Code een vraag of opdracht afsluit,
@@ -160,7 +170,7 @@ lib/entities/      merknaam-normalisatie en -matching
 lib/schemas/       Zod-contracten      lib/stats/  onzekerheidsmarges
 lib/audit/         robots.txt / AI-crawlertoegang + entiteitsconsistentie
 lib/offsite/       off-site aanwezigheid     lib/archive.ts  wat zichtbaar is in de app
-supabase/migrations/  0001-0057 (0033 gereserveerd, nooit gedraaid, vervangen door 0039)
+supabase/migrations/  0001-0059 (0033 gereserveerd, nooit gedraaid, vervangen door 0039)
 scripts/           test-unit · test-chain · test-openai · eval-mention
 ```
 
@@ -177,14 +187,35 @@ scripts/           test-unit · test-chain · test-openai · eval-mention
 | `docs/merkstrategie.md` | **Hoe het merk naar buiten klinkt en oogt**, bedoeld voor reclame- en communicatiebureaus: positionering, doelgroepen, personas, bezwaren, tone of voice, visuele richting, campagnes. Leidend voor marketing, níét voor UI-copy (dat blijft `schrijfstijl.md`) of vormgeving van de app (dat blijft `designsystem.md`). §30 daarin somt op waar het merkverhaal iets belooft dat de app nog niet doet |
 | `docs/nova-i18n.json` · `docs/inspace-app-i18n.json` · `docs/inspace-marketing.txt` | De berichtencatalogi van beide InSpace-apps (900 en 1.469 sleutels) en de tekst van hun marketingsite, ooit verzameld voor het inmiddels afgebouwde en verwijderde `Nova.md`. Nog steeds de brontekst achter de tone-of-voice-analyse in `schrijfstijl.md`. Niet bewerken |
 | `docs/tasks/roadmap.md` | Wat er nog open staat, op volgorde |
-| `docs/tasks/lanceerplan.md` | **Het pad naar de lancering.** Vijf testsporen, de vijf eigenschappen die "InSpace-kwaliteit" toetsbaar maken, de tweeweekse planning en de afvinklijst voor het lanceerbesluit |
-| `APP_FLOW_DOCUMENTATION.md` | De keten end-to-end voor drie lezersgroepen: sales, developer, AI-specialist. Staat bewust in de hoofdmap, code verwijst ernaar |
+| `docs/tasks/lanceerplan.md` | **Het pad naar de lancering.** De testsporen A tot en met F, de vijf eigenschappen die "InSpace-kwaliteit" toetsbaar maken, de tweeweekse planning en de afvinklijst voor het lanceerbesluit |
+| Overige bestanden in `docs/tasks/` | Werk dat nog open staat of net af is, met bestanden en verificatiecriteria. **Tijdelijk van aard:** af is weg, samengevat in `logbook.md`. Staat er iets tussen dat allang gebouwd is, ruim het dan op in plaats van het te laten liggen |
+| `APP_FLOW_DOCUMENTATION.md` | De keten end-to-end voor drie lezersgroepen: sales, developer, AI-specialist. Staat bewust in de hoofdmap, code verwijst ernaar. ⚠️ **Verklaart zichzelf als niet nagelopen sinds 8 augustus 2026**, terwijl er sindsdien dertien migraties bij kwamen. Behandel het als achtergrond, niet als bron: `architecture.md` en `logbook.md` zijn actueler |
 | `supabase/README.md` | Migratie-index en toepasinstructies |
 
 **Verwijzingen in code naar oude documenten.** Code-commentaar en migraties verwijzen op ~500
 plekken naar `optimalisatie.md`, `implementatieplan.md`, `abcplan.md` en `contentbriefing.md`.
 Die bestanden zijn samengevoegd in `docs/logbook.md`; bovenaan dat bestand staat een vertaaltabel
 van oude verwijzing naar nieuwe sectie. De originelen staan in de git-historie.
+
+## Hoe je een opdracht aanpakt
+
+De product owner is geen ontwikkelaar. Een opdracht komt binnen als een wens ("de klant snapt dit
+scherm niet"), niet als een specificatie. Dat betekent vijf dingen.
+
+1. **Zoek eerst uit wat er al staat.** Dit project is over acht bouwrondes gegroeid en de kans is
+   groot dat het probleem al half opgelost is, of dat er een reden was om het níét op te lossen.
+   `docs/logbook.md` bewaart dat waarom, met de cijfers eronder. Bouw niet opnieuw wat er al is.
+2. **Zeg het als de opdracht op een verkeerde aanname rust.** Een verzoek dat uitgaat van
+   functionaliteit die niet bestaat, of dat een eerdere, met argumenten genomen beslissing
+   terugdraait, krijgt eerst één alinea daarover. Dan bouwen, niet in plaats van bouwen.
+3. **Vraag alleen wat de uitkomst verandert.** Kan het antwoord twee kanten op en levert dat
+   wezenlijk ander werk op, vraag het dan. Anders: kies, benoem de keuze, ga door.
+4. **Cijfers verifiëren, niet overnemen.** Een tellerbewering in de documentatie ("1257 tests",
+   "migraties t/m 0059") is een momentopname die verlopen kan zijn. Draai het commando, kijk in de
+   map. Dat geldt ook voor de cijfers in dit bestand.
+5. **Rond volledig af.** Code, test, documentatie en de vier controles in dezelfde ronde. Een
+   wijziging die niet in `docs/` is bijgewerkt is niet af, en dat is precies hoe de wildgroei
+   hieronder ooit is ontstaan.
 
 ## Werkwijze
 
@@ -193,6 +224,9 @@ van oude verwijzing naar nieuwe sectie. De originelen staan in de git-historie.
   de samenhang tussen taken een scenario in `test-chain.ts`. Zeven van de zeven fouten van dit
   traject zaten in die samenhang en geen enkele unittest kon ze vangen.
 - Verandert het gedrag, werk dan `docs/` bij in dezelfde commit.
+- Kosten zijn een ontwerpvariabele: een meetronde is ~$0,82 (~95% zit in de meting zelf, waarvan
+  ~94% in `web_search`). Zet `MEASURE_WEB_SEARCH=false` om goedkoop te ontwikkelen, de meting is
+  dan niet representatief.
 
 **Waar documentatie landt, houd dit aan, anders groeit `docs/` terug naar de oude wildgroei:**
 
@@ -206,7 +240,10 @@ van oude verwijzing naar nieuwe sectie. De originelen staan in de git-historie.
 | De richting verandert, los van wat er al gebouwd is | `docs/visie.md`, met een verwijzing erbij in `docs/logbook.md` |
 | Positionering, doelgroep of merkboodschap verandert | `docs/merkstrategie.md`, en werk §30 daarin bij als de afstand tot de bouw verandert |
 
-Eén feit heeft één eigenaar. Staat het al ergens, verwijs dan, herhaal het niet.
-- Kosten zijn een ontwerpvariabele: een meetronde is ~$0,82 (~95% zit in de meting zelf, waarvan
-  ~94% in `web_search`). Zet `MEASURE_WEB_SEARCH=false` om goedkoop te ontwikkelen, de meting is
-  dan niet representatief.
+**Eén feit heeft één eigenaar.** Staat het al ergens, verwijs dan, herhaal het niet. Twee kopieën
+van hetzelfde cijfer lopen gegarandeerd uit elkaar, en dan weet niemand meer welke klopt.
+
+**Verwijder een document zodra het niets meer toevoegt**, in plaats van het te laten staan "voor de
+zekerheid". De git-historie is het archief. Let daarbij op één ding: code-commentaar verwijst naar
+documenten, dus grep eerst op de bestandsnaam en ruim die verwijzingen in dezelfde commit op. Toen
+`Nova.md` werd verwijderd bleven er 35 bestanden achter die ernaar wezen.
