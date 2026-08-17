@@ -6,7 +6,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
       <div className="relative z-10 w-full max-w-sm">
         <div className="mb-8 text-center">
           <Link href="/" className="text-2xl font-bold tracking-tight">
-            <span className="brand-gradient-text">Aura</span>
+            <span className="brand-gradient-text">ORBIT ENGINE</span>
           </Link>
           <p className="mt-2 text-sm text-secondary">
             Zichtbaar zijn in AI-antwoorden. Gemeten, niet gegokt.

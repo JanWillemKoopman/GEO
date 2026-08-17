@@ -28,7 +28,7 @@ export function TrackingToggle({ analysisId, initial }: { analysisId: string; in
       }
     } catch {
       setEnabled(!next);
-      setError("We konden Aura niet bereiken. Controleer je verbinding.");
+      setError("We konden ORBIT ENGINE niet bereiken. Controleer je verbinding.");
     } finally {
       setPending(false);
     }
@@ -39,7 +39,7 @@ export function TrackingToggle({ analysisId, initial }: { analysisId: string; in
       <div>
         <span className="mono-label">Wekelijks meten</span>
         <p className="mt-1 text-sm text-secondary">
-          Aura meet tien weken lang elke week opnieuw. Zo zie je een lijn in plaats van één
+          ORBIT ENGINE meet tien weken lang elke week opnieuw. Zo zie je een lijn in plaats van één
           nulmeting.
         </p>
         {error && (

@@ -26,7 +26,7 @@ export default async function NewAnalysisPage() {
         </Link>
         <h1 className="mt-3 text-2xl font-bold tracking-tight">Nieuw cluster</h1>
         <p className="mt-2 text-secondary">
-          Kies een merk en het product of onderwerp dat je wilt meten. Aura zoekt alleen nog uit wat
+          Kies een merk en het product of onderwerp dat je wilt meten. ORBIT ENGINE zoekt alleen nog uit wat
           je website hierover zegt en wie op dít onderwerp je concurrenten zijn. De rest weet het
           al uit het merkdossier.
         </p>
@@ -36,7 +36,7 @@ export default async function NewAnalysisPage() {
         <div className="card flex flex-col items-center gap-4 py-12 text-center">
           <h2 className="text-xl font-semibold">Eerst een merk</h2>
           <p className="max-w-md text-secondary">
-            Aura meet altijd binnen een merk. Voeg er één toe, en daarna koppel je hier zoveel
+            ORBIT ENGINE meet altijd binnen een merk. Voeg er één toe, en daarna koppel je hier zoveel
             clusters aan als je wilt, één per product of onderwerp.
           </p>
           <Link href="/profielen/nieuw" className="btn-primary mt-2">

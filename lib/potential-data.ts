@@ -73,7 +73,7 @@ export async function loadContentPotential(
 
 /**
  * De drie getallen voor een VOORGESTELDE pagina, vóórdat er een
- * `content_pieces`-rij bestaat (hoofdstuk 03, "Pagina's die Aura voor je
+ * `content_pieces`-rij bestaat (hoofdstuk 03, "Pagina's die ORBIT ENGINE voor je
  * schrijft"). Zelfde berekening als `loadContentPotential()`, alleen de bron
  * van de doelvragen is hier `RecommendationTarget[]` uit het rapport in plaats
  * van `content_piece_targets`.

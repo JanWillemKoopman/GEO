@@ -325,28 +325,28 @@ app die laat zien of die output er is en of hij werkt. De prijspagina zegt "10 p
 
 ---
 
-## 6. Wat hiervan in Aura hoort, en wat niet
+## 6. Wat hiervan in ORBIT ENGINE hoort, en wat niet
 
-**De grens vooraf.** Aura en Nova zijn verschillende producten. Nova is een contentfabriek die zich
-verantwoordt met zoekcijfers; Aura meet zichtbaarheid in AI-antwoorden en schrijft daar content bij.
-Nova's IA overnemen zou Aura in een markt duwen waar tien partijen zitten die er tien jaar langer
+**De grens vooraf.** ORBIT ENGINE en Nova zijn verschillende producten. Nova is een contentfabriek die zich
+verantwoordt met zoekcijfers; ORBIT ENGINE meet zichtbaarheid in AI-antwoorden en schrijft daar content bij.
+Nova's IA overnemen zou ORBIT ENGINE in een markt duwen waar tien partijen zitten die er tien jaar langer
 zijn. **Overnemen wat werkt, niet wat het is.**
 
 ### 6.1 De sterke kandidaten
 
 | # | Wat | Effort | Impact voor de klant | Oordeel |
 |---|---|---|---|---|
-| 1 | **Statustaal in twee lagen.** Naast `analyses.status` en `content_pieces.status` een afgeleide, leesbare staat: "Wacht op jou", "Aura schrijft", "Klaar om te publiceren", "Gepubliceerd, meting loopt" | **0,5 d**, pure functie plus een chip | **Hoog.** De app heeft vier hoofdstukken en een pijplijn van 20 stappen. De klant weet nu nergens of de bal bij hem ligt | **Doen, als eerste.** Goedkoopste punt op deze lijst met de grootste opbrengst |
+| 1 | **Statustaal in twee lagen.** Naast `analyses.status` en `content_pieces.status` een afgeleide, leesbare staat: "Wacht op jou", "ORBIT ENGINE schrijft", "Klaar om te publiceren", "Gepubliceerd, meting loopt" | **0,5 d**, pure functie plus een chip | **Hoog.** De app heeft vier hoofdstukken en een pijplijn van 20 stappen. De klant weet nu nergens of de bal bij hem ligt | **Doen, als eerste.** Goedkoopste punt op deze lijst met de grootste opbrengst |
 | 2 | **Lege staten die de oorzaak noemen.** Nu is een leeg scherm één toestand. Nova heeft er vier, elk met de bijbehorende oplossing en een schatting hoe lang het nog duurt | **1 d** | **Hoog.** Precies de plek waar een klant nu belt | **Doen.** Past bij "onbekend is beter dan een verkeerde waarde" |
-| 3 | **Herkomst per contentversie.** `content_pieces` heeft al `version`, `is_current` en `supersedes_id`. Wat mist is wáárom een versie bestaat: door Aura geschreven, door de kritiekronde herschreven, door de klant bewerkt | **1 d**, één kolom plus een badge | **Middel tot hoog.** Maakt de versiegeschiedenis leesbaar in plaats van een lijst nummers | **Doen** |
+| 3 | **Herkomst per contentversie.** `content_pieces` heeft al `version`, `is_current` en `supersedes_id`. Wat mist is wáárom een versie bestaat: door ORBIT ENGINE geschreven, door de kritiekronde herschreven, door de klant bewerkt | **1 d**, één kolom plus een badge | **Middel tot hoog.** Maakt de versiegeschiedenis leesbaar in plaats van een lijst nummers | **Doen** |
 | 4 | **Bulkacties met deelrapportage.** "Goedgekeurd: 7 van 9. Open de twee mislukte los om ze opnieuw te proberen" | **0,5 d** | **Middel.** Wordt pas belangrijk bij meerdere pagina's per ronde | Doen zodra er echt volume is |
-| 5 | **Publiceren is onomkeerbaar, en dat staat er twee keer.** Aura vraagt nu één URL in een formulier. Nova zet het domein vast, laat alleen het pad bewerken en waarschuwt expliciet | **0,5 d** | **Middel.** Voorkomt een fout die pas na 28 dagen zichtbaar wordt, als de impactgolven op niets uitkomen | **Doen** |
-| 6 | **Voortgang met een tijdsindicatie.** De onboarding van Aura duurt 7,5 minuut en toont tussenresultaten. Nova zet er "~{n} min remaining" bij, plus "Progress saves automatically" | **0,5 d** | **Middel.** Het verschil tussen wachten en wachten met een horizon | Doen |
-| 7 | **Faders voor de tone of voice.** Aura heeft één vrij tekstveld. Nova heeft vijf schuiven met benoemde standen plus een vrij veld. Een schuif levert een waarde op waar een prompt écht mee kan sturen | **1,5 d**, inclusief promptdoorwerking | **Middel.** Betere sturing van de duurste stap in het product | Doen, in dezelfde ronde als de volgende |
-| 8 | **Verboden woorden als eigen veld.** Nova heeft "Taboo phrases" naast "Signature phrases". Aura heeft geen enkele plek waar een klant zegt wat hij níet wil lezen | **0,5 d** | **Hoog per geval.** Eén verkeerde claim in gepubliceerde tekst kost meer dan deze functie kost | **Doen.** En koppel hem aan de bestaande claimvalidator |
+| 5 | **Publiceren is onomkeerbaar, en dat staat er twee keer.** ORBIT ENGINE vraagt nu één URL in een formulier. Nova zet het domein vast, laat alleen het pad bewerken en waarschuwt expliciet | **0,5 d** | **Middel.** Voorkomt een fout die pas na 28 dagen zichtbaar wordt, als de impactgolven op niets uitkomen | **Doen** |
+| 6 | **Voortgang met een tijdsindicatie.** De onboarding van ORBIT ENGINE duurt 7,5 minuut en toont tussenresultaten. Nova zet er "~{n} min remaining" bij, plus "Progress saves automatically" | **0,5 d** | **Middel.** Het verschil tussen wachten en wachten met een horizon | Doen |
+| 7 | **Faders voor de tone of voice.** ORBIT ENGINE heeft één vrij tekstveld. Nova heeft vijf schuiven met benoemde standen plus een vrij veld. Een schuif levert een waarde op waar een prompt écht mee kan sturen | **1,5 d**, inclusief promptdoorwerking | **Middel.** Betere sturing van de duurste stap in het product | Doen, in dezelfde ronde als de volgende |
+| 8 | **Verboden woorden als eigen veld.** Nova heeft "Taboo phrases" naast "Signature phrases". ORBIT ENGINE heeft geen enkele plek waar een klant zegt wat hij níet wil lezen | **0,5 d** | **Hoog per geval.** Eén verkeerde claim in gepubliceerde tekst kost meer dan deze functie kost | **Doen.** En koppel hem aan de bestaande claimvalidator |
 | 9 | **De auteur moet een echt vindbaar mens zijn.** Nova vraagt naam, rol, foto, bio en LinkedIn, en bouwt er een auteurspagina van | **2 d** met auteurspagina, **0,5 d** zonder | **Middel tot hoog.** Dit is E-E-A-T operationeel gemaakt, en het is precies wat een AI-assistent gebruikt om te bepalen of een bron betrouwbaar is | Doen zonder de auteurspagina; die hoort bij het CMS en dat doen we bewust niet |
 | 10 | **Een compliance-stap.** "Laws and regulations" plus vrije aantekeningen, meegegeven aan elke schrijfopdracht | **0,5 d** | **Hoog in gereguleerde branches**, en dat is precies het MKB-segment: zorg, financieel, juridisch | Doen |
-| 11 | **Een consultantsdashboard dat de eigen belofte meet.** Nova's CSM-overzicht telt achterstand. Aura heeft een beheerdersrol maar geen scherm dat zegt welke klant stilstaat | **2 d** | **Nul voor de klant, hoog voor de eigenaar.** Bij het huidige aantal klanten overbodig; bij tien onmisbaar | Later, en dan meteen goed |
+| 11 | **Een consultantsdashboard dat de eigen belofte meet.** Nova's CSM-overzicht telt achterstand. ORBIT ENGINE heeft een beheerdersrol maar geen scherm dat zegt welke klant stilstaat | **2 d** | **Nul voor de klant, hoog voor de eigenaar.** Bij het huidige aantal klanten overbodig; bij tien onmisbaar | Later, en dan meteen goed |
 
 ### 6.2 Wat niet
 
@@ -355,8 +355,8 @@ zijn. **Overnemen wat werkt, niet wat het is.**
 | **Automatisch publiceren naar het CMS** | Al bewust afgewezen, staat in `schrijfstijl.md`. Nova's negen CMS-koppelingen zijn hun grootste onderhoudspost |
 | **Kalenderweergave met slepen** | Nova heeft hem in de oude app en **niet** in de nieuwe. Ze hebben hem laten vallen bij de herbouw. Dat is een gratis les |
 | **Orbits, de gamification** | Zie §7.4: knap gemaakt, en het hoort niet bij een product dat "gemeten, niet beloofd" verkoopt. Een consultancyklant die punten spaart, is een klant die zich niet serieus genomen voelt |
-| **Een chatassistent per pagina** | Aura's kwaliteitspoorten zijn deterministisch en herleidbaar. Een chat die de tekst aanpast, omzeilt ze allemaal en maakt de claimvalidator zinloos |
-| **Twaalfmaandsplan met quota** | Past bij een abonnement dat pagina's per maand verkoopt. Aura verkoopt een meting en advies; een quotum van 20 pagina's is een belofte die het product niet doet |
+| **Een chatassistent per pagina** | ORBIT ENGINE's kwaliteitspoorten zijn deterministisch en herleidbaar. Een chat die de tekst aanpast, omzeilt ze allemaal en maakt de claimvalidator zinloos |
+| **Twaalfmaandsplan met quota** | Past bij een abonnement dat pagina's per maand verkoopt. ORBIT ENGINE verkoopt een meting en advies; een quotum van 20 pagina's is een belofte die het product niet doet |
 
 ---
 
@@ -373,10 +373,10 @@ Dit is het deel dat het snelst rendeert. Alles hieronder is letterlijk uit hun b
 | 3 | **`--ds-foreground-on-{intent}`** legt vast welke tekstkleur op elk vlak mag | Contrast is een tokenkeuze geworden in plaats van een beoordeling per component |
 | 4 | **Grafiekkleuren wijzen naar dezelfde tokens.** `--chart-1: var(--ds-background-intelligence)` tot en met `--chart-6` | Een groeireeks is overal in de app dezelfde groene tint. Grafieken zwerven niet weg van de rest |
 | 5 | **Ook de grafiekas, het raster en de cursor zijn tokens** (`--chart-axis`, `--chart-grid`, `--chart-cursor`) | Het deel dat iedereen vergeet, waardoor grafieken er in donkere modus altijd net verkeerd uitzien |
-| 6 | **Radii als schaal:** `none` · `2xs` .125rem · `xm` .25rem · `sm` .375rem · `md` .5rem · `lg` .75rem · `xl` 1rem · `2xl` 1.5rem · `full` | Negen standen, geen losse waarden. Aura heeft dit deels al |
+| 6 | **Radii als schaal:** `none` · `2xs` .125rem · `xm` .25rem · `sm` .375rem · `md` .5rem · `lg` .75rem · `xl` 1rem · `2xl` 1.5rem · `full` | Negen standen, geen losse waarden. ORBIT ENGINE heeft dit deels al |
 | 7 | **Randdiktes als token:** `none` · `xs` 1px · `sm` 2px · `md` 4px | Voorkomt de 1px-tegen-2px-inconsistentie die je pas op een groot scherm ziet |
 | 8 | **Eén schaduw, niet zeven.** Er is precies één `--ds-elevation-shadow-lg` | Een bewuste beperking. Meer schaduwstanden maken een interface niet dieper, alleen rommeliger |
-| 9 | **Geist Sans en Geist Mono**, precies wat Aura al gebruikt | Bevestiging dat onze typografiekeuze klopt |
+| 9 | **Geist Sans en Geist Mono**, precies wat ORBIT ENGINE al gebruikt | Bevestiging dat onze typografiekeuze klopt |
 
 ### 7.2 Interactie en microcopy
 
@@ -421,12 +421,12 @@ accentkleuren voor het dashboard, en gloeiringen om je profielfoto.
 **Waarom het er staat, denk ik:** het beloont *inloggen*, en bij een product waar het systeem al het
 werk doet is de klant die niet inlogt de klant die opzegt.
 
-**Waarom Aura het niet moet doen:** het is een tegenmiddel tegen een probleem dat Aura anders
-oplost. Aura's klant logt in omdat er een meting klaar is en er een beslissing van hem gevraagd
+**Waarom ORBIT ENGINE het niet moet doen:** het is een tegenmiddel tegen een probleem dat ORBIT ENGINE anders
+oplost. ORBIT ENGINE's klant logt in omdat er een meting klaar is en er een beslissing van hem gevraagd
 wordt. Dat is een betere reden dan een bolletje. En het staat haaks op "gemeten, niet beloofd".
 
 **Wat er wél uit te halen valt:** de gedachte dat de app een reden moet hebben om terug te komen.
-Bij Aura is dat de maandelijkse meetronde. Die verdient een moment, niet een rij in een tabel.
+Bij ORBIT ENGINE is dat de maandelijkse meetronde. Die verdient een moment, niet een rij in een tabel.
 
 ### 7.5 Losse vondsten
 
@@ -465,7 +465,7 @@ Dit is de goedkoopste les in dit document, want zij hebben ervoor betaald.
 **Het patroon:** alles wat weg is, gaf de klant meer knoppen. Wat is gebleven, geeft hem meer
 duidelijkheid. Nova heeft de tweede generatie **kleiner** gemaakt, niet groter.
 
-Voor Aura is dat de belangrijkste conclusie van dit hele onderzoek. De verleiding bij een document
+Voor ORBIT ENGINE is dat de belangrijkste conclusie van dit hele onderzoek. De verleiding bij een document
 als dit is een lijst van veertig functies. De les uit hun eigen herbouw is dat er hooguit tien van
 overleven, en dat het altijd de tien zijn die iets uitleggen in plaats van iets toevoegen.
 

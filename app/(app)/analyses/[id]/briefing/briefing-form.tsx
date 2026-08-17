@@ -44,10 +44,10 @@ export interface BriefingQuestionView {
 const KIND_HEADING: Record<string, { title: string; hint: string }> = {
   verificatie: {
     title: "Even bevestigen",
-    hint: "Dit vond Aura op je site. Klopt het nog?",
+    hint: "Dit vond ORBIT ENGINE op je site. Klopt het nog?",
   },
   aanvulling: {
-    title: "Wat Aura niet kan weten",
+    title: "Wat ORBIT ENGINE niet kan weten",
     hint: "Dit staat nergens online. Zonder jouw antwoord blijft het uit de tekst.",
   },
   onderscheid: {
@@ -63,8 +63,8 @@ const KIND_HEADING: Record<string, { title: string; hint: string }> = {
     hint: "Adres, telefoon, links. Zonder deze gegevens blijven er gaten in de pagina.",
   },
   grenzen: {
-    title: "Wat Aura juist niet mag beweren",
-    hint: "Zeg je hier nee, dan schrijft Aura het niet. Ook niet voorzichtig.",
+    title: "Wat ORBIT ENGINE juist niet mag beweren",
+    hint: "Zeg je hier nee, dan schrijft ORBIT ENGINE het niet. Ook niet voorzichtig.",
   },
 };
 
@@ -136,7 +136,7 @@ export function BriefingForm({
       if (action === "write") router.push(`/analyses/${analysisId}/bibliotheek`);
       else router.refresh();
     } catch {
-      setError("We konden Aura niet bereiken. Controleer je verbinding en probeer het opnieuw.");
+      setError("We konden ORBIT ENGINE niet bereiken. Controleer je verbinding en probeer het opnieuw.");
     } finally {
       setBusy(null);
     }
@@ -153,11 +153,11 @@ export function BriefingForm({
   return (
     <div className="flex flex-col gap-6">
       <header className="flex flex-col gap-3">
-        <h1 className="text-2xl font-semibold">Nog even dit, dan schrijft Aura je pagina&apos;s</h1>
+        <h1 className="text-2xl font-semibold">Nog even dit, dan schrijft ORBIT ENGINE je pagina&apos;s</h1>
         <p style={{ color: "var(--text-secondary)" }}>
           Je koos {pageCount} {pageCount === 1 ? "pagina" : "pagina's"}. Deze{" "}
           {questions.length} {questions.length === 1 ? "vraag zorgt" : "vragen zorgen"} dat er
-          alleen kloppende informatie in komt te staan. Wat je niet beantwoordt, laat Aura weg. Het
+          alleen kloppende informatie in komt te staan. Wat je niet beantwoordt, laat ORBIT ENGINE weg. Het
           verzint niets.
         </p>
 
@@ -303,7 +303,7 @@ function QuestionCard({
             className="btn-outline btn-sm w-fit"
             onClick={() => onChange(question.suggestedAnswer!)}
           >
-            Gok van Aura: {question.suggestedAnswer}. Dit klopt
+            Gok van ORBIT ENGINE: {question.suggestedAnswer}. Dit klopt
           </button>
           <span className="text-sm text-muted">
             Een inschatting, geen gecontroleerd feit. Lees hem na voordat je hem bevestigt, want een

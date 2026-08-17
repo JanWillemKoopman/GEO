@@ -20,7 +20,7 @@
  *
  * ── HET LABEL "UIT JE WEBSITE GEHAALD" ──────────────────────────────────────
  *
- * Nova's `brand.draftedBadge`. Aura heeft hiervoor al de gegevens in
+ * Nova's `brand.draftedBadge`. ORBIT ENGINE heeft hiervoor al de gegevens in
  * `profile_field_sources` (migratie 0039): per veld staat er of het van de klant
  * komt, uit het gesprek, of uit het onderzoek. Dit is de plek waar dat zichtbaar
  * wordt voor de klant, en het is de reden dat hij geen leeg formulier van
@@ -160,7 +160,7 @@ export const BRAND_FIELDS: BrandField[] = [
     step: "doelgroep",
     label: "Hoeveel weet je lezer al",
     description:
-      "Bepaalt hoeveel een tekst mag aannemen. Bij 'expert' slaat Aura de basisuitleg over.",
+      "Bepaalt hoeveel een tekst mag aannemen. Bij 'expert' slaat ORBIT ENGINE de basisuitleg over.",
     kind: "schuif",
     options: ["Weinig", "Redelijk wat", "Veel, is vakgenoot"],
     derivable: false,
@@ -246,7 +246,7 @@ export const BRAND_FIELDS: BrandField[] = [
     step: "woorden",
     label: "Hoe je je lezer aanspreekt",
     description:
-      "Geldt voor de teksten die Aura vóór jou schrijft. Aura's eigen schermen zeggen altijd 'je'.",
+      "Geldt voor de teksten die ORBIT ENGINE vóór jou schrijft. ORBIT ENGINE's eigen schermen zeggen altijd 'je'.",
     kind: "keuze",
     options: ["je en jij", "u en uw", "wij en ons"],
     derivable: false,
@@ -265,7 +265,7 @@ export const BRAND_FIELDS: BrandField[] = [
     step: "woorden",
     label: "Woorden die je nooit wilt zien",
     description:
-      "Aura gebruikt ze niet, en controleert na het schrijven of ze er echt niet in staan.",
+      "ORBIT ENGINE gebruikt ze niet, en controleert na het schrijven of ze er echt niet in staan.",
     placeholder: "goedkoop",
     kind: "lijst",
     derivable: false,
@@ -326,7 +326,7 @@ export const STEP_META: Record<
 > = {
   fundament: {
     title: "Je merk",
-    description: "Waar je voor staat, en waarmee je wint. Dit stuurt alles wat Aura schrijft.",
+    description: "Waar je voor staat, en waarmee je wint. Dit stuurt alles wat ORBIT ENGINE schrijft.",
   },
   doelgroep: {
     title: "Je klant",
@@ -334,7 +334,7 @@ export const STEP_META: Record<
   },
   stem: {
     title: "Hoe je klinkt",
-    description: "Vijf schuiven bepalen de toon van elke pagina die Aura maakt.",
+    description: "Vijf schuiven bepalen de toon van elke pagina die ORBIT ENGINE maakt.",
   },
   woorden: {
     title: "Je woorden",

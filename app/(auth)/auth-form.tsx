@@ -78,7 +78,7 @@ export function AuthForm({ mode, action, notice, signupsEnabled = false }: AuthF
         </p>
       )}
       {isLogin && !signupsEnabled && (
-        <p className="mt-2 text-center text-sm text-muted">Aura is op uitnodiging. Vraag je contactpersoon om toegang.</p>
+        <p className="mt-2 text-center text-sm text-muted">ORBIT ENGINE is op uitnodiging. Vraag je contactpersoon om toegang.</p>
       )}
       {!isLogin && (
         <p className="mt-2 text-center text-sm text-secondary">

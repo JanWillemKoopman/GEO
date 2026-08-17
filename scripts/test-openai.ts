@@ -82,7 +82,7 @@ async function main() {
   assertKey();
   const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
-  console.log("── Aura · OpenAI rooktest ─────────────────────────────");
+  console.log("── ORBIT ENGINE · OpenAI rooktest ─────────────────────────────");
   console.log(`   volume/quality-model: ${LUNA}`);
   console.log(`   content-model       : ${SOL}\n`);
 

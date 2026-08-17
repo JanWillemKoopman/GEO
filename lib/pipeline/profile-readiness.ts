@@ -234,7 +234,7 @@ export function assessReadiness(input: ReadinessInput): Readiness {
  */
 export function readinessHeadline(r: Readiness, merk: string): string {
   if (r.loopt) {
-    return `Aura is nog bezig met ${merk}. ${r.klaarAantal} van de ${r.nodigAantal} onderdelen staan er al.`;
+    return `ORBIT ENGINE is nog bezig met ${merk}. ${r.klaarAantal} van de ${r.nodigAantal} onderdelen staan er al.`;
   }
   if (!r.compleet) {
     const namen = r.ontbreekt.map((x) => x.label.toLowerCase()).join(", ");

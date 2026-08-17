@@ -2,7 +2,7 @@
   "name": "geo-tracker",
   "version": "0.1.0",
   "private": true,
-  "description": "Aura — GEO-tracking voor het MKB (meten → adviseren → genereren) op Next.js + Supabase + OpenAI.",
+  "description": "ORBIT ENGINE — GEO-tracking voor het MKB (meten → adviseren → genereren) op Next.js + Supabase + OpenAI.",
   "engines": {
     "node": ">=20.0.0"
   },

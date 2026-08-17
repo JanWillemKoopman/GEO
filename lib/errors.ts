@@ -57,7 +57,7 @@ export function classifyError(err: unknown): UserFacingError {
   if (lower.includes("ontbrekende omgevingsvariabele")) {
     return {
       kind: "configuration",
-      title: "Aura is niet volledig ingesteld",
+      title: "ORBIT ENGINE is niet volledig ingesteld",
       message:
         "Er ontbreekt een instelling aan onze kant. Opnieuw proberen helpt hier niet. " +
         "Laat het ons weten, dan zetten wij het recht.",
@@ -76,10 +76,10 @@ export function classifyError(err: unknown): UserFacingError {
   ) {
     return {
       kind: "website_unreachable",
-      title: "Aura komt niet op je website",
+      title: "ORBIT ENGINE komt niet op je website",
       message:
         "Controleer of het webadres klopt en of de site online staat. Zit er een " +
-        "beveiliging of firewall voor? Dan komt Aura er mogelijk niet langs.",
+        "beveiliging of firewall voor? Dan komt ORBIT ENGINE er mogelijk niet langs.",
       canRetry: true,
       detail,
     };

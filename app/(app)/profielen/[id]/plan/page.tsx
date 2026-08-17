@@ -75,7 +75,7 @@ export default async function PlanPage({
         title={profile.brand_name ?? profile.name}
         backHref={`/profielen/${id}`}
         backLabel="Merkdossier"
-        description="Twaalf maanden vooruit. Je keurt per maand goed, en Aura begint tien dagen voor elke publicatiedatum met schrijven."
+        description="Twaalf maanden vooruit. Je keurt per maand goed, en ORBIT ENGINE begint tien dagen voor elke publicatiedatum met schrijven."
       />
 
       {bundle ? (

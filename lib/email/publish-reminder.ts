@@ -38,7 +38,7 @@ export async function sendPublishReminder(
   }
 
   const resend = new Resend(apiKey);
-  const from = process.env.RESEND_FROM_EMAIL ?? "Aura <onboarding@resend.dev>";
+  const from = process.env.RESEND_FROM_EMAIL ?? "ORBIT ENGINE <onboarding@resend.dev>";
   const libraryUrl = `${publicEnv.siteUrl}/analyses/${analysis.id}/bibliotheek`;
   const pages = waitingCount === 1 ? "een pagina" : `${waitingCount} pagina's`;
 
@@ -57,10 +57,10 @@ export async function sendPublishReminder(
         stappenplan, en je mag ons altijd mailen als het niet lukt.
       </p>
       <p style="margin-top: 24px;">
-        <a href="${libraryUrl}" style="color: #8511D9;">Naar je bibliotheek in Aura →</a>
+        <a href="${libraryUrl}" style="color: #8511D9;">Naar je bibliotheek in ORBIT ENGINE →</a>
       </p>
       <p style="font-size: 12px; color: #6b6b70; margin-top: 32px;">
-        Dit is de enige herinnering die Aura hierover stuurt.
+        Dit is de enige herinnering die ORBIT ENGINE hierover stuurt.
       </p>
     </div>
   `;

@@ -28,7 +28,7 @@ import { readKey, type KeyState } from "@/lib/search-console/key-state";
 import { createSign } from "node:crypto";
 
 const TOKEN_URL = "https://oauth2.googleapis.com/token";
-/** Alleen lezen. Aura dient niets in, dus meer recht is meer risico voor niets. */
+/** Alleen lezen. ORBIT ENGINE dient niets in, dus meer recht is meer risico voor niets. */
 const SCOPE = "https://www.googleapis.com/auth/webmasters.readonly";
 
 interface ServiceAccount {

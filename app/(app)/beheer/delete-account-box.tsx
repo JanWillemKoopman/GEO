@@ -145,7 +145,7 @@ export function DeleteAccountBox({ accounts }: { accounts: DeletableAccount[] })
         title={`${gekozen?.name ?? "Klant"} verwijderen`}
         body={
           laden
-            ? "Aura kijkt na wat er aan deze klant vasthangt."
+            ? "ORBIT ENGINE kijkt na wat er aan deze klant vasthangt."
             : (plan?.blokkade ?? plan?.waarschuwing ?? "")
         }
         irreversible={

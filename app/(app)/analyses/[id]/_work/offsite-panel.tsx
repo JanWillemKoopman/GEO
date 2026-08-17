@@ -84,7 +84,7 @@ export function OffsitePanel({
       <div className="flex flex-wrap items-center justify-between gap-2">
         <span className="mono-label flex items-center gap-1">
           Daarbuiten: wat er buiten je eigen site moet gebeuren
-          <InfoHint label="Waarom kijkt Aura hiernaar?">
+          <InfoHint label="Waarom kijkt ORBIT ENGINE hiernaar?">
             Bij koopvragen leunen AI-assistenten zwaar op ándere sites: reviewplatforms,
             vergelijkers en lijstjes. Sta je daar niet op, dan maakt geen enkele tekst op je eigen
             site dat goed.
@@ -97,7 +97,7 @@ export function OffsitePanel({
 
       {open.length === 0 && closed.length > 0 && (
         <p className="text-sm text-secondary">
-          Alle off-site punten afgehandeld. Vindt Aura bij een volgende meting nieuwe bronnen, dan
+          Alle off-site punten afgehandeld. Vindt ORBIT ENGINE bij een volgende meting nieuwe bronnen, dan
           staan ze hier.
         </p>
       )}

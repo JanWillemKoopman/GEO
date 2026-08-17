@@ -22,14 +22,14 @@ export function ConfidenceChip({
   return level === "onzeker" ? (
     <span
       className="chip chip-warning"
-      title="Aura heeft dit afgeleid, niet hard gevonden."
+      title="ORBIT ENGINE heeft dit afgeleid, niet hard gevonden."
     >
       onzeker
     </span>
   ) : (
     <span
       className="chip chip-neutral"
-      title="Hierover kreeg Aura geen uitsluitsel."
+      title="Hierover kreeg ORBIT ENGINE geen uitsluitsel."
     >
       niet vastgesteld
     </span>

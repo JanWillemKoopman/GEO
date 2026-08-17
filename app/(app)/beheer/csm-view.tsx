@@ -14,13 +14,13 @@ import {
 } from "@/lib/csm";
 
 /**
- * De klantentabel met segmenten (Nova's `admin.segments`, `docs/Nova.md` §3.8).
+ * De klantentabel met segmenten (Nova's `admin.segments`).
  *
  * ── SEGMENTEN ALS TABBLADEN, NIET ALS UITKLAPLIJST ──────────────────────────
  *
- * Nova doet dit ook zo, en de reden staat in `docs/Nova.md` §295: een
- * uitklaplijst verbergt hoeveel er in elk segment zit, en dat aantal ís het
- * bericht. Bij een tabblad zie je "3" naast "Vastgelopen" zonder te klikken.
+ * Nova doet dit ook zo: een uitklaplijst verbergt hoeveel er in elk segment
+ * zit, en dat aantal ís het bericht. Bij een tabblad zie je "3" naast
+ * "Vastgelopen" zonder te klikken.
  *
  * ── ELK SEGMENT HEEFT EEN BANNER DIE ZEGT WAT JIJ MOET DOEN ─────────────────
  *

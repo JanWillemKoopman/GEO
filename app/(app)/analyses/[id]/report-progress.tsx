@@ -27,7 +27,7 @@ const STALE_FAILURE: UserFacingError = {
   kind: "unknown",
   title: "Het rapport is eerder vastgelopen",
   message:
-    "Je meting blijft bewaard. Aura meet niet opnieuw, dus een nieuwe poging kost " +
+    "Je meting blijft bewaard. ORBIT ENGINE meet niet opnieuw, dus een nieuwe poging kost " +
     "alleen het schrijven van het rapport.",
   canRetry: true,
   detail: "",
@@ -90,8 +90,8 @@ export function ReportProgress({
 
   return (
     <WorkInProgress
-      title="Aura schrijft je rapport"
-      explanation="Aura zet je meting naast die van je concurrenten en legt de grootste kansen bovenop."
+      title="ORBIT ENGINE schrijft je rapport"
+      explanation="ORBIT ENGINE zet je meting naast die van je concurrenten en legt de grootste kansen bovenop."
       etaText={data?.etaText}
       retrying={data?.retrying}
     />

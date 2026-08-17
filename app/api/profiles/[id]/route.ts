@@ -35,7 +35,7 @@ const NULLABLE_TEXT_FIELDS = [
   "author_other_url",
 ] as const;
 
-/** De aanspreekvorm van de CONTENT, niet van Aura's eigen interface. */
+/** De aanspreekvorm van de CONTENT, niet van ORBIT ENGINE's eigen interface. */
 const PRONOUNS = ["je", "u", "wij"] as const;
 
 /** Velden die als 1-3 geklemd worden in plaats van rechtstreeks opgeslagen. */

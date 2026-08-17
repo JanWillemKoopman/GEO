@@ -74,7 +74,7 @@ export function inviteExpiry(from: Date = new Date()): Date {
 /**
  * Mag deze rol iemand uitnodigen?
  *
- * Alleen een `admin` van het account, of een beheerder van Aura. Een `member`
+ * Alleen een `admin` van het account, of een beheerder van ORBIT ENGINE. Een `member`
  * kan wel meekijken en goedkeuren maar niet de kring uitbreiden; dat is bij een
  * bureau (besluit 9) het verschil tussen een collega en de contractpartij.
  */

@@ -4,8 +4,8 @@
 --
 -- WAT HET PROBLEEM WAS
 --
--- `docs/Nova.md` §13 legt Aura's `profiles`-kolommen naast wat InSpace in hun
--- onboarding uitvraagt. Van de ~40 velden had Aura er veertien al, kon de
+-- `docs/Nova.md` §13 legt ORBIT ENGINE's `profiles`-kolommen naast wat InSpace in hun
+-- onboarding uitvraagt. Van de ~40 velden had ORBIT ENGINE er veertien al, kon de
 -- pijplijn er elf afleiden, en vervielen er vier (taalkeuze, CMS, auteurspagina,
 -- Google Analytics). Wat overbleef zijn de dertien hieronder: velden die de
 -- schrijfprompt scherper maken en die nergens vandaan komen.
@@ -15,7 +15,7 @@
 -- Alles wat al een eigenaar had, blijft waar het staat. Dat is de reden dat
 -- deze lijst korter is dan Nova's stappenlijst:
 --
---   Nova's veld             →  waar het bij Aura al stond
+--   Nova's veld             →  waar het bij ORBIT ENGINE al stond
 --   brandValuePillars       →  `value_props`
 --   brandProofPoints        →  `proof_points`
 --   competitors             →  `competitors` plus de tabel `entities`
@@ -83,9 +83,9 @@ alter table public.profiles
   -- De tegenhanger van `taboo_phrases`: uitdrukkingen die juist wél van dit
   -- merk zijn en terug mogen komen.
   add column if not exists signature_phrases text[] not null default '{}',
-  -- ⚠️ Hoe de content de LEZER aanspreekt, niet hoe Aura zijn eigen gebruiker
+  -- ⚠️ Hoe de content de LEZER aanspreekt, niet hoe ORBIT ENGINE zijn eigen gebruiker
   -- aanspreekt. `docs/schrijfstijl.md` legt "je en jij" vast voor de interface;
-  -- dat is een keuze over Aura zelf. Wat Aura vóór een advocatenkantoor
+  -- dat is een keuze over ORBIT ENGINE zelf. Wat ORBIT ENGINE vóór een advocatenkantoor
   -- schrijft, hoort "u" te zeggen. Twee verschillende dingen, en zonder deze
   -- kolom vielen ze samen.
   add column if not exists pronoun_preference text

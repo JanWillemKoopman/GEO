@@ -101,7 +101,7 @@ export function OnboardingWizard() {
       }
       router.push(`/profielen/${json.id}`);
     } catch {
-      setError("We konden Aura niet bereiken. Controleer je verbinding en probeer het opnieuw.");
+      setError("We konden ORBIT ENGINE niet bereiken. Controleer je verbinding en probeer het opnieuw.");
       setPending(false);
     }
   }
@@ -114,7 +114,7 @@ export function OnboardingWizard() {
         </Link>
         <h1 className="text-2xl font-bold tracking-tight">Nieuw merk</h1>
         <p className="mt-2 text-secondary">
-          Twee velden, en Aura gaat aan de slag. Het leest de hele website uit, brengt het aanbod in
+          Twee velden, en ORBIT ENGINE gaat aan de slag. Het leest de hele website uit, brengt het aanbod in
           kaart, zoekt uit wie de concurrenten zijn en test wat AI-assistenten nu al over je merk
           weten.
         </p>
@@ -200,7 +200,7 @@ export function OnboardingWizard() {
           </button>
           <span className="text-sm text-muted">
             Het onderzoek duurt ongeveer tien minuten en loopt door als je dit scherm sluit. Verder
-            invullen hoeft niet. Wat Aura vindt kun je daarna nog corrigeren.
+            invullen hoeft niet. Wat ORBIT ENGINE vindt kun je daarna nog corrigeren.
           </span>
         </div>
       </div>

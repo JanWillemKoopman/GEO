@@ -29,7 +29,7 @@ export async function signIn(_prev: AuthState, formData: FormData): Promise<Auth
 export async function signUp(_prev: AuthState, formData: FormData): Promise<AuthState> {
   // App-laag: registratie is dicht tijdens de bouwfase.
   if (!signupsEnabled) {
-    return { error: "Aanmelden kan nu niet: Aura is op uitnodiging. Vraag je contactpersoon om toegang." };
+    return { error: "Aanmelden kan nu niet: ORBIT ENGINE is op uitnodiging. Vraag je contactpersoon om toegang." };
   }
 
   const { email, password } = readCredentials(formData);

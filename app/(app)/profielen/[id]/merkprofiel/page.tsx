@@ -23,7 +23,7 @@ export async function generateMetadata({
  *
  * ── WAAROM DIT EEN EIGEN SCHERM IS EN GEEN BLOK IN HET DOSSIER ──────────────
  *
- * Het merkdossier is een leesscherm: het vertelt wat Aura vond en hoe het merk
+ * Het merkdossier is een leesscherm: het vertelt wat ORBIT ENGINE vond en hoe het merk
  * ervoor staat. Dit is een werkscherm: dertig velden nakijken en aanvullen. Die
  * twee door elkaar zetten maakt het dossier weer wat het in de ronde van
  * 10 augustus net niet meer was, een pagina van meters lang.
@@ -69,7 +69,7 @@ export default async function MerkprofielPage({
         title={profile.brand_name ?? profile.name}
         backHref={`/profielen/${id}`}
         backLabel="Merkdossier"
-        description="Aura heeft het meeste al van je website gehaald. Kijk het na, corrigeer wat niet klopt, en vul aan wat het niet kon weten. Alles wat je hier vastlegt blijft staan, ook als het onderzoek opnieuw draait."
+        description="ORBIT ENGINE heeft het meeste al van je website gehaald. Kijk het na, corrigeer wat niet klopt, en vul aan wat het niet kon weten. Alles wat je hier vastlegt blijft staan, ook als het onderzoek opnieuw draait."
       />
 
       <BrandWizard profileId={id} initial={profile} sources={sources} />

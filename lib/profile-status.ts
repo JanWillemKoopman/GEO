@@ -6,7 +6,7 @@ export const PROFILE_STATUS_META: Record<
   ProfileStatus,
   { label: string; tone: StatusTone; whoseTurn: WhoseTurn }
 > = {
-  bezig: { label: "Onderzoek loopt…", tone: "progress", whoseTurn: "aura" },
+  bezig: { label: "Onderzoek loopt…", tone: "progress", whoseTurn: "orbit_engine" },
   klaar: { label: "Gereed", tone: "success", whoseTurn: null },
   mislukt: { label: "Niet gelukt", tone: "error", whoseTurn: "jij" },
 };

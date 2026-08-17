@@ -51,7 +51,7 @@ export default async function ConcurrentenPage({
         title="Concurrenten"
         backHref={`/profielen/${id}`}
         backLabel="Merkdossier"
-        description="Elk merk dat een AI-assistent in zijn antwoorden noemt, deelt Aura automatisch in. Alleen echte concurrenten tellen mee in je aandeel."
+        description="Elk merk dat een AI-assistent in zijn antwoorden noemt, deelt ORBIT ENGINE automatisch in. Alleen echte concurrenten tellen mee in je aandeel."
       />
 
       <EntitiesManager profileId={id} initial={(entityRows ?? []) as Entity[]} />

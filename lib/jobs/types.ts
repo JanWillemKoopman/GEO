@@ -164,7 +164,7 @@ export interface JobPayloads {
      * Hierdoor kan de taak terugmelden: de plan-pagina krijgt zijn
      * `content_piece_id` en gaat van `schrijven` naar `ter_goedkeuring`. Zonder
      * dit veld schrijft de pijplijn wel, maar blijft de pagina in het plan op
-     * "Aura is bezig" staan tot iemand het handmatig opmerkt.
+     * "ORBIT ENGINE is bezig" staan tot iemand het handmatig opmerkt.
      */
     plannedPageId?: string;
   };

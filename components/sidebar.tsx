@@ -26,7 +26,7 @@ import type { BrandOption } from "@/lib/workspace";
  * aan wat de server rendert, en een cookie zou elke request groter maken voor
  * een puur visuele voorkeur.
  */
-const OPSLAG = "aura_zijbalk_ingeklapt";
+const OPSLAG = "orbit_engine_zijbalk_ingeklapt";
 
 export function Sidebar({
   activeBrand,

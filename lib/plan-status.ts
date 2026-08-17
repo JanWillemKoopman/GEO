@@ -1,7 +1,7 @@
 /**
  * De status van een geplande pagina, in drie talen tegelijk.
  *
- * ── NOVA'S SLIMSTE VONDST, EN DE ENIGE DIE AURA NOG MISTE ───────────────────
+ * ── NOVA'S SLIMSTE VONDST, EN DE ENIGE DIE ORBIT ENGINE NOG MISTE ───────────────────
  *
  * Nova heeft voor hetzelfde ding drie verzamelingen labels naast elkaar:
  *
@@ -23,7 +23,7 @@
 import type { PlannedPageStatus, PlanMonthStatus } from "@/lib/types/database";
 
 /** Bij wie ligt de bal? `null` = niemand hoeft iets, de staat is af. */
-export type WhoseTurn = "klant" | "aura" | null;
+export type WhoseTurn = "klant" | "orbit_engine" | null;
 
 export type StatusTone = "wacht" | "loopt" | "klaar" | "fout" | "neutraal";
 
@@ -41,15 +41,15 @@ export interface PlanStatusMeta {
 export const PLAN_STATUS_META: Record<PlannedPageStatus, PlanStatusMeta> = {
   gepland: {
     label: "Gepland",
-    running: "Aura schrijft dit later",
+    running: "ORBIT ENGINE schrijft dit later",
     whoseTurn: null,
     tone: "neutraal",
     actionRequired: false,
   },
   schrijven: {
     label: "Wordt geschreven",
-    running: "Aura is bezig",
-    whoseTurn: "aura",
+    running: "ORBIT ENGINE is bezig",
+    whoseTurn: "orbit_engine",
     tone: "loopt",
     actionRequired: false,
   },
@@ -78,15 +78,15 @@ export const PLAN_STATUS_META: Record<PlannedPageStatus, PlanStatusMeta> = {
   },
   afgewezen: {
     label: "Afgewezen",
-    running: "Aura maakt een nieuw voorstel",
-    whoseTurn: "aura",
+    running: "ORBIT ENGINE maakt een nieuw voorstel",
+    whoseTurn: "orbit_engine",
     tone: "neutraal",
     actionRequired: false,
   },
   mislukt: {
     label: "Schrijven mislukt",
-    running: "Aura probeert het opnieuw",
-    whoseTurn: "aura",
+    running: "ORBIT ENGINE probeert het opnieuw",
+    whoseTurn: "orbit_engine",
     tone: "fout",
     actionRequired: false,
   },
@@ -99,7 +99,7 @@ export const MONTH_STATUS_META: Record<
   concept: {
     label: "Concept",
     running: "Nog niet gedeeld",
-    whoseTurn: "aura",
+    whoseTurn: "orbit_engine",
     tone: "neutraal",
   },
   ter_goedkeuring: {
@@ -116,8 +116,8 @@ export const MONTH_STATUS_META: Record<
   },
   afgewezen: {
     label: "Afgewezen",
-    running: "Aura stelt een nieuw plan op",
-    whoseTurn: "aura",
+    running: "ORBIT ENGINE stelt een nieuw plan op",
+    whoseTurn: "orbit_engine",
     tone: "neutraal",
   },
 };
@@ -155,7 +155,7 @@ export function planRunningDate(
   if (!page.scheduled_for) return null;
   const dagen = daysBetween(now, new Date(page.scheduled_for));
 
-  if (page.status === "schrijven") return "Aura schrijft dit nu";
+  if (page.status === "schrijven") return "ORBIT ENGINE schrijft dit nu";
   // `gepland`: zeg wannéér, want dat is het enige dat er nog gebeurt.
   if (dagen < 0) return `Stond gepland voor ${formatDay(page.scheduled_for)}`;
   if (dagen === 0) return "Vandaag gepland";
@@ -165,7 +165,7 @@ export function planRunningDate(
 }
 
 /**
- * Wanneer begint Aura te schrijven?
+ * Wanneer begint ORBIT ENGINE te schrijven?
  *
  * Tien dagen vóór de publicatiedatum, precies zoals Nova
  * ("about 10 days before its scheduled post date"). Dat is lang genoeg om te

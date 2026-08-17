@@ -8,16 +8,16 @@ import "./globals.css";
 // het soort verschil dat je niet ziet maar wel voelt. Zie designsystem.md §3.
 
 // A.4: elke pagina een eigen tabbladtitel. Het sjabloon hier is de bodem: een
-// pagina die alleen `title: "Merken"` opgeeft wordt automatisch "Merken · Aura".
+// pagina die alleen `title: "Merken"` opgeeft wordt automatisch "Merken · ORBIT ENGINE".
 // `analyses/[id]/layout.tsx` legt voor alles daaronder een eigen, specifieker
 // sjabloon overheen (met de analysenaam erin); die van dichterbij wint.
 export const metadata: Metadata = {
   title: {
-    template: "%s · Aura",
-    default: "Aura · AI-zichtbaarheid, gemeten",
+    template: "%s · ORBIT ENGINE",
+    default: "ORBIT ENGINE · AI-zichtbaarheid, gemeten",
   },
   description:
-    "Aura meet hoe vaak AI-assistenten jouw merk noemen, laat zien waar je mist en schrijft de pagina's die dat verhelpen.",
+    "ORBIT ENGINE meet hoe vaak AI-assistenten jouw merk noemen, laat zien waar je mist en schrijft de pagina's die dat verhelpen.",
 };
 
 export const viewport: Viewport = {

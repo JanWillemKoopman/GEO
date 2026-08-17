@@ -1,5 +1,5 @@
 /**
- * Wanneer mag Aura een geplande pagina gaan schrijven, en zo niet: waarom niet?
+ * Wanneer mag ORBIT ENGINE een geplande pagina gaan schrijven, en zo niet: waarom niet?
  *
  * ── WAAROM DIT EEN EIGEN MODULE IS ──────────────────────────────────────────
  *
@@ -133,14 +133,14 @@ export function writeBlockNotice(
 ): { text: string; whoseTurn: WhoseTurn } | null {
   switch (reden) {
     case "maand_niet_goedgekeurd":
-      return { text: "Aura schrijft pas als je deze maand goedkeurt", whoseTurn: "klant" };
+      return { text: "ORBIT ENGINE schrijft pas als je deze maand goedkeurt", whoseTurn: "klant" };
     case "geen_analyse":
       return {
-        text: "Start eerst de meting van dit onderwerp, anders schrijft Aura zonder cijfers",
+        text: "Start eerst de meting van dit onderwerp, anders schrijft ORBIT ENGINE zonder cijfers",
         whoseTurn: "klant",
       };
     case "meting_nog_niet_klaar":
-      return { text: "De meting van dit onderwerp loopt nog", whoseTurn: "aura" };
+      return { text: "De meting van dit onderwerp loopt nog", whoseTurn: "orbit_engine" };
     case "geen_onderwerp":
       return { text: "Deze pagina hangt aan geen enkel onderwerp", whoseTurn: "klant" };
     default:

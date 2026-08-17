@@ -63,7 +63,7 @@ export function RerunResearchButton({ profileId }: { profileId: string }) {
   return (
     <div className="flex flex-col gap-2 rounded-[var(--radius-md)] border border-[var(--border-subtle)] p-3">
       <p className="text-sm text-secondary">
-        Aura leest de website opnieuw uit en bouwt het aanbod opnieuw op. Dat
+        ORBIT ENGINE leest de website opnieuw uit en bouwt het aanbod opnieuw op. Dat
         duurt een paar minuten.
         <strong> Wat jij of de klant invulde blijft staan</strong>, net als de
         onderwerpen en de AI-kennistest.

@@ -176,7 +176,7 @@ Bron: `lib/jobs/{types,queue,worker,handlers,pending}.ts`.
 - **Poging zichtbaar voor de klant:** `JobProgress.attempts` (`lib/jobs/progress.ts`, het hoogste
   aantal pogingen onder de openstaande taken van een analyse of profiel) gaat mee in de
   status-routes en verschijnt in `WorkInProgress` als "poging 2 van 4" zodra er een nieuwe poging
-  na een tegenslag loopt, in plaats van alleen "Aura probeert het automatisch opnieuw" zonder
+  na een tegenslag loopt, in plaats van alleen "ORBIT ENGINE probeert het automatisch opnieuw" zonder
   getal.
 
 ## 5. De pijplijn, stap voor stap
@@ -479,7 +479,7 @@ select * from cron.job_run_details order by start_time desc limit 10;
 | **Werker** | `/api/cron/worker` | elke minuut | **Supabase pg_cron**. Zonder deze taak gebeurt er niets. |
 | Terugkerende meting | `/api/cron/tracking` | 1e van de maand 06:00 UTC | Vercel |
 | Rapport-mail | `/api/cron/reminders` | maandag 09:00 UTC | Vercel (nu uit `vercel.json` gehaald, bestaat alleen om te mailen) |
-| Schrijfronde contentplan **en zoekdata** | `/api/cron/plan` | dagelijks 04:00 UTC | **Supabase pg_cron** (migratie `0050`, taak `aura-plan-writer`) |
+| Schrijfronde contentplan **en zoekdata** | `/api/cron/plan` | dagelijks 04:00 UTC | **Supabase pg_cron** (migratie `0050`, taak `orbit-engine-plan-writer`, hernoemd van `aura-plan-writer` in migratie `0059`) |
 
 **De schrijfronde in één alinea.** Pagina's van een GOEDGEKEURDE maand die binnen tien dagen
 gepubliceerd moeten worden, krijgen een schrijftaak; de route plant alleen, de werker schrijft.
@@ -496,7 +496,7 @@ twee pg_cron-taken die een minuut na elkaar hetzelfde doen zijn twee dingen om t
 koppeling loopt via een **service account** en niet via OAuth, want de `webmasters`-scopes zijn bij
 Google "sensitive" en vragen dan een verificatietraject van weken. De sleutel staat in één
 env-variabele (`GOOGLE_SERVICE_ACCOUNT_JSON`); ontbreekt hij, dan is de koppeling niet ingericht en
-zegt het scherm dat. Aura vraagt alleen leesrecht, dus de klant voegt het adres toe met het recht
+zegt het scherm dat. ORBIT ENGINE vraagt alleen leesrecht, dus de klant voegt het adres toe met het recht
 "Beperkt".
 
 ### Tijdbudgetten, waarom deze getallen bij elkaar horen

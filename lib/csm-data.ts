@@ -1,7 +1,7 @@
 import "server-only";
 
 /**
- * De queries onder het CSM-paneel (fase 8, `docs/Nova.md` §3.8).
+ * De queries onder het CSM-paneel (fase 8, zie `docs/logbook.md`).
  *
  * De rekenkant staat in `lib/csm.ts`, zonder `server-only` (conventie 2). Hier
  * staat alleen het ophalen.
@@ -24,8 +24,8 @@ type Admin = ReturnType<typeof createAdminClient>;
 /**
  * Vanaf welk percentage geldt een merkprofiel als nagekeken?
  *
- * Niet 100%. Van de 27 velden leidt Aura er 25 zelf af, en de laatste paar zijn
- * vaak dingen die alleen de klant weet (`docs/Nova.md` §13). Zou de drempel op
+ * Niet 100%. Van de 27 velden leidt ORBIT ENGINE er 25 zelf af, en de laatste paar zijn
+ * vaak dingen die alleen de klant weet. Zou de drempel op
  * 100 staan, dan stond élk merk eeuwig in "wacht op jouw nakijkwerk" en werd het
  * segment betekenisloos. Tachtig procent is de grens waarboven het dossier
  * deelbaar is in een demogesprek.

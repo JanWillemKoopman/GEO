@@ -221,8 +221,8 @@ export function PlanView({
             : `Maand ${month.month_number} afgewezen`,
         description:
           actie === "goedkeuren"
-            ? "Aura begint tien dagen voor elke publicatiedatum met schrijven."
-            : "Aura stelt een nieuw voorstel op voor deze maand.",
+            ? "ORBIT ENGINE begint tien dagen voor elke publicatiedatum met schrijven."
+            : "ORBIT ENGINE stelt een nieuw voorstel op voor deze maand.",
       });
       router.refresh();
     } finally {
@@ -244,7 +244,7 @@ export function PlanView({
           </span>
           <p className="text-secondary">
             {teDoen === 0
-              ? "Er wacht niets op jou. Aura werkt het plan af."
+              ? "Er wacht niets op jou. ORBIT ENGINE werkt het plan af."
               : teDoen === 1
                 ? "Er wacht 1 pagina op jou."
                 : `Er wachten ${teDoen} pagina's op jou.`}
@@ -275,7 +275,7 @@ export function PlanView({
           <span className="mono-label">Niets te zien hier</span>
           <p className="text-secondary">
             {filter === "actie"
-              ? "Er wacht op dit moment niets op jou. Zodra Aura een pagina heeft geschreven, staat hij hier."
+              ? "Er wacht op dit moment niets op jou. Zodra ORBIT ENGINE een pagina heeft geschreven, staat hij hier."
               : filter === "live"
                 ? "Er staat nog niets live. Zodra je een pagina publiceert en hier afvinkt, verschijnt hij in deze lijst."
                 : "Geen pagina's in deze selectie."}
@@ -375,11 +375,11 @@ export function PlanView({
       <ConfirmDialog
         open={postDialog !== null}
         title="Markeer als geplaatst"
-        body={`Bevestig het pad waar "${postDialog?.title ?? ""}" nu live staat. Aura gebruikt dat adres om te meten wat de pagina oplevert.`}
+        body={`Bevestig het pad waar "${postDialog?.title ?? ""}" nu live staat. ORBIT ENGINE gebruikt dat adres om te meten wat de pagina oplevert.`}
         irreversible={{
           title: "Dit kun je niet terugdraaien",
           description:
-            "De pagina telt vanaf nu als gepubliceerd, en Aura begint hem te volgen op dit adres.",
+            "De pagina telt vanaf nu als gepubliceerd, en ORBIT ENGINE begint hem te volgen op dit adres.",
         }}
         confirmLabel="Markeer als geplaatst"
         confirmingLabel="Bezig…"
@@ -402,11 +402,11 @@ export function PlanView({
       <ConfirmDialog
         open={monthDialog !== null}
         title={`Maand ${monthDialog?.month_number ?? ""} goedkeuren`}
-        body={`Je keurt ${echt.filter((p) => p.plan_month_id === monthDialog?.id).length} pagina's in één keer goed. Aura begint tien dagen voor elke publicatiedatum met schrijven.`}
+        body={`Je keurt ${echt.filter((p) => p.plan_month_id === monthDialog?.id).length} pagina's in één keer goed. ORBIT ENGINE begint tien dagen voor elke publicatiedatum met schrijven.`}
         irreversible={{
           title: "Dit zet het schrijven in gang",
           description:
-            "Elke pagina die geschreven wordt kost geld. Wijs de maand af als de onderwerpen niet kloppen; Aura maakt dan een nieuw voorstel.",
+            "Elke pagina die geschreven wordt kost geld. Wijs de maand af als de onderwerpen niet kloppen; ORBIT ENGINE maakt dan een nieuw voorstel.",
         }}
         confirmLabel="Goedkeuren"
         confirmingLabel="Bezig…"
@@ -420,7 +420,7 @@ export function PlanView({
           onClick={() => monthDialog && void maandActie(monthDialog, "afwijzen")}
           disabled={busy === monthDialog?.id}
         >
-          Of wijs deze maand af, dan stelt Aura iets nieuws voor
+          Of wijs deze maand af, dan stelt ORBIT ENGINE iets nieuws voor
         </button>
       </ConfirmDialog>
     </div>
@@ -468,8 +468,8 @@ function PageRow({
 }: {
   page: PlannedPage;
   funnel: string | null;
-  /** Waarom Aura deze pagina niet kan schrijven. `null` = er is niets aan de hand. */
-  blokkade: { text: string; whoseTurn: "klant" | "aura" | null } | null;
+  /** Waarom ORBIT ENGINE deze pagina niet kan schrijven. `null` = er is niets aan de hand. */
+  blokkade: { text: string; whoseTurn: "klant" | "orbit_engine" | null } | null;
   kanOmhoog: boolean;
   kanOmlaag: boolean;
   onMove: (richting: "omhoog" | "omlaag") => void;

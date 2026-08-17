@@ -5,7 +5,7 @@ import { useToast } from "@/components/toast";
 import { passwordRules } from "@/lib/invite-rules";
 
 /**
- * E-mailadres en wachtwoord wijzigen (fase 7, `docs/Nova.md` §3.7).
+ * E-mailadres en wachtwoord wijzigen (fase 7, naar het model van Nova).
  *
  * ── TWEE HANDELINGEN, TWEE KNOPPEN ──────────────────────────────────────────
  *

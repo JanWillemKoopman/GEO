@@ -6,7 +6,7 @@ op 6 augustus over op het systeem van de NOVA-workspace (volledige verantwoordin
 `designsystem.md`); deze datum volgt de gedragspatronen die daarna zijn bijgekomen (statustaal,
 foutafhandeling, de content-editie).
 
-> **Voor de tékst in die schermen geldt `docs/schrijfstijl.md`**: de tone-of-voice van Aura,
+> **Voor de tékst in die schermen geldt `docs/schrijfstijl.md`**: de tone-of-voice van ORBIT ENGINE,
 > afgeleid van InSpace Nova. Dit document gaat over hoe iets eruitziet, dat over hoe het klinkt.
 > De productregels hieronder gaan vóór allebei: is een formulering kosmisch maar onduidelijk, dan
 > wint de duidelijkheid.
@@ -130,7 +130,7 @@ schermen die de gebruiker na elkaar ziet).
 | `.live-dot` | Pulserende indicator voor "loopt nu". |
 | `.skeleton` | Laadvlak, respecteert `prefers-reduced-motion`. |
 | `.prose` | Lange tekst (rapport, contentpagina). |
-| `.brand-gradient-text` | **Alleen het woordmerk Aura.** Nergens anders. |
+| `.brand-gradient-text` | **Alleen het woordmerk ORBIT ENGINE.** Nergens anders. |
 | `PageHeader`, `EmptyState`, `Narrow` | Eén variant per patroon, geen lokale kopieën. |
 | `ConfidenceChip` (`components/confidence-chip.tsx`) | Zekerheid is een **niveau**, nooit een getal: zeker (geen markering) · onzeker (amber) · niet vastgesteld (mono-label "niet gevonden"). "0.62" zegt een MKB'er niets. |
 | `CopyButton`, `ExternalLink`, `LastUpdated` (`components/`) | H.63-65: drie kleine primitieven tegen herhaling, klembord, "verlaat de app"-pijltje, relatieve datum met volledige datum als tooltip. Elke plek die zelf `navigator.clipboard` of `target="_blank"` opnieuw uittypte, hoort hierheen te verhuizen. |
@@ -138,7 +138,7 @@ schermen die de gebruiker na elkaar ziet).
 | `SearchPreview` (`components/search-preview.tsx`) | Content-editie: een gemockt zoekresultaat, naar Nova's "Search preview". Puur presentationeel, tweemaal ingezet op dezelfde contentpagina: statisch met de opgeslagen tekst, en live binnen `ContentEditor` met de lokale invoerstate. `isReal` voorkomt dat een voorgestelde URL (`lib/pipeline/slug.ts`) als feit oogt. |
 | `VersionDiff` (`components/version-diff.tsx`) | Content-editie: het verschil met de vorige versie, lazy opgehaald bij uitklappen. `<del>`/`<ins>` met `--intent-danger`/`--intent-growth`-tokens, nooit hardgecodeerd. |
 | `FaqEditor` (`components/faq-editor.tsx`) | Content-editie: zelfde vorm als `TagListEditor` (`items`/`onChange`), nu voor vraag-antwoordparen. Herordenen met ↑/↓-knoppen, geen sleep-library. |
-| `WhyThisPage` (`components/why-this-page.tsx`) | Content-editie: het "waarom deze pagina"-contextpaneel, naar Nova's "Why This Page Exists?". Toont Aura's eigen metriek (echt gemeten AI-vragen), en sinds 13 augustus bovenaan de potentiescore van die pagina via `PotentialMetrics` (zie hieronder). |
+| `WhyThisPage` (`components/why-this-page.tsx`) | Content-editie: het "waarom deze pagina"-contextpaneel, naar Nova's "Why This Page Exists?". Toont ORBIT ENGINE's eigen metriek (echt gemeten AI-vragen), en sinds 13 augustus bovenaan de potentiescore van die pagina via `PotentialMetrics` (zie hieronder). |
 | `PotentialMetrics` / `PotentialInline` (`components/potential-metrics.tsx`) | De potentiescore (`docs/tasks/potentiescore.md`), altijd als drietal: Zichtbaarheid, Zoekvolume, Potentie, elk 0-100 met een `InfoHint`. `PotentialMetrics` is drie tegels (analysedossier, contentpagina); `PotentialInline` is één compacte tekstregel voor een lijst met veel items (voorgestelde pagina's, de onderwerpenlijst, de Kansen-chip). Onbekend is altijd "-" (gewoon koppelteken, zie richtlijn 10), nooit een gegokt getal. |
 | `ToastProvider` / `useToast` (`components/toast.tsx`) | Broodroostermeldingen. **Voor gebeurtenissen, niet voor uitslagen**: een uitslag hoort in de pagina, een gebeurtenis (het onderzoek is klaar, je wijziging is opgeslagen) hoort in een melding. Altijd `title` én `description`, net als bij Nova. Vorm en timing zijn letterlijk die van Nova: 0,15s in vanaf `translateX(1rem)`, 0,12s uit, en een streepje onderaan dat leegloopt over de levensduur. Standaard 6s; een fout blijft staan tot je hem wegklikt. Op mobiel komt hij van onderen, daar is de duim. |
 
@@ -175,7 +175,7 @@ database-queries een dood interval zonder enige terugkoppeling.
   opgeslagen, is erger dan geen directe terugkoppeling.
 - **Bij wie ligt de bal? (`WhoseTurn`, `lib/analysis-status.ts`/`lib/profile-status.ts`)** Naast de
   technische status (`AnalysisStatus`/`ProfileStatus`, de bron van waarheid) een leesbare laag
-  ernaast: "Wacht op jou" · "Aura is bezig" · niets als de staat af of informatief is (`null`).
+  ernaast: "Wacht op jou" · "ORBIT ENGINE is bezig" · niets als de staat af of informatief is (`null`).
   Naar Nova's tweelaags-statustaal ("Waiting in your CMS" naast de technische status,
   `docs/tasks/nova-analyse.md` §3.2). `showWhoseTurn` staat aan op `StatusBadge`/
   `ProfileStatusBadge` waar de klant maar één status per keer ziet (de kop van een analyse of een
@@ -191,7 +191,7 @@ database-queries een dood interval zonder enige terugkoppeling.
   stuk voor stuk openen om een storing te vinden, er was geen centrale plek waar een fout
   zichtbaar werd.
 - **Elke pagina een eigen tabbladtitel.** `generateMetadata`/`export const metadata`, met een
-  titelsjabloon op `analyses/[id]/layout.tsx` (`%s · {analysenaam} · Aura`) dat naar alle
+  titelsjabloon op `analyses/[id]/layout.tsx` (`%s · {analysenaam} · ORBIT ENGINE`) dat naar alle
   subroutes cascadeert. `getAnalysis()`/`getProfile()` zijn gememoïseerd (React `cache()`, zelfde
   patroon als `isStaff()` in `lib/staff.ts`) zodat `generateMetadata` geen tweede query naast de
   pagina zelf doet.
@@ -200,7 +200,8 @@ database-queries een dood interval zonder enige terugkoppeling.
 
 ### De merk-werkruimte
 
-Sinds besluit 1 (`docs/Nova.md` §0) is de app een **merk-werkruimte**: je kiest bovenin een merk en
+Sinds besluit 1 (`docs/logbook.md`, het inmiddels verwijderde `Nova.md` §0) is de app een
+**merk-werkruimte**: je kiest bovenin een merk en
 daarna gaat alles over dát merk. De navigatie valt daarmee in twee soorten uiteen, en dat onderscheid
 past horizontaal niet zonder scheidingstekens die niets betekenen. Vandaar een **zijbalk**
 (`components/sidebar.tsx`), met twee groepen:
@@ -214,7 +215,7 @@ past horizontaal niet zonder scheidingstekens die niets betekenen. Vandaar een *
 knop: een kiezer met één optie belooft een keuze die er niet is. Het zoekveld erin verschijnt pas
 vanaf acht merken. Nova doet allebei ook zo.
 
-**De keuze staat in een cookie** (`aura_merk`) en niet in de URL: hij moet blijven staan op schermen
+**De keuze staat in een cookie** (`orbit_engine_merk`) en niet in de URL: hij moet blijven staan op schermen
 die zelf geen merk kennen (`/instellingen`), en een querystring zou aan élke link geplakt moeten
 worden. ⚠️ Die cookie is een **voorkeur, nooit een recht**: `listBrands()` controleert altijd opnieuw
 of je bij dat merk mag, en de toegangscontrole zelf zit in `getOwnedProfile()`.
@@ -272,17 +273,17 @@ wat de CSM ÓVER een klant vastlegt zit in de aparte `admin`-namespace, inclusie
 `admin.onboardingProfile` ("View onboarding profile for {domain}"). Er is in hun hele
 berichtenbestand geen enkele sleutel waarmee een klant de notities van zijn CSM zou kunnen lezen.
 
-Toegepast op Aura's merkdossier:
+Toegepast op ORBIT ENGINE's merkdossier:
 
 | Blok | Klant | Consultant | Waarom |
 |---|---|---|---|
 | Dossier, nulmeting, aanbod, onderwerpen | ✅ | ✅ | Dit is wat de klant komt halen |
-| Wat Aura nog wil weten | ✅ | ✅ | De vragen zijn áán hem gericht |
+| Wat ORBIT ENGINE nog wil weten | ✅ | ✅ | De vragen zijn áán hem gericht |
 | Technische controle, profielgegevens | ✅ | ✅ | Zijn site, zijn gegevens |
 | **Het gesprek** (notities, contextfactoren) | ❌ | ✅ | Aantekeningen óver hem, niet vóór hem |
 | **Beheer** (toewijzen) | ❌ | ✅ | Handeling van ná het gesprek |
 
-De grens loopt langs `isStaff()`, niet langs de accountrol: het gaat om Aura's eigen team tegenover
+De grens loopt langs `isStaff()`, niet langs de accountrol: het gaat om ORBIT ENGINE's eigen team tegenover
 iedereen daarbuiten. Een accountbeheerder bij een bureau is nog steeds een klant.
 
 ⚠️ **Een afgeschermd blok haalt ook zijn springlink weg** (`showNotes` in `ProfileHero`). Een link
@@ -304,7 +305,7 @@ noemer ín de waarde (`1/15`), en legt een `explain`-veld achter een vraagteken
 uit wát er precies geteld is. Dat is Nova's regel: daar staat de eenheid altijd
 in het label zelf ("Total clicks this plan month", "Month {number} of 12").
 
-De volgorde ís het demogesprek: kop → **is het af** → **wat Aura nog wil weten** →
+De volgorde ís het demogesprek: kop → **is het af** → **wat ORBIT ENGINE nog wil weten** →
 dossier → wat AI over je weet → aanbod → onderwerpen → gesprek → techniek →
 profielgegevens → beheer.
 
@@ -316,7 +317,7 @@ je het scherm kunt delen. Nodig omdat het profiel op status `klaar` gaat na taak
 feitvragen blokkeren `compleet` bewust **niet**: anders staat elk profiel eeuwig
 op 90% en betekent de melding niets meer.
 
-**Wat Aura nog wil weten** (`OpenQuestions`) is één blok waar er twee waren: de
+**Wat ORBIT ENGINE nog wil weten** (`OpenQuestions`) is één blok waar er twee waren: de
 vragen mét invoerveld zaten op plek 7 binnen "Profielgegevens", de open punten op
 plek 5 binnen "Het gesprek". Voor de gebruiker is dat één ding, dus staat het op
 één plek, hoog, met de teller in de kop.
@@ -390,7 +391,7 @@ geen interactie mag van hover afhangen.
 
 Op een iPhone was de pagina breder dan het toestel: je kon zijwaarts scrollen en de rechterkant
 viel weg. De oorzaak was niet één kapotte kaart maar één soort inhoud: **strings zonder spatie die
-niet mogen afbreken**. Aura rendert die op zo'n vijftien plekken (URL's, slugs, domeinen,
+niet mogen afbreken**. ORBIT ENGINE rendert die op zo'n vijftien plekken (URL's, slugs, domeinen,
 entiteitsnamen). Een occasion-URL van 100 tekens is bij 14px ongeveer 840px breed en staat in een
 kaart die op een telefoon 302px krijgt.
 

@@ -41,7 +41,7 @@ export default async function InstellingenPage() {
   return (
     <div className="mx-auto flex max-w-xl flex-col gap-6">
       <PageHeader
-        eyebrow="Aura · account"
+        eyebrow="ORBIT ENGINE · account"
         title="Mijn instellingen"
         description="Je persoonlijke account. Instellingen per merk en per cluster staan bij het merk of het cluster zelf."
       />

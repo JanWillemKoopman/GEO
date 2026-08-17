@@ -34,7 +34,7 @@ export function ResultsPanel({ analysisId, results }: { analysisId: string; resu
           <span className="mono-label flex items-center gap-1">
             Wat het heeft opgeleverd
             <InfoHint label="Wat het heeft opgeleverd">
-              Aura hermat precies de vragen waarvoor je publiceerde, én een groep vragen waar je
+              ORBIT ENGINE hermat precies de vragen waarvoor je publiceerde, én een groep vragen waar je
               géén pagina voor maakte. Het verschil tussen die twee is wat je publicatie deed.
               Gemeten, niet beloofd.
             </InfoHint>
@@ -137,7 +137,7 @@ export function ResultsPanel({ analysisId, results }: { analysisId: string; resu
                   <p className="text-sm text-muted">
                     Gepubliceerd op{" "}
                     {formatDateLong(p.publishedAt)}
-                    . Aura hermeet na twee en na vier weken, want AI-assistenten pikken nieuwe content
+                    . ORBIT ENGINE hermeet na twee en na vier weken, want AI-assistenten pikken nieuwe content
                     niet dezelfde dag op.
                   </p>
                 )}

@@ -16,7 +16,7 @@ export function ContentActions({
   html: string;
   schemaJsonLd: string | null;
   /**
-   * De sjabloongerichte variant, als Aura tijdens het onderzoek een CMS of een
+   * De sjabloongerichte variant, als ORBIT ENGINE tijdens het onderzoek een CMS of een
    * FAQ-accordion op de site van de klant herkende (`content-export.ts`). `null`
    * of `undefined`: geen bekend sjabloon, dan tonen we alleen de generieke
    * export hierboven. Zie `docs/architecture.md` §"Sjabloondetectie".
@@ -62,7 +62,7 @@ export function ContentActions({
             {templateExport.label}
           </button>
           <InfoHint label="Wat is dit?">
-            Aura herkende tijdens het onderzoek hoe jouw site is opgebouwd, en heeft deze pagina
+            ORBIT ENGINE herkende tijdens het onderzoek hoe jouw site is opgebouwd, en heeft deze pagina
             alvast in diezelfde vorm klaargezet. Zo hoef je bij het plakken niets meer om te bouwen.
           </InfoHint>
         </span>

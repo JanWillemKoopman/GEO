@@ -22,7 +22,7 @@ export const metadata: Metadata = { title: "Voorgestelde clusters" };
  *
  * Dit zijn de onderwerpen die de nulmeting aandraagt om een analyse (cluster)
  * op te starten: het is aanbod voor een volgende cluster, geen deel van wat
- * Aura over het merk weet. Zodra je op "meet dit" klikt, wordt er een analyse
+ * ORBIT ENGINE over het merk weet. Zodra je op "meet dit" klikt, wordt er een analyse
  * van, dus deze lijst hoort thuis naast de analyses zelf en niet op het
  * leesscherm van het dossier.
  */
@@ -87,12 +87,12 @@ export default async function AanbevolenClustersPage({
         title="Voorgestelde clusters"
         backHref={`/analyses?merk=${merk}`}
         backLabel="Clusters"
-        description="Waar Aura je zichtbaarheid op kan gaan volgen. Zet uit wat niet past, start wat wel past."
+        description="Waar ORBIT ENGINE je zichtbaarheid op kan gaan volgen. Zet uit wat niet past, start wat wel past."
       />
 
       {topics.length === 0 ? (
         <p className="text-secondary">
-          Aura heeft voor {profile.brand_name ?? profile.name} nog geen onderwerpen voorgesteld.
+          ORBIT ENGINE heeft voor {profile.brand_name ?? profile.name} nog geen onderwerpen voorgesteld.
           Zodra de nulmeting daar iets over zegt, staat het hier.{" "}
           <Link href={`/profielen/${merk}`} className="underline">
             Terug naar het merkdossier

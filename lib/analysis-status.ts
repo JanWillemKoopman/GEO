@@ -9,11 +9,11 @@ export type StatusTone = "attention" | "progress" | "info" | "success" | "error"
  * blijft de bron van waarheid; dit is de vertaling ernaast, niet in de plaats
  * ervan. `null` = niemand hoeft iets, de staat is af of informatief.
  */
-export type WhoseTurn = "jij" | "aura" | null;
+export type WhoseTurn = "jij" | "orbit_engine" | null;
 
 export const WHOSE_TURN_LABEL: Record<Exclude<WhoseTurn, null>, string> = {
   jij: "Wacht op jou",
-  aura: "Aura is bezig",
+  orbit_engine: "ORBIT ENGINE is bezig",
 };
 
 /**
@@ -25,19 +25,19 @@ export const STATUS_META: Record<
   AnalysisStatus,
   { label: string; tone: StatusTone; actionRequired: boolean; whoseTurn: WhoseTurn }
 > = {
-  bezig: { label: "Aura werkt…", tone: "progress", actionRequired: false, whoseTurn: "aura" },
+  bezig: { label: "ORBIT ENGINE werkt…", tone: "progress", actionRequired: false, whoseTurn: "orbit_engine" },
   concept_klaar: {
     label: "Klaar voor jouw akkoord",
     tone: "attention",
     actionRequired: true,
     whoseTurn: "jij",
   },
-  meten: { label: "Meting loopt…", tone: "progress", actionRequired: false, whoseTurn: "aura" },
+  meten: { label: "Meting loopt…", tone: "progress", actionRequired: false, whoseTurn: "orbit_engine" },
   gemeten: {
     label: "Score binnen · rapport volgt",
     tone: "info",
     actionRequired: false,
-    whoseTurn: "aura",
+    whoseTurn: "orbit_engine",
   },
   gereed: { label: "Gereed", tone: "success", actionRequired: false, whoseTurn: null },
   mislukt: { label: "Niet gelukt", tone: "error", actionRequired: false, whoseTurn: "jij" },

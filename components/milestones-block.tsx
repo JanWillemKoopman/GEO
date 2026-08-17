@@ -5,7 +5,7 @@ import type { Milestone } from "@/lib/milestones";
  *
  * ── WAAROM DIT BOVENAAN STAAT EN NIET IN EEN ANALYSESCHERM ──────────────────
  *
- * `docs/Nova.md` §5: door besluit 7 (doorlopend opzegbaar) is dit het middel dat
+ * Door besluit 7 (doorlopend opzegbaar) is dit het middel dat
  * opzeggen tegenhoudt. Nova stopt hun `analytics.milestones` weg in het
  * analysescherm; hier staat het op de plek waar de klant sowieso komt. Een blok
  * dat je moet zoeken, werkt niet als het antwoord op de vraag "waar betaal ik

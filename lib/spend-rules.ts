@@ -137,7 +137,7 @@ export function spendVerdict(
     scope === "maand"
       ? `Het maandbudget van dit account is op: ${euro(spentEur)} van ${euro(limitEur)} gebruikt. ` +
         `Nieuw betaald werk start pas weer volgende maand, of zodra je het plafond verhoogt in het beheerscherm.`
-      : `Het dagbudget van Aura is op: ${euro(spentEur)} van ${euro(limitEur)} gebruikt over alle klanten samen. ` +
+      : `Het dagbudget van ORBIT ENGINE is op: ${euro(spentEur)} van ${euro(limitEur)} gebruikt over alle klanten samen. ` +
         `Dit is de noodrem tegen een taak die doordraait. Kijk in het beheerscherm wat er vandaag gedraaid heeft ` +
         `voordat je het plafond verhoogt.`;
 

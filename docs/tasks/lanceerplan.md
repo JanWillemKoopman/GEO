@@ -16,7 +16,7 @@ Dit document is dat plan. Het beantwoordt vier vragen per onderdeel:
    echte klanten en echt geld (§0b).
 
 Die vierde vraag is de belangrijkste toevoeging. Nova is zelf software van mensen die keuzes maakten
-onder tijdsdruk, en op sommige punten hoort Aura beter te zijn dan zijn voorbeeld. **De scherpste
+onder tijdsdruk, en op sommige punten hoort ORBIT ENGINE beter te zijn dan zijn voorbeeld. **De scherpste
 vondst van dit document zit dan ook niet in de Nova-vergelijking maar in §0b: er zit geen enkele rem
 op wat een klant kan uitgeven, en sinds vandaag mag hij zelf de dure knoppen indrukken.**
 
@@ -26,7 +26,7 @@ op wat een klant kan uitgeven, en sinds vandaag mag hij zelf de dure knoppen ind
 
 "Kwaliteit gelijktrekken met Nova" is een gevoel, en daar kun je niet op afvinken. Uit de
 reconstructie in `Nova.md` §3 en §3.9 komen vijf eigenschappen die stuk voor stuk **waarneembaar** zijn
-in hun berichtenbestand, en dus ook in Aura te controleren. Dit is de lat.
+in hun berichtenbestand, en dus ook in ORBIT ENGINE te controleren. Dit is de lat.
 
 | # | Eigenschap | Het bewijs bij Nova | Hoe je hem toetst |
 |---|---|---|---|
@@ -37,7 +37,7 @@ in hun berichtenbestand, en dus ook in Aura te controleren. Dit is de lat.
 | **K5** | **Bulk is eerlijk over gedeeltelijk succes** | `partialApproval`: "Approved {ok} of {total} items, {failedCount} failed ({reason})" | Laat een bulkactie half mislukken. Wordt dat eerlijk gemeld? |
 
 **Waarom juist deze vijf.** Ze zijn alle vijf te controleren zonder Nova te zien, ze gaan alle vijf
-over het moment waarop software vertrouwen wint of verliest, en Aura faalt op minstens drie ervan op
+over het moment waarop software vertrouwen wint of verliest, en ORBIT ENGINE faalt op minstens drie ervan op
 plekken die we al kennen. Ze vormen samen de kolom "Nova-kwaliteit" in elke tabel hieronder.
 
 ### De grens van mijn oordeel
@@ -52,13 +52,13 @@ regel**, nooit over smaak.
 
 - **Van Nova niet**, want Nova zit achter een inlog op `nova.inspace.io` en ik heb geen account.
   Alles wat ik van hun product weet, komt uit bestanden die zij publiek serveren.
-- **Van Aura ook niet.** De browser in deze omgeving komt niet door de uitgaande proxy heen; drie
+- **Van ORBIT ENGINE ook niet.** De browser in deze omgeving komt niet door de uitgaande proxy heen; drie
   configuraties geprobeerd, alle drie `ERR_CONNECTION_RESET`. `curl` werkt wél, dus ik kan HTML en
   statuscodes lezen, maar geen pixel zien. Ik beoordeel schermen dus uit de code en het gedrag, niet
   uit hun aanblik.
 
 Dat maakt jouw ogen een onderdeel van dit plan en geen extraatje. Wat ik van je vraag in spoor C:
-tien schermafdrukken van **Aura zelf**, na het inloggen, van de schermen in §5. Dat kost je vijf
+tien schermafdrukken van **ORBIT ENGINE zelf**, na het inloggen, van de schermen in §5. Dat kost je vijf
 minuten en het vult precies het gat dat ik niet kan vullen. Nova-afdrukken zijn mooi meegenomen als
 je er nog bij kunt; noodzakelijk zijn ze niet, want de vijf eigenschappen hierboven zijn ook zonder
 te toetsen.
@@ -68,7 +68,7 @@ te toetsen.
 ## 0b. De tweede lat: productiewaardig, los van Nova
 
 Nova-pariteit is één maatstaf en niet de enige. Nova is zelf software van mensen die keuzes maakten
-onder tijdsdruk, en op sommige punten kan Aura beter zijn dan zijn voorbeeld. Deze zeven punten komen
+onder tijdsdruk, en op sommige punten kan ORBIT ENGINE beter zijn dan zijn voorbeeld. Deze zeven punten komen
 niet uit hun berichtenbestand maar uit mijn eigen oordeel als bouwer van deze app, en ze bepalen of
 dit een maand kan draaien met echte klanten en echt geld.
 
@@ -191,7 +191,7 @@ hem gekozen en nagekeken, en dit zijn de redenen:
   AI-assistent uit zijn hoofd kent, meet niets: de score zegt dan meer over de bekendheid dan over
   het product.
 
-⚠️ Dit bedrijf weet hier niets van, en dat hoeft ook niet: Aura leest alleen wat publiek op hun site
+⚠️ Dit bedrijf weet hier niets van, en dat hoeft ook niet: ORBIT ENGINE leest alleen wat publiek op hun site
 staat, precies zoals elke zoekmachine. Er wordt niets naar hen verstuurd en niets over hen
 gepubliceerd. Zodra het merk zijn werk gedaan heeft, archiveer ik het.
 
@@ -353,7 +353,7 @@ corrigeren.
 Dat is precies de rolverdeling die `Nova.md` §1.2 uit hun berichtenbestand haalde: **de klant keurt
 goed, hij maakt niet.** Zijn hele rol past bij Nova in drie werkwoorden, goedkeuren, afwijzen en
 bevestigen dat het live staat, en er is nergens een sleutel waarmee hij zelf iets laat schrijven. Dat
-Aura daar vanochtend even van afweek en er nu weer op uitkomt, is geen omweg geweest: de rekensom die
+ORBIT ENGINE daar vanochtend even van afweek en er nu weer op uitkomt, is geen omweg geweest: de rekensom die
 het besluit terugdraaide, staat nu op papier.
 
 ⚠️ **Wat dit spoor daarom extra moet toetsen:** de klant mag geen knop zíen die hij niet mag
@@ -390,13 +390,13 @@ eigen kader bij plaatsen en bij maandgoedkeuring.
 | **Merkdossier** | Het is lang. Nova's Overview heeft vier blokken; dit heeft er nu negen | K1, indirect | 0,5 dag: volgorde en inklappen |
 | **Analyselijst** `/analyses` | Eén lege staat voor drie situaties (nooit gemeten, alles gearchiveerd, geen toegang) | K1 | 0,5 dag |
 | **Bibliotheek** `/analyses/[id]/bibliotheek` | Geen bulkactie, dus ook geen eerlijk gedeeltelijk succes | K5 | 1 dag |
-| **Paginadetail** | Nova heeft versiegeschiedenis, verschil-weergave, kopieerknoppen, FAQ-blok. Aura heeft het meeste, maar niet de "komt eraan"-staat met datum | K1 | 0,5 dag |
+| **Paginadetail** | Nova heeft versiegeschiedenis, verschil-weergave, kopieerknoppen, FAQ-blok. ORBIT ENGINE heeft het meeste, maar niet de "komt eraan"-staat met datum | K1 | 0,5 dag |
 | **Merken** `/profielen` | Geen segmenten. Nova groepeert overal | K1 | 0,5 dag |
 
 ### 5.3 Het gat dat het grootst is, en waarom het misschien mag blijven
 
-**Nova's Overview bestaat bij Aura niet.** Nova heeft na het inloggen één scherm met vier blokken:
-prestatietrend, funnelvoortgang, strategiemix, prestatietabel. Aura stuurt je naar de merkenlijst.
+**Nova's Overview bestaat bij ORBIT ENGINE niet.** Nova heeft na het inloggen één scherm met vier blokken:
+prestatietrend, funnelvoortgang, strategiemix, prestatietabel. ORBIT ENGINE stuurt je naar de merkenlijst.
 
 Drie van die vier blokken leunen volledig op Search Console, en die koppeling wacht op de sleutel. Het
 vierde, funnelvoortgang, kan wél vandaag. **Mijn advies: bouw de Overview pas ná de eerste klant.**
@@ -409,7 +409,7 @@ bewust van Nova afwijk, en het is omkeerbaar.
 `docs/schrijfstijl.md` heeft tien richtlijnen en twee `grep`-commando's. Die draaien nu alleen vóór
 een commit op nieuwe tekst. **Eén keer de hele app doorlezen op toon** hoort in dit plan: 22 schermen,
 elke knop, elke melding, elke lege staat. Een halve dag, en het is het goedkoopste kwaliteitswerk dat
-er is. Wat ik zoek: gedachtestreepjes, "en/of", passieve zinnen waar Aura de handelende partij hoort
+er is. Wat ik zoek: gedachtestreepjes, "en/of", passieve zinnen waar ORBIT ENGINE de handelende partij hoort
 te zijn, en Engelse resten.
 
 ---
@@ -423,7 +423,7 @@ je product leert kennen.
 |---|---|---|---|
 | D1 | OpenAI-krediet raakt op halverwege een meting | Taken falen na vier pogingen, analyse op `mislukt`, melding zegt wat er is | Deels: dit gebeurde op 5 augustus |
 | D2 | De website van de klant is onbereikbaar tijdens de crawl | Duidelijke melding, doorgaan met `force` | Gebouwd, nooit getest |
-| D3 | Een klant keurt een maand af | Plan blijft staan, Aura stelt iets nieuws voor | Gebouwd, nooit getest |
+| D3 | Een klant keurt een maand af | Plan blijft staan, ORBIT ENGINE stelt iets nieuws voor | Gebouwd, nooit getest |
 | D4 | Twee mensen keuren dezelfde maand tegelijk goed | Eén wint, de ander krijgt geen fout | **Was al veilig, nu bewezen.** `approveMonth()` gebruikt een voorwaardelijke atomaire update; de database beslist de wedstrijd, niet de applicatiecode |
 | D5 | De klant sluit de tab tijdens de onboarding | Alles loopt door, hij ziet het bij terugkomst | Ontworpen, nooit getest |
 | D6 | Search Console: verkeerde property ingevuld | 404 van Google wordt een Nederlandse zin | Gebouwd, wacht op de sleutel |
@@ -512,7 +512,7 @@ metingen op landelijke vragen leverde er niet één iets op.
 
 3. **De aanbevelingen wijzen de verkeerde kant op.** De gap-analyse leest de gemiste vragen en stelt
    pagina's voor. Bij 62% landelijke vragen komen daar landelijke onderwerpen uit, en dan schrijft
-   Aura content voor een markt waar de klant niet in zit. Dat is niet alleen nutteloos, het kost ook
+   ORBIT ENGINE content voor een markt waar de klant niet in zit. Dat is niet alleen nutteloos, het kost ook
    nog ~$0,28 per pagina.
 
 ### Wat ik voorstel, en waarom in deze volgorde
@@ -696,7 +696,7 @@ alsnog leegloopt.
 #### F3 is af: het oordeel staat nog op één plek
 
 `lib/access.ts` beantwoordt sinds 11 augustus 2026 als enige de vraag "mag deze gebruiker hierbij".
-De drie lagen (zit je in het account, ben je de historische eigenaar, ben je beheerder van Aura)
+De drie lagen (zit je in het account, ben je de historische eigenaar, ben je beheerder van ORBIT ENGINE)
 staan daar één keer. `getOwnedProfile` en `getOwnedAnalysis` zoeken alleen nog de rij op en vragen
 het oordeel.
 
@@ -716,7 +716,7 @@ Conventie 8 is "alles bewaren" en besluit 14 zegt dat opzeggen een datum zet en 
 Die regels blijven staan: archiveren is het normale pad. Maar de AVG kent een recht op verwijdering
 en dat koop je niet af met een archief, dus er is nu een tweede pad, en dat is bewust de uitzondering.
 
-**Drie sloten voordat er iets weggaat.** Alleen een beheerder van Aura (een account-admin mag zijn
+**Drie sloten voordat er iets weggaat.** Alleen een beheerder van ORBIT ENGINE (een account-admin mag zijn
 bedrijfsgegevens wél wijzigen, maar een wijziging draai je terug en dit niet). Niet je eigen account,
 want dat verwijdert je eigen inlog en dat herstel je niet met een backup omdat de sessie dan al weg
 is. En de naam moet worden overgetypt, serverkant gecontroleerd: een bevestiging die je met een
@@ -735,7 +735,7 @@ account verwijderen" onmogelijk in plaats van stil.
 **De inlogaccounts gaan mee, maar alleen van wie nergens anders bij hoort.** Dat is de kern van de
 plicht: het dossier weghalen en de inlog laten staan is geen verwijdering. Wie ook lid is van een
 ander account houdt zijn inlog, anders sluit het opruimen van klant A per ongeluk klant B buiten. Een
-beheerder van Aura raakt zijn inlog nooit kwijt.
+beheerder van ORBIT ENGINE raakt zijn inlog nooit kwijt.
 
 ⚠️ **Correctie van 12 augustus, ná de veiligheidscontrole.** F4 heette af terwijl hij dat niet was.
 Migratie `0025` maakte bij een dataopschoning van elke aangeraakte rij een kopie in
@@ -845,7 +845,7 @@ dezelfde reden: de rem hoort er eerder te zijn dan de test die hem nodig heeft.
 
 | Wat | Uiterlijk | Waarom |
 |---|---|---|
-| Tien schermafdrukken van **Aura** na het inloggen | week 2, ma | Ik kan geen pixel zien; dit is het enige gat dat jij moet vullen |
+| Tien schermafdrukken van **ORBIT ENGINE** na het inloggen | week 2, ma | Ik kan geen pixel zien; dit is het enige gat dat jij moet vullen |
 | Beslissen over de Overview (§5.3) | week 2, ma | Mijn advies: pas ná de eerste klant |
 | Het maandbudget per account bepalen | week 1, wo | Ik bouw de rem, jij bepaalt het getal |
 

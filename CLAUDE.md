@@ -1,8 +1,24 @@
-# Aura: werkinstructie
+# ORBIT ENGINE: werkinstructie
 
-**De app heet Aura.** GEO-tracking voor het MKB: meet hoe zichtbaar een merk is in AI-antwoorden
-(ChatGPT e.d.), adviseert, schrijft content, publiceert en meet het effect. Nederlands is de taal
-van de app, de AI-prompts, de code-commentaren en deze documentatie.
+**De app heet ORBIT ENGINE**, het product van Outer Orbit. GEO-tracking voor het MKB: meet hoe
+zichtbaar een merk is in AI-antwoorden (ChatGPT e.d.), adviseert, schrijft content, publiceert en
+meet het effect. Nederlands is de taal van de app, de AI-prompts, de code-commentaren en deze
+documentatie.
+
+**⚠️ Dit is de huidige bouw, niet de eindbestemming.** Twee documenten beschrijven waar ORBIT ENGINE
+naartoe gaat, en allebei lopen ze vooruit op wat er staat:
+
+- `docs/visie.md`, de **productrichting**: een autonome groeimotor voor SEO én GEO, voor
+  organisaties met meer kansen dan een team handmatig aankan.
+- `docs/merkstrategie.md`, de **merkstrategie** van Outer Orbit voor de Nederlandse markt, bedoeld
+  voor externe bureaus.
+
+Die twee spreken dit document tegen op doelgroep (MKB tegenover schaal), omvang (alleen GEO
+tegenover SEO plus GEO) en autonomiegraad (goedkeuring per stap tegenover zelfstandig handelen), en
+dat is met opzet. Dit document en de rest van `docs/` blijven vertellen wat er vandaag daadwerkelijk
+staat. Verwar ze niet met elkaar, en **schrijf nooit dat iets al kan wat nog niet gebouwd is.** De
+scherpste valkuil op dit moment: de merkstrategie belooft publicatie via het CMS, en die koppeling
+bestaat niet. `merkstrategie.md` §30 heeft de volledige lijst met verschillen.
 
 **⚠️ Het antwoord aan de gebruiker is altijd in het Nederlands, en altijd te volgen zonder
 technische kennis.** Dit gaat over de samenvatting waarmee Claude Code een vraag of opdracht afsluit,
@@ -21,7 +37,7 @@ Wat er niet verandert: geen gedachtestreepjes (zie hieronder), geen verkooppraat
 wordt benoemd en niet weggeschreven. Begrijpelijk is niet hetzelfde als geruststellend.
 
 **Alle UI-copy volgt `docs/schrijfstijl.md`**: de tone-of-voice van InSpace Nova, vertaald naar
-Aura. Kort samengevat: je en jij, korte stellende zinnen, Aura als handelend onderwerp ("Aura leest
+ORBIT ENGINE. Kort samengevat: je en jij, korte stellende zinnen, ORBIT ENGINE als handelend onderwerp ("ORBIT ENGINE leest
 je website uit", niet "de website wordt uitgelezen"), en het space-thema uitsluitend in namen en
 sfeer-labels, nooit in knoppen, foutmeldingen of instructies. Raadpleeg dat document bij elke
 tekstwijziging, net zoals `docs/designsystem.md` leidend is voor de vormgeving.
@@ -39,7 +55,7 @@ InSpace Nova). De eigenaar zet als consultant het merkprofiel klaar vóór een d
 pijplijn doet in ~7,5 minuut het onderzoek, en het uur consultancy gaat over strategie. Pas ná de
 verkoop wordt het profiel aan het klantaccount toegewezen. Dat bepaalt hoe schermen ontworpen
 worden: de profielpagina is een demo-scherm dat gedeeld wordt, geen formulier. Zie `docs/logbook.md`
-§12 voor het waarom en `docs/architecture.md` §11 voor hoe je een klant aanmaakt en koppelt.
+§15 voor het waarom en `docs/architecture.md` §11 voor hoe je een klant aanmaakt en koppelt.
 
 **De app staat live.** `main` is de productiebranch (Vercel). Werk op een feature-branch.
 
@@ -157,8 +173,9 @@ scripts/           test-unit · test-chain · test-openai · eval-mention
 | `docs/designsystem.md` | Bronanalyse van de live inspace.io-CSS: waar elke kleur, radius en gloed vandaan komt |
 | `docs/schrijfstijl.md` | Tone-of-voice en microcopy: de tien richtlijnen, de woordenlijst, en wat we bewust níet van Nova overnemen |
 | `docs/logbook.md` | Waarom het is zoals het is: beslissingen en bouwrondes, met de cijfers eronder |
-| `docs/Nova.md` | **De richting.** InSpace Nova gereconstrueerd uit hun eigen berichtenbestand, de gap-analyse tegenover Aura, en het bouwplan in acht fases. Bevat de vier vastgelegde besluiten (merk-werkruimte, klantportaal, twaalfmaandsplan, Search Console erbij) |
-| `docs/nova-i18n.json` · `docs/inspace-app-i18n.json` · `docs/inspace-marketing.txt` | De ruwe bronnen onder `Nova.md`: de berichtencatalogi van beide InSpace-apps (900 en 1.469 sleutels) en de tekst van hun marketingsite. Niet bewerken |
+| `docs/visie.md` | **De richting, niet de huidige bouw.** ORBIT ENGINE als autonome groeimotor voor SEO én GEO, vastgelegd door Outer Orbit op 17 augustus 2026. Elke bewering daarin over doelgroep, omvang of autonomie is een bestemming, geen stand van zaken |
+| `docs/merkstrategie.md` | **Hoe het merk naar buiten klinkt en oogt**, bedoeld voor reclame- en communicatiebureaus: positionering, doelgroepen, personas, bezwaren, tone of voice, visuele richting, campagnes. Leidend voor marketing, níét voor UI-copy (dat blijft `schrijfstijl.md`) of vormgeving van de app (dat blijft `designsystem.md`). §30 daarin somt op waar het merkverhaal iets belooft dat de app nog niet doet |
+| `docs/nova-i18n.json` · `docs/inspace-app-i18n.json` · `docs/inspace-marketing.txt` | De berichtencatalogi van beide InSpace-apps (900 en 1.469 sleutels) en de tekst van hun marketingsite, ooit verzameld voor het inmiddels afgebouwde en verwijderde `Nova.md`. Nog steeds de brontekst achter de tone-of-voice-analyse in `schrijfstijl.md`. Niet bewerken |
 | `docs/tasks/roadmap.md` | Wat er nog open staat, op volgorde |
 | `docs/tasks/lanceerplan.md` | **Het pad naar de lancering.** Vijf testsporen, de vijf eigenschappen die "InSpace-kwaliteit" toetsbaar maken, de tweeweekse planning en de afvinklijst voor het lanceerbesluit |
 | `APP_FLOW_DOCUMENTATION.md` | De keten end-to-end voor drie lezersgroepen: sales, developer, AI-specialist. Staat bewust in de hoofdmap, code verwijst ernaar |
@@ -186,6 +203,8 @@ van oude verwijzing naar nieuwe sectie. De originelen staan in de git-historie.
 | Taak afgerond | Uit `docs/tasks/` weg, samengevat in `docs/logbook.md` |
 | Gedrag van de code veranderd | `docs/architecture.md` of `docs/ux-design.md`, en de peildatum bijwerken |
 | Nieuwe migratie | `supabase/README.md` |
+| De richting verandert, los van wat er al gebouwd is | `docs/visie.md`, met een verwijzing erbij in `docs/logbook.md` |
+| Positionering, doelgroep of merkboodschap verandert | `docs/merkstrategie.md`, en werk §30 daarin bij als de afstand tot de bouw verandert |
 
 Eén feit heeft één eigenaar. Staat het al ergens, verwijs dan, herhaal het niet.
 - Kosten zijn een ontwerpvariabele: een meetronde is ~$0,82 (~95% zit in de meting zelf, waarvan

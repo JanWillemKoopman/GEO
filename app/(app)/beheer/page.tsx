@@ -14,7 +14,7 @@ export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "Beheer" };
 
 /**
- * Het CSM-paneel (fase 8, `docs/Nova.md` §3.8).
+ * Het CSM-paneel (fase 8, zie `docs/logbook.md`).
  *
  * ── WAAROM DIT ER NU IS EN NIET LATER ───────────────────────────────────────
  *

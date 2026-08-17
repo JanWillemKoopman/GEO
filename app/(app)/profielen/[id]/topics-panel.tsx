@@ -63,7 +63,7 @@ export function TopicsPanel({
       <div className="card flex flex-col gap-3">
         <span className="mono-label">Onderwerpen om op te meten</span>
         <p className="text-secondary">
-          Aura kon uit je aanbod geen onderwerpen afleiden. Dat gebeurt als de
+          ORBIT ENGINE kon uit je aanbod geen onderwerpen afleiden. Dat gebeurt als de
           website te weinig prijsgaf om diensten uit te herkennen, bijvoorbeeld
           bij een site die zijn tekst pas via JavaScript laadt.
         </p>
@@ -331,7 +331,7 @@ export function TopicsPanel({
         <span className="mono-label text-muted">{open.length} voorgesteld</span>
       </div>
       <p className="text-sm text-secondary">
-        Afgeleid uit de diensten en producten die Aura op je website vond. Kies waarop je wilt
+        Afgeleid uit de diensten en producten die ORBIT ENGINE op je website vond. Kies waarop je wilt
         meten, of start een cluster met een eigen onderwerp.
       </p>
 

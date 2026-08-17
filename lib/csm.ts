@@ -1,16 +1,16 @@
 /**
  * Het CSM-paneel: waar lopen we achter?
  *
- * ── WAT NOVA HIER DOET, EN WAT AURA ANDERS MOET ─────────────────────────────
+ * ── WAT NOVA HIER DOET, EN WAT ORBIT ENGINE ANDERS MOET ─────────────────────────────
  *
- * Nova heeft twee beheerschermen (`docs/Nova.md` §3.8): een klantentabel met
+ * Nova heeft twee beheerschermen: een klantentabel met
  * zeven segmenten die elk zeggen wát jij moet doen, en een CSM-overzicht met
  * vier KPI's onder de kop "where we are falling behind on generating and
  * posting client content". Het is nadrukkelijk een OPERATIONEEL scherm, geen
  * analytisch: het bestaat om te zien waar het vastloopt.
  *
- * Aura's segmenten zijn niet Nova's segmenten. Nova's zeven gaan over funnels,
- * talen en doellanden invullen; die velden vult Aura zelf in tijdens het
+ * ORBIT ENGINE's segmenten zijn niet Nova's segmenten. Nova's zeven gaan over funnels,
+ * talen en doellanden invullen; die velden vult ORBIT ENGINE zelf in tijdens het
  * onderzoek (besluit 13: alleen Nederlands, en de vier standaardfasen komen uit
  * `plan-build.ts`). Wat hier overblijft is de vraag die er wél toe doet: bij wie
  * ligt de bal, en hoe lang al?
@@ -61,7 +61,7 @@ export const CSM_SEGMENT_META: Record<CsmSegment, SegmentMeta> = {
   },
   onderzoek_loopt: {
     label: "Onderzoek loopt",
-    banner: "Aura is bezig. Je hoeft niets te doen tot het onderzoek klaar is.",
+    banner: "ORBIT ENGINE is bezig. Je hoeft niets te doen tot het onderzoek klaar is.",
     leeg: "Geen onderzoek onderweg.",
     actie: false,
   },
@@ -227,7 +227,7 @@ export function flagsOf(b: CsmBrand): string[] {
     );
   }
   // Het pakket is een belofte per maand. Blijft de teller eronder, dan levert
-  // Aura minder dan waarvoor betaald wordt, en dat is de stilste manier om een
+  // ORBIT ENGINE minder dan waarvoor betaald wordt, en dat is de stilste manier om een
   // klant kwijt te raken.
   if (b.quota !== null && b.heeftPlan && b.geplaatstDezeMaand < b.quota) {
     vlaggen.push(`${b.geplaatstDezeMaand} van ${b.quota} deze maand geplaatst`);

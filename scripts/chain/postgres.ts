@@ -157,10 +157,15 @@ const ROL_STUB = `
  * `0050` doet hetzelfde voor de dagelijkse schrijfronde van het contentplan: ook
  * pg_cron, ook alleen een aanroeper. Wat die route beslist staat in
  * `lib/plan-writing.ts` en wordt hierboven wél getest.
+ *
+ * `0059` hernoemt de taak uit `0050` na de rebrand van Aura naar ORBIT ENGINE.
+ * Het is dezelfde pg_cron-taak en dus dezelfde reden: hier bestaat het schema
+ * `cron` niet, en er valt niets te testen dat niet al in `0050` oversloeg.
  */
 const OVERSLAAN = new Set([
   "0015_worker_cron_via_pg_cron.sql",
   "0050_plan_cron.sql",
+  "0059_rebrand_cron_job.sql",
 ]);
 
 /** Start een lege Postgres, past alle migraties toe, en geeft een verbinding terug. */

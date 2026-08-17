@@ -59,7 +59,7 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
   } catch (err) {
     console.error(`meting inplannen mislukt voor ${id}:`, err);
     return NextResponse.json(
-      { error: "Aura kon de meting niet inplannen.", detail: describeError(err), problem: classifyError(err) },
+      { error: "ORBIT ENGINE kon de meting niet inplannen.", detail: describeError(err), problem: classifyError(err) },
       { status: 500 },
     );
   }

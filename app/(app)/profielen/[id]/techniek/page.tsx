@@ -92,7 +92,7 @@ export default async function TechniekPage({
         <div className="card flex flex-col gap-2">
           <span className="mono-label">Technische controle · loopt</span>
           <p className="text-secondary">
-            Aura controleert nog of AI-assistenten je site mogen lezen. De uitslag staat hier
+            ORBIT ENGINE controleert nog of AI-assistenten je site mogen lezen. De uitslag staat hier
             zodra dat klaar is. Jij hoeft niets te doen.
           </p>
         </div>

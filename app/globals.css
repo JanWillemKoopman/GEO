@@ -1,7 +1,7 @@
 @import "tailwindcss";
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   Aura, design system (LICHT)
+   ORBIT ENGINE, design system (LICHT)
 
    Bron: het tokensysteem van de NOVA-workspace van InSpace (nova.inspace.io),
    geanalyseerd op 6 augustus 2026. Volledige verantwoording en de regels voor
@@ -295,7 +295,7 @@ body {
    scrollen en de rechterkant viel weg. De oorzaak is niet één kapotte kaart
    maar één soort inhoud: strings zonder spatie die niet mogen afbreken.
 
-   Aura rendert die op ~15 plekken. Een occasion-URL van 100 tekens is bij 14px
+   ORBIT ENGINE rendert die op ~15 plekken. Een occasion-URL van 100 tekens is bij 14px
    ongeveer 840px breed, en hij staat in een kaart die op een telefoon 302px
    krijgt. Dat is 538px die buiten het scherm hangt, en precies het beeld dat
    "er valt veel weg aan de rechterkant" oplevert.

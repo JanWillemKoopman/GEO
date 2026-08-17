@@ -62,7 +62,7 @@ export function OfferingsPanel({
         <span className="mono-label">Wat je aanbiedt</span>
         <p className="text-secondary">
           Je aanbod is nog niet in kaart gebracht. Zodra het onderzoek klaar is,
-          staat hier elke dienst en productgroep die Aura op je site vond, met de
+          staat hier elke dienst en productgroep die ORBIT ENGINE op je site vond, met de
           pagina waar het die vandaan haalde.
         </p>
         <RerunResearchButton profileId={profileId} />
@@ -203,7 +203,7 @@ export function OfferingsPanel({
 
       {offerings.length === 0 ? (
         <p className="text-sm text-secondary">
-          Aura kon je aanbod niet uit de website halen. Vul het hieronder aan
+          ORBIT ENGINE kon je aanbod niet uit de website halen. Vul het hieronder aan
           tijdens het gesprek, of controleer of de site ook zonder JavaScript
           leesbaar is.
         </p>
@@ -218,7 +218,7 @@ export function OfferingsPanel({
       <RerunResearchButton profileId={profileId} />
 
       {inventory && (
-        <CollapsibleSection title="Hoeveel heeft Aura van je site gelezen?">
+        <CollapsibleSection title="Hoeveel heeft ORBIT ENGINE van je site gelezen?">
           <ul className="flex flex-col gap-1 text-sm text-secondary">
             <li>{inventory.pages} pagina&apos;s gevonden</li>
             <li>

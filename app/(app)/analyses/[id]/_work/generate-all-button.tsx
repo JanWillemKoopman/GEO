@@ -68,11 +68,11 @@ export function GenerateAllButton({
       <div className="card card-accent flex flex-col gap-2">
         <span className="flex items-center gap-2 font-medium">
           <span className="live-dot" />
-          Aura schrijft {planned} {planned === 1 ? "pagina" : "pagina's"}
+          ORBIT ENGINE schrijft {planned} {planned === 1 ? "pagina" : "pagina's"}
         </span>
         <p className="text-sm text-secondary">
           Dit duurt ongeveer {minutes} {minutes === 1 ? "minuut" : "minuten"}. Je kunt dit scherm
-          sluiten. Aura schrijft door en zet de teksten vanzelf in je bibliotheek.
+          sluiten. ORBIT ENGINE schrijft door en zet de teksten vanzelf in je bibliotheek.
         </p>
         <Link href={`/analyses/${analysisId}/bibliotheek`} className="btn-outline w-fit">
           Naar je bibliotheek
@@ -85,10 +85,10 @@ export function GenerateAllButton({
     <div className="card card-accent flex flex-col gap-3">
       <div className="flex flex-col gap-1">
         <span className="font-medium">
-          Laat Aura alles schrijven ({remaining} van de {total})
+          Laat ORBIT ENGINE alles schrijven ({remaining} van de {total})
         </span>
         <p className="text-sm text-secondary">
-          Aura zet alle ontbrekende pagina&apos;s in de rij. Duurt ongeveer {minutes}{" "}
+          ORBIT ENGINE zet alle ontbrekende pagina&apos;s in de rij. Duurt ongeveer {minutes}{" "}
           {minutes === 1 ? "minuut" : "minuten"}, en je hoeft er niet bij te blijven.
           {blocked && (
             <>

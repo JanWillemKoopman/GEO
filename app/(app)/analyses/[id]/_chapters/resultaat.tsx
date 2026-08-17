@@ -24,7 +24,7 @@ export async function ResultaatChapter({ analysis }: { analysis: Analysis }) {
       <div className="card flex flex-col gap-2">
         <span className="mono-label">Nog niets om te meten</span>
         <p className="text-secondary">
-          Zodra je eerste pagina live staat, hermeet Aura na twee en na vier weken of je op díe
+          Zodra je eerste pagina live staat, hermeet ORBIT ENGINE na twee en na vier weken of je op díe
           vragen vaker genoemd wordt. Dat verschil komt hier te staan, naast een controlegroep van
           vragen waarvoor je niets publiceerde. Zo weet je of het je pagina&apos;s waren, en niet
           het toeval.

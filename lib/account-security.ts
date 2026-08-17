@@ -6,9 +6,9 @@
  * Conventie 2. Dit bepaalt wanneer iemand zijn inlog kwijtraakt, en dat hoort
  * onder test. De databasekant staat in de route.
  *
- * ── WAT NOVA HIER DOET, EN WAT AURA OVERNEEMT ───────────────────────────────
+ * ── WAT NOVA HIER DOET, EN WAT ORBIT ENGINE OVERNEEMT ───────────────────────────────
  *
- * `docs/Nova.md` §3.7: e-mail wijzigen met een bevestigingsmail, wachtwoord
+ * Nova: e-mail wijzigen met een bevestigingsmail, wachtwoord
  * wijzigen met een controle op het huidige. Beide overgenomen, want ze lossen
  * allebei een echt probleem op:
  *

@@ -1,7 +1,7 @@
 import "server-only";
 
 /**
- * De gegevens onder het opbrengstblok (fase 5, `docs/Nova.md` §5).
+ * De gegevens onder het opbrengstblok (fase 5, zie `docs/logbook.md`).
  *
  * De rekenkant staat in `lib/milestones.ts`, zonder `server-only` (conventie 2).
  *

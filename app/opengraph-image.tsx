@@ -2,7 +2,7 @@ import { ImageResponse } from "next/og";
 
 /**
  * Deelvoorbeeld (B.14): de kaart die verschijnt zodra iemand een link naar
- * Aura plakt in Slack, e-mail of WhatsApp. Zonder dit bestand toont zo'n link
+ * ORBIT ENGINE plakt in Slack, e-mail of WhatsApp. Zonder dit bestand toont zo'n link
  * een kale URL, geen enkele indruk van wat erachter zit.
  *
  * `next/og` rendert dit via Satori, dat CSS-custom-properties niet kent
@@ -33,7 +33,7 @@ export default async function OpengraphImage() {
           <div style={{ width: 14, height: 56, borderRadius: 7, background: "#8511d9", display: "flex" }} />
         </div>
         <div style={{ display: "flex", fontSize: 128, fontWeight: 700, color: "#17212b", letterSpacing: "-0.03em" }}>
-          Aura
+          ORBIT ENGINE
         </div>
         <div style={{ display: "flex", fontSize: 36, color: "#43505d", marginTop: 18 }}>
           AI-zichtbaarheid, gemeten

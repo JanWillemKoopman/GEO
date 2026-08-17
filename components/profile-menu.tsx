@@ -156,7 +156,7 @@ export function ProfileMenu({
           >
             <div className="relative z-10 flex h-16 items-center justify-between border-b border-[var(--border-subtle)] px-6">
               <span className="text-lg font-bold tracking-tight">
-                <span className="brand-gradient-text">Aura</span>
+                <span className="brand-gradient-text">ORBIT ENGINE</span>
               </span>
               <button
                 ref={closeRef}

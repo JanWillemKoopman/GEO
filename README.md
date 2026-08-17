@@ -1,4 +1,4 @@
-# Aura
+# ORBIT ENGINE
 
 > Zichtbaar zijn in AI-antwoorden. Gemeten, niet gegokt.
 
@@ -6,7 +6,7 @@ Waar SEO gaat over ranken in Google, gaat **GEO** over genoemd en aanbevolen wor
 AI-assistenten. Steeds meer mensen stellen hun oriëntatie- en aankoopvragen aan een chatbot. Wordt
 jouw merk daar niet genoemd, dan besta je voor die gebruiker niet.
 
-Aura beantwoordt drie vragen: **word ik genoemd**, **hoe vaak vergeleken met mijn concurrenten**,
+ORBIT ENGINE beantwoordt drie vragen: **word ik genoemd**, **hoe vaak vergeleken met mijn concurrenten**,
 en **waar haalt de AI die informatie vandaan**. Daarna schrijft het de content die het gat dicht,
 en meet of dat gewerkt heeft.
 

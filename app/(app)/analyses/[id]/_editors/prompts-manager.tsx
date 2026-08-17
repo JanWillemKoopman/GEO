@@ -54,7 +54,7 @@ export function PromptsManager({ analysisId, initial }: { analysisId: string; in
       }
     } catch {
       if (previous) setPrompts((ps) => ps.map((p) => (p.id === id ? previous : p)));
-      setError("We konden Aura niet bereiken. Controleer je verbinding.");
+      setError("We konden ORBIT ENGINE niet bereiken. Controleer je verbinding.");
     }
   }
 
@@ -70,7 +70,7 @@ export function PromptsManager({ analysisId, initial }: { analysisId: string; in
       }
     } catch {
       setPrompts(previous);
-      setError("We konden Aura niet bereiken. Controleer je verbinding.");
+      setError("We konden ORBIT ENGINE niet bereiken. Controleer je verbinding.");
     }
   }
 
@@ -89,7 +89,7 @@ export function PromptsManager({ analysisId, initial }: { analysisId: string; in
         setError("Toevoegen is niet gelukt. Probeer het opnieuw.");
       }
     } catch {
-      setError("We konden Aura niet bereiken. Controleer je verbinding.");
+      setError("We konden ORBIT ENGINE niet bereiken. Controleer je verbinding.");
     }
   }
 
@@ -224,7 +224,7 @@ function VolumeBandPicker({ prompt, onChange }: { prompt: Prompt; onChange: (ban
       ? "door jou ingesteld"
       : prompt.volume_band == null && prompt.volume_estimate == null
         ? "standaardwaarde"
-        : "schatting van Aura";
+        : "schatting van ORBIT ENGINE";
 
   return (
     <div className="flex flex-wrap items-center gap-1.5">

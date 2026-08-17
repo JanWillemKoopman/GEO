@@ -67,7 +67,7 @@ export function ActivationForm({
     <form onSubmit={verstuur} className="flex flex-col gap-5" noValidate>
       <div className="flex flex-col gap-2">
         <span className="mono-label">Uitnodiging</span>
-        <h1 className="text-2xl font-bold tracking-tight">Welkom bij Aura</h1>
+        <h1 className="text-2xl font-bold tracking-tight">Welkom bij ORBIT ENGINE</h1>
         <p className="text-secondary">
           {accountName
             ? `Je werkruimte voor ${accountName} staat klaar. Kies een wachtwoord en je kunt erin.`

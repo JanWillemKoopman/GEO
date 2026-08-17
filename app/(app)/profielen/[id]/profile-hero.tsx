@@ -30,7 +30,7 @@ import { ExternalLink } from "@/components/external-link";
  * verwees dan waar hij op stond, en een springlinkbalk naar blokken die
  * inmiddels allemaal eigen subpagina's zijn (zie `lib/nav.ts`). Beide bestonden
  * omdat het dossier zelf negen dingen tegelijk deed; nu het er nog maar twee
- * doet — is het compleet, en wat weet Aura — is een navigatiehulpmiddel erbovenop
+ * doet — is het compleet, en wat weet ORBIT ENGINE — is een navigatiehulpmiddel erbovenop
  * overbodig. De zijbalk is de navigatie.
  */
 export function ProfileHero({

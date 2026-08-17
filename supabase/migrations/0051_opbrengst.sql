@@ -1,5 +1,5 @@
 -- ═══════════════════════════════════════════════════════════════════════════
--- Aura: de waarde per vermelding, voor het opbrengstblok
+-- ORBIT ENGINE: de waarde per vermelding, voor het opbrengstblok
 -- Migratie 0051 (fase 5, docs/Nova.md §5, besluit 16).
 --
 -- WAAROM ÉÉN KOLOM EN GEEN PRIJSTABEL

@@ -303,7 +303,7 @@ async function processJob(
  * ⚠️ Dit staat bewust NAAST `markOwnerFailed`, dat alleen taken meeneemt die de
  * analyse zelf blokkeren. Een mislukte contentpagina laat de analyse met rust,
  * maar in het plan is hij wél het enige dat telt: zonder deze regel blijft de
- * pagina op "Aura is bezig" staan terwijl er niets meer gebeurt, en dat is de
+ * pagina op "ORBIT ENGINE is bezig" staan terwijl er niets meer gebeurt, en dat is de
  * ergste van alle statussen, want hij vraagt om geduld dat nergens toe leidt.
  */
 async function markPlannedPageFailed(

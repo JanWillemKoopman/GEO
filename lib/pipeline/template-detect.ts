@@ -3,7 +3,7 @@
  *
  * ── WAAROM DIT BESTAAT ───────────────────────────────────────────────────────
  *
- * Aura levert content als platte Markdown/HTML, ongeacht of de klant een
+ * ORBIT ENGINE levert content als platte Markdown/HTML, ongeacht of de klant een
  * WordPress-site met een FAQ-accordion heeft of een custom site zonder ook maar
  * één uitklapblok. De klant plakt dan zelf iets dat er niet bij past, of moet
  * handmatig ombouwen. Dit bestand haalt drie dingen uit de HTML die de crawl

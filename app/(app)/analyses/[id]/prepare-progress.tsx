@@ -90,8 +90,8 @@ export function PrepareProgress({
 
   return (
     <WorkInProgress
-      title="Aura bereidt je cluster voor"
-      explanation="Aura leest je website op dit onderwerp, zoekt uit wie hier je concurrenten zijn en stelt de vragen op die straks naar de AI-assistenten gaan."
+      title="ORBIT ENGINE bereidt je cluster voor"
+      explanation="ORBIT ENGINE leest je website op dit onderwerp, zoekt uit wie hier je concurrenten zijn en stelt de vragen op die straks naar de AI-assistenten gaan."
       etaText={data?.etaText}
       retrying={data?.retrying}
       attempts={data?.attempts}

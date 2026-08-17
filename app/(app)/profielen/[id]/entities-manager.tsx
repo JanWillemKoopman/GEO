@@ -95,9 +95,9 @@ export function EntitiesManager({ profileId, initial }: { profileId: string; ini
           Concurrenten
           <InfoHint label="Concurrenten">
             Deze lijst komt uit de metingen: elk merk dat een AI-assistent in zijn antwoorden noemt,
-            deelt Aura automatisch in. Alleen echte concurrenten tellen mee in je aandeel, want een
+            deelt ORBIT ENGINE automatisch in. Alleen echte concurrenten tellen mee in je aandeel, want een
             vergelijkingssite of brancheorganisatie zou dat cijfer vertekenen. Klopt een indeling
-            niet? Pas hem hier aan; jouw keuze overschrijft Aura daarna nooit meer.
+            niet? Pas hem hier aan; jouw keuze overschrijft ORBIT ENGINE daarna nooit meer.
           </InfoHint>
         </span>
         <span className="mono-label">{competitors.length} concurrenten</span>
@@ -111,7 +111,7 @@ export function EntitiesManager({ profileId, initial }: { profileId: string; ini
             <span className="font-medium text-[var(--text-primary)]">
               {pending.length} nieuw gevonden {pending.length === 1 ? "merk" : "merken"}
             </span>{" "}
-            in de laatste meting, nog niet ingedeeld. Aura doet dat bij de eerstvolgende ronde
+            in de laatste meting, nog niet ingedeeld. ORBIT ENGINE doet dat bij de eerstvolgende ronde
             automatisch, jij hoeft niets.
           </p>
           <ul className="flex flex-col gap-2">

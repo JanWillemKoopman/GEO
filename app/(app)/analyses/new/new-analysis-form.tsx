@@ -44,7 +44,7 @@ export function NewAnalysisForm({
       }
       router.push(`/analyses/${json.id}`);
     } catch {
-      setError("We konden Aura niet bereiken. Controleer je verbinding en probeer het opnieuw.");
+      setError("We konden ORBIT ENGINE niet bereiken. Controleer je verbinding en probeer het opnieuw.");
       setPending(false);
     }
   }
@@ -97,7 +97,7 @@ export function NewAnalysisForm({
           className="field"
         />
         <span className="text-sm text-muted">
-          Bepaal de hoek en de doelgroep. Aura neemt dit mee in de vragen die het stelt, in de
+          Bepaal de hoek en de doelgroep. ORBIT ENGINE neemt dit mee in de vragen die het stelt, in de
           aanbevelingen én in de content die het schrijft.
         </span>
       </label>
@@ -119,7 +119,7 @@ export function NewAnalysisForm({
           <span className="flex flex-col gap-0.5">
             <span className="text-sm font-medium">Mail me zodra het rapport klaar is</span>
             <span className="text-sm text-muted">
-              Aura werkt op de achtergrond door, ook als je dit scherm sluit. Blijven wachten hoeft
+              ORBIT ENGINE werkt op de achtergrond door, ook als je dit scherm sluit. Blijven wachten hoeft
               niet, je krijgt bericht.
             </span>
           </span>

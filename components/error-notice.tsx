@@ -86,7 +86,7 @@ export function networkProblem(err: unknown): UserFacingError {
     kind: "ai_unavailable",
     title: "Geen verbinding",
     message:
-      "Je browser komt niet bij Aura. Controleer je internetverbinding. " +
+      "Je browser komt niet bij ORBIT ENGINE. Controleer je internetverbinding. " +
       "Het werk op de achtergrond loopt gewoon door.",
     canRetry: true,
     detail: err instanceof Error ? err.message : String(err),
