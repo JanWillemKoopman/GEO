@@ -32,8 +32,12 @@ effectmeting na publicatie · off-site zichtbaarheid.
 
 ## Positionering
 
-Voor het MKB en marketeers die geen SEO-expert zijn. We winnen op **eenvoud, snelheid en
-doeltreffendheid**, niet op features of enterprise-diepgang.
+**Vandaag:** voor het MKB en marketeers die geen SEO-expert zijn. We winnen op **eenvoud, snelheid
+en doeltreffendheid**, niet op features of enterprise-diepgang.
+
+**Waar het naartoe gaat is breder**, en dat staat in [`docs/visie.md`](./docs/visie.md): SEO én GEO,
+voor organisaties met meer zoekkansen dan een team handmatig kan benutten. Die twee spreken elkaar
+op dit moment tegen, met opzet. Wat hieronder staat beschrijft wat er werkt.
 
 **Sales-led, niet self-serve.** Een consultant zet het merkprofiel klaar vóór een demogesprek en
 verkoopt op wat de pijplijn heeft gevonden; het uur consultancy dat erbij hoort gaat over
@@ -62,12 +66,31 @@ npm run dev                  # → http://localhost:3000
 
 ## Documentatie
 
-| | |
+**Begin hier, in deze volgorde.** Alles hieronder is Nederlands en de code is altijd leidend: wijkt
+een document af van wat de code doet, dan is het document fout.
+
+### Eerst lezen, in een half uur ben je bij
+
+| Stap | Bestand | Waarvoor |
+|---|---|---|
+| 1 | [`CLAUDE.md`](./CLAUDE.md) | **Het startpunt.** Wat de app is, hoe je een opdracht aanpakt, de tien code-conventies, de commando's en waar welke documentatie landt |
+| 2 | [`docs/visie.md`](./docs/visie.md) | **Waar het naartoe gaat.** ORBIT ENGINE als autonome groeimotor voor SEO en GEO. Een bestemming, geen stand van zaken |
+| 3 | [`APP_FLOW_DOCUMENTATION.md`](./APP_FLOW_DOCUMENTATION.md) | **De keten zonder techniek.** Wat het product doet, de vijf fases, wat een klant kost. Ook te lezen zonder ontwikkelaar te zijn |
+| 4 | [`docs/architecture.md`](./docs/architecture.md) | **Hoe het werkt.** Datamodel, rechten, jobwachtrij, elke AI-aanroep, deploy en cron |
+
+### Daarna, als je iets gaat wijzigen
+
+| Bestand | Wanneer je het nodig hebt |
 |---|---|
-| [`CLAUDE.md`](./CLAUDE.md) | Werkinstructie: commando's, conventies, structuur |
-| [`docs/architecture.md`](./docs/architecture.md) | Datamodel, pijplijn, jobwachtrij, env, deploy |
-| [`docs/ux-design.md`](./docs/ux-design.md) | Design system, componentregels, responsive |
-| [`docs/schrijfstijl.md`](./docs/schrijfstijl.md) | Tone-of-voice en microcopy-regels, afgeleid van InSpace Nova |
-| [`docs/logbook.md`](./docs/logbook.md) | Waarom het is zoals het is |
-| [`docs/tasks/`](./docs/tasks/) | Wat er nog open staat |
-| [`APP_FLOW_DOCUMENTATION.md`](./APP_FLOW_DOCUMENTATION.md) | De keten uitgelegd zonder techniek, voor sales en management |
+| [`docs/ux-design.md`](./docs/ux-design.md) | Je bouwt of verandert een scherm |
+| [`docs/designsystem.md`](./docs/designsystem.md) | Je raakt kleur, vorm of typografie aan. §9b heeft het open ontwerpbesluit |
+| [`docs/schrijfstijl.md`](./docs/schrijfstijl.md) | Je schrijft tekst die de klant leest, tot en met foutmeldingen |
+| [`docs/merkstrategie.md`](./docs/merkstrategie.md) | Je maakt iets voor búiten de app: campagne, website, presentatie |
+| [`supabase/README.md`](./supabase/README.md) | Je schrijft een migratie |
+
+### Naslag
+
+| Bestand | Waarvoor |
+|---|---|
+| [`docs/logbook.md`](./docs/logbook.md) | **Waarom het is zoals het is.** Elke beslissing met datum en het cijfer eronder. Kijk hier vóór je iets terugdraait: de kans is groot dat het met reden zo staat |
+| [`docs/tasks/`](./docs/tasks/) | Wat er nog open staat. Af is weg, samengevat in het logboek |

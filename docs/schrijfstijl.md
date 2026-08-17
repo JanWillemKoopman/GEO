@@ -80,11 +80,15 @@ AI-tekst op afstand, en allebei komen ze in ons product niet meer voor:
 Bij twijfel: knip de zin doormidden. Een gedachtestreepje staat er bijna altijd omdat de schrijver
 twee gedachten in één zin wilde proppen, en dat is precies wat richtlijn 2 al verbiedt.
 
-Drie uitzonderingen, alle drie functioneel en geen van drie zichtbaar als stijl:
+Vier uitzonderingen, alle vier functioneel en geen ervan zichtbaar als stijl:
 
 - **Het koppelteken in een samenstelling** (`AI-assistent`, `merk-DNA`) is gewoon goed Nederlands.
 - **Paden en breuken** (`/analyses`, `6/6`, `78/100`, `application/json`) zijn geen leestekens maar
   notatie.
+- **Getal- en paragraafbereiken** (`5–8 onderwerpen`, `§2–§3`, `migraties 0034–0037`, `28–30 juli`)
+  zijn notatie, geen zinsbouw. Toegevoegd op 17 augustus 2026 na telling: van de 37 kastlijntjes in
+  de documentatie waren er 24 zo'n bereik en nul een gedachtestreepje in lopende tekst. De regel
+  beschreef dus iets anders dan hij bedoelde. **In lopende tekst blijft het verbod absoluut.**
 - **Code die kastlijntjes juist herkent** (`publish-check.ts`, `baseline-verdict.ts` normaliseren
   ze in binnenkomende tekst) en **regel 9 van de schrijfprompt**, die het teken bij naam moet
   noemen om het te kunnen verbieden.

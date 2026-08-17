@@ -111,11 +111,25 @@ zonder productfeed.
 
 ## 4. R6.3, brontype als signaal (1,5 d)
 
-Volledige bouwspec: [`r6-inventaris-en-bronnen.md`](./r6-inventaris-en-bronnen.md). R6.2 is
-gebouwd als fase 0 van de onboarding.
+R6.2 is gebouwd als fase 0 van de onboarding (`assessInventory()` in
+`lib/pipeline/inventory-quality.ts`, migratie `0039`). R6.3 staat nog open, en de volledige spec
+staat sinds 17 augustus 2026 hieronder in plaats van in een eigen bestand.
 
-Bij Fysi-Unique zijn 8 van de 10 meest geciteerde bronnen homepages. Dan is "schrijf een lange
-blogpagina" waarschijnlijk het verkeerde advies.
+**Het probleem.** Bij Fysi-Unique zijn 8 van de 10 meest geciteerde bronnen **homepages**, geen
+inhoudelijke pagina's. Citeert de AI het bedrijf zelf en niet een diepe contentpagina, dan is
+"schrijf een lange blogpagina" waarschijnlijk het verkeerde advies.
+
+**Bestanden:** `lib/offsite/domain.ts` (of een nieuw `lib/pipeline/source-type.ts`),
+`lib/pipeline/report.ts`, `lib/pipeline/source-analysis.ts`.
+
+**Implementatie**
+
+1. Classificeer elke geciteerde bron in code: homepage (leeg pad of `/`), inhoudelijke pagina
+   (dieper pad), of platform en overzicht.
+2. Bereken per analyse de verhouding en geef die mee aan het rapport.
+3. Laat het rapport erop sturen: overwegend homepages betekent dat het advies richting
+   entiteitsherkenning, vindbaarheid en off-site aanwezigheid gaat. Overwegend inhoudelijke
+   pagina's betekent dat diepe content wél het middel is.
 
 ## 5. Search Console koppelen: GEBOUWD op 11 augustus, wacht nu op de Google-sleutel
 

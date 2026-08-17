@@ -56,7 +56,7 @@ tekstwijziging, net zoals `docs/designsystem.md` leidend is voor de vormgeving.
 overal: UI-copy, promptteksten, code-commentaar en documentatie. Het zijn de twee leestekens waaraan
 een lezer AI-tekst herkent, en voor een product dat content schrijft die de klant publiceert is dat
 een productfout, geen smaakkwestie. Gebruik een komma, een dubbele punt, of splits de zin.
-Richtlijn 10 in `docs/schrijfstijl.md` heeft de volledige regel, de drie functionele uitzonderingen
+Richtlijn 10 in `docs/schrijfstijl.md` heeft de volledige regel, de vier functionele uitzonderingen
 en twee `grep`-commando's om het vóór een commit te controleren. Regel 9 van de schrijfprompt in
 `lib/pipeline/content.ts` legt hetzelfde op aan het model.
 
@@ -176,25 +176,28 @@ scripts/           test-unit · test-chain · test-openai · eval-mention
 
 ## Documentatie
 
+**`README.md` is het startpunt** en zet de leesvolgorde. Deze tabel zegt wie welk feit bezit.
+
 | Bestand | Waarvoor |
 |---|---|
-| `docs/architecture.md` | Datamodel, RLS, jobwachtrij, pijplijn per stap, alle AI-calls, env, deploy, cron |
-| `docs/ux-design.md` | Design tokens, componentregels, responsive-strategie, loading/error/lege states |
-| `docs/designsystem.md` | Bronanalyse van de live inspace.io-CSS: waar elke kleur, radius en gloed vandaan komt |
+| `docs/visie.md` | **De richting, niet de huidige bouw.** ORBIT ENGINE als autonome groeimotor voor SEO én GEO, vastgelegd door Outer Orbit op 17 augustus 2026. Elke bewering over doelgroep, omvang of autonomie is een bestemming, geen stand van zaken |
+| `docs/merkstrategie.md` | **Hoe het merk naar buiten klinkt en oogt**, voor reclame- en communicatiebureaus. Leidend voor marketing, níét voor UI-copy (dat is `schrijfstijl.md`) of de vormgeving van de app (dat is `designsystem.md`). §30 somt op waar het merkverhaal iets belooft dat de app nog niet doet |
+| `docs/architecture.md` | Datamodel, RLS, jobwachtrij, pijplijn per stap, alle AI-calls, env, deploy, cron. **De enige technische waarheid.** §6 heeft ook de tabel "Bewust géén AI" en de nagerekende kosten |
+| `docs/ux-design.md` | Hoe je een scherm bouwt: componentregels, responsive, loading, error en lege staten |
+| `docs/designsystem.md` | Waar elke kleur, radius en schaduw vandaan komt. §9b heeft het **open ontwerpbesluit**: het systeem is afgeleid van de concurrent en dat botst met de merkstrategie |
 | `docs/schrijfstijl.md` | Tone-of-voice en microcopy: de elf richtlijnen, de woordenlijst, en wat we bewust níet van Nova overnemen |
-| `docs/logbook.md` | Waarom het is zoals het is: beslissingen en bouwrondes, met de cijfers eronder |
-| `docs/visie.md` | **De richting, niet de huidige bouw.** ORBIT ENGINE als autonome groeimotor voor SEO én GEO, vastgelegd door Outer Orbit op 17 augustus 2026. Elke bewering daarin over doelgroep, omvang of autonomie is een bestemming, geen stand van zaken |
-| `docs/merkstrategie.md` | **Hoe het merk naar buiten klinkt en oogt**, bedoeld voor reclame- en communicatiebureaus: positionering, doelgroepen, personas, bezwaren, tone of voice, visuele richting, campagnes. Leidend voor marketing, níét voor UI-copy (dat blijft `schrijfstijl.md`) of vormgeving van de app (dat blijft `designsystem.md`). §30 daarin somt op waar het merkverhaal iets belooft dat de app nog niet doet |
-| `docs/nova-i18n.json` · `docs/inspace-app-i18n.json` · `docs/inspace-marketing.txt` | De berichtencatalogi van beide InSpace-apps (900 en 1.469 sleutels) en de tekst van hun marketingsite, ooit verzameld voor het inmiddels afgebouwde en verwijderde `Nova.md`. Nog steeds de brontekst achter de tone-of-voice-analyse in `schrijfstijl.md`. Niet bewerken |
-| `docs/tasks/roadmap.md` | Wat er nog open staat, op volgorde |
-| Overige bestanden in `docs/tasks/` | Werk dat nog open staat of net af is, met bestanden en verificatiecriteria. **Tijdelijk van aard:** af is weg, samengevat in `logbook.md`. Staat er iets tussen dat allang gebouwd is, ruim het dan op in plaats van het te laten liggen |
-| `APP_FLOW_DOCUMENTATION.md` | **Het enige document zonder techniek erin**, voor sales en management: wat het product doet, de vijf fases, de klantreis en wat een klant kost. Staat bewust in de hoofdmap. Het technische en het AI-hoofdstuk zijn op 17 augustus 2026 verwijderd omdat ze `architecture.md` dubbelden en achterliepen |
+| `docs/logbook.md` | **Waarom het is zoals het is**, met datum en cijfer. Bevat ook twee naslagsecties: de vertaaltabel voor verwijderde documenten en de kwaliteitslatten K1 t/m K5 en P1 t/m P7 die de code bij naam noemt |
+| `docs/tasks/` | Wat er nog open staat: `roadmap.md` (index en volgorde), `potentiescore.md` en `verificatie-r8-s8.md`. **Tijdelijk van aard:** af is weg, samengevat in `logbook.md` |
+| `APP_FLOW_DOCUMENTATION.md` | **Het enige document zonder techniek erin**, voor sales en management: wat het product doet, de vijf fases, de klantreis en wat een klant kost |
 | `supabase/README.md` | Migratie-index en toepasinstructies |
+| `docs/nova-i18n.json` · `docs/inspace-app-i18n.json` · `docs/inspace-marketing.txt` | De berichtencatalogi van beide InSpace-apps (900 en 1.469 sleutels) en hun marketingtekst. De brontekst onder `schrijfstijl.md` en `designsystem.md`. **Niet bewerken** |
 
-**Verwijzingen in code naar oude documenten.** Code-commentaar en migraties verwijzen op ~500
-plekken naar `optimalisatie.md`, `implementatieplan.md`, `abcplan.md` en `contentbriefing.md`.
-Die bestanden zijn samengevoegd in `docs/logbook.md`; bovenaan dat bestand staat een vertaaltabel
-van oude verwijzing naar nieuwe sectie. De originelen staan in de git-historie.
+**⚠️ Verwijzingen in code naar verwijderde documenten.** Code-commentaar en migraties noemen op
+**556 plekken** documenten die niet meer bestaan (`optimalisatie.md`, `abcplan.md`,
+`onboarding-2.0.md`, `Nova.md`, `lanceerplan.md` en acht andere). Die verwijzingen blijven bewust
+staan: ze dragen het waarom van een keuze. **Bovenaan `docs/logbook.md` staat de vertaaltabel** die
+per document zegt waar je in plaats daarvan moet kijken. Verwijder je zelf een document, voeg daar
+dan een regel toe, anders wijst de code straks nergens meer heen.
 
 ## Hoe je een opdracht aanpakt
 

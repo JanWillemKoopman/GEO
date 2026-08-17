@@ -17,7 +17,7 @@ verwijzing in de code straks nergens meer heen.
 | `implementatieplan.md` R0–R8, S1–S8 | Het werkdocument met de stappen | §5–§8 hieronder |
 | `abcplan.md` §2/§5/§10/§12 | Het oorspronkelijke MVP-bouwplan + 32 vastgelegde keuzes | §2 hieronder + `architecture.md` |
 | `contentbriefing.md` | De specificatie waarop R5 gebouwd is | §6 hieronder |
-| `kwaliteitsanalyse-*.md`, `praktijktest-udenhout.md`, `strategie-contentkwaliteit-vervolgstappen.md` | De doorlichtingen | §4, §6, §8 hieronder |
+| `kwaliteitsanalyse-5-testcases.md`, `praktijktest-udenhout.md`, `strategie-contentkwaliteit-vervolgstappen.md` | De doorlichtingen | §4, §6, §8 hieronder |
 | `designsystem.md`, `ux-*.md` | Design system en UX-analyses | `ux-design.md` |
 | `SETUP.md` | Installatie en deploy | `architecture.md` §8–§9 |
 | `onboarding-2.0.md` blok A t/m E | De bouwspec van de nieuwe onboarding: klantkoppeling (A), de onderzoeksfases (B), gespreksuitkomst (C), core topics (D) | §14 hieronder. Gebouwd en verwijderd; de fases zelf staan als taaksoorten in `lib/jobs/types.ts` |
@@ -27,6 +27,7 @@ verwijzing in de code straks nergens meer heen.
 | `tasks/nova-analyse.md` §3.2/§3.3 | InSpace Nova ontleed uit 2.447 interfaceteksten: hun statusmachines (§3.2) en de velden van hun merkprofiel (§3.3) | §29 en §30 hieronder. Wat we ervan overnamen zit in migratie `0045` (tone-schuiven, verboden woorden, auteursvelden), `lib/analysis-status.ts` (de tweelaagse statustaal) en `lib/pipeline/version-reason.ts`. Verwijderd 17 augustus 2026 |
 | `tasks/zoekdata-koppeling.md` §0/§2 | Het onderzoek vóór de Search Console-koppeling: service account in plaats van OAuth, en het meetvenster van twee dagen | Gebouwd in fase 5 (migratie `0052`, `lib/search-console/`). De twee regels over naijlende cijfers staan nu in `lib/search-console/window.ts` zelf. Verwijderd 17 augustus 2026 |
 | `tasks/r0-fundament.md` R0.1 t/m R0.6 | Zes hygiënestappen die in de praktijk niets blokkeerden | Nooit gebouwd, bewust. Het enige punt dat telt staat in `tasks/roadmap.md`: R0.5 is de reden dat de fabrikanten die Bol verkoopt nog als concurrent meetellen. Verwijderd 17 augustus 2026 |
+| `tasks/r6-inventaris-en-bronnen.md` R6.2/R6.3 | De inventariskwaliteitspoort en het brontype als signaal | R6.2 is gebouwd als fase 0 van de onboarding (`lib/pipeline/inventory-quality.ts`, migratie `0039`). R6.3 staat nog open en de spec is verhuisd naar `tasks/roadmap.md` §4. Verwijderd 17 augustus 2026 |
 | `tasks/lanceerplan.md` K1-K5, P1-P7, F1-F5, D4/D7/D10, R6 | Het pad van "gebouwd" naar de eerste betalende klant: zes testsporen, twee kwaliteitslatten, een tweeweekse planning | **De twee latten staan hieronder als eigen sectie**, want twaalf codebestanden noemen ze bij naam. De sporen en de planning zijn ingehaald: F1 (budgetplafond) is migratie `0053`, F4/P5 (klant verwijderen) is `lib/deletion.ts`, D4/D7/D10 (wedstrijdcondities) zijn af. Verwijderd 17 augustus 2026 |
 | `Nova.md` | InSpace Nova gereconstrueerd, de gap-analyse en het achtfasenbouwplan dat daaruit volgde | Bouwplan afgebouwd, zie de secties hieronder per fase. Zelf verwijderd op 17 augustus 2026, de citaten die er verderop in dit logboek nog naar verwijzen zijn historisch en blijven staan zoals ze geschreven zijn. De richting daarna staat in `visie.md` |
 
