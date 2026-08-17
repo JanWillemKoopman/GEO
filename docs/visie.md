@@ -8,6 +8,11 @@ bestemming, niet de stand van zaken. Wat er vandaag daadwerkelijk staat: `CLAUDE
 dit moment op drie punten tegen, met opzet: doelgroep, omvang en autonomiegraad. Zie de tabel
 onderaan voor precies welke zinnen dat zijn en waarom ze voorlopig blijven staan zoals ze zijn.
 
+**Naast dit document staat `docs/merkstrategie.md`**, de merkstrategie voor de Nederlandse markt.
+Zelfde richting, ander doel: dit document gaat over wat het product wordt, dat document over hoe het
+merk daarover praat naar buiten. Verandert er iets aan de richting hieronder, kijk dan of de
+positionering daar meebeweegt.
+
 ## Wat Outer Orbit met ORBIT ENGINE wil
 
 ORBIT ENGINE is het AI-gedreven SEO- en GEO-platform van Outer Orbit. Geen traditionele SEO-tool,

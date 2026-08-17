@@ -5,12 +5,20 @@ zichtbaar een merk is in AI-antwoorden (ChatGPT e.d.), adviseert, schrijft conte
 meet het effect. Nederlands is de taal van de app, de AI-prompts, de code-commentaren en deze
 documentatie.
 
-**⚠️ Dit is de huidige bouw, niet de eindbestemming.** Waar ORBIT ENGINE naartoe groeit, staat in
-`docs/visie.md`: een autonome groeimotor voor SEO én GEO, voor organisaties met meer kansen dan een
-team handmatig aankan. Die twee beschrijvingen spreken elkaar op dit moment tegen op drie punten
-(doelgroep, omvang, autonomiegraad) en dat is met opzet: `docs/visie.md` is de richting, dit
-document en de rest van `docs/` blijven vertellen wat er vandaag daadwerkelijk staat. Verwar ze
-niet met elkaar, en schrijf nooit dat iets al kan wat nog niet gebouwd is.
+**⚠️ Dit is de huidige bouw, niet de eindbestemming.** Twee documenten beschrijven waar ORBIT ENGINE
+naartoe gaat, en allebei lopen ze vooruit op wat er staat:
+
+- `docs/visie.md`, de **productrichting**: een autonome groeimotor voor SEO én GEO, voor
+  organisaties met meer kansen dan een team handmatig aankan.
+- `docs/merkstrategie.md`, de **merkstrategie** van Outer Orbit voor de Nederlandse markt, bedoeld
+  voor externe bureaus.
+
+Die twee spreken dit document tegen op doelgroep (MKB tegenover schaal), omvang (alleen GEO
+tegenover SEO plus GEO) en autonomiegraad (goedkeuring per stap tegenover zelfstandig handelen), en
+dat is met opzet. Dit document en de rest van `docs/` blijven vertellen wat er vandaag daadwerkelijk
+staat. Verwar ze niet met elkaar, en **schrijf nooit dat iets al kan wat nog niet gebouwd is.** De
+scherpste valkuil op dit moment: de merkstrategie belooft publicatie via het CMS, en die koppeling
+bestaat niet. `merkstrategie.md` §30 heeft de volledige lijst met verschillen.
 
 **⚠️ Het antwoord aan de gebruiker is altijd in het Nederlands, en altijd te volgen zonder
 technische kennis.** Dit gaat over de samenvatting waarmee Claude Code een vraag of opdracht afsluit,
@@ -166,6 +174,7 @@ scripts/           test-unit · test-chain · test-openai · eval-mention
 | `docs/schrijfstijl.md` | Tone-of-voice en microcopy: de tien richtlijnen, de woordenlijst, en wat we bewust níet van Nova overnemen |
 | `docs/logbook.md` | Waarom het is zoals het is: beslissingen en bouwrondes, met de cijfers eronder |
 | `docs/visie.md` | **De richting, niet de huidige bouw.** ORBIT ENGINE als autonome groeimotor voor SEO én GEO, vastgelegd door Outer Orbit op 17 augustus 2026. Elke bewering daarin over doelgroep, omvang of autonomie is een bestemming, geen stand van zaken |
+| `docs/merkstrategie.md` | **Hoe het merk naar buiten klinkt en oogt**, bedoeld voor reclame- en communicatiebureaus: positionering, doelgroepen, personas, bezwaren, tone of voice, visuele richting, campagnes. Leidend voor marketing, níét voor UI-copy (dat blijft `schrijfstijl.md`) of vormgeving van de app (dat blijft `designsystem.md`). §30 daarin somt op waar het merkverhaal iets belooft dat de app nog niet doet |
 | `docs/nova-i18n.json` · `docs/inspace-app-i18n.json` · `docs/inspace-marketing.txt` | De berichtencatalogi van beide InSpace-apps (900 en 1.469 sleutels) en de tekst van hun marketingsite, ooit verzameld voor het inmiddels afgebouwde en verwijderde `Nova.md`. Nog steeds de brontekst achter de tone-of-voice-analyse in `schrijfstijl.md`. Niet bewerken |
 | `docs/tasks/roadmap.md` | Wat er nog open staat, op volgorde |
 | `docs/tasks/lanceerplan.md` | **Het pad naar de lancering.** Vijf testsporen, de vijf eigenschappen die "InSpace-kwaliteit" toetsbaar maken, de tweeweekse planning en de afvinklijst voor het lanceerbesluit |
@@ -195,6 +204,7 @@ van oude verwijzing naar nieuwe sectie. De originelen staan in de git-historie.
 | Gedrag van de code veranderd | `docs/architecture.md` of `docs/ux-design.md`, en de peildatum bijwerken |
 | Nieuwe migratie | `supabase/README.md` |
 | De richting verandert, los van wat er al gebouwd is | `docs/visie.md`, met een verwijzing erbij in `docs/logbook.md` |
+| Positionering, doelgroep of merkboodschap verandert | `docs/merkstrategie.md`, en werk §30 daarin bij als de afstand tot de bouw verandert |
 
 Eén feit heeft één eigenaar. Staat het al ergens, verwijs dan, herhaal het niet.
 - Kosten zijn een ontwerpvariabele: een meetronde is ~$0,82 (~95% zit in de meting zelf, waarvan

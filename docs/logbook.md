@@ -2712,3 +2712,40 @@ wat er werkt. `docs/visie.md` is een bestemming waar toekomstige besluiten aan g
 worden, geen document dat claimt dat ORBIT ENGINE dat vandaag al is. Wordt een stap uit die richting
 daadwerkelijk gebouwd (SEO-functionaliteit, een grotere doelgroep, meer autonome uitvoering), dan
 hoort dat besluit hier als eigen, gedateerde alinea, met de code die het waarmaakt.
+
+## De merkstrategie vastgelegd, en de vijf gaten tussen belofte en bouw (17 augustus 2026)
+
+Dezelfde dag kwam het tweede document van Outer Orbit: de volledige merkstrategie voor de
+Nederlandse markt, bedoeld om aan een reclamebureau te overhandigen. Positionering, vier personas,
+de tien meest gehoorde bezwaren met hun antwoord, tone of voice, visuele richting, campagnepijlers.
+Vastgelegd als `docs/merkstrategie.md`, naast en niet in `visie.md`: het ene document gaat over wat
+het product wordt, het andere over hoe het merk daarover praat.
+
+**De aangeleverde tekst had vier fouten die hersteld moesten worden vóór vastlegging**, en de eerste
+twee zeggen iets over hoe zo'n document ontstaat. Op twee plekken stond "inORBIT ENGINEtie": een
+zoek-en-vervang van "Nova" naar "ORBIT ENGINE" was middenin het woord "innovatie" terechtgekomen,
+want daar zitten diezelfde vier letters in. Precies dezelfde valkuil die bij de rebrand van de code
+is vermeden door op woordgrenzen te matchen in plaats van op losse letterreeksen.
+
+Ernstiger: op vier plekken (§22.2, §24, §25, §28) heette het eigen merk **InSpace**, terwijl §1 en
+§2 consequent Outer Orbit aanhouden. InSpace is in dit project de concurrent, degene wiens twee live
+applicaties in `tasks/nova-analyse.md` uit hun eigen berichtenbestand zijn gereconstrueerd. Een
+merkdocument dat zijn eigen merk verwart met dat van de concurrent is meer dan een typefout, dus de
+correctie is uitgeschreven in §29 van dat document in plaats van stil doorgevoerd.
+
+**Wat het oplevert, is de lijst in §30: vijf plekken waar de merkbelofte iets zegt dat de app niet
+waarmaakt.** Twee daarvan waren al bekend uit `visie.md` (doelgroep en autonomiegraad). Twee zijn
+groter dan gedacht: het merkverhaal verkoopt SEO én GEO als één geheel terwijl er alleen GEO
+gebouwd is, en het belooft op drie plekken publicatie via het CMS. Die koppeling is op 10 augustus
+2026 expliciet buiten scope gezet (hierboven, "buiten scope op verzoek"), publiceren gaat met de
+hand via "markeer als geplaatst". De app herkent wél welk CMS een site draait, maar schrijft er niet
+naartoe. Dat is het verschil tussen een campagne die werkt en een demo die vastloopt op de vraag
+"laat maar zien dan".
+
+Het vijfde punt is klein maar het legt iets bloot dat niemand ooit hardop besloten heeft. De
+merkstrategie wil minimalistisch en neutral-first, expliciet zonder "neonpaarse AI-gloed". De app
+ís al neutral-first, dus dat botst nauwelijks. Maar het hele designsysteem is afgeleid van de
+werkomgeving van InSpace Nova (§30 hierboven, peildatum 6 augustus 2026), en dit document
+positioneert Outer Orbit juist als iets eigens. Zolang de app eruitziet als een afgeleide van de
+concurrent, werkt de vormgeving tegen de positionering in. Dat is een besluit voor de eigenaar en
+het staat opgeschreven zodat het gesteld wordt, niet opgelost omdat een AI dat wel handig vond.
