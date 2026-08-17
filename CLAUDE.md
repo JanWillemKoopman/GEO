@@ -1,8 +1,16 @@
 # ORBIT ENGINE: werkinstructie
 
-**De app heet ORBIT ENGINE.** GEO-tracking voor het MKB: meet hoe zichtbaar een merk is in AI-antwoorden
-(ChatGPT e.d.), adviseert, schrijft content, publiceert en meet het effect. Nederlands is de taal
-van de app, de AI-prompts, de code-commentaren en deze documentatie.
+**De app heet ORBIT ENGINE**, het product van Outer Orbit. GEO-tracking voor het MKB: meet hoe
+zichtbaar een merk is in AI-antwoorden (ChatGPT e.d.), adviseert, schrijft content, publiceert en
+meet het effect. Nederlands is de taal van de app, de AI-prompts, de code-commentaren en deze
+documentatie.
+
+**⚠️ Dit is de huidige bouw, niet de eindbestemming.** Waar ORBIT ENGINE naartoe groeit, staat in
+`docs/visie.md`: een autonome groeimotor voor SEO én GEO, voor organisaties met meer kansen dan een
+team handmatig aankan. Die twee beschrijvingen spreken elkaar op dit moment tegen op drie punten
+(doelgroep, omvang, autonomiegraad) en dat is met opzet: `docs/visie.md` is de richting, dit
+document en de rest van `docs/` blijven vertellen wat er vandaag daadwerkelijk staat. Verwar ze
+niet met elkaar, en schrijf nooit dat iets al kan wat nog niet gebouwd is.
 
 **⚠️ Het antwoord aan de gebruiker is altijd in het Nederlands, en altijd te volgen zonder
 technische kennis.** Dit gaat over de samenvatting waarmee Claude Code een vraag of opdracht afsluit,
@@ -39,7 +47,7 @@ InSpace Nova). De eigenaar zet als consultant het merkprofiel klaar vóór een d
 pijplijn doet in ~7,5 minuut het onderzoek, en het uur consultancy gaat over strategie. Pas ná de
 verkoop wordt het profiel aan het klantaccount toegewezen. Dat bepaalt hoe schermen ontworpen
 worden: de profielpagina is een demo-scherm dat gedeeld wordt, geen formulier. Zie `docs/logbook.md`
-§12 voor het waarom en `docs/architecture.md` §11 voor hoe je een klant aanmaakt en koppelt.
+§15 voor het waarom en `docs/architecture.md` §11 voor hoe je een klant aanmaakt en koppelt.
 
 **De app staat live.** `main` is de productiebranch (Vercel). Werk op een feature-branch.
 
@@ -157,8 +165,8 @@ scripts/           test-unit · test-chain · test-openai · eval-mention
 | `docs/designsystem.md` | Bronanalyse van de live inspace.io-CSS: waar elke kleur, radius en gloed vandaan komt |
 | `docs/schrijfstijl.md` | Tone-of-voice en microcopy: de tien richtlijnen, de woordenlijst, en wat we bewust níet van Nova overnemen |
 | `docs/logbook.md` | Waarom het is zoals het is: beslissingen en bouwrondes, met de cijfers eronder |
-| `docs/Nova.md` | **De richting.** InSpace Nova gereconstrueerd uit hun eigen berichtenbestand, de gap-analyse tegenover ORBIT ENGINE, en het bouwplan in acht fases. Bevat de vier vastgelegde besluiten (merk-werkruimte, klantportaal, twaalfmaandsplan, Search Console erbij) |
-| `docs/nova-i18n.json` · `docs/inspace-app-i18n.json` · `docs/inspace-marketing.txt` | De ruwe bronnen onder `Nova.md`: de berichtencatalogi van beide InSpace-apps (900 en 1.469 sleutels) en de tekst van hun marketingsite. Niet bewerken |
+| `docs/visie.md` | **De richting, niet de huidige bouw.** ORBIT ENGINE als autonome groeimotor voor SEO én GEO, vastgelegd door Outer Orbit op 17 augustus 2026. Elke bewering daarin over doelgroep, omvang of autonomie is een bestemming, geen stand van zaken |
+| `docs/nova-i18n.json` · `docs/inspace-app-i18n.json` · `docs/inspace-marketing.txt` | De berichtencatalogi van beide InSpace-apps (900 en 1.469 sleutels) en de tekst van hun marketingsite, ooit verzameld voor het inmiddels afgebouwde en verwijderde `Nova.md`. Nog steeds de brontekst achter de tone-of-voice-analyse in `schrijfstijl.md`. Niet bewerken |
 | `docs/tasks/roadmap.md` | Wat er nog open staat, op volgorde |
 | `docs/tasks/lanceerplan.md` | **Het pad naar de lancering.** Vijf testsporen, de vijf eigenschappen die "InSpace-kwaliteit" toetsbaar maken, de tweeweekse planning en de afvinklijst voor het lanceerbesluit |
 | `APP_FLOW_DOCUMENTATION.md` | De keten end-to-end voor drie lezersgroepen: sales, developer, AI-specialist. Staat bewust in de hoofdmap, code verwijst ernaar |
@@ -186,6 +194,7 @@ van oude verwijzing naar nieuwe sectie. De originelen staan in de git-historie.
 | Taak afgerond | Uit `docs/tasks/` weg, samengevat in `docs/logbook.md` |
 | Gedrag van de code veranderd | `docs/architecture.md` of `docs/ux-design.md`, en de peildatum bijwerken |
 | Nieuwe migratie | `supabase/README.md` |
+| De richting verandert, los van wat er al gebouwd is | `docs/visie.md`, met een verwijzing erbij in `docs/logbook.md` |
 
 Eén feit heeft één eigenaar. Staat het al ergens, verwijs dan, herhaal het niet.
 - Kosten zijn een ontwerpvariabele: een meetronde is ~$0,82 (~95% zit in de meting zelf, waarvan

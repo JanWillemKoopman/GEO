@@ -10,15 +10,15 @@ potentiescore), zie `potentiescore.md` en `logbook.md`.
 > document heeft de zes testsporen (A tot en met F plus R), de afvinklijst voor het lanceerbesluit en
 > de tweeweekse planning. Wat hieronder staat is het oudere werk. **Lees het lanceerplan eerst.**
 
-> ⚠️ **De richting van het product staat sinds 10 augustus 2026 in [`../Nova.md`](../Nova.md).**
-> Dat document bevat vier vastgelegde besluiten (merk-werkruimte, klantportaal met admin,
-> twaalfmaandsplan als kernobject, Search Console naast AI-zichtbaarheid) en een bouwplan van acht
-> fases, ongeveer 51 dagen. **Lees dat eerst.** Wat hieronder staat is het oude werk dat nog open
-> stond; per punt is aangegeven of het opgaat in een fase van dat plan.
+> ⚠️ **Het achtfasenplan uit `Nova.md` is afgebouwd** (fundament, merk-werkruimte, rollen en
+> uitnodigingen, onboarding-wizard, contentplan, CSM-paneel, Search Console, de lus sluiten,
+> accountscherm), zie `docs/logbook.md` voor per fase wat er gebouwd is. Het document zelf is
+> 17 augustus 2026 verwijderd, het was zijn doel voorbij. Wat hieronder staat is ouder werk dat toen
+> nog open stond; per punt is aangegeven of het al is opgegaan in een van die fases.
 >
-> De volgorde daar is: fundament, merk-werkruimte, rollen en uitnodigingen, onboarding-wizard,
-> contentplan, CSM-paneel, Search Console, de lus sluiten, accountscherm. Moet je kiezen,
-> doe dan fase 1, 4 en 6.
+> **De richting nu staat in [`../visie.md`](../visie.md).** Dat document is een bestemming, geen
+> bouwopdracht: het beschrijft waar ORBIT ENGINE naartoe groeit, niet wat er als eerstvolgende al
+> gepland staat. Voor dat laatste blijft dit bestand en `lanceerplan.md` leidend.
 >
 > ⚠️ Twee dingen die in oudere alinea's hieronder nog wél genoemd worden, zijn geschrapt en géén
 > werk meer: **meertaligheid** (besluit 13) en de **donkere modus** (besluit 17).

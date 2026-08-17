@@ -17,6 +17,7 @@ opgegaan. Vertaaltabel:
 | `kwaliteitsanalyse-*.md`, `praktijktest-udenhout.md`, `strategie-contentkwaliteit-vervolgstappen.md` | De doorlichtingen | §4, §6, §8 hieronder |
 | `designsystem.md`, `ux-*.md` | Design system en UX-analyses | `ux-design.md` |
 | `SETUP.md` | Installatie en deploy | `architecture.md` §8–§9 |
+| `Nova.md` | InSpace Nova gereconstrueerd, de gap-analyse en het achtfasenbouwplan dat daaruit volgde | Bouwplan afgebouwd, zie de secties hieronder per fase. Zelf verwijderd op 17 augustus 2026, de citaten die er verderop in dit logboek nog naar verwijzen zijn historisch en blijven staan zoals ze geschreven zijn. De richting daarna staat in `visie.md` |
 
 De volledige originelen staan in de git-historie (laatste versie: de commit vóór de
 documentatie-herstructurering).
@@ -2689,3 +2690,25 @@ en op het eigen merk toegepast, waar diezelfde stille aanname al langer sluimerd
 ketentest tegen een echte aggregatie: `measure.ts` heeft dat spoor nooit gehad (hetzelfde gat als bij
 de generate_report-trigger, fase 1 hierboven), dus dit is getoetst tot op de pure functies, niet
 end-to-end op productie. 1257 unittests, 160 ketentests.
+
+## De visie van Outer Orbit vastgelegd, en waar ze nog niet overeenkomt met vandaag (17 augustus 2026)
+
+Outer Orbit legde de langetermijnrichting van ORBIT ENGINE vast: een autonome groeimotor die kansen
+ontdekt, ze vertaalt naar strategie, het SEO- en GEO-werk uitvoert, het resultaat meet en opnieuw
+optimaliseert, voor organisaties met meer zoekkansen dan een team handmatig kan benutten. Dat
+document staat in `docs/visie.md`.
+
+De keuze was om dit **niet** te verwerken als een update van wat er vandaag al staat, maar als een
+apart, expliciet gemarkeerd richtingdocument. Reden: de nieuwe tekst spreekt op dit moment drie
+dingen tegen die hierboven met datum en argument zijn vastgelegd. Punt 1 hierboven ("Het product")
+kiest bewust voor het MKB en expliciet niet voor enterprise-diepgang. De sales-led beslissing van
+3 augustus 2026 (§15, samengevat in `CLAUDE.md`) laat de klant per stap goedkeuren, in plaats van
+het systeem zelf laten publiceren. En de hele pijplijn is vandaag uitsluitend GEO, er is
+geen zoekwoordonderzoek of Google-positietracking gebouwd, "keyword research suites" en "echte
+zoekvolumes" staan zelfs met naam genoemd als bewust niet gebouwd.
+
+Geen van die eerdere beslissingen is hiermee ingetrokken. Ze blijven de accurate beschrijving van
+wat er werkt. `docs/visie.md` is een bestemming waar toekomstige besluiten aan getoetst kunnen
+worden, geen document dat claimt dat ORBIT ENGINE dat vandaag al is. Wordt een stap uit die richting
+daadwerkelijk gebouwd (SEO-functionaliteit, een grotere doelgroep, meer autonome uitvoering), dan
+hoort dat besluit hier als eigen, gedateerde alinea, met de code die het waarmaakt.

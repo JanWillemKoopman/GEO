@@ -200,7 +200,8 @@ database-queries een dood interval zonder enige terugkoppeling.
 
 ### De merk-werkruimte
 
-Sinds besluit 1 (`docs/Nova.md` §0) is de app een **merk-werkruimte**: je kiest bovenin een merk en
+Sinds besluit 1 (`docs/logbook.md`, het inmiddels verwijderde `Nova.md` §0) is de app een
+**merk-werkruimte**: je kiest bovenin een merk en
 daarna gaat alles over dát merk. De navigatie valt daarmee in twee soorten uiteen, en dat onderscheid
 past horizontaal niet zonder scheidingstekens die niets betekenen. Vandaar een **zijbalk**
 (`components/sidebar.tsx`), met twee groepen:
