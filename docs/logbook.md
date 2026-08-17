@@ -5,8 +5,11 @@ Voor hoe het werkt: `architecture.md`. Voor wat er nog moet: `tasks/roadmap.md`.
 
 ## Verwijzingen uit code naar oude documenten
 
-Code-commentaar en migraties verwijzen op ~500 plekken naar documenten die in dit logboek zijn
-opgegaan. Vertaaltabel:
+Code-commentaar en migraties verwijzen op **556 plekken** (geteld op 17 augustus 2026) naar
+documenten die niet meer bestaan. Die verwijzingen blijven bewust staan: ze dragen het waarom van
+een keuze, en dat waarom verdwijnt niet met het bestand. Deze tabel vertelt waar je in plaats
+daarvan moet kijken. **Voeg hier een regel toe zodra je een document verwijdert**, anders wijst een
+verwijzing in de code straks nergens meer heen.
 
 | Verwijzing in code | Wat het was | Nu |
 |---|---|---|
@@ -17,6 +20,10 @@ opgegaan. Vertaaltabel:
 | `kwaliteitsanalyse-*.md`, `praktijktest-udenhout.md`, `strategie-contentkwaliteit-vervolgstappen.md` | De doorlichtingen | §4, §6, §8 hieronder |
 | `designsystem.md`, `ux-*.md` | Design system en UX-analyses | `ux-design.md` |
 | `SETUP.md` | Installatie en deploy | `architecture.md` §8–§9 |
+| `onboarding-2.0.md` blok A t/m E | De bouwspec van de nieuwe onboarding: klantkoppeling (A), de onderzoeksfases (B), gespreksuitkomst (C), core topics (D) | §14 hieronder. Gebouwd en verwijderd; de fases zelf staan als taaksoorten in `lib/jobs/types.ts` |
+| `inspace-optimalisaties-1-4.md` 1 t/m 4 | Vier losse verbeteringen uit de InSpace-analyse | Alle vier gebouwd, elk met een eigen module: 1 = structuurgat (`lib/pipeline/structure-gap.ts`), 2 = JSON-LD per pagina (`lib/schema-jsonld.ts`), 3 = duplicatiecontrole (`lib/pipeline/similarity.ts`), 4 = leesbaarheid (`lib/pipeline/readability.ts`) |
+| `status-doorontwikkeling.md` §2.1/§2.3/§2.4 | De doorlichting die de kernconventies opleverde | Code-conventies 1 en 3 in `CLAUDE.md`: een promptinstructie is een intentie en code is een garantie, en onbekend is een betere waarde dan een verkeerde |
+| `contentkwaliteit-analyse.md` C3/C4/E1 | De analyse onder de redactielus van de contentronde | §6 en §7 hieronder |
 | `Nova.md` | InSpace Nova gereconstrueerd, de gap-analyse en het achtfasenbouwplan dat daaruit volgde | Bouwplan afgebouwd, zie de secties hieronder per fase. Zelf verwijderd op 17 augustus 2026, de citaten die er verderop in dit logboek nog naar verwijzen zijn historisch en blijven staan zoals ze geschreven zijn. De richting daarna staat in `visie.md` |
 
 De volledige originelen staan in de git-historie (laatste versie: de commit vóór de
