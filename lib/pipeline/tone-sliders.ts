@@ -1,8 +1,8 @@
 /**
  * Tone-of-voice-schuiven vertalen naar prompttaal (migratie 0045).
  *
- * Vier schuiven, 1-3, naar het voorbeeld van InSpace Nova's "Voice"-stap
- * (`docs/tasks/nova-analyse.md` §3.3: formality, energy, complexity, humor).
+ * Vier schuiven, 1-3, naar het voorbeeld van InSpace Nova's "Voice"-stap:
+ * formality, energy, complexity, humor.
  * Waarom niet gewoon "3" naar het model sturen: een cijfer zonder context is
  * een gok voor een taalmodel, een woord ("informeel") is een instructie. Dit is
  * conventie 1 in zuivere vorm, het cijfer is de intentie van de klant, deze

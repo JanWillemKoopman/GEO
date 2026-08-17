@@ -11,7 +11,8 @@ import "server-only";
  *
  * ── WAT ER NIET WORDT OPGEHAALD ─────────────────────────────────────────────
  *
- * Geen zoekopdrachten (nog niet: fase 2 van `docs/tasks/zoekdata-koppeling.md`),
+ * Geen zoekopdrachten (nog niet, dat is een tweede tabel waard zodra ze echt
+ * gebruikt worden),
  * geen apparaten, geen landen. Alleen pagina's per dag, want de vraag die dit
  * product stelt is "doet de pagina die ORBIT ENGINE schreef iets".
  */

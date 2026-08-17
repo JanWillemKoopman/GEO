@@ -13,7 +13,7 @@ import "server-only";
  * loopt over deze controle, en dus kon precies de persoon voor wie het product
  * bedoeld is niets bevestigen, niets laten schrijven en niets goedkeuren.
  *
- * Dat is P2 uit `docs/tasks/lanceerplan.md`: twee functies die hetzelfde zouden
+ * Dat is P2 (`docs/logbook.md`): twee functies die hetzelfde zouden
  * moeten doen, drijven uit elkaar. De reparatie van die dag was de tweede
  * functie bijwerken. Dit bestand is de reparatie van de oorzaak: de drie lagen
  * staan nu één keer, en een vierde laag verandert één plek.

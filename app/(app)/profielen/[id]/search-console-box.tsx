@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useToast } from "@/components/toast";
 
 /**
- * Google Search Console koppelen (fase 5, `docs/tasks/zoekdata-koppeling.md`).
+ * Google Search Console koppelen (fase 5, migratie 0052).
  *
  * ── DIT IS HET EERSTE DAT ORBIT ENGINE ÉCHT VAN DE KLANT VRAAGT ─────────────────────
  *

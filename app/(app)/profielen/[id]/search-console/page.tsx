@@ -22,7 +22,7 @@ export async function generateMetadata({
 }
 
 /**
- * Zoekdata uit Google koppelen (fase 5, `docs/tasks/zoekdata-koppeling.md`).
+ * Zoekdata uit Google koppelen (fase 5, migratie 0052).
  *
  * Besluit 4: AI-zichtbaarheid is het verhaal, Google is het bewijsstuk. Eigen
  * subpagina sinds de herstructurering van augustus 2026: koppelen is een

@@ -1,14 +1,10 @@
 # Roadmap, wat er nog open staat
 
-Op volgorde. **Stand: 13 augustus 2026**, 1201 unittests + 160 ketentests groen, migraties t/m
-`0057` toegepast (`0033` gereserveerd, nooit gedraaid, vervangen door `0039`). De punten hieronder
+Op volgorde. **Stand: 17 augustus 2026**, 1257 unittests + 160 ketentests groen, migraties t/m
+`0059` toegepast (`0033` gereserveerd, nooit gedraaid, vervangen door `0039`). De punten hieronder
 zelf zijn niet allemaal opnieuw doorgelopen sinds 11 augustus; alleen de teller en de nieuwe regel
 bij "Afgerond sinds de vorige stand" zijn bijgewerkt. Voor wat er sindsdien is gebouwd (de
 potentiescore), zie `potentiescore.md` en `logbook.md`.
-
-> ⚠️ **Het pad naar de lancering staat in [`lanceerplan.md`](./lanceerplan.md), niet hier.** Dat
-> document heeft de zes testsporen (A tot en met F plus R), de afvinklijst voor het lanceerbesluit en
-> de tweeweekse planning. Wat hieronder staat is het oudere werk. **Lees het lanceerplan eerst.**
 
 > ⚠️ **Het achtfasenplan uit `Nova.md` is afgebouwd** (fundament, merk-werkruimte, rollen en
 > uitnodigingen, onboarding-wizard, contentplan, CSM-paneel, Search Console, de lus sluiten,
@@ -18,7 +14,7 @@ potentiescore), zie `potentiescore.md` en `logbook.md`.
 >
 > **De richting nu staat in [`../visie.md`](../visie.md).** Dat document is een bestemming, geen
 > bouwopdracht: het beschrijft waar ORBIT ENGINE naartoe groeit, niet wat er als eerstvolgende al
-> gepland staat. Voor dat laatste blijft dit bestand en `lanceerplan.md` leidend.
+> gepland staat. Voor dat laatste is dit bestand leidend.
 >
 > ⚠️ Twee dingen die in oudere alinea's hieronder nog wél genoemd worden, zijn geschrapt en géén
 > werk meer: **meertaligheid** (besluit 13) en de **donkere modus** (besluit 17).
@@ -78,10 +74,10 @@ parameterfout. Wat daarmee is afgetekend:
 
 Wat nog openstaat:
 
-1. **De MEETRONDE is nog niet nagerekend** op GPT-5.6. De cijfers hierboven gaan over de
-   onboarding; de schatting van ~$0,40 per meetronde (was $0,82) komt nog steeds uit de
-   gepubliceerde tarieven. Let specifiek op de zoekactie-tokens: die worden op een redeneermodel
-   wél als input afgerekend en waren op de oude preview gratis.
+1. ~~De MEETRONDE is nog niet nagerekend op GPT-5.6.~~ **Gedaan op 17 augustus 2026.** De schatting
+   van ~$0,40 was ruim twee keer te laag: over de 13 meetrondes in `ai_calls` is het gemiddelde
+   **$0,855** (laagste $0,50, hoogste $1,56). De verdeling is schever dan gedacht, `measure_simulate`
+   is 98,8% en `measure_mention` 1,2%. Cijfers en onderbouwing in `architecture.md` §6.
 2. **`npm run eval:mention -- --compare`**, de classificatie draait op een ánder model dan waarop
    de mention-prompt is afgeregeld. Drempel 90%.
 3. **Doorlooptijd van één `content_draft` meten.** De effort staat op `medium` en niet op `high`
@@ -115,11 +111,25 @@ zonder productfeed.
 
 ## 4. R6.3, brontype als signaal (1,5 d)
 
-Volledige bouwspec: [`r6-inventaris-en-bronnen.md`](./r6-inventaris-en-bronnen.md). R6.2 is
-gebouwd als fase 0 van de onboarding.
+R6.2 is gebouwd als fase 0 van de onboarding (`assessInventory()` in
+`lib/pipeline/inventory-quality.ts`, migratie `0039`). R6.3 staat nog open, en de volledige spec
+staat sinds 17 augustus 2026 hieronder in plaats van in een eigen bestand.
 
-Bij Fysi-Unique zijn 8 van de 10 meest geciteerde bronnen homepages. Dan is "schrijf een lange
-blogpagina" waarschijnlijk het verkeerde advies.
+**Het probleem.** Bij Fysi-Unique zijn 8 van de 10 meest geciteerde bronnen **homepages**, geen
+inhoudelijke pagina's. Citeert de AI het bedrijf zelf en niet een diepe contentpagina, dan is
+"schrijf een lange blogpagina" waarschijnlijk het verkeerde advies.
+
+**Bestanden:** `lib/offsite/domain.ts` (of een nieuw `lib/pipeline/source-type.ts`),
+`lib/pipeline/report.ts`, `lib/pipeline/source-analysis.ts`.
+
+**Implementatie**
+
+1. Classificeer elke geciteerde bron in code: homepage (leeg pad of `/`), inhoudelijke pagina
+   (dieper pad), of platform en overzicht.
+2. Bereken per analyse de verhouding en geef die mee aan het rapport.
+3. Laat het rapport erop sturen: overwegend homepages betekent dat het advies richting
+   entiteitsherkenning, vindbaarheid en off-site aanwezigheid gaat. Overwegend inhoudelijke
+   pagina's betekent dat diepe content wél het middel is.
 
 ## 5. Search Console koppelen: GEBOUWD op 11 augustus, wacht nu op de Google-sleutel
 
@@ -130,8 +140,8 @@ dit document bij **"Fase 5, wat er wacht op de Google-sleutel"**, en `logbook.md
 11 augustus). Wat volgt is de oorspronkelijke onderzoeksvraag, met historische waarde voor het
 "waarom zo", niet meer als openstaand werk.
 
-Volledig onderzoek, ontwerp en verificatiecriteria:
-[`zoekdata-koppeling.md`](./zoekdata-koppeling.md). Uitgezocht op 6 augustus 2026.
+Het onderzoeksdocument is 17 augustus 2026 verwijderd: de koppeling is gebouwd en de twee regels
+die eruit kwamen staan nu in `lib/search-console/window.ts` zelf.
 
 De korte versie: InSpace koppelt bij Nova de Search Console van de klant via een service account dat
 de klant zelf als gebruiker aan zijn property toevoegt, niet via OAuth, en dat draagt hun hele
@@ -147,9 +157,9 @@ meten heeft dus nog nooit met echte data gedraaid, zie Fase 6 verderop in dit do
 
 ## 6. De tien dingen uit Nova die ORBIT ENGINE beter maken (~4 d)
 
-Volledige ontleding van de InSpace-apps, met IA, functiematrix, statusmachines, flows en 44
-detailvondsten: [`nova-analyse.md`](./nova-analyse.md). Gereconstrueerd uit 2.447 letterlijke
-interfaceteksten die beide apps publiek in hun inlogpagina zetten.
+De ontleding van de InSpace-apps (IA, functiematrix, statusmachines, flows, 44 detailvondsten,
+gereconstrueerd uit 2.447 letterlijke interfaceteksten) is samengevat in `logbook.md` §29 en §30.
+Het losse analysedocument is 17 augustus 2026 verwijderd, de conclusies zijn gebouwd.
 
 Voorstel was één ronde van vijf punten, in deze volgorde: statustaal in twee lagen (een leesbare
 staat naast de technische, "Wacht op jou" tegenover `briefing`), lege staten die de oorzaak noemen
@@ -172,7 +182,8 @@ is gaf de klant meer knoppen; wat bleef geeft hem meer duidelijkheid.
 
 ## 7. Blijvend uitgesteld: R0, Fundament (8 d)
 
-Volledige bouwspec per stap: [`r0-fundament.md`](./r0-fundament.md).
+De losse bouwspec is 17 augustus 2026 verwijderd: nul codebestanden verwezen ernaar en de zes
+stappen zijn nooit gebouwd. Wat eronder stond, staat hier.
 
 Hygiëne die in de praktijk niets blokkeerde; R4 bleek prima te bouwen zonder R0.5. Zes stappen:
 `existingUrl`-conventie afdwingen · volumekalibratie normaliseren · clusters bruikbaar maken ·
@@ -242,10 +253,12 @@ een lijst.
 
 ## Het lanceerplan
 
-> **Vóór de lancering en de eerste echte klant geldt [`lanceerplan.md`](./lanceerplan.md).** Dat
-> document toetst in vijf sporen of alles werkt, of er niets gebroken is, en of elk scherm de vijf
-> eigenschappen haalt die "InSpace-kwaliteit" toetsbaar maken. Inclusief de afvinklijst waarmee het
-> lanceerbesluit genomen wordt.
+Het losse lanceerplan van 11 augustus is op 17 augustus 2026 verwijderd: de sporen zijn afgelopen
+en de tweeweekse planning was verstreken. Wat blijvend geldt zijn de twee kwaliteitslatten,
+**K1 t/m K5** (elke toestand een eigen scherm, elke foutmelding specifiek, de taal zegt wie aan zet
+is, onomkeerbaar vooraf benoemd, bulk eerlijk over half succes) en **P1 t/m P7** (geen stille fout,
+geen tweelingen, kosten met een plafond, waarneembaar bij storing, herstelbaar, grenzen getest).
+Beide staan voluit in `docs/logbook.md`, en twaalf codebestanden verwijzen ernaar.
 
 ## Wat er nog open staat, en waarop het wacht
 

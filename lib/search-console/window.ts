@@ -3,7 +3,7 @@
  *
  * ── DE TWEE REGELS DIE ALLES BEPALEN ────────────────────────────────────────
  *
- * Uitgezocht in `docs/tasks/zoekdata-koppeling.md` §2:
+ * Uitgezocht bij het bouwen van de koppeling (migratie 0052):
  *
  * 1. **Definitieve cijfers lopen ongeveer twee dagen achter.** Google corrigeert
  *    de dagen daarvóór nog na. Wie gisteren als bewijs gebruikt, meet ruis.

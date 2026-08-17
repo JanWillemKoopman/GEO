@@ -11,7 +11,7 @@
  * opblazen als een klant die alle knoppen indrukt. Besluit 18 haalde de ene
  * risicobron weg en liet de andere staan.
  *
- * De aanleiding staat in `docs/tasks/lanceerplan.md` §0b als P3: er was tot 11
+ * De aanleiding staat in `docs/logbook.md` als P3: er was tot 11
  * augustus 2026 precies één plafond in de hele app, en dat gold alleen de
  * onboarding van één merk ($2,15, `lib/pipeline/onboarding-budget.ts`). Alles
  * daarna, de metingen, het schrijven, het herschrijven, kon ongelimiteerd
@@ -119,7 +119,7 @@ function round2(n: number): number {
  * `spentUsd` is wat er in de periode al staat, `limitEur` het plafond. De
  * vergelijking is `>=`, niet `>`: staat er precies het plafond op, dan is het op.
  *
- * De melding noemt drie dingen, en alle drie met opzet (K2 uit het lanceerplan,
+ * De melding noemt drie dingen, en alle drie met opzet (K2, zie `docs/logbook.md`,
  * elke foutmelding is specifiek): het bedrag dat er staat, het plafond, en waar
  * je het verhoogt. Een blokkade zonder die derde zin is een doodlopende weg.
  */

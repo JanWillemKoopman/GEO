@@ -296,7 +296,45 @@ Gebruik deze, nooit een eigen tint of een eigen maat.
 | Hun lichte paars als solide vlak | **Nee** | Haalt de contrastdrempel niet, zie §2.3 |
 | Licht- en donkerparen | **Nee, nog niet** | Zie §10 |
 | Hun negen radii | **Nee** | Zes volstaan |
-| Zijbalknavigatie, klantkiezer, toasts | **Nee** | Dat is indeling, geen vormgeving. Zie `tasks/nova-analyse.md` |
+| Zijbalknavigatie, klantkiezer, toasts | **Nee** | Dat is indeling, geen vormgeving, en het hoort dus in `ux-design.md` |
+
+---
+
+## 9b. Het open ontwerpbesluit: dit systeem is van de concurrent
+
+**Vastgelegd 17 augustus 2026. Nog geen besluit genomen, en dat is precies het punt.**
+
+Alles in dit document is afgeleid van de werkomgeving van InSpace Nova. Dat staat in §1 als de
+bewuste keuze die het was, en het heeft goed werk geleverd: de app oogt als software in plaats van
+als een landingspagina. Maar er is sindsdien iets veranderd wat die keuze onder spanning zet.
+
+`docs/merkstrategie.md` beschrijft Outer Orbit als **toonaangevend**, een merk dat de status quo
+uitdaagt en bouwt wat nog niet bestaat. §15.4 daarvan verbiedt met zoveel woorden de "neonpaarse
+AI-gloed", en §16 vraagt om neutral-first met kleur die betekenis draagt.
+
+**Twee van die drie zijn geen probleem.** De app ís al neutral-first (`#f8fafc` grond, `#17212b`
+tekst), en kleur draagt hier al betekenis in plaats van een naam (§2). De gloed en de gradient zijn
+allebei al teruggebracht tot één plek elk: de grafiekband en het woordmerk.
+
+**Wat wél botst is de herkomst.** Zolang de tokens, de radiusschaal, de randdiktes en de ene
+schaduw letterlijk uit het product van de concurrent komen, werkt de vormgeving tegen het verhaal
+dat de verkoop vertelt. Dat is nooit als besluit genomen. Het is geslopen: van een praktische keuze
+op 6 augustus naar het fundament van het hele uiterlijk.
+
+**Wat er nodig is om het op te lossen**, in deze volgorde:
+
+1. **Een uitspraak van de eigenaar** of het uiterlijk eigen moet worden. Zonder die uitspraak bakt
+   elke volgende UI-wijziging de afgeleide verder in.
+2. **Als het antwoord ja is: een eigen merklaag, geen herbouw.** Het fundament klopt. Wat eraan
+   vastzit is de merkkleur (het paars `#8511d9`, het groen, de gradient) en de vormtaal. Dat is
+   werk in `app/globals.css` en dit document, niet in de componenten, juist omdat regel 1 van §8
+   ("een kleur heeft een betekenis, geen naam") consequent is toegepast.
+3. **Wat ontbreekt om het te kúnnen doen:** er is geen logo, geen vastgesteld kleurenpalet en geen
+   typografiekeuze van Outer Orbit zelf. `merkstrategie.md` §27 vraagt daar zelf om, met een lijst
+   van veertig merkassets. Zolang die er niet zijn, is er niets om het door te vervangen.
+
+**Tot dat besluit valt, blijft dit document leidend voor de app.** Wat hier staat beschrijft wat er
+werkelijk in `globals.css` staat, en dat is de enige bruikbare waarheid voor wie een scherm bouwt.
 
 ---
 
@@ -407,6 +445,6 @@ modus komt, volgt hij de Nova-werkomgeving uit §10, niet dit paneel.
 
 - **Primair:** de CSS- en i18n-bundels van `nova.inspace.io` en `app.inspace.io`, opgehaald op
   6 augustus 2026. De `--ds-*`-tokens, de radiusschaal, de randdiktes en de ene schaduw komen daar
-  letterlijk uit. De volledige ontleding van die apps staat in [`tasks/nova-analyse.md`](./tasks/nova-analyse.md)
+  letterlijk uit. De volledige ontleding van die apps is samengevat in `logbook.md` §29 en §30
 - **Historisch (bijlage A):** `inspace.io` homepage plus inline stijlblokken, `main-*.css` en
   `inspace-navbar.css`, juli 2026

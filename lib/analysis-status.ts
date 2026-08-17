@@ -4,8 +4,8 @@ export type StatusTone = "attention" | "progress" | "info" | "success" | "error"
 
 /**
  * Bij wie de bal ligt (A.1, naar Nova's tweelaags-statustaal: een technische
- * staat naast een leesbare "Waiting in your CMS" / "Waiting for you",
- * `docs/tasks/nova-analyse.md` §3.2). De technische status (`AnalysisStatus`)
+ * staat naast een leesbare "Waiting in your CMS" of "Waiting for you").
+ * De technische status (`AnalysisStatus`)
  * blijft de bron van waarheid; dit is de vertaling ernaast, niet in de plaats
  * ervan. `null` = niemand hoeft iets, de staat is af of informatief.
  */

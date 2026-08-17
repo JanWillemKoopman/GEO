@@ -46,7 +46,7 @@ export const EDITABLE_PROFILE_FIELDS = [
   "market_language",
   "sitemap_url",
   // Migratie 0045, naar het voorbeeld van InSpace Nova's onboardingstappen
-  // "Words & language", "Voice" en "Author" (docs/tasks/nova-analyse.md §3.3).
+  // "Words & language", "Voice" en "Author".
   "taboo_phrases",
   "compliance_notes",
   "author_name",

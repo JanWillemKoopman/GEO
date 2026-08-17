@@ -3,7 +3,7 @@
  *
  * ── WAAROM DIT GEEN AI-AANROEP IS ───────────────────────────────────────────
  *
- * Dit is precies het soort werk dat `APP_FLOW_DOCUMENTATION.md` §"Bewust géén
+ * Dit is precies het soort werk dat `docs/architecture.md` §6 "Bewust géén
  * AI" beschrijft: een model vragen wat het adres van een bedrijf is terwijl dat
  * letterlijk als `LocalBusiness.address` in de HTML staat, is geld uitgeven aan
  * een slechter antwoord. Een reguliere expressie leest het exact, gratis, en

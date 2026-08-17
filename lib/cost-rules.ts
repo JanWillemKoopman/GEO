@@ -21,7 +21,7 @@ export type CostlyAction =
 /**
  * De melding die de klant ziet als hij het tóch probeert.
  *
- * Per handeling een eigen zin (K2 uit `docs/tasks/lanceerplan.md`: elke
+ * Per handeling een eigen zin (K2 uit `docs/logbook.md`: elke
  * foutmelding is specifiek). "Geen toegang" zou hier het verkeerde beeld geven:
  * hij mág het zien, het is geen fout van hem, en het is simpelweg werk dat de
  * consultant in gang zet. Elke zin zegt daarom wát er gebeurt en bij wie hij

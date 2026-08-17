@@ -5,8 +5,11 @@ Voor hoe het werkt: `architecture.md`. Voor wat er nog moet: `tasks/roadmap.md`.
 
 ## Verwijzingen uit code naar oude documenten
 
-Code-commentaar en migraties verwijzen op ~500 plekken naar documenten die in dit logboek zijn
-opgegaan. Vertaaltabel:
+Code-commentaar en migraties verwijzen op **556 plekken** (geteld op 17 augustus 2026) naar
+documenten die niet meer bestaan. Die verwijzingen blijven bewust staan: ze dragen het waarom van
+een keuze, en dat waarom verdwijnt niet met het bestand. Deze tabel vertelt waar je in plaats
+daarvan moet kijken. **Voeg hier een regel toe zodra je een document verwijdert**, anders wijst een
+verwijzing in de code straks nergens meer heen.
 
 | Verwijzing in code | Wat het was | Nu |
 |---|---|---|
@@ -14,13 +17,57 @@ opgegaan. Vertaaltabel:
 | `implementatieplan.md` R0–R8, S1–S8 | Het werkdocument met de stappen | §5–§8 hieronder |
 | `abcplan.md` §2/§5/§10/§12 | Het oorspronkelijke MVP-bouwplan + 32 vastgelegde keuzes | §2 hieronder + `architecture.md` |
 | `contentbriefing.md` | De specificatie waarop R5 gebouwd is | §6 hieronder |
-| `kwaliteitsanalyse-*.md`, `praktijktest-udenhout.md`, `strategie-contentkwaliteit-vervolgstappen.md` | De doorlichtingen | §4, §6, §8 hieronder |
+| `kwaliteitsanalyse-5-testcases.md`, `praktijktest-udenhout.md`, `strategie-contentkwaliteit-vervolgstappen.md` | De doorlichtingen | §4, §6, §8 hieronder |
 | `designsystem.md`, `ux-*.md` | Design system en UX-analyses | `ux-design.md` |
 | `SETUP.md` | Installatie en deploy | `architecture.md` §8–§9 |
+| `onboarding-2.0.md` blok A t/m E | De bouwspec van de nieuwe onboarding: klantkoppeling (A), de onderzoeksfases (B), gespreksuitkomst (C), core topics (D) | §14 hieronder. Gebouwd en verwijderd; de fases zelf staan als taaksoorten in `lib/jobs/types.ts` |
+| `inspace-optimalisaties-1-4.md` 1 t/m 4 | Vier losse verbeteringen uit de InSpace-analyse | Alle vier gebouwd, elk met een eigen module: 1 = structuurgat (`lib/pipeline/structure-gap.ts`), 2 = JSON-LD per pagina (`lib/schema-jsonld.ts`), 3 = duplicatiecontrole (`lib/pipeline/similarity.ts`), 4 = leesbaarheid (`lib/pipeline/readability.ts`) |
+| `status-doorontwikkeling.md` §2.1/§2.3/§2.4 | De doorlichting die de kernconventies opleverde | Code-conventies 1 en 3 in `CLAUDE.md`: een promptinstructie is een intentie en code is een garantie, en onbekend is een betere waarde dan een verkeerde |
+| `contentkwaliteit-analyse.md` C3/C4/E1 | De analyse onder de redactielus van de contentronde | §6 en §7 hieronder |
+| `tasks/nova-analyse.md` §3.2/§3.3 | InSpace Nova ontleed uit 2.447 interfaceteksten: hun statusmachines (§3.2) en de velden van hun merkprofiel (§3.3) | §29 en §30 hieronder. Wat we ervan overnamen zit in migratie `0045` (tone-schuiven, verboden woorden, auteursvelden), `lib/analysis-status.ts` (de tweelaagse statustaal) en `lib/pipeline/version-reason.ts`. Verwijderd 17 augustus 2026 |
+| `tasks/zoekdata-koppeling.md` §0/§2 | Het onderzoek vóór de Search Console-koppeling: service account in plaats van OAuth, en het meetvenster van twee dagen | Gebouwd in fase 5 (migratie `0052`, `lib/search-console/`). De twee regels over naijlende cijfers staan nu in `lib/search-console/window.ts` zelf. Verwijderd 17 augustus 2026 |
+| `tasks/r0-fundament.md` R0.1 t/m R0.6 | Zes hygiënestappen die in de praktijk niets blokkeerden | Nooit gebouwd, bewust. Het enige punt dat telt staat in `tasks/roadmap.md`: R0.5 is de reden dat de fabrikanten die Bol verkoopt nog als concurrent meetellen. Verwijderd 17 augustus 2026 |
+| `tasks/r6-inventaris-en-bronnen.md` R6.2/R6.3 | De inventariskwaliteitspoort en het brontype als signaal | R6.2 is gebouwd als fase 0 van de onboarding (`lib/pipeline/inventory-quality.ts`, migratie `0039`). R6.3 staat nog open en de spec is verhuisd naar `tasks/roadmap.md` §4. Verwijderd 17 augustus 2026 |
+| `tasks/lanceerplan.md` K1-K5, P1-P7, F1-F5, D4/D7/D10, R6 | Het pad van "gebouwd" naar de eerste betalende klant: zes testsporen, twee kwaliteitslatten, een tweeweekse planning | **De twee latten staan hieronder als eigen sectie**, want twaalf codebestanden noemen ze bij naam. De sporen en de planning zijn ingehaald: F1 (budgetplafond) is migratie `0053`, F4/P5 (klant verwijderen) is `lib/deletion.ts`, D4/D7/D10 (wedstrijdcondities) zijn af. Verwijderd 17 augustus 2026 |
 | `Nova.md` | InSpace Nova gereconstrueerd, de gap-analyse en het achtfasenbouwplan dat daaruit volgde | Bouwplan afgebouwd, zie de secties hieronder per fase. Zelf verwijderd op 17 augustus 2026, de citaten die er verderop in dit logboek nog naar verwijzen zijn historisch en blijven staan zoals ze geschreven zijn. De richting daarna staat in `visie.md` |
 
 De volledige originelen staan in de git-historie (laatste versie: de commit vóór de
 documentatie-herstructurering).
+
+## De twee kwaliteitslatten: K1 t/m K5 en P1 t/m P7
+
+**Geen geschiedenis maar woordenschat.** Twaalf codebestanden en `scripts/test-unit.ts` verwijzen
+naar deze codes bij naam ("K2 uit het lanceerplan", "P2: geen tweelingen"). Ze komen uit
+`tasks/lanceerplan.md`, dat op 17 augustus 2026 is verwijderd toen de lancering was ingehaald door
+de gebeurtenissen. De latten zelf gelden nog steeds, dus staan ze hier.
+
+**Lat 1, K1 t/m K5: het moment waarop software vertrouwen wint of verliest.** Afgeleid uit het
+berichtenbestand van InSpace Nova, alle vijf te controleren zonder hun product te zien.
+
+| # | Eigenschap | Hoe je hem toetst |
+|---|---|---|
+| **K1** | Elke toestand heeft een eigen scherm. Leeg is geen afwezigheid maar een boodschap | Zet het scherm in elke toestand die kan bestaan. Staat er iets, en klopt het? |
+| **K2** | Elke foutmelding is specifiek. Nooit "er ging iets mis" | Forceer elke fout. Zegt de melding wát er mis is en wie het kan oplossen? |
+| **K3** | De taal zegt wie aan zet is, naast de technische status | Staat er bij elke wachtende toestand wie er iets moet doen? |
+| **K4** | Onomkeerbaar wordt vooraf benoemd, in een eigen blok en niet als zin in een alinea | Elke handeling die niet terug kan: staat de waarschuwing er, en apart? |
+| **K5** | Bulk is eerlijk over gedeeltelijk succes | Laat een bulkactie half mislukken. Wordt dat eerlijk gemeld? |
+
+**Lat 2, P1 t/m P7: kan dit een maand draaien met echte klanten en echt geld.** Niet afgeleid van
+Nova maar uit eigen oordeel.
+
+| # | Eigenschap |
+|---|---|
+| **P1** | Geen stille fout. Elke `catch` die slikt en elke `?? null` die een storing als "leeg" toont, is een fout die je maanden later pas ontdekt |
+| **P2** | Eén waarheid, geen tweeling. Twee functies die hetzelfde zouden moeten doen, drijven uit elkaar. `getOwnedProfile` en `getOwnedAnalysis` deden dat precies zo |
+| **P3** | Kosten hebben een plafond. Geen enkel pad waarlangs iemand ongelimiteerd geld kan uitgeven. Gebouwd als besluit 18, migratie `0053` |
+| **P4** | Waarneembaar bij storing. Als het om drie uur 's nachts breekt, zie je dat dan |
+| **P5** | Herstelbaar. Backups, en een klant volledig kunnen verwijderen. Gebouwd, zie `lib/deletion.ts` |
+| **P6** | Grenzen getest. Nul onderwerpen, 150 pagina's, een merknaam van 200 tekens |
+| **P7** | ~~Geen wedstrijdcondities.~~ Afgerond |
+
+Waar deze codes in de code staan: `lib/access.ts` en `lib/spend-limit.ts` (P2), `lib/cost-guard.ts`
+(P2), `lib/spend-rules.ts` en `lib/spend-limit.ts` (P3, K2), `lib/search-console/key-state.ts` (P1),
+`lib/deletion.ts` en `lib/deletion-rules.ts` (P5, K4), `lib/cost-rules.ts` (K2).
 
 ## 1. Het product
 
