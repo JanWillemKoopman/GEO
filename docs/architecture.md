@@ -3,7 +3,9 @@
 Backend, Supabase, pijplijn en deploy. Voor het *waarom* achter een keuze: `logbook.md`.
 Voor UI/UX: `ux-design.md`.
 
-> **Geverifieerd tegen de code op 13 augustus 2026** (branch `main`, t/m migratie `0057`),
+> **Geverifieerd tegen de code op 13 augustus 2026** (branch `main`, t/m migratie `0057`).
+> **Migraties `0058` en `0059` zijn er sindsdien bijgekomen** en staan wél in §12 en in dit
+> document verwerkt, maar de rest is niet opnieuw regel voor regel nagelopen. Verder geldt:
 > plus de eind-tot-eind-ronde van 1 augustus (`logbook.md` §10) en de eerste echte
 > onboarding op productie van 3 augustus (`logbook.md`, Fysi-Unique). Die laatste legde
 > zes fouten bloot in de samenhang tussen de onboardingstappen; alle zes zijn verwerkt.
@@ -574,7 +576,7 @@ Bewust **niet** in RLS: dat zou een gearchiveerd merk ook voor de eigenaar onber
 
 ## 12. Migraties
 
-`0001` t/m `0057`, alle toegepast op productie behalve `0033` (gereserveerd voor R6.2, nooit
+`0001` t/m `0059`, alle toegepast op productie behalve `0033` (gereserveerd voor R6.2, nooit
 gedraaid, de reservering verviel toen `0039` de inventariskwaliteit fase 0 van de nieuwe
 onboarding maakte; een gereserveerd nummer dat nooit draaide blokkeert niets).
 

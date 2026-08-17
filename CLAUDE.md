@@ -181,7 +181,7 @@ scripts/           test-unit · test-chain · test-openai · eval-mention
 | `docs/architecture.md` | Datamodel, RLS, jobwachtrij, pijplijn per stap, alle AI-calls, env, deploy, cron |
 | `docs/ux-design.md` | Design tokens, componentregels, responsive-strategie, loading/error/lege states |
 | `docs/designsystem.md` | Bronanalyse van de live inspace.io-CSS: waar elke kleur, radius en gloed vandaan komt |
-| `docs/schrijfstijl.md` | Tone-of-voice en microcopy: de tien richtlijnen, de woordenlijst, en wat we bewust níet van Nova overnemen |
+| `docs/schrijfstijl.md` | Tone-of-voice en microcopy: de elf richtlijnen, de woordenlijst, en wat we bewust níet van Nova overnemen |
 | `docs/logbook.md` | Waarom het is zoals het is: beslissingen en bouwrondes, met de cijfers eronder |
 | `docs/visie.md` | **De richting, niet de huidige bouw.** ORBIT ENGINE als autonome groeimotor voor SEO én GEO, vastgelegd door Outer Orbit op 17 augustus 2026. Elke bewering daarin over doelgroep, omvang of autonomie is een bestemming, geen stand van zaken |
 | `docs/merkstrategie.md` | **Hoe het merk naar buiten klinkt en oogt**, bedoeld voor reclame- en communicatiebureaus: positionering, doelgroepen, personas, bezwaren, tone of voice, visuele richting, campagnes. Leidend voor marketing, níét voor UI-copy (dat blijft `schrijfstijl.md`) of vormgeving van de app (dat blijft `designsystem.md`). §30 daarin somt op waar het merkverhaal iets belooft dat de app nog niet doet |

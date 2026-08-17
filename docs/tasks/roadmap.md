@@ -1,7 +1,7 @@
 # Roadmap, wat er nog open staat
 
-Op volgorde. **Stand: 13 augustus 2026**, 1201 unittests + 160 ketentests groen, migraties t/m
-`0057` toegepast (`0033` gereserveerd, nooit gedraaid, vervangen door `0039`). De punten hieronder
+Op volgorde. **Stand: 17 augustus 2026**, 1257 unittests + 160 ketentests groen, migraties t/m
+`0059` toegepast (`0033` gereserveerd, nooit gedraaid, vervangen door `0039`). De punten hieronder
 zelf zijn niet allemaal opnieuw doorgelopen sinds 11 augustus; alleen de teller en de nieuwe regel
 bij "Afgerond sinds de vorige stand" zijn bijgewerkt. Voor wat er sindsdien is gebouwd (de
 potentiescore), zie `potentiescore.md` en `logbook.md`.
