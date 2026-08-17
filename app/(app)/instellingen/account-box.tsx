@@ -12,7 +12,7 @@ import type { Account } from "@/lib/types/database";
  *
  * ── WAT HIER WEL EN NIET IN ZIT ─────────────────────────────────────────────
  *
- * De velden komen uit de inventaris in `docs/Nova.md` §13.1: wat InSpace in hun
+ * De velden komen uit de veldeninventaris (migratie 0046): wat InSpace in hun
  * onboarding uitvraagt, vertaald naar ORBIT ENGINE. Ze staan hier en niet in de
  * merkwizard, want ze horen bij het bedrijf en niet bij één website: een bureau
  * met vijf merken factureert één keer (besluit 9).

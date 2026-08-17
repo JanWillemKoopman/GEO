@@ -5,7 +5,7 @@ import "server-only";
  *
  * ── WAAROM DIT ER MOEST KOMEN ───────────────────────────────────────────────
  *
- * Besluit 1 (`docs/Nova.md` §0): je kiest bovenin een merk, en daarna gaat de
+ * Besluit 1: je kiest bovenin een merk, en daarna gaat de
  * hele app over dat merk. Dat is Nova's model, en het is de reden dat hun app
  * met twintig klanten nog te overzien is: er is altijd precies één context, en
  * elk scherm hoort erbij.

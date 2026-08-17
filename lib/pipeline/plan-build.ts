@@ -8,7 +8,7 @@
  * hier gebeurt is het rekenwerk eromheen: hoeveel pagina's per maand, van welk
  * type, in welke funnelfase, en op welke datum.
  *
- * Dat onderscheid volgt uit de analyse in `docs/Nova.md` §11.1. Nova laat een
+ * Dat onderscheid volgt uit de analyse van Nova's eigen aanpak. Nova laat een
  * agent het hele plan opstellen; ORBIT ENGINE heeft de bedenkkant al staan en had alleen
  * de verdeling nog niet. Dat scheelt een zware AI-stap (conventie 7: één taak is
  * hooguit één zware aanroep, en deze taak heeft er nul nodig).

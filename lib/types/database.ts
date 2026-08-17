@@ -127,7 +127,7 @@ export type AccountRole = "admin" | "member";
 /**
  * Het account: de klant of het bureau (migratie 0046).
  *
- * De facturatievelden komen uit de veldeninventaris (`docs/Nova.md` §13.1),
+ * De facturatievelden komen uit de veldeninventaris (migratie 0046),
  * overgenomen van wat InSpace in hun onboarding uitvraagt. Allemaal nullable:
  * een account bestaat zodra er een merk aan hangt, de gegevens komen pas bij de
  * verkoop (conventie 3).
@@ -354,7 +354,7 @@ export interface Profile {
   tone_humor: 1 | 2 | 3 | null;
   /**
    * Het merkprofiel compleet (migratie 0048). De laatste dertien velden uit de
-   * inventaris in `docs/Nova.md` §13: wat InSpace uitvraagt en ORBIT ENGINE nog niet
+   * inventaris: wat InSpace uitvraagt en ORBIT ENGINE nog niet
    * had. Alles wat al een eigenaar had staat er bewust niet nóg een keer bij;
    * de vertaaltabel staat bovenaan die migratie.
    */

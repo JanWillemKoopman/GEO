@@ -3,7 +3,7 @@
  *
  * ── HET PROBLEEM DAT DIT OPLOST ─────────────────────────────────────────────
  *
- * `docs/Nova.md` §7 fase 6: adviezen zitten nu verspreid over het rapport
+ * Fase 6, "de lus sluiten" (`docs/logbook.md`): adviezen zitten nu verspreid over het rapport
  * (`gaps_json`, `recommendations_json`), de onderwerpenlijst en de technische
  * audit. Elk van die drie is op zichzelf begrijpelijk, maar samen beantwoorden
  * ze de enige vraag die de klant echt stelt niet: waar begin ik.

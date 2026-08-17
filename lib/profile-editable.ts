@@ -57,8 +57,8 @@ export const EDITABLE_PROFILE_FIELDS = [
   "tone_energy",
   "tone_complexity",
   "tone_humor",
-  // Migratie 0048: de laatste dertien velden uit de veldeninventaris
-  // (docs/Nova.md §13).
+  // Migratie 0048: de laatste dertien velden uit de veldeninventaris,
+  // de vertaaltabel staat bovenaan die migratie.
   "brand_mission",
   "brand_positioning",
   "usp",

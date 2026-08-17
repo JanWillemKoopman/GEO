@@ -26,7 +26,7 @@ const POTENTIAL_CHIP_TONE: Record<ReturnType<typeof potentialBand>, string> = {
 /**
  * Drie zinnen bovenaan: wat er gebeurde, wat dat betekent, wat nu.
  *
- * Geen kop met een getal erin en geen grafiek. `docs/Nova.md` §7 fase 6 vraagt
+ * Geen kop met een getal erin en geen grafiek. Fase 6 ("de lus sluiten") vroeg
  * om "drie zinnen die zeggen wat er deze maand gebeurde en wat de volgende stap
  * is", en dat is precies zoveel als iemand leest voordat hij doorklikt.
  */

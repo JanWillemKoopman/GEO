@@ -12,7 +12,7 @@
  *
  * ── WAT ER NU BIJ KOMT ──────────────────────────────────────────────────────
  *
- * Besluit 1 (`docs/Nova.md` §0) maakt van de app een merk-werkruimte: je kiest
+ * Besluit 1 maakt van de app een merk-werkruimte: je kiest
  * bovenin een merk en daarna gaat alles over dát merk. Daarmee vallen de
  * bestemmingen in twee soorten uiteen:
  *

@@ -3,7 +3,7 @@
  *
  * ── WAAROM DIT GEEN AI-AANROEP IS ───────────────────────────────────────────
  *
- * `docs/Nova.md` §7 fase 6 noemt dit "Nova insights". De verleiding is om er een
+ * Nova noemt dit zelf "Nova insights". De verleiding is om er een
  * model op te zetten, maar de drie zinnen die ertoe doen volgen rechtstreeks uit
  * cijfers die er al staan: is de score veranderd, is dat verschil groter dan de
  * ruis, en wat ligt er open. Een model zou daar taal omheen verzinnen en soms

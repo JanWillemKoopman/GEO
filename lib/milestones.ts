@@ -3,7 +3,7 @@
  *
  * ── WAAROM DIT GEEN LEUK EXTRAATJE IS ───────────────────────────────────────
  *
- * `docs/Nova.md` §1.1: Nova's `analytics.milestones.growingSince` ("Growing with
+ * Nova's `analytics.milestones.growingSince` ("Growing with
  * NOVA since") maakt van de lóóptijd zelf een prestatie. De les eronder is dat
  * een gereedschap wordt opgezegd zodra de gebruiker even geen tijd heeft, en een
  * programma dat loopt niet. Door besluit 7 (doorlopend opzegbaar) is dit blok

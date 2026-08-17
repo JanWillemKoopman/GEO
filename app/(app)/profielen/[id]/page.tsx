@@ -128,9 +128,9 @@ export default async function ProfilePage({
       <ProfileHero brandName={merknaam} url={profile.url} headline={onboardingHeadline(samenvatting)} />
 
       {/* ── Wat dit tot nu toe opleverde ───────────────────────────────────
-          `docs/Nova.md` §5: door besluit 7 (doorlopend opzegbaar) is dit het
-          blok dat opzeggen tegenhoudt. Het staat daarom hoog en niet weggestopt
-          in een analysescherm. */}
+          Door besluit 7 (doorlopend opzegbaar) is dit het blok dat opzeggen
+          tegenhoudt. Het staat daarom hoog en niet weggestopt in een
+          analysescherm. */}
       <MilestonesBlock milestones={mijlpalen} />
 
       {/* ── Wat er deze maand gebeurde ─────────────────────────────────────

@@ -6,7 +6,7 @@ import "server-only";
  * ── WAAROM DEZE LAAG BESTAAT ────────────────────────────────────────────────
  *
  * `profiles` was de klant én de website tegelijk. Dat hield op te kloppen bij
- * drie besluiten van 10 augustus 2026 (`docs/Nova.md` §0): een klant kan een
+ * drie besluiten van 10 augustus 2026 (`docs/logbook.md`): een klant kan een
  * marketingbureau zijn met meerdere klanten (besluit 9), een klant kan meerdere
  * websites hebben (besluit 10), en er komen er ongeveer twintig in het eerste
  * jaar (besluit 11).

@@ -8,7 +8,7 @@ import { SCHRIJFVOORSPRONG_DAGEN } from "@/lib/plan-status";
 import type { AnalysisStatus, PageType, PlanMonthStatus } from "@/lib/types/database";
 
 /**
- * GET /api/cron/plan, de motor onder het contentplan (fase 4, `docs/Nova.md` §7).
+ * GET /api/cron/plan, de motor onder het contentplan (fase 4, zie `docs/logbook.md`).
  *
  * ── WAT DIT OPLOST ──────────────────────────────────────────────────────────
  *

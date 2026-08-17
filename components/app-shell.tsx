@@ -11,10 +11,10 @@ import type { User } from "@supabase/supabase-js";
  *
  * ── WAAROM DIT VERANDERDE ───────────────────────────────────────────────────
  *
- * Het was een bovenbalk met twee bestemmingen. Besluit 1 (`docs/Nova.md` §0)
- * maakt van de app een merk-werkruimte, en dan komen er twee soorten navigatie
- * naast elkaar te staan: wat over dít merk gaat en wat over de app gaat. Dat
- * onderscheid past niet horizontaal. Zie `components/sidebar.tsx`.
+ * Het was een bovenbalk met twee bestemmingen. Besluit 1 maakt van de app een
+ * merk-werkruimte, en dan komen er twee soorten navigatie naast elkaar te
+ * staan: wat over dít merk gaat en wat over de app gaat. Dat onderscheid
+ * past niet horizontaal. Zie `components/sidebar.tsx`.
  *
  * De opbouw blijft server-side: dit component leest de werkruimte en geeft hem
  * door. Alleen het openklappen, zoeken en wisselen is client-werk, en dat zit in

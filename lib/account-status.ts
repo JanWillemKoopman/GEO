@@ -11,7 +11,7 @@ import type { Account } from "@/lib/types/database";
 /**
  * Loopt het abonnement nog?
  *
- * Besluit 14 (`docs/Nova.md` §0): opzeggen verwijdert niets en sluit niets af op
+ * Besluit 14: opzeggen verwijdert niets en sluit niets af op
  * de dag zelf. Tot `cancelled_at` verandert er niets aan wat de klant ziet;
  * daarna valt hij terug op een leesweergave met zijn cijfers erin. Dat is een
  * uitbreiding van het patroon dat `lib/archive.ts` al voor merken hanteert, en

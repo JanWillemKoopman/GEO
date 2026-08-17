@@ -3,7 +3,7 @@
  *
  * ── WAT NOVA HIER DOET, EN WAT ORBIT ENGINE ANDERS MOET ─────────────────────────────
  *
- * Nova heeft twee beheerschermen (`docs/Nova.md` §3.8): een klantentabel met
+ * Nova heeft twee beheerschermen: een klantentabel met
  * zeven segmenten die elk zeggen wát jij moet doen, en een CSM-overzicht met
  * vier KPI's onder de kop "where we are falling behind on generating and
  * posting client content". Het is nadrukkelijk een OPERATIONEEL scherm, geen
