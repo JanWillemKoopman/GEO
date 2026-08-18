@@ -86,6 +86,21 @@ import {
 } from "@/lib/library";
 import { kiesVoorBulk, bulkMelding } from "@/lib/plan-bulk";
 import { leesHerkomst, terugLink } from "@/lib/origin";
+import {
+  besteEnZwakste,
+  ctr as gscCtr,
+  dagenTussen,
+  gewogenPositie,
+  klikkenPerType,
+  normaliseerUrl,
+  perDag as perDagGsc,
+  perPagina as perPaginaGsc,
+  totalen as gscTotalen,
+  verschuif,
+  vergelijk,
+  vorigVenster,
+  type GscDag,
+} from "@/lib/search-console/metrics";
 
 import { splitSentences, stripMarkdown, firstSentences } from "@/lib/pipeline/sentences";
 import { extractHeadings, renderMarkdown } from "@/lib/markdown";
@@ -6272,6 +6287,185 @@ group("de herkomst uit de querystring", () => {
     terugLink("bibliotheek", "an-1", null).href === "/analyses/an-1/bibliotheek",
   );
   ok("het label zegt waar je heen gaat", terugLink("plan", "an-1", "merk-1").label === "Contentplan");
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+console.log("\nZoekverkeer uit Google (Analytics)");
+
+group("CTR en de gewogen positie", () => {
+  ok("600 van 5253 is 11,4%", Math.abs((gscCtr(600, 5253) ?? 0) - 0.11422) < 0.0001);
+  // ⚠️ Conventie 3. Nul vertoningen betekent dat de CTR ONBEKEND is, niet nul.
+  // Een pagina met 0 van 0 naast een pagina met 0 van 800 zetten en allebei
+  // "0%" noemen is de verkeerde conclusie bij de eerste.
+  ok("nul vertoningen geeft null en geen 0", gscCtr(0, 0) === null);
+  ok("nul klikken op echte vertoningen geeft wél 0", gscCtr(0, 800) === 0);
+
+  // De gemiddelde positie weegt op vertoningen, net als Google zelf. Een dag
+  // met 3 vertoningen op positie 1 en een met 300 op positie 40 is geen 20,5.
+  const rijen: GscDag[] = [
+    { day: "2026-08-01", page: "/a", clicks: 0, impressions: 3, position: 1 },
+    { day: "2026-08-01", page: "/b", clicks: 0, impressions: 300, position: 40 },
+  ];
+  const gewogen = gewogenPositie(rijen) ?? 0;
+  ok(`gewogen op vertoningen, niet op dagen (${gewogen.toFixed(2)})`, gewogen > 39 && gewogen < 40);
+  ok(
+    "een rij zonder positie telt in teller noch noemer",
+    gewogenPositie([
+      { day: "2026-08-01", page: "/a", clicks: 0, impressions: 100, position: null },
+      { day: "2026-08-01", page: "/b", clicks: 0, impressions: 100, position: 10 },
+    ]) === 10,
+  );
+  ok("niets te wegen geeft null", gewogenPositie([]) === null);
+});
+
+group("de vier kerncijfers over 15 juli tot 13 augustus", () => {
+  // ⚠️ DE VERIFICATIE UIT FASE 4 VAN docs/tasks/appstructuur.md. Op productie
+  // staan 91 rijen testdata over 4 pagina's en 30 dagen, goed voor 600 klikken
+  // en 5.253 vertoningen. Dit toetst de rekensom en de vorm, NIET de koppeling:
+  // het is testdata en geen klantdata, en de koppeling is pas geverifieerd als
+  // de Google-sleutel er is en er één echte synchronisatie gedraaid heeft
+  // (conventie 10).
+  const rijen: GscDag[] = [];
+  for (let i = 0; i < 30; i++) {
+    const dag = verschuif("2026-07-15", i);
+    rijen.push({ day: dag, page: "/a", clicks: 20, impressions: 175, position: 12 });
+    rijen.push({ day: dag, page: "/b", clicks: 0, impressions: 0.1 as number, position: null });
+  }
+  const t = gscTotalen(rijen.filter((r) => r.page === "/a"));
+  ok("600 klikken", t.clicks === 600);
+  ok("5.250 vertoningen", t.impressions === 5250);
+  ok("en de CTR volgt daaruit", Math.abs((t.ctr ?? 0) - 600 / 5250) < 1e-9);
+});
+
+group("het vorige, even lange venster", () => {
+  const venster = { start: "2026-08-01", eind: "2026-08-10" };
+  const vorige = vorigVenster(venster);
+  ok("het sluit direct aan", vorige.eind === "2026-07-31");
+  ok("en is even lang", dagenTussen(vorige.start, vorige.eind) === 10);
+  ok("dus start het op de 22e", vorige.start === "2026-07-22");
+  ok("beide grenzen tellen mee", dagenTussen("2026-08-01", "2026-08-01") === 1);
+
+  const rijen: GscDag[] = [
+    { day: "2026-08-05", page: "/a", clicks: 100, impressions: 1000, position: 10 },
+    { day: "2026-07-25", page: "/a", clicks: 60, impressions: 800, position: 14 },
+    // Buiten allebei de vensters: mag nergens in meetellen.
+    { day: "2026-06-01", page: "/a", clicks: 999, impressions: 9999, position: 1 },
+  ];
+  const v = vergelijk(rijen, venster);
+  ok("nu telt alleen het huidige venster", v.nu.clicks === 100);
+  ok("vorige alleen het vorige", v.vorige.clicks === 60);
+  ok("het verschil is het verschil", v.verschil.clicks === 40);
+
+  // ⚠️ Bij de positie is LAGER beter. Van 14 naar 10 is een verbetering en hoort
+  // een pijl omhoog te krijgen; zonder dit vlag draait elke aanroepplek dat
+  // teken zelf om, en dan gaat er eentje mis.
+  ok("de positie daalde", (v.verschil.position ?? 0) < 0);
+  ok("en dat is een verbetering", v.verschil.positieVerbetert === true);
+
+  // Een verandering ten opzichte van niets is geen verandering maar een start.
+  const zonderVorige = vergelijk([rijen[0]], venster);
+  ok("zonder vorig venster is de CTR-verandering null", zonderVorige.verschil.ctr === null);
+  ok("en de positieverandering ook", zonderVorige.verschil.positieVerbetert === null);
+});
+
+group("per dag, per pagina, en wat nog niet definitief is", () => {
+  const rijen: GscDag[] = [
+    { day: "2026-08-10", page: "/a", clicks: 5, impressions: 50, position: 10 },
+    { day: "2026-08-10", page: "/b", clicks: 3, impressions: 30, position: 20 },
+    { day: "2026-08-11", page: "/a", clicks: 7, impressions: 60, position: 9 },
+  ];
+
+  const dagen = perDagGsc(rijen);
+  ok("twee dagen", dagen.length === 2);
+  ok("pagina's zijn per dag opgeteld", dagen[0].clicks === 8);
+  ok("op datumvolgorde", dagen[0].day < dagen[1].day);
+
+  // ⚠️ De markering "nog niet definitief" gaat over de laatste twee dagen die
+  // we HEBBEN, niet over de laatste twee dagen ten opzichte van vandaag.
+  // `syncWindow()` haalt niets op na vandaag min twee, dus die tweede regel zou
+  // per definitie nooit aanslaan. Google blijft de recentste dagen wél
+  // bijstellen, en dat zijn deze.
+  const langer = perDagGsc(
+    Array.from({ length: 6 }, (_, i) => ({
+      day: verschuif("2026-08-01", i),
+      page: "/a",
+      clicks: 1,
+      impressions: 10,
+      position: 5,
+    })),
+  );
+  ok("de laatste twee zijn voorlopig", langer.slice(-2).every((d) => d.voorlopig));
+  ok("de vier daarvoor niet", langer.slice(0, 4).every((d) => !d.voorlopig));
+
+  const paginas = perPaginaGsc(rijen, new Set(["/a"]));
+  ok("twee pagina's", paginas.length === 2);
+  ok("aflopend op klikken", paginas[0].page === "/a" && paginas[0].clicks === 12);
+  ok("en gemarkeerd als van ons", paginas[0].vanOns === true);
+  ok("de andere niet", paginas[1].vanOns === false);
+});
+
+group("de zwakste pagina is niet de pagina met de minste klikken", () => {
+  const paginas = perPaginaGsc([
+    // De beste.
+    { day: "2026-08-01", page: "/top", clicks: 200, impressions: 1000, position: 3 },
+    // Veel gezien, bijna niet geklikt: dit is de pagina die een herschrijving
+    // verdient, en die knop bestaat al (`revise-box.tsx`).
+    { day: "2026-08-01", page: "/veel-gezien", clicks: 2, impressions: 900, position: 8 },
+    // Weinig klikken, maar ook bijna niet vertoond: daar helpt herschrijven
+    // niet aan, want er zoekt gewoon niemand op.
+    { day: "2026-08-01", page: "/niche", clicks: 1, impressions: 12, position: 4 },
+  ]);
+  const { beste, zwakste } = besteEnZwakste(paginas);
+  ok("de beste is die met de meeste klikken", beste?.page === "/top");
+  ok("de zwakste is veel gezien en weinig geklikt", zwakste?.page === "/veel-gezien");
+  ok(
+    "en niet de nichepagina met minder klikken",
+    zwakste?.page !== "/niche",
+    "onder 50 vertoningen is een lage CTR toeval, geen signaal",
+  );
+
+  // Eén pagina is geen vergelijking: die is zowel de beste als de zwakste, en
+  // dan zeggen we liever niets dan iets verkeerds.
+  const een = perPaginaGsc([
+    { day: "2026-08-01", page: "/x", clicks: 10, impressions: 900, position: 5 },
+  ]);
+  ok("bij één pagina is er geen zwakste", besteEnZwakste(een).zwakste === null);
+});
+
+group("klikken per paginatype, op de as van het contentplan", () => {
+  // ⚠️ Er zijn twee woordenlijsten voor "soort pagina" en dit blok gebruikt
+  // `planned_pages.page_type` (informatief, categorie, dienst) en niet
+  // `content_pieces.type` (landing, article, faq). Reden: het plan verdeelt op
+  // die as, dus een conclusie hier levert meteen een bijstelling op.
+  const paginas = perPaginaGsc([
+    { day: "2026-08-01", page: "https://x.nl/dienst/ketel", clicks: 100, impressions: 500, position: 5 },
+    { day: "2026-08-01", page: "https://x.nl/blog/tips/", clicks: 40, impressions: 400, position: 9 },
+    { day: "2026-08-01", page: "https://x.nl/over-ons", clicks: 5, impressions: 50, position: 20 },
+  ]);
+  const typePerUrl = new Map([
+    ["/dienst/ketel", "dienst"],
+    ["/blog/tips", "informatief"],
+  ]);
+  const perType = klikkenPerType(paginas, typePerUrl);
+  ok("twee types", perType.length === 2);
+  ok("aflopend op klikken", perType[0].type === "dienst");
+  ok(
+    "een pagina buiten het plan telt niet mee",
+    perType.reduce((s, t) => s + t.paginas, 0) === 2,
+  );
+});
+
+group("adressen vergelijkbaar maken", () => {
+  // Google levert volledige URL's, het plan bewaart paden. Zonder normalisatie
+  // matcht er niets en lijkt élke pagina er een van buiten het plan.
+  ok("het domein gaat eraf", normaliseerUrl("https://voorbeeld.nl/dienst/x") === "/dienst/x");
+  ok("http ook", normaliseerUrl("http://voorbeeld.nl/a") === "/a");
+  ok("de slash aan het eind gaat eraf", normaliseerUrl("https://x.nl/a/") === "/a");
+  ok("maar de wortel houdt zijn slash", normaliseerUrl("https://x.nl/") === "/");
+  ok("querystring en anker gaan eraf", normaliseerUrl("/a?b=1#c") === "/a");
+  ok("een kaal pad blijft heel", normaliseerUrl("/dienst/x") === "/dienst/x");
+  ok("zonder beginslash komt er een bij", normaliseerUrl("dienst/x") === "/dienst/x");
+  ok("hoofdletters tellen niet mee", normaliseerUrl("/Dienst/X") === "/dienst/x");
 });
 
 // ════════════════════════════════════════════════════════════════════════════

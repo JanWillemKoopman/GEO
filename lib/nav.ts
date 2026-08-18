@@ -192,6 +192,12 @@ export function brandNav(brandId: string, staff = false): NavItem[] {
 export function generalNav(staff = false): NavItem[] {
   return [
     { href: "/instellingen", label: "Account en team", teken: "○", hoofdstuk: "Instellingen" },
+    {
+      href: "/instellingen/koppelingen",
+      label: "Koppelingen",
+      teken: "○",
+      hoofdstuk: "Instellingen",
+    },
     ...(staff
       ? [
           {

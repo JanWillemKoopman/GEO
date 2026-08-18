@@ -2914,3 +2914,49 @@ mislukking, anders leest "3 van de 9" alsof er zes fout gingen terwijl er zes al
 mag alleen de beheerder. Markeren als geplaatst kost niets en mag de klant ook (besluit 8). De
 rechtencontrole stond bovenaan de route en gold dus voor alles; hij staat nu bij de twee handelingen
 die hem nodig hebben. Unittests 1342 naar 1393.
+
+## 17 augustus 2026: de appstructuur, fase 4 (Analytics)
+
+**Drie schermen die er nog niet waren, bijna geheel uit tabellen die al gevuld zijn.** Zichtbaarheid
+in AI, Zoekverkeer en Concurrenten. De cijfers stonden er al (14 zichtbaarheidsscores, 343
+concurrentrijen, 91 dagen zoekdata), maar er was geen scherm dat ze over de clusters heen bij elkaar
+bracht.
+
+**Optellen mag alleen op tellingen, nooit op percentages.** Twee clusters met 40% over 10 vragen en
+20% over 90 vragen geven samen geen 30%. Het merkcijfer op Zichtbaarheid weegt daarom op het aantal
+gemeten vragen per cluster, en de ranglijst op Concurrenten telt eerst de vermeldingen en de vragen
+op en zet er pas dáárna één keer een percentage overheen. Zonder die regel verspringt het merkcijfer
+zodra iemand een klein cluster start.
+
+**De noemer van de ranglijst blijft van `brand-rankings.ts`.** Die module bestaat omdat de balk van
+"Jij" ooit het percentage van de hoofdscore toonde en de concurrenten dat van alle gemeten vragen,
+en dan sta je kunstmatig boven je markt. Er is hier geen tweede telling bijgekomen.
+
+**Een blokkade staat bóven het cijfer dat hij verklaart.** Een dichte robots.txt is de meest
+voorkomende reden voor een lage score. Onderaan zetten betekent dat de klant eerst zijn score leest
+en pas daarna waarom hij niet kan kloppen. Dat is ook besluit 7: de technische diagnose hoort bij
+Analytics en niet bij Instellingen, want daar kijkt niemand als hij zich over zijn cijfer verbaast.
+
+**Eén markering bleek dode code, en dat kwam pas boven water door de test.** De laatste twee dagen
+van Google zijn niet definitief, dus de eerste versie markeerde alles ná vandaag min twee. Die
+regel sloeg nooit aan: de synchronisatie haalt bewust niets op ná die grens, dus zo'n dag staat
+nooit in de database. Het is nu de laatste twee dagen die er wél zijn, en dat werkt ook als de
+synchronisatie een week heeft stilgelegen.
+
+**Twee woordenlijsten voor "soort pagina", en de keuze is vastgelegd.** `planned_pages.page_type`
+heeft informatief (131), categorie (67) en dienst (66); `content_pieces.type` heeft landing (18),
+article (15) en faq (2). Klikken per paginatype gebruikt de eerste, en de contentmix op Overzicht
+straks dezelfde. Reden: het contentplan verdeelt op die as, dus een conclusie levert daar meteen een
+bijstelling op. Bij "landing tegenover article" stuurt niets.
+
+**De vier kerncijfers zijn nagerekend: 600 klikken en 5.253 vertoningen over 15 juli tot 13
+augustus.** ⚠️ Dat is testdata en geen klantdata. Het toetst de rekensom en de vorm, niet de
+koppeling. Die is pas geverifieerd als de Google-sleutel er is en er één echte synchronisatie is
+gedraaid (conventie 10).
+
+**Nieuw scherm dat niet in de fasering stond: Koppelingen** (`/instellingen/koppelingen`). Het volgt
+uit besluit 3b, want zodra Zoekverkeer uitlegt dat er nog geen koppeling is, moet er een knop naast
+staan die ergens heen gaat. Alle merken op één pagina: een bureau met vier merken wil in één
+oogopslag zien welke er gekoppeld zijn.
+
+Unittests 1393 naar 1437.

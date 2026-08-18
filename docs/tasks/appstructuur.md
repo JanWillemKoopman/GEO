@@ -502,29 +502,12 @@ Samengevat in `docs/logbook.md`. De contentdetailpagina is nog vanaf twee van de
 bereiken: het contentplan linkt er nog niet heen, dus `?van=plan` is wel gebouwd en getest maar nog
 niet in gebruik.
 
-### Fase 4: ANALYTICS
+### ~~Fase 4: ANALYTICS~~ · AF (17 augustus 2026)
 
-Drie nieuwe schermen, bijna geheel uit tabellen die al gevuld zijn: 14 rapporten, 14
-zichtbaarheidsscores, 474 meetronden, 343 concurrentrijen.
-
-**Bestanden:** `app/(app)/merk/[id]/analytics/page.tsx` · `.../zoekverkeer/page.tsx` ·
-`.../concurrenten/page.tsx` · een nieuwe pure module voor de zoekverkeer-rekenkunde ·
-`components/trend-chart.tsx` · `components/audit-panel.tsx`
-
-1. **Zichtbaarheid in AI**, inclusief de technische diagnose (§4.3a)
-2. **Zoekverkeer**, zes blokken (§4.3b), inclusief de twee nieuwe
-3. **Concurrenten** (§4.3c)
-4. Zijbalk: hoofdstuk ANALYTICS verschijnt
-
-**Verificatie:**
-- De score op Analytics is **identiek** aan de score in hoofdstuk 01 van het clusterdossier voor
-  dezelfde periode. Twee schermen die hetzelfde getal anders berekenen is precies de fout die
-  `lib/dashboard.ts` ooit oploste
-- De vier kerncijfers over 15 juli tot 13 augustus 2026 komen uit op **600 klikken en 5.253
-  vertoningen**, want dat staat in de tabel. ⚠️ Dat is testdata, geen klantdata, dus dit toetst de
-  rekensom en de vorm, niet de koppeling. Die is pas geverifieerd als de sleutel er is en er één
-  echte synchronisatie is gedraaid (conventie 10)
-- CTR en de vensters-vergelijking krijgen unittests in `scripts/test-unit.ts`
+Samengevat in `docs/logbook.md`. Eén scherm erbij dat niet in de fasering stond:
+`/instellingen/koppelingen` (§4.5), omdat Zoekverkeer zonder koppeling naar een knop wijst die
+ergens heen moet. De koppeling zelf is nog niet geverifieerd: dat kan pas als de Google-sleutel er
+is (§9) en er één echte synchronisatie gedraaid heeft.
 
 ### Fase 5: OVERZICHT
 
