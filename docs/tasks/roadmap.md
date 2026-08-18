@@ -1,5 +1,14 @@
 # Roadmap, wat er nog open staat
 
+> ⚠️ **Sinds 18 augustus 2026 staat er een document bóven dit bestand:**
+> [`ontwikkelplan-visie.md`](./ontwikkelplan-visie.md), het plan van vandaag naar de visie in tien
+> sprints. Dat document bepaalt de volgorde; dit bestand houdt het oudere, kleinere werk bij dat
+> nog open ligt. Drie punten hieronder zijn erin opgegaan en staan daar met bestanden,
+> migratienummer en verificatiecriterium: punt 0 en punt 1 (de verificatieschuld) in sprint 0,
+> "Fase 5, wat er wacht op de Google-sleutel" in sprint 0 en 2, en "Fase 6, wat er nog wacht op de
+> eerste publicatie" in sprint 1 en 5. Ze blijven hier staan tot die sprints afgerond zijn, want
+> een punt dat op twee plekken half wordt afgevinkt raakt kwijt.
+
 Op volgorde. **Stand: 17 augustus 2026**, 1505 unittests + 167 ketentests groen, migraties t/m
 `0059` toegepast (`0033` gereserveerd, nooit gedraaid, vervangen door `0039`). De punten hieronder
 zelf zijn niet allemaal opnieuw doorgelopen sinds 11 augustus; alleen de teller en de nieuwe regel

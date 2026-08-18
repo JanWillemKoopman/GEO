@@ -3092,3 +3092,46 @@ property toevoegen. Pas daarna is de koppeling geverifieerd (conventie 10).
 **De vormgeving botst nog steeds met de positionering.** Deze ronde veranderde de indeling, niet de
 vormgeving. Zolang het open ontwerpbesluit in `designsystem.md` §9b staat, werkt het designsysteem
 tegen de merkstrategie in.
+
+## Het ontwikkelplan naar de visie: tien sprints en drie teruggedraaide besluiten (18 augustus 2026)
+
+`visie.md` en `merkstrategie.md` legden op 17 augustus de bestemming vast, met de afstand tot de
+bouw er eerlijk bij (drie punten in `visie.md`, vijf in `merkstrategie.md` §30). Wat er niet stond,
+was hoe je die afstand overbrugt. Dat staat nu in
+[`tasks/ontwikkelplan-visie.md`](./tasks/ontwikkelplan-visie.md): zeven werkstromen, tien sprints in
+drie fases, met per sprint de bestanden, het migratienummer, het verificatiecriterium en de
+handelingen die buiten Claude Code om moeten gebeuren.
+
+**De belangrijkste uitkomst van het opstellen is niet de volgorde maar dit: de visie draait drie
+eerder met argumenten genomen besluiten terug.** Geen CMS-koppeling (`logbook.md` §15, en
+`schrijfstijl.md` zegt met zoveel woorden dat de copy nergens een koppeling belooft), geen echte
+zoekvolumes (§15, "onze winbaarheidsmeting is een beter signaal"), en meerdere engines geparkeerd
+(§3). Alle drie zijn nu voorwaarde voor wat de visie belooft. Dat opschrijven is het punt: een
+besluit terugdraaien mag, stilzwijgend eroverheen bouwen niet, want dan raakt het waarom kwijt en
+staat er over een half jaar documentatie die de code tegenspreekt.
+
+**Drie cijfers die de volgorde bepaalden**, alle drie nagerekend en niet uit documentatie
+overgenomen:
+
+1. **$0,855 per meetronde.** Bij 50 clusters, de omvang die `visie.md` als doelgroep beschrijft, is
+   dat ~€43 per maand aan meting alleen, tegen een plafond van €50 per account per maand
+   (`lib/spend-rules.ts`). De prijskaart is dus een hardere grens dan de techniek, en dat is de
+   enige conclusie in het hele plan die geen code oplevert.
+2. **Nul gepubliceerde pagina's.** `content_impact` is leeg en `verifyPublication()` heeft nooit een
+   echt geval gezien. De laatste drie stappen van de cyclus (publiceren, meten, optimaliseren)
+   hebben nog nooit gedraaid. Daarom staat de CMS-koppeling als sprint 1 en niet later: hij
+   deblokkeert in één keer de effectmeting, de publicatiecontrole en het verbeteren van bestaande
+   pagina's.
+3. **`dimensions: ["date", "page"]`.** De Search Console-koppeling haalt geen zoekopdrachten op,
+   terwijl migratie `0052` zelf al schreef dat die "een tweede tabel waard zijn zodra ze echt
+   gebruikt worden". Daarmee ligt de halve SEO-belofte, inclusief posities, gratis binnen bereik.
+   Dat maakt sprint 2 de goedkoopste grote stap van het plan.
+
+**Wat de kalender bepaalt is wachttijd, geen bouwtijd.** Effect meten gebeurt in golven van 30 en 60
+dagen na publicatie. De bouwschattingen in het plan zijn dagen (de appstructuur was zeven fases op
+één dag), de verificatie is maanden. Vandaar dat sprint 1 vroeg staat, ook al is hij niet de
+grootste.
+
+Zes van de tien sprints wachten op iets dat Claude Code niet kan doen: een account bij een externe
+partij, een betaling, of een afspraak met een klant. Die zestien handelingen staan in §4 van het plan
+op één plek bij elkaar, met per regel waarom het niet automatisch kan.
