@@ -303,8 +303,7 @@ async function main(): Promise<void> {
       "het plan werd na de briefing weggegooid",
     );
 
-    // ── Fase 2 van docs/tasks/appstructuur.md: haalt een gecorrigeerd
-    //    merkveld de schrijfprompt? ────────────────────────────────────────
+    // ── Haalt een gecorrigeerd merkveld de schrijfprompt? (17 aug 2026) ───
     //
     // De wizard van 27 velden en de platte editor van 41 zijn samengevoegd tot
     // één formulier. `scripts/test-unit.ts` bewaakt dat alle 41 velden een stap
@@ -1366,7 +1365,7 @@ async function main(): Promise<void> {
     // ══════════════════════════════════════════════════════════════════════
     // Besluit 4: de klant ziet niet HOE ORBIT ENGINE aan zijn kennis kwam
     //
-    // ⚠️ Dit is de verificatie van fase 6 van docs/tasks/appstructuur.md, en hij
+    // ⚠️ Dit is de verificatie van besluit 4 (17 augustus 2026), en hij
     // hoort hier en niet alleen in een broncodecontrole. Een scherm dat iets
     // niet toont is één wijziging van tonen verwijderd; een tabel die RLS niet
     // teruggeeft is dat niet. `ai_calls` (wat een klant ons kost, per aanroep,

@@ -107,8 +107,8 @@ zet `structured.ts` hem voor de rest van het proces uit in plaats van de taak te
 npm run dev              # localhost:3000
 npm run build            # productiebuild
 npx tsc --noEmit         # typecheck, moet schoon zijn
-npm run test:unit        # 1257 tests, pure functies, geen DB/API-key
-npm run test:chain       # 160 ketentests, echte handlers tegen echte Postgres, geen netwerk
+npm run test:unit        # 1505 tests, pure functies, geen DB/API-key
+npm run test:chain       # 167 ketentests, echte handlers tegen echte Postgres, geen netwerk
 npm run test:openai      # rooktest, MAAKT ECHTE BETAALDE CALLS
 npm run eval:mention     # accuratesse mention-classificatie (vereist API-key)
 ```
@@ -156,7 +156,10 @@ Deze zijn over acht bouwrondes consequent toegepast. Houd ze aan.
 ## Structuur
 
 ```
-app/(app)/         analyses (dossier in 4 hoofdstukken), profielen, instellingen, beheer (CSM)
+app/(app)/merk/[id]/  de merk-werkruimte in vijf hoofdstukken: overzicht, strategie
+                   (plan/clusters/bibliotheek), analytics (zichtbaarheid/zoekverkeer/
+                   concurrenten), merkprofiel (dossier/bewerken/input), admin (staff)
+app/(app)/         analyses/[id] (clusterdossier in 4 hoofdstukken), instellingen, beheer (CSM)
 app/(auth)/        login/register (server actions)
 app/api/           analyses · profiles · accounts · invites · cron (worker/tracking/reminders/plan) · health
 components/        gedeelde UI-primitieven (kaarten, chips, rail, skeletons)

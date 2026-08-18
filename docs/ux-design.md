@@ -185,9 +185,9 @@ database-queries een dood interval zonder enige terugkoppeling.
   (`RerunResearchButton` was het eerste voorbeeld, `PublishBox` volgt hetzelfde patroon voordat
   het twee hermetingen in de rij zet). Eerst de knop, dan pas bij een tweede klik de handeling
   zelf, met een korte zin erbij wat er gaat gebeuren.
-- **Mislukte analyses en profielen bovenaan, niet verstopt.** "Mijn analyses" en "Merken" sorteren
+- **Mislukte clusters en merken bovenaan, niet verstopt.** De clusterlijst en de merkenlijst sorteren
   op `whoseTurn === "jij"` (dus zowel "wacht op je goedkeuring" als "niet gelukt") en tonen bij een
-  mislukking een rode kaart bovenaan de lijst. Zonder dat moest een klant met meerdere analyses ze
+  mislukking een rode kaart bovenaan de lijst. Zonder dat moest een klant met meerdere clusters ze
   stuk voor stuk openen om een storing te vinden, er was geen centrale plek waar een fout
   zichtbaar werd.
 - **Elke pagina een eigen tabbladtitel.** `generateMetadata`/`export const metadata`, met een

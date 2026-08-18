@@ -4178,7 +4178,7 @@ group("het merkprofiel als veldenlijst (brand-fields)", () => {
     BRAND_FIELDS.every((f) => STEP_ORDER.includes(f.step)),
   );
   ok("zeven stappen", STEP_ORDER.length === 7);
-  // De verdeling uit docs/tasks/appstructuur.md §4.4b. Staat hier voluit zodat
+  // De verdeling van 17 augustus 2026 (`docs/logbook.md`). Staat hier voluit zodat
   // een veld dat naar een andere stap verhuist een bewuste wijziging is en geen
   // stille verschuiving.
   const perStap = STEP_ORDER.map((s) => `${s}:${fieldsOfStep(s).length}`).join(" ");
@@ -6106,7 +6106,7 @@ group("de actieve regel is exact, niet met prefix", () => {
 });
 
 group("elk oud merkadres verwijst permanent naar zijn nieuwe", () => {
-  // Dit is de verificatie uit fase 1 van docs/tasks/appstructuur.md: de
+  // Dit is de verificatie van de verhuizing van 17 augustus 2026: de
   // eigenaar deelt demolinks naar deze adressen, dus een dood adres kost hier
   // een gesprek en niet alleen een klik. Alle dertien zijn 308 (permanent) en
   // wijzen naar het EINDadres, niet naar een tussenstation.
@@ -6368,7 +6368,7 @@ group("CTR en de gewogen positie", () => {
 });
 
 group("de vier kerncijfers over 15 juli tot 13 augustus", () => {
-  // ⚠️ DE VERIFICATIE UIT FASE 4 VAN docs/tasks/appstructuur.md. Op productie
+  // ⚠️ DE VERIFICATIE VAN DE ZOEKVERKEER-REKENSOM (17 aug 2026). Op productie
   // staan 91 rijen testdata over 4 pagina's en 30 dagen, goed voor 600 klikken
   // en 5.253 vertoningen. Dit toetst de rekensom en de vorm, NIET de koppeling:
   // het is testdata en geen klantdata, en de koppeling is pas geverifieerd als

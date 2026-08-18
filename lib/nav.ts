@@ -264,16 +264,14 @@ export function isExact(pathname: string, href: string): boolean {
   return pathname === href.split("?")[0];
 }
 
-/** Account, achter het profielmenu, geen hoofdnavigatie. */
+/**
+ * Account, achter het profielmenu, geen hoofdnavigatie.
+ *
+ * ⚠️ Hier stond ook `NAV`, de platte lijst van vóór de zijbalk. Die is op
+ * 17 augustus 2026 weg: `MainNav` las hem en bestond niet meer, en het
+ * profielmenu toonde er een tweede hoofdnavigatie mee naast de zijbalk. Twee
+ * menu's met dezelfde bestemmingen lopen gegarandeerd uit elkaar.
+ */
 export const ACCOUNT_NAV: NavItem[] = [
   { href: "/instellingen", label: "Mijn instellingen", teken: "⚙", hoofdstuk: "Instellingen" },
-];
-
-/**
- * De oude platte lijst. Blijft bestaan zolang `MainNav` en `ProfileMenu` hem
- * lezen; die twee verdwijnen in fase 7 van `docs/tasks/appstructuur.md`.
- */
-export const NAV: NavItem[] = [
-  { href: "/analyses", label: "Clusters", teken: "▦", hoofdstuk: "Strategie" },
-  { href: "/merk", label: "Merken", teken: "▤", hoofdstuk: "Merkprofiel" },
 ];

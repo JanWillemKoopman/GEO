@@ -9,8 +9,8 @@ import { activeBrand } from "@/lib/workspace";
  *
  * Dit stuurde naar `/analyses`, en dat was een lijst en geen startpagina. Wie
  * inlogde zag zijn clusters en moest zelf bedenken waar hij moest kijken. Nu is
- * er wél een startpagina (`/merk/[id]`, fase 5 van
- * `docs/tasks/appstructuur.md`), dus gaat hij daarheen.
+ * er wél een startpagina (`/merk/[id]`, gebouwd op 17 augustus 2026, zie
+ * `docs/logbook.md`), dus gaat hij daarheen.
  *
  * Drie uitkomsten, en de volgorde is de bedoeling:
  *

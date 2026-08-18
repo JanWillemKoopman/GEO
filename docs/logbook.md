@@ -29,6 +29,7 @@ verwijzing in de code straks nergens meer heen.
 | `tasks/r0-fundament.md` R0.1 t/m R0.6 | Zes hygiënestappen die in de praktijk niets blokkeerden | Nooit gebouwd, bewust. Het enige punt dat telt staat in `tasks/roadmap.md`: R0.5 is de reden dat de fabrikanten die Bol verkoopt nog als concurrent meetellen. Verwijderd 17 augustus 2026 |
 | `tasks/r6-inventaris-en-bronnen.md` R6.2/R6.3 | De inventariskwaliteitspoort en het brontype als signaal | R6.2 is gebouwd als fase 0 van de onboarding (`lib/pipeline/inventory-quality.ts`, migratie `0039`). R6.3 staat nog open en de spec is verhuisd naar `tasks/roadmap.md` §4. Verwijderd 17 augustus 2026 |
 | `tasks/lanceerplan.md` K1-K5, P1-P7, F1-F5, D4/D7/D10, R6 | Het pad van "gebouwd" naar de eerste betalende klant: zes testsporen, twee kwaliteitslatten, een tweeweekse planning | **De twee latten staan hieronder als eigen sectie**, want twaalf codebestanden noemen ze bij naam. De sporen en de planning zijn ingehaald: F1 (budgetplafond) is migratie `0053`, F4/P5 (klant verwijderen) is `lib/deletion.ts`, D4/D7/D10 (wedstrijdcondities) zijn af. Verwijderd 17 augustus 2026 |
+| `tasks/appstructuur.md` | Het uitvoerplan voor de herindeling van de zijbalk en de schermen: zeven fases, de acht besluiten en de tien Nova-aanscherpingen | **De zeven fases staan hieronder als eigen alinea's** (17 augustus 2026). De doelstructuur zelf staat in `ux-design.md` §5. Verwijderd 17 augustus 2026, toen fase 7 af was |
 | `Nova.md` | InSpace Nova gereconstrueerd, de gap-analyse en het achtfasenbouwplan dat daaruit volgde | Bouwplan afgebouwd, zie de secties hieronder per fase. Zelf verwijderd op 17 augustus 2026, de citaten die er verderop in dit logboek nog naar verwijzen zijn historisch en blijven staan zoals ze geschreven zijn. De richting daarna staat in `visie.md` |
 
 De volledige originelen staan in de git-historie (laatste versie: de commit vóór de
@@ -3043,3 +3044,51 @@ website gehaald" leest die tabel en is juist een klantfunctie (Nova's `draftedBa
 `evidence_url` bestaat op twee tabellen, waarvan er één naar de site van de klant zelf wijst. Een
 controle die een goede functie sloopt is erger dan geen controle, dus de regel is aangescherpt tot
 wat écht intern is: het bewijscitaat. Unittests 1465 naar 1505, ketentests 162 naar 167.
+
+## 17 augustus 2026: de appstructuur, fase 7 (opruimen) en wat de ronde opleverde
+
+**Het laatste dode hout weg.** `MainNav` had geen enkele importeur meer sinds de zijbalk er kwam, en
+`NAV`, de platte bestemmingenlijst van vóór die zijbalk, werd alleen nog gelezen door dat component
+en door het profielmenu. Dat menu toonde daarmee een tweede hoofdnavigatie naast de zijbalk, met
+andere bestemmingen. Twee menu's met dezelfde belofte lopen gegarandeerd uit elkaar, en dat was hier
+al eerder gebeurd. Het profielmenu gaat nu alleen nog over het account.
+
+### Wat de zeven fases samen hebben veranderd
+
+| | Vóór | Na |
+|---|---|---|
+| Zijbalk | 7 regels, uitklappend naar 15 bestemmingen, één kop met negen kinderen | 6 koppen, hooguit 3 kinderen per kop, alles tegelijk in beeld |
+| Startpagina | geen | `/merk/[id]`, ook de bestemming van de wortel en van het inloggen |
+| Merkprofiel | 5 schermen, 2 formulieren, 2 opslagroutes voor dezelfde 41 kolommen | 3 schermen, 1 formulier van 41 velden in 7 stappen |
+| Bibliotheken | één per cluster, geen overzicht | één per merk met filters en paginering, plus de clusterlijst als doorklik |
+| Clusterlijsten | "Clusters" en "Voorgestelde clusters" als twee menu-items | één lijst, lopend boven voorstellen |
+| Analytics | bestond niet; cijfers zaten in het clusterdossier | 3 schermen over de clusters heen |
+| Interne stof | verspreid over klantschermen, ingeklapt maar bereikbaar | één Admin-scherm, met drie lagen die de grens bewaken |
+| Merkadressen | `/profielen/[id]/...` | `/merk/[id]/...`, met 14 permanente doorverwijzingen |
+| Tests | 1257 unit, 160 keten | 1505 unit, 167 keten |
+
+**Negen pure modules erbij**, allemaal omdat er iets te rekenen viel dat op het scherm niet te
+controleren is: `redirects`, `profile-gaps`, `library`, `plan-bulk`, `origin`,
+`search-console/metrics`, `plan-progress`, `activity` en `onboarding-insight`. Nul migraties, precies
+zoals het plan voorspelde: alles leest uit tabellen die er al stonden.
+
+### Wat deze ronde níet oplost, en dat hoort hier te staan
+
+**De diagnose was "onoverzichtelijk", en die is hier vertaald naar de menustructuur en de
+schermindeling.** Als de klacht in werkelijkheid over de hoeveelheid informatie ín een scherm gaat,
+dan verplaatst deze ronde dat probleem opnieuw, net zoals de ronde van augustus dat deed. De toets
+die daarbij hoort staat nog open: leg de nieuwe indeling voor aan de klant die het merkdossier een
+vergaarbak noemde.
+
+**De Google-sleutel ontbreekt nog.** Het zoekverkeer-scherm is volledig gebouwd (besluit 3b) en de
+rekensom is nagerekend op de 91 rijen testdata, maar dat is testdata en geen klantdata. Drie
+handelingen staan open: een service account aanmaken met de Search Console API aan,
+`GOOGLE_SERVICE_ACCOUNT_JSON` in Vercel zetten, en het adres van dat account bij de klant aan zijn
+property toevoegen. Pas daarna is de koppeling geverifieerd (conventie 10).
+
+**Het contentplan linkt nog niet naar een geschreven pagina.** De terugknop kent drie herkomsten en
+`?van=plan` is gebouwd en getest, maar het plan is nog geen derde ingang.
+
+**De vormgeving botst nog steeds met de positionering.** Deze ronde veranderde de indeling, niet de
+vormgeving. Zolang het open ontwerpbesluit in `designsystem.md` §9b staat, werkt het designsysteem
+tegen de merkstrategie in.

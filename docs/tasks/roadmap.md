@@ -1,6 +1,6 @@
 # Roadmap, wat er nog open staat
 
-Op volgorde. **Stand: 17 augustus 2026**, 1257 unittests + 160 ketentests groen, migraties t/m
+Op volgorde. **Stand: 17 augustus 2026**, 1505 unittests + 167 ketentests groen, migraties t/m
 `0059` toegepast (`0033` gereserveerd, nooit gedraaid, vervangen door `0039`). De punten hieronder
 zelf zijn niet allemaal opnieuw doorgelopen sinds 11 augustus; alleen de teller en de nieuwe regel
 bij "Afgerond sinds de vorige stand" zijn bijgewerkt. Voor wat er sindsdien is gebouwd (de
@@ -21,6 +21,12 @@ potentiescore), zie `potentiescore.md` en `logbook.md`.
 
 ## Afgerond sinds de vorige stand
 
+- **De appstructuur** (17 augustus, zeven fases, nul migraties): de zijbalk van 7 regels met een bak
+  van negen naar zes hoofdstukken met hooguit drie kinderen, een startpagina die er nooit was, twee
+  merkprofiel-formulieren samengevoegd tot één van 41 velden, een merkbrede bibliotheek, drie
+  Analytics-schermen, en alle interne stof achter één Admin-scherm. Alle merkschermen staan nu onder
+  `/merk/[id]/`, met 14 permanente doorverwijzingen. Zie `logbook.md`, de zeven alinea's van
+  17 augustus, en `ux-design.md` §5 voor de indeling zelf.
 - **De potentiescore** (13 augustus, migratie `0057`): zichtbaarheidsgat × zoekvolume, één getal
   dat over alle onderwerpen van een merk eerlijk vergelijkbaar is, in drie fases gebouwd en op
   productie geverifieerd. Zichtbaar op het analysedossier en bij elke pagina, en stuurt sinds fase

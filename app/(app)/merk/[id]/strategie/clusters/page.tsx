@@ -32,8 +32,8 @@ export const metadata = { title: "Clusters" };
  * instellingen, contentdetail), en die allemaal verplaatsen raakt de meest
  * gelinkte routes van de app voor alleen cosmetiek.
  *
- * Fase 3 van `docs/tasks/appstructuur.md` zet hier het derde blok onder:
- * Voorgestelde clusters, nu nog op `/analyses/aanbevolen`.
+ * Het derde blok, Voorgestelde clusters, stond tot 17 augustus 2026 op een
+ * eigen adres (`/analyses/aanbevolen`).
  */
 export default async function ClustersPage({
   params,

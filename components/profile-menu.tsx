@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { NAV, ACCOUNT_NAV, type NavItem } from "@/lib/nav";
+import { ACCOUNT_NAV, type NavItem } from "@/lib/nav";
 
 /**
  * Het menu achter het profiel-icoon, op élk schermformaat.
@@ -26,10 +26,14 @@ import { NAV, ACCOUNT_NAV, type NavItem } from "@/lib/nav";
  */
 
 /**
- * De links komen uit `lib/nav.ts`, dezelfde bron als de bovenbalk. Ze stonden
- * hier als losse constanten, en dat leverde precies op wat je verwacht: de twee
- * menu's liepen uit elkaar, met een "Mijn bedrijfsgegevens" onder Account dat
- * naar dezelfde route wees als "Klantprofielen" onder Navigatie.
+ * ⚠️ **Hier staat sinds 17 augustus 2026 alleen nog Account.**
+ *
+ * Dit sheet toonde ook de hoofdnavigatie, uit de platte lijst `NAV`. Die lijst
+ * is met de herindeling verdwenen: de navigatie zit in de zijbalk, en op mobiel
+ * in de lade van `WorkspaceChrome`. Twee menu's met dezelfde bestemmingen lopen
+ * gegarandeerd uit elkaar, en dat was hier al eerder gebeurd.
+ *
+ * De links komen uit `lib/nav.ts`, dezelfde bron als de zijbalk.
  */
 type MenuLink = NavItem;
 
@@ -175,7 +179,6 @@ export function ProfileMenu({
                 <h2 className="mt-1 text-2xl font-bold tracking-tight">Waar wil je heen?</h2>
               </div>
 
-              <NumberedNav label="Navigatie" links={NAV} pathname={pathname} onNavigate={() => setOpen(false)} />
               <NumberedNav label="Account" links={ACCOUNT_NAV} pathname={pathname} onNavigate={() => setOpen(false)} />
 
               <div className="mt-auto flex flex-col gap-4">
