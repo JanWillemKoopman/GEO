@@ -12,7 +12,7 @@ import { readRecommendations } from "@/lib/pipeline/recommendation";
 import { GenerateButton } from "../_work/generate-button";
 import { GenerateAllButton } from "../_work/generate-all-button";
 import { OffsitePanel } from "../_work/offsite-panel";
-import { FactRequests } from "@/app/(app)/profielen/[id]/fact-requests";
+import { FactRequests } from "@/app/(app)/merk/[id]/_components/fact-requests";
 import type {
   Analysis,
   FactRequest,

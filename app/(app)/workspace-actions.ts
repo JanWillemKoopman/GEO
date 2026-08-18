@@ -28,7 +28,7 @@ export async function selectBrand(brandId: string, goTo?: string) {
   // Leeg = terug naar alle merken. Dat is een geldige keuze, geen fout.
   if (!brandId) {
     jar.delete(BRAND_COOKIE);
-    redirect(goTo ?? "/profielen");
+    redirect(goTo ?? "/merk");
   }
 
   const brands = await listBrands(user.id);
@@ -37,7 +37,7 @@ export async function selectBrand(brandId: string, goTo?: string) {
     // Stil terugvallen. Dit overkomt iemand die een merk archiveert in het ene
     // tabblad en het in het andere nog in zijn kiezer heeft staan.
     jar.delete(BRAND_COOKIE);
-    redirect("/profielen");
+    redirect("/merk");
   }
 
   jar.set(BRAND_COOKIE, brandId, {
@@ -47,5 +47,5 @@ export async function selectBrand(brandId: string, goTo?: string) {
     httpOnly: true,
   });
 
-  redirect(goTo ?? `/profielen/${brandId}`);
+  redirect(goTo ?? `/merk/${brandId}`);
 }

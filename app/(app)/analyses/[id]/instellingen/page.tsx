@@ -78,7 +78,7 @@ export default async function InstellingenPage({ params }: { params: Promise<{ i
                 {profile.competitors.join(", ") || "onbekend"}
               </p>
             </div>
-            <Link href={`/profielen/${profile.id}`} className="btn-outline w-fit">
+            <Link href={`/merk/${profile.id}/merkprofiel`} className="btn-outline w-fit">
               Merk bewerken
             </Link>
           </div>

@@ -1,34 +1,26 @@
 import { notFound } from "next/navigation";
-import type { Metadata } from "next";
 import { getProfile } from "@/lib/profiles";
-import { requireUser } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { PageHeader } from "@/components/page-header";
-import { SearchConsoleBox } from "../search-console-box";
+import { SearchConsoleBox } from "../../_components/search-console-box";
 import { serviceAccountEmail } from "@/lib/search-console/auth";
 
 export const dynamic = "force-dynamic";
-
-export async function generateMetadata({
-  params,
-}: {
-  params: Promise<{ id: string }>;
-}): Promise<Metadata> {
-  const { id } = await params;
-  const profile = await getProfile(id);
-  return {
-    title: profile ? `Search console · ${profile.brand_name ?? profile.name}` : "Search console",
-  };
-}
+export const metadata = { title: "Zoekverkeer" };
 
 /**
- * Zoekdata uit Google koppelen (fase 5, migratie 0052).
+ * ZOEKVERKEER: de klikken uit Google naast de zichtbaarheid in AI-antwoorden.
  *
- * Besluit 4: AI-zichtbaarheid is het verhaal, Google is het bewijsstuk. Eigen
- * subpagina sinds de herstructurering van augustus 2026: koppelen is een
- * eenmalige handeling met een eigen instructie, geen blok tussen leesstof.
+ * Besluit 4: AI-zichtbaarheid is het verhaal, Google is het bewijsstuk. Dit
+ * scherm stond tot 17 augustus 2026 op `/profielen/[id]/search-console` en was
+ * toen alleen de koppeling; de cijfers waren nergens te zien.
+ *
+ * Fase 4 van `docs/tasks/appstructuur.md` bouwt hier de zes blokken: de vier
+ * kerncijfers, het verloop over tijd, de kliklijn naast de zichtbaarheidslijn,
+ * de beste en zwakste pagina, klikken per paginatype en de paginatabel. Het
+ * instelgedeelte hieronder verhuist dan naar `/instellingen/koppelingen`.
  */
-export default async function SearchConsolePage({
+export default async function ZoekverkeerPage({
   params,
 }: {
   params: Promise<{ id: string }>;
@@ -36,8 +28,6 @@ export default async function SearchConsolePage({
   const { id } = await params;
   const profile = await getProfile(id);
   if (!profile) notFound();
-
-  await requireUser();
 
   const admin = createAdminClient();
   const { count: gscDagen } = await admin
@@ -48,10 +38,10 @@ export default async function SearchConsolePage({
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
-        eyebrow="Merkdossier"
-        title="Search console"
-        backHref={`/profielen/${id}`}
-        backLabel="Merkdossier"
+        eyebrow="Analytics"
+        title="Zoekverkeer"
+        backHref={`/merk/${id}/analytics`}
+        backLabel="Zichtbaarheid in AI"
         description="De klikken uit Google naast je zichtbaarheid in AI-antwoorden. Het bewijsstuk onder het verhaal."
       />
 

@@ -483,25 +483,13 @@ weet, hoe zeker dat is en wat ermee moet gebeuren, niet hoe ORBIT ENGINE aan die
 **De zijbalk groeit mee:** een hoofdstuk verschijnt pas in het menu zodra zijn pagina's bestaan. Een
 kop die naar een leeg scherm wijst is erger dan een kop die er nog niet is.
 
-### Fase 1: Fundament, adressen en doorverwijzingen
+### ~~Fase 1: Fundament, adressen en doorverwijzingen~~ · AF (17 augustus 2026)
 
-Geen zichtbare verandering. Dit legt het spoor waar de rest overheen rijdt.
-
-**Bestanden:** `app/(app)/merk/[id]/layout.tsx` (nieuw) · `lib/nav.ts` · `middleware.ts`
-
-1. Nieuw routesegment `app/(app)/merk/[id]/` met de toegangscontrole die `/profielen/[id]` nu doet.
-   Gebruik `getOwnedProfile()` uit `lib/profiles.ts`; bouw geen tweede route naar dezelfde
-   beslissing
-2. Doorverwijzingen (308, permanent) van elk oud merkadres naar zijn nieuwe, zodat bladwijzers en
-   gedeelde demolinks blijven werken
-3. `NavItem` in `lib/nav.ts` krijgt een veld voor het hoofdstuk waaronder een bestemming valt, zodat
-   de zijbalk straks vijf koppen kan tonen in plaats van twee groepen
-4. **Aanscherping 11:** leg de hoofdstukvolgorde vast als Overzicht, Strategie, Analytics,
-   Merkprofiel, Instellingen
-
-**Verificatie:** elk van de 11 oude merkadressen onder `/profielen/[id]/` levert een 308 op naar het
-juiste nieuwe adres, plus `/profielen` en `/analyses/aanbevolen`. Een klant die niet bij het merk
-hoort krijgt op het nieuwe adres dezelfde 404 als op het oude.
+Samengevat in `docs/logbook.md`. Eén afwijking van het plan, en de reden staat daar: fase 1 heeft de
+schermen zelf mee moeten verhuizen in plaats van alleen het spoor te leggen, omdat een permanente
+verwijzing (308) naar een adres dat nog niet bestaat geen fundament is maar een dood einde. Daardoor
+is fase 1 wél zichtbaar: de zijbalk toont nu de hoofdstukken. Wat elke volgende fase daaraan
+toevoegt staat hieronder per fase.
 
 ### Fase 2: MERKPROFIEL, van vijf schermen naar drie
 

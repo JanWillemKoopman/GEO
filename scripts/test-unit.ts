@@ -66,6 +66,16 @@ import {
 } from "@/lib/pipeline/briefing-select";
 import type { BriefingQuestion } from "@/lib/pipeline/briefing-select";
 import { checkContentGate, openingVan, geoRegels } from "@/lib/pipeline/content-gate";
+import {
+  brandNav,
+  generalNav,
+  hoofdstukken,
+  isActive,
+  isExact,
+  HOOFDSTUKKEN,
+} from "@/lib/nav";
+import { DOORVERWIJZINGEN } from "@/lib/redirects";
+import { findGaps } from "@/lib/profile-gaps";
 
 import { splitSentences, stripMarkdown, firstSentences } from "@/lib/pipeline/sentences";
 import { extractHeadings, renderMarkdown } from "@/lib/markdown";
@@ -5875,6 +5885,175 @@ group("De poort voor handgeschreven vragen", () => {
   ok(
     "en een merk zonder bereik ook",
     regionGateMessage(null, null, "Wat kost een occasion?") === null,
+  );
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+console.log("\nDe appstructuur: hoofdstukken en doorverwijzingen (17 augustus 2026)");
+
+group("de zijbalk kent vijf hoofdstukken plus Admin", () => {
+  const merkId = "00000000-0000-0000-0000-000000000001";
+  const klant = hoofdstukken([...brandNav(merkId, false), ...generalNav(false)]);
+  const beheerder = hoofdstukken([...brandNav(merkId, true), ...generalNav(true)]);
+
+  // De volgorde is besluit 11: Strategie vóór Analytics. Wie inlogt wil weten
+  // wat hij moet doen, niet browsen in data.
+  ok(
+    "Strategie staat vóór Analytics",
+    HOOFDSTUKKEN.indexOf("Strategie") < HOOFDSTUKKEN.indexOf("Analytics"),
+  );
+  ok(
+    "en Overzicht staat vóór allebei",
+    HOOFDSTUKKEN.indexOf("Overzicht") < HOOFDSTUKKEN.indexOf("Strategie"),
+  );
+
+  // Dit is het hele punt van de herindeling: van 7 regels met een bak van
+  // negen naar hoogstens drie kinderen per kop.
+  for (const kop of beheerder) {
+    ok(`${kop.naam} heeft hooguit drie bestemmingen`, kop.items.length <= 3, `${kop.items.length}`);
+  }
+
+  ok("een klant ziet geen Admin-kop", klant.every((k) => k.naam !== "Admin"));
+  ok("een beheerder wel", beheerder.some((k) => k.naam === "Admin"));
+  ok(
+    "en elke Admin-bestemming draagt het teken 'alleen jij'",
+    (beheerder.find((k) => k.naam === "Admin")?.items ?? []).every((i) => i.staffOnly === true),
+  );
+
+  // Een kop die naar een leeg scherm wijst is erger dan een kop die er nog
+  // niet is: `hoofdstukken()` laat een lege kop dus weg in plaats van hem
+  // grijs te tonen.
+  ok("een hoofdstuk zonder bestemmingen valt weg", hoofdstukken([]).length === 0);
+
+  // Zonder gekozen merk blijft alleen wat niet aan een merk hangt.
+  ok(
+    "zonder merk blijft alleen Instellingen over",
+    hoofdstukken(generalNav(false)).map((k) => k.naam).join() === "Instellingen",
+  );
+
+  // "Alle merken" is uit het menu weg (besluit 2) en zit in de merkkiezer. Een
+  // klant met één merk betaalde er anders bij elke sessie een klik voor.
+  ok(
+    "Alle merken staat niet meer in het klantmenu",
+    klant.every((k) => k.items.every((i) => i.label !== "Alle merken")),
+  );
+});
+
+group("elke merkbestemming hangt onder /merk/[id]", () => {
+  const merkId = "abc";
+  for (const item of brandNav(merkId, true)) {
+    ok(
+      `${item.label} staat onder het merk`,
+      item.href.startsWith(`/merk/${merkId}/`),
+      item.href,
+    );
+  }
+  // De oude naam mag nergens meer in een link staan: dan zou "profielen" in de
+  // adresbalk van Analytics en Strategie verschijnen (besluit 8).
+  ok(
+    "en nergens staat nog /profielen",
+    [...brandNav(merkId, true), ...generalNav(true)].every(
+      (i) => !i.href.startsWith("/profielen"),
+    ),
+  );
+});
+
+group("de actieve regel is exact, niet met prefix", () => {
+  // `/merk/x/merkprofiel` is het begin van `/merk/x/merkprofiel/bewerken`. Met
+  // een prefixmatch zou "Merkdossier" oplichten terwijl je in "Bewerken" zit,
+  // en twee items tegelijk laten oplichten is erger dan één die net niet klopt.
+  ok(
+    "Merkdossier licht niet op vanuit Bewerken",
+    !isExact("/merk/x/merkprofiel/bewerken", "/merk/x/merkprofiel"),
+  );
+  ok("maar wel op zichzelf", isExact("/merk/x/merkprofiel", "/merk/x/merkprofiel"));
+  ok("de querystring telt niet mee", isExact("/analyses", "/analyses?merk=x"));
+  // `isActive` houdt zijn prefixgedrag, dat is waar hij voor is.
+  ok("isActive kijkt wél onder een route", isActive("/instellingen/koppelingen", "/instellingen"));
+});
+
+group("elk oud merkadres verwijst permanent naar zijn nieuwe", () => {
+  // Dit is de verificatie uit fase 1 van docs/tasks/appstructuur.md: de
+  // eigenaar deelt demolinks naar deze adressen, dus een dood adres kost hier
+  // een gesprek en niet alleen een klik. Alle dertien zijn 308 (permanent) en
+  // wijzen naar het EINDadres, niet naar een tussenstation.
+  const verwacht: Record<string, string> = {
+    "/profielen/nieuw": "/merk/nieuw",
+    "/profielen": "/merk",
+    "/profielen/:id": "/merk/:id/merkprofiel",
+    "/profielen/:id/merkprofiel": "/merk/:id/merkprofiel/bewerken",
+    "/profielen/:id/profielgegevens": "/merk/:id/merkprofiel/bewerken",
+    "/profielen/:id/aanvullen": "/merk/:id/merkprofiel/input",
+    "/profielen/:id/toevoegingen": "/merk/:id/merkprofiel/input",
+    "/profielen/:id/producten": "/merk/:id/merkprofiel",
+    "/profielen/:id/plan": "/merk/:id/strategie/plan",
+    "/profielen/:id/techniek": "/merk/:id/analytics",
+    "/profielen/:id/concurrenten": "/merk/:id/analytics/concurrenten",
+    "/profielen/:id/search-console": "/merk/:id/analytics/zoekverkeer",
+    "/profielen/:id/beheer": "/merk/:id/admin/toewijzen",
+  };
+
+  const regels = DOORVERWIJZINGEN;
+  const perBron = new Map(regels.map((r) => [r.source, r]));
+
+  for (const [bron, doel] of Object.entries(verwacht)) {
+    const regel = perBron.get(bron);
+    ok(`${bron} bestaat`, Boolean(regel));
+    ok(`${bron} → ${doel}`, regel?.destination === doel, regel?.destination);
+    ok(`${bron} is permanent`, regel?.permanent === true);
+  }
+
+  // De volgorde telt: Next.js loopt de lijst van boven naar beneden af, en
+  // `/profielen/:id` zou anders het woord "nieuw" vangen.
+  const iNieuw = regels.findIndex((r) => r.source === "/profielen/nieuw");
+  const iId = regels.findIndex((r) => r.source === "/profielen/:id");
+  ok("het statische /profielen/nieuw staat vóór /profielen/:id", iNieuw < iId);
+  ok(
+    "en /profielen/:id staat achter zijn eigen subpagina's",
+    iId > regels.findIndex((r) => r.source === "/profielen/:id/plan"),
+  );
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+console.log("\nOpen punten op het merkprofiel");
+
+group("findGaps noemt het gevolg, niet het gemis", () => {
+  const compleet = {
+    aliases: ["Fysi Unique"],
+    proof_points: ["sinds 2009", "12 fysiotherapeuten", "4,8 op Google"],
+    service_scope: "lokaal",
+    service_regions: ["Amersfoort"],
+    business_model: "dienstverlener",
+  };
+  ok("een compleet profiel heeft geen open punten", findGaps(compleet).length === 0);
+
+  ok(
+    "geen schrijfwijzen is een punt",
+    findGaps({ ...compleet, aliases: [] }).some((g) => g.label.includes("schrijfwijzen")),
+  );
+  // Onder de drie, niet onder de één: met twee feiten wordt een tekst nog
+  // steeds algemeen, en algemeen wordt niet geciteerd.
+  ok(
+    "twee bewijspunten is te weinig",
+    findGaps({ ...compleet, proof_points: ["a", "b"] }).length === 1,
+  );
+  ok("drie is genoeg", findGaps({ ...compleet, proof_points: ["a", "b", "c"] }).length === 0);
+
+  // Alleen bij een lokaal merk. Vier van de negen profielen hadden op
+  // 11 augustus 2026 `service_scope = null`, en dan mag deze regel niet slaan.
+  ok(
+    "een lokaal merk zonder plaats is een punt",
+    findGaps({ ...compleet, service_regions: [] }).some((g) => g.label.includes("plaats")),
+  );
+  ok(
+    "een landelijk merk zonder plaats niet",
+    findGaps({ ...compleet, service_scope: "landelijk", service_regions: [] }).length === 0,
+  );
+
+  ok(
+    "elk punt zegt wát het verbetert",
+    findGaps({ aliases: [], proof_points: [], service_scope: null, service_regions: [], business_model: null })
+      .every((g) => g.effect.length > 40),
   );
 });
 

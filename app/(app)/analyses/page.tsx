@@ -146,7 +146,7 @@ export default async function AnalysesPage({
           action={
             hasProfile
               ? { href: "/analyses/new", label: "Start je eerste cluster" }
-              : { href: "/profielen/nieuw", label: "Merk toevoegen" }
+              : { href: "/merk/nieuw", label: "Merk toevoegen" }
           }
         >
           {hasProfile

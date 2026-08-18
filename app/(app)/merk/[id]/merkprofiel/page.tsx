@@ -1,10 +1,8 @@
 import { notFound } from "next/navigation";
-import type { Metadata } from "next";
 import { getProfile } from "@/lib/profiles";
-import { requireUser } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
-import { ProfileProgress } from "./profile-progress";
-import { LlmKnowledgePanel } from "./llm-knowledge-panel";
+import { ProfileProgress } from "../_components/profile-progress";
+import { LlmKnowledgePanel } from "../_components/llm-knowledge-panel";
 import { MilestonesBlock } from "@/components/milestones-block";
 import { InsightsBlock } from "@/components/loop-blocks";
 import { loadLoop } from "@/lib/insights-data";
@@ -13,24 +11,14 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { ConfidenceChip } from "@/components/confidence-chip";
 import { onboardingHeadline } from "@/lib/pipeline/onboarding-summary";
 import type { BaselineVerdict, CategoryVerdict } from "@/lib/pipeline/baseline-verdict";
-import { ProfileHero } from "./profile-hero";
-import { ProfileSection } from "./profile-section";
-import { ProfileReadinessPanel } from "./profile-readiness-panel";
-import type { ProfileLlmBaseline } from "@/lib/types/database";
+import { ProfileHero } from "../_components/profile-hero";
+import { ProfileSection } from "../_components/profile-section";
+import { ProfileReadinessPanel } from "../_components/profile-readiness-panel";
+import { OfferingsPanel } from "../_components/offerings-panel";
+import { assessStructureCoverage } from "@/lib/pipeline/structure-gap";
+import type { ProfileLlmBaseline, ProfileOffering } from "@/lib/types/database";
 
-// A.4: geen layout.tsx boven deze route, dus de titel staat direct op de
-// pagina. `getProfile` is gememoïseerd (lib/profiles.ts), dus dit is geen
-// tweede query naast de pagina zelf.
-export async function generateMetadata({
-  params,
-}: {
-  params: Promise<{ id: string }>;
-}): Promise<Metadata> {
-  const { id } = await params;
-  const profile = await getProfile(id);
-  if (!profile) return {};
-  return { title: profile.brand_name ?? profile.name };
-}
+export const metadata = { title: "Merkdossier" };
 
 /**
  * HET MERKDOSSIER: het leesscherm, en verder niets.
@@ -44,17 +32,11 @@ export async function generateMetadata({
  * verwees (het volgende onderwerp om te meten). Overweldigend, en met meer dan
  * één doel per pagina.
  *
- * Nu twee blokken, precies wat het woord "dossier" belooft:
- *
- *   1. Is het compleet?             (`ProfileReadinessPanel`)
- *   2. Wat weet ORBIT ENGINE over de klant, uit de nulmeting? (dossier + AI-kennis)
- *
- * Alles wat een werkscherm is (aanvullen, corrigeren, toewijzen) of gereedschap
- * (techniek, profielgegevens, concurrenten) heeft een eigen subpagina onder
- * "Merkdossier" in de zijbalk, zie `lib/nav.ts`. Wat output van een analyse is
- * (aanbevolen onderwerpen, "waar begin je") staat bij "Clusters", niet hier.
+ * Sinds 17 augustus 2026 staat dit op `/merk/[id]/merkprofiel` in plaats van op
+ * `/profielen/[id]`; de toegangscontrole zit in de layout erboven, dus deze
+ * pagina hoeft alleen nog te lezen. Zie `app/(app)/merk/[id]/layout.tsx`.
  */
-export default async function ProfilePage({
+export default async function MerkdossierPage({
   params,
 }: {
   params: Promise<{ id: string }>;
@@ -63,14 +45,18 @@ export default async function ProfilePage({
   const profile = await getProfile(id);
   if (!profile) notFound();
 
-  await requireUser();
-
   if (profile.status !== "klaar") {
     return <ProfileProgress profileId={id} initialStatus={profile.status} />;
   }
 
   const supabase = await createClient();
-  const [{ data: baselineRows }, { data: synthesisRow }] = await Promise.all([
+  const [
+    { data: baselineRows },
+    { data: synthesisRow },
+    { data: pageRows },
+    { data: offeringRows },
+    { data: offeringFacetRow },
+  ] = await Promise.all([
     // Wat AI-assistenten al over dit merk weten (blok B fase 3).
     supabase
       .from("profile_llm_baseline")
@@ -83,6 +69,15 @@ export default async function ProfilePage({
       .select("summary, confidence")
       .eq("profile_id", id)
       .eq("facet", "synthese")
+      .maybeSingle(),
+    // Blok 4, Aanbod: het aanbod zoals gevonden, en wat nog geen pagina heeft.
+    supabase.from("profile_pages").select("url, title").eq("profile_id", id),
+    supabase.from("profile_offerings").select("*").eq("profile_id", id).order("sort_order"),
+    supabase
+      .from("profile_facets")
+      .select("confidence")
+      .eq("profile_id", id)
+      .eq("facet", "aanbod")
       .maybeSingle(),
   ]);
 
@@ -103,7 +98,7 @@ export default async function ProfilePage({
     knowsVerdicts,
     categoryVerdicts,
     // Geen structurele dekkingsanalyse meer op dit scherm (die staat nu op
-    // "Producten"), en `onboardingHeadline` gebruikt `coverage` niet in zijn
+    // "Aanbod"), en `onboardingHeadline` gebruikt `coverage` niet in zijn
     // tekst. Leeg is dus correct, geen tweede query voor een ongebruikt veld.
     coverage: { coverage: [], missing: 0, weak: 0, assessed: 0 },
   };
@@ -113,12 +108,21 @@ export default async function ProfilePage({
   const dossierConfidence =
     (synthesisRow as { confidence?: number | null } | null)?.confidence ?? null;
 
+  // Blok 4: welke onderdelen van het aanbod nog geen eigen pagina hebben.
+  // Deterministisch, geen AI (`docs/architecture.md` §6, "Bewust géén AI").
+  const coverage = assessStructureCoverage(
+    (offeringRows ?? []) as ProfileOffering[],
+    ((pageRows ?? []) as { url: string; title: string | null }[]).map((p) => ({
+      url: p.url,
+      title: p.title,
+      text: "",
+    })),
+  );
+  const offeringConfidence =
+    (offeringFacetRow as { confidence?: number | null } | null)?.confidence ?? null;
+
   const beheerClient = createAdminClient();
   const mijlpalen = await loadMilestones(beheerClient, id, profile.account_id);
-
-  // De lus (fase 6): drie zinnen over wat er gebeurde. De kansenlijst
-  // ("waar begin je") staat sinds deze herstructurering bij "Clusters": dat is
-  // output over analyses heen, geen deel van wat ORBIT ENGINE over het merk weet.
   const lus = await loadLoop(beheerClient, id);
 
   return (
@@ -129,8 +133,7 @@ export default async function ProfilePage({
 
       {/* ── Wat dit tot nu toe opleverde ───────────────────────────────────
           Door besluit 7 (doorlopend opzegbaar) is dit het blok dat opzeggen
-          tegenhoudt. Het staat daarom hoog en niet weggestopt in een
-          analysescherm. */}
+          tegenhoudt. Verhuist in fase 5 naar Overzicht. */}
       <MilestonesBlock milestones={mijlpalen} />
 
       {/* ── Wat er deze maand gebeurde ─────────────────────────────────────
@@ -167,6 +170,23 @@ export default async function ProfilePage({
         description="De nulmeting, uitgesplitst per vraag: wat ChatGPT antwoordde en waar dat vandaan kwam."
       >
         <LlmKnowledgePanel rows={baselines} />
+      </ProfileSection>
+
+      {/* ── 4. Aanbod ──────────────────────────────────────────────────────
+          Verhuisd van `/profielen/[id]/producten` op 17 augustus 2026. Het is
+          onderdeel van wat ORBIT ENGINE van het merk begreep, geen apart scherm. */}
+      <ProfileSection
+        id="aanbod"
+        title="Aanbod"
+        description="Je diensten en producten zoals ORBIT ENGINE ze op je site vond, en welke nog geen eigen pagina hebben."
+      >
+        <OfferingsPanel
+          profileId={id}
+          offerings={(offeringRows ?? []) as ProfileOffering[]}
+          inventory={profile.inventory_quality_json}
+          confidence={offeringConfidence}
+          coverage={coverage}
+        />
       </ProfileSection>
     </div>
   );

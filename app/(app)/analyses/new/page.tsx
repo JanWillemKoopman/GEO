@@ -39,7 +39,7 @@ export default async function NewAnalysisPage() {
             ORBIT ENGINE meet altijd binnen een merk. Voeg er één toe, en daarna koppel je hier zoveel
             clusters aan als je wilt, één per product of onderwerp.
           </p>
-          <Link href="/profielen/nieuw" className="btn-primary mt-2">
+          <Link href="/merk/nieuw" className="btn-primary mt-2">
             Merk toevoegen
           </Link>
         </div>

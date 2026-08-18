@@ -1,7 +1,7 @@
 # UX & Design
 
 Leidend voor elk scherm. Tokens en primitieven staan in `app/globals.css`; dit document legt uit
-wat ze zijn en wanneer je welke gebruikt. **Peildatum: 13 augustus 2026.** De vormgeving zelf ging
+wat ze zijn en wanneer je welke gebruikt. **Peildatum: 17 augustus 2026.** De vormgeving zelf ging
 op 6 augustus over op het systeem van de NOVA-workspace (volledige verantwoording in
 `designsystem.md`); deze datum volgt de gedragspatronen die daarna zijn bijgekomen (statustaal,
 foutafhandeling, de content-editie).
@@ -201,37 +201,72 @@ database-queries een dood interval zonder enige terugkoppeling.
 ### De merk-werkruimte
 
 Sinds besluit 1 (`docs/logbook.md`, het inmiddels verwijderde `Nova.md` §0) is de app een
-**merk-werkruimte**: je kiest bovenin een merk en
-daarna gaat alles over dát merk. De navigatie valt daarmee in twee soorten uiteen, en dat onderscheid
-past horizontaal niet zonder scheidingstekens die niets betekenen. Vandaar een **zijbalk**
-(`components/sidebar.tsx`), met twee groepen:
+**merk-werkruimte**: je kiest bovenin een merk en daarna gaat alles over dát merk. Dat onderscheid
+past horizontaal niet zonder scheidingstekens die niets betekenen, en verticaal is het één
+tussenkopje. Vandaar een **zijbalk** (`components/sidebar.tsx`).
 
-| Groep | Wat erin staat |
-|---|---|
-| De merknaam | Merkdossier, Analyses van dit merk |
-| Algemeen | Alle merken, Alle analyses, Instellingen |
+**Vijf hoofdstukken, elk met hooguit drie kinderen** (besluit 1 tot en met 8 van 17 augustus 2026).
+Daarvoor waren het 7 regels die uitklapten naar 15 bestemmingen, waarvan er negen onder één kop
+hingen die het commentaar in `lib/nav.ts` zelf al "de vergaarbak die dit oplost alleen verticaal"
+noemde. Elk hoofdstuk beantwoordt nu één vraag:
+
+| Hoofdstuk | De vraag | Bestemmingen |
+|---|---|---|
+| Overzicht | Hoe sta ik ervoor en wat moet ik nu doen? | `/merk/[id]` |
+| Strategie | Wat gaan we doen, en wat is er al gemaakt? | Contentplan, Clusters, Bibliotheek |
+| Analytics | Wat zeggen de cijfers, en waarom? | Zichtbaarheid in AI, Zoekverkeer, Concurrenten |
+| Merkprofiel | Wie ben ik volgens ORBIT ENGINE, en klopt dat? | Merkdossier, Bewerken, Vraagt jouw input |
+| Instellingen | Hoe is het ingericht? | Account en team, Koppelingen |
+| Admin | (alleen beheerders, onder een scheidingslijn) | Onboarding-inzicht, Alle merken, Toewijzen |
+
+⚠️ **Strategie staat vóór Analytics, en dat is geen smaak.** Wie inlogt wil weten wat hij moet doen,
+niet browsen in data. Overzicht draagt het hoofdcijfer al, Analytics is verdieping en Strategie is
+handelen. De wachtrij op Overzicht wijst naar Strategie, dus die hoort ernaast te staan. Nova ordent
+zijn vier bestemmingen om dezelfde reden zo.
+
+**De zijbalk groeit mee.** Een hoofdstuk verschijnt pas zodra zijn bestemmingen bestaan
+(`hoofdstukken()` in `lib/nav.ts` laat een lege kop weg). Een kop die naar een leeg scherm wijst is
+erger dan een kop die er nog niet is: de eerste kost vertrouwen in de hele balk.
+
+**Er valt niets uit te klappen.** Het uitklappen was er voor die ene kop met negen kinderen. Met
+hooguit drie per hoofdstuk passen alle bestemmingen tegelijk in beeld, en dan is een klapknop een
+klik die niets oplevert. Ingeklapt (64px) blijft alleen het teken van het hoofdstuk over, en dat
+linkt naar zijn eerste bestemming.
+
+**De actieve regel is exact, niet met prefix** (`isExact`, naast `isActive`). De bestemmingen binnen
+een hoofdstuk zijn elkaars prefix: `/merk/x/merkprofiel` is het begin van
+`/merk/x/merkprofiel/bewerken`, en met een prefixmatch zou "Merkdossier" oplichten terwijl je in
+"Bewerken" zit.
 
 **De kiezer verschijnt niet altijd.** Bij precies één merk staat de naam er als tekst en niet als
 knop: een kiezer met één optie belooft een keuze die er niet is. Het zoekveld erin verschijnt pas
-vanaf acht merken. Nova doet allebei ook zo.
+vanaf acht merken. Nova doet allebei ook zo. "Alle merken" is sinds besluit 2 geen menu-item meer en
+zit uitsluitend in deze kiezer: een klant met één merk betaalde er anders bij elke sessie een klik
+voor.
 
 **De keuze staat in een cookie** (`orbit_engine_merk`) en niet in de URL: hij moet blijven staan op schermen
 die zelf geen merk kennen (`/instellingen`), en een querystring zou aan élke link geplakt moeten
 worden. ⚠️ Die cookie is een **voorkeur, nooit een recht**: `listBrands()` controleert altijd opnieuw
 of je bij dat merk mag, en de toegangscontrole zelf zit in `getOwnedProfile()`.
 
-**De routes zijn niet verhuisd.** `/profielen/[id]` blijft `/profielen/[id]`: er staan bladwijzers en
-gedeelde demolinks naar die adressen, en een werkruimte is een kwestie van context, niet van andere
-URL's. `/analyses?merk=` filtert de lijst, met een zichtbare chip en een uitweg terug, want een lijst
-die stilletjes korter is dan je verwacht leest als data die weg is.
+**De routes zijn wél verhuisd, en de oude blijven werken.** Elk merkscherm staat sinds 17 augustus
+2026 onder `/merk/[id]/` in plaats van onder `/profielen/[id]/` (besluit 8). Zonder die verhuizing
+zou "profielen" in de adresbalk staan op een scherm dat over zoekverkeer gaat. De dertien oude
+adressen geven een **308, permanent**, naar hun eindadres; de lijst staat in `lib/redirects.ts` en
+wordt door `scripts/test-unit.ts` nagelopen, want de eigenaar deelt die links in demogesprekken en
+een dood adres kost hier een gesprek en niet alleen een klik.
+
+⚠️ **Het clusterdossier verhuist níet** en blijft op `/analyses/[id]`. Dat is de ene bewuste
+uitzondering: een cluster heeft tien diepe routes eronder (bibliotheek, concept, briefing,
+antwoorden, rapport, instellingen, contentdetail), en die allemaal verplaatsen raakt de meest
+gelinkte routes van de app voor alleen cosmetiek.
+
+**Eén toegangscontrole voor het hele segment.** `app/(app)/merk/[id]/layout.tsx` stelt de
+rechtenvraag één keer met `getOwnedProfile()`, in plaats van elf keer per scherm. Een gebruiker die
+niet bij het merk hoort krijgt een **404 en geen 403**: een 403 bevestigt dat het merk bestaat.
 
 **Vaste breedtes in de zijbalk** (240px, ingeklapt 64px). Een zijbalk die meegroeit met de langste
 merknaam laat de hele pagina verspringen zodra je wisselt.
-
-**Twee bestemmingen:** `/analyses` en `/profielen` (label: "Merken"). Eén bron: `lib/nav.ts`.
-Account zit achter het profielmenu. Navigatie is een belofte over de omvang van een product; twee
-links die naar dezelfde route wijzen kosten vertrouwen in de hele balk. De routes heten nog
-`/profielen` zodat bestaande bladwijzers blijven werken. Wat de klant leest, is wat telt.
 
 **Een analyse is één dossier in vier hoofdstukken**, geen tabbalk:
 

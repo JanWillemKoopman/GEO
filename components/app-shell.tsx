@@ -40,7 +40,7 @@ export function AppShell({
       staff={staff}
       onSelectBrand={selectBrand}
       logo={
-        <Link href="/profielen" className="text-lg font-bold tracking-tight">
+        <Link href="/merk" className="text-lg font-bold tracking-tight">
           <span className="brand-gradient-text">ORBIT ENGINE</span>
         </Link>
       }

@@ -6,7 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { PageHeader } from "@/components/page-header";
 import { EmptyState } from "@/components/empty-state";
-import { TopicsPanel } from "@/app/(app)/profielen/[id]/topics-panel";
+import { TopicsPanel } from "@/app/(app)/merk/[id]/_components/topics-panel";
 import { loadAnalysisPotential } from "@/lib/potential-data";
 import type { ProfileTopic } from "@/lib/types/database";
 
@@ -40,7 +40,7 @@ export default async function AanbevolenClustersPage({
         <PageHeader eyebrow="Clusters" title="Voorgestelde clusters" />
         <EmptyState
           title="Kies eerst een merk"
-          action={{ href: "/profielen", label: "Naar mijn merken" }}
+          action={{ href: "/merk", label: "Naar mijn merken" }}
         >
           Voorgestelde clusters horen bij één merk. Kies een merk in de zijbalk om de voorstellen uit
           de nulmeting te zien.
@@ -54,7 +54,7 @@ export default async function AanbevolenClustersPage({
     return (
       <div className="flex flex-col gap-6">
         <PageHeader eyebrow="Clusters" title="Voorgestelde clusters" />
-        <EmptyState title="Dit merk bestaat niet meer" action={{ href: "/profielen", label: "Naar mijn merken" }}>
+        <EmptyState title="Dit merk bestaat niet meer" action={{ href: "/merk", label: "Naar mijn merken" }}>
           Mogelijk is dit merk gearchiveerd of verwijderd.
         </EmptyState>
       </div>
@@ -85,7 +85,7 @@ export default async function AanbevolenClustersPage({
       <PageHeader
         eyebrow="Clusters"
         title="Voorgestelde clusters"
-        backHref={`/analyses?merk=${merk}`}
+        backHref={`/merk/${merk}/strategie/clusters`}
         backLabel="Clusters"
         description="Waar ORBIT ENGINE je zichtbaarheid op kan gaan volgen. Zet uit wat niet past, start wat wel past."
       />
@@ -94,7 +94,7 @@ export default async function AanbevolenClustersPage({
         <p className="text-secondary">
           ORBIT ENGINE heeft voor {profile.brand_name ?? profile.name} nog geen onderwerpen voorgesteld.
           Zodra de nulmeting daar iets over zegt, staat het hier.{" "}
-          <Link href={`/profielen/${merk}`} className="underline">
+          <Link href={`/merk/${merk}/merkprofiel`} className="underline">
             Terug naar het merkdossier
           </Link>
           .

@@ -25,7 +25,7 @@ Klant (browser/mobiel)
    │
    ▼
 Vercel: Next.js 15 op Node.js  (code: GitHub, deploy op push naar main)
- ├─ Frontend: /profielen, /analyses/[id] (dossier in 4 hoofdstukken), /instellingen
+ ├─ Frontend: /merk/[id]/... (de merk-werkruimte), /analyses/[id] (dossier in 4 hoofdstukken), /instellingen
  ├─ API-routes: CRUD + schrijfacties (service-role key + ownership-check)
  ├─ Vercel Cron (vercel.json, Hobby-limiet: max 2 taken, elk max 1×/dag)
  │    • /api/cron/tracking   maandelijks, 1e van de maand 06:00 UTC

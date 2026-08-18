@@ -55,7 +55,7 @@ export function ActivationForm({
       // Volledig herladen en niet `router.push`: de sessiecookie is net gezet en
       // de server moet hem zien. Een client-side navigatie zou de oude,
       // uitgelogde staat kunnen hergebruiken.
-      window.location.href = "/profielen";
+      window.location.href = "/merk";
     } catch {
       setFout("Geen verbinding. Controleer je internet en probeer het opnieuw.");
     } finally {

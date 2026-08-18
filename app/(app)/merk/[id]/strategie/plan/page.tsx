@@ -1,5 +1,4 @@
 import { notFound } from "next/navigation";
-import type { Metadata } from "next";
 import { getProfile } from "@/lib/profiles";
 import { requireUser } from "@/lib/auth";
 import { isStaff } from "@/lib/staff";
@@ -10,18 +9,7 @@ import { PlanView } from "./plan-view";
 import { CreatePlanBox } from "./create-plan-box";
 
 export const dynamic = "force-dynamic";
-
-export async function generateMetadata({
-  params,
-}: {
-  params: Promise<{ id: string }>;
-}): Promise<Metadata> {
-  const { id } = await params;
-  const profile = await getProfile(id);
-  return {
-    title: profile ? `Contentplan · ${profile.brand_name ?? profile.name}` : "Contentplan",
-  };
-}
+export const metadata = { title: "Contentplan" };
 
 /**
  * Het contentplan van één merk.
@@ -71,10 +59,10 @@ export default async function PlanPage({
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
-        eyebrow="Contentplan"
-        title={profile.brand_name ?? profile.name}
-        backHref={`/profielen/${id}`}
-        backLabel="Merkdossier"
+        eyebrow="Strategie"
+        title="Contentplan"
+        backHref={`/merk/${id}`}
+        backLabel="Overzicht"
         description="Twaalf maanden vooruit. Je keurt per maand goed, en ORBIT ENGINE begint tien dagen voor elke publicatiedatum met schrijven."
       />
 

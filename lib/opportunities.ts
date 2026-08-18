@@ -111,7 +111,7 @@ export function opportunities(input: OpportunityInput): Opportunity[] {
       source: "techniek",
       share: null,
       potential: null,
-      href: `/profielen/${input.profileId}/techniek`,
+      href: `/merk/${input.profileId}/analytics`,
     });
   }
 
@@ -133,7 +133,7 @@ export function opportunities(input: OpportunityInput): Opportunity[] {
       // niets te winnen valt, en dat is iets anders dan "we weten het niet".
       share: gewichten.length > 0 ? som(gewichten) : null,
       potential: typeof r.potential === "number" ? r.potential : null,
-      href: input.hasPlan ? `/profielen/${input.profileId}/plan` : null,
+      href: input.hasPlan ? `/merk/${input.profileId}/strategie/plan` : null,
     });
   }
 
@@ -152,7 +152,7 @@ export function opportunities(input: OpportunityInput): Opportunity[] {
       source: "plan",
       share: null,
       potential: null,
-      href: input.hasPlan ? `/profielen/${input.profileId}/plan` : null,
+      href: input.hasPlan ? `/merk/${input.profileId}/strategie/plan` : null,
     });
   }
 

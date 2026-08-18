@@ -44,7 +44,7 @@ export function ProfileHero({
 }) {
   return (
     <div className="flex flex-col gap-4">
-      <PageHeader eyebrow="Merkdossier" title={brandName} backHref="/profielen" backLabel="Merken" />
+      <PageHeader eyebrow="Merkdossier" title={brandName} backHref="/merk" backLabel="Merken" />
 
       <ExternalLink
         href={`https://${url.replace(/^https?:\/\//, "")}`}

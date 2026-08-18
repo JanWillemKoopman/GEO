@@ -1,30 +1,23 @@
 import { notFound } from "next/navigation";
-import type { Metadata } from "next";
 import { getProfile } from "@/lib/profiles";
-import { requireUser } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { PageHeader } from "@/components/page-header";
-import { EntitiesManager } from "../entities-manager";
+import { EntitiesManager } from "../../_components/entities-manager";
 import type { Entity } from "@/lib/types/database";
 
 export const dynamic = "force-dynamic";
-
-export async function generateMetadata({
-  params,
-}: {
-  params: Promise<{ id: string }>;
-}): Promise<Metadata> {
-  const { id } = await params;
-  const profile = await getProfile(id);
-  return {
-    title: profile ? `Concurrenten · ${profile.brand_name ?? profile.name}` : "Concurrenten",
-  };
-}
+export const metadata = { title: "Concurrenten" };
 
 /**
- * Concurrenten beheren (optimalisatie.md 2.7). Eigen subpagina sinds de
- * herstructurering van augustus 2026: dit hoort bij het merk als geheel, niet
- * bij één analyse, en is naslag om bij te stellen, geen deel van het verhaal.
+ * CONCURRENTEN: wie er nog meer in de antwoorden staat.
+ *
+ * Verhuisde op 17 augustus 2026 van het merkdossier naar Analytics. De reden is
+ * de vraag die het scherm beantwoordt: dit gaat niet over wie het merk ís maar
+ * over hoe het zich verhoudt tot anderen, en dat is een cijfervraag.
+ *
+ * Fase 4 van `docs/tasks/appstructuur.md` zet er twee blokken bovenop: de
+ * ranglijst over dezelfde noemer (`lib/pipeline/brand-rankings.ts`) en het
+ * bronnenlandschap. Het entiteitenbeheer hieronder is blok 3.
  */
 export default async function ConcurrentenPage({
   params,
@@ -34,8 +27,6 @@ export default async function ConcurrentenPage({
   const { id } = await params;
   const profile = await getProfile(id);
   if (!profile) notFound();
-
-  await requireUser();
 
   const supabase = await createClient();
   const { data: entityRows } = await supabase
@@ -47,10 +38,10 @@ export default async function ConcurrentenPage({
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
-        eyebrow="Merkdossier"
+        eyebrow="Analytics"
         title="Concurrenten"
-        backHref={`/profielen/${id}`}
-        backLabel="Merkdossier"
+        backHref={`/merk/${id}/analytics`}
+        backLabel="Zichtbaarheid in AI"
         description="Elk merk dat een AI-assistent in zijn antwoorden noemt, deelt ORBIT ENGINE automatisch in. Alleen echte concurrenten tellen mee in je aandeel."
       />
 

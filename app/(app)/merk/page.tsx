@@ -37,7 +37,7 @@ export default async function ProfielenPage() {
         title="Merken"
         description="ORBIT ENGINE leert je merk eerst kennen: branche, aanbod, concurrenten, doelgroep en tone-of-voice. Dat onderzoek doen we één keer per merk, en elk cluster eronder bouwt erop voort."
         action={
-          <Link href="/profielen/nieuw" className="btn-primary">
+          <Link href="/merk/nieuw" className="btn-primary">
             + Nieuw merk
           </Link>
         }
@@ -53,7 +53,7 @@ export default async function ProfielenPage() {
           <ul className="flex flex-col gap-1">
             {failedProfiles.map((p) => (
               <li key={p.id}>
-                <Link href={`/profielen/${p.id}`} className="text-sm underline">
+                <Link href={`/merk/${p.id}/merkprofiel`} className="text-sm underline">
                   {p.name}
                 </Link>
               </li>
@@ -65,7 +65,7 @@ export default async function ProfielenPage() {
       {profiles.length === 0 ? (
         <EmptyState
           title="Nog geen merken"
-          action={{ href: "/profielen/nieuw", label: "Eerste merk toevoegen" }}
+          action={{ href: "/merk/nieuw", label: "Eerste merk toevoegen" }}
         >
           Begin met het merk waarvan je de zichtbaarheid wilt meten. ORBIT ENGINE brengt het in kaart;
           daarna koppel je er clusters aan voor losse producten en onderwerpen.
@@ -75,7 +75,7 @@ export default async function ProfielenPage() {
           {profiles.map((p) => (
             <li key={p.id}>
               <Link
-                href={`/profielen/${p.id}`}
+                href={`/merk/${p.id}/merkprofiel`}
                 className="card card-interactive flex flex-wrap items-center justify-between gap-4"
               >
                 <div className="min-w-0">

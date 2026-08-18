@@ -99,7 +99,7 @@ export function OnboardingWizard() {
         setPending(false);
         return;
       }
-      router.push(`/profielen/${json.id}`);
+      router.push(`/merk/${json.id}/merkprofiel`);
     } catch {
       setError("We konden ORBIT ENGINE niet bereiken. Controleer je verbinding en probeer het opnieuw.");
       setPending(false);
@@ -109,7 +109,7 @@ export function OnboardingWizard() {
   return (
     <div className="mx-auto flex max-w-xl flex-col gap-6">
       <div>
-        <Link href="/profielen" className="mono-label transition-colors hover:text-[var(--text-primary)]">
+        <Link href="/merk" className="mono-label transition-colors hover:text-[var(--text-primary)]">
           ← Merken
         </Link>
         <h1 className="text-2xl font-bold tracking-tight">Nieuw merk</h1>

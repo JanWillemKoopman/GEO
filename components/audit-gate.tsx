@@ -69,7 +69,7 @@ export function AuditGate({
         minuten op.
       </p>
 
-      <Link href={`/profielen/${profileId}/techniek`} className="btn-outline w-fit">
+      <Link href={`/merk/${profileId}/analytics`} className="btn-outline w-fit">
         Bekijk de volledige controle
       </Link>
     </div>

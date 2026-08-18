@@ -2796,3 +2796,45 @@ werkomgeving van InSpace Nova (§30 hierboven, peildatum 6 augustus 2026), en di
 positioneert Outer Orbit juist als iets eigens. Zolang de app eruitziet als een afgeleide van de
 concurrent, werkt de vormgeving tegen de positionering in. Dat is een besluit voor de eigenaar en
 het staat opgeschreven zodat het gesteld wordt, niet opgelost omdat een AI dat wel handig vond.
+
+## 17 augustus 2026: de appstructuur, fase 1 (adressen en hoofdstukken)
+
+**Wat het probleem was, in cijfers.** De zijbalk toonde een klant 7 regels die uitklapten naar 15
+bestemmingen. Eén van die regels, "Mijn merk", had er in zijn eentje negen, en het commentaar in
+`lib/nav.ts` noemde die groep zelf al "de vergaarbak die dit oplost alleen verticaal". Alle 27
+velden van de merkprofiel-wizard stonden bovendien óók in het profielgegevens-scherm (41 velden):
+twee menu-items, twee schermen en twee opslagroutes voor dezelfde kolommen, waarvan het ene scherm
+een deelverzameling van het andere was. Er waren 26 schermen en geen enkele startpagina.
+
+**Wat fase 1 doet.** Elk merkscherm staat nu onder `/merk/[id]/` in plaats van onder
+`/profielen/[id]/`. Zonder die verhuizing zou "profielen" in de adresbalk staan op een scherm dat
+over zoekverkeer gaat. De zijbalk groepeert sinds deze ronde een platte lijst bestemmingen op hun
+hoofdstuk (`hoofdstukken()` in `lib/nav.ts`), in de vaste volgorde Overzicht, Strategie, Analytics,
+Merkprofiel, Instellingen, met Admin onder een scheidingslijn. Hooguit drie kinderen per kop, en
+een kop zonder bestemmingen wordt niet getoond.
+
+**Strategie staat vóór Analytics, en dat is geen cosmetiek.** Wie inlogt wil weten wat hij moet
+doen, niet browsen in data. Overzicht draagt het hoofdcijfer al, Analytics is verdieping en
+Strategie is handelen. Nova ordent zijn vier bestemmingen om dezelfde reden zo.
+
+**Dertien oude adressen geven een 308.** De eigenaar deelt demolinks naar die adressen, dus een
+dood adres kost hier een gesprek en niet alleen een klik. De lijst staat in `lib/redirects.ts` en
+niet in de configuratie: hij bepaalt een uitkomst, dus loopt `scripts/test-unit.ts` hem na
+(conventie 2). Alle dertien zijn nagelopen tegen een draaiende productiebuild en gaven een echte
+308 naar hun eindadres.
+
+**Elke verwijzing wijst naar het EINDadres, niet naar een tussenstation.** Een 308 blijft in de
+browsercache staan en is niet terug te nemen, dus `/profielgegevens` wijst nu al naar
+`/merkprofiel/bewerken` (waar fase 2 de twee formulieren samenvoegt) en `/producten` naar
+`/merkprofiel` (waar het aanbod als blok staat). Dat betekende dat fase 1 de schermen zelf mee moest
+verhuizen in plaats van alleen het spoor te leggen: een permanente verwijzing naar een adres dat nog
+niet bestaat is geen fundament maar een dood einde. `/merkprofiel/bewerken` toont daarom tijdelijk
+twee formulieren, met de reden erbij op het scherm.
+
+**Eén toegangscontrole in plaats van elf.** `app/(app)/merk/[id]/layout.tsx` stelt de rechtenvraag
+één keer met `getOwnedProfile()`, dezelfde drie lagen die de schrijfroutes gebruiken. Een gebruiker
+die niet bij het merk hoort krijgt een 404 en geen 403: een 403 bevestigt dat het merk bestaat.
+
+**Twee functies uit een servercomponent getrokken naar een pure module**, omdat ze anders niet te
+testen waren: `findGaps()` (`lib/profile-gaps.ts`, de open punten op het merkprofiel) en de
+doorverwijzingenlijst. Unittests van 1257 naar 1332.

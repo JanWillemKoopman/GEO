@@ -122,7 +122,7 @@ export function assessReadiness(input: ReadinessInput): Readiness {
       input.pages > 0,
       `${input.pages} pagina's`,
       true,
-      `/profielen/${p}/profielgegevens`,
+      `/merk/${p}/merkprofiel/bewerken`,
       stepRunning(s, "profile_discover"),
     ),
     row(
@@ -138,7 +138,7 @@ export function assessReadiness(input: ReadinessInput): Readiness {
       input.offerings > 0,
       `${input.offerings} onderdelen`,
       true,
-      `/profielen/${p}/producten`,
+      `/merk/${p}/merkprofiel`,
       stepRunning(s, "profile_offering"),
     ),
     row(
@@ -162,7 +162,7 @@ export function assessReadiness(input: ReadinessInput): Readiness {
       input.auditChecks > 0,
       `${input.auditChecks} controlepunten`,
       true,
-      `/profielen/${p}/techniek`,
+      `/merk/${p}/analytics`,
       stepRunning(s, "technical_audit"),
     ),
     // ── Het werkgebied, en waarom het blokkeert (spoor R6) ──────────────────
@@ -189,7 +189,7 @@ export function assessReadiness(input: ReadinessInput): Readiness {
       input.scopeKnown,
       input.scopeDetail ?? null,
       true,
-      `/profielen/${p}/profielgegevens`,
+      `/merk/${p}/merkprofiel/bewerken`,
       stepRunning(s, "profile_research"),
     ),
     // Vanaf hier: scherper, niet noodzakelijk. Deze twee blokkeren nooit.
@@ -198,7 +198,7 @@ export function assessReadiness(input: ReadinessInput): Readiness {
       input.openFactRequests === 0,
       "Alle vragen gehad",
       false,
-      `/profielen/${p}/aanvullen`,
+      `/merk/${p}/merkprofiel/input`,
       false,
     ),
     row(
@@ -206,7 +206,7 @@ export function assessReadiness(input: ReadinessInput): Readiness {
       input.researchGaps === 0,
       "Niets open",
       false,
-      `/profielen/${p}/toevoegingen`,
+      `/merk/${p}/merkprofiel/input`,
       false,
     ),
   ];
