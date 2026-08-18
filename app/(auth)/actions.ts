@@ -23,7 +23,7 @@ export async function signIn(_prev: AuthState, formData: FormData): Promise<Auth
   const { error } = await supabase.auth.signInWithPassword({ email, password });
   if (error) return { error: "Inloggen mislukt: controleer je e-mail en wachtwoord." };
 
-  redirect("/analyses");
+  redirect("/");
 }
 
 export async function signUp(_prev: AuthState, formData: FormData): Promise<AuthState> {
@@ -45,7 +45,7 @@ export async function signUp(_prev: AuthState, formData: FormData): Promise<Auth
     redirect("/login?check_email=1");
   }
 
-  redirect("/analyses");
+  redirect("/");
 }
 
 export async function signOut(): Promise<void> {
@@ -120,5 +120,5 @@ export async function updatePassword(_prev: AuthState, formData: FormData): Prom
   const { error } = await supabase.auth.updateUser({ password });
   if (error) return { error: `Wachtwoord wijzigen mislukt: ${error.message}` };
 
-  redirect("/analyses");
+  redirect("/");
 }

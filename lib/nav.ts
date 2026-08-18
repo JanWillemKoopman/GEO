@@ -105,6 +105,16 @@ export interface NavHoofdstuk {
  */
 export function brandNav(brandId: string, staff = false): NavItem[] {
   return [
+    // ── OVERZICHT ────────────────────────────────────────────────────────
+    // Eén bestemming, en die heet niet nog een keer "Overzicht": een kop met
+    // één kind dat hetzelfde heet is een regel die niets toevoegt.
+    {
+      href: `/merk/${brandId}`,
+      label: "Hoe sta je ervoor",
+      teken: "○",
+      hoofdstuk: "Overzicht",
+    },
+
     // ── STRATEGIE ────────────────────────────────────────────────────────
     {
       href: `/merk/${brandId}/strategie/plan`,

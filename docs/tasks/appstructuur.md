@@ -509,21 +509,11 @@ Samengevat in `docs/logbook.md`. Eén scherm erbij dat niet in de fasering stond
 ergens heen moet. De koppeling zelf is nog niet geverifieerd: dat kan pas als de Google-sleutel er
 is (§9) en er één echte synchronisatie gedraaid heeft.
 
-### Fase 5: OVERZICHT
+### ~~Fase 5: OVERZICHT~~ · AF (17 augustus 2026)
 
-**Bestanden:** `app/(app)/merk/[id]/page.tsx` · `lib/dashboard.ts` · `lib/insights.ts` ·
-`lib/milestones.ts` · `lib/opportunities.ts` · `lib/work.ts` · twee nieuwe pure modules voor
-funnel-voortgang en contentmix
-
-Zeven blokken (§4.1), waarvan blok 4 en 5 nieuw. Daarna wordt dit de bestemming na inloggen.
-
-**Verificatie:**
-- De teller op Overzicht ("3 wachten op jou") komt overeen met wat je optelt uit de clusterdossiers.
-  Draai het na op een merk met meerdere lopende clusters
-- Funnel-voortgang telt bij een plan van 12 maanden op tot het totaal aantal geplande pagina's,
-  reservepagina's uitgezonderd (`planned_pages.is_buffer`). Op productie staan 264 geplande
-  pagina's over 2 plannen
-- Beide nieuwe rekenmodules krijgen unittests
+Samengevat in `docs/logbook.md`, inclusief de ene afwijking van §4.1: de periode-aanduiding is
+"Maand {n} sinds de start" en niet "van 12", omdat besluit 7 het abonnement doorlopend opzegbaar
+maakte en `plan-view.tsx` het om die reden al zo schrijft.
 
 ### Fase 6: ADMIN en de afscherming
 

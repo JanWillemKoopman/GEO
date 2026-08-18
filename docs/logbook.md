@@ -2960,3 +2960,51 @@ staan die ergens heen gaat. Alle merken op één pagina: een bureau met vier mer
 oogopslag zien welke er gekoppeld zijn.
 
 Unittests 1393 naar 1437.
+
+## 17 augustus 2026: de appstructuur, fase 5 (Overzicht)
+
+**De startpagina die er nooit was.** Er waren 26 schermen en geen enkele startpagina: `/analyses`
+deed half dienst als dashboard, het merkdossier de andere helft, en wie inlogde wist niet waar hij
+moest beginnen. `/merk/[id]` beantwoordt nu vier vragen op volgorde: hoe sta ik ervoor, wat wacht op
+mij, ligt het plan op schema, waar begin ik. De wortel, de inlogactie en het woordmerk in de
+bovenbalk wijzen er sinds deze ronde allemaal heen.
+
+**De review-wachtrij komt terug, en dat draait een besluit terug.** Hij is op 3 augustus 2026 juist
+weggehaald omdat hij bij meerdere clusters opliep tot tientallen regels in één kaart, waarmee het
+overzicht zélf de rommel werd die het moest oplossen. Wat het deze keer wel kan laten werken is één
+harde grens: maximaal vijf regels, alleen de staat `nu`, met een doorklik naar de rest. Loopt hij in
+de praktijk tóch vol, dan is de volgende stap hem per cluster te tonen in plaats van opgeteld, niet
+hem groter te maken.
+
+**Twee nieuwe blokken, en allebei op dezelfde as als een bestaand scherm.** Funnel-voortgang toont
+per fase van de klantreis hoeveel van de geplande pagina's live staan; de contentmix toont hoe het
+plan verdeeld is over de paginatypes. Die mix telt op `planned_pages.page_type`, dezelfde as als
+"klikken per paginatype" op Zoekverkeer. Twee schermen die "contentmix" zeggen en iets anders tellen
+is precies de fout die deze bouwronde opruimt.
+
+**Reservepagina's tellen nergens mee.** Op productie staan 264 geplande pagina's over 2 plannen,
+waarvan een deel reserve is om in te schuiven als er iets afvalt. Die horen niet bij het maandtotaal
+dat de klant afneemt (migratie 0049), dus ook niet bij de noemer van zijn voortgang. Zonder dat
+filter staat een plan van 24 bestelde pagina's op "3 van de 30". Het scherm noemt de reserves apart,
+zodat het verschil zichtbaar blijft.
+
+**Een funnel houdt zijn eigen volgorde, ook als een fase leeg is.** Sorteren op aantal maakt van een
+reis een ranglijst. En een fase zonder geplande pagina's blijft staan met 0 van 0 in plaats van weg
+te vallen: stil verdwijnen is erger dan een leeg vakje, want dan ziet de klant niet dát die fase
+bestaat. Een lege fase krijgt geen 0%, want dat suggereert achterstand waar niets gepland is.
+
+**⚠️ Eén afwijking van het uitvoerplan, en met reden.** Dat plan schrijft in §4.1 de
+periode-aanduiding "Maand {n} van 12" voor. Besluit 7 maakte het abonnement doorlopend opzegbaar, en
+`plan-view.tsx` noemt sindsdien "maand 4 sinds de start", nooit "van 12": een noemer van twaalf is
+een belofte over een looptijd die niet is afgesproken. Het overzicht volgt die eerdere beslissing.
+
+**"Wat ORBIT ENGINE deze week deed" heet niet Engine Pulse en belooft geen autonomie.** Het is een
+lijst afgeronde taken uit de wachtrij, geen animatie. Gegroepeerd per soort, want één meetronde is
+dertig taken en dertig identieke regels duwen alles wat er verder gebeurd is uit beeld. Alle 24
+taaksoorten hebben een zin in gewone taal, met een test die faalt zodra er eentje bijkomt zonder
+vertaling: anders verschijnt `profile_llm_baseline` op het scherm van de klant.
+
+**De middleware beschermde alleen `/analyses`.** Sinds de herindeling zit het merendeel van de app
+onder `/merk`, en dat viel buiten die controle. Er lekte niets, want elke pagina roept zelf
+`requireUser()` aan, maar een bezoeker zonder sessie kreeg een omweg via een server-render in plaats
+van meteen het inlogscherm. Unittests 1437 naar 1465.

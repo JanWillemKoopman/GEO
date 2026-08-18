@@ -40,7 +40,13 @@ export function AppShell({
       staff={staff}
       onSelectBrand={selectBrand}
       logo={
-        <Link href="/merk" className="text-lg font-bold tracking-tight">
+        // Het woordmerk gaat naar het overzicht van het merk waar je in zit, en
+        // niet naar een lijst. Sinds fase 5 is dát de startpagina; een logo dat
+        // naar een lijst gaat kost een klik om terug te komen waar je was.
+        <Link
+          href={workspace.active ? `/merk/${workspace.active.id}` : "/merk"}
+          className="text-lg font-bold tracking-tight"
+        >
           <span className="brand-gradient-text">ORBIT ENGINE</span>
         </Link>
       }

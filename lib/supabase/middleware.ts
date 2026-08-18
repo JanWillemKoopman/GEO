@@ -30,7 +30,14 @@ export async function updateSession(request: NextRequest) {
   } = await supabase.auth.getUser();
 
   const path = request.nextUrl.pathname;
-  const isProtected = path.startsWith("/analyses");
+  // ⚠️ Elke ingelogde sectie hoort hier te staan, niet alleen `/analyses`. Sinds
+  // de herindeling van 17 augustus 2026 zit het merendeel van de app onder
+  // `/merk`, en dat viel buiten deze controle. De pagina's zelf roepen
+  // `requireUser()` aan, dus er lekte niets, maar een bezoeker zonder sessie
+  // kreeg een omweg via een server-render in plaats van meteen het inlogscherm.
+  const isProtected = ["/analyses", "/merk", "/instellingen", "/beheer"].some(
+    (p) => path === p || path.startsWith(`${p}/`),
+  );
   const isAuthPage = path === "/login" || path === "/register";
 
   // Niet ingelogd + beschermde route → naar login.
@@ -43,7 +50,9 @@ export async function updateSession(request: NextRequest) {
   // Wel ingelogd + op een auth-pagina → naar de app.
   if (user && isAuthPage) {
     const url = request.nextUrl.clone();
-    url.pathname = "/analyses";
+    // De wortel beslist waar je heen gaat: het overzicht van je merk, of de
+    // merkenlijst als er nog geen keuze is (`app/page.tsx`).
+    url.pathname = "/";
     return NextResponse.redirect(url);
   }
 

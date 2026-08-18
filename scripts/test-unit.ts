@@ -87,6 +87,14 @@ import {
 import { kiesVoorBulk, bulkMelding } from "@/lib/plan-bulk";
 import { leesHerkomst, terugLink } from "@/lib/origin";
 import {
+  contentMix,
+  funnelVoortgang,
+  planTotalen,
+  type Funnelfase,
+  type VoortgangPagina,
+} from "@/lib/plan-progress";
+import { activiteit, ALLE_TAAKSOORTEN, TAAK_TEKST } from "@/lib/activity";
+import {
   besteEnZwakste,
   ctr as gscCtr,
   dagenTussen,
@@ -6026,9 +6034,10 @@ group("de zijbalk kent vijf hoofdstukken plus Admin", () => {
 group("elke merkbestemming hangt onder /merk/[id]", () => {
   const merkId = "abc";
   for (const item of brandNav(merkId, true)) {
+    // Het overzicht ís het merk (`/merk/abc`), de rest hangt eronder.
     ok(
       `${item.label} staat onder het merk`,
-      item.href.startsWith(`/merk/${merkId}/`),
+      item.href === `/merk/${merkId}` || item.href.startsWith(`/merk/${merkId}/`),
       item.href,
     );
   }
@@ -6466,6 +6475,150 @@ group("adressen vergelijkbaar maken", () => {
   ok("een kaal pad blijft heel", normaliseerUrl("/dienst/x") === "/dienst/x");
   ok("zonder beginslash komt er een bij", normaliseerUrl("dienst/x") === "/dienst/x");
   ok("hoofdletters tellen niet mee", normaliseerUrl("/Dienst/X") === "/dienst/x");
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+console.log("\nOverzicht: funnel-voortgang en contentmix");
+
+group("reservepagina's tellen nergens in mee", () => {
+  // ⚠️ `is_buffer` markeert pagina's die klaarstaan om in te schuiven als er
+  // eentje sneuvelt. Ze horen niet bij het maandtotaal dat de klant afneemt
+  // (migratie 0049). Zonder dit filter staat een plan van 24 bestelde pagina's
+  // op "geplaatst 3 van de 30".
+  const paginas: VoortgangPagina[] = [
+    p("f1", "dienst", false, "2026-08-01"),
+    p("f1", "dienst", false, null),
+    p("f2", "informatief", false, null),
+    p("f2", "informatief", true, null),
+    p(null, "categorie", true, "2026-08-02"),
+  ];
+
+  const t = planTotalen(paginas);
+  ok("drie geplande pagina's", t.gepland === 3);
+  ok("waarvan één geplaatst", t.geplaatst === 1);
+  ok("en twee reserve", t.reserve === 2);
+  // Ook een geplaatste reserve telt niet mee: hij is nooit besteld.
+  ok("een geplaatste reserve telt niet als voortgang", t.geplaatst === 1);
+
+  const mix = contentMix(paginas);
+  ok(
+    "de mix telt alleen de echte pagina's",
+    mix.reduce((s, m) => s + m.aantal, 0) === 3,
+  );
+
+  function p(
+    funnel_stage_id: string | null,
+    page_type: string,
+    is_buffer: boolean,
+    posted_at: string | null,
+  ): VoortgangPagina {
+    return { funnel_stage_id, page_type, is_buffer, posted_at };
+  }
+});
+
+group("de funnel houdt zijn eigen volgorde", () => {
+  const fases: Funnelfase[] = [
+    { id: "f3", label: "Kiezen", sort_order: 3 },
+    { id: "f1", label: "Oriëntatie", sort_order: 1 },
+    { id: "f2", label: "Vergelijken", sort_order: 2 },
+    { id: "f4", label: "Klant blijven", sort_order: 4 },
+  ];
+  const paginas: VoortgangPagina[] = [
+    { funnel_stage_id: "f1", page_type: "informatief", is_buffer: false, posted_at: "2026-08-01" },
+    { funnel_stage_id: "f1", page_type: "informatief", is_buffer: false, posted_at: null },
+    { funnel_stage_id: "f3", page_type: "dienst", is_buffer: false, posted_at: "2026-08-02" },
+  ];
+
+  const v = funnelVoortgang(paginas, fases);
+  // Een funnel ÍS een volgorde. Hem op grootte sorteren maakt van een reis een
+  // ranglijst, en dan leest de klant hem verkeerd.
+  ok(
+    "op sort_order en niet op aantal",
+    v.map((f) => f.label).join(" > ") === "Oriëntatie > Vergelijken > Kiezen > Klant blijven",
+  );
+  ok("1 van de 2 in de eerste fase", v[0].geplaatst === 1 && v[0].gepland === 2);
+  ok("dus 50%", v[0].percentage === 50);
+  ok("1 van de 1 in Kiezen", v[2].percentage === 100);
+
+  // ⚠️ Een fase zonder geplande pagina's blijft staan. Stil weglaten is erger
+  // dan een leeg vakje: dan ziet de klant niet dát die fase bestaat.
+  ok("een lege fase blijft in de lijst", v.length === 4);
+  ok("met 0 van 0", v[1].gepland === 0 && v[1].geplaatst === 0);
+  // 0% zou achterstand suggereren waar niets gepland is (conventie 3).
+  ok("en zonder percentage", v[1].percentage === null);
+});
+
+group("de contentmix telt op dezelfde as als Analytics", () => {
+  const paginas: VoortgangPagina[] = [
+    ...Array.from({ length: 6 }, () => mk("informatief")),
+    ...Array.from({ length: 3 }, () => mk("dienst")),
+    mk("categorie"),
+  ];
+  const mix = contentMix(paginas);
+  ok("drie types", mix.length === 3);
+  ok("aflopend op aantal", mix[0].type === "informatief");
+  ok("6 van de 10 is 60%", mix[0].percentage === 60);
+  ok("de percentages tellen op tot 100", Math.round(mix.reduce((s, m) => s + m.percentage, 0)) === 100);
+  ok("een leeg plan geeft een lege mix en geen nulrijen", contentMix([]).length === 0);
+
+  function mk(page_type: string): VoortgangPagina {
+    return { funnel_stage_id: null, page_type, is_buffer: false, posted_at: null };
+  }
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+console.log("\nWat ORBIT ENGINE deze week deed");
+
+group("elke taaksoort heeft een zin in gewone taal", () => {
+  // ⚠️ Zonder deze test verschijnt een nieuwe taaksoort als rauwe sleutel op het
+  // scherm van de klant, of hij valt stil weg. `profile_llm_baseline` zegt hem
+  // niets, en een lege regel is beter dan een verkeerde, maar het beste is een
+  // regel die klopt.
+  const zonderTekst = ALLE_TAAKSOORTEN.filter((t) => !TAAK_TEKST[t]);
+  ok(
+    `alle ${ALLE_TAAKSOORTEN.length} taaksoorten${zonderTekst.length ? " (mist: " + zonderTekst.join(", ") + ")" : ""}`,
+    zonderTekst.length === 0,
+  );
+  ok(
+    "en er staat niets in dat geen taaksoort is",
+    Object.keys(TAAK_TEKST).every((k) => (ALLE_TAAKSOORTEN as readonly string[]).includes(k)),
+  );
+  // Voltooide tijd, met ORBIT ENGINE als handelend onderwerp: het scherm zet er
+  // "ORBIT ENGINE" voor, dus de zin mag niet met een hoofdletter of een
+  // onderwerp beginnen (`docs/schrijfstijl.md` richtlijn 3).
+  ok(
+    "elke zin begint met een kleine letter",
+    Object.values(TAAK_TEKST).every((v) => v[0] === v[0].toLowerCase()),
+  );
+});
+
+group("één meetronde is één regel, geen dertig", () => {
+  // Dertig identieke regels duwen alles wat er verder gebeurd is uit beeld.
+  const taken = [
+    ...Array.from({ length: 30 }, (_, i) => ({
+      type: "measure_prompt",
+      finished_at: `2026-08-17T10:${String(i).padStart(2, "0")}:00Z`,
+    })),
+    { type: "aggregate_week", finished_at: "2026-08-17T11:00:00Z" },
+    { type: "generate_report", finished_at: "2026-08-17T11:30:00Z" },
+  ];
+  const regels = activiteit(taken);
+  ok("drie regels", regels.length === 3);
+  ok("nieuwste eerst", regels[0].tekst.includes("rapport"));
+  const meting = regels.find((r) => r.tekst.includes("vraag aan een AI-assistent"));
+  ok("de meetronde is er één regel met een teller", meting?.aantal === 30);
+  ok("en draagt het laatste tijdstip", meting?.laatst === "2026-08-17T10:29:00Z");
+
+  // Een taak die nog loopt heeft geen eindtijd en hoort er dus niet in: de kop
+  // belooft wat ORBIT ENGINE deed, niet wat het aan het doen is.
+  ok(
+    "een onafgeronde taak telt niet mee",
+    activiteit([{ type: "gsc_sync", finished_at: null }]).length === 0,
+  );
+  ok(
+    "een onbekende taaksoort valt weg in plaats van als sleutel te verschijnen",
+    activiteit([{ type: "iets_nieuws", finished_at: "2026-08-17T12:00:00Z" }]).length === 0,
+  );
 });
 
 // ════════════════════════════════════════════════════════════════════════════
