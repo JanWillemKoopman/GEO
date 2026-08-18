@@ -3160,3 +3160,52 @@ met per regel waarom het niet automatisch kan.
 `docs/tasks/ontwikkelplan_naar_eindproduct.html`, zelfstandig te openen zonder de Artifact-omgeving.
 `CLAUDE.md` verwijst er sindsdien naar, direct onder de twee bestemmingsdocumenten, als de verdere
 geplande doorontwikkeling naar het eindproduct.
+
+## De Teamsessie: één onderdeel, vier tot zes experts, geen regel code (18 augustus 2026)
+
+Er is een herbruikbare werkwijze om één onderdeel van de app door meerdere vakgebieden tegelijk te
+laten doorlichten. Je zegt "start een Teamsessie voor de onboarding" en de rest gaat vanzelf:
+`.claude/skills/team-session/SKILL.md` bepaalt het onderdeel, zoekt de bestanden op, kiest de
+experts, laat ze onafhankelijk analyseren, vat samen, laat alleen bij een echt conflict twee experts
+op elkaar reageren, en eindigt met hooguit vijf geprioriteerde verbeteringen. De elf vakgebieden plus
+de tegenspraak staan als aparte experts in `.claude/agents/`.
+
+**Drie keuzes, en waarom ze zo uitvielen.**
+
+1. **Geen Agent Teams.** Dat mechanisme geeft elke expert een eigen Claude-sessie die met de andere
+   praat, en dat is precies wat een brainstorm nodig lijkt te hebben. Het valt af op drie dingen:
+   het staat standaard uit en is experimenteel, het werkt niet in een niet-interactieve sessie
+   (Claude Code op het web dus niet), en de melding dat een expert klaar is draagt zijn uitkomst
+   níet mee, waardoor de orkestratie stilvalt en gaat pollen. Het enige dat het echt biedt, experts
+   die elkaar spreken, kan goedkoper: een expert die al gedraaid heeft kun je opnieuw aanspreken met
+   zijn context intact, dus hij hoeft de code geen tweede keer te lezen.
+2. **Geen `TEAM.md`.** Dat bestand bestaat niet als mechanisme. Claude Code schrijft zijn teamconfig
+   zelf weg buiten het project en de documentatie zegt uitdrukkelijk dat je die niet moet
+   voorschrijven.
+3. **De bestanden één keer opzoeken in plaats van vijf keer.** De grootste kostenpost was niet het
+   denken maar het zoeken: zonder maatregel gaat elke expert zelfstandig de onboarding zoeken. Nu
+   staat per onderdeel in `references/onderdeelkaart.md` waar het staat, en krijgt iedereen dezelfde
+   lijst mee. De sessie hieronder kostte daarmee ongeveer 483.000 tokens voor vijf experts plus een
+   tegenspreker, plus twee korte debatantwoorden. Vier van de zes draaiden op het goedkopere model;
+   alleen de zwaarst wegende expert en de tegenspreker kregen het dure.
+
+**De eerste sessie draaide meteen, over de onboarding, en leverde één inzicht dat de werkwijze zelf
+veranderde.** Vier van de vijf experts kwamen langs verschillende wegen bij hetzelfde uit: het
+profiel gaat op `klaar` na taak 2 van de 8 (`prepare-profile.ts`), waarna het voortgangsscherm stopt
+en de gebruiker vijf tot zes minuten op een dossier zit dat er af uitziet maar leeg is. Vier van de
+vijf voelt als bewijs. De tegenspreker haalde dat onderuit met het logboek in de hand: twee volledige
+onboardings op productie, acht van acht stappen klaar, nul mislukkingen. Elk faalpad in het rapport
+was uit de code afgeleid en nooit waargenomen. **Zonder frequentie is prioriteit niet te
+onderbouwen**, en die regel staat sindsdien in de skill: een P0 vereist een waargenomen probleem, een
+afgeleid faalpad is hooguit P1.
+
+Diezelfde tegenspreker vond wel iets dat wél hard is, en scherper dan het team het bracht: het
+commentaar bij `NON_BLOCKING_TYPES` in `lib/jobs/progress.ts` zegt dat bij een mislukte aanbodstap
+alleen het dienstenoverzicht en de topics wegvallen, maar `handlers.ts` hangt de marktstap aan de
+aanbodstap, en markt draagt de kennistest en de synthese. Het besluit sneuvelt op zijn eigen
+argument. Dat is één verplaatste regel, geen nieuw statusmodel, en het staat als openstaand werk in
+`docs/tasks/roadmap.md`.
+
+Een Teamsessie wijzigt nooit code. De schrijftools zijn tijdens de sessie weggehaald in plaats van
+verboden, want een instructie is een intentie en code is een garantie (conventie 1), en elke expert
+draait read-only. Wat je erna laat bouwen is een nieuwe opdracht.
