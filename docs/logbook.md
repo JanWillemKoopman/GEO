@@ -3093,45 +3093,65 @@ property toevoegen. Pas daarna is de koppeling geverifieerd (conventie 10).
 vormgeving. Zolang het open ontwerpbesluit in `designsystem.md` §9b staat, werkt het designsysteem
 tegen de merkstrategie in.
 
-## Het ontwikkelplan naar de visie: tien sprints en drie teruggedraaide besluiten (18 augustus 2026)
+## Het ontwikkelplan naar de visie, en de vier uitgangspunten die de volgorde bepalen (18 augustus 2026)
 
 `visie.md` en `merkstrategie.md` legden op 17 augustus de bestemming vast, met de afstand tot de
 bouw er eerlijk bij (drie punten in `visie.md`, vijf in `merkstrategie.md` §30). Wat er niet stond,
 was hoe je die afstand overbrugt. Dat staat nu in
 [`tasks/ontwikkelplan-visie.md`](./tasks/ontwikkelplan-visie.md): zeven werkstromen, tien sprints in
-drie fases, met per sprint de bestanden, het migratienummer, het verificatiecriterium en de
+vier fases, met per sprint de bestanden, het migratienummer, het verificatiecriterium en de
 handelingen die buiten Claude Code om moeten gebeuren.
 
-**De belangrijkste uitkomst van het opstellen is niet de volgorde maar dit: de visie draait drie
-eerder met argumenten genomen besluiten terug.** Geen CMS-koppeling (`logbook.md` §15, en
-`schrijfstijl.md` zegt met zoveel woorden dat de copy nergens een koppeling belooft), geen echte
-zoekvolumes (§15, "onze winbaarheidsmeting is een beter signaal"), en meerdere engines geparkeerd
-(§3). Alle drie zijn nu voorwaarde voor wat de visie belooft. Dat opschrijven is het punt: een
-besluit terugdraaien mag, stilzwijgend eroverheen bouwen niet, want dan raakt het waarom kwijt en
-staat er over een half jaar documentatie die de code tegenspreekt.
+**De eerste versie zette de CMS-koppeling en de echte zoekvolumes vooraan, omdat de visie ze allebei
+vraagt. De eigenaar heeft ze dezelfde dag naar achteren geschoven, en dat is de vier uitgangspunten
+waard die nu bovenaan het plan staan:**
 
-**Drie cijfers die de volgorde bepaalden**, alle drie nagerekend en niet uit documentatie
-overgenomen:
+1. **Publiceren blijft voorlopig handwerk.** Kopiëren, plakken, de URL invullen, als geplaatst
+   markeren. Van den Udenhout is het eerste geval. Pas als die route zich bewezen heeft komt er een
+   koppeling, en dat wordt sprint 9 in plaats van sprint 1. Het proces eromheen verandert niet:
+   content wordt geschreven, komt door de poorten, wordt goedgekeurd, en pas dan geplaatst.
+2. **Echte zoekvolumes schuiven mee naar achteren**, sprint 8. Niet vanwege de prijs, zie hieronder.
+3. **De app blijft draaien op alleen de OpenAI-sleutel.** Dit is als harde regel opgeschreven: elke
+   externe koppeling is optioneel en stil afwezig, en elke sprint krijgt een test die bewijst dat de
+   app zich zonder die sleutel identiek gedraagt. Voor Gemini is dat al zo
+   (`enginesForProfile()`); sprint 6 zorgt dat het bij die ene handeling blijft.
+4. **De goedkeuringspoort vóór content live gaat verdwijnt nergens**, ook niet in de autonomiesprint.
+   Die gaat over meten, onderzoeken, schrijven en voorstellen. De publicatieknop blijft van een mens.
+
+**Wat het herschikken aan het licht bracht, en het corrigeerde een fout in de eerste versie.** Daar
+stond dat de CMS-koppeling de effectmeting deblokkeert. Dat klopt niet: `markPublished()` plant de
+hermeetgolven al in zodra iemand een URL invult, en `checkPublication()` controleert de pagina
+daarna. De hele lus kan met de hand op gang komen. Wat ontbrak was nooit de koppeling, het was **één
+echte gepubliceerde pagina**. `content_impact` heeft nul rijen. Daarom is sprint 1 nu geen
+bouwsprint maar een doe-sprint: de route echt aflopen en repareren wat er onderweg schuurt.
+
+**Drie cijfers die de volgorde dragen**, alle drie nagerekend en niet uit documentatie overgenomen:
 
 1. **$0,855 per meetronde.** Bij 50 clusters, de omvang die `visie.md` als doelgroep beschrijft, is
    dat ~€43 per maand aan meting alleen, tegen een plafond van €50 per account per maand
-   (`lib/spend-rules.ts`). De prijskaart is dus een hardere grens dan de techniek, en dat is de
-   enige conclusie in het hele plan die geen code oplevert.
-2. **Nul gepubliceerde pagina's.** `content_impact` is leeg en `verifyPublication()` heeft nooit een
-   echt geval gezien. De laatste drie stappen van de cyclus (publiceren, meten, optimaliseren)
-   hebben nog nooit gedraaid. Daarom staat de CMS-koppeling als sprint 1 en niet later: hij
-   deblokkeert in één keer de effectmeting, de publicatiecontrole en het verbeteren van bestaande
-   pagina's.
-3. **`dimensions: ["date", "page"]`.** De Search Console-koppeling haalt geen zoekopdrachten op,
+   (`lib/spend-rules.ts`). De prijskaart is een hardere grens dan de techniek, en dat is de enige
+   conclusie in het hele plan die geen code oplevert.
+2. **`dimensions: ["date", "page"]`.** De Search Console-koppeling haalt geen zoekopdrachten op,
    terwijl migratie `0052` zelf al schreef dat die "een tweede tabel waard zijn zodra ze echt
    gebruikt worden". Daarmee ligt de halve SEO-belofte, inclusief posities, gratis binnen bereik.
    Dat maakt sprint 2 de goedkoopste grote stap van het plan.
+3. **$0,06 per 1.000 zoektermen.** De prijzen van vier zoekvolumeleveranciers zijn opgezocht en in
+   §6 van het plan gezet. Bij 20 merken en 2.500 zoektermen per merk kost een maandelijkse
+   verversing ongeveer $3 bij DataForSEO, tegen ~$6.000 per jaar bij Semrush en gratis maar
+   onbruikbaar bij Google zelf (zeven brede bakken zonder actieve advertentie-uitgaven). Dat is een
+   belangrijk cijfer voor de volgorde: **het uitstellen van sprint 8 is geen bezuiniging.** De rem
+   zit op focus en op een leverancier erbij, niet op geld.
 
 **Wat de kalender bepaalt is wachttijd, geen bouwtijd.** Effect meten gebeurt in golven van 30 en 60
-dagen na publicatie. De bouwschattingen in het plan zijn dagen (de appstructuur was zeven fases op
-één dag), de verificatie is maanden. Vandaar dat sprint 1 vroeg staat, ook al is hij niet de
-grootste.
+dagen na publicatie. De bouwschattingen zijn dagen (de appstructuur was zeven fases op één dag), de
+verificatie is maanden. Vandaar dat sprint 1 vooraan staat: de klok gaat pas lopen als er één pagina
+live staat, en handmatig publiceren houdt het aantal pagina's laag. Reken op maanden voor de eerste
+harde uitspraak over "werkt dit", en dat is de prijs van eerst testen.
 
-Zes van de tien sprints wachten op iets dat Claude Code niet kan doen: een account bij een externe
-partij, een betaling, of een afspraak met een klant. Die zestien handelingen staan in §4 van het plan
-op één plek bij elkaar, met per regel waarom het niet automatisch kan.
+**Eén gevolg dat de verkoop raakt.** Door de koppeling naar achteren te schuiven blijft punt 1 van
+`merkstrategie.md` §30, publiceren via het CMS, het langst onwaar van alle vijf. Tot sprint 9 mag die
+belofte nergens in een campagne, op de website of in een demo staan.
+
+Achttien handelingen in het plan wachten op iets dat Claude Code niet kan doen: een account bij een
+externe partij, een betaling, of een afspraak met een klant. Ze staan in §4 op één plek bij elkaar,
+met per regel waarom het niet automatisch kan.
