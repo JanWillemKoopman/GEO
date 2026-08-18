@@ -3155,3 +3155,8 @@ belofte nergens in een campagne, op de website of in een demo staan.
 Achttien handelingen in het plan wachten op iets dat Claude Code niet kan doen: een account bij een
 externe partij, een betaling, of een afspraak met een klant. Ze staan in §4 op één plek bij elkaar,
 met per regel waarom het niet automatisch kan.
+
+**Diezelfde dag naar `main` gemerged**, met de leesbare pagina erbij als
+`docs/tasks/ontwikkelplan_naar_eindproduct.html`, zelfstandig te openen zonder de Artifact-omgeving.
+`CLAUDE.md` verwijst er sindsdien naar, direct onder de twee bestemmingsdocumenten, als de verdere
+geplande doorontwikkeling naar het eindproduct.

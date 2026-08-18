@@ -14,6 +14,13 @@ documentatie.
   voor organisaties met meer kansen dan een team handmatig aankan.
 - `docs/merkstrategie.md`, de **merkstrategie** van Outer Orbit voor de Nederlandse markt.
 
+**Het concrete pad van vandaag naar die bestemming staat in
+[`docs/tasks/ontwikkelplan_naar_eindproduct.html`](docs/tasks/ontwikkelplan_naar_eindproduct.html)**:
+de verdere geplande doorontwikkeling naar het eindproduct, in zeven werkstromen en tien sprints, met
+per sprint wat Claude Code bouwt en wat de eigenaar er zelf buiten Claude Code om bij moet doen.
+Leidend is `docs/tasks/ontwikkelplan-visie.md`, met per sprint de bestanden, het migratienummer en
+het verificatiecriterium; de HTML-pagina ernaast is de leesbare versie voor wie geen ontwikkelaar is.
+
 **Wat dat praktisch betekent bij een opdracht.** Staan er twee redelijke oplossingen tegenover
 elkaar, kies dan die welke richting die bestemming beweegt. Concreet: een stap die het systeem
 zelfstandig kan zetten is te verkiezen boven een stap die weer een handmatige handeling toevoegt.
@@ -190,7 +197,7 @@ scripts/           test-unit · test-chain · test-openai · eval-mention
 | `docs/designsystem.md` | Waar elke kleur, radius en schaduw vandaan komt. §9b heeft het **open ontwerpbesluit**: het systeem is afgeleid van de concurrent en dat botst met de merkstrategie |
 | `docs/schrijfstijl.md` | Tone-of-voice en microcopy: de elf richtlijnen, de woordenlijst, en wat we bewust níet van Nova overnemen |
 | `docs/logbook.md` | **Waarom het is zoals het is**, met datum en cijfer. Bevat ook twee naslagsecties: de vertaaltabel voor verwijderde documenten en de kwaliteitslatten K1 t/m K5 en P1 t/m P7 die de code bij naam noemt |
-| `docs/tasks/` | Wat er nog open staat: `ontwikkelplan-visie.md` (het plan van vandaag naar `visie.md`, in tien sprints, leidend voor de volgorde), `roadmap.md` (het oudere, kleinere openstaande werk), `potentiescore.md` en `verificatie-r8-s8.md`. **Tijdelijk van aard:** af is weg, samengevat in `logbook.md` |
+| `docs/tasks/` | Wat er nog open staat: `ontwikkelplan-visie.md` (het plan van vandaag naar `visie.md`, in tien sprints, leidend voor de volgorde, met `ontwikkelplan_naar_eindproduct.html` als leesbare versie ernaast), `roadmap.md` (het oudere, kleinere openstaande werk), `potentiescore.md` en `verificatie-r8-s8.md`. **Tijdelijk van aard:** af is weg, samengevat in `logbook.md` |
 | `APP_FLOW_DOCUMENTATION.md` | **Het enige document zonder techniek erin**, voor sales en management: wat het product doet, de vijf fases, de klantreis en wat een klant kost |
 | `supabase/README.md` | Migratie-index en toepasinstructies |
 | `docs/nova-i18n.json` · `docs/inspace-app-i18n.json` · `docs/inspace-marketing.txt` | De berichtencatalogi van beide InSpace-apps (900 en 1.469 sleutels) en hun marketingtekst. De brontekst onder `schrijfstijl.md` en `designsystem.md`. **Niet bewerken** |

@@ -13,6 +13,11 @@ sprint niet is afgerond blijft `CLAUDE.md`, `architecture.md` en `ux-design.md` 
 En het is geen vervanging van [`roadmap.md`](./roadmap.md): daar staat het oudere, kleinere werk dat
 nog open ligt. Dit document staat erboven en verwijst ernaar waar ze elkaar raken.
 
+**Een leesbare versie zonder technische termen** staat naast dit bestand in
+[`ontwikkelplan_naar_eindproduct.html`](./ontwikkelplan_naar_eindproduct.html), rechtstreeks in de
+browser te openen. Dit bestand hier blijft leidend: bij een verschil tussen de twee is dit de
+waarheid, en de HTML-pagina hoort bijgewerkt te worden.
+
 ---
 
 ## 0. De uitgangspunten, vastgelegd op 18 augustus 2026
