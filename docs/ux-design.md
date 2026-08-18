@@ -314,7 +314,7 @@ Toegepast op ORBIT ENGINE's merkdossier:
 |---|---|---|---|
 | Dossier, nulmeting, aanbod, onderwerpen | ✅ | ✅ | Dit is wat de klant komt halen |
 | Wat ORBIT ENGINE nog wil weten | ✅ | ✅ | De vragen zijn áán hem gericht |
-| Technische controle, profielgegevens | ✅ | ✅ | Zijn site, zijn gegevens |
+| Technische controle, het merkprofiel bewerken | ✅ | ✅ | Zijn site, zijn gegevens |
 | **Het gesprek** (notities, contextfactoren) | ❌ | ✅ | Aantekeningen óver hem, niet vóór hem |
 | **Beheer** (toewijzen) | ❌ | ✅ | Handeling van ná het gesprek |
 
@@ -324,44 +324,59 @@ iedereen daarbuiten. Een accountbeheerder bij een bureau is nog steeds een klant
 ⚠️ **Een afgeschermd blok haalt ook zijn springlink weg** (`showNotes` in `ProfileHero`). Een link
 naar een blok dat er niet is, is een dode link, en dat is zichtbaarder dan het blok zelf.
 
-### Het profielscherm
+### Het hoofdstuk Merkprofiel: drie schermen waar er vijf waren
 
-Geen sectie-rail: de blokken hebben geen vaste chronologie zoals de vier
-hoofdstukken van een analyse, en een rail belooft een volgorde die er niet is.
-Wel een kop met **de merknaam, één duidingszin en drie cijfers**, herkenning,
-koopvragen, structurele dekking (`profile-hero.tsx`, gerekend in
-`lib/pipeline/onboarding-summary.ts`).
+Sinds 17 augustus 2026 heeft dit hoofdstuk drie bestemmingen, en elk beantwoordt
+één vraag. Daarvoor waren het er vijf (dossier, merkprofiel, profielgegevens,
+aanvullen, toevoegingen), met twee formulieren die naar dezelfde kolommen
+schreven.
 
-**Elk cijfer draagt zijn eigen eenheid.** De drie tegels stonden er als "6/6",
-"2/3" en "1" en de eerste reactie van de eigenaar was "die slaan nergens op".
-Terecht: de noemers waren onzichtbaar, en de derde was geen verhouding maar een
-aantal. Nu is het label een hele vraag ("Kent ChatGPT je bedrijf?"), staat de
-noemer ín de waarde (`1/15`), en legt een `explain`-veld achter een vraagteken
-uit wát er precies geteld is. Dat is Nova's regel: daar staat de eenheid altijd
-in het label zelf ("Total clicks this plan month", "Month {number} of 12").
+| Scherm | De vraag | Wat erop staat |
+|---|---|---|
+| Merkdossier `/merk/[id]/merkprofiel` | Wat weet ORBIT ENGINE van mij? | Kop, het dossier, wat AI over je weet, aanbod, concurrenten |
+| Bewerken `/merk/[id]/merkprofiel/bewerken` | Klopt dat? | 41 velden in zeven stappen, plus gereedschap |
+| Vraagt jouw input `/merk/[id]/merkprofiel/input` | Moet ik nog iets aanvullen? | Feitenvragen en open punten, teller in de kop |
 
-De volgorde ís het demogesprek: kop → **is het af** → **wat ORBIT ENGINE nog wil weten** →
-dossier → wat AI over je weet → aanbod → onderwerpen → gesprek → techniek →
-profielgegevens → beheer.
-
-**Is het af** (`ProfileReadinessPanel`, gerekend in
-`lib/pipeline/profile-readiness.ts`) is Nova's "Review & launch" toegepast: zes
-verplichte onderdelen met een stand per regel, een balk, en één zin die zegt of
-je het scherm kunt delen. Nodig omdat het profiel op status `klaar` gaat na taak
-2 van 8, waardoor "klaar" voor de consultant niets betekende. Openstaande
-feitvragen blokkeren `compleet` bewust **niet**: anders staat elk profiel eeuwig
-op 90% en betekent de melding niets meer.
-
-**Wat ORBIT ENGINE nog wil weten** (`OpenQuestions`) is één blok waar er twee waren: de
-vragen mét invoerveld zaten op plek 7 binnen "Profielgegevens", de open punten op
-plek 5 binnen "Het gesprek". Voor de gebruiker is dat één ding, dus staat het op
-één plek, hoog, met de teller in de kop.
+**Het merkdossier is een leesscherm.** Geen sectie-rail: de blokken hebben geen
+vaste chronologie zoals de vier hoofdstukken van een cluster, en een rail belooft
+een volgorde die er niet is. Wel een kop met de merknaam, de website en één
+duidingszin (`profile-hero.tsx`).
 
 Elk blok is een `ProfileSection` met een **titel én een omschrijving** (Nova geeft
 élk blok allebei). Twee soorten: `verhaal` staat op desktop open en is wat de
-consultant laat zien; `naslag` (techniek, profielgegevens, beheer) staat overal
-dicht, want dat is gereedschap. Dat haalt ruim de helft van de paginahoogte weg
-zonder één functie te kosten.
+consultant laat zien; `naslag` staat overal dicht, want dat is gereedschap.
+
+⚠️ **`ProfileReadinessPanel` staat niet meer op het dossier** maar bij Admin. Het
+is een percentage over werk dat de klant niet doet, en voor de consultant een
+verkoopinstrument ("kan ik dit scherm delen"). Dat is besluit 4: de klant ziet
+wat ORBIT ENGINE weet en hoe zeker dat is, niet hoe ORBIT ENGINE eraan kwam.
+Hetzelfde geldt voor de mijlpalen en de maandinzichten, die naar Overzicht gaan.
+
+**Bewerken is één formulier waar er twee waren.** De wizard had 27 velden, de
+platte editor 41, allebei met een eigen opslagroute naar dezelfde kolommen. Het
+ene scherm was een deelverzameling van het andere en de klant kon niet zien welk
+van de twee won. De wizardvorm wint omdat hij per veld de herkomstchip toont
+("uit je website gehaald", Nova's `draftedBadge`): de klant kijkt na in plaats
+van in te vullen, en dat is een wezenlijk andere handeling.
+
+⚠️ **41 in, 41 uit.** De zeven stappen dekken exact `EDITABLE_PROFILE_FIELDS`, en
+`scripts/test-unit.ts` faalt in béide richtingen. Eén veld dat nergens landt is
+een veld dat de klant niet meer kan corrigeren, en dat merkt niemand tot de
+volgende contentronde, want er verschijnt geen foutmelding. De verdeling is
+8-3-6-6-5-7-6 over Je bedrijf, Je merk, Je klant, Hoe je klinkt, Je woorden, Wie
+het schrijft en Waar je om bekend wilt staan. Die laatste stap heeft Nova niet,
+en het is juist de stap die bepaalt wat een AI-assistent over je kán zeggen.
+
+Wat géén merkveld is, staat buiten de wizard: hoe grondig ORBIT ENGINE de site
+uitleest (`InventoryBox`) en de brontekst die de klant zelf aanlevert
+(`DossierBox`). Die grens houdt de teller eerlijk.
+
+**Vraagt jouw input** is één blok waar er twee waren: de feitenvragen mét
+invoerveld en de open punten uit het onderzoek. Voor de gebruiker is dat één
+ding, "moet ik iets aanvullen", dus staat het op één plek met de teller in de
+kop. ⚠️ Feitenvragen die uit één cluster komen (`fact_requests.analysis_id`
+gezet) horen daar níet bij maar bij hoofdstuk 03 van dat cluster; die scheiding
+is op 14 augustus 2026 bewust aangebracht.
 
 **Een paneel dat niets te tonen heeft, verdwijnt niet.** Het toont waaróm het
 leeg is en wat de volgende stap is. Stil verdwijnen is erger dan het dode einde

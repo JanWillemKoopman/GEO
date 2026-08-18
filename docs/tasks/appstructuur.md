@@ -491,28 +491,10 @@ verwijzing (308) naar een adres dat nog niet bestaat geen fundament is maar een 
 is fase 1 wél zichtbaar: de zijbalk toont nu de hoofdstukken. Wat elke volgende fase daaraan
 toevoegt staat hieronder per fase.
 
-### Fase 2: MERKPROFIEL, van vijf schermen naar drie
+### ~~Fase 2: MERKPROFIEL, van vijf schermen naar drie~~ · AF (17 augustus 2026)
 
-De grootste opruiming, en de fase met het hoogste risico op stil dataverlies.
-
-**Bestanden:** `app/(app)/merk/[id]/merkprofiel/page.tsx` · `.../bewerken/page.tsx` ·
-`.../input/page.tsx` · `lib/pipeline/brand-fields.ts` · `lib/profile-editable.ts` ·
-`app/(app)/profielen/[id]/merkprofiel/brand-wizard.tsx` (verhuist) ·
-`app/(app)/profielen/[id]/profile-editor.tsx` (vervalt)
-
-1. **Bewerken:** de wizard en de platte editor worden één scherm van zeven stappen (§4.4b)
-2. **Merkdossier:** het leesscherm krijgt Aanbod en Concurrenten erbij als `ProfileSection` in de
-   vorm `verhaal` (open op desktop). `MilestonesBlock`, `InsightsBlock` en `ProfileReadinessPanel`
-   gaan eruit
-3. **Vraagt jouw input:** feitenvragen en open punten op één pagina, teller in de kop
-4. Zijbalk: hoofdstuk MERKPROFIEL verschijnt met drie kinderen; de negen kinderen van "Mijn merk"
-   verdwijnen
-
-**Verificatie:**
-- Tel de velden in de zeven stappen na tegen `EDITABLE_PROFILE_FIELDS`. **41 in, 41 uit.** Schrijf
-  er een unittest voor die faalt zodra iemand een veld toevoegt zonder het in een stap te zetten
-- Wijzig een veld in de nieuwe editor en controleer dat het terugkomt in de content die daarna
-  geschreven wordt. De bestaande ketentest op `brand_dna` dekt dit pad
+Samengevat in `docs/logbook.md`. `ProfileReadinessPanel` staat nu nergens meer op een scherm; hij
+wacht op fase 6, die hem op het Admin-scherm zet.
 
 ### Fase 3: STRATEGIE
 

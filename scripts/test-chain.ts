@@ -246,6 +246,20 @@ async function main(): Promise<void> {
 
     // ── 3. Schrijven ────────────────────────────────────────────────────────
     console.log("\nSchrijven (content_draft)");
+
+    // De klant corrigeert twee velden in de samengevoegde merkprofiel-editor,
+    // vlak vóór er geschreven wordt. Dezelfde kolommen die de PATCH-route zet
+    // (`EDITABLE_PROFILE_FIELDS`), zodat de assertie verderop toetst of een
+    // verse waarde de schrijver bereikt en niet een gecachete.
+    await db.client.query(
+      `update public.profiles
+          set tone_of_voice = 'Een ervaren fysiotherapeut die het rustig uitlegt',
+              taboo_phrases = array['spotgoedkoop'],
+              edited_by_user = true
+        where id = $1`,
+      [profileId],
+    );
+
     const { draftContentPiece } = await import("@/lib/pipeline/content");
     const draft = await draftContentPiece({
       analysisId,
@@ -287,6 +301,30 @@ async function main(): Promise<void> {
       "bug 7: het paginaplan gaat mee de schrijfprompt in",
       schrijfprompt.includes("PAGINAPLAN"),
       "het plan werd na de briefing weggegooid",
+    );
+
+    // ── Fase 2 van docs/tasks/appstructuur.md: haalt een gecorrigeerd
+    //    merkveld de schrijfprompt? ────────────────────────────────────────
+    //
+    // De wizard van 27 velden en de platte editor van 41 zijn samengevoegd tot
+    // één formulier. `scripts/test-unit.ts` bewaakt dat alle 41 velden een stap
+    // hebben, maar dat toetst de lijst en niet de kéten: een veld kan keurig in
+    // een stap staan, netjes opgeslagen worden, en alsnog nooit bij het model
+    // aankomen. Dat is precies het soort fout dat pas bij de volgende
+    // contentronde opvalt, en dan zonder foutmelding.
+    //
+    // `tone_of_voice` en `taboo_phrases` staan in twee verschillende stappen
+    // ("Hoe je klinkt" en "Je woorden") en gaan langs twee verschillende
+    // plekken in de prompt, dus samen dekken ze het pad breed genoeg.
+    ok(
+      "de tone of voice uit het merkprofiel staat in de schrijfprompt",
+      schrijfprompt.includes("Tone of voice:"),
+      "het profiel bereikte de schrijver niet",
+    );
+    ok(
+      "en het verboden woord dat de klant invulde ook",
+      schrijfprompt.includes("spotgoedkoop"),
+      "taboo_phrases bereikte de schrijver niet",
     );
     ok(
       "S2: een weerlegd of ongedekt punt staat als zodanig in het plan",

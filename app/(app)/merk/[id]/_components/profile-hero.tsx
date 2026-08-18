@@ -29,9 +29,10 @@ import { ExternalLink } from "@/components/external-link";
  * Er stond hier een primaire knop ("Meet 'X'") die naar een heel ander scherm
  * verwees dan waar hij op stond, en een springlinkbalk naar blokken die
  * inmiddels allemaal eigen subpagina's zijn (zie `lib/nav.ts`). Beide bestonden
- * omdat het dossier zelf negen dingen tegelijk deed; nu het er nog maar twee
- * doet — is het compleet, en wat weet ORBIT ENGINE — is een navigatiehulpmiddel erbovenop
- * overbodig. De zijbalk is de navigatie.
+ * omdat het dossier zelf negen dingen tegelijk deed. Sinds 17 augustus 2026
+ * doet het er nog maar vier: het dossier, wat AI over je weet, je aanbod en je
+ * concurrenten. Een navigatiehulpmiddel erbovenop is dan overbodig; de zijbalk
+ * is de navigatie.
  */
 export function ProfileHero({
   brandName,

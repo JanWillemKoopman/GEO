@@ -2,35 +2,38 @@ import { notFound } from "next/navigation";
 import { getProfile } from "@/lib/profiles";
 import { createClient } from "@/lib/supabase/server";
 import { PageHeader } from "@/components/page-header";
+import { CollapsibleSection } from "@/components/collapsible-section";
 import { BrandWizard } from "../../_components/brand-wizard";
-import { ProfileEditor } from "../../_components/profile-editor";
+import { InventoryBox } from "../../_components/inventory-box";
+import { DossierBox } from "../../_components/dossier-box";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Bewerken" };
 
 /**
- * Het merkprofiel nakijken en aanvullen.
+ * Het merkprofiel nakijken en aanvullen: 41 velden in zeven stappen.
  *
  * ── WAAROM DIT EEN EIGEN SCHERM IS EN GEEN BLOK IN HET DOSSIER ──────────────
  *
  * Het merkdossier is een leesscherm: het vertelt wat ORBIT ENGINE vond en hoe
- * het merk ervoor staat. Dit is een werkscherm: veertig velden nakijken en
- * aanvullen. Die twee door elkaar zetten maakt het dossier weer wat het in de
- * ronde van 10 augustus net niet meer was, een pagina van meters lang.
+ * het merk ervoor staat. Dit is een werkscherm: 41 velden nakijken en aanvullen.
+ * Die twee door elkaar zetten maakt het dossier weer wat het in de ronde van
+ * 10 augustus net niet meer was, een pagina van meters lang.
  *
- * ── ⚠️ TWEE FORMULIEREN, TIJDELIJK ──────────────────────────────────────────
+ * ── EEN SCHERM WAAR ER TWEE WAREN ───────────────────────────────────────────
  *
- * Dit scherm toont nu de wizard (27 velden) én de platte editor (41 velden).
- * Dat is bewust en tijdelijk. Ze stonden tot 17 augustus 2026 op twee adressen
- * (`/profielen/[id]/merkprofiel` en `/profielen/[id]/profielgegevens`), allebei
- * met een eigen opslagroute voor dezelfde kolommen, en het ene scherm was een
- * deelverzameling van het andere. Fase 1 van `docs/tasks/appstructuur.md` haalt
- * die twee adressen weg en zet ze op één adres; fase 2 voegt ze samen tot één
- * wizard van zeven stappen met alle 41 velden, en dan vervalt `ProfileEditor`.
+ * Tot 17 augustus 2026 stonden hier twee formulieren voor dezelfde kolommen: de
+ * wizard (27 velden, `/profielen/[id]/merkprofiel`) en een platte editor
+ * (41 velden, `/profielen/[id]/profielgegevens`), elk met een eigen opslagroute.
+ * Het ene scherm was een deelverzameling van het andere, en de klant kon niet
+ * zien welk van de twee won. De wizard heeft gewonnen omdat hij per veld toont
+ * waar de waarde vandaan komt; de veertien ontbrekende velden hebben een stap
+ * gekregen.
  *
- * De volgorde is zo omdat een permanente doorverwijzing permanent hoort te
- * zijn: `/profielgegevens` wijst meteen naar zijn eindadres, en niet naar een
- * tussenstation dat volgende week weer verdwijnt.
+ * De twee blokken onderaan zijn géén merkvelden maar gereedschap: hoe grondig
+ * ORBIT ENGINE de site uitleest, en waar het extra brontekst vandaan haalt. Ze
+ * staan bewust buiten de wizard, want dan blijft de teller "41 in, 41 uit"
+ * eerlijk (`lib/pipeline/brand-fields.ts`).
  */
 export default async function BewerkenPage({
   params,
@@ -52,7 +55,8 @@ export default async function BewerkenPage({
 
   // Per veld waar de waarde vandaan komt. Dit is wat het label "uit je website
   // gehaald" mogelijk maakt (Nova's `draftedBadge`), en het is de reden dat de
-  // klant geen leeg formulier ziet maar iets om na te kijken.
+  // klant geen leeg formulier van 41 velden ziet maar 41 velden die hij mág
+  // nakijken.
   const sources: Record<string, string> = {};
   for (const row of sourceRows ?? []) {
     sources[row.field as string] = row.source as string;
@@ -62,7 +66,7 @@ export default async function BewerkenPage({
     <div className="flex flex-col gap-6">
       <PageHeader
         eyebrow="Merkprofiel"
-        title={profile.brand_name ?? profile.name}
+        title="Bewerken"
         backHref={`/merk/${id}/merkprofiel`}
         backLabel="Merkdossier"
         description="ORBIT ENGINE heeft het meeste al van je website gehaald. Kijk het na, corrigeer wat niet klopt, en vul aan wat het niet kon weten. Alles wat je hier vastlegt blijft staan, ook als het onderzoek opnieuw draait."
@@ -70,13 +74,21 @@ export default async function BewerkenPage({
 
       <BrandWizard profileId={id} initial={profile} sources={sources} />
 
+      {/* ── Gereedschap ─────────────────────────────────────────────────────
+          Ingeklapt, want dit is naslag en niet de stap waar de klant voor kwam.
+          Zie `docs/ux-design.md` §5: `naslag` staat overal dicht. */}
       <div className="flex flex-col gap-2">
-        <span className="mono-label">Alle gegevens · losse velden</span>
-        <p className="text-sm text-muted">
-          Dezelfde gegevens als hierboven, plus de velden die nog geen plek in de stappen
-          hebben. Fase 2 voegt deze twee formulieren samen tot één.
-        </p>
-        <ProfileEditor initial={profile} inventoryCount={count ?? 0} />
+        <span className="mono-label">Gereedschap</span>
+        <CollapsibleSection title="Wat er al op je site staat">
+          <InventoryBox
+            profileId={id}
+            initialCount={count ?? 0}
+            initialMax={profile.max_inventory_pages}
+          />
+        </CollapsibleSection>
+        <CollapsibleSection title="Wat je al hebt liggen">
+          <DossierBox profileId={id} />
+        </CollapsibleSection>
       </div>
     </div>
   );

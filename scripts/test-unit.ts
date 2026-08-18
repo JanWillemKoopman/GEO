@@ -4079,9 +4079,39 @@ group("het merkprofiel als veldenlijst (brand-fields)", () => {
     new Set(EDITABLE_PROFILE_FIELDS).size === EDITABLE_PROFILE_FIELDS.length,
   );
 
+  // ⚠️ 41 IN, 41 UIT. De andere kant op, en dit is de kern van fase 2 van
+  // 17 augustus 2026.
+  //
+  // Tot die ronde stonden er 27 velden in de wizard en 41 in een tweede,
+  // platte editor. Die editor is weg, dus een veld dat wél opgeslagen mag
+  // worden maar in geen enkele stap staat, is vanaf nu een veld dat de klant
+  // nergens meer kan corrigeren. Dat merkt niemand tot de volgende
+  // contentronde, want er verschijnt geen foutmelding: het veld is er gewoon
+  // niet meer. Vandaar een test die in béide richtingen faalt.
+  const zonderStap = (EDITABLE_PROFILE_FIELDS as readonly string[]).filter(
+    (k) => !sleutels.includes(k as (typeof sleutels)[number]),
+  );
+  ok(
+    `elk opslaanbaar veld staat in een stap${zonderStap.length ? " (mist: " + zonderStap.join(", ") + ")" : ""}`,
+    zonderStap.length === 0,
+  );
+  ok(
+    `het zijn er 41 aan beide kanten (nu ${BRAND_FIELDS.length} en ${EDITABLE_PROFILE_FIELDS.length})`,
+    BRAND_FIELDS.length === 41 && EDITABLE_PROFILE_FIELDS.length === 41,
+  );
+
   ok(
     "elk veld hoort bij een bestaande stap",
     BRAND_FIELDS.every((f) => STEP_ORDER.includes(f.step)),
+  );
+  ok("zeven stappen", STEP_ORDER.length === 7);
+  // De verdeling uit docs/tasks/appstructuur.md §4.4b. Staat hier voluit zodat
+  // een veld dat naar een andere stap verhuist een bewuste wijziging is en geen
+  // stille verschuiving.
+  const perStap = STEP_ORDER.map((s) => `${s}:${fieldsOfStep(s).length}`).join(" ");
+  ok(
+    `de verdeling is 8-3-6-6-5-7-6 (nu ${perStap})`,
+    perStap === "bedrijf:8 merk:3 klant:6 stem:6 woorden:5 auteur:7 bekend:6",
   );
   ok(
     "elke stap heeft velden",
@@ -4104,6 +4134,35 @@ group("het merkprofiel als veldenlijst (brand-fields)", () => {
   // De vijfde schuif is de enige met vier standen, net als bij Nova.
   const lading = BRAND_FIELDS.find((f) => f.key === "tone_emotional");
   ok("de emotionele lading heeft vier standen", lading?.options?.length === 4);
+
+  // ⚠️ Een `keuze` slaat een wóórd op dat in een database-constraint staat, geen
+  // nummer. Loopt de waardenlijst niet gelijk met de labels, dan kiest de klant
+  // "Lokaal" en komt er "landelijk" in de database, of weigert de insert en
+  // ziet hij alleen "opslaan is niet gelukt".
+  const keuzes = BRAND_FIELDS.filter((f) => f.kind === "keuze");
+  ok("er zijn keuzevelden", keuzes.length === 3);
+  ok(
+    "elke keuze heeft evenveel waarden als standen",
+    keuzes.every((f) => f.values?.length === f.options?.length),
+  );
+  ok(
+    "en geen enkele schuif heeft waarden (die slaan hun nummer op)",
+    BRAND_FIELDS.filter((f) => f.kind === "schuif").every((f) => f.values === undefined),
+  );
+  ok(
+    "de waarden van het bedrijfsmodel staan in de constraint van migratie 0032",
+    BRAND_FIELDS.find((f) => f.key === "business_model")?.values?.join() ===
+      "dienstverlener,retailer,platform,fabrikant,overig",
+  );
+  ok(
+    "en die van het bereik in die van service_scope",
+    BRAND_FIELDS.find((f) => f.key === "service_scope")?.values?.join() ===
+      "lokaal,landelijk,internationaal",
+  );
+  ok(
+    "de aanspreekvorm kent dezelfde drie waarden als de PATCH-route",
+    BRAND_FIELDS.find((f) => f.key === "pronoun_preference")?.values?.join() === "je,u,wij",
+  );
 
   // ── isFilled: per soort betekent "gevuld" iets anders ────────────────────
   ok("een lege string telt niet", isFilled("") === false);

@@ -16,26 +16,35 @@ import {
   type BrandField,
   type BrandStep,
 } from "@/lib/pipeline/brand-fields";
-import type { Profile } from "@/lib/types/database";
+import type { Persona, Profile } from "@/lib/types/database";
 
 /**
- * Het merkprofiel invullen, in vijf stappen.
+ * Het merkprofiel invullen, in zeven stappen.
  *
  * ── WAAROM DIT GEEN LEEG FORMULIER IS ───────────────────────────────────────
  *
  * Nova laat hun klant twintig minuten uittrekken (`landingTimeNote`) voor een
  * onboarding van dertig velden die hij van nul invult. ORBIT ENGINE kan dat korter,
  * omdat het onderzoek hier vóór de kennismaking draait in plaats van erna: van
- * de veertig velden staat het merendeel er al, gevonden op de site van de klant.
+ * de 41 velden staat het merendeel er al, gevonden op de site van de klant.
  *
  * Vandaar het label **"uit je website gehaald"** (Nova's `draftedBadge`) bij
  * elk veld dat de pijplijn zelf vulde. De klant vult niets in, hij kijkt na. Dat
  * is een wezenlijk andere handeling, en het scherm zegt dat ook.
  *
- * ── WAAROM ÉÉN ROUTE EN GEEN VIJF ───────────────────────────────────────────
+ * ── DIT IS SINDS 17 AUGUSTUS 2026 HET ENIGE MERKFORMULIER ───────────────────
+ *
+ * Er was een tweede: een platte editor met alle 41 velden op één pagina, met een
+ * eigen opslagroute. De wizard had er 27, dus wie de wizard gebruikte kon de
+ * andere veertien niet vinden, en wie beide gebruikte wist niet welk scherm won.
+ * De wizardvorm heeft gewonnen omdat hij op klantfeedback is ontworpen: hij
+ * toont per veld waar de waarde vandaan komt. De veertien losse velden hebben
+ * een stap gekregen, zie `lib/pipeline/brand-fields.ts`.
+ *
+ * ── WAAROM ÉÉN ROUTE EN GEEN ZEVEN ──────────────────────────────────────────
  *
  * De stap staat in de state en niet in de URL. Een half ingevuld formulier over
- * vijf routes verdelen betekent dat elke stapwissel een opslagmoment moet zijn,
+ * zeven routes verdelen betekent dat elke stapwissel een opslagmoment moet zijn,
  * anders ben je je invoer kwijt bij een misklik. Nu is opslaan een eigen
  * handeling met een eigen knop, en de stappen zijn alleen een indeling.
  *
@@ -54,7 +63,7 @@ export function BrandWizard({
 }) {
   const router = useRouter();
   const toast = useToast();
-  const [stap, setStap] = useState<BrandStep>("fundament");
+  const [stap, setStap] = useState<BrandStep>("bedrijf");
   const [waarden, setWaarden] = useState<Record<string, unknown>>(() => {
     const start: Record<string, unknown> = {};
     for (const f of BRAND_FIELDS) start[f.key as string] = initial[f.key];
@@ -284,20 +293,31 @@ function FieldRow({
           onChange={(items) => onChange(items)}
           placeholder={field.placeholder}
         />
+      ) : field.kind === "personas" ? (
+        <PersonaEditor
+          items={Array.isArray(value) ? (value as Persona[]) : []}
+          onChange={(items) => onChange(items)}
+          placeholder={field.placeholder}
+        />
       ) : field.kind === "schuif" || field.kind === "keuze" ? (
         <Standen
           id={id}
           options={field.options ?? []}
+          // Een `keuze` slaat een woord op (`lokaal`, `dienstverlener`), een
+          // `schuif` een nummer van 1 tot 3 of 4. De stand op het scherm is in
+          // beide gevallen een index, dus alleen de vertaling verschilt.
           value={
-            field.kind === "keuze"
-              ? pronounIndex(value)
+            field.values
+              ? indexVan(field.values, value)
               : typeof value === "number"
                 ? value
                 : null
           }
-          onChange={(n) =>
-            onChange(field.kind === "keuze" ? PRONOUN_VALUES[n - 1] : n)
-          }
+          onChange={(n) => onChange(field.values ? field.values[n - 1] : n)}
+          // Nogmaals klikken op de actieve stand zet hem terug op "niet
+          // ingesteld". Zonder dat is een per ongeluk aangeklikte stand niet
+          // meer weg te krijgen zonder een aparte resetknop (C.28).
+          onClear={() => onChange(null)}
         />
       ) : field.kind === "lange-tekst" ? (
         <textarea
@@ -321,12 +341,79 @@ function FieldRow({
   );
 }
 
-/** De drie waarden van `pronoun_preference`, op dezelfde volgorde als de labels. */
-const PRONOUN_VALUES = ["je", "u", "wij"] as const;
-
-function pronounIndex(value: unknown): number | null {
-  const i = PRONOUN_VALUES.indexOf(value as (typeof PRONOUN_VALUES)[number]);
+/** Welke stand hoort bij deze opgeslagen waarde? 1-gebaseerd, `null` als hij er niet bij staat. */
+function indexVan(values: string[], value: unknown): number | null {
+  const i = values.indexOf(String(value ?? ""));
   return i === -1 ? null : i + 1;
+}
+
+/**
+ * Klanttypes: een lijst van naam plus behoeftes.
+ *
+ * Het enige veld dat geen tekst of tekstlijst is, en daarom een eigen invoer
+ * heeft in plaats van `TagListEditor`. De behoeftes gaan als komma-lijst, net
+ * als in de platte editor die dit veld tot 17 augustus 2026 bezat: een tweede
+ * invoerpatroon leren voor één veld is meer moeite dan het oplevert.
+ */
+function PersonaEditor({
+  items,
+  onChange,
+  placeholder,
+}: {
+  items: Persona[];
+  onChange: (items: Persona[]) => void;
+  placeholder?: string;
+}) {
+  function patch(index: number, veranderd: Partial<Persona>) {
+    onChange(items.map((p, i) => (i === index ? { ...p, ...veranderd } : p)));
+  }
+
+  return (
+    <div className="flex flex-col gap-2">
+      {items.map((persona, i) => (
+        <div
+          key={i}
+          className="flex flex-col gap-2 rounded-[var(--radius-md)] border border-[var(--border-subtle)] p-3"
+        >
+          <input
+            className="field"
+            value={persona.name}
+            onChange={(e) => patch(i, { name: e.target.value })}
+            placeholder={placeholder ?? "Naam van dit klanttype"}
+            aria-label="Naam van dit klanttype"
+          />
+          <input
+            className="field"
+            value={persona.needs.join(", ")}
+            onChange={(e) =>
+              patch(i, {
+                needs: e.target.value
+                  .split(",")
+                  .map((s) => s.trim())
+                  .filter(Boolean),
+              })
+            }
+            placeholder="Waar deze persoon mee zit, gescheiden door komma's"
+            aria-label="Behoeftes, gescheiden door komma's"
+          />
+          <button
+            type="button"
+            onClick={() => onChange(items.filter((_, idx) => idx !== i))}
+            className="w-fit text-sm text-[var(--status-error)] hover:underline"
+          >
+            Verwijderen
+          </button>
+        </div>
+      ))}
+      <button
+        type="button"
+        onClick={() => onChange([...items, { name: "", needs: [] }])}
+        className="btn-outline w-fit"
+      >
+        + Klanttype toevoegen
+      </button>
+    </div>
+  );
 }
 
 function Herkomst({
@@ -365,11 +452,13 @@ function Standen({
   options,
   value,
   onChange,
+  onClear,
 }: {
   id: string;
   options: string[];
   value: number | null;
   onChange: (value: number) => void;
+  onClear: () => void;
 }) {
   return (
     <div className="flex flex-wrap gap-2" role="radiogroup" aria-labelledby={id}>
@@ -382,7 +471,7 @@ function Standen({
             type="button"
             role="radio"
             aria-checked={actief}
-            onClick={() => onChange(n)}
+            onClick={() => (actief ? onClear() : onChange(n))}
             className="rounded-[var(--radius-md)] border px-3 py-2 text-sm transition-colors"
             style={{
               borderColor: actief

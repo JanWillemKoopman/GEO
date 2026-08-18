@@ -2838,3 +2838,43 @@ die niet bij het merk hoort krijgt een 404 en geen 403: een 403 bevestigt dat he
 **Twee functies uit een servercomponent getrokken naar een pure module**, omdat ze anders niet te
 testen waren: `findGaps()` (`lib/profile-gaps.ts`, de open punten op het merkprofiel) en de
 doorverwijzingenlijst. Unittests van 1257 naar 1332.
+
+## 17 augustus 2026: de appstructuur, fase 2 (het merkprofiel)
+
+**Twee formulieren voor dezelfde kolommen.** De merkprofiel-wizard had 27 velden en toonde per veld
+waar de waarde vandaan kwam. De platte editor ernaast had er 41, zonder herkomst, met een eigen
+opslagroute naar precies dezelfde kolommen in `profiles`. Het ene scherm was dus een
+deelverzameling van het andere, ze stonden als twee menu-items naast elkaar, en de klant kon niet
+zien welk van de twee won.
+
+**De wizard heeft gewonnen, en heeft er veertien velden bij gekregen.** Zeven stappen in plaats van
+vijf: Je bedrijf (8), Je merk (3), Je klant (6), Hoe je klinkt (6), Je woorden (5), Wie het schrijft
+(7), Waar je om bekend wilt staan (6). Die laatste stap heeft Nova niet, en het is juist de stap die
+bepaalt wat een AI-assistent over je kán zeggen: zonder harde cijfers wordt elke tekst algemeen, en
+algemeen wordt niet geciteerd.
+
+**41 in, 41 uit, en de test faalt nu in beide richtingen.** Er stond al een test die controleerde
+dat elk wizardveld opgeslagen mag worden; die ving op 10 augustus een echte bug (`proof_points`
+stond in de wizard en niet in de opslaglijst, de klant kreeg "opgeslagen" te zien en de waarde was
+weg). De andere kant ontbrak, en die is sinds deze ronde het gevaarlijkst: nu de platte editor weg
+is, is een opslaanbaar veld zonder stap een veld dat de klant nergens meer kan corrigeren. Zonder
+foutmelding, want het veld is er gewoon niet meer.
+
+**Twee nieuwe soorten invoer.** Een `keuze` slaat een wóórd op dat in een database-constraint staat
+(`lokaal`, `dienstverlener`) in plaats van een nummer, met een test die de waardenlijst tegen de
+labels legt: loopt die scheef, dan kiest de klant "Lokaal" en komt er "landelijk" in de database.
+En `personas` is het enige veld dat geen tekst of tekstlijst is.
+
+**Wat géén merkveld is, staat buiten de wizard.** Hoe grondig ORBIT ENGINE de site uitleest en de
+brontekst die de klant aanlevert zijn gereedschap, geen eigenschap van het merk. Ze staan ingeklapt
+onder de wizard. Die grens is wat de teller eerlijk houdt.
+
+**Het merkdossier is nu echt een leesscherm**: dossier, wat AI over je weet, aanbod en concurrenten.
+De mijlpalen en de maandinzichten gaan in fase 5 naar Overzicht, en het compleetheidspercentage gaat
+in fase 6 naar Admin. Dat laatste is besluit 4: het is een percentage over werk dat de klant niet
+doet, en voor de consultant een verkoopinstrument.
+
+**Eén ketentest erbij, en die dekt wat de unittest niet kan.** Een veld kan keurig in een stap
+staan, netjes opgeslagen worden, en alsnog nooit bij het model aankomen. De ketentest wijzigt nu
+twee merkvelden uit twee verschillende stappen vlak vóór er geschreven wordt, en controleert dat ze
+allebei in de schrijfprompt staan. Unittests 1332 naar 1342, ketentests 160 naar 162.

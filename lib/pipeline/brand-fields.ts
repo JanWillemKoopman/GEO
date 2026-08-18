@@ -11,6 +11,27 @@
  * Puur, dus testbaar (conventie 2). Geen `server-only`: de wizard draait in de
  * browser en gebruikt dezelfde definities.
  *
+ * ── ZEVEN STAPPEN, EN ALLE 41 VELDEN (17 augustus 2026) ─────────────────────
+ *
+ * Tot deze ronde stonden hier 27 velden in vijf stappen, en de overige veertien
+ * uitsluitend in een tweede scherm ("Profielgegevens", een platte editor met
+ * alle 41). Twee schermen, twee opslagroutes en twee menu-items voor dezelfde
+ * kolommen, waarvan het ene een deelverzameling van het andere was. De klant
+ * die het ene scherm gebruikte kon de veertien velden van het andere niet
+ * vinden, en wie beide gebruikte wist niet welk scherm won.
+ *
+ * De wizardvorm wint, want die is op klantfeedback ontworpen: hij toont per
+ * veld waar de waarde vandaan komt, zodat de klant nakijkt in plaats van
+ * invult. De veertien losse velden hebben hier een stap gekregen. De indeling
+ * volgt die van InSpace Nova, met één toevoeging: Nova heeft geen eigen blok
+ * voor "waar je om bekend wilt staan", en dat is juist het blok dat bepaalt wat
+ * een AI-assistent over je merk kan zeggen.
+ *
+ * ⚠️ **41 in, 41 uit.** De zeven stappen dekken exact `EDITABLE_PROFILE_FIELDS`,
+ * niets meer en niets minder, en `scripts/test-unit.ts` faalt in beide
+ * richtingen. Eén veld dat nergens landt is een veld dat de klant niet meer kan
+ * corrigeren, en dat merkt niemand tot de volgende contentronde.
+ *
  * ── DRIE LAGEN UITLEG PER VELD, NET ALS NOVA ────────────────────────────────
  *
  * Nova geeft élk onboardingveld een label, een `*Desc` en een `*Placeholder`
@@ -25,13 +46,30 @@
  * komt, uit het gesprek, of uit het onderzoek. Dit is de plek waar dat zichtbaar
  * wordt voor de klant, en het is de reden dat hij geen leeg formulier van
  * veertig velden ziet maar veertig velden die hij mág nakijken.
+ *
+ * ⚠️ De sleutel is de kolomnaam in `profiles`. Dat is geen toeval maar de
+ * voorwaarde waaronder de herkomstchip werkt: `profile_field_sources.field`
+ * bevat diezelfde kolomnaam.
  */
 import type { Profile } from "@/lib/types/database";
 
 /** In welke stap van de wizard staat dit veld? */
-export type BrandStep = "fundament" | "doelgroep" | "stem" | "woorden" | "auteur";
+export type BrandStep =
+  | "bedrijf"
+  | "merk"
+  | "klant"
+  | "stem"
+  | "woorden"
+  | "auteur"
+  | "bekend";
 
-export type FieldKind = "tekst" | "lange-tekst" | "lijst" | "schuif" | "keuze";
+export type FieldKind =
+  | "tekst"
+  | "lange-tekst"
+  | "lijst"
+  | "schuif"
+  | "keuze"
+  | "personas";
 
 export interface BrandField {
   /** De kolomnaam in `profiles`. Ook de sleutel in `profile_field_sources`. */
@@ -45,6 +83,15 @@ export interface BrandField {
   kind: FieldKind;
   /** Bij `schuif` en `keuze`: de standen, op volgorde. Index 0 hoort bij waarde 1. */
   options?: string[];
+  /**
+   * Bij `keuze`: de waarde die per stand wordt opgeslagen, op dezelfde volgorde
+   * als `options`. Zonder deze lijst slaat een `schuif` het nummer op.
+   *
+   * ⚠️ Deze waarden staan in een database-constraint. Een stand toevoegen zonder
+   * de migratie mee te nemen levert een insert op die de database weigert, en de
+   * klant ziet dan alleen "opslaan is niet gelukt".
+   */
+  values?: string[];
   /**
    * Kan de pijplijn dit zelf vinden? Bepaalt of het veld in de wizard als
    * "uit je website gehaald" mag verschijnen, en of een leeg veld erg is.
@@ -61,10 +108,32 @@ export interface BrandField {
  * voor de volledige vertaaltabel.
  */
 export const BRAND_FIELDS: BrandField[] = [
-  // ── Fundament ─────────────────────────────────────────────────────────────
+  // ── 1. Je bedrijf ─────────────────────────────────────────────────────────
+  // De harde feiten waar de meting op draait. `aliases` en `service_regions`
+  // zijn hier geen administratie: zonder schrijfwijzen telt een vermelding niet
+  // mee, en zonder plaatsnaam gaan de vragen landelijk.
+  {
+    key: "name",
+    step: "bedrijf",
+    label: "Naam van je bedrijf",
+    description: "Zoals je bedrijf heet. Dit is ook het label van dit merk in ORBIT ENGINE.",
+    placeholder: "Van Mossel Automotive",
+    kind: "tekst",
+    derivable: true,
+  },
+  {
+    key: "aliases",
+    step: "bedrijf",
+    label: "Andere schrijfwijzen van je naam",
+    description:
+      "Noemt een AI je als \"Jansen BV\" terwijl je dossier \"Bakkerij Jansen\" zegt, dan telt die vermelding niet mee en valt je score te laag uit.",
+    placeholder: "Bakkerij Jansen",
+    kind: "lijst",
+    derivable: true,
+  },
   {
     key: "industry",
-    step: "fundament",
+    step: "bedrijf",
     label: "In welke categorie zit je",
     description: "De markt waarin je concurreert, in een paar woorden.",
     placeholder: "Autodealer, fysiotherapiepraktijk, B2B-software",
@@ -72,8 +141,70 @@ export const BRAND_FIELDS: BrandField[] = [
     derivable: true,
   },
   {
+    // Het bedrijfsmodel (R8.5, migratie 0032) stuurt welke vragen de klant bij
+    // het schrijven krijgt: een platform of keten heeft geen enkel adres of
+    // telefoonnummer, en die vraag verplicht stellen levert een antwoord op dat
+    // niet kan kloppen. De klant weet dit beter dan het model.
+    key: "business_model",
+    step: "bedrijf",
+    label: "Wat voor bedrijf je bent",
+    description:
+      "Bepaalt waar ORBIT ENGINE in je aanbod naar zoekt en welke vragen je krijgt voordat er een pagina geschreven wordt.",
+    kind: "keuze",
+    options: [
+      "Dienstverlener: eigen mensen leveren de dienst",
+      "Retailer: verkoopt producten van andere merken",
+      "Platform: brengt vraag en aanbod van derden samen",
+      "Fabrikant: maakt en verkoopt eigen producten",
+      "Overig",
+    ],
+    values: ["dienstverlener", "retailer", "platform", "fabrikant", "overig"],
+    derivable: true,
+  },
+  {
+    key: "service_scope",
+    step: "bedrijf",
+    label: "Hoe ver je bereik gaat",
+    description:
+      "Bij 'lokaal' stelt ORBIT ENGINE regionale vragen, en meet je jezelf niet af tegen partijen waar je nooit tegenaan loopt.",
+    kind: "keuze",
+    options: ["Lokaal", "Landelijk", "Internationaal"],
+    values: ["lokaal", "landelijk", "internationaal"],
+    derivable: true,
+  },
+  {
+    key: "service_regions",
+    step: "bedrijf",
+    label: "In welke plaatsen of streken je werkt",
+    description: "Gebruikt voor de lokale zoekvragen in de meting.",
+    placeholder: "Amersfoort",
+    kind: "lijst",
+    derivable: true,
+  },
+  {
+    key: "market_language",
+    step: "bedrijf",
+    label: "Markt en taal",
+    description: "Waar je klanten zitten en in welke taal je ze aanspreekt.",
+    placeholder: "Nederland en België, Nederlands",
+    kind: "tekst",
+    derivable: true,
+  },
+  {
+    key: "sitemap_url",
+    step: "bedrijf",
+    label: "Adres van je sitemap",
+    description:
+      "Weet je waar je sitemap staat, vul hem dan in. Laat leeg en ORBIT ENGINE zoekt hem zelf via robots.txt en de standaardlocaties.",
+    placeholder: "https://voorbeeld.nl/sitemap.xml",
+    kind: "tekst",
+    derivable: true,
+  },
+
+  // ── 2. Je merk ────────────────────────────────────────────────────────────
+  {
     key: "brand_mission",
-    step: "fundament",
+    step: "merk",
     label: "Wat je merk wil bereiken",
     description: "De verandering waar je bedrijf voor bestaat, in één zin.",
     placeholder: "Wij zorgen dat iedereen in de regio zorgeloos kan rijden",
@@ -82,7 +213,7 @@ export const BRAND_FIELDS: BrandField[] = [
   },
   {
     key: "brand_positioning",
-    step: "fundament",
+    step: "merk",
     label: "Hoe je je verhoudt tot de rest",
     description: "Hoe je gezien wilt worden naast de alternatieven in je markt.",
     placeholder: "De grootste keuze in de regio, met de service van een familiebedrijf",
@@ -90,56 +221,19 @@ export const BRAND_FIELDS: BrandField[] = [
     derivable: true,
   },
   {
-    key: "usp",
-    step: "fundament",
-    label: "Wat je beter doet dan wie dan ook",
-    description: "Het ene ding waarop je wint. Niet drie dingen, één.",
-    placeholder: "Als enige in Brabant een eigen schadeherstelbedrijf én verhuur",
-    kind: "lange-tekst",
-    derivable: true,
-  },
-  {
     key: "value_props",
-    step: "fundament",
+    step: "merk",
     label: "Waar je voor staat",
     description: "De uitgangspunten die bepalen hoe je werkt en communiceert.",
     placeholder: "Eerlijk advies",
     kind: "lijst",
     derivable: true,
   },
-  {
-    key: "key_messages",
-    step: "fundament",
-    label: "Wat in elke tekst terug moet komen",
-    description: "De kernboodschappen die je overal wilt herhalen.",
-    placeholder: "Altijd een vervangende auto",
-    kind: "lijst",
-    derivable: true,
-  },
-  {
-    key: "proof_points",
-    step: "fundament",
-    label: "Cijfers die je claims waarmaken",
-    description:
-      "Harde feiten: aantallen, jaartallen, keurmerken. Dit is wat een AI-assistent aanhaalt; algemene beloftes slaat hij over.",
-    placeholder: "Sinds 1934, 9 vestigingen, 400 medewerkers",
-    kind: "lijst",
-    derivable: true,
-  },
-  {
-    key: "identity_keywords",
-    step: "fundament",
-    label: "Woorden die bij je horen",
-    description: "Termen die je merk kenmerken en die in je teksten terug mogen komen.",
-    placeholder: "betrouwbaar, regionaal, vakmanschap",
-    kind: "lijst",
-    derivable: true,
-  },
 
-  // ── Doelgroep ─────────────────────────────────────────────────────────────
+  // ── 3. Je klant ───────────────────────────────────────────────────────────
   {
     key: "intake_audience",
-    step: "doelgroep",
+    step: "klant",
     label: "Voor wie je het vooral doet",
     description: "De groep waar elke tekst op geschreven wordt.",
     placeholder: "Particulieren in Noord-Brabant die een tweede auto zoeken",
@@ -148,7 +242,7 @@ export const BRAND_FIELDS: BrandField[] = [
   },
   {
     key: "audience_secondary",
-    step: "doelgroep",
+    step: "klant",
     label: "En wie je er nog meer mee wilt bereiken",
     description: "Een tweede groep, als die er is. Leeg laten mag.",
     placeholder: "Zzp'ers die een bestelbus willen leasen",
@@ -157,7 +251,7 @@ export const BRAND_FIELDS: BrandField[] = [
   },
   {
     key: "audience_knowledge_level",
-    step: "doelgroep",
+    step: "klant",
     label: "Hoeveel weet je lezer al",
     description:
       "Bepaalt hoeveel een tekst mag aannemen. Bij 'expert' slaat ORBIT ENGINE de basisuitleg over.",
@@ -166,25 +260,36 @@ export const BRAND_FIELDS: BrandField[] = [
     derivable: false,
   },
   {
-    key: "competitors",
-    step: "doelgroep",
-    label: "Met wie je vergeleken wordt",
-    description: "De partijen waar je klant ook naar kijkt.",
-    placeholder: "Van Mossel",
-    kind: "lijst",
+    key: "personas",
+    step: "klant",
+    label: "Je klanttypes",
+    description:
+      "Per type een naam en waar die persoon mee zit. ORBIT ENGINE schrijft een pagina voor één type tegelijk, niet voor iedereen tegelijk.",
+    placeholder: "Jonge ouders",
+    kind: "personas",
     derivable: true,
   },
   {
     key: "differentiator",
-    step: "doelgroep",
+    step: "klant",
     label: "Waarom ze voor jou kiezen en niet voor hen",
     description: "Het verschil dat de doorslag geeft, in de woorden van je klant.",
     placeholder: "Bij ons staat er altijd iemand aan de balie die je herkent",
     kind: "lange-tekst",
     derivable: true,
   },
+  {
+    key: "competitors",
+    step: "klant",
+    label: "Met wie je vergeleken wordt",
+    description:
+      "De partijen waar je klant ook naar kijkt. Clusters vullen dit per onderwerp aan met eigen, specifieke concurrenten.",
+    placeholder: "Van Mossel",
+    kind: "lijst",
+    derivable: true,
+  },
 
-  // ── Stem ──────────────────────────────────────────────────────────────────
+  // ── 4. Hoe je klinkt ──────────────────────────────────────────────────────
   {
     key: "tone_formality",
     step: "stem",
@@ -234,23 +339,14 @@ export const BRAND_FIELDS: BrandField[] = [
     key: "tone_of_voice",
     step: "stem",
     label: "Je merk als persoon",
-    description: "Beschrijf in een paar zinnen hoe je merk zou klinken als het iemand was.",
+    description:
+      "Beschrijf in een paar zinnen hoe je merk zou klinken als het iemand was. Los van de schuiven hierboven: dit is jouw eigen omschrijving.",
     placeholder: "Een ervaren monteur die het uitlegt zonder je dom te laten voelen",
     kind: "lange-tekst",
     derivable: true,
   },
 
-  // ── Woorden ───────────────────────────────────────────────────────────────
-  {
-    key: "pronoun_preference",
-    step: "woorden",
-    label: "Hoe je je lezer aanspreekt",
-    description:
-      "Geldt voor de teksten die ORBIT ENGINE vóór jou schrijft. ORBIT ENGINE's eigen schermen zeggen altijd 'je'.",
-    kind: "keuze",
-    options: ["je en jij", "u en uw", "wij en ons"],
-    derivable: false,
-  },
+  // ── 5. Je woorden ─────────────────────────────────────────────────────────
   {
     key: "signature_phrases",
     step: "woorden",
@@ -265,22 +361,43 @@ export const BRAND_FIELDS: BrandField[] = [
     step: "woorden",
     label: "Woorden die je nooit wilt zien",
     description:
-      "ORBIT ENGINE gebruikt ze niet, en controleert na het schrijven of ze er echt niet in staan.",
+      "ORBIT ENGINE gebruikt ze niet, en controleert na het schrijven of ze er echt niet in staan. Staat er toch een in, dan gaat de pagina terug de kwaliteitscontrole in.",
     placeholder: "goedkoop",
     kind: "lijst",
     derivable: false,
   },
   {
+    key: "pronoun_preference",
+    step: "woorden",
+    label: "Hoe je je lezer aanspreekt",
+    description:
+      "Geldt voor de teksten die ORBIT ENGINE vóór jou schrijft. ORBIT ENGINE's eigen schermen zeggen altijd 'je'.",
+    kind: "keuze",
+    options: ["je en jij", "u en uw", "wij en ons"],
+    values: ["je", "u", "wij"],
+    derivable: false,
+  },
+  {
+    key: "identity_keywords",
+    step: "woorden",
+    label: "Woorden die bij je horen",
+    description: "Termen die je merk kenmerken en die in je teksten terug mogen komen.",
+    placeholder: "betrouwbaar, regionaal, vakmanschap",
+    kind: "lijst",
+    derivable: true,
+  },
+  {
     key: "compliance_notes",
     step: "woorden",
     label: "Regels waar je aan moet voldoen",
-    description: "Wettelijke of branche-eisen waar elke tekst rekening mee moet houden.",
+    description:
+      "Wettelijke of branche-eisen waar elke tekst rekening mee moet houden (AFM, KOA, medisch). ORBIT ENGINE neemt dit letterlijk mee in de schrijfopdracht.",
     placeholder: "Geen uitspraken over rendement, altijd de kleine lettertjes vermelden",
     kind: "lange-tekst",
     derivable: false,
   },
 
-  // ── Auteur ────────────────────────────────────────────────────────────────
+  // ── 6. Wie het schrijft ───────────────────────────────────────────────────
   {
     key: "author_name",
     step: "auteur",
@@ -310,6 +427,15 @@ export const BRAND_FIELDS: BrandField[] = [
     derivable: false,
   },
   {
+    key: "author_photo_url",
+    step: "auteur",
+    label: "Foto",
+    description: "Het adres van een portretfoto. Een gezicht bij een naam telt mee als signaal.",
+    placeholder: "https://voorbeeld.nl/team/sanne.jpg",
+    kind: "tekst",
+    derivable: false,
+  },
+  {
     key: "author_linkedin_url",
     step: "auteur",
     label: "LinkedIn",
@@ -318,17 +444,98 @@ export const BRAND_FIELDS: BrandField[] = [
     kind: "tekst",
     derivable: false,
   },
+  {
+    key: "author_facebook_url",
+    step: "auteur",
+    label: "Facebook",
+    description: "Optioneel. Alleen invullen als het profiel publiek en actueel is.",
+    placeholder: "https://facebook.com/…",
+    kind: "tekst",
+    derivable: false,
+  },
+  {
+    key: "author_other_url",
+    step: "auteur",
+    label: "Nog een profiel",
+    description: "Een eigen pagina op je site, een vakblad, of een ander openbaar profiel.",
+    placeholder: "https://voorbeeld.nl/over-ons/sanne",
+    kind: "tekst",
+    derivable: false,
+  },
+
+  // ── 7. Waar je om bekend wilt staan ───────────────────────────────────────
+  // De stap die Nova niet heeft, en die hier het zwaarst weegt: dit is wat een
+  // AI-assistent over je merk kán zeggen. Zonder harde feiten wordt elke tekst
+  // algemeen, en algemeen wordt niet geciteerd.
+  {
+    key: "usp",
+    step: "bekend",
+    label: "Wat je beter doet dan wie dan ook",
+    description: "Het ene ding waarop je wint. Niet drie dingen, één.",
+    placeholder: "Als enige in Brabant een eigen schadeherstelbedrijf én verhuur",
+    kind: "lange-tekst",
+    derivable: true,
+  },
+  {
+    key: "key_messages",
+    step: "bekend",
+    label: "Wat in elke tekst terug moet komen",
+    description: "De kernboodschappen die je overal wilt herhalen.",
+    placeholder: "Altijd een vervangende auto",
+    kind: "lijst",
+    derivable: true,
+  },
+  {
+    key: "proof_points",
+    step: "bekend",
+    label: "Cijfers die je claims waarmaken",
+    description:
+      "Harde feiten: aantallen, jaartallen, keurmerken. Dit is wat een AI-assistent aanhaalt; algemene beloftes slaat hij over.",
+    placeholder: "Sinds 1934, 9 vestigingen, 400 medewerkers",
+    kind: "lijst",
+    derivable: true,
+  },
+  {
+    key: "products",
+    step: "bekend",
+    label: "Je producten en diensten",
+    description: "Wat je verkoopt, in de woorden die je klant gebruikt.",
+    placeholder: "Onderhoudsbeurt",
+    kind: "lijst",
+    derivable: true,
+  },
+  {
+    key: "summary",
+    step: "bekend",
+    label: "Je bedrijf in een alinea",
+    description: "De korte samenvatting die ORBIT ENGINE als opening van elk onderzoek gebruikt.",
+    placeholder: "Van Mossel is een regionale autodealer met negen vestigingen in Brabant.",
+    kind: "lange-tekst",
+    derivable: true,
+  },
+  {
+    key: "intake_description",
+    step: "bekend",
+    label: "Wat je er zelf over kwijt wilt",
+    description:
+      "Alles wat hierboven niet paste maar wel meetelt. Wat je hier zet blijft staan, ook als het onderzoek opnieuw draait.",
+    placeholder: "Wat doen jullie, en wat maakt jullie uniek?",
+    kind: "lange-tekst",
+    derivable: false,
+  },
 ];
 
-export const STEP_META: Record<
-  BrandStep,
-  { title: string; description: string }
-> = {
-  fundament: {
-    title: "Je merk",
-    description: "Waar je voor staat, en waarmee je wint. Dit stuurt alles wat ORBIT ENGINE schrijft.",
+export const STEP_META: Record<BrandStep, { title: string; description: string }> = {
+  bedrijf: {
+    title: "Je bedrijf",
+    description:
+      "De harde feiten waar de meting op draait: hoe je heet, waar je werkt, en wat voor bedrijf je bent.",
   },
-  doelgroep: {
+  merk: {
+    title: "Je merk",
+    description: "Waar je voor staat. Dit stuurt de toon van alles wat ORBIT ENGINE schrijft.",
+  },
+  klant: {
     title: "Je klant",
     description: "Voor wie de teksten zijn, en waar je klant je mee vergelijkt.",
   },
@@ -342,16 +549,24 @@ export const STEP_META: Record<
   },
   auteur: {
     title: "Wie het schrijft",
-    description: "Content verschijnt onder een naam. Een vindbaar mens telt mee als betrouwbaarheidssignaal.",
+    description:
+      "Content verschijnt onder een naam. Een vindbaar mens telt mee als betrouwbaarheidssignaal.",
+  },
+  bekend: {
+    title: "Waar je om bekend wilt staan",
+    description:
+      "De feiten en boodschappen die een AI-assistent over je kan herhalen. Zonder cijfers wordt elke tekst algemeen.",
   },
 };
 
 export const STEP_ORDER: BrandStep[] = [
-  "fundament",
-  "doelgroep",
+  "bedrijf",
+  "merk",
+  "klant",
   "stem",
   "woorden",
   "auteur",
+  "bekend",
 ];
 
 export function fieldsOfStep(step: BrandStep): BrandField[] {
@@ -382,10 +597,7 @@ export interface StepProgress {
   compleet: boolean;
 }
 
-export function stepProgress(
-  profile: Partial<Profile>,
-  step: BrandStep,
-): StepProgress {
+export function stepProgress(profile: Partial<Profile>, step: BrandStep): StepProgress {
   const velden = fieldsOfStep(step);
   const gevuld = velden.filter((f) => isFilled(profile[f.key])).length;
   return {

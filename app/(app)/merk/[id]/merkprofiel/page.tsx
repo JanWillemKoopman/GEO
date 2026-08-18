@@ -1,19 +1,14 @@
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getProfile } from "@/lib/profiles";
 import { createClient } from "@/lib/supabase/server";
 import { ProfileProgress } from "../_components/profile-progress";
 import { LlmKnowledgePanel } from "../_components/llm-knowledge-panel";
-import { MilestonesBlock } from "@/components/milestones-block";
-import { InsightsBlock } from "@/components/loop-blocks";
-import { loadLoop } from "@/lib/insights-data";
-import { loadMilestones } from "@/lib/milestones-data";
-import { createAdminClient } from "@/lib/supabase/admin";
 import { ConfidenceChip } from "@/components/confidence-chip";
 import { onboardingHeadline } from "@/lib/pipeline/onboarding-summary";
 import type { BaselineVerdict, CategoryVerdict } from "@/lib/pipeline/baseline-verdict";
 import { ProfileHero } from "../_components/profile-hero";
 import { ProfileSection } from "../_components/profile-section";
-import { ProfileReadinessPanel } from "../_components/profile-readiness-panel";
 import { OfferingsPanel } from "../_components/offerings-panel";
 import { assessStructureCoverage } from "@/lib/pipeline/structure-gap";
 import type { ProfileLlmBaseline, ProfileOffering } from "@/lib/types/database";
@@ -56,6 +51,7 @@ export default async function MerkdossierPage({
     { data: pageRows },
     { data: offeringRows },
     { data: offeringFacetRow },
+    { data: entityRows },
   ] = await Promise.all([
     // Wat AI-assistenten al over dit merk weten (blok B fase 3).
     supabase
@@ -79,6 +75,15 @@ export default async function MerkdossierPage({
       .eq("profile_id", id)
       .eq("facet", "aanbod")
       .maybeSingle(),
+    // Blok 5, Concurrenten: alleen wat écht als concurrent geldt. Een
+    // marktplaats of brancheorganisatie komt wél uit de meting maar hoort niet
+    // in deze lijst (migratie 0024/0026, `entity_role`).
+    supabase
+      .from("entities")
+      .select("canonical_name, entity_role")
+      .eq("profile_id", id)
+      .eq("entity_role", "concurrent")
+      .order("canonical_name"),
   ]);
 
   // ── De kop: één zin en drie cijfers (ux-design.md regel 1) ───────────────
@@ -121,29 +126,21 @@ export default async function MerkdossierPage({
   const offeringConfidence =
     (offeringFacetRow as { confidence?: number | null } | null)?.confidence ?? null;
 
-  const beheerClient = createAdminClient();
-  const mijlpalen = await loadMilestones(beheerClient, id, profile.account_id);
-  const lus = await loadLoop(beheerClient, id);
+  // Twee bronnen, één lijst: wat de meting tegenkwam (`entities`) en wat de
+  // klant zelf noteerde (`profiles.competitors`). Ze overlappen deels, en twee
+  // lijsten naast elkaar tonen laat de klant zich afvragen welke de echte is.
+  const concurrenten = [
+    ...new Set([
+      ...((entityRows ?? []) as { canonical_name: string }[]).map((e) => e.canonical_name),
+      ...profile.competitors,
+    ]),
+  ].sort((a, b) => a.localeCompare(b, "nl"));
 
   return (
     <div className="flex flex-col gap-6">
       {/* ── Wie is dit, en hoe staat het ervoor ────────────────────────────
           Het scherm dat de consultant deelt in de demo. */}
       <ProfileHero brandName={merknaam} url={profile.url} headline={onboardingHeadline(samenvatting)} />
-
-      {/* ── Wat dit tot nu toe opleverde ───────────────────────────────────
-          Door besluit 7 (doorlopend opzegbaar) is dit het blok dat opzeggen
-          tegenhoudt. Verhuist in fase 5 naar Overzicht. */}
-      <MilestonesBlock milestones={mijlpalen} />
-
-      {/* ── Wat er deze maand gebeurde ─────────────────────────────────────
-          Fase 6. Drie zinnen, en de meetonzekerheid staat erin. */}
-      <InsightsBlock insights={lus.insights} />
-
-      {/* ── 1. Dossier compleet ─────────────────────────────────────────────
-          Het profiel gaat op 'klaar' na stap 2 van 8. Dit blok toont eerst wat
-          er nog binnenkomt, en daarna of het dossier compleet is. */}
-      <ProfileReadinessPanel profileId={id} brandName={merknaam} />
 
       {/* ── 2. Het dossier ───────────────────────────────────────────────────
           Alles wat ORBIT ENGINE over de klant weet uit de nulmeting: de samenvatting in
@@ -187,6 +184,49 @@ export default async function MerkdossierPage({
           confidence={offeringConfidence}
           coverage={coverage}
         />
+      </ProfileSection>
+
+      {/* ── 5. Concurrenten ────────────────────────────────────────────────
+          Lezend, zoals de klant ze kent. Het beheer (welk genoemd merk telt
+          echt als concurrent) zit bij Analytics: dat is een cijfervraag, en
+          het bepaalt de noemer van je aandeel. Hier hoort alleen de lijst. */}
+      <ProfileSection
+        id="concurrenten"
+        title="Concurrenten"
+        description="De partijen waar je klant ook naar kijkt, en die ORBIT ENGINE in AI-antwoorden tegenkomt."
+      >
+        <div className="card flex flex-col gap-3">
+          {concurrenten.length === 0 ? (
+            <>
+              <span className="mono-label">Nog geen concurrenten vastgelegd</span>
+              <p className="text-secondary">
+                ORBIT ENGINE vult deze lijst zelf aan zodra het merken in AI-antwoorden tegenkomt.
+                Weet je er nu al een paar, zet ze dan bij{" "}
+                <Link href={`/merk/${id}/merkprofiel/bewerken`} className="underline">
+                  Bewerken
+                </Link>{" "}
+                onder &ldquo;Met wie je vergeleken wordt&rdquo;.
+              </p>
+            </>
+          ) : (
+            <>
+              <ul className="flex flex-wrap gap-2">
+                {concurrenten.map((naam) => (
+                  <li key={naam} className="chip">
+                    {naam}
+                  </li>
+                ))}
+              </ul>
+              <p className="text-sm text-muted">
+                Welke van deze merken meetellen in je aandeel bepaal je bij{" "}
+                <Link href={`/merk/${id}/analytics/concurrenten`} className="underline">
+                  Analytics
+                </Link>
+                .
+              </p>
+            </>
+          )}
+        </div>
       </ProfileSection>
     </div>
   );
