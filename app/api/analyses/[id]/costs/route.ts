@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getUser } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getOwnedAnalysis } from "@/lib/analyses";
+import { isStaff } from "@/lib/staff";
 import { RATES_CHECKED_ON } from "@/lib/openai/pricing";
 import type { AiCall } from "@/lib/types/database";
 
@@ -15,12 +16,25 @@ import type { AiCall } from "@/lib/types/database";
  *
  * Bedoeld om te kunnen rekenen vóórdat we het aantal metingen per vraag
  * verdrievoudigen (fase 2): zonder dit cijfer is die planning giswerk.
+ *
+ * ── ⚠️ ALLEEN BEHEERDERS, SINDS 17 AUGUSTUS 2026 ────────────────────────────
+ *
+ * Dit is exploitatie-informatie: wat een klant ons kost, per pijplijnstap, met
+ * de modelnamen erbij. Besluit 4 zegt dat de klant ziet wát ORBIT ENGINE weet en
+ * hoe zeker dat is, niet hoe ORBIT ENGINE eraan kwam en wat het kostte. De route
+ * was tot deze datum bereikbaar voor de eigenaar van de analyse zelf; geen enkel
+ * scherm linkte ernaartoe, maar het adres was te raden en het antwoord was
+ * volledig. Een 404 en geen 403, zoals overal: een 403 bevestigt dat er iets is.
  */
 export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
 
   const user = await getUser();
   if (!user) return NextResponse.json({ error: "Je bent niet ingelogd." }, { status: 401 });
+
+  if (!(await isStaff(user.id))) {
+    return NextResponse.json({ error: "Niet gevonden." }, { status: 404 });
+  }
 
   const admin = createAdminClient();
   const analysis = await getOwnedAnalysis(admin, id, user.id);

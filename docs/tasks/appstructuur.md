@@ -515,21 +515,11 @@ Samengevat in `docs/logbook.md`, inclusief de ene afwijking van §4.1: de period
 "Maand {n} sinds de start" en niet "van 12", omdat besluit 7 het abonnement doorlopend opzegbaar
 maakte en `plan-view.tsx` het om die reden al zo schrijft.
 
-### Fase 6: ADMIN en de afscherming
+### ~~Fase 6: ADMIN en de afscherming~~ · AF (17 augustus 2026)
 
-**Bestanden:** `app/(app)/merk/[id]/admin/page.tsx` · `.../toewijzen/page.tsx` · `lib/nav.ts` ·
-`docs/ux-design.md`
-
-1. **Onboarding-inzicht** met Nova's negen secties plus de ruwe laag (§4.6a)
-2. De blokken uit §5 die naar Admin gaan worden op de klantschermen weggehaald, **inclusief hun
-   springlinks**
-3. Zijbalk: de Admin-groep verschijnt onder een scheidingslijn, met het bestaande "alleen
-   jij"-teken per regel
-
-**Verificatie:** log in als klantaccount en loop alle dertien bestemmingen af. Geen enkele toont
-ruwe modeloutput, een promptinstructie, een modelnaam of een bedrag. Dit is een handmatige controle,
-en hij hoort in `scripts/test-chain.ts` terug te komen als scenario voor de routes die data
-teruggeven.
+Samengevat in `docs/logbook.md`. De handmatige doorloop die hier stond is vervangen door drie
+geautomatiseerde lagen (database, route, broncode), omdat een doorloop één keer gebeurt en het
+risico bij de volgende wijziging ontstaat. De grens zelf staat nu voluit in `docs/ux-design.md` §5.
 
 ### Fase 7: Opruimen
 

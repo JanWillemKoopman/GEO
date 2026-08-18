@@ -176,9 +176,15 @@ export function brandNav(brandId: string, staff = false): NavItem[] {
     },
 
     // ── ADMIN ────────────────────────────────────────────────────────────
-    // "Onboarding-inzicht" komt erbij in fase 6.
     ...(staff
       ? [
+          {
+            href: `/merk/${brandId}/admin`,
+            label: "Onboarding-inzicht",
+            teken: "○",
+            hoofdstuk: "Admin" as const,
+            staffOnly: true,
+          },
           {
             href: `/merk/${brandId}/admin/toewijzen`,
             label: "Toewijzen",

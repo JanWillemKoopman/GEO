@@ -1363,6 +1363,57 @@ async function main(): Promise<void> {
       (await zichtbaarAls(matrixVreemdeId, "profiles", "id", matrixProfiel)) === 0,
     );
 
+    // ══════════════════════════════════════════════════════════════════════
+    // Besluit 4: de klant ziet niet HOE ORBIT ENGINE aan zijn kennis kwam
+    //
+    // ⚠️ Dit is de verificatie van fase 6 van docs/tasks/appstructuur.md, en hij
+    // hoort hier en niet alleen in een broncodecontrole. Een scherm dat iets
+    // niet toont is één wijziging van tonen verwijderd; een tabel die RLS niet
+    // teruggeeft is dat niet. `ai_calls` (wat een klant ons kost, per aanroep,
+    // met modelnaam) en `jobs` (de wachtrij, inclusief mislukte taken) horen
+    // allebei op Admin, en de garantie daarvoor zit in de database.
+    // ══════════════════════════════════════════════════════════════════════
+    await db.client.query(
+      `insert into public.ai_calls (analysis_id, profile_id, kind, model, cost_usd, web_search)
+       values ($1, $2, 'measure_simulate', 'gpt-5.6-luna', 0.0251, true)`,
+      [matrixAnalyse, matrixProfiel],
+    );
+    await db.client.query(
+      `insert into public.jobs (analysis_id, profile_id, type, status)
+       values ($1, $2, 'measure_prompt', 'failed')`,
+      [matrixAnalyse, matrixProfiel],
+    );
+
+    // Eerst aantonen dát de rijen er staan: een test die nul telt omdat er niets
+    // is, toetst niets.
+    const { rows: erIsIets } = await db.client.query(
+      `select (select count(*) from public.ai_calls where analysis_id = $1)::int as calls,
+              (select count(*) from public.jobs where analysis_id = $1)::int as jobs`,
+      [matrixAnalyse],
+    );
+    ok("de kostenregel en de taak staan er echt", erIsIets[0].calls === 1 && erIsIets[0].jobs === 1);
+
+    ok(
+      "de eigenaar ziet zijn eigen kostenregels niet",
+      (await zichtbaarAls(matrixEigenaarId, "ai_calls", "analysis_id", matrixAnalyse)) === 0,
+      "ai_calls is exploitatie-informatie en hoort op Admin",
+    );
+    ok(
+      "een teamlid ook niet",
+      (await zichtbaarAls(matrixTeamlidId, "ai_calls", "analysis_id", matrixAnalyse)) === 0,
+    );
+    ok(
+      "en de takenwachtrij is voor niemand leesbaar",
+      (await zichtbaarAls(matrixEigenaarId, "jobs", "analysis_id", matrixAnalyse)) === 0,
+      "jobs heeft RLS aan en nul policies; alle mutaties lopen via de werker",
+    );
+    // Ook niet voor een beheerder: hij leest die tabellen via de service-role in
+    // een route die zelf `isStaff` controleert, niet via zijn eigen sessie.
+    ok(
+      "ook een beheerder leest ze niet via zijn eigen sessie",
+      (await zichtbaarAls(matrixStaffId, "jobs", "analysis_id", matrixAnalyse)) === 0,
+    );
+
         // ══════════════════════════════════════════════════════════════════════
     // Een ingelogde gebruiker moet kunnen lezen (migratie 0055)
     //

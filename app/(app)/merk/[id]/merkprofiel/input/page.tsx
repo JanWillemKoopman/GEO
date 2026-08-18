@@ -1,14 +1,11 @@
 import { notFound } from "next/navigation";
 import { getProfile } from "@/lib/profiles";
 import { requireUser } from "@/lib/auth";
-import { isStaff } from "@/lib/staff";
 import { createClient } from "@/lib/supabase/server";
 import { PageHeader } from "@/components/page-header";
 import { InfoHint } from "@/components/info-hint";
 import { FactRequests } from "../../_components/fact-requests";
-import { StrategyBox } from "../../_components/strategy-box";
 import { findGaps } from "@/lib/profile-gaps";
-import { parseContextFactors } from "@/lib/pipeline/context-factors";
 import type { FactRequest } from "@/lib/types/database";
 
 export const dynamic = "force-dynamic";
@@ -29,8 +26,11 @@ export const metadata = { title: "Vraagt jouw input" };
  * van dát cluster, niet hier. Die scheiding is op 14 augustus 2026 bewust
  * aangebracht.
  *
- * ⚠️ **De gespreksnotities zijn staff-only** en verhuizen in fase 6 naar Admin.
- * Het zijn aantekeningen óver de klant, niet vóór hem.
+ * ⚠️ **De gespreksnotities staan hier niet meer.** Ze stonden onderaan dit
+ * scherm, afgeschermd voor de klant, en zijn op 17 augustus 2026 naar
+ * `/merk/[id]/admin` verhuisd. Wegvouwen is niet afschermen: het waren
+ * aantekeningen óver de klant op een scherm dat voor hém bedoeld is, en dan sta
+ * je in een demo één misklik van een ongemakkelijk gesprek af (besluit 4).
  */
 export default async function InputPage({
   params,
@@ -41,11 +41,10 @@ export default async function InputPage({
   const profile = await getProfile(id);
   if (!profile) notFound();
 
-  const user = await requireUser();
-  const staff = await isStaff(user.id);
+  await requireUser();
 
   const supabase = await createClient();
-  const [{ data: factRows }, { data: strategyRow }, { data: synthesisRow }] = await Promise.all([
+  const [{ data: factRows }, { data: synthesisRow }] = await Promise.all([
     supabase
       .from("fact_requests")
       .select("*")
@@ -53,7 +52,6 @@ export default async function InputPage({
       .is("analysis_id", null)
       .in("status", ["open", "beantwoord"])
       .order("created_at"),
-    supabase.from("profile_strategy").select("*").eq("profile_id", id).maybeSingle(),
     supabase
       .from("profile_facets")
       .select("raw_json")
@@ -70,9 +68,6 @@ export default async function InputPage({
       []) as unknown[]
   ).filter((g): g is string => typeof g === "string" && g.trim().length > 0);
   const gaps = findGaps(profile);
-  const factors = parseContextFactors(
-    (strategyRow as { context_factors?: unknown } | null)?.context_factors,
-  );
 
   // De teller in de kop telt alles wat nog open staat, want dat is het getal
   // waar de klant op afgaat: één vraag "moet ik hier nog iets?".
@@ -142,23 +137,6 @@ export default async function InputPage({
         </div>
       )}
 
-      {/* ── 3. Het gesprek, alleen voor beheerders ─────────────────────────── */}
-      {staff && (
-        <div className="flex flex-col gap-2">
-          <span className="mono-label">Het gesprek</span>
-          <p className="text-sm text-muted">
-            Je aantekeningen bij dit merk, en wat er speelt dat het advies beïnvloedt. Alleen jij
-            ziet dit.
-          </p>
-          <StrategyBox
-            profileId={id}
-            initialNotes={
-              (strategyRow as { strategy_notes?: string | null } | null)?.strategy_notes ?? null
-            }
-            initialFactors={factors}
-          />
-        </div>
-      )}
     </div>
   );
 }

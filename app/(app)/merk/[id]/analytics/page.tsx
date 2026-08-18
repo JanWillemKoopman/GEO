@@ -54,9 +54,12 @@ export default async function AnalyticsPage({
 
   const supabase = await createClient();
   const [{ data: auditRow }, { data: strategyRow }, { data: analysisRows }] = await Promise.all([
+    // Kolommen bij naam: `technical_audits.raw_json` is de ruwe uitvoer van de
+    // audit en hoort op Admin (besluit 4). Met een `*` reist hij mee naar de
+    // browser, ook al toont dit scherm alleen de nette checklijst.
     supabase
       .from("technical_audits")
-      .select("*")
+      .select("checks_json, checked_at, site_url, blockers")
       .eq("profile_id", id)
       .order("checked_at", { ascending: false })
       .limit(1)

@@ -3008,3 +3008,38 @@ vertaling: anders verschijnt `profile_llm_baseline` op het scherm van de klant.
 onder `/merk`, en dat viel buiten die controle. Er lekte niets, want elke pagina roept zelf
 `requireUser()` aan, maar een bezoeker zonder sessie kreeg een omweg via een server-render in plaats
 van meteen het inlogscherm. Unittests 1437 naar 1465.
+
+## 17 augustus 2026: de appstructuur, fase 6 (Admin en de afscherming)
+
+**Wegvouwen is niet afschermen.** Interne stof stond op klantschermen, ingeklapt of onderaan: de
+gespreksnotities onder "Vraagt jouw input", het compleetheidspercentage op het merkdossier, de
+kostenroute op een adres dat te raden was. Allemaal netjes verstopt, en allemaal bereikbaar. Dan sta
+je in een demo één misklik van een ongemakkelijk gesprek af. Alles staat nu op
+`/merk/[id]/admin`, met Nova's negen secties als inhoudsopgave zodat je tijdens een demo weet welk
+scherm de klant voor zich heeft terwijl jij naar de ruwe laag kijkt.
+
+**Eén echte afscherming erbij die niemand miste.** `/api/analyses/[id]/costs` gaf de eigenaar van
+een analyse zijn eigen kostenoverzicht, uitgesplitst per pijplijnstap, met de modelnamen erbij. Geen
+enkel scherm linkte ernaartoe, dus het viel niet op, maar het adres was te raden en het antwoord was
+volledig. Nu `isStaff`, met een 404 en geen 403.
+
+**Drie lagen bewaken de grens, en dat is geen dubbelop.** De database geeft een klantsessie nul
+rijen uit `jobs` en `ai_calls`, ongeacht wat een scherm vraagt. Elke afgeschermde route vraagt
+`isStaff()`. En een broncodecontrole leest alle klantschermen na op modelnamen, bedragen,
+bewijscitaten en promptinstructies.
+
+**Die derde laag bestaat omdat het uitvoerplan een handmatige doorloop voorschreef.** "Log in als
+klantaccount en loop alle dertien bestemmingen af" gebeurt één keer en daarna nooit meer, terwijl
+het risico juist bij de vólgende wijziging ontstaat. De controle draait nu bij elke commit, naar het
+model van de bestaande broncodecontrole op de twee remmen bij betaald werk.
+
+**Die controle vond meteen twee dingen, en één ervan was een echt lek.** Drie schermen deden
+`select("*")` op een tabel met een `raw_json`-kolom. Ze toonden die kolom nergens, maar met een `*`
+reist de ruwe modeloutput wél mee in de paginabron. De kolommen staan er nu bij naam.
+
+**De andere vondst was een fout in de controle zelf, en die is leerzaam.** De eerste versie verbood
+`profile_field_sources` en `evidence_url` op klantschermen. Allebei te grof: de herkomstchip "uit je
+website gehaald" leest die tabel en is juist een klantfunctie (Nova's `draftedBadge`), en
+`evidence_url` bestaat op twee tabellen, waarvan er één naar de site van de klant zelf wijst. Een
+controle die een goede functie sloopt is erger dan geen controle, dus de regel is aangescherpt tot
+wat écht intern is: het bewijscitaat. Unittests 1465 naar 1505, ketentests 162 naar 167.

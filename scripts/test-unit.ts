@@ -95,6 +95,12 @@ import {
 } from "@/lib/plan-progress";
 import { activiteit, ALLE_TAAKSOORTEN, TAAK_TEKST } from "@/lib/activity";
 import {
+  ADMIN_SECTIES,
+  ONBOARDING_TAKEN,
+  doorlooptijden,
+  duurSeconden,
+} from "@/lib/onboarding-insight";
+import {
   besteEnZwakste,
   ctr as gscCtr,
   dagenTussen,
@@ -206,7 +212,8 @@ import {
 } from "@/lib/plan-writing";
 import { swapWithNeighbour, canMove, type OrderablePage } from "@/lib/plan-order";
 import { milestones } from "@/lib/milestones";
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
+import { join } from "node:path";
 import {
   containsRegion,
   geoBalance,
@@ -317,6 +324,39 @@ function ok(name: string, condition: boolean, detail = "") {
     failed++;
     failures.push(`${name}${detail ? `: ${detail}` : ""}`);
   }
+}
+
+/**
+ * Bronbestanden lezen, voor de controles die naar de code zelf kijken.
+ *
+ * Een ontbrekend bestand geeft een lege string en geen crash: de controle die
+ * hem leest hoort dan te falen op zijn eigen assertie ("vraagt isStaff"), met
+ * de bestandsnaam erbij. Een `ENOENT` halverwege de testrun zegt niet welke
+ * regel hem veroorzaakte.
+ */
+function leesBestand(pad: string): string {
+  try {
+    return readFileSync(pad, "utf8");
+  } catch {
+    return "";
+  }
+}
+
+/** Alle `.tsx`-bestanden onder een map, recursief. */
+function tsxOnder(map: string): string[] {
+  const uit: string[] = [];
+  let inhoud: { name: string; isDirectory: () => boolean }[];
+  try {
+    inhoud = readdirSync(map, { withFileTypes: true, encoding: "utf8" });
+  } catch {
+    return uit;
+  }
+  for (const item of inhoud) {
+    const pad = join(map, item.name);
+    if (item.isDirectory()) uit.push(...tsxOnder(pad));
+    else if (item.name.endsWith(".tsx")) uit.push(pad);
+  }
+  return uit;
 }
 
 function group(name: string, fn: () => void) {
@@ -6619,6 +6659,175 @@ group("één meetronde is één regel, geen dertig", () => {
     "een onbekende taaksoort valt weg in plaats van als sleutel te verschijnen",
     activiteit([{ type: "iets_nieuws", finished_at: "2026-08-17T12:00:00Z" }]).length === 0,
   );
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+console.log("\nDe grens tussen klant en beheerder (besluit 4)");
+
+group("geen interne stof op een klantscherm", () => {
+  // ⚠️ DIT IS DE VERIFICATIE VAN FASE 6, EN HIJ IS BEWUST EEN BRONCODECONTROLE.
+  //
+  // Het uitvoerplan schrijft voor: log in als klantaccount en loop alle
+  // bestemmingen af, geen enkele toont ruwe modeloutput, een promptinstructie,
+  // een modelnaam of een bedrag. Zo'n doorloop gebeurt één keer en daarna nooit
+  // meer, terwijl het risico juist bij de vólgende wijziging ontstaat. Deze test
+  // leest daarom de bronbestanden, net als de bestaande controle op de twee
+  // remmen bij betaald werk.
+  //
+  // Wat er misgaat als hij ontbreekt: iemand zet een kostenregel of een
+  // modelnaam op een klantscherm, het valt niemand op, en de eigenaar ontdekt
+  // het tijdens een demo met de klant ernaast.
+  const verboden = [
+    { term: "ai_calls", waarom: "kostenlogboek" },
+    { term: "cost_usd", waarom: "bedrag per aanroep" },
+    { term: "model_used", waarom: "modelnaam" },
+    { term: "openai_response_id", waarom: "interne aanroep-id" },
+    { term: "MODELS.", waarom: "modelnaam" },
+    // ⚠️ `profile_field_sources` zelf mág: de herkomstchip in de wizard ("uit je
+    // website gehaald") is een klantfunctie en leest `field` en `source`. Wat
+    // niet mag is het BEWIJS eronder, het citaat en de bron-URL; dat is
+    // onderzoeksdetail en staat op Admin (besluit 4, §5).
+    // ⚠️ Alleen `evidence_quote`, niet `evidence_url`. Die kolomnaam bestaat
+    // twee keer: op `profile_field_sources` (intern bewijs bij een profielveld)
+    // én op `profile_offerings`, waar hij naar de pagina op de site van de klant
+    // zelf wijst. Dat tweede is juist een klantfunctie ("dit vonden we hier"),
+    // en een controle die dat verbiedt zou een goede functie slopen.
+    { term: "evidence_quote", waarom: "bewijscitaat uit het onderzoek" },
+  ];
+
+  const klantSchermen = tsxOnder("app/(app)").filter(
+    (f) => !f.includes("/admin/") && !f.includes("/beheer/"),
+  );
+  ok(`er zijn klantschermen gevonden (${klantSchermen.length})`, klantSchermen.length > 20);
+
+  for (const { term, waarom } of verboden) {
+    const treffers = klantSchermen.filter((f) => leesBestand(f).includes(term));
+    ok(
+      `geen ${waarom} (${term})${treffers.length ? " in " + treffers.join(", ") : ""}`,
+      treffers.length === 0,
+    );
+  }
+
+  // Ruwe JSON tonen is een aparte controle: `raw_json` mág gelezen worden om er
+  // één veld uit te halen (de open punten komen er letterlijk uit), maar het
+  // hele object afdrukken hoort alleen op Admin.
+  const jsonDump = klantSchermen.filter((f) => {
+    const inhoud = leesBestand(f);
+    return inhoud.includes("JSON.stringify(") && inhoud.includes("raw_json");
+  });
+  ok(`geen ruwe JSON afgedrukt${jsonDump.length ? " in " + jsonDump.join(", ") : ""}`, jsonDump.length === 0);
+
+  // De promptteksten die naar het model gaan horen in de pijplijn, niet in een
+  // scherm. Een klant die de instructie leest, leest ons product.
+  const promptLek = klantSchermen.filter((f) => leesBestand(f).includes("SYSTEM_PROMPT"));
+  ok(`geen promptinstructie${promptLek.length ? " in " + promptLek.join(", ") : ""}`, promptLek.length === 0);
+
+  // ⚠️ Een `select("*")` op een tabel met een `raw_json`-kolom stuurt die ruwe
+  // modeloutput mee naar de browser, ook als het scherm hem nergens toont. Dat
+  // is geen zichtbaar lek maar het staat wél in de paginabron, en het is precies
+  // het soort ding dat je in een demo niet wilt hoeven uitleggen.
+  const metRuweKolom = ["topic_research", "profile_facets", "technical_audits"];
+  const sterLek = klantSchermen.filter((f) => {
+    const inhoud = leesBestand(f);
+    return metRuweKolom.some((tabel) =>
+      new RegExp(`from\\("${tabel}"\\)[\\s\\S]{0,80}?select\\("\\*"\\)`).test(inhoud),
+    );
+  });
+  ok(
+    `geen select("*") op een tabel met ruwe modeloutput${sterLek.length ? " in " + sterLek.join(", ") : ""}`,
+    sterLek.length === 0,
+  );
+});
+
+group("de afgeschermde routes zijn ook echt afgeschermd", () => {
+  // Elke route die alleen voor beheerders is, moet `isStaff` aanroepen. Vergeet
+  // er eentje dat, dan is het adres gewoon te raden.
+  const afgeschermd = [
+    "app/(app)/merk/[id]/admin/page.tsx",
+    "app/(app)/merk/[id]/admin/toewijzen/page.tsx",
+    "app/(app)/beheer/page.tsx",
+    "app/api/analyses/[id]/costs/route.ts",
+  ];
+  for (const pad of afgeschermd) {
+    const inhoud = leesBestand(pad);
+    ok(`${pad} vraagt isStaff`, inhoud.includes("isStaff"));
+    // ⚠️ Een 403 bevestigt dat het scherm bestaat. Dat is precies wat een klant
+    // van een ander bureau niet hoort te weten.
+    ok(
+      `${pad} antwoordt met een 404 en geen 403`,
+      inhoud.includes("notFound()") || inhoud.includes("status: 404"),
+    );
+    ok(`${pad} noemt nergens 403`, !inhoud.includes("status: 403"));
+  }
+});
+
+group("de zijbalk verraadt niets aan een klant", () => {
+  const merkId = "abc";
+  const klantItems = [...brandNav(merkId, false), ...generalNav(false)];
+
+  // Geen enkel item wijst naar een afgeschermd adres.
+  ok(
+    "geen admin-adres in het klantmenu",
+    klantItems.every((i) => !i.href.includes("/admin") && i.href !== "/beheer"),
+  );
+  ok("en geen enkel item is als staff-only gemarkeerd", klantItems.every((i) => !i.staffOnly));
+
+  // Bij een beheerder staat elk afgeschermd item wél gemarkeerd, zodat hij niet
+  // per ongeluk tijdens een gedeeld scherm op een interne pagina klikt.
+  const staffItems = [...brandNav(merkId, true), ...generalNav(true)];
+  const adminItems = staffItems.filter((i) => i.hoofdstuk === "Admin");
+  ok("een beheerder heeft drie Admin-bestemmingen", adminItems.length === 3);
+  ok("allemaal gemarkeerd", adminItems.every((i) => i.staffOnly === true));
+  ok(
+    "en de klant ziet er nul",
+    klantItems.filter((i) => i.hoofdstuk === "Admin").length === 0,
+  );
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+console.log("\nOnboarding-inzicht (Admin)");
+
+group("de doorlooptijden houden ketenvolgorde", () => {
+  const taken = [
+    tk("profile_synthesis", "done", "2026-08-01T10:10:00Z", "2026-08-01T10:10:30Z"),
+    tk("profile_discover", "done", "2026-08-01T10:00:00Z", "2026-08-01T10:01:00Z"),
+    tk("profile_research", "error", "2026-08-01T10:02:00Z", null),
+    // Geen onboardingtaak: hoort hier niet in.
+    tk("measure_prompt", "done", "2026-08-01T11:00:00Z", "2026-08-01T11:00:05Z"),
+  ];
+  const t = doorlooptijden(taken);
+
+  // ⚠️ Op ketenvolgorde en niet op tijd. Wie ziet dat een stap ontbreekt weet
+  // dan meteen dat de staart is blijven hangen; op tijd sorteren verbergt dat,
+  // want een taak die nooit draaide heeft geen tijd.
+  ok(
+    "op ketenvolgorde",
+    t.map((x) => x.type).join(",") === "profile_discover,profile_research,profile_synthesis",
+  );
+  ok("een taak buiten de onboarding valt weg", !t.some((x) => x.type === "measure_prompt"));
+  ok("de doorlooptijd is in seconden", t[0].secondenr === 60);
+  // Conventie 3: zonder eindtijd is de duur onbekend, niet nul.
+  ok("een taak zonder eindtijd heeft geen duur", t[1].secondenr === null);
+  ok("en houdt zijn status", t[1].status === "error");
+
+  ok("een lege lijst geeft een lege lijst", doorlooptijden([]).length === 0);
+  ok("geen starttijd geeft null", duurSeconden(null, "2026-08-01T10:00:00Z") === null);
+  ok("een negatieve duur geeft null", duurSeconden("2026-08-01T10:00:00Z", "2026-08-01T09:00:00Z") === null);
+
+  function tk(type: string, status: string, started: string | null, finished: string | null) {
+    return { type, status, started_at: started, finished_at: finished, attempts: 1, last_error: null };
+  }
+});
+
+group("de negen secties zijn die van de klant", () => {
+  ok("negen secties", ADMIN_SECTIES.length === 9);
+  ok(
+    "in Nova's volgorde",
+    ADMIN_SECTIES.map((s) => s.naam).join(" · ") ===
+      "Bedrijf · Contact · Talen · Positionering · Doelgroep · Stem · Woorden · Auteur · Onderwerpen",
+  );
+  ok("acht onboardingtaken", ONBOARDING_TAKEN.length === 8);
+  ok("allemaal echte taaksoorten", ONBOARDING_TAKEN.every((t) => TAAK_TEKST[t] !== undefined));
 });
 
 // ════════════════════════════════════════════════════════════════════════════

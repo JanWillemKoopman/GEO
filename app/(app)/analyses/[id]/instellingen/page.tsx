@@ -34,7 +34,14 @@ export default async function InstellingenPage({ params }: { params: Promise<{ i
   const supabase = await createClient();
   const [{ data: profileRow }, { data: researchRow }, { data: promptRows }] = await Promise.all([
     supabase.from("profiles").select("*").eq("id", analysis.profile_id).maybeSingle(),
-    supabase.from("topic_research").select("*").eq("analysis_id", id).maybeSingle(),
+        // ⚠️ Kolommen bij naam en geen `*`. `topic_research.raw_json` is de ruwe
+    // modeloutput van de onderzoeksstap; die hoort op Admin (besluit 4), en met
+    // een `*` reist hij mee naar de browser ook al rendert dit scherm hem niet.
+    supabase
+      .from("topic_research")
+      .select("id, analysis_id, content_summary, competitors, edited_by_user, updated_at")
+      .eq("analysis_id", id)
+      .maybeSingle(),
     supabase.from("prompts").select("*").eq("analysis_id", id).order("created_at"),
   ]);
 

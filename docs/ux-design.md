@@ -318,28 +318,57 @@ hij heeft. Valt de parameter weg, dan is het clusterdossier de veilige terugval.
 
 ### Wat de klant ziet en wat alleen jij ziet
 
-Vastgelegd op 10 augustus 2026, en **gegrond in wat Nova daadwerkelijk toont**, niet in een aanname.
+Vastgelegd op 10 augustus 2026, aangescherpt tot besluit 4 op 17 augustus, en **gegrond in wat Nova
+daadwerkelijk toont**, niet in een aanname.
 
 Een Nova-klant ziet precies vier bestemmingen (`nav`: Overview, Strategy, Analytics, Account). Alles
 wat de CSM ÓVER een klant vastlegt zit in de aparte `admin`-namespace, inclusief
 `admin.onboardingProfile` ("View onboarding profile for {domain}"). Er is in hun hele
 berichtenbestand geen enkele sleutel waarmee een klant de notities van zijn CSM zou kunnen lezen.
 
-Toegepast op ORBIT ENGINE's merkdossier:
+**Het principe in één zin:** de klant ziet wat ORBIT ENGINE weet, hoe zeker dat is en wat ermee moet
+gebeuren, niet hoe ORBIT ENGINE aan die kennis kwam.
 
-| Blok | Klant | Consultant | Waarom |
+| Wat | Klant | Beheerder | Waarom |
 |---|---|---|---|
-| Dossier, nulmeting, aanbod, onderwerpen | ✅ | ✅ | Dit is wat de klant komt halen |
-| Wat ORBIT ENGINE nog wil weten | ✅ | ✅ | De vragen zijn áán hem gericht |
-| Technische controle, het merkprofiel bewerken | ✅ | ✅ | Zijn site, zijn gegevens |
-| **Het gesprek** (notities, contextfactoren) | ❌ | ✅ | Aantekeningen óver hem, niet vóór hem |
-| **Beheer** (toewijzen) | ❌ | ✅ | Handeling van ná het gesprek |
+| Merk, aanbod, doelgroep, positionering, tone of voice, concurrenten | ✅ | ✅ | Dit is wat de klant komt halen |
+| Datakwaliteit als zekerheidsniveau (`ConfidenceChip`) | ✅ | ✅ | Hij mag weten hoe hard iets is |
+| Vragen die áán hem gericht zijn | ✅ | ✅ | Ze vragen iets van hem |
+| De technische blokkades op zijn eigen site | ✅ | ✅ | Zijn site, zijn probleem |
+| Het letterlijke antwoord dat een AI gaf | ✅ | ✅ | Het sterkste bewijsstuk dat het product heeft (§1, "bewijs verslaat cijfer") |
+| Ruwe modeloutput per stap (`raw_json`) | ❌ | ✅ | Hoe we eraan kwamen, niet wat we weten |
+| Kosten en modelnamen (`ai_calls`) | ❌ | ✅ | Exploitatie-informatie |
+| Herkomst mét bewijscitaat (`profile_field_sources`) | ❌ | ✅ | Onderzoeksdetail. De chip "uit je website gehaald" mág wél |
+| Onderwerp-onderzoek en bronnenlandschap-ruwdata (`topic_research`) | ❌ | ✅ | Idem |
+| Compleetheidspercentage (`ProfileReadinessPanel`) | ❌ | ✅ | Een percentage over werk dat de klant niet doet, en voor de consultant een verkoopinstrument |
+| Gespreksnotities en contextfactoren | ❌ | ✅ | Aantekeningen óver hem, niet vóór hem |
+| De takenwachtrij en mislukte taken (`jobs`) | ❌ | ✅ | Onze machinerie |
+| Toewijzen aan een account | ❌ | ✅ | Handeling van ná het gesprek |
 
-De grens loopt langs `isStaff()`, niet langs de accountrol: het gaat om ORBIT ENGINE's eigen team tegenover
-iedereen daarbuiten. Een accountbeheerder bij een bureau is nog steeds een klant.
+De grens loopt langs `isStaff()`, **niet** langs de accountrol: het gaat om ORBIT ENGINE's eigen team
+tegenover iedereen daarbuiten. Een accountbeheerder bij een bureau is nog steeds een klant.
 
-⚠️ **Een afgeschermd blok haalt ook zijn springlink weg** (`showNotes` in `ProfileHero`). Een link
-naar een blok dat er niet is, is een dode link, en dat is zichtbaarder dan het blok zelf.
+⚠️ **Wegvouwen is niet afschermen.** Alles in de rechterkolom stond eerder op klantschermen,
+ingeklapt of onderaan. De klant kon het dan nog steeds tegenkomen, en dan sta je in een demo één
+misklik van een ongemakkelijk gesprek af. Sinds 17 augustus 2026 staat het op `/merk/[id]/admin`,
+één scherm met Nova's negen secties als inhoudsopgave en de ruwe laag eronder.
+
+⚠️ **Een afgeschermd blok haalt ook zijn springlink weg.** Een link naar een blok dat er niet is, is
+een dode link, en dat is zichtbaarder dan het blok zelf.
+
+⚠️ **Een 404 en geen 403**, overal. Een 403 bevestigt dat het scherm bestaat.
+
+**Drie lagen bewaken dit, en dat is geen dubbelop:**
+
+1. **De database.** `jobs` en `ai_calls` geven een klantsessie nul rijen terug, ongeacht wat een
+   scherm vraagt. `scripts/test-chain.ts` toetst dat tegen echte RLS.
+2. **De routes.** Elke afgeschermde route roept `isStaff()` aan en antwoordt met 404.
+3. **De broncode.** `scripts/test-unit.ts` leest alle klantschermen en faalt op een modelnaam, een
+   bedrag, een bewijscitaat of een `select("*")` op een tabel met ruwe modeloutput. Zo'n `*` toont
+   niets, maar stuurt de ruwe uitvoer wél mee in de paginabron.
+
+Laag 3 bestaat omdat de handmatige doorloop die het uitvoerplan voorschreef één keer gebeurt en
+daarna nooit meer, terwijl het risico juist bij de vólgende wijziging ontstaat.
 
 ### Het hoofdstuk Merkprofiel: drie schermen waar er vijf waren
 
