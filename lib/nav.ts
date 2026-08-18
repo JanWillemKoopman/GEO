@@ -98,7 +98,7 @@ export interface NavHoofdstuk {
  *
  * ⚠️ De adressen zijn merk-gebonden (`/merk/[id]/...`) en niet meer
  * `/profielen/[id]/...`. De oude adressen verwijzen permanent door, zie
- * `next.config.mjs`.
+ * `lib/redirects.ts`.
  *
  * `staff` verbergt de Admin-bestemmingen. Dat is een beleefdheid en geen slot:
  * elke route eronder geeft een gewone gebruiker nog steeds een 404.
@@ -106,7 +106,6 @@ export interface NavHoofdstuk {
 export function brandNav(brandId: string, staff = false): NavItem[] {
   return [
     // ── STRATEGIE ────────────────────────────────────────────────────────
-    // "Bibliotheek" komt erbij in fase 3 van docs/tasks/appstructuur.md.
     {
       href: `/merk/${brandId}/strategie/plan`,
       label: "Contentplan",
@@ -116,6 +115,12 @@ export function brandNav(brandId: string, staff = false): NavItem[] {
     {
       href: `/merk/${brandId}/strategie/clusters`,
       label: "Clusters",
+      teken: "○",
+      hoofdstuk: "Strategie",
+    },
+    {
+      href: `/merk/${brandId}/strategie/bibliotheek`,
+      label: "Bibliotheek",
       teken: "○",
       hoofdstuk: "Strategie",
     },

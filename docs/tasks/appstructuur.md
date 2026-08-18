@@ -496,20 +496,11 @@ toevoegt staat hieronder per fase.
 Samengevat in `docs/logbook.md`. `ProfileReadinessPanel` staat nu nergens meer op een scherm; hij
 wacht op fase 6, die hem op het Admin-scherm zet.
 
-### Fase 3: STRATEGIE
+### ~~Fase 3: STRATEGIE~~ · AF (17 augustus 2026)
 
-**Bestanden:** `app/(app)/merk/[id]/strategie/clusters/page.tsx` · `.../bibliotheek/page.tsx` ·
-`.../plan/page.tsx` · `lib/dashboard.ts` · `lib/plans.ts`
-
-1. **Clusters:** één lijst (§4.2b)
-2. **Bibliotheek, merkbreed:** nieuw scherm met filters en paginering (§4.2c)
-3. **Contentplan:** verhuist, plus de bulkactie "markeer alles als geplaatst" met de K5-regel
-4. **Herkomst onthouden** op de contentdetailpagina
-5. Zijbalk: hoofdstuk STRATEGIE verschijnt
-
-**Verificatie:** de merkbrede bibliotheek toont evenveel pagina's als de som van de bibliotheken per
-cluster. Nagerekend op productie: 35 content-pagina's, waarvan 1 gepubliceerd. De bulkactie meldt
-bij gedeeltelijk succes welke items niet lukten (K5).
+Samengevat in `docs/logbook.md`. De contentdetailpagina is nog vanaf twee van de drie plekken te
+bereiken: het contentplan linkt er nog niet heen, dus `?van=plan` is wel gebouwd en getest maar nog
+niet in gebruik.
 
 ### Fase 4: ANALYTICS
 

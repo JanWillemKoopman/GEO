@@ -76,6 +76,16 @@ import {
 } from "@/lib/nav";
 import { DOORVERWIJZINGEN } from "@/lib/redirects";
 import { findGaps } from "@/lib/profile-gaps";
+import {
+  beschikbareWaarden,
+  filterLibrary,
+  libraryTotals,
+  pagineer,
+  LEGE_FILTERS,
+  type LibraryRow,
+} from "@/lib/library";
+import { kiesVoorBulk, bulkMelding } from "@/lib/plan-bulk";
+import { leesHerkomst, terugLink } from "@/lib/origin";
 
 import { splitSentences, stripMarkdown, firstSentences } from "@/lib/pipeline/sentences";
 import { extractHeadings, renderMarkdown } from "@/lib/markdown";
@@ -6071,6 +6081,197 @@ group("elk oud merkadres verwijst permanent naar zijn nieuwe", () => {
     "en /profielen/:id staat achter zijn eigen subpagina's",
     iId > regels.findIndex((r) => r.source === "/profielen/:id/plan"),
   );
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+console.log("\nDe merkbrede bibliotheek");
+
+group("filteren, zoeken en de kerncijfers", () => {
+  const rijen: LibraryRow[] = [
+    r("1", "a", "Cluster A", "Onderhoud aan je CV-ketel", "article", "published", 82, "https://x.nl/cv"),
+    r("2", "a", "Cluster A", "Wat kost een onderhoudsbeurt", "faq", "ready", 71, null),
+    r("3", "b", "Cluster B", "Airco laten plaatsen", "landing", "draft", null, null),
+    r("4", "b", "Cluster B", "Storing aan je ketel", "article", "briefing", null, null),
+  ];
+
+  // De trechter, geen drie stapels: geschreven telt álles, ook wat live staat.
+  // Drie getallen die optellen tot meer dan er is, is precies hoe een klant
+  // denkt dat hij meer pagina's heeft gekocht dan hij heeft.
+  const t = libraryTotals(rijen);
+  ok("geschreven telt alles", t.geschreven === 4);
+  ok("klaar voor vrijgave telt alleen 'ready'", t.klaarVoorVrijgave === 1);
+  ok("gepubliceerd telt alleen 'published'", t.gepubliceerd === 1);
+
+  ok("zonder filter blijft alles staan", filterLibrary(rijen, LEGE_FILTERS).length === 4);
+  ok(
+    "filteren op type",
+    filterLibrary(rijen, { ...LEGE_FILTERS, type: "article" }).length === 2,
+  );
+  ok(
+    "filteren op cluster gaat op id en niet op naam",
+    filterLibrary(rijen, { ...LEGE_FILTERS, cluster: "b" }).length === 2,
+  );
+  ok(
+    "filters stapelen",
+    filterLibrary(rijen, { ...LEGE_FILTERS, cluster: "b", type: "article" }).length === 1,
+  );
+
+  // Zoeken kijkt ook in het adres: een klant die een pagina terugzoekt heeft
+  // vaker de URL bij de hand (uit zijn CMS, uit Search Console) dan de titel.
+  ok("zoeken op titel", filterLibrary(rijen, { ...LEGE_FILTERS, zoek: "ketel" }).length === 2);
+  ok(
+    "zoeken is hoofdletterongevoelig",
+    filterLibrary(rijen, { ...LEGE_FILTERS, zoek: "KETEL" }).length === 2,
+  );
+  ok("zoeken op adres", filterLibrary(rijen, { ...LEGE_FILTERS, zoek: "x.nl/cv" }).length === 1);
+  ok(
+    "spaties eromheen tellen niet mee",
+    filterLibrary(rijen, { ...LEGE_FILTERS, zoek: "  airco  " }).length === 1,
+  );
+
+  const w = beschikbareWaarden(rijen);
+  ok("de typefilter kent drie waarden", w.types.length === 3);
+  ok("de clusterfilter is ontdubbeld", w.clusters.length === 2);
+  ok("en op naam gesorteerd", w.clusters[0].naam === "Cluster A");
+
+  function r(
+    id: string,
+    analysisId: string,
+    cluster: string,
+    title: string,
+    type: string,
+    status: string,
+    geoScore: number | null,
+    publishedUrl: string | null,
+  ): LibraryRow {
+    return {
+      id,
+      analysisId,
+      cluster,
+      title,
+      type,
+      status,
+      geoScore,
+      publishedUrl,
+      createdAt: "2026-08-01T00:00:00Z",
+    };
+  }
+});
+
+group("pagineren klemt in plaats van af te kappen", () => {
+  const veel = Array.from({ length: 60 }, (_, i) => i);
+
+  const p1 = pagineer(veel, 1, 25);
+  ok("pagina 1 heeft 25 rijen", p1.rijen.length === 25);
+  ok("en er zijn drie pagina's", p1.paginas === 3);
+  ok("het totaal is het aantal vóór het snijden", p1.totaal === 60);
+  ok("de laatste pagina heeft de rest", pagineer(veel, 3, 25).rijen.length === 10);
+
+  // ⚠️ Wie op pagina 3 staat en dan een filter aanzet dat vier rijen overlaat,
+  // hoort die vier te zien en niet "geen resultaten". Dat laatste leest als
+  // "er is niets", terwijl er gewoon iets is.
+  const geklemd = pagineer([1, 2, 3, 4], 3, 25);
+  ok("een te hoge pagina valt terug op de laatste", geklemd.pagina === 1);
+  ok("en toont dus de rijen die er zijn", geklemd.rijen.length === 4);
+  ok("pagina 0 en lager vallen terug op 1", pagineer(veel, 0, 25).pagina === 1);
+  ok("een lege lijst heeft één pagina en geen nul", pagineer([], 1, 25).paginas === 1);
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+console.log("\nBulk: markeer alles als geplaatst (K5)");
+
+group("wie mag mee, en waarom niet", () => {
+  const basis = { is_buffer: false };
+  const selectie = kiesVoorBulk([
+    { id: "1", title: "Klaar met adres", status: "goedgekeurd", url_path: "/a", ...basis },
+    { id: "2", title: "Zonder adres", status: "goedgekeurd", url_path: null, ...basis },
+    { id: "3", title: "Leeg adres", status: "goedgekeurd", url_path: "   ", ...basis },
+    { id: "4", title: "Nog niet af", status: "gepland", url_path: "/d", ...basis },
+    { id: "5", title: "Stond al live", status: "geplaatst", url_path: "/e", ...basis },
+    { id: "6", title: "Reserve", status: "goedgekeurd", url_path: "/f", is_buffer: true },
+  ]);
+
+  ok("alleen de goedgekeurde mét adres gaat mee", selectie.mee.length === 1);
+  ok("en met dat adres", selectie.mee[0]?.url === "/a");
+  // Conventie 3: een verzonnen adres levert een meting op die nergens over gaat.
+  ok("een leeg adres telt als geen adres", selectie.overslaan.some((o) => o.id === "3"));
+  ok("twee slaan we over", selectie.overslaan.length === 3);
+  ok("wat al live stond is geen mislukking", selectie.alGeplaatst === 1);
+  // Reservepagina's tellen niet mee in het maandtotaal (migratie 0049), dus ze
+  // melden als "overgeslagen" zou lijken alsof er iets misging.
+  ok(
+    "de reserve komt in geen enkele lijst",
+    !selectie.mee.some((m) => m.id === "6") && !selectie.overslaan.some((o) => o.id === "6"),
+  );
+});
+
+group("de melding is eerlijk over gedeeltelijk succes", () => {
+  // ⚠️ DE KERN VAN K5. "7 pagina's gemarkeerd" bij 9 pogingen is niet eerlijk:
+  // de klant denkt dat het klaar is en ontdekt de twee pas weken later, als de
+  // meting op die pagina's uitblijft.
+  const deels = bulkMelding({
+    gelukt: ["A", "B", "C", "D", "E", "F", "G"],
+    mislukt: [
+      { title: "H", reden: "nog geen adres bekend" },
+      { title: "I", reden: "nog niet goedgekeurd" },
+    ],
+  });
+  ok("de kop noemt beide getallen", deels.title === "7 van de 9 gemarkeerd");
+  ok("hij is niet groen", deels.intent === "waarschuwing");
+  ok("en de twee staan er bij naam in", deels.description.includes('"H"') && deels.description.includes('"I"'));
+  ok("met de reden erbij", deels.description.includes("nog geen adres bekend"));
+
+  const alles = bulkMelding({ gelukt: ["A", "B"], mislukt: [] });
+  ok("alles gelukt is groen", alles.intent === "succes");
+  ok("en somt niets op", !alles.description.includes('"'));
+
+  const niets = bulkMelding({ gelukt: [], mislukt: [{ title: "A", reden: "nog geen adres bekend" }] });
+  ok("niets gelukt is een fout en geen gedeeltelijk succes", niets.intent === "fout");
+
+  const leeg = bulkMelding({ gelukt: [], mislukt: [] });
+  ok("er viel niets te doen", leeg.intent === "waarschuwing");
+
+  // Al live is geen mislukking maar telt wel mee, anders lijkt "3 van de 9"
+  // alsof er zes fout gingen terwijl er zes al klaar waren.
+  const metAl = bulkMelding({ gelukt: ["A"], mislukt: [], alGeplaatst: 6 });
+  ok("wat al live stond wordt genoemd", metAl.description.includes("6 pagina's stonden al live"));
+  ok("en het blijft een succes", metAl.intent === "succes");
+  const allesAl = bulkMelding({ gelukt: [], mislukt: [], alGeplaatst: 4 });
+  ok("een maand die al helemaal live stond is geen waarschuwing", allesAl.intent === "succes");
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+console.log("\nWaar de terugknop heen wijst");
+
+group("de herkomst uit de querystring", () => {
+  ok("bibliotheek", leesHerkomst("bibliotheek") === "bibliotheek");
+  ok("cluster", leesHerkomst("cluster") === "cluster");
+  ok("plan", leesHerkomst("plan") === "plan");
+  // Conventie 3: een geplakte of verouderde link mag geen terugknop opleveren
+  // die ergens anders heen wijst dan hij zegt.
+  ok("iets anders is null en geen gok", leesHerkomst("analytics") === null);
+  ok("niets is null", leesHerkomst(undefined) === null);
+  ok("een dubbele parameter neemt de eerste", leesHerkomst(["plan", "cluster"]) === "plan");
+
+  ok(
+    "vanuit de bibliotheek terug naar de bibliotheek",
+    terugLink("bibliotheek", "an-1", "merk-1").href === "/merk/merk-1/strategie/bibliotheek",
+  );
+  ok(
+    "vanuit het plan terug naar het plan",
+    terugLink("plan", "an-1", "merk-1").href === "/merk/merk-1/strategie/plan",
+  );
+  // De veilige terugval: het clusterdossier bestaat altijd en hoort altijd bij
+  // deze pagina.
+  ok(
+    "zonder herkomst het cluster",
+    terugLink(null, "an-1", "merk-1").href === "/analyses/an-1/bibliotheek",
+  );
+  ok(
+    "en zonder merk ook, want dan bestaan de merkadressen niet",
+    terugLink("bibliotheek", "an-1", null).href === "/analyses/an-1/bibliotheek",
+  );
+  ok("het label zegt waar je heen gaat", terugLink("plan", "an-1", "merk-1").label === "Contentplan");
 });
 
 // ════════════════════════════════════════════════════════════════════════════

@@ -85,13 +85,16 @@ export const DOORVERWIJZINGEN: Doorverwijzing[] = [
   // niet gevangen is.
   { source: "/profielen/:id", destination: "/merk/:id/merkprofiel", permanent: true },
 
-  // Voorgestelde clusters hingen aan een querystring in plaats van aan het pad.
-  // Mét merk verwijst hij door; zonder merk vangt de pagina zelf hem op, want
-  // dan is er geen doel om permanent naartoe te wijzen.
+  // Voorgestelde clusters hingen aan een querystring in plaats van aan het pad,
+  // en zijn sinds fase 3 het derde blok op de clusterlijst zelf (besluit 6: twee
+  // menu-items voor twee toestanden van hetzelfde ding). Mét merk verwijst hij
+  // door naar die lijst; zonder merk naar het clusteroverzicht, want dan is er
+  // geen merk om naartoe te wijzen.
   {
     source: "/analyses/aanbevolen",
     has: [{ type: "query", key: "merk", value: "(?<merkId>.*)" }],
     destination: "/merk/:merkId/strategie/clusters",
     permanent: true,
   },
+  { source: "/analyses/aanbevolen", destination: "/analyses", permanent: true },
 ];

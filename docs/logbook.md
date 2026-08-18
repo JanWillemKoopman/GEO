@@ -2878,3 +2878,39 @@ doet, en voor de consultant een verkoopinstrument.
 staan, netjes opgeslagen worden, en alsnog nooit bij het model aankomen. De ketentest wijzigt nu
 twee merkvelden uit twee verschillende stappen vlak vóór er geschreven wordt, en controleert dat ze
 allebei in de schrijfprompt staan. Unittests 1332 naar 1342, ketentests 160 naar 162.
+
+## 17 augustus 2026: de appstructuur, fase 3 (Strategie)
+
+**Eén clusterlijst waar er twee waren.** "Clusters" en "Voorgestelde clusters" stonden als twee
+menu-items naast elkaar, voor twee toestanden van hetzelfde ding: een voorstel wordt een cluster
+zodra je op "meet dit" klikt. Nu één lijst, lopend bovenaan en voorstellen daaronder op
+potentiescore (besluit 6).
+
+**Eén bibliotheek per merk.** Content stond per cluster in een eigen bibliotheek, dus een klant met
+vier clusters had vier bibliotheken en nergens een overzicht van wat hij gekocht heeft. Dat is
+precies het verkeerde om te versnipperen: het is het eindproduct waar hij voor betaalt (besluit 5).
+Met zoeken op titel én adres, filters op type, status en cluster, en paginering vanaf 25 rijen. Op
+productie stonden op deze datum 35 contentpagina's, dus die paginering is nu al relevant.
+
+**De terugknop onthoudt waar je vandaan kwam.** Een contentpagina is nu vanaf drie plekken te
+bereiken. Zonder herkomst wijst de terugknop altijd naar dezelfde plek, en dan komt de klant uit op
+een scherm waar hij niet vandaan kwam. Bewust een parameter (`?van=`) en geen `Referer`-header: die
+valt weg bij een bladwijzer en bij strengere browserinstellingen, en juist dán is de terugknop het
+enige wat hij heeft.
+
+**De bulkactie, en waarom hij een vierde meldingskleur nodig had.** "Markeer alles als geplaatst"
+per maand valt of staat met kwaliteitslat **K5**: eerlijk zijn over gedeeltelijk succes. Lukken er 7
+van de 9, dan zegt de melding dat, met welke twee niet en waarom. Zo'n uitkomst in het groen tonen
+is oneerlijk want er bleef iets staan, in het rood ook want het meeste ging goed. De
+broodroostermelding kende alleen groen, rood en blauw; er is een vierde bijgekomen op
+`--intent-warning`, dat letterlijk "kijk hier even naar" betekent.
+
+Drie dingen die de bulkactie bewust níet doet. Hij verzint geen adres voor een pagina die er geen
+heeft (conventie 3: dat levert een meting op die nergens over gaat), hij markeert niets wat nog niet
+is goedgekeurd, en hij rekent reservepagina's niet mee. Wat al live stond telt als noch succes noch
+mislukking, anders leest "3 van de 9" alsof er zes fout gingen terwijl er zes al klaar waren.
+
+**De rem verhuisde binnen de route.** Een maand goedkeuren is de duurste knop van de app (~$2,80) en
+mag alleen de beheerder. Markeren als geplaatst kost niets en mag de klant ook (besluit 8). De
+rechtencontrole stond bovenaan de route en gold dus voor alles; hij staat nu bij de twee handelingen
+die hem nodig hebben. Unittests 1342 naar 1393.

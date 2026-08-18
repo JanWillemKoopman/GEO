@@ -27,6 +27,7 @@ import { SearchPreview } from "@/components/search-preview";
 import { VersionDiff } from "@/components/version-diff";
 import { buildTemplateExport } from "@/lib/pipeline/content-export";
 import type { SiteTemplateProfile } from "@/lib/pipeline/template-detect";
+import { leesHerkomst, terugLink } from "@/lib/origin";
 import type { ContentPiece, ContentPieceTarget } from "@/lib/types/database";
 
 interface Faq {
@@ -57,10 +58,15 @@ export async function generateMetadata({
 
 export default async function ContentDetailPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string; pieceId: string }>;
+  searchParams: Promise<{ van?: string }>;
 }) {
   const { id, pieceId } = await params;
+  // Waar kwam je vandaan? Bepaalt waar de terugknop heen wijst, zie
+  // `lib/origin.ts`. Zonder parameter is het clusterdossier de veilige terugval.
+  const herkomst = leesHerkomst((await searchParams).van);
   const analysis = await getAnalysis(id);
   if (!analysis) notFound();
 
@@ -182,13 +188,15 @@ export default async function ContentDetailPage({
     type: piece.type,
   });
 
+  const terug = terugLink(herkomst, id, analysis.profile_id);
+
   return (
     <div className="flex flex-col gap-5">
       <Link
-        href={`/analyses/${id}/bibliotheek`}
+        href={terug.href}
         className="mono-label transition-colors hover:text-[var(--text-primary)]"
       >
-        ← Bibliotheek
+        ← {terug.label}
       </Link>
 
       <div className="flex flex-col gap-3">

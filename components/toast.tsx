@@ -43,7 +43,14 @@ import {
  * die de app nodig heeft, en hij is ~120 regels.
  */
 
-export type ToastIntent = "succes" | "fout" | "info";
+/**
+ * ⚠️ "waarschuwing" is er sinds 17 augustus 2026 bij gekomen, voor precies één
+ * geval: een bulkactie die gedeeltelijk lukte (kwaliteitslat K5). Zo'n uitkomst
+ * in het groen tonen is oneerlijk, want er bleef iets staan; hem in het rood
+ * tonen ook, want het meeste ging goed. `--intent-warning` betekent letterlijk
+ * "kijk hier even naar", en dat is precies de boodschap.
+ */
+export type ToastIntent = "succes" | "fout" | "info" | "waarschuwing";
 
 export interface ToastInput {
   title: string;
@@ -139,12 +146,14 @@ const RAND: Record<ToastIntent, string> = {
   succes: "var(--intent-growth-border)",
   fout: "var(--intent-danger-border)",
   info: "var(--intent-intelligence-border)",
+  waarschuwing: "var(--intent-warning-border)",
 };
 
 const STREEP: Record<ToastIntent, string> = {
   succes: "var(--intent-growth-solid)",
   fout: "var(--intent-danger-solid)",
   info: "var(--intent-intelligence-solid)",
+  waarschuwing: "var(--intent-warning-solid)",
 };
 
 function ToastCard({ toast, onClose }: { toast: ToastItem; onClose: () => void }) {

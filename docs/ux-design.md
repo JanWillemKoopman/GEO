@@ -140,7 +140,7 @@ schermen die de gebruiker na elkaar ziet).
 | `FaqEditor` (`components/faq-editor.tsx`) | Content-editie: zelfde vorm als `TagListEditor` (`items`/`onChange`), nu voor vraag-antwoordparen. Herordenen met ↑/↓-knoppen, geen sleep-library. |
 | `WhyThisPage` (`components/why-this-page.tsx`) | Content-editie: het "waarom deze pagina"-contextpaneel, naar Nova's "Why This Page Exists?". Toont ORBIT ENGINE's eigen metriek (echt gemeten AI-vragen), en sinds 13 augustus bovenaan de potentiescore van die pagina via `PotentialMetrics` (zie hieronder). |
 | `PotentialMetrics` / `PotentialInline` (`components/potential-metrics.tsx`) | De potentiescore (`docs/tasks/potentiescore.md`), altijd als drietal: Zichtbaarheid, Zoekvolume, Potentie, elk 0-100 met een `InfoHint`. `PotentialMetrics` is drie tegels (analysedossier, contentpagina); `PotentialInline` is één compacte tekstregel voor een lijst met veel items (voorgestelde pagina's, de onderwerpenlijst, de Kansen-chip). Onbekend is altijd "-" (gewoon koppelteken, zie richtlijn 10), nooit een gegokt getal. |
-| `ToastProvider` / `useToast` (`components/toast.tsx`) | Broodroostermeldingen. **Voor gebeurtenissen, niet voor uitslagen**: een uitslag hoort in de pagina, een gebeurtenis (het onderzoek is klaar, je wijziging is opgeslagen) hoort in een melding. Altijd `title` én `description`, net als bij Nova. Vorm en timing zijn letterlijk die van Nova: 0,15s in vanaf `translateX(1rem)`, 0,12s uit, en een streepje onderaan dat leegloopt over de levensduur. Standaard 6s; een fout blijft staan tot je hem wegklikt. Op mobiel komt hij van onderen, daar is de duim. |
+| `ToastProvider` / `useToast` (`components/toast.tsx`) | Broodroostermeldingen, vier soorten: succes, fout, info en (sinds 17 augustus 2026) waarschuwing, voor een bulkactie die gedeeltelijk lukte. **Voor gebeurtenissen, niet voor uitslagen**: een uitslag hoort in de pagina, een gebeurtenis (het onderzoek is klaar, je wijziging is opgeslagen) hoort in een melding. Altijd `title` én `description`, net als bij Nova. Vorm en timing zijn letterlijk die van Nova: 0,15s in vanaf `translateX(1rem)`, 0,12s uit, en een streepje onderaan dat leegloopt over de levensduur. Standaard 6s; een fout blijft staan tot je hem wegklikt. Op mobiel komt hij van onderen, daar is de duim. |
 
 ## 4. Loading, error en lege staten
 
@@ -298,6 +298,23 @@ bewerkknop, niet erna.
 
 De bibliotheek blijft een eigen plek: het is een eindproduct, geen takenlijst die zich als archief
 voordoet. Het conceptscherm is een eigen route.
+
+**Twee bibliotheken, en dat is met opzet.** Sinds 17 augustus 2026 staat er naast de bibliotheek per
+cluster een **merkbrede** bibliotheek (`/merk/[id]/strategie/bibliotheek`, besluit 5). Een klant met
+vier clusters had anders vier bibliotheken en nergens een overzicht van wat hij gekocht heeft,
+terwijl dat het eindproduct is waar hij voor betaalt. De cluster-bibliotheek blijft de doorklik
+vanuit het dossier; de merkbrede is de verzamelplek. De twee horen hetzelfde aantal te tonen.
+
+De merkbrede lijst heeft zoeken (op titel én adres, want een klant heeft vaker de URL bij de hand
+dan de exacte titel), filters op type, status en cluster, en paginering vanaf 25 rijen. De
+rekenkant staat in `lib/library.ts` en niet in het scherm: een fout in het filteren laat een pagina
+verdwijnen waarvoor de klant betaald heeft, zonder dat er iets misgaat op het scherm.
+
+⚠️ **De terugknop volgt waar je vandaan kwam** (`lib/origin.ts`, `?van=bibliotheek|cluster|plan`,
+naar Nova's `origin`-parameter). Een contentpagina is vanaf drie plekken te bereiken, en zonder
+herkomst komt de klant uit op een scherm waar hij niet vandaan kwam. Geen `Referer`: die valt weg
+bij een bladwijzer en bij strengere browserinstellingen, en juist dán is de terugknop het enige wat
+hij heeft. Valt de parameter weg, dan is het clusterdossier de veilige terugval.
 
 ### Wat de klant ziet en wat alleen jij ziet
 

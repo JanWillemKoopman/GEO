@@ -10,6 +10,10 @@ import { PageHeader } from "@/components/page-header";
 import { STATUS_META } from "@/lib/analysis-status";
 import { loadDashboard } from "@/lib/dashboard";
 import { LastUpdated } from "@/components/last-updated";
+import { TopicsPanel } from "../../_components/topics-panel";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { loadAnalysisPotential } from "@/lib/potential-data";
+import type { ProfileTopic } from "@/lib/types/database";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Clusters" };
@@ -59,6 +63,31 @@ export default async function ClustersPage({
 
   const failed = analyses.filter((a) => a.status === "mislukt");
 
+  // ── Blok 3: de voorstellen uit de nulmeting ──────────────────────────────
+  // Besluit 6: dit stond op een eigen adres ("Voorgestelde clusters"), en dat
+  // waren twee menu-items voor twee toestanden van hetzelfde ding. Een voorstel
+  // wordt een cluster zodra je op "meet dit" klikt; dan hoort het in dezelfde
+  // lijst te staan als waar het naartoe gaat.
+  const { data: topicRows } = await supabase
+    .from("profile_topics")
+    .select("*")
+    .eq("profile_id", id)
+    .order("priority", { ascending: false });
+  const topics = (topicRows ?? []) as ProfileTopic[];
+
+  const admin = createAdminClient();
+  const potenties: Record<
+    string,
+    { visibility: number | null; volume: number | null; potential: number | null }
+  > = {};
+  await Promise.all(
+    topics
+      .filter((t) => t.analysis_id)
+      .map(async (t) => {
+        potenties[t.id] = await loadAnalysisPotential(admin, t.analysis_id!);
+      }),
+  );
+
   return (
     <div className="flex flex-col gap-8">
       <PageHeader
@@ -105,26 +134,48 @@ export default async function ClustersPage({
           klanten aan een AI stellen, en telt hoe vaak jij in het antwoord staat.
         </EmptyState>
       ) : (
-        <ul className="flex flex-col gap-3">
-          {analyses.map((a) => (
-            <li key={a.id}>
-              <Link
-                href={`/analyses/${a.id}`}
-                className="card card-interactive flex flex-col gap-3"
-              >
-                <div className="flex flex-wrap items-center justify-between gap-4">
-                  <div className="min-w-0">
-                    <p className="truncate text-lg font-semibold">{a.name}</p>
-                    <LastUpdated at={a.updated_at} className="mono-label mt-1 block" />
+        <div className="flex flex-col gap-3">
+          <span className="mono-label">Lopend</span>
+          <ul className="flex flex-col gap-3">
+            {analyses.map((a) => (
+              <li key={a.id}>
+                <Link
+                  href={`/analyses/${a.id}`}
+                  className="card card-interactive flex flex-col gap-3"
+                >
+                  <div className="flex flex-wrap items-center justify-between gap-4">
+                    <div className="min-w-0">
+                      <p className="truncate text-lg font-semibold">{a.name}</p>
+                      <LastUpdated at={a.updated_at} className="mono-label mt-1 block" />
+                    </div>
+                    <StatusBadge status={a.status} />
                   </div>
-                  <StatusBadge status={a.status} />
-                </div>
-                <AnalysisCardMetrics metrics={dashboard.cardMetrics[a.id]} />
-              </Link>
-            </li>
-          ))}
-        </ul>
+                  <AnalysisCardMetrics metrics={dashboard.cardMetrics[a.id]} />
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </div>
       )}
+
+      {/* ── 3. Voorgestelde clusters ───────────────────────────────────────
+          Onderaan en niet bovenaan: wat loopt gaat voor wat nog een voorstel
+          is. Een paneel dat niets te tonen heeft verdwijnt niet maar zegt
+          waaróm het leeg is (`docs/ux-design.md` §4). */}
+      <div className="flex flex-col gap-3">
+        <span className="mono-label">Voorgesteld</span>
+        {topics.length === 0 ? (
+          <div className="card flex flex-col gap-1">
+            <span className="mono-label">Nog geen voorstellen</span>
+            <p className="text-secondary">
+              ORBIT ENGINE heeft voor {profile.brand_name ?? profile.name} nog geen onderwerpen
+              voorgesteld. Zodra de nulmeting daar iets over zegt, staat het hier.
+            </p>
+          </div>
+        ) : (
+          <TopicsPanel profileId={id} initial={topics} potenties={potenties} />
+        )}
+      </div>
     </div>
   );
 }

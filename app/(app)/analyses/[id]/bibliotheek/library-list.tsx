@@ -202,7 +202,7 @@ function PieceCard({ analysisId, piece }: { analysisId: string; piece: ContentPi
   const href =
     piece.status === "briefing"
       ? `/analyses/${analysisId}/briefing`
-      : `/analyses/${analysisId}/bibliotheek/${piece.id}`;
+      : `/analyses/${analysisId}/bibliotheek/${piece.id}?van=cluster`;
 
   return (
     <Link

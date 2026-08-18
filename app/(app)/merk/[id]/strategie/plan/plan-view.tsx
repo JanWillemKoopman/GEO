@@ -65,6 +65,7 @@ export function PlanView({
   const [postDialog, setPostDialog] = useState<PlannedPage | null>(null);
   const [postUrl, setPostUrl] = useState("");
   const [monthDialog, setMonthDialog] = useState<PlanMonth | null>(null);
+  const [bulkDialog, setBulkDialog] = useState<PlanMonth | null>(null);
 
   const funnelNaam = useMemo(
     () => new Map(funnels.map((f) => [f.id, f.label])),
@@ -231,6 +232,51 @@ export function PlanView({
     }
   }
 
+  /**
+   * "Markeer alles als geplaatst" voor één maand.
+   *
+   * ── WAAROM DE MELDING VAN DE SERVER KOMT ──────────────────────────────────
+   *
+   * Kwaliteitslat K5: een bulkactie is eerlijk over gedeeltelijk succes. Alleen
+   * de server weet welke pagina's het haalden en welke niet, dus stelt die de
+   * melding samen (`lib/plan-bulk.ts`, getest). Dit scherm toont hem en verzint
+   * er niets bij: "gelukt" tonen terwijl er twee bleven staan is precies de
+   * fout die K5 moet voorkomen.
+   */
+  async function alsGeplaatstMarkeren(month: PlanMonth) {
+    setBusy(month.id);
+    try {
+      const res = await fetch(`/api/profiles/${profileId}/plan/months/${month.id}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ actie: "alles_geplaatst" }),
+      });
+      const j = (await res.json().catch(() => null)) as {
+        error?: string;
+        melding?: { intent: "succes" | "waarschuwing" | "fout"; title: string; description: string };
+      } | null;
+      if (!res.ok || !j?.melding) {
+        toast({
+          intent: "fout",
+          title: "Dat lukte niet",
+          description: j?.error ?? "Probeer het opnieuw.",
+        });
+        return;
+      }
+      toast(j.melding);
+      router.refresh();
+    } catch {
+      toast({
+        intent: "fout",
+        title: "Geen verbinding",
+        description: "Controleer je internet en probeer het opnieuw.",
+      });
+    } finally {
+      setBusy(null);
+      setBulkDialog(null);
+    }
+  }
+
   return (
     <div className="flex flex-col gap-6">
       {/* ── De kop ────────────────────────────────────────────────────────
@@ -320,23 +366,41 @@ export function PlanView({
                       </span>
                     </span>
 
-                    {month.status === "ter_goedkeuring" &&
-                      (staff ? (
+                    <span className="flex flex-wrap items-center gap-2">
+                      {/* Bulkactie (17 augustus 2026). Alleen zichtbaar als er
+                          iets te markeren valt: een knop die altijd staat maar
+                          meestal niets doet leert de klant hem te negeren.
+                          Besluit 8: zowel de klant als de beheerder mag dit,
+                          dus geen `staff`-voorwaarde. */}
+                      {heleMaand.some((p) => !p.is_buffer && p.status === "goedgekeurd") && (
                         <button
                           type="button"
-                          className="btn-primary btn-sm"
-                          onClick={() => setMonthDialog(month)}
+                          className="btn-outline btn-sm"
+                          onClick={() => setBulkDialog(month)}
                           disabled={busy === month.id}
                         >
-                          Deze maand goedkeuren
+                          Markeer alles als geplaatst
                         </button>
-                      ) : (
-                        // Besluit 18. De klant ziet wél dat er iets van hem
-                        // gevraagd wordt, en bij wie hij daarvoor moet zijn.
-                        <span className="text-sm text-secondary">
-                          Loop deze maand door en geef je consultant akkoord
-                        </span>
-                      ))}
+                      )}
+
+                      {month.status === "ter_goedkeuring" &&
+                        (staff ? (
+                          <button
+                            type="button"
+                            className="btn-primary btn-sm"
+                            onClick={() => setMonthDialog(month)}
+                            disabled={busy === month.id}
+                          >
+                            Deze maand goedkeuren
+                          </button>
+                        ) : (
+                          // Besluit 18. De klant ziet wél dat er iets van hem
+                          // gevraagd wordt, en bij wie hij daarvoor moet zijn.
+                          <span className="text-sm text-secondary">
+                            Loop deze maand door en geef je consultant akkoord
+                          </span>
+                        ))}
+                    </span>
                   </div>
 
                   <ul className="flex flex-col gap-2">
@@ -397,6 +461,30 @@ export function PlanView({
           aria-label="Het pad waar de pagina live staat"
         />
       </ConfirmDialog>
+
+      {/* ── Alles van een maand als geplaatst markeren ──────────────────────
+          K4: onomkeerbaar wordt vooraf benoemd, in een eigen blok. Het aantal
+          staat in de vraag zelf, want "alles" is bij een bulkactie geen getal
+          dat de klant paraat heeft. */}
+      <ConfirmDialog
+        open={bulkDialog !== null}
+        title="Markeer alles als geplaatst"
+        body={`Je markeert ${
+          echt.filter(
+            (p) => p.plan_month_id === bulkDialog?.id && p.status === "goedgekeurd",
+          ).length
+        } goedgekeurde pagina's van maand ${bulkDialog?.month_number ?? ""} als live, elk op het adres dat in het plan staat. Pagina's zonder adres of zonder akkoord blijven staan, en je krijgt te horen welke.`}
+        irreversible={{
+          title: "Dit kun je niet terugdraaien",
+          description:
+            "Deze pagina's tellen vanaf nu als gepubliceerd, en ORBIT ENGINE begint ze te volgen op die adressen.",
+        }}
+        confirmLabel="Markeer alles als geplaatst"
+        confirmingLabel="Bezig…"
+        busy={busy === bulkDialog?.id}
+        onCancel={() => setBulkDialog(null)}
+        onConfirm={() => bulkDialog && void alsGeplaatstMarkeren(bulkDialog)}
+      />
 
       {/* ── Maand goedkeuren ──────────────────────────────────────────────── */}
       <ConfirmDialog
