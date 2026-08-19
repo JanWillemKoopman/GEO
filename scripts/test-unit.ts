@@ -279,6 +279,7 @@ import {
   overallProgress,
 } from "@/lib/pipeline/brand-fields";
 import { resolveWriteSource, consultantFields } from "@/lib/profile-source";
+import { sessionMeter, notApplicableFields } from "@/lib/profile-meter";
 import { buildIntakeBlock } from "@/lib/pipeline/intake-block";
 import {
   assessStructureCoverage,
@@ -6333,8 +6334,19 @@ group("de zijbalk kent vijf hoofdstukken plus Admin", () => {
 
   // Dit is het hele punt van de herindeling: van 7 regels met een bak van
   // negen naar hoogstens drie kinderen per kop.
+  //
+  // ⚠️ Admin mag er vier, sinds de onboardingsessie van 19 augustus 2026. Drie
+  // ervan gaan over dít merk (Onboarding, Diagnose, Toewijzen) en de vierde,
+  // "Alle merken", is de uitgang naar de app als geheel. Dat is geen vergaarbak
+  // van vier gelijksoortige regels. Een vijfde bestaat niet zonder eerst iets
+  // samen te voegen, en voor de klanthoofdstukken blijft drie de grens.
   for (const kop of beheerder) {
-    ok(`${kop.naam} heeft hooguit drie bestemmingen`, kop.items.length <= 3, `${kop.items.length}`);
+    const grens = kop.naam === "Admin" ? 4 : 3;
+    ok(
+      `${kop.naam} heeft hooguit ${grens} bestemmingen`,
+      kop.items.length <= grens,
+      `${kop.items.length}`,
+    );
   }
 
   ok("een klant ziet geen Admin-kop", klant.every((k) => k.naam !== "Admin"));
@@ -7036,6 +7048,7 @@ group("de afgeschermde routes zijn ook echt afgeschermd", () => {
   // er eentje dat, dan is het adres gewoon te raden.
   const afgeschermd = [
     "app/(app)/merk/[id]/admin/page.tsx",
+    "app/(app)/merk/[id]/admin/onboarding/page.tsx",
     "app/(app)/merk/[id]/admin/toewijzen/page.tsx",
     "app/(app)/beheer/page.tsx",
     "app/api/analyses/[id]/costs/route.ts",
@@ -7068,7 +7081,17 @@ group("de zijbalk verraadt niets aan een klant", () => {
   // per ongeluk tijdens een gedeeld scherm op een interne pagina klikt.
   const staffItems = [...brandNav(merkId, true), ...generalNav(true)];
   const adminItems = staffItems.filter((i) => i.hoofdstuk === "Admin");
-  ok("een beheerder heeft drie Admin-bestemmingen", adminItems.length === 3);
+  // Drie over dít merk plus "Alle merken" over de app als geheel.
+  ok("een beheerder heeft vier Admin-bestemmingen", adminItems.length === 4);
+  ok(
+    "en de onboardingsessie staat erbij",
+    adminItems.some((i) => i.href.endsWith("/admin/onboarding") && i.label === "Onboarding"),
+  );
+  ok(
+    "met Diagnose ernaast, en niet nog een keer 'Onboarding-inzicht'",
+    adminItems.some((i) => i.label === "Diagnose") &&
+      !adminItems.some((i) => i.label === "Onboarding-inzicht"),
+  );
   ok("allemaal gemarkeerd", adminItems.every((i) => i.staffOnly === true));
   ok(
     "en de klant ziet er nul",
@@ -7077,7 +7100,7 @@ group("de zijbalk verraadt niets aan een klant", () => {
 });
 
 // ════════════════════════════════════════════════════════════════════════════
-console.log("\nOnboarding-inzicht (Admin)");
+console.log("\nDiagnose (Admin)");
 
 group("de doorlooptijden houden ketenvolgorde", () => {
   const taken = [
@@ -7162,6 +7185,187 @@ group("findGaps noemt het gevolg, niet het gemis", () => {
     "elk punt zegt wát het verbetert",
     findGaps({ aliases: [], proof_points: [], service_scope: null, service_regions: [], business_model: null })
       .every((g) => g.effect.length > 40),
+  );
+
+  // ── Op gevolg gesorteerd, niet op veldvolgorde (onboarding 3.0, fase 3) ──
+  //
+  // ⚠️ De onboardingsessie opent met deze lijst. Zonder deze volgorde kost het
+  // gesprek een uur aan het bevestigen van dingen die al klopten, en het
+  // zwaarste punt zakt naar onderen omdat het toevallig achteraan in de
+  // veldenlijst staat.
+  const alles = findGaps({
+    aliases: [],
+    proof_points: [],
+    service_scope: "lokaal",
+    service_regions: [],
+    business_model: null,
+  });
+  ok("alle vier de punten komen eruit", alles.length === 4);
+  ok(
+    "het bereik staat bovenaan, want die fout kost een nieuwe meetronde",
+    alles[0].field === "service_regions",
+    alles.map((g) => g.field).join(" > "),
+  );
+  ok(
+    "en de bewijspunten onderaan, die raken pas de tekst",
+    alles[alles.length - 1].field === "proof_points",
+  );
+  ok(
+    "de volgorde loopt aflopend op gewicht",
+    alles.every((g, i) => i === 0 || alles[i - 1].weight >= g.weight),
+  );
+  ok(
+    "elk punt wijst naar een veld, anders is de springknop nergens op te richten",
+    alles.every((g) => g.field.length > 0),
+  );
+
+  // ── Niet van toepassing valt weg ─────────────────────────────────────────
+  //
+  // Een merk zonder auteur heeft geen auteursbio, en een merk dat bewust geen
+  // andere schrijfwijzen heeft is geen gat. Zonder deze regel haalt de lijst
+  // nooit nul en wordt hij binnen twee gesprekken genegeerd.
+  const metNvt = findGaps(
+    {
+      aliases: [],
+      proof_points: [],
+      service_scope: "lokaal",
+      service_regions: [],
+      business_model: null,
+    },
+    ["aliases", "proof_points"],
+  );
+  ok("een n.v.t.-veld staat niet meer in de lijst", metNvt.length === 2);
+  ok(
+    "en de rest houdt zijn volgorde",
+    metNvt[0].field === "service_regions" && metNvt[1].field === "business_model",
+  );
+});
+
+group("de meter van de sessie: drie getallen, geen percentage", () => {
+  // ⚠️ "78% compleet" verbergt precies het verschil dat in een gesprek telt:
+  // hoeveel er door een mens bevestigd is en hoeveel er nog een aanname is.
+  const leegProfiel = {};
+  const leeg = sessionMeter(leegProfiel, {});
+  ok("een leeg merk heeft alles open", leeg.open === leeg.totaal && leeg.bevestigd === 0);
+  // De contactvelden tellen niet mee: ze zeggen niets over hoe goed ORBIT
+  // ENGINE het merk kent.
+  ok(
+    `de contactvelden tellen niet mee (${leeg.totaal} van de ${BRAND_FIELDS.length})`,
+    leeg.totaal === BRAND_FIELDS.length - 3,
+  );
+
+  const profiel = {
+    industry: "fysiotherapie",
+    summary: "Een praktijk in Amersfoort.",
+    usp: "De enige met bekkenfysiotherapie",
+    contact_name: "Sanne de Wit",
+  } as never;
+  const m = sessionMeter(profiel, {
+    industry: { source: "gesprek" },
+    summary: { source: "ai" },
+    // ⚠️ Een consultantwaarde telt als GEVONDEN en niet als bevestigd: hij is
+    // door een mens getypt maar door niemand bevestigd. Zou hij als bevestigd
+    // tellen, dan ziet een merk waar nog nooit iemand mee gesproken is eruit
+    // als een merk dat je al hebt doorgenomen.
+    usp: { source: "consultant" },
+  });
+  ok("wat in het gesprek is gezet telt als bevestigd", m.bevestigd === 1);
+  ok("modeluitvoer en een aanname tellen als gevonden", m.gevonden === 2);
+  ok(
+    "en elk veld valt in precies één bak",
+    m.bevestigd + m.gevonden + m.open === m.totaal,
+  );
+  ok(
+    "het contactveld telde niet mee, ook niet als het gevuld is",
+    sessionMeter({ contact_name: "Sanne" } as never, {}).gevonden === 0,
+  );
+
+  // Niet van toepassing is behandeld, en dat is de hele reden dat die stand
+  // bestaat: anders haalt de meter nooit 100% en wordt hij genegeerd.
+  const nvt = sessionMeter(leegProfiel, { author_bio: { notApplicable: true } });
+  ok("een n.v.t.-veld telt als bevestigd", nvt.bevestigd === 1);
+  ok("en niet meer als open", nvt.open === leeg.open - 1);
+  ok(
+    "notApplicableFields noemt precies die velden",
+    notApplicableFields({
+      author_bio: { notApplicable: true },
+      industry: { source: "gesprek" },
+    }).join() === "author_bio",
+  );
+});
+
+group("de sessiepagina wordt gedeeld met de klant (deel B3)", () => {
+  // ⚠️ DIT IS DE BINDENDE REGEL VAN HET HELE PLAN, EN HIJ IS EEN
+  // BRONCODECONTROLE.
+  //
+  // Elk ander stafscherm is intern. Dit scherm kijkt de klant mee, dus er mag
+  // geen taaknaam, geen bedrag en geen foutcode in beeld komen. Zo'n controle
+  // met de hand doe je één keer; het risico ontstaat bij de vólgende wijziging.
+  const sessieBestanden = [
+    "app/(app)/merk/[id]/admin/onboarding/page.tsx",
+    "app/(app)/merk/[id]/_components/onboarding-session.tsx",
+    "app/(app)/merk/[id]/_components/brand-field-input.tsx",
+  ];
+
+  const verboden = [
+    { term: "cost_usd", waarom: "een bedrag per aanroep" },
+    { term: "ai_calls", waarom: "het kostenlogboek" },
+    { term: "model_used", waarom: "een modelnaam" },
+    { term: "MODELS.", waarom: "een modelnaam" },
+    { term: "jobs", waarom: "de wachtrij" },
+    { term: "job_type", waarom: "een jobtype" },
+    { term: "profile_llm_baseline", waarom: "een interne tabelnaam in beeld" },
+    { term: "last_error", waarom: "een foutmelding uit de wachtrij" },
+    { term: "status: 403", waarom: "een foutcode" },
+    { term: "status: 500", waarom: "een foutcode" },
+  ];
+
+  for (const pad of sessieBestanden) {
+    const inhoud = leesBestand(pad);
+    ok(`${pad} bestaat`, inhoud.length > 0);
+    for (const { term, waarom } of verboden) {
+      ok(
+        `${pad.split("/").pop()}: geen ${waarom} (${term})`,
+        !inhoud.includes(term),
+      );
+    }
+    // Een bedrag is een dollarteken met een cijfer erachter. Het losse teken
+    // verbieden kan niet: elke sjabloonstring in JSX gebruikt `${...}`.
+    ok(
+      `${pad.split("/").pop()}: geen bedrag in beeld`,
+      !/\$\s?\d/.test(inhoud) && !inhoud.includes("toFixed"),
+    );
+  }
+
+  // De taaknamen zelf, bij naam. Een jobtype op dit scherm is precies het
+  // soort ding dat je in een demo niet wilt hoeven uitleggen.
+  const sessie = leesBestand("app/(app)/merk/[id]/_components/onboarding-session.tsx");
+  const taaknamen = [
+    "profile_discover",
+    "profile_research",
+    "profile_offering",
+    "profile_market",
+    "technical_audit",
+    "propose_topics",
+    "profile_synthesis",
+    "measure_prompt",
+  ];
+  for (const taak of taaknamen) {
+    ok(`de sessie noemt ${taak} nergens`, !sessie.includes(taak));
+  }
+
+  // En de tegenhanger: het scherm moet wél de velden uit de catalogus tonen,
+  // anders is het een tweede formulier geworden.
+  ok(
+    "de sessie rendert de gedeelde veldweergave",
+    sessie.includes("BrandFieldInput"),
+  );
+  // ⚠️ Geen tweede veldenlijst. `derivable` en `placeholder` zijn de merkers
+  // van een velddefinitie; staan die hier, dan is er alsnog een tweede formulier
+  // ontstaan dat gaat verouderen.
+  ok(
+    "en definieert zelf geen velden",
+    !sessie.includes("derivable:") && !sessie.includes("placeholder:"),
   );
 });
 

@@ -6,18 +6,27 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { PageHeader } from "@/components/page-header";
 import { CollapsibleSection } from "@/components/collapsible-section";
 import { LastUpdated } from "@/components/last-updated";
-import { ProfileReadinessPanel } from "../_components/profile-readiness-panel";
-import { StrategyBox } from "../_components/strategy-box";
-import { parseContextFactors } from "@/lib/pipeline/context-factors";
 import { ONBOARDING_TAKEN, doorlooptijden, ADMIN_SECTIES } from "@/lib/onboarding-insight";
 import { TAAK_TEKST } from "@/lib/activity";
 import type { JobType } from "@/lib/jobs/types";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Onboarding-inzicht" };
+export const metadata = { title: "Diagnose" };
 
 /**
- * ONBOARDING-INZICHT: de laag onder het merkdossier, alleen voor beheerders.
+ * DIAGNOSE: wat er technisch gebeurde, alleen voor jou.
+ *
+ * ── ⚠️ DIT SCHERM WORDT NIET GEDEELD ────────────────────────────────────────
+ *
+ * Sinds onboarding 3.0 (19 augustus 2026) is de scheiding scherp en zonder
+ * overlap: de ONBOARDINGSESSIE (`admin/onboarding`) is het werk mét de klant en
+ * is het enige stafscherm dat gedeeld wordt; dit scherm is techniek. Welke taken
+ * draaiden, hoe lang, wat er faalde, wat het kostte.
+ *
+ * Daarom zijn de volledigheidsmeter en het gespreksblok hier weg: dat is werk en
+ * geen diagnose, en ze staan nu op de sessie. Het scherm heette hiervoor
+ * "Onboarding-inzicht", en dat leek te veel op "Onboardingsessie" om tijdens een
+ * gedeeld scherm nog uit elkaar te houden.
  *
  * ── ⚠️ EEN 404 EN GEEN 403 ──────────────────────────────────────────────────
  *
@@ -59,7 +68,6 @@ export default async function AdminPage({
     { data: kostenRijen },
     { data: bronRijen },
     { data: onderzoekRijen },
-    { data: strategieRij },
     { data: clusterRijen },
   ] = await Promise.all([
     admin
@@ -86,7 +94,6 @@ export default async function AdminPage({
       .eq("profile_id", id)
       .order("field"),
     admin.from("analyses").select("id, name").eq("profile_id", id),
-    admin.from("profile_strategy").select("*").eq("profile_id", id).maybeSingle(),
     admin.from("profile_topics").select("id").eq("profile_id", id),
   ]);
 
@@ -151,18 +158,14 @@ export default async function AdminPage({
     }));
   }
 
-  const factors = parseContextFactors(
-    (strategieRij as { context_factors?: unknown } | null)?.context_factors,
-  );
-
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
         eyebrow="Admin · alleen jij"
-        title="Onboarding-inzicht"
+        title="Diagnose"
         backHref={`/merk/${id}`}
         backLabel="Overzicht"
-        description="Wat er onder het merkdossier zit. De klant ziet dit scherm niet en kan het adres niet raden: hij krijgt een 404."
+        description="Wat er technisch gebeurde: welke taken draaiden, hoe lang, wat er faalde en wat het kostte. De klant ziet dit scherm niet en kan het adres niet raden: hij krijgt een 404. Het werk mét de klant staat op Onboarding."
       />
 
       {/* ── De negen secties die de klant zelf ziet ─────────────────────────
@@ -181,16 +184,6 @@ export default async function AdminPage({
           Deze volgorde is die van Nova en die van ons merkdossier. Alles hieronder ziet de klant
           níet.
         </p>
-      </div>
-
-      {/* ── 1. Is het dossier compleet ───────────────────────────────────── */}
-      <div className="flex flex-col gap-2">
-        <span className="mono-label">Is het dossier compleet</span>
-        <p className="text-sm text-muted">
-          Verhuisd van het merkdossier. Het is een percentage over werk dat de klant niet doet, en
-          voor jou een verkoopinstrument: kun je dit scherm delen?
-        </p>
-        <ProfileReadinessPanel profileId={id} brandName={profile.brand_name ?? profile.name} />
       </div>
 
       {/* ── 2. De onboardingtaken ────────────────────────────────────────── */}
@@ -342,23 +335,6 @@ export default async function AdminPage({
         )}
       </CollapsibleSection>
 
-      {/* ── 7. Het gesprek ────────────────────────────────────────────────
-          Verhuisd van `/toevoegingen`, waar het al staff-only was. Dat waren
-          aantekeningen óver de klant op een scherm dat voor hem bedoeld is; hier
-          staan ze waar ze horen. */}
-      <div className="flex flex-col gap-2">
-        <span className="mono-label">Het gesprek</span>
-        <p className="text-sm text-muted">
-          Je aantekeningen bij dit merk, en wat er speelt dat het advies beïnvloedt.
-        </p>
-        <StrategyBox
-          profileId={id}
-          initialNotes={
-            (strategieRij as { strategy_notes?: string | null } | null)?.strategy_notes ?? null
-          }
-          initialFactors={factors}
-        />
-      </div>
     </div>
   );
 }

@@ -192,6 +192,41 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   // menselijk (`isHumanSet`), dus voor de bescherming maakt het niet uit, voor
   // de vraag "wie zei dit?" een halfjaar later wel. Welke van de drie het mag
   // zijn, is hierboven al beslist door `resolveWriteSource()`.
+  // ── Niet van toepassing, per veld (migratie 0060) ────────────────────────
+  //
+  // ⚠️ Geen eigen route. Dit is per-veld-metadata op dezelfde tabel als de
+  // herkomst, gezet vanaf hetzelfde scherm, in dezelfde handeling. Een tweede
+  // opslagroute ernaast is precies wat dit plan niet doet.
+  //
+  // Een leeg veld is zonder dit dubbelzinnig: het kan "weten we nog niet"
+  // betekenen of "niet van toepassing". Een merk zonder auteur heeft geen
+  // auteursbio, en dat is geen gat.
+  const nvt = body.nvt;
+  if (nvt && typeof nvt === "object" && !Array.isArray(nvt)) {
+    const rijen = Object.entries(nvt as Record<string, unknown>)
+      .filter(([field]) => (EDITABLE_FIELDS as readonly string[]).includes(field))
+      .map(([field, waarde]) => ({
+        profile_id: id,
+        field,
+        source: bron.source,
+        confidence: 1,
+        set_by: user.id,
+        set_at: new Date().toISOString(),
+        not_applicable: waarde === true,
+      }));
+    if (rijen.length > 0) {
+      const { error: nvtError } = await admin
+        .from("profile_field_sources")
+        .upsert(rijen, { onConflict: "profile_id,field" });
+      if (nvtError) {
+        return NextResponse.json(
+          { error: "Opslaan is niet gelukt." },
+          { status: 500 },
+        );
+      }
+    }
+  }
+
   const bewerkteVelden = EDITABLE_FIELDS.filter((f) => f in body);
   if (bewerkteVelden.length > 0) {
     const nu = new Date().toISOString();

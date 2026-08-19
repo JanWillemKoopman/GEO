@@ -3312,3 +3312,51 @@ wat er in de database staat. De branche, het bereik en de concurrenten van de co
 nog; de samenvatting en de bewijspunten die hij leeg liet komen wél van het onderzoek.
 
 Na deze ronde: 1566 unittests en 187 ketentests groen.
+
+## Onboarding 3.0, fase 3: de onboardingsessie (19 augustus 2026)
+
+Het scherm waar consultant en klant samen aan tafel zitten:
+`/merk/[id]/admin/onboarding`, staf-only, en het enige stafscherm dat bedoeld is om te delen. Nul
+migraties.
+
+**De veldweergave is gedeelde code geworden**, en dat is de kern van deze fase.
+`brand-field-input.tsx` rendert één veld met zijn label, uitleg, voorbeeld en herkomstchip, en zowel
+de klantwizard als de sessie gebruiken hem. Zonder die stap was er een tweede formulier ontstaan met
+dezelfde velden, en dat is precies wat `strategy-box.tsx` in 2026 al afwees: een tweede plek waar
+iets kan verouderen. De sessie definieert geen enkel veld zelf, en een test faalt als dat verandert.
+
+**Het scherm opent met wat we níet weten.** `profile-gaps.ts` sorteert de open punten nu op gevolg
+in plaats van op veldvolgorde: het bereik bovenaan, want dat is het enige punt waarvan de fout pas ná
+een betaalde meetronde zichtbaar wordt, en de bewijspunten onderaan, want die raken pas de tekst.
+Zonder die volgorde kost het gesprek een uur aan het bevestigen van dingen die al klopten, en dat is
+het uur waar de klant voor betaalt.
+
+**Opslaan gaat per veld, niet met een knop onderaan.** Drie standen per veld, en een mislukte opslag
+laat de getypte waarde staan met een knop om het opnieuw te proberen. Stil terugdraaien naar de oude
+waarde is de duurste fout die dit scherm kan maken: dan typt de consultant het opnieuw zonder te
+weten dat het de eerste keer ook al niet lukte. De klantwizard houdt zijn knop, want daar past hij.
+
+**Elk veld kan op niet van toepassing**, via dezelfde route en dezelfde tabel als de herkomst. Geen
+tweede opslagroute. Zo'n veld telt als behandeld, valt uit de gatenlijst, en wordt door een
+onderzoeksronde niet alsnog gevuld.
+
+**De meter toont drie getallen**: samen bevestigd, door ORBIT ENGINE gevonden, nog open. Een
+consultantwaarde telt daarin als gevonden en niet als bevestigd; anders ziet een merk waar nog nooit
+iemand mee gesproken is eruit als een merk dat je al hebt doorgenomen.
+
+**`/merk/[id]/admin` heet nu Diagnose** en draagt alleen nog techniek: welke taken draaiden, hoe
+lang, wat er faalde, wat het kostte. De volledigheidsmeter en het gespreksblok zijn naar de sessie
+verhuisd, want dat is werk en geen diagnose.
+
+⚠️ **Het Admin-hoofdstuk mag voortaan vier bestemmingen hebben in plaats van drie.** Het plan telde
+er drie en vergat "Alle merken", dat er al stond. Besloten op 19 augustus 2026 door de eigenaar, na
+een keuze tussen samenvoegen en oprekken: drie van de vier gaan over dít merk en de vierde is de
+uitgang naar de app als geheel, dus het is geen vergaarbak van vier gelijksoortige regels. Een
+vijfde bestaat niet zonder eerst iets samen te voegen, en voor de klanthoofdstukken blijft drie de
+grens. Beide grenzen staan in `scripts/test-unit.ts`.
+
+**Wat er nog niet in zit:** de knop "het onderzoek bijwerken" uit het afrondblok. Die hangt aan
+`onboarding-refresh.ts`, en dat is fase 4. Het afrondblok toont nu wat er open staat en of het
+gesprek is vastgelegd.
+
+Na deze ronde: 1634 unittests en 191 ketentests groen.

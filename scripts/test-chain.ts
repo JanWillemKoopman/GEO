@@ -818,6 +818,44 @@ async function main(): Promise<void> {
       ).blocked.includes("service_scope"),
     );
 
+    // Wat de onboardingsessie schrijft: bron `gesprek` plus een veld dat op
+    // niet van toepassing staat. Allebei op dezelfde tabel en via dezelfde
+    // route, en allebei beschermd tegen een volgende onderzoeksronde.
+    await db.client.query(
+      `insert into public.profile_field_sources (profile_id, field, source, confidence, set_by, not_applicable)
+       values ($1, 'usp', 'gesprek', 1, $2, false),
+              ($1, 'author_bio', 'gesprek', 1, $2, true)
+       on conflict (profile_id, field) do update
+         set source = excluded.source, not_applicable = excluded.not_applicable`,
+      [profileId, beheerderId],
+    );
+    const { rows: naSessie } = await db.client.query(
+      "select field, source, not_applicable from public.profile_field_sources where profile_id = $1",
+      [profileId],
+    );
+    ok(
+      "0060: wat in de sessie is gezet draagt bron 'gesprek'",
+      naSessie.find((r) => r.field === "usp")?.source === "gesprek",
+    );
+    ok(
+      "0060: en overleeft een herhaalronde van het onderzoek",
+      filterProtectedFields(
+        { usp: "iets wat het model bedacht" },
+        naSessie as { field: string; source: "ai" | "klant" | "gesprek" | "consultant" }[],
+      ).blocked.includes("usp"),
+    );
+    ok(
+      "0060: een veld op n.v.t. wordt ook niet alsnog gevuld",
+      filterProtectedFields(
+        { author_bio: "een verzonnen biografie" },
+        naSessie as { field: string; source: "ai" | "klant" | "gesprek" | "consultant" }[],
+      ).blocked.includes("author_bio"),
+    );
+    ok(
+      "0060: en n.v.t. staat er als vlag naast de herkomst",
+      naSessie.find((r) => r.field === "author_bio")?.not_applicable === true,
+    );
+
     let bronGeweigerd = false;
     try {
       await db.client.query(
