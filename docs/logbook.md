@@ -3483,3 +3483,46 @@ niets vond toonde als geslaagd, en de duurste stap toonde als klaar terwijl het 
 
 Eindstand: 1703 unittests en 202 ketentests groen, migraties t/m `0060`, alle vier de vaste
 controles groen.
+
+## Het formulier praat de taal van de branche (19 augustus 2026)
+
+Van de 56 velden hebben er 45 een voorbeeld, en die waren stuk voor stuk geschreven vanuit één
+fictieve autodealer: "Van Mossel Automotive", "Wij zorgen dat iedereen in de regio zorgeloos kan
+rijden", "Sinds 1934, 9 vestigingen, 400 medewerkers". Voor een fysiotherapiepraktijk of een
+advocatenkantoor leest dat als een formulier dat voor iemand anders is gemaakt, en dat is precies
+het gevoel dat je in een demogesprek niet wilt.
+
+**Dertien branches plus een algemene terugval**, elk met eigen voorbeelden voor 21 velden. 273
+teksten in totaal, in `lib/pipeline/brand-examples.ts`. De 21 velden zijn gekozen op één vraag:
+verandert het antwoord wezenlijk per branche? Een sitemapadres en een plaatsnaam zien er bij een
+tandarts hetzelfde uit als bij een garage, en daar een tweede voorbeeld voor schrijven levert
+onderhoud op zonder opbrengst.
+
+**De indeling komt van de concurrent, met drie correcties.** InSpace toont op hun site elf branches
+(E-commerce, Leadgeneratie, Maakindustrie, Financieel, Advocaten, Tandartsen, Zorg, Vastgoed,
+Automotive, Mode, Sieraden). Die lijst is gemaakt voor landingspagina's op zoekwoorden, niet om een
+formulier te vullen, en dat merk je: Mode en Sieraden vullen dezelfde velden in als elke andere
+webshop, Tandartsen dezelfde als elke andere zorgverlener, en Leadgeneratie is een kanaal en geen
+branche. Samengevoegd tot zes, en er zijn er zeven bij gekomen die het Nederlandse MKB dragen en die
+bij hen ontbreken: bouw en installatie, horeca en recreatie, opleiding, persoonlijke verzorging,
+transport, software en zakelijke dienstverlening. Een installatiebedrijf is hier een
+waarschijnlijker klant dan een juwelier.
+
+**Het langste trefwoord wint, niet het eerste.** Zonder die regel belandt een bouwmarkt bij bouw in
+plaats van bij retail en autoschadeherstel bij schade in plaats van bij automotive. Eén regel in
+plaats van een zorgvuldig gerangschikte lijst die bij de eerste toevoeging weer omvalt. De
+bedrijfsnaam telt mee naast de branchetekst: "Installatiebedrijf Van Dijk" zegt het al in zijn naam,
+ook als het onderzoek er "technische dienstverlening" van maakte.
+
+**Past een merk nergens in, dan is er een terugval in twee stappen**: eerst het bedrijfsmodel (een
+fabrikant lijkt meer op een fabrikant dan op niets), en anders de algemene voorbeelden die er altijd
+al stonden. Nooit een lege plek, en nooit een voorbeeld uit een andere wereld.
+
+⚠️ **Bewust geen voorbeelden per klant laten schrijven door de AI.** Dat kost ongeveer een cent per
+merk en klinkt aantrekkelijk, maar het botst op de belangrijkste belofte van dit product: niets in
+beeld dat nergens op gebaseerd is. Een verzonnen voorbeeld dat te echt oogt ("Sinds 1998, drie
+vestigingen, twaalf therapeuten") laat de klant corrigeren wat wíj bedacht hebben, en dat is precies
+het vertrouwen waar alles op drijft. Een vaste lijst kan dat niet: hij is geschreven, nagelezen en
+getest, en hij kost niets in gebruik.
+
+Na deze ronde: 1739 unittests en 202 ketentests groen.

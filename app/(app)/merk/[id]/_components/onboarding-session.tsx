@@ -13,6 +13,7 @@ import {
   stepProgress,
 } from "@/lib/pipeline/brand-fields";
 import { findGaps } from "@/lib/profile-gaps";
+import { examplesFor } from "@/lib/pipeline/brand-examples";
 import {
   planRefresh,
   describeRefresh,
@@ -81,6 +82,10 @@ export function OnboardingSession({
     return start;
   });
   const [standen, setStanden] = useState<Record<string, VeldStand>>({});
+  // De voorbeelden van de branche van dit merk (`brand-examples.ts`). Vooral op
+  // dit scherm belangrijk: de commerciële velden beginnen helemaal leeg, dus
+  // daar doet het voorbeeld het werk van de uitleg.
+  const voorbeelden = useMemo(() => examplesFor(initial), [initial]);
   // Wat er sinds de laatste onderzoeksronde gewijzigd is. Begint bij wat de
   // server meegaf en groeit met alles wat er in dit gesprek bij komt.
   const [gewijzigd, setGewijzigd] = useState<string[]>(changedSinceResearch);
@@ -189,6 +194,7 @@ export function OnboardingSession({
         key={key}
         field={definitie}
         value={waarden[key]}
+        example={voorbeelden[key]}
         source={states[key]?.source}
         notApplicable={states[key]?.notApplicable}
         stand={standen[key] ?? "rust"}

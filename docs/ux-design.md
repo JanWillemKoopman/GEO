@@ -256,6 +256,27 @@ Op het merkoverzicht staat voor staf één regel bovenaan met de fase en de eers
 met een link naar de onboardingsessie. Voor de klant verandert er niets: hij ziet zijn eigen merk,
 niet zijn plek in onze verkoopcyclus.
 
+### Voorbeelden per branche (19 augustus 2026)
+
+Van de 56 velden hebben er 45 een voorbeeld, en die waren allemaal geschreven vanuit één fictieve
+autodealer. Voor een fysiotherapiepraktijk of een advocatenkantoor leest dat als een formulier dat
+voor iemand anders is gemaakt.
+
+`lib/pipeline/brand-examples.ts` kent daarom **dertien branches plus een algemene terugval**, elk met
+eigen voorbeelden voor de 21 velden waar het antwoord wezenlijk per branche verschilt. De branche
+wordt afgeleid uit de branchetekst van het onderzoek en uit de bedrijfsnaam; past een merk nergens
+in, dan kijkt hij naar het bedrijfsmodel, en anders komen de algemene voorbeelden terug die er altijd
+al stonden.
+
+De indeling komt van de brancheoverzichten van InSpace, met drie aanpassingen: samengevoegd wat
+hetzelfde formulier vraagt (Mode en Sieraden vullen dezelfde velden in als elke webshop),
+leadgeneratie eruit want dat is een kanaal en geen branche, en zeven branches erbij die het
+Nederlandse MKB draagt en die bij hen ontbreken, waaronder bouw en installatie.
+
+⚠️ **Geen voorbeelden per klant laten schrijven door de AI.** Dat kost bijna niets en botst op de
+belangrijkste belofte van dit product: niets in beeld dat nergens op gebaseerd is. Een verzonnen
+voorbeeld dat te echt oogt laat de klant corrigeren wat wij bedacht hebben.
+
 ### De onboardingsessie: het enige stafscherm dat gedeeld wordt
 
 `/merk/[id]/admin/onboarding`, nieuw op 19 augustus 2026. Elk ander scherm onder `admin/` is intern.
