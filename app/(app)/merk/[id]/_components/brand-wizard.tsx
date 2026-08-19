@@ -14,6 +14,7 @@ import {
   type BrandStep,
 } from "@/lib/pipeline/brand-fields";
 import { BrandFieldInput } from "./brand-field-input";
+import { examplesFor } from "@/lib/pipeline/brand-examples";
 import type { Profile } from "@/lib/types/database";
 
 /**
@@ -74,6 +75,9 @@ export function BrandWizard({
     }
     return start;
   });
+  // De voorbeelden van de branche van dit merk. Eén keer bepaald: de branche
+  // verandert niet terwijl iemand het formulier invult.
+  const voorbeelden = useMemo(() => examplesFor(initial), [initial]);
   const [vuil, setVuil] = useState(false);
   const [busy, setBusy] = useState(false);
 
@@ -191,6 +195,7 @@ export function BrandWizard({
             key={field.key as string}
             field={field}
             value={waarden[field.key as string]}
+            example={voorbeelden[field.key as string]}
             source={sources[field.key as string]}
             onChange={(v) => zet(field.key as string, v)}
           />

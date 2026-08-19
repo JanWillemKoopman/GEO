@@ -83,7 +83,23 @@ export interface BrandField {
   label: string;
   /** Wat het betekent, één zin. Nova's `*Desc`. */
   description: string;
-  /** Een écht voorbeeld, geen herhaling van het label. Nova's `*Placeholder`. */
+  /**
+   * Een écht voorbeeld, geen herhaling van het label. Nova's `*Placeholder`.
+   *
+   * ⚠️ **Optioneel, en dat is een keuze per veld.** Sinds 19 augustus 2026 heeft
+   * een veld alleen een voorbeeld als de vraag zonder dat voorbeeld twee kanten
+   * op kan: hoe lang mag het antwoord zijn, hoe specifiek, in welke vorm. Tien
+   * van de 45 voorbeelden zijn daarop weggehaald, omdat het label het antwoord
+   * al volledig bepaalde: je eigen bedrijfsnaam, de naam van je contactpersoon,
+   * een e-mailadres, een telefoonnummer, een plaatsnaam, de naam van een
+   * concurrent. Een grijs "Sanne de Wit" in een veld dat "Naam" heet vertelt
+   * niets en kost wel leesbaarheid, en bij `aliases` herhaalde het voorbeeld
+   * letterlijk een woord uit de uitleg erboven.
+   *
+   * ⚠️ Bij `kind: "lijst"` staat dit voorbeeld in het vakje waar je één regel
+   * toevoegt (`tag-list-editor.tsx`). Een opsomming van vier dingen leest daar
+   * als "typ ze allemaal in één regel", dus staat er precies één ding.
+   */
   placeholder?: string;
   kind: FieldKind;
   /** Bij `schuif` en `keuze`: de standen, op volgorde. Index 0 hoort bij waarde 1. */
@@ -122,7 +138,6 @@ export const BRAND_FIELDS: BrandField[] = [
     step: "bedrijf",
     label: "Naam van je bedrijf",
     description: "Zoals je bedrijf heet. Dit is ook het label van dit merk in ORBIT ENGINE.",
-    placeholder: "Van Mossel Automotive",
     kind: "tekst",
     derivable: true,
   },
@@ -132,7 +147,6 @@ export const BRAND_FIELDS: BrandField[] = [
     label: "Andere schrijfwijzen van je naam",
     description:
       "Noemt een AI je als \"Jansen BV\" terwijl je dossier \"Bakkerij Jansen\" zegt, dan telt die vermelding niet mee en valt je score te laag uit.",
-    placeholder: "Bakkerij Jansen",
     kind: "lijst",
     derivable: true,
   },
@@ -182,7 +196,6 @@ export const BRAND_FIELDS: BrandField[] = [
     step: "bedrijf",
     label: "In welke plaatsen of streken je werkt",
     description: "Gebruikt voor de lokale zoekvragen in de meting.",
-    placeholder: "Amersfoort",
     kind: "lijst",
     derivable: true,
   },
@@ -289,7 +302,6 @@ export const BRAND_FIELDS: BrandField[] = [
     label: "Met wie je vergeleken wordt",
     description:
       "De partijen waar je klant ook naar kijkt. Clusters vullen dit per onderwerp aan met eigen, specifieke concurrenten.",
-    placeholder: "Van Mossel",
     kind: "lijst",
     derivable: true,
   },
@@ -387,7 +399,7 @@ export const BRAND_FIELDS: BrandField[] = [
     step: "woorden",
     label: "Woorden die bij je horen",
     description: "Termen die je merk kenmerken en die in je teksten terug mogen komen.",
-    placeholder: "betrouwbaar, regionaal, vakmanschap",
+    placeholder: "vakmanschap",
     kind: "lijst",
     derivable: true,
   },
@@ -409,7 +421,6 @@ export const BRAND_FIELDS: BrandField[] = [
     label: "Naam",
     description:
       "Moet een echt persoon zijn die bij je werkt en online te vinden is. Een verzonnen auteur werkt averechts.",
-    placeholder: "Sanne de Wit",
     kind: "tekst",
     derivable: false,
   },
@@ -496,7 +507,7 @@ export const BRAND_FIELDS: BrandField[] = [
     label: "Cijfers die je claims waarmaken",
     description:
       "Harde feiten: aantallen, jaartallen, keurmerken. Dit is wat een AI-assistent aanhaalt; algemene beloftes slaat hij over.",
-    placeholder: "Sinds 1934, 9 vestigingen, 400 medewerkers",
+    placeholder: "400 medewerkers in 9 vestigingen",
     kind: "lijst",
     derivable: true,
   },
@@ -524,7 +535,6 @@ export const BRAND_FIELDS: BrandField[] = [
     label: "Wat je er zelf over kwijt wilt",
     description:
       "Alles wat hierboven niet paste maar wel meetelt. Wat je hier zet blijft staan, ook als het onderzoek opnieuw draait.",
-    placeholder: "Wat doen jullie, en wat maakt jullie uniek?",
     kind: "lange-tekst",
     derivable: false,
   },
@@ -574,7 +584,6 @@ export const BRAND_FIELDS: BrandField[] = [
     label: "Waar je heen wilt",
     description:
       "Plaatsen of streken waar je nog niet zit maar wel wilt komen. ORBIT ENGINE stelt daar extra vragen over, naast je huidige werkgebied.",
-    placeholder: "Utrecht",
     kind: "lijst",
     derivable: false,
   },
@@ -676,7 +685,6 @@ export const BRAND_FIELDS: BrandField[] = [
     step: "contact",
     label: "Naam",
     description: "Wie het aanspreekpunt is voor dit merk.",
-    placeholder: "Sanne de Wit",
     kind: "tekst",
     derivable: false,
   },
@@ -685,7 +693,6 @@ export const BRAND_FIELDS: BrandField[] = [
     step: "contact",
     label: "E-mailadres",
     description: "Waar de uitnodiging en de rapporten heen gaan.",
-    placeholder: "sanne@voorbeeld.nl",
     kind: "tekst",
     derivable: false,
   },
@@ -694,7 +701,6 @@ export const BRAND_FIELDS: BrandField[] = [
     step: "contact",
     label: "Telefoonnummer",
     description: "Voor als er iets niet klopt en mailen te traag is.",
-    placeholder: "06 12 34 56 78",
     kind: "tekst",
     derivable: false,
   },

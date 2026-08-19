@@ -27,6 +27,7 @@ export type VeldStand = "rust" | "opslaan" | "opgeslagen" | "mislukt";
 export function BrandFieldInput({
   field,
   value,
+  example,
   source,
   notApplicable,
   stand,
@@ -37,6 +38,12 @@ export function BrandFieldInput({
 }: {
   field: BrandField;
   value: unknown;
+  /**
+   * Het voorbeeld dat in het lege veld staat. Weglaten en het algemene
+   * voorbeeld uit de veldencatalogus wordt gebruikt; meegeven en je krijgt het
+   * voorbeeld van de branche van dit merk (`brand-examples.ts`).
+   */
+  example?: string;
   /** Uit `profile_field_sources`. Bepaalt de chip rechtsboven. */
   source?: string;
   notApplicable?: boolean;
@@ -53,6 +60,9 @@ export function BrandFieldInput({
 }) {
   const id = `veld-${String(field.key)}`;
   const gevuld = isFilled(value);
+  // Het voorbeeld van de branche wint van het algemene voorbeeld. Staat er geen
+  // brancheversie, dan verandert er niets.
+  const voorbeeld = example ?? field.placeholder;
 
   return (
     <div
@@ -103,14 +113,14 @@ export function BrandFieldInput({
             onChange(items);
             onCommit?.();
           }}
-          placeholder={field.placeholder}
+          placeholder={voorbeeld}
         />
       ) : field.kind === "personas" ? (
         <PersonaEditor
           items={Array.isArray(value) ? (value as Persona[]) : []}
           onChange={(items) => onChange(items)}
           onCommit={onCommit}
-          placeholder={field.placeholder}
+          placeholder={voorbeeld}
         />
       ) : field.kind === "janee" ? (
         <Standen
@@ -163,7 +173,7 @@ export function BrandFieldInput({
           value={typeof value === "string" ? value : ""}
           onChange={(e) => onChange(e.target.value)}
           onBlur={() => onCommit?.()}
-          placeholder={field.placeholder}
+          placeholder={voorbeeld}
         />
       ) : (
         <input
@@ -172,7 +182,7 @@ export function BrandFieldInput({
           value={typeof value === "string" ? value : ""}
           onChange={(e) => onChange(e.target.value)}
           onBlur={() => onCommit?.()}
-          placeholder={field.placeholder}
+          placeholder={voorbeeld}
         />
       )}
     </div>

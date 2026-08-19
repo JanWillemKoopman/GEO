@@ -288,6 +288,14 @@ import {
 import { sessionMeter, notApplicableFields } from "@/lib/profile-meter";
 import { buildIntakeBlock } from "@/lib/pipeline/intake-block";
 import {
+  categoryOf,
+  examplesFor,
+  exampleCount,
+  CATEGORIES,
+  CATEGORY_LABEL,
+  type BrandCategory,
+} from "@/lib/pipeline/brand-examples";
+import {
   planRefresh,
   describeRefresh,
   FIELD_TASKS,
@@ -7674,6 +7682,222 @@ group("de fase van een merk, afgeleid en niet ingevuld (fase 5)", () => {
       profileStage({ ...basis, recordedAt: "x" }),
       profileStage({ ...basis, assignedAt: "x" }),
     ]).size === 4,
+  );
+});
+
+
+group("het formulier praat de taal van de branche", () => {
+  // ── De branche herkennen uit wat het onderzoek vond ──────────────────────
+  const gevallen: [string, BrandCategory][] = [
+    ["autodealer", "automotive"],
+    ["universeel garagebedrijf met schadeherstel", "automotive"],
+    ["fysiotherapiepraktijk", "zorg"],
+    ["tandartspraktijk", "zorg"],
+    ["advocatenkantoor", "juridisch_financieel"],
+    ["accountantskantoor en belastingadvies", "juridisch_financieel"],
+    ["installatiebedrijf voor warmtepompen", "bouw_installatie"],
+    ["webshop in sieraden", "retail"],
+    ["modewinkel", "retail"],
+    ["machinebouw en metaalbewerking", "maakindustrie"],
+    ["makelaardij", "vastgoed"],
+    ["marketingbureau", "zakelijke_dienstverlening"],
+    ["B2B-software voor de bouw", "software"],
+    ["restaurant met zalenverhuur", "horeca_recreatie"],
+    ["rijschool", "opleiding"],
+    ["kapsalon", "persoonlijke_verzorging"],
+    ["transportbedrijf", "transport_logistiek"],
+  ];
+  for (const [branche, verwacht] of gevallen) {
+    const uit = categoryOf({ industry: branche });
+    ok(`"${branche}" wordt ${verwacht}`, uit === verwacht, uit);
+  }
+
+  // ⚠️ HET LANGSTE TREFWOORD WINT, niet het eerste. Zonder die regel belandt
+  // een bouwmarkt bij bouw in plaats van bij retail.
+  ok("een bouwmarkt is retail en geen bouwbedrijf", categoryOf({ industry: "bouwmarkt" }) === "retail");
+  ok(
+    "autoschadeherstel is automotive en geen bouw",
+    categoryOf({ industry: "autoschadeherstel" }) === "automotive",
+  );
+
+  // De naam telt mee: "Installatiebedrijf Van Dijk" zegt het al in zijn naam,
+  // ook als het onderzoek er "technische dienstverlening" van maakte.
+  ok(
+    "de bedrijfsnaam telt mee als de branchetekst vaag is",
+    categoryOf({ industry: "technische dienstverlening", name: "Installatiebedrijf Van Dijk" }) ===
+      "bouw_installatie",
+  );
+
+  // ── De terugval, en dat is de kern van de vraag "wat als het niet past" ──
+  ok(
+    "een onbekende branche valt terug op algemeen",
+    categoryOf({ industry: "iets heel anders" }) === "algemeen",
+  );
+  ok("een leeg profiel ook", categoryOf({}) === "algemeen");
+  // Maar niet als het bedrijfsmodel wél iets zegt: een fabrikant lijkt meer op
+  // een fabrikant dan op niets.
+  ok(
+    "een onbekende fabrikant krijgt de maakindustrie",
+    categoryOf({ industry: "iets heel anders", businessModel: "fabrikant" }) === "maakindustrie",
+  );
+  ok(
+    "een onbekende retailer krijgt retail",
+    categoryOf({ businessModel: "retailer" }) === "retail",
+  );
+  ok(
+    "een dienstverlener zonder branche blijft algemeen",
+    categoryOf({ businessModel: "dienstverlener" }) === "algemeen",
+  );
+
+  // ── De voorbeelden zelf ─────────────────────────────────────────────────
+  ok("er zijn veertien categorieën", CATEGORIES.length === 14, `${CATEGORIES.length}`);
+  ok(
+    "elke categorie heeft een leesbare naam",
+    CATEGORIES.every((c) => CATEGORY_LABEL[c].length > 3),
+  );
+  // ⚠️ Automotive is een harde eis: het is de branche waar de eerste klanten
+  // vandaan komen.
+  ok("automotive bestaat", CATEGORIES.includes("automotive"));
+
+  const echteCategorieen = CATEGORIES.filter((c) => c !== "algemeen");
+  const teWeinig = echteCategorieen.filter((c) => exampleCount(c) < 18);
+  ok(
+    `elke branche heeft minstens achttien eigen voorbeelden${teWeinig.length ? " (te weinig: " + teWeinig.join(", ") + ")" : ""}`,
+    teWeinig.length === 0,
+  );
+  ok("en algemeen heeft er nul, want dat is de terugval", exampleCount("algemeen") === 0);
+
+  // ⚠️ Elk voorbeeld hoort bij een veld dat écht bestaat. Een typefout in een
+  // sleutel levert een voorbeeld op dat nergens verschijnt, en dat merk je pas
+  // als een klant erover valt.
+  const bestaandeVelden = new Set(BRAND_FIELDS.map((f) => f.key as string));
+  const onbekend: string[] = [];
+  for (const categorie of echteCategorieen) {
+    const kaart = examplesFor({
+      industry: null,
+      business_model: null,
+      name: CATEGORY_LABEL[categorie],
+      brand_name: null,
+    });
+    void kaart;
+  }
+  for (const branche of gevallen) {
+    const kaart = examplesFor({
+      industry: branche[0],
+      business_model: null,
+      name: null,
+      brand_name: null,
+    });
+    for (const sleutel of Object.keys(kaart)) {
+      if (!bestaandeVelden.has(sleutel)) onbekend.push(`${branche[1]}.${sleutel}`);
+    }
+  }
+  ok(
+    `elk voorbeeld hoort bij een bestaand veld${onbekend.length ? " (onbekend: " + onbekend.join(", ") + ")" : ""}`,
+    onbekend.length === 0,
+  );
+
+  // De voorbeelden zijn ook echt anders per branche: dat is het hele punt.
+  const auto = examplesFor({ industry: "autodealer", business_model: null, name: null, brand_name: null });
+  const zorg = examplesFor({ industry: "fysiotherapie", business_model: null, name: null, brand_name: null });
+  ok("een garage krijgt een garagevoorbeeld", auto.products?.includes("APK") === true);
+  ok("een praktijk krijgt een zorgvoorbeeld", zorg.products?.includes("therapie") === true);
+  ok(
+    "en ze delen geen enkel voorbeeld",
+    Object.keys(auto).every((k) => auto[k] !== zorg[k]),
+  );
+
+  // Een merk zonder branche krijgt een lege kaart, en dan blijft het algemene
+  // voorbeeld uit de veldencatalogus staan.
+  ok(
+    "zonder branche geen eigen voorbeelden",
+    Object.keys(
+      examplesFor({ industry: null, business_model: null, name: null, brand_name: null }),
+    ).length === 0,
+  );
+
+  // Geen lege of half afgemaakte teksten: een voorbeeld van twee tekens is
+  // erger dan geen voorbeeld.
+  const teKort: string[] = [];
+  for (const [branche, categorie] of gevallen) {
+    const kaart = examplesFor({ industry: branche, business_model: null, name: null, brand_name: null });
+    for (const [sleutel, tekst] of Object.entries(kaart)) {
+      if (tekst.trim().length < 4) teKort.push(`${categorie}.${sleutel}`);
+    }
+  }
+  ok(`geen te korte voorbeelden${teKort.length ? " (" + teKort.join(", ") + ")" : ""}`, teKort.length === 0);
+
+  // ⚠️ Elke branche vult dezelfde velden. Vergeet je er één bij het toevoegen
+  // van een branche, dan krijgt die klant op dat ene veld het autovoorbeeld
+  // terug, en dat is precies wat dit bestand moest oplossen.
+  const eersteSet = Object.keys(
+    examplesFor({ industry: "autodealer", business_model: null, name: null, brand_name: null }),
+  ).sort();
+  const afwijkend: string[] = [];
+  for (const [branche, categorie] of gevallen) {
+    const kaart = examplesFor({ industry: branche, business_model: null, name: null, brand_name: null });
+    if (Object.keys(kaart).sort().join(",") !== eersteSet.join(",")) afwijkend.push(categorie);
+  }
+  ok(
+    `elke branche vult dezelfde velden${afwijkend.length ? " (wijkt af: " + afwijkend.join(", ") + ")" : ""}`,
+    afwijkend.length === 0,
+  );
+
+  // ── Een voorbeeld alleen waar het iets toevoegt (19 augustus 2026) ──────
+  //
+  // Tien velden hebben bewust geen voorbeeld: het label bepaalt het antwoord al
+  // volledig. Een branchevoorbeeld zou die keuze stilletjes terugdraaien, want
+  // dat wint van het algemene voorbeeld in `brand-field-input.tsx`.
+  const zonderVoorbeeld = new Set(
+    BRAND_FIELDS.filter((f) => !f.placeholder && f.kind !== "keuze" && f.kind !== "schuif" && f.kind !== "janee").map(
+      (f) => f.key as string,
+    ),
+  );
+  ok(
+    "tien velden hebben bewust geen voorbeeld",
+    zonderVoorbeeld.size === 10,
+    `${zonderVoorbeeld.size}`,
+  );
+  ok(
+    "je eigen bedrijfsnaam en je contactgegevens horen daarbij",
+    ["name", "contact_name", "contact_email", "contact_phone", "competitors"].every((k) =>
+      zonderVoorbeeld.has(k),
+    ),
+  );
+  const stiekem: string[] = [];
+  for (const [branche, categorie] of gevallen) {
+    const kaart = examplesFor({ industry: branche, business_model: null, name: null, brand_name: null });
+    for (const sleutel of Object.keys(kaart)) {
+      if (zonderVoorbeeld.has(sleutel)) stiekem.push(`${categorie}.${sleutel}`);
+    }
+  }
+  ok(
+    `geen branchevoorbeeld voor een veld dat er geen hoort te hebben${stiekem.length ? " (" + stiekem.join(", ") + ")" : ""}`,
+    stiekem.length === 0,
+  );
+
+  // ⚠️ Bij een lijstveld staat het voorbeeld in het vakje waar je één regel
+  // toevoegt. "Verlichting, meubels, woontextiel, decoratie" leest daar als
+  // "typ ze allemaal achter elkaar", en dan staat het hele aanbod in één regel.
+  const lijstVelden = new Set(
+    BRAND_FIELDS.filter((f) => f.kind === "lijst").map((f) => f.key as string),
+  );
+  const opsommingen: string[] = [];
+  for (const veld of BRAND_FIELDS) {
+    if (veld.kind !== "lijst" || !veld.placeholder) continue;
+    if (veld.placeholder.split(", ").length >= 3) opsommingen.push(`algemeen.${String(veld.key)}`);
+  }
+  for (const [branche, categorie] of gevallen) {
+    const kaart = examplesFor({ industry: branche, business_model: null, name: null, brand_name: null });
+    for (const [sleutel, tekst] of Object.entries(kaart)) {
+      if (lijstVelden.has(sleutel) && tekst.split(", ").length >= 3) {
+        opsommingen.push(`${categorie}.${sleutel}`);
+      }
+    }
+  }
+  ok(
+    `een lijstvoorbeeld is één regel${opsommingen.length ? " (" + opsommingen.join(", ") + ")" : ""}`,
+    opsommingen.length === 0,
   );
 });
 
