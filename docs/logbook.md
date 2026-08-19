@@ -3492,8 +3492,8 @@ rijden", "Sinds 1934, 9 vestigingen, 400 medewerkers". Voor een fysiotherapiepra
 advocatenkantoor leest dat als een formulier dat voor iemand anders is gemaakt, en dat is precies
 het gevoel dat je in een demogesprek niet wilt.
 
-**Dertien branches plus een algemene terugval**, elk met eigen voorbeelden voor 21 velden. 273
-teksten in totaal, in `lib/pipeline/brand-examples.ts`. De 21 velden zijn gekozen op één vraag:
+**Dertien branches plus een algemene terugval**, elk met eigen voorbeelden voor 19 velden. 247
+teksten in totaal, in `lib/pipeline/brand-examples.ts`. De 19 velden zijn gekozen op één vraag:
 verandert het antwoord wezenlijk per branche? Een sitemapadres en een plaatsnaam zien er bij een
 tandarts hetzelfde uit als bij een garage, en daar een tweede voorbeeld voor schrijven levert
 onderhoud op zonder opbrengst.
@@ -3526,3 +3526,30 @@ het vertrouwen waar alles op drijft. Een vaste lijst kan dat niet: hij is geschr
 getest, en hij kost niets in gebruik.
 
 Na deze ronde: 1739 unittests en 202 ketentests groen.
+
+## Een voorbeeld alleen waar het iets toevoegt (19 augustus 2026)
+
+Direct na de vorige ronde nagelopen welke velden een voorbeeld verdienen, want een voorbeeld overal
+is geen service maar ruis. **Tien van de 45 zijn weggehaald.** De maatstaf: kan de vraag zonder dat
+voorbeeld twee kanten op, in lengte, specificiteit of vorm? Zo ja, dan blijft het staan. Zo nee, dan
+vertelt het grijze regeltje niets en kost het wel leesbaarheid.
+
+Weg zijn: je eigen bedrijfsnaam, de naam van je auteur, de naam van je contactpersoon, een
+e-mailadres, een telefoonnummer, twee plaatsnaamvelden, de naam van een concurrent, de vrije
+slotvraag (daar stond een vraag als voorbeeld, geen voorbeeld) en de lijst met schrijfwijzen van je
+naam, waar het voorbeeld letterlijk een woord uit de uitleg erboven herhaalde. Bij een lijstveld
+verschijnt in plaats daarvan het bestaande "Toevoegen…".
+
+**Twee verzonnen bedrijfsnamen per branche zijn eruit**, 26 teksten in totaal: het merk zelf
+("Autobedrijf De Vries") en een concurrent ("Autopalace Zuid"). De tweede was het bezwaarlijkst: een
+verzonnen concurrent in een grijs vakje leest als een suggestie van ons over de markt van de klant,
+in het scherm waar hij naast je zit.
+
+**En een fout die pas in gebruik zichtbaar wordt.** Bij een lijstveld staat het voorbeeld in het
+vakje waar je één regel toevoegt, niet boven de lijst. Daar stonden opsommingen van vier
+("Verlichting, meubels, woontextiel, decoratie"), en die lezen als "typ ze allemaal achter elkaar",
+waarna het hele aanbod in één regel belandt en de meting één onderwerp ziet in plaats van vier. 28
+voorbeelden teruggebracht tot één ding per regel. Een test bewaakt het nu: een voorbeeld bij een
+lijstveld heeft minder dan drie komma-onderdelen.
+
+Na deze ronde: 1744 unittests en 202 ketentests groen, 35 velden met een voorbeeld, 247 branchevoorbeelden.

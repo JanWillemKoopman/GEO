@@ -258,12 +258,12 @@ niet zijn plek in onze verkoopcyclus.
 
 ### Voorbeelden per branche (19 augustus 2026)
 
-Van de 56 velden hebben er 45 een voorbeeld, en die waren allemaal geschreven vanuit één fictieve
+Van de 56 velden hebben er 35 een voorbeeld, en die waren allemaal geschreven vanuit één fictieve
 autodealer. Voor een fysiotherapiepraktijk of een advocatenkantoor leest dat als een formulier dat
 voor iemand anders is gemaakt.
 
 `lib/pipeline/brand-examples.ts` kent daarom **dertien branches plus een algemene terugval**, elk met
-eigen voorbeelden voor de 21 velden waar het antwoord wezenlijk per branche verschilt. De branche
+eigen voorbeelden voor de 19 velden waar het antwoord wezenlijk per branche verschilt. De branche
 wordt afgeleid uit de branchetekst van het onderzoek en uit de bedrijfsnaam; past een merk nergens
 in, dan kijkt hij naar het bedrijfsmodel, en anders komen de algemene voorbeelden terug die er altijd
 al stonden.
@@ -276,6 +276,16 @@ Nederlandse MKB draagt en die bij hen ontbreken, waaronder bouw en installatie.
 ⚠️ **Geen voorbeelden per klant laten schrijven door de AI.** Dat kost bijna niets en botst op de
 belangrijkste belofte van dit product: niets in beeld dat nergens op gebaseerd is. Een verzonnen
 voorbeeld dat te echt oogt laat de klant corrigeren wat wij bedacht hebben.
+
+**Wanneer een veld een voorbeeld krijgt.** Alleen als de vraag zonder dat voorbeeld twee kanten op
+kan: hoe lang mag het antwoord zijn, hoe specifiek, in welke vorm. Bepaalt het label het antwoord al
+volledig (je eigen bedrijfsnaam, een e-mailadres, een plaatsnaam, de naam van een concurrent), dan
+staat er niets, want een grijze regel die niets toevoegt kost wel leesbaarheid. Tien velden hebben
+op die grond geen voorbeeld, en er staat geen verzonnen bedrijfsnaam meer in de voorbeelden.
+
+⚠️ Bij een lijstveld verschijnt het voorbeeld in het vakje waar je één regel toevoegt, niet boven de
+lijst. Daar hoort dus precies één ding te staan: een opsomming leest daar als "typ ze allemaal
+achter elkaar". Een unittest bewaakt het.
 
 ### De onboardingsessie: het enige stafscherm dat gedeeld wordt
 

@@ -7760,9 +7760,9 @@ group("het formulier praat de taal van de branche", () => {
   ok("automotive bestaat", CATEGORIES.includes("automotive"));
 
   const echteCategorieen = CATEGORIES.filter((c) => c !== "algemeen");
-  const teWeinig = echteCategorieen.filter((c) => exampleCount(c) < 20);
+  const teWeinig = echteCategorieen.filter((c) => exampleCount(c) < 18);
   ok(
-    `elke branche heeft minstens twintig eigen voorbeelden${teWeinig.length ? " (te weinig: " + teWeinig.join(", ") + ")" : ""}`,
+    `elke branche heeft minstens achttien eigen voorbeelden${teWeinig.length ? " (te weinig: " + teWeinig.join(", ") + ")" : ""}`,
     teWeinig.length === 0,
   );
   ok("en algemeen heeft er nul, want dat is de terugval", exampleCount("algemeen") === 0);
@@ -7801,7 +7801,7 @@ group("het formulier praat de taal van de branche", () => {
   const auto = examplesFor({ industry: "autodealer", business_model: null, name: null, brand_name: null });
   const zorg = examplesFor({ industry: "fysiotherapie", business_model: null, name: null, brand_name: null });
   ok("een garage krijgt een garagevoorbeeld", auto.products?.includes("APK") === true);
-  ok("een praktijk krijgt een zorgvoorbeeld", zorg.products?.includes("fysiotherapie") === true);
+  ok("een praktijk krijgt een zorgvoorbeeld", zorg.products?.includes("therapie") === true);
   ok(
     "en ze delen geen enkel voorbeeld",
     Object.keys(auto).every((k) => auto[k] !== zorg[k]),
@@ -7826,6 +7826,79 @@ group("het formulier praat de taal van de branche", () => {
     }
   }
   ok(`geen te korte voorbeelden${teKort.length ? " (" + teKort.join(", ") + ")" : ""}`, teKort.length === 0);
+
+  // ⚠️ Elke branche vult dezelfde velden. Vergeet je er één bij het toevoegen
+  // van een branche, dan krijgt die klant op dat ene veld het autovoorbeeld
+  // terug, en dat is precies wat dit bestand moest oplossen.
+  const eersteSet = Object.keys(
+    examplesFor({ industry: "autodealer", business_model: null, name: null, brand_name: null }),
+  ).sort();
+  const afwijkend: string[] = [];
+  for (const [branche, categorie] of gevallen) {
+    const kaart = examplesFor({ industry: branche, business_model: null, name: null, brand_name: null });
+    if (Object.keys(kaart).sort().join(",") !== eersteSet.join(",")) afwijkend.push(categorie);
+  }
+  ok(
+    `elke branche vult dezelfde velden${afwijkend.length ? " (wijkt af: " + afwijkend.join(", ") + ")" : ""}`,
+    afwijkend.length === 0,
+  );
+
+  // ── Een voorbeeld alleen waar het iets toevoegt (19 augustus 2026) ──────
+  //
+  // Tien velden hebben bewust geen voorbeeld: het label bepaalt het antwoord al
+  // volledig. Een branchevoorbeeld zou die keuze stilletjes terugdraaien, want
+  // dat wint van het algemene voorbeeld in `brand-field-input.tsx`.
+  const zonderVoorbeeld = new Set(
+    BRAND_FIELDS.filter((f) => !f.placeholder && f.kind !== "keuze" && f.kind !== "schuif" && f.kind !== "janee").map(
+      (f) => f.key as string,
+    ),
+  );
+  ok(
+    "tien velden hebben bewust geen voorbeeld",
+    zonderVoorbeeld.size === 10,
+    `${zonderVoorbeeld.size}`,
+  );
+  ok(
+    "je eigen bedrijfsnaam en je contactgegevens horen daarbij",
+    ["name", "contact_name", "contact_email", "contact_phone", "competitors"].every((k) =>
+      zonderVoorbeeld.has(k),
+    ),
+  );
+  const stiekem: string[] = [];
+  for (const [branche, categorie] of gevallen) {
+    const kaart = examplesFor({ industry: branche, business_model: null, name: null, brand_name: null });
+    for (const sleutel of Object.keys(kaart)) {
+      if (zonderVoorbeeld.has(sleutel)) stiekem.push(`${categorie}.${sleutel}`);
+    }
+  }
+  ok(
+    `geen branchevoorbeeld voor een veld dat er geen hoort te hebben${stiekem.length ? " (" + stiekem.join(", ") + ")" : ""}`,
+    stiekem.length === 0,
+  );
+
+  // ⚠️ Bij een lijstveld staat het voorbeeld in het vakje waar je één regel
+  // toevoegt. "Verlichting, meubels, woontextiel, decoratie" leest daar als
+  // "typ ze allemaal achter elkaar", en dan staat het hele aanbod in één regel.
+  const lijstVelden = new Set(
+    BRAND_FIELDS.filter((f) => f.kind === "lijst").map((f) => f.key as string),
+  );
+  const opsommingen: string[] = [];
+  for (const veld of BRAND_FIELDS) {
+    if (veld.kind !== "lijst" || !veld.placeholder) continue;
+    if (veld.placeholder.split(", ").length >= 3) opsommingen.push(`algemeen.${String(veld.key)}`);
+  }
+  for (const [branche, categorie] of gevallen) {
+    const kaart = examplesFor({ industry: branche, business_model: null, name: null, brand_name: null });
+    for (const [sleutel, tekst] of Object.entries(kaart)) {
+      if (lijstVelden.has(sleutel) && tekst.split(", ").length >= 3) {
+        opsommingen.push(`${categorie}.${sleutel}`);
+      }
+    }
+  }
+  ok(
+    `een lijstvoorbeeld is één regel${opsommingen.length ? " (" + opsommingen.join(", ") + ")" : ""}`,
+    opsommingen.length === 0,
+  );
 });
 
 // ════════════════════════════════════════════════════════════════════════════
