@@ -282,6 +282,23 @@ import { resolveWriteSource, consultantFields } from "@/lib/profile-source";
 import { sessionMeter, notApplicableFields } from "@/lib/profile-meter";
 import { buildIntakeBlock } from "@/lib/pipeline/intake-block";
 import {
+  planRefresh,
+  describeRefresh,
+  FIELD_TASKS,
+  TASK_LABELS,
+} from "@/lib/pipeline/onboarding-refresh";
+import {
+  topicSteering,
+  growthRegionsRule,
+  objectionsRule,
+  offlineProofFacts,
+  forbiddenTopicHits,
+  siteStructureRule,
+  goalRule,
+} from "@/lib/pipeline/commercial-context";
+import { ONBOARDING_NEXT, nextInChain } from "@/lib/jobs/chain";
+import { extractConfusions } from "@/lib/pipeline/baseline-verdict";
+import {
   assessStructureCoverage,
   describeCoverage,
   formatCoverageForReport,
@@ -7366,6 +7383,215 @@ group("de sessiepagina wordt gedeeld met de klant (deel B3)", () => {
   ok(
     "en definieert zelf geen velden",
     !sessie.includes("derivable:") && !sessie.includes("placeholder:"),
+  );
+});
+
+
+group("wat er na het gesprek opnieuw moet draaien (fase 4)", () => {
+  // ⚠️ ELK VAN DE VIJFTIEN VELDEN, ÓÓK DE VELDEN DIE NUL STAPPEN OPLEVEREN.
+  //
+  // Een veld dat niet in de tabel staat, is een veld waarvan niemand heeft
+  // nagedacht of hij iets moet triggeren. Dat merk je pas als er een dure stap
+  // onnodig draait, of juist niet draait.
+  const velden = BRAND_FIELDS.filter(
+    (f) => f.step === "strategie" || f.step === "contact",
+  ).map((f) => f.key as string);
+  const ontbreekt = velden.filter((v) => !(v in FIELD_TASKS));
+  ok(
+    `elk nieuw veld staat in de tabel${ontbreekt.length ? " (mist: " + ontbreekt.join(", ") + ")" : ""}`,
+    ontbreekt.length === 0,
+  );
+  ok("en het bereik en het werkgebied ook", "service_scope" in FIELD_TASKS && "service_regions" in FIELD_TASKS);
+
+  // Het bereik is het duurste veld: het bepaalt of de vragen regionaal of
+  // landelijk gesteld worden, en dat is pas ná een betaalde meting te zien.
+  const bereik = planRefresh(["service_scope"], { analyses: 1 });
+  ok("een gewijzigd bereik laat de vragen opnieuw opstellen", bereik.tasks.includes("prompts"));
+  ok("en de kennistest opnieuw draaien", bereik.tasks.includes("kennistest"));
+  ok("maar niet het marktonderzoek", !bereik.tasks.includes("markt"));
+
+  ok(
+    "een gewijzigde concurrent raakt alleen de markt",
+    planRefresh(["competitors"]).tasks.join() === "markt",
+  );
+  ok(
+    "de commerciële sturing raakt alleen de onderwerpen",
+    planRefresh(["priority_offerings", "forbidden_topics"]).tasks.join() === "onderwerpen",
+  );
+
+  // ⚠️ Vijf velden waar NUL stappen uit volgen. Dat is de helft van de winst
+  // van deze module: zonder die nullen zou elk gesprek de duurste stappen
+  // opnieuw draaien voor een telefoonnummer.
+  const nulVelden = [
+    "name_exclusions",
+    "offline_proof",
+    "sales_objections",
+    "goal_12m",
+    "deal_value_band",
+    "seasonality",
+    "respect_site_structure",
+    "contact_name",
+    "contact_email",
+    "contact_phone",
+  ];
+  for (const veld of nulVelden) {
+    ok(`${veld} laat niets opnieuw draaien`, planRefresh([veld]).tasks.length === 0);
+  }
+  ok(
+    "en samen ook niet",
+    planRefresh(nulVelden).tasks.length === 0,
+  );
+
+  // Zonder analyse valt de promptstap weg: een knop die een stap inplant die
+  // nergens op slaat is erger dan geen knop.
+  ok(
+    "zonder analyse geen promptgeneratie",
+    !planRefresh(["service_regions"], { analyses: 0 }).tasks.includes("prompts"),
+  );
+  ok(
+    "de kennistest blijft dan wel staan",
+    planRefresh(["service_regions"], { analyses: 0 }).tasks.includes("kennistest"),
+  );
+
+  // De raming schaalt mee met het aantal analyses, want de vragen worden per
+  // analyse opnieuw opgesteld.
+  const een = planRefresh(["service_scope"], { analyses: 1 }).estimateUsd;
+  const drie = planRefresh(["service_scope"], { analyses: 3 }).estimateUsd;
+  ok("meer analyses is een hogere raming", drie > een);
+  ok("en de raming blijft onder een dubbeltje per analyse", drie < 0.3, `$${drie}`);
+
+  // De bevestigingszin. ⚠️ Die staat in deze pure module en niet in het scherm:
+  // de sessiepagina wordt met de klant gedeeld en er mag geen bedrag in beeld.
+  ok(
+    "niets veranderd levert een zin op die dat zegt",
+    describeRefresh(planRefresh([])).includes("niets veranderd"),
+  );
+  const zin = describeRefresh(planRefresh(["service_scope"], { analyses: 1 }));
+  ok("de bevestiging noemt het bedrag", zin.includes("$"));
+  ok("en zegt in gewone taal wat er gebeurt", zin.includes(TASK_LABELS.kennistest));
+  ok("zonder taaknamen", !zin.includes("profile_llm_baseline") && !zin.includes("generate_prompts"));
+});
+
+group("de onderzoeksketen kapt niet af als een stap opgeeft", () => {
+  // ⚠️ Het punt van de Teamsessie van 18 augustus 2026: `profile_offering` telt
+  // als niet-blokkerend omdat de klant bij een mislukking alleen zijn
+  // dienstenoverzicht mist, maar diezelfde stap plande de markt in, en de markt
+  // draagt de kennistest en de synthese.
+  ok("de aanbodstap wijst naar de markt", nextInChain("profile_offering") === "profile_market");
+  ok("de markt naar de kennistest", nextInChain("profile_market") === "profile_llm_baseline");
+  ok("de kennistest naar de synthese", nextInChain("profile_llm_baseline") === "profile_synthesis");
+  ok("en de synthese sluit de keten", nextInChain("profile_synthesis") === null);
+
+  // De topicvoorstellen horen er bewust NIET in: die hangen aan de aanbodboom
+  // en hebben zonder knopen niets te zoeken.
+  ok("de topicvoorstellen hangen niet in de keten", !("propose_topics" in ONBOARDING_NEXT));
+  // Het profielonderzoek is blokkerend: mislukt dat, dan hoort er niets meer
+  // achteraan te komen.
+  ok("en het profielonderzoek ook niet", !("profile_research" in ONBOARDING_NEXT));
+  ok("een taak buiten de keten levert niets op", nextInChain("measure_prompt") === null);
+});
+
+group("de commerciële laag heeft echte lezers (fase 4)", () => {
+  const leeg = {
+    priority_offerings: [],
+    deprioritised_offerings: [],
+    target_segments: [],
+    forbidden_topics: [],
+    growth_regions: [],
+    sales_objections: [],
+    offline_proof: [],
+    respect_site_structure: null,
+    goal_12m: null,
+    seasonality: null,
+  };
+
+  // ⚠️ Een leeg veld levert een LEGE string op. "Verboden onderwerpen: " in een
+  // prompt is erger dan niets: het model gaat er betekenis aan geven.
+  ok("een leeg profiel levert geen enkele regel op", topicSteering(leeg) === "");
+  ok("ook niet voor de groeiregio's", growthRegionsRule(leeg) === "");
+  ok("of de bezwaren", objectionsRule(leeg) === "");
+  ok("of het doel", goalRule(leeg) === "");
+  // Niet vastgesteld is iets anders dan 'nee': alleen een expliciete nee
+  // verandert het advies (conventie 3).
+  ok("niet vastgesteld verandert niets aan de structuur", siteStructureRule(leeg) === "");
+  ok(
+    "'ja' ook niet",
+    siteStructureRule({ respect_site_structure: true }) === "",
+  );
+  ok(
+    "maar 'nee' wel",
+    siteStructureRule({ respect_site_structure: false }).includes("geen nieuwe pagina"),
+  );
+
+  const gevuld = {
+    ...leeg,
+    priority_offerings: ["onderhoudsabonnementen"],
+    deprioritised_offerings: ["losse bandenwissel"],
+    target_segments: ["installateurs met eigen monteurs"],
+    forbidden_topics: ["lopende rechtszaken"],
+  };
+  const sturing = topicSteering(gevuld);
+  ok("wat voorop staat komt erin", sturing.includes("onderhoudsabonnementen"));
+  ok("wat niet mag ook", sturing.includes("losse bandenwissel"));
+  ok("met de instructie om er niets over voor te stellen", sturing.includes("NIET VOORSTELLEN"));
+  ok("de klantgroepen komen erin", sturing.includes("installateurs"));
+  ok("en de verboden onderwerpen", sturing.includes("lopende rechtszaken"));
+
+  // De deterministische controle achteraf. Een promptinstructie is een
+  // intentie, dit is de garantie (conventie 1).
+  ok(
+    "een verboden onderwerp in de tekst wordt gevonden",
+    forbiddenTopicHits("Over de Lopende Rechtszaken kunnen we kort zijn.", gevuld).length === 1,
+  );
+  ok(
+    "hoofdletters maken niet uit",
+    forbiddenTopicHits("LOPENDE RECHTSZAKEN", gevuld)[0] === "lopende rechtszaken",
+  );
+  ok("en een schone tekst levert niets op", forbiddenTopicHits("Een gewone pagina.", gevuld).length === 0);
+
+  // Bewijs dat niet op de site staat, met de bron erbij. Dat verschil moet de
+  // claimvalidator kunnen zien: "opgegeven in het gesprek" is iets anders dan
+  // "staat op je site".
+  const feiten = offlineProofFacts({ offline_proof: ["ISO 9001 sinds 2019", "  "] });
+  ok("lege regels vallen weg", feiten.length === 1);
+  ok("en de bron zegt waar het vandaan komt", feiten[0].source.includes("gesprek"));
+
+  const bezwaren = objectionsRule({ sales_objections: ["jullie zijn duurder"] });
+  ok("de bezwaren komen in de schrijfopdracht", bezwaren.includes("duurder"));
+  ok("met de opdracht er één te weerleggen", bezwaren.includes("weerleg"));
+});
+
+group("het verwarringblok levert de uitsluitingslijst (fase 4)", () => {
+  // ⚠️ Deterministisch en niet met een tweede AI-aanroep: het antwoord is een
+  // opsomming, en een opsomming is te lezen zonder model. Een gemiste naam kost
+  // een bevestiging in het gesprek; een verzonnen naam zet een echt bedrijf op
+  // een uitsluitingslijst.
+  const antwoord = [
+    "Ja, er zijn meerdere partijen die zo heten:",
+    "- **Jansen Techniek** in Groningen, een installatiebedrijf.",
+    "- Jansen Bouw - een aannemer uit Zwolle",
+    "1. Jansen Advies: een adviesbureau",
+    "Verder is er niets bekend.",
+  ].join("\n");
+
+  const uit = extractConfusions(antwoord, ["Jansen"]);
+  ok("de vetgedrukte naam komt eruit", uit.includes("Jansen Techniek"));
+  ok("de naam vóór het streepje ook", uit.includes("Jansen Bouw"), uit.join(" · "));
+  ok("en de naam vóór de dubbele punt", uit.includes("Jansen Advies"));
+  ok("de lopende tekst eromheen niet", !uit.some((n) => n.includes("Verder is er")));
+  ok("het zijn er drie", uit.length === 3, uit.join(" · "));
+
+  // Het eigen merk hoort er nooit in: dat zou de meting de eigen vermeldingen
+  // laten wegfilteren, en dan valt de score te laag uit.
+  ok(
+    "het eigen merk valt weg",
+    !extractConfusions("- Jansen Techniek\n- Bakkerij Jansen", ["Bakkerij Jansen"]).includes(
+      "Bakkerij Jansen",
+    ),
+  );
+  ok(
+    "een antwoord zonder opsomming levert niets op",
+    extractConfusions("Nee, ik ken geen andere bedrijven met die naam.", ["Jansen"]).length === 0,
   );
 });
 

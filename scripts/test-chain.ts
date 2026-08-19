@@ -1213,6 +1213,82 @@ async function main(): Promise<void> {
       `status is ${naFout[0].status}`,
     );
 
+
+    // ══════════════════════════════════════════════════════════════════════
+    // De aanbodstap kapt de keten niet meer af (Teamsessie 18 augustus 2026)
+    //
+    // ⚠️ `profile_offering` telt als NIET-BLOKKEREND, met als onderbouwing dat
+    // de klant bij een mislukking alleen zijn dienstenoverzicht en zijn
+    // topicvoorstellen mist. Dat klopte niet: diezelfde stap plande de markt in,
+    // en de markt draagt de kennistest en de synthese. Mislukte hij definitief,
+    // dan werd de halve onderzoeksketen nooit ingepland én verscheen er geen
+    // foutmelding, want de taak telt als niet-blokkerend.
+    //
+    // Geen unittest kon dit vangen: elke functie deed precies wat hij moest doen
+    // op de invoer die hij kreeg. Het gat zat ertussen.
+    // ══════════════════════════════════════════════════════════════════════
+    console.log("\nEen mislukte aanbodstap kapt de keten niet af");
+
+    const ketenProfiel = randomUUID();
+    await db.client.query(
+      `insert into public.profiles (id, user_id, name, url, status)
+       values ($1, $2, 'Ketenmerk', 'https://ketenmerk.nl', 'klaar')`,
+      [ketenProfiel, userId],
+    );
+    const { rows: aanbodTaak } = await db.client.query(
+      `insert into public.jobs (profile_id, type, payload_json, dedupe_key, status, attempts)
+       values ($1, 'profile_offering', '{}', $2, 'running', 4) returning *`,
+      [ketenProfiel, `chain-aanbod:${ketenProfiel}`],
+    );
+    await handleFailure(admin as never, aanbodTaak[0], "de aanbodboom kwam niet rond");
+
+    const { rows: naAanbodFout } = await db.client.query(
+      "select type, status from public.jobs where profile_id = $1 and type = 'profile_market'",
+      [ketenProfiel],
+    );
+    ok(
+      "de marktstap staat alsnog ingepland",
+      naAanbodFout.length === 1 && naAanbodFout[0].status === "queued",
+      JSON.stringify(naAanbodFout),
+    );
+
+    // En de rest van de keten volgt gewoon vanaf daar: markt plant de
+    // kennistest in, die de synthese. Dat blijft het werk van de geslaagde tak.
+    const { rows: aanbodStand } = await db.client.query(
+      "select status from public.jobs where id = $1",
+      [aanbodTaak[0].id],
+    );
+    ok("terwijl de aanbodstap zelf op mislukt staat", aanbodStand[0].status === "failed");
+
+    // ⚠️ Een stap die LOS is ingepland vanuit het gesprek trekt niets achter
+    // zich aan, ook niet bij een mislukking. Anders sleept één gewijzigde
+    // concurrent alsnog de twee duurste stappen mee.
+    const losProfiel = randomUUID();
+    await db.client.query(
+      `insert into public.profiles (id, user_id, name, url, status)
+       values ($1, $2, 'Losmerk', 'https://losmerk.nl', 'klaar')`,
+      [losProfiel, userId],
+    );
+    const { rows: losseTaak } = await db.client.query(
+      `insert into public.jobs (profile_id, type, payload_json, dedupe_key, status, attempts)
+       values ($1, 'profile_market', '{"chain": false}', $2, 'running', 4) returning *`,
+      [losProfiel, `chain-los:${losProfiel}`],
+    );
+    await handleFailure(admin as never, losseTaak[0], "het marktonderzoek gaf op");
+    const { rows: naLos } = await db.client.query(
+      "select count(*) as n from public.jobs where profile_id = $1 and type = 'profile_llm_baseline'",
+      [losProfiel],
+    );
+    ok(
+      "een los ingeplande stap sleept de kennistest niet mee",
+      Number(naLos[0].n) === 0,
+    );
+
+    await db.client.query("delete from public.profiles where id in ($1, $2)", [
+      ketenProfiel,
+      losProfiel,
+    ]);
+
     // ══════════════════════════════════════════════════════════════════════
     // Het uitnodigingspad (0046/0047, fase 2)
     //
@@ -1926,6 +2002,108 @@ async function main(): Promise<void> {
       [mixAnalyse],
     );
     ok("en er staan vijf vragen, precies 0 + 2 + 3", totaal[0].n === 5, `kreeg ${totaal[0].n}`);
+
+    // ══════════════════════════════════════════════════════════════════════
+    // Het gesprek verandert de uitkomst (onboarding 3.0, fase 4)
+    //
+    // ⚠️ DIT IS HET VERIFICATIECRITERIUM VAN FASE 4. Zonder deze lus is de
+    // onboardingsessie een archief: de consultant legt vast dat het merk
+    // landelijk werkt in plaats van lokaal, en de vragen die de meting stelt
+    // zijn nog steeds gegenereerd op de gok van het model.
+    //
+    // Drie dingen moeten kloppen en ze zitten alle drie tússen stappen in:
+    // de bijwerkroute moet zien wát er gewijzigd is, de promptgeneratie moet
+    // de oude vragen vervangen zonder de metingen mee te nemen, en de
+    // gesprekswaarden moeten na afloop nog steeds staan.
+    // ══════════════════════════════════════════════════════════════════════
+    console.log("\nWat er in het gesprek verandert, verandert het onderzoek");
+
+    const { planRefresh: planVan } = await import("@/lib/pipeline/onboarding-refresh");
+
+    // De sessie legt een nieuw bereik vast, ná de laatste onderzoeksronde.
+    await db.client.query(
+      "update public.profiles set service_scope = 'landelijk', service_regions = '{}', deep_research_at = now() - interval '1 day' where id = $1",
+      [profileId],
+    );
+    await db.client.query(
+      `insert into public.profile_field_sources (profile_id, field, source, confidence, set_by, set_at)
+       values ($1, 'service_scope', 'gesprek', 1, $2, now()),
+              ($1, 'goal_12m', 'gesprek', 1, $2, now())
+       on conflict (profile_id, field) do update
+         set source = excluded.source, set_at = excluded.set_at`,
+      [profileId, beheerderId],
+    );
+
+    // Precies wat de bijwerkroute doet: kijken wat er sinds de laatste ronde
+    // door een mens gezet is.
+    const { rows: sindsdien } = await db.client.query(
+      `select field from public.profile_field_sources
+        where profile_id = $1 and source <> 'ai'
+          and set_at > (select deep_research_at from public.profiles where id = $1)`,
+      [profileId],
+    );
+    const gewijzigdeVelden = sindsdien.map((r: { field: string }) => r.field);
+    ok(
+      "de bijwerkroute ziet het gewijzigde bereik",
+      gewijzigdeVelden.includes("service_scope"),
+      gewijzigdeVelden.join(", "),
+    );
+
+    const bijwerkPlan = planVan(gewijzigdeVelden, { analyses: 1 });
+    ok("en plant de vragen opnieuw in", bijwerkPlan.tasks.includes("prompts"));
+    ok("plus de kennistest", bijwerkPlan.tasks.includes("kennistest"));
+    // Het doel over twaalf maanden is óók gewijzigd en levert bewust niets op.
+    ok("het jaardoel laat niets extra draaien", !bijwerkPlan.tasks.includes("markt"));
+
+    // De vragen van vóór het gesprek, met een meting eraan. Die meting is de
+    // reden dat er niet verwijderd mag worden.
+    const { rows: voorVragen } = await db.client.query(
+      "select id from public.prompts where analysis_id = $1 and category = 'Overweging' and active = true",
+      [mixAnalyse],
+    );
+    await db.client.query(
+      `insert into public.tracking_runs (analysis_id, prompt_id, week_no, engine, prompt_text_snapshot, prompt_category_snapshot)
+       values ($1, $2, 1, 'openai', 'oude vraag', 'Overweging')`,
+      [mixAnalyse, voorVragen[0].id],
+    );
+
+    // En dan de herdraai, precies zoals de bijwerkroute hem inplant.
+    const { rows: herdraai } = await db.client.query(
+      `insert into public.jobs (analysis_id, type, payload_json, dedupe_key, status)
+       values ($1, 'generate_prompts', $2, $3, 'running') returning *`,
+      [
+        mixAnalyse,
+        JSON.stringify({ category: "Overweging", regenerate: true }),
+        `chain-herdraai:${mixAnalyse}`,
+      ],
+    );
+    await runJob({ admin: admin as never, job: herdraai[0] });
+
+    const { rows: naHerdraai } = await db.client.query(
+      `select active, count(*)::int as n from public.prompts
+        where analysis_id = $1 and category = 'Overweging' group by active order by active`,
+      [mixAnalyse],
+    );
+    const inactief = naHerdraai.find((r: { active: boolean }) => r.active === false)?.n ?? 0;
+    const actief = naHerdraai.find((r: { active: boolean }) => r.active === true)?.n ?? 0;
+    ok("de oude vragen staan uit", inactief === 2, `${inactief} inactief`);
+    ok("en er staan nieuwe actieve vragen", actief === 2, `${actief} actief`);
+
+    // ⚠️ De metingen zijn er nog. Een `delete` op de vragen zou ze via de
+    // foreign key hebben meegenomen, en dan is de trendlijn weg om een
+    // correctie op de vraagstelling.
+    const { rows: bewaardeMetingen } = await db.client.query(
+      "select count(*)::int as n from public.tracking_runs where analysis_id = $1",
+      [mixAnalyse],
+    );
+    ok("de metingen van de oude vragen staan er nog", bewaardeMetingen[0].n === 1);
+
+    // En de gesprekswaarden zelf zijn niet aangeraakt.
+    const { rows: naAlles } = await db.client.query(
+      "select service_scope from public.profiles where id = $1",
+      [profileId],
+    );
+    ok("het bereik uit het gesprek staat er nog", naAlles[0].service_scope === "landelijk");
 
     // ══════════════════════════════════════════════════════════════════════
     // Wedstrijdcondities: twee dingen die tegelijk gebeuren

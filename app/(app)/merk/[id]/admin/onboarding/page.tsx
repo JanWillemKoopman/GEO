@@ -47,18 +47,26 @@ export default async function OnboardingSessiePagina({
   if (!(await isStaff(user.id))) notFound();
 
   const admin = createAdminClient();
-  const [{ data: bronRijen }, { data: strategieRij }] = await Promise.all([
+  const [{ data: bronRijen }, { data: strategieRij }, { data: analyseRijen }] = await Promise.all([
     admin
       .from("profile_field_sources")
       // ⚠️ Bewust niet het bewijs erbij (`evidence_quote`, `evidence_url`): dat
       // is onderzoeksdetail en de klant kijkt mee.
-      .select("field, source, not_applicable")
+      .select("field, source, not_applicable, set_at")
       .eq("profile_id", id),
     admin
       .from("profile_strategy")
       .select("strategy_notes, context_factors, recorded_at")
       .eq("profile_id", id)
       .maybeSingle(),
+    // Analyses waarvan de vragen nog opnieuw opgesteld kunnen worden. Bij een
+    // analyse die al gemeten is zou een nieuwe vragenset de trendlijn breken.
+    admin
+      .from("analyses")
+      .select("id")
+      .eq("profile_id", id)
+      .is("archived_at", null)
+      .in("status", ["bezig", "concept_klaar"]),
   ]);
 
   const states: Record<string, FieldState> = {};
@@ -79,6 +87,14 @@ export default async function OnboardingSessiePagina({
     recorded_at: string | null;
   } | null;
 
+  // Wat er sinds de laatste onderzoeksronde door een mens is gezet. Bepaalt
+  // welke stappen het afrondblok aanbiedt om opnieuw te draaien.
+  const gewijzigd = profile.deep_research_at
+    ? ((bronRijen ?? []) as { field: string; source: string; set_at: string }[])
+        .filter((r) => r.source !== "ai" && r.set_at > profile.deep_research_at!)
+        .map((r) => r.field)
+    : [];
+
   const merknaam = profile.brand_name ?? profile.name;
 
   return (
@@ -98,6 +114,8 @@ export default async function OnboardingSessiePagina({
         strategyNotes={strategie?.strategy_notes ?? null}
         strategyFactors={parseContextFactors(strategie?.context_factors)}
         recordedAt={strategie?.recorded_at ?? null}
+        changedSinceResearch={gewijzigd}
+        openAnalyses={(analyseRijen ?? []).length}
       />
     </div>
   );

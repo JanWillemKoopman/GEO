@@ -22,6 +22,16 @@ export interface MentionPromptInput {
   ownLabel: string;
   /** Andere schrijfwijzen die ook als het eigen merk tellen. */
   ownAliases: string[];
+  /**
+   * Gelijknamige partijen die het eigen merk juist NIET zijn (migratie 0060).
+   *
+   * De tegenhanger van `ownAliases`, en minstens zo belangrijk: zonder deze
+   * lijst telt een vermelding van een gelijknamig bedrijf mee als de eigen
+   * vermelding en valt de score te hoog uit. Dat is de vervelendste soort fout
+   * in een meting, want hij ziet er goed uit. De lijst komt uit het gesprek, en
+   * wordt voorgesteld door het verwarringblok van de kennistest.
+   */
+  ownExclusions?: string[];
   /** Het te beoordelen AI-antwoord. */
   rawResponse: string;
 }
@@ -41,11 +51,15 @@ export interface MentionPromptInput {
  * (lib/pipeline/classify-entities.ts), niet deze prompt.
  */
 export function buildMentionUser(input: MentionPromptInput): string {
-  const { ownLabel, ownAliases, rawResponse } = input;
+  const { ownLabel, ownAliases, ownExclusions = [], rawResponse } = input;
   return [
     `Eigen merk: ${ownLabel}`,
     ownAliases.length
       ? `Het eigen merk kan ook zo genoemd worden (tel deze als het EIGEN merk): ${ownAliases.join(", ")}`
+      : "",
+    ownExclusions.length
+      ? `LET OP, deze partijen heten bijna hetzelfde maar zijn NIET het eigen merk ` +
+        `(tel ze als een ander bedrijf): ${ownExclusions.join(", ")}`
       : "",
     "",
     "Doe twee dingen:",

@@ -3360,3 +3360,62 @@ grens. Beide grenzen staan in `scripts/test-unit.ts`.
 gesprek is vastgelegd.
 
 Na deze ronde: 1634 unittests en 191 ketentests groen.
+
+## Onboarding 3.0, fase 4: het gesprek verandert de uitkomst (19 augustus 2026)
+
+Zonder deze fase is de onboardingsessie een archief. De consultant legt vast dat het merk landelijk
+werkt in plaats van lokaal, en de vragen die de meting straks stelt zijn nog steeds gegenereerd op de
+gok van het model. Nul migraties.
+
+**Niet alles opnieuw, maar precies wat er anders van wordt.** `lib/pipeline/onboarding-refresh.ts`
+rekent per gewijzigd veld uit welke stappen opnieuw moeten draaien. Van de vijftien velden uit
+migratie `0060` veranderen er tien niets aan wat er te ónderzoeken valt; die worden pas bij de
+volgende meting of contentronde gelezen. Ze staan expliciet op nul in de tabel in plaats van te
+ontbreken, zodat de test kan vaststellen dat dat een keuze was. Een gewijzigd bereik laat de vragen
+en de kennistest opnieuw draaien, een gewijzigde concurrent alleen de marktstap.
+
+**De knop staat achter dezelfde kostenpoort als al het andere betaalde werk**, en de raming staat in
+het bevestigvenster en niet op het scherm: de klant kijkt mee. Die zin wordt gebouwd in de pure
+module, zodat er in het sessiescherm zelf geen bedrag voorkomt en de broncodetest dat kan bewaken.
+
+**Een stap kan nu los draaien.** De onboardingketen zat in de geslaagde tak van elke handler: de
+aanbodstap plande de markt in, de markt de kennistest, de kennistest de synthese. Eén gewijzigde
+concurrent zou daarmee de twee duurste stappen meeslepen. Een taak krijgt daarom `chain: false` mee
+als hij vanuit het gesprek is ingepland.
+
+**En daarmee is het punt uit de Teamsessie ook opgelost.** `profile_offering` telde als
+niet-blokkerend omdat de klant bij een mislukking alleen zijn dienstenoverzicht mist, maar diezelfde
+stap plande de markt in, en de markt draagt de kennistest en de synthese. Mislukte hij definitief,
+dan verdween de halve onderzoeksketen zonder één foutmelding: het besluit sneuvelde op zijn eigen
+argument. De opvolger staat nu in `lib/jobs/chain.ts` en die tabel geldt in beide takken, ook als een
+stap opgeeft. Een ketenscenario laat een aanbodstap definitief mislukken en kijkt of de markt daarna
+alsnog ingepland staat.
+
+**De vragen worden vervangen, niet verwijderd.** Bij een herdraai gaan de oude vragen op inactief.
+Een `delete` zou via de foreign key de metingen meenemen, en dan is de trendlijn weg om een correctie
+op de vraagstelling. Zelfde aanpak als spoor R. En alleen voor analyses waar nog niets gemeten is:
+bij een lopende meting zou een nieuwe vragenset de trendlijn breken, en dat is geen beslissing die
+iemand onbedoeld hoort te nemen vanaf een gespreksscherm. Dat is een regel die het plan niet noemt.
+
+**Het verwarringblok van de kennistest vult nu de uitsluitingslijst voor.** Dat blok meet al sinds de
+eerste onboarding of de merknaam ambigu is, en bewaarde de uitkomst nergens. De namen worden er
+deterministisch uit gelezen (een opsomming is te lezen zonder model, conventie 1) en voorgesteld als
+`name_exclusions`, alleen als die lijst nog leeg is: op die lijst staan betekent dat de meting
+vermeldingen van dat bedrijf niet meetelt, en een voorstel dat een eerdere correctie overschrijft zou
+de score stil verlagen.
+
+**Elf van de twaalf commerciële velden hebben nu een lezer.** De vier sturingsvelden gaan naar de
+onderwerpvoorstellen, de groeiregio's naar de vragengeneratie, de bezwaren naar de schrijfopdracht,
+het offline bewijs naar de feitenbank met "opgegeven in het gesprek" als bron, de verboden
+onderwerpen naar een deterministische controle náást de verboden woorden, de uitsluitingen naar de
+vermeldingsclassificatie, en het jaardoel, de seizoenen en de structuurkeuze naar het rapport dat het
+contentplan vult.
+
+⚠️ **`deal_value_band` heeft géén lezer gekregen, en dat is een afwijking van het plan.** De migratie
+noemt de potentiescore, en dat blijkt bij het bouwen niet te kloppen: die score is per onderwerp en
+de waardeklasse is per merk, dus een factor zou élk onderwerp van een merk even hard verschuiven. De
+onderlinge volgorde, het enige waar die score voor gebruikt wordt, verandert daar niet van, terwijl
+de schaal van 0 tot 100 en de drie banden eronder wél kapotgaan. Het veld wordt vastgelegd en
+getoond; een lezer krijgt het pas als er een beslissing is die merken onderling vergelijkt.
+
+Na deze ronde: 1693 unittests en 202 ketentests groen.

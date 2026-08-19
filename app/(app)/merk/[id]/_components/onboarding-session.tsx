@@ -13,6 +13,11 @@ import {
   stepProgress,
 } from "@/lib/pipeline/brand-fields";
 import { findGaps } from "@/lib/profile-gaps";
+import {
+  planRefresh,
+  describeRefresh,
+  TASK_LABELS,
+} from "@/lib/pipeline/onboarding-refresh";
 import { sessionMeter, notApplicableFields, type FieldState } from "@/lib/profile-meter";
 import type { ContextFactor, Profile } from "@/lib/types/database";
 
@@ -53,6 +58,8 @@ export function OnboardingSession({
   strategyNotes,
   strategyFactors,
   recordedAt,
+  changedSinceResearch,
+  openAnalyses,
 }: {
   profileId: string;
   brandName: string;
@@ -63,6 +70,10 @@ export function OnboardingSession({
   strategyFactors: ContextFactor[];
   /** Wanneer het gesprek is vastgelegd. Null = nog niet. */
   recordedAt: string | null;
+  /** Velden die een mens heeft gezet ná de laatste onderzoeksronde. */
+  changedSinceResearch: string[];
+  /** Analyses waarvan de vragen nog opnieuw opgesteld kunnen worden. */
+  openAnalyses: number;
 }) {
   const [waarden, setWaarden] = useState<Record<string, unknown>>(() => {
     const start: Record<string, unknown> = {};
@@ -70,6 +81,10 @@ export function OnboardingSession({
     return start;
   });
   const [standen, setStanden] = useState<Record<string, VeldStand>>({});
+  // Wat er sinds de laatste onderzoeksronde gewijzigd is. Begint bij wat de
+  // server meegaf en groeit met alles wat er in dit gesprek bij komt.
+  const [gewijzigd, setGewijzigd] = useState<string[]>(changedSinceResearch);
+  const [bijwerken, setBijwerken] = useState<"rust" | "bezig" | "gedaan" | "mislukt">("rust");
   const [states, setStates] = useState<Record<string, FieldState>>(initialStates);
 
   const meter = useMemo(
@@ -118,6 +133,7 @@ export function OnboardingSession({
       }
       setStanden((s) => ({ ...s, [key]: "opgeslagen" }));
       setStates((s) => ({ ...s, [key]: { ...s[key], source: "gesprek" } }));
+      setGewijzigd((v) => (v.includes(key) ? v : [...v, key]));
     } catch {
       setStanden((s) => ({ ...s, [key]: "mislukt" }));
     }
@@ -141,6 +157,28 @@ export function OnboardingSession({
       setStates((s) => ({ ...s, [key]: { ...s[key], notApplicable: nieuw } }));
     } catch {
       setStanden((s) => ({ ...s, [key]: "mislukt" }));
+    }
+  }
+
+  const plan = useMemo(
+    () => planRefresh(gewijzigd, { analyses: openAnalyses }),
+    [gewijzigd, openAnalyses],
+  );
+
+  /**
+   * Precies de stappen inplannen die van de gewijzigde velden afhangen.
+   *
+   * De bevestiging draagt de raming, en dat is de enige plek waar een bedrag
+   * hoort te staan: dit scherm wordt met de klant gedeeld.
+   */
+  async function werkBij() {
+    if (!window.confirm(describeRefresh(plan))) return;
+    setBijwerken("bezig");
+    try {
+      const res = await fetch(`/api/profiles/${profileId}/refresh`, { method: "POST" });
+      setBijwerken(res.ok ? "gedaan" : "mislukt");
+    } catch {
+      setBijwerken("mislukt");
     }
   }
 
@@ -318,6 +356,53 @@ export function OnboardingSession({
                 ? `Het gesprek is vastgelegd op ${nlDatum(recordedAt)}. Pas je hierboven iets aan, bewaar het dan opnieuw bij "Wat er speelt".`
                 : "Leg het gesprek vast bij “Wat er speelt buiten je website om”. Dan staat er wat je hebt afgesproken, met de datum erbij."}
             </p>
+          </div>
+
+          {/* ── Het onderzoek bijwerken ──────────────────────────────────
+              ⚠️ De raming staat in het bevestigvenster en niet op het scherm:
+              de klant kijkt mee. `describeRefresh()` bouwt die zin, zodat er
+              in dit bestand geen bedrag voorkomt. */}
+          <div className="card flex flex-col gap-3">
+            <span className="mono-label">Het onderzoek bijwerken</span>
+            {plan.tasks.length === 0 ? (
+              <p className="text-secondary">
+                Er is niets veranderd waar het onderzoek anders van wordt. ORBIT ENGINE gaat
+                verder met wat er al ligt.
+              </p>
+            ) : (
+              <>
+                <p className="text-secondary">
+                  Door wat we net hebben vastgelegd, werkt ORBIT ENGINE dit opnieuw uit:
+                </p>
+                <ul className="flex flex-col gap-1">
+                  {plan.tasks.map((t) => (
+                    <li key={t} className="text-sm text-secondary">
+                      {TASK_LABELS[t]}
+                    </li>
+                  ))}
+                </ul>
+              </>
+            )}
+            <div className="flex flex-wrap items-center gap-3">
+              <button
+                type="button"
+                className="btn-primary w-fit"
+                disabled={plan.tasks.length === 0 || bijwerken === "bezig"}
+                onClick={() => void werkBij()}
+              >
+                {bijwerken === "bezig" ? "Bezig…" : "Onderzoek bijwerken"}
+              </button>
+              {bijwerken === "gedaan" && (
+                <span className="text-sm text-secondary">
+                  ORBIT ENGINE is ermee bezig. Je kunt dit scherm sluiten.
+                </span>
+              )}
+              {bijwerken === "mislukt" && (
+                <span className="text-sm text-[var(--status-error)]">
+                  Het is niet gelukt om dit in gang te zetten. Probeer het zo nog eens.
+                </span>
+              )}
+            </div>
           </div>
         </section>
       </div>

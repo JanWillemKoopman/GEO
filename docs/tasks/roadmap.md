@@ -292,6 +292,10 @@ Alles wat zónder die twee kan, is gebouwd en getest.
 
 ## Uit de Teamsessie over de onboarding (18 augustus 2026)
 
+> ✅ **Gedaan op 19 augustus 2026**, samen met fase 4 van onboarding 3.0. De opvolger hangt niet
+> meer aan het slagen van de stap maar aan `lib/jobs/chain.ts`, en die tabel geldt ook als een stap
+> definitief opgeeft. Een ketenscenario dekt het. Zie `logbook.md`.
+
 **De aanbodstap heet niet-blokkerend, maar draagt de halve keten.** `NON_BLOCKING_TYPES` in
 `lib/jobs/progress.ts` (regel 70 en de toelichting erboven) zet `profile_offering` op
 niet-blokkerend, met als onderbouwing dat de klant bij een mislukking alleen zijn dienstenoverzicht

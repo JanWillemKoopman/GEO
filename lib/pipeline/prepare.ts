@@ -50,15 +50,26 @@ type Admin = SupabaseClient;
 async function loadPreparable(
   admin: Admin,
   id: string,
+  /**
+   * Een bewuste herdraai na het gesprek (onboarding 3.0, fase 4). Dan mag een
+   * analyse die al op 'concept_klaar' staat wél opnieuw vragen krijgen: hij
+   * wacht op goedkeuring van de klant, er is nog niets gemeten, en de
+   * vraagstelling is net veranderd. De bijwerkroute laat alles wat verder is
+   * dan dat er bewust buiten, want daar zou een nieuwe vragenset de trendlijn
+   * breken.
+   */
+  regenerate = false,
 ): Promise<{ analysis: Analysis; profile: Profile } | { done: AnalysisStatus }> {
   const { data: analysisRow } = await admin.from("analyses").select("*").eq("id", id).single();
   if (!analysisRow) throw new Error(`Analyse ${id} niet gevonden.`);
   const analysis = analysisRow as Analysis;
 
   // Al voorbij de conceptfase? Niets te doen (voorkomt herverwerking).
-  if (analysis.status !== "bezig" && analysis.status !== "mislukt") {
-    return { done: analysis.status };
-  }
+  const mag =
+    analysis.status === "bezig" ||
+    analysis.status === "mislukt" ||
+    (regenerate && analysis.status === "concept_klaar");
+  if (!mag) return { done: analysis.status };
 
   // 'mislukt' kan ook een mislukte MÉTING zijn (halte 3, na confirm). Die
   // draait pas nadat A1'+A2 al succesvol prompts hebben aangemaakt. Als die er
@@ -175,10 +186,22 @@ export async function prepareTopicResearch(id: string): Promise<{ needsPrompts: 
 export async function generateAnalysisPrompts(
   id: string,
   category: string,
+  /**
+   * De vragen van deze fase opnieuw opstellen, ook als er al vragen staan
+   * (onboarding 3.0, fase 4). Alleen gezet door de bijwerkroute na het gesprek,
+   * en daar alleen voor analyses waar nog geen meting op gedraaid heeft.
+   *
+   * ⚠️ De oude vragen worden op INACTIEF gezet en niet verwijderd. Een `delete`
+   * zou via de foreign key de metingen meenemen, en dan is de trendlijn weg om
+   * een correctie op de vraagstelling. Zelfde aanpak als spoor R, waar 55
+   * landelijke vragen van Van den Udenhout zijn uitgezet in plaats van
+   * weggegooid.
+   */
+  regenerate = false,
 ): Promise<AnalysisStatus> {
   const admin = createAdminClient();
 
-  const loaded = await loadPreparable(admin, id);
+  const loaded = await loadPreparable(admin, id, regenerate);
   if ("done" in loaded) return loaded.done;
   const { analysis, profile } = loaded;
 
@@ -214,7 +237,25 @@ export async function generateAnalysisPrompts(
       `de vragen van de fase "${category}"`,
     );
 
-    if (count === 0) {
+    if (regenerate && count > 0) {
+      const { error: uitError } = await admin
+        .from("prompts")
+        .update({ active: false })
+        .eq("analysis_id", id)
+        .eq("category", category)
+        .eq("active", true);
+      if (uitError) {
+        throw new Error(
+          `Oude vragen uitzetten mislukt voor analyse ${id}: ${uitError.message}`,
+        );
+      }
+      console.info(
+        `Analyse ${id}: ${count} vragen van de fase "${category}" op inactief gezet, ` +
+          `er komen nieuwe voor in de plaats (gesprekswijziging).`,
+      );
+    }
+
+    if (count === 0 || regenerate) {
       const brand: BrandContext = {
         brandName: profile.brand_name,
         industry: profile.industry,
@@ -227,6 +268,9 @@ export async function generateAnalysisPrompts(
         serviceScope: profile.service_scope,
         serviceRegions: profile.service_regions,
         marketLanguage: profile.market_language,
+        // Waar het merk heen wil (migratie 0060). Levert extra vragen op in een
+        // gebied waar het vandaag nog niet gevonden wordt.
+        growthRegions: profile.growth_regions,
       };
 
       const mix = resolveMix(analysis);

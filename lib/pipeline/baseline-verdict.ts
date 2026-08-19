@@ -544,3 +544,54 @@ export function baselineFacetState(input: {
   const gemeten = input.measured > 0 || input.eerder > 0;
   return { gemeten, allesOvergeslagen: !gemeten && input.skipped > 0 };
 }
+
+// ── Het verwarringblok: wie heet er nog meer zo? ───────────────────────────
+//
+// ⚠️ Dit blok meet de naamverwarring sinds de eerste onboarding, en bewaarde de
+// uitkomst nergens anders dan als vrije tekst. Terwijl het precies het veld
+// vult dat migratie 0060 toevoegde: `name_exclusions`, de tegenhanger van
+// `aliases`. Zonder die lijst telt de meting straks vermeldingen mee van een
+// gelijknamig bedrijf, en valt de score te hoog uit.
+//
+// Deterministisch en niet met een tweede AI-aanroep (conventie 1 en conventie
+// 7): het antwoord is een opsomming, en een opsomming is te lezen zonder model.
+// Wat er niet als opsomming in staat, halen we er niet uit. Een gemiste naam
+// kost een bevestiging in het gesprek; een verzonnen naam zet een echt bedrijf
+// op een uitsluitingslijst.
+
+/** Hoeveel voorstellen we hooguit teruggeven. Meer is geen lijst maar ruis. */
+const MAX_CONFUSIONS = 8;
+
+export function extractConfusions(
+  answer: string,
+  /** De eigen namen en aliassen. Die horen per definitie niet in de lijst. */
+  ownNames: string[],
+): string[] {
+  const eigen = new Set(
+    ownNames.filter(Boolean).map((n) => n.trim().toLowerCase()),
+  );
+  const uit: string[] = [];
+  const gezien = new Set<string>();
+
+  for (const regel of answer.split("\n")) {
+    const s = regel.trim();
+    // Alleen echte opsommingsregels: "- Naam", "* Naam", "1. Naam", "• Naam".
+    if (!/^([-*•]|\d+[.)])\s+/.test(s)) continue;
+
+    // De vetgedrukte kop van een regel is bij een opsomming vrijwel altijd de
+    // naam zelf; staat die er, dan is dat het scherpste signaal dat er is.
+    const vet = /\*\*(.+?)\*\*/.exec(s);
+    const kandidaat = cleanCompetitorName(
+      vet ? vet[1] : s.replace(/^([-*•]|\d+[.)])\s+/, ""),
+    );
+    if (!kandidaat) continue;
+
+    const sleutel = kandidaat.toLowerCase();
+    if (eigen.has(sleutel) || gezien.has(sleutel)) continue;
+    gezien.add(sleutel);
+    uit.push(kandidaat);
+    if (uit.length >= MAX_CONFUSIONS) break;
+  }
+
+  return uit;
+}

@@ -89,6 +89,8 @@ export async function measureOnePrompt(
   analysis: Analysis,
   ownLabel: string,
   ownAliases: string[],
+  /** Gelijknamige partijen die dit merk NIET zijn (migratie 0060). */
+  ownExclusions: string[],
   prompt: Prompt,
   weekNo: number,
   /** Weglaten voor de gewone (periodieke) meting. */
@@ -241,7 +243,12 @@ export async function measureOnePrompt(
   const b = await callStructured({
     model: MODELS.volume,
     system: MENTION_SYSTEM,
-    user: buildMentionUser({ ownLabel, ownAliases, rawResponse: run.raw_response ?? "" }),
+    user: buildMentionUser({
+      ownLabel,
+      ownAliases,
+      ownExclusions,
+      rawResponse: run.raw_response ?? "",
+    }),
     schema: Mention,
     schemaName: "mention",
     webSearch: false,
@@ -929,6 +936,13 @@ export interface MeasureContext {
   analysis: Analysis;
   ownLabel: string;
   ownAliases: string[];
+  /**
+   * Gelijknamige partijen die dit merk NIET zijn (migratie 0060). De
+   * tegenhanger van `ownAliases`: zonder deze lijst telt een vermelding van een
+   * gelijknamig bedrijf mee als de eigen vermelding en valt de score te hoog
+   * uit, en dat is de fout die er goed uitziet.
+   */
+  ownExclusions: string[];
 }
 
 export async function loadMeasureContext(admin: Admin, analysisId: string): Promise<MeasureContext> {
@@ -938,7 +952,7 @@ export async function loadMeasureContext(admin: Admin, analysisId: string): Prom
 
   const { data: profile } = await admin
     .from("profiles")
-    .select("brand_name, aliases")
+    .select("brand_name, aliases, name_exclusions")
     .eq("id", analysis.profile_id)
     .maybeSingle();
 
@@ -950,6 +964,9 @@ export async function loadMeasureContext(admin: Admin, analysisId: string): Prom
     ownLabel: `${base} (${analysis.topic})`,
     // Aliassen (§12.24) tellen ook als het eigen merk, verbetert de detectie.
     ownAliases: (profile?.aliases as string[] | null) ?? [],
+    // Migratie 0060: gelijknamige partijen die dit merk NIET zijn. Zonder deze
+    // lijst valt de score te hoog uit, en dat is de fout die er goed uitziet.
+    ownExclusions: (profile?.name_exclusions as string[] | null) ?? [],
   };
 }
 
@@ -988,6 +1005,7 @@ export async function measurePromptById(
     ctx.analysis,
     ctx.ownLabel,
     ctx.ownAliases,
+    ctx.ownExclusions,
     promptRow as Prompt,
     weekNo,
     impact,

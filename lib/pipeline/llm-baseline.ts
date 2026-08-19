@@ -42,6 +42,7 @@ import {
   baselineFacetState,
   buildVerdict,
   checkableFacts,
+  extractConfusions,
   scoreCategoryAnswer,
   cleanCompetitorName,
   summariseKnows,
@@ -402,6 +403,57 @@ export async function runLlmBaseline(
     }
   }
 
+  // ── De uitsluitingslijst voorvullen (migratie 0060, fase 4) ──────────────
+  //
+  // ⚠️ Alleen als hij nog leeg is. Wat een mens heeft vastgelegd wint van een
+  // model, en dat geldt hier dubbel: op deze lijst zetten betekent dat de meting
+  // vermeldingen van dat bedrijf voortaan NIET meetelt. Een voorstel dat een
+  // eerdere correctie overschrijft zou de score stil verlagen.
+  //
+  // De consultant bevestigt dus in plaats van te bedenken. Herkomst `ai`, dus
+  // hij mag het in het gesprek zonder omhaal overschrijven.
+  if (profile.name_exclusions.length === 0) {
+    const { data: verwarringRijen } = await admin
+      .from("profile_llm_baseline")
+      .select("verdict_json")
+      .eq("profile_id", profileId)
+      .eq("block", "verwarring");
+
+    const voorstellen = [
+      ...new Set(
+        ((verwarringRijen ?? []) as { verdict_json: { confusions?: string[] } | null }[])
+          .flatMap((r) => r.verdict_json?.confusions ?? []),
+      ),
+    ];
+
+    if (voorstellen.length > 0) {
+      const { error: exclError } = await admin
+        .from("profiles")
+        .update({ name_exclusions: voorstellen })
+        .eq("id", profileId);
+      if (exclError) {
+        console.error(
+          `Uitsluitingslijst voorvullen mislukt voor profiel ${profileId}: ${exclError.message}`,
+        );
+      } else {
+        await admin.from("profile_field_sources").upsert(
+          {
+            profile_id: profileId,
+            field: "name_exclusions",
+            source: "ai",
+            confidence: null,
+            set_at: new Date().toISOString(),
+          },
+          { onConflict: "profile_id,field" },
+        );
+        console.info(
+          `Profiel ${profileId}: ${voorstellen.length} gelijknamige partij(en) voorgesteld ` +
+            `als uitsluiting, uit het verwarringblok van de kennistest.`,
+        );
+      }
+    }
+  }
+
   // ⚠️ Geen samenvatting als er niets gemeten is, zie `baselineFacetState()`.
   // Een gevulde samenvatting zette het voortgangsscherm op "klaar" terwijl het
   // budget op was en er nul vragen gesteld waren.
@@ -463,8 +515,20 @@ async function askOne(
   // een andere soort: word je genoemd, en wie wél. Tot dan werd de vraag
   // "Word je genoemd bij koopvragen?" op het scherm gesteld en nergens
   // beantwoord, terwijl dit blok $0,044 van de $0,2463 per onboarding kost.
-  const verdict: BaselineVerdict | CategoryVerdict | null =
-    q.block === "kent"
+  const eigenNamen = [profile.brand_name, profile.name, ...profile.aliases].filter(
+    (n): n is string => Boolean(n),
+  );
+
+  // Het verwarringblok levert de VOORSTELLEN voor `name_exclusions` (migratie
+  // 0060). Deterministisch uit de opsomming gelezen, zodat de consultant
+  // bevestigt in plaats van bedenkt.
+  const verwarring =
+    q.block === "verwarring" ? extractConfusions(r.text, eigenNamen) : null;
+
+  const verdict: BaselineVerdict | CategoryVerdict | { confusions: string[] } | null =
+    q.block === "verwarring"
+      ? { confusions: verwarring ?? [] }
+      : q.block === "kent"
       ? buildVerdict(
           r.text,
           profile.brand_name ?? profile.name,

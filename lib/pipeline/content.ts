@@ -34,8 +34,14 @@ import { callStructured } from "@/lib/openai/structured";
 import { MODELS } from "@/lib/openai/models";
 import { ContentPiece } from "@/lib/schemas/content-piece";
 import { Critique, geoScore, geoIssues } from "@/lib/schemas/critique";
-import { checkContentGate, checkQuality, checkTabooWords } from "@/lib/pipeline/content-gate";
+import {
+  checkContentGate,
+  checkQuality,
+  checkTabooWords,
+  checkForbiddenTopics,
+} from "@/lib/pipeline/content-gate";
 import { describeToneSliders } from "@/lib/pipeline/tone-sliders";
+import { objectionsRule } from "@/lib/pipeline/commercial-context";
 import { mostSimilar } from "@/lib/pipeline/similarity";
 import { detectClaimSentences, detectedCoverage, resolveFactId } from "@/lib/pipeline/claim-extract";
 import type { AuditedClaim } from "@/lib/schemas/claim-audit";
@@ -398,6 +404,11 @@ function buildContentInput(args: {
       ? `REGELS WAAR DEZE PAGINA AAN MOET VOLDOEN: ${profile.compliance_notes.trim()}`
       : "",
     profile?.value_props?.length ? `Waardeproposities (waarom klanten kiezen): ${profile.value_props.join(", ")}` : "",
+    // ✅ Migratie 0060, de bezwaren uit het verkoopgesprek. Het meest
+    // ondergewaardeerde veld van de commerciële laag: een AI-antwoord heeft
+    // vaak precies de vorm van een bezwaar, en de pagina die het bezwaar
+    // benoemt en weerlegt is de pagina die geciteerd wordt.
+    objectionsRule({ sales_objections: profile?.sales_objections ?? [] }),
     // ✅ De gesloten feitenkaart (R5.3). Geen uitnodiging maar een grens.
     formatFactCard(facts),
     // ✅ Het paginaplan uit de claim-audit (S2), wat de pagina moet vertellen,
@@ -1420,6 +1431,13 @@ export async function draftContentPiece(args: {
   // ✅ Migratie 0045 (C.29): verboden woorden, deterministisch teruggecontroleerd.
   // Nooit een gok of de prompt gewerkt heeft; nagemeten op de daadwerkelijke tekst.
   const taboo = checkTabooWords(draft.parsed.bodyMarkdown, draft.parsed.faq ?? [], ctx.profile?.taboo_phrases ?? []);
+  // Migratie 0060: hetzelfde vangnet, maar dan voor hele onderwerpen waar de
+  // klant juridisch of concurrentiegevoelig niet over mag publiceren.
+  const verbodenOnderwerpen = checkForbiddenTopics(
+    draft.parsed.bodyMarkdown,
+    draft.parsed.faq ?? [],
+    ctx.profile?.forbidden_topics ?? [],
+  );
 
   // De GEO-tekortkomingen worden gewone verbeterpunten: de herschrijfronde weet
   // dan precies wát er moet veranderen in plaats van "beter maken".
@@ -1430,6 +1448,7 @@ export async function draftContentPiece(args: {
     ...quality.issues,
     ...brononderbouwing,
     ...taboo.issues,
+    ...verbodenOnderwerpen.issues,
   ];
 
   const needsRevise =
@@ -1568,6 +1587,11 @@ export async function reviseContentPiece(args: {
   // een verboden woord dat de herschrijfronde er alsnog in liet staan, moet nu
   // gevonden worden, niet later door de klant.
   const taboo = checkTabooWords(final.bodyMarkdown, final.faq ?? [], ctx.profile?.taboo_phrases ?? []);
+  const verbodenOnderwerpen = checkForbiddenTopics(
+    final.bodyMarkdown,
+    final.faq ?? [],
+    ctx.profile?.forbidden_topics ?? [],
+  );
 
   const needsReview =
     !critique.parsed.followsRules ||
@@ -1578,7 +1602,8 @@ export async function reviseContentPiece(args: {
     // opdracht uitvoert, en dat laatste mag niet stil wegvallen.
     gate.issues.length > 0 ||
     quality.issues.length > 0 ||
-    taboo.issues.length > 0;
+    taboo.issues.length > 0 ||
+    verbodenOnderwerpen.issues.length > 0;
 
   // Ruwe kritiek van BEIDE rondes bewaren (§5: we bewaren alles).
   const previousCritiques = Array.isArray(pieceRow.critique_raw_json) ? pieceRow.critique_raw_json : [];
@@ -1663,11 +1688,17 @@ export async function reviseContentPiece(args: {
         ...quality.issues,
         ...bronNotitie,
         ...taboo.issues,
+        ...verbodenOnderwerpen.issues,
       ],
       // Een onherleidbare bewering telt, en sinds S3 ook een bewerende zin
       // zónder claim: dat is precies de vorm waarin de twee fabricages van
       // 31 juli aan elke controle ontsnapten.
-      needs_review: needsReview || unsupported.length > 0 || untagged.length > 0 || taboo.issues.length > 0,
+      needs_review:
+        needsReview ||
+        unsupported.length > 0 ||
+        untagged.length > 0 ||
+        taboo.issues.length > 0 ||
+        verbodenOnderwerpen.issues.length > 0,
       status: "ready" as const,
       word_count: countWords(final.bodyMarkdown),
     })

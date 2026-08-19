@@ -41,6 +41,7 @@ import {
   assessStructureCoverage,
   formatCoverageForReport,
 } from "@/lib/pipeline/structure-gap";
+import { siteStructureRule, goalRule } from "@/lib/pipeline/commercial-context";
 import { sendReportEmail } from "@/lib/email/report-email";
 import { emailsEnabled } from "@/lib/env";
 import { enqueue, dedupe } from "@/lib/jobs/queue";
@@ -283,6 +284,14 @@ function buildReportInput(
       : []),
     buildPagesBlock(pages),
     structureGaps,
+    // Migratie 0060: mag het advies nieuwe pagina's voorstellen, en waar werkt
+    // de klant naartoe? Twee regels die de aanbevelingen sturen en die uit het
+    // gesprek komen, niet uit de meting.
+    siteStructureRule({ respect_site_structure: profile?.respect_site_structure ?? null }),
+    goalRule({
+      goal_12m: profile?.goal_12m ?? null,
+      seasonality: profile?.seasonality ?? null,
+    }),
     "",
     "Schrijf op basis hiervan een kort, jargonvrij rapport. Noem in elk gap-item expliciet welke " +
       "concurrent het betreft. PRIORITEER de aanbevelingen op de zwaarwegende gemiste vragen hierboven " +
