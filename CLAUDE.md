@@ -114,8 +114,8 @@ zet `structured.ts` hem voor de rest van het proces uit in plaats van de taak te
 npm run dev              # localhost:3000
 npm run build            # productiebuild
 npx tsc --noEmit         # typecheck, moet schoon zijn
-npm run test:unit        # 1505 tests, pure functies, geen DB/API-key
-npm run test:chain       # 167 ketentests, echte handlers tegen echte Postgres, geen netwerk
+npm run test:unit        # 1703 tests, pure functies, geen DB/API-key
+npm run test:chain       # 202 ketentests, echte handlers tegen echte Postgres, geen netwerk
 npm run test:openai      # rooktest, MAAKT ECHTE BETAALDE CALLS
 npm run eval:mention     # accuratesse mention-classificatie (vereist API-key)
 ```
@@ -170,15 +170,18 @@ Deze zijn over acht bouwrondes consequent toegepast. Houd ze aan.
 
 ```
 app/(app)/merk/[id]/  de merk-werkruimte in vijf hoofdstukken: overzicht, strategie
-                   (plan/clusters/bibliotheek), analytics (zichtbaarheid/zoekverkeer/
-                   concurrenten), merkprofiel (dossier/bewerken/input), admin (staff)
+                   (plan, clusters, bibliotheek), analytics (zichtbaarheid, zoekverkeer,
+                   concurrenten), merkprofiel (dossier, bewerken, input), admin (staff:
+                   onboardingsessie, diagnose, toewijzen)
 app/(app)/         analyses/[id] (clusterdossier in 4 hoofdstukken), instellingen, beheer (CSM)
 app/(auth)/        login/register (server actions)
 app/api/           analyses · profiles · accounts · invites · cron (worker/tracking/reminders/plan) · health
 components/        gedeelde UI-primitieven (kaarten, chips, rail, skeletons)
 lib/pipeline/      elke pijplijnstap: onboarding (discover → offering → topics → markt →
-                   kennistest → synthese) → meting → rapport → content → impact
-lib/jobs/          achtergrondwachtrij: types, queue, dedupe, handlers, worker
+                   kennistest → synthese) → meting → rapport → content → impact.
+                   Plus de gesprekslaag: onboarding-refresh, commercial-context,
+                   intake-block
+lib/jobs/          achtergrondwachtrij: types, queue, dedupe, handlers, worker, chain
 lib/openai/        client, structured output, modellen, sampling/redeneerinspanning, pricing, kostenlogboek
 lib/engines/       enginelaag: types, openai, gemini (slapend), registry
 lib/search-console/ Google Search Console-koppeling: auth, property, sync, meetvenster
@@ -186,7 +189,7 @@ lib/entities/      merknaam-normalisatie en -matching
 lib/schemas/       Zod-contracten      lib/stats/  onzekerheidsmarges
 lib/audit/         robots.txt / AI-crawlertoegang + entiteitsconsistentie
 lib/offsite/       off-site aanwezigheid     lib/archive.ts  wat zichtbaar is in de app
-supabase/migrations/  0001-0059 (0033 gereserveerd, nooit gedraaid, vervangen door 0039)
+supabase/migrations/  0001-0060 (0033 gereserveerd, nooit gedraaid, vervangen door 0039)
 scripts/           test-unit · test-chain · test-openai · eval-mention
 ```
 

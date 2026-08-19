@@ -207,7 +207,7 @@ functie (`trigger_plan_writer()`). Er verandert verder niets aan schema, rechten
 ## 0060 · onboarding 3.0, fase 1: de commerciële laag, de contactpersoon en de vierde herkomst
 
 Vijftien kolommen op `profiles`, één op `profile_field_sources`, en een uitgebreide
-herkomstconstraint op twee tabellen. Volledig ontwerp: `docs/tasks/onboarding-3.0.md` deel D.
+herkomstconstraint op twee tabellen. Volledig ontwerp en de afwegingen: `docs/logbook.md`, de zes alinea's van 19 augustus 2026.
 
 **Twaalf commerciële velden** (`priority_offerings`, `deprioritised_offerings`, `growth_regions`,
 `target_segments`, `deal_value_band`, `seasonality`, `sales_objections`, `forbidden_topics`,

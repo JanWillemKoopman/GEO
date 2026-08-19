@@ -4,6 +4,9 @@ Backend, Supabase, pijplijn en deploy. Voor het *waarom* achter een keuze: `logb
 Voor UI/UX: `ux-design.md`.
 
 > **Geverifieerd tegen de code op 13 augustus 2026** (branch `main`, t/m migratie `0057`).
+> **Bijgewerkt op 19 augustus 2026** voor onboarding 3.0 (migratie `0060`): §3 (de commerciële laag
+> en `profile_field_sources`), §5 (stap 4f en 4g), §11 (de onboardingsessie in de klantreis) en §12.
+> De rest van de peildatum hieronder blijft staan.
 > **Migraties `0058` en `0059` zijn er sindsdien bijgekomen** en staan wél in §12 en in dit
 > document verwerkt, maar de rest is niet opnieuw regel voor regel nagelopen. Verder geldt:
 > plus de eind-tot-eind-ronde van 1 augustus (`logbook.md` §10) en de eerste echte
@@ -195,6 +198,8 @@ Bron: `lib/jobs/{types,queue,worker,handlers,pending}.ts`.
 | 4c | Markt | luna, web_search | `market.ts`: per concurrent wáárom die wint, plus het bronnenlandschap van de markt. |
 | 4d | LLM-kennisbasislijn | luna, deels web_search | `llm-baseline.ts`: vijf blokken (`kent`, `klopt`, `citeert`, `verwarring`, `categorie`). `kent` stelt **zes** formuleringen en levert een verhouding, niet een ja of nee; `categorie` kiest zijn koopvragen via de topics en krijgt een eigen oordeel (word je genoemd, en wie wél). Alle oordelen worden in code geveld (`baseline-verdict.ts`), nooit door het model over zichzelf. |
 | 4e | Synthese | **sol** (`SYNTHESIS_PREMIUM`) | `synthesis.ts`: dossier, gespreksagenda en `brand_facts`, alleen feiten waarvan het citaat letterlijk op de bronpagina staat. |
+| 4f | **Onboardingsessie** |, | `/merk/[id]/admin/onboarding`, staf-only en het enige stafscherm dat gedeeld wordt. De consultant loopt het dossier mét de klant na, vult de commerciële laag in (migratie `0060`) en legt het gesprek vast. Opslaan gaat per veld, met bron `gesprek`. Nul AI-aanroepen: het scherm leest wat er ligt. |
+| 4g | **Het onderzoek bijwerken** |, | `POST /api/profiles/[id]/refresh`, achter `mayTriggerCost` en het budgetplafond. `onboarding-refresh.ts` bepaalt per gewijzigd veld welke stappen opnieuw draaien: bereik of werkgebied → promptgeneratie plus kennistest, commerciële sturing → onderwerpen, concurrenten → markt. Tien van de vijftien velden leveren nul stappen op. Een stap die zo wordt ingepland krijgt `chain: false` en sleept zijn opvolger niet mee. |
 | 5 | Analyse aanmaken |, | Verplicht onderwerp + optionele content-brief. |
 | 6 | Onderwerp-onderzoek (A1') | luna, web_search | Wat de site over dít onderwerp zegt + welke concurrenten hier relevant zijn. |
 | 7 | Promptgeneratie (A2) | luna, temp 0,8 (effort none) | **Eén taak PER funnelfase** (sinds 12 aug 2026). Standaard 10 per fase, per analyse instelbaar (migratie 0054, `lib/prompt-mix.ts`). Merk- en concurrentneutraal geformuleerd. **Bij een lokaal merk zijn alle vragen regionaal**, zie hieronder. |
@@ -578,7 +583,7 @@ niet in Supabase.**
 |---|---|---|
 | 1 | Supabase → Authentication → Users → **Add user** | E-mail + wachtwoord, **Auto Confirm User aan**. Er komt géén rij in `profiles` bij. |
 | 2 | De app, ingelogd als beheerder → **Merken → + Nieuw merk** | Webadres, bedrijfsnaam, schrijfwijzen. De pijplijn draait ~7,5 min (~$0,25). Het profiel staat nu op het account van de beheerder. |
-| 3 | Het demogesprek | Profiel doorlopen, gespreksnotities vullen, onderwerpen goedkeuren. |
+| 3 | Het demogesprek → **Admin → Onboarding** | De sessiepagina: open punten eerst, dan de commerciële laag, dan het gevonden dossier ter controle. Opslaan gaat per veld. Sluit af met het gesprek vastleggen en, als er iets gewijzigd is dat ertoe doet, het onderzoek bijwerken. |
 | 4 | Profielpagina → blok **Beheer** (alleen zichtbaar voor beheerders) | Kies het account uit stap 1. |
 
 Stap 4 zet `profiles.user_id` op de klant, vult `assigned_at`, laat `created_by_user_id` op de

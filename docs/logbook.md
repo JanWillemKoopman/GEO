@@ -30,6 +30,7 @@ verwijzing in de code straks nergens meer heen.
 | `tasks/r6-inventaris-en-bronnen.md` R6.2/R6.3 | De inventariskwaliteitspoort en het brontype als signaal | R6.2 is gebouwd als fase 0 van de onboarding (`lib/pipeline/inventory-quality.ts`, migratie `0039`). R6.3 staat nog open en de spec is verhuisd naar `tasks/roadmap.md` §4. Verwijderd 17 augustus 2026 |
 | `tasks/lanceerplan.md` K1-K5, P1-P7, F1-F5, D4/D7/D10, R6 | Het pad van "gebouwd" naar de eerste betalende klant: zes testsporen, twee kwaliteitslatten, een tweeweekse planning | **De twee latten staan hieronder als eigen sectie**, want twaalf codebestanden noemen ze bij naam. De sporen en de planning zijn ingehaald: F1 (budgetplafond) is migratie `0053`, F4/P5 (klant verwijderen) is `lib/deletion.ts`, D4/D7/D10 (wedstrijdcondities) zijn af. Verwijderd 17 augustus 2026 |
 | `tasks/appstructuur.md` | Het uitvoerplan voor de herindeling van de zijbalk en de schermen: zeven fases, de acht besluiten en de tien Nova-aanscherpingen | **De zeven fases staan hieronder als eigen alinea's** (17 augustus 2026). De doelstructuur zelf staat in `ux-design.md` §5. Verwijderd 17 augustus 2026, toen fase 7 af was |
+| `tasks/onboarding-3.0.md` deel A t/m K | Het bouwplan van onboarding 3.0: de vergelijking met Nova (A), de route van de beheerder (B), drie momenten met één veldenlijst (C), de vijftien nieuwe velden (D), het oordeel per Nova-veld (E), de zes fases (F), de schermspec van de sessie (G) | De zes alinea's van 19 augustus 2026 hieronder. Gebouwd en verwijderd op 19 augustus 2026. De velden zelf staan in migratie `0060` en in `lib/pipeline/brand-fields.ts`, het schermontwerp in `ux-design.md` §5, en de uitleg zonder techniek in `APP_FLOW_DOCUMENTATION.md` §6 |
 | `Nova.md` | InSpace Nova gereconstrueerd, de gap-analyse en het achtfasenbouwplan dat daaruit volgde | Bouwplan afgebouwd, zie de secties hieronder per fase. Zelf verwijderd op 17 augustus 2026, de citaten die er verderop in dit logboek nog naar verwijzen zijn historisch en blijven staan zoals ze geschreven zijn. De richting daarna staat in `visie.md` |
 
 De volledige originelen staan in de git-historie (laatste versie: de commit vóór de
@@ -3213,7 +3214,7 @@ draait read-only. Wat je erna laat bouwen is een nieuwe opdracht.
 ## Twee stille degradaties in het voortgangsscherm (19 augustus 2026)
 
 Twee losse reparaties, geen migratie, uitgevoerd vóór de fases van
-[`onboarding-3.0.md`](tasks/onboarding-3.0.md) omdat ze vandaag al iets verkeerds tonen. Allebei
+onboarding 3.0 omdat ze vandaag al iets verkeerds tonen. Allebei
 komen ze uit de Teamsessie over de onboarding, en allebei hebben ze dezelfde vorm: het scherm zegt
 "gelukt" waar de code "niets gevonden" bedoelde.
 
@@ -3242,7 +3243,7 @@ Na deze ronde: 1518 unittests en 167 ketentests groen.
 
 Migratie `0060`, toegepast op productie en daar nagerekend: vijftien kolommen op `profiles`, één op
 `profile_field_sources`, en een vierde herkomst. Nog geen nieuw scherm; dit is de laag waar fase 3
-op gaat staan. Het plan staat in `docs/tasks/onboarding-3.0.md`.
+op gaat staan.
 
 **Twaalf commerciële velden en drie contactvelden.** Elk commercieel veld voldoet aan twee eisen:
 een website kan het niet zeggen, en er is precies één pijplijnstap die er aantoonbaar beter van
@@ -3448,3 +3449,37 @@ bestaande sortering op achterstand blijft leidend: de fase is een tweede as en g
 Voor de klant verandert er niets.
 
 Na deze ronde: 1703 unittests en 202 ketentests groen.
+
+## Onboarding 3.0, fase 6: opruimen en op één lijn (19 augustus 2026)
+
+De afsluiting van het traject. Geen nieuw gedrag, wel drie dingen die anders binnen een maand
+uiteenlopen.
+
+**Vastgelegd waarom de klant 41 van de 56 velden ziet.** Dat is de enige plek waar het
+klantoppervlak en het consultantoppervlak met opzet verschillen, en zonder die reden in het
+commentaar herstelt iemand het over drie maanden als een vergeten stap. "Waar wil je op groeien en
+waar juist niet" is een gesprek, geen invulveld dat een ondernemer in zijn eentje beantwoordt, en het
+antwoord stuurt wat ORBIT ENGINE gaat voorstellen en schrijven.
+
+**`APP_FLOW_DOCUMENTATION.md` heeft een zesde hoofdstuk gekregen**: de onboarding van begin tot eind,
+zonder techniek. Van het merk klaarzetten tot een klant die zelfstandig in zijn profiel werkt,
+inclusief de zes blokken van het gespreksscherm en de twee dingen die er nog niet in zitten. Dat
+laatste met opzet: het document mag nergens beloven wat er niet is.
+
+**Het planbestand is weg.** `docs/tasks/onboarding-3.0.md` is verwijderd nu alle zes de fases
+gebouwd zijn, met een regel in de vertaaltabel bovenaan dit logboek zodat de verwijzingen in de code
+en in de migratie nergens meer heen wijzen. Dat is de afspraak voor alles in `docs/tasks/`: af is
+weg, samengevat hier. `architecture.md` §5 en §11 dragen de sessie en de bijwerkstap nu in de
+pijplijntabel en in de klantreis, `ux-design.md` §5 het schermontwerp en de fase van een merk,
+`supabase/README.md` de migratie, en `CLAUDE.md` de bijgewerkte tellers.
+
+**Wat het hele traject heeft opgeleverd**, in één alinea: de veldencatalogus ging van 41 naar 56
+velden in negen stappen, waarvan er vijftien alleen uit een gesprek kunnen komen. Er is één nieuw
+scherm, de onboardingsessie, en dat is het enige stafscherm dat bedoeld is om gedeeld te worden. Wat
+daar wordt vastgelegd verandert daadwerkelijk wat de pijplijn daarna doet, en wat er niets aan
+verandert draait ook niet opnieuw. De veldweergave is gedeelde code, dus er is geen tweede formulier
+ontstaan. En twee stille degradaties die er los van stonden zijn onderweg gerepareerd: een stap die
+niets vond toonde als geslaagd, en de duurste stap toonde als klaar terwijl het budget op was.
+
+Eindstand: 1703 unittests en 202 ketentests groen, migraties t/m `0060`, alle vier de vaste
+controles groen.
