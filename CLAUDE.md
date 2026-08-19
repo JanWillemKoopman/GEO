@@ -14,6 +14,13 @@ documentatie.
   voor organisaties met meer kansen dan een team handmatig aankan.
 - `docs/merkstrategie.md`, de **merkstrategie** van Outer Orbit voor de Nederlandse markt.
 
+**Het concrete pad van vandaag naar die bestemming staat in
+[`docs/tasks/ontwikkelplan_naar_eindproduct.html`](docs/tasks/ontwikkelplan_naar_eindproduct.html)**:
+de verdere geplande doorontwikkeling naar het eindproduct, in zeven werkstromen en tien sprints, met
+per sprint wat Claude Code bouwt en wat de eigenaar er zelf buiten Claude Code om bij moet doen.
+Leidend is `docs/tasks/ontwikkelplan-visie.md`, met per sprint de bestanden, het migratienummer en
+het verificatiecriterium; de HTML-pagina ernaast is de leesbare versie voor wie geen ontwikkelaar is.
+
 **Wat dat praktisch betekent bij een opdracht.** Staan er twee redelijke oplossingen tegenover
 elkaar, kies dan die welke richting die bestemming beweegt. Concreet: een stap die het systeem
 zelfstandig kan zetten is te verkiezen boven een stap die weer een handmatige handeling toevoegt.
@@ -107,8 +114,8 @@ zet `structured.ts` hem voor de rest van het proces uit in plaats van de taak te
 npm run dev              # localhost:3000
 npm run build            # productiebuild
 npx tsc --noEmit         # typecheck, moet schoon zijn
-npm run test:unit        # 1505 tests, pure functies, geen DB/API-key
-npm run test:chain       # 167 ketentests, echte handlers tegen echte Postgres, geen netwerk
+npm run test:unit        # 1703 tests, pure functies, geen DB/API-key
+npm run test:chain       # 202 ketentests, echte handlers tegen echte Postgres, geen netwerk
 npm run test:openai      # rooktest, MAAKT ECHTE BETAALDE CALLS
 npm run eval:mention     # accuratesse mention-classificatie (vereist API-key)
 ```
@@ -123,6 +130,12 @@ supabase db push                      # migraties naar remote
 
 Migraties toepassen op productie gaat via de Supabase MCP-tool (`apply_migration`), niet via de
 CLI. Werk daarna de index in `supabase/README.md` bij.
+
+**Een onderdeel laten doorlichten: zeg "start een Teamsessie voor [onderdeel]".** De skill
+`.claude/skills/team-session/` neemt het dan over, selecteert vier tot zes experts uit
+`.claude/agents/`, laat ze onafhankelijk de code onderzoeken en eindigt met hooguit vijf
+geprioriteerde verbeteringen. Een Teamsessie wijzigt nooit code; wat je daarna laat bouwen is een
+nieuwe opdracht.
 
 ## Code-conventies
 
@@ -157,15 +170,18 @@ Deze zijn over acht bouwrondes consequent toegepast. Houd ze aan.
 
 ```
 app/(app)/merk/[id]/  de merk-werkruimte in vijf hoofdstukken: overzicht, strategie
-                   (plan/clusters/bibliotheek), analytics (zichtbaarheid/zoekverkeer/
-                   concurrenten), merkprofiel (dossier/bewerken/input), admin (staff)
+                   (plan, clusters, bibliotheek), analytics (zichtbaarheid, zoekverkeer,
+                   concurrenten), merkprofiel (dossier, bewerken, input), admin (staff:
+                   onboardingsessie, diagnose, toewijzen)
 app/(app)/         analyses/[id] (clusterdossier in 4 hoofdstukken), instellingen, beheer (CSM)
 app/(auth)/        login/register (server actions)
 app/api/           analyses · profiles · accounts · invites · cron (worker/tracking/reminders/plan) · health
 components/        gedeelde UI-primitieven (kaarten, chips, rail, skeletons)
 lib/pipeline/      elke pijplijnstap: onboarding (discover → offering → topics → markt →
-                   kennistest → synthese) → meting → rapport → content → impact
-lib/jobs/          achtergrondwachtrij: types, queue, dedupe, handlers, worker
+                   kennistest → synthese) → meting → rapport → content → impact.
+                   Plus de gesprekslaag: onboarding-refresh, commercial-context,
+                   intake-block
+lib/jobs/          achtergrondwachtrij: types, queue, dedupe, handlers, worker, chain
 lib/openai/        client, structured output, modellen, sampling/redeneerinspanning, pricing, kostenlogboek
 lib/engines/       enginelaag: types, openai, gemini (slapend), registry
 lib/search-console/ Google Search Console-koppeling: auth, property, sync, meetvenster
@@ -173,7 +189,7 @@ lib/entities/      merknaam-normalisatie en -matching
 lib/schemas/       Zod-contracten      lib/stats/  onzekerheidsmarges
 lib/audit/         robots.txt / AI-crawlertoegang + entiteitsconsistentie
 lib/offsite/       off-site aanwezigheid     lib/archive.ts  wat zichtbaar is in de app
-supabase/migrations/  0001-0059 (0033 gereserveerd, nooit gedraaid, vervangen door 0039)
+supabase/migrations/  0001-0060 (0033 gereserveerd, nooit gedraaid, vervangen door 0039)
 scripts/           test-unit · test-chain · test-openai · eval-mention
 ```
 
@@ -190,7 +206,7 @@ scripts/           test-unit · test-chain · test-openai · eval-mention
 | `docs/designsystem.md` | Waar elke kleur, radius en schaduw vandaan komt. §9b heeft het **open ontwerpbesluit**: het systeem is afgeleid van de concurrent en dat botst met de merkstrategie |
 | `docs/schrijfstijl.md` | Tone-of-voice en microcopy: de elf richtlijnen, de woordenlijst, en wat we bewust níet van Nova overnemen |
 | `docs/logbook.md` | **Waarom het is zoals het is**, met datum en cijfer. Bevat ook twee naslagsecties: de vertaaltabel voor verwijderde documenten en de kwaliteitslatten K1 t/m K5 en P1 t/m P7 die de code bij naam noemt |
-| `docs/tasks/` | Wat er nog open staat: `roadmap.md` (index en volgorde), `potentiescore.md` en `verificatie-r8-s8.md`. **Tijdelijk van aard:** af is weg, samengevat in `logbook.md` |
+| `docs/tasks/` | Wat er nog open staat: `ontwikkelplan-visie.md` (het plan van vandaag naar `visie.md`, in tien sprints, leidend voor de volgorde, met `ontwikkelplan_naar_eindproduct.html` als leesbare versie ernaast), `roadmap.md` (het oudere, kleinere openstaande werk), `potentiescore.md` en `verificatie-r8-s8.md`. **Tijdelijk van aard:** af is weg, samengevat in `logbook.md` |
 | `APP_FLOW_DOCUMENTATION.md` | **Het enige document zonder techniek erin**, voor sales en management: wat het product doet, de vijf fases, de klantreis en wat een klant kost |
 | `supabase/README.md` | Migratie-index en toepasinstructies |
 | `docs/nova-i18n.json` · `docs/inspace-app-i18n.json` · `docs/inspace-marketing.txt` | De berichtencatalogi van beide InSpace-apps (900 en 1.469 sleutels) en hun marketingtekst. De brontekst onder `schrijfstijl.md` en `designsystem.md`. **Niet bewerken** |

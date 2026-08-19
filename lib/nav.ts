@@ -176,11 +176,37 @@ export function brandNav(brandId: string, staff = false): NavItem[] {
     },
 
     // ── ADMIN ────────────────────────────────────────────────────────────
+    //
+    // ⚠️ VIER BESTEMMINGEN IS HET MAXIMUM VAN DÍT HOOFDSTUK, EN DIT ZIJN ER
+    // DRIE VAN. De vierde, "Alle merken", staat in `generalNav()`.
+    //
+    // Elk klanthoofdstuk heeft er hooguit drie (besluit 1 tot en met 8 van
+    // 17 augustus 2026, `docs/ux-design.md` §5). Voor Admin is die grens op
+    // 19 augustus 2026 bewust op vier gezet, bij het toevoegen van de
+    // onboardingsessie. De reden: de drie hierboven gaan over dít merk en
+    // "Alle merken" gaat over de app als geheel, dus het is geen vergaarbak van
+    // vier gelijksoortige regels maar drie plus een uitgang. De rest van de
+    // regel blijft staan: een VIJFDE bestaat niet zonder eerst iets samen te
+    // voegen, en de klanthoofdstukken blijven op drie.
+    //
+    // De scheiding tussen de eerste twee is scherp en zonder overlap:
+    // Onboarding is het werk MÉT de klant en is het enige stafscherm dat
+    // gedeeld wordt, Diagnose is wat er technisch gebeurde en is alleen voor
+    // jou. "Onboarding-inzicht" heette dat scherm hiervoor, en dat leek te veel
+    // op "Onboardingsessie" om tijdens een gedeeld scherm nog uit elkaar te
+    // houden.
     ...(staff
       ? [
           {
+            href: `/merk/${brandId}/admin/onboarding`,
+            label: "Onboarding",
+            teken: "○",
+            hoofdstuk: "Admin" as const,
+            staffOnly: true,
+          },
+          {
             href: `/merk/${brandId}/admin`,
-            label: "Onboarding-inzicht",
+            label: "Diagnose",
             teken: "○",
             hoofdstuk: "Admin" as const,
             staffOnly: true,

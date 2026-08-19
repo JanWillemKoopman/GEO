@@ -203,3 +203,36 @@ oude taaknaam `aura-plan-writer`. Deze migratie doet het enige wat een rebrand a
 database mag doen: de bestaande pg_cron-taak `unschedule()`n en onder de nieuwe naam
 `orbit-engine-plan-writer` opnieuw `schedule()`n, met exact hetzelfde schema (04:00 UTC) en dezelfde
 functie (`trigger_plan_writer()`). Er verandert verder niets aan schema, rechten of gedrag.
+
+## 0060 · onboarding 3.0, fase 1: de commerciële laag, de contactpersoon en de vierde herkomst
+
+Vijftien kolommen op `profiles`, één op `profile_field_sources`, en een uitgebreide
+herkomstconstraint op twee tabellen. Volledig ontwerp en de afwegingen: `docs/logbook.md`, de zes alinea's van 19 augustus 2026.
+
+**Twaalf commerciële velden** (`priority_offerings`, `deprioritised_offerings`, `growth_regions`,
+`target_segments`, `deal_value_band`, `seasonality`, `sales_objections`, `forbidden_topics`,
+`offline_proof`, `name_exclusions`, `respect_site_structure`, `goal_12m`). Elk veld voldoet aan twee
+eisen: een website kan het niet zeggen, en er is precies één pijplijnstap die er aantoonbaar beter
+van wordt. Die lezer staat per kolom in het commentaar van de migratie. Een veld zonder lezer hoort
+er niet in, dat is administratie.
+
+⚠️ `offline_proof` staat **naast** `proof_points` en vervangt hem niet: die tweede is per definitie
+letterlijk uit de site geëxtraheerd, en dat is de grondslag onder contentkwaliteit A2. `name_exclusions`
+is de tegenhanger van `aliases`: gelijknamige bedrijven die dit merk juist níet zijn.
+
+**Drie contactvelden** (`contact_name`, `contact_email`, `contact_phone`). Met wie we aan tafel
+zaten, tot nu nergens vastgelegd. Facturatie komt hier bewust niet bij: het product is sales-led en
+er is geen self-serve betaalstroom.
+
+**`profile_field_sources.not_applicable`** maakt het verschil tussen "weten we nog niet" en "niet van
+toepassing". Een merk zonder auteur heeft geen auteursbio, en dat is geen gat; zonder dat onderscheid
+haalt de volledigheidsmeter nooit 100% en wordt hij genegeerd.
+
+**De vierde herkomst `consultant`**, op `profile_field_sources` én `profile_offerings`, want een
+constraint op één van de twee laat de tabellen uit elkaar lopen. Wat de consultant vóór het gesprek
+klaarzet is een onderbouwde aanname, geen bevestigd feit: voor het overschrijven telt hij als mens
+(`field-merge.ts` laat alleen `ai` overschrijven), voor de onderzoeksprompt is hij een startpunt dat
+tegengesproken mag worden.
+
+Additief en idempotent, geen enkele bestaande waarde verandert. De array-velden krijgen
+`default '{}'`, de rest is nullable zonder default (conventie 3, zelfde regel als `0048`).

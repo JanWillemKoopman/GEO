@@ -2,6 +2,13 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getProfile } from "@/lib/profiles";
 import { requireUser } from "@/lib/auth";
+import { isStaff } from "@/lib/staff";
+import {
+  profileStage,
+  STAGE_LABEL,
+  STAGE_NEXT,
+  type ProfileStage,
+} from "@/lib/profile-stage";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { PageHeader } from "@/components/page-header";
@@ -103,6 +110,34 @@ export default async function OverzichtPage({
       .maybeSingle(),
   ]);
 
+  // ── De fase van dit merk, alleen voor staf (deel B4) ─────────────────────
+  //
+  // Eén regel bovenaan met waar dit merk staat en wat de volgende handeling is.
+  // Voor de klant verandert er niets: hij ziet zijn eigen merk, niet zijn plek
+  // in onze verkoopcyclus.
+  const staf = await isStaff(user.id);
+  let fase: ProfileStage | null = null;
+  if (staf) {
+    const [{ data: strategieRij }, { count: openTaken }] = await Promise.all([
+      admin
+        .from("profile_strategy")
+        .select("recorded_at")
+        .eq("profile_id", id)
+        .maybeSingle(),
+      admin
+        .from("jobs")
+        .select("id", { count: "exact", head: true })
+        .eq("profile_id", id)
+        .in("status", ["queued", "running"]),
+    ]);
+    fase = profileStage({
+      openResearchJobs: openTaken ?? 0,
+      researchDone: profile.status === "klaar",
+      recordedAt: (strategieRij as { recorded_at: string | null } | null)?.recorded_at ?? null,
+      assignedAt: profile.assigned_at,
+    });
+  }
+
   const eigenClusters = analyses.filter((a) => a.profile_id === id);
   const eigenIds = new Set(eigenClusters.map((a) => a.id));
 
@@ -188,6 +223,26 @@ export default async function OverzichtPage({
             : `AI-assistenten noemen je in ${Math.round(hoofdcijfer.waarde)}% van de vragen waarin ze een aanbieder noemen.`
         }
       />
+
+      {/* ── De fase, alleen voor jou (deel B4) ────────────────────────────── */}
+      {fase && (
+        <div className="card flex flex-wrap items-center justify-between gap-3">
+          <span className="flex flex-wrap items-center gap-2">
+            <span className="mono-label">Alleen jij ziet dit</span>
+            <span
+              className={fase === "klaar_voor_gesprek" ? "chip chip-success" : "chip chip-neutral"}
+            >
+              {STAGE_LABEL[fase]}
+            </span>
+            <span className="text-secondary">{STAGE_NEXT[fase]}</span>
+          </span>
+          {fase !== "overgedragen" && (
+            <Link href={`/merk/${id}/admin/onboarding`} className="btn-outline">
+              Naar de onboarding
+            </Link>
+          )}
+        </div>
+      )}
 
       {/* ── 2. Hoe sta je ervoor ───────────────────────────────────────────── */}
       {hoofdcijfer !== null && (

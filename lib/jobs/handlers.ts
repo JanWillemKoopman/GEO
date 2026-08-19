@@ -13,6 +13,7 @@ import "server-only";
  *   content_draft → content_revise
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { nextInChain } from "@/lib/jobs/chain";
 import { prepareProfile } from "@/lib/pipeline/prepare-profile";
 import { discoverSite } from "@/lib/pipeline/discover";
 import { buildOfferingTree } from "@/lib/pipeline/offering";
@@ -237,7 +238,7 @@ const handlers: { [T in JobType]: Handler<T> } = {
     });
   },
 
-  profile_offering: async ({ admin, job }) => {
+  profile_offering: async ({ admin, job }, payload) => {
     if (!job.profile_id) throw new Error("profile_offering zonder profile_id.");
     const { nodes } = await buildOfferingTree(job.profile_id);
 
@@ -246,12 +247,14 @@ const handlers: { [T in JobType]: Handler<T> } = {
     // achter de topics gehangen. Die vallen weg zonder aanbodboom, en dan zou
     // de hele staart verdwijnen bij precies de klanten waar de crawl weinig
     // opleverde. En dat zijn er niet weinig.
-    await enqueue(admin, {
-      type: "profile_market",
-      payload: {},
-      profileId: job.profile_id,
-      dedupeKey: dedupe.profileMarket(job.profile_id),
-    });
+    //
+    // ⚠️ Welke stap dat is, staat sinds 19 augustus 2026 in `lib/jobs/chain.ts`
+    // en niet meer hier. Reden: dezelfde tabel wordt gebruikt als deze stap
+    // DEFINITIEF MISLUKT, en zonder dat kapte een mislukte aanbodstap de halve
+    // onderzoeksketen af zonder één foutmelding (hij telt als niet-blokkerend).
+    if (payload.chain !== false) {
+      await enqueueNext(admin, "profile_offering", job.profile_id);
+    }
 
     // Geen boom, geen topics. Voorstellen op basis van alleen een branchenaam
     // levert generieke onderwerpen op die precies niet over deze klant gaan.
@@ -270,7 +273,7 @@ const handlers: { [T in JobType]: Handler<T> } = {
     await proposeTopics(job.profile_id);
   },
 
-  profile_market: async ({ admin, job }) => {
+  profile_market: async ({ admin, job }, payload) => {
     if (!job.profile_id) throw new Error("profile_market zonder profile_id.");
 
     // Verrijking, geen voorwaarde (zelfde patroon als profile_competitors bij
@@ -289,27 +292,21 @@ const handlers: { [T in JobType]: Handler<T> } = {
     // De kennistest is de duurste stap (~$0,30) en staat daarom laat: is het
     // budget op, dan hoort hij als eerste te sneuvelen. De volgorde ís de
     // prioritering.
-    await enqueue(admin, {
-      type: "profile_llm_baseline",
-      payload: {},
-      profileId: job.profile_id,
-      dedupeKey: dedupe.llmBaseline(job.profile_id),
-    });
+    if (payload.chain !== false) {
+      await enqueueNext(admin, "profile_market", job.profile_id);
+    }
   },
 
-  profile_llm_baseline: async ({ admin, job }) => {
+  profile_llm_baseline: async ({ admin, job }, payload) => {
     if (!job.profile_id)
       throw new Error("profile_llm_baseline zonder profile_id.");
     await runLlmBaseline(job.profile_id);
 
     // De synthese sluit de keten. Als laatste omdat hij op het dure model
     // draait: is het budget op, dan valt hij als eerste terug of weg.
-    await enqueue(admin, {
-      type: "profile_synthesis",
-      payload: {},
-      profileId: job.profile_id,
-      dedupeKey: dedupe.profileSynthesis(job.profile_id),
-    });
+    if (payload.chain !== false) {
+      await enqueueNext(admin, "profile_llm_baseline", job.profile_id);
+    }
   },
 
   profile_synthesis: async ({ job }) => {
@@ -360,7 +357,7 @@ const handlers: { [T in JobType]: Handler<T> } = {
     if (!payload.category)
       throw new Error("generate_prompts zonder funnelfase.");
 
-    await generateAnalysisPrompts(job.analysis_id, payload.category);
+    await generateAnalysisPrompts(job.analysis_id, payload.category, payload.regenerate);
 
     // ⚠️ Alleen de LAATSTE fase opent de poort. Deze taak weet niet of hij de
     // laatste is, de wachtrij wel: tel hoeveel fasetaken er nog openstaan voor
@@ -704,10 +701,58 @@ const handlers: { [T in JobType]: Handler<T> } = {
  * Wordt aangeroepen NADAT de taak op 'failed' staat, dus hij telt niet meer mee
  * als openstaand werk.
  */
+/**
+ * De volgende stap van de onderzoeksketen inplannen.
+ *
+ * Eén plek waar de sleutel per taaksoort staat, zodat de geslaagde tak en de
+ * definitief-mislukte tak niet uit elkaar kunnen lopen.
+ */
+async function enqueueNext(
+  admin: Admin,
+  na: JobType,
+  profileId: string,
+): Promise<void> {
+  const type = nextInChain(na);
+  if (!type) return;
+  const sleutel: Partial<Record<JobType, string>> = {
+    profile_market: dedupe.profileMarket(profileId),
+    profile_llm_baseline: dedupe.llmBaseline(profileId),
+    profile_synthesis: dedupe.profileSynthesis(profileId),
+  };
+  const dedupeKey = sleutel[type];
+  if (!dedupeKey) return;
+  await enqueue(admin, { type, payload: {}, profileId, dedupeKey });
+}
+
 export async function scheduleFollowUpAfterFailure(
   admin: Admin,
   job: Job,
 ): Promise<void> {
+  // ── De onderzoeksketen loopt door, ook als een stap opgeeft ──────────────
+  //
+  // ⚠️ Dit is de reparatie van het punt uit de Teamsessie van 18 augustus 2026.
+  // `profile_offering` telt als niet-blokkerend omdat de klant bij een
+  // mislukking alleen zijn dienstenoverzicht mist, maar diezelfde stap plande
+  // de markt in, en de markt draagt de kennistest en de synthese. Mislukte hij
+  // definitief, dan verdween de halve keten zonder één foutmelding.
+  //
+  // De opvolger hangt daarom niet meer aan het slagen van de stap maar aan de
+  // tabel in `lib/jobs/chain.ts`, en die geldt in beide takken.
+  const volgende = nextInChain(job.type as JobType);
+  if (volgende && job.profile_id) {
+    // Alleen als deze stap wél in de keten stond. Een stap die los is
+    // ingepland vanuit het gesprek (`chain: false`) hoort ook bij een
+    // mislukking niets achter zich aan te trekken.
+    const payload = (job.payload_json ?? {}) as { chain?: boolean };
+    if (payload.chain !== false) {
+      await enqueueNext(admin, job.type as JobType, job.profile_id);
+      console.warn(
+        `Taak ${job.type} gaf definitief op voor profiel ${job.profile_id}; ` +
+          `${volgende} is alsnog ingepland zodat de keten niet afkapt.`,
+      );
+    }
+  }
+
   if ((job.type as JobType) !== "measure_prompt" || !job.analysis_id) return;
 
   const payload = (job.payload_json ?? {}) as JobPayloads["measure_prompt"];

@@ -39,12 +39,20 @@ export interface FieldOwnership {
  * Welke bronnen onaantastbaar zijn voor een AI-ronde.
  *
  * `klant` = de klant zette het zelf in de app. `gesprek` = de consultant legde
- * het vast tijdens de demo. Allebei een mens, allebei beter geïnformeerd dan
- * een model dat naar een website keek.
+ * het vast tijdens de demo. `consultant` = de consultant zette het klaar vóór
+ * het eerste contact (migratie 0060). Alle drie een mens, alle drie beter
+ * geïnformeerd dan een model dat naar een website keek.
+ *
+ * ⚠️ Dat `consultant` hier staat betekent niet dat hij hetzelfde waard is als
+ * `gesprek`. Voor het OVERSCHRIJVEN zijn ze gelijk: geen enkele onderzoeksronde
+ * gooit weg wat een mens typte. Voor het ONDERZOEK zelf niet: de prompt biedt
+ * een consultantwaarde aan als startpunt dat tegengesproken mag worden, en een
+ * gespreksuitkomst als vaststaand. Zie `lib/pipeline/profile-research.ts`.
  */
 const HUMAN_SOURCES: ReadonlySet<FieldSource> = new Set<FieldSource>([
   "klant",
   "gesprek",
+  "consultant",
 ]);
 
 export function isHumanSet(source: FieldSource | undefined | null): boolean {

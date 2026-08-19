@@ -164,6 +164,7 @@ import {
   cleanCompetitorName,
   summariseKnows,
   describeKnows,
+  baselineFacetState,
   type BaselineVerdict,
 } from "@/lib/pipeline/baseline-verdict";
 import { quoteOnPage, quoteConfidence } from "@/lib/pipeline/quote-check";
@@ -268,12 +269,41 @@ import {
 } from "@/lib/csm";
 import {
   BRAND_FIELDS,
+  CLIENT_STEPS,
+  SESSION_STEPS,
+  STEP_META,
   STEP_ORDER,
   fieldsOfStep,
   isFilled,
   stepProgress,
   overallProgress,
 } from "@/lib/pipeline/brand-fields";
+import { resolveWriteSource, consultantFields } from "@/lib/profile-source";
+import {
+  profileStage,
+  STAGE_LABEL,
+  STAGE_NEXT,
+  STAGE_ORDER,
+} from "@/lib/profile-stage";
+import { sessionMeter, notApplicableFields } from "@/lib/profile-meter";
+import { buildIntakeBlock } from "@/lib/pipeline/intake-block";
+import {
+  planRefresh,
+  describeRefresh,
+  FIELD_TASKS,
+  TASK_LABELS,
+} from "@/lib/pipeline/onboarding-refresh";
+import {
+  topicSteering,
+  growthRegionsRule,
+  objectionsRule,
+  offlineProofFacts,
+  forbiddenTopicHits,
+  siteStructureRule,
+  goalRule,
+} from "@/lib/pipeline/commercial-context";
+import { ONBOARDING_NEXT, nextInChain } from "@/lib/jobs/chain";
+import { extractConfusions } from "@/lib/pipeline/baseline-verdict";
 import {
   assessStructureCoverage,
   describeCoverage,
@@ -288,7 +318,7 @@ import {
 import { similarity, mostSimilar } from "@/lib/pipeline/similarity";
 import { assessReadability, describeReadability } from "@/lib/pipeline/readability";
 import { checkQuality } from "@/lib/pipeline/content-gate";
-import { buildSteps, researchRunning } from "@/lib/pipeline/research-steps";
+import { buildSteps, researchRunning, displaySteps } from "@/lib/pipeline/research-steps";
 import {
   filterProtectedFields,
   confidenceLevel,
@@ -2736,6 +2766,37 @@ group("onderzoeksstappen met tussenresultaten (§8)", () => {
   });
   ok("de eerste stap is bezig", start[0].state === "bezig");
   ok("de rest wacht", start.slice(1).every((s) => s.state === "wacht"));
+
+  // ⚠️ Het wachtscherm sloeg de vier standen plat tot één vinkje, dus een stap
+  // die niets vond zag eruit als een geslaagde stap. `displaySteps()` houdt het
+  // verschil vast.
+  const getoond = displaySteps(nietsGevonden);
+  const rij = (job: string) => {
+    const i = nietsGevonden.findIndex((s) => s.job === job);
+    return getoond[i];
+  };
+  ok("een stap die iets vond krijgt een vinkje", rij("technical_audit").done);
+  ok(
+    "en geen waarschuwing",
+    !rij("technical_audit").nietsGevonden,
+  );
+  ok(
+    "een stap die niets vond krijgt géén vinkje",
+    !rij("profile_offering").done,
+  );
+  ok(
+    "maar wel de stand 'niets gevonden'",
+    rij("profile_offering").nietsGevonden,
+  );
+
+  const lopend = displaySteps(halverwege);
+  const bezig = lopend[halverwege.findIndex((s) => s.job === "profile_offering")];
+  ok("een lopende stap is nog niet afgehandeld", !bezig.done && !bezig.nietsGevonden);
+  ok(
+    "en het tussenresultaat staat in het label",
+    lopend[0].label.includes("31 pagina's"),
+    lopend[0].label,
+  );
 });
 
 group("een mens wint van een model (blok C)", () => {
@@ -2907,6 +2968,20 @@ group("bereik en werkgebied horen bij elkaar", () => {
     resolveScope("lokaal", ["Amersfoort", "amersfoort", " "]).regions.length ===
       1,
   );
+
+  // ⚠️ MENSINVOER GAAT DOOR DEZELFDE NORMALISATIE (fase 2 van onboarding 3.0).
+  //
+  // `prepare-profile.ts` liet modeluitvoer hier wél langs en een getypte waarde
+  // niet, terwijl `service_regions[0]` letterlijk in zes kennistestvragen wordt
+  // geplakt. Deze twee gevallen zijn precies wat er dan misging.
+  ok(
+    "een getypte plaatsnaam met spaties wordt opgeschoond",
+    resolveScope("lokaal", ["  Amersfoort  "]).regions[0] === "Amersfoort",
+  );
+  ok(
+    "een aangevinkt 'lokaal' zonder plaatsnaam blijft geen half bereik",
+    resolveScope("lokaal", ["   "]).scope === null,
+  );
 });
 
 group("een citaat telt pas als het er letterlijk staat", () => {
@@ -3025,6 +3100,32 @@ group("kent hij je merk? een verhouding, geen muntworp", () => {
   );
   // Geen metingen is geen kennis, maar ook geen bewering over een verhouding.
   ok("nul vragen is 'kent niet'", summariseKnows([]).level === "kent_niet");
+});
+
+group("de kennistest mag niet als geslaagd tonen zonder metingen", () => {
+  // Budget op: acht vragen klaargezet, nul gesteld. Dit is het geval dat het
+  // voortgangsscherm als "klaar" toonde.
+  const budgetOp = baselineFacetState({ measured: 0, eerder: 0, skipped: 8 });
+  ok("niets gemeten", !budgetOp.gemeten);
+  ok("en dat heet alles overgeslagen", budgetOp.allesOvergeslagen);
+
+  // Gewoon gedraaid.
+  const gedraaid = baselineFacetState({ measured: 8, eerder: 0, skipped: 0 });
+  ok("acht antwoorden is wel gemeten", gedraaid.gemeten);
+  ok("en niets overgeslagen", !gedraaid.allesOvergeslagen);
+
+  // Idempotentie (conventie 9): een tweede keer draaien stelt geen vraag
+  // opnieuw, dus `measured` is 0 terwijl de metingen er wel degelijk staan.
+  // Zou dit als "niets gemeten" gelden, dan wist de tweede ronde de
+  // samenvatting van de eerste.
+  const alGedaan = baselineFacetState({ measured: 0, eerder: 8, skipped: 0 });
+  ok("wat er al stond telt mee", alGedaan.gemeten);
+  ok("en is niet overgeslagen", !alGedaan.allesOvergeslagen);
+
+  // Deels: één vraag mislukte, de rest kwam binnen. Dan is er wél wat te
+  // vertellen.
+  const deels = baselineFacetState({ measured: 7, eerder: 0, skipped: 1 });
+  ok("deels gemeten is gemeten", deels.gemeten && !deels.allesOvergeslagen);
 });
 
 group("harde feiten uit de lopende tekst (fase 0, nul kosten)", () => {
@@ -4168,23 +4269,26 @@ group("het merkprofiel als veldenlijst (brand-fields)", () => {
     `elk opslaanbaar veld staat in een stap${zonderStap.length ? " (mist: " + zonderStap.join(", ") + ")" : ""}`,
     zonderStap.length === 0,
   );
+  // Was 41 tot migratie 0060; sindsdien 56, want de commerciële laag (12) en de
+  // contactpersoon (3) staan er sinds onboarding 3.0 fase 1 bij.
   ok(
-    `het zijn er 41 aan beide kanten (nu ${BRAND_FIELDS.length} en ${EDITABLE_PROFILE_FIELDS.length})`,
-    BRAND_FIELDS.length === 41 && EDITABLE_PROFILE_FIELDS.length === 41,
+    `het zijn er 56 aan beide kanten (nu ${BRAND_FIELDS.length} en ${EDITABLE_PROFILE_FIELDS.length})`,
+    BRAND_FIELDS.length === 56 && EDITABLE_PROFILE_FIELDS.length === 56,
   );
 
   ok(
     "elk veld hoort bij een bestaande stap",
     BRAND_FIELDS.every((f) => STEP_ORDER.includes(f.step)),
   );
-  ok("zeven stappen", STEP_ORDER.length === 7);
+  ok("negen stappen", STEP_ORDER.length === 9);
   // De verdeling van 17 augustus 2026 (`docs/logbook.md`). Staat hier voluit zodat
   // een veld dat naar een andere stap verhuist een bewuste wijziging is en geen
   // stille verschuiving.
   const perStap = STEP_ORDER.map((s) => `${s}:${fieldsOfStep(s).length}`).join(" ");
   ok(
-    `de verdeling is 8-3-6-6-5-7-6 (nu ${perStap})`,
-    perStap === "bedrijf:8 merk:3 klant:6 stem:6 woorden:5 auteur:7 bekend:6",
+    `de verdeling is 8-3-6-6-5-7-6-12-3 (nu ${perStap})`,
+    perStap ===
+      "bedrijf:8 merk:3 klant:6 stem:6 woorden:5 auteur:7 bekend:6 strategie:12 contact:3",
   );
   ok(
     "elke stap heeft velden",
@@ -4213,7 +4317,7 @@ group("het merkprofiel als veldenlijst (brand-fields)", () => {
   // "Lokaal" en komt er "landelijk" in de database, of weigert de insert en
   // ziet hij alleen "opslaan is niet gelukt".
   const keuzes = BRAND_FIELDS.filter((f) => f.kind === "keuze");
-  ok("er zijn keuzevelden", keuzes.length === 3);
+  ok("er zijn keuzevelden", keuzes.length === 4);
   ok(
     "elke keuze heeft evenveel waarden als standen",
     keuzes.every((f) => f.values?.length === f.options?.length),
@@ -4254,9 +4358,20 @@ group("het merkprofiel als veldenlijst (brand-fields)", () => {
     "een leeg profiel heeft nul gevulde velden",
     overallProgress(leeg).gevuld === 0,
   );
+  // ⚠️ De noemer is de KLANTLIJST en niet de hele catalogus. De commerciële laag
+  // en de contactpersoon zijn per definitie niet af te leiden uit een website;
+  // telden ze standaard mee, dan zakt elk bestaand merk onder de 80% die
+  // `csm-data.ts` gebruikt om te bepalen of een dossier deelbaar is, en staat
+  // élk merk eeuwig in "wacht op jouw nakijkwerk".
+  const klantVelden = BRAND_FIELDS.filter((f) => CLIENT_STEPS.includes(f.step));
   ok(
-    "en de noemer is de hele lijst",
-    overallProgress(leeg).totaal === BRAND_FIELDS.length,
+    `de noemer is de klantlijst van 41 (nu ${overallProgress(leeg).totaal})`,
+    overallProgress(leeg).totaal === klantVelden.length &&
+      klantVelden.length === 41,
+  );
+  ok(
+    "de sessie kan alle negen stappen meetellen",
+    overallProgress(leeg, SESSION_STEPS).totaal === BRAND_FIELDS.length,
   );
   ok("geen enkele stap is compleet", allStepsIncompleet(leeg));
 
@@ -4279,6 +4394,207 @@ group("het merkprofiel als veldenlijst (brand-fields)", () => {
   function allStepsIncompleet(prof: Record<string, unknown>): boolean {
     return STEP_ORDER.every((s) => !stepProgress(prof, s).compleet);
   }
+});
+
+group("drie oppervlakken, één veldenlijst (onboarding 3.0 fase 1)", () => {
+  // ⚠️ Samen exact `STEP_ORDER`, niets meer en niets minder. Een stap die in
+  // geen van beide lijsten staat is een stap die nergens rendert, en dat merkt
+  // niemand: er verschijnt geen foutmelding, de velden zijn er gewoon niet.
+  const samen = [...CLIENT_STEPS, ...SESSION_STEPS];
+  ok(
+    "elke stap staat in minstens één oppervlak",
+    STEP_ORDER.every((s) => samen.includes(s)),
+  );
+  ok(
+    "en geen enkel oppervlak kent een stap die niet bestaat",
+    samen.every((s) => STEP_ORDER.includes(s)),
+  );
+  ok("de sessie toont alles", SESSION_STEPS.length === STEP_ORDER.length);
+
+  // ⚠️ De enige plek waar de twee oppervlakken bewust verschillen. "Waar wil je
+  // op groeien" is een gesprek, geen invulveld dat een klant alleen invult, en
+  // de contactpersoon gaat over ons en niet over zijn merk.
+  ok("de klant ziet de commerciële laag niet", !CLIENT_STEPS.includes("strategie"));
+  ok("en de contactpersoon ook niet", !CLIENT_STEPS.includes("contact"));
+  ok("de sessie ziet ze allebei wel", SESSION_STEPS.includes("strategie") && SESSION_STEPS.includes("contact"));
+  ok("de klantwizard houdt zijn zeven stappen", CLIENT_STEPS.length === 7);
+
+  // Elke stap heeft een eigen titel en uitleg, ook de twee nieuwe. Nova geeft
+  // per blok een `nav.*Subtitle` die zegt waaróm het blok bestaat; zonder dat
+  // is een blok van twaalf lege velden een ondervraging.
+  ok(
+    "elke stap heeft een titel en een uitleg",
+    STEP_ORDER.every(
+      (s) => STEP_META[s].title.length > 2 && STEP_META[s].description.length > 15,
+    ),
+  );
+
+  // De commerciële laag is per definitie niet af te leiden uit een website.
+  // Staat er één op `derivable: true`, dan meldt de gatenlijst hem als iets wat
+  // ORBIT ENGINE nog moet vinden, en dat gaat nooit gebeuren.
+  const commercieel = BRAND_FIELDS.filter(
+    (f) => f.step === "strategie" || f.step === "contact",
+  );
+  ok("het zijn er vijftien", commercieel.length === 15);
+  ok(
+    "en geen enkele is af te leiden",
+    commercieel.every((f) => !f.derivable),
+  );
+
+  // Een `keuze` slaat een woord op dat in een database-constraint staat.
+  ok(
+    "de waardeklasse staat in de constraint van migratie 0060",
+    BRAND_FIELDS.find((f) => f.key === "deal_value_band")?.values?.join() ===
+      "onbekend,klein,midden,groot",
+  );
+  // `janee` slaat een boolean op, dus geen `values`: dat zou een woord opslaan
+  // in een booleaanse kolom en de insert laten weigeren.
+  const janee = BRAND_FIELDS.filter((f) => f.kind === "janee");
+  ok("er is één ja-nee-veld", janee.length === 1);
+  ok(
+    "het heeft twee benoemde standen en geen waardenlijst",
+    janee[0]?.options?.length === 2 && janee[0]?.values === undefined,
+  );
+});
+
+group("wie mag welke herkomst wegschrijven (onboarding 3.0 fase 1)", () => {
+  // ⚠️ Zonder deze poort kan een klant zijn eigen invoer als gespreksuitkomst
+  // wegschrijven. `filterProtectedFields()` laat alleen `ai` overschrijven, dus
+  // die waarde is daarna onaantastbaar voor élke volgende onderzoeksronde.
+  const klantPoging = resolveWriteSource({
+    requested: "gesprek",
+    isStaff: false,
+    isOwner: true,
+  });
+  ok("een klant mag geen gespreksuitkomst schrijven", !klantPoging.ok);
+  ok(
+    "en krijgt een 403",
+    !klantPoging.ok && klantPoging.status === 403,
+    klantPoging.ok ? "toegestaan" : String(klantPoging.status),
+  );
+  ok(
+    "consultant mag hij ook niet",
+    resolveWriteSource({ requested: "consultant", isStaff: false, isOwner: true }).ok === false,
+  );
+
+  // Staf mag alle drie.
+  for (const bron of ["klant", "gesprek", "consultant"] as const) {
+    const d = resolveWriteSource({ requested: bron, isStaff: true, isOwner: false });
+    ok(`staf mag ${bron} schrijven`, d.ok && d.source === bron);
+  }
+
+  // Een onbekende waarde is een fout en geen stille terugval: schrijft een
+  // scherm ooit "beheerder" mee, dan hoort dat op te vallen in plaats van als
+  // klantinvoer te landen.
+  const onzin = resolveWriteSource({ requested: "beheerder", isStaff: true, isOwner: false });
+  ok("een onbekende bron wordt geweigerd", !onzin.ok);
+  ok("met een 400", !onzin.ok && onzin.status === 400);
+
+  // Zonder `bron` blijft het gedrag van vóór onboarding 3.0 staan.
+  const eigenaar = resolveWriteSource({ requested: undefined, isStaff: false, isOwner: true });
+  ok("de eigenaar schrijft klant", eigenaar.ok && eigenaar.source === "klant");
+  const consultantVoorKlant = resolveWriteSource({
+    requested: undefined,
+    isStaff: true,
+    isOwner: false,
+  });
+  ok(
+    "staf op andermans merk schrijft gesprek",
+    consultantVoorKlant.ok && consultantVoorKlant.source === "gesprek",
+  );
+  // ⚠️ Dit is wél nieuw: een accountgenoot met schrijfrecht schreef tot nu
+  // `gesprek` weg zonder ooit aan tafel gezeten te hebben.
+  const accountgenoot = resolveWriteSource({
+    requested: undefined,
+    isStaff: false,
+    isOwner: false,
+  });
+  ok(
+    "een accountgenoot schrijft klant en geen gesprek",
+    accountgenoot.ok && accountgenoot.source === "klant",
+  );
+
+  ok("en een consultantwaarde telt als mens", isHumanSet("consultant"));
+
+  // ── Wat de consultant bij het aanmaken invulde ───────────────────────────
+  //
+  // ⚠️ Alleen wat écht gevuld is. Een leeg veld vastleggen als "door de
+  // consultant gezet" blokkeert het onderzoek op een waarde die er niet is, en
+  // dan blijft dat veld voorgoed leeg.
+  const gezet = consultantFields({
+    name: "Van Mossel",
+    aliases: ["Van Mossel Automotive"],
+    industry: "",
+    products: [],
+    service_scope: null,
+    intake_description: "   ",
+  });
+  ok("een getypte naam telt", gezet.includes("name"));
+  ok("een gevulde lijst telt", gezet.includes("aliases"));
+  ok("een lege tekst niet", !gezet.includes("industry"));
+  ok("een lege lijst niet", !gezet.includes("products"));
+  ok("null niet", !gezet.includes("service_scope"));
+  ok("en alleen spaties ook niet", !gezet.includes("intake_description"));
+  // Wat niet bewerkbaar is, hoort er ook niet in: `url` en `status` zijn geen
+  // velden die een klant later mag corrigeren.
+  ok(
+    "en een niet-bewerkbaar veld komt er niet in",
+    consultantFields({ url: "https://voorbeeld.nl", status: "bezig" }).length === 0,
+  );
+});
+
+group("een aanname is geen feit, ook niet in de prompt (fase 2)", () => {
+  // ⚠️ Het blok zei tegen het model "RESPECTEER dit", voor álles wat er stond.
+  // Dat is goed voor wat de klant zelf zei en verkeerd voor wat de consultant
+  // vóór het eerste contact invulde: die aanname legde het marktonderzoek stil,
+  // want het model mag een klantwaarde niet tegenspreken.
+  const blok = buildIntakeBlock({
+    name: "Van Mossel",
+    industry: "autodealer",
+    competitors: ["Van den Udenhout"],
+    serviceScope: "lokaal",
+    sources: {
+      name: "klant",
+      industry: "consultant",
+      competitors: "consultant",
+      service_scope: "gesprek",
+    },
+  });
+
+  ok("er staan twee blokken in", blok.includes("VASTGESTELD") && blok.includes("VÓÓR het gesprek"));
+  const vastgesteld = blok.slice(blok.indexOf("VASTGESTELD"), blok.indexOf("VÓÓR het gesprek"));
+  const aanname = blok.slice(blok.indexOf("VÓÓR het gesprek"));
+  ok("wat de klant zei staat bij het vastgestelde", vastgesteld.includes("Van Mossel"));
+  ok("de gespreksuitkomst ook", vastgesteld.includes("Bereik: lokaal"));
+  ok("de aanname van de adviseur staat apart", aanname.includes("autodealer"));
+  ok("met de concurrenten erbij", aanname.includes("Van den Udenhout"));
+  ok(
+    "en het model mag die tegenspreken",
+    aanname.includes("niet als feit") && aanname.includes("eigen bevinding"),
+  );
+  ok("terwijl het vastgestelde gerespecteerd moet worden", vastgesteld.includes("RESPECTEER"));
+
+  // Geen herkomst bekend = bevestigd. Een aanname per ongeluk als feit
+  // behandelen kost een verrijking; een feit per ongeluk als aanname laat het
+  // model de klant tegenspreken, en dat is de duurdere fout.
+  const zonderHerkomst = buildIntakeBlock({ name: "Van Mossel", industry: "autodealer" });
+  ok("zonder herkomst geldt alles als vastgesteld", zonderHerkomst.includes("VASTGESTELD"));
+  ok("en staat er geen aannameblok", !zonderHerkomst.includes("VÓÓR het gesprek"));
+
+  // Alleen aannames: dan hoort het vastgestelde blok er niet te staan, anders
+  // leest het model een kop zonder inhoud.
+  const alleenAanname = buildIntakeBlock({
+    industry: "autodealer",
+    sources: { industry: "consultant" },
+  });
+  ok("alleen aannames levert alleen dat blok", !alleenAanname.includes("VASTGESTELD"));
+  ok("een leeg profiel levert geen blok", buildIntakeBlock({}) === "");
+  ok("en geen intake ook niet", buildIntakeBlock() === "");
+  // Een leeg veld hoort nergens: "Branche: " is een regel zonder informatie.
+  ok(
+    "lege velden vallen weg",
+    !buildIntakeBlock({ name: "Van Mossel", industry: "", products: [] }).includes("Branche"),
+  );
 });
 
 group("uitnodigingen: de vier eindtoestanden", () => {
@@ -4826,6 +5142,7 @@ group("segmentOf: elk merk in precies één segment", () => {
     geplaatstDezeMaand: 10,
     laatstGeplaatst: "2026-08-01",
     pijplijnfouten: 0,
+    fase: "overgedragen",
     ...over,
   });
 
@@ -6041,8 +6358,19 @@ group("de zijbalk kent vijf hoofdstukken plus Admin", () => {
 
   // Dit is het hele punt van de herindeling: van 7 regels met een bak van
   // negen naar hoogstens drie kinderen per kop.
+  //
+  // ⚠️ Admin mag er vier, sinds de onboardingsessie van 19 augustus 2026. Drie
+  // ervan gaan over dít merk (Onboarding, Diagnose, Toewijzen) en de vierde,
+  // "Alle merken", is de uitgang naar de app als geheel. Dat is geen vergaarbak
+  // van vier gelijksoortige regels. Een vijfde bestaat niet zonder eerst iets
+  // samen te voegen, en voor de klanthoofdstukken blijft drie de grens.
   for (const kop of beheerder) {
-    ok(`${kop.naam} heeft hooguit drie bestemmingen`, kop.items.length <= 3, `${kop.items.length}`);
+    const grens = kop.naam === "Admin" ? 4 : 3;
+    ok(
+      `${kop.naam} heeft hooguit ${grens} bestemmingen`,
+      kop.items.length <= grens,
+      `${kop.items.length}`,
+    );
   }
 
   ok("een klant ziet geen Admin-kop", klant.every((k) => k.naam !== "Admin"));
@@ -6744,6 +7072,7 @@ group("de afgeschermde routes zijn ook echt afgeschermd", () => {
   // er eentje dat, dan is het adres gewoon te raden.
   const afgeschermd = [
     "app/(app)/merk/[id]/admin/page.tsx",
+    "app/(app)/merk/[id]/admin/onboarding/page.tsx",
     "app/(app)/merk/[id]/admin/toewijzen/page.tsx",
     "app/(app)/beheer/page.tsx",
     "app/api/analyses/[id]/costs/route.ts",
@@ -6776,7 +7105,17 @@ group("de zijbalk verraadt niets aan een klant", () => {
   // per ongeluk tijdens een gedeeld scherm op een interne pagina klikt.
   const staffItems = [...brandNav(merkId, true), ...generalNav(true)];
   const adminItems = staffItems.filter((i) => i.hoofdstuk === "Admin");
-  ok("een beheerder heeft drie Admin-bestemmingen", adminItems.length === 3);
+  // Drie over dít merk plus "Alle merken" over de app als geheel.
+  ok("een beheerder heeft vier Admin-bestemmingen", adminItems.length === 4);
+  ok(
+    "en de onboardingsessie staat erbij",
+    adminItems.some((i) => i.href.endsWith("/admin/onboarding") && i.label === "Onboarding"),
+  );
+  ok(
+    "met Diagnose ernaast, en niet nog een keer 'Onboarding-inzicht'",
+    adminItems.some((i) => i.label === "Diagnose") &&
+      !adminItems.some((i) => i.label === "Onboarding-inzicht"),
+  );
   ok("allemaal gemarkeerd", adminItems.every((i) => i.staffOnly === true));
   ok(
     "en de klant ziet er nul",
@@ -6785,7 +7124,7 @@ group("de zijbalk verraadt niets aan een klant", () => {
 });
 
 // ════════════════════════════════════════════════════════════════════════════
-console.log("\nOnboarding-inzicht (Admin)");
+console.log("\nDiagnose (Admin)");
 
 group("de doorlooptijden houden ketenvolgorde", () => {
   const taken = [
@@ -6870,6 +7209,471 @@ group("findGaps noemt het gevolg, niet het gemis", () => {
     "elk punt zegt wát het verbetert",
     findGaps({ aliases: [], proof_points: [], service_scope: null, service_regions: [], business_model: null })
       .every((g) => g.effect.length > 40),
+  );
+
+  // ── Op gevolg gesorteerd, niet op veldvolgorde (onboarding 3.0, fase 3) ──
+  //
+  // ⚠️ De onboardingsessie opent met deze lijst. Zonder deze volgorde kost het
+  // gesprek een uur aan het bevestigen van dingen die al klopten, en het
+  // zwaarste punt zakt naar onderen omdat het toevallig achteraan in de
+  // veldenlijst staat.
+  const alles = findGaps({
+    aliases: [],
+    proof_points: [],
+    service_scope: "lokaal",
+    service_regions: [],
+    business_model: null,
+  });
+  ok("alle vier de punten komen eruit", alles.length === 4);
+  ok(
+    "het bereik staat bovenaan, want die fout kost een nieuwe meetronde",
+    alles[0].field === "service_regions",
+    alles.map((g) => g.field).join(" > "),
+  );
+  ok(
+    "en de bewijspunten onderaan, die raken pas de tekst",
+    alles[alles.length - 1].field === "proof_points",
+  );
+  ok(
+    "de volgorde loopt aflopend op gewicht",
+    alles.every((g, i) => i === 0 || alles[i - 1].weight >= g.weight),
+  );
+  ok(
+    "elk punt wijst naar een veld, anders is de springknop nergens op te richten",
+    alles.every((g) => g.field.length > 0),
+  );
+
+  // ── Niet van toepassing valt weg ─────────────────────────────────────────
+  //
+  // Een merk zonder auteur heeft geen auteursbio, en een merk dat bewust geen
+  // andere schrijfwijzen heeft is geen gat. Zonder deze regel haalt de lijst
+  // nooit nul en wordt hij binnen twee gesprekken genegeerd.
+  const metNvt = findGaps(
+    {
+      aliases: [],
+      proof_points: [],
+      service_scope: "lokaal",
+      service_regions: [],
+      business_model: null,
+    },
+    ["aliases", "proof_points"],
+  );
+  ok("een n.v.t.-veld staat niet meer in de lijst", metNvt.length === 2);
+  ok(
+    "en de rest houdt zijn volgorde",
+    metNvt[0].field === "service_regions" && metNvt[1].field === "business_model",
+  );
+});
+
+group("de meter van de sessie: drie getallen, geen percentage", () => {
+  // ⚠️ "78% compleet" verbergt precies het verschil dat in een gesprek telt:
+  // hoeveel er door een mens bevestigd is en hoeveel er nog een aanname is.
+  const leegProfiel = {};
+  const leeg = sessionMeter(leegProfiel, {});
+  ok("een leeg merk heeft alles open", leeg.open === leeg.totaal && leeg.bevestigd === 0);
+  // De contactvelden tellen niet mee: ze zeggen niets over hoe goed ORBIT
+  // ENGINE het merk kent.
+  ok(
+    `de contactvelden tellen niet mee (${leeg.totaal} van de ${BRAND_FIELDS.length})`,
+    leeg.totaal === BRAND_FIELDS.length - 3,
+  );
+
+  const profiel = {
+    industry: "fysiotherapie",
+    summary: "Een praktijk in Amersfoort.",
+    usp: "De enige met bekkenfysiotherapie",
+    contact_name: "Sanne de Wit",
+  } as never;
+  const m = sessionMeter(profiel, {
+    industry: { source: "gesprek" },
+    summary: { source: "ai" },
+    // ⚠️ Een consultantwaarde telt als GEVONDEN en niet als bevestigd: hij is
+    // door een mens getypt maar door niemand bevestigd. Zou hij als bevestigd
+    // tellen, dan ziet een merk waar nog nooit iemand mee gesproken is eruit
+    // als een merk dat je al hebt doorgenomen.
+    usp: { source: "consultant" },
+  });
+  ok("wat in het gesprek is gezet telt als bevestigd", m.bevestigd === 1);
+  ok("modeluitvoer en een aanname tellen als gevonden", m.gevonden === 2);
+  ok(
+    "en elk veld valt in precies één bak",
+    m.bevestigd + m.gevonden + m.open === m.totaal,
+  );
+  ok(
+    "het contactveld telde niet mee, ook niet als het gevuld is",
+    sessionMeter({ contact_name: "Sanne" } as never, {}).gevonden === 0,
+  );
+
+  // Niet van toepassing is behandeld, en dat is de hele reden dat die stand
+  // bestaat: anders haalt de meter nooit 100% en wordt hij genegeerd.
+  const nvt = sessionMeter(leegProfiel, { author_bio: { notApplicable: true } });
+  ok("een n.v.t.-veld telt als bevestigd", nvt.bevestigd === 1);
+  ok("en niet meer als open", nvt.open === leeg.open - 1);
+  ok(
+    "notApplicableFields noemt precies die velden",
+    notApplicableFields({
+      author_bio: { notApplicable: true },
+      industry: { source: "gesprek" },
+    }).join() === "author_bio",
+  );
+});
+
+group("de sessiepagina wordt gedeeld met de klant (deel B3)", () => {
+  // ⚠️ DIT IS DE BINDENDE REGEL VAN HET HELE PLAN, EN HIJ IS EEN
+  // BRONCODECONTROLE.
+  //
+  // Elk ander stafscherm is intern. Dit scherm kijkt de klant mee, dus er mag
+  // geen taaknaam, geen bedrag en geen foutcode in beeld komen. Zo'n controle
+  // met de hand doe je één keer; het risico ontstaat bij de vólgende wijziging.
+  const sessieBestanden = [
+    "app/(app)/merk/[id]/admin/onboarding/page.tsx",
+    "app/(app)/merk/[id]/_components/onboarding-session.tsx",
+    "app/(app)/merk/[id]/_components/brand-field-input.tsx",
+  ];
+
+  const verboden = [
+    { term: "cost_usd", waarom: "een bedrag per aanroep" },
+    { term: "ai_calls", waarom: "het kostenlogboek" },
+    { term: "model_used", waarom: "een modelnaam" },
+    { term: "MODELS.", waarom: "een modelnaam" },
+    { term: "jobs", waarom: "de wachtrij" },
+    { term: "job_type", waarom: "een jobtype" },
+    { term: "profile_llm_baseline", waarom: "een interne tabelnaam in beeld" },
+    { term: "last_error", waarom: "een foutmelding uit de wachtrij" },
+    { term: "status: 403", waarom: "een foutcode" },
+    { term: "status: 500", waarom: "een foutcode" },
+  ];
+
+  for (const pad of sessieBestanden) {
+    const inhoud = leesBestand(pad);
+    ok(`${pad} bestaat`, inhoud.length > 0);
+    for (const { term, waarom } of verboden) {
+      ok(
+        `${pad.split("/").pop()}: geen ${waarom} (${term})`,
+        !inhoud.includes(term),
+      );
+    }
+    // Een bedrag is een dollarteken met een cijfer erachter. Het losse teken
+    // verbieden kan niet: elke sjabloonstring in JSX gebruikt `${...}`.
+    ok(
+      `${pad.split("/").pop()}: geen bedrag in beeld`,
+      !/\$\s?\d/.test(inhoud) && !inhoud.includes("toFixed"),
+    );
+  }
+
+  // De taaknamen zelf, bij naam. Een jobtype op dit scherm is precies het
+  // soort ding dat je in een demo niet wilt hoeven uitleggen.
+  const sessie = leesBestand("app/(app)/merk/[id]/_components/onboarding-session.tsx");
+  const taaknamen = [
+    "profile_discover",
+    "profile_research",
+    "profile_offering",
+    "profile_market",
+    "technical_audit",
+    "propose_topics",
+    "profile_synthesis",
+    "measure_prompt",
+  ];
+  for (const taak of taaknamen) {
+    ok(`de sessie noemt ${taak} nergens`, !sessie.includes(taak));
+  }
+
+  // En de tegenhanger: het scherm moet wél de velden uit de catalogus tonen,
+  // anders is het een tweede formulier geworden.
+  ok(
+    "de sessie rendert de gedeelde veldweergave",
+    sessie.includes("BrandFieldInput"),
+  );
+  // ⚠️ Geen tweede veldenlijst. `derivable` en `placeholder` zijn de merkers
+  // van een velddefinitie; staan die hier, dan is er alsnog een tweede formulier
+  // ontstaan dat gaat verouderen.
+  ok(
+    "en definieert zelf geen velden",
+    !sessie.includes("derivable:") && !sessie.includes("placeholder:"),
+  );
+});
+
+
+group("wat er na het gesprek opnieuw moet draaien (fase 4)", () => {
+  // ⚠️ ELK VAN DE VIJFTIEN VELDEN, ÓÓK DE VELDEN DIE NUL STAPPEN OPLEVEREN.
+  //
+  // Een veld dat niet in de tabel staat, is een veld waarvan niemand heeft
+  // nagedacht of hij iets moet triggeren. Dat merk je pas als er een dure stap
+  // onnodig draait, of juist niet draait.
+  const velden = BRAND_FIELDS.filter(
+    (f) => f.step === "strategie" || f.step === "contact",
+  ).map((f) => f.key as string);
+  const ontbreekt = velden.filter((v) => !(v in FIELD_TASKS));
+  ok(
+    `elk nieuw veld staat in de tabel${ontbreekt.length ? " (mist: " + ontbreekt.join(", ") + ")" : ""}`,
+    ontbreekt.length === 0,
+  );
+  ok("en het bereik en het werkgebied ook", "service_scope" in FIELD_TASKS && "service_regions" in FIELD_TASKS);
+
+  // Het bereik is het duurste veld: het bepaalt of de vragen regionaal of
+  // landelijk gesteld worden, en dat is pas ná een betaalde meting te zien.
+  const bereik = planRefresh(["service_scope"], { analyses: 1 });
+  ok("een gewijzigd bereik laat de vragen opnieuw opstellen", bereik.tasks.includes("prompts"));
+  ok("en de kennistest opnieuw draaien", bereik.tasks.includes("kennistest"));
+  ok("maar niet het marktonderzoek", !bereik.tasks.includes("markt"));
+
+  ok(
+    "een gewijzigde concurrent raakt alleen de markt",
+    planRefresh(["competitors"]).tasks.join() === "markt",
+  );
+  ok(
+    "de commerciële sturing raakt alleen de onderwerpen",
+    planRefresh(["priority_offerings", "forbidden_topics"]).tasks.join() === "onderwerpen",
+  );
+
+  // ⚠️ Vijf velden waar NUL stappen uit volgen. Dat is de helft van de winst
+  // van deze module: zonder die nullen zou elk gesprek de duurste stappen
+  // opnieuw draaien voor een telefoonnummer.
+  const nulVelden = [
+    "name_exclusions",
+    "offline_proof",
+    "sales_objections",
+    "goal_12m",
+    "deal_value_band",
+    "seasonality",
+    "respect_site_structure",
+    "contact_name",
+    "contact_email",
+    "contact_phone",
+  ];
+  for (const veld of nulVelden) {
+    ok(`${veld} laat niets opnieuw draaien`, planRefresh([veld]).tasks.length === 0);
+  }
+  ok(
+    "en samen ook niet",
+    planRefresh(nulVelden).tasks.length === 0,
+  );
+
+  // Zonder analyse valt de promptstap weg: een knop die een stap inplant die
+  // nergens op slaat is erger dan geen knop.
+  ok(
+    "zonder analyse geen promptgeneratie",
+    !planRefresh(["service_regions"], { analyses: 0 }).tasks.includes("prompts"),
+  );
+  ok(
+    "de kennistest blijft dan wel staan",
+    planRefresh(["service_regions"], { analyses: 0 }).tasks.includes("kennistest"),
+  );
+
+  // De raming schaalt mee met het aantal analyses, want de vragen worden per
+  // analyse opnieuw opgesteld.
+  const een = planRefresh(["service_scope"], { analyses: 1 }).estimateUsd;
+  const drie = planRefresh(["service_scope"], { analyses: 3 }).estimateUsd;
+  ok("meer analyses is een hogere raming", drie > een);
+  ok("en de raming blijft onder een dubbeltje per analyse", drie < 0.3, `$${drie}`);
+
+  // De bevestigingszin. ⚠️ Die staat in deze pure module en niet in het scherm:
+  // de sessiepagina wordt met de klant gedeeld en er mag geen bedrag in beeld.
+  ok(
+    "niets veranderd levert een zin op die dat zegt",
+    describeRefresh(planRefresh([])).includes("niets veranderd"),
+  );
+  const zin = describeRefresh(planRefresh(["service_scope"], { analyses: 1 }));
+  ok("de bevestiging noemt het bedrag", zin.includes("$"));
+  ok("en zegt in gewone taal wat er gebeurt", zin.includes(TASK_LABELS.kennistest));
+  ok("zonder taaknamen", !zin.includes("profile_llm_baseline") && !zin.includes("generate_prompts"));
+});
+
+group("de onderzoeksketen kapt niet af als een stap opgeeft", () => {
+  // ⚠️ Het punt van de Teamsessie van 18 augustus 2026: `profile_offering` telt
+  // als niet-blokkerend omdat de klant bij een mislukking alleen zijn
+  // dienstenoverzicht mist, maar diezelfde stap plande de markt in, en de markt
+  // draagt de kennistest en de synthese.
+  ok("de aanbodstap wijst naar de markt", nextInChain("profile_offering") === "profile_market");
+  ok("de markt naar de kennistest", nextInChain("profile_market") === "profile_llm_baseline");
+  ok("de kennistest naar de synthese", nextInChain("profile_llm_baseline") === "profile_synthesis");
+  ok("en de synthese sluit de keten", nextInChain("profile_synthesis") === null);
+
+  // De topicvoorstellen horen er bewust NIET in: die hangen aan de aanbodboom
+  // en hebben zonder knopen niets te zoeken.
+  ok("de topicvoorstellen hangen niet in de keten", !("propose_topics" in ONBOARDING_NEXT));
+  // Het profielonderzoek is blokkerend: mislukt dat, dan hoort er niets meer
+  // achteraan te komen.
+  ok("en het profielonderzoek ook niet", !("profile_research" in ONBOARDING_NEXT));
+  ok("een taak buiten de keten levert niets op", nextInChain("measure_prompt") === null);
+});
+
+group("de commerciële laag heeft echte lezers (fase 4)", () => {
+  const leeg = {
+    priority_offerings: [],
+    deprioritised_offerings: [],
+    target_segments: [],
+    forbidden_topics: [],
+    growth_regions: [],
+    sales_objections: [],
+    offline_proof: [],
+    respect_site_structure: null,
+    goal_12m: null,
+    seasonality: null,
+  };
+
+  // ⚠️ Een leeg veld levert een LEGE string op. "Verboden onderwerpen: " in een
+  // prompt is erger dan niets: het model gaat er betekenis aan geven.
+  ok("een leeg profiel levert geen enkele regel op", topicSteering(leeg) === "");
+  ok("ook niet voor de groeiregio's", growthRegionsRule(leeg) === "");
+  ok("of de bezwaren", objectionsRule(leeg) === "");
+  ok("of het doel", goalRule(leeg) === "");
+  // Niet vastgesteld is iets anders dan 'nee': alleen een expliciete nee
+  // verandert het advies (conventie 3).
+  ok("niet vastgesteld verandert niets aan de structuur", siteStructureRule(leeg) === "");
+  ok(
+    "'ja' ook niet",
+    siteStructureRule({ respect_site_structure: true }) === "",
+  );
+  ok(
+    "maar 'nee' wel",
+    siteStructureRule({ respect_site_structure: false }).includes("geen nieuwe pagina"),
+  );
+
+  const gevuld = {
+    ...leeg,
+    priority_offerings: ["onderhoudsabonnementen"],
+    deprioritised_offerings: ["losse bandenwissel"],
+    target_segments: ["installateurs met eigen monteurs"],
+    forbidden_topics: ["lopende rechtszaken"],
+  };
+  const sturing = topicSteering(gevuld);
+  ok("wat voorop staat komt erin", sturing.includes("onderhoudsabonnementen"));
+  ok("wat niet mag ook", sturing.includes("losse bandenwissel"));
+  ok("met de instructie om er niets over voor te stellen", sturing.includes("NIET VOORSTELLEN"));
+  ok("de klantgroepen komen erin", sturing.includes("installateurs"));
+  ok("en de verboden onderwerpen", sturing.includes("lopende rechtszaken"));
+
+  // De deterministische controle achteraf. Een promptinstructie is een
+  // intentie, dit is de garantie (conventie 1).
+  ok(
+    "een verboden onderwerp in de tekst wordt gevonden",
+    forbiddenTopicHits("Over de Lopende Rechtszaken kunnen we kort zijn.", gevuld).length === 1,
+  );
+  ok(
+    "hoofdletters maken niet uit",
+    forbiddenTopicHits("LOPENDE RECHTSZAKEN", gevuld)[0] === "lopende rechtszaken",
+  );
+  ok("en een schone tekst levert niets op", forbiddenTopicHits("Een gewone pagina.", gevuld).length === 0);
+
+  // Bewijs dat niet op de site staat, met de bron erbij. Dat verschil moet de
+  // claimvalidator kunnen zien: "opgegeven in het gesprek" is iets anders dan
+  // "staat op je site".
+  const feiten = offlineProofFacts({ offline_proof: ["ISO 9001 sinds 2019", "  "] });
+  ok("lege regels vallen weg", feiten.length === 1);
+  ok("en de bron zegt waar het vandaan komt", feiten[0].source.includes("gesprek"));
+
+  const bezwaren = objectionsRule({ sales_objections: ["jullie zijn duurder"] });
+  ok("de bezwaren komen in de schrijfopdracht", bezwaren.includes("duurder"));
+  ok("met de opdracht er één te weerleggen", bezwaren.includes("weerleg"));
+});
+
+group("het verwarringblok levert de uitsluitingslijst (fase 4)", () => {
+  // ⚠️ Deterministisch en niet met een tweede AI-aanroep: het antwoord is een
+  // opsomming, en een opsomming is te lezen zonder model. Een gemiste naam kost
+  // een bevestiging in het gesprek; een verzonnen naam zet een echt bedrijf op
+  // een uitsluitingslijst.
+  const antwoord = [
+    "Ja, er zijn meerdere partijen die zo heten:",
+    "- **Jansen Techniek** in Groningen, een installatiebedrijf.",
+    "- Jansen Bouw - een aannemer uit Zwolle",
+    "1. Jansen Advies: een adviesbureau",
+    "Verder is er niets bekend.",
+  ].join("\n");
+
+  const uit = extractConfusions(antwoord, ["Jansen"]);
+  ok("de vetgedrukte naam komt eruit", uit.includes("Jansen Techniek"));
+  ok("de naam vóór het streepje ook", uit.includes("Jansen Bouw"), uit.join(" · "));
+  ok("en de naam vóór de dubbele punt", uit.includes("Jansen Advies"));
+  ok("de lopende tekst eromheen niet", !uit.some((n) => n.includes("Verder is er")));
+  ok("het zijn er drie", uit.length === 3, uit.join(" · "));
+
+  // Het eigen merk hoort er nooit in: dat zou de meting de eigen vermeldingen
+  // laten wegfilteren, en dan valt de score te laag uit.
+  ok(
+    "het eigen merk valt weg",
+    !extractConfusions("- Jansen Techniek\n- Bakkerij Jansen", ["Bakkerij Jansen"]).includes(
+      "Bakkerij Jansen",
+    ),
+  );
+  ok(
+    "een antwoord zonder opsomming levert niets op",
+    extractConfusions("Nee, ik ken geen andere bedrijven met die naam.", ["Jansen"]).length === 0,
+  );
+});
+
+
+group("de fase van een merk, afgeleid en niet ingevuld (fase 5)", () => {
+  const basis = {
+    openResearchJobs: 0,
+    researchDone: true,
+    recordedAt: null as string | null,
+    assignedAt: null as string | null,
+  };
+
+  // ── De vier fases, in de volgorde waarin ze doorlopen worden ─────────────
+  ok(
+    "onderzoek dat nog draait is voorbereiden",
+    profileStage({ ...basis, openResearchJobs: 2 }) === "voorbereiden",
+  );
+  ok(
+    "een profiel dat nog niet klaar is ook",
+    profileStage({ ...basis, researchDone: false }) === "voorbereiden",
+  );
+  ok(
+    "onderzoek klaar en geen gesprek is klaar voor het gesprek",
+    profileStage(basis) === "klaar_voor_gesprek",
+  );
+  ok(
+    "een vastgelegd gesprek is 'gesprek gehad'",
+    profileStage({ ...basis, recordedAt: "2026-08-19T10:00:00Z" }) === "gesprek_gehad",
+  );
+  ok(
+    "en een toegewezen merk is overgedragen",
+    profileStage({
+      ...basis,
+      recordedAt: "2026-08-19T10:00:00Z",
+      assignedAt: "2026-08-20T10:00:00Z",
+    }) === "overgedragen",
+  );
+
+  // ⚠️ HET GEVAL UIT HET VERIFICATIECRITERIUM: overgedragen zónder dat er ooit
+  // een gesprek is vastgelegd. Dat gebeurt echt (de consultant vergat het, of
+  // de klant tekende na één mail), en "wacht op een gesprek" is dan onzin: hij
+  // werkt er al zelf in.
+  ok(
+    "overgedragen zonder gesprek is nog steeds overgedragen",
+    profileStage({ ...basis, assignedAt: "2026-08-20T10:00:00Z" }) === "overgedragen",
+  );
+
+  // ⚠️ En het geval dat fase 4 erbij maakte: ná het gesprek plant het afrondblok
+  // nieuw onderzoek in. Er staat dan werk open terwijl het gesprek al geweest
+  // is, en "voorbereiden" zou precies het verkeerde signaal zijn.
+  ok(
+    "een herdraai na het gesprek zet de fase niet terug",
+    profileStage({
+      ...basis,
+      openResearchJobs: 3,
+      recordedAt: "2026-08-19T10:00:00Z",
+    }) === "gesprek_gehad",
+  );
+
+  // Elke fase zegt wat de volgende handeling is, niet wat de toestand is.
+  ok(
+    "elke fase heeft een label en een volgende stap",
+    STAGE_ORDER.every(
+      (f) => STAGE_LABEL[f].length > 3 && STAGE_NEXT[f].length > 10,
+    ),
+  );
+  ok("het zijn er vier", STAGE_ORDER.length === 4);
+  ok(
+    "en elke fase is bereikbaar",
+    new Set([
+      profileStage({ ...basis, researchDone: false }),
+      profileStage(basis),
+      profileStage({ ...basis, recordedAt: "x" }),
+      profileStage({ ...basis, assignedAt: "x" }),
+    ]).size === 4,
   );
 });
 

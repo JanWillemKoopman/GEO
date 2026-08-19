@@ -1,7 +1,21 @@
 # Roadmap, wat er nog open staat
 
-Op volgorde. **Stand: 17 augustus 2026**, 1505 unittests + 167 ketentests groen, migraties t/m
-`0059` toegepast (`0033` gereserveerd, nooit gedraaid, vervangen door `0039`). De punten hieronder
+> ⚠️ **Sinds 18 augustus 2026 staat er een document bóven dit bestand:**
+> [`ontwikkelplan-visie.md`](./ontwikkelplan-visie.md), het plan van vandaag naar de visie in tien
+> sprints. Dat document bepaalt de volgorde; dit bestand houdt het oudere, kleinere werk bij dat
+> nog open ligt. Vier punten hieronder zijn erin opgegaan en staan daar met bestanden,
+> migratienummer en verificatiecriterium: punt 0 en punt 1 (de verificatieschuld) in sprint 0,
+> "Fase 6, wat er nog wacht op de eerste publicatie" plus het open Nova-punt "publiceren
+> onomkeerbaar maken" in sprint 1, en "Fase 5, wat er wacht op de Google-sleutel" in sprint 0 en 2.
+> Ze blijven hier staan tot die sprints afgerond zijn, want een punt dat op twee plekken half wordt
+> afgevinkt raakt kwijt.
+>
+> **De koppeling met een CMS en de echte zoekvolumes staan bewust achteraan** (sprint 9 en 8). De
+> eigenaar test eerst met kopiëren, plakken en de URL invullen; zie §0 van dat document voor het
+> waarom en de gevolgen.
+
+Op volgorde. **Stand: 19 augustus 2026**, 1703 unittests + 202 ketentests groen, migraties t/m
+`0060` toegepast (`0033` gereserveerd, nooit gedraaid, vervangen door `0039`). De punten hieronder
 zelf zijn niet allemaal opnieuw doorgelopen sinds 11 augustus; alleen de teller en de nieuwe regel
 bij "Afgerond sinds de vorige stand" zijn bijgewerkt. Voor wat er sindsdien is gebouwd (de
 potentiescore), zie `potentiescore.md` en `logbook.md`.
@@ -275,3 +289,15 @@ Beide staan voluit in `docs/logbook.md`, en twaalf codebestanden verwijzen ernaa
 | Automatische controles op gepubliceerde pagina's (fase 6) | idem |
 
 Alles wat zónder die twee kan, is gebouwd en getest.
+
+## Uit de Teamsessie over de onboarding: af (19 augustus 2026)
+
+De aanbodstap heette niet-blokkerend maar plande de marktstap in, en de markt droeg de kennistest en
+de synthese. Mislukte hij definitief, dan verdween de halve onderzoeksketen zonder één foutmelding.
+**Gerepareerd op 19 augustus 2026**, samen met fase 4 van onboarding 3.0: de opvolger staat nu in
+`lib/jobs/chain.ts` en die tabel geldt in beide takken, ook als een stap opgeeft. Een ketenscenario
+laat `profile_offering` definitief mislukken en controleert dat de markt daarna alsnog ingepland
+staat. Zie `docs/logbook.md`, 19 augustus 2026.
+
+⚠️ De rest van die Teamsessie leverde geen werk op, met opzet: alle andere faalpaden waren uit de
+code afgeleid en op productie nooit waargenomen. Zie `docs/logbook.md`, 18 augustus 2026.

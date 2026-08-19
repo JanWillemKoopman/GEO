@@ -73,6 +73,25 @@ export const EDITABLE_PROFILE_FIELDS = [
   "author_photo_url",
   "author_facebook_url",
   "author_other_url",
+  // Migratie 0060, de commerciële laag uit onboarding 3.0 deel D1. Twaalf velden
+  // die een website niet kan zeggen, ingevuld in het gesprek met de klant.
+  "priority_offerings",
+  "deprioritised_offerings",
+  "growth_regions",
+  "target_segments",
+  "deal_value_band",
+  "seasonality",
+  "sales_objections",
+  "forbidden_topics",
+  "offline_proof",
+  "name_exclusions",
+  "respect_site_structure",
+  "goal_12m",
+  // De contactpersoon (deel D2). Bewerkbaar als alle andere velden; telt alleen
+  // niet mee in de volledigheidsmeter.
+  "contact_name",
+  "contact_email",
+  "contact_phone",
 ] as const;
 
 export type EditableProfileField = (typeof EDITABLE_PROFILE_FIELDS)[number];

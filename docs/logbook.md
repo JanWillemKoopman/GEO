@@ -30,6 +30,7 @@ verwijzing in de code straks nergens meer heen.
 | `tasks/r6-inventaris-en-bronnen.md` R6.2/R6.3 | De inventariskwaliteitspoort en het brontype als signaal | R6.2 is gebouwd als fase 0 van de onboarding (`lib/pipeline/inventory-quality.ts`, migratie `0039`). R6.3 staat nog open en de spec is verhuisd naar `tasks/roadmap.md` §4. Verwijderd 17 augustus 2026 |
 | `tasks/lanceerplan.md` K1-K5, P1-P7, F1-F5, D4/D7/D10, R6 | Het pad van "gebouwd" naar de eerste betalende klant: zes testsporen, twee kwaliteitslatten, een tweeweekse planning | **De twee latten staan hieronder als eigen sectie**, want twaalf codebestanden noemen ze bij naam. De sporen en de planning zijn ingehaald: F1 (budgetplafond) is migratie `0053`, F4/P5 (klant verwijderen) is `lib/deletion.ts`, D4/D7/D10 (wedstrijdcondities) zijn af. Verwijderd 17 augustus 2026 |
 | `tasks/appstructuur.md` | Het uitvoerplan voor de herindeling van de zijbalk en de schermen: zeven fases, de acht besluiten en de tien Nova-aanscherpingen | **De zeven fases staan hieronder als eigen alinea's** (17 augustus 2026). De doelstructuur zelf staat in `ux-design.md` §5. Verwijderd 17 augustus 2026, toen fase 7 af was |
+| `tasks/onboarding-3.0.md` deel A t/m K | Het bouwplan van onboarding 3.0: de vergelijking met Nova (A), de route van de beheerder (B), drie momenten met één veldenlijst (C), de vijftien nieuwe velden (D), het oordeel per Nova-veld (E), de zes fases (F), de schermspec van de sessie (G) | De zes alinea's van 19 augustus 2026 hieronder. Gebouwd en verwijderd op 19 augustus 2026. De velden zelf staan in migratie `0060` en in `lib/pipeline/brand-fields.ts`, het schermontwerp in `ux-design.md` §5, en de uitleg zonder techniek in `APP_FLOW_DOCUMENTATION.md` §6 |
 | `Nova.md` | InSpace Nova gereconstrueerd, de gap-analyse en het achtfasenbouwplan dat daaruit volgde | Bouwplan afgebouwd, zie de secties hieronder per fase. Zelf verwijderd op 17 augustus 2026, de citaten die er verderop in dit logboek nog naar verwijzen zijn historisch en blijven staan zoals ze geschreven zijn. De richting daarna staat in `visie.md` |
 
 De volledige originelen staan in de git-historie (laatste versie: de commit vóór de
@@ -3092,3 +3093,393 @@ property toevoegen. Pas daarna is de koppeling geverifieerd (conventie 10).
 **De vormgeving botst nog steeds met de positionering.** Deze ronde veranderde de indeling, niet de
 vormgeving. Zolang het open ontwerpbesluit in `designsystem.md` §9b staat, werkt het designsysteem
 tegen de merkstrategie in.
+
+## Het ontwikkelplan naar de visie, en de vier uitgangspunten die de volgorde bepalen (18 augustus 2026)
+
+`visie.md` en `merkstrategie.md` legden op 17 augustus de bestemming vast, met de afstand tot de
+bouw er eerlijk bij (drie punten in `visie.md`, vijf in `merkstrategie.md` §30). Wat er niet stond,
+was hoe je die afstand overbrugt. Dat staat nu in
+[`tasks/ontwikkelplan-visie.md`](./tasks/ontwikkelplan-visie.md): zeven werkstromen, tien sprints in
+vier fases, met per sprint de bestanden, het migratienummer, het verificatiecriterium en de
+handelingen die buiten Claude Code om moeten gebeuren.
+
+**De eerste versie zette de CMS-koppeling en de echte zoekvolumes vooraan, omdat de visie ze allebei
+vraagt. De eigenaar heeft ze dezelfde dag naar achteren geschoven, en dat is de vier uitgangspunten
+waard die nu bovenaan het plan staan:**
+
+1. **Publiceren blijft voorlopig handwerk.** Kopiëren, plakken, de URL invullen, als geplaatst
+   markeren. Van den Udenhout is het eerste geval. Pas als die route zich bewezen heeft komt er een
+   koppeling, en dat wordt sprint 9 in plaats van sprint 1. Het proces eromheen verandert niet:
+   content wordt geschreven, komt door de poorten, wordt goedgekeurd, en pas dan geplaatst.
+2. **Echte zoekvolumes schuiven mee naar achteren**, sprint 8. Niet vanwege de prijs, zie hieronder.
+3. **De app blijft draaien op alleen de OpenAI-sleutel.** Dit is als harde regel opgeschreven: elke
+   externe koppeling is optioneel en stil afwezig, en elke sprint krijgt een test die bewijst dat de
+   app zich zonder die sleutel identiek gedraagt. Voor Gemini is dat al zo
+   (`enginesForProfile()`); sprint 6 zorgt dat het bij die ene handeling blijft.
+4. **De goedkeuringspoort vóór content live gaat verdwijnt nergens**, ook niet in de autonomiesprint.
+   Die gaat over meten, onderzoeken, schrijven en voorstellen. De publicatieknop blijft van een mens.
+
+**Wat het herschikken aan het licht bracht, en het corrigeerde een fout in de eerste versie.** Daar
+stond dat de CMS-koppeling de effectmeting deblokkeert. Dat klopt niet: `markPublished()` plant de
+hermeetgolven al in zodra iemand een URL invult, en `checkPublication()` controleert de pagina
+daarna. De hele lus kan met de hand op gang komen. Wat ontbrak was nooit de koppeling, het was **één
+echte gepubliceerde pagina**. `content_impact` heeft nul rijen. Daarom is sprint 1 nu geen
+bouwsprint maar een doe-sprint: de route echt aflopen en repareren wat er onderweg schuurt.
+
+**Drie cijfers die de volgorde dragen**, alle drie nagerekend en niet uit documentatie overgenomen:
+
+1. **$0,855 per meetronde.** Bij 50 clusters, de omvang die `visie.md` als doelgroep beschrijft, is
+   dat ~€43 per maand aan meting alleen, tegen een plafond van €50 per account per maand
+   (`lib/spend-rules.ts`). De prijskaart is een hardere grens dan de techniek, en dat is de enige
+   conclusie in het hele plan die geen code oplevert.
+2. **`dimensions: ["date", "page"]`.** De Search Console-koppeling haalt geen zoekopdrachten op,
+   terwijl migratie `0052` zelf al schreef dat die "een tweede tabel waard zijn zodra ze echt
+   gebruikt worden". Daarmee ligt de halve SEO-belofte, inclusief posities, gratis binnen bereik.
+   Dat maakt sprint 2 de goedkoopste grote stap van het plan.
+3. **$0,06 per 1.000 zoektermen.** De prijzen van vier zoekvolumeleveranciers zijn opgezocht en in
+   §6 van het plan gezet. Bij 20 merken en 2.500 zoektermen per merk kost een maandelijkse
+   verversing ongeveer $3 bij DataForSEO, tegen ~$6.000 per jaar bij Semrush en gratis maar
+   onbruikbaar bij Google zelf (zeven brede bakken zonder actieve advertentie-uitgaven). Dat is een
+   belangrijk cijfer voor de volgorde: **het uitstellen van sprint 8 is geen bezuiniging.** De rem
+   zit op focus en op een leverancier erbij, niet op geld.
+
+**Wat de kalender bepaalt is wachttijd, geen bouwtijd.** Effect meten gebeurt in golven van 30 en 60
+dagen na publicatie. De bouwschattingen zijn dagen (de appstructuur was zeven fases op één dag), de
+verificatie is maanden. Vandaar dat sprint 1 vooraan staat: de klok gaat pas lopen als er één pagina
+live staat, en handmatig publiceren houdt het aantal pagina's laag. Reken op maanden voor de eerste
+harde uitspraak over "werkt dit", en dat is de prijs van eerst testen.
+
+**Eén gevolg dat de verkoop raakt.** Door de koppeling naar achteren te schuiven blijft punt 1 van
+`merkstrategie.md` §30, publiceren via het CMS, het langst onwaar van alle vijf. Tot sprint 9 mag die
+belofte nergens in een campagne, op de website of in een demo staan.
+
+Achttien handelingen in het plan wachten op iets dat Claude Code niet kan doen: een account bij een
+externe partij, een betaling, of een afspraak met een klant. Ze staan in §4 op één plek bij elkaar,
+met per regel waarom het niet automatisch kan.
+
+**Diezelfde dag naar `main` gemerged**, met de leesbare pagina erbij als
+`docs/tasks/ontwikkelplan_naar_eindproduct.html`, zelfstandig te openen zonder de Artifact-omgeving.
+`CLAUDE.md` verwijst er sindsdien naar, direct onder de twee bestemmingsdocumenten, als de verdere
+geplande doorontwikkeling naar het eindproduct.
+
+## De Teamsessie: één onderdeel, vier tot zes experts, geen regel code (18 augustus 2026)
+
+Er is een herbruikbare werkwijze om één onderdeel van de app door meerdere vakgebieden tegelijk te
+laten doorlichten. Je zegt "start een Teamsessie voor de onboarding" en de rest gaat vanzelf:
+`.claude/skills/team-session/SKILL.md` bepaalt het onderdeel, zoekt de bestanden op, kiest de
+experts, laat ze onafhankelijk analyseren, vat samen, laat alleen bij een echt conflict twee experts
+op elkaar reageren, en eindigt met hooguit vijf geprioriteerde verbeteringen. De elf vakgebieden plus
+de tegenspraak staan als aparte experts in `.claude/agents/`.
+
+**Drie keuzes, en waarom ze zo uitvielen.**
+
+1. **Geen Agent Teams.** Dat mechanisme geeft elke expert een eigen Claude-sessie die met de andere
+   praat, en dat is precies wat een brainstorm nodig lijkt te hebben. Het valt af op drie dingen:
+   het staat standaard uit en is experimenteel, het werkt niet in een niet-interactieve sessie
+   (Claude Code op het web dus niet), en de melding dat een expert klaar is draagt zijn uitkomst
+   níet mee, waardoor de orkestratie stilvalt en gaat pollen. Het enige dat het echt biedt, experts
+   die elkaar spreken, kan goedkoper: een expert die al gedraaid heeft kun je opnieuw aanspreken met
+   zijn context intact, dus hij hoeft de code geen tweede keer te lezen.
+2. **Geen `TEAM.md`.** Dat bestand bestaat niet als mechanisme. Claude Code schrijft zijn teamconfig
+   zelf weg buiten het project en de documentatie zegt uitdrukkelijk dat je die niet moet
+   voorschrijven.
+3. **De bestanden één keer opzoeken in plaats van vijf keer.** De grootste kostenpost was niet het
+   denken maar het zoeken: zonder maatregel gaat elke expert zelfstandig de onboarding zoeken. Nu
+   staat per onderdeel in `references/onderdeelkaart.md` waar het staat, en krijgt iedereen dezelfde
+   lijst mee. De sessie hieronder kostte daarmee ongeveer 483.000 tokens voor vijf experts plus een
+   tegenspreker, plus twee korte debatantwoorden. Vier van de zes draaiden op het goedkopere model;
+   alleen de zwaarst wegende expert en de tegenspreker kregen het dure.
+
+**De eerste sessie draaide meteen, over de onboarding, en leverde één inzicht dat de werkwijze zelf
+veranderde.** Vier van de vijf experts kwamen langs verschillende wegen bij hetzelfde uit: het
+profiel gaat op `klaar` na taak 2 van de 8 (`prepare-profile.ts`), waarna het voortgangsscherm stopt
+en de gebruiker vijf tot zes minuten op een dossier zit dat er af uitziet maar leeg is. Vier van de
+vijf voelt als bewijs. De tegenspreker haalde dat onderuit met het logboek in de hand: twee volledige
+onboardings op productie, acht van acht stappen klaar, nul mislukkingen. Elk faalpad in het rapport
+was uit de code afgeleid en nooit waargenomen. **Zonder frequentie is prioriteit niet te
+onderbouwen**, en die regel staat sindsdien in de skill: een P0 vereist een waargenomen probleem, een
+afgeleid faalpad is hooguit P1.
+
+Diezelfde tegenspreker vond wel iets dat wél hard is, en scherper dan het team het bracht: het
+commentaar bij `NON_BLOCKING_TYPES` in `lib/jobs/progress.ts` zegt dat bij een mislukte aanbodstap
+alleen het dienstenoverzicht en de topics wegvallen, maar `handlers.ts` hangt de marktstap aan de
+aanbodstap, en markt draagt de kennistest en de synthese. Het besluit sneuvelt op zijn eigen
+argument. Dat is één verplaatste regel, geen nieuw statusmodel, en het staat als openstaand werk in
+`docs/tasks/roadmap.md`.
+
+Een Teamsessie wijzigt nooit code. De schrijftools zijn tijdens de sessie weggehaald in plaats van
+verboden, want een instructie is een intentie en code is een garantie (conventie 1), en elke expert
+draait read-only. Wat je erna laat bouwen is een nieuwe opdracht.
+
+## Twee stille degradaties in het voortgangsscherm (19 augustus 2026)
+
+Twee losse reparaties, geen migratie, uitgevoerd vóór de fases van
+onboarding 3.0 omdat ze vandaag al iets verkeerds tonen. Allebei
+komen ze uit de Teamsessie over de onboarding, en allebei hebben ze dezelfde vorm: het scherm zegt
+"gelukt" waar de code "niets gevonden" bedoelde.
+
+**De vier standen waren er wel, het scherm gebruikte er twee.** `research-steps.ts` kent per
+onderzoeksstap vier standen (`klaar`, `bezig`, `wacht`, `overgeslagen`) en waarschuwt in zijn eigen
+toelichting dat een stap die niets vond er anders uit moet zien dan een stap die iets vond.
+`profile-progress.tsx` sloeg `klaar` en `overgeslagen` allebei plat tot `done: true`, dus een stap
+die nul diensten of nul onderwerpen opleverde kreeg hetzelfde groene vinkje als een geslaagde stap.
+De vertaling zit nu in `displaySteps()`, puur en getest (conventie 2), en `WorkInProgress` toont een
+derde vorm: geen vinkje, een uitroepteken in de waarschuwingskleur, en de chip "niets gevonden". Het
+afrondingsblok van het merkdossier deed dit al goed, dus het waren twee schermen die hetzelfde
+gegeven verschillend lazen.
+
+**De duurste stap toonde als klaar terwijl er nul vragen gesteld waren.** `llm-baseline.ts` schreef
+het facet `llm_kennis` onvoorwaardelijk weg, ook als de budgetpoort alle engines oversloeg. De
+samenvatting werd dan "Nog niet vastgesteld wat AI-assistenten over dit merk weten", en dat is een
+gevulde tekst; `research-steps.ts` leest precies dat veld en zette de kennistest daarmee op `klaar`.
+De regel is nu: geen enkel gemeten antwoord betekent geen samenvatting (`baselineFacetState()` in
+`baseline-verdict.ts`, puur en getest). Het facet blijft wél staan, met `alles_overgeslagen` en het
+aantal overgeslagen vragen erin, want alles bewaren is conventie 8. Wat er al stond uit een eerdere
+ronde telt mee, anders wist een tweede, idempotente ronde de samenvatting van de eerste.
+
+Na deze ronde: 1518 unittests en 167 ketentests groen.
+
+## Onboarding 3.0, fase 1: het fundament onder de commerciële laag (19 augustus 2026)
+
+Migratie `0060`, toegepast op productie en daar nagerekend: vijftien kolommen op `profiles`, één op
+`profile_field_sources`, en een vierde herkomst. Nog geen nieuw scherm; dit is de laag waar fase 3
+op gaat staan.
+
+**Twaalf commerciële velden en drie contactvelden.** Elk commercieel veld voldoet aan twee eisen:
+een website kan het niet zeggen, en er is precies één pijplijnstap die er aantoonbaar beter van
+wordt. Die lezer staat per kolom in het commentaar van de migratie, zodat een veld zonder lezer bij
+de volgende ronde opvalt. De veldencatalogus gaat daarmee van 41 naar 56, in negen stappen in plaats
+van zeven, en de test die in beide richtingen faalt bewaakt dat nog steeds: elk veld in de catalogus
+is opslaanbaar, en elk opslaanbaar veld staat in een stap.
+
+**Eén veldenlijst, twee oppervlakken.** `CLIENT_STEPS` (zeven) is wat de klant zelf bewerkt,
+`SESSION_STEPS` (negen) is wat de consultant mét de klant doorloopt. De commerciële laag en de
+contactpersoon staan bewust níet in de klantwizard, en dat is de enige plek waar de twee
+oppervlakken met opzet verschillen: "waar wil je op groeien" is een gesprek, geen invulveld dat
+iemand in zijn eentje beantwoordt. Er komt geen tweede formulierdefinitie en geen tweede
+opslagroute; het besluit uit `strategy-box.tsx` blijft staan.
+
+**De volledigheidsmeter blijft de 41 klantvelden meten.** Dat is een afwijking van het plan, met
+reden: `csm-data.ts` gebruikt 80% van die meter om te bepalen of een dossier deelbaar is in een
+demo. Zouden de vijftien nieuwe velden standaard meetellen, dan zakt élk bestaand merk in één klap
+onder die grens en staat alles eeuwig in "wacht op jouw nakijkwerk". De meter accepteert nu een
+stappenlijst, zodat de sessiepagina van fase 3 zijn eigen telling kan doen.
+
+**De herkomstpoort zat er nog niet.** De opslagroute leidde de herkomst af uit het eigenaarschap:
+bewerkte iemand anders dan de eigenaar, dan werd het `gesprek`. Een accountgenoot met schrijfrecht
+kon zijn eigen invoer daarmee als gespreksuitkomst wegschrijven, en die is onaantastbaar voor élke
+volgende onderzoeksronde (`field-merge.ts` laat alleen `ai` overschrijven). `resolveWriteSource()`
+in `lib/profile-source.ts` is nu de enige poort: `gesprek` en `consultant` vereisen staf, iedereen
+anders schrijft `klant`, en een onbekende waarde wordt geweigerd in plaats van stil teruggezet.
+
+Na deze ronde: 1544 unittests en 176 ketentests groen, migraties t/m `0060`.
+
+## Onboarding 3.0, fase 2: wat de consultant klaarzet is nu beschermd (19 augustus 2026)
+
+**Eerst het cijfer, want dat bepaalde de omvang.** Fase 2 begon met een telling op productie: hoeveel
+merken die ná 3 augustus 2026 zijn aangemaakt eindigen nog steeds zonder bereik. Het antwoord is
+**nul van de drie**. De vijf merken zonder bereik dateren allemaal van 30 juli, van vóór de
+reparatie in `resolveScope()`, en zijn alle vijf gearchiveerde testmerken. Het bereikveld in het
+aanmaakscherm vervalt daarmee: de pijplijn vindt het zelf, en een extra invoerveld zou een
+handmatige stap toevoegen aan iets dat werkt.
+
+**De aanmaakroute liet geen spoor na.** `POST /api/profiles` schreef nul rijen in
+`profile_field_sources`, terwijl de bijwerkroute dat wél deed. Wat een consultant vóór het gesprek
+typte was daarmee niet te onderscheiden van wat het model later vindt, dus `filterProtectedFields()`
+blokkeerde niets en het eerste onderzoek mocht het gewoon overschrijven. Precies het scenario
+waarvoor migratie `0039` gemaakt is, en precies het scenario dat hij niet dekte. De route legt nu per
+gevuld veld een rij vast met bron `consultant`. Alleen gevulde velden: een lege waarde vastleggen als
+"door de consultant gezet" zou het onderzoek blokkeren op iets wat er niet is, en dan blijft dat veld
+voorgoed leeg.
+
+**Mensinvoer ging langs de normalisatie heen.** Modeluitvoer ging door `resolveScope()` en een
+getypte waarde niet, terwijl `service_regions[0]` letterlijk in zes kennistestvragen wordt geplakt.
+"  Amersfoort  " kwam er dus zo in te staan, en 'lokaal' zonder één plaatsnaam leverde een bereik op
+waar `prompts.ts` niets mee kan. Beide routes normaliseren nu hetzelfde: bij het aanmaken en bij het
+onderzoek.
+
+**Een aanname is geen feit, ook niet in de prompt.** Het intakeblok droeg het model op om álles wat
+er al stond te RESPECTEREN. Voor wat de klant zelf zei is dat juist; voor een aanname van vóór het
+eerste contact legt het het marktonderzoek stil, want een klantwaarde mag niet tegengesproken
+worden. Het blok is nu gesplitst in `lib/pipeline/intake-block.ts`, puur en getest: bevestigde
+waarden blijven leidend, consultantwaarden gaan mee als startpunt dat het onderzoek expliciet mag
+tegenspreken. Ontbreekt de herkomst, dan telt een waarde als bevestigd; een aanname per ongeluk als
+feit behandelen kost een verrijking, andersom laat het model de klant tegenspreken en dat is de
+duurdere fout.
+
+De ketentest draait dit nu van begin tot eind: een merk aanmaken zoals de route dat doet, het echte
+onderzoek erop met een gestubd model dat de consultant met opzet tegenspreekt, en daarna narekenen
+wat er in de database staat. De branche, het bereik en de concurrenten van de consultant staan er
+nog; de samenvatting en de bewijspunten die hij leeg liet komen wél van het onderzoek.
+
+Na deze ronde: 1566 unittests en 187 ketentests groen.
+
+## Onboarding 3.0, fase 3: de onboardingsessie (19 augustus 2026)
+
+Het scherm waar consultant en klant samen aan tafel zitten:
+`/merk/[id]/admin/onboarding`, staf-only, en het enige stafscherm dat bedoeld is om te delen. Nul
+migraties.
+
+**De veldweergave is gedeelde code geworden**, en dat is de kern van deze fase.
+`brand-field-input.tsx` rendert één veld met zijn label, uitleg, voorbeeld en herkomstchip, en zowel
+de klantwizard als de sessie gebruiken hem. Zonder die stap was er een tweede formulier ontstaan met
+dezelfde velden, en dat is precies wat `strategy-box.tsx` in 2026 al afwees: een tweede plek waar
+iets kan verouderen. De sessie definieert geen enkel veld zelf, en een test faalt als dat verandert.
+
+**Het scherm opent met wat we níet weten.** `profile-gaps.ts` sorteert de open punten nu op gevolg
+in plaats van op veldvolgorde: het bereik bovenaan, want dat is het enige punt waarvan de fout pas ná
+een betaalde meetronde zichtbaar wordt, en de bewijspunten onderaan, want die raken pas de tekst.
+Zonder die volgorde kost het gesprek een uur aan het bevestigen van dingen die al klopten, en dat is
+het uur waar de klant voor betaalt.
+
+**Opslaan gaat per veld, niet met een knop onderaan.** Drie standen per veld, en een mislukte opslag
+laat de getypte waarde staan met een knop om het opnieuw te proberen. Stil terugdraaien naar de oude
+waarde is de duurste fout die dit scherm kan maken: dan typt de consultant het opnieuw zonder te
+weten dat het de eerste keer ook al niet lukte. De klantwizard houdt zijn knop, want daar past hij.
+
+**Elk veld kan op niet van toepassing**, via dezelfde route en dezelfde tabel als de herkomst. Geen
+tweede opslagroute. Zo'n veld telt als behandeld, valt uit de gatenlijst, en wordt door een
+onderzoeksronde niet alsnog gevuld.
+
+**De meter toont drie getallen**: samen bevestigd, door ORBIT ENGINE gevonden, nog open. Een
+consultantwaarde telt daarin als gevonden en niet als bevestigd; anders ziet een merk waar nog nooit
+iemand mee gesproken is eruit als een merk dat je al hebt doorgenomen.
+
+**`/merk/[id]/admin` heet nu Diagnose** en draagt alleen nog techniek: welke taken draaiden, hoe
+lang, wat er faalde, wat het kostte. De volledigheidsmeter en het gespreksblok zijn naar de sessie
+verhuisd, want dat is werk en geen diagnose.
+
+⚠️ **Het Admin-hoofdstuk mag voortaan vier bestemmingen hebben in plaats van drie.** Het plan telde
+er drie en vergat "Alle merken", dat er al stond. Besloten op 19 augustus 2026 door de eigenaar, na
+een keuze tussen samenvoegen en oprekken: drie van de vier gaan over dít merk en de vierde is de
+uitgang naar de app als geheel, dus het is geen vergaarbak van vier gelijksoortige regels. Een
+vijfde bestaat niet zonder eerst iets samen te voegen, en voor de klanthoofdstukken blijft drie de
+grens. Beide grenzen staan in `scripts/test-unit.ts`.
+
+**Wat er nog niet in zit:** de knop "het onderzoek bijwerken" uit het afrondblok. Die hangt aan
+`onboarding-refresh.ts`, en dat is fase 4. Het afrondblok toont nu wat er open staat en of het
+gesprek is vastgelegd.
+
+Na deze ronde: 1634 unittests en 191 ketentests groen.
+
+## Onboarding 3.0, fase 4: het gesprek verandert de uitkomst (19 augustus 2026)
+
+Zonder deze fase is de onboardingsessie een archief. De consultant legt vast dat het merk landelijk
+werkt in plaats van lokaal, en de vragen die de meting straks stelt zijn nog steeds gegenereerd op de
+gok van het model. Nul migraties.
+
+**Niet alles opnieuw, maar precies wat er anders van wordt.** `lib/pipeline/onboarding-refresh.ts`
+rekent per gewijzigd veld uit welke stappen opnieuw moeten draaien. Van de vijftien velden uit
+migratie `0060` veranderen er tien niets aan wat er te ónderzoeken valt; die worden pas bij de
+volgende meting of contentronde gelezen. Ze staan expliciet op nul in de tabel in plaats van te
+ontbreken, zodat de test kan vaststellen dat dat een keuze was. Een gewijzigd bereik laat de vragen
+en de kennistest opnieuw draaien, een gewijzigde concurrent alleen de marktstap.
+
+**De knop staat achter dezelfde kostenpoort als al het andere betaalde werk**, en de raming staat in
+het bevestigvenster en niet op het scherm: de klant kijkt mee. Die zin wordt gebouwd in de pure
+module, zodat er in het sessiescherm zelf geen bedrag voorkomt en de broncodetest dat kan bewaken.
+
+**Een stap kan nu los draaien.** De onboardingketen zat in de geslaagde tak van elke handler: de
+aanbodstap plande de markt in, de markt de kennistest, de kennistest de synthese. Eén gewijzigde
+concurrent zou daarmee de twee duurste stappen meeslepen. Een taak krijgt daarom `chain: false` mee
+als hij vanuit het gesprek is ingepland.
+
+**En daarmee is het punt uit de Teamsessie ook opgelost.** `profile_offering` telde als
+niet-blokkerend omdat de klant bij een mislukking alleen zijn dienstenoverzicht mist, maar diezelfde
+stap plande de markt in, en de markt draagt de kennistest en de synthese. Mislukte hij definitief,
+dan verdween de halve onderzoeksketen zonder één foutmelding: het besluit sneuvelde op zijn eigen
+argument. De opvolger staat nu in `lib/jobs/chain.ts` en die tabel geldt in beide takken, ook als een
+stap opgeeft. Een ketenscenario laat een aanbodstap definitief mislukken en kijkt of de markt daarna
+alsnog ingepland staat.
+
+**De vragen worden vervangen, niet verwijderd.** Bij een herdraai gaan de oude vragen op inactief.
+Een `delete` zou via de foreign key de metingen meenemen, en dan is de trendlijn weg om een correctie
+op de vraagstelling. Zelfde aanpak als spoor R. En alleen voor analyses waar nog niets gemeten is:
+bij een lopende meting zou een nieuwe vragenset de trendlijn breken, en dat is geen beslissing die
+iemand onbedoeld hoort te nemen vanaf een gespreksscherm. Dat is een regel die het plan niet noemt.
+
+**Het verwarringblok van de kennistest vult nu de uitsluitingslijst voor.** Dat blok meet al sinds de
+eerste onboarding of de merknaam ambigu is, en bewaarde de uitkomst nergens. De namen worden er
+deterministisch uit gelezen (een opsomming is te lezen zonder model, conventie 1) en voorgesteld als
+`name_exclusions`, alleen als die lijst nog leeg is: op die lijst staan betekent dat de meting
+vermeldingen van dat bedrijf niet meetelt, en een voorstel dat een eerdere correctie overschrijft zou
+de score stil verlagen.
+
+**Elf van de twaalf commerciële velden hebben nu een lezer.** De vier sturingsvelden gaan naar de
+onderwerpvoorstellen, de groeiregio's naar de vragengeneratie, de bezwaren naar de schrijfopdracht,
+het offline bewijs naar de feitenbank met "opgegeven in het gesprek" als bron, de verboden
+onderwerpen naar een deterministische controle náást de verboden woorden, de uitsluitingen naar de
+vermeldingsclassificatie, en het jaardoel, de seizoenen en de structuurkeuze naar het rapport dat het
+contentplan vult.
+
+⚠️ **`deal_value_band` heeft géén lezer gekregen, en dat is een afwijking van het plan.** De migratie
+noemt de potentiescore, en dat blijkt bij het bouwen niet te kloppen: die score is per onderwerp en
+de waardeklasse is per merk, dus een factor zou élk onderwerp van een merk even hard verschuiven. De
+onderlinge volgorde, het enige waar die score voor gebruikt wordt, verandert daar niet van, terwijl
+de schaal van 0 tot 100 en de drie banden eronder wél kapotgaan. Het veld wordt vastgelegd en
+getoond; een lezer krijgt het pas als er een beslissing is die merken onderling vergelijkt.
+
+Na deze ronde: 1693 unittests en 202 ketentests groen.
+
+## Onboarding 3.0, fase 5: zien waar elk merk staat (19 augustus 2026)
+
+Nul migraties. `/beheer` sorteerde op achterstand, en dat is de vraag van ná de verkoop. De vraag
+ervóór, "welk merk kan ik nu demonstreren en welk merk wacht op een gesprek", was nergens te zien,
+terwijl het product sales-led is en die vraag het werk van de dag bepaalt.
+
+**Vier fases, afgeleid en niet opgeslagen** (`lib/profile-stage.ts`): Voorbereiden, Klaar voor het
+gesprek, Gesprek gehad, Overgedragen. Een kolom die je met de hand bijhoudt loopt achter op de
+werkelijkheid, en dan kijk je in een beheerscherm naar een status die niet meer klopt.
+
+**De volgorde waarin de fases beoordeeld worden is de hele logica**, en twee gevallen dwongen hem af.
+Een merk kan overgedragen zijn zonder dat er ooit een gesprek is vastgelegd, en dan is "wacht op een
+gesprek" onzin: de klant werkt er al zelf in. En ná het gesprek plant het afrondblok van fase 4 nieuw
+onderzoek in, dus er staat werk open terwijl het gesprek al geweest is; "voorbereiden" zou dan precies
+het verkeerde signaal zijn. Overdracht wint dus van gesprek, en gesprek van onderzoek.
+
+⚠️ **Afwijking van het plan.** Deel B4 leidt "overgedragen" af uit `account_id` én `assigned_at`.
+`account_id` is sinds migratie `0046` al bij het AANMAKEN gevuld, anders vindt het contentplan geen
+pakket, dus dat veld staat altijd, ook bij een merk waar nog nooit iemand mee gesproken is. De
+overdracht zit in `assigned_at`, en dat is hier leidend.
+
+**Op `/beheer`** staat de fase als chip bij elk merk, met een filter "alleen merken die op een gesprek
+wachten" en een directe link naar de onboarding voor de merken waar dat de volgende stap is. De
+bestaande sortering op achterstand blijft leidend: de fase is een tweede as en geen vervanging.
+**Op het merkoverzicht** staat voor staf één regel bovenaan met de fase en de eerstvolgende handeling.
+Voor de klant verandert er niets.
+
+Na deze ronde: 1703 unittests en 202 ketentests groen.
+
+## Onboarding 3.0, fase 6: opruimen en op één lijn (19 augustus 2026)
+
+De afsluiting van het traject. Geen nieuw gedrag, wel drie dingen die anders binnen een maand
+uiteenlopen.
+
+**Vastgelegd waarom de klant 41 van de 56 velden ziet.** Dat is de enige plek waar het
+klantoppervlak en het consultantoppervlak met opzet verschillen, en zonder die reden in het
+commentaar herstelt iemand het over drie maanden als een vergeten stap. "Waar wil je op groeien en
+waar juist niet" is een gesprek, geen invulveld dat een ondernemer in zijn eentje beantwoordt, en het
+antwoord stuurt wat ORBIT ENGINE gaat voorstellen en schrijven.
+
+**`APP_FLOW_DOCUMENTATION.md` heeft een zesde hoofdstuk gekregen**: de onboarding van begin tot eind,
+zonder techniek. Van het merk klaarzetten tot een klant die zelfstandig in zijn profiel werkt,
+inclusief de zes blokken van het gespreksscherm en de twee dingen die er nog niet in zitten. Dat
+laatste met opzet: het document mag nergens beloven wat er niet is.
+
+**Het planbestand is weg.** `docs/tasks/onboarding-3.0.md` is verwijderd nu alle zes de fases
+gebouwd zijn, met een regel in de vertaaltabel bovenaan dit logboek zodat de verwijzingen in de code
+en in de migratie nergens meer heen wijzen. Dat is de afspraak voor alles in `docs/tasks/`: af is
+weg, samengevat hier. `architecture.md` §5 en §11 dragen de sessie en de bijwerkstap nu in de
+pijplijntabel en in de klantreis, `ux-design.md` §5 het schermontwerp en de fase van een merk,
+`supabase/README.md` de migratie, en `CLAUDE.md` de bijgewerkte tellers.
+
+**Wat het hele traject heeft opgeleverd**, in één alinea: de veldencatalogus ging van 41 naar 56
+velden in negen stappen, waarvan er vijftien alleen uit een gesprek kunnen komen. Er is één nieuw
+scherm, de onboardingsessie, en dat is het enige stafscherm dat bedoeld is om gedeeld te worden. Wat
+daar wordt vastgelegd verandert daadwerkelijk wat de pijplijn daarna doet, en wat er niets aan
+verandert draait ook niet opnieuw. De veldweergave is gedeelde code, dus er is geen tweede formulier
+ontstaan. En twee stille degradaties die er los van stonden zijn onderweg gerepareerd: een stap die
+niets vond toonde als geslaagd, en de duurste stap toonde als klaar terwijl het budget op was.
+
+Eindstand: 1703 unittests en 202 ketentests groen, migraties t/m `0060`, alle vier de vaste
+controles groen.

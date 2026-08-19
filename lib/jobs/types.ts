@@ -113,14 +113,31 @@ export interface RecommendationPayload {
 export interface JobPayloads {
   profile_discover: Record<string, never>;
   profile_research: Record<string, never>;
-  profile_offering: Record<string, never>;
+  /**
+   * ⚠️ `chain: false` betekent: doe deze stap, maar plan zijn opvolger niet in.
+   *
+   * Nodig sinds de onboardingsessie (fase 4 van onboarding 3.0). Verandert er in
+   * het gesprek iets waar alleen het marktonderzoek anders van wordt, dan mag
+   * die ene stap draaien zonder de kennistest en de synthese mee te slepen; dat
+   * zijn de twee duurste stappen van de onboarding. Weglaten betekent de hele
+   * keten, zoals bij de eerste ronde.
+   */
+  profile_offering: { chain?: boolean };
   propose_topics: Record<string, never>;
-  profile_market: Record<string, never>;
-  profile_llm_baseline: Record<string, never>;
+  profile_market: { chain?: boolean };
+  profile_llm_baseline: { chain?: boolean };
   profile_synthesis: Record<string, never>;
   prepare_analysis: Record<string, never>;
   /** Welke funnelfase deze taak opstelt (migratie 0054, splitsing per fase). */
-  generate_prompts: { category: string };
+  generate_prompts: {
+    category: string;
+    /**
+     * De vragen van deze fase opnieuw opstellen, ook als er al vragen staan
+     * (onboarding 3.0, fase 4). De oude gaan op inactief, ze worden niet
+     * verwijderd: een `delete` zou de metingen meenemen.
+     */
+    regenerate?: boolean;
+  };
   calibrate_volumes: Record<string, never>;
   measure_prompt: {
     promptId: string;

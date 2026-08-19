@@ -28,6 +28,7 @@ import "server-only";
  */
 import { z } from "zod";
 import { callStructured } from "@/lib/openai/structured";
+import { topicSteering } from "@/lib/pipeline/commercial-context";
 import { MODELS } from "@/lib/openai/models";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { discontinuedNames, parseContextFactors } from "@/lib/pipeline/context-factors";
@@ -139,7 +140,11 @@ export async function proposeTopics(profileId: string): Promise<TopicResult> {
     (profile.industry ? `Branche: ${profile.industry}\n` : "") +
     (profile.business_model ? `Bedrijfsmodel: ${profile.business_model}\n` : "") +
     (regios ? `Werkgebied: ${regios}\n` : "") +
-    `\nHET AANBOD (uit de eigen website gehaald):\n${boom}`;
+    `\nHET AANBOD (uit de eigen website gehaald):\n${boom}` +
+    // Wat de klant zelf zei over waar hij op wil groeien (migratie 0060). Zonder
+    // dit stelt het model onderwerpen voor op grond van wat er toevallig op de
+    // site staat, en dat is precies het aanbod waar hij vanaf wil.
+    topicSteering(profile);
 
   const result = await callStructured({
     model: MODELS.quality,

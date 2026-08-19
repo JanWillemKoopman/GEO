@@ -46,6 +46,7 @@ import {
   type FactSourceKind,
   type RawFact,
 } from "@/lib/pipeline/factcard";
+import { offlineProofFacts } from "@/lib/pipeline/commercial-context";
 import { selectRelevantPages, topicTerms, type CandidatePage } from "@/lib/pipeline/page-relevance";
 import { atomiseSitePages } from "@/lib/pipeline/fact-atomise";
 import { syncBrandFacts } from "@/lib/pipeline/factstore";
@@ -103,7 +104,11 @@ export async function buildFactBase(
   const [{ data: analysis }, { data: profile }, { data: topic }, { data: pages }, { data: answers }] =
     await Promise.all([
       admin.from("analyses").select("topic").eq("id", analysisId).maybeSingle(),
-      admin.from("profiles").select("proof_points, brand_name, url").eq("id", profileId).maybeSingle(),
+      admin
+        .from("profiles")
+        .select("proof_points, offline_proof, brand_name, url")
+        .eq("id", profileId)
+        .maybeSingle(),
       admin
         .from("topic_research")
         .select("content_summary")
@@ -148,6 +153,25 @@ export async function buildFactBase(
     // uitspraken ("wordt met een 9,4 beoordeeld op Zorgkaart"). Citeerbaar dus.
     proofPoints.push(punt.trim());
     rauw.push({ text: punt.trim(), source: `site ${siteUrl}`, allowed: true, citable: true, kind: "site" });
+  }
+
+  // ⚠️ Bewijs dat NERGENS op de site staat (migratie 0060). Staat naast de
+  // proof points hierboven en vervangt ze niet: die zijn per definitie
+  // letterlijk uit de site geëxtraheerd, en dat is de grondslag onder
+  // contentkwaliteit A2. Dit is de tegenhanger, met de klant als bron, en die
+  // bron hoort er ook bij te staan: "opgegeven in het gesprek" is iets anders
+  // dan "staat op je site", en de claimvalidator moet dat verschil kunnen zien.
+  for (const feit of offlineProofFacts({
+    offline_proof: (profile?.offline_proof as string[] | null) ?? [],
+  })) {
+    proofPoints.push(feit.text);
+    rauw.push({
+      text: feit.text,
+      source: feit.source,
+      allowed: true,
+      citable: true,
+      kind: "klant",
+    });
   }
 
   // ── S1: welke pagina's gaan er mee, en wat halen we eruit? ────────────────

@@ -34,6 +34,25 @@ export const metadata = { title: "Bewerken" };
  * ORBIT ENGINE de site uitleest, en waar het extra brontekst vandaan haalt. Ze
  * staan bewust buiten de wizard, want dan blijft de teller "41 in, 41 uit"
  * eerlijk (`lib/pipeline/brand-fields.ts`).
+ *
+ * ── ⚠️ HIER STAAN 41 VAN DE 56 VELDEN, EN DAT IS GEEN OMISSIE ───────────────
+ *
+ * Sinds migratie 0060 telt de catalogus 56 velden: de 41 hier, plus twaalf
+ * commerciële velden en drie contactvelden. Die vijftien verschijnen op dit
+ * scherm NIET, en dat is de enige plek waar het klantoppervlak en het
+ * consultantoppervlak met opzet van elkaar verschillen.
+ *
+ * De reden: "waar wil je op groeien en waar juist niet" is een gesprek, geen
+ * invulveld dat een ondernemer in zijn eentje beantwoordt. Het antwoord
+ * verandert bovendien wat ORBIT ENGINE gaat voorstellen en schrijven, dus een
+ * half doordacht antwoord is duurder dan geen antwoord. En de contactpersoon
+ * gaat over ons, niet over zijn merk.
+ *
+ * Ze staan wél in dezelfde catalogus, worden door dezelfde route opgeslagen en
+ * tegen dezelfde lijst gevalideerd; het verschil zit alleen in wélke stappen dit
+ * scherm toont (`CLIENT_STEPS` tegenover `SESSION_STEPS`). Herstel dit dus niet
+ * als een vergeten stap: de onboardingsessie is de plek waar die vijftien
+ * ingevuld worden.
  */
 export default async function BewerkenPage({
   params,

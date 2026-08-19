@@ -92,6 +92,7 @@ const ONTWIJKING = [
 /** Eén uitgevoerde controle. `null` = niet van toepassing, telt niet mee. */
 import { DUPLICATE_THRESHOLD, describeDuplicate, type SimilarPage } from "@/lib/pipeline/similarity";
 import { assessReadability, describeReadability } from "@/lib/pipeline/readability";
+import { forbiddenTopicHits } from "@/lib/pipeline/commercial-context";
 
 export type CheckUitkomst = boolean | null;
 
@@ -598,6 +599,40 @@ export function checkTabooWords(
     issues: [
       `De pagina bevat ${found.length === 1 ? "een woord" : "woorden"} die je hebt uitgesloten: ` +
         `"${found.join('", "')}". Verwijder ${found.length === 1 ? "dit" : "deze"} of formuleer het anders.`,
+    ],
+  };
+}
+
+/**
+ * Staat er een VERBODEN ONDERWERP in de pagina? (migratie 0060)
+ *
+ * ⚠️ De tegenhanger van `checkTabooWords()`, en om dezelfde reden
+ * deterministisch: een promptinstructie is een intentie, code is een garantie
+ * (conventie 1). Het verschil zit in wat er gezocht wordt. Een verboden WOORD
+ * moet er exact staan ("gratis" mag "vrijgesteld" niet afkeuren); een verboden
+ * ONDERWERP is een woordgroep die ergens in de tekst voorkomt, en daar is een
+ * woordgrens te streng voor: "lopende rechtszaken" hoort ook te vallen als de
+ * pagina "de lopende rechtszaken" schrijft.
+ *
+ * Wat het kost als het ontbreekt: een pagina over iets waar de klant juridisch
+ * niet over mag publiceren, en die staat dan onder zijn naam op zijn site.
+ */
+export function checkForbiddenTopics(
+  bodyMarkdown: string,
+  faq: { q: string; a: string }[],
+  forbiddenTopics: string[],
+): TabooCheckResult {
+  if (forbiddenTopics.length === 0) return { found: [], issues: [] };
+
+  const heleTekst = [stripMarkdown(bodyMarkdown), ...faq.map((f) => `${f.q} ${f.a}`)].join(" ");
+  const found = forbiddenTopicHits(heleTekst, { forbidden_topics: forbiddenTopics });
+  if (found.length === 0) return { found: [], issues: [] };
+
+  return {
+    found,
+    issues: [
+      `De pagina gaat in op ${found.length === 1 ? "een onderwerp" : "onderwerpen"} die je hebt ` +
+        `uitgesloten: "${found.join('", "')}". Haal ${found.length === 1 ? "dit deel" : "deze delen"} eruit.`,
     ],
   };
 }

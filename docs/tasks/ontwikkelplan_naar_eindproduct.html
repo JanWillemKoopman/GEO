@@ -1,0 +1,1117 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ontwikkelplan ORBIT ENGINE</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap">
+
+<style>
+  /* ═══════════════════════════════════════════════════════════════════
+     Tokens: overgenomen uit app/globals.css, het designsysteem van de app
+     zelf. Koel leiblauw, platte kaarten met een rand, één accent.
+     ═══════════════════════════════════════════════════════════════════ */
+  :root {
+    --bg-base: #f8fafc;
+    --bg-surface: #ffffff;
+    --bg-elevated: #e7edf2;
+    --bg-sunken: #eef2f6;
+
+    --text-primary: #17212b;
+    --text-secondary: #43505d;
+    --text-muted: #788795;
+
+    --border-subtle: #e2e8ee;
+    --border-strong: #c2ccd6;
+
+    --accent: #8511d9;
+    --accent-soft: #faf4ff;
+    --accent-border: #e9d1ff;
+
+    --growth-text: #2c711a;
+    --growth-surface: #effce9;
+    --growth-border: #b9efa3;
+
+    --warning-text: #bb4d00;
+    --warning-surface: #fffbeb;
+    --warning-border: #fee685;
+
+    --info-text: #0069a8;
+    --info-surface: #f0f9ff;
+    --info-border: #b8e6fe;
+
+    --late-text: #84664a;
+    --late-surface: #f9f7f3;
+    --late-border: #e2dac6;
+
+    --radius-sm: 6px;
+    --radius-md: 8px;
+    --radius-lg: 12px;
+    --radius-pill: 9999px;
+
+    --font-sans: "Geist", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    --font-mono: "Geist Mono", ui-monospace, SFMono-Regular, monospace;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg-base: #0e141a;
+      --bg-surface: #17212b;
+      --bg-elevated: #1f2b36;
+      --bg-sunken: #131c24;
+
+      --text-primary: #e9eff4;
+      --text-secondary: #b3c0cc;
+      --text-muted: #8494a1;
+
+      --border-subtle: #263340;
+      --border-strong: #3a4a58;
+
+      --accent: #c084fc;
+      --accent-soft: #241333;
+      --accent-border: #4c2a6b;
+
+      --growth-text: #a3e585;
+      --growth-surface: #142510;
+      --growth-border: #2f5b1f;
+
+      --warning-text: #f0b24a;
+      --warning-surface: #2a1d0a;
+      --warning-border: #5c4116;
+
+      --info-text: #7cc7f5;
+      --info-surface: #0c2029;
+      --info-border: #1e4b63;
+
+      --late-text: #d6bfa3;
+      --late-surface: #241d14;
+      --late-border: #4a3c29;
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --bg-base: #0e141a;
+    --bg-surface: #17212b;
+    --bg-elevated: #1f2b36;
+    --bg-sunken: #131c24;
+
+    --text-primary: #e9eff4;
+    --text-secondary: #b3c0cc;
+    --text-muted: #8494a1;
+
+    --border-subtle: #263340;
+    --border-strong: #3a4a58;
+
+    --accent: #c084fc;
+    --accent-soft: #241333;
+    --accent-border: #4c2a6b;
+
+    --growth-text: #a3e585;
+    --growth-surface: #142510;
+    --growth-border: #2f5b1f;
+
+    --warning-text: #f0b24a;
+    --warning-surface: #2a1d0a;
+    --warning-border: #5c4116;
+
+    --info-text: #7cc7f5;
+    --info-surface: #0c2029;
+    --info-border: #1e4b63;
+
+    --late-text: #d6bfa3;
+    --late-surface: #241d14;
+    --late-border: #4a3c29;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--bg-base);
+    color: var(--text-primary);
+    font-family: var(--font-sans);
+    font-size: 16px;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .wrap {
+    max-width: 1060px;
+    margin: 0 auto;
+    padding: 0 24px 96px;
+  }
+
+  .col { max-width: 68ch; }
+
+  /* ── Typografie ──────────────────────────────────────────────────── */
+  h1, h2, h3, h4 { text-wrap: balance; margin: 0; font-weight: 600; letter-spacing: -0.015em; }
+  h1 { font-size: clamp(28px, 4.5vw, 40px); line-height: 1.15; font-weight: 700; }
+  h2 { font-size: clamp(21px, 2.6vw, 26px); line-height: 1.25; }
+  h3 { font-size: 17px; line-height: 1.35; }
+  h4 { font-size: 14px; line-height: 1.4; }
+  p { margin: 0; }
+  a { color: var(--accent); text-decoration-thickness: 1px; text-underline-offset: 2px; }
+  strong { font-weight: 600; }
+  code {
+    font-family: var(--font-mono);
+    font-size: 0.88em;
+    background: var(--bg-elevated);
+    border-radius: var(--radius-sm);
+    padding: 1px 5px;
+  }
+
+  .eyebrow {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--text-muted);
+  }
+
+  .lead { font-size: 18px; color: var(--text-secondary); }
+  .muted { color: var(--text-secondary); }
+  .small { font-size: 14px; }
+
+  /* ── Ritme ───────────────────────────────────────────────────────── */
+  section { display: flex; flex-direction: column; gap: 20px; padding-top: 56px; }
+  section > .col { display: flex; flex-direction: column; gap: 14px; }
+  .stack { display: flex; flex-direction: column; gap: 14px; }
+
+  /* ── Kop van de pagina ───────────────────────────────────────────── */
+  header.page {
+    border-bottom: 1px solid var(--border-subtle);
+    padding: 56px 0 40px;
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+  }
+  .meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 20px;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--text-muted);
+  }
+
+  /* ── Cijferrij ───────────────────────────────────────────────────── */
+  .stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 1px;
+    background: var(--border-subtle);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+  }
+  .stat { background: var(--bg-surface); padding: 16px 18px; display: flex; flex-direction: column; gap: 4px; }
+  .stat b {
+    font-size: 22px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.02em;
+  }
+  .stat span { font-size: 13px; color: var(--text-muted); line-height: 1.35; }
+
+  /* ── Tabellen ────────────────────────────────────────────────────── */
+  .table-wrap { overflow-x: auto; border: 1px solid var(--border-subtle); border-radius: var(--radius-lg); background: var(--bg-surface); }
+  table { border-collapse: collapse; width: 100%; font-size: 14.5px; min-width: 560px; }
+  thead th {
+    background: var(--bg-elevated);
+    text-align: left;
+    font-weight: 600;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-secondary);
+    padding: 10px 14px;
+    white-space: nowrap;
+  }
+  tbody td { padding: 11px 14px; border-top: 1px solid var(--border-subtle); vertical-align: top; }
+  tbody tr:hover td { background: var(--bg-sunken); }
+  td.num { font-family: var(--font-mono); font-variant-numeric: tabular-nums; white-space: nowrap; color: var(--text-secondary); }
+  td.key { white-space: nowrap; font-weight: 600; }
+
+  /* ── Chips ───────────────────────────────────────────────────────── */
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    border-radius: var(--radius-pill);
+    padding: 2px 10px;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 500;
+    white-space: nowrap;
+    border: 1px solid var(--border-subtle);
+    background: var(--bg-elevated);
+    color: var(--text-secondary);
+  }
+  .chip.accent { background: var(--accent-soft); border-color: var(--accent-border); color: var(--accent); }
+  .chip.growth { background: var(--growth-surface); border-color: var(--growth-border); color: var(--growth-text); }
+  .chip.warning { background: var(--warning-surface); border-color: var(--warning-border); color: var(--warning-text); }
+  .chip.info { background: var(--info-surface); border-color: var(--info-border); color: var(--info-text); }
+  .chip.late { background: var(--late-surface); border-color: var(--late-border); color: var(--late-text); }
+
+  /* ── Kaders ──────────────────────────────────────────────────────── */
+  .note {
+    border: 1px solid var(--border-subtle);
+    border-left: 3px solid var(--accent);
+    border-radius: var(--radius-md);
+    background: var(--bg-surface);
+    padding: 16px 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .note.warn { border-left-color: var(--warning-text); }
+
+  /* ── Uitgangspunten ──────────────────────────────────────────────── */
+  .principles { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 12px; }
+  .principle {
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-lg);
+    background: var(--bg-surface);
+    padding: 18px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .principle .no {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--accent);
+  }
+  .principle p { font-size: 14.5px; color: var(--text-secondary); }
+
+  /* ── Werkstromen ─────────────────────────────────────────────────── */
+  .flows { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
+  .flow {
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-lg);
+    background: var(--bg-surface);
+    padding: 16px 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .flow h3 { font-size: 15px; }
+  .flow p { font-size: 14px; color: var(--text-secondary); }
+
+  /* ── Sprintkaarten ───────────────────────────────────────────────── */
+  .sprints { display: flex; flex-direction: column; gap: 14px; }
+  .sprint {
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-lg);
+    background: var(--bg-surface);
+    overflow: hidden;
+  }
+  .sprint > .head {
+    display: flex;
+    align-items: baseline;
+    flex-wrap: wrap;
+    gap: 8px 14px;
+    padding: 16px 20px;
+    background: var(--bg-sunken);
+    border-bottom: 1px solid var(--border-subtle);
+  }
+  .sprint .no {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--accent);
+    background: var(--accent-soft);
+    border: 1px solid var(--accent-border);
+    border-radius: var(--radius-sm);
+    padding: 2px 8px;
+    font-variant-numeric: tabular-nums;
+  }
+  .sprint .head h3 { flex: 1 1 220px; }
+  .sprint .why { padding: 16px 20px 0; font-size: 14.5px; color: var(--text-secondary); }
+  .lanes {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1px;
+    background: var(--border-subtle);
+    margin-top: 16px;
+    border-top: 1px solid var(--border-subtle);
+  }
+  .lane { background: var(--bg-surface); padding: 16px 20px 18px; display: flex; flex-direction: column; gap: 8px; }
+  .lane ul { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 6px; font-size: 14px; color: var(--text-secondary); }
+  .lane li::marker { color: var(--text-muted); }
+  .done {
+    padding: 12px 20px 16px;
+    font-size: 13.5px;
+    color: var(--text-secondary);
+    border-top: 1px solid var(--border-subtle);
+    background: var(--bg-surface);
+  }
+  .done b { color: var(--text-primary); font-weight: 600; }
+  .cms-detail { padding: 18px 20px 4px; display: flex; flex-direction: column; gap: 10px; border-top: 1px solid var(--border-subtle); }
+  .cms-detail .table-wrap { border-radius: var(--radius-md); }
+  .cms-detail table { min-width: 480px; font-size: 14px; }
+
+  @media (max-width: 720px) {
+    .lanes { grid-template-columns: 1fr; }
+    .wrap { padding: 0 16px 72px; }
+  }
+
+  a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+
+  <header class="page">
+    <p class="eyebrow">Outer Orbit · Ontwikkelplan</p>
+    <h1>Van de app van vandaag naar de visie</h1>
+    <p class="lead col">Wat er gebouwd en geregeld moet worden voordat ORBIT ENGINE werkelijk doet wat
+      <code>visie.md</code> en <code>merkstrategie.md</code> beloven. Zeven werkstromen, tien sprints,
+      en per sprint wie er aan zet is.</p>
+    <div class="meta">
+      <span>18 augustus 2026</span>
+      <span>Herzien na de eerste feedbackronde</span>
+      <span>Bron in de repo: docs/tasks/ontwikkelplan-visie.md</span>
+    </div>
+  </header>
+
+  <section>
+    <div class="col">
+      <p class="eyebrow">01 · De uitgangspunten</p>
+      <h2>Vier keuzes die de hele volgorde bepalen</h2>
+      <p class="muted">Deze vier staan bovenaan omdat elke sprint erop leunt. Ze zijn op 18 augustus
+        2026 vastgelegd door de eigenaar.</p>
+    </div>
+
+    <div class="principles">
+      <div class="principle">
+        <span class="no">01</span>
+        <h3>Publiceren blijft voorlopig handwerk</h3>
+        <p>De app wordt eerst beproefd met echte contentplannen: kopiëren, plakken, de URL invullen,
+          als geplaatst markeren. Van den Udenhout is het eerste geval. De CMS-koppeling schuift
+          daarmee naar sprint 9, achteraan. Het proces eromheen verandert niet: content wordt
+          geschreven, komt door de poorten, wordt goedgekeurd, en pas dan geplaatst.</p>
+      </div>
+      <div class="principle">
+        <span class="no">02</span>
+        <h3>Echte zoekvolumes schuiven mee</h3>
+        <p>Ook een externe koppeling, ook pas nadat de app zich bewezen heeft. Sprint 8. Tot die tijd
+          blijft de potentiescore rusten op een schatting die alleen binnen één merk vergelijkbaar is,
+          en de app zegt dat ook zo. Niet vanwege de prijs: die is verwaarloosbaar, zie hieronder.</p>
+      </div>
+      <div class="principle">
+        <span class="no">03</span>
+        <h3>De app blijft draaien op alleen de OpenAI-sleutel</h3>
+        <p>Elke externe koppeling is optioneel en stil afwezig. Zonder de sleutel gedraagt de app zich
+          exact zoals vandaag: geen waarschuwing, geen halve functie, geen foutmelding. Voor Gemini is
+          dat al zo. Elke sprint krijgt een test die het bewijst. Sleutel erin, koppeling doet mee.</p>
+      </div>
+      <div class="principle">
+        <span class="no">04</span>
+        <h3>Content blijft goedkeuring vragen</h3>
+        <p>De goedkeuringspoort vóór er iets live gaat verdwijnt nergens in dit plan, ook niet in de
+          autonomiesprint. Die gaat over meten, onderzoeken, schrijven en voorstellen. De
+          publicatieknop blijft van een mens.</p>
+      </div>
+    </div>
+
+    <div class="col">
+      <div class="note warn">
+        <p><strong>Wat dit kost aan het merkverhaal, en dat hoort gezegd.</strong> De merkstrategie
+          belooft publicatie via het CMS. Dat blijft tot sprint 9 onwaar. Zolang dat zo is mag die
+          belofte niet in een campagne, op de website of in een demo staan. Van de vijf punten waarop
+          het merkverhaal vooruitloopt op de app gaat dit er nu als laatste af in plaats van als
+          eerste.</p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="col">
+      <p class="eyebrow">02 · De stand van zaken</p>
+      <h2>Waar we vandaag staan, nagerekend</h2>
+      <p class="muted">Elk cijfer hieronder is tegen de code op <code>main</code> gecontroleerd, niet
+        uit documentatie overgenomen.</p>
+    </div>
+
+    <div class="stats">
+      <div class="stat"><b>1.672</b><span>tests groen: 1.505 unit en 167 keten</span></div>
+      <div class="stat"><b>59</b><span>migraties toegepast</span></div>
+      <div class="stat"><b>24</b><span>taaksoorten in de wachtrij</span></div>
+      <div class="stat"><b>$0,855</b><span>per meetronde, gemiddeld over 13 rondes</span></div>
+      <div class="stat"><b>7,5 min</b><span>onboarding van een nieuw merk, ~$0,25</span></div>
+      <div class="stat"><b>0</b><span>pagina's ooit echt gepubliceerd</span></div>
+    </div>
+
+    <div class="col stack">
+      <p><strong>Wat er werkt, van begin tot eind.</strong> Merk aanmaken uit drie velden, de
+        onderzoekspijplijn, de aanbodboom, de kennistest, 30 vragen per cluster, de goedkeuringspoort,
+        maandelijkse meting met onzekerheidsmarge, concurrentievergelijking, rapport met
+        claimvalidatie, content schrijven met redactielus en twee poorten, een contentplan van twaalf
+        maanden, de potentiescore, accounts, rollen, budgetplafond en archivering.</p>
+      <p><strong>Ook de handmatige publicatielus staat er al.</strong> Kopieerknoppen voor de tekst,
+        de gestructureerde data, de WordPress-blokken en de FAQ. Een uitleg wat je ermee doet. Een
+        publicatieveld. Een controle of de pagina er echt staat. En het inplannen van de hermeetgolven
+        van 30 en 60 dagen. Wat ontbreekt is niet de knop maar het gebruik: er is nog nooit één pagina
+        echt doorheen gegaan.</p>
+      <p><strong>Dat corrigeert meteen iets uit de eerste versie van dit plan.</strong> Daar stond dat
+        de CMS-koppeling de effectmeting deblokkeert. Dat klopt niet. De hele keten publiceren,
+        controleren en effect meten kan met de hand op gang komen. Wat ontbrak was nooit de koppeling,
+        het was één echte gepubliceerde pagina.</p>
+    </div>
+
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Punt</th><th>Vandaag</th><th>De visie</th></tr></thead>
+        <tbody>
+          <tr><td class="key">Omvang</td><td>Alleen GEO. Search Console levert klikken per pagina, verder niets uit de SEO-kant</td><td>SEO en GEO als één geheel</td></tr>
+          <tr><td class="key">Autonomie</td><td>Goedkeuring per stap, publiceren met de hand</td><td>Het systeem beslist en voert uit, de mens houdt richting</td></tr>
+          <tr><td class="key">Doelgroep</td><td>MKB, met plafonds en cadans op MKB afgesteld</td><td>Organisaties met meer kansen dan een team aankan</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <div class="col">
+      <p class="eyebrow">03 · Het gat</p>
+      <h2>Zeven werkstromen</h2>
+    </div>
+    <div class="flows">
+      <div class="flow"><h3>W1 · Verificatieschuld</h3><p>De belangrijkste prompt van het product is nooit geëvalueerd tegen het model waarop hij nu draait, en de laatste verificatieronde is nooit op productie gedraaid.</p></div>
+      <div class="flow"><h3>W2 · De publicatielus, met de hand</h3><p>De hele lus staat er en heeft nog nooit gedraaid. Zolang er geen effectmeting is, is er geen bewijs dat wat ORBIT ENGINE schrijft werkt. Dat is het enige argument dat een klant uiteindelijk telt.</p></div>
+      <div class="flow"><h3>W3 · De SEO-helft</h3><p>Vier stukken: meten wat er in Google gebeurt, de technische kant, bestaande pagina's verbeteren, en als laatste het ontdekken van nieuwe vraag met echte zoekvolumes.</p></div>
+      <div class="flow"><h3>W4 · Autonomie tot aan de knop</h3><p>De poorten staan er allemaal en ze staan allemaal dicht. Wat ontbreekt is een schakelaar per stap plus een besluitenlogboek. Publiceren blijft van een mens.</p></div>
+      <div class="flow"><h3>W5 · Schaal</h3><p>Vier plafonds die bij tien MKB-klanten niet opvallen en bij één grote webshop meteen: de crawl, de doorvoer, het budget en de meetcadans.</p></div>
+      <div class="flow"><h3>W6 · Meer AI-systemen</h3><p>De enginelaag staat er en Gemini slaapt. Doel is niet "meer engines" maar dat het toevoegen van de sleutel genoeg is.</p></div>
+      <div class="flow"><h3>W7 · Merk en vormgeving</h3><p>Het designsysteem is afgeleid van de concurrent. Zolang daar geen uitspraak over valt, bakt elke UI-wijziging die afgeleide verder in.</p></div>
+    </div>
+  </section>
+
+  <section>
+    <div class="col">
+      <p class="eyebrow">04 · De volgorde</p>
+      <h2>Tien sprints in vier fases</h2>
+      <p class="muted">Fase A bewijst dat de keten werkt, met de hand. Fase B haalt meer uit wat er al
+        is, zonder één nieuwe leverancier. Fase C maakt het schaalbaar. Fase D voegt de twee externe
+        koppelingen toe, pas als de app zich bewezen heeft.</p>
+    </div>
+
+    <div class="col">
+      <div class="note warn">
+        <p><strong>De kalender wordt bepaald door wachttijd, niet door bouwtijd.</strong> Effect meten
+          gebeurt in golven van 30 en 60 dagen na publicatie. Sprint 1 moet daarom als eerste: de klok
+          gaat pas lopen als er één pagina live staat. Handmatig publiceren houdt het aantal pagina's
+          laag, dus reken op maanden voor de eerste harde uitspraak over "werkt dit". Dat is de prijs
+          van eerst testen, en het kan een prijs zijn die het waard is.</p>
+      </div>
+    </div>
+
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>#</th><th>Sprint</th><th>Fase</th><th>Bouwtijd</th><th>Wachttijd</th><th>Externe sleutel</th></tr></thead>
+        <tbody>
+          <tr><td class="num">0</td><td>De schuld inlossen</td><td><span class="chip accent">A</span></td><td class="num">1 dag</td><td class="num">geen</td><td class="num">Google, gratis</td></tr>
+          <tr><td class="num">1</td><td>De eerste echte publicatie, met de hand</td><td><span class="chip accent">A</span></td><td class="num">2-3 dagen</td><td class="num">60 dagen</td><td class="num">geen</td></tr>
+          <tr><td class="num">2</td><td>De SEO-meetlaag</td><td><span class="chip info">B</span></td><td class="num">2-3 dagen</td><td class="num">14 dagen</td><td class="num">dezelfde Google-sleutel</td></tr>
+          <tr><td class="num">3</td><td>De technische kant van SEO</td><td><span class="chip info">B</span></td><td class="num">2-3 dagen</td><td class="num">geen</td><td class="num">PageSpeed, gratis</td></tr>
+          <tr><td class="num">4</td><td>Bestaande pagina's verbeteren</td><td><span class="chip info">B</span></td><td class="num">4-5 dagen</td><td class="num">30 dagen</td><td class="num">geen</td></tr>
+          <tr><td class="num">5</td><td>Autonomie tot aan de publicatieknop</td><td><span class="chip info">B</span></td><td class="num">3-4 dagen</td><td class="num">30 dagen</td><td class="num">geen</td></tr>
+          <tr><td class="num">6</td><td>De tweede AI-engine, zonder iets om te gooien</td><td><span class="chip growth">C</span></td><td class="num">3 dagen</td><td class="num">1 meetronde</td><td class="num">Gemini, betaald</td></tr>
+          <tr><td class="num">7</td><td>Schaal</td><td><span class="chip growth">C</span></td><td class="num">4-5 dagen</td><td class="num">1 volle keten</td><td class="num">geen</td></tr>
+          <tr><td class="num">8</td><td>Echte zoekvolumes via een API</td><td><span class="chip late">D</span></td><td class="num">3-4 dagen</td><td class="num">geen</td><td class="num">zoekdata, betaald</td></tr>
+          <tr><td class="num">9</td><td>CMS-koppeling: WordPress en Shopify</td><td><span class="chip late">D</span></td><td class="num">5-7 dagen</td><td class="num">30 dagen</td><td class="num">per klant</td></tr>
+          <tr><td class="num">·</td><td>Eigen vormgeving</td><td><span class="chip">doorlopend</span></td><td class="num">1-2 dagen</td><td class="num">jouw besluit</td><td class="num">geen</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="col small muted">De bouwtijden zijn afgeleid van wat dit project eerder deed: de
+      appstructuur was zeven fases op één dag, de acht Nova-fases waren twee dagen. Ze zeggen niets
+      over kalendertijd, want de verificatie is het langzame deel.</p>
+  </section>
+
+  <section>
+    <div class="col">
+      <p class="eyebrow">05 · Per sprint</p>
+      <h2>Wie doet wat</h2>
+      <p class="muted">Elke sprint heeft twee banen. Links wat Claude Code bouwt, rechts wat jij buiten
+        Claude Code om moet regelen. De grens ligt consequent bij drie dingen: een account bij een
+        externe partij, een betaling, en een afspraak met een klant.</p>
+    </div>
+
+    <div class="sprints">
+
+      <article class="sprint">
+        <div class="head">
+          <span class="no">Sprint 0</span>
+          <h3>De schuld inlossen</h3>
+          <span class="chip accent">Fase A</span>
+          <span class="chip">1 dag · ~$5</span>
+        </div>
+        <p class="why">Er is geen zin in nieuwe rondes op een keten waarvan de vorige ronde niet is
+          nagerekend. Dit is de goedkoopste sprint en hij bepaalt of de cijfers waarop de rest leunt
+          kloppen.</p>
+        <div class="lanes">
+          <div class="lane">
+            <p class="eyebrow">Claude Code bouwt</p>
+            <ul>
+              <li>De classificatieprompt evalueren, drempel 90%</li>
+              <li>De verificatieronde R8 en S1 tot en met S8 op productie draaien, vijf testcases</li>
+              <li>Meten hoe lang het schrijven van één pagina duurt, en de kwaliteitsstand omhoog zetten als het past. De pagina's die je in sprint 1 plaatst zijn dan meteen beter</li>
+              <li>Loggen waarom er per onboarding één taak terugvalt in de wachtrij</li>
+              <li>Een ketentest voor de aggregatiestap, het bekende gat in de meetkant</li>
+            </ul>
+          </div>
+          <div class="lane">
+            <p class="eyebrow">Jij regelt</p>
+            <ul>
+              <li>Een Google-serviceaccount aanmaken met de Search Console API aan, en de sleutel downloaden</li>
+              <li>Dat account bij Van den Udenhout aan zijn property toevoegen, met recht "Beperkt"</li>
+              <li>~$5 API-budget vrijgeven voor de verificatiecalls</li>
+            </ul>
+          </div>
+        </div>
+        <p class="done"><b>Klaar als:</b> de evaluatie op of boven 90% staat, de verificatieronde in het
+          logboek is verwerkt, en er echte Search Console-data binnenkomt voor minstens één property.</p>
+      </article>
+
+      <article class="sprint">
+        <div class="head">
+          <span class="no">Sprint 1</span>
+          <h3>De eerste echte publicatie, met de hand</h3>
+          <span class="chip accent">Fase A</span>
+          <span class="chip warning">hier gaat de klok lopen</span>
+        </div>
+        <p class="why">Geen bouwsprint maar een doe-sprint. De hele lus staat er en heeft nog nooit
+          gedraaid. De route wordt echt afgelopen en daarna wordt gerepareerd wat er onderweg schuurde.
+          Volgorde: pagina goedkeuren, tekst kopiëren, in het eigen CMS plakken en publiceren, de
+          live-URL terugplakken, ORBIT ENGINE controleert of de pagina er echt staat, de hermeetgolven
+          gaan lopen.</p>
+        <div class="lanes">
+          <div class="lane">
+            <p class="eyebrow">Claude Code bouwt</p>
+            <ul>
+              <li>Eerst meelopen, dan pas bouwen. Anders repareren we een vermoed probleem in plaats van een gezien probleem</li>
+              <li>Publiceren onomkeerbaar maken: domein vast, alleen het pad bewerkbaar, en vooraf gezegd dat het onomkeerbaar is</li>
+              <li>Het contentplan als derde ingang naar de geschreven pagina. Wie een maand goedkeurt en wil plaatsen moet nu zoeken</li>
+              <li>Alles wat je moet plakken in kopieerbare vorm: ook de paginatitel, de meta-omschrijving en het voorgestelde pad</li>
+              <li>De automatische controles op gepubliceerde pagina's aanzetten: staat hij er nog, is hij gewijzigd, is hij bereikbaar voor AI-crawlers</li>
+              <li>Impact terug in het plan: een pagina die na 60 dagen niets deed leidt tot een voorstel</li>
+            </ul>
+          </div>
+          <div class="lane">
+            <p class="eyebrow">Jij regelt</p>
+            <ul>
+              <li>Eén pagina van Van den Udenhout echt publiceren. Er staan er twee klaar</li>
+              <li>Noteren wat er onhandig was. Elk moment waarop je moest zoeken, overtypen of gokken is een bouwpunt</li>
+              <li>Daarna twee tot drie contentplannen echt doorlopen, zodat de route niet op één geval rust</li>
+            </ul>
+          </div>
+        </div>
+        <p class="done"><b>Klaar als:</b> één echte pagina live staat, de controle groen is, de eerste
+          effectmeting rijen heeft en de golf van 60 dagen is ingepland. Vanaf dat moment loopt de klok,
+          en die klok is de reden dat deze sprint vooraan staat.</p>
+      </article>
+
+      <article class="sprint">
+        <div class="head">
+          <span class="no">Sprint 2</span>
+          <h3>De SEO-meetlaag</h3>
+          <span class="chip info">Fase B</span>
+          <span class="chip growth">geen nieuwe leverancier</span>
+        </div>
+        <p class="why">De goedkoopste helft van de SEO-belofte. Search Console geeft zoekopdrachten en
+          posities gratis weg, en de koppeling staat er al. Vandaag halen we alleen klikken per pagina
+          op.</p>
+        <div class="lanes">
+          <div class="lane">
+            <p class="eyebrow">Claude Code bouwt</p>
+            <ul>
+              <li>Een tweede tabel voor zoekopdrachten, met posities erbij</li>
+              <li>De dagelijkse synchronisatie uitbreiden, zonder een tweede cron</li>
+              <li>Positieverdeling, "op het randje" (positie 8 tot 20, waar één zet het meeste oplevert), dalers en stijgers</li>
+              <li>Klikken en posities naast AI-zichtbaarheid in één grafiek</li>
+              <li>Een vierde bron in de Kansen-lijst: een zoekopdracht waarop je bijna scoort</li>
+              <li>Op het scherm erbij dat gemiddelde positie geen ranktracker is, maar een gemiddelde over apparaten, locaties en dagen</li>
+            </ul>
+          </div>
+          <div class="lane">
+            <p class="eyebrow">Jij regelt</p>
+            <ul>
+              <li>Per klant het serviceaccount aan zijn property toevoegen</li>
+              <li>Verder niets. De sleutel uit sprint 0 draagt deze hele sprint</li>
+            </ul>
+          </div>
+        </div>
+        <p class="done"><b>Klaar als:</b> de cijfers van één property over hetzelfde venster overeenkomen
+          met wat de klant zelf in Search Console ziet.</p>
+      </article>
+
+      <article class="sprint">
+        <div class="head">
+          <span class="no">Sprint 3</span>
+          <h3>De technische kant van SEO</h3>
+          <span class="chip info">Fase B</span>
+          <span class="chip growth">nul AI-kosten</span>
+        </div>
+        <p class="why">De audit kijkt nu alleen of AI-crawlers binnenkomen. Alles hieronder is
+          deterministisch: geen model, geen kosten, en het draait op de pagina's die de crawler toch al
+          ophaalt.</p>
+        <div class="lanes">
+          <div class="lane">
+            <p class="eyebrow">Claude Code bouwt</p>
+            <ul>
+              <li>Indexeerbaarheid, titels en beschrijvingen, koppenstructuur, sitemap-gezondheid, interne linkdiepte</li>
+              <li>Dekkingsgraad van gestructureerde data</li>
+              <li>Snelheid via de gratis PageSpeed-koppeling</li>
+              <li>Een bevindingenlijst per pagina, met ernst en bewijs</li>
+            </ul>
+          </div>
+          <div class="lane">
+            <p class="eyebrow">Jij regelt</p>
+            <ul>
+              <li>Een PageSpeed Insights-sleutel aanmaken. Gratis, vijf minuten werk</li>
+            </ul>
+          </div>
+        </div>
+        <p class="done"><b>Klaar als:</b> de bevindingen op één echte klantsite met de hand zijn nagelopen.
+          Vals alarm is hier duurder dan een gemist punt: een klant die één verzonnen fout ontdekt,
+          gelooft de lijst daarna niet meer.</p>
+      </article>
+
+      <article class="sprint">
+        <div class="head">
+          <span class="no">Sprint 4</span>
+          <h3>Bestaande pagina's verbeteren</h3>
+          <span class="chip info">Fase B</span>
+          <span class="chip">4-5 dagen</span>
+        </div>
+        <p class="why">De enige stap van de cyclus die vandaag helemaal niet bestaat. ORBIT ENGINE
+          schrijft alleen nieuw. Voor een klant met duizend bestaande pagina's is verbeteren bijna altijd
+          meer waard dan toevoegen. Ook hier blijft de plaatsing handwerk, met dezelfde kopieerroute als
+          sprint 1.</p>
+        <div class="lanes">
+          <div class="lane">
+            <p class="eyebrow">Claude Code bouwt</p>
+            <ul>
+              <li>Welke bestaande pagina zakt, op basis van de zoekdata over twee vensters. Een daling binnen de ruis is geen daling</li>
+              <li>Een herschrijfvoorstel via dezelfde redactielus en dezelfde poorten als nieuwe content. Geen tweede schrijfpad</li>
+              <li>Een verschilweergave tegenover de live-pagina, zodat je ziet wát er verandert voordat je het overneemt</li>
+              <li>Interne links als lijst met bron, doel en voorgestelde ankertekst</li>
+            </ul>
+          </div>
+          <div class="lane">
+            <p class="eyebrow">Jij regelt</p>
+            <ul>
+              <li>Goedkeuren per herschreven pagina</li>
+              <li>De wijziging in het CMS doorvoeren</li>
+            </ul>
+          </div>
+        </div>
+        <p class="done"><b>Klaar als:</b> één bestaande pagina van een klant is herschreven, live
+          bijgewerkt, en na 30 dagen een gemeten uitkomst heeft.</p>
+      </article>
+
+      <article class="sprint">
+        <div class="head">
+          <span class="no">Sprint 5</span>
+          <h3>Autonomie tot aan de publicatieknop</h3>
+          <span class="chip info">Fase B</span>
+          <span class="chip">3-4 dagen</span>
+        </div>
+        <p class="why">Autonomie zonder effectmeting is een systeem dat zelfstandig handelt zonder te
+          weten of het werkt. Sprint 1 en 4 leveren die meting. De grens die deze sprint niet oversteekt:
+          publiceren blijft een menselijke handeling en content blijft goedkeuring vragen.</p>
+        <div class="lanes">
+          <div class="lane">
+            <p class="eyebrow">Claude Code bouwt</p>
+            <ul>
+              <li>Drie schakelaars per merk: meten, schrijven, optimaliseren. Elk met drie standen, van voorstellen tot zelfstandig uitvoeren</li>
+              <li>Géén schakelaar voor publiceren: die stand bestaat niet zolang er geen koppeling is, en een knop die niets doet is erger dan geen knop</li>
+              <li>Eén module die bepaalt of een stap zelfstandig mag. De poort zit nu op vijf plekken verspreid</li>
+              <li>Een besluitenlogboek als scherm: wat deed ORBIT ENGINE, waarom, en met welke knop draai je het terug</li>
+              <li>Een wekelijkse samenvatting per mail</li>
+            </ul>
+          </div>
+          <div class="lane">
+            <p class="eyebrow">Jij regelt</p>
+            <ul>
+              <li>Per klant vastleggen welke standen er in het contract staan. Autonomie is tegelijk je sterkste verkoopargument en je grootste aansprakelijkheid</li>
+            </ul>
+          </div>
+        </div>
+        <p class="done"><b>Klaar als:</b> één merk een volledige maand zelfstandig heeft gedraaid, met een
+          besluitenlogboek dat navertelt wat er gebeurde, en zonder dat er content buiten de goedkeuring
+          om klaar kwam te staan. <strong>De kostenrem blijft staan:</strong> autonomie verschuift wie er
+          klikt, niet of er een plafond is.</p>
+      </article>
+
+      <article class="sprint">
+        <div class="head">
+          <span class="no">Sprint 6</span>
+          <h3>De tweede AI-engine, zonder iets om te gooien</h3>
+          <span class="chip growth">Fase C</span>
+          <span class="chip">3 dagen</span>
+        </div>
+        <p class="why">Het doel in één zin: als de Gemini-sleutel er ooit is, is hem invullen genoeg.
+          Vandaag ontbreekt de meetplanning per engine, en zonder die stap telt elke vraag dubbel zodra
+          er een tweede engine meedoet. Dan wordt de score stil onwaar.</p>
+        <div class="lanes">
+          <div class="lane">
+            <p class="eyebrow">Claude Code bouwt</p>
+            <ul>
+              <li>De meetplanning per engine, het stuk waarvan het stappenplan al in de code staat</li>
+              <li>Een score per engine naast de gecombineerde score</li>
+              <li>Een test die bewijst dat de app zonder de sleutel exact hetzelfde doet als vandaag, inclusief dezelfde score en dezelfde taakplanning</li>
+              <li>Op het scherm de eerlijke grens: een antwoord via de API is niet hetzelfde als wat een gebruiker in de app van die aanbieder ziet</li>
+            </ul>
+          </div>
+          <div class="lane">
+            <p class="eyebrow">Jij regelt, en pas wanneer je wilt</p>
+            <ul>
+              <li>Een Gemini-sleutel aanschaffen. Twee engines is twee keer $0,855 per meetronde, dus dit is een prijskaartvraag</li>
+              <li>Tot die tijd verandert er niets aan de app</li>
+            </ul>
+          </div>
+        </div>
+        <p class="done"><b>Klaar als:</b> de app zonder sleutel aantoonbaar identiek draait, en met sleutel
+          één meetronde op twee engines heeft gedaan met de scores naast elkaar.</p>
+      </article>
+
+      <article class="sprint">
+        <div class="head">
+          <span class="no">Sprint 7</span>
+          <h3>Schaal</h3>
+          <span class="chip growth">Fase C</span>
+          <span class="chip">4-5 dagen</span>
+        </div>
+        <p class="why">Elk punt hieronder is een plafond dat je pas raakt met een grotere klant. Ze nu
+          weghalen is bouwen voor een klant die er nog niet is. Ze niet weghalen betekent dat de eerste
+          grote klant het plafond ontdekt in plaats van jij.</p>
+        <div class="lanes">
+          <div class="lane">
+            <p class="eyebrow">Claude Code bouwt</p>
+            <ul>
+              <li>Het crawlplafond van 150 pagina's naar een budget per merk, met een steekproef per categorie voor grote webshops</li>
+              <li>Meer doorvoer in de wachtrij: een prioriteitsveld, dan een tweede geplande taak, dan meerdere werkers naast elkaar</li>
+              <li>Meetcadans per cluster. Een stabiel onderwerp per kwartaal meten scheelt direct geld en zegt niets minder</li>
+              <li>Pakketten met eigen budgetplafonds</li>
+              <li>Bulkacties nakijken: ze zijn op tien pagina's getest, niet op honderd</li>
+            </ul>
+          </div>
+          <div class="lane">
+            <p class="eyebrow">Jij regelt</p>
+            <ul>
+              <li>Vercel Pro. Het huidige plan staat twee geplande taken toe en die twee zijn bezet</li>
+              <li>Het Supabase-plan nakijken op verbindingen en opslag</li>
+              <li>De prijskaart per pakket. Dit is de kern van deze sprint en het is geen technisch werk</li>
+            </ul>
+          </div>
+        </div>
+        <p class="done"><b>Klaar als:</b> één merk met 25 clusters volledig door de keten is, met de
+          doorlooptijd en de kosten nagerekend.</p>
+      </article>
+
+      <article class="sprint">
+        <div class="head">
+          <span class="no">Sprint 8</span>
+          <h3>Echte zoekvolumes via een API</h3>
+          <span class="chip late">Fase D</span>
+          <span class="chip">3-4 dagen</span>
+        </div>
+        <p class="why">Achteraan, niet vanwege de prijs (zie het volgende hoofdstuk) maar omdat het een
+          leverancier toevoegt aan een product dat zich eerst zonder moet bewijzen. Hierna is de
+          potentiescore een gemeten getal in plaats van een inschatting.</p>
+        <div class="lanes">
+          <div class="lane">
+            <p class="eyebrow">Claude Code bouwt</p>
+            <ul>
+              <li>Een leverancierslaag voor zoekvolumes. Zonder sleutel gedraagt de app zich exact zoals nu, met de bestaande schatting, en een test bewijst dat</li>
+              <li>Een cache per land, taal en zoekterm. Dezelfde term twee keer ophalen is twee keer betalen voor hetzelfde getal</li>
+              <li>Een kolom die vastlegt of een volume gemeten of geschat is. Zonder die kolom laat het scherm ooit een gok voor een meting doorgaan</li>
+              <li>Een nieuwe taaksoort die zoektermen ontdekt uit de aanbodboom, de Search Console-data en de bestaande onderwerpen</li>
+            </ul>
+          </div>
+          <div class="lane">
+            <p class="eyebrow">Jij regelt, en dit gaat vooraf</p>
+            <ul>
+              <li>De leverancier kiezen. De prijzen staan hieronder</li>
+              <li>Opwaarderen met het startsaldo</li>
+              <li>De voorwaarden nalezen. Sommige leveranciers verbieden het doorgeven van hun zoekvolumes aan derden, en dat is precies wat dit product doet</li>
+            </ul>
+          </div>
+        </div>
+        <p class="done"><b>Klaar als:</b> op de vijf vaste testmerken de modelgok naast het echte volume
+          ligt, met de afwijking opgeschreven. Dat cijfer is meteen het antwoord op de vraag hoe fout de
+          gok was.</p>
+      </article>
+
+      <article class="sprint">
+        <div class="head">
+          <span class="no">Sprint 9</span>
+          <h3>CMS-koppeling: WordPress en Shopify</h3>
+          <span class="chip late">Fase D</span>
+          <span class="chip">5-7 dagen</span>
+        </div>
+        <p class="why">Als laatste, omdat de handmatige route eerst bewezen moet zijn. Een koppeling die
+          publiceert wat niemand heeft nagelopen is sneller fout dan goed. De handmatige route verdwijnt
+          niet: niet elke klant heeft WordPress of Shopify, en niet elke klant wil een systeem dat op zijn
+          site schrijft.</p>
+        <div class="lanes">
+          <div class="lane">
+            <p class="eyebrow">Claude Code bouwt, gedeeld voor beide</p>
+            <ul>
+              <li>Een koppelingstabel per merk, met het geheim van de klant in de Supabase-kluis en niet in een gewone kolom. Een wachtwoord in platte tekst is de ernstigste fout die deze sprint kan maken</li>
+              <li>Een adapterlaag naar het patroon van de enginelaag, en een eigen taaksoort voor publiceren</li>
+              <li>Herpubliceren overschrijft dezelfde pagina in plaats van een tweede aan te maken. Zonder die regel levert sprint 4 duplicaten op</li>
+              <li>Altijd eerst als concept. De klant drukt op de laatste knop in zijn eigen CMS</li>
+              <li>Verificatie achteraf op de URL die het CMS teruggeeft</li>
+            </ul>
+          </div>
+          <div class="lane">
+            <p class="eyebrow">Jij regelt</p>
+            <ul>
+              <li>Per klant de toegang: bij WordPress een applicatiewachtwoord, bij Shopify een custom app met een token. Allebei via de klant</li>
+              <li>Contractueel vastleggen wie tekent voor wat er gepubliceerd wordt</li>
+              <li>Besluiten of er een derde CMS bij moet. Webflow en Craft komen het meest voor na deze twee, elk ongeveer twee dagen zodra de laag er staat</li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="cms-detail">
+          <h4>WordPress, wat er precies moet gebeuren</h4>
+          <div class="table-wrap">
+            <table>
+              <tbody>
+                <tr><td class="key">Toegang</td><td>Applicatiewachtwoord, ingebouwd in WordPress sinds 5.6. De klant maakt er één aan onder zijn gebruikersprofiel. Het erft de rechten van die gebruiker, dus een account met de rol Auteur of Redacteur volstaat. Geen plugin nodig</td></tr>
+                <tr><td class="key">Koppeling</td><td>De REST API. Aanmaken met een bericht of pagina, bijwerken op hetzelfde id. Basic-authenticatie over HTTPS</td></tr>
+                <tr><td class="key">Vorm van de tekst</td><td><strong>Gutenberg-blokken, en die maakt ORBIT ENGINE al.</strong> Dit is de reden dat WordPress het minste werk is</td></tr>
+                <tr><td class="key">Het lastige stuk</td><td>De SEO-titel en de meta-omschrijving zitten niet in WordPress zelf maar in Yoast of RankMath. Reken op een aparte behandeling per plugin, en op klanten waar dit met de hand moet blijven</td></tr>
+                <tr><td class="key">Waar het misgaat</td><td>Beveiligingsplugins die de REST API dichtzetten, hosters die applicatiewachtwoorden uitschakelen, en sites op de klassieke editor. Die laatste krijgen HTML in plaats van blokken, dus de adapter moet allebei kunnen</td></tr>
+                <tr><td class="key">Bouwtijd</td><td>2-3 dagen, het grootste deel zit in de plugin-velden en de foutafhandeling</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <h4>Shopify, wat er precies moet gebeuren</h4>
+          <div class="table-wrap">
+            <table>
+              <tbody>
+                <tr><td class="key">Toegang</td><td>De klant maakt in zijn winkeladmin een custom app aan en geeft het Admin API-token af, met leesrecht en schrijfrecht op content. Een andere handeling dan bij WordPress, en die hoort uitgeschreven in een handleiding</td></tr>
+                <tr><td class="key">Koppeling</td><td>De Admin API. Let op: niet dezelfde API als die voor producten en bestellingen</td></tr>
+                <tr><td class="key">Waar de content landt</td><td>Een losse pagina of een blogartikel. ORBIT ENGINE schrijft geen productpagina's. Welke van de twee is een keuze per contenttype en hoort in de adapter vast te liggen, niet per pagina gevraagd te worden</td></tr>
+                <tr><td class="key">Vorm van de tekst</td><td><strong>HTML, geen blokken.</strong> Shopify kent Gutenberg niet, dus er komt een tweede uitvoervorm bij: schone HTML met koppen, lijsten en de FAQ als uitklapblok. Dit is het echte extra werk tegenover WordPress</td></tr>
+                <tr><td class="key">Het lastige stuk</td><td>Het thema bepaalt hoe een pagina eruitziet. Een pagina die via de API binnenkomt krijgt het standaardsjabloon, en dat kan er anders uitzien dan de klant verwacht. Vooraf bespreken, niet achteraf ontdekken</td></tr>
+                <tr><td class="key">Waar het misgaat</td><td>Een token met te weinig rechten, en de API-versie die Shopify elk kwartaal opschuift. De adapter pint een versie vast en die moet periodiek bijgewerkt worden</td></tr>
+                <tr><td class="key">Bouwtijd</td><td>3-4 dagen, waarvan een dag aan de HTML-uitvoervorm</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <p class="done"><b>Klaar als:</b> één pagina per CMS via de koppeling als concept is aangemaakt,
+          door de klant is vrijgegeven, de controle groen is, en een herpublicatie dezelfde pagina bijwerkt
+          in plaats van een tweede aan te maken.</p>
+      </article>
+
+      <article class="sprint">
+        <div class="head">
+          <span class="no">Doorlopend</span>
+          <h3>Eigen vormgeving</h3>
+          <span class="chip warning">wacht op jou</span>
+        </div>
+        <p class="why">Het enige onderdeel waar Claude Code niet mee kan beginnen. Het hele designsysteem
+          is afgeleid van de werkomgeving van de concurrent. Zolang dat zo is, werkt de vormgeving tegen
+          het verhaal dat de verkoop vertelt.</p>
+        <div class="lanes">
+          <div class="lane">
+            <p class="eyebrow">Claude Code bouwt, daarna</p>
+            <ul>
+              <li>De merklaag in de tokens, niet in de componenten. Eén tot twee dagen, geen herbouw</li>
+              <li>Het designsysteem-document erbij bijwerken</li>
+            </ul>
+          </div>
+          <div class="lane">
+            <p class="eyebrow">Jij regelt, en dit gaat vooraf</p>
+            <ul>
+              <li>De uitspraak of het uiterlijk eigen moet worden. Zonder die uitspraak bakt elke volgende UI-wijziging de afgeleide verder in</li>
+              <li>Een merktoolkit bij een ontwerper: logo, kleurenpalet, typografie. Zonder die drie is er niets om het huidige systeem door te vervangen</li>
+            </ul>
+          </div>
+        </div>
+        <p class="done"><b>Klaar als:</b> dezelfde schermen een nieuwe merklaag dragen zonder dat er één
+          component is aangepast.</p>
+      </article>
+
+    </div>
+  </section>
+
+  <section>
+    <div class="col">
+      <p class="eyebrow">06 · De prijsvraag</p>
+      <h2>Wat echte zoekvolumes kosten</h2>
+      <p class="muted">Opgezocht op 18 augustus 2026. De uitkomst in één zin: bij deze omvang is het een
+        paar dollar per maand, en de drempel is niet de prijs maar het startsaldo en een leverancier
+        erbij.</p>
+      <p class="small muted">De rekenbasis: een merk heeft 5 tot 8 clusters. Na het uitbreiden naar
+        long-tail zijn dat naar schatting 2.000 tot 3.000 zoektermen per merk. De tabel rekent met 2.500
+        per merk en 20 merken, dus 50.000 zoektermen per volledige verversing. Volumes veranderen
+        maandelijks, niet dagelijks, dus één verversing per maand volstaat.</p>
+    </div>
+
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Leverancier</th><th>Wat je betaalt</th><th>Per 1.000 zoektermen</th><th>20 merken, 1× per maand</th></tr></thead>
+        <tbody>
+          <tr>
+            <td class="key">DataForSEO<br><span class="small muted">Google Ads Search Volume</span></td>
+            <td>$0,06 per aanroep van maximaal 1.000 zoektermen. Geen abonnement, wel een startsaldo van $50</td>
+            <td class="num">$0,06</td>
+            <td class="num"><strong>~$3 per maand</strong></td>
+          </tr>
+          <tr>
+            <td class="key">DataForSEO Labs<br><span class="small muted">zoektermen ontdekken</span></td>
+            <td>$0,012 per aanroep plus $0,00012 per resultaat</td>
+            <td class="num">$0,13</td>
+            <td class="num">~$6,60, en alleen bij een volledige nieuwe ronde</td>
+          </tr>
+          <tr>
+            <td class="key">Keywords Everywhere</td>
+            <td>Vanaf $84 per jaar voor 100.000 credits. 1 credit is 1 zoekterm</td>
+            <td class="num">$0,84</td>
+            <td class="num">600.000 credits per jaar valt in een fors duurder pakket. Ruim tien keer de prijs per zoekterm</td>
+          </tr>
+          <tr>
+            <td class="key">Semrush API</td>
+            <td>Business-abonnement $499,95 per maand, API-units apart bij te kopen</td>
+            <td class="num">niet los te kopen</td>
+            <td class="num"><strong>~$6.000 per jaar</strong> voordat er één zoekterm is opgehaald</td>
+          </tr>
+          <tr>
+            <td class="key">Google Ads Keyword Planner</td>
+            <td>Gratis, via de Google Ads API</td>
+            <td class="num">gratis</td>
+            <td class="num">Gratis, maar zonder actieve advertentie-uitgaven geeft Google zeven brede bakken zoals "1k-10k". Daar is geen potentiescore op te bouwen</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="col stack">
+      <p><strong>De aanbeveling: DataForSEO.</strong> Betalen per aanroep, geen maandverplichting, en de
+        kosten schalen mee met je klantenbestand in plaats van vooruit te lopen. Het startsaldo van $50 is
+        geen abonnement maar tegoed: je betaalt vooruit voor aanroepen die je daarna verbruikt. Bij 20
+        merken gaat dat tegoed ruim een jaar mee.</p>
+      <div class="note warn">
+        <p><strong>Lees de voorwaarden na vóór je opwaardeert.</strong> Sommige leveranciers verbieden het
+          doorgeven van hun zoekvolumes aan derden, en dat is precies wat dit product doet: het toont ze
+          aan de klant. Dat is een juridische controle, geen technische, en hij kan de leverancierskeuze
+          omgooien.</p>
+      </div>
+      <p><strong>Search Console is geen vervanging.</strong> Dat geeft de zoekopdrachten waarop de site
+        van de klant nú al vertoningen krijgt, en dat is gratis en waardevol (sprint 2). Het zegt niets
+        over vraag waarop de klant nog helemaal niet gevonden wordt, en dat is juist de kant waar de
+        kansen zitten.</p>
+      <p class="small muted">Bronnen:
+        <a href="https://dataforseo.com/pricing/keywords-data/google-ads">DataForSEO Google Ads API</a> ·
+        <a href="https://dataforseo.com/pricing/dataforseo-labs/dataforseo-google-api">DataForSEO Labs API</a> ·
+        <a href="https://keywordseverywhere.com/api-documentation.html">Keywords Everywhere API</a> ·
+        <a href="https://thatmarketingbuddy.com/blog/semrush-api-pricing">Semrush API-prijzen</a> ·
+        <a href="https://developers.google.com/google-ads/api/docs/api-policy/access-levels">Google Ads API, toegangsniveaus</a>
+      </p>
+    </div>
+  </section>
+
+  <section>
+    <div class="col">
+      <p class="eyebrow">07 · Jouw kant</p>
+      <h2>Alles wat Claude Code niet kan, op één plek</h2>
+      <p class="muted">Dit is de volledige lijst. Alles wat er niet in staat, doet Claude Code zelf:
+        migraties toepassen, deploys controleren, logs lezen, sleutels plaatsen zodra jij de waarde hebt,
+        en alle code, tests en documentatie.</p>
+    </div>
+
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>#</th><th>Wat</th><th>Sprint</th><th>Kosten</th><th>Waarom dit niet automatisch kan</th></tr></thead>
+        <tbody>
+          <tr><td class="num">1</td><td>Google-serviceaccount aanmaken met de Search Console API aan</td><td class="num">0</td><td class="num">gratis</td><td>Vraagt een ingelogde Google Cloud-console</td></tr>
+          <tr><td class="num">2</td><td>Dat account per klant aan zijn property toevoegen</td><td class="num">0, 2</td><td class="num">gratis</td><td>De klant moet het zelf doen of jou toegang geven</td></tr>
+          <tr><td class="num">3</td><td>API-budget vrijgeven voor de verificatieronde</td><td class="num">0</td><td class="num">~$5</td><td>Jouw rekening</td></tr>
+          <tr><td class="num">4</td><td><strong>Eén pagina van Van den Udenhout echt publiceren</strong>, met de hand</td><td class="num">1</td><td class="num">geen</td><td>Jij plaatst hem in het CMS. Dit is de handeling waar het hele plan op wacht</td></tr>
+          <tr><td class="num">5</td><td>Noteren wat er in die route onhandig was</td><td class="num">1</td><td class="num">geen</td><td>Alleen jij loopt hem echt af</td></tr>
+          <tr><td class="num">6</td><td>Twee tot drie contentplannen echt doorlopen</td><td class="num">1</td><td class="num">geen</td><td>Klantwerk</td></tr>
+          <tr><td class="num">7</td><td>PageSpeed Insights-sleutel aanmaken</td><td class="num">3</td><td class="num">gratis</td><td>Google Cloud-console</td></tr>
+          <tr><td class="num">8</td><td>Per klant de autonomiestanden contractueel vastleggen</td><td class="num">5</td><td class="num">geen</td><td>Verkoop, geen instelling</td></tr>
+          <tr><td class="num">9</td><td>Gemini-sleutel, wanneer je wilt</td><td class="num">6</td><td class="num">~$0,85 extra per meetronde</td><td>Jouw rekening</td></tr>
+          <tr><td class="num">10</td><td>Vercel Pro en het Supabase-plan</td><td class="num">7</td><td class="num">vanaf ~$20 p.m.</td><td>Jouw abonnement</td></tr>
+          <tr><td class="num">11</td><td>Prijskaart per pakket herzien</td><td class="num">7</td><td class="num">geen</td><td>De belangrijkste beslissing in dit hele document</td></tr>
+          <tr><td class="num">12</td><td>Zoekvolumeleverancier kiezen, opwaarderen, voorwaarden nalezen</td><td class="num">8</td><td class="num">$50 startsaldo</td><td>Een inkoopbeslissing met een juridische kant</td></tr>
+          <tr><td class="num">13</td><td>Per klant CMS-toegang regelen: applicatiewachtwoord of API-token</td><td class="num">9</td><td class="num">gratis</td><td>Loopt via de klant</td></tr>
+          <tr><td class="num">14</td><td>Vastleggen wie tekent voor wat er gepubliceerd wordt</td><td class="num">9</td><td class="num">geen</td><td>Juridisch, geen code</td></tr>
+          <tr><td class="num">15</td><td>Besluiten of er een derde CMS bij moet</td><td class="num">9</td><td class="num">geen</td><td>Hangt aan je klantenbestand</td></tr>
+          <tr><td class="num">16</td><td>Uitspraak over het designsysteem</td><td class="num">doorlopend</td><td class="num">geen</td><td>Een eigenaarsbesluit</td></tr>
+          <tr><td class="num">17</td><td>Merktoolkit bij een ontwerper laten maken</td><td class="num">doorlopend</td><td class="num">offerte</td><td>Geen code</td></tr>
+          <tr><td class="num">18</td><td>Cases met echte cijfers en toestemming van de klant</td><td class="num">doorlopend</td><td class="num">geen</td><td>De twee cases in de merkstrategie komen nergens in dit systeem voor</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <div class="col">
+      <p class="eyebrow">08 · Wat er niet vanzelf goed komt</p>
+      <h2>Zeven risico's, eerlijk opgeschreven</h2>
+      <div class="stack">
+        <p><strong>1. De prijskaart is het echte knelpunt, niet de techniek.</strong> Een meetronde kost
+          $0,855. Een klant met 50 clusters kost daarmee ~€43 per maand aan meting alleen, tegen een
+          plafond van €50 per account per maand. Elke sprint hierboven maakt het product waardevoller
+          én duurder per klant.</p>
+        <p><strong>2. De merkbelofte over publiceren blijft het langst onwaar.</strong> Door de
+          CMS-koppeling naar achteren te schuiven staat het zwaarste punt uit de merkstrategie als
+          laatste op de lijst. Dat is verdedigbaar, maar het betekent dat de verkoop tot sprint 9 niets
+          over publiceren mag beloven. Eén demo waarin dat toch gebeurt is genoeg om het vertrouwen te
+          kosten.</p>
+        <p><strong>3. Handmatig publiceren remt het tempo van de bewijsvoering.</strong> Elke pagina kost
+          een menselijke handeling, dus het aantal gepubliceerde pagina's blijft laag, en effect meten
+          heeft aantallen nodig. Reken erop dat de eerste harde uitspraak over "werkt dit" maanden duurt
+          in plaats van weken.</p>
+        <p><strong>4. Autonomie en het verdienmodel trekken aan elkaar.</strong> Het uur consultancy is
+          onderdeel van de verkoop. Hoe autonomer het systeem, hoe minder er te bespreken valt. Daarom
+          is sprint 5 per klant instelbaar en niet productbreed.</p>
+        <p><strong>5. De doelgroepverschuiving is niet gratis.</strong> De hele app is gebouwd rond een
+          merk met een overzichtelijke site. Een webshop met duizend categorieën vraagt een ander soort
+          onderzoek, niet alleen een hoger plafond.</p>
+        <p><strong>6. We meten een benadering.</strong> Wat ORBIT ENGINE meet is wat een model via de API
+          antwoordt, niet wat een gebruiker in de app van die aanbieder ziet. Met meerdere engines wordt
+          dat een vraag die klanten gaan stellen.</p>
+        <p><strong>7. Alles leunt op vijf testmerken van 30 juli 2026.</strong> Voor de SEO-kant bestaat
+          zo'n set nog niet. Die ontstaat pas zodra Search Console voor meerdere klanten data levert.</p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="col stack">
+      <p class="eyebrow">09 · Werkwijze</p>
+      <h2>Hoe je hiermee werkt</h2>
+      <p>Per sprint, in deze volgorde: eerst jouw taken uit de lijst hierboven, dan de bouw, dan de
+        verificatie op productie, dan de documentatie. Een sprint zonder verificatie op echte data telt
+        niet als af.</p>
+      <p>Dit document is tijdelijk. Elke afgeronde sprint verdwijnt eruit en wordt samengevat in het
+        logboek, met de datum en het cijfer dat hem droeg. Staat er niets meer in, dan is de afstand
+        tussen de visie en de app nul.</p>
+      <p class="small muted">De volledige versie met bestandsnamen, migratienummers en
+        verificatiecriteria staat in de repo, in <code>docs/tasks/ontwikkelplan-visie.md</code>. Dat
+        bestand is leidend; deze pagina is de leesbare samenvatting ervan.</p>
+    </div>
+  </section>
+
+</div>
+
+</body>
+</html>

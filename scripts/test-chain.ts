@@ -566,6 +566,308 @@ async function main(): Promise<void> {
     );
 
     // ══════════════════════════════════════════════════════════════════════
+    // Wat de consultant vóór het gesprek klaarzet (onboarding 3.0, fase 2)
+    //
+    // Drie dingen die alleen samen te toetsen zijn, en die alle drie misgingen:
+    //
+    //   1. De aanmaakroute schreef NUL rijen in `profile_field_sources`. Wat de
+    //      consultant typte was daarmee niet te onderscheiden van modeluitvoer,
+    //      en het eerste onderzoek mocht het gewoon overschrijven.
+    //   2. Mensinvoer ging niet door dezelfde normalisatie als modeluitvoer,
+    //      terwijl `service_regions[0]` letterlijk in zes kennistestvragen wordt
+    //      geplakt.
+    //   3. De onderzoeksprompt zei "RESPECTEER dit" over álles wat er stond, ook
+    //      over een aanname van vóór het eerste contact.
+    //
+    // Dit scenario draait het echte onderzoek (met gestubde AI die de consultant
+    // met opzet tegenspreekt) en kijkt wat er daarna in de database staat.
+    // ══════════════════════════════════════════════════════════════════════
+    console.log("\nWat de consultant klaarzet overleeft het eerste onderzoek");
+
+    const { consultantFields: velden } = await import("@/lib/profile-source");
+    const { resolveScope: bereikVan } = await import("@/lib/pipeline/field-merge");
+    const { prepareProfile } = await import("@/lib/pipeline/prepare-profile");
+
+    const preboardId = randomUUID();
+    // Precies wat de aanmaakroute doet: normaliseren, opslaan, herkomst erbij.
+    const preboardBereik = bereikVan("lokaal", ["  Amersfoort  ", "amersfoort"]);
+    const preboardIntake = {
+      name: "Fysi-Unique",
+      aliases: ["Fysi Unique"],
+      industry: "fysiotherapie",
+      products: [],
+      value_props: [],
+      competitors: ["SMC Amersfoort", "Fysio Vathorst"],
+      service_scope: preboardBereik.scope,
+      service_regions: preboardBereik.regions,
+      market_language: null,
+      tone_of_voice: null,
+      intake_description: null,
+      intake_audience: null,
+    };
+
+    await db.client.query(
+      `insert into public.profiles (id, user_id, name, url, status, aliases, industry,
+                                    products, value_props, competitors, service_scope,
+                                    service_regions)
+       values ($1, $2, $3, 'https://fysi-unique.nl', 'bezig', $4, $5, $6, $7, $8, $9, $10)`,
+      [
+        preboardId,
+        userId,
+        preboardIntake.name,
+        preboardIntake.aliases,
+        preboardIntake.industry,
+        preboardIntake.products,
+        preboardIntake.value_props,
+        preboardIntake.competitors,
+        preboardIntake.service_scope,
+        preboardIntake.service_regions,
+      ],
+    );
+    await db.client.query(
+      `insert into public.profile_pages (profile_id, url, title, text_excerpt) values
+       ($1, 'https://fysi-unique.nl/over-ons', 'Over ons',
+        'Fysi-Unique is een fysiotherapiepraktijk in Amersfoort. Wij bestaan sinds 2011.')`,
+      [preboardId],
+    );
+
+    const gezetteVelden = velden(preboardIntake);
+    await db.client.query(
+      `insert into public.profile_field_sources (profile_id, field, source, confidence, set_by)
+       select $1, unnest($2::text[]), 'consultant', 1, $3`,
+      [preboardId, gezetteVelden, userId],
+    );
+
+    ok(
+      "de aanmaak legt de branche vast als consultant-aanname",
+      gezetteVelden.includes("industry") && gezetteVelden.includes("competitors"),
+      gezetteVelden.join(", "),
+    );
+    ok(
+      "en een leeg veld krijgt géén herkomst",
+      !gezetteVelden.includes("products") && !gezetteVelden.includes("tone_of_voice"),
+    );
+
+    const { rows: naAanmaak } = await db.client.query(
+      "select service_regions from public.profiles where id = $1",
+      [preboardId],
+    );
+    ok(
+      "de getypte plaatsnaam is opgeschoond en ontdubbeld",
+      naAanmaak[0].service_regions.length === 1 &&
+        naAanmaak[0].service_regions[0] === "Amersfoort",
+      JSON.stringify(naAanmaak[0].service_regions),
+    );
+
+    const promptsVoor = log.length;
+    await prepareProfile(preboardId);
+    const onderzoeksPrompt =
+      log.slice(promptsVoor).find((l) => l.schemaName === "profile_research")?.user ?? "";
+
+    ok("het onderzoek heeft echt gedraaid", onderzoeksPrompt.length > 0);
+    ok(
+      "de aanname staat in de prompt als startpunt en niet als feit",
+      onderzoeksPrompt.includes("VÓÓR het gesprek") &&
+        onderzoeksPrompt.includes("fysiotherapie"),
+    );
+    ok(
+      "en het model mag hem tegenspreken",
+      onderzoeksPrompt.includes("eigen bevinding"),
+    );
+
+    const { rows: naOnderzoek } = await db.client.query(
+      `select industry, competitors, service_scope, service_regions, summary, proof_points, status
+         from public.profiles where id = $1`,
+      [preboardId],
+    );
+    // Het onderzoek gaf 'wellness en massage' en 'landelijk' terug. Zonder de
+    // herkomstrijen uit de aanmaakroute zou dat er nu staan.
+    ok(
+      "de branche van de consultant staat er nog",
+      naOnderzoek[0].industry === "fysiotherapie",
+      naOnderzoek[0].industry,
+    );
+    ok(
+      "het bereik ook",
+      naOnderzoek[0].service_scope === "lokaal" &&
+        naOnderzoek[0].service_regions[0] === "Amersfoort",
+      `${naOnderzoek[0].service_scope} · ${JSON.stringify(naOnderzoek[0].service_regions)}`,
+    );
+    ok(
+      "en de concurrenten die hij opgaf zijn niet vervangen",
+      naOnderzoek[0].competitors.includes("SMC Amersfoort") &&
+        naOnderzoek[0].competitors.includes("Fysio Vathorst"),
+      JSON.stringify(naOnderzoek[0].competitors),
+    );
+    // Wat de consultant NIET invulde komt gewoon van het onderzoek: de
+    // bescherming mag geen slot op het hele profiel worden.
+    ok(
+      "wat hij leeg liet vult het onderzoek wél",
+      (naOnderzoek[0].summary ?? "").includes("Amersfoort") &&
+        naOnderzoek[0].proof_points.length > 0,
+    );
+    ok("en het profiel staat op klaar", naOnderzoek[0].status === "klaar");
+
+    // Opruimen: verderop telt het archiefscenario alle zichtbare merken in de
+    // hele database, en dat cijfer hoort niet af te hangen van hoeveel merken
+    // een eerder scenario heeft aangemaakt. De cascade neemt de pagina's en de
+    // herkomstrijen mee.
+    await db.client.query("delete from public.profiles where id = $1", [preboardId]);
+
+    // ══════════════════════════════════════════════════════════════════════
+    // De commerciële laag en de vierde herkomst (migratie 0060)
+    //
+    // Drie dingen die alleen samen te toetsen zijn: de kolommen bestaan echt en
+    // nemen aan wat de route erin stopt, de constraint kent `consultant`, en
+    // `filterProtectedFields()` beschermt zo'n waarde tegen een tweede
+    // onderzoeksronde. Dat laatste is het punt van fase 2 van onboarding 3.0:
+    // wat een consultant vóór het gesprek klaarzet mag niet als modeluitvoer
+    // behandeld worden.
+    // ══════════════════════════════════════════════════════════════════════
+    console.log("\nDe commerciële laag en de herkomst 'consultant' (0060)");
+
+    await db.client.query(
+      `update public.profiles
+          set priority_offerings = $2,
+              deprioritised_offerings = $3,
+              growth_regions = $4,
+              target_segments = $5,
+              deal_value_band = 'midden',
+              seasonality = 'Piek in september',
+              sales_objections = $6,
+              forbidden_topics = $7,
+              offline_proof = $8,
+              name_exclusions = $9,
+              respect_site_structure = false,
+              goal_12m = 'De specialist zijn in warmtepompen',
+              contact_name = 'Sanne de Wit',
+              contact_email = 'sanne@voorbeeld.nl',
+              contact_phone = '0612345678'
+        where id = $1`,
+      [
+        profileId,
+        ["onderhoudsabonnementen"],
+        ["losse bandenwissel"],
+        ["Utrecht"],
+        ["installateurs met eigen monteurs"],
+        ["jullie zijn duurder"],
+        ["lopende rechtszaken"],
+        ["ISO 9001 sinds 2019"],
+        ["Jansen Techniek in Groningen"],
+      ],
+    );
+
+    const { rows: commercieel } = await db.client.query(
+      `select priority_offerings, growth_regions, deal_value_band,
+              respect_site_structure, contact_email, name_exclusions
+         from public.profiles where id = $1`,
+      [profileId],
+    );
+    ok(
+      "0060: de commerciële velden staan er en houden hun waarde",
+      commercieel[0].priority_offerings[0] === "onderhoudsabonnementen" &&
+        commercieel[0].growth_regions[0] === "Utrecht" &&
+        commercieel[0].deal_value_band === "midden",
+    );
+    ok(
+      "0060: 'nee' op nieuwe pagina's is een echte false, geen leegte",
+      commercieel[0].respect_site_structure === false,
+    );
+    ok("0060: de contactpersoon staat vast", commercieel[0].contact_email === "sanne@voorbeeld.nl");
+    ok(
+      "0060: de uitsluitingslijst staat naast de aliassen en niet erin",
+      commercieel[0].name_exclusions[0] === "Jansen Techniek in Groningen",
+    );
+
+    // De constraint kent vier waarden en niet vijf.
+    let bandGeweigerd = false;
+    try {
+      await db.client.query(
+        "update public.profiles set deal_value_band = 'gigantisch' where id = $1",
+        [profileId],
+      );
+    } catch {
+      bandGeweigerd = true;
+    }
+    ok("0060: een onbekende waardeklasse wordt geweigerd", bandGeweigerd);
+
+    // De vierde herkomst, op de tabel waar hij vandaan moet komen.
+    await db.client.query(
+      `insert into public.profile_field_sources (profile_id, field, source, confidence, set_by)
+       values ($1, 'service_scope', 'consultant', 1, $2)
+       on conflict (profile_id, field) do update set source = excluded.source`,
+      [profileId, beheerderId],
+    );
+    const { rows: metConsultant } = await db.client.query(
+      "select field, source, not_applicable from public.profile_field_sources where profile_id = $1",
+      [profileId],
+    );
+    ok(
+      "0060: de constraint laat 'consultant' toe",
+      metConsultant.some((r) => r.source === "consultant"),
+    );
+    ok(
+      "0060: en n.v.t. staat standaard uit",
+      metConsultant.every((r) => r.not_applicable === false),
+    );
+    ok(
+      "0060: wat de consultant klaarzette overleeft een tweede onderzoeksronde",
+      filterProtectedFields(
+        { service_scope: "landelijk" },
+        metConsultant as { field: string; source: "ai" | "klant" | "gesprek" | "consultant" }[],
+      ).blocked.includes("service_scope"),
+    );
+
+    // Wat de onboardingsessie schrijft: bron `gesprek` plus een veld dat op
+    // niet van toepassing staat. Allebei op dezelfde tabel en via dezelfde
+    // route, en allebei beschermd tegen een volgende onderzoeksronde.
+    await db.client.query(
+      `insert into public.profile_field_sources (profile_id, field, source, confidence, set_by, not_applicable)
+       values ($1, 'usp', 'gesprek', 1, $2, false),
+              ($1, 'author_bio', 'gesprek', 1, $2, true)
+       on conflict (profile_id, field) do update
+         set source = excluded.source, not_applicable = excluded.not_applicable`,
+      [profileId, beheerderId],
+    );
+    const { rows: naSessie } = await db.client.query(
+      "select field, source, not_applicable from public.profile_field_sources where profile_id = $1",
+      [profileId],
+    );
+    ok(
+      "0060: wat in de sessie is gezet draagt bron 'gesprek'",
+      naSessie.find((r) => r.field === "usp")?.source === "gesprek",
+    );
+    ok(
+      "0060: en overleeft een herhaalronde van het onderzoek",
+      filterProtectedFields(
+        { usp: "iets wat het model bedacht" },
+        naSessie as { field: string; source: "ai" | "klant" | "gesprek" | "consultant" }[],
+      ).blocked.includes("usp"),
+    );
+    ok(
+      "0060: een veld op n.v.t. wordt ook niet alsnog gevuld",
+      filterProtectedFields(
+        { author_bio: "een verzonnen biografie" },
+        naSessie as { field: string; source: "ai" | "klant" | "gesprek" | "consultant" }[],
+      ).blocked.includes("author_bio"),
+    );
+    ok(
+      "0060: en n.v.t. staat er als vlag naast de herkomst",
+      naSessie.find((r) => r.field === "author_bio")?.not_applicable === true,
+    );
+
+    let bronGeweigerd = false;
+    try {
+      await db.client.query(
+        "update public.profile_field_sources set source = 'beheerder' where profile_id = $1 and field = 'service_scope'",
+        [profileId],
+      );
+    } catch {
+      bronGeweigerd = true;
+    }
+    ok("0060: een verzonnen herkomst wordt geweigerd", bronGeweigerd);
+
+    // ══════════════════════════════════════════════════════════════════════
     // Een onderwerp overleeft "onderzoek opnieuw" mét zijn aanbod (0043)
     //
     // De herhaalroute verwijdert de aanbodknopen met bron `ai` en laat de
@@ -910,6 +1212,82 @@ async function main(): Promise<void> {
       naFout[0].status === "mislukt",
       `status is ${naFout[0].status}`,
     );
+
+
+    // ══════════════════════════════════════════════════════════════════════
+    // De aanbodstap kapt de keten niet meer af (Teamsessie 18 augustus 2026)
+    //
+    // ⚠️ `profile_offering` telt als NIET-BLOKKEREND, met als onderbouwing dat
+    // de klant bij een mislukking alleen zijn dienstenoverzicht en zijn
+    // topicvoorstellen mist. Dat klopte niet: diezelfde stap plande de markt in,
+    // en de markt draagt de kennistest en de synthese. Mislukte hij definitief,
+    // dan werd de halve onderzoeksketen nooit ingepland én verscheen er geen
+    // foutmelding, want de taak telt als niet-blokkerend.
+    //
+    // Geen unittest kon dit vangen: elke functie deed precies wat hij moest doen
+    // op de invoer die hij kreeg. Het gat zat ertussen.
+    // ══════════════════════════════════════════════════════════════════════
+    console.log("\nEen mislukte aanbodstap kapt de keten niet af");
+
+    const ketenProfiel = randomUUID();
+    await db.client.query(
+      `insert into public.profiles (id, user_id, name, url, status)
+       values ($1, $2, 'Ketenmerk', 'https://ketenmerk.nl', 'klaar')`,
+      [ketenProfiel, userId],
+    );
+    const { rows: aanbodTaak } = await db.client.query(
+      `insert into public.jobs (profile_id, type, payload_json, dedupe_key, status, attempts)
+       values ($1, 'profile_offering', '{}', $2, 'running', 4) returning *`,
+      [ketenProfiel, `chain-aanbod:${ketenProfiel}`],
+    );
+    await handleFailure(admin as never, aanbodTaak[0], "de aanbodboom kwam niet rond");
+
+    const { rows: naAanbodFout } = await db.client.query(
+      "select type, status from public.jobs where profile_id = $1 and type = 'profile_market'",
+      [ketenProfiel],
+    );
+    ok(
+      "de marktstap staat alsnog ingepland",
+      naAanbodFout.length === 1 && naAanbodFout[0].status === "queued",
+      JSON.stringify(naAanbodFout),
+    );
+
+    // En de rest van de keten volgt gewoon vanaf daar: markt plant de
+    // kennistest in, die de synthese. Dat blijft het werk van de geslaagde tak.
+    const { rows: aanbodStand } = await db.client.query(
+      "select status from public.jobs where id = $1",
+      [aanbodTaak[0].id],
+    );
+    ok("terwijl de aanbodstap zelf op mislukt staat", aanbodStand[0].status === "failed");
+
+    // ⚠️ Een stap die LOS is ingepland vanuit het gesprek trekt niets achter
+    // zich aan, ook niet bij een mislukking. Anders sleept één gewijzigde
+    // concurrent alsnog de twee duurste stappen mee.
+    const losProfiel = randomUUID();
+    await db.client.query(
+      `insert into public.profiles (id, user_id, name, url, status)
+       values ($1, $2, 'Losmerk', 'https://losmerk.nl', 'klaar')`,
+      [losProfiel, userId],
+    );
+    const { rows: losseTaak } = await db.client.query(
+      `insert into public.jobs (profile_id, type, payload_json, dedupe_key, status, attempts)
+       values ($1, 'profile_market', '{"chain": false}', $2, 'running', 4) returning *`,
+      [losProfiel, `chain-los:${losProfiel}`],
+    );
+    await handleFailure(admin as never, losseTaak[0], "het marktonderzoek gaf op");
+    const { rows: naLos } = await db.client.query(
+      "select count(*) as n from public.jobs where profile_id = $1 and type = 'profile_llm_baseline'",
+      [losProfiel],
+    );
+    ok(
+      "een los ingeplande stap sleept de kennistest niet mee",
+      Number(naLos[0].n) === 0,
+    );
+
+    await db.client.query("delete from public.profiles where id in ($1, $2)", [
+      ketenProfiel,
+      losProfiel,
+    ]);
 
     // ══════════════════════════════════════════════════════════════════════
     // Het uitnodigingspad (0046/0047, fase 2)
@@ -1624,6 +2002,108 @@ async function main(): Promise<void> {
       [mixAnalyse],
     );
     ok("en er staan vijf vragen, precies 0 + 2 + 3", totaal[0].n === 5, `kreeg ${totaal[0].n}`);
+
+    // ══════════════════════════════════════════════════════════════════════
+    // Het gesprek verandert de uitkomst (onboarding 3.0, fase 4)
+    //
+    // ⚠️ DIT IS HET VERIFICATIECRITERIUM VAN FASE 4. Zonder deze lus is de
+    // onboardingsessie een archief: de consultant legt vast dat het merk
+    // landelijk werkt in plaats van lokaal, en de vragen die de meting stelt
+    // zijn nog steeds gegenereerd op de gok van het model.
+    //
+    // Drie dingen moeten kloppen en ze zitten alle drie tússen stappen in:
+    // de bijwerkroute moet zien wát er gewijzigd is, de promptgeneratie moet
+    // de oude vragen vervangen zonder de metingen mee te nemen, en de
+    // gesprekswaarden moeten na afloop nog steeds staan.
+    // ══════════════════════════════════════════════════════════════════════
+    console.log("\nWat er in het gesprek verandert, verandert het onderzoek");
+
+    const { planRefresh: planVan } = await import("@/lib/pipeline/onboarding-refresh");
+
+    // De sessie legt een nieuw bereik vast, ná de laatste onderzoeksronde.
+    await db.client.query(
+      "update public.profiles set service_scope = 'landelijk', service_regions = '{}', deep_research_at = now() - interval '1 day' where id = $1",
+      [profileId],
+    );
+    await db.client.query(
+      `insert into public.profile_field_sources (profile_id, field, source, confidence, set_by, set_at)
+       values ($1, 'service_scope', 'gesprek', 1, $2, now()),
+              ($1, 'goal_12m', 'gesprek', 1, $2, now())
+       on conflict (profile_id, field) do update
+         set source = excluded.source, set_at = excluded.set_at`,
+      [profileId, beheerderId],
+    );
+
+    // Precies wat de bijwerkroute doet: kijken wat er sinds de laatste ronde
+    // door een mens gezet is.
+    const { rows: sindsdien } = await db.client.query(
+      `select field from public.profile_field_sources
+        where profile_id = $1 and source <> 'ai'
+          and set_at > (select deep_research_at from public.profiles where id = $1)`,
+      [profileId],
+    );
+    const gewijzigdeVelden = sindsdien.map((r: { field: string }) => r.field);
+    ok(
+      "de bijwerkroute ziet het gewijzigde bereik",
+      gewijzigdeVelden.includes("service_scope"),
+      gewijzigdeVelden.join(", "),
+    );
+
+    const bijwerkPlan = planVan(gewijzigdeVelden, { analyses: 1 });
+    ok("en plant de vragen opnieuw in", bijwerkPlan.tasks.includes("prompts"));
+    ok("plus de kennistest", bijwerkPlan.tasks.includes("kennistest"));
+    // Het doel over twaalf maanden is óók gewijzigd en levert bewust niets op.
+    ok("het jaardoel laat niets extra draaien", !bijwerkPlan.tasks.includes("markt"));
+
+    // De vragen van vóór het gesprek, met een meting eraan. Die meting is de
+    // reden dat er niet verwijderd mag worden.
+    const { rows: voorVragen } = await db.client.query(
+      "select id from public.prompts where analysis_id = $1 and category = 'Overweging' and active = true",
+      [mixAnalyse],
+    );
+    await db.client.query(
+      `insert into public.tracking_runs (analysis_id, prompt_id, week_no, engine, prompt_text_snapshot, prompt_category_snapshot)
+       values ($1, $2, 1, 'openai', 'oude vraag', 'Overweging')`,
+      [mixAnalyse, voorVragen[0].id],
+    );
+
+    // En dan de herdraai, precies zoals de bijwerkroute hem inplant.
+    const { rows: herdraai } = await db.client.query(
+      `insert into public.jobs (analysis_id, type, payload_json, dedupe_key, status)
+       values ($1, 'generate_prompts', $2, $3, 'running') returning *`,
+      [
+        mixAnalyse,
+        JSON.stringify({ category: "Overweging", regenerate: true }),
+        `chain-herdraai:${mixAnalyse}`,
+      ],
+    );
+    await runJob({ admin: admin as never, job: herdraai[0] });
+
+    const { rows: naHerdraai } = await db.client.query(
+      `select active, count(*)::int as n from public.prompts
+        where analysis_id = $1 and category = 'Overweging' group by active order by active`,
+      [mixAnalyse],
+    );
+    const inactief = naHerdraai.find((r: { active: boolean }) => r.active === false)?.n ?? 0;
+    const actief = naHerdraai.find((r: { active: boolean }) => r.active === true)?.n ?? 0;
+    ok("de oude vragen staan uit", inactief === 2, `${inactief} inactief`);
+    ok("en er staan nieuwe actieve vragen", actief === 2, `${actief} actief`);
+
+    // ⚠️ De metingen zijn er nog. Een `delete` op de vragen zou ze via de
+    // foreign key hebben meegenomen, en dan is de trendlijn weg om een
+    // correctie op de vraagstelling.
+    const { rows: bewaardeMetingen } = await db.client.query(
+      "select count(*)::int as n from public.tracking_runs where analysis_id = $1",
+      [mixAnalyse],
+    );
+    ok("de metingen van de oude vragen staan er nog", bewaardeMetingen[0].n === 1);
+
+    // En de gesprekswaarden zelf zijn niet aangeraakt.
+    const { rows: naAlles } = await db.client.query(
+      "select service_scope from public.profiles where id = $1",
+      [profileId],
+    );
+    ok("het bereik uit het gesprek staat er nog", naAlles[0].service_scope === "landelijk");
 
     // ══════════════════════════════════════════════════════════════════════
     // Wedstrijdcondities: twee dingen die tegelijk gebeuren

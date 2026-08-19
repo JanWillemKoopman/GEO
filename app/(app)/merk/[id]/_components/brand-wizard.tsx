@@ -4,19 +4,17 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/components/toast";
-import { TagListEditor } from "@/components/tag-list-editor";
 import {
   BRAND_FIELDS,
+  CLIENT_STEPS,
   STEP_META,
-  STEP_ORDER,
   fieldsOfStep,
-  isFilled,
   overallProgress,
   stepProgress,
-  type BrandField,
   type BrandStep,
 } from "@/lib/pipeline/brand-fields";
-import type { Persona, Profile } from "@/lib/types/database";
+import { BrandFieldInput } from "./brand-field-input";
+import type { Profile } from "@/lib/types/database";
 
 /**
  * Het merkprofiel invullen, in zeven stappen.
@@ -64,9 +62,16 @@ export function BrandWizard({
   const router = useRouter();
   const toast = useToast();
   const [stap, setStap] = useState<BrandStep>("bedrijf");
+  // ⚠️ Alleen de klantstappen, en dat is niet cosmetisch. De hele inhoud van
+  // deze state gaat als body naar `PATCH /api/profiles/[id]`, en die route legt
+  // van élk veld in de body de herkomst vast. Zaten de commerciële velden er
+  // ook in, dan zou één klik op "Bewaren" door de klant de uitkomst van het
+  // gesprek herlabelen als klantinvoer.
   const [waarden, setWaarden] = useState<Record<string, unknown>>(() => {
     const start: Record<string, unknown> = {};
-    for (const f of BRAND_FIELDS) start[f.key as string] = initial[f.key];
+    for (const f of BRAND_FIELDS) {
+      if (CLIENT_STEPS.includes(f.step)) start[f.key as string] = initial[f.key];
+    }
     return start;
   });
   const [vuil, setVuil] = useState(false);
@@ -76,8 +81,8 @@ export function BrandWizard({
     () => overallProgress(waarden as Partial<Profile>),
     [waarden],
   );
-  const stapIndex = STEP_ORDER.indexOf(stap);
-  const laatste = stapIndex === STEP_ORDER.length - 1;
+  const stapIndex = CLIENT_STEPS.indexOf(stap);
+  const laatste = stapIndex === CLIENT_STEPS.length - 1;
 
   // Het vangnet bij het sluiten van het tabblad of een harde navigatie. Vangt
   // niet alles: een klik op een link binnen de app gaat hier langs, en daarvoor
@@ -143,7 +148,7 @@ export function BrandWizard({
           vult. Hier per stap het aantal ingevulde velden, want dat is het enige
           eerlijke signaal van voortgang. */}
       <nav className="flex flex-wrap gap-2" aria-label="Stappen">
-        {STEP_ORDER.map((s, i) => {
+        {CLIENT_STEPS.map((s, i) => {
           const p = stepProgress(waarden as Partial<Profile>, s);
           const actief = s === stap;
           return (
@@ -182,7 +187,7 @@ export function BrandWizard({
 
       <div className="flex flex-col gap-4">
         {fieldsOfStep(stap).map((field) => (
-          <FieldRow
+          <BrandFieldInput
             key={field.key as string}
             field={field}
             value={waarden[field.key as string]}
@@ -206,7 +211,7 @@ export function BrandWizard({
             <button
               type="button"
               className="btn-outline"
-              onClick={() => setStap(STEP_ORDER[stapIndex - 1])}
+              onClick={() => setStap(CLIENT_STEPS[stapIndex - 1])}
             >
               Vorige
             </button>
@@ -234,7 +239,7 @@ export function BrandWizard({
             <button
               type="button"
               className="btn-primary"
-              onClick={() => setStap(STEP_ORDER[stapIndex + 1])}
+              onClick={() => setStap(CLIENT_STEPS[stapIndex + 1])}
             >
               Volgende
             </button>
@@ -251,243 +256,6 @@ export function BrandWizard({
           zonder bewaren gooit ze weg.
         </p>
       )}
-    </div>
-  );
-}
-
-/**
- * Eén veld: label, uitleg, herkomst, invoer.
- *
- * De herkomstchip is het hele punt van dit scherm. `onderzoek` betekent "ORBIT ENGINE
- * heeft dit van je site gehaald, kijk het na"; `klant` of `gesprek` betekent
- * "dit heeft een mens vastgelegd, en een volgende onderzoeksronde laat het met
- * rust" (zie `lib/pipeline/field-merge.ts`).
- */
-function FieldRow({
-  field,
-  value,
-  source,
-  onChange,
-}: {
-  field: BrandField;
-  value: unknown;
-  source?: string;
-  onChange: (value: unknown) => void;
-}) {
-  const id = `veld-${String(field.key)}`;
-  const gevuld = isFilled(value);
-
-  return (
-    <div className="card flex flex-col gap-2">
-      <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <label htmlFor={id} className="text-sm font-semibold">
-          {field.label}
-        </label>
-        <Herkomst source={source} gevuld={gevuld} derivable={field.derivable} />
-      </div>
-      <p className="text-sm text-muted">{field.description}</p>
-
-      {field.kind === "lijst" ? (
-        <TagListEditor
-          items={Array.isArray(value) ? (value as string[]) : []}
-          onChange={(items) => onChange(items)}
-          placeholder={field.placeholder}
-        />
-      ) : field.kind === "personas" ? (
-        <PersonaEditor
-          items={Array.isArray(value) ? (value as Persona[]) : []}
-          onChange={(items) => onChange(items)}
-          placeholder={field.placeholder}
-        />
-      ) : field.kind === "schuif" || field.kind === "keuze" ? (
-        <Standen
-          id={id}
-          options={field.options ?? []}
-          // Een `keuze` slaat een woord op (`lokaal`, `dienstverlener`), een
-          // `schuif` een nummer van 1 tot 3 of 4. De stand op het scherm is in
-          // beide gevallen een index, dus alleen de vertaling verschilt.
-          value={
-            field.values
-              ? indexVan(field.values, value)
-              : typeof value === "number"
-                ? value
-                : null
-          }
-          onChange={(n) => onChange(field.values ? field.values[n - 1] : n)}
-          // Nogmaals klikken op de actieve stand zet hem terug op "niet
-          // ingesteld". Zonder dat is een per ongeluk aangeklikte stand niet
-          // meer weg te krijgen zonder een aparte resetknop (C.28).
-          onClear={() => onChange(null)}
-        />
-      ) : field.kind === "lange-tekst" ? (
-        <textarea
-          id={id}
-          className="field"
-          rows={3}
-          value={typeof value === "string" ? value : ""}
-          onChange={(e) => onChange(e.target.value)}
-          placeholder={field.placeholder}
-        />
-      ) : (
-        <input
-          id={id}
-          className="field"
-          value={typeof value === "string" ? value : ""}
-          onChange={(e) => onChange(e.target.value)}
-          placeholder={field.placeholder}
-        />
-      )}
-    </div>
-  );
-}
-
-/** Welke stand hoort bij deze opgeslagen waarde? 1-gebaseerd, `null` als hij er niet bij staat. */
-function indexVan(values: string[], value: unknown): number | null {
-  const i = values.indexOf(String(value ?? ""));
-  return i === -1 ? null : i + 1;
-}
-
-/**
- * Klanttypes: een lijst van naam plus behoeftes.
- *
- * Het enige veld dat geen tekst of tekstlijst is, en daarom een eigen invoer
- * heeft in plaats van `TagListEditor`. De behoeftes gaan als komma-lijst, net
- * als in de platte editor die dit veld tot 17 augustus 2026 bezat: een tweede
- * invoerpatroon leren voor één veld is meer moeite dan het oplevert.
- */
-function PersonaEditor({
-  items,
-  onChange,
-  placeholder,
-}: {
-  items: Persona[];
-  onChange: (items: Persona[]) => void;
-  placeholder?: string;
-}) {
-  function patch(index: number, veranderd: Partial<Persona>) {
-    onChange(items.map((p, i) => (i === index ? { ...p, ...veranderd } : p)));
-  }
-
-  return (
-    <div className="flex flex-col gap-2">
-      {items.map((persona, i) => (
-        <div
-          key={i}
-          className="flex flex-col gap-2 rounded-[var(--radius-md)] border border-[var(--border-subtle)] p-3"
-        >
-          <input
-            className="field"
-            value={persona.name}
-            onChange={(e) => patch(i, { name: e.target.value })}
-            placeholder={placeholder ?? "Naam van dit klanttype"}
-            aria-label="Naam van dit klanttype"
-          />
-          <input
-            className="field"
-            value={persona.needs.join(", ")}
-            onChange={(e) =>
-              patch(i, {
-                needs: e.target.value
-                  .split(",")
-                  .map((s) => s.trim())
-                  .filter(Boolean),
-              })
-            }
-            placeholder="Waar deze persoon mee zit, gescheiden door komma's"
-            aria-label="Behoeftes, gescheiden door komma's"
-          />
-          <button
-            type="button"
-            onClick={() => onChange(items.filter((_, idx) => idx !== i))}
-            className="w-fit text-sm text-[var(--status-error)] hover:underline"
-          >
-            Verwijderen
-          </button>
-        </div>
-      ))}
-      <button
-        type="button"
-        onClick={() => onChange([...items, { name: "", needs: [] }])}
-        className="btn-outline w-fit"
-      >
-        + Klanttype toevoegen
-      </button>
-    </div>
-  );
-}
-
-function Herkomst({
-  source,
-  gevuld,
-  derivable,
-}: {
-  source?: string;
-  gevuld: boolean;
-  derivable: boolean;
-}) {
-  if (!gevuld) {
-    // Een leeg veld dat ORBIT ENGINE niet kán vinden, is geen tekortkoming van de app
-    // maar een vraag aan de klant. Dat verschil hoort zichtbaar te zijn.
-    return (
-      <span className="chip chip-neutral">
-        {derivable ? "niets gevonden" : "vul jij in"}
-      </span>
-    );
-  }
-  if (source === "klant" || source === "gesprek") {
-    return <span className="chip chip-success">door jou vastgelegd</span>;
-  }
-  return <span className="chip">uit je website gehaald</span>;
-}
-
-/**
- * De schuifstanden als knoppenrij en niet als `<input type="range">`.
- *
- * Een schuifbalk zonder benoemde standen dwingt de gebruiker te raden wat stand
- * 2 betekent. Nova benoemt ze allemaal (`formality1` tot `formality3`), en dan
- * is een rij knoppen eerlijker: je kiest een woord, geen positie.
- */
-function Standen({
-  id,
-  options,
-  value,
-  onChange,
-  onClear,
-}: {
-  id: string;
-  options: string[];
-  value: number | null;
-  onChange: (value: number) => void;
-  onClear: () => void;
-}) {
-  return (
-    <div className="flex flex-wrap gap-2" role="radiogroup" aria-labelledby={id}>
-      {options.map((label, i) => {
-        const n = i + 1;
-        const actief = value === n;
-        return (
-          <button
-            key={label}
-            type="button"
-            role="radio"
-            aria-checked={actief}
-            onClick={() => (actief ? onClear() : onChange(n))}
-            className="rounded-[var(--radius-md)] border px-3 py-2 text-sm transition-colors"
-            style={{
-              borderColor: actief
-                ? "var(--intent-intelligence-border)"
-                : "var(--border-strong)",
-              background: actief
-                ? "var(--intent-intelligence-surface)"
-                : "var(--bg-surface)",
-              color: actief ? "var(--text-primary)" : "var(--text-secondary)",
-              fontWeight: actief ? 600 : 400,
-            }}
-          >
-            {label}
-          </button>
-        );
-      })}
     </div>
   );
 }

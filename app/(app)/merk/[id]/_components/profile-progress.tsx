@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { ProfileStatus } from "@/lib/types/database";
-import type { ResearchStep } from "@/lib/pipeline/research-steps";
+import { displaySteps, type ResearchStep } from "@/lib/pipeline/research-steps";
 import { ErrorNotice, problemFromResponse } from "@/components/error-notice";
 import { WorkInProgress, useStatusPoll } from "@/components/work-in-progress";
 import type { UserFacingError } from "@/lib/errors";
@@ -95,10 +95,7 @@ export function ProfileProgress({
     <WorkInProgress
       title="ORBIT ENGINE leert je merk kennen"
       explanation="ORBIT ENGINE leest je website, brengt in kaart welke pagina's er staan, en zoekt uit wat je aanbiedt en wie je concurrenten zijn. Voordat het één woord schrijft, weet het wie je bent."
-      steps={(data?.steps ?? []).map((s) => ({
-        label: s.result ? `${s.label}: ${s.result}` : s.label,
-        done: s.state === "klaar" || s.state === "overgeslagen",
-      }))}
+      steps={displaySteps(data?.steps ?? [])}
       etaText={data?.etaText}
       retrying={data?.retrying}
       attempts={data?.attempts}

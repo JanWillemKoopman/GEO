@@ -75,6 +75,14 @@ const NON_BLOCKING_TYPES: ReadonlySet<JobType> = new Set<JobType>([
   // de topicvoorstellen, vervelend, maar zijn merk is bruikbaar en elke
   // analyse werkt. Een rood kruis op het voortgangsscherm zou suggereren dat
   // het onderzoek is misgelopen, en dat is niet zo.
+  //
+  // ⚠️ DIT KLOPTE TOT 19 AUGUSTUS 2026 NIET. De Teamsessie van 18 augustus
+  // wees erop dat deze stap zelf de MARKT inplande, en dat de markt de
+  // kennistest en de synthese draagt. Mislukte hij definitief, dan verdween de
+  // halve onderzoeksketen én zweeg het scherm erover, want de taak telt hier
+  // als niet-blokkerend. Het besluit sneuvelde dus op zijn eigen argument.
+  // Sinds `lib/jobs/chain.ts` hangt de opvolger niet meer aan het slagen van
+  // deze stap, en klopt de onderbouwing hierboven weer.
   "profile_offering",
   // Zelfde redenering: zonder topicvoorstellen typt de klant zijn onderwerp
   // gewoon zelf in, zoals hij dat altijd deed.

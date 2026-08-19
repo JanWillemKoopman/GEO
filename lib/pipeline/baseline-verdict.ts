@@ -510,3 +510,88 @@ export function describeKnows(s: KnowsSummary, brandName: string): string {
       return `herkent ${brandName} wisselend (${s.recognised} van de ${s.asked} vragen)`;
   }
 }
+
+// ── Is de kennistest eigenlijk wel gedaan? ─────────────────────────────────
+//
+// ⚠️ 19 augustus 2026. `runLlmBaseline()` schreef het facet `llm_kennis` altijd
+// weg, ook als het budget op was en er nul vragen gesteld waren. De samenvatting
+// werd dan "Nog niet vastgesteld wat AI-assistenten over dit merk weten", en dat
+// is een gevulde tekst. `research-steps.ts` leest precies dat veld en zette de
+// stap daarmee op `klaar`. De duurste stap van de onboarding, de enige die
+// meet wat ChatGPT van het merk weet, toonde dus als geslaagd terwijl er niets
+// gebeurd was.
+//
+// De regel: geen enkel gemeten antwoord betekent geen samenvatting. Het facet
+// zelf blijft wél staan, met het aantal overgeslagen vragen erin, want alles
+// bewaren is conventie 8. Een leeg `summary` laat de stap op `overgeslagen`
+// vallen, en dat is wat er werkelijk gebeurde.
+
+export interface BaselineFacetState {
+  /** Er staat minstens één gemeten antwoord, uit deze ronde of een eerdere. */
+  gemeten: boolean;
+  /** Er is niets gemeten terwijl er wel vragen klaarstonden. */
+  allesOvergeslagen: boolean;
+}
+
+export function baselineFacetState(input: {
+  /** Antwoorden die deze ronde zijn opgeslagen. */
+  measured: number;
+  /** Antwoorden die er al stonden uit een eerdere ronde (idempotentie). */
+  eerder: number;
+  /** Vragen die niet gesteld zijn: budget op, of de aanroep mislukte. */
+  skipped: number;
+}): BaselineFacetState {
+  const gemeten = input.measured > 0 || input.eerder > 0;
+  return { gemeten, allesOvergeslagen: !gemeten && input.skipped > 0 };
+}
+
+// ── Het verwarringblok: wie heet er nog meer zo? ───────────────────────────
+//
+// ⚠️ Dit blok meet de naamverwarring sinds de eerste onboarding, en bewaarde de
+// uitkomst nergens anders dan als vrije tekst. Terwijl het precies het veld
+// vult dat migratie 0060 toevoegde: `name_exclusions`, de tegenhanger van
+// `aliases`. Zonder die lijst telt de meting straks vermeldingen mee van een
+// gelijknamig bedrijf, en valt de score te hoog uit.
+//
+// Deterministisch en niet met een tweede AI-aanroep (conventie 1 en conventie
+// 7): het antwoord is een opsomming, en een opsomming is te lezen zonder model.
+// Wat er niet als opsomming in staat, halen we er niet uit. Een gemiste naam
+// kost een bevestiging in het gesprek; een verzonnen naam zet een echt bedrijf
+// op een uitsluitingslijst.
+
+/** Hoeveel voorstellen we hooguit teruggeven. Meer is geen lijst maar ruis. */
+const MAX_CONFUSIONS = 8;
+
+export function extractConfusions(
+  answer: string,
+  /** De eigen namen en aliassen. Die horen per definitie niet in de lijst. */
+  ownNames: string[],
+): string[] {
+  const eigen = new Set(
+    ownNames.filter(Boolean).map((n) => n.trim().toLowerCase()),
+  );
+  const uit: string[] = [];
+  const gezien = new Set<string>();
+
+  for (const regel of answer.split("\n")) {
+    const s = regel.trim();
+    // Alleen echte opsommingsregels: "- Naam", "* Naam", "1. Naam", "• Naam".
+    if (!/^([-*•]|\d+[.)])\s+/.test(s)) continue;
+
+    // De vetgedrukte kop van een regel is bij een opsomming vrijwel altijd de
+    // naam zelf; staat die er, dan is dat het scherpste signaal dat er is.
+    const vet = /\*\*(.+?)\*\*/.exec(s);
+    const kandidaat = cleanCompetitorName(
+      vet ? vet[1] : s.replace(/^([-*•]|\d+[.)])\s+/, ""),
+    );
+    if (!kandidaat) continue;
+
+    const sleutel = kandidaat.toLowerCase();
+    if (eigen.has(sleutel) || gezien.has(sleutel)) continue;
+    gezien.add(sleutel);
+    uit.push(kandidaat);
+    if (uit.length >= MAX_CONFUSIONS) break;
+  }
+
+  return uit;
+}

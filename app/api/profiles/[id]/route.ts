@@ -5,6 +5,8 @@ import { getOwnedProfile } from "@/lib/profiles";
 import { MAX_PAGES_HARD_CAP } from "@/lib/crawler";
 import { clampToneSlider, clampEmotional } from "@/lib/pipeline/tone-sliders";
 import { EDITABLE_PROFILE_FIELDS } from "@/lib/profile-editable";
+import { resolveWriteSource } from "@/lib/profile-source";
+import { isStaff } from "@/lib/staff";
 
 /**
  * PATCH /api/profiles/[id], klantprofiel bewerken. Geen AI-call: pure CRUD op
@@ -20,6 +22,15 @@ const LIST_FIELDS = [
   "key_messages",
   "identity_keywords",
   "signature_phrases",
+  // De commerciële laag (migratie 0060).
+  "priority_offerings",
+  "deprioritised_offerings",
+  "growth_regions",
+  "target_segments",
+  "sales_objections",
+  "forbidden_topics",
+  "offline_proof",
+  "name_exclusions",
 ] as const;
 
 /** Vrije tekst: een leeg veld wordt `null`, nooit een lege string. */
@@ -33,10 +44,23 @@ const NULLABLE_TEXT_FIELDS = [
   "author_photo_url",
   "author_facebook_url",
   "author_other_url",
+  // Migratie 0060.
+  "seasonality",
+  "goal_12m",
+  "contact_name",
+  "contact_email",
+  "contact_phone",
 ] as const;
 
 /** De aanspreekvorm van de CONTENT, niet van ORBIT ENGINE's eigen interface. */
 const PRONOUNS = ["je", "u", "wij"] as const;
+
+/**
+ * Wat een klant ongeveer waard is (migratie 0060). Vier woorden die in een
+ * database-constraint staan, dus dezelfde behandeling als `pronoun_preference`:
+ * nooit een client-string rechtstreeks doorlaten.
+ */
+const DEAL_VALUE_BANDS = ["onbekend", "klein", "midden", "groot"] as const;
 
 /** Velden die als 1-3 geklemd worden in plaats van rechtstreeks opgeslagen. */
 const TONE_SLIDER_FIELDS = ["tone_formality", "tone_energy", "tone_complexity", "tone_humor"] as const;
@@ -55,6 +79,20 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     body = await request.json();
   } catch {
     return NextResponse.json({ error: "Ongeldige aanvraag." }, { status: 400 });
+  }
+
+  // ── Wie mag welke herkomst wegschrijven? ─────────────────────────────────
+  //
+  // Vóór het opslaan, niet erna: een verboden herkomst mag de waarde helemaal
+  // niet in de database krijgen, ook niet met een verkeerd label erbij.
+  const staf = await isStaff(user.id);
+  const bron = resolveWriteSource({
+    requested: body.bron,
+    isStaff: staf,
+    isOwner: profile.user_id === user.id,
+  });
+  if (!bron.ok) {
+    return NextResponse.json({ error: bron.error }, { status: bron.status });
   }
 
   const update: Record<string, unknown> = { edited_by_user: true };
@@ -97,6 +135,19 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     const raw = String(update.pronoun_preference ?? "");
     update.pronoun_preference = (PRONOUNS as readonly string[]).includes(raw) ? raw : null;
   }
+  // Zelfde behandeling voor de waardeklasse van een klant (migratie 0060).
+  if ("deal_value_band" in update) {
+    const raw = String(update.deal_value_band ?? "");
+    update.deal_value_band = (DEAL_VALUE_BANDS as readonly string[]).includes(raw)
+      ? raw
+      : null;
+  }
+  // Ja of nee, met "niet vastgesteld" als derde uitkomst (conventie 3). Alleen
+  // een echte boolean telt: "false" als tekst is geen antwoord maar een fout.
+  if ("respect_site_structure" in update) {
+    const raw = update.respect_site_structure;
+    update.respect_site_structure = typeof raw === "boolean" ? raw : null;
+  }
   // Lijstvelden: lege of niet-tekstuele items eruit, net als TagListEditor
   // dat elders al doet voor products/value_props/competitors.
   for (const field of LIST_FIELDS) {
@@ -137,17 +188,53 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   // gemaakt is, en precies het scenario dat hij niet dekte.
   //
   // 'klant' als de eigenaar zelf bewerkt, 'gesprek' als de consultant het voor
-  // hem doet. Allebei menselijk (`isHumanSet`), dus voor de bescherming maakt
-  // het niet uit, voor de vraag "wie zei dit?" een halfjaar later wel.
+  // hem doet, 'consultant' als er nog geen klant aan tafel zat. Alle drie
+  // menselijk (`isHumanSet`), dus voor de bescherming maakt het niet uit, voor
+  // de vraag "wie zei dit?" een halfjaar later wel. Welke van de drie het mag
+  // zijn, is hierboven al beslist door `resolveWriteSource()`.
+  // ── Niet van toepassing, per veld (migratie 0060) ────────────────────────
+  //
+  // ⚠️ Geen eigen route. Dit is per-veld-metadata op dezelfde tabel als de
+  // herkomst, gezet vanaf hetzelfde scherm, in dezelfde handeling. Een tweede
+  // opslagroute ernaast is precies wat dit plan niet doet.
+  //
+  // Een leeg veld is zonder dit dubbelzinnig: het kan "weten we nog niet"
+  // betekenen of "niet van toepassing". Een merk zonder auteur heeft geen
+  // auteursbio, en dat is geen gat.
+  const nvt = body.nvt;
+  if (nvt && typeof nvt === "object" && !Array.isArray(nvt)) {
+    const rijen = Object.entries(nvt as Record<string, unknown>)
+      .filter(([field]) => (EDITABLE_FIELDS as readonly string[]).includes(field))
+      .map(([field, waarde]) => ({
+        profile_id: id,
+        field,
+        source: bron.source,
+        confidence: 1,
+        set_by: user.id,
+        set_at: new Date().toISOString(),
+        not_applicable: waarde === true,
+      }));
+    if (rijen.length > 0) {
+      const { error: nvtError } = await admin
+        .from("profile_field_sources")
+        .upsert(rijen, { onConflict: "profile_id,field" });
+      if (nvtError) {
+        return NextResponse.json(
+          { error: "Opslaan is niet gelukt." },
+          { status: 500 },
+        );
+      }
+    }
+  }
+
   const bewerkteVelden = EDITABLE_FIELDS.filter((f) => f in body);
   if (bewerkteVelden.length > 0) {
-    const bron = profile.user_id === user.id ? "klant" : "gesprek";
     const nu = new Date().toISOString();
     const { error: bronError } = await admin.from("profile_field_sources").upsert(
       bewerkteVelden.map((field) => ({
         profile_id: id,
         field,
-        source: bron,
+        source: bron.source,
         confidence: 1,
         set_by: user.id,
         set_at: nu,

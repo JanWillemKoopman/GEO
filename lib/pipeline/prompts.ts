@@ -33,6 +33,7 @@ import {
   droppableIndices,
   REGIO_DREMPEL,
 } from "@/lib/pipeline/geo-share";
+import { growthRegionsRule } from "@/lib/pipeline/commercial-context";
 
 /**
  * Vaste ijkpunten voor elke zoekvolumeschatting, in deze stap én in de
@@ -77,6 +78,13 @@ export interface BrandContext {
   serviceScope?: string | null;
   serviceRegions?: string[];
   marketLanguage?: string | null;
+  /**
+   * Waar het merk heen WIL (migratie 0060). Naast `serviceRegions` en niet in
+   * plaats daarvan: dat is waar het nu al werkt en bepaalt of de vragen
+   * regionaal gesteld worden, dit is de ambitie en levert extra vragen op in
+   * een gebied waar het merk vandaag nog niet gevonden wordt.
+   */
+  growthRegions?: string[];
 }
 
 export interface GeneratedPrompt {
@@ -298,6 +306,10 @@ async function generateForFunnelStage(args: {
     `Generieke productmerken of -categorieën (bv. "Nike-schoenen") mag je WÉL gebruiken. ` +
     `Schrijf de vraag zoals iemand die deze bedrijven NOG NIET kent 'm zou stellen. Een prompt met een eigen of concurrent-bedrijfsnaam is ONGELDIG.`;
 
+  // Waar het merk heen wil (migratie 0060, fase 4). Staat ná de geo-regel: die
+  // gaat over waar het bedrijf nú werkt, dit over waar het bij wil komen.
+  const groeiRegel = growthRegionsRule({ growth_regions: brand.growthRegions ?? [] });
+
   const system =
     `Je bedenkt realistische vragen ("prompts") die een echte koper aan een AI-assistent zoals ChatGPT stelt. ` +
     `Schrijf natuurlijke, gesproken vragen, geen losse zoekwoorden. Varieer in toon en specificiteit. Nederlands. ` +
@@ -307,7 +319,7 @@ async function generateForFunnelStage(args: {
     `${buildContextBlock(url, topic, brand)}\n\n` +
     (briefRule ? `${briefRule}\n\n` : "") +
     `Genereer precies ${count} prompts voor de FUNNELFASE "${category}": ${CATEGORY_BRIEF[category] ?? ""}\n` +
-    `${scopeRule}\n${geoRule ? `${geoRule}\n` : ""}${neutralityRule}\n` +
+    `${scopeRule}\n${geoRule ? `${geoRule}\n` : ""}${groeiRegel ? `${groeiRegel}\n` : ""}${neutralityRule}\n` +
     `Geef per prompt mee: de onderliggende intentie (job-to-be-done); intentType ` +
     `(informational/commercial/transactional); specificity (head = korte brede vraag, long_tail = lange specifieke vraag); ` +
     `purchaseIntent (koopintentie waar of onwaar); cluster (kort thema-label); en volumeEstimate: jouw SCHATTING van hoe ` +

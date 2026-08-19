@@ -206,6 +206,11 @@ past horizontaal niet zonder scheidingstekens die niets betekenen, en verticaal 
 tussenkopje. Vandaar een **zijbalk** (`components/sidebar.tsx`).
 
 **Vijf hoofdstukken, elk met hooguit drie kinderen** (besluit 1 tot en met 8 van 17 augustus 2026).
+⚠️ **Admin mag er sinds 19 augustus 2026 vier**, bij het toevoegen van de onboardingsessie: drie
+ervan gaan over dít merk (Onboarding, Diagnose, Toewijzen) en de vierde, "Alle merken", is de uitgang
+naar de app als geheel. Dat is geen vergaarbak van vier gelijksoortige regels maar drie plus een
+uitgang. Een vijfde bestaat niet zonder eerst iets samen te voegen, en voor de klanthoofdstukken
+blijft drie de grens. `scripts/test-unit.ts` bewaakt beide grenzen.
 Daarvoor waren het 7 regels die uitklapten naar 15 bestemmingen, waarvan er negen onder één kop
 hingen die het commentaar in `lib/nav.ts` zelf al "de vergaarbak die dit oplost alleen verticaal"
 noemde. Elk hoofdstuk beantwoordt nu één vraag:
@@ -217,7 +222,7 @@ noemde. Elk hoofdstuk beantwoordt nu één vraag:
 | Analytics | Wat zeggen de cijfers, en waarom? | Zichtbaarheid in AI, Zoekverkeer, Concurrenten |
 | Merkprofiel | Wie ben ik volgens ORBIT ENGINE, en klopt dat? | Merkdossier, Bewerken, Vraagt jouw input |
 | Instellingen | Hoe is het ingericht? | Account en team, Koppelingen |
-| Admin | (alleen beheerders, onder een scheidingslijn) | Onboarding-inzicht, Alle merken, Toewijzen |
+| Admin | (alleen beheerders, onder een scheidingslijn) | Onboarding, Diagnose, Toewijzen, Alle merken |
 
 ⚠️ **Strategie staat vóór Analytics, en dat is geen smaak.** Wie inlogt wil weten wat hij moet doen,
 niet browsen in data. Overzicht draagt het hoofdcijfer al, Analytics is verdieping en Strategie is
@@ -232,6 +237,57 @@ erger dan een kop die er nog niet is: de eerste kost vertrouwen in de hele balk.
 hooguit drie per hoofdstuk passen alle bestemmingen tegelijk in beeld, en dan is een klapknop een
 klik die niets oplevert. Ingeklapt (64px) blijft alleen het teken van het hoofdstuk over, en dat
 linkt naar zijn eerste bestemming.
+
+### De fase van een merk (19 augustus 2026)
+
+Het beheerscherm sorteerde op achterstand: hoeveel pagina's staan er te lang op goedkeuring te
+wachten. Dat is de vraag van ná de verkoop. De vraag ervóór, "welk merk kan ik nu demonstreren en
+welk merk wacht op een gesprek", was nergens te zien, terwijl het product sales-led is.
+
+Elk merk heeft daarom een **fase**, afgeleid uit gegevens die er al liggen (`lib/profile-stage.ts`,
+nul migraties): Voorbereiden, Klaar voor het gesprek, Gesprek gehad, Overgedragen. Een status die je
+met de hand bijhoudt loopt achter op de werkelijkheid; deze kan dat niet.
+
+⚠️ **Een tweede as, geen vervanging.** De segmenten op `/beheer` beantwoorden "waar loop ik achter",
+de fase beantwoordt "wat kan ik vandaag verkopen". Ze wijzen niet naar hetzelfde merk, dus ze staan
+naast elkaar: de fase is een chip per merk plus een filter, en de bestaande sortering blijft leidend.
+
+Op het merkoverzicht staat voor staf één regel bovenaan met de fase en de eerstvolgende handeling,
+met een link naar de onboardingsessie. Voor de klant verandert er niets: hij ziet zijn eigen merk,
+niet zijn plek in onze verkoopcyclus.
+
+### De onboardingsessie: het enige stafscherm dat gedeeld wordt
+
+`/merk/[id]/admin/onboarding`, nieuw op 19 augustus 2026. Elk ander scherm onder `admin/` is intern.
+Dit scherm zit de klant náást je en kijkt mee, en daar volgen drie bindende regels uit:
+
+1. Geen taaknamen, geen jobtypes, geen foutmeldingen uit de wachtrij.
+2. Geen bedragen. De kostenraming van een herdraai hoort in het bevestigvenster, niet in beeld.
+3. Geen interne begrippen. De tekst volgt `schrijfstijl.md` alsof de klant de lezer is, want dat is hij.
+
+`scripts/test-unit.ts` leest de drie bronbestanden van dit scherm en faalt als er alsnog een
+bedrag, een taaknaam of een foutcode in komt te staan. Een doorloop met de hand gebeurt één keer;
+het risico ontstaat bij de vólgende wijziging.
+
+**De volgorde van het scherm is de belangrijkste ontwerpkeuze.** Het opent met wat ORBIT ENGINE
+níét weet (`lib/profile-gaps.ts`, gesorteerd op gevolg en niet op veldvolgorde), daarna de
+commerciële laag die het gesprek moet vullen, en pas daarna wat er al gevonden is, ingeklapt per
+blok. Zonder die volgorde kost het gesprek een uur aan het bevestigen van dingen die al klopten.
+
+**Opslaan gaat per veld**, zodra het de focus verlaat, met drie standen (opslaan, opgeslagen, niet
+gelukt). Anders dan in de klantwizard, waar één knop juist beter past: een gesprek springt en wordt
+onderbroken, en een half ingevuld formulier dat bij het weglopen verdwijnt is de duurste fout die
+dit scherm kan maken. Mislukt een opslag, dan blijft de getypte waarde staan met een knop om het
+opnieuw te proberen; stil terugdraaien laat de consultant het opnieuw typen zonder te weten dat het
+de eerste keer ook al niet lukte.
+
+**Elk veld kan op "niet van toepassing"** (migratie `0060`). Een merk zonder auteur heeft geen
+auteursbio, en dat is geen gat. Zo'n veld telt als behandeld en verdwijnt uit de gatenlijst.
+
+**De meter toont drie getallen en geen percentage** (`lib/profile-meter.ts`): samen bevestigd, door
+ORBIT ENGINE gevonden, nog open. Eén percentage verbergt precies het verschil dat in een gesprek
+telt. De contactvelden tellen niet mee, want ze zeggen niets over hoe goed ORBIT ENGINE het merk
+kent.
 
 **De actieve regel is exact, niet met prefix** (`isExact`, naast `isActive`). De bestemmingen binnen
 een hoofdstuk zijn elkaars prefix: `/merk/x/merkprofiel` is het begin van

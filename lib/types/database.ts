@@ -382,9 +382,47 @@ export interface Profile {
   author_photo_url: string | null;
   author_facebook_url: string | null;
   author_other_url: string | null;
+  /**
+   * De commerciële laag (migratie 0060, onboarding 3.0 deel D1). Twaalf velden
+   * die een website niet kan zeggen en die de consultant mét de klant invult.
+   * Elk veld heeft precies één lezer in de pijplijn; die staat per kolom in het
+   * commentaar van de migratie. Een veld zonder lezer hoort hier niet.
+   */
+  priority_offerings: string[];
+  deprioritised_offerings: string[];
+  /** Waar het merk heen WIL. `service_regions` is waar het nu al werkt. */
+  growth_regions: string[];
+  target_segments: string[];
+  /** 'onbekend' = gevraagd en de klant weet het niet. `null` = nooit gevraagd. */
+  deal_value_band: DealValueBand | null;
+  seasonality: string | null;
+  sales_objections: string[];
+  forbidden_topics: string[];
+  /**
+   * ⚠️ Staat naast `proof_points` en vervangt hem niet: die zijn per definitie
+   * letterlijk uit de site geëxtraheerd (contentkwaliteit A2), dit is juist
+   * bewijs dat nergens op de site staat.
+   */
+  offline_proof: string[];
+  /** De tegenhanger van `aliases`: gelijknamige bedrijven die NIET dit merk zijn. */
+  name_exclusions: string[];
+  /** Null = niet vastgesteld. `false` zou "verzin gerust nieuwe pagina's" betekenen. */
+  respect_site_structure: boolean | null;
+  goal_12m: string | null;
+  /**
+   * Met wie we aan tafel zaten (migratie 0060, deel D2). Telt bewust NIET mee in
+   * de volledigheidsmeter van het merkprofiel: het zegt niets over hoe goed
+   * ORBIT ENGINE het merk kent.
+   */
+  contact_name: string | null;
+  contact_email: string | null;
+  contact_phone: string | null;
   created_at: string;
   updated_at: string;
 }
+
+/** Wat een klant ongeveer waard is (migratie 0060). Weegt mee in de potentiescore. */
+export type DealValueBand = "onbekend" | "klein" | "midden" | "groot";
 
 /** Onderwerp-onderzoek (per analyse): alleen wat specifiek is voor dít product of thema. */
 export interface TopicResearch {
@@ -405,11 +443,16 @@ export interface TopicResearch {
 export type EngineId = "openai" | "gemini";
 
 /**
- * Herkomst van een profielveld (migratie 0039). Alleen `ai` mag door een
- * volgende onderzoeksronde overschreven worden, wat een mens zette blijft
- * staan. Zie lib/pipeline/field-merge.ts.
+ * Herkomst van een profielveld (migratie 0039, uitgebreid in 0060). Alleen `ai`
+ * mag door een volgende onderzoeksronde overschreven worden, wat een mens zette
+ * blijft staan. Zie lib/pipeline/field-merge.ts.
+ *
+ * ⚠️ `consultant` is niet hetzelfde als `klant`: wat de consultant vóór het
+ * gesprek invult is een onderbouwde aanname, geen bevestigd feit. Voor de
+ * bescherming tegen overschrijven telt hij als mens; voor de onderzoeksprompt
+ * is hij een startpunt dat tegengesproken mag worden.
  */
-export type FieldSource = "ai" | "klant" | "gesprek";
+export type FieldSource = "ai" | "klant" | "gesprek" | "consultant";
 
 /** Oordeel over de content-inventaris (migratie 0039, R6.2). */
 export interface InventoryQuality {
@@ -468,6 +511,12 @@ export interface ProfileFieldSource {
   evidence_quote: string | null;
   set_by: string | null;
   set_at: string;
+  /**
+   * Bewust niet van toepassing voor dit merk (migratie 0060). Een merk zonder
+   * auteur heeft geen auteursbio, en dat is geen gat. De volledigheidsmeter telt
+   * gevuld + n.v.t. als behandeld.
+   */
+  not_applicable: boolean;
 }
 
 export type TopicStatus = "voorgesteld" | "goedgekeurd" | "afgewezen";
