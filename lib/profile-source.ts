@@ -21,6 +21,8 @@
  * is schrijft altijd `klant`, wat hij ook meestuurt.
  */
 import type { FieldSource } from "@/lib/types/database";
+import { isFilled } from "@/lib/pipeline/brand-fields";
+import { EDITABLE_PROFILE_FIELDS } from "@/lib/profile-editable";
 
 /** De drie herkomsten die een mens via de API kan wegschrijven. `ai` niet. */
 export type WriteSource = Exclude<FieldSource, "ai">;
@@ -78,4 +80,27 @@ export function resolveWriteSource(input: {
   }
 
   return { ok: true, source: requested };
+}
+
+/**
+ * Welke velden heeft de consultant bij het aanmaken daadwerkelijk ingevuld?
+ *
+ * ── WAAROM DIT MOET (onboarding 3.0, fase 2) ────────────────────────────────
+ *
+ * `POST /api/profiles` schreef nul rijen in `profile_field_sources`, terwijl de
+ * bijwerkroute het wél doet. Wat een consultant typte was daarmee niet te
+ * onderscheiden van modeluitvoer, dus `filterProtectedFields()` beschermde het
+ * niet en de eerstvolgende onderzoeksronde mocht het overschrijven. Precies het
+ * scenario waarvoor migratie 0039 gemaakt is, en precies het scenario dat hij
+ * niet dekte.
+ *
+ * Alleen wat écht gevuld is. Een leeg veld vastleggen als "door de consultant
+ * gezet" zou het onderzoek blokkeren op een waarde die er niet is, en dat is
+ * erger dan geen herkomst: dan blijft het veld voorgoed leeg.
+ */
+export function consultantFields(values: Record<string, unknown>): string[] {
+  const bewerkbaar = new Set<string>(EDITABLE_PROFILE_FIELDS as readonly string[]);
+  return Object.entries(values)
+    .filter(([key, value]) => bewerkbaar.has(key) && isFilled(value))
+    .map(([key]) => key);
 }

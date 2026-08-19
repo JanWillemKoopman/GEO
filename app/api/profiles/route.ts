@@ -7,6 +7,8 @@ import { isReachable } from "@/lib/crawler";
 import { enqueue, dedupe } from "@/lib/jobs/queue";
 import { mayTriggerCost, COST_DENIED } from "@/lib/cost-guard";
 import { checkBudget } from "@/lib/spend-limit";
+import { resolveScope } from "@/lib/pipeline/field-merge";
+import { consultantFields } from "@/lib/profile-source";
 
 /**
  * POST /api/profiles, nieuw klantprofiel aanmaken vanuit de onboarding-wizard
@@ -115,31 +117,81 @@ export async function POST(request: Request) {
   // en een uitgenodigde klant ziet het niet. Zie `defaultAccountFor()`.
   const accountId = await defaultAccountFor(user.id);
 
+  // ⚠️ Mensinvoer door dezelfde normalisatie als modeluitvoer (fase 2 van
+  // onboarding 3.0). `resolveScope()` ontdubbelt de plaatsnamen en maakt van
+  // 'lokaal' zonder één regio een `null`, want dat is een half antwoord waar de
+  // promptgeneratie niets mee kan. Tot nu gold die regel alleen voor wat het
+  // model teruggaf, terwijl `service_regions[0]` letterlijk in zes
+  // kennistestvragen wordt geplakt.
+  const bereik = resolveScope(
+    VALID_SCOPES.includes(body.service_scope ?? "") ? body.service_scope : null,
+    toStringList(body.service_regions),
+  );
+
+  const intake = {
+    name,
+    aliases: toStringList(body.aliases),
+    industry: toTextOrNull(body.industry),
+    products: toStringList(body.products),
+    value_props: toStringList(body.value_props),
+    competitors: toStringList(body.competitors),
+    service_scope: bereik.scope,
+    service_regions: bereik.regions,
+    market_language: toTextOrNull(body.market_language),
+    tone_of_voice: toTextOrNull(body.tone_of_voice),
+    intake_description: toTextOrNull(body.intake_description),
+    intake_audience: toTextOrNull(body.intake_audience),
+  };
+
   const { data, error } = await admin
     .from("profiles")
     .insert({
       user_id: user.id,
       account_id: accountId,
-      name,
       url,
       status: "bezig",
-      aliases: toStringList(body.aliases),
-      industry: toTextOrNull(body.industry),
-      products: toStringList(body.products),
-      value_props: toStringList(body.value_props),
-      competitors: toStringList(body.competitors),
-      service_scope: VALID_SCOPES.includes(body.service_scope ?? "") ? body.service_scope : null,
-      service_regions: toStringList(body.service_regions),
-      market_language: toTextOrNull(body.market_language),
-      tone_of_voice: toTextOrNull(body.tone_of_voice),
-      intake_description: toTextOrNull(body.intake_description),
-      intake_audience: toTextOrNull(body.intake_audience),
+      ...intake,
     })
     .select("id")
     .single();
 
   if (error) {
     return NextResponse.json({ error: "Aanmaken is niet gelukt. Probeer het opnieuw." }, { status: 500 });
+  }
+
+  // ── Herkomst vastleggen bij het aanmaken (fase 2 van onboarding 3.0) ──────
+  //
+  // Deze route schreef nul rijen in `profile_field_sources` terwijl de
+  // bijwerkroute het wél deed. Wat de consultant hier typt was daarmee niet te
+  // onderscheiden van wat het model straks vindt, en het eerstvolgende
+  // onderzoek mocht het overschrijven.
+  //
+  // ⚠️ Bron `consultant` en niet `klant`: dit is een onderbouwde aanname van
+  // vóór het eerste contact, geen bevestigd feit. Voor de bescherming tegen
+  // overschrijven telt hij als mens; de onderzoeksprompt behandelt hem als
+  // startpunt dat tegengesproken mag worden (`profile-research.ts`).
+  // `name` valt terug op het webadres als er niets getypt is, en zo'n terugval
+  // is geen consultant-aanname. Vandaar de getypte waarde en niet de opgeslagen.
+  const gezet = consultantFields({ ...intake, name: body.name?.trim() ?? "" });
+  if (gezet.length > 0) {
+    const { error: bronError } = await admin.from("profile_field_sources").insert(
+      gezet.map((field) => ({
+        profile_id: data.id as string,
+        field,
+        source: "consultant",
+        confidence: 1,
+        set_by: user.id,
+      })),
+    );
+    // Bewust geen 500: het merk staat er en het onderzoek moet gewoon draaien.
+    // Een mislukte herkomstregel terugmelden als "aanmaken is niet gelukt" zou
+    // een tweede merk opleveren voor dezelfde site.
+    if (bronError) {
+      console.error(
+        `Herkomst vastleggen mislukt bij het aanmaken van profiel ${data.id} ` +
+          `(${gezet.length} veld(en) wél opgeslagen): ${bronError.message}`,
+      );
+    }
   }
 
   // Zie de analyse-route: het onderzoek hangt aan de wachtrij, niet aan een

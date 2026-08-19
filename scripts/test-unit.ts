@@ -278,7 +278,8 @@ import {
   stepProgress,
   overallProgress,
 } from "@/lib/pipeline/brand-fields";
-import { resolveWriteSource } from "@/lib/profile-source";
+import { resolveWriteSource, consultantFields } from "@/lib/profile-source";
+import { buildIntakeBlock } from "@/lib/pipeline/intake-block";
 import {
   assessStructureCoverage,
   describeCoverage,
@@ -2943,6 +2944,20 @@ group("bereik en werkgebied horen bij elkaar", () => {
     resolveScope("lokaal", ["Amersfoort", "amersfoort", " "]).regions.length ===
       1,
   );
+
+  // ⚠️ MENSINVOER GAAT DOOR DEZELFDE NORMALISATIE (fase 2 van onboarding 3.0).
+  //
+  // `prepare-profile.ts` liet modeluitvoer hier wél langs en een getypte waarde
+  // niet, terwijl `service_regions[0]` letterlijk in zes kennistestvragen wordt
+  // geplakt. Deze twee gevallen zijn precies wat er dan misging.
+  ok(
+    "een getypte plaatsnaam met spaties wordt opgeschoond",
+    resolveScope("lokaal", ["  Amersfoort  "]).regions[0] === "Amersfoort",
+  );
+  ok(
+    "een aangevinkt 'lokaal' zonder plaatsnaam blijft geen half bereik",
+    resolveScope("lokaal", ["   "]).scope === null,
+  );
 });
 
 group("een citaat telt pas als het er letterlijk staat", () => {
@@ -4476,6 +4491,86 @@ group("wie mag welke herkomst wegschrijven (onboarding 3.0 fase 1)", () => {
   );
 
   ok("en een consultantwaarde telt als mens", isHumanSet("consultant"));
+
+  // ── Wat de consultant bij het aanmaken invulde ───────────────────────────
+  //
+  // ⚠️ Alleen wat écht gevuld is. Een leeg veld vastleggen als "door de
+  // consultant gezet" blokkeert het onderzoek op een waarde die er niet is, en
+  // dan blijft dat veld voorgoed leeg.
+  const gezet = consultantFields({
+    name: "Van Mossel",
+    aliases: ["Van Mossel Automotive"],
+    industry: "",
+    products: [],
+    service_scope: null,
+    intake_description: "   ",
+  });
+  ok("een getypte naam telt", gezet.includes("name"));
+  ok("een gevulde lijst telt", gezet.includes("aliases"));
+  ok("een lege tekst niet", !gezet.includes("industry"));
+  ok("een lege lijst niet", !gezet.includes("products"));
+  ok("null niet", !gezet.includes("service_scope"));
+  ok("en alleen spaties ook niet", !gezet.includes("intake_description"));
+  // Wat niet bewerkbaar is, hoort er ook niet in: `url` en `status` zijn geen
+  // velden die een klant later mag corrigeren.
+  ok(
+    "en een niet-bewerkbaar veld komt er niet in",
+    consultantFields({ url: "https://voorbeeld.nl", status: "bezig" }).length === 0,
+  );
+});
+
+group("een aanname is geen feit, ook niet in de prompt (fase 2)", () => {
+  // ⚠️ Het blok zei tegen het model "RESPECTEER dit", voor álles wat er stond.
+  // Dat is goed voor wat de klant zelf zei en verkeerd voor wat de consultant
+  // vóór het eerste contact invulde: die aanname legde het marktonderzoek stil,
+  // want het model mag een klantwaarde niet tegenspreken.
+  const blok = buildIntakeBlock({
+    name: "Van Mossel",
+    industry: "autodealer",
+    competitors: ["Van den Udenhout"],
+    serviceScope: "lokaal",
+    sources: {
+      name: "klant",
+      industry: "consultant",
+      competitors: "consultant",
+      service_scope: "gesprek",
+    },
+  });
+
+  ok("er staan twee blokken in", blok.includes("VASTGESTELD") && blok.includes("VÓÓR het gesprek"));
+  const vastgesteld = blok.slice(blok.indexOf("VASTGESTELD"), blok.indexOf("VÓÓR het gesprek"));
+  const aanname = blok.slice(blok.indexOf("VÓÓR het gesprek"));
+  ok("wat de klant zei staat bij het vastgestelde", vastgesteld.includes("Van Mossel"));
+  ok("de gespreksuitkomst ook", vastgesteld.includes("Bereik: lokaal"));
+  ok("de aanname van de adviseur staat apart", aanname.includes("autodealer"));
+  ok("met de concurrenten erbij", aanname.includes("Van den Udenhout"));
+  ok(
+    "en het model mag die tegenspreken",
+    aanname.includes("niet als feit") && aanname.includes("eigen bevinding"),
+  );
+  ok("terwijl het vastgestelde gerespecteerd moet worden", vastgesteld.includes("RESPECTEER"));
+
+  // Geen herkomst bekend = bevestigd. Een aanname per ongeluk als feit
+  // behandelen kost een verrijking; een feit per ongeluk als aanname laat het
+  // model de klant tegenspreken, en dat is de duurdere fout.
+  const zonderHerkomst = buildIntakeBlock({ name: "Van Mossel", industry: "autodealer" });
+  ok("zonder herkomst geldt alles als vastgesteld", zonderHerkomst.includes("VASTGESTELD"));
+  ok("en staat er geen aannameblok", !zonderHerkomst.includes("VÓÓR het gesprek"));
+
+  // Alleen aannames: dan hoort het vastgestelde blok er niet te staan, anders
+  // leest het model een kop zonder inhoud.
+  const alleenAanname = buildIntakeBlock({
+    industry: "autodealer",
+    sources: { industry: "consultant" },
+  });
+  ok("alleen aannames levert alleen dat blok", !alleenAanname.includes("VASTGESTELD"));
+  ok("een leeg profiel levert geen blok", buildIntakeBlock({}) === "");
+  ok("en geen intake ook niet", buildIntakeBlock() === "");
+  // Een leeg veld hoort nergens: "Branche: " is een regel zonder informatie.
+  ok(
+    "lege velden vallen weg",
+    !buildIntakeBlock({ name: "Van Mossel", industry: "", products: [] }).includes("Branche"),
+  );
 });
 
 group("uitnodigingen: de vier eindtoestanden", () => {

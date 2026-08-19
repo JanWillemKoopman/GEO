@@ -165,6 +165,15 @@ export async function prepareProfile(id: string): Promise<ProfileStatus> {
       facetRow?.raw_json as { facts?: HarvestedFact[] } | null
     )?.facts ?? []) as HarvestedFact[];
 
+    // Per veld wie hem zette. Het onderzoek gebruikt dat om een aanname van de
+    // consultant anders te behandelen dan een bevestigd feit van de klant
+    // (`intake-block.ts`); `filterProtectedFields()` hieronder gebruikt dezelfde
+    // rijen om te bepalen wat er niet overschreven mag worden.
+    const herkomstPerVeld: Record<string, FieldOwnership["source"]> = {};
+    for (const rij of (ownershipRows ?? []) as FieldOwnership[]) {
+      herkomstPerVeld[rij.field] = rij.source;
+    }
+
     const research = await generateProfileResearch({
       url: prof.url,
       siteText: siteText + buildFactBlock(harvested),
@@ -183,6 +192,7 @@ export async function prepareProfile(id: string): Promise<ProfileStatus> {
         marketLanguage: prof.market_language,
         toneOfVoice: prof.tone_of_voice,
         audience: prof.intake_audience,
+        sources: herkomstPerVeld,
       },
     });
     const p = research.parsed;
@@ -199,6 +209,16 @@ export async function prepareProfile(id: string): Promise<ProfileStatus> {
     // deze regels bleven ze voorgoed leeg, zie het commentaar bij `serviceScope`
     // in lib/schemas/profile.ts voor wat dat kost.
     const bereik = resolveScope(p.serviceScope, p.serviceRegions);
+
+    // ⚠️ MENSINVOER GAAT DOOR DEZELFDE NORMALISATIE (fase 2 van onboarding 3.0).
+    //
+    // Modeluitvoer ging hierboven door `resolveScope()` en een getypte waarde
+    // ging er ongefilterd langs. Dat is precies de verkeerde kant op: een
+    // consultant die 'lokaal' aanvinkt zonder één plaatsnaam levert een bereik
+    // op waar `prompts.ts` niets mee kan (die eist bereik én regio), en
+    // `service_regions[0]` wordt letterlijk in zes kennistestvragen geplakt.
+    // Zonder deze regel komt "  Amersfoort " daar ook zo in te staan.
+    const mensBereik = resolveScope(prof.service_scope, prof.service_regions);
 
     const voorstel = {
       brand_name: filled(prof.brand_name)
@@ -220,12 +240,12 @@ export async function prepareProfile(id: string): Promise<ProfileStatus> {
       competitors: unionList(prof.competitors, p.competitors),
       personas: prof.personas?.length ? prof.personas : p.personas,
       // Klant leidend, net als hierboven: wie zelf 'landelijk' invulde, houdt
-      // dat, ook als het model naar de plaatsnaam in de voettekst keek.
-      service_scope: filled(prof.service_scope)
-        ? prof.service_scope
-        : bereik.scope,
-      service_regions: prof.service_regions?.length
-        ? prof.service_regions
+      // dat, ook als het model naar de plaatsnaam in de voettekst keek. Maar
+      // alleen als er ná normalisatie nog iets overblijft; anders wint het
+      // model, want een half bereik is geen bereik.
+      service_scope: mensBereik.scope ?? bereik.scope,
+      service_regions: mensBereik.regions.length
+        ? mensBereik.regions
         : bereik.regions,
       market_language: filled(prof.market_language)
         ? prof.market_language

@@ -566,6 +566,155 @@ async function main(): Promise<void> {
     );
 
     // ══════════════════════════════════════════════════════════════════════
+    // Wat de consultant vóór het gesprek klaarzet (onboarding 3.0, fase 2)
+    //
+    // Drie dingen die alleen samen te toetsen zijn, en die alle drie misgingen:
+    //
+    //   1. De aanmaakroute schreef NUL rijen in `profile_field_sources`. Wat de
+    //      consultant typte was daarmee niet te onderscheiden van modeluitvoer,
+    //      en het eerste onderzoek mocht het gewoon overschrijven.
+    //   2. Mensinvoer ging niet door dezelfde normalisatie als modeluitvoer,
+    //      terwijl `service_regions[0]` letterlijk in zes kennistestvragen wordt
+    //      geplakt.
+    //   3. De onderzoeksprompt zei "RESPECTEER dit" over álles wat er stond, ook
+    //      over een aanname van vóór het eerste contact.
+    //
+    // Dit scenario draait het echte onderzoek (met gestubde AI die de consultant
+    // met opzet tegenspreekt) en kijkt wat er daarna in de database staat.
+    // ══════════════════════════════════════════════════════════════════════
+    console.log("\nWat de consultant klaarzet overleeft het eerste onderzoek");
+
+    const { consultantFields: velden } = await import("@/lib/profile-source");
+    const { resolveScope: bereikVan } = await import("@/lib/pipeline/field-merge");
+    const { prepareProfile } = await import("@/lib/pipeline/prepare-profile");
+
+    const preboardId = randomUUID();
+    // Precies wat de aanmaakroute doet: normaliseren, opslaan, herkomst erbij.
+    const preboardBereik = bereikVan("lokaal", ["  Amersfoort  ", "amersfoort"]);
+    const preboardIntake = {
+      name: "Fysi-Unique",
+      aliases: ["Fysi Unique"],
+      industry: "fysiotherapie",
+      products: [],
+      value_props: [],
+      competitors: ["SMC Amersfoort", "Fysio Vathorst"],
+      service_scope: preboardBereik.scope,
+      service_regions: preboardBereik.regions,
+      market_language: null,
+      tone_of_voice: null,
+      intake_description: null,
+      intake_audience: null,
+    };
+
+    await db.client.query(
+      `insert into public.profiles (id, user_id, name, url, status, aliases, industry,
+                                    products, value_props, competitors, service_scope,
+                                    service_regions)
+       values ($1, $2, $3, 'https://fysi-unique.nl', 'bezig', $4, $5, $6, $7, $8, $9, $10)`,
+      [
+        preboardId,
+        userId,
+        preboardIntake.name,
+        preboardIntake.aliases,
+        preboardIntake.industry,
+        preboardIntake.products,
+        preboardIntake.value_props,
+        preboardIntake.competitors,
+        preboardIntake.service_scope,
+        preboardIntake.service_regions,
+      ],
+    );
+    await db.client.query(
+      `insert into public.profile_pages (profile_id, url, title, text_excerpt) values
+       ($1, 'https://fysi-unique.nl/over-ons', 'Over ons',
+        'Fysi-Unique is een fysiotherapiepraktijk in Amersfoort. Wij bestaan sinds 2011.')`,
+      [preboardId],
+    );
+
+    const gezetteVelden = velden(preboardIntake);
+    await db.client.query(
+      `insert into public.profile_field_sources (profile_id, field, source, confidence, set_by)
+       select $1, unnest($2::text[]), 'consultant', 1, $3`,
+      [preboardId, gezetteVelden, userId],
+    );
+
+    ok(
+      "de aanmaak legt de branche vast als consultant-aanname",
+      gezetteVelden.includes("industry") && gezetteVelden.includes("competitors"),
+      gezetteVelden.join(", "),
+    );
+    ok(
+      "en een leeg veld krijgt géén herkomst",
+      !gezetteVelden.includes("products") && !gezetteVelden.includes("tone_of_voice"),
+    );
+
+    const { rows: naAanmaak } = await db.client.query(
+      "select service_regions from public.profiles where id = $1",
+      [preboardId],
+    );
+    ok(
+      "de getypte plaatsnaam is opgeschoond en ontdubbeld",
+      naAanmaak[0].service_regions.length === 1 &&
+        naAanmaak[0].service_regions[0] === "Amersfoort",
+      JSON.stringify(naAanmaak[0].service_regions),
+    );
+
+    const promptsVoor = log.length;
+    await prepareProfile(preboardId);
+    const onderzoeksPrompt =
+      log.slice(promptsVoor).find((l) => l.schemaName === "profile_research")?.user ?? "";
+
+    ok("het onderzoek heeft echt gedraaid", onderzoeksPrompt.length > 0);
+    ok(
+      "de aanname staat in de prompt als startpunt en niet als feit",
+      onderzoeksPrompt.includes("VÓÓR het gesprek") &&
+        onderzoeksPrompt.includes("fysiotherapie"),
+    );
+    ok(
+      "en het model mag hem tegenspreken",
+      onderzoeksPrompt.includes("eigen bevinding"),
+    );
+
+    const { rows: naOnderzoek } = await db.client.query(
+      `select industry, competitors, service_scope, service_regions, summary, proof_points, status
+         from public.profiles where id = $1`,
+      [preboardId],
+    );
+    // Het onderzoek gaf 'wellness en massage' en 'landelijk' terug. Zonder de
+    // herkomstrijen uit de aanmaakroute zou dat er nu staan.
+    ok(
+      "de branche van de consultant staat er nog",
+      naOnderzoek[0].industry === "fysiotherapie",
+      naOnderzoek[0].industry,
+    );
+    ok(
+      "het bereik ook",
+      naOnderzoek[0].service_scope === "lokaal" &&
+        naOnderzoek[0].service_regions[0] === "Amersfoort",
+      `${naOnderzoek[0].service_scope} · ${JSON.stringify(naOnderzoek[0].service_regions)}`,
+    );
+    ok(
+      "en de concurrenten die hij opgaf zijn niet vervangen",
+      naOnderzoek[0].competitors.includes("SMC Amersfoort") &&
+        naOnderzoek[0].competitors.includes("Fysio Vathorst"),
+      JSON.stringify(naOnderzoek[0].competitors),
+    );
+    // Wat de consultant NIET invulde komt gewoon van het onderzoek: de
+    // bescherming mag geen slot op het hele profiel worden.
+    ok(
+      "wat hij leeg liet vult het onderzoek wél",
+      (naOnderzoek[0].summary ?? "").includes("Amersfoort") &&
+        naOnderzoek[0].proof_points.length > 0,
+    );
+    ok("en het profiel staat op klaar", naOnderzoek[0].status === "klaar");
+
+    // Opruimen: verderop telt het archiefscenario alle zichtbare merken in de
+    // hele database, en dat cijfer hoort niet af te hangen van hoeveel merken
+    // een eerder scenario heeft aangemaakt. De cascade neemt de pagina's en de
+    // herkomstrijen mee.
+    await db.client.query("delete from public.profiles where id = $1", [preboardId]);
+
+    // ══════════════════════════════════════════════════════════════════════
     // De commerciële laag en de vierde herkomst (migratie 0060)
     //
     // Drie dingen die alleen samen te toetsen zijn: de kolommen bestaan echt en

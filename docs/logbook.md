@@ -3272,3 +3272,43 @@ in `lib/profile-source.ts` is nu de enige poort: `gesprek` en `consultant` verei
 anders schrijft `klant`, en een onbekende waarde wordt geweigerd in plaats van stil teruggezet.
 
 Na deze ronde: 1544 unittests en 176 ketentests groen, migraties t/m `0060`.
+
+## Onboarding 3.0, fase 2: wat de consultant klaarzet is nu beschermd (19 augustus 2026)
+
+**Eerst het cijfer, want dat bepaalde de omvang.** Fase 2 begon met een telling op productie: hoeveel
+merken die ná 3 augustus 2026 zijn aangemaakt eindigen nog steeds zonder bereik. Het antwoord is
+**nul van de drie**. De vijf merken zonder bereik dateren allemaal van 30 juli, van vóór de
+reparatie in `resolveScope()`, en zijn alle vijf gearchiveerde testmerken. Het bereikveld in het
+aanmaakscherm vervalt daarmee: de pijplijn vindt het zelf, en een extra invoerveld zou een
+handmatige stap toevoegen aan iets dat werkt.
+
+**De aanmaakroute liet geen spoor na.** `POST /api/profiles` schreef nul rijen in
+`profile_field_sources`, terwijl de bijwerkroute dat wél deed. Wat een consultant vóór het gesprek
+typte was daarmee niet te onderscheiden van wat het model later vindt, dus `filterProtectedFields()`
+blokkeerde niets en het eerste onderzoek mocht het gewoon overschrijven. Precies het scenario
+waarvoor migratie `0039` gemaakt is, en precies het scenario dat hij niet dekte. De route legt nu per
+gevuld veld een rij vast met bron `consultant`. Alleen gevulde velden: een lege waarde vastleggen als
+"door de consultant gezet" zou het onderzoek blokkeren op iets wat er niet is, en dan blijft dat veld
+voorgoed leeg.
+
+**Mensinvoer ging langs de normalisatie heen.** Modeluitvoer ging door `resolveScope()` en een
+getypte waarde niet, terwijl `service_regions[0]` letterlijk in zes kennistestvragen wordt geplakt.
+"  Amersfoort  " kwam er dus zo in te staan, en 'lokaal' zonder één plaatsnaam leverde een bereik op
+waar `prompts.ts` niets mee kan. Beide routes normaliseren nu hetzelfde: bij het aanmaken en bij het
+onderzoek.
+
+**Een aanname is geen feit, ook niet in de prompt.** Het intakeblok droeg het model op om álles wat
+er al stond te RESPECTEREN. Voor wat de klant zelf zei is dat juist; voor een aanname van vóór het
+eerste contact legt het het marktonderzoek stil, want een klantwaarde mag niet tegengesproken
+worden. Het blok is nu gesplitst in `lib/pipeline/intake-block.ts`, puur en getest: bevestigde
+waarden blijven leidend, consultantwaarden gaan mee als startpunt dat het onderzoek expliciet mag
+tegenspreken. Ontbreekt de herkomst, dan telt een waarde als bevestigd; een aanname per ongeluk als
+feit behandelen kost een verrijking, andersom laat het model de klant tegenspreken en dat is de
+duurdere fout.
+
+De ketentest draait dit nu van begin tot eind: een merk aanmaken zoals de route dat doet, het echte
+onderzoek erop met een gestubd model dat de consultant met opzet tegenspreekt, en daarna narekenen
+wat er in de database staat. De branche, het bereik en de concurrenten van de consultant staan er
+nog; de samenvatting en de bewijspunten die hij leeg liet komen wél van het onderzoek.
+
+Na deze ronde: 1566 unittests en 187 ketentests groen.

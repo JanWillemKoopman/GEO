@@ -249,4 +249,31 @@ const ANTWOORDEN: Record<string, (user: string) => unknown> = {
       })),
     };
   },
+
+  /**
+   * Het profielonderzoek (`lib/pipeline/profile-research.ts`).
+   *
+   * ⚠️ Spreekt de consultant met OPZET tegen: het geeft een andere branche, een
+   * ander bereik en andere concurrenten terug dan er vóór het gesprek is
+   * ingevuld. Dat is precies wat een echt onderzoek mag doen met een aanname,
+   * en het is de enige manier om te zien of `filterProtectedFields()` de
+   * mensinvoer daadwerkelijk beschermt. Een stub die hetzelfde teruggeeft als
+   * wat er al stond zou groen blijven terwijl de bescherming stuk is.
+   */
+  profile_research: () => ({
+    brandName: "Fysi-Unique",
+    industry: "wellness en massage",
+    businessModel: "dienstverlener" as const,
+    products: ["dry needling"],
+    serviceScope: "landelijk" as const,
+    serviceRegions: [],
+    marketLanguage: "Nederland, Nederlands",
+    toneOfVoice: "Zakelijk en afstandelijk",
+    personas: [{ name: "Sporter", needs: ["snel herstel"] }],
+    valueProps: ["Ruime openingstijden"],
+    competitors: ["SMC Amersfoort"],
+    summary: "Een praktijk in Amersfoort, gevonden door het onderzoek.",
+    proofPoints: ["Sinds 2011 gevestigd"],
+    styleSamples: ["We kijken verder dan de klacht."],
+  }),
 };
