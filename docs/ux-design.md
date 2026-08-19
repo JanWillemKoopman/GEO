@@ -238,6 +238,24 @@ hooguit drie per hoofdstuk passen alle bestemmingen tegelijk in beeld, en dan is
 klik die niets oplevert. Ingeklapt (64px) blijft alleen het teken van het hoofdstuk over, en dat
 linkt naar zijn eerste bestemming.
 
+### De fase van een merk (19 augustus 2026)
+
+Het beheerscherm sorteerde op achterstand: hoeveel pagina's staan er te lang op goedkeuring te
+wachten. Dat is de vraag van ná de verkoop. De vraag ervóór, "welk merk kan ik nu demonstreren en
+welk merk wacht op een gesprek", was nergens te zien, terwijl het product sales-led is.
+
+Elk merk heeft daarom een **fase**, afgeleid uit gegevens die er al liggen (`lib/profile-stage.ts`,
+nul migraties): Voorbereiden, Klaar voor het gesprek, Gesprek gehad, Overgedragen. Een status die je
+met de hand bijhoudt loopt achter op de werkelijkheid; deze kan dat niet.
+
+⚠️ **Een tweede as, geen vervanging.** De segmenten op `/beheer` beantwoorden "waar loop ik achter",
+de fase beantwoordt "wat kan ik vandaag verkopen". Ze wijzen niet naar hetzelfde merk, dus ze staan
+naast elkaar: de fase is een chip per merk plus een filter, en de bestaande sortering blijft leidend.
+
+Op het merkoverzicht staat voor staf één regel bovenaan met de fase en de eerstvolgende handeling,
+met een link naar de onboardingsessie. Voor de klant verandert er niets: hij ziet zijn eigen merk,
+niet zijn plek in onze verkoopcyclus.
+
 ### De onboardingsessie: het enige stafscherm dat gedeeld wordt
 
 `/merk/[id]/admin/onboarding`, nieuw op 19 augustus 2026. Elk ander scherm onder `admin/` is intern.

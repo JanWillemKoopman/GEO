@@ -279,6 +279,12 @@ import {
   overallProgress,
 } from "@/lib/pipeline/brand-fields";
 import { resolveWriteSource, consultantFields } from "@/lib/profile-source";
+import {
+  profileStage,
+  STAGE_LABEL,
+  STAGE_NEXT,
+  STAGE_ORDER,
+} from "@/lib/profile-stage";
 import { sessionMeter, notApplicableFields } from "@/lib/profile-meter";
 import { buildIntakeBlock } from "@/lib/pipeline/intake-block";
 import {
@@ -5136,6 +5142,7 @@ group("segmentOf: elk merk in precies één segment", () => {
     geplaatstDezeMaand: 10,
     laatstGeplaatst: "2026-08-01",
     pijplijnfouten: 0,
+    fase: "overgedragen",
     ...over,
   });
 
@@ -7592,6 +7599,81 @@ group("het verwarringblok levert de uitsluitingslijst (fase 4)", () => {
   ok(
     "een antwoord zonder opsomming levert niets op",
     extractConfusions("Nee, ik ken geen andere bedrijven met die naam.", ["Jansen"]).length === 0,
+  );
+});
+
+
+group("de fase van een merk, afgeleid en niet ingevuld (fase 5)", () => {
+  const basis = {
+    openResearchJobs: 0,
+    researchDone: true,
+    recordedAt: null as string | null,
+    assignedAt: null as string | null,
+  };
+
+  // ── De vier fases, in de volgorde waarin ze doorlopen worden ─────────────
+  ok(
+    "onderzoek dat nog draait is voorbereiden",
+    profileStage({ ...basis, openResearchJobs: 2 }) === "voorbereiden",
+  );
+  ok(
+    "een profiel dat nog niet klaar is ook",
+    profileStage({ ...basis, researchDone: false }) === "voorbereiden",
+  );
+  ok(
+    "onderzoek klaar en geen gesprek is klaar voor het gesprek",
+    profileStage(basis) === "klaar_voor_gesprek",
+  );
+  ok(
+    "een vastgelegd gesprek is 'gesprek gehad'",
+    profileStage({ ...basis, recordedAt: "2026-08-19T10:00:00Z" }) === "gesprek_gehad",
+  );
+  ok(
+    "en een toegewezen merk is overgedragen",
+    profileStage({
+      ...basis,
+      recordedAt: "2026-08-19T10:00:00Z",
+      assignedAt: "2026-08-20T10:00:00Z",
+    }) === "overgedragen",
+  );
+
+  // ⚠️ HET GEVAL UIT HET VERIFICATIECRITERIUM: overgedragen zónder dat er ooit
+  // een gesprek is vastgelegd. Dat gebeurt echt (de consultant vergat het, of
+  // de klant tekende na één mail), en "wacht op een gesprek" is dan onzin: hij
+  // werkt er al zelf in.
+  ok(
+    "overgedragen zonder gesprek is nog steeds overgedragen",
+    profileStage({ ...basis, assignedAt: "2026-08-20T10:00:00Z" }) === "overgedragen",
+  );
+
+  // ⚠️ En het geval dat fase 4 erbij maakte: ná het gesprek plant het afrondblok
+  // nieuw onderzoek in. Er staat dan werk open terwijl het gesprek al geweest
+  // is, en "voorbereiden" zou precies het verkeerde signaal zijn.
+  ok(
+    "een herdraai na het gesprek zet de fase niet terug",
+    profileStage({
+      ...basis,
+      openResearchJobs: 3,
+      recordedAt: "2026-08-19T10:00:00Z",
+    }) === "gesprek_gehad",
+  );
+
+  // Elke fase zegt wat de volgende handeling is, niet wat de toestand is.
+  ok(
+    "elke fase heeft een label en een volgende stap",
+    STAGE_ORDER.every(
+      (f) => STAGE_LABEL[f].length > 3 && STAGE_NEXT[f].length > 10,
+    ),
+  );
+  ok("het zijn er vier", STAGE_ORDER.length === 4);
+  ok(
+    "en elke fase is bereikbaar",
+    new Set([
+      profileStage({ ...basis, researchDone: false }),
+      profileStage(basis),
+      profileStage({ ...basis, recordedAt: "x" }),
+      profileStage({ ...basis, assignedAt: "x" }),
+    ]).size === 4,
   );
 });
 

@@ -16,6 +16,7 @@ import "server-only";
  */
 import { createAdminClient } from "@/lib/supabase/admin";
 import { overallProgress } from "@/lib/pipeline/brand-fields";
+import { profileStage } from "@/lib/profile-stage";
 import { sortForCsm, unresolvedFailures, type CsmBrand, type JobOutcome } from "@/lib/csm";
 import type { AnalysisStatus, Profile } from "@/lib/types/database";
 
@@ -72,6 +73,8 @@ export async function loadCsmBrands(admin: Admin): Promise<CsmBrand[]> {
     { data: monthRows },
     { data: pageRows },
     { data: jobRows },
+    { data: strategieRows },
+    { data: openJobRows },
   ] = await Promise.all([
     accountIds.length > 0
       ? admin.from("accounts").select("id, name, package_pages_per_month").in("id", accountIds)
@@ -103,6 +106,14 @@ export async function loadCsmBrands(admin: Admin): Promise<CsmBrand[]> {
       .from("jobs")
       .select("type, status, profile_id, analysis_id, finished_at, created_at")
       .in("status", ["failed", "done"]),
+    // Voor de fase (deel B4): is het gesprek vastgelegd, en staat er nog
+    // onderzoek open? Twee kleine queries, geen AI, geen extra tabel.
+    admin.from("profile_strategy").select("profile_id, recorded_at").in("profile_id", profileIds),
+    admin
+      .from("jobs")
+      .select("profile_id")
+      .in("profile_id", profileIds)
+      .in("status", ["queued", "running"]),
   ]);
 
   const account = new Map(
@@ -214,6 +225,19 @@ export async function loadCsmBrands(admin: Admin): Promise<CsmBrand[]> {
     fouten.set(profileId, (fouten.get(profileId) ?? 0) + 1);
   }
 
+  // Per merk: wanneer het gesprek is vastgelegd, en hoeveel werk er openstaat.
+  const gesprekVan = new Map(
+    ((strategieRows ?? []) as { profile_id: string; recorded_at: string | null }[]).map((r) => [
+      r.profile_id,
+      r.recorded_at,
+    ]),
+  );
+  const openWerk = new Map<string, number>();
+  for (const rij of (openJobRows ?? []) as { profile_id: string | null }[]) {
+    if (!rij.profile_id) continue;
+    openWerk.set(rij.profile_id, (openWerk.get(rij.profile_id) ?? 0) + 1);
+  }
+
   const brands: CsmBrand[] = profiles.map((p) => {
     const acc = p.account_id ? account.get(p.account_id) : undefined;
     const t = tellers.get(p.id) ?? leeg();
@@ -235,6 +259,12 @@ export async function loadCsmBrands(admin: Admin): Promise<CsmBrand[]> {
       geplaatstDezeMaand: t.dezeMaand,
       laatstGeplaatst: t.laatst,
       pijplijnfouten: fouten.get(p.id) ?? 0,
+      fase: profileStage({
+        openResearchJobs: openWerk.get(p.id) ?? 0,
+        researchDone: p.status === "klaar",
+        recordedAt: gesprekVan.get(p.id) ?? null,
+        assignedAt: p.assigned_at,
+      }),
     };
   });
 

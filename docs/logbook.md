@@ -3419,3 +3419,32 @@ de schaal van 0 tot 100 en de drie banden eronder wél kapotgaan. Het veld wordt
 getoond; een lezer krijgt het pas als er een beslissing is die merken onderling vergelijkt.
 
 Na deze ronde: 1693 unittests en 202 ketentests groen.
+
+## Onboarding 3.0, fase 5: zien waar elk merk staat (19 augustus 2026)
+
+Nul migraties. `/beheer` sorteerde op achterstand, en dat is de vraag van ná de verkoop. De vraag
+ervóór, "welk merk kan ik nu demonstreren en welk merk wacht op een gesprek", was nergens te zien,
+terwijl het product sales-led is en die vraag het werk van de dag bepaalt.
+
+**Vier fases, afgeleid en niet opgeslagen** (`lib/profile-stage.ts`): Voorbereiden, Klaar voor het
+gesprek, Gesprek gehad, Overgedragen. Een kolom die je met de hand bijhoudt loopt achter op de
+werkelijkheid, en dan kijk je in een beheerscherm naar een status die niet meer klopt.
+
+**De volgorde waarin de fases beoordeeld worden is de hele logica**, en twee gevallen dwongen hem af.
+Een merk kan overgedragen zijn zonder dat er ooit een gesprek is vastgelegd, en dan is "wacht op een
+gesprek" onzin: de klant werkt er al zelf in. En ná het gesprek plant het afrondblok van fase 4 nieuw
+onderzoek in, dus er staat werk open terwijl het gesprek al geweest is; "voorbereiden" zou dan precies
+het verkeerde signaal zijn. Overdracht wint dus van gesprek, en gesprek van onderzoek.
+
+⚠️ **Afwijking van het plan.** Deel B4 leidt "overgedragen" af uit `account_id` én `assigned_at`.
+`account_id` is sinds migratie `0046` al bij het AANMAKEN gevuld, anders vindt het contentplan geen
+pakket, dus dat veld staat altijd, ook bij een merk waar nog nooit iemand mee gesproken is. De
+overdracht zit in `assigned_at`, en dat is hier leidend.
+
+**Op `/beheer`** staat de fase als chip bij elk merk, met een filter "alleen merken die op een gesprek
+wachten" en een directe link naar de onboarding voor de merken waar dat de volgende stap is. De
+bestaande sortering op achterstand blijft leidend: de fase is een tweede as en geen vervanging.
+**Op het merkoverzicht** staat voor staf één regel bovenaan met de fase en de eerstvolgende handeling.
+Voor de klant verandert er niets.
+
+Na deze ronde: 1703 unittests en 202 ketentests groen.

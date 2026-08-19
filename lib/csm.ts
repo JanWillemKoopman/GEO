@@ -22,6 +22,7 @@
  * op; `lib/csm-data.ts` doet de queries en geeft de rijen door.
  */
 import type { AnalysisStatus, ProfileStatus } from "@/lib/types/database";
+import type { ProfileStage } from "@/lib/profile-stage";
 
 /**
  * De zeven segmenten, op volgorde van "vraagt iets van jou" naar "loopt".
@@ -175,6 +176,15 @@ export interface CsmBrand {
   laatstGeplaatst: string | null;
   /** Definitief mislukte taken van dit merk. */
   pijplijnfouten: number;
+  /**
+   * Waar dit merk in de verkoopcyclus staat (onboarding 3.0, deel B4).
+   * Afgeleid, niet opgeslagen: zie `lib/profile-stage.ts`.
+   *
+   * ⚠️ Een TWEEDE as naast de sortering op achterstand, geen vervanging. De
+   * sortering beantwoordt "waar loop ik achter"; de fase beantwoordt "wat kan ik
+   * vandaag verkopen". Allebei nodig, en ze wijzen niet naar hetzelfde merk.
+   */
+  fase: ProfileStage;
 }
 
 /**

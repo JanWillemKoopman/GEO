@@ -12,6 +12,7 @@ import {
   type CsmSegment,
   type CsmTotals,
 } from "@/lib/csm";
+import { STAGE_LABEL, STAGE_NEXT } from "@/lib/profile-stage";
 
 /**
  * De klantentabel met segmenten (Nova's `admin.segments`).
@@ -31,6 +32,10 @@ import {
 export function CsmView({ brands, kpi }: { brands: CsmBrand[]; kpi: CsmTotals }) {
   const [segment, setSegment] = useState<CsmSegment | "alles">("alles");
   const [alleenWaarschuwingen, setAlleenWaarschuwingen] = useState(false);
+  // ⚠️ Een TWEEDE as, geen vervanging. De segmenten beantwoorden "waar loop ik
+  // achter", de fase beantwoordt "wat kan ik vandaag verkopen". Ze wijzen niet
+  // naar hetzelfde merk, dus ze staan naast elkaar en niet in plaats van elkaar.
+  const [alleenGesprek, setAlleenGesprek] = useState(false);
 
   const perSegment = useMemo(() => {
     const map = new Map<CsmSegment, CsmBrand[]>();
@@ -39,10 +44,17 @@ export function CsmView({ brands, kpi }: { brands: CsmBrand[]; kpi: CsmTotals })
     return map;
   }, [brands]);
 
+  const wachtOpGesprek = useMemo(
+    () => brands.filter((b) => b.fase === "klaar_voor_gesprek").length,
+    [brands],
+  );
+
   const zichtbaar = useMemo(() => {
-    const basis = segment === "alles" ? brands : (perSegment.get(segment) ?? []);
-    return alleenWaarschuwingen ? basis.filter(needsAttention) : basis;
-  }, [brands, perSegment, segment, alleenWaarschuwingen]);
+    let basis = segment === "alles" ? brands : (perSegment.get(segment) ?? []);
+    if (alleenWaarschuwingen) basis = basis.filter(needsAttention);
+    if (alleenGesprek) basis = basis.filter((b) => b.fase === "klaar_voor_gesprek");
+    return basis;
+  }, [brands, perSegment, segment, alleenWaarschuwingen, alleenGesprek]);
 
   if (brands.length === 0) {
     return (
@@ -130,6 +142,18 @@ export function CsmView({ brands, kpi }: { brands: CsmBrand[]; kpi: CsmTotals })
           onChange={(e) => setAlleenWaarschuwingen(e.target.checked)}
         />
         Alleen merken die iets van je vragen ({kpi.merkenMetActie} van {kpi.merken})
+      </label>
+
+      {/* De tweede as: welk merk kun je vandaag demonstreren? Het product is
+          sales-led, en die vraag bepaalt het werk van de dag net zo goed als de
+          achterstand op content. */}
+      <label className="flex w-fit items-center gap-2 text-sm text-secondary">
+        <input
+          type="checkbox"
+          checked={alleenGesprek}
+          onChange={(e) => setAlleenGesprek(e.target.checked)}
+        />
+        Alleen merken die op een gesprek wachten ({wachtOpGesprek} van {kpi.merken})
       </label>
 
       {zichtbaar.length === 0 ? (
@@ -229,6 +253,17 @@ function Rij({ brand }: { brand: CsmBrand }) {
         <span className="flex flex-wrap items-center gap-2 text-sm text-muted">
           {brand.accountName && <span>{brand.accountName}</span>}
           <span className="chip chip-neutral">{meta.label}</span>
+          {/* De fase van het merk (deel B4). Afgeleid, niet opgeslagen: een
+              status die je met de hand bijhoudt loopt achter op de
+              werkelijkheid. */}
+          <span
+            className={
+              brand.fase === "klaar_voor_gesprek" ? "chip chip-success" : "chip chip-neutral"
+            }
+            title={STAGE_NEXT[brand.fase]}
+          >
+            {STAGE_LABEL[brand.fase]}
+          </span>
           {brand.quota !== null && <span>{brand.quota} per maand</span>}
           <span>
             {brand.laatstGeplaatst
@@ -248,6 +283,16 @@ function Rij({ brand }: { brand: CsmBrand }) {
       </div>
 
       <div className="flex shrink-0 flex-wrap items-center gap-3 text-sm">
+        {/* Wacht dit merk op een gesprek, dan is de sessie de volgende stap en
+            niet het dossier. */}
+        {(brand.fase === "klaar_voor_gesprek" || brand.fase === "gesprek_gehad") && (
+          <Link
+            href={`/merk/${brand.profileId}/admin/onboarding`}
+            className="text-secondary hover:underline"
+          >
+            Onboarding
+          </Link>
+        )}
         <Link href={`/merk/${brand.profileId}/merkprofiel`} className="text-secondary hover:underline">
           Merkdossier
         </Link>
