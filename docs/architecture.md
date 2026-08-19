@@ -101,7 +101,8 @@ probleem dan een dollar.
 
 | Tabel | Wat het is |
 |---|---|
-| `profiles` | Klant/merk op accountniveau. Website, branche, aliassen, concurrenten, persona's, tone-of-voice, `business_model`. Eén keer onderzocht, hergebruikt door alle analyses. Sinds migratie `0045` ook `taboo_phrases` en `compliance_notes` (harde schrijfregels, deterministisch teruggecontroleerd door `checkTabooWords()` in `lib/pipeline/content-gate.ts`), `author_name`/`author_role`/`author_bio`/`author_linkedin_url`, en vier tone-of-voice-schuiven `tone_formality`/`tone_energy`/`tone_complexity`/`tone_humor` (1-3 of `null`, vertaald naar prompttaal door `lib/pipeline/tone-sliders.ts`, nooit het cijfer zelf naar het model). |
+| `profiles` | Klant/merk op accountniveau. Website, branche, aliassen, concurrenten, persona's, tone-of-voice, `business_model`. Eén keer onderzocht, hergebruikt door alle analyses. Sinds migratie `0045` ook `taboo_phrases` en `compliance_notes` (harde schrijfregels, deterministisch teruggecontroleerd door `checkTabooWords()` in `lib/pipeline/content-gate.ts`), `author_name`/`author_role`/`author_bio`/`author_linkedin_url`, en vier tone-of-voice-schuiven `tone_formality`/`tone_energy`/`tone_complexity`/`tone_humor` (1-3 of `null`, vertaald naar prompttaal door `lib/pipeline/tone-sliders.ts`, nooit het cijfer zelf naar het model). Sinds migratie `0060` ook de commerciële laag (`priority_offerings`, `deprioritised_offerings`, `growth_regions`, `target_segments`, `deal_value_band`, `seasonality`, `sales_objections`, `forbidden_topics`, `offline_proof`, `name_exclusions`, `respect_site_structure`, `goal_12m`) en de contactpersoon (`contact_name`/`contact_email`/`contact_phone`). Die vijftien zijn per definitie niet uit een website af te leiden en komen uit het gesprek met de klant; ze tellen daarom niet mee in `overallProgress()`, dat de 41 klantvelden meet. |
+| `profile_field_sources` | Wie zette welk veld, met welke zekerheid en op welk bewijs (`0039`). Vier herkomsten sinds `0060`: `ai`, `klant`, `gesprek` en `consultant`. Alleen `ai` mag door een volgende onderzoeksronde overschreven worden (`lib/pipeline/field-merge.ts`). `not_applicable` (`0060`) zegt dat een veld bewust niet van toepassing is, en telt in de volledigheidsmeter als behandeld. |
 | `profile_pages` | Contentinventaris uit een crawl (sitemap recursief, anders homepage-links). Productpagina's uitgesloten. Geen AI. Alle tekst gaat door `sanitizeForPostgres()` (`lib/pg-text.ts`): één NUL-byte uit één pagina laat Postgres anders de hele batch-insert weigeren, en dan verdwijnt de complete inventaris. |
 | `analyses` | Eén getrackt onderwerp onder een profiel. Status, tracking aan of uit, content-brief. `topic` verplicht en niet wijzigbaar na start. |
 | `prompts` | 30 per analyse (10 per funnelfase). Volledig door de klant beheerbaar. `elicit_successes`/`elicit_samples` = de kans dat deze vraag überhaupt een merk oplevert. |
@@ -613,7 +614,7 @@ Bewust **niet** in RLS: dat zou een gearchiveerd merk ook voor de eigenaar onber
 
 ## 12. Migraties
 
-`0001` t/m `0059`, alle toegepast op productie behalve `0033` (gereserveerd voor R6.2, nooit
+`0001` t/m `0060`, alle toegepast op productie behalve `0033` (gereserveerd voor R6.2, nooit
 gedraaid, de reservering verviel toen `0039` de inventariskwaliteit fase 0 van de nieuwe
 onboarding maakte; een gereserveerd nummer dat nooit draaide blokkeert niets).
 

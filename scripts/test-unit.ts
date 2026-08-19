@@ -269,12 +269,16 @@ import {
 } from "@/lib/csm";
 import {
   BRAND_FIELDS,
+  CLIENT_STEPS,
+  SESSION_STEPS,
+  STEP_META,
   STEP_ORDER,
   fieldsOfStep,
   isFilled,
   stepProgress,
   overallProgress,
 } from "@/lib/pipeline/brand-fields";
+import { resolveWriteSource } from "@/lib/profile-source";
 import {
   assessStructureCoverage,
   describeCoverage,
@@ -4226,23 +4230,26 @@ group("het merkprofiel als veldenlijst (brand-fields)", () => {
     `elk opslaanbaar veld staat in een stap${zonderStap.length ? " (mist: " + zonderStap.join(", ") + ")" : ""}`,
     zonderStap.length === 0,
   );
+  // Was 41 tot migratie 0060; sindsdien 56, want de commerciële laag (12) en de
+  // contactpersoon (3) staan er sinds onboarding 3.0 fase 1 bij.
   ok(
-    `het zijn er 41 aan beide kanten (nu ${BRAND_FIELDS.length} en ${EDITABLE_PROFILE_FIELDS.length})`,
-    BRAND_FIELDS.length === 41 && EDITABLE_PROFILE_FIELDS.length === 41,
+    `het zijn er 56 aan beide kanten (nu ${BRAND_FIELDS.length} en ${EDITABLE_PROFILE_FIELDS.length})`,
+    BRAND_FIELDS.length === 56 && EDITABLE_PROFILE_FIELDS.length === 56,
   );
 
   ok(
     "elk veld hoort bij een bestaande stap",
     BRAND_FIELDS.every((f) => STEP_ORDER.includes(f.step)),
   );
-  ok("zeven stappen", STEP_ORDER.length === 7);
+  ok("negen stappen", STEP_ORDER.length === 9);
   // De verdeling van 17 augustus 2026 (`docs/logbook.md`). Staat hier voluit zodat
   // een veld dat naar een andere stap verhuist een bewuste wijziging is en geen
   // stille verschuiving.
   const perStap = STEP_ORDER.map((s) => `${s}:${fieldsOfStep(s).length}`).join(" ");
   ok(
-    `de verdeling is 8-3-6-6-5-7-6 (nu ${perStap})`,
-    perStap === "bedrijf:8 merk:3 klant:6 stem:6 woorden:5 auteur:7 bekend:6",
+    `de verdeling is 8-3-6-6-5-7-6-12-3 (nu ${perStap})`,
+    perStap ===
+      "bedrijf:8 merk:3 klant:6 stem:6 woorden:5 auteur:7 bekend:6 strategie:12 contact:3",
   );
   ok(
     "elke stap heeft velden",
@@ -4271,7 +4278,7 @@ group("het merkprofiel als veldenlijst (brand-fields)", () => {
   // "Lokaal" en komt er "landelijk" in de database, of weigert de insert en
   // ziet hij alleen "opslaan is niet gelukt".
   const keuzes = BRAND_FIELDS.filter((f) => f.kind === "keuze");
-  ok("er zijn keuzevelden", keuzes.length === 3);
+  ok("er zijn keuzevelden", keuzes.length === 4);
   ok(
     "elke keuze heeft evenveel waarden als standen",
     keuzes.every((f) => f.values?.length === f.options?.length),
@@ -4312,9 +4319,20 @@ group("het merkprofiel als veldenlijst (brand-fields)", () => {
     "een leeg profiel heeft nul gevulde velden",
     overallProgress(leeg).gevuld === 0,
   );
+  // ⚠️ De noemer is de KLANTLIJST en niet de hele catalogus. De commerciële laag
+  // en de contactpersoon zijn per definitie niet af te leiden uit een website;
+  // telden ze standaard mee, dan zakt elk bestaand merk onder de 80% die
+  // `csm-data.ts` gebruikt om te bepalen of een dossier deelbaar is, en staat
+  // élk merk eeuwig in "wacht op jouw nakijkwerk".
+  const klantVelden = BRAND_FIELDS.filter((f) => CLIENT_STEPS.includes(f.step));
   ok(
-    "en de noemer is de hele lijst",
-    overallProgress(leeg).totaal === BRAND_FIELDS.length,
+    `de noemer is de klantlijst van 41 (nu ${overallProgress(leeg).totaal})`,
+    overallProgress(leeg).totaal === klantVelden.length &&
+      klantVelden.length === 41,
+  );
+  ok(
+    "de sessie kan alle negen stappen meetellen",
+    overallProgress(leeg, SESSION_STEPS).totaal === BRAND_FIELDS.length,
   );
   ok("geen enkele stap is compleet", allStepsIncompleet(leeg));
 
@@ -4337,6 +4355,127 @@ group("het merkprofiel als veldenlijst (brand-fields)", () => {
   function allStepsIncompleet(prof: Record<string, unknown>): boolean {
     return STEP_ORDER.every((s) => !stepProgress(prof, s).compleet);
   }
+});
+
+group("drie oppervlakken, één veldenlijst (onboarding 3.0 fase 1)", () => {
+  // ⚠️ Samen exact `STEP_ORDER`, niets meer en niets minder. Een stap die in
+  // geen van beide lijsten staat is een stap die nergens rendert, en dat merkt
+  // niemand: er verschijnt geen foutmelding, de velden zijn er gewoon niet.
+  const samen = [...CLIENT_STEPS, ...SESSION_STEPS];
+  ok(
+    "elke stap staat in minstens één oppervlak",
+    STEP_ORDER.every((s) => samen.includes(s)),
+  );
+  ok(
+    "en geen enkel oppervlak kent een stap die niet bestaat",
+    samen.every((s) => STEP_ORDER.includes(s)),
+  );
+  ok("de sessie toont alles", SESSION_STEPS.length === STEP_ORDER.length);
+
+  // ⚠️ De enige plek waar de twee oppervlakken bewust verschillen. "Waar wil je
+  // op groeien" is een gesprek, geen invulveld dat een klant alleen invult, en
+  // de contactpersoon gaat over ons en niet over zijn merk.
+  ok("de klant ziet de commerciële laag niet", !CLIENT_STEPS.includes("strategie"));
+  ok("en de contactpersoon ook niet", !CLIENT_STEPS.includes("contact"));
+  ok("de sessie ziet ze allebei wel", SESSION_STEPS.includes("strategie") && SESSION_STEPS.includes("contact"));
+  ok("de klantwizard houdt zijn zeven stappen", CLIENT_STEPS.length === 7);
+
+  // Elke stap heeft een eigen titel en uitleg, ook de twee nieuwe. Nova geeft
+  // per blok een `nav.*Subtitle` die zegt waaróm het blok bestaat; zonder dat
+  // is een blok van twaalf lege velden een ondervraging.
+  ok(
+    "elke stap heeft een titel en een uitleg",
+    STEP_ORDER.every(
+      (s) => STEP_META[s].title.length > 2 && STEP_META[s].description.length > 15,
+    ),
+  );
+
+  // De commerciële laag is per definitie niet af te leiden uit een website.
+  // Staat er één op `derivable: true`, dan meldt de gatenlijst hem als iets wat
+  // ORBIT ENGINE nog moet vinden, en dat gaat nooit gebeuren.
+  const commercieel = BRAND_FIELDS.filter(
+    (f) => f.step === "strategie" || f.step === "contact",
+  );
+  ok("het zijn er vijftien", commercieel.length === 15);
+  ok(
+    "en geen enkele is af te leiden",
+    commercieel.every((f) => !f.derivable),
+  );
+
+  // Een `keuze` slaat een woord op dat in een database-constraint staat.
+  ok(
+    "de waardeklasse staat in de constraint van migratie 0060",
+    BRAND_FIELDS.find((f) => f.key === "deal_value_band")?.values?.join() ===
+      "onbekend,klein,midden,groot",
+  );
+  // `janee` slaat een boolean op, dus geen `values`: dat zou een woord opslaan
+  // in een booleaanse kolom en de insert laten weigeren.
+  const janee = BRAND_FIELDS.filter((f) => f.kind === "janee");
+  ok("er is één ja-nee-veld", janee.length === 1);
+  ok(
+    "het heeft twee benoemde standen en geen waardenlijst",
+    janee[0]?.options?.length === 2 && janee[0]?.values === undefined,
+  );
+});
+
+group("wie mag welke herkomst wegschrijven (onboarding 3.0 fase 1)", () => {
+  // ⚠️ Zonder deze poort kan een klant zijn eigen invoer als gespreksuitkomst
+  // wegschrijven. `filterProtectedFields()` laat alleen `ai` overschrijven, dus
+  // die waarde is daarna onaantastbaar voor élke volgende onderzoeksronde.
+  const klantPoging = resolveWriteSource({
+    requested: "gesprek",
+    isStaff: false,
+    isOwner: true,
+  });
+  ok("een klant mag geen gespreksuitkomst schrijven", !klantPoging.ok);
+  ok(
+    "en krijgt een 403",
+    !klantPoging.ok && klantPoging.status === 403,
+    klantPoging.ok ? "toegestaan" : String(klantPoging.status),
+  );
+  ok(
+    "consultant mag hij ook niet",
+    resolveWriteSource({ requested: "consultant", isStaff: false, isOwner: true }).ok === false,
+  );
+
+  // Staf mag alle drie.
+  for (const bron of ["klant", "gesprek", "consultant"] as const) {
+    const d = resolveWriteSource({ requested: bron, isStaff: true, isOwner: false });
+    ok(`staf mag ${bron} schrijven`, d.ok && d.source === bron);
+  }
+
+  // Een onbekende waarde is een fout en geen stille terugval: schrijft een
+  // scherm ooit "beheerder" mee, dan hoort dat op te vallen in plaats van als
+  // klantinvoer te landen.
+  const onzin = resolveWriteSource({ requested: "beheerder", isStaff: true, isOwner: false });
+  ok("een onbekende bron wordt geweigerd", !onzin.ok);
+  ok("met een 400", !onzin.ok && onzin.status === 400);
+
+  // Zonder `bron` blijft het gedrag van vóór onboarding 3.0 staan.
+  const eigenaar = resolveWriteSource({ requested: undefined, isStaff: false, isOwner: true });
+  ok("de eigenaar schrijft klant", eigenaar.ok && eigenaar.source === "klant");
+  const consultantVoorKlant = resolveWriteSource({
+    requested: undefined,
+    isStaff: true,
+    isOwner: false,
+  });
+  ok(
+    "staf op andermans merk schrijft gesprek",
+    consultantVoorKlant.ok && consultantVoorKlant.source === "gesprek",
+  );
+  // ⚠️ Dit is wél nieuw: een accountgenoot met schrijfrecht schreef tot nu
+  // `gesprek` weg zonder ooit aan tafel gezeten te hebben.
+  const accountgenoot = resolveWriteSource({
+    requested: undefined,
+    isStaff: false,
+    isOwner: false,
+  });
+  ok(
+    "een accountgenoot schrijft klant en geen gesprek",
+    accountgenoot.ok && accountgenoot.source === "klant",
+  );
+
+  ok("en een consultantwaarde telt als mens", isHumanSet("consultant"));
 });
 
 group("uitnodigingen: de vier eindtoestanden", () => {

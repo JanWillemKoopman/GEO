@@ -61,7 +61,10 @@ export type BrandStep =
   | "stem"
   | "woorden"
   | "auteur"
-  | "bekend";
+  | "bekend"
+  // Onboarding 3.0: de twee stappen die alleen op de sessiepagina staan.
+  | "strategie"
+  | "contact";
 
 export type FieldKind =
   | "tekst"
@@ -69,7 +72,9 @@ export type FieldKind =
   | "lijst"
   | "schuif"
   | "keuze"
-  | "personas";
+  | "personas"
+  /** Twee standen die een `boolean` opslaan in plaats van een woord of een nummer. */
+  | "janee";
 
 export interface BrandField {
   /** De kolomnaam in `profiles`. Ook de sleutel in `profile_field_sources`. */
@@ -523,6 +528,176 @@ export const BRAND_FIELDS: BrandField[] = [
     kind: "lange-tekst",
     derivable: false,
   },
+
+  // ── 8. Wat je met je markt wilt ───────────────────────────────────────────
+  //
+  // De commerciële laag (migratie 0060, onboarding 3.0 deel D1). Twaalf velden
+  // die alleen in het gesprek te halen zijn.
+  //
+  // ⚠️ `derivable: false` voor alle twaalf, en dat is de definitie van deze
+  // laag: een website kan het niet zeggen. Elk veld heeft precies één lezer in
+  // de pijplijn, genoemd in het commentaar van de migratie. Een veld zonder
+  // lezer hoort hier niet, dat is administratie.
+  {
+    key: "priority_offerings",
+    step: "strategie",
+    label: "Waar je op wilt groeien",
+    description:
+      "De diensten of producten die commercieel voorop staan. ORBIT ENGINE stelt hier als eerste onderwerpen voor.",
+    placeholder: "Onderhoudsabonnementen",
+    kind: "lijst",
+    derivable: false,
+  },
+  {
+    key: "deprioritised_offerings",
+    step: "strategie",
+    label: "Waar juist niet",
+    description:
+      "Wat te weinig oplevert of wordt uitgefaseerd. Hier komt geen content voor, ook niet als het zoekvolume hoog is.",
+    placeholder: "Losse bandenwissel",
+    kind: "lijst",
+    derivable: false,
+  },
+  {
+    key: "target_segments",
+    step: "strategie",
+    label: "De klantgroepen waar de groei zit",
+    description:
+      "Scherper dan een doelgroep: het soort klant dat je er dit jaar bij wilt hebben.",
+    placeholder: "Installateurs met eigen monteurs",
+    kind: "lijst",
+    derivable: false,
+  },
+  {
+    key: "growth_regions",
+    step: "strategie",
+    label: "Waar je heen wilt",
+    description:
+      "Plaatsen of streken waar je nog niet zit maar wel wilt komen. ORBIT ENGINE stelt daar extra vragen over, naast je huidige werkgebied.",
+    placeholder: "Utrecht",
+    kind: "lijst",
+    derivable: false,
+  },
+  {
+    key: "deal_value_band",
+    step: "strategie",
+    label: "Wat een klant ongeveer waard is",
+    description:
+      "Bepaalt hoe zwaar een onderwerp meeweegt. Geen bedrag, want dat is in een uur niet vast te stellen.",
+    kind: "keuze",
+    options: [
+      "Weten we niet",
+      "Klein: eenmalig of een paar honderd euro",
+      "Midden: een paar duizend euro",
+      "Groot: een langdurige klantrelatie",
+    ],
+    values: ["onbekend", "klein", "midden", "groot"],
+    derivable: false,
+  },
+  {
+    key: "seasonality",
+    step: "strategie",
+    label: "Je pieken en dalen in het jaar",
+    description:
+      "Wanneer je klanten zoeken. Bepaalt wanneer een pagina klaar moet zijn, niet óf hij geschreven wordt.",
+    placeholder: "Drukste periode is september tot november, zomer is dood",
+    kind: "lange-tekst",
+    derivable: false,
+  },
+  {
+    key: "sales_objections",
+    step: "strategie",
+    label: "De bezwaren die je steeds hoort",
+    description:
+      "Wat een klant tegenwerpt vlak voordat hij ja zegt. Een AI-antwoord heeft vaak precies de vorm van zo'n bezwaar, dus dit stuurt de teksten sterker dan het lijkt.",
+    placeholder: "Jullie zijn duurder dan de rest",
+    kind: "lijst",
+    derivable: false,
+  },
+  {
+    key: "forbidden_topics",
+    step: "strategie",
+    label: "Waar niet over geschreven mag worden",
+    description:
+      "Onderwerpen die juridisch of concurrentiegevoelig liggen. ORBIT ENGINE stelt ze niet voor en controleert na het schrijven of ze er echt niet in staan.",
+    placeholder: "Lopende rechtszaken",
+    kind: "lijst",
+    derivable: false,
+  },
+  {
+    key: "offline_proof",
+    step: "strategie",
+    label: "Bewijs dat niet op je site staat",
+    description:
+      "Certificeringen, cijfers of cases die je wel hebt maar nergens hebt gepubliceerd. Hiermee kan ORBIT ENGINE claims onderbouwen die het anders niet mag maken.",
+    placeholder: "ISO 9001 sinds 2019",
+    kind: "lijst",
+    derivable: false,
+  },
+  {
+    key: "name_exclusions",
+    step: "strategie",
+    label: "Gelijknamige bedrijven die jij niet bent",
+    description:
+      "Heet er iemand anders bijna hetzelfde, dan telt ORBIT ENGINE die vermeldingen niet als de jouwe. Zonder dit valt je score te hoog uit.",
+    placeholder: "Jansen Techniek in Groningen",
+    kind: "lijst",
+    derivable: false,
+  },
+  {
+    key: "respect_site_structure",
+    step: "strategie",
+    label: "Mogen er nieuwe pagina's bij",
+    description:
+      "Kies 'nee' als alles binnen je huidige menustructuur moet blijven. ORBIT ENGINE stelt dan verbeteringen aan bestaande pagina's voor in plaats van nieuwe.",
+    kind: "janee",
+    options: ["Ja, nieuwe pagina's mogen", "Nee, blijf binnen de structuur"],
+    derivable: false,
+  },
+  {
+    key: "goal_12m",
+    step: "strategie",
+    label: "Waar je over een jaar wilt staan",
+    description:
+      "Het doel waar het contentplan naartoe werkt, in één zin. Komt terug in de duiding van elk rapport.",
+    placeholder: "Bekend staan als dé specialist in warmtepompen in Midden-Nederland",
+    kind: "lange-tekst",
+    derivable: false,
+  },
+
+  // ── 9. Met wie we praten ──────────────────────────────────────────────────
+  //
+  // ⚠️ Deze drie tellen NIET mee in de volledigheidsmeter (`overallProgress`):
+  // ze zeggen niets over hoe goed ORBIT ENGINE het merk kent. Ze staan er wel in
+  // de catalogus, want dan geldt de garantie "alles in de catalogus is
+  // opslaanbaar" ook voor ze.
+  {
+    key: "contact_name",
+    step: "contact",
+    label: "Naam",
+    description: "Wie het aanspreekpunt is voor dit merk.",
+    placeholder: "Sanne de Wit",
+    kind: "tekst",
+    derivable: false,
+  },
+  {
+    key: "contact_email",
+    step: "contact",
+    label: "E-mailadres",
+    description: "Waar de uitnodiging en de rapporten heen gaan.",
+    placeholder: "sanne@voorbeeld.nl",
+    kind: "tekst",
+    derivable: false,
+  },
+  {
+    key: "contact_phone",
+    step: "contact",
+    label: "Telefoonnummer",
+    description: "Voor als er iets niet klopt en mailen te traag is.",
+    placeholder: "06 12 34 56 78",
+    kind: "tekst",
+    derivable: false,
+  },
 ];
 
 export const STEP_META: Record<BrandStep, { title: string; description: string }> = {
@@ -557,6 +732,15 @@ export const STEP_META: Record<BrandStep, { title: string; description: string }
     description:
       "De feiten en boodschappen die een AI-assistent over je kan herhalen. Zonder cijfers wordt elke tekst algemeen.",
   },
+  strategie: {
+    title: "Wat je met je markt wilt",
+    description:
+      "Waar je op wilt groeien en waar juist niet. Dit is het enige blok dat je website niet kan vertellen, en het stuurt welke onderwerpen ORBIT ENGINE voorstelt.",
+  },
+  contact: {
+    title: "Met wie we praten",
+    description: "Wie het aanspreekpunt is voor dit merk.",
+  },
 };
 
 export const STEP_ORDER: BrandStep[] = [
@@ -567,7 +751,36 @@ export const STEP_ORDER: BrandStep[] = [
   "woorden",
   "auteur",
   "bekend",
+  "strategie",
+  "contact",
 ];
+
+/**
+ * Drie momenten, één veldenlijst (onboarding 3.0 deel C).
+ *
+ * ⚠️ Er komt geen tweede formulierdefinitie, geen tweede opslagroute en geen
+ * tweede veldenlijst. De oppervlakken verschillen alleen in wélke stappen ze
+ * tonen, in wie er mag, en in de herkomst die ze wegschrijven.
+ *
+ * `CLIENT_STEPS` is wat de klant zelf bewerkt (`/merkprofiel/bewerken`).
+ * `SESSION_STEPS` is wat de consultant mét de klant doorloopt.
+ *
+ * ⚠️ De commerciële laag en de contactpersoon staan bewust NIET in de
+ * klantwizard. Dat is de enige plek waar de twee oppervlakken met opzet
+ * verschillen: "waar wil je op groeien" is een gesprek, geen invulveld dat een
+ * klant in zijn eentje beantwoordt. Herstel dit niet als een omissie.
+ */
+export const CLIENT_STEPS: BrandStep[] = [
+  "bedrijf",
+  "merk",
+  "klant",
+  "stem",
+  "woorden",
+  "auteur",
+  "bekend",
+];
+
+export const SESSION_STEPS: BrandStep[] = STEP_ORDER;
 
 export function fieldsOfStep(step: BrandStep): BrandField[] {
   return BRAND_FIELDS.filter((f) => f.step === step);
@@ -608,8 +821,11 @@ export function stepProgress(profile: Partial<Profile>, step: BrandStep): StepPr
   };
 }
 
-export function allProgress(profile: Partial<Profile>): StepProgress[] {
-  return STEP_ORDER.map((s) => stepProgress(profile, s));
+export function allProgress(
+  profile: Partial<Profile>,
+  steps: BrandStep[] = STEP_ORDER,
+): StepProgress[] {
+  return steps.map((s) => stepProgress(profile, s));
 }
 
 /**
@@ -618,11 +834,27 @@ export function allProgress(profile: Partial<Profile>): StepProgress[] {
  * Voor het afrondingsblok en de wizardrail. Bewust een verhouding van gevulde
  * velden en geen percentage met een cijfer achter de komma: dat suggereert een
  * precisie die er niet is, en `docs/ux-design.md` verbiedt schijnprecisie.
+ *
+ * ⚠️ MEET STANDAARD DE KLANTSTAPPEN, NIET ALLE NEGEN (19 augustus 2026).
+ *
+ * De twaalf commerciële velden en de drie contactvelden uit migratie 0060 zijn
+ * per definitie niet af te leiden uit een website. Zouden ze standaard meetellen,
+ * dan zakt elk bestaand merk in één klap onder de 80% die `csm-data.ts`
+ * gebruikt om te bepalen of een dossier deelbaar is in een demo, en dan staat
+ * élk merk eeuwig in "wacht op jouw nakijkwerk". Dat is precies de reden waarom
+ * die drempel geen 100% is.
+ *
+ * De sessiepagina heeft een eigen meter met drie getallen (bevestigd, gevonden,
+ * open) en geeft daar zijn eigen stappen aan mee.
  */
-export function overallProgress(profile: Partial<Profile>): {
+export function overallProgress(
+  profile: Partial<Profile>,
+  steps: BrandStep[] = CLIENT_STEPS,
+): {
   gevuld: number;
   totaal: number;
 } {
-  const gevuld = BRAND_FIELDS.filter((f) => isFilled(profile[f.key])).length;
-  return { gevuld, totaal: BRAND_FIELDS.length };
+  const velden = BRAND_FIELDS.filter((f) => steps.includes(f.step));
+  const gevuld = velden.filter((f) => isFilled(profile[f.key])).length;
+  return { gevuld, totaal: velden.length };
 }

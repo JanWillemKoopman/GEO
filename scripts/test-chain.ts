@@ -566,6 +566,121 @@ async function main(): Promise<void> {
     );
 
     // ══════════════════════════════════════════════════════════════════════
+    // De commerciële laag en de vierde herkomst (migratie 0060)
+    //
+    // Drie dingen die alleen samen te toetsen zijn: de kolommen bestaan echt en
+    // nemen aan wat de route erin stopt, de constraint kent `consultant`, en
+    // `filterProtectedFields()` beschermt zo'n waarde tegen een tweede
+    // onderzoeksronde. Dat laatste is het punt van fase 2 van onboarding 3.0:
+    // wat een consultant vóór het gesprek klaarzet mag niet als modeluitvoer
+    // behandeld worden.
+    // ══════════════════════════════════════════════════════════════════════
+    console.log("\nDe commerciële laag en de herkomst 'consultant' (0060)");
+
+    await db.client.query(
+      `update public.profiles
+          set priority_offerings = $2,
+              deprioritised_offerings = $3,
+              growth_regions = $4,
+              target_segments = $5,
+              deal_value_band = 'midden',
+              seasonality = 'Piek in september',
+              sales_objections = $6,
+              forbidden_topics = $7,
+              offline_proof = $8,
+              name_exclusions = $9,
+              respect_site_structure = false,
+              goal_12m = 'De specialist zijn in warmtepompen',
+              contact_name = 'Sanne de Wit',
+              contact_email = 'sanne@voorbeeld.nl',
+              contact_phone = '0612345678'
+        where id = $1`,
+      [
+        profileId,
+        ["onderhoudsabonnementen"],
+        ["losse bandenwissel"],
+        ["Utrecht"],
+        ["installateurs met eigen monteurs"],
+        ["jullie zijn duurder"],
+        ["lopende rechtszaken"],
+        ["ISO 9001 sinds 2019"],
+        ["Jansen Techniek in Groningen"],
+      ],
+    );
+
+    const { rows: commercieel } = await db.client.query(
+      `select priority_offerings, growth_regions, deal_value_band,
+              respect_site_structure, contact_email, name_exclusions
+         from public.profiles where id = $1`,
+      [profileId],
+    );
+    ok(
+      "0060: de commerciële velden staan er en houden hun waarde",
+      commercieel[0].priority_offerings[0] === "onderhoudsabonnementen" &&
+        commercieel[0].growth_regions[0] === "Utrecht" &&
+        commercieel[0].deal_value_band === "midden",
+    );
+    ok(
+      "0060: 'nee' op nieuwe pagina's is een echte false, geen leegte",
+      commercieel[0].respect_site_structure === false,
+    );
+    ok("0060: de contactpersoon staat vast", commercieel[0].contact_email === "sanne@voorbeeld.nl");
+    ok(
+      "0060: de uitsluitingslijst staat naast de aliassen en niet erin",
+      commercieel[0].name_exclusions[0] === "Jansen Techniek in Groningen",
+    );
+
+    // De constraint kent vier waarden en niet vijf.
+    let bandGeweigerd = false;
+    try {
+      await db.client.query(
+        "update public.profiles set deal_value_band = 'gigantisch' where id = $1",
+        [profileId],
+      );
+    } catch {
+      bandGeweigerd = true;
+    }
+    ok("0060: een onbekende waardeklasse wordt geweigerd", bandGeweigerd);
+
+    // De vierde herkomst, op de tabel waar hij vandaan moet komen.
+    await db.client.query(
+      `insert into public.profile_field_sources (profile_id, field, source, confidence, set_by)
+       values ($1, 'service_scope', 'consultant', 1, $2)
+       on conflict (profile_id, field) do update set source = excluded.source`,
+      [profileId, beheerderId],
+    );
+    const { rows: metConsultant } = await db.client.query(
+      "select field, source, not_applicable from public.profile_field_sources where profile_id = $1",
+      [profileId],
+    );
+    ok(
+      "0060: de constraint laat 'consultant' toe",
+      metConsultant.some((r) => r.source === "consultant"),
+    );
+    ok(
+      "0060: en n.v.t. staat standaard uit",
+      metConsultant.every((r) => r.not_applicable === false),
+    );
+    ok(
+      "0060: wat de consultant klaarzette overleeft een tweede onderzoeksronde",
+      filterProtectedFields(
+        { service_scope: "landelijk" },
+        metConsultant as { field: string; source: "ai" | "klant" | "gesprek" | "consultant" }[],
+      ).blocked.includes("service_scope"),
+    );
+
+    let bronGeweigerd = false;
+    try {
+      await db.client.query(
+        "update public.profile_field_sources set source = 'beheerder' where profile_id = $1 and field = 'service_scope'",
+        [profileId],
+      );
+    } catch {
+      bronGeweigerd = true;
+    }
+    ok("0060: een verzonnen herkomst wordt geweigerd", bronGeweigerd);
+
+    // ══════════════════════════════════════════════════════════════════════
     // Een onderwerp overleeft "onderzoek opnieuw" mét zijn aanbod (0043)
     //
     // De herhaalroute verwijdert de aanbodknopen met bron `ai` en laat de

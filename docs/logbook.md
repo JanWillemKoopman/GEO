@@ -3237,3 +3237,38 @@ aantal overgeslagen vragen erin, want alles bewaren is conventie 8. Wat er al st
 ronde telt mee, anders wist een tweede, idempotente ronde de samenvatting van de eerste.
 
 Na deze ronde: 1518 unittests en 167 ketentests groen.
+
+## Onboarding 3.0, fase 1: het fundament onder de commerciële laag (19 augustus 2026)
+
+Migratie `0060`, toegepast op productie en daar nagerekend: vijftien kolommen op `profiles`, één op
+`profile_field_sources`, en een vierde herkomst. Nog geen nieuw scherm; dit is de laag waar fase 3
+op gaat staan. Het plan staat in `docs/tasks/onboarding-3.0.md`.
+
+**Twaalf commerciële velden en drie contactvelden.** Elk commercieel veld voldoet aan twee eisen:
+een website kan het niet zeggen, en er is precies één pijplijnstap die er aantoonbaar beter van
+wordt. Die lezer staat per kolom in het commentaar van de migratie, zodat een veld zonder lezer bij
+de volgende ronde opvalt. De veldencatalogus gaat daarmee van 41 naar 56, in negen stappen in plaats
+van zeven, en de test die in beide richtingen faalt bewaakt dat nog steeds: elk veld in de catalogus
+is opslaanbaar, en elk opslaanbaar veld staat in een stap.
+
+**Eén veldenlijst, twee oppervlakken.** `CLIENT_STEPS` (zeven) is wat de klant zelf bewerkt,
+`SESSION_STEPS` (negen) is wat de consultant mét de klant doorloopt. De commerciële laag en de
+contactpersoon staan bewust níet in de klantwizard, en dat is de enige plek waar de twee
+oppervlakken met opzet verschillen: "waar wil je op groeien" is een gesprek, geen invulveld dat
+iemand in zijn eentje beantwoordt. Er komt geen tweede formulierdefinitie en geen tweede
+opslagroute; het besluit uit `strategy-box.tsx` blijft staan.
+
+**De volledigheidsmeter blijft de 41 klantvelden meten.** Dat is een afwijking van het plan, met
+reden: `csm-data.ts` gebruikt 80% van die meter om te bepalen of een dossier deelbaar is in een
+demo. Zouden de vijftien nieuwe velden standaard meetellen, dan zakt élk bestaand merk in één klap
+onder die grens en staat alles eeuwig in "wacht op jouw nakijkwerk". De meter accepteert nu een
+stappenlijst, zodat de sessiepagina van fase 3 zijn eigen telling kan doen.
+
+**De herkomstpoort zat er nog niet.** De opslagroute leidde de herkomst af uit het eigenaarschap:
+bewerkte iemand anders dan de eigenaar, dan werd het `gesprek`. Een accountgenoot met schrijfrecht
+kon zijn eigen invoer daarmee als gespreksuitkomst wegschrijven, en die is onaantastbaar voor élke
+volgende onderzoeksronde (`field-merge.ts` laat alleen `ai` overschrijven). `resolveWriteSource()`
+in `lib/profile-source.ts` is nu de enige poort: `gesprek` en `consultant` vereisen staf, iedereen
+anders schrijft `klant`, en een onbekende waarde wordt geweigerd in plaats van stil teruggezet.
+
+Na deze ronde: 1544 unittests en 176 ketentests groen, migraties t/m `0060`.

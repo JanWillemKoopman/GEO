@@ -7,8 +7,8 @@ import { useToast } from "@/components/toast";
 import { TagListEditor } from "@/components/tag-list-editor";
 import {
   BRAND_FIELDS,
+  CLIENT_STEPS,
   STEP_META,
-  STEP_ORDER,
   fieldsOfStep,
   isFilled,
   overallProgress,
@@ -64,9 +64,16 @@ export function BrandWizard({
   const router = useRouter();
   const toast = useToast();
   const [stap, setStap] = useState<BrandStep>("bedrijf");
+  // ⚠️ Alleen de klantstappen, en dat is niet cosmetisch. De hele inhoud van
+  // deze state gaat als body naar `PATCH /api/profiles/[id]`, en die route legt
+  // van élk veld in de body de herkomst vast. Zaten de commerciële velden er
+  // ook in, dan zou één klik op "Bewaren" door de klant de uitkomst van het
+  // gesprek herlabelen als klantinvoer.
   const [waarden, setWaarden] = useState<Record<string, unknown>>(() => {
     const start: Record<string, unknown> = {};
-    for (const f of BRAND_FIELDS) start[f.key as string] = initial[f.key];
+    for (const f of BRAND_FIELDS) {
+      if (CLIENT_STEPS.includes(f.step)) start[f.key as string] = initial[f.key];
+    }
     return start;
   });
   const [vuil, setVuil] = useState(false);
@@ -76,8 +83,8 @@ export function BrandWizard({
     () => overallProgress(waarden as Partial<Profile>),
     [waarden],
   );
-  const stapIndex = STEP_ORDER.indexOf(stap);
-  const laatste = stapIndex === STEP_ORDER.length - 1;
+  const stapIndex = CLIENT_STEPS.indexOf(stap);
+  const laatste = stapIndex === CLIENT_STEPS.length - 1;
 
   // Het vangnet bij het sluiten van het tabblad of een harde navigatie. Vangt
   // niet alles: een klik op een link binnen de app gaat hier langs, en daarvoor
@@ -143,7 +150,7 @@ export function BrandWizard({
           vult. Hier per stap het aantal ingevulde velden, want dat is het enige
           eerlijke signaal van voortgang. */}
       <nav className="flex flex-wrap gap-2" aria-label="Stappen">
-        {STEP_ORDER.map((s, i) => {
+        {CLIENT_STEPS.map((s, i) => {
           const p = stepProgress(waarden as Partial<Profile>, s);
           const actief = s === stap;
           return (
@@ -206,7 +213,7 @@ export function BrandWizard({
             <button
               type="button"
               className="btn-outline"
-              onClick={() => setStap(STEP_ORDER[stapIndex - 1])}
+              onClick={() => setStap(CLIENT_STEPS[stapIndex - 1])}
             >
               Vorige
             </button>
@@ -234,7 +241,7 @@ export function BrandWizard({
             <button
               type="button"
               className="btn-primary"
-              onClick={() => setStap(STEP_ORDER[stapIndex + 1])}
+              onClick={() => setStap(CLIENT_STEPS[stapIndex + 1])}
             >
               Volgende
             </button>
@@ -436,6 +443,13 @@ function Herkomst({
   }
   if (source === "klant" || source === "gesprek") {
     return <span className="chip chip-success">door jou vastgelegd</span>;
+  }
+  // Vóór het eerste contact klaargezet (migratie 0060). "Door jou vastgelegd"
+  // zou hier niet kloppen: de klant heeft dit niet gezegd, wij hebben het
+  // aangenomen. Wel een mensbron, dus een volgende onderzoeksronde laat het
+  // staan, en de klant mag het overschrijven zonder dat het opvalt.
+  if (source === "consultant") {
+    return <span className="chip chip-success">door ons ingevuld</span>;
   }
   return <span className="chip">uit je website gehaald</span>;
 }
