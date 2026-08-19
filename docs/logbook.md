@@ -3209,3 +3209,31 @@ argument. Dat is één verplaatste regel, geen nieuw statusmodel, en het staat a
 Een Teamsessie wijzigt nooit code. De schrijftools zijn tijdens de sessie weggehaald in plaats van
 verboden, want een instructie is een intentie en code is een garantie (conventie 1), en elke expert
 draait read-only. Wat je erna laat bouwen is een nieuwe opdracht.
+
+## Twee stille degradaties in het voortgangsscherm (19 augustus 2026)
+
+Twee losse reparaties, geen migratie, uitgevoerd vóór de fases van
+[`onboarding-3.0.md`](tasks/onboarding-3.0.md) omdat ze vandaag al iets verkeerds tonen. Allebei
+komen ze uit de Teamsessie over de onboarding, en allebei hebben ze dezelfde vorm: het scherm zegt
+"gelukt" waar de code "niets gevonden" bedoelde.
+
+**De vier standen waren er wel, het scherm gebruikte er twee.** `research-steps.ts` kent per
+onderzoeksstap vier standen (`klaar`, `bezig`, `wacht`, `overgeslagen`) en waarschuwt in zijn eigen
+toelichting dat een stap die niets vond er anders uit moet zien dan een stap die iets vond.
+`profile-progress.tsx` sloeg `klaar` en `overgeslagen` allebei plat tot `done: true`, dus een stap
+die nul diensten of nul onderwerpen opleverde kreeg hetzelfde groene vinkje als een geslaagde stap.
+De vertaling zit nu in `displaySteps()`, puur en getest (conventie 2), en `WorkInProgress` toont een
+derde vorm: geen vinkje, een uitroepteken in de waarschuwingskleur, en de chip "niets gevonden". Het
+afrondingsblok van het merkdossier deed dit al goed, dus het waren twee schermen die hetzelfde
+gegeven verschillend lazen.
+
+**De duurste stap toonde als klaar terwijl er nul vragen gesteld waren.** `llm-baseline.ts` schreef
+het facet `llm_kennis` onvoorwaardelijk weg, ook als de budgetpoort alle engines oversloeg. De
+samenvatting werd dan "Nog niet vastgesteld wat AI-assistenten over dit merk weten", en dat is een
+gevulde tekst; `research-steps.ts` leest precies dat veld en zette de kennistest daarmee op `klaar`.
+De regel is nu: geen enkel gemeten antwoord betekent geen samenvatting (`baselineFacetState()` in
+`baseline-verdict.ts`, puur en getest). Het facet blijft wél staan, met `alles_overgeslagen` en het
+aantal overgeslagen vragen erin, want alles bewaren is conventie 8. Wat er al stond uit een eerdere
+ronde telt mee, anders wist een tweede, idempotente ronde de samenvatting van de eerste.
+
+Na deze ronde: 1518 unittests en 167 ketentests groen.

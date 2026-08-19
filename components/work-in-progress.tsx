@@ -21,7 +21,15 @@ import { MAX_ATTEMPTS } from "@/lib/jobs/types";
 
 export interface WorkStep {
   label: string;
+  /** Geweest én iets opgeleverd. Alleen dan een vinkje. */
   done: boolean;
+  /**
+   * Geweest en niets opgeleverd. Telt als afgehandeld, maar krijgt geen vinkje.
+   * Zonder dit onderscheid ziet een kennistest die nul vragen stelde er precies
+   * zo uit als een kennistest die acht antwoorden ophaalde, en dat is de
+   * duurste stap van de onboarding.
+   */
+  nietsGevonden?: boolean;
 }
 
 export function WorkInProgress({
@@ -49,12 +57,16 @@ export function WorkInProgress({
   // Voltooide stappen blijven voltooid (1.10). De server kan bij een nieuwe
   // poging tijdelijk "nog niet klaar" terugmelden; dat mag een afgevinkte stap
   // niet ongedaan maken. Dat leest als achteruitgang.
+  //
+  // `nietsGevonden` gaat bewust NIET mee in de hoogwatermarkering: die stand is
+  // wel afgehandeld maar niet voltooid, en gaat een taak alsnog opnieuw draaien
+  // dan hoort hij weer als lopend te tonen.
   const highWater = useRef<boolean[]>([]);
   const stable = (steps ?? []).map((s, i) => {
     highWater.current[i] = highWater.current[i] || s.done;
     return { ...s, done: highWater.current[i] };
   });
-  const activeIndex = stable.findIndex((s) => !s.done);
+  const activeIndex = stable.findIndex((s) => !s.done && !s.nietsGevonden);
 
   return (
     <div className="card flex flex-col gap-5">
@@ -76,22 +88,36 @@ export function WorkInProgress({
       {stable.length > 0 && (
         <ul className="flex flex-col gap-3">
           {stable.map((step, i) => (
-            <li key={step.label} className="flex items-center gap-3">
+            <li key={step.label} className="flex flex-wrap items-center gap-3">
               <span
                 className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-xs"
                 style={{
-                  background: step.done ? "color-mix(in srgb, var(--intent-growth-solid) 20%, transparent)" : "transparent",
+                  background: step.done
+                    ? "color-mix(in srgb, var(--intent-growth-solid) 20%, transparent)"
+                    : "transparent",
                   border: step.done ? "none" : "1px solid var(--border-strong)",
-                  color: step.done ? "var(--intent-growth-text)" : "var(--text-muted)",
+                  color: step.done
+                    ? "var(--intent-growth-text)"
+                    : step.nietsGevonden
+                      ? "var(--intent-warning-text)"
+                      : "var(--text-muted)",
                 }}
               >
-                {step.done ? "✓" : ""}
+                {step.done ? "✓" : step.nietsGevonden ? "!" : ""}
               </span>
               <span
-                style={{ color: step.done || i === activeIndex ? "var(--text-primary)" : "var(--text-muted)" }}
+                style={{
+                  color:
+                    step.done || step.nietsGevonden || i === activeIndex
+                      ? "var(--text-primary)"
+                      : "var(--text-muted)",
+                }}
               >
                 {step.label}
               </span>
+              {step.nietsGevonden && (
+                <span className="chip chip-warning">niets gevonden</span>
+              )}
               {i === activeIndex && <span className="live-dot" style={{ marginLeft: "auto" }} />}
             </li>
           ))}

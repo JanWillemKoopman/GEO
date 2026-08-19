@@ -126,3 +126,39 @@ function resultFor(
 export function researchRunning(steps: ResearchStep[]): boolean {
   return steps.some((s) => s.state === "bezig" || s.state === "wacht");
 }
+
+/**
+ * Eén stap zoals een wachtscherm hem toont.
+ *
+ * Structureel gelijk aan `WorkStep` in `components/work-in-progress.tsx`. Die
+ * staat in een clientcomponent en dit bestand moet puur blijven (conventie 2),
+ * dus het type staat hier en past daar in.
+ */
+export interface StepDisplay {
+  label: string;
+  /** De stap is geweest én leverde iets op. Alleen dan een vinkje. */
+  done: boolean;
+  /** De stap is geweest en leverde niets op. */
+  nietsGevonden: boolean;
+}
+
+/**
+ * De vier standen naar wat het wachtscherm ervan laat zien.
+ *
+ * ⚠️ Dit bestond niet en dat was een stille degradatie. Het wachtscherm
+ * vertaalde `klaar` én `overgeslagen` allebei naar één vinkje, dus een
+ * kennistest die nul vragen stelde omdat het budget op was, kreeg hetzelfde
+ * groene vinkje als een kennistest die acht antwoorden ophaalde. Precies waar
+ * `buildSteps()` in zijn eigen toelichting voor waarschuwt: "0 diensten
+ * gevonden" mag niet lezen als een geslaagde stap.
+ *
+ * `bezig` en `wacht` blijven allebei onafgehandeld; het verschil ertussen toont
+ * het scherm zelf met de actieve stip.
+ */
+export function displaySteps(steps: ResearchStep[]): StepDisplay[] {
+  return steps.map((s) => ({
+    label: s.result ? `${s.label}: ${s.result}` : s.label,
+    done: s.state === "klaar",
+    nietsGevonden: s.state === "overgeslagen",
+  }));
+}

@@ -164,6 +164,7 @@ import {
   cleanCompetitorName,
   summariseKnows,
   describeKnows,
+  baselineFacetState,
   type BaselineVerdict,
 } from "@/lib/pipeline/baseline-verdict";
 import { quoteOnPage, quoteConfidence } from "@/lib/pipeline/quote-check";
@@ -288,7 +289,7 @@ import {
 import { similarity, mostSimilar } from "@/lib/pipeline/similarity";
 import { assessReadability, describeReadability } from "@/lib/pipeline/readability";
 import { checkQuality } from "@/lib/pipeline/content-gate";
-import { buildSteps, researchRunning } from "@/lib/pipeline/research-steps";
+import { buildSteps, researchRunning, displaySteps } from "@/lib/pipeline/research-steps";
 import {
   filterProtectedFields,
   confidenceLevel,
@@ -2736,6 +2737,37 @@ group("onderzoeksstappen met tussenresultaten (§8)", () => {
   });
   ok("de eerste stap is bezig", start[0].state === "bezig");
   ok("de rest wacht", start.slice(1).every((s) => s.state === "wacht"));
+
+  // ⚠️ Het wachtscherm sloeg de vier standen plat tot één vinkje, dus een stap
+  // die niets vond zag eruit als een geslaagde stap. `displaySteps()` houdt het
+  // verschil vast.
+  const getoond = displaySteps(nietsGevonden);
+  const rij = (job: string) => {
+    const i = nietsGevonden.findIndex((s) => s.job === job);
+    return getoond[i];
+  };
+  ok("een stap die iets vond krijgt een vinkje", rij("technical_audit").done);
+  ok(
+    "en geen waarschuwing",
+    !rij("technical_audit").nietsGevonden,
+  );
+  ok(
+    "een stap die niets vond krijgt géén vinkje",
+    !rij("profile_offering").done,
+  );
+  ok(
+    "maar wel de stand 'niets gevonden'",
+    rij("profile_offering").nietsGevonden,
+  );
+
+  const lopend = displaySteps(halverwege);
+  const bezig = lopend[halverwege.findIndex((s) => s.job === "profile_offering")];
+  ok("een lopende stap is nog niet afgehandeld", !bezig.done && !bezig.nietsGevonden);
+  ok(
+    "en het tussenresultaat staat in het label",
+    lopend[0].label.includes("31 pagina's"),
+    lopend[0].label,
+  );
 });
 
 group("een mens wint van een model (blok C)", () => {
@@ -3025,6 +3057,32 @@ group("kent hij je merk? een verhouding, geen muntworp", () => {
   );
   // Geen metingen is geen kennis, maar ook geen bewering over een verhouding.
   ok("nul vragen is 'kent niet'", summariseKnows([]).level === "kent_niet");
+});
+
+group("de kennistest mag niet als geslaagd tonen zonder metingen", () => {
+  // Budget op: acht vragen klaargezet, nul gesteld. Dit is het geval dat het
+  // voortgangsscherm als "klaar" toonde.
+  const budgetOp = baselineFacetState({ measured: 0, eerder: 0, skipped: 8 });
+  ok("niets gemeten", !budgetOp.gemeten);
+  ok("en dat heet alles overgeslagen", budgetOp.allesOvergeslagen);
+
+  // Gewoon gedraaid.
+  const gedraaid = baselineFacetState({ measured: 8, eerder: 0, skipped: 0 });
+  ok("acht antwoorden is wel gemeten", gedraaid.gemeten);
+  ok("en niets overgeslagen", !gedraaid.allesOvergeslagen);
+
+  // Idempotentie (conventie 9): een tweede keer draaien stelt geen vraag
+  // opnieuw, dus `measured` is 0 terwijl de metingen er wel degelijk staan.
+  // Zou dit als "niets gemeten" gelden, dan wist de tweede ronde de
+  // samenvatting van de eerste.
+  const alGedaan = baselineFacetState({ measured: 0, eerder: 8, skipped: 0 });
+  ok("wat er al stond telt mee", alGedaan.gemeten);
+  ok("en is niet overgeslagen", !alGedaan.allesOvergeslagen);
+
+  // Deels: één vraag mislukte, de rest kwam binnen. Dan is er wél wat te
+  // vertellen.
+  const deels = baselineFacetState({ measured: 7, eerder: 0, skipped: 1 });
+  ok("deels gemeten is gemeten", deels.gemeten && !deels.allesOvergeslagen);
 });
 
 group("harde feiten uit de lopende tekst (fase 0, nul kosten)", () => {

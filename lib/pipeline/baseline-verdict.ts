@@ -510,3 +510,37 @@ export function describeKnows(s: KnowsSummary, brandName: string): string {
       return `herkent ${brandName} wisselend (${s.recognised} van de ${s.asked} vragen)`;
   }
 }
+
+// ── Is de kennistest eigenlijk wel gedaan? ─────────────────────────────────
+//
+// ⚠️ 19 augustus 2026. `runLlmBaseline()` schreef het facet `llm_kennis` altijd
+// weg, ook als het budget op was en er nul vragen gesteld waren. De samenvatting
+// werd dan "Nog niet vastgesteld wat AI-assistenten over dit merk weten", en dat
+// is een gevulde tekst. `research-steps.ts` leest precies dat veld en zette de
+// stap daarmee op `klaar`. De duurste stap van de onboarding, de enige die
+// meet wat ChatGPT van het merk weet, toonde dus als geslaagd terwijl er niets
+// gebeurd was.
+//
+// De regel: geen enkel gemeten antwoord betekent geen samenvatting. Het facet
+// zelf blijft wél staan, met het aantal overgeslagen vragen erin, want alles
+// bewaren is conventie 8. Een leeg `summary` laat de stap op `overgeslagen`
+// vallen, en dat is wat er werkelijk gebeurde.
+
+export interface BaselineFacetState {
+  /** Er staat minstens één gemeten antwoord, uit deze ronde of een eerdere. */
+  gemeten: boolean;
+  /** Er is niets gemeten terwijl er wel vragen klaarstonden. */
+  allesOvergeslagen: boolean;
+}
+
+export function baselineFacetState(input: {
+  /** Antwoorden die deze ronde zijn opgeslagen. */
+  measured: number;
+  /** Antwoorden die er al stonden uit een eerdere ronde (idempotentie). */
+  eerder: number;
+  /** Vragen die niet gesteld zijn: budget op, of de aanroep mislukte. */
+  skipped: number;
+}): BaselineFacetState {
+  const gemeten = input.measured > 0 || input.eerder > 0;
+  return { gemeten, allesOvergeslagen: !gemeten && input.skipped > 0 };
+}

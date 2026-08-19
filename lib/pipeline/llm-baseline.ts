@@ -39,6 +39,7 @@ import "server-only";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { enginesForProfile } from "@/lib/engines/registry";
 import {
+  baselineFacetState,
   buildVerdict,
   checkableFacts,
   scoreCategoryAnswer,
@@ -401,14 +402,22 @@ export async function runLlmBaseline(
     }
   }
 
+  // ⚠️ Geen samenvatting als er niets gemeten is, zie `baselineFacetState()`.
+  // Een gevulde samenvatting zette het voortgangsscherm op "klaar" terwijl het
+  // budget op was en er nul vragen gesteld waren.
+  const facetStand = baselineFacetState({ measured, eerder: gedaan.size, skipped });
+
   await admin.from("profile_facets").upsert(
     {
       profile_id: profileId,
       facet: "llm_kennis",
-      summary: await beschrijf(admin, profileId, profile),
+      summary: facetStand.gemeten
+        ? await beschrijf(admin, profileId, profile)
+        : null,
       raw_json: {
         measured,
         skipped,
+        alles_overgeslagen: facetStand.allesOvergeslagen,
         engines: engines.map((e) => e.info.id),
       } as never,
       confidence: measured > 0 ? 1 : null,

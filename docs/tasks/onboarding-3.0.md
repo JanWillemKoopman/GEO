@@ -612,8 +612,8 @@ Twee daarvan raken dezelfde bestanden als dit plan, dus ze horen in dezelfde ron
 | Openstaand punt | Waar het in dit plan valt |
 |---|---|
 | De aanbodstap heet niet-blokkerend maar draagt de halve keten | **Fase 4.** Zelfde bestand (`lib/jobs/handlers.ts`), zelfde soort wijziging: een taak los inplanbaar maken van de taak die hem vandaag inplant |
-| De vier standen platgeslagen tot één vinkje op het voortgangsscherm | **Los, vóór fase 3.** Raakt `profile-progress.tsx` en niet de sessie |
-| De duurste stap toont als geslaagd terwijl het budget op was | **Los, vóór fase 3.** Raakt `research-steps.ts` |
+| De vier standen platgeslagen tot één vinkje op het voortgangsscherm | **Gedaan op 19 augustus 2026**, zie `logbook.md` |
+| De duurste stap toont als geslaagd terwijl het budget op was | **Gedaan op 19 augustus 2026**, zie `logbook.md` |
 | De strook met lopende stappen boven het dossier | **Los.** Raakt het klantscherm, niet de sessie |
 
 **Aanbevolen volgorde:** eerst de twee losse punten die niets met dit plan te maken hebben (ze zijn
