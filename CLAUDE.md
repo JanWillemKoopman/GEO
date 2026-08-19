@@ -131,6 +131,12 @@ supabase db push                      # migraties naar remote
 Migraties toepassen op productie gaat via de Supabase MCP-tool (`apply_migration`), niet via de
 CLI. Werk daarna de index in `supabase/README.md` bij.
 
+**Een onderdeel laten doorlichten: zeg "start een Teamsessie voor [onderdeel]".** De skill
+`.claude/skills/team-session/` neemt het dan over, selecteert vier tot zes experts uit
+`.claude/agents/`, laat ze onafhankelijk de code onderzoeken en eindigt met hooguit vijf
+geprioriteerde verbeteringen. Een Teamsessie wijzigt nooit code; wat je daarna laat bouwen is een
+nieuwe opdracht.
+
 ## Code-conventies
 
 Deze zijn over acht bouwrondes consequent toegepast. Houd ze aan.

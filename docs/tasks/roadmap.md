@@ -289,3 +289,23 @@ Beide staan voluit in `docs/logbook.md`, en twaalf codebestanden verwijzen ernaa
 | Automatische controles op gepubliceerde pagina's (fase 6) | idem |
 
 Alles wat zónder die twee kan, is gebouwd en getest.
+
+## Uit de Teamsessie over de onboarding (18 augustus 2026)
+
+**De aanbodstap heet niet-blokkerend, maar draagt de halve keten.** `NON_BLOCKING_TYPES` in
+`lib/jobs/progress.ts` (regel 70 en de toelichting erboven) zet `profile_offering` op
+niet-blokkerend, met als onderbouwing dat de klant bij een mislukking alleen zijn dienstenoverzicht
+en zijn topicvoorstellen mist. Dat klopt niet: `lib/jobs/handlers.ts` regel 250 plant `profile_market`
+in vanuit de aanbodstap zelf, en de markt draagt vervolgens de kennistest (regel 293) en de synthese
+(regel 308). Mislukt de aanbodstap definitief, dan wordt de rest van de onderzoeksketen nooit
+ingepland én verschijnt er geen foutmelding, want de taak telt als niet-blokkerend.
+
+Verwachte reparatie: de opvolger loskoppelen van de stap die hem inplant, zodat een gemiste
+verrijkingsstap de keten niet afkapt. Raakt `lib/jobs/handlers.ts` en `lib/jobs/progress.ts`, plus
+een ketenscenario in `scripts/test-chain.ts`. Geen migratie.
+
+**Verificatiecriterium:** een ketentest waarin `profile_offering` definitief faalt en de markt, de
+kennistest en de synthese daarna alsnog draaien.
+
+⚠️ De rest van die Teamsessie leverde geen werk op, met opzet: alle andere faalpaden waren uit de
+code afgeleid en op productie nooit waargenomen. Zie `docs/logbook.md`, 18 augustus 2026.
