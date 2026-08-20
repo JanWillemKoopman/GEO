@@ -3553,3 +3553,29 @@ voorbeelden teruggebracht tot één ding per regel. Een test bewaakt het nu: een
 lijstveld heeft minder dan drie komma-onderdelen.
 
 Na deze ronde: 1744 unittests en 202 ketentests groen, 35 velden met een voorbeeld, 247 branchevoorbeelden.
+
+## De modulekaart, en twee dingen die het narekenen opleverde (20 augustus 2026)
+
+`docs/modulekaart.md` erbij: de app opgesplitst in dertien domeinen, drie niveaus diep, met per
+onderdeel de bestanden, de afhankelijkheden naar andere domeinen en de vraag die een technische deep
+dive daar hoort te stellen. Het is bewust geen tweede architectuurdocument. `architecture.md` zegt hoe
+het werkt, de modulekaart zegt waar het staat en hoe groot het is, en verwijst voor de feiten terug.
+
+Aanleiding: er was geen document waarmee iemand die de codebase niet kent binnen een uur kan zien
+welk deel van de 66.610 regels waarbij hoort. Dat kostte bij elke nieuwe blik dezelfde verkenning.
+
+Het narekenen bracht twee dingen boven water, allebei klein en allebei van het soort dat vanzelf
+groeit:
+
+**Twaalf betaalde routes, elf bewaakt.** `app/api/profiles/[id]/refresh/route.ts` kwam er bij fase 4
+van onboarding 3.0 bij en heeft beide remmen keurig in de code, maar staat niet in de handmatige lijst
+van de broncodecontrole in `scripts/test-unit.ts`. De rem zit er dus wel, alleen merkt geen test het
+als iemand hem eruit haalt. Dat is precies de situatie die die controle moest voorkomen, en de lijst
+groeit niet vanzelf mee met een nieuwe route.
+
+**Twee dode tabellen staan nog in productie.** `_backup_20260729` met 51 rijen, en `brand_dna` dat
+sinds migratie `0001` bestaat en nul rijen heeft. Additieve migraties betekenen dat niets vanzelf
+verdwijnt, en dat is het gevolg. Niets kapot, wel ruis in elk schemaoverzicht.
+
+Peildatumcontrole bij deze ronde: `npx tsc --noEmit` schoon, 1744 unittests en 202 ketentests groen,
+productiebuild groen.

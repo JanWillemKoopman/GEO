@@ -93,4 +93,5 @@ een document af van wat de code doet, dan is het document fout.
 | Bestand | Waarvoor |
 |---|---|
 | [`docs/logbook.md`](./docs/logbook.md) | **Waarom het is zoals het is.** Elke beslissing met datum en het cijfer eronder. Kijk hier vóór je iets terugdraait: de kans is groot dat het met reden zo staat |
+| [`docs/modulekaart.md`](./docs/modulekaart.md) | **Waar zit wat.** De app opgesplitst in dertien domeinen, met per onderdeel de bestanden, de afhankelijkheden en de vraag die een deep dive daar hoort te stellen |
 | [`docs/tasks/`](./docs/tasks/) | Wat er nog open staat. Af is weg, samengevat in het logboek |

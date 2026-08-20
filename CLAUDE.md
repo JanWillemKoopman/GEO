@@ -202,6 +202,7 @@ scripts/           test-unit · test-chain · test-openai · eval-mention
 | `docs/visie.md` | **De richting, niet de huidige bouw.** ORBIT ENGINE als autonome groeimotor voor SEO én GEO, vastgelegd door Outer Orbit op 17 augustus 2026. Elke bewering over doelgroep, omvang of autonomie is een bestemming, geen stand van zaken |
 | `docs/merkstrategie.md` | **Hoe het merk naar buiten klinkt en oogt**, voor reclame- en communicatiebureaus. Leidend voor marketing, níét voor UI-copy (dat is `schrijfstijl.md`) of de vormgeving van de app (dat is `designsystem.md`). §30 somt op waar het merkverhaal iets belooft dat de app nog niet doet |
 | `docs/architecture.md` | Datamodel, RLS, jobwachtrij, pijplijn per stap, alle AI-calls, env, deploy, cron. **De enige technische waarheid.** §6 heeft ook de tabel "Bewust géén AI" en de nagerekende kosten |
+| `docs/modulekaart.md` | **Waar zit wat.** De app in dertien domeinen, drie niveaus diep, met per onderdeel de bestanden, de afhankelijkheden naar andere domeinen en het discussiepunt voor een technische deep dive. Verwijst voor het hoe naar `architecture.md` en herhaalt die feiten niet |
 | `docs/ux-design.md` | Hoe je een scherm bouwt: componentregels, responsive, loading, error en lege staten |
 | `docs/designsystem.md` | Waar elke kleur, radius en schaduw vandaan komt. §9b heeft het **open ontwerpbesluit**: het systeem is afgeleid van de concurrent en dat botst met de merkstrategie |
 | `docs/schrijfstijl.md` | Tone-of-voice en microcopy: de elf richtlijnen, de woordenlijst, en wat we bewust níet van Nova overnemen |
