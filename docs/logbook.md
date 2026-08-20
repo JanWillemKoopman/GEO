@@ -3579,3 +3579,25 @@ verdwijnt, en dat is het gevolg. Niets kapot, wel ruis in elk schemaoverzicht.
 
 Peildatumcontrole bij deze ronde: `npx tsc --noEmit` schoon, 1744 unittests en 202 ketentests groen,
 productiebuild groen.
+
+## De modulekaart wordt een werkagenda: 56 deep dives op volgorde (20 augustus 2026)
+
+De kaart had per onderdeel één deep-dive vraag. Dat is uitgebreid naar vijf per onderdeel, en de 56
+onderdelen zijn gerangschikt op potentie: nummer 1 is de sessie waarmee het team op dit moment het
+meeste aan de app verbetert. Het nummer staat bij het onderdeel zelf én in de tabel achteraan, zodat
+je vanuit elke plek in de kaart ziet waar iets in de rij staat.
+
+**Waarop gerangschikt is, in volgorde van gewicht:** klopt het cijfer dat we de klant tonen, valt het
+werk stil zonder dat iemand het ziet, wat kost of verdient het, en brengt het de app dichter bij
+`visie.md`. Bewust níet meegewogen: hoeveel regels code er staan. Het grootste bestand van de codebase
+(`content.ts`, 1710 regels) staat op plek 4 en niet op plek 1, omdat de meting zwaarder weegt dan de
+tekst die eruit volgt.
+
+**De eerste vijf gaan allemaal over dezelfde vraag:** klopt wat we meten, en gebeurt het werk echt. De
+meting zelf (98,8 procent van de kosten van een ronde, en de simulatie is nooit vergeleken met wat
+ChatGPT die dag écht antwoordt), de aggregatie (maakt het hoofdgetal en heeft geen ketentest), de
+regionale poort (57 landelijke metingen leverden nul vermeldingen op, en de hele garantie hangt aan
+één veld dat een model invult), het schrijven, en de ketening na de vondst van 18 augustus.
+
+De rangschikking is een oordeel met een houdbaarheidsdatum: na elke ronde verschuift hij, want de
+helft van de potentie van een sessie zit in wat er nog niet onderzocht is.
