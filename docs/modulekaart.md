@@ -33,6 +33,11 @@ De complexiteitskolom in de tabellen is een oordeel op drie assen samen: omvang 
 inkomende afhankelijkheden, en hoe duur een fout is. **Hoog** betekent niet slecht gebouwd, het betekent
 dat een wijziging daar niet in je eentje op een vrijdagmiddag hoort te gebeuren.
 
+⚠️ **De statuskolom beschrijft wat er draait, nooit wat er nog moet komen.** "Live sinds 0047" betekent:
+dit onderdeel staat op productie en migratie `0047` is de migratie die het bracht. Elke migratie tot en
+met `0060` is toegepast, met als enige uitzondering `0033`, die gereserveerd bleef en nooit gedraaid is.
+Openstaand werk staat niet in dit document maar in `docs/tasks/`.
+
 ## De kaart in één oogopslag
 
 | # | Domein | Kernvraag | Omvang | Complexiteit |
@@ -187,8 +192,8 @@ kan meerdere merken hebben), en de staf die alles ziet.
 | Sub-onderdeel | Regels | Status | Complexiteit |
 |---|---|---|---|
 | Sessie en inloggen | ~670 | Stabiel | Middel |
-| Accounts en rolmatrix | ~500 | Migratie 0046, 0056 | **Hoog** |
-| Uitnodigingen | ~400 | Migratie 0047 | Middel |
+| Accounts en rolmatrix | ~500 | Live sinds 0046 en 0056 | **Hoog** |
+| Uitnodigingen | ~400 | Live sinds 0047 | Middel |
 | Rechten: RLS plus ownership | ~450 | Aangescherpt in 0042 | **Hoog**, hier zat al een fout |
 | Staf, CSM en verwijderen | ~450 | Fase 8 | Middel |
 
@@ -273,7 +278,7 @@ stappen die van een webadres een merkdossier maken, plus het gesprek dat de cons
 | Fase 1 tot 3: onderzoek | ~1.900 | Onboarding 3.0 | **Hoog** |
 | Fase 3b: kennistest | ~1.230 | Multi-engine voorbereid | **Hoog** |
 | Fase 5: synthese en dossier | ~900 | Duurste onboardingstap | Middel |
-| Onboardingsessie en refresh | ~1.400 | Nieuw, migratie 0060 | **Hoog** |
+| Onboardingsessie en refresh | ~1.400 | Live sinds 0060, de nieuwste | **Hoog** |
 | Dossierscherm en volledigheid | ~2.400 | Herzien 17 aug 2026 | Middel |
 
 ---
@@ -461,7 +466,7 @@ Het hart van het product: van dertig vragen naar één score met een onzekerheid
 | Regionale poort | ~300 | Hangt aan één veld | **Hoog** |
 | De meting | ~1.400 | 98,8% van de kosten | **Hoog** |
 | Hermeten en aggregatie | ~900 | Ketentest dekt aggregatie niet | **Hoog** |
-| Entiteiten en concurrenten | ~1.300 | Migratie 0058 | Middel |
+| Entiteiten en concurrenten | ~1.300 | Live sinds 0058 | Middel |
 
 ---
 
@@ -515,7 +520,7 @@ Van cijfers naar een zin die een ondernemer begrijpt, plus de blokken die zeggen
 | Gap-analyse en rapport | ~1.600 | Claimvalidator actief | **Hoog** |
 | Periodeverschil en trend | ~500 | Stabiel | Laag |
 | Inzichten, kansen, opbrengst | ~1.100 | Fase 5 en 6 | Middel |
-| Potentie en werkmodel | ~900 | Migratie 0057 | Middel |
+| Potentie en werkmodel | ~900 | Live sinds 0057 | Middel |
 
 ---
 
@@ -592,7 +597,7 @@ poorten en een meetbaar effect achteraf.
 
 | Sub-onderdeel | Regels | Status | Complexiteit |
 |---|---|---|---|
-| Feitenbank | ~1.400 | Migratie 0035, 0036 | Middel |
+| Feitenbank | ~1.400 | Live sinds 0035 en 0036 | Middel |
 | Briefing | ~1.100 | Betaalde route | Middel |
 | Schrijven en herschrijven | ~1.900 | Grootste bestand | **Hoog** |
 | De twee poorten | ~1.100 | Deterministisch | **Hoog** |
@@ -639,7 +644,7 @@ binnen tien dagen moet staan.
 
 | Sub-onderdeel | Regels | Status | Complexiteit |
 |---|---|---|---|
-| Plan als object | ~770 | Migratie 0049 | Middel |
+| Plan als object | ~770 | Live sinds 0049 | Middel |
 | Schrijfronde | ~400 | Dagelijks op pg_cron | **Hoog** |
 | Statustaal en bulk | ~390 | Stabiel | Laag |
 
@@ -696,7 +701,7 @@ Alles wat de buitenwereld leest en niets kost, plus de ene koppeling met een ext
 | Crawler | 410 | Stabiel, nul kosten | Laag |
 | Technische audit | ~1.050 | Blokkeert content | Laag |
 | Off-site | ~660 | Handmatige opvolging | Laag |
-| Search Console | ~910 | Migratie 0052 | Middel |
+| Search Console | ~910 | Live sinds 0052 | Middel |
 
 ---
 
@@ -733,7 +738,7 @@ dezelfde volgorde.
 | Sub-onderdeel | Regels | Status | Complexiteit |
 |---|---|---|---|
 | De twee remmen | ~600 | 12 routes, vangnet dekt 11 | **Hoog** |
-| Archief en cadans | ~350 | Migratie 0044 | **Hoog** |
+| Archief en cadans | ~350 | Live sinds 0044 | **Hoog** |
 
 ---
 
