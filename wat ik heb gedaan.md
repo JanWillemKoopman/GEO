@@ -1,237 +1,390 @@
-# Wat ik de afgelopen weken heb gebouwd
+# ORBIT ENGINE
 
-## Het probleem waar dit over gaat
+## Wat het is
 
-Vroeger zocht iedereen via Google. Je typte "goede fysiotherapeut Tilburg" en je kreeg tien blauwe
-links. Bedrijven besteedden daar jarenlang veel geld aan, want hoger in die lijst staan betekende
-meer klanten.
+ORBIT ENGINE is een softwareplatform dat meet hoe zichtbaar een bedrijf is in de antwoorden van
+AI-assistenten zoals ChatGPT, verklaart waarom de concurrent daar wél staat, de pagina's schrijft die
+dat gat moeten dichten, en weken later bewijst of dat gewerkt heeft.
 
-Dat verandert nu razendsnel. Steeds meer mensen stellen die vraag gewoon aan ChatGPT. En ChatGPT
-geeft geen tien links, maar één antwoord met drie namen erin. Sta je daar niet bij, dan besta je
-voor die klant niet. Er is geen tweede pagina meer waar je nog gevonden kunt worden.
+De app staat live en draait. Het is geen prototype en geen presentatie: er zit een werkende
+onderzoeksmotor onder die per bedrijf ongeveer zeven en een halve minuut nodig heeft om een compleet
+dossier op te bouwen, en die daarna maandelijks vanzelf blijft meten.
 
-Even een beeld erbij, verzonnen maar herkenbaar. Stel dat een gezin aan ChatGPT vraagt: "wij willen
-een dagje uit met kinderen van vijf en acht, welk pretpark in Nederland is dan leuk?" Dan komt er
-één antwoord met misschien drie parken erin. Zit de Efteling daar niet bij, dan heeft dat gezin
-nooit overwogen om te gaan. Niet omdat ze de Efteling niet mooi vinden, maar omdat het park
-letterlijk niet genoemd is. Voor een pretpark uit Kaatsheuvel dat iedereen kent voelt dat nog
-onwaarschijnlijk. Voor de installateur, de advocaat of de webshop om de hoek gebeurt het elke dag,
-en die weten het niet eens.
+## Waarom dit nodig is
 
-Het gekke is namelijk: bijna geen enkel bedrijf weet of het genoemd wordt. Ze kunnen het niet meten,
-want er is geen lijstje meer om in te kijken. Ze weten niet waaróm de concurrent wel wordt genoemd.
-En ze weten al helemaal niet wat ze eraan moeten doen.
+Twintig jaar lang draaide online vindbaarheid om één ding: hoog in Google staan. Er waren tien
+resultaten, en de kunst was om bij die tien te horen. Een hele bedrijfstak is daarop gebouwd.
 
-Dat is precies het gat waar ik in ben gaan bouwen.
+Die logica verdwijnt. Wie nu een aankoop voorbereidt, stelt de vraag steeds vaker aan een
+AI-assistent. En die geeft geen tien opties terug, maar één antwoord met twee of drie namen erin. Er
+is geen tweede pagina meer, geen "net buiten de top tien", geen doorklikken. Je wordt genoemd of je
+bestaat niet.
 
-## Wat ik heb gemaakt
+Een beeld erbij, verzonnen maar herkenbaar. Een gezin vraagt: "wij willen een dagje uit met kinderen
+van vijf en acht, welk pretpark in Nederland raad je aan?" Er komt één antwoord met misschien drie
+parken. Staat de Efteling daar niet bij, dan is dat park nooit overwogen. Niet omdat het gezin er
+iets op tegen heeft, maar omdat het simpelweg niet genoemd is. Voor een park uit Kaatsheuvel dat
+iedereen kent voelt dat onwaarschijnlijk. Voor de installateur, de accountant of de webshop in
+diezelfde regio gebeurt het dagelijks, en die weten het niet.
 
-De app heet **ORBIT ENGINE**. Hij doet vijf dingen achter elkaar, en juist die volgorde is het hele
-punt.
+Daar zit het probleem: dit is niet te meten met de gereedschappen die bedrijven gewend zijn. Er is
+geen positielijst om in te kijken. Een AI-antwoord is elke keer net iets anders, hangt af van hoe de
+vraag gesteld wordt, en laat niet zien waaróm de ene naam er wel staat en de andere niet. Bedrijven
+zien hun websitebezoek dalen en kunnen niet achterhalen waar het heen gaat.
 
-**1. Hij leert het bedrijf kennen.** Je vult drie dingen in: de bedrijfsnaam, de website en hoe de
-naam nog meer geschreven wordt. Daarna gaat de app zelf aan het werk. Hij leest tot 150 pagina's van
-de website, zoekt uit wat het bedrijf verkoopt, wie de concurrenten zijn, of de site technisch
-toegankelijk is voor AI, en test wat ChatGPT nú al over dit bedrijf weet. Dat duurt zeven en een
-halve minuut en kost ongeveer 25 dollarcent. Je mag je laptop dichtklappen, hij loopt door.
+ORBIT ENGINE maakt dat meetbaar, verklaarbaar en oplosbaar.
 
-**2. Hij bedenkt de vragen.** De app stelt dertig realistische koopvragen op die echte klanten
-zouden stellen. Niet "wat is fysiotherapie", maar de vragen waar geld achter zit. Je ziet elke vraag
-en mag ze aanpassen voordat er ook maar iets gemeten wordt.
+## Hoe het systeem werkt
 
-**3. Hij meet.** Alle dertig vragen worden echt aan een AI-assistent gesteld, mét live internet, net
-zoals een klant het zou doen. Van elk antwoord wordt bijgehouden welke bedrijven genoemd worden en
-in welke rol. Daar komt een cijfer uit, met een eerlijke foutmarge erbij. Plus: wie wint hier wel,
-en waaróp.
+De app is opgebouwd rond een gesloten cirkel: meten, verklaren, plannen, maken, publiceren, opnieuw
+meten. Elke stap voedt de volgende. Hieronder staat wat er in elke fase gebeurt.
 
-**4. Hij schrijft de oplossing.** Op basis van de gaten die hij vindt, schrijft de app de pagina's
-die het bedrijf mist. Compleet publicatieklaar. En hier zit iets waar ik best trots op ben: de app
-mag niets verzinnen. Elke bewering over het bedrijf moet terug te voeren zijn op een feit dat
-bevestigd is. Kan iets niet onderbouwd worden, dan gaat het de tekst niet in. Dat is de reden dat
-een ondernemer zijn naam eronder durft te zetten.
+### Fase 1: het merkdossier opbouwen
 
-**5. Hij bewijst of het gewerkt heeft.** Nadat de pagina online staat, meet de app na twee weken en
-na vier weken opnieuw. En, dit is het slimme deel, hij meet niet alleen de vragen waarvoor je
-publiceerde, maar ook een controlegroep van vragen waar je níets aan gedaan hebt. Zo weet je zeker
-dat een stijging door jouw werk komt en niet doordat het toevallig een goede maand was. De uitkomst
-klinkt als: "op de vragen waarvoor je publiceerde plus 18, op de rest plus 3."
+Alles begint met drie velden: de bedrijfsnaam, het webadres en eventuele andere schrijfwijzen van de
+naam. Dat laatste veld lijkt onbelangrijk en is het niet: de meting telt letterlijke naamvermeldingen,
+en als een AI het bedrijf net iets anders noemt dan in het dossier staat, telt die vermelding niet mee
+en valt de score te laag uit.
 
-## Waarom dit anders is dan de rest van de markt
+Daarna draait het systeem acht onderzoeksstappen achter elkaar, zonder dat er iemand bij hoeft te
+zitten:
 
-Er zijn inmiddels best wat partijen die meten hoe zichtbaar je bent in AI-antwoorden. Bureaus,
-tools, dashboards. Maar bijna allemaal stoppen ze op hetzelfde moment: als het cijfer op het scherm
-staat. Je krijgt te horen dát je onzichtbaar bent, en daarna begint het echte werk pas, en dat werk
-is duur mensenwerk. Een consultant die uitzoekt wat er moet gebeuren, een tekstschrijver die
-pagina's maakt, iemand die het inplant. Reken op een paar duizend euro voordat er één letter online
-staat.
+1. **De website uitlezen.** Tot 150 pagina's crawlen, de teksten opslaan, en harde feiten oogsten die
+   letterlijk op de site staan: adres, telefoonnummer, KvK-nummer, openingstijden. Ook wordt
+   vastgesteld welk websitesysteem gebruikt wordt en of er al uitklapbare vraag-en-antwoordblokken op
+   de site staan. Dit kost niets, want er komt geen AI aan te pas.
+2. **Een technische controle.** Mogen de crawlers van AI-bedrijven de site überhaupt bezoeken, of
+   staat de deur dicht? Klopt de bedrijfsnaam overal hetzelfde? Staat er gestructureerde data op de
+   pagina's waarmee een AI kan zien wie dit bedrijf is? Staat de deur dicht, dan blokkeert dat de rest
+   van het traject, want dan heeft content schrijven geen zin.
+3. **Merkonderzoek.** Wie is dit bedrijf, in welke branche, welk soort bedrijf, welk werkgebied, welke
+   toon, welke doelgroepen, welke concurrenten. Dat werkgebied is belangrijker dan het lijkt: het
+   bepaalt of alle meetvragen regionaal of landelijk gesteld worden.
+4. **De aanbodboom.** Alles wat het bedrijf verkoopt, uitgetekend als boom: onder "massage" hangt
+   "sportmassage", daaronder weer specifieke behandelingen. Een tak die niet terug te vinden is op een
+   echte pagina van de site vervalt, zodat er geen aanbod in het dossier komt dat niet bestaat.
+5. **Onderwerpen voorstellen.** Uit die boom rollen vijf tot acht onderwerpen waar het bedrijf op
+   gevolgd zou kunnen worden. Dit is een voorstel, geen meting: het goedkeuren is een aparte
+   handeling, en pas daarna kost het geld.
+6. **Marktonderzoek.** Per concurrent wordt uitgezocht wáárom die wint, en welke externe websites deze
+   markt bepalen: de vergelijkingssites, brancheregisters en vakmedia waar AI-assistenten hun
+   informatie vandaan halen.
+7. **De kennistest.** De meest verrassende stap voor een ondernemer. Er wordt gemeten wat AI nú al
+   over dit bedrijf weet, in vijf onderdelen: kent het bedrijf, klopt wat het zegt, welke bronnen
+   worden aangehaald, zijn er andere bedrijven die bijna zo heten, en wordt het bedrijf genoemd bij
+   merkloze koopvragen. De vraag "ken je dit bedrijf" wordt op zes verschillende manieren gesteld,
+   zodat er een verhouding uitkomt en niet een toevallige ja of nee.
+8. **De synthese.** Alles samengebracht tot één dossier, met een gespreksagenda en een feitenbank
+   waarin alleen feiten staan waarvan het citaat letterlijk op de bronpagina te vinden is.
 
-Dat is precies waar deze app doorloopt waar de rest afhaakt. Hij meet niet alleen, hij schrijft ook
-de oplossing. Automatisch, en toegespitst op dít ene bedrijf: op wat ze echt verkopen, in hun eigen
-toon, met alleen feiten die kloppen. Van "je bent onzichtbaar" naar "hier is de pagina, zet hem
-online", zonder dat er een consultant tussen hoeft te zitten.
+Wat er dan ligt is een merkdossier van 41 velden, verdeeld over zeven onderdelen: het bedrijf, het
+merk, de klant, hoe het bedrijf klinkt, welke woorden wel en niet gebruikt mogen worden, wie de
+teksten ondertekent, en waar het bedrijf om bekend wil staan. Bij elk veld staat waar de waarde
+vandaan komt: uit de website gehaald, door het systeem afgeleid, of door een mens bevestigd. Dat
+onderscheid is bindend: wat een mens heeft vastgelegd wordt door een volgende onderzoeksronde nooit
+overschreven.
 
-Dat verschil is groter dan het klinkt. Meten is een rapport. Opvolging is een resultaat. En de
-laatste stap, opnieuw meten met een controlegroep, durft bijna niemand aan te bieden, want dan kan
-er ook uitkomen dat het níet gewerkt heeft. Deze app zegt dat gewoon als het zo is. Dat klinkt als
-een nadeel en het is het sterkste verkooppunt dat er is.
+Naast die 41 velden staat een tweede laag van vijftien velden die een website per definitie niet kan
+prijsgeven en die uit een gesprek moeten komen: waar het bedrijf op wil groeien en waar juist niet,
+in welke regio's het nog niet zit, wat een klant ongeveer waard is, welke bezwaren steeds terugkomen,
+waar juridisch niet over geschreven mag worden, welk bewijs er is dat niet op de site staat, en welke
+gelijknamige bedrijven het uitdrukkelijk níet is. Die laatste lijst voorkomt dat de meting
+vermeldingen van een ander bedrijf als de eigen score telt.
 
-## De sterke punten op een rij
+Dit hele dossier wordt eenmalig opgebouwd en daarna hergebruikt door alles wat volgt. De derde meting
+voor hetzelfde bedrijf is daardoor sneller en goedkoper dan de eerste.
 
-1. **De hele cirkel rond.** Meten, verklaren waarom, de oplossing schrijven, publiceren en opnieuw
-   meten. Andere partijen doen één of twee van die stappen.
+### Fase 2: clusters, het hart van de structuur
+
+Een bedrijf wordt niet als geheel gevolgd, maar per **cluster**. Een cluster is één onderwerp waarop
+gemeten wordt: "sportmassage", "zonnepanelen voor bedrijven", "herenkapsel". Dat is de eenheid waarin
+het hele systeem denkt, en dat is een bewuste keuze. Een bedrijf kan uitstekend zichtbaar zijn op zijn
+hoofdproduct en volledig onzichtbaar op de dienst waar de marge zit. Eén cijfer voor het hele bedrijf
+zou dat verschil wegpoetsen.
+
+Het systeem stelt zelf clusters voor, afgeleid uit de aanbodboom uit fase 1. Die **aanbevolen
+clusters** staan met een prioriteit op het scherm, klaar om aangezet te worden. Dat is een van de
+plekken waar het systeem zelfstandig werk aandraagt in plaats van te wachten op een idee.
+
+Zodra een cluster wordt gestart, gebeurt er dit:
+
+- **Onderwerp-onderzoek.** Wat zegt de site over dít specifieke onderwerp, en wie zijn hier de
+  concurrenten? Dat kunnen heel andere partijen zijn dan de concurrenten van het bedrijf als geheel.
+- **Dertig meetvragen opstellen.** Tien per fase van het koopproces: oriënterend, vergelijkend en
+  koopklaar. De vragen worden merkneutraal geformuleerd, dus zonder de naam van het bedrijf erin,
+  want anders meet je of een AI kan lezen in plaats van of hij het bedrijf kent. Bij een lokaal
+  bedrijf worden alle vragen regionaal gesteld.
+- **Volumeschatting.** Alle vragen worden in één keer ten opzichte van elkaar gewogen, zodat "hoe
+  vaak wordt hier eigenlijk naar gevraagd" over de hele lijst consistent is.
+- **De goedkeuringspoort.** Hier stopt het systeem. De klant ziet alle dertig vragen, kan ze
+  aanpassen, verwijderen of aanvullen, en pas na een expliciete bevestiging start de meting. Er wordt
+  geen euro aan meetkosten gemaakt zonder dat iemand die lijst gezien heeft.
+
+### Fase 3: de meting
+
+Elke goedgekeurde vraag wordt echt gesteld aan een AI-assistent, met live internettoegang, precies
+zoals een klant het zou doen. Van elk antwoord wordt per bedrijf vastgelegd of het genoemd wordt, in
+welke rol, op welke plek in het antwoord, en welke bronnen de AI erbij aanhaalde.
+
+Vier dingen maken die meting betrouwbaar in plaats van indrukwekkend:
+
+- **De zwaarste vragen worden meerdere keren gesteld.** Een AI geeft niet twee keer exact hetzelfde
+  antwoord. De acht belangrijkste vragen worden daarom drie keer gemeten, en in de eindscore telt elke
+  vraag even zwaar mee, ongeacht hoe vaak hij gesteld is.
+- **Er hoort een foutmarge bij het cijfer.** Bij dertig vragen is een verschil pas echt een verschil
+  als het ruwweg 23 punten groot is. Een score die van 18 naar 36 gaat ziet eruit als een
+  verdubbeling en valt nog steeds binnen de ruis. Het systeem zegt dat gewoon, in plaats van een
+  grafiek te tonen die iets suggereert.
+- **Vragen waarbij de AI helemaal geen enkele aanbieder noemt, tellen apart.** Die gelden niet als
+  verlies, want daar viel niets te winnen.
+- **Namen worden ontdubbeld.** "Coolblue", "coolblue.nl" en "Coolblue B.V." zijn één partij en geen
+  drie. Zonder die stap zijn alle marktaandelen onbruikbaar.
+
+Daarna volgt de duiding: per concurrent wordt uit de letterlijke antwoordfragmenten gedestilleerd
+wélke eigenschappen hem daar laten winnen, met het citaat als bewijs erbij. Alle merken, inclusief het
+eigen merk, komen in één ranglijst op precies dezelfde rekenbasis te staan. Tot slot schrijft het
+systeem een rapport in gewone taal, waarna een controle achteraf elke bewering verwijdert die niet
+letterlijk in het onderliggende bewijsmateriaal terug te vinden is.
+
+### Fase 4: van meting naar plan
+
+Dit is de fase waar de meeste vergelijkbare producten stoppen en waar ORBIT ENGINE doorloopt. De
+uitkomsten van de meting worden vertaald naar werk.
+
+**De kansenlijst.** Adviezen zaten van nature verspreid over het rapport, de onderwerpenlijst en de
+technische controle. Die worden samengevoegd tot één lijst, gesorteerd op wat het oplevert, met per
+regel de bijbehorende handeling. Elke regel draagt zijn doelvragen mee, zodat er een eerlijk antwoord
+staat op "hoeveel levert dit op": zoveel procent van de gemeten vragen kan hiermee gewonnen worden. Is
+dat percentage niet betrouwbaar te berekenen, dan staat er geen getal. Dat is een principe dat door de
+hele app loopt: liever niets dan een cijfer dat de klant onthoudt en later terugvraagt.
+
+**De potentiescore.** Elk onderwerp en elke voorgestelde pagina krijgt drie getallen naast elkaar:
+hoe zichtbaar het bedrijf hier nu is, hoe vaak hier gezocht wordt, en het product van die twee, de
+potentie. Het belangrijkste kenmerk is dat die getallen over clusters heen vergelijkbaar zijn. Zodra
+een nieuw cluster klaar is, worden alle onderwerpen van dat merk opnieuw op dezelfde schaal gezet. Zo
+kan een sterk onderwerp uit het tweede cluster de zwakkere onderwerpen uit het eerste zichtbaar naar
+beneden trekken, in plaats van dat elk cluster zijn eigen schaal blijft claimen. Zonder die
+herijking is "dit onderwerp scoort 80" een getal zonder betekenis.
+
+**Het contentplan.** Uit de goedgekeurde onderwerpen rolt een verdeling over twaalf maanden: hoeveel
+pagina's per maand, van welk type (categoriepagina, dienstpagina, informatieve pagina), in welke fase
+van het koopproces, en op welke datum. Dat is rekenwerk en geen bedenkwerk, dus er komt geen AI aan te
+pas: wélke onderwerpen er zijn is in fase 1 al bepaald, hier wordt alleen de kalender gevuld. Er zit
+één reservepagina per maand in, zodat één geschrapt idee het maandtotaal niet verlaagt.
+
+**De inzichten.** Op het overzichtsscherm staan drie zinnen: wat er deze periode gebeurde, of dat
+verschil groot genoeg is om echt iets te betekenen, en wat de volgende stap is. Ook dat wordt
+uitgerekend en niet door een AI geschreven, precies om te voorkomen dat er taal omheen ontstaat die
+net iets anders beweert dan de cijfers toelaten.
+
+**De mijlpalen.** Een blok dat laat zien wat het abonnement tot nu toe heeft opgeleverd: hoe lang het
+loopt, hoeveel de zichtbaarheid groeide, hoeveel pagina's er staan.
+
+### Fase 5: content maken
+
+Voor elke pagina uit het plan doorloopt het systeem een vaste route.
+
+Eerst wordt een **feitenkaart** gebouwd: alles wat over dit bedrijf hard vaststaat, met de bron erbij.
+Dan volgt een **claim-audit**: welke beweringen heeft deze pagina nodig die niet onderbouwd kunnen
+worden? Daaruit komen maximaal acht korte vragen aan de klant, waarvan er één altijd gereserveerd is
+voor de positioneringsvraag. Meer dan acht vragen wordt niet ingevuld, dus dat is de grens.
+
+Daarna schrijft het systeem de pagina op het zwaarste beschikbare taalmodel, laat een tweede model
+hem redigeren, herschrijft op basis van die kritiek, en beoordeelt opnieuw. Vervolgens komen er twee
+poorten die niets met AI te maken hebben en dus altijd hetzelfde oordelen: een controle op zeven
+harde criteria voor vindbaarheid in AI-antwoorden, en een controle op leesbaarheid en op
+overeenkomsten met eerder gemaakte pagina's, zodat er geen twee bijna identieke teksten ontstaan.
+
+De belangrijkste regel: **de tekst mag niets bevatten wat niet op de feitenkaart staat.** Kan een
+bewering niet herleid worden tot een bevestigd feit, dan gaat hij eruit. Verboden woorden en
+juridische beperkingen uit het merkdossier worden achteraf hard teruggecontroleerd, niet alleen aan
+het model gevraagd. Dat is een terugkerend ontwerpprincipe: een instructie aan een AI is een intentie,
+code is een garantie.
+
+Wat eruit komt is publicatieklaar: de tekst, de titel en omschrijving voor zoekresultaten, een
+vraag-en-antwoordblok en gestructureerde data die AI-systemen helpt te begrijpen wie de auteur is en
+om welk bedrijf het gaat. Draait de site op WordPress, dan komt de pagina er ook uit in kant-en-klare
+bouwblokken in plaats van als kale tekst.
+
+De contentpagina is daarna ook een werkblad: de klant leest waarom deze pagina bestaat, ziet hoe hij
+er in zoekresultaten uit komt te zien, bekijkt de kwaliteitsscore, kan de tekst aanpassen, versies
+naast elkaar leggen om te zien wat er veranderd is, en geeft hem dan vrij.
+
+### Fase 6: publiceren en het effect bewijzen
+
+De klant zet de pagina op zijn eigen website en vult de live-URL in. Het systeem controleert of de
+pagina er echt staat, en meet dan na veertien en na achtentwintig dagen opnieuw.
+
+Daarbij worden twee groepen vragen gemeten: de vragen waarvoor gepubliceerd is, en een **controlegroep**
+van vragen waar niets aan gedaan is. Dat verschil is de kern. Een uitkomst luidt: "op de vragen
+waarvoor je publiceerde plus 18, op de rest plus 3." Zonder controlegroep is elke stijging
+toe te schrijven aan het seizoen, aan een nieuwsbericht of aan toeval.
+
+Daarnaast draait de volledige meting maandelijks vanzelf opnieuw, waarbij vragen die structureel
+niemand opleveren automatisch worden overgeslagen, zodat er geen geld verdampt aan vragen waar niets
+te winnen valt.
+
+## Hoe de app is ingedeeld
+
+De gebruiker kiest bovenin een merk, en daarna gaat alles over dat merk. De navigatie kent vijf
+hoofdstukken, elk met maximaal drie bestemmingen, en elk hoofdstuk beantwoordt precies één vraag.
+
+| Hoofdstuk | De vraag | Wat erin zit |
+|---|---|---|
+| Overzicht | Hoe sta ik ervoor en wat moet ik nu doen? | Hoofdcijfer, inzichten, mijlpalen, de werklijst |
+| Strategie | Wat gaan we doen, en wat is er al gemaakt? | Contentplan, clusters, bibliotheek |
+| Analytics | Wat zeggen de cijfers, en waarom? | Zichtbaarheid in AI, zoekverkeer, concurrenten |
+| Merkprofiel | Wie ben ik volgens ORBIT ENGINE, en klopt dat? | Het dossier, bewerken, openstaande vragen |
+| Instellingen | Hoe is het ingericht? | Account en team, koppelingen |
+
+Strategie staat bewust vóór Analytics: wie inlogt wil weten wat hij moet doen, niet browsen in data.
+
+Binnen een cluster is er geen tabbladenrij maar één doorlopend dossier in vier hoofdstukken, in een
+vaste volgorde, omdat die volgorde de redenering ís:
+
+```
+01  STAND       Hoe sta ik ervoor?      score, verandering, wat het betekent
+02  BEWIJS      Waar win en mis ik?     per vraag, met het letterlijke AI-antwoord erbij
+03  WERK        Wat moet ik doen?       één lijst, elke regel een taak met status
+04  RESULTAAT   Heeft het gewerkt?      het effect van wat gepubliceerd is
+```
+
+Hoofdstuk 4 voedt de volgende periode weer hoofdstuk 1. Zo sluit de cirkel.
+
+Naast de bibliotheek per cluster staat een merkbrede bibliotheek: alles wat er ooit voor dit bedrijf
+gemaakt is, doorzoekbaar op titel én op webadres, met filters op type, status en cluster. Dat is het
+eindproduct waar de klant voor betaalt, en dat hoort niet verspreid te liggen over losse dossiers.
+
+Er loopt één harde scheidslijn door de hele app: de klant ziet wat het systeem weet en hoe zeker dat
+is, niet hoe het systeem daaraan kwam. Kosten, modelnamen, ruwe onderzoeksuitvoer en interne notities
+zitten achter een aparte beheerderslaag. Die scheiding wordt op drie niveaus tegelijk bewaakt, tot en
+met een automatische controle die de broncode van elk klantscherm leest en alarm slaat zodra er een
+bedrag of een modelnaam in terechtkomt.
+
+## De ontwerpprincipes eronder
+
+Vijf regels lopen door het hele systeem en verklaren waarom het betrouwbaar is en niet alleen slim.
+
+1. **Een instructie aan een AI is een intentie, code is een garantie.** Elke instructie krijgt een
+   controle in code erachter. Dat is geen theorie: bij een test vulde het model bij tien van de
+   zevenentwintig niet-genoemde bedrijven tóch een rol in, ondanks een expliciete instructie om dat
+   niet te doen. De controle erachter ving dat af.
+2. **Onbekend is een betere waarde dan een verkeerde.** Onbruikbare uitkomsten worden leeg gelaten,
+   nooit nul en nooit een gok.
+3. **Alles wordt bewaard.** Elke AI-aanroep slaat zijn volledige ruwe uitkomst op naast de verwerkte
+   cijfers. Elke conclusie is dus achteraf terug te leiden naar wat er precies gezegd is.
+4. **Elke stap controleert of hij al gedaan is.** Niets wordt twee keer betaald.
+5. **Gebouwd is niet geverifieerd.** Een functie geldt pas als af wanneer hij tegen echte, opgeslagen
+   gegevens is nagerekend.
+
+Daarnaast zitten er twee onafhankelijke remmen op alles wat geld kost: een controle op wie iets mag
+starten, en een budgetplafond per klant per maand plus een dagplafond over alle klanten heen. Die twee
+falen expres de andere kant op, zodat een storing in de ene rem nooit stilletjes alle metingen voor
+iedereen platlegt.
+
+## Wat ORBIT ENGINE onderscheidt
+
+1. **De hele cirkel rond.** Meten, verklaren, plannen, schrijven, publiceren en opnieuw meten in één
+   systeem. De markt biedt vooral het eerste deel aan.
 2. **Bewijs in plaats van een belofte.** Een controlegroep van vragen waar niets aan gedaan is, zodat
    een stijging niet toevallig kan zijn.
 3. **Content die niets verzint.** Elke bewering over het bedrijf moet herleidbaar zijn tot een
-   bevestigd feit, anders komt hij er niet in.
-4. **Geen black box.** De klant ziet alle dertig meetvragen en mag ze aanpassen voordat er één euro
-   aan meetkosten gemaakt wordt.
-5. **Een eerlijk cijfer.** Met foutmarge erbij, en vragen waar de AI helemaal niemand noemt tellen
-   apart en niet als verlies.
-6. **Eén keer instellen, altijd profijt.** Het bedrijfsdossier wordt door alle latere metingen
-   hergebruikt, dus de derde meting is sneller en goedkoper dan de eerste.
-7. **Spotgoedkoop om te draaien.** Ongeveer 85 dollarcent per volledige meetronde van dertig vragen.
-8. **Volledig automatisch op de achtergrond.** De klant mag zijn browser sluiten, de app werkt door.
-9. **Herkent naamvarianten.** Noemt ChatGPT het bedrijf net even anders, dan telt die vermelding
-   gewoon mee. Klinkt als een detail, maar hier gaan cijfers van concurrenten grandioos de mist in.
-10. **Nederlandstalig en gebouwd voor de Nederlandse markt**, in gewone taal, zonder Engels jargon.
+   bevestigd feit.
+4. **Geen black box.** De klant ziet en bewerkt alle meetvragen voordat er kosten gemaakt worden.
+5. **Een eerlijk cijfer.** Met foutmarge, en vragen waarbij geen enkele aanbieder genoemd wordt tellen
+   apart in plaats van als verlies.
+6. **Vergelijkbaar over onderwerpen heen.** De potentiescore wordt bij elk nieuw cluster opnieuw over
+   het hele merk geijkt.
+7. **Kansen worden aangedragen, niet afgewacht.** Het systeem stelt zelf clusters en pagina's voor,
+   op volgorde van wat ze opleveren.
+8. **Eén keer opbouwen, altijd profijt.** Het merkdossier wordt door elk volgend cluster hergebruikt.
+9. **Zeer lage variabele kosten.** Ongeveer 85 dollarcent per volledige meetronde van dertig vragen,
+   en ongeveer 25 dollarcent voor het eenmalige merkonderzoek.
+10. **Alles draait op de server.** De klant mag zijn browser sluiten, het werk loopt door, en de
+    maandelijkse ronde start vanzelf.
+11. **Ontdubbelde namen.** Naamvarianten, schrijffouten en gelijknamige bedrijven worden apart
+    behandeld, waar concurrerende meetmethodes hier stelselmatig de mist in gaan.
+12. **Nederlandstalig en gebouwd voor de Nederlandse markt.**
 
-## Wat er in getallen in zit
+## De markt
 
-Dit is allemaal na te kijken op GitHub, de plek waar de code bewaard wordt en waar elke wijziging
-met datum en tijd wordt vastgelegd.
+Er zijn inmiddels partijen die meten hoe zichtbaar een merk is in AI-antwoorden. Bureaus, dashboards,
+losse tools. Vrijwel allemaal stoppen ze op hetzelfde punt: zodra het cijfer op het scherm staat. Wat
+daarna komt is duur mensenwerk. Een consultant die uitzoekt wat er moet gebeuren, een tekstschrijver
+die pagina's maakt, iemand die het inplant en bewaakt. Dat kost al snel enkele duizenden euro's
+voordat er één letter online staat, en het schaalt niet: elke nieuwe klant kost net zoveel uren als de
+vorige.
 
-- De eerste regel code is opgeslagen op **22 juli**, de laatste op **19 augustus**. Dat is **29
-  dagen**, oftewel vier weken.
-- In die vier weken zijn er **330 opgeslagen wijzigingen** en **17 officiële productupdates** naar de
-  live-versie gegaan. Elke update is een moment waarop de app voor gebruikers echt veranderde.
-- Er zijn **42 aparte werklijnen** geweest. Zo'n werklijn is een afgeschermde kopie van de app waarin
-  ik iets nieuws bouw of repareer, zodat de live-versie ondertussen gewoon blijft werken. Pas als het
-  af en getest is, gaat het naar de echte app. De namen ervan lezen als een dagboek: van
-  "onboarding-3.0" tot "swapfiets-telprobleem".
-- Wat er nu staat: ongeveer **78.000 regels code** in ruim 500 bestanden, **65 stappen** waarmee de
-  database is opgebouwd, **34 schermen**, en **1.510 automatische controles** die na elke wijziging
-  meteen roepen als ik per ongeluk iets sloop.
-- Plus **8.500 regels documentatie**, zodat over drie maanden nog te achterhalen is waaróm een keuze
-  zo gemaakt is, met de cijfers erbij die die keuze droegen.
+Dat is precies het punt waar ORBIT ENGINE doorloopt. Het systeem meet niet alleen, maar levert ook de
+oplossing: automatisch, en toegespitst op dít ene bedrijf, met de eigen toon, het eigen aanbod en
+alleen feiten die kloppen. Van "je bent onzichtbaar" naar "hier staat de pagina, zet hem online",
+zonder dat er een adviseur tussen hoeft.
 
-En als je naar de klokjes kijkt: de vroegste opgeslagen wijziging is van **05:26 's ochtends**, de
-laatste van **21:56 's avonds**. Op 19 augustus zijn er zes complete bouwfases achter elkaar
-opgeleverd tussen half twaalf en twee uur 's middags. Dat is het tempo waar dit op liep.
+De vraag naar dit soort toepassingen groeit hard, en die groei komt voort uit het probleem zelf. Elk
+jaar verschuift een groter deel van het zoekgedrag naar AI-systemen. Bedrijven zien hun websitebezoek
+teruglopen zonder de oorzaak te kennen. Zodra ze de link leggen, willen ze allemaal weten hoe ze
+ervoor staan. Dat is een markt die vandaag nog klein is en die binnen enkele jaren vanzelfsprekend
+wordt.
 
-## Hoe ik dit heb gebouwd
+**Wat dat waard kan zijn.** De rekensom is die van elk softwarebedrijf. Zo'n dienst kost een klant
+al snel enkele honderden euro's per maand, terwijl de kosten aan de achterkant in centen lopen. Bij
+vijftig klanten staat er een jaaromzet van een paar ton, en dit type bedrijf wordt doorgaans
+gewaardeerd op vijf tot tien keer de jaaromzet. Dan praat je bij vijftig klanten al over een waarde
+van enkele miljoenen, en bij een paar honderd klanten loopt dat aanzienlijk verder op. Het
+doorslaggevende kenmerk is dat de honderdste klant nauwelijks meer werk kost dan de eerste, omdat het
+systeem het werk zelf doet. Dat is het verschil tussen een adviesbureau, dat uren verkoopt, en een
+product.
 
-Ik heb dit niet regel voor regel zelf getypt. Ik werk met Claude Code, een AI die kan programmeren.
-Ik beschrijf wat er moet gebeuren en waarom, hij schrijft de code, ik controleer, stuur bij en laat
-opnieuw doen. Dat gaat in gesprekken, en zo'n gesprek loopt soms uren door.
+Daarnaast ligt er een tweede route die mogelijk sneller schaalt: **verkoop onder eigen naam aan
+marketingbureaus**. Er zijn honderden bureaus in Nederland die hier vragen over krijgen en geen
+antwoord hebben. Die kunnen ORBIT ENGINE onder hun eigen merk inzetten, met hun eigen logo, als
+onderdeel van hun dienstverlening. Dan gaat het niet om honderd losse ondernemers werven, maar om tien
+bureaus die er ieder dertig klanten op zetten. Bureaus weten dat ze iets met AI-zichtbaarheid moeten en
+hebben geen tijd om het zelf te bouwen.
 
-- **Aantal gesprekken:** minstens 42 die tot een eigen werklijn leidden, en daarnaast een flinke berg
-  gesprekken om iets uit te zoeken, na te rekenen of te overleggen zonder dat er code uit kwam. Bij
-  elkaar schat ik het richting de honderd.
-- **Hoeveel tekst daar doorheen is gegaan:** dat is echt een schatting, maar naar mijn beste
-  inschatting is er zo'n **30 tot 50 miljoen woorden** aan tekst verwerkt: mijn opdrachten, zijn
-  antwoorden, en vooral het steeds opnieuw lezen van de bestaande code om te snappen wat er al staat.
-  Ter vergelijking: **de complete Harry Potter-serie, alle zeven boeken bij elkaar, is ongeveer 1,1
-  miljoen woorden**. Er is dus grofweg **25 tot 40 keer de hele Harry Potter-serie** aan tekst door
-  dit project heen gegaan. Elke keer dat hij aan een nieuwe taak begint, moet hij zich opnieuw
-  inlezen. Dat telt hard op.
-- **Hoe lang de AI op de achtergrond aan het werk was:** ik gaf een opdracht en ging wat anders doen,
-  soms tien minuten, soms drie kwartier. Bij elkaar schat ik **zestig tot honderd uur** aan werk dat
-  liep terwijl ik er niet bij zat.
+Al deze bedragen zijn inschattingen op basis van gangbare waarderingen, geen toezeggingen.
 
-## Twee dingen waar ik apart mee heb geëxperimenteerd
+## De omvang van het systeem
 
-**Ik heb een team nagebootst.** Ik heb twaalf verschillende AI-rollen aangemaakt die ieder hun eigen
-vakgebied hebben: een productstrateeg, een ontwerper, een programmeur, een beveiligingsexpert, een
-data-analist, een marketingspecialist, en zelfs een advocaat van de duivel die als taak heeft om de
-conclusies van de rest onderuit te halen. Als ik "start een teamsessie over het inlogscherm" typ,
-gaan vier tot zes van die rollen onafhankelijk van elkaar naar dat scherm kijken, spreken elkaar
-waar nodig tegen, en komen daarna met maximaal vijf verbeterpunten op volgorde van belang. Ze mogen
-met opzet niets veranderen, alleen adviseren. Het lijkt op een vergadering met een adviesbureau,
-alleen duurt hij vijf minuten en kost hij een paar dubbeltjes.
+Om een idee te geven van wat er staat, in cijfers die op GitHub na te kijken zijn:
 
-**En ik heb uitgezocht hoe zelfstandig zo'n AI eigenlijk kan werken.** Dat noemen ze "agentic": niet
-één vraag stellen en één antwoord krijgen, maar een doel geven en het ding zelf laten uitzoeken
-welke stappen daarvoor nodig zijn. Hij mag zelf bestanden opzoeken, de database aanpassen, tests
-draaien, kijken of het misging en het dan opnieuw proberen. Dat is een compleet andere manier van
-werken dan mensen zich bij AI voorstellen, en het is waarschijnlijk de manier waarop over een paar
-jaar veel werk gedaan wordt. Ik heb dat nu in de praktijk uitgezocht, op een echt project, in plaats
-van erover te lezen.
+- Ongeveer **78.000 regels code** verdeeld over ruim 500 bestanden.
+- **34 schermen** en 50 achterliggende koppelingen.
+- **65 opeenvolgende databasestappen**, allemaal terug te draaien.
+- **24 verschillende soorten achtergrondtaken** die zelfstandig in een wachtrij draaien, elkaar
+  aansturen, en bij een storing tot vier keer opnieuw proberen met oplopende wachttijd.
+- **1.510 automatische controles** die na elke wijziging draaien, plus een tweede laag die de hele
+  keten van begin tot eind naspeelt tegen een echte database.
+- **8.500 regels documentatie**, waarin per beslissing vastligt waarom die zo genomen is en welk
+  cijfer eronder lag.
+- **330 opgeslagen wijzigingen** en **17 productupdates** naar de live-omgeving.
 
-## Wat dit een ervaren programmeur gekost zou hebben
+Het geheel is gebouwd in vier weken, van 22 juli tot 19 augustus. Een ervaren ontwikkelaar die dit
+alleen zou bouwen, inclusief testen en documenteren, zou hier naar schatting zes tot negen maanden
+fulltime aan besteden.
 
-Dit blijft gissen, maar de orde van grootte klopt wel. Een goede, ervaren ontwikkelaar die dit
-helemaal alleen zou bouwen, inclusief het nadenken, testen en netjes documenteren, zou hier naar
-schatting **zes tot negen maanden fulltime** aan kwijt zijn. Dat is ergens tussen de **1.000 en 1.500
-uur**. Tegen een normaal uurtarief kom je dan uit op **ruim een ton aan ontwikkelkosten**, en dan
-reken ik nog aan de voorzichtige kant.
+Dat tempo is mogelijk doordat het programmeerwerk door AI wordt gedaan onder strakke aansturing. Het
+bedenken blijft mensenwerk: wat er gebouwd moet worden, in welke volgorde, wat een gebruiker op welk
+moment ziet, en welke van twee redelijke oplossingen de betere is. Een opdracht die vooraf goed is
+doordacht levert werkende code op, een half doordachte opdracht levert herstelwerk op. Het zwaartepunt
+ligt dus in de voorbereiding en het ontwerp, niet in het typen.
 
-Ik heb er vier weken over gedaan, naast alles wat er verder speelde.
+## Wat er nog niet in zit
 
-## Wat dit van mij vraagt
+Het huidige systeem is bewust afgebakend: alleen zichtbaarheid in AI-antwoorden, gericht op het MKB,
+met een adviseur op de belangrijke momenten in de lus. Dat is een keuze en geen tekortkoming. Eerst
+iets dat aantoonbaar werkt voor een echte klant.
 
-Dit is het deel dat mensen het meest verrast: dat je met AI laat programmeren betekent niet dat het
-vanzelf gaat.
+Twee dingen ontbreken vandaag nog:
 
-De AI schrijft de code, maar hij verzint niet wát er gebouwd moet worden. Hij weet niet dat een
-ondernemer geen dertig velden wil invullen. Hij weet niet dat een cijfer zonder foutmarge
-onbetrouwbaar aanvoelt zodra iemand doorvraagt. Hij weet niet welke stap in de verkoop het meest
-wringt. Dat moet ik bedenken, en dat is het echte werk.
+- **Publiceren gaat handmatig.** Er is nog geen directe koppeling met het websitesysteem van de klant.
+  Teksten worden in de app geschreven en goedgekeurd, daarna met de hand geplaatst en de URL ingevuld.
+- **De klassieke Google-kant ontbreekt.** Zoekwoordonderzoek en positietracking in Google zitten er
+  bewust nog niet in.
 
-Voor mij voelt dit vooral als **iets creëren uit het niets**. Er was geen app, er was een idee dat ik
-had over hoe zoekgedrag verandert. Alles daartussen is bedenken: hoe de flow loopt, wat een
-gebruiker op welk moment ziet, wat er gebeurt als iets misgaat, welke van twee redelijke oplossingen
-de betere is.
+De richting daarna staat vast: de Google-kant erbij, zodat het één platform wordt voor alle manieren
+waarop een bedrijf gevonden wordt, en een hogere mate van zelfstandigheid, waarbij het systeem zelf
+kansen ontdekt, besluit wat er moet gebeuren en het werk uitvoert, terwijl de mens de richting en de
+controle houdt.
 
-Daarnaast is het **eindeloos puzzelen**. Iets werkt niet, en dan moet je uitvogelen waar het
-misging: zit het in de tekst die ik de AI meegaf, in de database, in het scherm, of in mijn eigen
-aanname? Dat is precies hetzelfde soort denkwerk als een lastig probleem oplossen op je werk, alleen
-gaat het hier over iets wat ik zelf verzonnen heb.
-
-En het meeste werk zit vooraf, niet tijdens. Een opdracht die ik in vijf zinnen goed heb doordacht
-levert code op die klopt. Een opdracht die ik half heb bedacht levert twee uur herstelwerk op. De
-tijd zit dus in het denken, het kiezen en het scherp krijgen van wat ik eigenlijk wil. Het typen
-besteed ik uit, het bedenken niet.
-
-## Wat dit waard kan worden
-
-Even vooraf: alles hieronder is een inschatting en geen belofte. Maar er zijn wel goede redenen om
-optimistisch te zijn.
-
-De vraag naar dit soort toepassingen groeit hard, en dat komt doordat het probleem groeit. Elk jaar
-gaat er een groter deel van het zoekgedrag via AI in plaats van via Google. Bedrijven zien hun
-websitebezoek dalen zonder te snappen waarom. Zodra ze doorhebben dat het hieraan ligt, willen ze
-allemaal weten hoe ze ervoor staan. Dat is een markt die nu nog klein is en die over twee jaar
-vanzelfsprekend is.
-
-Reken je het door als bedrijf, dan werkt het ongeveer zo. Zo'n dienst kost een klant al snel een
-paar honderd euro per maand, en de kosten aan de achterkant zijn centen. Bij vijftig klanten zit je
-op een jaaromzet van een paar ton, en dat soort softwarebedrijven wordt normaal gesproken verkocht
-voor vijf tot tien keer de jaaromzet. **Dan praat je bij vijftig klanten al over een waarde van
-enkele miljoenen**, en bij een paar honderd klanten loopt dat een stuk hoger op. Het aantrekkelijke
-is dat de honderdste klant nauwelijks meer werk kost dan de eerste, want de app doet het werk zelf.
-Dat is precies het verschil tussen een adviesbureau, waar je uren verkoopt, en een product.
-
-Daar komt een tweede weg bij die misschien nog kansrijker is: **het onder een andere naam verkopen
-aan marketingbureaus**. Er zijn honderden bureaus in Nederland die hun klanten hier vragen over
-krijgen en geen antwoord hebben. Die kunnen deze app onder hun eigen merk inzetten, met hun eigen
-logo, alsof ze het zelf gebouwd hebben. Dan verkoop ik niet aan honderd ondernemers, maar aan tien
-bureaus die er ieder dertig klanten op zetten. Dat schaalt veel sneller, en het is precies waar
-bureaus nu op zitten te wachten: ze weten dat ze iets met AI-zichtbaarheid moeten, en ze hebben geen
-tijd om het zelf te bouwen.
-
-## Waar het naartoe gaat, en wat er nog niet in zit
-
-Wat er nu staat is bewust smal gehouden: alleen zichtbaarheid in AI-antwoorden, voor het MKB, met
-mijn hand er nog bij op de belangrijke momenten. Dat is een keuze, geen tekortkoming. Eerst iets dat
-echt werkt voor een echte klant.
-
-Daarna gaat het twee kanten op groeien. Ten eerste de klassieke Google-kant erbij, zodat het één
-platform wordt voor alle manieren waarop je gevonden wordt. Ten tweede meer zelfstandigheid: dat het
-systeem zelf kansen ontdekt, zelf besluit wat er moet gebeuren en het werk uitvoert, terwijl de mens
-de richting bepaalt.
-
-Twee dingen kan hij nu nog niet, en die noem ik er eerlijk bij: teksten worden nog met de hand op de
-website van de klant gezet, want de directe koppeling met websitesystemen bestaat nog niet. En de
-Google-kant is nog toekomst.
-
-Maar het fundament staat, het draait live, en het doet echt wat het belooft.
+Het fundament daarvoor staat, draait live, en doet wat het belooft.
