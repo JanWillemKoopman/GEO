@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { InfoHint } from "@/components/info-hint";
 import { groupWork, WORK_KIND_LABEL, WORK_STATE_LABEL, type WorkItem, type WorkState } from "@/lib/work";
+import { Icon } from "@/components/icon";
 
 /**
  * De werklijst, één vorm voor al het werk in de app.
@@ -64,7 +65,8 @@ export function WorkRow({
         <div className="mt-1 flex flex-wrap items-center gap-3">
           {item.actionLabel && (
             <span className="mono-label transition-colors group-hover:text-[var(--intent-intelligence-text)]">
-              {item.actionLabel} →
+              {item.actionLabel}
+              <Icon naam="naar" size={12} />
             </span>
           )}
           {item.meta && (

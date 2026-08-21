@@ -31,6 +31,7 @@ import {
   type VoortgangPagina,
 } from "@/lib/plan-progress";
 import type { VisibilityScore } from "@/lib/types/database";
+import { Icon } from "@/components/icon";
 
 export const dynamic = "force-dynamic";
 
@@ -310,9 +311,10 @@ export default async function OverzichtPage({
               <li>
                 <Link
                   href={`/merk/${id}/strategie/clusters`}
-                  className="mono-label hover:underline"
+                  className="mono-label inline-flex items-center gap-1.5 hover:underline"
                 >
-                  Nog {restWachtrij} {restWachtrij === 1 ? "punt" : "punten"} in je clusters →
+                  Nog {restWachtrij} {restWachtrij === 1 ? "punt" : "punten"} in je clusters
+                  <Icon naam="naar" size={12} />
                 </Link>
               </li>
             )}

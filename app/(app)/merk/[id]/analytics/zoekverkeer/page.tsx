@@ -19,6 +19,7 @@ import {
   type GscDag,
 } from "@/lib/search-console/metrics";
 import type { VisibilityScore } from "@/lib/types/database";
+import { Icon } from "@/components/icon";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Zoekverkeer" };
@@ -362,7 +363,8 @@ function Cijfer({
             color: beter ? "var(--intent-growth-text)" : "var(--intent-danger-text)",
           }}
         >
-          {delta > 0 ? "↑" : "↓"} {Math.abs(delta).toLocaleString("nl-NL")}
+          <Icon naam={delta > 0 ? "stijging" : "daling"} size={12} />
+          {Math.abs(delta).toLocaleString("nl-NL")}
           {eenheid ? ` ${eenheid}` : ""}
         </span>
       )}

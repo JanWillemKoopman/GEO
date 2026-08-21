@@ -22,6 +22,7 @@ import type {
   PlanMonth,
   PlannedPage,
 } from "@/lib/types/database";
+import { Icon } from "@/components/icon";
 
 /**
  * Het contentplan: twaalf maanden, per maand goed te keuren.
@@ -609,7 +610,7 @@ function PageRow({
               disabled={busy || !kanOmhoog}
               aria-label={`"${page.title}" een plek eerder publiceren`}
             >
-              ↑
+              <Icon naam="omhoog" size={14} />
             </button>
             <button
               type="button"
@@ -618,7 +619,7 @@ function PageRow({
               disabled={busy || !kanOmlaag}
               aria-label={`"${page.title}" een plek later publiceren`}
             >
-              ↓
+              <Icon naam="omlaag" size={14} />
             </button>
           </span>
         )}

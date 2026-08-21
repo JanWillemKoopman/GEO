@@ -6,6 +6,7 @@ import { HighlightedText } from "@/components/highlighted-text";
 import { VOLUME_BAND_LABEL } from "@/lib/pipeline/volume";
 import { PROMPT_CATEGORIES } from "@/lib/types/database";
 import type { AnswerRow } from "@/lib/pipeline/answers";
+import { Icon } from "@/components/icon";
 
 /**
  * "Vragen & antwoorden" (optimalisatie.md 3.1/3.2).
@@ -296,8 +297,13 @@ function CopyButton({ row, ownLabel }: { row: AnswerRow; ownLabel: string }) {
   }
 
   return (
-    <button type="button" onClick={() => void copy()} className="text-sm text-secondary hover:underline">
-      {copied ? "✓ Gekopieerd" : "Kopieer als bewijs"}
+    <button
+      type="button"
+      onClick={() => void copy()}
+      className="inline-flex items-center gap-1.5 text-sm text-secondary hover:underline"
+    >
+      <Icon naam={copied ? "klaar" : "kopieer"} size={14} />
+      {copied ? "Gekopieerd" : "Kopieer als bewijs"}
     </button>
   );
 }

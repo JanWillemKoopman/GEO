@@ -2,8 +2,9 @@
 
 > **Bron: de NOVA-workspace van InSpace** (`nova.inspace.io`), hun ingelogde productomgeving,
 > geanalyseerd op 6 augustus 2026 uit de CSS-bundel en de i18n-bundel van de app.
-> **Peildatum van dit document: 6 augustus 2026.** De code is leidend; wijkt `app/globals.css` af,
-> dan is dit document fout en moet het bijgewerkt worden.
+> **Peildatum van dit document: 6 augustus 2026**, met §6b (iconen) toegevoegd op 21 augustus
+> 2026. De code is leidend; wijkt `app/globals.css` af, dan is dit document fout en moet het
+> bijgewerkt worden.
 
 Dit document beschrijft **hoe ORBIT ENGINE eruitziet en waarom**. Voor de tekst in die schermen geldt
 `schrijfstijl.md`, voor de opbouw van schermen `ux-design.md`, voor het waarom achter beslissingen
@@ -245,6 +246,67 @@ korter dan hun marketingsite, en 0,3s voelt in een dashboard traag.
 
 ---
 
+## 6b. Iconen
+
+**Toegevoegd 21 augustus 2026.** De set is [Lucide](https://lucide.dev) (ISC-licentie, gratis),
+via `lucide-react`. De keuze per betekenis staat in `lib/icons.ts` (27 betekenissen), het omhulsel
+dat maat en lijndikte vastzet in `components/icon.tsx`.
+
+⚠️ **Waar een icoon wél en niet komt.** De zes hoofdstukken van de zijbalk hebben er een, de
+bestemmingen eronder niet. Dat is dezelfde dag nog bijgesteld: ze hebben ze een halve dag wél gehad,
+en zestien tekeningen in een balk van zestien regels markeren niets meer. Zie §6b.3, regel 4.
+
+### 6b.1 Waarom er nu wel een set is
+
+Er was er geen, en dat was een besluit: `lib/nav.ts` schreef dat een icoonset "een bibliotheek, een
+kleurregel en een tweede manier om betekenis over te brengen" vraagt, voor zes koppen. In plaats
+daarvan stonden er losse lettertekens: ◉ ▣ ▲ ◆ ⚙ ◈ op de koppen, en verspreid door de app
+✓ ✕ ○ · ☰ ▾ ▲ ▼ ↗ ← → ↑ ↓ ⚙ – ! op **40 regels JSX**, plus 23 regels in `lib/nav.ts` en twee met
+de hand getekende SVG's in `components/profile-menu.tsx`.
+
+Dat werkte niet meer om twee redenen. **Ten eerste zijn het geen zes koppen meer.** Bij veertig
+plekken is "geen set" ook een set, alleen dan één zonder regels: elk teken had zijn eigen grootte,
+uitlijning en dikte, want ze kwamen uit de tekstlaag en niet uit een tekening. De twee
+handgetekende SVG's hadden lijndikte 1,6 en 1,8, en niemand had ooit besloten dat ze mochten
+verschillen. **Ten tweede tekent niet elk apparaat ze hetzelfde.** Een teken dat het
+paginalettertype niet heeft, wordt door het besturingssysteem uit een ander font gehaald, en dat
+font verschilt per platform. ◉ ▣ ◆ ◈ hadden dus per klant een andere vorm, en dat is precies het
+tegenovergestelde van §15.1 van `merkstrategie.md`: precies, rustig, premium.
+
+### 6b.2 De vorm
+
+| Eigenschap | Waarde | Waarom |
+|---|---|---|
+| Raster | 24×24, lijn, geen vulling | Past bij "subtiele borders" en "neutral-first" (§16.1 merkstrategie) |
+| Lijndikte | **1,75** | De handgetekende SVG's die hier al stonden hadden 1,6 en 1,8. De 2 van Lucide zelf is te zwaar naast `text-sm` |
+| Maat | 16 in tekstregels, 18 in koppen, 20 in losse knoppen | Meer maten zijn er niet; een vierde maat is een nieuw besluit |
+| Kleur | `currentColor`, altijd | Het icoon kleurt mee met de tekst ernaast. Nooit een eigen tint, want dan omzeilt het de betekenislaag van §2.3 |
+
+### 6b.3 De vier regels
+
+1. **Een icoon staat nooit alleen.** Overal staat het label ernaast, dus het icoon versnelt het
+   terugvinden en draagt de betekenis niet. Vandaar `aria-hidden`. Staat een icoon écht alleen (het
+   hamburgermenu, het sluitkruis), dan hoort het label als `aria-label` op de knop.
+2. **Eén betekenis, één icoon.** `lib/icons.ts` is de enige plek waar een betekenis aan een
+   tekening gekoppeld wordt. Rechtstreeks `import { Check } from "lucide-react"` in een component
+   zet de tweede kopie van een keuze neer, en twee kopieën lopen uit elkaar.
+3. **De naam is de betekenis, niet de tekening.** `strategie`, niet `waypoints`. Verandert de
+   tekening, dan is dat één regel in `lib/icons.ts`.
+4. **In de zijbalk draagt alleen de kop een icoon.** De bestemmingen eronder niet. Het icoon van de
+   kop moet het verschil dragen tussen "dit is een van de zes vaste plekken in de app" en "dit is
+   een pagina daarbinnen", en dat verschil verdwijnt zodra beide er een hebben: als alles opvalt,
+   valt niets op. De bestemming staat al ingesprongen achter een lijn, en dat zegt genoeg.
+   `NavItem` in `lib/nav.ts` heeft daarom geen icoonveld, en `scripts/test-unit.ts` bewaakt dat.
+
+### 6b.4 Wat de set níet doet
+
+Geen glittertje bij alles wat AI aanraakt, geen brein, geen robot, geen tandwiel voor instellingen.
+Dat zijn de clichés die §15.4 van `merkstrategie.md` bij naam verbiedt. Instellingen krijgt daarom
+schuifjes, want dat is wat je er doet: afstellen. En de set is klein gehouden: 27 betekenissen, niet
+1.600. Een icoon dat niets aanwijst is versiering, en dat is precies wat §15.3 niet vraagt.
+
+---
+
 ## 7. De primitieven
 
 Gebruik deze, nooit een eigen tint of een eigen maat.
@@ -263,11 +325,12 @@ Gebruik deze, nooit een eigen tint of een eigen maat.
 | `.skeleton` | Laadvlak. De vorm van wat er komt |
 | `.prose` | Lange tekst: rapport, contentpagina |
 | `.brand-gradient-text` | **Alleen het woordmerk ORBIT ENGINE** |
+| `Icon` | Het enige icoon-component. `<Icon naam="klaar" />`, nooit een los teken en nooit een eigen SVG. Zie §6b |
 | `PageHeader`, `EmptyState`, `Narrow`, `ConfidenceChip` | Eén variant per patroon |
 
 ---
 
-## 8. De acht regels
+## 8. De negen regels
 
 1. **Een kleur heeft een betekenis, geen naam.** `--intent-growth-text`, nooit `--accent-green`, en
    nooit een hexwaarde of rauwe `rgba()` in een component. Zie §11 voor de controle.
@@ -279,6 +342,9 @@ Gebruik deze, nooit een eigen tint of een eigen maat.
    `--text-muted` nooit voor iets wat gelezen moet worden.
 7. **Eén easing, korte duur.**
 8. **De gradient is het woordmerk.** Nergens anders.
+9. **Een icoon komt uit `lib/icons.ts`.** Nooit een letterteken in de tekst (✓, ↗, ▾), nooit een
+   met de hand getekende SVG, nooit een rechtstreekse import uit `lucide-react`. En in de zijbalk
+   draagt alleen de kop er een. Zie §6b.
 
 ---
 
@@ -406,6 +472,23 @@ op een foutmelding, die daardoor in gewone tekstkleur stond, en `var(--accent)` 
 van de briefingvoortgang, die daardoor volledig doorzichtig was. Die balk stond dus altijd op leeg,
 hoeveel vragen de klant ook had beantwoord. Geen van beide viel op, want een ontbrekende
 CSS-variabele geeft geen fout: hij valt stil terug op niets.
+
+**En een vierde: staat er nog ergens een letterteken waar een icoon hoort?**
+
+```bash
+grep -rnP "(*UTF)[\x{2190}-\x{21FF}\x{25A0}-\x{25FF}\x{2713}-\x{2718}\x{2699}]" \
+  app components --include="*.tsx" | grep -vP ':\d+:\s*(\*|//|/\*)'
+```
+
+Dit vindt pijlen, geometrische vormen, vinkjes, kruisjes en het tandwiel in JSX. Nul regels is het
+doel; wat er wél uit komt hoort in `lib/icons.ts` thuis (§6b, regel 9 van §8). `(*UTF)` moet erbij,
+anders weigert `grep -P` codepunten boven 255, en het tweede filter gooit commentaarregels weg: die
+mogen een pijl bevatten (`niet ingelogd → /login`), want daar is het leesteken en geen icoon.
+
+Deze controle vond op 21 augustus 2026, ná een eerste ronde waarin 26 regels met de hand waren
+omgezet, nog **veertien** regels die overgeslagen waren: vier terug-links, vier `→` achter een
+tekstlink, vier verplaatspijlen en twee stijg- en daalpijlen bij een cijfer. Ruim een derde van het
+totaal, gevonden in één commando. Vandaar dat hij hier staat en niet in een commit-bericht.
 
 **Dit is geen formaliteit.** De drift is nu drie keer teruggegroeid: de eerste opruiming telde 30
 inline-stijlen over 17 bestanden, de tweede 35, de derde vijf in één bestand dat de eerste twee

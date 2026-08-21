@@ -3553,3 +3553,64 @@ voorbeelden teruggebracht tot één ding per regel. Een test bewaakt het nu: een
 lijstveld heeft minder dan drie komma-onderdelen.
 
 Na deze ronde: 1744 unittests en 202 ketentests groen, 35 velden met een voorbeeld, 247 branchevoorbeelden.
+
+---
+
+## Eén iconenset in plaats van 63 losse lettertekens (21 augustus 2026)
+
+**De aanleiding was een oordeel, geen bug:** de tekens in de app pasten niet bij ORBIT ENGINE. Dat
+klopte, en de oorzaak lag dieper dan de vorm. Er wás geen iconenset, en dat was ooit met argumenten
+zo besloten: `lib/nav.ts` schreef dat een set "een bibliotheek, een kleurregel en een tweede manier
+om betekenis over te brengen" vraagt, voor zes koppen in de zijbalk.
+
+**Dat argument gold niet meer, want het bleef niet bij zes koppen.** Geteld op de dag zelf:
+✓ ✕ ○ · ☰ ▾ ▲ ▼ ↗ ← → ↑ ↓ ⚙ – ! stonden op **40 regels JSX**, plus 23 regels in `lib/nav.ts`, plus
+twee met de hand getekende SVG's in het profielmenu met elk hun eigen lijndikte (1,6 en 1,8). Bij
+die aantallen is "geen set" ook een set, alleen dan zonder regels.
+
+**Het zwaarste bezwaar is er een dat je op je eigen scherm niet ziet.** Een letterteken heeft geen
+vaste vorm. Heeft het paginalettertype de glyph niet, dan haalt het besturingssysteem er een uit een
+ander font, en dat font verschilt per platform. De vier tekens waarmee de zijbalk zijn hoofdstukken
+aanduidde (◉ ▣ ◆ ◈) zagen er dus bij elke klant anders uit, in een product dat volgens
+`merkstrategie.md` §15.1 "precies, rustig, premium" hoort te zijn en dat sales-led op één gedeeld
+scherm verkocht wordt.
+
+**Gekozen: Lucide** (ISC-licentie, gratis, ruim 1.600 iconen, waarvan er 27 in gebruik zijn), via
+`lucide-react`. Lijn, geen
+vulling, één raster, en het icoon erft `currentColor`, zodat de betekenislaag van
+`designsystem.md` §2.3 de enige plek blijft waar kleur betekenis krijgt. De keuze per betekenis
+staat in `lib/icons.ts`, de maat en de lijndikte (1,75, tussen de 1,6 en 1,8 van de handgetekende
+SVG's in) in `components/icon.tsx`. `docs/designsystem.md` §6b legt de regels vast en §8 heeft er
+een negende regel bij gekregen.
+
+**De keuzes volgen de merkstrategie, niet de gewoonte.** §15.5 vraagt om netwerken, lagen en
+verbindingen: vandaar oplopende punten met verbindingen ertussen bij Strategie. §15.4 verbiedt de
+AI-clichés: vandaar géén glittertje en géén brein. En Instellingen kreeg schuifjes in plaats van een
+tandwiel.
+
+⚠️ **Nog dezelfde dag bijgesteld: alleen de hoofdstukken krijgen een icoon, de bestemmingen niet.**
+De eerste versie gaf elke regel in de zijbalk er een, zestien in totaal, waarbij de kop op 18 pixels
+stond en de bestemming op 16 in gedempt grijs. Op papier een nette hiërarchie, in gebruik het
+tegenovergestelde van wat een icoon moet doen: zestien tekeningen in een balk van zestien regels
+markeren niets meer, want als alles opvalt valt niets op. Het icoon van de kop hoort het verschil te
+dragen tussen "een van de zes vaste plekken in de app" en "een pagina daarbinnen", en dat verschil
+verdwijnt zodra beide er een hebben. De bestemming staat al ingesprongen achter een lijn.
+
+Daarmee vervielen zestien van de 43 betekenissen in `lib/icons.ts`. Die zijn weggehaald in plaats
+van ongebruikt te blijven staan; er blijven 27 over. `NavItem` heeft geen icoonveld meer, zodat het
+niet ongemerkt kan terugkomen, en een test bewaakt dat.
+
+**Eén keuze is tijdens de bouw teruggedraaid.** Strategie begon als een route-icoon, semantisch het
+beste, maar op 18 pixels leek dat te veel op de schuifjes van Instellingen, en juist met een
+ingeklapte zijbalk staan die twee vlak bij elkaar in dezelfde kolom. Het werd oplopende punten met
+verbindingen ertussen: even goed te verdedigen en wél te onderscheiden.
+
+**En een les die het opschrijven waard is: handmatig zoeken vond twee derde.** Na de eerste ronde
+van 26 regels leek het werk af. Een `grep` op de betreffende Unicode-blokken, nu vastgelegd als
+vierde controle in `designsystem.md` §11, vond er nog **veertien**: vier terug-links, vier `→`
+achter een tekstlink, vier verplaatspijlen en twee stijg- en daalpijlen bij een cijfer. Ruim een
+derde van het totaal, in één commando. Precies hetzelfde patroon als bij de inline-kleuren van
+6 augustus: een regel zonder controle is een voornemen.
+
+Na deze ronde: 27 betekenissen, 46 icoongebruiken over 38 bestanden, 1752 unittests en 202
+ketentests groen.

@@ -73,7 +73,9 @@ import {
   isActive,
   isExact,
   HOOFDSTUKKEN,
+  HOOFDSTUK_ICOON,
 } from "@/lib/nav";
+import { ICONEN } from "@/lib/icons";
 import { DOORVERWIJZINGEN } from "@/lib/redirects";
 import { findGaps } from "@/lib/profile-gaps";
 import {
@@ -6424,6 +6426,35 @@ group("elke merkbestemming hangt onder /merk/[id]", () => {
     [...brandNav(merkId, true), ...generalNav(true)].every(
       (i) => !i.href.startsWith("/profielen"),
     ),
+  );
+});
+
+group("de iconenset: alleen de hoofdstukken dragen er een", () => {
+  // Een kop zonder icoon geeft in de ingeklapte balk (64px) een lege regel:
+  // daar ís de kop niets ánders dan zijn icoon.
+  for (const kop of HOOFDSTUKKEN) {
+    ok(`hoofdstuk ${kop} heeft een icoon dat bestaat`, Boolean(ICONEN[HOOFDSTUK_ICOON[kop]]));
+  }
+
+  // ⚠️ Twee hoofdstukken met dezelfde tekening is erger dan geen tekening:
+  // ingeklapt is het icoon het enige onderscheid tussen twee koppen.
+  const kopIconen = HOOFDSTUKKEN.map((k) => HOOFDSTUK_ICOON[k]);
+  ok(
+    "geen twee hoofdstukken delen een icoon",
+    new Set(kopIconen).size === kopIconen.length,
+    kopIconen.join(", "),
+  );
+
+  // ⚠️ DE BESTEMMINGEN DRAGEN ER GEEN, en dat moet zo blijven (besluit
+  // 21 augustus 2026). Ze hebben ze een halve dag wél gehad: zestien tekeningen
+  // in een balk van zestien regels, en dan markeert een icoon niets meer. De
+  // kop moet het verschil dragen tussen "een van de zes vaste plekken" en "een
+  // pagina daarbinnen". Deze test bewaakt dat het veld niet terugsluipt.
+  const items = [...brandNav("abc", true), ...generalNav(true)];
+  ok(
+    "geen enkele bestemming heeft een icoonveld",
+    items.every((i) => !("icoon" in i)),
+    items.find((i) => "icoon" in i)?.label,
   );
 });
 

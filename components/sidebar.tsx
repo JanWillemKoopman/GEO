@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
+import { Icon } from "@/components/icon";
 import {
   brandNav,
   generalNav,
@@ -37,7 +38,20 @@ import type { BrandOption } from "@/lib/workspace";
  * Het uitklappen was er voor die ene kop met negen kinderen. Met hooguit drie
  * per hoofdstuk passen alle bestemmingen tegelijk in beeld, en dan is een
  * klapknop een klik die niets oplevert. Ingeklapt (64px) blijft alleen het
- * teken van het hoofdstuk over, en dat linkt naar zijn eerste bestemming.
+ * icoon van het hoofdstuk over, en dat linkt naar zijn eerste bestemming.
+ *
+ * ── ALLEEN DE KOP DRAAGT EEN ICOON ──────────────────────────────────────────
+ *
+ * De koppen droegen de tekens ◉ ▣ ▲ ◆ ⚙ ◈, die op elk apparaat een andere vorm
+ * hadden. Sinds 21 augustus 2026 komen ze uit `lib/icons.ts`, op 18 pixels.
+ *
+ * ⚠️ **De bestemmingen eronder krijgen er geen**, en dat is een besluit van
+ * later diezelfde dag. Ze hebben ze een halve dag wél gehad, en dat zag er
+ * netjes uit maar werkte averechts: zestien tekeningen in een balk van zestien
+ * regels markeren niets meer. Het icoon van de kop moet het verschil maken
+ * tussen "dit is een van de zes vaste plekken" en "dit is een pagina daarbinnen",
+ * en dat verschil verdwijnt zodra beide er een dragen. De bestemming staat al
+ * ingesprongen achter een lijn; dat zegt genoeg.
  *
  * ── INGEKLAPT IS EEN VOORKEUR, GEEN STAAT ───────────────────────────────────
  *
@@ -111,10 +125,11 @@ export function Sidebar({
         <button
           type="button"
           onClick={klapOm}
-          className="mono-label mt-auto rounded-[var(--radius-md)] px-3 py-2 text-left transition-colors hover:bg-[var(--bg-elevated)]"
+          className="mono-label mt-auto flex items-center gap-2 rounded-[var(--radius-md)] px-3 py-2 text-left transition-colors hover:bg-[var(--bg-elevated)]"
           aria-label={ingeklapt ? "Zijbalk uitklappen" : "Zijbalk inklappen"}
         >
-          {ingeklapt ? "»" : "« Inklappen"}
+          <Icon naam={ingeklapt ? "uitklappen" : "inklappen"} />
+          {!ingeklapt && "Inklappen"}
         </button>
       )}
     </div>
@@ -162,9 +177,7 @@ function Hoofdstuk({
             background: actief ? "var(--bg-elevated)" : "transparent",
           }}
         >
-          <span className="w-4 shrink-0 text-center" aria-hidden>
-            {kop.teken}
-          </span>
+          <Icon naam={kop.icoon} size={18} />
         </Link>
       </>
     );
@@ -178,9 +191,7 @@ function Hoofdstuk({
           className="flex items-center gap-3 px-3 pb-0.5 pt-2 text-left text-sm font-medium"
           style={{ color: actief ? "var(--text-primary)" : "var(--text-secondary)" }}
         >
-          <span className="w-4 shrink-0 text-center" aria-hidden>
-            {kop.teken}
-          </span>
+          <Icon naam={kop.icoon} size={18} />
           <span className="min-w-0 flex-1 truncate">{kop.naam}</span>
         </span>
         <div className="ml-4 flex flex-col gap-0.5 border-l border-[var(--border-subtle)] pl-2">

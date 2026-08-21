@@ -7,6 +7,7 @@ import { FaqEditor, type FaqEditItem } from "@/components/faq-editor";
 import { SearchPreview } from "@/components/search-preview";
 import { renderMarkdown } from "@/lib/markdown";
 import type { UserFacingError } from "@/lib/errors";
+import { Icon } from "@/components/icon";
 
 /**
  * De tekst zelf bijschaven (optimalisatie.md 4.12, content-editie onderdeel
@@ -104,7 +105,12 @@ export function ContentEditor({
         <button type="button" onClick={() => setOpen(true)} className="btn-outline w-fit">
           Tekst bewerken
         </button>
-        {state === "saved" && <span className="text-sm text-secondary">✓ Opgeslagen</span>}
+        {state === "saved" && (
+          <span className="flex items-center gap-1.5 text-sm text-secondary">
+            <Icon naam="klaar" size={14} />
+            Opgeslagen
+          </span>
+        )}
       </div>
     );
   }

@@ -4,6 +4,7 @@ import { emailsEnabled } from "@/lib/env";
 import { createClient } from "@/lib/supabase/server";
 import type { Profile } from "@/lib/types/database";
 import { NewAnalysisForm } from "./new-analysis-form";
+import { Icon } from "@/components/icon";
 
 export const metadata = { title: "Nieuw cluster" };
 
@@ -22,7 +23,8 @@ export default async function NewAnalysisPage() {
     <div className="mx-auto flex max-w-xl flex-col gap-6">
       <div>
         <Link href="/analyses" className="mono-label transition-colors hover:text-[var(--text-primary)]">
-          ← Terug naar Mijn clusters
+          <Icon naam="terug" size={14} />
+          Terug naar Mijn clusters
         </Link>
         <h1 className="mt-3 text-2xl font-bold tracking-tight">Nieuw cluster</h1>
         <p className="mt-2 text-secondary">

@@ -18,6 +18,7 @@ import { useEffect, useRef, useState } from "react";
 // Rechtstreeks uit types.ts, niet uit progress.ts: dat laatste is
 // `server-only` en dit is een clientcomponent.
 import { MAX_ATTEMPTS } from "@/lib/jobs/types";
+import { Icon } from "@/components/icon";
 
 export interface WorkStep {
   label: string;
@@ -103,7 +104,11 @@ export function WorkInProgress({
                       : "var(--text-muted)",
                 }}
               >
-                {step.done ? "✓" : step.nietsGevonden ? "!" : ""}
+                {step.done ? (
+                  <Icon naam="klaar" size={12} />
+                ) : step.nietsGevonden ? (
+                  <Icon naam="letop" size={12} />
+                ) : null}
               </span>
               <span
                 style={{

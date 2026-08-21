@@ -14,6 +14,7 @@ import {
 } from "@/lib/prompt-mix";
 import { PotentialInline } from "@/components/potential-metrics";
 import type { PotentialTriple } from "@/lib/potential";
+import { Icon } from "@/components/icon";
 
 /**
  * De core topics (docs/tasks/onboarding-2.0.md, blok D).
@@ -153,7 +154,8 @@ export function TopicsPanel({
           <span className="font-semibold">{t.title}</span>
           {t.analysis_id ? (
             <Link href={`/analyses/${t.analysis_id}`} className="chip chip-success">
-              Cluster loopt →
+              Cluster loopt
+              <Icon naam="naar" size={12} />
             </Link>
           ) : t.status === "goedgekeurd" ? (
             <span className="chip chip-green">Goedgekeurd</span>

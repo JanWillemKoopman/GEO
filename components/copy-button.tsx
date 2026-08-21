@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { Icon } from "@/components/icon";
 
 /**
  * Eén kopieerknop voor de hele app (H.65).
@@ -40,8 +41,16 @@ export function CopyButton({
   }
 
   return (
-    <button type="button" onClick={() => void copy()} className={className}>
-      {copied ? `✓ ${copiedLabel}` : label}
+    <button
+      type="button"
+      onClick={() => void copy()}
+      // `inline-flex` voor het geval de aanroeper een tekstlink meegeeft in
+      // plaats van een knopprimitief. `.btn-outline` doet dit zelf al, dus daar
+      // verandert er niets; de gap blijft met opzet gelijk aan die van §7.
+      className={`inline-flex items-center gap-2 ${className}`}
+    >
+      <Icon naam={copied ? "klaar" : "kopieer"} size={14} />
+      {copied ? copiedLabel : label}
     </button>
   );
 }

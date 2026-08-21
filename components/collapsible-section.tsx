@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { Icon } from "@/components/icon";
 
 /**
  * Accordion-sectie die op DESKTOP standaard open staat en op MOBIEL standaard
@@ -45,7 +46,7 @@ export function CollapsibleSection({
           className="text-secondary transition-transform"
           style={{ transform: open ? "rotate(180deg)" : "rotate(0deg)" }}
         >
-          ▾
+          <Icon naam="openen" />
         </span>
       </button>
       {open && <div className="flex flex-col gap-4 p-4">{children}</div>}

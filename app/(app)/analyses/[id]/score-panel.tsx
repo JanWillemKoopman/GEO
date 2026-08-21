@@ -6,6 +6,7 @@ import { formatDateLong } from "@/lib/format";
 import { engineLabel } from "@/lib/engines/label";
 import { buildBrandRankings } from "@/lib/pipeline/brand-rankings";
 import type { VisibilityScore, CompetitorBreakdown, Entity } from "@/lib/types/database";
+import { Icon } from "@/components/icon";
 
 /**
  * De score en het concurrentiebeeld (abcplan.md §3.5).
@@ -443,10 +444,11 @@ function ChangeLine({
   return (
     <p className="flex items-center gap-1 text-sm">
       <span
-        className="font-medium"
+        className="flex items-center gap-1 font-medium"
         style={{ color: up ? "var(--status-success)" : "var(--status-error)" }}
       >
-        {up ? "▲" : "▼"} {up ? "+" : ""}
+        <Icon naam={up ? "stijging" : "daling"} size={14} />
+        {up ? "+" : ""}
         {change.delta} punten
       </span>
       <span className="text-secondary">sinds de vorige meting</span>

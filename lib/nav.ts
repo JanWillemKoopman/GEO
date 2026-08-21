@@ -37,6 +37,8 @@
  * Bewust ZONDER `server-only`: zowel de server-shell als het client-menu leest dit.
  */
 
+import type { IcoonNaam } from "@/lib/icons";
+
 /** De vijf klanthoofdstukken plus de afgeschermde groep, in menuvolgorde. */
 export const HOOFDSTUKKEN = [
   "Overzicht",
@@ -50,24 +52,40 @@ export const HOOFDSTUKKEN = [
 export type Hoofdstuk = (typeof HOOFDSTUKKEN)[number];
 
 /**
- * Eén teken per hoofdstuk, zichtbaar als de zijbalk is ingeklapt. Bewust geen
- * icoonset: die vraagt een bibliotheek, een kleurregel en een tweede manier om
- * betekenis over te brengen, voor zes koppen.
+ * Eén icoon per hoofdstuk, en **alleen** per hoofdstuk. Ingeklapt is dit het
+ * enige wat er van de kop overblijft, dus het moet in zijn eentje herkenbaar
+ * zijn.
+ *
+ * ⚠️ **Hier stonden tot 21 augustus 2026 de tekens ◉ ▣ ▲ ◆ ⚙ ◈**, met erboven
+ * de reden waarom er géén icoonset was: "die vraagt een bibliotheek, een
+ * kleurregel en een tweede manier om betekenis over te brengen, voor zes
+ * koppen". Twee van die drie bezwaren zijn opgelost in `lib/icons.ts`: er is één
+ * tabel die betekenis aan tekening koppelt, en de iconen kleuren niet zelf maar
+ * erven de kleur van de tekst. Het derde bezwaar, de bibliotheek, bleek het
+ * kleinste probleem: die vier tekens komen op Windows, macOS en Android uit
+ * drie verschillende fallback-fonts en hadden dus sowieso al geen vaste vorm.
+ *
+ * ⚠️ **De bestemmingen eronder krijgen er géén** (besluit 21 augustus 2026,
+ * later dezelfde dag). Ze hebben ze kort wél gehad. Het resultaat was zestien
+ * tekeningen in een balk van zestien regels, en dan markeert een icoon niets
+ * meer: als alles opvalt, valt niets op. De kop draagt het icoon omdat hij één
+ * van de zes vaste plekken in de app aanwijst; de bestemming eronder staat al
+ * ingesprongen achter een lijn en heeft niets extra's nodig om als kind te
+ * lezen. Vandaar dat `NavItem` geen icoonveld heeft: dan kán het ook niet
+ * ongemerkt terugkomen.
  */
-export const HOOFDSTUK_TEKEN: Record<Hoofdstuk, string> = {
-  Overzicht: "◉",
-  Strategie: "▣",
-  Analytics: "▲",
-  Merkprofiel: "◆",
-  Instellingen: "⚙",
-  Admin: "◈",
+export const HOOFDSTUK_ICOON: Record<Hoofdstuk, IcoonNaam> = {
+  Overzicht: "overzicht",
+  Strategie: "strategie",
+  Analytics: "analytics",
+  Merkprofiel: "merkprofiel",
+  Instellingen: "instellingen",
+  Admin: "admin",
 };
 
 export interface NavItem {
   href: string;
   label: string;
-  /** Eén teken, zichtbaar als de zijbalk is ingeklapt. */
-  teken: string;
   /**
    * Onder welke kop deze bestemming valt. Sinds 17 augustus 2026 is dít wat de
    * structuur bepaalt: de zijbalk groepeert een platte lijst bestemmingen op
@@ -87,7 +105,7 @@ export interface NavItem {
 /** Eén kop met zijn bestemmingen. Leeg wordt niet getoond. */
 export interface NavHoofdstuk {
   naam: Hoofdstuk;
-  teken: string;
+  icoon: IcoonNaam;
   items: NavItem[];
   /** De Admin-groep staat onder een scheidingslijn. */
   afgeschermd?: boolean;
@@ -111,7 +129,6 @@ export function brandNav(brandId: string, staff = false): NavItem[] {
     {
       href: `/merk/${brandId}`,
       label: "Hoe sta je ervoor",
-      teken: "○",
       hoofdstuk: "Overzicht",
     },
 
@@ -119,19 +136,16 @@ export function brandNav(brandId: string, staff = false): NavItem[] {
     {
       href: `/merk/${brandId}/strategie/plan`,
       label: "Contentplan",
-      teken: "○",
       hoofdstuk: "Strategie",
     },
     {
       href: `/merk/${brandId}/strategie/clusters`,
       label: "Clusters",
-      teken: "○",
       hoofdstuk: "Strategie",
     },
     {
       href: `/merk/${brandId}/strategie/bibliotheek`,
       label: "Bibliotheek",
-      teken: "○",
       hoofdstuk: "Strategie",
     },
 
@@ -139,19 +153,16 @@ export function brandNav(brandId: string, staff = false): NavItem[] {
     {
       href: `/merk/${brandId}/analytics`,
       label: "Zichtbaarheid in AI",
-      teken: "○",
       hoofdstuk: "Analytics",
     },
     {
       href: `/merk/${brandId}/analytics/zoekverkeer`,
       label: "Zoekverkeer",
-      teken: "○",
       hoofdstuk: "Analytics",
     },
     {
       href: `/merk/${brandId}/analytics/concurrenten`,
       label: "Concurrenten",
-      teken: "○",
       hoofdstuk: "Analytics",
     },
 
@@ -159,19 +170,16 @@ export function brandNav(brandId: string, staff = false): NavItem[] {
     {
       href: `/merk/${brandId}/merkprofiel`,
       label: "Merkdossier",
-      teken: "○",
       hoofdstuk: "Merkprofiel",
     },
     {
       href: `/merk/${brandId}/merkprofiel/bewerken`,
       label: "Bewerken",
-      teken: "○",
       hoofdstuk: "Merkprofiel",
     },
     {
       href: `/merk/${brandId}/merkprofiel/input`,
       label: "Vraagt jouw input",
-      teken: "○",
       hoofdstuk: "Merkprofiel",
     },
 
@@ -200,21 +208,18 @@ export function brandNav(brandId: string, staff = false): NavItem[] {
           {
             href: `/merk/${brandId}/admin/onboarding`,
             label: "Onboarding",
-            teken: "○",
             hoofdstuk: "Admin" as const,
             staffOnly: true,
           },
           {
             href: `/merk/${brandId}/admin`,
             label: "Diagnose",
-            teken: "○",
             hoofdstuk: "Admin" as const,
             staffOnly: true,
           },
           {
             href: `/merk/${brandId}/admin/toewijzen`,
             label: "Toewijzen",
-            teken: "○",
             hoofdstuk: "Admin" as const,
             staffOnly: true,
           },
@@ -233,11 +238,10 @@ export function brandNav(brandId: string, staff = false): NavItem[] {
  */
 export function generalNav(staff = false): NavItem[] {
   return [
-    { href: "/instellingen", label: "Account en team", teken: "○", hoofdstuk: "Instellingen" },
+    { href: "/instellingen", label: "Account en team", hoofdstuk: "Instellingen" },
     {
       href: "/instellingen/koppelingen",
       label: "Koppelingen",
-      teken: "○",
       hoofdstuk: "Instellingen",
     },
     ...(staff
@@ -245,7 +249,6 @@ export function generalNav(staff = false): NavItem[] {
           {
             href: "/beheer",
             label: "Alle merken",
-            teken: "○",
             hoofdstuk: "Admin" as const,
             staffOnly: true,
           },
@@ -261,7 +264,7 @@ export function generalNav(staff = false): NavItem[] {
 export function hoofdstukken(items: NavItem[]): NavHoofdstuk[] {
   return HOOFDSTUKKEN.map((naam) => ({
     naam,
-    teken: HOOFDSTUK_TEKEN[naam],
+    icoon: HOOFDSTUK_ICOON[naam],
     items: items.filter((i) => i.hoofdstuk === naam),
     afgeschermd: naam === "Admin",
   })).filter((h) => h.items.length > 0);
@@ -299,5 +302,5 @@ export function isExact(pathname: string, href: string): boolean {
  * menu's met dezelfde bestemmingen lopen gegarandeerd uit elkaar.
  */
 export const ACCOUNT_NAV: NavItem[] = [
-  { href: "/instellingen", label: "Mijn instellingen", teken: "⚙", hoofdstuk: "Instellingen" },
+  { href: "/instellingen", label: "Mijn instellingen", hoofdstuk: "Instellingen" },
 ];

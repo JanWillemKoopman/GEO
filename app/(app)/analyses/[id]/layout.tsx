@@ -6,6 +6,7 @@ import { getAnalysis } from "@/lib/analyses";
 import { createClient } from "@/lib/supabase/server";
 import { StatusBadge } from "@/components/status-badge";
 import { AnalysisNav } from "./tabs";
+import { Icon } from "@/components/icon";
 
 /**
  * A.4: elk scherm een eigen tabbladtitel. Deze laag zet de analysenaam als
@@ -69,7 +70,8 @@ export default async function AnalysisLayout({
           href="/analyses"
           className="mono-label transition-colors hover:text-[var(--text-primary)]"
         >
-          ← Mijn clusters
+          <Icon naam="terug" size={14} />
+          Mijn clusters
         </Link>
         <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
           <h1 className="text-2xl font-bold tracking-tight">{analysis.name}</h1>

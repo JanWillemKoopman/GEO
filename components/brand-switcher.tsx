@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { Icon } from "@/components/icon";
 import type { BrandOption } from "@/lib/workspace";
 
 /**
@@ -90,8 +91,8 @@ export function BrandSwitcher({
         className="flex h-9 min-w-0 max-w-[14rem] items-center gap-2 rounded-[var(--radius-md)] border border-[var(--border-strong)] bg-[var(--bg-surface)] px-3 text-sm font-medium transition-colors hover:border-[var(--border-contrast)]"
       >
         <span className="truncate">{label}</span>
-        <span className="shrink-0 text-muted" aria-hidden>
-          ▾
+        <span className="text-muted">
+          <Icon naam="openen" size={14} />
         </span>
       </button>
 
