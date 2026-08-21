@@ -6429,38 +6429,32 @@ group("elke merkbestemming hangt onder /merk/[id]", () => {
   );
 });
 
-group("de iconenset: elke bestemming heeft er een, en geen twee dezelfde", () => {
-  const merkId = "abc";
-  const items = [...brandNav(merkId, true), ...generalNav(true)];
-
-  // Een bestemming zonder icoon zou in de zijbalk een gat geven waar de andere
-  // regels er een hebben, en dat leest als "hier is iets misgegaan".
-  for (const item of items) {
-    ok(`${item.label} heeft een icoon dat bestaat`, Boolean(ICONEN[item.icoon]), item.icoon);
-  }
+group("de iconenset: alleen de hoofdstukken dragen er een", () => {
+  // Een kop zonder icoon geeft in de ingeklapte balk (64px) een lege regel:
+  // daar ís de kop niets ánders dan zijn icoon.
   for (const kop of HOOFDSTUKKEN) {
     ok(`hoofdstuk ${kop} heeft een icoon dat bestaat`, Boolean(ICONEN[HOOFDSTUK_ICOON[kop]]));
   }
 
-  // ⚠️ Twee bestemmingen met hetzelfde icoon is erger dan geen icoon: dan zegt
-  // de tekening iets wat niet klopt. Hier stond tot 21 augustus 2026 bij elke
-  // bestemming letterlijk "○", twaalf keer dezelfde cirkel, en dat viel niemand
-  // op omdat het veld nergens gerenderd werd.
-  const gebruikt = items.map((i) => i.icoon);
+  // ⚠️ Twee hoofdstukken met dezelfde tekening is erger dan geen tekening:
+  // ingeklapt is het icoon het enige onderscheid tussen twee koppen.
+  const kopIconen = HOOFDSTUKKEN.map((k) => HOOFDSTUK_ICOON[k]);
   ok(
-    "geen twee bestemmingen delen een icoon",
-    new Set(gebruikt).size === gebruikt.length,
-    gebruikt.join(", "),
+    "geen twee hoofdstukken delen een icoon",
+    new Set(kopIconen).size === kopIconen.length,
+    kopIconen.join(", "),
   );
 
-  const kopIconen = HOOFDSTUKKEN.map((k) => HOOFDSTUK_ICOON[k]);
-  ok("geen twee hoofdstukken delen een icoon", new Set(kopIconen).size === kopIconen.length);
-
-  // Een kop en zijn eigen kind mogen ook niet hetzelfde dragen: ingeklapt is de
-  // kop het enige wat je ziet, en uitgeklapt staan ze recht boven elkaar.
+  // ⚠️ DE BESTEMMINGEN DRAGEN ER GEEN, en dat moet zo blijven (besluit
+  // 21 augustus 2026). Ze hebben ze een halve dag wél gehad: zestien tekeningen
+  // in een balk van zestien regels, en dan markeert een icoon niets meer. De
+  // kop moet het verschil dragen tussen "een van de zes vaste plekken" en "een
+  // pagina daarbinnen". Deze test bewaakt dat het veld niet terugsluipt.
+  const items = [...brandNav("abc", true), ...generalNav(true)];
   ok(
-    "en een kop draagt niet hetzelfde als zijn kinderen",
-    items.every((i) => HOOFDSTUK_ICOON[i.hoofdstuk] !== i.icoon),
+    "geen enkele bestemming heeft een icoonveld",
+    items.every((i) => !("icoon" in i)),
+    items.find((i) => "icoon" in i)?.label,
   );
 });
 

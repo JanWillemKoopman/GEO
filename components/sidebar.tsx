@@ -40,13 +40,18 @@ import type { BrandOption } from "@/lib/workspace";
  * klapknop een klik die niets oplevert. Ingeklapt (64px) blijft alleen het
  * icoon van het hoofdstuk over, en dat linkt naar zijn eerste bestemming.
  *
- * ── ELKE REGEL HEEFT EEN ICOON, EN DE KOP EEN ZWAARDER ──────────────────────
+ * ── ALLEEN DE KOP DRAAGT EEN ICOON ──────────────────────────────────────────
  *
- * De koppen droegen ◉ ▣ ▲ ◆ ⚙ ◈ en de bestemmingen droegen niets. Sinds
- * 21 augustus 2026 komen beide uit `lib/icons.ts`: de kop op 18 pixels in de
- * tekstkleur, de bestemming op 16 in gedempt grijs. Dat verschil in maat en
- * kleur doet het werk dat het inspringen alleen niet deed: je ziet in één blik
- * waar een hoofdstuk begint, ook als je van bovenaf scant.
+ * De koppen droegen de tekens ◉ ▣ ▲ ◆ ⚙ ◈, die op elk apparaat een andere vorm
+ * hadden. Sinds 21 augustus 2026 komen ze uit `lib/icons.ts`, op 18 pixels.
+ *
+ * ⚠️ **De bestemmingen eronder krijgen er geen**, en dat is een besluit van
+ * later diezelfde dag. Ze hebben ze een halve dag wél gehad, en dat zag er
+ * netjes uit maar werkte averechts: zestien tekeningen in een balk van zestien
+ * regels markeren niets meer. Het icoon van de kop moet het verschil maken
+ * tussen "dit is een van de zes vaste plekken" en "dit is een pagina daarbinnen",
+ * en dat verschil verdwijnt zodra beide er een dragen. De bestemming staat al
+ * ingesprongen achter een lijn; dat zegt genoeg.
  *
  * ── INGEKLAPT IS EEN VOORKEUR, GEEN STAAT ───────────────────────────────────
  *
@@ -218,20 +223,14 @@ function Item({
       href={item.href}
       onClick={onClick}
       aria-current={active ? "page" : undefined}
-      className="flex items-center justify-between gap-2 truncate rounded-[var(--radius-md)] px-2.5 py-1.5 text-sm transition-colors"
+      className="flex items-center justify-between gap-2 truncate rounded-[var(--radius-md)] px-3 py-1.5 text-sm transition-colors"
       style={{
         color: active ? "var(--text-primary)" : "var(--text-secondary)",
         background: active ? "var(--bg-elevated)" : "transparent",
         fontWeight: active ? 500 : 400,
       }}
     >
-      <span className="flex min-w-0 items-center gap-2">
-        {/* Gedempt zolang je er niet staat: het icoon wijst de weg, het
-            schreeuwt niet. Op de actieve regel kleurt het mee met de tekst en
-            markeert het waar je bent. */}
-        <Icon naam={item.icoon} className={active ? undefined : "text-muted"} />
-        <span className="truncate">{item.label}</span>
-      </span>
+      <span className="truncate">{item.label}</span>
       {item.staffOnly && (
         <span
           className="mono-label shrink-0 text-muted"

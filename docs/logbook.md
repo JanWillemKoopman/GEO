@@ -3575,7 +3575,8 @@ aanduidde (◉ ▣ ◆ ◈) zagen er dus bij elke klant anders uit, in een produ
 `merkstrategie.md` §15.1 "precies, rustig, premium" hoort te zijn en dat sales-led op één gedeeld
 scherm verkocht wordt.
 
-**Gekozen: Lucide** (ISC-licentie, gratis, ruim 1.600 iconen), via `lucide-react`. Lijn, geen
+**Gekozen: Lucide** (ISC-licentie, gratis, ruim 1.600 iconen, waarvan er 27 in gebruik zijn), via
+`lucide-react`. Lijn, geen
 vulling, één raster, en het icoon erft `currentColor`, zodat de betekenislaag van
 `designsystem.md` §2.3 de enige plek blijft waar kleur betekenis krijgt. De keuze per betekenis
 staat in `lib/icons.ts`, de maat en de lijndikte (1,75, tussen de 1,6 en 1,8 van de handgetekende
@@ -3583,10 +3584,21 @@ SVG's in) in `components/icon.tsx`. `docs/designsystem.md` §6b legt de regels v
 een negende regel bij gekregen.
 
 **De keuzes volgen de merkstrategie, niet de gewoonte.** §15.5 vraagt om netwerken, lagen en
-verbindingen: vandaar knopen-met-verbindingen bij Clusters en gestapelde documenten bij de
-Bibliotheek. §15.4 verbiedt de AI-clichés: vandaar géén glittertje bij "Zichtbaarheid in AI" maar
-een radar, want aftasten of je merk in het antwoord voorkomt is letterlijk wat de meting doet. En
-Instellingen kreeg schuifjes in plaats van een tandwiel.
+verbindingen: vandaar oplopende punten met verbindingen ertussen bij Strategie. §15.4 verbiedt de
+AI-clichés: vandaar géén glittertje en géén brein. En Instellingen kreeg schuifjes in plaats van een
+tandwiel.
+
+⚠️ **Nog dezelfde dag bijgesteld: alleen de hoofdstukken krijgen een icoon, de bestemmingen niet.**
+De eerste versie gaf elke regel in de zijbalk er een, zestien in totaal, waarbij de kop op 18 pixels
+stond en de bestemming op 16 in gedempt grijs. Op papier een nette hiërarchie, in gebruik het
+tegenovergestelde van wat een icoon moet doen: zestien tekeningen in een balk van zestien regels
+markeren niets meer, want als alles opvalt valt niets op. Het icoon van de kop hoort het verschil te
+dragen tussen "een van de zes vaste plekken in de app" en "een pagina daarbinnen", en dat verschil
+verdwijnt zodra beide er een hebben. De bestemming staat al ingesprongen achter een lijn.
+
+Daarmee vervielen zestien van de 43 betekenissen in `lib/icons.ts`. Die zijn weggehaald in plaats
+van ongebruikt te blijven staan; er blijven 27 over. `NavItem` heeft geen icoonveld meer, zodat het
+niet ongemerkt kan terugkomen, en een test bewaakt dat.
 
 **Eén keuze is tijdens de bouw teruggedraaid.** Strategie begon als een route-icoon, semantisch het
 beste, maar op 18 pixels leek dat te veel op de schuifjes van Instellingen, en juist met een
@@ -3600,4 +3612,5 @@ achter een tekstlink, vier verplaatspijlen en twee stijg- en daalpijlen bij een 
 derde van het totaal, in één commando. Precies hetzelfde patroon als bij de inline-kleuren van
 6 augustus: een regel zonder controle is een voornemen.
 
-Na deze ronde: 47 icoongebruiken over 38 bestanden, 1769 unittests en 202 ketentests groen.
+Na deze ronde: 27 betekenissen, 46 icoongebruiken over 38 bestanden, 1752 unittests en 202
+ketentests groen.

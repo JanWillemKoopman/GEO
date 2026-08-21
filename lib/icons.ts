@@ -32,38 +32,40 @@
  *
  * De keuze per icoon volgt §15.5, de visuele metafoor van "een systeem dat
  * zichzelf uitbreidt": netwerken, structuren, lagen, verbindingen. Vandaar
- * `Network` bij clusters en `FileStack` bij de bibliotheek, en vandaar dat §15.4
- * hier meegewogen is: geen robot, geen brein, geen `Sparkles` bij alles wat AI
- * aanraakt. "Zichtbaarheid in AI" krijgt `Radar`, want dat is wat de meting
- * doet: aftasten of je er staat.
+ * oplopende punten met verbindingen ertussen bij Strategie. En vandaar dat
+ * §15.4 hier meegewogen is: geen robot, geen brein, geen glittertje bij alles
+ * wat AI aanraakt, en geen tandwiel bij Instellingen.
  *
  * ── DE REGELS ──────────────────────────────────────────────────────────────
  *
  * 1. **Een icoon staat nooit alleen.** Overal in de navigatie en in de knoppen
  *    staat het label ernaast. Het icoon versnelt het terugvinden, het draagt de
  *    betekenis niet. Daarom staat er `aria-hidden` op (`components/icon.tsx`);
- *    een schermlezer die "netwerk, clusters" voorleest, herhaalt zichzelf.
+ *    een schermlezer die "schild, Admin" voorleest, herhaalt zichzelf.
  * 2. **Eén betekenis, één icoon.** Deze tabel is de enige plek waar een
  *    betekenis aan een tekening gekoppeld wordt. Wie ergens `<Check />`
  *    rechtstreeks importeert, zet de tweede kopie van een keuze neer, en twee
  *    kopieën lopen uit elkaar.
- * 3. **De naam is de betekenis, niet de tekening.** `clusters`, niet `network`.
- *    Verandert de tekening ooit, dan is dat één regel hier en geen zoekactie
- *    door 38 bestanden. Twee namen mogen dezelfde tekening delen als ze iets
- *    anders betekenen: `stijging` is een meting, `omhoog` is een handeling van
- *    de gebruiker, en die twee horen los te kunnen bewegen.
+ * 3. **De naam is de betekenis, niet de tekening.** `strategie`, niet
+ *    `waypoints`. Verandert de tekening ooit, dan is dat één regel hier en geen
+ *    zoekactie door 38 bestanden. Twee namen mogen dezelfde tekening delen als
+ *    ze iets anders betekenen: `stijging` is een meting, `omhoog` is een
+ *    handeling van de gebruiker, en die twee horen los te kunnen bewegen.
+ * 4. **Alleen de zes hoofdstukken van de zijbalk hebben er een, de bestemmingen
+ *    eronder niet** (besluit 21 augustus 2026). Ze hebben ze een halve dag wél
+ *    gehad, en toen bleek dat zestien tekeningen in een balk van zestien regels
+ *    niets meer markeren. `lib/nav.ts` heeft daarom geen icoonveld op `NavItem`,
+ *    en een test in `scripts/test-unit.ts` bewaakt dat het niet terugsluipt.
  *
  * Bewust ZONDER `server-only`: de zijbalk is client, de paginakoppen zijn
  * server, en beide lezen deze tabel.
  */
 import {
-  Activity,
   ArrowDown,
   ArrowLeft,
   ArrowRight,
   ArrowUp,
   ArrowUpRight,
-  Building2,
   Check,
   ChevronDown,
   ChevronRight,
@@ -71,30 +73,16 @@ import {
   Circle,
   CircleDashed,
   Copy,
-  FileStack,
-  FileText,
   FingerprintPattern,
-  Gauge,
-  Headset,
-  LayoutGrid,
-  ListChecks,
   Menu,
-  MessageCircleQuestionMark,
   Minus,
-  Network,
   Orbit,
   PanelLeftClose,
   PanelLeftOpen,
-  Plug,
-  Radar,
-  Search,
   Shield,
   SlidersHorizontal,
-  SquarePen,
   TriangleAlert,
-  UserPlus,
   UserRound,
-  Users,
   Waypoints,
   X,
   type LucideIcon,
@@ -102,8 +90,7 @@ import {
 
 /**
  * Elke betekenis die de app tekent, in de volgorde waarin je ze tegenkomt:
- * eerst de zes hoofdstukken, dan hun bestemmingen, dan de bediening, dan de
- * standen.
+ * eerst de zes hoofdstukken van de zijbalk, dan de bediening, dan de standen.
  */
 export type IcoonNaam =
   // ── De zes hoofdstukken van de zijbalk ──────────────────────────────────
@@ -113,23 +100,6 @@ export type IcoonNaam =
   | "merkprofiel"
   | "instellingen"
   | "admin"
-  // ── De bestemmingen daaronder ───────────────────────────────────────────
-  | "stand"
-  | "contentplan"
-  | "clusters"
-  | "bibliotheek"
-  | "zichtbaarheid"
-  | "zoekverkeer"
-  | "concurrenten"
-  | "merkdossier"
-  | "bewerken"
-  | "input"
-  | "account"
-  | "koppelingen"
-  | "onboarding"
-  | "diagnose"
-  | "toewijzen"
-  | "alleMerken"
   // ── Bediening ───────────────────────────────────────────────────────────
   | "menu"
   | "sluiten"
@@ -178,37 +148,6 @@ export const ICONEN: Record<IcoonNaam, LucideIcon> = {
   // Het schild is niet "beveiligd" maar "afgeschermd": dit hoofdstuk staat al
   // onder een scheidingslijn omdat de klant het nooit ziet (`lib/nav.ts`).
   admin: Shield,
-
-  // ── DE BESTEMMINGEN ─────────────────────────────────────────────────────
-  stand: Gauge,
-  contentplan: ListChecks,
-  // Knopen met verbindingen ertussen, letterlijk wat een cluster is en
-  // tegelijk de metafoor uit §15.5.
-  clusters: Network,
-  // Gestapelde documenten: de bibliotheek groeit met elke gepubliceerde tekst.
-  bibliotheek: FileStack,
-  // Aftasten of je merk in het antwoord voorkomt. Bewust niet `Sparkles`: §15.4
-  // verbiedt het AI-cliché, en glitters zeggen niets over wat er gemeten is.
-  zichtbaarheid: Radar,
-  zoekverkeer: Search,
-  // Andere bedrijven, niet andere personen. `Users` is hieronder het team van
-  // de klant zelf, en die twee mogen niet op hetzelfde lijken.
-  concurrenten: Building2,
-  merkdossier: FileText,
-  bewerken: SquarePen,
-  // Dit scherm stelt de klant vragen die het model niet zelf kon beantwoorden.
-  input: MessageCircleQuestionMark,
-  account: Users,
-  koppelingen: Plug,
-  // De onboardingsessie is het gesprek mét de klant, het enige stafscherm dat
-  // gedeeld wordt. Vandaar de headset en niet een klembord: het is een gesprek,
-  // geen formulier.
-  onboarding: Headset,
-  // Diagnose is wat er technisch gebeurde. Een hartslaglijn is de rustigste
-  // manier om "verloop van een proces" te tekenen.
-  diagnose: Activity,
-  toewijzen: UserPlus,
-  alleMerken: LayoutGrid,
 
   // ── BEDIENING ───────────────────────────────────────────────────────────
   menu: Menu,

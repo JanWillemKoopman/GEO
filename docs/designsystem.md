@@ -249,8 +249,12 @@ korter dan hun marketingsite, en 0,3s voelt in een dashboard traag.
 ## 6b. Iconen
 
 **Toegevoegd 21 augustus 2026.** De set is [Lucide](https://lucide.dev) (ISC-licentie, gratis),
-via `lucide-react`. De keuze per betekenis staat in `lib/icons.ts`, het omhulsel dat maat en
-lijndikte vastzet in `components/icon.tsx`.
+via `lucide-react`. De keuze per betekenis staat in `lib/icons.ts` (27 betekenissen), het omhulsel
+dat maat en lijndikte vastzet in `components/icon.tsx`.
+
+⚠️ **Waar een icoon wél en niet komt.** De zes hoofdstukken van de zijbalk hebben er een, de
+bestemmingen eronder niet. Dat is dezelfde dag nog bijgesteld: ze hebben ze een halve dag wél gehad,
+en zestien tekeningen in een balk van zestien regels markeren niets meer. Zie §6b.3, regel 4.
 
 ### 6b.1 Waarom er nu wel een set is
 
@@ -278,7 +282,7 @@ tegenovergestelde van §15.1 van `merkstrategie.md`: precies, rustig, premium.
 | Maat | 16 in tekstregels, 18 in koppen, 20 in losse knoppen | Meer maten zijn er niet; een vierde maat is een nieuw besluit |
 | Kleur | `currentColor`, altijd | Het icoon kleurt mee met de tekst ernaast. Nooit een eigen tint, want dan omzeilt het de betekenislaag van §2.3 |
 
-### 6b.3 De drie regels
+### 6b.3 De vier regels
 
 1. **Een icoon staat nooit alleen.** Overal staat het label ernaast, dus het icoon versnelt het
    terugvinden en draagt de betekenis niet. Vandaar `aria-hidden`. Staat een icoon écht alleen (het
@@ -286,15 +290,20 @@ tegenovergestelde van §15.1 van `merkstrategie.md`: precies, rustig, premium.
 2. **Eén betekenis, één icoon.** `lib/icons.ts` is de enige plek waar een betekenis aan een
    tekening gekoppeld wordt. Rechtstreeks `import { Check } from "lucide-react"` in een component
    zet de tweede kopie van een keuze neer, en twee kopieën lopen uit elkaar.
-3. **De naam is de betekenis, niet de tekening.** `clusters`, niet `network`. Verandert de tekening,
-   dan is dat één regel in `lib/icons.ts`.
+3. **De naam is de betekenis, niet de tekening.** `strategie`, niet `waypoints`. Verandert de
+   tekening, dan is dat één regel in `lib/icons.ts`.
+4. **In de zijbalk draagt alleen de kop een icoon.** De bestemmingen eronder niet. Het icoon van de
+   kop moet het verschil dragen tussen "dit is een van de zes vaste plekken in de app" en "dit is
+   een pagina daarbinnen", en dat verschil verdwijnt zodra beide er een hebben: als alles opvalt,
+   valt niets op. De bestemming staat al ingesprongen achter een lijn, en dat zegt genoeg.
+   `NavItem` in `lib/nav.ts` heeft daarom geen icoonveld, en `scripts/test-unit.ts` bewaakt dat.
 
 ### 6b.4 Wat de set níet doet
 
-Geen `Sparkles` bij alles wat AI aanraakt, geen brein, geen robot, geen tandwiel voor instellingen.
-Dat zijn de clichés die §15.4 van `merkstrategie.md` bij naam verbiedt. "Zichtbaarheid in AI" krijgt
-daarom een radar (dat is wat de meting doet: aftasten of je er staat) en Instellingen krijgt
-schuifjes (dat is wat je er doet: afstellen).
+Geen glittertje bij alles wat AI aanraakt, geen brein, geen robot, geen tandwiel voor instellingen.
+Dat zijn de clichés die §15.4 van `merkstrategie.md` bij naam verbiedt. Instellingen krijgt daarom
+schuifjes, want dat is wat je er doet: afstellen. En de set is klein gehouden: 27 betekenissen, niet
+1.600. Een icoon dat niets aanwijst is versiering, en dat is precies wat §15.3 niet vraagt.
 
 ---
 
@@ -316,7 +325,7 @@ Gebruik deze, nooit een eigen tint of een eigen maat.
 | `.skeleton` | Laadvlak. De vorm van wat er komt |
 | `.prose` | Lange tekst: rapport, contentpagina |
 | `.brand-gradient-text` | **Alleen het woordmerk ORBIT ENGINE** |
-| `Icon` | Het enige icoon-component. `<Icon naam="clusters" />`, nooit een los teken en nooit een eigen SVG. Zie §6b |
+| `Icon` | Het enige icoon-component. `<Icon naam="klaar" />`, nooit een los teken en nooit een eigen SVG. Zie §6b |
 | `PageHeader`, `EmptyState`, `Narrow`, `ConfidenceChip` | Eén variant per patroon |
 
 ---
@@ -334,7 +343,8 @@ Gebruik deze, nooit een eigen tint of een eigen maat.
 7. **Eén easing, korte duur.**
 8. **De gradient is het woordmerk.** Nergens anders.
 9. **Een icoon komt uit `lib/icons.ts`.** Nooit een letterteken in de tekst (✓, ↗, ▾), nooit een
-   met de hand getekende SVG, nooit een rechtstreekse import uit `lucide-react`. Zie §6b.
+   met de hand getekende SVG, nooit een rechtstreekse import uit `lucide-react`. En in de zijbalk
+   draagt alleen de kop er een. Zie §6b.
 
 ---
 

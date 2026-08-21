@@ -238,12 +238,16 @@ hooguit drie per hoofdstuk passen alle bestemmingen tegelijk in beeld, en dan is
 klik die niets oplevert. Ingeklapt (64px) blijft alleen het icoon van het hoofdstuk over, en dat
 linkt naar zijn eerste bestemming.
 
-**Elke regel heeft een icoon, de kop een zwaardere** (21 augustus 2026). De kop staat op 18 pixels
-in de tekstkleur, de bestemming eronder op 16 in gedempt grijs, en op de actieve regel kleurt het
-icoon mee met de tekst. Dat verschil in maat en kleur doet het werk dat het inspringen alleen niet
-deed: je ziet in één blik waar een hoofdstuk begint, ook als je van bovenaf scant. De koppen droegen
-hiervoor de tekens ◉ ▣ ▲ ◆ ⚙ ◈ en de bestemmingen droegen niets; welke tekening bij welke bestemming
-hoort staat nu in `lib/icons.ts`, de vormregels in `designsystem.md` §6b.
+**Alleen de kop draagt een icoon** (21 augustus 2026). De zes hoofdstukken hebben er een, op 18
+pixels; de bestemmingen eronder niet. Zo blijft het icoon zeggen "dit is een van de zes vaste
+plekken in de app" in plaats van alleen "hier staat een regel". De koppen droegen hiervoor de tekens
+◉ ▣ ▲ ◆ ⚙ ◈, die op elk apparaat een andere vorm hadden; welke tekening bij welk hoofdstuk hoort
+staat nu in `lib/icons.ts`, de vormregels in `designsystem.md` §6b.
+
+⚠️ **De bestemmingen hebben een halve dag wél een icoon gehad, en dat is teruggedraaid.** Het zag er
+verzorgd uit en het werkte averechts: zestien tekeningen in een balk van zestien regels markeren
+niets meer, want als alles opvalt valt niets op. `NavItem` heeft daarom geen icoonveld, zodat het
+niet ongemerkt terugkomt.
 
 ### De fase van een merk (19 augustus 2026)
 
