@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { Icon } from "@/components/icon";
 
 /**
  * De secundaire navigatie van een analyse.
@@ -23,8 +24,8 @@ import { usePathname } from "next/navigation";
  *   • de INSTELLINGEN: configuratie, en dus bewust ondergeschikt.
  *
  * Vandaar de ongelijke opmaak: de bibliotheek is een echte bestemming, de
- * instellingen zijn een tandwiel. Twee even zware knoppen zouden suggereren dat
- * het even belangrijke plekken zijn.
+ * instellingen zijn een klein icoon rechts. Twee even zware knoppen zouden
+ * suggereren dat het even belangrijke plekken zijn.
  */
 export function AnalysisNav({
   analysisId,
@@ -58,10 +59,11 @@ export function AnalysisNav({
         href={`${base}/instellingen`}
         aria-label="Instellingen van dit cluster"
         aria-current={onSettings ? "page" : undefined}
-        className="mono-label ml-auto px-3 py-2 transition-colors hover:text-[var(--text-primary)]"
+        className="mono-label ml-auto flex items-center gap-1.5 px-3 py-2 transition-colors hover:text-[var(--text-primary)]"
         style={onSettings ? { color: "var(--text-primary)" } : undefined}
       >
-        ⚙ Instellingen
+        <Icon naam="instellingen" size={14} />
+        Instellingen
       </Link>
     </div>
   );

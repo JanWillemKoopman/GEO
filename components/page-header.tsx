@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Icon } from "@/components/icon";
 
 /**
  * De kop van een pagina, één vorm.
@@ -33,9 +34,10 @@ export function PageHeader({
       {backHref && (
         <Link
           href={backHref}
-          className="mono-label mb-3 w-fit transition-colors hover:text-[var(--text-primary)]"
+          className="mono-label mb-3 flex w-fit items-center gap-1.5 transition-colors hover:text-[var(--text-primary)]"
         >
-          ← {backLabel}
+          <Icon naam="terug" size={14} />
+          {backLabel}
         </Link>
       )}
       <div className="flex flex-wrap items-end justify-between gap-4">

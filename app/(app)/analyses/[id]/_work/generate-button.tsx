@@ -6,6 +6,7 @@ import type { ContentAction, ContentType } from "@/lib/types/database";
 import type { RecommendationTarget } from "@/lib/pipeline/recommendation";
 import { ErrorNotice, problemFromResponse, networkProblem } from "@/components/error-notice";
 import type { UserFacingError } from "@/lib/errors";
+import { Icon } from "@/components/icon";
 
 /**
  * "Genereer deze pagina" (Fase C, expliciet op klik).
@@ -120,8 +121,12 @@ export function GenerateButton({
 
   if (state === "done") {
     return (
-      <Link href={`/analyses/${analysisId}/bibliotheek`} className="btn-outline w-fit">
-        ✓ Klaar, lees hem in je bibliotheek
+      <Link
+        href={`/analyses/${analysisId}/bibliotheek`}
+        className="btn-outline w-fit"
+      >
+        <Icon naam="klaar" />
+        Klaar, lees hem in je bibliotheek
       </Link>
     );
   }

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
+import { Icon } from "@/components/icon";
 import {
   brandNav,
   generalNav,
@@ -37,7 +38,15 @@ import type { BrandOption } from "@/lib/workspace";
  * Het uitklappen was er voor die ene kop met negen kinderen. Met hooguit drie
  * per hoofdstuk passen alle bestemmingen tegelijk in beeld, en dan is een
  * klapknop een klik die niets oplevert. Ingeklapt (64px) blijft alleen het
- * teken van het hoofdstuk over, en dat linkt naar zijn eerste bestemming.
+ * icoon van het hoofdstuk over, en dat linkt naar zijn eerste bestemming.
+ *
+ * ── ELKE REGEL HEEFT EEN ICOON, EN DE KOP EEN ZWAARDER ──────────────────────
+ *
+ * De koppen droegen ◉ ▣ ▲ ◆ ⚙ ◈ en de bestemmingen droegen niets. Sinds
+ * 21 augustus 2026 komen beide uit `lib/icons.ts`: de kop op 18 pixels in de
+ * tekstkleur, de bestemming op 16 in gedempt grijs. Dat verschil in maat en
+ * kleur doet het werk dat het inspringen alleen niet deed: je ziet in één blik
+ * waar een hoofdstuk begint, ook als je van bovenaf scant.
  *
  * ── INGEKLAPT IS EEN VOORKEUR, GEEN STAAT ───────────────────────────────────
  *
@@ -111,10 +120,11 @@ export function Sidebar({
         <button
           type="button"
           onClick={klapOm}
-          className="mono-label mt-auto rounded-[var(--radius-md)] px-3 py-2 text-left transition-colors hover:bg-[var(--bg-elevated)]"
+          className="mono-label mt-auto flex items-center gap-2 rounded-[var(--radius-md)] px-3 py-2 text-left transition-colors hover:bg-[var(--bg-elevated)]"
           aria-label={ingeklapt ? "Zijbalk uitklappen" : "Zijbalk inklappen"}
         >
-          {ingeklapt ? "»" : "« Inklappen"}
+          <Icon naam={ingeklapt ? "uitklappen" : "inklappen"} />
+          {!ingeklapt && "Inklappen"}
         </button>
       )}
     </div>
@@ -162,9 +172,7 @@ function Hoofdstuk({
             background: actief ? "var(--bg-elevated)" : "transparent",
           }}
         >
-          <span className="w-4 shrink-0 text-center" aria-hidden>
-            {kop.teken}
-          </span>
+          <Icon naam={kop.icoon} size={18} />
         </Link>
       </>
     );
@@ -178,9 +186,7 @@ function Hoofdstuk({
           className="flex items-center gap-3 px-3 pb-0.5 pt-2 text-left text-sm font-medium"
           style={{ color: actief ? "var(--text-primary)" : "var(--text-secondary)" }}
         >
-          <span className="w-4 shrink-0 text-center" aria-hidden>
-            {kop.teken}
-          </span>
+          <Icon naam={kop.icoon} size={18} />
           <span className="min-w-0 flex-1 truncate">{kop.naam}</span>
         </span>
         <div className="ml-4 flex flex-col gap-0.5 border-l border-[var(--border-subtle)] pl-2">
@@ -212,14 +218,20 @@ function Item({
       href={item.href}
       onClick={onClick}
       aria-current={active ? "page" : undefined}
-      className="flex items-center justify-between gap-2 truncate rounded-[var(--radius-md)] px-3 py-1.5 text-sm transition-colors"
+      className="flex items-center justify-between gap-2 truncate rounded-[var(--radius-md)] px-2.5 py-1.5 text-sm transition-colors"
       style={{
         color: active ? "var(--text-primary)" : "var(--text-secondary)",
         background: active ? "var(--bg-elevated)" : "transparent",
         fontWeight: active ? 500 : 400,
       }}
     >
-      <span className="truncate">{item.label}</span>
+      <span className="flex min-w-0 items-center gap-2">
+        {/* Gedempt zolang je er niet staat: het icoon wijst de weg, het
+            schreeuwt niet. Op de actieve regel kleurt het mee met de tekst en
+            markeert het waar je bent. */}
+        <Icon naam={item.icoon} className={active ? undefined : "text-muted"} />
+        <span className="truncate">{item.label}</span>
+      </span>
       {item.staffOnly && (
         <span
           className="mono-label shrink-0 text-muted"

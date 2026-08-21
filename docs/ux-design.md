@@ -1,10 +1,10 @@
 # UX & Design
 
 Leidend voor elk scherm. Tokens en primitieven staan in `app/globals.css`; dit document legt uit
-wat ze zijn en wanneer je welke gebruikt. **Peildatum: 17 augustus 2026.** De vormgeving zelf ging
+wat ze zijn en wanneer je welke gebruikt. **Peildatum: 21 augustus 2026.** De vormgeving zelf ging
 op 6 augustus over op het systeem van de NOVA-workspace (volledige verantwoording in
 `designsystem.md`); deze datum volgt de gedragspatronen die daarna zijn bijgekomen (statustaal,
-foutafhandeling, de content-editie).
+foutafhandeling, de content-editie, en op 21 augustus de iconen in de zijbalk).
 
 > **Voor de tékst in die schermen geldt `docs/schrijfstijl.md`**: de tone-of-voice van ORBIT ENGINE,
 > afgeleid van InSpace Nova. Dit document gaat over hoe iets eruitziet, dat over hoe het klinkt.
@@ -235,8 +235,15 @@ erger dan een kop die er nog niet is: de eerste kost vertrouwen in de hele balk.
 
 **Er valt niets uit te klappen.** Het uitklappen was er voor die ene kop met negen kinderen. Met
 hooguit drie per hoofdstuk passen alle bestemmingen tegelijk in beeld, en dan is een klapknop een
-klik die niets oplevert. Ingeklapt (64px) blijft alleen het teken van het hoofdstuk over, en dat
+klik die niets oplevert. Ingeklapt (64px) blijft alleen het icoon van het hoofdstuk over, en dat
 linkt naar zijn eerste bestemming.
+
+**Elke regel heeft een icoon, de kop een zwaardere** (21 augustus 2026). De kop staat op 18 pixels
+in de tekstkleur, de bestemming eronder op 16 in gedempt grijs, en op de actieve regel kleurt het
+icoon mee met de tekst. Dat verschil in maat en kleur doet het werk dat het inspringen alleen niet
+deed: je ziet in één blik waar een hoofdstuk begint, ook als je van bovenaf scant. De koppen droegen
+hiervoor de tekens ◉ ▣ ▲ ◆ ⚙ ◈ en de bestemmingen droegen niets; welke tekening bij welke bestemming
+hoort staat nu in `lib/icons.ts`, de vormregels in `designsystem.md` §6b.
 
 ### De fase van een merk (19 augustus 2026)
 

@@ -9,6 +9,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { Icon } from "@/components/icon";
 
 /**
  * Broodroostermeldingen.
@@ -178,7 +179,7 @@ function ToastCard({ toast, onClose }: { toast: ToastItem; onClose: () => void }
           className="-m-1 shrink-0 rounded-[var(--radius-sm)] p-1 text-muted transition-colors hover:text-[var(--text-primary)]"
           aria-label="Melding sluiten"
         >
-          ✕
+          <Icon naam="sluiten" size={16} />
         </button>
       </div>
 

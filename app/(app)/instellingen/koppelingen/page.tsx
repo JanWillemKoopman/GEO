@@ -6,6 +6,7 @@ import { PageHeader } from "@/components/page-header";
 import { EmptyState } from "@/components/empty-state";
 import { SearchConsoleBox } from "@/app/(app)/merk/[id]/_components/search-console-box";
 import { serviceAccountEmail } from "@/lib/search-console/auth";
+import { Icon } from "@/components/icon";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Koppelingen" };
@@ -110,7 +111,8 @@ export default async function KoppelingenPage() {
                   href={`/merk/${merk.id}/analytics/zoekverkeer`}
                   className="mono-label hover:underline"
                 >
-                  Naar de cijfers →
+                  Naar de cijfers
+                  <Icon naam="naar" size={12} />
                 </Link>
               </span>
               <SearchConsoleBox

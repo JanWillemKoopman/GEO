@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { passwordRules, passwordOk } from "@/lib/invite-rules";
+import { Icon } from "@/components/icon";
 
 /**
  * Het activatieformulier: kies een wachtwoord, kom binnen.
@@ -115,12 +116,11 @@ export function ActivationForm({
           {regels.map((r) => (
             <li key={r.id} className="flex items-center gap-2 text-sm">
               <span
-                aria-hidden
                 style={{
                   color: r.ok ? "var(--intent-growth-text)" : "var(--text-muted)",
                 }}
               >
-                {r.ok ? "✓" : "○"}
+                <Icon naam={r.ok ? "klaar" : "open"} size={14} />
               </span>
               <span style={{ color: r.ok ? "var(--text-secondary)" : "var(--text-muted)" }}>
                 {r.label}

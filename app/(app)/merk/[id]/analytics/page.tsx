@@ -19,6 +19,7 @@ import type {
   TechnicalAudit as TechnicalAuditRow,
   VisibilityScore,
 } from "@/lib/types/database";
+import { Icon } from "@/components/icon";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Zichtbaarheid in AI" };
@@ -234,7 +235,8 @@ export default async function AnalyticsPage({
                         <span
                           className={delta > 0 ? "chip chip-success" : "chip chip-danger"}
                         >
-                          {delta > 0 ? "↑" : "↓"} {Math.abs(Math.round(delta))}
+                          <Icon naam={delta > 0 ? "stijging" : "daling"} size={12} />
+                          {Math.abs(Math.round(delta))}
                         </span>
                       ) : (
                         <span className="chip chip-neutral">

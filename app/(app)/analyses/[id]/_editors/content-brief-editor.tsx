@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { Icon } from "@/components/icon";
 
 /**
  * Bewerkbare content-brief van de analyse (§6/§7/§8): de gewenste hoek en doelgroep
@@ -51,7 +52,12 @@ export function ContentBriefEditor({ analysisId, initial }: { analysisId: string
         <button onClick={() => void save()} disabled={saving} className="btn-primary disabled:opacity-60">
           {saving ? "Opslaan…" : "Wijzigingen opslaan"}
         </button>
-        {saved && <span className="text-sm text-[var(--intent-growth-text)]">Opgeslagen ✓</span>}
+        {saved && (
+          <span className="flex items-center gap-1.5 text-sm text-[var(--intent-growth-text)]">
+            <Icon naam="klaar" size={14} />
+            Opgeslagen
+          </span>
+        )}
         {error && <span className="text-sm text-[var(--status-error)]">{error}</span>}
       </div>
     </div>

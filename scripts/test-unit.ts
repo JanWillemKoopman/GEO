@@ -73,7 +73,9 @@ import {
   isActive,
   isExact,
   HOOFDSTUKKEN,
+  HOOFDSTUK_ICOON,
 } from "@/lib/nav";
+import { ICONEN } from "@/lib/icons";
 import { DOORVERWIJZINGEN } from "@/lib/redirects";
 import { findGaps } from "@/lib/profile-gaps";
 import {
@@ -6424,6 +6426,41 @@ group("elke merkbestemming hangt onder /merk/[id]", () => {
     [...brandNav(merkId, true), ...generalNav(true)].every(
       (i) => !i.href.startsWith("/profielen"),
     ),
+  );
+});
+
+group("de iconenset: elke bestemming heeft er een, en geen twee dezelfde", () => {
+  const merkId = "abc";
+  const items = [...brandNav(merkId, true), ...generalNav(true)];
+
+  // Een bestemming zonder icoon zou in de zijbalk een gat geven waar de andere
+  // regels er een hebben, en dat leest als "hier is iets misgegaan".
+  for (const item of items) {
+    ok(`${item.label} heeft een icoon dat bestaat`, Boolean(ICONEN[item.icoon]), item.icoon);
+  }
+  for (const kop of HOOFDSTUKKEN) {
+    ok(`hoofdstuk ${kop} heeft een icoon dat bestaat`, Boolean(ICONEN[HOOFDSTUK_ICOON[kop]]));
+  }
+
+  // ⚠️ Twee bestemmingen met hetzelfde icoon is erger dan geen icoon: dan zegt
+  // de tekening iets wat niet klopt. Hier stond tot 21 augustus 2026 bij elke
+  // bestemming letterlijk "○", twaalf keer dezelfde cirkel, en dat viel niemand
+  // op omdat het veld nergens gerenderd werd.
+  const gebruikt = items.map((i) => i.icoon);
+  ok(
+    "geen twee bestemmingen delen een icoon",
+    new Set(gebruikt).size === gebruikt.length,
+    gebruikt.join(", "),
+  );
+
+  const kopIconen = HOOFDSTUKKEN.map((k) => HOOFDSTUK_ICOON[k]);
+  ok("geen twee hoofdstukken delen een icoon", new Set(kopIconen).size === kopIconen.length);
+
+  // Een kop en zijn eigen kind mogen ook niet hetzelfde dragen: ingeklapt is de
+  // kop het enige wat je ziet, en uitgeklapt staan ze recht boven elkaar.
+  ok(
+    "en een kop draagt niet hetzelfde als zijn kinderen",
+    items.every((i) => HOOFDSTUK_ICOON[i.hoofdstuk] !== i.icoon),
   );
 });
 

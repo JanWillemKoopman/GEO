@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { ACCOUNT_NAV, type NavItem } from "@/lib/nav";
+import { Icon } from "@/components/icon";
 
 /**
  * Het menu achter het profiel-icoon, op élk schermformaat.
@@ -37,12 +38,13 @@ import { ACCOUNT_NAV, type NavItem } from "@/lib/nav";
  */
 type MenuLink = NavItem;
 
+/**
+ * ⚠️ Hier stonden twee met de hand getekende SVG's, één chevron en één poppetje,
+ * elk met hun eigen lijndikte (1,8 en 1,6). Sinds 21 augustus 2026 komen ze uit
+ * `lib/icons.ts`, zodat ze meebewegen als de set ooit van gewicht verandert.
+ */
 function ChevronIcon() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden className="shrink-0">
-      <path d="M9 5l7 7-7 7" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
+  return <Icon naam="verder" size={18} />;
 }
 
 function NumberedNav({
@@ -143,10 +145,7 @@ export function ProfileMenu({
         aria-haspopup="dialog"
         className="flex h-9 w-9 items-center justify-center rounded-[var(--radius-md)] text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-elevated)] hover:text-[var(--text-primary)]"
       >
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
-          <circle cx="12" cy="8" r="4" stroke="currentColor" strokeWidth="1.6" />
-          <path d="M4 20c1.6-3.6 4.8-5.5 8-5.5s6.4 1.9 8 5.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
-        </svg>
+        <Icon naam="profiel" size={20} />
       </button>
 
       {open &&

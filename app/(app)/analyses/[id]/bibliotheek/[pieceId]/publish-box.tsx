@@ -9,6 +9,7 @@ import { CopyButton } from "@/components/copy-button";
 import type { UserFacingError } from "@/lib/errors";
 import type { PublishCheck } from "@/lib/pipeline/publish-check";
 import { formatDateLong } from "@/lib/format";
+import { Icon } from "@/components/icon";
 
 /**
  * "Deze pagina staat live" (optimalisatie.md 5.1/5.2/5.3).
@@ -213,15 +214,20 @@ function PublishCheckNotice({ check, checkedAt }: { check: PublishCheck | null; 
 
   if (check.problems.length === 0) {
     return (
-      <p className="text-sm" style={{ color: "var(--status-success)" }}>
-        ✓ Gecontroleerd: de tekst staat erop
-        {check.schemaFound ? ", inclusief de gestructureerde data" : ""}.
-        {checkedAt && (
-          <span className="text-muted">
-            {" "}
-            ({formatDateLong(checkedAt)})
-          </span>
-        )}
+      <p
+        className="flex items-start gap-1.5 text-sm"
+        style={{ color: "var(--status-success)" }}
+      >
+        <span className="mt-0.5">
+          <Icon naam="klaar" size={14} />
+        </span>
+        {/* De hele zin in één span: los naast elkaar zouden het drie
+            flex-kinderen zijn en dan breekt de regel op de verkeerde plek. */}
+        <span>
+          Gecontroleerd: de tekst staat erop
+          {check.schemaFound ? ", inclusief de gestructureerde data" : ""}.
+          {checkedAt && <span className="text-muted"> ({formatDateLong(checkedAt)})</span>}
+        </span>
       </p>
     );
   }

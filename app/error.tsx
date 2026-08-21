@@ -12,6 +12,7 @@ import { useEffect } from "react";
 import Link from "next/link";
 import { ErrorNotice } from "@/components/error-notice";
 import { describeError } from "@/lib/errors";
+import { Icon } from "@/components/icon";
 
 export default function AppError({
   error,
@@ -43,8 +44,12 @@ export default function AppError({
         onRetry={reset}
         retryLabel="Opnieuw laden"
       />
-      <Link href="/analyses" className="mono-label w-fit transition-colors hover:text-[var(--text-primary)]">
-        ← Terug naar je clusters
+      <Link
+        href="/analyses"
+        className="mono-label flex w-fit items-center gap-1.5 transition-colors hover:text-[var(--text-primary)]"
+      >
+        <Icon naam="terug" size={14} />
+        Terug naar je clusters
       </Link>
     </div>
   );

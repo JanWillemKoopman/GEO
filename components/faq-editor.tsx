@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { Icon } from "@/components/icon";
 
 /**
  * Bewerkbare FAQ (content-editie, onderdeel 3): dezelfde vorm als
@@ -8,7 +9,7 @@ import { useState } from "react";
  * bepaalt wanneer er opgeslagen wordt), nu voor vraag-antwoordparen in plaats
  * van losse waarden.
  *
- * Herordenen met ↑/↓-knoppen, geen sleep-library: consistent met de keuze om
+ * Herordenen met twee pijlknoppen, geen sleep-library: consistent met de keuze om
  * geen sleepbare kalender te bouwen (zie de content-editie-uitsluitingen), en
  * toetsenbord-/schermlezervriendelijker dan slepen.
  */
@@ -67,18 +68,18 @@ export function FaqEditor({
                 onClick={() => move(i, -1)}
                 disabled={i === 0}
                 aria-label="Naar boven"
-                className="text-sm text-secondary hover:text-[var(--text-primary)] disabled:opacity-30"
+                className="text-secondary hover:text-[var(--text-primary)] disabled:opacity-30"
               >
-                ↑
+                <Icon naam="omhoog" size={14} />
               </button>
               <button
                 type="button"
                 onClick={() => move(i, 1)}
                 disabled={i === items.length - 1}
                 aria-label="Naar beneden"
-                className="text-sm text-secondary hover:text-[var(--text-primary)] disabled:opacity-30"
+                className="text-secondary hover:text-[var(--text-primary)] disabled:opacity-30"
               >
-                ↓
+                <Icon naam="omlaag" size={14} />
               </button>
               <button
                 type="button"

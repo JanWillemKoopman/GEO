@@ -10,6 +10,7 @@ import {
   type ReadinessRow,
 } from "@/lib/pipeline/profile-readiness";
 import type { ResearchStep } from "@/lib/pipeline/research-steps";
+import { Icon } from "@/components/icon";
 
 /**
  * Het afrondingsblok van het merkdossier.
@@ -251,8 +252,8 @@ function Balk({ gedaan, totaal }: { gedaan: number; totaal: number }) {
 }
 
 function Regel({ row }: { row: ReadinessRow }) {
-  const teken =
-    row.state === "klaar" ? "✓" : row.state === "loopt" ? "·" : "○";
+  const icoon =
+    row.state === "klaar" ? "klaar" : row.state === "loopt" ? "loopt" : "open";
   const kleur =
     row.state === "klaar"
       ? "var(--intent-growth-text)"
@@ -264,8 +265,8 @@ function Regel({ row }: { row: ReadinessRow }) {
 
   return (
     <li className="flex flex-wrap items-baseline gap-2 text-sm">
-      <span aria-hidden style={{ color: kleur }}>
-        {teken}
+      <span style={{ color: kleur }}>
+        <Icon naam={icoon} size={14} />
       </span>
       <a href={row.anchor} className="hover:underline">
         {row.label}

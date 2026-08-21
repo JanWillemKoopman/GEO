@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/components/toast";
 import { MONTHS_AHEAD } from "@/lib/pipeline/plan-build";
+import { Icon } from "@/components/icon";
 
 /**
  * Er is nog geen plan.
@@ -175,12 +176,11 @@ function Voorwaarde({
     <li className="flex flex-col gap-0.5">
       <span className="flex items-center gap-2 text-sm">
         <span
-          aria-hidden
           style={{
             color: klaar ? "var(--intent-growth-text)" : "var(--intent-warning-text)",
           }}
         >
-          {klaar ? "✓" : "○"}
+          <Icon naam={klaar ? "klaar" : "open"} size={14} />
         </span>
         <span className={klaar ? "" : "font-medium"}>{label}</span>
       </span>

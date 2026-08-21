@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { Icon } from "@/components/icon";
 
 /**
  * De content-inventaris opnieuw laten uitlezen.
@@ -106,8 +107,9 @@ export function InventoryBox({
           {staat === "bezig" ? "ORBIT ENGINE leest je site…" : "Vernieuw inventaris"}
         </button>
         {staat === "klaar" && (
-          <span className="text-sm text-[var(--intent-growth-text)]">
-            Bijgewerkt: {count} pagina&apos;s ✓
+          <span className="flex items-center gap-1.5 text-sm text-[var(--intent-growth-text)]">
+            <Icon naam="klaar" size={14} />
+            Bijgewerkt: {count} pagina&apos;s
           </span>
         )}
         {staat === "fout" && (

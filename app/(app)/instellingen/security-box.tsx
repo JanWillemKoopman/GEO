@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useToast } from "@/components/toast";
 import { passwordRules } from "@/lib/invite-rules";
+import { Icon } from "@/components/icon";
 
 /**
  * E-mailadres en wachtwoord wijzigen (fase 7, naar het model van Nova).
@@ -143,12 +144,11 @@ export function SecurityBox({ email }: { email: string }) {
             {regels.map((r) => (
               <li key={r.id} className="flex items-center gap-2 text-sm">
                 <span
-                  aria-hidden
                   style={{
                     color: r.ok ? "var(--intent-growth-text)" : "var(--text-muted)",
                   }}
                 >
-                  {r.ok ? "✓" : "○"}
+                  <Icon naam={r.ok ? "klaar" : "open"} size={14} />
                 </span>
                 <span className={r.ok ? "text-muted" : ""}>{r.label}</span>
               </li>

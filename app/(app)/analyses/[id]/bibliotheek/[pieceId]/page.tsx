@@ -29,6 +29,7 @@ import { buildTemplateExport } from "@/lib/pipeline/content-export";
 import type { SiteTemplateProfile } from "@/lib/pipeline/template-detect";
 import { leesHerkomst, terugLink } from "@/lib/origin";
 import type { ContentPiece, ContentPieceTarget } from "@/lib/types/database";
+import { Icon } from "@/components/icon";
 
 interface Faq {
   q: string;
@@ -194,9 +195,10 @@ export default async function ContentDetailPage({
     <div className="flex flex-col gap-5">
       <Link
         href={terug.href}
-        className="mono-label transition-colors hover:text-[var(--text-primary)]"
+        className="mono-label flex w-fit items-center gap-1.5 transition-colors hover:text-[var(--text-primary)]"
       >
-        ← {terug.label}
+        <Icon naam="terug" size={14} />
+        {terug.label}
       </Link>
 
       <div className="flex flex-col gap-3">

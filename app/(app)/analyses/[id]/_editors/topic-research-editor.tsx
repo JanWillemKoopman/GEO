@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { TagListEditor } from "@/components/tag-list-editor";
 import type { TopicResearch } from "@/lib/types/database";
+import { Icon } from "@/components/icon";
 
 /**
  * Bewerkbaar onderwerp-onderzoek van déze analyse (abcplan.md §3.5/§3.6, na de
@@ -74,7 +75,12 @@ export function TopicResearchEditor({
         <button onClick={() => void save()} disabled={saving} className="btn-primary disabled:opacity-60">
           {saving ? "Opslaan…" : "Wijzigingen opslaan"}
         </button>
-        {saved && <span className="text-sm text-[var(--intent-growth-text)]">Opgeslagen ✓</span>}
+        {saved && (
+          <span className="flex items-center gap-1.5 text-sm text-[var(--intent-growth-text)]">
+            <Icon naam="klaar" size={14} />
+            Opgeslagen
+          </span>
+        )}
         {error && <span className="text-sm text-[var(--status-error)]">{error}</span>}
       </div>
     </div>

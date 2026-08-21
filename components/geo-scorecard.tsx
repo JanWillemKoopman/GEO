@@ -1,5 +1,6 @@
 import { InfoHint } from "@/components/info-hint";
 import { geoRegels } from "@/lib/pipeline/content-gate";
+import { Icon } from "@/components/icon";
 
 /**
  * Zou een AI-assistent deze pagina citeren? (optimalisatie.md 4.5, R8.7)
@@ -47,7 +48,7 @@ export function GeoScorecard({ geo, score }: { geo: unknown; score: number | nul
           <li key={regel.label} className="flex items-start gap-2 text-sm">
             <span
               aria-hidden
-              className="mt-0.5 shrink-0 font-bold"
+              className="mt-0.5 shrink-0"
               style={{
                 color:
                   regel.ok === null
@@ -57,7 +58,7 @@ export function GeoScorecard({ geo, score }: { geo: unknown; score: number | nul
                       : "var(--status-error)",
               }}
             >
-              {regel.ok === null ? "–" : regel.ok ? "✓" : "✕"}
+              <Icon naam={regel.ok === null ? "nvt" : regel.ok ? "klaar" : "mislukt"} />
             </span>
             <span className="flex flex-col gap-0.5">
               {/* Zelfde tekstkleur voor alle drie de toestanden: de betekenis zit

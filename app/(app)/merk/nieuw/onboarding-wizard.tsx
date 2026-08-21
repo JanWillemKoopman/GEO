@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { TagListEditor } from "@/components/tag-list-editor";
 import { checkUrlFormat } from "@/lib/url";
+import { Icon } from "@/components/icon";
 
 /**
  * Nieuw merk aanmaken (docs/tasks/onboarding-2.0.md, blok C).
@@ -109,8 +110,12 @@ export function OnboardingWizard() {
   return (
     <div className="mx-auto flex max-w-xl flex-col gap-6">
       <div>
-        <Link href="/merk" className="mono-label transition-colors hover:text-[var(--text-primary)]">
-          ← Merken
+        <Link
+          href="/merk"
+          className="mono-label flex w-fit items-center gap-1.5 transition-colors hover:text-[var(--text-primary)]"
+        >
+          <Icon naam="terug" size={14} />
+          Merken
         </Link>
         <h1 className="text-2xl font-bold tracking-tight">Nieuw merk</h1>
         <p className="mt-2 text-secondary">

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Sidebar } from "@/components/sidebar";
 import { BrandSwitcher } from "@/components/brand-switcher";
+import { Icon } from "@/components/icon";
 import type { BrandOption } from "@/lib/workspace";
 
 /**
@@ -51,7 +52,7 @@ export function WorkspaceChrome({
               className="-ml-1 rounded-[var(--radius-md)] p-2 text-secondary transition-colors hover:bg-[var(--bg-elevated)] lg:hidden"
               aria-label="Menu openen"
             >
-              ☰
+              <Icon naam="menu" size={20} />
             </button>
             {logo}
             <span className="hidden text-muted sm:inline" aria-hidden>
@@ -102,7 +103,7 @@ export function WorkspaceChrome({
                 className="rounded-[var(--radius-md)] p-1 text-muted transition-colors hover:text-[var(--text-primary)]"
                 aria-label="Menu sluiten"
               >
-                ✕
+                <Icon naam="sluiten" size={18} />
               </button>
             </div>
             <Sidebar

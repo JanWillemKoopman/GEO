@@ -6,6 +6,7 @@ import { ErrorNotice, problemFromResponse, networkProblem } from "@/components/e
 import { ExternalLink } from "@/components/external-link";
 import type { UserFacingError } from "@/lib/errors";
 import type { OffsiteTask, OffsiteTaskStatus, SourceLandscapeRow } from "@/lib/types/database";
+import { Icon } from "@/components/icon";
 
 /**
  * "Daarbuiten", het off-site deel van het rapport (optimalisatie.md 7.3/7.5/7.6).
@@ -226,8 +227,12 @@ function LandscapeTable({ landscape }: { landscape: SourceLandscapeRow[] }) {
                 <td className="py-1 pr-4 text-secondary">{row.prompt_count}</td>
                 <td className="py-1 pr-4">
                   {row.own_present === true ? (
-                    <span style={{ color: "var(--status-success)" }}>
-                      ✓ ja
+                    <span
+                      className="inline-flex items-center gap-1"
+                      style={{ color: "var(--status-success)" }}
+                    >
+                      <Icon naam="klaar" size={14} />
+                      ja
                       {row.own_url && (
                         <>
                           {" "}
@@ -236,7 +241,13 @@ function LandscapeTable({ landscape }: { landscape: SourceLandscapeRow[] }) {
                       )}
                     </span>
                   ) : row.own_present === false ? (
-                    <span style={{ color: "var(--status-error)" }}>✕ nee</span>
+                    <span
+                      className="inline-flex items-center gap-1"
+                      style={{ color: "var(--status-error)" }}
+                    >
+                      <Icon naam="mislukt" size={14} />
+                      nee
+                    </span>
                   ) : (
                     <span className="text-muted">niet gecontroleerd</span>
                   )}
