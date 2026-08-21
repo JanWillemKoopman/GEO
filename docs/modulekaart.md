@@ -1577,6 +1577,71 @@ nooit gebeurt. Deze sessie loopt alle 24 taaksoorten langs met dezelfde vraag.
 | 55 | Next.js-frame en routegroepen | 1.1 | Framework doet het werk, weinig eigen logica |
 | 56 | Presentatiehulpen | 1.5 | Pure functies met tests, laagste risico van allemaal |
 
+### Dezelfde ranglijst in gewone taal
+
+Voor iedereen die de code niet kent: dezelfde 56 onderwerpen, zonder bestandsnamen. Zelfde volgorde,
+zelfde nummers. Wie wil weten wat er precies onderzocht wordt, leest de vijf vragen bij het onderdeel
+zelf.
+
+| Prio | Onderwerp | Waar het over gaat |
+|---|---|---|
+| 1 | Meten we echt wat een AI antwoordt? | We stellen dertig vragen aan een AI en kijken of het merk genoemd wordt. Bijna al het geld gaat hierin zitten, en we hebben nooit naast elkaar gelegd of onze nabootsing klopt met wat ChatGPT die dag echt zegt |
+| 2 | Van dertig antwoorden naar één cijfer | De rekensom die het rapportcijfer maakt is nooit als geheel getest, alleen in losse stukjes |
+| 3 | Vragen die dit bedrijf nooit kan winnen | Een lokaal bedrijf moet alleen op vragen uit zijn eigen regio worden afgerekend. Gaat dat mis, dan is het cijfer niet te laag maar gewoon onwaar |
+| 4 | De tekst die de klant publiceert | Het duurste onderdeel van de app. Levert de tweede schrijfronde echt een betere tekst op, en klinkt die tekst als het merk zelf? |
+| 5 | Werk dat stilvalt zonder dat iemand het merkt | Als een stap in de keten mislukt, moet de rest doorlopen of luid klagen. Eén keer gebeurde geen van beide |
+| 6 | De rem op alles wat geld kost | Twaalf knoppen in de app geven geld uit. Elf worden bewaakt door een automatische controle, één niet |
+| 7 | De kwaliteitscontrole op teksten | Twee controles bepalen of een tekst goed genoeg is. Meten die de juiste dingen, en wie beslist dat? |
+| 8 | Wie mag welke gegevens zien | De ene klant mag nooit iets van de andere zien. Hier is al een keer een fout gevonden |
+| 9 | Het vangnet dat fouten tegenhoudt | Bijna 2.000 automatische controles, maar juist rond het hoofdcijfer zit een gat |
+| 10 | Het klantgesprek waarin het profiel af komt | Het scherm waarop de consultant samen met de klant het merkprofiel afmaakt. Het hart van hoe we verkopen |
+| 11 | Hoeveel werk de motor per uur aankan | Bepaalt hoeveel klanten er tegelijk bij kunnen zonder dat het gaat schuiven |
+| 12 | Bewijzen dat een pagina iets oplevert | Ons bewijs dat het werkt. Er staat op dit moment één gemeten resultaat tegenover 35 geschreven pagina's |
+| 13 | Het enige dat de app zelf begint | Elke nacht kiest de app zelf welke pagina's geschreven worden. Dat is de eerste stap richting de visie |
+| 14 | De dertig vragen die we stellen | Die vragen bepalen alles wat er daarna gemeten wordt. Lijken ze op wat klanten écht aan een AI vragen? |
+| 15 | Van tekst naar een pagina op de site | De klant krijgt een bestand en moet zelf plakken. De merkstrategie belooft publiceren, dat bestaat nog niet |
+| 16 | Wat de app zelf over een bedrijf uitzoekt | De vier onderzoeksstappen die het merkprofiel vullen, inclusief het veld waar punt 3 aan hangt |
+| 17 | Het rapport dat de klant leest | Er zit een controle in die verzonnen merknamen uit het rapport haalt. Hoeveel haalt hij eruit, en waarom? |
+| 18 | De feiten waarbinnen geschreven mag worden | De app mag alleen schrijven wat bevestigd is. Klanten leveren nu nul brondocumenten aan |
+| 19 | Herkennen we merken goed? | "Coolblue" en "coolblue.nl" moeten hetzelfde bedrijf zijn. Eén verkeerde koppeling vervuilt alle cijfers |
+| 20 | Wat er gebeurt als de AI hapert | Een trage of weigerende AI mag geen halve meting opleveren |
+| 21 | Wat weet AI nu al over dit merk? | De nulmeting bij de start. Duur, nieuw, en het oordeel moet uit code komen en niet uit de AI zelf |
+| 22 | Slapende merken die toch geld kosten | Een merk dat niemand meer bekijkt, moet ook geen maandelijkse meting meer krijgen |
+| 23 | Voorkomen dat de AI iets verzint in een vakje | De AI vult bij twijfel het eerste beste antwoord in. Dat is één keer tien van de 27 keer misgegaan |
+| 24 | De takenlijst van de app | 24 soorten werk in één rij. Werkt, maar niemand kan hem vandaag inzien als er iets vastloopt |
+| 25 | Waar valt het meeste te winnen? | Het cijfer dat de volgorde van het contentplan bepaalt. Nooit achteraf getoetst of die volgorde klopte |
+| 26 | De vragen die we de klant stellen | Voor er geschreven wordt, stelt de app maximaal acht vragen. Hier valt het werk stil als de klant niet antwoordt |
+| 27 | Het scherm waar de klant zijn profiel corrigeert | 41 velden om na te lopen. Welke laat iedereen leeg, en wat verliezen we daardoor? |
+| 28 | Het startscherm van de klant | Moet twee vragen beantwoorden: hoe sta ik ervoor, en wat moet ik nu doen |
+| 29 | Wat een klant ons per maand kost | We schatten de kosten uit tarieven in code, we lezen ze niet van de factuur |
+| 30 | De koppeling met Google-zoekcijfers | De tweede databron naast onze eigen meting. Weinig merken zijn gekoppeld |
+| 31 | De website uitlezen | Gratis en snel, en de basis onder al het onderzoek. Werkt niet bij sites die alles pas in de browser opbouwen |
+| 32 | Het contentplan voor twaalf maanden | 264 geplande pagina's tegenover 35 geschreven. Loopt het plan te ver voor de uitvoering uit? |
+| 33 | Bureaus met meerdere merken | De laag boven het merk. De visie leunt hierop, de app gebruikt hem nog nauwelijks |
+| 34 | De opbouw van de database | Er verdwijnt nooit iets vanzelf. Twee dode tabellen staan er nog |
+| 35 | De opbrengst laten zien | Het blok dat vertelt wat het abonnement opleverde. Bepaalt of een klant verlengt |
+| 36 | Hoe de app zijn gegevens ophaalt | Werkt, maar haalt op 116 plekken alles op terwijl het scherm maar een deel gebruikt |
+| 37 | Het scherm per onderwerp | Drie verschillende manieren om "er wordt gewerkt" te tonen, voor één begrip |
+| 38 | Mag AI de site van de klant lezen? | Staat de site dicht voor AI-crawlers, dan is al het andere werk zinloos. Wordt maar één keer gecontroleerd |
+| 39 | Het merkdossier samenstellen | De duurste stap van de onboarding. Nooit vergeleken met een goedkopere variant |
+| 40 | Welk AI-model waarvoor | Drie keuzes vast in code. De denkkracht staat bewust laag, en dat is nooit opnieuw gemeten |
+| 41 | Het beheerpaneel en klanten verwijderen | Waar wij zien hoe klanten ervoor staan. Verwijderen raakt 39 tabellen tegelijk |
+| 42 | De grafiek met het verloop | Toont de beweging over de maanden. Laat hij ruis als beweging zien? |
+| 43 | De koppeling tussen database en code | Wordt met de hand bijgehouden, terwijl het ook automatisch kan |
+| 44 | Het programma dat websites ophaalt | Onze voordeur naar het open web. Zonder snelheidsrem, en zonder controle op vijandige pagina's |
+| 45 | De vormgeving van de app | Het ontwerp is van een concurrent afgeleid en botst met de merkstrategie. Dat besluit staat nog open |
+| 46 | Hoe een klant toegang krijgt | Uitnodigingen zijn de enige deur naar binnen, want registreren staat dicht |
+| 47 | De klokken die het werk starten | Vier automatische starters op twee platformen. Eén ervan kan stil stoppen zonder foutmelding |
+| 48 | Aanwezigheid op andere websites | We brengen 75 relevante websites in kaart, en er is nog geen enkele actie op opgevolgd |
+| 49 | De statussen in het contentplan | Het grootste schermbestand van de app, met beperkt risico |
+| 50 | Het menu | Net herzien, dus hier valt weinig nieuws te halen |
+| 51 | De tweede AI-aanbieder | Google's Gemini is aangesloten maar staat uit. Pas urgent als hij aan gaat |
+| 52 | De zijbalk en de schil eromheen | Net herzien op 17 augustus |
+| 53 | De instellingen van de omgeving | Werkt. Wat er te winnen is, is netheid |
+| 54 | Inloggen en wachtwoorden | Standaardwerk, en registreren staat toch dicht |
+| 55 | Het frame waar de app in draait | Het framework doet het werk, wij hebben er weinig eigen logica in |
+| 56 | Datums, getallen en opmaak | Kleine functies met tests eromheen. Het laagste risico van allemaal |
+
 ### Hoe je dit gebruikt
 
 **Eerste ronde: 1 tot en met 5.** Die vijf gaan samen over één vraag: klopt wat we meten, en gebeurt het
