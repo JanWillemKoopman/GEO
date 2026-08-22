@@ -13,6 +13,11 @@ Onderzoek is het doel, uitvoering niet.
 
 **Onderdeel van deze sessie: $ARGUMENTS**
 
+**Is de vraag niet "wat kan hier beter" maar "wat zou hier kunnen bestaan dat er nog niet is", dan
+is dit de verkeerde sessie.** Zeg dat in één zin en stel de skill `innovation-session` voor: die
+begint met een nulmeting, laat daarna vier tot zes denkers breed ideeën bedenken zonder kritiek, en
+eindigt met een implementatieplan in `docs/tasks/`.
+
 ## De harde regel
 
 **Deze sessie wijzigt niets.** Geen bestanden, geen migraties, geen commits, geen refactors, ook

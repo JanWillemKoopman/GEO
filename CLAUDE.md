@@ -137,6 +137,14 @@ CLI. Werk daarna de index in `supabase/README.md` bij.
 geprioriteerde verbeteringen. Een Teamsessie wijzigt nooit code; wat je daarna laat bouwen is een
 nieuwe opdracht.
 
+**Breed nadenken over wat er nog niet is: zeg "start een Innovatiesessie voor [onderwerp]".** De
+skill `.claude/skills/innovation-session/` beschrijft eerst de huidige situatie in zeven blokken,
+laat daarna vier tot zes denkers (innovator, AI-innovator, strateeg, investeerder, klantstem) elk
+vanuit een andere prikkel vijf ideeën bedenken zonder een woord kritiek, en legt acht tot twaalf
+genummerde ideeën voor. Jij kiest de richting, één tot twee keer, en pas daarna volgt de
+tegenspraak en een implementatieplan in `docs/tasks/`. Het verschil met een Teamsessie: die vraagt
+wat er beter kan aan wat er staat, een Innovatiesessie vraagt wat er zou kunnen bestaan.
+
 ## Code-conventies
 
 Deze zijn over acht bouwrondes consequent toegepast. Houd ze aan.

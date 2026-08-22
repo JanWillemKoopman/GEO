@@ -3687,3 +3687,61 @@ vangen.
 zonder cijfer is een mening. Zie sprint 7 in `tasks/ontwikkelplan-visie.md`.
 
 Na deze ronde: migraties t/m `0061`, 1819 unittests en 211 ketentests groen.
+
+## 22 augustus 2026 · De Innovatiesessie: eerst de nulmeting, dan pas ideeën, en geen woord kritiek tussendoor
+
+De Teamsessie werkt, maar hij levert één soort antwoord: gerichte verbeteringen aan wat er staat.
+Dat is precies waarvoor hij gebouwd is, en het is niet wat je nodig hebt als de vraag is wat er zou
+kunnen bestaan dat er nog niet is. Daarvoor is er nu een tweede werkwijze,
+`.claude/skills/innovation-session/`: je zegt "start een Innovatiesessie voor de effectmeting" en de
+sessie beschrijft eerst de huidige situatie, laat daarna vier tot zes denkers breed ideeën bedenken,
+legt acht tot twaalf genummerde ideeën voor, en schrijft pas na jouw keuze een implementatieplan in
+`docs/tasks/`.
+
+**Vijf denkers erbij, en één van hen mag naar buiten kijken.** `innovator`, `ai-innovator`,
+`strateeg`, `investeerder` en `klantstem` staan naast de elf vakexperts in `.claude/agents/`. De
+`ai-innovator` is de enige agent van het hele project met `WebSearch` en `WebFetch`, en dat is een
+bewuste breuk met de leesrechten van de Teamsessie: een panel dat uitsluitend de eigen codebase
+leest kan hooguit herschikken wat er al is. Hij mag hooguit drie keer zoeken, en een modelnaam of
+prijs die hij niet kan verifiëren schrijft hij op als "te verifiëren" in plaats van hem te
+verzinnen.
+
+**Vier keuzes, en waarom ze zo uitvielen.**
+
+1. **Elke denker krijgt een andere prikkel.** Dit is de kern van het ontwerp. Vijf experts die
+   dezelfde vraag krijgen leveren vijf varianten van hetzelfde antwoord, en dat antwoord is bijna
+   altijd een extra grafiek of een duidelijkere knop. `references/prikkels.md` heeft er twaalf, van
+   "het scherm bestaat niet meer" tot "de concurrent geeft het gratis weg", en er mag er geen twee
+   keer een in dezelfde sessie. De prikkel is geen mening, het is een verplicht ander vertrekpunt.
+2. **Kritiek is verboden tijdens het bedenken.** Niet uitgesteld, verboden, en het staat in de
+   opdracht van elke denker én in de skill. Reden: nuttig willen zijn is de standaardneiging van een
+   model, en een idee dat meteen zijn eigen bezwaren meekrijgt komt nooit voorbij het redelijke. De
+   tegenspraak staat in fase 5 en die is dan ook hard: de `devil-advocate` krijgt boven op zijn acht
+   vaste vragen één extra, namelijk welk vastgelegd besluit uit dit logboek het idee terugdraait en
+   of dat met opzet gebeurt.
+3. **De nulmeting is verplicht en gaat altijd vooraf.** Zeven blokken: wat het doet, hoe het werkt,
+   wie het gebruikt, wat het kost, wat er al over besloten is, waar het vastloopt, en wat er níet
+   is. Dat zevende blok is het belangrijkste en het eerste dat je overslaat. Blok vijf voorkomt dat
+   een sessie iets herontdekt dat hier ooit met cijfers is afgeschoten.
+4. **Twee stuurmomenten, en daar stopt de sessie echt.** Na de ideeënlijst kiest de eigenaar één tot
+   drie nummers, na de uitwerking kiest hij het plan. Zonder die harde stops schrijft een model door
+   naar het antwoord dat het zelf het beste vindt, en dan is het geen creatieve sessie meer maar een
+   advies met extra stappen. Hooguit twee ideerondes: daarna komen er geen nieuwe ideeën meer bij,
+   alleen varianten.
+
+**Wat er hergebruikt wordt in plaats van verdubbeld.** De vindplaatsen komen uit dezelfde
+`references/onderdeelkaart.md` als de Teamsessie, de bestanden worden één keer opgezocht en aan
+iedereen meegegeven, en hooguit twee denkers draaien op het dure model. Dat was bij de Teamsessie de
+grootste kostenpost en hier geldt hetzelfde.
+
+**Eén ding is nieuw en het is de reden dat de sessie bestaat.**
+`references/bouwbaar.md` zet per gereedschap in de derde kolom wat er nauwelijks mee gedaan wordt.
+Daar staat bijvoorbeeld dat elke AI-aanroep zijn volledige ruwe JSON bewaart (conventie 8) en dat er
+vrijwel niets uit teruggelezen wordt, terwijl dat een groeiende dataset is over echte AI-antwoorden
+per branche en per week die alleen wij hebben. De kaart is dus geen filter dat ideeën afkeurt maar
+een bron die ze opwekt, en dat is precies het verschil tussen "wat mag" en "wat kan".
+
+Een Innovatiesessie wijzigt geen code. De bewerktools zijn weggehaald, net als bij de Teamsessie, en
+er wordt precies één bestand geschreven: het plan in `docs/tasks/`, in fase 6, volgens
+`references/planvorm.md`, met per stap de bestanden, het migratienummer, het vangnet in code en een
+verificatiecriterium dat buiten de code ligt. Committen is een volgende opdracht.
