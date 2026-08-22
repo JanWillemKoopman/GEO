@@ -1,0 +1,829 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mijn reputatie · ORBIT ENGINE</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap">
+
+<style>
+  /* ═══════════════════════════════════════════════════════════════════
+     Tokens: overgenomen uit app/globals.css, gelijk aan
+     ontwikkelplan_naar_eindproduct.html zodat beide plannen als één
+     document lezen.
+     ═══════════════════════════════════════════════════════════════════ */
+  :root {
+    --bg-base: #f8fafc;
+    --bg-surface: #ffffff;
+    --bg-elevated: #e7edf2;
+    --bg-sunken: #eef2f6;
+
+    --text-primary: #17212b;
+    --text-secondary: #43505d;
+    --text-muted: #788795;
+
+    --border-subtle: #e2e8ee;
+    --border-strong: #c2ccd6;
+
+    --accent: #8511d9;
+    --accent-soft: #faf4ff;
+    --accent-border: #e9d1ff;
+
+    --growth-text: #2c711a;
+    --growth-surface: #effce9;
+    --growth-border: #b9efa3;
+
+    --warning-text: #bb4d00;
+    --warning-surface: #fffbeb;
+    --warning-border: #fee685;
+
+    --danger-text: #b42318;
+    --danger-surface: #fef3f2;
+    --danger-border: #fecdc9;
+
+    --info-text: #0069a8;
+    --info-surface: #f0f9ff;
+    --info-border: #b8e6fe;
+
+    --radius-sm: 6px;
+    --radius-md: 8px;
+    --radius-lg: 12px;
+    --radius-pill: 9999px;
+
+    --font-sans: "Geist", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    --font-mono: "Geist Mono", ui-monospace, SFMono-Regular, monospace;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg-base: #0e141a;
+      --bg-surface: #17212b;
+      --bg-elevated: #1f2b36;
+      --bg-sunken: #131c24;
+
+      --text-primary: #e9eff4;
+      --text-secondary: #b3c0cc;
+      --text-muted: #8494a1;
+
+      --border-subtle: #263340;
+      --border-strong: #3a4a58;
+
+      --accent: #c084fc;
+      --accent-soft: #241333;
+      --accent-border: #4c2a6b;
+
+      --growth-text: #a3e585;
+      --growth-surface: #142510;
+      --growth-border: #2f5b1f;
+
+      --warning-text: #f0b24a;
+      --warning-surface: #2a1d0a;
+      --warning-border: #5c4116;
+
+      --danger-text: #f5a29b;
+      --danger-surface: #2b1210;
+      --danger-border: #5e2723;
+
+      --info-text: #7cc7f5;
+      --info-surface: #0c2029;
+      --info-border: #1e4b63;
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --bg-base: #0e141a;
+    --bg-surface: #17212b;
+    --bg-elevated: #1f2b36;
+    --bg-sunken: #131c24;
+
+    --text-primary: #e9eff4;
+    --text-secondary: #b3c0cc;
+    --text-muted: #8494a1;
+
+    --border-subtle: #263340;
+    --border-strong: #3a4a58;
+
+    --accent: #c084fc;
+    --accent-soft: #241333;
+    --accent-border: #4c2a6b;
+
+    --growth-text: #a3e585;
+    --growth-surface: #142510;
+    --growth-border: #2f5b1f;
+
+    --warning-text: #f0b24a;
+    --warning-surface: #2a1d0a;
+    --warning-border: #5c4116;
+
+    --danger-text: #f5a29b;
+    --danger-surface: #2b1210;
+    --danger-border: #5e2723;
+
+    --info-text: #7cc7f5;
+    --info-surface: #0c2029;
+    --info-border: #1e4b63;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--bg-base);
+    color: var(--text-primary);
+    font-family: var(--font-sans);
+    font-size: 16px;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .wrap { max-width: 1060px; margin: 0 auto; padding: 0 24px 96px; }
+  .col { max-width: 68ch; }
+
+  h1, h2, h3, h4 { text-wrap: balance; margin: 0; font-weight: 600; letter-spacing: -0.015em; }
+  h1 { font-size: clamp(28px, 4.5vw, 40px); line-height: 1.15; font-weight: 700; }
+  h2 { font-size: clamp(21px, 2.6vw, 26px); line-height: 1.25; }
+  h3 { font-size: 17px; line-height: 1.35; }
+  h4 { font-size: 14px; line-height: 1.4; }
+  p { margin: 0; }
+  a { color: var(--accent); text-decoration-thickness: 1px; text-underline-offset: 2px; }
+  strong { font-weight: 600; }
+  code {
+    font-family: var(--font-mono);
+    font-size: 0.88em;
+    background: var(--bg-elevated);
+    border-radius: var(--radius-sm);
+    padding: 1px 5px;
+  }
+  ul, ol { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 7px; }
+  li { color: var(--text-secondary); }
+  li strong { color: var(--text-primary); }
+
+  .eyebrow {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--text-muted);
+  }
+  .lead { font-size: 18px; color: var(--text-secondary); }
+  .muted { color: var(--text-secondary); }
+  .small { font-size: 14px; }
+
+  section { display: flex; flex-direction: column; gap: 20px; padding-top: 56px; }
+  section > .col { display: flex; flex-direction: column; gap: 14px; }
+  .stack { display: flex; flex-direction: column; gap: 14px; }
+
+  header.page {
+    border-bottom: 1px solid var(--border-subtle);
+    padding: 56px 0 40px;
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+  }
+  .meta {
+    display: flex; flex-wrap: wrap; gap: 8px 20px;
+    font-family: var(--font-mono); font-size: 12px; color: var(--text-muted);
+  }
+
+  .stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 1px;
+    background: var(--border-subtle);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+  }
+  .stat { background: var(--bg-surface); padding: 16px 18px; display: flex; flex-direction: column; gap: 4px; }
+  .stat b { font-size: 22px; font-weight: 600; font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
+  .stat span { font-size: 13px; color: var(--text-muted); line-height: 1.35; }
+
+  .table-wrap { overflow-x: auto; border: 1px solid var(--border-subtle); border-radius: var(--radius-lg); background: var(--bg-surface); }
+  table { border-collapse: collapse; width: 100%; font-size: 14.5px; min-width: 560px; }
+  thead th {
+    background: var(--bg-elevated); text-align: left; font-weight: 600; font-size: 12px;
+    text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-secondary);
+    padding: 10px 14px; white-space: nowrap;
+  }
+  tbody td { padding: 11px 14px; border-top: 1px solid var(--border-subtle); vertical-align: top; color: var(--text-secondary); }
+  tbody td:first-child { color: var(--text-primary); }
+  tbody tr:hover td { background: var(--bg-sunken); }
+  td.num { font-family: var(--font-mono); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  td.key { white-space: nowrap; font-weight: 600; }
+
+  .chip {
+    display: inline-flex; align-items: center; gap: 5px;
+    border-radius: var(--radius-pill); padding: 2px 10px;
+    font-family: var(--font-mono); font-size: 11px; font-weight: 500; white-space: nowrap;
+    border: 1px solid var(--border-subtle); background: var(--bg-elevated); color: var(--text-secondary);
+  }
+  .chip.accent  { background: var(--accent-soft);  border-color: var(--accent-border);  color: var(--accent); }
+  .chip.growth  { background: var(--growth-surface);  border-color: var(--growth-border);  color: var(--growth-text); }
+  .chip.warning { background: var(--warning-surface); border-color: var(--warning-border); color: var(--warning-text); }
+  .chip.danger  { background: var(--danger-surface);  border-color: var(--danger-border);  color: var(--danger-text); }
+  .chip.info    { background: var(--info-surface);    border-color: var(--info-border);    color: var(--info-text); }
+
+  .note {
+    border: 1px solid var(--border-subtle);
+    border-left: 3px solid var(--accent);
+    border-radius: var(--radius-md);
+    background: var(--bg-surface);
+    padding: 16px 18px;
+    display: flex; flex-direction: column; gap: 8px;
+  }
+  .note.warn { border-left-color: var(--warning-text); }
+  .note.danger { border-left-color: var(--danger-text); }
+  .note p { color: var(--text-secondary); font-size: 15px; }
+  .note p strong { color: var(--text-primary); }
+  .note h3 { font-size: 15px; }
+
+  .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; }
+  .card {
+    border: 1px solid var(--border-subtle); border-radius: var(--radius-lg);
+    background: var(--bg-surface); padding: 18px 20px;
+    display: flex; flex-direction: column; gap: 8px;
+  }
+  .card .no { font-family: var(--font-mono); font-size: 12px; color: var(--accent); }
+  .card p { font-size: 14.5px; color: var(--text-secondary); }
+
+  /* Het schermmodel: een nagebootste uitsnede van de pagina */
+  .mock {
+    border: 1px solid var(--border-subtle); border-radius: var(--radius-lg);
+    background: var(--bg-surface); overflow: hidden;
+  }
+  .mock-head {
+    padding: 18px 20px; border-bottom: 1px solid var(--border-subtle); background: var(--bg-sunken);
+    display: flex; flex-direction: column; gap: 6px;
+  }
+  .mock-body { padding: 18px 20px; display: flex; flex-direction: column; gap: 16px; }
+  .mock-row { display: flex; flex-wrap: wrap; gap: 10px; align-items: baseline; }
+  .mock-num { font-size: 30px; font-weight: 600; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+  .mock-label { font-family: var(--font-mono); font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-muted); }
+  .mock-line { display: flex; justify-content: space-between; gap: 12px; padding: 9px 0; border-top: 1px solid var(--border-subtle); font-size: 14.5px; }
+  .mock-line span:last-child { color: var(--text-muted); font-family: var(--font-mono); font-size: 12.5px; white-space: nowrap; }
+
+  .steps { display: flex; flex-direction: column; gap: 12px; }
+  .step {
+    border: 1px solid var(--border-subtle); border-radius: var(--radius-lg);
+    background: var(--bg-surface); padding: 18px 20px;
+    display: flex; flex-direction: column; gap: 10px;
+  }
+  .step-head { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+  .step-head .no {
+    font-family: var(--font-mono); font-size: 12px; color: var(--accent);
+    background: var(--accent-soft); border: 1px solid var(--accent-border);
+    border-radius: var(--radius-pill); padding: 2px 9px;
+  }
+  .step p { font-size: 14.5px; color: var(--text-secondary); }
+  .step .check {
+    font-size: 14px; color: var(--text-secondary);
+    background: var(--bg-sunken); border-radius: var(--radius-md); padding: 10px 12px;
+  }
+  .step .check b { color: var(--text-primary); font-weight: 600; }
+
+  footer.page { margin-top: 72px; padding-top: 24px; border-top: 1px solid var(--border-subtle); }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="page">
+  <span class="eyebrow">Productplan · nog niet gebouwd</span>
+  <h1>Mijn reputatie</h1>
+  <p class="lead col">Een nieuw, apart betaald onderdeel van ORBIT ENGINE. Het beantwoordt één vraag
+  die de app vandaag niet kan beantwoorden: <strong>hoe staat deze klant bekend in AI, per dienst,
+  en waar haalt AI dat vandaan?</strong></p>
+  <div class="meta">
+    <span>Opgesteld 22 augustus 2026</span>
+    <span>Analytics · vierde bestemming</span>
+    <span>Techniek: docs/tasks/mijn-reputatie.md</span>
+  </div>
+</header>
+
+<!-- ══ 1. In het kort ══════════════════════════════════════════════════ -->
+<section>
+  <div class="col">
+    <span class="eyebrow">01 · In het kort</span>
+    <h2>Wat je hiervoor terugkrijgt</h2>
+    <p class="muted">De klant drukt niet zelf op de knop. Jij start de analyse, ORBIT ENGINE stelt
+    ongeveer 35 vragen aan ChatGPT over het merk en over elke dienst apart, en levert een scherm op
+    dat zegt hoe er over de klant gepraat wordt en waarop dat oordeel rust.</p>
+  </div>
+
+  <div class="stats">
+    <div class="stat"><b>± 35</b><span>vragen aan ChatGPT, over het merk en per dienst</span></div>
+    <div class="stat"><b>± €0,31</b><span>kostprijs per analyse, standaardmodus</span></div>
+    <div class="stat"><b>4 tot 6 min</b><span>doorlooptijd van start tot scherm</span></div>
+    <div class="stat"><b>€3,00</b><span>hard plafond in de code, ruim boven de kostprijs</span></div>
+  </div>
+
+  <div class="col stack">
+    <p class="muted">Er hoeft niets extra's ingevuld te worden. De analyse gebruikt de
+    <strong>aanbodboom</strong> die tijdens de onboarding al is opgebouwd: de diensten, producten en
+    categorieën van de klant. Daardoor kost dit product nul handmatig werk in de voorbereiding.</p>
+  </div>
+</section>
+
+<!-- ══ 2. Waarom apart ═════════════════════════════════════════════════ -->
+<section>
+  <div class="col">
+    <span class="eyebrow">02 · De reden</span>
+    <h2>De app meet nu drie dingen, en dit is geen van drieën</h2>
+  </div>
+
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Wat er al is</th><th>De vraag die het beantwoordt</th><th>Waar het staat</th></tr></thead>
+      <tbody>
+        <tr><td class="key">De meting</td><td>Word je genoemd als iemand een koopvraag stelt?</td><td>Analytics · Zichtbaarheid in AI</td></tr>
+        <tr><td class="key">De kennistest</td><td>Weet AI wie je bent, en klopt dat?</td><td>Merkprofiel · Merkdossier</td></tr>
+        <tr><td class="key">Het bronnenlandschap</td><td>Welke sites bepalen deze markt, en sta jij erop?</td><td>Analytics · Concurrenten</td></tr>
+        <tr><td class="key"><strong>Mijn reputatie</strong></td><td><strong>Hoe wordt er over je gepraat, en waarom?</strong></td><td><strong>Nieuw</strong></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="col">
+    <p class="muted">Alle drie de bestaande onderdelen gaan over aanwezigheid: sta je er, en klopt
+    wat er staat. Geen van drieën gaat over <strong>toon</strong>. Een merk kan bij elke koopvraag
+    genoemd worden en er tegelijk om bekendstaan dat de levering altijd te laat is. Dat ziet de app
+    vandaag niet, en het is het eerste wat een ondernemer wil weten.</p>
+  </div>
+
+  <div class="note">
+    <h3>Waarom het per dienst moet, en niet alleen per merk</h3>
+    <p>Eén merkbreed oordeel is te grof om iets mee te doen. Een fysiotherapiepraktijk kan uitstekend
+    bekendstaan om sportmassage en tegelijk nergens genoemd worden bij bekkenfysiotherapie. Een
+    installatiebedrijf kan als betrouwbaar gelden voor onderhoud en als duur voor nieuwbouw.
+    <strong>Dat verschil is het advies.</strong></p>
+  </div>
+</section>
+
+<!-- ══ 3. Wat de klant ziet ════════════════════════════════════════════ -->
+<section>
+  <div class="col">
+    <span class="eyebrow">03 · Het scherm</span>
+    <h2>Drie getallen, want één zou liegen</h2>
+    <p class="muted">De verleiding is één reputatiecijfer. Dat werkt niet, en de reden is precies
+    waarom dit product waardevol is.</p>
+  </div>
+
+  <div class="cards">
+    <div class="card">
+      <span class="no">01</span>
+      <h3>Toon</h3>
+      <p>Hoe praat AI over je? Van -100 tot +100, waarbij 0 neutraal is. Weten we het niet, dan staat
+      er geen getal, want onbekend is iets anders dan neutraal.</p>
+    </div>
+    <div class="card">
+      <span class="no">02</span>
+      <h3>Bewijskracht</h3>
+      <p>Waar rust dat oordeel op? 0 tot 100. Een 0 is een echte uitkomst en betekent: AI vult het
+      zelf in, er staat niets onder.</p>
+    </div>
+    <div class="card">
+      <span class="no">03</span>
+      <h3>Eenduidigheid</h3>
+      <p>Krijg je elke keer hetzelfde antwoord? Alleen in de diepe modus, waar dezelfde vraag drie
+      keer gesteld wordt.</p>
+    </div>
+  </div>
+
+  <div class="col">
+    <h3>De combinatie is het product</h3>
+  </div>
+
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Toon</th><th>Bewijs</th><th>Wat er dan staat</th><th>Wat de klant moet doen</th></tr></thead>
+      <tbody>
+        <tr><td class="num">+70</td><td class="num">85</td><td>AI is positief over je, op basis van 340 Google-reviews en de vakpers</td><td>Vasthouden, en die bronnen benoemen in je content</td></tr>
+        <tr><td class="num">+65</td><td class="num">10</td><td>AI is aardig tegen je, maar baseert dat op niets</td><td>Reviews verzamelen. Dit cijfer is lucht</td></tr>
+        <tr><td class="num">-20</td><td class="num">70</td><td>AI noemt levertijd en prijs als bezwaar, met bronnen erbij</td><td>Dit is de agenda voor het volgende kwartaal</td></tr>
+        <tr><td class="num">geen</td><td class="num">0</td><td>AI kent je niet</td><td>Eerst zichtbaarheid, reputatie later</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="note warn">
+    <h3><span class="chip warning">let op</span> Rij twee komt het vaakst voor</h3>
+    <p>Een taalmodel is standaard vriendelijk. Vraag je naar een onbekend bedrijf, dan krijg je een
+    welwillend, inhoudsloos antwoord. Zonder de tweede kolom zou dit product van een onzichtbaar
+    bedrijf een gerustgesteld bedrijf maken. <strong>Toon zonder bewijs is geen reputatie</strong>,
+    en dat is niet alleen een zin op het scherm maar een regel in de code: een antwoord zonder
+    controleerbare bron telt niet mee in het merkcijfer.</p>
+  </div>
+
+  <div class="col">
+    <h3>Zo ziet het eruit</h3>
+    <p class="muted">Een uitsnede van het scherm, met verzonnen cijfers.</p>
+  </div>
+
+  <div class="mock">
+    <div class="mock-head">
+      <span class="mock-label">Analytics · Mijn reputatie</span>
+      <p><strong>ChatGPT praat overwegend positief over dit merk en baseert dat vooral op de eigen
+      website. Er staan drie reviewplatforms tegenover, en op één daarvan sta je niet.</strong></p>
+      <span class="mock-label">ChatGPT · 22 aug 2026 · 35 vragen</span>
+    </div>
+    <div class="mock-body">
+      <div class="mock-row">
+        <div><span class="mock-label">Toon</span><br><span class="mock-num">+41</span></div>
+        <div style="margin-left:32px"><span class="mock-label">Bewijskracht</span><br><span class="mock-num">28</span></div>
+        <div style="margin-left:32px"><span class="mock-label">Eenduidigheid</span><br><span class="mock-num">76</span></div>
+      </div>
+      <div>
+        <span class="mock-label">Per dienst</span>
+        <div class="mock-line"><span>Sportmassage</span><span>+68 · bewijs 74</span></div>
+        <div class="mock-line"><span>Bekkenfysiotherapie</span><span>+12 · bewijs 20</span></div>
+        <div class="mock-line"><span>Dry needling</span><span>geen beeld · bewijs 0</span></div>
+      </div>
+      <div>
+        <span class="mock-label">Waar AI dit vandaan haalt</span>
+        <div class="mock-line"><span>eigen website</span><span>7 keer aangehaald</span></div>
+        <div class="mock-line"><span>zorgkaartnederland.nl <span class="chip growth">bevestigd</span></span><span>8,4 · 62 beoordelingen</span></div>
+        <div class="mock-line"><span>google.com <span class="chip warning">onbevestigd</span></span><span>cijfer niet te controleren</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col stack">
+    <h3>De zeven blokken van boven naar beneden</h3>
+    <ol>
+      <li><strong>De uitspraak.</strong> Eén zin in gewone taal, met de drie getallen eronder.</li>
+      <li><strong>Zonder opzoeken tegenover met opzoeken.</strong> Wat AI uit zichzelf over je zegt,
+      naast wat het zegt als het mag zoeken. Het verschil is het inzicht: is je reputatie afhankelijk
+      van wat er online staat, of zit ze in het model zelf?</li>
+      <li><strong>Waar AI dit vandaan haalt.</strong> De bronnen, gesorteerd op hoe vaak AI ze
+      aanhaalt, met bij reviewplatforms het cijfer en of dat gecontroleerd is.</li>
+      <li><strong>Per product en dienst.</strong> De kern. Eén regel per dienst, het probleem
+      bovenaan, elke regel klapt open naar het letterlijke antwoord van AI.</li>
+      <li><strong>Sterk en kwetsbaar.</strong> Alleen punten die in minstens twee antwoorden
+      terugkomen. Eén keer is toeval, geen patroon.</li>
+      <li><strong>Wat dit niet is.</strong> Eén AI-assistent, één moment, een beperkt aantal vragen.
+      Dit blok verdwijnt nooit.</li>
+      <li><strong>De vervolgstap.</strong> Vandaag één regel die naar jou verwijst. Geen knop die
+      iets belooft wat er niet is.</li>
+    </ol>
+  </div>
+</section>
+
+<!-- ══ 4. De knop ══════════════════════════════════════════════════════ -->
+<section>
+  <div class="col">
+    <span class="eyebrow">04 · Wie start hem</span>
+    <h2>Alleen jij drukt op de knop</h2>
+    <p class="muted">Dat is geen nieuwe regel: sinds besluit 18 start alleen de beheerder werk dat
+    geld kost. De klant ziet de knop wel, want dit is een product dat je wilt verkopen. Hij ziet wat
+    het is, wat het oplevert en bij wie hij moet zijn.</p>
+  </div>
+
+  <div class="note">
+    <h3>Wat de klant leest als hij het toch probeert</h3>
+    <p>"Een reputatieanalyse zet je consultant voor je in gang. Laat weten dat je hem wilt, dan
+    plannen we hem in." Dezelfde toon als de vijf meldingen die er al staan: het is geen deur die
+    dichtslaat, het is werk dat jij in gang zet.</p>
+  </div>
+
+  <div class="col stack">
+    <h3>Zeven staten, want een scherm zonder data moet ook kloppen</h3>
+  </div>
+
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Situatie</th><th>Wat er staat</th></tr></thead>
+      <tbody>
+        <tr><td class="key">Onboarding nog niet af</td><td>Wat er nog ontbreekt, met een link erheen. Geen knop</td></tr>
+        <tr><td class="key">Klaar om te starten, jij</td><td>De knop, met wat het doet, hoe lang het duurt en wat het kost</td></tr>
+        <tr><td class="key">Klaar om te starten, de klant</td><td>Wat het oplevert, plus de melding hierboven</td></tr>
+        <tr><td class="key">Loopt</td><td>Voortgang met resterende tijd en de stap die nu draait</td></tr>
+        <tr><td class="key">Klaar</td><td>De zeven blokken</td></tr>
+        <tr><td class="key">Budget op</td><td>Wat er wel gemeten is, wat is overgeslagen, en het cijfer met die kanttekening</td></tr>
+        <tr><td class="key">Mislukt</td><td>Geen half cijfer. Wat er misging, en opnieuw proberen</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ══ 5. Wat er gevraagd wordt ════════════════════════════════════════ -->
+<section>
+  <div class="col">
+    <span class="eyebrow">05 · De analyse</span>
+    <h2>Wat ORBIT ENGINE precies vraagt</h2>
+    <p class="muted">Vier blokken. De vragen staan hier letterlijk, want dit is waar de kwaliteit van
+    het product vandaan komt.</p>
+  </div>
+
+  <div class="steps">
+    <div class="step">
+      <div class="step-head"><span class="no">A</span><h3>Over het merk</h3><span class="chip">7 vragen</span></div>
+      <ul>
+        <li>Wat weet je over dit merk? Waar staan ze om bekend? <span class="chip">zonder zoeken</span></li>
+        <li>Dezelfde vraag, maar nu mag AI het internet op <span class="chip info">met zoeken</span></li>
+        <li>Wat zeggen klanten over dit merk? Noem concrete ervaringen en waar die staan</li>
+        <li><strong>Wat zijn de nadelen? Waar zijn klanten ontevreden over?</strong> <span class="chip danger">de belangrijkste vraag</span></li>
+        <li>Is dit merk betrouwbaar om zaken mee te doen? Waarom wel of niet?</li>
+        <li>Dit merk of die concurrent: welke zou je aanraden, en waarom? (twee keer, met twee concurrenten)</li>
+      </ul>
+      <p class="check">Elke vraag krijgt mee om welk bedrijf het gaat, in welke plaats, en met welke
+      gelijknamige bedrijven het <b>niet</b> verward mag worden. Zonder dat meet je bij een merk als
+      Van der Valk de reputatie van vijftig anderen mee.</p>
+    </div>
+
+    <div class="step">
+      <div class="step-head"><span class="no">B</span><h3>Per dienst of product</h3><span class="chip">tot 12 diensten</span></div>
+      <ul>
+        <li>Wat is de reputatie van dit merk op het gebied van deze dienst? Wat zeggen klanten
+        daarover, en waar staat dat?</li>
+      </ul>
+      <p class="check">Welke diensten meegaan, kiest ORBIT ENGINE zelf: eerst wat jij als prioriteit
+      invulde, dan de diensten waar een goedgekeurd onderwerp naar wijst, dan de rest.
+      <b>Nooit</b> gewoon de eerste twaalf van de lijst, want die volgorde komt van de website en zet
+      juist de algemeenste diensten bovenaan.</p>
+    </div>
+
+    <div class="step">
+      <div class="step-head"><span class="no">C</span><h3>De bronnen</h3><span class="chip">2 vragen plus controle</span></div>
+      <ul>
+        <li>Welke beoordelingen en reviews staan er online over dit merk? Noem per platform de naam,
+        het adres, het cijfer en het aantal beoordelingen</li>
+        <li>Op welke onafhankelijke websites, vakmedia of vergelijkers wordt dit merk genoemd?</li>
+        <li>Alle adressen die AI in álle antwoorden aanhaalde, geteld en gegroepeerd. Kost niets</li>
+      </ul>
+      <p class="check">Daarna gaat ORBIT ENGINE de gevonden reviewpagina's zelf ophalen om het cijfer
+      te controleren. Lukt dat, dan staat er <b>bevestigd</b> bij. Lukt het niet, dan
+      <b>onbevestigd</b>, en dat staat er ook zo. Een cijfer uit een AI-antwoord is een gok tot het
+      bewezen is.</p>
+    </div>
+
+    <div class="step">
+      <div class="step-head"><span class="no">D</span><h3>De samenvatting</h3><span class="chip">1 vraag</span></div>
+      <ul>
+        <li>Eén aanroep die van alles wat hierboven verzameld is de uitleg schrijft, in de huisstijl
+        van de app</li>
+      </ul>
+      <p class="check">De cijfers zijn dan al berekend en gaan als gegeven mee. <b>De AI schrijft de
+      uitleg, hij bepaalt de uitkomst niet.</b> Zou je dat omdraaien, dan verschilt het cijfer per
+      keer dat je het vraagt en is geen enkele vergelijking over de tijd nog iets waard.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ══ 6. Wat eerst gezegd moet worden ═════════════════════════════════ -->
+<section>
+  <div class="col">
+    <span class="eyebrow">06 · Eerlijk vooraf</span>
+    <h2>Vier dingen die eerst gezegd moeten worden</h2>
+    <p class="muted">Drie gaan over aannames in de opdracht die niet helemaal kloppen. De vierde is
+    een besluit dat jij moet nemen voordat er iets gebouwd wordt.</p>
+  </div>
+
+  <div class="note danger">
+    <h3><span class="chip danger">01</span> Sentiment is hier al eens gemeten, en het leverde niets op</h3>
+    <p>Tot juli 2026 mat elke meting het sentiment per vermelding. Uitkomst na <strong>650 gemeten
+    regels</strong>: negatief kwam <strong>geen enkele keer</strong> voor. Het veld is toen vervangen
+    door "hoe prominent word je genoemd", precies omdat sentiment niets zei.</p>
+    <p><strong>Waarom het nu wel werkt.</strong> Die 650 metingen waren geen sentimentmetingen. Het
+    waren antwoorden op koopvragen, en daarin somt een assistent bedrijven neutraal op. Er zit geen
+    oordeel in, dus valt er geen oordeel uit te lezen. Dit product vraagt er rechtstreeks naar, en
+    vraagt bewust ook naar de andere kant: waar zijn klanten ontevreden over?</p>
+    <p><strong>En als het tóch vlak blijkt?</strong> Dan zeggen we dat, in plaats van variatie te
+    verzinnen. Daar is de tweede kolom bewijskracht voor, en daar is de proef in sprint 4 voor:
+    één analyse draaien op een merk waarvan je wéét dat er kritiek online staat. Vindt ORBIT ENGINE
+    die niet, dan gaat de rest van de bouw niet door en wordt de opzet herzien.</p>
+  </div>
+
+  <div class="note warn">
+    <h3><span class="chip warning">02</span> "Zoek op Google reviews" kan niet zoals het klinkt</h3>
+    <p>Google heeft geen open toegang tot reviews van willekeurige bedrijven, en de app heeft geen
+    Google-sleutel. Wat wél kan: AI laten zoeken (dat vindt in de praktijk Google, Trustpilot,
+    Klantenvertellen, Zorgkaart Nederland en de branchespecifieke platforms), en het gevonden cijfer
+    daarna zelf controleren door de pagina op te halen.</p>
+    <p><strong>Wat je niet krijgt:</strong> de tekst van individuele reviews. Wat we meten is wat AI
+    over die reviews zegt, plus het cijfer waar dat op rust. Dat is precies de vraag uit de opdracht,
+    maar het is niet hetzelfde als een reviewanalyse. Een echte koppeling met Google Business Profile
+    kan later, en hoort dan optioneel te zijn: zonder sleutel gedraagt de app zich exact zoals nu.</p>
+  </div>
+
+  <div class="note">
+    <h3><span class="chip accent">03</span> De €3 wordt bij lange na niet opgemaakt</h3>
+    <p>Nagerekend landt de volledige analyse op ongeveer <strong>€0,31</strong>. Die ruimte gebruiken
+    we niet door duurder te doen, maar door dieper te kijken. Vandaar twee dieptes, die jij kiest bij
+    het starten.</p>
+  </div>
+
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Diepte</th><th>Diensten</th><th>Herhalingen</th><th>Vragen</th><th>Kosten</th></tr></thead>
+      <tbody>
+        <tr><td class="key">Standaard</td><td class="num">tot 12</td><td class="num">1</td><td class="num">± 35</td><td class="num">± €0,31</td></tr>
+        <tr><td class="key">Diep</td><td class="num">tot 25</td><td class="num">2 tot 3</td><td class="num">± 95</td><td class="num">± €0,96</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="col">
+    <p class="muted small">Het plafond van €3 blijft hard in de code staan als rem, niet als doel.
+    Loopt het toch vol, dan wordt de rest overgeslagen <strong>en staat dat op het scherm</strong>.
+    Nooit stil een half cijfer tonen alsof er niets aan de hand was.</p>
+  </div>
+
+  <div class="note warn">
+    <h3><span class="chip warning">04</span> Er ligt een besluit voor je klaar</h3>
+    <p>De zijbalk kent een harde regel: elk hoofdstuk heeft <strong>hooguit drie</strong>
+    bestemmingen. Analytics zit vol met Zichtbaarheid, Zoekverkeer en Concurrenten. Er is een test
+    die faalt zodra er een vierde bij komt, dus dit moet bewust.</p>
+  </div>
+
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Keuze</th><th>Wat je doet</th><th>Wat het kost</th></tr></thead>
+      <tbody>
+        <tr><td class="key">A <span class="chip growth">aanbevolen</span></td><td>Analytics naar vier bestemmingen, met een uitgeschreven reden</td><td>De regel wordt zachter. De volgende uitzondering is makkelijker</td></tr>
+        <tr><td class="key">B</td><td>Concurrenten opnemen in Zichtbaarheid, Analytics blijft op drie</td><td>Een lang scherm wordt langer. Een bestaand adres verhuist</td></tr>
+        <tr><td class="key">C</td><td>Een eigen hoofdstuk Reputatie in de zijbalk</td><td>Zes koppen voor één bestemming. Precies de vergaarbak die eerder is opgeruimd</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="col">
+    <p class="muted">De reden om voor A te kiezen is dezelfde soort als bij Admin, dat sinds
+    19 augustus vier bestemmingen mag: geen vergaarbak, maar iets van een andere orde. De andere drie
+    tonen data die de app sowieso al verzamelt, <strong>deze is een los product dat de klant apart
+    koopt</strong>. Drie plus een product, zoals Admin drie plus een uitgang is. Wel met dit gevolg:
+    een vijfde bestaat dan echt niet meer zonder eerst iets samen te voegen.</p>
+  </div>
+</section>
+
+<!-- ══ 7. De bouw ══════════════════════════════════════════════════════ -->
+<section>
+  <div class="col">
+    <span class="eyebrow">07 · De bouw</span>
+    <h2>Vijf sprints</h2>
+    <p class="muted">Elke sprint eindigt pas als de vier vaste controles groen zijn. Per sprint staat
+    er waaraan je ziet dat hij klaar is.</p>
+  </div>
+
+  <div class="steps">
+    <div class="step">
+      <div class="step-head"><span class="no">R1</span><h3>Het fundament, zonder één AI-aanroep</h3></div>
+      <p>De database-uitbreiding, plus de rekenkunde: welke diensten gaan mee, hoe komen de drie
+      getallen tot stand, en waar zit het plafond van €3.</p>
+      <p class="check"><b>Klaar als:</b> de tests aantonen dat een lijst van 60 diensten tot de twaalf
+      juiste wordt teruggebracht, dat een antwoord zonder bron niet meetelt, en dat een analyse zonder
+      bruikbaar antwoord geen cijfer oplevert in plaats van een 0.</p>
+    </div>
+    <div class="step">
+      <div class="step-head"><span class="no">R2</span><h3>De analyse zelf</h3></div>
+      <p>De vier blokken vragen, de beoordelingslaag die de antwoorden omzet in een oordeel, en de
+      vijf taken in de wachtrij die op elkaar wachten.</p>
+      <p class="check"><b>Klaar als:</b> een test de hele keten van start tot samenvatting doorloopt
+      tegen een echte database, twee keer starten één analyse oplevert, en een vol budget de analyse
+      netjes afsluit met een notitie in plaats van halverwege te stoppen.</p>
+    </div>
+    <div class="step">
+      <div class="step-head"><span class="no">R3</span><h3>Het scherm</h3></div>
+      <p>De pagina met de zeven blokken, de knop, de melding voor de klant, en de zijbalk na jouw
+      besluit uit blok 06.</p>
+      <p class="check"><b>Klaar als:</b> alle zeven staten met de hand na te lopen zijn op een echt
+      merk, en iemand zonder beheerdersrechten de analyse ook via een omweg niet kan starten.</p>
+    </div>
+    <div class="step">
+      <div class="step-head"><span class="no">R4</span><h3>Nagerekend op productie</h3><span class="chip warning">de beslissende sprint</span></div>
+      <p>Eén echte analyse op een echt merk. De kosten narekenen tegen de schatting. Bij minstens tien
+      antwoorden met de hand controleren of het oordeel klopt met wat er staat. En de proef uit blok
+      06: draait er variatie uit bij een merk waar kritiek over bestaat?</p>
+      <p class="check"><b>Klaar als:</b> er een notitie in het logboek staat met de gemeten kosten, de
+      gemeten doorlooptijd en de uitkomst van die proef. <b>Valt de proef verkeerd uit, dan gaat R5
+      niet door en wordt de opzet herzien.</b></p>
+    </div>
+    <div class="step">
+      <div class="step-head"><span class="no">R5</span><h3>De diepe modus en de herhaling</h3></div>
+      <p>De keuze tussen standaard en diep, het eenduidigheidscijfer, en een tweede analyse naast de
+      eerste met het verschil erbij.</p>
+      <p class="check"><b>Klaar als:</b> twee analyses op hetzelfde merk een verschil laten zien, en
+      het scherm zelf zegt of dat verschil betekenisvol is of binnen de ruis valt.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ══ 8. Verkoop ══════════════════════════════════════════════════════ -->
+<section>
+  <div class="col">
+    <span class="eyebrow">08 · Verkoop</span>
+    <h2>Wat het kost en wat je ervoor vraagt</h2>
+  </div>
+
+  <div class="stats">
+    <div class="stat"><b>€0,31</b><span>kostprijs standaard</span></div>
+    <div class="stat"><b>€0,96</b><span>kostprijs diep, uitschieter tot €1,40</span></div>
+    <div class="stat"><b>€3,00</b><span>plafond in de code</span></div>
+    <div class="stat"><b>?</b><span>verkoopprijs, jouw besluit</span></div>
+  </div>
+
+  <div class="col stack">
+    <p class="muted">De kostprijs is niet wat dit product waard is. Wat je verkoopt is het uur waarin
+    je de uitkomst bespreekt, en het feit dat niemand anders in Nederland dit cijfer kan leveren.</p>
+    <p class="muted"><strong>Suggestie, geen besluit:</strong> een losse Reputatiescan tussen €295 en
+    €495, inclusief het gesprek waarin je hem doorneemt. Of als vast onderdeel van de instap, waarmee
+    het demogesprek een cijfer krijgt in plaats van een belofte.</p>
+  </div>
+
+  <div class="note">
+    <h3>Waarom dit de scherpste demo is die je hebt</h3>
+    <p>De onboarding laat zien wat ORBIT ENGINE <strong>weet</strong>. De reputatiescan laat zien wat
+    het internet over de klant <strong>zegt</strong>, en dat tweede raakt harder. Een ondernemer die
+    leest dat ChatGPT hem "een prima keuze voor kleine klussen" noemt terwijl hij van grote projecten
+    leeft, heeft binnen één zin begrepen waarom dit product bestaat.</p>
+  </div>
+
+  <div class="col stack">
+    <p class="muted small">Facturatie loopt zoals nu: er is geen betaalstroom in de app, en die komt
+    er in dit plan ook niet. De rem is dat alleen jij kunt starten en dat de factuur van jou komt.
+    Wat er wel bij hoort: de kosten per analyse zichtbaar op het diagnosescherm, zodat je marge geen
+    aanname is.</p>
+  </div>
+</section>
+
+<!-- ══ 9. Later ════════════════════════════════════════════════════════ -->
+<section>
+  <div class="col">
+    <span class="eyebrow">09 · Later</span>
+    <h2>Van inzicht naar verbetering</h2>
+    <p class="muted">Nadrukkelijk niet in dit plan, en dus ook niet in de app te zien of te beloven.
+    Wel de richting, zodat fase 1 er niet omheen gebouwd wordt.</p>
+  </div>
+
+  <div class="cards">
+    <div class="card">
+      <span class="no">01</span>
+      <h3>Van bezwaar naar pagina</h3>
+      <p>Een bezwaar dat blijft terugkomen is een briefing. De contentketen staat er al en neemt zo'n
+      opdracht gewoon aan.</p>
+    </div>
+    <div class="card">
+      <span class="no">02</span>
+      <h3>Van ontbrekende bron naar taak</h3>
+      <p>Sta je niet op het reviewplatform dat AI het vaakst aanhaalt, dan is dat een taak met een
+      status, geen observatie.</p>
+    </div>
+    <div class="card">
+      <span class="no">03</span>
+      <h3>Van weinig reviews naar een doel</h3>
+      <p>Het verzamelen gebeurt buiten de app, maar de app kan wel zeggen hoeveel er nodig zijn om
+      het beeld te kantelen.</p>
+    </div>
+    <div class="card">
+      <span class="no">04</span>
+      <h3>De herhaling als bewijs</h3>
+      <p>Drie maanden later dezelfde analyse, met het verschil ernaast. Dat is de enige manier waarop
+      dit product zichzelf terugverdient in de ogen van de klant.</p>
+    </div>
+  </div>
+
+  <div class="note warn">
+    <h3>Eén ontwerpregel voor later, nu al</h3>
+    <p>Een advies zonder gemeten bezwaar eronder komt er niet in. Anders wordt dit een generator van
+    algemene marketingadviezen, en die zijn gratis.</p>
+  </div>
+</section>
+
+<!-- ══ 10. Jouw acties ═════════════════════════════════════════════════ -->
+<section>
+  <div class="col">
+    <span class="eyebrow">10 · Aan jou</span>
+    <h2>Wat jij moet doen voordat er gebouwd wordt</h2>
+    <ol>
+      <li><strong>Het besluit over de zijbalk nemen</strong> (blok 06, punt 4). Zonder dat kan sprint
+      R3 niet af.</li>
+      <li><strong>De prijs bepalen.</strong> Dat bepaalt niet de bouw, maar wel wat er op het
+      startscherm staat.</li>
+      <li><strong>Eén testmerk aanwijzen waarvan je weet dat er kritiek over online staat.</strong>
+      Dat is de enige manier om de proef in sprint R4 echt te doen. Een merk zonder kritiek bewijst
+      niets.</li>
+      <li><strong>De tarieven controleren</strong> voordat R4 draait. Ze zijn op 1 augustus 2026
+      geverifieerd, en de hele rekensom hangt eraan.</li>
+      <li><strong>Beslissen of de diepe modus er komt.</strong> Hij verdubbelt de doorlooptijd en
+      verdrievoudigt de kosten, en of dat betere gesprekken oplevert weet je pas na een paar echte
+      analyses.</li>
+    </ol>
+  </div>
+</section>
+
+<footer class="page">
+  <div class="col stack">
+    <p class="small muted">De technische versie van dit plan staat in
+    <code>docs/tasks/mijn-reputatie.md</code>, met het datamodel, de taken in de wachtrij, de
+    bestanden per sprint en de herkomst van elk cijfer op deze pagina. Bij een verschil tussen de twee
+    klopt dat bestand en hoort deze pagina bijgewerkt te worden.</p>
+    <p class="small muted">Alle cijfers zijn op 22 augustus 2026 tegen de code gecontroleerd, niet uit
+    documentatie overgenomen.</p>
+  </div>
+</footer>
+
+</div>
+</body>
+</html>
