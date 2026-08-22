@@ -1,6 +1,6 @@
 # Mijn reputatie: productplan en implementatieplan
 
-**Opgesteld:** 22 augustus 2026 · **Status:** plan, er is nog niets van gebouwd ·
+**Opgesteld:** 22 augustus 2026 · **Status:** R1, R2 en R3 gebouwd · R4 en R5 staan open ·
 **Plaats in de app:** Analytics, vierde bestemming (zie §2.2, daar ligt een besluit voor je klaar)
 
 Dit document beschrijft een **nieuw, apart betaald onderdeel** binnen ORBIT ENGINE. Het beantwoordt
@@ -904,7 +904,7 @@ van een cijfer dat doet alsof er niets aan de hand was.
 Elke sprint eindigt groen op de vier vaste controles: `npx tsc --noEmit`, `npm run test:unit`,
 `npm run test:chain`, `npm run build`.
 
-### Sprint R1 · Het fundament, zonder één AI-aanroep
+### Sprint R1 · Het fundament, zonder één AI-aanroep ✅ AF (22 augustus 2026)
 
 **Bestanden**
 
@@ -928,7 +928,7 @@ merkcijfer terechtkomt, dat een run zonder enig bruikbaar antwoord `null` opleve
 een weggezette concurrent nooit in de vergelijking komt, en dat de rotatie de klant over twaalf
 knopen ongeveer even vaak op elke plek zet.
 
-### Sprint R2 · De pijplijn
+### Sprint R2 · De pijplijn ✅ AF (22 augustus 2026)
 
 **Bestanden**
 
@@ -951,7 +951,7 @@ doet, dat een geraakt budgetplafond eerst de vergelijkingen laat vallen en de ru
 zet met een notitie erbij, en dat een merk zonder bekende concurrenten een volledige run oplevert
 zonder blok V en met `rank_score` op `null`.
 
-### Sprint R3 · Het scherm
+### Sprint R3 · Het scherm ✅ AF (22 augustus 2026)
 
 **Bestanden**
 
@@ -971,7 +971,7 @@ de klantstaat toont de melding zonder werkende knop. Een niet-beheerder die de r
 aanroept krijgt 403 met dezelfde tekst. De vergelijkingstabel toont bij een merk zonder bekende
 concurrenten geen lege tabel maar de uitleg waarom er niets te vergelijken viel.
 
-### Sprint R4 · Nagerekend op productie
+### Sprint R4 · Nagerekend op productie ⏳ OPEN, wacht op een testmerk
 
 Conventie 10: gebouwd is niet geverifieerd.
 
@@ -992,7 +992,7 @@ Conventie 10: gebouwd is niet geverifieerd.
 doorlooptijd, de uitkomst van de vlakheidstoets en de uitkomst van de volgorde-toets. Klopt een van
 beide toetsen niet, dan gaat R5 niet door en wordt de meetopzet herzien.
 
-### Sprint R5 · De diepe modus en de herhaling
+### Sprint R5 · De diepe modus en de herhaling ⏳ OPEN, begint pas als R4 goed uitvalt
 
 - De keuze standaard tegenover diep bij het starten.
 - Herhalingen en het eenduidigheidscijfer.
@@ -1165,3 +1165,39 @@ overgenomen.
 | Namen zijn terug te matchen op bekende entiteiten | `lib/entities/resolve.ts`, `lib/entities/normalize.ts` |
 | Klantcontent noemt nooit een concurrent | `lib/pipeline/content.ts`, en `competitor-intel.ts` in de kop |
 | Structured output koos bij twijfel de eerste enum-waarde, bij 10 van 27 merken | `CLAUDE.md`, conventie 1 |
+
+
+---
+
+## Afwijkingen van dit plan tijdens de bouw
+
+Bijgehouden tijdens sprint R1 tot en met R3 (22 augustus 2026). Twee stuks, allebei omdat het plan
+aantoonbaar de verkeerde uitkomst gaf. De rest van het plan is uitgevoerd zoals beschreven.
+
+**1. De rotatie hangt aan de PLEK van de knoop, niet aan een hash van het knoop-id (§4.4,
+maatregel 1).** Het plan schrijft "(runId, offeringId, herhaling)". Een hash van het knoop-id
+verdeelt de klant *ongeveer* gelijk over de posities, maar niet exact: bij twaalf knopen kan hij
+dan vijf keer vooraan en één keer achteraan staan, en dan is de correctie op het gemiddelde precies
+zo scheef als het effect dat ze moest wegnemen. `lib/reputation/rotate.ts` gebruikt daarom de plek
+van de knoop in de vastgelegde scope (`slot`), die deterministisch uit `scope_json` komt en de
+klant exact even vaak op elke positie zet. Het knoop-id blijft de terugval als er geen plek bekend
+is. De unittest toont de exacte verdeling 3/3/3/3 over twaalf knopen aan.
+
+**2. De eenduidigheid trekt één standaardfout af en niet 1,96 (§3.1).** Het plan verwijst naar
+`binomialStderr()` en `confidenceBand()`, en die tekenen een 95%-band. Toegepast op de
+eenduidigheid komt drie keer hetzelfde antwoord daarmee op **49** uit, en "49% eenduidig" bij drie
+identieke antwoorden is even misleidend als 100 zou zijn, alleen de andere kant op. De reden is dat
+dit getal iets anders doet dan de band bij de meting: de band is een uitspraak over waar de echte
+score ligt, dit is een aftrek voor dun bewijs. `lib/reputation/score.ts` gebruikt daarom één
+standaardfout; hetzelfde geval komt dan op 74.
+
+**Twee dingen die het plan niet noemde maar wel nodig bleken:**
+
+- `callPlain()` in `lib/openai/structured.ts` heeft hetzelfde teststopcontact gekregen dat
+  `callStructured()` al had. Zonder dat is de samenhang tussen de zes taken niet te toetsen zonder
+  echte betaalde aanroepen, en juist die samenhang is wat §9 het zwaartepunt van deze opdracht
+  noemt.
+- De vijf uitvoerende reputatietaken staan in `NON_BLOCKING_TYPES` (`lib/jobs/progress.ts`). Een
+  run draagt zijn eigen status en heeft zijn eigen scherm; zonder deze uitzondering zou één
+  mislukte dienstvraag als rood kruis op het MERKSCHERM verschijnen, en dan lijkt het alsof de
+  onboarding is misgelopen. `reputation_synthesis` staat er bewust niet bij.
