@@ -27,6 +27,15 @@ export interface CallMeta {
    * de historie klopt zonder terugwerkende invulling.
    */
   engine?: string;
+  /**
+   * Bij welke reputatieanalyse hoort deze aanroep (migratie 0062)?
+   *
+   * Zonder dit veld is niet te tellen wat één run heeft gekost, en dan is het
+   * plafond van €3 uit `lib/reputation/budget.ts` niet af te dwingen. Migratie
+   * 0053 deed hetzelfde met `account_id`, met dezelfde onderbouwing: een logboek
+   * hoort de dimensie te dragen waarop je afrekent.
+   */
+  reputationRunId?: string | null;
 }
 
 export interface LoggedCall {
@@ -54,6 +63,7 @@ export async function logAiCall(meta: CallMeta, call: LoggedCall): Promise<void>
       web_search: call.webSearch,
       cost_usd: call.costUsd,
       openai_response_id: call.responseId,
+      reputation_run_id: meta.reputationRunId ?? null,
     });
   } catch (err) {
     // Bewust alleen loggen: zie de best-effort-regel bovenaan dit bestand.
