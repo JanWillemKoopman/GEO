@@ -70,6 +70,11 @@ function ok(name: string, condition: boolean, detail = ""): void {
   }
 }
 
+/** Gelijkheid met de werkelijke waarde in de foutmelding, zoals in test-unit.ts. */
+function eqc(name: string, actual: string, expected: string): void {
+  ok(name, actual === expected, actual === expected ? "" : `verwacht "${expected}", kreeg "${actual}"`);
+}
+
 async function main(): Promise<void> {
   const { startTestDatabase } = await import("./chain/postgres");
   const { createShimClient } = await import("./chain/supabase-shim");
@@ -2860,6 +2865,7 @@ async function main(): Promise<void> {
       for (const [naam, rol, weggezet] of [
         ["Concurrent A", "concurrent", false],
         ["Concurrent B", "concurrent", false],
+        ["Concurrent C", "concurrent", false],
         // ⚠️ Een weggezette concurrent. `dismissed` is een expliciete beslissing
         // van de klant; ertegen vergelijken kost het vertrouwen in het scherm.
         ["Weggezet BV", "concurrent", true],
@@ -2868,6 +2874,43 @@ async function main(): Promise<void> {
           `insert into public.entities (profile_id, canonical_name, normalized, entity_role, dismissed)
            values ($1, $2, $3, $4, $5)`,
           [repProfielId, naam, naam.toLowerCase(), rol, weggezet],
+        );
+      }
+
+      // ── De GEMETEN vermeldingen ───────────────────────────────────────────
+      //
+      // ⚠️ Dit stuk decor is er niet voor de volledigheid maar omdat het een
+      // echte fout heeft afgevangen. `countMentions()` las eerst een kolom
+      // `competitors_json` die niet bestaat op `competitor_breakdown`; die
+      // tabel heeft één rij per concurrent. Gevolg: iedereen nul vermeldingen,
+      // en de keuze viel stil terug op alfabetische volgorde. Zonder dit decor
+      // kwamen er nog steeds drie concurrenten uit en leek alles goed.
+      //
+      // De namen zijn zo gekozen dat de twee volgordes VERSCHILLEN: alfabetisch
+      // wint A, op vermeldingen wint C. Zou de bug terugkomen, dan faalt de
+      // test hieronder.
+      const repClusterId = randomUUID();
+      await db.client.query(
+        `insert into public.analyses (id, user_id, profile_id, name, url, topic, status)
+         values ($1, $2, $3, 'Fysi-Unique, reputatiecluster', 'https://fysi-unique.nl',
+                 'hardloopblessure behandelen', 'gereed')`,
+        [repClusterId, userId, repProfielId],
+      );
+      for (const [naam, week, aantal] of [
+        // Vorige periode: A stond bovenaan. Die telt NIET mee.
+        ["Concurrent A", 0, 99],
+        // Laatste afgeronde periode: C wint, dan B, dan A.
+        ["Concurrent C", 1, 30],
+        ["Concurrent B", 1, 20],
+        ["Concurrent A", 1, 10],
+        // Weggezet, en hij wordt het vaakst genoemd. Juist daarom een goede test.
+        ["Weggezet BV", 1, 90],
+      ] as [string, number, number][]) {
+        await db.client.query(
+          `insert into public.competitor_breakdown
+             (analysis_id, week_no, competitor_name, mentions_count)
+           values ($1, $2, $3, $4)`,
+          [repClusterId, week, naam, aantal],
         );
       }
 
@@ -2934,9 +2977,31 @@ async function main(): Promise<void> {
         (run.rivals as string[]).join(", "),
       );
       ok(
-        "de twee andere wel",
-        (run.rivals as string[]).length === 2,
+        "de drie andere wel",
+        (run.rivals as string[]).length === 3,
         (run.rivals as string[]).join(", "),
+      );
+      // ⚠️ DE KERN VAN DEZE CONTROLE. De volgorde moet op GEMETEN vermeldingen
+      // rusten en niet op het alfabet: C (30) vóór B (20) vóór A (10). Kwam de
+      // kolomfout in `countMentions()` terug, dan staat hier "Concurrent A,
+      // Concurrent B, Concurrent C" en faalt dit.
+      eqc(
+        "en op vermeldingen gesorteerd, niet alfabetisch",
+        (run.rivals as string[]).join(", "),
+        "Concurrent C, Concurrent B, Concurrent A",
+      );
+      // Alleen de LAATSTE periode telt. In periode 0 stond A op 99; zou die
+      // meetellen, dan won A alsnog.
+      ok(
+        "en alleen de laatste periode telt mee",
+        (run.rivals as string[])[0] === "Concurrent C",
+        (run.rivals as string[])[0],
+      );
+      ok(
+        "de bron van de keuze is de meting",
+        (run.scope_json as { concurrenten?: { bron?: string } } | null)?.concurrenten?.bron ===
+          "gemeten",
+        JSON.stringify((run.scope_json as { concurrenten?: unknown } | null)?.concurrenten ?? {}),
       );
 
       // ── De vangnetten van de oordeelslaag ─────────────────────────────────
@@ -3003,11 +3068,24 @@ async function main(): Promise<void> {
       // ⚠️ Geen administratie. Zonder deze kolom is niet vast te stellen of een
       // uitslag door de volgorde kwam, en dan is `order_bias` niet te berekenen.
       const vergelijkingen = antwoorden.filter((a) => a.block === "vergelijking");
+      // Vier partijen: het merk zelf plus de drie gekozen concurrenten.
       ok(
         "elke vergelijking bewaart de gebruikte partijvolgorde",
         vergelijkingen.length > 0 &&
-          vergelijkingen.every((a) => (a.party_order as string[]).length === 3),
-        `${vergelijkingen.length} vergelijkingen`,
+          vergelijkingen.every((a) => (a.party_order as string[]).length === 4),
+        `${vergelijkingen.length} vergelijkingen, lengtes ${[
+          ...new Set(vergelijkingen.map((a) => (a.party_order as string[]).length)),
+        ].join("/")}`,
+      );
+      // ⚠️ En de klant staat niet in élke vraag vooraan. Dat is de hele reden dat
+      // de volgorde rouleert: een taalmodel bevoordeelt wie het eerst genoemd
+      // wordt, en een klant die altijd vooraan staat krijgt altijd een mooie
+      // plaats. Merkbreed zijn het drie rotaties, dus hij hoort niet drie keer
+      // op plek 1 te staan.
+      ok(
+        "en de klant staat niet in elke vraag vooraan",
+        !vergelijkingen.every((a) => (a.party_order as string[])[0] === "Fysi-Unique"),
+        vergelijkingen.map((a) => (a.party_order as string[])[0]).join(" | "),
       );
       // Merkbreed krijgt ALTIJD drie rotaties, ook in de standaardmodus, want
       // dat is het getal dat bovenaan het scherm komt.

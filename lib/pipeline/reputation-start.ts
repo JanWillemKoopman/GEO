@@ -192,25 +192,47 @@ async function countMentions(admin: Admin, profileId: string): Promise<Map<strin
   const analysisIds = ((analysisRows ?? []) as { id: string }[]).map((a) => a.id);
   if (analysisIds.length === 0) return new Map();
 
+  // ⚠️ EÉN RIJ PER CONCURRENT, geen json-blob. Deze functie las eerst een kolom
+  // `competitors_json` die niet bestaat. Gevolg: elke concurrent kreeg nul
+  // vermeldingen, de sortering viel stil terug op alfabetische volgorde, en dan
+  // vergelijkt de klant zich met de drie partijen wier naam vooraan in het
+  // alfabet staat in plaats van met de drie die AI daadwerkelijk naast hem
+  // noemt. Geen foutmelding, geen leeg scherm, alleen een verkeerde uitkomst.
+  // Precies het soort stille degradatie waar conventie 3 tegen is, en gevonden
+  // door het schema na te kijken vóór de eerste betaalde run (conventie 10).
   const { data } = await admin
     .from("competitor_breakdown")
-    .select("competitors_json, week_no")
-    .in("analysis_id", analysisIds)
-    .order("week_no", { ascending: false })
-    .limit(20);
+    .select("analysis_id, week_no, competitor_name, mentions_count")
+    .in("analysis_id", analysisIds);
 
-  // Op NAAM tellen en dan op entiteit-id koppelen zou een tweede
-  // normalisatieslag vergen. De uitsplitsing bewaart de namen al genormaliseerd
-  // zoals de entiteiten heten, dus dit koppelt rechtstreeks.
-  const perNaam = new Map<string, number>();
-  for (const rij of (data ?? []) as { competitors_json: unknown }[]) {
-    const lijst = (rij.competitors_json ?? []) as { entity_name?: string; mentions_count?: number }[];
-    if (!Array.isArray(lijst)) continue;
-    for (const c of lijst) {
-      const naam = (c.entity_name ?? "").trim().toLowerCase();
-      if (!naam) continue;
-      perNaam.set(naam, (perNaam.get(naam) ?? 0) + (Number(c.mentions_count) || 0));
+  const rijen = (data ?? []) as {
+    analysis_id: string;
+    week_no: number;
+    competitor_name: string;
+    mentions_count: number;
+  }[];
+  if (rijen.length === 0) return new Map();
+
+  // Per cluster alleen de LAATSTE periode. Oudere periodes optellen zou dezelfde
+  // concurrent meerdere keren tellen en het beeld naar het verleden trekken;
+  // het scherm Concurrenten rekent om dezelfde reden zo.
+  const laatstePerCluster = new Map<string, number>();
+  for (const r of rijen) {
+    const huidig = laatstePerCluster.get(r.analysis_id);
+    if (huidig === undefined || r.week_no > huidig) {
+      laatstePerCluster.set(r.analysis_id, r.week_no);
     }
+  }
+
+  // Optellen over de clusters heen, op naam. De uitsplitsing bewaart de namen
+  // zoals de entiteiten heten, dus dit koppelt rechtstreeks zonder een tweede
+  // normalisatieslag.
+  const perNaam = new Map<string, number>();
+  for (const r of rijen) {
+    if (laatstePerCluster.get(r.analysis_id) !== r.week_no) continue;
+    const naam = (r.competitor_name ?? "").trim().toLowerCase();
+    if (!naam) continue;
+    perNaam.set(naam, (perNaam.get(naam) ?? 0) + (Number(r.mentions_count) || 0));
   }
 
   const { data: entityRows } = await admin
