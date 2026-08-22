@@ -165,6 +165,31 @@ export function brandNav(brandId: string, staff = false): NavItem[] {
       label: "Concurrenten",
       hoofdstuk: "Analytics",
     },
+    //
+    // ⚠️ VIER BESTEMMINGEN, EN DIT IS DE VIERDE (besluit 22 augustus 2026).
+    //
+    // Elk klanthoofdstuk heeft er hooguit drie (besluit 1 tot en met 8 van
+    // 17 augustus 2026, `docs/ux-design.md` §5). Admin kreeg er op 19 augustus
+    // vier, met een uitgeschreven reden. Analytics krijgt er nu ook vier, en de
+    // reden is van dezelfde soort: het is geen vergaarbak maar iets van een
+    // andere orde.
+    //
+    // **De andere drie bestemmingen tonen data die de app sowieso al verzamelt.
+    // Deze is een los product dat de klant apart koopt.** Zichtbaarheid,
+    // Zoekverkeer en Concurrenten komen alle drie uit werk dat toch al draait:
+    // de maandelijkse meting, de Search Console-koppeling, de aggregatie. Mijn
+    // reputatie draait niet mee in die cyclus, wordt per keer gestart, per keer
+    // betaald en per keer gedateerd. Drie plus een product, net zoals Admin drie
+    // plus een uitgang is.
+    //
+    // Wat dit besluit betekent: een VIJFDE bestaat dan echt niet meer zonder
+    // eerst iets samen te voegen. Dat is vanaf nu geen stijlregel meer maar een
+    // grens, en `scripts/test-unit.ts` bewaakt hem.
+    {
+      href: `/merk/${brandId}/analytics/reputatie`,
+      label: "Mijn reputatie",
+      hoofdstuk: "Analytics",
+    },
 
     // ── MERKPROFIEL ──────────────────────────────────────────────────────
     {

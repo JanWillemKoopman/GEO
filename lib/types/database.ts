@@ -1131,6 +1131,19 @@ export const CRITERION_LABEL: Record<ReputationCriterion, string> = {
   betrouwbaarheid: "Betrouwbaarheid",
 };
 
+/**
+ * Het label bij een criterium dat uit de DATABASE komt.
+ *
+ * ⚠️ Defensief, en niet uit voorzichtigheid maar omdat `wins_on` en `loses_on`
+ * `text[]`-kolommen zijn. Alleen onze eigen code vult ze, maar een rij uit een
+ * oudere run of een handmatige correctie in Supabase kan er iets anders in
+ * zetten, en dan zou een kale opzoeking `undefined` op het scherm van de klant
+ * tonen. De sleutel zelf tonen is lelijk maar eerlijk (conventie 3).
+ */
+export function criterionLabel(value: string): string {
+  return (CRITERION_LABEL as Record<string, string>)[value] ?? value;
+}
+
 /** Waar het oordeel op rust (§4.7). `geen` haalt het antwoord uit het merkcijfer. */
 export type ReputationGrounding =
   | "reviews"

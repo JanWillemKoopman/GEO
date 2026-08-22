@@ -6017,6 +6017,11 @@ group("elke dure route vraagt het aan dezelfde functie", () => {
     "app/api/analyses/[id]/generate/route.ts",
     "app/api/analyses/[id]/generate-all/route.ts",
     "app/api/analyses/[id]/briefing/route.ts",
+    // De reputatieanalyse (22 augustus 2026). Een zesde dure route, en hij
+    // stelt precies dezelfde twee vragen aan precies dezelfde functies. Twee
+    // functies die hetzelfde zouden moeten doen drijven uit elkaar (P2), en dat
+    // is met `getOwnedProfile` en `getOwnedAnalysis` letterlijk gebeurd.
+    "app/api/profiles/[id]/reputation/route.ts",
   ];
 
   for (const pad of duur) {
@@ -6036,13 +6041,24 @@ group("elke dure route vraagt het aan dezelfde functie", () => {
   }
 
   // En de melding is per handeling anders (K2, zie docs/logbook.md: elke
-  // foutmelding is specifiek). Vijf handelingen, vijf zinnen, geen dubbele.
+  // foutmelding is specifiek). Zes handelingen sinds 22 augustus 2026, zes
+  // zinnen, geen dubbele.
   const zinnen = Object.values(COST_DENIED);
-  ok("vijf handelingen hebben elk een eigen melding", zinnen.length === 5);
+  ok("zes handelingen hebben elk een eigen melding", zinnen.length === 6, `${zinnen.length}`);
   ok("en geen twee zijn hetzelfde", new Set(zinnen).size === zinnen.length);
   ok(
     "geen enkele melding zegt alleen 'geen toegang'",
     zinnen.every((z) => z.length > 40 && !/geen toegang/i.test(z)),
+  );
+  // ⚠️ De reputatiemelding is de enige die een LOS PRODUCT aankondigt, en de
+  // toon moet dus uitnodigen in plaats van afwijzen. De klant mag het zien, hij
+  // weet nu dat het bestaat, en hij weet bij wie hij moet zijn. Een grijze knop
+  // of een verborgen menu-item zou precies het tegenovergestelde doen: dan weet
+  // hij niet dat dit product er is, en dan verkoop je het nooit.
+  ok(
+    "en de reputatiemelding zegt bij wie de klant moet zijn",
+    /consultant/i.test(COST_DENIED.reputatie_starten),
+    COST_DENIED.reputatie_starten,
   );
 });
 
@@ -6695,16 +6711,49 @@ group("de zijbalk kent vijf hoofdstukken plus Admin", () => {
   // ⚠️ Admin mag er vier, sinds de onboardingsessie van 19 augustus 2026. Drie
   // ervan gaan over dít merk (Onboarding, Diagnose, Toewijzen) en de vierde,
   // "Alle merken", is de uitgang naar de app als geheel. Dat is geen vergaarbak
-  // van vier gelijksoortige regels. Een vijfde bestaat niet zonder eerst iets
-  // samen te voegen, en voor de klanthoofdstukken blijft drie de grens.
+  // van vier gelijksoortige regels.
+  //
+  // ⚠️ Analytics mag er sinds 22 augustus 2026 óók vier, met een reden van
+  // dezelfde soort: de andere drie tonen data die de app sowieso al verzamelt,
+  // "Mijn reputatie" is een los product dat de klant apart koopt en dat per keer
+  // gestart en betaald wordt. Drie plus een product.
+  //
+  // De rest van de regel blijft staan, en scherper dan eerst: een VIJFDE bestaat
+  // in geen van beide hoofdstukken zonder eerst iets samen te voegen, en de
+  // overige klanthoofdstukken blijven op drie.
   for (const kop of beheerder) {
-    const grens = kop.naam === "Admin" ? 4 : 3;
+    const grens = kop.naam === "Admin" || kop.naam === "Analytics" ? 4 : 3;
     ok(
       `${kop.naam} heeft hooguit ${grens} bestemmingen`,
       kop.items.length <= grens,
       `${kop.items.length}`,
     );
   }
+
+  // ⚠️ En niet méér dan die twee. Zonder deze controle is "hooguit vier" een
+  // grens die stilletjes op elk hoofdstuk gaat gelden, en dan is de hele
+  // herindeling van 17 augustus binnen een half jaar terug bij af.
+  const metVier = beheerder.filter((k) => k.items.length === 4).map((k) => k.naam);
+  ok(
+    "alleen Admin en Analytics hebben er vier",
+    metVier.every((n) => n === "Admin" || n === "Analytics"),
+    metVier.join(", "),
+  );
+  ok(
+    "Mijn reputatie staat onder Analytics",
+    (beheerder.find((k) => k.naam === "Analytics")?.items ?? []).some(
+      (i) => i.label === "Mijn reputatie",
+    ),
+  );
+  // Het is een KLANTbestemming: hij mag niet verborgen zijn. Verbergen betekent
+  // dat de klant niet weet dat dit product bestaat, en dit is een product dat je
+  // wilt verkopen.
+  ok(
+    "en de klant ziet hem ook",
+    (klant.find((k) => k.naam === "Analytics")?.items ?? []).some(
+      (i) => i.label === "Mijn reputatie",
+    ),
+  );
 
   ok("een klant ziet geen Admin-kop", klant.every((k) => k.naam !== "Admin"));
   ok("een beheerder wel", beheerder.some((k) => k.naam === "Admin"));

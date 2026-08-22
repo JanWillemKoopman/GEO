@@ -16,7 +16,8 @@ export type CostlyAction =
   | "analyse_starten"
   | "meting_starten"
   | "content_schrijven"
-  | "plan_goedkeuren";
+  | "plan_goedkeuren"
+  | "reputatie_starten";
 
 /**
  * De melding die de klant ziet als hij het tóch probeert.
@@ -38,4 +39,11 @@ export const COST_DENIED: Record<CostlyAction, string> = {
     "Het schrijven wordt door je consultant in gang gezet. Jij bepaalt wél wat er geschreven wordt: keur de maand goed en de rest gaat vanzelf.",
   plan_goedkeuren:
     "Deze maand goedkeuren doet je consultant samen met jou. Laat weten dat je akkoord bent.",
+  // ⚠️ Dit is de belangrijkste van de zes, want het is de enige handeling die
+  // een LOS PRODUCT in gang zet dat de klant apart koopt. De toon is dus geen
+  // afwijzing maar een uitnodiging: hij mag het zien, hij weet nu dat het
+  // bestaat, en hij weet bij wie hij moet zijn. Zou de knop verborgen zijn, dan
+  // wist hij niet dat dit product er is, en dan verkoop je het nooit.
+  reputatie_starten:
+    "Een reputatieanalyse zet je consultant voor je in gang. Laat weten dat je hem wilt, dan plannen we hem in.",
 };

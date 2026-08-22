@@ -209,8 +209,18 @@ tussenkopje. Vandaar een **zijbalk** (`components/sidebar.tsx`).
 ⚠️ **Admin mag er sinds 19 augustus 2026 vier**, bij het toevoegen van de onboardingsessie: drie
 ervan gaan over dít merk (Onboarding, Diagnose, Toewijzen) en de vierde, "Alle merken", is de uitgang
 naar de app als geheel. Dat is geen vergaarbak van vier gelijksoortige regels maar drie plus een
-uitgang. Een vijfde bestaat niet zonder eerst iets samen te voegen, en voor de klanthoofdstukken
-blijft drie de grens. `scripts/test-unit.ts` bewaakt beide grenzen.
+uitgang.
+⚠️ **En Analytics mag er sinds 22 augustus 2026 óók vier**, bij het toevoegen van "Mijn reputatie".
+De reden is van dezelfde soort en het is opnieuw geen vergaarbak: **de andere drie bestemmingen
+tonen data die de app sowieso al verzamelt, deze is een los product dat de klant apart koopt.**
+Zichtbaarheid, Zoekverkeer en Concurrenten komen alle drie uit werk dat toch al draait, de
+maandelijkse meting, de Search Console-koppeling en de aggregatie. Een reputatieanalyse draait niet
+mee in die cyclus: hij wordt per keer gestart, per keer betaald en per keer gedateerd. Drie plus een
+product, zoals Admin drie plus een uitgang is.
+Voor beide hoofdstukken geldt vanaf nu: een **vijfde** bestaat niet zonder eerst iets samen te
+voegen, en dat is geen stijlregel meer maar een grens. De overige klanthoofdstukken blijven op drie.
+`scripts/test-unit.ts` bewaakt alle drie de grenzen, inclusief dat er niet stilletjes een derde
+hoofdstuk bij komt dat er vier mag.
 Daarvoor waren het 7 regels die uitklapten naar 15 bestemmingen, waarvan er negen onder één kop
 hingen die het commentaar in `lib/nav.ts` zelf al "de vergaarbak die dit oplost alleen verticaal"
 noemde. Elk hoofdstuk beantwoordt nu één vraag:
@@ -219,7 +229,7 @@ noemde. Elk hoofdstuk beantwoordt nu één vraag:
 |---|---|---|
 | Overzicht | Hoe sta ik ervoor en wat moet ik nu doen? | `/merk/[id]` |
 | Strategie | Wat gaan we doen, en wat is er al gemaakt? | Contentplan, Clusters, Bibliotheek |
-| Analytics | Wat zeggen de cijfers, en waarom? | Zichtbaarheid in AI, Zoekverkeer, Concurrenten |
+| Analytics | Wat zeggen de cijfers, en waarom? | Zichtbaarheid in AI, Zoekverkeer, Concurrenten, Mijn reputatie |
 | Merkprofiel | Wie ben ik volgens ORBIT ENGINE, en klopt dat? | Merkdossier, Bewerken, Vraagt jouw input |
 | Instellingen | Hoe is het ingericht? | Account en team, Koppelingen |
 | Admin | (alleen beheerders, onder een scheidingslijn) | Onboarding, Diagnose, Toewijzen, Alle merken |
