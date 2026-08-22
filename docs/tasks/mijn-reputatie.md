@@ -6,10 +6,12 @@
 Dit document beschrijft een **nieuw, apart betaald onderdeel** binnen ORBIT ENGINE. Het beantwoordt
 één vraag die de app vandaag niet kan beantwoorden:
 
-> **Hoe staat dit merk bekend in AI, per product en per dienst, en waar haalt AI dat vandaan?**
+> **Hoe staat dit merk bekend in AI, per product en per dienst, hoe verhoudt dat zich tot de
+> concurrenten, en waar haalt AI dat vandaan?**
 
 Niet "word je genoemd" (dat meet de app al), maar **hoe er over je gepraat wordt**: positief,
-neutraal of negatief, waarom dat zo is, en op welke bronnen dat oordeel rust.
+neutraal of negatief, waarom dat zo is, op welke bronnen dat oordeel rust, en of AI jou of je
+concurrent aanraadt als een koper ze naast elkaar legt.
 
 Een leesbare versie zonder techniek staat ernaast in
 [`mijn-reputatie.html`](./mijn-reputatie.html). Dit bestand is leidend: bij een verschil klopt dit
@@ -44,15 +46,25 @@ bestand en hoort de HTML bijgewerkt te worden.
 | De meting (`measure_prompt`) | Word je genoemd als iemand een **koopvraag** stelt? | Analytics · Zichtbaarheid in AI |
 | De kennistest (`profile_llm_baseline`) | **Weet** een AI-assistent wie je bent, en klopt dat? | Merkprofiel · Merkdossier |
 | Het bronnenlandschap (`offsite_scan`) | Welke **sites** bepalen deze markt, en sta jij erop? | Analytics · Concurrenten |
+| De concurrentie-uitsplitsing (`profile_competitors`) | Hoe **vaak** wordt een concurrent genoemd, en om welke eigenschap? | Analytics · Concurrenten |
 
-Alle drie gaan over aanwezigheid: sta je er, en klopt wat er staat. Geen van drieën gaat over
-**toon**. Een merk kan bij elke koopvraag genoemd worden en er tegelijk bekend om staan dat de
+Alle vier gaan over aanwezigheid: sta je er, hoe vaak, en klopt wat er staat. Geen van vieren gaat
+over **toon**. Een merk kan bij elke koopvraag genoemd worden en er tegelijk bekend om staan dat de
 levering altijd te laat is. De app zou dat vandaag niet zien, en het is precies wat een ondernemer
 als eerste wil weten.
 
-Mijn reputatie voegt die vierde vraag toe, en hij staat op zichzelf:
+Mijn reputatie voegt die vijfde vraag toe, en hij staat op zichzelf:
 
-> **Hoe praat AI over je, waarom praat AI zo over je, en waar komt dat beeld vandaan?**
+> **Hoe praat AI over je, waarom praat AI zo over je, waar komt dat beeld vandaan, en kies AI jou of
+> je concurrent als hij ze naast elkaar legt?**
+
+⚠️ **Het verschil met de bestaande concurrentie-uitsplitsing is scherp en het mag niet vervagen.**
+Die telt hoe vaak een concurrent uit de metingen komt: een frequentie, opgebouwd uit antwoorden op
+koopvragen waarin het merk toevallig voorkwam. De vergelijking hieronder legt de partijen
+**expliciet naast elkaar** en vraagt om een oordeel per criterium. Het eerste antwoordt op "wie komt
+er vaker voorbij", het tweede op "wie zou je aanraden, en waarom". Dat zijn verschillende vragen met
+regelmatig verschillende uitkomsten, en juist dat verschil is bruikbaar: vaker genoemd worden en
+tóch verliezen zodra iemand kiest, is een ander probleem dan onzichtbaar zijn.
 
 ### 1.2 Waarom het per product en per dienst moet
 
@@ -154,22 +166,30 @@ voegen.** Dat is dan geen stijlregel meer maar een grens.
 ### 2.3 De €3 wordt bij lange na niet opgemaakt, en dat is goed nieuws
 
 Je stelt €3 per analyse beschikbaar. Nagerekend tegen `lib/openai/pricing.ts` landt de volledige
-analyse op **ongeveer $0,40, dus rond de €0,37** (§5 heeft de hele som). Dat is geen slordige
-schatting: een web-zoekactie kost op een redeneermodel $0,01 vast, en `gpt-5.6-luna` kost
-$0,20 per miljoen invoertokens.
+analyse, inclusief de vergelijking met concurrenten uit §4.4, op **ongeveer $0,54, dus rond de
+€0,50** (§5 heeft de hele som). Dat is geen slordige schatting: een web-zoekactie kost op een
+redeneermodel $0,01 vast, en `gpt-5.6-luna` kost $0,20 per miljoen invoertokens.
 
 Er is dus ruimte over. Die gebruiken we niet door duurder te doen, maar door **dieper te kijken**.
 Vandaar twee dieptes, die de beheerder kiest bij het starten:
 
-| Diepte | Aanbodknopen | Herhalingen | Vragen totaal | Kosten |
-|---|---|---|---|---|
-| **Standaard** | tot 12 | 1 | ± 35 | ± €0,37 |
-| **Diep** | tot 25 | 3 op merkniveau, 2 per knoop | ± 95 | ± €1,05 |
+| Diepte | Aanbodknopen | Herhalingen | Vragen aan ChatGPT | Aanroepen totaal | Kosten |
+|---|---|---|---|---|---|
+| **Standaard** | tot 12 | 3 op de merkbrede vergelijking | ± 34 | ± 68 | ± €0,50 |
+| **Diep** | tot 25 | 3 op merkniveau, 3 op de 8 zwaarste knopen | ± 82 | ± 164 | ± €1,19 |
 
-Beide blijven ruim onder het plafond. Het plafond van **€3 blijft hard in code staan** als rem, niet
-als doel: `lib/reputation/budget.ts` telt vóór elke stap wat er op deze run al is uitgegeven, precies
-zoals `lib/pipeline/onboarding-budget.ts` dat voor de onboarding doet. Loopt hij vol, dan wordt de
-rest overgeslagen **en wordt dat vastgelegd en getoond**, nooit stil.
+De twee kolommen verschillen omdat elk antwoord ook **beoordeeld** wordt, en dat is een tweede,
+goedkope aanroep die geen vraag aan ChatGPT is (§4.7).
+
+Beide blijven onder het plafond, ook in het ongunstigste tokenscenario uit §5 (€0,63 en €1,55). Het
+plafond van **€3 blijft hard in code staan** als rem, niet als doel: `lib/reputation/budget.ts` telt
+vóór elke stap wat er op deze run al is uitgegeven, precies zoals `lib/pipeline/onboarding-budget.ts`
+dat voor de onboarding doet. Loopt hij vol, dan wordt de rest overgeslagen **en wordt dat vastgelegd
+en getoond**, nooit stil.
+
+⚠️ **De volgorde van de stappen is op dat plafond ontworpen.** De vergelijking per aanbodknoop draait
+als laatste zware blok, ná de reputatie per knoop. Loopt het budget onverwacht vol, dan valt de
+vergelijking weg en blijft de basisanalyse overeind, in plaats van andersom.
 
 ### 2.4 "Zoek op Google reviews" kan niet zoals het klinkt
 
@@ -211,27 +231,40 @@ boven belofte.
 
 ## 3. Het product: wat de klant ziet
 
-### 3.1 Drie getallen, en waarom niet één
+### 3.1 Drie getallen en een plaats, en waarom niet één cijfer
 
-Eén reputatiecijfer zou liegen. Deze drie samen liegen niet:
+Eén reputatiecijfer zou liegen. Deze vier samen liegen niet:
 
 | Getal | De vraag | Schaal | Wat "onbekend" doet |
 |---|---|---|---|
 | **Toon** | Hoe praat AI over je? | -100 tot +100, 0 is neutraal | `null`, niet 0. Nul is neutraal, onbekend is iets anders |
 | **Bewijskracht** | Waar rust dat op? | 0 tot 100 | 0 is een echte uitkomst: AI verzint het |
 | **Eenduidigheid** | Krijg je elke keer hetzelfde antwoord? | 0 tot 100 | `null` bij één meting, alleen bij diepe modus gevuld |
+| **Plaats** | Kiest AI jou of je concurrent? | een plaats van een aantal, plus een score 0 tot 100 | `null` als AI te weinig partijen kende om iets te rangschikken |
+
+⚠️ **De plaats is bewust een plaats en geen vierde percentage.** "Tweede van vier" is een andere
+soort uitspraak dan "68 op 100", en die twee horen niet naast elkaar te staan alsof ze hetzelfde
+zeggen. De onderliggende score bestaat wel, want daar moet mee gerekend worden over de knopen heen,
+maar op het scherm leidt de plaats.
 
 De **combinatie** is het product. Vier situaties, vier heel verschillende adviezen:
 
-| Toon | Bewijskracht | Wat er staat | Wat de klant moet doen |
-|---|---|---|---|
-| +70 | 85 | AI is positief over je, op basis van 340 Google-reviews en de vakpers | Vasthouden, en die bronnen benoemen in je content |
-| +65 | 10 | AI is aardig tegen je, maar baseert dat op niets | Reviews verzamelen. Dit cijfer is lucht |
-| -20 | 70 | AI noemt levertijd en prijs als bezwaar, met bronnen erbij | Dit is de agenda voor het volgende kwartaal |
-| `null` | 0 | AI kent je niet | Zichtbaarheid eerst, reputatie later |
+| Toon | Bewijs | Plaats | Wat er staat | Wat de klant moet doen |
+|---|---|---|---|---|
+| +70 | 85 | 1e van 4 | AI is positief over je, met bronnen, en kiest jou als het moet kiezen | Vasthouden, en die bronnen benoemen in je content |
+| +65 | 10 | `null` | AI is aardig tegen je, maar baseert dat op niets en kent je concurrenten niet | Reviews verzamelen. Dit cijfer is lucht |
+| +60 | 70 | 4e van 4 | AI is positief over je, maar zodra hij moet kiezen kies hij een ander | ⚠️ De gevaarlijkste uitslag van allemaal, zie hieronder |
+| -20 | 70 | 3e van 4 | AI noemt levertijd en prijs als bezwaar, met bronnen erbij | Dit is de agenda voor het volgende kwartaal |
+| `null` | 0 | `null` | AI kent je niet | Zichtbaarheid eerst, reputatie later |
 
-⚠️ Rij twee is de meest voorkomende uitkomst bij een MKB-bedrijf, en zonder de tweede kolom zou de
-app daar een gerustgesteld bedrijf van maken.
+⚠️ **Rij twee is de meest voorkomende uitkomst bij een MKB-bedrijf**, en zonder de kolom bewijs zou
+de app daar een gerustgesteld bedrijf van maken.
+
+⚠️ **Rij drie is de reden dat de plaats erbij hoort.** Een merk kan op zichzelf uitstekend
+besproken worden en toch structureel verliezen zodra AI het naast drie anderen legt. Positief zijn
+is niet hetzelfde als gekozen worden, en zonder deze kolom ziet de klant het verschil niet. Dit is
+ook precies de uitslag waar een consultgesprek het meest aan heeft: er is niets mis met het merk,
+er is iets mis met de vergelijking.
 
 **Hoe de getallen tot stand komen** staat in een pure module, `lib/reputation/score.ts`, zonder
 `server-only` en dus testbaar (conventie 2). Het model geeft per antwoord een label en de
@@ -244,16 +277,24 @@ over de kennistest velt in plaats van het model.
   dat níet de eigen site is, en de aanwezigheid van reviewplatforms met een gecontroleerd cijfer.
 - **Eenduidigheid** is de spreiding over de herhalingen, via `binomialStderr()` en `confidenceBand()`
   uit `lib/stats/uncertainty.ts`, waar de meting ook al mee rekent.
+- **Plaats** komt uit `lib/reputation/rank.ts`, ook puur. Per vergelijking en per criterium levert
+  het oordeel een volgorde; de code zet die om in een score van 0 tot 100 met de formule
+  `(aantal partijen - plaats) / (aantal partijen - 1) × 100`, middelt over de criteria, over de
+  herhalingen en over de aanbodknopen, en houdt de plaats zelf apart bij. Partijen die het model
+  naar eigen zeggen niet kent, vallen uit de noemer. Blijven er minder dan twee partijen over, dan
+  is de uitkomst `null` en niet "eerste van één".
 
-### 3.2 Het scherm, zeven blokken van boven naar beneden
+### 3.2 Het scherm, acht blokken van boven naar beneden
 
 Adres: `/merk/[id]/analytics/reputatie`. Kop: **Mijn reputatie**. Subkop, één zin:
-*"Hoe AI over je praat, per dienst, en waar dat beeld vandaan komt."*
+*"Hoe AI over je praat, per dienst, hoe je het doet tegenover je concurrenten, en waar dat beeld
+vandaan komt."*
 
-**Blok 1 · De uitspraak.** Eén zin in gewone taal, gevolgd door de drie getallen. Bijvoorbeeld:
-*"ChatGPT praat overwegend positief over Van den Udenhout en baseert dat vooral op je eigen website.
-Er staan 3 reviewplatforms tegenover, en op één daarvan sta je niet."* Daaronder de peildatum en de
-engine als mono-label: `ChatGPT · 22 aug 2026 · 35 vragen`.
+**Blok 1 · De uitspraak.** Eén zin in gewone taal, gevolgd door de drie getallen en de plaats.
+Bijvoorbeeld: *"ChatGPT praat overwegend positief over Van den Udenhout en baseert dat vooral op je
+eigen website. Legt hij je naast je drie grootste concurrenten, dan kom je op de derde plaats, en
+dat komt vooral door de prijs-kwaliteitverhouding."* Daaronder de peildatum en de engine als
+mono-label: `ChatGPT · 22 aug 2026 · 34 vragen · 3 concurrenten`.
 
 **Blok 2 · Zonder opzoeken tegenover met opzoeken.** Twee kaarten naast elkaar. Links: wat het model
 uit zichzelf over je zegt. Rechts: wat het zegt als het mag zoeken. Het **verschil** is het inzicht.
@@ -275,25 +316,46 @@ zijn je eigen site."*
 toon van laag naar hoog, want het probleem hoort bovenaan:
 
 ```
-Bekkenfysiotherapie      · toon  +12 · bewijs 20 · "AI noemt je, maar zonder onderbouwing"
-Sportmassage             · toon  +68 · bewijs 74 · "Sterk, met 3 externe bronnen"
-Dry needling             · toon  null · bewijs  0 · "AI heeft hier geen beeld van"
+Bekkenfysiotherapie · toon  +12 · bewijs 20 · 4e van 4 · "AI noemt je, maar zonder onderbouwing"
+Sportmassage        · toon  +68 · bewijs 74 · 1e van 4 · "Sterk, met 3 externe bronnen"
+Dry needling        · toon  null · bewijs  0 · geen    · "AI heeft hier geen beeld van"
 ```
 
 Elke regel klapt open naar: de gestelde vraag, het letterlijke antwoord van AI (ingekort, met een
-link naar het volledige antwoord), de genoemde pluspunten, de genoemde minpunten, en de bronnen.
-Dat is de eis "geef de klant een score en een korte uitleg", plus de mogelijkheid om na te lezen
-waar die score op rust.
+link naar het volledige antwoord), de genoemde pluspunten, de genoemde minpunten, de bronnen, en de
+volgorde waarin AI de partijen op deze dienst zette. Dat is de eis "geef de klant een score en een
+korte uitleg", plus de mogelijkheid om na te lezen waar die score op rust.
 
-**Blok 5 · Sterk en kwetsbaar.** Twee lijsten uit de synthese, elk met het bewijs eronder: welke
+**Blok 5 · Tegenover je concurrenten.** Het nieuwe hoofdblok. Bovenaan wie er vergeleken is en
+waarom juist die partijen (zie §4.4). Daaronder één tabel: vier criteria als rijen, de partijen als
+kolommen, de eigen kolom gemarkeerd, en in elke cel de gemiddelde plaats.
+
+```
+                            jij     Concurrent A   Concurrent B   Concurrent C
+Dienstverlening             2,0          1,3            2,7            4,0
+Kwaliteit                   1,7          2,0            2,3            4,0
+Prijs-kwaliteitverhouding   3,3          1,7            2,0            3,0
+Betrouwbaarheid             1,3          2,3            2,7            3,7
+```
+
+Onder de tabel twee zinnen die de tabel samenvatten, want een tabel is geen conclusie:
+*"Je wint op betrouwbaarheid en verliest op prijs-kwaliteitverhouding. Bij de diensten waar je
+verliest, noemt AI in alle drie de gevallen dezelfde reden: er staat geen prijsindicatie op je
+site."*
+
+⚠️ Staat de uitkomst op één vergelijking per dienst, dan staat er een chip `indicatief` bij en zegt
+het scherm waarom. De reden staat in §4.4 en het is geen slag om de arm maar een gemeten
+eigenschap van taalmodellen.
+
+**Blok 6 · Sterk en kwetsbaar.** Twee lijsten uit de synthese, elk met het bewijs eronder: welke
 eigenschappen AI structureel aan je koppelt, en welke bezwaren terugkomen. Alleen punten die in
 **minstens twee** antwoorden voorkomen, anders is het toeval en geen patroon.
 
-**Blok 6 · Wat dit niet is.** Vier regels, klein, altijd zichtbaar: één AI-assistent, één moment,
-N vragen, en de opmerking over de consumentenversie van ChatGPT uit §2.5. Dit blok verdwijnt nooit
-en wordt nooit ingeklapt.
+**Blok 7 · Wat dit niet is.** Vijf regels, klein, altijd zichtbaar: één AI-assistent, één moment,
+N vragen, de opmerking over de consumentenversie van ChatGPT uit §2.5, en het gemeten
+volgorde-effect uit §4.4. Dit blok verdwijnt nooit en wordt nooit ingeklapt.
 
-**Blok 7 · De vervolgstap.** Vandaag één regel: *"Dit scherm laat zien hoe je ervoor staat. Wat je
+**Blok 8 · De vervolgstap.** Vandaag één regel: *"Dit scherm laat zien hoe je ervoor staat. Wat je
 eraan doet, bepaal je met je consultant."* ⚠️ Er komt **geen** knop die iets belooft wat er niet is.
 Fase 2 vult dit blok, zie §11.
 
@@ -308,7 +370,7 @@ heeft er zeven.
 | **Klaar om te starten, beheerder** | Onboarding af, nog geen run | De knop, met wat het gaat doen, hoe lang het duurt en wat het kost |
 | **Klaar om te starten, klant** | Idem, geen beheerder | Wat de analyse oplevert, en: *"Een reputatieanalyse zet je consultant voor je in gang. Laat weten dat je hem wilt, dan plannen we hem in."* De knop staat er niet, uitgeschakeld of wel |
 | **Loopt** | Run bezig | Voortgang via `lib/jobs/progress.ts`, met de resterende tijd en welke stap loopt |
-| **Klaar** | Run af | De zeven blokken |
+| **Klaar** | Run af | De acht blokken |
 | **Budget op** | Plafond geraakt | Wat er wél gemeten is, wat er is overgeslagen, en het cijfer met de kanttekening dat het op minder vragen rust |
 | **Mislukt** | Te weinig geslaagde vragen | Geen half cijfer. Wat er misging, en de knop om opnieuw te proberen, alleen voor de beheerder |
 
@@ -364,8 +426,8 @@ reputatie zat of in de vraag.
 
 ### 4.2 Blok A: merkbreed
 
-Zes tot acht vragen, allemaal met de merknaam erin. De ongegronde vragen meten wat er in het model
-zélf zit, de gegronde wat het vindt.
+Vijf vragen, allemaal met de merknaam erin. De ongegronde vraag meet wat er in het model zélf zit,
+de gegronde wat het vindt.
 
 | # | Vraag (naar het Nederlands, met merknaam en plaats ingevuld) | Zoeken | Waarom |
 |---|---|---|---|
@@ -374,11 +436,15 @@ zélf zit, de gegronde wat het vindt.
 | A3 | Wat zeggen klanten over {merk}? Noem concrete ervaringen en waar die staan | ja | De kern. Levert de toon en de bronnen |
 | A4 | Wat zijn de nadelen van {merk}? Waar zijn klanten ontevreden over? | ja | ⚠️ De belangrijkste vraag van de hele analyse, zie §2.1 |
 | A5 | Is {merk} betrouwbaar om zaken mee te doen? Waarom wel of niet? | ja | De koopdrempel, en de vraag die een echte klant stelt |
-| A6 | {merk} of {concurrent}: welke zou je aanraden en waarom? | ja | De vergelijking. De concurrent komt uit `analysis_entities` of het marktonderzoek |
-| A7 | Zelfde met de tweede concurrent | ja | Eén vergelijking is een anekdote |
 
 In de diepe modus draaien A1, A3 en A4 **drie keer**, om de eenduidigheid te kunnen meten. Dat is
 hetzelfde idee als `measureRepeats` bij de meting.
+
+⚠️ **Hier stond eerst "{merk} of {concurrent}: welke raad je aan", twee keer.** Dat is vervangen
+door blok V hieronder. Een reeks tweegevechten levert geen rangorde op: wie A van B wint en B van C,
+kan alsnog van C verliezen, en dan staat er een uitkomst op het scherm die niet klopt en niet te
+weerleggen is. Eén vergelijking waarin alle partijen tegelijk voorkomen, is zowel goedkoper als
+juister.
 
 ⚠️ **De naamsverwarring hoort erin.** Elke vraag krijgt de uitsluitingen mee die de kennistest al
 verzamelt (`profiles.name_exclusions`, migratie 0060): *"Het gaat om het bedrijf in {plaats}, niet
@@ -407,7 +473,125 @@ metingen op staan, zet het scherm de zichtbaarheidsscore ernaast. Nul extra kost
 zin die de klant het langst onthoudt: *"Je wordt bij 8 van de 30 vragen genoemd, en als je genoemd
 wordt is de toon positief."*
 
-### 4.4 Blok C: bronnen en reviews
+### 4.4 Blok V: de vergelijking met concurrenten
+
+Dit blok beantwoordt de vraag die een koper werkelijk stelt: **niet "is dit bedrijf goed", maar
+"welke van deze vier moet ik hebben".** Het is toegevoegd op 22 augustus 2026, en het is het enige
+blok waarin de klant niet alleen op zichzelf beoordeeld wordt.
+
+#### Welke concurrenten, en waarom juist die
+
+Deterministisch, in `lib/reputation/select-rivals.ts`, puur en testbaar. In deze volgorde:
+
+1. **Concurrenten die uit de metingen zijn gekomen**: rijen in `entities` met `entity_role`
+   `'concurrent'` en `dismissed = false`, gesorteerd op hun aantal vermeldingen in
+   `competitor_breakdown` over de laatste afgeronde periode. Dit is het sterkste signaal dat er is,
+   want deze namen zijn niet bedacht maar gemeten.
+2. **Anders** de concurrenten uit het profielonderzoek (`profiles.competitors`). Zwakker, want dat
+   is een oordeel van het model over de markt en geen waarneming, maar bij een merk zonder metingen
+   is het het enige dat er is.
+3. **Anders geen vergelijking.** Geen namen verzinnen, geen "vergelijkbare bedrijven in de regio".
+   De run gaat gewoon door zonder blok V, `rank_score` blijft `null`, en het scherm zegt waarom.
+   Conventie 3.
+
+**Hooguit drie concurrenten, dus vier partijen.** Daarboven gaat een model namen laten vallen,
+dubbel rangschikken of partijen samenvoegen, en dan meet je de aandacht van het model en niet de
+markt. Drie is ook wat een koper zelf naast elkaar legt.
+
+⚠️ **Wat de klant heeft weggezet, gaat er nooit in.** `entities.dismissed` is een expliciete
+beslissing van de klant dat iets geen concurrent van hem is. Een vergelijking tegen een partij die
+de klant zelf heeft afgewezen, kost het vertrouwen in het hele scherm. Hetzelfde geldt voor
+`entity_role` anders dan `'concurrent'`: een marktplaats of een brancheorganisatie komt wél uit de
+metingen maar hoort hier niet tussen. Die classificatie bestaat al sinds migratie 0026 en hoeft
+alleen gelezen te worden.
+
+⚠️ **Eén vaste set voor de hele run**, vastgelegd in `reputation_runs.rivals` en in `scope_json`.
+Zou de set per aanbodknoop verschillen, dan is de uitkomst per knoop niet meer met de andere te
+vergelijken, en juist die vergelijking is de zin *"je wint bij onderhoud en verliest bij nieuwbouw"*.
+
+#### De vier criteria, vast en niet vrij
+
+| Criterium | De vraag in gewone taal |
+|---|---|
+| `dienstverlening` | Wie helpt zijn klanten het best? |
+| `kwaliteit` | Wie levert het beste werk of product? |
+| `prijs_kwaliteit` | Wie biedt de beste verhouding tussen prijs en wat je ervoor krijgt? |
+| `betrouwbaarheid` | Wie komt na wat hij belooft? |
+
+⚠️ **Vast, en dat is een ontwerpbesluit.** Laat je het model zelf criteria bedenken, dan levert
+elke run andere assen op en is geen enkele herhaling en geen enkele vergelijking tussen twee
+diensten nog iets waard. Dezelfde reden waarom `mention_role` een enum is en geen vrije tekst. Het
+model mag wél vrij formuleren wáárom een partij ergens staat; dat is waar de nuance in zit.
+
+#### De vraag
+
+> *"Vergelijk {partij 1}, {partij 2}, {partij 3} en {partij 4} op het gebied van {dienst} in
+> {regio}. Zet ze per onderwerp op volgorde van beste naar minste: dienstverlening, kwaliteit,
+> prijs-kwaliteitverhouding, betrouwbaarheid. Geef per onderwerp aan waarom je die volgorde kiest en
+> op welke bronnen je dat baseert. Ken je een bedrijf niet of te weinig om er iets over te zeggen,
+> zeg dat dan expliciet en laat het buiten de volgorde. Een eerlijk 'ik weet het niet' is beter dan
+> een gok."*
+
+Met web-zoeken aan. Merkbreed dezelfde vraag zonder `{dienst}`, over het bedrijf als geheel.
+
+#### ⚠️ Het volgorde-effect, en waarom dit de kern van dit blok is
+
+**Een taalmodel bevoordeelt de partij die het eerst genoemd wordt.** Dat is een bekende en gemeten
+eigenschap, geen theoretisch risico, en het is dezelfde soort fout als die deze app al een keer
+gemaakt heeft: structured output koos bij twijfel de eerste waarde uit de lijst, en dat vulde bij
+10 van 27 niet-genoemde merken alsnog een rol in (conventie 1). Zet je de klant altijd vooraan, dan
+bouw je een product dat elke klant een mooie plaats geeft. Dat is erger dan geen vergelijking.
+
+Vier maatregelen, en ze horen alle vier in de code:
+
+1. **De volgorde rouleert, deterministisch.** `lib/reputation/rotate.ts` bepaalt de volgorde uit
+   `(runId, offeringId, herhaling)`. Reproduceerbaar, dus twee keer dezelfde run levert dezelfde
+   volgorde en het verschil zit dan echt in het antwoord. De gebruikte volgorde wordt opgeslagen in
+   `reputation_answers.party_order`, anders is achteraf niet na te gaan of een uitslag een
+   volgorde-effect was.
+2. **De klant staat nooit standaard vooraan.** De rotatie is zo gekozen dat de klant over de
+   aanbodknopen heen elke positie ongeveer even vaak inneemt. Bij twaalf knopen en vier partijen
+   staat hij dus ongeveer drie keer op elke plek. **Het gemiddelde over de knopen is daarmee
+   gecorrigeerd, ook al is één losse knoop dat niet.** Dat is precies waarom het merkcijfer wél op
+   één vergelijking per knoop mag rusten en de losse knoop niet.
+3. **Eén vergelijking per knoop is indicatief, drie is een uitslag.** Een knoop met één vergelijking
+   krijgt `rank_indicative = true` en dat staat als chip op het scherm. In de diepe modus krijgen de
+   acht zwaarstwegende knopen drie rotaties en vervalt die chip. Merkbreed krijgt **altijd** drie
+   rotaties, ook in de standaardmodus, want dat is het getal dat bovenaan het scherm komt.
+4. **Het effect wordt gemeten, niet aangenomen.** `lib/reputation/order-bias.ts` telt over de hele
+   run hoe vaak de eerstgenoemde partij als eerste geplaatst wordt. Bij vier partijen is de
+   verwachting 25%. Ligt het er ver boven, dan wordt dat opgeslagen in
+   `reputation_runs.order_bias`, gaan alle plaatsen op indicatief en zegt blok 7 van het scherm het
+   in gewone taal. Een meting die zijn eigen betrouwbaarheid kan aantonen, is meer waard dan een
+   meting met een voorbehoud in de kleine lettertjes.
+
+#### Wat het oordeel oplevert
+
+Per vergelijking, per criterium, per partij: een plaats, of `null` met `known = false` als het model
+zei de partij niet te kennen. Plus de reden en de bronnen. De namen die het model teruggeeft worden
+via `resolveEntity()` en `normalizeEntityName()` (`lib/entities/`) teruggematcht op de bekende
+entiteiten, zodat "Van der Valk Hotels" en "Van der Valk" één partij zijn en niet twee.
+
+Drie vangnetten, bovenop de drie uit §4.7:
+
+1. **Een partij die niet in de gevraagde set zat, wordt genegeerd.** Modellen voegen graag een
+   vijfde bedrijf toe. Dat is geen antwoord op de vraag en het verstoort de noemer.
+2. **Ontbreekt de klant zelf in de volgorde**, dan is er geen plaats en geen score. Niet "laatste".
+   Het model heeft dan geen oordeel geveld, en dat is iets anders dan een slecht oordeel.
+3. **Blijven er na het wegvallen van onbekende partijen minder dan twee over**, dan vervalt de hele
+   vergelijking voor dat criterium. Eerste van één is geen uitslag.
+
+#### Wat dit blok níet is
+
+⚠️ **Geen reputatieprofiel van de concurrent.** We meten hoe de klant zich verhoudt tot die partijen,
+niet hoe die partijen er zelf voor staan. Dat laatste zou de kosten en de doorlooptijd per
+concurrent verdubbelen, en het is niet waar de klant voor betaalt.
+
+⚠️ **En de namen van concurrenten gaan nooit mee naar de contentstap.** Die regel staat al in
+`lib/pipeline/content.ts` en verandert hier niet: klantcontent noemt nooit een concurrent. Wat er
+straks in fase 2 doorgegeven mag worden is de **eigenschap** waarop verloren wordt, niet van wie.
+
+### 4.5 Blok C: bronnen en reviews
 
 - **C1 (gegrond):** *"Welke beoordelingen en reviews staan er online over {merk} in {plaats}? Noem
   per platform de naam, de URL, het cijfer en het aantal beoordelingen. Weet je het niet zeker, zeg
@@ -428,14 +612,14 @@ de bekende platformlijst staat én die bij het ophalen de merknaam niet bevat, w
 overblijft en niet bevestigd kon worden, staat er als onbevestigd. Dit is hetzelfde patroon als
 `validate-claims.ts`: het model levert de kandidaat, de code besluit.
 
-### 4.5 Blok D: de synthese
+### 4.6 Blok D: de synthese
 
 Eén aanroep op de kwaliteitstier, ongegrond, die alles wat hierboven verzameld is samenvat tot:
 de zin voor blok 1, de sterke punten, de kwetsbare punten, en per aanbodknoop de uitleg van één of
 twee zinnen.
 
-⚠️ **De synthese rekent niet.** De drie getallen zijn dan al berekend door `lib/reputation/score.ts`
-en gaan als gegeven de prompt in. Het model schrijft de uitleg, het bepaalt de uitkomst niet. Zou je
+⚠️ **De synthese rekent niet.** De drie getallen en de plaats zijn dan al berekend door
+`lib/reputation/score.ts` en `lib/reputation/rank.ts`, en gaan als gegeven de prompt in. Het model schrijft de uitleg, het bepaalt de uitkomst niet. Zou je
 dat omdraaien, dan verschilt het cijfer per keer dat je het vraagt en is geen enkele vergelijking
 over de tijd nog iets waard.
 
@@ -443,7 +627,7 @@ De schrijfregels uit `docs/schrijfstijl.md` gaan mee in de prompt, inclusief reg
 gedachtestreepjes, precies zoals `lib/pipeline/content.ts` dat doet. Deze tekst komt op het scherm
 van de klant.
 
-### 4.6 De oordeelslaag staat los van de vraag
+### 4.7 De oordeelslaag staat los van de vraag
 
 Per antwoord uit blok A en B draait één **goedkope, ongegronde** beoordeling die het antwoord omzet
 in een structuur. Dit is de tweede helft van hetzelfde patroon als halte 3a en 3b van de meting: het
@@ -469,7 +653,7 @@ noemt_merk:      boolean    ging het antwoord überhaupt over dit merk
 3. Elk citaat waarvan de tekst niet letterlijk in het opgeslagen antwoord voorkomt, gaat eruit. Dat
    is dezelfde controle als `quote-check.ts` doet.
 
-### 4.7 Waar alles blijft staan
+### 4.8 Waar alles blijft staan
 
 Conventie 8: elke aanroep bewaart zijn volledige ruwe JSON naast de uitgesplitste kolommen. Bij dit
 product is dat geen boekhouding maar functionaliteit: het scherm laat de klant het letterlijke
@@ -491,36 +675,49 @@ op een redeneermodel $0,01 per aanroep.
 | Beoordeling | ± 2.500 invoer + ± 400 uitvoer | **$0,001** |
 | Synthese | ± 12.000 invoer + ± 2.500 uitvoer | **$0,006** |
 
+Een vergelijkingsvraag telt als een gegronde vraag. Hij is iets langer aan beide kanten (vier
+partijen, vier criteria, een reden per criterium), maar niet zoveel dat het de orde van grootte
+verandert.
+
 **Standaardmodus:**
 
 | Blok | Aanroepen | Kosten |
 |---|---|---|
-| A, merkbreed | 1 ongegrond + 6 gegrond | $0,092 |
-| A, beoordelingen | 7 | $0,007 |
+| A, merkbreed | 1 ongegrond + 4 gegrond | $0,061 |
+| A, beoordelingen | 5 | $0,005 |
+| V, merkbrede vergelijking | 3 gegronde rotaties | $0,045 |
+| V, beoordelingen | 3 | $0,003 |
 | B, 12 knopen | 12 gegrond | $0,180 |
 | B, beoordelingen | 12 | $0,012 |
+| V, vergelijking per knoop | 12 gegrond | $0,180 |
+| V, beoordelingen | 12 | $0,012 |
 | C, bronnen | 2 gegrond + 1 indeling | $0,031 |
 | C, controle van reviewpagina's | 0, eigen crawler | $0,000 |
-| D, synthese | 1 | $0,006 |
-| **Totaal** | **42** | **$0,33, ongeveer €0,31** |
+| D, synthese | 1 | $0,008 |
+| **Totaal** | **68**, waarvan 34 vragen aan ChatGPT | **$0,54, ongeveer €0,50** |
 
-**Diepe modus:** 25 knopen met 2 vragen elk, 3 herhalingen op A1, A3 en A4, samen 95 aanroepen,
-**$1,03, ongeveer €0,96**.
+**Diepe modus:** 25 knopen met een reputatievraag en een vergelijking elk, 3 rotaties op de
+vergelijking bij de 8 zwaarstwegende knopen, 3 herhalingen op A1, A3 en A4, en 3 rotaties merkbreed.
+Samen **164 aanroepen, $1,28, ongeveer €1,19**.
 
 ⚠️ **Waar de schatting fout kan gaan:** het aantal invoertokens bij een gegronde vraag. Web-zoeken
 haalt pagina's op en die tellen als invoer. Bij een merk met veel online aanwezigheid kan dat
-oplopen naar 40.000 tokens, en dan wordt een gegronde vraag $0,02 in plaats van $0,015. De diepe
-modus komt daarmee op ongeveer €1,40. Nog steeds ruim binnen €3, en het plafond vangt de rest.
+oplopen naar 40.000 tokens, en dan wordt een gegronde vraag $0,02 in plaats van $0,015. Een
+vergelijking zoekt bovendien naar vier bedrijven in plaats van één, dus daar is de kans op die
+uitschieter het grootst. In dat scenario komt de standaardmodus op ongeveer **€0,63** en de diepe op
+ongeveer **€1,55**. Beide binnen €3, en het plafond vangt de rest.
 
-**Doorlooptijd.** Een gegronde aanroep duurt 20 tot 40 seconden. Verdeeld over de wachtrij, met de
-knopen parallel, landt de standaardmodus op **4 tot 6 minuten** en de diepe op **10 tot 14 minuten**.
-Dat past bij de rest van de app: de onboarding doet er ongeveer 7,5 minuut over.
+**Doorlooptijd.** Een gegronde aanroep duurt 20 tot 40 seconden, een vergelijking eerder 40 dan 20
+omdat er over vier bedrijven gezocht wordt. Verdeeld over de wachtrij, met de knopen parallel, landt
+de standaardmodus op **6 tot 9 minuten** en de diepe op **14 tot 20 minuten**. De standaardmodus
+blijft daarmee in de orde van de onboarding, die ongeveer 7,5 minuut duurt. De diepe modus is
+nadrukkelijk geen scherm waar je bij wacht, en dat hoort het startscherm ook te zeggen.
 
 ---
 
 ## 6. Datamodel, migratie 0062
 
-Additief en idempotent, geen enkele `drop` (conventie 4). Vier tabellen plus één kolom op een
+Additief en idempotent, geen enkele `drop` (conventie 4). Vijf tabellen plus één kolom op een
 bestaande.
 
 ### `reputation_runs`, één rij per analyse
@@ -533,15 +730,27 @@ started_by (auth.users), started_at, finished_at,
 tone_index numeric null,          -- -100 tot 100, null is onbekend
 evidence_score numeric null,      -- 0 tot 100
 consistency numeric null,         -- 0 tot 100, alleen bij herhalingen
+rank_score numeric null,          -- 0 tot 100, de vergelijking (§4.4)
+rank_position numeric null,       -- de gemiddelde plaats, bv. 2,3
+rank_of int null,                 -- van hoeveel partijen
+rank_indicative bool default true,-- rust dit op te weinig rotaties? (§4.4)
+rivals text[],                    -- tegen wie er vergeleken is, één set per run
+wins_on text[], loses_on text[],  -- op welke van de vier criteria
+order_bias numeric null,          -- gemeten volgorde-effect, null = niet te bepalen
 summary text, strengths text[], weaknesses text[],
 questions_planned int, questions_done int,
 cost_usd numeric(10,6), budget_eur numeric,
-scope_json jsonb,                 -- welke knopen meegingen, en waarom
+scope_json jsonb,                 -- welke knopen en welke concurrenten meegingen, en waarom
 notes text[]                      -- wat overgeslagen is, en waarom
 ```
 
 ⚠️ `tone_index` is `null` en niet `0` als er geen oordeel te vellen viel. Nul betekent neutraal.
 Conventie 3, en dit is precies de plek waar hij het meest kost als je hem vergeet.
+
+⚠️ `rank_indicative` staat standaard op `true`. Hij gaat pas op `false` als er genoeg rotaties onder
+liggen én `order_bias` binnen de verwachting valt. De veilige kant is hier "dit is een indicatie",
+want een plaats die stelliger op het scherm staat dan hij is, is precies de fout die dit hele
+onderdeel probeert te vermijden.
 
 ### `reputation_answers`, één rij per gestelde vraag
 
@@ -553,6 +762,7 @@ opnieuw te stellen**, en dat is bij de meting de belangrijkste kostenbescherming
 id, run_id, block ('merk'|'aanbod'|'vergelijking'|'bron'),
 offering_id null, question text, web_search bool, repeat_index int default 0,
 answer_text text, raw_json jsonb, cited_urls text[],
+party_order text[],               -- de volgorde waarin de partijen de vraag in gingen (§4.4)
 verdict_json jsonb null,          -- null = beoordeling nog niet gelukt, mag opnieuw
 tone text null, tone_score int null,
 pros text[], cons text[], grounding text null, mentions_brand bool null,
@@ -561,13 +771,46 @@ unique (run_id, block, offering_id, question, repeat_index)
 ```
 
 Die unieke sleutel is de idempotentie (conventie 9): een taak die twee keer draait stelt de vraag
-één keer.
+één keer. `repeat_index` onderscheidt de rotaties van de vergelijking, dus drie rotaties zijn drie
+rijen en geen duplicaat.
+
+⚠️ `party_order` is geen administratie. Zonder die kolom is achteraf niet vast te stellen of een
+uitslag door de volgorde kwam, en dan is `order_bias` niet te berekenen en de hele meting niet te
+controleren.
+
+### `reputation_ranks`, één rij per partij per criterium per vergelijking
+
+Nieuw op 22 augustus 2026, samen met blok V. Dit is de enige tabel met een rij per partij, want dit
+is het enige onderdeel waarin de klant niet alleen op zichzelf beoordeeld wordt.
+
+```
+id, run_id, answer_id, offering_id null,
+criterion ('dienstverlening'|'kwaliteit'|'prijs_kwaliteit'|'betrouwbaarheid'),
+party_name text, entity_id null,  -- teruggematcht via resolveEntity()
+is_own_brand bool,
+position int null,                -- null als het model de partij niet kende
+of_parties int,                   -- hoeveel partijen er in DIT oordeel meededen
+known bool,                       -- zei het model deze partij te kennen
+reason text, sources text[]
+```
+
+⚠️ `of_parties` staat per rij en niet per run, met opzet. Kende het model bij prijs-kwaliteit maar
+drie van de vier partijen, dan is een tweede plaats daar iets anders waard dan een tweede plaats van
+vier. Zonder deze kolom is dat verschil weg en rekent de score de klant rijk of arm.
+
+⚠️ `party_name` staat er **naast** `entity_id`, om dezelfde reden als `offering_name` hieronder: een
+entiteit kan later hernoemd of samengevoegd worden, en dan moet nog steeds na te lezen zijn welke
+naam de vraag in ging.
 
 ### `reputation_offering_scores`, één rij per aanbodknoop
 
 ```
 id, run_id, offering_id, offering_name, offering_kind,
 tone_index numeric null, evidence_score numeric null, answers int,
+rank_score numeric null,          -- 0 tot 100, de vergelijking op déze dienst
+rank_position numeric null, rank_of int null,
+rank_indicative bool default true,
+wins_on text[], loses_on text[],  -- op welke van de vier criteria
 summary text, top_pros text[], top_cons text[], source_domains text[],
 visibility_score numeric null     -- uit de bestaande meting, als die er is. Gratis
 ```
@@ -598,7 +841,7 @@ de dimensie te dragen waarop je afrekent. `CallMeta` in `lib/openai/ledger.ts` k
 
 ### RLS
 
-Alle vier de tabellen: RLS aan, **SELECT-only** policies volgens hetzelfde patroon als
+Alle vijf de tabellen: RLS aan, **SELECT-only** policies volgens hetzelfde patroon als
 `profile_offerings` (migratie 0056 heeft de accountlaag, 0038 de beheerderslaag). Schrijven gaat
 uitsluitend via de service-role key in de API-route en de jobhandlers (conventie 6).
 
@@ -606,15 +849,22 @@ uitsluitend via de service-role key in de API-route en de jobhandlers (conventie
 
 ## 7. De taken in de wachtrij
 
-Vijf nieuwe taaksoorten in `lib/jobs/types.ts`. Eén taak is hooguit één zwaar blok (conventie 7).
+Zes nieuwe taaksoorten in `lib/jobs/types.ts`. Eén taak is hooguit één zwaar blok (conventie 7).
 
 | Taak | Wat hij doet | Zwaar? | Ketent naar |
 |---|---|---|---|
-| `reputation_start` | Knopen kiezen, run aanmaken, de rest inplannen | nee | alle onderstaande |
-| `reputation_brand` | Blok A, 6 tot 8 korte aanroepen parallel, plus de beoordelingen | ja, één blok | telt af |
+| `reputation_start` | Knopen en concurrenten kiezen, run aanmaken, de rest inplannen | nee | alle onderstaande |
+| `reputation_brand` | Blok A, 5 korte aanroepen parallel, plus de beoordelingen | ja, één blok | telt af |
 | `reputation_offering` | Blok B voor **één** knoop, plus de beoordeling | ja, 1 tot 2 aanroepen | telt af |
+| `reputation_compare` | Blok V voor **één** knoop of merkbreed, met zijn rotaties | ja, 1 tot 3 aanroepen | telt af |
 | `reputation_sources` | Blok C, inclusief de crawl-controle | ja, één blok | telt af |
 | `reputation_synthesis` | De getallen rekenen, blok D schrijven, run afsluiten | ja, 1 aanroep | einde |
+
+⚠️ **`reputation_compare` is een eigen taaksoort en geen uitbreiding van `reputation_offering`**
+(conventie 7). Twee redenen, en de tweede is de belangrijkste: met drie rotaties zou één taak drie
+zware aanroepen doen náást de reputatievraag, en dat past niet in één werker-aanroep. Bovendien moet
+de vergelijking als geheel kunnen wegvallen als het budget vol loopt, zonder de basisanalyse mee te
+nemen (§2.3). Dat kan alleen als het een eigen taak is.
 
 **Hoe de synthese weet dat hij mag.** Dezelfde constructie als
 `scheduleAggregateIfLastPrompt()` in `lib/jobs/handlers.ts`: elke afrondende taak telt hoeveel
@@ -627,9 +877,15 @@ dedupe-sleutel per run zorgt dat er nooit twee synthesetaken ontstaan.
 reputationStart:     (profileId, runId) => `rep_start:${runId}`
 reputationBrand:     (runId) => `rep_brand:${runId}`
 reputationOffering:  (runId, offeringId) => `rep_offering:${runId}:${offeringId}`
+reputationCompare:   (runId, offeringId) =>
+                       offeringId ? `rep_cmp:${runId}:${offeringId}` : `rep_cmp:${runId}:merk`
 reputationSources:   (runId) => `rep_sources:${runId}`
 reputationSynthesis: (runId) => `rep_synthesis:${runId}`
 ```
+
+⚠️ De merkbrede vergelijking heeft geen aanbodknoop, dus die sleutel eindigt op het woord `merk` en
+niet op een lege string. Een sleutel die op `:` eindigt ziet er in de database uit als een fout en
+botst met een knoop-id dat ooit leeg zou zijn.
 
 ⚠️ De sleutel hangt aan de **run** en niet aan het profiel. Een tweede scan over drie maanden is
 nieuw werk en geen duplicaat, en dat moet uit de sleutel blijken.
@@ -637,7 +893,8 @@ nieuw werk en geen duplicaat, en dat moet uit de sleutel blijken.
 **De budgetpoort staat vóór elke zware taak**, niet alleen aan het begin. `lib/reputation/budget.ts`
 telt de som van `ai_calls.cost_usd` voor deze `reputation_run_id` en vergelijkt met €3. Zit een taak
 er niet meer in, dan slaat hij zichzelf over, schrijft dat in `reputation_runs.notes`, en de run gaat
-op `budget_op` in plaats van op `klaar`. De klant ziet dan een cijfer met een kanttekening in plaats
+op `budget_op` in plaats van op `klaar`. De vergelijkingstaken worden ná de reputatietaken ingepland,
+dus zij vallen als eerste af (§2.3). De klant ziet dan een cijfer met een kanttekening in plaats
 van een cijfer dat doet alsof er niets aan de hand was.
 
 ---
@@ -651,10 +908,14 @@ Elke sprint eindigt groen op de vier vaste controles: `npx tsc --noEmit`, `npm r
 
 **Bestanden**
 
-- `supabase/migrations/0062_reputatie.sql`, de vier tabellen, de kolom op `ai_calls`, de RLS
-- `lib/types/database.ts`, de vier interfaces
+- `supabase/migrations/0062_reputatie.sql`, de vijf tabellen, de kolom op `ai_calls`, de RLS
+- `lib/types/database.ts`, de vijf interfaces
 - `lib/reputation/select-nodes.ts`, puur, de selectie uit §4.1
-- `lib/reputation/score.ts`, puur, de drie getallen uit §3.1
+- `lib/reputation/select-rivals.ts`, puur, de keuze van de concurrenten uit §4.4
+- `lib/reputation/rotate.ts`, puur, de volgorde van de partijen per vergelijking (§4.4)
+- `lib/reputation/rank.ts`, puur, de plaats en de rangscore uit §3.1
+- `lib/reputation/order-bias.ts`, puur, het gemeten volgorde-effect
+- `lib/reputation/score.ts`, puur, de toon, de bewijskracht en de eenduidigheid uit §3.1
 - `lib/reputation/tone.ts`, puur, de toonschaal en de labels in het Nederlands
 - `lib/reputation/sources.ts`, puur, indelen en tellen van domeinen
 - `lib/reputation/budget.ts`, het plafond van €3
@@ -663,34 +924,43 @@ Elke sprint eindigt groen op de vier vaste controles: `npx tsc --noEmit`, `npm r
 
 **Verificatie:** `npm run test:unit` bevat tests die aantonen dat een aanbodboom van 60 knopen tot
 12 gekozen knopen leidt met de prioriteiten bovenaan, dat een antwoord zonder bron niet in het
-merkcijfer terechtkomt, en dat een run zonder enig bruikbaar antwoord `null` oplevert en niet 0.
+merkcijfer terechtkomt, dat een run zonder enig bruikbaar antwoord `null` oplevert en niet 0, dat
+een weggezette concurrent nooit in de vergelijking komt, en dat de rotatie de klant over twaalf
+knopen ongeveer even vaak op elke plek zet.
 
 ### Sprint R2 · De pijplijn
 
 **Bestanden**
 
-- `lib/schemas/reputation.ts`, de Zod-contracten voor de beoordeling, de bronnen en de synthese
+- `lib/schemas/reputation.ts`, de Zod-contracten voor de beoordeling, de vergelijking, de bronnen
+  en de synthese
 - `lib/pipeline/reputation-brand.ts`, blok A
 - `lib/pipeline/reputation-offering.ts`, blok B
+- `lib/pipeline/reputation-compare.ts`, blok V, inclusief de rotatie en het terugmatchen van de
+  partijnamen via `resolveEntity()`
 - `lib/pipeline/reputation-sources.ts`, blok C, inclusief de crawl-controle
-- `lib/pipeline/reputation-verdict.ts`, de oordeelslaag plus de drie vangnetten uit §4.6
+- `lib/pipeline/reputation-verdict.ts`, de oordeelslaag plus de drie vangnetten uit §4.7 en de drie
+  extra uit §4.4
 - `lib/pipeline/reputation-synthesis.ts`, blok D
 - `lib/jobs/types.ts`, `lib/jobs/dedupe.ts`, `lib/jobs/handlers.ts`, `lib/jobs/chain.ts`
 
 **Verificatie:** een ketentest in `scripts/test-chain.ts` die een run van start tot synthese draait
 tegen echte Postgres met de teststub voor OpenAI, en aantoont dat de synthese pas start als de
-laatste knoop klaar is, dat een tweede keer inplannen niets extra's doet, en dat een geraakt
-budgetplafond de run op `budget_op` zet met een notitie erbij.
+laatste knoop én de laatste vergelijking klaar zijn, dat een tweede keer inplannen niets extra's
+doet, dat een geraakt budgetplafond eerst de vergelijkingen laat vallen en de run op `budget_op`
+zet met een notitie erbij, en dat een merk zonder bekende concurrenten een volledige run oplevert
+zonder blok V en met `rank_score` op `null`.
 
 ### Sprint R3 · Het scherm
 
 **Bestanden**
 
-- `app/(app)/merk/[id]/analytics/reputatie/page.tsx`, de zeven blokken
+- `app/(app)/merk/[id]/analytics/reputatie/page.tsx`, de acht blokken
 - `app/(app)/merk/[id]/analytics/reputatie/loading.tsx`
 - `app/(app)/merk/[id]/analytics/reputatie/_components/start-reputation-button.tsx`
 - `app/(app)/merk/[id]/analytics/reputatie/_components/tone-chip.tsx`
 - `app/(app)/merk/[id]/analytics/reputatie/_components/offering-rows.tsx`
+- `app/(app)/merk/[id]/analytics/reputatie/_components/rival-table.tsx`, blok 5 uit §3.2
 - `app/api/profiles/[id]/reputation/route.ts`, `POST` om te starten, met de drie lagen uit §3.4
 - `lib/cost-rules.ts`, de handeling `reputatie_starten` met zijn melding
 - `lib/nav.ts` en `docs/ux-design.md` §5, na het besluit uit §2.2
@@ -698,7 +968,8 @@ budgetplafond de run op `budget_op` zet met een notitie erbij.
 
 **Verificatie:** de zeven staten uit §3.3 zijn met de hand na te lopen op een merk op productie, en
 de klantstaat toont de melding zonder werkende knop. Een niet-beheerder die de route rechtstreeks
-aanroept krijgt 403 met dezelfde tekst.
+aanroept krijgt 403 met dezelfde tekst. De vergelijkingstabel toont bij een merk zonder bekende
+concurrenten geen lege tabel maar de uitleg waarom er niets te vergelijken viel.
 
 ### Sprint R4 · Nagerekend op productie
 
@@ -712,15 +983,21 @@ Conventie 10: gebouwd is niet geverifieerd.
 - **De vlakheidstoets uit §2.1**: als alle antwoorden positief of neutraal zijn, is dat dan waar of
   is het beleefdheid? Meet dat door één run te draaien op een merk waarvan je weet dat er kritiek
   online staat.
+- **De volgorde-toets uit §4.4**, en die is nieuw: draai de merkbrede vergelijking met de klant
+  bewust vooraan, en daarna nog een keer met de klant achteraan. Verandert de uitslag daardoor
+  wezenlijk, dan is `order_bias` niet streng genoeg afgesteld en mag geen enkele plaats als
+  definitief op het scherm.
 
 **Verificatie:** een korte notitie in `docs/logbook.md` met de gemeten kosten, de gemeten
-doorlooptijd en de uitkomst van de vlakheidstoets. Klopt de toets niet, dan gaat R5 niet door en
-wordt de meetopzet herzien.
+doorlooptijd, de uitkomst van de vlakheidstoets en de uitkomst van de volgorde-toets. Klopt een van
+beide toetsen niet, dan gaat R5 niet door en wordt de meetopzet herzien.
 
 ### Sprint R5 · De diepe modus en de herhaling
 
 - De keuze standaard tegenover diep bij het starten.
 - Herhalingen en het eenduidigheidscijfer.
+- De drie rotaties per vergelijking op de acht zwaarstwegende knopen, waarmee de chip `indicatief`
+  daar vervalt.
 - Een tweede run naast de eerste zetten, met het verschil erbij. `lib/pipeline/period-change.ts`
   rekent al met periodeverschillen en met betekenisvolle verandering; die rekenkunde hoort hier
   hergebruikt, niet nagebouwd.
@@ -744,6 +1021,15 @@ wordt de meetopzet herzien.
   geteld
 - het budget: een taak die er niet meer in past wordt overgeslagen en levert een notitie
 - de navigatiegrens: Analytics mag vier, de andere klanthoofdstukken drie
+- **de concurrentkeuze:** een weggezette concurrent komt er nooit in, een marktplaats evenmin, en
+  bij nul bekende concurrenten is de uitkomst een lege lijst en geen verzonnen naam
+- **de rotatie:** over twaalf knopen staat de klant ongeveer even vaak op elke plek, en dezelfde
+  run levert twee keer dezelfde volgorde op
+- **de rangscore:** een partij die het model niet kende valt uit de noemer, bij minder dan twee
+  overgebleven partijen is de uitkomst `null`, en een klant die helemaal niet in de volgorde
+  voorkomt krijgt geen laatste plaats maar geen plaats
+- **het volgorde-effect:** een gesimuleerde run waarin de eerstgenoemde partij altijd wint, levert
+  een `order_bias` boven de drempel en zet alle plaatsen op indicatief
 
 **Keten** (`scripts/test-chain.ts`), echte handlers tegen echte Postgres:
 
@@ -752,9 +1038,13 @@ wordt de meetopzet herzien.
 - een mislukte beoordeling wordt opnieuw geprobeerd zonder de dure vraag opnieuw te stellen
 - een geraakt budgetplafond zet de run op `budget_op` en het scherm krijgt een gedeeltelijk resultaat
 - een merk zonder aanbodboom levert een nette weigering en geen lege run
+- **een merk zonder bekende concurrenten** levert een volledige run zonder blok V, met `rank_score`
+  op `null` en een notitie die zegt waarom
+- **de volgorde van inplannen:** de vergelijkingen staan achter de reputatietaken, zodat een vol
+  budget de vergelijking laat vallen en niet de basisanalyse
 
 ⚠️ **Waarom de nadruk op de ketentests.** Zeven van de zeven fouten van het vorige traject zaten in
-de samenhang tussen taken en geen enkele unittest kon ze vangen. Dit onderdeel heeft vijf taaksoorten
+de samenhang tussen taken en geen enkele unittest kon ze vangen. Dit onderdeel heeft zes taaksoorten
 die op elkaar wachten, dus dat risico is hier groter dan gemiddeld.
 
 ---
@@ -765,8 +1055,8 @@ die op elkaar wachten, dus dat risico is hier groter dan gemiddeld.
 
 | | Bedrag |
 |---|---|
-| Kostprijs, standaard | ± €0,31 |
-| Kostprijs, diep | ± €0,96, uitschieter tot €1,40 |
+| Kostprijs, standaard | ± €0,50, uitschieter tot €0,63 |
+| Kostprijs, diep | ± €1,19, uitschieter tot €1,55 |
 | Plafond in code | €3,00 |
 
 De kostprijs is dus **niet** wat dit product waard is. Wat je verkoopt is het uur waarin je de
@@ -806,9 +1096,14 @@ zodat fase 1 er niet omheen gebouwd wordt.
 2. **Van ontbrekende bron naar off-site actie.** `offsite_tasks` bestaat al, met een status. Staat
    de klant niet op het reviewplatform dat AI het vaakst aanhaalt, dan is dat een taak en geen
    observatie.
-3. **Van weinig reviews naar reviewacquisitie.** Buiten de app, maar de app kan wel benoemen hoeveel
+3. **Van verloren criterium naar inhaalslag.** Blok V zegt niet alleen dát je verliest maar waarop:
+   verlies je structureel op prijs-kwaliteitverhouding, dan is dat een andere opdracht dan verlies
+   op betrouwbaarheid. Dat criterium is de brug naar het contentplan, en het is precies de vorm die
+   `content_brief` al aanneemt. ⚠️ De naam van de concurrent gaat daarbij nooit mee, alleen de
+   eigenschap. Zie §4.4.
+4. **Van weinig reviews naar reviewacquisitie.** Buiten de app, maar de app kan wel benoemen hoeveel
    er nodig zijn om het beeld te kantelen.
-4. **De herhaalmeting als bewijs.** Drie maanden later dezelfde scan, met het verschil ernaast. Dat
+5. **De herhaalmeting als bewijs.** Drie maanden later dezelfde scan, met het verschil ernaast. Dat
    is de enige manier waarop dit product zichzelf terugverdient in de ogen van de klant, en het is
    ook wat `visie.md` bedoelt met een motor die meet en opnieuw optimaliseert.
 
@@ -823,7 +1118,9 @@ in.** Anders wordt dit een generator van algemene marketingadviezen, en die zijn
 |---|---|
 | Andere AI-assistenten dan ChatGPT | De opdracht zegt alleen ChatGPT. De enginelaag (`lib/engines/`) is er al, dus Gemini erbij is later één kolom en geen herbouw |
 | De teksten van individuele reviews | Niet op te halen zonder koppeling met de platforms zelf. Zie §2.4 |
-| Een eigen reputatiescore per concurrent | Verleidelijk, maar het verdubbelt de kosten en de app meet concurrenten al op zichtbaarheid |
+| Een volledig reputatieprofiel per concurrent | Blok V zegt hoe de klant zich tot hen verhoudt, niet hoe zij er zelf voor staan. Dat laatste vermenigvuldigt de kosten met het aantal partijen, en het is niet waar de klant voor betaalt (§4.4) |
+| Meer dan drie concurrenten in de vergelijking | Daarboven laat een model namen vallen of voegt het partijen samen, en dan meet je zijn aandacht in plaats van de markt |
+| De klant zelf zijn concurrenten laten kiezen voor deze analyse | De keuze komt uit de gemeten entiteiten, en die zijn al door de klant te corrigeren op het bestaande entiteitenscherm. Twee plekken om hetzelfde te beslissen lopen gegarandeerd uiteen |
 | Waarschuwingen bij verslechtering | Vereist herhaling op schema. Dat kan pas als er twee runs bestaan, sprint R5 en verder |
 | Zelf betalen in de app | Sales-led, er is geen betaalstroom, en die bouwen voor één product is scheef |
 | Reputatie in het maandrapport | Pas als de scan zich bewezen heeft. Een los product moet los te beoordelen zijn |
@@ -841,6 +1138,9 @@ in.** Anders wordt dit een generator van algemene marketingadviezen, en die zijn
    op 1 augustus 2026 geverifieerd, en de hele rekensom in §5 hangt eraan.
 5. **Beslissen of de diepe modus er komt.** Hij verdubbelt de doorlooptijd en verdrievoudigt de
    kosten, en of dat betere gesprekken oplevert weet je pas na een paar echte scans.
+6. **Op het testmerk nalopen of de gekozen concurrenten kloppen.** De app kiest ze uit wat er
+   gemeten is, maar jij weet wie de klant écht als concurrent ziet. Zitten er namen tussen die daar
+   niet horen, dan is de reparatie het bestaande entiteitenscherm en niet dit onderdeel.
 
 ---
 
@@ -860,3 +1160,8 @@ overgenomen.
 | De onboarding kost ongeveer 7,5 minuut | `CLAUDE.md`, kop |
 | JSON-LD levert al `aggregateRating` op | `lib/pipeline/structured-data.ts` |
 | De laatste migratie is 0061 | `supabase/migrations/` |
+| Concurrenten staan per merk in `entities`, met een rol en een weggezet-vlag | `supabase/migrations/0016`, `0024`, `0026`, `lib/types/database.ts` `Entity` |
+| Hoe vaak een concurrent genoemd is, staat per periode vast | `competitor_breakdown.mentions_count`, migratie 0029 en 0030 |
+| Namen zijn terug te matchen op bekende entiteiten | `lib/entities/resolve.ts`, `lib/entities/normalize.ts` |
+| Klantcontent noemt nooit een concurrent | `lib/pipeline/content.ts`, en `competitor-intel.ts` in de kop |
+| Structured output koos bij twijfel de eerste enum-waarde, bij 10 van 27 merken | `CLAUDE.md`, conventie 1 |
