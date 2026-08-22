@@ -299,6 +299,20 @@ export interface Profile {
   sitemap_url: string | null;
   max_inventory_pages: number;
   /**
+   * Hoeveel niet-product-URL's de sitemap opleverde vóór het afkappen
+   * (migratie 0061). Null = nog niet gemeten. Dit is het cijfer waarmee
+   * "de site heeft precies 150 pagina's" te onderscheiden is van "de site
+   * heeft er 8.000 en we lazen er 150".
+   */
+  sitemap_total_urls: number | null;
+  /**
+   * Welke sitesecties voorrang krijgen bij het verdelen van de beschikbare
+   * crawlplekken, bijvoorbeeld `['/diensten', '/behandelingen']`. Gevuld door
+   * `crawl-focus.ts` als de site te groot is, en te overschrijven door de
+   * consultant. Leeg = alleen de deterministische score van `url-priority.ts`.
+   */
+  crawl_priority_paths: string[];
+  /**
    * Entiteitsaanwezigheid (optimalisatie.md 7.4, migratie 0022). Of een merk in
    * Wikidata/Wikipedia voorkomt is een van de sterkste signalen waarmee
    * AI-systemen een bedrijf als bestaande entiteit herkennen.
@@ -456,13 +470,24 @@ export type FieldSource = "ai" | "klant" | "gesprek" | "consultant";
 
 /** Oordeel over de content-inventaris (migratie 0039, R6.2). */
 export interface InventoryQuality {
+  /** Hoeveel pagina's er daadwerkelijk gelezen zijn. */
   pages: number;
+  /**
+   * Hoeveel pagina's de site in totaal had, vóór het afkappen op het
+   * paginamaximum (migratie 0061). Ontbreekt bij profielen die vóór 22 augustus
+   * 2026 gecrawld zijn: die weten het niet, en dat is iets anders dan nul.
+   */
+  totalFound?: number;
   /** Aandeel pagina's met bruikbare tekst (>= 200 tekens), 0-1. */
   usableTextRatio: number;
   /** Aandeel vermoedelijke productpagina's, 0-1. Bij HEMA was dat ~1,0. */
   productPageRatio: number;
-  /** voldoende = bruikbaar · dun = te weinig pagina's · vervuild = overwegend productpagina's. */
-  verdict: "voldoende" | "dun" | "vervuild";
+  /**
+   * voldoende = bruikbaar · dun = te weinig pagina's ·
+   * vervuild = overwegend productpagina's · afgekapt = de site is groter dan
+   * wat we mochten lezen, dus het beeld klopt maar is niet compleet.
+   */
+  verdict: "voldoende" | "dun" | "vervuild" | "afgekapt";
   /** Wat de klant of consultant eraan kan doen. Leeg bij 'voldoende'. */
   advice: string | null;
 }
@@ -605,8 +630,16 @@ export interface ProfilePage {
   url: string;
   title: string | null;
   text_excerpt: string | null;
+  /**
+   * Waar deze pagina vandaan komt (migratie 0061). Een pagina met bron
+   * `handmatig` is door een mens toegevoegd en overleeft een nieuwe crawl;
+   * `crawl` wordt bij elke ronde vervangen.
+   */
+  source: PageSource;
   created_at: string;
 }
+
+export type PageSource = "crawl" | "handmatig";
 
 export interface Prompt {
   id: string;

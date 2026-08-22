@@ -111,6 +111,31 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       update.max_inventory_pages = Math.min(Math.max(n, 5), MAX_PAGES_HARD_CAP);
     }
   }
+  // crawl_priority_paths: sitesecties die voorrang krijgen (migratie 0061).
+  // Genormaliseerd naar "/segment", want dat is de vorm die `sectionOf()`
+  // oplevert en waarmee `url-priority.ts` vergelijkt. Een consultant die
+  // "diensten" of "/diensten/" typt bedoelt hetzelfde, en een lijst die stil
+  // nergens op matcht is erger dan geen lijst.
+  if ("crawl_priority_paths" in body) {
+    const raw = body.crawl_priority_paths;
+    const lijst = Array.isArray(raw)
+      ? raw
+      : typeof raw === "string"
+        ? raw.split(/[\s,;]+/)
+        : [];
+    update.crawl_priority_paths = [
+      ...new Set(
+        lijst
+          .map((v) => String(v).trim().toLowerCase().replace(/\/+$/, ""))
+          .filter(Boolean)
+          .map((v) => (v.startsWith("/") ? v : `/${v}`))
+          // Alleen het eerste segment: dieper dan dat is geen sectie meer, en
+          // `sectionOf()` zou er nooit op uitkomen.
+          .map((v) => `/${v.split("/").filter(Boolean)[0] ?? ""}`)
+          .filter((v) => v !== "/"),
+      ),
+    ].slice(0, 10);
+  }
   // Tone-sliders: geklemd naar 1-3, of null bij een lege/ontbrekende waarde.
   // Nooit rechtstreeks een client-getal doorlaten naar de databaseconstraint.
   for (const field of TONE_SLIDER_FIELDS) {

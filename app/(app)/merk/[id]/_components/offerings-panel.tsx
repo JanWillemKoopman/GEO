@@ -1,5 +1,6 @@
 import { CollapsibleSection } from "@/components/collapsible-section";
 import { RerunResearchButton } from "./rerun-research-button";
+import { ManualPagesBox } from "./manual-pages-box";
 import { ConfidenceChip } from "@/components/confidence-chip";
 import {
   describeCoverage,
@@ -25,6 +26,19 @@ import type { InventoryQuality, ProfileOffering } from "@/lib/types/database";
  * was, hoort dat hier te staan, bóven de lijst, niet eronder.
  */
 
+/**
+ * De kop boven het inventarisoordeel. `afgekapt` is er sinds 22 augustus 2026
+ * bij: een site met 150 gelezen pagina's kreeg tot dan het oordeel `voldoende`,
+ * of er nu precies 150 pagina's waren of 8.000. Juist dat tweede geval vraagt om
+ * een handeling, en het zag er hetzelfde uit als een volledig gelezen site.
+ */
+const VERDICT_KOPPEN: Record<InventoryQuality["verdict"], string> = {
+  voldoende: "Voldoende gelezen",
+  dun: "Weinig gevonden",
+  vervuild: "Vooral productpagina's",
+  afgekapt: "Niet je hele site gelezen",
+};
+
 const KIND_LABELS: Record<ProfileOffering["kind"], string> = {
   dienst: "dienst",
   product: "product",
@@ -39,10 +53,16 @@ export function OfferingsPanel({
   inventory,
   confidence,
   coverage,
+  manualPages = [],
+  priorityPaths = [],
 }: {
   profileId: string;
   offerings: ProfileOffering[];
   inventory: InventoryQuality | null;
+  /** Pagina's die een mens aan de inventaris toevoegde (migratie 0061). */
+  manualPages?: { url: string; title: string | null }[];
+  /** Sitesecties die bij de crawl voorrang kregen. Leeg = de hele site paste. */
+  priorityPaths?: string[];
   /** Het aandeel knopen dat een geldige bron overleefde (fase 1). */
   confidence?: number | null;
   /**
@@ -66,6 +86,9 @@ export function OfferingsPanel({
           pagina waar het die vandaan haalde.
         </p>
         <RerunResearchButton profileId={profileId} />
+        {/* Juist bij een lege boom is dit de nuttigste knop: dan is de crawl
+            niets tegengekomen en weet jij wél waar het aanbod staat. */}
+        <ManualPagesBox profileId={profileId} pages={manualPages} />
       </div>
     );
   }
@@ -192,11 +215,7 @@ export function OfferingsPanel({
           className="rounded-[var(--radius-md)] border border-[var(--status-warning)] px-3 py-2 text-sm"
           role="status"
         >
-          <span className="mono-label">
-            {inventory.verdict === "dun"
-              ? "Weinig gevonden"
-              : "Vooral productpagina's"}
-          </span>
+          <span className="mono-label">{VERDICT_KOPPEN[inventory.verdict]}</span>
           <p className="mt-1 text-secondary">{inventory.advice}</p>
         </div>
       )}
@@ -217,10 +236,21 @@ export function OfferingsPanel({
           was of het aanbod klopt niet, is dit de plek waar je dat ziet. */}
       <RerunResearchButton profileId={profileId} />
 
+      <ManualPagesBox profileId={profileId} pages={manualPages} />
+
       {inventory && (
         <CollapsibleSection title="Hoeveel heeft ORBIT ENGINE van je site gelezen?">
           <ul className="flex flex-col gap-1 text-sm text-secondary">
-            <li>{inventory.pages} pagina&apos;s gevonden</li>
+            {/* ⚠️ Hier stond "N pagina's gevonden", ook als de site er 8.000 had
+                en wij er 150 lazen. Dat las als volledigheid terwijl het een
+                afkapping was. Profielen van vóór 22 augustus 2026 kennen
+                `totalFound` niet; die tonen de oude regel, want zwijgen is
+                beter dan een verzonnen totaal (conventie 3). */}
+            <li>
+              {typeof inventory.totalFound === "number" && inventory.totalFound > inventory.pages
+                ? `${inventory.pages} van de ${inventory.totalFound} pagina's gelezen, verdeeld over alle delen van de site`
+                : `${inventory.pages} pagina's gevonden`}
+            </li>
             <li>
               {Math.round(inventory.usableTextRatio * 100)}% met bruikbare tekst
             </li>
@@ -228,6 +258,9 @@ export function OfferingsPanel({
               {Math.round(inventory.productPageRatio * 100)}% vermoedelijke
               productpagina&apos;s
             </li>
+            {priorityPaths.length > 0 && (
+              <li>voorrang voor {priorityPaths.join(", ")}</li>
+            )}
           </ul>
         </CollapsibleSection>
       )}

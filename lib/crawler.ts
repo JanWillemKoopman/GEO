@@ -17,6 +17,18 @@ import {
 import { harvestTextFacts } from "@/lib/pipeline/text-facts";
 import type { HarvestedFact } from "@/lib/pipeline/structured-data";
 import { detectPageTemplate, type PageTemplateSignals } from "@/lib/pipeline/template-detect";
+import {
+  decodeXmlEntities,
+  extractLocs,
+  isProductSitemap,
+  isProductUrl,
+  isSitemapIndex,
+  sameDomain,
+  toFetchUrl,
+} from "@/lib/crawl-urls";
+import { scoreUrl, selectUrls, type UrlSelection } from "@/lib/pipeline/url-priority";
+
+export { decodeXmlEntities, extractLocs, isProductSitemap, isProductUrl, isSitemapIndex, sameDomain };
 
 /** Eén plek voor de bot-identiteit, zodat een site ons kan herkennen en toelaten. */
 export const USER_AGENT = "GEO-Tracker-Bot/1.0 (+https://geo-tracker.app)";
@@ -36,11 +48,22 @@ export const DEFAULT_MAX_PAGES = 60; // fallback als een profiel (nog) geen inst
 export const MAX_PAGES_HARD_CAP = 150; // absolute bovengrens (timeout-bescherming)
 const CRAWL_BATCH_SIZE = 8; // parallelle fetches per batch (niet alles tegelijk)
 const MAX_SITEMAPS = 50; // recursie-plafond bij sitemap-index'en
+/** Parallelle sitemap-fetches per ronde. Zelfde reden als CRAWL_BATCH_SIZE. */
+const SITEMAP_BATCH_SIZE = 8;
 
-/** Zet een hostnaam (mediamarkt.nl) om naar een op te halen URL. */
-function toFetchUrl(host: string): string {
-  return host.startsWith("http") ? host : `https://${host}`;
-}
+/**
+ * Hoeveel URL's we in de index vasthouden vóór het kiezen.
+ *
+ * ⚠️ Dit is NIET het crawlplafond. We LEZEN de sitemaps nu volledig uit, ook bij
+ * 8.000 pagina's, want alleen dan weten we hoe groot de site werkelijk is en
+ * kunnen we de 150 plekken eerlijk over de secties verdelen. Alleen de URL-tekst
+ * wordt vastgehouden, geen HTML: 10.000 URL's is ongeveer een halve megabyte, en
+ * die is na het kiezen weer weg.
+ */
+const MAX_INDEXED_URLS = 10_000;
+
+/** Hoeveel pagina's we bij de link-fallback openen om dieper te kijken. */
+const LINK_FALLBACK_SEEDS = 10;
 
 function extractTitle(html: string): string | null {
   const match = html.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
@@ -165,62 +188,33 @@ export async function fetchText(url: string): Promise<string | null> {
   }
 }
 
-/** Zelfde domein (host, zonder www.) als de basis-URL? */
-function sameDomain(candidate: string, baseHost: string): boolean {
-  try {
-    const host = new URL(candidate).hostname.replace(/^www\./, "");
-    return host === baseHost.replace(/^www\./, "");
-  } catch {
-    return false;
-  }
-}
-
 /**
- * Is dit een webshop-PRODUCTpagina? Die willen we uitsluiten, een grote webshop
- * heeft er duizenden en ze zijn geen zinvolle GEO-content-doelen. We houden het
- * bewust strak op `/product/` en `/products/` (WooCommerce, Shopify): daarmee
- * blijven categorie-/`collections`- en `product-category`-pagina's WÉL behouden
- * (die zijn juist waardevol).
- */
-function isProductUrl(url: string): boolean {
-  return /\/products?\//i.test(url);
-}
-
-/**
- * Is dit een sitemap die (bijna) alleen productpagina's bevat? Die slaan we in
- * z'n geheel over, scheelt vaak duizenden URL's in één keer. Matcht o.a.
- * Shopify (`sitemap_products_1.xml`) en Yoast/WooCommerce (`product-sitemap.xml`),
- * maar niet `product-category-sitemap.xml` (daar volgt na "product-" geen sitemap/cijfer).
- */
-function isProductSitemap(url: string): boolean {
-  return /products?[-_](sitemap|\d)/i.test(url) || /sitemap[-_]products?/i.test(url);
-}
-
-/** Decodeert de paar XML-entiteiten die in sitemap-<loc>-URL's voorkomen. */
-function decodeXmlEntities(s: string): string {
-  return s.replace(/&amp;/gi, "&").replace(/&#38;/g, "&");
-}
-
-function extractLocs(xml: string): string[] {
-  return Array.from(xml.matchAll(/<loc>\s*([^<\s]+)\s*<\/loc>/gi)).map((m) => decodeXmlEntities(m[1]));
-}
-
-/** Een <sitemapindex> wijst naar andere sitemaps; een <urlset> bevat pagina's. */
-function isSitemapIndex(xml: string): boolean {
-  return /<sitemapindex[\s>]/i.test(xml);
-}
-
-/**
- * Verzamelt pagina-URL's uit de sitemap(s): vindt de ingang(en) via een door de
- * klant opgegeven sitemap-URL (indien aanwezig, met voorrang), robots.txt
- * (Sitemap:-regels) + de standaardlocaties, en volgt sitemap-index'en recursief.
- * Product-sitemaps en losse product-URL's worden overgeslagen. Alleen zelfde
- * domein, gededupliceerd, gecapt.
+ * Verzamelt ALLE pagina-URL's uit de sitemap(s): vindt de ingang(en) via een
+ * door de klant opgegeven sitemap-URL (indien aanwezig, met voorrang),
+ * robots.txt (Sitemap:-regels) plus de standaardlocaties, en volgt
+ * sitemap-index'en recursief. Product-sitemaps en losse product-URL's worden
+ * overgeslagen. Alleen zelfde domein, gededupliceerd.
+ *
+ * ── WAAROM HIER NIET MEER AFGEKAPT WORDT (22 augustus 2026) ─────────────────
+ *
+ * Deze functie stopte zodra hij `maxPages` URL's had en gaf `slice(0, maxPages)`
+ * terug: de eerste 150 in sitemapvolgorde. Bij Yoast staat `post-sitemap.xml`
+ * vóór `page-sitemap.xml`, dus een site met 2.000 blogartikelen leverde 150
+ * blogartikelen op en geen enkele dienstenpagina. Het kiezen gebeurt nu in
+ * `url-priority.ts`, ná het volledig uitlezen, en dat kan alleen als hier alles
+ * langskomt.
+ *
+ * ── EN WAAROM PARALLEL ──────────────────────────────────────────────────────
+ *
+ * Volledig uitlezen betekent meer sitemaps ophalen, en die gingen één voor één
+ * met een time-out van 12 seconden. Vijftig trage sitemaps zijn dan tien
+ * minuten, tegen een taakreservering van 220 seconden (`lib/jobs/worker.ts`).
+ * In rondes van acht is dat ruim een factor acht sneller, en het is dezelfde
+ * aanpak die `crawlPages` al voor de pagina's zelf gebruikte.
  */
 async function collectSitemapPageUrls(
   base: string,
   baseHost: string,
-  maxPages: number,
   sitemapUrl?: string | null,
 ): Promise<string[]> {
   const entryPoints: string[] = [];
@@ -233,66 +227,140 @@ async function collectSitemapPageUrls(
   }
   entryPoints.push(`${base}/sitemap.xml`, `${base}/sitemap_index.xml`);
 
-  const queue = Array.from(new Set(entryPoints)).filter((u) => !isProductSitemap(u));
+  let queue = Array.from(new Set(entryPoints)).filter((u) => !isProductSitemap(u));
   const seen = new Set<string>();
   const pageUrls = new Set<string>();
   let fetched = 0;
 
-  while (queue.length > 0 && fetched < MAX_SITEMAPS && pageUrls.size < maxPages) {
-    const sm = queue.shift()!;
-    if (seen.has(sm)) continue;
-    seen.add(sm);
+  while (queue.length > 0 && fetched < MAX_SITEMAPS && pageUrls.size < MAX_INDEXED_URLS) {
+    const ronde = queue.slice(0, SITEMAP_BATCH_SIZE).filter((sm) => !seen.has(sm));
+    queue = queue.slice(SITEMAP_BATCH_SIZE);
+    if (ronde.length === 0) continue;
+    for (const sm of ronde) seen.add(sm);
 
-    const xml = await fetchText(sm);
-    fetched++;
-    if (!xml) continue;
+    const xmls = await Promise.all(ronde.map((sm) => fetchText(sm)));
+    fetched += ronde.length;
 
-    const locs = extractLocs(xml);
-    if (isSitemapIndex(xml)) {
-      for (const loc of locs) {
-        if (!seen.has(loc) && !isProductSitemap(loc)) queue.push(loc);
-      }
-    } else {
-      for (const loc of locs) {
-        if (sameDomain(loc, baseHost) && !isProductUrl(loc)) pageUrls.add(loc);
+    for (const xml of xmls) {
+      if (!xml) continue;
+      const locs = extractLocs(xml);
+      if (isSitemapIndex(xml)) {
+        for (const loc of locs) {
+          if (!seen.has(loc) && !isProductSitemap(loc)) queue.push(loc);
+        }
+      } else {
+        for (const loc of locs) {
+          if (pageUrls.size >= MAX_INDEXED_URLS) break;
+          if (sameDomain(loc, baseHost) && !isProductUrl(loc)) pageUrls.add(loc);
+        }
       }
     }
   }
 
-  return Array.from(pageUrls).slice(0, maxPages);
+  return Array.from(pageUrls);
 }
 
-/**
- * Ontdekt zo compleet mogelijk welke pagina's er op de site staan (content-
- * inventaris, abcplan.md §12.23): eerst via de sitemap(s), en pas als die er
- * echt niet zijn → links volgen vanaf de homepage. Productpagina's uitgesloten.
- */
-export async function discoverPageUrls(
-  host: string,
-  maxPages = DEFAULT_MAX_PAGES,
-  sitemapUrl?: string | null,
-): Promise<string[]> {
-  const base = toFetchUrl(host);
-  const baseHost = new URL(base).hostname;
-
-  const sitemapUrls = await collectSitemapPageUrls(base, baseHost, maxPages, sitemapUrl);
-  if (sitemapUrls.length > 0) return sitemapUrls.slice(0, maxPages);
-
-  // Fallback: geen (bruikbare) sitemap → links vanaf de homepage volgen.
-  const html = await fetchText(base);
-  if (!html) return [base];
-  const hrefs = Array.from(html.matchAll(/<a\s[^>]*href=["']([^"'#]+)["']/gi)).map((m) => m[1]);
-  const resolved = hrefs
-    .map((href) => {
+/** Alle zelfde-domein-links uit één stuk HTML, absoluut gemaakt. */
+function linksIn(html: string, base: string, baseHost: string): string[] {
+  return Array.from(html.matchAll(/<a\s[^>]*href=["']([^"'#]+)["']/gi))
+    .map((m) => {
       try {
-        return new URL(href, base).toString();
+        return new URL(m[1], base).toString();
       } catch {
         return null;
       }
     })
     .filter((u): u is string => u !== null && sameDomain(u, baseHost) && !isProductUrl(u));
-  const urls = Array.from(new Set([base, ...resolved]));
-  return urls.slice(0, maxPages);
+}
+
+/**
+ * Geen bruikbare sitemap? Dan links volgen, en twee niveaus diep in plaats van
+ * één.
+ *
+ * Eén niveau leverde alleen wat er in het hoofdmenu staat. Bij een site waar de
+ * diensten achter een overzichtspagina hangen (`/diensten` → de losse diensten)
+ * is dat precies één pagina te ondiep: je vindt de ingang wel, maar geen van de
+ * diensten erachter. De tien best scorende pagina's van niveau 1 worden daarom
+ * geopend om ook hún links op te halen.
+ */
+async function discoverByLinks(base: string, baseHost: string): Promise<string[]> {
+  const html = await fetchText(base);
+  if (!html) return [base];
+
+  const niveau1 = Array.from(new Set([base, ...linksIn(html, base, baseHost)]));
+  if (niveau1.length <= 1) return niveau1;
+
+  // Alleen de kansrijkste pagina's openen: dit kost per stuk een echte fetch.
+  const zaden = niveau1
+    .filter((u) => u !== base)
+    .sort((a, b) => scoreUrl(b) - scoreUrl(a) || a.localeCompare(b))
+    .slice(0, LINK_FALLBACK_SEEDS);
+
+  const pagina2 = await Promise.all(zaden.map((u) => fetchText(u)));
+  const alles = new Set(niveau1);
+  for (let i = 0; i < zaden.length; i++) {
+    const h = pagina2[i];
+    if (!h) continue;
+    for (const u of linksIn(h, zaden[i], baseHost)) {
+      if (alles.size >= MAX_INDEXED_URLS) break;
+      alles.add(u);
+    }
+  }
+  return Array.from(alles);
+}
+
+/**
+ * Ontdekt zo compleet mogelijk welke pagina's er op de site staan (content-
+ * inventaris, abcplan.md §12.23) en kiest daaruit de `maxPages` die het meeste
+ * over het aanbod zeggen. Productpagina's uitgesloten.
+ *
+ * Geeft naast de gekozen URL's ook terug hoeveel er te kiezen waren, want dat
+ * cijfer werd nergens bewaard en zonder dat cijfer is "de site is te groot" niet
+ * van "de site is klein" te onderscheiden.
+ */
+export async function discoverPageIndex(
+  host: string,
+  maxPages = DEFAULT_MAX_PAGES,
+  sitemapUrl?: string | null,
+  priorityPaths: readonly string[] = [],
+): Promise<UrlSelection & { source: UrlSource }> {
+  const { urls, source } = await collectPageUrls(host, sitemapUrl);
+  return { ...selectUrls(urls, maxPages, priorityPaths), source };
+}
+
+export type UrlSource = "sitemap" | "links";
+
+/**
+ * Alle pagina-URL's die de site prijsgeeft, zónder te kiezen.
+ *
+ * Apart van `discoverPageIndex` omdat fase 0 ertussen moet kunnen: die bouwt uit
+ * deze volledige lijst eerst de sectie-indeling, laat die zo nodig door een
+ * model wegen (`crawl-focus.ts`) en kiest pas daarna. Zou het kiezen hier al
+ * gebeuren, dan zou dat oordeel over een al afgekapte lijst gaan en dus precies
+ * de secties missen die het moest redden.
+ */
+export async function collectPageUrls(
+  host: string,
+  sitemapUrl?: string | null,
+): Promise<{ urls: string[]; source: UrlSource }> {
+  const base = toFetchUrl(host);
+  const baseHost = new URL(base).hostname;
+
+  const sitemapUrls = await collectSitemapPageUrls(base, baseHost, sitemapUrl);
+  if (sitemapUrls.length > 0) return { urls: sitemapUrls, source: "sitemap" };
+
+  return { urls: await discoverByLinks(base, baseHost), source: "links" };
+}
+
+/** Alleen de gekozen URL's. Voor aanroepers die de dekkingscijfers niet nodig hebben. */
+export async function discoverPageUrls(
+  host: string,
+  maxPages = DEFAULT_MAX_PAGES,
+  sitemapUrl?: string | null,
+  priorityPaths: readonly string[] = [],
+): Promise<string[]> {
+  const index = await discoverPageIndex(host, maxPages, sitemapUrl, priorityPaths);
+  return index.urls;
 }
 
 export interface CrawledPage {
@@ -390,6 +458,15 @@ export interface InventoryOptions {
   maxPages?: number;
   /** Door de klant opgegeven sitemap-URL (voorrang boven auto-detectie). */
   sitemapUrl?: string | null;
+  /** Sitesecties die voorrang krijgen bij het verdelen van de plekken. */
+  priorityPaths?: readonly string[];
+}
+
+export interface InventoryResult {
+  pages: InventoryPage[];
+  /** Hoeveel URL's er te kiezen waren. Groter dan `pages.length` = afgekapt. */
+  totalFound: number;
+  truncated: boolean;
 }
 
 /**
@@ -398,13 +475,20 @@ export interface InventoryOptions {
  * bovengrens). Een pagina waarvan de fetch faalt komt met titel/tekst = null in
  * de lijst, zodat de URL-lijst niettemin de gevonden pagina's weerspiegelt.
  */
-export async function crawlInventory(host: string, opts: InventoryOptions = {}): Promise<InventoryPage[]> {
+export async function crawlInventory(
+  host: string,
+  opts: InventoryOptions = {},
+): Promise<InventoryResult> {
   const maxPages = Math.min(Math.max(opts.maxPages ?? DEFAULT_MAX_PAGES, 1), MAX_PAGES_HARD_CAP);
-  const urls = await discoverPageUrls(host, maxPages, opts.sitemapUrl);
-  const crawled = await crawlPages(urls);
+  const index = await discoverPageIndex(host, maxPages, opts.sitemapUrl, opts.priorityPaths);
+  const crawled = await crawlPages(index.urls);
   const byUrl = new Map(crawled.map((p) => [p.url, p]));
-  return urls.map((url) => {
-    const c = byUrl.get(url);
-    return { url, title: c?.title ?? null, text: c?.text ?? null };
-  });
+  return {
+    pages: index.urls.map((url) => {
+      const c = byUrl.get(url);
+      return { url, title: c?.title ?? null, text: c?.text ?? null };
+    }),
+    totalFound: index.totalFound,
+    truncated: index.truncated,
+  };
 }

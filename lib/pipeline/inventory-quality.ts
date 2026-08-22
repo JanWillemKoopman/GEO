@@ -15,6 +15,7 @@
  * Puur, dus testbaar (conventie 2). Geen netwerk, geen database.
  */
 import type { InventoryQuality } from "@/lib/types/database";
+import { pathOf, sectionOf, segmentsOf } from "@/lib/crawl-urls";
 
 /** Wat deze module van een gecrawlde pagina moet weten. */
 export interface InventoryPageLike {
@@ -51,14 +52,8 @@ export const MAX_PRODUCT_RATIO = 0.7;
  * dienstenpagina van een kapper, en die is juist wél inhoudelijk.
  */
 export function looksLikeProductPage(url: string): boolean {
-  let path: string;
-  try {
-    path = new URL(url.startsWith("http") ? url : `https://${url}`).pathname;
-  } catch {
-    path = url;
-  }
-
-  const segments = path.split("/").filter(Boolean);
+  const path = pathOf(url);
+  const segments = segmentsOf(url);
   if (segments.length === 0) return false;
 
   const lower = path.toLowerCase();
@@ -71,19 +66,43 @@ export function looksLikeProductPage(url: string): boolean {
   return false;
 }
 
+/** Wat de crawl buiten de pagina's zelf over de site weet. */
+export interface InventoryContext {
+  /**
+   * Hoeveel URL's de sitemap opleverde vóór het afkappen op het paginamaximum.
+   * Weglaten als dat niet gemeten is: dan blijft het oordeel wat het was, in
+   * plaats van te doen alsof de site precies zo groot is als wat we lazen.
+   */
+  totalFound?: number;
+}
+
 /**
  * Velt het oordeel over een gecrawlde inventaris.
  *
- * Drie uitkomsten en geen score: een getal van 0-100 nodigt uit tot een drempel
- * die niemand kan uitleggen. `dun` en `vervuild` zijn verschillende problemen
- * met verschillende oplossingen, en dat verschil moet in de uitkomst zitten.
+ * Vier uitkomsten en geen score: een getal van 0-100 nodigt uit tot een drempel
+ * die niemand kan uitleggen. `dun`, `vervuild` en `afgekapt` zijn verschillende
+ * problemen met verschillende oplossingen, en dat verschil moet in de uitkomst
+ * zitten.
+ *
+ * ── WAAROM 'AFGEKAPT' ERBIJ MOEST (22 augustus 2026) ────────────────────────
+ *
+ * Een site met 150 gelezen pagina's kreeg het oordeel `voldoende`, of er nu
+ * precies 150 pagina's waren of 8.000. Juist dat tweede geval is het geval
+ * waarin de consultant iets moet doen, en het was het enige geval dat er
+ * hetzelfde uitzag als een site die volledig gelezen is.
  */
-export function assessInventory(pages: InventoryPageLike[]): InventoryQuality {
+export function assessInventory(
+  pages: InventoryPageLike[],
+  context: InventoryContext = {},
+): InventoryQuality {
   const total = pages.length;
+  const totalFound = context.totalFound;
+  const afgekapt = typeof totalFound === "number" && totalFound > total;
 
   if (total === 0) {
     return {
       pages: 0,
+      totalFound,
       usableTextRatio: 0,
       productPageRatio: 0,
       verdict: "dun",
@@ -97,12 +116,11 @@ export function assessInventory(pages: InventoryPageLike[]): InventoryQuality {
 
   const usableTextRatio = round2(usable / total);
   const productPageRatio = round2(products / total);
+  const basis = { pages: total, totalFound, usableTextRatio, productPageRatio };
 
   if (usable < MIN_USABLE_PAGES) {
     return {
-      pages: total,
-      usableTextRatio,
-      productPageRatio,
+      ...basis,
       verdict: "dun",
       advice:
         total < MIN_USABLE_PAGES
@@ -113,15 +131,24 @@ export function assessInventory(pages: InventoryPageLike[]): InventoryQuality {
 
   if (productPageRatio > MAX_PRODUCT_RATIO) {
     return {
-      pages: total,
-      usableTextRatio,
-      productPageRatio,
+      ...basis,
       verdict: "vervuild",
       advice: `${Math.round(productPageRatio * 100)}% van wat we vonden zijn productpagina's. Daardoor zien we vooral het assortiment en nauwelijks de inhoudelijke pagina's waarop een advies hoort te rusten.`,
     };
   }
 
-  return { pages: total, usableTextRatio, productPageRatio, verdict: "voldoende", advice: null };
+  // Ná 'vervuild': bij een grote webshop zijn beide waar, en dan is "we zien
+  // vooral het assortiment" de nuttigere melding. Die zegt iets over wat we
+  // hebben; deze alleen iets over wat we misten.
+  if (afgekapt) {
+    return {
+      ...basis,
+      verdict: "afgekapt",
+      advice: `Je site heeft ${totalFound} pagina's en ORBIT ENGINE las er ${total}. Die ${total} zijn verdeeld over alle delen van de site, dus het beeld klopt, maar het is niet compleet. Voeg hieronder de pagina's toe die er zeker bij horen, of geef bij de instellingen aan welke mappen voorrang krijgen.`,
+    };
+  }
+
+  return { ...basis, verdict: "voldoende", advice: null };
 }
 
 function round2(n: number): number {
@@ -146,16 +173,12 @@ export function buildTaxonomy(urls: string[], maxExamples = 3): SiteSection[] {
   const groups = new Map<string, string[]>();
 
   for (const url of urls) {
-    let path: string;
-    try {
-      path = new URL(url.startsWith("http") ? url : `https://${url}`).pathname;
-    } catch {
-      continue;
-    }
-    const segments = path.split("/").filter(Boolean);
     // Een pagina in de wortel is geen sectie maar dé pagina; die krijgt een
     // eigen bak zodat hij niet als "sectie /over-ons met 1 pagina" verschijnt.
-    const key = segments.length === 0 ? "/" : `/${segments[0]}`;
+    // `sectionOf` is dezelfde grens die `url-priority.ts` gebruikt om de crawl
+    // te verdelen: twee kopieën van die regel zouden betekenen dat de crawl
+    // over andere hokjes verdeelt dan het model te zien krijgt.
+    const key = sectionOf(url);
     const list = groups.get(key) ?? [];
     list.push(url);
     groups.set(key, list);

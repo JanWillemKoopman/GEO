@@ -103,6 +103,8 @@ export default async function BewerkenPage({
             profileId={id}
             initialCount={count ?? 0}
             initialMax={profile.max_inventory_pages}
+            initialTotalFound={profile.sitemap_total_urls}
+            initialPriorityPaths={profile.crawl_priority_paths ?? []}
           />
         </CollapsibleSection>
         <CollapsibleSection title="Wat je al hebt liggen">
