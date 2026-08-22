@@ -283,7 +283,51 @@ export interface PlainCallResult extends CallUsage {
  * simuleert wat een AI-assistent een echte klant zou antwoorden. Structured
  * output zou het model dwingen tot JSON i.p.v. een natuurlijk antwoord.
  */
+/**
+ * Hetzelfde injectiepunt als `__setTestTransport`, maar voor de vrije-tekst-
+ * aanroep.
+ *
+ * ── WAAROM DIT ER PAS IN AUGUSTUS 2026 BIJ KOMT ─────────────────────────────
+ *
+ * Tot Mijn reputatie had geen enkele ketentest een `callPlain` nodig: de meting
+ * (halte 3a) is de enige andere gebruiker, en die wordt in `test-chain.ts` met
+ * voorgebakken rijen in `tracking_runs` nagebootst in plaats van gedraaid.
+ *
+ * Mijn reputatie kan dat niet. Zes taaksoorten wachten daar op elkaar via een
+ * afteller op het aantal opgeslagen ANTWOORDEN, en juist die samenhang is wat de
+ * ketentest moet toetsen (§9: zeven van de zeven fouten van het vorige traject
+ * zaten in de samenhang tussen taken). Rijen vooraf klaarzetten zou precies het
+ * stuk overslaan dat getest moet worden.
+ */
+export type PlainTransport = (
+  opts: PlainCallOptions,
+) => Promise<{ text: string; raw: unknown }>;
+
+let testPlainTransport: PlainTransport | null = null;
+
+export function __setTestPlainTransport(transport: PlainTransport | null): void {
+  if (process.env.NODE_ENV === "production") {
+    throw new Error("De teststub mag niet in productie gezet worden.");
+  }
+  testPlainTransport = transport;
+}
+
 export async function callPlain(opts: PlainCallOptions): Promise<PlainCallResult> {
+  if (testPlainTransport) {
+    const { text, raw } = await testPlainTransport(opts);
+    // Geen kostenregistratie, zelfde reden als bij `callStructured`: een
+    // gelogde aanroep die nooit plaatsvond maakt de boekhouding onbetrouwbaar.
+    return {
+      text,
+      raw,
+      responseId: null,
+      tokensUsed: null,
+      inputTokens: null,
+      outputTokens: null,
+      costUsd: 0,
+    };
+  }
+
   const openai = getOpenAI();
 
   // Zie callStructured: één budget over beide pogingen heen.

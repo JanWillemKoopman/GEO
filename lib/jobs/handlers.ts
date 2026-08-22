@@ -42,6 +42,12 @@ import { verifyPublication } from "@/lib/pipeline/publish";
 import { runOffsiteScan } from "@/lib/offsite/scan";
 import { syncSearchConsole } from "@/lib/search-console/sync";
 import { recalibrateSearchVolume } from "@/lib/pipeline/search-demand";
+import { startReputationRun } from "@/lib/pipeline/reputation-start";
+import { runBrandBlock } from "@/lib/pipeline/reputation-brand";
+import { runOfferingBlock } from "@/lib/pipeline/reputation-offering";
+import { runCompareBlock } from "@/lib/pipeline/reputation-compare";
+import { runSourcesBlock } from "@/lib/pipeline/reputation-sources";
+import { runSynthesis } from "@/lib/pipeline/reputation-synthesis";
 import { enqueue, dedupe } from "@/lib/jobs/queue";
 import { countOpenPeriodicMeasurements } from "@/lib/jobs/pending";
 import type {
@@ -149,6 +155,80 @@ async function scheduleAggregateIfLastPrompt(
     analysisId,
     dedupeKey: dedupe.aggregateWeek(analysisId, weekNo),
   });
+}
+
+/**
+ * Was dit de laatste reputatietaak? Zo ja, dan mag de synthese draaien (§7).
+ *
+ * ── DEZELFDE CONSTRUCTIE ALS `scheduleAggregateIfLastPrompt()` ──────────────
+ *
+ * En met dezelfde valkuil, die daar één keer ingelopen is: de taak die dit
+ * aanroept staat ZÉLF nog op 'running'. Zonder de uitsluiting op `currentJobId`
+ * is het aantal openstaande taken altijd minstens één en wordt de synthese nooit
+ * ingepland. De run blijft dan eeuwig op 'running' staan, met een
+ * voortgangsscherm dat nooit verder komt.
+ *
+ * ── WAAROM DIT OP TAKEN TELT EN NIET OP ANTWOORDEN ─────────────────────────
+ *
+ * `reputation_runs.questions_planned` zegt hoeveel antwoorden er zouden komen,
+ * en dat is het getal dat op het scherm staat. Maar een taak kan legitiem NUL
+ * antwoorden opleveren: de budgetpoort slaat hem over, of de aanbodknoop is
+ * intussen verdwenen. Zou de afteller op antwoorden tellen, dan komt hij in
+ * precies die gevallen nooit op nul uit en blijft de run open, terwijl er niets
+ * meer gaat gebeuren.
+ *
+ * Taken tellen kent dat probleem niet: een overgeslagen taak is nog steeds een
+ * taak die klaar is. Vandaar dat de budgetpoort de status wél op `budget_op`
+ * zet maar de taak gewoon laat slagen; de synthese draait daarna over wat er
+ * wél gemeten is, en het scherm zegt wat er ontbreekt.
+ */
+const REPUTATION_STEPS: JobType[] = [
+  "reputation_start",
+  "reputation_brand",
+  "reputation_offering",
+  "reputation_compare",
+  "reputation_sources",
+];
+
+async function scheduleSynthesisIfLast(
+  admin: Admin,
+  runId: string,
+  currentJobId: string,
+): Promise<void> {
+  const { data: openJobs } = await admin
+    .from("jobs")
+    .select("id, payload_json")
+    .in("type", REPUTATION_STEPS)
+    .in("status", ["queued", "running"])
+    .neq("id", currentJobId);
+
+  // Filteren op de run gebeurt hier en niet met `.contains()` in de query: de
+  // payloads verschillen per taaksoort en `contains` op jsonb zou per soort een
+  // andere vorm nodig hebben. De lijst openstaande taken is klein genoeg om in
+  // code te filteren.
+  const nogOpen = ((openJobs ?? []) as { payload_json: unknown }[]).filter(
+    (j) => (j.payload_json as { runId?: string } | null)?.runId === runId,
+  );
+  if (nogOpen.length > 0) return;
+
+  await enqueue(admin, {
+    type: "reputation_synthesis",
+    payload: { runId },
+    // Het merk staat op de run; de taak zelf hangt er via de payload aan.
+    profileId: await profileOfRun(admin, runId),
+    // Eén sleutel per run: er kunnen dus nooit twee synthesetaken ontstaan, ook
+    // niet als twee taken tegelijk als laatste eindigen.
+    dedupeKey: dedupe.reputationSynthesis(runId),
+  });
+}
+
+async function profileOfRun(admin: Admin, runId: string): Promise<string | null> {
+  const { data } = await admin
+    .from("reputation_runs")
+    .select("profile_id")
+    .eq("id", runId)
+    .maybeSingle();
+  return (data?.profile_id as string | null) ?? null;
 }
 
 /**
@@ -680,7 +760,47 @@ const handlers: { [T in JobType]: Handler<T> } = {
       analysisId: job.analysis_id,
       contentPieceId: payload.contentPieceId,
       wave: payload.wave,
-    });
+    });  },
+
+  // ── Mijn reputatie (docs/tasks/mijn-reputatie.md §7) ──────────────────────
+  //
+  // Vijf van de zes taken eindigen met dezelfde vraag: was ik de laatste? De
+  // zesde is de synthese, en die start pas als het antwoord ja is. Zie
+  // `scheduleSynthesisIfLast()` hieronder voor waarom dat op TAKEN telt en niet
+  // op antwoorden.
+
+  reputation_start: async ({ admin }, payload) => {
+    await startReputationRun(admin, payload.runId);
+  },
+
+  reputation_brand: async ({ admin, job }, payload) => {
+    await runBrandBlock(admin, payload.runId);
+    await scheduleSynthesisIfLast(admin, payload.runId, job.id);
+  },
+
+  reputation_offering: async ({ admin, job }, payload) => {
+    await runOfferingBlock(admin, payload.runId, payload.offeringId);
+    await scheduleSynthesisIfLast(admin, payload.runId, job.id);
+  },
+
+  reputation_compare: async ({ admin, job }, payload) => {
+    await runCompareBlock(
+      admin,
+      payload.runId,
+      payload.offeringId,
+      payload.slot,
+      payload.rotations,
+    );
+    await scheduleSynthesisIfLast(admin, payload.runId, job.id);
+  },
+
+  reputation_sources: async ({ admin, job }, payload) => {
+    await runSourcesBlock(admin, payload.runId);
+    await scheduleSynthesisIfLast(admin, payload.runId, job.id);
+  },
+
+  reputation_synthesis: async ({ admin }, payload) => {
+    await runSynthesis(admin, payload.runId);
   },
 };
 
@@ -751,6 +871,30 @@ export async function scheduleFollowUpAfterFailure(
           `${volgende} is alsnog ingepland zodat de keten niet afkapt.`,
       );
     }
+  }
+
+  // ── Een opgegeven reputatietaak mag de synthese niet ophouden ────────────
+  //
+  // ⚠️ Precies dezelfde fout als hierboven, één laag dieper. De afteller van de
+  // synthese hangt aan de GESLAAGDE taak: die kijkt of ze de laatste was en
+  // plant dan de synthese in. Is de laatste openstaande taak juist de taak die
+  // opgeeft, dan doet niemand dat meer en blijft de run voorgoed op 'running'
+  // staan, met een voortgangsscherm dat nooit verder komt.
+  //
+  // De synthese kan prima zonder die ene vraag: hij rekent over wat er wél
+  // staat, en `runIsUsable()` bepaalt of dat genoeg was. Een run die op
+  // 'mislukt' eindigt met een uitleg is een uitkomst; een run die blijft hangen
+  // is een storing.
+  if (REPUTATION_STEPS.includes(job.type as JobType)) {
+    const runId = (job.payload_json as { runId?: string } | null)?.runId;
+    if (runId) {
+      await scheduleSynthesisIfLast(admin, runId, job.id);
+      console.warn(
+        `Taak ${job.type} gaf definitief op in reputatierun ${runId}; ` +
+          `de synthese rekent over wat er wél gemeten is.`,
+      );
+    }
+    return;
   }
 
   if ((job.type as JobType) !== "measure_prompt" || !job.analysis_id) return;

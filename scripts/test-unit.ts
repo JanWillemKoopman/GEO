@@ -8871,6 +8871,45 @@ group("een reviewcijfer zonder URL wordt weggegooid", () => {
   );
 });
 
+group("de dedupe-sleutels van de reputatieanalyse", () => {
+  const runA = "run-a";
+  const runB = "run-b";
+
+  // ⚠️ De sleutel hangt aan de RUN en niet aan het profiel. Een tweede scan over
+  // drie maanden is nieuw werk en geen duplicaat.
+  ok(
+    "twee runs van hetzelfde merk zijn twee taken",
+    dedupe.reputationBrand(runA) !== dedupe.reputationBrand(runB),
+  );
+  // ⚠️ De merkbrede vergelijking eindigt op het woord `merk` en niet op een lege
+  // string. Een sleutel die op `:` eindigt ziet er in de database uit als een
+  // fout, en hij zou botsen met een knoop-id dat ooit leeg zou zijn.
+  eq("merkbreed eindigt op een woord", dedupe.reputationCompare(runA, null), "rep_cmp:run-a:merk");
+  ok("en niet op een dubbele punt", !dedupe.reputationCompare(runA, null).endsWith(":"));
+  ok(
+    "twee knopen leveren twee sleutels",
+    dedupe.reputationCompare(runA, "o1") !== dedupe.reputationCompare(runA, "o2"),
+  );
+  // De vergelijking en de reputatievraag van dezelfde knoop zijn verschillend
+  // werk: zonder dat verschil zou de tweede als duplicaat wegvallen.
+  ok(
+    "de vergelijking botst niet met de reputatievraag van dezelfde knoop",
+    dedupe.reputationCompare(runA, "o1") !== dedupe.reputationOffering(runA, "o1"),
+  );
+
+  // Alle zes moeten van elkaar verschillen: een botsing tussen twee taaksoorten
+  // zou er stil eentje laten wegvallen.
+  const sleutels = [
+    dedupe.reputationStart(runA),
+    dedupe.reputationBrand(runA),
+    dedupe.reputationOffering(runA, "o1"),
+    dedupe.reputationCompare(runA, "o1"),
+    dedupe.reputationSources(runA),
+    dedupe.reputationSynthesis(runA),
+  ];
+  ok("de zes taaksoorten botsen niet", new Set(sleutels).size === 6, sleutels.join(", "));
+});
+
 group("de budgetpoort slaat over en zwijgt niet", () => {
   eq("het plafond staat op €3", String(RUN_BUDGET_EUR), "3");
 

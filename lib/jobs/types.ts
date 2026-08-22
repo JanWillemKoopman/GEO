@@ -90,6 +90,34 @@ export const JOB_TYPES = [
    * Getriggerd zodra een analyse haar eerste rapport krijgt.
    */
   "recalculate_potential",
+
+  // ── Mijn reputatie (docs/tasks/mijn-reputatie.md §7) ─────────────────────
+  //
+  // Zes taaksoorten die op elkaar wachten. Dat is meer samenhang dan enig ander
+  // onderdeel van de app heeft, en juist daar zaten zeven van de zeven fouten
+  // van het vorige traject. De ketentests in `scripts/test-chain.ts` zijn hier
+  // dus het zwaartepunt en niet het sluitstuk.
+  /** Knopen en concurrenten kiezen, de scope vastleggen, de rest inplannen. Geen AI. */
+  "reputation_start",
+  /** Blok A: vijf merkbrede vragen parallel, plus de beoordelingen. */
+  "reputation_brand",
+  /** Blok B: de reputatievraag voor ÉÉN aanbodknoop, plus de beoordeling. */
+  "reputation_offering",
+  /**
+   * Blok V: de vergelijking met de concurrenten, voor één knoop of merkbreed.
+   *
+   * ⚠️ Een EIGEN taaksoort en geen uitbreiding van `reputation_offering`
+   * (conventie 7). Twee redenen, en de tweede weegt het zwaarst: met drie
+   * rotaties zou één taak drie zware aanroepen doen náást de reputatievraag, en
+   * dat past niet in één werker-aanroep. En de vergelijking moet als geheel
+   * kunnen wegvallen als het budget vol loopt, zonder de basisanalyse mee te
+   * nemen. Dat kan alleen als het een eigen taak is.
+   */
+  "reputation_compare",
+  /** Blok C: de bronnen en de reviewcijfers, inclusief de crawl-controle. */
+  "reputation_sources",
+  /** Blok D: de getallen rekenen, de tekst schrijven, de run afsluiten. */
+  "reputation_synthesis",
 ] as const;
 
 export type JobType = (typeof JOB_TYPES)[number];
@@ -201,6 +229,26 @@ export interface JobPayloads {
   offsite_scan: Record<string, never>;
   gsc_sync: Record<string, never>;
   recalculate_potential: Record<string, never>;
+
+  // ── Mijn reputatie ────────────────────────────────────────────────────────
+  //
+  // ⚠️ Alles hangt aan `runId` en niet aan `profileId`. Een tweede scan over drie
+  // maanden is NIEUW werk en geen duplicaat van de eerste, en dat moet uit de
+  // sleutel én uit de payload blijken.
+  reputation_start: { runId: string };
+  reputation_brand: { runId: string };
+  reputation_offering: { runId: string; offeringId: string };
+  reputation_compare: {
+    runId: string;
+    /** Null = de merkbrede vergelijking, die altijd drie rotaties krijgt. */
+    offeringId: string | null;
+    /** De plek van deze knoop in de vastgelegde scope. Stuurt de rotatie. */
+    slot: number;
+    /** Hoeveel rotaties. Eén is indicatief, drie is een uitslag (§4.4). */
+    rotations: number;
+  };
+  reputation_sources: { runId: string };
+  reputation_synthesis: { runId: string };
 }
 
 /**
@@ -242,6 +290,13 @@ export const HEAVY_JOB_TYPES: ReadonlySet<JobType> = new Set<JobType>([
   "content_draft", // het premium model schrijft een volledige pagina
   "content_revise", // idem
   "offsite_scan", // crawlt niets maar doet wel een gegroundde AI-aanroep + externe API's
+  // Mijn reputatie. `reputation_start` staat er bewust NIET bij: die doet geen
+  // enkele AI-aanroep en leest alleen wat er al staat.
+  "reputation_brand", // vijf gegronde vragen parallel, plus vijf beoordelingen
+  "reputation_offering", // één gegronde vraag plus de beoordeling
+  "reputation_compare", // één tot drie gegronde vergelijkingen, elk over vier bedrijven
+  "reputation_sources", // twee gegronde vragen, een indeling, plus zes crawls
+  "reputation_synthesis", // één aanroep over alles wat de run opleverde
 ]);
 
 /**

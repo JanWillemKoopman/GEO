@@ -28,7 +28,7 @@ import { JOB_TYPES, type JobType } from "@/lib/jobs/types";
  * Wat elke taaksoort deed, in de voltooide tijd en vanuit ORBIT ENGINE als
  * handelend onderwerp (`docs/schrijfstijl.md` richtlijn 3).
  *
- * ⚠️ Alle 24 taaksoorten staan erin, en `scripts/test-unit.ts` faalt zodra er
+ * ⚠️ Alle taaksoorten staan erin, en `scripts/test-unit.ts` faalt zodra er
  * eentje bijkomt zonder vertaling.
  */
 export const TAAK_TEKST: Record<JobType, string> = {
@@ -56,6 +56,16 @@ export const TAAK_TEKST: Record<JobType, string> = {
   offsite_scan: "gekeken waar je buiten je eigen site genoemd wordt",
   gsc_sync: "je cijfers uit Google opgehaald",
   recalculate_potential: "de potentie van je onderwerpen herberekend",
+
+  // ── Mijn reputatie ────────────────────────────────────────────────────────
+  // In de taal van de klant, en zonder het woord "sentiment": wat hij wil weten
+  // is hoe er over hem gepraat wordt, niet welk vakterm daarbij hoort.
+  reputation_start: "je reputatieanalyse klaargezet",
+  reputation_brand: "gevraagd hoe AI over je merk praat",
+  reputation_offering: "gevraagd hoe AI over één van je diensten praat",
+  reputation_compare: "je naast je concurrenten gelegd",
+  reputation_sources: "uitgezocht waar AI zijn beeld van je vandaan haalt",
+  reputation_synthesis: "je reputatieanalyse afgerond",
 };
 
 export interface AfgerondeTaak {
