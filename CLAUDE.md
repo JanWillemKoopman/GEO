@@ -114,8 +114,8 @@ zet `structured.ts` hem voor de rest van het proces uit in plaats van de taak te
 npm run dev              # localhost:3000
 npm run build            # productiebuild
 npx tsc --noEmit         # typecheck, moet schoon zijn
-npm run test:unit        # 1752 tests, pure functies, geen DB/API-key
-npm run test:chain       # 202 ketentests, echte handlers tegen echte Postgres, geen netwerk
+npm run test:unit        # 1819 tests, pure functies, geen DB/API-key
+npm run test:chain       # 211 ketentests, echte handlers tegen echte Postgres, geen netwerk
 npm run test:openai      # rooktest, MAAKT ECHTE BETAALDE CALLS
 npm run eval:mention     # accuratesse mention-classificatie (vereist API-key)
 ```
@@ -180,7 +180,11 @@ components/        gedeelde UI-primitieven (kaarten, chips, rail, skeletons)
 lib/pipeline/      elke pijplijnstap: onboarding (discover → offering → topics → markt →
                    kennistest → synthese) → meting → rapport → content → impact.
                    Plus de gesprekslaag: onboarding-refresh, commercial-context,
-                   intake-block, brand-examples (voorbeelden per branche)
+                   intake-block, brand-examples (voorbeelden per branche).
+                   Plus de crawldekking: url-priority (welke pagina's we ophalen
+                   als de site te groot is), page-select (welke de aanbod-aanroep
+                   in gaan), crawl-focus, manual-pages. De pure URL-regels staan
+                   in lib/crawl-urls.ts, zonder server-only, dus testbaar
 lib/jobs/          achtergrondwachtrij: types, queue, dedupe, handlers, worker, chain
 lib/openai/        client, structured output, modellen, sampling/redeneerinspanning, pricing, kostenlogboek
 lib/engines/       enginelaag: types, openai, gemini (slapend), registry
@@ -189,7 +193,7 @@ lib/entities/      merknaam-normalisatie en -matching
 lib/schemas/       Zod-contracten      lib/stats/  onzekerheidsmarges
 lib/audit/         robots.txt / AI-crawlertoegang + entiteitsconsistentie
 lib/offsite/       off-site aanwezigheid     lib/archive.ts  wat zichtbaar is in de app
-supabase/migrations/  0001-0060 (0033 gereserveerd, nooit gedraaid, vervangen door 0039)
+supabase/migrations/  0001-0061 (0033 gereserveerd, nooit gedraaid, vervangen door 0039)
 scripts/           test-unit · test-chain · test-openai · eval-mention
 ```
 

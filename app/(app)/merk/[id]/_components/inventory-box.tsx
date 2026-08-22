@@ -23,13 +23,21 @@ export function InventoryBox({
   profileId,
   initialCount,
   initialMax,
+  initialTotalFound = null,
+  initialPriorityPaths = [],
 }: {
   profileId: string;
   initialCount: number;
   initialMax: number;
+  /** Hoeveel pagina's de site in totaal heeft. Null = nog niet gemeten. */
+  initialTotalFound?: number | null;
+  /** Sitesecties die voorrang krijgen bij het verdelen van de plekken. */
+  initialPriorityPaths?: string[];
 }) {
   const [count, setCount] = useState(initialCount);
+  const [totaal, setTotaal] = useState<number | null>(initialTotalFound);
   const [max, setMax] = useState(initialMax);
+  const [voorrang, setVoorrang] = useState(initialPriorityPaths.join(", "));
   const [staat, setStaat] = useState<"rust" | "bezig" | "klaar" | "fout">("rust");
   const [fout, setFout] = useState<string | null>(null);
 
@@ -37,13 +45,16 @@ export function InventoryBox({
     setStaat("bezig");
     setFout(null);
     try {
-      // Eerst de instelling opslaan, dan pas crawlen: anders leest de crawl met
-      // de oude bovengrens en klopt de uitkomst niet met wat er op het scherm
-      // staat.
+      // Eerst de instellingen opslaan, dan pas crawlen: anders leest de crawl
+      // met de oude bovengrens en klopt de uitkomst niet met wat er op het
+      // scherm staat.
       const bewaard = await fetch(`/api/profiles/${profileId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ max_inventory_pages: max }),
+        body: JSON.stringify({
+          max_inventory_pages: max,
+          crawl_priority_paths: voorrang,
+        }),
       });
       if (!bewaard.ok) {
         setStaat("fout");
@@ -54,6 +65,7 @@ export function InventoryBox({
       const res = await fetch(`/api/profiles/${profileId}/refresh-inventory`, { method: "POST" });
       const json = (await res.json().catch(() => ({}))) as {
         count?: number;
+        totalFound?: number;
         detail?: string;
         error?: string;
       };
@@ -63,6 +75,7 @@ export function InventoryBox({
         return;
       }
       setCount(json.count ?? 0);
+      if (typeof json.totalFound === "number") setTotaal(json.totalFound);
       setStaat("klaar");
     } catch {
       // A.5: geen rauwe JS-foutmelding ("Failed to fetch") op het scherm, dat
@@ -78,8 +91,18 @@ export function InventoryBox({
       <p className="text-sm text-secondary">
         ORBIT ENGINE brengt in kaart welke pagina&apos;s je website al heeft, zodat een aanbeveling
         bestaande content kan verbeteren in plaats van altijd iets nieuws voor te stellen.
-        Productpagina&apos;s van webshops blijven buiten beschouwing. Nu op{" "}
-        <span className="font-medium">{count} pagina&apos;s</span>.
+        Productpagina&apos;s van webshops blijven buiten beschouwing.{" "}
+        {typeof totaal === "number" && totaal > count ? (
+          <>
+            Je site heeft <span className="font-medium">{totaal} pagina&apos;s</span> en ORBIT
+            ENGINE leest er <span className="font-medium">{count}</span>, verdeeld over alle delen
+            van de site.
+          </>
+        ) : (
+          <>
+            Nu op <span className="font-medium">{count} pagina&apos;s</span>.
+          </>
+        )}
       </p>
 
       <label className="flex flex-col gap-1.5">
@@ -94,6 +117,26 @@ export function InventoryBox({
         />
         <span className="text-sm text-muted">
           Tussen 5 en 150. Meer pagina&apos;s is grondiger, maar trager.
+        </span>
+      </label>
+
+      {/* ⚠️ Dit is de knop die de consultant miste. Het paginamaximum kon alleen
+          omláág (de bovengrens is 150 en de crawl gebruikt die al), dus bij een
+          te grote site viel er niets te sturen. Kiezen wélke delen meetellen kan
+          wél, en dat helpt precies waar meer pagina's niet helpen. */}
+      <label className="flex flex-col gap-1.5">
+        <span className="mono-label">Mappen met voorrang</span>
+        <input
+          type="text"
+          className="field"
+          placeholder="/diensten, /behandelingen"
+          value={voorrang}
+          onChange={(e) => setVoorrang(e.target.value)}
+        />
+        <span className="text-sm text-muted">
+          Is je site groter dan het maximum? Noem hier de mappen waar je aanbod staat, gescheiden
+          door komma&apos;s. Laat je dit leeg, dan bepaalt ORBIT ENGINE zelf welke delen het
+          zwaarst wegen.
         </span>
       </label>
 

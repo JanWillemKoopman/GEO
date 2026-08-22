@@ -67,7 +67,7 @@ export default async function MerkdossierPage({
       .eq("facet", "synthese")
       .maybeSingle(),
     // Blok 4, Aanbod: het aanbod zoals gevonden, en wat nog geen pagina heeft.
-    supabase.from("profile_pages").select("url, title").eq("profile_id", id),
+    supabase.from("profile_pages").select("url, title, source").eq("profile_id", id),
     supabase.from("profile_offerings").select("*").eq("profile_id", id).order("sort_order"),
     supabase
       .from("profile_facets")
@@ -126,6 +126,15 @@ export default async function MerkdossierPage({
   const offeringConfidence =
     (offeringFacetRow as { confidence?: number | null } | null)?.confidence ?? null;
 
+  // Alleen de pagina's die een mens toevoegde (migratie 0061): die kun je hier
+  // ook weer weghalen, de gecrawlde niet. Een gecrawlde pagina weghalen zou een
+  // lege plek achterlaten die de volgende ronde gewoon weer vult.
+  const handmatigePaginas = (
+    (pageRows ?? []) as { url: string; title: string | null; source?: string }[]
+  )
+    .filter((p) => p.source === "handmatig")
+    .map((p) => ({ url: p.url, title: p.title }));
+
   // Twee bronnen, één lijst: wat de meting tegenkwam (`entities`) en wat de
   // klant zelf noteerde (`profiles.competitors`). Ze overlappen deels, en twee
   // lijsten naast elkaar tonen laat de klant zich afvragen welke de echte is.
@@ -183,6 +192,8 @@ export default async function MerkdossierPage({
           inventory={profile.inventory_quality_json}
           confidence={offeringConfidence}
           coverage={coverage}
+          manualPages={handmatigePaginas}
+          priorityPaths={profile.crawl_priority_paths ?? []}
         />
       </ProfileSection>
 

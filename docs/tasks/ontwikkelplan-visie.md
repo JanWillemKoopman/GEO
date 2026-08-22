@@ -97,7 +97,7 @@ documentatie overgenomen.
 | Taaksoorten in de wachtrij | 24 |
 | Onboarding | 8 taken, ~7,5 minuut, ~$0,25 per merk |
 | Meetronde | **$0,855 gemiddeld** over 13 rondes in `ai_calls`, waarvan 98,8% in het stellen van de vraag |
-| Crawlplafond | 150 pagina's (`MAX_PAGES_HARD_CAP`) |
+| Crawlplafond | 150 pagina's (`MAX_PAGES_HARD_CAP`), sinds 22 augustus 2026 verdeeld over de secties van de site in plaats van de eerste 150 in sitemapvolgorde |
 | Doorvoer werker | 5 lichte taken parallel per ronde, zware taken serieel, één aanroep per minuut |
 | Budgetplafond | €50 per account per maand, €150 per dag over alles |
 
@@ -461,9 +461,15 @@ klant het plafond ontdekt in plaats van jij.
 
 **Claude Code doet:**
 
-- **Het crawlplafond.** `MAX_PAGES_HARD_CAP` van 150 naar een budget per merk, met sitemap-sampling
-  voor grote webshops: een steekproef per categorie in plaats van alles ophalen. Bij duizenden
-  pagina's is volledigheid niet het doel, representativiteit wel.
+- ~~**Het crawlplafond.**~~ **Afgerond op 22 augustus 2026**, en anders dan hier bedacht. Het
+  plafond van 150 is gebleven; wat veranderde is wélke 150. De sitemaps worden nu volledig
+  uitgelezen en de plekken over de secties van de site verdeeld (`url-priority.ts`,
+  `page-select.ts`, migratie `0061`). Bij gasservice-brabant.nl, 449 pagina's, leverde de oude
+  sitemapvolgorde nul van de 26 dienstenpagina's op en de nieuwe alle 26. Representativiteit was
+  inderdaad het doel; een budget per merk bleek er niet voor nodig. Zie `logbook.md`, 22 augustus.
+  **Wat hiervan open blijft:** `MAX_NODES` van 60 in de aanbodboom. Hoeveel knopen er afvallen
+  wordt sinds deze ronde geteld en gemeld, maar nog niet gemeten op productie, en een plafond
+  verhogen zonder cijfer is een mening.
 - **De doorvoer.** De werker claimt vijf lichte taken per ronde en draait zware taken serieel, één
   aanroep per minuut. Opties, in volgorde van eenvoud: een prioriteitsveld op `jobs`, een tweede
   pg_cron-taak, meerdere werker-aanroepen naast elkaar.

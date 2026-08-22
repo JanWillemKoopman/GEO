@@ -149,6 +149,17 @@ import {
   buildTaxonomy,
 } from "@/lib/pipeline/inventory-quality";
 import {
+  isProductSitemap,
+  isProductUrl,
+  isSitemapIndex,
+  extractLocs,
+  sameDomain,
+  sectionOf,
+  parseUrlList,
+} from "@/lib/crawl-urls";
+import { scoreUrl, selectUrls } from "@/lib/pipeline/url-priority";
+import { buildPageBlocks } from "@/lib/pipeline/page-select";
+import {
   entityConsistencyChecks,
   normalizeBrand,
   sameBrand,
@@ -364,6 +375,16 @@ function ok(name: string, condition: boolean, detail = "") {
     failed++;
     failures.push(`${name}${detail ? `: ${detail}` : ""}`);
   }
+}
+
+/**
+ * Gelijkheidscontrole die de WERKELIJKE waarde in de foutmelding zet.
+ *
+ * `ok("er zijn er 12", n === 12)` meldt bij een fout alleen dat het er geen 12
+ * waren, niet hoeveel het er wél waren, en dan begint het zoeken opnieuw.
+ */
+function eq(name: string, actual: string, expected: string) {
+  ok(name, actual === expected, actual === expected ? "" : `verwacht ${expected}, kreeg ${actual}`);
 }
 
 /**
@@ -2413,6 +2434,240 @@ group("productpagina-heuristiek (R6.2)", () => {
   ok("homepage niet", !looksLikeProductPage("https://praktijk.nl/"));
 });
 
+// ════════════════════════════════════════════════════════════════════════════
+// De URL-laag van de crawler. Deze regels stonden tot 22 augustus 2026 in
+// `lib/crawler.ts`, en dat bestand begint met `import "server-only"`: dit
+// script kon er dus niet bij, en geen enkele regel had een test. Precies de
+// valkuil die het commentaar zelf benoemde (product-category-sitemap.xml) was
+// onbewaakt.
+// ════════════════════════════════════════════════════════════════════════════
+
+group("crawl-urls: welke sitemaps en URL's we overslaan", () => {
+  ok("Shopify-productsitemap", isProductSitemap("https://s.nl/sitemap_products_1.xml"));
+  ok("Yoast-productsitemap", isProductSitemap("https://s.nl/product-sitemap.xml"));
+  ok("meervoud met streepje", isProductSitemap("https://s.nl/products-sitemap.xml"));
+
+  // ⚠️ DE VALKUIL. Categoriepagina's zijn juist waardevol: die beschrijven het
+  // assortiment, terwijl losse artikelen dat niet doen.
+  ok(
+    "product-category-sitemap NIET overslaan",
+    !isProductSitemap("https://s.nl/product-category-sitemap.xml"),
+  );
+  ok("gewone paginasitemap niet", !isProductSitemap("https://s.nl/page-sitemap.xml"));
+
+  ok("losse productpagina", isProductUrl("https://s.nl/products/blauwe-trui"));
+  ok("categoriepagina blijft", !isProductUrl("https://s.nl/collections/truien"));
+
+  ok("www telt als zelfde domein", sameDomain("https://www.a.nl/x", "a.nl"));
+  ok("subdomein niet", !sameDomain("https://shop.a.nl/x", "a.nl"));
+  ok("ander domein niet", !sameDomain("https://b.nl/x", "a.nl"));
+
+  eq("sectie van een diepe URL", sectionOf("https://a.nl/diensten/massage/sport"), "/diensten");
+  eq("sectie van de homepage", sectionOf("https://a.nl/"), "/");
+
+  const index = `<sitemapindex><sitemap><loc>https://a.nl/page-sitemap.xml</loc></sitemap></sitemapindex>`;
+  ok("index herkend", isSitemapIndex(index));
+  eq("loc uitgelezen", extractLocs(index).join(""), "https://a.nl/page-sitemap.xml");
+  // Een sitemap-URL met een query bevat &amp;, en die moet terug naar &.
+  eq(
+    "XML-entiteit gedecodeerd",
+    extractLocs("<loc>https://a.nl/x?a=1&amp;b=2</loc>")[0],
+    "https://a.nl/x?a=1&b=2",
+  );
+});
+
+group("crawl-urls: een geplakte lijst adressen uitlezen", () => {
+  const lijst = parseUrlList(
+    `https://praktijk.nl/diensten/dry-needling
+     praktijk.nl/tarieven
+     - "https://www.praktijk.nl/over-ons"
+     https://concurrent.nl/diensten
+     dit is geen adres`,
+    "praktijk.nl",
+  );
+
+  ok("volledig adres", lijst.urls.includes("https://praktijk.nl/diensten/dry-needling"));
+  ok("adres zonder https", lijst.urls.includes("https://praktijk.nl/tarieven"));
+  ok("met opsommingsteken en aanhalingstekens", lijst.urls.includes("https://www.praktijk.nl/over-ons"));
+  ok("ander domein geweigerd", lijst.rejected.some((r) => r.value.includes("concurrent.nl")));
+  // "dit is geen adres" valt uiteen in vier losse woorden zonder punt; alle vier
+  // horen ze met een reden terug te komen en niet stil te verdwijnen.
+  ok("onzin geweigerd, met reden", lijst.rejected.some((r) => r.reason === "Dit is geen webadres."));
+  eq("drie bruikbare adressen", String(lijst.urls.length), "3");
+
+  const dubbel = parseUrlList("praktijk.nl/x\nhttps://praktijk.nl/x", "praktijk.nl");
+  eq("dubbel adres maar één keer", String(dubbel.urls.length), "1");
+
+  const teveel = parseUrlList(
+    Array.from({ length: 5 }, (_, i) => `praktijk.nl/p${i}`).join("\n"),
+    "praktijk.nl",
+    3,
+  );
+  eq("boven het maximum afgekapt", String(teveel.urls.length), "3");
+  ok("en dat wordt gemeld", teveel.rejected.length === 2);
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+// Welke pagina's de crawl kiest als de site te groot is. Dit is de kern van de
+// reparatie van 22 augustus 2026: niet MEER pagina's ophalen, maar ANDERE.
+// ════════════════════════════════════════════════════════════════════════════
+
+group("url-priority: wat een pagina waard is", () => {
+  const homepage = scoreUrl("https://a.nl/");
+  const dienst = scoreUrl("https://a.nl/diensten/dry-needling");
+  const overOns = scoreUrl("https://a.nl/over-ons");
+  const blog = scoreUrl("https://a.nl/blog/hardlopen-in-de-winter");
+
+  ok("de homepage wint altijd", homepage > dienst && homepage > overOns);
+  ok("een dienst boven een over-ons", dienst > overOns);
+  ok("een over-ons boven een blogartikel", overOns > blog);
+
+  // ⚠️ Het woord "diensten" in een blog-slug mag de sectie niet overstemmen.
+  ok(
+    "blogartikel over diensten blijft een blogartikel",
+    scoreUrl("https://a.nl/blog/onze-diensten-uitgelegd") < overOns,
+  );
+
+  // "onze-diensten" is de vorm die echte sites gebruiken; op hele segmentnamen
+  // vergelijken zou die missen.
+  ok("onze-diensten telt als aanbod", scoreUrl("https://a.nl/onze-diensten") > overOns);
+
+  ok(
+    "een expliciet gekozen map wint van alles behalve de homepage",
+    scoreUrl("https://a.nl/showroom/x", ["/showroom"]) > dienst,
+  );
+
+  ok("dieper is minder", scoreUrl("https://a.nl/diensten/a/b/c") < dienst);
+});
+
+group("url-priority: de Yoast-val (2000 blogs, 12 diensten)", () => {
+  // Dit is het geval waarvoor dit bestand bestaat. Bij Yoast staat
+  // post-sitemap.xml vóór page-sitemap.xml, dus de oude `slice(0, 150)` op
+  // sitemapvolgorde leverde 150 blogartikelen op en nul dienstenpagina's.
+  const blogs = Array.from({ length: 2000 }, (_, i) => `https://a.nl/blog/artikel-${i}`);
+  const diensten = Array.from({ length: 12 }, (_, i) => `https://a.nl/diensten/dienst-${i}`);
+  const overig = ["https://a.nl/", "https://a.nl/over-ons", "https://a.nl/contact"];
+
+  const keuze = selectUrls([...blogs, ...diensten, ...overig], 150);
+
+  eq("het ware aantal wordt geteld", String(keuze.totalFound), "2015");
+  ok("en afkapping wordt gemeld", keuze.truncated);
+  eq("er worden er precies 150 gekozen", String(keuze.urls.length), "150");
+
+  const gekozenDiensten = keuze.urls.filter((u) => u.includes("/diensten/"));
+  ok(
+    `alle 12 dienstenpagina's overleven (${gekozenDiensten.length}/12)`,
+    gekozenDiensten.length === 12,
+  );
+  ok("de homepage zit erbij", keuze.urls.includes("https://a.nl/"));
+  ok("de contactpagina ook", keuze.urls.includes("https://a.nl/contact"));
+  ok("de homepage staat vooraan", keuze.urls[0] === "https://a.nl/");
+
+  // De sectietelling moet de WERKELIJKE omvang tonen, niet de selectie: anders
+  // zegt het scherm opnieuw dat de blog 150 pagina's heeft.
+  const blogSectie = keuze.sections.find((s) => s.segment === "/blog");
+  eq("de blogsectie meldt zijn ware omvang", String(blogSectie?.found), "2000");
+  ok("en dat er maar een deel van gelezen is", (blogSectie?.selected ?? 0) < 2000);
+});
+
+group("url-priority: dezelfde pagina kost maar één plek", () => {
+  // Echt gezien in de sitemap van udenhout.nl: beide schrijfwijzen van de
+  // homepage. Dat kost twee van de 150 plekken, twee fetches, en de pagina
+  // staat twee keer in de prompt van de aanbodboom.
+  const keuze = selectUrls(
+    ["https://udenhout.nl", "https://udenhout.nl/", "https://www.udenhout.nl/", "https://udenhout.nl/diensten"],
+    150,
+  );
+  eq("drie schrijfwijzen van de homepage tellen als één", String(keuze.totalFound), "2");
+  ok("en de eerste schrijfwijze blijft staan", keuze.urls.includes("https://udenhout.nl"));
+
+  // Een query is wél een andere pagina: `?categorie=ketels` is bij veel sites
+  // echte inhoud, en die samenvouwen zou pagina's laten verdwijnen.
+  const metQuery = selectUrls(["https://a.nl/zoek", "https://a.nl/zoek?c=ketels"], 150);
+  eq("een query blijft een eigen pagina", String(metQuery.totalFound), "2");
+});
+
+group("url-priority: een site die wél past blijft ongemoeid", () => {
+  const urls = ["https://a.nl/", "https://a.nl/diensten", "https://a.nl/contact"];
+  const keuze = selectUrls(urls, 150);
+  eq("alles blijft", String(keuze.urls.length), "3");
+  ok("niets afgekapt", !keuze.truncated);
+  eq("en het totaal klopt", String(keuze.totalFound), "3");
+});
+
+group("url-priority: een gekozen map krijgt echt voorrang", () => {
+  const blogs = Array.from({ length: 500 }, (_, i) => `https://a.nl/blog/a-${i}`);
+  const showroom = Array.from({ length: 40 }, (_, i) => `https://a.nl/showroom/s-${i}`);
+
+  const zonder = selectUrls([...blogs, ...showroom], 50);
+  const met = selectUrls([...blogs, ...showroom], 50, ["/showroom"]);
+
+  const zonderShowroom = zonder.urls.filter((u) => u.includes("/showroom/")).length;
+  const metShowroom = met.urls.filter((u) => u.includes("/showroom/")).length;
+  ok(
+    `voorrang levert meer showroompagina's op (${zonderShowroom} → ${metShowroom})`,
+    metShowroom > zonderShowroom,
+  );
+  ok("en de hele showroom past", metShowroom === 40);
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+// Welke pagina's de aanbod-aanroep in gaan. Dit is de nauwste doorgang van de
+// hele onboarding: ~35 van de 150 gelezen pagina's.
+// ════════════════════════════════════════════════════════════════════════════
+
+group("page-select: de dienstenpagina verliest niet meer van het blog", () => {
+  const pagina = (url: string, tekens: number) => ({
+    url,
+    title: null,
+    text: "a".repeat(tekens),
+  });
+
+  // Het echte geval: elke pagina is afgekapt op 1500 tekens, dus alle blogs
+  // staan precies gelijk en de oude sortering op lengte liet de volgorde van
+  // Postgres beslissen. Een dienstenpagina van 900 tekens verloor.
+  const pages = [
+    ...Array.from({ length: 40 }, (_, i) => pagina(`https://a.nl/blog/artikel-${i}`, 1500)),
+    pagina("https://a.nl/diensten/dry-needling", 900),
+    pagina("https://a.nl/diensten/sportmassage", 900),
+    pagina("https://a.nl/tarieven", 700),
+    pagina("https://a.nl/", 1200),
+  ];
+
+  // Ongeveer tien pagina's aan budget: krap genoeg om te moeten kiezen.
+  const selectie = buildPageBlocks(pages, 15_000);
+
+  ok("de homepage is erbij", selectie.selected.some((p) => p.url === "https://a.nl/"));
+  ok(
+    "beide dienstenpagina's zijn erbij",
+    selectie.selected.filter((p) => p.url.includes("/diensten/")).length === 2,
+  );
+  ok("de tarievenpagina ook", selectie.selected.some((p) => p.url.endsWith("/tarieven")));
+  ok("er is wel degelijk afgekapt", selectie.skipped > 0);
+  ok("uit meerdere secties", selectie.sections >= 3);
+  ok(
+    "het budget wordt gerespecteerd",
+    selectie.blocks.join("\n\n").length <= 15_000,
+    String(selectie.blocks.join("\n\n").length),
+  );
+  ok(
+    "en de belangrijkste pagina staat vooraan",
+    selectie.selected[0].url === "https://a.nl/",
+  );
+});
+
+group("page-select: lege pagina's tellen niet mee", () => {
+  const selectie = buildPageBlocks(
+    [
+      { url: "https://a.nl/", title: null, text: "   " },
+      { url: "https://a.nl/diensten", title: "Diensten", text: "echte tekst" },
+    ],
+    10_000,
+  );
+  eq("alleen de pagina met tekst", String(selectie.selected.length), "1");
+  ok("en de titel staat in het blok", selectie.blocks[0].includes("· Diensten"));
+});
+
 group("inventariskwaliteit: Bol, HEMA en een gewone praktijk", () => {
   const pagina = (url: string, tekens: number) => ({ url, text: "a".repeat(tekens) });
 
@@ -2450,6 +2705,46 @@ group("inventariskwaliteit: Bol, HEMA en een gewone praktijk", () => {
   const niets = assessInventory([]);
   ok("nul pagina's: dun", niets.verdict === "dun");
   ok("nul pagina's: geen deling door nul", niets.usableTextRatio === 0);
+});
+
+group("inventariskwaliteit: het oordeel 'afgekapt' (22 augustus 2026)", () => {
+  const pagina = (url: string) => ({ url, text: "a".repeat(900) });
+  const honderdvijftig = Array.from({ length: 150 }, (_, i) => pagina(`https://a.nl/pagina-${i}`));
+
+  // Precies het geval dat tot nu toe niet van een volledige site te
+  // onderscheiden was: 150 gelezen pagina's op een site die er 2400 heeft.
+  const groot = assessInventory(honderdvijftig, { totalFound: 2400 });
+  ok("site groter dan het plafond: afgekapt", groot.verdict === "afgekapt", groot.verdict);
+  ok("het ware aantal staat in het advies", (groot.advice ?? "").includes("2400"));
+  ok("en het gelezen aantal ook", (groot.advice ?? "").includes("150"));
+  eq("het totaal wordt bewaard", String(groot.totalFound), "2400");
+
+  // Even groot als wat we lazen: dan is er niets gemist.
+  const precies = assessInventory(honderdvijftig, { totalFound: 150 });
+  ok("even groot: gewoon voldoende", precies.verdict === "voldoende", precies.verdict);
+  ok("en dus geen advies", precies.advice === null);
+
+  // Niet gemeten (een profiel van vóór deze wijziging): het oordeel blijft
+  // wat het was, in plaats van een totaal te verzinnen.
+  const onbekend = assessInventory(honderdvijftig);
+  ok("zonder meting: voldoende", onbekend.verdict === "voldoende", onbekend.verdict);
+  ok("en het totaal blijft onbekend", onbekend.totalFound === undefined);
+
+  // ⚠️ 'vervuild' gaat vóór 'afgekapt'. Bij een grote webshop zijn beide waar,
+  // en "we zien vooral het assortiment" is de nuttigere melding: die zegt iets
+  // over wat we hébben, de andere alleen over wat we misten.
+  const webshop = assessInventory(
+    Array.from({ length: 150 }, (_, i) => pagina(`https://a.nl/producten/artikel-${1000 + i}`)),
+    { totalFound: 9000 },
+  );
+  ok("een grote webshop blijft vervuild", webshop.verdict === "vervuild", webshop.verdict);
+
+  // Een dunne site die óók afgekapt is, blijft dun: dat is het ergere probleem.
+  const dun = assessInventory(
+    Array.from({ length: 20 }, (_, i) => ({ url: `https://a.nl/pagina-${i}`, text: "x" })),
+    { totalFound: 3000 },
+  );
+  ok("dun gaat vóór afgekapt", dun.verdict === "dun", dun.verdict);
 });
 
 group("sitestructuur uit de URL-lijst", () => {

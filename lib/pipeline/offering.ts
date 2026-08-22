@@ -33,6 +33,7 @@ import { MODELS } from "@/lib/openai/models";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { OfferingTree } from "@/lib/schemas/offering";
 import { buildTaxonomy } from "@/lib/pipeline/inventory-quality";
+import { buildPageBlocks } from "@/lib/pipeline/page-select";
 import { quoteConfidence } from "@/lib/pipeline/quote-check";
 import {
   relinkOfferingIds,
@@ -152,21 +153,37 @@ export async function buildOfferingTree(profileId: string): Promise<OfferingResu
     .map((s) => `${s.segment} · ${s.count} pagina's`)
     .join("\n");
 
-  // Langste pagina's eerst: bij afkappen valt een navigatiepagina van 200
-  // tekens eraf en niet de dienstenpagina.
-  const sorted = [...pages].sort(
-    (a, b) => ((b.text_excerpt as string) ?? "").length - ((a.text_excerpt as string) ?? "").length,
+  // ── WELKE PAGINA'S HET MODEL TE ZIEN KRIJGT (22 augustus 2026) ────────────
+  //
+  // Hier stond: sorteren op tekstlengte, langste eerst, met als onderbouwing
+  // dat een navigatiepagina van 200 tekens dan afvalt en de dienstenpagina
+  // blijft. Dat klopte niet. `crawler.ts` kapt élke pagina af op 1.500 tekens,
+  // dus alle langere pagina's staan precies gelijk en besliste de volgorde
+  // waarin Postgres ze teruggaf. En de pagina's die die 1.500 halen zijn juist
+  // de blogartikelen: een dienstenpagina van 900 tekens verloor van een artikel
+  // van 4.000. Van de 150 gecrawlde pagina's passen er ~35 in dit budget, dus
+  // dit is de vernauwing die bepaalt wat we van een klant weten, niet de crawl.
+  //
+  // `page-select.ts` verdeelt het budget nu om beurten over de secties van de
+  // site, met dezelfde score als de crawl zelf gebruikt (`url-priority.ts`).
+  const { data: profielRij } = await admin
+    .from("profiles")
+    .select("crawl_priority_paths")
+    .eq("id", profileId)
+    .single();
+  const priorityPaths =
+    ((profielRij as { crawl_priority_paths: string[] } | null)?.crawl_priority_paths) ?? [];
+
+  const selectie = buildPageBlocks(
+    pages.map((p) => ({
+      url: p.url as string,
+      title: (p.title as string) ?? null,
+      text: (p.text_excerpt as string) ?? "",
+    })),
+    MAX_SITE_CHARS,
+    priorityPaths,
   );
-  const blocks: string[] = [];
-  let total = 0;
-  for (const p of sorted) {
-    const text = (p.text_excerpt as string) ?? "";
-    if (!text.trim()) continue;
-    const block = `--- ${p.url}${p.title ? ` · ${p.title}` : ""}\n${text}`;
-    if (total + block.length > MAX_SITE_CHARS) break;
-    blocks.push(block);
-    total += block.length;
-  }
+  const blocks = selectie.blocks;
 
   const system =
     `Je brengt het AANBOD van een bedrijf in kaart op basis van zijn eigen website. ` +
@@ -188,7 +205,8 @@ export async function buildOfferingTree(profileId: string): Promise<OfferingResu
     `Bedrijf: ${profile.brand_name ?? profile.name}\nWebsite: ${profile.url}\n` +
     (profile.industry ? `Branche: ${profile.industry}\n` : "") +
     `\nSTRUCTUUR VAN DE SITE (afgeleid uit de sitemap, dit is feitelijk):\n${taxonomy}\n\n` +
-    `PAGINA'S (${blocks.length} van de ${pages.length} gevonden pagina's):\n"""\n${blocks.join("\n\n")}\n"""`;
+    `PAGINA'S (${blocks.length} van de ${pages.length} gelezen pagina's, uit ${selectie.sections} ` +
+    `secties van de site):\n"""\n${blocks.join("\n\n")}\n"""`;
 
   const result = await callStructured({
     model: MODELS.quality,
@@ -205,7 +223,7 @@ export async function buildOfferingTree(profileId: string): Promise<OfferingResu
   });
 
   const tree = result.parsed;
-  const saved = await persistTree(
+  const { nodes: saved, droppedByCap, droppedByEvidence } = await persistTree(
     admin,
     profileId,
     tree.nodes,
@@ -214,6 +232,33 @@ export async function buildOfferingTree(profileId: string): Promise<OfferingResu
       text: (p.text_excerpt as string) ?? "",
     })),
   );
+
+  // ── WAT ER STIL AFVIEL, STAAT NU IN DE GESPREKSAGENDA ─────────────────────
+  //
+  // Drie plekken kapten af zonder dat iemand het kon zien: de tekenlimiet van
+  // de prompt, de bewijscontrole en `MAX_NODES`. Alle drie zijn ze een keuze
+  // die de klant raakt, dus alle drie melden ze zich nu. Deze regels komen uit
+  // CODE en niet uit het model: `gaps` was tot nu toe zelfrapportage, en een
+  // model dat niet weet dat er iets is weggegooid kan dat ook niet melden.
+  const gaps = [...tree.gaps];
+  if (selectie.skipped > 0) {
+    gaps.push(
+      `${selectie.skipped} van de ${pages.length} gelezen pagina's pasten niet in deze analyse. ` +
+        `De selectie is over ${selectie.sections} secties van de site verdeeld, dus alle delen ` +
+        `komen aan bod, maar niet elke pagina is meegewogen.`,
+    );
+  }
+  if (droppedByEvidence > 0) {
+    gaps.push(
+      `${droppedByEvidence} onderdelen zijn weggelaten omdat het model er geen pagina bij kon aanwijzen.`,
+    );
+  }
+  if (droppedByCap > 0) {
+    gaps.push(
+      `Er zijn ${droppedByCap} onderdelen méér gevonden dan de ${MAX_NODES} die in het overzicht passen. ` +
+        `Bespreek welke groepen het belangrijkst zijn.`,
+    );
+  }
 
   // ── De topics weer aan de boom hangen (migratie 0043) ────────────────────
   //
@@ -241,7 +286,7 @@ export async function buildOfferingTree(profileId: string): Promise<OfferingResu
     {
       profile_id: profileId,
       facet: "aanbod",
-      summary: beschrijf(saved, tree.businessModel, tree.gaps),
+      summary: beschrijf(saved, tree.businessModel, gaps),
       raw_json: result.raw as never,
       // De zekerheid is het aandeel knopen dat een geldige bron overleefde.
       // Haalt de helft dat niet, dan is er iets mis met het materiaal en hoort
@@ -258,7 +303,7 @@ export async function buildOfferingTree(profileId: string): Promise<OfferingResu
   return {
     nodes: saved.length,
     businessModel: profile.business_model ?? tree.businessModel,
-    gaps: tree.gaps,
+    gaps,
     costUsd: result.costUsd,
   };
 }
@@ -294,19 +339,29 @@ interface StoredNode {
  * `verifyAtoms()` en `verifyDossierFacts()`, een promptinstructie is een
  * intentie, code is een garantie.
  */
+interface PersistedTree {
+  nodes: StoredNode[];
+  /** Knopen die het model aanbood maar die niet in het overzicht pasten. */
+  droppedByCap: number;
+  /** Knopen zonder bruikbare bronpagina. Die verdwijnen, en dat moet zichtbaar zijn. */
+  droppedByEvidence: number;
+}
+
 async function persistTree(
   admin: ReturnType<typeof createAdminClient>,
   profileId: string,
   nodes: OfferingTree["nodes"],
   knownPages: Array<{ url: string; text: string }>,
-): Promise<StoredNode[]> {
+): Promise<PersistedTree> {
   const textByUrl = new Map(knownPages.map((p) => [p.url, p.text]));
-  const geldig = nodes
-    .filter((n) => n.name.trim() !== "")
-    .filter((n) => textByUrl.has(n.evidenceUrl))
-    .slice(0, MAX_NODES);
+  const metNaam = nodes.filter((n) => n.name.trim() !== "");
+  const metBron = metNaam.filter((n) => textByUrl.has(n.evidenceUrl));
+  const geldig = metBron.slice(0, MAX_NODES);
 
-  if (geldig.length === 0) return [];
+  const droppedByEvidence = metNaam.length - metBron.length;
+  const droppedByCap = metBron.length - geldig.length;
+
+  if (geldig.length === 0) return { nodes: [], droppedByCap, droppedByEvidence };
 
   const { data: inserted, error } = await admin
     .from("profile_offerings")
@@ -344,7 +399,7 @@ async function persistTree(
 
   if (error || !inserted) {
     console.error(`Aanbodboom opslaan mislukt voor profiel ${profileId}: ${error?.message}`);
-    return [];
+    return { nodes: [], droppedByCap, droppedByEvidence };
   }
 
   const stored = inserted as unknown as StoredNode[];
@@ -362,7 +417,7 @@ async function persistTree(
     }),
   );
 
-  return stored;
+  return { nodes: stored, droppedByCap, droppedByEvidence };
 }
 
 function beschrijf(nodes: StoredNode[], model: string, gaps: string[]): string {

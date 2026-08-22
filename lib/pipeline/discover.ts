@@ -14,14 +14,23 @@ import "server-only";
  *
  * Deze fase haalt tot 150 pagina's op, kamt ze uit en zet er een feitenbasis van
  * neer waar de rest van de pijplijn op leunt in plaats van hem te herontdekken.
- * Kosten: **nul**. Geen enkele AI-aanroep. Alleen een fetch en een reguliere
+ * Kosten: **nul** bij vrijwel elke klant. Alleen een fetch en een reguliere
  * expressie. Precies de scheidslijn uit `docs/architecture.md` §6
  * "Bewust géén AI".
+ *
+ * ── DE ENIGE UITZONDERING OP "GEEN AI" (22 augustus 2026) ───────────────────
+ *
+ * Is de site GROTER dan wat we mogen lezen, dan draait er één goedkope aanroep
+ * (`crawl-focus.ts`, ~$0,01) die uit de echte sectielijst kiest waar het aanbod
+ * staat. Een MKB-site van 40 pagina's raakt hem nooit: daar wordt alles gelezen
+ * en valt er niets te kiezen. De aanroep verzint niets, hij kiest uit wat er is.
  *
  * ── WAT HET OPLEVERT ────────────────────────────────────────────────────────
  *
  *   • `profile_pages`: de content-inventaris (bestond al, nu breder)
  *   • `profiles.inventory_quality_json`, deugt die inventaris? (R6.2)
+ *   • `profiles.sitemap_total_urls`, hoe groot de site écht is (migratie 0061)
+ *   • `profiles.crawl_priority_paths`, waar de crawl zich op richtte
  *   • `profile_facets` rij 'techniek', sitestructuur, gestructureerde data,
  *     renderbaarheid, naamvarianten én de geoogste feiten in `raw_json.facts`
  *
@@ -37,8 +46,10 @@ import "server-only";
  * een kennistest op baseert.
  */
 import { createAdminClient } from "@/lib/supabase/admin";
-import { crawlPages, discoverPageUrls, MAX_PAGES_HARD_CAP } from "@/lib/crawler";
+import { collectPageUrls, crawlPages, MAX_PAGES_HARD_CAP } from "@/lib/crawler";
 import { assessInventory, buildTaxonomy, type SiteSection } from "@/lib/pipeline/inventory-quality";
+import { selectUrls } from "@/lib/pipeline/url-priority";
+import { chooseCrawlFocus } from "@/lib/pipeline/crawl-focus";
 import { mergeTextFacts } from "@/lib/pipeline/text-facts";
 import type { HarvestedFact } from "@/lib/pipeline/structured-data";
 import {
@@ -50,7 +61,19 @@ import type { InventoryQuality, Profile } from "@/lib/types/database";
 
 /** Wat fase 0 aan de volgende fases doorgeeft. */
 export interface DiscoveryResult {
+  /** Hoeveel pagina's er gelezen zijn. */
   pagesFound: number;
+  /**
+   * Hoeveel pagina's de site in totaal heeft. Groter dan `pagesFound` betekent
+   * dat we een keuze hebben moeten maken, en dat is het cijfer dat tot 22
+   * augustus 2026 nergens bestond.
+   */
+  totalFound: number;
+  /** Welke secties voorrang kregen, en waarom. Leeg als de hele site paste. */
+  priorityPaths: string[];
+  focusReasoning: string | null;
+  /** Wat deze fase gekost heeft. Nul, tenzij de site te groot was. */
+  costUsd: number;
   inventory: InventoryQuality;
   sections: SiteSection[];
   /** Alle @type-waarden die ergens op de site voorkomen. */
@@ -80,12 +103,61 @@ export async function discoverSite(profileId: string): Promise<DiscoveryResult> 
   if (!row) throw new Error(`Profiel ${profileId} niet gevonden.`);
   const profile = row as Profile;
 
+  // ── Stap 1: de hele site in kaart, zonder iets op te halen ────────────────
+  //
+  // Alleen de URL-lijst uit de sitemap(s), en die lezen we nu VOLLEDIG uit, ook
+  // bij 8.000 pagina's. Dat kost bijna niets (het zijn een paar XML-bestanden)
+  // en het is de enige manier om te weten hoe groot de site werkelijk is. Tot 22
+  // augustus 2026 stopte de crawl bij 150 URL's, waardoor "de site heeft precies
+  // 150 pagina's" en "de site heeft er 8.000" in de data niet te onderscheiden
+  // waren.
+  const { urls: alleUrls } = await collectPageUrls(profile.url, profile.sitemap_url);
+
   // Bewust het maximum en niet de instelling van het profiel: dit is een
   // eenmalige onboarding en het kost alleen tijd, geen geld. De per-profiel
   // instelling (`max_inventory_pages`) blijft gelden voor de latere
   // verversingen, waar hij wél een kostenafweging is.
-  const urls = await discoverPageUrls(profile.url, MAX_PAGES_HARD_CAP, profile.sitemap_url);
+  const maxPages = MAX_PAGES_HARD_CAP;
+
+  // ── Stap 2: waar richten we ons op? ───────────────────────────────────────
+  //
+  // Alleen als de site niet in één keer past. Wat een mens al invulde
+  // (`crawl_priority_paths`) wint van het model: dat is een beslissing, en die
+  // hoort niet elke ronde overschreven te worden door een oordeel.
+  const handmatigeVoorrang = profile.crawl_priority_paths ?? [];
+  let priorityPaths: string[] = [...handmatigeVoorrang];
+  let focusReasoning: string | null = null;
+  let costUsd = 0;
+
+  if (alleUrls.length > maxPages && handmatigeVoorrang.length === 0) {
+    const focus = await chooseCrawlFocus(profileId, {
+      brandName: profile.brand_name ?? profile.name,
+      url: profile.url,
+      industry: profile.industry,
+      businessModel: profile.business_model,
+      // Op ALLE URL's, niet op een selectie: het model moet juist de secties
+      // kunnen aanwijzen die anders zouden afvallen.
+      sections: buildTaxonomy(alleUrls),
+      totalFound: alleUrls.length,
+      maxPages,
+    });
+    priorityPaths = focus.prioritySegments;
+    focusReasoning = focus.reasoning;
+    costUsd = focus.costUsd;
+  }
+
+  // ── Stap 3: kiezen en ophalen ─────────────────────────────────────────────
+  const selectie = selectUrls(alleUrls, maxPages, priorityPaths);
+  const urls = selectie.urls;
   const pages = await crawlPages(urls, { harvest: true });
+
+  if (selectie.truncated) {
+    console.info(
+      `Profiel ${profileId}: site heeft ${selectie.totalFound} pagina's, ` +
+        `${urls.length} gelezen over ${selectie.sections.length} secties` +
+        (priorityPaths.length > 0 ? ` (voorrang: ${priorityPaths.join(", ")})` : ""),
+    );
+  }
 
   // De inventaris beoordelen op ALLE gevonden URL's, niet alleen op wat gelukt
   // is: een site waarvan 140 van de 150 pagina's een time-out geven is geen
@@ -95,6 +167,7 @@ export async function discoverSite(profileId: string): Promise<DiscoveryResult> 
       const page = pages.find((p) => p.url === url);
       return { url, title: page?.title ?? null, text: page?.text ?? null };
     }),
+    { totalFound: selectie.totalFound },
   );
 
   const schemaTypes = new Set<string>();
@@ -140,7 +213,14 @@ export async function discoverSite(profileId: string): Promise<DiscoveryResult> 
 
   const result: DiscoveryResult = {
     pagesFound: urls.length,
+    totalFound: selectie.totalFound,
+    priorityPaths,
+    focusReasoning,
+    costUsd,
     inventory,
+    // Op de GELEZEN pagina's en niet op alles: dit is de structuur die de rest
+    // van de pijplijn als context meekrijgt, en die moet kloppen met wat er
+    // daadwerkelijk aan tekst achter zit. De ware omvang staat in `totalFound`.
     sections: buildTaxonomy(urls),
     schemaTypes: [...schemaTypes].sort(),
     pagesWithSchema,
@@ -164,30 +244,12 @@ async function persist(
   result: DiscoveryResult,
 ): Promise<void> {
   // ── De inventaris ─────────────────────────────────────────────────────────
+  //
   // Vervangen en niet aanvullen: een pagina die van de site verdwenen is, hoort
   // niet in de inventaris te blijven staan.
-  await admin.from("profile_pages").delete().eq("profile_id", profileId);
-  const withText = pages.filter((p) => p.text.trim().length > 0);
-  if (withText.length > 0) {
-    // Fout WÉL controleren. Deze insert is één batch; weigert Postgres er één,
-    // dan gaat de hele batch niet door. Dat gebeurde bij swapfiets.nl (NUL-byte,
-    // zie lib/pg-text.ts): de crawl meldde 22 pagina's, de database hield er
-    // nul, en niemand merkte het.
-    const { error } = await admin.from("profile_pages").insert(
-      withText.map((p) => ({
-        profile_id: profileId,
-        url: p.url,
-        title: p.title,
-        text_excerpt: p.text,
-      })),
-    );
-    if (error) {
-      console.error(
-        `Content-inventaris opslaan mislukt voor profiel ${profileId} ` +
-          `(${withText.length} pagina's gecrawld, 0 opgeslagen): ${error.message}`,
-      );
-    }
-  }
+  //
+  // ⚠️ ALLEEN DE GECRAWLDE PAGINA'S (migratie 0061). Zie `replaceCrawledPages`.
+  await replaceCrawledPages(admin, profileId, pages);
 
   // ── Het technische facet ──────────────────────────────────────────────────
   const summary = beschrijf(result);
@@ -216,7 +278,12 @@ async function persist(
 
   await admin
     .from("profiles")
-    .update({ inventory_quality_json: result.inventory as never })
+    .update({
+      inventory_quality_json: result.inventory as never,
+      // Het cijfer dat de vraag "knelt het plafond?" beantwoordbaar maakt.
+      sitemap_total_urls: result.totalFound,
+      crawl_priority_paths: result.priorityPaths,
+    })
     .eq("id", profileId);
 
   // ── Het sjabloonfacet ──────────────────────────────────────────────────────
@@ -243,12 +310,122 @@ async function persist(
 }
 
 /**
+ * Vervangt de GECRAWLDE inventaris en laat de handmatige pagina's staan.
+ *
+ * ── WAAROM DIT ÉÉN FUNCTIE IS EN GEEN TWEE (conventie: één feit, één eigenaar) ─
+ *
+ * Zowel fase 0 als "Vernieuw inventaris" doet deze handeling. Twee kopieën van
+ * dezelfde regel lopen gegarandeerd uit elkaar, en de fout die dan ontstaat is
+ * onzichtbaar: een handmatig toegevoegde pagina die stil verdwijnt bij de
+ * volgende ronde. Precies de correctie waarvoor die knop bestaat.
+ */
+export async function replaceCrawledPages(
+  admin: ReturnType<typeof createAdminClient>,
+  profileId: string,
+  pages: readonly StorablePage[],
+): Promise<{ stored: number; failed: number; kept: number }> {
+  const { data: bewaarde } = await admin
+    .from("profile_pages")
+    .select("url")
+    .eq("profile_id", profileId)
+    .eq("source", "handmatig");
+  const handmatig = new Set(((bewaarde ?? []) as { url: string }[]).map((r) => r.url));
+
+  await admin.from("profile_pages").delete().eq("profile_id", profileId).eq("source", "crawl");
+
+  // Een handmatige pagina die de crawl óók vond, blijft handmatig: de kolom
+  // `(profile_id, url)` is uniek, dus twee rijen kan niet, en de handmatige is
+  // de rij die een volgende ronde moet overleven.
+  const nieuw = pages.filter((p) => p.text.trim().length > 0 && !handmatig.has(p.url));
+  const { stored, failed } = await insertPages(admin, profileId, nieuw, "crawl");
+  return { stored, failed, kept: handmatig.size };
+}
+
+/** Hoeveel pagina's er per insert meegaan. Zie `insertPages` voor waarom niet alles in één keer. */
+const INSERT_CHUNK = 25;
+
+export interface StorablePage {
+  url: string;
+  title: string | null;
+  text: string;
+}
+
+/**
+ * Schrijft pagina's weg in blokken, en telt wat er echt geland is.
+ *
+ * ── WAAROM NIET IN ÉÉN BATCH (22 augustus 2026) ─────────────────────────────
+ *
+ * Dat was het: één insert met alle pagina's tegelijk. Weigert Postgres er één,
+ * dan gaat de HELE batch niet door. Bij swapfiets.nl gebeurde dat: twee van de
+ * 22 pagina's bevatten een NUL-byte, de crawl meldde 22 pagina's en de database
+ * hield er nul. De oorzaak van die ene keer is verholpen
+ * (`sanitizeForPostgres`), het patroon niet: elke rij die Postgres om welke
+ * reden dan ook weigert kost nog steeds alles, en hoe groter de crawl hoe groter
+ * die kans.
+ *
+ * In blokken van 25 kost een rotte rij hoogstens 24 buren, en de teller
+ * hieronder zegt eerlijk hoeveel er over is. Een fout wordt gelogd én geteld,
+ * nooit meer alleen gelogd: de aanroeper beslist of nul opgeslagen pagina's een
+ * mislukte taak is.
+ */
+export async function insertPages(
+  admin: ReturnType<typeof createAdminClient>,
+  profileId: string,
+  pages: readonly StorablePage[],
+  source: "crawl" | "handmatig",
+): Promise<{ stored: number; failed: number }> {
+  let stored = 0;
+  let failed = 0;
+
+  for (let i = 0; i < pages.length; i += INSERT_CHUNK) {
+    const blok = pages.slice(i, i + INSERT_CHUNK);
+    const { error } = await admin.from("profile_pages").insert(
+      blok.map((p) => ({
+        profile_id: profileId,
+        url: p.url,
+        title: p.title,
+        text_excerpt: p.text,
+        source,
+      })),
+    );
+    if (error) {
+      failed += blok.length;
+      console.error(
+        `Content-inventaris: blok ${i / INSERT_CHUNK + 1} van profiel ${profileId} ` +
+          `(${blok.length} pagina's) geweigerd: ${error.message}`,
+      );
+      continue;
+    }
+    stored += blok.length;
+  }
+
+  if (failed > 0) {
+    console.error(
+      `Content-inventaris profiel ${profileId}: ${stored} van de ${pages.length} pagina's opgeslagen, ${failed} niet.`,
+    );
+  }
+
+  return { stored, failed };
+}
+
+/**
  * De samenvatting die een mens leest op het profielscherm. Bewust in gewone
  * taal en met cijfers: "31 pagina's, 12 met gestructureerde data" is bruikbaar,
  * "inventaris opgebouwd" niet.
  */
 function beschrijf(r: DiscoveryResult): string {
-  const delen: string[] = [`${r.pagesFound} pagina's gevonden`];
+  // ⚠️ "150 pagina's gevonden" stond hier ook als de site er 8.000 had. Dat las
+  // een klant als volledigheid terwijl het een afkapping was. Nu staat de
+  // verhouding er, en alleen als er echt iets is afgekapt.
+  const delen: string[] = [
+    r.totalFound > r.pagesFound
+      ? `${r.pagesFound} van de ${r.totalFound} pagina's gelezen`
+      : `${r.pagesFound} pagina's gevonden`,
+  ];
+
+  if (r.priorityPaths.length > 0) {
+    delen.push(`voorrang voor ${r.priorityPaths.join(", ")}`);
+  }
 
   if (r.sections.length > 0) {
     const top = r.sections

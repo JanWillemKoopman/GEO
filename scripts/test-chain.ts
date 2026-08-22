@@ -2655,6 +2655,138 @@ async function main(): Promise<void> {
     );
     ok("de bewaarde kopie van zijn tekst is ook weg", kopie.length === 0);
 
+    // ════════════════════════════════════════════════════════════════════════
+    // De crawl van een TE GROTE site (22 augustus 2026)
+    //
+    // Dit is de achtste fout in de samenhang, en hij is van dezelfde soort als
+    // de zeven hierboven: geen enkele unittest kon hem vangen, want elk stuk
+    // klopte op zichzelf. De crawl koos zijn URL's, sloeg ze op, en verwijderde
+    // daarbij alles wat er stond, inclusief de pagina's die een mens er
+    // handmatig bij had gezet omdat de crawl ze miste. Precies de correctie
+    // waarvoor die knop bestaat werd bij de eerstvolgende ronde gewist.
+    //
+    // Netwerk is hier gestubd, geen echte site. Wat écht draait: de
+    // sitemapverwerking, de selectie, de vervanging van de inventaris en het
+    // oordeel erover.
+    // ════════════════════════════════════════════════════════════════════════
+    console.log("\nEen site die groter is dan het paginamaximum\n");
+
+    const grootProfielId = randomUUID();
+    await db.client.query(
+      `insert into public.profiles (id, user_id, name, url, brand_name, status, max_inventory_pages)
+       values ($1, $2, 'Grote Praktijk', 'https://grootpraktijk.nl', 'Grote Praktijk', 'klaar', 10)`,
+      [grootProfielId, userId],
+    );
+
+    // Eén pagina die een mens toevoegde, en die de crawl NIET zal vinden: hij
+    // staat niet in de sitemap hieronder. Dat is het hele punt.
+    await db.client.query(
+      `insert into public.profile_pages (profile_id, url, title, text_excerpt, source) values
+       ($1, 'https://grootpraktijk.nl/verborgen/specialisme', 'Ons specialisme',
+        'Deze pagina staat niet in de sitemap en is met de hand toegevoegd.', 'handmatig')`,
+      [grootProfielId],
+    );
+    // En één oude gecrawlde pagina, die wél vervangen moet worden.
+    await db.client.query(
+      `insert into public.profile_pages (profile_id, url, title, text_excerpt, source) values
+       ($1, 'https://grootpraktijk.nl/oud', 'Oud', 'Deze pagina bestaat niet meer.', 'crawl')`,
+      [grootProfielId],
+    );
+
+    const blogUrls = Array.from(
+      { length: 30 },
+      (_, i) => `https://grootpraktijk.nl/blog/artikel-${i}`,
+    );
+    const dienstUrls = Array.from(
+      { length: 4 },
+      (_, i) => `https://grootpraktijk.nl/diensten/dienst-${i}`,
+    );
+    const alleUrls = ["https://grootpraktijk.nl/", ...blogUrls, ...dienstUrls];
+
+    const origineleFetch = globalThis.fetch;
+    globalThis.fetch = (async (input: RequestInfo | URL) => {
+      const url = String(input);
+      const antwoord = (body: string) => ({ ok: true, status: 200, text: async () => body });
+
+      if (url.endsWith("/robots.txt")) return { ok: false, status: 404, text: async () => "" };
+      if (url.endsWith("/sitemap.xml")) {
+        return antwoord(
+          `<?xml version="1.0"?><urlset>${alleUrls
+            .map((u) => `<loc>${u}</loc>`)
+            .join("")}</urlset>`,
+        );
+      }
+      if (url.endsWith("/sitemap_index.xml")) return { ok: false, status: 404, text: async () => "" };
+      if (alleUrls.includes(url)) {
+        return antwoord(
+          `<html><head><title>${url}</title></head><body><p>${"Inhoud van deze pagina. ".repeat(20)}</p></body></html>`,
+        );
+      }
+      return { ok: false, status: 404, text: async () => "" };
+    }) as typeof globalThis.fetch;
+
+    try {
+      const { refreshInventory } = await import("@/lib/pipeline/refresh-inventory");
+      const uitslag = await refreshInventory(grootProfielId);
+
+      ok(
+        `de ware omvang van de site wordt geteld (${uitslag.totalFound})`,
+        uitslag.totalFound === 35,
+        String(uitslag.totalFound),
+      );
+      ok("en er wordt gemeld dát er afgekapt is", uitslag.truncated);
+
+      const { rows: paginas } = await db.client.query(
+        "select url, source from public.profile_pages where profile_id = $1",
+        [grootProfielId],
+      );
+
+      // ⚠️ DE FOUT DIE DIT MOET VANGEN.
+      ok(
+        "de handmatig toegevoegde pagina overleeft de crawl",
+        paginas.some((p) => p.url.includes("/verborgen/") && p.source === "handmatig"),
+      );
+      ok(
+        "de oude gecrawlde pagina is wél vervangen",
+        !paginas.some((p) => p.url.endsWith("/oud")),
+      );
+
+      // De tweede fout: de eerste 10 in sitemapvolgorde zouden 10 blogartikelen
+      // zijn geweest, want die staan vooraan. De vier dienstenpagina's moeten
+      // er alle vier zijn, ook al zijn er 30 blogartikelen die om de plek
+      // vechten.
+      const dienstenGelezen = paginas.filter((p) => p.url.includes("/diensten/")).length;
+      ok(
+        `alle vier de dienstenpagina's zijn gelezen (${dienstenGelezen}/4)`,
+        dienstenGelezen === 4,
+      );
+      ok(
+        "de homepage is gelezen",
+        paginas.some((p) => p.url === "https://grootpraktijk.nl/"),
+      );
+
+      const { rows: profielNa } = await db.client.query(
+        "select sitemap_total_urls, inventory_quality_json from public.profiles where id = $1",
+        [grootProfielId],
+      );
+      ok(
+        "de omvang staat in de database",
+        profielNa[0].sitemap_total_urls === 35,
+        String(profielNa[0].sitemap_total_urls),
+      );
+      ok(
+        "en het oordeel is 'afgekapt' in plaats van 'voldoende'",
+        profielNa[0].inventory_quality_json?.verdict === "afgekapt",
+        String(profielNa[0].inventory_quality_json?.verdict),
+      );
+      ok(
+        "het advies noemt beide getallen",
+        String(profielNa[0].inventory_quality_json?.advice ?? "").includes("35"),
+      );
+    } finally {
+      globalThis.fetch = origineleFetch;
+    }
+
     __setTestAdminClient(null);
     __setTestTransport(null);
   } finally {

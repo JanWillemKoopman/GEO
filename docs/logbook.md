@@ -3614,3 +3614,76 @@ derde van het totaal, in één commando. Precies hetzelfde patroon als bij de in
 
 Na deze ronde: 27 betekenissen, 46 icoongebruiken over 38 bestanden, 1752 unittests en 202
 ketentests groen.
+
+---
+
+## 22 augustus 2026 · Het crawlplafond: niet 150 pagina's meer, maar de juiste 150
+
+**Het cijfer dat deze ronde droeg: 26 tegen 0.** Bij gasservice-brabant.nl, een echt profiel op
+productie, telt de sitemap **449 pagina's**. We lazen er 150 en noemden dat "voldoende". Die 150
+waren de eerste 150 in sitemapvolgorde, en in die volgorde staat de sectie `/kennis` met 222
+artikelen vooraan. Resultaat: van de **26 dienstenpagina's** van dit bedrijf zat er **geen enkele**
+bij. Het aanbod van een cv- en warmtepompbedrijf werd afgeleid uit kennisartikelen. Na de wijziging
+komen alle 26 binnen, met de homepage vooraan.
+
+Ter vergelijking het andere profiel op productie, udenhout.nl: 130 pagina's, past ruim, en de
+selectie is exact wat hij was. Deze wijziging doet niets bij een klant die past, en dat is de
+bedoeling.
+
+**Wat de aanleiding was, en waarom het antwoord niet "meer pagina's" is.** De vraag kwam binnen als
+"wat als de klant veel meer pagina's heeft". Een Teamsessie met vijf experts kwam op iets anders
+uit: het plafond van 150 was niet eens de nauwste doorgang. De aanbod-aanroep mag 55.000 tekens mee
+en elke pagina is afgekapt op 1.500, dus er passen er ~35, en welke 35 dat waren besliste één regel:
+sorteren op tekstlengte. Omdat élke pagina op 1.500 is afgekapt staan alle langere pagina's precies
+gelijk en besliste de volgorde waarin Postgres ze teruggaf. De pagina's die die 1.500 halen zijn
+juist de blogartikelen; een dienstenpagina van 900 tekens verloor. Meer pagina's ophalen had daar
+niets aan veranderd.
+
+**Zes wijzigingen, in volgorde van hoeveel ze opleveren.**
+
+1. **De sitemaps worden volledig uitgelezen**, parallel in rondes van acht. Bij
+   gasservice-brabant.nl kost dat 7,7 seconden voor 449 URL's. Dat is de enige manier om te weten
+   hoe groot een site is, en dus de voorwaarde voor al het andere.
+2. **De plekken worden over de secties verdeeld** (`url-priority.ts`). Elke sectie krijgt eerst een
+   quotum, pas daarna gaan de vrije plekken naar de hoogste score. Zonder dat quotum wint de
+   grootste sectie altijd: een blog van 2.000 artikelen bevat gegarandeerd 150 artikelen die net
+   hoger scoren dan de onderste dienstenpagina.
+3. **Hetzelfde geldt voor de aanbod-aanroep** (`page-select.ts`), om beurten uit elke sectie binnen
+   het tekenbudget in plaats van de langste eerst.
+4. **`profiles.sitemap_total_urls` en het oordeel `afgekapt`** (migratie `0061`). Dit is het cijfer
+   dat nergens bestond, en zonder dat cijfer was de vraag "knelt het plafond?" niet te beantwoorden.
+   Het antwoord blijkt ja: 1 van de 3 beoordeelde profielen zat op precies 150.
+5. **`profile_pages.source`**, zodat een mens pagina's kan toevoegen die een crawlronde overleven.
+6. **De inventaris wordt in blokken van 25 weggeschreven** in plaats van in één alles-of-niets
+   insert. Bij swapfiets.nl kostten twee rotte pagina's ooit alle 22; de oorzaak van díé keer is
+   verholpen, het patroon was dat niet, en het werd erger naarmate de crawl groeide.
+
+**Eén AI-aanroep erbij, en alleen waar hij iets verandert.** De voorgestelde aanpak was: vraag een
+model met web search naar alle dienstenpagina's van de klant. Dat is de dure en onbetrouwbare kant
+van een goed idee. Een model dat naar URL's gevraagd wordt vult patronen aan, dus
+`/diensten/sportmassage` komt terug ook als de pagina `/behandelingen/massage` heet, en web search kost per
+aanroep het twintigvoudige van de tokens hier. De sitemap heeft die URL's al, gratis en zonder
+gokken. Wat een model wél toevoegt is het oordeel: van de 60 secties op deze site draagt
+`/behandelingen` het aanbod en `/blog` niet. `crawl-focus.ts` stelt precies die vraag, over 40
+regels tekst in plaats van 8.000 URL's, voor ~$0,01, en alleen als de site niet past. Alles wat het
+model teruggeeft dat niet in de aangeboden lijst stond, verdwijnt in code: verzinnen is hier geen
+risico maar een onmogelijkheid (conventie 1).
+
+**Wat er stil afkapte, meldt zich nu.** Drie plekken gooiden zonder een woord dingen weg: de
+tekenlimiet van de prompt, de bewijscontrole en `MAX_NODES`. Alle drie zetten ze nu een regel in de
+gespreksagenda, en die regels komen uit code en niet uit zelfrapportage van het model: een model dat
+niet weet dat er iets is weggegooid kan dat ook niet melden.
+
+**En de URL-laag heeft eindelijk tests.** Die stond in `lib/crawler.ts`, dat begint met
+`import "server-only"`, dus `test-unit.ts` kon er niet bij en geen enkele regel was gedekt. Zelfs de
+valkuil die het commentaar zélf benoemde (`product-category-sitemap.xml` mag niet als
+productsitemap tellen) was onbewaakt. De pure functies staan nu in `lib/crawl-urls.ts`. De
+ketentest kreeg er een scenario bij dat een te grote site nabootst en aantoont dat de handmatig
+toegevoegde pagina de crawl overleeft; dat is de achtste fout in de samenhang die geen unittest kon
+vangen.
+
+**Nog niet gedaan, bewust.** `MAX_NODES` van 60 staat er nog. Of dat plafond knelt is nu meetbaar
+(het aantal afgekapte knopen wordt geteld en gemeld) maar nog niet gemeten, en een plafond verhogen
+zonder cijfer is een mening. Zie sprint 7 in `tasks/ontwikkelplan-visie.md`.
+
+Na deze ronde: migraties t/m `0061`, 1819 unittests en 211 ketentests groen.
