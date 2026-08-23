@@ -44,6 +44,38 @@ const MEETBARE_SOORTEN = new Set(["dienst", "product", "categorie"]);
 /** Waarom deze knoop erin zit. Gaat mee naar `scope_json`, zodat een herhaling te vergelijken is. */
 export type NodeReason = "prioriteit" | "onderwerp" | "aanvulling";
 
+/**
+ * De gewichtsbanden, en waarom ze zo ver uit elkaar liggen.
+ *
+ * ── ⚠️ HIER ZAT EEN FOUT, GEVONDEN IN DE EERSTE ECHTE RUN (23 aug 2026) ─────
+ *
+ * Het gewicht van een knoop die uit een onderwerp komt was eerst de RUWE
+ * prioriteit van dat onderwerp, in de veronderstelling dat die op 1 tot 99
+ * loopt. Dat doet hij niet: bij Van den Udenhout stonden de goedgekeurde
+ * onderwerpen op 5, 6 en 7. De aanvulling had een vaste 10.
+ *
+ * Gevolg: knopen die een MENS strategisch had aangewezen wogen lichter dan
+ * generieke opvulling. In de standaardmodus valt dat niet op, want de volgorde
+ * van kiezen klopt wél. Maar `heaviestNodes()` bepaalt in de diepe modus welke
+ * acht knopen drie rotaties krijgen en daarmee de chip `indicatief` verliezen,
+ * en dat zouden dan de opvulknopen zijn geweest.
+ *
+ * Dat is exact de fout die `llm-baseline.ts` op 4 augustus 2026 heeft
+ * rechtgezet: meten op de algemeenste diensten in plaats van op waar de klant
+ * zich onderscheidt. Vandaar banden die ver genoeg uit elkaar liggen dat de
+ * REDEN altijd wint van de fijnafstemming daarbinnen.
+ */
+const BAND = {
+  /** Wat de consultant zelf vooropzette. Het enige signaal met een mens erachter. */
+  prioriteit: 300,
+  /** Waar een goedgekeurd onderwerp naar wijst. De ruwe prioriteit sorteert hierbinnen. */
+  onderwerp: 200,
+  /** Bladeren uit de boomvolgorde. */
+  aanvullingBlad: 100,
+  /** Categorieën, per definitie algemener, dus onderaan. */
+  aanvullingCategorie: 50,
+} as const;
+
 export interface SelectedNode {
   offering: ProfileOffering;
   reason: NodeReason;
@@ -140,7 +172,7 @@ export function selectNodes(args: SelectNodesArgs): SelectedNode[] {
   // Zwaarst: dit is het enige signaal waar een mens naar deze klant heeft
   // gekeken en gezegd "hier zit mijn marge".
   for (const o of bruikbaar) {
-    if (matchesName(o.name, args.priorityNames)) voegToe(o, "prioriteit", 100);
+    if (matchesName(o.name, args.priorityNames)) voegToe(o, "prioriteit", BAND.prioriteit);
   }
 
   // ── 3. Waar goedgekeurde onderwerpen naar wijzen ──────────────────────────
@@ -152,7 +184,9 @@ export function selectNodes(args: SelectNodesArgs): SelectedNode[] {
   for (const t of goedgekeurd) {
     for (const id of t.offering_ids) {
       const o = perId.get(id);
-      if (o) voegToe(o, "onderwerp", Math.max(1, Math.min(99, t.priority)));
+      // De ruwe prioriteit sorteert BINNEN de band en bepaalt de band niet.
+      // Afgekapt op 99 zodat een uitschieter nooit in de band erboven belandt.
+      if (o) voegToe(o, "onderwerp", BAND.onderwerp + Math.max(0, Math.min(99, t.priority)));
     }
   }
 
@@ -164,8 +198,8 @@ export function selectNodes(args: SelectNodesArgs): SelectedNode[] {
   const opVolgorde = (a: ProfileOffering, b: ProfileOffering) =>
     a.sort_order - b.sort_order || a.name.localeCompare(b.name);
 
-  for (const o of [...bladeren].sort(opVolgorde)) voegToe(o, "aanvulling", 10);
-  for (const o of [...categorieen].sort(opVolgorde)) voegToe(o, "aanvulling", 5);
+  for (const o of [...bladeren].sort(opVolgorde)) voegToe(o, "aanvulling", BAND.aanvullingBlad);
+  for (const o of [...categorieen].sort(opVolgorde)) voegToe(o, "aanvulling", BAND.aanvullingCategorie);
 
   return gekozen;
 }

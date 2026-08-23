@@ -8460,6 +8460,60 @@ group("weggezette knopen en de soorten merk en vestiging komen er nooit in", () 
   );
 });
 
+group("een strategische knoop weegt zwaarder dan opvulling", () => {
+  // ⚠️ DE FOUT DIE OP PRODUCTIE ZICHTBAAR WERD (23 augustus 2026). Het gewicht
+  // van een knoop uit een onderwerp was de RUWE prioriteit van dat onderwerp,
+  // in de veronderstelling dat die op 1 tot 99 loopt. Bij Van den Udenhout
+  // stonden de goedgekeurde onderwerpen op 5, 6 en 7, terwijl opvulling een
+  // vaste 10 had. Knopen die een mens had aangewezen wogen dus lichter dan
+  // generieke opvulling.
+  const boom = [
+    knoop("o1", "Algemene dienst", "dienst", 0),
+    knoop("o2", "Specialisme", "dienst", 1),
+    knoop("o3", "Categorie", "categorie", 2),
+    knoop("o4", "Wat de consultant koos", "dienst", 3),
+  ];
+
+  const gekozen = selectNodes({
+    offerings: boom,
+    // Prioriteit van 6, precies de schaal die op productie voorkomt.
+    topics: [onderwerp("t1", "Specialisme", ["o2"], 6)],
+    priorityNames: ["Wat de consultant koos"],
+    deprioritisedNames: [],
+  });
+
+  const gewichtVan = (naam: string) =>
+    gekozen.find((g) => g.offering.name === naam)?.weight ?? 0;
+
+  ok(
+    "de keuze van de consultant weegt het zwaarst",
+    gewichtVan("Wat de consultant koos") > gewichtVan("Specialisme"),
+    `${gewichtVan("Wat de consultant koos")} tegen ${gewichtVan("Specialisme")}`,
+  );
+  // ⚠️ Dit is de regel die eerst omgekeerd stond, en het is dezelfde fout die
+  // `llm-baseline.ts` op 4 augustus 2026 rechtzette: meten op de algemeenste
+  // diensten in plaats van op waar de klant zich onderscheidt.
+  ok(
+    "een onderwerp weegt zwaarder dan opvulling, ook bij prioriteit 6",
+    gewichtVan("Specialisme") > gewichtVan("Algemene dienst"),
+    `${gewichtVan("Specialisme")} tegen ${gewichtVan("Algemene dienst")}`,
+  );
+  ok(
+    "en een categorie weegt het lichtst",
+    gewichtVan("Categorie") < gewichtVan("Algemene dienst"),
+    `${gewichtVan("Categorie")} tegen ${gewichtVan("Algemene dienst")}`,
+  );
+
+  // In de diepe modus kiest `heaviestNodes` welke knopen drie rotaties krijgen
+  // en daarmee de chip `indicatief` verliezen. Dat moeten de strategische zijn.
+  const zwaarste = heaviestNodes(gekozen, 2).map((n) => n.offering.name);
+  eq(
+    "en de diepe modus kiest de strategische knopen",
+    zwaarste.join(", "),
+    "Wat de consultant koos, Specialisme",
+  );
+});
+
 group("de zwaarste knopen zijn reproduceerbaar", () => {
   const boom = Array.from({ length: 12 }, (_, i) => knoop(`o${i}`, `dienst-${i}`, "dienst", i));
   const gekozen = selectNodes({
