@@ -52,13 +52,32 @@ export function planOfferingQuestion(
   offering: ProfileOffering,
   parentName: string | null,
   /**
-   * Het gedeelde bewijscorpus. Leeg = terugvallen op zelf zoeken.
+   * Het gedeelde bewijscorpus, als aanvulling.
    *
-   * ⚠️ Sinds 23 augustus 2026 zoekt deze vraag NIET meer zelf, en dat is een
-   * meetverbetering en geen bezuiniging. Elke dienstvraag kreeg voorheen andere
-   * zoekresultaten, en dan weet je bij een verschil tussen twee diensten niet of
-   * dat aan de reputatie ligt of aan wat de zoekmachine die seconde opleverde.
-   * Zie `reputation-evidence.ts` voor de volledige onderbouwing.
+   * ── ⚠️ DEZE VRAAG ZOEKT WEER ZELF, EN DAT IS EEN TERUGDRAAIING ────────────
+   *
+   * Op 23 augustus 2026 is deze vraag kort ongegrond geweest: hij mocht
+   * uitsluitend uit een gedeeld corpus putten dat één onderzoeksronde had
+   * gevuld. De redenering was dat elke dienstvraag anders zoekresultaten kreeg,
+   * en dat je bij een verschil tussen twee diensten dus niet weet of dat aan de
+   * reputatie ligt of aan de zoekmachine.
+   *
+   * **Die redenering was fout, en de run op Gasservice Brabant bewees het.** Alle
+   * twaalf dienstvragen antwoordden "geen betrouwbaar beeld op basis van de
+   * aangeleverde onderzoeksresultaten", terwijl dezelfde vragen mét eigen
+   * zoekactie antwoorden van zes- tot tienduizend tekens met zeven tot elf
+   * bronnen opleverden.
+   *
+   * De denkfout: verschillende zoekresultaten per dienst zijn geen verstoring
+   * maar HET SIGNAAL. Vindt AI niets over je warmtepompen en veel over je
+   * cv-ketels, dan is dat een echt verschil in je reputatie per dienst. Een
+   * gedeeld corpus kan die vraag per definitie niet beantwoorden, want er zit
+   * geen dienstspecifiek materiaal in; en zou je het wel dienstspecifiek maken,
+   * dan zoek je alsnog twaalf keer.
+   *
+   * Het corpus blijft wél meegaan als ACHTERGROND. Het bevat letterlijke
+   * reviewcitaten met bron die de eigen zoekactie kan missen, en dat kost niets
+   * extra omdat het er toch al is.
    */
   corpus = "",
 ): PlannedAsk {
@@ -76,31 +95,26 @@ export function planOfferingQuestion(
     `Wat zeggen klanten daarover, en waar staat dat?` +
     (context.length > 0 ? ` ${context.join(" ")}` : "");
 
-  // Zonder corpus valt de vraag terug op zelf zoeken. Dat gebeurt als de
-  // onderzoeksronde niets opleverde of door het budget is overgeslagen: dan is
-  // een duurder antwoord beter dan geen antwoord.
-  if (!corpus) {
-    return { block: "aanbod", offeringId: offering.id, question: kern, webSearch: true, repeatIndex: 0 };
-  }
-
   return {
     block: "aanbod",
     offeringId: offering.id,
     // ⚠️ De VRAAG blijft kort en leesbaar, want het scherm toont hem letterlijk
     // aan de klant zodat hij kan nalezen waar het cijfer op rust. Het corpus
-    // gaat apart mee.
+    // gaat apart mee als achtergrond.
     question: kern,
-    context: [
-      "Beantwoord dit UITSLUITEND op basis van de onderzoeksresultaten hieronder. Zoek niets op",
-      "en vul niets aan uit eigen kennis. Staat er over deze dienst niets bruikbaars tussen, zeg",
-      "dan dat je er geen beeld van hebt. Dat is een geldig antwoord en beter dan een aanname.",
-      "Noem de bronnen die je gebruikt.",
-      "",
-      "── Onderzoeksresultaten ──",
-      corpus,
-    ].join("\n"),
-    // ⚠️ Geen zoekactie meer. Het bewijs zit al in de context.
-    webSearch: false,
+    context: corpus
+      ? [
+          "Hieronder staat achtergrondmateriaal dat eerder over dit bedrijf is gevonden. Gebruik",
+          "het als aanvulling op wat je zelf opzoekt, niet als vervanging. Staat er niets",
+          "bruikbaars over deze dienst in, zoek dan gewoon zelf verder.",
+          "",
+          "── Eerder gevonden ──",
+          corpus,
+        ].join("\n")
+      : undefined,
+    // ⚠️ Wél zoeken. Zie de toelichting hierboven: het verschil in zoekresultaten
+    // per dienst is het signaal en niet de ruis.
+    webSearch: true,
     repeatIndex: 0,
   };
 }
