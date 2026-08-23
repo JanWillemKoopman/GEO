@@ -395,7 +395,14 @@ import {
 import type { RunSnapshot } from "@/lib/reputation/compare";
 import { readMarketAnswer, summariseMarket, marketSentence, marketKey, MAX_NAMED } from "@/lib/reputation/market";
 import { toneScore, toneWord, isToneLabel, TONE_LABELS } from "@/lib/reputation/tone";
-import { isUsablePoint, cleanPoints, dedupeSleutel } from "@/lib/reputation/points";
+import {
+  isUsablePoint,
+  cleanPoints,
+  dedupeSleutel,
+  pointKind,
+  experiencePoints,
+  evidenceRemarks,
+} from "@/lib/reputation/points";
 import {
   citedUrlsFrom,
   isAggregator,
@@ -9814,6 +9821,60 @@ group("twee metingen naast elkaar zeggen liever niets dan iets verkeerds", () =>
       scope_json: null,
     }).nodeIds.length === 0,
   );
+});
+
+group("een opmerking over ons eigen bewijs is geen bezwaar van het bedrijf", () => {
+  // ⚠️ ALLE REGELS HIERONDER STAAN LETTERLIJK IN DE TWEEDE RUN OP GASSERVICE
+  // BRABANT (23 augustus 2026). Geen bedachte voorbeelden: die missen precies
+  // de vormen die in het echt voorkomen.
+  const echteBezwaren = [
+    "scheef aangesloten rookgasafvoer",
+    "geen controle van de gasdichtheid volgens de klant",
+    "onverwacht hoge reparatierekening",
+    "afspraak bij een gemeld gaslek niet nagekomen",
+    "geen vastgelegde gasdrukmeting",
+    "onvoldoende prijscommunicatie vooraf",
+  ];
+  for (const b of echteBezwaren) {
+    ok(`"${b}" is een ervaring`, pointKind(b) === "ervaring");
+  }
+
+  const overHetBewijs = [
+    "weinig onafhankelijke, dienstspecifieke klantfeedback over elektrische warmtepompen",
+    "nauwelijks of geen specifieke ventilatiereviews",
+    "de actuele steekproef op Klantenvertellen is klein",
+    "specifieke zonneboilercertificering niet gevonden",
+    "geen klantreview waarin waterzijdig inregelen expliciet wordt genoemd",
+    "onvoldoende openbaar bewijs voor kwaliteit van reiniging/inregeling",
+    "de actuele status van de gasinstallatie-certificering kan niet worden bevestigd",
+    "ouderdom van meer dan 90 jaar niet onafhankelijk onderbouwd",
+    "onderliggende reviews van externe warmtepompwebsites niet volledig zichtbaar of inhoudelijk controleerbaar",
+    "de meest inhoudelijke ketelreviews zijn inmiddels ongeveer zes à zeven jaar oud",
+  ];
+  for (const b of overHetBewijs) {
+    ok(`"${b.slice(0, 45)}…" gaat over het bewijs`, pointKind(b) === "bewijs", pointKind(b));
+  }
+
+  // Het antwoord dat de doorslag gaf: acht lofpunten, en als enige bezwaar een
+  // opmerking over onze eigen bronnen. Dat is geen gemengd beeld.
+  const eenBezwaarDatGeenBezwaarIs = [
+    "het niet nakomen van een afspraak",
+    "de actuele status van de gasinstallatie-certificering kan niet worden bevestigd",
+  ];
+  eq(
+    "van twee bezwaren blijft er één echt over",
+    String(experiencePoints(eenBezwaarDatGeenBezwaarIs).length),
+    "1",
+  );
+  eq(
+    "en de ander is een bevinding over de vindbaarheid",
+    String(evidenceRemarks(eenBezwaarDatGeenBezwaarIs).length),
+    "1",
+  );
+
+  // ⚠️ Bij twijfel ervaring. Een echt bezwaar dat als bewijsopmerking wordt
+  // weggezet verdwijnt uit het cijfer, en dat is de duurdere fout van de twee.
+  ok("een gewoon bezwaar met het woord bewijs erin blijft een ervaring", pointKind("bewijs van slecht vakmanschap") === "ervaring");
 });
 
 // ════════════════════════════════════════════════════════════════════════════

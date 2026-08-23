@@ -48,7 +48,7 @@ import { measureOrderBias, rankIsIndicative } from "@/lib/reputation/order-bias"
 import { positionInOrder } from "@/lib/reputation/rotate";
 import { toneWord } from "@/lib/reputation/tone";
 import { sourceMixSentence } from "@/lib/reputation/sources";
-import { dedupeSleutel } from "@/lib/reputation/points";
+import { dedupeSleutel, experiencePoints, evidenceRemarks } from "@/lib/reputation/points";
 import { CRITERION_LABEL } from "@/lib/types/database";
 import type {
   ReputationAnswer,
@@ -190,8 +190,30 @@ export async function runSynthesis(admin: Admin, runId: string): Promise<Synthes
   const perKnoop = await computeOfferingScores(admin, runId, answers, ranks, bias);
 
   // ── 4. De tekst ───────────────────────────────────────────────────────────
-  const sterk = patronen(beoordeeld.flatMap((a) => a.pros ?? []));
-  const kwetsbaar = patronen(beoordeeld.flatMap((a) => a.cons ?? []));
+  // ⚠️ De twee lijstjes gaan over het BEDRIJF, dus de opmerkingen over ons eigen
+  // bewijs horen er niet in. "Nauwelijks of geen specifieke ventilatiereviews"
+  // is geen zwak punt van de installateur, het is ChatGPT die zegt dat hij
+  // niets kon vinden. Op het scherm leest zo'n regel als een verwijt waar de
+  // ondernemer niets mee kan (gevonden in de tweede run, 23 augustus 2026).
+  const alleCons = beoordeeld.flatMap((a) => a.cons ?? []);
+  const sterk = patronen(experiencePoints(beoordeeld.flatMap((a) => a.pros ?? [])));
+  const kwetsbaar = patronen(experiencePoints(alleCons));
+
+  // Maar weggooien doen we ze niet. Dít is de bevinding waar een verkoopgesprek
+  // mee begint: bij hoeveel antwoorden zegt ChatGPT zélf dat er niets over je te
+  // vinden is. Bij Gasservice Brabant ging dat over vier van de twaalf diensten.
+  const antwoordenZonderBewijs = beoordeeld.filter(
+    (a) => evidenceRemarks(a.cons ?? []).length > 0,
+  ).length;
+  if (antwoordenZonderBewijs >= MIN_PATTERN) {
+    await addNote(
+      admin,
+      runId,
+      `Bij ${antwoordenZonderBewijs} van de ${beoordeeld.length} antwoorden zegt ChatGPT zelf dat ` +
+        `hij weinig of geen onafhankelijke informatie over ${ctx.brandName} kon vinden. Dat is geen ` +
+        `oordeel over je werk maar over je vindbaarheid, en het is het eerste dat te verbeteren is.`,
+    );
+  }
 
   const tekst = await writeSynthesis(admin, {
     runId,

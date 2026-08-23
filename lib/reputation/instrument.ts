@@ -37,6 +37,10 @@ import { MODELS } from "@/lib/openai/models";
  * v3  23 augustus 2026, na de tweede echte run: lof met twee of meer echte
  *     bezwaren erin telt als gemengd, en de standaardfout van de toon heeft een
  *     ondergrens gekregen.
+ * v4  23 augustus 2026, na het nalezen van de vierentwintig oordelen van die
+ *     tweede run: een opmerking over ons eigen bewijs ("weinig onafhankelijke
+ *     reviews over deze dienst") telt niet meer als bezwaar, en het vangnet
+ *     werkt nu in beide richtingen.
  *
  * ⚠️ HET OPHOGEN IS ÉÉN KEER VERGETEN, EN DAT IS PRECIES DE FOUT DIE DEZE KOLOM
  * MOET VOORKOMEN. De twee runs op Gasservice Brabant van 23 augustus staan
@@ -46,7 +50,7 @@ import { MODELS } from "@/lib/openai/models";
  * meetlat wel. Ophogen hoort bij dezelfde commit als de wijziging, niet bij de
  * volgende.
  */
-export const PROMPT_VERSION = "v3";
+export const PROMPT_VERSION = "v4";
 
 /**
  * De sleutel die op de run wordt vastgelegd.

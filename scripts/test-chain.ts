@@ -2953,6 +2953,21 @@ async function main(): Promise<void> {
       ok("de run is klaar", run.status === "klaar", String(run.status));
       ok("met een samenvatting", String(run.summary ?? "").length > 20);
 
+      // ⚠️ "Weinig onafhankelijke reviews" is geen zwak punt van het bedrijf.
+      // Op het scherm leest zo'n regel als een verwijt waar de ondernemer niets
+      // mee kan, terwijl het over zijn vindbaarheid gaat. Het hoort in de
+      // kanttekeningen en niet in de lijst met bezwaren.
+      ok(
+        "een opmerking over ons eigen bewijs staat niet bij de zwakke punten",
+        !(run.weaknesses as string[]).some((w) => w.includes("weinig onafhankelijke")),
+        (run.weaknesses as string[]).join(" | "),
+      );
+      ok(
+        "maar wel als bevinding over de vindbaarheid",
+        (run.notes as string[]).some((n) => n.includes("vindbaarheid")),
+        (run.notes as string[]).join(" | "),
+      );
+
       // ── De scope is vastgelegd ────────────────────────────────────────────
       //
       // Zonder dit is een herhaling over drie maanden niet met deze te
@@ -3036,6 +3051,23 @@ async function main(): Promise<void> {
         vriendelijkMetKritiek.length > 0 &&
           vriendelijkMetKritiek.every((a) => a.tone !== "positief" && a.tone !== "overwegend_positief"),
         vriendelijkMetKritiek.map((a) => `${a.tone}(${(a.cons as string[]).length})`).join(", "),
+      );
+
+      // ⚠️ EN HET SPIEGELBEELD, want een eenrichtingsklep is geen meting.
+      //
+      // In de tweede run op Gasservice Brabant kreeg 24 van de 24 antwoorden
+      // "gemengd". Bij het nalezen bleek dat er twee soorten bezwaren door
+      // elkaar liepen: echte ervaringen ("scheef aangesloten rookgasafvoer") en
+      // opmerkingen over ons eigen bewijs ("weinig onafhankelijke reviews over
+      // deze dienst"). Dat tweede is geen kritiek op het bedrijf.
+      const alleenBewijsbezwaar = antwoorden.filter((a) =>
+        (a.cons as string[]).some((c) => c.includes("weinig onafhankelijke")),
+      );
+      ok(
+        "een gemengd oordeel zonder één echt bezwaar wordt weer overwegend positief",
+        alleenBewijsbezwaar.length > 0 &&
+          alleenBewijsbezwaar.every((a) => a.tone === "overwegend_positief"),
+        alleenBewijsbezwaar.map((a) => String(a.tone)).join(", "),
       );
 
       const anderBedrijf = antwoorden.find((a) => a.mentions_brand === false);
