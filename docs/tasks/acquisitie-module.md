@@ -8,7 +8,8 @@ is. En per bedrijf dat in dat rapport voorkomt een gepersonaliseerde e-mail die 
 vanaf zijn eigen adres verstuurt als eerste contactmoment, gevolgd door een telefoontje.
 
 **Niets hierin is gebouwd.** Wat de module precies moet tonen en hoe hij eruit komt te zien,
-bespreken we aan de hand van dit document. Hoofdstuk 8 bevat de vragen die nog open staan.
+bespreken we aan de hand van dit document. Hoofdstuk 8 bevat een uitgewerkt voorbeeld van hoe
+rapport en mail eruit kunnen zien, hoofdstuk 12 de vragen die nog open staan.
 
 **Voor wie.** Het New business team, dat de gesprekken gaat voeren, en de software engineers die de
 module gaan bouwen. Beiden lezen eerst hoofdstuk 1: wat ORBIT ENGINE vandaag daadwerkelijk doet.
@@ -70,7 +71,7 @@ nul is:
   geen model aan te pas. Dat is belangrijk voor een module die tientallen bedrijven tegelijk moet
   onderzoeken.
 - **Een maillaag** (`lib/email/`, via Resend) die vandaag twee soorten bericht verstuurt, achter één
-  hoofdschakelaar die standaard uit staat. Zie hoofdstuk 5.
+  hoofdschakelaar die standaard uit staat. Zie hoofdstuk 6.
 
 ### Wat er nog niet bestaat
 
@@ -174,7 +175,7 @@ Publiek is een keuze met gevolgen die het waard zijn om expliciet te maken:
 - **Het is zichtbaar voor iedereen, ook voor de concurrent en voor het bedrijf dat er slecht op
   staat.** Elk bedrijf in het rapport kan zien waar het staat ten opzichte van de rest. Dat is de
   aantrekkingskracht én het risico van dit idee, en het bepaalt de toon: een rapport dat een bedrijf
-  belachelijk maakt levert geen gesprek op maar een boze telefoon. Zie hoofdstuk 8, vraag 2.
+  belachelijk maakt levert geen gesprek op maar een boze telefoon. Zie hoofdstuk 12, vraag 2.
 - **Het is vindbaar in Google en, als we het goed doen, in AI-antwoorden zelf.** Een pagina over
   "hoveniers in Eindhoven" die feitelijk beschrijft wie er in AI-antwoorden genoemd wordt, is precies
   het soort pagina waar ORBIT ENGINE zijn klanten op adviseert. Dat is geen bijvangst: het is het
@@ -190,7 +191,7 @@ Simpel betekent: te begrijpen in vijftien seconden door een hovenier die geen ma
    erbij. De app toont vandaag al onzekerheid in plaats van een indrukwekkend cijfer, en dat moet
    hier ook.
 3. **De bedrijven die niet genoemd zijn.** Waarschijnlijk het scherpste blok van het hele dashboard,
-   en tegelijk het gevoeligste. Zie hoofdstuk 8, vraag 2.
+   en tegelijk het gevoeligste. Zie hoofdstuk 12, vraag 2.
 4. **Waar de AI zijn informatie vandaan haalt.** Welke websites bepalen deze markt. Vaak zijn dat
    niet de bedrijfssites zelf maar vergelijkingsplatforms, en dat is voor de meeste ondernemers
    nieuwe informatie.
@@ -270,7 +271,7 @@ elke zin die in tweehonderd andere mails ook zou kunnen staan.
 
 - **De salesmedewerker verstuurt, niet het systeem.** Dat is geen technisch detail maar het hele
   punt: dit is een mail van een mens. De module levert een concept, de medewerker leest het, past
-  het aan en verstuurt het vanaf zijn eigen mailbox. Zie hoofdstuk 8, vraag 5, waar dit nog open
+  het aan en verstuurt het vanaf zijn eigen mailbox. Zie hoofdstuk 12, vraag 5, waar dit nog open
   staat.
 - **De mail bevat geen bewering die niet uit de meting komt.** Dit is dezelfde regel die de app
   vandaag hanteert bij contentgeneratie: staat een feit niet op de feitenkaart, dan komt het niet in
@@ -281,11 +282,183 @@ elke zin die in tweehonderd andere mails ook zou kunnen staan.
   status per bedrijf.
 - **De mail eindigt met een afmeldmogelijkheid en een herkenbare afzender.** Ongevraagde zakelijke
   mail naar een bedrijfsadres is toegestaan onder de Nederlandse regels, maar niet zonder een
-  duidelijke afzender en een manier om er vanaf te komen. Zie hoofdstuk 8, vraag 6.
+  duidelijke afzender en een manier om er vanaf te komen. Zie hoofdstuk 12, vraag 6.
 
 ---
 
-## 7. Wat er al herbruikbaar is, en wat nieuw is
+## 7. Hoe de module loopt, van klik tot rapport
+
+Zo zou de keten eruit kunnen zien. Elk blok is een aparte taak in de bestaande achtergrondwachtrij,
+volgens de regel dat één taak hooguit één zware AI-aanroep doet. De super admin kan het scherm
+sluiten; de keten loopt door op de server.
+
+```mermaid
+flowchart TD
+    A([Super admin: branche + plaats]) --> B[1 · Markt afbakenen<br/>welke bedrijven vormen deze markt]
+    B --> B1[/POORT: super admin ziet de lijst<br/>en haalt eruit wat er niet in hoort/]
+    B1 --> C[2 · Per bedrijf de site uitlezen<br/>crawler, geen AI, kost niets]
+    C --> D[3 · Vragen opstellen<br/>30 tot 60 koopvragen voor deze markt]
+    D --> E1[4a · Meten met ChatGPT<br/>elke vraag met websearch]
+    D --> E2[4b · Meten met Gemini<br/>dezelfde vragen]
+    E1 --> F[5 · Beoordelen per antwoord<br/>welke bedrijven genoemd, in welke rol]
+    E2 --> F
+    F --> G[6 · Aggregeren<br/>ranglijst, marge, bronnen, verschil per engine]
+    G --> H[7 · Publiek rapport schrijven]
+    G --> I[8 · Per bedrijf een haak bepalen<br/>plus de conceptmail]
+    H --> J([Publiek dashboard<br/>orbitengine.nl/hovenier_eindhoven])
+    I --> K([Werklijst voor New business<br/>bedrijf, haak, conceptmail, status])
+    J -.link in de mail.-> K
+    K --> L([Salesmedewerker: mail versturen<br/>vanuit eigen mailbox])
+    L --> M([Bellen])
+```
+
+**Eén bewuste stop.** De keten stopt op één plek op een mens: na stap 1, als de lijst met bedrijven
+klaar is. Reden: alles daarna is duur, en een markt die verkeerd is afgebakend levert een rapport op
+waar niemand iets aan heeft. Vijftien bedrijven doormeten waarvan er vier in een andere plaats zitten
+kost geld en levert een gesprek op dat begint met een correctie. Dat is exact dezelfde redenering als
+achter de goedkeuringspoort die vandaag vóór een klantmeting zit.
+
+**Wat er gebeurt als een stap faalt.** Hetzelfde als in de rest van de app: de keten loopt door, de
+mislukte stap wordt vastgelegd, en het rapport toont wat er ontbreekt in plaats van te doen alsof het
+compleet is. Valt Gemini weg, dan gaat het rapport door op ChatGPT alleen, zichtbaar op het
+dashboard. Valt de meting zelf weg, dan is er geen rapport en geen publieke pagina.
+
+---
+
+## 8. Een uitgewerkt voorbeeld
+
+Om de bespreking concreet te maken: zo zou `orbitengine.nl/hovenier_eindhoven` er inhoudelijk uit
+kunnen zien. **De cijfers en namen hieronder zijn verzonnen ter illustratie.** Er is nog niets
+gemeten.
+
+### Het dashboard
+
+> **Hoveniers in Eindhoven, gezien door AI**
+> Wij stelden 40 vragen die iemand stelt die een hovenier zoekt in Eindhoven, aan ChatGPT en aan
+> Gemini. Dit kwam eruit. Gemeten op 3 september 2026.
+
+| # | Bedrijf | ChatGPT | Gemini | Samen |
+|---|---|---|---|---|
+| 1 | Groen & Zo Hoveniers | 28 van 40 | 24 van 40 | **65%** |
+| 2 | Van Aarle Tuinen | 19 van 40 | 21 van 40 | 50% |
+| 3 | De Tuinmakers Brabant | 12 van 40 | 4 van 40 | 20% |
+| 4 | Hoveniersbedrijf Kessels | 3 van 40 | 9 van 40 | 15% |
+| 5 | Tuinaanleg Peeters | 1 van 40 | 0 van 40 | 1% |
+| | *nog 9 bedrijven gevonden, geen enkele keer genoemd* | 0 | 0 | 0% |
+
+Met daaronder drie blokken:
+
+- **Waar de AI zijn informatie vandaan haalt.** In dit voorbeeld: bij 31 van de 40 antwoorden werd
+  een vergelijkingsplatform aangehaald, en bij 8 de eigen website van het bedrijf. Dat is voor de
+  meeste ondernemers de verrassing van het rapport: de AI leest hun site nauwelijks.
+- **Drie echte vragen met het echte antwoord.** Doorklikbaar, want een cijfer zonder bewijs is een
+  mening.
+- **Wat dit betekent.** Vier zinnen, en de stap naar een gesprek.
+
+### De mail bij dit rapport
+
+Twee bedrijven uit dezelfde lijst, twee heel andere mails. Dat verschil is precies waar de module
+zijn waarde bewijst. **Ook dit is illustratie, geen definitieve tekst.**
+
+**Aan Tuinaanleg Peeters (de onzichtbare):**
+
+> Onderwerp: jullie komen niet voor als ChatGPT een hovenier in Eindhoven aanraadt
+>
+> Beste [naam],
+>
+> We hebben deze week 40 vragen gesteld aan ChatGPT en Gemini die iemand stelt die een hovenier zoekt
+> in Eindhoven. Groen & Zo kwam er 28 keer uit. Tuinaanleg Peeters één keer, en bij Gemini geen enkele
+> keer.
+>
+> De hele meting staat hier: orbitengine.nl/hovenier_eindhoven
+>
+> Dat zegt niets over jullie werk. Het zegt dat de bronnen waar deze assistenten uit putten jullie
+> nauwelijks noemen, en dat is iets anders dan een slechte website hebben.
+>
+> Zou je willen weten waaróm die ene concurrent er 28 keer uitkomt? Dan bel ik je deze week even, tien
+> minuten.
+>
+> [naam salesmedewerker]
+
+**Aan Groen & Zo (de winnaar):**
+
+> Onderwerp: jullie zijn de meest genoemde hovenier in Eindhoven bij ChatGPT
+>
+> Beste [naam],
+>
+> We hebben deze week 40 vragen gesteld aan ChatGPT en Gemini die iemand stelt die een hovenier zoekt
+> in Eindhoven. Jullie kwamen er 28 keer uit, meer dan wie ook. De hele meting:
+> orbitengine.nl/hovenier_eindhoven
+>
+> Twee dingen vielen op. Bij Gemini staan jullie lager dan bij ChatGPT, en bij de vragen over
+> tuinonderhoud in plaats van tuinaanleg word je nauwelijks genoemd. Dat is precies het soort positie
+> dat je kwijtraakt zonder dat je het merkt, want er is geen ranglijst die je waarschuwt.
+>
+> Zal ik je bellen om te laten zien waar dat verschil vandaan komt?
+>
+> [naam salesmedewerker]
+
+**Wat deze twee voorbeelden laten zien.** De onzichtbare krijgt een contrast, de winnaar krijgt een
+kwetsbaarheid. Allebei staan of vallen ze bij één concrete zin die alleen over dit bedrijf kan gaan,
+en die zin komt rechtstreeks uit de meting. Zonder die zin is het een sjabloon, en dan werkt het niet.
+
+---
+
+## 9. Datamodel, voor de engineers
+
+Een eerste schets, ter bespreking. Volgt de bestaande conventies: additieve migraties, ruwe uitvoer
+bewaren naast de uitgesplitste kolommen, en RLS aan met alleen-lezen policies.
+
+| Tabel | Wat erin staat |
+|---|---|
+| `market_reports` | Eén rij per markt: branche, plaats, de publieke slug (`hovenier_eindhoven`), status, meetdatum, of hij publiek zichtbaar is, en de gemaakte kosten |
+| `market_companies` | Eén rij per bedrijf in een rapport: naam, naamvarianten, webadres, hoe het gevonden is, en of het op de publieke pagina mag staan |
+| `market_questions` | De gestelde vragen, per rapport, met hun fase in de klantreis |
+| `market_answers` | Eén rij per vraag per engine: het volledige antwoord, de aangehaalde bronnen, de ruwe uitvoer |
+| `market_mentions` | Eén rij per bedrijf per antwoord: genoemd ja of nee, in welke rol, op welke plek. Dit is de tabel waar de ranglijst uit komt |
+| `market_outreach` | Per bedrijf: de gekozen haak, de conceptmail, aan welke salesmedewerker toegewezen, en de status van de opvolging |
+
+**Drie aandachtspunten die uit de bestaande code komen.**
+
+De publieke slug moet uniek zijn en mag niet te raden zijn naar rapporten die nog niet af zijn. Een
+rapport is pas publiek als iemand hem publiek zet, niet zodra hij bestaat.
+
+`market_mentions` is de tabel waar het vangnet uit conventie 1 op moet zitten: een model dat structured
+output levert kiest bij twijfel de eerste waarde uit een lijst, en dat leverde bij de bestaande meting
+tien onterecht ingevulde rollen op bij 27 niet-genoemde merken. Bij een publiek rapport staat zo'n fout
+online, dus hier geldt hetzelfde deterministische vangnet: geen rol als het bedrijf niet genoemd is.
+
+De publieke route leest alleen uit deze tabellen en schrijft nooit. Er hoort geen enkele schrijfactie
+te bestaan die zonder ingelogde super admin bereikbaar is.
+
+---
+
+## 10. Bouwvolgorde
+
+Ter bespreking, in drie fases die elk zelfstandig iets opleveren. De reden om te knippen: de eerste
+fase levert al iets waar sales mee kan werken, zonder dat er iets publiek staat. Dat maakt het
+mogelijk om de kwaliteit van de meting te beoordelen vóórdat er een pagina online komt met bedrijfsnamen
+erop.
+
+| Fase | Wat erin zit | Wat het oplevert |
+|---|---|---|
+| **1. Meten** | De rol super admin, de markt afbakenen met een poort, de meting op beide engines, de ranglijst. Alles intern, achter login | New business kan één markt bekijken en beoordelen of de uitkomst klopt met wat ze zelf van die markt weten. Dat oordeel is de enige echte kwaliteitstoets die er is |
+| **2. Benaderen** | De haak per bedrijf, de conceptmail, de werklijst met status per bedrijf | Sales kan bellen en mailen op basis van echte meetdata, ook al is er nog geen publieke pagina. De link naar het dashboard ontbreekt dan nog in de mail |
+| **3. Publiceren** | De publieke route, het dashboard, de verwijderprocedure, de afmeldroute in de mail | Het volledige idee zoals in dit document beschreven |
+
+**Waarom publiceren als laatste.** Een publieke pagina met bedrijfsnamen is de enige stap in dit
+geheel die je niet ongedaan kunt maken. Wat er eenmaal online stond, is gezien. Alle onzekerheid over
+de kwaliteit van de meting hoort dus weggenomen te zijn in fase 1 en 2, waar een fout intern blijft.
+
+**Verificatie per fase.** Conform de tiende code-conventie is een fase pas af als hij tegen echte
+opgeslagen data is nagerekend, niet als de code er staat. Voor fase 1 betekent dat concreet: iemand
+die de markt kent kijkt naar de ranglijst en zegt of hij klopt. Voor fase 2: een salesmedewerker leest
+tien conceptmails en zegt of hij ze zelf zou versturen. Voor fase 3: het rapport staat online en een
+bedrijf dat erop staat heeft gereageerd zonder dat het een klacht was.
+
+---
+
+## 11. Wat er al herbruikbaar is, en wat nieuw is
 
 ### Herbruikbaar
 
@@ -327,7 +500,7 @@ elke zin die in tweehonderd andere mails ook zou kunnen staan.
 
 ---
 
-## 8. Wat we nog moeten bespreken
+## 12. Wat we nog moeten bespreken
 
 Dit zijn de keuzes die de vorm van de module bepalen. Geen ervan is hierboven beantwoord.
 
@@ -367,7 +540,7 @@ Dit zijn de keuzes die de vorm van de module bepalen. Geen ervan is hierboven be
 
 ---
 
-## 9. Randvoorwaarden vanuit hoe de app vandaag werkt
+## 13. Randvoorwaarden vanuit hoe de app vandaag werkt
 
 Een paar dingen die niet ter discussie staan, omdat ze in de rest van de app vastliggen en de module
 er niet mee mag botsen:
