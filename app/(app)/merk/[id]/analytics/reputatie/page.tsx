@@ -12,7 +12,9 @@ import { mayTriggerCost, COST_DENIED } from "@/lib/cost-guard";
 import { toneSentence } from "@/lib/reputation/tone";
 import { spreadSentence } from "@/lib/reputation/score";
 import { sourceMixSentence } from "@/lib/reputation/sources";
+import { compareRuns, snapshotFromRun } from "@/lib/reputation/compare";
 import { StartReputationButton } from "./_components/start-reputation-button";
+import { ChangeBlock } from "./_components/change-block";
 import { ToneChip, EvidenceChip, RankChip } from "./_components/tone-chip";
 import { OfferingRows } from "./_components/offering-rows";
 import { RivalTable } from "./_components/rival-table";
@@ -131,7 +133,7 @@ export default async function ReputatiePage({
             een toon, de bewijskracht eronder, en de plaats die AI je geeft als hij moet kiezen.
           </p>
           <p className="text-sm text-muted">
-            Ongeveer 34 vragen aan ChatGPT, een halfuur werk, ongeveer 75 cent.
+            Ongeveer 50 vragen aan ChatGPT, een halfuur werk, ongeveer 75 cent.
           </p>
         </div>
         <StartReputationButton
@@ -227,6 +229,16 @@ export default async function ReputatiePage({
   const sources = (sourceRows ?? []) as ReputationSource[];
 
   const merkbredeRanks = ranks.filter((r) => r.offering_id === null);
+
+  // ── De vorige meting ──────────────────────────────────────────────────────
+  //
+  // Alleen een AFGERONDE run telt mee. Een mislukte of halve run naast deze
+  // leggen zou een verschil tonen dat over de meting gaat en niet over het merk,
+  // en dat is precies de fout waar `compare.ts` tegen ontworpen is.
+  const vorige = runs.slice(1).find((r) => r.status === "klaar" && r.id !== laatste.id) ?? null;
+  const vergelijking = vorige
+    ? compareRuns(snapshotFromRun(laatste), snapshotFromRun(vorige))
+    : null;
 
   // De verdeeldheid komt uit de opgeslagen verdeling, zodat het scherm hem niet
   // opnieuw uitrekent uit de antwoorden. Eén feit, één eigenaar.
@@ -343,6 +355,12 @@ export default async function ReputatiePage({
           </div>
         )}
       </div>
+
+      {/* ── BLOK 1b · Vergeleken met de vorige meting ──────────────────────
+          Staat direct onder de uitspraak, want wie voor de tweede keer kijkt
+          komt hiervoor. Bestaat er nog geen tweede meting, dan staat er niets:
+          een leeg blok met "nog geen vergelijking" voegt geen feit toe. */}
+      {vergelijking && <ChangeBlock c={vergelijking} merk={merk} />}
 
       {/* ── BLOK 2 · Zonder opzoeken tegenover met opzoeken ────────────────
           Dezelfde woorden als de kennistest gebruikt, zodat een klant die beide

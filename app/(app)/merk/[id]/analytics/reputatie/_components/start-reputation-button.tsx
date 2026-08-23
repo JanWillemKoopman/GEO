@@ -35,6 +35,10 @@ export function StartReputationButton({
 }) {
   const router = useRouter();
   const [confirming, setConfirming] = useState(false);
+  // ⚠️ Standaard staat op "standaard", en dat is een kostenbesluit. De diepe
+  // modus meet meer dan twee keer zo veel diensten en kost navenant meer; die
+  // keuze hoort bewust gemaakt te worden, niet per ongeluk overgenomen.
+  const [depth, setDepth] = useState<"standaard" | "diep">("standaard");
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -54,7 +58,7 @@ export function StartReputationButton({
       const res = await fetch(`/api/profiles/${profileId}/reputation`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ depth: "standaard" }),
+        body: JSON.stringify({ depth }),
       });
       const json = await res.json();
       if (!res.ok) {
@@ -94,12 +98,50 @@ export function StartReputationButton({
   return (
     <div className="flex flex-col gap-2 rounded-[var(--radius-md)] border border-[var(--border-subtle)] p-3">
       <p className="text-sm text-secondary">
-        ORBIT ENGINE stelt ongeveer 34 vragen aan ChatGPT over dit merk: hoe er over het merk
-        gepraat wordt, per dienst, en hoe het zich verhoudt tot de concurrenten die uit de
-        metingen zijn gekomen.
-        <strong> Dat duurt ongeveer een halfuur en kost ongeveer 75 cent.</strong> Je hoeft er
-        niet bij te wachten: je kunt dit scherm sluiten en later terugkomen.
+        ORBIT ENGINE vraagt ChatGPT hoe er over dit merk gepraat wordt: merkbreed, per dienst, en
+        naast de concurrenten die uit de metingen zijn gekomen. Je hoeft er niet bij te wachten:
+        je kunt dit scherm sluiten en later terugkomen.
       </p>
+
+      {/* ── De diepte, en waarom dit een echte keuze is ────────────────────
+          Het verschil is het aantal diensten dat meegaat: twaalf of vijfentwintig.
+          Bij een merk met vier diensten levert de diepe modus dus niets extra's
+          op, en dat staat er ook. Een duurdere knop die hetzelfde doet is het
+          snelste wat vertrouwen kost. */}
+      <fieldset className="flex flex-col gap-2">
+        <legend className="mono-label">Hoe diep</legend>
+        {(
+          [
+            {
+              waarde: "standaard" as const,
+              kop: "Standaard",
+              uitleg:
+                "Ongeveer 50 vragen over je twaalf belangrijkste diensten. Duurt ongeveer een halfuur en kost ongeveer 75 cent.",
+            },
+            {
+              waarde: "diep" as const,
+              kop: "Diep",
+              uitleg:
+                "Ongeveer 75 vragen over maximaal vijfentwintig diensten. Duurt langer en kost ongeveer anderhalf keer zo veel. Heeft alleen zin als je merkprofiel meer dan twaalf diensten telt.",
+            },
+          ]
+        ).map((optie) => (
+          <label key={optie.waarde} className="flex items-start gap-2 text-sm">
+            <input
+              type="radio"
+              name="reputatie-diepte"
+              className="mt-1"
+              checked={depth === optie.waarde}
+              disabled={pending}
+              onChange={() => setDepth(optie.waarde)}
+            />
+            <span>
+              <span className="font-medium">{optie.kop}</span>
+              <span className="block text-muted">{optie.uitleg}</span>
+            </span>
+          </label>
+        ))}
+      </fieldset>
       <div className="flex flex-wrap gap-2">
         <button
           type="button"

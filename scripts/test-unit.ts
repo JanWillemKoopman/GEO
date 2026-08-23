@@ -386,6 +386,14 @@ import {
   WEAK_WEIGHT,
 } from "@/lib/reputation/score";
 import { instrumentVersion, comparableRuns, instrumentWarning } from "@/lib/reputation/instrument";
+import {
+  compareRuns,
+  compareSentence,
+  snapshotFromRun,
+  EVIDENCE_MIN_DELTA,
+  HIT_RATE_MIN_DELTA,
+} from "@/lib/reputation/compare";
+import type { RunSnapshot } from "@/lib/reputation/compare";
 import { readMarketAnswer, summariseMarket, marketSentence, marketKey, MAX_NAMED } from "@/lib/reputation/market";
 import { toneScore, toneWord, isToneLabel, TONE_LABELS } from "@/lib/reputation/tone";
 import { isUsablePoint, cleanPoints, dedupeSleutel } from "@/lib/reputation/points";
@@ -9650,6 +9658,129 @@ group("de budgetpoort slaat over en zwijgt niet", () => {
     STEP_COST_USD.sources +
     STEP_COST_USD.synthesis;
   ok("de volledige standaardanalyse past er ruim in", geschat < budgetUsd() / 2, `$${geschat.toFixed(2)}`);
+});
+
+group("twee metingen naast elkaar zeggen liever niets dan iets verkeerds", () => {
+  // De uitgangswaarden komen letterlijk uit de run op Gasservice Brabant van
+  // 23 augustus 2026: toon 47 met een standaardfout van 2,6, bewijskracht 74,
+  // trefkans 0,17 op de marktvraag. Geen verzonnen getallen, want een test met
+  // ronde getallen mist precies de gevallen die in het echt voorkomen.
+  const basis: RunSnapshot = {
+    startedAt: "2026-08-23T09:00:00.000Z",
+    instrumentVersion: "gpt-5.6-luna+gpt-5.6-luna+v2",
+    toneIndex: 47,
+    toneStderr: 2.6,
+    evidenceScore: 74,
+    marketHitRate: 0.17,
+    marketPosition: 3.5,
+    strengths: ["snelle service"],
+    weaknesses: ["wisselende bereikbaarheid"],
+    marketRivals: ["Verhees en Van Dijk"],
+    nodeIds: ["a", "b", "c"],
+  };
+  const maak = (p: Partial<RunSnapshot>): RunSnapshot => ({ ...basis, ...p });
+
+  // ── Het belangrijkste geval: een verschil dat er groot uitziet en het niet is ──
+  //
+  // Twee metingen met een standaardfout van 2,6 hebben samen een drempel van
+  // 1,96 × √(2,6² + 2,6²) ≈ 7 punten. Zeven punten verschil is dus nog steeds
+  // "gelijk gebleven", en dat is de zin die een consultant moet voorlezen.
+  const ruis = compareRuns(basis, maak({ toneIndex: 40 }));
+  ok("zeven punten toonverschil is nog meetruis", ruis.tone?.meaningful === false, `drempel ${ruis.tone?.threshold}`);
+  ok("en de zin zegt gelijk gebleven", compareSentence(ruis, "Gasservice Brabant").includes("gelijk gebleven"));
+
+  const echt = compareRuns(basis, maak({ toneIndex: 20 }));
+  ok("zevenentwintig punten is wel een verandering", echt.tone?.meaningful === true);
+  ok("en de zin zegt beter", compareSentence(echt, "Gasservice Brabant").includes("beter"));
+
+  // ── Vangnet 1: een andere meetlat levert nooit een uitspraak op ────────────
+  //
+  // Werkt OpenAI het model bij, dan verschuift de lat en niet de reputatie. Het
+  // verschil mag getoond, de conclusie niet.
+  const andereLat = compareRuns(basis, maak({ toneIndex: 20, instrumentVersion: "gpt-5.6-luna+gpt-5.6-luna+v1" }));
+  ok("een andere meetlat maakt het verschil betekenisloos", andereLat.tone?.meaningful === false);
+  ok("maar het verschil zelf blijft zichtbaar", andereLat.tone?.delta === 27);
+  ok("met een waarschuwing erbij", (andereLat.warning ?? "").includes("andere versie"));
+  ok(
+    "en de zin durft niets te zeggen",
+    compareSentence(andereLat, "Gasservice Brabant").includes("niet te zeggen"),
+  );
+
+  // ── Vangnet 2: geen marge, geen uitspraak (conventie 3) ───────────────────
+  const zonderMarge = compareRuns(basis, maak({ toneStderr: null }));
+  ok("zonder marge geen toonuitspraak", zonderMarge.tone === null);
+  ok("en uitgelegd waarom", (zonderMarge.toneUnknown ?? "").includes("marge"));
+  const zonderToon = compareRuns(maak({ toneIndex: null }), basis);
+  ok("zonder toon aan één kant ook niet", zonderToon.tone === null);
+  ok("en dat is een andere uitleg", (zonderToon.toneUnknown ?? "").includes("te weinig bruikbaars"));
+
+  // ── De twee cijfers zonder standaardfout ──────────────────────────────────
+  ok(
+    "bewijskracht onder de drempel wordt niet getoond",
+    compareRuns(basis, maak({ evidenceScore: 74 - (EVIDENCE_MIN_DELTA - 1) })).evidenceDelta === null,
+  );
+  ok(
+    "en erboven wel",
+    compareRuns(basis, maak({ evidenceScore: 74 - EVIDENCE_MIN_DELTA })).evidenceDelta === EVIDENCE_MIN_DELTA,
+  );
+  // Eén antwoord van de drie dat omslaat is 33 procentpunt en dus ruis.
+  ok(
+    "één omgeslagen marktantwoord is geen verandering",
+    compareRuns(basis, maak({ marketHitRate: 0.17 + 0.33 })).hitRateDelta === null,
+  );
+  ok(
+    "twee van de drie wel",
+    compareRuns(maak({ marketHitRate: 1 }), maak({ marketHitRate: 1 - HIT_RATE_MIN_DELTA })).hitRateDelta === 66,
+  );
+
+  // ── De lijstjes, die ook zonder cijfermatige verandering iets zeggen ──────
+  const lijsten = compareRuns(
+    maak({ weaknesses: ["Wisselende bereikbaarheid", "geen vaste prijsafspraak"], marketRivals: ["Feenstra"] }),
+    maak({ weaknesses: ["wisselende bereikbaarheid"], marketRivals: ["Verhees en Van Dijk"] }),
+  );
+  ok("een nieuw bezwaar valt op", lijsten.newWeaknesses.length === 1 && lijsten.newWeaknesses[0] === "geen vaste prijsafspraak");
+  // ⚠️ Hoofdletterongevoelig: het model schrijft hetzelfde bezwaar de ene keer
+  // met en de andere keer zonder hoofdletter, en dat is geen nieuw bezwaar.
+  ok("een hoofdletter maakt geen nieuw bezwaar", !lijsten.newWeaknesses.includes("Wisselende bereikbaarheid"));
+  ok("een nieuwe naam in de markt valt op", lijsten.newRivals.includes("Feenstra"));
+  ok("en een verdwenen naam ook", lijsten.goneRivals.includes("Verhees en Van Dijk"));
+
+  // ── De scope ──────────────────────────────────────────────────────────────
+  ok("dezelfde knopen in een andere volgorde is dezelfde scope", !compareRuns(basis, maak({ nodeIds: ["c", "b", "a"] })).scopeChanged);
+  ok("een andere knoop is een andere scope", compareRuns(basis, maak({ nodeIds: ["a", "b", "d"] })).scopeChanged);
+  ok("een lege scope levert geen valse kanttekening", !compareRuns(basis, maak({ nodeIds: [] })).scopeChanged);
+
+  // ── Het uitlezen van scope_json, dat vrije JSON is ────────────────────────
+  const uitRij = snapshotFromRun({
+    started_at: "2026-08-23T09:00:00.000Z",
+    instrument_version: "x",
+    tone_index: 47,
+    tone_stderr: 2.6,
+    evidence_score: 74,
+    market_hit_rate: 0.17,
+    market_position: 3.5,
+    strengths: [],
+    weaknesses: [],
+    market_rivals: [],
+    scope_json: { nodes: [{ id: "a" }, { id: 7 }, {}] },
+  });
+  ok("alleen echte id's tellen mee", uitRij.nodeIds.length === 1 && uitRij.nodeIds[0] === "a");
+  ok(
+    "en zonder scope blijft de lijst leeg",
+    snapshotFromRun({
+      started_at: "2026-08-23T09:00:00.000Z",
+      instrument_version: null,
+      tone_index: null,
+      tone_stderr: null,
+      evidence_score: null,
+      market_hit_rate: null,
+      market_position: null,
+      strengths: [],
+      weaknesses: [],
+      market_rivals: [],
+      scope_json: null,
+    }).nodeIds.length === 0,
+  );
 });
 
 // ════════════════════════════════════════════════════════════════════════════
