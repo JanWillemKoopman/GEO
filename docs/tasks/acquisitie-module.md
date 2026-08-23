@@ -1,16 +1,19 @@
-# Acquisitiemodule: een GEO-marktrapport als opener voor New business
+# Acquisitiemodule: een publiek GEO-marktrapport plus een persoonlijke openingsmail
 
-**Status: bespreekstuk, geen bouwopdracht.** Dit document legt vast wat ORBIT ENGINE vandaag doet
-en schetst een nieuw idee: een module waarmee een super admin een GEO-analyse laat draaien over een
-hele markt (branche plus plaats) in plaats van over één merk, met als resultaat een publieke pagina
-die het New business team gebruikt om bedrijven in die markt te benaderen. Wat die pagina precies
-moet laten zien en hoe de module er in de app uit komt te zien, ligt nog open. Dat bespreken we aan
-de hand van dit document. Niets hierin is al gebouwd.
+**Status: bespreekstuk, geen bouwopdracht.** Dit document legt vast wat ORBIT ENGINE vandaag doet en
+beschrijft een nieuwe module: een super admin laat een GEO-analyse draaien over een hele markt
+(branche plus plaats) in plaats van over één merk. Dat levert twee dingen op. Een publiek dashboard
+op een eigen adres, bijvoorbeeld `orbitengine.nl/hovenier_eindhoven`, dat voor iedereen toegankelijk
+is. En per bedrijf dat in dat rapport voorkomt een gepersonaliseerde e-mail die een salesmedewerker
+vanaf zijn eigen adres verstuurt als eerste contactmoment, gevolgd door een telefoontje.
+
+**Niets hierin is gebouwd.** Wat de module precies moet tonen en hoe hij eruit komt te zien,
+bespreken we aan de hand van dit document. Hoofdstuk 8 bevat de vragen die nog open staan.
 
 **Voor wie.** Het New business team, dat de gesprekken gaat voeren, en de software engineers die de
-module gaan bouwen. Beide lezen eerst hetzelfde hoofdstuk 1: wat ORBIT ENGINE vandaag daadwerkelijk
-doet. Wie dat wil verifiëren of verdiepen, vindt de volledige technische waarheid in
-`docs/architecture.md` en de klantreis zonder techniek in `APP_FLOW_DOCUMENTATION.md`.
+module gaan bouwen. Beiden lezen eerst hoofdstuk 1: wat ORBIT ENGINE vandaag daadwerkelijk doet.
+Wie het wil verifiëren, vindt de technische waarheid in `docs/architecture.md` en de klantreis zonder
+techniek in `APP_FLOW_DOCUMENTATION.md`.
 
 ---
 
@@ -30,135 +33,363 @@ effect zonder die laatste stap.
 
 ### De vijf fases, voor één klant
 
-| # | Fase | Wat er gebeurt |
-|---|---|---|
-| 1 | **Merk klaarzetten** | Een consultant vult drie velden in (webadres, bedrijfsnaam, schrijfwijzen). De app crawlt tot 150 pagina's, brengt het aanbod in kaart, onderzoekt de markt en test wat AI-assistenten al over het merk weten. Kost ongeveer 7,5 minuut en $0,25, eenmalig per merk. |
-| 2 | **Analyse opstellen** | De consultant of klant kiest een onderwerp. De app genereert 30 realistische koopvragen, verdeeld over de fases van de klantreis. |
-| 3 | **Analyse runnen** | De app stelt alle 30 vragen aan een AI-assistent met live websearch, beoordeelt elk antwoord per merk en berekent een zichtbaarheidsscore met foutmarge. Kost gemiddeld $0,855 per meetronde. |
-| 4 | **Content genereren** | De app schrijft pagina's die het gevonden gat dichten, uitsluitend op basis van feiten die eerder zijn vastgesteld. De klant keurt goed voor publicatie. |
-| 5 | **Resultaten monitoren** | Na publicatie meet de app opnieuw, met een controlegroep, en velt een verdedigbaar oordeel: steeg de score op de vragen waarvoor gepubliceerd is, of niet. |
+| # | Fase | Wat er gebeurt | Kosten |
+|---|---|---|---|
+| 1 | **Merk klaarzetten** | Een consultant vult drie velden in (webadres, bedrijfsnaam, andere schrijfwijzen). De app crawlt tot 150 pagina's, brengt het aanbod als boom in kaart, onderzoekt de markt, doet een technische controle en test wat AI-assistenten al over het merk weten. Duurt ongeveer 7,5 minuut. | eenmalig ~$0,25 |
+| 2 | **Analyse opstellen** | De consultant of klant kiest een onderwerp. De app genereert 30 realistische koopvragen, verdeeld over de fases van de klantreis, plus een volume-inschatting. De klant ziet en bewerkt elke vraag voordat er iets gemeten wordt. | verwaarloosbaar |
+| 3 | **Analyse runnen** | De app stelt alle 30 vragen aan een AI-assistent met live websearch, beoordeelt elk antwoord per merk en berekent een zichtbaarheidsscore met foutmarge. Profileert de concurrenten en schrijft een jargonvrij rapport. | gemiddeld $0,855 |
+| 4 | **Content genereren** | De app schrijft pagina's die het gevonden gat dichten, uitsluitend op basis van feiten die eerder zijn bevestigd. De klant keurt goed voor publicatie. | enkele dubbeltjes per pagina |
+| 5 | **Resultaten monitoren** | Na publicatie meet de app opnieuw, na 14 en 28 dagen, met een controlegroep, en velt een verdedigbaar oordeel: steeg de score op de vragen waarvoor gepubliceerd is, of niet. | per meetronde $0,855 |
+
+Van een meetronde zit ongeveer 95% in het stellen van de vraag mét websearch. Het beoordelen van het
+antwoord is verwaarloosbaar. Dat is de enige kostenknop die telt, en dat blijft zo in de nieuwe
+module.
 
 ### Hoe het vandaag verkocht wordt
 
 Het product is **sales-led, niet self-serve**, naar het model van InSpace Nova. Een consultant zet
 het merkprofiel klaar vóórdat er een gesprek is geweest, en het onderzoek van fase 1 is precies het
 verkoopargument in dat gesprek: "dit heeft ORBIT ENGINE al over jouw bedrijf gevonden, en dit is wat
-we missen." Pas na de verkoop wordt het profiel aan het account van de klant gekoppeld. Dat is
-vandaag **inbound**: er is al een naam en een afspraak, en de consultant bereidt één specifiek merk
-voor.
+er ontbreekt." Pas na de verkoop wordt het profiel aan het account van de klant gekoppeld.
+
+Dat is vandaag **inbound**: er is al een naam en een afspraak, en de consultant bereidt één specifiek
+merk voor. De acquisitiemodule keert dat om naar outbound.
+
+### De technische fundamenten die er al liggen
+
+Vier dingen die de nieuwe module direct kan gebruiken, en die verklaren waarom dit geen bouw vanaf
+nul is:
+
+- **Een achtergrondwachtrij** (`lib/jobs/`) waarin elke stap een eigen taak is, met dedupe, retries
+  en een kostenplafond per taak. Een marktanalyse wordt daarin een nieuw jobtype, geen uitbreiding
+  van een bestaande.
+- **Een enginelaag** (`lib/engines/`) die het meten losmaakt van de leverancier. OpenAI draait,
+  Gemini is gebouwd maar slaapt: de adapter, de registry en een aparte idempotentiesleutel per engine
+  staan er, en zonder `GEMINI_API_KEY` gedraagt de app zich ongewijzigd. Zie hoofdstuk 3.
+- **Een crawler zonder AI** die een website uitleest en harde feiten oogst. Kost niets, want er komt
+  geen model aan te pas. Dat is belangrijk voor een module die tientallen bedrijven tegelijk moet
+  onderzoeken.
+- **Een maillaag** (`lib/email/`, via Resend) die vandaag twee soorten bericht verstuurt, achter één
+  hoofdschakelaar die standaard uit staat. Zie hoofdstuk 5.
 
 ### Wat er nog niet bestaat
 
 - Er is geen concept van een analyse over een hele markt of branche, alleen over één merk.
-- Er is geen publieke, gedeelde rapportpagina buiten de ingelogde omgeving.
-- Er is geen rol tussen "beheerder" (`staff_users`, ziet alle merken) en "klant" in. Een nieuwe,
+- Er is geen publieke pagina buiten de ingelogde omgeving. Elk scherm in de app staat achter login.
+- Er is geen rol tussen "beheerder" (`staff_users`, ziet alle merken) en "klant" in. Een aparte,
   beperktere rol zoals "super admin" bestaat nog niet in het rechtenmodel.
-- Publiceren gebeurt nooit vanuit ORBIT ENGINE zelf; er is geen koppeling met een CMS. Een publieke
-  pagina op een eigen route (`orbitengine.nl/...`) is dus ook voor de bestaande app een nieuw soort
-  scherm: voor het eerst iets dat niet achter login staat.
+- Er is geen uitgaande mail naar iemand die nog geen relatie met ons heeft. Alle bestaande mail gaat
+  naar een bestaande klant over zijn eigen analyse.
+- Publiceren gebeurt nooit vanuit ORBIT ENGINE zelf; er is geen koppeling met een CMS.
 
 ---
 
-## 2. Het idee: een marktrapport als deur-opener
+## 2. Het idee, in één alinea
 
-Vandaag begint een verkoopgesprek met een naam die er al is. De acquisitiemodule keert dat om:
-**outbound**. Een super admin kiest een branche en een plaats, bijvoorbeeld "hovenier" en
-"Eindhoven", en laat ORBIT ENGINE er een GEO-analyse over draaien: niet voor één merk, maar voor de
-hele lokale markt. Wie noemt ChatGPT als iemand vraagt naar "een goede hovenier in Eindhoven"? Welke
-bedrijven winnen, welke zijn onzichtbaar terwijl ze wel bestaan?
+Een super admin kiest een branche en een plaats, bijvoorbeeld "hovenier" en "Eindhoven". ORBIT ENGINE
+zoekt uit welke bedrijven die markt vormen, stelt aan AI-assistenten de vragen die een echte klant
+daar zou stellen, en telt per bedrijf hoe vaak het genoemd wordt en waarom. Dat wordt een publiek
+dashboard op `orbitengine.nl/hovenier_eindhoven`, voor iedereen toegankelijk, zonder login. Per
+bedrijf in dat rapport genereert de app een persoonlijke e-mail die een salesmedewerker vanaf zijn
+eigen adres verstuurt. Daarna wordt er gebeld.
 
-Het resultaat wordt een publieke pagina, bijvoorbeeld `orbitengine.nl/hovenier_eindhoven`, met de
-resultaten van die meting. Het New business team gebruikt die pagina niet als eindproduct maar als
-opener: elk bedrijf dat in het rapport voorkomt, wordt benaderd. Het rapport moet voor dat gesprek
-twee dingen doen die vandaag door het consultancy-uur bij één klant gebeuren, maar dan zonder dat er
-al contact is geweest:
+Het rapport is niet het product. Het is de aanleiding voor een gesprek, en het bewijs dat wij al
+werk hebben gedaan voordat we belden.
 
-1. **Het probleem zichtbaar maken.** Het bedrijf moet in het rapport iets herkennen dat klopt en
-   ongemakkelijk is: "een concurrent wordt drie keer zo vaak genoemd", of "AI-assistenten kennen ons
-   niet, terwijl we al twintig jaar bestaan."
-2. **Ons als oplossing plausibel maken.** Niet alleen het probleem, ook waarom uitgerekend ORBIT
-   ENGINE de partij is die het oplost. Dat is precies wat fase 1 vandaag al doet voor één merk:
-   laten zien dat er al onderzoek ligt, specifiek voor hen.
+---
 
-### Wat er al herbruikbaar is
+## 3. Twee engines: ChatGPT en Gemini
 
-Een groot deel van de bouwstenen bestaat al, alleen op merkniveau in plaats van marktniveau:
+**Voor deze module zijn twee API's beschikbaar: de OpenAI-API (ChatGPT) en de Gemini-API.** Dat is
+nieuw ten opzichte van de rest van de app, waar Gemini wel gebouwd is maar slaapt bij gebrek aan een
+sleutel.
 
+Dat is geen technisch detail maar het scherpste verkoopargument dat de module heeft. Een bedrijf kan
+een enkele meting wegwuiven ("dat is toevallig één chatbot"). Twee onafhankelijke assistenten die
+allebei de concurrent noemen en jou niet, is geen toeval meer. Concreet levert het drie dingen op:
+
+1. **Bewijskracht.** Genoemd worden in ChatGPT maar niet in Gemini is een ander verhaal dan nergens
+   genoemd worden. Beide gevallen zijn een gesprek waard, maar het zijn niet hetzelfde gesprek.
+2. **Een tweede dimensie in het dashboard.** Per bedrijf twee kolommen in plaats van één. Waar de
+   twee assistenten van elkaar verschillen zit vaak de verklaring: de een leunt zwaarder op de eigen
+   website, de ander op externe bronnen zoals vergelijkingssites en recensieplatforms.
+3. **Een reden om de meting te herhalen.** Het verschil tussen de twee engines beweegt, en dat maakt
+   een marktrapport iets dat leeft in plaats van een momentopname.
+
+**Wat de code al voorziet.** De enginelaag laat een engine meedoen als er een sleutel voor is én hij
+op het profiel aanstaat. Ontbreekt de sleutel, dan valt hij er stil uit. Voor de nieuwe module
+betekent dat: valt Gemini weg, dan gaat het rapport door met alleen ChatGPT, en dat moet zichtbaar
+zijn op het dashboard in plaats van stilzwijgend een half rapport op te leveren. Een half rapport dat
+zich als een heel rapport voordoet is precies het soort fout dat een verkoopgesprek onderuit haalt.
+
+---
+
+## 4. Het budget: 10 euro per rapport
+
+**Per marktanalyse mag tot 10 euro aan API-kosten uitgegeven worden.** Dat is ongeveer twaalf keer
+het budget van een gewone meetronde voor één klant ($0,855). Dat verandert wat er mogelijk is: dit
+hoeft geen uitgeklede meting te zijn, het kan diepgaander zijn dan wat een betalende klant vandaag
+per ronde krijgt.
+
+### Waar dat geld heen kan, als voorstel
+
+De verdeling hieronder is een startpunt voor de bespreking, geen vastgesteld ontwerp. Uitgangspunt:
+één markt, ongeveer 15 bedrijven, twee engines.
+
+| Post | Wat het oplevert | Indicatie |
+|---|---|---|
+| **Markt afbakenen** | Uitzoeken welke bedrijven deze markt vormen, met websearch, plus hun webadres en naamvarianten | ~€0,50 |
+| **De vragen opstellen** | 30 tot 60 realistische koopvragen voor deze branche en plaats, verdeeld over de klantreis | ~€0,10 |
+| **Meten met ChatGPT** | Elke vraag stellen mét websearch en per antwoord alle bedrijven beoordelen | ~€2,50 |
+| **Meten met Gemini** | Dezelfde vragen, tweede engine | ~€2,50 |
+| **Per bedrijf verdiepen** | Website vluchtig uitlezen (crawlen kost niets), plus per bedrijf een korte verklaring waarom het wel of niet genoemd wordt | ~€1,50 |
+| **Het rapport schrijven** | De publieke tekst op het dashboard: wat valt op in deze markt | ~€0,50 |
+| **De e-mails schrijven** | Per bedrijf een gepersonaliseerde openingsmail, op het duurste model | ~€2,00 |
+| **Marge** | Herhalingen bij twijfel, mislukte stappen opnieuw | rest |
+
+**Twee dingen om vast te leggen bij dat budget.** Ten eerste een hard plafond per rapport, net zoals
+er vandaag een plafond per merk en een dagplafond over alles heen is. Loopt het budget op, dan valt
+een stap weg en wordt dát vastgelegd; een stap doet nooit alsof hij geslaagd is. Ten tweede: dit is
+een acquisitiekost, geen productiekost. Tegenover 10 euro staat een lijst van vijftien bedrijven die
+allemaal benaderd kunnen worden. Dat is minder dan een euro per lead, en dat is de rekensom die
+telt, niet de vergelijking met wat een klantmeting kost.
+
+---
+
+## 5. Het publieke dashboard
+
+Het New business team wil het rapport in de vorm van een **simpel dashboard dat publiekelijk online
+komt en voor iedereen toegankelijk is**. Dat is een nieuw soort scherm voor deze app: alles wat er
+vandaag staat zit achter login.
+
+### Waarom publiek, en wat dat betekent
+
+Publiek is een keuze met gevolgen die het waard zijn om expliciet te maken:
+
+- **Het is deelbaar.** De salesmedewerker kan de link in de openingsmail zetten en het bedrijf kan
+  hem openen zonder account, zonder wachtwoord, zonder drempel. Dat is precies waarom dit werkt als
+  eerste contactmoment.
+- **Het is bewijs.** Een link naar iets dat al bestaat is geloofwaardiger dan een bijlage die
+  duidelijk voor deze ene mail gemaakt is.
+- **Het is zichtbaar voor iedereen, ook voor de concurrent en voor het bedrijf dat er slecht op
+  staat.** Elk bedrijf in het rapport kan zien waar het staat ten opzichte van de rest. Dat is de
+  aantrekkingskracht én het risico van dit idee, en het bepaalt de toon: een rapport dat een bedrijf
+  belachelijk maakt levert geen gesprek op maar een boze telefoon. Zie hoofdstuk 8, vraag 2.
+- **Het is vindbaar in Google en, als we het goed doen, in AI-antwoorden zelf.** Een pagina over
+  "hoveniers in Eindhoven" die feitelijk beschrijft wie er in AI-antwoorden genoemd wordt, is precies
+  het soort pagina waar ORBIT ENGINE zijn klanten op adviseert. Dat is geen bijvangst: het is het
+  bewijs dat we ons eigen advies uitvoeren.
+
+### Wat er op moet staan, als voorstel
+
+Simpel betekent: te begrijpen in vijftien seconden door een hovenier die geen marketeer is.
+
+1. **Eén regel bovenaan die zegt waar je naar kijkt.** "Als iemand ChatGPT of Gemini vraagt naar een
+   hovenier in Eindhoven, welke bedrijven komen er dan uit."
+2. **De ranglijst.** Per bedrijf hoe vaak het genoemd is, van beide engines, met de foutmarge
+   erbij. De app toont vandaag al onzekerheid in plaats van een indrukwekkend cijfer, en dat moet
+   hier ook.
+3. **De bedrijven die niet genoemd zijn.** Waarschijnlijk het scherpste blok van het hele dashboard,
+   en tegelijk het gevoeligste. Zie hoofdstuk 8, vraag 2.
+4. **Waar de AI zijn informatie vandaan haalt.** Welke websites bepalen deze markt. Vaak zijn dat
+   niet de bedrijfssites zelf maar vergelijkingsplatforms, en dat is voor de meeste ondernemers
+   nieuwe informatie.
+5. **Een paar echte vragen met het echte antwoord erbij.** Doorklikbaar bewijs, want een cijfer
+   zonder bewijs is een mening.
+6. **Wat je eraan kunt doen**, kort, met de stap naar een gesprek. Dit is de enige plek op het
+   dashboard waar ORBIT ENGINE over zichzelf praat.
+7. **De meetdatum, groot genoeg om te zien.** Een rapport zonder datum wordt vanzelf een leugen.
+
+### Randvoorwaarden voor een publieke pagina
+
+- **De pagina toont uitsluitend meetresultaten**, geen ruwe modeluitvoer, geen kosten, geen interne
+  taaknamen. Dezelfde regel die vandaag geldt voor het onboardingscherm waar de klant naast je zit.
+- **Geen persoonsgegevens.** Bedrijfsnamen en webadressen zijn openbare bedrijfsinformatie. Namen van
+  medewerkers, e-mailadressen en telefoonnummers horen niet op een publieke pagina, ook niet als ze
+  op de bedrijfssite staan.
+- **Een bedrijf moet eraf kunnen.** Wie vraagt om verwijdering van het publieke dashboard, wordt
+  verwijderd, zonder discussie. Dat is een ontwerpeis, geen procedure achteraf.
+- **Alleen lezen.** De publieke route mag niets kunnen schrijven en niets kunnen starten. Dat is
+  geen extra maatregel maar de bestaande regel: schrijven loopt altijd via een API-route met een
+  expliciete rechtencontrole.
+
+---
+
+## 6. De gepersonaliseerde openingsmail
+
+Naast het rapport wil het New business team **per bedrijf in dat rapport een persoonlijk bericht dat
+per e-mail verzonden kan worden**. Verzonden vanaf de salesmedewerker zelf, als eerste contactmoment,
+gevolgd door een telefoontje.
+
+**Dit is het scherpste onderdeel van de hele module, en het risicovolste.** Een openingsmail die naar
+sjabloon ruikt is erger dan geen mail: hij verbrandt de naam van het bedrijf voor het telefoontje dat
+erna komt. De lat is dus niet "een nette mail", de lat is "deze mail kan alleen over ons gaan".
+
+### Waarom dit hier kan wat een gewone mailtool niet kan
+
+Het verschil tussen deze mail en elke andere gepersonaliseerde acquisitiemail is dat wij iets weten
+dat het bedrijf zelf niet weet. Niet zijn branche, niet zijn plaats, niet zijn voornaam: die
+velden vult iedereen in. Wij weten dat als iemand ChatGPT vraagt naar een hovenier in Eindhoven, zijn
+directe concurrent er drie keer uit komt en hij nul keer, en wij kunnen dat laten zien.
+
+Dat maakt de persoonlijke haak feitelijk in plaats van cosmetisch. Vier haken die uit de meting zelf
+komen:
+
+- **De onzichtbare.** Nul vermeldingen, terwijl het bedrijf duidelijk bestaat en een goede site
+  heeft. Haak: het contrast tussen wat ze zijn en wat de AI ziet.
+- **De genoemde die verkeerd genoemd wordt.** Wel genoemd, maar met een verouderd feit, een verkeerde
+  plaats of een dienst die ze niet meer doen. Haak: dit staat er nú over jullie, en het klopt niet.
+- **De tweede.** Wel zichtbaar, maar structureel achter één specifieke concurrent. Haak: het verschil
+  met die ene naam, en waarom die wint.
+- **De winnaar.** Wel de meest genoemde. Haak: hier is wat je hebt, en hier is waar het wegglipt,
+  want deze positie is niet vanzelfsprekend.
+
+Een mail die niet aan één van die haken hangt, hoort niet verstuurd te worden.
+
+### Wat de mail moet doen
+
+Eén ding: een reactie of een warm telefoongesprek. Niet verkopen, niet uitleggen wat GEO is, niet
+onze diensten opsommen. De mail is de aanleiding, het telefoontje is het gesprek.
+
+Als vorm, ter bespreking:
+
+1. **Een onderwerpregel die over hen gaat**, niet over ons en niet over AI in het algemeen.
+2. **Eén concrete observatie uit de meting**, met de naam van de concurrent erin als dat de haak is.
+   Dit is de zin waarop de mail staat of valt.
+3. **De link naar het publieke dashboard**, zodat de bewering te controleren is. Dat de pagina al
+   bestaat en openbaar is, is zelf een argument: we hebben dit niet voor deze mail verzonnen.
+4. **Eén zin over wat dit betekent**, zakelijk, zonder dreiging.
+5. **Een lage vraag.** Niet "plan een demo van 45 minuten", maar iets dat in tien seconden te
+   beantwoorden is.
+6. **Ondertekend door de salesmedewerker zelf**, met zijn eigen naam en handtekening.
+
+Wat er niet in hoort: superlatieven, "ik zag dat jullie", een vaag compliment over de website, en
+elke zin die in tweehonderd andere mails ook zou kunnen staan.
+
+### Randvoorwaarden
+
+- **De salesmedewerker verstuurt, niet het systeem.** Dat is geen technisch detail maar het hele
+  punt: dit is een mail van een mens. De module levert een concept, de medewerker leest het, past
+  het aan en verstuurt het vanaf zijn eigen mailbox. Zie hoofdstuk 8, vraag 5, waar dit nog open
+  staat.
+- **De mail bevat geen bewering die niet uit de meting komt.** Dit is dezelfde regel die de app
+  vandaag hanteert bij contentgeneratie: staat een feit niet op de feitenkaart, dan komt het niet in
+  de tekst. Bij een acquisitiemail is de inzet hoger dan bij een klantpagina, want een verzonnen
+  bewering over iemands concurrent in het allereerste contact is niet te herstellen.
+- **Bijhouden wie al benaderd is.** Twee salesmedewerkers die dezelfde hovenier mailen is precies de
+  fout die het hele idee ondermijnt. De lijst is dus geen los rapport maar een werklijst met een
+  status per bedrijf.
+- **De mail eindigt met een afmeldmogelijkheid en een herkenbare afzender.** Ongevraagde zakelijke
+  mail naar een bedrijfsadres is toegestaan onder de Nederlandse regels, maar niet zonder een
+  duidelijke afzender en een manier om er vanaf te komen. Zie hoofdstuk 8, vraag 6.
+
+---
+
+## 7. Wat er al herbruikbaar is, en wat nieuw is
+
+### Herbruikbaar
+
+- **De meetronde zelf** (fase 3): 30 vragen stellen aan een AI-assistent met websearch en per
+  antwoord beoordelen welke bedrijven genoemd worden, is exact de kern-capaciteit die nodig is. Het
+  verschil is dat de uitkomst niet één score voor één merk is, maar een ranglijst over alle bedrijven
+  in die markt.
+- **Merknaam-normalisatie** (`lib/entities/`): het herkennen dat "Jansen BV" en "Bakkerij Jansen"
+  hetzelfde bedrijf zijn. Bij een marktrapport met vijftien namen is dit belangrijker dan bij één
+  merk, niet minder.
+- **De onzekerheidsmarge** (`lib/stats/`): 30 vragen leveren geen exact percentage op, en de app
+  rekent dat vandaag al eerlijk voor.
 - **Marktonderzoek en concurrentidentificatie** (fase 1, stap 4): de pijplijn zoekt vandaag al uit
-  wie de concurrenten van één merk zijn en waarom die winnen. Voor een marktrapport is de vraag
-  omgekeerd: niet "wie zijn de concurrenten van dit merk", maar "welke bedrijven vormen deze markt".
-- **De meetronde zelf** (fase 3): 30 realistische koopvragen stellen aan een AI-assistent met
-  websearch en per bedrijf beoordelen of het genoemd wordt, is exact de kern-capaciteit die nodig is.
-  Het verschil is dat de uitkomst niet één score voor één merk is, maar een ranglijst van alle
-  genoemde bedrijven in die markt.
-- **Rapportgeneratie**: de jargonvrije samenvatting die vandaag per klant geschreven wordt
-  (`lib/pipeline/report`), is qua vorm dicht bij wat een marktrapport nodig heeft.
-- **Kostenmodel**: een meetronde kost vandaag gemiddeld $0,855, grotendeels websearch. Een
-  marktrapport met meerdere bedrijven per vraag is in kosten waarschijnlijk vergelijkbaar met of
-  goedkoper dan een marktronde per merk, omdat één set vragen meerdere bedrijven tegelijk meet in
-  plaats van dat elk bedrijf zijn eigen ronde nodig heeft.
+  wie de concurrenten van één merk zijn en waarom die winnen.
+- **De crawler zonder AI**: per bedrijf de site uitlezen kost niets en levert de feiten waarop de
+  persoonlijke mail kan leunen.
+- **Rapportgeneratie** (`lib/pipeline/report`): de jargonvrije samenvatting die vandaag per klant
+  geschreven wordt, staat qua vorm dicht bij wat een publiek marktrapport nodig heeft.
+- **De maillaag** (`lib/email/`, Resend): bestaat, staat standaard uit, en verstuurt vandaag alleen
+  aan bestaande klanten.
 
-### Wat nieuw is
+### Nieuw
 
 - Een manier om een markt (branche plus plaats) te definiëren in plaats van een merk.
-- Een stap die uitzoekt welke bedrijven in die markt meespelen, zonder dat er al een merkprofiel
-  bestaat, dus zonder een eigen website als startpunt zoals fase 1 dat vandaag heeft.
-- Een ranglijst over meerdere bedrijven in plaats van een score voor één merk.
-- Een publieke pagina, zonder login, op een korte leesbare URL. Dat is voor deze app een nieuw
-  soort scherm; alle bestaande schermen staan achter authenticatie.
-- Een rol "super admin", beperkter dan de bestaande beheerdersrol, die deze marktanalyses mag
-  starten. Reden om dit niet bij de bestaande `staff_users`-rol te leggen: die rol ziet vandaag
-  alle klantmerken, en een marktanalyse start een bredere, publiek zichtbare actie die een kleinere
-  groep moet kunnen doen dan "iedereen die als support met klanten meekijkt".
-- Een koppeling tussen "bedrijf verscheen in dit rapport" en het New business team: een lijst, geen
-  los rapport, zodat opvolging bij te houden is.
+- Een stap die uitzoekt welke bedrijven in die markt meespelen, zonder eigen website als startpunt.
+  Dit is de lastigste nieuwe stap: bij een bestaand merk begint de pijplijn bij de site van dat merk,
+  hier is er geen enkel vertrekpunt behalve twee woorden.
+- Een ranglijst over meerdere bedrijven in plaats van een score voor één merk, in het datamodel en
+  in de weergave.
+- Gemini daadwerkelijk aanzetten, en het verschil tussen twee engines tonen.
+- Een publieke route zonder login, met een leesbaar adres.
+- Een rol "super admin", beperkter dan de bestaande beheerdersrol, die deze marktanalyses mag starten.
+  Reden om dit niet bij `staff_users` te leggen: die rol ziet vandaag alle klantmerken, en het
+  starten van een publiek zichtbare marktanalyse hoort bij een kleinere groep dan "iedereen die met
+  klanten meekijkt".
+- Een werklijst voor New business: per bedrijf de haak, de conceptmail, en de status van de
+  opvolging.
+- Mailgeneratie per bedrijf, en een manier om die mail bij de juiste salesmedewerker te krijgen.
 
 ---
 
-## 3. Wat we nog moeten bespreken
+## 8. Wat we nog moeten bespreken
 
-Dit zijn de keuzes die de vorm van de module bepalen. Geen ervan is hierboven al beantwoord.
+Dit zijn de keuzes die de vorm van de module bepalen. Geen ervan is hierboven beantwoord.
 
-1. **Wat is het "iets" precies dat het New business team meekrijgt?** Een score en een ranglijst
-   zijn het ruwe materiaal, maar niet per se het gesprek. Denkbare varianten: een pagina die het
-   bedrijf zelf kan bekijken (dan moet hij overtuigend zijn zonder toelichting); een pdf of
-   samenvatting die de accountmanager gebruikt tijdens het telefoongesprek (dan mag hij ruwer zijn,
-   want er is een mens bij); of allebei, met de publieke pagina als bewijs dat je tijdens het
-   gesprek kunt laten zien: "kijk, dit staat er al, over jou."
-2. **Wie komt er wél en wie niet in het rapport?** Alleen bedrijven die door AI-assistenten genoemd
-   worden, of ook duidelijk aanwezige bedrijven die géén enkele keer genoemd worden? Dat laatste is
-   waarschijnlijk het scherpste verkoopargument ("je bestaat, maar AI ziet je niet"), maar vraagt
-   een aparte stap om te bepalen wie er "hoort" te zijn in een markt, los van wie genoemd wordt.
-3. **Hoe wordt vastgesteld welke bedrijven een markt vormen?** Bij een bestaand merk begint de
-   pijplijn bij de eigen website. Bij een marktrapport is er geen enkel startpunt; de markt moet uit
-   niets anders dan "branche plus plaats" worden afgeleid.
-4. **Hoe voorkomen we een verouderd of afgeschreven rapport?** Een publieke pagina die maanden
-   blijft staan terwijl de markt allang is doorgemeten, wekt een verkeerde indruk bij een bedrijf
-   dat hem later vindt. Ververst de pagina mee met een volgende meetronde, of is hij een momentopname
-   met een zichtbare datum?
-5. **Wat gebeurt er na de eerste meting, functioneel: wordt dit een terugkerende marktronde die de
-   ranglijst bijhoudt, of een eenmalige actie per markt die het New business team aanvraagt?**
-6. **Rechten:** wie krijgt de rol "super admin", hoeveel mensen zijn dat, en wat mag deze rol nog
-   meer dan alleen marktanalyses starten?
-7. **Kosten en schaal:** hoeveel markten wil New business per maand kunnen draaien, en past dat
-   binnen het bestaande kostenplafond per taak (`docs/architecture.md` §6), of moet daar een eigen
-   plafond voor komen?
+1. **Hoe wordt vastgesteld welke bedrijven een markt vormen?** Bij een bestaand merk begint de
+   pijplijn bij de eigen website. Hier is er niets: de markt moet uit "branche plus plaats" worden
+   afgeleid. Alleen de bedrijven die de AI zelf noemt, of ook een onafhankelijke bron erbij zoals
+   het Handelsregister of Google Maps?
+2. **Komen bedrijven die nul keer genoemd worden wél in het rapport?** Dit is de belangrijkste vraag
+   van het hele document. Het is verreweg het sterkste verkoopargument ("je bestaat, maar AI ziet je
+   niet") en tegelijk het grootste risico, want dat bedrijf staat publiek op een lijst waar het
+   slecht op staat, zonder erom gevraagd te hebben. Drie varianten: iedereen erop; alleen de
+   genoemden publiek en de onzichtbaren alleen intern voor sales; of iedereen erop maar zonder
+   ranglijstpositie voor wie niet genoemd is.
+3. **Hoeveel bedrijven per rapport?** Vijftien is werkbaar voor sales en leesbaar op een dashboard.
+   Vijftig is completer en onbruikbaar als werklijst.
+4. **Hoe vaak wordt een rapport ververst?** Een publieke pagina die maanden blijft staan terwijl de
+   markt allang veranderd is, wekt een verkeerde indruk bij wie hem later vindt. Een momentopname met
+   zichtbare datum, of een terugkerende meting? Bij een terugkerende meting krijg je er iets sterks
+   bij: verandering over tijd, en dat is een tweede aanleiding om te bellen.
+5. **Wie verstuurt de mail technisch?** Drie varianten: de app genereert de tekst en de medewerker
+   kopieert hem naar zijn eigen mailclient (simpelst, geen koppeling nodig); de app opent een
+   voorgevulde concept in Gmail of Outlook (gebruiksvriendelijker, koppeling nodig); of de app
+   verstuurt namens de medewerker via Resend (meest geautomatiseerd, maar dan is het niet meer echt
+   zijn mailbox en mist hij de reacties in zijn eigen conversatie).
+6. **Juridisch en reputatie.** Ongevraagde zakelijke mail naar een bedrijfsadres mag in Nederland,
+   maar een publieke pagina met bedrijfsnamen en een oordeel erover is een tweede vraag. Wat is de
+   afmeldroute, en wie beslist als een bedrijf vraagt om verwijdering? Dit hoort besloten te zijn
+   vóór het eerste rapport online staat, niet erna.
+7. **Wie krijgt de rol super admin**, hoeveel mensen zijn dat, en wat mag die rol nog meer dan
+   marktanalyses starten?
+8. **Hoeveel markten per maand?** Dat bepaalt of het budget van 10 euro per rapport binnen het
+   bestaande dagplafond past of een eigen plafond nodig heeft.
+9. **Meten we de module zelf?** Hoeveel mails leiden tot een reactie, hoeveel reacties tot een
+   gesprek, hoeveel gesprekken tot een klant. Zonder dat is er over drie maanden geen manier om te
+   zeggen of dit werkt, en dat zou vreemd zijn voor een product dat zijn hele bestaansrecht ontleent
+   aan meten in plaats van gokken.
 
 ---
 
-## 4. Randvoorwaarden vanuit hoe de app vandaag werkt
+## 9. Randvoorwaarden vanuit hoe de app vandaag werkt
 
-Een paar dingen die niet ter discussie staan, omdat ze vastliggen in de rest van de app en de
-module er niet mee mag botsen:
+Een paar dingen die niet ter discussie staan, omdat ze in de rest van de app vastliggen en de module
+er niet mee mag botsen:
 
 - **Schrijven gaat nooit rechtstreeks vanaf de client.** Ook het starten van een marktanalyse loopt
-  via een API-route met service-role key en een expliciete rechtencontrole op de nieuwe
-  super-admin-rol.
+  via een API-route met service-role key en een expliciete rechtencontrole op de nieuwe rol.
 - **Onbekend is een betere waarde dan een verkeerde.** Een bedrijf dat niet met zekerheid genoemd
   wordt, hoort niet met een gok in de ranglijst te staan. Hetzelfde vangnet dat vandaag voorkomt dat
-  een AI-model een niet-genoemd merk toch een rol toedicht, moet ook hier gelden.
-- **Alles bewaren.** Elke AI-aanroep in de nieuwe module slaat, net als de rest van de pijplijn,
-  zijn volledige ruwe uitvoer op naast de uitgesplitste velden.
-- **Migraties zijn additief en idempotent**, nooit `drop`, en gaan via de Supabase-MCP-tool.
+  een model een niet-genoemd merk toch een rol toedicht, moet hier ook gelden. Bij een publiek
+  rapport is de inzet hoger: een fout staat online.
+- **Een promptinstructie is een intentie, code is een garantie.** Elke regel over wat er wel of niet
+  in de mail of op het dashboard mag staan, krijgt een deterministische controle in code. Niet alleen
+  een zin in de prompt.
+- **Eén taak is hooguit één zware AI-aanroep.** Een marktanalyse wordt dus een keten van taken, geen
+  enkele grote taak.
+- **Alles bewaren.** Elke AI-aanroep slaat zijn volledige ruwe uitvoer op naast de uitgesplitste
+  velden, inclusief de gegenereerde mails. Bij een acquisitiemail wil je achteraf kunnen zien wat er
+  precies verstuurd is.
+- **Idempotentie.** Twee keer hetzelfde rapport starten levert geen twee keer de kosten op.
+- **Migraties zijn additief en idempotent**, nooit `drop`.
 - **Kosten zijn een ontwerpvariabele.** Een marktanalyse zonder websearch is goedkoop maar meet niet
   wat een echte gebruiker ziet, exact dezelfde afweging als bij `MEASURE_WEB_SEARCH` vandaag.
+- **De schrijfstijl geldt ook hier.** Het publieke dashboard en de mail volgen `docs/schrijfstijl.md`,
+  inclusief de regel dat er geen gedachtestreepjes in staan. Voor een product dat content schrijft die
+  klanten publiceren, is een acquisitiemail die naar AI ruikt een productfout en geen smaakkwestie.
