@@ -227,3 +227,52 @@ export const ReputationSynthesis = z.object({
 });
 
 export type ReputationSynthesis = z.infer<typeof ReputationSynthesis>;
+
+
+/**
+ * De open marktvraag (blok M).
+ *
+ * ⚠️ Er staat GEEN vaste set bedrijven in dit schema, en dat is het hele punt.
+ * De benoemde vergelijking legde partijen op en liep vast zodra het model die
+ * niet kende; deze vraag laat het model zelf noemen wie er in de markt toe doet.
+ * Wie AI noemt, ís de concurrent.
+ *
+ * De volgorde is de aanbeveling. Dat is een sterker signaal dan een gedwongen
+ * rangschikking, want het model kiest hier vrijwillig wie hij vooraan zet.
+ */
+export const ReputationMarket = z.object({
+  bedrijven: z.array(
+    z.object({
+      naam: z.string(),
+      /** Vanaf 1, in de volgorde waarin het antwoord ze noemt. */
+      plek: z.number(),
+      /** Waarom dit bedrijf genoemd wordt. Hier zit het bruikbare advies. */
+      reden: z.string(),
+    }),
+  ),
+});
+
+export type ReputationMarket = z.infer<typeof ReputationMarket>;
+
+/**
+ * Het bewijsmateriaal uit de onderzoeksfase (blok E).
+ *
+ * Eén keer zoeken, daarna alle dienstvragen tegen hetzelfde corpus. Zonder dit
+ * krijgt elke dienstvraag andere zoekresultaten, en dan weet je bij een verschil
+ * tussen twee diensten niet of dat aan de reputatie ligt of aan wat de
+ * zoekmachine die seconde opleverde.
+ */
+export const ReputationEvidence = z.object({
+  fragmenten: z.array(
+    z.object({
+      /** De letterlijke passage. Dit is wat de dienstvragen straks lezen. */
+      tekst: z.string(),
+      /** Waar hij vandaan komt. Leeg als het model geen bron noemt. */
+      bron_url: z.string(),
+      /** Waar dit fragment over gaat, zodat de dienstvraag het juiste stuk pakt. */
+      onderwerp: z.string(),
+    }),
+  ),
+});
+
+export type ReputationEvidence = z.infer<typeof ReputationEvidence>;

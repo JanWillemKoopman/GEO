@@ -48,6 +48,8 @@ import { runOfferingBlock } from "@/lib/pipeline/reputation-offering";
 import { runCompareBlock } from "@/lib/pipeline/reputation-compare";
 import { runSourcesBlock } from "@/lib/pipeline/reputation-sources";
 import { runSynthesis } from "@/lib/pipeline/reputation-synthesis";
+import { runMarketBlock } from "@/lib/pipeline/reputation-market";
+import { runEvidenceBlock } from "@/lib/pipeline/reputation-evidence";
 import { enqueue, dedupe } from "@/lib/jobs/queue";
 import { countOpenPeriodicMeasurements } from "@/lib/jobs/pending";
 import type {
@@ -184,10 +186,12 @@ async function scheduleAggregateIfLastPrompt(
  */
 const REPUTATION_STEPS: JobType[] = [
   "reputation_start",
+  "reputation_evidence",
   "reputation_brand",
   "reputation_offering",
   "reputation_compare",
   "reputation_sources",
+  "reputation_market",
 ];
 
 async function scheduleSynthesisIfLast(
@@ -802,7 +806,56 @@ const handlers: { [T in JobType]: Handler<T> } = {
   reputation_synthesis: async ({ admin }, payload) => {
     await runSynthesis(admin, payload.runId);
   },
+
+  /**
+   * ⚠️ Deze taak plant de dienstvragen in NADAT hij klaar is, en niet andersom.
+   * De dienstvragen lezen het corpus dat hier gevuld wordt; zouden ze parallel
+   * draaien, dan treffen de eerste een leeg corpus aan en vallen die terug op
+   * zelf zoeken. Dan is de helft van de diensten op een andere manier gemeten
+   * dan de andere helft, en dat is precies de onvergelijkbaarheid die dit blok
+   * moet wegnemen.
+   */
+  reputation_evidence: async ({ admin, job }, payload) => {
+    await runEvidenceBlock(admin, payload.runId);
+    await scheduleOfferingQuestions(admin, payload.runId);
+    await scheduleSynthesisIfLast(admin, payload.runId, job.id);
+  },
+
+  reputation_market: async ({ admin, job }, payload) => {
+    await runMarketBlock(admin, payload.runId, payload.offeringId, payload.repeats);
+    await scheduleSynthesisIfLast(admin, payload.runId, job.id);
+  },
 };
+
+/**
+ * Zet de dienstvragen klaar zodra het bewijscorpus er is.
+ *
+ * Ze staan niet meteen in de rij omdat ze het corpus nodig hebben. De scope
+ * ligt al vast in `reputation_runs.scope_json`, dus welke knopen het worden is
+ * niet meer aan het toeval.
+ */
+async function scheduleOfferingQuestions(admin: Admin, runId: string): Promise<void> {
+  const { data: run } = await admin
+    .from("reputation_runs")
+    .select("profile_id, scope_json")
+    .eq("id", runId)
+    .maybeSingle();
+  if (!run) return;
+
+  const knopen =
+    ((run.scope_json as { nodes?: { id: string }[] } | null)?.nodes ?? []).filter(
+      (n) => typeof n.id === "string",
+    );
+
+  for (const n of knopen) {
+    await enqueue(admin, {
+      type: "reputation_offering",
+      payload: { runId, offeringId: n.id },
+      profileId: run.profile_id as string,
+      dedupeKey: dedupe.reputationOffering(runId, n.id),
+    });
+  }
+}
 
 /**
  * De keten doorzetten nadat een taak DEFINITIEF mislukt is (na alle pogingen).

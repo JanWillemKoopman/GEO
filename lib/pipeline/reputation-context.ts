@@ -100,6 +100,20 @@ export interface PlannedAsk {
   repeatIndex: number;
   /** Alleen bij een vergelijking: de volgorde waarin de partijen erin gingen. */
   partyOrder?: string[];
+  /**
+   * Achtergrond die met de vraag meegaat naar het model maar NIET wordt
+   * opgeslagen als deel van de vraag.
+   *
+   * ⚠️ Nodig sinds het gedeelde bewijscorpus. Dat is achttienduizend tekens, en
+   * die in de `question`-kolom zetten zou drie dingen tegelijk kapotmaken: de
+   * idempotentiesleutel (die hasht de vraag), de database (achttienduizend
+   * tekens maal twaalf diensten per run) en het scherm, dat de gestelde vraag
+   * letterlijk aan de klant toont zodat hij kan nalezen waar het cijfer op rust.
+   *
+   * De vraag blijft dus kort en leesbaar; het bewijs gaat apart mee en staat
+   * volledig in `reputation_evidence`, waar het te herleiden is.
+   */
+  context?: string;
 }
 
 export interface AskOutcome {
@@ -136,7 +150,9 @@ export async function askAndStore(
   const gegrond = ask.webSearch && measureWebSearchEnabled;
   const r = await engine.callPlain({
     system: REPUTATION_SYSTEM,
-    user: ask.question,
+    // De achtergrond gaat wél mee naar het model, maar hij wordt niet opgeslagen
+    // als deel van de vraag. Zie `context` in `PlannedAsk`.
+    user: ask.context ? `${ask.question}\n\n${ask.context}` : ask.question,
     // De zoekfunctie volgt de bestaande kostenknop. Staat die uit
     // (ontwikkelfase), dan draaien de gegronde blokken zonder zoeken. Dat is een
     // ander antwoord, en dat leggen we vast in `web_search` zodat de uitslag
@@ -182,7 +198,9 @@ export async function askAndStore(
       raw_json: r.raw as never,
       // ⚠️ Een antwoord dat niet mocht opzoeken draagt geen bronnen. De reden
       // staat bij `citedUrlsFrom()`, en hij is duurder dan hij lijkt.
-      cited_urls: citedUrlsFrom(r.text, r.raw, gegrond),
+      // Ongegrond mét bewijscorpus telt de bronnen uit dat corpus wél, want die
+      // zijn eerder echt opgezocht. Zie `citedUrlsFrom`.
+      cited_urls: citedUrlsFrom(r.text, r.raw, gegrond, ask.context),
       party_order: ask.partyOrder ?? [],
       model: r.model,
       cost_usd: r.costUsd,

@@ -60,16 +60,33 @@ export function budgetUsd(eur: number = RUN_BUDGET_EUR): number {
  * optimistisch zijn kost geld, en bij twijfel wint voorzichtig.
  */
 export const STEP_COST_USD = {
-  /** Blok A: 1 ongegronde plus 4 gegronde vragen, plus 5 beoordelingen. */
-  brand: 0.07,
-  /** Blok B: één gegronde vraag plus de beoordeling, per aanbodknoop. */
-  offering: 0.017,
+  /**
+   * Blok A: 1 ongegronde plus 4 gegronde vragen, plus 5 beoordelingen.
+   *
+   * ⚠️ Alle bedragen hieronder zijn op 23 augustus 2026 NAGEREKEND tegen
+   * `ai_calls` op de eerste echte run, en lagen hoger dan de schatting: een
+   * gegronde vraag kost $0,021 tot $0,023 en niet $0,015. De oorzaak is dat
+   * web-zoeken pagina's ophaalt die als invoer meetellen. Ze staan nu op de
+   * gemeten waarde, want een budgetpoort die met te lage bedragen rekent, laat
+   * een stap beginnen die er niet meer in past.
+   */
+  brand: 0.10,
+  /** Blok B: één vraag tegen het gedeelde corpus plus de beoordeling. Ongegrond, dus goedkoop. */
+  offering: 0.004,
   /** Blok V: één gegronde vergelijking plus de beoordeling. Per rotatie. */
-  compare: 0.017,
+  compare: 0.025,
   /** Blok C: twee gegronde vragen plus één indeling. De crawl is gratis. */
-  sources: 0.032,
+  sources: 0.045,
   /** Blok D: één aanroep op de kwaliteitstier. */
   synthesis: 0.008,
+  /**
+   * Blok M: de open marktvraag, per herhaling. Gegrond, dus zelfde orde als een
+   * vergelijking. Gemeten op de eerste echte run: $0,021 tot $0,023 per gegronde
+   * vraag, dus de oude schatting van $0,015 was te laag en die is bijgesteld.
+   */
+  market: 0.023,
+  /** Blok E: één onderzoeksronde die het gedeelde corpus vult. Meerdere zoekacties. */
+  evidence: 0.09,
 } as const;
 
 export type ReputationStep = keyof typeof STEP_COST_USD;
@@ -90,6 +107,8 @@ const STAP_NAAM: Record<ReputationStep, string> = {
   compare: "de vergelijking met je concurrenten",
   sources: "het onderzoek naar je bronnen",
   synthesis: "de samenvatting",
+  market: "de vraag wie AI aanraadt in jouw markt",
+  evidence: "het achtergrondonderzoek",
 };
 
 /**

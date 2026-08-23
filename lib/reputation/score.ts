@@ -51,6 +51,144 @@ export const WEAK_WEIGHT = 0.3;
 /** Grondslagen die als volwaardig bewijs tellen. */
 const STERKE_GRONDSLAG = new Set<ReputationGrounding>(["reviews", "pers"]);
 
+/**
+ * De verdeling van de toonoordelen, en hoe verdeeld ze zijn.
+ *
+ * ── ⚠️ WAAROM HET GEMIDDELDE ALLEEN NIET VOLDOET ────────────────────────────
+ *
+ * Gemeten bij Van den Udenhout (23 augustus 2026): tien keer `gemengd`, drie
+ * keer `overwegend_positief`, één keer `negatief`. Daar komt een toonindex van
+ * +4 uit, en dat heet op het scherm "neutraal".
+ *
+ * Maar tien keer gemengd is iets compleet anders dan tien keer neutraal, en
+ * allebei leveren ze 0 op. Neutraal betekent: er wordt zakelijk over je gepraat,
+ * niemand heeft een uitgesproken mening. Gemengd betekent: er is lof én kritiek,
+ * en die staan naast elkaar. Het eerste is een merk zonder profiel, het tweede
+ * is een merk met een probleem dat je kunt oplossen. Het gemiddelde maakt die
+ * twee identiek, en juist het tweede is waar een consultant een uur mee vult.
+ *
+ * Vandaar dit getal ernaast. Niet in plaats van de index: die blijft waarop je
+ * vergelijkt over de tijd. Dit is wat je begrijpt.
+ */
+export interface ToneDistribution {
+  /** Hoe vaak elk label voorkwam. Ook de nullen, want die zijn informatief. */
+  counts: Record<string, number>;
+  /**
+   * 0 tot 100. Hoe verdeeld het beeld is.
+   *
+   * Nul betekent dat elk antwoord hetzelfde zei. Honderd betekent maximaal
+   * verdeeld: even veel uitgesproken positief als uitgesproken negatief. Een
+   * merk waar alles `gemengd` is, zit daar tussenin en hoog, want elk los
+   * antwoord droeg zelf al twee kanten.
+   */
+  spread: number;
+  /** Hoeveel antwoorden er meetelden. */
+  n: number;
+}
+
+/**
+ * Labels die zelf al twee kanten dragen. Die tellen mee als verdeeldheid, ook
+ * als ze in hun eentje voorkomen: "gemengd" is per definitie geen eenstemmigheid.
+ */
+const GEMENGDE_LABELS = new Set(["gemengd"]);
+
+export function toneDistribution(
+  answers: (ScoredAnswer & { tone?: string | null })[],
+): ToneDistribution {
+  const bruikbaar = answers.filter(usableForTone);
+  const counts: Record<string, number> = {};
+  for (const a of bruikbaar) {
+    const label = a.tone ?? "onbekend";
+    counts[label] = (counts[label] ?? 0) + 1;
+  }
+
+  const n = bruikbaar.length;
+  if (n === 0) return { counts, spread: 0, n: 0 };
+
+  // De spreiding heeft twee bronnen, en ze tellen allebei mee:
+  //
+  //   1. VERSCHIL TUSSEN antwoorden. Gemeten als de gemiddelde afstand tot de
+  //      gemiddelde toonscore, geschaald op de maximale afstand (2 op de schaal
+  //      -2..+2). Zeggen alle antwoorden hetzelfde, dan is dit nul.
+  //   2. VERDEELDHEID BINNEN een antwoord. Een `gemengd` oordeel droeg zelf al
+  //      lof en kritiek. Tien keer gemengd is dus geen eenstemmigheid, ook al
+  //      is de afstand tussen die tien nul.
+  //
+  // Zonder de tweede bron zou een merk waarover iedereen hetzelfde verdeelde
+  // verhaal vertelt op spreiding 0 uitkomen, en dat is precies verkeerd om.
+  const scores = bruikbaar
+    .map((a) => a.toneScore)
+    .filter((v): v is number => v !== null);
+
+  let tussen = 0;
+  if (scores.length > 1) {
+    const gem = scores.reduce((x, y) => x + y, 0) / scores.length;
+    const afstand = scores.reduce((s, v) => s + Math.abs(v - gem), 0) / scores.length;
+    tussen = Math.min(1, afstand / 2);
+  }
+
+  const binnen =
+    bruikbaar.filter((a) => GEMENGDE_LABELS.has(a.tone ?? "")).length / n;
+
+  // De twee bronnen tellen even zwaar. Geen van beide alleen dekt de lading:
+  // verdeeld tussen antwoorden en verdeeld binnen antwoorden zijn allebei
+  // verdeeldheid, en een merk kan het op allebei de manieren zijn.
+  return { counts, spread: Math.round(((tussen + binnen) / 2) * 100), n };
+}
+
+/**
+ * Eén zin over de verdeling, voor onder het hoofdcijfer.
+ *
+ * ⚠️ Dit is de zin die het verschil maakt tussen een cijfer en een bevinding.
+ * "Neutraal" laat een ondernemer schouderophalen; "ChatGPT is verdeeld over je"
+ * laat hem doorlezen.
+ */
+export function spreadSentence(dist: ToneDistribution): string | null {
+  if (dist.n < 3) return null;
+
+  const gemengd = dist.counts["gemengd"] ?? 0;
+  if (gemengd >= Math.ceil(dist.n / 2)) {
+    return (
+      `Bij ${gemengd} van de ${dist.n} vragen noemt ChatGPT zowel lof als kritiek. ` +
+      `Je hebt dus geen vlak imago maar een verdeeld imago, en dat is iets om aan te werken.`
+    );
+  }
+  if (dist.spread >= 50) {
+    return `Het beeld loopt uiteen: niet elk antwoord zegt hetzelfde over je.`;
+  }
+  if (dist.spread <= 15) {
+    return `Het beeld is eenduidig: vrijwel elk antwoord zegt hetzelfde over je.`;
+  }
+  return null;
+}
+
+/**
+ * De standaardfout van de toonindex, in punten op de schaal -100..100.
+ *
+ * ⚠️ `null` bij minder dan drie bruikbare antwoorden. Met twee metingen is een
+ * spreiding geen spreiding maar een verschil, en een marge die op niets rust
+ * suggereert een precisie die er niet is.
+ *
+ * De meting op het scherm ernaast toont zijn band al sinds R6.1. Dit scherm
+ * toonde "+4" zonder enige marge, en dat is een inconsistentie die een klant
+ * ziet zodra hij beide opent.
+ */
+export function toneStderr(answers: ScoredAnswer[]): number | null {
+  const scores = answers
+    .filter(usableForTone)
+    .map((a) => a.toneScore)
+    .filter((v): v is number => v !== null);
+
+  if (scores.length < 3) return null;
+
+  const gem = scores.reduce((x, y) => x + y, 0) / scores.length;
+  const variantie =
+    scores.reduce((s, v) => s + (v - gem) ** 2, 0) / (scores.length - 1);
+  // Van de schaal -2..+2 naar -100..+100, dus maal 50.
+  const stderrOpSchaal = Math.sqrt(variantie / scores.length) * 50;
+  return Math.round(stderrOpSchaal * 10) / 10;
+}
+
 /** Eén beoordeeld antwoord, zoals het uit de oordeelslaag komt. */
 export interface ScoredAnswer {
   /** -2 tot +2. Null = geen oordeel te vellen. */
@@ -111,7 +249,28 @@ export interface EvidenceSource {
   isReview: boolean;
   /** Is het cijfer erop bevestigd door de eigen crawler plus JSON-LD (§2.4)? */
   verifiedRating: boolean;
+  /**
+   * Is dit een verzamelsite die zelf niets weet?
+   *
+   * Autoscout24, Marktplaats, bedrijvengidsen: die halen hun gegevens ergens
+   * anders vandaan en tellen daarom niet als onafhankelijke waarneming. Drie
+   * verzamelsites die alle drie hetzelfde Klantenvertellen-cijfer overnemen zijn
+   * één bron, geen drie.
+   */
+  isAggregator?: boolean;
 }
+
+/**
+ * Domeinen boven deze grens leveren geen extra bewijskracht meer op.
+ *
+ * ⚠️ VERHOOGD VAN 5 NAAR 8 NA DE EERSTE ECHTE RUN. Van den Udenhout kwam op 94
+ * van de 100 uit, terwijl er een verzonnen domein tussen de bronnen stond. De
+ * oude formule liep vol bij vijf externe domeinen, en vrijwel elk bedrijf met
+ * een website haalt dat. Aan de onderkant werkte hij nog wel, dus het vangnet
+ * tegen "AI kent je niet" stond overeind, maar aan de bovenkant onderscheidde
+ * hij niets meer. Een cijfer dat bijna iedereen haalt, is geen cijfer.
+ */
+const VOLLE_BREEDTE = 8;
 
 /**
  * De bewijskracht, 0 tot 100.
@@ -120,16 +279,25 @@ export interface EvidenceSource {
  * zonder één controleerbare bron. Dat is precies wat de klant moet weten, en
  * daarom is dit getal niet nullable.
  *
- * Drie delen, en de weging is op wat een klant eraan heeft:
+ * ── HERBOUWD OP ONAFHANKELIJKHEID (23 augustus 2026) ────────────────────────
  *
- *   • 50 punten voor het aantal unieke EXTERNE bronnen. Vijf externe bronnen is
- *     vol. Meer telt niet extra: het verschil tussen vijf en tien externe
- *     bronnen verandert geen advies, het verschil tussen nul en twee wel.
- *   • 30 punten voor het aandeel dat níet de eigen site is. Een merk waar AI
+ * De oude formule telde bronnen. Dat is de verkeerde vraag, want drie bronnen
+ * die allemaal het persbericht van de dealer overschrijven zijn geen drie
+ * bronnen. Wat je wilt weten is of er ONAFHANKELIJKE waarnemingen onder het
+ * oordeel liggen.
+ *
+ * Vier delen, en de weging is op wat een klant eraan heeft:
+ *
+ *   • 40 punten voor het aantal ONAFHANKELIJKE externe bronnen, dus zonder de
+ *     eigen site en zonder verzamelsites. Vol bij acht.
+ *   • 25 punten voor het aandeel dat niet de eigen site is. Een merk waar AI
  *     alles van de eigen site haalt, heeft geen reputatie maar een website.
- *   • 20 punten voor een reviewplatform met een BEVESTIGD cijfer. Bevestigd, niet
- *     genoemd: een cijfer uit een AI-antwoord is een gok tot het bewezen is
- *     (§2.4).
+ *   • 25 punten voor een reviewplatform met een BEVESTIGD cijfer. Bevestigd, niet
+ *     genoemd: een cijfer uit een AI-antwoord is een gok tot de eigen crawler
+ *     hem op de pagina heeft teruggevonden.
+ *   • 10 punten voor spreiding over meerdere SOORTEN bron. Vijf reviewplatforms
+ *     zeggen minder dan een reviewplatform plus vakpers plus een register: dat
+ *     laatste is een beeld dat vanuit meerdere hoeken bevestigd wordt.
  */
 export function evidenceScore(sources: EvidenceSource[]): number {
   if (sources.length === 0) return 0;
@@ -143,17 +311,30 @@ export function evidenceScore(sources: EvidenceSource[]): number {
       ...s,
       isReview: (bestaand?.isReview ?? false) || s.isReview,
       verifiedRating: (bestaand?.verifiedRating ?? false) || s.verifiedRating,
+      isAggregator: (bestaand?.isAggregator ?? false) || (s.isAggregator ?? false),
     });
   }
   const lijst = [...uniek.values()];
 
   const extern = lijst.filter((s) => !s.isOwn);
-  const aantalDeel = Math.min(1, extern.length / 5) * 50;
-  const aandeelDeel = (extern.length / lijst.length) * 30;
-  const reviewDeel = extern.some((s) => s.isReview && s.verifiedRating) ? 20 : 0;
+  const onafhankelijk = extern.filter((s) => !s.isAggregator);
 
-  return Math.round(aantalDeel + aandeelDeel + reviewDeel);
+  const aantalDeel = Math.min(1, onafhankelijk.length / VOLLE_BREEDTE) * 40;
+  const aandeelDeel = (extern.length / lijst.length) * 25;
+  const reviewDeel = extern.some((s) => s.isReview && s.verifiedRating) ? 25 : 0;
+
+  // Spreiding over soorten: hoeveel van de drie hoeken zijn vertegenwoordigd?
+  // Een reviewplatform, iets dat geen reviewplatform is, en de eigen site.
+  const hoeken = [
+    onafhankelijk.some((s) => s.isReview),
+    onafhankelijk.some((s) => !s.isReview),
+    lijst.some((s) => s.isOwn),
+  ].filter(Boolean).length;
+  const spreidingDeel = (hoeken / 3) * 10;
+
+  return Math.round(aantalDeel + aandeelDeel + reviewDeel + spreidingDeel);
 }
+
 
 /**
  * De eenduidigheid, 0 tot 100: krijg je elke keer hetzelfde antwoord?

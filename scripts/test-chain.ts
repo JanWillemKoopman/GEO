@@ -3154,6 +3154,101 @@ async function main(): Promise<void> {
         bronnen.every((b) => b.verified === false),
       );
 
+      // ── Het gedeelde bewijscorpus ─────────────────────────────────────────
+      const { rows: corpus } = await db.client.query(
+        "select query, url, domain, excerpt from public.reputation_evidence where run_id = $1",
+        [runId],
+      );
+      ok("het bewijscorpus is gevuld", corpus.length > 0, `${corpus.length} fragmenten`);
+      // ⚠️ De knipstap mag NIETS verzinnen. Een fragment dat er niet in stond zou
+      // als bewijs alle dienstvragen in gaan, en dan rust het hele blok per
+      // dienst op fictie. De stub biedt er expres een aan.
+      ok(
+        "een verzonnen fragment is tegengehouden",
+        !corpus.some((f) => String(f.excerpt).includes("verzonnen")),
+        corpus.map((f) => String(f.excerpt).slice(0, 30)).join(" | "),
+      );
+
+      // ⚠️ En de dienstvragen zoeken niet meer zelf. Dat is de meetverbetering:
+      // elke dienst kreeg voorheen andere zoekresultaten, en dan weet je bij een
+      // verschil tussen twee diensten niet of dat aan de reputatie ligt of aan
+      // wat de zoekmachine die seconde opleverde.
+      const dienstvragen = antwoorden.filter((a) => a.block === "aanbod");
+      ok(
+        "de dienstvragen zoeken niet meer zelf",
+        dienstvragen.length > 0 && dienstvragen.every((a) => a.web_search === false),
+        `${dienstvragen.length} dienstvragen`,
+      );
+      // De vraag blijft kort en leesbaar: het scherm toont hem letterlijk aan de
+      // klant. Het corpus van achttienduizend tekens gaat apart mee.
+      ok(
+        "en de opgeslagen vraag blijft leesbaar",
+        dienstvragen.every((a) => String(a.question).length < 500),
+        `langste ${Math.max(...dienstvragen.map((a) => String(a.question).length))}`,
+      );
+
+      // ── De open marktvraag ────────────────────────────────────────────────
+      const { rows: markt } = await db.client.query(
+        `select answer_id, party_name, is_own_brand, position, of_parties
+           from public.reputation_market where run_id = $1 order by answer_id, position`,
+        [runId],
+      );
+      ok("de marktvraag leverde bedrijven op", markt.length > 0, `${markt.length}`);
+      // ⚠️ Het model noemde Feenstra twee keer, op plek 1 en plek 3. Eén bedrijf,
+      // niet twee: zonder ontdubbelen telt de noemer te hoog en zakt de plek van
+      // iedereen. Vier genoemde namen horen dus drie bedrijven te worden.
+      const perAntwoord = new Map<string, string[]>();
+      for (const m of markt) {
+        const lijst = perAntwoord.get(String(m.answer_id)) ?? [];
+        lijst.push(String(m.party_name).toLowerCase());
+        perAntwoord.set(String(m.answer_id), lijst);
+      }
+      ok(
+        "een dubbel genoemd bedrijf telt één keer",
+        [...perAntwoord.values()].every((namen) => new Set(namen).size === namen.length),
+        [...perAntwoord.values()].map((n) => n.join("+")).join(" | "),
+      );
+      ok(
+        "en vier genoemde namen worden drie bedrijven",
+        [...perAntwoord.values()].every((namen) => namen.length === 3),
+        [...perAntwoord.values()].map((n) => n.length).join(","),
+      );
+      // De plek klopt na het ontdubbelen: de klant stond in de stub op plek 2
+      // met een dubbele Feenstra ervoor en erna, dus na opschonen blijft hij 2.
+      const eigenPlek = markt.find((m) => m.is_own_brand === true);
+      eqc("en de klant houdt zijn plek", String(eigenPlek?.position), "2");
+      // De klant stond op plek 2 in de stub, dus hij hoort herkend te zijn.
+      ok(
+        "de klant is herkend tussen de genoemde bedrijven",
+        markt.some((m) => m.is_own_brand === true),
+        markt.map((m) => `${m.party_name}${m.is_own_brand ? " (eigen)" : ""}`).join(", "),
+      );
+      // ⚠️ En de ontdekte concurrenten staan er, ook die wij niet kenden. Dat is
+      // het hele punt van dit blok: wie AI noemt, ís de concurrent, en dat
+      // corrigeert de opgelegde set die bij Van den Udenhout een fabrikant
+      // opleverde.
+      ok(
+        "en AI noemde concurrenten die wij niet hadden opgelegd",
+        markt.some((m) => !m.is_own_brand && !(run.rivals as string[]).includes(String(m.party_name))),
+        markt.filter((m) => !m.is_own_brand).map((m) => m.party_name).join(", "),
+      );
+
+      const marktRivals = (run.market_rivals as string[]) ?? [];
+      ok("de ontdekte markt staat op de run", marktRivals.length > 0, marktRivals.join(", "));
+
+      // ── De nieuwe getallen ────────────────────────────────────────────────
+      ok("de toonverdeling is vastgelegd", run.tone_distribution !== null);
+      ok("de verdeeldheid ook", run.tone_spread !== null, String(run.tone_spread));
+      // ⚠️ Met drie herhalingen per merkbrede vraag valt er een marge te
+      // berekenen. Die ontbrak, terwijl de meting op het scherm ernaast er al
+      // sinds R6.1 een toont.
+      ok("en er is een betrouwbaarheidsmarge", run.tone_stderr !== null, String(run.tone_stderr));
+      ok(
+        "het meetinstrument is vastgelegd",
+        String(run.instrument_version ?? "").includes("v2"),
+        String(run.instrument_version),
+      );
+
       // ── Twee keer starten levert één run ──────────────────────────────────
       const { rows: voorHerhaling } = await db.client.query(
         "select count(*)::int as n from public.reputation_answers where run_id = $1",
@@ -3222,7 +3317,10 @@ async function main(): Promise<void> {
         `select id, answer_text from public.reputation_answers where run_id = $1 order by question`,
         [hertestRunId],
       );
-      ok("het merkblok stelde zijn vragen", voor.length === 5, `${voor.length}`);
+      // ⚠️ Vijftien en niet vijf: sinds 23 augustus 2026 wordt elke merkbrede
+      // vraag drie keer gesteld. Elk getal op het scherm rustte daarvoor op één
+      // antwoord, terwijl de meting ernaast al een betrouwbaarheidsband toont.
+      ok("het merkblok stelde zijn vragen, elk drie keer", voor.length === 15, `${voor.length}`);
 
       // Nabootsen dat de beoordeling van één antwoord mislukte: het dure
       // antwoord staat er, het oordeel niet.
@@ -3251,7 +3349,7 @@ async function main(): Promise<void> {
       );
       ok(
         "en het opgeslagen antwoord is ongewijzigd",
-        na.length === 5 && na[0].id === voor[0].id && na[0].answer_text === voor[0].answer_text,
+        na.length === 15 && na[0].id === voor[0].id && na[0].answer_text === voor[0].answer_text,
       );
       ok(
         "maar de beoordeling is er wél opnieuw gedaan",
@@ -3439,16 +3537,36 @@ async function main(): Promise<void> {
       // vergelijking weg en blijft de basisanalyse overeind, in plaats van
       // andersom.
       const { rows: volgorde } = await db.client.query(
-        `select type, scheduled_for from public.jobs
-          where profile_id = $1 and type in ('reputation_offering', 'reputation_compare')
-          order by scheduled_for asc`,
+        `select type, min(scheduled_for) as start from public.jobs
+          where profile_id = $1 and type like 'reputation%'
+          group by type order by start asc`,
         [budgetProfielId],
       );
+      const soorten = volgorde.map((v) => v.type as string);
+      // ⚠️ De volgorde is een budgetmaatregel. De wachtrij claimt op
+      // `scheduled_for asc`, dus dit is wat afdwingt dat een vol budget de
+      // vergelijking laat vallen en de basisanalyse overeind laat.
       ok(
-        "de vergelijkingen staan achter de reputatietaken",
-        volgorde[0]?.type === "reputation_offering" &&
-          volgorde[volgorde.length - 1]?.type === "reputation_compare",
-        volgorde.map((v) => v.type).join(" → "),
+        "de vergelijkingen staan achter de basisanalyse",
+        soorten.indexOf("reputation_compare") > soorten.indexOf("reputation_brand") &&
+          soorten.indexOf("reputation_compare") > soorten.indexOf("reputation_evidence"),
+        soorten.join(" → "),
+      );
+      // En de bronnen helemaal achteraan, want die tellen de aangehaalde URL's
+      // van de HELE run.
+      ok(
+        "en de bronnen als laatste",
+        soorten.indexOf("reputation_sources") > soorten.indexOf("reputation_compare"),
+        soorten.join(" → "),
+      );
+      // ⚠️ De dienstvragen staan er nog NIET: die worden pas ingepland als het
+      // bewijscorpus gevuld is. Zouden ze meteen in de rij staan, dan treffen de
+      // eerste een leeg corpus aan en vallen die terug op zelf zoeken; dan is de
+      // helft van de diensten anders gemeten dan de andere helft.
+      ok(
+        "de dienstvragen wachten op het bewijscorpus",
+        !soorten.includes("reputation_offering"),
+        soorten.join(" → "),
       );
 
       // ⚠️ Het budget wordt PAS vol gezet nadat de basisanalyse gedraaid heeft.
@@ -3472,7 +3590,7 @@ async function main(): Promise<void> {
       };
 
       // Eerst de basisanalyse, zoals de wachtrij hem ook zou pakken.
-      await draaiEen(["reputation_brand", "reputation_offering"]);
+      await draaiEen(["reputation_evidence", "reputation_brand", "reputation_offering"]);
       const { rows: basisVoor } = await db.client.query(
         `select count(*)::int as n from public.reputation_answers
           where run_id = $1 and block in ('merk', 'aanbod')`,
@@ -3488,10 +3606,12 @@ async function main(): Promise<void> {
       );
 
       await draaiEen([
+        "reputation_evidence",
         "reputation_brand",
         "reputation_offering",
         "reputation_compare",
         "reputation_sources",
+        "reputation_market",
         "reputation_synthesis",
       ]);
 

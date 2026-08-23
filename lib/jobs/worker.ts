@@ -13,7 +13,14 @@ import "server-only";
  */
 import { createAdminClient } from "@/lib/supabase/admin";
 import { runJob, scheduleFollowUpAfterFailure } from "@/lib/jobs/handlers";
-import { HEAVY_JOB_TYPES, MAX_ATTEMPTS, backoffMinutes, type JobType } from "@/lib/jobs/types";
+import {
+  HEAVY_JOB_TYPES,
+  IO_BOUND_HEAVY_TYPES,
+  IO_BOUND_PARALLELISM,
+  MAX_ATTEMPTS,
+  backoffMinutes,
+  type JobType,
+} from "@/lib/jobs/types";
 import { workerTimeBudgetMs } from "@/lib/config";
 import { describeError } from "@/lib/errors";
 import type { Job } from "@/lib/types/database";
@@ -40,6 +47,21 @@ const TIME_BUDGET_MS = workerTimeBudgetMs;
  * marge voor het opslaan.
  */
 const HEAVY_JOB_RESERVE_MS = 220_000;
+
+/**
+ * Hoeveel tijd we vrijhouden voordat we aan een GROEP netwerkgebonden zware
+ * taken beginnen.
+ *
+ * Veel krapper dan de reservering hierboven, want deze taken bestaan uit korte
+ * aanroepen. Het merkblok doet vijf gegronde vragen parallel van elk 20 tot 40
+ * seconden; negentig seconden is daarvoor ruim. Loopt zo'n taak toch over het
+ * budget, dan kost dat hooguit dat de laatste vraag opnieuw gesteld wordt, en de
+ * idempotentie vangt af dat de rest niet dubbel betaald wordt.
+ *
+ * Dat is precies het verschil met contentgeneratie: daar kost een afgebroken
+ * aanroep het duurste model twee keer, hier kost hij één goedkope vraag.
+ */
+const IO_BOUND_RESERVE_MS = 90_000;
 
 /**
  * Hoeveel tijd er nog moet zijn voordat we een NIEUWE ronde taken claimen.
@@ -159,10 +181,38 @@ export async function runWorker(): Promise<WorkerResult> {
       await Promise.all(light.map((job) => processJob(admin, job, out)));
     }
 
+    // ── Netwerkgebonden zware taken mogen samen ──────────────────────────
+    //
+    // ⚠️ Zie IO_BOUND_HEAVY_TYPES in lib/jobs/types.ts voor het waarom. Kort: de
+    // reservering hieronder is gemaakt voor contentgeneratie, één lange aanroep
+    // die je niet halverwege kunt afbreken. Werk dat uit korte aanroepen bestaat
+    // en op het netwerk wacht, hoeft die reservering niet, en met die regel
+    // erop deed een reputatierun exact één taak per minuut en duurde hij 31
+    // minuten in plaats van 9.
+    //
+    // De tijdcontrole blijft wél gelden, alleen op de GROEP: er moet genoeg tijd
+    // zijn voor één zo'n taak, en dan draaien er hooguit drie tegelijk.
+    const ioBound = heavy.filter((j) => IO_BOUND_HEAVY_TYPES.has(j.type as JobType));
+    const langlopend = heavy.filter((j) => !IO_BOUND_HEAVY_TYPES.has(j.type as JobType));
+
+    for (let i = 0; i < ioBound.length; i += IO_BOUND_PARALLELISM) {
+      const groep = ioBound.slice(i, i + IO_BOUND_PARALLELISM);
+      if (Date.now() - startedAt + IO_BOUND_RESERVE_MS > TIME_BUDGET_MS && out.processed > 0) {
+        for (const job of groep) await releaseJob(admin, job);
+        continue;
+      }
+      // `allSettled` en niet `all`: één mislukte taak in de groep mag de andere
+      // twee niet meenemen. `processJob` vangt zelf al af en markeert, dus een
+      // afwijzing hier is een bug en geen normaal pad, maar hem laten
+      // doorslaan zou de hele werker-aanroep laten falen.
+      await Promise.allSettled(groep.map((job) => processJob(admin, job, out)));
+      if (Date.now() - startedAt >= TIME_BUDGET_MS) break;
+    }
+
     // Zware taken één voor één, en alleen als er nog genoeg tijd is. Anders
     // teruggelegd: half beginnen aan een pagina die het premium model moet schrijven is
     // duur en levert niets op.
-    for (const job of heavy) {
+    for (const job of langlopend) {
       // Past deze taak nog volledig binnen het budget? Zo niet: terugleggen. De
       // uitzondering is een lege ronde. Dan is dit de eerste taak van deze
       // aanroep en heeft hij de volle tijd, dus dan altijd beginnen. Zonder die

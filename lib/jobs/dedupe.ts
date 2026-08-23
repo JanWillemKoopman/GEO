@@ -122,4 +122,12 @@ export const dedupe = {
     offeringId ? `rep_cmp:${runId}:${offeringId}` : `rep_cmp:${runId}:merk`,
   reputationSources: (runId: string) => `rep_sources:${runId}`,
   reputationSynthesis: (runId: string) => `rep_synthesis:${runId}`,
+  reputationEvidence: (runId: string) => `rep_evidence:${runId}`,
+  /**
+   * ⚠️ Zelfde regel als bij de vergelijking: merkbreed eindigt op het woord
+   * `merk` en niet op een lege string. Een sleutel die op `:` eindigt ziet er in
+   * de database uit als een fout.
+   */
+  reputationMarket: (runId: string, offeringId: string | null) =>
+    offeringId ? `rep_markt:${runId}:${offeringId}` : `rep_markt:${runId}:merk`,
 };

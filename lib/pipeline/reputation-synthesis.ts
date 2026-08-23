@@ -32,7 +32,17 @@ import { callStructured } from "@/lib/openai/structured";
 import { MODELS } from "@/lib/openai/models";
 import { ReputationSynthesis } from "@/lib/schemas/reputation";
 import { loadContext, addNote } from "@/lib/pipeline/reputation-context";
-import { toneIndex, evidenceScore, consistency, runIsUsable } from "@/lib/reputation/score";
+import {
+  toneIndex,
+  evidenceScore,
+  consistency,
+  runIsUsable,
+  toneDistribution,
+  toneStderr,
+  spreadSentence,
+} from "@/lib/reputation/score";
+import { summariseMarket, marketSentence, type MarketOutcome } from "@/lib/reputation/market";
+import { isAggregator } from "@/lib/reputation/sources";
 import { summariseRanks, type RankSample } from "@/lib/reputation/rank";
 import { measureOrderBias, rankIsIndicative } from "@/lib/reputation/order-bias";
 import { positionInOrder } from "@/lib/reputation/rotate";
@@ -85,6 +95,7 @@ export async function runSynthesis(admin: Admin, runId: string): Promise<Synthes
     toneScore: a.tone_score,
     grounding: a.grounding,
     mentionsBrand: a.mentions_brand,
+    tone: a.tone,
   }));
 
   // ── Geen half cijfer bij te weinig antwoorden (§3.3, staat "Mislukt") ─────
@@ -109,6 +120,10 @@ export async function runSynthesis(admin: Admin, runId: string): Promise<Synthes
     isOwn: eigenDomeinen.has(s.domain),
     isReview: s.kind === "review",
     verifiedRating: s.verified && s.rating !== null,
+    // ⚠️ Verzamelsites tellen mee als vindplaats maar niet als onafhankelijke
+    // bron. Bij Van den Udenhout stonden autoscout24 en klantenvertellen allebei
+    // op 3.704 beoordelingen: de een toont het cijfer van de ander.
+    isAggregator: isAggregator(s.domain),
   }));
 
   const merkToon = toneIndex(scoreInput);
@@ -122,6 +137,42 @@ export async function runSynthesis(admin: Admin, runId: string): Promise<Synthes
     perVraag.set(a.question, lijst);
   }
   const merkEenduidigheid = consistency([...perVraag.values()]);
+  const verdeling = toneDistribution(scoreInput);
+  const merkStderr = toneStderr(scoreInput);
+
+  // ── De open marktvraag ────────────────────────────────────────────────────
+  //
+  // Dit is sinds 23 augustus 2026 het commercieel scherpste getal van het
+  // product: niet "hoe praat AI over je" maar "noemt AI je als een koper vraagt
+  // wie hij moet hebben".
+  const { data: marktRijen } = await admin
+    .from("reputation_market")
+    .select("answer_id, party_name, is_own_brand, position, of_parties, reason")
+    .eq("run_id", runId);
+
+  const perAntwoord = new Map<string, MarketOutcome>();
+  for (const r of (marktRijen ?? []) as {
+    answer_id: string;
+    party_name: string;
+    is_own_brand: boolean;
+    position: number;
+    of_parties: number;
+    reason: string | null;
+  }[]) {
+    const bestaand = perAntwoord.get(r.answer_id) ?? {
+      ownPosition: null,
+      ofParties: r.of_parties,
+      rivals: [],
+      all: [],
+    };
+    const bedrijf = { name: r.party_name, position: r.position, reason: r.reason ?? "" };
+    bestaand.all.push(bedrijf);
+    if (r.is_own_brand) bestaand.ownPosition = r.position;
+    else bestaand.rivals.push(bedrijf);
+    perAntwoord.set(r.answer_id, bestaand);
+  }
+
+  const markt = summariseMarket([...perAntwoord.values()]);
 
   // ── 3. Het volgorde-effect ────────────────────────────────────────────────
   const bias = measureOrderBias(buildObservations(answers, ranks));
@@ -151,6 +202,9 @@ export async function runSynthesis(admin: Admin, runId: string): Promise<Synthes
     rank: merkSamen,
     rivals: ctx.run.rivals ?? [],
     sourceMix: sourceMixSentence(sources.map((s) => ({ domain: s.domain, kind: s.kind }))),
+    // De twee zinnen die het verschil maken tussen een cijfer en een bevinding.
+    spread: spreadSentence(verdeling),
+    market: marketSentence(markt, ctx.brandName),
     strengths: sterk,
     weaknesses: kwetsbaar,
     offerings: perKnoop.map((o) => ({ name: o.offering_name, tone: o.tone_index })),
@@ -188,6 +242,13 @@ export async function runSynthesis(admin: Admin, runId: string): Promise<Synthes
       tone_index: merkToon,
       evidence_score: merkBewijs,
       consistency: merkEenduidigheid,
+      tone_distribution: verdeling as never,
+      tone_spread: verdeling.spread,
+      tone_stderr: merkStderr,
+      market_position: markt.position,
+      market_of: markt.of,
+      market_hit_rate: markt.hitRate,
+      market_rivals: markt.rivals,
       rank_score: merkSamen.score,
       rank_position: merkSamen.position,
       rank_of: merkSamen.of,
@@ -456,6 +517,8 @@ async function writeSynthesis(
     rank: ReturnType<typeof summariseRanks>;
     rivals: string[];
     sourceMix: string;
+    spread: string | null;
+    market: string;
     strengths: string[];
     weaknesses: string[];
     offerings: { name: string; tone: number | null }[];
@@ -465,6 +528,8 @@ async function writeSynthesis(
     `Bedrijf: ${args.brandName}`,
     `Toon: ${args.toneIndex === null ? "geen oordeel te vellen" : `${args.toneIndex} op een schaal van -100 tot 100, dus ${toneWord(args.toneIndex)}`}`,
     `Bewijskracht: ${args.evidenceScore} op 100. ${args.sourceMix}`,
+    args.spread ? `Verdeeldheid: ${args.spread}` : "",
+    `In de markt: ${args.market}`,
     args.rank.position !== null
       ? `Plaats tegenover de concurrenten: gemiddeld ${args.rank.position} van ${args.rank.of}, ` +
         `vergeleken met ${args.rivals.join(", ")}.` +
