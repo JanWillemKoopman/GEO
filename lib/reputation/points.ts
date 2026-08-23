@@ -80,10 +80,49 @@ const MAX_LENGTE = 160;
  * een hele alinea. Alles daartussen blijft staan: bij twijfel houden we het
  * punt, want een weggegooide bevinding kost meer dan een rare regel.
  */
+/**
+ * Aanhalingstekens in alle vormen die een model gebruikt.
+ *
+ * ⚠️ Niet alleen het rechte teken: modellen leveren vrijwel altijd de typografische
+ * variant, en een controle op alleen `"` mist dan alles.
+ */
+const AANHALINGSTEKENS = /^["'“”„«»‘’]+|["'“”„«»‘’]+$/g;
+
+/**
+ * Is dit een letterlijk citaat in plaats van een eigenschap?
+ *
+ * ── ⚠️ GEVONDEN IN DE RUN OP GASSERVICE BRABANT (23 augustus 2026) ──────────
+ *
+ * De sterke punten bevatten zowel "afspraken nakomen" als "Werken netjes. Komen
+ * op tijd.", en de zwakke punten zowel "afspraken niet nagekomen" als "Komen
+ * afspraken niet na!". Dat is twee keer hetzelfde punt, één keer als eigenschap
+ * en één keer als citaat.
+ *
+ * Op het scherm staat dan onder "wat AI structureel aan je koppelt" een lijstje
+ * waarin de helft dubbel is. En het citaat hoort er sowieso niet: daar is het
+ * veld `citaten` voor, dat de klant onder het antwoord kan nalezen. Een lijst
+ * met eigenschappen is een agenda om aan te werken; een lijst met citaten is
+ * een bloemlezing.
+ *
+ * De ontdubbeling ving dit niet, en kon dat ook niet: "komen afspraken niet"
+ * en "afspraken niet nagekomen" beginnen met verschillende woorden.
+ */
+function isCitaat(v: string): boolean {
+  // Begint én eindigt met een aanhalingsteken: onmiskenbaar een citaat.
+  const heeftOpening = /^["'“„«‘]/.test(v);
+  const heeftSluiting = /["'”»’]$/.test(v.replace(/[.!?]+$/, ""));
+  if (heeftOpening && heeftSluiting) return true;
+
+  // Of het leest als een volzin uit de mond van een klant: eindigt op een
+  // uitroepteken of vraagteken. Een eigenschap doet dat nooit.
+  return /[!?]$/.test(v);
+}
+
 export function isUsablePoint(raw: string): boolean {
   const v = raw.trim();
   if (v.length < 3) return false;
   if (v.length > MAX_LENGTE) return false;
+  if (isCitaat(v)) return false;
 
   const laag = v.toLowerCase();
   return !OVER_DE_REVIEWS.some((m) => laag.includes(m));
@@ -154,7 +193,9 @@ export function cleanPoints(list: string[]): string[] {
   const uit: string[] = [];
 
   for (const raw of list) {
-    const v = raw.trim();
+    // Losse aanhalingstekens eromheen weg: "deskundigheid" en deskundigheid zijn
+    // hetzelfde punt, en met het teken erbij ontdubbelen ze niet.
+    const v = raw.trim().replace(AANHALINGSTEKENS, "").trim();
     if (!isUsablePoint(v)) continue;
 
     const sleutel = dedupeSleutel(v);

@@ -9002,6 +9002,25 @@ group("een uitspraak over de reviews is geen pluspunt", () => {
     ok(`valt af: "${fout.slice(0, 40)}"`, !isUsablePoint(fout));
   }
 
+  // ⚠️ EEN CITAAT IS GEEN EIGENSCHAP (Gasservice Brabant, 23 augustus 2026).
+  // De sterke punten bevatten zowel "afspraken nakomen" als "Werken netjes.
+  // Komen op tijd.", en de zwakke zowel "afspraken niet nagekomen" als "Komen
+  // afspraken niet na!". Twee keer hetzelfde punt, en de ontdubbeling kon dat
+  // niet vangen omdat de woorden anders beginnen. Een lijst met eigenschappen
+  // is een agenda om aan te werken; een lijst met citaten is een bloemlezing,
+  // en daar is het veld `citaten` voor.
+  for (const citaat of [
+    "“Goed, snel, netjes”",
+    "“Komen afspraken niet na!”",
+    "“Het bedrag was dus een zeer onaangename verrassing.”",
+    "“Werken netjes. Komen op tijd.”",
+  ]) {
+    ok(`een citaat valt af: ${citaat.slice(0, 28)}`, !isUsablePoint(citaat));
+  }
+  // Maar de eigenschap die hetzelfde zegt blijft staan.
+  ok("de eigenschap ernaast blijft", isUsablePoint("afspraken niet nagekomen"));
+  ok("en deze ook", isUsablePoint("onverwacht hoog bedrag"));
+
   // Een hele alinea is geen punt maar een samenvatting, en die hoort in de
   // synthese.
   ok("een alinea valt af", !isUsablePoint("x".repeat(200)));
