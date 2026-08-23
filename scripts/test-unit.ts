@@ -383,7 +383,7 @@ import {
   WEAK_WEIGHT,
 } from "@/lib/reputation/score";
 import { toneScore, toneWord, isToneLabel, TONE_LABELS } from "@/lib/reputation/tone";
-import { isUsablePoint, cleanPoints } from "@/lib/reputation/points";
+import { isUsablePoint, cleanPoints, dedupeSleutel } from "@/lib/reputation/points";
 import {
   citedUrlsFrom,
   knownKind,
@@ -9022,6 +9022,20 @@ group("een uitspraak over de reviews is geen pluspunt", () => {
   ]);
   eq("ontdubbeld en opgeschoond", opgeschoond.join(" | "), "levertijd valt tegen | persoonlijke begeleiding");
   ok("hooguit acht punten", cleanPoints(Array.from({ length: 20 }, (_, i) => `punt ${i} van de lijst`)).length === 8);
+
+  // ⚠️ De synthese groepeert punten over ANTWOORDEN heen met dezelfde sleutel.
+  // Met een eigen kopie telden "persoonlijke begeleiding" en "persoonlijke
+  // begeleiding bij aankoop" als twee patronen, en stonden ze allebei in de
+  // sterke punten van de eerste echte run.
+  eq(
+    "een uitbreiding van hetzelfde punt is hetzelfde punt",
+    dedupeSleutel("persoonlijke begeleiding"),
+    dedupeSleutel("persoonlijke begeleiding bij aankoop"),
+  );
+  ok(
+    "maar een ander tweede woord is een ander punt",
+    dedupeSleutel("persoonlijke begeleiding") !== dedupeSleutel("persoonlijke aandacht"),
+  );
 });
 
 group("de bewijskracht: alleen de eigen site levert een laag getal", () => {

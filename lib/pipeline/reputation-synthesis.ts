@@ -38,6 +38,7 @@ import { measureOrderBias, rankIsIndicative } from "@/lib/reputation/order-bias"
 import { positionInOrder } from "@/lib/reputation/rotate";
 import { toneWord } from "@/lib/reputation/tone";
 import { sourceMixSentence } from "@/lib/reputation/sources";
+import { dedupeSleutel } from "@/lib/reputation/points";
 import { CRITERION_LABEL } from "@/lib/types/database";
 import type {
   ReputationAnswer,
@@ -310,7 +311,12 @@ function patronen(items: string[]): string[] {
   for (const raw of items) {
     const v = raw.trim();
     if (!v) continue;
-    const sleutel = v.toLowerCase().split(/\s+/).slice(0, 3).join(" ");
+    // ⚠️ DEZELFDE sleutel als `cleanPoints()` gebruikt, en niet een eigen kopie.
+    // Met een eigen kopie telden "persoonlijke begeleiding" en "persoonlijke
+    // begeleiding bij aankoop" als twee patronen, en stonden ze allebei in de
+    // sterke punten van de eerste echte run. Twee functies die hetzelfde zouden
+    // moeten doen drijven uit elkaar (conventie P2).
+    const sleutel = dedupeSleutel(v);
     const bestaand = groepen.get(sleutel);
     if (bestaand) bestaand.aantal++;
     else groepen.set(sleutel, { tekst: v, aantal: 1 });

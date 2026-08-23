@@ -93,7 +93,7 @@ export function isUsablePoint(raw: string): boolean {
  * Schoont een lijst punten op: leeg eruit, meta eruit, ontdubbeld, en hooguit
  * acht. Meer dan acht leest niemand, en de synthese vat ze toch samen.
  *
- * ⚠️ De ontdubbeling kijkt naar de eerste drie woorden ná het wegstrepen van
+ * ⚠️ De ontdubbeling kijkt naar de eerste twee woorden ná het wegstrepen van
  * frequentiebijwoorden. "levertijd valt tegen" en "levertijd valt soms tegen"
  * zijn hetzelfde bezwaar; als twee losse regels blijven ze allebei onder de
  * patroondrempel van de synthese, en dan verdwijnt een bezwaar dat juist wél
@@ -121,12 +121,31 @@ const BIJWOORDEN = new Set([
   "nogal",
 ]);
 
-function dedupeSleutel(punt: string): string {
+/**
+ * De sleutel waarop twee punten als hetzelfde gelden.
+ *
+ * Geëxporteerd omdat de synthese hem óók nodig heeft: die groepeert punten over
+ * ANTWOORDEN heen om te bepalen wat er vaker dan één keer terugkwam. Zou hij een
+ * eigen sleutel gebruiken, dan tellen "persoonlijke begeleiding" en
+ * "persoonlijke begeleiding bij aankoop" als twee patronen en staan ze allebei
+ * op het scherm. Dat gebeurde in de eerste echte run.
+ */
+export function dedupeSleutel(punt: string): string {
   return punt
     .toLowerCase()
     .split(/[^a-z0-9]+/i)
     .filter((w) => w && !BIJWOORDEN.has(w))
-    .slice(0, 3)
+    // ⚠️ TWEE woorden en niet drie. Met drie viel "persoonlijke begeleiding"
+    // (twee woorden) niet samen met "persoonlijke begeleiding bij aankoop"
+    // (vier), want de eerste levert dan een sleutel van twee woorden op en de
+    // tweede een van drie. Precies dat paar stond allebei in de sterke punten
+    // van de eerste echte run.
+    //
+    // Twee is krap genoeg om echte verschillen te behouden ("persoonlijke
+    // begeleiding" tegenover "persoonlijke aandacht", "hoge kosten" tegenover
+    // "hoge kwaliteit") en ruim genoeg om een uitbreiding van hetzelfde punt te
+    // herkennen.
+    .slice(0, 2)
     .join(" ");
 }
 
