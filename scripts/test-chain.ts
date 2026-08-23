@@ -3020,6 +3020,24 @@ async function main(): Promise<void> {
         String(zonderBron?.tone),
       );
 
+      // ⚠️ LOF MÉT KRITIEK IS GEMENGD, HOE VRIENDELIJK HET LABEL OOK IS.
+      //
+      // Op Gasservice Brabant kregen 18 van de 19 antwoorden "overwegend
+      // positief" terwijl er gemiddeld 5,3 concrete bezwaren in stonden,
+      // waaronder een scheef aangesloten rookgasafvoer en een conflict over een
+      // gemeld gaslek. De merkindex kwam daardoor op +47 uit bij een
+      // gasinstallatiebedrijf. De stub biedt hetzelfde geval aan: een
+      // vriendelijk label met drie bezwaren eronder.
+      const vriendelijkMetKritiek = antwoorden.filter(
+        (a) => (a.cons as string[]).length >= 2 && a.mentions_brand === true,
+      );
+      ok(
+        "een vriendelijk oordeel met twee of meer bezwaren wordt gemengd",
+        vriendelijkMetKritiek.length > 0 &&
+          vriendelijkMetKritiek.every((a) => a.tone !== "positief" && a.tone !== "overwegend_positief"),
+        vriendelijkMetKritiek.map((a) => `${a.tone}(${(a.cons as string[]).length})`).join(", "),
+      );
+
       const anderBedrijf = antwoorden.find((a) => a.mentions_brand === false);
       ok("het antwoord over een ander bedrijf is herkend", Boolean(anderBedrijf));
       // ⚠️ Exact de fout die bij `mention_role` optrad: structured output kiest

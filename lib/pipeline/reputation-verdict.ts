@@ -54,6 +54,11 @@ const VERDICT_SYSTEM =
   "in in plaats van iets aannemelijks. " +
   "Weet je het niet, kies dan 'onbekend'. Dat is een geldig antwoord en veel beter dan een gok: " +
   "een gok wordt hier een cijfer op het scherm van een ondernemer. " +
+  "⚠️ KIES 'gemengd' ZODRA ER LOF ÉN KRITIEK IN STAAT. Niet 'overwegend positief'. Dat laatste " +
+  "is alleen juist als er nauwelijks iets tegenover de lof staat. Staan er twee of meer concrete " +
+  "bezwaren in de tekst, dan is het beeld per definitie gemengd, ook al klinkt de tekst " +
+  "vriendelijk en ook al zijn er meer pluspunten dan minpunten. Een tekst met lof en met drie " +
+  "klachten over de kosten is gemengd, geen overwegend positief oordeel. " +
   "Pluspunten en minpunten neem je zo letterlijk mogelijk over uit de tekst, niet in je eigen " +
   "woorden samengevat. " +
   "⚠️ Een pluspunt of minpunt is een EIGENSCHAP van het bedrijf: waar het goed of slecht in is, " +
@@ -121,7 +126,43 @@ export async function judgeAnswer(args: {
   // als het model overtuigd "positief" invulde: dan is hij positief over iemand
   // anders.
   const mentionsBrand = v.noemt_merk === true;
-  const score = mentionsBrand ? toneScore(v.toon) : null;
+
+  // ── ⚠️ VANGNET 7: LOF MÉT KRITIEK IS GEMENGD, HOE VRIENDELIJK DE TEKST OOK IS
+  //
+  // Gemeten op Gasservice Brabant (23 augustus 2026), en dit is de scherpste
+  // vlakheidsfout die dit product tot nu toe gemaakt heeft:
+  //
+  //   18 van de 19 beoordeelde antwoorden kregen "overwegend_positief"
+  //   18 van die 18 bevatten kritiek
+  //   17 van die 18 bevatten TWEE OF MEER concrete bezwaren
+  //   gemiddeld 5,3 bezwaren per antwoord
+  //   precies één antwoord kreeg "gemengd"
+  //
+  // Wat er onder dat label stond bij een GASINSTALLATIEBEDRIJF: "scheef
+  // aangesloten rookgasafvoer", "geen controle van de gasdichtheid", en "een
+  // conflict over het niet doorgaan van een afspraak bij een gemeld gaslek".
+  //
+  // Daarmee kwam de merkindex op +47 uit en de verdeeldheid op 5, dus het scherm
+  // zou "overwegend positief, eenduidig beeld" hebben getoond aan een bedrijf
+  // waarover AI veiligheidsklachten rapporteert. Dat is precies de uitkomst
+  // waartegen §2.1 het hele onderdeel bewapent, alleen verplaatst: niet de
+  // inhoud werd vlak maar het etiket erboven.
+  //
+  // De prompt is aangescherpt, maar dat is een intentie (conventie 1). Dit is de
+  // garantie: een antwoord met twee of meer concrete bezwaren KAN niet positief
+  // zijn. Het is gemengd, en dat is geen strengere lezing maar een letterlijke:
+  // er staat lof en er staat kritiek.
+  //
+  // Twee en niet één, omdat één losse kanttekening in een verder lovend verhaal
+  // wél als overwegend positief mag gelden. Bij twee is het een patroon.
+  const MIN_BEZWAREN_VOOR_GEMENGD = 2;
+  const bezwaren = schoonAantal(v.minpunten);
+  const teVriendelijk =
+    bezwaren >= MIN_BEZWAREN_VOOR_GEMENGD &&
+    (v.toon === "positief" || v.toon === "overwegend_positief");
+
+  const toonLabel = teVriendelijk ? "gemengd" : v.toon;
+  const score = mentionsBrand ? toneScore(toonLabel) : null;
 
   // ── Vangnet 3 ─────────────────────────────────────────────────────────────
   // Een citaat dat niet letterlijk in het antwoord staat, is verzonnen. De klant
@@ -133,7 +174,7 @@ export async function judgeAnswer(args: {
   );
 
   return {
-    tone: mentionsBrand ? v.toon : "onbekend",
+    tone: mentionsBrand ? toonLabel : "onbekend",
     toneScore: score,
     // Ging het antwoord niet over dit merk, dan zijn ook de plus- en minpunten
     // van iemand anders. Weggooien in plaats van bewaren: ze zouden anders in
@@ -154,6 +195,16 @@ export async function judgeAnswer(args: {
     // ooit, dan moet een oude run nog steeds uit te leggen zijn.
     model: MODELS.volume,
   };
+}
+
+/**
+ * Hoeveel BRUIKBARE bezwaren een antwoord bevat.
+ *
+ * Telt na dezelfde opschoning die de punten zelf ondergaan, want een lijst van
+ * vijf waarvan er drie citaten of dooddoeners zijn, is geen vijf bezwaren.
+ */
+function schoonAantal(punten: string[]): number {
+  return cleanPoints(punten).length;
 }
 
 /** Witruimte en hoofdletters weg, zodat een citaat niet op een spatie sneuvelt. */
