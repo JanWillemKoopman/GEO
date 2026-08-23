@@ -130,7 +130,7 @@ export default async function ReputatiePage({
             een toon, de bewijskracht eronder, en de plaats die AI je geeft als hij moet kiezen.
           </p>
           <p className="text-sm text-muted">
-            Ongeveer 34 vragen aan ChatGPT, 6 tot 9 minuten, ongeveer 50 cent.
+            Ongeveer 34 vragen aan ChatGPT, een halfuur werk, ongeveer 75 cent.
           </p>
         </div>
         <StartReputationButton

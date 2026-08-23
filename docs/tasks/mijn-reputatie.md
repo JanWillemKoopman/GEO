@@ -709,7 +709,19 @@ ongeveer **€1,55**. Beide binnen €3, en het plafond vangt de rest.
 
 **Doorlooptijd.** Een gegronde aanroep duurt 20 tot 40 seconden, een vergelijking eerder 40 dan 20
 omdat er over vier bedrijven gezocht wordt. Verdeeld over de wachtrij, met de knopen parallel, landt
-de standaardmodus op **6 tot 9 minuten** en de diepe op **14 tot 20 minuten**. De standaardmodus
+de standaardmodus op **6 tot 9 minuten** en de diepe op **14 tot 20 minuten**.
+
+> ⚠️ **NAGEMETEN OP 23 AUGUSTUS 2026, EN DEZE SCHATTING KLOPT NIET.** De aanname "met de knopen
+> parallel" gaat niet op. De werker houdt 220 van zijn 240 seconden vrij voordat hij aan een zware
+> taak begint (`HEAVY_JOB_RESERVE_MS` in `lib/jobs/worker.ts`), dus hij doet er één per aanroep, en
+> de cron vuurt één keer per minuut. Gemeten bij Van den Udenhout: **exact één zware taak per
+> minuut**, dertien taken in dertien minuten. Met 28 taken komt de standaardmodus daarmee op
+> **ongeveer een halfuur**, niet op 6 tot 9 minuten.
+>
+> Dat is geen fout in dit onderdeel maar een eigenschap van de wachtrij, en die reservering staat er
+> met reden: hij is ingevoerd nadat contentgeneratie 504's veroorzaakte. De schermteksten noemen
+> daarom een halfuur. Sneller maken kan alleen door aan die reservering te draaien, en dat raakt de
+> hele app, dus dat is een eigen besluit met een eigen meting. De standaardmodus
 blijft daarmee in de orde van de onboarding, die ongeveer 7,5 minuut duurt. De diepe modus is
 nadrukkelijk geen scherm waar je bij wacht, en dat hoort het startscherm ook te zeggen.
 
