@@ -40,6 +40,7 @@ import "server-only";
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 import {
+  addNote,
   askAndStore,
   budgetAllows,
   loadContext,
@@ -193,6 +194,21 @@ export async function runCompareBlock(
       // dus de volgende poging pakt hem op zonder de dure vraag te herhalen.
       console.error(`Beoordeling van de vergelijking mislukt in run ${runId}:`, err);
     }
+  }
+
+  // ⚠️ Een half uitgevoerde rotatiereeks is geen stilte meer. Bij Gasservice
+  // Brabant kwam er één van de drie merkbrede rotaties terug; de andere twee
+  // sneuvelden in de `catch` hierboven met alleen een logregel. De uitkomst
+  // wordt daardoor terecht als indicatief gemarkeerd (`rankIsIndicative` telt
+  // het werkelijke aantal), maar de klant zag nergens wáárom, en drie rotaties
+  // waren juist de reden dat die chip zou vervallen.
+  if (gedaan < rotations) {
+    await addNote(
+      admin,
+      runId,
+      `${rotations - gedaan} van de ${rotations} vergelijkingen leverde niets op. De plaats ` +
+        `hieronder rust daardoor op minder rondes en blijft een indicatie.`,
+    );
   }
 
   await bumpDone(admin, runId);
