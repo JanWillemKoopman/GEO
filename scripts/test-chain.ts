@@ -3110,14 +3110,45 @@ async function main(): Promise<void> {
         "select * from public.reputation_sources where run_id = $1 order by citations desc",
         [runId],
       );
-      ok("er zijn bronnen geteld", bronnen.length >= 2, `${bronnen.length}`);
+      // ⚠️ NUL BRONNEN, EN DAT IS DE JUISTE UITKOMST. Deze ketentest draait met
+      // web-zoeken UIT (zie bovenaan dit bestand: een test die het internet
+      // nodig heeft is geen test maar een gok). Er is dus niets opgezocht, en
+      // dan is een bronnenlijst van nul eerlijk in plaats van te laag.
+      //
+      // Vóór 23 augustus 2026 stonden hier wél bronnen, en dat was een test die
+      // om de verkeerde reden slaagde: de URL's lekten uit ONGEGRONDE antwoorden
+      // de telling in. Precies de fout die op productie de bewijskracht
+      // opblies. Dat `tallySources` en de indeling zelf werken, staat nu in
+      // test-unit.ts, waar het zonder database te toetsen is.
+      ok("zonder zoeken worden er geen bronnen geteld", bronnen.length === 0, `${bronnen.length}`);
+      // ⚠️ EN GEEN ENKELE UIT EEN ONGEGROND ANTWOORD. De stub laat de vraag
+      // zonder opzoeken twee verzonnen domeinen noemen, precies zoals op
+      // productie gebeurde. Zulke adressen kan het model niet gecontroleerd
+      // hebben, en als bron geteld blazen ze de bewijskracht op: het cijfer dat
+      // juist moet voorkomen dat een vriendelijk antwoord over een onbekend
+      // bedrijf als een goede reputatie leest.
+      ok(
+        "een verzonnen bron uit een ongegrond antwoord telt niet mee",
+        !bronnen.some((b) => String(b.domain).includes("verzonnen")),
+        bronnen.map((b) => b.domain).join(", "),
+      );
+      const ongegrond = antwoorden.filter((a) => a.web_search === false);
+      ok(
+        "en het ongegronde antwoord draagt geen enkele bron",
+        ongegrond.length > 0 && ongegrond.every((a) => (a.cited_urls as string[]).length === 0),
+        `${ongegrond.length} ongegronde antwoorden`,
+      );
+      // Het ANTWOORD blijft wel volledig bewaard: dat is blok 2 van het scherm,
+      // wat het model uit zichzelf weet.
+      ok(
+        "maar het antwoord zelf blijft bewaard",
+        ongegrond.every((a) => String(a.answer_text ?? "").length > 40),
+      );
       // ⚠️ De vaste platformlijst wint van het model. De stub deelde ELK domein
       // in als vakpers; trustpilot.com hoort tóch als reviewplatform te staan.
-      const trustpilot = bronnen.find((b) => b.domain === "trustpilot.com");
-      ok("trustpilot is een reviewplatform, wat het model er ook van vindt", trustpilot?.kind === "review", String(trustpilot?.kind));
-      // ⚠️ Een cijfer uit een AI-antwoord is een gok tot het bewezen is. De
-      // crawl kan hier niet slagen (geen netwerk), dus het cijfer mag er staan
-      // maar NOOIT als bevestigd.
+      // ⚠️ Een cijfer uit een AI-antwoord is een gok tot het bewezen is. Zonder
+      // geslaagde crawl mag niets als bevestigd gelden, en zonder bronnen valt
+      // er sowieso niets te bevestigen.
       ok(
         "geen enkel reviewcijfer geldt als bevestigd zonder geslaagde crawl",
         bronnen.every((b) => b.verified === false),

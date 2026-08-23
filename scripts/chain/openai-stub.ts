@@ -438,6 +438,7 @@ export function createPlainStub(log: StubLog[]) {
   return async (opts: {
     system: string;
     user: string;
+    webSearch?: boolean;
   }): Promise<{ text: string; raw: unknown }> => {
     log.push({ schemaName: "plain", user: opts.user });
 
@@ -457,6 +458,20 @@ export function createPlainStub(log: StubLog[]) {
           "Op Trustpilot staat een 4,6 op basis van 128 beoordelingen: " +
           "https://trustpilot.com/review/fysi-unique.nl. Daarnaast staat er een vermelding op " +
           "https://vakblad.nl/artikel en op https://fysi-unique.nl/over-ons.",
+        raw: { stub: true },
+      };
+    }
+
+    // ⚠️ De ONGEGRONDE merkvraag geeft URL's terug die het model niet gezien kan
+    // hebben, precies zoals op productie gebeurde: bij Van den Udenhout kwam er
+    // een verzonnen domein uit een aanroep die niet mocht zoeken. Die adressen
+    // horen niet in de bronnentelling, want ze blazen de bewijskracht op met
+    // verzinsels.
+    if (!opts.webSearch) {
+      return {
+        text:
+          "Fysi-Unique is een fysiotherapiepraktijk. Klanten noemen het team deskundig. " +
+          "Zie https://verzonnen-fysi-unique.nl/over-ons en https://ook-verzonnen.nl/praktijk.",
         raw: { stub: true },
       };
     }

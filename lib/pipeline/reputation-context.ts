@@ -17,6 +17,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { getEngine } from "@/lib/engines/registry";
 import { measureWebSearchEnabled } from "@/lib/config";
 import { decideStep, spentOnRunUsd, type ReputationStep } from "@/lib/reputation/budget";
+import { citedUrlsFrom } from "@/lib/reputation/sources";
 import type {
   Profile,
   ReputationAnswer,
@@ -132,6 +133,7 @@ export async function askAndStore(
   }
 
   const engine = getEngine(ctx.run.engine as "openai");
+  const gegrond = ask.webSearch && measureWebSearchEnabled;
   const r = await engine.callPlain({
     system: REPUTATION_SYSTEM,
     user: ask.question,
@@ -139,7 +141,7 @@ export async function askAndStore(
     // (ontwikkelfase), dan draaien de gegronde blokken zonder zoeken. Dat is een
     // ander antwoord, en dat leggen we vast in `web_search` zodat de uitslag
     // niet later als representatief gelezen wordt.
-    webSearch: ask.webSearch && measureWebSearchEnabled,
+    webSearch: gegrond,
     meta: {
       kind: `reputation_${ask.block}`,
       profileId: ctx.profile.id,
@@ -174,11 +176,13 @@ export async function askAndStore(
       block: ask.block,
       offering_id: ask.offeringId,
       question: ask.question,
-      web_search: ask.webSearch && measureWebSearchEnabled,
+      web_search: gegrond,
       repeat_index: ask.repeatIndex,
       answer_text: r.text,
       raw_json: r.raw as never,
-      cited_urls: extractUrls(r.text, r.raw),
+      // ⚠️ Een antwoord dat niet mocht opzoeken draagt geen bronnen. De reden
+      // staat bij `citedUrlsFrom()`, en hij is duurder dan hij lijkt.
+      cited_urls: citedUrlsFrom(r.text, r.raw, gegrond),
       party_order: ask.partyOrder ?? [],
       model: r.model,
       cost_usd: r.costUsd,
@@ -218,34 +222,6 @@ async function findAnswer(
   return (data as ReputationAnswer | null) ?? null;
 }
 
-/**
- * De URL's die in dit antwoord zijn aangehaald.
- *
- * Uit de tekst zelf, want de Responses API levert zijn citaties in een structuur
- * die per toolversie verschilt en die we hier niet willen vastpinnen. Een URL
- * die het model noemt maar niet in zijn citaties zet, telt gewoon mee: voor de
- * vraag "waar haalt AI dit vandaan" maakt dat verschil niet uit.
- */
-export function extractUrls(text: string, raw: unknown): string[] {
-  const gevonden = new Set<string>();
-
-  for (const m of text.matchAll(/https?:\/\/[^\s<>()"'\]]+/g)) {
-    // Afsluitende leestekens horen niet bij de URL.
-    gevonden.add(m[0].replace(/[.,;:]+$/, ""));
-  }
-
-  // En wat de API zelf als citatie aanleverde, voor zover herkenbaar. Defensief
-  // uitgelezen: liever een gemiste bron dan een harde fout in een dure taak.
-  try {
-    for (const m of JSON.stringify(raw ?? {}).matchAll(/"url"\s*:\s*"(https?:[^"]+)"/g)) {
-      gevonden.add(m[1]);
-    }
-  } catch {
-    // Niet te serialiseren, dan blijft het bij wat er in de tekst stond.
-  }
-
-  return [...gevonden];
-}
 
 /**
  * De budgetpoort vóór een zware stap (§2.3 en §7).

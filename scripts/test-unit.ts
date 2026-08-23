@@ -384,6 +384,7 @@ import {
 import { toneScore, toneWord, isToneLabel, TONE_LABELS } from "@/lib/reputation/tone";
 import { isUsablePoint, cleanPoints } from "@/lib/reputation/points";
 import {
+  citedUrlsFrom,
   knownKind,
   tallySources,
   sourceMixSentence,
@@ -9006,6 +9007,52 @@ group("de domeinindeling herkent een reviewplatform en telt de eigen site apart"
   ok(
     "en zonder bronnen zegt hij dat er niets is",
     sourceMixSentence([]).includes("geen enkele controleerbare bron"),
+  );
+});
+
+group("een bron die niet opgezocht is, is geen bron", () => {
+  // ⚠️ HET GEVAL DAT DIT AFVANGT, EN HET IS OP PRODUCTIE GEBEURD (23 augustus
+  // 2026). De ONGEGRONDE merkvraag over Van den Udenhout leverde vijf URL's op,
+  // waaronder `vandenudenhout.nl`, terwijl de klant op `udenhout.nl` zit. Het
+  // model mocht niet zoeken, dus het herinnerde zich een patroon en vulde de
+  // rest aan.
+  const tekst =
+    "Van den Udenhout is een Brabants autobedrijf. Zie https://www.vandenudenhout.nl/over-ons " +
+    "en https://www.volkswagen.nl/dealers.";
+
+  eq("zonder zoeken levert het niets op", citedUrlsFrom(tekst, {}, false).join(","), "");
+  ok("mét zoeken wél", citedUrlsFrom(tekst, {}, true).length === 2);
+
+  // ⚠️ Waarom dit meer is dan een rare link: die URL's gaan de bronnentelling in
+  // en verhogen de BEWIJSKRACHT. Dat is precies het cijfer dat moet voorkomen
+  // dat een vriendelijk antwoord over een onbekend bedrijf als een goede
+  // reputatie leest. Een verzonnen domein telt bovendien als EXTERN, en die
+  // wegen het zwaarst; het vangnet werd dus opgeblazen door het gevaar
+  // waartegen het beschermt.
+  const metVerzinsels = evidenceScore(
+    citedUrlsFrom(tekst, {}, true).map((u) => ({
+      domain: u,
+      isOwn: false,
+      isReview: false,
+      verifiedRating: false,
+    })),
+  );
+  const zonder = evidenceScore(
+    citedUrlsFrom(tekst, {}, false).map((u) => ({
+      domain: u,
+      isOwn: false,
+      isReview: false,
+      verifiedRating: false,
+    })),
+  );
+  ok("en de bewijskracht blijft daardoor eerlijk", zonder === 0 && metVerzinsels > 0, `${zonder} tegen ${metVerzinsels}`);
+
+  // Afsluitende leestekens horen niet bij de URL, anders telt hetzelfde domein
+  // twee keer.
+  eq(
+    "een punt achter de URL valt eraf",
+    citedUrlsFrom("Zie https://trustpilot.com/review/x.", {}, true).join(","),
+    "https://trustpilot.com/review/x",
   );
 });
 
