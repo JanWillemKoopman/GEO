@@ -132,11 +132,38 @@ export function measureOrderBias(observations: OrderObservation[]): OrderBiasRes
 }
 
 /**
+ * Hoeveel partijen het model minstens moet kennen voordat een plaats een uitslag
+ * mag heten.
+ *
+ * ⚠️ DRIE, EN DAT IS EEN REPARATIE UIT DE EERSTE ECHTE RUN (23 augustus 2026).
+ *
+ * Bij Van den Udenhout kende ChatGPT twee van de vier partijen niet: de twee
+ * kleine regionale autobedrijven. Wat overbleef was de klant tegenover
+ * Alfa Romeo, een fabrikant. De plaats werd daarmee "eerste van twee", en omdat
+ * er drie rotaties onder lagen en het volgorde-effect binnen de marge viel,
+ * kwam die als HARDE UITSLAG op het scherm.
+ *
+ * Dat is het misleidendste getal dat dit product kan tonen. Twee is genoeg om
+ * een score te BEREKENEN (§4.4, vangnet 3: eerste van één is geen uitslag),
+ * maar niet genoeg om te zeggen waar iemand in zijn markt staat. Een duel is
+ * geen ranglijst.
+ */
+export const MIN_KNOWN_FOR_VERDICT = 3;
+
+/**
  * Mag de plaats als uitslag op het scherm, of alleen als indicatie? (§4.4)
  *
- * ⚠️ Twee voorwaarden, en ze moeten ALLEBEI gelden. Genoeg rotaties zonder een
- * gemeten volgorde-effect is niet genoeg: als vooraan staan structureel wint,
- * dan zeggen drie rotaties alleen dat het effect drie keer optrad.
+ * ⚠️ Drie voorwaarden, en ze moeten ALLE DRIE gelden:
+ *
+ *   1. genoeg rotaties, want één vergelijking is een momentopname;
+ *   2. geen gemeten volgorde-effect, want als vooraan staan structureel wint
+ *      zeggen drie rotaties alleen dat het effect drie keer optrad;
+ *   3. genoeg partijen die het model daadwerkelijk kende, want anders vergelijk
+ *      je de klant met wie er toevallig bekend genoeg was.
+ *
+ * De derde is er na de eerste echte run bijgekomen. Zie
+ * `MIN_KNOWN_FOR_VERDICT` hierboven voor wat er zonder die voorwaarde op het
+ * scherm zou staan.
  *
  * Standaard `true` (indicatief). De veilige kant is hier "dit is een indicatie",
  * want een plaats die stelliger op het scherm staat dan hij is, is precies de
@@ -147,7 +174,13 @@ export function rankIsIndicative(args: {
   rotations: number;
   /** Het gemeten volgorde-effect over de hele run. */
   bias: OrderBiasResult;
+  /**
+   * Hoeveel partijen het model kende, inclusief de klant. Dat is de noemer
+   * waarop de plaats rust, niet het aantal partijen dat de vraag in ging.
+   */
+  knownParties: number;
 }): boolean {
   if (args.bias.exceeded) return true;
+  if (args.knownParties < MIN_KNOWN_FOR_VERDICT) return true;
   return args.rotations < 3;
 }

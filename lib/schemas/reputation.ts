@@ -162,12 +162,31 @@ export type ReputationRatings = z.infer<typeof ReputationRatings>;
  * ⚠️ `overig` staat vooraan: dat is de veilige twijfelwaarde. De bekende
  * platforms worden sowieso al in code ingedeeld (`lib/reputation/sources.ts`),
  * en die lijst wint altijd van het model.
+ *
+ * ── ⚠️ `eigen` STAAT HIER BEWUST NIET TUSSEN (23 augustus 2026) ─────────────
+ *
+ * Hij stond er wel, en dat ging mis in de eerste echte run. Het model deelde
+ * `autobedrijfdetwee.nl`, `sdlautomotive.nl` en `alfaromeo.nl` alle drie in als
+ * `eigen`. Achteraf logisch: het las de categorie als "de site van dat bedrijf
+ * zelf" in plaats van "de site van de klant". Dat is geen fout van het model
+ * maar een dubbelzinnige categorie.
+ *
+ * Het gevolg was tweeledig en allebei zichtbaar voor de klant. Op het scherm
+ * zou staan dat de site van zijn concurrent zijn eigen site is. En de zin onder
+ * het bronnenblok telt de eigen bronnen, dus "9 van de 15 bronnen zijn je eigen
+ * site" zou onzin zijn geworden, terwijl juist die verhouding het bewijs is dat
+ * een merk alleen over zichzelf praat.
+ *
+ * Welk domein de eigen site is, weten wij zeker: het staat in het profiel.
+ * `knownKind()` beslist dat in code en de vraag wordt niet meer gesteld. Een
+ * model laten raden wat je zelf al weet, is geld uitgeven aan een slechter
+ * antwoord.
  */
 export const ReputationSourceKinds = z.object({
   domeinen: z.array(
     z.object({
       domein: z.string(),
-      soort: z.enum(["overig", "review", "vakpers", "eigen", "sociaal", "register"]),
+      soort: z.enum(["overig", "review", "vakpers", "sociaal", "register"]),
     }),
   ),
 });

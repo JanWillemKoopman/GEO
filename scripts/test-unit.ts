@@ -363,6 +363,7 @@ import { checkTabooWords } from "@/lib/pipeline/content-gate";
 import { slugFrom, suggestedPath, resolvedContentUrl } from "@/lib/pipeline/slug";
 import { diffContent } from "@/lib/pipeline/content-diff";
 import { FaqEdit } from "@/lib/schemas/content-piece";
+import { ReputationSourceKinds } from "@/lib/schemas/reputation";
 import {
   selectNodes,
   heaviestNodes,
@@ -8805,7 +8806,7 @@ group("het volgorde-effect wordt gemeten, niet aangenomen", () => {
   // drie keer optrad.
   ok(
     "en dan is zelfs een plaats met drie rotaties indicatief",
-    rankIsIndicative({ rotations: 3, bias: scheef }),
+    rankIsIndicative({ rotations: 3, bias: scheef, knownParties: 4 }),
   );
 
   // Zuiver toeval: de eerstgevraagde wint precies een kwart van de keren.
@@ -8817,9 +8818,30 @@ group("het volgorde-effect wordt gemeten, niet aangenomen", () => {
   }));
   const schoon = measureOrderBias(eerlijk);
   ok("een eerlijke run blijft onder de drempel", !schoon.exceeded, String(schoon.bias));
-  ok("en dan mag een plaats met drie rotaties als uitslag", !rankIsIndicative({ rotations: 3, bias: schoon }));
+  ok(
+    "en dan mag een plaats met drie rotaties als uitslag",
+    !rankIsIndicative({ rotations: 3, bias: schoon, knownParties: 4 }),
+  );
   // Eén vergelijking per knoop blijft indicatief, ook zonder gemeten effect.
-  ok("maar één rotatie blijft indicatief", rankIsIndicative({ rotations: 1, bias: schoon }));
+  ok(
+    "maar één rotatie blijft indicatief",
+    rankIsIndicative({ rotations: 1, bias: schoon, knownParties: 4 }),
+  );
+
+  // ⚠️ EN DE DERDE VOORWAARDE, UIT DE EERSTE ECHTE RUN. Bij Van den Udenhout
+  // kende ChatGPT twee van de vier partijen niet. Wat overbleef was de klant
+  // tegenover een autofabrikant, en dat kwam als "eerste van twee" als HARDE
+  // UITSLAG op het scherm: drie rotaties, volgorde-effect binnen de marge, dus
+  // niet indicatief. Twee partijen is genoeg om een score te berekenen, maar
+  // een duel is geen marktpositie.
+  ok(
+    "een plaats op twee bekende partijen blijft indicatief",
+    rankIsIndicative({ rotations: 3, bias: schoon, knownParties: 2 }),
+  );
+  ok(
+    "vanaf drie bekende partijen mag hij als uitslag",
+    !rankIsIndicative({ rotations: 3, bias: schoon, knownParties: 3 }),
+  );
 
   // ⚠️ DE FOUT DIE OP PRODUCTIE GEMASKEERD WERD (23 augustus 2026). Bij Van den
   // Udenhout kende ChatGPT twee van de vier partijen niet. Een partij zonder
@@ -9055,6 +9077,16 @@ group("de eenduidigheid vraagt om herhalingen", () => {
 });
 
 group("de domeinindeling herkent een reviewplatform en telt de eigen site apart", () => {
+  // ⚠️ Alleen CODE mag een domein als de eigen site aanwijzen. Het model kan
+  // die waarde niet meer teruggeven, en dat is een reparatie uit de eerste
+  // echte run: het deelde `autobedrijfdetwee.nl` en `alfaromeo.nl` in als
+  // "eigen", omdat het de categorie las als "de site van dat bedrijf zelf".
+  // Dan zou op het scherm staan dat de site van je concurrent van jou is, en de
+  // zin "9 van de 15 bronnen zijn je eigen site" zou onzin worden.
+  const soorten = ReputationSourceKinds.shape.domeinen.element.shape.soort.options as string[];
+  ok("het model kan 'eigen' niet meer kiezen", !soorten.includes("eigen"), soorten.join(", "));
+  ok("maar code wijst hem nog wel aan", knownKind("eigen.nl", "eigen.nl") === "eigen");
+
   eq("trustpilot is een reviewplatform", String(knownKind("trustpilot.com", "eigen.nl")), "review");
   eq("de kvk is een register", String(knownKind("kvk.nl", "eigen.nl")), "register");
   eq("linkedin is sociaal", String(knownKind("linkedin.com", "eigen.nl")), "sociaal");

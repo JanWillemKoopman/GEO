@@ -340,9 +340,11 @@ async function classifyDomains(
       model: MODELS.volume,
       system:
         "Je deelt websites in naar soort. Kies per domein: 'review' (een platform waar klanten " +
-        "beoordelingen achterlaten), 'vakpers' (nieuws of vakmedia), 'eigen' (de site van het " +
-        "bedrijf zelf), 'sociaal' (een sociaal netwerk), 'register' (een officieel register of " +
-        "overheidsbron) of 'overig'. Weet je het niet, kies 'overig'. Antwoord in het Nederlands.",
+        "beoordelingen achterlaten), 'vakpers' (nieuws of vakmedia), 'sociaal' (een sociaal " +
+        "netwerk), 'register' (een officieel register of overheidsbron) of 'overig'. " +
+        "Weet je het niet, kies 'overig'. " +
+        "De site van een bedrijf zelf, of dat nu het genoemde bedrijf is of een ander, valt onder " +
+        "'overig'. Antwoord in het Nederlands.",
       user: [
         `Het bedrijf: ${ctx.brandName}${ctx.profile.url ? ` (${ctx.profile.url})` : ""}`,
         "",

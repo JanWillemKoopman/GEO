@@ -64,6 +64,15 @@ export function RivalTable({
     cel.set(sleutel, bestaand);
   }
 
+  // Hoeveel van de gevraagde concurrenten kende het model niet? Een partij die
+  // in geen enkel oordeel gekend was, telde nergens mee.
+  const onbekend = run.rivals.filter(
+    (naam) =>
+      !ranks.some(
+        (r) => r.party_name.trim().toLowerCase() === naam.trim().toLowerCase() && r.known,
+      ),
+  ).length;
+
   const waarde = (criterium: string, partij: string): string => {
     const v = cel.get(`${criterium}|${partij.toLowerCase()}`);
     // ⚠️ Een streepje en geen laatste plaats. Het model heeft deze partij geen
@@ -125,6 +134,23 @@ export function RivalTable({
           Lager is beter: 1,0 betekent dat ChatGPT je op dat onderwerp steeds als eerste zet.
           Een streepje betekent dat ChatGPT die partij op dat onderwerp geen plaats gaf.
         </p>
+
+        {/* ⚠️ De eerlijkste zin die dit blok kan geven, en hij ontbrak. Bij de
+            eerste echte run kende ChatGPT twee van de drie concurrenten niet:
+            te kleine, regionale bedrijven. Wat overbleef was een vergelijking
+            tegen één partij, en dat zag de klant nergens terug. Nu wel, want
+            "AI kent je concurrenten niet" is zelf een bevinding: het betekent
+            dat er in jouw markt weinig te winnen valt op vergelijkingsvragen,
+            en dat is heel iets anders dan een slechte plaats. */}
+        {onbekend > 0 && (
+          <p className="text-sm text-muted">
+            ChatGPT kende {onbekend === run.rivals.length ? "geen enkele" : `${onbekend} van de ${run.rivals.length}`}{" "}
+            {run.rivals.length === 1 ? "concurrent" : "concurrenten"} goed genoeg om er iets over
+            te zeggen. Die {onbekend === 1 ? "partij telt" : "partijen tellen"} daarom niet mee in
+            je plaats. Dat je concurrenten onbekend zijn bij AI is zelf een uitkomst: er valt in
+            jouw markt weinig te verliezen op een vergelijkingsvraag.
+          </p>
+        )}
 
         {/* ⚠️ De chip `indicatief` is geen slag om de arm maar een gemeten
             eigenschap van taalmodellen: staat de uitkomst op één vergelijking,

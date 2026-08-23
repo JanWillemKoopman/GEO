@@ -190,7 +190,14 @@ export async function runSynthesis(admin: Admin, runId: string): Promise<Synthes
       rank_score: merkSamen.score,
       rank_position: merkSamen.position,
       rank_of: merkSamen.of,
-      rank_indicative: rankIsIndicative({ rotations: merkRotaties, bias }),
+      // De noemer waarop de plaats rust: hoeveel partijen het model kende. Bij
+      // Van den Udenhout waren dat er twee van de vier, en dan is "eerste van
+      // twee" geen marktpositie maar een duel.
+      rank_indicative: rankIsIndicative({
+        rotations: merkRotaties,
+        bias,
+        knownParties: merkSamen.of ?? 0,
+      }),
       wins_on: merkSamen.winsOn,
       loses_on: merkSamen.losesOn,
       order_bias: bias.bias,
@@ -404,7 +411,11 @@ async function computeOfferingScores(
       rank_of: samen.of,
       // ⚠️ Eén vergelijking per knoop is indicatief, drie is een uitslag. In de
       // standaardmodus krijgt elke knoop er één, dus daar staat de chip altijd.
-      rank_indicative: rankIsIndicative({ rotations: rotaties, bias }),
+      rank_indicative: rankIsIndicative({
+        rotations: rotaties,
+        bias,
+        knownParties: samen.of ?? 0,
+      }),
       wins_on: samen.winsOn,
       loses_on: samen.losesOn,
       top_pros: patronen(eigenAntwoorden.flatMap((a) => a.pros ?? [])),
