@@ -204,3 +204,56 @@ export function ratingIsAcceptable(args: {
   // Onbekend platform: dan moet de pagina zelf de merknaam noemen.
   return args.pageMentionsBrand === true;
 }
+
+
+/**
+ * De URL's die dit antwoord aandraagt als bron.
+ *
+ * ── ⚠️ EEN ANTWOORD DAT NIET MOCHT ZOEKEN DRAAGT GEEN BRONNEN (23 aug 2026) ──
+ *
+ * Gevonden in de eerste echte run. De ONGEGRONDE merkvraag over Van den Udenhout
+ * leverde vijf URL's op, waaronder `vandenudenhout.nl`. De klant zit op
+ * `udenhout.nl`. Het model kan die adressen niet gecontroleerd hebben, want het
+ * mocht niet zoeken: het herinnerde zich een patroon en vulde de rest aan.
+ *
+ * Het gevolg was erger dan een rare link. Zulke URL's gaan de bronnentelling in
+ * en verhogen daarmee de BEWIJSKRACHT, en dat is precies het cijfer dat moet
+ * voorkomen dat een vriendelijk antwoord over een onbekend bedrijf als een goede
+ * reputatie leest (§2.1). Een verzonnen domein telt bovendien als EXTERN, en
+ * externe bronnen wegen het zwaarst. Het vangnet werd dus opgeblazen door
+ * precies het gevaar waartegen het beschermt.
+ *
+ * De regel is daarom hard: een bron die niet opgezocht is, is geen bron. Het
+ * ANTWOORD blijft wel volledig bewaard, want dat is blok 2 van het scherm: wat
+ * het model uit zichzelf weet, tegenover wat het vindt.
+ *
+ * Staat de kostenknop `MEASURE_WEB_SEARCH` uit, dan geldt hetzelfde en levert de
+ * hele run nul bronnen op. Dat is de juiste uitkomst: in die stand is er niets
+ * opgezocht, en dan is een bewijskracht van 0 eerlijk in plaats van te laag.
+ */
+export function citedUrlsFrom(
+  text: string,
+  raw: unknown,
+  grounded: boolean,
+): string[] {
+  if (!grounded) return [];
+
+  const gevonden = new Set<string>();
+
+  for (const m of text.matchAll(/https?:\/\/[^\s<>()"'\]]+/g)) {
+    // Afsluitende leestekens horen niet bij de URL.
+    gevonden.add(m[0].replace(/[.,;:]+$/, ""));
+  }
+
+  // En wat de API zelf als citatie aanleverde, voor zover herkenbaar. Defensief
+  // uitgelezen: liever een gemiste bron dan een harde fout in een dure taak.
+  try {
+    for (const m of JSON.stringify(raw ?? {}).matchAll(/"url"\s*:\s*"(https?:[^"]+)"/g)) {
+      gevonden.add(m[1]);
+    }
+  } catch {
+    // Niet te serialiseren, dan blijft het bij wat er in de tekst stond.
+  }
+
+  return [...gevonden];
+}

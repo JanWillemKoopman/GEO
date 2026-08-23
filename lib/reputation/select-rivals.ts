@@ -40,6 +40,27 @@ import type { Entity } from "@/lib/types/database";
  */
 export const MAX_RIVALS = 3;
 
+/**
+ * Hoeveel vermeldingen een concurrent minstens moet hebben om gekozen te worden.
+ *
+ * ⚠️ TOEGEVOEGD OP 23 AUGUSTUS 2026, NA DE EERSTE ECHTE RUN. Bij Van den
+ * Udenhout stonden er twee partijen op 2 vermeldingen en daarachter ELF op
+ * precies één. De derde plek werd daardoor alfabetisch beslist, en dat leverde
+ * "Alfa Romeo" op: geen concurrent van een dealer maar een merk dat hij
+ * verkoopt. De klant zou zich dus vergelijken met een fabrikant, puur omdat de
+ * A vooraan in het alfabet staat.
+ *
+ * De regel zelf is niet nieuw in deze app, alleen nieuw hier. Het scherm
+ * Concurrenten laat merken met één vermelding er al expliciet buiten, met
+ * precies deze onderbouwing: **één vermelding is toeval, geen patroon.**
+ * `MIN_CITATIONS` in `lib/offsite/domain.ts` doet hetzelfde voor domeinen.
+ *
+ * Liever twee goede concurrenten dan drie waarvan er één willekeurig is: een
+ * vergelijking tegen een partij die er niet in hoort, kost het vertrouwen in de
+ * hele tabel.
+ */
+export const MIN_MENTIONS = 2;
+
 export interface RivalCandidate {
   entity: Entity;
   /** Vermeldingen in `competitor_breakdown` over de laatste afgeronde periode. */
@@ -82,13 +103,18 @@ export function selectRivals(args: SelectRivalsArgs): RivalSelection {
   const limit = args.limit ?? MAX_RIVALS;
   const eigen = new Set(args.ownNames.map(sleutel).filter(Boolean));
 
-  const gemeten = args.measured
-    .filter(
-      (c) =>
-        c.entity.entity_role === "concurrent" &&
-        !c.entity.dismissed &&
-        !eigen.has(sleutel(c.entity.canonical_name)),
-    )
+  const bruikbaar = args.measured.filter(
+    (c) =>
+      c.entity.entity_role === "concurrent" &&
+      !c.entity.dismissed &&
+      !eigen.has(sleutel(c.entity.canonical_name)),
+  );
+
+  const gemeten = bruikbaar
+    // ⚠️ De drempel staat vóór de sortering, niet erna. Erna zou de staart nog
+    // steeds de derde plek kunnen vullen zodra de kop te kort is, en dat is
+    // precies het geval dat deze drempel moet voorkomen.
+    .filter((c) => c.mentions >= MIN_MENTIONS)
     // Op vermeldingen aflopend; bij gelijkspel op naam, zodat twee runs op
     // dezelfde data dezelfde set opleveren.
     .sort(
@@ -100,13 +126,23 @@ export function selectRivals(args: SelectRivalsArgs): RivalSelection {
     .map((c) => c.entity.canonical_name);
 
   if (gemeten.length > 0) {
+    // Hoeveel er afvielen op de drempel. Dat hoort op het scherm: "we hadden er
+    // meer kunnen kiezen maar die kwamen maar één keer voorbij" is een andere
+    // mededeling dan "dit zijn ze".
+    const teDun = bruikbaar.length - bruikbaar.filter((c) => c.mentions >= MIN_MENTIONS).length;
+    const staart =
+      teDun > 0
+        ? ` ${teDun === 1 ? "Eén ander merk kwam" : `${teDun} andere merken kwamen`} maar één keer voorbij, en dat is toeval en geen patroon.`
+        : "";
+
     return {
       names: gemeten,
       source: "gemeten",
       reason:
-        gemeten.length === 1
+        (gemeten.length === 1
           ? "Deze partij kwam als concurrent uit je metingen naar boven."
-          : `Deze ${gemeten.length} partijen kwamen het vaakst als concurrent uit je metingen naar boven.`,
+          : `Deze ${gemeten.length} partijen kwamen het vaakst als concurrent uit je metingen naar boven.`) +
+        staart,
     };
   }
 
@@ -137,7 +173,11 @@ export function selectRivals(args: SelectRivalsArgs): RivalSelection {
     names: [],
     source: "geen",
     reason:
-      "ORBIT ENGINE kent nog geen concurrenten van je. Zodra er metingen zijn, komen ze " +
-      "hieruit naar boven en kan de vergelijking wel.",
+      bruikbaar.length > 0
+        ? "Er kwamen wel merken uit je metingen, maar geen enkel merk kwam vaker dan één keer " +
+          "voorbij. Eén vermelding is toeval en geen patroon, en een vergelijking daartegen zou " +
+          "meer over het toeval zeggen dan over je markt."
+        : "ORBIT ENGINE kent nog geen concurrenten van je. Zodra er metingen zijn, komen ze " +
+          "hieruit naar boven en kan de vergelijking wel.",
   };
 }

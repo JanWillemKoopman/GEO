@@ -1,6 +1,6 @@
 # Mijn reputatie: productplan en implementatieplan
 
-**Opgesteld:** 22 augustus 2026 · **Status:** R1, R2 en R3 gebouwd · R4 en R5 staan open ·
+**Opgesteld:** 22 augustus 2026 · **Status:** R1 t/m R4 af · R5 staat open ·
 **Plaats in de app:** Analytics, vierde bestemming (zie §2.2, daar ligt een besluit voor je klaar)
 
 Dit document beschrijft een **nieuw, apart betaald onderdeel** binnen ORBIT ENGINE. Het beantwoordt
@@ -709,7 +709,19 @@ ongeveer **€1,55**. Beide binnen €3, en het plafond vangt de rest.
 
 **Doorlooptijd.** Een gegronde aanroep duurt 20 tot 40 seconden, een vergelijking eerder 40 dan 20
 omdat er over vier bedrijven gezocht wordt. Verdeeld over de wachtrij, met de knopen parallel, landt
-de standaardmodus op **6 tot 9 minuten** en de diepe op **14 tot 20 minuten**. De standaardmodus
+de standaardmodus op **6 tot 9 minuten** en de diepe op **14 tot 20 minuten**.
+
+> ⚠️ **NAGEMETEN OP 23 AUGUSTUS 2026, EN DEZE SCHATTING KLOPT NIET.** De aanname "met de knopen
+> parallel" gaat niet op. De werker houdt 220 van zijn 240 seconden vrij voordat hij aan een zware
+> taak begint (`HEAVY_JOB_RESERVE_MS` in `lib/jobs/worker.ts`), dus hij doet er één per aanroep, en
+> de cron vuurt één keer per minuut. Gemeten bij Van den Udenhout: **exact één zware taak per
+> minuut**, dertien taken in dertien minuten. Met 28 taken komt de standaardmodus daarmee op
+> **ongeveer een halfuur**, niet op 6 tot 9 minuten.
+>
+> Dat is geen fout in dit onderdeel maar een eigenschap van de wachtrij, en die reservering staat er
+> met reden: hij is ingevoerd nadat contentgeneratie 504's veroorzaakte. De schermteksten noemen
+> daarom een halfuur. Sneller maken kan alleen door aan die reservering te draaien, en dat raakt de
+> hele app, dus dat is een eigen besluit met een eigen meting. De standaardmodus
 blijft daarmee in de orde van de onboarding, die ongeveer 7,5 minuut duurt. De diepe modus is
 nadrukkelijk geen scherm waar je bij wacht, en dat hoort het startscherm ook te zeggen.
 
@@ -971,7 +983,13 @@ de klantstaat toont de melding zonder werkende knop. Een niet-beheerder die de r
 aanroept krijgt 403 met dezelfde tekst. De vergelijkingstabel toont bij een merk zonder bekende
 concurrenten geen lege tabel maar de uitleg waarom er niets te vergelijken viel.
 
-### Sprint R4 · Nagerekend op productie ⏳ OPEN, wacht op een testmerk
+### Sprint R4 · Nagerekend op productie ✅ AF (23 augustus 2026, Van den Udenhout)
+
+> **Uitkomst:** beide toetsen geslaagd, en de run legde zeven fouten bloot die geen enkele test had
+> gevangen. Volledig uitgeschreven in `docs/logbook.md`, 23 augustus 2026. Kort: 66 aanroepen voor
+> $0,75 in 31,6 minuten (geschat was 68 voor $0,54 in 6 tot 9 minuten), de vlakheidstoets leverde
+> tien keer gemengd en één keer negatief op tegenover nul negatieven in de 650 rijen van vóór migratie 0029, en de
+> volgorde-toets bracht aan het licht dat de meting van het volgorde-effect zelf kapot was.
 
 Conventie 10: gebouwd is niet geverifieerd.
 
@@ -992,7 +1010,7 @@ Conventie 10: gebouwd is niet geverifieerd.
 doorlooptijd, de uitkomst van de vlakheidstoets en de uitkomst van de volgorde-toets. Klopt een van
 beide toetsen niet, dan gaat R5 niet door en wordt de meetopzet herzien.
 
-### Sprint R5 · De diepe modus en de herhaling ⏳ OPEN, begint pas als R4 goed uitvalt
+### Sprint R5 · De diepe modus en de herhaling ⏳ OPEN, mag beginnen: R4 viel goed uit
 
 - De keuze standaard tegenover diep bij het starten.
 - Herhalingen en het eenduidigheidscijfer.

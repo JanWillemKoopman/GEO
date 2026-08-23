@@ -97,8 +97,8 @@ export function StartReputationButton({
         ORBIT ENGINE stelt ongeveer 34 vragen aan ChatGPT over dit merk: hoe er over het merk
         gepraat wordt, per dienst, en hoe het zich verhoudt tot de concurrenten die uit de
         metingen zijn gekomen.
-        <strong> Dat duurt 6 tot 9 minuten en kost ongeveer 50 cent.</strong> Je hoeft er niet
-        bij te wachten.
+        <strong> Dat duurt ongeveer een halfuur en kost ongeveer 75 cent.</strong> Je hoeft er
+        niet bij te wachten: je kunt dit scherm sluiten en later terugkomen.
       </p>
       <div className="flex flex-wrap gap-2">
         <button

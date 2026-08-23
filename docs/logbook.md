@@ -3774,3 +3774,127 @@ wordt de meetopzet herzien in plaats van doorgebouwd.
 
 Na deze ronde: migraties t/m `0062` (in de repository, nog niet op productie), 1954 unittests en
 257 ketentests groen.
+
+
+---
+
+## 23 augustus 2026 · Mijn reputatie, sprint R4: de eerste echte run
+
+Eén run op **Van den Udenhout ('s-Hertogenbosch)**, standaardmodus, 34 vragen, nul mislukte taken.
+Conventie 10 in de praktijk: dit onderdeel was gebouwd en op 263 ketentests groen, en de eerste
+echte run legde **zeven fouten** bloot waarvan er geen enkele door een test gevangen was. Zes
+daarvan zaten in code die precies deed wat er beschreven stond; de regel zelf had een gat.
+
+### Wat er gemeten is
+
+| | Geschat | Gemeten |
+|---|---|---|
+| Aanroepen | 68 | **66** |
+| Kosten | $0,54 (uitschieter $0,68) | **$0,75** |
+| Doorlooptijd | 6 tot 9 minuten | **31,6 minuten** |
+
+Het AANTAL aanroepen klopte vrijwel precies. De prijs per gegronde vraag niet: $0,021 tot $0,023 in
+plaats van $0,015, en dat is exact het risico dat §5 van het plan zelf benoemde, namelijk dat
+web-zoeken pagina's ophaalt die als invoer meetellen. De beoordelingen kwamen wél op $0,001 uit,
+precies zoals begroot; die goedkope tweede stap is dus echt zo goedkoop als bedoeld, en dat is de
+reden dat een mislukte beoordeling opnieuw mag zonder de dure vraag te herhalen. Ruim binnen het
+plafond van €3.
+
+⚠️ **De doorlooptijd was drie keer zo lang, en de oorzaak is architectonisch.** De wachtrij doet
+**exact één zware taak per minuut**: de werker houdt 220 van zijn 240 seconden vrij voordat hij aan
+een zware taak begint (`HEAVY_JOB_RESERVE_MS`), en de cron vuurt één keer per minuut. De aanname
+"met de knopen parallel" uit §5 gaat dus niet op. Dat is geen fout van dit onderdeel, en die
+reservering staat er met reden: hij is ingevoerd nadat contentgeneratie 504's veroorzaakte. De
+schermteksten noemen nu een halfuur.
+
+### De vlakheidstoets is GESLAAGD
+
+Dit was de vraag waar het hele onderdeel op stond of viel, want tot migratie 0029 leverde
+sentiment in **650 gemeten rijen geen enkele keer** `negative` op. Nu, over 17 beoordeelde
+antwoorden:
+
+| toon | aantal |
+|---|---|
+| gemengd | 10 |
+| overwegend positief | 3 |
+| negatief | 1 |
+| positief | 0 |
+| onbekend | 0 |
+
+Er zit variatie in, en het merkcijfer kwam op **+4 uit, dus neutraal**, niet op een vriendelijke
+plus. De bezwaren zijn concreet en herkenbaar: bereikbaarheid, lange wachttijden, onduidelijkheid
+over kosten, extra afleveringskosten, klachten over diagnoses. Het mechanisme uit §2.1 werkt: een
+vraag die rechtstreeks naar nadelen vraagt, levert nadelen op.
+
+### De volgorde-toets: het vangnet mat zichzelf blind
+
+De meting van het volgorde-effect bleek **kapot**, en dat is de ernstigste vondst. ChatGPT kende
+twee van de vier vergeleken partijen niet, en een partij zonder plaats kan nooit eerste worden. Elk
+oordeel waarin zo'n partij vooraan stond leverde dus gegarandeerd een misser op:
+
+| | eerste geworden |
+|---|---|
+| eerstgevraagde was gekend | 7 van 11 = **63,6%** |
+| eerstgevraagde was onbekend | 0 van 33 = 0,0% |
+| samen (wat de code mat) | 7 van 44 = **21,9%** |
+
+Op 21,9% lijkt vooraan staan zelfs schadelijk. Het echte cijfer is 63,6%, en bij elf waarnemingen
+valt dat nog binnen de ruis. Maar de meting mat hoe vaak het model de lokale concurrenten kent, en
+niet of vooraan staan loont. Dit getal bepaalt of een plaats als uitslag of als indicatie op het
+scherm komt, dus het vangnet maakte zichzelf blind.
+
+### De zeven fouten, en wat ze gemeen hebben
+
+1. **De concurrentkeuze las een kolom die niet bestaat.** Gevonden vóór de run, bij het nakijken van
+   het schema. Elke concurrent kreeg nul vermeldingen en de keuze viel stil terug op alfabetische
+   volgorde.
+2. **Eén vermelding beslechtte de derde plek.** Twee partijen op twee vermeldingen, elf op precies
+   één, en daaruit won "Alfa Romeo" omdat de A vooraan staat. Een fabrikant is geen concurrent van
+   een dealer. Er staat nu een ondergrens van twee, dezelfde regel die het scherm Concurrenten al
+   hanteerde.
+3. **Een verzonnen bron verhoogde de bewijskracht.** De ongegronde merkvraag leverde vijf URL's op,
+   waaronder `vandenudenhout.nl` terwijl de klant op `udenhout.nl` zit. Die telden mee als externe
+   bronnen, en externe bronnen wegen het zwaarst. Het cijfer dat moet voorkomen dat AI aardig doet
+   zonder je te kennen, werd opgeblazen door precies dat gevaar.
+4. **Een uitspraak over de reviews gold als pluspunt.** "Het beeld is niet uitsluitend negatief" is
+   circulair: je sterke punt is dan dát mensen een mening hebben.
+5. **Een strategische knoop woog lichter dan opvulling.** De onderwerpprioriteit loopt op 5 tot 7,
+   niet op 1 tot 99, terwijl generieke opvulling een vaste 10 kreeg. In de diepe modus zou dat de
+   verkeerde acht knopen extra rotaties geven, en dat is exact de fout die de kennistest op
+   4 augustus rechtzette.
+6. **Het volgorde-effect werd gemaskeerd**, zie hierboven.
+7. **Een duel werd als marktpositie gepresenteerd.** Met twee bekende partijen kwam "eerste van
+   twee" als HARDE uitslag op het scherm, niet als indicatie: er lagen drie rotaties onder en het
+   volgorde-effect viel binnen de marge. Twee partijen is genoeg om een score te berekenen, niet om
+   te zeggen waar iemand in zijn markt staat. Een plaats geldt nu pas als uitslag bij minstens drie
+   bekende partijen.
+
+Wat ze gemeen hebben: **vijf van de zeven zijn stille degradaties.** Geen foutmelding, geen leeg
+scherm, gewoon een verkeerd getal dat er goed uitziet. Precies de soort fout waar dit onderdeel
+vangnetten tegen heeft, en ze zaten ín die vangnetten.
+
+### De bevinding die geen fout is, en die het meest voor het product betekent
+
+⚠️ **ChatGPT kent de echte lokale concurrenten van een MKB-bedrijf niet.** Autobedrijf De Twee en
+SDL Automotive kwamen in **nul van de acht** oordelen als bekend terug. Alleen de klant zelf en een
+autofabrikant bleven over.
+
+Daar zit een bias in die niet voorzien was: als de gemeten concurrenten onbekend zijn, wint in de
+vergelijking automatisch de partij die wél bekend is, en dat is bijna altijd een grote naam. Zonder
+ondergrens op vermeldingen kiest het systeem dus stelselmatig fabrikanten en ketens als concurrent,
+en dan meet blok V de bekendheid van het model in plaats van de markt van de klant.
+
+De reparatie maakt de uitkomst eerlijker maar niet rijker: bij dit merk zal het scherm voortaan
+zeggen dat er niet vergeleken kon worden. Dat is de juiste uitkomst, en het is zelf een bevinding
+die een consultant kan gebruiken: er valt in deze markt weinig te verliezen op een
+vergelijkingsvraag. Maar het betekent wel dat **blok V bij een regionaal MKB-bedrijf vaak leeg zal
+blijven**, en dat is iets om te weten voordat de scan als los product verkocht wordt.
+
+### Wat er nog niet gecontroleerd is
+
+De zeven reparaties zijn getest (1996 unittests, 263 ketentests) maar **niet opnieuw op een echte
+run nagerekend**. Er is dus geen tweede meting die aantoont dat de bewijskracht nu lager uitkomt,
+dat de vergelijking nu terecht wegvalt en dat het volgorde-effect nu 63,6% meldt in plaats van
+21,9%. R4 is daarmee geslaagd op zijn twee toetsen, maar de nasleep ervan staat open.
+
+Na deze ronde: migraties t/m `0062` (op productie), 1996 unittests en 263 ketentests groen.

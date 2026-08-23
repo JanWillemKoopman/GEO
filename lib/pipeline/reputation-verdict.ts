@@ -43,6 +43,7 @@ import { MODELS } from "@/lib/openai/models";
 import { ReputationVerdict, ReputationComparison } from "@/lib/schemas/reputation";
 import { toneScore } from "@/lib/reputation/tone";
 import { scoreCriterion, type CriterionOutcome } from "@/lib/reputation/rank";
+import { cleanPoints } from "@/lib/reputation/points";
 import type { ReputationGrounding } from "@/lib/types/database";
 
 const VERDICT_SYSTEM =
@@ -54,7 +55,15 @@ const VERDICT_SYSTEM =
   "Weet je het niet, kies dan 'onbekend'. Dat is een geldig antwoord en veel beter dan een gok: " +
   "een gok wordt hier een cijfer op het scherm van een ondernemer. " +
   "Pluspunten en minpunten neem je zo letterlijk mogelijk over uit de tekst, niet in je eigen " +
-  "woorden samengevat. Citaten neem je WOORDELIJK over; verzin er nooit een. " +
+  "woorden samengevat. " +
+  "⚠️ Een pluspunt of minpunt is een EIGENSCHAP van het bedrijf: waar het goed of slecht in is, " +
+  "waar klanten het om prijzen of op aanspreken. Bijvoorbeeld 'persoonlijke begeleiding', " +
+  "'het nakomen van afspraken', 'lange wachttijden', 'onduidelijke tarieven'. " +
+  "Het is NOOIT een uitspraak over de reviews zelf. Zinnen als 'het beeld is niet uitsluitend " +
+  "negatief', 'de algemene klantwaardering is goed' of 'daar staan ook positieve reviews " +
+  "tegenover' zijn geen punten: die zeggen alleen dát mensen een mening hebben, en niet welke " +
+  "eigenschap ze bedoelen. Laat ze weg. Houd elk punt kort, een woordgroep en geen zin. " +
+  "Citaten neem je WOORDELIJK over; verzin er nooit een. " +
   "Antwoord in het Nederlands.";
 
 export interface VerdictResult {
@@ -129,8 +138,8 @@ export async function judgeAnswer(args: {
     // Ging het antwoord niet over dit merk, dan zijn ook de plus- en minpunten
     // van iemand anders. Weggooien in plaats van bewaren: ze zouden anders in
     // blok 6 van het scherm belanden als "wat AI aan jou koppelt".
-    pros: mentionsBrand ? schoon(v.pluspunten) : [],
-    cons: mentionsBrand ? schoon(v.minpunten) : [],
+    pros: mentionsBrand ? cleanPoints(v.pluspunten) : [],
+    cons: mentionsBrand ? cleanPoints(v.minpunten) : [],
     // ── Vangnet 2 ───────────────────────────────────────────────────────────
     // De grondslag blijft staan zoals het model hem gaf, óók als hij `geen` is.
     // `score.ts` haalt hem dan uit het merkcijfer; hier weggooien zou het
@@ -152,20 +161,6 @@ function normaliseer(text: string): string {
   return text.toLowerCase().replace(/[\s ]+/g, " ").trim();
 }
 
-/** Lege regels eruit, ontdubbeld, en hooguit acht. Meer leest niemand. */
-function schoon(list: string[]): string[] {
-  const gezien = new Set<string>();
-  const uit: string[] = [];
-  for (const raw of list) {
-    const v = raw.trim();
-    const k = v.toLowerCase();
-    if (!v || gezien.has(k)) continue;
-    gezien.add(k);
-    uit.push(v);
-    if (uit.length >= 8) break;
-  }
-  return uit;
-}
 
 export interface ComparisonResult {
   outcomes: CriterionOutcome[];

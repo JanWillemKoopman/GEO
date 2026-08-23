@@ -38,6 +38,7 @@ import { measureOrderBias, rankIsIndicative } from "@/lib/reputation/order-bias"
 import { positionInOrder } from "@/lib/reputation/rotate";
 import { toneWord } from "@/lib/reputation/tone";
 import { sourceMixSentence } from "@/lib/reputation/sources";
+import { dedupeSleutel } from "@/lib/reputation/points";
 import { CRITERION_LABEL } from "@/lib/types/database";
 import type {
   ReputationAnswer,
@@ -190,7 +191,14 @@ export async function runSynthesis(admin: Admin, runId: string): Promise<Synthes
       rank_score: merkSamen.score,
       rank_position: merkSamen.position,
       rank_of: merkSamen.of,
-      rank_indicative: rankIsIndicative({ rotations: merkRotaties, bias }),
+      // De noemer waarop de plaats rust: hoeveel partijen het model kende. Bij
+      // Van den Udenhout waren dat er twee van de vier, en dan is "eerste van
+      // twee" geen marktpositie maar een duel.
+      rank_indicative: rankIsIndicative({
+        rotations: merkRotaties,
+        bias,
+        knownParties: merkSamen.of ?? 0,
+      }),
       wins_on: merkSamen.winsOn,
       loses_on: merkSamen.losesOn,
       order_bias: bias.bias,
@@ -245,7 +253,12 @@ function buildObservations(answers: ReputationAnswer[], ranks: ReputationRank[])
     perAntwoord.set(r.answer_id, lijst);
   }
 
-  const waarnemingen: { firstAsked: string; firstPlaced: string | null; ofParties: number }[] = [];
+  const waarnemingen: {
+    firstAsked: string;
+    firstAskedKnown: boolean;
+    firstPlaced: string | null;
+    ofParties: number;
+  }[] = [];
 
   for (const a of answers) {
     if (a.block !== "vergelijking") continue;
@@ -265,8 +278,18 @@ function buildObservations(answers: ReputationAnswer[], ranks: ReputationRank[])
       const eerste = rijen.find((r) => r.position === 1);
       const noemer = rijen[0]?.of_parties ?? 0;
       if (!eerste || noemer < 2) continue;
+
+      // ⚠️ Kende het model de partij die vooraan in de vraag stond? Zo niet, dan
+      // kon die per definitie niet eerste worden en zegt dit oordeel niets over
+      // het volgorde-effect. Zie `firstAskedKnown` in `order-bias.ts` voor de
+      // meting die daarop stukliep.
+      const eerstGevraagd = rijen.find(
+        (r) => r.party_name.trim().toLowerCase() === volgorde[0].trim().toLowerCase(),
+      );
+
       waarnemingen.push({
         firstAsked: volgorde[0],
+        firstAskedKnown: eerstGevraagd?.known === true,
         firstPlaced: eerste.party_name,
         ofParties: noemer,
       });
@@ -288,7 +311,12 @@ function patronen(items: string[]): string[] {
   for (const raw of items) {
     const v = raw.trim();
     if (!v) continue;
-    const sleutel = v.toLowerCase().split(/\s+/).slice(0, 3).join(" ");
+    // ⚠️ DEZELFDE sleutel als `cleanPoints()` gebruikt, en niet een eigen kopie.
+    // Met een eigen kopie telden "persoonlijke begeleiding" en "persoonlijke
+    // begeleiding bij aankoop" als twee patronen, en stonden ze allebei in de
+    // sterke punten van de eerste echte run. Twee functies die hetzelfde zouden
+    // moeten doen drijven uit elkaar (conventie P2).
+    const sleutel = dedupeSleutel(v);
     const bestaand = groepen.get(sleutel);
     if (bestaand) bestaand.aantal++;
     else groepen.set(sleutel, { tekst: v, aantal: 1 });
@@ -389,7 +417,11 @@ async function computeOfferingScores(
       rank_of: samen.of,
       // ⚠️ Eén vergelijking per knoop is indicatief, drie is een uitslag. In de
       // standaardmodus krijgt elke knoop er één, dus daar staat de chip altijd.
-      rank_indicative: rankIsIndicative({ rotations: rotaties, bias }),
+      rank_indicative: rankIsIndicative({
+        rotations: rotaties,
+        bias,
+        knownParties: samen.of ?? 0,
+      }),
       wins_on: samen.winsOn,
       loses_on: samen.losesOn,
       top_pros: patronen(eigenAntwoorden.flatMap((a) => a.pros ?? [])),

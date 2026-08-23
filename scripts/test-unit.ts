@@ -363,13 +363,14 @@ import { checkTabooWords } from "@/lib/pipeline/content-gate";
 import { slugFrom, suggestedPath, resolvedContentUrl } from "@/lib/pipeline/slug";
 import { diffContent } from "@/lib/pipeline/content-diff";
 import { FaqEdit } from "@/lib/schemas/content-piece";
+import { ReputationSourceKinds } from "@/lib/schemas/reputation";
 import {
   selectNodes,
   heaviestNodes,
   MAX_NODES_STANDARD,
   MAX_NODES_DEEP,
 } from "@/lib/reputation/select-nodes";
-import { selectRivals, MAX_RIVALS } from "@/lib/reputation/select-rivals";
+import { selectRivals, MAX_RIVALS, MIN_MENTIONS } from "@/lib/reputation/select-rivals";
 import { rotateParties, positionInOrder } from "@/lib/reputation/rotate";
 import { scoreCriterion, summariseRanks, positionToScore } from "@/lib/reputation/rank";
 import { measureOrderBias, rankIsIndicative, MIN_OBSERVATIONS } from "@/lib/reputation/order-bias";
@@ -382,7 +383,9 @@ import {
   WEAK_WEIGHT,
 } from "@/lib/reputation/score";
 import { toneScore, toneWord, isToneLabel, TONE_LABELS } from "@/lib/reputation/tone";
+import { isUsablePoint, cleanPoints, dedupeSleutel } from "@/lib/reputation/points";
 import {
+  citedUrlsFrom,
   knownKind,
   tallySources,
   sourceMixSentence,
@@ -8458,6 +8461,60 @@ group("weggezette knopen en de soorten merk en vestiging komen er nooit in", () 
   );
 });
 
+group("een strategische knoop weegt zwaarder dan opvulling", () => {
+  // ⚠️ DE FOUT DIE OP PRODUCTIE ZICHTBAAR WERD (23 augustus 2026). Het gewicht
+  // van een knoop uit een onderwerp was de RUWE prioriteit van dat onderwerp,
+  // in de veronderstelling dat die op 1 tot 99 loopt. Bij Van den Udenhout
+  // stonden de goedgekeurde onderwerpen op 5, 6 en 7, terwijl opvulling een
+  // vaste 10 had. Knopen die een mens had aangewezen wogen dus lichter dan
+  // generieke opvulling.
+  const boom = [
+    knoop("o1", "Algemene dienst", "dienst", 0),
+    knoop("o2", "Specialisme", "dienst", 1),
+    knoop("o3", "Categorie", "categorie", 2),
+    knoop("o4", "Wat de consultant koos", "dienst", 3),
+  ];
+
+  const gekozen = selectNodes({
+    offerings: boom,
+    // Prioriteit van 6, precies de schaal die op productie voorkomt.
+    topics: [onderwerp("t1", "Specialisme", ["o2"], 6)],
+    priorityNames: ["Wat de consultant koos"],
+    deprioritisedNames: [],
+  });
+
+  const gewichtVan = (naam: string) =>
+    gekozen.find((g) => g.offering.name === naam)?.weight ?? 0;
+
+  ok(
+    "de keuze van de consultant weegt het zwaarst",
+    gewichtVan("Wat de consultant koos") > gewichtVan("Specialisme"),
+    `${gewichtVan("Wat de consultant koos")} tegen ${gewichtVan("Specialisme")}`,
+  );
+  // ⚠️ Dit is de regel die eerst omgekeerd stond, en het is dezelfde fout die
+  // `llm-baseline.ts` op 4 augustus 2026 rechtzette: meten op de algemeenste
+  // diensten in plaats van op waar de klant zich onderscheidt.
+  ok(
+    "een onderwerp weegt zwaarder dan opvulling, ook bij prioriteit 6",
+    gewichtVan("Specialisme") > gewichtVan("Algemene dienst"),
+    `${gewichtVan("Specialisme")} tegen ${gewichtVan("Algemene dienst")}`,
+  );
+  ok(
+    "en een categorie weegt het lichtst",
+    gewichtVan("Categorie") < gewichtVan("Algemene dienst"),
+    `${gewichtVan("Categorie")} tegen ${gewichtVan("Algemene dienst")}`,
+  );
+
+  // In de diepe modus kiest `heaviestNodes` welke knopen drie rotaties krijgen
+  // en daarmee de chip `indicatief` verliezen. Dat moeten de strategische zijn.
+  const zwaarste = heaviestNodes(gekozen, 2).map((n) => n.offering.name);
+  eq(
+    "en de diepe modus kiest de strategische knopen",
+    zwaarste.join(", "),
+    "Wat de consultant koos, Specialisme",
+  );
+});
+
 group("de zwaarste knopen zijn reproduceerbaar", () => {
   const boom = Array.from({ length: 12 }, (_, i) => knoop(`o${i}`, `dienst-${i}`, "dienst", i));
   const gekozen = selectNodes({
@@ -8519,6 +8576,61 @@ group("de concurrentkeuze: gemeten wint, weggezet komt er nooit in", () => {
   // "wie levert het beste werk, jij of een vergelijkingssite" is geen vraag met een antwoord.
   ok("een vergelijker evenmin", !keuze.names.includes("Werkspot"));
   ok("hooguit drie, dus vier partijen", keuze.names.length <= MAX_RIVALS);
+});
+
+group("één vermelding is toeval, en beslist dus geen derde plek", () => {
+  // ⚠️ HET GEVAL DAT DIT AFVANGT, EN HET IS OP PRODUCTIE GEBEURD (23 augustus
+  // 2026). Bij Van den Udenhout stonden twee partijen op 2 vermeldingen en elf
+  // op precies één. De derde plek werd alfabetisch beslist en dat leverde
+  // "Alfa Romeo" op: geen concurrent van een autodealer maar een merk dat hij
+  // verkoopt. De klant zou zich vergelijken met een fabrikant, puur omdat de A
+  // vooraan in het alfabet staat.
+  const keuze = selectRivals({
+    measured: [
+      { entity: entiteit("Autobedrijf De Twee", "concurrent"), mentions: 2 },
+      { entity: entiteit("SDL Automotive", "concurrent"), mentions: 2 },
+      // Alfabetisch de eerste van de eenlingen. Mag de derde plek NIET krijgen.
+      { entity: entiteit("Alfa Romeo", "concurrent"), mentions: 1 },
+      { entity: entiteit("Toyota", "concurrent"), mentions: 1 },
+      { entity: entiteit("Eurocars", "concurrent"), mentions: 1 },
+    ],
+    researched: ["Uit het onderzoek"],
+    ownNames: ["Van den Udenhout"],
+  });
+
+  eq("de drempel staat op twee", String(MIN_MENTIONS), "2");
+  eq(
+    "alleen de twee gemeten partijen komen erin",
+    keuze.names.join(", "),
+    "Autobedrijf De Twee, SDL Automotive",
+  );
+  ok("en de alfabetisch eerste eenling niet", !keuze.names.includes("Alfa Romeo"));
+  // Liever twee goede concurrenten dan drie waarvan er één willekeurig is.
+  ok("er wordt niet bijgevuld tot drie", keuze.names.length === 2, `${keuze.names.length}`);
+  // En het scherm zegt waarom er maar twee staan.
+  ok(
+    "en het scherm meldt hoeveel er afvielen",
+    keuze.reason.includes("3 andere merken") && keuze.reason.includes("toeval"),
+    keuze.reason,
+  );
+
+  // Komt niemand boven de drempel, dan is er geen vergelijking. Terugvallen op
+  // het onderzoek zou hier verkeerd zijn: er ís gemeten, er kwam alleen niets
+  // uit dat een patroon heet.
+  const allemaalEenlingen = selectRivals({
+    measured: [
+      { entity: entiteit("Eenling A", "concurrent"), mentions: 1 },
+      { entity: entiteit("Eenling B", "concurrent"), mentions: 1 },
+    ],
+    researched: [],
+    ownNames: ["Van den Udenhout"],
+  });
+  ok("alleen eenlingen levert geen vergelijking", allemaalEenlingen.names.length === 0);
+  ok(
+    "met een uitleg die het verschil met 'niets gemeten' benoemt",
+    allemaalEenlingen.reason.includes("vaker dan één keer"),
+    allemaalEenlingen.reason,
+  );
 });
 
 group("zonder metingen valt de keuze terug op het onderzoek, en anders op niets", () => {
@@ -8681,6 +8793,7 @@ group("het volgorde-effect wordt gemeten, niet aangenomen", () => {
   // vergelijking.
   const altijdEerste = Array.from({ length: 20 }, () => ({
     firstAsked: "Partij X",
+    firstAskedKnown: true,
     firstPlaced: "Partij X",
     ofParties: 4,
   }));
@@ -8693,26 +8806,83 @@ group("het volgorde-effect wordt gemeten, niet aangenomen", () => {
   // drie keer optrad.
   ok(
     "en dan is zelfs een plaats met drie rotaties indicatief",
-    rankIsIndicative({ rotations: 3, bias: scheef }),
+    rankIsIndicative({ rotations: 3, bias: scheef, knownParties: 4 }),
   );
 
   // Zuiver toeval: de eerstgevraagde wint precies een kwart van de keren.
   const eerlijk = Array.from({ length: 20 }, (_, i) => ({
     firstAsked: "Partij X",
+    firstAskedKnown: true,
     firstPlaced: i % 4 === 0 ? "Partij X" : "Partij Y",
     ofParties: 4,
   }));
   const schoon = measureOrderBias(eerlijk);
   ok("een eerlijke run blijft onder de drempel", !schoon.exceeded, String(schoon.bias));
-  ok("en dan mag een plaats met drie rotaties als uitslag", !rankIsIndicative({ rotations: 3, bias: schoon }));
+  ok(
+    "en dan mag een plaats met drie rotaties als uitslag",
+    !rankIsIndicative({ rotations: 3, bias: schoon, knownParties: 4 }),
+  );
   // Eén vergelijking per knoop blijft indicatief, ook zonder gemeten effect.
-  ok("maar één rotatie blijft indicatief", rankIsIndicative({ rotations: 1, bias: schoon }));
+  ok(
+    "maar één rotatie blijft indicatief",
+    rankIsIndicative({ rotations: 1, bias: schoon, knownParties: 4 }),
+  );
+
+  // ⚠️ EN DE DERDE VOORWAARDE, UIT DE EERSTE ECHTE RUN. Bij Van den Udenhout
+  // kende ChatGPT twee van de vier partijen niet. Wat overbleef was de klant
+  // tegenover een autofabrikant, en dat kwam als "eerste van twee" als HARDE
+  // UITSLAG op het scherm: drie rotaties, volgorde-effect binnen de marge, dus
+  // niet indicatief. Twee partijen is genoeg om een score te berekenen, maar
+  // een duel is geen marktpositie.
+  ok(
+    "een plaats op twee bekende partijen blijft indicatief",
+    rankIsIndicative({ rotations: 3, bias: schoon, knownParties: 2 }),
+  );
+  ok(
+    "vanaf drie bekende partijen mag hij als uitslag",
+    !rankIsIndicative({ rotations: 3, bias: schoon, knownParties: 3 }),
+  );
+
+  // ⚠️ DE FOUT DIE OP PRODUCTIE GEMASKEERD WERD (23 augustus 2026). Bij Van den
+  // Udenhout kende ChatGPT twee van de vier partijen niet. Een partij zonder
+  // plaats kan nooit eerste worden, dus elk oordeel waarin zo'n partij vooraan
+  // stond leverde gegarandeerd een misser op. Die onmogelijke gevallen
+  // verdunden het cijfer van 63,6% naar 21,9%, en dan lijkt vooraan staan zelfs
+  // schadelijk.
+  const gemengdeSet = [
+    // Elf oordelen waarin de eerstgevraagde wél gekend was: zeven keer raak.
+    ...Array.from({ length: 7 }, () => ({
+      firstAsked: "Gekend",
+      firstAskedKnown: true,
+      firstPlaced: "Gekend",
+      ofParties: 2,
+    })),
+    ...Array.from({ length: 4 }, () => ({
+      firstAsked: "Gekend",
+      firstAskedKnown: true,
+      firstPlaced: "Ander",
+      ofParties: 2,
+    })),
+    // Drieëndertig oordelen waarin de eerstgevraagde onbekend was. Die kunnen
+    // per definitie niet raak zijn en zeggen dus niets over de volgorde.
+    ...Array.from({ length: 33 }, () => ({
+      firstAsked: "Onbekend",
+      firstAskedKnown: false,
+      firstPlaced: "Ander",
+      ofParties: 2,
+    })),
+  ];
+  const gemeten = measureOrderBias(gemengdeSet);
+  eq("de onmogelijke oordelen tellen niet mee", String(gemeten.observations), "11");
+  eq("en het effect is 63,6% en niet 21,9%", String(gemeten.bias), "0.636");
+  ok("wat bij elf oordelen nog binnen de ruis valt", !gemeten.exceeded, String(gemeten.bias));
 
   // Onder de tien oordelen is er niets vast te stellen: bij vijf is drie keer
   // raak al 60%, en dat kan puur toeval zijn (conventie 3).
   const teWeinig = measureOrderBias(
     Array.from({ length: MIN_OBSERVATIONS - 1 }, () => ({
       firstAsked: "X",
+      firstAskedKnown: true,
       firstPlaced: "X",
       ofParties: 4,
     })),
@@ -8794,6 +8964,80 @@ group("het merkcijfer: antwoorden zonder bron wegen lichter of tellen niet mee",
   ]));
 });
 
+group("een uitspraak over de reviews is geen pluspunt", () => {
+  // ⚠️ Alle regels hieronder komen LETTERLIJK uit de eerste echte run, op
+  // Van den Udenhout (23 augustus 2026). Verzonnen voorbeelden zouden hier
+  // toetsen of ik de fout goed geraden heb; deze toetsen de fout zelf.
+
+  // Echte eigenschappen: dit is waar de klant iets aan heeft.
+  for (const goed of [
+    "persoonlijke begeleiding",
+    "het nakomen van afspraken",
+    "duidelijke uitleg bij aflevering",
+    "lange wachttijden en matige planning",
+    "onduidelijke tarieven voor onderhoud of diagnose",
+    "extra kosten die pas bij het afrekenen zichtbaar worden",
+    "De vestiging is aangesloten bij BOVAG.",
+    "Merkdealer van de Volkswagen-groep",
+  ]) {
+    ok(`blijft staan: "${goed.slice(0, 40)}"`, isUsablePoint(goed));
+  }
+
+  // Circulair: je sterke punt is dan dát mensen positief over je zijn. Dat zegt
+  // niets, het is niets om aan te werken, en het cijfer dat erbij hoort staat
+  // al in het bronnenblok met het aantal beoordelingen erbij.
+  for (const fout of [
+    "Het beeld is niet uitsluitend negatief.",
+    "De algemene klantwaardering is op sommige platforms goed tot zeer goed.",
+    "Daar staan overigens ook meerdere positieve reviews tegenover waarin verkopers juist vriendelijk en deskundig worden genoemd.",
+    "algemene reputatie ... is op grote reviewplatforms overwegend positief, vooral voor ontvangst, verkoop en vriendelijkheid",
+    "Er zijn ook veel positieve ervaringen: klanten noemen vriendelijke medewerkers, deskundige verkopers, goed geregelde aflevering.",
+  ]) {
+    ok(`valt af: "${fout.slice(0, 40)}"`, !isUsablePoint(fout));
+  }
+
+  // Een hele alinea is geen punt maar een samenvatting, en die hoort in de
+  // synthese.
+  ok("een alinea valt af", !isUsablePoint("x".repeat(200)));
+  ok("een lege regel ook", !isUsablePoint("   "));
+
+  // ⚠️ Bij twijfel houden we het punt: een weggegooide bevinding kost meer dan
+  // een rare regel op het scherm. Deze is lang maar wél een eigenschap.
+  ok(
+    "een lange maar echte eigenschap blijft",
+    isUsablePoint(
+      "het aanbod omvat onder meer de Shuttel-mobiliteitskaart, fietslease via VELOO, poolmanagement, WeGo en tijdelijke mobiliteitsoplossingen",
+    ),
+  );
+
+  // De ontdubbeling kijkt naar de eerste drie woorden: twee formuleringen van
+  // hetzelfde bezwaar zijn één punt, anders blijven ze allebei onder de
+  // patroondrempel en verdwijnt een bezwaar dat wél terugkomt.
+  const opgeschoond = cleanPoints([
+    "levertijd valt tegen",
+    "levertijd valt soms tegen",
+    "Het beeld is niet uitsluitend negatief.",
+    "persoonlijke begeleiding",
+    "",
+  ]);
+  eq("ontdubbeld en opgeschoond", opgeschoond.join(" | "), "levertijd valt tegen | persoonlijke begeleiding");
+  ok("hooguit acht punten", cleanPoints(Array.from({ length: 20 }, (_, i) => `punt ${i} van de lijst`)).length === 8);
+
+  // ⚠️ De synthese groepeert punten over ANTWOORDEN heen met dezelfde sleutel.
+  // Met een eigen kopie telden "persoonlijke begeleiding" en "persoonlijke
+  // begeleiding bij aankoop" als twee patronen, en stonden ze allebei in de
+  // sterke punten van de eerste echte run.
+  eq(
+    "een uitbreiding van hetzelfde punt is hetzelfde punt",
+    dedupeSleutel("persoonlijke begeleiding"),
+    dedupeSleutel("persoonlijke begeleiding bij aankoop"),
+  );
+  ok(
+    "maar een ander tweede woord is een ander punt",
+    dedupeSleutel("persoonlijke begeleiding") !== dedupeSleutel("persoonlijke aandacht"),
+  );
+});
+
 group("de bewijskracht: alleen de eigen site levert een laag getal", () => {
   // ⚠️ Ook bij tien vermeldingen. Een merk waar AI alles van de eigen site
   // haalt, heeft geen reputatie maar een website.
@@ -8847,6 +9091,16 @@ group("de eenduidigheid vraagt om herhalingen", () => {
 });
 
 group("de domeinindeling herkent een reviewplatform en telt de eigen site apart", () => {
+  // ⚠️ Alleen CODE mag een domein als de eigen site aanwijzen. Het model kan
+  // die waarde niet meer teruggeven, en dat is een reparatie uit de eerste
+  // echte run: het deelde `autobedrijfdetwee.nl` en `alfaromeo.nl` in als
+  // "eigen", omdat het de categorie las als "de site van dat bedrijf zelf".
+  // Dan zou op het scherm staan dat de site van je concurrent van jou is, en de
+  // zin "9 van de 15 bronnen zijn je eigen site" zou onzin worden.
+  const soorten = ReputationSourceKinds.shape.domeinen.element.shape.soort.options as string[];
+  ok("het model kan 'eigen' niet meer kiezen", !soorten.includes("eigen"), soorten.join(", "));
+  ok("maar code wijst hem nog wel aan", knownKind("eigen.nl", "eigen.nl") === "eigen");
+
   eq("trustpilot is een reviewplatform", String(knownKind("trustpilot.com", "eigen.nl")), "review");
   eq("de kvk is een register", String(knownKind("kvk.nl", "eigen.nl")), "register");
   eq("linkedin is sociaal", String(knownKind("linkedin.com", "eigen.nl")), "sociaal");
@@ -8890,6 +9144,52 @@ group("de domeinindeling herkent een reviewplatform en telt de eigen site apart"
   ok(
     "en zonder bronnen zegt hij dat er niets is",
     sourceMixSentence([]).includes("geen enkele controleerbare bron"),
+  );
+});
+
+group("een bron die niet opgezocht is, is geen bron", () => {
+  // ⚠️ HET GEVAL DAT DIT AFVANGT, EN HET IS OP PRODUCTIE GEBEURD (23 augustus
+  // 2026). De ONGEGRONDE merkvraag over Van den Udenhout leverde vijf URL's op,
+  // waaronder `vandenudenhout.nl`, terwijl de klant op `udenhout.nl` zit. Het
+  // model mocht niet zoeken, dus het herinnerde zich een patroon en vulde de
+  // rest aan.
+  const tekst =
+    "Van den Udenhout is een Brabants autobedrijf. Zie https://www.vandenudenhout.nl/over-ons " +
+    "en https://www.volkswagen.nl/dealers.";
+
+  eq("zonder zoeken levert het niets op", citedUrlsFrom(tekst, {}, false).join(","), "");
+  ok("mét zoeken wél", citedUrlsFrom(tekst, {}, true).length === 2);
+
+  // ⚠️ Waarom dit meer is dan een rare link: die URL's gaan de bronnentelling in
+  // en verhogen de BEWIJSKRACHT. Dat is precies het cijfer dat moet voorkomen
+  // dat een vriendelijk antwoord over een onbekend bedrijf als een goede
+  // reputatie leest. Een verzonnen domein telt bovendien als EXTERN, en die
+  // wegen het zwaarst; het vangnet werd dus opgeblazen door het gevaar
+  // waartegen het beschermt.
+  const metVerzinsels = evidenceScore(
+    citedUrlsFrom(tekst, {}, true).map((u) => ({
+      domain: u,
+      isOwn: false,
+      isReview: false,
+      verifiedRating: false,
+    })),
+  );
+  const zonder = evidenceScore(
+    citedUrlsFrom(tekst, {}, false).map((u) => ({
+      domain: u,
+      isOwn: false,
+      isReview: false,
+      verifiedRating: false,
+    })),
+  );
+  ok("en de bewijskracht blijft daardoor eerlijk", zonder === 0 && metVerzinsels > 0, `${zonder} tegen ${metVerzinsels}`);
+
+  // Afsluitende leestekens horen niet bij de URL, anders telt hetzelfde domein
+  // twee keer.
+  eq(
+    "een punt achter de URL valt eraf",
+    citedUrlsFrom("Zie https://trustpilot.com/review/x.", {}, true).join(","),
+    "https://trustpilot.com/review/x",
   );
 });
 

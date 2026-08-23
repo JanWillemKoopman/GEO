@@ -25,6 +25,31 @@
 export interface OrderObservation {
   /** De partij die als eerste in de vraag genoemd werd. */
   firstAsked: string;
+  /**
+   * ⚠️ Kende het model die eerstgevraagde partij? Zo niet, dan telt dit oordeel
+   * NIET mee, en dat is de belangrijkste regel van deze module.
+   *
+   * ── DE FOUT DIE DIT REPAREERT, GEMETEN OP 23 AUGUSTUS 2026 ────────────────
+   *
+   * Bij Van den Udenhout kende ChatGPT twee van de vier partijen niet: twee
+   * kleine regionale autobedrijven. Een partij zonder plaats kan nooit eerste
+   * worden, dus elk oordeel waarin zo'n partij vooraan stond leverde
+   * gegarandeerd een misser op.
+   *
+   * De oude telling gooide beide groepen op één hoop, en dat maskeerde het
+   * effect volledig:
+   *
+   *   eerstgevraagde was GEKEND      7 van de 11 keer eerste  = 63,6%
+   *   eerstgevraagde was ONBEKEND    0 van de 33 keer eerste  =  0,0%
+   *   samen                          7 van de 44 keer eerste  = 21,9%
+   *
+   * Op 21,9% lijkt vooraan staan zelfs schadelijk, wat ongeloofwaardig is. Het
+   * echte cijfer is 63,6%, en dát is het getal waar `rank_indicative` op hoort
+   * te steunen. Een gemaskeerd volgorde-effect betekent dat een plaats
+   * stelliger op het scherm komt dan hij is, en dat is precies de fout die dit
+   * hele onderdeel probeert te vermijden.
+   */
+  firstAskedKnown: boolean;
   /** De partij die het model op plaats 1 zette. Null als er geen plaats 1 was. */
   firstPlaced: string | null;
   /** Hoeveel partijen er in dit oordeel meededen. */
@@ -75,8 +100,15 @@ function sleutel(name: string): string {
  * effect zou een bias meten die er niet is.
  */
 export function measureOrderBias(observations: OrderObservation[]): OrderBiasResult {
+  // ⚠️ Alleen oordelen waarin de eerstgevraagde partij ook daadwerkelijk
+  // meedeed. Zie `firstAskedKnown` hierboven: zonder die filter meet je hoe
+  // vaak het model de lokale concurrenten kent, en niet of vooraan staan loont.
   const bruikbaar = observations.filter(
-    (o) => o.firstPlaced !== null && o.ofParties >= 2 && o.firstAsked.trim().length > 0,
+    (o) =>
+      o.firstAskedKnown &&
+      o.firstPlaced !== null &&
+      o.ofParties >= 2 &&
+      o.firstAsked.trim().length > 0,
   );
 
   if (bruikbaar.length < MIN_OBSERVATIONS) {
@@ -100,11 +132,38 @@ export function measureOrderBias(observations: OrderObservation[]): OrderBiasRes
 }
 
 /**
+ * Hoeveel partijen het model minstens moet kennen voordat een plaats een uitslag
+ * mag heten.
+ *
+ * ⚠️ DRIE, EN DAT IS EEN REPARATIE UIT DE EERSTE ECHTE RUN (23 augustus 2026).
+ *
+ * Bij Van den Udenhout kende ChatGPT twee van de vier partijen niet: de twee
+ * kleine regionale autobedrijven. Wat overbleef was de klant tegenover
+ * Alfa Romeo, een fabrikant. De plaats werd daarmee "eerste van twee", en omdat
+ * er drie rotaties onder lagen en het volgorde-effect binnen de marge viel,
+ * kwam die als HARDE UITSLAG op het scherm.
+ *
+ * Dat is het misleidendste getal dat dit product kan tonen. Twee is genoeg om
+ * een score te BEREKENEN (§4.4, vangnet 3: eerste van één is geen uitslag),
+ * maar niet genoeg om te zeggen waar iemand in zijn markt staat. Een duel is
+ * geen ranglijst.
+ */
+export const MIN_KNOWN_FOR_VERDICT = 3;
+
+/**
  * Mag de plaats als uitslag op het scherm, of alleen als indicatie? (§4.4)
  *
- * ⚠️ Twee voorwaarden, en ze moeten ALLEBEI gelden. Genoeg rotaties zonder een
- * gemeten volgorde-effect is niet genoeg: als vooraan staan structureel wint,
- * dan zeggen drie rotaties alleen dat het effect drie keer optrad.
+ * ⚠️ Drie voorwaarden, en ze moeten ALLE DRIE gelden:
+ *
+ *   1. genoeg rotaties, want één vergelijking is een momentopname;
+ *   2. geen gemeten volgorde-effect, want als vooraan staan structureel wint
+ *      zeggen drie rotaties alleen dat het effect drie keer optrad;
+ *   3. genoeg partijen die het model daadwerkelijk kende, want anders vergelijk
+ *      je de klant met wie er toevallig bekend genoeg was.
+ *
+ * De derde is er na de eerste echte run bijgekomen. Zie
+ * `MIN_KNOWN_FOR_VERDICT` hierboven voor wat er zonder die voorwaarde op het
+ * scherm zou staan.
  *
  * Standaard `true` (indicatief). De veilige kant is hier "dit is een indicatie",
  * want een plaats die stelliger op het scherm staat dan hij is, is precies de
@@ -115,7 +174,13 @@ export function rankIsIndicative(args: {
   rotations: number;
   /** Het gemeten volgorde-effect over de hele run. */
   bias: OrderBiasResult;
+  /**
+   * Hoeveel partijen het model kende, inclusief de klant. Dat is de noemer
+   * waarop de plaats rust, niet het aantal partijen dat de vraag in ging.
+   */
+  knownParties: number;
 }): boolean {
   if (args.bias.exceeded) return true;
+  if (args.knownParties < MIN_KNOWN_FOR_VERDICT) return true;
   return args.rotations < 3;
 }

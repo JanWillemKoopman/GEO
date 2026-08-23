@@ -9,8 +9,8 @@ Voor UI/UX: `ux-design.md`.
 > **Bijgewerkt op 22 augustus 2026** voor Mijn reputatie (migratie `0062`): §3 (de vijf
 > reputatietabellen en de kolom op `ai_calls`), §4 (de zes nieuwe taaksoorten), §5 (stap 17) en §6
 > (de vijf nieuwe AI-aanroepen). ⚠️ Dat onderdeel is gebouwd en op ketentests geverifieerd, maar er
-> heeft nog geen enkele echte run op productie gedraaid en migratie `0062` staat nog niet op de
-> productiedatabase. Conventie 10: gebouwd is niet geverifieerd.
+> Migratie `0062` staat op productie en de eerste echte run is op 23 augustus gedraaid; wat die
+> opleverde staat in §6 en in `docs/logbook.md`.
 > De rest van de peildatum hieronder blijft staan.
 > **Migraties `0058` en `0059` zijn er sindsdien bijgekomen** en staan wél in §12 en in dit
 > document verwerkt, maar de rest is niet opnieuw regel voor regel nagelopen. Verder geldt:
@@ -505,10 +505,27 @@ zodat een run per stuk af te rekenen is.
 | `reputation_source_kinds` | `volume` | nee | `deterministic` | Alle gevonden domeinen indelen. Eén aanroep voor de hele lijst, zoals `offsite/presence.ts`. |
 | `reputation_synthesis` | `quality` | nee | `analytical` | De uitleg schrijven. ⚠️ De cijfers staan dan al vast en gaan als gegeven de prompt in. |
 
-**Geschatte kosten:** ongeveer $0,54 per standaardanalyse, dus rond de €0,50, waarvan verreweg het
-meeste in de web-zoekacties van de 34 gestelde vragen zit. Het plafond staat hard op €3 per run
-(`lib/reputation/budget.ts`), niet als doel maar als rem. ⚠️ Deze bedragen zijn geschat en niet
-nagerekend: er heeft nog geen enkele echte run op productie gedraaid (conventie 10).
+**Nagerekend op productie (23 augustus 2026), en de schatting was te laag.** Eén standaardrun op
+Van den Udenhout, 34 vragen:
+
+| | Geschat | Gemeten |
+|---|---|---|
+| Aanroepen | 68 | **66** |
+| Kosten | $0,54 | **$0,75** |
+| Doorlooptijd | 6 tot 9 minuten | **31,6 minuten** |
+
+Het aantal aanroepen klopte vrijwel precies; de prijs per gegronde vraag niet ($0,021 tot $0,023 in
+plaats van $0,015). Oorzaak: web-zoeken haalt pagina's op die als invoer meetellen, precies het
+risico dat het plan zelf benoemde. De beoordelingen kwamen wél op $0,001 uit. Ruim binnen het
+plafond van €3 per run (`lib/reputation/budget.ts`), dat niet als doel maar als rem bestaat.
+
+⚠️ **De doorlooptijd is drie keer de schatting, en dat is architectonisch.** De wachtrij doet exact
+één zware taak per minuut: `HEAVY_JOB_RESERVE_MS` houdt 220 van de 240 seconden vrij voordat een
+zware taak begint, en de cron vuurt één keer per minuut. De aanname "met de knopen parallel" gaat
+dus niet op. De schermteksten noemen een halfuur.
+
+Wat die run verder opleverde, waaronder zeven fouten die geen enkele test had gevangen, staat in
+`docs/logbook.md` bij 23 augustus 2026.
 
 **Bewust géén AI, in dit onderdeel:** de keuze van de aanbodknopen en de concurrenten
 (`lib/reputation/select-nodes.ts` en `select-rivals.ts`), alle rekenkunde (`score.ts`, `rank.ts`,
