@@ -173,6 +173,14 @@ export function spreadSentence(dist: ToneDistribution): string | null {
  * toonde "+4" zonder enige marge, en dat is een inconsistentie die een klant
  * ziet zodra hij beide opent.
  */
+/**
+ * Hoe ver de labels uit elkaar liggen op de schaal van -100 tot 100.
+ *
+ * De labels zijn 1 punt uit elkaar op de schaal -2..+2 van `tone.ts`, en die
+ * wordt maal 50 gedaan. Vandaar 50.
+ */
+export const LABEL_STAP = 50;
+
 export function toneStderr(answers: ScoredAnswer[]): number | null {
   const scores = answers
     .filter(usableForTone)
@@ -186,7 +194,24 @@ export function toneStderr(answers: ScoredAnswer[]): number | null {
     scores.reduce((s, v) => s + (v - gem) ** 2, 0) / (scores.length - 1);
   // Van de schaal -2..+2 naar -100..+100, dus maal 50.
   const stderrOpSchaal = Math.sqrt(variantie / scores.length) * 50;
-  return Math.round(stderrOpSchaal * 10) / 10;
+
+  // ⚠️ NUL BESTAAT NIET, en dat is geen afronding maar een meetfeit.
+  //
+  // Bij de tweede run op Gasservice Brabant kregen alle 24 bruikbare antwoorden
+  // hetzelfde label. De spreiding was daarmee exact 0 en de standaardfout dus
+  // ook, en dat leest als "dit cijfer is tot op de punt nauwkeurig". Het
+  // tegendeel is waar: het betekent dat het instrument geen verschil zág.
+  //
+  // De ondergrens komt uit de schaal zelf. Het model kiest een van de labels en
+  // die liggen 50 punten uit elkaar; de echte toon van een antwoord wordt dus
+  // afgerond op de dichtstbijzijnde 50. De spreiding van zo'n afronding is de
+  // stapgrootte gedeeld door de wortel uit 12, en de standaardfout van het
+  // gemiddelde daarvan is dat gedeeld door de wortel uit het aantal antwoorden.
+  // Bij 24 antwoorden levert dat 2,9 punten op in plaats van 0. Die 2,9 is geen
+  // sierrand: hij bepaalt of een volgende meting "echt veranderd" mag heten, en
+  // met 0 zou elk verschil dat heten.
+  const ondergrens = (LABEL_STAP / Math.sqrt(12)) / Math.sqrt(scores.length);
+  return Math.round(Math.max(stderrOpSchaal, ondergrens) * 10) / 10;
 }
 
 /** Eén beoordeeld antwoord, zoals het uit de oordeelslaag komt. */

@@ -1202,6 +1202,8 @@ export interface ReputationRun {
   market_of: number | null;
   /** Bij welk aandeel van de marktvragen de klant voorkwam, 0 tot 1. */
   market_hit_rate: number | null;
+  /** De noemer onder die trefkans: hoeveel marktvragen er bruikbaar waren. */
+  market_answers: number | null;
   /** De concurrenten die AI zélf noemde. Betrouwbaarder dan de opgelegde set. */
   market_rivals: string[];
   /** Model plus promptversie. Twee runs met verschillende sleutels zijn niet vergelijkbaar. */
