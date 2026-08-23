@@ -1,6 +1,6 @@
 # Mijn reputatie: productplan en implementatieplan
 
-**Opgesteld:** 22 augustus 2026 · **Status:** R1, R2 en R3 gebouwd · R4 en R5 staan open ·
+**Opgesteld:** 22 augustus 2026 · **Status:** R1 t/m R4 af · R5 staat open ·
 **Plaats in de app:** Analytics, vierde bestemming (zie §2.2, daar ligt een besluit voor je klaar)
 
 Dit document beschrijft een **nieuw, apart betaald onderdeel** binnen ORBIT ENGINE. Het beantwoordt
@@ -983,7 +983,13 @@ de klantstaat toont de melding zonder werkende knop. Een niet-beheerder die de r
 aanroept krijgt 403 met dezelfde tekst. De vergelijkingstabel toont bij een merk zonder bekende
 concurrenten geen lege tabel maar de uitleg waarom er niets te vergelijken viel.
 
-### Sprint R4 · Nagerekend op productie ⏳ OPEN, wacht op een testmerk
+### Sprint R4 · Nagerekend op productie ✅ AF (23 augustus 2026, Van den Udenhout)
+
+> **Uitkomst:** beide toetsen geslaagd, en de run legde zeven fouten bloot die geen enkele test had
+> gevangen. Volledig uitgeschreven in `docs/logbook.md`, 23 augustus 2026. Kort: 66 aanroepen voor
+> $0,75 in 31,6 minuten (geschat was 68 voor $0,54 in 6 tot 9 minuten), de vlakheidstoets leverde
+> tien keer gemengd en één keer negatief op tegenover nul negatieven in de 650 rijen van vóór migratie 0029, en de
+> volgorde-toets bracht aan het licht dat de meting van het volgorde-effect zelf kapot was.
 
 Conventie 10: gebouwd is niet geverifieerd.
 
@@ -1004,7 +1010,7 @@ Conventie 10: gebouwd is niet geverifieerd.
 doorlooptijd, de uitkomst van de vlakheidstoets en de uitkomst van de volgorde-toets. Klopt een van
 beide toetsen niet, dan gaat R5 niet door en wordt de meetopzet herzien.
 
-### Sprint R5 · De diepe modus en de herhaling ⏳ OPEN, begint pas als R4 goed uitvalt
+### Sprint R5 · De diepe modus en de herhaling ⏳ OPEN, mag beginnen: R4 viel goed uit
 
 - De keuze standaard tegenover diep bij het starten.
 - Herhalingen en het eenduidigheidscijfer.
