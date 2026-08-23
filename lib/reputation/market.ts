@@ -80,6 +80,61 @@ function sleutel(name: string): string {
 }
 
 /**
+ * Woorden die niets zeggen over WELK bedrijf het is.
+ *
+ * ⚠️ Opgesteld op de werkelijke uitvoer van de run op Gasservice Brabant
+ * (23 augustus 2026). Daar noemde ChatGPT hetzelfde bedrijf als "Verhees en Van
+ * Dijk Installatietechniek", "Verhees en Van Dijk" en "Verhees & Van Dijk", en
+ * die telden als drie concurrenten. Op het scherm zou dan drie keer dezelfde
+ * partij in de lijst staan, en de trefkans van de klant zou gedeeld worden door
+ * een te grote noemer.
+ *
+ * De lijst is krap gehouden: alleen wat in vrijwel elke branche als
+ * bedrijfsaanduiding fungeert. Een woord dat het bedrijf ONDERSCHEIDT hoort er
+ * niet in, want dan zouden twee verschillende bedrijven samenvallen en dat is de
+ * duurdere fout.
+ */
+const GENERIEKE_WOORDEN = new Set([
+  "bv",
+  "nv",
+  "vof",
+  "installatietechniek",
+  "installatiebedrijf",
+  "installaties",
+  "installatie",
+  "techniek",
+  "service",
+  "diensten",
+  "groep",
+  "group",
+  "holding",
+  "nederland",
+  // Verbindingswoorden. "Verhees & Van Dijk" en "Verhees en Van Dijk" zijn
+  // hetzelfde bedrijf; "van" blijft wél staan, want dat zit in de naam.
+  "en",
+]);
+
+/**
+ * De sleutel waarop twee genoemde bedrijven als hetzelfde gelden.
+ *
+ * Strenger dan `sleutel()`, want dit werkt OVER antwoorden heen. Binnen één
+ * antwoord noemt een model een bedrijf zelden twee keer anders; over zes
+ * antwoorden gebeurt dat vrijwel altijd.
+ */
+export function marketKey(name: string): string {
+  return name
+    .toLowerCase()
+    .replace(/&/g, " en ")
+    .split(/[^a-z0-9]+/i)
+    // ⚠️ Losse letters eruit. "B.V." valt bij het splitsen uiteen in "b" en "v",
+    // en dan helpt het woord "bv" op de lijst hierboven niets. Een initiaal
+    // verliezen is onschadelijk voor het matchen; een bedrijf dat zich alleen
+    // door één letter onderscheidt bestaat niet.
+    .filter((w) => w.length > 1 && !GENERIEKE_WOORDEN.has(w))
+    .join(" ");
+}
+
+/**
  * Herkent de klant tussen de genoemde bedrijven.
  *
  * ⚠️ Losjes, want AI schrijft "Van den Udenhout Den Bosch" waar het profiel
@@ -120,7 +175,9 @@ export function readMarketAnswer(
 
   for (const c of [...named].sort((a, b) => a.position - b.position)) {
     const naam = c.name.trim();
-    const k = sleutel(naam);
+    // Dezelfde sleutel als bij het samenvatten, zodat één bedrijf één bedrijf
+    // is of het nu binnen of tussen antwoorden dubbel genoemd wordt.
+    const k = marketKey(naam) || sleutel(naam);
     if (!naam || !k || gezien.has(k)) continue;
 
     // Vangnet 2: de klant onder een tweede schrijfwijze telt niet nog een keer.
@@ -189,10 +246,17 @@ export function summariseMarket(outcomes: MarketOutcome[]): MarketSummary {
   const perNaam = new Map<string, { naam: string; keer: number }>();
   for (const o of bruikbaar) {
     for (const r of o.rivals) {
-      const k = sleutel(r.name);
+      const k = marketKey(r.name);
+      if (!k) continue;
       const bestaand = perNaam.get(k);
-      if (bestaand) bestaand.keer++;
-      else perNaam.set(k, { naam: r.name, keer: 1 });
+      if (bestaand) {
+        bestaand.keer++;
+        // De rijkste schrijfwijze tonen: "Verhees en Van Dijk
+        // Installatietechniek" zegt meer dan "Verhees & Van Dijk".
+        if (r.name.length > bestaand.naam.length) bestaand.naam = r.name;
+      } else {
+        perNaam.set(k, { naam: r.name, keer: 1 });
+      }
     }
   }
 
