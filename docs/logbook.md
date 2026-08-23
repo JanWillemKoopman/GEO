@@ -3687,3 +3687,90 @@ vangen.
 zonder cijfer is een mening. Zie sprint 7 in `tasks/ontwikkelplan-visie.md`.
 
 Na deze ronde: migraties t/m `0061`, 1819 unittests en 211 ketentests groen.
+
+---
+
+## 22 augustus 2026 · Mijn reputatie, sprint R1 tot en met R3
+
+Een **nieuw, apart betaald onderdeel** onder Analytics, dat de vijfde vraag beantwoordt die de app
+tot nu toe niet kon beantwoorden: *hoe praat AI over je, waarom, waar komt dat beeld vandaan, en
+kiest AI jou of je concurrent als hij ze naast elkaar legt?* De meting zegt of je genoemd wordt, de
+kennistest of AI weet wie je bent, het bronnenlandschap welke sites je markt bepalen. Alle drie
+gaan over aanwezigheid. Geen van drieën gaat over toon, en een merk kan bij elke koopvraag genoemd
+worden en er tegelijk om bekend staan dat de levering altijd te laat is.
+
+Het volledige plan staat in `docs/tasks/mijn-reputatie.md`. Wat hier hoort is waaróm de bouw is
+zoals hij is, met de cijfers eronder.
+
+**Dit is de tweede keer dat sentiment gemeten wordt, en de eerste keer leverde het niets op.** Tot
+migratie `0029` mat elke meting `sentiment` per vermelding. Uitkomst na **650 gemeten rijen**:
+`negative` kwam geen enkele keer voor, `positive` bij precies één analyse. Die 650 rijen waren
+antwoorden op koopvragen, en daar somt een assistent bedrijven neutraal in op: er zat geen oordeel
+in, dus viel er geen oordeel uit te lezen. Dit onderdeel vraagt er rechtstreeks naar en vraagt
+bewust ook naar de andere kant ("waar klagen klanten over"). **Of dat werkelijk variatie oplevert is
+een aanname tot sprint R4 hem op een echt merk heeft nagerekend.**
+
+**Het gevaarlijkste dat dit product kan doen, is een onzichtbaar bedrijf geruststellen.** Een
+taalmodel is standaard vriendelijk over een bedrijf waar het niets van weet. Zonder rem levert dat
+een mooie score op voor een merk waar AI helemaal niets van weet. Daarom staat de toon op het scherm
+nooit alleen: er staat altijd de bewijskracht naast, en een antwoord zonder controleerbare bron
+telt niet mee in het merkcijfer (`lib/reputation/score.ts`). De verwachting is dat "toon +65,
+bewijskracht 10" de meest voorkomende uitslag bij een MKB-bedrijf wordt, en dat is een advies en
+geen compliment: reviews verzamelen, want dit cijfer is lucht.
+
+**Het volgorde-effect is de kern van de vergelijking, en het wordt gemeten in plaats van
+aangenomen.** Een taalmodel bevoordeelt de partij die het eerst genoemd wordt. Zet je de klant
+altijd vooraan, dan bouw je een product dat élke klant een mooie plaats geeft, en dat is erger dan
+geen vergelijking. Vier maatregelen, alle vier in code: de volgorde rouleert deterministisch, de
+klant staat over twaalf aanbodknopen precies drie keer op elke plek, één vergelijking per knoop
+krijgt de chip `indicatief` en drie niet, en `order-bias.ts` telt achteraf hoe vaak de
+eerstgenoemde partij ook als eerste geplaatst werd. Bij vier partijen is 25% de verwachting; ligt
+het er meer dan twintig punten boven, dan gaan álle plaatsen op indicatief en zegt het scherm dat in
+gewone taal.
+
+**Analytics ging naar vier bestemmingen**, met een reden van dezelfde soort als de uitzondering die
+Admin op 19 augustus kreeg: de andere drie tonen data die de app sowieso al verzamelt, deze is een
+los product dat de klant apart koopt en dat per keer gestart, betaald en gedateerd wordt. Drie plus
+een product, zoals Admin drie plus een uitgang is. Vanaf nu bestaat er in geen van beide
+hoofdstukken een vijfde zonder eerst iets samen te voegen, en de test faalt voortaan ook als er
+stilletjes een derde hoofdstuk bij komt dat er vier mag.
+
+**Twee afwijkingen van het plan**, allebei omdat het plan aantoonbaar de verkeerde uitkomst gaf:
+
+- De rotatie hangt aan de plek van de knoop in de vastgelegde scope en niet aan een hash van het
+  knoop-id, zoals §4.4 schreef. Een hash verdeelt de klant *ongeveer* gelijk over de posities: bij
+  twaalf knopen kan hij dan vijf keer vooraan en één keer achteraan staan, en dan is de correctie
+  precies zo scheef als het effect dat ze moest wegnemen. De plek in de scope doet hetzelfde
+  deterministisch én exact.
+- De eenduidigheid trekt één standaardfout af en niet 1,96 zoals de 95%-band bij de meting doet.
+  Met de volle marge kwam drie keer hetzelfde antwoord op **49** uit, en "49% eenduidig" bij drie
+  identieke antwoorden is even misleidend als 100 zou zijn, alleen de andere kant op. Met één
+  standaardfout komt hetzelfde geval op 74.
+
+**De ketentests zijn hier het zwaartepunt en niet het sluitstuk.** Zes taaksoorten die op elkaar
+wachten is meer samenhang dan enig ander onderdeel van de app heeft, en zeven van de zeven fouten
+van het vorige traject zaten in precies die samenhang. Er kwamen **46 ketentests** bij, over onder
+meer: de synthese draait als laatste en precies één keer, twee keer starten stelt geen enkele vraag
+opnieuw, een mislukte beoordeling wordt opnieuw geprobeerd zonder de dure vraag te herhalen, een
+merk zonder concurrenten levert een volledige run zonder vergelijking op met `rank_score` op `null`,
+een merk zonder aanbod krijgt een nette weigering, en een budget dat halverwege volloopt offert de
+vergelijking en laat de basisanalyse staan.
+
+Daarvoor moest `callPlain()` hetzelfde teststopcontact krijgen dat `callStructured()` al had. Tot nu
+had geen enkele ketentest dat nodig: de meting wordt in `test-chain.ts` met voorgebakken rijen in
+`tracking_runs` nagebootst. Hier kan dat niet, want dan sla je juist het stuk over dat getest moet
+worden.
+
+**Kosten:** de ketentest maakt geen enkele betaalde aanroep, dus die liet €0,00 zien. De geschatte
+kostprijs van een echte standaardanalyse is **ongeveer $0,54, dus rond de €0,50**, met een plafond
+van €3 hard in code. ⚠️ Dat bedrag is berekend uit de tarieven in `lib/openai/pricing.ts` en is
+**niet nagerekend tegen `ai_calls`**: er heeft nog geen enkele echte run gedraaid.
+
+**Wat er nadrukkelijk nog niet gebeurd is** (conventie 10, gebouwd is niet geverifieerd): migratie
+`0062` staat nog niet op de productiedatabase, er is geen echte run gedraaid, de vlakheidstoets en
+de volgorde-toets uit R4 staan open, en de diepe modus uit R5 doet vandaag hetzelfde als de
+standaardmodus. R5 begint pas als R4 goed uitvalt; valt een van beide toetsen verkeerd uit, dan
+wordt de meetopzet herzien in plaats van doorgebouwd.
+
+Na deze ronde: migraties t/m `0062` (in de repository, nog niet op productie), 1954 unittests en
+257 ketentests groen.

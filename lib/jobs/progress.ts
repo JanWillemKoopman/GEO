@@ -55,6 +55,17 @@ const TYPICAL_SECONDS: Record<JobType, number> = {
   offsite_scan: 40, // gegroundde aanroep + Wikidata/Wikipedia
   gsc_sync: 6, // één HTTP-verzoek naar Google plus een bulk-upsert, geen AI
   recalculate_potential: 15, // één aanroep over een handvol onderwerpen samen
+
+  // ── Mijn reputatie ────────────────────────────────────────────────────────
+  reputation_start: 4, // kiest en plant in, geen AI en geen netwerk
+  reputation_brand: 55, // vijf parallelle aanroepen, vier met web_search
+  reputation_offering: 30, // één gegronde vraag plus de beoordeling
+  // ⚠️ De duurste taak van dit onderdeel: een vergelijking zoekt over VIER
+  // bedrijven in plaats van één, dus eerder 40 dan 20 seconden per rotatie, en
+  // merkbreed zijn dat er drie.
+  reputation_compare: 50,
+  reputation_sources: 60, // twee gegronde vragen, een indeling, plus zes crawls
+  reputation_synthesis: 30, // rekenen is gratis, de tekst kost één aanroep
 };
 
 /**
@@ -108,6 +119,32 @@ const NON_BLOCKING_TYPES: ReadonlySet<JobType> = new Set<JobType>([
   // "nog niet te bepalen" bij het zoekvolume, precies zoals vóór de eerste
   // geslaagde herberekening.
   "recalculate_potential",
+  // ── Mijn reputatie ────────────────────────────────────────────────────────
+  //
+  // Een reputatierun draagt zijn eigen status (`reputation_runs.status`) en
+  // heeft zijn eigen scherm; daar staat wat er misging en wat er wél gemeten is.
+  // Deze taken hangen wel aan een merk, dus zonder deze uitzondering zou één
+  // mislukte dienstvraag als een rood kruis op het MERKSCHERM verschijnen, en
+  // dan lijkt het alsof de onboarding is misgelopen terwijl er niets aan de hand
+  // is met het merk.
+  //
+  // ⚠️ `reputation_synthesis` staat er bewust NIET bij. Mislukt die definitief,
+  // dan blijft de run op 'running' staan zonder cijfer, en dat is precies het
+  // geval waarin een foutmelding hoort te verschijnen.
+  //
+  // ⚠️ `reputation_start` staat er wél bij, en dat is de regel die op 19 augustus
+  // 2026 bij `profile_offering` sneuvelde: een stap die iets DRAAGT mag niet
+  // stil mislukken, en deze stap plant alle andere in. Hier is dat wél veilig,
+  // maar alleen dankzij `scheduleFollowUpAfterFailure()`: die zet bij een
+  // definitieve mislukking alsnog de synthese klaar, die vindt nul antwoorden,
+  // en de run eindigt op 'mislukt' met de reden erbij op zijn eigen scherm. De
+  // klant blijft dus niet in het ongewisse; alleen het MERKSCHERM zwijgt
+  // erover, en daar hoort het ook niet.
+  "reputation_start",
+  "reputation_brand",
+  "reputation_offering",
+  "reputation_compare",
+  "reputation_sources",
 ]);
 
 /**

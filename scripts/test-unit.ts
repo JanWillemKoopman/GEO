@@ -363,6 +363,34 @@ import { checkTabooWords } from "@/lib/pipeline/content-gate";
 import { slugFrom, suggestedPath, resolvedContentUrl } from "@/lib/pipeline/slug";
 import { diffContent } from "@/lib/pipeline/content-diff";
 import { FaqEdit } from "@/lib/schemas/content-piece";
+import {
+  selectNodes,
+  heaviestNodes,
+  MAX_NODES_STANDARD,
+  MAX_NODES_DEEP,
+} from "@/lib/reputation/select-nodes";
+import { selectRivals, MAX_RIVALS } from "@/lib/reputation/select-rivals";
+import { rotateParties, positionInOrder } from "@/lib/reputation/rotate";
+import { scoreCriterion, summariseRanks, positionToScore } from "@/lib/reputation/rank";
+import { measureOrderBias, rankIsIndicative, MIN_OBSERVATIONS } from "@/lib/reputation/order-bias";
+import {
+  toneIndex,
+  evidenceScore,
+  consistency,
+  usableForTone,
+  runIsUsable,
+  WEAK_WEIGHT,
+} from "@/lib/reputation/score";
+import { toneScore, toneWord, isToneLabel, TONE_LABELS } from "@/lib/reputation/tone";
+import {
+  knownKind,
+  tallySources,
+  sourceMixSentence,
+  ratingIsAcceptable,
+  REVIEW_PLATFORMS,
+} from "@/lib/reputation/sources";
+import { decideStep, budgetUsd, RUN_BUDGET_EUR, STEP_COST_USD } from "@/lib/reputation/budget";
+import type { ProfileOffering, ProfileTopic, Entity } from "@/lib/types/database";
 
 let passed = 0;
 let failed = 0;
@@ -5989,6 +6017,11 @@ group("elke dure route vraagt het aan dezelfde functie", () => {
     "app/api/analyses/[id]/generate/route.ts",
     "app/api/analyses/[id]/generate-all/route.ts",
     "app/api/analyses/[id]/briefing/route.ts",
+    // De reputatieanalyse (22 augustus 2026). Een zesde dure route, en hij
+    // stelt precies dezelfde twee vragen aan precies dezelfde functies. Twee
+    // functies die hetzelfde zouden moeten doen drijven uit elkaar (P2), en dat
+    // is met `getOwnedProfile` en `getOwnedAnalysis` letterlijk gebeurd.
+    "app/api/profiles/[id]/reputation/route.ts",
   ];
 
   for (const pad of duur) {
@@ -6008,13 +6041,24 @@ group("elke dure route vraagt het aan dezelfde functie", () => {
   }
 
   // En de melding is per handeling anders (K2, zie docs/logbook.md: elke
-  // foutmelding is specifiek). Vijf handelingen, vijf zinnen, geen dubbele.
+  // foutmelding is specifiek). Zes handelingen sinds 22 augustus 2026, zes
+  // zinnen, geen dubbele.
   const zinnen = Object.values(COST_DENIED);
-  ok("vijf handelingen hebben elk een eigen melding", zinnen.length === 5);
+  ok("zes handelingen hebben elk een eigen melding", zinnen.length === 6, `${zinnen.length}`);
   ok("en geen twee zijn hetzelfde", new Set(zinnen).size === zinnen.length);
   ok(
     "geen enkele melding zegt alleen 'geen toegang'",
     zinnen.every((z) => z.length > 40 && !/geen toegang/i.test(z)),
+  );
+  // ⚠️ De reputatiemelding is de enige die een LOS PRODUCT aankondigt, en de
+  // toon moet dus uitnodigen in plaats van afwijzen. De klant mag het zien, hij
+  // weet nu dat het bestaat, en hij weet bij wie hij moet zijn. Een grijze knop
+  // of een verborgen menu-item zou precies het tegenovergestelde doen: dan weet
+  // hij niet dat dit product er is, en dan verkoop je het nooit.
+  ok(
+    "en de reputatiemelding zegt bij wie de klant moet zijn",
+    /consultant/i.test(COST_DENIED.reputatie_starten),
+    COST_DENIED.reputatie_starten,
   );
 });
 
@@ -6667,16 +6711,49 @@ group("de zijbalk kent vijf hoofdstukken plus Admin", () => {
   // ⚠️ Admin mag er vier, sinds de onboardingsessie van 19 augustus 2026. Drie
   // ervan gaan over dít merk (Onboarding, Diagnose, Toewijzen) en de vierde,
   // "Alle merken", is de uitgang naar de app als geheel. Dat is geen vergaarbak
-  // van vier gelijksoortige regels. Een vijfde bestaat niet zonder eerst iets
-  // samen te voegen, en voor de klanthoofdstukken blijft drie de grens.
+  // van vier gelijksoortige regels.
+  //
+  // ⚠️ Analytics mag er sinds 22 augustus 2026 óók vier, met een reden van
+  // dezelfde soort: de andere drie tonen data die de app sowieso al verzamelt,
+  // "Mijn reputatie" is een los product dat de klant apart koopt en dat per keer
+  // gestart en betaald wordt. Drie plus een product.
+  //
+  // De rest van de regel blijft staan, en scherper dan eerst: een VIJFDE bestaat
+  // in geen van beide hoofdstukken zonder eerst iets samen te voegen, en de
+  // overige klanthoofdstukken blijven op drie.
   for (const kop of beheerder) {
-    const grens = kop.naam === "Admin" ? 4 : 3;
+    const grens = kop.naam === "Admin" || kop.naam === "Analytics" ? 4 : 3;
     ok(
       `${kop.naam} heeft hooguit ${grens} bestemmingen`,
       kop.items.length <= grens,
       `${kop.items.length}`,
     );
   }
+
+  // ⚠️ En niet méér dan die twee. Zonder deze controle is "hooguit vier" een
+  // grens die stilletjes op elk hoofdstuk gaat gelden, en dan is de hele
+  // herindeling van 17 augustus binnen een half jaar terug bij af.
+  const metVier = beheerder.filter((k) => k.items.length === 4).map((k) => k.naam);
+  ok(
+    "alleen Admin en Analytics hebben er vier",
+    metVier.every((n) => n === "Admin" || n === "Analytics"),
+    metVier.join(", "),
+  );
+  ok(
+    "Mijn reputatie staat onder Analytics",
+    (beheerder.find((k) => k.naam === "Analytics")?.items ?? []).some(
+      (i) => i.label === "Mijn reputatie",
+    ),
+  );
+  // Het is een KLANTbestemming: hij mag niet verborgen zijn. Verbergen betekent
+  // dat de klant niet weet dat dit product bestaat, en dit is een product dat je
+  // wilt verkopen.
+  ok(
+    "en de klant ziet hem ook",
+    (klant.find((k) => k.naam === "Analytics")?.items ?? []).some(
+      (i) => i.label === "Mijn reputatie",
+    ),
+  );
 
   ok("een klant ziet geen Admin-kop", klant.every((k) => k.naam !== "Admin"));
   ok("een beheerder wel", beheerder.some((k) => k.naam === "Admin"));
@@ -8225,6 +8302,692 @@ group("het formulier praat de taal van de branche", () => {
     `een lijstvoorbeeld is één regel${opsommingen.length ? " (" + opsommingen.join(", ") + ")" : ""}`,
     opsommingen.length === 0,
   );
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+console.log("\nMijn reputatie: de rekenkundige kern (22 augustus 2026, sprint R1)");
+
+/** Een aanbodknoop met alleen de velden die de selectie leest. */
+function knoop(
+  id: string,
+  name: string,
+  kind: ProfileOffering["kind"],
+  sortOrder: number,
+): ProfileOffering {
+  return {
+    id,
+    profile_id: "p1",
+    parent_id: null,
+    kind,
+    name,
+    description: null,
+    audience: null,
+    price_indication: null,
+    evidence_url: null,
+    evidence_quote: null,
+    confidence: null,
+    source: "ai",
+    sort_order: sortOrder,
+    created_at: "",
+    updated_at: "",
+  };
+}
+
+function onderwerp(
+  id: string,
+  title: string,
+  offeringIds: string[],
+  priority: number,
+  status: ProfileTopic["status"] = "goedgekeurd",
+): ProfileTopic {
+  return {
+    id,
+    profile_id: "p1",
+    title,
+    rationale: null,
+    offering_ids: offeringIds,
+    offering_names: [],
+    priority,
+    client_note: null,
+    status,
+    analysis_id: null,
+    search_volume_index: null,
+    search_volume_reasoning: null,
+    created_at: "",
+    updated_at: "",
+  };
+}
+
+group("de knopenselectie kapt 60 knopen af op 12, met de prioriteiten bovenaan", () => {
+  // Zestig knopen, oplopend genummerd. `dienst-40` staat achteraan in de
+  // boomvolgorde en zou zonder prioritering nooit gemeten worden.
+  const boom = Array.from({ length: 60 }, (_, i) =>
+    knoop(`o${i}`, `dienst-${i}`, i < 50 ? "dienst" : "categorie", i),
+  );
+
+  const gekozen = selectNodes({
+    offerings: boom,
+    topics: [],
+    priorityNames: ["dienst-40"],
+    deprioritisedNames: [],
+  });
+
+  ok("er blijven er precies 12 over", gekozen.length === MAX_NODES_STANDARD, `${gekozen.length}`);
+  ok(
+    "en de prioriteit van de consultant staat bovenaan",
+    gekozen[0].offering.name === "dienst-40" && gekozen[0].reason === "prioriteit",
+    gekozen[0].offering.name,
+  );
+
+  // ⚠️ Dit is de fout die `llm-baseline.ts` op 4 augustus 2026 heeft rechtgezet:
+  // de eerste knopen van de boom komen van de website en zijn de algemeenste
+  // diensten, precies waar iedereen op concurreert.
+  const metOnderwerp = selectNodes({
+    offerings: boom,
+    topics: [onderwerp("t1", "Specialisme", ["o55", "o44"], 90)],
+    priorityNames: [],
+    deprioritisedNames: [],
+  });
+  ok(
+    "een goedgekeurd onderwerp trekt zijn knopen naar voren",
+    metOnderwerp[0].offering.id === "o55" && metOnderwerp[0].reason === "onderwerp",
+    metOnderwerp[0].offering.id,
+  );
+
+  // Een voorgesteld onderwerp is een mening van het model die nog niemand
+  // bevestigd heeft, en die mag de boomvolgorde niet overrulen.
+  const voorgesteld = selectNodes({
+    offerings: boom,
+    topics: [onderwerp("t1", "Specialisme", ["o55"], 90, "voorgesteld")],
+    priorityNames: [],
+    deprioritisedNames: [],
+  });
+  ok(
+    "een voorgesteld onderwerp doet dat niet",
+    voorgesteld[0].offering.id === "o0",
+    voorgesteld[0].offering.id,
+  );
+
+  ok("de diepe modus mag er 25", MAX_NODES_DEEP === 25);
+  ok(
+    "en levert er dan ook 25",
+    selectNodes({
+      offerings: boom,
+      topics: [],
+      priorityNames: [],
+      deprioritisedNames: [],
+      limit: MAX_NODES_DEEP,
+    }).length === 25,
+  );
+});
+
+group("weggezette knopen en de soorten merk en vestiging komen er nooit in", () => {
+  const boom = [
+    knoop("o1", "Onderhoud", "dienst", 0),
+    knoop("o2", "Volkswagen", "merk", 1),
+    knoop("o3", "Vestiging Tilburg", "vestiging", 2),
+    knoop("o4", "Schadeherstel", "dienst", 3),
+    knoop("o5", "Occasions", "product", 4),
+  ];
+
+  const gekozen = selectNodes({
+    offerings: boom,
+    topics: [],
+    priorityNames: [],
+    deprioritisedNames: ["Schadeherstel"],
+  });
+  const namen = gekozen.map((g) => g.offering.name);
+
+  ok("een weggezette knoop valt eraf", !namen.includes("Schadeherstel"), namen.join(", "));
+  // Bij een retailer zijn de gevoerde merken niet zijn reputatie maar die van
+  // iemand anders.
+  ok("de soort merk komt er nooit in", !namen.includes("Volkswagen"));
+  ok("de soort vestiging ook niet", !namen.includes("Vestiging Tilburg"));
+  ok("wat overblijft is wél gemeten", namen.length === 2, namen.join(", "));
+
+  // Wegzetten wint van prioriteren: dat is de expliciete beslissing.
+  const conflict = selectNodes({
+    offerings: boom,
+    topics: [],
+    priorityNames: ["Schadeherstel"],
+    deprioritisedNames: ["Schadeherstel"],
+  });
+  ok(
+    "wegzetten wint van prioriteren",
+    !conflict.map((g) => g.offering.name).includes("Schadeherstel"),
+  );
+});
+
+group("de zwaarste knopen zijn reproduceerbaar", () => {
+  const boom = Array.from({ length: 12 }, (_, i) => knoop(`o${i}`, `dienst-${i}`, "dienst", i));
+  const gekozen = selectNodes({
+    offerings: boom,
+    topics: [],
+    priorityNames: ["dienst-9", "dienst-3"],
+    deprioritisedNames: [],
+  });
+
+  const eerste = heaviestNodes(gekozen, 8).map((n) => n.offering.id).join();
+  const tweede = heaviestNodes([...gekozen].reverse(), 8).map((n) => n.offering.id).join();
+  // ⚠️ Bij gelijk gewicht beslist de naam en niet de rijvolgorde uit Postgres.
+  // Zonder die vaste tiebreak is de chip `indicatief` niet reproduceerbaar.
+  eq("dezelfde set, ongeacht de invoervolgorde", eerste, tweede);
+});
+
+/** Een entiteit met alleen de velden die de concurrentkeuze leest. */
+function entiteit(
+  naam: string,
+  role: Entity["entity_role"],
+  dismissed = false,
+): Entity {
+  return {
+    id: `e-${naam}`,
+    profile_id: "p1",
+    canonical_name: naam,
+    normalized: naam.toLowerCase(),
+    aliases: [],
+    entity_role: role,
+    role_source: "ai",
+    exclude_reason: null,
+    confirmed: true,
+    dismissed,
+    created_at: "",
+    updated_at: "",
+  };
+}
+
+group("de concurrentkeuze: gemeten wint, weggezet komt er nooit in", () => {
+  const keuze = selectRivals({
+    measured: [
+      { entity: entiteit("Werkspot", "vergelijker"), mentions: 40 },
+      { entity: entiteit("Concurrent A", "concurrent"), mentions: 12 },
+      { entity: entiteit("Concurrent B", "concurrent"), mentions: 9 },
+      { entity: entiteit("Weggezet BV", "concurrent", true), mentions: 30 },
+      { entity: entiteit("Concurrent C", "concurrent"), mentions: 4 },
+      { entity: entiteit("Concurrent D", "concurrent"), mentions: 2 },
+    ],
+    researched: ["Uit het onderzoek"],
+    ownNames: ["Mijn Merk"],
+  });
+
+  ok("de bron is de meting", keuze.source === "gemeten", keuze.source);
+  eq("op vermeldingen aflopend", keuze.names.join(", "), "Concurrent A, Concurrent B, Concurrent C");
+  // ⚠️ `dismissed` is een expliciete beslissing van de klant. Een vergelijking
+  // tegen een partij die hij zelf afwees kost het vertrouwen in het hele scherm.
+  ok("een weggezette concurrent komt er nooit in", !keuze.names.includes("Weggezet BV"));
+  // Een vergelijker komt wél uit de metingen maar hoort hier niet tussen:
+  // "wie levert het beste werk, jij of een vergelijkingssite" is geen vraag met een antwoord.
+  ok("een vergelijker evenmin", !keuze.names.includes("Werkspot"));
+  ok("hooguit drie, dus vier partijen", keuze.names.length <= MAX_RIVALS);
+});
+
+group("zonder metingen valt de keuze terug op het onderzoek, en anders op niets", () => {
+  const terugval = selectRivals({
+    measured: [],
+    researched: ["Alfa BV", "Mijn Merk", "Beta BV", "alfa bv"],
+    ownNames: ["Mijn Merk"],
+  });
+  ok("de bron is het onderzoek", terugval.source === "onderzoek", terugval.source);
+  eq("ontdubbeld en zonder het eigen merk", terugval.names.join(", "), "Alfa BV, Beta BV");
+
+  // ⚠️ Geen namen verzinnen. De run gaat door zonder blok V, `rank_score` blijft
+  // null, en het scherm zegt waarom (conventie 3).
+  const leeg = selectRivals({ measured: [], researched: [], ownNames: ["Mijn Merk"] });
+  ok("bij nul bekende concurrenten is de lijst leeg", leeg.names.length === 0);
+  ok("en niet een verzonnen naam", leeg.source === "geen");
+  ok("met een uitleg voor op het scherm", leeg.reason.length > 20);
+});
+
+group("de rotatie zet de klant over twaalf knopen even vaak op elke plek", () => {
+  const partijen = ["Mijn Merk", "Concurrent A", "Concurrent B", "Concurrent C"];
+  const posities = new Map<number, number>();
+
+  for (let slot = 0; slot < 12; slot++) {
+    const volgorde = rotateParties({ runId: "run-1", parties: partijen, slot });
+    const plek = positionInOrder(volgorde, "Mijn Merk");
+    posities.set(plek, (posities.get(plek) ?? 0) + 1);
+    ok(`slot ${slot} levert alle vier de partijen op`, volgorde.length === 4);
+  }
+
+  // Bij vier partijen en twaalf knopen is dat exact drie keer per plek. Het
+  // GEMIDDELDE over de knopen is daarmee gecorrigeerd, ook al is één losse
+  // knoop dat niet, en dat is precies waarom een losse knoop de chip
+  // `indicatief` krijgt.
+  eq(
+    "elke plek precies drie keer",
+    [0, 1, 2, 3].map((p) => posities.get(p) ?? 0).join(","),
+    "3,3,3,3",
+  );
+
+  // ⚠️ Deterministisch. Draai je dezelfde run twee keer, dan moet de volgorde
+  // hetzelfde zijn; anders weet je bij een verschil in de uitslag niet of het
+  // antwoord veranderde of alleen de vraag.
+  eq(
+    "dezelfde run levert twee keer dezelfde volgorde",
+    rotateParties({ runId: "run-1", parties: partijen, slot: 5 }).join(),
+    rotateParties({ runId: "run-1", parties: partijen, slot: 5 }).join(),
+  );
+  ok(
+    "een andere run levert een ander patroon",
+    rotateParties({ runId: "run-1", parties: partijen, slot: 0 }).join() !==
+      rotateParties({ runId: "run-2", parties: partijen, slot: 0 }).join(),
+  );
+  // Bij één partij valt er niets te roteren, en dat mag geen lege lijst worden.
+  ok(
+    "één partij blijft één partij",
+    rotateParties({ runId: "r", parties: ["Alleen ik"], slot: 3 }).join() === "Alleen ik",
+  );
+});
+
+group("de rangscore: onbekende partijen vallen uit de noemer", () => {
+  eq("eerste van vier is 100", String(positionToScore(1, 4)), "100");
+  eq("laatste van vier is 0", String(positionToScore(4, 4)), "0");
+  eq("tweede van vier is 66,7", String(positionToScore(2, 4)), "66.7");
+  // Bij drie partijen is tweede iets anders waard dan bij vier. Vandaar dat
+  // `of_parties` per RIJ bewaard wordt en niet per run.
+  eq("tweede van drie is 50", String(positionToScore(2, 3)), "50");
+  ok("eerste van één is geen uitslag", positionToScore(1, 1) === null);
+
+  const gevraagd = ["Mijn Merk", "A", "B", "C"];
+  const uitkomst = scoreCriterion({
+    criterion: "kwaliteit",
+    askedParties: gevraagd,
+    ownParty: "Mijn Merk",
+    raw: [
+      { party: "A", known: true, position: 1 },
+      { party: "Mijn Merk", known: true, position: 2 },
+      { party: "B", known: false, position: null },
+      { party: "C", known: true, position: 4 },
+      // ⚠️ Vangnet 1: modellen voegen graag een vijfde bedrijf toe. Dat is geen
+      // antwoord op de vraag en het verstoort de noemer.
+      { party: "Verzonnen NV", known: true, position: 3 },
+    ],
+  });
+
+  ok("een partij buiten de gevraagde set wordt genegeerd", uitkomst.ofParties === 3, `${uitkomst.ofParties}`);
+  ok(
+    "en staat niet tussen de rijen",
+    !uitkomst.placements.some((p) => p.party === "Verzonnen NV"),
+  );
+  // Hernummerd over wie er overbleef: A wordt 1, Mijn Merk 2, C 3.
+  eq("de plaatsen zijn hernummerd", String(uitkomst.ownPosition), "2");
+  eq("en de score rekent met drie partijen", String(uitkomst.ownScore), "50");
+  // De onbekende partij gaat wél als rij de database in: "het model kende je
+  // concurrent niet" is een bevinding.
+  ok(
+    "de onbekende partij blijft als rij bestaan",
+    uitkomst.placements.some((p) => p.party === "B" && !p.known),
+  );
+});
+
+group("geen plaats is iets anders dan een laatste plaats", () => {
+  // ⚠️ Vangnet 2. Het model heeft geen oordeel geveld over de klant, en dat is
+  // iets anders dan een slecht oordeel (conventie 3).
+  const zonderKlant = scoreCriterion({
+    criterion: "betrouwbaarheid",
+    askedParties: ["Mijn Merk", "A", "B"],
+    ownParty: "Mijn Merk",
+    raw: [
+      { party: "A", known: true, position: 1 },
+      { party: "B", known: true, position: 2 },
+      { party: "Mijn Merk", known: false, position: null },
+    ],
+  });
+  ok("geen plaats", zonderKlant.ownPosition === null);
+  ok("en dus geen score", zonderKlant.ownScore === null);
+  ok("en zeker geen laatste plaats", zonderKlant.ownScore !== 0);
+
+  // ⚠️ Vangnet 3. Eerste van één is geen uitslag.
+  const eenPartij = scoreCriterion({
+    criterion: "prijs_kwaliteit",
+    askedParties: ["Mijn Merk", "A", "B"],
+    ownParty: "Mijn Merk",
+    raw: [
+      { party: "Mijn Merk", known: true, position: 1 },
+      { party: "A", known: false, position: null },
+      { party: "B", known: false, position: null },
+    ],
+  });
+  ok("bij minder dan twee bekende partijen vervalt het criterium", eenPartij.ownScore === null);
+  ok("en de noemer is één", eenPartij.ofParties === 1, `${eenPartij.ofParties}`);
+});
+
+group("het middelen over criteria en knopen", () => {
+  const samen = summariseRanks([
+    { criterion: "dienstverlening", position: 2, ofParties: 4 },
+    { criterion: "kwaliteit", position: 2, ofParties: 4 },
+    { criterion: "prijs_kwaliteit", position: 4, ofParties: 4 },
+    { criterion: "betrouwbaarheid", position: 1, ofParties: 4 },
+  ]);
+  ok("er is een score", samen.score !== null);
+  eq("de gemiddelde plaats staat er los naast", String(samen.position), "2.3");
+  eq("van vier partijen", String(samen.of), "4");
+  // `winsOn` en `losesOn` gaan over de eigen score per criterium ten opzichte
+  // van het eigen gemiddelde, niet ten opzichte van 50.
+  ok("betrouwbaarheid is een winstpunt", samen.winsOn.includes("betrouwbaarheid"), samen.winsOn.join());
+  ok("prijs-kwaliteit een verliespunt", samen.losesOn.includes("prijs_kwaliteit"), samen.losesOn.join());
+
+  const niets = summariseRanks([
+    { criterion: "kwaliteit", position: null, ofParties: 4 },
+    { criterion: "kwaliteit", position: 1, ofParties: 1 },
+  ]);
+  ok("zonder bruikbaar oordeel is de score null en niet 0", niets.score === null);
+  ok("en de plaats ook", niets.position === null);
+});
+
+group("het volgorde-effect wordt gemeten, niet aangenomen", () => {
+  // Een run waarin de eerstgenoemde partij ALTIJD wint. Dat is precies het
+  // product dat elke klant een mooie plaats geeft, en dat is erger dan geen
+  // vergelijking.
+  const altijdEerste = Array.from({ length: 20 }, () => ({
+    firstAsked: "Partij X",
+    firstPlaced: "Partij X",
+    ofParties: 4,
+  }));
+  const scheef = measureOrderBias(altijdEerste);
+  eq("het effect is volledig", String(scheef.bias), "1");
+  eq("de verwachting bij vier partijen is 25%", String(scheef.expected), "0.25");
+  ok("de drempel wordt overschreden", scheef.exceeded);
+  // ⚠️ Dan gaat ELKE plaats op indicatief, ook met drie rotaties eronder: als
+  // vooraan staan structureel wint, zeggen drie rotaties alleen dat het effect
+  // drie keer optrad.
+  ok(
+    "en dan is zelfs een plaats met drie rotaties indicatief",
+    rankIsIndicative({ rotations: 3, bias: scheef }),
+  );
+
+  // Zuiver toeval: de eerstgevraagde wint precies een kwart van de keren.
+  const eerlijk = Array.from({ length: 20 }, (_, i) => ({
+    firstAsked: "Partij X",
+    firstPlaced: i % 4 === 0 ? "Partij X" : "Partij Y",
+    ofParties: 4,
+  }));
+  const schoon = measureOrderBias(eerlijk);
+  ok("een eerlijke run blijft onder de drempel", !schoon.exceeded, String(schoon.bias));
+  ok("en dan mag een plaats met drie rotaties als uitslag", !rankIsIndicative({ rotations: 3, bias: schoon }));
+  // Eén vergelijking per knoop blijft indicatief, ook zonder gemeten effect.
+  ok("maar één rotatie blijft indicatief", rankIsIndicative({ rotations: 1, bias: schoon }));
+
+  // Onder de tien oordelen is er niets vast te stellen: bij vijf is drie keer
+  // raak al 60%, en dat kan puur toeval zijn (conventie 3).
+  const teWeinig = measureOrderBias(
+    Array.from({ length: MIN_OBSERVATIONS - 1 }, () => ({
+      firstAsked: "X",
+      firstPlaced: "X",
+      ofParties: 4,
+    })),
+  );
+  ok("te weinig oordelen levert null en geen getal", teWeinig.bias === null);
+  ok("en dus geen overschrijding", !teWeinig.exceeded);
+});
+
+group("de toonschaal: elk label naar het juiste getal", () => {
+  eq("positief is +2", String(toneScore("positief")), "2");
+  eq("overwegend positief is +1", String(toneScore("overwegend_positief")), "1");
+  eq("neutraal is 0", String(toneScore("neutraal")), "0");
+  // `gemengd` en `neutraal` leveren allebei 0, en zijn tóch verschillende
+  // uitkomsten: bij gemengd staan er minpunten die je kunt aanpakken.
+  eq("gemengd is ook 0", String(toneScore("gemengd")), "0");
+  eq("negatief is -2", String(toneScore("negatief")), "-2");
+  // ⚠️ Onbekend is null en niet 0. Nul is neutraal, en een model dat niets over
+  // je weet is niet neutraal over je (conventie 3).
+  ok("onbekend is null", toneScore("onbekend") === null);
+  ok("en onzin ook", toneScore("prachtig") === null);
+  ok("alle zes de labels worden herkend", TONE_LABELS.every((l) => isToneLabel(l)));
+
+  eq("een index van 70 heet positief", toneWord(70), "positief");
+  // Een index van +12 is een handvol neutrale antwoorden met één compliment
+  // erin. Dat als positief presenteren is het gerustgestelde bedrijf uit §2.1.
+  eq("een index van 12 heet neutraal", toneWord(12), "neutraal");
+  eq("zonder index staat er geen beeld", toneWord(null), "geen beeld");
+});
+
+group("het merkcijfer: antwoorden zonder bron wegen lichter of tellen niet mee", () => {
+  // ⚠️ De harde regel uit §2.1: toon zonder bewijs is geen reputatie.
+  ok(
+    "een antwoord zonder enige bron telt niet mee",
+    !usableForTone({ toneScore: 2, grounding: "geen", mentionsBrand: true }),
+  );
+  // Dit is exact de fout die bij `mention_role` optrad: structured output kiest
+  // bij twijfel de eerste waarde uit de lijst, en dat is hier `positief`.
+  ok(
+    "een antwoord over een ander bedrijf ook niet",
+    !usableForTone({ toneScore: 2, grounding: "reviews", mentionsBrand: false }),
+  );
+  ok(
+    "maar een antwoord met reviews eronder wel",
+    usableForTone({ toneScore: 2, grounding: "reviews", mentionsBrand: true }),
+  );
+
+  const alleenLucht = toneIndex([
+    { toneScore: 2, grounding: "geen", mentionsBrand: true },
+    { toneScore: 2, grounding: "geen", mentionsBrand: true },
+  ]);
+  // ⚠️ Null en niet 0. Nul betekent neutraal, null betekent: er valt niets over
+  // te zeggen. Verschillende uitkomsten, verschillende adviezen.
+  ok("een run zonder bruikbaar antwoord levert null", alleenLucht === null);
+
+  eq(
+    "vier positieve antwoorden met reviews leveren +100",
+    String(toneIndex(Array.from({ length: 4 }, () => ({ toneScore: 2, grounding: "reviews" as const, mentionsBrand: true })))),
+    "100",
+  );
+
+  // Antwoorden zonder controleerbare bron wegen mee met factor 0,3: ze zeggen
+  // iets, maar minder. Eén positief met reviews (gewicht 1) tegen één negatief
+  // van de eigen site (gewicht 0,3) trekt de index naar boven.
+  const gemengd = toneIndex([
+    { toneScore: 2, grounding: "reviews", mentionsBrand: true },
+    { toneScore: -2, grounding: "eigen_site", mentionsBrand: true },
+  ]) as number;
+  ok("een zwakke bron trekt het cijfer minder ver", gemengd > 0, `${gemengd}`);
+  eq("en precies volgens de factor", String(WEAK_WEIGHT), "0.3");
+
+  ok("drie antwoorden is genoeg om iets te zeggen", runIsUsable([
+    { toneScore: 1, grounding: "reviews", mentionsBrand: true },
+    { toneScore: 0, grounding: "eigen_site", mentionsBrand: true },
+    { toneScore: null, grounding: "geen", mentionsBrand: true },
+  ]));
+  ok("twee is dat niet", !runIsUsable([
+    { toneScore: 1, grounding: "reviews", mentionsBrand: true },
+    { toneScore: 0, grounding: "eigen_site", mentionsBrand: true },
+  ]));
+});
+
+group("de bewijskracht: alleen de eigen site levert een laag getal", () => {
+  // ⚠️ Ook bij tien vermeldingen. Een merk waar AI alles van de eigen site
+  // haalt, heeft geen reputatie maar een website.
+  const alleenEigen = evidenceScore(
+    Array.from({ length: 10 }, (_, i) => ({
+      domain: `eigen.nl/pagina-${i}`,
+      isOwn: true,
+      isReview: false,
+      verifiedRating: false,
+    })),
+  );
+  ok("tien eigen pagina's leveren een laag getal", alleenEigen <= 10, `${alleenEigen}`);
+
+  ok("nul bronnen levert 0, en dat is een echte uitkomst", evidenceScore([]) === 0);
+
+  const sterk = evidenceScore([
+    { domain: "eigen.nl", isOwn: true, isReview: false, verifiedRating: false },
+    { domain: "trustpilot.com", isOwn: false, isReview: true, verifiedRating: true },
+    { domain: "vakblad.nl", isOwn: false, isReview: false, verifiedRating: false },
+    { domain: "google.com", isOwn: false, isReview: true, verifiedRating: false },
+    { domain: "kvk.nl", isOwn: false, isReview: false, verifiedRating: false },
+    { domain: "regionaalnieuws.nl", isOwn: false, isReview: false, verifiedRating: false },
+  ]);
+  ok("vijf externe bronnen met een bevestigd cijfer leveren veel", sterk >= 80, `${sterk}`);
+
+  // Een reviewplatform ZONDER bevestigd cijfer levert de 20 punten niet op: een
+  // cijfer uit een AI-antwoord is een gok tot het bewezen is (§2.4).
+  const onbevestigd = evidenceScore([
+    { domain: "trustpilot.com", isOwn: false, isReview: true, verifiedRating: false },
+  ]);
+  const bevestigd = evidenceScore([
+    { domain: "trustpilot.com", isOwn: false, isReview: true, verifiedRating: true },
+  ]);
+  ok("een onbevestigd cijfer telt lichter", onbevestigd < bevestigd, `${onbevestigd} < ${bevestigd}`);
+});
+
+group("de eenduidigheid vraagt om herhalingen", () => {
+  // ⚠️ Null bij één meting: met één antwoord is er geen spreiding te berekenen,
+  // en 100 invullen zou een zekerheid suggereren die alleen bestaat omdat er
+  // niets vergeleken is.
+  ok("één meting levert null", consistency([["positief"]]) === null);
+  ok("geen enkele meting ook", consistency([]) === null);
+
+  const stabiel = consistency([["positief", "positief", "positief"]]) as number;
+  const wisselend = consistency([["positief", "negatief", "neutraal"]]) as number;
+  ok("drie keer hetzelfde levert een hoog getal", stabiel > 60, `${stabiel}`);
+  ok("drie verschillende antwoorden een laag", wisselend < stabiel, `${wisselend}`);
+  // Ook drie van de drie komt niet als "volstrekt zeker" weg, want dat is het
+  // bij drie metingen niet (dezelfde plus-vier-correctie als de meting).
+  ok("en zelfs stabiel blijft onder de 100", stabiel < 100, `${stabiel}`);
+});
+
+group("de domeinindeling herkent een reviewplatform en telt de eigen site apart", () => {
+  eq("trustpilot is een reviewplatform", String(knownKind("trustpilot.com", "eigen.nl")), "review");
+  eq("de kvk is een register", String(knownKind("kvk.nl", "eigen.nl")), "register");
+  eq("linkedin is sociaal", String(knownKind("linkedin.com", "eigen.nl")), "sociaal");
+  eq("de eigen site is eigen", String(knownKind("eigen.nl", "eigen.nl")), "eigen");
+  // Wat niet vaststaat blijft null: dan mag het model het zeggen (blok C5), en
+  // pas als dat ook niets oplevert wordt het `overig` (conventie 3).
+  ok("een onbekend domein blijft onbepaald", knownKind("vakblad-voor-installateurs.nl", "eigen.nl") === null);
+
+  const geteld = tallySources(
+    [
+      {
+        block: "merk",
+        urls: [
+          "https://www.trustpilot.com/review/eigen.nl",
+          "https://trustpilot.com/review/eigen.nl/2",
+          "https://eigen.nl/over-ons",
+          "https://bing.com/zoeken",
+        ],
+      },
+      { block: "bron", urls: ["https://vakblad.nl/artikel"] },
+    ],
+    "eigen.nl",
+  );
+
+  eq("trustpilot staat bovenaan met twee citaties", `${geteld[0].domain}:${geteld[0].citations}`, "trustpilot.com:2");
+  // ⚠️ De eigen site gaat er hier NIET af, anders dan bij de off-site scan.
+  // "Zeven van de elf bronnen zijn je eigen site" is juist de conclusie.
+  ok("de eigen site telt gewoon mee", geteld.some((s) => s.domain === "eigen.nl"));
+  ok("een zoekmachine niet", !geteld.some((s) => s.domain === "bing.com"));
+  ok("google blijft wél staan, want dat is bij een MKB-bedrijf de reviewbron", REVIEW_PLATFORMS.has("google.com"));
+
+  eq(
+    "de samenvattende regel telt de eigen site",
+    sourceMixSentence([
+      { domain: "eigen.nl", kind: "eigen" },
+      { domain: "a.nl", kind: "review" },
+      { domain: "b.nl", kind: "vakpers" },
+    ]),
+    "1 van de 3 bronnen zijn je eigen site.",
+  );
+  ok(
+    "en zonder bronnen zegt hij dat er niets is",
+    sourceMixSentence([]).includes("geen enkele controleerbare bron"),
+  );
+});
+
+group("een reviewcijfer zonder URL wordt weggegooid", () => {
+  // Het model levert de kandidaat, de code besluit. Zelfde patroon als
+  // `validate-claims.ts`.
+  ok(
+    "een cijfer zonder URL telt niet",
+    !ratingIsAcceptable({ url: null, rating: 4.6, pageMentionsBrand: true }),
+  );
+  ok(
+    "een URL zonder cijfer ook niet",
+    !ratingIsAcceptable({ url: "https://trustpilot.com/x", rating: null, pageMentionsBrand: true }),
+  );
+  ok(
+    "een bekend platform met een cijfer wel",
+    ratingIsAcceptable({ url: "https://www.trustpilot.com/review/eigen.nl", rating: 4.6, pageMentionsBrand: null }),
+  );
+  // Een onbekend platform moet bij het ophalen de merknaam bevatten, anders
+  // wijst de URL naar een pagina die het model erbij verzon.
+  ok(
+    "een onbekend platform moet de merknaam bevatten",
+    !ratingIsAcceptable({ url: "https://willekeurig.nl/x", rating: 4.6, pageMentionsBrand: false }),
+  );
+  ok(
+    "en mag als hij dat doet",
+    ratingIsAcceptable({ url: "https://willekeurig.nl/x", rating: 4.6, pageMentionsBrand: true }),
+  );
+});
+
+group("de dedupe-sleutels van de reputatieanalyse", () => {
+  const runA = "run-a";
+  const runB = "run-b";
+
+  // ⚠️ De sleutel hangt aan de RUN en niet aan het profiel. Een tweede scan over
+  // drie maanden is nieuw werk en geen duplicaat.
+  ok(
+    "twee runs van hetzelfde merk zijn twee taken",
+    dedupe.reputationBrand(runA) !== dedupe.reputationBrand(runB),
+  );
+  // ⚠️ De merkbrede vergelijking eindigt op het woord `merk` en niet op een lege
+  // string. Een sleutel die op `:` eindigt ziet er in de database uit als een
+  // fout, en hij zou botsen met een knoop-id dat ooit leeg zou zijn.
+  eq("merkbreed eindigt op een woord", dedupe.reputationCompare(runA, null), "rep_cmp:run-a:merk");
+  ok("en niet op een dubbele punt", !dedupe.reputationCompare(runA, null).endsWith(":"));
+  ok(
+    "twee knopen leveren twee sleutels",
+    dedupe.reputationCompare(runA, "o1") !== dedupe.reputationCompare(runA, "o2"),
+  );
+  // De vergelijking en de reputatievraag van dezelfde knoop zijn verschillend
+  // werk: zonder dat verschil zou de tweede als duplicaat wegvallen.
+  ok(
+    "de vergelijking botst niet met de reputatievraag van dezelfde knoop",
+    dedupe.reputationCompare(runA, "o1") !== dedupe.reputationOffering(runA, "o1"),
+  );
+
+  // Alle zes moeten van elkaar verschillen: een botsing tussen twee taaksoorten
+  // zou er stil eentje laten wegvallen.
+  const sleutels = [
+    dedupe.reputationStart(runA),
+    dedupe.reputationBrand(runA),
+    dedupe.reputationOffering(runA, "o1"),
+    dedupe.reputationCompare(runA, "o1"),
+    dedupe.reputationSources(runA),
+    dedupe.reputationSynthesis(runA),
+  ];
+  ok("de zes taaksoorten botsen niet", new Set(sleutels).size === 6, sleutels.join(", "));
+});
+
+group("de budgetpoort slaat over en zwijgt niet", () => {
+  eq("het plafond staat op €3", String(RUN_BUDGET_EUR), "3");
+
+  const ruim = decideStep({ step: "compare", spentUsd: 0.5 });
+  ok("halverwege de analyse mag de vergelijking gewoon", ruim.ok);
+  ok("en er is geen notitie", ruim.note === null);
+
+  const vol = decideStep({ step: "compare", spentUsd: budgetUsd() });
+  ok("bij een vol budget wordt de stap overgeslagen", !vol.ok);
+  // ⚠️ Overslaan is een uitkomst, geen stilte. De klant ziet een cijfer met een
+  // kanttekening in plaats van een cijfer dat doet alsof er niets aan de hand was.
+  ok("en dat levert een notitie op", (vol.note ?? "").includes("vergelijking"), vol.note ?? "");
+  ok("in gewone taal", (vol.note ?? "").includes("minder vragen"));
+
+  // ⚠️ Kan de teller niet tellen, dan sluit de poort. Nul teruggeven zou hem
+  // stil openzetten, precies op het moment dat er iets aan de hand is.
+  ok(
+    "een onbekend bedrag sluit de poort",
+    !decideStep({ step: "brand", spentUsd: Number.POSITIVE_INFINITY }).ok,
+  );
+
+  // De hele standaardanalyse hoort ruim onder het plafond te blijven (§5).
+  const geschat =
+    STEP_COST_USD.brand +
+    STEP_COST_USD.offering * 12 +
+    STEP_COST_USD.compare * 15 +
+    STEP_COST_USD.sources +
+    STEP_COST_USD.synthesis;
+  ok("de volledige standaardanalyse past er ruim in", geschat < budgetUsd() / 2, `$${geschat.toFixed(2)}`);
 });
 
 // ════════════════════════════════════════════════════════════════════════════

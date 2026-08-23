@@ -1087,3 +1087,204 @@ export interface Job {
   created_at: string;
   updated_at: string;
 }
+
+// ════════════════════════════════════════════════════════════════════════════
+// Mijn reputatie (migratie 0062, docs/tasks/mijn-reputatie.md)
+// ════════════════════════════════════════════════════════════════════════════
+
+/** Hoe diep de analyse kijkt. Bepaalt het aantal knopen en de herhalingen (§2.3). */
+export type ReputationDepth = "standaard" | "diep";
+
+/**
+ * De stand van een run.
+ *
+ * ⚠️ `budget_op` staat naast `klaar` en niet in plaats van `mislukt`. Een run die
+ * het plafond raakte heeft wél een uitkomst, alleen op minder vragen, en dat
+ * verschil hoort de klant te zien. Stil degraderen naar `klaar` zou een cijfer
+ * opleveren dat doet alsof er niets aan de hand was.
+ */
+export type ReputationStatus = "queued" | "running" | "klaar" | "mislukt" | "budget_op";
+
+/** Welk blok uit §4 deze vraag stelde. */
+export type ReputationBlock = "merk" | "aanbod" | "vergelijking" | "bron";
+
+/**
+ * De vier criteria van de vergelijking (§4.4). Vast en niet vrij: liet je het
+ * model zelf criteria bedenken, dan levert elke run andere assen op en is geen
+ * enkele herhaling en geen enkele vergelijking tussen twee diensten nog iets
+ * waard.
+ */
+export const REPUTATION_CRITERIA = [
+  "dienstverlening",
+  "kwaliteit",
+  "prijs_kwaliteit",
+  "betrouwbaarheid",
+] as const;
+
+export type ReputationCriterion = (typeof REPUTATION_CRITERIA)[number];
+
+/** Wat de klant per criterium leest. Nooit de sleutel zelf op het scherm. */
+export const CRITERION_LABEL: Record<ReputationCriterion, string> = {
+  dienstverlening: "Dienstverlening",
+  kwaliteit: "Kwaliteit",
+  prijs_kwaliteit: "Prijs-kwaliteitverhouding",
+  betrouwbaarheid: "Betrouwbaarheid",
+};
+
+/**
+ * Het label bij een criterium dat uit de DATABASE komt.
+ *
+ * ⚠️ Defensief, en niet uit voorzichtigheid maar omdat `wins_on` en `loses_on`
+ * `text[]`-kolommen zijn. Alleen onze eigen code vult ze, maar een rij uit een
+ * oudere run of een handmatige correctie in Supabase kan er iets anders in
+ * zetten, en dan zou een kale opzoeking `undefined` op het scherm van de klant
+ * tonen. De sleutel zelf tonen is lelijk maar eerlijk (conventie 3).
+ */
+export function criterionLabel(value: string): string {
+  return (CRITERION_LABEL as Record<string, string>)[value] ?? value;
+}
+
+/** Waar het oordeel op rust (§4.7). `geen` haalt het antwoord uit het merkcijfer. */
+export type ReputationGrounding =
+  | "reviews"
+  | "eigen_site"
+  | "pers"
+  | "sociale_media"
+  | "geen"
+  | "onbekend";
+
+/** Wat voor bron dit domein is (§4.5, blok C5). */
+export type ReputationSourceKind =
+  | "review"
+  | "vakpers"
+  | "eigen"
+  | "sociaal"
+  | "register"
+  | "overig";
+
+/** Eén reputatieanalyse. */
+export interface ReputationRun {
+  id: string;
+  profile_id: string;
+  engine: string;
+  depth: ReputationDepth;
+  status: ReputationStatus;
+  started_by: string | null;
+  started_at: string;
+  finished_at: string | null;
+  /** -100 tot 100. ⚠️ null = geen oordeel te vellen. Nul is neutraal en dus iets anders. */
+  tone_index: number | null;
+  /** 0 tot 100. Nul IS een uitkomst: er ligt geen enkele bron onder. */
+  evidence_score: number | null;
+  /** 0 tot 100, alleen gevuld bij herhalingen (diepe modus). */
+  consistency: number | null;
+  /** 0 tot 100. null bij minder dan twee bekende partijen: eerste van één is geen uitslag. */
+  rank_score: number | null;
+  rank_position: number | null;
+  rank_of: number | null;
+  rank_indicative: boolean;
+  rivals: string[];
+  wins_on: string[];
+  loses_on: string[];
+  /** Het gemeten volgorde-effect (§4.4). null = te weinig vergelijkingen ervoor. */
+  order_bias: number | null;
+  summary: string | null;
+  strengths: string[];
+  weaknesses: string[];
+  questions_planned: number;
+  questions_done: number;
+  cost_usd: number;
+  budget_eur: number;
+  scope_json: unknown | null;
+  notes: string[];
+  created_at: string;
+}
+
+/** Eén gestelde vraag, met het ruwe antwoord én het oordeel erover. */
+export interface ReputationAnswer {
+  id: string;
+  run_id: string;
+  block: ReputationBlock;
+  offering_id: string | null;
+  question: string;
+  web_search: boolean;
+  repeat_index: number;
+  answer_text: string | null;
+  raw_json: unknown | null;
+  cited_urls: string[];
+  /** De volgorde waarin de partijen de vraag in gingen. Zonder dit geen `order_bias`. */
+  party_order: string[];
+  /** null = de beoordeling is nog niet gelukt en mag opnieuw, zonder de dure vraag. */
+  verdict_json: unknown | null;
+  tone: string | null;
+  tone_score: number | null;
+  pros: string[];
+  cons: string[];
+  grounding: ReputationGrounding | null;
+  mentions_brand: boolean | null;
+  model: string | null;
+  cost_usd: number;
+  created_at: string;
+}
+
+/** Eén partij, op één criterium, in één vergelijking. */
+export interface ReputationRank {
+  id: string;
+  run_id: string;
+  answer_id: string;
+  offering_id: string | null;
+  criterion: ReputationCriterion;
+  party_name: string;
+  entity_id: string | null;
+  is_own_brand: boolean;
+  /** null als het model de partij niet kende. Niet "laatste". */
+  position: number | null;
+  /** Hoeveel partijen er in DÍT oordeel meededen, niet in de run. */
+  of_parties: number;
+  known: boolean;
+  reason: string | null;
+  sources: string[];
+  created_at: string;
+}
+
+/** De uitkomst per aanbodknoop. */
+export interface ReputationOfferingScore {
+  id: string;
+  run_id: string;
+  offering_id: string | null;
+  /** Staat naast `offering_id`: een herhaalonderzoek kan de boom herschrijven. */
+  offering_name: string;
+  offering_kind: string | null;
+  tone_index: number | null;
+  evidence_score: number | null;
+  answers: number;
+  rank_score: number | null;
+  rank_position: number | null;
+  rank_of: number | null;
+  rank_indicative: boolean;
+  wins_on: string[];
+  loses_on: string[];
+  summary: string | null;
+  top_pros: string[];
+  top_cons: string[];
+  source_domains: string[];
+  /** Uit de bestaande meting, als die er is. Nul extra kosten. */
+  visibility_score: number | null;
+  created_at: string;
+}
+
+/** Eén domein dat AI aanhaalde over dit merk. */
+export interface ReputationSource {
+  id: string;
+  run_id: string;
+  domain: string;
+  kind: ReputationSourceKind;
+  citations: number;
+  url: string | null;
+  rating: number | null;
+  rating_count: number | null;
+  /** Alleen `true` na controle door de eigen crawler plus JSON-LD (§2.4). */
+  verified: boolean;
+  first_seen_block: string | null;
+  created_at: string;
+}

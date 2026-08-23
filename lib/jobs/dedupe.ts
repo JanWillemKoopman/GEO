@@ -101,4 +101,25 @@ export const dedupe = {
   // keer op dezelfde dag, de aanwezigheidscontrole kost een web-zoekactie.
   offsiteScan: (analysisId: string, day = new Date().toISOString().slice(0, 10)) =>
     `offsite:${analysisId}:${day}`,
+
+  // ── Mijn reputatie (docs/tasks/mijn-reputatie.md §7) ─────────────────────
+  //
+  // ⚠️ De sleutel hangt aan de RUN en niet aan het profiel. Een tweede scan over
+  // drie maanden is nieuw werk en geen duplicaat, en dat moet uit de sleutel
+  // blijken. Zou hij aan het profiel hangen, dan zou een herhaalscan stil
+  // genegeerd worden zolang de eerste nog openstond.
+  reputationStart: (runId: string) => `rep_start:${runId}`,
+  reputationBrand: (runId: string) => `rep_brand:${runId}`,
+  reputationOffering: (runId: string, offeringId: string) =>
+    `rep_offering:${runId}:${offeringId}`,
+  /**
+   * ⚠️ De merkbrede vergelijking heeft geen aanbodknoop, dus die sleutel eindigt
+   * op het woord `merk` en niet op een lege string. Een sleutel die op `:`
+   * eindigt ziet er in de database uit als een fout, en hij zou botsen met een
+   * knoop-id dat ooit leeg zou zijn.
+   */
+  reputationCompare: (runId: string, offeringId: string | null) =>
+    offeringId ? `rep_cmp:${runId}:${offeringId}` : `rep_cmp:${runId}:merk`,
+  reputationSources: (runId: string) => `rep_sources:${runId}`,
+  reputationSynthesis: (runId: string) => `rep_synthesis:${runId}`,
 };

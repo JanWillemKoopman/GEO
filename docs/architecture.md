@@ -6,6 +6,11 @@ Voor UI/UX: `ux-design.md`.
 > **Geverifieerd tegen de code op 13 augustus 2026** (branch `main`, t/m migratie `0057`).
 > **Bijgewerkt op 19 augustus 2026** voor onboarding 3.0 (migratie `0060`): §3 (de commerciële laag
 > en `profile_field_sources`), §5 (stap 4f en 4g), §11 (de onboardingsessie in de klantreis) en §12.
+> **Bijgewerkt op 22 augustus 2026** voor Mijn reputatie (migratie `0062`): §3 (de vijf
+> reputatietabellen en de kolom op `ai_calls`), §4 (de zes nieuwe taaksoorten), §5 (stap 17) en §6
+> (de vijf nieuwe AI-aanroepen). ⚠️ Dat onderdeel is gebouwd en op ketentests geverifieerd, maar er
+> heeft nog geen enkele echte run op productie gedraaid en migratie `0062` staat nog niet op de
+> productiedatabase. Conventie 10: gebouwd is niet geverifieerd.
 > De rest van de peildatum hieronder blijft staan.
 > **Migraties `0058` en `0059` zijn er sindsdien bijgekomen** en staan wél in §12 en in dit
 > document verwerkt, maar de rest is niet opnieuw regel voor regel nagelopen. Verder geldt:
@@ -123,7 +128,12 @@ probleem dan een dollar.
 | `technical_audits` | Kunnen AI-crawlers de site bereiken (robots.txt vs GPTBot, CCBot, …). Geen AI. |
 | `source_landscape` / `offsite_tasks` | Off-site aanwezigheid: welke externe domeinen relevant zijn en of het merk er staat. |
 | `jobs` | De wachtrij. |
-| `ai_calls` | Kostenlogboek: model, tokens, geschatte kosten, `kind`, analyse-/profiel-ID. |
+| `ai_calls` | Kostenlogboek: model, tokens, geschatte kosten, `kind`, analyse-/profiel-ID. Sinds `0062` ook `reputation_run_id`: zonder die kolom is niet te tellen wat één reputatieanalyse kostte, en dan is het plafond van €3 per run niet af te dwingen. |
+| `reputation_runs` | Eén reputatieanalyse (`0062`). De drie getallen (`tone_index`, `evidence_score`, `consistency`), de plaats (`rank_score`, `rank_position`, `rank_of`, `rank_indicative`), tegen wie er vergeleken is (`rivals`, `wins_on`, `loses_on`), het gemeten volgorde-effect (`order_bias`), en `scope_json` met welke knopen en welke concurrenten meegingen. ⚠️ `tone_index` en `rank_score` zijn nullable met opzet: nul is neutraal en eerste van één is geen uitslag. `notes` legt vast wat er overgeslagen is; overslaan is een uitkomst, geen stilte. |
+| `reputation_answers` | Eén gestelde vraag, met het ruwe antwoord én het oordeel erover, net als `tracking_runs` dat doet. Dat maakt een mislukte beoordeling opnieuw te proberen zónder de dure gegronde vraag opnieuw te stellen. `party_order` bewaart de volgorde waarin de partijen de vergelijkingsvraag in gingen; zonder die kolom is `order_bias` niet te berekenen. |
+| `reputation_ranks` | Eén rij per partij per criterium per vergelijking. De enige tabel met een rij per partij, want dit is het enige onderdeel waarin de klant niet alleen op zichzelf beoordeeld wordt. ⚠️ `of_parties` staat per rij en niet per run: kende het model bij prijs-kwaliteit maar drie van de vier partijen, dan is een tweede plaats daar iets anders waard. |
+| `reputation_offering_scores` | De uitkomst per aanbodknoop. `offering_name` staat naast `offering_id`, want een herhaalonderzoek kan de aanbodboom herschrijven en dan wijst het id nergens meer heen. |
+| `reputation_sources` | Waar AI zijn beeld vandaan haalt: domein, soort, aantal citaties, en bij reviewplatforms het cijfer met `verified`. ⚠️ `verified` gaat alleen op `true` als de eigen crawler de pagina ophaalde en er JSON-LD met `aggregateRating` op stond; een cijfer uit een AI-antwoord is een gok tot het bewezen is. |
 
 **Alles bewaren.** Elke AI-call slaat zijn volledige ruwe JSON op (`raw_json`/`mention_json`/
 `source_raw_json`) náást de uitgesplitste kolommen.
@@ -144,12 +154,13 @@ probleem dan een dollar.
 
 Bron: `lib/jobs/{types,queue,worker,handlers,pending}.ts`.
 
-- **24 taaksoorten:** `profile_discover`, `profile_research`, `profile_offering`, `propose_topics`,
+- **30 taaksoorten:** `profile_discover`, `profile_research`, `profile_offering`, `propose_topics`,
   `profile_market`, `profile_llm_baseline`, `profile_synthesis`, `prepare_analysis`,
   `generate_prompts`, `calibrate_volumes`, `measure_prompt`, `aggregate_week`,
   `profile_competitors`, `generate_report`, `content_brief`, `content_draft`, `content_revise`,
   `technical_audit`, `verify_publication`, `measure_impact`, `compute_impact`, `offsite_scan`,
-  `gsc_sync`, `recalculate_potential`.
+  `gsc_sync`, `recalculate_potential`, `reputation_start`, `reputation_brand`,
+  `reputation_offering`, `reputation_compare`, `reputation_sources`, `reputation_synthesis`.
   `profile_competitors` hangt tussen `aggregate_week` en `generate_report`: destilleert per
   concurrent de eigenschappen uit de antwoordfragmenten van die periode (`competitor-intel.ts`),
   een eigen taak omdat het een eigen AI-aanroep is (conventie 7), niet omdat het inhoudelijk apart
@@ -158,6 +169,19 @@ Bron: `lib/jobs/{types,queue,worker,handlers,pending}.ts`.
   zodra een analyse haar eerste rapport krijgt: herberekent `search_volume_index` op ALLE
   onderwerpen van dat merk in één aanroep (`lib/pipeline/search-demand.ts`), zie
   `docs/tasks/potentiescore.md`.
+- **De reputatieketen** (de laatste zes, migratie `0062`) is de enige keten die niet lineair is:
+  `reputation_start` kiest de aanbodknopen en de concurrenten, legt die keuze vast in `scope_json`
+  en plant alle andere taken tegelijk in. Elke afrondende taak telt daarna hoeveel reputatietaken
+  er nog openstaan, en de laatste plant de synthese in (`scheduleSynthesisIfLast`, dezelfde
+  constructie als `scheduleAggregateIfLastPrompt` en met dezelfde valkuil: de taak die het aanroept
+  staat zélf nog op `running` en moet uitgesloten worden).
+  ⚠️ De afteller telt TAKEN en geen antwoorden. Een taak kan legitiem nul antwoorden opleveren, de
+  budgetpoort slaat hem over of de aanbodknoop is intussen verdwenen; zou de afteller op antwoorden
+  tellen, dan komt hij in precies die gevallen nooit op nul uit en blijft de run open.
+  ⚠️ De vergelijkingstaken krijgen een LATERE `scheduled_for` dan de reputatietaken. De wachtrij
+  claimt op `scheduled_for asc`, dus dat is wat afdwingt dat een vol budget de vergelijking laat
+  vallen en de basisanalyse overeind laat. Een klant met een toon en een bewijskracht maar zonder
+  plaats heeft nog een product; andersom heeft hij een plaats zonder te weten waarom.
 - **De onboardingketen** (de eerste zeven) hangt aan één `enqueue` vanuit `POST /api/profiles`:
   `profile_discover` plant `technical_audit` én `profile_research` in, en vanaf daar ketent elke
   stap zijn opvolger. `profile_offering` plant `profile_market` **onvoorwaardelijk** in, niet via
@@ -218,6 +242,7 @@ Bron: `lib/jobs/{types,queue,worker,handlers,pending}.ts`.
 | 18 | Effect meten | luna | Hermeetgolven + statistisch verdict of de zichtbaarheid meetbaar veranderd is. |
 | 19 | Off-site | luna, gegrond | Op welke externe domeinen het merk wél/niet aanwezig is. |
 | 20 | Maandelijkse ronde |, | Alleen voor analyses met tracking aan. Structureel merkloze vragen worden overgeslagen. |
+| 21 | Reputatieanalyse | luna, gegrond → luna-oordeel → luna-synthese | **Los product, draait niet mee in de cyclus.** 34 vragen aan ChatGPT over hoe er over het merk gepraat wordt: merkbreed, per aanbodknoop, en naast de concurrenten uit de metingen. Elke vraag wordt eerst opgeslagen en dán beoordeeld, zodat een mislukte beoordeling opnieuw mag zonder de betaalde web-zoekactie te herhalen. De drie getallen en de plaats worden in code gerekend (`lib/reputation/`), niet door het model; de synthese krijgt ze als gegeven. Zes taaksoorten, een eigen budgetplafond van €3, en de vergelijking valt als eerste weg als dat plafond geraakt wordt. Zie `docs/tasks/mijn-reputatie.md`. |
 
 ### De rangordetabel (13 augustus 2026): alle merken op één schaal, geen AI-aanroep
 
@@ -464,6 +489,32 @@ Dit is conventie 10 in de praktijk: de schatting stond er ruim een week met de e
 erbij, en week bij narekenen ruim een factor twee af. Contentgeneratie (`gpt-5.6-sol`) blijft de
 enige duurdere post per pagina en werd ~5× duurder: Sol is 2,5×/3,75× het tarief van gpt-4.1 en de
 redeneertokens tellen als output.
+
+### De AI-aanroepen van Mijn reputatie (22 augustus 2026, migratie `0062`)
+
+Vijf nieuwe soorten aanroepen, allemaal op `MODELS.volume` behalve de synthese. De `kind`-waarden
+in `ai_calls` beginnen alle met `reputation_`, en ze dragen sinds `0062` ook `reputation_run_id`,
+zodat een run per stuk af te rekenen is.
+
+| `kind` | Model | Zoeken | Werk | Wat het doet |
+|---|---|---|---|---|
+| `reputation_merk` · `reputation_aanbod` · `reputation_vergelijking` · `reputation_bron` | `quality` | ja, behalve de eerste merkvraag | `simulation` | De vraag stellen, zoals een echte gebruiker hem zou stellen. Geen temperatuur en geen redeneerinstelling meegeven, dezelfde keuze als bij halte 3a. |
+| `reputation_verdict` | `volume` | nee | `deterministic` | Het antwoord omzetten in een toon, plus- en minpunten, een grondslag en citaten. |
+| `reputation_compare_verdict` | `volume` | nee | `deterministic` | Het vergelijkingsantwoord omzetten in plaatsen per criterium per partij. |
+| `reputation_ratings` | `volume` | nee | `deterministic` | De reviewcijfers uit het bronantwoord lezen. Kandidaten, geen feiten. |
+| `reputation_source_kinds` | `volume` | nee | `deterministic` | Alle gevonden domeinen indelen. Eén aanroep voor de hele lijst, zoals `offsite/presence.ts`. |
+| `reputation_synthesis` | `quality` | nee | `analytical` | De uitleg schrijven. ⚠️ De cijfers staan dan al vast en gaan als gegeven de prompt in. |
+
+**Geschatte kosten:** ongeveer $0,54 per standaardanalyse, dus rond de €0,50, waarvan verreweg het
+meeste in de web-zoekacties van de 34 gestelde vragen zit. Het plafond staat hard op €3 per run
+(`lib/reputation/budget.ts`), niet als doel maar als rem. ⚠️ Deze bedragen zijn geschat en niet
+nagerekend: er heeft nog geen enkele echte run op productie gedraaid (conventie 10).
+
+**Bewust géén AI, in dit onderdeel:** de keuze van de aanbodknopen en de concurrenten
+(`lib/reputation/select-nodes.ts` en `select-rivals.ts`), alle rekenkunde (`score.ts`, `rank.ts`,
+`order-bias.ts`), het tellen van de aangehaalde domeinen, en de controle van de reviewcijfers via
+de eigen crawler plus de JSON-LD-oogst. Dat laatste is het verschil tussen een cijfer dat als
+bevestigd op het scherm staat en een cijfer dat als onbevestigd op het scherm staat.
 
 ## 7. E-mail
 

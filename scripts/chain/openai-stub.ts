@@ -72,6 +72,146 @@ function citaatUit(tekst: string, woorden = 6): string {
 }
 
 const ANTWOORDEN: Record<string, (user: string) => unknown> = {
+  // ── Mijn reputatie (docs/tasks/mijn-reputatie.md) ─────────────────────────
+  //
+  // ⚠️ De antwoorden zijn met opzet ONGEMAKKELIJK gekozen, net als de rest van
+  // deze stub. Ze bevatten precies de gevallen waar dit onderdeel op stuk kan
+  // lopen, zodat de ketentest de vangnetten toetst en niet het gelukkige pad:
+  //
+  //   • één antwoord zonder enige bron (`grondslag: "geen"`), dat NIET in het
+  //     merkcijfer terecht mag komen;
+  //   • één antwoord dat over een ander bedrijf gaat (`noemt_merk: false`),
+  //     waarvan de toon altijd null moet worden;
+  //   • een citaat dat NIET in de antwoordtekst staat en er dus uit hoort;
+  //   • een vergelijking waarin het model een VIJFDE bedrijf toevoegt dat niet
+  //     gevraagd is, en waarin één gevraagde partij onbekend is.
+  reputation_verdict: (user: string) => {
+    // Op de gestelde vraag reageren, zoals een echt model zou doen. Een vaste
+    // uitkomst voor élke vraag zou de toonindex laten uitkomen op precies dat
+    // ene label, en dan toetst de test zijn eigen stub.
+    if (user.includes("nadelen")) {
+      return {
+        toon: "negatief",
+        noemt_merk: true,
+        grondslag: "reviews",
+        pluspunten: [],
+        minpunten: ["De levertijd valt tegen", "De prijs ligt boven het gemiddelde"],
+        citaten: [{ tekst: "levertijd", bron_url: "https://trustpilot.com/review/fysi-unique.nl" }],
+      };
+    }
+    // De ONGEGRONDE merkvraag: het model weet niets en is toch vriendelijk.
+    // Precies het geval uit §2.1 waar dit product tegen beschermt.
+    if (user.includes("Waar staan ze om bekend?") && !user.includes("Zoek het op")) {
+      return {
+        toon: "overwegend_positief",
+        noemt_merk: true,
+        grondslag: "geen",
+        pluspunten: ["Maakt een professionele indruk"],
+        minpunten: [],
+        citaten: [],
+      };
+    }
+    // Een antwoord over een gelijknamig bedrijf elders.
+    if (user.includes("betrouwbaar")) {
+      return {
+        toon: "positief",
+        noemt_merk: false,
+        grondslag: "pers",
+        pluspunten: ["Al veertig jaar actief"],
+        minpunten: [],
+        citaten: [],
+      };
+    }
+    return {
+      toon: "overwegend_positief",
+      noemt_merk: true,
+      grondslag: "reviews",
+      pluspunten: ["Klanten noemen de deskundigheid", "De levertijd valt tegen"],
+      minpunten: ["De levertijd valt tegen"],
+      citaten: [
+        // Staat letterlijk in de gestubde antwoordtekst hieronder.
+        { tekst: "deskundig", bron_url: "https://trustpilot.com/review/fysi-unique.nl" },
+        // ⚠️ Staat er NIET in: dit citaat hoort door het vangnet weggefilterd.
+        { tekst: "de beste van Nederland", bron_url: "https://verzonnen.nl" },
+      ],
+    };
+  },
+
+  reputation_comparison: (user: string) => {
+    // De gevraagde partijen uit de opdracht teruglezen, zodat de test blijft
+    // kloppen als de rotatie een andere volgorde oplevert. Een stub met vaste
+    // namen zou toetsen of je de rotatie goed geraden hebt in plaats van of de
+    // vergelijking werkt.
+    const m = /gevraagd zijn: (.*)/.exec(user);
+    const partijen = (m?.[1] ?? "").split(",").map((p) => p.trim()).filter(Boolean);
+
+    const volgorde = (criterium: string) => ({
+      criterium,
+      partijen: [
+        ...partijen.map((naam, i) => ({
+          naam,
+          // ⚠️ De LAATSTE gevraagde partij kent het model niet. Die hoort uit de
+          // noemer te vallen, zodat `of_parties` lager uitkomt dan het aantal
+          // gevraagde partijen.
+          ken_ik: i < partijen.length - 1,
+          plaats: i < partijen.length - 1 ? i + 1 : 0,
+          reden: `Onderbouwing voor ${naam} op ${criterium}.`,
+          bronnen: ["https://trustpilot.com/review/fysi-unique.nl"],
+        })),
+        // ⚠️ Een VIJFDE bedrijf dat niet gevraagd is. Modellen doen dit, en het
+        // verstoort de noemer. Vangnet 1 uit §4.4 hoort hem te negeren.
+        {
+          naam: "Niet Gevraagd BV",
+          ken_ik: true,
+          plaats: partijen.length + 1,
+          reden: "Deze voegde het model er zelf bij.",
+          bronnen: [],
+        },
+      ],
+    });
+
+    return {
+      criteria: [
+        volgorde("dienstverlening"),
+        volgorde("kwaliteit"),
+        volgorde("prijs_kwaliteit"),
+        volgorde("betrouwbaarheid"),
+      ],
+    };
+  },
+
+  reputation_ratings: () => ({
+    platforms: [
+      {
+        platform: "Trustpilot",
+        url: "https://trustpilot.com/review/fysi-unique.nl",
+        cijfer: 4.6,
+        aantal: 128,
+        zeker: true,
+      },
+      // ⚠️ Een cijfer ZONDER URL. Hoort weggegooid te worden: zonder URL valt er
+      // niets te controleren, en een oncontroleerbaar cijfer op het scherm is
+      // erger dan geen cijfer.
+      { platform: "Een of ander platform", url: "", cijfer: 9.1, aantal: 3, zeker: false },
+    ],
+  }),
+
+  reputation_source_kinds: (user: string) => ({
+    domeinen: [...user.matchAll(/^- (.+)$/gm)].map((m) => ({
+      domein: m[1].trim(),
+      soort: "vakpers" as const,
+    })),
+  }),
+
+  reputation_synthesis: () => ({
+    samenvatting:
+      "ChatGPT praat overwegend positief over je en baseert dat vooral op je eigen website.",
+    sterk: ["Klanten noemen de deskundigheid"],
+    kwetsbaar: ["De levertijd valt tegen"],
+    per_dienst: [{ dienst: "Hardloopblessures", uitleg: "AI noemt je, met twee externe bronnen." }],
+    vergelijking: "Je wint op betrouwbaarheid en verliest op prijs-kwaliteitverhouding.",
+  }),
+
   /**
    * De promptgeneratie, per funnelfase (migratie 0054).
    *
@@ -277,3 +417,56 @@ const ANTWOORDEN: Record<string, (user: string) => unknown> = {
     styleSamples: ["We kijken verder dan de klacht."],
   }),
 };
+
+
+/**
+ * De vrije-tekst-antwoorden voor Mijn reputatie.
+ *
+ * ── WAAROM DEZE STUB ER PAS NU IS ───────────────────────────────────────────
+ *
+ * Tot Mijn reputatie had geen enkele ketentest een `callPlain` nodig: de meting
+ * bootst haar antwoorden na met voorgebakken rijen in `tracking_runs`. Mijn
+ * reputatie kan dat niet, want daar is juist de SAMENHANG tussen zes taken wat
+ * getest moet worden, en die begint bij het opslaan van een antwoord.
+ *
+ * ⚠️ De teksten bevatten letterlijk het woord "deskundig", want de
+ * citaatcontrole in `reputation-verdict.ts` gooit elk citaat weg dat niet in de
+ * antwoordtekst voorkomt. Zonder dat woord zou de test dat vangnet niet kunnen
+ * onderscheiden van een stub die toevallig niets teruggeeft.
+ */
+export function createPlainStub(log: StubLog[]) {
+  return async (opts: {
+    system: string;
+    user: string;
+  }): Promise<{ text: string; raw: unknown }> => {
+    log.push({ schemaName: "plain", user: opts.user });
+
+    if (opts.user.includes("Vergelijk ")) {
+      return {
+        text:
+          "Op het gebied van dienstverlening en kwaliteit zet ik ze in deze volgorde. " +
+          "Van één van de genoemde bedrijven weet ik te weinig om er iets over te zeggen. " +
+          "Bron: https://trustpilot.com/review/fysi-unique.nl",
+        raw: { stub: true },
+      };
+    }
+
+    if (opts.user.includes("beoordelingen en reviews")) {
+      return {
+        text:
+          "Op Trustpilot staat een 4,6 op basis van 128 beoordelingen: " +
+          "https://trustpilot.com/review/fysi-unique.nl. Daarnaast staat er een vermelding op " +
+          "https://vakblad.nl/artikel en op https://fysi-unique.nl/over-ons.",
+        raw: { stub: true },
+      };
+    }
+
+    return {
+      text:
+        "Klanten noemen het team deskundig en vriendelijk. Wel wordt de levertijd geregeld als " +
+        "nadeel genoemd. Zie https://trustpilot.com/review/fysi-unique.nl en " +
+        "https://fysi-unique.nl/over-ons.",
+      raw: { stub: true },
+    };
+  };
+}

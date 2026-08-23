@@ -70,6 +70,11 @@ function ok(name: string, condition: boolean, detail = ""): void {
   }
 }
 
+/** Gelijkheid met de werkelijke waarde in de foutmelding, zoals in test-unit.ts. */
+function eqc(name: string, actual: string, expected: string): void {
+  ok(name, actual === expected, actual === expected ? "" : `verwacht "${expected}", kreeg "${actual}"`);
+}
+
 async function main(): Promise<void> {
   const { startTestDatabase } = await import("./chain/postgres");
   const { createShimClient } = await import("./chain/supabase-shim");
@@ -84,9 +89,13 @@ async function main(): Promise<void> {
 
   try {
     const { __setTestAdminClient } = await import("@/lib/supabase/admin");
-    const { __setTestTransport } = await import("@/lib/openai/structured");
+    const { __setTestTransport, __setTestPlainTransport } = await import(
+      "@/lib/openai/structured"
+    );
+    const { createPlainStub } = await import("./chain/openai-stub");
     __setTestAdminClient(createShimClient(db.client));
     __setTestTransport(createOpenAiStub(log));
+    __setTestPlainTransport(createPlainStub(log));
 
     const admin = createShimClient(db.client) as unknown as {
       from: (t: string) => never;
@@ -2787,8 +2796,714 @@ async function main(): Promise<void> {
       globalThis.fetch = origineleFetch;
     }
 
+
+    // ══════════════════════════════════════════════════════════════════════
+    // Mijn reputatie: de samenhang tussen zes taken
+    //
+    // ⚠️ Dit is het zwaartepunt van deze ketentest en niet het sluitstuk. Zeven
+    // van de zeven fouten van het vorige traject zaten in de samenhang tussen
+    // taken, en geen enkele unittest kon ze vangen. Dit onderdeel heeft zes
+    // taaksoorten die op elkaar wachten, dus dat risico is hier groter dan
+    // gemiddeld.
+    // ══════════════════════════════════════════════════════════════════════
+    console.log("\nMijn reputatie: de keten van start tot synthese");
+    {
+      const { dedupe } = await import("@/lib/jobs/queue");
+
+      /** Draait alle openstaande reputatietaken tot de rij leeg is. */
+      async function draaiReputatietaken(max = 60): Promise<string[]> {
+        const gedraaid: string[] = [];
+        for (let i = 0; i < max; i++) {
+          const { rows } = await db.client.query(
+            `select * from public.jobs
+              where type like 'reputation%' and status = 'queued'
+              order by scheduled_for asc, created_at asc limit 1`,
+          );
+          if (rows.length === 0) break;
+          await db.client.query(
+            "update public.jobs set status = 'running' where id = $1",
+            [rows[0].id],
+          );
+          await runJob({ admin: admin as never, job: { ...rows[0], status: "running" } });
+          await db.client.query(
+            "update public.jobs set status = 'done' where id = $1",
+            [rows[0].id],
+          );
+          gedraaid.push(rows[0].type as string);
+        }
+        return gedraaid;
+      }
+
+      // ── Het decor: een merk met vier diensten en twee concurrenten ────────
+      const repProfielId = randomUUID();
+      await db.client.query(
+        `insert into public.profiles (id, user_id, name, url, brand_name, service_regions, status)
+         values ($1, $2, 'Fysi-Unique', 'https://fysi-unique.nl', 'Fysi-Unique',
+                 array['Amersfoort'], 'klaar')`,
+        [repProfielId, userId],
+      );
+
+      const knoopIds: string[] = [];
+      for (const [i, naam] of [
+        "Hardloopblessures",
+        "Bekkenfysiotherapie",
+        "Sportmassage",
+        // ⚠️ Een knoop van de soort `merk`. Die hoort er NOOIT in: bij een
+        // retailer zijn de gevoerde merken niet zijn reputatie maar die van
+        // iemand anders.
+        "Volkswagen",
+      ].entries()) {
+        const id = randomUUID();
+        knoopIds.push(id);
+        await db.client.query(
+          `insert into public.profile_offerings (id, profile_id, kind, name, source, sort_order)
+           values ($1, $2, $3, $4, 'ai', $5)`,
+          [id, repProfielId, naam === "Volkswagen" ? "merk" : "dienst", naam, i],
+        );
+      }
+
+      for (const [naam, rol, weggezet] of [
+        ["Concurrent A", "concurrent", false],
+        ["Concurrent B", "concurrent", false],
+        ["Concurrent C", "concurrent", false],
+        // ⚠️ Een weggezette concurrent. `dismissed` is een expliciete beslissing
+        // van de klant; ertegen vergelijken kost het vertrouwen in het scherm.
+        ["Weggezet BV", "concurrent", true],
+      ] as [string, string, boolean][]) {
+        await db.client.query(
+          `insert into public.entities (profile_id, canonical_name, normalized, entity_role, dismissed)
+           values ($1, $2, $3, $4, $5)`,
+          [repProfielId, naam, naam.toLowerCase(), rol, weggezet],
+        );
+      }
+
+      // ── De GEMETEN vermeldingen ───────────────────────────────────────────
+      //
+      // ⚠️ Dit stuk decor is er niet voor de volledigheid maar omdat het een
+      // echte fout heeft afgevangen. `countMentions()` las eerst een kolom
+      // `competitors_json` die niet bestaat op `competitor_breakdown`; die
+      // tabel heeft één rij per concurrent. Gevolg: iedereen nul vermeldingen,
+      // en de keuze viel stil terug op alfabetische volgorde. Zonder dit decor
+      // kwamen er nog steeds drie concurrenten uit en leek alles goed.
+      //
+      // De namen zijn zo gekozen dat de twee volgordes VERSCHILLEN: alfabetisch
+      // wint A, op vermeldingen wint C. Zou de bug terugkomen, dan faalt de
+      // test hieronder.
+      const repClusterId = randomUUID();
+      await db.client.query(
+        `insert into public.analyses (id, user_id, profile_id, name, url, topic, status)
+         values ($1, $2, $3, 'Fysi-Unique, reputatiecluster', 'https://fysi-unique.nl',
+                 'hardloopblessure behandelen', 'gereed')`,
+        [repClusterId, userId, repProfielId],
+      );
+      for (const [naam, week, aantal] of [
+        // Vorige periode: A stond bovenaan. Die telt NIET mee.
+        ["Concurrent A", 0, 99],
+        // Laatste afgeronde periode: C wint, dan B, dan A.
+        ["Concurrent C", 1, 30],
+        ["Concurrent B", 1, 20],
+        ["Concurrent A", 1, 10],
+        // Weggezet, en hij wordt het vaakst genoemd. Juist daarom een goede test.
+        ["Weggezet BV", 1, 90],
+      ] as [string, number, number][]) {
+        await db.client.query(
+          `insert into public.competitor_breakdown
+             (analysis_id, week_no, competitor_name, mentions_count)
+           values ($1, $2, $3, $4)`,
+          [repClusterId, week, naam, aantal],
+        );
+      }
+
+      const runId = randomUUID();
+      await db.client.query(
+        `insert into public.reputation_runs (id, profile_id, started_by, status)
+         values ($1, $2, $3, 'queued')`,
+        [runId, repProfielId, userId],
+      );
+      await db.client.query(
+        `insert into public.jobs (type, payload_json, profile_id, dedupe_key, status)
+         values ('reputation_start', $1, $2, $3, 'queued')`,
+        [JSON.stringify({ runId }), repProfielId, dedupe.reputationStart(runId)],
+      );
+
+      // ── De hele keten draaien ─────────────────────────────────────────────
+      const gedraaid = await draaiReputatietaken();
+
+      // ⚠️ DE SYNTHESE IS DE LAATSTE. Dat is de hele afteller: elke afrondende
+      // taak kijkt of ze de laatste was, en de laatste plant de synthese in.
+      // Zonder de uitsluiting van de taak die zélf nog op 'running' staat, zou
+      // dat aantal nooit op nul uitkomen en de run eeuwig blijven hangen.
+      ok(
+        "de synthese draait, en als laatste",
+        gedraaid[gedraaid.length - 1] === "reputation_synthesis",
+        gedraaid.join(" → "),
+      );
+      ok(
+        "en precies één keer",
+        gedraaid.filter((t) => t === "reputation_synthesis").length === 1,
+        `${gedraaid.filter((t) => t === "reputation_synthesis").length}`,
+      );
+
+      const { rows: naRun } = await db.client.query(
+        "select * from public.reputation_runs where id = $1",
+        [runId],
+      );
+      const run = naRun[0];
+
+      ok("de run is klaar", run.status === "klaar", String(run.status));
+      ok("met een samenvatting", String(run.summary ?? "").length > 20);
+
+      // ── De scope is vastgelegd ────────────────────────────────────────────
+      //
+      // Zonder dit is een herhaling over drie maanden niet met deze te
+      // vergelijken: dan weet niemand meer of het verschil in de reputatie zat
+      // of in de vraag.
+      const scope = run.scope_json as {
+        nodes: { naam: string; slot: number }[];
+        concurrenten: { namen: string[]; bron: string };
+      };
+      ok("de scope is vastgelegd", Array.isArray(scope?.nodes), JSON.stringify(scope ?? {}).slice(0, 80));
+      ok(
+        "de soort `merk` staat er niet in",
+        !scope.nodes.some((n) => n.naam === "Volkswagen"),
+        scope.nodes.map((n) => n.naam).join(", "),
+      );
+      ok("de drie diensten wel", scope.nodes.length === 3, `${scope.nodes.length}`);
+
+      // ── De concurrenten ───────────────────────────────────────────────────
+      ok(
+        "een weggezette concurrent komt er nooit in",
+        !(run.rivals as string[]).includes("Weggezet BV"),
+        (run.rivals as string[]).join(", "),
+      );
+      ok(
+        "de drie andere wel",
+        (run.rivals as string[]).length === 3,
+        (run.rivals as string[]).join(", "),
+      );
+      // ⚠️ DE KERN VAN DEZE CONTROLE. De volgorde moet op GEMETEN vermeldingen
+      // rusten en niet op het alfabet: C (30) vóór B (20) vóór A (10). Kwam de
+      // kolomfout in `countMentions()` terug, dan staat hier "Concurrent A,
+      // Concurrent B, Concurrent C" en faalt dit.
+      eqc(
+        "en op vermeldingen gesorteerd, niet alfabetisch",
+        (run.rivals as string[]).join(", "),
+        "Concurrent C, Concurrent B, Concurrent A",
+      );
+      // Alleen de LAATSTE periode telt. In periode 0 stond A op 99; zou die
+      // meetellen, dan won A alsnog.
+      ok(
+        "en alleen de laatste periode telt mee",
+        (run.rivals as string[])[0] === "Concurrent C",
+        (run.rivals as string[])[0],
+      );
+      ok(
+        "de bron van de keuze is de meting",
+        (run.scope_json as { concurrenten?: { bron?: string } } | null)?.concurrenten?.bron ===
+          "gemeten",
+        JSON.stringify((run.scope_json as { concurrenten?: unknown } | null)?.concurrenten ?? {}),
+      );
+
+      // ── De vangnetten van de oordeelslaag ─────────────────────────────────
+      const { rows: antwoorden } = await db.client.query(
+        "select * from public.reputation_answers where run_id = $1 order by block, repeat_index",
+        [runId],
+      );
+
+      const zonderBron = antwoorden.find((a) => a.grounding === "geen");
+      ok("het antwoord zonder bron is bewaard", Boolean(zonderBron));
+      // ⚠️ Bewaard, maar het telt NIET mee in het merkcijfer. Dat is de harde
+      // regel uit §2.1: toon zonder bewijs is geen reputatie.
+      ok(
+        "en het staat er met zijn toon bij, zodat het scherm het kan tonen",
+        zonderBron?.tone === "overwegend_positief",
+        String(zonderBron?.tone),
+      );
+
+      const anderBedrijf = antwoorden.find((a) => a.mentions_brand === false);
+      ok("het antwoord over een ander bedrijf is herkend", Boolean(anderBedrijf));
+      // ⚠️ Exact de fout die bij `mention_role` optrad: structured output kiest
+      // bij twijfel de eerste waarde uit de lijst. Een model dat over iemand
+      // anders praat, mag geen toon opleveren.
+      ok(
+        "en levert geen toonscore op",
+        anderBedrijf?.tone_score === null,
+        String(anderBedrijf?.tone_score),
+      );
+
+      const metCitaat = antwoorden.find(
+        (a) => (a.verdict_json as { quotes?: unknown[] } | null)?.quotes !== undefined,
+      );
+      const citaten =
+        ((metCitaat?.verdict_json as { quotes?: { tekst: string }[] } | null)?.quotes ?? []);
+      ok(
+        "een verzonnen citaat is weggefilterd",
+        !citaten.some((c) => c.tekst.includes("beste van Nederland")),
+        citaten.map((c) => c.tekst).join(" | "),
+      );
+
+      // ── De vergelijking ───────────────────────────────────────────────────
+      const { rows: plaatsen } = await db.client.query(
+        "select * from public.reputation_ranks where run_id = $1",
+        [runId],
+      );
+      ok("er zijn plaatsen vastgelegd", plaatsen.length > 0, `${plaatsen.length}`);
+      // ⚠️ Vangnet 1 uit §4.4: een partij die niet in de gevraagde set zat, wordt
+      // genegeerd. Modellen voegen graag een vijfde bedrijf toe, en dat
+      // verstoort de noemer.
+      ok(
+        "een bedrijf dat het model erbij verzon is genegeerd",
+        !plaatsen.some((p) => p.party_name === "Niet Gevraagd BV"),
+      );
+      // De stub laat de laatste gevraagde partij onbekend, dus de noemer moet
+      // lager liggen dan het aantal gevraagde partijen (drie in plaats van vier).
+      ok(
+        "een onbekende partij valt uit de noemer",
+        plaatsen.every((p) => Number(p.of_parties) <= 3),
+        [...new Set(plaatsen.map((p) => String(p.of_parties)))].join(", "),
+      );
+
+      // ── De volgorde is opgeslagen ─────────────────────────────────────────
+      //
+      // ⚠️ Geen administratie. Zonder deze kolom is niet vast te stellen of een
+      // uitslag door de volgorde kwam, en dan is `order_bias` niet te berekenen.
+      const vergelijkingen = antwoorden.filter((a) => a.block === "vergelijking");
+      // Vier partijen: het merk zelf plus de drie gekozen concurrenten.
+      ok(
+        "elke vergelijking bewaart de gebruikte partijvolgorde",
+        vergelijkingen.length > 0 &&
+          vergelijkingen.every((a) => (a.party_order as string[]).length === 4),
+        `${vergelijkingen.length} vergelijkingen, lengtes ${[
+          ...new Set(vergelijkingen.map((a) => (a.party_order as string[]).length)),
+        ].join("/")}`,
+      );
+      // ⚠️ En de klant staat niet in élke vraag vooraan. Dat is de hele reden dat
+      // de volgorde rouleert: een taalmodel bevoordeelt wie het eerst genoemd
+      // wordt, en een klant die altijd vooraan staat krijgt altijd een mooie
+      // plaats. Merkbreed zijn het drie rotaties, dus hij hoort niet drie keer
+      // op plek 1 te staan.
+      ok(
+        "en de klant staat niet in elke vraag vooraan",
+        !vergelijkingen.every((a) => (a.party_order as string[])[0] === "Fysi-Unique"),
+        vergelijkingen.map((a) => (a.party_order as string[])[0]).join(" | "),
+      );
+      // Merkbreed krijgt ALTIJD drie rotaties, ook in de standaardmodus, want
+      // dat is het getal dat bovenaan het scherm komt.
+      const merkbreed = vergelijkingen.filter((a) => a.offering_id === null);
+      ok("merkbreed draait drie rotaties", merkbreed.length === 3, `${merkbreed.length}`);
+      ok(
+        "en die drie rotaties hebben niet allemaal dezelfde volgorde",
+        new Set(merkbreed.map((a) => (a.party_order as string[]).join(","))).size > 1,
+      );
+      // Eén vergelijking per knoop is indicatief, drie is een uitslag.
+      const { rows: perDienst } = await db.client.query(
+        "select * from public.reputation_offering_scores where run_id = $1",
+        [runId],
+      );
+      ok(
+        "een knoop met één vergelijking blijft indicatief",
+        perDienst.length > 0 && perDienst.every((d) => d.rank_indicative === true),
+      );
+
+      // ── De bronnen ────────────────────────────────────────────────────────
+      const { rows: bronnen } = await db.client.query(
+        "select * from public.reputation_sources where run_id = $1 order by citations desc",
+        [runId],
+      );
+      ok("er zijn bronnen geteld", bronnen.length >= 2, `${bronnen.length}`);
+      // ⚠️ De vaste platformlijst wint van het model. De stub deelde ELK domein
+      // in als vakpers; trustpilot.com hoort tóch als reviewplatform te staan.
+      const trustpilot = bronnen.find((b) => b.domain === "trustpilot.com");
+      ok("trustpilot is een reviewplatform, wat het model er ook van vindt", trustpilot?.kind === "review", String(trustpilot?.kind));
+      // ⚠️ Een cijfer uit een AI-antwoord is een gok tot het bewezen is. De
+      // crawl kan hier niet slagen (geen netwerk), dus het cijfer mag er staan
+      // maar NOOIT als bevestigd.
+      ok(
+        "geen enkel reviewcijfer geldt als bevestigd zonder geslaagde crawl",
+        bronnen.every((b) => b.verified === false),
+      );
+
+      // ── Twee keer starten levert één run ──────────────────────────────────
+      const { rows: voorHerhaling } = await db.client.query(
+        "select count(*)::int as n from public.reputation_answers where run_id = $1",
+        [runId],
+      );
+      await db.client.query(
+        `insert into public.jobs (type, payload_json, profile_id, dedupe_key, status)
+         values ('reputation_start', $1, $2, $3, 'queued')`,
+        [JSON.stringify({ runId }), repProfielId, `${dedupe.reputationStart(runId)}:2`],
+      );
+      await draaiReputatietaken();
+      const { rows: naHerhaling } = await db.client.query(
+        "select count(*)::int as n from public.reputation_answers where run_id = $1",
+        [runId],
+      );
+      // ⚠️ Idempotentie (conventie 9). Elke gegronde vraag is een betaalde
+      // web-zoekactie; een taak die na een time-out opnieuw draait zou de hele
+      // analyse een tweede keer betalen.
+      ok(
+        "twee keer starten stelt geen enkele vraag opnieuw",
+        naHerhaling[0].n === voorHerhaling[0].n,
+        `${voorHerhaling[0].n} → ${naHerhaling[0].n}`,
+      );
+    }
+
+    // ── Een mislukte beoordeling mag opnieuw, de dure vraag niet ────────────
+    console.log("\nMijn reputatie: een mislukte beoordeling kost geen tweede web-zoekactie");
+    {
+      const { dedupe } = await import("@/lib/jobs/queue");
+      const hertestProfielId = randomUUID();
+      await db.client.query(
+        `insert into public.profiles (id, user_id, name, url, brand_name, service_regions, status)
+         values ($1, $2, 'Hertest BV', 'https://hertest.nl', 'Hertest BV', array['Utrecht'], 'klaar')`,
+        [hertestProfielId, userId],
+      );
+      await db.client.query(
+        `insert into public.profile_offerings (profile_id, kind, name, source, sort_order)
+         values ($1, 'dienst', 'Onderhoud', 'ai', 0)`,
+        [hertestProfielId],
+      );
+
+      const hertestRunId = randomUUID();
+      await db.client.query(
+        `insert into public.reputation_runs (id, profile_id, started_by, status, scope_json)
+         values ($1, $2, $3, 'running', '{}'::jsonb)`,
+        [hertestRunId, hertestProfielId, userId],
+      );
+
+      const draaiMerkblok = async (): Promise<void> => {
+        const { rows } = await db.client.query(
+          `insert into public.jobs (type, payload_json, profile_id, dedupe_key, status)
+           values ('reputation_brand', $1, $2, $3, 'running') returning *`,
+          [
+            JSON.stringify({ runId: hertestRunId }),
+            hertestProfielId,
+            `${dedupe.reputationBrand(hertestRunId)}:${randomUUID()}`,
+          ],
+        );
+        await runJob({ admin: admin as never, job: rows[0] });
+        await db.client.query("update public.jobs set status = 'done' where id = $1", [rows[0].id]);
+      };
+
+      await draaiMerkblok();
+      const vragenNaEerste = log.filter((l) => l.schemaName === "plain").length;
+      const { rows: voor } = await db.client.query(
+        `select id, answer_text from public.reputation_answers where run_id = $1 order by question`,
+        [hertestRunId],
+      );
+      ok("het merkblok stelde zijn vragen", voor.length === 5, `${voor.length}`);
+
+      // Nabootsen dat de beoordeling van één antwoord mislukte: het dure
+      // antwoord staat er, het oordeel niet.
+      await db.client.query(
+        `update public.reputation_answers
+            set verdict_json = null, tone = null, tone_score = null, grounding = null,
+                mentions_brand = null
+          where id = $1`,
+        [voor[0].id],
+      );
+
+      await draaiMerkblok();
+
+      const { rows: na } = await db.client.query(
+        `select id, answer_text, verdict_json from public.reputation_answers where run_id = $1 order by question`,
+        [hertestRunId],
+      );
+      // ⚠️ Dit is de belangrijkste kostenbescherming van het hele onderdeel, en
+      // hij komt rechtstreeks uit de meting: het ruwe antwoord staat al in de
+      // database vóórdat de oordeelslaag draait, dus een mislukte beoordeling
+      // mag opnieuw zonder dat de betaalde web-zoekactie herhaald wordt.
+      ok(
+        "er is geen enkele vraag opnieuw gesteld",
+        log.filter((l) => l.schemaName === "plain").length === vragenNaEerste,
+        `${vragenNaEerste} → ${log.filter((l) => l.schemaName === "plain").length}`,
+      );
+      ok(
+        "en het opgeslagen antwoord is ongewijzigd",
+        na.length === 5 && na[0].id === voor[0].id && na[0].answer_text === voor[0].answer_text,
+      );
+      ok(
+        "maar de beoordeling is er wél opnieuw gedaan",
+        na[0].verdict_json !== null,
+        String(na[0].verdict_json),
+      );
+    }
+
+    // ── Een merk zonder bekende concurrenten ────────────────────────────────
+    console.log("\nMijn reputatie: een merk zonder bekende concurrenten");
+    {
+      const { dedupe } = await import("@/lib/jobs/queue");
+      const soloProfielId = randomUUID();
+      await db.client.query(
+        `insert into public.profiles (id, user_id, name, url, brand_name, service_regions, status)
+         values ($1, $2, 'Solo BV', 'https://solo.nl', 'Solo BV', array['Tilburg'], 'klaar')`,
+        [soloProfielId, userId],
+      );
+      await db.client.query(
+        `insert into public.profile_offerings (profile_id, kind, name, source, sort_order)
+         values ($1, 'dienst', 'Onderhoud', 'ai', 0)`,
+        [soloProfielId],
+      );
+
+      const soloRunId = randomUUID();
+      await db.client.query(
+        `insert into public.reputation_runs (id, profile_id, started_by, status)
+         values ($1, $2, $3, 'queued')`,
+        [soloRunId, soloProfielId, userId],
+      );
+      await db.client.query(
+        `insert into public.jobs (type, payload_json, profile_id, dedupe_key, status)
+         values ('reputation_start', $1, $2, $3, 'queued')`,
+        [JSON.stringify({ runId: soloRunId }), soloProfielId, dedupe.reputationStart(soloRunId)],
+      );
+
+      for (let i = 0; i < 40; i++) {
+        const { rows } = await db.client.query(
+          `select * from public.jobs
+            where type like 'reputation%' and status = 'queued' and profile_id = $1
+            order by scheduled_for asc, created_at asc limit 1`,
+          [soloProfielId],
+        );
+        if (rows.length === 0) break;
+        await db.client.query("update public.jobs set status = 'running' where id = $1", [rows[0].id]);
+        await runJob({ admin: admin as never, job: { ...rows[0], status: "running" } });
+        await db.client.query("update public.jobs set status = 'done' where id = $1", [rows[0].id]);
+      }
+
+      const { rows: soloRun } = await db.client.query(
+        "select * from public.reputation_runs where id = $1",
+        [soloRunId],
+      );
+      // ⚠️ Geen namen verzinnen. De run gaat gewoon door zonder blok V, en het
+      // scherm zegt waarom (conventie 3). Een verzonnen concurrent zou het
+      // vertrouwen in de hele pagina kosten.
+      ok("de run loopt gewoon af", soloRun[0].status === "klaar", String(soloRun[0].status));
+      ok("er is geen concurrent verzonnen", (soloRun[0].rivals as string[]).length === 0);
+      ok("en dus geen rangscore", soloRun[0].rank_score === null, String(soloRun[0].rank_score));
+      ok(
+        "maar wel een toon, want de basisanalyse draaide gewoon",
+        soloRun[0].tone_index !== null,
+        String(soloRun[0].tone_index),
+      );
+      ok(
+        "en een notitie die zegt waarom er niet vergeleken is",
+        (soloRun[0].notes as string[]).some((n) => n.includes("concurrenten")),
+        (soloRun[0].notes as string[]).join(" | "),
+      );
+
+      const { rows: soloTaken } = await db.client.query(
+        `select count(*)::int as n from public.jobs
+          where type = 'reputation_compare' and profile_id = $1`,
+        [soloProfielId],
+      );
+      ok("er is geen enkele vergelijkingstaak ingepland", soloTaken[0].n === 0, `${soloTaken[0].n}`);
+    }
+
+    // ── Een merk zonder aanbodboom levert een nette weigering ────────────────
+    console.log("\nMijn reputatie: een merk zonder aanbod");
+    {
+      const { dedupe } = await import("@/lib/jobs/queue");
+      const leegProfielId = randomUUID();
+      await db.client.query(
+        `insert into public.profiles (id, user_id, name, url, brand_name, status)
+         values ($1, $2, 'Leeg BV', 'https://leeg.nl', 'Leeg BV', 'klaar')`,
+        [leegProfielId, userId],
+      );
+
+      const leegRunId = randomUUID();
+      await db.client.query(
+        `insert into public.reputation_runs (id, profile_id, started_by, status)
+         values ($1, $2, $3, 'queued')`,
+        [leegRunId, leegProfielId, userId],
+      );
+      const { rows: startTaak } = await db.client.query(
+        `insert into public.jobs (type, payload_json, profile_id, dedupe_key, status)
+         values ('reputation_start', $1, $2, $3, 'running') returning *`,
+        [JSON.stringify({ runId: leegRunId }), leegProfielId, dedupe.reputationStart(leegRunId)],
+      );
+      await runJob({ admin: admin as never, job: startTaak[0] });
+
+      const { rows: leegRun } = await db.client.query(
+        "select * from public.reputation_runs where id = $1",
+        [leegRunId],
+      );
+      // ⚠️ Geen lege run met een cijfer erboven. Dit onderdeel meet per dienst,
+      // en zonder diensten valt er niets per dienst te meten. De merkbrede
+      // vragen alleen zouden een half product zijn dat er heel uitziet.
+      ok("de run wordt netjes geweigerd", leegRun[0].status === "mislukt", String(leegRun[0].status));
+      ok(
+        "met een uitleg die zegt wat de klant moet doen",
+        (leegRun[0].notes as string[]).some((n) => n.includes("merkprofiel")),
+        (leegRun[0].notes as string[]).join(" | "),
+      );
+
+      const { rows: leegTaken } = await db.client.query(
+        `select count(*)::int as n from public.jobs
+          where type like 'reputation%' and profile_id = $1 and type <> 'reputation_start'`,
+        [leegProfielId],
+      );
+      ok("en er is niets ingepland", leegTaken[0].n === 0, `${leegTaken[0].n}`);
+    }
+
+    // ── Het budgetplafond laat de vergelijking als EERSTE vallen ─────────────
+    console.log("\nMijn reputatie: een vol budget offert de vergelijking, niet de basisanalyse");
+    {
+      const { dedupe } = await import("@/lib/jobs/queue");
+      const budgetProfielId = randomUUID();
+      await db.client.query(
+        `insert into public.profiles (id, user_id, name, url, brand_name, service_regions, status)
+         values ($1, $2, 'Duur BV', 'https://duur.nl', 'Duur BV', array['Breda'], 'klaar')`,
+        [budgetProfielId, userId],
+      );
+      await db.client.query(
+        `insert into public.profile_offerings (profile_id, kind, name, source, sort_order)
+         values ($1, 'dienst', 'Onderhoud', 'ai', 0)`,
+        [budgetProfielId],
+      );
+      await db.client.query(
+        `insert into public.entities (profile_id, canonical_name, normalized, entity_role)
+         values ($1, 'Concurrent A', 'concurrent a', 'concurrent')`,
+        [budgetProfielId],
+      );
+
+      const budgetRunId = randomUUID();
+      await db.client.query(
+        `insert into public.reputation_runs (id, profile_id, started_by, status)
+         values ($1, $2, $3, 'queued')`,
+        [budgetRunId, budgetProfielId, userId],
+      );
+      const { rows: budgetStart } = await db.client.query(
+        `insert into public.jobs (type, payload_json, profile_id, dedupe_key, status)
+         values ('reputation_start', $1, $2, $3, 'running') returning *`,
+        [JSON.stringify({ runId: budgetRunId }), budgetProfielId, dedupe.reputationStart(budgetRunId)],
+      );
+      await runJob({ admin: admin as never, job: budgetStart[0] });
+      // ⚠️ De starttaak afronden, zoals de werker dat ook doet. Blijft hij op
+      // 'running' staan, dan telt de afteller van de synthese hem eeuwig mee en
+      // wordt de synthese nooit ingepland. Dat is precies de valkuil die
+      // `scheduleSynthesisIfLast()` beschrijft, en hij werkt in beide richtingen.
+      await db.client.query("update public.jobs set status = 'done' where id = $1", [
+        budgetStart[0].id,
+      ]);
+
+      // ── De volgorde van inplannen ────────────────────────────────────────
+      //
+      // ⚠️ De wachtrij claimt op `scheduled_for asc` (migratie 0013). Dít is wat
+      // de volgorde uit §2.3 afdwingt: loopt het budget vol, dan valt de
+      // vergelijking weg en blijft de basisanalyse overeind, in plaats van
+      // andersom.
+      const { rows: volgorde } = await db.client.query(
+        `select type, scheduled_for from public.jobs
+          where profile_id = $1 and type in ('reputation_offering', 'reputation_compare')
+          order by scheduled_for asc`,
+        [budgetProfielId],
+      );
+      ok(
+        "de vergelijkingen staan achter de reputatietaken",
+        volgorde[0]?.type === "reputation_offering" &&
+          volgorde[volgorde.length - 1]?.type === "reputation_compare",
+        volgorde.map((v) => v.type).join(" → "),
+      );
+
+      // ⚠️ Het budget wordt PAS vol gezet nadat de basisanalyse gedraaid heeft.
+      // Dat is precies het scenario dat §2.3 beschrijft, en het is het enige dat
+      // iets bewijst: het budget meteen vol zetten laat álles vallen, en dan
+      // toont de test niet dat de vergelijking als eerste sneuvelt maar alleen
+      // dat de poort werkt.
+      const draaiEen = async (soorten: string[]): Promise<void> => {
+        for (let i = 0; i < 40; i++) {
+          const { rows } = await db.client.query(
+            `select * from public.jobs
+              where type = any($2) and status = 'queued' and profile_id = $1
+              order by scheduled_for asc, created_at asc limit 1`,
+            [budgetProfielId, soorten],
+          );
+          if (rows.length === 0) break;
+          await db.client.query("update public.jobs set status = 'running' where id = $1", [rows[0].id]);
+          await runJob({ admin: admin as never, job: { ...rows[0], status: "running" } });
+          await db.client.query("update public.jobs set status = 'done' where id = $1", [rows[0].id]);
+        }
+      };
+
+      // Eerst de basisanalyse, zoals de wachtrij hem ook zou pakken.
+      await draaiEen(["reputation_brand", "reputation_offering"]);
+      const { rows: basisVoor } = await db.client.query(
+        `select count(*)::int as n from public.reputation_answers
+          where run_id = $1 and block in ('merk', 'aanbod')`,
+        [budgetRunId],
+      );
+      ok("de basisanalyse draait gewoon", basisVoor[0].n >= 6, `${basisVoor[0].n} antwoorden`);
+
+      // Nu loopt het budget vol. Alles wat daarna komt hoort te sneuvelen.
+      await db.client.query(
+        `insert into public.ai_calls (profile_id, kind, model, cost_usd, reputation_run_id)
+         values ($1, 'reputation_merk', 'gpt-5.6-luna', 99, $2)`,
+        [budgetProfielId, budgetRunId],
+      );
+
+      await draaiEen([
+        "reputation_brand",
+        "reputation_offering",
+        "reputation_compare",
+        "reputation_sources",
+        "reputation_synthesis",
+      ]);
+
+      const { rows: budgetRun } = await db.client.query(
+        "select * from public.reputation_runs where id = $1",
+        [budgetRunId],
+      );
+      // ⚠️ `budget_op` en niet `klaar`. De klant ziet dan een cijfer met een
+      // kanttekening in plaats van een cijfer dat doet alsof er niets aan de
+      // hand was. Stil degraderen is precies wat dit onderdeel niet mag doen.
+      ok(
+        "de run eindigt op 'budget op'",
+        budgetRun[0].status === "budget_op",
+        String(budgetRun[0].status),
+      );
+      ok(
+        "en er staat een notitie bij die zegt wat er is overgeslagen",
+        (budgetRun[0].notes as string[]).length > 0,
+        (budgetRun[0].notes as string[]).join(" | "),
+      );
+      const { rows: budgetVergelijkingen } = await db.client.query(
+        `select count(*)::int as n from public.reputation_answers
+          where run_id = $1 and block = 'vergelijking'`,
+        [budgetRunId],
+      );
+      ok(
+        "er is geen enkele vergelijking gesteld",
+        budgetVergelijkingen[0].n === 0,
+        `${budgetVergelijkingen[0].n}`,
+      );
+      // ⚠️ En dit is de kern: de basisanalyse staat er nog steeds. Een klant met
+      // een toon en een bewijskracht maar zonder plaats heeft nog een product;
+      // andersom heeft hij een plaats zonder te weten waarom.
+      const { rows: basisNa } = await db.client.query(
+        `select count(*)::int as n from public.reputation_answers
+          where run_id = $1 and block in ('merk', 'aanbod')`,
+        [budgetRunId],
+      );
+      ok(
+        "en de basisanalyse is behouden",
+        basisNa[0].n === basisVoor[0].n && basisNa[0].n > 0,
+        `${basisVoor[0].n} → ${basisNa[0].n}`,
+      );
+      ok(
+        "met een toon eronder, ook al viel de vergelijking weg",
+        budgetRun[0].tone_index !== null,
+        String(budgetRun[0].tone_index),
+      );
+      ok(
+        "en zonder rangscore, want die is er niet",
+        budgetRun[0].rank_score === null,
+        String(budgetRun[0].rank_score),
+      );
+    }
+
     __setTestAdminClient(null);
     __setTestTransport(null);
+    __setTestPlainTransport(null);
   } finally {
     await db.stop();
   }
