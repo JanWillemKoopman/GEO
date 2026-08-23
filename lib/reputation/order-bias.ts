@@ -25,6 +25,31 @@
 export interface OrderObservation {
   /** De partij die als eerste in de vraag genoemd werd. */
   firstAsked: string;
+  /**
+   * ⚠️ Kende het model die eerstgevraagde partij? Zo niet, dan telt dit oordeel
+   * NIET mee, en dat is de belangrijkste regel van deze module.
+   *
+   * ── DE FOUT DIE DIT REPAREERT, GEMETEN OP 23 AUGUSTUS 2026 ────────────────
+   *
+   * Bij Van den Udenhout kende ChatGPT twee van de vier partijen niet: twee
+   * kleine regionale autobedrijven. Een partij zonder plaats kan nooit eerste
+   * worden, dus elk oordeel waarin zo'n partij vooraan stond leverde
+   * gegarandeerd een misser op.
+   *
+   * De oude telling gooide beide groepen op één hoop, en dat maskeerde het
+   * effect volledig:
+   *
+   *   eerstgevraagde was GEKEND      7 van de 11 keer eerste  = 63,6%
+   *   eerstgevraagde was ONBEKEND    0 van de 33 keer eerste  =  0,0%
+   *   samen                          7 van de 44 keer eerste  = 21,9%
+   *
+   * Op 21,9% lijkt vooraan staan zelfs schadelijk, wat ongeloofwaardig is. Het
+   * echte cijfer is 63,6%, en dát is het getal waar `rank_indicative` op hoort
+   * te steunen. Een gemaskeerd volgorde-effect betekent dat een plaats
+   * stelliger op het scherm komt dan hij is, en dat is precies de fout die dit
+   * hele onderdeel probeert te vermijden.
+   */
+  firstAskedKnown: boolean;
   /** De partij die het model op plaats 1 zette. Null als er geen plaats 1 was. */
   firstPlaced: string | null;
   /** Hoeveel partijen er in dit oordeel meededen. */
@@ -75,8 +100,15 @@ function sleutel(name: string): string {
  * effect zou een bias meten die er niet is.
  */
 export function measureOrderBias(observations: OrderObservation[]): OrderBiasResult {
+  // ⚠️ Alleen oordelen waarin de eerstgevraagde partij ook daadwerkelijk
+  // meedeed. Zie `firstAskedKnown` hierboven: zonder die filter meet je hoe
+  // vaak het model de lokale concurrenten kent, en niet of vooraan staan loont.
   const bruikbaar = observations.filter(
-    (o) => o.firstPlaced !== null && o.ofParties >= 2 && o.firstAsked.trim().length > 0,
+    (o) =>
+      o.firstAskedKnown &&
+      o.firstPlaced !== null &&
+      o.ofParties >= 2 &&
+      o.firstAsked.trim().length > 0,
   );
 
   if (bruikbaar.length < MIN_OBSERVATIONS) {

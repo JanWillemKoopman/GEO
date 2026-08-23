@@ -245,7 +245,12 @@ function buildObservations(answers: ReputationAnswer[], ranks: ReputationRank[])
     perAntwoord.set(r.answer_id, lijst);
   }
 
-  const waarnemingen: { firstAsked: string; firstPlaced: string | null; ofParties: number }[] = [];
+  const waarnemingen: {
+    firstAsked: string;
+    firstAskedKnown: boolean;
+    firstPlaced: string | null;
+    ofParties: number;
+  }[] = [];
 
   for (const a of answers) {
     if (a.block !== "vergelijking") continue;
@@ -265,8 +270,18 @@ function buildObservations(answers: ReputationAnswer[], ranks: ReputationRank[])
       const eerste = rijen.find((r) => r.position === 1);
       const noemer = rijen[0]?.of_parties ?? 0;
       if (!eerste || noemer < 2) continue;
+
+      // ⚠️ Kende het model de partij die vooraan in de vraag stond? Zo niet, dan
+      // kon die per definitie niet eerste worden en zegt dit oordeel niets over
+      // het volgorde-effect. Zie `firstAskedKnown` in `order-bias.ts` voor de
+      // meting die daarop stukliep.
+      const eerstGevraagd = rijen.find(
+        (r) => r.party_name.trim().toLowerCase() === volgorde[0].trim().toLowerCase(),
+      );
+
       waarnemingen.push({
         firstAsked: volgorde[0],
+        firstAskedKnown: eerstGevraagd?.known === true,
         firstPlaced: eerste.party_name,
         ofParties: noemer,
       });

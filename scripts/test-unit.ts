@@ -8738,6 +8738,7 @@ group("het volgorde-effect wordt gemeten, niet aangenomen", () => {
   // vergelijking.
   const altijdEerste = Array.from({ length: 20 }, () => ({
     firstAsked: "Partij X",
+    firstAskedKnown: true,
     firstPlaced: "Partij X",
     ofParties: 4,
   }));
@@ -8756,6 +8757,7 @@ group("het volgorde-effect wordt gemeten, niet aangenomen", () => {
   // Zuiver toeval: de eerstgevraagde wint precies een kwart van de keren.
   const eerlijk = Array.from({ length: 20 }, (_, i) => ({
     firstAsked: "Partij X",
+    firstAskedKnown: true,
     firstPlaced: i % 4 === 0 ? "Partij X" : "Partij Y",
     ofParties: 4,
   }));
@@ -8765,11 +8767,46 @@ group("het volgorde-effect wordt gemeten, niet aangenomen", () => {
   // Eén vergelijking per knoop blijft indicatief, ook zonder gemeten effect.
   ok("maar één rotatie blijft indicatief", rankIsIndicative({ rotations: 1, bias: schoon }));
 
+  // ⚠️ DE FOUT DIE OP PRODUCTIE GEMASKEERD WERD (23 augustus 2026). Bij Van den
+  // Udenhout kende ChatGPT twee van de vier partijen niet. Een partij zonder
+  // plaats kan nooit eerste worden, dus elk oordeel waarin zo'n partij vooraan
+  // stond leverde gegarandeerd een misser op. Die onmogelijke gevallen
+  // verdunden het cijfer van 63,6% naar 21,9%, en dan lijkt vooraan staan zelfs
+  // schadelijk.
+  const gemengdeSet = [
+    // Elf oordelen waarin de eerstgevraagde wél gekend was: zeven keer raak.
+    ...Array.from({ length: 7 }, () => ({
+      firstAsked: "Gekend",
+      firstAskedKnown: true,
+      firstPlaced: "Gekend",
+      ofParties: 2,
+    })),
+    ...Array.from({ length: 4 }, () => ({
+      firstAsked: "Gekend",
+      firstAskedKnown: true,
+      firstPlaced: "Ander",
+      ofParties: 2,
+    })),
+    // Drieëndertig oordelen waarin de eerstgevraagde onbekend was. Die kunnen
+    // per definitie niet raak zijn en zeggen dus niets over de volgorde.
+    ...Array.from({ length: 33 }, () => ({
+      firstAsked: "Onbekend",
+      firstAskedKnown: false,
+      firstPlaced: "Ander",
+      ofParties: 2,
+    })),
+  ];
+  const gemeten = measureOrderBias(gemengdeSet);
+  eq("de onmogelijke oordelen tellen niet mee", String(gemeten.observations), "11");
+  eq("en het effect is 63,6% en niet 21,9%", String(gemeten.bias), "0.636");
+  ok("wat bij elf oordelen nog binnen de ruis valt", !gemeten.exceeded, String(gemeten.bias));
+
   // Onder de tien oordelen is er niets vast te stellen: bij vijf is drie keer
   // raak al 60%, en dat kan puur toeval zijn (conventie 3).
   const teWeinig = measureOrderBias(
     Array.from({ length: MIN_OBSERVATIONS - 1 }, () => ({
       firstAsked: "X",
+      firstAskedKnown: true,
       firstPlaced: "X",
       ofParties: 4,
     })),
