@@ -158,29 +158,31 @@ export async function askAndStore(
     );
   }
 
+  // ⚠️ Een gewone `insert` en bewust GEEN `upsert`. De unieke index die de
+  // ontdubbeling doet staat op een uitdrukking (`coalesce` op `offering_id` en
+  // `md5` op de vraag), en zo'n index kan Postgres niet als ON CONFLICT-doel
+  // gebruiken. Een upsert zou dus op de primaire sleutel moeten mikken, en die
+  // botst per definitie nooit: dat leest als bescherming terwijl het er geen is.
+  //
+  // De echte bescherming is tweeledig en staat hierboven en hieronder: eerst
+  // kijken of het antwoord er al staat, en bij een race de unieke index laten
+  // winnen en ophalen wat de ander schreef.
   const { data, error } = await admin
     .from("reputation_answers")
-    .upsert(
-      {
-        run_id: ctx.run.id,
-        block: ask.block,
-        offering_id: ask.offeringId,
-        question: ask.question,
-        web_search: ask.webSearch && measureWebSearchEnabled,
-        repeat_index: ask.repeatIndex,
-        answer_text: r.text,
-        raw_json: r.raw as never,
-        cited_urls: extractUrls(r.text, r.raw),
-        party_order: ask.partyOrder ?? [],
-        model: r.model,
-        cost_usd: r.costUsd,
-      },
-      // De unieke index is PARTIEEL noch samengesteld op kolomnamen alleen (hij
-      // gebruikt `coalesce` en `md5`), dus Postgres kan hem niet als
-      // ON CONFLICT-doel gebruiken. Vandaar het opnieuw ophalen hieronder bij
-      // een botsing, in plaats van erop te vertrouwen.
-      { onConflict: "id" },
-    )
+    .insert({
+      run_id: ctx.run.id,
+      block: ask.block,
+      offering_id: ask.offeringId,
+      question: ask.question,
+      web_search: ask.webSearch && measureWebSearchEnabled,
+      repeat_index: ask.repeatIndex,
+      answer_text: r.text,
+      raw_json: r.raw as never,
+      cited_urls: extractUrls(r.text, r.raw),
+      party_order: ask.partyOrder ?? [],
+      model: r.model,
+      cost_usd: r.costUsd,
+    })
     .select("*")
     .single();
 
