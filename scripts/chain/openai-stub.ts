@@ -168,12 +168,15 @@ const ANTWOORDEN: Record<string, (user: string) => unknown> = {
         citaten: [],
       };
     }
+    // ⚠️ Een vriendelijk label mét meerdere concrete bezwaren, precies het geval
+    // dat op Gasservice Brabant 18 van de 19 antwoorden trof. Het vangnet hoort
+    // dit op "gemengd" te zetten: er staat lof én kritiek.
     return {
       toon: "overwegend_positief",
       noemt_merk: true,
       grondslag: "reviews",
       pluspunten: ["Klanten noemen de deskundigheid", "De levertijd valt tegen"],
-      minpunten: ["De levertijd valt tegen"],
+      minpunten: ["De levertijd valt tegen", "onverwacht hoge rekening", "geen prijsindicatie vooraf"],
       citaten: [
         // Staat letterlijk in de gestubde antwoordtekst hieronder.
         { tekst: "deskundig", bron_url: "https://trustpilot.com/review/fysi-unique.nl" },
