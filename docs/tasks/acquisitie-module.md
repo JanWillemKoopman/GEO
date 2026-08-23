@@ -9,7 +9,8 @@ vanaf zijn eigen adres verstuurt als eerste contactmoment, gevolgd door een tele
 
 **Niets hierin is gebouwd.** Wat de module precies moet tonen en hoe hij eruit komt te zien,
 bespreken we aan de hand van dit document. Hoofdstuk 8 bevat een uitgewerkt voorbeeld van hoe
-rapport en mail eruit kunnen zien, hoofdstuk 12 de vragen die nog open staan.
+rapport en mail eruit kunnen zien, hoofdstuk 11 de learnings uit het onderzoek naar inspace.io,
+en hoofdstuk 13 de vragen die nog open staan.
 
 **Voor wie.** Het New business team, dat de gesprekken gaat voeren, en de software engineers die de
 module gaan bouwen. Beiden lezen eerst hoofdstuk 1: wat ORBIT ENGINE vandaag daadwerkelijk doet.
@@ -175,7 +176,7 @@ Publiek is een keuze met gevolgen die het waard zijn om expliciet te maken:
 - **Het is zichtbaar voor iedereen, ook voor de concurrent en voor het bedrijf dat er slecht op
   staat.** Elk bedrijf in het rapport kan zien waar het staat ten opzichte van de rest. Dat is de
   aantrekkingskracht én het risico van dit idee, en het bepaalt de toon: een rapport dat een bedrijf
-  belachelijk maakt levert geen gesprek op maar een boze telefoon. Zie hoofdstuk 12, vraag 2.
+  belachelijk maakt levert geen gesprek op maar een boze telefoon. Zie hoofdstuk 13, vraag 2.
 - **Het is vindbaar in Google en, als we het goed doen, in AI-antwoorden zelf.** Een pagina over
   "hoveniers in Eindhoven" die feitelijk beschrijft wie er in AI-antwoorden genoemd wordt, is precies
   het soort pagina waar ORBIT ENGINE zijn klanten op adviseert. Dat is geen bijvangst: het is het
@@ -191,7 +192,7 @@ Simpel betekent: te begrijpen in vijftien seconden door een hovenier die geen ma
    erbij. De app toont vandaag al onzekerheid in plaats van een indrukwekkend cijfer, en dat moet
    hier ook.
 3. **De bedrijven die niet genoemd zijn.** Waarschijnlijk het scherpste blok van het hele dashboard,
-   en tegelijk het gevoeligste. Zie hoofdstuk 12, vraag 2.
+   en tegelijk het gevoeligste. Zie hoofdstuk 13, vraag 2.
 4. **Waar de AI zijn informatie vandaan haalt.** Welke websites bepalen deze markt. Vaak zijn dat
    niet de bedrijfssites zelf maar vergelijkingsplatforms, en dat is voor de meeste ondernemers
    nieuwe informatie.
@@ -271,7 +272,7 @@ elke zin die in tweehonderd andere mails ook zou kunnen staan.
 
 - **De salesmedewerker verstuurt, niet het systeem.** Dat is geen technisch detail maar het hele
   punt: dit is een mail van een mens. De module levert een concept, de medewerker leest het, past
-  het aan en verstuurt het vanaf zijn eigen mailbox. Zie hoofdstuk 12, vraag 5, waar dit nog open
+  het aan en verstuurt het vanaf zijn eigen mailbox. Zie hoofdstuk 13, vraag 5, waar dit nog open
   staat.
 - **De mail bevat geen bewering die niet uit de meting komt.** Dit is dezelfde regel die de app
   vandaag hanteert bij contentgeneratie: staat een feit niet op de feitenkaart, dan komt het niet in
@@ -282,7 +283,7 @@ elke zin die in tweehonderd andere mails ook zou kunnen staan.
   status per bedrijf.
 - **De mail eindigt met een afmeldmogelijkheid en een herkenbare afzender.** Ongevraagde zakelijke
   mail naar een bedrijfsadres is toegestaan onder de Nederlandse regels, maar niet zonder een
-  duidelijke afzender en een manier om er vanaf te komen. Zie hoofdstuk 12, vraag 6.
+  duidelijke afzender en een manier om er vanaf te komen. Zie hoofdstuk 13, vraag 6.
 
 ---
 
@@ -435,7 +436,7 @@ te bestaan die zonder ingelogde super admin bereikbaar is.
 
 ## 10. Bouwvolgorde
 
-Ter bespreking, in drie fases die elk zelfstandig iets opleveren. De reden om te knippen: de eerste
+Ter bespreking, in vier fases die elk zelfstandig iets opleveren. De reden om te knippen: de eerste
 fase levert al iets waar sales mee kan werken, zonder dat er iets publiek staat. Dat maakt het
 mogelijk om de kwaliteit van de meting te beoordelen vóórdat er een pagina online komt met bedrijfsnamen
 erop.
@@ -444,7 +445,8 @@ erop.
 |---|---|---|
 | **1. Meten** | De rol super admin, de markt afbakenen met een poort, de meting op beide engines, de ranglijst. Alles intern, achter login | New business kan één markt bekijken en beoordelen of de uitkomst klopt met wat ze zelf van die markt weten. Dat oordeel is de enige echte kwaliteitstoets die er is |
 | **2. Benaderen** | De haak per bedrijf, de conceptmail, de werklijst met status per bedrijf | Sales kan bellen en mailen op basis van echte meetdata, ook al is er nog geen publieke pagina. De link naar het dashboard ontbreekt dan nog in de mail |
-| **3. Publiceren** | De publieke route, het dashboard, de verwijderprocedure, de afmeldroute in de mail | Het volledige idee zoals in dit document beschreven |
+| **3. Publiceren** | De publieke route, het dashboard, de verwijderprocedure, de afmeldroute in de mail. Plus de adresstructuur en de onderlinge verwijzingen tussen markten, en de blokken oud tegenover nieuw en wat het oplevert (hoofdstuk 11.2, punten A, E en G) | Het volledige idee zoals in dit document beschreven |
+| **4. Zelf laten checken** | De gratis controle op de publieke pagina, met een goedkope meetvariant en een dagplafond (hoofdstuk 11.2, punt C) | Bedrijven melden zichzelf, in plaats van dat sales ze allemaal moet benaderen. Alleen zinvol als fase 3 staat en de kosten beheersbaar blijken |
 
 **Waarom publiceren als laatste.** Een publieke pagina met bedrijfsnamen is de enige stap in dit
 geheel die je niet ongedaan kunt maken. Wat er eenmaal online stond, is gezien. Alle onzekerheid over
@@ -454,11 +456,141 @@ de kwaliteit van de meting hoort dus weggenomen te zijn in fase 1 en 2, waar een
 opgeslagen data is nagerekend, niet als de code er staat. Voor fase 1 betekent dat concreet: iemand
 die de markt kent kijkt naar de ranglijst en zegt of hij klopt. Voor fase 2: een salesmedewerker leest
 tien conceptmails en zegt of hij ze zelf zou versturen. Voor fase 3: het rapport staat online en een
-bedrijf dat erop staat heeft gereageerd zonder dat het een klacht was.
+bedrijf dat erop staat heeft gereageerd zonder dat het een klacht was. Voor fase 4: er is een bedrijf
+dat zichzelf heeft laten controleren en daarna contact opnam, en de kosten van die week bleven binnen
+het plafond.
 
 ---
 
-## 11. Wat er al herbruikbaar is, en wat nieuw is
+## 11. Input: learnings vanuit inspace.io
+
+**Dit hoofdstuk is geen achtergrondinformatie maar inhoud.** Alles hieronder hoort meegenomen te
+worden bij het uitwerken van het daadwerkelijke plan en bij het bouwen van de module. Het is
+onderzocht op 23 augustus 2026, naar aanleiding van de vraag hoe InSpace zelf klanten werft en wat
+wij daarvan kunnen gebruiken.
+
+**Waarom uitgerekend InSpace.** Ons verkoopmodel is al van hen overgenomen: sales-led in plaats van
+self-serve, de consultant zet het profiel klaar vóór het gesprek. Zij verkopen een vergelijkbaar
+product aan een overlappende markt, vanuit Eindhoven, en zijn een aantal jaren verder in hun
+acquisitie dan wij. Wat daar werkt, is voor ons het goedkoopste onderzoek dat er is.
+
+**Hoe het onderzocht is, met de beperking erbij.** De site van InSpace was vanuit de ontwikkelomgeving
+niet rechtstreeks te openen. De bevindingen komen uit zoekresultaten die hun pagina's samenvatten,
+plus uit materiaal dat al in deze repo staat: de volledige marketingtekst (`docs/inspace-marketing.txt`)
+en de twee berichtencatalogi van hun apps (`docs/nova-i18n.json`, `docs/inspace-app-i18n.json`).
+Citaten hieronder komen letterlijk uit die bestanden. Wie een bevinding wil natrekken vóór er iets op
+gebouwd wordt, kan de pagina's zelf openen.
+
+### 11.1 Wat InSpace doet
+
+Negen mechanismen, van hun trechter van boven naar beneden.
+
+| # | Mechanisme | Wat het concreet is |
+|---|---|---|
+| 1 | **Gratis tools zonder drempel** | Een Tech Scan (gratis technische SEO-audit) en een ROI-calculator. Geen account, geen creditcard, geen verplicht verkoopgesprek. Je vult iets in en krijgt direct resultaat |
+| 2 | **Honderden landingspagina's volgens een matrix** | Servicepagina's per CMS (Shopify, WordPress, Webflow, Storyblok, Magento, Wix, HubSpot, Framer), per branche (e-commerce, maakindustrie, advocaten, tandartsen, zorg, vastgoed, automotive, mode, sieraden) en per type (lokale, enterprise, internationale, meertalige SEO), maal zeven taalversies. Adressen als `inspace.io/nl-nl/seo-diensten/tandarts-seo` |
+| 3 | **Bewijs met naam en cijfer** | 24 gedocumenteerde cases, gesorteerd per markt: "Laminaat.nl, vloeren, +30K per maand organisch". Daarboven: "vertrouwd door 400+ bedrijven" |
+| 4 | **Eén conversieactie, met een lage variant** | Overal "Plan een gratis demo", en in het formulier: *"Laat je gegevens achter en we plannen samen een sessie van 15 of 45 minuten, wanneer het jou uitkomt."* Die 15 minuten is de echte drempelverlager |
+| 5 | **Prijzen staan op de site** | Drie pakketten, met korting bij twee jaar vooruitbetalen. Sales-led, maar niet prijsgeheim |
+| 6 | **Inhoudelijk gezag als aparte laag** | Insights, Kennisbank, Blog en een "Growth lab", gepositioneerd als geschreven door de mensen die het product bouwen, tegen echte zoekresultaten. Geen algemene SEO-artikelen |
+| 7 | **Het verhaal begint bij de wereld, niet bij het product** | *"25 jaar lang betekende zoeken een lijst met links. Nu geven Google en alle AI-tools je antwoorden."* Oud tegenover nieuw, en pas daarna het product |
+| 8 | **De menselijke laag is een verkoopargument** | *"100% software"* naast *"+20 echte mensen als hulp"* en een eigen Customer Success Manager. Dat pareert het bezwaar "dus ik krijg een robot" |
+| 9 | **Acquisitie en behoud zijn gescheiden rollen** | Uit hun vacatures: twee Senior Account Executives in Antwerpen, Nederlands- en Franstalig, plus Customer Success Managers. Vestigingen in Eindhoven en Antwerpen, Keulen en Amsterdam in aanbouw |
+
+Ze maken de omvang van de markt ook tastbaar met echte volumes, en gebruiken daarbij toevallig precies
+ons voorbeeld: *"landscaping, 144.000 zoekopdrachten per maand"*.
+
+### 11.2 Wat wij daarvan overnemen
+
+Zeven punten. Elk punt is besloten om mee te nemen; wat erbij staat is hoe.
+
+**A. Denk in de matrix, niet in één rapport.** Dit is de belangrijkste les van het hele onderzoek.
+`hovenier_eindhoven` als losse pagina is een dood blaadje. De waarde zit in branche maal plaats,
+systematisch: een overzichtspagina, een vaste adresstructuur, en onderlinge verwijzingen tussen
+verwante markten, zowel naar dezelfde branche in een andere plaats als naar een andere branche in
+dezelfde plaats. **Gevolg voor de bouw:** de slug-conventie en de onderlinge verwijzingen horen in
+fase 3 van de bouwvolgorde te zitten, niet als latere toevoeging. Achteraf de structuur repareren op
+honderden pagina's is duur, en pagina's zonder onderlinge samenhang worden door zoekmachines én door
+AI-assistenten slechter opgepikt. Dat laatste is bij dit product geen detail: het is exact wat we
+onze klanten adviseren.
+
+**B. Laat het rapport zichzelf bewijzen.** Als onze pagina over hoveniers in Eindhoven zélf genoemd
+wordt in AI-antwoorden over die markt, is dat het sterkste verkoopargument dat er bestaat: de pagina
+die je leest is het bewijs van wat wij doen. InSpace past hun eigen product toe op hun eigen site;
+wij horen dat ook te doen. **Gevolg voor de bouw:** de publieke pagina wordt gebouwd volgens de
+GEO-eisen die ORBIT ENGINE zelf aan klantcontent stelt, met gestructureerde data, een heldere
+entiteit per bedrijf en toegang voor AI-crawlers. En na een maand of drie meten we de eigen pagina's
+met onze eigen meting. Wordt onze pagina niet genoemd, dan is dat een probleem met het product, niet
+met de pagina.
+
+**C. Een gratis zelfbedieningscheck op de publieke pagina.** Bij InSpace is de Tech Scan zonder account
+de bovenkant van de trechter. Bij ons zou dat betekenen: wie het rapport vindt, kan zijn eigen bedrijf
+laten controleren. Dat maakt van een eenrichtingsdocument een leadgenerator, en het draait de richting
+om: niet wij benaderen hen, zij melden zich. **Met één harde rem:** hun scan is gratis omdat een crawl
+niets kost, onze meting kost geld. Zonder rem is dit een open kraan waar iedereen op het internet aan
+kan draaien. **Gevolg voor de bouw:** dit kan alleen als goedkope variant, bijvoorbeeld een kleiner
+aantal vragen, één engine, of een wachtrij met een dagplafond, en met een misbruikrem. Het hoort in
+een eigen fase na fase 3, niet erbij gepropt.
+
+**D. Het gesprek in tijd uitdrukken, met een keuze.** InSpace vraagt niet om "een demo" maar om
+"15 of 45 minuten, wanneer het jou uitkomt". Onze conceptmails zeggen al "tien minuten", dus we zitten
+in de goede richting, maar dat is nu toeval en geen regel. **Gevolg voor de bouw:** leg vast in de
+schrijfinstructie van de mail dat de afsluitende vraag altijd een tijdsduur noemt, en dat die duur
+kort is. Dit kost niets en is meetbaar in het responspercentage.
+
+**E. Het blok oud tegenover nieuw op de publieke pagina.** Een hovenier die niet weet wat GEO is,
+begrijpt in vijftien seconden wat er verandert als hij de oude situatie naast de nieuwe ziet. InSpace
+zet dit blok bovenaan hun hele verhaal. Het past bij onze schrijfstijl en het kost één blok op de
+pagina. **Gevolg voor de bouw:** dit wordt vast onderdeel van het publieke dashboard, boven de
+ranglijst of er direct onder.
+
+**F. De omvang van de vraag erbij zetten.** InSpace maakt het verlies tastbaar met volumes. Ons
+rapport zegt hoe vaak een bedrijf genoemd wordt, maar niet hoe groot de prijs is die het misloopt.
+"Nul van de veertig" is een cijfer; "nul van de veertig, terwijl hier per maand honderden mensen naar
+zoeken" is een bedrag. **Met een kanttekening die niet weggeschreven mag worden:** echte zoekvolumes
+zijn in ORBIT ENGINE bewust níet gebouwd, dus dit wordt een schatting. **Gevolg voor de bouw:** een
+schatting mag, maar dan zichtbaar als schatting, met de bron of de methode erbij. Een verzonnen precies
+getal op een publieke pagina is precies het soort fout dat het hele rapport verdacht maakt, en het
+is niet te herstellen als iemand het narekent.
+
+**G. Wij hebben nog geen klantcases, en dat is een gat.** InSpace koppelt elk probleem aan een
+gedocumenteerd resultaat met naam en cijfer: 24 cases, 400+ bedrijven, "+30K per maand". Wij hebben
+dat niet. Onze publieke pagina kan straks scherp laten zien dát een bedrijf onzichtbaar is, maar heeft
+geen enkel bewijs dat wij dat oplossen. **Dit is geen ontwerpkeuze die je anders kunt maken, het is
+een tekort dat je alleen met tijd kunt vullen.** Drie gevolgen voor het plan:
+
+1. **Verzin niets.** Geen voorbeeldcase, geen "tot 3x meer zichtbaarheid", geen percentage zonder
+   meting eronder. De hele geloofwaardigheid van dit rapport hangt aan het feit dat elk getal erop
+   nagerekend kan worden. Eén verzonnen cijfer maakt de rest ook verdacht.
+2. **Bouw de plek er wel vast in.** Het publieke dashboard krijgt een blok "wat het oplevert" dat in
+   de eerste versie leeg blijft of vervangen wordt door de methode: hoe wij meten, en dat wij ná
+   publicatie hermeten met een controlegroep. De belofte van bewijs is zelf een argument, en het is
+   waar.
+3. **Maak de eerste case een doel van de module.** De eerste klant die via dit rapport binnenkomt en
+   waarbij we ná publicatie een gemeten stijging laten zien, vult dit gat voor alle volgende
+   rapporten. Dat is een reden om bij de eerste klanten uit deze module extra streng te zijn op de
+   effectmeting van fase 5. Tot die tijd is de openingsmail het enige verkoopmiddel dat we hebben,
+   en dat verklaart waarom hoofdstuk 6 zo streng is over de kwaliteit ervan.
+
+### 11.3 Waar wij verder gaan dan hun draaiboek
+
+Eén bevinding die geen les is maar een waarschuwing, en die het zwaarste weegt van alles hierboven.
+
+**InSpace publiceert nergens een pagina die andere, met naam genoemde bedrijven beoordeelt.** Hun
+publieke materiaal gaat over zichzelf, over hun product, en over eigen klanten die toestemming gaven.
+Wij zijn van plan een ranglijst te publiceren met bedrijfsnamen die daar niet om gevraagd hebben,
+inclusief een blok met wie er onzichtbaar is.
+
+Dat is geen reden om het niet te doen, maar het betekent wel dat er geen voorbeeld is om ons op te
+beroepen. We kunnen niet zeggen "zo doet InSpace het ook", en we kunnen ook niet zien hoe de markt
+daarop reageert voordat wij het zelf doen. Dat maakt vraag 2 in hoofdstuk 13 zwaarder dan hij eruitziet:
+of de bedrijven die nul keer genoemd worden wél op de publieke pagina komen, is de beslissing die
+bepaalt of dit een scherp acquisitiemiddel is of een reputatierisico. Die beslissing hoort genomen te
+zijn vóór fase 3 van de bouwvolgorde begint.
+
+---
+
+## 12. Wat er al herbruikbaar is, en wat nieuw is
 
 ### Herbruikbaar
 
@@ -500,7 +632,7 @@ bedrijf dat erop staat heeft gereageerd zonder dat het een klacht was.
 
 ---
 
-## 12. Wat we nog moeten bespreken
+## 13. Wat we nog moeten bespreken
 
 Dit zijn de keuzes die de vorm van de module bepalen. Geen ervan is hierboven beantwoord.
 
@@ -513,7 +645,9 @@ Dit zijn de keuzes die de vorm van de module bepalen. Geen ervan is hierboven be
    niet") en tegelijk het grootste risico, want dat bedrijf staat publiek op een lijst waar het
    slecht op staat, zonder erom gevraagd te hebben. Drie varianten: iedereen erop; alleen de
    genoemden publiek en de onzichtbaren alleen intern voor sales; of iedereen erop maar zonder
-   ranglijstpositie voor wie niet genoemd is.
+   ranglijstpositie voor wie niet genoemd is. Hoofdstuk 11.3 maakt deze vraag zwaarder: InSpace
+   publiceert nergens een oordeel over met naam genoemde derden, dus er is geen voorbeeld om ons
+   op te beroepen.
 3. **Hoeveel bedrijven per rapport?** Vijftien is werkbaar voor sales en leesbaar op een dashboard.
    Vijftig is completer en onbruikbaar als werklijst.
 4. **Hoe vaak wordt een rapport ververst?** Een publieke pagina die maanden blijft staan terwijl de
@@ -540,7 +674,7 @@ Dit zijn de keuzes die de vorm van de module bepalen. Geen ervan is hierboven be
 
 ---
 
-## 13. Randvoorwaarden vanuit hoe de app vandaag werkt
+## 14. Randvoorwaarden vanuit hoe de app vandaag werkt
 
 Een paar dingen die niet ter discussie staan, omdat ze in de rest van de app vastliggen en de module
 er niet mee mag botsen:
