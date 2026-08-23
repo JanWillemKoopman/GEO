@@ -248,6 +248,9 @@ export async function runSynthesis(admin: Admin, runId: string): Promise<Synthes
       market_position: markt.position,
       market_of: markt.of,
       market_hit_rate: markt.hitRate,
+      // De noemer hoort bij de breuk. Zonder hem is 0,36 tegenover 0,17 niet te
+      // wegen: twee op zes is iets anders dan zes op achttien.
+      market_answers: markt.answers,
       market_rivals: markt.rivals,
       rank_score: merkSamen.score,
       rank_position: merkSamen.position,

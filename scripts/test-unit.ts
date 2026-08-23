@@ -385,13 +385,12 @@ import {
   spreadSentence,
   WEAK_WEIGHT,
 } from "@/lib/reputation/score";
-import { instrumentVersion, comparableRuns, instrumentWarning } from "@/lib/reputation/instrument";
+import { instrumentVersion, comparableRuns, instrumentWarning, PROMPT_VERSION } from "@/lib/reputation/instrument";
 import {
   compareRuns,
   compareSentence,
   snapshotFromRun,
   EVIDENCE_MIN_DELTA,
-  HIT_RATE_MIN_DELTA,
 } from "@/lib/reputation/compare";
 import type { RunSnapshot } from "@/lib/reputation/compare";
 import { readMarketAnswer, summariseMarket, marketSentence, marketKey, MAX_NAMED } from "@/lib/reputation/market";
@@ -9175,8 +9174,26 @@ group("het hoofdcijfer krijgt een marge, net als de meting ernaast", () => {
 
   const eenstemmig = toneStderr(Array.from({ length: 6 }, () => maak(1)));
   const verdeeld = toneStderr([maak(2), maak(-2), maak(2), maak(-2), maak(0), maak(1)]);
-  eq("zes identieke antwoorden geven marge nul", String(eenstemmig), "0");
+  // ⚠️ HET GEVAL UIT DE TWEEDE RUN OP GASSERVICE BRABANT. Alle 24 bruikbare
+  // antwoorden kregen daar hetzelfde label, dus de spreiding was 0 en de
+  // standaardfout ook. Dat leest als een cijfer dat tot op de punt nauwkeurig
+  // is, terwijl het betekent dat het instrument geen verschil zág. En het is
+  // niet alleen een leeswijze: met marge 0 zou elk verschil met een volgende
+  // meting "echt veranderd" heten, hoe klein ook.
+  //
+  // De ondergrens komt uit de schaal zelf: de labels liggen 50 punten uit
+  // elkaar, dus 50 gedeeld door de wortel uit 12, gedeeld door de wortel uit
+  // zes antwoorden, is 5,9.
+  ok("zes identieke antwoorden geven nooit marge nul", (eenstemmig ?? 0) > 0, String(eenstemmig));
+  eq("maar de ondergrens uit de schaal", String(eenstemmig), "5.9");
   ok("en zes verdeelde een echte marge", (verdeeld ?? 0) > 15, String(verdeeld));
+  // De ondergrens loopt terug naarmate er meer antwoorden zijn: meer metingen,
+  // meer zekerheid, ook als ze allemaal hetzelfde zeggen.
+  ok(
+    "meer antwoorden maken de ondergrens kleiner",
+    (toneStderr(Array.from({ length: 24 }, () => maak(1))) ?? 99) < (eenstemmig ?? 0),
+    String(toneStderr(Array.from({ length: 24 }, () => maak(1)))),
+  );
 });
 
 group("de bewijskracht meet onafhankelijkheid en niet aantal", () => {
@@ -9409,7 +9426,12 @@ group("het meetinstrument is versioneerd", () => {
   // verschuift de meetlat en niet de reputatie, en zonder deze sleutel zou het
   // scherm dat verschil netjes als vooruitgang tekenen.
   ok("de versie noemt het model", instrumentVersion().includes("gpt-5.6"));
-  ok("en de promptversie", instrumentVersion().includes("v2"));
+  ok("en de promptversie", instrumentVersion().includes(PROMPT_VERSION));
+  // ⚠️ De versie hoort mee te bewegen met de oordeelsregel. Bij de tweede run op
+  // Gasservice Brabant was het ophogen vergeten, en dan staan twee runs met een
+  // andere meetlat onder hetzelfde nummer. De toon ging van 47 naar 0 en dat zou
+  // als achteruitgang op het scherm komen, terwijl alleen de regel veranderde.
+  ok("en die versie is niet meer de versie van die twee runs", String(PROMPT_VERSION) !== "v2");
   ok("twee gelijke versies zijn vergelijkbaar", comparableRuns("a+b+v1", "a+b+v1"));
   ok("twee verschillende niet", !comparableRuns("a+b+v1", "a+b+v2"));
   // ⚠️ Onbekend is NIET vergelijkbaar. Runs van vóór deze kolom hebben null, en
@@ -9672,6 +9694,7 @@ group("twee metingen naast elkaar zeggen liever niets dan iets verkeerds", () =>
     toneStderr: 2.6,
     evidenceScore: 74,
     marketHitRate: 0.17,
+    marketAnswers: 15,
     marketPosition: 3.5,
     strengths: ["snelle service"],
     weaknesses: ["wisselende bereikbaarheid"],
@@ -9723,15 +9746,23 @@ group("twee metingen naast elkaar zeggen liever niets dan iets verkeerds", () =>
     "en erboven wel",
     compareRuns(basis, maak({ evidenceScore: 74 - EVIDENCE_MIN_DELTA })).evidenceDelta === EVIDENCE_MIN_DELTA,
   );
-  // Eén antwoord van de drie dat omslaat is 33 procentpunt en dus ruis.
+  // ⚠️ De trefkans op de juiste noemer. Hier stond een vaste drempel van 66
+  // procentpunt, gebaseerd op de aanname dat de marktvraag drie keer gesteld
+  // wordt. Hij wordt ook per dienst gesteld, dus het zijn er ongeveer vijftien.
+  // Met die oude drempel was de sprong van 0,17 naar 0,36 tussen de twee runs op
+  // Gasservice Brabant onzichtbaar gebleven, en dat is nu juist het getal waar
+  // dit product op verkocht wordt.
   ok(
-    "één omgeslagen marktantwoord is geen verandering",
-    compareRuns(basis, maak({ marketHitRate: 0.17 + 0.33 })).hitRateDelta === null,
+    "één omgeslagen marktantwoord van de vijftien is ruis",
+    compareRuns(basis, maak({ marketHitRate: 0.1 })).hitRateDelta === null,
   );
   ok(
-    "twee van de drie wel",
-    compareRuns(maak({ marketHitRate: 1 }), maak({ marketHitRate: 1 - HIT_RATE_MIN_DELTA })).hitRateDelta === 66,
+    "zonder noemer geen uitspraak, ook niet bij een groot verschil",
+    compareRuns(basis, maak({ marketHitRate: 0.9, marketAnswers: null })).hitRateDelta === null,
   );
+  // Van 3 op 15 naar 12 op 15 is een echte verschuiving, en die hoort zichtbaar.
+  const trefkans = compareRuns(maak({ marketHitRate: 0.8 }), maak({ marketHitRate: 0.2 }));
+  ok("een echte verschuiving in de trefkans komt eruit", trefkans.hitRateDelta === 60, `${trefkans.hitRateDelta}`);
 
   // ── De lijstjes, die ook zonder cijfermatige verandering iets zeggen ──────
   const lijsten = compareRuns(
@@ -9758,6 +9789,7 @@ group("twee metingen naast elkaar zeggen liever niets dan iets verkeerds", () =>
     tone_stderr: 2.6,
     evidence_score: 74,
     market_hit_rate: 0.17,
+    market_answers: 15,
     market_position: 3.5,
     strengths: [],
     weaknesses: [],
@@ -9774,6 +9806,7 @@ group("twee metingen naast elkaar zeggen liever niets dan iets verkeerds", () =>
       tone_stderr: null,
       evidence_score: null,
       market_hit_rate: null,
+      market_answers: null,
       market_position: null,
       strengths: [],
       weaknesses: [],

@@ -26,7 +26,7 @@
  *    verschil deels een ander vraagstuk. Dat is precies waarvoor `scope_json`
  *    bij de start wordt vastgelegd.
  */
-import { changeIsMeaningful } from "@/lib/stats/uncertainty";
+import { changeIsMeaningful, binomialStderr } from "@/lib/stats/uncertainty";
 import { comparableRuns, instrumentWarning } from "@/lib/reputation/instrument";
 
 /** Wat er van een run nodig is om hem met een andere te vergelijken. */
@@ -37,6 +37,8 @@ export interface RunSnapshot {
   toneStderr: number | null;
   evidenceScore: number | null;
   marketHitRate: number | null;
+  /** De noemer onder die trefkans. Zonder noemer geen vergelijking. */
+  marketAnswers: number | null;
   marketPosition: number | null;
   strengths: string[];
   weaknesses: string[];
@@ -57,13 +59,26 @@ export interface RunSnapshot {
 export const EVIDENCE_MIN_DELTA = 10;
 
 /**
- * Hoeveel de trefkans op de marktvraag moet verschillen.
+ * ⚠️ HIER STOND EEN VASTE DREMPEL VAN 0,66 EN DIE WAS FOUT.
  *
- * De marktvraag wordt drie keer gesteld (`MARKET_REPEATS`), dus de kleinst
- * mogelijke stap is één antwoord: 33 procentpunt. Eén antwoord dat omslaat is
- * ruis, twee van de drie is een patroon. Vandaar 0,66 en niet 0,34.
+ * De redenering erachter klopte niet: de marktvraag zou drie keer gesteld
+ * worden, dus zou de kleinste stap 33 procentpunt zijn. In werkelijkheid telt
+ * de trefkans ook de marktvraag per dienst mee, dus bij een standaardanalyse
+ * gaat het over ongeveer vijftien antwoorden en is de kleinste stap 7
+ * procentpunt. Met een drempel van 0,66 zou de sprong van 0,17 naar 0,36 die
+ * de twee runs op Gasservice Brabant lieten zien onzichtbaar zijn gebleven, en
+ * dat is precies het getal waar dit product op verkocht wordt: word je genoemd
+ * als een koper vraagt wie hij moet hebben.
+ *
+ * De trefkans is een aandeel over een bekend aantal antwoorden, en daar bestaat
+ * echte rekenkunde voor. `binomialStderr()` uit `lib/stats/uncertainty.ts` geeft
+ * hem zijn bandbreedte, dezelfde functie die de zichtbaarheidsscore op het
+ * scherm ernaast zijn marge geeft. Vandaar dat er nu een noemer wordt
+ * meegegeven (`marketAnswers`, migratie 0064) in plaats van een vuistregel.
+ *
+ * Gevonden door de uitkomst van twee echte runs naast elkaar te leggen, niet
+ * door een test (conventie 10).
  */
-export const HIT_RATE_MIN_DELTA = 0.66;
 
 export interface RunComparison {
   previousAt: string;
@@ -139,14 +154,39 @@ export function compareRuns(current: RunSnapshot, previous: RunSnapshot): RunCom
       ? Math.round(evidenceRuw)
       : null;
 
-  const hitRuw =
-    current.marketHitRate !== null && previous.marketHitRate !== null
-      ? current.marketHitRate - previous.marketHitRate
-      : null;
-  const hitRateDelta =
-    hitRuw !== null && comparable && Math.abs(hitRuw) >= HIT_RATE_MIN_DELTA
-      ? Math.round(hitRuw * 100)
-      : null;
+  // De trefkans is een aandeel, dus hij krijgt de binomiale marge van de
+  // zichtbaarheidsscore. Ontbreekt de noemer aan één kant, dan is er geen
+  // uitspraak; runs van vóór migratie 0064 hebben hem niet.
+  let hitRateDelta: number | null = null;
+  if (
+    comparable &&
+    current.marketHitRate !== null &&
+    previous.marketHitRate !== null &&
+    current.marketAnswers !== null &&
+    previous.marketAnswers !== null &&
+    current.marketAnswers > 0 &&
+    previous.marketAnswers > 0
+  ) {
+    const nu = current.marketHitRate * 100;
+    const toen = previous.marketHitRate * 100;
+    const uitkomst = changeIsMeaningful(
+      {
+        score: nu,
+        stderr: binomialStderr(
+          Math.round(current.marketHitRate * current.marketAnswers),
+          current.marketAnswers,
+        ),
+      },
+      {
+        score: toen,
+        stderr: binomialStderr(
+          Math.round(previous.marketHitRate * previous.marketAnswers),
+          previous.marketAnswers,
+        ),
+      },
+    );
+    if (uitkomst.changed) hitRateDelta = uitkomst.delta;
+  }
 
   // ── De scope ──────────────────────────────────────────────────────────────
   const nu = [...new Set(current.nodeIds)].sort();
@@ -225,6 +265,7 @@ export function snapshotFromRun(run: {
   tone_stderr: number | null;
   evidence_score: number | null;
   market_hit_rate: number | null;
+  market_answers: number | null;
   market_position: number | null;
   strengths: string[];
   weaknesses: string[];
@@ -243,6 +284,7 @@ export function snapshotFromRun(run: {
     toneStderr: run.tone_stderr,
     evidenceScore: run.evidence_score,
     marketHitRate: run.market_hit_rate,
+    marketAnswers: run.market_answers,
     marketPosition: run.market_position,
     strengths: run.strengths ?? [],
     weaknesses: run.weaknesses ?? [],

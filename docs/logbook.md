@@ -4033,3 +4033,66 @@ v2 er ongeveer 50 van maakte. Gecorrigeerd op het scherm, op de knop en in `arch
 
 Na deze ronde: 2077 unittests en 287 ketentests groen, migraties t/m `0063`. **Nog te verifiëren op
 productie:** twee runs op hetzelfde merk naast elkaar. Er is er één, de tweede moet nog draaien.
+
+## 23 augustus 2026, laat: de tweede run op Gasservice Brabant, en drie fouten in de meting zelf
+
+De run draaide compleet door: 51 van de 51 vragen, geen kanttekeningen, $0,97. Daarmee is bewezen
+dat de uitval van de ochtend (3 van de 15 merkbrede vragen, en de samenvatting die niet geschreven
+kon worden) aan de bestedingslimiet lag en niet aan de koppeling.
+
+De uitkomst zelf was slecht, en op een manier die alleen zichtbaar wordt door hem naast de vorige te
+leggen:
+
+| | ochtend | avond |
+|---|---|---|
+| toon | 47 | 0 |
+| verdeeldheid | 5 | 50 |
+| marge op de toon | 2,6 | **0** |
+| verdeling | 18× overwegend positief, 1× gemengd | **24× gemengd, verder niets** |
+
+### Fout 1: het vangnet sloeg door, en vlak is vlak
+
+De reparatie van de ochtend zei: lof met twee of meer echte bezwaren erin is geen lof maar een
+gemengd beeld. Bij dit merk somt het model in vrijwel elk antwoord meer dan twee bezwaren op, dus
+het vangnet vuurt bij élk antwoord. Resultaat: 24 van de 24 antwoorden hetzelfde etiket. Dat is
+dezelfde ziekte als 's ochtends, alleen op een ander etiket. Een label dat bij 24 antwoorden nooit
+verandert draagt nul informatie, en de toonindex van precies 0 die eruit rolt is geen meting maar
+een rekenkundig gevolg.
+
+De diepere oorzaak is niet de drempel maar de bron: het aantal minpunten dat het model opsomt is
+deels een gevolg van onze eigen vraagstelling, want wij vrágen om nadelen. Dit is nog niet
+gerepareerd; daarvoor moeten eerst de 24 oordelen zelf naast hun antwoorden gelegd worden.
+
+### Fout 2: een marge van nul leest als zekerheid en betekent blindheid
+
+Alle 24 labels gelijk betekent spreiding nul betekent standaardfout nul. Op het scherm staat dan een
+cijfer zonder marge, alsof het exact is. Erger: de vergelijking met een volgende meting deelt door
+die marge, dus élk verschil zou "echt veranderd" heten.
+
+De ondergrens komt nu uit de schaal zelf. Het model kiest een van de labels en die liggen 50 punten
+uit elkaar, dus de echte toon wordt afgerond op de dichtstbijzijnde 50. De spreiding van zo'n
+afronding is de stapgrootte gedeeld door de wortel uit 12; bij 24 antwoorden levert dat 2,9 punten
+op in plaats van 0.
+
+### Fout 3: de trefkans stond op de verkeerde noemer
+
+`HIT_RATE_MIN_DELTA` was 0,66, gebaseerd op de aanname dat de marktvraag drie keer gesteld wordt. Hij
+wordt ook per dienst gesteld, dus het zijn er ongeveer vijftien en de kleinste stap is 7 procentpunt.
+De sprong van 0,17 naar 0,36 die deze twee runs lieten zien was daarmee onzichtbaar gebleven, en dat
+is nu juist het commercieel scherpste getal van het hele product. De vaste drempel is vervangen door
+`binomialStderr()`, dezelfde functie die de zichtbaarheidsscore zijn bandbreedte geeft. Daarvoor moet
+de noemer bewaard worden: migratie `0064`.
+
+### Fout 4, en dit is de pijnlijkste: het ophogen van de promptversie was vergeten
+
+`instrument_version` bestaat om precies één ding te voorkomen: dat een wijziging in de meetlat als
+een wijziging in de reputatie op het scherm komt. Beide runs staan op `v2`, terwijl de oordeelsregel
+er tussenin veranderd is. Zonder ingrijpen zou de app netjes melden dat de reputatie van Gasservice
+Brabant met 47 punten is gekelderd. Het merk is niet veranderd, de regel wel.
+
+Opgehoogd naar `v3`, en de eerste ketentest die eraan hangt controleert nu de hele sleutel in plaats
+van alleen of er "v2" in staat, zodat vergeten opnieuw rood wordt.
+
+De les van de dag, voor de derde keer op rij: elke fout hierboven is gevonden door de uitkomst van
+een echte run regel voor regel na te lopen, en geen enkele door de 2081 unittests of de 287
+ketentests.

@@ -3290,7 +3290,8 @@ async function main(): Promise<void> {
       ok("en er is een betrouwbaarheidsmarge", run.tone_stderr !== null, String(run.tone_stderr));
       ok(
         "het meetinstrument is vastgelegd",
-        String(run.instrument_version ?? "").includes("v2"),
+        String(run.instrument_version ?? "") ===
+          (await import("@/lib/reputation/instrument")).instrumentVersion(),
         String(run.instrument_version),
       );
 

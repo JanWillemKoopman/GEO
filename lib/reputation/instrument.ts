@@ -34,8 +34,19 @@ import { MODELS } from "@/lib/openai/models";
  * v2  23 augustus 2026, na de eerste echte run: scherpere instructie over wat
  *     een plus- of minpunt is, de open marktvraag erbij, en de dienstvragen
  *     tegen een gedeeld bewijscorpus in plaats van elk hun eigen zoekactie.
+ * v3  23 augustus 2026, na de tweede echte run: lof met twee of meer echte
+ *     bezwaren erin telt als gemengd, en de standaardfout van de toon heeft een
+ *     ondergrens gekregen.
+ *
+ * ⚠️ HET OPHOGEN IS ÉÉN KEER VERGETEN, EN DAT IS PRECIES DE FOUT DIE DEZE KOLOM
+ * MOET VOORKOMEN. De twee runs op Gasservice Brabant van 23 augustus staan
+ * allebei op `v2`, terwijl de oordeelsregel er tussenin veranderd is. De toon
+ * ging van 47 naar 0, en zonder deze regel zou het scherm dat presenteren als
+ * "de reputatie is echt achteruitgegaan". Het merk is niet veranderd, de
+ * meetlat wel. Ophogen hoort bij dezelfde commit als de wijziging, niet bij de
+ * volgende.
  */
-export const PROMPT_VERSION = "v2";
+export const PROMPT_VERSION = "v3";
 
 /**
  * De sleutel die op de run wordt vastgelegd.
