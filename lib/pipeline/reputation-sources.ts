@@ -121,10 +121,23 @@ export async function runSourcesBlock(admin: Admin, runId: string): Promise<Sour
   // B en V staan er al. Daarom telt hij over alles heen en niet alleen over zijn
   // eigen twee vragen: de bronnen die AI bij een dienstvraag aanhaalt zijn even
   // veel waard als die bij de reviewvraag.
+  // ⚠️ ALLEEN DE BLOKKEN DIE OVER DE KLANT GAAN (23 augustus 2026).
+  //
+  // Deze telling stond op ALLE antwoorden, en dat ging mis zodra de marktvraag
+  // erbij kwam. Die vraagt welke bedrijven AI aanraadt, dus het antwoord noemt
+  // zes concurrenten mét hun websites. Bij Gasservice Brabant leverde dat 71
+  // URL's op uit de marktvraag en 42 uit de vergelijking: samen 113 van de 191,
+  // allemaal over ANDERE bedrijven.
+  //
+  // Het gevolg stond letterlijk op het scherm: 61 domeinen onder de kop "waar
+  // ChatGPT dit vandaan haalt", en een bewijskracht van 100 op 100. Dat cijfer
+  // hoort te zeggen hoeveel controleerbare bronnen er onder het oordeel over
+  // JOU liggen, en het telde de website van je concurrent mee.
   const { data: alleAntwoorden } = await admin
     .from("reputation_answers")
     .select("block, cited_urls")
-    .eq("run_id", runId);
+    .eq("run_id", runId)
+    .in("block", ["merk", "aanbod", "bron", "bewijs"]);
 
   const eigenDomein = domainOf(ctx.profile.url);
   const geteld = tallySources(

@@ -386,7 +386,7 @@ import {
   WEAK_WEIGHT,
 } from "@/lib/reputation/score";
 import { instrumentVersion, comparableRuns, instrumentWarning } from "@/lib/reputation/instrument";
-import { readMarketAnswer, summariseMarket, marketSentence, MAX_NAMED } from "@/lib/reputation/market";
+import { readMarketAnswer, summariseMarket, marketSentence, marketKey, MAX_NAMED } from "@/lib/reputation/market";
 import { toneScore, toneWord, isToneLabel, TONE_LABELS } from "@/lib/reputation/tone";
 import { isUsablePoint, cleanPoints, dedupeSleutel } from "@/lib/reputation/points";
 import {
@@ -9002,6 +9002,25 @@ group("een uitspraak over de reviews is geen pluspunt", () => {
     ok(`valt af: "${fout.slice(0, 40)}"`, !isUsablePoint(fout));
   }
 
+  // ⚠️ EEN CITAAT IS GEEN EIGENSCHAP (Gasservice Brabant, 23 augustus 2026).
+  // De sterke punten bevatten zowel "afspraken nakomen" als "Werken netjes.
+  // Komen op tijd.", en de zwakke zowel "afspraken niet nagekomen" als "Komen
+  // afspraken niet na!". Twee keer hetzelfde punt, en de ontdubbeling kon dat
+  // niet vangen omdat de woorden anders beginnen. Een lijst met eigenschappen
+  // is een agenda om aan te werken; een lijst met citaten is een bloemlezing,
+  // en daar is het veld `citaten` voor.
+  for (const citaat of [
+    "“Goed, snel, netjes”",
+    "“Komen afspraken niet na!”",
+    "“Het bedrag was dus een zeer onaangename verrassing.”",
+    "“Werken netjes. Komen op tijd.”",
+  ]) {
+    ok(`een citaat valt af: ${citaat.slice(0, 28)}`, !isUsablePoint(citaat));
+  }
+  // Maar de eigenschap die hetzelfde zegt blijft staan.
+  ok("de eigenschap ernaast blijft", isUsablePoint("afspraken niet nagekomen"));
+  ok("en deze ook", isUsablePoint("onverwacht hoog bedrag"));
+
   // Een hele alinea is geen punt maar een samenvatting, en die hoort in de
   // synthese.
   ok("een alinea valt af", !isUsablePoint("x".repeat(200)));
@@ -9321,6 +9340,60 @@ group("de trefkans staat los van de plek", () => {
     "terwijl een genoemde klant zijn plek én zijn trefkans leest",
     marketSentence(brede, "Gasservice Brabant").includes("plek 5"),
   );
+});
+
+group("dezelfde partij onder drie schrijfwijzen is één partij", () => {
+  // ⚠️ LETTERLIJK UIT DE RUN OP GASSERVICE BRABANT (23 augustus 2026). ChatGPT
+  // noemde hetzelfde installatiebedrijf over zes antwoorden heen op drie
+  // manieren. Die telden als drie concurrenten: op het scherm zou dan drie keer
+  // dezelfde partij in de lijst staan, en de trefkans van de klant zou gedeeld
+  // worden door een te grote noemer.
+  eq(
+    "het achtervoegsel valt weg",
+    marketKey("Verhees en Van Dijk Installatietechniek"),
+    marketKey("Verhees en Van Dijk"),
+  );
+  eq(
+    "en het ampersand ook",
+    marketKey("Verhees & Van Dijk"),
+    marketKey("Verhees en Van Dijk"),
+  );
+  eq("B.V. telt niet mee", marketKey("Gasservice Brabant B.V."), marketKey("Gasservice Brabant"));
+
+  // ⚠️ En twee ECHT verschillende bedrijven blijven gescheiden. Dat is de
+  // duurdere fout van de twee: een concurrent die verdwijnt omdat hij op een
+  // ander lijkt, zie je nergens terug.
+  ok(
+    "maar twee verschillende bedrijven blijven twee",
+    marketKey("Jos Maas Installatie") !== marketKey("Kemkens Installatie"),
+  );
+  ok(
+    "ook als ze dezelfde voornaam delen",
+    marketKey("Van Dijk Installatietechniek") !== marketKey("Van Dongen Installatietechniek"),
+  );
+
+  // En over antwoorden heen telt hij nu als één, met de rijkste schrijfwijze.
+  const eigen = ["Gasservice Brabant"];
+  const vraag = (namen: string[]) =>
+    readMarketAnswer(
+      namen.map((n, i) => ({ name: n, position: i + 1, reason: "" })),
+      eigen,
+    );
+  const samen = summariseMarket([
+    vraag(["Verhees en Van Dijk Installatietechniek", "Kemkens", "Gasservice Brabant"]),
+    vraag(["Verhees & Van Dijk", "Kemkens", "Gasservice Brabant B.V."]),
+    vraag(["Verhees en Van Dijk", "Kemkens"]),
+  ]);
+  // Beide komen drie keer voor, dus de naam beslist de volgorde. Waar het om
+  // gaat is dat het er TWEE zijn en geen vier.
+  eq(
+    "drie schrijfwijzen leveren één concurrent op",
+    samen.rivals.join(" | "),
+    "Kemkens | Verhees en Van Dijk Installatietechniek",
+  );
+  ok("en de rijkste schrijfwijze wint", samen.rivals.includes("Verhees en Van Dijk Installatietechniek"));
+  // De klant is in alle drie herkend, ook onder twee schrijfwijzen.
+  eq("en de trefkans klopt", String(samen.hitRate), "0.67");
 });
 
 group("het meetinstrument is versioneerd", () => {

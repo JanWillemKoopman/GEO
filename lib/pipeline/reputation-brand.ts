@@ -35,6 +35,7 @@ import "server-only";
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 import {
+  addNote,
   askAndStore,
   budgetAllows,
   loadContext,
@@ -137,22 +138,44 @@ export async function runBrandBlock(admin: Admin, runId: string): Promise<BrandR
 
   const vragen = planBrandQuestions(ctx);
 
-  // Parallel, en met `allSettled`: één mislukte vraag mag de andere vier niet
-  // meenemen. Vier van de vijf antwoorden leveren nog steeds een bruikbaar
-  // cijfer op, en dat is beter dan een taak die opnieuw moet en dan alles
-  // opnieuw betaalt.
-  const uitkomsten = await Promise.allSettled(
-    vragen.map((v) => askAndStore(admin, ctx, v)),
-  );
-
+  // Parallel, en met `allSettled`: één mislukte vraag mag de andere niet
+  // meenemen. Maar wél in groepen.
+  //
+  // ⚠️ VIJF TEGELIJK EN NIET VIJFTIEN (23 augustus 2026). Met drie herhalingen
+  // ging dit blok van vijf naar vijftien gegronde aanroepen, en die gingen
+  // allemaal in één keer de deur uit. Bij Gasservice Brabant kwamen er zeven van
+  // de vijftien terug: acht sneuvelden stil, opgeslokt door `allSettled`. Dat
+  // halveerde de basis waarop het hoofdcijfer rust, en juist die herhalingen
+  // waren toegevoegd om dat cijfer betrouwbaarder te maken.
+  //
+  // Vijf is wat dit blok vóór de herhalingen ook deed, en dat ging goed.
+  const GROEP = 5;
   const antwoorden: ReputationAnswer[] = [];
   let skipped = 0;
-  for (const u of uitkomsten) {
-    if (u.status === "fulfilled") antwoorden.push(u.value.answer);
-    else {
-      skipped++;
-      console.error(`Merkbrede vraag mislukt in run ${runId}:`, u.reason);
+
+  for (let i = 0; i < vragen.length; i += GROEP) {
+    const groep = vragen.slice(i, i + GROEP);
+    const uitkomsten = await Promise.allSettled(
+      groep.map((v) => askAndStore(admin, ctx, v)),
+    );
+    for (const u of uitkomsten) {
+      if (u.status === "fulfilled") antwoorden.push(u.value.answer);
+      else {
+        skipped++;
+        console.error(`Merkbrede vraag mislukt in run ${runId}:`, u.reason);
+      }
     }
+  }
+
+  // ⚠️ Een half merkblok is geen stilte meer. Het hoofdcijfer rust hierop, dus
+  // als de helft van de herhalingen wegvalt hoort dat op het scherm te staan.
+  if (skipped > 0) {
+    await addNote(
+      admin,
+      ctx.run.id,
+      `${skipped} van de ${vragen.length} merkbrede vragen leverde niets op. Het hoofdcijfer ` +
+        `rust daardoor op minder antwoorden, en de marge eromheen is breder dan hij lijkt.`,
+    );
   }
 
   const judged = await judgeAll(admin, ctx, antwoorden);

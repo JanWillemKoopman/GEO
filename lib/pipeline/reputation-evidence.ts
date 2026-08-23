@@ -32,13 +32,10 @@ import "server-only";
  * tweede consistentie.
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { getEngine } from "@/lib/engines/registry";
-import { measureWebSearchEnabled } from "@/lib/config";
 import { callStructured } from "@/lib/openai/structured";
 import { MODELS } from "@/lib/openai/models";
 import { ReputationEvidence } from "@/lib/schemas/reputation";
-import { budgetAllows, loadContext, REPUTATION_SYSTEM } from "@/lib/pipeline/reputation-context";
-import { citedUrlsFrom } from "@/lib/reputation/sources";
+import { askAndStore, budgetAllows, loadContext, addNote } from "@/lib/pipeline/reputation-context";
 import { domainOf } from "@/lib/offsite/domain";
 import type { ProfileOffering } from "@/lib/types/database";
 
@@ -119,34 +116,46 @@ export async function runEvidenceBlock(admin: Admin, runId: string): Promise<Evi
       : null,
   ].filter((v): v is string => v !== null);
 
-  const engine = getEngine(ctx.run.engine as "openai");
+  // ⚠️ VIA `askAndStore` EN NIET RECHTSTREEKS, en dat is een reparatie uit de
+  // run op Gasservice Brabant. Deze stap riep het model direct aan, waardoor de
+  // ruwe onderzoeksantwoorden nergens werden bewaard. Toen het corpus daar te
+  // dun uitviel, was niet vast te stellen of dat kwam doordat er weinig te
+  // vinden was of doordat de knipstap materiaal weggooide. De duurste stap van
+  // de run liet geen spoor na, en dat is precies wat conventie 8 verbiedt.
   const uitkomsten = await Promise.allSettled(
-    zoekvragen.map((vraag) =>
-      engine.callPlain({
-        system: REPUTATION_SYSTEM,
-        user: vraag,
-        webSearch: measureWebSearchEnabled,
-        meta: {
-          kind: "reputation_bewijs",
-          profileId: ctx.profile.id,
-          engine: ctx.run.engine,
-          reputationRunId: runId,
-        },
+    zoekvragen.map((vraag, i) =>
+      askAndStore(admin, ctx, {
+        block: "bewijs",
+        offeringId: null,
+        question: vraag,
+        webSearch: true,
+        repeatIndex: i,
       }),
     ),
   );
 
-  const teksten: { vraag: string; tekst: string; urls: string[] }[] = [];
+  const teksten: { vraag: string; tekst: string }[] = [];
+  let mislukt = 0;
   for (const [i, u] of uitkomsten.entries()) {
     if (u.status !== "fulfilled") {
+      mislukt++;
       console.error(`Onderzoeksvraag ${i} mislukt in run ${runId}:`, u.reason);
       continue;
     }
-    teksten.push({
-      vraag: zoekvragen[i],
-      tekst: u.value.text,
-      urls: citedUrlsFrom(u.value.text, u.value.raw, measureWebSearchEnabled),
-    });
+    teksten.push({ vraag: zoekvragen[i], tekst: u.value.answer.answer_text ?? "" });
+  }
+
+  // ⚠️ EEN MISLUKTE ZOEKVRAAG IS GEEN STILTE MEER. Bij Gasservice Brabant
+  // sneuvelden er twee van de vier, en dat halveerde het corpus zonder dat
+  // iemand het zag: `allSettled` slikte ze met alleen een logregel. Het scherm
+  // hoort te weten dat de basis dunner is dan bedoeld.
+  if (mislukt > 0) {
+    await addNote(
+      admin,
+      runId,
+      `${mislukt} van de ${zoekvragen.length} achtergrondvragen leverde niets op. Het beeld ` +
+        `hieronder rust daardoor op minder materiaal dan bedoeld.`,
+    );
   }
 
   if (teksten.length === 0) {
@@ -174,8 +183,10 @@ export async function runEvidenceBlock(admin: Admin, runId: string): Promise<Evi
           "Je knipt een onderzoeksantwoord op in losse, citeerbare fragmenten. Neem passages " +
           "LETTERLIJK over; vat niet samen en voeg niets toe. Geef per fragment de bron-URL als " +
           "die in de tekst staat, en een kort onderwerp zodat het fragment terug te vinden is. " +
-          "Sla algemeenheden en inleidende zinnen over: alleen wat een concreet feit, een " +
-          "ervaring of een oordeel bevat. Antwoord in het Nederlands.",
+          "⚠️ Neem RUIM over: niet alleen losse citaten tussen aanhalingstekens, maar ook de " +
+          "zinnen eromheen die een feit, een cijfer, een dienst of een ervaring bevatten. Een " +
+          "fragment van één woord is onbruikbaar; mik op hele zinnen. Alleen inleidende en " +
+          "afsluitende beleefdheden mogen weg. Antwoord in het Nederlands.",
         user: t.tekst,
         schema: ReputationEvidence,
         schemaName: "reputation_evidence",
@@ -190,7 +201,11 @@ export async function runEvidenceBlock(admin: Admin, runId: string): Promise<Evi
 
       for (const f of r.parsed.fragmenten) {
         const tekst = f.tekst?.trim() ?? "";
-        if (tekst.length < 20) continue;
+        // ⚠️ Vijftig en niet twintig. Bij Gasservice Brabant kwamen er
+        // fragmenten van twee woorden uit ("niet professioneel"), en die zeggen
+        // los van hun zin niets. Het corpus kwam op een gemiddelde van 48
+        // tekens uit, en daar kan geen enkele dienstvraag iets mee.
+        if (tekst.length < 50) continue;
         // ⚠️ Alleen fragmenten die LETTERLIJK in het onderzoek staan. Dezelfde
         // controle als bij de citaten in de oordeelslaag: een fragment dat de
         // knipstap erbij verzon zou als bewijs de dienstvragen in gaan, en dan

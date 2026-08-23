@@ -3159,6 +3159,27 @@ async function main(): Promise<void> {
         "geen enkel reviewcijfer geldt als bevestigd zonder geslaagde crawl",
         bronnen.every((b) => b.verified === false),
       );
+      // ⚠️ DE BRONNEN GAAN OVER DE KLANT EN NIET OVER DE MARKT. De marktvraag
+      // noemt zes concurrenten mét hun websites; bij Gasservice Brabant kwamen
+      // 113 van de 191 URL's uit de markt- en vergelijkingsvragen. Die telden
+      // mee onder "waar ChatGPT dit vandaan haalt" en dreven de bewijskracht
+      // naar 100 op 100, terwijl dat cijfer moet zeggen hoeveel controleerbare
+      // bronnen er onder het oordeel over JOU liggen.
+      const { rows: bronBlokken } = await db.client.query(
+        `select distinct a.block
+           from public.reputation_answers a
+           join public.reputation_sources s on s.run_id = a.run_id
+          where a.run_id = $1 and a.block in ('markt','vergelijking')
+            and exists (
+              select 1 from unnest(a.cited_urls) u where u like '%' || s.domain || '%'
+            )`,
+        [runId],
+      );
+      ok(
+        "de bronnenlijst telt geen URL's uit de markt- of vergelijkingsvragen",
+        bronBlokken.length === 0 || bronnen.length === 0,
+        bronBlokken.map((b) => b.block).join(", "),
+      );
 
       // ── Het gedeelde bewijscorpus ─────────────────────────────────────────
       const { rows: corpus } = await db.client.query(
