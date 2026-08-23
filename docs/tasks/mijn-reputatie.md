@@ -1,6 +1,7 @@
 # Mijn reputatie: productplan en implementatieplan
 
-**Opgesteld:** 22 augustus 2026 · **Status:** R1 t/m R4 af · R5 staat open ·
+**Opgesteld:** 22 augustus 2026 · **Status:** R1 t/m R4 af, plus een herziening op 23 augustus
+(v2) · R5 staat open ·
 **Plaats in de app:** Analytics, vierde bestemming (zie §2.2, daar ligt een besluit voor je klaar)
 
 Dit document beschrijft een **nieuw, apart betaald onderdeel** binnen ORBIT ENGINE. Het beantwoordt
@@ -1219,3 +1220,30 @@ standaardfout; hetzelfde geval komt dan op 74.
   run draagt zijn eigen status en heeft zijn eigen scherm; zonder deze uitzondering zou één
   mislukte dienstvraag als rood kruis op het MERKSCHERM verschijnen, en dan lijkt het alsof de
   onboarding is misgelopen. `reputation_synthesis` staat er bewust niet bij.
+
+
+---
+
+## Herziening van 23 augustus 2026 (v2)
+
+Na de eerste echte run zijn zeven technische verbouwingen doorgevoerd die verder gaan dan dit plan
+beschrijft. Ze staan volledig in `docs/logbook.md` bij 23 augustus. Wat er van dit plan door
+veranderd is:
+
+**§4.4, de vergelijking, is niet meer het hoofdmechanisme.** De benoemde vergelijking bleek
+structureel niet te werken bij een regionaal bedrijf: ChatGPT kende geen van beide echte
+concurrenten van Van den Udenhout. In plaats daarvan staat er nu een open koperssvraag ("welke
+bedrijven raad je aan") die concurrenten ONTDEKT. De benoemde vergelijking blijft merkbreed staan,
+want daar voedt hij de criteriatabel; de variant per dienst is geschrapt.
+
+**§3.1 heeft er getallen bij.** Naast de toonindex staan nu de verdeling en de verdeeldheid, want
+tien keer "gemengd" en tien keer "neutraal" leveren allebei nul op en dat zijn verschillende merken.
+En er staat een betrouwbaarheidsmarge onder, gevoed door drie herhalingen op de merkbrede vragen.
+
+**§2.3, de doorlooptijd, klopte niet en is nagemeten.** Niet 6 tot 9 minuten maar 9 minuten in de
+herziene opzet, en 31,6 in de oorspronkelijke. Het verschil zit in de wachtrij en niet in dit
+onderdeel.
+
+⚠️ **Eén verbouwing is teruggedraaid.** De dienstvragen zouden uit één gedeeld bewijscorpus putten
+in plaats van elk hun eigen zoekactie te doen. Die redenering was fout: verschillende zoekresultaten
+per dienst zijn niet de ruis maar het signaal. Zie het logboek voor de volledige onderbouwing.

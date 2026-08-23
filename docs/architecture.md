@@ -9,8 +9,11 @@ Voor UI/UX: `ux-design.md`.
 > **Bijgewerkt op 22 augustus 2026** voor Mijn reputatie (migratie `0062`): §3 (de vijf
 > reputatietabellen en de kolom op `ai_calls`), §4 (de zes nieuwe taaksoorten), §5 (stap 17) en §6
 > (de vijf nieuwe AI-aanroepen). ⚠️ Dat onderdeel is gebouwd en op ketentests geverifieerd, maar er
-> Migratie `0062` staat op productie en de eerste echte run is op 23 augustus gedraaid; wat die
-> opleverde staat in §6 en in `docs/logbook.md`.
+> Migraties `0062` en `0063` staan op productie. Er zijn op 23 augustus twee echte runs gedraaid,
+> op Van den Udenhout en op Gasservice Brabant; wat die opleverden staat in §6 en in
+> `docs/logbook.md`. De tweede run draaide op de herziene opzet: de open marktvraag in plaats van de
+> benoemde vergelijking als hoofdmechanisme, drie herhalingen op de merkbrede vragen, en de
+> verdeling naast het gemiddelde.
 > De rest van de peildatum hieronder blijft staan.
 > **Migraties `0058` en `0059` zijn er sindsdien bijgekomen** en staan wél in §12 en in dit
 > document verwerkt, maar de rest is niet opnieuw regel voor regel nagelopen. Verder geldt:
@@ -154,13 +157,14 @@ probleem dan een dollar.
 
 Bron: `lib/jobs/{types,queue,worker,handlers,pending}.ts`.
 
-- **30 taaksoorten:** `profile_discover`, `profile_research`, `profile_offering`, `propose_topics`,
+- **32 taaksoorten:** `profile_discover`, `profile_research`, `profile_offering`, `propose_topics`,
   `profile_market`, `profile_llm_baseline`, `profile_synthesis`, `prepare_analysis`,
   `generate_prompts`, `calibrate_volumes`, `measure_prompt`, `aggregate_week`,
   `profile_competitors`, `generate_report`, `content_brief`, `content_draft`, `content_revise`,
   `technical_audit`, `verify_publication`, `measure_impact`, `compute_impact`, `offsite_scan`,
   `gsc_sync`, `recalculate_potential`, `reputation_start`, `reputation_brand`,
-  `reputation_offering`, `reputation_compare`, `reputation_sources`, `reputation_synthesis`.
+  `reputation_offering`, `reputation_compare`, `reputation_sources`, `reputation_synthesis`,
+  `reputation_market`, `reputation_evidence`.
   `profile_competitors` hangt tussen `aggregate_week` en `generate_report`: destilleert per
   concurrent de eigenschappen uit de antwoordfragmenten van die periode (`competitor-intel.ts`),
   een eigen taak omdat het een eigen AI-aanroep is (conventie 7), niet omdat het inhoudelijk apart
@@ -505,14 +509,19 @@ zodat een run per stuk af te rekenen is.
 | `reputation_source_kinds` | `volume` | nee | `deterministic` | Alle gevonden domeinen indelen. Eén aanroep voor de hele lijst, zoals `offsite/presence.ts`. |
 | `reputation_synthesis` | `quality` | nee | `analytical` | De uitleg schrijven. ⚠️ De cijfers staan dan al vast en gaan als gegeven de prompt in. |
 
-**Nagerekend op productie (23 augustus 2026), en de schatting was te laag.** Eén standaardrun op
-Van den Udenhout, 34 vragen:
+**Nagerekend op productie (23 augustus 2026), twee runs.** De eerste op Van den Udenhout in de
+oorspronkelijke opzet, de tweede op Gasservice Brabant na de herziening:
 
-| | Geschat | Gemeten |
-|---|---|---|
-| Aanroepen | 68 | **66** |
-| Kosten | $0,54 | **$0,75** |
-| Doorlooptijd | 6 tot 9 minuten | **31,6 minuten** |
+| | Geschat | v1, Van den Udenhout | v2, Gasservice Brabant |
+|---|---|---|---|
+| Aanroepen | 68 | 66 | 51 gepland |
+| Kosten | $0,54 | $0,75 | **$0,48** |
+| Doorlooptijd | 6 tot 9 minuten | 31,6 minuten | **9 minuten** |
+
+⚠️ De sprong in doorlooptijd komt volledig uit de wachtrij: `IO_BOUND_HEAVY_TYPES` laat
+netwerkgebonden zwaar werk met drie tegelijk draaien, waar `HEAVY_JOB_RESERVE_MS` er eerder één per
+minuut van maakte. Die reservering blijft onaangetast voor contentgeneratie, dat één lange aanroep
+is en niet een handvol korte.
 
 Het aantal aanroepen klopte vrijwel precies; de prijs per gegronde vraag niet ($0,021 tot $0,023 in
 plaats van $0,015). Oorzaak: web-zoeken haalt pagina's op die als invoer meetellen, precies het
