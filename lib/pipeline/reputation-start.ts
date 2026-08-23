@@ -149,8 +149,9 @@ export async function startReputationRun(admin: Admin, runId: string): Promise<S
   // Geteld in ANTWOORDRIJEN en niet in taken, want daar telt `bumpDone()` ook
   // op. Vijf merkbrede vragen, één per knoop, twee bronvragen, plus de
   // vergelijkingen: drie merkbrede rotaties en één per knoop.
-  const vergelijkingen =
-    rivals.names.length > 0 ? BRAND_ROTATIONS + nodes.length : 0;
+  // Alleen merkbreed nog, zie `scheduleAll` voor waarom de vergelijking per
+  // dienst eruit is.
+  const vergelijkingen = rivals.names.length > 0 ? BRAND_ROTATIONS : 0;
   // Merkbreed: vijf vragen maal het aantal herhalingen. De marktvraag: drie
   // merkbreed plus één per dienst. Plus de dienstvragen, de twee bronvragen en
   // de vier onderzoeksvragen die het corpus vullen.
@@ -356,17 +357,23 @@ async function scheduleAll(
       }),
     );
 
-    for (const [i, n] of nodes.entries()) {
-      tel(
-        await enqueue(admin, {
-          type: "reputation_compare",
-          payload: { runId: run.id, offeringId: n.offering.id, slot: i, rotations: 1 },
-          profileId: run.profile_id,
-          dedupeKey: dedupe.reputationCompare(run.id, n.offering.id),
-          scheduledFor: later,
-        }),
-      );
-    }
+    // ⚠️ ALLEEN MERKBREED, GEEN VERGELIJKING PER DIENST MEER (23 augustus 2026).
+    //
+    // Die kostte twaalf gegronde aanroepen, een derde van de hele run, en hij
+    // was bij Van den Udenhout aantoonbaar leeg: het model kende de
+    // concurrenten op geen enkel dienstniveau, dus elke knoop leverde
+    // "onbekend" op met de chip `indicatief` erbij. Twaalf betaalde vragen voor
+    // een tabel met streepjes.
+    //
+    // Wat er voor in de plaats komt is beter én goedkoper: de marktvraag per
+    // dienst. Die vraagt niet om een oordeel over partijen die het model niet
+    // kent, maar laat het model zelf noemen wie er in die markt toe doet. Bij
+    // een dienst waar AI niemand kent, levert dat een leeg lijstje op, en dat is
+    // een echte uitkomst in plaats van een tabel vol streepjes.
+    //
+    // Merkbreed blijft de benoemde vergelijking wél staan: daar voedt hij de
+    // criteriatabel, en met drie rotaties is hij de enige plek waar de vier
+    // criteria tegen elkaar afgezet worden.
   }
 
   // ── 4. De bronnen als laatste vóór de synthese ────────────────────────────

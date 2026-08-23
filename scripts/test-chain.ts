@@ -3095,15 +3095,21 @@ async function main(): Promise<void> {
         "en die drie rotaties hebben niet allemaal dezelfde volgorde",
         new Set(merkbreed.map((a) => (a.party_order as string[]).join(","))).size > 1,
       );
-      // Eén vergelijking per knoop is indicatief, drie is een uitslag.
+      // ⚠️ De vergelijking draait alleen nog MERKBREED. Per dienst kostte hij
+      // twaalf gegronde aanroepen, een derde van de run, en hij was bij Van den
+      // Udenhout aantoonbaar leeg: het model kende de concurrenten op geen enkel
+      // dienstniveau. De marktvraag per dienst dekt dat nu af, en die vraagt niet
+      // om een oordeel over partijen die het model niet kent.
+      ok(
+        "er is geen vergelijking per dienst meer",
+        vergelijkingen.every((a) => a.offering_id === null),
+        `${vergelijkingen.filter((a) => a.offering_id !== null).length} per dienst`,
+      );
       const { rows: perDienst } = await db.client.query(
         "select * from public.reputation_offering_scores where run_id = $1",
         [runId],
       );
-      ok(
-        "een knoop met één vergelijking blijft indicatief",
-        perDienst.length > 0 && perDienst.every((d) => d.rank_indicative === true),
-      );
+      ok("er is wel een uitkomst per dienst", perDienst.length > 0, `${perDienst.length}`);
 
       // ── De bronnen ────────────────────────────────────────────────────────
       const { rows: bronnen } = await db.client.query(
