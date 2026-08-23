@@ -382,6 +382,7 @@ import {
   WEAK_WEIGHT,
 } from "@/lib/reputation/score";
 import { toneScore, toneWord, isToneLabel, TONE_LABELS } from "@/lib/reputation/tone";
+import { isUsablePoint, cleanPoints } from "@/lib/reputation/points";
 import {
   knownKind,
   tallySources,
@@ -8847,6 +8848,66 @@ group("het merkcijfer: antwoorden zonder bron wegen lichter of tellen niet mee",
     { toneScore: 1, grounding: "reviews", mentionsBrand: true },
     { toneScore: 0, grounding: "eigen_site", mentionsBrand: true },
   ]));
+});
+
+group("een uitspraak over de reviews is geen pluspunt", () => {
+  // ⚠️ Alle regels hieronder komen LETTERLIJK uit de eerste echte run, op
+  // Van den Udenhout (23 augustus 2026). Verzonnen voorbeelden zouden hier
+  // toetsen of ik de fout goed geraden heb; deze toetsen de fout zelf.
+
+  // Echte eigenschappen: dit is waar de klant iets aan heeft.
+  for (const goed of [
+    "persoonlijke begeleiding",
+    "het nakomen van afspraken",
+    "duidelijke uitleg bij aflevering",
+    "lange wachttijden en matige planning",
+    "onduidelijke tarieven voor onderhoud of diagnose",
+    "extra kosten die pas bij het afrekenen zichtbaar worden",
+    "De vestiging is aangesloten bij BOVAG.",
+    "Merkdealer van de Volkswagen-groep",
+  ]) {
+    ok(`blijft staan: "${goed.slice(0, 40)}"`, isUsablePoint(goed));
+  }
+
+  // Circulair: je sterke punt is dan dát mensen positief over je zijn. Dat zegt
+  // niets, het is niets om aan te werken, en het cijfer dat erbij hoort staat
+  // al in het bronnenblok met het aantal beoordelingen erbij.
+  for (const fout of [
+    "Het beeld is niet uitsluitend negatief.",
+    "De algemene klantwaardering is op sommige platforms goed tot zeer goed.",
+    "Daar staan overigens ook meerdere positieve reviews tegenover waarin verkopers juist vriendelijk en deskundig worden genoemd.",
+    "algemene reputatie ... is op grote reviewplatforms overwegend positief, vooral voor ontvangst, verkoop en vriendelijkheid",
+    "Er zijn ook veel positieve ervaringen: klanten noemen vriendelijke medewerkers, deskundige verkopers, goed geregelde aflevering.",
+  ]) {
+    ok(`valt af: "${fout.slice(0, 40)}"`, !isUsablePoint(fout));
+  }
+
+  // Een hele alinea is geen punt maar een samenvatting, en die hoort in de
+  // synthese.
+  ok("een alinea valt af", !isUsablePoint("x".repeat(200)));
+  ok("een lege regel ook", !isUsablePoint("   "));
+
+  // ⚠️ Bij twijfel houden we het punt: een weggegooide bevinding kost meer dan
+  // een rare regel op het scherm. Deze is lang maar wél een eigenschap.
+  ok(
+    "een lange maar echte eigenschap blijft",
+    isUsablePoint(
+      "het aanbod omvat onder meer de Shuttel-mobiliteitskaart, fietslease via VELOO, poolmanagement, WeGo en tijdelijke mobiliteitsoplossingen",
+    ),
+  );
+
+  // De ontdubbeling kijkt naar de eerste drie woorden: twee formuleringen van
+  // hetzelfde bezwaar zijn één punt, anders blijven ze allebei onder de
+  // patroondrempel en verdwijnt een bezwaar dat wél terugkomt.
+  const opgeschoond = cleanPoints([
+    "levertijd valt tegen",
+    "levertijd valt soms tegen",
+    "Het beeld is niet uitsluitend negatief.",
+    "persoonlijke begeleiding",
+    "",
+  ]);
+  eq("ontdubbeld en opgeschoond", opgeschoond.join(" | "), "levertijd valt tegen | persoonlijke begeleiding");
+  ok("hooguit acht punten", cleanPoints(Array.from({ length: 20 }, (_, i) => `punt ${i} van de lijst`)).length === 8);
 });
 
 group("de bewijskracht: alleen de eigen site levert een laag getal", () => {
