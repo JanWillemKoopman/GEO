@@ -3365,6 +3365,21 @@ async function main(): Promise<void> {
          values ($1, 'Concurrent A', 'concurrent a', 'concurrent')`,
         [budgetProfielId],
       );
+      // ⚠️ Mét gemeten vermeldingen, want sinds 23 augustus 2026 telt een merk
+      // dat maar één keer voorbijkwam niet meer mee: één vermelding is toeval,
+      // geen patroon. Zonder deze rijen zou er geen vergelijking ingepland
+      // worden en toetst dit scenario niets over de volgorde.
+      const budgetClusterId = randomUUID();
+      await db.client.query(
+        `insert into public.analyses (id, user_id, profile_id, name, url, topic, status)
+         values ($1, $2, $3, 'Duur BV, cluster', 'https://duur.nl', 'onderhoud', 'gereed')`,
+        [budgetClusterId, userId, budgetProfielId],
+      );
+      await db.client.query(
+        `insert into public.competitor_breakdown (analysis_id, week_no, competitor_name, mentions_count)
+         values ($1, 1, 'Concurrent A', 4)`,
+        [budgetClusterId],
+      );
 
       const budgetRunId = randomUUID();
       await db.client.query(

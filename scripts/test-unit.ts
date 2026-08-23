@@ -369,7 +369,7 @@ import {
   MAX_NODES_STANDARD,
   MAX_NODES_DEEP,
 } from "@/lib/reputation/select-nodes";
-import { selectRivals, MAX_RIVALS } from "@/lib/reputation/select-rivals";
+import { selectRivals, MAX_RIVALS, MIN_MENTIONS } from "@/lib/reputation/select-rivals";
 import { rotateParties, positionInOrder } from "@/lib/reputation/rotate";
 import { scoreCriterion, summariseRanks, positionToScore } from "@/lib/reputation/rank";
 import { measureOrderBias, rankIsIndicative, MIN_OBSERVATIONS } from "@/lib/reputation/order-bias";
@@ -8519,6 +8519,61 @@ group("de concurrentkeuze: gemeten wint, weggezet komt er nooit in", () => {
   // "wie levert het beste werk, jij of een vergelijkingssite" is geen vraag met een antwoord.
   ok("een vergelijker evenmin", !keuze.names.includes("Werkspot"));
   ok("hooguit drie, dus vier partijen", keuze.names.length <= MAX_RIVALS);
+});
+
+group("één vermelding is toeval, en beslist dus geen derde plek", () => {
+  // ⚠️ HET GEVAL DAT DIT AFVANGT, EN HET IS OP PRODUCTIE GEBEURD (23 augustus
+  // 2026). Bij Van den Udenhout stonden twee partijen op 2 vermeldingen en elf
+  // op precies één. De derde plek werd alfabetisch beslist en dat leverde
+  // "Alfa Romeo" op: geen concurrent van een autodealer maar een merk dat hij
+  // verkoopt. De klant zou zich vergelijken met een fabrikant, puur omdat de A
+  // vooraan in het alfabet staat.
+  const keuze = selectRivals({
+    measured: [
+      { entity: entiteit("Autobedrijf De Twee", "concurrent"), mentions: 2 },
+      { entity: entiteit("SDL Automotive", "concurrent"), mentions: 2 },
+      // Alfabetisch de eerste van de eenlingen. Mag de derde plek NIET krijgen.
+      { entity: entiteit("Alfa Romeo", "concurrent"), mentions: 1 },
+      { entity: entiteit("Toyota", "concurrent"), mentions: 1 },
+      { entity: entiteit("Eurocars", "concurrent"), mentions: 1 },
+    ],
+    researched: ["Uit het onderzoek"],
+    ownNames: ["Van den Udenhout"],
+  });
+
+  eq("de drempel staat op twee", String(MIN_MENTIONS), "2");
+  eq(
+    "alleen de twee gemeten partijen komen erin",
+    keuze.names.join(", "),
+    "Autobedrijf De Twee, SDL Automotive",
+  );
+  ok("en de alfabetisch eerste eenling niet", !keuze.names.includes("Alfa Romeo"));
+  // Liever twee goede concurrenten dan drie waarvan er één willekeurig is.
+  ok("er wordt niet bijgevuld tot drie", keuze.names.length === 2, `${keuze.names.length}`);
+  // En het scherm zegt waarom er maar twee staan.
+  ok(
+    "en het scherm meldt hoeveel er afvielen",
+    keuze.reason.includes("3 andere merken") && keuze.reason.includes("toeval"),
+    keuze.reason,
+  );
+
+  // Komt niemand boven de drempel, dan is er geen vergelijking. Terugvallen op
+  // het onderzoek zou hier verkeerd zijn: er ís gemeten, er kwam alleen niets
+  // uit dat een patroon heet.
+  const allemaalEenlingen = selectRivals({
+    measured: [
+      { entity: entiteit("Eenling A", "concurrent"), mentions: 1 },
+      { entity: entiteit("Eenling B", "concurrent"), mentions: 1 },
+    ],
+    researched: [],
+    ownNames: ["Van den Udenhout"],
+  });
+  ok("alleen eenlingen levert geen vergelijking", allemaalEenlingen.names.length === 0);
+  ok(
+    "met een uitleg die het verschil met 'niets gemeten' benoemt",
+    allemaalEenlingen.reason.includes("vaker dan één keer"),
+    allemaalEenlingen.reason,
+  );
 });
 
 group("zonder metingen valt de keuze terug op het onderzoek, en anders op niets", () => {
