@@ -3998,3 +3998,38 @@ door de 2052 unittests of de 282 ketentests. Die bewaken dat een reparatie blijf
 hem niet.
 
 Na deze ronde: migraties t/m `0063` (op productie), 2052 unittests en 282 ketentests groen.
+
+## 23 augustus 2026: sprint R5, de tweede meting naast de eerste
+
+Het onderdeel Mijn reputatie wordt verkocht op herhaling: over een kwartaal nog een keer, en dan het
+verschil. Dat maakt de vergelijking het commercieel belangrijkste stuk van de module én het
+gevaarlijkste, want een pijltje omhoog bij een verschil dat ruis is, is een leugen met een grafiekje
+eromheen.
+
+De rekenkunde is daarom niet nagebouwd maar hergebruikt: `changeIsMeaningful()` uit
+`lib/stats/uncertainty.ts`, dezelfde functie die het dashboard en het periodeverslag gebruiken.
+Nieuw is `lib/reputation/compare.ts` met drie sloten, alle drie in code en niet in een prompt:
+
+1. **Een andere meetlat levert nooit het woord "veranderd" op.** Werkt OpenAI het model bij, dan
+   verschuift de lat en niet de reputatie. `instrument_version` moet aan beide kanten gelijk zijn.
+2. **Geen marge, geen uitspraak.** Zonder standaardfout aan beide kanten valt niet te zeggen of een
+   verschil buiten de ruis valt, en dan blijft het leeg (conventie 3).
+3. **Een gewijzigde scope levert een kanttekening op.** Andere diensten gemeten betekent een deels
+   andere vraag. Daarvoor wordt `scope_json` bij de start vastgelegd.
+
+Het getal waar het om draait: de run op Gasservice Brabant had een toon van 47 met een standaardfout
+van 2,6. Twee van zulke metingen naast elkaar hebben een drempel van ongeveer 7 punten. Zeven punten
+verschil is dus nog steeds "gelijk gebleven", en dat is de zin die het scherm dan toont. Voor de twee
+cijfers zonder standaardfout gelden vaste drempels: tien punten bewijskracht (ruwweg één hele bron
+erbij of eraf), en twee van de drie marktantwoorden (één omgeslagen antwoord is 33 procentpunt en dus
+ruis).
+
+Daarnaast is de diepe modus aangesloten op de startknop: twaalf aanbodknopen tegenover
+vijfentwintig, met per optie wat het kost. Bij een merk met vier diensten levert diep niets extra's
+op en dat staat er ook, want een duurdere knop die hetzelfde doet is het snelste wat vertrouwen kost.
+
+Bij het aansluiten bleek de schermtekst nog "ongeveer 34 vragen" te beloven terwijl de herziening van
+v2 er ongeveer 50 van maakte. Gecorrigeerd op het scherm, op de knop en in `architecture.md`.
+
+Na deze ronde: 2077 unittests en 287 ketentests groen, migraties t/m `0063`. **Nog te verifiëren op
+productie:** twee runs op hetzelfde merk naast elkaar. Er is er één, de tweede moet nog draaien.

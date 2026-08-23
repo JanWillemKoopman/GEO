@@ -3519,6 +3519,70 @@ async function main(): Promise<void> {
       ok("en er is niets ingepland", leegTaken[0].n === 0, `${leegTaken[0].n}`);
     }
 
+    // ── De diepe modus meet meer, en het scherm belooft dat ook ─────────────
+    console.log("\nMijn reputatie: diep meet meer dan standaard");
+    {
+      const { dedupe } = await import("@/lib/jobs/queue");
+      const { MAX_NODES_STANDARD } = await import("@/lib/reputation/select-nodes");
+
+      // Twintig diensten, dus meer dan de standaardmodus meeneemt. Bij een merk
+      // met vier diensten zou de diepe modus niets extra's doen, en dat is
+      // precies wat de knop de klant vertelt.
+      const diepProfielId = randomUUID();
+      await db.client.query(
+        `insert into public.profiles (id, user_id, name, url, brand_name, service_regions, status)
+         values ($1, $2, 'Breed BV', 'https://breed.nl', 'Breed BV', array['Eindhoven'], 'klaar')`,
+        [diepProfielId, userId],
+      );
+      for (let i = 0; i < 20; i++) {
+        await db.client.query(
+          `insert into public.profile_offerings (profile_id, kind, name, source, sort_order)
+           values ($1, 'dienst', $2, 'ai', $3)`,
+          [diepProfielId, `Dienst ${i}`, i],
+        );
+      }
+
+      const startRun = async (depth: string) => {
+        const id = randomUUID();
+        await db.client.query(
+          `insert into public.reputation_runs (id, profile_id, started_by, status, depth)
+           values ($1, $2, $3, 'queued', $4)`,
+          [id, diepProfielId, userId, depth],
+        );
+        const { rows } = await db.client.query(
+          `insert into public.jobs (type, payload_json, profile_id, dedupe_key, status)
+           values ('reputation_start', $1, $2, $3, 'running') returning *`,
+          [JSON.stringify({ runId: id }), diepProfielId, `${dedupe.reputationStart(id)}:${randomUUID()}`],
+        );
+        await runJob({ admin: admin as never, job: rows[0] });
+        const { rows: run } = await db.client.query(
+          "select * from public.reputation_runs where id = $1",
+          [id],
+        );
+        return run[0];
+      };
+
+      const standaard = await startRun("standaard");
+      const diep = await startRun("diep");
+
+      const knopen = (r: { scope_json: { nodes: unknown[] } }) => r.scope_json.nodes.length;
+      ok(
+        "de standaardmodus houdt zich aan zijn plafond",
+        knopen(standaard) === MAX_NODES_STANDARD,
+        `${knopen(standaard)}`,
+      );
+      ok("de diepe modus meet er meer", knopen(diep) > knopen(standaard), `${knopen(diep)}`);
+      // ⚠️ Het aantal geplande vragen moet MEEBEWEGEN. Zou het op de standaard
+      // blijven staan, dan telt het voortgangsscherm naar een getal dat te laag
+      // is en lijkt de run vast te lopen op negentig procent.
+      ok(
+        "en plant navenant meer vragen in",
+        diep.questions_planned > standaard.questions_planned,
+        `${standaard.questions_planned} tegenover ${diep.questions_planned}`,
+      );
+      ok("de gekozen diepte wordt vastgelegd", diep.scope_json.diepte === "diep");
+    }
+
     // ── Het budgetplafond laat de vergelijking als EERSTE vallen ─────────────
     console.log("\nMijn reputatie: een vol budget offert de vergelijking, niet de basisanalyse");
     {

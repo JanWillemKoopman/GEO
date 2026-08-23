@@ -1,7 +1,7 @@
 # Mijn reputatie: productplan en implementatieplan
 
-**Opgesteld:** 22 augustus 2026 · **Status:** R1 t/m R4 af, plus een herziening op 23 augustus
-(v2) · R5 staat open ·
+**Opgesteld:** 22 augustus 2026 · **Status:** R1 t/m R5 gebouwd, plus een herziening op 23 augustus
+(v2) · de verificatie van R5 op productie staat open ·
 **Plaats in de app:** Analytics, vierde bestemming (zie §2.2, daar ligt een besluit voor je klaar)
 
 Dit document beschrijft een **nieuw, apart betaald onderdeel** binnen ORBIT ENGINE. Het beantwoordt
@@ -1011,18 +1011,33 @@ Conventie 10: gebouwd is niet geverifieerd.
 doorlooptijd, de uitkomst van de vlakheidstoets en de uitkomst van de volgorde-toets. Klopt een van
 beide toetsen niet, dan gaat R5 niet door en wordt de meetopzet herzien.
 
-### Sprint R5 · De diepe modus en de herhaling ⏳ OPEN, mag beginnen: R4 viel goed uit
+### Sprint R5 · De diepe modus en de herhaling ✅ GEBOUWD (23 augustus 2026), verificatie open
 
-- De keuze standaard tegenover diep bij het starten.
-- Herhalingen en het eenduidigheidscijfer.
-- De drie rotaties per vergelijking op de acht zwaarstwegende knopen, waarmee de chip `indicatief`
-  daar vervalt.
-- Een tweede run naast de eerste zetten, met het verschil erbij. `lib/pipeline/period-change.ts`
-  rekent al met periodeverschillen en met betekenisvolle verandering; die rekenkunde hoort hier
-  hergebruikt, niet nagebouwd.
+- **De keuze standaard tegenover diep bij het starten.** Twee opties in
+  `start-reputation-button.tsx`, met per optie wat het kost en wat het oplevert. Het verschil is
+  het aantal aanbodknopen: twaalf of vijfentwintig. Dat staat er ook, want bij een merk met vier
+  diensten levert diep niets extra's op en is een duurdere knop die hetzelfde doet het snelste wat
+  vertrouwen kost.
+- **Herhalingen en het eenduidigheidscijfer.** Al in de herziening van 23 augustus gebouwd
+  (`BRAND_REPEATS = 3`, `tone_stderr`), en daar niet meer aan de diepe modus gekoppeld: een
+  hoofdcijfer zonder marge hoort niet te bestaan, ook niet in de goedkope modus.
+- **De drie rotaties per vergelijking.** `BRAND_ROTATIONS = 3` merkbreed. De vergelijking per
+  dienst is bij de herziening vervallen ten gunste van de open marktvraag, dus de acht
+  zwaarstwegende knopen uit dit punt bestaan niet meer.
+- **Een tweede run naast de eerste.** `lib/reputation/compare.ts`, met `changeIsMeaningful()` uit
+  `lib/stats/uncertainty.ts` hergebruikt en niet nagebouwd. Blok 1b op het scherm.
+
+Drie sloten in `compare.ts`, alle drie in code en niet in een prompt: een andere `instrument_version`
+levert nooit het woord "veranderd" op, een ontbrekende standaardfout levert helemaal geen
+toonuitspraak op (conventie 3), en een gewijzigde scope levert een kanttekening op. Voor de twee
+cijfers zonder standaardfout gelden vaste drempels: tien punten bewijskracht, en twee van de drie
+marktantwoorden. Eén omgeslagen marktantwoord is 33 procentpunt en dus ruis.
 
 **Verificatie:** twee runs op hetzelfde merk laten een verschil zien dat volgens
 `changeIsMeaningful()` betekenisvol is of expliciet niet, en het scherm zegt welke van de twee.
+⏳ **Nog te doen op productie**: er is één afgeronde run op Gasservice Brabant, de tweede moet nog
+draaien. De rekenkunde is wel getoetst op de echte getallen van die eerste run (toon 47, marge 2,6):
+zeven punten verschil valt daar binnen de ruis, en dat is de zin die het scherm dan toont.
 
 ---
 
