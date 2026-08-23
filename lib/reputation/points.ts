@@ -208,3 +208,95 @@ export function cleanPoints(list: string[]): string[] {
 
   return uit;
 }
+
+/**
+ * ── ⚠️ DE DERDE SOORT, GEVONDEN IN DE TWEEDE RUN OP GASSERVICE BRABANT ──────
+ *
+ * De vierentwintig oordelen van die run kregen allemaal hetzelfde etiket:
+ * gemengd, zonder één uitzondering. Bij het nalezen van de bezwarenlijstjes
+ * bleek waarom. Er stonden twee wezenlijk verschillende dingen in, en ze telden
+ * even zwaar:
+ *
+ *   1. ECHTE ERVARINGEN: "scheef aangesloten rookgasafvoer", "afspraak bij een
+ *      gemeld gaslek niet nagekomen", "onverwacht hoge rekening zonder
+ *      voorafgaande prijsindicatie". Dat is reputatie.
+ *   2. UITSPRAKEN OVER ONS EIGEN BEWIJS: "weinig onafhankelijke,
+ *      dienstspecifieke klantfeedback over elektrische warmtepompen",
+ *      "nauwelijks of geen specifieke ventilatiereviews", "de actuele
+ *      steekproef op Klantenvertellen is klein", "specifieke
+ *      zonneboilercertificering niet gevonden".
+ *
+ * Soort 2 is geen kritiek op het bedrijf. Het is ChatGPT die zegt dat hij
+ * niets kon vinden, en dat is een uitspraak over de vindbaarheid en niet over
+ * de kwaliteit. Zo'n regel als bezwaar meetellen doet twee dingen fout
+ * tegelijk: hij duwt de toon omlaag zonder aanleiding, en op het scherm leest
+ * de ondernemer een "zwak punt" waar hij niets aan kan doen dat hij begrijpt.
+ *
+ * Erger nog: het is juist een van de waardevolste bevindingen die dit product
+ * kan opleveren, alleen op de verkeerde plek. "Over vier van je twaalf diensten
+ * zegt ChatGPT letterlijk dat er geen onafhankelijk bewijs te vinden is" is een
+ * verkoopgesprek. "Zwak punt: nauwelijks ventilatiereviews" is een raadsel.
+ *
+ * Vandaar deze indeling, in code en niet in de prompt (conventie 1).
+ */
+export type PointKind = "ervaring" | "bewijs";
+
+/**
+ * Zinsdelen waaraan een uitspraak over het BEWIJS te herkennen is.
+ *
+ * Letterlijk overgenomen uit de bezwarenlijstjes van de tweede run, niet
+ * bedacht. Ruimer opgezet dan `OVER_DE_REVIEWS` hierboven, want de kosten
+ * liggen hier andersom: dit soort punt verkeerd meetellen verschuift een
+ * cijfer, terwijl het verkeerd wegzetten alleen een regel verplaatst naar een
+ * ander blok waar hij ook thuishoort.
+ */
+const OVER_HET_BEWIJS = [
+  "niet gevonden",
+  "niet onafhankelijk",
+  "onafhankelijk onderbouwd",
+  "niet onderbouwd",
+  "niet overtuigend",
+  "niet controleerbaar",
+  "niet volledig zichtbaar",
+  "niet worden bevestigd",
+  "niet bevestigd",
+  "niet te verifiëren",
+  "niet verifieerbaar",
+  "steekproef",
+  "openbaar",
+  "publiek beschikbaar",
+  "weinig onafhankelijke",
+  "weinig reviews",
+  "weinig recensies",
+  "nauwelijks",
+  "geen review",
+  "geen klantreview",
+  "geen recensie",
+  "geen specifieke",
+  "dienstspecifieke klantfeedback",
+  "jaar oud",
+  "verouderd",
+  "beperkt aantal beoordelingen",
+];
+
+/**
+ * Waar gaat dit punt over: over het bedrijf, of over wat wij erover konden
+ * vinden?
+ *
+ * ⚠️ Bij twijfel `ervaring`. Een echt bezwaar dat als bewijsopmerking wordt
+ * weggezet verdwijnt uit het cijfer, en dat is de duurdere fout van de twee.
+ */
+export function pointKind(punt: string): PointKind {
+  const laag = punt.toLowerCase();
+  return OVER_HET_BEWIJS.some((m) => laag.includes(m)) ? "bewijs" : "ervaring";
+}
+
+/** De punten die echt over het bedrijf gaan. */
+export function experiencePoints(list: string[]): string[] {
+  return list.filter((p) => pointKind(p) === "ervaring");
+}
+
+/** De punten waarin AI zegt dat hij weinig of niets kon vinden. */
+export function evidenceRemarks(list: string[]): string[] {
+  return list.filter((p) => pointKind(p) === "bewijs");
+}

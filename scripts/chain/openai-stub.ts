@@ -157,6 +157,24 @@ const ANTWOORDEN: Record<string, (user: string) => unknown> = {
         citaten: [],
       };
     }
+    // ⚠️ HET SPIEGELBEELD, EN DAAROM STAAT HET HIER.
+    //
+    // Een "gemengd" label waarvan het enige bezwaar een opmerking over ONS
+    // BEWIJS is. Dat is geen gemengd beeld maar lof met een openstaande vraag
+    // over de bronnen. Gevonden in de tweede run op Gasservice Brabant, waar
+    // 24 van de 24 antwoorden gemengd werden en dit soort regel meetelde als
+    // kritiek. Het vangnet hoort dit op "overwegend_positief" te zetten, en de
+    // regel zelf hoort niet in de zwakke punten te belanden.
+    if (user.includes("Wat zeggen klanten")) {
+      return {
+        toon: "gemengd",
+        noemt_merk: true,
+        grondslag: "reviews",
+        pluspunten: ["Klanten noemen de deskundigheid", "netjes werken en opruimen"],
+        minpunten: ["weinig onafhankelijke reviews over deze dienst"],
+        citaten: [],
+      };
+    }
     // Een antwoord over een gelijknamig bedrijf elders.
     if (user.includes("betrouwbaar")) {
       return {

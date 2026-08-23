@@ -4096,3 +4096,57 @@ van alleen of er "v2" in staat, zodat vergeten opnieuw rood wordt.
 De les van de dag, voor de derde keer op rij: elke fout hierboven is gevonden door de uitkomst van
 een echte run regel voor regel na te lopen, en geen enkele door de 2081 unittests of de 287
 ketentests.
+
+## 23 augustus 2026, avond: wat de vierentwintig oordelen letterlijk zeiden
+
+De vierentwintig oordelen van de tweede run naast hun bezwarenlijstjes gelegd. Dat weerlegde mijn
+eigen eerste conclusie. Ik noemde het vangnet "doorgeslagen", alsof het te streng was afgesteld. Dat
+was het niet: het telde de verkeerde dingen mee.
+
+In vrijwel elk bezwarenlijstje stonden twee wezenlijk verschillende soorten door elkaar:
+
+1. **Echte ervaringen**, en die zijn scherp: "scheef aangesloten rookgasafvoer", "geen controle van
+   de gasdichtheid volgens de klant", "afspraak bij een gemeld gaslek niet nagekomen", "onverwacht
+   hoge reparatierekening zonder voorafgaande prijsindicatie".
+2. **Uitspraken over ons eigen bewijs**: "weinig onafhankelijke, dienstspecifieke klantfeedback over
+   elektrische warmtepompen", "nauwelijks of geen specifieke ventilatiereviews", "de actuele
+   steekproef op Klantenvertellen is klein", "specifieke zonneboilercertificering niet gevonden",
+   "de meest inhoudelijke ketelreviews zijn inmiddels zes à zeven jaar oud".
+
+Soort 2 is geen kritiek op het bedrijf. Het is ChatGPT die zegt dat hij niets kon vinden. Zo'n regel
+als bezwaar meetellen doet drie dingen fout: hij duwt de toon omlaag zonder aanleiding, hij zet op
+het scherm een "zwak punt" waar de ondernemer niets mee kan, en hij verspilt de waardevolste
+bevinding die dit product kan opleveren. Want "over vier van je twaalf diensten zegt ChatGPT
+letterlijk dat er geen onafhankelijk bewijs te vinden is" is een verkoopgesprek, terwijl "zwak punt:
+nauwelijks ventilatiereviews" een raadsel is.
+
+`pointKind()` scheidt ze nu, in code en niet in de prompt (conventie 1), op zinsdelen die letterlijk
+uit deze run komen en niet zijn bedacht. Bij twijfel geldt een punt als ervaring, want een echt
+bezwaar dat als bewijsopmerking wordt weggezet verdwijnt uit het cijfer en dat is de duurdere fout.
+
+Drie gevolgen:
+
+- **Het vangnet telt alleen nog echte bezwaren.**
+- **Er is een spiegel bij gekomen.** Een etiket moet de inhoud volgen in beide richtingen: lof met
+  vijf bezwaren is geen lof, en kritiek zonder één concreet bezwaar is geen kritiek. Zonder die
+  tweede helft is het vangnet een eenrichtingsklep die het cijfer stelselmatig omlaag duwt, en dan
+  is de vleierij vervangen door zwartkijken. Het antwoord dat de doorslag gaf had acht lofpunten en
+  als enige bezwaar "de actuele status van de certificering kan niet worden bevestigd".
+- **De bewijsopmerkingen worden een eigen bevinding**: staat er bij twee of meer antwoorden zo'n
+  regel, dan komt er een kanttekening bij de run die zegt bij hoeveel antwoorden ChatGPT zelf
+  aangeeft niets te kunnen vinden, met erbij dat dat over vindbaarheid gaat en niet over kwaliteit.
+
+### Wat dit over de meetopzet zelf zegt
+
+Er zit een aanname onder het hoofdcijfer die deze run onderuit haalt. De standaardfout wordt berekend
+uit de spreiding tússen antwoorden, alsof dat vierentwintig onafhankelijke waarnemingen zijn. Dat
+zijn het niet: alle vierentwintig antwoorden citeren dezelfde handvol reviews. Dezelfde scheve
+rookgasafvoer komt in vijftien antwoorden terug. Vlakheid tussen antwoorden over hetzelfde merk op
+hetzelfde moment is dus geen fout in het instrument, het is te verwachten, en een spreiding van nul
+betekent niet "zeker" maar "één bron, vierentwintig keer herhaald".
+
+De ondergrens onder de standaardfout vangt de ergste gevolgen daarvan af. De structurele oplossing is
+de bewijskracht als maat voor zekerheid gebruiken in plaats van de spreiding tussen antwoorden. Dat
+staat nog open.
+
+Promptversie naar `v4`. 2100 unittests en 290 ketentests groen.

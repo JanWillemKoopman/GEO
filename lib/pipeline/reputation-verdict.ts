@@ -43,7 +43,7 @@ import { MODELS } from "@/lib/openai/models";
 import { ReputationVerdict, ReputationComparison } from "@/lib/schemas/reputation";
 import { toneScore } from "@/lib/reputation/tone";
 import { scoreCriterion, type CriterionOutcome } from "@/lib/reputation/rank";
-import { cleanPoints } from "@/lib/reputation/points";
+import { cleanPoints, experiencePoints } from "@/lib/reputation/points";
 import type { ReputationGrounding } from "@/lib/types/database";
 
 const VERDICT_SYSTEM =
@@ -68,6 +68,11 @@ const VERDICT_SYSTEM =
   "negatief', 'de algemene klantwaardering is goed' of 'daar staan ook positieve reviews " +
   "tegenover' zijn geen punten: die zeggen alleen dát mensen een mening hebben, en niet welke " +
   "eigenschap ze bedoelen. Laat ze weg. Houd elk punt kort, een woordgroep en geen zin. " +
+  "⚠️ Het is ook NOOIT een uitspraak over wat jij wel of niet kon vinden. 'Weinig onafhankelijke " +
+  "reviews over deze dienst', 'certificering niet gevonden', 'de steekproef is klein' en 'de " +
+  "reviews zijn zes jaar oud' zijn geen minpunten van het bedrijf: dat gaat over de vindbaarheid " +
+  "en niet over de kwaliteit. Laat ze weg uit de minpunten. Kun je niets vinden, gebruik dan de " +
+  "grondslag 'geen' en het oordeel 'onbekend'. " +
   "Citaten neem je WOORDELIJK over; verzin er nooit een. " +
   "Antwoord in het Nederlands.";
 
@@ -155,13 +160,44 @@ export async function judgeAnswer(args: {
   //
   // Twee en niet één, omdat één losse kanttekening in een verder lovend verhaal
   // wél als overwegend positief mag gelden. Bij twee is het een patroon.
+  //
+  // ── ⚠️ EN DE CORRECTIE DAAROP, ÉÉN RUN LATER ──────────────────────────────
+  //
+  // Deze regel telde in zijn eerste vorm ALLE bezwaren, en dat sloeg door. In de
+  // tweede run op Gasservice Brabant kregen 24 van de 24 antwoorden "gemengd",
+  // zonder één uitzondering. Vlak is vlak, op welk etiket ook.
+  //
+  // Het nalezen van die vierentwintig bezwarenlijstjes wees de oorzaak aan: er
+  // stonden twee soorten door elkaar. Naast echte ervaringen ("scheef
+  // aangesloten rookgasafvoer") stonden uitspraken over ons eigen bewijs
+  // ("nauwelijks of geen specifieke ventilatiereviews", "specifieke
+  // zonneboilercertificering niet gevonden"). Dat tweede is geen kritiek op het
+  // bedrijf maar een mededeling dat ChatGPT niets kon vinden, en die hoort de
+  // toon niet omlaag te duwen. `pointKind()` in `points.ts` scheidt ze.
   const MIN_BEZWAREN_VOOR_GEMENGD = 2;
-  const bezwaren = schoonAantal(v.minpunten);
+  const bezwaren = experiencePoints(cleanPoints(v.minpunten)).length;
   const teVriendelijk =
     bezwaren >= MIN_BEZWAREN_VOOR_GEMENGD &&
     (v.toon === "positief" || v.toon === "overwegend_positief");
 
-  const toonLabel = teVriendelijk ? "gemengd" : v.toon;
+  // ── ⚠️ VANGNET 8: EN DE SPIEGEL ERVAN ─────────────────────────────────────
+  //
+  // Een etiket moet de inhoud volgen, in beide richtingen. Lof met vijf
+  // bezwaren is geen lof; kritiek zonder één concreet bezwaar is geen kritiek.
+  // Zonder deze tweede helft is het vangnet een eenrichtingsklep die het cijfer
+  // stelselmatig omlaag duwt, en dan hebben we de vleierij vervangen door
+  // zwartkijken. Dat is geen meting maar een andere vooringenomenheid.
+  //
+  // Gemeten op dezelfde run: bij het antwoord waarin alleen "de actuele status
+  // van de certificering kan niet worden bevestigd" als bezwaar stond, naast
+  // acht lofpunten, stond toch "gemengd". Dat is niet gemengd, dat is lovend met
+  // een openstaande vraag over onze eigen bronnen.
+  const MIN_LOF_VOOR_POSITIEF = 2;
+  const lof = experiencePoints(cleanPoints(v.pluspunten)).length;
+  const teStreng =
+    bezwaren === 0 && lof >= MIN_LOF_VOOR_POSITIEF && v.toon === "gemengd";
+
+  const toonLabel = teVriendelijk ? "gemengd" : teStreng ? "overwegend_positief" : v.toon;
   const score = mentionsBrand ? toneScore(toonLabel) : null;
 
   // ── Vangnet 3 ─────────────────────────────────────────────────────────────
