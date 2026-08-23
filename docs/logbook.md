@@ -3898,3 +3898,103 @@ dat de vergelijking nu terecht wegvalt en dat het volgorde-effect nu 63,6% meldt
 21,9%. R4 is daarmee geslaagd op zijn twee toetsen, maar de nasleep ervan staat open.
 
 Na deze ronde: migraties t/m `0062` (op productie), 1996 unittests en 263 ketentests groen.
+
+
+---
+
+## 23 augustus 2026 · Mijn reputatie v2: zeven verbouwingen, en één ervan teruggedraaid
+
+Na sprint R4 lag de vraag voor welke technische optimalisaties de meting beter maken. Zeven
+gebouwd, allemaal op dezelfde dag getest op **Gasservice Brabant**. Zes hielden stand, één is binnen
+tien minuten door de werkelijkheid onderuitgehaald.
+
+### Wat de run liet zien
+
+| | v1 (Van den Udenhout) | v2 (Gasservice Brabant) |
+|---|---|---|
+| Doorlooptijd | 31,6 minuten | **9 minuten** |
+| Kosten | $0,75 | **$0,48** |
+| Mislukte taken | 0 | 0 |
+
+Drie keer sneller en een derde goedkoper, terwijl er wezenlijk meer gemeten wordt. De winst in tijd
+komt volledig uit de wachtrij: netwerkgebonden zwaar werk mag nu met drie tegelijk, waar de
+reservering van 220 seconden er eerder één per minuut van maakte.
+
+### De marktvraag is de grootste winst
+
+De benoemde vergelijking is niet meer het hoofdmechanisme. In plaats van partijen op te leggen en om
+een rangschikking te vragen, staat er nu de vraag die een koper stelt: *"Ik zoek dit in die regio,
+welke bedrijven raad je aan?"*
+
+Uitkomst bij Gasservice Brabant: genoemd bij **38% van de koopvragen, gemiddeld op plek 2,6 van 6**.
+En ChatGPT noemde **tien lokale installatiebedrijven** die niet in onze opgelegde set stonden:
+InstallBrabant, Verhees en Van Dijk, Jos Maas, Sankomij, Schepers, Halteren en vier andere. Van de
+drie concurrenten die wíj hadden gekozen komt er maar één ook echt voor als AI zelf mag noemen.
+
+Dat is precies waarvoor dit blok bestaat. Wie AI noemt, ís de concurrent, en die set corrigeert
+zichzelf in plaats van te blijven hangen op wat er ooit gemeten is.
+
+### ⚠️ Het gedeelde bewijscorpus voor dienstvragen was een denkfout
+
+De redenering leek sterk: elke dienstvraag deed zijn eigen zoekactie, dus kreeg elke dienst andere
+zoekresultaten, en dan weet je bij een verschil tussen twee diensten niet of dat aan de reputatie
+ligt of aan de zoekmachine. Eén onderzoeksronde, daarna alle dienstvragen tegen hetzelfde materiaal.
+
+**Alle twaalf dienstvragen antwoordden "geen betrouwbaar beeld op basis van de aangeleverde
+onderzoeksresultaten".** Het model deed exact wat het opgedragen kreeg. Maar dat is een meetartefact
+en geen bevinding: dezelfde vragen mét eigen zoekactie leverden bij Van den Udenhout antwoorden van
+zes- tot tienduizend tekens op met zeven tot elf bronnen.
+
+De fout in de redenering: **verschillende zoekresultaten per dienst zijn niet de ruis maar het
+signaal.** Vindt AI niets over je warmtepompen en veel over je cv-ketels, dan is dat een echt
+verschil in je reputatie per dienst, en daar betaalt de klant voor. Een gedeeld corpus kan die vraag
+per definitie niet beantwoorden, want er zit geen dienstspecifiek materiaal in; en zou je het corpus
+wél per dienst vullen, dan zoek je alsnog twaalf keer en is er niets bespaard.
+
+Teruggedraaid. Het corpus blijft als achtergrond meegaan, want de letterlijke reviewcitaten met bron
+zijn goed materiaal en ze zijn er toch al.
+
+### Vijf reparaties, waarvan vier veroorzaakt door de nieuwe blokken zelf
+
+1. **De bronnenlijst ging over de markt in plaats van over de klant.** De marktvraag noemt zes
+   concurrenten mét hun websites: 113 van de 191 URL's kwamen uit de markt- en vergelijkingsvragen.
+   Op het scherm stonden 61 domeinen en een bewijskracht van 100 op 100, terwijl dat cijfer moet
+   zeggen hoeveel controleerbare bronnen er onder het oordeel over de KLANT liggen.
+2. **Het merkblok stuurde vijftien aanroepen tegelijk weg.** Met drie herhalingen ging het van vijf
+   naar vijftien; er kwamen er zeven terug en acht sneuvelden stil in `allSettled`. Dat halveerde
+   precies de basis die de herhalingen betrouwbaarder moesten maken.
+3. **De onderzoeksstap bewaarde zijn ruwe antwoorden niet.** Hij riep het model rechtstreeks aan, dus
+   toen het corpus te dun uitviel was niet vast te stellen of dat kwam doordat er weinig te vinden
+   was of doordat de knipstap materiaal weggooide. De duurste stap liet geen spoor na (conventie 8).
+4. **Dezelfde partij onder drie schrijfwijzen telde als drie.** "Verhees en Van Dijk
+   Installatietechniek", "Verhees en Van Dijk" en "Verhees & Van Dijk".
+5. **Een citaat gold als eigenschap.** Bij de zwakke punten stond zowel "afspraken niet nagekomen"
+   als "Komen afspraken niet na!". Een lijst met eigenschappen is een agenda om aan te werken; een
+   lijst met citaten is een bloemlezing, en daar is het veld `citaten` voor.
+
+### Wat er meteen goed werkte
+
+De ondergrens van twee vermeldingen leverde bij Gasservice Brabant drie echte installatiebedrijven
+op (Kemkens, Thermos, De Haas) in plaats van de fabrikant die bij Van den Udenhout uit de
+alfabetische tiebreak rolde.
+
+De verdeeldheid doet waarvoor hij gebouwd is. De samenvatting zegt nu: *"Het imago is verdeeld. Bij
+7 van de 10 vragen noemt ChatGPT zowel lof als kritiek."* Bij de oude opzet had daar alleen
+"neutraal" gestaan, en dat is precies het merk dat je zou missen.
+
+En er staat voor het eerst een betrouwbaarheidsmarge onder het hoofdcijfer, net als bij de meting op
+het scherm ernaast.
+
+### De les die twee runs achter elkaar bevestigen
+
+Beide runs legden fouten bloot die geen enkele test had gevangen, en beide keren waren het stille
+degradaties: geen foutmelding, gewoon een verkeerd getal dat er goed uitziet. Bij v1 waren het er
+zeven, bij v2 vijf, en bij v2 zat er één bij die niet in de uitvoering zat maar in de redenering
+eronder.
+
+Wat werkt is de volgorde: bouwen, één echte run, en dan het resultaat regel voor regel nakijken
+tegen wat er letterlijk in de antwoorden staat. Elke fout hierboven is zo gevonden, en geen enkele
+door de 2052 unittests of de 282 ketentests. Die bewaken dat een reparatie blijft zitten; ze vinden
+hem niet.
+
+Na deze ronde: migraties t/m `0063` (op productie), 2052 unittests en 282 ketentests groen.
