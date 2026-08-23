@@ -66,6 +66,8 @@ export const TAAK_TEKST: Record<JobType, string> = {
   reputation_compare: "je naast je concurrenten gelegd",
   reputation_sources: "uitgezocht waar AI zijn beeld van je vandaan haalt",
   reputation_synthesis: "je reputatieanalyse afgerond",
+  reputation_evidence: "uitgezocht wat er online over je te vinden is",
+  reputation_market: "gevraagd wie AI aanraadt in jouw markt",
 };
 
 export interface AfgerondeTaak {

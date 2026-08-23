@@ -66,6 +66,10 @@ const TYPICAL_SECONDS: Record<JobType, number> = {
   reputation_compare: 50,
   reputation_sources: 60, // twee gegronde vragen, een indeling, plus zes crawls
   reputation_synthesis: 30, // rekenen is gratis, de tekst kost één aanroep
+  // Vier gegronde zoekvragen parallel, plus het opknippen in fragmenten.
+  reputation_evidence: 70,
+  // Drie gegronde aanbevelingsvragen merkbreed, één per dienst.
+  reputation_market: 50,
 };
 
 /**
@@ -145,6 +149,11 @@ const NON_BLOCKING_TYPES: ReadonlySet<JobType> = new Set<JobType>([
   "reputation_offering",
   "reputation_compare",
   "reputation_sources",
+  "reputation_market",
+  // ⚠️ `reputation_evidence` staat er bewust NIET bij. Mislukt die, dan hebben
+  // alle dienstvragen geen corpus en vallen ze terug op zelf zoeken; dat werkt
+  // nog wel maar het is duurder en de diensten worden onderling onvergelijkbaar.
+  // Dat hoort zichtbaar te zijn.
 ]);
 
 /**

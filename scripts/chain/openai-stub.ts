@@ -72,6 +72,52 @@ function citaatUit(tekst: string, woorden = 6): string {
 }
 
 const ANTWOORDEN: Record<string, (user: string) => unknown> = {
+  /**
+   * De open marktvraag (blok M).
+   *
+   * ⚠️ De klant staat NIET vooraan, en dat is opzet. Dit blok moet aantonen dat
+   * een merk dat wél genoemd wordt maar laag staat, ook als zodanig gemeten
+   * wordt. Er zit bovendien een dubbele naam in: een model dat hetzelfde bedrijf
+   * twee keer noemt heeft één bedrijf genoemd, en zonder ontdubbelen zakt de
+   * plek van iedereen.
+   */
+  reputation_market: () => ({
+    bedrijven: [
+      { naam: "Feenstra", plek: 1, reden: "landelijk bekend en breed inzetbaar" },
+      { naam: "Fysi-Unique", plek: 2, reden: "sterk in de regio" },
+      { naam: "feenstra", plek: 3, reden: "dubbele vermelding van dezelfde partij" },
+      { naam: "Van Dorp", plek: 4, reden: "grote installateur" },
+    ],
+  }),
+
+  /**
+   * Het opknippen van het onderzoek in fragmenten (blok E).
+   *
+   * ⚠️ Het derde fragment staat NIET in de aangeboden tekst. Dat is opzet: de
+   * knipstap mag niets verzinnen, want zo'n fragment zou als bewijs alle
+   * dienstvragen in gaan en dan rust blok B op fictie. De code controleert of
+   * elk fragment letterlijk in het onderzoek voorkomt.
+   */
+  reputation_evidence: (user: string) => ({
+    fragmenten: [
+      {
+        tekst: user.slice(0, Math.min(120, user.length)),
+        bron_url: "https://trustpilot.com/review/fysi-unique.nl",
+        onderwerp: "klantervaringen",
+      },
+      {
+        tekst: "Klanten noemen het team deskundig en vriendelijk.",
+        bron_url: "https://fysi-unique.nl/over-ons",
+        onderwerp: "deskundigheid",
+      },
+      {
+        tekst: "Dit fragment staat nergens in het aangeboden onderzoek en is verzonnen.",
+        bron_url: "https://verzonnen.nl/x",
+        onderwerp: "verzinsel",
+      },
+    ],
+  }),
+
   // ── Mijn reputatie (docs/tasks/mijn-reputatie.md) ─────────────────────────
   //
   // ⚠️ De antwoorden zijn met opzet ONGEMAKKELIJK gekozen, net als de rest van
@@ -448,6 +494,26 @@ export function createPlainStub(log: StubLog[]) {
           "Op het gebied van dienstverlening en kwaliteit zet ik ze in deze volgorde. " +
           "Van één van de genoemde bedrijven weet ik te weinig om er iets over te zeggen. " +
           "Bron: https://trustpilot.com/review/fysi-unique.nl",
+        raw: { stub: true },
+      };
+    }
+
+    if (opts.user.includes("Welke bedrijven raad je aan")) {
+      return {
+        text:
+          "Voor dit soort werk zou ik kijken naar Feenstra, Fysi-Unique en Van Dorp. " +
+          "Feenstra is landelijk bekend, Fysi-Unique is sterk in de regio en Van Dorp is een " +
+          "grote installateur.",
+        raw: { stub: true },
+      };
+    }
+
+    if (opts.user.includes("Zoek alles wat er online") || opts.user.includes("Zoek beoordelingen") || opts.user.includes("Zoek klachten") || opts.user.includes("Zoek wat er online staat")) {
+      return {
+        text:
+          "Klanten noemen het team deskundig en vriendelijk. Wel wordt de levertijd geregeld als " +
+          "nadeel genoemd. Zie https://trustpilot.com/review/fysi-unique.nl en " +
+          "https://fysi-unique.nl/over-ons.",
         raw: { stub: true },
       };
     }

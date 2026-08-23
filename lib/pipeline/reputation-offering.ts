@@ -34,6 +34,7 @@ import {
   type ReputationContext,
 } from "@/lib/pipeline/reputation-context";
 import { judgeAll, bumpDone } from "@/lib/pipeline/reputation-brand";
+import { corpusFor } from "@/lib/pipeline/reputation-evidence";
 import type { ProfileOffering } from "@/lib/types/database";
 
 type Admin = SupabaseClient;
@@ -50,6 +51,16 @@ export function planOfferingQuestion(
   ctx: ReputationContext,
   offering: ProfileOffering,
   parentName: string | null,
+  /**
+   * Het gedeelde bewijscorpus. Leeg = terugvallen op zelf zoeken.
+   *
+   * ⚠️ Sinds 23 augustus 2026 zoekt deze vraag NIET meer zelf, en dat is een
+   * meetverbetering en geen bezuiniging. Elke dienstvraag kreeg voorheen andere
+   * zoekresultaten, en dan weet je bij een verschil tussen twee diensten niet of
+   * dat aan de reputatie ligt of aan wat de zoekmachine die seconde opleverde.
+   * Zie `reputation-evidence.ts` voor de volledige onderbouwing.
+   */
+  corpus = "",
 ): PlannedAsk {
   const merk = ctx.brandName;
   const plaats = ctx.region ? ` in ${ctx.region}` : "";
@@ -60,16 +71,36 @@ export function planOfferingQuestion(
   if (offering.audience) context.push(`Bedoeld voor: ${offering.audience}.`);
   if (ctx.disambiguation) context.push(ctx.disambiguation);
 
-  const vraag =
+  const kern =
     `Wat is de reputatie van ${merk}${plaats} op het gebied van ${offering.name}? ` +
     `Wat zeggen klanten daarover, en waar staat dat?` +
     (context.length > 0 ? ` ${context.join(" ")}` : "");
 
+  // Zonder corpus valt de vraag terug op zelf zoeken. Dat gebeurt als de
+  // onderzoeksronde niets opleverde of door het budget is overgeslagen: dan is
+  // een duurder antwoord beter dan geen antwoord.
+  if (!corpus) {
+    return { block: "aanbod", offeringId: offering.id, question: kern, webSearch: true, repeatIndex: 0 };
+  }
+
   return {
     block: "aanbod",
     offeringId: offering.id,
-    question: vraag,
-    webSearch: true,
+    // ⚠️ De VRAAG blijft kort en leesbaar, want het scherm toont hem letterlijk
+    // aan de klant zodat hij kan nalezen waar het cijfer op rust. Het corpus
+    // gaat apart mee.
+    question: kern,
+    context: [
+      "Beantwoord dit UITSLUITEND op basis van de onderzoeksresultaten hieronder. Zoek niets op",
+      "en vul niets aan uit eigen kennis. Staat er over deze dienst niets bruikbaars tussen, zeg",
+      "dan dat je er geen beeld van hebt. Dat is een geldig antwoord en beter dan een aanname.",
+      "Noem de bronnen die je gebruikt.",
+      "",
+      "── Onderzoeksresultaten ──",
+      corpus,
+    ].join("\n"),
+    // ⚠️ Geen zoekactie meer. Het bewijs zit al in de context.
+    webSearch: false,
     repeatIndex: 0,
   };
 }
@@ -118,10 +149,11 @@ export async function runOfferingBlock(
     parentName = (data?.name as string | null) ?? null;
   }
 
+  const corpus = await corpusFor(admin, runId, offering.name);
   const { answer } = await askAndStore(
     admin,
     ctx,
-    planOfferingQuestion(ctx, offering, parentName),
+    planOfferingQuestion(ctx, offering, parentName, corpus),
   );
   const judged = await judgeAll(admin, ctx, [answer]);
   await bumpDone(admin, runId);

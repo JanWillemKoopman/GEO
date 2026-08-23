@@ -380,12 +380,18 @@ import {
   consistency,
   usableForTone,
   runIsUsable,
+  toneDistribution,
+  toneStderr,
+  spreadSentence,
   WEAK_WEIGHT,
 } from "@/lib/reputation/score";
+import { instrumentVersion, comparableRuns, instrumentWarning } from "@/lib/reputation/instrument";
+import { readMarketAnswer, summariseMarket, marketSentence, MAX_NAMED } from "@/lib/reputation/market";
 import { toneScore, toneWord, isToneLabel, TONE_LABELS } from "@/lib/reputation/tone";
 import { isUsablePoint, cleanPoints, dedupeSleutel } from "@/lib/reputation/points";
 import {
   citedUrlsFrom,
+  isAggregator,
   knownKind,
   tallySources,
   sourceMixSentence,
@@ -9074,6 +9080,268 @@ group("de bewijskracht: alleen de eigen site levert een laag getal", () => {
   ok("een onbevestigd cijfer telt lichter", onbevestigd < bevestigd, `${onbevestigd} < ${bevestigd}`);
 });
 
+group("de verdeling zegt wat het gemiddelde verzwijgt", () => {
+  const antwoord = (tone: string, score: number | null) => ({
+    tone,
+    toneScore: score,
+    grounding: "reviews" as const,
+    mentionsBrand: true,
+  });
+
+  // ⚠️ DE WERKELIJKE UITKOMST VAN DE EERSTE ECHTE RUN (Van den Udenhout,
+  // 23 augustus 2026): tien keer gemengd, drie keer overwegend positief, één
+  // keer negatief. Daar komt een toon van rond de nul uit, en dat heet
+  // "neutraal" op het scherm.
+  const echteRun = [
+    ...Array.from({ length: 10 }, () => antwoord("gemengd", 0)),
+    ...Array.from({ length: 3 }, () => antwoord("overwegend_positief", 1)),
+    antwoord("negatief", -2),
+  ];
+
+  // Een merk waar werkelijk niemand een mening over heeft: even veel antwoorden,
+  // dezelfde index van ongeveer nul, compleet ander merk.
+  const echtNeutraal = Array.from({ length: 14 }, () => antwoord("neutraal", 0));
+
+  const indexEcht = toneIndex(echteRun);
+  const indexNeutraal = toneIndex(echtNeutraal);
+  ok(
+    "beide komen op vrijwel dezelfde index uit",
+    Math.abs((indexEcht ?? 0) - (indexNeutraal ?? 0)) < 10,
+    `${indexEcht} tegen ${indexNeutraal}`,
+  );
+
+  const verdeeldheidEcht = toneDistribution(echteRun);
+  const verdeeldheidNeutraal = toneDistribution(echtNeutraal);
+  // ⚠️ En hier scheiden ze. Dat is het hele punt: het gemiddelde maakte twee
+  // compleet verschillende merken identiek. Tien keer gemengd is een merk met
+  // een probleem dat je kunt oplossen; tien keer neutraal is een merk zonder
+  // profiel.
+  ok(
+    "maar de verdeeldheid scheidt ze wel",
+    verdeeldheidEcht.spread > verdeeldheidNeutraal.spread + 25,
+    `${verdeeldheidEcht.spread} tegen ${verdeeldheidNeutraal.spread}`,
+  );
+  eq("een volstrekt eenstemmig merk heeft geen spreiding", String(verdeeldheidNeutraal.spread), "0");
+  eq("en de verdeling telt de labels", String(verdeeldheidEcht.counts["gemengd"]), "10");
+
+  // De zin eronder is wat een consultant voorleest.
+  const zin = spreadSentence(verdeeldheidEcht) ?? "";
+  ok("de zin benoemt het verdeelde imago", zin.includes("verdeeld imago"), zin);
+  ok(
+    "en bij een eenstemmig merk zegt hij dat ook",
+    (spreadSentence(verdeeldheidNeutraal) ?? "").includes("eenduidig"),
+  );
+
+  // ⚠️ Onder de drie antwoorden geen uitspraak: dan is spreiding een verschil
+  // en geen spreiding (conventie 3).
+  ok("onder de drie antwoorden geen zin", spreadSentence(toneDistribution(echteRun.slice(0, 2))) === null);
+});
+
+group("het hoofdcijfer krijgt een marge, net als de meting ernaast", () => {
+  const maak = (score: number) => ({
+    toneScore: score,
+    grounding: "reviews" as const,
+    mentionsBrand: true,
+  });
+
+  ok("met twee antwoorden is er geen marge", toneStderr([maak(1), maak(2)]) === null);
+
+  const eenstemmig = toneStderr(Array.from({ length: 6 }, () => maak(1)));
+  const verdeeld = toneStderr([maak(2), maak(-2), maak(2), maak(-2), maak(0), maak(1)]);
+  eq("zes identieke antwoorden geven marge nul", String(eenstemmig), "0");
+  ok("en zes verdeelde een echte marge", (verdeeld ?? 0) > 15, String(verdeeld));
+});
+
+group("de bewijskracht meet onafhankelijkheid en niet aantal", () => {
+  // ⚠️ HET GEVAL UIT DE EERSTE ECHTE RUN. Autoscout24 en Klantenvertellen
+  // stonden allebei op 3.704 beoordelingen. Dat is geen toeval: de verzamelsite
+  // toont het cijfer van de ander. Als twee onafhankelijke bronnen geteld,
+  // verdubbelen ze de bewijskracht op één waarneming.
+  ok("autoscout24 is een verzamelsite", isAggregator("autoscout24.nl"));
+  ok("klantenvertellen niet", !isAggregator("klantenvertellen.nl"));
+
+  const bron = (domain: string, opties: Partial<{ isOwn: boolean; isReview: boolean; verifiedRating: boolean; isAggregator: boolean }> = {}) => ({
+    domain,
+    isOwn: opties.isOwn ?? false,
+    isReview: opties.isReview ?? false,
+    verifiedRating: opties.verifiedRating ?? false,
+    isAggregator: opties.isAggregator ?? false,
+  });
+
+  const echteBronnen = evidenceScore([
+    bron("eigen.nl", { isOwn: true }),
+    bron("klantenvertellen.nl", { isReview: true, verifiedRating: true }),
+    bron("vakblad.nl"),
+    bron("regionaalnieuws.nl"),
+  ]);
+  const zelfdeMaarVerzameld = evidenceScore([
+    bron("eigen.nl", { isOwn: true }),
+    bron("klantenvertellen.nl", { isReview: true, verifiedRating: true }),
+    bron("autoscout24.nl", { isAggregator: true }),
+    bron("autotrack.nl", { isAggregator: true }),
+  ]);
+  ok(
+    "verzamelsites tellen lichter dan echte bronnen",
+    echteBronnen > zelfdeMaarVerzameld,
+    `${echteBronnen} tegen ${zelfdeMaarVerzameld}`,
+  );
+
+  // ⚠️ De oude formule liep vol bij vijf externe domeinen, en vrijwel elk
+  // bedrijf met een website haalt dat. Van den Udenhout kwam op 94 uit terwijl
+  // er een verzonnen domein tussen stond. Een cijfer dat bijna iedereen haalt
+  // is geen cijfer.
+  const vijfExtern = evidenceScore([
+    bron("eigen.nl", { isOwn: true }),
+    ...Array.from({ length: 5 }, (_, i) => bron(`extern-${i}.nl`)),
+  ]);
+  ok("vijf gewone externe bronnen halen geen topscore meer", vijfExtern < 80, `${vijfExtern}`);
+
+  const echtSterk = evidenceScore([
+    bron("eigen.nl", { isOwn: true }),
+    bron("klantenvertellen.nl", { isReview: true, verifiedRating: true }),
+    ...Array.from({ length: 8 }, (_, i) => bron(`vakblad-${i}.nl`)),
+  ]);
+  ok("een breed en bevestigd bronnenlandschap wel", echtSterk >= 85, `${echtSterk}`);
+
+  ok("nul bronnen blijft 0, en dat is een echte uitkomst", evidenceScore([]) === 0);
+
+  // Alleen de eigen site blijft laag, ook bij tien pagina's: een merk waar AI
+  // alles van de eigen site haalt heeft geen reputatie maar een website.
+  const alleenEigen = evidenceScore(
+    Array.from({ length: 10 }, (_, i) => bron(`eigen.nl/p${i}`, { isOwn: true })),
+  );
+  ok("alleen de eigen site blijft laag", alleenEigen <= 10, `${alleenEigen}`);
+});
+
+group("de marktvraag ontdekt concurrenten in plaats van ze aan te nemen", () => {
+  const eigen = ["Gasservice Brabant"];
+
+  const uitkomst = readMarketAnswer(
+    [
+      { name: "Feenstra", position: 1, reason: "landelijk bekend" },
+      { name: "Gasservice Brabant", position: 2, reason: "regionaal sterk" },
+      // ⚠️ Vangnet 1: hetzelfde bedrijf onder een tweede schrijfwijze. Zonder
+      // ontdubbelen telt de noemer te hoog en zakt de plek van iedereen.
+      { name: "feenstra", position: 3, reason: "dubbel" },
+      // ⚠️ Vangnet 2: de klant nog een keer. Een model dat hem twee keer noemt,
+      // bedoelt hem één keer, en dan telt zijn VROEGSTE plek.
+      { name: "Gasservice Brabant Oss", position: 4, reason: "dubbel" },
+      { name: "Van Dorp", position: 5, reason: "installateur" },
+    ],
+    eigen,
+  );
+
+  eq("dubbelen zijn eruit", String(uitkomst.ofParties), "3");
+  eq("en de klant staat op zijn vroegste plek", String(uitkomst.ownPosition), "2");
+  eq(
+    "de andere bedrijven zijn de ontdekte concurrenten",
+    uitkomst.rivals.map((r) => r.name).join(", "),
+    "Feenstra, Van Dorp",
+  );
+
+  // ⚠️ Vangnet 3: niet genoemd is null en niet de laatste plek. Dat is de
+  // duurste fout die dit blok kan maken, want "AI raadt je niet aan" is een
+  // heel ander advies dan "AI zet je achteraan".
+  const nietGenoemd = readMarketAnswer(
+    [
+      { name: "Feenstra", position: 1, reason: "" },
+      { name: "Van Dorp", position: 2, reason: "" },
+    ],
+    eigen,
+  );
+  ok("niet genoemd levert geen plek op", nietGenoemd.ownPosition === null);
+  ok("en zeker niet de laatste", nietGenoemd.ownPosition !== nietGenoemd.ofParties);
+
+  ok("er worden hooguit acht bedrijven geteld", MAX_NAMED === 8);
+  eq(
+    "een lange opsomming wordt afgekapt",
+    String(
+      readMarketAnswer(
+        Array.from({ length: 20 }, (_, i) => ({ name: `Bedrijf ${i}`, position: i + 1, reason: "" })),
+        eigen,
+      ).ofParties,
+    ),
+    "8",
+  );
+});
+
+group("de trefkans staat los van de plek", () => {
+  const eigen = ["Gasservice Brabant"];
+  const vraag = (namen: string[]) =>
+    readMarketAnswer(
+      namen.map((n, i) => ({ name: n, position: i + 1, reason: "" })),
+      eigen,
+    );
+
+  // ⚠️ DE KERN VAN DIT BLOK. Een specialist die bij één van de tien vragen
+  // genoemd wordt en dan bovenaan staat, is iets heel anders dan een brede
+  // speler die overal genoemd wordt op plek vijf. Op alleen de gemiddelde plek
+  // wint de specialist, terwijl hij bij negen van de tien koopvragen
+  // onzichtbaar is.
+  const specialist = summariseMarket([
+    vraag(["Gasservice Brabant", "Feenstra", "Van Dorp", "Breman", "Kemkens"]),
+    ...Array.from({ length: 9 }, () => vraag(["Feenstra", "Van Dorp", "Breman", "Kemkens", "Wolter"])),
+  ]);
+  const brede = summariseMarket(
+    Array.from({ length: 10 }, () =>
+      vraag(["Feenstra", "Van Dorp", "Breman", "Kemkens", "Gasservice Brabant"]),
+    ),
+  );
+
+  eq("de specialist staat gemiddeld bovenaan", String(specialist.position), "1");
+  eq("de brede speler op plek 5", String(brede.position), "5");
+  // En precies daarom staat de trefkans ernaast.
+  eq("maar de specialist wordt bijna nooit genoemd", String(specialist.hitRate), "0.1");
+  eq("en de brede speler altijd", String(brede.hitRate), "1");
+
+  // De ontdekte markt: wie noemt AI het vaakst? Dat is de betrouwbare
+  // concurrentieset, want hij is waargenomen en niet opgelegd.
+  // Vier van hen komen tien keer voor en Wolter negen keer, dus die hoort
+  // achteraan. Bij gelijke frequentie beslist de naam, zodat twee runs op
+  // dezelfde data dezelfde volgorde geven.
+  ok(
+    "de minst genoemde concurrent staat achteraan",
+    specialist.rivals[specialist.rivals.length - 1] === "Wolter",
+    specialist.rivals.join(", "),
+  );
+  ok(
+    "en alle vijf de ontdekte concurrenten staan erin",
+    specialist.rivals.length === 5,
+    specialist.rivals.join(", "),
+  );
+
+  // ⚠️ De scherpste uitkomst die dit product kan geven, en de zin moet kloppen.
+  const nergens = summariseMarket(
+    Array.from({ length: 5 }, () => vraag(["Feenstra", "Van Dorp"])),
+  );
+  ok("niet genoemd levert geen plek op", nergens.position === null);
+  const zin = marketSentence(nergens, "Gasservice Brabant");
+  ok("en de zin zegt wat dat betekent", zin.includes("niet zichtbaar op het moment dat iemand kiest"), zin);
+  ok(
+    "terwijl een genoemde klant zijn plek én zijn trefkans leest",
+    marketSentence(brede, "Gasservice Brabant").includes("plek 5"),
+  );
+});
+
+group("het meetinstrument is versioneerd", () => {
+  // ⚠️ Dit product wordt verkocht op herhaling. Werkt OpenAI het model bij, dan
+  // verschuift de meetlat en niet de reputatie, en zonder deze sleutel zou het
+  // scherm dat verschil netjes als vooruitgang tekenen.
+  ok("de versie noemt het model", instrumentVersion().includes("gpt-5.6"));
+  ok("en de promptversie", instrumentVersion().includes("v2"));
+  ok("twee gelijke versies zijn vergelijkbaar", comparableRuns("a+b+v1", "a+b+v1"));
+  ok("twee verschillende niet", !comparableRuns("a+b+v1", "a+b+v2"));
+  // ⚠️ Onbekend is NIET vergelijkbaar. Runs van vóór deze kolom hebben null, en
+  // die weten we per definitie niet zeker. De veilige kant is hier "zeg dat het
+  // niet vergelijkbaar is" (conventie 3).
+  ok("en onbekend evenmin", !comparableRuns(null, "a+b+v2"));
+  ok(
+    "en de klant leest waarom",
+    (instrumentWarning("a+b+v1", "a+b+v2") ?? "").includes("aan de meting liggen"),
+  );
+  ok("bij gelijke versies staat er niets", instrumentWarning("x", "x") === null);
+});
+
 group("de eenduidigheid vraagt om herhalingen", () => {
   // ⚠️ Null bij één meting: met één antwoord is er geen spreiding te berekenen,
   // en 100 invullen zou een zekerheid suggereren die alleen bestaat omdat er
@@ -9183,6 +9451,27 @@ group("een bron die niet opgezocht is, is geen bron", () => {
     })),
   );
   ok("en de bewijskracht blijft daardoor eerlijk", zonder === 0 && metVerzinsels > 0, `${zonder} tegen ${metVerzinsels}`);
+
+  // ⚠️ DE DERDE STAND, nodig sinds de dienstvragen uit een gedeeld corpus
+  // putten. Zo'n antwoord zoekt zelf niets op maar citeert materiaal dat eerder
+  // wél is opgezocht. Die bronnen zijn echt; zonder deze stand zou de
+  // bewijskracht instorten om een reden die niets met de klant te maken heeft.
+  const corpus =
+    "Klanten noemen het team deskundig.\n(bron: https://trustpilot.com/review/x)";
+  const uitCorpus = citedUrlsFrom(
+    "Volgens https://trustpilot.com/review/x is het team deskundig. Zie ook https://verzonnen.nl/x.",
+    {},
+    false,
+    corpus,
+  );
+  eq(
+    "een bron uit het corpus telt mee",
+    uitCorpus.join(","),
+    "https://trustpilot.com/review/x",
+  );
+  // En verzinnen wordt daarmee onmogelijk in plaats van onwaarschijnlijk: wat
+  // niet in het corpus staat, komt er niet in.
+  ok("maar een verzonnen adres ernaast niet", !uitCorpus.some((u) => u.includes("verzonnen")));
 
   // Afsluitende leestekens horen niet bij de URL, anders telt hetzelfde domein
   // twee keer.

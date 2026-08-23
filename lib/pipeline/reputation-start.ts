@@ -34,6 +34,9 @@ import {
 } from "@/lib/reputation/select-nodes";
 import { selectRivals } from "@/lib/reputation/select-rivals";
 import { BRAND_ROTATIONS } from "@/lib/pipeline/reputation-compare";
+import { MARKET_REPEATS } from "@/lib/pipeline/reputation-market";
+import { instrumentVersion } from "@/lib/reputation/instrument";
+import { BRAND_REPEATS } from "@/lib/pipeline/reputation-brand";
 import { addNote } from "@/lib/pipeline/reputation-context";
 import type {
   Entity,
@@ -148,7 +151,12 @@ export async function startReputationRun(admin: Admin, runId: string): Promise<S
   // vergelijkingen: drie merkbrede rotaties en één per knoop.
   const vergelijkingen =
     rivals.names.length > 0 ? BRAND_ROTATIONS + nodes.length : 0;
-  const gepland = 5 + nodes.length + 2 + vergelijkingen;
+  // Merkbreed: vijf vragen maal het aantal herhalingen. De marktvraag: drie
+  // merkbreed plus één per dienst. Plus de dienstvragen, de twee bronvragen en
+  // de vier onderzoeksvragen die het corpus vullen.
+  const marktvragen = MARKET_REPEATS + nodes.length;
+  const gepland =
+    5 * BRAND_REPEATS + nodes.length + 2 + vergelijkingen + marktvragen + 4;
 
   await admin
     .from("reputation_runs")
@@ -156,6 +164,10 @@ export async function startReputationRun(admin: Admin, runId: string): Promise<S
       status: "running",
       rivals: rivals.names,
       questions_planned: gepland,
+      // ⚠️ Vastleggen waarmee gemeten is. Dit product wordt verkocht op
+      // herhaling, en zonder deze sleutel zou een stille modelwijziging bij
+      // OpenAI als vooruitgang of achteruitgang op het scherm komen.
+      instrument_version: instrumentVersion(),
       scope_json: {
         nodes: nodes.map((n, i) => ({
           id: n.offering.id,
@@ -248,7 +260,26 @@ async function countMentions(admin: Admin, profileId: string): Promise<Map<strin
   return perId;
 }
 
-/** Zet alle vervolgtaken klaar, in de volgorde die het budget beschermt. */
+/**
+ * Zet alle vervolgtaken klaar, in de volgorde die het budget beschermt.
+ *
+ * ── DE VOLGORDE, EN WAAROM ELKE STAP DAAR STAAT ─────────────────────────────
+ *
+ *   1. `reputation_evidence` als EERSTE en alleen. Alle dienstvragen lezen het
+ *      corpus dat hij vult, dus die worden pas ingepland als hij klaar is. Zou
+ *      je ze meteen inplannen, dan treffen de eerste een leeg corpus aan en
+ *      vallen die terug op zelf zoeken; dan is de helft van de diensten anders
+ *      gemeten dan de andere helft.
+ *   2. `reputation_brand` en `reputation_market` meteen erna. Die zoeken zélf en
+ *      hebben het corpus niet nodig, dus ze kunnen parallel met stap 1 draaien.
+ *      Het zijn ook de twee blokken die het scherm bovenaan vullen, dus die wil
+ *      je het eerst hebben.
+ *   3. De vergelijkingen achteraan, met een latere starttijd. De wachtrij claimt
+ *      op `scheduled_for asc`, dus dat is wat afdwingt dat een vol budget de
+ *      vergelijking laat vallen en de basisanalyse overeind laat.
+ *   4. De bronnen als laatste vóór de synthese, want die telt de aangehaalde
+ *      URL's van de HELE run.
+ */
 async function scheduleAll(
   admin: Admin,
   run: ReputationRun,
@@ -263,7 +294,17 @@ async function scheduleAll(
     if (r.created) planned++;
   };
 
-  // ── De basisanalyse: merkbreed, per knoop, en de bronnen ─────────────────
+  // ── 1. Het bewijscorpus. Plant zelf de dienstvragen in zodra hij klaar is. ──
+  tel(
+    await enqueue(admin, {
+      type: "reputation_evidence",
+      payload: { runId: run.id },
+      profileId: run.profile_id,
+      dedupeKey: dedupe.reputationEvidence(run.id),
+    }),
+  );
+
+  // ── 2. De twee blokken die zélf zoeken ────────────────────────────────────
   tel(
     await enqueue(admin, {
       type: "reputation_brand",
@@ -273,24 +314,41 @@ async function scheduleAll(
     }),
   );
 
+  // De marktvraag merkbreed, met drie herhalingen. Dit is het commercieel
+  // scherpste getal van het product, dus dat rust niet op één antwoord.
+  tel(
+    await enqueue(admin, {
+      type: "reputation_market",
+      payload: { runId: run.id, offeringId: null, repeats: MARKET_REPEATS },
+      profileId: run.profile_id,
+      dedupeKey: dedupe.reputationMarket(run.id, null),
+    }),
+  );
+
+  // En per dienst één keer. Daar telt de spreiding over diensten zwaarder dan
+  // de zekerheid per dienst: twaalf diensten maal drie zou de run verdrievoudigen
+  // voor een precisie die op dat niveau niet nodig is.
   for (const n of nodes) {
     tel(
       await enqueue(admin, {
-        type: "reputation_offering",
-        payload: { runId: run.id, offeringId: n.offering.id },
+        type: "reputation_market",
+        payload: { runId: run.id, offeringId: n.offering.id, repeats: 1 },
         profileId: run.profile_id,
-        dedupeKey: dedupe.reputationOffering(run.id, n.offering.id),
+        dedupeKey: dedupe.reputationMarket(run.id, n.offering.id),
       }),
     );
   }
 
-  // ── De vergelijkingen, bewust achteraan ──────────────────────────────────
+  // ── 3. De vergelijkingen, bewust achteraan ────────────────────────────────
+  //
+  // ⚠️ Deze blijven bestaan naast de marktvraag, maar ze zijn niet meer het
+  // hoofdmechanisme. Bij een merk waarvan AI de concurrenten kent levert een
+  // gedwongen rangschikking scherpere uitspraken op; bij een regionaal bedrijf
+  // levert hij niets op en neemt de marktvraag het over.
   if (withCompare) {
     tel(
       await enqueue(admin, {
         type: "reputation_compare",
-        // Merkbreed krijgt ALTIJD drie rotaties, ook in de standaardmodus, want
-        // dat is het getal dat bovenaan het scherm komt (§4.4, maatregel 3).
         payload: { runId: run.id, offeringId: null, slot: 0, rotations: BRAND_ROTATIONS },
         profileId: run.profile_id,
         dedupeKey: dedupe.reputationCompare(run.id, null),
@@ -302,9 +360,6 @@ async function scheduleAll(
       tel(
         await enqueue(admin, {
           type: "reputation_compare",
-          // Eén rotatie per knoop in de standaardmodus. Die krijgt daarmee de
-          // chip `indicatief`, en terecht: het gemiddelde over de knopen is
-          // gecorrigeerd, de losse knoop niet.
           payload: { runId: run.id, offeringId: n.offering.id, slot: i, rotations: 1 },
           profileId: run.profile_id,
           dedupeKey: dedupe.reputationCompare(run.id, n.offering.id),
@@ -314,19 +369,14 @@ async function scheduleAll(
     }
   }
 
-  // ── De bronnen als laatste vóór de synthese ──────────────────────────────
-  //
-  // Blok C3 telt de aangehaalde URL's van de HELE run, dus hij moet ná blok A, B
-  // en V draaien. Zou hij vooraan staan, dan zag hij alleen zijn eigen twee
-  // vragen en miste hij de bronnen die AI bij de dienstvragen aanhaalde, en die
-  // zijn even veel waard.
+  // ── 4. De bronnen als laatste vóór de synthese ────────────────────────────
   tel(
     await enqueue(admin, {
       type: "reputation_sources",
       payload: { runId: run.id },
       profileId: run.profile_id,
       dedupeKey: dedupe.reputationSources(run.id),
-      scheduledFor: new Date(later.getTime() + 60_000),
+      scheduledFor: new Date(later.getTime() + 120_000),
     }),
   );
 

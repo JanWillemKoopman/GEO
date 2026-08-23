@@ -118,6 +118,18 @@ export const JOB_TYPES = [
   "reputation_sources",
   /** Blok D: de getallen rekenen, de tekst schrijven, de run afsluiten. */
   "reputation_synthesis",
+  /**
+   * Blok M: de open koperssvraag die concurrenten ONTDEKT in plaats van ze op
+   * te leggen. Vervangt de benoemde vergelijking als hoofdmechanisme, na de
+   * eerste echte run waarin ChatGPT geen van beide echte concurrenten kende.
+   */
+  "reputation_market",
+  /**
+   * Blok E: één onderzoeksronde die het gedeelde bewijscorpus vult. Draait vóór
+   * de dienstvragen, die zich daaruit beantwoorden in plaats van elk hun eigen
+   * zoekactie te doen.
+   */
+  "reputation_evidence",
 ] as const;
 
 export type JobType = (typeof JOB_TYPES)[number];
@@ -249,6 +261,14 @@ export interface JobPayloads {
   };
   reputation_sources: { runId: string };
   reputation_synthesis: { runId: string };
+  reputation_evidence: { runId: string };
+  reputation_market: {
+    runId: string;
+    /** Null = merkbreed, over het bedrijf als geheel. */
+    offeringId: string | null;
+    /** Hoeveel keer de vraag gesteld wordt. Drie merkbreed, één per dienst. */
+    repeats: number;
+  };
 }
 
 /**
@@ -297,7 +317,50 @@ export const HEAVY_JOB_TYPES: ReadonlySet<JobType> = new Set<JobType>([
   "reputation_compare", // één tot drie gegronde vergelijkingen, elk over vier bedrijven
   "reputation_sources", // twee gegronde vragen, een indeling, plus zes crawls
   "reputation_synthesis", // één aanroep over alles wat de run opleverde
+  "reputation_market", // één tot drie gegronde aanbevelingsvragen
+  "reputation_evidence", // vier gegronde zoekvragen plus het opknippen
 ]);
+
+/**
+ * Zware taken die op het NETWERK wachten in plaats van op één lange aanroep.
+ *
+ * ── ⚠️ WAAROM DIT ONDERSCHEID ER MOEST KOMEN (23 augustus 2026) ─────────────
+ *
+ * `HEAVY_JOB_RESERVE_MS` houdt 220 van de 240 seconden vrij voordat de werker
+ * aan een zware taak begint. Die reservering is er voor contentgeneratie: één
+ * aanroep waarin het duurste model een volledige pagina schrijft, en die je niet
+ * halverwege kunt afbreken zonder de tokens twee keer te betalen.
+ *
+ * Maar de eerste echte reputatierun liet zien wat die regel doet met werk van
+ * een ander soort: **exact één zware taak per minuut**, dertien taken in
+ * dertien minuten, waardoor een run van 28 taken op 31,6 minuten uitkwam in
+ * plaats van de geschatte 6 tot 9. De reputatietaken zijn geen lange aanroep
+ * maar een handvol korte die op OpenAI staan te wachten. Twee daarvan tegelijk
+ * kost geen extra rekenkracht, alleen twee open verbindingen.
+ *
+ * Deze verzameling zegt: bij dit soort zwaar werk mag de werker er meer dan één
+ * tegelijk oppakken. De reservering blijft onaangetast voor alles wat er niet in
+ * staat, dus contentgeneratie merkt er niets van.
+ */
+export const IO_BOUND_HEAVY_TYPES: ReadonlySet<JobType> = new Set<JobType>([
+  "reputation_brand",
+  "reputation_offering",
+  "reputation_compare",
+  "reputation_sources",
+  "reputation_market",
+  "reputation_evidence",
+]);
+
+/**
+ * Hoeveel netwerkgebonden zware taken er tegelijk mogen draaien.
+ *
+ * Drie, en dat is bewust behoudend. Elke taak doet zelf al parallelle aanroepen
+ * (het merkblok doet er vijf tegelijk), dus drie taken kunnen samen vijftien
+ * open verbindingen naar OpenAI hebben. Daarboven loop je tegen
+ * snelheidsbegrenzing aan, en een 429 midden in een betaalde ronde kost meer dan
+ * hij oplevert.
+ */
+export const IO_BOUND_PARALLELISM = 3;
 
 /**
  * Maximaal aantal pogingen vóórdat een taak definitief mislukt is

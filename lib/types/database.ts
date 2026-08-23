@@ -1105,8 +1105,21 @@ export type ReputationDepth = "standaard" | "diep";
  */
 export type ReputationStatus = "queued" | "running" | "klaar" | "mislukt" | "budget_op";
 
-/** Welk blok uit §4 deze vraag stelde. */
-export type ReputationBlock = "merk" | "aanbod" | "vergelijking" | "bron";
+/**
+ * Welk blok uit §4 deze vraag stelde.
+ *
+ * `markt` en `bewijs` kwamen erbij op 23 augustus 2026, na de eerste echte run.
+ * `markt` is de open koperssvraag die concurrenten ontdekt in plaats van ze op
+ * te leggen; `bewijs` is de onderzoeksronde die het gedeelde corpus vult waar de
+ * dienstvragen zich uit beantwoorden.
+ */
+export type ReputationBlock =
+  | "merk"
+  | "aanbod"
+  | "vergelijking"
+  | "bron"
+  | "markt"
+  | "bewijs";
 
 /**
  * De vier criteria van de vergelijking (§4.4). Vast en niet vrij: liet je het
@@ -1178,6 +1191,21 @@ export interface ReputationRun {
   evidence_score: number | null;
   /** 0 tot 100, alleen gevuld bij herhalingen (diepe modus). */
   consistency: number | null;
+  /** De verdeling van de toonoordelen. Tien keer gemengd is geen tien keer neutraal. */
+  tone_distribution: unknown | null;
+  /** 0 tot 100. Hoe verdeeld het beeld is, naast hoe positief het gemiddeld is. */
+  tone_spread: number | null;
+  /** Standaardfout van de toonindex, in punten. Null bij te weinig herhalingen. */
+  tone_stderr: number | null;
+  /** Plek in de open marktvraag. ⚠️ null = niet genoemd, geen lage plaats. */
+  market_position: number | null;
+  market_of: number | null;
+  /** Bij welk aandeel van de marktvragen de klant voorkwam, 0 tot 1. */
+  market_hit_rate: number | null;
+  /** De concurrenten die AI zélf noemde. Betrouwbaarder dan de opgelegde set. */
+  market_rivals: string[];
+  /** Model plus promptversie. Twee runs met verschillende sleutels zijn niet vergelijkbaar. */
+  instrument_version: string | null;
   /** 0 tot 100. null bij minder dan twee bekende partijen: eerste van één is geen uitslag. */
   rank_score: number | null;
   rank_position: number | null;
@@ -1270,6 +1298,36 @@ export interface ReputationOfferingScore {
   source_domains: string[];
   /** Uit de bestaande meting, als die er is. Nul extra kosten. */
   visibility_score: number | null;
+  tone_spread: number | null;
+  market_position: number | null;
+  market_of: number | null;
+  market_rivals: string[];
+  created_at: string;
+}
+
+/** Eén bedrijf dat AI zelf noemde bij de open marktvraag (migratie 0063). */
+export interface ReputationMarketRow {
+  id: string;
+  run_id: string;
+  answer_id: string;
+  offering_id: string | null;
+  party_name: string;
+  entity_id: string | null;
+  is_own_brand: boolean;
+  position: number;
+  of_parties: number;
+  reason: string | null;
+  created_at: string;
+}
+
+/** Eén fragment uit het gedeelde bewijscorpus (migratie 0063). */
+export interface ReputationEvidenceRow {
+  id: string;
+  run_id: string;
+  query: string;
+  url: string | null;
+  domain: string | null;
+  excerpt: string;
   created_at: string;
 }
 

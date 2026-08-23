@@ -46,6 +46,21 @@ import type { ReputationAnswer } from "@/lib/types/database";
 
 type Admin = SupabaseClient;
 
+/**
+ * Hoe vaak elke merkbrede vraag gesteld wordt.
+ *
+ * ⚠️ DRIE SINDS 23 AUGUSTUS 2026, en dat was de zwakste plek van de eerste
+ * opzet. Elk getal op het scherm rustte op één antwoord, terwijl de meting op
+ * het scherm ernaast al sinds R6.1 herhaalt en een betrouwbaarheidsband toont.
+ * Een klant die beide schermen opent, ziet dat verschil meteen.
+ *
+ * Alleen de MERKBREDE vragen, want die vullen het hoofdcijfer. De dienstvragen
+ * blijven op één: daar telt de spreiding over twaalf diensten zwaarder dan de
+ * zekerheid per dienst, en drie herhalingen zouden de run verdrievoudigen voor
+ * precisie die op dat niveau niet nodig is.
+ */
+export const BRAND_REPEATS = 3;
+
 export interface BrandResult {
   asked: number;
   judged: number;
@@ -96,13 +111,18 @@ export function planBrandQuestions(ctx: ReputationContext): PlannedAsk[] {
   for (const v of vragen) {
     if (gezien.has(v.vraag)) continue;
     gezien.add(v.vraag);
-    uit.push({
-      block: "merk",
-      offeringId: null,
-      question: v.vraag,
-      webSearch: v.zoeken,
-      repeatIndex: 0,
-    });
+    // Elke vraag drie keer, zodat er een spreiding te berekenen valt. De
+    // herhalingsindex onderscheidt ze; de unieke index uit migratie 0062 laat
+    // ze daardoor naast elkaar bestaan in plaats van als duplicaat te gelden.
+    for (let r = 0; r < BRAND_REPEATS; r++) {
+      uit.push({
+        block: "merk",
+        offeringId: null,
+        question: v.vraag,
+        webSearch: v.zoeken,
+        repeatIndex: r,
+      });
+    }
   }
   return uit;
 }

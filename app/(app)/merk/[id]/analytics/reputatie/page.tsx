@@ -10,6 +10,7 @@ import { CollapsibleSection } from "@/components/collapsible-section";
 import { ExternalLink } from "@/components/external-link";
 import { mayTriggerCost, COST_DENIED } from "@/lib/cost-guard";
 import { toneSentence } from "@/lib/reputation/tone";
+import { spreadSentence } from "@/lib/reputation/score";
 import { sourceMixSentence } from "@/lib/reputation/sources";
 import { StartReputationButton } from "./_components/start-reputation-button";
 import { ToneChip, EvidenceChip, RankChip } from "./_components/tone-chip";
@@ -226,6 +227,13 @@ export default async function ReputatiePage({
   const sources = (sourceRows ?? []) as ReputationSource[];
 
   const merkbredeRanks = ranks.filter((r) => r.offering_id === null);
+
+  // De verdeeldheid komt uit de opgeslagen verdeling, zodat het scherm hem niet
+  // opnieuw uitrekent uit de antwoorden. Eén feit, één eigenaar.
+  const verdeling = laatste.tone_distribution as
+    | { counts: Record<string, number>; spread: number; n: number }
+    | null;
+  const verdeeldheid = verdeling ? spreadSentence(verdeling) : null;
   const vragen = answers.filter((a) => (a.answer_text ?? "").length > 0).length;
 
   // Blok 2: zonder opzoeken tegenover met opzoeken. Het VERSCHIL is het inzicht.
@@ -243,8 +251,40 @@ export default async function ReputatiePage({
       <div className="card flex flex-col gap-3">
         <p className="text-lg">{laatste.summary ?? toneSentence(laatste.tone_index, merk)}</p>
 
+        {/* ── De marktzin, en die staat bovenaan met opzet ──────────────────
+            Dit is het commercieel scherpste getal dat dit product heeft: niet
+            hoe er over je gepraat wordt, maar of AI je noemt als een koper
+            vraagt wie hij moet hebben. Een ondernemer die leest dat hij bij geen
+            enkele koopvraag genoemd wordt, heeft binnen één zin begrepen waarom
+            dit product bestaat. */}
+        {laatste.market_hit_rate !== null && (
+          <p className="text-secondary">
+            {laatste.market_position === null ? (
+              <>
+                Vraagt een koper wie hij moet hebben, dan noemt ChatGPT {merk}{" "}
+                <strong>bij geen enkele vraag</strong>. Je bent niet zichtbaar op het moment dat
+                iemand kiest.
+              </>
+            ) : (
+              <>
+                Vraagt een koper wie hij moet hebben, dan noemt ChatGPT {merk} bij{" "}
+                <strong>{Math.round(laatste.market_hit_rate * 100)}% van de vragen</strong>,
+                gemiddeld op plek {laatste.market_position}
+                {laatste.market_of !== null && ` van ${laatste.market_of}`}.
+              </>
+            )}
+          </p>
+        )}
+
         <div className="flex flex-wrap items-center gap-2">
           <ToneChip index={laatste.tone_index} />
+          {/* ⚠️ De marge hoort bij de toon en niet erna: een cijfer zonder marge
+              leest als exact, en dit cijfer is dat niet. */}
+          {laatste.tone_stderr !== null && laatste.tone_index !== null && (
+            <span className="chip chip-neutral">
+              marge ±{Math.round(laatste.tone_stderr * 1.96)}
+            </span>
+          )}
           <EvidenceChip score={laatste.evidence_score} />
           <RankChip
             position={laatste.rank_position}
@@ -267,6 +307,13 @@ export default async function ReputatiePage({
             concurrenten legt.
           </InfoHint>
         </div>
+
+        {/* ── De zin die het verschil maakt tussen een cijfer en een bevinding ──
+            Tien keer "gemengd" en tien keer "neutraal" leveren allebei een toon
+            van nul op, en dat zijn compleet verschillende merken. Het eerste
+            heeft lof én kritiek, het tweede heeft geen profiel. Deze zin is wat
+            een consultant voorleest. */}
+        {verdeeldheid && <p className="text-secondary">{verdeeldheid}</p>}
 
         <span className="mono-label">
           ChatGPT · {new Date(laatste.started_at).toLocaleDateString("nl-NL", {
@@ -385,13 +432,46 @@ export default async function ReputatiePage({
 
       {/* ── BLOK 5 · Tegenover je concurrenten ─────────────────────────────── */}
       <div className="flex flex-col gap-2">
-        <span className="mono-label">Tegenover je concurrenten</span>
+        <span className="mono-label">Wie ChatGPT aanraadt in jouw markt</span>
         <p className="text-sm text-muted">
-          Niet hoe vaak een concurrent voorbijkomt, maar wie ChatGPT kiest als hij jullie naast
-          elkaar legt. Dat zijn verschillende vragen met regelmatig verschillende uitkomsten.
+          Hier is niet gevraagd om jou met iemand te vergelijken. Er is gevraagd wat een koper
+          vraagt: welke bedrijven raad je aan. Wie ChatGPT dan noemt, is je echte concurrent.
         </p>
-        <RivalTable run={laatste} ranks={merkbredeRanks} brandName={merk} />
+        {laatste.market_rivals.length === 0 ? (
+          <div className="card flex flex-col gap-1">
+            <span className="mono-label">Geen namen</span>
+            <p className="text-secondary">
+              ChatGPT noemt geen enkel bedrijf als een koper vraagt wie hij moet hebben. Dat
+              betekent dat er in jouw markt weinig te verliezen valt op zo&apos;n vraag, maar ook
+              weinig te winnen.
+            </p>
+          </div>
+        ) : (
+          <div className="card flex flex-col gap-2">
+            <span className="mono-label">De bedrijven die ChatGPT zelf noemt</span>
+            <ol className="flex flex-col gap-1 text-sm text-secondary">
+              {laatste.market_rivals.map((naam, i) => (
+                <li key={naam}>
+                  {i + 1}. {naam}
+                </li>
+              ))}
+            </ol>
+            <p className="text-sm text-muted">
+              Op volgorde van hoe vaak ChatGPT ze noemde. Staan hier namen die je niet kent, dan
+              zijn dat de partijen waar je klanten wél op stuiten.
+            </p>
+          </div>
+        )}
       </div>
+
+      {/* ── BLOK 5b · De benoemde vergelijking ──────────────────────────────
+          Blijft bestaan naast de marktvraag, maar niet meer als hoofdmechanisme.
+          Bij een merk waarvan AI de concurrenten kent, levert een gedwongen
+          rangschikking scherpere uitspraken op; bij een regionaal bedrijf levert
+          hij niets op en neemt de marktvraag het over. */}
+      <CollapsibleSection title="Naast je concurrenten gelegd" defaultOpen={false}>
+        <RivalTable run={laatste} ranks={merkbredeRanks} brandName={merk} />
+      </CollapsibleSection>
 
       {/* ── BLOK 6 · Sterk en kwetsbaar ────────────────────────────────────── */}
       <CollapsibleSection title="Sterk en kwetsbaar" defaultOpen={false}>

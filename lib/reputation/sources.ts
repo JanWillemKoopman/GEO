@@ -49,6 +49,40 @@ export const REVIEW_PLATFORMS = new Set([
   "thuisbezorgd.nl",
 ]);
 
+/**
+ * Verzamelsites die zelf niets waarnemen.
+ *
+ * ⚠️ TOEGEVOEGD NA DE EERSTE ECHTE RUN. Bij Van den Udenhout stonden
+ * autoscout24.nl en klantenvertellen.nl allebei op 3.704 beoordelingen. Dat is
+ * geen toeval: de verzamelsite toont het cijfer van de ander. Als twee
+ * onafhankelijke bronnen tellen zou dat de bewijskracht verdubbelen op één
+ * waarneming.
+ *
+ * Deze sites tellen daarom wél mee als vindplaats, maar niet als ONAFHANKELIJKE
+ * bron in `evidenceScore()`. Drie verzamelsites die hetzelfde cijfer overnemen
+ * zijn één bron.
+ */
+export const AGGREGATORS = new Set([
+  "autoscout24.nl",
+  "autotrack.nl",
+  "marktplaats.nl",
+  "gaspedaal.nl",
+  "autokopen.nl",
+  "123auto.nl",
+  "trustoo.nl",
+  "bedrijvenpagina.nl",
+  "telefoonboek.nl",
+  "detelefoongids.nl",
+  "opendi.nl",
+  "cylex.nl",
+  "werkspot.nl",
+]);
+
+/** Is dit een verzamelsite die zijn gegevens ergens anders vandaan haalt? */
+export function isAggregator(domain: string): boolean {
+  return AGGREGATORS.has(domain.trim().toLowerCase());
+}
+
 /** Registers en officiële bronnen: geen mening, wel bewijs dat je bestaat. */
 export const REGISTERS = new Set([
   "kvk.nl",
@@ -235,8 +269,23 @@ export function citedUrlsFrom(
   text: string,
   raw: unknown,
   grounded: boolean,
+  /**
+   * Het bewijscorpus waar dit antwoord uit put, als het er een had.
+   *
+   * ⚠️ EEN DERDE STAND, en die was nodig zodra de dienstvragen op een gedeeld
+   * corpus gingen draaien. Zo'n antwoord is ONGEGROND (het zocht zelf niets op)
+   * maar put wél uit materiaal dat eerder wél is opgezocht. De URL's die het
+   * noemt zijn dus echt, mits ze in dat corpus staan.
+   *
+   * Zonder deze stand zouden alle dienstantwoorden nul bronnen dragen en zou de
+   * bewijskracht instorten om een reden die niets met de klant te maken heeft.
+   * Met een te ruime stand zou het model alsnog een adres kunnen verzinnen. De
+   * regel is daarom: overnemen mag, maar alleen wat letterlijk in het corpus
+   * staat. Verzinnen wordt daarmee onmogelijk in plaats van onwaarschijnlijk.
+   */
+  corpus?: string,
 ): string[] {
-  if (!grounded) return [];
+  if (!grounded && !corpus) return [];
 
   const gevonden = new Set<string>();
 
@@ -255,5 +304,8 @@ export function citedUrlsFrom(
     // Niet te serialiseren, dan blijft het bij wat er in de tekst stond.
   }
 
-  return [...gevonden];
+  if (grounded) return [...gevonden];
+
+  // Ongegrond mét corpus: alleen wat er letterlijk in staat.
+  return [...gevonden].filter((u) => (corpus ?? "").includes(u));
 }
