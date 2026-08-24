@@ -80,8 +80,6 @@ export default async function BibliotheekPage({
       <PageHeader
         eyebrow="Strategie"
         title="Bibliotheek"
-        backHref={`/merk/${id}`}
-        backLabel="Overzicht"
         description="Alles wat ORBIT ENGINE voor dit merk schreef, over je clusters heen."
       />
 

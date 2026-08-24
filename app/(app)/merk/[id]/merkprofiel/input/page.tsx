@@ -121,8 +121,6 @@ export default async function InputPage({
       <PageHeader
         eyebrow="Merkprofiel"
         title={open === 0 ? "Vraagt jouw input" : `Vraagt jouw input · ${open} open`}
-        backHref={`/merk/${id}/merkprofiel`}
-        backLabel="Merkdossier"
         description="Elk antwoord maakt de meting scherper en de teksten concreter. Overslaan mag altijd."
       />
 

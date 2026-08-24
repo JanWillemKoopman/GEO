@@ -564,8 +564,6 @@ function Kop({ id }: { id: string }) {
     <PageHeader
       eyebrow="Analytics"
       title="Mijn reputatie"
-      backHref={`/merk/${id}/analytics`}
-      backLabel="Zichtbaarheid in AI"
       description="Hoe AI over je praat, per dienst, hoe je het doet tegenover je concurrenten, en waar dat beeld vandaan komt."
     />
   );

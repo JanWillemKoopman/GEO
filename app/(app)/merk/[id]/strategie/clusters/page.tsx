@@ -93,8 +93,6 @@ export default async function ClustersPage({
       <PageHeader
         eyebrow="Strategie"
         title="Clusters"
-        backHref={`/merk/${id}`}
-        backLabel="Overzicht"
         description="Elk cluster is één onderwerp waarop ORBIT ENGINE je zichtbaarheid volgt."
         action={
           <Link href="/analyses/new" className="btn-primary">

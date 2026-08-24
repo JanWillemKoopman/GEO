@@ -123,8 +123,6 @@ export default async function AnalyticsPage({
       <PageHeader
         eyebrow="Analytics"
         title="Zichtbaarheid in AI"
-        backHref={`/merk/${id}`}
-        backLabel="Overzicht"
         description="Hoe vaak AI-assistenten je noemen, over al je clusters heen, en wat dat cijfer verklaart."
       />
 

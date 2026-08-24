@@ -97,8 +97,6 @@ export default async function BewerkenPage({
       <PageHeader
         eyebrow="Merkprofiel"
         title="Bewerken"
-        backHref={`/merk/${id}/merkprofiel`}
-        backLabel="Merkdossier"
         description="ORBIT ENGINE heeft het meeste al van je website gehaald. Kijk het na, corrigeer wat niet klopt, en vul aan wat het niet kon weten. Alles wat je hier vastlegt blijft staan, ook als het onderzoek opnieuw draait."
       />
 

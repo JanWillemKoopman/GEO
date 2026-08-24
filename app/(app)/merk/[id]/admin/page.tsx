@@ -163,8 +163,6 @@ export default async function AdminPage({
       <PageHeader
         eyebrow="Admin · alleen jij"
         title="Diagnose"
-        backHref={`/merk/${id}`}
-        backLabel="Overzicht"
         description="Wat er technisch gebeurde: welke taken draaiden, hoe lang, wat er faalde en wat het kostte. De klant ziet dit scherm niet en kan het adres niet raden: hij krijgt een 404. Het werk mét de klant staat op Onboarding."
       />
 

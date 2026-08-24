@@ -146,8 +146,6 @@ export default async function ConcurrentenPage({
       <PageHeader
         eyebrow="Analytics"
         title="Concurrenten"
-        backHref={`/merk/${id}/analytics`}
-        backLabel="Zichtbaarheid in AI"
         description="Wie er nog meer genoemd wordt als je klanten een AI-assistent iets vragen."
       />
 

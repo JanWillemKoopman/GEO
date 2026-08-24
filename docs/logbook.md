@@ -4435,3 +4435,12 @@ geeft alles onveranderd door, dus voor de rest van de app veranderde er geen imp
 
 Geen migratie, geen AI-aanroep, geen kosten. 2195 unittests (15 erbij) en 303 ketentests groen.
 
+
+---
+
+## De terug-link boven een pagina is weg (24 augustus 2026)
+
+`PageHeader` toonde op vrijwel elke pagina een link terug naar de bovenliggende
+bestemming, met een pijltje en een sectienaam. Die weg bestond al: de zijbalk
+wijst naar dezelfde plek. `backHref` en `backLabel` zijn uit `PageHeader`
+gehaald en bij alle veertien aanroepen weg.

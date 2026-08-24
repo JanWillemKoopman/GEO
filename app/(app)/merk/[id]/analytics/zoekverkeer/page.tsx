@@ -328,8 +328,6 @@ function Kop({ id }: { id: string }) {
     <PageHeader
       eyebrow="Analytics"
       title="Zoekverkeer"
-      backHref={`/merk/${id}/analytics`}
-      backLabel="Zichtbaarheid in AI"
       description="De klikken uit Google naast je zichtbaarheid in AI-antwoorden. Het bewijsstuk onder het verhaal."
     />
   );

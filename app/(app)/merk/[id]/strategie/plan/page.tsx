@@ -61,8 +61,6 @@ export default async function PlanPage({
       <PageHeader
         eyebrow="Strategie"
         title="Contentplan"
-        backHref={`/merk/${id}`}
-        backLabel="Overzicht"
         description="Twaalf maanden vooruit. Je geeft een maand vrij, ORBIT ENGINE begint tien dagen voor elke publicatiedatum met schrijven, en daarna keur jij elke tekst goed."
       />
 

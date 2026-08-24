@@ -34,8 +34,6 @@ export default async function ToewijzenPage({
       <PageHeader
         eyebrow="Admin"
         title="Toewijzen"
-        backHref={`/merk/${id}`}
-        backLabel="Overzicht"
         description="Dit merk aan een klantaccount koppelen."
       />
 

@@ -136,8 +136,6 @@ function Kop() {
     <PageHeader
       eyebrow="Instellingen"
       title="Koppelingen"
-      backHref="/instellingen"
-      backLabel="Account en team"
       description="Waar ORBIT ENGINE zijn cijfers vandaan haalt. Eén keer instellen per merk."
     />
   );
