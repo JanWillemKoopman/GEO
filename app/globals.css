@@ -363,6 +363,10 @@ table {
   font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
   letter-spacing: -0.01em;
+  /* Het hoofdgetal stond op het gewicht van de lopende tekst eromheen en verloor
+     het daardoor van de kop erboven. Een cijfer dat het antwoord van het scherm
+     is, hoort het zwaarste element van zijn kaart te zijn. */
+  font-weight: 700;
 }
 
 /* Kaart: wit, één rand, PLAT. Geen schaduw, geen hover-lift. */
@@ -399,6 +403,31 @@ table {
 }
 .card-warning {
   border-color: var(--intent-warning-border);
+}
+
+/* ── De stang links op een kaart ────────────────────────────────────────────
+   Toegevoegd 24 augustus 2026 voor het overzicht.
+
+   Eén kaart per scherm draagt het hoofdgetal (`docs/ux-design.md` §1), en die
+   zag er precies zo uit als de vijf kaarten eronder: witte kaart, dunne rand.
+   De stang markeert hem, en de tint zegt hoe het cijfer loopt. Daarmee blijft
+   `docs/designsystem.md` §2.3 heel: de kleur betekent iets ("dit steeg echt",
+   "hier gaat iets de verkeerde kant op") en markeert niet alleen.
+
+   Alleen `border-left-*` en niet de hele `border`: de andere drie randen
+   blijven van `.card` en de radius blijft `--radius-lg`, waardoor de stang de
+   ronding van de kaart volgt in plaats van hem af te snijden. */
+.card-rail {
+  border-left-width: var(--border-width-md);
+  border-left-color: var(--border-strong);
+}
+.card-rail-success {
+  border-left-width: var(--border-width-md);
+  border-left-color: var(--intent-growth-solid);
+}
+.card-rail-warning {
+  border-left-width: var(--border-width-md);
+  border-left-color: var(--intent-warning-solid);
 }
 
 /* ── Knoppen ────────────────────────────────────────────────────────────────
@@ -485,10 +514,18 @@ table {
   gap: 6px;
   font-family: var(--font-sans);
   font-size: 0.75rem;
-  font-weight: 500;
+  /* 500 was te licht naast een titel van 600: de chip draagt op het overzicht
+     het getal waarop de lijst gesorteerd is ("Potentie 68/100"), en dat is
+     niet het lichtste element van de regel. */
+  font-weight: 600;
   line-height: 1.4;
   padding: 3px 10px;
-  border-radius: var(--radius-pill);
+  /* ⚠️ Was `--radius-pill`, gewijzigd 24 augustus 2026. Zie
+     `docs/designsystem.md` §5.1: de pil is voorbehouden aan wat rond MOET zijn
+     (voortgangsbalken, de live-dot). Een chip is een klein vlak met tekst
+     erin, en pilvormig botste hij zichtbaar met de knoppen en velden ernaast,
+     die sinds de omzetting allemaal `--radius-md` hebben. */
+  border-radius: var(--radius-sm);
   background-color: var(--intent-intelligence-surface);
   color: var(--intent-intelligence-text);
   border: var(--border-width-xs) solid var(--intent-intelligence-border);

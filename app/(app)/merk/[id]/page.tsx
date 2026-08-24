@@ -22,7 +22,8 @@ import { InfoHint } from "@/components/info-hint";
 import { activeOnly } from "@/lib/archive";
 import { loadMilestones } from "@/lib/milestones-data";
 import { loadLoop } from "@/lib/insights-data";
-import { loadWorkAcross, sortWork, workChipTone } from "@/lib/work";
+import type { Insight } from "@/lib/insights";
+import { loadWorkAcross, sortWork, workChipTone, workKindIcon } from "@/lib/work";
 import { confidenceBand } from "@/lib/stats/uncertainty";
 import { activiteit, type AfgerondeTaak } from "@/lib/activity";
 import {
@@ -272,6 +273,7 @@ export default async function OverzichtPage({
           {fase !== "overgedragen" && (
             <Link href={`/merk/${id}/admin/onboarding`} className="btn-outline btn-sm">
               Naar de onboarding
+              <Icon naam="naar" size={14} />
             </Link>
           )}
         </div>
@@ -281,7 +283,7 @@ export default async function OverzichtPage({
           De drie zinnen van `insights()` staan hierbinnen en niet in een eigen
           blok verderop: ze zijn de duiding bij dít getal. */}
       <SectionErrorBoundary label="Je zichtbaarheid">
-        <div className="card flex flex-col gap-4">
+        <div className={`card ${railKlasse(lus.insights)} flex flex-col gap-4`}>
           <div className="flex flex-wrap items-start justify-between gap-4">
             {hoofdcijfer === null ? (
               <span className="flex flex-col gap-1">
@@ -301,9 +303,9 @@ export default async function OverzichtPage({
                   </InfoHint>
                 </span>
                 <span className="flex flex-wrap items-baseline gap-3">
-                  <span className="stat-value text-4xl">{Math.round(hoofdcijfer.waarde)}%</span>
+                  <span className="stat-value text-5xl">{Math.round(hoofdcijfer.waarde)}%</span>
                   {hoofdcijfer.band.margin > 0 && (
-                    <span className="mono-label text-muted">
+                    <span className="mono-label">
                       marge {Math.max(0, Math.round(hoofdcijfer.band.low))}% tot{" "}
                       {Math.min(100, Math.round(hoofdcijfer.band.high))}%
                     </span>
@@ -317,8 +319,13 @@ export default async function OverzichtPage({
                   ? `/merk/${id}/strategie/clusters`
                   : `/merk/${id}/analytics`
               }
-              className="btn-outline"
+              className="btn-outline shrink-0"
             >
+              {/* Het icoon van het hoofdstuk waar de knop heen gaat: Strategie
+                  of Analytics, dezelfde tekening als in de zijbalk. Zo wijst de
+                  knop naar een plek die de klant herkent voordat hij klikt, in
+                  plaats van naar een woord. */}
+              <Icon naam={hoofdcijfer === null ? "strategie" : "analytics"} size={18} />
               {hoofdcijfer === null ? "Naar je clusters" : "Bekijk je zichtbaarheid"}
             </Link>
           </div>
@@ -350,10 +357,18 @@ export default async function OverzichtPage({
                 <li key={w.id}>
                   <Link
                     href={w.href}
-                    className="card card-interactive flex flex-wrap items-center justify-between gap-3"
+                    className="card card-interactive flex flex-wrap items-center gap-3"
                   >
+                    {/* De soort werk, links van de titel. De chip rechts zegt
+                        wat je gaat DOEN, deze tekening zegt waar het OVER gaat
+                        (`lib/work.ts`, `workKindIcon`). In de leeskleur, want
+                        het icoon versnelt het terugvinden en draagt de
+                        betekenis niet (`docs/designsystem.md` §6b.3). */}
+                    <span className="text-secondary">
+                      <Icon naam={workKindIcon(w.kind)} size={18} />
+                    </span>
                     <span className="min-w-0 flex-1">
-                      <span className="block truncate font-medium">{w.title}</span>
+                      <span className="block truncate font-semibold">{w.title}</span>
                       <span className="mono-label">{w.analysisName}</span>
                     </span>
                     {/* De tint komt uit de soort werk (`workChipTone`). Alles
@@ -362,6 +377,7 @@ export default async function OverzichtPage({
                         worden (`docs/ux-design.md` §2). */}
                     <span className={`chip chip-${workChipTone(w.kind)} shrink-0`}>
                       {w.actionLabel ?? "Bekijken"}
+                      <Icon naam="naar" size={12} />
                     </span>
                   </Link>
                 </li>
@@ -429,7 +445,7 @@ export default async function OverzichtPage({
                   {funnel.map((f) => (
                     <li key={f.label} className="flex flex-col gap-1.5">
                       <span className="flex flex-wrap items-baseline justify-between gap-2">
-                        <span className="text-sm font-medium">{f.label}</span>
+                        <span className="text-sm font-semibold">{f.label}</span>
                         <span className="mono-label">
                           {f.gepland === 0
                             ? "niets gepland"
@@ -550,6 +566,29 @@ export default async function OverzichtPage({
   );
 }
 
+/**
+ * De tint van de stang links op de standkaart.
+ *
+ * ── WAAROM DE KLEUR NIET VASTSTAAT ──────────────────────────────────────────
+ *
+ * De stang markeert het hoofdgetal van dit scherm, en dat mag geen versiering
+ * zijn: `docs/designsystem.md` §2.3 zegt dat een kleur een betekenis draagt.
+ * Een vaste groene stang boven een zichtbaarheid van 8% zou dus een uitspraak
+ * doen die het cijfer niet waarmaakt.
+ *
+ * De eerste zin van `insights()` is precies de duiding bij dít getal: hij zegt
+ * of de score écht gestegen is, écht gedaald, of binnen de meetruis bleef
+ * (`lib/insights.ts`). Die toon bepaalt de tint. Zonder inzichten, of bij een
+ * eerste meting, blijft de stang grijs: hij markeert dan wél waar je moet
+ * kijken, maar belooft niets over de richting.
+ */
+function railKlasse(inzichten: Insight[]): string {
+  const toon = inzichten[0]?.toon;
+  if (toon === "goed") return "card-rail-success";
+  if (toon === "let_op") return "card-rail-warning";
+  return "card-rail";
+}
+
 function LeegPlan({ id }: { id: string }) {
   return (
     <div className="card flex flex-col gap-2">
@@ -559,6 +598,7 @@ function LeegPlan({ id }: { id: string }) {
         klantreis gepland zijn en hoeveel er al live staan.
       </p>
       <Link href={`/merk/${id}/strategie/plan`} className="btn-outline w-fit">
+        <Icon naam="strategie" size={18} />
         Naar het contentplan
       </Link>
     </div>

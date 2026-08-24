@@ -25,6 +25,7 @@ import "server-only";
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { STATUS_META } from "@/lib/analysis-status";
+import type { WorkKind } from "@/lib/work-kind";
 import type { AuditCheck } from "@/lib/audit/technical";
 import type { Analysis, ContentPiece, FactRequest, OffsiteTask } from "@/lib/types/database";
 import { activeOnly } from "@/lib/archive";
@@ -32,14 +33,18 @@ import { formatDateShort } from "@/lib/format";
 
 type Db = SupabaseClient;
 
-/** Wat voor werk het is. Bepaalt het etiket, niet de plek in de lijst. */
-export type WorkKind =
-  | "blokkade" // technische blokkade, hierdoor werkt al het andere niet
-  | "goedkeuring" // het concept bevestigen, daarna start de meting
-  | "herstel" // er ging iets mis in de pijplijn
-  | "feit" // een feitenvraag over het bedrijf
-  | "pagina" // een aanbevolen of geschreven pagina voor de eigen site
-  | "offsite"; // een actie buiten de eigen site
+/**
+ * De soort werk, het etiket, de tint en de tekening staan in `lib/work-kind.ts`
+ * en worden hier onveranderd doorgegeven. Ze horen daar omdat ze puur zijn en
+ * dit bestand `server-only` is: conventie 2, anders is er geen unittest op te
+ * schrijven.
+ */
+export {
+  WORK_KIND_LABEL,
+  workChipTone,
+  workKindIcon,
+  type WorkKind,
+} from "@/lib/work-kind";
 
 /**
  * Waar het werk staat. Dit bepaalt de volgorde op het scherm.
@@ -59,34 +64,6 @@ export const WORK_STATE_LABEL: Record<WorkState, string> = {
   wacht: "Wacht op hermeting",
   klaar: "Klaar",
 };
-
-export const WORK_KIND_LABEL: Record<WorkKind, string> = {
-  blokkade: "Blokkade",
-  goedkeuring: "Goedkeuring",
-  herstel: "Herstel",
-  feit: "Feitenvraag",
-  pagina: "Pagina",
-  offsite: "Buiten je site",
-};
-
-/**
- * De tint van de chip achter een werkregel.
- *
- * ── WAAROM DIT NIET ÉÉN KLEUR MAG ZIJN ──────────────────────────────────────
- *
- * Op het overzicht kregen alle vijf de werksoorten dezelfde amber chip. "Bekijk
- * wat er mis is" (een cluster dat niet gelukt is) zag er daardoor precies zo uit
- * als "Beantwoorden" (zes vragen over je bedrijf). Dat is de ene regel uit
- * `docs/ux-design.md` §2 die het duidelijkst is: `--intent-attention` is "vraagt
- * een keuze, is niet fout", `--intent-danger` is "blokkade, mislukt". Een
- * storing die eruitziet als een routineklus blijft liggen.
- *
- * Geen veld op `WorkItem`, want de soort zegt het al. Een tweede plek waar
- * hetzelfde besluit valt, loopt vroeg of laat uit de pas.
- */
-export function workChipTone(kind: WorkKind): "danger" | "attention" {
-  return kind === "blokkade" || kind === "herstel" ? "danger" : "attention";
-}
 
 export interface WorkItem {
   /** Stabiel over renders heen: `${kind}:${bron-id}`. */

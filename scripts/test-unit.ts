@@ -281,7 +281,9 @@ import {
 } from "@/lib/spend-rules";
 import { EDITABLE_ACCOUNT_FIELDS } from "@/lib/account-editable";
 import { checkNewEmail, checkNewPassword } from "@/lib/account-security";
-import { opportunities, reachLabel } from "@/lib/opportunities";
+import { opportunities, reachLabel, OPPORTUNITY_ICON } from "@/lib/opportunities";
+// `lib/work.ts` is `server-only`; de pure helft ervan staat in `lib/work-kind.ts`.
+import { workChipTone, workKindIcon, type WorkKind } from "@/lib/work-kind";
 import { leesbaarWaarom } from "@/lib/recommendation-text";
 import { insights } from "@/lib/insights";
 import { normalizeProperty } from "@/lib/search-console/property";
@@ -5988,6 +5990,87 @@ group("opportunities: één lijst, gesorteerd op wat het oplevert", () => {
     lijst.some((o) => o.source === "onderwerp" && o.title.includes("Auto leasen")),
   );
   ok("elke kans heeft één handeling", lijst.every((o) => o.action.length > 0));
+
+  // ── Het icoon per handeling (24 augustus 2026) ──────────────────────────
+  //
+  // ⚠️ Het icoon en de zin moeten hetzelfde beloven. Een blad met een pen erop
+  // naast "Laat ORBIT ENGINE deze pagina schrijven" is erger dan geen icoon:
+  // dan zegt de tekening dat er iets bestaat wat er niet is.
+  ok(
+    "een aanbeveling zonder bestaande pagina wordt een nieuwe pagina",
+    lijst.every((o) => o.source !== "meting" || o.handeling === "nieuwe_pagina"),
+  );
+  const bijwerken = opportunities({
+    ...basis,
+    recommendations: [
+      { title: "Bestaat al", why: "x", action: "verbeteren", existingUrl: "https://x.nl/a" },
+    ],
+  })[0];
+  ok(
+    "een aanbeveling mét bestaande pagina wordt bijwerken",
+    bijwerken.handeling === "pagina_bijwerken" && bijwerken.action.startsWith("Werk "),
+  );
+  // ⚠️ "verbeteren" zonder URL is geen bijwerking: er is dan niets om heen te
+  // gaan. Dan hoort er een nieuwe pagina te staan, met het icoon dat daarbij
+  // hoort.
+  const zonderUrl = opportunities({
+    ...basis,
+    recommendations: [{ title: "Geen url", why: "x", action: "verbeteren" }],
+  })[0];
+  ok(
+    "verbeteren zonder URL blijft een nieuwe pagina",
+    zonderUrl.handeling === "nieuwe_pagina" && !zonderUrl.action.startsWith("Werk "),
+  );
+  ok(
+    "een geblokkeerde crawler is deblokkeren",
+    geblokkeerd[0].handeling === "deblokkeren",
+  );
+  ok(
+    "klaarstaande pagina's zijn publiceren",
+    klaar.find((o) => o.source === "plan")!.handeling === "publiceren",
+  );
+  ok(
+    "een ongemeten onderwerp is meten",
+    lijst.find((o) => o.source === "onderwerp")!.handeling === "meten",
+  );
+
+  // Elke handeling moet een tekening hebben die ook echt bestaat. Zonder deze
+  // test valt een nieuwe handeling stil terug op `undefined`, en dan crasht
+  // het overzicht bij de klant en niet hier.
+  ok(
+    "elke kans wijst naar een icoon dat bestaat",
+    [...lijst, ...geblokkeerd, ...klaar].every((o) => Boolean(ICONEN[OPPORTUNITY_ICON[o.handeling]])),
+  );
+});
+
+group("workKindIcon: elke soort werk heeft één tekening die bestaat", () => {
+  // De chip rechts zegt wat je gaat DOEN, het icoon links waar het OVER gaat.
+  // Valt er één weg, dan rendert het overzicht een leeg gat op de plek waar de
+  // klant kijkt.
+  const soorten: WorkKind[] = ["blokkade", "goedkeuring", "herstel", "feit", "pagina", "offsite"];
+  for (const soort of soorten) {
+    ok(`${soort} heeft een icoon dat bestaat`, Boolean(ICONEN[workKindIcon(soort)]));
+  }
+
+  // ⚠️ Twee soorten mogen bewust dezelfde tekening delen (`blokkade` leent
+  // `letop`), maar niet ongemerkt: zodra er een derde bijkomt die hem óók
+  // deelt, zegt het icoon niets meer. Vijf verschillende op zes soorten is de
+  // stand van vandaag.
+  const tekeningen = new Set(soorten.map((s) => workKindIcon(s)));
+  ok("hooguit één soort leent de tekening van een ander", tekeningen.size >= soorten.length - 1);
+
+  // ⚠️ Dit stond tot 24 augustus 2026 achter `server-only` en was daardoor
+  // nooit getest, terwijl het een zichtbaarheidsregel is: "bekijk wat er mis
+  // is" mag er niet uitzien als "beantwoorden" (`docs/ux-design.md` §2).
+  ok(
+    "alleen een storing krijgt de rode chip",
+    workChipTone("blokkade") === "danger" &&
+      workChipTone("herstel") === "danger" &&
+      workChipTone("goedkeuring") === "attention" &&
+      workChipTone("feit") === "attention" &&
+      workChipTone("pagina") === "attention" &&
+      workChipTone("offsite") === "attention",
+  );
 });
 
 group("reachLabel: een telling, geen percentage dat boven de 100 uitkomt", () => {

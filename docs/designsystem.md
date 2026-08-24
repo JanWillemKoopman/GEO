@@ -3,8 +3,9 @@
 > **Bron: de NOVA-workspace van InSpace** (`nova.inspace.io`), hun ingelogde productomgeving,
 > geanalyseerd op 6 augustus 2026 uit de CSS-bundel en de i18n-bundel van de app.
 > **Peildatum van dit document: 6 augustus 2026**, met §6b (iconen) toegevoegd op 21 augustus
-> 2026. De code is leidend; wijkt `app/globals.css` af, dan is dit document fout en moet het
-> bijgewerkt worden.
+> 2026 en op 24 augustus 2026 bijgewerkt met de gewichten (§3.1), de chipvorm (§5.1), de stang
+> links op een kaart (§5.5) en de iconen in een lijst (§6b.3, regels 5 en 6). De code is leidend;
+> wijkt `app/globals.css` af, dan is dit document fout en moet het bijgewerkt worden.
 
 Dit document beschrijft **hoe ORBIT ENGINE eruitziet en waarom**. Voor de tekst in die schermen geldt
 `schrijfstijl.md`, voor de opbouw van schermen `ux-design.md`, voor het waarom achter beslissingen
@@ -134,9 +135,26 @@ van twee makers naast elkaar is precies het soort verschil dat je niet ziet maar
 | Waar | Wat |
 |---|---|
 | Alles | `--font-sans` |
-| Cijfers die je vergelijkt | `--font-mono` via `.stat-value`, met `tabular-nums` |
+| Cijfers die je vergelijkt | `--font-mono` via `.stat-value`, met `tabular-nums`, **gewicht 700** |
 | Kickers boven een titel | `.mono-label`: sans, 11px, uppercase, `.08em`, gewicht 600 |
 | Code en URL's | `--font-mono` |
+
+### 3.1 De drie gewichten, en waar ze horen (24 augustus 2026)
+
+| Gewicht | Waar |
+|---|---|
+| **700** (`font-bold`, `.stat-value`) | De paginakop en het hoofdgetal van een scherm |
+| **600** (`font-semibold`, `.mono-label`, `.chip`, knoppen) | De titel van een kaart of lijstregel, de kicker erboven, de handeling eronder |
+| **400** (normaal) | Alle lopende tekst |
+
+**Er is geen 500 meer in een kaarttitel.** De titels van kaarten en lijstregels stonden op
+`font-medium`, precies één stap boven de zin eronder, en op het overzicht leverde dat twaalf kaarten
+op waarin titel en toelichting even zwaar leken. Een titel is de regel waaraan je de kaart
+herkent; die hoort een duidelijke stap zwaarder te zijn dan wat eronder staat, niet een halve.
+
+`.stat-value` had helemaal geen gewicht en erfde dus dat van de tekst eromheen. Een cijfer dat het
+antwoord van het scherm is, hoort het zwaarste element van zijn kaart te zijn en niet even zwaar als
+de alinea ernaast.
 
 **De grootste typografische wijziging is dat mono niet langer de standaard is voor labels.** De oude
 stijl zette elk paneelkopje in mono, uppercase, met `.14em` tracking. Dat is de "technische
@@ -187,11 +205,19 @@ de reden dat een grafiek er altijd nét naast ligt zodra de rest van het systeem
 | `--radius-md` | 8px | **Knoppen, velden, navigatie-items, menu's** |
 | `--radius-lg` | 12px | Kaarten |
 | `--radius-xl` | 16px | Grote panelen, dialogen |
-| `--radius-pill` | 9999px | **Alleen chips, badges en voortgangsbalken** |
+| `--radius-pill` | 9999px | **Alleen voortgangsbalken, stippen en de live-dot** |
 
 **De pil is niet langer de standaard.** Dat is de meest zichtbare enkele wijziging van deze omzetting.
 De oude regel luidde "interactieve elementen zijn pilvormig"; dat is de marketingsite. In de
-Nova-werkomgeving is de pil voorbehouden aan chips en badges, en krijgen knoppen `--radius-md`.
+Nova-werkomgeving krijgen knoppen, velden en navigatie `--radius-md`.
+
+> ⚠️ **En sinds 24 augustus 2026 zijn chips ook geen pillen meer.** Ze staan op `--radius-sm`.
+> De aanleiding is het overzicht: daar staat een chip ("Potentie 68/100") in dezelfde regel als een
+> titel, vlak boven een knop en naast een kaartrand, en pilvormig was hij het enige ronde element
+> in een scherm vol vlakken van 6, 8 en 12 pixels. De pil hield alleen over wat rond MOET zijn: een
+> balk die vult, een stip, de `live-dot`. Dat is één regel in `app/globals.css` en hij geldt
+> daarmee voor alle 130 chips in de app tegelijk; met de hand een tint of een vorm nabouwen blijft
+> verboden, want dán loopt het wél uit elkaar.
 
 ### 5.2 Randdiktes
 
@@ -233,6 +259,29 @@ onrustig.
 > haalt dat niet. Op mobiel moet een primaire actie dus extra verticale padding of `.btn-lg` krijgen;
 > dat is nog niet gebouwd en staat open.
 
+### 5.5 De stang links op een kaart (24 augustus 2026)
+
+`.card-rail` · `.card-rail-success` · `.card-rail-warning`. Een linkerrand van `--border-width-md`
+(4px) op de kaart die het **hoofdgetal van een scherm** draagt.
+
+**Waarom er iets moest.** `ux-design.md` §1 kent per scherm één hoofdgetal, maar dat getal zat in
+dezelfde witte kaart met dezelfde dunne rand als de vijf kaarten eronder. De hiërarchie zat alleen
+in de lettergrootte, en die verdwijnt zodra iemand op zijn telefoon kijkt of de pagina scrollt.
+
+**Waarom de kleur meebeweegt.** Een vaste groene stang boven een zichtbaarheid van 8% zou een
+uitspraak doen die het cijfer niet waarmaakt, en §2.3 laat kleur alleen betekenis dragen. De tint
+volgt daarom de eerste zin van `insights()` (`lib/insights.ts`), en dat is precies de duiding bij
+dít getal: `goed` wordt groen, `let_op` oranje, en zonder oordeel (nooit gemeten, eerste meting, of
+een verschil binnen de meetruis) blijft hij grijs. De stang markeert dan wél waar je moet kijken,
+maar belooft niets over de richting.
+
+**Alleen `border-left-width` en `border-left-color`, nooit de hele `border`.** De andere drie randen
+blijven van `.card` en de radius blijft `--radius-lg`, waardoor de stang de ronding van de kaart
+volgt in plaats van hem af te snijden.
+
+**Eén stang per scherm.** Twee gemarkeerde kaarten onder elkaar markeren niets meer, en dat is
+hetzelfde argument als bij de iconen in de zijbalk (§6b.3, regel 4).
+
 ---
 
 ## 6. Motion
@@ -248,9 +297,10 @@ korter dan hun marketingsite, en 0,3s voelt in een dashboard traag.
 
 ## 6b. Iconen
 
-**Toegevoegd 21 augustus 2026.** De set is [Lucide](https://lucide.dev) (ISC-licentie, gratis),
-via `lucide-react`. De keuze per betekenis staat in `lib/icons.ts` (27 betekenissen), het omhulsel
-dat maat en lijndikte vastzet in `components/icon.tsx`.
+**Toegevoegd 21 augustus 2026, uitgebreid 24 augustus 2026.** De set is
+[Lucide](https://lucide.dev) (ISC-licentie, gratis), via `lucide-react`. De keuze per betekenis
+staat in `lib/icons.ts` (35 betekenissen), het omhulsel dat maat en lijndikte vastzet in
+`components/icon.tsx`.
 
 ⚠️ **Waar een icoon wél en niet komt.** De zes hoofdstukken van de zijbalk hebben er een, de
 bestemmingen eronder niet. Dat is dezelfde dag nog bijgesteld: ze hebben ze een halve dag wél gehad,
@@ -282,7 +332,7 @@ tegenovergestelde van §15.1 van `merkstrategie.md`: precies, rustig, premium.
 | Maat | 16 in tekstregels, 18 in koppen, 20 in losse knoppen | Meer maten zijn er niet; een vierde maat is een nieuw besluit |
 | Kleur | `currentColor`, altijd | Het icoon kleurt mee met de tekst ernaast. Nooit een eigen tint, want dan omzeilt het de betekenislaag van §2.3 |
 
-### 6b.3 De vier regels
+### 6b.3 De zes regels
 
 1. **Een icoon staat nooit alleen.** Overal staat het label ernaast, dus het icoon versnelt het
    terugvinden en draagt de betekenis niet. Vandaar `aria-hidden`. Staat een icoon écht alleen (het
@@ -297,13 +347,31 @@ tegenovergestelde van §15.1 van `merkstrategie.md`: precies, rustig, premium.
    een pagina daarbinnen", en dat verschil verdwijnt zodra beide er een hebben: als alles opvalt,
    valt niets op. De bestemming staat al ingesprongen achter een lijn, en dat zegt genoeg.
    `NavItem` in `lib/nav.ts` heeft daarom geen icoonveld, en `scripts/test-unit.ts` bewaakt dat.
+5. **In een lijst draagt een regel een icoon zodra de SOORT verschilt** (24 augustus 2026). Niet
+   omdat het mooier is: op het overzicht van Gasservice Brabant stonden twaalf kansen onder elkaar
+   die alleen in hun tekst verschilden, en je las drie keer hetzelfde begin ("Maak een nieuwe
+   pagina over…", "Verbeter de pagina over…") voordat je het verschil vond. Verschillen de regels
+   níét van soort, dan komt er geen icoon: twaalf keer dezelfde tekening is een marge en geen
+   markering. Zie `lib/opportunities.ts` (`OPPORTUNITY_ICON`) en `lib/work-kind.ts`
+   (`workKindIcon`); allebei getest, want een handeling zonder tekening rendert een gat op de plek
+   waar de klant kijkt.
+6. **Een icoon in een lijstregel staat in de leeskleur, nooit in de merkkleur.** Twaalf paarse
+   tekeningen onder elkaar trekken de blik naar de linkerrand, terwijl de titel het antwoord
+   draagt. Hetzelfde geldt voor de handeling onder aan zo'n kaart: die is `font-semibold` in de
+   leeskleur en niet paars. Paars is in dit product de kleur van de primaire knop, en twaalf paarse
+   regels onder elkaar maken van een lijst een muur van gelijkwaardige hoofdacties.
 
 ### 6b.4 Wat de set níet doet
 
 Geen glittertje bij alles wat AI aanraakt, geen brein, geen robot, geen tandwiel voor instellingen.
 Dat zijn de clichés die §15.4 van `merkstrategie.md` bij naam verbiedt. Instellingen krijgt daarom
-schuifjes, want dat is wat je er doet: afstellen. En de set is klein gehouden: 27 betekenissen, niet
+schuifjes, want dat is wat je er doet: afstellen. En de set is klein gehouden: 35 betekenissen, niet
 1.600. Een icoon dat niets aanwijst is versiering, en dat is precies wat §15.3 niet vraagt.
+
+De acht die er op 24 augustus 2026 bij kwamen zijn allemaal soorten werk: `nieuwepagina`,
+`paginabijwerken`, `publiceren`, `meten`, `goedkeuring`, `feit`, `herstel` en `offsite`. Geen
+ervan is een nieuw begrip; ze bestonden al als tekst in `lib/work-kind.ts` en `lib/opportunities.ts`
+en hadden alleen nog geen tekening.
 
 ---
 
@@ -316,10 +384,11 @@ Gebruik deze, nooit een eigen tint of een eigen maat.
 | `.card` | Wit, één rand, **plat**. Geen schaduw, geen hover |
 | `.card-interactive` | Alleen op wat écht klikbaar is. Krijgt de rand-plus-schaduw bij hover |
 | `.card-accent` / `-success` / `-warning` / `-danger` | Getinte kaartrand, uit de betekenislaag |
+| `.card-rail` / `-success` / `-warning` | De 4px-stang links op de kaart met het hoofdgetal. Eén per scherm, tint volgt de trend. Zie §5.5 |
 | `.btn-primary` / `.btn-outline` | Beide 40px, `--radius-md`. `.btn-sm` is 32px |
-| `.chip` + `-success` / `-danger` / `-warning` / `-info` / `-attention` / `-neutral` | Pilvormig, sans, schrijftaal. Nooit met de hand een tint nabouwen |
+| `.chip` + `-success` / `-danger` / `-warning` / `-info` / `-attention` / `-neutral` | `--radius-sm`, sans, gewicht 600, schrijftaal. Nooit met de hand een tint of een vorm nabouwen |
 | `.mono-label` | De kicker boven een titel. Sans, uppercase, klein |
-| `.stat-value` | Cijfers die je vergelijkt, in mono met `tabular-nums` |
+| `.stat-value` | Cijfers die je vergelijkt, in mono met `tabular-nums`, gewicht 700 |
 | `.field` | Wit met een rand, 40px, focusring |
 | `.live-dot` | Pulserend, in `growth`. "Loopt nu" |
 | `.skeleton` | Laadvlak. De vorm van wat er komt |
@@ -335,7 +404,8 @@ Gebruik deze, nooit een eigen tint of een eigen maat.
 1. **Een kleur heeft een betekenis, geen naam.** `--intent-growth-text`, nooit `--accent-green`, en
    nooit een hexwaarde of rauwe `rgba()` in een component. Zie §11 voor de controle.
 2. **Plat, niet gloeiend.** Rand en vlak dragen de hiërarchie. De ene schaduw is voor wat zweeft.
-3. **De pil is voor chips.** Knoppen, velden en navigatie krijgen `--radius-md`.
+3. **De pil is voor wat rond moet zijn**: voortgangsbalken, stippen, de `live-dot`. Chips staan op
+   `--radius-sm`, knoppen en velden en navigatie op `--radius-md` (§5.1).
 4. **Status is kleur plus vorm, nooit kleur alleen.** Een dot, een pijl, een chip met tekst.
 5. **Mono is voor cijfers**, niet voor labels. De kicker is sans.
 6. **Contrast is een tokenkeuze.** Gebruik `-text` op licht en `-on-solid` op gevuld, en vertrouw

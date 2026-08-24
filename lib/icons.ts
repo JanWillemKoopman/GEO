@@ -72,16 +72,24 @@ import {
   ChartNoAxesCombined,
   Circle,
   CircleDashed,
+  ClipboardCheck,
   Copy,
+  FilePen,
+  FilePlus2,
+  FileQuestionMark,
   FingerprintPattern,
+  Globe,
   Menu,
   Minus,
   Orbit,
   PanelLeftClose,
   PanelLeftOpen,
+  Radar,
+  RotateCcw,
   Shield,
   SlidersHorizontal,
   TriangleAlert,
+  Upload,
   UserRound,
   Waypoints,
   X,
@@ -122,7 +130,16 @@ export type IcoonNaam =
   | "letop"
   | "nvt"
   | "stijging"
-  | "daling";
+  | "daling"
+  // ── Soorten werk en kansen ──────────────────────────────────────────────
+  | "nieuwepagina"
+  | "paginabijwerken"
+  | "publiceren"
+  | "meten"
+  | "goedkeuring"
+  | "feit"
+  | "herstel"
+  | "offsite";
 
 export const ICONEN: Record<IcoonNaam, LucideIcon> = {
   // ── DE ZES HOOFDSTUKKEN ─────────────────────────────────────────────────
@@ -188,4 +205,38 @@ export const ICONEN: Record<IcoonNaam, LucideIcon> = {
   nvt: Minus,
   stijging: ArrowUp,
   daling: ArrowDown,
+
+  // ── SOORTEN WERK EN KANSEN ──────────────────────────────────────────────
+  //
+  // Toegevoegd 24 augustus 2026, voor het overzicht. Daar stonden twaalf
+  // kaarten onder elkaar die alleen in hun tekst van elkaar verschilden:
+  // "maak een nieuwe pagina", "verbeter de pagina over X", "verbeter de pagina
+  // voor Y". Wie de lijst scant leest dan drie keer hetzelfde begin voordat
+  // hij het verschil vindt. Het icoon draagt dat verschil vóór de eerste
+  // letter (`docs/designsystem.md` §6b.3, regel 1: het versnelt het
+  // terugvinden, het draagt de betekenis niet, want de zin staat ernaast).
+  //
+  // Ze houden zich aan regel 3: de naam is de handeling, niet de tekening.
+  // Verandert de tekening ooit, dan is dat één regel hier.
+  //
+  // Een blad met een plus erop: er komt een pagina bij die er nog niet is.
+  nieuwepagina: FilePlus2,
+  // Hetzelfde blad met een pen: de pagina bestaat al en wordt bijgewerkt. Het
+  // verschil tussen deze twee is precies het verschil dat de klant moet zien.
+  paginabijwerken: FilePen,
+  // Naar buiten: geschreven, goedgekeurd, en het enige wat nog moet gebeuren
+  // is dat het online komt.
+  publiceren: Upload,
+  // Een radar tast af wat er is zonder het te veranderen: dat is wat een
+  // meetronde doet. Geen vergrootglas, want dat is zoeken en niet meten.
+  meten: Radar,
+  // Een lijst met een vinkje: nakijken en bevestigen, en dan gaat het verder.
+  goedkeuring: ClipboardCheck,
+  // Een vraag óp een blad: dit is geen chatvraag maar een openstaand feit in
+  // het merkdossier dat alleen de klant kan invullen.
+  feit: FileQuestionMark,
+  // Terugdraaien en opnieuw: er ging iets mis in de pijplijn en het moet over.
+  herstel: RotateCcw,
+  // Werk buiten de eigen site: een vermelding, een profiel, een bron elders.
+  offsite: Globe,
 };

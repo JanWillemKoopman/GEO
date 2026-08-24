@@ -1,6 +1,13 @@
 import Link from "next/link";
 import { InfoHint } from "@/components/info-hint";
-import { groupWork, WORK_KIND_LABEL, WORK_STATE_LABEL, type WorkItem, type WorkState } from "@/lib/work";
+import {
+  groupWork,
+  workKindIcon,
+  WORK_KIND_LABEL,
+  WORK_STATE_LABEL,
+  type WorkItem,
+  type WorkState,
+} from "@/lib/work";
 import { Icon } from "@/components/icon";
 
 /**
@@ -44,7 +51,7 @@ export function WorkRow({
   return (
     <Link
       href={item.href}
-      className="group flex flex-col gap-1.5 rounded-[var(--radius-md)] border p-4 transition-all"
+      className="group flex gap-3 rounded-[var(--radius-md)] border p-4 transition-all"
       style={{
         borderColor: emphasis ? "var(--intent-intelligence-border)" : "var(--border-subtle)",
         background: "var(--bg-elevated)",
@@ -52,30 +59,40 @@ export function WorkRow({
         // te leggen (designsystem.md §A3: "de gloed doet het werk").
       }}
     >
-      <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <span className="font-medium">{item.title}</span>
-        <span className="mono-label shrink-0" style={{ fontSize: "0.62rem" }}>
-          {showAnalysis ? item.analysisName : WORK_KIND_LABEL[item.kind]}
+      {/* Dezelfde tekening als op het overzicht (`workKindIcon`): een regel over
+          een feitenvraag ziet er in de hele app hetzelfde uit, of hij nu in de
+          werklijst van één cluster staat of in de wachtrij op de startpagina.
+          In de leeskleur, nooit in de merkkleur. */}
+      <span className="pt-0.5 text-secondary">
+        <Icon naam={workKindIcon(item.kind)} size={18} />
+      </span>
+
+      <span className="flex min-w-0 flex-1 flex-col gap-1.5">
+        <span className="flex flex-wrap items-baseline justify-between gap-2">
+          <span className="font-semibold">{item.title}</span>
+          <span className="mono-label shrink-0" style={{ fontSize: "0.62rem" }}>
+            {showAnalysis ? item.analysisName : WORK_KIND_LABEL[item.kind]}
+          </span>
         </span>
-      </div>
 
-      <span className="text-sm text-secondary">{item.why}</span>
+        <span className="text-sm text-secondary">{item.why}</span>
 
-      {(item.meta || item.actionLabel) && (
-        <div className="mt-1 flex flex-wrap items-center gap-3">
-          {item.actionLabel && (
-            <span className="mono-label transition-colors group-hover:text-[var(--intent-intelligence-text)]">
-              {item.actionLabel}
-              <Icon naam="naar" size={12} />
-            </span>
-          )}
-          {item.meta && (
-            <span className="text-muted" style={{ fontSize: "0.75rem" }}>
-              {item.meta}
-            </span>
-          )}
-        </div>
-      )}
+        {(item.meta || item.actionLabel) && (
+          <span className="mt-1 flex flex-wrap items-center gap-3">
+            {item.actionLabel && (
+              <span className="mono-label inline-flex items-center gap-1 transition-colors group-hover:text-[var(--text-primary)]">
+                {item.actionLabel}
+                <Icon naam="naar" size={12} />
+              </span>
+            )}
+            {item.meta && (
+              <span className="text-muted" style={{ fontSize: "0.75rem" }}>
+                {item.meta}
+              </span>
+            )}
+          </span>
+        )}
+      </span>
     </Link>
   );
 }

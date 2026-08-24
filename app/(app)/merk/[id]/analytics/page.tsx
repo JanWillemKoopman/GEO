@@ -170,7 +170,11 @@ export default async function AnalyticsPage({
           </p>
         </div>
       ) : (
-        <div className="card flex flex-col gap-2">
+        // De stang links markeert het hoofdgetal van dit scherm, net als op het
+        // overzicht. Grijs en niet groen: hier staat geen zin bij die zegt of
+        // het cijfer echt gestegen is, en dan mag de kleur dat ook niet zeggen
+        // (`docs/designsystem.md` §5.5).
+        <div className="card card-rail flex flex-col gap-2">
           <span className="mono-label flex items-center gap-1">
             Zichtbaarheid over {merkScore.clusters === 1 ? "1 cluster" : `${merkScore.clusters} clusters`}
             <InfoHint label="Hoe is dit gerekend?">
@@ -178,7 +182,7 @@ export default async function AnalyticsPage({
               gemeten is. Een cluster met vijf metingen telt dus lichter mee dan een met negentig.
             </InfoHint>
           </span>
-          <span className="stat-value text-4xl">{Math.round(merkScore.waarde)}%</span>
+          <span className="stat-value text-5xl">{Math.round(merkScore.waarde)}%</span>
           {band && band.margin > 0 && (
             <span className="text-sm text-muted">
               Onzekerheidsmarge {Math.max(0, Math.round(band.low))}% tot{" "}
@@ -215,7 +219,7 @@ export default async function AnalyticsPage({
                     className="card card-interactive flex flex-wrap items-center justify-between gap-3"
                   >
                     <span className="min-w-0 flex-1">
-                      <span className="block truncate font-medium">{cluster.name}</span>
+                      <span className="block truncate font-semibold">{cluster.name}</span>
                       <span className="mono-label">
                         {reeks.length === 1 ? "1 meting" : `${reeks.length} metingen`}
                       </span>

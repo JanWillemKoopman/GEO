@@ -45,6 +45,7 @@
  *
  * Puur, dus testbaar (conventie 2).
  */
+import type { IcoonNaam } from "@/lib/icons";
 import { leesbaarWaarom } from "@/lib/recommendation-text";
 
 /** Waar een kans vandaan komt. Bepaalt de toon en de knop. */
@@ -54,6 +55,41 @@ export type OpportunitySource =
   | "techniek"      // een AI-crawler komt er niet in
   | "plan";         // een pagina die klaarstaat maar niet gepubliceerd is
 
+/**
+ * Wat je bij deze kans daadwerkelijk gaat doen.
+ *
+ * ── WAAROM DIT NAAST `source` STAAT EN ER NIET UIT AF TE LEIDEN IS ──────────
+ *
+ * `source` zegt waar de kans vandaan komt, en dat bepaalde tot 24 augustus 2026
+ * de volgorde. Maar één bron levert twee verschillende handelingen op: een
+ * aanbeveling uit de meting is óf een pagina die nog geschreven moet worden, óf
+ * een pagina die er al staat en bijgewerkt wordt. Op het overzicht van
+ * Gasservice Brabant stonden daardoor twaalf kaarten onder elkaar die er
+ * identiek uitzagen, terwijl de helft ervan om nieuw werk vroeg en de andere
+ * helft om een correctie op iets bestaands.
+ *
+ * Dit veld draagt dat verschil, en verder niets: het bepaalt het icoon
+ * (`OPPORTUNITY_ICON`) en raakt de sortering niet aan.
+ */
+export type OpportunityAction =
+  | "nieuwe_pagina"   // schrijven wat er nog niet is
+  | "pagina_bijwerken" // aanvullen wat er al staat
+  | "publiceren"      // geschreven en goedgekeurd, alleen nog online zetten
+  | "meten"           // onbekend terrein, eerst een meetronde
+  | "deblokkeren";    // de techniek staat alles in de weg
+
+/**
+ * Het icoon per handeling. Eén regel per betekenis, zoals `lib/icons.ts` regel 2
+ * voorschrijft: de koppeling valt hier één keer en niet in elk scherm opnieuw.
+ */
+export const OPPORTUNITY_ICON: Record<OpportunityAction, IcoonNaam> = {
+  nieuwe_pagina: "nieuwepagina",
+  pagina_bijwerken: "paginabijwerken",
+  publiceren: "publiceren",
+  meten: "meten",
+  deblokkeren: "letop",
+};
+
 export interface Opportunity {
   id: string;
   title: string;
@@ -62,6 +98,8 @@ export interface Opportunity {
   /** Wat je moet doen. Eén handeling, geen lijstje. */
   action: string;
   source: OpportunitySource;
+  /** Wat voor handeling dit is. Bepaalt het icoon, niet de volgorde. */
+  handeling: OpportunityAction;
   /**
    * Hoeveel gemeten vragen deze kans raakt. `null` = de aanbeveling draagt geen
    * doelvragen mee, en dan staat er geen getal op het scherm.
@@ -136,6 +174,7 @@ export function opportunities(input: OpportunityInput): Opportunity[] {
       why: "Je robots.txt houdt de crawlers van AI-assistenten tegen. Zolang dat zo is, levert elke pagina die ORBIT ENGINE schrijft niets op.",
       action: "Geef de AI-crawlers toegang in robots.txt",
       source: "techniek",
+      handeling: "deblokkeren",
       raakt: null,
       gemeten: null,
       share: null,
@@ -145,6 +184,11 @@ export function opportunities(input: OpportunityInput): Opportunity[] {
   }
 
   for (const [i, r] of input.recommendations.entries()) {
+    // ⚠️ Dezelfde voorwaarde als bij `action` hieronder, en dat is geen
+    // toeval: het icoon en de zin moeten hetzelfde beloven. Een blad met een
+    // pen erop naast "Laat ORBIT ENGINE deze pagina schrijven" is erger dan
+    // geen icoon.
+    const bijwerken = r.action === "verbeteren" && Boolean(r.existingUrl);
     const gewichten = (r.targets ?? [])
       .map((t) => (typeof t.weight === "number" ? t.weight : null))
       .filter((w): w is number => w !== null);
@@ -157,11 +201,11 @@ export function opportunities(input: OpportunityInput): Opportunity[] {
       // ⚠️ Het vangnet op de modeltekst (conventie 1). Zonder dit stond er "V1
       // en V2 hebben gewicht 0,60" op het scherm van de klant.
       why: leesbaarWaarom(r.why) ?? "",
-      action:
-        r.action === "verbeteren" && r.existingUrl
-          ? `Werk ${r.existingUrl} bij`
-          : "Laat ORBIT ENGINE deze pagina schrijven",
+      action: bijwerken
+        ? `Werk ${r.existingUrl} bij`
+        : "Laat ORBIT ENGINE deze pagina schrijven",
       source: "meting",
+      handeling: bijwerken ? "pagina_bijwerken" : "nieuwe_pagina",
       // Geen doelvragen betekent geen getal, niet nul: nul zou zeggen dat er
       // niets te winnen valt, en dat is iets anders dan "we weten het niet".
       raakt: doelvragen > 0 ? doelvragen : null,
@@ -185,6 +229,7 @@ export function opportunities(input: OpportunityInput): Opportunity[] {
       why: "Deze pagina's zijn geschreven en goedgekeurd. Zolang ze niet online staan, kan geen enkele AI-assistent ze vinden.",
       action: "Publiceer ze en markeer ze als geplaatst",
       source: "plan",
+      handeling: "publiceren",
       raakt: null,
       gemeten: null,
       share: null,
@@ -200,6 +245,7 @@ export function opportunities(input: OpportunityInput): Opportunity[] {
       why: "ORBIT ENGINE weet niet hoe zichtbaar je bent rond dit onderwerp, en kan er dus ook niet gericht over schrijven.",
       action: "Start de meting van dit onderwerp",
       source: "onderwerp",
+      handeling: "meten",
       raakt: null,
       gemeten: null,
       share: null,

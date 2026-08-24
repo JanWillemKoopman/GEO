@@ -5,8 +5,8 @@ wat ze zijn en wanneer je welke gebruikt. **Peildatum: 24 augustus 2026.** De vo
 op 6 augustus over op het systeem van de NOVA-workspace (volledige verantwoording in
 `designsystem.md`); deze datum volgt de gedragspatronen die daarna zijn bijgekomen (statustaal,
 foutafhandeling, de content-editie, op 21 augustus de iconen in de zijbalk, en op 24 augustus de
-indeling van het merkoverzicht, de regels voor een lange lijst en de uitvraag op "Vraagt jouw
-input", alle drie hieronder in §5).
+indeling van het merkoverzicht plus de vormgevingsronde erna, de regels voor een lange lijst en de
+uitvraag op "Vraagt jouw input", alle drie hieronder in §5).
 
 > **Voor de tékst in die schermen geldt `docs/schrijfstijl.md`**: de tone-of-voice van ORBIT ENGINE,
 > afgeleid van InSpace Nova. Dit document gaat over hoe iets eruitziet, dat over hoe het klinkt.
@@ -122,18 +122,20 @@ schermen die de gebruiker na elkaar ziet).
 | `.card` | Wit, één rand, **plat**. Geen schaduw, geen hover; een kaart die bij hover omhoog komt belooft interactie. |
 | `.card-interactive` | Alleen op daadwerkelijk klikbare kaarten (de lijstitems). Hier hoort de hover. |
 | `.card-accent` / `.card-danger` / `.card-success` / `.card-warning` | Getinte kaartranden. |
+| `.card-rail` / `.card-rail-success` / `.card-rail-warning` | De 4px-stang links op de kaart met het hoofdgetal van een scherm. **Eén per scherm**, anders markeert hij niets meer. De tint volgt de trend van dat getal: groen bij een echte stijging, oranje bij een echte daling, grijs zolang er geen oordeel is (nooit gemeten, eerste meting, of een verschil binnen de meetruis). Zie `designsystem.md` §5.5. |
 | `.btn-primary` / `.btn-outline` | Beide 40px, `--radius-md`, geen pil meer. `.btn-sm` = 32px, `.btn-lg` = 44px. |
 | `.btn-lg` | 44px, de aanbevolen minimale tikdoelgrootte (WCAG 2.5.5). Combineren met `.btn-primary`/`.btn-outline`, alleen op de ÉNE hoofdactie van een scherm dat vaak op een telefoon bediend wordt (bevestigen, publiceren, "schrijf alles"). Niet de standaard, anders verdwijnt de dichtheid die 40px juist opleverde. |
 | `.no-print` | Verbergt chrome (bovenbalk, hoofdstuk-rail, tabbladen, vaste actiebalken) in het printstijlblad onderaan `globals.css` (B.13). Het dossier IS het rapport, er is geen aparte printpagina. |
-| `.chip` + `-success` / `-danger` / `-warning` / `-info` / `-attention` / `-neutral` / `-green` | Pilvormig, sans, schrijftaal. Nooit met de hand een tint nabouwen. Dat gebeurde toch, in vijf componenten tegelijk; zie regel 1 hierboven en de `grep` die het nu tegenhoudt. |
+| `.chip` + `-success` / `-danger` / `-warning` / `-info` / `-attention` / `-neutral` / `-green` | `--radius-sm` (sinds 24 augustus 2026 geen pil meer), sans, gewicht 600, schrijftaal. Nooit met de hand een tint of een vorm nabouwen. Dat gebeurde toch, in vijf componenten tegelijk; zie regel 1 hierboven en de `grep` die het nu tegenhoudt. |
 | `.mono-label` | De kicker bóven een titel: klein, uppercase, **sans**. Heet nog "mono" omdat hij op tientallen plekken staat; hernoemen raakt te veel bestanden voor alleen een naam. |
-| `.stat-value` | Cijfers die je vergelijkt, in mono met `tabular-nums`. |
+| `.stat-value` | Cijfers die je vergelijkt, in mono met `tabular-nums`, gewicht 700. |
 | `.field` | Formuliervelden, 40px, wit met een rand, inclusief focusring. |
 | `.live-dot` | Pulserende indicator voor "loopt nu". |
 | `.skeleton` | Laadvlak, respecteert `prefers-reduced-motion`. |
 | `.prose` | Lange tekst (rapport, contentpagina). |
 | `.brand-gradient-text` | **Alleen het woordmerk ORBIT ENGINE.** Nergens anders. |
 | `PageHeader`, `EmptyState`, `Narrow` | Eén variant per patroon, geen lokale kopieën. |
+| `Icon` (`components/icon.tsx`) | Het enige icoon-component, nooit een los teken en nooit een eigen SVG. In een lijstregel: 18px, links van de titel, in de leeskleur (`text-secondary`) en nooit in de merkkleur. In een knop: 18px, vóór het label als de knop naar een plek gaat (het icoon van dat hoofdstuk), erna als hij vooruit gaat (`naar`). Zie `designsystem.md` §6b.3, regels 5 en 6. |
 | `ConfidenceChip` (`components/confidence-chip.tsx`) | Zekerheid is een **niveau**, nooit een getal: zeker (geen markering) · onzeker (amber) · niet vastgesteld (mono-label "niet gevonden"). "0.62" zegt een MKB'er niets. |
 | `CopyButton`, `ExternalLink`, `LastUpdated` (`components/`) | H.63-65: drie kleine primitieven tegen herhaling, klembord, "verlaat de app"-pijltje, relatieve datum met volledige datum als tooltip. Elke plek die zelf `navigator.clipboard` of `target="_blank"` opnieuw uittypte, hoort hierheen te verhuizen. |
 | `TableOfContents` (`components/table-of-contents.tsx`) | H.68: inhoudsopgave bij een contentpagina met 3+ koppen, gevoed door `extractHeadings()` in `lib/markdown.ts`. De ankers komen uit dezelfde functie die `renderMarkdown()` zijn `id`'s geeft, dus ze kunnen nooit uit de pas lopen. |
@@ -285,7 +287,8 @@ eigen blok meer maar staan ín de stand-kaart, en `lib/insights.ts` laat het get
 meting: daar staat het immers vlak boven. Bij twee metingen blijven de cijfers wél staan, want dan
 gaat de zin over het verschil en dat is nieuwe informatie.
 
-⚠️ **De chip achter een werkregel volgt de soort werk** (`workChipTone()` in `lib/work.ts`). Alle
+⚠️ **De chip achter een werkregel volgt de soort werk** (`workChipTone()` in `lib/work-kind.ts`,
+doorgegeven via `lib/work.ts`). Alle
 vijf de soorten stonden op `chip-warning`, waardoor "Bekijk wat er mis is" er precies zo uitzag als
 "Nakijken". §2: `attention` vraagt een keuze en is niet fout, `danger` is een blokkade of iets dat
 niet gelukt is. Een storing die eruitziet als een routineklus blijft liggen.
@@ -313,6 +316,27 @@ rapportmodel schreef "V1 en V2 hebben gewicht 0,60" in de zin die de klant leest
 Udenhout begon vijf van de zes aanbevelingen zo. De promptregel in `lib/pipeline/report.ts` verbiedt
 het, en dit is het vangnet in code ernaast (conventie 1). Blijft er niets over, dan staat er niets:
 een half afgebroken zin is erger dan geen zin.
+
+#### De vormgevingsronde erna, dezelfde dag
+
+De volgorde klopte, de vorm nog niet: twaalf witte kaarten met een dunne rand onder elkaar, waarvan
+de bovenste toevallig het hoofdgetal van het merk droeg. Zes ingrepen, allemaal terug te vinden in
+`designsystem.md`, geen ervan alleen op dit scherm van toepassing.
+
+| Wat | Waarom | Waar het vastligt |
+|---|---|---|
+| Een groene stang links op de stand-kaart | Het hoofdgetal zag eruit als de vijf kaarten eronder. De tint volgt de eerste zin van `insights()`, dus groen betekent "dit steeg écht" en niet "dit is een kaart" | `designsystem.md` §5.5 |
+| De inzichtregels kregen een gekleurde stip, en de zin werd weer zwart | De hele zin stond in groen of oranje. Drie regels waarvan er twee gekleurd zijn, leest als een foutmelding; en het teken • kwam uit de tekstlaag en zag er per platform anders uit | `designsystem.md` §6b.1 |
+| Elke regel in "wacht op jou" en "waar begin je" kreeg een icoon | Twaalf kansen die alleen in hun tekst verschilden. Het icoon draagt het verschil tussen een nieuwe pagina en een bestaande die bijgewerkt wordt, vóór de eerste letter | `designsystem.md` §6b.3, regel 5 |
+| Iconen en de handeling onderaan een kaart in de leeskleur, niet in paars | Twaalf paarse regels onder elkaar maken van een lijst een muur van gelijkwaardige hoofdacties | `designsystem.md` §6b.3, regel 6 |
+| Kaarttitels van 500 naar 600, het hoofdgetal naar 700 | Titel en toelichting leken even zwaar; het cijfer dat het antwoord van het scherm is, was niet het zwaarste element van zijn kaart | `designsystem.md` §3.1 |
+| De potentiechip rechts uitgelijnd, en minder rond | Hij draagt het getal waarop de lijst gesorteerd is, dus hij hoort in één kolom te staan en niet achter elke titel op een andere plek | `designsystem.md` §5.1 |
+
+⚠️ **Vier van de zes gelden voor de hele app en niet voor dit scherm.** De chipvorm, de gewichten
+en de twee icoonregels staan in `globals.css` en in gedeelde componenten, en zijn in dezelfde ronde
+doorgevoerd op `/merk/[id]/analytics` (hetzelfde hoofdgetal, dezelfde stang) en op `WorkRow`
+(dezelfde werkregels, dezelfde iconen). Een vormgevingsregel die maar op één scherm geldt, is geen
+regel maar een uitzondering, en die groeien vanzelf terug uit elkaar.
 
 ### De fase van een merk (19 augustus 2026)
 
@@ -681,7 +705,9 @@ niets van elkaar wisten, dashboard-acties, rapport-aanbevelingen, off-site taken
 pagina in de bibliotheek en de feitenvragen, elk met eigen woorden, kleuren en volgorde.
 
 - `WorkKind` (`blokkade` · `goedkeuring` · `herstel` · `feit` · `pagina` · `offsite`) is alleen
-  een etiket.
+  een etiket. Het etiket, de tint van de chip (`workChipTone`) en de tekening ervoor
+  (`workKindIcon`) staan sinds 24 augustus 2026 in `lib/work-kind.ts`, een pure module zonder
+  `server-only`, zodat `scripts/test-unit.ts` erbij kan; `lib/work.ts` geeft ze onveranderd door.
 - `WorkState` bepaalt de volgorde op het scherm: **`nu`** (klant moet iets) → **`loopt`** (wij zijn
   bezig) → **`wacht`** (gedaan, resultaat duurt weken) → **`klaar`**.
 

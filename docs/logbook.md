@@ -4344,3 +4344,57 @@ regel er weer voor niets.
 Geen migratie: `fact_requests` had alles al, en de unieke index op (`profile_id`, `question`) maakt
 de omzetting vanzelf idempotent. Samen met de twee rondes hierboven op main: 2180 unittests en 303
 ketentests groen.
+
+---
+
+## De vormgevingsronde op het overzicht (24 augustus 2026)
+
+Het overzicht was diezelfde dag al opnieuw ingedeeld: stand, wat op je wacht, waar je begint, en pas
+daarna de verdieping (`ux-design.md` §5). De volgorde klopte toen, de vorm nog niet. Op het scherm
+van Gasservice Brabant stonden **twaalf witte kaarten met een dunne rand onder elkaar**, waarvan de
+bovenste toevallig het hoofdgetal van het merk droeg. Wie het scherm scande zag geen hiërarchie: de
+zichtbaarheid van 57% had exact dezelfde omlijning als de derde kans van onderen.
+
+**Zes ingrepen, en vier ervan gelden voor de hele app.** Dat is bewust: een vormgevingsregel die
+maar op één scherm geldt is geen regel maar een uitzondering, en die groeien vanzelf terug uit
+elkaar (§dezelfde reden als bij de 30 handgebouwde inline-stijlen over 17 bestanden).
+
+1. **Een gekleurde stang van 4px links op de kaart met het hoofdgetal** (`.card-rail*`,
+   `designsystem.md` §5.5). De tint volgt de eerste zin van `insights()`, dus groen betekent "dit
+   cijfer steeg écht, boven de meetruis" en niet "dit is een kaart". Zonder oordeel, bij een eerste
+   meting of een verschil binnen de ruis, blijft hij grijs: hij markeert dan wél waar je moet
+   kijken en belooft niets over de richting. Ook toegepast op `/merk/[id]/analytics`, waar hetzelfde
+   getal staat.
+2. **De drie inzichtregels kregen een gekleurde stip en hun zin terug in zwart.** De hele zin stond
+   in groen of oranje; drie regels waarvan er twee gekleurd zijn, leest als een foutmelding. Het
+   opsomteken zelf was bovendien het letterteken •, en dat is precies de fout die `lib/icons.ts`
+   ooit heeft opgeruimd: het kwam uit de tekstlaag, erfde de regelhoogte en zag er per platform
+   anders uit. De stip is nu een getekend vlakje met een vaste maat.
+3. **Elke regel in "wacht op jou" en "waar begin je" kreeg een icoon.** Twaalf kansen die alleen in
+   hun tekst verschilden lieten je drie keer hetzelfde begin lezen ("Maak een nieuwe pagina over…",
+   "Verbeter de pagina over…") voordat je het verschil vond. Acht nieuwe betekenissen in
+   `lib/icons.ts` (35 in totaal), gekoppeld via `OPPORTUNITY_ICON` (`lib/opportunities.ts`) en
+   `workKindIcon` (`lib/work-kind.ts`). Beide koppelingen zijn getest: een handeling zonder
+   tekening rendert een gat op precies de plek waar de klant kijkt.
+4. **Iconen en de handeling onderaan een kaart staan in de leeskleur, niet in paars.** Paars is in
+   dit product de kleur van de primaire knop. Twaalf paarse regels onder elkaar maken van een lijst
+   een muur van gelijkwaardige hoofdacties, en trekken de blik naar de linkerrand terwijl de titel
+   het antwoord draagt.
+5. **De gewichten kregen een schaal** (`designsystem.md` §3.1): 700 voor de paginakop en het
+   hoofdgetal, 600 voor kaarttitels, 400 voor lopende tekst. Kaarttitels stonden op 500, precies
+   één halve stap boven de zin eronder, en `.stat-value` had helemaal geen gewicht en erfde dus dat
+   van de alinea ernaast.
+6. **Chips zijn geen pillen meer** maar staan op `--radius-sm` (`designsystem.md` §5.1), en de
+   potentiechip is rechts uitgelijnd op de titelregel. Pilvormig was hij het enige ronde element in
+   een scherm vol vlakken van 6, 8 en 12 pixels; rechts uitgelijnd staat het getal waarop de lijst
+   gesorteerd is in één kolom in plaats van achter elke titel op een andere plek. Eén regel in
+   `app/globals.css`, en daarmee in één keer voor alle chips in de app.
+
+**Eén ding verhuisde onderweg.** `WorkKind`, het etiket, `workChipTone()` en de nieuwe
+`workKindIcon()` stonden in `lib/work.ts`, en dat bestand begint met `import "server-only"` omdat
+het uit vijf tabellen leest. Ze zijn nu `lib/work-kind.ts`, puur en importeerbaar (conventie 2).
+Gevolg: `workChipTone()` heeft na drie weken zijn eerste test, en die bewaakt een zichtbaarheidsregel
+die er echt toe doet: "bekijk wat er mis is" mag er niet uitzien als "beantwoorden". `lib/work.ts`
+geeft alles onveranderd door, dus voor de rest van de app veranderde er geen import.
+
+Geen migratie, geen AI-aanroep, geen kosten. 2195 unittests (15 erbij) en 303 ketentests groen.
