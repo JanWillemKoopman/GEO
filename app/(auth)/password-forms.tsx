@@ -1,6 +1,8 @@
 "use client";
 
 import { useActionState } from "react";
+import { Lock, Mail } from "lucide-react";
+import { AuthLabel } from "./auth-card";
 import { requestPasswordReset, updatePassword, type AuthState } from "./actions";
 
 /**
@@ -10,12 +12,17 @@ import { requestPasswordReset, updatePassword, type AuthState } from "./actions"
  * registreren met één e-mail- en één wachtwoordveld. Herstel heeft één keer
  * alleen een e-mailveld en één keer twee wachtwoordvelden, en dat er met vlaggen
  * in wringen levert een component op dat vier vormen kent en geen ervan goed.
+ *
+ * De maatvoering is sinds 24 augustus 2026 dezelfde als die van het
+ * inlogformulier: velden van 48 pixels met een icoon erin, een knop van 50.
+ * Wie hier belandt komt van het inlogscherm, en twee formaten formulier achter
+ * elkaar leest als twee verschillende producten.
  */
 
 function ErrorLine({ error }: { error: string | null }) {
   if (!error) return null;
   return (
-    <p className="text-sm text-[var(--status-error)]" role="alert">
+    <p className="-mt-4 text-sm text-[var(--status-error)]" role="alert">
       {error}
     </p>
   );
@@ -27,26 +34,33 @@ export function PasswordResetRequestForm() {
   });
 
   return (
-    <form action={formAction} className="flex flex-col gap-4">
-      <label className="flex flex-col gap-1.5">
-        <span className="mono-label">E-mail</span>
-        <input
-          type="email"
-          name="email"
-          required
-          autoComplete="email"
-          placeholder="jij@bedrijf.nl"
-          className="field"
-        />
-      </label>
+    <form action={formAction} className="flex flex-col gap-[30px]">
+      <div className="flex flex-col gap-2.5">
+        <AuthLabel htmlFor="herstel-email" required>
+          Werk-e-mailadres
+        </AuthLabel>
+        <div className="relative">
+          <Mail
+            size={16}
+            strokeWidth={1.75}
+            aria-hidden="true"
+            className="pointer-events-none absolute left-[15px] top-1/2 -translate-y-1/2 text-muted"
+          />
+          <input
+            id="herstel-email"
+            type="email"
+            name="email"
+            required
+            autoComplete="email"
+            placeholder="jij@bedrijf.nl"
+            className="auth-field"
+          />
+        </div>
+      </div>
 
       <ErrorLine error={state.error} />
 
-      <button
-        type="submit"
-        disabled={pending}
-        className="btn-primary mt-1 w-full disabled:opacity-60"
-      >
+      <button type="submit" disabled={pending} className="auth-submit -mt-1">
         {pending ? "Versturen…" : "Stuur me een herstel-link"}
       </button>
     </form>
@@ -59,40 +73,58 @@ export function NewPasswordForm() {
   });
 
   return (
-    <form action={formAction} className="flex flex-col gap-4">
-      <label className="flex flex-col gap-1.5">
-        <span className="mono-label">Nieuw wachtwoord</span>
-        <input
-          type="password"
-          name="password"
-          required
-          minLength={8}
-          autoComplete="new-password"
-          placeholder="minimaal 8 tekens"
-          className="field"
-        />
-      </label>
+    <form action={formAction} className="flex flex-col gap-[30px]">
+      <div className="flex flex-col gap-2.5">
+        <AuthLabel htmlFor="nieuw-wachtwoord" required>
+          Nieuw wachtwoord
+        </AuthLabel>
+        <div className="relative">
+          <Lock
+            size={16}
+            strokeWidth={1.75}
+            aria-hidden="true"
+            className="pointer-events-none absolute left-[15px] top-1/2 -translate-y-1/2 text-muted"
+          />
+          <input
+            id="nieuw-wachtwoord"
+            type="password"
+            name="password"
+            required
+            minLength={8}
+            autoComplete="new-password"
+            placeholder="Minimaal 8 tekens"
+            className="auth-field"
+          />
+        </div>
+      </div>
 
-      <label className="flex flex-col gap-1.5">
-        <span className="mono-label">Nogmaals</span>
-        <input
-          type="password"
-          name="password_repeat"
-          required
-          minLength={8}
-          autoComplete="new-password"
-          placeholder="herhaal het wachtwoord"
-          className="field"
-        />
-      </label>
+      <div className="flex flex-col gap-2.5">
+        <AuthLabel htmlFor="nieuw-wachtwoord-nogmaals" required>
+          Nogmaals
+        </AuthLabel>
+        <div className="relative">
+          <Lock
+            size={16}
+            strokeWidth={1.75}
+            aria-hidden="true"
+            className="pointer-events-none absolute left-[15px] top-1/2 -translate-y-1/2 text-muted"
+          />
+          <input
+            id="nieuw-wachtwoord-nogmaals"
+            type="password"
+            name="password_repeat"
+            required
+            minLength={8}
+            autoComplete="new-password"
+            placeholder="Herhaal het wachtwoord"
+            className="auth-field"
+          />
+        </div>
+      </div>
 
       <ErrorLine error={state.error} />
 
-      <button
-        type="submit"
-        disabled={pending}
-        className="btn-primary mt-1 w-full disabled:opacity-60"
-      >
+      <button type="submit" disabled={pending} className="auth-submit -mt-1">
         {pending ? "Opslaan…" : "Wachtwoord opslaan"}
       </button>
     </form>

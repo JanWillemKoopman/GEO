@@ -1,5 +1,5 @@
 import { NewPasswordForm } from "../password-forms";
-import { AuthPanel } from "../auth-panel";
+import { AuthCard } from "../auth-card";
 
 export const metadata = { title: "Nieuw wachtwoord" };
 
@@ -12,10 +12,12 @@ export const metadata = { title: "Nieuw wachtwoord" };
  */
 export default function NieuwWachtwoordPage() {
   return (
-    <AuthPanel>
-      <h1 className="mb-1 text-xl font-bold">Nieuw wachtwoord</h1>
-      <p className="mb-6 text-sm text-secondary">Kies een wachtwoord van minstens 8 tekens.</p>
+    <AuthCard
+      eyebrow="Nieuw wachtwoord"
+      title="Kies je wachtwoord"
+      intro="Kies een wachtwoord van minstens 8 tekens. Daarna log je er meteen mee in."
+    >
       <NewPasswordForm />
-    </AuthPanel>
+    </AuthCard>
   );
 }

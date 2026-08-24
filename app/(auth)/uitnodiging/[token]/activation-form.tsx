@@ -22,11 +22,9 @@ import { Icon } from "@/components/icon";
 export function ActivationForm({
   token,
   email,
-  accountName,
 }: {
   token: string;
   email: string;
-  accountName: string | null;
 }) {
   const router = useRouter();
   const [password, setPassword] = useState("");
@@ -66,16 +64,6 @@ export function ActivationForm({
 
   return (
     <form onSubmit={verstuur} className="flex flex-col gap-5" noValidate>
-      <div className="flex flex-col gap-2">
-        <span className="mono-label">Uitnodiging</span>
-        <h1 className="text-2xl font-bold tracking-tight">Welkom bij ORBIT ENGINE</h1>
-        <p className="text-secondary">
-          {accountName
-            ? `Je werkruimte voor ${accountName} staat klaar. Kies een wachtwoord en je kunt erin.`
-            : "Je werkruimte staat klaar. Kies een wachtwoord en je kunt erin."}
-        </p>
-      </div>
-
       {/* Het adres staat vast: de link is daar aangekomen, dus dat adres is
           bewezen. Wijzigen zou van een uitnodiging een manier maken om op een
           willekeurig adres een account te openen. */}

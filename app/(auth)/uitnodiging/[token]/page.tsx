@@ -2,7 +2,7 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import { lookupInvite } from "@/lib/invites";
 import { ActivationForm } from "./activation-form";
-import { AuthPanel } from "../../auth-panel";
+import { AuthCard } from "../../auth-card";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "Uitnodiging" };
@@ -35,9 +35,17 @@ export default async function InvitePage({
 
   if (state === "geldig" && invite) {
     return (
-      <AuthPanel>
-        <ActivationForm token={token} email={invite.email} accountName={accountName} />
-      </AuthPanel>
+      <AuthCard
+        eyebrow="Uitnodiging"
+        title="Welkom bij ORBIT ENGINE"
+        intro={
+          accountName
+            ? `Je werkruimte voor ${accountName} staat klaar. Kies een wachtwoord en je kunt erin.`
+            : "Je werkruimte staat klaar. Kies een wachtwoord en je kunt erin."
+        }
+      >
+        <ActivationForm token={token} email={invite.email} />
+      </AuthCard>
     );
   }
 
@@ -66,15 +74,10 @@ export default async function InvitePage({
   const scherm = schermen[state as keyof typeof schermen];
 
   return (
-    <AuthPanel>
-      <div className="flex flex-col gap-4">
-        <span className="mono-label">Uitnodiging</span>
-        <h1 className="text-2xl font-bold tracking-tight">{scherm.title}</h1>
-        <p className="text-secondary">{scherm.body}</p>
-        <Link href="/login" className="btn-primary w-fit">
-          Naar inloggen
-        </Link>
-      </div>
-    </AuthPanel>
+    <AuthCard eyebrow="Uitnodiging" title={scherm.title} intro={scherm.body}>
+      <Link href="/login" className="auth-submit">
+        Naar inloggen
+      </Link>
+    </AuthCard>
   );
 }

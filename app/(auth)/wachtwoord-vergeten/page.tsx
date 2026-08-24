@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { PasswordResetRequestForm } from "../password-forms";
-import { AuthPanel } from "../auth-panel";
+import { AuthCard } from "../auth-card";
 
 export const metadata = { title: "Wachtwoord vergeten" };
 
@@ -12,26 +12,25 @@ export default async function WachtwoordVergetenPage({
   const { verlopen } = await searchParams;
 
   return (
-    <AuthPanel>
-      <h1 className="mb-1 text-xl font-bold">Wachtwoord vergeten</h1>
+    <AuthCard
+      eyebrow="Wachtwoord herstellen"
+      title="Wachtwoord vergeten"
+      intro="Vul je e-mailadres in. Staat er een account op dat adres, dan is er binnen een minuut een link onderweg waarmee je een nieuw wachtwoord kiest."
+      footer={
+        <Link href="/login" className="font-bold text-ink hover:underline">
+          Terug naar inloggen
+        </Link>
+      }
+    >
       {verlopen && (
         <p
-          className="mb-4 rounded-[var(--radius-md)] border border-[var(--border-subtle)] px-4 py-3 text-sm text-[var(--status-warning)]"
+          className="mb-[30px] rounded-[10px] border border-[var(--intent-warning-border)] bg-[var(--intent-warning-surface)] px-4 py-3 text-sm text-[var(--intent-warning-text)]"
           role="alert"
         >
           Die herstel-link is verlopen of al gebruikt. Vraag hieronder een nieuwe aan.
         </p>
       )}
-      <p className="mb-6 text-sm text-secondary">
-        Vul je e-mailadres in. Staat er een account op dat adres, dan is er binnen een minuut een
-        link onderweg waarmee je een nieuw wachtwoord kiest.
-      </p>
       <PasswordResetRequestForm />
-      <p className="mt-4 text-center text-sm text-secondary">
-        <Link href="/login" className="text-[var(--intent-intelligence-text)] hover:underline">
-          Terug naar inloggen
-        </Link>
-      </p>
-    </AuthPanel>
+    </AuthCard>
   );
 }
