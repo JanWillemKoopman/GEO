@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { InfoHint } from "@/components/info-hint";
 import { ErrorNotice, problemFromResponse, networkProblem } from "@/components/error-notice";
 import type { UserFacingError } from "@/lib/errors";
@@ -21,6 +22,7 @@ import type { FactRequest } from "@/lib/types/database";
  * die je mág beantwoorden is een uitnodiging.
  */
 export function FactRequests({ profileId, initial }: { profileId: string; initial: FactRequest[] }) {
+  const router = useRouter();
   const [facts, setFacts] = useState(initial);
   const [problem, setProblem] = useState<UserFacingError | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
@@ -49,6 +51,11 @@ export function FactRequests({ profileId, initial }: { profileId: string; initia
       }
       const updated = (await res.json()) as FactRequest;
       setFacts((fs) => fs.map((f) => (f.id === factId ? updated : f)));
+      // De teller staat in de paginakop en die is server-gerenderd. Zonder deze
+      // verversing zegt de kop "10 open" terwijl je de tiende net beantwoord
+      // hebt, en dan is de teller precies zo betrouwbaar als een teller die
+      // nooit klopt.
+      router.refresh();
     } catch (err) {
       setProblem(networkProblem(err));
     } finally {
@@ -149,15 +156,20 @@ function FactCard({
   const [answer, setAnswer] = useState("");
 
   return (
-    <li className="flex flex-col gap-2 rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--bg-elevated)] p-3">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="font-medium">{fact.question}</p>
-        {skipped && <span className="chip chip-neutral shrink-0">Overgeslagen</span>}
+    // ⚠️ Op desktop staat de vraag naast het invoerveld en niet erboven. Met tien
+    // vragen scheelt dat twee schermhoogtes, en een lijst die in één beeld past
+    // lees je als een lijst; een lijst die je moet scrollen lees je als werk.
+    <li className="flex flex-col gap-2 rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--bg-elevated)] p-3 lg:flex-row lg:items-center lg:gap-6">
+      <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+        <div className="flex flex-wrap items-center gap-2">
+          <p className="font-medium">{fact.question}</p>
+          {skipped && <span className="chip chip-neutral shrink-0">Overgeslagen</span>}
+        </div>
+        {fact.reason && <p className="text-sm text-muted">{fact.reason}</p>}
       </div>
-      {fact.reason && <p className="text-sm text-muted">{fact.reason}</p>}
 
       <form
-        className="flex flex-col gap-2 sm:flex-row"
+        className="flex shrink-0 flex-col gap-2 sm:flex-row lg:w-[26rem]"
         onSubmit={(e) => {
           e.preventDefault();
           const value = answer.trim();
@@ -165,7 +177,7 @@ function FactCard({
         }}
       >
         <input
-          className="field flex-1"
+          className="field min-w-0 flex-1"
           value={answer}
           onChange={(e) => setAnswer(e.target.value)}
           placeholder="Jouw antwoord…"

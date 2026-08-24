@@ -987,6 +987,13 @@ export interface FactRequest {
   status: FactRequestStatus;
   answered_at: string | null;
   created_at: string;
+  /**
+   * De herkomst van de rij (migratie 0024). Optioneel, want de meeste plekken
+   * hebben hem niet nodig en lang niet elke rij vult hem. `bron:
+   * 'synthese-gap'` markeert een open punt uit de synthese, en dat bepaalt hoe
+   * het antwoord wordt opgeslagen (`isGapQuestion()`).
+   */
+  raw_json?: { bron?: string } | null;
 }
 
 /**

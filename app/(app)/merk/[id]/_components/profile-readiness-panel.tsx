@@ -48,7 +48,6 @@ interface StatusPayload {
     baselineRows: number;
     dossier: boolean;
     openFactRequests: number;
-    researchGaps: number;
     scopeKnown: boolean;
     scopeDetail: string | null;
   };

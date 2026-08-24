@@ -29,6 +29,8 @@
  * kost, van duur naar goedkoop.
  */
 
+import { BRAND_FIELDS, CLIENT_STEPS } from "@/lib/pipeline/brand-fields";
+
 /** Eén open punt: wat er ontbreekt, en wat invullen oplevert. */
 export interface ProfileGap {
   /** De kolom waar dit punt over gaat. Sleutel voor de springlink en voor n.v.t. */
@@ -121,4 +123,23 @@ export function findGaps(
   return gaps
     .filter((g) => !nvt.has(g.field))
     .sort((a, b) => b.weight - a.weight);
+}
+
+/**
+ * Waar de knop "Invullen" bij een open punt heen wijst.
+ *
+ * ⚠️ De wizard toont maar één stap tegelijk, dus een anker alléén is niet
+ * genoeg: `proof_points` staat in stap 7 en het anker zou landen op een veld dat
+ * niet in beeld staat. Vandaar de stap in de querystring én het anker erachter.
+ *
+ * Staat het veld niet in de klantstappen, dan is er niets om heen te wijzen en
+ * geeft deze functie `null` terug. Een knop naar een scherm waar het veld niet
+ * staat is een dood einde, en dat is zichtbaarder dan geen knop
+ * (`docs/ux-design.md` §5). Een unittest bewaakt dat elk gat een bestemming
+ * heeft.
+ */
+export function gapLink(profileId: string, field: string): string | null {
+  const definitie = BRAND_FIELDS.find((f) => (f.key as string) === field);
+  if (!definitie || !CLIENT_STEPS.includes(definitie.step)) return null;
+  return `/merk/${profileId}/merkprofiel/bewerken?stap=${definitie.step}#veld-anker-${field}`;
 }

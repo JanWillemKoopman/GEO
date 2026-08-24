@@ -103,17 +103,13 @@ export async function GET(
     },
   });
 
-  // De synthese draagt de open punten die het onderzoek zélf niet kon
-  // vaststellen. Ze staan in dezelfde rij als de samenvatting, dus dit is geen
-  // extra query maar een tweede blik op wat er al opgehaald is.
+  // ⚠️ De open punten uit de synthese worden hier NIET meer apart geteld. Ze
+  // stonden in `raw_json.gaps` en werden als tweede getal naast de feitenvragen
+  // gezet, maar sinds 24 augustus 2026 zijn het gewone `fact_requests`
+  // (`lib/pipeline/gap-questions.ts`). Ze zaten dan twee keer in dezelfde
+  // agenda, en de telling uit `raw_json` bleef bovendien staan nadat de klant
+  // de vraag had beantwoord: een getal dat nooit meer nul werd.
   const synthese = (facetRows ?? []).find((r) => r.facet === "synthese");
-  const researchGaps = Array.isArray(
-    (synthese as { raw_json?: { gaps?: unknown } } | undefined)?.raw_json?.gaps,
-  )
-    ? ((synthese as { raw_json: { gaps: unknown[] } }).raw_json.gaps.filter(
-        (g) => typeof g === "string" && g.trim().length > 0,
-      ).length as number)
-    : 0;
 
   return NextResponse.json({
     status: profile.status,
@@ -137,7 +133,6 @@ export async function GET(
       baselineRows: baselineRows ?? 0,
       dossier: Boolean(synthese?.summary),
       openFactRequests: openFacts ?? 0,
-      researchGaps,
       // Het werkgebied (spoor R6). Zonder dit veld vuurt de regionale
       // promptregel niet, en dan meet een lokaal merk vragen die het per
       // definitie niet kan winnen. Zie lib/pipeline/field-merge.ts.

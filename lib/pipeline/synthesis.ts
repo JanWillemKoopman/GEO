@@ -37,6 +37,7 @@ import { ProfileSynthesis } from "@/lib/schemas/synthesis";
 import { claimKey } from "@/lib/pipeline/factcard";
 import { remainingBudgetUsd } from "@/lib/pipeline/onboarding-budget";
 import { quoteOnPage } from "@/lib/pipeline/quote-check";
+import { gapQuestions, GAP_SOURCE } from "@/lib/pipeline/gap-questions";
 import { synthesisPremium } from "@/lib/config";
 import type {
   Profile,
@@ -56,6 +57,7 @@ const ESTIMATED_COST_SOL = 0.6;
 
 export interface SynthesisResult {
   facts: number;
+  /** Hoeveel open punten als beantwoordbare vraag zijn weggeschreven. */
   gaps: number;
   skipped: boolean;
   costUsd: number;
@@ -231,12 +233,62 @@ export async function synthesiseProfile(
     { onConflict: "profile_id,facet" },
   );
 
+  // De open punten worden vragen die de klant kán beantwoorden. Ze stonden tot
+  // 24 augustus 2026 alleen in `raw_json` en verschenen als platte tekst op
+  // "Vraagt jouw input": tien regels onder de kop "10 open", zonder één
+  // invoerveld eronder. Als rij in `fact_requests` pakt het bestaande scherm ze
+  // op via de route die er al lag.
+  const gesteld = await storeGapQuestions(admin, profileId, parsed.gaps);
+
   return {
     facts: bewaard,
-    gaps: parsed.gaps.length,
+    gaps: gesteld,
     skipped: false,
     costUsd: result.costUsd,
   };
+}
+
+/**
+ * De open punten als merkbrede feitenvragen wegschrijven.
+ *
+ * ⚠️ Eén voor één en fouttolerant, net als bij het merkdossier: de unieke index
+ * op (profile_id, question) betekent dat een botsing "die vraag staat er al"
+ * is en geen storing. Dat is precies wat een herdraai van deze stap idempotent
+ * maakt (conventie 9).
+ */
+async function storeGapQuestions(
+  admin: ReturnType<typeof createAdminClient>,
+  profileId: string,
+  gaps: string[],
+): Promise<number> {
+  const vragen = gapQuestions(gaps);
+  let bewaard = 0;
+
+  for (const vraag of vragen) {
+    const { error } = await admin.from("fact_requests").insert({
+      profile_id: profileId,
+      // Merkbreed: dit punt kwam uit het onderzoek naar het merk, niet uit één
+      // cluster. Vragen mét `analysis_id` horen bij hoofdstuk 03 van dát
+      // cluster, en die scheiding is op 14 augustus 2026 bewust aangebracht.
+      analysis_id: null,
+      question: vraag.question,
+      reason: vraag.reason,
+      status: "open",
+      scope: "merk",
+      content_piece_ids: [],
+      kind: "aanvulling",
+      answer_type: vraag.answerType,
+      options: [],
+      suggested_answer: null,
+      required: false,
+      // Het merkje waaraan de facts-route ziet dat dit antwoord geen tweede
+      // kopie in `proof_points` hoort te krijgen, zie `isGapQuestion()`.
+      raw_json: { bron: GAP_SOURCE } as never,
+    });
+    if (!error) bewaard++;
+  }
+
+  return bewaard;
 }
 
 /**

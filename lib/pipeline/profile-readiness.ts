@@ -58,10 +58,15 @@ export interface ReadinessInput {
   auditChecks: number;
   baselineRows: number;
   dossier: boolean;
-  /** Feitvragen die de klant nog niet beantwoordde of oversloeg. */
+  /**
+   * Feitvragen die de klant nog niet beantwoordde of oversloeg.
+   *
+   * ⚠️ Hier zitten sinds 24 augustus 2026 ook de open punten uit de synthese in.
+   * Die stonden tot dan als losse telling naast deze rij, terwijl ze nu gewone
+   * `fact_requests` zijn (`lib/pipeline/gap-questions.ts`). Twee rijen die
+   * hetzelfde tellen zouden elke agenda dubbel opschrijven.
+   */
   openFactRequests: number;
-  /** Wat het onderzoek zelf niet kon vaststellen (synthese). */
-  researchGaps: number;
   /**
    * Staat het werkgebied vast? `service_scope` gevuld, en bij 'lokaal' ook
    * minstens één regio. Zie de regel "Werkgebied vastgesteld" hieronder.
@@ -192,19 +197,11 @@ export function assessReadiness(input: ReadinessInput): Readiness {
       `/merk/${p}/merkprofiel/bewerken`,
       stepRunning(s, "profile_research"),
     ),
-    // Vanaf hier: scherper, niet noodzakelijk. Deze twee blokkeren nooit.
+    // Vanaf hier: scherper, niet noodzakelijk. Deze rij blokkeert nooit.
     row(
       "Vragen aan de klant beantwoord",
       input.openFactRequests === 0,
       "Alle vragen gehad",
-      false,
-      `/merk/${p}/merkprofiel/input`,
-      false,
-    ),
-    row(
-      "Open punten uit het onderzoek",
-      input.researchGaps === 0,
-      "Niets open",
       false,
       `/merk/${p}/merkprofiel/input`,
       false,

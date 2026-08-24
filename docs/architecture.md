@@ -14,6 +14,9 @@ Voor UI/UX: `ux-design.md`.
 > `docs/logbook.md`. De tweede run draaide op de herziene opzet: de open marktvraag in plaats van de
 > benoemde vergelijking als hoofdmechanisme, drie herhalingen op de merkbrede vragen, en de
 > verdeling naast het gemiddelde.
+> **Bijgewerkt op 24 augustus 2026**: de gespreksagenda uit de synthese landt nu als
+> beantwoordbare vragen in `fact_requests` (§3 en §5, stap 4e), en de statusroute telt de open
+> punten niet meer apart naast die vragen.
 > De rest van de peildatum hieronder blijft staan.
 > **Migraties `0058` en `0059` zijn er sindsdien bijgekomen** en staan wél in §12 en in dit
 > document verwerkt, maar de rest is niet opnieuw regel voor regel nagelopen. Verder geldt:
@@ -125,7 +128,7 @@ probleem dan een dollar.
 | `reports` | Rapport per periode + trend. `stripped_claims_json` = audit-trail van door de claimvalidator verwijderde zinnen. |
 | `brand_facts` | De feitenbank (`0036`). Elk feit heeft een `fact_key` (identiteit, geen positie), een scope (merkbreed / per analyse) en `superseded_by` in plaats van overschrijven. |
 | `brand_documents` | Door de klant geplakte brontekst + sha256-hash, met `facts_extracted`/`facts_rejected`. |
-| `fact_requests` | De briefingvragen aan de klant, max 8 per batch. `scope: 'merk'` slaat op met `analysis_id = null`. |
+| `fact_requests` | De briefingvragen aan de klant, max 8 per batch. `scope: 'merk'` slaat op met `analysis_id = null`. Ook de open punten uit de synthese staan hier, herkenbaar aan `raw_json.bron = 'synthese-gap'`; dat merkje bepaalt dat hun antwoord géén tweede regel in `profiles.proof_points` krijgt (het bereikt de schrijver al via `buildFactBase()`, en dan mét de juiste bron). |
 | `content_pieces` | Gegenereerde pagina's. Versiebeheer per (analyse, titel) via `version`/`is_current`/`supersedes_id`, plus `briefing_snapshot_json`, `claims_json`, `source_coverage`, `quality_score`, `geo_score`, `needs_review`, `reviewed_at`/`reviewed_by`. `faq_json` is sinds de content-editie (§5, stap 16) ook door de klant bewerkbaar via de PATCH-route, niet alleen door het model. |
 | `content_impact` | Hermeetgolven na publicatie + statistisch verdict. |
 | `technical_audits` | Kunnen AI-crawlers de site bereiken (robots.txt vs GPTBot, CCBot, …). Geen AI. |
@@ -226,7 +229,7 @@ Bron: `lib/jobs/{types,queue,worker,handlers,pending}.ts`.
 | 4b | Core topics | luna | `propose-topics.ts`: 5–8 onderwerpen uit de aanbodboom, elk met verwijzing naar de knopen waar ze uit volgen. Voorstel, geen meting, goedkeuring is een aparte handeling. |
 | 4c | Markt | luna, web_search | `market.ts`: per concurrent wáárom die wint, plus het bronnenlandschap van de markt. |
 | 4d | LLM-kennisbasislijn | luna, deels web_search | `llm-baseline.ts`: vijf blokken (`kent`, `klopt`, `citeert`, `verwarring`, `categorie`). `kent` stelt **zes** formuleringen en levert een verhouding, niet een ja of nee; `categorie` kiest zijn koopvragen via de topics en krijgt een eigen oordeel (word je genoemd, en wie wél). Alle oordelen worden in code geveld (`baseline-verdict.ts`), nooit door het model over zichzelf. |
-| 4e | Synthese | **sol** (`SYNTHESIS_PREMIUM`) | `synthesis.ts`: dossier, gespreksagenda en `brand_facts`, alleen feiten waarvan het citaat letterlijk op de bronpagina staat. |
+| 4e | Synthese | **sol** (`SYNTHESIS_PREMIUM`) | `synthesis.ts`: dossier, gespreksagenda en `brand_facts`, alleen feiten waarvan het citaat letterlijk op de bronpagina staat. ⚠️ Sinds 24 augustus 2026 wordt de gespreksagenda ook wegschreven als merkbrede rijen in `fact_requests` (`gap-questions.ts`), zodat de klant ze op "Vraagt jouw input" kan beantwoorden in plaats van alleen lezen. Idempotent via de unieke index op (`profile_id`, `question`). |
 | 4f | **Onboardingsessie** |, | `/merk/[id]/admin/onboarding`, staf-only en het enige stafscherm dat gedeeld wordt. De consultant loopt het dossier mét de klant na, vult de commerciële laag in (migratie `0060`) en legt het gesprek vast. Opslaan gaat per veld, met bron `gesprek`. Nul AI-aanroepen: het scherm leest wat er ligt. |
 | 4g | **Het onderzoek bijwerken** |, | `POST /api/profiles/[id]/refresh`, achter `mayTriggerCost` en het budgetplafond. `onboarding-refresh.ts` bepaalt per gewijzigd veld welke stappen opnieuw draaien: bereik of werkgebied → promptgeneratie plus kennistest, commerciële sturing → onderwerpen, concurrenten → markt. Tien van de vijftien velden leveren nul stappen op. Een stap die zo wordt ingepland krijgt `chain: false` en sleept zijn opvolger niet mee. |
 | 5 | Analyse aanmaken |, | Verplicht onderwerp + optionele content-brief. |

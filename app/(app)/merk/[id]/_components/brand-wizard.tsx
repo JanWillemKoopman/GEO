@@ -54,15 +54,23 @@ export function BrandWizard({
   profileId,
   initial,
   sources,
+  startStap = "bedrijf",
 }: {
   profileId: string;
   initial: Profile;
   /** Per veld waar de waarde vandaan komt, uit `profile_field_sources`. */
   sources: Record<string, string>;
+  /**
+   * Waar het formulier opent. Alleen gezet als iemand hierheen gestuurd is
+   * vanaf een open punt ("Vraagt jouw input"), en dan wijst het naar de stap
+   * waar dát veld in staat. Zonder deze parameter landt zo'n knop op stap 1 en
+   * moet de klant zelf zoeken in welke van de zeven stappen zijn veld zit.
+   */
+  startStap?: BrandStep;
 }) {
   const router = useRouter();
   const toast = useToast();
-  const [stap, setStap] = useState<BrandStep>("bedrijf");
+  const [stap, setStap] = useState<BrandStep>(startStap);
   // ⚠️ Alleen de klantstappen, en dat is niet cosmetisch. De hele inhoud van
   // deze state gaat als body naar `PATCH /api/profiles/[id]`, en die route legt
   // van élk veld in de body de herkomst vast. Zaten de commerciële velden er
@@ -100,6 +108,21 @@ export function BrandWizard({
     window.addEventListener("beforeunload", waarschuw);
     return () => window.removeEventListener("beforeunload", waarschuw);
   }, [vuil]);
+
+  /**
+   * Naar het veld springen waar de knop "Invullen" op wees.
+   *
+   * ⚠️ De browser doet dit zelf niet betrouwbaar: bij het laden van de pagina
+   * bestaat het element nog niet, want React rendert de stap pas erna. Eén keer
+   * na het monteren is genoeg; scrollt hij niet, dan staat het veld gewoon
+   * bovenaan de stap die wél al klopt.
+   */
+  useEffect(() => {
+    const hash = window.location.hash;
+    if (!hash.startsWith("#veld-anker-")) return;
+    const doel = document.getElementById(hash.slice(1));
+    doel?.scrollIntoView({ block: "center" });
+  }, []);
 
   function zet(key: string, value: unknown) {
     setWaarden((w) => ({ ...w, [key]: value }));

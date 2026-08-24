@@ -467,6 +467,31 @@ const ANTWOORDEN: Record<string, (user: string) => unknown> = {
    * mensinvoer daadwerkelijk beschermt. Een stub die hetzelfde teruggeeft als
    * wat er al stond zou groen blijven terwijl de bescherming stuk is.
    */
+  /**
+   * De synthese. De `gaps` hieronder zijn met opzet ONgemakkelijk: een dubbele
+   * vraag die alleen in hoofdletters verschilt, een opsomteken ervoor en een
+   * lege regel. Precies de vormen waarop `gapQuestions()` moet ingrijpen vóór er
+   * een rij in `fact_requests` belandt, want de unieke index staat op de
+   * letterlijke tekst.
+   */
+  profile_synthesis: () => ({
+    dossier:
+      "Fysi-Unique is een fysiotherapiepraktijk in Amersfoort die zich richt op hardloopblessures.",
+    gaps: [
+      "Hoeveel behandelkamers heeft de praktijk?",
+      "- In welk jaar is de praktijk opgericht?",
+      "hoeveel behandelkamers heeft de praktijk?",
+      "   ",
+    ],
+    facts: [
+      {
+        text: "De praktijk zit in Amersfoort.",
+        sourceUrl: "https://fysi-unique.nl/hardloopklachten",
+        quote: "Wij zitten in Amersfoort.",
+      },
+    ],
+  }),
+
   profile_research: () => ({
     brandName: "Fysi-Unique",
     industry: "wellness en massage",

@@ -77,7 +77,14 @@ import {
 } from "@/lib/nav";
 import { ICONEN } from "@/lib/icons";
 import { DOORVERWIJZINGEN } from "@/lib/redirects";
-import { findGaps } from "@/lib/profile-gaps";
+import { findGaps, gapLink } from "@/lib/profile-gaps";
+import {
+  gapQuestions,
+  isGapQuestion,
+  GAP_REASON,
+  GAP_SOURCE,
+  MAX_GAP_QUESTIONS,
+} from "@/lib/pipeline/gap-questions";
 import {
   beschikbareWaarden,
   filterLibrary,
@@ -5064,7 +5071,6 @@ group("assessReadiness", () => {
     baselineRows: 6,
     dossier: true,
     openFactRequests: 0,
-    researchGaps: 0,
     scopeKnown: true,
     scopeDetail: "Lokaal: Amersfoort",
   };
@@ -5086,7 +5092,6 @@ group("assessReadiness", () => {
   const metOpenVragen = assessReadiness({
     ...compleet,
     openFactRequests: 6,
-    researchGaps: 10,
   });
   ok(
     "open vragen blokkeren 'compleet' niet",
@@ -5094,7 +5099,7 @@ group("assessReadiness", () => {
   );
   ok(
     "maar ze staan er wel als open punt",
-    metOpenVragen.optioneelOpen.length === 2,
+    metOpenVragen.optioneelOpen.length === 1,
   );
   ok(
     "en de kop noemt ze als agenda, niet als fout",
@@ -7697,6 +7702,102 @@ group("findGaps noemt het gevolg, niet het gemis", () => {
     "en de rest houdt zijn volgorde",
     metNvt[0].field === "service_regions" && metNvt[1].field === "business_model",
   );
+
+  // ── Elk punt heeft een bestemming (24 augustus 2026) ─────────────────────
+  //
+  // ⚠️ De knop "Invullen" is de enige reden dat een open punt op het
+  // klantscherm mag staan: zonder bestemming is het een mededeling waar je
+  // niets mee kunt, en dat is precies waar dit scherm op stukliep. Wijst één
+  // gat naar een veld dat de klantwizard niet toont, dan valt de knop weg en
+  // staat de regel er weer voor niets.
+  ok(
+    "elk open punt wijst naar een veld op het bewerkscherm",
+    alles.every((g) => gapLink("m1", g.field) !== null),
+    alles.map((g) => `${g.field}:${gapLink("m1", g.field)}`).join(" | "),
+  );
+  ok(
+    "de link draagt de stap én het anker, want de wizard toont één stap tegelijk",
+    gapLink("m1", "proof_points") ===
+      "/merk/m1/merkprofiel/bewerken?stap=bekend#veld-anker-proof_points",
+    String(gapLink("m1", "proof_points")),
+  );
+  ok(
+    "een veld dat de klant niet ziet levert geen dode knop op",
+    gapLink("m1", "goal_12m") === null,
+  );
+  ok("en een onbekend veld ook niet", gapLink("m1", "bestaat-niet") === null);
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+group("de open punten uit de synthese worden vragen die je kunt beantwoorden", () => {
+  // ⚠️ DE KERN. Bij Van den Udenhout stonden er tien open punten onder de kop
+  // "10 open" en was er geen enkel invoerveld: ze kwamen uit `raw_json.gaps` en
+  // waren bedoeld als agenda voor het gesprek. Als `fact_requests`-rij pakt het
+  // bestaande scherm ze wel op.
+  const ruw = [
+    "In welk jaar is Van den Udenhout opgericht?",
+    "Hoeveel medewerkers heeft de organisatie momenteel?",
+  ];
+  const vragen = gapQuestions(ruw);
+  ok("twee punten worden twee vragen", vragen.length === 2);
+  ok("de tekst blijft die van het onderzoek", vragen[0].question === ruw[0]);
+  ok("elke vraag zegt waarom hij gesteld wordt", vragen.every((v) => v.reason === GAP_REASON));
+  ok("en verwacht een kort tekstantwoord", vragen.every((v) => v.answerType === "tekst_kort"));
+
+  // Een opsomteken hoort niet in de kolom: de lijst op het scherm is de
+  // opsomming al, en het streepje komt terug in élke plek die de vraag toont.
+  ok(
+    "een opsomteken voor de vraag gaat eraf",
+    gapQuestions(["- Hoeveel vestigingen zijn er?", "1. En hoeveel showrooms?"])
+      .map((v) => v.question)
+      .join(" | ") === "Hoeveel vestigingen zijn er? | En hoeveel showrooms?",
+  );
+  ok(
+    "dubbele witruimte wordt één spatie",
+    gapQuestions(["Hoeveel   auto's  staan er op voorraad?"])[0].question ===
+      "Hoeveel auto's staan er op voorraad?",
+  );
+
+  // De unieke index staat op de letterlijke tekst, dus twee vragen die alleen
+  // in hoofdletters verschillen zouden er allebei in komen en twee keer gesteld
+  // worden.
+  ok(
+    "hoofdletterverschil is geen tweede vraag",
+    gapQuestions(["Hoeveel vestigingen?", "hoeveel vestigingen?"]).length === 1,
+  );
+
+  // Onbruikbare modeloutput wordt niets, geen gok (conventie 3).
+  ok("lege regels vervallen", gapQuestions(["", "   ", "Hoeveel?"]).length === 1);
+  ok("iets dat geen lijst is levert niets op", gapQuestions({ gaps: "x" }).length === 0);
+  ok("en ontbrekende invoer ook niet", gapQuestions(undefined).length === 0);
+  ok(
+    "niet-tekst in de lijst wordt overgeslagen",
+    gapQuestions([42, null, "Hoeveel?"]).length === 1,
+  );
+
+  // Een alinea is geen vraag van dertig seconden. De prompt vraagt er expliciet
+  // om ("concreet en in dertig seconden te beantwoorden"), dus een lap tekst is
+  // een signaal dat het model iets anders deed.
+  ok("een alinea van 250 tekens valt af", gapQuestions(["x".repeat(250)]).length === 0);
+
+  // Meer dan twaalf is geen agenda meer maar een formulier, en dan wordt de
+  // hele lijst genegeerd.
+  const veel = Array.from({ length: 30 }, (_, i) => `Vraag ${i + 1}?`);
+  ok(`hoogstens ${MAX_GAP_QUESTIONS} vragen`, gapQuestions(veel).length === MAX_GAP_QUESTIONS);
+  ok("en de eerste blijven staan", gapQuestions(veel)[0].question === "Vraag 1?");
+
+  // ── Het antwoord landt anders (24 augustus 2026) ─────────────────────────
+  //
+  // ⚠️ Een beantwoorde briefingvraag wordt óók een regel in `proof_points`, en
+  // die krijgt in de feitenbank de bron "site <url>" mee. Voor een open punt is
+  // dat onwaar: de klant vertelde het net, het stond nergens op zijn site. En
+  // "welke drie klantgroepen krijgen komend jaar prioriteit" hoort geen
+  // citeerbare bewering in een gepubliceerde pagina te worden. Het antwoord
+  // raakt niets kwijt: `buildFactBase()` leest de beantwoorde vraag zelf al.
+  ok("een omgezet open punt is herkenbaar", isGapQuestion({ bron: GAP_SOURCE }));
+  ok("een vraag uit het merkdossier niet", isGapQuestion({ bron: "merkdossier" }) === false);
+  ok("een briefingvraag zonder herkomst ook niet", isGapQuestion(null) === false);
+  ok("en een vorm die we niet kennen evenmin", isGapQuestion("synthese-gap") === false);
 });
 
 group("de meter van de sessie: drie getallen, geen percentage", () => {

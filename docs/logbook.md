@@ -4198,3 +4198,57 @@ prijsopmerking en een antwoord met vijf klachten waaronder een veiligheidsgerela
 zou het aantal en de soort bezwaren laten meewegen in het cijfer zelf, niet alleen in het etiket.
 
 Migraties t/m `0064` op productie, 2100 unittests en 290 ketentests groen.
+
+## 24 augustus 2026: op "Vraagt jouw input" stonden tien vragen die je niet kon beantwoorden
+
+De aanleiding was één zin bij een schermafdruk: "er zijn 10 open vragen maar ik kan helemaal geen
+antwoord geven". Klopte. Het scherm telde in de kop "10 open", toonde tien vragen, en had er nul
+invoervelden onder.
+
+**De oorzaak zat niet in het scherm maar in de herkomst van die tien regels.** De synthese schrijft
+in `raw_json.gaps` wat het onderzoek niet kon vaststellen, en de prompt zegt er letterlijk bij wat
+dat is: "de agenda van het gesprek met de klant". Dat zijn gesprekspunten voor de consultant. Ze
+kwamen op het klantscherm terecht als platte tekst naast de feitenvragen, die er wél uitzien als
+vragen en er wél een invoerveld bij hebben. Twee soorten regels die er hetzelfde uitzien en zich
+tegengesteld gedragen, met een teller erboven die ze bij elkaar optelde.
+
+**De oplossing: een open punt is geen aparte soort, het is een feitenvraag zonder rij.** De synthese
+schrijft ze nu weg in `fact_requests` (merkbreed, `analysis_id is null`, `scope: 'merk'`), en dan
+pakt het bestaande scherm ze op via de route die er al lag. `lib/pipeline/gap-questions.ts` doet de
+normalisatie ervoor: opsomtekens eraf, witruimte samen, hoofdletterongevoelig ontdubbeld, niets
+langer dan 200 tekens en hoogstens twaalf. Op productie ging het om drie merken met 12, 10 en 10
+open punten; die van Van den Udenhout is de lijst uit de schermafdruk.
+
+**Eén ding gaat er níet mee mee, en dat is de belangrijkste keuze van deze ronde.** Een beantwoorde
+feitenvraag wordt óók een regel in `profiles.proof_points`, en zo'n regel krijgt in de feitenbank de
+bron "site <url>". Voor een open punt is dat onwaar: de klant vertelde het net, het stond nergens op
+zijn site. Erger nog, de synthese vraagt ook naar dingen als "welke drie klantgroepen krijgen komend
+jaar de hoogste commerciële prioriteit", en dat hoort geen citeerbare bewering in een gepubliceerde
+pagina te worden. Antwoorden op deze vragen slaan die tweede kopie daarom over. Er raakt niets
+verloren: `buildFactBase()` leest de beantwoorde vraag zelf al, en dan mét de juiste bron ("klant,
+bevestigd <datum>"). Het merkje waaraan de route dat ziet is `raw_json.bron = 'synthese-gap'`.
+
+**Vier kleinere dingen in dezelfde ronde, alle vier fouten en geen smaak.**
+
+- **Een mislukte database-vraag toonde een groene kaart.** Beide queries werden niet op fouten
+  gecontroleerd, dus een storing leverde lege data op en lege data betekende "niets open". De klant
+  kreeg goed nieuws te zien op het moment dat de app zijn vragen niet kon ophalen.
+- **Velden op "niet van toepassing" kwamen terug als open punt.** `findGaps()` werd hier zonder de
+  n.v.t.-lijst aangeroepen, terwijl de onboardingsessie hem wel meegaf. Precies waar migratie `0060`
+  voor waarschuwde: anders haalt de lijst nooit nul en wordt hij genegeerd.
+- **Overgeslagen vragen waren onzichtbaar.** Het scherm heeft een blok "toon wat je oversloeg",
+  bedoeld om een vraag alsnog te kunnen beantwoorden, maar de query haalde die rijen niet op. Het
+  blok kon dus nooit verschijnen.
+- **De open punten werden dubbel geteld.** `assessReadiness()` had er een eigen rij voor naast de
+  feitenvragen, gevoed uit `raw_json`. Die telling werd bovendien nooit nul, ook niet nadat de klant
+  de vraag beantwoord had. De rij is weg; de vragen tellen nu één keer mee, op de plek waar ze staan.
+
+**En twee dingen aan de vorm, allebei voor desktop.** De vraag staat op `lg` naast het invoerveld in
+plaats van erboven, wat bij tien vragen ruim twee schermhoogtes scheelt. En een open punt heeft een
+knop "Invullen" gekregen die de stap én het anker draagt (`?stap=bedrijf#veld-anker-aliases`), want
+de wizard toont één stap tegelijk: zonder die stap landde de knop bij `proof_points` op een veld dat
+niet in beeld stond. Een unittest bewaakt dat elk open punt een bestemming heeft, anders staat de
+regel er weer voor niets.
+
+2122 unittests en 303 ketentests groen. Geen migratie: `fact_requests` had alles al, en de unieke
+index op (`profile_id`, `question`) maakt de omzetting vanzelf idempotent.

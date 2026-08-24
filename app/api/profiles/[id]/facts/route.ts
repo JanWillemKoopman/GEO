@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getUser } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getOwnedProfile } from "@/lib/profiles";
+import { isGapQuestion } from "@/lib/pipeline/gap-questions";
 import type { FactRequest } from "@/lib/types/database";
 
 /**
@@ -71,6 +72,14 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     .select("*")
     .single();
   if (error || !updated) return NextResponse.json({ error: "Opslaan is niet gelukt." }, { status: 500 });
+
+  // ⚠️ Behalve bij een omgezet open punt uit de synthese. Dat antwoord bereikt
+  // de schrijver toch al via `buildFactBase()`, met de juiste bron ("klant,
+  // bevestigd <datum>"); als proof point zou het de bron "site <url>" krijgen
+  // terwijl het nergens op de site staat. En niet elk open punt is een
+  // publiceerbaar feit: de synthese vraagt ook naar commerciële prioriteiten.
+  // Zie `isGapQuestion()` voor de volledige redenering.
+  if (isGapQuestion(fact.raw_json)) return NextResponse.json(updated);
 
   // Het antwoord ook als geverifieerd feit bij het profiel zetten. Dubbelop met
   // `fact_requests`, maar bewust: `proof_points` is waar de hele schrijfpijplijn

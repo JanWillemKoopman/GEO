@@ -3809,6 +3809,115 @@ async function main(): Promise<void> {
       );
     }
 
+    // ════════════════════════════════════════════════════════════════════════
+    // De open punten uit de synthese worden vragen die de klant kan
+    // beantwoorden (24 augustus 2026).
+    //
+    // ⚠️ DE SAMENHANG DIE HIER FOUT KAN GAAN: de synthese schrijft de rij, het
+    // scherm leest hem met een heel andere query. Stond er een `analysis_id`
+    // in, of een andere `scope`, dan verdwijnt de vraag uit beeld zonder dat er
+    // iets misgaat. Bij Van den Udenhout stonden tien open punten in beeld
+    // zonder invoerveld, precies omdat ze nooit een rij wáren.
+    {
+      console.log("\nDe open punten uit de synthese (gap-questions)");
+      const gapProfileId = randomUUID();
+      await db.client.query(
+        `insert into public.profiles (id, user_id, name, url, brand_name, status)
+         values ($1, $2, 'Fysi-Unique gaps', 'https://fysi-unique.nl', 'Fysi-Unique', 'klaar')`,
+        [gapProfileId, userId],
+      );
+      await db.client.query(
+        `insert into public.profile_pages (profile_id, url, title, text_excerpt) values
+         ($1, 'https://fysi-unique.nl/hardloopklachten', 'Hardloopklachten Amersfoort',
+          'Fysi-Unique behandelt hardloopblessures. Wij zitten in Amersfoort.')`,
+        [gapProfileId],
+      );
+
+      const { synthesiseProfile } = await import("@/lib/pipeline/synthesis");
+      const eerste = await synthesiseProfile(gapProfileId);
+      ok("de synthese draait en slaat niet over", eerste.skipped === false);
+
+      // De vier gaps uit de stub: één dubbele (hoofdletters), één met een
+      // opsomteken, één leeg. Er horen er dus twee over te blijven.
+      const { rows: vragen } = await db.client.query(
+        `select question, reason, status, scope, kind, analysis_id, answer_type,
+                raw_json->>'bron' as bron
+           from public.fact_requests where profile_id = $1 order by question`,
+        [gapProfileId],
+      );
+      ok("twee van de vier open punten worden een vraag", vragen.length === 2, String(vragen.length));
+      ok(
+        "het opsomteken staat niet in de kolom",
+        vragen.some((r) => r.question === "In welk jaar is de praktijk opgericht?"),
+        vragen.map((r) => r.question).join(" | "),
+      );
+      ok("elke vraag staat open", vragen.every((r) => r.status === "open"));
+      ok("en zegt waarom hij gesteld wordt", vragen.every((r) => (r.reason as string).length > 10));
+      ok(
+        "merkbreed, dus zonder cluster",
+        vragen.every((r) => r.analysis_id === null && r.scope === "merk"),
+      );
+      ok(
+        "en van de soort waar de klant een tekstantwoord op geeft",
+        vragen.every((r) => r.kind === "aanvulling" && r.answer_type === "tekst_kort"),
+      );
+      // ⚠️ Het merkje waaraan de facts-route ziet dat dit antwoord géén tweede,
+      // verkeerd gelabelde kopie in `proof_points` hoort te krijgen. Zonder dit
+      // zou een antwoord dat de klant net gaf in de feitenbank verschijnen met
+      // de bron "site", en dat is precies de soort onwaarheid die de
+      // claimvalidator niet kan zien.
+      ok(
+        "elke rij draagt zijn herkomst",
+        vragen.every((r) => r.bron === "synthese-gap"),
+        vragen.map((r) => String(r.bron)).join(" | "),
+      );
+
+      // ⚠️ Dezelfde query als "Vraagt jouw input" doet. Een rij die de synthese
+      // schrijft maar dit filter niet overleeft, staat nergens.
+      const { rows: opHetScherm } = await db.client.query(
+        `select id from public.fact_requests
+          where profile_id = $1 and analysis_id is null
+            and status in ('open', 'beantwoord', 'overgeslagen')`,
+        [gapProfileId],
+      );
+      ok("het klantscherm vindt ze allebei", opHetScherm.length === 2, String(opHetScherm.length));
+
+      // Idempotentie (conventie 9), langs twee wegen. Eerst de goedkope: de
+      // synthese slaat over omdat het facet er al staat.
+      const tweede = await synthesiseProfile(gapProfileId);
+      ok("een tweede synthese slaat over", tweede.skipped === true);
+
+      // En de dure: zou de stap tóch opnieuw draaien, dan houdt de unieke index
+      // op (profile_id, question) de vraag tegen. Dat is wat een herdraai na een
+      // storing veilig maakt.
+      await db.client.query(
+        "delete from public.profile_facets where profile_id = $1 and facet = 'synthese'",
+        [gapProfileId],
+      );
+      const derde = await synthesiseProfile(gapProfileId);
+      ok("een herdraai stelt geen enkele vraag opnieuw", derde.gaps === 0, String(derde.gaps));
+      const { rows: naHerdraai } = await db.client.query(
+        "select count(*)::int as n from public.fact_requests where profile_id = $1",
+        [gapProfileId],
+      );
+      ok("en er staan er nog steeds twee", naHerdraai[0].n === 2, String(naHerdraai[0].n));
+
+      // Een beantwoorde vraag verdwijnt uit de teller in de kop, want die telt
+      // alleen wat nog open staat.
+      await db.client.query(
+        `update public.fact_requests set status = 'beantwoord', answer = 'Vier',
+                answered_at = now()
+          where profile_id = $1 and question like 'Hoeveel%'`,
+        [gapProfileId],
+      );
+      const { rows: nogOpen } = await db.client.query(
+        `select count(*)::int as n from public.fact_requests
+          where profile_id = $1 and analysis_id is null and status = 'open'`,
+        [gapProfileId],
+      );
+      ok("wat beantwoord is telt niet meer mee als open", nogOpen[0].n === 1, String(nogOpen[0].n));
+    }
+
     __setTestAdminClient(null);
     __setTestTransport(null);
     __setTestPlainTransport(null);

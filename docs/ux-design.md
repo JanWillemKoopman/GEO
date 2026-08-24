@@ -1,10 +1,11 @@
 # UX & Design
 
 Leidend voor elk scherm. Tokens en primitieven staan in `app/globals.css`; dit document legt uit
-wat ze zijn en wanneer je welke gebruikt. **Peildatum: 21 augustus 2026.** De vormgeving zelf ging
+wat ze zijn en wanneer je welke gebruikt. **Peildatum: 24 augustus 2026.** De vormgeving zelf ging
 op 6 augustus over op het systeem van de NOVA-workspace (volledige verantwoording in
 `designsystem.md`); deze datum volgt de gedragspatronen die daarna zijn bijgekomen (statustaal,
-foutafhandeling, de content-editie, en op 21 augustus de iconen in de zijbalk).
+foutafhandeling, de content-editie, op 21 augustus de iconen in de zijbalk, en op 24 augustus de
+uitvraag op "Vraagt jouw input").
 
 > **Voor de tékst in die schermen geldt `docs/schrijfstijl.md`**: de tone-of-voice van ORBIT ENGINE,
 > afgeleid van InSpace Nova. Dit document gaat over hoe iets eruitziet, dat over hoe het klinkt.
@@ -506,6 +507,11 @@ verkoopinstrument ("kan ik dit scherm delen"). Dat is besluit 4: de klant ziet
 wat ORBIT ENGINE weet en hoe zeker dat is, niet hoe ORBIT ENGINE eraan kwam.
 Hetzelfde geldt voor de mijlpalen en de maandinzichten, die naar Overzicht gaan.
 
+**Het bewerkscherm opent op de stap uit de link.** `?stap=` (alleen de
+klantstappen; een onbekende waarde valt terug op stap 1). Dat is de enige plek
+waar de stap in de URL staat, en het is geen breuk met de regel hieronder dat de
+stap in de state hoort: hij zet alleen het beginpunt, wisselen blijft state.
+
 **Bewerken is één formulier waar er twee waren.** De wizard had 27 velden, de
 platte editor 41, allebei met een eigen opslagroute naar dezelfde kolommen. Het
 ene scherm was een deelverzameling van het andere en de klant kon niet zien welk
@@ -531,6 +537,35 @@ ding, "moet ik iets aanvullen", dus staat het op één plek met de teller in de
 kop. ⚠️ Feitenvragen die uit één cluster komen (`fact_requests.analysis_id`
 gezet) horen daar níet bij maar bij hoofdstuk 03 van dat cluster; die scheiding
 is op 14 augustus 2026 bewust aangebracht.
+
+⚠️ **Elke regel op dit scherm is te beantwoorden, en dat was hij niet** (24
+augustus 2026). De open punten uit de synthese stonden er als platte tekst: bij
+Van den Udenhout tien vragen onder de kop "10 open", zonder één invoerveld
+eronder. Ze kwamen uit `profile_facets.raw_json.gaps`, waar de pijplijn ze
+schrijft als agenda voor het gesprek met de consultant, niet als vraag aan de
+klant. De teller vroeg dus iets waarop het scherm geen antwoord aannam, en dat is
+het dode einde uit §4 met een teller ervoor. Ze zijn nu gewone feitenvragen
+(`lib/pipeline/gap-questions.ts`), dus er staan nog twee soorten regels:
+
+| Wat | Wat je ermee kunt |
+|---|---|
+| Feitenvragen (`fact_requests`) | Beantwoorden of overslaan, ter plekke |
+| Open punten in het profiel (`findGaps`) | Knop "Invullen" naar dat veld op het bewerkscherm |
+
+Drie regels die daaruit volgen en die je bij een volgende wijziging moet
+aanhouden:
+
+1. **De teller telt alleen wat je hier kunt doen.** Anders belooft de kop werk
+   dat het scherm niet aanneemt.
+2. **De knop bij een open punt draagt de stap én het anker**
+   (`?stap=bedrijf#veld-anker-aliases`, `gapLink()` in `lib/profile-gaps.ts`).
+   De wizard toont één stap tegelijk, dus een anker alleen landt op een veld dat
+   niet in beeld staat. Wijst een gat naar een veld dat de klantwizard niet
+   toont, dan verschijnt er geen knop; een unittest bewaakt dat elk gat een
+   bestemming heeft.
+3. **Een mislukte query is geen goed nieuws.** De groene "niets open"-kaart
+   verschijnt alleen als de vragen ook echt opgehaald zijn. Anders stond er
+   "niets open" op het moment dat de app niets kon lezen.
 
 **Een paneel dat niets te tonen heeft, verdwijnt niet.** Het toont waaróm het
 leeg is en wat de volgende stap is. Stil verdwijnen is erger dan het dode einde
