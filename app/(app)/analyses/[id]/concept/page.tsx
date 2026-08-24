@@ -59,7 +59,7 @@ export default async function ConceptPage({ params }: { params: Promise<{ id: st
     <div className="flex flex-col gap-4">
       <div className="card card-accent flex flex-col gap-3">
         <span className="mono-label">Klaar om te starten</span>
-        <h2 className="text-2xl font-bold tracking-tight">Dit gaat ORBIT ENGINE meten</h2>
+        <h2 className="type-title">Dit gaat ORBIT ENGINE meten</h2>
         <p className="text-secondary">
           ORBIT ENGINE heeft je website en je merkdossier doorgenomen en daaruit dit meetplan afgeleid. Loop
           het door, pas aan wat niet klopt, en bevestig onderaan. Pas dan gaan deze vragen naar de

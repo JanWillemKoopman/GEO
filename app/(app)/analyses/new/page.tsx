@@ -26,7 +26,7 @@ export default async function NewAnalysisPage() {
           <Icon naam="terug" size={14} />
           Terug naar Mijn clusters
         </Link>
-        <h1 className="mt-3 text-2xl font-bold tracking-tight">Nieuw cluster</h1>
+        <h1 className="type-title mt-3">Nieuw cluster</h1>
         <p className="mt-2 text-secondary">
           Kies een merk en het product of onderwerp dat je wilt meten. ORBIT ENGINE zoekt alleen nog uit wat
           je website hierover zegt en wie op dít onderwerp je concurrenten zijn. De rest weet het

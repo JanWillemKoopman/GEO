@@ -117,7 +117,7 @@ export function OnboardingWizard() {
           <Icon naam="terug" size={14} />
           Merken
         </Link>
-        <h1 className="text-2xl font-bold tracking-tight">Nieuw merk</h1>
+        <h1 className="type-title">Nieuw merk</h1>
         <p className="mt-2 text-secondary">
           Twee velden, en ORBIT ENGINE gaat aan de slag. Het leest de hele website uit, brengt het aanbod in
           kaart, zoekt uit wie de concurrenten zijn en test wat AI-assistenten nu al over je merk

@@ -13,6 +13,11 @@
  * maar dan diagonaal in plaats van onder 96 graden: een verloop dat over een
  * cirkel loopt moet de diagonaal volgen, anders raakt het de onderkant nooit.
  *
+ * In de donkere stand is er geen verloop meer: daar staan de drie tokens die de
+ * stops voeden alle drie op wit, en is het teken één witte baan met een witte
+ * stip. Dat is hetzelfde besluit als bij het woordmerk ernaast, en het waarom
+ * staat bij `--wordmark-1` in `app/globals.css`.
+ *
  * ⚠️ `gradientId` is geen sier maar een eis: het teken staat twee keer op de
  * inlogpagina (in de kop en in het paneel), en twee `<linearGradient>`-en met
  * hetzelfde id is ongeldige HTML.
@@ -43,9 +48,13 @@ export function OrbitMark({
     >
       <defs>
         <linearGradient id={gradientId} x1="10%" y1="4%" x2="88%" y2="96%">
-          <stop offset="0%" stopColor="#37941c" />
-          <stop offset="55%" stopColor="#5c63a8" />
-          <stop offset="100%" stopColor="#8511d9" />
+          {/* Uit de tokens en niet uit de hand, sinds 24 augustus 2026: in de
+              donkere stand staan alle drie de stops op wit en is het teken één
+              witte baan. Een SVG dat in de pagina zelf staat leest een
+              CSS-variabele gewoon uit, dus dit draait mee zonder eigen regel. */}
+          <stop offset="0%" stopColor="var(--wordmark-1)" />
+          <stop offset="55%" stopColor="var(--wordmark-mid)" />
+          <stop offset="100%" stopColor="var(--wordmark-2)" />
         </linearGradient>
       </defs>
       <circle
@@ -59,7 +68,7 @@ export function OrbitMark({
         strokeDashoffset="-47.1"
         transform="rotate(-90 50 50)"
       />
-      <circle cx="75.5" cy="24.5" r="7" fill="#8511d9" />
+      <circle cx="75.5" cy="24.5" r="7" fill="var(--wordmark-2)" />
     </svg>
   );
 }

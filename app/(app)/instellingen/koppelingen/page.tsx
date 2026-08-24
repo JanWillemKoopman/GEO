@@ -106,7 +106,7 @@ export default async function KoppelingenPage() {
           return (
             <section key={merk.id} className="flex flex-col gap-2">
               <span className="flex flex-wrap items-baseline justify-between gap-2">
-                <h2 className="text-lg font-semibold tracking-tight">{merk.name}</h2>
+                <h2 className="text-lg font-semibold">{merk.name}</h2>
                 <Link
                   href={`/merk/${merk.id}/analytics/zoekverkeer`}
                   className="mono-label hover:underline"

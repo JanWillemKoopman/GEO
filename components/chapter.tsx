@@ -47,7 +47,7 @@ export function Chapter({
           {/* Het accentwoord stond in de merk-gradient. In de NOVA-werkomgeving
               komt die gradient nul keer voor; hij is nu voorbehouden aan het
               woordmerk. Het accent draagt nu gewicht in plaats van kleur. */}
-          <h2 className="text-2xl font-bold tracking-tight">
+          <h2 className="type-title">
             {title} <span className="text-[var(--intent-intelligence-text)]">{accent}</span>
           </h2>
           {intro && <p className="mt-1 max-w-xl text-secondary">{intro}</p>}

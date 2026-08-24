@@ -83,7 +83,7 @@ function NumberedNav({
                   {String(i + 1).padStart(2, "0")}
                 </span>
                 <span
-                  className="text-xl font-semibold tracking-tight transition-colors"
+                  className="type-section transition-colors"
                   style={{ color: active ? "var(--intent-intelligence-text)" : "var(--text-primary)" }}
                 >
                   {link.label}
@@ -175,7 +175,7 @@ export function ProfileMenu({
             <div className="relative z-10 flex flex-1 flex-col gap-8 overflow-y-auto px-6 py-8">
               <div>
                 <span className="mono-label">Menu</span>
-                <h2 className="mt-1 text-2xl font-bold tracking-tight">Waar wil je heen?</h2>
+                <h2 className="type-title mt-1">Waar wil je heen?</h2>
               </div>
 
               <NumberedNav label="Account" links={ACCOUNT_NAV} pathname={pathname} onNavigate={() => setOpen(false)} />

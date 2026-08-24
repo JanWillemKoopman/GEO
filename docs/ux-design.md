@@ -293,22 +293,31 @@ wijziging doet één ding:
 | Wat | Was | Is | Waarom |
 |---|---|---|---|
 | De kop | 14px, gewicht 500, grijs | **15px, gewicht 600, `--text-primary`** | Zes ankers die je in één oogopslag terugvindt |
-| Het icoon van de kop | De kleur van de tekst ernaast | **`--accent-purple`** | Eén merkkleur bindt de zes vaste plekken; de uitzondering op de `currentColor`-regel staat in `designsystem.md` §6b.2 |
+| Het icoon van de kop | De kleur van de tekst ernaast | Onveranderd, `currentColor` | Het heeft een halve dag `--accent-purple` gedragen; dat is teruggedraaid, zie de waarschuwing onder deze tabel |
 | Het kindschap | Een verticale lijn links van de kinderen | **28px inspringen, geen lijn** | De tekst van een bestemming staat exact onder de tekst van zijn kop; de lijn liep dwars door de actieve regel |
-| De actieve regel | `--bg-elevated` (#e7edf2) met donkere tekst | **`--accent-purple-surface` (#f3e6ff) met paarse tekst** | Grijs op wit haalde 1,1:1 met zijn eigen achtergrond: je zag hem pas als je ernaar zocht |
+| De actieve regel | `--bg-elevated` met de gewone tekstkleur | **`--bg-elevated` met `--text-primary`, en een hover van 5% inkt eronder** | Het vlak alleen haalde 1,1:1 met zijn eigen achtergrond: je zag het pas als je ernaar zocht. De tekst laten meelopen naar de primaire kleur lost dat op zonder er een merkkleur bij te halen |
 | De ruimte | 4px tussen hoofdstukken, 30px per regel | **20px tussen hoofdstukken, 36px per regel** | Zes groepjes met lucht ertussen lezen als een indeling, zestien regels op elkaar als een lijst |
 
 ⚠️ **De kop kleurt niet meer mee met de pagina waar je staat.** Hij was donker zodra een bestemming
 eronder actief was. Dat markeerde één van de zes koppen én de regel eronder, twee markeringen voor
 één plek, en de kop bewoog dus mee terwijl hij juist het vaste punt hoort te zijn.
 
-⚠️ **"Alleen jij" is een gevuld stempeltje geworden** in dezelfde paarse tint als de actieve regel.
-Los grijs hoofdlettertekst achter de bestemming las als een tweede label van die bestemming, terwijl
-het een stempel erop is: dit ziet de klant niet. Het staat op `--radius-sm`, dezelfde vorm als de
-chips elders in de app.
+⚠️ **Er staat sinds 24 augustus 2026 geen paars meer in de zijbalk.** Het icoon van de kop, de
+actieve regel en de vier `alleen jij`-stempels hebben het allemaal een halve dag gedragen. Twee
+redenen om het terug te draaien, en de tweede is de zwaarste. In de donkere stand kwam de actieve
+regel uit op paarse letters (`#ad45ff`) op een paars vlak (`#42006d`): 2,6:1, onder de 4,5 die
+leesbare tekst vraagt. En paars betekent in dit systeem "hier doet de AI iets"; zolang de balk het
+naast élk scherm gebruikt voor "je bent hier" betekent het dat niet meer. Dat is dezelfde redenering
+die de hoofdknop van paars naar inkt bracht. Zie `designsystem.md` §10.4.
 
-**Ingeklapt (64px) blijft het icoon paars**, ook als het hoofdstuk niet actief is. Het is daar het
-enige wat er van de zes ankers over is; de actieve staat zit in het vlak eronder.
+⚠️ **"Alleen jij" is een gevuld stempeltje geworden**, in dezelfde tint als de actieve regel. Los
+grijs hoofdlettertekst achter de bestemming las als een tweede label van die bestemming, terwijl het
+een stempel erop is: dit ziet de klant niet. Het staat op `--radius-sm`, dezelfde vorm als de chips
+elders in de app.
+
+**Ingeklapt (64px) draagt het icoon de tekstkleur**, ook als het hoofdstuk niet actief is. Het is
+daar het enige wat er van de zes ankers over is en moet dus leesbaar zijn, niet opvallend; de
+actieve staat zit in het vlak eronder.
 
 ### Het overzicht: de eerste schermhoogte draagt het antwoord (24 augustus 2026)
 
