@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import { lookupInvite } from "@/lib/invites";
 import { ActivationForm } from "./activation-form";
+import { AuthPanel } from "../../auth-panel";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "Uitnodiging" };
@@ -34,11 +35,9 @@ export default async function InvitePage({
 
   if (state === "geldig" && invite) {
     return (
-      <ActivationForm
-        token={token}
-        email={invite.email}
-        accountName={accountName}
-      />
+      <AuthPanel>
+        <ActivationForm token={token} email={invite.email} accountName={accountName} />
+      </AuthPanel>
     );
   }
 
@@ -67,13 +66,15 @@ export default async function InvitePage({
   const scherm = schermen[state as keyof typeof schermen];
 
   return (
-    <div className="flex flex-col gap-4">
-      <span className="mono-label">Uitnodiging</span>
-      <h1 className="text-2xl font-bold tracking-tight">{scherm.title}</h1>
-      <p className="text-secondary">{scherm.body}</p>
-      <Link href="/login" className="btn-primary w-fit">
-        Naar inloggen
-      </Link>
-    </div>
+    <AuthPanel>
+      <div className="flex flex-col gap-4">
+        <span className="mono-label">Uitnodiging</span>
+        <h1 className="text-2xl font-bold tracking-tight">{scherm.title}</h1>
+        <p className="text-secondary">{scherm.body}</p>
+        <Link href="/login" className="btn-primary w-fit">
+          Naar inloggen
+        </Link>
+      </div>
+    </AuthPanel>
   );
 }

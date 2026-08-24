@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { PasswordResetRequestForm } from "../password-forms";
-import { AuthBackground } from "../auth-background";
+import { AuthPanel } from "../auth-panel";
 
 export const metadata = { title: "Wachtwoord vergeten" };
 
@@ -12,8 +12,7 @@ export default async function WachtwoordVergetenPage({
   const { verlopen } = await searchParams;
 
   return (
-    <>
-      <AuthBackground />
+    <AuthPanel>
       <h1 className="mb-1 text-xl font-bold">Wachtwoord vergeten</h1>
       {verlopen && (
         <p
@@ -33,6 +32,6 @@ export default async function WachtwoordVergetenPage({
           Terug naar inloggen
         </Link>
       </p>
-    </>
+    </AuthPanel>
   );
 }

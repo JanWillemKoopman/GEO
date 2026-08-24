@@ -475,6 +475,17 @@ op 6 augustus naar het fundament van het hele uiterlijk.
 **Tot dat besluit valt, blijft dit document leidend voor de app.** Wat hier staat beschrijft wat er
 werkelijk in `globals.css` staat, en dat is de enige bruikbare waarheid voor wie een scherm bouwt.
 
+**Eén scherm valt sinds 24 augustus 2026 buiten dit document: de inlogroute.** Op verzoek van de
+eigenaar draait `app/(auth)/` in het merkregister in plaats van het dashboardregister: een
+verlopende achtergrond met baanringen en planeten, een kaart met radius 24 en drie schaduwlagen, en
+een veld en knop van 44 en 48 pixels. Het argument voor de vlakke stijl gaat daar niet op, want
+niemand zit een uur op een inlogscherm, en in de sales-led opzet is het vaak het eerste beeld in een
+demogesprek. **Dit is nadrukkelijk geen antwoord op het besluit hierboven**, dat blijft open. De
+uitzondering is ingeperkt zodat hij niet lekt: alle vorm staat in één blok in `app/globals.css`
+onder de kop "HET INLOGTONEEL", elke klasse begint met `.auth-`, en er is geen enkele nieuwe kleur
+bijgekomen. Neem er niets van over in een dashboardscherm. `docs/logbook.md` heeft de volledige
+afweging.
+
 ---
 
 ## 10. Donkere modus: geschrapt
