@@ -5,7 +5,8 @@ wat ze zijn en wanneer je welke gebruikt. **Peildatum: 24 augustus 2026.** De vo
 op 6 augustus over op het systeem van de NOVA-workspace (volledige verantwoording in
 `designsystem.md`); deze datum volgt de gedragspatronen die daarna zijn bijgekomen (statustaal,
 foutafhandeling, de content-editie, op 21 augustus de iconen in de zijbalk, en op 24 augustus de
-uitvraag op "Vraagt jouw input").
+indeling van het merkoverzicht, de regels voor een lange lijst en de uitvraag op "Vraagt jouw
+input", alle drie hieronder in §5).
 
 > **Voor de tékst in die schermen geldt `docs/schrijfstijl.md`**: de tone-of-voice van ORBIT ENGINE,
 > afgeleid van InSpace Nova. Dit document gaat over hoe iets eruitziet, dat over hoe het klinkt.
@@ -259,6 +260,59 @@ staat nu in `lib/icons.ts`, de vormregels in `designsystem.md` §6b.
 verzorgd uit en het werkte averechts: zestien tekeningen in een balk van zestien regels markeren
 niets meer, want als alles opvalt valt niets op. `NavItem` heeft daarom geen icoonveld, zodat het
 niet ongemerkt terugkomt.
+
+### Het overzicht: de eerste schermhoogte draagt het antwoord (24 augustus 2026)
+
+`/merk/[id]` telde tien blokken, allemaal open, allemaal even zwaar, in één kolom van 1024px.
+"Waar begin je" stond als tiende. Dat botst met twee regels tegelijk: §5 zegt dat dit scherm
+"hoe sta ik ervoor en wat moet ik nu doen" beantwoordt, en §1 vraagt rust boven volledigheid.
+
+**De volgorde is nu: stand, wat op je wacht, waar je begint. Daarna pas de verdieping.**
+
+| Blok | Wat het beantwoordt |
+|---|---|
+| Kop | Welk merk, hoeveelste maand |
+| De stand | Eén cijfer, de marge eronder, en de drie zinnen van `insights()` als duiding erbij |
+| Wat er op jou wacht | Hooguit vijf regels, alleen de staat `nu`, doorklik naar de rest |
+| Waar begin je | De zes bovenste kansen, gesorteerd op wat ze opleveren |
+| Wat dit tot nu toe opleverde | De drie mijlpalen (besluit 7) |
+| Je contentplan · Wat ORBIT ENGINE deze week deed | Op `lg` naast elkaar, want allebei smal van inhoud |
+
+⚠️ **Eén hoofdgetal, en dat was het niet.** De zichtbaarheid stond vier keer op dit scherm: in de
+subkop, in de stand-kaart, in de mijlpalen en in de maandinzichten, in drie verschillende schalen
+(`0%`, `0`, `0 van de 100`). De subkop noemt het cijfer niet meer, de maandinzichten hebben geen
+eigen blok meer maar staan ín de stand-kaart, en `lib/insights.ts` laat het getal weg bij een eerste
+meting: daar staat het immers vlak boven. Bij twee metingen blijven de cijfers wél staan, want dan
+gaat de zin over het verschil en dat is nieuwe informatie.
+
+⚠️ **De chip achter een werkregel volgt de soort werk** (`workChipTone()` in `lib/work.ts`). Alle
+vijf de soorten stonden op `chip-warning`, waardoor "Bekijk wat er mis is" er precies zo uitzag als
+"Nakijken". §2: `attention` vraagt een keuze en is niet fout, `danger` is een blokkade of iets dat
+niet gelukt is. Een storing die eruitziet als een routineklus blijft liggen.
+
+⚠️ **Het activiteitenblok staat ingeklapt** (`CollapsibleSection`, `defaultOpen={false}`). Het was
+het langste blok van de pagina en het enige waar geen handeling uit volgt.
+
+⚠️ **De mijlpalen zakten, ze verdwenen niet.** Besluit 7 zette ze bewust op het overzicht en dat
+blijft zo. Ze stonden alleen pal onder het hoofdcijfer, en in maand 1 zijn alle drie de getallen
+nul: drie nullen onder een zichtbaarheid van 0% is geen argument om te blijven, het is het
+tegendeel.
+
+⚠️ **Elk blok staat in zijn eigen `SectionErrorBoundary`.** Acht databronnen op de startpagina van
+de klant, en zonder die opvang haalt één onverwachte datavorm het hele scherm weg, inclusief de
+knoppen waarmee hij net iets wilde doen (§4).
+
+**Het getal bij een kans is een telling en geen percentage.** Er stond "240% van de gemeten vragen",
+want de chip rekende met de som van de bevroren promptgewichten, en dat gewicht is volumeband ×
+koopwaarde per vraag (0,02 tot 1,0), geen aandeel. Nu: "raakt 4 van de 30 gemeten vragen", twee
+tellingen. §1, geen schijnprecisie. De som blijft bestaan als sorteersleutel en komt nooit meer in
+beeld.
+
+**En de toelichting bij een kans is ontdaan van onze notatie** (`lib/recommendation-text.ts`). Het
+rapportmodel schreef "V1 en V2 hebben gewicht 0,60" in de zin die de klant leest; bij Van den
+Udenhout begon vijf van de zes aanbevelingen zo. De promptregel in `lib/pipeline/report.ts` verbiedt
+het, en dit is het vangnet in code ernaast (conventie 1). Blijft er niets over, dan staat er niets:
+een half afgebroken zin is erger dan geen zin.
 
 ### De fase van een merk (19 augustus 2026)
 
@@ -571,6 +625,54 @@ aanhouden:
 leeg is en wat de volgende stap is. Stil verdwijnen is erger dan het dode einde
 uit §4: de klant weet dan niet dat de functie bestaat, en de consultant kan het
 gat niet uitleggen omdat er geen gat te zien is.
+
+### Een lijst die niet meer op één scherm past (24 augustus 2026)
+
+Het contentplan was het eerste scherm met 120 items: tien pagina's per maand, twaalf maanden
+vooruit. Een groepering per maand was niet genoeg, want twaalf koppen die "Maand 1" tot "Maand 12"
+heten met tien gelijkvormige kaarten eronder is nog steeds twaalf schermlengtes zonder houvast. Vier
+regels, en ze gelden voor elke lijst die deze omvang haalt.
+
+**Een groep die geen datum draagt, draagt geen betekenis.** "Maand 4" zegt niets zolang er niet
+"december 2026" naast staat. Het plan slaat alleen `month_number` op (besluit 7: geteld vanaf de
+start, nooit "van 12"), dus de kalendermaand wordt afgeleid uit de vroegste publicatiedatum in die
+maand. ⚠️ Met UTC-getters: een kale datum komt binnen als middernacht UTC, en met lokale getters
+wordt 1 december in een negatieve tijdzone 30 november, waarna de kop een maand verschuift.
+
+**Groepen staan dicht, behalve waar iets te doen is.** Open beginnen de lopende maand en elke maand
+die om een handeling vraagt; de rest is een dichtgeklapte regel met naam, aantal en status. Dat
+regeltje is het overzicht dat de openstaande lijst juist niet gaf. ⚠️ Met terugval: klapt de regel
+alles dicht, dan kijkt de gebruiker naar een stapel gesloten regels zonder inhoud, en dat is even
+onbruikbaar als de muur die het moest oplossen. Staat er niets open, dan gaat de eerste groep alsnog
+open (`openMonthIds()` in `lib/plan-overview.ts`).
+
+**Een teller in een groepskop telt de groep, nooit het filter.** Er stond "Maand 1 · 2 pagina's" bij
+een plan van tien per maand, omdat de kop het filterresultaat telde. Wie dat leest concludeert iets
+onwaars over zijn plan. Het groepstotaal staat voorop, het filterresultaat ernaast ("10 pagina's · 2
+in deze selectie").
+
+**Elk filter draagt zijn eigen aantal.** Zonder getal is een leeg tabblad pas leeg ná de klik, en
+dat is een dood einde dat je zelf hebt aangelegd. De teller en de lijst gebruiken dezelfde functie
+(`matchesFilter()`), want een teller die anders telt dan de lijst toont is erger dan geen teller.
+
+### Twee handelingen mogen nooit één woord delen (24 augustus 2026)
+
+In het contentplan gebeurden twee verschillende dingen onder de naam "goedkeuren": een maand
+vrijgeven, waarmee je betaald schrijfwerk in gang zet, en een geschreven tekst goedkeuren, waarmee
+je zegt dat hij gepubliceerd mag worden. Het gevolg stond letterlijk op het scherm: een groene chip
+"Goedgekeurd" op de maand met amberkleurige rijen "Wacht op jouw akkoord" eronder, wat als een
+tegenspraak leest. Een maand wordt sindsdien **vrijgegeven**, een tekst wordt **goedgekeurd**, en de
+statuslabels in `lib/plan-status.ts` houden die twee woordenschatten uit elkaar.
+
+**En je keurt nooit iets goed dat je niet kunt openen.** Staat er een goedkeurknop bij een tekst, dan
+staat de tekst zelf één klik verderop, mét de herkomstparameter uit `lib/origin.ts` zodat de
+terugknop terugwijst naar waar je vandaan kwam. Bestaat die link bij uitzondering niet, dan zegt de
+regel waar de tekst wél te vinden is; een knop zonder uitweg is erger dan een omweg.
+
+**De rem hoort op wat weggooit, niet op wat vastlegt.** "Verwijderen" liep zonder één vraag door
+terwijl "markeer als geplaatst" een volledige bevestiging kreeg. Een handeling die iets uit een plan
+haalt krijgt dezelfde `ConfirmDialog` met `danger`, inclusief wat er daarna gebeurt (hier: een
+reservepagina schuift in, of het maandtotaal wordt één lager).
 
 ## 6. Eén werkmodel
 

@@ -12,12 +12,21 @@
  *
  * ── HOEVEEL IS ER TE WINNEN, EN WANNEER ZEGGEN WE HET NIET ──────────────────
  *
- * Een aanbeveling draagt zijn doelvragen mee, elk met een gewicht: het aandeel
- * van de meting dat die vraag vertegenwoordigt (`RecommendationTarget.weight`).
- * De som daarvan is het eerlijkste antwoord op "hoeveel": zoveel procent van de
- * gemeten vragen kan deze pagina winnen.
+ * Een aanbeveling draagt zijn doelvragen mee. Het getal op het scherm is het
+ * AANTAL daarvan, afgezet tegen het aantal vragen dat in dat cluster gemeten is:
+ * "raakt 4 van de 30 gemeten vragen". Dat is te tellen, dus het kan niet
+ * uiteenlopen met wat hoofdstuk 02 van het dossier laat zien.
  *
- * ⚠️ Waar dat gewicht ontbreekt, staat er GEEN getal. Conventie 3: onbekend is
+ * ⚠️ **Hier stond tot 24 augustus 2026 een percentage, en dat was onmogelijk.**
+ * Het rekende met `RecommendationTarget.weight`, en dat gewicht is geen aandeel
+ * maar volumeband × koopwaarde per vraag, 0,02 tot 1,0
+ * (`lib/pipeline/prompt-weight.ts`). Vier koopklare vragen tellen op tot 2,4, en
+ * op het overzicht van Van den Udenhout stond daardoor letterlijk "240% van de
+ * gemeten vragen", naast een zichtbaarheid van 0%. `docs/ux-design.md` §1: geen
+ * schijnprecisie. De som van de gewichten blijft bestaan als SORTEERSLEUTEL
+ * (`share`), want daarvoor was hij bruikbaar, maar hij komt nooit meer in beeld.
+ *
+ * ⚠️ Waar de doelvragen ontbreken, staat er GEEN getal. Conventie 3: onbekend is
  * een betere waarde dan een verkeerde. Een verzonnen percentage naast een advies
  * is precies het soort cijfer dat een klant onthoudt en later terugvraagt.
  *
@@ -36,6 +45,7 @@
  *
  * Puur, dus testbaar (conventie 2).
  */
+import { leesbaarWaarom } from "@/lib/recommendation-text";
 
 /** Waar een kans vandaan komt. Bepaalt de toon en de knop. */
 export type OpportunitySource =
@@ -53,9 +63,20 @@ export interface Opportunity {
   action: string;
   source: OpportunitySource;
   /**
-   * Het aandeel van de gemeten vragen dat hiermee te winnen is, 0 tot 1.
-   * `null` = niet te becijferen, en dan staat er geen getal op het scherm.
-   * Vangnet-sortering zolang `potential` er nog niet is (zie boven).
+   * Hoeveel gemeten vragen deze kans raakt. `null` = de aanbeveling draagt geen
+   * doelvragen mee, en dan staat er geen getal op het scherm.
+   */
+  raakt: number | null;
+  /**
+   * Hoeveel vragen er in het cluster achter deze kans gemeten zijn, de noemer
+   * bij `raakt`. `null` = onbekend, en dan noemt het scherm alleen de teller.
+   */
+  gemeten: number | null;
+  /**
+   * ⚠️ SORTEERSLEUTEL, NOOIT EEN GETAL OP HET SCHERM. De som van de bevroren
+   * gewichten van de doelvragen. Bruikbaar om twee kansen te vergelijken,
+   * onbruikbaar als mededeling: hij loopt op boven de 1 en is dus geen aandeel.
+   * Zie de waarschuwing bovenaan dit bestand.
    */
   share: number | null;
   /**
@@ -80,6 +101,12 @@ export interface OpportunityInput {
     targets?: { weight?: number | null }[] | null;
     /** Vooraf berekend door de aanroeper (`loadRecommendationPotential`). */
     potential?: number | null;
+    /**
+     * Hoeveel vragen er in het cluster van deze aanbeveling gemeten zijn, de
+     * noemer bij het aantal doelvragen. Weet de aanroeper het niet, dan noemt
+     * het scherm alleen de teller.
+     */
+    measured?: number | null;
   }[];
   /** Onderwerpen die nog geen analyse hebben: nooit gemeten, dus onbekend terrein. */
   unmeasuredTopics: { id: string; title: string }[];
@@ -109,6 +136,8 @@ export function opportunities(input: OpportunityInput): Opportunity[] {
       why: "Je robots.txt houdt de crawlers van AI-assistenten tegen. Zolang dat zo is, levert elke pagina die ORBIT ENGINE schrijft niets op.",
       action: "Geef de AI-crawlers toegang in robots.txt",
       source: "techniek",
+      raakt: null,
+      gemeten: null,
       share: null,
       potential: null,
       href: `/merk/${input.profileId}/analytics`,
@@ -120,17 +149,23 @@ export function opportunities(input: OpportunityInput): Opportunity[] {
       .map((t) => (typeof t.weight === "number" ? t.weight : null))
       .filter((w): w is number => w !== null);
 
+    const doelvragen = (r.targets ?? []).length;
+
     lijst.push({
       id: `aanbeveling-${i}`,
       title: r.title,
-      why: r.why,
+      // ⚠️ Het vangnet op de modeltekst (conventie 1). Zonder dit stond er "V1
+      // en V2 hebben gewicht 0,60" op het scherm van de klant.
+      why: leesbaarWaarom(r.why) ?? "",
       action:
         r.action === "verbeteren" && r.existingUrl
           ? `Werk ${r.existingUrl} bij`
           : "Laat ORBIT ENGINE deze pagina schrijven",
       source: "meting",
-      // Geen gewichten betekent geen getal, niet nul: nul zou zeggen dat er
+      // Geen doelvragen betekent geen getal, niet nul: nul zou zeggen dat er
       // niets te winnen valt, en dat is iets anders dan "we weten het niet".
+      raakt: doelvragen > 0 ? doelvragen : null,
+      gemeten: typeof r.measured === "number" && r.measured > 0 ? r.measured : null,
       share: gewichten.length > 0 ? som(gewichten) : null,
       potential: typeof r.potential === "number" ? r.potential : null,
       href: input.hasPlan ? `/merk/${input.profileId}/strategie/plan` : null,
@@ -150,6 +185,8 @@ export function opportunities(input: OpportunityInput): Opportunity[] {
       why: "Deze pagina's zijn geschreven en goedgekeurd. Zolang ze niet online staan, kan geen enkele AI-assistent ze vinden.",
       action: "Publiceer ze en markeer ze als geplaatst",
       source: "plan",
+      raakt: null,
+      gemeten: null,
       share: null,
       potential: null,
       href: input.hasPlan ? `/merk/${input.profileId}/strategie/plan` : null,
@@ -163,6 +200,8 @@ export function opportunities(input: OpportunityInput): Opportunity[] {
       why: "ORBIT ENGINE weet niet hoe zichtbaar je bent rond dit onderwerp, en kan er dus ook niet gericht over schrijven.",
       action: "Start de meting van dit onderwerp",
       source: "onderwerp",
+      raakt: null,
+      gemeten: null,
       share: null,
       potential: null,
       href: `/analyses/aanbevolen?merk=${input.profileId}`,
@@ -220,13 +259,26 @@ function sorteer(lijst: Opportunity[]): Opportunity[] {
   });
 }
 
-/** Het aandeel als leesbaar percentage, of null. */
-export function shareLabel(share: number | null): string | null {
-  if (share === null) return null;
-  const procent = Math.round(share * 100);
-  // Onder de 1% afronden naar 0 zou "niets te winnen" suggereren. Dan liever
-  // de ondergrens noemen.
-  return procent < 1 ? "minder dan 1% van de gemeten vragen" : `${procent}% van de gemeten vragen`;
+/**
+ * Hoeveel gemeten vragen deze kans raakt, in gewone taal, of `null` als er niets
+ * te tellen valt.
+ *
+ * ⚠️ Beide getallen zijn tellingen en geen schatting. Dat is het hele verschil
+ * met het percentage dat hier tot 24 augustus 2026 stond: dat was een som van
+ * gewichten die tot boven de 100% opliep, en dus een cijfer dat niet kon
+ * kloppen. Zie de waarschuwing bovenaan dit bestand.
+ */
+export function reachLabel(raakt: number | null, gemeten: number | null): string | null {
+  if (raakt === null || raakt <= 0) return null;
+  // De noemer alleen noemen als hij klopt. Meer doelvragen dan gemeten vragen
+  // kan niet, en als het tóch gebeurt is de noemer de onbetrouwbare helft.
+  if (gemeten === null || gemeten < raakt) {
+    return raakt === 1 ? "raakt 1 gemeten vraag" : `raakt ${raakt} gemeten vragen`;
+  }
+  // ⚠️ Met een noemer erbij is het altijd meervoud: het zelfstandig naamwoord
+  // hoort bij de noemer, niet bij de teller. "1 van de 30 gemeten vraag" is
+  // geen Nederlands.
+  return `raakt ${raakt} van de ${gemeten} gemeten vragen`;
 }
 
 function som(getallen: number[]): number {

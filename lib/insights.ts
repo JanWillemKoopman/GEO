@@ -58,7 +58,14 @@ function watGebeurde(input: InsightInput): Insight {
   }
   if (s.length === 1) {
     return {
-      text: `De eerste meting staat op ${Math.round(s[0].score)} van de 100. Dat is het startpunt waartegen alles hierna wordt afgezet.`,
+      // ⚠️ Het cijfer staat er BEWUST niet in. Deze zin staat sinds 24 augustus
+      // 2026 in de stand-kaart, direct onder het hoofdcijfer zelf. Er stond
+      // "De eerste meting staat op 0 van de 100" pal onder een kaart die 0%
+      // toonde: hetzelfde getal, twee schalen, en de klant die zich afvraagt
+      // welk van de twee nu klopt. `docs/ux-design.md` §1: één hoofdgetal.
+      // Bij twee of meer metingen blijven de cijfers hieronder wél staan: daar
+      // gaat de zin over het VERSCHIL, en dat is nieuwe informatie.
+      text: "Dit is je eerste meting. Alles wat hierna gebeurt wordt hiertegen afgezet.",
       toon: "neutraal",
     };
   }

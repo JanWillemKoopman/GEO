@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { Insight } from "@/lib/insights";
-import { shareLabel, type Opportunity } from "@/lib/opportunities";
+import { reachLabel, type Opportunity } from "@/lib/opportunities";
 import { potentialBand, POTENTIAL_BAND_LABEL } from "@/lib/potential";
 
 /**
@@ -24,29 +24,34 @@ const POTENTIAL_CHIP_TONE: Record<ReturnType<typeof potentialBand>, string> = {
 };
 
 /**
- * Drie zinnen bovenaan: wat er gebeurde, wat dat betekent, wat nu.
+ * Drie zinnen: wat er gebeurde, wat dat betekent, wat nu.
  *
  * Geen kop met een getal erin en geen grafiek. Fase 6 ("de lus sluiten") vroeg
  * om "drie zinnen die zeggen wat er deze maand gebeurde en wat de volgende stap
  * is", en dat is precies zoveel als iemand leest voordat hij doorklikt.
+ *
+ * ── ⚠️ GEEN EIGEN KAART MEER (24 AUGUSTUS 2026) ─────────────────────────────
+ *
+ * Dit was een losse sectie met een eigen kop, en de eerste zin ervan herhaalde
+ * het hoofdcijfer dat twee blokken hoger al stond: "De eerste meting staat op 0
+ * van de 100" onder een kaart die 0% toonde. `docs/ux-design.md` §1 kent maar
+ * één hoofdgetal, en de duiding hoort ernaast en niet in een eigen blok. De
+ * zinnen staan nu ín de stand-kaart, als de uitleg bij dat cijfer.
  */
-export function InsightsBlock({ insights }: { insights: Insight[] }) {
+export function InsightLines({ insights }: { insights: Insight[] }) {
   return (
-    <section className="card flex flex-col gap-2" aria-label="Wat er deze maand gebeurde">
-      <span className="mono-label">Wat er deze maand gebeurde</span>
-      <ul className="flex flex-col gap-1.5">
-        {insights.map((i, n) => (
-          <li key={n} className="flex gap-2 text-sm">
-            <span aria-hidden style={{ color: TOON_KLEUR[i.toon] }}>
-              •
-            </span>
-            <span style={{ color: i.toon === "neutraal" ? undefined : TOON_KLEUR[i.toon] }}>
-              {i.text}
-            </span>
-          </li>
-        ))}
-      </ul>
-    </section>
+    <ul className="flex flex-col gap-1.5">
+      {insights.map((i, n) => (
+        <li key={n} className="flex gap-2 text-sm">
+          <span aria-hidden style={{ color: TOON_KLEUR[i.toon] }}>
+            •
+          </span>
+          <span style={{ color: i.toon === "neutraal" ? undefined : TOON_KLEUR[i.toon] }}>
+            {i.text}
+          </span>
+        </li>
+      ))}
+    </ul>
   );
 }
 
@@ -62,10 +67,17 @@ export function InsightsBlock({ insights }: { insights: Insight[] }) {
 export function OpportunitiesBlock({
   opportunities,
   limiet = 6,
+  restHref,
 }: {
   opportunities: Opportunity[];
   /** Meer dan zes kansen leest niemand in één keer. */
   limiet?: number;
+  /**
+   * Waar de kansen staan die niet in de lijst passen. Zonder dit is de regel
+   * "en nog 7 kansen" een dood einde: de klant weet dan dat er meer is en niet
+   * waar (`docs/ux-design.md` §4).
+   */
+  restHref?: string;
 }) {
   if (opportunities.length === 0) {
     return (
@@ -85,10 +97,10 @@ export function OpportunitiesBlock({
         {zichtbaar.map((o) => {
           // Fase 2, docs/tasks/potentiescore.md: de potentiescore is
           // vergelijkbaar over alle onderwerpen van dit merk en gaat daarom
-          // voor. `share` is het vangnet zolang dit merk nog geen enkele
-          // profielbrede herberekening had.
+          // voor. Het aantal geraakte vragen is het vangnet zolang dit merk nog
+          // geen enkele profielbrede herberekening had.
           const band = potentialBand(o.potential);
-          const omvang = shareLabel(o.share);
+          const omvang = reachLabel(o.raakt, o.gemeten);
           return (
             <li key={o.id} className="card flex flex-col gap-1">
               <span className="flex flex-wrap items-baseline gap-2">
@@ -101,25 +113,36 @@ export function OpportunitiesBlock({
                   omvang && <span className="chip chip-info">{omvang}</span>
                 )}
               </span>
-              <span className="text-sm text-muted">{o.why}</span>
-              <span className="flex flex-wrap items-center gap-2 pt-1 text-sm">
-                <span className="font-medium">{o.action}</span>
-                {o.href && (
-                  <Link href={o.href} className="text-secondary hover:underline">
-                    Ga erheen
+              {/* Leeg als het vangnet de hele modeltekst heeft weggelaten. Dan
+                  staat er niets in plaats van een half afgebroken zin. */}
+              {o.why && <span className="text-sm text-muted">{o.why}</span>}
+              {/* De handeling IS de link. Er stond een vette regel met daarnaast
+                  een los "Ga erheen": twee elementen voor één stap, en het
+                  klikbare deel was het deel dat niet zei wat er ging gebeuren. */}
+              <span className="pt-1 text-sm font-medium">
+                {o.href ? (
+                  <Link href={o.href} className="hover:underline">
+                    {o.action}
                   </Link>
+                ) : (
+                  o.action
                 )}
               </span>
             </li>
           );
         })}
       </ul>
-      {rest > 0 && (
-        <p className="text-sm text-muted">
-          En nog {rest} {rest === 1 ? "kans" : "kansen"}, met een kleiner of
-          onbekend effect.
-        </p>
-      )}
+      {rest > 0 &&
+        (restHref ? (
+          <Link href={restHref} className="mono-label w-fit hover:underline">
+            Nog {rest} {rest === 1 ? "kans" : "kansen"} met een kleiner effect
+          </Link>
+        ) : (
+          <p className="text-sm text-muted">
+            En nog {rest} {rest === 1 ? "kans" : "kansen"}, met een kleiner of
+            onbekend effect.
+          </p>
+        ))}
     </div>
   );
 }

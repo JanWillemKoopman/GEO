@@ -242,7 +242,7 @@ Bron: `lib/jobs/{types,queue,worker,handlers,pending}.ts`.
 | 12 | Aggregatie | luna (alleen nieuwe merken) | Entiteitclassificatie + deduplicatie, scores. |
 | 12a | Concurrentdestillatie | luna | `profile_competitors`: per concurrent wélke eigenschappen uit de antwoordfragmenten van deze periode volgen, met letterlijk citaat als bewijs (`competitor-intel.ts`). Voedt `competitor_breakdown.attributes_json`/`why_summary`. |
 | 13 | Gap-analyse (B1) | luna | Wáár concurrenten winnen, met bewijs uit de database. |
-| 14 | Rapport (B2) | luna | Verwoordt B1; leidt niets zelf af. Krijgt naast de meetuitkomst de **structurele gaten** mee (`structure-gap.ts`): welke onderdelen van het aanbod geen eigen pagina hebben. Dat is de enige invoer die niet reactief is. Een claimvalidator verwijdert achteraf elke merknaam die niet in het bewijsdossier van díe vraag staat. |
+| 14 | Rapport (B2) | luna | Verwoordt B1; leidt niets zelf af. Krijgt naast de meetuitkomst de **structurele gaten** mee (`structure-gap.ts`): welke onderdelen van het aanbod geen eigen pagina hebben. Dat is de enige invoer die niet reactief is. Een claimvalidator verwijdert achteraf elke merknaam die niet in het bewijsdossier van díe vraag staat. De vraagcodes (V1, V2) en hun gewichten mogen sinds 24 augustus 2026 alleen in `targets` staan en niet in de toelichting: het model schreef ze in de zin die de klant leest, en `lib/recommendation-text.ts` haalt ze er bij het tonen alsnog uit (conventie 1, prompt plus vangnet). |
 | 15 | Contentbriefing | luna, temp 0 | Feitenkaart bouwen → claim-audit → max 8 vragen aan de klant. Eén slot is gereserveerd voor de positioneringsvraag. |
 | 16 | Content schrijven | **sol** → luna-kritiek → sol herschrijven → luna-herbeoordeling | Uitsluitend binnen bevestigde feiten, met per bewering het feit dat hem dekt. Twee deterministische poorten: `checkContentGate()` (zeven GEO-checks, voedt `geo_score`) en `checkQuality()` (duplicatie + leesbaarheid, voedt alléén `needs_review`. Anders was de score van vorige maand onvergelijkbaar met die van vandaag). Schema.org volgt het bedrijfsmodel en draagt een organisatieknoop met `sameAs`. |
 | 17 | Publiceren |, | Klant vult live-URL in; de app verifieert de pagina. |
@@ -611,6 +611,10 @@ select * from cron.job_run_details order by start_time desc limit 10;
 
 **De schrijfronde in één alinea.** Pagina's van een GOEDGEKEURDE maand die binnen tien dagen
 gepubliceerd moeten worden, krijgen een schrijftaak; de route plant alleen, de werker schrijft.
+⚠️ `plan_months.status = 'goedgekeurd'` heet in het scherm sinds 24 augustus 2026 **vrijgegeven**:
+een maand vrijgeven en een geschreven tekst goedkeuren zijn twee verschillende handelingen, en die
+deelden hiervoor één woord (`docs/ux-design.md` §5). De databasewaarde is niet mee hernoemd, want
+een statuswaarde omdopen raakt migraties, cron en tests voor alleen een etiket.
 Wat er níet geschreven kan worden telt de route apart en verzwijgt hij niet: schrijven leunt op een
 gemeten analyse, en bij Van den Udenhout hebben zes van de acht onderwerpen er nog geen. De regel
 staat in `lib/plan-writing.ts` (`writeDecision`), de reden per pagina staat in het scherm. De brug

@@ -62,7 +62,7 @@ export function CreatePlanBox({
       toast({
         intent: "succes",
         title: "Het contentplan staat klaar",
-        description: `${MONTHS_AHEAD} maanden, ${quota} pagina's per maand. Maand 1 wacht op je akkoord.`,
+        description: `${MONTHS_AHEAD} maanden, ${quota} pagina's per maand. Maand 1 wacht op vrijgave.`,
       });
       router.refresh();
     } catch {
