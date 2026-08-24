@@ -4313,4 +4313,8 @@ omdat sprint 2 er een tweede nodig bleek te hebben. Je weet vooraf niet hoeveel 
 kost, dus die nummers staan er nu niet meer in. `supabase/README.md` is de eigenaar van dat feit, en
 het plan zegt alleen nog wát er nodig is.
 
+**Nog niet geverifieerd.** Het verificatiecriterium van sprint 2 is dat New business naar de lijst
+van één echte markt kijkt en zegt of hij klopt, met minstens 80% van de bedrijven die zij zelf
+kennen erin. Dat is niet gebeurd. Alles werkt, en dat is iets anders dan af (conventie 10).
+
 Migraties `0066` en `0067` op productie, 2308 unittests en 338 ketentests groen.
