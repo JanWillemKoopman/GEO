@@ -111,7 +111,8 @@ Deze lijst is bindend. Een oplossing die hier tegenaan schuurt, is de verkeerde 
 
 - Geen generieke AI-rapportgenerator.
 - Geen dashboard vol cijfers zonder commerciële betekenis.
-- Geen automatische cold-emailmachine. De mens verstuurt, altijd.
+- Geen automatische cold-emailmachine, en ook geen verzending vanuit de app namens een medewerker.
+  De medewerker verstuurt altijd zelf, vanuit zijn eigen mailbox. Zie 16.3, dit is een vaste regel.
 - Geen lijst met bedrijven zonder prioritering.
 - Geen ranglijst die alleen laat zien wie de AI al kent.
 - Geen systeem dat uitsluitend naar ChatGPT kijkt.
@@ -1022,27 +1023,50 @@ superlatieven, "ik zag dat jullie", of een vaag compliment over de website.
 een kwetsbaarheid. Een information gap krijgt urgentie. Dezelfde mail voor alle zeven types is een
 sjabloon met variabelen, en dat ruikt een ondernemer.
 
-### 16.3 De mens verstuurt
+### 16.3 De medewerker verstuurt de mail altijd zelf
+
+**Dit is een vaste regel en geen ontwerpoptie.** De openingsmail wordt altijd door de
+salesmedewerker zelf verzonden, vanuit zijn eigen mailbox, onder zijn eigen naam. ORBIT ENGINE
+verstuurt hem nooit, ook niet namens hem, ook niet met zijn adres als afzender, ook niet als het
+technisch beter uitkomt.
 
 ```
-AI genereert concept
-   → salesmedewerker leest
+ORBIT ENGINE genereert een concept
+   → de salesmedewerker leest het
    → past aan waar nodig
-   → verstuurt vanuit de eigen mailbox
+   → verstuurt het zelf vanuit zijn eigen mailbox
+   → meldt met één klik in de app dat hij verstuurd is
 ```
 
-Geen autonome cold-emailmachine. Dat is niet alleen een nette keuze maar een commerciële: de
-menselijke afzender is onderdeel van de relatie, en het telefoongesprek erna komt van dezelfde
-persoon.
+**Vier redenen waarom dit zo blijft.**
 
-**Verzendroute.** Voor de eerste versie: de app opent een voorgevuld concept en de medewerker
-verstuurt vanuit zijn eigen client. Reden: reacties komen dan in zijn eigen mailbox, waar het gesprek
-hoort. Registratie van "verstuurd" gebeurt met één klik in de app. Een koppeling die het concept
-rechtstreeks in Gmail of Outlook zet, is een verbetering voor later, geen voorwaarde vooraf.
+1. **Het gesprek hoort bij een mens.** De ontvanger krijgt een bericht van M. de Vries en niet van
+   een systeem, en degene die hem daarna belt is dezelfde persoon. Dat is precies het verschil met
+   de honderd geautomatiseerde berichten die hij die week ook krijgt.
+2. **De reacties komen op de goede plek.** Antwoorden landen in de mailbox van de verkoper, in de
+   conversatie waar ze horen, en niet in een systeempostbus die niemand leest.
+3. **Er ligt altijd een menselijke lezing tussen.** Een concept dat niemand las kan niet verstuurd
+   worden, want er is geen route die dat kan. Dat is de sterkste garantie tegen een verkeerde of
+   verzonnen bewering in het eerste contact.
+4. **Het beschermt het maildomein.** Verzending in bulk vanuit één systeem is precies het patroon
+   waar spamfilters op letten. Zie 16.6.
+
+**Wat de app dus wél doet:** het concept klaarzetten, het laten bewerken, het met één handeling
+klaarmaken om te versturen (kopiëren of een voorgevuld concept openen in de eigen mailclient), en
+registreren dat het verstuurd is. **Wat de app nooit doet:** zelf een verbinding maken met een
+mailserver om dit bericht te versturen.
+
+**De enige verbetering die hier later nog in past** is gemak, geen automatisering: een koppeling die
+het concept als klaarliggend concept in de Gmail- of Outlook-map van de medewerker zet, zodat hij
+alleen nog op verzenden hoeft te drukken. Ook dan drukt hij zelf. Dat is een verbetering voor later
+en geen voorwaarde vooraf.
 
 ### 16.4 Twee harde eisen
 
-- **Nooit automatisch versturen.** Er bestaat geen knop, geen instelling en geen cron die dat kan.
+- **Nooit automatisch versturen, en nooit vanuit de app.** Er bestaat geen knop, geen instelling en
+  geen cron die een openingsmail de deur uit doet. De bestaande maillaag (`lib/email/`) wordt in deze
+  module uitsluitend gebruikt voor interne berichten aan collega's, zoals een herinnering aan een
+  follow-up. Nooit voor een bericht aan een prospect.
 - **Afmelden en herkenbare afzender.** Zakelijke mail naar een bedrijfsadres mag, maar niet zonder
   duidelijke afzender en een manier om er vanaf te komen. Wie afmeldt krijgt `do_not_contact` op zijn
   bedrijf, over alle markten heen, permanent.
@@ -1084,9 +1108,11 @@ offertes en je factuurmails hun bestemming niet meer, en dat merk je pas als het
 
 **Dit moet geregeld zijn vóórdat het volume omhoog gaat, niet erna.** Vijf maatregelen:
 
-1. **Een plafond per persoon per dag**, afgedwongen in de app en niet in een afspraak. Begin laag,
-   bijvoorbeeld twintig, en verhoog pas als de cijfers uit 18.1 laten zien dat er nauwelijks
-   stuiterende adressen en klachten zijn.
+1. **Een plafond per persoon per dag.** Omdat de medewerker zelf verstuurt (16.3), kan de app het
+   versturen niet tegenhouden, maar wel de aanvoer: boven het plafond maakt ORBIT ENGINE geen nieuwe
+   concepten meer klaar en zegt erbij waarom. Begin laag, bijvoorbeeld twintig per persoon per dag,
+   en verhoog pas als de cijfers uit 18.1 laten zien dat er nauwelijks stuiterende adressen en
+   klachten zijn.
 2. **Geen mail naar een afgeleid adres**, zie 9.4. Elke bounce telt mee in je reputatie, en een
    gegokt adres bouncet vaak.
 3. **Meet wat er terugkomt.** Bounces, klachten en afmeldingen worden geregistreerd op het bedrijf en
@@ -1444,6 +1470,8 @@ publiek staat. De hele saleswerkstroom is te bewijzen voordat die knoop doorgeha
 
 Deze komen uit de bestaande architectuur en staan niet ter discussie:
 
+- **De openingsmail wordt altijd door de salesmedewerker zelf verzonden, vanuit zijn eigen mailbox.**
+  De app genereert, de mens verstuurt. Er komt geen verzendroute in die dit kan omzeilen. Zie 16.3.
 - Schrijven gaat nooit rechtstreeks vanaf de client. Altijd via een API-route met service-role key en
   een expliciete rechtencontrole.
 - Onbekend is een betere waarde dan een verkeerde. Geen gok in een ranglijst, geen rol zonder
@@ -1496,8 +1524,10 @@ Deze horen genomen te zijn vóór de sprint waarin ze knellen.
    directe concurrenten, of per geval met goedkeuring van de eigenaar van de klantrelatie. Mijn
    advies staat in 9.5. Nodig vóór de eerste mail, dus vóór sprint 5.
 4. **Wie krijgt de rol sales admin**, en hoeveel mensen zijn dat? Nodig vóór sprint 1.
-5. **Verzendroute van de mail:** blijft het kopiëren naar de eigen client, of komt er een koppeling
-   met Gmail of Outlook? Nodig vóór sprint 5, en het antwoord mag "eerst kopiëren" zijn.
+5. **Besloten, staat niet meer open.** De mail wordt altijd door de medewerker zelf verzonden vanuit
+   zijn eigen mailbox (16.3). Wat nog open staat is alleen gemak: blijft het kopiëren naar de eigen
+   client, of komt er later een koppeling die het concept in Gmail of Outlook klaarzet? Dat mag na
+   sprint 5 beslist worden en verandert niets aan de regel zelf.
 6. **Hoe vaak hermeten we een markt?** Dit is geen planningsdetail meer maar een productkeuze,
    want opportunitytype 8 bestaat alleen bij herhaling. Elke hermeting levert nieuwe belaanleidingen
    uit een markt die je al kent, tegen alleen de meetkosten. Mijn advies is maandelijks voor markten
