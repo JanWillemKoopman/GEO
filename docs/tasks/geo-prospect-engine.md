@@ -41,21 +41,21 @@ tegen de kostenlogboeken op productie en komen uit `docs/architecture.md` §6.
 | 5 | De vijf Sales-schermen | iedereen |
 | 6 | Het domeinmodel: markt, bedrijf, meting, opportunity, outreach, uitkomst | iedereen |
 | 7 | Datamodel en migraties | technisch |
-| 8 | De pijplijn: elf taken van markt tot dossier | technisch |
+| 8 | De pijplijn: dertien taken van markt tot dossier | technisch |
 | 9 | Stap 1 in detail: de markt ontdekken zonder AI-vooroordeel | technisch |
 | 10 | Stap 3 in detail: commerciële intentie meten, niet zichtbaarheid | technisch |
 | 11 | Meten over meerdere engines | technisch |
-| 12 | De zeven opportunitytypes, met detectieregels | technisch |
+| 12 | De acht opportunitytypes, met detectieregels | technisch |
 | 13 | De GEO Opportunity Score | technisch |
 | 14 | De sales hook: één reden, met bewijs | technisch |
 | 15 | De bewijsketen: geen claim zonder bron | technisch |
-| 16 | De openingsmail | technisch |
+| 16 | De openingsmail en het telefoongesprek | technisch |
 | 17 | Statusmodel en de saleswerkstroom | iedereen |
 | 18 | Meetbaarheid: de trechter en de KPI's | iedereen |
 | 19 | De leerlus: van GEO-score naar Sales-score | iedereen |
 | 20 | Het publieke rapport, secundair | iedereen |
 | 21 | Kosten en budget | iedereen |
-| 22 | Bouwvolgorde: zes sprints met verificatiecriteria | iedereen |
+| 22 | Bouwvolgorde: zeven sprints met verificatiecriteria | iedereen |
 | 23 | Learnings uit het onderzoek naar inspace.io | iedereen |
 | 24 | Risico's, randvoorwaarden en openstaande beslissingen | iedereen |
 
@@ -292,6 +292,10 @@ er al mee bezig is.
        Zichtbaar bij algemene vragen, vrijwel afwezig bij "beste aankoopmakelaar"
        ChatGPT 18/40 · Gemini 11/40 · bewijs: 9 vragen
 
+  91   Q Makelaars                Verlies           Eindhoven   Nog niet benaderd
+       Gezakt van 18 naar 9 vermeldingen sinds de meting van juni
+       ChatGPT 6/40 · Gemini 3/40 · bewijs: 2 rondes, 9 vragen
+
 ⚡ GEMIDDELD                                                 23 opportunities
 ❄ LAAG                                                     31 opportunities
 ```
@@ -342,7 +346,11 @@ SALES HOOK
 "Jullie bieden aankoopbegeleiding aan, maar AI noemt jullie nauwelijks wanneer
 iemand specifiek naar een aankoopmakelaar in Eindhoven vraagt."
 
+CONTACTPERSOON                M. de Vries, mede-eigenaar
+                              m.devries@vanxmakelaars.nl · van de teampagina
+
 OUTREACH                      Conceptmail  ›  openen en versturen
+GESPREK                       Belvoorbereiding  ›  twee cijfers, drie bezwaren
 OPENBAAR BEWIJS               orbitengine.nl/markt/makelaar-eindhoven
 
 STATUS                        Nieuw   |   Notitie toevoegen   |   Toewijzen
@@ -413,7 +421,7 @@ Drie gevolgen die je in de code terugziet:
 
 ## 7. Datamodel en migraties
 
-Voorstel voor negen tabellen, verdeeld over vier migraties. Additief en idempotent, nooit `drop`,
+Voorstel voor twaalf tabellen, verdeeld over vier migraties. Additief en idempotent, nooit `drop`,
 conform `supabase/README.md`. Alle tabellen krijgen RLS aan met alleen een `select`-policy voor
 `is_sales()`; schrijven loopt via de service-role key.
 
@@ -495,12 +503,25 @@ selecteren, contact), `intent_label` (de commerciële intentie, bijvoorbeeld `aa
 **`sales_evidence`**: expliciete koppelingen tussen een opportunity en de vragen en antwoorden die
 haar dragen, zodat doorklikken een join is en geen zoektocht door een jsonb-veld.
 
-### 7.4 Migratie 0068: outreach en uitkomst
+### 7.4 Migratie 0068: outreach, contactpersonen, uitsluitingen en uitkomst
 
 **`sales_outreach`**: `company_id`, `opportunity_id`, `owner_user_id`, `status`, `subject`,
 `body_draft`, `body_sent`, `sent_at`, `sent_via`, `reply_at`, `reply_sentiment`, `call_at`,
 `meeting_at`, `outcome`, `outcome_at`, `lost_reason`, `notes`. Met een gedeeltelijke uniciteitsindex
 die maar één actieve outreach per bedrijf toestaat.
+
+**`sales_contacts`**: de gevonden contactpersonen. `company_id`, `name`, `role`, `email`,
+`email_kind` (`gevonden` of `afgeleid`), `phone`, `source_url`, `confidence`, `verified_by_user_id`,
+`verified_at`. Een rij met `email_kind = afgeleid` en zonder `verified_at` mag nooit een ontvanger
+zijn; dat is een controle in code en niet alleen in de UI (9.4).
+
+**`sales_suppressions`**: de uitsluitingen uit 9.5. `company_id` of `market_id`, `kind`
+(`klant`, `lopend_traject`, `concurrent_van_klant`, `do_not_contact`), `reason`, `related_profile_id`,
+`created_at`, `expires_at`. Uitsluitingen worden bij elke ronde opnieuw geëvalueerd, want een markt
+waar vandaag geen klant zit, kan er over drie maanden wel een hebben.
+
+**`sales_send_stats`**: per gebruiker per dag het aantal verstuurde mails, bounces, klachten en
+afmeldingen, voor het plafond uit 16.6.
 
 **`sales_events`**: het logboek. Elke statuswijziging, toewijzing en notitie als aparte rij met
 `actor_user_id` en tijdstip. Dit is de bron voor de trechter in hoofdstuk 18 en voor de leerlus in
@@ -509,7 +530,7 @@ hele meetbaarheidsbelofte leeg.
 
 ---
 
-## 8. De pijplijn: elf taken van markt tot dossier
+## 8. De pijplijn: dertien taken van markt tot dossier
 
 Elke stap is een eigen jobtype in de bestaande wachtrij, conform conventie 7: één taak is hooguit
 één zware AI-aanroep. De sales admin kan het scherm sluiten; de keten loopt door op de server.
@@ -518,7 +539,8 @@ Elke stap is een eigen jobtype in de bestaande wachtrij, conform conventie 7: é
 flowchart TD
     A([Sales admin: branche + plaats + straal]) --> B[1 · market_discover<br/>welke bedrijven vormen deze markt]
     B --> C[2 · market_verify<br/>ontdubbelen, valideren, zekerheid per bedrijf]
-    C --> P1[/POORT 1 · admin keurt de bedrijvenlijst goed/]
+    C --> C2[2b · market_suppress<br/>klanten, lopende trajecten, conflicten eruit]
+    C2 --> P1[/POORT 1 · admin keurt de bedrijvenlijst goed/]
     P1 --> D[3 · market_enrich<br/>per bedrijf de site uitlezen, geen AI]
     D --> E[4 · market_intents<br/>commerciële intenties van deze markt]
     E --> F[5 · market_questions<br/>vragen per intentie en klantreisfase]
@@ -530,8 +552,10 @@ flowchart TD
     H --> I[8 · market_aggregate<br/>zichtbaarheid, marges, bronnen, per intentie]
     I --> J[9 · opportunity_detect<br/>zeven types, deterministisch]
     J --> K[10 · opportunity_explain<br/>uitleg, hook, dossiertekst]
-    K --> L[11 · outreach_draft<br/>conceptmail per opportunity]
-    L --> M([Opportunities-scherm gevuld])
+    K --> M([Opportunities-scherm gevuld])
+    M --> N1[12 · contact_find<br/>wie mailen we, alleen bij toewijzing]
+    N1 --> L[13 · outreach_draft<br/>conceptmail plus belvoorbereiding]
+    L --> Z([Verkoper leest, past aan, verstuurt, belt])
     I -.optioneel.-> N([Publiek rapport])
 ```
 
@@ -553,6 +577,15 @@ resultaat toont wat er ontbreekt in plaats van te doen alsof het compleet is. Va
 gaat de ronde door op ChatGPT alleen, zichtbaar op elk scherm dat de uitkomst toont, en de
 opportunitytypes die twee engines nodig hebben worden dan niet gedetecteerd in plaats van geraden.
 
+### 8.2b Wat pas draait bij toewijzing
+
+Twee stappen draaien bewust niet voor de hele markt maar alleen voor opportunities die een
+salesmedewerker daadwerkelijk oppakt: het zoeken van de contactpersoon (9.4) en het schrijven van de
+conceptmail plus de belvoorbereiding (16.2 en 16.5). Voor dertig bedrijven een contactpersoon
+uitzoeken terwijl er acht benaderd worden, is werk en geld dat niemand gebruikt. Dat maakt de
+opportunitydetectie goedkoop en de outreach precies zo duur als het aantal gesprekken dat je echt
+voert.
+
 ### 8.3 Idempotentie
 
 Elke stap controleert of zijn resultaat al bestaat vóór een dure aanroep, conform conventie 9. De
@@ -561,7 +594,7 @@ de eerste opnieuw laat draaien.
 
 ---
 
-## 9. Stap 1 in detail: de markt ontdekken zonder AI-vooroordeel
+## 9. De markt ontdekken, de contactpersoon vinden en uitsluiten wie er niet in hoort
 
 **Dit is de stap waar het oude plan het zwakst was, en hij is cruciaal.**
 
@@ -606,6 +639,79 @@ Twee vestigingen van dezelfde keten op hetzelfde domein zijn één bedrijf; twee
 dezelfde naam op verschillende domeinen zijn er twee. Bij twijfel gaat het naar poort 1 in plaats van
 dat de code kiest, want een verkeerd samengevoegd bedrijf levert een mail op die naar de verkeerde
 vestiging gaat.
+
+### 9.4 De contactpersoon: zonder naam geen persoonlijke mail
+
+De marktontdekking levert bedrijven op, geen mensen. Maar de hele module draait om een **persoonlijk**
+eerste contact, en een mail aan `info@` is dat niet. Deze stap is daarom geen bijzaak: hij staat
+tussen de opportunity en de outreach in, en zonder hem stopt de keten één stap voor de finish.
+
+**Wat de stap zoekt**, in deze volgorde van betrouwbaarheid:
+
+| Bron | Levert | Betrouwbaarheid |
+|---|---|---|
+| De eigen website: over ons, team, contact | naam, functie, vaak een direct adres | hoog |
+| Handelsregister: bestuurder of eigenaar | naam en functie, zelden een adres | hoog voor de naam |
+| Zakelijke netwerken en vakmedia | wie de marketing of de commercie doet | middel |
+| Afleiding uit het patroon van bekende adressen op het domein | een waarschijnlijk adres | laag |
+
+**Drie regels die hard in code moeten.**
+
+1. **Een afgeleid adres is geen adres.** Een gok op `voornaam@domein.nl` mag opgeslagen worden met
+   het label "afgeleid", maar er gaat geen mail naartoe zonder dat een mens hem heeft bevestigd. Een
+   mail die stuitert kost je niets, maar een mail bij de verkeerde persoon kost je het bedrijf.
+2. **Liever geen contact dan de verkeerde.** Vindt de stap niemand met voldoende zekerheid, dan
+   krijgt de opportunity de status "contact ontbreekt" en verschijnt hij in een aparte lijst voor
+   handmatig uitzoekwerk. Hij verdwijnt niet stil, en hij wordt ook niet stiekem naar het algemene
+   adres gestuurd. Dat is conventie 3: onbekend is een betere waarde dan een verkeerde.
+3. **De juiste rol, niet zomaar een naam.** Bij een makelaarskantoor is dat de eigenaar of de
+   commercieel verantwoordelijke, niet de administratief medewerker die toevallig op de teampagina
+   staat. De stap legt daarom de functie vast, en de score voor "contact gevonden" telt alleen als de
+   rol past.
+
+**Privacy.** Namen en functies van medewerkers zijn persoonsgegevens, ook als ze publiek op een
+website staan. Ze worden uitsluitend vastgelegd voor dit ene doel, verschijnen nooit op een publieke
+pagina, en verdwijnen mee met de opruimtermijn uit 24.2. De vindplaats wordt per veld bewaard, zodat
+bij een vraag van betrokkene te zeggen is waar het vandaan komt.
+
+**Waar dit landt.** Een eigen tabel `sales_contacts` (7.4) en een eigen taak in de pijplijn, die pas
+draait voor opportunities die daadwerkelijk zijn toegewezen. Voor negenentwintig bedrijven met een
+lage score een contactpersoon uitzoeken is weggegooid werk, net als bij de conceptmails.
+
+### 9.5 Uitsluitingen: wie er nooit in een prospectlijst mag staan
+
+Vier soorten bedrijven horen niet in een lijst die benaderd wordt, en de controle daarop gebeurt
+**voordat** er een opportunity zichtbaar wordt, niet pas bij het versturen.
+
+| Uitsluiting | Waarom | Hoe |
+|---|---|---|
+| **Bestaande klanten** | pijnlijk en amateuristisch | match op domein tegen de merkprofielen in de klantomgeving |
+| **Lopende trajecten** | dubbele benadering vanuit twee kanten van het bedrijf | match tegen openstaande outreach en tegen merken die al klaarstaan voor een demogesprek |
+| **Directe concurrenten van een bestaande klant** | zie hieronder | match op markt: zit er een klant van ons in dezelfde markt, dan gaat de hele markt op de conflictlijst |
+| **`do_not_contact`** | afgemeld, of verzocht om verwijdering | vlag op het bedrijf, permanent, over alle markten heen |
+
+**De derde is de belangrijkste en de minst voor de hand liggende.** Als wij Van X Makelaars in
+Eindhoven helpen zichtbaar te worden in AI-antwoorden, kunnen we niet tegelijk zijn directe buurman
+verkopen dat hij Van X moet inhalen. Dat is geen smaakkwestie: het is een reden voor die klant om
+op te zeggen, en in een kleine markt hoort hij het. Het gaat bovendien lijnrecht in tegen wat wij
+verkopen, want wij beloven een klant dat wij aan zíjn zichtbaarheid werken.
+
+**Hoe streng.** Dat is een commerciële keuze en geen technische. Drie standen, en de keuze hoort
+gemaakt te zijn vóór de eerste mail:
+
+1. **Hele markt op slot.** Zit er één klant in de markt, dan wordt daar niemand benaderd. Het
+   veiligst, en het duurst.
+2. **Alleen de directe concurrenten.** De bedrijven die in de meting structureel tegenover onze klant
+   staan, worden uitgesloten; de rest van de markt niet.
+3. **Per geval, met een expliciete goedkeuring** van de eigenaar van de klantrelatie, vastgelegd bij
+   de opportunity.
+
+Mijn advies is stand 2 met een zichtbare waarschuwing bij elke opportunity in een markt waar een
+klant zit, zodat de verkoper weet dat hij in gevoelig gebied werkt.
+
+**Zichtbaar, niet stil.** Een uitgesloten bedrijf verdwijnt niet uit het systeem. Het staat in de
+markt met de reden van uitsluiting erbij, want anders komt het bij de volgende meetronde gewoon
+weer boven als nieuwe kans.
 
 ---
 
@@ -679,7 +785,7 @@ in externe autoriteit, en dat is een concreet gesprek. Dat is opportunitytype 4.
 
 ---
 
-## 12. De zeven opportunitytypes, met detectieregels
+## 12. De acht opportunitytypes, met detectieregels
 
 Dit is het hart van de module. Detectie is **deterministisch**: het gebeurt in een pure module die
 zonder database en zonder API-sleutel getest kan worden, conform conventie 2. Het model schrijft
@@ -751,12 +857,40 @@ positie kwijtraakt is commercieel de meest waardevolle klant die er is.
 **Bewijs:** de sterke positie naast de zwakke plek.
 **Toon:** dit type vraagt een andere mail dan type 1. Zie hoofdstuk 16.
 
+### Type 8 · Verlies
+
+**Wanneer:** het bedrijf zat in een vorige meetronde van dezelfde markt hoger dan nu, en de daling
+valt buiten de gecombineerde onzekerheidsmarge van beide rondes.
+**Waarom interessant:** dit is het sterkste verkoopmoment dat er bestaat. "Je bent onzichtbaar" is
+een toestand waar een ondernemer al jaren mee leeft zonder het te weten. "Je bent sinds juni gezakt
+van achttien naar negen" is een gebeurtenis, hij is recent, en hij roept meteen de vraag op wat er
+veranderd is. Urgentie hoef je er niet bij te verzinnen.
+**Bewijs:** de twee metingen naast elkaar, met de vragen waarop het verschil ontstond, en waar
+mogelijk de concurrent die de plek innam.
+**Voorwaarde:** minstens twee meetrondes van dezelfde markt, met dezelfde vragen. Dat betekent dat
+dit type pas bestaat vanaf de tweede ronde, en dat is meteen de reden om markten structureel te
+hermeten in plaats van eenmalig te meten.
+
+**Wat dit met de module doet.** Zonder dit type is een marktanalyse een eenmalige oogst: je haalt er
+acht kansen uit en daarna is die markt leeg. Met dit type levert elke hermeting een nieuwe lichting
+belaanleidingen op uit dezelfde markt, zonder nieuwe marktontdekking en tegen alleen de meetkosten.
+Dat verandert de economie van de hele module, en het is de reden dat het domeinmodel meetrondes als
+aparte entiteit behandelt (hoofdstuk 6).
+
+**Twee vangnetten.** Een daling die binnen de marge valt is geen daling, en dat is precies de fout
+die een verkoper voor schut zet. En een daling die alleen bij één engine zichtbaar is terwijl de
+andere gelijk bleef, is een engine gap en geen verlies. Beide controles zijn deterministisch en
+getest.
+
 ### 12.1 Eén bedrijf, meerdere types
 
 Een bedrijf kan aan meerdere types voldoen. Het systeem legt ze allemaal vast, maar kiest er één als
 **primair type**, en dat is het type dat de hook bepaalt. De keuze gaat op bewijssterkte eerst en op
-commerciële scherpte daarna, in de vaste volgorde: information gap, intent gap, concurrent gap,
-source gap, engine gap, onzichtbaar, strong position. Die volgorde staat in code en is testbaar.
+commerciële scherpte daarna, in de vaste volgorde: verlies, information gap, intent gap, concurrent
+gap, source gap, engine gap, onzichtbaar, strong position. Die volgorde staat in code en is testbaar.
+
+**Verlies staat bewust bovenaan.** Een aantoonbare, recente achteruitgang verslaat elke statische
+observatie, ook als die statische observatie op meer vragen rust. Urgentie wint van omvang.
 
 ---
 
@@ -770,6 +904,7 @@ nooit een modeluitvoer.** Hij wordt gerekend, zodat hij uitlegbaar, testbaar en 
 | Component | Weegt | Waarom |
 |---|---|---|
 | **Kansgrootte** | 25 | Hoeveel zichtbaarheid valt er te winnen, gewogen naar de commerciële waarde van de gemiste intenties |
+| **Recente beweging** | +10 bonus | Een aantoonbare daling sinds de vorige ronde verhoogt de score, want urgentie maakt een gesprek waarschijnlijker. Alleen als er twee rondes zijn en de daling buiten de marge valt |
 | **Bewijssterkte** | 20 | Hoeveel vragen dragen de conclusie, en valt het verschil buiten de marge |
 | **Commerciële relevantie** | 20 | Is dit een bedrijf dat klant kan worden: omvang, professionaliteit van de site, aanwezigheid van een dienstenaanbod |
 | **Scherpte van de haak** | 15 | Type 5 en 3 zijn scherper dan type 1, want ze zijn specifiek en verifieerbaar |
@@ -859,7 +994,7 @@ verstuurd is, en waarop dat gebaseerd was.
 
 ---
 
-## 16. De openingsmail
+## 16. De openingsmail en het telefoongesprek
 
 De mail is een **output van het dossier**, niet het product. Hij mag geen enkele bewering bevatten
 die niet uit het dossier komt.
@@ -911,6 +1046,59 @@ rechtstreeks in Gmail of Outlook zet, is een verbetering voor later, geen voorwa
 - **Afmelden en herkenbare afzender.** Zakelijke mail naar een bedrijfsadres mag, maar niet zonder
   duidelijke afzender en een manier om er vanaf te komen. Wie afmeldt krijgt `do_not_contact` op zijn
   bedrijf, over alle markten heen, permanent.
+
+### 16.5 De gespreksvoorbereiding: het belangrijkste dat na de mail komt
+
+De mail is de opener, **het telefoongesprek is het doel**. Toch is dat gesprek vandaag het minst
+ondersteunde deel van de keten, terwijl al het materiaal er ligt. Per opportunity genereert de engine
+daarom een korte gespreksvoorbereiding, die de verkoper openhoudt terwijl hij belt.
+
+Vier blokken, samen niet langer dan één scherm:
+
+1. **De twee cijfers die je paraat moet hebben.** Niet zeven. De twee waarop het gesprek draait,
+   bijvoorbeeld "3 van de 40" en "concurrent Y bij 24".
+2. **Drie openingszinnen**, afgestemd op wat er gebeurd is: hij heeft niet gereageerd, hij heeft
+   gereageerd met interesse, of hij heeft gereageerd met scepsis. Dat zijn drie verschillende
+   gesprekken en één openingszin dekt ze niet.
+3. **De drie bezwaren die bij dit hooktype horen, met het antwoord erop.** Bij een onzichtbaar
+   bedrijf: "wij krijgen onze klanten via mond-tot-mondreclame". Bij een marktleider: "wij staan
+   toch goed". Bij een information gap: "dat kan niet kloppen". Het antwoord verwijst altijd naar
+   het bewijs, nooit naar een verkoopargument.
+4. **Wat je nooit moet zeggen bij dit bedrijf.** De grens van wat de meting draagt. Weten we niet
+   hoeveel omzet dit misloopt, dan zeg je dat niet, ook niet als het gesprek erom vraagt.
+
+**Kosten en moment.** Dit is één goedkope aanroep op een dossier dat al bestaat, en hij draait pas
+bij toewijzing van de opportunity. De hele voorbereiding valt onder dezelfde bewijsregel als de
+mail: elk getal erin wordt tegen de meetdata gecontroleerd voordat het opgeslagen wordt.
+
+**Terugkoppeling.** Na het gesprek legt de verkoper in twee klikken vast welk bezwaar hij echt kreeg.
+Dat is de goedkoopste leerbron die het systeem heeft, en het voedt hoofdstuk 19 sneller dan
+conversiecijfers dat kunnen.
+
+### 16.6 Verzendreputatie: bescherm het domein van Outer Orbit
+
+Koude mail vanuit de eigen mailbox van een verkoper zet het maildomein van Outer Orbit op het spel.
+Gaan er straks honderd berichten per week uit vanaf hetzelfde domein waarop ook de klantcommunicatie
+en de facturatie lopen, dan kan één golf spamklachten dat hele domein afknijpen. Dan bereiken ook je
+offertes en je factuurmails hun bestemming niet meer, en dat merk je pas als het al weken misgaat.
+
+**Dit moet geregeld zijn vóórdat het volume omhoog gaat, niet erna.** Vijf maatregelen:
+
+1. **Een plafond per persoon per dag**, afgedwongen in de app en niet in een afspraak. Begin laag,
+   bijvoorbeeld twintig, en verhoog pas als de cijfers uit 18.1 laten zien dat er nauwelijks
+   stuiterende adressen en klachten zijn.
+2. **Geen mail naar een afgeleid adres**, zie 9.4. Elke bounce telt mee in je reputatie, en een
+   gegokt adres bouncet vaak.
+3. **Meet wat er terugkomt.** Bounces, klachten en afmeldingen worden geregistreerd op het bedrijf en
+   opgeteld per week. Loopt het op, dan gaat het plafond automatisch omlaag.
+4. **Overweeg een apart subdomein** voor acquisitie, gescheiden van het domein waarop klanten en
+   facturen lopen. Dat kost wat inrichting en het scheelt in het ergste geval je hele bedrijfsmail.
+   De verkoper blijft afzender met zijn eigen naam.
+5. **Zorg dat de techniek klopt**: een correct ingestelde afzender, een herkenbare handtekening met
+   bedrijfsgegevens, en een afmeldmogelijkheid die werkt. Zie 16.4.
+
+**Wie beslist dit.** Punt 4 is de enige die een keuze buiten de app vraagt en die hoort bij de
+eigenaar te liggen, niet bij engineering. De rest wordt gewoon gebouwd.
 
 ---
 
@@ -1088,9 +1276,29 @@ Ter vergelijking, nagerekend op productie: een klantmeetronde van 30 vragen kost
 waarvan ongeveer 95% in het stellen van de vraag mét websearch zit. Een profielonderzoek kost
 eenmalig ongeveer $0,25.
 
-### 21.1 Voorgestelde verdeling
+### 21.1 De kostenknop is het aantal vragen, niet het aantal bedrijven
 
-Uitgangspunt: één markt, ongeveer 30 bedrijven, 40 vragen, twee engines.
+**Dit corrigeert een aanname die er eerder in stond en die verkeerd was.** De rekening van een
+meetronde loopt via de vragen: je stelt een vraag mét websearch aan een engine, en dat is de dure
+handeling. Het beoordelen van het antwoord gebeurt daarna in één keer voor alle bedrijven tegelijk.
+Twintig bedrijven meer in dezelfde markt kost dus vrijwel niets extra.
+
+Daar volgen twee ontwerpregels uit, en ze gaan tegen de intuïtie in:
+
+1. **Neem de hele markt mee.** Snijden in het aantal bedrijven levert nauwelijks besparing op, en het
+   snijdt juist in de onzichtbare bedrijven, precies de prospects die je zoekt. Een markt afkappen op
+   "de vijftien bekendste" bouwt hetzelfde AI-vooroordeel in dat hoofdstuk 9 nou juist wegneemt.
+2. **Wil je goedkoper, snijd dan in vragen of in engines.** Veertig vragen op twee engines is de
+   duurste stand. Dertig vragen, of één engine voor een verkennende ronde en twee voor een markt die
+   ertoe doet, is de knop die werkelijk scheelt.
+
+Wat wél meeschaalt met het aantal bedrijven zijn de goedkope stappen: de crawl per bedrijf, die
+niets kost omdat er geen model aan te pas komt, en de beoordeling, die iets groeit met het aantal
+namen dat per antwoord gecontroleerd wordt.
+
+### 21.2 Voorgestelde verdeling
+
+Uitgangspunt: één markt, de volledige markt aan bedrijven, 40 vragen, twee engines.
 
 | Post | Indicatie |
 |---|---|
@@ -1101,35 +1309,37 @@ Uitgangspunt: één markt, ongeveer 30 bedrijven, 40 vragen, twee engines.
 | Meten met Gemini, 40 vragen | €2,75 |
 | Beoordelen per antwoord | €0,40 |
 | Opportunities verklaren en hooks schrijven | €1,00 |
-| Conceptmails, alleen voor de geselecteerde opportunities | €1,25 |
+| Contactpersonen zoeken, alleen bij toewijzing | €0,40 |
+| Conceptmails en belvoorbereiding, alleen bij toewijzing | €1,25 |
 | Publiek rapport schrijven, alleen bij publicatie | €0,35 |
 | Marge voor herhalingen en mislukte stappen | rest |
 
-### 21.2 Drie remmen
+### 21.3 Drie remmen
 
 1. **Een hard plafond per markt**, naar het model van het bestaande plafond per merk en het
    dagplafond over alles heen. Loopt het budget op, dan valt een stap weg en wordt dát vastgelegd.
-2. **Mails alleen voor geselecteerde opportunities.** Voor 29 bedrijven met een lage score een mail
-   schrijven die niemand verstuurt, is weggegooid geld. Genereren gebeurt bij het toewijzen, niet
-   bij het detecteren.
+2. **Contactpersonen en mails pas bij toewijzing.** Voor bedrijven met een lage score een
+   contactpersoon uitzoeken en een mail schrijven die niemand verstuurt, is weggegooid geld. Beide
+   gebeuren bij het toewijzen, niet bij het detecteren. Zie 8.2b.
 3. **Een goedkope ontwikkelstand.** Dezelfde schakelaar die vandaag websearch uitzet, werkt hier
    ook. De meting is dan niet representatief, en dat staat er zichtbaar bij.
 
 ---
 
-## 22. Bouwvolgorde: zes sprints met verificatiecriteria
+## 22. Bouwvolgorde: zeven sprints met verificatiecriteria
 
-Elke sprint levert zelfstandig iets bruikbaars op, en is pas af als het verificatiecriterium tegen
+Zeven sprints. Elke sprint levert zelfstandig iets bruikbaars op, en is pas af als het verificatiecriterium tegen
 echte data is aangetoond. Gebouwd is niet geverifieerd, conventie 10.
 
 | Sprint | Wat erin zit | Migratie | Verificatiecriterium |
 |---|---|---|---|
 | **1. Fundament** | De rol sales en sales admin, de Sales-sectie in de sidebar, lege schermen, `sales_markets` en `sales_companies`, markt aanmaken | 0065 | Een salesmedewerker ziet Sales, een klant krijgt "pagina bestaat niet", en een markt kan aangemaakt worden |
-| **2. Ontdekken** | Marktontdekking uit meerdere bronnen, ontdubbelen, poort 1, de crawlverrijking | 0065 | New business kijkt naar de gevonden lijst voor één echte markt en zegt of hij klopt. Minstens 80% van de bedrijven die zij zelf kennen zit erin |
+| **2. Ontdekken** | Marktontdekking uit meerdere bronnen, ontdubbelen, de uitsluitingen uit 9.5, poort 1, de crawlverrijking | 0065 | New business kijkt naar de gevonden lijst voor één echte markt en zegt of hij klopt. Minstens 80% van de bedrijven die zij zelf kennen zit erin |
 | **3. Meten** | Intenties, vragen, poort 2, meting op beide engines, beoordelen, aggregatie | 0066 | De zichtbaarheidscijfers zijn met de hand na te rekenen uit de opgeslagen antwoorden, en een tweede meting van dezelfde markt geeft geen wild ander beeld |
-| **4. Opportunities** | De zeven types, de score, de hook, het bewijs, het prospectdossier, het Opportunities-scherm | 0067 | New business beoordeelt de top tien en de bodem tien en is het met minstens acht van de tien eens. Elke oneens is een kalibratiepunt en wordt verwerkt |
-| **5. Outreach** | Conceptmails per hooktype, de werkstroom, statussen, toewijzing, `sales_events`, de trechtercijfers | 0068 | Een salesmedewerker leest tien conceptmails en zegt van minstens acht: deze zou ik versturen. Daarna: de eerste echte mails gaan uit |
+| **4. Opportunities** | De acht types (verlies pas actief vanaf de tweede ronde), de score, de hook, het bewijs, het prospectdossier, het Opportunities-scherm | 0067 | New business beoordeelt de top tien en de bodem tien en is het met minstens acht van de tien eens. Elke oneens is een kalibratiepunt en wordt verwerkt |
+| **5. Outreach** | Contactpersonen zoeken, conceptmails per hooktype, de belvoorbereiding, de verzendplafonds uit 16.6, de werkstroom, statussen, toewijzing, `sales_events`, de trechtercijfers | 0068 | Een salesmedewerker leest tien conceptmails en zegt van minstens acht: deze zou ik versturen. Daarna: de eerste echte mails gaan uit |
 | **6. Publiceren** | De publieke route, het rapport, de adresstructuur, verwijderprocedure | 0069 | Het rapport staat online, een prospect heeft de link geopend, en er is geen verzoek tot verwijdering geweest dat we niet konden honoreren |
+| **7. Hermeten** | De tweede ronde op de pilotmarkt, opportunitytype 8 actief, de vergelijking tussen rondes op elk scherm | geen | Er komen belaanleidingen uit de verandering zelf, en New business bevestigt dat een daling een beter gesprek oplevert dan een statische observatie |
 
 ### 22.1 De pilot
 
@@ -1252,7 +1462,8 @@ Deze komen uit de bestaande architectuur en staan niet ter discussie:
 
 - **Bedrijfsgegevens, geen persoonsgegevens.** Naam, adres, domein en telefoonnummer van een bedrijf
   zijn openbare bedrijfsinformatie. Namen en directe e-mailadressen van medewerkers worden alleen
-  vastgelegd als ze publiek op de site staan, en verschijnen nooit op een publieke pagina.
+  vastgelegd als ze publiek vindbaar zijn, uitsluitend voor dit ene doel, met de vindplaats per veld
+  erbij, en ze verschijnen nooit op een publieke pagina. Zie 9.4.
 - **`do_not_contact` is absoluut.** Eén vlag op het bedrijf, geldig over alle markten, en de engine
   genereert er geen mail meer voor. Een afmelding zet hem automatisch.
 - **Bewaartermijn.** Prospects die na twaalf maanden nergens toe geleid hebben, worden opgeruimd of
@@ -1268,6 +1479,9 @@ Deze komen uit de bestaande architectuur en staan niet ter discussie:
 | De mails ruiken naar sjabloon | hoog, want dan verbrandt de naam vóór het telefoontje | Per hooktype een eigen toon, elk cijfer gecontroleerd tegen de data, en een menselijke lezing vóór verzending |
 | Een publieke pagina levert een boze reactie op | middel | Publicatie is een aparte, expliciete stap, standaard uit, en intrekken kan altijd |
 | Een verzonnen bewering in een mail | hoog, en niet te herstellen | Geen bewijs is geen claim, met een deterministische validator ervoor |
+| We benaderen de concurrent van een bestaande klant | hoog, kost je die klant | De uitsluitingen uit 9.5, geëvalueerd bij elke ronde, met een zichtbare waarschuwing in markten waar een klant zit |
+| Het maildomein van Outer Orbit raakt beschadigd | hoog, en het treft ook facturen en klantmail | Plafond per persoon per dag, geen mail naar afgeleide adressen, bounces en klachten meten, en de afweging over een apart subdomein. Zie 16.6 |
+| De mail komt bij de verkeerde persoon aan | middel tot hoog | Een afgeleid adres wordt nooit ontvanger zonder menselijke bevestiging. Liever geen contact dan de verkeerde. Zie 9.4 |
 | De kosten lopen op zonder resultaat | middel | Plafond per markt, mails pas bij toewijzing, en de trechtercijfers vanaf dag één |
 
 ### 24.4 Openstaande beslissingen
@@ -1278,13 +1492,18 @@ Deze horen genomen te zijn vóór de sprint waarin ze knellen.
    sprint 2.
 2. **Komen bedrijven die nul keer genoemd worden op de publieke pagina?** Nodig vóór sprint 6. Zie
    23.2: er is geen precedent, en het is de scherpste haak én het grootste risico.
-3. **Hoeveel bedrijven per markt meten we door?** Alle gevonden bedrijven, of alleen de bedrijven die
-   commercieel relevant lijken? Dat scheelt direct in de kosten. Nodig vóór sprint 3.
+3. **Hoe streng zijn we met de concurrenten van bestaande klanten?** Hele markt op slot, alleen de
+   directe concurrenten, of per geval met goedkeuring van de eigenaar van de klantrelatie. Mijn
+   advies staat in 9.5. Nodig vóór de eerste mail, dus vóór sprint 5.
 4. **Wie krijgt de rol sales admin**, en hoeveel mensen zijn dat? Nodig vóór sprint 1.
 5. **Verzendroute van de mail:** blijft het kopiëren naar de eigen client, of komt er een koppeling
    met Gmail of Outlook? Nodig vóór sprint 5, en het antwoord mag "eerst kopiëren" zijn.
-6. **Hoe vaak hermeten we een markt?** Dat bepaalt of verandering over tijd een tweede aanleiding om te bellen
-   wordt. Nodig vóór sprint 3, want het raakt het datamodel niet maar wel de planning.
+6. **Hoe vaak hermeten we een markt?** Dit is geen planningsdetail meer maar een productkeuze,
+   want opportunitytype 8 bestaat alleen bij herhaling. Elke hermeting levert nieuwe belaanleidingen
+   uit een markt die je al kent, tegen alleen de meetkosten. Mijn advies is maandelijks voor markten
+   waar een traject loopt en per kwartaal voor de rest. Nodig vóór sprint 7.
+7. **Gaat acquisitiemail vanaf een apart subdomein?** De enige beslissing uit 16.6 die buiten de app
+   ligt en bij de eigenaar hoort. Nodig vóór het volume omhoog gaat.
 
 ---
 
@@ -1292,8 +1511,9 @@ Deze horen genomen te zijn vóór de sprint waarin ze knellen.
 
 Deze module is af als een New business manager 's ochtends de Sales-sectie opent, binnen tien
 seconden ziet welke drie bedrijven hij vandaag moet bellen, per bedrijf in één zin kan uitleggen
-waarom hij belt, dat kan onderbouwen met een vraag en een antwoord die hij ter plekke laat zien, en
-de mail die klaarstaat zonder aarzeling zou versturen omdat er niets in staat dat hij niet kan
-waarmaken.
+waarom hij belt, weet wie hij aan de lijn krijgt, dat kan onderbouwen met een vraag en een antwoord
+die hij ter plekke laat zien, de mail die klaarstaat zonder aarzeling zou versturen omdat er niets
+in staat dat hij niet kan waarmaken, en na het versturen een voorbereiding openhoudt met de twee
+cijfers en de drie bezwaren die bij dit gesprek horen.
 
 En het is pas geslaagd als daar gesprekken uit komen. Niet als het dashboard mooi is.
