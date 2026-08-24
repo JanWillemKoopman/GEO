@@ -32,6 +32,7 @@ verwijzing in de code straks nergens meer heen.
 | `tasks/appstructuur.md` | Het uitvoerplan voor de herindeling van de zijbalk en de schermen: zeven fases, de acht besluiten en de tien Nova-aanscherpingen | **De zeven fases staan hieronder als eigen alinea's** (17 augustus 2026). De doelstructuur zelf staat in `ux-design.md` §5. Verwijderd 17 augustus 2026, toen fase 7 af was |
 | `tasks/onboarding-3.0.md` deel A t/m K | Het bouwplan van onboarding 3.0: de vergelijking met Nova (A), de route van de beheerder (B), drie momenten met één veldenlijst (C), de vijftien nieuwe velden (D), het oordeel per Nova-veld (E), de zes fases (F), de schermspec van de sessie (G) | De zes alinea's van 19 augustus 2026 hieronder. Gebouwd en verwijderd op 19 augustus 2026. De velden zelf staan in migratie `0060` en in `lib/pipeline/brand-fields.ts`, het schermontwerp in `ux-design.md` §5, en de uitleg zonder techniek in `APP_FLOW_DOCUMENTATION.md` §6 |
 | `Nova.md` | InSpace Nova gereconstrueerd, de gap-analyse en het achtfasenbouwplan dat daaruit volgde | Bouwplan afgebouwd, zie de secties hieronder per fase. Zelf verwijderd op 17 augustus 2026, de citaten die er verderop in dit logboek nog naar verwijzen zijn historisch en blijven staan zoals ze geschreven zijn. De richting daarna staat in `visie.md` |
+| `tasks/mijn-reputatie.md` (en de leesbare versie ernaast, `tasks/mijn-reputatie.html`) | Het product- en implementatieplan voor de reputatieanalyse: waarom een los product, de vier vragen aan ChatGPT, de oordeelslaag, het datamodel en de rekensom over de kosten | Alle vijf sprints (R1 t/m R5) gebouwd en op drie echte runs geverifieerd, zie de zeven secties hieronder van 22 en 23 augustus 2026. Het datamodel zelf staat in de migraties `0062` t/m `0064`, de pijplijnstap in `architecture.md` §6 rij 21, de code in `lib/reputation/` en `lib/pipeline/reputation-*.ts`. Verwijderd 23 augustus 2026, toen R5 geverifieerd was |
 
 De volledige originelen staan in de git-historie (laatste versie: de commit vóór de
 documentatie-herstructurering).
@@ -4185,3 +4186,15 @@ budgetkwestie meer maar iets aan de kant van OpenAI zelf. Niet dringend, wel iet
 volgen.
 
 Sprint R5 hiermee afgerond en geverifieerd.
+
+## 23 augustus 2026: Mijn reputatie compleet, het bouwplan verwijderd
+
+Alle vijf sprints gebouwd en op drie echte runs op Gasservice Brabant geverifieerd. `docs/tasks/mijn-reputatie.md`
+en zijn leesbare versie `mijn-reputatie.html` zijn verwijderd, hun plek staat in de vertaaltabel bovenaan dit
+document. Wat nog openstaat, is geen bug maar een productkeuze voor een volgende ronde en niet ingepland: het
+etiket `gemengd` scoort in `lib/reputation/tone.ts` altijd exact 0, ongeacht hoeveel of hoe zwaar de bezwaren in
+een antwoord zijn. Bij Gasservice Brabant maakte dat geen verschil tussen een antwoord met één milde
+prijsopmerking en een antwoord met vijf klachten waaronder een veiligheidsgerelateerd punt. Een volgende ronde
+zou het aantal en de soort bezwaren laten meewegen in het cijfer zelf, niet alleen in het etiket.
+
+Migraties t/m `0064` op productie, 2100 unittests en 290 ketentests groen.
