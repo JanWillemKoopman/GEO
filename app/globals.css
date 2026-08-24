@@ -82,6 +82,18 @@
   --bg-elevated: #e7edf2; /* chips, voortgangsbanen */
   --bg-surface-2: #dce3ea; /* een tint dieper, hover op een genest vlak */
 
+  /* De grond onder een scherm dat uit één gecentreerde kaart bestaat: inloggen,
+     wachtwoord herstellen, een uitnodiging aannemen. Die kaart moet zich van de
+     pagina lostrekken, en dat lukt alleen als de pagina niet dezelfde kleur is.
+
+     ⚠️ Dit is een eigen token en geen verwijzing naar --bg-muted, want de twee
+     standen gaan hier tegengesteld: in licht ligt de grond één stap ONDER de
+     kaart (#f8fafc onder wit), in donker één stap BOVEN (#121a22 onder
+     #17212b). Met --bg-muted kwam de donkere grond op #27323d uit, en dan lag
+     de kaart in een lichter kader met een rand die in precies diezelfde kleur
+     onzichtbaar werd. Dat was wat er op het inlogscherm te zien was. */
+  --bg-stage: #f8fafc;
+
   --text-primary: #17212b; /* blauwzwart, niet zwart */
   --text-secondary: #43505d;
   --text-muted: #788795; /* ALLEEN voor bijzaak: 3,7:1, geen bodytekst */
@@ -113,6 +125,27 @@
   --accent-green-text: #2c711a;
   --accent-green-dark: #37941c;
   --brand-gradient: linear-gradient(96deg, #37941c 0%, #8511d9 96%);
+
+  /* ── Het woordmerk ────────────────────────────────────────────────────────
+     Twee kleuren en één verloop, allemaal via een token, want in de donkere
+     stand worden ze alle drie wit.
+
+     ⚠️ Dat is een besluit van de eigenaar (24 augustus 2026) en geen afgeleide
+     van Nova: een groen-paars verloop van 17 pixels hoog op een bijna zwarte
+     balk leest niet als een merk maar als een kleurvlekje, en het is het eerste
+     wat het oog raakt bij het openen van de app. Wit is rustiger en het is wat
+     Nova met hun eigen woordmerk doet zodra de grond donker wordt. In de lichte
+     stand blijft het verloop staan; daar draagt het wél.
+
+     `--wordmark-1` is het teken links en het woord ORBIT, `--wordmark-2` het
+     woord ENGINE en de stip in de baan. Het SVG-merkteken leest ze rechtstreeks
+     uit (`app/(auth)/orbit-mark.tsx`), dus het draait mee zonder eigen regel. */
+  --wordmark-1: #37941c;
+  --wordmark-2: #8511d9;
+  /* Het midden van de baan van het merkteken: precies tussen de twee in. */
+  --wordmark-mid: #5c63a8;
+  --wordmark-gradient: var(--brand-gradient);
+  --wordmark-fill: transparent;
 
   /* ── Betekenislaag ────────────────────────────────────────────────────────
      Een kleur heeft een betekenis, geen naam. Zeven betekenissen, elk met vijf
@@ -264,10 +297,17 @@
   --radius-sm: 6px;
   --radius-md: 8px;
   --radius-lg: 12px;
+  /* ⚠️ 16 en 24 staan hier omdat Nova ze in hun tokens heeft, maar ze worden
+     nergens gebruikt en dat is met opzet. In hun gecompileerde CSS komt geen
+     enkele `rounded-xl` of `rounded-2xl` voor: 12 pixels is in de praktijk hun
+     grootste ronding, ook op het inlogscherm. De inlogkaart stond tot 24
+     augustus 2026 op 16 en dat was een van de drie redenen dat hij naast het
+     origineel een maat te groot oogde.
+
+     Gebruik ze dus niet zonder aanleiding. Ze staan er zodat de schaal
+     compleet is en zodat een volgende ronde niet opnieuw hoeft uit te zoeken
+     welke waarden erbij horen. */
   --radius-xl: 16px;
-  /* Nova's `--ds-radius-2xl`. Voor het enkele vlak dat een paneel op zichzelf
-     is en geen kaart in een raster: de inlogkaart, een leeg scherm dat de hele
-     kolom vult. Niet op kaarten, die blijven --radius-lg. */
   --radius-2xl: 24px;
   --radius-pill: 9999px;
 
@@ -380,6 +420,10 @@
     --bg-muted: #27323d;
     --bg-elevated: #27323d;
     --bg-surface-2: #43505d;
+    /* Tegengesteld aan de lichte stand, zie de toelichting daar: de grond ligt
+       hier ONDER de kaart en niet erboven. #121a22 onder #17212b, met een rand
+       van #27323d ertussen die dan wel te zien is. */
+    --bg-stage: #121a22;
 
     --text-primary: #ffffff;
     --text-secondary: #c2ccd6;
@@ -395,12 +439,22 @@
        #121a22 haalt 3,3:1 en is voor tekst te donker, #ad45ff haalt 6,1:1. */
     --accent-purple: #ad45ff;
     --accent-purple-strong: #c278ff;
-    --accent-purple-surface: #5f1291;
+    --accent-purple-surface: #42006d;
     --accent-purple-glow: rgba(173, 69, 255, 0.22);
     --accent-green: #275a1a;
     --accent-green-text: #4cb929;
     --accent-green-dark: #4cb929;
     --brand-gradient: linear-gradient(96deg, #4cb929 0%, #ad45ff 96%);
+    /* Het woordmerk wordt wit, in een stuk. Zie de toelichting in de lichte
+       stand: het verloop is hier geen merk meer maar een vlekje. `none` op de
+       gradient is geen luiheid maar een eis: `.brand-gradient-text` knipt de
+       achtergrond uit de letters, en zolang daar een verloop staat is een
+       kleur erop onzichtbaar. */
+    --wordmark-1: #ffffff;
+    --wordmark-2: #ffffff;
+    --wordmark-mid: #ffffff;
+    --wordmark-gradient: none;
+    --wordmark-fill: #ffffff;
 
     /* De zeven betekenissen. Het patroon is overal hetzelfde en het is dat van
        Nova: het gevulde vlak wordt een stap donkerder, de leesbare tekst wordt
@@ -508,6 +562,8 @@
   --bg-muted: #27323d;
   --bg-elevated: #27323d;
   --bg-surface-2: #43505d;
+  /* Tegengesteld aan de lichte stand, zie de toelichting daar. */
+  --bg-stage: #121a22;
 
   --text-primary: #ffffff;
   --text-secondary: #c2ccd6;
@@ -523,12 +579,18 @@
      #121a22 haalt 3,3:1 en is voor tekst te donker, #ad45ff haalt 6,1:1. */
   --accent-purple: #ad45ff;
   --accent-purple-strong: #c278ff;
-  --accent-purple-surface: #5f1291;
+  --accent-purple-surface: #42006d;
   --accent-purple-glow: rgba(173, 69, 255, 0.22);
   --accent-green: #275a1a;
   --accent-green-text: #4cb929;
   --accent-green-dark: #4cb929;
   --brand-gradient: linear-gradient(96deg, #4cb929 0%, #ad45ff 96%);
+  /* Het woordmerk wordt wit, in een stuk. Zie de lichte stand. */
+  --wordmark-1: #ffffff;
+  --wordmark-2: #ffffff;
+  --wordmark-mid: #ffffff;
+  --wordmark-gradient: none;
+  --wordmark-fill: #ffffff;
 
   /* De zeven betekenissen. Het patroon is overal hetzelfde en het is dat van
      Nova: het gevulde vlak wordt een stap donkerder, de leesbare tekst wordt
@@ -1378,10 +1440,19 @@ textarea.field {
    koppen; in de Nova-werkomgeving komt hij nul keer voor. Eén plek is genoeg om
    herkenbaar te zijn, overal is een landingspagina. */
 .brand-gradient-text {
-  background: var(--brand-gradient);
+  background: var(--wordmark-gradient);
   -webkit-background-clip: text;
   background-clip: text;
-  color: transparent;
+  /* In de lichte stand is deze kleur doorzichtig en schijnt het verloop door de
+     letters heen. In de donkere stand staat --wordmark-gradient op `none`, valt
+     er niets door te schijnen, en is deze kleur wit. Eén regel voor twee
+     standen, in plaats van een tweede regel in allebei de donkere blokken die
+     dan uit de pas kan gaan lopen.
+
+     ⚠️ Doorzichtig moet hier een aparte waarde zijn en niet --wordmark-1: die
+     draagt de kleur van het merkteken (in licht groen), en groene letters vóór
+     het verloop laten van dat verloop niets meer zien. */
+  color: var(--wordmark-fill);
 }
 
 /* Gerenderde Markdown (contentbibliotheek, rapport). */
@@ -1532,32 +1603,53 @@ textarea.field {
   inset: 0;
   z-index: 0;
   pointer-events: none;
-  /* Was --bg-base. Sinds die wit werd zou de kaart op een gelijke grond staan
-     en alleen nog uit zijn schaduw bestaan. --bg-muted geeft hem de ondergrond
-     terug die hij op 24 augustus 2026 had. */
-  background-color: var(--bg-muted);
+  /* Was --bg-muted, en dat klopte alleen in de lichte stand. In de donkere
+     stand is --bg-muted #27323d en dat is LICHTER dan de kaart (#17212b): de
+     kaart lag in een lichter kader, en zijn rand (#27323d) viel weg tegen
+     precies diezelfde kleur. Van een kaart met een rand bleef zo een vlek
+     zonder omtrek over.
+
+     --bg-stage draait de verhouding per stand om; het waarom staat bij dat
+     token bovenaan dit bestand. */
+  background-color: var(--bg-stage);
 }
 
 /* ── De kaart ───────────────────────────────────────────────────────────────
-   560 pixels breed, 16 pixels rond, 52 pixels lucht binnen de rand. Die lucht
-   is de helft van het effect: dezelfde inhoud met 24 pixels marge leest als
-   een formulier, met 52 als een entree. */
+   520 pixels breed, 12 pixels rond, 32 pixels lucht binnen de rand en 40 zodra
+   het scherm dat toelaat.
+
+   ── DE VERKLEINING VAN 24 AUGUSTUS 2026 ────────────────────────────────────
+
+   Hij was 560 breed, 16 rond en had 52 pixels marge, en dat viel de eigenaar op
+   naast het origineel: hetzelfde scherm, maar een maat groter. Dat klopte, en
+   de gecompileerde CSS van Nova wijst alle drie de waarden aan:
+
+     breedte  hun enige kaartbreedte in dit bereik is 520 (`max-w-[520px]`)
+     ronding  hun grootste ronding die feitelijk voorkomt is 12 (`rounded-lg`);
+              16 en 24 staan wél in hun tokens maar worden nergens gebruikt
+     marge    `p-8` met `sm:p-10`, dus 32 en 40, en niet 52
+
+   De 52 was hier binnengekomen als "lucht maakt er een entree van". Dat is waar
+   voor een landingspagina en het is precies waarom dit scherm er groter uitzag
+   dan het origineel: een inlogkaart is geen entree maar een deur. */
 .auth-card {
   position: relative;
   width: 100%;
-  max-width: 560px;
+  max-width: 520px;
   margin: 0 auto;
-  border-radius: 16px;
+  border-radius: var(--radius-lg);
   background-color: var(--bg-surface);
   border: var(--border-width-xs) solid var(--border-subtle);
-  padding: 52px 28px;
+  padding: 32px 24px;
+  /* Nova's `shadow-sm`, letterlijk. De schaduw die hier stond liep 48 pixels
+     ver uit en tilde de kaart van de pagina; deze zet hem er alleen op. */
   box-shadow:
-    0 1px 2px rgba(23, 33, 43, 0.04),
-    0 24px 48px -24px rgba(23, 33, 43, 0.14);
+    0 1px 3px 0 rgba(0, 0, 0, 0.1),
+    0 1px 2px -1px rgba(0, 0, 0, 0.1);
 }
 @media (min-width: 640px) {
   .auth-card {
-    padding: 52px;
+    padding: 40px;
   }
 }
 
@@ -1597,9 +1689,12 @@ textarea.field {
 
 .auth-field {
   width: 100%;
-  height: 48px;
-  padding: 0 14px 0 42px;
-  border-radius: 10px;
+  /* 44 en niet 48, en 8 rond en niet 10: Nova's `h-11` en `rounded-md`. De 48
+     kwam uit dezelfde ronde als de 52 pixels marge hierboven en maakte het
+     scherm een maat te groot. */
+  height: 44px;
+  padding: 0 14px 0 40px;
+  border-radius: var(--radius-md);
   /* Was --bg-base, en die is sinds 24 augustus 2026 wit: het veld verdween
      daarmee in de witte kaart. --bg-muted houdt het onderscheid dat er altijd
      was. */
@@ -1636,8 +1731,9 @@ textarea.field {
   align-items: center;
   justify-content: center;
   width: 100%;
-  height: 50px;
-  border-radius: 10px;
+  /* Zelfde maat als het veld erboven, zie daar. */
+  height: 44px;
+  border-radius: var(--radius-md);
   /* Inkt, net als `.btn-primary`. Het inlogscherm is precies waar dit voor het
      eerst opviel: een paarse knop in donkere modus terwijl Nova daar een bijna
      witte heeft. */

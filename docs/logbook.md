@@ -4646,6 +4646,72 @@ inkt is, is het woordmerk de laatste plek waar het merk nog kleur heeft. In donk
 (groen) en 3,9:1 (paars) op een woordmerk van deze maat: toegestaan, maar niet ruim. Wit zou 16,3:1
 geven. Dat is één regel als het alsnog moet.
 
+> ⚠️ **Teruggedraaid nog dezelfde dag**, op verzoek van de eigenaar. Zie het volgende blok, punt 3:
+> het argument hierboven keek naar de kleur en niet naar de maat.
+
 **Nagerekend** in beide standen: de primitieven, het inlogscherm inclusief de hover op de uitweg, en
 `scrollWidth` 390 op 390 pixels. De ingelogde schermen wachten nog steeds op de eerstvolgende deploy,
 zoals `designsystem.md` §10.3 zegt.
+
+---
+
+## Donker nagekeken met de ogen van Nova (24 augustus 2026)
+
+De donkere stand was er sinds diezelfde ochtend, maar hij was gebouwd en niet bekéken. De eigenaar
+legde er schermafbeeldingen naast en stelde één vraag: kloppen de kleuren zoals wij ze toepassen.
+
+**Het palet klopte, de toepassing niet.** Van de 59 donkere kleurwaarden die de app van Nova
+overneemt is er geen enkele die afwijkt; dat is narekenbaar tegen hun eigen gecompileerde CSS en het
+is nagerekend. Alle vier de problemen die de eigenaar zag zaten dus niet in wélke kleur, maar in
+wáár hij stond.
+
+**1. De inlogkaart had geen rand meer.** De grond onder die kaart stond op `--bg-muted`, en dat is in
+donker `#27323d`. De kaart zelf is `#17212b` en zijn rand is `#27323d`. De kaart lag dus in een
+lichter kader, met een rand in precies de kleur van dat kader: onzichtbaar. De grond heeft nu een
+eigen token (`--bg-stage`) dat per stand de andere kant op gaat, `#f8fafc` onder een witte kaart in
+licht en `#121a22` onder een donkere in donker.
+
+**2. Dezelfde kaart was een maat te groot**, en dat viel de eigenaar op naast het origineel. Nova's
+eigen CSS wijst vijf waarden aan die hier alle vijf ruimer stonden: 560 breed tegen hun 520, 16 rond
+tegen hun 12, 52 pixels marge tegen hun 32 en 40, velden van 48 tegen hun 44, en een kop van 28
+pixels op gewicht 700 tegen hun 24 op 600. Het cijfer dat het beslechtte: in Nova's gecompileerde CSS
+komt geen enkele `rounded-xl` of `rounded-2xl` voor, terwijl die tokens er wél zijn. Twaalf pixels is
+in de praktijk hun grootste ronding, tot en met hun inlogscherm.
+
+**3. Het woordmerk is wit geworden in donker.** Dat is een terugdraai van een besluit van dezelfde
+ochtend, en de eigenaar had gelijk. Toen luidde het argument: hun logo is één vorm op `currentColor`
+dus wit is daar de enige mogelijkheid, terwijl het onze twee merkkleuren draagt en dat na het inkten
+van de hoofdknop de laatste plek is waar het merk nog kleur heeft. Wat dat argument oversloeg is de
+maat. Het gaat om letters van 17 pixels hoog op een bijna zwarte balk, en een verloop van groen naar
+paars over die afstand leest niet als een merk maar als een kleurvlekje. Wit haalt 16,3:1 tegenover
+6,4:1 en 3,9:1, en het is het eerste wat het oog raakt bij het openen van de app. Het merkteken
+ernaast leest dezelfde tokens uit en wordt dus mee wit.
+
+**4. De zijbalk was de felste kleur van het scherm**, en dat was het zwaarste van de vier. De actieve
+regel droeg een paars vlak (`#42006d`) met paarse letters erop (`#ad45ff`): 2,6:1, onder de 4,5 die
+leesbare tekst vraagt. Erger dan dat cijfer is wat het met de betekenislaag deed. Paars betekent in
+dit systeem "hier doet de AI iets", en zolang de balk het naast élk scherm gebruikt voor "je bent
+hier" betekent het dat niet meer. Dat is letterlijk dezelfde redenering die diezelfde ochtend de
+hoofdknop van paars naar inkt bracht, en de zijbalk was daarbij overgeslagen. Nu is de actieve regel
+een neutraal vlak met gewone tekstkleur, dus wit in donker, met een hover van 5% inkt eronder zodat
+"waar je bent" zwaarder weegt dan "waar je overheen zweeft". De vier `alleen jij`-stempels en het
+icoon van een ingeklapt hoofdstuk gingen in dezelfde ronde mee.
+
+**Wat er ongevraagd bij kwam, en waarom.** Nova's typografieschaal kent geen enkel gewicht boven 600
+en zet élke letterspatiëring op 0. Onze koppen stonden op 24 plekken op `text-2xl font-bold
+tracking-tight`. Dat is het soort verschil dat niemand bewust ziet en dat wel bepaalt of een scherm
+"van hen" of "van ons" lijkt, dus die 24 koppen gebruiken nu de benoemde klassen. De grote cijfers
+blijven op 700: een getal dat het antwoord van het scherm is, is geen tekst.
+
+**Nagerekend.** De inlogroute is in de browser gefotografeerd, licht én donker, op 1280 pixels; de
+kaart meet daar 520 breed in beide standen. De vier controles uit `designsystem.md` §11 geven nul
+regels, en de uitzondering die daar voor `orbit-mark.tsx` stond is vervallen omdat dat bestand geen
+hexwaarden meer heeft. `npx tsc --noEmit`, 2195 unittests, de ketentests en de productiebuild zijn
+groen. De ingelogde schermen wachten nog steeds op de eerstvolgende deploy, zoals §10.3 zegt.
+
+**Wat we van Nova's berichtencatalogus meenamen, en wat nog openstaat.** `docs/nova-i18n.json` is op
+dezelfde dag doorgelopen op wat het over hun vormgeving verraadt. Drie dingen die wij nog niet doen:
+zij zetten de keuze licht/donker/systeem als drieweg-keuze onder "Weergave" in de accountinstellingen
+en niet als knop in de balk; elke lege staat is bij hen een titel plus een uitleg en nooit één zin;
+en elke onomkeerbare handeling in een dialoog draagt een apart blokje "dit kan niet ongedaan gemaakt
+worden" in plaats van een zin in de lopende tekst. Geen van drieën is in deze ronde gebouwd.

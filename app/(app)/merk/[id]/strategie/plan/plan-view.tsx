@@ -454,7 +454,7 @@ export function PlanView({
                     {/* Besluit 7: "maand 4 sinds de start", nooit "van 12". De
                         kalendermaand ernaast komt uit de publicatiedata zelf
                         (`monthCalendarLabel`); het plan slaat hem niet op. */}
-                    <h2 className="text-lg font-semibold tracking-tight">
+                    <h2 className="text-lg font-semibold">
                       <button
                         type="button"
                         aria-expanded={open}

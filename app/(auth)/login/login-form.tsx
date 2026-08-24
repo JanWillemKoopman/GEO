@@ -29,14 +29,14 @@ export function LoginForm({
   const [wachtwoordZichtbaar, setWachtwoordZichtbaar] = useState(false);
 
   return (
-    <form action={formAction} className="flex flex-col gap-[30px]">
+    <form action={formAction} className="flex flex-col gap-6">
       {notice && (
         <p className="rounded-[10px] border border-[var(--intent-growth-border)] bg-[var(--intent-growth-surface)] px-4 py-3 text-sm text-[var(--intent-growth-text)]">
           {notice}
         </p>
       )}
 
-      <div className="flex flex-col gap-2.5">
+      <div className="flex flex-col gap-2">
         <AuthLabel htmlFor="email" required>
           Werk-e-mailadres
         </AuthLabel>
@@ -45,7 +45,7 @@ export function LoginForm({
             size={16}
             strokeWidth={1.75}
             aria-hidden="true"
-            className="pointer-events-none absolute left-[15px] top-1/2 -translate-y-1/2 text-muted"
+            className="pointer-events-none absolute left-[14px] top-1/2 -translate-y-1/2 text-muted"
           />
           <input
             id="email"
@@ -59,7 +59,7 @@ export function LoginForm({
         </div>
       </div>
 
-      <div className="flex flex-col gap-2.5">
+      <div className="flex flex-col gap-2">
         <AuthLabel htmlFor="wachtwoord" required>
           Wachtwoord
         </AuthLabel>
@@ -68,7 +68,7 @@ export function LoginForm({
             size={16}
             strokeWidth={1.75}
             aria-hidden="true"
-            className="pointer-events-none absolute left-[15px] top-1/2 -translate-y-1/2 text-muted"
+            className="pointer-events-none absolute left-[14px] top-1/2 -translate-y-1/2 text-muted"
           />
           <input
             id="wachtwoord"
@@ -99,12 +99,12 @@ export function LoginForm({
       </div>
 
       {state.error && (
-        <p className="-mt-4 text-sm text-[var(--status-error)]" role="alert">
+        <p className="-mt-2 text-sm text-[var(--status-error)]" role="alert">
           {state.error}
         </p>
       )}
 
-      <button type="submit" disabled={pending} className="auth-submit -mt-1">
+      <button type="submit" disabled={pending} className="auth-submit">
         {pending ? "Bezig…" : "Inloggen"}
       </button>
     </form>

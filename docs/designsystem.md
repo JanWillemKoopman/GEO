@@ -119,12 +119,25 @@ Paars en groen blijven van ORBIT ENGINE; de systematiek eromheen komt van Nova.
 | `--accent-green-dark` | `#37941c` | Nova's productgroen |
 | `--accent-green-text` | `#2c711a` | Leesbaar groen als tekst |
 | `--brand-gradient` | groen naar paars, 96° | **Alleen het woordmerk** |
+| `--wordmark-1` · `--wordmark-2` · `--wordmark-mid` | `#37941c` · `#8511d9` · `#5c63a8` | De twee woorden, het merkteken en zijn stip. In donker alle drie `#ffffff` |
+| `--wordmark-gradient` · `--wordmark-fill` | het verloop · `transparent` | Wat `.brand-gradient-text` uitknipt, en wat eronder overblijft |
 
 **Twee dingen zijn hier bijgetrokken.** Het groen was `#2e9e50`, dat van hun marketingsite; het is nu
 `#37941c`, dat van hun product. Die twee verschillen zichtbaar zodra ze naast elkaar staan. En de
 gradient stond op accentwoorden in koppen; in de Nova-werkomgeving komt hij nul keer voor, dus hij is
 teruggebracht tot het woordmerk. Eén plek is genoeg om herkenbaar te zijn, overal is een
 landingspagina.
+
+**Het woordmerk is wit in de donkere stand** (24 augustus 2026, besluit van de eigenaar). Een verloop
+van groen naar paars over letters van 17 pixels op een bijna zwarte balk leest niet als een merk maar
+als een kleurvlekje, en het is het eerste wat het oog raakt bij het openen van de app. Dat geldt ook
+voor het merkteken ernaast: de drie stops van zijn baan en de stip erin lezen dezelfde tokens uit, dus
+in donker is het één witte baan met een witte stip.
+
+Waarom er een aparte `--wordmark-fill` naast staat: `.brand-gradient-text` knipt de achtergrond uit de
+letters, en dan is de tekstkleur in de lichte stand `transparent`. Zou daar `--wordmark-1` staan, dan
+schilderde het groen het verloop dicht. In de donkere stand staat `--wordmark-gradient` op `none`,
+valt er niets uit te knippen, en blijft precies die vulkleur over: wit. Eén regel voor twee standen.
 
 ### 2.3 De betekenislaag
 
@@ -187,7 +200,9 @@ op `h-10 rounded-md px-4`. Dat is precies onze maatvoering, met een andere kleur
 naam. Zolang élke hoofdknop paars is, betekent paars "knop" en niet meer "hier doet de AI iets", en
 dan is de betekenislaag precies niets waard op de plek waar hij het meest opvalt. Dit is ook wat
 `merkstrategie.md` §16 vraagt (neutral-first, kleur draagt betekenis), en het maakt de overgebleven
-paarse plekken, de chips, de actieve zijbalkregel, het woordmerk, weer betekenisvol.
+paarse plekken weer betekenisvol. Sinds §10.4 zijn dat er nog twee: de chips die een AI-uitkomst
+dragen, en het woordmerk. De actieve zijbalkregel stond in die opsomming en is er in dezelfde
+redenering uit gehaald; "je bent hier" is geen betekenis die om een merkkleur vraagt.
 
 **En het loste een echt contrastprobleem op.** De oude paarse knop haalde in donkere modus
 **2,39:1 tegen zijn eigen kaart**: het vlak liep bijna in de achtergrond over. De inktknop haalt
@@ -218,9 +233,19 @@ van twee makers naast elkaar is precies het soort verschil dat je niet ziet maar
 
 | Gewicht | Waar |
 |---|---|
-| **700** (`font-bold`, `.stat-value`) | De paginakop en het hoofdgetal van een scherm |
-| **600** (`font-semibold`, `.mono-label`, `.chip`, knoppen) | De titel van een kaart of lijstregel, de kicker erboven, de handeling eronder |
+| **700** (`.stat-value`, het woordmerk) | Het hoofdgetal van een scherm, en het woordmerk |
+| **600** (`.type-hero`, `.type-title`, `.type-section`, `.mono-label`, `.chip`, knoppen) | Elke kop, de kicker erboven, de handeling eronder |
+| **500** (`-emphasis`) | Nadruk **binnen** een alinea, nooit een titel |
 | **400** (normaal) | Alle lopende tekst |
+
+> ⚠️ **Koppen staan op 600, niet op 700, en hebben geen `tracking-tight`** (24 augustus 2026). Ze
+> stonden op 24 plekken op `text-2xl font-bold tracking-tight`. In Nova's hele typografieschaal komt
+> geen enkel gewicht boven 600 voor en staat élke letterspatiëring op 0; dat is precies het verschil
+> dat een kop "van ons" of "van hen" laat lijken zonder dat je kunt aanwijzen waarom. De koppen
+> gebruiken nu de benoemde klassen uit §3.2 (`.type-title`, `.type-section`). Twee dingen blijven
+> bewust op 700 met krappe spatiëring: het woordmerk, want dat is een logo en geen kop, en de grote
+> cijfers (`.stat-value` en de losse `text-3xl`/`text-6xl`-waarden op het overzicht en in het
+> scorepaneel), want een getal dat het antwoord van het scherm is, is geen tekst.
 
 **Er is geen 500 meer in een kaarttitel.** De titels van kaarten en lijstregels stonden op
 `font-medium`, precies één stap boven de zin eronder, en op het overzicht leverde dat twaalf kaarten
@@ -314,9 +339,16 @@ de reden dat een grafiek er altijd nét naast ligt zodra de rest van het systeem
 | `--radius-sm` | 6px | Code-blokjes, geneste vlakjes |
 | `--radius-md` | 8px | **Knoppen, velden, navigatie-items, menu's** |
 | `--radius-lg` | 12px | Kaarten |
-| `--radius-xl` | 16px | Grote panelen, dialogen |
-| `--radius-2xl` | 24px | Het enkele vlak dat een paneel op zichzelf is (24 augustus 2026) |
+| `--radius-xl` | 16px | **Nergens in gebruik**, zie hieronder |
+| `--radius-2xl` | 24px | **Nergens in gebruik**, zie hieronder |
 | `--radius-pill` | 9999px | **Alleen voortgangsbalken, stippen en de live-dot** |
+
+> ⚠️ **16 en 24 staan in de schaal maar worden nergens gebruikt, en dat is met opzet** (24 augustus
+> 2026). Nova heeft ze wél als token, maar in hun gecompileerde CSS komt geen enkele `rounded-xl` of
+> `rounded-2xl` voor: 12 pixels is in de praktijk hun grootste ronding, ook op het inlogscherm. De
+> inlogkaart stond hier tot die datum op 16, en dat was een van de drie redenen dat hij naast het
+> origineel een maat te groot oogde (§10.4). Ze blijven in de lijst zodat de schaal compleet is en een
+> volgende ronde niet opnieuw hoeft uit te zoeken welke waarden erbij horen.
 
 **De pil is niet langer de standaard.** Dat is de meest zichtbare enkele wijziging van deze omzetting.
 De oude regel luidde "interactieve elementen zijn pilvormig"; dat is de marketingsite. In de
@@ -477,7 +509,7 @@ tegenovergestelde van §15.1 van `merkstrategie.md`: precies, rustig, premium.
 | Raster | 24×24, lijn, geen vulling | Past bij "subtiele borders" en "neutral-first" (§16.1 merkstrategie) |
 | Lijndikte | **1,75** | De handgetekende SVG's die hier al stonden hadden 1,6 en 1,8. De 2 van Lucide zelf is te zwaar naast `text-sm` |
 | Maat | 16 in tekstregels, 18 in koppen, 20 in losse knoppen | Meer maten zijn er niet; een vierde maat is een nieuw besluit |
-| Kleur | `currentColor`, met één uitzondering | Het icoon kleurt mee met de tekst ernaast. Nooit een eigen tint, want dan omzeilt het de betekenislaag van §2.3. **De uitzondering, 24 augustus 2026: de zes koppen van de zijbalk staan in `--accent-purple`.** Zes tekeningen in de hele balk, precies de zes vaste plekken van de app, en één merkkleur die ze aan elkaar bindt. De kleur staat op de ouder, dus `Icon` zelf erft nog steeds `currentColor` en de regel blijft afdwingbaar |
+| Kleur | `currentColor`, zonder uitzondering | Het icoon kleurt mee met de tekst ernaast. Nooit een eigen tint, want dan omzeilt het de betekenislaag van §2.3. **De uitzondering die hier stond is weg** (24 augustus 2026): de zes koppen van de zijbalk hebben een halve dag `--accent-purple` gedragen, en zes paarse tekeningen naast élk scherm maken van paars de kleur van de zijbalk in plaats van de kleur van "hier doet de AI iets". Zie §10.4 |
 
 ### 6b.3 De zes regels
 
@@ -648,11 +680,12 @@ op 6 augustus naar het fundament van het hele uiterlijk.
 **Tot dat besluit valt, blijft dit document leidend voor de app.** Wat hier staat beschrijft wat er
 werkelijk in `globals.css` staat, en dat is de enige bruikbare waarheid voor wie een scherm bouwt.
 
-**De inlogroute wijkt sinds 24 augustus 2026 op maatvoering af van dit document.** Op verzoek van
-de eigenaar is `app/(auth)/` naar het ontwerp uit zijn eigen voorbeeldscherm gebracht: één
-gecentreerde kaart van 560 pixels met radius 16 en 52 pixels lucht binnen de rand, een mono-kopje
-boven de titel, velden van 48 pixels met een icoon erin, een knop van 50 en een afsluitregel onder
-een streep. De achtergrond is één rustig vlak: het decor met baanringen en planeten dat hier tot
+**De inlogroute volgt sinds 24 augustus 2026 de maatvoering van Nova zelf.** Op verzoek van de
+eigenaar is `app/(auth)/` naar hun inlogscherm gebracht: één gecentreerde kaart van 520 pixels met
+radius 12 en 32 pixels lucht binnen de rand (40 vanaf 640 pixels breed), een mono-kopje boven de
+titel, `.type-title` als kop, velden van 44 pixels met een icoon erin, een knop van 44 en een
+afsluitregel onder een streep. Hij is er een halve dag ruimer geweest, en dat was zichtbaar naast het
+origineel; §10.4 heeft de vijf waarden en waar ze vandaan komen. De achtergrond is één rustig vlak: het decor met baanringen en planeten dat hier tot
 diezelfde dag stond is eruit. Het argument voor de vlakke dashboardstijl gaat hier niet op, want
 niemand zit een uur op een inlogscherm, en in de sales-led opzet is het vaak het eerste beeld in een
 demogesprek. **Dit is nadrukkelijk geen antwoord op het besluit hierboven**, dat blijft open. De
@@ -702,7 +735,7 @@ en dan is er ook geen verschil tussen server en browser om over te klagen.
 > volledige lijst; de donkere blokken herdefiniëren alleen wat anders moet zijn. Een token dat alleen
 > donker bestaat is in de lichte stand leeg, en een lege kleur is doorzichtig.
 
-### 10.2 De twee plekken waar donker niet de spiegel van licht is
+### 10.2 De drie plekken waar donker niet de spiegel van licht is
 
 1. **De kaart staat één stap boven de pagina** (§2.1). In licht vallen ze samen op wit en doet de
    rand het werk; in donker is een rand van `#27323d` op `#121a22` bijna niet te zien.
@@ -710,17 +743,45 @@ en dan is er ook geen verschil tussen server en browser om over te klagen.
    `-solid` de donkere tint en dat werkt op een lichte grond. In donker wordt `-solid` juist nóg
    donkerder (groei gaat van `#37941c` naar `#2c711a`) en verdwijnt de lijn in de achtergrond.
    Zonder deze omzetting is elke grafiek in donkere modus onleesbaar, en dat is geen smaakkwestie.
+3. **De grond onder de inlogkaart gaat de andere kant op** (`--bg-stage`, 24 augustus 2026). In licht
+   ligt hij één stap ONDER de kaart (`#f8fafc` onder wit), in donker één stap ERBOVEN (`#121a22`
+   onder `#17212b`). Dit token bestond niet en de kaart stond op `--bg-muted`; in donker is dat
+   `#27323d`, dus lichter dan de kaart zelf, én exact de kleur van de kaartrand. Zie §10.4.
 
 Verder klapt afdrukken altijd terug naar licht: in `@media print` staan de lichte neutralen opnieuw.
 Niemand drukt een donkere pagina af, dat kost inkt en leest slechter.
 
 ### 10.3 Wat nog nagelopen moet worden
 
-De tokenlaag, de primitieven en de inlogroute zijn in beide standen bekeken. **De ingelogde schermen
-zijn dat nog niet**, en volgens regel 10 van `CLAUDE.md` is gebouwd niet geverifieerd. Loop na de
+De tokenlaag, de primitieven en de inlogroute zijn in beide standen bekeken; de inlogroute is op 24
+augustus 2026 ook echt in de browser gefotografeerd, licht én donker. **De ingelogde schermen zijn
+dat nog niet**, en volgens regel 10 van `CLAUDE.md` is gebouwd niet geverifieerd. Loop na de
 eerstvolgende deploy minstens deze vier langs in donker: het overzicht (kaarten en het hoofdgetal),
 analytics (de grafieken, zie §10.2), het clusterdossier (lange tabellen) en de contentbibliotheek
 (`.prose`, gerenderde Markdown).
+
+### 10.4 De eerste correctieronde op donker (24 augustus 2026)
+
+De donkere stand was gebouwd maar niet bekeken. Vier dingen bleken mis, en alle vier zaten ze in de
+**toepassing** en niet in het palet: de 59 kleurwaarden die de donkere stand van Nova overneemt zijn
+narekenbaar identiek aan de hunne, tot op het cijfer.
+
+1. **De inlogkaart had geen zichtbare rand.** Zie §10.2 punt 3. De kaart lag in een lichter kader met
+   een rand in precies de kleur van dat kader; van een kaart met een omtrek bleef een vlek over.
+2. **De inlogkaart was een maat te groot.** 560 breed, 16 rond, 52 pixels marge, velden van 48 en een
+   knop van 50. Nova's eigen CSS wijst alle vijf aan: 520 (`max-w-[520px]`), 12 (`rounded-lg`, §5.1),
+   32 en 40 (`p-8` met `sm:p-10`) en 44 (`h-11`). De titel stond op 28 pixels op gewicht 700 met
+   `tracking-tight`; dat is nu `.type-title`, Nova's eigen kop van 24 op 600 zonder krappe spatiëring.
+3. **Het woordmerk was een groen-paars vlekje op zwart.** Nu wit, zie §2.2.
+4. **De zijbalk was de felste kleur van het scherm.** De actieve regel droeg een paars vlak (`#42006d`)
+   met paarse letters erop (`#ad45ff`): 2,6:1, onder de 4,5 die leesbare tekst vraagt. Erger dan het
+   contrast is wat het met de betekenislaag deed: paars betekent "hier doet de AI iets" (§8, regel 1),
+   en zolang de balk het naast élk scherm voor "je bent hier" gebruikt betekent het dat niet meer.
+   Dezelfde redenering die de hoofdknop van paars naar inkt bracht (§2.4). De actieve regel is nu een
+   neutraal vlak (`--bg-elevated`) met gewone tekstkleur, dus wit in donker; de hover eronder is een
+   waas van 5% inkt, zodat "waar je bent" en "waar je overheen zweeft" niet dezelfde zwaarte krijgen.
+   De vier `alleen jij`-stempels en het icoon van een ingeklapt hoofdstuk zijn in dezelfde ronde
+   neutraal geworden, om dezelfde reden.
 
 ---
 
@@ -736,7 +797,7 @@ grep -rnE "rgba?\([0-9]" app components lib --include="*.tsx" --include="*.ts" \
   | grep -v "lib/email/"
 ```
 
-Vier uitzonderingen, en elk heeft dezelfde soort reden: er is daar geen CSS die de variabele kan
+Drie uitzonderingen, en elk heeft dezelfde soort reden: er is daar geen CSS die de variabele kan
 oplossen.
 
 | Bestand | Waarom |
@@ -744,7 +805,7 @@ oplossen.
 | `app/layout.tsx` | `themeColor` kleurt de browserbalk van het besturingssysteem, buiten de pagina om. Sinds 24 augustus 2026 zijn dat twee waarden, één per stand |
 | `lib/email/*.ts` | HTML voor e-mailclients, en die begrijpen geen `var(--...)` |
 | `app/opengraph-image.tsx` | Wordt op de server tot een PNG gerenderd; er is geen stylesheet en geen stand |
-| `app/(auth)/orbit-mark.tsx` | Het merkteken zelf. Een logo houdt zijn kleuren in beide standen |
+| ~~`app/(auth)/orbit-mark.tsx`~~ | **Vervallen op 24 augustus 2026.** Het merkteken hield zijn kleuren in beide standen; nu leest het `--wordmark-1/-mid/-2` en wordt het wit in donker (§2.2), dus het heeft geen hexwaarden meer en geen uitzondering nodig |
 
 Het tweede filter gooit commentaarregels weg: een hexwaarde in een toelichting ("`#e7edf2` op wit
 haalde 1,1:1") is een cijfer in een zin en geen kleur in een component.

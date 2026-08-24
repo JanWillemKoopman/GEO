@@ -202,7 +202,7 @@ export default async function ContentDetailPage({
       </Link>
 
       <div className="flex flex-col gap-3">
-        <h1 className="text-2xl font-bold tracking-tight">{piece.title}</h1>
+        <h1 className="type-title">{piece.title}</h1>
         <span className="chip w-fit">
           {piece.action === "verbeteren" ? (
             <>

@@ -208,7 +208,7 @@ export function BrandWizard({
       </nav>
 
       <div className="flex flex-col gap-1">
-        <h2 className="text-xl font-bold tracking-tight">{meta.title}</h2>
+        <h2 className="type-section">{meta.title}</h2>
         <p className="text-secondary">{meta.description}</p>
       </div>
 

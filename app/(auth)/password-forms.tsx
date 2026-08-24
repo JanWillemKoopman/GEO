@@ -34,8 +34,8 @@ export function PasswordResetRequestForm() {
   });
 
   return (
-    <form action={formAction} className="flex flex-col gap-[30px]">
-      <div className="flex flex-col gap-2.5">
+    <form action={formAction} className="flex flex-col gap-6">
+      <div className="flex flex-col gap-2">
         <AuthLabel htmlFor="herstel-email" required>
           Werk-e-mailadres
         </AuthLabel>
@@ -44,7 +44,7 @@ export function PasswordResetRequestForm() {
             size={16}
             strokeWidth={1.75}
             aria-hidden="true"
-            className="pointer-events-none absolute left-[15px] top-1/2 -translate-y-1/2 text-muted"
+            className="pointer-events-none absolute left-[14px] top-1/2 -translate-y-1/2 text-muted"
           />
           <input
             id="herstel-email"
@@ -73,8 +73,8 @@ export function NewPasswordForm() {
   });
 
   return (
-    <form action={formAction} className="flex flex-col gap-[30px]">
-      <div className="flex flex-col gap-2.5">
+    <form action={formAction} className="flex flex-col gap-6">
+      <div className="flex flex-col gap-2">
         <AuthLabel htmlFor="nieuw-wachtwoord" required>
           Nieuw wachtwoord
         </AuthLabel>
@@ -83,7 +83,7 @@ export function NewPasswordForm() {
             size={16}
             strokeWidth={1.75}
             aria-hidden="true"
-            className="pointer-events-none absolute left-[15px] top-1/2 -translate-y-1/2 text-muted"
+            className="pointer-events-none absolute left-[14px] top-1/2 -translate-y-1/2 text-muted"
           />
           <input
             id="nieuw-wachtwoord"
@@ -98,7 +98,7 @@ export function NewPasswordForm() {
         </div>
       </div>
 
-      <div className="flex flex-col gap-2.5">
+      <div className="flex flex-col gap-2">
         <AuthLabel htmlFor="nieuw-wachtwoord-nogmaals" required>
           Nogmaals
         </AuthLabel>
@@ -107,7 +107,7 @@ export function NewPasswordForm() {
             size={16}
             strokeWidth={1.75}
             aria-hidden="true"
-            className="pointer-events-none absolute left-[15px] top-1/2 -translate-y-1/2 text-muted"
+            className="pointer-events-none absolute left-[14px] top-1/2 -translate-y-1/2 text-muted"
           />
           <input
             id="nieuw-wachtwoord-nogmaals"

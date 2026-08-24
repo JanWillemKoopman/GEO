@@ -35,31 +35,39 @@ export function AuthCard({
       <div className="flex justify-center">
         <Link href="/" className="inline-flex items-center gap-2.5" aria-label="ORBIT ENGINE">
           <OrbitMark size={28} gradientId="orbit-mark-kaart" className="h-7 w-7" />
-          <span className="text-[1.25rem] font-extrabold leading-none tracking-[0.06em]">
-            {/* Uit de tokens en niet uit de hand, sinds 24 augustus 2026. Beide
-                kleuren draaien mee met de donkere stand, en dat is hier geen
-                nettigheid: het donkere paars haalt op een donkere kaart 3,3:1,
-                net genoeg voor een woordmerk van deze maat, terwijl de lichtere
-                stand op 6,1:1 zit en zichtbaar beter leest. */}
-            <span style={{ color: "var(--accent-green-dark)" }}>ORBIT</span>{" "}
-            <span style={{ color: "var(--accent-purple)" }}>ENGINE</span>
+          {/* Gewicht 700 en niet 800: 600 is het zwaarste gewicht dat in Nova's
+              hele typografieschaal voorkomt, en een woordmerk mag daar één stap
+              boven staan maar geen twee. */}
+          <span className="text-[1.25rem] font-bold leading-none tracking-[0.06em]">
+            {/* Uit de tokens en niet uit de hand, sinds 24 augustus 2026. In de
+                donkere stand staan ze allebei op wit, hetzelfde besluit als bij
+                het woordmerk in de bovenbalk; het waarom staat bij
+                `--wordmark-1` in `app/globals.css`. */}
+            <span style={{ color: "var(--wordmark-1)" }}>ORBIT</span>{" "}
+            <span style={{ color: "var(--wordmark-2)" }}>ENGINE</span>
           </span>
         </Link>
       </div>
 
-      <p className="auth-eyebrow mt-[46px]">
+      {/* De verticale maatvoering volgt sinds 24 augustus 2026 de schaal van
+          Nova (8, 16, 24, 32) in plaats van zeven losse pixelwaarden die elk
+          apart bedacht waren. Zie de toelichting bij `.auth-card` in
+          `app/globals.css`: het scherm was een maat te groot. */}
+      <p className="auth-eyebrow mt-8">
         <ShieldCheck size={13} strokeWidth={1.75} aria-hidden="true" />
         {eyebrow}
       </p>
 
-      <h1 className="mt-[26px] text-[1.75rem] font-bold leading-none tracking-tight">{title}</h1>
-      <p className="mt-2.5 text-[0.9375rem] text-secondary">{intro}</p>
+      {/* `.type-title`, de kop van een scherm bij Nova: 24 pixels op gewicht 600
+          zonder krappe letterspatiëring. Was 28 op 700 met `tracking-tight`. */}
+      <h1 className="type-title mt-5">{title}</h1>
+      <p className="mt-2 text-[0.9375rem] text-secondary">{intro}</p>
 
-      <div className="mt-[52px]">{children}</div>
+      <div className="mt-8">{children}</div>
 
-      {footer && <div className="mt-[34px] text-center text-[0.9375rem]">{footer}</div>}
+      {footer && <div className="mt-6 text-center text-[0.9375rem]">{footer}</div>}
 
-      <div className="mt-[50px] border-t border-[var(--border-subtle)] pt-[22px]">
+      <div className="mt-8 border-t border-[var(--border-subtle)] pt-5">
         <p className="auth-footnote">
           <ShieldCheck size={13} strokeWidth={1.75} aria-hidden="true" />
           Je gegevens zijn versleuteld en beveiligd.

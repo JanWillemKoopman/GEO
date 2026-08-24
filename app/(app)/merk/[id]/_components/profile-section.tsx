@@ -93,7 +93,7 @@ export function ProfileSection({
       >
         <span className="flex min-w-0 flex-col gap-0.5">
           <span className="flex flex-wrap items-baseline gap-2">
-            <h2 className="text-lg font-semibold tracking-tight">{title}</h2>
+            <h2 className="text-lg font-semibold">{title}</h2>
             {badge && <span className="mono-label text-muted">{badge}</span>}
           </span>
           {description && (

@@ -82,7 +82,7 @@ export function ConfirmDialog({
         className="modal-panel relative w-full max-w-md"
       >
         <div className="flex flex-col gap-3">
-          <h2 className="text-lg font-bold tracking-tight">{title}</h2>
+          <h2 className="text-lg font-semibold">{title}</h2>
           <p className="text-secondary">{body}</p>
 
           {children}

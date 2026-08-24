@@ -435,7 +435,7 @@ function Kop({
   return (
     <div className="flex flex-col gap-1">
       <span className="mono-label text-muted">{nummer}</span>
-      <h2 className="text-xl font-bold tracking-tight">{titel}</h2>
+      <h2 className="type-section">{titel}</h2>
       <p className="text-secondary">{uitleg}</p>
     </div>
   );

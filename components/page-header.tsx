@@ -30,7 +30,7 @@ export function PageHeader({
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           {eyebrow && <span className="mono-label">{eyebrow}</span>}
-          <h1 className="mt-1 text-2xl font-bold tracking-tight">{title}</h1>
+          <h1 className="type-title mt-1">{title}</h1>
           {description && <p className="mt-2 max-w-xl text-secondary">{description}</p>}
         </div>
         {action}

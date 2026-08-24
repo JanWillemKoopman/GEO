@@ -65,18 +65,22 @@ import type { BrandOption } from "@/lib/workspace";
  *    die om beurten oplichten. De kop verandert niet meer van kleur als je op
  *    een pagina eronder staat: dat markeerde één van de zes koppen, terwijl de
  *    actieve regel het al zegt, en twee markeringen voor één plek is er een.
- * 2. **Het icoon van de kop is paars** (`--accent-purple`) in plaats van de
- *    kleur van de tekst ernaast. Dat is de enige plek in de app waar een icoon
- *    zijn eigen tint heeft, en de uitzondering staat verantwoord in
- *    `docs/designsystem.md` §6b.2: zes tekeningen in de hele balk, precies de
- *    zes vaste plekken, en één merkkleur die ze aan elkaar verbindt.
+ * 2. **Het icoon van de kop draagt de kleur van de tekst ernaast.** Het was
+ *    paars; sinds 24 augustus 2026 niet meer, om dezelfde reden als bij de
+ *    actieve regel hieronder. Zes paarse tekeningen naast élk scherm maken van
+ *    paars de kleur van de zijbalk in plaats van de kleur van "hier doet de AI
+ *    iets" (`docs/designsystem.md` §8).
  * 3. **De verticale lijn onder de kop is weg.** Hij moest het kindschap dragen,
  *    maar de bestemmingen staan al ingesprongen tot ónder de koptekst en dat
  *    zegt hetzelfde zonder een lijn die dwars door de actieve regel loopt.
- * 4. **De actieve regel is paars in plaats van grijs.** Grijs op grijs
- *    (`--bg-elevated` #e7edf2 op wit) haalde 1,1:1 aan contrast met zijn eigen
- *    achtergrond: je zag hem pas als je ernaar zocht. Nu is het `#f3e6ff` met
- *    paarse tekst, en dat is dezelfde merkkleur als het icoon ernaast.
+ * 4. **De actieve regel is een neutraal vlak met gewone tekstkleur**, dus wit
+ *    in de donkere stand. Hij is paars geweest, en het argument daarvoor was
+ *    dat grijs op wit te weinig opviel. Dat argument gold in de lichte stand en
+ *    het is opgelost door het vlak één stap donkerder te nemen
+ *    (`--bg-elevated`) én de tekst mee te laten oplopen naar `--text-primary`:
+ *    de regel valt nu op aan zijn contrast met de regels eromheen, niet aan een
+ *    kleur. Het waarom van het weghalen van dat paars staat bij `Item`
+ *    verderop, met de contrastmeting erbij.
  * 5. **De marges zijn ruimer**: 20px tussen twee hoofdstukken en 36px per regel
  *    in plaats van 30px. Zestien regels op elkaar lezen als een lijst, zes
  *    groepjes met lucht ertussen lezen als een indeling.
@@ -205,13 +209,14 @@ function Hoofdstuk({
           onClick={onClick}
           title={kop.naam}
           aria-current={actief ? "page" : undefined}
-          // Het icoon blijft paars, ook als het hoofdstuk niet actief is: dat is
-          // ingeklapt het enige wat er van de zes ankers overblijft. De actieve
-          // staat zit in het vlak eronder, niet in de tint van de tekening.
+          // Het icoon draagt de tekstkleur, ook ingeklapt: het is dan het enige
+          // wat er van de zes ankers overblijft, en dan moet het leesbaar zijn
+          // en niet opvallend. De actieve staat zit in het vlak eronder, niet in
+          // de tint van de tekening.
+          // Neutraal in plaats van paars, zelfde ronde en zelfde reden als bij
+          // `Item` verderop.
           className={`flex items-center justify-center rounded-[var(--radius-md)] p-2 text-[var(--text-primary)] transition-colors ${
-            actief
-              ? "bg-[var(--accent-purple-surface)]"
-              : "hover:bg-[var(--intent-intelligence-surface)]"
+            actief ? "bg-[var(--bg-elevated)]" : "hover:bg-[var(--wash-hover)]"
           }`}
         >
           <Icon naam={kop.icoon} size={18} />
@@ -269,10 +274,30 @@ function Item({
       aria-current={active ? "page" : undefined}
       // Klassen en geen inline `style`: een inline achtergrond wint het van elke
       // klasse, en dan doet een `hover:`-regel niets meer.
+      //
+      // ── WAAROM DE ACTIEVE REGEL NIET MEER PAARS IS (24 augustus 2026) ──────
+      //
+      // Hij droeg een paars vlak met paarse tekst erop. Twee bezwaren, en het
+      // tweede is het zwaarste:
+      //
+      // 1. In de donkere stand kwam dat vlak op #42006d uit met letters van
+      //    #ad45ff erop. Dat is 2,6:1, onder de 4,5 die leesbare tekst vraagt,
+      //    en het was de felste kleur op een verder rustig scherm.
+      // 2. Paars betekent in dit systeem "hier doet de AI iets"
+      //    (`docs/designsystem.md` §8). Zolang de zijbalk het naast élk scherm
+      //    voor "je bent hier" gebruikt, betekent het dat niet meer. Dat is
+      //    exact dezelfde redenering die de hoofdknop van paars naar inkt
+      //    bracht, één ronde eerder.
+      //
+      // Nu: een neutraal vlak met gewone tekstkleur, dus wit in de donkere
+      // stand. Dat is ook wat Nova doet (`bg-background-neutral-subtle` met
+      // `text-foreground-neutral`). De hover eronder is een waas van 5% inkt en
+      // geen tweede vlak, zodat "waar je bent" en "waar je overheen zweeft"
+      // niet dezelfde zwaarte krijgen.
       className={`flex items-center justify-between gap-2 rounded-[var(--radius-md)] px-3 py-2 text-sm transition-colors ${
         active
-          ? "bg-[var(--accent-purple-surface)] font-medium text-[var(--accent-purple)]"
-          : "text-[var(--text-secondary)] hover:bg-[var(--intent-intelligence-surface)] hover:text-[var(--text-primary)]"
+          ? "bg-[var(--bg-elevated)] font-medium text-[var(--text-primary)]"
+          : "text-[var(--text-secondary)] hover:bg-[var(--wash-hover)] hover:text-[var(--text-primary)]"
       }`}
     >
       <span className="truncate">{item.label}</span>
@@ -280,15 +305,20 @@ function Item({
         <span
           // Een stempel en niet los grijs hoofdlettertekst: los in de regel las
           // het als een tweede label bij de bestemming, terwijl het een stempel
-          // op die bestemming is. Zelfde paarse vlak als de actieve regel, zodat
-          // de balk twee tinten kent en geen vier.
+          // op die bestemming is. Zelfde vlak als de actieve regel, zodat de
+          // balk twee tinten kent en geen vier.
+          //
+          // Neutraal en niet paars, sinds 24 augustus 2026, om dezelfde reden
+          // als de actieve regel hierboven: dit stempel zegt "van jou", niet
+          // "hier doet de AI iets". Er stonden er vier onder elkaar, en dat was
+          // het eerste wat het oog in de zijbalk raakte.
           //
           // ⚠️ `--radius-sm` en geen pil. Dit was een pil, in dezelfde ronde
           // waarin de chips van de app dat juist óphielden te zijn
           // (`docs/designsystem.md` §5.1). Twee ronde stempels in een app vol
           // vlakken van 6, 8 en 12 pixels zijn geen accent maar een afwijking,
           // en de zijbalk staat naast élk scherm.
-          className="shrink-0 rounded-[var(--radius-sm)] bg-[var(--accent-purple-surface)] px-1.5 py-0.5 text-[0.5625rem] font-semibold uppercase leading-[1.4] tracking-[0.08em] text-[var(--accent-purple)]"
+          className="shrink-0 rounded-[var(--radius-sm)] bg-[var(--bg-elevated)] px-1.5 py-0.5 text-[0.5625rem] font-semibold uppercase leading-[1.4] tracking-[0.08em] text-[var(--text-secondary)]"
           title="Alleen zichtbaar voor jou, niet voor de klant"
         >
           alleen jij
