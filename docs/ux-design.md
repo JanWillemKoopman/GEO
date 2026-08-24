@@ -63,7 +63,8 @@ moet weten om een scherm te bouwen:
 /* Vorm: de pil is NIET meer de standaard */
 --radius-md: 8px;    knoppen, velden, navigatie
 --radius-lg: 12px;   kaarten
---radius-pill;       alleen chips, badges en voortgangsbalken
+--radius-sm: 6px;    chips en badges (sinds 24 augustus 2026 geen pil meer)
+--radius-pill;       alleen voortgangsbalken, stippen en de live-dot
 
 /* Diepte: één schaduw, voor wat zweeft. Verder plat. */
 --shadow-overlay: 0 4px 6px -4px rgba(0,0,0,.1), 0 10px 15px -3px rgba(0,0,0,.1);
@@ -98,7 +99,8 @@ overnemen; Geist is daar de open-source tegenhanger van.
 2. **Plat, niet gloeiend.** Rand en vlak dragen de hiërarchie. De ene schaduw is voor wat boven de
    pagina zweeft: menu's, dialogen, de hover van een klikbare kaart. Een gewone kaart is plat.
    De enige gloed die overblijft is de focusring, en die is toegankelijkheid.
-3. **De pil is voor chips.** Knoppen, velden en navigatie-items krijgen `--radius-md`. De oude regel
+3. **De pil is voor wat rond moet zijn**: voortgangsbalken, stippen, de `live-dot`. Chips en badges
+   staan op `--radius-sm`, knoppen en velden en navigatie-items op `--radius-md`. De oude regel
    "interactieve elementen zijn pilvormig" was de marketingsite.
 4. **Status is kleur plus vorm, nooit kleur alleen.** Een pulserende dot, een pijl (`↑` of `↓`) of
    een chip met tekst. Dat is toegankelijkheid.
@@ -262,6 +264,34 @@ staat nu in `lib/icons.ts`, de vormregels in `designsystem.md` §6b.
 verzorgd uit en het werkte averechts: zestien tekeningen in een balk van zestien regels markeren
 niets meer, want als alles opvalt valt niets op. `NavItem` heeft daarom geen icoonveld, zodat het
 niet ongemerkt terugkomt.
+
+### De vormgeving van de zijbalk (24 augustus 2026)
+
+De indeling klopte, de opmaak droeg hem niet. Vijf koppen en zestien bestemmingen stonden in
+vrijwel dezelfde vorm: allebei `text-sm`, allebei grijs, allebei gewicht 400 tot 500, en het enige
+verschil was een verticale lijn van 1 pixel links van de kinderen. Wie snel keek zag zestien regels
+op een rij en geen indeling in zessen. Vijf wijzigingen zetten die hiërarchie neer, en elke
+wijziging doet één ding:
+
+| Wat | Was | Is | Waarom |
+|---|---|---|---|
+| De kop | 14px, gewicht 500, grijs | **15px, gewicht 600, `--text-primary`** | Zes ankers die je in één oogopslag terugvindt |
+| Het icoon van de kop | De kleur van de tekst ernaast | **`--accent-purple`** | Eén merkkleur bindt de zes vaste plekken; de uitzondering op de `currentColor`-regel staat in `designsystem.md` §6b.2 |
+| Het kindschap | Een verticale lijn links van de kinderen | **28px inspringen, geen lijn** | De tekst van een bestemming staat exact onder de tekst van zijn kop; de lijn liep dwars door de actieve regel |
+| De actieve regel | `--bg-elevated` (#e7edf2) met donkere tekst | **`--accent-purple-surface` (#f3e6ff) met paarse tekst** | Grijs op wit haalde 1,1:1 met zijn eigen achtergrond: je zag hem pas als je ernaar zocht |
+| De ruimte | 4px tussen hoofdstukken, 30px per regel | **20px tussen hoofdstukken, 36px per regel** | Zes groepjes met lucht ertussen lezen als een indeling, zestien regels op elkaar als een lijst |
+
+⚠️ **De kop kleurt niet meer mee met de pagina waar je staat.** Hij was donker zodra een bestemming
+eronder actief was. Dat markeerde één van de zes koppen én de regel eronder, twee markeringen voor
+één plek, en de kop bewoog dus mee terwijl hij juist het vaste punt hoort te zijn.
+
+⚠️ **"Alleen jij" is een gevuld stempeltje geworden** in dezelfde paarse tint als de actieve regel.
+Los grijs hoofdlettertekst achter de bestemming las als een tweede label van die bestemming, terwijl
+het een stempel erop is: dit ziet de klant niet. Het staat op `--radius-sm`, dezelfde vorm als de
+chips elders in de app.
+
+**Ingeklapt (64px) blijft het icoon paars**, ook als het hoofdstuk niet actief is. Het is daar het
+enige wat er van de zes ankers over is; de actieve staat zit in het vlak eronder.
 
 ### Het overzicht: de eerste schermhoogte draagt het antwoord (24 augustus 2026)
 
