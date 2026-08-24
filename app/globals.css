@@ -837,6 +837,233 @@ textarea.field {
  * hoofdstuk-rail, tabbladen, de vaste goedkeuringsbalk. Knoppen verdwijnen in
  * hun geheel, op papier doet geen enkele knop iets.
  */
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   HET INLOGTONEEL (app/(auth)/)
+
+   ⚠️ Dit is de ENIGE route in de app die in het merkregister staat en niet in
+   het dashboardregister. Bovenaan dit bestand staat waarom al het andere plat
+   is: iemand zit een uur per week in een dashboard, en daar vecht sier met
+   inhoud. Op het inlogscherm zit niemand een uur. Het is het eerste beeld dat
+   een klant van ORBIT ENGINE ziet, in de sales-led opzet vaak gedeeld in een
+   demogesprek, en daar geldt docs/merkstrategie.md §15 en niet de
+   dichtheidseis die de rest van dit bestand draagt.
+
+   ⚠️ Dit is GEEN antwoord op het open ontwerpbesluit van docs/designsystem.md
+   §9b (moet het uiterlijk van de hele app eigen worden). Dat besluit staat nog
+   steeds open en vraagt om merkassets die er niet zijn. Dit is één scherm, op
+   verzoek van de eigenaar, en het bewijst hooguit dat de merkkant er is.
+
+   Alles hieronder begint met .auth- en staat alleen op deze route. De kleuren
+   komen zonder uitzondering uit de tokens bovenaan dit bestand. Neem hier
+   niets van over in een dashboardscherm: dan is de uitzondering geen
+   uitzondering meer.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* De hemel. Vast en niet absoluut, zodat het decor op een telefoon blijft
+   staan als het formulier onder de vouw doorloopt. */
+.auth-sky {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+  background:
+    radial-gradient(52% 46% at 5% 7%, rgba(55, 148, 28, 0.075) 0%, transparent 58%),
+    radial-gradient(56% 52% at 95% 91%, rgba(133, 17, 217, 0.09) 0%, transparent 58%),
+    radial-gradient(120% 92% at 50% 42%, #ffffff 0%, #fbfaff 40%, #efecfa 100%);
+}
+
+/* Twee banen. Ellipsen en geen cirkels: een cirkel op een breed scherm leest
+   als een bel, een platte ellips als een baan die je van opzij ziet. Ze zijn
+   wit, dus ze verschijnen vanzelf pas waar de hemel lila wordt, aan de randen,
+   en verdwijnen achter de kaart. Dat is het effect, geen toevalstreffer. */
+.auth-orbit-line {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.95);
+}
+.auth-orbit-line-outer {
+  width: 118vw;
+  height: 88vh;
+  transform: translate(-50%, -50%) rotate(-5deg);
+}
+.auth-orbit-line-inner {
+  width: 92vw;
+  height: 112vh;
+  transform: translate(-50%, -48%) rotate(7deg);
+  border-color: rgba(255, 255, 255, 0.5);
+}
+
+/* Drie planeten. De maten schalen mee met het scherm: op 1440 pixels zijn ze
+   zoals hieronder, op een telefoon zakken ze naar de ondergrens zodat ze het
+   formulier niet in de verdrukking brengen. */
+/* ⚠️ Weg onder 640 pixels. Op een telefoon staat de kaart over de volle
+   breedte, dus er is geen ruimte naast: de planeten belandden dan achter
+   het woordmerk en achter de inlogknop. Dat is geen decor meer maar ruis. */
+.auth-planet {
+  display: none;
+}
+@media (min-width: 640px) {
+  .auth-planet {
+    display: block;
+    position: absolute;
+    aspect-ratio: 1;
+    border-radius: 50%;
+  }
+}
+.auth-planet-green {
+  top: 13%;
+  left: 4.5%;
+  width: clamp(64px, 6.9vw, 100px);
+  background: radial-gradient(
+    circle at 32% 27%,
+    #ffffff 0%,
+    #dcf7d0 32%,
+    #b9efa3 70%,
+    #96e07a 100%
+  );
+  box-shadow: 0 0 56px 22px rgba(185, 239, 163, 0.4);
+}
+.auth-planet-white {
+  top: 18%;
+  right: 17%;
+  width: clamp(24px, 2.6vw, 42px);
+  background: radial-gradient(circle at 34% 30%, #ffffff 0%, #ffffff 55%, #edf1f7 100%);
+  box-shadow: 0 8px 20px rgba(23, 33, 43, 0.07);
+}
+.auth-planet-purple {
+  right: 2.5%;
+  bottom: 15%;
+  width: clamp(84px, 9.2vw, 152px);
+  background: radial-gradient(
+    circle at 30% 25%,
+    #f7edff 0%,
+    #d8b0f8 28%,
+    #a855f7 64%,
+    #7414b5 100%
+  );
+  box-shadow: 0 0 62px 20px rgba(133, 17, 217, 0.14);
+}
+
+/* Stof: vier losse punten die de banen bevolken. Puur ritme, geen betekenis. */
+.auth-dust {
+  position: absolute;
+  aspect-ratio: 1;
+  border-radius: 50%;
+}
+
+/* ── De kaart ───────────────────────────────────────────────────────────────
+   Ronder en zwaarder dan .card, en dat is hier het verschil tussen "software"
+   en "eerste indruk": op 12 pixels met alleen een rand valt de kaart weg tegen
+   de hemel eronder, want die hemel is zelf al bijna wit. */
+.auth-card {
+  position: relative;
+  overflow: hidden;
+  border-radius: 24px;
+  background-color: var(--bg-surface);
+  box-shadow:
+    0 1px 2px rgba(23, 33, 43, 0.04),
+    0 24px 48px -24px rgba(23, 33, 43, 0.18),
+    0 48px 96px -48px rgba(133, 17, 217, 0.16);
+}
+
+/* De merkzijde van de kaart, met het woordmerk-verloop staand langs de rand.
+   Dit is de tweede en laatste plek waar dat verloop mag staan: designsystem.md
+   §2.4 houdt het bij het woordmerk, en dit paneel ís de woordmerkzijde. */
+.auth-aside {
+  position: relative;
+  background-color: #f7f8fb;
+}
+.auth-aside::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 4px;
+  background: linear-gradient(180deg, #37941c 0%, #8511d9 100%);
+}
+
+/* De baanringen in het paneel: drie cirkels om het merkteken heen. */
+.auth-viz-ring {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  border: 1px solid var(--border-subtle);
+}
+
+/* De vier tegels rond die baan. Wit op een lichtgrijs paneel, dus zonder
+   schaduw lezen ze als gaten in plaats van als kaartjes. */
+.auth-tile {
+  position: absolute;
+  display: grid;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  border-radius: 14px;
+  background-color: var(--bg-surface);
+  box-shadow:
+    0 2px 4px rgba(23, 33, 43, 0.04),
+    0 10px 20px -8px rgba(23, 33, 43, 0.14);
+}
+
+/* ── Veld en knop ───────────────────────────────────────────────────────────
+   44 en 48 pixels, tegen de 40 van .field en .btn-primary. Een formulier van
+   twee velden mag ademen; een instellingenscherm met er twaalf niet, en
+   daarom blijft de dashboardmaat staan waar hij staat. De linkermarge van 40
+   houdt het icoon in het veld vrij van de tekst. */
+.auth-field {
+  width: 100%;
+  height: 44px;
+  padding: 0 12px 0 40px;
+  border-radius: 12px;
+  background-color: var(--bg-surface);
+  border: var(--border-width-xs) solid var(--border-subtle);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  font-size: 0.9375rem;
+  transition:
+    border-color var(--duration-fast) var(--ease-standard),
+    box-shadow var(--duration-fast) var(--ease-standard);
+}
+.auth-field::placeholder {
+  color: var(--text-muted);
+}
+.auth-field:focus {
+  outline: none;
+  border-color: var(--accent-purple);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent-purple) 18%, transparent);
+}
+/* Alleen het wachtwoordveld heeft rechts een knop staan. */
+.auth-field-toggle {
+  padding-right: 44px;
+}
+
+.auth-submit {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  height: 48px;
+  border-radius: 12px;
+  background-color: var(--intent-intelligence-solid);
+  color: var(--intent-intelligence-on-solid);
+  font-weight: 700;
+  font-size: 0.9375rem;
+  transition: background-color var(--duration-fast) var(--ease-standard);
+}
+.auth-submit:hover {
+  background-color: var(--intent-intelligence-hover);
+}
+.auth-submit:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
 @media print {
   .no-print,
   button,

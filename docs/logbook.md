@@ -4344,3 +4344,53 @@ regel er weer voor niets.
 Geen migratie: `fact_requests` had alles al, en de unieke index op (`profile_id`, `question`) maakt
 de omzetting vanzelf idempotent. Samen met de twee rondes hierboven op main: 2180 unittests en 303
 ketentests groen.
+
+---
+
+## Het inlogscherm gaat als enige naar het merkregister (24 augustus 2026)
+
+De eigenaar liet buiten Claude Code een ontwerp maken voor de inlogpagina en vroeg om precies dat
+scherm: een verlopende hemel met baanringen en planeten, een merkteken boven het woordmerk, en een
+brede kaart die in tweeën valt met een merkpaneel links en het formulier rechts. Dat is gebouwd
+zoals gevraagd.
+
+**Waarom dit een uitzondering is en geen koerswijziging.** §9b van `designsystem.md` beschrijft het
+open ontwerpbesluit: het hele uiterlijk is afgeleid van de werkomgeving van de concurrent, en dat
+botst met de merkstrategie. Dat besluit staat nog steeds open, want het vraagt om merkassets die er
+niet zijn. Wat hier gebeurd is, is smaller: één scherm draait in het merkregister in plaats van het
+dashboardregister. De redenering is dat het argument voor de vlakke stijl hier niet opgaat. Dat
+argument luidt: iemand zit een uur per week in een dashboard en dan vecht sier met inhoud. Op het
+inlogscherm zit niemand een uur, en in de sales-led opzet is dit vaak het eerste beeld dat een
+prospect in een demogesprek ziet.
+
+**Hoe die uitzondering ingeperkt is**, want anders lekt hij. Alle vorm staat in één blok in
+`app/globals.css` onder de kop "HET INLOGTONEEL", elke klasse begint met `.auth-`, en elke kleur
+komt uit de bestaande tokens: er is geen enkele nieuwe tint bijgekomen. Wat wél afwijkt van het
+dashboardsysteem is opgesomd en beargumenteerd: radius 24 tegenover 12, drie schaduwlagen
+tegenover de ene platte, een veld van 44 en een knop van 48 tegenover 40, en het woordmerkverloop
+op een tweede plek (de linkerrand van het merkpaneel).
+
+**Wat er meeveranderde en waarom.** De inloglay-out droeg tot nu toe zelf de kop en de kaart. Dat
+kon niet blijven: inloggen heeft nu een brede kaart en de andere vier schermen (registreren,
+wachtwoord instellen, wachtwoord vergeten, uitnodiging) een smalle, en een lay-out die niet weet
+welke route hij dient kan die breedte niet kiezen. De kop is daarom naar `auth-brand.tsx` verhuisd
+en de smalle vorm naar `auth-panel.tsx`, zodat de kop nog steeds op één plek staat. De vier andere
+schermen kregen zo hetzelfde decor en dezelfde kop, maar hielden hun eigen breedte.
+
+Het formulier is een eigen component geworden (`login-form.tsx`) en niet een derde stand van
+`auth-form.tsx`, om dezelfde reden die boven `password-forms.tsx` staat: dit formulier heeft iconen
+in het veld, een oogknop, een andere veldhoogte en een eigen afsluiter, en dat er met vlaggen in
+wringen levert een component op dat drie vormen kent en geen ervan goed. Registreren blijft op
+`auth-form.tsx`.
+
+**De oogknop is de enige toevoeging die niet over vorm gaat.** Een wachtwoordveld dat je niet kunt
+teruglezen kost een typefout, en een typefout kost een inlogpoging. Het label zegt wat er gebeurt
+als je klikt ("Wachtwoord tonen") en niet wat de stand nu is, want dat laatste leest een
+schermlezer voor als een raadsel.
+
+**Nagerekend in de browser** en niet alleen gebouwd: op 390, 768, 1024 en 1440 pixels loopt de
+pagina nergens horizontaal over, de oogknop schakelt het veldtype beide kanten op, de twee
+verlooptekens hebben elk een eigen id, er is één `h1`, en de console blijft leeg. Op een telefoon
+vallen de drie planeten weg: daar staat de kaart over de volle breedte en belandden ze achter het
+woordmerk en achter de inlogknop.
+
