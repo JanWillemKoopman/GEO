@@ -130,4 +130,23 @@ export const dedupe = {
    */
   reputationMarket: (runId: string, offeringId: string | null) =>
     offeringId ? `rep_markt:${runId}:${offeringId}` : `rep_markt:${runId}:merk`,
+
+  // ── De Sales-module (docs/tasks/geo-prospect-engine.md §8.3) ──────────────
+  //
+  // De eerste drie zijn per markt: er is precies één ontdekking, één verificatie
+  // en één uitsluitingsronde per markt tegelijk. Loopt er een, dan doet een tweede
+  // startklik niets, en dat is de bedoeling: de ontdekking is de enige betaalde
+  // stap van deze sprint.
+  salesDiscover: (marketId: string) => `sales_discover:${marketId}`,
+  salesVerify: (marketId: string) => `sales_verify:${marketId}`,
+  salesSuppress: (marketId: string) => `sales_suppress:${marketId}`,
+  /**
+   * ⚠️ De MARKT hoort in deze sleutel, naast het bedrijf. Een bedrijf kan in
+   * meerdere markten zitten (plan hoofdstuk 6), en twee markten die hetzelfde
+   * bedrijf goedkeuren horen niet elkaars crawltaak weg te filteren als duplicaat.
+   * De crawl zelf is idempotent, dus twee taken kosten hooguit één extra
+   * netwerkverzoek; één taak te weinig kost een bedrijf zonder gegevens.
+   */
+  salesEnrich: (marketId: string, companyId: string) =>
+    `sales_enrich:${marketId}:${companyId}`,
 };

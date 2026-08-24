@@ -50,6 +50,11 @@ import { runSourcesBlock } from "@/lib/pipeline/reputation-sources";
 import { runSynthesis } from "@/lib/pipeline/reputation-synthesis";
 import { runMarketBlock } from "@/lib/pipeline/reputation-market";
 import { runEvidenceBlock } from "@/lib/pipeline/reputation-evidence";
+import { ontdekMarkt } from "@/lib/pipeline/sales-discover";
+import { verifieerMarkt } from "@/lib/pipeline/sales-verify";
+import { sluitUit } from "@/lib/pipeline/sales-suppress";
+import { verrijkBedrijf } from "@/lib/pipeline/sales-enrich";
+import type { Kandidaat } from "@/lib/sales/discovery";
 import { enqueue, dedupe } from "@/lib/jobs/queue";
 import { countOpenPeriodicMeasurements } from "@/lib/jobs/pending";
 import type {
@@ -805,6 +810,153 @@ const handlers: { [T in JobType]: Handler<T> } = {
 
   reputation_synthesis: async ({ admin }, payload) => {
     await runSynthesis(admin, payload.runId);
+  },
+
+  // ── De Sales-module, sprint 2 (docs/tasks/geo-prospect-engine.md §8) ──────
+  //
+  // De keten is: ontdekken → verifiëren → uitsluiten → POORT 1 → verrijken.
+  // Alleen de eerste stap kost geld. De poort zit ertussen als een echte stop:
+  // de verrijking wordt niet door een handler ingepland maar door de admin die
+  // op goedkeuren drukt (`app/api/sales/markets/[id]/approve/route.ts`). Dat is
+  // het verschil tussen een poort en een pauze.
+
+  /**
+   * Stap 1: welke bedrijven vormen deze markt?
+   *
+   * ⚠️ De ruwe uitkomst gaat naar de database vóórdat de volgende stap wordt
+   * ingepland (conventie 8, en hier ook praktisch). Zou hij alleen in de payload
+   * meegaan, dan zou een mislukte verificatiestap de dure zoekactie opnieuw laten
+   * betalen. Nu is een tweede poging gratis.
+   */
+  sales_market_discover: async ({ admin }, payload) => {
+    const uit = await ontdekMarkt(admin, payload.marketId);
+    if (uit.skipped) return;
+
+    if (uit.kandidaten.length === 0 && uit.bronpaginas.length === 0) {
+      // Nul bedrijven én nul bronpagina's is geen lege markt maar een mislukte
+      // zoekactie: elke branche in elke plaats heeft aanbieders. Dat zeggen we
+      // hardop in plaats van een lege lijst aan poort 1 aan te bieden.
+      await admin
+        .from("sales_markets")
+        .update({
+          status: "mislukt",
+          failure_reason:
+            "Het onderzoek vond geen bedrijven en geen overzichtspagina's. " +
+            "Controleer de branche en de plaats, en probeer het opnieuw.",
+        })
+        .eq("id", payload.marketId);
+      return;
+    }
+
+    await admin
+      .from("sales_markets")
+      .update({
+        discovery_json: {
+          kandidaten: uit.kandidaten,
+          bronpaginas: uit.bronpaginas,
+        } as unknown as Record<string, unknown>,
+        discovery_note: uit.kanttekening || null,
+        discovered_at: new Date().toISOString(),
+      })
+      .eq("id", payload.marketId);
+
+    await enqueue(admin, {
+      type: "sales_market_verify",
+      payload: { marketId: payload.marketId },
+      salesMarketId: payload.marketId,
+      dedupeKey: dedupe.salesVerify(payload.marketId),
+    });
+  },
+
+  /** Stap 2: de bronpagina's uitlezen, ontdubbelen en vastleggen. Geen AI. */
+  sales_market_verify: async ({ admin }, payload) => {
+    const { data } = await admin
+      .from("sales_markets")
+      .select("discovery_json, discovery_note")
+      .eq("id", payload.marketId)
+      .maybeSingle();
+
+    const bewaard = (data?.discovery_json ?? null) as {
+      kandidaten?: Kandidaat[];
+      bronpaginas?: { url: string; wat: string }[];
+    } | null;
+    if (!bewaard) {
+      throw new Error(`Markt ${payload.marketId} heeft geen bewaarde ontdekking.`);
+    }
+
+    const uit = await verifieerMarkt(
+      admin,
+      payload.marketId,
+      bewaard.kandidaten ?? [],
+      (bewaard.bronpaginas ?? []).map((p) => p.url),
+    );
+
+    if (uit.bedrijven === 0) {
+      await admin
+        .from("sales_markets")
+        .update({
+          status: "mislukt",
+          failure_reason:
+            "Na het ontdubbelen bleef er geen enkel bedrijf over. " +
+            "Waarschijnlijk stonden er alleen platforms en vergelijkingssites in de uitkomst.",
+        })
+        .eq("id", payload.marketId);
+      return;
+    }
+
+    // De kanttekening groeit mee met wat er onderweg misging. Poort 1 hoort te
+    // weten waar de lijst dun is, niet alleen hoe lang hij is.
+    const extra: string[] = [];
+    if (uit.bronpaginasMislukt > 0) {
+      extra.push(
+        uit.bronpaginasMislukt === 1
+          ? "1 overzichtspagina was niet te openen."
+          : `${uit.bronpaginasMislukt} overzichtspagina's waren niet te openen.`,
+      );
+    }
+    if (uit.afgekapt.length > 0) {
+      extra.push(
+        `Deze pagina's waren te groot om helemaal te lezen: ${uit.afgekapt.join(", ")}.`,
+      );
+    }
+
+    const bestaande = (data?.discovery_note as string | null) ?? "";
+    const nieuweNotitie = [bestaande, ...extra].filter(Boolean).join(" ");
+
+    await admin
+      .from("sales_markets")
+      .update({
+        status: "bedrijven_gevonden",
+        discovery_note: nieuweNotitie || null,
+      })
+      .eq("id", payload.marketId);
+
+    await enqueue(admin, {
+      type: "sales_market_suppress",
+      payload: { marketId: payload.marketId },
+      salesMarketId: payload.marketId,
+      dedupeKey: dedupe.salesSuppress(payload.marketId),
+    });
+  },
+
+  /**
+   * Stap 2b: klanten, lopende trajecten en afmeldingen eruit.
+   *
+   * ⚠️ Deze stap zet de markt op `wacht_op_goedkeuring` en plant NIETS in. Dat
+   * is poort 1: hier stopt de keten tot een mens gekeken heeft. Zou hij de
+   * verrijking zelf inplannen, dan was de poort een pauze met een knop ernaast.
+   */
+  sales_market_suppress: async ({ admin }, payload) => {
+    await sluitUit(admin, payload.marketId);
+    await admin
+      .from("sales_markets")
+      .update({ status: "wacht_op_goedkeuring" })
+      .eq("id", payload.marketId);
+  },
+
+  /** Stap 3: de site van één goedgekeurd bedrijf uitlezen. Geen AI. */
+  sales_company_enrich: async ({ admin }, payload) => {
+    await verrijkBedrijf(admin, payload.companyId);
   },
 
   /**

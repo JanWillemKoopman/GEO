@@ -14,9 +14,10 @@ Voor UI/UX: `ux-design.md`.
 > `docs/logbook.md`. De tweede run draaide op de herziene opzet: de open marktvraag in plaats van de
 > benoemde vergelijking als hoofdmechanisme, drie herhalingen op de merkbrede vragen, en de
 > verdeling naast het gemiddelde.
-> **Bijgewerkt op 24 augustus 2026** voor sprint 1 van de Sales-module (migratie `0065`):
-> §2 (de derde en vierde rol), §3 (de vier Sales-tabellen) en §12. Die module is intern en de
-> klant ziet er niets van; de scheiding staat in de database en niet alleen in de schermen.
+> **Bijgewerkt op 24 augustus 2026** voor sprint 1 en 2 van de Sales-module (migraties `0065`
+> tot en met `0067`): §2 (de derde en vierde rol), §3 (de Sales-tabellen), §4 (vier taaksoorten
+> erbij en een derde soort taakeigenaar) en §12. Die module is intern en de klant ziet er niets
+> van; de scheiding staat in de database en niet alleen in de schermen.
 > De rest van de peildatum hieronder blijft staan.
 > **Migraties `0058` en `0059` zijn er sindsdien bijgekomen** en staan wél in §12 en in dit
 > document verwerkt, maar de rest is niet opnieuw regel voor regel nagelopen. Verder geldt:
@@ -180,7 +181,8 @@ heeft gestaan (zie §2).
 | `sales_users` | Wie bij de Sales-module mag, met `is_admin` voor wat geld kost. RLS aan, nul policies, net als `staff_users`: rijen komen er alleen via het Supabase-dashboard in. |
 | `sales_markets` | Een onderzochte markt: branche plus plaats plus straal, met een `slug` die straks ook het publieke adres is. Permanent en herhaald gemeten; de meetrondes zelf komen in een latere migratie. Zes standen, met een check-constraint en geen enum, want de lijst groeit nog. |
 | `sales_companies` | Een bedrijf, over markten heen, ontdubbeld op genormaliseerd domein. ⚠️ `domain` is nullable met een gedeeltelijke unieke index: een bedrijf zonder website is juist de prospect die deze module zoekt. ⚠️ `last_activity_at` en `anonymised_at` dragen de bewaartermijn van twaalf maanden; de rekenkunde staat puur in `lib/sales/retention.ts`. `do_not_contact` is absoluut en geldt over alle markten. |
-| `sales_market_companies` | Hoort dit bedrijf in deze markt? Draagt de vindplaatsen en de zekerheid. ⚠️ `included` heeft drie standen: `null` (nog niet beoordeeld), `true` en `false`. Zonder dat onderscheid is een niet-beoordeelde lijst niet te scheiden van een afgekeurde, en dan kan de goedkeuringspoort niet bestaan. |
+| `sales_market_companies` | Hoort dit bedrijf in deze markt? Draagt de vindplaatsen (`evidence_urls`), de zekerheid en de herkomst in gewone taal. ⚠️ `included` heeft drie standen: `null` (nog niet beoordeeld), `true` en `false`. Zonder dat onderscheid is een niet-beoordeelde lijst niet te scheiden van een afgekeurde, en dan kan de goedkeuringspoort niet bestaan. |
+| `sales_suppressions` | Wie er nooit in een prospectlijst mag staan (migratie `0066`): een bestaande klant, een lopend traject, een concurrent van een klant, of een bedrijf dat zich heeft afgemeld. Bij elke ronde opnieuw geëvalueerd. ⚠️ De ENIGE plek waar de Sales-module naar `profiles` verwijst, en het verkeer gaat maar één kant op: Sales leest wie er klant is om die eruit te houden. |
 
 Volledig ontwerp en de zes sprints die hierop volgen: [`tasks/geo-prospect-engine.md`](tasks/geo-prospect-engine.md).
 
@@ -203,14 +205,15 @@ Volledig ontwerp en de zes sprints die hierop volgen: [`tasks/geo-prospect-engin
 
 Bron: `lib/jobs/{types,queue,worker,handlers,pending}.ts`.
 
-- **32 taaksoorten:** `profile_discover`, `profile_research`, `profile_offering`, `propose_topics`,
+- **36 taaksoorten:** `profile_discover`, `profile_research`, `profile_offering`, `propose_topics`,
   `profile_market`, `profile_llm_baseline`, `profile_synthesis`, `prepare_analysis`,
   `generate_prompts`, `calibrate_volumes`, `measure_prompt`, `aggregate_week`,
   `profile_competitors`, `generate_report`, `content_brief`, `content_draft`, `content_revise`,
   `technical_audit`, `verify_publication`, `measure_impact`, `compute_impact`, `offsite_scan`,
   `gsc_sync`, `recalculate_potential`, `reputation_start`, `reputation_brand`,
   `reputation_offering`, `reputation_compare`, `reputation_sources`, `reputation_synthesis`,
-  `reputation_market`, `reputation_evidence`.
+  `reputation_market`, `reputation_evidence`, `sales_market_discover`, `sales_market_verify`,
+  `sales_market_suppress`, `sales_company_enrich`.
   `profile_competitors` hangt tussen `aggregate_week` en `generate_report`: destilleert per
   concurrent de eigenschappen uit de antwoordfragmenten van die periode (`competitor-intel.ts`),
   een eigen taak omdat het een eigen AI-aanroep is (conventie 7), niet omdat het inhoudelijk apart
@@ -219,7 +222,20 @@ Bron: `lib/jobs/{types,queue,worker,handlers,pending}.ts`.
   zodra een analyse haar eerste rapport krijgt: herberekent `search_volume_index` op ALLE
   onderwerpen van dat merk in één aanroep (`lib/pipeline/search-demand.ts`), zie
   `docs/tasks/potentiescore.md`.
-- **De reputatieketen** (de laatste zes, migratie `0062`) is de enige keten die niet lineair is:
+- **De Sales-keten** (de vier `sales_*`-taken, migraties `0066` en `0067`) hangt aan een MARKT en niet aan
+  een merk. Daarvoor is `jobs.sales_market_id` de derde soort taakeigenaar naast `analysis_id` en
+  `profile_id`; de constraint `jobs_has_owner` uit `0013` eist er nog steeds precies één van.
+  ⚠️ **Maar één van de vier roept een model aan.** Ontdubbelen, uitsluiten en de crawl per bedrijf
+  zijn gratis, en dat is ontwerp en geen toeval: wat meeschaalt met het aantal bedrijven moet
+  kosteloos zijn, anders gaan mensen bedrijven wegsnijden en sneuvelen precies de onzichtbare
+  bedrijven die de module zoekt (plan 21.1).
+  ⚠️ **De keten stopt bij poort 1 en gaat niet vanzelf door.** `sales_market_suppress` plant niets
+  in; alleen een mens die op goedkeuren drukt zet de crawltaken in gang. Dat is het verschil tussen
+  een poort en een pauze, en het is de goedkoopste plek om een verkeerd afgebakende markt te
+  stoppen (plan 8.1).
+  Deze vier verschijnen nooit in "wat ORBIT ENGINE deze week deed": hun vertaling in
+  `lib/activity.ts` is expliciet `null`, want ze gaan over bedrijven die geen klant zijn.
+- **De reputatieketen** (de zes `reputation_*`-taken, migratie `0062`) is de enige keten die niet lineair is:
   `reputation_start` kiest de aanbodknopen en de concurrenten, legt die keuze vast in `scope_json`
   en plant alle andere taken tegelijk in. Elke afrondende taak telt daarna hoeveel reputatietaken
   er nog openstaan, en de laatste plant de synthese in (`scheduleSynthesisIfLast`, dezelfde
@@ -745,7 +761,7 @@ Bewust **niet** in RLS: dat zou een gearchiveerd merk ook voor de eigenaar onber
 
 ## 12. Migraties
 
-`0001` t/m `0065`, alle toegepast op productie behalve `0033` (gereserveerd voor R6.2, nooit
+`0001` t/m `0067`, alle toegepast op productie behalve `0033` (gereserveerd voor R6.2, nooit
 gedraaid, de reservering verviel toen `0039` de inventariskwaliteit fase 0 van de nieuwe
 onboarding maakte; een gereserveerd nummer dat nooit draaide blokkeert niets).
 

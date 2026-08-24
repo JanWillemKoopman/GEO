@@ -4257,3 +4257,60 @@ Een markt aanmaken kost dus ook niets, en er zit daarom geen budgetcontrole op d
 een handeling die niets kost, wekt de indruk dat er iets in gang wordt gezet.
 
 Migratie `0065` op productie, 2206 unittests en 310 ketentests groen.
+
+## 24 augustus 2026: de Sales-module, sprint 2 van zeven
+
+De marktontdekking staat: uit een branche en een plaats komt een bedrijvenlijst, ontdubbeld, met een
+zekerheid per bedrijf en zonder de klanten van Outer Orbit erin. Vier taken in de wachtrij, waarvan
+er één een model aanroept.
+
+**Besloten: eerst de gratis bronnen.** Van de vier bronnen uit hoofdstuk 9 van het plan zijn er twee
+gebouwd. Een onderzoeksmodel dat het web doorzoekt, en de overzichtspagina's die dat model aanwijst,
+daarna door onze eigen crawler uitgelezen. Het kaartenregister en het handelsregister kosten geld per
+opvraging en staan uit tot de eerste echte markt uitwijst dat ze nodig zijn.
+
+**Die tweede bron is het hele punt van deze sprint.** Het plan waarschuwt ervoor dat een systeem dat
+alleen verzamelt wat AI noemt, per definitie blind is voor zijn beste prospects. Een model vragen om
+bedrijven op te sommen lost dat maar half op, want het blijft hetzelfde kanaal. Wat het wél oplost:
+het model de overzichtspagina's laten aanwijzen en die daarna zelf uitlezen. Een ledenlijst van een
+branchevereniging linkt naar zijn leden, ook naar de leden die geen model ooit noemt. De ketentest
+heeft daar een bedrijf in zitten dat uitsluitend via die weg binnenkomt, en dat is de assertie die de
+belofte van hoofdstuk 9 bewaakt.
+
+**Bedrijven worden op links geoogst en niet op lijststructuur.** Elke ledenlijst heeft zijn eigen
+opmaak, en een parser per site gaat stuk bij de eerste ontwerpwijziging van die site. Uitgaande links
+zijn overal hetzelfde. Grover, en bestand tegen verandering. De linktekst is op zo'n pagina meestal
+de bedrijfsnaam, en dat scheelt een netwerkverzoek per bedrijf; is de tekst nietszeggend ("lees
+meer"), dan valt de naam terug op het domein en is dat zichtbaar als herkomst `domein`.
+
+**Poort 1 is een echte stop en geen pauze.** De uitsluitingsstap plant niets in. Alleen een mens die
+op goedkeuren drukt zet de crawltaken in gang. Dat is met opzet: het duurste dat deze module kan doen
+is een verkeerd afgebakende markt doormeten, en dat is precies het moment waarop dat nog gratis te
+herstellen is. Wat er ná goedkeuring gebeurt is de crawl per bedrijf, en die kost niets.
+
+**Twee fouten die de tests hebben gevonden, en beide zaten in de samenhang.**
+
+1. **`jobs_has_owner` weigerde elke Sales-taak.** Migratie `0013` eiste dat een taak aan een analyse
+   of een merk hangt. Een Sales-taak hangt aan een markt, en een markt is geen merk. De ketentest zag
+   het bij de eerste keer dat de keten draaide. Gerepareerd met een derde soort eigenaar
+   (`jobs.sales_market_id`, migratie `0067`) en niet met een uitzondering op de regel: met "of het
+   type begint met sales" zou de taak nog steeds aan niets hangen en zou niemand achteraf kunnen
+   vragen wat er voor een markt gedraaid heeft.
+2. **Het plafond blokkeerde ook de gratis stappen.** `beoordeelBudget` keek of de kosten na de stap
+   nog onder het plafond bleven, en bij nul kosten is dat nog steeds onwaar zodra het budget vol is.
+   Gevolg: een markt met een vol budget zou ook zijn crawlgegevens verliezen, zonder dat het één cent
+   bespaart. Een rem hoort te remmen waar geld wegloopt en nergens anders, dus een stap die niets
+   kost wordt nooit meer geblokkeerd.
+
+**Wat er nog niet is.** Er wordt niets gemeten. De keten stopt na de crawl, en dat is waar sprint 3
+begint. De kostencijfers van deze module zijn schattingen, geen metingen: er heeft nog geen enkele
+echte marktanalyse gedraaid. Zodra dat gebeurt horen ze tegen `ai_calls` nagerekend te worden,
+precies zoals bij de reputatieanalyse is gedaan.
+
+**En één correctie op het plan zelf, voor de tweede keer.** Het plan legde per sprint een
+migratienummer vast. Dat liep twee keer vast: eerst omdat sprint 1 en 2 hetzelfde nummer kregen, toen
+omdat sprint 2 er een tweede nodig bleek te hebben. Je weet vooraf niet hoeveel migraties een sprint
+kost, dus die nummers staan er nu niet meer in. `supabase/README.md` is de eigenaar van dat feit, en
+het plan zegt alleen nog wát er nodig is.
+
+Migraties `0066` en `0067` op productie, 2308 unittests en 338 ketentests groen.

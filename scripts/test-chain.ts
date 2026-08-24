@@ -4035,6 +4035,276 @@ async function main(): Promise<void> {
       ok("en staat niet op 'niet benaderen'", klok[0].do_not_contact === false);
     }
 
+    // ══════════════════════════════════════════════════════════════════════
+    console.log("\nDe Sales-module: van markt tot goedgekeurde bedrijvenlijst (sprint 2)");
+
+    {
+      const { runJob } = await import("@/lib/jobs/handlers");
+
+      /** Draait alle openstaande Sales-taken af, in volgorde. */
+      async function draaiSalesTaken(): Promise<string[]> {
+        const gedraaid: string[] = [];
+        for (let i = 0; i < 60; i++) {
+          const { rows } = await db.client.query(
+            `select * from public.jobs
+              where type like 'sales%' and status = 'queued'
+              order by scheduled_for asc, created_at asc limit 1`,
+          );
+          if (rows.length === 0) break;
+          await db.client.query("update public.jobs set status = 'running' where id = $1", [rows[0].id]);
+          await runJob({ admin: admin as never, job: { ...rows[0], status: "running" } });
+          await db.client.query("update public.jobs set status = 'done' where id = $1", [rows[0].id]);
+          gedraaid.push(rows[0].type as string);
+        }
+        return gedraaid;
+      }
+
+      // ── Het decor ──────────────────────────────────────────────────────────
+      //
+      // Eén markt, en één BESTAANDE KLANT die toevallig in die markt zit. Dat
+      // laatste is het punt van deze scenario: `ymakelaars.nl` staat in het
+      // stubantwoord van de marktontdekking én in `profiles` als toegewezen
+      // merk. Het moet er dus uit, en de markt moet gaan waarschuwen.
+      const salesMarktId = randomUUID();
+      await db.client.query(
+        `insert into public.sales_markets (id, slug, label, industry, location, radius_km)
+         values ($1, 'makelaar-eindhoven-keten', 'Makelaar Eindhoven', 'makelaar', 'Eindhoven', 15)`,
+        [salesMarktId],
+      );
+
+      const klantEigenaarId = randomUUID();
+      await db.client.query("insert into auth.users (id, email) values ($1, 'y@ymakelaars.test')", [
+        klantEigenaarId,
+      ]);
+      await db.client.query(
+        `insert into public.profiles (id, user_id, name, url, brand_name, status, assigned_at)
+         values ($1, $2, 'Y Makelaars', 'https://www.ymakelaars.nl', 'Y Makelaars', 'klaar', now())`,
+        [randomUUID(), klantEigenaarId],
+      );
+
+      // ── De bronpagina's, zonder internet ──────────────────────────────────
+      //
+      // De ledenlijst noemt Van X (die het model ook al noemde, dus die krijgt
+      // twee bronnen) plus Q Makelaars, die het model NIET noemde. Dat tweede is
+      // de kern van hoofdstuk 9: de bronpagina vindt bedrijven die geen model
+      // ooit noemt.
+      const origineleFetch = globalThis.fetch;
+      globalThis.fetch = (async (input: RequestInfo | URL) => {
+        const url = String(input);
+        const antwoord = (body: string) => ({ ok: true, status: 200, text: async () => body });
+
+        if (url.startsWith("https://nvm.nl/leden/eindhoven")) {
+          return antwoord(`<html><body>
+            <a href="/over-ons">Over ons</a>
+            <a href="https://www.vanxmakelaars.nl">Van X Makelaars</a>
+            <a href="https://qmakelaars.nl">Q Makelaars</a>
+            <a href="https://www.funda.nl">Funda</a>
+          </body></html>`);
+        }
+        if (url.startsWith("https://eindhoven.nl/bedrijvengids")) {
+          return antwoord(`<html><body>
+            <a href="https://www.ymakelaars.nl">Y Makelaars</a>
+          </body></html>`);
+        }
+        return { ok: false, status: 404, text: async () => "" };
+      }) as typeof globalThis.fetch;
+
+      try {
+        await db.client.query(
+          `insert into public.jobs (type, payload_json, dedupe_key, status, sales_market_id)
+           values ('sales_market_discover', $1, $2, 'queued', $3)`,
+          [JSON.stringify({ marketId: salesMarktId }), `sales_discover:${salesMarktId}`, salesMarktId],
+        );
+
+        const gedraaid = await draaiSalesTaken();
+
+        // ⚠️ DE KETEN LOOPT DOOR OP DE SERVER, EN STOPT BIJ POORT 1.
+        ok(
+          "de ontdekking ketent naar verifiëren en uitsluiten",
+          gedraaid.join(",") ===
+            "sales_market_discover,sales_market_verify,sales_market_suppress",
+          gedraaid.join(","),
+        );
+        ok(
+          "en plant de crawl NIET zelf in: dat is poort 1",
+          !gedraaid.includes("sales_company_enrich"),
+        );
+
+        const { rows: naKeten } = await db.client.query(
+          `select status, approved_at, conflict_note, discovery_note, discovery_json, discovered_at
+             from public.sales_markets where id = $1`,
+          [salesMarktId],
+        );
+        eqc("de markt wacht op goedkeuring", naKeten[0].status, "wacht_op_goedkeuring");
+        ok("en is nog niet goedgekeurd", naKeten[0].approved_at === null);
+        ok("de ruwe uitkomst is bewaard (conventie 8)", naKeten[0].discovery_json !== null);
+        ok("met een tijdstip erbij", naKeten[0].discovered_at !== null);
+        ok(
+          "de kanttekening van het onderzoek staat er",
+          String(naKeten[0].discovery_note ?? "").includes("zonder eigen website"),
+        );
+
+        // ── Wat er in de lijst staat ────────────────────────────────────────
+        const { rows: bedrijven } = await db.client.query(
+          `select c.name, c.domain, c.crawl_status, mc.confidence, mc.included,
+                  mc.discovery_sources, mc.evidence_urls, mc.excluded_reason
+             from public.sales_market_companies mc
+             join public.sales_companies c on c.id = mc.company_id
+            where mc.market_id = $1
+            order by c.name`,
+          [salesMarktId],
+        );
+
+        const perNaam = new Map(bedrijven.map((b) => [b.name as string, b]));
+
+        // ⚠️ HET BEDRIJF DAT ALLEEN OP DE BRONPAGINA STOND. Dit is de hele reden
+        // dat de bronpagina's uitgelezen worden: een model noemde Q Makelaars
+        // niet, en juist zo'n bedrijf heeft het grootste GEO-probleem.
+        ok("een bedrijf dat alleen op de bronpagina stond komt erin", perNaam.has("Q Makelaars"));
+
+        // Twee bronnen voor hetzelfde bedrijf, ondanks www en een pad ervoor.
+        const vanX = perNaam.get("Van X Makelaars");
+        ok("Van X staat er één keer in", Boolean(vanX));
+        eqc("met zekerheid middel, want twee bronnen", String(vanX?.confidence), "middel");
+        ok(
+          "en de vindplaatsen zijn bewaard",
+          Array.isArray(vanX?.evidence_urls) && (vanX?.evidence_urls as string[]).length > 0,
+        );
+
+        // Een bedrijf zonder website blijft staan (plan hoofdstuk 9).
+        const zonderSite = perNaam.get("Makelaardij Zonder Site");
+        ok("een bedrijf zonder website blijft staan", Boolean(zonderSite));
+        ok("zonder verzonnen webadres", zonderSite?.domain === null);
+        eqc(
+          "en de crawlstand zegt dat er niets te crawlen valt",
+          String(zonderSite?.crawl_status),
+          "geen_website",
+        );
+
+        // Platforms zijn bronnen en geen prospects.
+        ok(
+          "Funda staat niet in de lijst",
+          !bedrijven.some((b) => String(b.domain ?? "").includes("funda")),
+        );
+        ok(
+          "en een bedrijf zonder naam ook niet",
+          !bedrijven.some((b) => String(b.name).trim() === ""),
+        );
+
+        // ⚠️ DE BESTAANDE KLANT. Dit is de fout die het duurst is: een mail naar
+        // een bedrijf dat al klant is.
+        const klant = perNaam.get("Y Makelaars");
+        ok("de bestaande klant staat er wel in", Boolean(klant));
+        ok("maar is uitgesloten", klant?.included === false);
+        ok(
+          "met de reden erbij",
+          String(klant?.excluded_reason ?? "").includes("al klant"),
+          String(klant?.excluded_reason),
+        );
+
+        const { rows: uitsluiting } = await db.client.query(
+          `select s.kind, s.related_profile_id
+             from public.sales_suppressions s
+             join public.sales_companies c on c.id = s.company_id
+            where c.domain = 'ymakelaars.nl'`,
+        );
+        eqc("de uitsluiting is vastgelegd", String(uitsluiting[0]?.kind), "klant");
+        ok("met een verwijzing naar het merk", uitsluiting[0]?.related_profile_id !== null);
+
+        ok(
+          "en de markt waarschuwt dat er een klant in zit",
+          String(naKeten[0].conflict_note ?? "").includes("klant van ons"),
+          String(naKeten[0].conflict_note),
+        );
+
+        // ── Idempotentie: nog een keer starten kost geen tweede zoekactie ────
+        await db.client.query(
+          `insert into public.jobs (type, payload_json, dedupe_key, status, sales_market_id)
+           values ('sales_market_discover', $1, $2, 'queued', $3)`,
+          [
+            JSON.stringify({ marketId: salesMarktId }),
+            `sales_discover:${salesMarktId}:tweede`,
+            salesMarktId,
+          ],
+        );
+        const nogEens = await draaiSalesTaken();
+        eqc("een tweede ontdekking doet niets", nogEens.join(","), "sales_market_discover");
+        const { rows: naTweede } = await db.client.query(
+          "select count(*)::int as n from public.sales_market_companies where market_id = $1",
+          [salesMarktId],
+        );
+        eqc(
+          "en er komen geen bedrijven bij",
+          String(naTweede[0].n),
+          String(bedrijven.length),
+        );
+
+        // ── Poort 1: goedkeuren plant de crawl in ───────────────────────────
+        //
+        // De route doet dit met een gebruiker erbij; hier bootsen we hem na op
+        // de twee dingen die ertoe doen: alles wat niemand weghaalde gaat mee, en
+        // elk goedgekeurd bedrijf krijgt een crawltaak.
+        await db.client.query(
+          `update public.sales_market_companies set included = true
+            where market_id = $1 and included is null`,
+          [salesMarktId],
+        );
+        await db.client.query(
+          "update public.sales_markets set approved_at = now() where id = $1",
+          [salesMarktId],
+        );
+        const { rows: goedgekeurd } = await db.client.query(
+          "select company_id from public.sales_market_companies where market_id = $1 and included = true",
+          [salesMarktId],
+        );
+        for (const g of goedgekeurd) {
+          await db.client.query(
+            `insert into public.jobs (type, payload_json, dedupe_key, status, sales_market_id)
+             values ('sales_company_enrich', $1, $2, 'queued', $3)`,
+            [
+              JSON.stringify({ marketId: salesMarktId, companyId: g.company_id }),
+              `sales_enrich:${salesMarktId}:${g.company_id}`,
+              salesMarktId,
+            ],
+          );
+        }
+
+        ok(
+          "de uitgesloten klant krijgt geen crawltaak",
+          goedgekeurd.length === bedrijven.length - 1,
+          `${goedgekeurd.length} van ${bedrijven.length}`,
+        );
+
+        await draaiSalesTaken();
+
+        const { rows: naCrawl } = await db.client.query(
+          `select c.name, c.crawl_status from public.sales_companies c
+             join public.sales_market_companies mc on mc.company_id = c.id
+            where mc.market_id = $1 and mc.included = true`,
+          [salesMarktId],
+        );
+
+        // De crawl bereikt niets in deze test (de fetch-stub geeft 404 op elke
+        // bedrijfssite), en dat is precies wat er getoetst moet worden: een
+        // onbereikbare site is een BEVINDING en geen storing die de keten stopt.
+        ok(
+          "elk goedgekeurd bedrijf heeft een crawluitkomst",
+          naCrawl.every((c) => c.crawl_status !== "open"),
+          naCrawl.map((c) => `${c.name}=${c.crawl_status}`).join(", "),
+        );
+        ok(
+          "een bedrijf zonder website houdt zijn eigen stand",
+          naCrawl.find((c) => c.name === "Makelaardij Zonder Site")?.crawl_status === "geen_website",
+        );
+        ok(
+          "en een onbereikbare site is niet hetzelfde als geen site",
+          naCrawl.some((c) => c.crawl_status === "niet_gelukt"),
+        );
+      } finally {
+        globalThis.fetch = origineleFetch;
+      }
+    }
+
     __setTestAdminClient(null);
     __setTestTransport(null);
     __setTestPlainTransport(null);

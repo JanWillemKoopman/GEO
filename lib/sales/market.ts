@@ -100,6 +100,48 @@ const OVERGANGEN: Record<MarktStand, readonly MarktStand[]> = {
   mislukt: ["concept"],
 };
 
+/**
+ * Wat de admin op het scherm leest, gegeven de stand én of poort 1 al door is.
+ *
+ * ── WAAROM DIT NAAST DE STAND STAAT EN NIET IN DE STAND ZIT ─────────────────
+ *
+ * De zes standen uit plan 7.1 lopen van concept tot klaar, maar er zitten TWEE
+ * goedkeuringspoorten in de keten en maar één stand die daarover gaat. Tussen
+ * poort 1 (de bedrijvenlijst) en poort 2 (de vragen en de kostenraming) zit werk
+ * dat niet meet en niet wacht: de sites van de goedgekeurde bedrijven worden
+ * uitgelezen.
+ *
+ * Dat had een zevende stand kunnen worden. Dat is niet gedaan, want een stand
+ * toevoegen betekent een constraint wijzigen, een statusmachine uitbreiden en
+ * elke lezer aanpassen, voor iets wat uit twee bestaande velden af te leiden is:
+ * de stand plus `approved_at`. Een afgeleid gegeven hoort niet als kolom opnieuw
+ * opgeslagen te worden, want dan lopen de twee uit elkaar.
+ *
+ * ⚠️ Wat er vandaag NIET is: alles ná de crawlverrijking. Intenties, vragen en
+ * poort 2 komen in sprint 3. Deze functie zegt dat ook, in plaats van te
+ * suggereren dat er vanzelf gemeten gaat worden.
+ */
+export function marktFase(markt: {
+  status: string;
+  approved_at?: string | null;
+}): { label: string; uitleg: string } {
+  if (!isMarktStand(markt.status)) {
+    return {
+      label: "Onbekende stand",
+      uitleg: "Deze stand kent ORBIT ENGINE niet.",
+    };
+  }
+  if (markt.status === "wacht_op_goedkeuring" && markt.approved_at) {
+    return {
+      label: "Goedgekeurd",
+      uitleg:
+        "Je hebt de bedrijvenlijst goedgekeurd. ORBIT ENGINE leest nu de site van elk bedrijf uit. " +
+        "Het meten zelf wordt gebouwd.",
+    };
+  }
+  return MARKT_STAND_TEKST[markt.status];
+}
+
 /** Mag een markt van deze stand naar die stand? Zichzelf is geen overgang. */
 export function magOvergaan(van: MarktStand, naar: MarktStand): boolean {
   return OVERGANGEN[van]?.includes(naar) ?? false;

@@ -4,7 +4,8 @@ import { createClient } from "@/lib/supabase/server";
 import { isSalesAdmin } from "@/lib/sales/access";
 import { PageHeader } from "@/components/page-header";
 import { EmptyState } from "@/components/empty-state";
-import { MARKT_STAND_TEKST, isMarktStand } from "@/lib/sales/market";
+import Link from "next/link";
+import { marktFase } from "@/lib/sales/market";
 import { NieuweMarkt } from "./nieuwe-markt";
 
 export const dynamic = "force-dynamic";
@@ -41,7 +42,9 @@ export default async function SalesMarktenPage() {
   const [{ data: markten }, admin] = await Promise.all([
     supabase
       .from("sales_markets")
-      .select("id, slug, label, industry, location, radius_km, status, is_public, created_at")
+      .select(
+        "id, slug, label, industry, location, radius_km, status, is_public, created_at, approved_at, conflict_note",
+      )
       .is("archived_at", null)
       .order("created_at", { ascending: false }),
     isSalesAdmin(user.id),
@@ -68,19 +71,35 @@ export default async function SalesMarktenPage() {
       ) : (
         <ul className="flex flex-col gap-3">
           {rijen.map((m) => {
-            // Conventie 3: een stand die we niet kennen is geen stand. Liever
-            // "onbekend" dan de eerste uit de lijst tonen alsof hij klopt.
-            const stand = isMarktStand(m.status) ? MARKT_STAND_TEKST[m.status] : null;
+            // Conventie 3: een stand die we niet kennen is geen stand. `marktFase`
+            // geeft dan "onbekend" terug in plaats van de eerste uit de lijst te
+            // tonen alsof hij klopt.
+            const fase = marktFase({
+              status: m.status as string,
+              approved_at: m.approved_at as string | null,
+            });
             return (
-              <li key={m.id as string} className="card flex flex-col gap-2">
+              <li key={m.id as string} className="card-interactive card flex flex-col gap-2">
                 <div className="flex flex-wrap items-baseline justify-between gap-2">
-                  <h2 className="text-lg font-semibold">{m.label as string}</h2>
+                  <h2 className="text-lg font-semibold">
+                    <Link href={`/sales/markten/${m.id as string}`} className="hover:underline">
+                      {m.label as string}
+                    </Link>
+                  </h2>
                   <span className="mono-label">
-                    {stand ? stand.label : "Onbekende stand"}
+                    {fase.label}
                     {m.is_public ? " · openbaar" : ""}
                   </span>
                 </div>
-                <p className="text-secondary">{stand ? stand.uitleg : "Deze stand kent ORBIT ENGINE niet."}</p>
+                <p className="text-secondary">{fase.uitleg}</p>
+                {/* De waarschuwing hoort ook in de lijst te staan en niet alleen op
+                    het detailscherm: wie hier een markt uitkiest om aan te werken,
+                    moet nu al weten dat er een klant van ons in zit (plan 9.5). */}
+                {m.conflict_note && (
+                  <p className="text-sm text-[var(--intent-warning-text)]">
+                    {m.conflict_note as string}
+                  </p>
+                )}
                 <p className="text-sm text-muted">
                   {m.industry as string} in {m.location as string}, {m.radius_km as number} km eromheen
                   {" · "}

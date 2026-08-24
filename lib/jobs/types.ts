@@ -118,6 +118,37 @@ export const JOB_TYPES = [
   "reputation_sources",
   /** Blok D: de getallen rekenen, de tekst schrijven, de run afsluiten. */
   "reputation_synthesis",
+
+  // ── De Sales-module, sprint 2 (docs/tasks/geo-prospect-engine.md §8) ──────
+  //
+  // Vier taaksoorten, en maar één ervan roept een model aan. Dat is het ontwerp
+  // uit plan 21.1: wat meeschaalt met het aantal bedrijven moet gratis zijn,
+  // anders wordt een volledige markt duur en gaan mensen bedrijven wegsnijden.
+  // Precies de onzichtbare bedrijven die deze module zoekt.
+  /**
+   * Welke bedrijven vormen deze markt? De enige betaalde stap: één
+   * onderzoeksaanroep mét web-zoeken (conventie 7).
+   */
+  "sales_market_discover",
+  /**
+   * De bronpagina's uitlezen, ontdubbelen en de lijst vastleggen. Geen AI.
+   *
+   * ⚠️ Een EIGEN taaksoort en geen staart aan `sales_market_discover`. Die stap
+   * doet een web-zoekactie van tientallen seconden; deze haalt tot twaalf
+   * pagina's op. Samen passen ze niet betrouwbaar in één werker-aanroep, en dan
+   * zou een tijdslimiet de dure aanroep opnieuw laten betalen.
+   */
+  "sales_market_verify",
+  /** Klanten, lopende trajecten en afmeldingen eruit (plan 9.5). Geen AI. */
+  "sales_market_suppress",
+  /**
+   * De site van ÉÉN bedrijf uitlezen. Geen AI, en één taak per bedrijf.
+   *
+   * Zelfde reden als bij `measure_prompt`: dertig sites in één taak past niet in
+   * één werker-aanroep, en één onbereikbare site mag de andere negenentwintig
+   * niet meenemen.
+   */
+  "sales_company_enrich",
   /**
    * Blok M: de open koperssvraag die concurrenten ONTDEKT in plaats van ze op
    * te leggen. Vervangt de benoemde vergelijking als hoofdmechanisme, na de
@@ -261,6 +292,16 @@ export interface JobPayloads {
   };
   reputation_sources: { runId: string };
   reputation_synthesis: { runId: string };
+
+  // ── De Sales-module ──────────────────────────────────────────────────────
+  //
+  // Alle vier dragen `marketId`, ook de taak die over één bedrijf gaat. Dat is
+  // nodig voor het plafond per markt (`lib/sales/budget.ts`) en voor de vraag
+  // "zijn alle bedrijven van deze markt klaar", die anders niet te stellen is.
+  sales_market_discover: { marketId: string };
+  sales_market_verify: { marketId: string };
+  sales_market_suppress: { marketId: string };
+  sales_company_enrich: { marketId: string; companyId: string };
   reputation_evidence: { runId: string };
   reputation_market: {
     runId: string;
