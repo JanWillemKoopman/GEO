@@ -63,7 +63,7 @@ export default async function PlanPage({
         title="Contentplan"
         backHref={`/merk/${id}`}
         backLabel="Overzicht"
-        description="Twaalf maanden vooruit. Je keurt per maand goed, en ORBIT ENGINE begint tien dagen voor elke publicatiedatum met schrijven."
+        description="Twaalf maanden vooruit. Je geeft een maand vrij, ORBIT ENGINE begint tien dagen voor elke publicatiedatum met schrijven, en daarna keur jij elke tekst goed."
       />
 
       {bundle ? (

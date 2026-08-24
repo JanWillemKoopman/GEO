@@ -225,6 +225,16 @@ import {
   type PageForWriting,
 } from "@/lib/plan-writing";
 import { swapWithNeighbour, canMove, type OrderablePage } from "@/lib/plan-order";
+import {
+  contentHref,
+  filterCounts,
+  formatDagNL,
+  isCurrentMonth,
+  matchesFilter,
+  monthCalendarLabel,
+  nextPublication,
+  openMonthIds,
+} from "@/lib/plan-overview";
 import { milestones } from "@/lib/milestones";
 import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
@@ -413,7 +423,12 @@ import {
   REVIEW_PLATFORMS,
 } from "@/lib/reputation/sources";
 import { decideStep, budgetUsd, RUN_BUDGET_EUR, STEP_COST_USD } from "@/lib/reputation/budget";
-import type { ProfileOffering, ProfileTopic, Entity } from "@/lib/types/database";
+import type {
+  ProfileOffering,
+  ProfileTopic,
+  Entity,
+  PlannedPageStatus,
+} from "@/lib/types/database";
 
 let passed = 0;
 let failed = 0;
@@ -5361,6 +5376,173 @@ group("FaqEdit", () => {
 });
 
 
+
+group("het overzicht over twaalf maanden (plan-overview)", () => {
+  // ⚠️ UX-review 24 augustus 2026. De weergave "Alles" was 120 kaarten van
+  // gelijk gewicht over twaalf koppen die "Maand 1" tot "Maand 12" heetten,
+  // zonder één kalendermaand en zonder aanwijzing waar "nu" was.
+
+  const pg = (
+    status: PlannedPageStatus,
+    datum: string | null = null,
+  ): { status: PlannedPageStatus; scheduled_for: string | null } => ({
+    status,
+    scheduled_for: datum,
+  });
+
+  // ── Het filter, één regel voor de lijst én voor de teller erboven ─────────
+  ok(
+    "wacht-op-jou is precies wat een handeling vraagt",
+    matchesFilter(pg("ter_goedkeuring"), "actie") &&
+      matchesFilter(pg("goedgekeurd"), "actie") &&
+      !matchesFilter(pg("gepland"), "actie"),
+  );
+  ok(
+    "staat-gepland pakt ook wat op dit moment geschreven wordt",
+    matchesFilter(pg("gepland"), "gepland") && matchesFilter(pg("schrijven"), "gepland"),
+  );
+  ok(
+    "alles is alles, ook wat mislukte",
+    matchesFilter(pg("mislukt"), "alles") && matchesFilter(pg("afgewezen"), "alles"),
+  );
+
+  const lijst = [
+    pg("ter_goedkeuring"),
+    pg("goedgekeurd"),
+    pg("gepland"),
+    pg("schrijven"),
+    pg("geplaatst"),
+    pg("mislukt"),
+  ];
+  const tellers = filterCounts(lijst);
+  ok(
+    "elk tabblad draagt zijn eigen aantal",
+    tellers.actie === 2 &&
+      tellers.gepland === 2 &&
+      tellers.live === 1 &&
+      tellers.alles === 6,
+  );
+  // De teller boven het tabblad en de lijst eronder gebruiken dezelfde regel.
+  // Een teller die anders telt dan de lijst toont is erger dan geen teller.
+  ok(
+    "de teller telt wat de lijst toont",
+    tellers.actie === lijst.filter((p) => matchesFilter(p, "actie")).length,
+  );
+  ok(
+    "een leeg tabblad is nul en niet niets",
+    filterCounts([pg("gepland")]).live === 0,
+  );
+
+  // ── De kalendermaand, afgeleid uit de publicatiedata ──────────────────────
+  ok(
+    "de maand krijgt zijn echte naam uit de vroegste datum",
+    monthCalendarLabel([pg("gepland", "2026-12-14"), pg("gepland", "2026-12-01")]) ===
+      "december 2026",
+  );
+  // ⚠️ Een kale datum komt binnen als middernacht UTC. Met lokale getters wordt
+  // 2026-12-01 in een negatieve tijdzone 30 november, en dan staat er november
+  // boven een maand die in december publiceert.
+  ok(
+    "de eerste van de maand blijft die maand",
+    monthCalendarLabel([pg("gepland", "2027-01-01")]) === "januari 2027",
+  );
+  // Conventie 3: onbekend is beter dan een gok. Zonder datum houdt de maand
+  // gewoon zijn nummer.
+  ok(
+    "geen datum is geen gegokte maand",
+    monthCalendarLabel([pg("gepland", null)]) === null &&
+      monthCalendarLabel([]) === null,
+  );
+  ok(
+    "een onleesbare datum telt niet mee",
+    monthCalendarLabel([pg("gepland", "onzin"), pg("gepland", "2026-03-09")]) ===
+      "maart 2026",
+  );
+
+  const nu = new Date("2026-09-10T12:00:00Z");
+  ok(
+    "de lopende maand herkent zichzelf",
+    isCurrentMonth([pg("gepland", "2026-09-25")], nu) === true,
+  );
+  ok(
+    "en de maand erna niet",
+    isCurrentMonth([pg("gepland", "2026-10-01")], nu) === false,
+  );
+
+  // ── Welke maanden staan open? ─────────────────────────────────────────────
+  const m = (
+    id: string,
+    zichtbaar: number,
+    vraagtActie = false,
+    isLopend = false,
+  ) => ({ id, zichtbaar, vraagtActie, isLopend });
+
+  ok(
+    "een maand die iets van je vraagt staat open",
+    openMonthIds([m("a", 10), m("b", 10, true), m("c", 10)]).join() === "b",
+  );
+  ok(
+    "de lopende maand ook",
+    openMonthIds([m("a", 10), m("b", 10, false, true)]).join() === "b",
+  );
+  ok(
+    "een maand zonder zichtbare pagina's staat er niet",
+    openMonthIds([m("leeg", 0, true), m("b", 3, true)]).join() === "b",
+  );
+  // ⚠️ De terugval telt. Klapt de regel alles dicht, dan kijkt de klant naar
+  // een stapel gesloten regels zonder inhoud, en dat is even onbruikbaar als de
+  // muur van 120 kaarten die het moest oplossen.
+  ok(
+    "staat er niets open, dan gaat de eerste maand alsnog open",
+    openMonthIds([m("a", 10), m("b", 10)]).join() === "a",
+  );
+  ok("en bij een leeg plan blijft het leeg", openMonthIds([]).length === 0);
+
+  // ── De eerstvolgende publicatie ───────────────────────────────────────────
+  ok(
+    "de eerstvolgende publicatie kijkt vooruit, niet achteruit",
+    nextPublication(
+      [pg("gepland", "2026-09-01"), pg("gepland", "2026-09-18"), pg("gepland", "2026-09-12")],
+      nu,
+    ) === "2026-09-12",
+  );
+  ok(
+    "vandaag telt nog mee",
+    nextPublication([pg("gepland", "2026-09-10")], nu) === "2026-09-10",
+  );
+  ok(
+    "wat al live staat of uit het plan is, telt niet mee",
+    nextPublication(
+      [pg("geplaatst", "2026-09-11"), pg("afgewezen", "2026-09-12"), pg("gepland", "2026-09-20")],
+      nu,
+    ) === "2026-09-20",
+  );
+  ok(
+    "een plan zonder toekomst geeft niets terug",
+    nextPublication([pg("geplaatst", "2026-09-01")], nu) === null,
+  );
+  ok("de datum is leesbaar", formatDagNL("2026-09-12") === "12 september");
+  ok("en onzin levert geen halve datum op", formatDagNL("onzin") === "");
+
+  // ── De link naar de geschreven tekst ──────────────────────────────────────
+  // ⚠️ Dit was het gat: de rij toonde een goedkeurknop en nergens de tekst,
+  // terwijl `content_piece_id` er wél was en het leesscherm ook bestond.
+  ok(
+    "de link wijst naar de tekst onder de analyse van het onderwerp",
+    contentHref("piece-1", "an-1") === "/analyses/an-1/bibliotheek/piece-1?van=plan",
+  );
+  // `?van=plan` is de herkomst uit `lib/origin.ts`: zonder die parameter komt
+  // de klant na het lezen uit in de bibliotheek en niet in zijn plan.
+  ok(
+    "en draagt de herkomst mee, zodat de terugknop hierheen wijst",
+    terugLink(leesHerkomst("plan"), "an-1", "merk-1").href ===
+      "/merk/merk-1/strategie/plan",
+  );
+  ok(
+    "zonder geschreven tekst is er geen link",
+    contentHref(null, "an-1") === null && contentHref("piece-1", null) === null,
+  );
+});
 
 group("de volgorde binnen een maand (plan-order)", () => {
   const p = (

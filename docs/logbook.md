@@ -4198,3 +4198,36 @@ prijsopmerking en een antwoord met vijf klachten waaronder een veiligheidsgerela
 zou het aantal en de soort bezwaren laten meewegen in het cijfer zelf, niet alleen in het etiket.
 
 Migraties t/m `0064` op productie, 2100 unittests en 290 ketentests groen.
+
+## 24 augustus 2026: het contentplan doorgelicht als scherm, zes ingrepen
+
+Een UX-review van Strategie > Contentplan bij Van den Udenhout, het eerste merk met een vol plan:
+120 pagina's, tien per maand, twaalf maanden vooruit. Zes bevindingen, en de eerste twee waren geen
+vormkwestie.
+
+**Je kon niet lezen wat je goedkeurde.** Een pagina met de status "wacht op jouw akkoord" toonde een
+paarse goedkeurknop en nergens de geschreven tekst. De verwijzing lag er wél
+(`planned_pages.content_piece_id`, gevuld door `linkPlannedPage()`), het leesscherm bestond al, en
+`lib/origin.ts` had sinds 17 augustus zelfs de herkomstwaarde `plan` klaarstaan voor precies deze
+link, met een terugknop die naar het contentplan wijst. Alleen legde niemand hem. De titel is nu een
+link en er staat een knop "Lezen" naast "Tekst goedkeuren". Eén pad levert een pagina op die om
+akkoord vraagt zonder gekoppelde tekst (`alreadyDone` in `app/api/cron/plan/route.ts` zet alleen de
+status om); die regel zegt nu waar de tekst wél staat in plaats van te zwijgen.
+
+**Twee verschillende handelingen heetten allebei "goedkeuren".** Een maand vrijgeven zet betaald
+schrijfwerk in gang, een tekst goedkeuren zegt dat hij gepubliceerd mag worden. Op het scherm stond
+daardoor een groene chip "Goedgekeurd" op maand 1 met twee amberkleurige rijen "Wacht op jouw
+akkoord" eronder. Een maand wordt nu **vrijgegeven**, een tekst **goedgekeurd**.
+
+De andere vier: de maandkop telde het filterresultaat en niet de maand, zodat er "Maand 1 · 2
+pagina's" stond bij een plan van tien per maand. Twaalf koppen droegen geen kalendermaand, terwijl
+elke pagina een publicatiedatum heeft. De weergave "Alles" was 120 kaarten van gelijk gewicht,
+ongeveer twaalf schermlengtes; maanden staan nu dicht behalve de lopende en alles wat om een
+handeling vraagt. En "Verwijderen" liep zonder één vraag door, terwijl "markeer als geplaatst" een
+volledige bevestiging kreeg, dus de rem zat op de verkeerde knop.
+
+De rekenkunde staat in `lib/plan-overview.ts` (conventie 2: puur, zonder `server-only`), met 26
+nieuwe unittests. Geen migratie, geen wijziging aan de pijplijn. De regels die hieruit volgen voor
+elke lijst van deze omvang staan in `docs/ux-design.md` §5.
+
+2126 unittests en 290 ketentests groen.

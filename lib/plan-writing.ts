@@ -133,7 +133,7 @@ export function writeBlockNotice(
 ): { text: string; whoseTurn: WhoseTurn } | null {
   switch (reden) {
     case "maand_niet_goedgekeurd":
-      return { text: "ORBIT ENGINE schrijft pas als je deze maand goedkeurt", whoseTurn: "klant" };
+      return { text: "ORBIT ENGINE schrijft pas als deze maand is vrijgegeven", whoseTurn: "klant" };
     case "geen_analyse":
       return {
         text: "Start eerst de meting van dit onderwerp, anders schrijft ORBIT ENGINE zonder cijfers",

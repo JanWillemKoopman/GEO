@@ -608,6 +608,10 @@ select * from cron.job_run_details order by start_time desc limit 10;
 
 **De schrijfronde in één alinea.** Pagina's van een GOEDGEKEURDE maand die binnen tien dagen
 gepubliceerd moeten worden, krijgen een schrijftaak; de route plant alleen, de werker schrijft.
+⚠️ `plan_months.status = 'goedgekeurd'` heet in het scherm sinds 24 augustus 2026 **vrijgegeven**:
+een maand vrijgeven en een geschreven tekst goedkeuren zijn twee verschillende handelingen, en die
+deelden hiervoor één woord (`docs/ux-design.md` §5). De databasewaarde is niet mee hernoemd, want
+een statuswaarde omdopen raakt migraties, cron en tests voor alleen een etiket.
 Wat er níet geschreven kan worden telt de route apart en verzwijgt hij niet: schrijven leunt op een
 gemeten analyse, en bij Van den Udenhout hebben zes van de acht onderwerpen er nog geen. De regel
 staat in `lib/plan-writing.ts` (`writeDecision`), de reden per pagina staat in het scherm. De brug

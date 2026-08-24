@@ -1,10 +1,11 @@
 # UX & Design
 
 Leidend voor elk scherm. Tokens en primitieven staan in `app/globals.css`; dit document legt uit
-wat ze zijn en wanneer je welke gebruikt. **Peildatum: 21 augustus 2026.** De vormgeving zelf ging
+wat ze zijn en wanneer je welke gebruikt. **Peildatum: 24 augustus 2026.** De vormgeving zelf ging
 op 6 augustus over op het systeem van de NOVA-workspace (volledige verantwoording in
 `designsystem.md`); deze datum volgt de gedragspatronen die daarna zijn bijgekomen (statustaal,
-foutafhandeling, de content-editie, en op 21 augustus de iconen in de zijbalk).
+foutafhandeling, de content-editie, op 21 augustus de iconen in de zijbalk en op 24 augustus de
+regels voor een lange lijst, hieronder in §5).
 
 > **Voor de tékst in die schermen geldt `docs/schrijfstijl.md`**: de tone-of-voice van ORBIT ENGINE,
 > afgeleid van InSpace Nova. Dit document gaat over hoe iets eruitziet, dat over hoe het klinkt.
@@ -536,6 +537,54 @@ is op 14 augustus 2026 bewust aangebracht.
 leeg is en wat de volgende stap is. Stil verdwijnen is erger dan het dode einde
 uit §4: de klant weet dan niet dat de functie bestaat, en de consultant kan het
 gat niet uitleggen omdat er geen gat te zien is.
+
+### Een lijst die niet meer op één scherm past (24 augustus 2026)
+
+Het contentplan was het eerste scherm met 120 items: tien pagina's per maand, twaalf maanden
+vooruit. Een groepering per maand was niet genoeg, want twaalf koppen die "Maand 1" tot "Maand 12"
+heten met tien gelijkvormige kaarten eronder is nog steeds twaalf schermlengtes zonder houvast. Vier
+regels, en ze gelden voor elke lijst die deze omvang haalt.
+
+**Een groep die geen datum draagt, draagt geen betekenis.** "Maand 4" zegt niets zolang er niet
+"december 2026" naast staat. Het plan slaat alleen `month_number` op (besluit 7: geteld vanaf de
+start, nooit "van 12"), dus de kalendermaand wordt afgeleid uit de vroegste publicatiedatum in die
+maand. ⚠️ Met UTC-getters: een kale datum komt binnen als middernacht UTC, en met lokale getters
+wordt 1 december in een negatieve tijdzone 30 november, waarna de kop een maand verschuift.
+
+**Groepen staan dicht, behalve waar iets te doen is.** Open beginnen de lopende maand en elke maand
+die om een handeling vraagt; de rest is een dichtgeklapte regel met naam, aantal en status. Dat
+regeltje is het overzicht dat de openstaande lijst juist niet gaf. ⚠️ Met terugval: klapt de regel
+alles dicht, dan kijkt de gebruiker naar een stapel gesloten regels zonder inhoud, en dat is even
+onbruikbaar als de muur die het moest oplossen. Staat er niets open, dan gaat de eerste groep alsnog
+open (`openMonthIds()` in `lib/plan-overview.ts`).
+
+**Een teller in een groepskop telt de groep, nooit het filter.** Er stond "Maand 1 · 2 pagina's" bij
+een plan van tien per maand, omdat de kop het filterresultaat telde. Wie dat leest concludeert iets
+onwaars over zijn plan. Het groepstotaal staat voorop, het filterresultaat ernaast ("10 pagina's · 2
+in deze selectie").
+
+**Elk filter draagt zijn eigen aantal.** Zonder getal is een leeg tabblad pas leeg ná de klik, en
+dat is een dood einde dat je zelf hebt aangelegd. De teller en de lijst gebruiken dezelfde functie
+(`matchesFilter()`), want een teller die anders telt dan de lijst toont is erger dan geen teller.
+
+### Twee handelingen mogen nooit één woord delen (24 augustus 2026)
+
+In het contentplan gebeurden twee verschillende dingen onder de naam "goedkeuren": een maand
+vrijgeven, waarmee je betaald schrijfwerk in gang zet, en een geschreven tekst goedkeuren, waarmee
+je zegt dat hij gepubliceerd mag worden. Het gevolg stond letterlijk op het scherm: een groene chip
+"Goedgekeurd" op de maand met amberkleurige rijen "Wacht op jouw akkoord" eronder, wat als een
+tegenspraak leest. Een maand wordt sindsdien **vrijgegeven**, een tekst wordt **goedgekeurd**, en de
+statuslabels in `lib/plan-status.ts` houden die twee woordenschatten uit elkaar.
+
+**En je keurt nooit iets goed dat je niet kunt openen.** Staat er een goedkeurknop bij een tekst, dan
+staat de tekst zelf één klik verderop, mét de herkomstparameter uit `lib/origin.ts` zodat de
+terugknop terugwijst naar waar je vandaan kwam. Bestaat die link bij uitzondering niet, dan zegt de
+regel waar de tekst wél te vinden is; een knop zonder uitweg is erger dan een omweg.
+
+**De rem hoort op wat weggooit, niet op wat vastlegt.** "Verwijderen" liep zonder één vraag door
+terwijl "markeer als geplaatst" een volledige bevestiging kreeg. Een handeling die iets uit een plan
+haalt krijgt dezelfde `ConfirmDialog` met `danger`, inclusief wat er daarna gebeurt (hier: een
+reservepagina schuift in, of het maandtotaal wordt één lager).
 
 ## 6. Eén werkmodel
 

@@ -54,8 +54,12 @@ export const PLAN_STATUS_META: Record<PlannedPageStatus, PlanStatusMeta> = {
     actionRequired: false,
   },
   ter_goedkeuring: {
-    label: "Klaar voor akkoord",
-    running: "Wacht op jouw akkoord",
+    // ⚠️ "Tekst" staat er met opzet in beide regels. Een maand wordt
+    // VRIJGEGEVEN en een tekst wordt GOEDGEKEURD; deelden ze één woord, dan
+    // stond er een groene chip "Goedgekeurd" op de maand met amberkleurige
+    // rijen "Wacht op jouw akkoord" eronder, en dat las als een tegenspraak.
+    label: "Tekst klaar voor akkoord",
+    running: "Tekst wacht op jouw akkoord",
     whoseTurn: "klant",
     tone: "wacht",
     actionRequired: true,
@@ -103,13 +107,13 @@ export const MONTH_STATUS_META: Record<
     tone: "neutraal",
   },
   ter_goedkeuring: {
-    label: "Wacht op akkoord",
+    label: "Wacht op vrijgave",
     running: "Wacht op jou",
     whoseTurn: "klant",
     tone: "wacht",
   },
   goedgekeurd: {
-    label: "Goedgekeurd",
+    label: "Vrijgegeven",
     running: "Loopt",
     whoseTurn: null,
     tone: "klaar",

@@ -1,15 +1,26 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/components/toast";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import {
   MONTH_STATUS_META,
   PLAN_STATUS_META,
-  countActionRequired,
   planRunningDate,
 } from "@/lib/plan-status";
+import {
+  contentHref,
+  filterCounts,
+  formatDagNL,
+  isCurrentMonth,
+  matchesFilter,
+  monthCalendarLabel,
+  nextPublication,
+  openMonthIds,
+  type PlanFilter,
+} from "@/lib/plan-overview";
 import {
   writeDecision,
   writeBlockNotice,
@@ -25,12 +36,12 @@ import type {
 import { Icon } from "@/components/icon";
 
 /**
- * Het contentplan: twaalf maanden, per maand goed te keuren.
+ * Het contentplan: twaalf maanden, per maand vrij te geven.
  *
  * ── DE INDELING KOMT VAN NOVA, DE TAAL NIET ─────────────────────────────────
  *
  * Nova groepeert per maand met een segmentfilter erboven ("Awaiting your
- * approval", "Approved") en dat is hier overgenomen: bij 132 rijen is een platte
+ * approval", "Approved") en dat is hier overgenomen: bij 120 rijen is een platte
  * lijst onbruikbaar, en de vraag die iemand heeft is bijna altijd "wat moet ik
  * nú".
  *
@@ -38,8 +49,35 @@ import { Icon } from "@/components/icon";
  * of 12"; hier is het "maand 4 sinds de start" (besluit 7: doorlopend
  * opzegbaar). Een teller die zegt hoeveel je nog tegoed hebt suggereert een
  * contract dat er niet is.
+ *
+ * ── WAT DE UX-REVIEW VAN 24 AUGUSTUS 2026 VERANDERDE ────────────────────────
+ *
+ * Zes dingen, en de eerste twee zijn de zwaarste:
+ *
+ *   1. **Je kon niet lezen wat je goedkeurde.** De rij toonde een knop
+ *      "Goedkeuren" en nergens de geschreven tekst, terwijl de verwijzing er
+ *      wél lag (`content_piece_id`) en het leesscherm ook bestond. De titel is
+ *      nu een link, met `?van=plan` zodat de terugknop hierheen wijst.
+ *   2. **Twee verschillende dingen heetten allebei "goedkeuren".** Een maand
+ *      vrijgeven zet betaald schrijfwerk in gang; een tekst goedkeuren zegt dat
+ *      hij gepubliceerd mag worden. Ze delen geen woord meer, want een groene
+ *      maandchip "Goedgekeurd" met amberkleurige rijen "Wacht op jouw akkoord"
+ *      eronder las als een tegenspraak.
+ *   3. **De maandkop telde het filter en niet de maand** ("Maand 1 · 2
+ *      pagina's" bij een plan van tien per maand). Nu staat het maandtotaal er,
+ *      en het filterresultaat ernaast.
+ *   4. **Twaalf koppen "Maand N" zonder kalender, en 120 kaarten van gelijk
+ *      gewicht.** De maanden dragen nu hun echte kalendermaand en staan dicht,
+ *      behalve de lopende en alles wat iets van de klant vraagt.
+ *   5. **De kopkaart herhaalde het filter** en de tabbladen droegen geen
+ *      aantal, dus "Staat live" was een leeg scherm dat je pas na een klik zag.
+ *   6. **"Verwijderen" liep zonder één vraag door**, terwijl "markeer als
+ *      geplaatst" een volledige bevestiging kreeg. De rem zat op de verkeerde
+ *      knop.
+ *
+ * De rekenkunde erachter staat in `lib/plan-overview.ts`, puur en getest
+ * (conventie 2).
  */
-type Filter = "actie" | "alles" | "gepland" | "live";
 
 export function PlanView({
   profileId,
@@ -61,12 +99,19 @@ export function PlanView({
 }) {
   const router = useRouter();
   const toast = useToast();
-  const [filter, setFilter] = useState<Filter>("actie");
+  const [filter, setFilter] = useState<PlanFilter>("actie");
   const [busy, setBusy] = useState<string | null>(null);
   const [postDialog, setPostDialog] = useState<PlannedPage | null>(null);
   const [postUrl, setPostUrl] = useState("");
   const [monthDialog, setMonthDialog] = useState<PlanMonth | null>(null);
   const [bulkDialog, setBulkDialog] = useState<PlanMonth | null>(null);
+  const [removeDialog, setRemoveDialog] = useState<PlannedPage | null>(null);
+  /**
+   * Wat de klant zelf open- of dichtklapte, bovenop de standaard hieronder.
+   * Een los overzicht in plaats van gesynchroniseerde state: de standaard mag
+   * meebewegen met het filter zonder de klik van de klant te overschrijven.
+   */
+  const [handmatig, setHandmatig] = useState<Record<string, boolean>>({});
 
   const funnelNaam = useMemo(
     () => new Map(funnels.map((f) => [f.id, f.label])),
@@ -107,15 +152,61 @@ export function PlanView({
   // Buffers horen niet in de lijst: ze zijn reserve, geen belofte. Ze tellen
   // ook niet mee in het maandtotaal dat de klant afneemt.
   const echt = useMemo(() => pages.filter((p) => !p.is_buffer), [pages]);
-  const teDoen = countActionRequired(echt);
+  const tellers = useMemo(() => filterCounts(echt), [echt]);
+  const teDoen = tellers.actie;
+  const volgende = useMemo(() => nextPublication(echt), [echt]);
 
-  const zichtbaar = useMemo(() => {
-    if (filter === "alles") return echt;
-    if (filter === "actie")
-      return echt.filter((p) => PLAN_STATUS_META[p.status].actionRequired);
-    if (filter === "live") return echt.filter((p) => p.status === "geplaatst");
-    return echt.filter((p) => p.status === "gepland" || p.status === "schrijven");
-  }, [echt, filter]);
+  /**
+   * Alles wat een maandkop moet weten, in één keer uitgerekend.
+   *
+   * ⚠️ `heleMaand` is de VOLLEDIGE maand en niet wat er door het filter komt.
+   * Twee dingen hangen daaraan: de teller in de kop (die stond fout, zie punt 3
+   * hierboven) en het verplaatsen (staat het filter op "wacht op jou", dan zijn
+   * de buren van een pagina meestal onzichtbaar, en een pijl die rekent op de
+   * zichtbare lijst laat hem over die buren heen springen, met de datum van de
+   * verkeerde pagina).
+   */
+  const maanden = useMemo(
+    () =>
+      months.map((month) => {
+        const heleMaand = echt.filter((p) => p.plan_month_id === month.id);
+        const zichtbaar = heleMaand.filter((p) => matchesFilter(p, filter));
+        return {
+          month,
+          heleMaand,
+          zichtbaar,
+          kalender: monthCalendarLabel(heleMaand),
+          lopend: isCurrentMonth(heleMaand),
+          vraagtActie: zichtbaar.some((p) => PLAN_STATUS_META[p.status].actionRequired),
+        };
+      }),
+    [months, echt, filter],
+  );
+
+  const standaardOpen = useMemo(
+    () =>
+      new Set(
+        openMonthIds(
+          maanden.map((m) => ({
+            id: m.month.id,
+            zichtbaar: m.zichtbaar.length,
+            vraagtActie: m.vraagtActie,
+            isLopend: m.lopend,
+          })),
+        ),
+      ),
+    [maanden],
+  );
+
+  const metInhoud = maanden.filter((m) => m.zichtbaar.length > 0);
+
+  function wisselFilter(nieuw: PlanFilter) {
+    setFilter(nieuw);
+    // Een ander filter is een andere vraag, dus de maanden gaan terug naar wat
+    // bij díé vraag hoort. Anders blijft een maand dicht die de klant nu juist
+    // zoekt, omdat hij hem twee filters geleden dichtklapte.
+    setHandmatig({});
+  }
 
   async function paginaActie(
     page: PlannedPage,
@@ -147,7 +238,7 @@ export function PlanView({
         intent: "succes",
         title:
           actie === "goedkeuren"
-            ? "Goedgekeurd"
+            ? "Tekst goedgekeurd"
             : actie === "geplaatst"
               ? "Gemarkeerd als geplaatst"
               : "Uit het plan gehaald",
@@ -162,6 +253,7 @@ export function PlanView({
     } finally {
       setBusy(null);
       setPostDialog(null);
+      setRemoveDialog(null);
       setPostUrl("");
     }
   }
@@ -219,7 +311,7 @@ export function PlanView({
         intent: actie === "goedkeuren" ? "succes" : "info",
         title:
           actie === "goedkeuren"
-            ? `Maand ${month.month_number} goedgekeurd`
+            ? `Maand ${month.month_number} vrijgegeven`
             : `Maand ${month.month_number} afgewezen`,
         description:
           actie === "goedkeuren"
@@ -280,44 +372,58 @@ export function PlanView({
 
   return (
     <div className="flex flex-col gap-6">
-      {/* ── De kop ────────────────────────────────────────────────────────
-          Nova's overzicht opent met een mededeling en niet met een titel
-          ("NOVA schrijft je content"). Dat werkt: het zegt wat er gebeurt in
-          plaats van hoe het scherm heet. */}
-      <div className="card flex flex-wrap items-center justify-between gap-3">
-        <div className="flex flex-col gap-1">
-          <span className="mono-label">
-            {plan.pages_per_month} pagina&apos;s per maand · plan {plan.version}
-          </span>
-          <p className="text-secondary">
-            {teDoen === 0
-              ? "Er wacht niets op jou. ORBIT ENGINE werkt het plan af."
-              : teDoen === 1
-                ? "Er wacht 1 pagina op jou."
-                : `Er wachten ${teDoen} pagina's op jou.`}
-          </p>
-        </div>
+      {/* ── De feiten van het plan ─────────────────────────────────────────
+          Eén regel, geen kaart om één zin. Hiervoor stond hier "Er wachten 2
+          pagina's op jou" terwijl het filter eronder óók al "2" zei, en de
+          vragen die wél openstonden (hoeveel staat er in totaal, wanneer komt
+          de eerstvolgende) werden nergens beantwoord. */}
+      <div className="card flex flex-wrap items-center justify-between gap-x-4 gap-y-1">
+        <span className="mono-label">
+          {plan.pages_per_month} pagina&apos;s per maand · plan {plan.version}
+        </span>
+        <span className="text-sm text-secondary">
+          {echt.length} pagina&apos;s in dit plan
+          {volgende && ` · volgende publicatie ${formatDagNL(volgende)}`}
+        </span>
       </div>
 
       {/* ── Segmenten ─────────────────────────────────────────────────────
           Nova's `strategy.segments`. Vier standen, en "wat moet ik nu" staat
-          vooraan omdat dat de vraag is waarmee iemand inlogt. */}
+          vooraan omdat dat de vraag is waarmee iemand inlogt. Alle vier dragen
+          hun aantal: zonder getal is een leeg tabblad pas leeg ná de klik. */}
       <nav className="flex flex-wrap gap-2" aria-label="Filter">
-        <Segment actief={filter === "actie"} onClick={() => setFilter("actie")}>
-          Wacht op jou {teDoen > 0 && <span className="chip chip-warning">{teDoen}</span>}
+        <Segment
+          actief={filter === "actie"}
+          aantal={tellers.actie}
+          nadruk={tellers.actie > 0}
+          onClick={() => wisselFilter("actie")}
+        >
+          Wacht op jou
         </Segment>
-        <Segment actief={filter === "gepland"} onClick={() => setFilter("gepland")}>
+        <Segment
+          actief={filter === "gepland"}
+          aantal={tellers.gepland}
+          onClick={() => wisselFilter("gepland")}
+        >
           Staat gepland
         </Segment>
-        <Segment actief={filter === "live"} onClick={() => setFilter("live")}>
+        <Segment
+          actief={filter === "live"}
+          aantal={tellers.live}
+          onClick={() => wisselFilter("live")}
+        >
           Staat live
         </Segment>
-        <Segment actief={filter === "alles"} onClick={() => setFilter("alles")}>
-          Alles ({echt.length})
+        <Segment
+          actief={filter === "alles"}
+          aantal={tellers.alles}
+          onClick={() => wisselFilter("alles")}
+        >
+          Alles
         </Segment>
       </nav>
 
-      {zichtbaar.length === 0 ? (
+      {metInhoud.length === 0 ? (
         <div className="card flex flex-col gap-1">
           <span className="mono-label">Niets te zien hier</span>
           <p className="text-secondary">
@@ -327,88 +433,113 @@ export function PlanView({
                 ? "Er staat nog niets live. Zodra je een pagina publiceert en hier afvinkt, verschijnt hij in deze lijst."
                 : "Geen pagina's in deze selectie."}
           </p>
+          <button
+            type="button"
+            className="w-fit text-sm text-secondary hover:underline"
+            onClick={() => wisselFilter("alles")}
+          >
+            Bekijk het hele plan ({tellers.alles} pagina&apos;s)
+          </button>
         </div>
       ) : (
-        <div className="flex flex-col gap-6">
-          {months
-            .filter((m) => zichtbaar.some((p) => p.plan_month_id === m.id))
-            .map((month) => {
-              const maandPaginas = zichtbaar.filter(
-                (p) => p.plan_month_id === month.id,
-              );
-              // ⚠️ Verplaatsen rekent op de VOLLEDIGE maand en niet op wat er
-              // door het filter heen komt. Staat het filter op "vraagt actie",
-              // dan zijn de buren van een pagina meestal onzichtbaar, en een pijl
-              // die rekent op de zichtbare lijst laat hem over die buren heen
-              // springen, met de datum van de verkeerde pagina.
-              const heleMaand = echt.filter((p) => p.plan_month_id === month.id);
-              const meta = MONTH_STATUS_META[month.status];
-              return (
-                <section key={month.id} className="flex flex-col gap-2">
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <span className="flex flex-wrap items-baseline gap-2">
-                      {/* Besluit 7: "maand 4 sinds de start", nooit "van 12". */}
-                      <h2 className="text-lg font-semibold tracking-tight">
-                        Maand {month.month_number}
-                      </h2>
-                      <span className="mono-label text-muted">
-                        {maandPaginas.length} pagina&apos;s
-                      </span>
-                      <span
-                        className={
-                          month.status === "goedgekeurd"
-                            ? "chip chip-success"
-                            : month.status === "ter_goedkeuring"
-                              ? "chip chip-warning"
-                              : "chip chip-neutral"
+        <div className="flex flex-col gap-4">
+          {metInhoud.map(({ month, heleMaand, zichtbaar, kalender, lopend, vraagtActie }) => {
+            const meta = MONTH_STATUS_META[month.status];
+            const open = handmatig[month.id] ?? standaardOpen.has(month.id);
+            const gefilterd = zichtbaar.length !== heleMaand.length;
+            return (
+              <section key={month.id} className="flex flex-col gap-2">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <span className="flex min-w-0 flex-wrap items-baseline gap-2">
+                    {/* Besluit 7: "maand 4 sinds de start", nooit "van 12". De
+                        kalendermaand ernaast komt uit de publicatiedata zelf
+                        (`monthCalendarLabel`); het plan slaat hem niet op. */}
+                    <h2 className="text-lg font-semibold tracking-tight">
+                      <button
+                        type="button"
+                        aria-expanded={open}
+                        onClick={() =>
+                          setHandmatig((h) => ({ ...h, [month.id]: !open }))
                         }
+                        className="flex items-center gap-2 hover:underline"
                       >
-                        {meta.label}
-                      </span>
+                        <Icon naam={open ? "openen" : "verder"} size={14} />
+                        Maand {month.month_number}
+                      </button>
+                    </h2>
+                    {kalender && <span className="mono-label text-muted">{kalender}</span>}
+                    {lopend && <span className="chip chip-info">Deze maand</span>}
+                    {/* ⚠️ Het maandtotaal, niet het filterresultaat. */}
+                    <span className="mono-label text-muted">
+                      {heleMaand.length} pagina&apos;s
+                      {gefilterd && ` · ${zichtbaar.length} in deze selectie`}
                     </span>
+                    <span
+                      className={
+                        month.status === "goedgekeurd"
+                          ? "chip chip-success"
+                          : month.status === "ter_goedkeuring"
+                            ? "chip chip-warning"
+                            : "chip chip-neutral"
+                      }
+                    >
+                      {meta.label}
+                    </span>
+                    {!open && vraagtActie && (
+                      <span className="chip chip-warning">Vraagt iets van jou</span>
+                    )}
+                  </span>
 
-                    <span className="flex flex-wrap items-center gap-2">
-                      {/* Bulkactie (17 augustus 2026). Alleen zichtbaar als er
-                          iets te markeren valt: een knop die altijd staat maar
-                          meestal niets doet leert de klant hem te negeren.
-                          Besluit 8: zowel de klant als de beheerder mag dit,
-                          dus geen `staff`-voorwaarde. */}
-                      {heleMaand.some((p) => !p.is_buffer && p.status === "goedgekeurd") && (
+                  <span className="flex flex-wrap items-center gap-2">
+                    {/* Bulkactie (17 augustus 2026). Alleen zichtbaar als er
+                        iets te markeren valt: een knop die altijd staat maar
+                        meestal niets doet leert de klant hem te negeren.
+                        Besluit 8: zowel de klant als de beheerder mag dit,
+                        dus geen `staff`-voorwaarde. */}
+                    {heleMaand.some((p) => p.status === "goedgekeurd") && (
+                      <button
+                        type="button"
+                        className="btn-outline btn-sm"
+                        onClick={() => setBulkDialog(month)}
+                        disabled={busy === month.id}
+                      >
+                        Markeer alles als geplaatst
+                      </button>
+                    )}
+
+                    {month.status === "ter_goedkeuring" &&
+                      (staff ? (
                         <button
                           type="button"
-                          className="btn-outline btn-sm"
-                          onClick={() => setBulkDialog(month)}
+                          className="btn-primary btn-sm"
+                          onClick={() => setMonthDialog(month)}
                           disabled={busy === month.id}
                         >
-                          Markeer alles als geplaatst
+                          Maand vrijgeven
                         </button>
-                      )}
+                      ) : (
+                        // Besluit 18. De klant ziet wél dat er iets van hem
+                        // gevraagd wordt, en bij wie hij daarvoor moet zijn.
+                        <span className="text-sm text-secondary">
+                          Loop deze maand door en laat je consultant hem vrijgeven
+                        </span>
+                      ))}
+                  </span>
+                </div>
 
-                      {month.status === "ter_goedkeuring" &&
-                        (staff ? (
-                          <button
-                            type="button"
-                            className="btn-primary btn-sm"
-                            onClick={() => setMonthDialog(month)}
-                            disabled={busy === month.id}
-                          >
-                            Deze maand goedkeuren
-                          </button>
-                        ) : (
-                          // Besluit 18. De klant ziet wél dat er iets van hem
-                          // gevraagd wordt, en bij wie hij daarvoor moet zijn.
-                          <span className="text-sm text-secondary">
-                            Loop deze maand door en geef je consultant akkoord
-                          </span>
-                        ))}
-                    </span>
-                  </div>
-
+                {open && (
                   <ul className="flex flex-col gap-2">
-                    {maandPaginas.map((page) => (
+                    {zichtbaar.map((page) => (
                       <PageRow
                         key={page.id}
                         page={page}
+                        profileId={profileId}
+                        href={contentHref(
+                          page.content_piece_id,
+                          page.topic_id
+                            ? (onderwerp.get(page.topic_id)?.analysisId ?? null)
+                            : null,
+                        )}
                         funnel={
                           page.funnel_stage_id
                             ? (funnelNaam.get(page.funnel_stage_id) ?? null)
@@ -424,13 +555,14 @@ export function PlanView({
                           setPostDialog(page);
                           setPostUrl(page.url_path ?? "");
                         }}
-                        onRemove={() => void paginaActie(page, "afwijzen")}
+                        onRemove={() => setRemoveDialog(page)}
                       />
                     ))}
                   </ul>
-                </section>
-              );
-            })}
+                )}
+              </section>
+            );
+          })}
         </div>
       )}
 
@@ -463,6 +595,27 @@ export function PlanView({
         />
       </ConfirmDialog>
 
+      {/* ── Een pagina uit het plan halen ──────────────────────────────────
+          Stond hiervoor als kale tekstlink die meteen doorliep, náást een knop
+          die wél een volledige bevestiging kreeg. De rem hoort op de handeling
+          die iets weggooit, niet op de handeling die iets vastlegt. */}
+      <ConfirmDialog
+        open={removeDialog !== null}
+        title="Uit het plan halen"
+        body={`"${removeDialog?.title ?? ""}" verdwijnt uit het plan en ORBIT ENGINE schrijft hem niet.`}
+        irreversible={{
+          title: "Dit kun je niet terugdraaien",
+          description:
+            "Is er nog een reservepagina in deze maand, dan schuift die ervoor in de plaats. Zo niet, dan doet ORBIT ENGINE deze maand één pagina minder.",
+        }}
+        confirmLabel="Uit het plan halen"
+        confirmingLabel="Bezig…"
+        danger
+        busy={busy === removeDialog?.id}
+        onCancel={() => setRemoveDialog(null)}
+        onConfirm={() => removeDialog && void paginaActie(removeDialog, "afwijzen")}
+      />
+
       {/* ── Alles van een maand als geplaatst markeren ──────────────────────
           K4: onomkeerbaar wordt vooraf benoemd, in een eigen blok. Het aantal
           staat in de vraag zelf, want "alles" is bij een bulkactie geen getal
@@ -487,17 +640,20 @@ export function PlanView({
         onConfirm={() => bulkDialog && void alsGeplaatstMarkeren(bulkDialog)}
       />
 
-      {/* ── Maand goedkeuren ──────────────────────────────────────────────── */}
+      {/* ── Maand vrijgeven ────────────────────────────────────────────────
+          Het EERSTE van de twee akkoorden: je gaat akkoord met de onderwerpen
+          en zet daarmee betaald schrijfwerk in gang. Het tweede akkoord zit per
+          rij en gaat over de geschreven tekst. */}
       <ConfirmDialog
         open={monthDialog !== null}
-        title={`Maand ${monthDialog?.month_number ?? ""} goedkeuren`}
-        body={`Je keurt ${echt.filter((p) => p.plan_month_id === monthDialog?.id).length} pagina's in één keer goed. ORBIT ENGINE begint tien dagen voor elke publicatiedatum met schrijven.`}
+        title={`Maand ${monthDialog?.month_number ?? ""} vrijgeven`}
+        body={`Je geeft ${echt.filter((p) => p.plan_month_id === monthDialog?.id).length} pagina's in één keer vrij om geschreven te worden. ORBIT ENGINE begint tien dagen voor elke publicatiedatum, en legt elke tekst daarna aan jou voor.`}
         irreversible={{
           title: "Dit zet het schrijven in gang",
           description:
             "Elke pagina die geschreven wordt kost geld. Wijs de maand af als de onderwerpen niet kloppen; ORBIT ENGINE maakt dan een nieuw voorstel.",
         }}
-        confirmLabel="Goedkeuren"
+        confirmLabel="Vrijgeven"
         confirmingLabel="Bezig…"
         busy={busy === monthDialog?.id}
         onCancel={() => setMonthDialog(null)}
@@ -518,10 +674,15 @@ export function PlanView({
 
 function Segment({
   actief,
+  aantal,
+  nadruk = false,
   onClick,
   children,
 }: {
   actief: boolean;
+  aantal: number;
+  /** Amber in plaats van grijs: alleen bij het aantal dat om een handeling vraagt. */
+  nadruk?: boolean;
   onClick: () => void;
   children: React.ReactNode;
 }) {
@@ -538,6 +699,7 @@ function Segment({
       }}
     >
       {children}
+      <span className={nadruk ? "chip chip-warning" : "chip chip-neutral"}>{aantal}</span>
     </button>
   );
 }
@@ -545,6 +707,8 @@ function Segment({
 /** Eén regel in het plan. De drie statuslagen staan er alle drie op. */
 function PageRow({
   page,
+  profileId,
+  href,
   funnel,
   blokkade,
   kanOmhoog,
@@ -556,6 +720,9 @@ function PageRow({
   onRemove,
 }: {
   page: PlannedPage;
+  profileId: string;
+  /** Waar de geschreven tekst staat. `null` = er is nog niets geschreven. */
+  href: string | null;
   funnel: string | null;
   /** Waarom ORBIT ENGINE deze pagina niet kan schrijven. `null` = er is niets aan de hand. */
   blokkade: { text: string; whoseTurn: "klant" | "orbit_engine" | null } | null;
@@ -569,11 +736,23 @@ function PageRow({
 }) {
   const meta = PLAN_STATUS_META[page.status];
   const wanneer = planRunningDate(page);
+  // ⚠️ Er is één pad waarbij een pagina om akkoord vraagt zonder gekoppelde
+  // tekst: schreef de pijplijn eerder al iets met dezelfde titel onder deze
+  // analyse, dan zet de cron alleen de status om (`alreadyDone` in
+  // `app/api/cron/plan/route.ts`) en blijft `content_piece_id` leeg. Dan is
+  // zeggen waar de tekst wél staat eerlijker dan een knop zonder uitweg.
+  const losseTekst = href === null && page.status === "ter_goedkeuring";
 
   return (
     <li className="card flex flex-wrap items-center justify-between gap-3">
       <div className="flex min-w-0 flex-col gap-1">
-        <span className="font-medium">{page.title}</span>
+        {href ? (
+          <Link href={href} className="font-medium hover:underline">
+            {page.title}
+          </Link>
+        ) : (
+          <span className="font-medium">{page.title}</span>
+        )}
         <span className="flex flex-wrap items-center gap-2 text-sm text-muted">
           <span className="chip chip-neutral">{page.page_type}</span>
           {funnel && <span>{funnel}</span>}
@@ -593,6 +772,17 @@ function PageRow({
             }}
           >
             {blokkade.text}
+          </span>
+        )}
+        {losseTekst && (
+          <span className="text-sm text-secondary">
+            De tekst hangt niet aan deze regel.{" "}
+            <Link
+              href={`/merk/${profileId}/strategie/bibliotheek`}
+              className="hover:underline"
+            >
+              Zoek hem in de bibliotheek
+            </Link>
           </span>
         )}
       </div>
@@ -638,9 +828,17 @@ function PageRow({
           {meta.running}
         </span>
 
+        {/* Het TWEEDE akkoord: over de geschreven tekst, niet over de maand.
+            "Lezen" staat ervóór, want goedkeuren wat je niet gelezen hebt was
+            precies wat dit scherm vroeg. */}
+        {page.status === "ter_goedkeuring" && href && (
+          <Link href={href} className="btn-outline btn-sm">
+            Lezen
+          </Link>
+        )}
         {page.status === "ter_goedkeuring" && (
           <button type="button" className="btn-primary btn-sm" onClick={onApprove} disabled={busy}>
-            Goedkeuren
+            Tekst goedkeuren
           </button>
         )}
         {page.status === "goedgekeurd" && (
@@ -651,7 +849,7 @@ function PageRow({
         {(page.status === "gepland" || page.status === "ter_goedkeuring") && (
           <button
             type="button"
-            className="text-sm text-secondary hover:underline"
+            className="text-sm text-muted hover:underline"
             onClick={onRemove}
             disabled={busy}
           >
