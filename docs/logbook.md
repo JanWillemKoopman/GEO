@@ -4344,3 +4344,37 @@ regel er weer voor niets.
 Geen migratie: `fact_requests` had alles al, en de unieke index op (`profile_id`, `question`) maakt
 de omzetting vanzelf idempotent. Samen met de twee rondes hierboven op main: 2180 unittests en 303
 ketentests groen.
+
+---
+
+## De zijbalk kreeg hiërarchie (24 augustus 2026)
+
+De indeling van de zijbalk klopte al sinds 17 augustus: vijf hoofdstukken met hooguit vier
+bestemmingen eronder. De opmaak droeg die indeling alleen niet. Kop en bestemming stonden allebei op
+`text-sm`, allebei in grijs, allebei op gewicht 400 tot 500, en het enige verschil tussen "een van de
+zes vaste plekken" en "een pagina daarbinnen" was een verticale lijn van 1 pixel. Wie snel keek zag
+zestien regels op een rij.
+
+Vijf wijzigingen, elk met één taak. **De kop** gaat naar 15 pixels, gewicht 600 en `--text-primary`.
+**Het icoon van de kop** wordt paars in plaats van de kleur van de tekst ernaast: zes tekeningen in
+de hele balk, precies de zes vaste plekken, één merkkleur die ze bindt. Dat is de eerste en enige
+uitzondering op de regel dat een icoon `currentColor` erft, en hij staat verantwoord in
+`designsystem.md` §6b.2; de kleur zit op de ouder, dus `components/icon.tsx` blijft ongewijzigd en de
+regel blijft afdwingbaar. **De verticale lijn** verdwijnt: een bestemming springt nu 28 pixels in,
+precies de breedte van het icoon plus de tussenruimte, waardoor zijn tekst exact onder de tekst van
+zijn kop staat. Die uitlijning zegt hetzelfde als de lijn, zonder dwars door de actieve regel te
+lopen. **De actieve regel** wordt paars: `--bg-elevated` (#e7edf2) haalde 1,1:1 met het wit eronder
+en werd pas zichtbaar als je ernaar zocht; `--accent-purple-surface` (#f3e6ff) met paarse tekst niet.
+En **de ruimte** groeit van 4 naar 20 pixels tussen twee hoofdstukken en van 30 naar 36 pixels per
+regel.
+
+Twee dingen die er meteen uit volgden. De kop **kleurt niet meer mee** met de pagina waar je staat:
+dat markeerde de kop én de regel eronder, twee markeringen voor één plek, en de kop hoort het vaste
+punt te zijn. En het stempel "alleen jij" is een **pil** geworden in dezelfde paarse tint, want los
+grijs hoofdlettertekst las als een tweede label van de bestemming in plaats van als een stempel
+erop.
+
+De navigatie zelf is niet aangeraakt: `lib/nav.ts` en `lib/icons.ts` zijn ongewijzigd, dus dezelfde
+zes hoofdstukken, dezelfde volgorde en dezelfde tekeningen. Dit ging alleen over hoe ze eruitzien.
+Nagemeten in de browser op de echte component, met een tijdelijke previewroute die in dezelfde ronde
+weer verwijderd is.

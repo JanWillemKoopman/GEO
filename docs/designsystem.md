@@ -3,7 +3,7 @@
 > **Bron: de NOVA-workspace van InSpace** (`nova.inspace.io`), hun ingelogde productomgeving,
 > geanalyseerd op 6 augustus 2026 uit de CSS-bundel en de i18n-bundel van de app.
 > **Peildatum van dit document: 6 augustus 2026**, met §6b (iconen) toegevoegd op 21 augustus
-> 2026. De code is leidend; wijkt `app/globals.css` af, dan is dit document fout en moet het
+> 2026 en de kleuruitzondering voor de zijbalkkoppen op 24 augustus 2026. De code is leidend; wijkt `app/globals.css` af, dan is dit document fout en moet het
 > bijgewerkt worden.
 
 Dit document beschrijft **hoe ORBIT ENGINE eruitziet en waarom**. Voor de tekst in die schermen geldt
@@ -280,7 +280,7 @@ tegenovergestelde van §15.1 van `merkstrategie.md`: precies, rustig, premium.
 | Raster | 24×24, lijn, geen vulling | Past bij "subtiele borders" en "neutral-first" (§16.1 merkstrategie) |
 | Lijndikte | **1,75** | De handgetekende SVG's die hier al stonden hadden 1,6 en 1,8. De 2 van Lucide zelf is te zwaar naast `text-sm` |
 | Maat | 16 in tekstregels, 18 in koppen, 20 in losse knoppen | Meer maten zijn er niet; een vierde maat is een nieuw besluit |
-| Kleur | `currentColor`, altijd | Het icoon kleurt mee met de tekst ernaast. Nooit een eigen tint, want dan omzeilt het de betekenislaag van §2.3 |
+| Kleur | `currentColor`, met één uitzondering | Het icoon kleurt mee met de tekst ernaast. Nooit een eigen tint, want dan omzeilt het de betekenislaag van §2.3. **De uitzondering, 24 augustus 2026: de zes koppen van de zijbalk staan in `--accent-purple`.** Zes tekeningen in de hele balk, precies de zes vaste plekken van de app, en één merkkleur die ze aan elkaar bindt. De kleur staat op de ouder, dus `Icon` zelf erft nog steeds `currentColor` en de regel blijft afdwingbaar |
 
 ### 6b.3 De vier regels
 
@@ -295,8 +295,10 @@ tegenovergestelde van §15.1 van `merkstrategie.md`: precies, rustig, premium.
 4. **In de zijbalk draagt alleen de kop een icoon.** De bestemmingen eronder niet. Het icoon van de
    kop moet het verschil dragen tussen "dit is een van de zes vaste plekken in de app" en "dit is
    een pagina daarbinnen", en dat verschil verdwijnt zodra beide er een hebben: als alles opvalt,
-   valt niets op. De bestemming staat al ingesprongen achter een lijn, en dat zegt genoeg.
-   `NavItem` in `lib/nav.ts` heeft daarom geen icoonveld, en `scripts/test-unit.ts` bewaakt dat.
+   valt niets op. De bestemming springt al in tot ónder de tekst van zijn kop, en dat zegt genoeg.
+   (Tot 24 augustus 2026 stond daar ook een verticale lijn; die is weg omdat de uitlijning het
+   kindschap al draagt, zie `ux-design.md` §5.) `NavItem` in `lib/nav.ts` heeft daarom geen
+   icoonveld, en `scripts/test-unit.ts` bewaakt dat.
 
 ### 6b.4 Wat de set níet doet
 
