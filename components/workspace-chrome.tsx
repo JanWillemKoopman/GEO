@@ -72,7 +72,7 @@ export function WorkspaceChrome({
       <div className="flex flex-1">
         {/* Vaste zijbalk vanaf lg. Sticky onder de bovenbalk, met een eigen
             scrollbaan zodat een lange merknaam de pagina niet meeneemt. */}
-        <aside className="no-print sticky top-[57px] hidden h-[calc(100dvh-57px)] shrink-0 overflow-y-auto overflow-x-hidden border-r border-[var(--border-subtle)] lg:block">
+        <aside className="no-print hidden shrink-0 self-start border-r border-[var(--border-subtle)] lg:block">
           <Sidebar activeBrand={activeBrand} staff={staff} />
         </aside>
 
