@@ -1,6 +1,5 @@
-import { AuthBrand } from "../auth-brand";
-import { LoginForm } from "./login-form";
-import { OrbitVisual } from "./orbit-visual";
+import { AuthCard } from "../auth-card";
+import { LoginForm, LoginFooter } from "./login-form";
 import { signIn } from "../actions";
 import { signupsEnabled } from "@/lib/config";
 
@@ -21,40 +20,13 @@ export default async function LoginPage({
       : null;
 
   return (
-    <div className="mx-auto w-full max-w-[960px]">
-      <AuthBrand />
-
-      <div className="auth-card grid md:grid-cols-[0.94fr_1fr]">
-        {/* ── De merkzijde ────────────────────────────────────────────────────
-            Weg op een telefoon. Dat is geen bezuiniging maar regel 7 van
-            docs/ux-design.md: mobiel is geen verkleinde desktop, en een
-            formulier staat daar in één kolom over de volle breedte. Wie op zijn
-            telefoon inlogt, wil inloggen, niet lezen wat het product doet. */}
-        <div className="auth-aside hidden flex-col justify-between gap-10 p-8 pl-10 md:flex lg:p-12 lg:pl-14">
-          <div>
-            <h2 className="text-[0.9375rem] font-bold uppercase leading-[1.5] tracking-[0.04em]">
-              <span className="block">AI-zichtbaarheid</span>
-              <span className="block">als concurrentievoordeel</span>
-            </h2>
-            <p className="mt-4 text-sm leading-relaxed text-secondary">
-              ORBIT ENGINE helpt je ontdekken waar jouw merk wordt genoemd, vergeleken en gekozen
-              door AI.
-            </p>
-          </div>
-
-          <OrbitVisual />
-        </div>
-
-        {/* ── De formulierzijde ─────────────────────────────────────────────── */}
-        <div className="p-7 sm:p-10 md:py-12">
-          <h1 className="text-[1.75rem] font-bold leading-none tracking-tight">Welkom terug</h1>
-          <p className="mt-2.5 text-sm text-secondary">Log in om verder te gaan in ORBIT ENGINE.</p>
-
-          <div className="mt-7">
-            <LoginForm action={signIn} notice={notice} signupsEnabled={signupsEnabled} />
-          </div>
-        </div>
-      </div>
-    </div>
+    <AuthCard
+      eyebrow="Veilig inloggen"
+      title="Welkom terug"
+      intro="Log in op je ORBIT ENGINE-werkruimte."
+      footer={<LoginFooter signupsEnabled={signupsEnabled} />}
+    >
+      <LoginForm action={signIn} notice={notice} />
+    </AuthCard>
   );
 }

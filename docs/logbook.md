@@ -4493,3 +4493,34 @@ pagina nergens horizontaal over, de oogknop schakelt het veldtype beide kanten o
 verlooptekens hebben elk een eigen id, er is één `h1`, en de console blijft leeg. Op een telefoon
 vallen de drie planeten weg: daar staat de kaart over de volle breedte en belandden ze achter het
 woordmerk en achter de inlogknop.
+
+---
+
+## Het inlogscherm wordt één kaart, zonder decor (24 augustus 2026, tweede ronde)
+
+De eigenaar leverde een screenshot van een ander inlogscherm aan en vroeg om precies die opmaak, tot
+op de pixel, maar dan in de kleuren van ORBIT ENGINE: licht in plaats van donker. Dat is gebouwd en
+in de browser nagemeten op 962 pixels breed. De kaart staat op dezelfde hoogtes als het voorbeeld,
+met hooguit twee pixels verschil: logo op 152, kopje op 224, titel op 278, eerste veld van 409 tot
+457, knop van 594 tot 644, streep op 747, afsluitregel op 783.
+
+**Wat eruit is en waarom.** Het decor van de eerste ronde van vandaag (een verlopende hemel met twee
+baanringen, drie planeten en vier stofpunten) is weg, en de brede kaart met het verkooppaneel links
+ook. Het voorbeeldscherm heeft één kolom op een rustige ondergrond, en alles wat daarnaast gloeit
+trekt het oog weg van de twee velden die hier het werk doen. `auth-background.tsx` en
+`orbit-visual.tsx` zijn verwijderd; de git-historie is het archief.
+
+**Wat ervoor in de plaats komt.** Eén component, `auth-card.tsx`, draagt nu alle vijf de
+inlogschermen: logo, mono-kopje, titel, ondertitel, formulier, uitweg, afsluitregel. Daarmee
+vervallen `auth-panel.tsx` en `auth-brand.tsx`, die alleen bestonden omdat inloggen een brede kaart
+had en de rest een smalle. Dat verschil is er niet meer: wie zijn wachtwoord opnieuw aanvraagt heeft
+precies hetzelfde nodig als wie inlogt, namelijk één kolom met één handeling erin. Het
+wachtwoordherstel-formulier draagt daarom dezelfde maten als het inlogformulier; twee formaten
+formulier achter elkaar leest als twee verschillende producten.
+
+**Wat er inhoudelijk veranderde aan de teksten.** Het e-mailveld heet "Werk-e-mailadres" en het
+wachtwoordveld heeft een leesbare aanwijzing in plaats van bolletjes. Verplichte velden krijgen een
+rood sterretje, wat ze eerder niet hadden. De afsluitregel onder de streep zegt dat de gegevens
+versleuteld zijn: geen nieuwe belofte, wel de bevestiging die het voorbeeldscherm op die plek geeft.
+De oogknop staat er nog, met dezelfde redenering als vanmorgen, maar toont nu een open oog als het
+wachtwoord verborgen is: het pictogram zegt wat de klik doet, net als het label.
