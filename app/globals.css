@@ -1384,6 +1384,22 @@ textarea.field {
   color: transparent;
 }
 
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .brand-gradient-text {
+    background: none;
+    color: #ffffff94;
+    -webkit-background-clip: unset;
+    background-clip: unset;
+  }
+}
+
+:root[data-theme="dark"] .brand-gradient-text {
+  background: none;
+  color: #ffffff94;
+  -webkit-background-clip: unset;
+  background-clip: unset;
+}
+
 /* Gerenderde Markdown (contentbibliotheek, rapport). */
 .prose {
   color: var(--text-secondary);
