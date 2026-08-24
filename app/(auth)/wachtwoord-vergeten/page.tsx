@@ -17,7 +17,7 @@ export default async function WachtwoordVergetenPage({
       title="Wachtwoord vergeten"
       intro="Vul je e-mailadres in. Staat er een account op dat adres, dan is er binnen een minuut een link onderweg waarmee je een nieuw wachtwoord kiest."
       footer={
-        <Link href="/login" className="font-bold text-ink hover:underline">
+        <Link href="/login" className="btn-ghost w-full">
           Terug naar inloggen
         </Link>
       }

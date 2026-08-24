@@ -4599,3 +4599,53 @@ maken vervangt tokens in `app/globals.css` en niet honderdzestig componenten, en
 nu ook in de donkere stand consequent doorgevoerd. Wat er nog steeds niet is, is waar het door
 vervangen zou moeten worden: er is geen logo, geen vastgesteld palet en geen typografiekeuze van
 Outer Orbit zelf.
+
+---
+
+## De hoofdknop wordt inkt (24 augustus 2026, vierde ronde)
+
+De eigenaar legde het echte inlogscherm van `nova.inspace.io` in donkere modus naast het onze en zag
+twee dingen: **hun knop is bijna wit waar de onze paars is**, en **"Wachtwoord vergeten?" krijgt bij
+hen een vlak zodra je hem aanwijst.** Allebei terecht, en het tweede legde het eerste pas echt bloot.
+
+**Nagerekend op hun eigen pagina**, niet op een screenshot. Hun knop draagt
+`bg-background-neutral-inverse text-foreground-on-neutral hover:bg-background-neutral-inverse-hover`
+op `h-10 rounded-md px-4`. Dat is exact onze maatvoering, met een andere kleur. Op dat hele scherm
+komt hun merkkleur nul keer voor: het woord "intelligence" staat er geen enkele keer in de opmaak.
+
+**Wat dat betekende voor ons.** Regel 1 van `designsystem.md` §8 zegt dat een kleur een betekenis
+heeft en geen naam. Zolang élke hoofdknop paars is, betekent paars "knop" en niet meer "hier doet de
+AI iets". De betekenislaag was dus precies op de plek waar hij het meest opvalt niets waard, en dat
+was niemand opgevallen omdat het er in de lichte stand goed uitzag.
+
+**Het cijfer dat het beslechtte: de oude paarse knop haalde in donkere modus 2,39:1 tegen zijn eigen
+kaart.** Het vlak liep bijna in de achtergrond over. De nieuwe inktknop haalt 13,0:1 in licht en
+13,8:1 in donker voor zijn tekst, waar de oude op 6,8:1 zat. De eigenaar zag met het blote oog wat de
+rekensom bevestigde.
+
+**Wat er verder uit voortkwam**, allemaal hetzelfde patroon (inkt voor nadruk, kleur voor betekenis):
+
+- **Een derde knop, `.btn-ghost`.** Die bestond niet, en daardoor stonden uitwegen als kale link
+  onder een knop van 50 pixels te zweven. Nu hebben ze dezelfde maat en bij hover 5% van de
+  inktkleur, precies zoals Nova.
+- **De focusrand van een veld** was paars met een gloed van 3 pixels; nu inkt zonder gloed. Eén
+  verschil met Nova: zij verdubbelen de randdikte en wij leggen er een `inset`-schaduw overheen, want
+  een dikkere rand duwt de inhoud van het veld één pixel opzij.
+- **Velden hebben een hover gekregen.** Die ontbrak volledig.
+- **Drie plekken beloofden een kleurovergang die nergens heen ging**: de tabbladen van het
+  clusterdossier en de filterknoppen van het contentplan en het CSM-scherm stonden op
+  `transition-colors` zonder enige hover-regel. Je wees ze aan en er gebeurde niets.
+- **De links in de inlogroute** waren paars; nu inkt met een onderstreping. Paars als "klikbaar" is
+  hetzelfde misverstand als paars als "knop".
+- **Uitgeschakeld gaat van 50% naar 40%.** Op een inktknop leest 50% nog als een tweede, grijze knop.
+
+**Wat we bewust niet overnamen: hun logo.** Dat is bij hen wit in donkere modus, en de eigenaar
+merkte dat op. Hun woordmerk is één vorm die op `currentColor` staat, dus wit is daar de enige
+mogelijkheid die er is. Het onze is twee merkkleuren die al meedraaien met de stand, en nu de knop
+inkt is, is het woordmerk de laatste plek waar het merk nog kleur heeft. In donker haalt het 6,4:1
+(groen) en 3,9:1 (paars) op een woordmerk van deze maat: toegestaan, maar niet ruim. Wit zou 16,3:1
+geven. Dat is één regel als het alsnog moet.
+
+**Nagerekend** in beide standen: de primitieven, het inlogscherm inclusief de hover op de uitweg, en
+`scrollWidth` 390 op 390 pixels. De ingelogde schermen wachten nog steeds op de eerstvolgende deploy,
+zoals `designsystem.md` §10.3 zegt.

@@ -87,7 +87,7 @@ export function LoginForm({
             type="button"
             onClick={() => setWachtwoordZichtbaar((zichtbaar) => !zichtbaar)}
             aria-label={wachtwoordZichtbaar ? "Wachtwoord verbergen" : "Wachtwoord tonen"}
-            className="absolute right-2.5 top-1/2 grid h-8 w-8 -translate-y-1/2 place-items-center rounded-[var(--radius-sm)] text-muted transition-colors hover:text-[var(--text-secondary)]"
+            className="absolute right-2.5 top-1/2 grid h-8 w-8 -translate-y-1/2 place-items-center rounded-[var(--radius-sm)] text-muted transition-colors hover:text-[var(--text-primary)]"
           >
             {wachtwoordZichtbaar ? (
               <EyeOff size={17} strokeWidth={1.75} aria-hidden="true" />
@@ -116,7 +116,12 @@ export function LoginForm({
 export function LoginFooter({ signupsEnabled }: { signupsEnabled: boolean }) {
   return (
     <>
-      <Link href="/wachtwoord-vergeten" className="font-bold text-ink hover:underline">
+      {/* Dezelfde maatvoering als de knop erboven, met een waas bij hover in
+          plaats van een vlak. Dat is hoe Nova de uitweg naast een handeling
+          zet: zichtbaar een knop, zichtbaar niet dé knop. Was een kale link met
+          alleen een onderstreping, waardoor er onder een knop van 50 pixels een
+          regel tekst zweefde zonder eigen vorm. */}
+      <Link href="/wachtwoord-vergeten" className="btn-ghost w-full">
         Wachtwoord vergeten?
       </Link>
       {signupsEnabled && (
@@ -124,7 +129,7 @@ export function LoginFooter({ signupsEnabled }: { signupsEnabled: boolean }) {
           Nog geen account?{" "}
           <Link
             href="/register"
-            className="font-semibold text-[var(--intent-intelligence-text)] hover:underline"
+            className="font-semibold text-[var(--text-primary)] underline underline-offset-2 hover:text-[var(--text-secondary)]"
           >
             Registreren
           </Link>

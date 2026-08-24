@@ -62,7 +62,7 @@ export function AuthForm({ mode, action, notice, signupsEnabled = false }: AuthF
         <p className="text-center text-sm">
           <Link
             href="/wachtwoord-vergeten"
-            className="text-[var(--intent-intelligence-text)] hover:underline"
+            className="text-[var(--text-primary)] underline underline-offset-2 hover:text-[var(--text-secondary)]"
           >
             Wachtwoord vergeten?
           </Link>
@@ -72,7 +72,7 @@ export function AuthForm({ mode, action, notice, signupsEnabled = false }: AuthF
       {isLogin && signupsEnabled && (
         <p className="mt-2 text-center text-sm text-secondary">
           Nog geen account?{" "}
-          <Link href="/register" className="text-[var(--intent-intelligence-text)] hover:underline">
+          <Link href="/register" className="text-[var(--text-primary)] underline underline-offset-2 hover:text-[var(--text-secondary)]">
             Registreren
           </Link>
         </p>
@@ -83,7 +83,7 @@ export function AuthForm({ mode, action, notice, signupsEnabled = false }: AuthF
       {!isLogin && (
         <p className="mt-2 text-center text-sm text-secondary">
           Al een account?{" "}
-          <Link href="/login" className="text-[var(--intent-intelligence-text)] hover:underline">
+          <Link href="/login" className="text-[var(--text-primary)] underline underline-offset-2 hover:text-[var(--text-secondary)]">
             Inloggen
           </Link>
         </p>

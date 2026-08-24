@@ -146,6 +146,7 @@ schermen die de gebruiker na elkaar ziet).
 | `.chip` + `-success` / `-danger` / `-warning` / `-info` / `-attention` / `-neutral` / `-green` | `--radius-sm` (sinds 24 augustus 2026 geen pil meer), sans, gewicht 600, schrijftaal. Nooit met de hand een tint of een vorm nabouwen. Dat gebeurde toch, in vijf componenten tegelijk; zie regel 1 hierboven en de `grep` die het nu tegenhoudt. |
 | `.mono-label` | De kicker bóven een titel: 11px, uppercase, **mono** met 1px letterspatiëring. Sinds 24 augustus 2026 klopt de naam weer; hernoemen raakt nog steeds te veel bestanden voor alleen een naam. |
 | `.type-hero` … `.type-label` | De elf tekststijlen van Nova, met maat, gewicht en regelhoogte vast aan elkaar. Gebruik ze in nieuw werk; `designsystem.md` §3.2 heeft de tabel. |
+| `.btn-ghost` | **De uitweg naast een handeling**: "Wachtwoord vergeten?", "Terug naar inloggen", "Annuleren". Zelfde maat als `.btn-primary`, geen vlak, bij hover een waas. Gebruik hem in plaats van een kale link zodra hij onder of naast een knop staat, anders zweeft er een regel tekst onder een vlak van 40 pixels. |
 | `.stat-value` | Cijfers die je vergelijkt, in mono met `tabular-nums`, gewicht 700. |
 | `.field` | Formuliervelden, 40px, wit met een rand, inclusief focusring. |
 | `.live-dot` | Pulserende indicator voor "loopt nu". |

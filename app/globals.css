@@ -192,6 +192,29 @@
   --intent-neutral-text: var(--text-muted);
   --intent-neutral-surface: var(--bg-elevated);
   --intent-neutral-border: var(--border-subtle);
+  /* De achtste betekenis, en de belangrijkste: "dit is de handeling".
+     Toegevoegd 24 augustus 2026, na het narekenen van Nova's eigen inlogscherm.
+
+     Hun hoofdknop draagt `bg-background-neutral-inverse` en niet hun merkpaars.
+     Dat is geen smaakkwestie maar het sluitstuk van regel 1 uit
+     `docs/designsystem.md` §8: een kleur heeft een betekenis. Zolang élke
+     hoofdknop paars is, betekent paars "knop" en niet meer "hier doet de AI
+     iets", en dan is de betekenislaag op de meest zichtbare plek van het scherm
+     precies niets waard. Inkt zegt "dit is wat je hier doet", en paars kan weer
+     zeggen wat het hoort te zeggen.
+
+     De naam klopt met wat hij doet: hij keert om. Op een lichte pagina is de
+     handeling bijna zwart, op een donkere bijna wit, en dat is in allebei de
+     standen dezelfde regel (maximaal contrast met de grond) en niet twee
+     verschillende keuzes. */
+  --intent-neutral-solid: #27323d;
+  --intent-neutral-hover: #121a22;
+  --intent-neutral-on-solid: #ffffff;
+
+  /* Het waas onder een knop zonder vlak. Nova zet daar 5% van de inktkleur
+     neer (`bg-background-neutral-inverse/5`), en dat blijft in allebei de
+     standen even zichtbaar omdat de inktkleur meedraait. */
+  --wash-hover: color-mix(in srgb, var(--intent-neutral-solid) 5%, transparent);
 
   /* ── Grafieken ────────────────────────────────────────────────────────────
      Zes categorische kleuren, gebonden aan dezelfde betekenissen. Nova doet dit
@@ -438,6 +461,12 @@
     --intent-premium-surface: #2f231b;
     --intent-premium-surface-hover: #584536;
     --intent-premium-border: #6c5340;
+    /* De handeling keert om: bijna wit op een donkere grond, met donkere tekst
+       erop. Dit zijn Nova's `--ds-background-neutral-inverse` en
+       `--ds-foreground-on-neutral`, letterlijk. */
+    --intent-neutral-solid: #e7edf2;
+    --intent-neutral-hover: #ffffff;
+    --intent-neutral-on-solid: #17212b;
 
     /* Grafieken: naar de lichte `-text`-tinten, zie de kop van dit blok. */
     --chart-1: var(--intent-intelligence-text);
@@ -560,6 +589,12 @@
   --intent-premium-surface: #2f231b;
   --intent-premium-surface-hover: #584536;
   --intent-premium-border: #6c5340;
+  /* De handeling keert om: bijna wit op een donkere grond, met donkere tekst
+     erop. Dit zijn Nova's `--ds-background-neutral-inverse` en
+     `--ds-foreground-on-neutral`, letterlijk. */
+  --intent-neutral-solid: #e7edf2;
+  --intent-neutral-hover: #ffffff;
+  --intent-neutral-on-solid: #17212b;
 
   /* Grafieken: naar de lichte `-text`-tinten, zie de kop van dit blok. */
   --chart-1: var(--intent-intelligence-text);
@@ -965,17 +1000,63 @@ table {
   height: 40px;
   padding: 0 16px;
   border-radius: var(--radius-md);
-  background-color: var(--intent-intelligence-solid);
-  color: var(--intent-intelligence-on-solid);
+  /* ⚠️ Was paars tot 24 augustus 2026. Nu inkt, en dat is de grootste enkele
+     wijziging sinds de omzetting van 6 augustus. Zie --intent-neutral-solid
+     hierboven voor het waarom en `docs/designsystem.md` §2.4. Kort: zolang elke
+     hoofdknop paars is betekent paars "knop", en dan zegt de merkkleur niets
+     meer op de plek waar hij het meest opvalt.
+
+     Nagerekend op het echte inlogscherm van nova.inspace.io: hun knop draagt
+     `bg-background-neutral-inverse text-foreground-on-neutral`, op h-10,
+     rounded-md en px-4. Dat is exact deze maatvoering. */
+  background-color: var(--intent-neutral-solid);
+  color: var(--intent-neutral-on-solid);
   font-weight: 600;
   font-size: 0.9375rem;
-  transition: background-color var(--duration-fast) var(--ease-standard);
+  transition: background-color var(--duration-base) var(--ease-out);
 }
 .btn-primary:hover {
-  background-color: var(--intent-intelligence-hover);
+  background-color: var(--intent-neutral-hover);
 }
 .btn-primary:disabled {
-  opacity: 0.5;
+  /* Nova zet 40% en niet 50%. Op de nieuwe inktknop is dat het verschil tussen
+     "uitgeschakeld" en "een tweede, grijze knop": bij 50% leest het vlak nog als
+     een keuze. */
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* De derde knop: geen vlak, geen rand, alleen tekst met een waas bij hover.
+   Toegevoegd 24 augustus 2026.
+
+   Hij bestond hier niet, en daardoor stonden uitwegen ("Wachtwoord vergeten?",
+   "Annuleren" naast een gevaaractie) als kale link onder een knop, zonder enige
+   terugkoppeling bij hover behalve een onderstreping. Nova geeft die uitweg
+   dezelfde maatvoering als de hoofdknop en vult hem bij hover met 5% van de
+   inktkleur. Daarmee is het zichtbaar een knop, en tegelijk zichtbaar niet de
+   handeling die je hoort te kiezen. */
+.btn-ghost {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 40px;
+  padding: 0 16px;
+  border-radius: var(--radius-md);
+  background-color: transparent;
+  color: var(--text-primary);
+  font-weight: 600;
+  font-size: 0.9375rem;
+  transition: background-color var(--duration-base) var(--ease-out);
+}
+.btn-ghost:hover {
+  background-color: var(--wash-hover);
+}
+.btn-ghost:disabled {
+  /* Nova zet 40% en niet 50%. Op de nieuwe inktknop is dat het verschil tussen
+     "uitgeschakeld" en "een tweede, grijze knop": bij 50% leest het vlak nog als
+     een keuze. */
+  opacity: 0.4;
   cursor: not-allowed;
 }
 
@@ -1007,7 +1088,10 @@ table {
   border-color: var(--border-contrast);
 }
 .btn-outline:disabled {
-  opacity: 0.5;
+  /* Nova zet 40% en niet 50%. Op de nieuwe inktknop is dat het verschil tussen
+     "uitgeschakeld" en "een tweede, grijze knop": bij 50% leest het vlak nog als
+     een keuze. */
+  opacity: 0.4;
   cursor: not-allowed;
 }
 
@@ -1113,10 +1197,24 @@ table {
 .field::placeholder {
   color: var(--text-muted);
 }
+/* Een veld dat je aanwijst zegt dat het aanklikbaar is. Dit ontbrak; Nova heeft
+   het wel (`[&:not(:focus-within):hover]:border-border-neutral`) en het scheelt
+   in een formulier van twaalf velden merkbaar in hoe levend het aanvoelt. */
+.field:hover:not(:focus) {
+  border-color: var(--border-contrast);
+}
+/* ⚠️ De focusrand was paars met een gloed van 3 pixels eromheen, tot
+   24 augustus 2026. Nu inkt, zonder gloed, zoals Nova het doet
+   (`focus-within:border-2 focus-within:border-border-neutral-inverse`).
+
+   Zij verdubbelen daar de randdikte; hier gebeurt dat met een `inset`-schaduw
+   van 1 pixel bovenop de bestaande rand. Dat geeft precies hetzelfde beeld,
+   maar zonder de sprong van één pixel die een veranderende randdikte in de
+   inhoud van het veld veroorzaakt. */
 .field:focus {
   outline: none;
-  border-color: var(--accent-purple);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent-purple) 18%, transparent);
+  border-color: var(--focus-ring);
+  box-shadow: inset 0 0 0 1px var(--focus-ring);
 }
 textarea.field {
   height: auto;
@@ -1517,10 +1615,16 @@ textarea.field {
 .auth-field::placeholder {
   color: var(--text-muted);
 }
+.auth-field:hover:not(:focus) {
+  border-color: var(--border-contrast);
+}
+/* Zelfde omzetting als bij `.field` hierboven: inkt in plaats van een paarse
+   gloed. Zie daar voor het waarom en voor de reden dat de tweede pixel uit een
+   `inset`-schaduw komt en niet uit een dikkere rand. */
 .auth-field:focus {
   outline: none;
-  border-color: var(--accent-purple);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent-purple) 18%, transparent);
+  border-color: var(--focus-ring);
+  box-shadow: inset 0 0 0 1px var(--focus-ring);
 }
 /* Alleen een wachtwoordveld heeft rechts een oogknop staan. */
 .auth-field-toggle {
@@ -1534,14 +1638,17 @@ textarea.field {
   width: 100%;
   height: 50px;
   border-radius: 10px;
-  background-color: var(--intent-intelligence-solid);
-  color: var(--intent-intelligence-on-solid);
+  /* Inkt, net als `.btn-primary`. Het inlogscherm is precies waar dit voor het
+     eerst opviel: een paarse knop in donkere modus terwijl Nova daar een bijna
+     witte heeft. */
+  background-color: var(--intent-neutral-solid);
+  color: var(--intent-neutral-on-solid);
   font-weight: 600;
   font-size: 1rem;
-  transition: background-color var(--duration-fast) var(--ease-standard);
+  transition: background-color var(--duration-base) var(--ease-out);
 }
 .auth-submit:hover {
-  background-color: var(--intent-intelligence-hover);
+  background-color: var(--intent-neutral-hover);
 }
 .auth-submit:disabled {
   opacity: 0.55;

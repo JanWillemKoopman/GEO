@@ -691,10 +691,14 @@ function Segment({
       type="button"
       onClick={onClick}
       aria-pressed={actief}
-      className="flex items-center gap-2 rounded-[var(--radius-md)] border px-3 py-2 text-sm font-medium transition-colors"
+      // De hover staat in een klasse en het actieve vlak in een inline-stijl:
+      // die laatste wint, dus de gekozen filterknop negeert de hover vanzelf.
+      // Zonder dit beloofde `transition-colors` een overgang die nergens heen
+      // ging.
+      className="flex items-center gap-2 rounded-[var(--radius-md)] border px-3 py-2 text-sm font-medium transition-colors hover:bg-[var(--wash-hover)]"
       style={{
         borderColor: actief ? "var(--intent-intelligence-border)" : "var(--border-subtle)",
-        background: actief ? "var(--intent-intelligence-surface)" : "var(--bg-surface)",
+        background: actief ? "var(--intent-intelligence-surface)" : undefined,
         color: actief ? "var(--text-primary)" : "var(--text-secondary)",
       }}
     >

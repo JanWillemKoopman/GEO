@@ -82,10 +82,15 @@ function NavLink({
     <Link
       href={href}
       aria-current={active ? "page" : undefined}
-      className="flex items-center gap-2 rounded-[var(--radius-md)] px-3 py-1.5 text-sm font-medium transition-colors"
+      // De waas bij hover staat in een klasse en het actieve vlak in een
+      // inline-stijl, en dat is met opzet: een inline-stijl wint van een klasse,
+      // dus het actieve tabblad negeert de hover vanzelf en de andere niet.
+      // Zonder dit beloofde `transition-colors` een overgang die nergens heen
+      // ging: je wees een tabblad aan en er gebeurde niets.
+      className="flex items-center gap-2 rounded-[var(--radius-md)] px-3 py-1.5 text-sm font-medium transition-colors hover:bg-[var(--wash-hover)]"
       style={{
         color: active ? "var(--text-primary)" : "var(--text-secondary)",
-        background: active ? "var(--bg-elevated)" : "transparent",
+        background: active ? "var(--bg-elevated)" : undefined,
       }}
     >
       {children}

@@ -25,6 +25,9 @@
 >    argument dat de bron niet ondersteunt.
 > 3. **De focusring is inktkleur, niet paars** (§5.3).
 > 4. **De donkere modus was niet onmogelijk maar onbekend** (§10). Hun palet ligt er compleet in.
+> 5. **De hoofdknop hoort inkt te zijn en niet paars** (§2.4). Gevonden doordat de eigenaar hun
+>    donkere inlogscherm naast het onze legde en zag dat hun knop bijna wit was. Nagerekend op hun
+>    echte pagina, en het bleek het sluitstuk van onze eigen regel dat een kleur een betekenis heeft.
 
 Dit document beschrijft **hoe ORBIT ENGINE eruitziet en waarom**. Voor de tekst in die schermen geldt
 `schrijfstijl.md`, voor de opbouw van schermen `ux-design.md`, voor het waarom achter beslissingen
@@ -138,14 +141,14 @@ Nova ze uitsplitst.
 
 | Betekenis | Waarvoor | solid | text | surface | border |
 |---|---|---|---|---|---|
-| `intelligence` | Het merk, AI, de primaire actie | `#8511d9` | `#8511d9` | `#faf4ff` | `#e9d1ff` |
+| `intelligence` | Het merk, AI, wat ORBIT ENGINE zelf doet | `#8511d9` | `#8511d9` | `#faf4ff` | `#e9d1ff` |
 | `growth` | Gelukt, gestegen, gepubliceerd | `#37941c` | `#2c711a` | `#effce9` | `#b9efa3` |
 | `information` | Een mededeling, een toelichting | `#0084d1` | `#0069a8` | `#f0f9ff` | `#b8e6fe` |
 | `warning` | Kijk hier even naar | `#e17100` | `#bb4d00` | `#fffbeb` | `#fee685` |
 | `attention` | Vraagt een keuze, is niet fout | `#e60076` | `#c6005c` | `#fdf2f8` | `#fccee8` |
 | `danger` | Blokkade, mislukt, onomkeerbaar | `#e7000b` | `#c10007` | `#fef2f2` | `#ffc9c9` |
 | `premium` | Betaald, hoogste plan | `#9f7d57` | `#84664a` | `#f9f7f3` | `#e2dac6` |
-| `neutral` | Uit, niet van toepassing | , | `--text-muted` | `--bg-elevated` | `--border-subtle` |
+| `neutral` | Uit, niet van toepassing | `#27323d` | `--text-muted` | `--bg-elevated` | `--border-subtle` |
 
 **Elke `-text` haalt op wit minstens 5,0:1**, ruim boven de drempel van 4,5. Dat was voor de overstap
 op twee plekken niet zo.
@@ -158,7 +161,44 @@ witte. Dat was hiervoor per component een beoordeling.
 **Eén bewuste afwijking van Nova.** Zij kennen twee paarse standen, `#9e21fc` en `#8511d9`, en
 gebruiken de lichte als solide vlak. Wij nemen de donkere: wit op `#9e21fc` haalt 4,0:1 en zakt
 daarmee onder de drempel voor knoptekst, wit op `#8511d9` haalt 5,4:1. Bij hen is de lichte stand te
-verdedigen omdat dezelfde token ook in donkere modus dienstdoet; wij hebben alleen licht.
+verdedigen omdat dezelfde token ook in donkere modus dienstdoet. Sinds 24 augustus 2026 hebben wij
+die tweede stand ook, en daar is `#8511d9` inderdaad het gevulde vlak en `#ad45ff` de leesbare
+tekst, precies zoals bij hen. In de lichte stand blijft de donkere.
+
+---
+
+### 2.4 De handeling is inkt, niet paars (24 augustus 2026)
+
+`--intent-neutral-solid` · `--intent-neutral-hover` · `--intent-neutral-on-solid`
+
+| | Licht | Donker |
+|---|---|---|
+| Vlak | `#27323d` | `#e7edf2` |
+| Hover | `#121a22` | `#ffffff` |
+| Tekst erop | `#ffffff` | `#17212b` |
+
+**De hoofdknop was paars en is nu inkt.** Dat is de grootste enkele wijziging sinds de omzetting van
+6 augustus, en de aanleiding was een waarneming van de eigenaar: op Nova's eigen inlogscherm in
+donkere modus is de knop bijna wit, bij ons was hij paars. Nagerekend op hun echte pagina draagt die
+knop `bg-background-neutral-inverse text-foreground-on-neutral hover:bg-background-neutral-inverse-hover`,
+op `h-10 rounded-md px-4`. Dat is precies onze maatvoering, met een andere kleur.
+
+**Waarom dit meer is dan naäpen.** Regel 1 van §8 zegt dat een kleur een betekenis heeft en geen
+naam. Zolang élke hoofdknop paars is, betekent paars "knop" en niet meer "hier doet de AI iets", en
+dan is de betekenislaag precies niets waard op de plek waar hij het meest opvalt. Dit is ook wat
+`merkstrategie.md` §16 vraagt (neutral-first, kleur draagt betekenis), en het maakt de overgebleven
+paarse plekken, de chips, de actieve zijbalkregel, het woordmerk, weer betekenisvol.
+
+**En het loste een echt contrastprobleem op.** De oude paarse knop haalde in donkere modus
+**2,39:1 tegen zijn eigen kaart**: het vlak liep bijna in de achtergrond over. De inktknop haalt
+13,0:1 in licht en 13,8:1 in donker voor zijn tekst, tegenover 6,8:1 voor de oude.
+
+**De naam klopt met wat hij doet: hij keert om.** Op een lichte pagina is de handeling bijna zwart,
+op een donkere bijna wit. Dat is in allebei de standen dezelfde regel, maximaal contrast met de
+grond, en niet twee losse keuzes.
+
+> **Terugdraaien is één token.** Wie de paarse knop terug wil, zet `--intent-neutral-solid`,
+> `-hover` en `-on-solid` op de intelligence-waarden. Er staat geen kleur in een component.
 
 ---
 
@@ -171,7 +211,7 @@ van twee makers naast elkaar is precies het soort verschil dat je niet ziet maar
 |---|---|
 | Alles | `--font-sans` |
 | Cijfers die je vergelijkt | `--font-mono` via `.stat-value`, met `tabular-nums`, **gewicht 700** |
-| Kickers boven een titel | `.mono-label`: sans, 11px, uppercase, `.08em`, gewicht 600 |
+| Kickers boven een titel | `.mono-label`: **mono**, 11px, uppercase, 1px spatiëring, gewicht 500. Zie §3.2 |
 | Code en URL's | `--font-mono` |
 
 ### 3.1 De drie gewichten, en waar ze horen (24 augustus 2026)
@@ -311,13 +351,24 @@ de vier ambient `glow-orb`-cirkels achter de inlogpagina, het menu, de 404 en el
 schaduwstanden maken een interface niet dieper, alleen rommeliger.
 
 **De enige uitzondering is focus, en die is functioneel.** `:focus-visible` krijgt een omlijning van
-2 pixels met 2 pixels afstand, en een veld krijgt bij focus een ring van 3px. Zonder zichtbare focus
-is de app niet met een toetsenbord te bedienen. Dat is toegankelijkheid, geen sier.
+2 pixels met 2 pixels afstand, en een veld krijgt bij focus een rand die twee pixels lijkt. Zonder
+zichtbare focus is de app niet met een toetsenbord te bedienen. Dat is toegankelijkheid, geen sier.
 
 > **De ring is sinds 24 augustus 2026 inktkleur (`--focus-ring`) in plaats van paars.** Nova doet het
 > ook zo. De reden is scherper dan "zij doen het zo": paars is in deze app óók de kleur van de
 > hoofdknop, en een paarse ring om een paarse knop is geen ring. Inkt werkt op elk vlak, en in de
 > donkere stand keert hij vanzelf om naar licht.
+>
+> **Hetzelfde geldt voor een veld dat focus krijgt**, sinds later diezelfde dag. Dat had een paarse
+> rand met een gloed van 3 pixels eromheen; nu is het een inktrand die twee pixels lijkt, zonder
+> gloed, zoals Nova (`focus-within:border-2 focus-within:border-border-neutral-inverse`). Eén
+> verschil: zij verdubbelen de randdikte en wij leggen er een `inset`-schaduw van 1 pixel bovenop.
+> Dat geeft hetzelfde beeld zonder de sprong van één pixel die een dikkere rand in de inhoud van het
+> veld veroorzaakt.
+>
+> **En een veld heeft nu een hover.** Dat ontbrak; Nova heeft het wel
+> (`[&:not(:focus-within):hover]:border-border-neutral`), en in een formulier van twaalf velden
+> scheelt het merkbaar in hoe levend het scherm aanvoelt.
 
 ### 5.4 Maatvoering
 
@@ -483,12 +534,15 @@ Gebruik deze, nooit een eigen tint of een eigen maat.
 | `.card-interactive` | Alleen op wat écht klikbaar is. Krijgt de rand-plus-schaduw bij hover |
 | `.card-accent` / `-success` / `-warning` / `-danger` | Getinte kaartrand, uit de betekenislaag |
 | `.card-rail` / `-success` / `-warning` | De 4px-stang links op de kaart met het hoofdgetal. Eén per scherm, tint volgt de trend. Zie §5.5 |
-| `.btn-primary` / `.btn-outline` | Beide 40px, `--radius-md`. `.btn-sm` is 32px |
+| `.btn-primary` | **De handeling.** 40px, `--radius-md`, inkt met omgekeerde tekst. Zie §2.4 |
+| `.btn-outline` | De keuze ernaast: rand, geen vlak. Zelfde maat |
+| `.btn-ghost` | **De uitweg.** Zelfde maat, geen vlak en geen rand, bij hover 5% inktwaas. Voor "Wachtwoord vergeten?", "Terug naar inloggen", "Annuleren" |
+| `.btn-sm` / `.btn-lg` | 32px en 44px. Combineren met een van de drie hierboven |
 | `.chip` + `-success` / `-danger` / `-warning` / `-info` / `-attention` / `-neutral` | `--radius-sm`, sans, gewicht 600, schrijftaal. Nooit met de hand een tint of een vorm nabouwen |
 | `.mono-label` | De kicker boven een titel. **Mono**, uppercase, 11px. Zie §3.2 |
 | `.type-hero` … `.type-label` | De elf tekststijlen van Nova. Zie §3.2 |
 | `.stat-value` | Cijfers die je vergelijkt, in mono met `tabular-nums`, gewicht 700 |
-| `.field` | Oppervlakkleur met een rand, 40px, focusring |
+| `.field` | Oppervlakkleur met een rand, 40px. Hover maakt de rand donkerder, focus maakt hem inkt |
 | `.live-dot` | Pulserend, in `growth`. "Loopt nu" |
 | `.skeleton` | Laadvlak. De vorm van wat er komt |
 | `.prose` | Lange tekst: rapport, contentpagina |
@@ -538,6 +592,10 @@ Gebruik deze, nooit een eigen tint of een eigen maat.
 | Hun witte paginagrond | **Ja** | Sinds 24 augustus 2026, zie §2.1 |
 | Hun inktkleurige focusring | **Ja** | Beter dan paars, want paars is ook de knopkleur, zie §5.3 |
 | Hun eigen tokens voor de schakelaar | **Ja** | Het enige vlak waarvan de kleur zonder tekst iets zegt |
+| Hun inktkleurige hoofdknop | **Ja** | Geeft de merkkleur zijn betekenis terug, zie §2.4 |
+| Hun spookknop met waas bij hover | **Ja** | Een uitweg is een knop, geen zwevende link |
+| Hun inktkleurige veldfocus en veldhover | **Ja** | Zelfde reden als de knop, zie §5.3 |
+| Hun logo in één kleur | **Nee** | Hun woordmerk is één vorm in `currentColor`, het onze is twee merkkleuren die al meedraaien |
 | Hun lichte paars als solide vlak | **Nee** | Haalt de contrastdrempel niet, zie §2.3 |
 | Hun negen radii | **Nee** | Zeven volstaan |
 | Hun kaartpadding van 16 of 24 | **Nee** | 20 is één maat voor twee rollen, zie §5.4 |
