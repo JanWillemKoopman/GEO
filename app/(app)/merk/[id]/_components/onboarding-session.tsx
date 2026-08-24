@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { SectionRail } from "@/components/section-rail";
 import { CollapsibleSection } from "@/components/collapsible-section";
+import { ConfirmDialog } from "@/components/confirm-dialog";
 import { BrandFieldInput, type VeldStand } from "./brand-field-input";
 import { DossierBox } from "./dossier-box";
 import { StrategyBox } from "./strategy-box";
@@ -16,7 +17,7 @@ import { findGaps } from "@/lib/profile-gaps";
 import { examplesFor } from "@/lib/pipeline/brand-examples";
 import {
   planRefresh,
-  describeRefresh,
+  refreshConfirmation,
   TASK_LABELS,
 } from "@/lib/pipeline/onboarding-refresh";
 import { sessionMeter, notApplicableFields, type FieldState } from "@/lib/profile-meter";
@@ -90,6 +91,7 @@ export function OnboardingSession({
   // server meegaf en groeit met alles wat er in dit gesprek bij komt.
   const [gewijzigd, setGewijzigd] = useState<string[]>(changedSinceResearch);
   const [bijwerken, setBijwerken] = useState<"rust" | "bezig" | "gedaan" | "mislukt">("rust");
+  const [bevestigBijwerken, setBevestigBijwerken] = useState(false);
   const [states, setStates] = useState<Record<string, FieldState>>(initialStates);
 
   const meter = useMemo(
@@ -169,6 +171,7 @@ export function OnboardingSession({
     () => planRefresh(gewijzigd, { analyses: openAnalyses }),
     [gewijzigd, openAnalyses],
   );
+  const bevestiging = useMemo(() => refreshConfirmation(plan), [plan]);
 
   /**
    * Precies de stappen inplannen die van de gewijzigde velden afhangen.
@@ -177,7 +180,7 @@ export function OnboardingSession({
    * hoort te staan: dit scherm wordt met de klant gedeeld.
    */
   async function werkBij() {
-    if (!window.confirm(describeRefresh(plan))) return;
+    setBevestigBijwerken(false);
     setBijwerken("bezig");
     try {
       const res = await fetch(`/api/profiles/${profileId}/refresh`, { method: "POST" });
@@ -366,8 +369,8 @@ export function OnboardingSession({
 
           {/* ── Het onderzoek bijwerken ──────────────────────────────────
               ⚠️ De raming staat in het bevestigvenster en niet op het scherm:
-              de klant kijkt mee. `describeRefresh()` bouwt die zin, zodat er
-              in dit bestand geen bedrag voorkomt. */}
+              de klant kijkt mee. `refreshConfirmation()` bouwt de twee zinnen
+              daarvoor, zodat er in dit bestand geen bedrag voorkomt. */}
           <div className="card flex flex-col gap-3">
             <span className="mono-label">Het onderzoek bijwerken</span>
             {plan.tasks.length === 0 ? (
@@ -394,7 +397,7 @@ export function OnboardingSession({
                 type="button"
                 className="btn-primary w-fit"
                 disabled={plan.tasks.length === 0 || bijwerken === "bezig"}
-                onClick={() => void werkBij()}
+                onClick={() => setBevestigBijwerken(true)}
               >
                 {bijwerken === "bezig" ? "Bezig…" : "Onderzoek bijwerken"}
               </button>
@@ -412,6 +415,26 @@ export function OnboardingSession({
           </div>
         </section>
       </div>
+
+      {/* Was een kaal `window.confirm()` met alles op één regel, "Doorgaan?"
+          incluis. Nu hetzelfde venster als de rest van de app: een lopende zin
+          wat er opnieuw draait, en de kosten in het aparte blokje dat
+          `ConfirmDialog` daarvoor heeft. Zie `docs/logbook.md`. */}
+      <ConfirmDialog
+        open={bevestigBijwerken}
+        title="Onderzoek bijwerken"
+        body={bevestiging.body}
+        irreversible={
+          bevestiging.cost
+            ? { title: "Dit zet het onderzoek in gang", description: bevestiging.cost }
+            : undefined
+        }
+        confirmLabel="Onderzoek bijwerken"
+        confirmingLabel="Bezig…"
+        busy={bijwerken === "bezig"}
+        onConfirm={() => void werkBij()}
+        onCancel={() => setBevestigBijwerken(false)}
+      />
     </div>
   );
 }

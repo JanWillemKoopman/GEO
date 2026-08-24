@@ -330,7 +330,7 @@ import {
 } from "@/lib/pipeline/brand-examples";
 import {
   planRefresh,
-  describeRefresh,
+  refreshConfirmation,
   FIELD_TASKS,
   TASK_LABELS,
 } from "@/lib/pipeline/onboarding-refresh";
@@ -8388,16 +8388,20 @@ group("wat er na het gesprek opnieuw moet draaien (fase 4)", () => {
   ok("meer analyses is een hogere raming", drie > een);
   ok("en de raming blijft onder een dubbeltje per analyse", drie < 0.3, `$${drie}`);
 
-  // De bevestigingszin. ⚠️ Die staat in deze pure module en niet in het scherm:
+  // De bevestiging. ⚠️ Die staat in deze pure module en niet in het scherm:
   // de sessiepagina wordt met de klant gedeeld en er mag geen bedrag in beeld.
+  const niets = refreshConfirmation(planRefresh([]));
+  ok("niets veranderd levert een zin op die dat zegt", niets.body.includes("niets veranderd"));
+  ok("en geen apart kostenblokje", niets.cost === null);
+  const bevestiging = refreshConfirmation(planRefresh(["service_scope"], { analyses: 1 }));
+  ok("het bedrag staat in het aparte kostenblokje", bevestiging.cost?.includes("$") ?? false);
+  ok("niet in de lopende tekst", !bevestiging.body.includes("$"));
+  ok("de lopende tekst zegt in gewone taal wat er gebeurt", bevestiging.body.includes(TASK_LABELS.kennistest));
   ok(
-    "niets veranderd levert een zin op die dat zegt",
-    describeRefresh(planRefresh([])).includes("niets veranderd"),
+    "zonder taaknamen",
+    !bevestiging.body.includes("profile_llm_baseline") &&
+      !bevestiging.body.includes("generate_prompts"),
   );
-  const zin = describeRefresh(planRefresh(["service_scope"], { analyses: 1 }));
-  ok("de bevestiging noemt het bedrag", zin.includes("$"));
-  ok("en zegt in gewone taal wat er gebeurt", zin.includes(TASK_LABELS.kennistest));
-  ok("zonder taaknamen", !zin.includes("profile_llm_baseline") && !zin.includes("generate_prompts"));
 });
 
 group("de onderzoeksketen kapt niet af als een stap opgeeft", () => {

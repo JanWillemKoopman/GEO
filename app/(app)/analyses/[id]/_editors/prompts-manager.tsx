@@ -130,7 +130,11 @@ function PromptCategoryList({
   onDelete: (id: string) => void;
 }) {
   if (prompts.length === 0) {
-    return <p className="text-sm text-muted">Nog geen vragen in deze categorie.</p>;
+    return (
+      <p className="text-sm text-muted">
+        Nog geen vragen in deze categorie. Voeg er hieronder een toe.
+      </p>
+    );
   }
   return (
     <ul className="flex flex-col gap-2">

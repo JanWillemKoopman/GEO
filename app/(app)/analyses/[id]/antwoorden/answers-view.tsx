@@ -146,7 +146,9 @@ export function AnswersView({
         <div className="card">
           <p className="text-secondary">
             Geen vragen binnen dit filter.{" "}
-            {onlyMissed && "Je wordt dus overal genoemd. Sterke stand."}
+            {onlyMissed
+              ? "Je wordt dus overal genoemd. Sterke stand."
+              : "Wissel van fase of zet het filter hierboven uit om meer vragen te zien."}
           </p>
         </div>
       ) : (

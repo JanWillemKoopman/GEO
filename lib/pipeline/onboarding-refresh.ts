@@ -150,21 +150,26 @@ export function planRefresh(
 }
 
 /**
- * De raming als zin voor het bevestigvenster.
+ * De twee zinnen voor het bevestigvenster: wat er opnieuw draait, en wat dat
+ * kost. Twee velden en niet één samengestelde zin, sinds 24 augustus 2026: het
+ * venster was een kaal `window.confirm()` met alles op één regel, "Doorgaan?"
+ * incluis. `ConfirmDialog` draagt zelf al een apart blokje voor wat je niet
+ * terug kunt draaien (`irreversible`, zie `components/confirm-dialog.tsx`);
+ * `body` gaat naar de lopende tekst van het venster, `cost` naar dat blokje.
  *
  * ⚠️ Staat hier en niet in het scherm zelf, en dat is de reden dat deze functie
  * bestaat: de sessiepagina wordt met de klant gedeeld en er mag geen bedrag in
  * beeld staan. Het bedrag hoort in het venster dat pas verschijnt als de
  * consultant op de knop drukt.
  */
-export function describeRefresh(plan: RefreshPlan): string {
+export function refreshConfirmation(plan: RefreshPlan): { body: string; cost: string | null } {
   if (plan.tasks.length === 0) {
-    return "Er is niets veranderd waar het onderzoek anders van wordt.";
+    return { body: "Er is niets veranderd waar het onderzoek anders van wordt.", cost: null };
   }
   const lijst = plan.tasks.map((t) => TASK_LABELS[t]).join(", ");
   const bedrag = plan.estimateUsd.toFixed(2).replace(".", ",");
-  return (
-    `ORBIT ENGINE werkt dit opnieuw uit: ${lijst}. ` +
-    `Geschatte kosten: hooguit $${bedrag}. Doorgaan?`
-  );
+  return {
+    body: `ORBIT ENGINE werkt dit opnieuw uit: ${lijst}.`,
+    cost: `Geschatte kosten: hooguit $${bedrag}. Zodra je bevestigt, gaat ORBIT ENGINE direct aan de slag.`,
+  };
 }

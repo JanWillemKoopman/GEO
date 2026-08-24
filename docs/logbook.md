@@ -4715,3 +4715,52 @@ zij zetten de keuze licht/donker/systeem als drieweg-keuze onder "Weergave" in d
 en niet als knop in de balk; elke lege staat is bij hen een titel plus een uitleg en nooit één zin;
 en elke onomkeerbare handeling in een dialoog draagt een apart blokje "dit kan niet ongedaan gemaakt
 worden" in plaats van een zin in de lopende tekst. Geen van drieën is in deze ronde gebouwd.
+
+---
+
+## De twee andere punten uit Nova's berichtencatalogus doorgevoerd (24 augustus 2026)
+
+Van de drie dingen die de vorige alinea openliet, zijn er nu twee gebouwd. Het drieweg-keuzemenu
+voor licht/donker/systeem staat nog open; dat raakt de accountinstellingen en is een eigen stuk werk.
+
+**1. De laatste kale `window.confirm()` is weg.** Het onderzoek bijwerken in de onboardingsessie
+(`app/(app)/merk/[id]/_components/onboarding-session.tsx`) was de enige plek in de app die nog een
+browsereigen bevestigvenster gebruikte, met alles op één regel: welke stappen opnieuw draaien, wat
+dat kost, en "Doorgaan?" achter elkaar. Alle andere onomkeerbare handelingen gebruikten al
+`ConfirmDialog` met zijn `irreversible`-blok (`plan-view.tsx`, `account-box.tsx`,
+`delete-account-box.tsx`), dus het patroon zelf bestond al en hoefde niet gebouwd te worden. Wat
+ontbrak was de laatste plek waar het niet werd toegepast.
+
+`describeRefresh()` in `lib/pipeline/onboarding-refresh.ts` bouwde die ene samengestelde zin. Hij
+heet nu `refreshConfirmation()` en levert twee velden: `body` (wat er opnieuw draait) gaat naar de
+lopende tekst van het venster, `cost` (het bedrag) gaat naar het aparte blokje. Een consultant die op
+"Onderzoek bijwerken" klikt ziet nu hetzelfde soort venster als bij het vrijgeven van een maand
+content: een gewone zin, en daaronder in een eigen kader wat hij niet kan terugdraaien.
+
+**2. Vijf kale lege zinnen kregen een tweede zin erbij.** De meeste lege staten in de app bleken al
+title+uitleg te zijn, alleen niet altijd met een zichtbare kop erboven: het `mono-label` + `<p>`-
+patroon (bijvoorbeeld `zoekverkeer/page.tsx`, `merkprofiel/page.tsx`, `csm-view.tsx` bij "Nog geen
+merken") komt op hetzelfde neer als Nova's title/description-paar, en een losse `<p>` met twee zinnen
+(bijvoorbeeld `library-list.tsx`, `offerings-panel.tsx`, `loop-blocks.tsx`) ook. Vijf plekken waren
+dat niet: één kale zin zonder enige uitleg, echt de "geen analyses"-doodlopende weg uit
+`docs/ux-design.md` §4.
+
+- Twee regels in `admin/page.tsx` ("Nog geen herkomst vastgelegd", "Nog geen onderwerp-onderzoek")
+  en één in het kostenlogboek eronder kregen een tweede zin die zegt wanneer het blok zich vult.
+- `prompts-manager.tsx` zei "Nog geen vragen in deze categorie" terwijl er direct daaronder een
+  formulier staat om er een toe te voegen; de zin verwijst er nu naar, hetzelfde patroon als
+  `faq-editor.tsx` al gebruikte.
+- `answers-view.tsx` zei bij een leeg filter alleen "Geen vragen binnen dit filter" zodra "alleen
+  gemist" uitstond; de zin legt nu uit wat je kunt doen om weer iets te zien.
+
+**Wat bewust niet is aangepast.** De lege-segmentteksten in `lib/csm.ts`
+("Niets vastgelopen.", "Elk merk heeft minstens één meting.") zijn overal kale zinnen, en dat staat
+er met opzet: het commentaar erboven zegt "een leeg segment is goed nieuws", en een leeg CSM-segment
+vraagt geen volgende stap, in tegenstelling tot een lege `/analyses`. De zoekresultaten in
+`brand-switcher.tsx` ("Geen merk gevonden voor…") zijn ook met opzet kaal: Nova doet dit bij hun
+eigen zoeklijstjes (`noClientsMatch`, `noDomainsMatch`) net zo, één zin zonder uitleg. Title plus
+uitleg is voor het scherm dat leeg blijft, niet voor een zoekveld dat nul treffers geeft.
+
+Nagerekend: `npx tsc --noEmit`, 2197 unittests (twee nieuwe voor de gesplitste `refreshConfirmation`),
+303 ketentests en de productiebuild zijn groen. De vier controles uit `designsystem.md` §11 geven nul
+regels.
