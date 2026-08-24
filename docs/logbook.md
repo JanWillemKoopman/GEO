@@ -4150,3 +4150,38 @@ de bewijskracht als maat voor zekerheid gebruiken in plaats van de spreiding tus
 staat nog open.
 
 Promptversie naar `v4`. 2100 unittests en 290 ketentests groen.
+
+## 23 augustus 2026, nacht: de derde run bevestigt de reparaties, en legt een grens bloot
+
+Derde run op Gasservice Brabant, met de reparaties van de vorige twee rondes erin (promptversie
+`v4`). Uitkomst: `tone_stderr 3,1`, `market_hit_rate 0,33` op 12 vragen, `evidence_score 99` op 18
+onafhankelijke domeinen.
+
+De echte antwoorden nagelezen om zeker te zijn. Twee dingen bevestigd:
+
+- **Geen bewijsopmerking meer tussen de zwakke punten.** Alle bezwaren in deze run zijn echte
+  ervaringen: een scheve rookgasafvoer, een niet nagekomen afspraak bij een gaslek, een onverwacht
+  hoge rekening zonder prijsindicatie, klachten over facturering en incasso. `pointKind()` doet zijn
+  werk.
+- **De marge is niet meer nul.** 3,1 punten bij 22 bruikbare antwoorden, precies wat de ondergrens
+  uit de vorige ronde voorspelt.
+
+Alle 22 oordelen kregen opnieuw het etiket `gemengd`. Dit keer is dat GEEN fout: elk antwoord noemt
+zowel zes tot acht échte sterke punten (deskundige monteurs, netjes werken, snelle service) als
+meerdere terugkerende klachten (dezelfde rookgasafvoer, dezelfde gasdruk- en
+gasdichtheidscontrole die ontbreekt, dezelfde afspraak bij een gaslek, dezelfde facturerings- en
+incassoklacht, in bijna elk antwoord opnieuw). Dat is geen instrument dat blind is voor verschil,
+dat is een merk waarbij AI structureel dezelfde combinatie van lof en kritiek naar boven haalt.
+
+Wat het wel blootlegt: `toneScore("gemengd")` is altijd exact 0, of het bezwaar nu één milde
+prijsopmerking is of vijf klachten waaronder een veiligheidsgerelateerd punt. Die twee wegen niet
+even zwaar, en de schaal ziet het verschil niet. Dat is geen fout van deze ronde maar een grens die
+al in `tone.ts` zit sinds het begin (`"Er is geen -1"`). Voor een volgende ronde: het aantal en de
+soort bezwaren laten meewegen in het cijfer, niet alleen in het etiket.
+
+Klein openstaand punt: twee van de vijftien merkbrede vragen en één van de drie vergelijkingen
+leverden niets op, terwijl de kosten met $0,86 ruim onder het budget van €3 bleven. Dus geen
+budgetkwestie meer maar iets aan de kant van OpenAI zelf. Niet dringend, wel iets om te blijven
+volgen.
+
+Sprint R5 hiermee afgerond en geverifieerd.
