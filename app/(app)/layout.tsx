@@ -3,6 +3,7 @@ import { AppShell } from "@/components/app-shell";
 import { ToastProvider } from "@/components/toast";
 import { loadWorkspace } from "@/lib/workspace";
 import { isStaff } from "@/lib/staff";
+import { isSales } from "@/lib/sales/access";
 
 /**
  * Het ingelogde gedeelte van de app.
@@ -24,9 +25,12 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   // Gememoïseerd per request (`lib/staff.ts`), dus dit kost geen extra query
   // bovenop de ownership-checks die de pagina's zelf al doen.
   const staff = await isStaff(user.id);
+  // Ook gememoïseerd (`lib/sales/access.ts`), en bij een beheerder kost hij
+  // helemaal geen query: die is per definitie ook sales.
+  const sales = await isSales(user.id);
   return (
     <ToastProvider>
-      <AppShell user={user} workspace={workspace} staff={staff}>
+      <AppShell user={user} workspace={workspace} staff={staff} sales={sales}>
         {children}
       </AppShell>
     </ToastProvider>

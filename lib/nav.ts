@@ -39,17 +39,56 @@
 
 import type { IcoonNaam } from "@/lib/icons";
 
-/** De vijf klanthoofdstukken plus de afgeschermde groep, in menuvolgorde. */
+/** De vijf klanthoofdstukken plus de twee afgeschermde groepen, in menuvolgorde. */
 export const HOOFDSTUKKEN = [
   "Overzicht",
   "Strategie",
   "Analytics",
   "Merkprofiel",
   "Instellingen",
+  "Sales",
   "Admin",
 ] as const;
 
 export type Hoofdstuk = (typeof HOOFDSTUKKEN)[number];
+
+/**
+ * Hoeveel bestemmingen mag een hoofdstuk hebben?
+ *
+ * ⚠️ **Deze tabel bestaat omdat "hooguit vier" bezig was een algemene grens te
+ * worden** (besluit 24 augustus 2026). De regel van 17 augustus was drie, met
+ * daarna twee uitzonderingen op vier die allebei met argumenten zijn vastgelegd
+ * (Admin op 19 augustus, Analytics op 22 augustus). Elke volgende uitzondering
+ * zou de regel verder oprekken zonder dat iemand het merkt, en dan is de
+ * herindeling binnen een half jaar terug bij af.
+ *
+ * Door de grens in data te zetten in plaats van in een `if` verandert dat: een
+ * uitzondering staat hier met een naam erbij, is te tellen, en `scripts/test-unit.ts`
+ * leest dezelfde tabel. Wie een zesde bestemming wil, verandert een regel die
+ * iedereen ziet in plaats van een getal in een test.
+ *
+ * **Sales staat op vijf, en dat is de derde uitzondering.** De onderbouwing is
+ * van een andere soort dan bij Admin en Analytics: dit is geen klanthoofdstuk.
+ * Het bezwaar van 17 augustus was dat een klant zeven regels zag die naar
+ * vijftien bestemmingen uitklapten, en dat bezwaar bestaat niet bij een sectie
+ * die de klant nooit ziet. De vijf zijn bovendien vijf verschillende soorten
+ * werk (plan §4.1) en geen vergaarbak: wat moet ik vandaag doen, welke kansen
+ * zijn er, welke bedrijven kennen we, welke markten lopen er, en wat is er
+ * verstuurd. Samenvoegen zou er twee in één scherm proppen die niets met elkaar
+ * te maken hebben.
+ *
+ * De klanthoofdstukken blijven op drie. Dát is de regel die overeind moet
+ * blijven, en die is met deze tabel scherper dan eerst.
+ */
+export const GRENS_PER_HOOFDSTUK: Record<Hoofdstuk, number> = {
+  Overzicht: 3,
+  Strategie: 3,
+  Analytics: 4,
+  Merkprofiel: 3,
+  Instellingen: 3,
+  Sales: 5,
+  Admin: 4,
+};
 
 /**
  * Eén icoon per hoofdstuk, en **alleen** per hoofdstuk. Ingeklapt is dit het
@@ -69,7 +108,7 @@ export type Hoofdstuk = (typeof HOOFDSTUKKEN)[number];
  * later dezelfde dag). Ze hebben ze kort wél gehad. Het resultaat was zestien
  * tekeningen in een balk van zestien regels, en dan markeert een icoon niets
  * meer: als alles opvalt, valt niets op. De kop draagt het icoon omdat hij één
- * van de zes vaste plekken in de app aanwijst; de bestemming eronder staat al
+ * van de zeven vaste plekken in de app aanwijst; de bestemming eronder staat al
  * ingesprongen achter een lijn en heeft niets extra's nodig om als kind te
  * lezen. Vandaar dat `NavItem` geen icoonveld heeft: dan kán het ook niet
  * ongemerkt terugkomen.
@@ -80,6 +119,7 @@ export const HOOFDSTUK_ICOON: Record<Hoofdstuk, IcoonNaam> = {
   Analytics: "analytics",
   Merkprofiel: "merkprofiel",
   Instellingen: "instellingen",
+  Sales: "sales",
   Admin: "admin",
 };
 
@@ -95,9 +135,11 @@ export interface NavItem {
    */
   hoofdstuk: Hoofdstuk;
   /**
-   * Alleen voor jou, nooit voor de klant (`docs/ux-design.md`, "Wat de klant
-   * ziet en wat alleen jij ziet"). De zijbalk zet er een klein teken bij, zodat
-   * je nooit per ongeluk tijdens een gedeeld scherm op een interne pagina klikt.
+   * Alleen voor Outer Orbit, nooit voor de klant (`docs/ux-design.md`, "Wat de
+   * klant ziet en wat alleen jij ziet"). De zijbalk zet er een klein teken bij,
+   * zodat je nooit per ongeluk tijdens een gedeeld scherm op een interne pagina
+   * klikt. Geldt voor Admin én voor Sales: een klant mag nooit kunnen zien dat
+   * hij ooit als prospect in het systeem heeft gestaan (plan §4.3).
    */
   staffOnly?: boolean;
 }
@@ -107,7 +149,7 @@ export interface NavHoofdstuk {
   naam: Hoofdstuk;
   icoon: IcoonNaam;
   items: NavItem[];
-  /** De Admin-groep staat onder een scheidingslijn. */
+  /** Sales en Admin staan onder een scheidingslijn: de klant ziet ze nooit. */
   afgeschermd?: boolean;
 }
 
@@ -283,6 +325,49 @@ export function generalNav(staff = false): NavItem[] {
 }
 
 /**
+ * De Sales-sectie: de GEO Prospect Engine, uitsluitend voor Outer Orbit
+ * (`docs/tasks/geo-prospect-engine.md` §4.1).
+ *
+ * ⚠️ **De volgorde is niet willekeurig, en Opportunities staat bewust bóven
+ * Markten.** Sales werkt vanuit kansen en niet vanuit rapporten. Wie de module
+ * opent moet binnen enkele seconden zien wie hij vandaag moet bellen, niet
+ * welke markten er onderzocht zijn. Zet je Markten bovenaan, dan wordt dit een
+ * rapportenkast met een belijst eronder, en dat is precies het oude plan dat
+ * New business heeft teruggestuurd.
+ *
+ * ⚠️ **Dit is geen merk-navigatie.** Alle andere hoofdstukken gaan over één
+ * gekozen merk. Een prospect is per definitie nog geen merk, dus deze
+ * bestemmingen hangen aan de app en niet aan de merkkiezer. Ze blijven daarom
+ * ook staan als er geen merk gekozen is.
+ *
+ * `sales` verbergt de hele groep. Dat is een beleefdheid en geen slot: elke
+ * route eronder geeft een gewone gebruiker nog steeds "pagina bestaat niet", en
+ * de RLS-policies uit migratie 0065 geven hem nul rijen.
+ */
+export function salesNav(sales = false): NavItem[] {
+  if (!sales) return [];
+  return [
+    { href: "/sales", label: "Overzicht", hoofdstuk: "Sales", staffOnly: true },
+    {
+      href: "/sales/opportunities",
+      label: "Opportunities",
+      hoofdstuk: "Sales",
+      staffOnly: true,
+    },
+    { href: "/sales/prospects", label: "Prospects", hoofdstuk: "Sales", staffOnly: true },
+    { href: "/sales/markten", label: "Markten", hoofdstuk: "Sales", staffOnly: true },
+    { href: "/sales/outreach", label: "Outreach", hoofdstuk: "Sales", staffOnly: true },
+  ];
+}
+
+/**
+ * De hoofdstukken die onder de scheidingslijn staan, omdat de klant ze nooit
+ * ziet. Een set en geen vergelijking, zodat er een derde bij kan zonder dat
+ * iemand een `||` over het hoofd ziet.
+ */
+const AFGESCHERMD = new Set<Hoofdstuk>(["Sales", "Admin"]);
+
+/**
  * De platte lijst bestemmingen omgezet in koppen, in de volgorde van
  * `HOOFDSTUKKEN`. Een hoofdstuk zonder bestemmingen valt weg.
  */
@@ -291,7 +376,7 @@ export function hoofdstukken(items: NavItem[]): NavHoofdstuk[] {
     naam,
     icoon: HOOFDSTUK_ICOON[naam],
     items: items.filter((i) => i.hoofdstuk === naam),
-    afgeschermd: naam === "Admin",
+    afgeschermd: AFGESCHERMD.has(naam),
   })).filter((h) => h.items.length > 0);
 }
 

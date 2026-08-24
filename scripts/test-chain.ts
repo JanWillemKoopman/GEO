@@ -3809,6 +3809,232 @@ async function main(): Promise<void> {
       );
     }
 
+    // ══════════════════════════════════════════════════════════════════════
+    console.log("\nDe Sales-module: de scheiding met de klantomgeving (migratie 0065)");
+
+    {
+      // ⚠️ DIT IS DE VERIFICATIE VAN PLAN §4.3, EN HIJ HOORT HIER EN NIET ALLEEN
+      // IN EEN BRONCODECONTROLE.
+      //
+      // Een scherm dat iets niet toont is één wijziging van tonen verwijderd.
+      // Een tabel die RLS niet teruggeeft is dat niet. De belofte luidt: een
+      // klant mag nooit kunnen zien dat hij ooit als prospect met een
+      // opportunityscore in dit systeem heeft gestaan. Die belofte is pas hard
+      // als de database hem draagt, en dat is precies wat hieronder gemeten
+      // wordt met een echte sessie en echte policies.
+      //
+      // Dit is dezelfde opzet als de proef op `ai_calls` en `jobs` hierboven, en
+      // om dezelfde reden: op 12 augustus 2026 bleek dat 23 tabellen een
+      // toegangslaag misten die geen enkele test kon zien, omdat `auth.uid()`
+      // in de stub altijd null gaf.
+      const salesUserId = randomUUID();
+      const salesAdminId = randomUUID();
+      const beheerderId = randomUUID();
+      const klantId = randomUUID();
+      for (const [id, mail] of [
+        [salesUserId, "sales@outerorbit.test"],
+        [salesAdminId, "salesadmin@outerorbit.test"],
+        [beheerderId, "beheer@outerorbit.test"],
+        [klantId, "klant@voorbeeld.test"],
+      ] as const) {
+        await db.client.query("insert into auth.users (id, email) values ($1, $2)", [id, mail]);
+      }
+      await db.client.query("insert into public.sales_users (user_id) values ($1)", [salesUserId]);
+      await db.client.query(
+        "insert into public.sales_users (user_id, is_admin) values ($1, true)",
+        [salesAdminId],
+      );
+      await db.client.query("insert into public.staff_users (user_id) values ($1)", [beheerderId]);
+
+      const marktId = randomUUID();
+      await db.client.query(
+        `insert into public.sales_markets (id, slug, label, industry, location, radius_km, created_by)
+         values ($1, 'makelaar-eindhoven', 'Makelaar Eindhoven', 'makelaar', 'Eindhoven', 15, $2)`,
+        [marktId, salesAdminId],
+      );
+
+      /** Leest een Sales-tabel als `wie`, met echte RLS. Geeft het aantal zichtbare rijen. */
+      async function salesZichtbaarAls(wie: string, tabel: string, kolom: string, waarde: string) {
+        await db.client.query("begin");
+        await db.client.query("set local role authenticated");
+        await db.client.query("select set_config('request.jwt.claim.sub', $1, true)", [wie]);
+        const { rows } = await db.client.query(
+          `select count(*)::int as n from public.${tabel} where ${kolom} = $1`,
+          [waarde],
+        );
+        await db.client.query("commit");
+        return rows[0].n as number;
+      }
+
+      ok(
+        "een salesmedewerker ziet de markt",
+        (await salesZichtbaarAls(salesUserId, "sales_markets", "id", marktId)) === 1,
+      );
+      ok(
+        "een sales admin ook",
+        (await salesZichtbaarAls(salesAdminId, "sales_markets", "id", marktId)) === 1,
+      );
+      // Een beheerder is automatisch ook sales: `is_sales()` roept `is_staff()`
+      // aan. Zonder die regel zou de eigenaar zichzelf eerst in een tweede tabel
+      // moeten zetten om zijn eigen module te kunnen openen.
+      ok(
+        "een beheerder is automatisch ook sales",
+        (await salesZichtbaarAls(beheerderId, "sales_markets", "id", marktId)) === 1,
+      );
+      // ⚠️ DE KERN. Dit getal moet nul zijn en blijven.
+      ok(
+        "een klant ziet de markt niet",
+        (await salesZichtbaarAls(klantId, "sales_markets", "id", marktId)) === 0,
+        "een klant zag een Sales-markt: dit is een lek, geen ontbrekende garantie",
+      );
+
+      const bedrijfId = randomUUID();
+      await db.client.query(
+        `insert into public.sales_companies (id, domain, name) values ($1, 'vanxmakelaars.nl', 'Van X Makelaars')`,
+        [bedrijfId],
+      );
+      await db.client.query(
+        `insert into public.sales_market_companies (market_id, company_id, discovery_sources)
+         values ($1, $2, array['kaartendienst'])`,
+        [marktId, bedrijfId],
+      );
+      ok(
+        "en ook geen bedrijf",
+        (await salesZichtbaarAls(klantId, "sales_companies", "id", bedrijfId)) === 0,
+      );
+      ok(
+        "en geen marktlidmaatschap",
+        (await salesZichtbaarAls(klantId, "sales_market_companies", "company_id", bedrijfId)) === 0,
+      );
+      ok(
+        "terwijl sales ze alle twee wel ziet",
+        (await salesZichtbaarAls(salesUserId, "sales_companies", "id", bedrijfId)) === 1 &&
+          (await salesZichtbaarAls(salesUserId, "sales_market_companies", "company_id", bedrijfId)) === 1,
+      );
+
+      // ⚠️ `sales_users` heeft NUL policies, net als `staff_users` en `jobs`.
+      // Niemand mag uitlezen wie salesmedewerker is, ook een salesmedewerker
+      // zelf niet. Zonder deze regel kan iemand met een klantinlog de
+      // personeelslijst van Outer Orbit ophalen.
+      ok(
+        "niemand kan uitlezen wie salesmedewerker is",
+        (await salesZichtbaarAls(salesUserId, "sales_users", "user_id", salesUserId)) === 0 &&
+          (await salesZichtbaarAls(beheerderId, "sales_users", "user_id", salesUserId)) === 0 &&
+          (await salesZichtbaarAls(klantId, "sales_users", "user_id", salesUserId)) === 0,
+      );
+
+      // ══════════════════════════════════════════════════════════════════════
+      console.log("\nDe Sales-module: wat de database weigert");
+
+      /** Voert iets uit dat hoort te falen, en geeft terug of dat ook gebeurde. */
+      async function weigert(sql: string, params: unknown[] = []): Promise<boolean> {
+        try {
+          await db.client.query(sql, params);
+          return false;
+        } catch {
+          // Een mislukte statement laat de verbinding in een aborted transactie
+          // achter zodra er een `begin` omheen staat. Die staat er hier niet,
+          // maar een rollback kost niets en houdt de rest van de test schoon.
+          await db.client.query("rollback").catch(() => {});
+          return true;
+        }
+      }
+
+      // Het adres van een markt wordt straks het publieke adres. Twee markten
+      // met hetzelfde adres zou betekenen dat de ene pagina de andere overschrijft.
+      ok(
+        "twee markten met hetzelfde adres worden geweigerd",
+        await weigert(
+          `insert into public.sales_markets (slug, label, industry, location)
+           values ('makelaar-eindhoven', 'Nog een keer', 'makelaar', 'Eindhoven')`,
+        ),
+      );
+
+      // Een stand die de code niet kent, mag er niet in. Anders staat er een
+      // markt in een toestand waar geen enkel scherm iets mee kan.
+      ok(
+        "een onbekende stand wordt geweigerd",
+        await weigert(
+          `insert into public.sales_markets (slug, label, industry, location, status)
+           values ('anders-eindhoven', 'Anders', 'anders', 'Eindhoven', 'verzonnen')`,
+        ),
+      );
+
+      // Een straal van nul is geen markt.
+      ok(
+        "een straal van nul wordt geweigerd",
+        await weigert(
+          `insert into public.sales_markets (slug, label, industry, location, radius_km)
+           values ('nul-eindhoven', 'Nul', 'nul', 'Eindhoven', 0)`,
+        ),
+      );
+
+      // Ontdubbelen op domein gebeurt in de database en niet alleen in de code.
+      ok(
+        "hetzelfde webadres twee keer wordt geweigerd",
+        await weigert(
+          `insert into public.sales_companies (domain, name) values ('vanxmakelaars.nl', 'Van X (dubbel)')`,
+        ),
+      );
+
+      // ⚠️ MAAR BEDRIJVEN ZONDER WEBSITE MOETEN ER ALLEMAAL IN KUNNEN. Dat is
+      // hoofdstuk 9 van het plan: als we alleen verzamelen wat online al goed
+      // vindbaar is, missen we precies de bedrijven met het grootste
+      // GEO-probleem. Een gewone unieke kolom zou hier de tweede weigeren,
+      // want in Postgres botsen twee lege waarden niet, maar dat is bij deze
+      // opzet makkelijk mis te gaan. Vandaar de proef.
+      await db.client.query(
+        `insert into public.sales_companies (name) values ('Makelaar zonder site'), ('Nog een zonder site')`,
+      );
+      const { rows: zonderSite } = await db.client.query(
+        `select count(*)::int as n from public.sales_companies where domain is null`,
+      );
+      ok(
+        "twee bedrijven zonder website mogen naast elkaar bestaan",
+        zonderSite[0].n === 2,
+        `${zonderSite[0].n} gevonden`,
+      );
+
+      // Eén bedrijf hoort hooguit één keer in dezelfde markt. Zonder deze regel
+      // levert een tweede marktontdekking dubbele rijen op en telt de meting het
+      // bedrijf twee keer.
+      ok(
+        "hetzelfde bedrijf twee keer in dezelfde markt wordt geweigerd",
+        await weigert(
+          `insert into public.sales_market_companies (market_id, company_id) values ($1, $2)`,
+          [marktId, bedrijfId],
+        ),
+      );
+
+      // ⚠️ POORT 1 HEEFT DRIE STANDEN EN GEEN TWEE (conventie 3). `null` betekent
+      // "de admin heeft er nog niet naar gekeken", en dat is iets anders dan
+      // `false` ("eruit gehaald"). Zonder dat onderscheid is een niet-beoordeelde
+      // lijst niet te onderscheiden van een lijst waar alles is afgekeurd, en
+      // dan kan de goedkeuringspoort niet bestaan.
+      const { rows: lidmaatschap } = await db.client.query(
+        `select included, is_prospect from public.sales_market_companies
+          where market_id = $1 and company_id = $2`,
+        [marktId, bedrijfId],
+      );
+      ok(
+        "een nieuw marktlidmaatschap staat op 'nog niet beoordeeld' en niet op afgekeurd",
+        lidmaatschap[0].included === null,
+        String(lidmaatschap[0].included),
+      );
+      ok("en telt standaard als prospect", lidmaatschap[0].is_prospect === true);
+
+      // De bewaartermijn heeft een startpunt nodig vanaf de eerste rij, anders
+      // valt er over de periode dat hij ontbrak niets terug te rekenen.
+      const { rows: klok } = await db.client.query(
+        `select last_activity_at, anonymised_at, do_not_contact
+           from public.sales_companies where id = $1`,
+        [bedrijfId],
+      );
+      ok("een nieuw bedrijf heeft meteen een klok voor de bewaartermijn", klok[0].last_activity_at !== null);
+      ok("en is nog niet geanonimiseerd", klok[0].anonymised_at === null);
+      ok("en staat niet op 'niet benaderen'", klok[0].do_not_contact === false);
+    }
+
     __setTestAdminClient(null);
     __setTestTransport(null);
     __setTestPlainTransport(null);

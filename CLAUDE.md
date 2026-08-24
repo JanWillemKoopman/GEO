@@ -114,8 +114,8 @@ zet `structured.ts` hem voor de rest van het proces uit in plaats van de taak te
 npm run dev              # localhost:3000
 npm run build            # productiebuild
 npx tsc --noEmit         # typecheck, moet schoon zijn
-npm run test:unit        # 1819 tests, pure functies, geen DB/API-key
-npm run test:chain       # 211 ketentests, echte handlers tegen echte Postgres, geen netwerk
+npm run test:unit        # 2206 tests, pure functies, geen DB en geen API-sleutel
+npm run test:chain       # 310 ketentests, echte handlers tegen echte Postgres, geen netwerk
 npm run test:openai      # rooktest, MAAKT ECHTE BETAALDE CALLS
 npm run eval:mention     # accuratesse mention-classificatie (vereist API-key)
 ```
@@ -173,9 +173,11 @@ app/(app)/merk/[id]/  de merk-werkruimte in vijf hoofdstukken: overzicht, strate
                    (plan, clusters, bibliotheek), analytics (zichtbaarheid, zoekverkeer,
                    concurrenten), merkprofiel (dossier, bewerken, input), admin (staff:
                    onboardingsessie, diagnose, toewijzen)
-app/(app)/         analyses/[id] (clusterdossier in 4 hoofdstukken), instellingen, beheer (CSM)
+app/(app)/         analyses/[id] (clusterdossier in 4 hoofdstukken), instellingen, beheer (CSM),
+                   sales (intern: overzicht, opportunities, prospects, markten, outreach)
 app/(auth)/        login/register (server actions)
-app/api/           analyses · profiles · accounts · invites · cron (worker/tracking/reminders/plan) · health
+app/api/           analyses · profiles · accounts · invites · sales · cron (worker,
+                   tracking, reminders, plan) · health
 components/        gedeelde UI-primitieven (kaarten, chips, rail, skeletons)
 lib/pipeline/      elke pijplijnstap: onboarding (discover → offering → topics → markt →
                    kennistest → synthese) → meting → rapport → content → impact.
@@ -191,9 +193,11 @@ lib/engines/       enginelaag: types, openai, gemini (slapend), registry
 lib/search-console/ Google Search Console-koppeling: auth, property, sync, meetvenster
 lib/entities/      merknaam-normalisatie en -matching
 lib/schemas/       Zod-contracten      lib/stats/  onzekerheidsmarges
-lib/audit/         robots.txt / AI-crawlertoegang + entiteitsconsistentie
+lib/sales/         de Sales-module (intern, klanten zien er niets van): rechten,
+                   marktdefinitie, bewaartermijn
+lib/audit/         robots.txt en AI-crawlertoegang plus entiteitsconsistentie
 lib/offsite/       off-site aanwezigheid     lib/archive.ts  wat zichtbaar is in de app
-supabase/migrations/  0001-0061 (0033 gereserveerd, nooit gedraaid, vervangen door 0039)
+supabase/migrations/  0001-0065 (0033 gereserveerd, nooit gedraaid, vervangen door 0039)
 scripts/           test-unit · test-chain · test-openai · eval-mention
 ```
 

@@ -205,7 +205,7 @@ Sinds besluit 1 (`docs/logbook.md`, het inmiddels verwijderde `Nova.md` §0) is 
 past horizontaal niet zonder scheidingstekens die niets betekenen, en verticaal is het één
 tussenkopje. Vandaar een **zijbalk** (`components/sidebar.tsx`).
 
-**Vijf hoofdstukken, elk met hooguit drie kinderen** (besluit 1 tot en met 8 van 17 augustus 2026).
+**Vijf klanthoofdstukken, elk met hooguit drie kinderen** (besluit 1 tot en met 8 van 17 augustus 2026).
 ⚠️ **Admin mag er sinds 19 augustus 2026 vier**, bij het toevoegen van de onboardingsessie: drie
 ervan gaan over dít merk (Onboarding, Diagnose, Toewijzen) en de vierde, "Alle merken", is de uitgang
 naar de app als geheel. Dat is geen vergaarbak van vier gelijksoortige regels maar drie plus een
@@ -217,10 +217,22 @@ Zichtbaarheid, Zoekverkeer en Concurrenten komen alle drie uit werk dat toch al 
 maandelijkse meting, de Search Console-koppeling en de aggregatie. Een reputatieanalyse draait niet
 mee in die cyclus: hij wordt per keer gestart, per keer betaald en per keer gedateerd. Drie plus een
 product, zoals Admin drie plus een uitgang is.
-Voor beide hoofdstukken geldt vanaf nu: een **vijfde** bestaat niet zonder eerst iets samen te
-voegen, en dat is geen stijlregel meer maar een grens. De overige klanthoofdstukken blijven op drie.
-`scripts/test-unit.ts` bewaakt alle drie de grenzen, inclusief dat er niet stilletjes een derde
-hoofdstuk bij komt dat er vier mag.
+⚠️ **En Sales mag er sinds 24 augustus 2026 vijf**, bij het toevoegen van de GEO Prospect Engine.
+De onderbouwing is van een ándere soort dan bij Admin en Analytics, en dat is precies het punt: **dit
+is geen klanthoofdstuk.** Het bezwaar van 17 augustus ging over wat een klant te zien krijgt, zeven
+regels die naar vijftien bestemmingen uitklapten, en dat bezwaar bestaat niet bij een sectie die de
+klant nooit ziet. De vijf zijn bovendien vijf verschillende soorten werk en geen vergaarbak: wat moet
+ik vandaag doen, welke kansen zijn er, welke bedrijven kennen we, welke markten lopen er, en wat is
+er verstuurd. Samenvoegen zou er twee in één scherm proppen die niets met elkaar te maken hebben.
+
+**De grens staat sindsdien in data en niet in een `if`.** `GRENS_PER_HOOFDSTUK` in `lib/nav.ts`
+noemt hem per hoofdstuk, en `scripts/test-unit.ts` leest diezelfde tabel. Dat is geen gemak: het
+zorgt dat een uitzondering op één plek staat, met een naam en een reden erbij, in plaats van als een
+getal in een test dat niemand tegenkomt. Zonder die verandering was "hooguit vier" binnen een half
+jaar de norm voor elk hoofdstuk geworden, en dan is de herindeling van 17 augustus terug bij af.
+
+**De klanthoofdstukken blijven op drie, met Analytics als enige uitzondering op vier.** Dát is de
+regel die overeind moet blijven, en de test bewaakt hem apart van de rest.
 Daarvoor waren het 7 regels die uitklapten naar 15 bestemmingen, waarvan er negen onder één kop
 hingen die het commentaar in `lib/nav.ts` zelf al "de vergaarbak die dit oplost alleen verticaal"
 noemde. Elk hoofdstuk beantwoordt nu één vraag:
@@ -232,7 +244,14 @@ noemde. Elk hoofdstuk beantwoordt nu één vraag:
 | Analytics | Wat zeggen de cijfers, en waarom? | Zichtbaarheid in AI, Zoekverkeer, Concurrenten, Mijn reputatie |
 | Merkprofiel | Wie ben ik volgens ORBIT ENGINE, en klopt dat? | Merkdossier, Bewerken, Vraagt jouw input |
 | Instellingen | Hoe is het ingericht? | Account en team, Koppelingen |
+| Sales | (alleen Outer Orbit, onder een scheidingslijn) | Overzicht, Opportunities, Prospects, Markten, Outreach |
 | Admin | (alleen beheerders, onder een scheidingslijn) | Onboarding, Diagnose, Toewijzen, Alle merken |
+
+⚠️ **Sales hangt niet aan een merk.** Alle andere hoofdstukken gaan over het gekozen merk; een
+prospect ís nog geen merk. Deze groep blijft daarom staan als er geen merk gekozen is, en dat is
+precies de stand waarin een salesmedewerker binnenkomt. En binnen de groep staat **Opportunities
+bóven Markten**: sales werkt vanuit kansen en niet vanuit rapporten. Zie
+[`tasks/geo-prospect-engine.md`](tasks/geo-prospect-engine.md) §4 en §5.
 
 ⚠️ **Strategie staat vóór Analytics, en dat is geen smaak.** Wie inlogt wil weten wat hij moet doen,
 niet browsen in data. Overzicht draagt het hoofdcijfer al, Analytics is verdieping en Strategie is
@@ -244,12 +263,12 @@ zijn vier bestemmingen om dezelfde reden zo.
 erger dan een kop die er nog niet is: de eerste kost vertrouwen in de hele balk.
 
 **Er valt niets uit te klappen.** Het uitklappen was er voor die ene kop met negen kinderen. Met
-hooguit drie per hoofdstuk passen alle bestemmingen tegelijk in beeld, en dan is een klapknop een
+hooguit vijf per hoofdstuk passen alle bestemmingen tegelijk in beeld, en dan is een klapknop een
 klik die niets oplevert. Ingeklapt (64px) blijft alleen het icoon van het hoofdstuk over, en dat
 linkt naar zijn eerste bestemming.
 
-**Alleen de kop draagt een icoon** (21 augustus 2026). De zes hoofdstukken hebben er een, op 18
-pixels; de bestemmingen eronder niet. Zo blijft het icoon zeggen "dit is een van de zes vaste
+**Alleen de kop draagt een icoon** (21 augustus 2026). De zeven hoofdstukken hebben er een, op 18
+pixels; de bestemmingen eronder niet. Zo blijft het icoon zeggen "dit is een van de zeven vaste
 plekken in de app" in plaats van alleen "hier staat een regel". De koppen droegen hiervoor de tekens
 ◉ ▣ ▲ ◆ ⚙ ◈, die op elk apparaat een andere vorm hadden; welke tekening bij welk hoofdstuk hoort
 staat nu in `lib/icons.ts`, de vormregels in `designsystem.md` §6b.

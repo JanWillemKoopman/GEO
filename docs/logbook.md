@@ -4198,3 +4198,62 @@ prijsopmerking en een antwoord met vijf klachten waaronder een veiligheidsgerela
 zou het aantal en de soort bezwaren laten meewegen in het cijfer zelf, niet alleen in het etiket.
 
 Migraties t/m `0064` op productie, 2100 unittests en 290 ketentests groen.
+
+## 24 augustus 2026: de Sales-module, sprint 1 van zeven
+
+Het fundament van de GEO Prospect Engine staat: de rol, de markt en het bedrijf. Het plan zelf staat
+in `docs/tasks/geo-prospect-engine.md`; hier alleen wat er bij het bouwen is besloten en waarom.
+
+**Drie rollen in plaats van twee, en de beheerder blijft de breedste.** `sales_users` komt naast
+`staff_users`, met dezelfde opzet: RLS aan, nul policies, rijen komen er alleen via het
+Supabase-dashboard in. Een beheerder is automatisch ook sales admin, andersom niet. Dat scheelt een
+openstaande beslissing: de vraag "wie krijgt de rol sales admin" (24.4 punt 4 van het plan) blokkeerde
+sprint 1 op papier, maar de eigenaar kan de module nu openen zonder dat er ook maar één rij in
+`sales_users` staat. De vraag knelt pas bij de eerste salesmedewerker die geen beheerder is.
+
+**De scheiding met de klantomgeving staat op drie plekken, niet op één.** Dat is bewust
+overgedimensioneerd voor één sectie, en de reden is dat dit de enige plek in de app is met gegevens
+over bedrijven die geen klant zijn en er niet om gevraagd hebben. De database geeft een klant nul
+rijen (RLS met `is_sales()`), de route geeft hem "pagina bestaat niet" en geen "geen toegang", en
+een broncodecontrole in `scripts/test-unit.ts` houdt vast dat geen enkel klantscherm een
+Sales-tabel leest. Alleen de gedeelde app-layout importeert uit de Sales-laag, en precies om de kop
+te kunnen verbergen. Die uitzondering staat met naam in de test, zodat er geen tweede bij kan komen
+zonder dat iemand het merkt.
+
+**Drie keuzes waar het plan iets anders voorschreef, alle drie omdat de letterlijke lezing iets
+kapot zou maken.**
+
+1. **`sales_companies.domain` is nullable geworden.** Het plan noemt hem uniek en verplicht. Maar een
+   bedrijf zonder website is juist de prospect waar deze module naar zoekt: aantoonbaar bestaand en
+   volledig onzichtbaar. Een verplichte kolom zou precies die groep bij de marktontdekking
+   weggooien, en dat is hetzelfde AI-vooroordeel dat hoofdstuk 9 van het plan nou juist wegneemt.
+   De uniciteit zit nu in een gedeeltelijke index.
+2. **`sales_market_companies.included` heeft drie standen.** `null` is "de admin heeft er nog niet
+   naar gekeken" en `false` is "eruit gehaald". Met twee standen is een niet-beoordeelde lijst niet
+   te onderscheiden van een lijst waar alles is afgekeurd, en dan kan goedkeuringspoort 1 niet
+   bestaan. Conventie 3, en hier met een gevolg: de poort is de duurste fout die deze module kan
+   voorkomen.
+3. **`standaardLabel()` maakt geen meervoud.** Het plan schrijft "Makelaars Eindhoven" en dat leest
+   prettiger, maar automatisch vermeervoudigen is in het Nederlands een gok: makelaar wordt makelaars
+   en architect wordt architecten. Het voorstel luidt nu "Makelaar Eindhoven" en is aan te passen.
+
+**De zijbalk kreeg een zevende kop, en daarmee een grens die in data staat.** De regel van 17
+augustus was drie bestemmingen per hoofdstuk, met sindsdien twee onderbouwde uitzonderingen op vier
+(Admin, Analytics). Sales heeft er vijf. In plaats van de derde uitzondering in een `if` te verwerken
+staat de grens nu per hoofdstuk in `GRENS_PER_HOOFDSTUK`, en leest de test diezelfde tabel. Het
+verschil is niet gemak: een uitzondering staat nu op één plek met een naam en een reden erbij, en de
+klanthoofdstukken staan er expliciet op drie in plaats van dat "hooguit vier" langzaam de norm wordt.
+De onderbouwing voor Sales is van een andere soort dan bij de andere twee, en dat is het punt: het
+bezwaar van 17 augustus ging over wat een klant te zien krijgt, en de klant ziet deze groep nooit.
+
+**Twee fouten in het plan zelf gecorrigeerd.** Sprint 1 en sprint 2 hadden allebei migratienummer
+`0065`, wat niet kan zodra de eerste op productie draait; sprint 2 krijgt `0066` en de rest schuift
+mee. En de uitsluitingen uit 9.5 stonden in de migratie van sprint 5 terwijl sprint 2 ze gebruikt,
+drie sprints te laat. Daarnaast spraken drie plekken nog van zeven opportunitytypes terwijl er acht
+zijn; dat is een restant van voordat type 8 (verlies) werd toegevoegd.
+
+**Wat er nog niet is, en dat hoort zo.** Er wordt niets ontdekt, niets gemeten en niets geschreven.
+Een markt aanmaken kost dus ook niets, en er zit daarom geen budgetcontrole op die route: een rem op
+een handeling die niets kost, wekt de indruk dat er iets in gang wordt gezet.
+
+Migratie `0065` op productie, 2206 unittests en 310 ketentests groen.

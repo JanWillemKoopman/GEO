@@ -252,7 +252,7 @@ korter dan hun marketingsite, en 0,3s voelt in een dashboard traag.
 via `lucide-react`. De keuze per betekenis staat in `lib/icons.ts` (27 betekenissen), het omhulsel
 dat maat en lijndikte vastzet in `components/icon.tsx`.
 
-⚠️ **Waar een icoon wél en niet komt.** De zes hoofdstukken van de zijbalk hebben er een, de
+⚠️ **Waar een icoon wél en niet komt.** De zeven hoofdstukken van de zijbalk hebben er een, de
 bestemmingen eronder niet. Dat is dezelfde dag nog bijgesteld: ze hebben ze een halve dag wél gehad,
 en zestien tekeningen in een balk van zestien regels markeren niets meer. Zie §6b.3, regel 4.
 
@@ -293,7 +293,7 @@ tegenovergestelde van §15.1 van `merkstrategie.md`: precies, rustig, premium.
 3. **De naam is de betekenis, niet de tekening.** `strategie`, niet `waypoints`. Verandert de
    tekening, dan is dat één regel in `lib/icons.ts`.
 4. **In de zijbalk draagt alleen de kop een icoon.** De bestemmingen eronder niet. Het icoon van de
-   kop moet het verschil dragen tussen "dit is een van de zes vaste plekken in de app" en "dit is
+   kop moet het verschil dragen tussen "dit is een van de zeven vaste plekken in de app" en "dit is
    een pagina daarbinnen", en dat verschil verdwijnt zodra beide er een hebben: als alles opvalt,
    valt niets op. De bestemming staat al ingesprongen achter een lijn, en dat zegt genoeg.
    `NavItem` in `lib/nav.ts` heeft daarom geen icoonveld, en `scripts/test-unit.ts` bewaakt dat.

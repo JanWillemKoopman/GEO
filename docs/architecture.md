@@ -14,6 +14,9 @@ Voor UI/UX: `ux-design.md`.
 > `docs/logbook.md`. De tweede run draaide op de herziene opzet: de open marktvraag in plaats van de
 > benoemde vergelijking als hoofdmechanisme, drie herhalingen op de merkbrede vragen, en de
 > verdeling naast het gemiddelde.
+> **Bijgewerkt op 24 augustus 2026** voor sprint 1 van de Sales-module (migratie `0065`):
+> §2 (de derde en vierde rol), §3 (de vier Sales-tabellen) en §12. Die module is intern en de
+> klant ziet er niets van; de scheiding staat in de database en niet alleen in de schermen.
 > De rest van de peildatum hieronder blijft staan.
 > **Migraties `0058` en `0059` zijn er sindsdien bijgekomen** en staan wél in §12 en in dit
 > document verwerkt, maar de rest is niet opnieuw regel voor regel nagelopen. Verder geldt:
@@ -82,6 +85,36 @@ Daarom pg_cron.
 - **Registratie:** twee lagen, Supabase "Allow new users to sign up" (harde poort, ook tegen
   directe API-aanroepen) en `SIGNUPS_ENABLED` in de app (verbergt UI, blokkeert de server action).
 
+### Vier rollen sinds de Sales-module (migratie `0065`)
+
+Tot 24 augustus 2026 kende de app er twee: klant, en beheerder via `staff_users`. Dat is te grof
+zodra er een interne acquisitiemodule bij komt, en wel twee kanten op. Een salesmedewerker moet bij
+de opportunities kunnen, maar hoort niet ongevraagd in het merkdossier van een bestaande klant te
+kunnen kijken. En een marktanalyse starten kost geld en kan tot een publieke pagina leiden, dus dat
+hoort niet iedereen met een Sales-inlog te mogen.
+
+| Rol | Tabel | Ziet | Mag |
+|---|---|---|---|
+| Klant | `profiles.user_id` plus zijn account | alleen het eigen merk | niets in Sales |
+| Sales | `sales_users` | de hele Sales-sectie | opportunities bekijken, toewijzen, status wijzigen |
+| Sales admin | `sales_users.is_admin` | idem | plus wat geld kost of naar buiten gaat |
+| Beheerder | `staff_users` | alles, ook de klantomgeving | alles |
+
+Een beheerder is automatisch ook sales admin; andersom niet. Dat staat op twee plekken en die geven
+hetzelfde antwoord: `is_sales()` in de database roept `is_staff()` aan, en `lib/sales/access.ts`
+doet hetzelfde op de server. Zouden ze uiteenlopen, dan ziet iemand een knop die de database weigert.
+
+De scheiding met de klantomgeving staat op drie plekken, en dat is hier terecht: dit is de enige
+plek in de app met gegevens over bedrijven die geen klant zijn en er niet om gevraagd hebben.
+
+1. **De database.** RLS op de drie datatabellen, één selectpolicy, en die vraagt `is_sales()`.
+   `sales_users` zelf heeft nul policies, net als `staff_users` en `jobs`.
+2. **De route.** `app/(app)/sales/layout.tsx` geeft 404 en geen 403 aan wie er niet bij hoort. Een
+   403 bevestigt dat het scherm bestaat.
+3. **De broncodecontrole.** `scripts/test-unit.ts` dwingt af dat geen enkel klantscherm een
+   Sales-tabel leest, dat alleen de gedeelde shell de Sales-laag importeert (om de kop te kunnen
+   verbergen), en dat elke Sales-schrijfroute zijn eigen rechtencontrole heeft.
+
 ### Betaald werk: twee onafhankelijke remmen
 
 Elf routes zetten werk in gang dat geld kost. Ze stellen allemaal dezelfde twee vragen, in deze
@@ -137,6 +170,19 @@ probleem dan een dollar.
 | `reputation_ranks` | Eén rij per partij per criterium per vergelijking. De enige tabel met een rij per partij, want dit is het enige onderdeel waarin de klant niet alleen op zichzelf beoordeeld wordt. ⚠️ `of_parties` staat per rij en niet per run: kende het model bij prijs-kwaliteit maar drie van de vier partijen, dan is een tweede plaats daar iets anders waard. |
 | `reputation_offering_scores` | De uitkomst per aanbodknoop. `offering_name` staat naast `offering_id`, want een herhaalonderzoek kan de aanbodboom herschrijven en dan wijst het id nergens meer heen. |
 | `reputation_sources` | Waar AI zijn beeld vandaan haalt: domein, soort, aantal citaties, en bij reviewplatforms het cijfer met `verified`. ⚠️ `verified` gaat alleen op `true` als de eigen crawler de pagina ophaalde en er JSON-LD met `aggregateRating` op stond; een cijfer uit een AI-antwoord is een gok tot het bewezen is. |
+
+**De Sales-module (migratie `0065`).** Vier tabellen die de klantomgeving nergens raken. Ze staan
+bewust apart in deze tabel: een klant mag nooit kunnen zien dat hij ooit als prospect in het systeem
+heeft gestaan (zie §2).
+
+| Tabel | Wat het is |
+|---|---|
+| `sales_users` | Wie bij de Sales-module mag, met `is_admin` voor wat geld kost. RLS aan, nul policies, net als `staff_users`: rijen komen er alleen via het Supabase-dashboard in. |
+| `sales_markets` | Een onderzochte markt: branche plus plaats plus straal, met een `slug` die straks ook het publieke adres is. Permanent en herhaald gemeten; de meetrondes zelf komen in een latere migratie. Zes standen, met een check-constraint en geen enum, want de lijst groeit nog. |
+| `sales_companies` | Een bedrijf, over markten heen, ontdubbeld op genormaliseerd domein. ⚠️ `domain` is nullable met een gedeeltelijke unieke index: een bedrijf zonder website is juist de prospect die deze module zoekt. ⚠️ `last_activity_at` en `anonymised_at` dragen de bewaartermijn van twaalf maanden; de rekenkunde staat puur in `lib/sales/retention.ts`. `do_not_contact` is absoluut en geldt over alle markten. |
+| `sales_market_companies` | Hoort dit bedrijf in deze markt? Draagt de vindplaatsen en de zekerheid. ⚠️ `included` heeft drie standen: `null` (nog niet beoordeeld), `true` en `false`. Zonder dat onderscheid is een niet-beoordeelde lijst niet te scheiden van een afgekeurde, en dan kan de goedkeuringspoort niet bestaan. |
+
+Volledig ontwerp en de zes sprints die hierop volgen: [`tasks/geo-prospect-engine.md`](tasks/geo-prospect-engine.md).
 
 **Alles bewaren.** Elke AI-call slaat zijn volledige ruwe JSON op (`raw_json`/`mention_json`/
 `source_raw_json`) náást de uitgesplitste kolommen.
@@ -699,7 +745,7 @@ Bewust **niet** in RLS: dat zou een gearchiveerd merk ook voor de eigenaar onber
 
 ## 12. Migraties
 
-`0001` t/m `0060`, alle toegepast op productie behalve `0033` (gereserveerd voor R6.2, nooit
+`0001` t/m `0065`, alle toegepast op productie behalve `0033` (gereserveerd voor R6.2, nooit
 gedraaid, de reservering verviel toen `0039` de inventariskwaliteit fase 0 van de nieuwe
 onboarding maakte; een gereserveerd nummer dat nooit draaide blokkeert niets).
 

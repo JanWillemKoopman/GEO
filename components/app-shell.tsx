@@ -25,12 +25,15 @@ export function AppShell({
   user,
   workspace,
   staff,
+  sales,
   children,
 }: {
   user: User;
   workspace: Workspace;
   /** Beheerder? Dan staat het CSM-paneel in de zijbalk (fase 8). */
   staff: boolean;
+  /** Salesmedewerker? Dan staat de Sales-sectie in de zijbalk (plan §4.1). */
+  sales: boolean;
   children: React.ReactNode;
 }) {
   return (
@@ -38,6 +41,7 @@ export function AppShell({
       brands={workspace.brands}
       activeBrand={workspace.active}
       staff={staff}
+      sales={sales}
       onSelectBrand={selectBrand}
       logo={
         // Het woordmerk gaat naar het overzicht van het merk waar je in zit, en
