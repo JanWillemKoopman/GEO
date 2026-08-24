@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { PasswordResetRequestForm } from "../password-forms";
+import { AuthBackground } from "../auth-background";
 
 export const metadata = { title: "Wachtwoord vergeten" };
 
@@ -12,6 +13,7 @@ export default async function WachtwoordVergetenPage({
 
   return (
     <>
+      <AuthBackground />
       <h1 className="mb-1 text-xl font-bold">Wachtwoord vergeten</h1>
       {verlopen && (
         <p

@@ -1,4 +1,5 @@
 import { AuthForm } from "../auth-form";
+import { AuthBackground } from "../auth-background";
 import { signIn } from "../actions";
 import { signupsEnabled } from "@/lib/config";
 
@@ -20,6 +21,7 @@ export default async function LoginPage({
 
   return (
     <>
+      <AuthBackground />
       <h1 className="mb-1 text-xl font-bold">Inloggen</h1>
       <p className="mb-6 text-sm text-secondary">Welkom terug. ORBIT ENGINE heeft doorgewerkt.</p>
       <AuthForm mode="login" action={signIn} notice={notice} signupsEnabled={signupsEnabled} />
