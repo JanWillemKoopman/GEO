@@ -274,7 +274,8 @@ import {
 } from "@/lib/spend-rules";
 import { EDITABLE_ACCOUNT_FIELDS } from "@/lib/account-editable";
 import { checkNewEmail, checkNewPassword } from "@/lib/account-security";
-import { opportunities, shareLabel } from "@/lib/opportunities";
+import { opportunities, reachLabel } from "@/lib/opportunities";
+import { leesbaarWaarom } from "@/lib/recommendation-text";
 import { insights } from "@/lib/insights";
 import { normalizeProperty } from "@/lib/search-console/property";
 import { syncWindow, heeftWerk, EERSTE_RONDE_DAGEN } from "@/lib/search-console/window";
@@ -5951,12 +5952,13 @@ group("opportunities: één lijst, gesorteerd op wat het oplevert", () => {
   ok("de grootste kans staat bovenaan", lijst[0].title === "Groot");
   ok("de gewichten worden opgeteld", lijst[0].share === 0.30000000000000004 || Math.abs((lijst[0].share ?? 0) - 0.3) < 1e-9);
 
-  // ⚠️ Conventie 3: geen gewichten betekent geen getal, niet nul. Nul zou zeggen
-  // dat er niets te winnen valt, en dat is iets anders dan "we weten het niet".
+  // ⚠️ Conventie 3: geen doelvragen betekent geen getal, niet nul. Nul zou
+  // zeggen dat er niets te winnen valt, en dat is iets anders dan "we weten het
+  // niet".
   const onbekend = lijst.find((o) => o.title === "Onbekend")!;
-  ok("zonder gewichten geen getal", onbekend.share === null);
-  ok("en dus ook geen percentage op het scherm", shareLabel(onbekend.share) === null);
-  ok("een klein aandeel wordt niet naar nul afgerond", shareLabel(0.004) === "minder dan 1% van de gemeten vragen");
+  ok("zonder doelvragen geen getal", onbekend.raakt === null && onbekend.share === null);
+  ok("en dus ook geen tekst op het scherm", reachLabel(onbekend.raakt, onbekend.gemeten) === null);
+  ok("het aantal doelvragen wordt geteld", lijst[0].raakt === 2);
 
   // ⚠️ De belangrijkste regel van deze module: zolang een AI-assistent de site
   // niet kan lezen, levert élke geschreven pagina niets op. Een lijst die dat
@@ -5981,6 +5983,69 @@ group("opportunities: één lijst, gesorteerd op wat het oplevert", () => {
     lijst.some((o) => o.source === "onderwerp" && o.title.includes("Auto leasen")),
   );
   ok("elke kans heeft één handeling", lijst.every((o) => o.action.length > 0));
+});
+
+group("reachLabel: een telling, geen percentage dat boven de 100 uitkomt", () => {
+  // ⚠️ DE ECHTE FOUT VAN PRODUCTIE, 24 augustus 2026. Hier stond `shareLabel`,
+  // en die rekende met de SOM van de bevroren gewichten. Een gewicht is
+  // volumeband × koopwaarde per vraag, 0,02 tot 1,0
+  // (`lib/pipeline/prompt-weight.ts`), dus vier koopklare vragen tellen op tot
+  // 2,4. Op het overzicht van Van den Udenhout stond daardoor letterlijk "240%
+  // van de gemeten vragen", naast een zichtbaarheid van 0%. Een percentage
+  // boven de honderd is geen afrondingskwestie maar een cijfer dat niet kan
+  // kloppen, en het is precies het soort getal dat een klant terugvraagt.
+  ok("teller en noemer, allebei geteld", reachLabel(4, 30) === "raakt 4 van de 30 gemeten vragen");
+  // ⚠️ Met een noemer erbij blijft het meervoud: het zelfstandig naamwoord hoort
+  // bij de noemer. "1 van de 30 gemeten vraag" is geen Nederlands.
+  ok("met noemer blijft het meervoud", reachLabel(1, 30) === "raakt 1 van de 30 gemeten vragen");
+  ok("zonder noemer wél enkelvoud", reachLabel(1, null) === "raakt 1 gemeten vraag");
+  ok("zonder noemer alleen de teller", reachLabel(4, null) === "raakt 4 gemeten vragen");
+  ok("niets te tellen levert niets op", reachLabel(null, 30) === null);
+  ok("nul doelvragen is ook niets", reachLabel(0, 30) === null);
+
+  // Meer doelvragen dan gemeten vragen kan niet. Gebeurt het tóch (een rapport
+  // van een oudere, bredere meting), dan is de noemer de onbetrouwbare helft en
+  // valt hij weg. Nooit "raakt 8 van de 5".
+  ok("een onmogelijke noemer valt weg", reachLabel(8, 5) === "raakt 8 gemeten vragen");
+});
+
+group("leesbaarWaarom: onze notatie hoort niet op het scherm van de klant", () => {
+  // ⚠️ ALLE ZES DE AANBEVELINGEN HIERONDER KOMEN LETTERLIJK VAN PRODUCTIE
+  // (Van den Udenhout, augustus 2026). Vijf van de zes begonnen met een zin
+  // waarin onze vraagcodes en gewichten stonden, en die stond zo op het
+  // overzichtsscherm van de klant. `docs/ux-design.md` §1: geen jargon.
+  const echt = [
+    "Dit is de belangrijkste gemiste groep vragen: V1 en V2 hebben gewicht 0,60. De bestaande financieringspagina is inhoudelijk het meest geschikt, maar moet duidelijk uitleggen wanneer financieren voordelig is.",
+    "Er is volgens het site-aanbod geen eigen pagina voor leaseacties. Daardoor kan een assistent deze dienst moeilijk als zelfstandig aanbod herkennen. Combineer acties met een eenvoudige uitleg van kopen, financieren en private lease; dit ondersteunt vooral V2 en ook de keuzevragen V8 en V9.",
+    "V3 en V4 behoren tot de zwaarste vragen, beide met gewicht 0,60. Een aparte, praktische uitleg maakt het merk zichtbaar op precies de vragen die een occasionkoper stelt.",
+    "V5 is een belangrijke lokale koopvraag met gewicht 0,50. V12 is een aanvullende lokale vraag met gewicht 0,30. Maak per plaats duidelijk welke vestiging helpt en hoe iemand een afspraak maakt.",
+    "V6 is een koopgerichte vraag met gewicht 0,50. Een eenvoudige rekentool met voorbeeldbedragen maakt de pagina bruikbaarder dan alleen algemene informatie.",
+    "V7 heeft gewicht 0,50 en is sterk koopklaar. Beschrijf stap voor stap de aanvraag, de benodigde documenten en de vervolgstappen.",
+  ];
+  for (const tekst of echt) {
+    const schoon = leesbaarWaarom(tekst) ?? "";
+    ok(
+      `geen vraagcode meer in "${tekst.slice(0, 28)}…"`,
+      schoon.length > 0 && !/\bV\d/.test(schoon),
+    );
+    ok(`en geen gewicht meer in "${tekst.slice(0, 28)}…"`, !/gewicht/i.test(schoon));
+  }
+
+  // ⚠️ De staartclausule achter een puntkomma wordt geknipt in plaats van de
+  // hele zin geschrapt: daar draagt de kop van de zin de enige bruikbare raad
+  // die de aanbeveling geeft.
+  const geknipt = leesbaarWaarom(echt[1]) ?? "";
+  ok("de raad achter de puntkomma blijft staan", geknipt.includes("Combineer acties"));
+  ok("en eindigt netjes op een punt", geknipt.endsWith("."));
+
+  // Blijft er niets over, dan liever niets dan een half afgebroken zin
+  // (conventie 3).
+  ok("alles weg levert null op", leesbaarWaarom("V1 heeft gewicht 0,60.") === null);
+  ok("leeg blijft leeg", leesbaarWaarom("") === null && leesbaarWaarom(null) === null);
+
+  // Een gewone toelichting blijft ongemoeid, ook als er een V in een woord zit.
+  const gewoon = "Maak per plaats duidelijk welke vestiging helpt. Volvo en Volkswagen horen erbij.";
+  ok("gewone tekst blijft heel", leesbaarWaarom(gewoon) === gewoon);
 });
 
 group("opportunities: de potentiescore wint van share (fase 2, docs/tasks/potentiescore.md)", () => {
@@ -6012,7 +6077,17 @@ group("opportunities: de potentiescore wint van share (fase 2, docs/tasks/potent
     lijst[1].title === "Groot gewicht, lage potentie",
   );
   ok("de kans zonder potentiescore staat als laatste", lijst[2].title === "Geen potentiescore");
-  ok("en heeft wel nog gewoon een share", lijst[2].share === 0.2);
+  ok("en heeft wel nog gewoon een share als sorteersleutel", lijst[2].share === 0.2);
+
+  // De noemer komt van de aanroeper (`loadLoop`), want hij vergt een query.
+  const metNoemer = opportunities({
+    ...basis,
+    recommendations: [{ title: "Met noemer", why: "x", targets: [{ weight: 0.4 }], measured: 30 }],
+  });
+  ok(
+    "de noemer komt mee op de kans",
+    metNoemer[0].raakt === 1 && metNoemer[0].gemeten === 30,
+  );
 
   // Zonder ENIGE potentiescore blijft de oude sortering op `share` intact.
   const zonderPotentie = opportunities({
@@ -6082,6 +6157,24 @@ group("insights: drie zinnen, en de ruis is de hoofdregel", () => {
   });
   ok("zonder meting nog steeds drie zinnen", leeg.length === 3);
   ok("maar geen conclusie", leeg[0].text.includes("nog geen meting"));
+
+  // ⚠️ Bij de EERSTE meting staat het cijfer er bewust niet in. Deze zin staat
+  // in de stand-kaart, direct onder het hoofdcijfer zelf; er stond "de eerste
+  // meting staat op 0 van de 100" pal onder een kaart met 0%. Hetzelfde getal,
+  // twee schalen (`docs/ux-design.md` §1: één hoofdgetal).
+  const eerste = insights({
+    scores: [{ period: 0, score: 42, stderr: 5 }],
+    gepubliceerdDezeMaand: 0,
+    klaarOmTePubliceren: 0,
+    openKansen: 3,
+    crawlerBlocked: false,
+  });
+  ok("de eerste meting noemt het cijfer niet nog een keer", !eerste[0].text.includes("42"));
+  ok("maar zegt wel wat het is", eerste[0].text.includes("eerste meting"));
+
+  // Bij twee metingen gaat de zin over het VERSCHIL, en dan zijn de cijfers
+  // juist wél nieuwe informatie.
+  ok("bij een vergelijking blijven de cijfers staan", ruis[0].text.includes("36"));
 
   // De goedkoopste stap krijgt voorrang boven de kansenlijst.
   const wachtOpPublicatie = insights({
@@ -7602,6 +7695,34 @@ group("één meetronde is één regel, geen dertig", () => {
   ok(
     "een onbekende taaksoort valt weg in plaats van als sleutel te verschijnen",
     activiteit([{ type: "iets_nieuws", finished_at: "2026-08-17T12:00:00Z" }]).length === 0,
+  );
+});
+
+group("het overzicht: één hoofdgetal en een chip die de soort werk volgt", () => {
+  // ⚠️ BRONCODECONTROLE, om dezelfde reden als de klantschermcontrole hieronder:
+  // een handmatige doorloop gebeurt één keer, het risico ontstaat bij de
+  // volgende wijziging.
+  const overzicht = readFileSync("app/(app)/merk/[id]/page.tsx", "utf8");
+
+  // Alle vijf de werksoorten stonden op amber. "Bekijk wat er mis is" (een
+  // cluster dat niet gelukt is) zag er daardoor precies zo uit als "Nakijken".
+  // `docs/ux-design.md` §2: warning is "kijk hier even naar", danger is
+  // "blokkade, mislukt", attention is "vraagt een keuze, is niet fout".
+  ok("de chip volgt de soort werk", overzicht.includes("workChipTone(w.kind)"));
+  ok("en niet één vaste tint", !overzicht.includes("chip chip-warning"));
+
+  // Het hoofdgetal stond vier keer op dit scherm, in drie schalen. De subkop is
+  // er één van, en dat is de makkelijkste om per ongeluk terug te zetten.
+  ok(
+    "de subkop noemt het percentage niet",
+    !overzicht.includes("van de vragen waarin ze een aanbieder"),
+  );
+
+  // Acht databronnen op de startpagina van de klant: één onverwachte datavorm
+  // mag niet het hele scherm weghalen (`docs/ux-design.md` §4).
+  ok(
+    "elk blok staat in zijn eigen foutopvang",
+    (overzicht.match(/<SectionErrorBoundary/g) ?? []).length >= 6,
   );
 });
 

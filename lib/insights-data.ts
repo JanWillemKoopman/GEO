@@ -93,14 +93,42 @@ export async function loadLoop(admin: Admin, profileId: string): Promise<LoopBun
     // onzekerheid hangt er volledig van af, en `insights()` beslist daarmee of
     // een verschil ruis is of een echte verandering.
     analysisIds.length > 0
-      ? admin.from("tracking_runs").select("analysis_id, week_no").in("analysis_id", analysisIds)
+      ? admin
+          .from("tracking_runs")
+          .select("analysis_id, week_no, purpose")
+          .in("analysis_id", analysisIds)
       : Promise.resolve({ data: [] }),
   ]);
 
   // Aantal beoordeelde metingen per periode, over alle analyses van het merk.
+  const alleRuns = (runRows ?? []) as {
+    analysis_id: string;
+    week_no: number;
+    purpose: string | null;
+  }[];
   const metingenPerPeriode = new Map<number, number>();
-  for (const r of (runRows ?? []) as { week_no: number }[]) {
+  for (const r of alleRuns) {
     metingenPerPeriode.set(r.week_no, (metingenPerPeriode.get(r.week_no) ?? 0) + 1);
+  }
+
+  // ── De noemer bij een kans: hoeveel vragen zijn er in dit cluster gemeten ──
+  //
+  // Alleen de gewone meting telt, net als in het rapport zelf
+  // (`computeMissedPrompts`): impact- en controlemetingen gaan over een handvol
+  // vragen en zouden de noemer laten schommelen zonder dat er iets veranderd is.
+  // De laatste periode, want daar komen de aanbevelingen van het laatste rapport
+  // uit.
+  const laatstePeriode = new Map<string, number>();
+  for (const r of alleRuns) {
+    if (r.purpose !== "periodic") continue;
+    const huidig = laatstePeriode.get(r.analysis_id);
+    if (huidig === undefined || r.week_no > huidig) laatstePeriode.set(r.analysis_id, r.week_no);
+  }
+  const gemetenPerAnalyse = new Map<string, number>();
+  for (const r of alleRuns) {
+    if (r.purpose !== "periodic") continue;
+    if (r.week_no !== laatstePeriode.get(r.analysis_id)) continue;
+    gemetenPerAnalyse.set(r.analysis_id, (gemetenPerAnalyse.get(r.analysis_id) ?? 0) + 1);
   }
 
   // ── De scores, gemiddeld per periode over alle analyses van het merk ───────
@@ -189,7 +217,11 @@ export async function loadLoop(admin: Admin, profileId: string): Promise<LoopBun
 
   const kansen = opportunities({
     profileId,
-    recommendations: recommendations.map((r, i) => ({ ...r, potential: potenties[i].potential })),
+    recommendations: recommendations.map((r, i) => ({
+      ...r,
+      potential: potenties[i].potential,
+      measured: gemetenPerAnalyse.get(r.analysisId) ?? null,
+    })),
     unmeasuredTopics: ((topicRows ?? []) as { id: string; title: string; analysis_id: string | null }[])
       .filter((t) => !t.analysis_id)
       .map((t) => ({ id: t.id, title: t.title })),

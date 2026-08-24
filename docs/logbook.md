@@ -4199,6 +4199,64 @@ zou het aantal en de soort bezwaren laten meewegen in het cijfer zelf, niet alle
 
 Migraties t/m `0064` op productie, 2100 unittests en 290 ketentests groen.
 
+## 24 augustus 2026: het merkoverzicht ingekort, en twee cijfers die niet konden kloppen
+
+**De ronde begon als een UX-doorloop van `/merk/[id]` en legde onderweg twee echte fouten bloot.**
+
+**"240% van de gemeten vragen".** De chip bij een kans rekende met `som(prompt_weight)` over de
+doelvragen van een aanbeveling. Dat gewicht is volumeband × koopwaarde per vraag, 0,02 tot 1,0
+(`lib/pipeline/prompt-weight.ts`), en dus geen aandeel: vier koopklare vragen tellen op tot 2,4. Op
+het overzicht van Van den Udenhout stonden zes kansen met 240%, 150%, 120%, 80% en twee keer 50%,
+boven een zichtbaarheid van 0%. Een percentage van 240 is geen afronding maar een cijfer dat niet
+kán kloppen, en het is precies het getal dat een klant in een gesprek terugvraagt. Er staat nu een
+telling: "raakt 4 van de 30 gemeten vragen", met de noemer uit de gewone meting van de laatste
+periode (`purpose = 'periodic'`, dezelfde filter als het rapport zelf). De som van de gewichten
+blijft bestaan als sorteersleutel, want daarvoor was hij wél bruikbaar, en komt nooit meer in beeld.
+
+**"V1 en V2 hebben gewicht 0,60."** Zo begon vijf van de zes aanbevelingen op datzelfde scherm. Het
+rapportmodel krijgt de gemiste vragen aangeleverd als V1, V2, V3 met hun gewicht erbij, en nam die
+notatie mee in de zin die de klant leest. De schrijfopdracht in `lib/pipeline/report.ts` verbiedt het
+nu, en `lib/recommendation-text.ts` is het vangnet ernaast (conventie 1: een promptinstructie is een
+intentie, code is een garantie). Het schrapt hele zinnen en niet losse woorden, want een vraagcode is
+meestal het onderwerp van de zin: "V5 is een belangrijke lokale koopvraag met gewicht 0,50" wordt
+zonder code "is een belangrijke lokale koopvraag met", en dat is slechter dan niets. Eén uitzondering:
+een staartclausule achter een puntkomma wordt geknipt, want daar draagt de kop van de zin de raad.
+Op alle zes de teksten van productie blijft precies de zin over die zegt wat de klant moet maken.
+Blijft er niets over, dan staat er niets.
+
+**Het scherm zelf: van tien blokken naar zes, en de volgorde om.** "Waar begin je" stond als tiende,
+onder vijf blokken toelichting, terwijl `ux-design.md` §5 dit scherm laat beantwoorden wat je nu moet
+doen. De volgorde is nu stand, wat op je wacht, waar je begint, en pas daarna de verdieping, op
+desktop in twee kolommen. De maandinzichten zijn geen eigen blok meer maar de duiding ín de
+stand-kaart, funnel en contentmix zitten in één kaart in plaats van vijf, en het activiteitenblok
+staat ingeklapt: het was het langste blok van de pagina en het enige waar geen handeling uit volgt.
+
+**Het hoofdgetal stond er vier keer, in drie schalen.** In de subkop ("in 0% van de vragen"), in de
+stand-kaart ("0%"), in de mijlpalen ("0") en in de maandinzichten ("0 van de 100"). `ux-design.md` §1
+kent er één. De subkop noemt het niet meer en `lib/insights.ts` laat het weg bij een eerste meting,
+want daar staat het cijfer nu vlak boven. Bij twee metingen blijven de getallen staan: die zin gaat
+over het verschil en dat is nieuwe informatie.
+
+**De mijlpalen zijn gezakt, niet verdwenen.** Besluit 7 zette ze bewust op het overzicht en dat blijft
+zo. Ze stonden alleen pal onder het hoofdcijfer, en in maand 1 zijn alle drie de getallen nul. Drie
+nullen onder een zichtbaarheid van 0% doen het tegenovergestelde van wat dat blok moet doen.
+
+**Vier kleinere dingen die er in dezelfde ronde bij hoorden.** De chip achter een werkregel volgt nu de
+soort werk: alles stond op amber, waardoor "Bekijk wat er mis is" (een cluster dat niet gelukt is) er
+precies zo uitzag als "Nakijken". Elk blok staat in zijn eigen `SectionErrorBoundary`, want acht
+databronnen op de startpagina van de klant zonder foutopvang is één onverwachte datavorm van een leeg
+scherm af. De laadstaat was drie grijze blokken zonder kop en heeft nu de vorm van de pagina eronder.
+En de regel "en nog 7 kansen" wees nergens heen; hij gaat nu naar de clusters, waar die kansen staan.
+
+**Nagerekend tegen de opgeslagen data, niet alleen tegen een test** (conventie 10). De zeven
+aanbevelingen van `udenhout.nl · Auto financieren` uit `reports.recommendations_json`, met 46 gemeten
+vragen in de laatste periode: de gewichtssommen zijn precies 2,40 · 1,50 · 1,20 · 0,80 · 0,50 · 0,50 ·
+0,30, dus exact de percentages die op het scherm stonden. Ze worden nu "raakt 6 van de 46 gemeten
+vragen" en zo verder. Bij alle zeven blijft er na het vangnet een bruikbare zin over, en in geen van
+de zeven staat nog een vraagcode of een gewicht.
+
+Migraties ongewijzigd (t/m `0064`), 2132 unittests en 290 ketentests groen.
+
 ## 24 augustus 2026: het contentplan doorgelicht als scherm, zes ingrepen
 
 Een UX-review van Strategie > Contentplan bij Van den Udenhout, het eerste merk met een vol plan:
@@ -4230,4 +4288,4 @@ De rekenkunde staat in `lib/plan-overview.ts` (conventie 2: puur, zonder `server
 nieuwe unittests. Geen migratie, geen wijziging aan de pijplijn. De regels die hieruit volgen voor
 elke lijst van deze omvang staan in `docs/ux-design.md` §5.
 
-2126 unittests en 290 ketentests groen.
+Samen met het merkoverzicht hierboven op main: 2158 unittests en 290 ketentests groen.
