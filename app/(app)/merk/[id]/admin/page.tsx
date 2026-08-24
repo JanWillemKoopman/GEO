@@ -252,7 +252,10 @@ export default async function AdminPage({
         title={`Kostenlogboek (${kosten.length} aanroepen, $${totaalKosten.toFixed(3)})`}
       >
         {kosten.length === 0 ? (
-          <p className="text-secondary">Er zijn nog geen AI-aanroepen voor dit merk.</p>
+          <p className="text-secondary">
+            Er zijn nog geen AI-aanroepen voor dit merk. Zodra ORBIT ENGINE iets uitrekent, staat
+            hier elke aanroep met zijn kosten.
+          </p>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-left text-sm">
@@ -288,7 +291,10 @@ export default async function AdminPage({
       {/* ── 5. Herkomst per veld ─────────────────────────────────────────── */}
       <CollapsibleSection title={`Herkomst per veld (${bronnen.length})`}>
         {bronnen.length === 0 ? (
-          <p className="text-secondary">Nog geen herkomst vastgelegd.</p>
+          <p className="text-secondary">
+            Nog geen herkomst vastgelegd. Zodra een veld uit het gesprek of de website komt,
+            staat hier waar het antwoord vandaan komt.
+          </p>
         ) : (
           <ul className="flex flex-col gap-2">
             {bronnen.map((b) => (
@@ -315,7 +321,10 @@ export default async function AdminPage({
       {/* ── 6. Bronnenonderzoek ──────────────────────────────────────────── */}
       <CollapsibleSection title={`Bronnenonderzoek (${onderzoek.length})`}>
         {onderzoek.length === 0 ? (
-          <p className="text-secondary">Nog geen onderwerp-onderzoek voor dit merk.</p>
+          <p className="text-secondary">
+            Nog geen onderwerp-onderzoek voor dit merk. Dit vult zich zodra ORBIT ENGINE de markt
+            en de concurrenten heeft uitgezocht.
+          </p>
         ) : (
           <ul className="flex flex-col gap-3">
             {onderzoek.map((o) => (
