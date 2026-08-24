@@ -6,7 +6,9 @@ op 6 augustus over op het systeem van de NOVA-workspace (volledige verantwoordin
 `designsystem.md`); deze datum volgt de gedragspatronen die daarna zijn bijgekomen (statustaal,
 foutafhandeling, de content-editie, op 21 augustus de iconen in de zijbalk, en op 24 augustus de
 indeling van het merkoverzicht plus de vormgevingsronde erna, de regels voor een lange lijst en de
-uitvraag op "Vraagt jouw input", alle drie hieronder in §5).
+uitvraag op "Vraagt jouw input", alle drie hieronder in §5). Later op 24 augustus kwam de
+narekening tegen Nova's eigen CSS erbij, met als grootste gevolgen een witte paginagrond en een
+donkere modus met een schakelaar (§2 hieronder, `designsystem.md` §2.1 en §10).
 
 > **Voor de tékst in die schermen geldt `docs/schrijfstijl.md`**: de tone-of-voice van ORBIT ENGINE,
 > afgeleid van InSpace Nova. Dit document gaat over hoe iets eruitziet, dat over hoe het klinkt.
@@ -37,18 +39,27 @@ Het uitgangspunt: **snapt een niet-technische klant dit binnen 5 seconden zonder
 
 **Bron: de NOVA-workspace van InSpace** (`nova.inspace.io`), hun ingelogde productomgeving, niet hun
 marketingsite. Dat onderscheid is het hele punt; `designsystem.md` §1 legt uit waarom.
-**Licht systeem, geen donkere modus**: `globals.css` kent alleen `:root` en `[data-theme="light"]` en
-zet `html { color-scheme: light; }`. Dat is definitief, niet voorlopig: besluit 17 van 11 augustus
-2026 schrapte de donkere modus uit het plan, zie `designsystem.md` §10.
+
+**Twee standen, licht en donker, sinds 24 augustus 2026.** De startstand volgt het
+besturingssysteem; klikt iemand op de schakelaar rechtsboven in de balk, dan wint zijn keuze en
+staat die in `localStorage`. Besluit 17 van 11 augustus 2026, dat de donkere modus schrapte, is die
+dag teruggedraaid omdat het palet ervoor blijkt te bestaan; `designsystem.md` §10 heeft het waarom
+en de twee plekken waar donker niet de spiegel van licht is.
+
+> ⚠️ **Wat dit betekent voor wie een scherm bouwt: een hexwaarde in een component is geen
+> nettigheidskwestie meer.** Hij draait niet mee met de stand en levert daar gegarandeerd wit op wit
+> of zwart op zwart op. Gebruik altijd een token, en loop na een nieuw scherm de vijf controles uit
+> `designsystem.md` §11 langs.
 
 De volledige tokenlijst staat in `designsystem.md` §2 en hoeft hier niet herhaald te worden. Wat je
-moet weten om een scherm te bouwen:
+moet weten om een scherm te bouwen (de donkere tegenhangers staan in dezelfde tabel daar):
 
 ```css
-/* Neutralen: koel leiblauw, geen warm groengrijs */
---bg-base: #f8fafc;  --bg-surface: #ffffff;  --bg-elevated: #e7edf2;  --bg-surface-2: #dce3ea;
+/* Neutralen: wit als grond, koel leiblauw als eerste stap eróp */
+--bg-base: #ffffff;  --bg-surface: #ffffff;  --bg-muted: #f8fafc;
+--bg-elevated: #e7edf2;  --bg-surface-2: #dce3ea;
 --text-primary: #17212b;  --text-secondary: #43505d;  --text-muted: #788795;
---border-subtle: #e7edf2;  --border-strong: #c2ccd6;  --border-contrast: #9daab6;
+--border-subtle: #e7edf2;  --border-strong: #c2ccd6;  --border-contrast: #788795;
 
 /* Betekenissen, elk met -solid, -on-solid, -text, -surface en -border */
 --intent-intelligence-*   het merk, AI, de primaire actie
@@ -104,11 +115,15 @@ overnemen; Geist is daar de open-source tegenhanger van.
    "interactieve elementen zijn pilvormig" was de marketingsite.
 4. **Status is kleur plus vorm, nooit kleur alleen.** Een pulserende dot, een pijl (`↑` of `↓`) of
    een chip met tekst. Dat is toegankelijkheid.
-5. **Mono is voor cijfers, niet voor labels.** `.stat-value` voor waarden die je vergelijkt,
-   `.mono-label` als kicker boven een titel, en die is sinds de overstap sans.
+5. **Mono is voor cijfers en voor het kleinste label.** `.stat-value` voor waarden die je
+   vergelijkt, `.mono-label` als kicker boven een titel. Die kicker was sinds 6 augustus sans; op
+   24 augustus 2026 is dat teruggedraaid naar mono, omdat Nova's eigen CSS laat zien dat mono in een
+   klein label juist wél hun productstijl is. Zie `designsystem.md` §3.2.
 6. **Contrast is een tokenkeuze.** `-text` op een licht vlak, `-on-solid` op een gevuld vlak, en
    `--text-muted` (3,7:1) nooit voor iets wat gelezen moet worden.
-7. **Eén easing overal** (`--ease-standard`), en korte duur: 0,12s tot 0,3s.
+7. **Eén easing overal** (`--ease-standard`), en korte duur: 0,12s tot 0,20s. Bij het wisselen van
+   licht naar donker staat elke overgang uit, anders veegt het hele scherm over in plaats van om te
+   klappen.
 8. **De merk-gradient is het woordmerk.** Nergens anders. In de Nova-werkomgeving komt hij nul keer
    voor.
 
@@ -129,7 +144,8 @@ schermen die de gebruiker na elkaar ziet).
 | `.btn-lg` | 44px, de aanbevolen minimale tikdoelgrootte (WCAG 2.5.5). Combineren met `.btn-primary`/`.btn-outline`, alleen op de ÉNE hoofdactie van een scherm dat vaak op een telefoon bediend wordt (bevestigen, publiceren, "schrijf alles"). Niet de standaard, anders verdwijnt de dichtheid die 40px juist opleverde. |
 | `.no-print` | Verbergt chrome (bovenbalk, hoofdstuk-rail, tabbladen, vaste actiebalken) in het printstijlblad onderaan `globals.css` (B.13). Het dossier IS het rapport, er is geen aparte printpagina. |
 | `.chip` + `-success` / `-danger` / `-warning` / `-info` / `-attention` / `-neutral` / `-green` | `--radius-sm` (sinds 24 augustus 2026 geen pil meer), sans, gewicht 600, schrijftaal. Nooit met de hand een tint of een vorm nabouwen. Dat gebeurde toch, in vijf componenten tegelijk; zie regel 1 hierboven en de `grep` die het nu tegenhoudt. |
-| `.mono-label` | De kicker bóven een titel: klein, uppercase, **sans**. Heet nog "mono" omdat hij op tientallen plekken staat; hernoemen raakt te veel bestanden voor alleen een naam. |
+| `.mono-label` | De kicker bóven een titel: 11px, uppercase, **mono** met 1px letterspatiëring. Sinds 24 augustus 2026 klopt de naam weer; hernoemen raakt nog steeds te veel bestanden voor alleen een naam. |
+| `.type-hero` … `.type-label` | De elf tekststijlen van Nova, met maat, gewicht en regelhoogte vast aan elkaar. Gebruik ze in nieuw werk; `designsystem.md` §3.2 heeft de tabel. |
 | `.stat-value` | Cijfers die je vergelijkt, in mono met `tabular-nums`, gewicht 700. |
 | `.field` | Formuliervelden, 40px, wit met een rand, inclusief focusring. |
 | `.live-dot` | Pulserende indicator voor "loopt nu". |

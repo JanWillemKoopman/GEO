@@ -2,11 +2,29 @@
 
 > **Bron: de NOVA-workspace van InSpace** (`nova.inspace.io`), hun ingelogde productomgeving,
 > geanalyseerd op 6 augustus 2026 uit de CSS-bundel en de i18n-bundel van de app.
-> **Peildatum van dit document: 6 augustus 2026**, met §6b (iconen) toegevoegd op 21 augustus
-> 2026. Op 24 augustus 2026 bijgewerkt met de kleuruitzondering voor de zijbalkkoppen, de gewichten
-> (§3.1), de chipvorm (§5.1), de stang links op een kaart (§5.5) en de iconen in een lijst (§6b.3,
-> regels 5 en 6). De code is leidend; wijkt `app/globals.css` af, dan is dit document fout en moet
-> het bijgewerkt worden.
+> **Peildatum van dit document: 24 augustus 2026.** §6b (iconen) is toegevoegd op 21 augustus 2026.
+> Op 24 augustus 2026 bijgewerkt met de kleuruitzondering voor de zijbalkkoppen, de gewichten
+> (§3.1), de chipvorm (§5.1), de stang links op een kaart (§5.5), de iconen in een lijst (§6b.3,
+> regels 5 en 6) en, later die dag, met de volledige narekening tegen Nova's gecompileerde CSS
+> (§2.1, §3.2, §5.1, §5.3, §6, §10). De code is leidend; wijkt `app/globals.css` af, dan is dit
+> document fout en moet het bijgewerkt worden.
+
+> ### De narekening van 24 augustus 2026
+>
+> Tot die datum was alles hieronder afgeleid uit **schermafbeeldingen** van Nova. Sindsdien ligt
+> hun eigen gecompileerde stylesheet ernaast, 93 kB met 381 tokens erin. De uitkomst van de
+> vergelijking is de moeite van het onthouden waard: **45 van de 46 kleurwaarden in
+> `app/globals.css` bleken letterlijk de hunne.** De radiusschaal, de randdiktes, de ene schaduw en
+> de breedte van de zijbalk klopten ook al.
+>
+> Vier dingen klopten niet, en die zijn rechtgezet:
+>
+> 1. **De pagina is wit, niet leiblauw** (§2.1). Bij Nova is leiblauw niet de grond maar de eerste
+>    stap eróp.
+> 2. **Kleine labels zijn wél mono** (§3.2). Op 6 augustus was mono er juist uitgehaald, op een
+>    argument dat de bron niet ondersteunt.
+> 3. **De focusring is inktkleur, niet paars** (§5.3).
+> 4. **De donkere modus was niet onmogelijk maar onbekend** (§10). Hun palet ligt er compleet in.
 
 Dit document beschrijft **hoe ORBIT ENGINE eruitziet en waarom**. Voor de tekst in die schermen geldt
 `schrijfstijl.md`, voor de opbouw van schermen `ux-design.md`, voor het waarom achter beslissingen
@@ -49,18 +67,34 @@ naar hoe de InSpace-website het doet.
 Koel leiblauw, niet warm groengrijs. Dit is 70% van het verschil tussen "ziet eruit als een
 landingspagina" en "ziet eruit als software".
 
-| Token | Waarde | Waarvoor |
-|---|---|---|
-| `--bg-base` | `#f8fafc` | De pagina |
-| `--bg-surface` | `#ffffff` | Kaarten |
-| `--bg-elevated` | `#e7edf2` | Geneste vlakken, tabelkoppen, neutrale chips |
-| `--bg-surface-2` | `#dce3ea` | Een tint dieper, hover op een genest vlak |
-| `--text-primary` | `#17212b` | Blauwzwart, niet zwart |
-| `--text-secondary` | `#43505d` | Lopende tekst die niet de kop is. 7,5:1 |
-| `--text-muted` | `#788795` | **Alleen bijzaak.** 3,7:1, dus nooit bodytekst |
-| `--border-subtle` | `#e7edf2` | De standaardrand |
-| `--border-strong` | `#c2ccd6` | Invoervelden, hover op een kaart |
-| `--border-contrast` | `#9daab6` | Alleen waar een rand echt moet spreken |
+| Token | Licht | Donker | Waarvoor |
+|---|---|---|---|
+| `--bg-base` | `#ffffff` | `#121a22` | De pagina |
+| `--bg-surface` | `#ffffff` | `#17212b` | Kaarten, menu's, dialogen |
+| `--bg-muted` | `#f8fafc` | `#27323d` | Geneste vlakken, tabelkoppen, hover op een oppervlak |
+| `--bg-elevated` | `#e7edf2` | `#27323d` | Chips, voortgangsbanen |
+| `--bg-surface-2` | `#dce3ea` | `#43505d` | Een tint dieper, hover op een genest vlak |
+| `--text-primary` | `#17212b` | `#ffffff` | Blauwzwart, niet zwart |
+| `--text-secondary` | `#43505d` | `#c2ccd6` | Lopende tekst die niet de kop is. 7,5:1 |
+| `--text-muted` | `#788795` | `#788795` | **Alleen bijzaak.** 3,7:1, dus nooit bodytekst |
+| `--border-subtle` | `#e7edf2` | `#27323d` | De standaardrand |
+| `--border-strong` | `#c2ccd6` | `#43505d` | Invoervelden, hover op een kaart |
+| `--border-contrast` | `#788795` | `#9daab6` | Alleen waar een rand echt moet spreken |
+| `--focus-ring` | `#17212b` | `#e7edf2` | De omlijning bij toetsenbordfocus |
+
+**De pagina werd wit op 24 augustus 2026.** Hij was leiblauw met witte kaarten erop, en dat was een
+gok uit de screenshotronde. Nova's eigen CSS zegt het onomwonden: `body` krijgt daar
+`--ds-background-neutral`, en dat is `#fff`. Het leiblauw is bij hen de eerste stap eróp, voor wat
+ín een kaart genest zit. Vandaar de nieuwe token `--bg-muted` ertussen.
+
+In de lichte stand vallen pagina en kaart dus samen op wit en is de kaart alleen zijn rand. In de
+donkere stand kan dat niet: een rand van `#27323d` op `#121a22` is bijna niet te zien. Daar staat de
+kaart één stap boven de pagina. **Dat is de enige asymmetrie tussen de twee standen**, en hij zit er
+omdat het oog in donker anders werkt.
+
+`--border-contrast` ging van `#9daab6` naar `#788795`, Nova's eigen `--ds-border-neutral`. Op een
+witte pagina haalde `#9daab6` nog maar 2,1:1 en zakte daarmee onder de 3,0 die WCAG voor een
+niet-tekstueel element vraagt; `#788795` haalt 3,2:1.
 
 **Waarom de randen een echte tint zijn en geen doorschijnend zwart:** doorschijnend zwart wordt vuil
 zodra het op een gekleurd vlak ligt. Een chip met een amber vulling kreeg zo een grijsbruine rand.
@@ -157,15 +191,50 @@ herkent; die hoort een duidelijke stap zwaarder te zijn dan wat eronder staat, n
 antwoord van het scherm is, hoort het zwaarste element van zijn kaart te zijn en niet even zwaar als
 de alinea ernaast.
 
-**De grootste typografische wijziging is dat mono niet langer de standaard is voor labels.** De oude
-stijl zette elk paneelkopje in mono, uppercase, met `.14em` tracking. Dat is de "technische
-read-out"-esthetiek van de marketingsite. Nova gebruikt dat patroon alleen als kicker boven een titel
-("YOUR BRAND"), en verder gewoon sans. `.mono-label` heet nog zo omdat hij op tientallen plekken
-gebruikt wordt, maar hij ís nu sans. **Hernoem hem niet in een losse commit;** dat raakt te veel
-bestanden tegelijk voor een naamswijziging.
-
 Koppen zijn een stap kleiner geworden. Een `text-4xl` in een menu en een `text-3xl` boven een
 hoofdstuk zijn marketingformaten; het product zit op `text-2xl` en lager.
+
+### 3.2 De schaal, en de terugdraai op mono (24 augustus 2026)
+
+Nova heeft elf benoemde tekststijlen. Ze staan sinds 24 augustus 2026 letterlijk in
+`app/globals.css`:
+
+| Klasse | Maat | Gewicht | Familie | Waarvoor |
+|---|---|---|---|---|
+| `.type-hero` | 36/40 | 600 | sans | De paginakop van een hoofdscherm |
+| `.type-title` | 24/32 | 600 | sans | De kop van een scherm of dialoog |
+| `.type-section` | 20/28 | 600 | sans | De kop boven een blok |
+| `.type-lead` | 14/20 | 400 | **mono** | De aanhef in kapitalen boven een titel |
+| `.type-body` | 16/24 | 400 | sans | Lopende tekst |
+| `.type-body-emphasis` | 16/24 | 500 | sans | Nadruk **binnen** lopende tekst |
+| `.type-compact` | 14/20 | 400 | sans | Lopende tekst in een kaart |
+| `.type-compact-emphasis` | 14/20 | 500 | sans | Nadruk daarbinnen |
+| `.type-caption` | 12/16 | 400 | sans | Bijschrift, tijdstempel |
+| `.type-caption-emphasis` | 12/16 | 500 | sans | Bijschrift dat een waarde draagt |
+| `.type-label` | 11/16 | 400 | **mono** | Het kleinste label |
+
+**Wat er meeviel:** de maten en regelhoogtes van Tailwind blijken één op één die van Nova te zijn
+(14 op 20, 16 op 24, 20 op 28, 24 op 32). De 399 plekken die `text-sm` gebruiken stonden dus al op
+de goede schaal. Wat ontbrak is wat een schaal pas een schaal maakt: een vaste koppeling tussen
+maat, gewicht en regelhoogte, zodat "een kaarttitel" één ding is in plaats van een keuze. Gebruik de
+klassen in nieuw werk; bestaande `text-sm` blijft staan, want die levert exact hetzelfde beeld op.
+
+> ⚠️ **De twee gewichten van 500 zijn voor nadruk binnen een alinea, niet voor een titel.** §3.1
+> hierboven blijft onverkort gelden: een kaarttitel staat op 600. Nova gebruikt 500 voor het woord
+> dat je in een zin wilt laten opvallen, en dat is iets anders dan de regel waaraan je een kaart
+> herkent.
+
+**Mono is terug in kleine labels, en dat is een terugdraai.** Op 6 augustus stond hier dat mono voor
+labels de "technische read-out"-esthetiek van de marketingsite was en niet van het product, en dat
+`.mono-label` daarom naar sans ging. Dat argument kwam uit schermafbeeldingen en het klopte niet:
+Nova's eigen CSS heeft `type-label` en `type-lead`, allebei in de mono, met letterspatiëring van 1
+respectievelijk 2,25 pixel. Mono in een klein label is dus juist wél hun productstijl.
+
+`.mono-label` is dus weer mono, op Nova's maat en spatiëring, met twee bewuste afwijkingen: gewicht
+500 in plaats van 400 (deze klasse zet zelf `--text-muted`, en 400 is in die kleur op 11 pixels te
+dun) en `uppercase` in de klasse (bij Nova komt dat uit een losse utility; hier willen alle 101
+gebruiksplekken het). **Hernoem hem niet in een losse commit;** dat raakt te veel bestanden tegelijk
+voor een naamswijziging, ook nu de naam weer klopt.
 
 ---
 
@@ -206,6 +275,7 @@ de reden dat een grafiek er altijd nét naast ligt zodra de rest van het systeem
 | `--radius-md` | 8px | **Knoppen, velden, navigatie-items, menu's** |
 | `--radius-lg` | 12px | Kaarten |
 | `--radius-xl` | 16px | Grote panelen, dialogen |
+| `--radius-2xl` | 24px | Het enkele vlak dat een paneel op zichzelf is (24 augustus 2026) |
 | `--radius-pill` | 9999px | **Alleen voortgangsbalken, stippen en de live-dot** |
 
 **De pil is niet langer de standaard.** Dat is de meest zichtbare enkele wijziging van deze omzetting.
@@ -240,9 +310,14 @@ kaart die echt klikbaar is. Een gewone kaart is plat en heeft alleen een rand.
 de vier ambient `glow-orb`-cirkels achter de inlogpagina, het menu, de 404 en elk hoofdstuk. Meer
 schaduwstanden maken een interface niet dieper, alleen rommeliger.
 
-**De enige uitzondering is focus, en die is functioneel.** `:focus-visible` krijgt een 2px omlijning
-in de merkkleur en een veld krijgt bij focus een ring van 3px. Zonder zichtbare focus is de app niet
-met een toetsenbord te bedienen. Dat is toegankelijkheid, geen sier.
+**De enige uitzondering is focus, en die is functioneel.** `:focus-visible` krijgt een omlijning van
+2 pixels met 2 pixels afstand, en een veld krijgt bij focus een ring van 3px. Zonder zichtbare focus
+is de app niet met een toetsenbord te bedienen. Dat is toegankelijkheid, geen sier.
+
+> **De ring is sinds 24 augustus 2026 inktkleur (`--focus-ring`) in plaats van paars.** Nova doet het
+> ook zo. De reden is scherper dan "zij doen het zo": paars is in deze app óók de kleur van de
+> hoofdknop, en een paarse ring om een paarse knop is geen ring. Inkt werkt op elk vlak, en in de
+> donkere stand keert hij vanzelf om naar licht.
 
 ### 5.4 Maatvoering
 
@@ -259,6 +334,12 @@ onrustig.
 > ⚠️ **Mobiel:** `ux-design.md` §7 eist tikdoelen van minstens 44 bij 44 pixels. Een knop van 40px
 > haalt dat niet. Op mobiel moet een primaire actie dus extra verticale padding of `.btn-lg` krijgen;
 > dat is nog niet gebouwd en staat open.
+
+> ⚠️ **Kaartpadding is het enige punt waarop we bewust van Nova blijven afwijken.** Zij gebruiken
+> 16 pixels of 24, wij 20. Dat is niet uit slordigheid blijven staan: 20 is hier één maat voor twee
+> rollen, want `.card` draagt in deze app zowel een groot paneel als een regel in een lijst. Naar 24
+> gaan maakt elk scherm luchtiger en elke lijst langer, en dat is een dichtheidskeuze en geen
+> getrouwheidskeuze. Wie hem wil maken: het is één regel in `app/globals.css`.
 
 ### 5.5 De stang links op een kaart (24 augustus 2026)
 
@@ -287,12 +368,26 @@ hetzelfde argument als bij de iconen in de zijbalk (§6b.3, regel 4).
 
 ## 6. Motion
 
-Eén easing overal: `--ease-standard: cubic-bezier(.2,.7,.2,1)`.
+Sinds 24 augustus 2026 komen deze waarden rechtstreeks uit Nova's gecompileerde CSS in plaats van
+uit een schatting.
 
-De duur ging omlaag naar 0,12s (`fast`), 0,18s (`base`) en 0,3s (`slow`). Nova's product beweegt
-korter dan hun marketingsite, en 0,3s voelt in een dashboard traag.
+| Token | Waarde | Waarvoor |
+|---|---|---|
+| `--ease-standard` | `cubic-bezier(.4,0,.2,1)` | De standaardovergang |
+| `--ease-out` | `cubic-bezier(0,0,.2,1)` | Wat verschijnt: menu, tooltip, melding |
+| `--duration-fast` | 0,12s | Wat weggaat |
+| `--duration-base` | 0,15s | De standaard: kleur, rand, dialoog, tooltip |
+| `--duration-slow` | 0,20s | Een accordeon, want daar beweegt hoogte |
+
+**0,3s is weg.** Dat was een marketingduur en hij voelt in een dashboard traag.
 
 `prefers-reduced-motion` zet alle transities op 0,01ms en haalt de pulsering en de laadsweep weg.
+
+**Bij het omschakelen van licht naar donker staat élke overgang uit** (`.thema-wisselt`). Zonder dat
+animeren alle veertig elementen met een kleurovergang 120 milliseconden lang tegelijk mee, en dan
+schuift het scherm als een veeg van de ene stand naar de andere in plaats van om te klappen.
+Nagemeten met Playwright: een knop die halverwege die veeg gefotografeerd wordt staat nog volledig
+op de kleur van de oude stand.
 
 ---
 
@@ -384,36 +479,42 @@ Gebruik deze, nooit een eigen tint of een eigen maat.
 
 | Primitief | Regel |
 |---|---|
-| `.card` | Wit, één rand, **plat**. Geen schaduw, geen hover |
+| `.card` | Eén rand, **plat**. Geen schaduw, geen hover. `--bg-surface`, dus wit in licht en één stap boven de pagina in donker |
 | `.card-interactive` | Alleen op wat écht klikbaar is. Krijgt de rand-plus-schaduw bij hover |
 | `.card-accent` / `-success` / `-warning` / `-danger` | Getinte kaartrand, uit de betekenislaag |
 | `.card-rail` / `-success` / `-warning` | De 4px-stang links op de kaart met het hoofdgetal. Eén per scherm, tint volgt de trend. Zie §5.5 |
 | `.btn-primary` / `.btn-outline` | Beide 40px, `--radius-md`. `.btn-sm` is 32px |
 | `.chip` + `-success` / `-danger` / `-warning` / `-info` / `-attention` / `-neutral` | `--radius-sm`, sans, gewicht 600, schrijftaal. Nooit met de hand een tint of een vorm nabouwen |
-| `.mono-label` | De kicker boven een titel. Sans, uppercase, klein |
+| `.mono-label` | De kicker boven een titel. **Mono**, uppercase, 11px. Zie §3.2 |
+| `.type-hero` … `.type-label` | De elf tekststijlen van Nova. Zie §3.2 |
 | `.stat-value` | Cijfers die je vergelijkt, in mono met `tabular-nums`, gewicht 700 |
-| `.field` | Wit met een rand, 40px, focusring |
+| `.field` | Oppervlakkleur met een rand, 40px, focusring |
 | `.live-dot` | Pulserend, in `growth`. "Loopt nu" |
 | `.skeleton` | Laadvlak. De vorm van wat er komt |
 | `.prose` | Lange tekst: rapport, contentpagina |
 | `.brand-gradient-text` | **Alleen het woordmerk ORBIT ENGINE** |
 | `Icon` | Het enige icoon-component. `<Icon naam="klaar" />`, nooit een los teken en nooit een eigen SVG. Zie §6b |
 | `PageHeader`, `EmptyState`, `Narrow`, `ConfidenceChip` | Eén variant per patroon |
+| `ThemeToggle` | De schakelaar licht/donker, rechtsboven in de balk. Eén exemplaar, in `workspace-chrome.tsx` |
 
 ---
 
 ## 8. De negen regels
 
 1. **Een kleur heeft een betekenis, geen naam.** `--intent-growth-text`, nooit `--accent-green`, en
-   nooit een hexwaarde of rauwe `rgba()` in een component. Zie §11 voor de controle.
+   nooit een hexwaarde of rauwe `rgba()` in een component. Zie §11 voor de controle. **Sinds er twee
+   standen zijn is dit geen nettigheid meer maar een voorwaarde:** een hexwaarde in een component
+   draait niet mee met de donkere stand en levert daar gegarandeerd wit op wit of zwart op zwart op.
 2. **Plat, niet gloeiend.** Rand en vlak dragen de hiërarchie. De ene schaduw is voor wat zweeft.
 3. **De pil is voor wat rond moet zijn**: voortgangsbalken, stippen, de `live-dot`. Chips staan op
    `--radius-sm`, knoppen en velden en navigatie op `--radius-md` (§5.1).
 4. **Status is kleur plus vorm, nooit kleur alleen.** Een dot, een pijl, een chip met tekst.
-5. **Mono is voor cijfers**, niet voor labels. De kicker is sans.
+5. **Mono is voor cijfers en voor het kleinste label.** `.stat-value` en `.mono-label` /
+   `.type-label` / `.type-lead`. Lopende tekst en koppen zijn sans. Sinds 24 augustus 2026, toen
+   bleek dat Nova zelf mono in labels gebruikt; zie §3.2.
 6. **Contrast is een tokenkeuze.** Gebruik `-text` op licht en `-on-solid` op gevuld, en vertrouw
    `--text-muted` nooit voor iets wat gelezen moet worden.
-7. **Eén easing, korte duur.**
+7. **Eén easing, korte duur** (§6). En bij het wisselen van stand staat elke overgang uit.
 8. **De gradient is het woordmerk.** Nergens anders.
 9. **Een icoon komt uit `lib/icons.ts`.** Nooit een letterteken in de tekst (✓, ↗, ▾), nooit een
    met de hand getekende SVG, nooit een rechtstreekse import uit `lucide-react`. En in de zijbalk
@@ -432,9 +533,14 @@ Gebruik deze, nooit een eigen tint of een eigen maat.
 | Eén schaduw | **Ja** | En alle gloed eruit |
 | Geist Sans plus Geist Mono | **Ja** | Eén makerspaar |
 | Zes grafiekkleuren aan betekenissen | **Ja** | Nog wel te valideren, zie §4 |
+| Hun elf tekststijlen | **Ja**, alle elf | Sinds 24 augustus 2026, zie §3.2 |
+| Licht- en donkerparen | **Ja**, alle 107 | Sinds 24 augustus 2026, zie §10 |
+| Hun witte paginagrond | **Ja** | Sinds 24 augustus 2026, zie §2.1 |
+| Hun inktkleurige focusring | **Ja** | Beter dan paars, want paars is ook de knopkleur, zie §5.3 |
+| Hun eigen tokens voor de schakelaar | **Ja** | Het enige vlak waarvan de kleur zonder tekst iets zegt |
 | Hun lichte paars als solide vlak | **Nee** | Haalt de contrastdrempel niet, zie §2.3 |
-| Licht- en donkerparen | **Nee, nog niet** | Zie §10 |
-| Hun negen radii | **Nee** | Zes volstaan |
+| Hun negen radii | **Nee** | Zeven volstaan |
+| Hun kaartpadding van 16 of 24 | **Nee** | 20 is één maat voor twee rollen, zie §5.4 |
 | Zijbalknavigatie, klantkiezer, toasts | **Nee** | Dat is indeling, geen vormgeving, en het hoort dus in `ux-design.md` |
 
 ---
@@ -451,7 +557,7 @@ als een landingspagina. Maar er is sindsdien iets veranderd wat die keuze onder 
 uitdaagt en bouwt wat nog niet bestaat. §15.4 daarvan verbiedt met zoveel woorden de "neonpaarse
 AI-gloed", en §16 vraagt om neutral-first met kleur die betekenis draagt.
 
-**Twee van die drie zijn geen probleem.** De app ís al neutral-first (`#f8fafc` grond, `#17212b`
+**Twee van die drie zijn geen probleem.** De app ís al neutral-first (`#ffffff` grond, `#17212b`
 tekst), en kleur draagt hier al betekenis in plaats van een naam (§2). De gloed en de gradient zijn
 allebei al teruggebracht tot één plek elk: de grafiekband en het woordmerk.
 
@@ -459,6 +565,15 @@ allebei al teruggebracht tot één plek elk: de grafiekband en het woordmerk.
 schaduw letterlijk uit het product van de concurrent komen, werkt de vormgeving tegen het verhaal
 dat de verkoop vertelt. Dat is nooit als besluit genomen. Het is geslopen: van een praktische keuze
 op 6 augustus naar het fundament van het hele uiterlijk.
+
+> ⚠️ **De ronde van 24 augustus 2026 heeft dit besluit scherper gemaakt, niet zachter.** Op verzoek
+> van de eigenaar is de app die dag verder naar Nova toe gebracht: hun paginakleur, hun elf
+> tekststijlen, hun focusring, hun animatieduren en hun volledige donkere palet. De afstand tot het
+> merkverhaal is daarmee groter geworden en niet kleiner, en dat is met open ogen gebeurd. Het
+> tegenwicht is dat het fundament nog steeds op één plek zit: **wie het uiterlijk eigen wil maken,
+> vervangt tokens in `app/globals.css` en niet honderdzestig componenten.** Regel 1 van §8 is de
+> reden dat dat kan, en die is nu ook in de donkere stand consequent doorgevoerd. Wat er nog niet
+> is, is waar het door vervangen zou moeten worden; zie punt 3 hieronder.
 
 **Wat er nodig is om het op te lossen**, in deze volgorde:
 
@@ -490,30 +605,64 @@ afweging.
 
 ---
 
-## 10. Donkere modus: geschrapt
+## 10. Donkere modus (24 augustus 2026)
 
-**Besluit 17, 11 augustus 2026.** Niet uitgesteld maar geschrapt; hij staat nergens meer op een lijst.
-`globals.css` kent alleen `:root` en `[data-theme="light"]`, en `html { color-scheme: light; }` staat
-vast. Dat blijft zo.
+**Er zijn twee standen.** Besluit 17 van 11 augustus 2026 schrapte donkere modus; dat besluit is op
+24 augustus teruggedraaid en de reden is dat de aanname eronder niet meer klopte.
 
-De redenering: het `:root`-blok heeft 107 kleur-tokens, en die hebben elk een doordachte tegenhanger
-nodig. Mechanisch omkeren geeft grijze modder, en het resultaat is pas te beoordelen door elk scherm
-in beide standen naast elkaar te leggen. Dat is een dag werk plus een designronde, voor de enige fase
-in het plan met impact "laag", bij een product dat sales-led in een demogesprek verkocht wordt en dus
-altijd op één scherm in één stand getoond wordt.
+Die aanname luidde: het `:root`-blok heeft 107 kleur-tokens, en die hebben elk een doordachte
+tegenhanger nodig; mechanisch omkeren geeft grijze modder. Dat is nog steeds waar. Wat veranderde is
+dat **die tegenhangers er al blijken te liggen**. Nova's gecompileerde CSS draagt hun volledige
+donkere palet, tot en met de randtinten en alle zeven betekenissen. Er viel dus niets meer af te
+leiden en niets meer te gokken: het werk dat het besluit destijds te duur maakte, was al gedaan door
+de bron waar dit systeem toch al van komt.
 
-De tokennamen blijven wél ingericht op twee standen: elke betekenis heeft een `-solid`, `-text`,
-`-surface` en `-border`. Dat is geen voorbereiding op een donkere modus maar gewoon een betere
-naamgeving; hij houdt de betekenis los van de kleur. Zou het besluit ooit terugkomen, dan is het
-een tweede blok met dezelfde namen, en Nova's donkere neutralen staan hieronder genoteerd zodat
-niemand ze opnieuw hoeft af te leiden. Dat is geen belofte, alleen archief.
+### 10.1 Hoe de stand gekozen wordt
+
+De startstand volgt het besturingssysteem. Er is bewust géén knop voor die derde stand: iemand die
+zijn laptop 's avonds op donker zet, verwacht dat een app dat volgt zonder dat hij het per app moet
+regelen. Klikt hij op de schakelaar rechtsboven, dan kiest hij, en vanaf dat moment wint zijn keuze.
 
 ```
-achtergrond   #121a22  →  #17212b  →  #27323d  →  #43505d
-tekst         #ffffff  ·  #c2ccd6  ·  #788795
-randen        #27323d  ·  #43505d  ·  #788795
-accenten      paars #ad45ff · groen #4cb929 · blauw #00a6f4 · oranje #fe9a00 · rood #fb2c36
+:root, :root[data-theme="light"]                      de lichte stand, de volledige lijst
+@media (prefers-color-scheme: dark) op
+  :root:not([data-theme="light"])                     de systeemvoorkeur
+:root[data-theme="dark"]                              de eigen keuze, wint van allebei
 ```
+
+De keuze staat in `localStorage` onder `orbit-thema`, niet in de database. Licht of donker is een
+eigenschap van het scherm waar je op zit en niet van het account: dezelfde consultant kan op zijn
+laptop donker willen en op de beamer in een demogesprek licht. In de database zou de keuze meereizen
+en dat is precies verkeerd.
+
+Een kaal `<script>` in de `<head>` van `app/layout.tsx` leest die sleutel vóór de eerste tekening.
+Zonder dat script ziet iemand met een donkere voorkeur bij elke paginaovergang een witte flits.
+`data-theme` staat daarom bewust **niet** in de JSX: wat React nooit rendert, beheert hij ook niet,
+en dan is er ook geen verschil tussen server en browser om over te klagen.
+
+> ⚠️ **Definieer een kleur nooit alleen in een van de twee donkere blokken.** De lichte stand is de
+> volledige lijst; de donkere blokken herdefiniëren alleen wat anders moet zijn. Een token dat alleen
+> donker bestaat is in de lichte stand leeg, en een lege kleur is doorzichtig.
+
+### 10.2 De twee plekken waar donker niet de spiegel van licht is
+
+1. **De kaart staat één stap boven de pagina** (§2.1). In licht vallen ze samen op wit en doet de
+   rand het werk; in donker is een rand van `#27323d` op `#121a22` bijna niet te zien.
+2. **De grafiekkleuren wijzen naar de `-text`-waarden in plaats van naar `-solid`.** In licht is
+   `-solid` de donkere tint en dat werkt op een lichte grond. In donker wordt `-solid` juist nóg
+   donkerder (groei gaat van `#37941c` naar `#2c711a`) en verdwijnt de lijn in de achtergrond.
+   Zonder deze omzetting is elke grafiek in donkere modus onleesbaar, en dat is geen smaakkwestie.
+
+Verder klapt afdrukken altijd terug naar licht: in `@media print` staan de lichte neutralen opnieuw.
+Niemand drukt een donkere pagina af, dat kost inkt en leest slechter.
+
+### 10.3 Wat nog nagelopen moet worden
+
+De tokenlaag, de primitieven en de inlogroute zijn in beide standen bekeken. **De ingelogde schermen
+zijn dat nog niet**, en volgens regel 10 van `CLAUDE.md` is gebouwd niet geverifieerd. Loop na de
+eerstvolgende deploy minstens deze vier langs in donker: het overzicht (kaarten en het hoofdgetal),
+analytics (de grafieken, zie §10.2), het clusterdossier (lange tabellen) en de contentbibliotheek
+(`.prose`, gerenderde Markdown).
 
 ---
 
@@ -523,14 +672,24 @@ Beide moeten **nul regels** geven, en **op `.ts` én `.tsx`**, niet alleen op co
 
 ```bash
 grep -rnE "#[0-9a-fA-F]{6}\b" app components lib --include="*.tsx" --include="*.ts" \
-  | grep -v themeColor | grep -v "lib/email/"
+  | grep -vE "app/layout\.tsx|lib/email/|app/opengraph-image\.tsx|app/\(auth\)/orbit-mark\.tsx" \
+  | grep -vP ':\d+:\s*(\*|//|/\*)'
 grep -rnE "rgba?\([0-9]" app components lib --include="*.tsx" --include="*.ts" \
   | grep -v "lib/email/"
 ```
 
-Twee uitzonderingen: `themeColor` in `app/layout.tsx` (de browserbalk van het besturingssysteem
-kan geen CSS-variabele zijn) en `lib/email/*.ts` (HTML voor e-mailclients, die begrijpen geen
-`var(--...)`).
+Vier uitzonderingen, en elk heeft dezelfde soort reden: er is daar geen CSS die de variabele kan
+oplossen.
+
+| Bestand | Waarom |
+|---|---|
+| `app/layout.tsx` | `themeColor` kleurt de browserbalk van het besturingssysteem, buiten de pagina om. Sinds 24 augustus 2026 zijn dat twee waarden, één per stand |
+| `lib/email/*.ts` | HTML voor e-mailclients, en die begrijpen geen `var(--...)` |
+| `app/opengraph-image.tsx` | Wordt op de server tot een PNG gerenderd; er is geen stylesheet en geen stand |
+| `app/(auth)/orbit-mark.tsx` | Het merkteken zelf. Een logo houdt zijn kleuren in beide standen |
+
+Het tweede filter gooit commentaarregels weg: een hexwaarde in een toelichting ("`#e7edf2` op wit
+haalde 1,1:1") is een cijfer in een zin en geen kleur in een component.
 
 **Waarom nu ook `.ts`.** De eerste versie van deze controle liep alleen over `.tsx` en miste
 daardoor `lib/analysis-status.ts`: vijf rauwe `rgba()`-kleuren, waarvan `info` en `success`
@@ -575,6 +734,54 @@ Deze controle vond op 21 augustus 2026, ná een eerste ronde waarin 26 regels me
 omgezet, nog **veertien** regels die overgeslagen waren: vier terug-links, vier `→` achter een
 tekstlink, vier verplaatspijlen en twee stijg- en daalpijlen bij een cijfer. Ruim een derde van het
 totaal, gevonden in één commando. Vandaar dat hij hier staat en niet in een commit-bericht.
+
+**En een vijfde, sinds er twee standen zijn: klopt de donkere stand met de lichte?**
+
+```bash
+python3 - <<'EOF'
+import re, io
+
+# Commentaar eruit: de koppen in globals.css noemen de selectors zélf, en dan
+# vindt de zoekopdracht de toelichting in plaats van de regel.
+css = re.sub(r"/\*.*?\*/", "", io.open("app/globals.css").read(), flags=re.S)
+
+def blok(sel):
+    i = css.index("{", css.index(sel)) + 1
+    diepte, begin = 1, i
+    while diepte:
+        diepte += (css[i] == "{") - (css[i] == "}")
+        i += 1
+    return css[begin : i - 1]
+
+def namen(sel):
+    return set(re.findall(r"^\s*(--[a-z0-9-]+):", blok(sel), re.M))
+
+def waarden(sel):
+    return dict(re.findall(r"^\s*(--[a-z0-9-]+):\s*([^;]+);", blok(sel), re.M))
+
+licht = namen(':root,\n:root[data-theme="light"]')
+keuze, systeem = ':root[data-theme="dark"]', ':root:not([data-theme="light"])'
+
+print("alleen donker :", sorted(namen(keuze) - licht) or "geen")
+print("namen uiteen  :", sorted(namen(keuze) ^ namen(systeem)) or "geen")
+a, b = waarden(keuze), waarden(systeem)
+print("waarden uiteen:", [k for k in a if a[k].strip() != b[k].strip()] or "geen")
+EOF
+```
+
+Drie keer "geen" is het doel, en elke regel vangt een andere fout:
+
+1. **Alleen donker gedefinieerd.** Zo'n token is in de lichte stand leeg, en een lege CSS-variabele
+   valt stil terug op niets: doorzichtig, of de erfkleur van de ouder. Precies dezelfde stille fout
+   als bij de derde controle hierboven, alleen zichtbaar in maar één van de twee standen en dus
+   twee keer zo makkelijk te missen.
+2. en 3. **De twee donkere blokken lopen uiteen.** Ze staan er met opzet twee keer (§10.1) en horen
+   identiek te zijn. Wie er één aanpast en de ander vergeet, bouwt een app die er anders uitziet
+   voor wie zelf donker kiest dan voor wie zijn laptop op donker heeft staan. Dat is een verschil
+   dat je alleen vindt als je er gericht naar zoekt.
+
+Stand op 24 augustus 2026: 116 tokens in de lichte stand, 81 daarvan krijgen een donkere
+tegenhanger, en de twee donkere blokken zijn tot op de waarde identiek.
 
 **Dit is geen formaliteit.** De drift is nu drie keer teruggegroeid: de eerste opruiming telde 30
 inline-stijlen over 17 bestanden, de tweede 35, de derde vijf in één bestand dat de eerste twee

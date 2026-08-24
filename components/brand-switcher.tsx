@@ -131,7 +131,7 @@ export function BrandSwitcher({
                     setOpen(false);
                     onSelect(b.id);
                   }}
-                  className="flex w-full flex-col items-start gap-0.5 rounded-[var(--radius-md)] px-3 py-2 text-left transition-colors hover:bg-[var(--bg-elevated)]"
+                  className="flex w-full flex-col items-start gap-0.5 rounded-[var(--radius-md)] px-3 py-2 text-left transition-colors hover:bg-[var(--bg-muted)]"
                   style={{
                     background:
                       active?.id === b.id ? "var(--bg-elevated)" : "transparent",
@@ -157,7 +157,7 @@ export function BrandSwitcher({
                 setOpen(false);
                 onSelect("");
               }}
-              className="w-full rounded-[var(--radius-md)] px-3 py-2 text-left text-sm text-secondary transition-colors hover:bg-[var(--bg-elevated)]"
+              className="w-full rounded-[var(--radius-md)] px-3 py-2 text-left text-sm text-secondary transition-colors hover:bg-[var(--bg-muted)]"
             >
               Alle merken bekijken
             </button>

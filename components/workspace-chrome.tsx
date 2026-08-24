@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Sidebar } from "@/components/sidebar";
 import { BrandSwitcher } from "@/components/brand-switcher";
 import { Icon } from "@/components/icon";
+import { ThemeToggle } from "@/components/theme-toggle";
 import type { BrandOption } from "@/lib/workspace";
 
 /**
@@ -49,7 +50,7 @@ export function WorkspaceChrome({
             <button
               type="button"
               onClick={() => setLadeOpen(true)}
-              className="-ml-1 rounded-[var(--radius-md)] p-2 text-secondary transition-colors hover:bg-[var(--bg-elevated)] lg:hidden"
+              className="-ml-1 rounded-[var(--radius-md)] p-2 text-secondary transition-colors hover:bg-[var(--bg-muted)] lg:hidden"
               aria-label="Menu openen"
             >
               <Icon naam="menu" size={20} />
@@ -65,7 +66,13 @@ export function WorkspaceChrome({
             />
           </div>
 
-          {accountMenu}
+          {/* De themaschakelaar staat links van het accountmenu: allebei gaan ze
+              over jou en niet over dit merk, en het accountmenu blijft de
+              buitenste plek omdat daar het uitloggen achter zit. */}
+          <div className="flex shrink-0 items-center gap-1">
+            <ThemeToggle />
+            {accountMenu}
+          </div>
         </div>
       </header>
 
@@ -90,7 +97,7 @@ export function WorkspaceChrome({
         <div className="no-print fixed inset-0 z-50 lg:hidden">
           <button
             type="button"
-            className="absolute inset-0 bg-black/30"
+            className="absolute inset-0 bg-[var(--overlay-scrim)]"
             aria-label="Menu sluiten"
             onClick={() => setLadeOpen(false)}
           />

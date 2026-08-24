@@ -4524,3 +4524,78 @@ rood sterretje, wat ze eerder niet hadden. De afsluitregel onder de streep zegt 
 versleuteld zijn: geen nieuwe belofte, wel de bevestiging die het voorbeeldscherm op die plek geeft.
 De oogknop staat er nog, met dezelfde redenering als vanmorgen, maar toont nu een open oog als het
 wachtwoord verborgen is: het pictogram zegt wat de klik doet, net als het label.
+
+---
+
+## Het ontwerpsysteem nagerekend tegen Nova's eigen CSS, en twee standen erbij (24 augustus 2026, derde ronde)
+
+De eigenaar leverde de gecompileerde stylesheet van de NOVA-workspace aan, 93 kB met 381 tokens
+erin, en vroeg of de app daar zo veel mogelijk op kon gaan lijken. Dat is een andere vraag dan hij
+lijkt, want dit ontwerpsysteem is sinds 6 augustus 2026 al van Nova afgeleid. Alleen: toen uit
+**schermafbeeldingen**, en nu lag hun eigen bestand ernaast.
+
+**Het cijfer dat de ronde droeg: 45 van de 46 kleurwaarden in `app/globals.css` bleken letterlijk de
+hunne.** De radiusschaal, de randdiktes, de ene schaduw en de breedte van de zijbalk klopten ook al.
+De ene afwijking was `#fef3c7` waar zij `#fef3c6` hebben, één cijfer, met het blote oog onzichtbaar.
+De afleiding uit screenshots was dus verrassend accuraat, en dat maakte de vier plekken waar hij het
+níet was des te bruikbaarder.
+
+**Vier dingen klopten niet.**
+
+1. **De pagina was leiblauw met witte kaarten erop. Bij Nova is de pagina wit.** Hun `body` krijgt
+   `--ds-background-neutral`, en dat is `#fff`; het leiblauw is bij hen niet de grond maar de eerste
+   stap eróp, voor wat ín een kaart genest zit. Dat is de grootste zichtbare wijziging van deze
+   ronde, en er is één token voor bijgekomen (`--bg-muted`) plus drie plekken die op de oude
+   paginakleur leunden voor een hover of een veldvulling en die anders wit op wit waren geworden.
+2. **Kleine labels waren op 6 augustus van mono naar sans gebracht**, met het argument dat mono in
+   labels de "technische read-out"-stijl van de marketingsite was en niet van het product. Dat
+   argument kwam uit screenshots en het klopte niet: Nova heeft `type-label` en `type-lead`,
+   allebei mono, met 1 respectievelijk 2,25 pixel letterspatiëring. Teruggedraaid, met twee bewuste
+   afwijkingen die in `designsystem.md` §3.2 staan.
+3. **De focusring was paars.** Bij Nova is hij inktkleur. Dat is niet alleen hun keuze maar ook de
+   betere: paars is in deze app óók de kleur van de hoofdknop, en een paarse ring om een paarse knop
+   is geen ring.
+4. **Donkere modus was op 11 augustus geschrapt** (besluit 17) omdat 107 tokens elk een doordachte
+   tegenhanger nodig hebben en mechanisch omkeren grijze modder geeft. Dat argument was juist; de
+   aanname eronder is achterhaald. Nova's palet draagt die tegenhangers compleet, tot en met de
+   randtinten en alle zeven betekenissen. Er viel dus niets meer af te leiden.
+
+**Wat er verder bijkwam**, allemaal op verzoek van de eigenaar om "alles" gelijk te trekken: de elf
+benoemde tekststijlen (waarbij meeviel dat Tailwind's maten en regelhoogtes één op één die van Nova
+blijken te zijn, dus de 399 plekken met `text-sm` stonden al goed), Nova's animatieduren van 0,12 en
+0,15 en 0,20 seconde in plaats van onze geschatte 0,12 en 0,18 en 0,30, hun radius van 24 pixels,
+hun eigen tokens voor de schakelaar, hun paginamarge van 14 mm bij afdrukken, en het uitzetten van
+de veerbeweging aan de rand van het scherm.
+
+**De donkere modus en de schakelaar.** De startstand volgt het besturingssysteem en er is bewust
+géén knop voor die derde stand: wie zijn laptop 's avonds op donker zet verwacht dat een app dat
+volgt. Klikt hij op de schakelaar rechtsboven, dan wint zijn keuze, en die staat in `localStorage`
+en niet in de database. Licht of donker is een eigenschap van het scherm waar je op zit en niet van
+het account: dezelfde consultant kan op zijn laptop donker willen en op de beamer in een demogesprek
+licht.
+
+Op twee plekken is donker niet de spiegel van licht, en allebei omdat het oog in donker anders
+werkt. De kaart staat er één stap boven de pagina in plaats van erop samen te vallen, want een rand
+van `#27323d` op `#121a22` is bijna niet te zien. En de zes grafiekkleuren wijzen naar de
+`-text`-waarden in plaats van naar `-solid`, want `-solid` wordt in donker juist dónkerder (groei
+gaat van `#37941c` naar `#2c711a`) en dan verdwijnt de lijn in de achtergrond.
+
+**Wat de meting opleverde dat niemand had bedacht.** Bij het narekenen met Playwright stond een knop
+die halverwege de omslag gefotografeerd werd nog volledig op de kleur van de oude stand. Dat is geen
+meetfout maar de veertig elementen met een kleurovergang die allemaal tegelijk 120 milliseconden
+meeanimeren: het scherm veegt over in plaats van om te klappen. Daar staat nu een klasse
+`.thema-wisselt` op die elke overgang tijdens de omslag uitzet.
+
+**Nagerekend**: de tokenlaag, alle primitieven en de inlogroute zijn in beide standen in de browser
+bekeken, en de pagina loopt op 390 pixels nergens horizontaal over. De ingelogde schermen zijn dat
+**nog niet**, en volgens regel 10 van `CLAUDE.md` is gebouwd niet geverifieerd; `designsystem.md`
+§10.3 noemt de vier schermen die na de eerstvolgende deploy in donker langsgelopen moeten worden.
+
+**Wat deze ronde níet oplost, en scherper maakt.** Het open ontwerpbesluit van `designsystem.md`
+§9b: dit uiterlijk komt van de concurrent, en de merkstrategie vraagt om een eigen gezicht. Deze
+ronde heeft de app verder naar Nova toe gebracht, niet ervandaan. Dat is met open ogen gebeurd en op
+verzoek. Het tegenwicht is dat het fundament op één plek blijft zitten: wie het uiterlijk eigen wil
+maken vervangt tokens in `app/globals.css` en niet honderdzestig componenten, en die eigenschap is
+nu ook in de donkere stand consequent doorgevoerd. Wat er nog steeds niet is, is waar het door
+vervangen zou moeten worden: er is geen logo, geen vastgesteld palet en geen typografiekeuze van
+Outer Orbit zelf.

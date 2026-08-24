@@ -795,7 +795,7 @@ function PageRow({
           <span className="flex items-center">
             <button
               type="button"
-              className="rounded-[var(--radius-md)] px-2 py-1 text-secondary transition-colors hover:bg-[var(--bg-elevated)] disabled:opacity-40"
+              className="rounded-[var(--radius-md)] px-2 py-1 text-secondary transition-colors hover:bg-[var(--bg-muted)] disabled:opacity-40"
               onClick={() => onMove("omhoog")}
               disabled={busy || !kanOmhoog}
               aria-label={`"${page.title}" een plek eerder publiceren`}
@@ -804,7 +804,7 @@ function PageRow({
             </button>
             <button
               type="button"
-              className="rounded-[var(--radius-md)] px-2 py-1 text-secondary transition-colors hover:bg-[var(--bg-elevated)] disabled:opacity-40"
+              className="rounded-[var(--radius-md)] px-2 py-1 text-secondary transition-colors hover:bg-[var(--bg-muted)] disabled:opacity-40"
               onClick={() => onMove("omlaag")}
               disabled={busy || !kanOmlaag}
               aria-label={`"${page.title}" een plek later publiceren`}

@@ -143,7 +143,7 @@ export function ProfileMenu({
         onClick={() => setOpen(true)}
         aria-label="Menu openen"
         aria-haspopup="dialog"
-        className="flex h-9 w-9 items-center justify-center rounded-[var(--radius-md)] text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-elevated)] hover:text-[var(--text-primary)]"
+        className="flex h-9 w-9 items-center justify-center rounded-[var(--radius-md)] text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-muted)] hover:text-[var(--text-primary)]"
       >
         <Icon naam="profiel" size={20} />
       </button>
@@ -166,7 +166,7 @@ export function ProfileMenu({
                 type="button"
                 onClick={() => setOpen(false)}
                 aria-label="Menu sluiten"
-                className="flex h-11 w-11 items-center justify-center rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--bg-surface)] text-xl text-[var(--text-primary)] transition-colors hover:bg-[var(--bg-elevated)]"
+                className="flex h-11 w-11 items-center justify-center rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--bg-surface)] text-xl text-[var(--text-primary)] transition-colors hover:bg-[var(--bg-muted)]"
               >
                 ×
               </button>

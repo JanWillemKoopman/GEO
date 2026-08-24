@@ -81,6 +81,7 @@ import {
   Globe,
   Menu,
   Minus,
+  Moon,
   Orbit,
   PanelLeftClose,
   PanelLeftOpen,
@@ -88,6 +89,7 @@ import {
   RotateCcw,
   Shield,
   SlidersHorizontal,
+  Sun,
   TriangleAlert,
   Upload,
   UserRound,
@@ -139,7 +141,10 @@ export type IcoonNaam =
   | "goedkeuring"
   | "feit"
   | "herstel"
-  | "offsite";
+  | "offsite"
+  // ── De weergave van de app zelf ─────────────────────────────────────────
+  | "licht"
+  | "donker";
 
 export const ICONEN: Record<IcoonNaam, LucideIcon> = {
   // ── DE ZES HOOFDSTUKKEN ─────────────────────────────────────────────────
@@ -239,4 +244,11 @@ export const ICONEN: Record<IcoonNaam, LucideIcon> = {
   herstel: RotateCcw,
   // Werk buiten de eigen site: een vermelding, een profiel, een bron elders.
   offsite: Globe,
+
+  // De themaschakelaar. Het icoon toont waar je heen gaat en niet waar je bent:
+  // sta je in de lichte stand, dan zie je de maan. Dat is de conventie in vrijwel
+  // elke app die dit heeft, en de knop draagt bovendien een `aria-label` die het
+  // uitspreekt, dus de betekenis hangt nergens aan het plaatje alleen.
+  licht: Sun,
+  donker: Moon,
 };

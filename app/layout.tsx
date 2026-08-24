@@ -21,16 +21,46 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#f8fafc",
+  // Twee kleuren, want de app heeft sinds 24 augustus 2026 twee standen. Dit is
+  // de kleur van de browserbalk op een telefoon; stond hij op één waarde, dan
+  // zat er in donkere modus een lichte balk boven een donkere pagina.
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#ffffff" },
+    { media: "(prefers-color-scheme: dark)", color: "#121a22" },
+  ],
   width: "device-width",
   initialScale: 1,
 };
+
+/**
+ * Het anti-flitsscript.
+ *
+ * De keuze licht of donker staat in `localStorage`, en die kan de server niet
+ * lezen. Zonder dit script rendert de server dus altijd de lichte stand, en ziet
+ * iemand met een donkere voorkeur bij elke paginaovergang een witte flits
+ * voordat React de kant weer goedzet.
+ *
+ * Daarom staat het als kaal `<script>` in de `<head>`, en niet via
+ * `next/script`: een gewoon scripttag daar blokkeert het tekenen, en dat is
+ * precies wat hier nodig is. Het zet alleen een attribuut op het wortelelement,
+ * en het zet dat attribuut ALLEEN als de gebruiker zelf gekozen heeft. Koos hij niet, dan blijft het attribuut weg en beslist de mediaquery in
+ * `globals.css` op basis van de systeemvoorkeur.
+ *
+ * ⚠️ `data-theme` staat bewust NIET in de JSX hieronder. Zou React het
+ * renderen, dan ziet hij bij hydratie een ander attribuut dan hij zelf schreef
+ * en klaagt hij over een verschil tussen server en browser. Wat React nooit
+ * gerenderd heeft, beheert hij ook niet.
+ */
+const THEMA_SCRIPT = `try{var t=localStorage.getItem("orbit-thema");if(t==="dark"||t==="light"){document.documentElement.setAttribute("data-theme",t)}}catch(e){}`;
 
 export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="nl" data-theme="light" className={`${GeistSans.variable} ${GeistMono.variable}`}>
+    <html lang="nl" className={`${GeistSans.variable} ${GeistMono.variable}`} suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: THEMA_SCRIPT }} />
+      </head>
       <body>{children}</body>
     </html>
   );

@@ -54,11 +54,25 @@ export function TrackingToggle({ analysisId, initial }: { analysisId: string; in
         disabled={pending}
         aria-pressed={enabled}
         className="relative h-7 w-12 shrink-0 rounded-full transition-colors disabled:opacity-60"
-        style={{ background: enabled ? "var(--intent-intelligence-solid)" : "var(--bg-elevated)", border: "var(--border-width-xs) solid var(--border-subtle)" }}
+        style={{
+          // De baan is groen als hij aan staat en niet paars, sinds 24 augustus
+          // 2026. Paars is in deze app de kleur van "AI doet hier iets"; een
+          // schakelaar zegt alleen aan of uit, en dat is bij Nova (en overal
+          // elders) groen. De tinten komen uit --switch-*, de enige tokens die
+          // Nova apart voor dit ene onderdeel heeft, juist omdat het het enige
+          // vlak in de app is waarvan de kleur zonder tekst iets betekent.
+          background: enabled
+            ? "var(--switch-track-active)"
+            : "var(--switch-track-inactive)",
+          border: "var(--border-width-xs) solid var(--border-subtle)",
+        }}
       >
         <span
-          className="absolute top-0.5 h-5 w-5 rounded-full bg-white transition-transform"
-          style={{ transform: enabled ? "translateX(22px)" : "translateX(2px)" }}
+          className="absolute top-0.5 h-5 w-5 rounded-full transition-transform"
+          style={{
+            background: "var(--switch-thumb)",
+            transform: enabled ? "translateX(22px)" : "translateX(2px)",
+          }}
         />
       </button>
     </div>

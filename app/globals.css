@@ -1,11 +1,14 @@
 @import "tailwindcss";
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   ORBIT ENGINE, design system (LICHT)
+   ORBIT ENGINE, design system
 
-   Bron: het tokensysteem van de NOVA-workspace van InSpace (nova.inspace.io),
-   geanalyseerd op 6 augustus 2026. Volledige verantwoording en de regels voor
-   toepassing: docs/designsystem.md.
+   Bron: het tokensysteem van de NOVA-workspace van InSpace (nova.inspace.io).
+   Afgeleid op 6 augustus 2026 uit schermafbeeldingen, op 24 augustus 2026
+   nagerekend tegen de gecompileerde CSS van dat product zelf. Van de 46
+   kleurwaarden die hier stonden bleken er 45 letterlijk de hunne te zijn; de
+   ene afwijking (#fef3c7 tegenover #fef3c6) is toen rechtgezet. Volledige
+   verantwoording en de regels voor toepassing: docs/designsystem.md.
 
    ⚠️ Dit is NIET het systeem van de marketingsite inspace.io. Dat was de bron
    tot 6 augustus 2026 en het leverde een warme, ronde, gloeiende interface op:
@@ -18,22 +21,65 @@
      gekleurde gloed →  één platte schaduw     (glow-orbs weg)
      gradient overal →  alleen het woordmerk
 
-   Er is bewust GEEN donkere modus. De tokennamen zijn er wel op ingericht,
-   dus die is later een dag werk in plaats van een week. Zie designsystem.md §5.
+   ── DE TWEE STANDEN (24 augustus 2026) ──────────────────────────────────────
+
+   Er zijn er nu twee. Donkere modus was op 11 augustus geschrapt omdat elk van
+   de 107 tokens een doordachte tegenhanger nodig had en die er niet was; met de
+   gecompileerde CSS van Nova erbij liggen die tegenhangers er wél, want hun
+   product draagt een volledig donker palet. Dat is overgenomen.
+
+   De startstand volgt het besturingssysteem. Kiest iemand zelf, dan zet
+   `components/theme-toggle.tsx` een `data-theme` op het wortelelement en wint
+   die keuze van het systeem. Vandaar de drie blokken hieronder:
+
+     :root                                    de lichte stand, altijd volledig
+     @media (prefers-color-scheme: dark)      systeemvoorkeur, tenzij expliciet licht
+     :root[data-theme="dark"]                 de eigen keuze, wint van allebei
+
+   ⚠️ Definieer een kleur NOOIT alleen in een van de twee donkere blokken. De
+   lichte stand hierboven is de volledige lijst; de donkere blokken herdefiniëren
+   alleen wat anders moet zijn. Een token dat alleen in het donkere blok bestaat
+   is in de lichte stand leeg, en een lege kleur is doorzichtig.
    ═══════════════════════════════════════════════════════════════════════════ */
 
 :root,
 :root[data-theme="light"] {
+  /* Vertelt de browser welke kant het op moet met wat hij zelf tekent:
+     scrollbalken, keuzelijsten, het datumveld. Zonder deze regel blijven die in
+     de donkere stand wit. Het donkere tegenhangertje staat in allebei de
+     donkere blokken verderop. */
+  color-scheme: light;
+
   /* ── Neutralen ────────────────────────────────────────────────────────────
      Koel leiblauw, niet warm groengrijs. Dit is 70% van het verschil tussen
      "ziet eruit als een landingspagina" en "ziet eruit als software".
 
      De randen zijn een echte tint en geen doorschijnend zwart: doorschijnend
      zwart maakt een rand vuil zodra hij op een gekleurd vlak ligt, een echte
-     tint niet. */
-  --bg-base: #f8fafc; /* pagina */
-  --bg-surface: #ffffff; /* kaarten */
-  --bg-elevated: #e7edf2; /* geneste vlakken, tabelkoppen, chips */
+     tint niet.
+
+     ⚠️ DE PAGINA IS WIT, sinds 24 augustus 2026. Hij was leiblauw met witte
+     kaarten erop; dat was een gok uit de screenshotronde en hij bleek verkeerd.
+     De gecompileerde CSS van Nova zegt het onomwonden: `body` krijgt daar
+     `--ds-background-neutral`, en dat is `#fff`. Het leiblauw is bij hen niet de
+     grond maar de eerste stap eróp, voor wat ín een kaart genest zit.
+
+     Vier stappen, en meer zijn het er bij Nova ook niet:
+
+       --bg-base      pagina
+       --bg-surface   kaart, menu, dialoog
+       --bg-muted     genest vlak, tabelkop, hover op een oppervlak
+       --bg-elevated  chip, voortgangsbaan
+       --bg-surface-2 hover op een genest vlak
+
+     In de lichte stand vallen pagina en kaart samen op wit: de kaart is dan
+     alleen zijn rand, precies zoals bij Nova. In de donkere stand kan dat niet,
+     want een rand van #27323d op #121a22 is bijna niet te zien; daar staat de
+     kaart één stap boven de pagina. Zie het donkere blok onderaan. */
+  --bg-base: #ffffff; /* pagina */
+  --bg-surface: #ffffff; /* kaarten, menu's, dialogen */
+  --bg-muted: #f8fafc; /* geneste vlakken, tabelkoppen, hover op een oppervlak */
+  --bg-elevated: #e7edf2; /* chips, voortgangsbanen */
   --bg-surface-2: #dce3ea; /* een tint dieper, hover op een genest vlak */
 
   --text-primary: #17212b; /* blauwzwart, niet zwart */
@@ -42,7 +88,17 @@
 
   --border-subtle: #e7edf2;
   --border-strong: #c2ccd6;
-  --border-contrast: #9daab6; /* alleen waar een rand echt moet spreken */
+  /* Was #9daab6. Nova's `--ds-border-neutral` is #788795, een stap donkerder,
+     en dat is precies waar deze tint voor bedoeld is: de enkele rand die echt
+     moet spreken. Op wit haalt hij 3,2:1, ruim boven de 3,0 die WCAG voor een
+     niet-tekstueel element vraagt; #9daab6 haalde 2,1:1 en zakte daar dus onder
+     door zodra de pagina wit werd. */
+  --border-contrast: #788795;
+
+  /* De focusring. Nova kleurt hem niet met het merk maar met de inktkleur
+     (`--ds-border-neutral-inverse`), en dat is beter dan het paars dat hier
+     stond: een paarse ring op een paarse knop is geen ring. */
+  --focus-ring: #17212b;
 
   /* ── Merkkleuren ──────────────────────────────────────────────────────────
      Paars en groen blijven van ons; de systematiek eromheen is van Nova. Het
@@ -106,7 +162,7 @@
   --intent-warning-on-solid: #ffffff;
   --intent-warning-text: #bb4d00;
   --intent-warning-surface: #fffbeb;
-  --intent-warning-surface-hover: #fef3c7;
+  --intent-warning-surface-hover: #fef3c6; /* was #fef3c7, Nova heeft #fef3c6 */
   --intent-warning-border: #fee685;
 
   --intent-attention-solid: #e60076;
@@ -186,6 +242,10 @@
   --radius-md: 8px;
   --radius-lg: 12px;
   --radius-xl: 16px;
+  /* Nova's `--ds-radius-2xl`. Voor het enkele vlak dat een paneel op zichzelf
+     is en geen kaart in een raster: de inlogkaart, een leeg scherm dat de hele
+     kolom vult. Niet op kaarten, die blijven --radius-lg. */
+  --radius-2xl: 24px;
   --radius-pill: 9999px;
 
   --border-width-xs: 1px;
@@ -202,24 +262,329 @@
     0 4px 6px -4px rgba(0, 0, 0, 0.1),
     0 10px 15px -3px rgba(0, 0, 0, 0.1);
 
-  /* Doorschijnende paginakleur onder de sticky balken met backdrop-blur. */
-  --bg-base-blur: rgba(248, 250, 252, 0.85);
+  /* Doorschijnende paginakleur onder de sticky balken met backdrop-blur.
+     Volgt --bg-base: die werd wit op 24 augustus 2026, dus deze ook. */
+  --bg-base-blur: rgba(255, 255, 255, 0.85);
   /* Het waas achter een dialoog. Afgeleid van --text-primary (#17212b), niet van
      zwart: zwart oogt vuil op een koel leiblauwe pagina. */
   --overlay-scrim: rgba(23, 33, 43, 0.4);
 
   /* ── Motion ───────────────────────────────────────────────────────────────
-     Eén easing overal. De duur ging omlaag: Nova's product beweegt korter dan
-     hun marketingsite, en 0,3 s voelt in een dashboard traag. */
-  --ease-standard: cubic-bezier(0.2, 0.7, 0.2, 1);
+     De waarden komen sinds 24 augustus 2026 rechtstreeks uit Nova's
+     gecompileerde CSS in plaats van uit een schatting. Hun standaardovergang is
+     0,15 s op cubic-bezier(.4, 0, .2, 1); wat verschijnt gebruikt daarnaast een
+     zuivere uitloop, cubic-bezier(0, 0, .2, 1).
+
+     De drie duren zijn de drie die zij feitelijk gebruiken:
+
+       0,12 s  een menu of melding die weggaat
+       0,15 s  de standaard: kleur, rand, dialoog, tooltip, melding die komt
+       0,20 s  een accordeon die open- of dichtvouwt, want daar beweegt hoogte
+
+     0,3 s is weg. Dat was een marketingduur en hij voelt in een dashboard
+     traag. */
+  --ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-out: cubic-bezier(0, 0, 0.2, 1);
   --duration-fast: 0.12s;
-  --duration-base: 0.18s;
-  --duration-slow: 0.3s;
+  --duration-base: 0.15s;
+  --duration-slow: 0.2s;
+
+  /* ── Schakelaar ───────────────────────────────────────────────────────────
+     Nova heeft hiervoor eigen tokens, en terecht: een schakelaarbaan is het
+     enige vlak in de app waarvan de kleur "aan" of "uit" betekent zonder dat er
+     tekst bij staat. Het groen is dat van de betekenis "groei", de uit-stand is
+     een neutraal dat donker genoeg is om als vlak te lezen (3,0:1 op wit) en
+     licht genoeg om niet als een gevulde knop te lezen. */
+  --switch-thumb: #ffffff;
+  --switch-track-active: #4cb929;
+  --switch-track-active-hover: #37941c;
+  --switch-track-inactive: #c5d1d6;
+  --switch-track-inactive-hover: #a8b7be;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   DE DONKERE STAND
+
+   Vastgelegd 24 augustus 2026. Op 11 augustus was donkere modus geschrapt, en
+   het argument was goed: 107 tokens hebben elk een doordachte tegenhanger nodig,
+   mechanisch omkeren geeft grijze modder, en dat was een dag werk plus een
+   designronde voor de fase met de laagste impact.
+
+   Wat er sindsdien veranderde is dat de tegenhangers er nu liggen. De
+   gecompileerde CSS van Nova draagt hun volledige donkere palet, tot en met de
+   randtinten en de zeven betekenissen. Ze zijn hieronder overgenomen. Er is dus
+   niets meer af te leiden en niets meer te gokken; het werk dat het besluit
+   destijds te duur maakte, is al gedaan door de bron waar dit systeem toch al
+   van komt.
+
+   ── DE ENE PLEK WAAR WE VAN NOVA AFWIJKEN ──────────────────────────────────
+
+   De grafiekkleuren. In de lichte stand wijzen --chart-1 tot --chart-6 naar de
+   `-solid` van elke betekenis, en dat werkt: een donkere lijn op een lichte
+   grond. In de donkere stand wordt `-solid` juist dónkerder (groei gaat van
+   #37941c naar #2c711a), en dan verdwijnt de lijn in de achtergrond. Daarom
+   wijzen de zes hier naar de `-text`-waarden, want dat zijn in de donkere stand
+   de lichte tinten. Zonder deze omzetting is elke grafiek in donkere modus
+   onleesbaar, en dat is geen smaakkwestie.
+
+   ── HOE DE STANDEN ZICH VERHOUDEN ──────────────────────────────────────────
+
+   Het blok staat er twee keer, en dat is nodig, niet dubbel:
+
+     @media (prefers-color-scheme: dark) op :root:not([data-theme="light"])
+        de systeemvoorkeur, zolang de gebruiker niet uitdrukkelijk licht koos
+     :root[data-theme="dark"]
+        de eigen keuze, en die wint van het systeem in allebei de richtingen
+
+   Nova doet het precies zo. Wie de waarden aanpast, past ze in ALLEBEI de
+   blokken aan; ze zijn identiek en dat hoort zo te blijven.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+
+    /* Neutralen. Vier stappen, net als in de lichte stand.
+
+       ⚠️ Hier vallen pagina en kaart NIET samen. In de lichte stand zijn ze
+       allebei wit en doet de rand het werk; een rand van #e7edf2 op wit is goed
+       te zien. In de donkere stand is een rand van #27323d op #121a22 dat niet,
+       en dan is een kaart geen kaart meer. Daarom staat het oppervlak hier één
+       stap boven de pagina. Dat is de enige asymmetrie tussen de twee standen,
+       en hij is er omdat het oog in donker anders werkt, niet uit slordigheid. */
+    --bg-base: #121a22;
+    --bg-surface: #17212b;
+    --bg-muted: #27323d;
+    --bg-elevated: #27323d;
+    --bg-surface-2: #43505d;
+
+    --text-primary: #ffffff;
+    --text-secondary: #c2ccd6;
+    --text-muted: #788795;
+
+    --border-subtle: #27323d;
+    --border-strong: #43505d;
+    --border-contrast: #9daab6;
+
+    --focus-ring: #e7edf2;
+
+    /* Merkkleuren. Het paars gaat omhoog naar Nova's donkere stand: #8511d9 op
+       #121a22 haalt 3,3:1 en is voor tekst te donker, #ad45ff haalt 6,1:1. */
+    --accent-purple: #ad45ff;
+    --accent-purple-strong: #c278ff;
+    --accent-purple-surface: #5f1291;
+    --accent-purple-glow: rgba(173, 69, 255, 0.22);
+    --accent-green: #275a1a;
+    --accent-green-text: #4cb929;
+    --accent-green-dark: #4cb929;
+    --brand-gradient: linear-gradient(96deg, #4cb929 0%, #ad45ff 96%);
+
+    /* De zeven betekenissen. Het patroon is overal hetzelfde en het is dat van
+       Nova: het gevulde vlak wordt een stap donkerder, de leesbare tekst wordt
+       een stap lichter, en het achtergrondje eronder gaat van bijna-wit naar
+       bijna-zwart in dezelfde tint. */
+    --intent-intelligence-solid: #8511d9;
+    --intent-intelligence-hover: #9e21fc;
+    --intent-intelligence-on-solid: #ffffff;
+    --intent-intelligence-text: #ad45ff;
+    --intent-intelligence-surface: #42006d;
+    --intent-intelligence-surface-hover: #5f1291;
+    --intent-intelligence-border: #7414b5;
+
+    --intent-growth-solid: #2c711a;
+    --intent-growth-hover: #37941c;
+    --intent-growth-on-solid: #ffffff;
+    --intent-growth-text: #4cb929;
+    --intent-growth-surface: #0e2a09;
+    --intent-growth-surface-hover: #234d1a;
+    --intent-growth-border: #275a1a;
+
+    --intent-information-solid: #0069a8;
+    --intent-information-hover: #0084d1;
+    --intent-information-on-solid: #ffffff;
+    --intent-information-text: #00a6f4;
+    --intent-information-surface: #052f4a;
+    --intent-information-surface-hover: #024a70;
+    --intent-information-border: #00598a;
+
+    --intent-warning-solid: #bb4d00;
+    --intent-warning-hover: #e17100;
+    --intent-warning-on-solid: #ffffff;
+    --intent-warning-text: #fe9a00;
+    --intent-warning-surface: #461901;
+    --intent-warning-surface-hover: #7b3306;
+    --intent-warning-border: #973c00;
+
+    --intent-attention-solid: #c6005c;
+    --intent-attention-hover: #e60076;
+    --intent-attention-on-solid: #ffffff;
+    --intent-attention-text: #f6339a;
+    --intent-attention-surface: #510424;
+    --intent-attention-surface-hover: #861043;
+    --intent-attention-border: #a3004c;
+
+    --intent-danger-solid: #c10007;
+    --intent-danger-hover: #e7000b;
+    --intent-danger-on-solid: #ffffff;
+    --intent-danger-text: #fb2c36;
+    --intent-danger-surface: #460809;
+    --intent-danger-surface-hover: #82181a;
+    --intent-danger-border: #9f0712;
+
+    --intent-premium-solid: #84664a;
+    --intent-premium-hover: #9f7d57;
+    --intent-premium-on-solid: #ffffff;
+    --intent-premium-text: #ac8e63;
+    --intent-premium-surface: #2f231b;
+    --intent-premium-surface-hover: #584536;
+    --intent-premium-border: #6c5340;
+
+    /* Grafieken: naar de lichte `-text`-tinten, zie de kop van dit blok. */
+    --chart-1: var(--intent-intelligence-text);
+    --chart-2: var(--intent-growth-text);
+    --chart-3: var(--intent-information-text);
+    --chart-4: var(--intent-warning-text);
+    --chart-5: var(--intent-attention-text);
+    --chart-6: var(--intent-premium-text);
+
+    --bg-base-blur: rgba(18, 26, 34, 0.85);
+    /* Het waas achter een dialoog moet in donker dieper zijn dan in licht:
+       0,4 op een donkere pagina scheidt de dialoog niet meer van wat eronder
+       ligt. Afgeleid van --bg-base, niet van zwart. */
+    --overlay-scrim: rgba(9, 13, 17, 0.66);
+
+    --switch-track-active: #37941c;
+    --switch-track-active-hover: #4cb929;
+    --switch-track-inactive: #4d5f67;
+    --switch-track-inactive-hover: #687d87;
+  }
+}
+
+/* De eigen keuze. Identiek aan het blok hierboven en dat hoort zo: dit blok
+   wint van de systeemvoorkeur, in allebei de richtingen. Wie hier een waarde
+   aanpast, past hem daar ook aan. */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+
+  /* Neutralen. Vier stappen, net als in de lichte stand.
+
+     ⚠️ Hier vallen pagina en kaart NIET samen. In de lichte stand zijn ze
+     allebei wit en doet de rand het werk; een rand van #e7edf2 op wit is goed
+     te zien. In de donkere stand is een rand van #27323d op #121a22 dat niet,
+     en dan is een kaart geen kaart meer. Daarom staat het oppervlak hier één
+     stap boven de pagina. Dat is de enige asymmetrie tussen de twee standen,
+     en hij is er omdat het oog in donker anders werkt, niet uit slordigheid. */
+  --bg-base: #121a22;
+  --bg-surface: #17212b;
+  --bg-muted: #27323d;
+  --bg-elevated: #27323d;
+  --bg-surface-2: #43505d;
+
+  --text-primary: #ffffff;
+  --text-secondary: #c2ccd6;
+  --text-muted: #788795;
+
+  --border-subtle: #27323d;
+  --border-strong: #43505d;
+  --border-contrast: #9daab6;
+
+  --focus-ring: #e7edf2;
+
+  /* Merkkleuren. Het paars gaat omhoog naar Nova's donkere stand: #8511d9 op
+     #121a22 haalt 3,3:1 en is voor tekst te donker, #ad45ff haalt 6,1:1. */
+  --accent-purple: #ad45ff;
+  --accent-purple-strong: #c278ff;
+  --accent-purple-surface: #5f1291;
+  --accent-purple-glow: rgba(173, 69, 255, 0.22);
+  --accent-green: #275a1a;
+  --accent-green-text: #4cb929;
+  --accent-green-dark: #4cb929;
+  --brand-gradient: linear-gradient(96deg, #4cb929 0%, #ad45ff 96%);
+
+  /* De zeven betekenissen. Het patroon is overal hetzelfde en het is dat van
+     Nova: het gevulde vlak wordt een stap donkerder, de leesbare tekst wordt
+     een stap lichter, en het achtergrondje eronder gaat van bijna-wit naar
+     bijna-zwart in dezelfde tint. */
+  --intent-intelligence-solid: #8511d9;
+  --intent-intelligence-hover: #9e21fc;
+  --intent-intelligence-on-solid: #ffffff;
+  --intent-intelligence-text: #ad45ff;
+  --intent-intelligence-surface: #42006d;
+  --intent-intelligence-surface-hover: #5f1291;
+  --intent-intelligence-border: #7414b5;
+
+  --intent-growth-solid: #2c711a;
+  --intent-growth-hover: #37941c;
+  --intent-growth-on-solid: #ffffff;
+  --intent-growth-text: #4cb929;
+  --intent-growth-surface: #0e2a09;
+  --intent-growth-surface-hover: #234d1a;
+  --intent-growth-border: #275a1a;
+
+  --intent-information-solid: #0069a8;
+  --intent-information-hover: #0084d1;
+  --intent-information-on-solid: #ffffff;
+  --intent-information-text: #00a6f4;
+  --intent-information-surface: #052f4a;
+  --intent-information-surface-hover: #024a70;
+  --intent-information-border: #00598a;
+
+  --intent-warning-solid: #bb4d00;
+  --intent-warning-hover: #e17100;
+  --intent-warning-on-solid: #ffffff;
+  --intent-warning-text: #fe9a00;
+  --intent-warning-surface: #461901;
+  --intent-warning-surface-hover: #7b3306;
+  --intent-warning-border: #973c00;
+
+  --intent-attention-solid: #c6005c;
+  --intent-attention-hover: #e60076;
+  --intent-attention-on-solid: #ffffff;
+  --intent-attention-text: #f6339a;
+  --intent-attention-surface: #510424;
+  --intent-attention-surface-hover: #861043;
+  --intent-attention-border: #a3004c;
+
+  --intent-danger-solid: #c10007;
+  --intent-danger-hover: #e7000b;
+  --intent-danger-on-solid: #ffffff;
+  --intent-danger-text: #fb2c36;
+  --intent-danger-surface: #460809;
+  --intent-danger-surface-hover: #82181a;
+  --intent-danger-border: #9f0712;
+
+  --intent-premium-solid: #84664a;
+  --intent-premium-hover: #9f7d57;
+  --intent-premium-on-solid: #ffffff;
+  --intent-premium-text: #ac8e63;
+  --intent-premium-surface: #2f231b;
+  --intent-premium-surface-hover: #584536;
+  --intent-premium-border: #6c5340;
+
+  /* Grafieken: naar de lichte `-text`-tinten, zie de kop van dit blok. */
+  --chart-1: var(--intent-intelligence-text);
+  --chart-2: var(--intent-growth-text);
+  --chart-3: var(--intent-information-text);
+  --chart-4: var(--intent-warning-text);
+  --chart-5: var(--intent-attention-text);
+  --chart-6: var(--intent-premium-text);
+
+  --bg-base-blur: rgba(18, 26, 34, 0.85);
+  /* Het waas achter een dialoog moet in donker dieper zijn dan in licht:
+     0,4 op een donkere pagina scheidt de dialoog niet meer van wat eronder
+     ligt. Afgeleid van --bg-base, niet van zwart. */
+  --overlay-scrim: rgba(9, 13, 17, 0.66);
+
+  --switch-track-active: #37941c;
+  --switch-track-active-hover: #4cb929;
+  --switch-track-inactive: #4d5f67;
+  --switch-track-inactive-hover: #687d87;
 }
 
 /* Tailwind-utilities koppelen aan de tokens (v4 @theme inline). */
 @theme inline {
   --color-base: var(--bg-base);
+  --color-muted-surface: var(--bg-muted);
   --color-elevated: var(--bg-elevated);
   --color-surface: var(--bg-surface);
   --color-surface-2: var(--bg-surface-2);
@@ -252,9 +617,11 @@
   --radius-md: var(--radius-md);
   --radius-lg: var(--radius-lg);
   --radius-xl: var(--radius-xl);
+  --radius-2xl: var(--radius-2xl);
   --radius-pill: var(--radius-pill);
 
   --ease-standard: var(--ease-standard);
+  --ease-out: var(--ease-out);
 }
 
 /* ── Base ─────────────────────────────────────────────────────────────────── */
@@ -265,7 +632,6 @@
 
 html {
   -webkit-text-size-adjust: 100%;
-  color-scheme: light;
   /* Het slot op de deur. De regels hieronder halen de oorzaken weg; dit
      garandeert de uitkomst, ook bij een fout die er later in sluipt: de pagina
      is nooit breder dan het toestel en zijwaarts scrollen bestaat niet.
@@ -277,6 +643,9 @@ html {
      wortelelement trekt `clip` de verticale as mee en dan scrolt de pagina
      helemaal niet meer. */
   overflow-x: hidden;
+  /* Nova zet dit ook. Het haalt de veerbeweging aan de boven- en onderkant weg
+     die op macOS en iOS de indruk wekt dat de app losraakt van het scherm. */
+  overscroll-behavior-y: none;
 }
 
 body {
@@ -334,25 +703,179 @@ table {
    twaalf kaarten vecht een raster met de inhoud. */
 
 /* Focus is functioneel, geen decoratie: de gloed is overal weg BEHALVE hier.
-   Zonder zichtbare focus is de app niet met een toetsenbord te bedienen. */
+   Zonder zichtbare focus is de app niet met een toetsenbord te bedienen.
+
+   De ring is sinds 24 augustus 2026 inktkleur in plaats van paars, zoals bij
+   Nova (`--ds-border-neutral-inverse`). Reden: paars is hier ook de kleur van de
+   hoofdknop, en een paarse ring om een paarse knop is geen ring. Inkt werkt op
+   elk vlak in beide standen, en in de donkere stand keert hij vanzelf om naar
+   licht omdat --focus-ring daar meedraait. */
 :focus-visible {
-  outline: var(--border-width-sm) solid var(--accent-purple);
+  outline: var(--border-width-sm) solid var(--focus-ring);
   outline-offset: 2px;
+}
+
+/* Tijdens het omschakelen van licht naar donker staat elke overgang uit.
+
+   Zonder deze regel animeren alle 40 elementen die een `transition` op kleur of
+   rand hebben 120 milliseconden lang tegelijk, en dan schuift het hele scherm
+   als een veeg van de ene stand naar de andere in plaats van om te klappen.
+   Nagemeten met Playwright: een knop die halverwege die veeg gefotografeerd
+   wordt staat nog op de kleur van de oude stand.
+
+   `components/theme-toggle.tsx` zet deze klasse op het wortelelement, wisselt de
+   stand, en haalt hem er in het volgende tekenmoment weer af. */
+.thema-wisselt,
+.thema-wisselt *,
+.thema-wisselt *::before,
+.thema-wisselt *::after {
+  transition: none !important;
 }
 
 /* ── Herbruikbare primitieven ──────────────────────────────────────────────
    Gebruik deze, nooit een eigen tint. docs/ux-design.md regel 7 heeft de
    grep-controle die dat afdwingt. */
 
-/* Kicker: klein, uppercase, boven een titel. Bij Nova is dit de "YOUR BRAND"-
-   regel. Was uppercase mono met .14em tracking op elk paneel; dat is de
-   read-out-stijl van de marketingsite. Nu sans, rustiger, en bedoeld als
-   bovenschrift in plaats van als standaardlabel. */
-.mono-label {
+/* ── De typografieschaal ────────────────────────────────────────────────────
+   Elf benoemde stijlen, overgenomen uit de gecompileerde CSS van Nova op
+   24 augustus 2026. Tot dan stond hier niets: elk scherm koos zelf een
+   Tailwind-maat, en op 399 plekken was dat `text-sm`.
+
+   Dat pakte beter uit dan het klinkt. De maten en regelhoogtes van Tailwind
+   blijken één op één die van Nova te zijn (14px op 20, 16px op 24, 20px op 28,
+   24px op 32), dus de app stond al op de goede schaal. Wat ontbrak is wat een
+   schaal pas een schaal maakt: een vaste koppeling tussen maat, gewicht en
+   regelhoogte, zodat "een kaarttitel" één ding is in plaats van een keuze.
+
+   Gebruik deze klassen in nieuw werk. Bestaande `text-sm` blijft staan waar hij
+   staat; hij levert exact hetzelfde beeld op en 399 regels omschrijven voor nul
+   zichtbaar verschil is risico zonder opbrengst.
+
+     .type-hero              36/40, 600   de paginakop van een hoofdscherm
+     .type-title             24/32, 600   de kop van een scherm of dialoog
+     .type-section           20/28, 600   de kop boven een blok
+     .type-lead              14/20, mono  de aanhef in kapitalen boven een titel
+     .type-body              16/24, 400   lopende tekst
+     .type-body-emphasis     16/24, 500   nadruk bínnen lopende tekst
+     .type-compact           14/20, 400   lopende tekst in een kaart
+     .type-compact-emphasis  14/20, 500   nadruk daarbinnen
+     .type-caption           12/16, 400   bijschrift, tijdstempel
+     .type-caption-emphasis  12/16, 500   bijschrift dat een waarde draagt
+     .type-label             11/16, mono  het kleinste label
+
+   ⚠️ De twee gewichten van 500 zijn voor nadruk BINNEN een alinea, niet voor
+   een titel. Het besluit van 24 augustus 2026 dat een kaarttitel op 600 staat
+   en niet op 500 blijft staan; zie docs/designsystem.md §3.1. Nova gebruikt 500
+   voor het woord dat je in een zin wilt laten opvallen, en dat is iets anders
+   dan de regel waaraan je een kaart herkent. */
+.type-hero {
   font-family: var(--font-sans);
-  font-size: 0.6875rem;
+  font-size: 2.25rem;
   font-weight: 600;
-  letter-spacing: 0.08em;
+  line-height: 2.5rem;
+  letter-spacing: 0;
+}
+.type-title {
+  font-family: var(--font-sans);
+  font-size: 1.5rem;
+  font-weight: 600;
+  line-height: 2rem;
+  letter-spacing: 0;
+}
+.type-section {
+  font-family: var(--font-sans);
+  font-size: 1.25rem;
+  font-weight: 600;
+  line-height: 1.75rem;
+  letter-spacing: 0;
+}
+.type-lead {
+  font-family: var(--font-mono);
+  font-size: 0.875rem;
+  font-weight: 400;
+  line-height: 1.25rem;
+  letter-spacing: 0.1406rem;
+}
+.type-body {
+  font-family: var(--font-sans);
+  font-size: 1rem;
+  font-weight: 400;
+  line-height: 1.5rem;
+  letter-spacing: 0;
+}
+.type-body-emphasis {
+  font-family: var(--font-sans);
+  font-size: 1rem;
+  font-weight: 500;
+  line-height: 1.5rem;
+  letter-spacing: 0;
+}
+.type-compact {
+  font-family: var(--font-sans);
+  font-size: 0.875rem;
+  font-weight: 400;
+  line-height: 1.25rem;
+  letter-spacing: 0;
+}
+.type-compact-emphasis {
+  font-family: var(--font-sans);
+  font-size: 0.875rem;
+  font-weight: 500;
+  line-height: 1.25rem;
+  letter-spacing: 0;
+}
+.type-caption {
+  font-family: var(--font-sans);
+  font-size: 0.75rem;
+  font-weight: 400;
+  line-height: 1rem;
+  letter-spacing: 0;
+}
+.type-caption-emphasis {
+  font-family: var(--font-sans);
+  font-size: 0.75rem;
+  font-weight: 500;
+  line-height: 1rem;
+  letter-spacing: 0;
+}
+.type-label {
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  font-weight: 400;
+  line-height: 1rem;
+  letter-spacing: 0.0625rem;
+}
+
+/* Kicker: klein, uppercase, boven een titel. Bij Nova is dit de "YOUR BRAND"-
+   regel.
+
+   ── DE TERUGDRAAI VAN 24 AUGUSTUS 2026 ─────────────────────────────────────
+
+   Op 6 augustus is deze klasse van mono naar sans gebracht, met als argument dat
+   mono-labels de "technische read-out"-stijl van de marketingsite waren en niet
+   van het product. Dat argument kwam uit schermafbeeldingen en het klopte niet.
+   Nova's eigen CSS heeft `type-label` en `type-lead`, allebei in de mono, met
+   letterspatiëring van 1 pixel respectievelijk 2,25. Mono in een klein label is
+   dus juist wél hun productstijl.
+
+   Dus terug naar mono, op Nova's maat en spatiëring. Twee dingen wijken bewust
+   af, omdat deze klasse iets draagt wat hun `type-label` niet draagt:
+
+   1. **Gewicht 500 in plaats van 400.** Deze klasse zet zelf de kleur op
+      --text-muted, en dat is 3,7:1. Mono van 11 pixels in kapitalen op gewicht
+      400 in die kleur is te dun om nog een label te zijn. Bij Nova staat de
+      kleur los van de klasse, dus daar speelt dat niet.
+   2. **Kapitalen staan erin.** Bij Nova komt `uppercase` uit een losse utility.
+      Hier zit hij in de klasse omdat alle 101 gebruiksplekken hem willen.
+
+   De naam klopt weer met wat hij doet. Hernoem hem alsnog niet in een losse
+   commit: dat raakt te veel bestanden tegelijk voor een naamswijziging. */
+.mono-label {
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  font-weight: 500;
+  line-height: 1rem;
+  letter-spacing: 0.0625rem;
   text-transform: uppercase;
   color: var(--text-muted);
 }
@@ -477,7 +1000,10 @@ table {
     border-color var(--duration-fast) var(--ease-standard);
 }
 .btn-outline:hover {
-  background-color: var(--bg-base);
+  /* Was --bg-base. Die werd wit op 24 augustus 2026 en dan is er geen hover
+     meer: wit op wit. --bg-muted is de eerste stap boven het oppervlak, en dat
+     is precies wat Nova's `--ds-background-neutral-hover` doet. */
+  background-color: var(--bg-muted);
   border-color: var(--border-contrast);
 }
 .btn-outline:disabled {
@@ -908,7 +1434,10 @@ textarea.field {
   inset: 0;
   z-index: 0;
   pointer-events: none;
-  background-color: var(--bg-base);
+  /* Was --bg-base. Sinds die wit werd zou de kaart op een gelijke grond staan
+     en alleen nog uit zijn schaduw bestaan. --bg-muted geeft hem de ondergrond
+     terug die hij op 24 augustus 2026 had. */
+  background-color: var(--bg-muted);
 }
 
 /* ── De kaart ───────────────────────────────────────────────────────────────
@@ -973,7 +1502,10 @@ textarea.field {
   height: 48px;
   padding: 0 14px 0 42px;
   border-radius: 10px;
-  background-color: var(--bg-base);
+  /* Was --bg-base, en die is sinds 24 augustus 2026 wit: het veld verdween
+     daarmee in de witte kaart. --bg-muted houdt het onderscheid dat er altijd
+     was. */
+  background-color: var(--bg-muted);
   border: var(--border-width-xs) solid var(--border-subtle);
   color: var(--text-primary);
   font-family: var(--font-sans);
@@ -1028,6 +1560,31 @@ textarea.field {
 }
 
 @media print {
+  /* Nova's eigen paginamarge. Zonder deze regel neemt de browser zijn eigen
+     standaard, en die verschilt per browser: hetzelfde dossier komt er bij de
+     een met 10 mm uit en bij de ander met 19. Een klant die het rapport
+     doorstuurt naar een collega krijgt dan een andere pagina dan hij zelf zag. */
+  @page {
+    margin: 14mm;
+  }
+
+  /* In de donkere stand drukt niemand een donkere pagina af: dat kost inkt en
+     het leest slechter. De regel `html, body { background: #ffffff }` verderop
+     zette de grond al goed; deze zet de tekst mee terug, want die is in donkere
+     stand wit en wit op wit is leeg papier. */
+  :root {
+    color-scheme: light;
+    --bg-base: #ffffff;
+    --bg-surface: #ffffff;
+    --bg-muted: #f8fafc;
+    --bg-elevated: #e7edf2;
+    --text-primary: #17212b;
+    --text-secondary: #43505d;
+    --text-muted: #788795;
+    --border-subtle: #e7edf2;
+    --border-strong: #c2ccd6;
+  }
+
   .no-print,
   button,
   a.btn-primary,

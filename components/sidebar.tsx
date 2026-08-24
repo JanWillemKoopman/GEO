@@ -157,7 +157,7 @@ export function Sidebar({
         <button
           type="button"
           onClick={klapOm}
-          className="mono-label mt-auto flex items-center gap-2 rounded-[var(--radius-md)] px-3 py-2 text-left transition-colors hover:bg-[var(--bg-elevated)]"
+          className="mono-label mt-auto flex items-center gap-2 rounded-[var(--radius-md)] px-3 py-2 text-left transition-colors hover:bg-[var(--bg-muted)]"
           aria-label={ingeklapt ? "Zijbalk uitklappen" : "Zijbalk inklappen"}
         >
           <Icon naam={ingeklapt ? "uitklappen" : "inklappen"} />
@@ -208,7 +208,7 @@ function Hoofdstuk({
           // Het icoon blijft paars, ook als het hoofdstuk niet actief is: dat is
           // ingeklapt het enige wat er van de zes ankers overblijft. De actieve
           // staat zit in het vlak eronder, niet in de tint van de tekening.
-          className={`flex items-center justify-center rounded-[var(--radius-md)] p-2 text-[#17212b] transition-colors ${
+          className={`flex items-center justify-center rounded-[var(--radius-md)] p-2 text-[var(--text-primary)] transition-colors ${
             actief
               ? "bg-[var(--accent-purple-surface)]"
               : "hover:bg-[var(--intent-intelligence-surface)]"
@@ -228,7 +228,7 @@ function Hoofdstuk({
           {/* De kleur staat op de ouder en niet op het icoon zelf: `Icon` erft
               altijd `currentColor` (`components/icon.tsx`), en die regel blijft
               staan zodat een tekening nooit zijn eigen tint meebrengt. */}
-          <span className="flex text-[#17212b]">
+          <span className="flex text-[var(--text-primary)]">
             <Icon naam={kop.icoon} size={18} />
           </span>
           <span className="min-w-0 flex-1 truncate">{kop.naam}</span>

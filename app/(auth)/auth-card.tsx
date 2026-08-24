@@ -36,8 +36,13 @@ export function AuthCard({
         <Link href="/" className="inline-flex items-center gap-2.5" aria-label="ORBIT ENGINE">
           <OrbitMark size={28} gradientId="orbit-mark-kaart" className="h-7 w-7" />
           <span className="text-[1.25rem] font-extrabold leading-none tracking-[0.06em]">
-            <span style={{ color: "#37941c" }}>ORBIT</span>{" "}
-            <span style={{ color: "#8511d9" }}>ENGINE</span>
+            {/* Uit de tokens en niet uit de hand, sinds 24 augustus 2026. Beide
+                kleuren draaien mee met de donkere stand, en dat is hier geen
+                nettigheid: het donkere paars haalt op een donkere kaart 3,3:1,
+                net genoeg voor een woordmerk van deze maat, terwijl de lichtere
+                stand op 6,1:1 zit en zichtbaar beter leest. */}
+            <span style={{ color: "var(--accent-green-dark)" }}>ORBIT</span>{" "}
+            <span style={{ color: "var(--accent-purple)" }}>ENGINE</span>
           </span>
         </Link>
       </div>
