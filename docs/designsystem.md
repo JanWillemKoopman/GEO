@@ -30,7 +30,7 @@ Het verschil is groot genoeg om het uit te schrijven:
 | Randen | doorschijnend zwart | echte grijsblauwe tint | **echte tint** |
 | Radii | pillen overal, 18px kaarten | 8px en 12px, pil alleen op chips | **8px en 12px** |
 | Diepte | gekleurde gloed, hover-lift | één platte schaduw | **één schaduw** |
-| Gradient | overal | komt nul keer voor | **alleen het woordmerk** |
+| Gradient | overal | komt nul keer voor | **alleen het merkteken** (sinds 24 augustus 2026, zie §8) |
 | Mono | TT Commons | Geist Mono | **Geist Mono** |
 | Achtergrond | lijnenraster | vlak | **vlak** |
 
@@ -81,7 +81,7 @@ Paars en groen blijven van ORBIT ENGINE; de systematiek eromheen komt van Nova.
 | `--accent-green` | `#b9efa3` | Lichtmint, alleen als vlak |
 | `--accent-green-dark` | `#37941c` | Nova's productgroen |
 | `--accent-green-text` | `#2c711a` | Leesbaar groen als tekst |
-| `--brand-gradient` | groen naar paars, 96° | **Alleen het woordmerk** |
+| `--brand-gradient` | groen naar paars, 96° | **Alleen het merkteken.** Het woordmerk droeg dit tot 24 augustus 2026 |
 
 **Twee dingen zijn hier bijgetrokken.** Het groen was `#2e9e50`, dat van hun marketingsite; het is nu
 `#37941c`, dat van hun product. Die twee verschillen zichtbaar zodra ze naast elkaar staan. En de
@@ -396,7 +396,7 @@ Gebruik deze, nooit een eigen tint of een eigen maat.
 | `.live-dot` | Pulserend, in `growth`. "Loopt nu" |
 | `.skeleton` | Laadvlak. De vorm van wat er komt |
 | `.prose` | Lange tekst: rapport, contentpagina |
-| `.brand-gradient-text` | **Alleen het woordmerk ORBIT ENGINE** |
+| `.brand-wordmark` | **Alleen het woordmerk ORBIT ENGINE.** Mono, `--text-primary`, letters en spatie ingetrokken. Heette `.brand-gradient-text` tot 24 augustus 2026 |
 | `Icon` | Het enige icoon-component. `<Icon naam="klaar" />`, nooit een los teken en nooit een eigen SVG. Zie §6b |
 | `PageHeader`, `EmptyState`, `Narrow`, `ConfidenceChip` | Eén variant per patroon |
 
@@ -414,7 +414,9 @@ Gebruik deze, nooit een eigen tint of een eigen maat.
 6. **Contrast is een tokenkeuze.** Gebruik `-text` op licht en `-on-solid` op gevuld, en vertrouw
    `--text-muted` nooit voor iets wat gelezen moet worden.
 7. **Eén easing, korte duur.**
-8. **De gradient is het woordmerk.** Nergens anders.
+8. **De gradient is het merkteken.** Nergens anders, en sinds 24 augustus 2026 dus ook niet meer
+   op het woordmerk: dat staat in mono op `--text-primary`. Een gekleurd symbool met een neutrale
+   naam eronder leest als een merk, twee gekleurde dingen naast elkaar als versiering.
 9. **Een icoon komt uit `lib/icons.ts`.** Nooit een letterteken in de tekst (✓, ↗, ▾), nooit een
    met de hand getekende SVG, nooit een rechtstreekse import uit `lucide-react`. En in de zijbalk
    draagt alleen de kop er een. Zie §6b.

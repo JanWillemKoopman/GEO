@@ -4493,3 +4493,41 @@ pagina nergens horizontaal over, de oogknop schakelt het veldtype beide kanten o
 verlooptekens hebben elk een eigen id, er is één `h1`, en de console blijft leeg. Op een telefoon
 vallen de drie planeten weg: daar staat de kaart over de volle breedte en belandden ze achter het
 woordmerk en achter de inlogknop.
+
+---
+
+## Het woordmerk verliest het verloop en gaat in mono (24 augustus 2026)
+
+De eigenaar wilde het woordmerk in mono en in `#17212b`, en leverde dat aan als een uitgeprobeerde
+CSS-regel. Doorgevoerd, met drie aanpassingen aan die regel.
+
+**`#17212b` is niet als losse kleur opgeschreven maar als `--text-primary`**, want dat token heeft
+exact die waarde. Een tweede kopie van hetzelfde getal loopt gegarandeerd een keer uiteen met de
+eerste. **De regels `background`, `background-clip` en de `-webkit-`variant zijn weg**: met een
+dekkende tekstkleur klemt dat verloop nog wel aan de letters maar zie je er niets meer van, dus het
+was dode code geworden. En **`font-variant-numeric: tabular-nums` is niet overgenomen**, omdat het
+alleen cijfers uitlijnt en er in "ORBIT ENGINE" geen cijfer staat.
+
+**Eén regel is erbij gekomen die niet in de aanlevering stond: `word-spacing: -0.25em`.** Mono geeft
+elk teken dezelfde breedte, de spatie incluis, waardoor het gat tussen ORBIT en ENGINE ruim twee
+keer zo breed werd als in sans en het als twee losse woorden ging lezen. Vier waarden naast elkaar
+gezet in de browser: zonder correctie en op -0,15em bleef het gat te ruim, op -0,35em raakten de
+woorden elkaar. -0,25em geeft een normale woordafstand. De letterafstand van -0,06em uit de
+aanlevering doet hetzelfde werk binnen een woord.
+
+**De klasse heet nu `.brand-wordmark` en niet meer `.brand-gradient-text`**, want er is geen verloop
+meer en een naam die de vorige vorm beschrijft stuurt de volgende lezer verkeerd. Drie aanroepplekken
+mee omgezet: de header, het profielmenu en de 404-pagina.
+
+**Het woordmerk op de inlogpagina is meegegaan**, na navraag. Dat scherm had sinds diezelfde dag
+ORBIT in groen en ENGINE in paars, en dan zag een klant vóór het inloggen een ander logo dan erna.
+De ring erboven houdt het verloop wel: het verloop heeft daarmee nog één drager in plaats van twee,
+en dat is precies de redenering van §8 in `designsystem.md` een stap verder doorgetrokken.
+
+Bij die drie aanroepplekken stond `tracking-tight` op het element eromheen. Dat deed al niets voor
+het woordmerk (de klasse zet zijn eigen letterafstand op het element zelf), maar het suggereerde van
+wel, dus het is weg.
+
+**Nagerekend in de browser** en niet alleen gebouwd: de berekende stijl geeft `GeistMono`,
+`rgb(23, 33, 43)` en `-1.92px` letterafstand, op zowel de inlogpagina als de 404-pagina.
+

@@ -135,7 +135,7 @@ schermen die de gebruiker na elkaar ziet).
 | `.live-dot` | Pulserende indicator voor "loopt nu". |
 | `.skeleton` | Laadvlak, respecteert `prefers-reduced-motion`. |
 | `.prose` | Lange tekst (rapport, contentpagina). |
-| `.brand-gradient-text` | **Alleen het woordmerk ORBIT ENGINE.** Nergens anders. |
+| `.brand-wordmark` | **Alleen het woordmerk ORBIT ENGINE.** Nergens anders. Mono op `--text-primary`; het verloop zit sinds 24 augustus 2026 in het merkteken en niet meer in de letters. |
 | `PageHeader`, `EmptyState`, `Narrow` | Eén variant per patroon, geen lokale kopieën. |
 | `Icon` (`components/icon.tsx`) | Het enige icoon-component, nooit een los teken en nooit een eigen SVG. In een lijstregel: 18px, links van de titel, in de leeskleur (`text-secondary`) en nooit in de merkkleur. In een knop: 18px, vóór het label als de knop naar een plek gaat (het icoon van dat hoofdstuk), erna als hij vooruit gaat (`naar`). Zie `designsystem.md` §6b.3, regels 5 en 6. |
 | `ConfidenceChip` (`components/confidence-chip.tsx`) | Zekerheid is een **niveau**, nooit een getal: zeker (geen markering) · onzeker (amber) · niet vastgesteld (mono-label "niet gevonden"). "0.62" zegt een MKB'er niets. |

@@ -752,12 +752,30 @@ textarea.field {
 
 /* Het woordmerk, en verder niets. De gradient stond ook op accentwoorden in
    koppen; in de Nova-werkomgeving komt hij nul keer voor. Eén plek is genoeg om
-   herkenbaar te zijn, overal is een landingspagina. */
-.brand-gradient-text {
-  background: var(--brand-gradient);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
+   herkenbaar te zijn, overal is een landingspagina.
+
+   ⚠️ Sinds 24 augustus 2026 draagt het woordmerk dat verloop niet meer. Het
+   stond op de letters geklonken (`background-clip: text`) en staat nu in mono
+   op één kleur. Het verloop houdt daarmee één drager over, het merkteken zelf
+   (`app/(auth)/orbit-mark.tsx`), en dat is precies de redenering van de alinea
+   hierboven, een stap verder doorgetrokken: een gekleurd symbool met een
+   neutrale naam eronder leest als een merk, twee gekleurde dingen naast elkaar
+   als versiering.
+
+   De negatieve letterafstand is geen smaak maar reparatie. Mono geeft elke
+   letter dezelfde breedte, dus de smalle letters in "ORBIT ENGINE" (de I) staan
+   even breed als de brede (de M, de G). Zonder correctie valt het woord daardoor
+   uit elkaar en wordt het merkbaar breder dan in sans, wat in de header van
+   40 pixels hoog meteen opvalt. */
+.brand-wordmark {
+  font-family: var(--font-mono);
+  letter-spacing: -0.06em;
+  /* En de spatie apart, want mono geeft ook díé een volle tekenbreedte: zonder
+     deze regel staat het gat tussen ORBIT en ENGINE ruim twee keer zo breed als
+     in sans en lezen het twee losse woorden in plaats van één naam. Op -0,35em
+     raken ze elkaar juist, dus dit is de bodem. */
+  word-spacing: -0.25em;
+  color: var(--text-primary);
 }
 
 /* Gerenderde Markdown (contentbibliotheek, rapport). */

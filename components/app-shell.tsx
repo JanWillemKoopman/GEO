@@ -45,9 +45,9 @@ export function AppShell({
         // naar een lijst gaat kost een klik om terug te komen waar je was.
         <Link
           href={workspace.active ? `/merk/${workspace.active.id}` : "/merk"}
-          className="text-lg font-bold tracking-tight"
+          className="text-lg font-bold"
         >
-          <span className="brand-gradient-text">ORBIT ENGINE</span>
+          <span className="brand-wordmark">ORBIT ENGINE</span>
         </Link>
       }
       accountMenu={<ProfileMenu email={user.email ?? ""} signOutAction={signOut} />}
