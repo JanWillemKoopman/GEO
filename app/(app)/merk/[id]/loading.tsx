@@ -1,5 +1,5 @@
-import { ChapterSkeleton } from "@/components/skeleton";
+import { OverviewSkeleton } from "@/components/skeleton";
 
 export default function Loading() {
-  return <ChapterSkeleton blocks={3} />;
+  return <OverviewSkeleton />;
 }

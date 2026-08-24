@@ -69,6 +69,25 @@ export const WORK_KIND_LABEL: Record<WorkKind, string> = {
   offsite: "Buiten je site",
 };
 
+/**
+ * De tint van de chip achter een werkregel.
+ *
+ * ── WAAROM DIT NIET ÉÉN KLEUR MAG ZIJN ──────────────────────────────────────
+ *
+ * Op het overzicht kregen alle vijf de werksoorten dezelfde amber chip. "Bekijk
+ * wat er mis is" (een cluster dat niet gelukt is) zag er daardoor precies zo uit
+ * als "Beantwoorden" (zes vragen over je bedrijf). Dat is de ene regel uit
+ * `docs/ux-design.md` §2 die het duidelijkst is: `--intent-attention` is "vraagt
+ * een keuze, is niet fout", `--intent-danger` is "blokkade, mislukt". Een
+ * storing die eruitziet als een routineklus blijft liggen.
+ *
+ * Geen veld op `WorkItem`, want de soort zegt het al. Een tweede plek waar
+ * hetzelfde besluit valt, loopt vroeg of laat uit de pas.
+ */
+export function workChipTone(kind: WorkKind): "danger" | "attention" {
+  return kind === "blokkade" || kind === "herstel" ? "danger" : "attention";
+}
+
 export interface WorkItem {
   /** Stabiel over renders heen: `${kind}:${bron-id}`. */
   id: string;

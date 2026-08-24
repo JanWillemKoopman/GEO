@@ -9,6 +9,7 @@ import { InfoHint } from "@/components/info-hint";
 import { PotentialInline } from "@/components/potential-metrics";
 import { loadRecommendationPotential } from "@/lib/potential-data";
 import { readRecommendations } from "@/lib/pipeline/recommendation";
+import { leesbaarWaarom } from "@/lib/recommendation-text";
 import { GenerateButton } from "../_work/generate-button";
 import { GenerateAllButton } from "../_work/generate-all-button";
 import { OffsitePanel } from "../_work/offsite-panel";
@@ -191,7 +192,16 @@ export async function WerkChapter({
 
                 <PotentialInline triple={potenties[i]} />
 
-                <p className="text-sm text-secondary">{r.why}</p>
+                {/* ⚠️ Dezelfde tekst als op het overzicht, en dus hetzelfde
+                    vangnet: het rapportmodel schrijft onze vraagcodes en
+                    gewichten in de toelichting mee, en die horen in `targets`
+                    en niet in de zin die de klant leest
+                    (`lib/recommendation-text.ts`). De ruwe `why` blijft wél
+                    naar de schrijfopdracht hieronder gaan: daar is het geen
+                    leestekst maar invoer. */}
+                {leesbaarWaarom(r.why) && (
+                  <p className="text-sm text-secondary">{leesbaarWaarom(r.why)}</p>
+                )}
 
                 {/* Aanbevelingen met bewijs erbij (optimalisatie.md 4.11).
                     "Waarom zou ik deze pagina maken" is hiermee beantwoord

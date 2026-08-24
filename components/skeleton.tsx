@@ -31,6 +31,33 @@ export function ListSkeleton({ rows = 3 }: { rows?: number }) {
   );
 }
 
+/**
+ * Het merkoverzicht: kop, de stand-kaart, en de regels die erop wachten.
+ *
+ * ⚠️ `ChapterSkeleton` stond hier eerst, en die tekent drie grijze blokken
+ * zonder kop. Het overzicht opent met een kicker en een titel, en daaronder één
+ * brede kaart met het hoofdcijfer. Een laadvorm die daar niet op lijkt, laat de
+ * pagina bij het vullen verspringen en doet precies wat een spinner doet: hij
+ * zegt dát er gewacht wordt, niet waarop.
+ */
+export function OverviewSkeleton() {
+  return (
+    <div className="flex flex-col gap-6" aria-busy="true" aria-label="Bezig met laden">
+      <div className="flex flex-col gap-2">
+        <Skeleton className="h-3 w-40" />
+        <Skeleton className="h-8 w-64" />
+      </div>
+      <Skeleton className="h-44" style={{ borderRadius: "var(--radius-lg)" }} />
+      <div className="flex flex-col gap-2">
+        <Skeleton className="h-3 w-44" />
+        {Array.from({ length: 3 }).map((_, i) => (
+          <Skeleton key={i} className="h-16" style={{ borderRadius: "var(--radius-lg)" }} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
 /** Eén hoofdstuk in het dossier: kop + twee blokken. */
 export function ChapterSkeleton({ blocks = 2 }: { blocks?: number }) {
   return (

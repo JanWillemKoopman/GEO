@@ -13,14 +13,16 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { PageHeader } from "@/components/page-header";
 import { MilestonesBlock } from "@/components/milestones-block";
-import { InsightsBlock, OpportunitiesBlock } from "@/components/loop-blocks";
+import { InsightLines, OpportunitiesBlock } from "@/components/loop-blocks";
+import { CollapsibleSection } from "@/components/collapsible-section";
+import { SectionErrorBoundary } from "@/components/section-error-boundary";
 import { ProfileProgress } from "./_components/profile-progress";
 import { LastUpdated } from "@/components/last-updated";
 import { InfoHint } from "@/components/info-hint";
 import { activeOnly } from "@/lib/archive";
 import { loadMilestones } from "@/lib/milestones-data";
 import { loadLoop } from "@/lib/insights-data";
-import { loadWorkAcross, sortWork } from "@/lib/work";
+import { loadWorkAcross, sortWork, workChipTone } from "@/lib/work";
 import { confidenceBand } from "@/lib/stats/uncertainty";
 import { activiteit, type AfgerondeTaak } from "@/lib/activity";
 import {
@@ -43,7 +45,29 @@ export const dynamic = "force-dynamic";
  * Er waren 26 schermen en geen enkele startpagina. `/analyses` deed half dienst
  * als dashboard, het merkdossier deed de andere helft, en wie inlogde wist niet
  * waar hij moest beginnen. Dit scherm beantwoordt vier vragen, in deze volgorde:
- * hoe sta ik ervoor, wat wacht op mij, ligt het plan op schema, waar begin ik.
+ * hoe sta ik ervoor, wat wacht op mij, waar begin ik, en pas daarna de
+ * verdieping: wat leverde het op, ligt het plan op schema, wat is er gedaan.
+ *
+ * ── ⚠️ DE VOLGORDE IS OP 24 AUGUSTUS 2026 OMGEZET, EN DAT IS DE HELE INGREEP ─
+ *
+ * Het scherm telde tien blokken, allemaal open, allemaal even zwaar, in één
+ * kolom. "Waar begin je" stond als tiende. `docs/ux-design.md` §5 zegt dat dit
+ * scherm "hoe sta ik ervoor en wat moet ik nu doen" beantwoordt, en §1 vraagt
+ * rust boven volledigheid. Wat de klant moet doen stond dus onder vijf blokken
+ * toelichting.
+ *
+ * Nu: de stand, wat op je wacht, waar je begint. Daarna pas de verdieping, op
+ * desktop in twee kolommen zodat een voortgangsbalk van 2px niet de volle 1024
+ * pixels opeist.
+ *
+ * ── ⚠️ ÉÉN HOOFDGETAL, EN DAT WAS HET NIET ──────────────────────────────────
+ *
+ * De zichtbaarheid stond vier keer op één scherm: in de subkop ("in 0% van de
+ * vragen"), in de stand-kaart ("0%"), in de mijlpalen ("0, zichtbaarheid in
+ * AI-antwoorden") en in de maandinzichten ("de eerste meting staat op 0 van de
+ * 100"). Drie schalen voor één cijfer. De subkop noemt het niet meer, de
+ * inzichten staan nu ín de stand-kaart als duiding bij het cijfer, en
+ * `lib/insights.ts` laat het getal bij een eerste meting weg.
  *
  * ── ⚠️ DE WACHTRIJ BLIJFT KORT, EN DAT IS NIET COSMETISCH ───────────────────
  *
@@ -56,11 +80,18 @@ export const dynamic = "force-dynamic";
  * Blijkt hij in de praktijk tóch vol te lopen, dan is de volgende stap hem per
  * cluster te tonen in plaats van opgeteld, niet hem groter te maken.
  *
- * ── ⚠️ BLOK 6 SUGGEREERT GEEN AUTONOMIE ─────────────────────────────────────
+ * ── ⚠️ HET LAATSTE BLOK SUGGEREERT GEEN AUTONOMIE ───────────────────────────
  *
  * "Wat ORBIT ENGINE deze week deed" komt uit de takenwachtrij en niet uit een
  * animatie. Het product is sales-led: de beheerder start betaald werk, de klant
- * keurt per stap goed. Zie `lib/activity.ts`.
+ * keurt per stap goed. Zie `lib/activity.ts`. Het staat ingeklapt, want het is
+ * het enige blok waar geen handeling uit volgt.
+ *
+ * ── ⚠️ ELK BLOK STAAT IN ZIJN EIGEN FOUTOPVANG ──────────────────────────────
+ *
+ * Acht databronnen op de startpagina van de klant. Zonder `SectionErrorBoundary`
+ * haalt één onverwachte datavorm het hele scherm weg, inclusief de knoppen
+ * waarmee hij net iets wilde doen (`docs/ux-design.md` §4).
  */
 export async function generateMetadata({
   params,
@@ -214,20 +245,21 @@ export default async function OverzichtPage({
 
   return (
     <div className="flex flex-col gap-6">
-      {/* ── 1. Kop ─────────────────────────────────────────────────────────── */}
+      {/* ── Kop ────────────────────────────────────────────────────────────
+          ⚠️ Geen cijfer in de subkop. Het hoofdgetal staat één blok lager, en
+          twee keer hetzelfde getal in twee formuleringen laat de klant zoeken
+          welke van de twee nu de echte is (`docs/ux-design.md` §1). */}
       <PageHeader
         eyebrow={lopendeMaand > 0 ? `Maand ${lopendeMaand} sinds de start` : "Overzicht"}
         title={merknaam}
-        description={
-          hoofdcijfer === null
-            ? "ORBIT ENGINE heeft je merk in kaart. Start een cluster om te laten meten waar je klanten naar vragen."
-            : `AI-assistenten noemen je in ${Math.round(hoofdcijfer.waarde)}% van de vragen waarin ze een aanbieder noemen.`
-        }
+        description="Hoe zichtbaar je bent in AI-antwoorden, wat er op je wacht en waar je begint."
       />
 
-      {/* ── De fase, alleen voor jou (deel B4) ────────────────────────────── */}
+      {/* ── De fase, alleen voor jou (deel B4) ────────────────────────────
+          Een smalle regel en geen kaart: dit is stafinformatie en hoort niet
+          even zwaar te wegen als de stand van het merk eronder. */}
       {fase && (
-        <div className="card flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-[var(--radius-md)] border border-[var(--border-subtle)] px-4 py-2.5">
           <span className="flex flex-wrap items-center gap-2">
             <span className="mono-label">Alleen jij ziet dit</span>
             <span
@@ -235,215 +267,284 @@ export default async function OverzichtPage({
             >
               {STAGE_LABEL[fase]}
             </span>
-            <span className="text-secondary">{STAGE_NEXT[fase]}</span>
+            <span className="text-sm text-secondary">{STAGE_NEXT[fase]}</span>
           </span>
           {fase !== "overgedragen" && (
-            <Link href={`/merk/${id}/admin/onboarding`} className="btn-outline">
+            <Link href={`/merk/${id}/admin/onboarding`} className="btn-outline btn-sm">
               Naar de onboarding
             </Link>
           )}
         </div>
       )}
 
-      {/* ── 2. Hoe sta je ervoor ───────────────────────────────────────────── */}
-      {hoofdcijfer !== null && (
-        <div className="card flex flex-wrap items-end justify-between gap-4">
-          <span className="flex flex-col gap-1">
-            <span className="mono-label flex items-center gap-1">
-              Zichtbaarheid in AI
-              <InfoHint label="Hoe is dit gerekend?">
-                Het gemiddelde over je clusters, gewogen op het aantal vragen dat per cluster
-                gemeten is. Een cluster met vijf metingen telt lichter mee dan een met negentig.
-              </InfoHint>
-            </span>
-            <span className="stat-value text-4xl">{Math.round(hoofdcijfer.waarde)}%</span>
-            {hoofdcijfer.band.margin > 0 && (
-              <span className="mono-label text-muted">
-                marge {Math.max(0, Math.round(hoofdcijfer.band.low))}% tot{" "}
-                {Math.min(100, Math.round(hoofdcijfer.band.high))}%
+      {/* ── 1. De stand: één cijfer, wat het betekent, en waar je het naleest
+          De drie zinnen van `insights()` staan hierbinnen en niet in een eigen
+          blok verderop: ze zijn de duiding bij dít getal. */}
+      <SectionErrorBoundary label="Je zichtbaarheid">
+        <div className="card flex flex-col gap-4">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            {hoofdcijfer === null ? (
+              <span className="flex flex-col gap-1">
+                <span className="mono-label">Zichtbaarheid in AI</span>
+                <span className="text-secondary">
+                  ORBIT ENGINE heeft je merk in kaart. Start een cluster, dan meet ORBIT ENGINE
+                  hoe vaak AI-assistenten je noemen bij de vragen van je klanten.
+                </span>
+              </span>
+            ) : (
+              <span className="flex flex-col gap-1">
+                <span className="mono-label flex items-center gap-1">
+                  Zichtbaarheid in AI
+                  <InfoHint label="Hoe is dit gerekend?">
+                    Het gemiddelde over je clusters, gewogen op het aantal vragen dat per cluster
+                    gemeten is. Een cluster met vijf metingen telt lichter mee dan een met negentig.
+                  </InfoHint>
+                </span>
+                <span className="flex flex-wrap items-baseline gap-3">
+                  <span className="stat-value text-4xl">{Math.round(hoofdcijfer.waarde)}%</span>
+                  {hoofdcijfer.band.margin > 0 && (
+                    <span className="mono-label text-muted">
+                      marge {Math.max(0, Math.round(hoofdcijfer.band.low))}% tot{" "}
+                      {Math.min(100, Math.round(hoofdcijfer.band.high))}%
+                    </span>
+                  )}
+                </span>
               </span>
             )}
-          </span>
-          <Link href={`/merk/${id}/analytics`} className="btn-outline">
-            Naar Analytics
-          </Link>
-        </div>
-      )}
-
-      <MilestonesBlock milestones={mijlpalen} />
-
-      {/* ── 3. Wat er nu op jou wacht ───────────────────────────────────────
-          Maximaal vijf regels. Zie de waarschuwing bovenaan dit bestand. */}
-      <div className="flex flex-col gap-2">
-        <span className="mono-label">
-          {eigenWerk.length === 0
-            ? "Er wacht niets op jou"
-            : eigenWerk.length === 1
-              ? "1 ding wacht op jou"
-              : `${eigenWerk.length} dingen wachten op jou`}
-        </span>
-        {wachtrij.length === 0 ? (
-          <div className="card flex flex-col gap-1">
-            <span className="mono-label">Niets te doen</span>
-            <p className="text-secondary">
-              ORBIT ENGINE meet maandelijks door en laat het weten zodra er iets beweegt.
-            </p>
+            <Link
+              href={
+                hoofdcijfer === null
+                  ? `/merk/${id}/strategie/clusters`
+                  : `/merk/${id}/analytics`
+              }
+              className="btn-outline"
+            >
+              {hoofdcijfer === null ? "Naar je clusters" : "Bekijk je zichtbaarheid"}
+            </Link>
           </div>
-        ) : (
-          <ul className="flex flex-col gap-2">
-            {wachtrij.map((w) => (
-              <li key={w.id}>
-                <Link
-                  href={w.href}
-                  className="card card-interactive flex flex-wrap items-center justify-between gap-3"
-                >
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate font-medium">{w.title}</span>
-                    <span className="mono-label">{w.analysisName}</span>
-                  </span>
-                  <span className="chip chip-warning shrink-0">
-                    {w.actionLabel ?? "Bekijken"}
-                  </span>
-                </Link>
-              </li>
-            ))}
-            {restWachtrij > 0 && (
-              <li>
-                <Link
-                  href={`/merk/${id}/strategie/clusters`}
-                  className="mono-label inline-flex items-center gap-1.5 hover:underline"
-                >
-                  Nog {restWachtrij} {restWachtrij === 1 ? "punt" : "punten"} in je clusters
-                  <Icon naam="naar" size={12} />
-                </Link>
-              </li>
-            )}
-          </ul>
-        )}
-      </div>
+          <InsightLines insights={lus.insights} />
+        </div>
+      </SectionErrorBoundary>
 
-      {/* ── 4. Funnel-voortgang ─────────────────────────────────────────────
-          Verdwijnt niet als er geen plan is: dan staat er waaróm hij leeg is en
-          wat de volgende stap is (`docs/ux-design.md` §4). */}
-      <div className="flex flex-col gap-2">
-        <span className="mono-label">Waar je content staat in de klantreis</span>
-        {funnel.length === 0 || totalen.gepland === 0 ? (
-          <LeegPlan id={id} />
-        ) : (
-          <ul className="flex flex-col gap-2">
-            {funnel.map((f) => (
-              <li key={f.label} className="card flex flex-col gap-2">
-                <span className="flex flex-wrap items-baseline justify-between gap-2">
-                  <span className="font-medium">{f.label}</span>
-                  <span className="mono-label">
-                    {f.gepland === 0
-                      ? "niets gepland"
-                      : `${f.geplaatst} van de ${f.gepland} geplaatst`}
-                  </span>
-                </span>
-                <span
-                  className="h-2 w-full overflow-hidden rounded-[var(--radius-pill)]"
-                  style={{ background: "var(--bg-elevated)" }}
-                >
-                  <span
-                    className="block h-full rounded-[var(--radius-pill)]"
-                    style={{
-                      width: `${f.percentage ?? 0}%`,
-                      background: "var(--intent-growth-solid)",
-                    }}
-                  />
-                </span>
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
-
-      {/* ── 5. Contentmix ──────────────────────────────────────────────────── */}
-      <div className="flex flex-col gap-2">
-        <span className="mono-label flex items-center gap-1">
-          Wat voor content er gepland staat
-          <InfoHint label="Welke types zijn dit?">
-            De indeling uit je contentplan: informatief, categorie en dienst. Dezelfde as als bij
-            &ldquo;klikken per paginatype&rdquo; op Zoekverkeer, zodat je kunt zien welk soort
-            content het meeste oplevert en je plan daarop kunt bijstellen.
-          </InfoHint>
-        </span>
-        {mix.length === 0 ? (
-          <LeegPlan id={id} />
-        ) : (
-          <div className="card flex flex-col gap-3">
-            <span className="flex h-3 w-full overflow-hidden rounded-[var(--radius-pill)]">
-              {mix.map((m, i) => (
-                <span
-                  key={m.type}
-                  title={`${m.type}: ${m.aantal}`}
-                  style={{
-                    width: `${m.percentage}%`,
-                    background: `var(--chart-${(i % 6) + 1})`,
-                  }}
-                />
-              ))}
-            </span>
-            <ul className="flex flex-wrap gap-4">
-              {mix.map((m, i) => (
-                <li key={m.type} className="mono-label flex items-center gap-1.5">
-                  <span
-                    aria-hidden
-                    className="inline-block h-2 w-2 rounded-[var(--radius-pill)]"
-                    style={{ background: `var(--chart-${(i % 6) + 1})` }}
-                  />
-                  <span className="capitalize">{m.type}</span>
-                  <span className="text-muted">
-                    {m.aantal} ({Math.round(m.percentage)}%)
-                  </span>
+      {/* ── 2. Wat er nu op jou wacht ───────────────────────────────────────
+          Maximaal vijf regels. Zie de waarschuwing bovenaan dit bestand. */}
+      <SectionErrorBoundary label="Wat er op je wacht">
+        <div className="flex flex-col gap-2">
+          <span className="mono-label">
+            {eigenWerk.length === 0
+              ? "Er wacht niets op jou"
+              : eigenWerk.length === 1
+                ? "1 ding wacht op jou"
+                : `${eigenWerk.length} dingen wachten op jou`}
+          </span>
+          {wachtrij.length === 0 ? (
+            <div className="card flex flex-col gap-1">
+              <span className="mono-label">Niets te doen</span>
+              <p className="text-secondary">
+                ORBIT ENGINE meet maandelijks door en laat het weten zodra er iets beweegt.
+              </p>
+            </div>
+          ) : (
+            <ul className="flex flex-col gap-2">
+              {wachtrij.map((w) => (
+                <li key={w.id}>
+                  <Link
+                    href={w.href}
+                    className="card card-interactive flex flex-wrap items-center justify-between gap-3"
+                  >
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate font-medium">{w.title}</span>
+                      <span className="mono-label">{w.analysisName}</span>
+                    </span>
+                    {/* De tint komt uit de soort werk (`workChipTone`). Alles
+                        stond op amber, waardoor een cluster dat niet gelukt is
+                        er precies zo uitzag als een pagina die nagekeken moet
+                        worden (`docs/ux-design.md` §2). */}
+                    <span className={`chip chip-${workChipTone(w.kind)} shrink-0`}>
+                      {w.actionLabel ?? "Bekijken"}
+                    </span>
+                  </Link>
                 </li>
               ))}
+              {restWachtrij > 0 && (
+                <li>
+                  <Link
+                    href={`/merk/${id}/strategie/clusters`}
+                    className="mono-label inline-flex items-center gap-1.5 hover:underline"
+                  >
+                    Nog {restWachtrij} {restWachtrij === 1 ? "punt" : "punten"} in je clusters
+                    <Icon naam="naar" size={12} />
+                  </Link>
+                </li>
+              )}
             </ul>
-            {totalen.reserve > 0 && (
-              <p className="text-sm text-muted">
-                {totalen.reserve === 1
-                  ? "Eén reservepagina staat klaar om in te schuiven"
-                  : `${totalen.reserve} reservepagina's staan klaar om in te schuiven`}{" "}
-                als er iets afvalt. Die tellen niet mee in het maandtotaal.
-              </p>
+          )}
+        </div>
+      </SectionErrorBoundary>
+
+      {/* ── 3. Waar begin je ───────────────────────────────────────────────
+          Stond als tiende blok en is de reden dat dit scherm bestaat. */}
+      <SectionErrorBoundary label="Waar je begint">
+        <div className="flex flex-col gap-2">
+          <span className="mono-label">Waar begin je</span>
+          <OpportunitiesBlock
+            opportunities={lus.opportunities}
+            restHref={`/merk/${id}/strategie/clusters`}
+          />
+        </div>
+      </SectionErrorBoundary>
+
+      {/* ── 4. Wat dit tot nu toe opleverde ─────────────────────────────────
+          Blijft op dit scherm (besluit 7, `docs/logbook.md`), maar onder de
+          handeling: in maand 1 zijn alle drie de getallen nul, en drie nullen
+          pal onder een zichtbaarheid van 0% is geen argument om te blijven. */}
+      <SectionErrorBoundary label="Wat dit tot nu toe opleverde">
+        <div className="flex flex-col gap-2">
+          <span className="mono-label">Wat dit tot nu toe opleverde</span>
+          <MilestonesBlock milestones={mijlpalen} />
+        </div>
+      </SectionErrorBoundary>
+
+      {/* ── 5 en 6. De verdieping, op desktop naast elkaar ──────────────────
+          Allebei smal van inhoud: een voortgangsbalk en een lijst korte
+          regels. Onder elkaar kostten ze samen bijna een halve pagina
+          (`docs/ux-design.md` §7: desktop is het uitgangspunt). */}
+      <div className="grid items-start gap-6 lg:grid-cols-2">
+        <SectionErrorBoundary label="Je contentplan">
+          <div className="flex flex-col gap-2">
+            <span className="mono-label">Je contentplan</span>
+            {funnel.length === 0 || totalen.gepland === 0 ? (
+              <LeegPlan id={id} />
+            ) : (
+              <div className="card flex flex-col gap-4">
+                <p className="text-secondary">
+                  {totalen.geplaatst === 0
+                    ? `Nog geen van je ${totalen.gepland} geplande pagina's staat live.`
+                    : `${totalen.geplaatst} van je ${totalen.gepland} geplande pagina's staan live.`}
+                </p>
+
+                {/* Vier kaarten werden vier regels. De funnel houdt zijn eigen
+                    volgorde, ook als een fase leeg is (`lib/plan-progress.ts`). */}
+                <ul className="flex flex-col gap-3">
+                  {funnel.map((f) => (
+                    <li key={f.label} className="flex flex-col gap-1.5">
+                      <span className="flex flex-wrap items-baseline justify-between gap-2">
+                        <span className="text-sm font-medium">{f.label}</span>
+                        <span className="mono-label">
+                          {f.gepland === 0
+                            ? "niets gepland"
+                            : `${f.geplaatst} van de ${f.gepland} geplaatst`}
+                        </span>
+                      </span>
+                      <span
+                        className="h-2 w-full overflow-hidden rounded-[var(--radius-pill)]"
+                        style={{ background: "var(--bg-elevated)" }}
+                      >
+                        <span
+                          className="block h-full rounded-[var(--radius-pill)]"
+                          style={{
+                            width: `${f.percentage ?? 0}%`,
+                            background: "var(--intent-growth-solid)",
+                          }}
+                        />
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+
+                {mix.length > 0 && (
+                  <div className="flex flex-col gap-3 border-t border-[var(--border-subtle)] pt-4">
+                    <span className="mono-label flex items-center gap-1">
+                      Wat voor content er gepland staat
+                      <InfoHint label="Welke types zijn dit?">
+                        De indeling uit je contentplan: informatief, categorie en dienst. Dezelfde
+                        as als bij &ldquo;klikken per paginatype&rdquo; op Zoekverkeer, zodat je
+                        kunt zien welk soort content het meeste oplevert en je plan daarop kunt
+                        bijstellen.
+                      </InfoHint>
+                    </span>
+                    <span className="flex h-3 w-full overflow-hidden rounded-[var(--radius-pill)]">
+                      {mix.map((m, i) => (
+                        <span
+                          key={m.type}
+                          title={`${m.type}: ${m.aantal}`}
+                          style={{
+                            width: `${m.percentage}%`,
+                            background: `var(--chart-${(i % 6) + 1})`,
+                          }}
+                        />
+                      ))}
+                    </span>
+                    <ul className="flex flex-wrap gap-x-4 gap-y-1.5">
+                      {mix.map((m, i) => (
+                        <li key={m.type} className="mono-label flex items-center gap-1.5">
+                          <span
+                            aria-hidden
+                            className="inline-block h-2 w-2 rounded-[var(--radius-pill)]"
+                            style={{ background: `var(--chart-${(i % 6) + 1})` }}
+                          />
+                          <span className="capitalize">{m.type}</span>
+                          <span className="text-muted">
+                            {m.aantal} ({Math.round(m.percentage)}%)
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                    {totalen.reserve > 0 && (
+                      <p className="text-sm text-muted">
+                        {totalen.reserve === 1
+                          ? "Eén reservepagina staat klaar als er iets afvalt."
+                          : `${totalen.reserve} reservepagina's staan klaar als er iets afvalt.`}{" "}
+                        Ze tellen niet mee in je maandtotaal.
+                      </p>
+                    )}
+                  </div>
+                )}
+              </div>
             )}
           </div>
-        )}
-      </div>
+        </SectionErrorBoundary>
 
-      {/* ── 6. Wat ORBIT ENGINE deze week deed ─────────────────────────────── */}
-      <div className="flex flex-col gap-2">
-        <span className="mono-label">Wat ORBIT ENGINE deze week deed</span>
-        {regels.length === 0 ? (
-          <div className="card flex flex-col gap-1">
-            <span className="mono-label">Deze week niets gedraaid</span>
-            <p className="text-secondary">
-              Er stond geen werk klaar. De volgende meetronde staat gepland voor de eerste van de
-              maand.
-            </p>
+        {/* ── 6. Wat ORBIT ENGINE deze week deed ───────────────────────────
+            Ingeklapt: het is het enige blok waar geen handeling uit volgt, en
+            het was het langste van de pagina. */}
+        <SectionErrorBoundary label="Wat ORBIT ENGINE deze week deed">
+          <div className="flex flex-col gap-2">
+            <span className="mono-label">Wat ORBIT ENGINE deze week deed</span>
+            {regels.length === 0 ? (
+              <div className="card flex flex-col gap-1">
+                <span className="mono-label">Deze week niets gedraaid</span>
+                <p className="text-secondary">
+                  Er stond geen werk klaar. De volgende meetronde staat gepland voor de eerste van
+                  de maand.
+                </p>
+              </div>
+            ) : (
+              <CollapsibleSection
+                title="Het werk van deze week"
+                badge={
+                  regels.length === 1 ? "1 soort werk" : `${regels.length} soorten werk`
+                }
+                defaultOpen={false}
+              >
+                <ul className="flex flex-col gap-2">
+                  {regels.map((r) => (
+                    <li
+                      key={r.tekst}
+                      className="flex flex-wrap items-baseline justify-between gap-2"
+                    >
+                      <span className="text-sm text-secondary">
+                        ORBIT ENGINE {r.tekst}
+                        {r.aantal > 1 && <span className="text-muted"> ({r.aantal}×)</span>}
+                      </span>
+                      <LastUpdated at={r.laatst} className="mono-label" />
+                    </li>
+                  ))}
+                </ul>
+              </CollapsibleSection>
+            )}
           </div>
-        ) : (
-          <ul className="card flex flex-col gap-2">
-            {regels.map((r) => (
-              <li key={r.tekst} className="flex flex-wrap items-baseline justify-between gap-2">
-                <span className="text-secondary">
-                  ORBIT ENGINE {r.tekst}
-                  {r.aantal > 1 && <span className="text-muted"> ({r.aantal}×)</span>}
-                </span>
-                <LastUpdated at={r.laatst} className="mono-label" />
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
-
-      <InsightsBlock insights={lus.insights} />
-
-      {/* ── 7. Waar begin je ───────────────────────────────────────────────── */}
-      <div className="flex flex-col gap-2">
-        <span className="mono-label">Waar begin je</span>
-        <OpportunitiesBlock opportunities={lus.opportunities} />
+        </SectionErrorBoundary>
       </div>
     </div>
   );

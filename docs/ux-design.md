@@ -1,10 +1,11 @@
 # UX & Design
 
 Leidend voor elk scherm. Tokens en primitieven staan in `app/globals.css`; dit document legt uit
-wat ze zijn en wanneer je welke gebruikt. **Peildatum: 21 augustus 2026.** De vormgeving zelf ging
+wat ze zijn en wanneer je welke gebruikt. **Peildatum: 24 augustus 2026.** De vormgeving zelf ging
 op 6 augustus over op het systeem van de NOVA-workspace (volledige verantwoording in
 `designsystem.md`); deze datum volgt de gedragspatronen die daarna zijn bijgekomen (statustaal,
-foutafhandeling, de content-editie, en op 21 augustus de iconen in de zijbalk).
+foutafhandeling, de content-editie, op 21 augustus de iconen in de zijbalk en op 24 augustus de
+indeling van het merkoverzicht).
 
 > **Voor de tékst in die schermen geldt `docs/schrijfstijl.md`**: de tone-of-voice van ORBIT ENGINE,
 > afgeleid van InSpace Nova. Dit document gaat over hoe iets eruitziet, dat over hoe het klinkt.
@@ -258,6 +259,59 @@ staat nu in `lib/icons.ts`, de vormregels in `designsystem.md` §6b.
 verzorgd uit en het werkte averechts: zestien tekeningen in een balk van zestien regels markeren
 niets meer, want als alles opvalt valt niets op. `NavItem` heeft daarom geen icoonveld, zodat het
 niet ongemerkt terugkomt.
+
+### Het overzicht: de eerste schermhoogte draagt het antwoord (24 augustus 2026)
+
+`/merk/[id]` telde tien blokken, allemaal open, allemaal even zwaar, in één kolom van 1024px.
+"Waar begin je" stond als tiende. Dat botst met twee regels tegelijk: §5 zegt dat dit scherm
+"hoe sta ik ervoor en wat moet ik nu doen" beantwoordt, en §1 vraagt rust boven volledigheid.
+
+**De volgorde is nu: stand, wat op je wacht, waar je begint. Daarna pas de verdieping.**
+
+| Blok | Wat het beantwoordt |
+|---|---|
+| Kop | Welk merk, hoeveelste maand |
+| De stand | Eén cijfer, de marge eronder, en de drie zinnen van `insights()` als duiding erbij |
+| Wat er op jou wacht | Hooguit vijf regels, alleen de staat `nu`, doorklik naar de rest |
+| Waar begin je | De zes bovenste kansen, gesorteerd op wat ze opleveren |
+| Wat dit tot nu toe opleverde | De drie mijlpalen (besluit 7) |
+| Je contentplan · Wat ORBIT ENGINE deze week deed | Op `lg` naast elkaar, want allebei smal van inhoud |
+
+⚠️ **Eén hoofdgetal, en dat was het niet.** De zichtbaarheid stond vier keer op dit scherm: in de
+subkop, in de stand-kaart, in de mijlpalen en in de maandinzichten, in drie verschillende schalen
+(`0%`, `0`, `0 van de 100`). De subkop noemt het cijfer niet meer, de maandinzichten hebben geen
+eigen blok meer maar staan ín de stand-kaart, en `lib/insights.ts` laat het getal weg bij een eerste
+meting: daar staat het immers vlak boven. Bij twee metingen blijven de cijfers wél staan, want dan
+gaat de zin over het verschil en dat is nieuwe informatie.
+
+⚠️ **De chip achter een werkregel volgt de soort werk** (`workChipTone()` in `lib/work.ts`). Alle
+vijf de soorten stonden op `chip-warning`, waardoor "Bekijk wat er mis is" er precies zo uitzag als
+"Nakijken". §2: `attention` vraagt een keuze en is niet fout, `danger` is een blokkade of iets dat
+niet gelukt is. Een storing die eruitziet als een routineklus blijft liggen.
+
+⚠️ **Het activiteitenblok staat ingeklapt** (`CollapsibleSection`, `defaultOpen={false}`). Het was
+het langste blok van de pagina en het enige waar geen handeling uit volgt.
+
+⚠️ **De mijlpalen zakten, ze verdwenen niet.** Besluit 7 zette ze bewust op het overzicht en dat
+blijft zo. Ze stonden alleen pal onder het hoofdcijfer, en in maand 1 zijn alle drie de getallen
+nul: drie nullen onder een zichtbaarheid van 0% is geen argument om te blijven, het is het
+tegendeel.
+
+⚠️ **Elk blok staat in zijn eigen `SectionErrorBoundary`.** Acht databronnen op de startpagina van
+de klant, en zonder die opvang haalt één onverwachte datavorm het hele scherm weg, inclusief de
+knoppen waarmee hij net iets wilde doen (§4).
+
+**Het getal bij een kans is een telling en geen percentage.** Er stond "240% van de gemeten vragen",
+want de chip rekende met de som van de bevroren promptgewichten, en dat gewicht is volumeband ×
+koopwaarde per vraag (0,02 tot 1,0), geen aandeel. Nu: "raakt 4 van de 30 gemeten vragen", twee
+tellingen. §1, geen schijnprecisie. De som blijft bestaan als sorteersleutel en komt nooit meer in
+beeld.
+
+**En de toelichting bij een kans is ontdaan van onze notatie** (`lib/recommendation-text.ts`). Het
+rapportmodel schreef "V1 en V2 hebben gewicht 0,60" in de zin die de klant leest; bij Van den
+Udenhout begon vijf van de zes aanbevelingen zo. De promptregel in `lib/pipeline/report.ts` verbiedt
+het, en dit is het vangnet in code ernaast (conventie 1). Blijft er niets over, dan staat er niets:
+een half afgebroken zin is erger dan geen zin.
 
 ### De fase van een merk (19 augustus 2026)
 

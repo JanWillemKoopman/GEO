@@ -297,7 +297,16 @@ function buildReportInput(
       "concurrent het betreft. PRIORITEER de aanbevelingen op de zwaarwegende gemiste vragen hierboven " +
       "(hoog gewicht = populair en of koopklaar). Geef 5 tot 8 concrete, geprioriteerde aanbevelingen, " +
       "genoeg om de zwaarste gemiste vragen te dekken, niet zoveel dat het een boodschappenlijst wordt. " +
-      "Koppel elke aanbeveling aan de vraagcodes (V1, V2, …) die hij moet winnen.",
+      "Koppel elke aanbeveling aan de vraagcodes (V1, V2, …) die hij moet winnen. " +
+      // ⚠️ De vraagcodes en de gewichten zijn ONZE notatie en horen in het veld
+      // `targets`, niet in de zin die de klant leest. Ze stonden er wel: op het
+      // overzicht van Van den Udenhout begon vijf van de zes aanbevelingen met
+      // "V1 en V2 hebben gewicht 0,60". `docs/ux-design.md` §1 verbiedt jargon
+      // op een klantscherm. Dit is de instructie; het vangnet in code staat in
+      // `lib/recommendation-text.ts` (conventie 1).
+      "Schrijf de toelichting bij een aanbeveling in gewone taal: NOOIT een vraagcode (V1, V2) " +
+      "en NOOIT een gewicht in de lopende tekst. Beschrijf de vraag in woorden, dus niet " +
+      "\"V5 heeft gewicht 0,50\" maar \"wie in Breda een occasion zoekt\".",
   ].join("\n");
 }
 
