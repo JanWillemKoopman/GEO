@@ -50,8 +50,36 @@ import type { BrandOption } from "@/lib/workspace";
  * netjes uit maar werkte averechts: zestien tekeningen in een balk van zestien
  * regels markeren niets meer. Het icoon van de kop moet het verschil maken
  * tussen "dit is een van de zes vaste plekken" en "dit is een pagina daarbinnen",
- * en dat verschil verdwijnt zodra beide er een dragen. De bestemming staat al
- * ingesprongen achter een lijn; dat zegt genoeg.
+ * en dat verschil verdwijnt zodra beide er een dragen.
+ *
+ * ── DE VORMGEVING VAN 24 AUGUSTUS 2026 ──────────────────────────────────────
+ *
+ * De balk had vijf koppen en zestien regels in vrijwel één en dezelfde opmaak:
+ * kop en bestemming allebei `text-sm`, allebei grijs, allebei 400 tot 500 in
+ * gewicht, en het enige wat een kop van een regel scheidde was een verticale
+ * lijn van 1 pixel links van de kinderen. Vijf verschillen zetten die hiërarchie
+ * nu neer, en elk verschil doet één ding:
+ *
+ * 1. **De kop is zwaarder en donkerder** (15px, gewicht 600, `--text-primary`).
+ *    Zes ankers die je in één oogopslag terugvindt, in plaats van zestien regels
+ *    die om beurten oplichten. De kop verandert niet meer van kleur als je op
+ *    een pagina eronder staat: dat markeerde één van de zes koppen, terwijl de
+ *    actieve regel het al zegt, en twee markeringen voor één plek is er een.
+ * 2. **Het icoon van de kop is paars** (`--accent-purple`) in plaats van de
+ *    kleur van de tekst ernaast. Dat is de enige plek in de app waar een icoon
+ *    zijn eigen tint heeft, en de uitzondering staat verantwoord in
+ *    `docs/designsystem.md` §6b.2: zes tekeningen in de hele balk, precies de
+ *    zes vaste plekken, en één merkkleur die ze aan elkaar verbindt.
+ * 3. **De verticale lijn onder de kop is weg.** Hij moest het kindschap dragen,
+ *    maar de bestemmingen staan al ingesprongen tot ónder de koptekst en dat
+ *    zegt hetzelfde zonder een lijn die dwars door de actieve regel loopt.
+ * 4. **De actieve regel is paars in plaats van grijs.** Grijs op grijs
+ *    (`--bg-elevated` #e7edf2 op wit) haalde 1,1:1 aan contrast met zijn eigen
+ *    achtergrond: je zag hem pas als je ernaar zocht. Nu is het `#f3e6ff` met
+ *    paarse tekst, en dat is dezelfde merkkleur als het icoon ernaast.
+ * 5. **De marges zijn ruimer**: 20px tussen twee hoofdstukken en 36px per regel
+ *    in plaats van 30px. Zestien regels op elkaar lezen als een lijst, zes
+ *    groepjes met lucht ertussen lezen als een indeling.
  *
  * ── INGEKLAPT IS EEN VOORKEUR, GEEN STAAT ───────────────────────────────────
  *
@@ -102,9 +130,9 @@ export function Sidebar({
   const breedte = mobiel ? "w-full" : smal ? "w-16" : "w-60";
 
   return (
-    <div className={`flex h-full flex-col gap-1 p-3 transition-[width] duration-200 ${breedte}`}>
+    <div className={`flex h-full flex-col p-3 transition-[width] duration-200 ${breedte}`}>
       {!smal && activeBrand && (
-        <span className="mono-label truncate px-3 pb-1 pt-2">{activeBrand.name}</span>
+        <span className="mono-label truncate px-3 pb-2 pt-2">{activeBrand.name}</span>
       )}
 
       {koppen.map((kop, i) => (
@@ -113,6 +141,10 @@ export function Sidebar({
           kop={kop}
           pathname={pathname}
           smal={smal}
+          // Het eerste hoofdstuk krijgt geen extra ruimte erboven: de balk zelf
+          // heeft al padding, en anders zakt de hele lijst zichtbaar weg onder
+          // de bovenbalk.
+          eerste={i === 0}
           // De Admin-groep staat onder een scheidingslijn. Niet omdat het
           // geheim is, maar omdat het een ander soort werk is: wat de klant
           // nooit ziet, staat visueel apart van wat je met hem deelt.
@@ -148,12 +180,14 @@ function Hoofdstuk({
   kop,
   pathname,
   smal,
+  eerste,
   scheiding,
   onClick,
 }: {
   kop: NavHoofdstuk;
   pathname: string;
   smal: boolean;
+  eerste: boolean;
   scheiding: boolean;
   onClick?: () => void;
 }) {
@@ -171,11 +205,14 @@ function Hoofdstuk({
           onClick={onClick}
           title={kop.naam}
           aria-current={actief ? "page" : undefined}
-          className="flex items-center gap-3 rounded-[var(--radius-md)] px-3 py-2 text-sm font-medium transition-colors"
-          style={{
-            color: actief ? "var(--text-primary)" : "var(--text-secondary)",
-            background: actief ? "var(--bg-elevated)" : "transparent",
-          }}
+          // Het icoon blijft paars, ook als het hoofdstuk niet actief is: dat is
+          // ingeklapt het enige wat er van de zes ankers overblijft. De actieve
+          // staat zit in het vlak eronder, niet in de tint van de tekening.
+          className={`flex items-center justify-center rounded-[var(--radius-md)] p-2 text-[var(--accent-purple)] transition-colors ${
+            actief
+              ? "bg-[var(--accent-purple-surface)]"
+              : "hover:bg-[var(--intent-intelligence-surface)]"
+          }`}
         >
           <Icon naam={kop.icoon} size={18} />
         </Link>
@@ -185,16 +222,23 @@ function Hoofdstuk({
 
   return (
     <>
-      {scheiding && <div className="my-2 border-t border-[var(--border-subtle)]" />}
-      <div className="flex flex-col gap-0.5">
-        <span
-          className="flex items-center gap-3 px-3 pb-0.5 pt-2 text-left text-sm font-medium"
-          style={{ color: actief ? "var(--text-primary)" : "var(--text-secondary)" }}
-        >
-          <Icon naam={kop.icoon} size={18} />
+      {scheiding && <div className="mb-1 mt-5 border-t border-[var(--border-subtle)]" />}
+      <div className={`flex flex-col ${eerste || scheiding ? "" : "mt-5"}`}>
+        <span className="flex items-center gap-2.5 px-3 pb-1.5 pt-2 text-left text-[0.9375rem] font-semibold text-[var(--text-primary)]">
+          {/* De kleur staat op de ouder en niet op het icoon zelf: `Icon` erft
+              altijd `currentColor` (`components/icon.tsx`), en die regel blijft
+              staan zodat een tekening nooit zijn eigen tint meebrengt. */}
+          <span className="flex text-[var(--accent-purple)]">
+            <Icon naam={kop.icoon} size={18} />
+          </span>
           <span className="min-w-0 flex-1 truncate">{kop.naam}</span>
         </span>
-        <div className="ml-4 flex flex-col gap-0.5 border-l border-[var(--border-subtle)] pl-2">
+        {/* 28 pixels inspringen is niet willekeurig: dat is precies de breedte
+            van het icoon (18) plus de tussenruimte (10), waardoor de tekst van
+            een bestemming exact onder de tekst van zijn kop uitkomt. De
+            uitlijning draagt het kindschap, en daarmee is de verticale lijn die
+            hier tot 24 augustus 2026 stond overbodig. */}
+        <div className="flex flex-col pl-7">
           {kop.items.map((item) => (
             <Item
               key={item.href}
@@ -223,18 +267,22 @@ function Item({
       href={item.href}
       onClick={onClick}
       aria-current={active ? "page" : undefined}
-      className="flex items-center justify-between gap-2 truncate rounded-[var(--radius-md)] px-3 py-1.5 text-sm transition-colors"
-      style={{
-        color: active ? "var(--text-primary)" : "var(--text-secondary)",
-        background: active ? "var(--bg-elevated)" : "transparent",
-        fontWeight: active ? 500 : 400,
-      }}
+      // Klassen en geen inline `style`: een inline achtergrond wint het van elke
+      // klasse, en dan doet een `hover:`-regel niets meer.
+      className={`flex items-center justify-between gap-2 rounded-[var(--radius-md)] px-3 py-2 text-sm transition-colors ${
+        active
+          ? "bg-[var(--accent-purple-surface)] font-medium text-[var(--accent-purple)]"
+          : "text-[var(--text-secondary)] hover:bg-[var(--intent-intelligence-surface)] hover:text-[var(--text-primary)]"
+      }`}
     >
       <span className="truncate">{item.label}</span>
       {item.staffOnly && (
         <span
-          className="mono-label shrink-0 text-muted"
-          style={{ fontSize: "0.6rem" }}
+          // Een pil en niet los grijs hoofdlettertekst: los in de regel las het
+          // als een tweede label bij de bestemming, terwijl het een stempel op
+          // die bestemming is. Zelfde paarse vlak als de actieve regel, zodat de
+          // balk twee tinten kent en geen vier.
+          className="shrink-0 rounded-[var(--radius-pill)] bg-[var(--accent-purple-surface)] px-1.5 py-0.5 text-[0.5625rem] font-semibold uppercase leading-[1.4] tracking-[0.08em] text-[var(--accent-purple)]"
           title="Alleen zichtbaar voor jou, niet voor de klant"
         >
           alleen jij
