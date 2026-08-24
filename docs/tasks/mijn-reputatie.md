@@ -1033,11 +1033,18 @@ toonuitspraak op (conventie 3), en een gewijzigde scope levert een kanttekening 
 cijfers zonder standaardfout gelden vaste drempels: tien punten bewijskracht, en twee van de drie
 marktantwoorden. Eén omgeslagen marktantwoord is 33 procentpunt en dus ruis.
 
-**Verificatie:** twee runs op hetzelfde merk laten een verschil zien dat volgens
-`changeIsMeaningful()` betekenisvol is of expliciet niet, en het scherm zegt welke van de twee.
-⏳ **Nog te doen op productie**: er is één afgeronde run op Gasservice Brabant, de tweede moet nog
-draaien. De rekenkunde is wel getoetst op de echte getallen van die eerste run (toon 47, marge 2,6):
-zeven punten verschil valt daar binnen de ruis, en dat is de zin die het scherm dan toont.
+**Verificatie:** ✅ AFGEROND (23 augustus 2026, drie runs op Gasservice Brabant). De tweede en
+derde run legden onderweg drie meetfoutjes bloot (marge nul bij gelijke labels, de verkeerde noemer
+onder de trefkans, een vergeten versienummer) en één classificatiefout (een opmerking over ons eigen
+bewijs telde mee als bezwaar), alle vier gerepareerd en met de echte antwoorden getoetst. De derde
+run bevestigde de reparaties: geen bewijsopmerking meer tussen de zwakke punten, een marge van 3,1
+in plaats van 0, en een trefkans met de juiste noemer erbij.
+
+Wat blijft staan is geen fout maar een grens: alle 22 oordelen van de derde run kregen het etiket
+`gemengd`, en bij nalezen bleek dat terecht, elk antwoord noemt zowel meerdere échte sterke punten
+als meerdere terugkerende, concrete klachten. De schaal zet elk `gemengd` oordeel op exact 0, of het
+nu om één milde prijsopmerking gaat of om vijf klachten waaronder een veiligheidsgerelateerd punt.
+Die twee wegen niet even zwaar en de schaal ziet dat verschil niet. Open voor een volgende ronde.
 
 ---
 
