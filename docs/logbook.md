@@ -4816,3 +4816,41 @@ Nagerekend: `npx tsc --noEmit`, 2241 unittests (39 nieuwe, voor `brand-score.ts`
 kansenlijst), 303 ketentests en de productiebuild zijn groen. Het resultaat is in beide standen
 bekeken op de echte productiedata, in drie staten: het gevulde scherm, een merk met vijf metingen en
 de eerste maand.
+
+---
+
+## 26 augustus 2026: het overzicht toont de omvang van het programma
+
+Vervolg op de ontwerpronde van de dag ervoor, en op één punt een correctie daarop door de eigenaar.
+
+**Het zichtbaarheidspercentage is van de startpagina af.** Het stond er als hoofdgetal, met de marge,
+het verschil en het verloop eromheen. Het staat nu op Analytics, één klik weg via de knop die er nog
+steeds naast staat, en in woorden in de drie duidingszinnen eronder. De reden: de vraag die een
+klant bij het inloggen stelt is niet "wat is mijn score" maar "wat loopt er voor mij, en wat staat
+er klaar". Vier tellingen in de plaats, over de volle breedte: pagina's gepubliceerd, clusters
+actief, nieuwe pagina's voorgesteld, paginaoptimalisaties voorgesteld. Geen van de vier draagt een
+vergelijking met een vorige periode, want het zijn standen en geen metingen: het aantal clusters
+verandert doordat de eigenaar er een aanzet, niet doordat er gemeten is.
+
+**Het opbrengstblok is verwijderd, en daarmee een deel van besluit 7.** "Actief sinds", "+30 punten"
+en "1 pagina gepubliceerd" stonden onderaan het overzicht als het middel dat opzeggen tegenhoudt bij
+een doorlopend opzegbaar abonnement. Van die drie is er één overgebleven, bovenaan tussen de vier
+programmacijfers. `lib/milestones.ts`, `lib/milestones-data.ts` en
+`components/milestones-block.tsx` zijn verwijderd en vervangen door `lib/overview-data.ts`, dat nog
+één telling doet. Wat dat betekent, expliciet: het argument "waar betaal ik voor" staat niet meer in
+die vorm op de startpagina, en `accounts.value_per_mention_eur` uit besluit 16 wordt daardoor op geen
+enkel scherm meer getoond. De kolom blijft bestaan en blijft bewerkbaar; komt er een scherm dat over
+rendement gaat, dan hoort hij daar.
+
+**Het contentplan en het activiteitenblok staan nu onder elkaar over de volle breedte.** Ze stonden
+op desktop naast elkaar omdat ze allebei smal van inhoud waren, maar het plan is het enige blok met
+vier soorten inhoud en werd in een halve kolom geknepen. Over de volle breedte staan de fases en de
+contentmix náást elkaar, waardoor die kaart half zo hoog is. Het activiteitenblok toont vijf regels
+open en hooguit vijftien in totaal: dezelfde harde grens als op de wachtrij, want `activiteit()`
+groepeert per taaksoort en er zijn er 32. Het is het enige blok waar geen handeling uit volgt, dus
+het hoort nooit het langste te zijn.
+
+Nagerekend: `npx tsc --noEmit`, 2241 unittests, 303 ketentests en de productiebuild zijn groen. De
+mijlpalentests zijn vervangen door tests op de vier nieuwe cijfers, inclusief een grens op de lengte
+van de toelichting: drie van de vier kolommen zijn 24 pixels smaller dan de eerste, en een regel die
+alleen dáár afbreekt leest als een fout.

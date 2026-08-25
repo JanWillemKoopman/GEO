@@ -123,10 +123,96 @@ export function planRegels({
   if (buiten > 0) {
     regels.push(
       buiten === 1
-        ? "Daarnaast staat er één pagina live die van vóór dit plan is. Die telt wel mee bij wat dit opleverde."
-        : `Daarnaast staan er ${buiten} pagina's live die van vóór dit plan zijn. Die tellen wel mee bij wat dit opleverde.`,
+        ? "Daarnaast staat er één pagina live die van vóór dit plan is. Die telt wel mee in het cijfer bovenaan."
+        : `Daarnaast staan er ${buiten} pagina's live die van vóór dit plan zijn. Die tellen wel mee in het cijfer bovenaan.`,
     );
   }
 
   return regels;
+}
+
+/**
+ * De vier cijfers boven aan de startpagina.
+ *
+ * ── ⚠️ WAAROM HET ZICHTBAARHEIDSPERCENTAGE HIER NIET MEER STAAT ─────────────
+ *
+ * Tot 25 augustus 2026 droeg deze kaart het hoofdgetal van het merk: "57%", met
+ * de marge, het verschil en het verloop eromheen. Besloten op 26 augustus 2026:
+ * dat cijfer verhuist naar Analytics en de startpagina toont in plaats daarvan
+ * de omvang van het programma. De reden is de vraag die een klant bij het
+ * inloggen stelt: niet "wat is mijn score" maar "wat loopt er voor mij, en wat
+ * staat er klaar". De score zelf blijft één klik weg (de knop ernaast) en staat
+ * nog steeds in woorden in de duiding eronder (`lib/insights.ts`).
+ *
+ * ── ⚠️ VIER TELLINGEN, GEEN VERGELIJKING ────────────────────────────────────
+ *
+ * Bewust geen verschil met een vorige periode. Deze vier zijn standen en geen
+ * metingen: het aantal clusters verandert als de eigenaar er een aanzet, niet
+ * doordat er iets gemeten is. Een groeipercentage erop plakken zou beweging
+ * suggereren waar een besluit zit. De duiding over de tijd hoort bij de score,
+ * en die staat in de drie zinnen eronder.
+ *
+ * ── DE TWEE VOORSTELTELLINGEN KOMEN UIT DE KANSENLIJST ──────────────────────
+ *
+ * `nieuwe_pagina` en `pagina_bijwerken` zijn precies de twee handelingen die uit
+ * een rapport van een cluster komen (`lib/opportunities.ts`). Ze tellen ALLE
+ * kansen en niet alleen de zes die het scherm toont, want de vraag is hoeveel
+ * werk er klaarligt en niet hoeveel er in beeld past.
+ *
+ * Puur, dus testbaar (conventie 2).
+ */
+export interface OverzichtCijfer {
+  /** Het getal, groot. Altijd een telling. */
+  waarde: string;
+  /** Waar het over gaat. */
+  label: string;
+  /**
+   * Eén korte regel eronder. Nooit een claim over groei.
+   *
+   * ⚠️ Hooguit 23 tekens, bewaakt door `scripts/test-unit.ts`. Vier kolommen op
+   * een kaart van 940 pixels, waarvan er drie ook nog een scheidingslijn met
+   * inspringing dragen, houden er per kolom zo'n 190 over. Een toelichting die
+   * over twee regels valt maakt de rij rafelig en de kolommen ongelijk hoog, en
+   * dat gebeurt alleen in de smalste drie: dan lijkt het een fout.
+   */
+  detail: string;
+}
+
+export function overzichtCijfers({
+  gepubliceerd,
+  clusters,
+  nieuwePaginas,
+  optimalisaties,
+}: {
+  /** Pagina's die live staan, uit `content_pieces.published_at`. */
+  gepubliceerd: number;
+  /** Actieve clusters van dit merk. Gearchiveerde tellen niet mee (migratie 0044). */
+  clusters: number;
+  /** Voorgestelde nieuwe pagina's, over alle clusters. */
+  nieuwePaginas: number;
+  /** Voorgestelde verbeteringen aan bestaande pagina's, over alle clusters. */
+  optimalisaties: number;
+}): OverzichtCijfer[] {
+  return [
+    {
+      waarde: String(gepubliceerd),
+      label: gepubliceerd === 1 ? "Pagina gepubliceerd" : "Pagina's gepubliceerd",
+      detail: gepubliceerd === 0 ? "Nog geen pagina live" : "Live op je site",
+    },
+    {
+      waarde: String(clusters),
+      label: clusters === 1 ? "Cluster actief" : "Clusters actief",
+      detail: clusters === 0 ? "Nog niets gemeten" : "Actief in de meting",
+    },
+    {
+      waarde: String(nieuwePaginas),
+      label: nieuwePaginas === 1 ? "Nieuwe pagina" : "Nieuwe pagina's",
+      detail: nieuwePaginas === 0 ? "Geen open voorstellen" : "Nog te schrijven",
+    },
+    {
+      waarde: String(optimalisaties),
+      label: optimalisaties === 1 ? "Paginaoptimalisatie" : "Paginaoptimalisaties",
+      detail: optimalisaties === 0 ? "Geen open voorstellen" : "Voor bestaande pagina's",
+    },
+  ];
 }

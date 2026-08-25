@@ -1,5 +1,5 @@
 /**
- * Het merkcijfer per meetperiode: één rekensom voor drie blokken.
+ * Het merkcijfer per meetperiode: één rekensom voor iedereen die hem nodig heeft.
  *
  * ── ⚠️ WAAROM DIT BESTAAT (25 AUGUSTUS 2026) ────────────────────────────────
  *
@@ -11,11 +11,18 @@
  *
  * De oorzaak was niet een tikfout maar drie rekensommen. De standkaart nam
  * `weighted_score` en woog de clusters op `winnable_runs`; `lib/insights-data.ts`
- * en `lib/milestones-data.ts` namen allebei de ONGEWOGEN `score` en middelden
- * de clusters ongewogen. Bij één cluster verschilt dat al 3 punten (57 tegen
+ * en het toenmalige `lib/milestones-data.ts` (op 26 augustus vervangen door
+ * `lib/overview-data.ts`) namen allebei de ONGEWOGEN `score` en middelden de
+ * clusters ongewogen. Bij één cluster verschilt dat al 3 punten (57 tegen
  * 60), bij meerdere clusters loopt het verder uiteen.
  *
  * Hier valt de som één keer. Wie het merkcijfer nodig heeft, roept dit aan.
+ *
+ * ⚠️ Sinds 26 augustus 2026 staat het percentage zelf niet meer op het
+ * merkoverzicht (zie `overzichtCijfers()` in `lib/overview.ts`). Deze som blijft
+ * daar wél nodig: de meetreeks bepaalt hoe vers de kop is en of een merk nog in
+ * zijn eerste maand zit, en `lib/insights.ts` rekent er de drie duidingszinnen
+ * mee door. Analytics toont het cijfer.
  *
  * ── DE GEWOGEN SCORE IS DE MAAT, EN DAT IS EEN KEUZE ────────────────────────
  *

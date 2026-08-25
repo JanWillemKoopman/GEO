@@ -242,9 +242,14 @@ import {
   nextPublication,
   openMonthIds,
 } from "@/lib/plan-overview";
-import { milestones } from "@/lib/milestones";
 import { brandScorePerPeriod } from "@/lib/brand-score";
-import { isEersteMaand, planRegels, versheidsregel, volgendeMeting } from "@/lib/overview";
+import {
+  isEersteMaand,
+  overzichtCijfers,
+  planRegels,
+  versheidsregel,
+  volgendeMeting,
+} from "@/lib/overview";
 import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import {
@@ -5967,78 +5972,64 @@ group("de kansenlijst: alleen tonen wat onderscheidt (25 augustus 2026)", () => 
 });
 
 // ════════════════════════════════════════════════════════════════════════════
-console.log("\nHet opbrengstblok (fase 5, milestones.ts)");
+console.log("\nDe vier cijfers op de startpagina (overview.ts, 26 augustus 2026)");
 
-group("milestones: drie getallen, ook als er nog niets te vieren valt", () => {
-  const nu = new Date("2026-11-15T12:00:00Z");
-  const basis = {
-    startedAt: "2026-08-11T00:00:00Z",
-    eersteScore: 22,
-    laatsteScore: 34,
-    metingen: 3,
-    gepubliceerd: 12,
-    now: nu,
-  };
-
-  const m = milestones(basis);
-  ok("altijd precies drie blokken", m.length === 3);
-
-  // ⚠️ Een blok dat verdwijnt zodra het getal nul is, laat de klant precies op
-  // het moment dat hij twijfelt een leeg scherm zien.
-  const leeg = milestones({
-    startedAt: null,
-    eersteScore: null,
-    laatsteScore: null,
-    metingen: 0,
-    gepubliceerd: 0,
-    now: nu,
+group("overzichtCijfers: vier tellingen, geen vergelijking", () => {
+  // De echte stand van Gasservice Brabant op 26 augustus 2026: één gepubliceerde
+  // pagina, één cluster, en zeven aanbevelingen die uiteenvallen in twee nieuwe
+  // pagina's en vijf verbeteringen aan bestaande pagina's.
+  const c = overzichtCijfers({
+    gepubliceerd: 1,
+    clusters: 1,
+    nieuwePaginas: 2,
+    optimalisaties: 5,
   });
-  ok("ook zonder enige data drie blokken", leeg.length === 3);
+
+  ok("altijd precies vier cijfers", c.length === 4);
+  ok("in de volgorde van het scherm", c.map((x) => x.waarde).join(" ") === "1 1 2 5");
+
+  // ⚠️ Geen enkel cijfer draagt een vergelijking met een vorige periode. Deze
+  // vier zijn standen en geen metingen: het aantal clusters verandert door een
+  // besluit, niet doordat er gemeten is.
   ok(
-    "en dan staat er waaróm het leeg is",
-    leeg.every((b) => b.detail !== null && b.detail.length > 0),
+    "geen enkele detailregel claimt groei",
+    c.every((x) => !/\+|sinds|steeg|daalde|vorige/.test(x.detail)),
   );
+  ok("en elk cijfer heeft een toelichting", c.every((x) => x.detail.length > 0));
 
-  ok("de groei staat er met een plusteken", m[1].waarde === "+12 punten");
-  ok("met het startpunt erbij", m[1].detail?.includes("22") === true);
-  // ⚠️ 25 augustus 2026: de hoofdwaarde is de verstreken tijd en niet de datum.
-  // De startdatum stond in de cijfermono van `stat-value` en was daarmee het
-  // breedste element van een rij met drie getallen, terwijl het als enige geen
-  // prestatie is. Hij zakte naar de detailregel.
-  ok("de looptijd is de hoofdwaarde", m[0].waarde === "Maand 4");
-  ok("en de startdatum staat eronder", m[0].detail === "Sinds 11 augustus 2026");
+  // Enkelvoud en meervoud, want deze getallen staan vaak op 1 of op 0.
+  ok("één pagina is enkelvoud", c[0].label === "Pagina gepubliceerd");
+  ok("één cluster is enkelvoud", c[1].label === "Cluster actief");
+  const meer = overzichtCijfers({
+    gepubliceerd: 4,
+    clusters: 3,
+    nieuwePaginas: 1,
+    optimalisaties: 0,
+  });
+  ok("meer pagina's is meervoud", meer[0].label === "Pagina's gepubliceerd");
+  ok("één nieuwe pagina is enkelvoud", meer[2].label === "Nieuwe pagina");
+  ok("nul optimalisaties is meervoud", meer[3].label === "Paginaoptimalisaties");
+
+  // ⚠️ Nul is hier een echte telling en geen onbekende waarde (conventie 3 gaat
+  // over gokken, niet over tellen). De detailregel zegt wel wat nul betekent.
+  const leeg = overzichtCijfers({
+    gepubliceerd: 0,
+    clusters: 0,
+    nieuwePaginas: 0,
+    optimalisaties: 0,
+  });
+  ok("nul blijft nul", leeg.every((x) => x.waarde === "0"));
+  ok("en zegt waarom het nul is", leeg[0].detail === "Nog geen pagina live");
+
+  // ⚠️ Vier kolommen naast elkaar, waarvan drie ook een scheidingslijn met
+  // inspringing dragen: die zijn 24 pixels smaller dan de eerste. Een
+  // toelichting die daar over twee regels valt, maakt de rij rafelig en de
+  // kolommen ongelijk hoog. 23 tekens is wat er in de smalste kolom past.
   ok(
-    "onder de maand telt hij dagen",
-    milestones({ ...basis, now: new Date("2026-08-24T12:00:00Z") })[0].waarde === "13 dagen",
+    "elke toelichting past op één regel",
+    [...c, ...meer, ...leeg].every((x) => x.detail.length <= 23),
   );
-  ok("en het aantal pagina's staat er los", m[2].waarde === "12");
-
-  // ⚠️ Conventie 3: bij één meting is er geen groei, alleen een startpunt. "0%"
-  // zou suggereren dat er niets gebeurde, terwijl er nog niets te vergelijken is.
-  const eenMeting = milestones({ ...basis, metingen: 1, eersteScore: 22, laatsteScore: 22 });
-  ok(
-    "bij één meting staat er een startpunt en geen groei",
-    eenMeting[1].detail?.includes("startpunt") === true,
-  );
-
-  // Achteruitgang wordt niet verstopt.
-  const omlaag = milestones({ ...basis, eersteScore: 40, laatsteScore: 31 });
-  ok("een daling staat er gewoon", omlaag[1].waarde === "-9 punten");
-
-  // Besluit 16: zonder bedrag aantallen, met bedrag geld. Zo hoeft er geen
-  // scherm om zodra de prijzen er zijn.
-  ok("zonder waarde per vermelding geen bedrag", m[1].detail?.includes("€") === false);
-  const metGeld = milestones({ ...basis, waardePerVermelding: 25 });
-  ok("met waarde per vermelding wél", metGeld[1].detail?.includes("€ 300") === true);
-  ok(
-    "maar niet bij een daling, want dat zou een verlies als opbrengst tonen",
-    milestones({ ...basis, eersteScore: 40, laatsteScore: 31, waardePerVermelding: 25 })[1]
-      .detail?.includes("€") === false,
-  );
-
-  // Enkelvoud en meervoud: "1 pagina's" is precies het soort slordigheid dat
-  // een demo-scherm goedkoop laat lijken.
-  ok("één pagina is enkelvoud", milestones({ ...basis, gepubliceerd: 1 })[2].label === "Pagina gepubliceerd");
+  ok("ook de nulvarianten", leeg.every((x) => x.detail.length <= 23));
 });
 
 // ════════════════════════════════════════════════════════════════════════════
@@ -8002,7 +7993,7 @@ group("het overzicht: één hoofdgetal, één primaire knop, één rekensom", ()
   // ── ⚠️ ÉÉN REKENSOM VOOR HET MERKCIJFER ─────────────────────────────────
   //
   // De standkaart rekende hier zijn eigen gewogen gemiddelde uit terwijl
-  // `lib/insights-data.ts` en `lib/milestones-data.ts` een ongewogen gemiddelde
+  // `lib/insights-data.ts` en het toenmalige `lib/milestones-data.ts` een ongewogen
   // namen. Op één scherm stond daardoor 57%, "van 30 naar 60" en "+30 punten".
   // Dit scherm mag die som niet meer zelf doen.
   ok(
@@ -8016,12 +8007,21 @@ group("het overzicht: één hoofdgetal, één primaire knop, één rekensom", ()
   // het hetzelfde is.
   ok("de kop zegt hoe vers de meting is", overzicht.includes("versheidsregel"));
 
-  // Acht databronnen op de startpagina van de klant: één onverwachte datavorm
-  // mag niet het hele scherm weghalen (`docs/ux-design.md` §4).
+  // Zeven databronnen op de startpagina van de klant: één onverwachte datavorm
+  // mag niet het hele scherm weghalen (`docs/ux-design.md` §4). Vijf blokken
+  // sinds het opbrengstblok eraf ging (26 augustus 2026).
   ok(
     "elk blok staat in zijn eigen foutopvang",
-    (overzicht.match(/<SectionErrorBoundary/g) ?? []).length >= 6,
+    (overzicht.match(/<SectionErrorBoundary/g) ?? []).length >= 5,
   );
+
+  // ── ⚠️ HET ZICHTBAARHEIDSPERCENTAGE STAAT HIER NIET MEER ────────────────
+  //
+  // Besloten op 26 augustus 2026: de startpagina toont de omvang van het
+  // programma, het percentage staat op Analytics. Het is het soort cijfer dat
+  // per ongeluk terugkeert, want het is het hoofdgetal van het product.
+  ok("geen percentage als hoofdgetal", !overzicht.includes('text-5xl'));
+  ok("en geen tweede rekensom ernaast", !overzicht.includes("confidenceBand"));
 
   // ── ⚠️ SECTIEKOPPEN ZIJN KOPPEN ─────────────────────────────────────────
   //

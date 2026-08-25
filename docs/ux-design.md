@@ -1,16 +1,16 @@
 # UX & Design
 
 Leidend voor elk scherm. Tokens en primitieven staan in `app/globals.css`; dit document legt uit
-wat ze zijn en wanneer je welke gebruikt. **Peildatum: 25 augustus 2026.** De vormgeving zelf ging
+wat ze zijn en wanneer je welke gebruikt. **Peildatum: 26 augustus 2026.** De vormgeving zelf ging
 op 6 augustus over op het systeem van de NOVA-workspace (volledige verantwoording in
 `designsystem.md`); deze datum volgt de gedragspatronen die daarna zijn bijgekomen (statustaal,
 foutafhandeling, de content-editie, op 21 augustus de iconen in de zijbalk, en op 24 augustus de
 indeling van het merkoverzicht plus de vormgevingsronde erna, de regels voor een lange lijst en de
 uitvraag op "Vraagt jouw input", alle drie hieronder in §5). Later op 24 augustus kwam de
 narekening tegen Nova's eigen CSS erbij, met als grootste gevolgen een witte paginagrond en een
-donkere modus met een schakelaar (§2 hieronder, `designsystem.md` §2.1 en §10). Op 25 augustus
-kwam daar de ontwerpronde op het merkoverzicht bij: dat scherm is de bestemming na inloggen, en
-daaruit volgen drie regels die voor elke landingspagina gelden (§5 hieronder).
+donkere modus met een schakelaar (§2 hieronder, `designsystem.md` §2.1 en §10). Op 25 en 26 augustus
+kwamen daar twee ontwerprondes op het merkoverzicht bij: dat scherm is de bestemming na inloggen, en
+daaruit volgen regels die voor elke landingspagina gelden (§5 hieronder).
 
 > **Voor de tékst in die schermen geldt `docs/schrijfstijl.md`**: de tone-of-voice van ORBIT ENGINE,
 > afgeleid van InSpace Nova. Dit document gaat over hoe iets eruitziet, dat over hoe het klinkt.
@@ -331,15 +331,15 @@ actieve staat zit in het vlak eronder.
 
 | Blok | Wat het beantwoordt |
 |---|---|
-| Kop | Welk merk, en hoe vers de meting is (aangescherpt op 25 augustus, hieronder) |
-| De stand | Eén cijfer, het verschil, de marge en de noemer, en de drie zinnen van `insights()` als duiding |
+| Kop | Welk merk, en hoe vers de meting is |
+| De stand | Vier tellingen over de volle breedte, en de drie zinnen van `insights()` als duiding |
 | Wat er op jou wacht | Hooguit vijf regels, alleen de staat `nu`, doorklik naar de rest |
 | Waar begin je | De zes bovenste kansen, de eerste gemarkeerd |
-| Wat dit opleverde | De drie mijlpalen (besluit 7), weg in de eerste maand |
-| Je contentplan · Wat ORBIT ENGINE deed | Op `lg` naast elkaar, want allebei smal van inhoud |
+| Je contentplan | Volle breedte, weg in de eerste maand |
+| Wat ORBIT ENGINE deed | Volle breedte, vijf regels open en hooguit vijftien in totaal |
 
-⚠️ **De ronde van 25 augustus hieronder scherpt de vorm van deze blokken aan.** De volgorde
-hierboven blijft; wat eronder staat vervangt de vormgeving ervan, niet de indeling.
+⚠️ **De twee rondes hieronder scherpen de vorm van deze blokken aan.** De volgorde hierboven blijft;
+wat eronder staat vervangt de vormgeving ervan, niet de indeling.
 
 ⚠️ **Eén hoofdgetal, en dat was het niet.** De zichtbaarheid stond vier keer op dit scherm: in de
 subkop, in de stand-kaart, in de mijlpalen en in de maandinzichten, in drie verschillende schalen
@@ -358,10 +358,11 @@ niet gelukt is. Een storing die eruitziet als een routineklus blijft liggen.
 ⚠️ **Het activiteitenblok staat ingeklapt** (`CollapsibleSection`, `defaultOpen={false}`). Het was
 het langste blok van de pagina en het enige waar geen handeling uit volgt.
 
-⚠️ **De mijlpalen zakten, ze verdwenen niet.** Besluit 7 zette ze bewust op het overzicht en dat
-blijft zo. Ze stonden alleen pal onder het hoofdcijfer, en in maand 1 zijn alle drie de getallen
-nul: drie nullen onder een zichtbaarheid van 0% is geen argument om te blijven, het is het
-tegendeel.
+⚠️ **De mijlpalen zakten toen, en zijn op 26 augustus 2026 helemaal weg.** Besluit 7 zette ze
+bewust op het overzicht als het antwoord op "waar betaal ik voor". Ze stonden eerst pal onder het
+hoofdcijfer, wat in maand 1 drie nullen onder een lage score opleverde; op 26 augustus is het blok
+er in zijn geheel afgehaald en is van de drie getallen alleen "pagina's gepubliceerd" overgebleven,
+bovenaan tussen de vier programmacijfers. Zie de ronde onderaan deze paragraaf.
 
 ⚠️ **Elk blok staat in zijn eigen `SectionErrorBoundary`.** Acht databronnen op de startpagina van
 de klant, en zonder die opvang haalt één onverwachte datavorm het hele scherm weg, inclusief de
@@ -511,6 +512,55 @@ het verschil in plaats van het te laten raden.
 | Het activiteitenblok toont zijn eerste drie regels | Het was één dichte accordeon met 400 pixels leegte eronder, naast een kaart van 500 pixels. Dat oogt als een fout in de indeling, niet als een keuze |
 | De wachtrijregel toont `WorkItem.why` | Er stond `analysisName`, in de praktijk een rauw adres in hoofdletters. Het scherm toonde het minst bruikbare veld en gooide het bruikbaarste weg |
 | De toon van de soort werk zit op de kaart | `card-danger` bij een blokkade, in plaats van een chip van 60 pixels. Het onderscheid uit §2 blijft, maar draagt verder |
+
+### Het overzicht toont de omvang van het programma, niet de score (26 augustus 2026)
+
+Aansluitend op de ronde hierboven, en op één punt tegen de uitkomst daarvan in. De standkaart droeg
+het zichtbaarheidspercentage als hoofdgetal. Dat is nu **weg van de startpagina**: het staat op
+Analytics, één klik weg via de knop die er nog steeds naast staat.
+
+**De vier cijfers die ervoor in de plaats komen** (`overzichtCijfers()` in `lib/overview.ts`), over
+de volle breedte van de kaart, met een scheidingslijn ertussen en geen eigen kaders:
+
+| Cijfer | Waar het vandaan komt |
+|---|---|
+| Pagina's gepubliceerd | `content_pieces.published_at`, via `lib/overview-data.ts` |
+| Clusters actief | De actieve analyses van dit merk (gearchiveerde tellen niet mee, migratie 0044) |
+| Nieuwe pagina's | Kansen met handeling `nieuwe_pagina`, over alle clusters |
+| Paginaoptimalisaties | Kansen met handeling `pagina_bijwerken`, over alle clusters |
+
+⚠️ **Geen enkele van de vier draagt een vergelijking met een vorige periode.** Dit zijn standen en
+geen metingen: het aantal clusters verandert doordat iemand er een aanzet, niet doordat er gemeten
+is. Een groeipercentage erop plakken suggereert beweging waar een besluit zit. De duiding over de
+tijd hoort bij de score, en die staat in de drie zinnen eronder.
+
+⚠️ **De toelichting onder een cijfer is hooguit 23 tekens**, bewaakt door `scripts/test-unit.ts`.
+Drie van de vier kolommen dragen een scheidingslijn met inspringing en zijn daardoor 24 pixels
+smaller dan de eerste. Een regel die alleen dáár afbreekt, maakt de rij ongelijk hoog en leest als
+een fout in plaats van als tekst.
+
+**Het opbrengstblok is helemaal weg.** "Actief sinds", "+30 punten" en "1 pagina gepubliceerd"
+stonden onderaan als het antwoord op "waar betaal ik voor" (besluit 7). Van die drie is er één
+overgebleven, bovenaan. `lib/milestones.ts`, `lib/milestones-data.ts` en
+`components/milestones-block.tsx` zijn verwijderd; de git-historie is het archief.
+
+⚠️ **`accounts.value_per_mention_eur` wordt nu op geen enkel scherm getoond.** Besluit 16 zette dat
+bedrag in het opbrengstblok, en dat blok bestaat niet meer. De kolom blijft staan en blijft te
+bewerken; komt er een scherm dat over rendement gaat, dan hoort hij daar.
+
+**Het contentplan en het activiteitenblok staan nu allebei over de volle breedte, onder elkaar.**
+Ze stonden op `lg` naast elkaar omdat ze allebei smal van inhoud waren. Dat klopte niet meer: het
+plan is het enige blok met vier soorten inhoud (voortgang, fases, mix, reservepagina's) en werd in
+een halve kolom geknepen. Over de volle breedte staan de fases en de mix náást elkaar in plaats van
+onder elkaar, waardoor de kaart half zo hoog is. Het activiteitenblok eronder wint er ook bij: een
+lijst korte regels met een tijdstip rechts leest breed beter dan smal, want dan valt het tijdstip
+niet op een eigen regel.
+
+⚠️ **Het activiteitenblok toont vijf regels open en hooguit vijftien in totaal.** Dezelfde soort
+harde grens als `MAX_WACHTRIJ`, en om dezelfde reden: `activiteit()` groepeert per taaksoort en er
+zijn er 32, dus in een drukke week zou dit blok zonder grens langer worden dan al het andere samen.
+Het is het enige blok waar geen handeling uit volgt; het hoort nooit het langste te zijn. Wat er
+buiten de vijftien valt, wordt geteld in één regel en niet stil weggelaten (§4).
 
 ### De fase van een merk (19 augustus 2026)
 

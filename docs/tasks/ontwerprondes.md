@@ -16,6 +16,45 @@ dan de eigenaar van dat feit; hier staat waar hij vandaan kwam. Het besluit met 
 
 ---
 
+## Overzicht, `/merk/[id]` · 26 augustus 2026 (vervolg)
+
+Correcties van de eigenaar op de ronde van de dag ervoor. Geen nieuwe diagnose: een keuze over wat
+de startpagina moet dragen.
+
+### Aangenomen
+
+| Wat | Kern |
+|---|---|
+| Het zichtbaarheidspercentage weg van de startpagina | Vier tellingen in de plaats, over de volle breedte: gepubliceerd, clusters, nieuwe pagina's, optimalisaties. De score staat op Analytics |
+| Het opbrengstblok helemaal weg | Van de drie mijlpalen blijft er één over, bovenaan. Drie modules verwijderd |
+| Contentplan en activiteit onder elkaar, volle breedte | Het plan kreeg intern twee kolommen; het activiteitenblok toont vijf regels open, hooguit vijftien totaal |
+
+### Wat dit terugdraait
+
+**Besluit 7 verliest zijn plek op deze pagina.** Het opbrengstblok stond hier bewust als het antwoord
+op "waar betaal ik voor" bij een doorlopend opzegbaar abonnement. Dat argument staat er niet meer in
+die vorm. Gevolg dat pas bij het opruimen zichtbaar werd: `accounts.value_per_mention_eur` uit
+besluit 16 wordt nu op geen enkel scherm getoond. De kolom is niet verwijderd.
+
+**Het hoofdgetal van de vorige ronde is geen hoofdgetal meer.** De regel "één hoofdgetal per scherm"
+blijft staan; de startpagina heeft er nu simpelweg geen, maar vier gelijkwaardige tellingen. Dat mag,
+omdat het standen zijn en geen metingen: er valt niets te vergelijken en dus niets te verwarren. De
+regel geldt onverkort voor een scherm dat wél een meting toont.
+
+### Regels die ook op andere schermen gelden
+
+12. **Een rij tellingen draagt geen groeipercentage.** Een stand verandert door een besluit, een
+    meting door een meting. Een verschil op een stand plakken suggereert beweging waar er geen is.
+13. **Kolommen in één rij moeten even breed lezen.** Draagt een deel van de kolommen een
+    scheidingslijn met inspringing, dan zijn ze smaller dan de eerste, en breekt tekst alleen daar
+    af. Zet een tekenlimiet op de inhoud en bewaak hem met een test.
+14. **Elk lijstblok heeft een harde bovengrens**, ook een blok waar niets uit volgt. Wat er buiten
+    valt, wordt geteld in één regel en niet stil weggelaten.
+15. **Een blok met vier soorten inhoud hoort niet in een halve kolom.** Twee blokken naast elkaar
+    zetten omdat ze allebei smal zijn, is alleen goed zolang ze allebei smal blijven.
+
+---
+
 ## Overzicht, `/merk/[id]` · 25 augustus 2026
 
 Het merkoverzicht, tevens de bestemming na inloggen (`app/page.tsx`). Beoordeeld op de echte data van

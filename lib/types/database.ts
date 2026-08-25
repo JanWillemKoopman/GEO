@@ -161,9 +161,14 @@ export interface Account {
   cancelled_at: string | null;
   /**
    * Wat één punt extra AI-zichtbaarheid dit account per maand waard is, in euro
-   * (migratie 0051, besluit 16). Leeg = onbekend, en dan toont het opbrengstblok
-   * aantallen in plaats van geld. Bewust geen standaardwaarde: een gemiddelde
+   * (migratie 0051, besluit 16). Bewust geen standaardwaarde: een gemiddelde
    * invullen zet een bedrag op het scherm dat de klant als belofte leest.
+   *
+   * ⚠️ **Wordt sinds 26 augustus 2026 op geen enkel scherm getoond.** Het enige
+   * blok dat hem las was het opbrengstblok op het merkoverzicht, en dat is er
+   * afgehaald (`docs/logbook.md`). De kolom blijft staan: de data is er, hij is
+   * te bewerken via `lib/account-editable.ts`, en het besluit erachter is niet
+   * teruggedraaid. Komt er een scherm dat over rendement gaat, dan hoort hij daar.
    */
   value_per_mention_eur: number | null;
   created_at: string;
