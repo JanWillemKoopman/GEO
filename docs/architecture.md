@@ -142,6 +142,8 @@ probleem dan een dollar.
 | `reputation_ranks` | Eén rij per partij per criterium per vergelijking. De enige tabel met een rij per partij, want dit is het enige onderdeel waarin de klant niet alleen op zichzelf beoordeeld wordt. ⚠️ `of_parties` staat per rij en niet per run: kende het model bij prijs-kwaliteit maar drie van de vier partijen, dan is een tweede plaats daar iets anders waard. |
 | `reputation_offering_scores` | De uitkomst per aanbodknoop. `offering_name` staat naast `offering_id`, want een herhaalonderzoek kan de aanbodboom herschrijven en dan wijst het id nergens meer heen. |
 | `reputation_sources` | Waar AI zijn beeld vandaan haalt: domein, soort, aantal citaties, en bij reviewplatforms het cijfer met `verified`. ⚠️ `verified` gaat alleen op `true` als de eigen crawler de pagina ophaalde en er JSON-LD met `aggregateRating` op stond; een cijfer uit een AI-antwoord is een gok tot het bewezen is. |
+| `reputation_market` | Eén rij per bedrijf dat AI zélf noemde op de open kopersvraag, per aanbodknoop (`0063`). Betrouwbaarder dan de opgelegde concurrentieset, want een bedrijf dat het model niet kent noemt het gewoon niet, en dat is zelf de uitkomst. ⚠️ Dit is de tabel waarop het scherm sinds 26 augustus 2026 zijn hoofdstuk per product bouwt: staat de klant er niet tussen, dan zeggen de rijen wie ChatGPT in zijn plaats aanraadt. |
+| `reputation_evidence` | Het gedeelde bewijscorpus (`0063`): letterlijke fragmenten met bron, waar de dienstvragen als achtergrond uit putten. Wordt niet op een klantscherm getoond. |
 
 **Alles bewaren.** Elke AI-call slaat zijn volledige ruwe JSON op (`raw_json`/`mention_json`/
 `source_raw_json`) náást de uitgesplitste kolommen.

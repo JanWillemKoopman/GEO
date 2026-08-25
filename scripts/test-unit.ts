@@ -444,6 +444,22 @@ import type { RunSnapshot } from "@/lib/reputation/compare";
 import { readMarketAnswer, summariseMarket, marketSentence, marketKey, MAX_NAMED } from "@/lib/reputation/market";
 import { toneScore, toneWord, isToneLabel, TONE_LABELS } from "@/lib/reputation/tone";
 import {
+  buildOfferingViews,
+  countPerProduct,
+  evidenceGapSentence,
+  evidenceWord,
+  groupOfferings,
+  marketSplitSentence,
+  offeringSentence,
+  reputationHeadline,
+  reviewRatings,
+  spreadOverOfferings,
+  tonePercent,
+  type AnswerRow,
+  type MarketRow,
+  type ScoreRow,
+} from "@/lib/reputation/screen";
+import {
   isUsablePoint,
   cleanPoints,
   dedupeSleutel,
@@ -10657,6 +10673,294 @@ group("een opmerking over ons eigen bewijs is geen bezwaar van het bedrijf", () 
   // ⚠️ Bij twijfel ervaring. Een echt bezwaar dat als bewijsopmerking wordt
   // weggezet verdwijnt uit het cijfer, en dat is de duurdere fout van de twee.
   ok("een gewoon bezwaar met het woord bewijs erin blijft een ervaring", pointKind("bewijs van slecht vakmanschap") === "ervaring");
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+console.log("\nHet scherm Mijn reputatie: wat er getoond wordt (25 augustus 2026)");
+
+group("de kop zegt de bevinding en niet het cijfer", () => {
+  // ⚠️ Het geval van de echte run: alle 22 bruikbare antwoorden kregen het
+  // etiket `gemengd`, dat scoort altijd exact 0, en 0 heet op de schaal
+  // "neutraal". Het scherm zette daar "neutraal" boven, terwijl er twee regels
+  // lager stond dat ChatGPT bij alle 22 vragen zowel lof als kritiek noemt.
+  const verdeeld = reputationHeadline({
+    toneIndex: 0,
+    distribution: { counts: { gemengd: 22 }, spread: 50, n: 22 },
+    brand: "Gasservice Brabant",
+  });
+  eq("22 keer gemengd heet verdeeld", verdeeld.woord, "verdeeld");
+  ok("en de kop noemt lof én kritiek", verdeeld.kop.includes("lof"));
+  ok("de merknaam staat erin", verdeeld.kop.includes("Gasservice Brabant"));
+
+  // Echt neutraal blijft neutraal: zakelijk gepraat zonder oordeel is iets
+  // anders dan een verdeeld beeld, en dat verschil is het hele punt.
+  const neutraal = reputationHeadline({
+    toneIndex: 0,
+    distribution: { counts: { neutraal: 20, gemengd: 2 }, spread: 8, n: 22 },
+    brand: "Merk",
+  });
+  eq("twintig keer neutraal blijft neutraal", neutraal.woord, "neutraal");
+
+  // Precies de helft telt al als verdeeld: bij 22 antwoorden is 11 genoeg.
+  eq(
+    "de helft gemengd is verdeeld",
+    reputationHeadline({
+      toneIndex: 0,
+      distribution: { counts: { gemengd: 11, neutraal: 11 }, spread: 30, n: 22 },
+      brand: "Merk",
+    }).woord,
+    "verdeeld",
+  );
+
+  // ⚠️ Onder de drie antwoorden geen uitspraak over verdeeldheid: dat is dezelfde
+  // ondergrens als `spreadSentence()` hanteert, anders zeggen de kop en de zin
+  // eronder iets anders.
+  eq(
+    "bij twee antwoorden geen verdeeld-uitspraak",
+    reputationHeadline({
+      toneIndex: 0,
+      distribution: { counts: { gemengd: 2 }, spread: 50, n: 2 },
+      brand: "Merk",
+    }).woord,
+    "neutraal",
+  );
+
+  // Geen beeld is geen nul (conventie 3).
+  eq(
+    "zonder toon staat er geen beeld",
+    reputationHeadline({ toneIndex: null, distribution: null, brand: "Merk" }).woord,
+    "geen beeld",
+  );
+});
+
+group("de toonmeter rekent de schaal om en niet meer dan dat", () => {
+  eq("nul staat in het midden", String(tonePercent(0)), "50");
+  eq("min honderd staat links", String(tonePercent(-100)), "0");
+  eq("honderd staat rechts", String(tonePercent(100)), "100");
+  // Buiten de schaal kan niet gebeuren, maar een marge van ±6 op een toon van
+  // -98 rekent wél onder de -100 uit. Dat mag de balk niet buiten zijn baan
+  // duwen.
+  eq("onder de schaal wordt begrensd", String(tonePercent(-140)), "0");
+  eq("boven de schaal ook", String(tonePercent(140)), "100");
+});
+
+group("de bewijskracht als woord loopt gelijk met de kleur", () => {
+  eq("99 is stevig", evidenceWord(99), "stevig onderbouwd");
+  eq("60 is de grens naar stevig", evidenceWord(60), "stevig onderbouwd");
+  eq("43 is matig", evidenceWord(43), "matig onderbouwd");
+  eq("24 is nauwelijks", evidenceWord(24), "nauwelijks onderbouwd");
+  eq("niet vastgesteld is geen nul", evidenceWord(null), "niet vastgesteld");
+});
+
+group("per product: de drie groepen uit de echte run", () => {
+  // De opzet komt letterlijk uit de run van Gasservice Brabant van 23 augustus
+  // 2026: 12 producten, waarvan 4 genoemd, 5 niet genoemd en 3 niet gevraagd.
+  const score = (naam: string): ScoreRow => ({
+    offering_id: naam,
+    offering_name: naam,
+    tone_index: 0,
+    evidence_score: 50,
+    answers: 1,
+    visibility_score: null,
+    source_domains: ["a.nl", "b.nl"],
+  });
+  const marktrij = (
+    offering: string,
+    naam: string,
+    positie: number,
+    van: number,
+    eigen = false,
+  ): MarketRow => ({
+    offering_id: offering,
+    party_name: naam,
+    is_own_brand: eigen,
+    position: positie,
+    of_parties: van,
+  });
+
+  const scores = [score("Cv-ketel huren"), score("Cv-ketel storing"), score("Zonneboiler")];
+  const market: MarketRow[] = [
+    // Wel genoemd: plek 2 van 3, met Kemkens ervoor.
+    marktrij("Cv-ketel huren", "Kemkens", 1, 3),
+    marktrij("Cv-ketel huren", "Gasservice Brabant", 2, 3, true),
+    marktrij("Cv-ketel huren", "Smit IDT", 3, 3),
+    // Niet genoemd: vijf anderen wel.
+    marktrij("Cv-ketel storing", "Kemkens", 1, 5),
+    marktrij("Cv-ketel storing", "Warmte Centrum Brabant", 2, 5),
+    marktrij("Cv-ketel storing", "VSB", 3, 5),
+    // Zonneboiler: geen enkele marktrij, dus niet gevraagd.
+  ];
+  const antwoorden: AnswerRow[] = [
+    {
+      id: "a1",
+      offering_id: "Cv-ketel storing",
+      block: "aanbod",
+      question: "Hoe wordt er over dit bedrijf gepraat?",
+      answer_text: "…",
+      tone: "gemengd",
+      pros: ["snelle en vakkundige oplossing", "netjes werken"],
+      cons: [
+        "onverwacht hoge reparatierekening",
+        "geen prijsindicatie vooraf",
+        "nauwelijks dienstspecifieke klantfeedback over storingen",
+      ],
+      cited_urls: [],
+    },
+  ];
+
+  const views = buildOfferingViews({ scores, answers: antwoorden, market });
+  const groepen = groupOfferings(views);
+
+  eq("één product waar ChatGPT je noemt", String(groepen.genoemd.length), "1");
+  eq("één waar hij anderen noemt", String(groepen.nietGenoemd.length), "1");
+  // ⚠️ Niet gevraagd staat náást niet genoemd. Een product waarover we de vraag
+  // niet stelden is een gat in de meting, geen gat in de markt.
+  eq("en één waar niets gevraagd is", String(groepen.nietGevraagd.length), "1");
+
+  const genoemd = groepen.genoemd[0];
+  eq("de plek klopt", String(genoemd.position), "2");
+  eq("en het aantal partijen ook", String(genoemd.ofParties), "3");
+  eq("alleen wie vóór je staat telt als concurrent boven je", genoemd.ahead.join(","), "Kemkens");
+
+  const gemist = groepen.nietGenoemd[0];
+  eq("sta je er niet in, dan staan ze allemaal boven je", String(gemist.ahead.length), "3");
+  ok("op de volgorde waarin ChatGPT ze noemde", gemist.ahead[0] === "Kemkens");
+
+  // ⚠️ De plus- en minpunten komen uit de ANTWOORDEN. Op de echte run stond in
+  // elke samenvattingsrij een lege lijst, omdat die pas vult bij twee of meer
+  // vragen per product, en het scherm toonde daardoor niets.
+  eq("de pluspunten komen uit het antwoord", String(gemist.pros.length), "2");
+  // Twee echte bezwaren, en de derde regel gaat over ons eigen bewijs.
+  eq("de echte bezwaren blijven bezwaren", String(gemist.cons.length), "2");
+  eq("de opmerking over vindbaarheid staat apart", String(gemist.gaps.length), "1");
+
+  ok(
+    "de zin bij een gemist product noemt wie hij wél aanraadt",
+    offeringSentence(gemist, "Gasservice Brabant").includes("Kemkens"),
+  );
+  ok(
+    "en zegt dat jij er niet bij staat",
+    offeringSentence(gemist, "Gasservice Brabant").includes("noemt hij niet"),
+  );
+  ok(
+    "de zin bij een genoemd product noemt je plek",
+    offeringSentence(genoemd, "Gasservice Brabant").includes("plek 2 van 3"),
+  );
+
+  const zin = marketSplitSentence(groepen, "Gasservice Brabant");
+  ok("de telling boven de lijst is een telling", zin.includes("1 van de 2 gemeten producten"));
+  // ⚠️ De noemer telt alleen de producten waar de vraag ook gesteld is. Drie
+  // producten meetellen die we niet gevraagd hebben, zou de klant laten
+  // schrikken van een gat dat wij zelf maakten.
+  ok("en telt niet mee wat niet gevraagd is", !zin.includes("van de 3"));
+
+  const gat = evidenceGapSentence(views);
+  ok("het bewijsgat wordt benoemd", gat !== null && gat.includes("1 van je 3 producten"));
+  ok(
+    "en zegt erbij dat het geen kritiek op het werk is",
+    gat !== null && gat.includes("geen kritiek"),
+  );
+});
+
+group("de volgorde zet het probleem bovenaan", () => {
+  const maak = (naam: string): ScoreRow => ({
+    offering_id: naam,
+    offering_name: naam,
+    tone_index: 0,
+    evidence_score: 50,
+    answers: 1,
+    visibility_score: null,
+    source_domains: [],
+  });
+  const rijen = (naam: string, positie: number | null, van: number): MarketRow[] => {
+    const uit: MarketRow[] = [];
+    for (let i = 1; i <= van; i++) {
+      const eigen = positie === i;
+      uit.push({
+        offering_id: naam,
+        party_name: eigen ? "Jij" : `Ander ${i}`,
+        is_own_brand: eigen,
+        position: i,
+        of_parties: van,
+      });
+    }
+    return uit;
+  };
+
+  const views = buildOfferingViews({
+    scores: [maak("A"), maak("B"), maak("C"), maak("D")],
+    answers: [],
+    market: [...rijen("A", 2, 3), ...rijen("B", 3, 5), ...rijen("C", null, 6), ...rijen("D", null, 3)],
+  });
+  const g = groupOfferings(views);
+
+  // ⚠️ Binnen "niet genoemd" staat het drukste product bovenaan: daar worden de
+  // meeste anderen wél genoemd en verlies je dus het meest.
+  eq("het drukste gemiste product staat bovenaan", g.nietGenoemd[0].name, "C");
+  // ⚠️ Binnen "wel genoemd" staat de slechtste plek bovenaan. Plek 3 van 5 is
+  // slechter dan plek 2 van 3, en zonder de deling door het aantal partijen zou
+  // die volgorde omdraaien.
+  eq("en de slechtste plek staat bovenaan", g.genoemd[0].name, "B");
+});
+
+group("een patroon krijgt een telling en geen tweede lijst", () => {
+  const view = (naam: string, cons: string[]) => ({
+    offeringId: naam,
+    name: naam,
+    state: "genoemd" as const,
+    position: 1,
+    ofParties: 3,
+    ahead: [],
+    toneIndex: 0,
+    evidenceScore: 50,
+    pros: [],
+    cons,
+    gaps: [],
+    sources: 1,
+    answers: [],
+    visibilityScore: null,
+  });
+
+  // ⚠️ Dezelfde sleutel als de synthese: "onverwacht hoge kosten" en "onverwacht
+  // hoge reparatierekening" zijn één bezwaar. Als losse regels tellen ze allebei
+  // als één product en verdwijnt het patroon dat er wél is.
+  const views = [
+    view("Cv-ketel kopen", ["onverwacht hoge kosten"]),
+    view("Cv-ketel storing", ["onverwacht hoge reparatierekening"]),
+    view("Zonneboiler", ["slordige rookgasafvoer"]),
+  ];
+
+  const spread = spreadOverOfferings(views, (v) => v.cons);
+  eq("het bezwaar dat terugkomt staat bovenaan", String(spread[0].producten), "2");
+
+  const geteld = countPerProduct(["onverwacht hoge kosten", "slordige rookgasafvoer"], views, (v) => v.cons);
+  eq("de lijst van de synthese blijft de lijst", String(geteld.length), "2");
+  eq("met de telling erachter", String(geteld[0].producten), "2");
+  eq("en een incident telt als één", String(geteld[1].producten), "1");
+  eq("de tekst blijft die van de synthese", geteld[0].punt, "onverwacht hoge kosten");
+});
+
+group("de reviewcijfers staan op bewijskracht, niet op hoogte", () => {
+  const bron = (
+    domain: string,
+    rating: number | null,
+    count: number | null,
+    verified: boolean,
+  ) => ({ domain, kind: "review", citations: 1, url: null, rating, rating_count: count, verified });
+
+  const cijfers = reviewRatings([
+    bron("inforeview.nl", 5, null, false),
+    bron("klantenvertellen.nl", 8.2, 87, true),
+    bron("google.com", 4.5, 451, false),
+    bron("tlokb.nl", null, null, false),
+  ]);
+
+  eq("alleen bronnen met een cijfer", String(cijfers.length), "3");
+  // ⚠️ Bevestigd gaat vóór, ook al is het cijfer op een andere schaal lager dan
+  // een 5,0 op één review. Bevestigd betekent dat onze eigen crawler het cijfer
+  // op de pagina heeft teruggevonden.
+  eq("bevestigd staat bovenaan", cijfers[0].domain, "klantenvertellen.nl");
+  eq("daarna het meest gedragen cijfer", cijfers[1].domain, "google.com");
 });
 
 // ════════════════════════════════════════════════════════════════════════════

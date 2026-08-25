@@ -572,6 +572,70 @@ zijn er 32, dus in een drukke week zou dit blok zonder grens langer worden dan a
 Het is het enige blok waar geen handeling uit volgt; het hoort nooit het langste te zijn. Wat er
 buiten de vijftien valt, wordt geteld in één regel en niet stil weggelaten (§4).
 
+### Mijn reputatie: van acht blokken naar vijf hoofdstukken (25 augustus 2026)
+
+`/merk/[id]/analytics/reputatie` telde acht blokken op hoofdniveau en veertien uitklapkoppen, alle
+met hetzelfde grijze mono-label en hetzelfde gewicht. Nergens was zichtbaar wat het antwoord van het
+scherm was en wat de voetnoot. Dat botst met §1 op drie punten tegelijk: rust boven volledigheid,
+één hoofdgetal, en geen jargon.
+
+**De volgorde is nu: de uitspraak, per product, wat terugkomt, waar het vandaan komt, en pas dan de
+vergelijking met de vorige meting.**
+
+| Hoofdstuk | Wat het beantwoordt |
+|---|---|
+| De uitspraak | Eén kop in gewone taal, de toonmeter met zijn marge, en twee steunfeiten: noemt AI je als een koper kiest, en waar rust dit beeld op |
+| Per product en dienst | Drie groepen: waar ChatGPT anderen noemt en jou niet, waar hij je wel noemt, en waar die vraag niet gesteld is |
+| Wat er over je terugkomt | De patronen uit de synthese, met de telling erbij uit hoeveel producten ze komen |
+| Waar dit beeld vandaan komt | De reviewcijfers die AI leest, de bronnen, het verschil tussen wat hij uit zichzelf weet en wat hij opzoekt, en de vergelijkingstabel |
+| Sinds de vorige meting | Alleen als er een tweede afgeronde meting is |
+
+⚠️ **Het hoofdgetal sprak zichzelf tegen, en dat is de zwaarste fout die hier zat.** Bovenaan stond
+de chip "neutraal 0", twee regels lager de zin "bij 22 van de 22 vragen noemt ChatGPT zowel lof als
+kritiek". Het etiket `gemengd` scoort in `lib/reputation/tone.ts` altijd exact 0 en 0 heet op de
+schaal neutraal, dus de zwaarste mededeling van het scherm ontkende de op één na zwaarste. De kop
+komt nu uit `reputationHeadline()` in `lib/reputation/screen.ts` en zegt "verdeeld" zodra de helft
+of meer van de oordelen `gemengd` is. **Het cijfer verandert niet, alleen het woord erboven.**
+
+⚠️ **Vijf chips op één rij zijn vijf schalen die de klant niet deelt.** Er stond "neutraal 0",
+"marge ±6", "bewijs 99", "1.7e van 4 · indicatief" en "eenduidigheid 71". Daarvoor in de plaats komt
+één meter (`_components/tone-meter.tsx`) die de schaal zelf toont, de marge als band eromheen zet en
+het oordeel in woorden noemt. De bewijskracht staat als woord in de steunkaart ernaast
+(`evidenceWord()`), want een cijfer op een schaal die alleen wij kennen is geen mededeling.
+
+⚠️ **Per product stond er twaalf keer hetzelfde.** Twaalf dichtgeklapte regels, alle twaalf met de
+badge "1 vraag" en de chip "neutraal 0", die opengeklapt "ChatGPT geeft een neutrale toon van 0"
+toonden en verder niets: `top_pros` en `top_cons` van een aanbodrij vullen pas bij twee of meer
+vragen per product, en er is er één. De regels lezen nu hun plus- en minpunten uit de ANTWOORDEN,
+waar er op de run van Gasservice Brabant 89 en 60 klaarlagen.
+
+⚠️ **De beste tabel werd niet uitgelezen.** `reputation_market` bevat per product wie ChatGPT
+aanraadt en op welke plek de klant staat. Het scherm raakte die tabel niet aan, terwijl daar het
+enige cijfer in staat waar rechtstreeks geld aan hangt. Op de echte run: bij 4 van de 9 gemeten
+producten wordt Gasservice Brabant genoemd, bij 5 niet, en bij cv-ketel storing raadt ChatGPT
+Kemkens, Warmte Centrum Brabant, VSB, MVS en Van Beek aan. Dat is nu de indeling van hoofdstuk 02.
+
+⚠️ **"Niet gevraagd" is een eigen groep en geen lege regel.** Bij drie producten was het budget op
+voordat de marktvraag gesteld werd. Die op één hoop gooien met "AI noemt je niet" zou de klant laten
+schrikken van een gat dat wij zelf maakten (conventie 3).
+
+⚠️ **"Gemiddeld op plek 2,3 van 6" is van het scherm af.** Dat gemiddelde loopt over alle
+marktvragen, ook de merkbrede met zes partijen, terwijl de vier producten eronder op plek 2 van 3,
+2 van 5, 3 van 5 en 2 van 4 staan: nergens een noemer van 6. Twee tellingen van hetzelfde die elkaar
+tegenspreken gelden als een fout, en van de twee is de lijst de concrete. `market_position` blijft
+opgeslagen voor de vergelijking over de tijd.
+
+⚠️ **De voorbehouden zakken, maar verdwijnen niet.** "Wat dit niet is" blijft altijd zichtbaar en
+nooit ingeklapt (richtlijn 8 uit `schrijfstijl.md`), maar staat onderaan in gedempte tekst in plaats
+van in dezelfde opmaak als de bevindingen. De kanttekeningen bij de meting zijn een uitklapregel in
+de uitspraakkaart geworden: het is een voetnoot bij onze meting en geen bevinding over het merk.
+
+**De volledige samenvatting die het model schreef staat niet meer op het scherm.** Zeven regels
+proza die de toon, de verdeeldheid, de bronnenmix, de trefkans en de vergelijking herhaalden, boven
+precies dezelfde feiten in gestructureerde vorm. De kop en de steunkaarten zijn nu deterministisch
+opgebouwd uit de opgeslagen waarden. De tekst zelf blijft in `reputation_runs.summary` staan
+(conventie 8).
+
 ### De fase van een merk (19 augustus 2026)
 
 Het beheerscherm sorteerde op achterstand: hoeveel pagina's staan er te lang op goedkeuring te

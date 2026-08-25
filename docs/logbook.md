@@ -4984,3 +4984,61 @@ halfjaar lang groen en zouden in augustus 2026 rood zijn geworden zonder dat er 
 
 Nagerekend: `npx tsc --noEmit`, 2241 unittests, 322 ketentests en de productiebuild zijn groen, en
 het scherm is in beide standen bekeken met een gerenderde schermafbeelding van het echte component.
+
+
+## 26 augustus 2026: Mijn reputatie grondig herbouwd als scherm
+
+**De opdracht van de eigenaar: "de klant wil gewoon zien wat zijn reputatie is in AI, verdeeld per
+product", met de melding dat het scherm overweldigend en onoverzichtelijk was.** De meetkant is niet
+aangeraakt: geen migratie, geen prompt, geen nieuwe AI-aanroep en geen enkel cijfer opnieuw
+berekend. Wat er veranderd is, is wat er getoond wordt, in welke volgorde en hoe zwaar. De volledige
+indeling staat in `ux-design.md`; hier staat waarom.
+
+**Het scherm ontkende zijn eigen bevinding.** Bovenaan stond de chip "neutraal 0", twee regels lager
+de zin "bij 22 van de 22 vragen noemt ChatGPT zowel lof als kritiek". Beide waar: alle 22 bruikbare
+oordelen van Gasservice Brabant kregen het etiket `gemengd`, dat scoort altijd exact 0, en 0 heet op
+de schaal neutraal. Maar de zwaarste mededeling van het scherm ontkende zo de op één na zwaarste, en
+"neutraal" is precies het woord waarbij een ondernemer zijn schouders ophaalt. De kop zegt nu
+"verdeeld" zodra de helft of meer van de oordelen gemengd is (`reputationHeadline()`). Dat is de
+enige weergaveregel die deze ronde toevoegt, en het cijfer eronder verandert er niet van.
+
+**De beste tabel van de module werd nooit uitgelezen.** `reputation_market` bevat per product wie
+ChatGPT aanraadt als een koper vraagt welk bedrijf hij moet hebben, en op welke plek de klant zelf
+staat. Het scherm raakte die tabel geen enkele keer aan, terwijl daar het enige cijfer in zit waar
+rechtstreeks geld aan hangt. Op de run van 23 augustus stond erin: genoemd bij 4 van de 9 gemeten
+producten, niet genoemd bij 5, en bij cv-ketel storing raadt ChatGPT Kemkens, Warmte Centrum
+Brabant, VSB, MVS en Van Beek aan. Dat is nu de indeling van het hoofdstuk per product, in drie
+groepen, met de groep waar het misgaat bovenaan.
+
+**Twaalf producten, twaalf identieke regels.** Elke regel droeg de badge "1 vraag" en de chip
+"neutraal 0", en opengeklapt stond er "ChatGPT geeft een neutrale toon van 0" en verder niets. De
+oorzaak: `top_pros` en `top_cons` van een aanbodrij houden alleen punten over die in twee of meer
+antwoorden terugkwamen, en er is één vraag per product. Ondertussen lagen er in `reputation_answers`
+89 pluspunten en 60 bezwaren klaar, per product, met bron. Het scherm leest ze nu daar, met dezelfde
+opschoning als de synthese (`cleanPoints`) en dezelfde scheiding tussen een echt bezwaar en een
+opmerking over ons eigen bewijs (`experiencePoints` tegenover `evidenceRemarks`).
+
+**Eén getal is van het scherm af omdat het niet kon kloppen met de lijst eronder.** De steunkaart zei
+"gemiddeld op plek 2,3 van 6". Dat gemiddelde loopt over alle marktvragen, ook de merkbrede met zes
+partijen, terwijl de vier producten eronder op plek 2 van 3, 2 van 5, 3 van 5 en 2 van 4 staan:
+nergens een noemer van 6. `market_position` blijft opgeslagen voor de vergelijking over de tijd.
+
+**Vijf chips werden één meter.** "neutraal 0", "marge ±6", "bewijs 99", "1.7e van 4 · indicatief" en
+"eenduidigheid 71" stonden op één rij, in dezelfde vorm en hetzelfde gewicht, terwijl er precies één
+hoofdgetal is. De meter toont de schaal zelf, zet de marge als band eromheen en noemt het oordeel in
+woorden; de bewijskracht staat als woord ernaast ("stevig onderbouwd") in plaats van als 99 op een
+schaal die alleen wij kennen.
+
+**Wat nog steeds openstaat, en het is geen bug maar een productkeuze:** het etiket `gemengd` scoort
+altijd exact 0, ongeacht hoeveel of hoe zwaar de bezwaren zijn. Deze ronde maakt dat zichtbaar in
+plaats van misleidend, maar lost het niet op. Een volgende ronde zou het aantal en de soort bezwaren
+in het cijfer zelf laten meewegen.
+
+**Nagerekend tegen de opgeslagen run en niet alleen tegen tests** (conventie 10). De 12 producten,
+46 antwoorden en 61 marktrijen van run `2df64a13` zijn door de nieuwe weergavelaag gehaald: de drie
+groepen komen uit op 5, 4 en 3, elke regel levert een eigen zin op met de bedrijven die ChatGPT in
+plaats van de klant noemt, en de bezwarentelling onderscheidt "onverwacht hoge kosten" bij 6
+producten van "conflict over een afspraak voor een gaslek" bij 4.
+
+Migraties ongewijzigd (t/m `0065`), 2290 unittests en 322 ketentests groen, en de productiebuild is
+schoon.
