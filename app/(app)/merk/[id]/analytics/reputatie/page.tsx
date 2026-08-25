@@ -304,7 +304,10 @@ export default async function ReputatiePage({
       <Kop
         action={
           magStarten ? (
-            <div className="w-full max-w-sm sm:w-auto">
+            /* max-w-sm en geen w-full: de knop zelf is smal, maar de
+               bevestigingsuitleg die eronder uitklapt zou zonder grens de halve
+               kop breed worden. Met w-full brak hij de kopregel in tweeën. */
+            <div className="max-w-sm">
               <StartReputationButton
                 profileId={id}
                 mayStart={magStarten}
@@ -621,13 +624,16 @@ function Patroon({
       ) : (
         <ul className="flex flex-col gap-1.5">
           {punten.map((p) => (
-            <li key={p.punt} className="flex flex-wrap items-baseline justify-between gap-2">
-              <span className="type-compact text-secondary">{p.punt}</span>
+            // ⚠️ Geen `flex-wrap`. Een punt van meer dan een regel duwde de
+            // telling naar een eigen regel eronder, en dan leest hij als een
+            // nieuw punt in plaats van als het aantal bij het punt erboven.
+            <li key={p.punt} className="flex items-baseline justify-between gap-3">
+              <span className="type-compact min-w-0 flex-1 text-secondary">{p.punt}</span>
               {/* ⚠️ Alleen bij twee of meer producten. Bij één zegt de telling
                   niets wat de regel zelf niet al zegt, en dan is het een cijfer
                   om het cijfer. */}
               {p.producten > 1 && (
-                <span className="type-caption text-muted">bij {p.producten} producten</span>
+                <span className="type-caption shrink-0 text-muted">bij {p.producten} producten</span>
               )}
             </li>
           ))}
