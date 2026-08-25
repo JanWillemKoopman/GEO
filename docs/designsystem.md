@@ -278,6 +278,15 @@ Nova heeft elf benoemde tekststijlen. Ze staan sinds 24 augustus 2026 letterlijk
 | `.type-caption-emphasis` | 12/16 | 500 | sans | Bijschrift dat een waarde draagt |
 | `.type-label` | 11/16 | 400 | **mono** | Het kleinste label |
 
+⚠️ **Gebruik deze klassen en niet Tailwinds `text-*`-maten.** Dat is hier geen stijlvoorkeur maar
+een valstrik. Het tokenblok `@theme inline` onderaan `app/globals.css` bevat `--color-base`, en
+daaruit maakt Tailwind v4 de klasse `text-base`. Die zet dus een **kleur**
+(`color: var(--bg-base)`) en niet de tekstgrootte van 1rem die je in elk ander Tailwind-project
+krijgt. Op 26 augustus 2026 stond de kop "Beschikbaar" op het contentplan daardoor in de donkere
+stand in de kleur van de paginagrond, dus onzichtbaar. Hetzelfde geldt voor elke andere naam die
+in dat blok als `--color-…` staat: `surface`, `elevated`, `ink`, `muted`, `purple`, `green`,
+`success`, `error`, `warning`, `info`. De volledige waarschuwing staat bij het token zelf.
+
 **Wat er meeviel:** de maten en regelhoogtes van Tailwind blijken één op één die van Nova te zijn
 (14 op 20, 16 op 24, 20 op 28, 24 op 32). De 399 plekken die `text-sm` gebruiken stonden dus al op
 de goede schaal. Wat ontbrak is wat een schaal pas een schaal maakt: een vaste koppeling tussen

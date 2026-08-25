@@ -61,6 +61,8 @@
  * server, en beide lezen deze tabel.
  */
 import {
+  Ellipsis,
+  GripVertical,
   ArrowDown,
   ArrowLeft,
   ArrowRight,
@@ -124,6 +126,8 @@ export type IcoonNaam =
   | "extern"
   | "kopieer"
   | "profiel"
+  | "meer"
+  | "versleep"
   // ── Standen ─────────────────────────────────────────────────────────────
   | "klaar"
   | "loopt"
@@ -192,6 +196,15 @@ export const ICONEN: Record<IcoonNaam, LucideIcon> = {
   extern: ArrowUpRight,
   kopieer: Copy,
   profiel: UserRound,
+  // Drie puntjes: alles wat een rij kan, maar niet vaak genoeg om er ruimte
+  // voor op te eisen. Het contentplan had per regel vijf zichtbare bedieningen
+  // (twee pijlen, een keuzelijst, twee tekstlinks) en dat woog zwaarder dan de
+  // titel ernaast.
+  meer: Ellipsis,
+  // De greep om te slepen. Verschijnt pas als de muis over de rij komt: zonder
+  // greep is niet te zien dát een rij versleepbaar is, met een altijd zichtbare
+  // greep staat er op elke regel een teken dat niets zegt zolang je niet sleept.
+  versleep: GripVertical,
 
   // ── STANDEN ─────────────────────────────────────────────────────────────
   //

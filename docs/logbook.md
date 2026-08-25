@@ -4921,6 +4921,8 @@ vermelding → zoekvolume) en controleert dat de voorzet de hoogste kiest, dat d
 voorraad blijft staan, dat drie keer synchroniseren geen enkele dubbele kaart oplevert, en dat een
 pagina die al geschreven wordt niet terug de voorraad in kan.
 
+---
+
 ## 25 augustus 2026: Instellingen leeg, het profielmenu een uitklapmenu (opdracht van de eigenaar)
 
 **"Koppelingen" verhuisde van Instellingen naar Admin, en alleen de beheerder mag er nog komen.**
@@ -4949,3 +4951,36 @@ te delen tussen twee componenten.
 
 Nagerekend: `npx tsc --noEmit`, 2235 unittests, 322 ketentests en de productiebuild zijn groen.
 
+---
+
+## 26 augustus 2026: het contentplan werd leesbaar
+
+De indeling van de dag ervoor was compleet en onleesbaar. Eén regel van maand 1 besloeg vijf regels
+tekst en droeg zeven bedieningen, waaronder een keuzelijst van veertig pixels over de volle breedte.
+Tien van die blokken, elk in een eigen kaart binnen de kaart van de maand, vulden anderhalf scherm
+met tien titels en tien datums.
+
+Wat eraf ging staat per onderdeel in `docs/tasks/ontwerprondes.md`. De kern: de keuzelijst werd een
+menu achter drie puntjes, de zin die tien keer stond staat nu één keer boven de maand
+(`sharedNotice()`), de statuschip verschijnt alleen nog als een regel afwijkt van de normale gang
+van zaken, en de regels zijn platte rijen in plaats van kaarten. Een geplande regel is nu één regel.
+
+**Twee fouten die alleen zichtbaar werden door het scherm echt te renderen.**
+
+De eerste is een valstrik in het ontwerpsysteem zelf. `--color-base` in het `@theme inline`-blok
+maakt van `text-base` een KLEURklasse, niet de tekstgrootte die je in elk ander Tailwind-project
+krijgt. De kop "Beschikbaar" stond daardoor in de donkere stand in de kleur van de paginagrond, dus
+onzichtbaar, terwijl de code prima compileerde en alle 2241 tests groen bleven. De waarschuwing
+staat nu bij het token in `app/globals.css` en in `docs/designsystem.md` §3.2. Dezelfde botsing
+loert bij `surface`, `elevated`, `ink`, `muted`, `purple`, `green`, `success`, `error`, `warning`
+en `info`.
+
+De tweede: `spreadDates()` verdeelde de pagina's van maand 1 over de héle maand, ook als die maand
+al half voorbij was. Het plan van Gasservice Brabant werd op 25 augustus opgezet met augustus als
+maand 1, dus negen van de tien pagina's kregen een datum die al geweest was en het scherm meldde
+negen keer "Stond gepland voor 1 augustus". In de lopende maand begint de spreiding nu morgen.
+Twee unittests die op de echte klok leunden zijn tegelijk deterministisch gemaakt: ze waren een
+halfjaar lang groen en zouden in augustus 2026 rood zijn geworden zonder dat er iets veranderd was.
+
+Nagerekend: `npx tsc --noEmit`, 2241 unittests, 322 ketentests en de productiebuild zijn groen, en
+het scherm is in beide standen bekeken met een gerenderde schermafbeelding van het echte component.
