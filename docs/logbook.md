@@ -4984,3 +4984,25 @@ halfjaar lang groen en zouden in augustus 2026 rood zijn geworden zonder dat er 
 
 Nagerekend: `npx tsc --noEmit`, 2241 unittests, 322 ketentests en de productiebuild zijn groen, en
 het scherm is in beide standen bekeken met een gerenderde schermafbeelding van het echte component.
+
+## 25 augustus 2026: echt zoekvolume onderzocht, plan klaar, nog niets gebouwd
+
+De vraag was of DataForSEO de geschatte zoekvolumes kan vervangen door gemeten volumes. Het
+antwoord staat uitgewerkt in `docs/tasks/dataforseo-zoekvolume.md`. Twee bevindingen die de
+richting bepalen.
+
+De prijs is geen argument. Eén verzoek van maximaal 1.000 zoekwoorden kost $0,09, en alle 29
+onderwerpen die op 25 augustus in de database staan passen in dat ene verzoek. Elke maand verversen
+kost ongeveer een dollar per jaar, tegenover $0,82 voor één meetronde.
+
+Het echte vraagstuk zit in de vorm van wat we meten. Van de 378 actieve vragen begint er 364 met
+een vraagwoord, gemiddeld 96 tekens lang, en daar geeft Google Ads vrijwel zeker geen volume voor
+terug. De onderwerptitels zijn wél zoekwoorden ("Cv-ketel onderhoud", "Auto leasen"), en dat is
+precies de laag waar `profile_topics.search_volume_index` al leeft. Echt volume landt daarom op het
+onderwerp en op het zoekwoordcluster eronder, niet op de vraag. Bijkomend gevolg: de schaal wordt
+absoluut in plaats van relatief binnen één merk, waarmee keuze 1 uit `potentiescore.md` §5 vervalt
+en de marktomvang in de GEO Prospect Engine een gemeten getal kan worden in plaats van een
+schatting.
+
+Fase 0 van dat plan is bewust een meting en geen bouwstap: eerst met $5 gratis tegoed nagaan hoeveel
+van de echte titels en vragen daadwerkelijk een volume terugkrijgen, dan pas beslissen.
