@@ -80,6 +80,18 @@ Bronnen: [DataForSEO Google Ads API-pricing](https://dataforseo.com/pricing/keyw
 [Ranked Keywords-endpoint](https://docs.dataforseo.com/v3/dataforseo_labs/google/ranked_keywords/live/) ·
 [gratis proeftegoed](https://dataforseo.com/help-center/how-does-your-free-unlimited-trial-work).
 
+⚠️ **Een vraag is geen zoekterm, en dat bepaalt wat er wél en niet naar de API mag.** Google Ads
+geeft alleen een getal terug voor iets dat mensen daadwerkelijk in Google typen: een kort begrip als
+"cv-ketel onderhoud", geen volzin. Wat ORBIT ENGINE vandaag als `prompts.text` opslaat is expliciet
+het tegenovergestelde: een volledige vraag, geschreven "zoals iemand die dit bedrijf nog niet kent
+'m zou stellen" (`lib/pipeline/prompts.ts`), voor een AI-assistent, niet voor een zoekmachine. Wie
+die 378 vragen rechtstreeks naar Search Volume stuurt, betaalt voor een aanroep die voor vrijwel elke
+regel niets teruggeeft. **De juiste invoer is `profile_topics.title`**, die is al kort en
+zoekwoordachtig ("Cv-ketel onderhoud", zie `propose-topics.ts` regel 41: "kort, geen zin"), aangevuld
+met de verwante zoektermen die Keyword Ideas er zelf bij levert (§4b). De losse vraag krijgt in dit
+plan dus nooit rechtstreeks een gemeten volume, alleen het onderwerp erboven, precies zoals
+`potentiescore.md` §5 keuze 4 al vastlegde: één kalibratieniveau, per onderwerp.
+
 ---
 
 ## 3. Wat het kost, uitgerekend voor vandaag en voor twintig merken
@@ -154,6 +166,21 @@ nog geen pagina hebben) en de onderwerpenlijst op de profielpagina, als suggesti
 kan overnemen of afwijzen. Draait niet automatisch mee met elke meting, alleen op verzoek of bij een
 nieuw profiel, want dit is ontdekkend werk, geen herhaald meetwerk.
 
+### 4b'. Wat er verder gratis meekomt in dezelfde aanroep
+
+Search Volume en Keyword Ideas geven meer terug dan alleen een getal, zonder dat dit extra kost
+(dezelfde aanroep, geen apart endpoint). Twee dingen zijn direct bruikbaar:
+
+- **Tot 48 maanden maandelijkse geschiedenis per zoekterm.** Daarmee is de piekmaand van een
+  onderwerp zichtbaar ("cv-ketel onderhoud" pikt in het najaar), en kan het contentplan
+  (`lib/pipeline/plan-build.ts`) een onderwerp vóór het seizoen inplannen in plaats van na afloop.
+  Vandaag bestaat die informatie niet, de volgorde van het contentplan kijkt niet naar seizoen.
+- **CPC, als indicatie van commerciële waarde.** Vervangt geen bestaande tabel, maar is een gemeten
+  getal op een plek waar er vandaag geen enkel getal staat.
+
+Beide zijn een uitbreiding, geen vervanging van iets bestaands, en horen dus pas ná fase 1-2 (§6), als
+bewuste toevoeging, niet als automatisch bijvangst die meteen een scherm vult.
+
 ### 4c. Het concurrentiegat
 
 **Wat er nu ontbreekt.** `app/(app)/merk/[id]/analytics/concurrenten/` en `lib/offsite/` laten zien
@@ -210,13 +237,16 @@ API-antwoord naast de uitgesplitste kolommen, dezelfde audit-trail-eis als elke 
 
 | Fase | Wat | Raakt |
 |---|---|---|
+| 0. Valideren, vóór er gebouwd wordt | Een account aanmaken, het gratis tegoed van $1 gebruiken (geen storting nodig) om de bestaande `profile_topics.title` van een handvol echte profielen door Search Volume te halen, en te tellen hoeveel er een getal terugkrijgen. Conventie 10 (gebouwd is niet geverifieerd) toegepast vóórdat er iets gebouwd is, niet erna | geen code, alleen een testaanroep buiten de app om |
 | 1. Fundament | Migratie `0066`, `lib/search-demand/` (types, dataforseo-adapter, registry), env-variabelen, test dat de app zonder sleutel identiek blijft draaien | nieuwe bestanden, `.env.example` |
 | 2. Potentiescore verankeren | `recalibrateSearchVolume()` probeert eerst een meting, valt terug op de AI-kalibratie, `volume_source` zichtbaar in de tooltip | `lib/pipeline/search-demand.ts`, `components/potential-metrics.tsx`, `why-this-page.tsx`, `loop-blocks.tsx` |
 | 3. Onderwerpen ontdekken | Nieuw jobtype `keyword_discovery`, voedt `lib/plan-backlog.ts` en de onderwerpenlijst als suggestie | `lib/jobs/types.ts`, `lib/jobs/handlers.ts`, `topics-panel.tsx` |
 | 4. Concurrentiegat | Ranked Keywords per concurrent, per kwartaal, nieuwe kaart op de concurrentenpagina | `app/(app)/merk/[id]/analytics/concurrenten/`, `lib/offsite/` |
 | 5. GEO Prospect Engine | Zodra dat document gebouwd wordt: dezelfde bron uit fase 1 en 2 hergebruiken voor het marktrapport, geen nieuwe integratie | `docs/tasks/geo-prospect-engine.md` §10.3 |
 
-Fase 1 en 2 zijn de kern van dit plan en leveren de grootste hefboom voor de kleinste bouwstap: één
+Fase 0 kost hooguit een paar aanroepen uit het gratis tegoed, dus geen storting: mislukt de toets
+(weinig onderwerpen krijgen een getal), dan is er $1 uitgegeven in plaats van drie bouwdagen. Fase 1
+en 2 zijn daarna de kern van dit plan en leveren de grootste hefboom voor de kleinste bouwstap: één
 bestaande, al overal doorverbonden kolom (`search_volume_index`) gaat van geschat naar gemeten,
 zonder dat de rest van de app hoeft te veranderen. Fase 3 en 4 zijn nieuwe functionaliteit en kunnen
 onafhankelijk van elkaar en later volgen. Fase 5 heeft geen eigen bouwwerk, het is een hergebruik
@@ -244,10 +274,11 @@ zodra het andere document aan de beurt is.
 
 | # | Wat | Kosten | Waarom dit niet vanzelf gaat |
 |---|---|---|---|
-| 1 | Account aanmaken bij DataForSEO en de voorwaarden nalezen op het doorgeven van cijfers aan klanten | gratis om te beginnen | Een inkoop- en juridische beslissing |
-| 2 | Eerste opwaardering | minimaal $50 | Een betaling |
-| 3 | `DATAFORSEO_LOGIN` en `DATAFORSEO_PASSWORD` in Vercel zetten zodra de sleutel er is | geen | Vraagt het account uit stap 1 |
-| 4 | Besluiten of fase 3 en 4 (ontdekken en concurrentiegat) meteen mee bouwen of pas na fase 1-2 op productie bewezen zijn | geen | Prioriteitskeuze, geen technische |
+| 1 | Account aanmaken bij DataForSEO (het gratis tegoed van $1 is genoeg voor fase 0) en de voorwaarden nalezen op het doorgeven van cijfers aan klanten | gratis om te beginnen | Een inkoop- en juridische beslissing |
+| 2 | Fase 0 laten draaien en de uitkomst beoordelen: genoeg onderwerpen met een gemeten getal? | geen, valt binnen het gratis tegoed | Een go/no-go die de eigenaar neemt, niet de code |
+| 3 | Eerste echte opwaardering, pas na een positieve fase 0 | minimaal $50 | Een betaling |
+| 4 | `DATAFORSEO_LOGIN` en `DATAFORSEO_PASSWORD` in Vercel zetten zodra de sleutel er is | geen | Vraagt het account uit stap 1 |
+| 5 | Besluiten of fase 3 en 4 (ontdekken en concurrentiegat) meteen mee bouwen of pas na fase 1-2 op productie bewezen zijn | geen | Prioriteitskeuze, geen technische |
 
 **Klaar als (fase 1-2):** op vijf bestaande profielen ligt de AI-schatting naast het gemeten volume,
 met de afwijking opgeschreven in het logboek, precies zoals Sprint 8 in `ontwikkelplan-visie.md` als
