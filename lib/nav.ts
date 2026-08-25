@@ -39,13 +39,22 @@
 
 import type { IcoonNaam } from "@/lib/icons";
 
-/** De vijf klanthoofdstukken plus de afgeschermde groep, in menuvolgorde. */
+/**
+ * De vier klanthoofdstukken plus de afgeschermde groep, in menuvolgorde.
+ *
+ * ⚠️ **"Instellingen" stond hier tot 25 augustus 2026.** Zijn twee bestemmingen
+ * zijn allebei weg: "Account en team" verhuisde naar het uitklapmenu achter het
+ * profiel-icoon (`components/profile-menu.tsx`, als "Mijn account"), en
+ * "Koppelingen" verhuisde naar Admin, omdat een koppeling maken voortaan
+ * alleen aan de consultant is en niet meer aan de klant. Een hoofdstuk zonder
+ * bestemmingen valt al weg via `hoofdstukken()`, maar een kop die voorgoed leeg
+ * blijft is geen kop meer, dus is hij hier ook weg.
+ */
 export const HOOFDSTUKKEN = [
   "Overzicht",
   "Strategie",
   "Analytics",
   "Merkprofiel",
-  "Instellingen",
   "Admin",
 ] as const;
 
@@ -79,7 +88,6 @@ export const HOOFDSTUK_ICOON: Record<Hoofdstuk, IcoonNaam> = {
   Strategie: "strategie",
   Analytics: "analytics",
   Merkprofiel: "merkprofiel",
-  Instellingen: "instellingen",
   Admin: "admin",
 };
 
@@ -210,17 +218,21 @@ export function brandNav(brandId: string, staff = false): NavItem[] {
 
     // ── ADMIN ────────────────────────────────────────────────────────────
     //
-    // ⚠️ VIER BESTEMMINGEN IS HET MAXIMUM VAN DÍT HOOFDSTUK, EN DIT ZIJN ER
-    // DRIE VAN. De vierde, "Alle merken", staat in `generalNav()`.
+    // ⚠️ VIJF BESTEMMINGEN IS HET MAXIMUM VAN DÍT HOOFDSTUK, EN DIT ZIJN ER
+    // DRIE VAN. De vierde, "Alle merken", en de vijfde, "Koppelingen", staan
+    // in `generalNav()`.
     //
     // Elk klanthoofdstuk heeft er hooguit drie (besluit 1 tot en met 8 van
     // 17 augustus 2026, `docs/ux-design.md` §5). Voor Admin is die grens op
     // 19 augustus 2026 bewust op vier gezet, bij het toevoegen van de
-    // onboardingsessie. De reden: de drie hierboven gaan over dít merk en
-    // "Alle merken" gaat over de app als geheel, dus het is geen vergaarbak van
-    // vier gelijksoortige regels maar drie plus een uitgang. De rest van de
-    // regel blijft staan: een VIJFDE bestaat niet zonder eerst iets samen te
-    // voegen, en de klanthoofdstukken blijven op drie.
+    // onboardingsessie, en op 25 augustus 2026 verder op vijf, toen
+    // "Koppelingen" van Instellingen naar Admin verhuisde: een koppeling maken
+    // is voortaan alleen aan de consultant, niet meer aan de klant. De reden
+    // blijft van dezelfde soort: de drie hierboven gaan over dít merk, "Alle
+    // merken" en "Koppelingen" gaan over de app als geheel, dus het is geen
+    // vergaarbak van vijf gelijksoortige regels maar drie plus twee uitgangen.
+    // De rest van de regel blijft staan: een ZESDE bestaat niet zonder eerst
+    // iets samen te voegen, en de klanthoofdstukken blijven op drie.
     //
     // De scheiding tussen de eerste twee is scherp en zonder overlap:
     // Onboarding is het werk MÉT de klant en is het enige stafscherm dat
@@ -260,20 +272,35 @@ export function brandNav(brandId: string, staff = false): NavItem[] {
  * Een klant met één merk betaalde er anders bij elke sessie een klik voor, en
  * een bestemming die je nooit kiest is ruis in een balk die juist rust moet
  * geven. De beheerder houdt zijn eigen ingang via het CSM-paneel.
+ *
+ * ⚠️ **"Account en team" stond hier tot 25 augustus 2026**, onder Instellingen.
+ * Die kop had daarna geen enkele bestemming meer over, want "Koppelingen"
+ * (zie hieronder) verhuisde in dezelfde ronde naar Admin. Een kop die voorgoed
+ * leeg is, is geen kop: "Account en team" staat nu achter het profiel-icoon
+ * rechtsboven, als "Mijn account" (`components/profile-menu.tsx`), en
+ * "Instellingen" is uit `HOOFDSTUKKEN` weg.
+ *
+ * ⚠️ **"Koppelingen" is Admin geworden, niet meer Instellingen** (25 augustus
+ * 2026). Een koppeling met Search Console zet de consultant vóór het
+ * demogesprek klaar (het product is sales-led, besloten 3 augustus 2026); de
+ * klant maakt hem nooit zelf. Instellingen liet die knop zien zonder dat een
+ * klant er iets aan had. De pagina zelf (`app/(app)/instellingen/koppelingen/`)
+ * controleert nu ook zelf `isStaff`, want een adres achter een verborgen
+ * menu-item is nog steeds een adres.
  */
 export function generalNav(staff = false): NavItem[] {
   return [
-    { href: "/instellingen", label: "Account en team", hoofdstuk: "Instellingen" },
-    {
-      href: "/instellingen/koppelingen",
-      label: "Koppelingen",
-      hoofdstuk: "Instellingen",
-    },
     ...(staff
       ? [
           {
             href: "/beheer",
             label: "Alle merken",
+            hoofdstuk: "Admin" as const,
+            staffOnly: true,
+          },
+          {
+            href: "/instellingen/koppelingen",
+            label: "Koppelingen",
             hoofdstuk: "Admin" as const,
             staffOnly: true,
           },
@@ -319,13 +346,13 @@ export function isExact(pathname: string, href: string): boolean {
 }
 
 /**
- * Account, achter het profielmenu, geen hoofdnavigatie.
- *
- * ⚠️ Hier stond ook `NAV`, de platte lijst van vóór de zijbalk. Die is op
- * 17 augustus 2026 weg: `MainNav` las hem en bestond niet meer, en het
- * profielmenu toonde er een tweede hoofdnavigatie mee naast de zijbalk. Twee
- * menu's met dezelfde bestemmingen lopen gegarandeerd uit elkaar.
+ * ⚠️ Hier stonden `ACCOUNT_NAV` en daarvoor `NAV`, de platte lijst van vóór de
+ * zijbalk. `NAV` verdween op 17 augustus 2026: `MainNav` las hem en bestond
+ * niet meer, en het profielmenu toonde er een tweede hoofdnavigatie mee naast
+ * de zijbalk. `ACCOUNT_NAV` verdween op 25 augustus 2026, met de laatste
+ * bestemming erin: het uitklapmenu achter het profiel-icoon
+ * (`components/profile-menu.tsx`) heeft nu precies één link, "Mijn account"
+ * naar `/instellingen`, en een lijst van één regel heeft geen apart bestand
+ * meer nodig. Twee menu's met dezelfde bestemmingen lopen gegarandeerd uit
+ * elkaar; dat risico is met één regel op één plek verdwenen.
  */
-export const ACCOUNT_NAV: NavItem[] = [
-  { href: "/instellingen", label: "Mijn instellingen", hoofdstuk: "Instellingen" },
-];

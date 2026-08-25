@@ -230,22 +230,25 @@ Sinds besluit 1 (`docs/logbook.md`, het inmiddels verwijderde `Nova.md` §0) is 
 past horizontaal niet zonder scheidingstekens die niets betekenen, en verticaal is het één
 tussenkopje. Vandaar een **zijbalk** (`components/sidebar.tsx`).
 
-**Vijf hoofdstukken, elk met hooguit drie kinderen** (besluit 1 tot en met 8 van 17 augustus 2026).
-⚠️ **Admin mag er sinds 19 augustus 2026 vier**, bij het toevoegen van de onboardingsessie: drie
-ervan gaan over dít merk (Onboarding, Diagnose, Toewijzen) en de vierde, "Alle merken", is de uitgang
-naar de app als geheel. Dat is geen vergaarbak van vier gelijksoortige regels maar drie plus een
-uitgang.
+**Vier klanthoofdstukken, elk met hooguit drie kinderen** (besluit 1 tot en met 8 van 17 augustus
+2026). ⚠️ **Admin mag er sinds 19 augustus 2026 vier**, bij het toevoegen van de onboardingsessie:
+drie ervan gaan over dít merk (Onboarding, Diagnose, Toewijzen) en de vierde, "Alle merken", is de
+uitgang naar de app als geheel. Dat is geen vergaarbak van vier gelijksoortige regels maar drie plus
+een uitgang. ⚠️ **En sinds 25 augustus 2026 vijf**, toen "Koppelingen" van Instellingen naar Admin
+verhuisde: een koppeling zet de consultant klaar, niet de klant (het product is sales-led, besloten
+3 augustus 2026), dus is dat een vijfde uitgang van dezelfde soort als "Alle merken" en geen
+vergaarbak.
 ⚠️ **En Analytics mag er sinds 22 augustus 2026 óók vier**, bij het toevoegen van "Mijn reputatie".
 De reden is van dezelfde soort en het is opnieuw geen vergaarbak: **de andere drie bestemmingen
 tonen data die de app sowieso al verzamelt, deze is een los product dat de klant apart koopt.**
 Zichtbaarheid, Zoekverkeer en Concurrenten komen alle drie uit werk dat toch al draait, de
 maandelijkse meting, de Search Console-koppeling en de aggregatie. Een reputatieanalyse draait niet
 mee in die cyclus: hij wordt per keer gestart, per keer betaald en per keer gedateerd. Drie plus een
-product, zoals Admin drie plus een uitgang is.
-Voor beide hoofdstukken geldt vanaf nu: een **vijfde** bestaat niet zonder eerst iets samen te
-voegen, en dat is geen stijlregel meer maar een grens. De overige klanthoofdstukken blijven op drie.
+product, zoals Admin drie plus twee uitgangen is.
+Voor beide hoofdstukken geldt vanaf nu: een zesde bestaat niet zonder eerst iets samen te voegen, en
+dat is geen stijlregel meer maar een grens. De overige klanthoofdstukken blijven op drie.
 `scripts/test-unit.ts` bewaakt alle drie de grenzen, inclusief dat er niet stilletjes een derde
-hoofdstuk bij komt dat er vier mag.
+hoofdstuk bij komt dat er meer mag.
 Daarvoor waren het 7 regels die uitklapten naar 15 bestemmingen, waarvan er negen onder één kop
 hingen die het commentaar in `lib/nav.ts` zelf al "de vergaarbak die dit oplost alleen verticaal"
 noemde. Elk hoofdstuk beantwoordt nu één vraag:
@@ -256,8 +259,15 @@ noemde. Elk hoofdstuk beantwoordt nu één vraag:
 | Strategie | Wat gaan we doen, en wat is er al gemaakt? | Contentplan, Clusters, Bibliotheek |
 | Analytics | Wat zeggen de cijfers, en waarom? | Zichtbaarheid in AI, Zoekverkeer, Concurrenten, Mijn reputatie |
 | Merkprofiel | Wie ben ik volgens ORBIT ENGINE, en klopt dat? | Merkdossier, Bewerken, Vraagt jouw input |
-| Instellingen | Hoe is het ingericht? | Account en team, Koppelingen |
-| Admin | (alleen beheerders, onder een scheidingslijn) | Onboarding, Diagnose, Toewijzen, Alle merken |
+| Admin | (alleen beheerders, onder een scheidingslijn) | Onboarding, Diagnose, Toewijzen, Alle merken, Koppelingen |
+
+⚠️ **"Instellingen" stond hier tot 25 augustus 2026, met "Account en team" en "Koppelingen"
+eronder.** Geen van beide is nog een klantbestemming in de zijbalk: "Account en team" staat nu als
+"Mijn account" achter het profiel-icoon rechtsboven (zie hieronder), "Koppelingen" is naar Admin
+verhuisd, omdat alleen de beheerder een koppeling mag maken. Een hoofdstuk zonder bestemmingen valt
+al automatisch weg (zie "de zijbalk groeit mee" hieronder), maar een kop die voorgoed leeg is, is
+geen kop meer: "Instellingen" is daarom ook uit `HOOFDSTUKKEN` in `lib/nav.ts` weg. De pagina zelf
+(`/instellingen`) bestaat gewoon nog, als bestemming van "Mijn account".
 
 ⚠️ **Strategie staat vóór Analytics, en dat is geen smaak.** Wie inlogt wil weten wat hij moet doen,
 niet browsen in data. Overzicht draagt het hoofdcijfer al, Analytics is verdieping en Strategie is

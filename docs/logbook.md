@@ -4920,3 +4920,32 @@ ketentest zet de volledige keten onder een potentiescore neer (aanbeveling → d
 vermelding → zoekvolume) en controleert dat de voorzet de hoogste kiest, dat de andere kans in de
 voorraad blijft staan, dat drie keer synchroniseren geen enkele dubbele kaart oplevert, en dat een
 pagina die al geschreven wordt niet terug de voorraad in kan.
+
+## 25 augustus 2026: Instellingen leeg, het profielmenu een uitklapmenu (opdracht van de eigenaar)
+
+**"Koppelingen" verhuisde van Instellingen naar Admin, en alleen de beheerder mag er nog komen.**
+Een koppeling met Search Console zet de consultant vóór het demogesprek klaar, de klant maakt hem
+nooit zelf (het product is sales-led, besloten 3 augustus 2026). De zijbalk liet de knop tot nu toe
+gewoon aan de klant zien, zonder dat hij er iets aan had. `app/(app)/instellingen/koppelingen/page.tsx`
+roept nu zelf `isStaff` aan en antwoordt met een 404, net als de andere afgeschermde routes: een
+verborgen menu-item is nog steeds een adres dat te raden is. In `lib/nav.ts` is Admin daarmee van
+vier naar **vijf** bestemmingen gegaan, drie over dít merk en twee uitgangen naar de app als geheel
+("Alle merken", "Koppelingen").
+
+**"Account en team" is uit de zijbalk weg en staat nu als "Mijn account" achter het profiel-icoon.**
+Met "Koppelingen" weg had "Instellingen" geen enkele bestemming meer over, en een kop die voorgoed
+leeg is, is geen kop: "Instellingen" is uit `HOOFDSTUKKEN` verwijderd. De pagina `/instellingen`
+bestaat gewoon nog, alleen de ingang ernaartoe is verhuisd.
+
+**Het profielmenu is geen full-screen sheet meer, maar een klein uitklapmenu** (opdracht van de
+eigenaar, met een referentiescreenshot van een taalkiezer als voorbeeld). De sheet naar het
+"Pick your orbit"-patroon van InSpace droeg intussen nog maar één link, en een schermvullend paneel
+voor één link is zwaarder dan wat het opent. `components/profile-menu.tsx` is herschreven naar
+hetzelfde uitklapmenu-patroon als `components/brand-switcher.tsx`: een kaart onder het icoon met
+`--shadow-overlay`, gesloten door een klik erbuiten of Escape. Hij toont twee rijen, "Mijn account"
+(naar `/instellingen`) en "Uitloggen", plus het e-mailadres. `ACCOUNT_NAV` in `lib/nav.ts` is
+daarmee overbodig geworden en is verwijderd: een lijst van één regel hoeft geen apart bestand meer
+te delen tussen twee componenten.
+
+Nagerekend: `npx tsc --noEmit`, 2235 unittests, 322 ketentests en de productiebuild zijn groen.
+
