@@ -4854,3 +4854,69 @@ Nagerekend: `npx tsc --noEmit`, 2241 unittests, 303 ketentests en de productiebu
 mijlpalentests zijn vervangen door tests op de vier nieuwe cijfers, inclusief een grens op de lengte
 van de toelichting: drie van de vier kolommen zijn 24 pixels smaller dan de eerste, en een regel die
 alleen dáár afbreekt leest als een fout.
+
+---
+
+## 25 augustus 2026: het contentplan wordt een voorraad met twaalf lege maanden
+
+**De aanleiding was één zin van de eigenaar: "ik vind het plannen van content nog heel
+onoverzichtelijk".** Wat het narekenen opleverde was erger dan onoverzichtelijk.
+
+Het plan van Gasservice Brabant telde 120 pagina's over twaalf maanden. Die 120 bestonden uit **28
+unieke titels**: zeven clusters maal vier funnelfasen, uitgesmeerd over 120 plekken, dus "Cv-ketel
+huren · Kiezen" stond er vijf keer in. En van die 120 waren er **17 daadwerkelijk te schrijven**.
+Schrijven leunt op de gemiste vragen uit een meting als briefing (`lib/plan-writing.ts`), en van de
+zeven clusters is er precies één gemeten. Nog eens 17 pagina's hingen aan "Cv-ketel kopen", een
+cluster dat de eigenaar zelf had afgewezen nadat het plan gemaakt was.
+
+Het scherm loog dus twee keer tegelijk: het beloofde variatie die er niet was, en werk dat niet kon
+beginnen. De rekenkunde van `buildPlan()` klopte tot achter de komma, inclusief de `funnelShift()`
+die eerder een dubbele titel per maand oploste. De aanname eronder klopte niet: dat er genoeg te
+schrijven vált zodra er onderwerpen zijn.
+
+**De omkering.** `planned_pages.plan_month_id` mag nu leeg zijn (migratie `0065`), en dát is de
+voorraad: een pagina die beschikbaar is maar nog geen maand heeft. Eén tabel voor twee toestanden,
+want inplannen mag geen rij verplaatsen: dan verliest een kaart bij elke sleepactie zijn status, zijn
+geschreven tekst en zijn geschiedenis. Nu verandert er bij inplannen precies twee dingen, de maand en
+de datum.
+
+De voorraad wordt gevuld met **alleen gemeten kansen**: de aanbevelingen uit het laatste rapport van
+een gemeten cluster, elk met de reden erbij, de doelvragen die hij raakt, en de potentiescore die over
+precies die doelvragen is uitgerekend. Dat is een bewuste versmalling en hij doet op dag één pijn:
+Gasservice Brabant gaat van 120 rijen naar **7 kansen uit één cluster**. Dat is de eerlijke stand, en
+het scherm maakt er een handeling van in plaats van een leegte: de zes niet-gemeten clusters staan
+apart in de zijkolom, met de meting als volgende stap.
+
+`createPlan()` maakt twaalf lege maanden en vult alleen maand 1, met de sterkste kansen tot aan de
+quota. Twaalf lege maanden zijn eerlijk maar doen niets; het systeem hoort de eerste zet te doen en
+de mens hoort hem te kunnen overrulen (`docs/visie.md`). De rest van het jaar sleept de gebruiker
+zelf bij elkaar.
+
+**Vier keuzes van de eigenaar bepaalden de vorm**, en twee ervan gingen tegen mijn advies in. Alleen
+gemeten kansen in de voorraad (ik stelde voor er ook cluster × fase-combinaties in te zetten, zodat
+de lijst altijd gevuld is). Alles terug naar nul, ook de lopende maand augustus. Een voorzet voor
+maand 1. En **geen enkele grens** aan het aantal pagina's per maand: het scherm toont wel hoeveel je
+boven je pakket zit, maar houdt niemand tegen.
+
+**Slepen, en waarom `lib/plan-order.ts` toch overeind blijft.** Dat bestand legt uit waarom volgorde
+met knoppen gaat en niet met slepen: HTML5-drag doet niets op een telefoon, en de eerste klacht van
+dit hele traject ging over mobiel. Die redenering staat nog steeds. Daarom is slepen hier niet de
+enige weg: elke kaart draagt ook een keuzelijst "Plan in", en die werkt met een vinger, met een
+toetsenbord en met een schermlezer. Slepen is de snelle weg voor wie een muis heeft, geen voorwaarde.
+
+**Twee fouten die onderweg boven kwamen en niets met het ontwerp te maken hadden.** De cron gaf elke
+planpagina onvoorwaardelijk `action: "nieuw"` mee aan de schrijfstap; bij Gasservice Brabant hadden
+vier van de zeven kansen `verbeteren` moeten zijn, en die zouden dus een tweede pagina hebben
+opgeleverd naast de pagina die ze hadden moeten aanvullen. En `loadPlan()` las alle pagina's van het
+merk in plaats van die van de lopende planversie, dus na een tweede planversie telde de kop de rijen
+van de eerste mee.
+
+Verder: `buildPlan()` is verwijderd (wat overblijft zijn twee constanten in `lib/plan-constants.ts`),
+en er is een knop "Opnieuw opzetten" bijgekomen. Die ontbrak: zodra er één plan stond was er geen weg
+terug, en het scherm beloofde bij het afwijzen van een maand een nieuw voorstel dat nooit kwam.
+
+Nagerekend: `npx tsc --noEmit`, 2231 unittests, 322 ketentests en de productiebuild zijn groen. De
+ketentest zet de volledige keten onder een potentiescore neer (aanbeveling → doelvraag → meting →
+vermelding → zoekvolume) en controleert dat de voorzet de hoogste kiest, dat de andere kans in de
+voorraad blijft staan, dat drie keer synchroniseren geen enkele dubbele kaart oplevert, en dat een
+pagina die al geschreven wordt niet terug de voorraad in kan.

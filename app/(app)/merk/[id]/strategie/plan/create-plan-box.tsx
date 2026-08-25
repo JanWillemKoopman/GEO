@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/components/toast";
-import { MONTHS_AHEAD } from "@/lib/pipeline/plan-build";
+import { MONTHS_AHEAD } from "@/lib/plan-constants";
 import { Icon } from "@/components/icon";
 
 /**
@@ -25,14 +25,15 @@ export function CreatePlanBox({
   profileId,
   staff,
   quota,
-  topicCount,
+  kansCount,
   accountName,
 }: {
   profileId: string;
   /** Besluit 18: het plan opstellen kost geld en doet de beheerder. */
   staff: boolean;
   quota: number | null;
-  topicCount: number;
+  /** Het aantal gemeten kansen dat klaarstaat om ingepland te worden. */
+  kansCount: number;
   accountName: string | null;
 }) {
   const router = useRouter();
@@ -40,7 +41,7 @@ export function CreatePlanBox({
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState("");
 
-  const mag = staff && Boolean(quota) && topicCount > 0;
+  const mag = staff && Boolean(quota) && kansCount > 0;
 
   async function maak() {
     setBusy(true);
@@ -81,10 +82,11 @@ export function CreatePlanBox({
       <div className="card flex flex-col gap-3">
         <span className="mono-label">Nog geen contentplan</span>
         <p className="text-secondary">
-          Een contentplan zet {MONTHS_AHEAD} maanden vooruit welke pagina&apos;s
-          ORBIT ENGINE schrijft, verdeeld over je onderwerpen en de fasen van je
-          klantreis. Je keurt per maand goed, en ORBIT ENGINE begint tien dagen voor elke
-          publicatiedatum met schrijven.
+          Een contentplan geeft je {MONTHS_AHEAD} maanden om zelf in te vullen.
+          ORBIT ENGINE zet de kansen uit je metingen klaar in een voorraad en vult
+          alvast de eerste maand met de sterkste; de rest bepaal jij. Je geeft per
+          maand vrij, en ORBIT ENGINE begint tien dagen voor elke publicatiedatum
+          met schrijven.
         </p>
 
         {!staff && (
@@ -110,19 +112,26 @@ export function CreatePlanBox({
                 : `Kies eerst 10, 20 of 40 pagina's per maand voor ${accountName ?? "dit account"}. Dat bepaalt hoeveel er in het plan komt.`
             }
           />
+          {/* ⚠️ Dit was tot 25 augustus 2026 "er zijn onderwerpen". Dat is een
+              te lage lat: een onderwerp zonder meting levert een pagina op die
+              nooit geschreven kan worden, want de schrijfstap gebruikt de
+              gemiste vragen uit de meting als briefing. Bij Gasservice Brabant
+              stonden er daardoor 103 van de 120 pagina's te wachten op iets
+              wat niemand gestart had. */}
           <Voorwaarde
-            klaar={topicCount > 0}
+            klaar={kansCount > 0}
             label={
-              topicCount > 0
-                ? `${topicCount} onderwerpen om over te schrijven`
-                : "Er zijn nog geen onderwerpen"
+              kansCount > 0
+                ? `${kansCount} gemeten ${kansCount === 1 ? "kans" : "kansen"} om in te plannen`
+                : "Er is nog geen cluster gemeten"
             }
             uitleg={
-              topicCount > 0 ? null : (
+              kansCount > 0 ? null : (
                 <>
-                  ORBIT ENGINE stelt onderwerpen voor tijdens het merkonderzoek. Kijk op{" "}
-                  <Link href={`/analyses/aanbevolen?merk=${profileId}`} className="underline">
-                    het merkdossier
+                  ORBIT ENGINE haalt de kansen uit het rapport van een gemeten cluster. Start
+                  eerst een meting op{" "}
+                  <Link href={`/merk/${profileId}/strategie/clusters`} className="underline">
+                    Clusters
                   </Link>
                   .
                 </>

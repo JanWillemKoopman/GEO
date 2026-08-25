@@ -211,12 +211,24 @@ import {
   mayInvite,
 } from "@/lib/invite-rules";
 import { EDITABLE_PROFILE_FIELDS } from "@/lib/profile-editable";
+import { MONTHS_AHEAD, DEFAULT_FUNNELS } from "@/lib/plan-constants";
 import {
-  buildPlan,
-  BUFFERS_PER_MONTH,
-  MONTHS_AHEAD,
-  DEFAULT_FUNNELS,
-} from "@/lib/pipeline/plan-build";
+  monthCalendar,
+  isRunningMonth,
+  isPastMonth,
+  spreadDates,
+  resequenceMonth,
+} from "@/lib/plan-schedule";
+import {
+  filterBacklog,
+  sortBacklog,
+  clusterCounts,
+  potentieLabel,
+  raaktLabel,
+  ongemetenClusters,
+  LEGE_BACKLOG_FILTERS,
+  type BacklogItem,
+} from "@/lib/plan-backlog";
 import {
   PLAN_STATUS_META,
   planRunningDate,
@@ -4169,251 +4181,223 @@ group("isActiveAccount", () => {
 // ════════════════════════════════════════════════════════════════════════════
 console.log("\nHet contentplan (fase 4, migratie 0049)");
 
-group("buildPlan: de verdeling over twaalf maanden", () => {
-  const funnels = DEFAULT_FUNNELS.map((label, i) => ({
-    id: `f${i}`,
-    label,
-    sortOrder: i,
-  }));
-  const topics = Array.from({ length: 7 }, (_, i) => ({
-    id: `t${i}`,
-    title: `Onderwerp ${i}`,
-    priority: 10 - i,
-  }));
-  const start = new Date("2026-09-01T00:00:00Z");
+/** Een kale voorraadkaart; elke test zet alleen wat hij nodig heeft. */
+function kans(over: Partial<BacklogItem> = {}): BacklogItem {
+  return {
+    id: "k1",
+    title: "Een kans",
+    why: null,
+    targetIntent: null,
+    cluster: "Cv-ketel onderhoud",
+    clusterId: "a1",
+    handeling: "nieuw",
+    existingUrl: null,
+    potentie: null,
+    raakt: null,
+    gemeten: null,
+    gewicht: null,
+    ...over,
+  };
+}
 
-  const r = buildPlan({ startedOn: start, pagesPerMonth: 10, topics, funnels });
-  ok("geen problemen bij een compleet merk", r.problems.length === 0);
+group("de kalender van een plan (plan-schedule)", () => {
+  // ⚠️ Maand 1 is de maand waarin het plan STARTTE, niet de maand erna. Een plan
+  // dat op 12 augustus begint heeft augustus als maand 1, en zo telt de klant het.
   ok(
-    "twaalf maanden, elk met de quota plus de buffer",
-    r.pages.length === MONTHS_AHEAD * (10 + BUFFERS_PER_MONTH),
-  );
-
-  const maand1 = r.pages.filter((p) => p.monthNumber === 1);
-  ok("tien echte pagina's in maand 1", maand1.filter((p) => !p.isBuffer).length === 10);
-  ok("plus één buffer", maand1.filter((p) => p.isBuffer).length === BUFFERS_PER_MONTH);
-
-  // ⚠️ Regel 1: een klant die na drie maanden opzegt (besluit 7: dat kan) moet
-  // de béste drie maanden gehad hebben, niet een willekeurige greep.
-  ok(
-    "het hoogst geprioriteerde onderwerp staat vooraan",
-    maand1[0].topicId === "t0",
-  );
-
-  // Regel 2: elke maand raakt alle fasen aan, anders ziet de klant pas in maand
-  // zeven een pagina die iets oplevert.
-  const fasenInMaand1 = new Set(maand1.map((p) => p.funnelStageId));
-  ok("alle vier de funnelfasen komen in maand 1 voor", fasenInMaand1.size === 4);
-
-  // Regel 4: een buffer heeft geen datum, anders loopt hij mee in de cron.
-  ok(
-    "buffers hebben geen publicatiedatum",
-    r.pages.filter((p) => p.isBuffer).every((p) => p.scheduledFor === ""),
+    "maand 1 is de startmaand",
+    monthCalendar("2026-08-12", 1)?.label === "augustus 2026",
   );
   ok(
-    "echte pagina's hebben er wel een",
-    r.pages.filter((p) => !p.isBuffer).every((p) => /^\d{4}-\d{2}-\d{2}$/.test(p.scheduledFor)),
+    "maand 12 loopt netjes het jaar over",
+    monthCalendar("2026-08-12", 12)?.label === "juli 2027",
   );
+  // ⚠️ De reden dat dit bestaat: een LEGE maand had geen naam meer zodra de
+  // kalender uit de publicatiedata kwam, en dat is precies de maand waar iemand
+  // iets in wil slepen.
+  ok(
+    "een maand heeft een naam zonder dat er één pagina in staat",
+    monthCalendar("2026-08-12", 5)?.label === "december 2026",
+  );
+  ok("een onbruikbare startdatum geeft niets", monthCalendar("kaas", 1) === null);
+  ok("maand 0 bestaat niet", monthCalendar("2026-08-12", 0) === null);
 
-  // De data lopen door de maanden heen vooruit, en blijven binnen dag 1 tot 28
-  // zodat februari geen uitzondering is.
-  const dagen = r.pages
-    .filter((p) => !p.isBuffer)
-    .map((p) => Number(p.scheduledFor.slice(8, 10)));
-  ok("nooit na de 28e", dagen.every((d) => d >= 1 && d <= 28));
+  const inAugustus = new Date("2026-08-20T12:00:00Z");
   ok(
-    "maand 2 ligt na maand 1",
-    r.pages.find((p) => p.monthNumber === 2 && !p.isBuffer)!.scheduledFor >
-      r.pages.find((p) => p.monthNumber === 1 && !p.isBuffer)!.scheduledFor,
-  );
-
-  // Regel 3: minder onderwerpen dan plekken is geen reden om te stoppen.
-  const weinig = buildPlan({
-    startedOn: start,
-    pagesPerMonth: 10,
-    topics: topics.slice(0, 2),
-    funnels,
-  });
-  ok(
-    "twee onderwerpen vullen alsnog het hele jaar",
-    weinig.pages.length === MONTHS_AHEAD * 11,
-  );
-
-  // ⚠️ Gevonden bij de praktijkcheck tegen Van den Udenhout: met acht
-  // onderwerpen en tien pagina's per maand kwam "Auto financieren" twee keer in
-  // maand één te staan, met exact dezelfde titel. Een plan waarin twee regels
-  // hetzelfde heten leest als een fout.
-  const titelsInMaand1 = maand1.filter((p) => !p.isBuffer).map((p) => p.title);
-  ok(
-    "geen twee pagina's met dezelfde titel in één maand",
-    new Set(titelsInMaand1).size === titelsInMaand1.length,
+    "de lopende maand herkent zichzelf",
+    isRunningMonth("2026-08-12", 1, inAugustus) === true,
   );
   ok(
-    "de titel draagt de invalshoek",
-    maand1[0].title.includes("Auto") === false && maand1[0].title.includes("·"),
+    "en de volgende maand niet",
+    isRunningMonth("2026-08-12", 2, inAugustus) === false,
   );
-
-  // ⚠️⚠️ En dit is de test die de vorige had moeten zijn. Zeven onderwerpen en
-  // vier fasen vallen toevallig goed uit; acht en vier niet, want dan lopen de
-  // tellers in de pas. Bij het echte plan van Van den Udenhout stond
-  // "Auto financieren · Oriëntatie" daardoor twee keer in maand 1, op plek 1 en
-  // plek 9. Het aantal onderwerpen van een merk is niets om op te vertrouwen,
-  // dus dit loopt langs alle aantallen die in de praktijk voorkomen.
-  for (const aantalOnderwerpen of [1, 2, 3, 4, 5, 6, 7, 8, 9, 12, 16]) {
-    for (const perMaand of [10, 20, 40]) {
-      const p = buildPlan({
-        startedOn: start,
-        pagesPerMonth: perMaand,
-        topics: topics.slice(0, 1).concat(
-          Array.from({ length: aantalOnderwerpen - 1 }, (_, i) => ({
-            id: `x${i}`,
-            title: `Extra ${i}`,
-            priority: 5 - i,
-          })),
-        ),
-        funnels,
-      });
-      const dubbel = p.pages.some((page, _, alle) => {
-        const gelijk = alle.filter(
-          (q) => q.monthNumber === page.monthNumber && q.title === page.title,
-        );
-        return gelijk.length > 1;
-      });
-      ok(
-        `${aantalOnderwerpen} onderwerpen bij ${perMaand} per maand: elke titel uniek binnen zijn maand`,
-        !dubbel,
-      );
-    }
-  }
-
-  // Herhaling die rekenkundig onvermijdelijk is (8 onderwerpen × 4 fasen = 32
-  // combinaties, 41 plekken) wordt zichtbaar gemaakt en niet verstopt.
-  const krap = buildPlan({
-    startedOn: start,
-    pagesPerMonth: 40,
-    topics: Array.from({ length: 8 }, (_, i) => ({
-      id: `k${i}`,
-      title: `Krap ${i}`,
-      priority: 8 - i,
-    })),
-    funnels,
-  });
+  ok("de lopende maand is niet voorbij", isPastMonth("2026-08-12", 1, inAugustus) === false);
   ok(
-    "bij meer plekken dan combinaties krijgt de herhaling '(deel 2)'",
-    krap.pages.filter((p) => p.monthNumber === 1).some((p) => p.title.endsWith("(deel 2)")),
-  );
-
-  // Het echte geval, met de echte aantallen van Van den Udenhout.
-  const udenhout = buildPlan({
-    startedOn: start,
-    pagesPerMonth: 10,
-    topics: Array.from({ length: 8 }, (_, i) => ({
-      id: `u${i}`,
-      title: `Onderwerp ${i}`,
-      priority: 8 - i,
-    })),
-    funnels,
-  });
-  const parenMaand1 = udenhout.pages
-    .filter((p) => p.monthNumber === 1)
-    .map((p) => `${p.topicId}|${p.funnelStageId}`);
-  ok(
-    "acht onderwerpen en vier fasen: elk paar hoogstens één keer per maand",
-    new Set(parenMaand1).size === parenMaand1.length,
-  );
-  ok(
-    "en zonder '(deel 2)', want 32 combinaties passen ruim in elf plekken",
-    udenhout.pages.every((p) => !p.title.includes("(deel")),
-  );
-
-  // Twee keer draaien op dezelfde invoer geeft hetzelfde plan. Zonder die
-  // eigenschap is "opnieuw genereren" een gok.
-  const nogmaals = buildPlan({ startedOn: start, pagesPerMonth: 10, topics, funnels });
-  ok(
-    "twee runs geven hetzelfde plan",
-    JSON.stringify(nogmaals.pages) === JSON.stringify(r.pages),
+    "een maand van vorig jaar wel",
+    isPastMonth("2025-08-12", 1, inAugustus) === true,
   );
 });
 
-group("buildPlan: de potentiescore wint van de dag-1-gok (fase 3, docs/tasks/potentiescore.md)", () => {
-  const funnels = DEFAULT_FUNNELS.map((label, i) => ({ id: `f${i}`, label, sortOrder: i }));
-  const start = new Date("2026-09-01T00:00:00Z");
+group("publicatiedata spreiden over een maand (plan-schedule)", () => {
+  const tien = spreadDates("2026-08-12", 1, 10);
+  ok("tien pagina's leveren tien data", tien.length === 10);
+  ok("de eerste staat op dag 1", tien[0] === "2026-08-01");
+  // Binnen dag 1 tot en met 28, zodat februari geen uitzondering is.
+  ok("de laatste staat uiterlijk op dag 28", tien[9] === "2026-08-28");
+  ok(
+    "ze staan oplopend",
+    tien.every((d, i) => i === 0 || d > tien[i - 1]),
+  );
 
-  // t0 heeft de hoogste PRIORITY (de gegokte dag-1-inschatting), maar t1 heeft
-  // de hoogste POTENTIESCORE (gemeten). De potentiescore hoort te winnen.
-  const topics = [
-    { id: "t0", title: "Hoogste prioriteit, lage potentie", priority: 10, potential: 20 },
-    { id: "t1", title: "Lage prioriteit, hoogste potentie", priority: 1, potential: 90 },
-    { id: "t2", title: "Geen potentiescore, gemiddelde prioriteit", priority: 5 },
+  // ⚠️ De spreiding hangt af van het AANTAL in de maand en niet van de quota.
+  // Zet iemand er drie in, dan horen ze over de maand verdeeld te staan en niet
+  // op dag 1, 2 en 3 met drie weken niets erachter.
+  const drie = spreadDates("2026-08-12", 1, 3);
+  ok("drie pagina's spreiden ook over de hele maand", drie[2] === "2026-08-28");
+  ok("de middelste ligt ertussenin", drie[1] > drie[0] && drie[1] < drie[2]);
+
+  ok("één pagina staat op dag 1", spreadDates("2026-08-12", 1, 1)[0] === "2026-08-01");
+  ok("nul pagina's leveren niets", spreadDates("2026-08-12", 1, 0).length === 0);
+  // Februari heeft 28 dagen: geen enkele datum mag daarbuiten vallen.
+  ok(
+    "februari levert geen 29e of 30e op",
+    spreadDates("2026-01-01", 2, 10).every((d) => Number(d.slice(8)) <= 28),
+  );
+});
+
+group("een maand opnieuw nummeren en dateren (plan-schedule)", () => {
+  const rijen = [
+    { id: "a", sort_order: 0, scheduled_for: "2026-08-01", status: "gepland" },
+    { id: "b", sort_order: 1, scheduled_for: "2026-08-15", status: "gepland" },
+    { id: "c", sort_order: 2, scheduled_for: "2026-08-28", status: "gepland" },
+  ];
+  ok(
+    "een lijst die al klopt levert geen enkele update",
+    resequenceMonth("2026-08-12", 1, rijen).length === 0,
+  );
+
+  // Er is er één uit de maand gehaald: de twee die overblijven horen opnieuw
+  // over de maand verdeeld te worden, niet op dag 1 en dag 15 te blijven staan.
+  const naEruit = resequenceMonth("2026-08-12", 1, [rijen[0], rijen[2]]);
+  ok("na het weghalen van het middelste schuift de rest op", naEruit.length === 1);
+  ok(
+    "en de laatste komt op dag 28 uit",
+    naEruit.find((u) => u.id === "c")?.scheduled_for === "2026-08-28",
+  );
+
+  // ⚠️ Een geplaatste pagina houdt zijn datum: die datum is de werkelijkheid
+  // geworden, en hem verzetten zou liegen over wanneer er iets live ging.
+  const metLive = resequenceMonth("2026-08-12", 1, [
+    { id: "a", sort_order: 5, scheduled_for: "2026-08-03", status: "geplaatst" },
+    { id: "b", sort_order: 6, scheduled_for: null, status: "gepland" },
+  ]);
+  const live = metLive.find((u) => u.id === "a");
+  ok("een geplaatste pagina houdt zijn publicatiedatum", live?.scheduled_for === "2026-08-03");
+  ok("maar krijgt wél zijn nieuwe plek in de nummering", live?.sort_order === 0);
+});
+
+group("de voorraad filteren en sorteren (plan-backlog)", () => {
+  const items = [
+    kans({ id: "1", title: "Onderhoudscontract vergelijken", potentie: 40 }),
+    kans({ id: "2", title: "Oudere ketels", cluster: "Cv-ketel storing", potentie: 80 }),
+    kans({ id: "3", title: "Prijs in Tilburg", handeling: "verbeteren", potentie: null, gewicht: 0.9 }),
+    kans({ id: "4", title: "Veiligheidscontrole", potentie: null, gewicht: 0.1 }),
   ];
 
-  const r = buildPlan({ startedOn: start, pagesPerMonth: 3, topics, funnels });
-  const maand1 = r.pages.filter((p) => p.monthNumber === 1 && !p.isBuffer);
+  const gesorteerd = sortBacklog(items);
+  ok("de hoogste potentie staat bovenaan", gesorteerd[0].id === "2");
+  ok("daarna de lagere potentie", gesorteerd[1].id === "1");
+  // ⚠️ Gemeten weegt zwaarder dan geschat: een kans MET potentiescore gaat altijd
+  // voor een kans zonder, ook als die tweede een hoog vraaggewicht heeft.
+  ok("een kans zonder potentie zakt eronder", gesorteerd[2].id === "3");
+  ok("en daar beslist het vraaggewicht", gesorteerd[3].id === "4");
 
   ok(
-    "het onderwerp met de hoogste potentiescore staat vooraan, niet het onderwerp met de hoogste priority",
-    maand1[0].topicId === "t1",
+    "zonder filters komt alles door",
+    filterBacklog(items, LEGE_BACKLOG_FILTERS).length === 4,
   );
   ok(
-    "een onderwerp MET potentiescore gaat altijd voor een onderwerp ZONDER, ook al is de priority lager",
-    maand1[1].topicId === "t0",
+    "filteren op cluster",
+    filterBacklog(items, { ...LEGE_BACKLOG_FILTERS, cluster: "Cv-ketel storing" }).length === 1,
   );
   ok(
-    "het onderwerp zonder potentiescore staat als laatste, op zijn priority",
-    maand1[2].topicId === "t2",
+    "filteren op handeling",
+    filterBacklog(items, { ...LEGE_BACKLOG_FILTERS, handeling: "verbeteren" }).length === 1,
+  );
+  ok(
+    "zoeken is hoofdletterongevoelig",
+    filterBacklog(items, { ...LEGE_BACKLOG_FILTERS, zoek: "TILBURG" }).length === 1,
+  );
+  // ⚠️ Zoeken kijkt ook in de reden en de clusternaam. Aanbevelingstitels beginnen
+  // vaak met hetzelfde werkwoord, en dan neemt zoeken op alleen de titel niets weg.
+  ok(
+    "zoeken kijkt ook in de reden",
+    filterBacklog([kans({ why: "V5 is een koopklare vraag" })], {
+      ...LEGE_BACKLOG_FILTERS,
+      zoek: "koopklare",
+    }).length === 1,
+  );
+  ok(
+    "zoeken kijkt ook in de clusternaam",
+    filterBacklog(items, { ...LEGE_BACKLOG_FILTERS, zoek: "storing" }).length === 1,
   );
 
-  // Zonder potentiescore op GEEN van de onderwerpen verandert er niets: exact
-  // hetzelfde gedrag als vóór fase 3 (achterwaartse compatibiliteit).
-  const zonderPotentie = buildPlan({
-    startedOn: start,
-    pagesPerMonth: 3,
-    topics: topics.map(({ id, title, priority }) => ({ id, title, priority })),
-    funnels,
-  });
-  const maand1ZonderPotentie = zonderPotentie.pages.filter(
-    (p) => p.monthNumber === 1 && !p.isBuffer,
-  );
+  const tellers = clusterCounts(items);
+  ok("de clusterteller telt per cluster", tellers.length === 2);
   ok(
-    "zonder potentiescores sorteert alles gewoon op priority, zoals vroeger",
-    maand1ZonderPotentie[0].topicId === "t0" &&
-      maand1ZonderPotentie[1].topicId === "t2" &&
-      maand1ZonderPotentie[2].topicId === "t1",
+    "en klopt",
+    tellers.find((c) => c.naam === "Cv-ketel onderhoud")?.aantal === 3,
   );
 });
 
-group("buildPlan: wat het weigert", () => {
-  const funnels = DEFAULT_FUNNELS.map((label, i) => ({ id: `f${i}`, label, sortOrder: i }));
-  const topics = [{ id: "t", title: "Iets", priority: 1 }];
-  const start = new Date("2026-09-01T00:00:00Z");
+group("wat er op een voorraadkaart komt te staan (plan-backlog)", () => {
+  // ⚠️ Conventie 3: bij een onbekende potentie staat er GEEN getal, ook geen nul.
+  // Dit cijfer bepaalt wat iemand als eerste laat schrijven.
+  ok("geen potentie is geen label", potentieLabel(kans({ potentie: null })) === null);
+  ok("nul is wél een getal", potentieLabel(kans({ potentie: 0 })) === "potentie 0");
+  ok("en wordt afgerond", potentieLabel(kans({ potentie: 62.4 })) === "potentie 62");
 
   ok(
-    "zonder pakket geen plan",
-    buildPlan({ startedOn: start, pagesPerMonth: 0, topics, funnels }).problems.length > 0,
+    "de noemer staat erbij als hij bekend is",
+    raaktLabel(kans({ raakt: 4, gemeten: 30 })) === "raakt 4 van de 30 gemeten vragen",
   );
   ok(
-    "zonder onderwerpen geen plan",
-    buildPlan({ startedOn: start, pagesPerMonth: 10, topics: [], funnels }).problems.length > 0,
-  );
-  // Nova eist er drie tot vijf vóór ze een strategie laten genereren.
-  ok(
-    "met twee funnelfasen geen plan",
-    buildPlan({ startedOn: start, pagesPerMonth: 10, topics, funnels: funnels.slice(0, 2) })
-      .problems.length > 0,
+    "zonder noemer alleen de teller",
+    raaktLabel(kans({ raakt: 4, gemeten: null })) === "raakt 4 gemeten vragen",
   );
   ok(
-    "met zes funnelfasen ook niet",
-    buildPlan({
-      startedOn: start,
-      pagesPerMonth: 10,
-      topics,
-      funnels: [...funnels, { id: "x", label: "x", sortOrder: 4 }, { id: "y", label: "y", sortOrder: 5 }],
-    }).problems.length > 0,
+    "enkelvoud bij één vraag",
+    raaktLabel(kans({ raakt: 1, gemeten: null })) === "raakt 1 gemeten vraag",
+  );
+  ok("geen doelvragen is geen regel", raaktLabel(kans({ raakt: null })) === null);
+  ok("nul doelvragen ook niet", raaktLabel(kans({ raakt: 0, gemeten: 30 })) === null);
+});
+
+group("welke clusters nog geen kans kunnen leveren (plan-backlog)", () => {
+  const topics = [
+    { topicId: "t1", title: "Cv-ketel onderhoud", analysisId: "a1", analysisStatus: "gereed" },
+    { topicId: "t2", title: "Cv-ketel storing", analysisId: "a2", analysisStatus: "meten" },
+    { topicId: "t3", title: "Zonneboiler", analysisId: null, analysisStatus: null },
+  ];
+
+  // ⚠️ De set komt van ALLE kansen van het merk en niet alleen van de voorraad.
+  // Een cluster waarvan alle kansen al ingepland zijn, zou anders als "nog niet
+  // gemeten" op het scherm komen, met een meetknop bij een net gemeten cluster.
+  const open = ongemetenClusters(topics, new Set(["a1"]));
+  ok("een cluster dat kansen leverde valt af", open.every((c) => c.topicId !== "t1"));
+  ok("de andere twee blijven staan", open.length === 2);
+  ok(
+    "een lopende meting is wachten, geen handeling",
+    open.find((c) => c.topicId === "t2")?.loopt === true,
   );
   ok(
-    "en dan komt er ook geen halve lijst uit",
-    buildPlan({ startedOn: start, pagesPerMonth: 10, topics: [], funnels }).pages.length === 0,
+    "een cluster dat nog niet bestaat vraagt wél iets",
+    open.find((c) => c.topicId === "t3")?.loopt === false,
   );
+});
+
+group("de twee constanten van het plan", () => {
+  ok("een plan kijkt twaalf maanden vooruit", MONTHS_AHEAD === 12);
+  ok("en er zijn vier standaard funnelfasen", DEFAULT_FUNNELS.length === 4);
 });
 
 group("de drie statustalen (plan-status)", () => {

@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { getUser } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getOwnedProfile } from "@/lib/profiles";
-import { markPosted, removePage } from "@/lib/plans";
+import { markPosted, removePage, assignToMonth, moveToBacklog } from "@/lib/plans";
 import { swapWithNeighbour, type OrderablePage } from "@/lib/plan-order";
 
 /**
@@ -18,7 +18,13 @@ import { swapWithNeighbour, type OrderablePage } from "@/lib/plan-order";
  */
 export const dynamic = "force-dynamic";
 
-type Actie = "goedkeuren" | "afwijzen" | "geplaatst" | "verplaats";
+type Actie =
+  | "goedkeuren"
+  | "afwijzen"
+  | "geplaatst"
+  | "verplaats"
+  | "inplannen"
+  | "naar_voorraad";
 
 export async function POST(
   request: Request,
@@ -47,14 +53,59 @@ export async function POST(
     return NextResponse.json({ error: "Niet gevonden." }, { status: 404 });
   }
 
-  let body: { actie?: string; url?: string; richting?: string };
+  let body: {
+    actie?: string;
+    url?: string;
+    richting?: string;
+    maandId?: string;
+    index?: number;
+  };
   try {
-    body = (await request.json()) as { actie?: string; url?: string; richting?: string };
+    body = (await request.json()) as typeof body;
   } catch {
     return NextResponse.json({ error: "Ongeldig verzoek." }, { status: 400 });
   }
 
   const actie = body.actie as Actie | undefined;
+
+  // ── Inplannen en terugleggen ─────────────────────────────────────────────
+  //
+  // ⚠️ Deze twee kosten NIETS en vallen dus bewust buiten `mayTriggerCost`. Een
+  // kaart in een maand zetten zet geen schrijfwerk in gang; dat doet pas het
+  // vrijgeven van de maand, en dáár staat de rem (besluit 18). Zou het slepen
+  // zelf beheerdersrechten vragen, dan kan de klant zijn eigen plan niet
+  // samenstellen, en dat is precies waarvoor dit scherm bestaat.
+  if (actie === "inplannen") {
+    const maandId = String(body.maandId ?? "").trim();
+    if (!maandId) {
+      return NextResponse.json({ error: "Er is geen maand meegegeven." }, { status: 400 });
+    }
+    const index =
+      typeof body.index === "number" && Number.isFinite(body.index)
+        ? Math.max(0, Math.floor(body.index))
+        : null;
+
+    const result = await assignToMonth(admin, {
+      profileId: id,
+      pageId,
+      monthId: maandId,
+      index,
+    });
+    if (!result.ok) {
+      // 409 en geen 500: dit zijn regels die de gebruiker kan begrijpen en
+      // omzeilen (een pagina die al live staat), geen storing.
+      return NextResponse.json({ error: result.probleem }, { status: 409 });
+    }
+    return NextResponse.json({ ok: true });
+  }
+
+  if (actie === "naar_voorraad") {
+    const result = await moveToBacklog(admin, { profileId: id, pageId });
+    if (!result.ok) {
+      return NextResponse.json({ error: result.probleem }, { status: 409 });
+    }
+    return NextResponse.json({ ok: true });
+  }
 
   if (actie === "verplaats") {
     const richting = body.richting === "omhoog" ? "omhoog" : "omlaag";

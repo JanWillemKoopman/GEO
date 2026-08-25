@@ -2456,14 +2456,28 @@ async function main(): Promise<void> {
       [planPotProfileId, planPotUserId],
     );
 
-    async function onderwerpMetPotentie(
+    /**
+     * Een volledig gemeten cluster mét rapport: de enige soort die sinds
+     * migratie 0065 een kans in de voorraad oplevert.
+     *
+     * ⚠️ De hele keten moet er staan, en dat is precies waarom deze test in
+     * `test-chain.ts` hoort en niet in `test-unit.ts`. De potentiescore van een
+     * kans wordt niet uit één kolom gelezen maar bij elkaar gezocht over vijf
+     * tabellen: de aanbeveling noemt een vraag, die vraag hangt aan een meting,
+     * die meting draagt of het merk genoemd werd, en het zoekvolume komt van het
+     * onderwerp. Valt er één schakel weg, dan is de potentie `null` en zakt de
+     * kans naar onderen zonder dat er iets kapot lijkt.
+     */
+    async function clusterMetKans(
       titel: string,
-      priority: number,
-      zichtbaarheid: number,
+      genoemd: boolean,
       zoekvolume: number,
     ): Promise<{ analyseId: string; topicId: string }> {
       const analyseId = randomUUID();
       const topicId = randomUUID();
+      const promptId = randomUUID();
+      const runId = randomUUID();
+
       await db.client.query(
         `insert into public.analyses (id, user_id, profile_id, name, url, topic, status)
          values ($1, $2, $3, $4, 'https://planpotentie-bv.nl', $4, 'gereed')`,
@@ -2471,36 +2485,61 @@ async function main(): Promise<void> {
       );
       await db.client.query(
         `insert into public.profile_topics (id, profile_id, analysis_id, title, priority, status, search_volume_index)
-         values ($1, $2, $3, $4, $5, 'goedgekeurd', $6)`,
-        [topicId, planPotProfileId, analyseId, titel, priority, zoekvolume],
+         values ($1, $2, $3, $4, 5, 'goedgekeurd', $5)`,
+        [topicId, planPotProfileId, analyseId, titel, zoekvolume],
+      );
+      await db.client.query(
+        `insert into public.prompts (id, analysis_id, text, category, active)
+         values ($1, $2, $3, 'Beslissing', true)`,
+        [promptId, analyseId, `Waar vind ik ${titel}?`],
+      );
+      await db.client.query(
+        `insert into public.tracking_runs
+           (id, analysis_id, prompt_id, prompt_text_snapshot, prompt_category_snapshot, week_no, purpose)
+         values ($1, $2, $3, $4, 'Beslissing', 0, 'periodic')`,
+        [runId, analyseId, promptId, `Waar vind ik ${titel}?`],
+      );
+      await db.client.query(
+        `insert into public.tracking_run_mentions (tracking_run_id, entity_name, is_own_brand, mentioned)
+         values ($1, 'Planpotentie BV', true, $2)`,
+        [runId, genoemd],
       );
       await db.client.query(
         "insert into public.visibility_scores (analysis_id, week_no, score) values ($1, 0, $2)",
-        [analyseId, zichtbaarheid],
+        [analyseId, genoemd ? 100 : 0],
+      );
+      // Het rapport met één aanbeveling, die de gemeten vraag als doelvraag draagt.
+      await db.client.query(
+        `insert into public.reports (analysis_id, period, recommendations_json)
+         values ($1, 'week 0', $2::jsonb)`,
+        [
+          analyseId,
+          JSON.stringify([
+            {
+              title: `Pagina over ${titel}`,
+              why: `De AI noemt ons niet bij ${titel}.`,
+              type: "landing",
+              action: "nieuw",
+              targetIntent: `Iemand die ${titel} zoekt`,
+              targets: [{ promptId, weight: 0.5, text: `Waar vind ik ${titel}?` }],
+            },
+          ]),
+        ],
       );
       return { analyseId, topicId };
     }
 
-    // Hoge PRIORITY (de dag-1-gok), maar amper nog iets te winnen: bijna overal
-    // al zichtbaar (95) en weinig zoekvolume (10). Potentie ≈ 0,05 × 10 ≈ 1.
-    const hogePrioriteitLagePotentie = await onderwerpMetPotentie(
-      "Hoge prioriteit, lage potentie",
-      9,
-      95,
-      10,
-    );
-    // Lage PRIORITY, maar de echte kans: nog nergens zichtbaar (10) en veel
-    // zoekvolume (90). Potentie ≈ 0,90 × 90 = 81.
-    const lagePrioriteitHogePotentie = await onderwerpMetPotentie(
-      "Lage prioriteit, hoge potentie",
-      1,
-      10,
-      90,
-    );
+    // Al overal zichtbaar (genoemd) en weinig zoekvolume: er valt bijna niets
+    // meer te winnen. Potentie ≈ 0.
+    const lagePotentie = await clusterMetKans("lage potentie", true, 10);
+    // Nog nergens zichtbaar en veel zoekvolume: dít is de kans. Potentie ≈ 90.
+    const hogePotentie = await clusterMetKans("hoge potentie", false, 90);
 
+    // ⚠️ Eén pagina per maand, zodat de voorzet moet KIEZEN. Met twee zouden
+    // beide kansen in maand 1 belanden en zou de test niets bewijzen.
     const planResultaat = await createPlan(admin as never, {
       profileId: planPotProfileId,
-      pagesPerMonth: 2,
+      pagesPerMonth: 1,
     });
     ok(
       "het plan wordt gemaakt",
@@ -2509,7 +2548,7 @@ async function main(): Promise<void> {
     );
 
     const { rows: maand1Paginas } = await db.client.query(
-      `select pp.topic_id, pp.sort_order
+      `select pp.topic_id, pp.sort_order, pp.scheduled_for, pp.source, pp.potential
          from public.planned_pages pp
          join public.plan_months pm on pm.id = pp.plan_month_id
          join public.content_plans cp on cp.id = pm.plan_id
@@ -2517,19 +2556,173 @@ async function main(): Promise<void> {
         order by pp.sort_order`,
       [planPotProfileId],
     );
-    // ⚠️ DE KERN: zonder fase 3 zou "Hoge prioriteit, lage potentie" vooraan
-    // staan (priority 9 tegen 1). Met fase 3 wint de gemeten potentiescore, en
-    // staat "Lage prioriteit, hoge potentie" (potentie ≈ 81) vooraan, want die
-    // levert écht iets op.
+
+    // ⚠️ DE KERN: de voorzet van maand 1 pakt de kans met de hoogste
+    // potentiescore. Zonder die sortering zou het van de invoegvolgorde afhangen,
+    // en dan krijgt een klant die na drie maanden opzegt (besluit 7: dat mag) een
+    // willekeurige greep in plaats van zijn beste drie maanden.
     ok(
-      "het onderwerp met de hoogste potentiescore staat vooraan, ondanks de lagere priority",
-      maand1Paginas[0]?.topic_id === lagePrioriteitHogePotentie.topicId,
+      "de voorzet vult maand 1 met precies één pagina",
+      maand1Paginas.length === 1,
+      `${maand1Paginas.length} pagina's in maand 1`,
+    );
+    ok(
+      "en dat is de kans met de hoogste potentiescore",
+      maand1Paginas[0]?.topic_id === hogePotentie.topicId,
       `eerste plek was ${maand1Paginas[0]?.topic_id}`,
     );
     ok(
-      "en het onderwerp met de hoge priority maar lage potentie staat op de tweede plek",
-      maand1Paginas[1]?.topic_id === hogePrioriteitLagePotentie.topicId,
-      `tweede plek was ${maand1Paginas[1]?.topic_id}`,
+      "de ingeplande pagina heeft een publicatiedatum",
+      Boolean(maand1Paginas[0]?.scheduled_for),
+    );
+    ok(
+      "en draagt zijn herkomst: hij komt uit een gemeten aanbeveling",
+      maand1Paginas[0]?.source === "aanbeveling",
+      `herkomst was ${maand1Paginas[0]?.source}`,
+    );
+    ok(
+      "met de potentiescore erbij, uitgerekend over de doelvraag van de aanbeveling",
+      Number(maand1Paginas[0]?.potential) > 50,
+      `potentie was ${maand1Paginas[0]?.potential}`,
+    );
+
+    // ⚠️ De andere kans is NIET verdwenen en NIET ingepland: hij staat in de
+    // voorraad. Dat is het hele punt van migratie 0065, en het verschil met de
+    // oude jaarverdeling, die alle twaalf maanden vooruit volstopte.
+    const { rows: voorraad } = await db.client.query(
+      `select id, topic_id, scheduled_for, potential from public.planned_pages
+        where profile_id = $1 and plan_month_id is null and status = 'gepland'`,
+      [planPotProfileId],
+    );
+    ok(
+      "de andere kans blijft in de voorraad staan",
+      voorraad.length === 1 && voorraad[0].topic_id === lagePotentie.topicId,
+      `${voorraad.length} in de voorraad`,
+    );
+    ok(
+      "een kans in de voorraad heeft geen publicatiedatum",
+      voorraad[0]?.scheduled_for === null,
+    );
+
+    // ── Wat het scherm daadwerkelijk krijgt ─────────────────────────────────
+    //
+    // ⚠️ `loadPlan()` is het pad dat de hele pagina rendert, en het doet zes
+    // query's die elk stil iets leegs kunnen teruggeven. Een test op de tabellen
+    // alleen zou groen blijven terwijl de gebruiker een leeg scherm ziet.
+    const { loadPlan: leesPlan } = await import("@/lib/plans");
+    const bundel = await leesPlan(admin as never, planPotProfileId, { sync: false });
+    ok("het scherm krijgt een plan", bundel !== null);
+    ok("met twaalf maanden", bundel?.months.length === 12);
+    ok(
+      "één ingeplande pagina en één kans in de voorraad",
+      bundel?.pages.length === 1 && bundel?.backlog.length === 1,
+      `${bundel?.pages.length} ingepland, ${bundel?.backlog.length} in de voorraad`,
+    );
+    ok(
+      "de voorraadkaart draagt de naam van zijn cluster",
+      bundel?.backlog[0]?.cluster === "lage potentie",
+      `cluster was ${bundel?.backlog[0]?.cluster}`,
+    );
+    ok(
+      "en zijn doelvragen, met de noemer erbij",
+      bundel?.backlog[0]?.raakt === 1 && bundel?.backlog[0]?.gemeten === 1,
+      `raakt ${bundel?.backlog[0]?.raakt} van ${bundel?.backlog[0]?.gemeten}`,
+    );
+    // ⚠️ `numeric` komt als TEKST binnen bij de JS-client. Zonder de `Number()`
+    // in `naarBacklogItem()` sorteert "9" boven "80", en dan staat de zwakste
+    // kans bovenaan zonder dat er iets kapot lijkt.
+    ok(
+      "de potentie is een getal en geen tekst",
+      typeof bundel?.backlog[0]?.potentie === "number" || bundel?.backlog[0]?.potentie === null,
+      `type was ${typeof bundel?.backlog[0]?.potentie}`,
+    );
+    ok(
+      "de clusters die al kansen leverden staan apart, zodat het scherm niet om een meting vraagt die er is",
+      bundel?.metKansen.length === 2,
+      `${bundel?.metKansen.length} clusters met kansen`,
+    );
+
+    // ── Idempotentie (conventie 9) ──────────────────────────────────────────
+    //
+    // ⚠️ De synchronisatie draait bij ELKE opening van het planscherm. Zou hij
+    // niet herkennen wat er al staat, dan groeide de voorraad bij elk bezoek met
+    // twee kaarten, en dat merkt niemand tot de lijst honderd rijen lang is.
+    const { syncBacklog } = await import("@/lib/plan-backlog-data");
+    await syncBacklog(admin as never, planPotProfileId);
+    await syncBacklog(admin as never, planPotProfileId);
+    const { rows: naDrieRondes } = await db.client.query(
+      `select count(*)::int as n from public.planned_pages where profile_id = $1`,
+      [planPotProfileId],
+    );
+    ok(
+      "drie keer synchroniseren levert geen enkele dubbele kaart op",
+      naDrieRondes[0].n === 2,
+      `${naDrieRondes[0].n} kaarten in plaats van 2`,
+    );
+
+    // ── Inplannen en terugleggen ────────────────────────────────────────────
+    const { assignToMonth, moveToBacklog } = await import("@/lib/plans");
+    const { rows: maandRijen } = await db.client.query(
+      `select pm.id, pm.month_number from public.plan_months pm
+         join public.content_plans cp on cp.id = pm.plan_id
+        where cp.profile_id = $1 and cp.status <> 'gestopt' order by pm.month_number`,
+      [planPotProfileId],
+    );
+    const maand3 = maandRijen.find((m: { month_number: number }) => m.month_number === 3);
+
+    const gezet = await assignToMonth(admin as never, {
+      profileId: planPotProfileId,
+      pageId: voorraad[0].id,
+      monthId: maand3.id,
+      index: null,
+    });
+    ok("een kans uit de voorraad in maand 3 zetten lukt", gezet.ok, gezet.probleem ?? "");
+
+    const { rows: inMaand3 } = await db.client.query(
+      `select pp.id, pp.scheduled_for from public.planned_pages pp
+        where pp.plan_month_id = $1`,
+      [maand3.id],
+    );
+    ok("hij staat nu in maand 3", inMaand3.length === 1);
+    // ⚠️ De datum hoort bij de maand waar hij in ligt en niet bij de maand
+    // waarin het plan startte. Zonder deze regel zou een kaart die je naar
+    // december sleept in augustus gepubliceerd worden.
+    ok(
+      "en krijgt een publicatiedatum in de derde maand van het plan",
+      typeof inMaand3[0]?.scheduled_for?.toISOString?.() === "string" ||
+        typeof inMaand3[0]?.scheduled_for === "string",
+    );
+
+    const teruggelegd = await moveToBacklog(admin as never, {
+      profileId: planPotProfileId,
+      pageId: inMaand3[0].id,
+    });
+    ok("terugleggen in de voorraad lukt", teruggelegd.ok, teruggelegd.probleem ?? "");
+    const { rows: naTerug } = await db.client.query(
+      `select plan_month_id, scheduled_for from public.planned_pages where id = $1`,
+      [inMaand3[0].id],
+    );
+    ok(
+      "de kaart heeft geen maand en geen datum meer",
+      naTerug[0].plan_month_id === null && naTerug[0].scheduled_for === null,
+    );
+
+    // ⚠️ Wat al geschreven wordt, mag NIET terug: dat is betaald werk weggooien.
+    await db.client.query(
+      "update public.planned_pages set status = 'schrijven' where id = $1",
+      [inMaand3[0].id],
+    );
+    await db.client.query(
+      "update public.planned_pages set plan_month_id = $1 where id = $2",
+      [maand3.id, inMaand3[0].id],
+    );
+    const geweigerd = await moveToBacklog(admin as never, {
+      profileId: planPotProfileId,
+      pageId: inMaand3[0].id,
+    });
+    ok(
+      "een pagina die al geschreven wordt kan niet terug naar de voorraad",
+      geweigerd.ok === false && Boolean(geweigerd.probleem),
     );
 
     // ══════════════════════════════════════════════════════════════════════
