@@ -1,7 +1,9 @@
 import Link from "next/link";
+import { notFound } from "next/navigation";
 import { requireUser } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { listBrands } from "@/lib/workspace";
+import { isStaff } from "@/lib/staff";
 import { PageHeader } from "@/components/page-header";
 import { EmptyState } from "@/components/empty-state";
 import { SearchConsoleBox } from "@/app/(app)/merk/[id]/_components/search-console-box";
@@ -31,9 +33,20 @@ export const metadata = { title: "Koppelingen" };
  * ⚠️ **Alle merken op één pagina.** Een bureau met vier merken wil in één
  * oogopslag zien welke er gekoppeld zijn; vier keer een merk kiezen om vier keer
  * dezelfde vraag te beantwoorden is werk dat het scherm hoort te doen.
+ *
+ * ⚠️ **Alleen de beheerder mag hier komen** (besluit 25 augustus 2026). Een
+ * koppeling zet de consultant vóór het demogesprek klaar, de klant maakt hem
+ * nooit zelf (het product is sales-led, besloten 3 augustus 2026). De zijbalk
+ * verborg dit scherm al voor een klant door het onder Admin te zetten
+ * (`lib/nav.ts`), maar een verborgen menu-item is nog steeds een adres dat te
+ * raden is. Vandaar `isStaff` hier ook, met een 404 en niet een 403: een 403
+ * bevestigt dat het scherm bestaat, en dat is precies wat een klant van een
+ * ander bureau niet hoort te weten.
  */
 export default async function KoppelingenPage() {
   const user = await requireUser();
+  if (!(await isStaff(user.id))) notFound();
+
   const merken = await listBrands(user.id);
 
   if (merken.length === 0) {

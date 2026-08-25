@@ -7335,7 +7335,7 @@ group("de zijbalk kent vijf hoofdstukken plus Admin", () => {
   // in geen van beide hoofdstukken zonder eerst iets samen te voegen, en de
   // overige klanthoofdstukken blijven op drie.
   for (const kop of beheerder) {
-    const grens = kop.naam === "Admin" || kop.naam === "Analytics" ? 4 : 3;
+    const grens = kop.naam === "Admin" ? 5 : kop.naam === "Analytics" ? 4 : 3;
     ok(
       `${kop.naam} heeft hooguit ${grens} bestemmingen`,
       kop.items.length <= grens,
@@ -7343,13 +7343,17 @@ group("de zijbalk kent vijf hoofdstukken plus Admin", () => {
     );
   }
 
-  // ⚠️ En niet méér dan die twee. Zonder deze controle is "hooguit vier" een
-  // grens die stilletjes op elk hoofdstuk gaat gelden, en dan is de hele
-  // herindeling van 17 augustus binnen een half jaar terug bij af.
+  // ⚠️ En niet méér dan dat. Zonder deze controle is "hooguit vijf" een grens
+  // die stilletjes op elk hoofdstuk gaat gelden, en dan is de hele herindeling
+  // van 17 augustus binnen een half jaar terug bij af.
+  ok(
+    "alleen Admin heeft er vijf",
+    beheerder.filter((k) => k.items.length === 5).every((k) => k.naam === "Admin"),
+  );
   const metVier = beheerder.filter((k) => k.items.length === 4).map((k) => k.naam);
   ok(
-    "alleen Admin en Analytics hebben er vier",
-    metVier.every((n) => n === "Admin" || n === "Analytics"),
+    "en alleen Analytics heeft er vier",
+    metVier.every((n) => n === "Analytics"),
     metVier.join(", "),
   );
   ok(
@@ -7380,10 +7384,18 @@ group("de zijbalk kent vijf hoofdstukken plus Admin", () => {
   // grijs te tonen.
   ok("een hoofdstuk zonder bestemmingen valt weg", hoofdstukken([]).length === 0);
 
-  // Zonder gekozen merk blijft alleen wat niet aan een merk hangt.
+  // Zonder gekozen merk en zonder beheerdersrol blijft er niets over: de
+  // klantbestemmingen zonder merk ("Account en team", "Koppelingen") zijn
+  // beide weg sinds 25 augustus 2026, de eerste naar het profielmenu, de
+  // tweede naar Admin.
   ok(
-    "zonder merk blijft alleen Instellingen over",
-    hoofdstukken(generalNav(false)).map((k) => k.naam).join() === "Instellingen",
+    "zonder merk en als klant blijft er niets over",
+    hoofdstukken(generalNav(false)).length === 0,
+  );
+  // Als beheerder, wél zonder gekozen merk, blijft alleen Admin over.
+  ok(
+    "zonder merk maar als beheerder blijft alleen Admin over",
+    hoofdstukken(generalNav(true)).map((k) => k.naam).join() === "Admin",
   );
 
   // "Alle merken" is uit het menu weg (besluit 2) en zit in de merkkiezer. Een
@@ -8173,6 +8185,7 @@ group("de afgeschermde routes zijn ook echt afgeschermd", () => {
     "app/(app)/merk/[id]/admin/onboarding/page.tsx",
     "app/(app)/merk/[id]/admin/toewijzen/page.tsx",
     "app/(app)/beheer/page.tsx",
+    "app/(app)/instellingen/koppelingen/page.tsx",
     "app/api/analyses/[id]/costs/route.ts",
   ];
   for (const pad of afgeschermd) {
@@ -8203,8 +8216,13 @@ group("de zijbalk verraadt niets aan een klant", () => {
   // per ongeluk tijdens een gedeeld scherm op een interne pagina klikt.
   const staffItems = [...brandNav(merkId, true), ...generalNav(true)];
   const adminItems = staffItems.filter((i) => i.hoofdstuk === "Admin");
-  // Drie over dít merk plus "Alle merken" over de app als geheel.
-  ok("een beheerder heeft vier Admin-bestemmingen", adminItems.length === 4);
+  // Drie over dít merk plus "Alle merken" en "Koppelingen" over de app als
+  // geheel.
+  ok("een beheerder heeft vijf Admin-bestemmingen", adminItems.length === 5);
+  ok(
+    "en Koppelingen staat erbij",
+    adminItems.some((i) => i.href === "/instellingen/koppelingen" && i.label === "Koppelingen"),
+  );
   ok(
     "en de onboardingsessie staat erbij",
     adminItems.some((i) => i.href.endsWith("/admin/onboarding") && i.label === "Onboarding"),
