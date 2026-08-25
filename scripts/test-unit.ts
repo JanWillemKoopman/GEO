@@ -242,7 +242,14 @@ import {
   nextPublication,
   openMonthIds,
 } from "@/lib/plan-overview";
-import { milestones } from "@/lib/milestones";
+import { brandScorePerPeriod } from "@/lib/brand-score";
+import {
+  isEersteMaand,
+  overzichtCijfers,
+  planRegels,
+  versheidsregel,
+  volgendeMeting,
+} from "@/lib/overview";
 import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import {
@@ -281,7 +288,15 @@ import {
 } from "@/lib/spend-rules";
 import { EDITABLE_ACCOUNT_FIELDS } from "@/lib/account-editable";
 import { checkNewEmail, checkNewPassword } from "@/lib/account-security";
-import { opportunities, reachLabel, OPPORTUNITY_ICON } from "@/lib/opportunities";
+import {
+  opportunities,
+  reachLabel,
+  OPPORTUNITY_ICON,
+  OPPORTUNITY_ACTION_LABEL,
+  paginaPad,
+  potentieVarieert,
+  reachShort,
+} from "@/lib/opportunities";
 // `lib/work.ts` is `server-only`; de pure helft ervan staat in `lib/work-kind.ts`.
 import { workChipTone, workKindIcon, type WorkKind } from "@/lib/work-kind";
 import { leesbaarWaarom } from "@/lib/recommendation-text";
@@ -5796,69 +5811,225 @@ group("segmentOf: elk merk in precies één segment", () => {
 });
 
 // ════════════════════════════════════════════════════════════════════════════
-console.log("\nHet opbrengstblok (fase 5, milestones.ts)");
+console.log("\nDe startpagina: één merkcijfer (brand-score.ts, 25 augustus 2026)");
 
-group("milestones: drie getallen, ook als er nog niets te vieren valt", () => {
-  const nu = new Date("2026-11-15T12:00:00Z");
-  const basis = {
-    startedAt: "2026-08-11T00:00:00Z",
-    eersteScore: 22,
-    laatsteScore: 34,
-    metingen: 3,
-    gepubliceerd: 12,
-    now: nu,
-  };
+group("brandScorePerPeriod: één som voor drie blokken", () => {
+  // De echte rijen van Gasservice Brabant, nagerekend op productie op
+  // 25 augustus 2026. Eén cluster, twee periodes.
+  const gasservice = [
+    {
+      analysis_id: "a",
+      week_no: 0,
+      score: "30.00",
+      weighted_score: "29.00",
+      score_stderr: "8.54",
+      weighted_stderr: "9.62",
+      winnable_runs: 30,
+      judged_runs: 30,
+      computed_at: "2026-08-12T07:59:22Z",
+    },
+    {
+      analysis_id: "a",
+      week_no: 1,
+      score: "60.00",
+      weighted_score: "57.00",
+      score_stderr: "9.15",
+      weighted_stderr: "7.65",
+      winnable_runs: 29,
+      judged_runs: 30,
+      computed_at: "2026-08-15T08:58:13Z",
+    },
+  ];
 
-  const m = milestones(basis);
-  ok("altijd precies drie blokken", m.length === 3);
+  const p = brandScorePerPeriod(gasservice);
+  ok("twee periodes, op volgorde", p.length === 2 && p[0].period === 0 && p[1].period === 1);
 
-  // ⚠️ Een blok dat verdwijnt zodra het getal nul is, laat de klant precies op
-  // het moment dat hij twijfelt een leeg scherm zien.
-  const leeg = milestones({
-    startedAt: null,
-    eersteScore: null,
-    laatsteScore: null,
-    metingen: 0,
-    gepubliceerd: 0,
-    now: nu,
+  // ⚠️ DIT IS DE HELE INGREEP. De standkaart toonde 57 en de duiding eronder
+  // "van 30 naar 60": de gewogen score naast de ongewogen, op één scherm, voor
+  // één begrip. Alle drie de blokken lezen nu deze som.
+  ok("de gewogen score wint", p[1].score === 57);
+  ok("en de bijbehorende onzekerheid komt mee", p[1].stderr === 7.65);
+  ok("het aantal beoordeelde vragen telt op", p[1].vragen === 30);
+  ok("en de meetdatum komt mee", p[1].gemetenOp === "2026-08-15T08:58:13Z");
+
+  // Zonder gewogen score valt hij terug op de ongewogen, MET de bijbehorende
+  // standaardfout. Nooit de een met de marge van de ander.
+  const zonderGewogen = brandScorePerPeriod([
+    { analysis_id: "a", week_no: 0, score: 40, weighted_score: null, score_stderr: 5, weighted_stderr: 9 },
+  ]);
+  ok("terugval op de ongewogen score", zonderGewogen[0].score === 40);
+  ok("met de ongewogen onzekerheid", zonderGewogen[0].stderr === 5);
+
+  // ⚠️ Een cluster met vijf metingen mag het merkcijfer niet even hard
+  // bepalen als een cluster met negentig. Zonder weging zou het gemiddelde
+  // hieronder 50 zijn; met weging trekt het grote cluster het naar 91.
+  const tweeClusters = brandScorePerPeriod([
+    { analysis_id: "groot", week_no: 3, score: 100, weighted_score: 100, winnable_runs: 90, judged_runs: 90 },
+    { analysis_id: "klein", week_no: 3, score: 0, weighted_score: 0, winnable_runs: 5, judged_runs: 5 },
+  ]);
+  ok("het grote cluster weegt zwaarder", Math.round(tweeClusters[0].score) === 95);
+  ok("en de vragen tellen over de clusters op", tweeClusters[0].vragen === 95);
+
+  ok("zonder rijen geen periodes", brandScorePerPeriod([]).length === 0);
+});
+
+group("de startpagina: versheid, eerste maand en de plantelling (overview.ts)", () => {
+  const nu = new Date("2026-08-25T10:00:00Z");
+
+  // ⚠️ De meetronde draait op de eerste van de maand (`vercel.json`, 0 6 1 * *).
+  const volgende = volgendeMeting(nu);
+  ok(
+    "1 september na 25 augustus",
+    volgende.getUTCMonth() === 8 && volgende.getUTCDate() === 1,
+  );
+  const oudejaar = volgendeMeting(new Date("2026-12-20T10:00:00Z"));
+  ok(
+    "en over de jaargrens heen 1 januari",
+    oudejaar.getUTCFullYear() === 2027 && oudejaar.getUTCMonth() === 0,
+  );
+
+  // Dit scherm is de bestemming na inloggen en er wordt maandelijks gemeten,
+  // dus de regel moet zeggen of dit bezoek nieuws oplevert.
+  const geenMeting = versheidsregel({ metingen: 0, gemetenOp: null, now: nu });
+  ok("zonder meting belooft hij een datum", geenMeting.includes("1 september"));
+  ok("en claimt hij geen cijfer", !geenMeting.includes("%"));
+
+  const nulmeting = versheidsregel({ metingen: 1, gemetenOp: "2026-08-15T08:58:13Z", now: nu });
+  ok("bij één meting heet het een nulmeting", nulmeting.includes("nulmeting"));
+  ok("met de meetdatum erin", nulmeting.includes("15 augustus"));
+
+  const tweede = versheidsregel({ metingen: 2, gemetenOp: "2026-08-15T08:58:13Z", now: nu });
+  ok("daarna noemt hij de nieuwste meting", tweede.includes("15 augustus"));
+  ok("en wanneer de volgende draait", tweede.includes("1 september"));
+
+  // ⚠️ De eerste maand toont anders drie mijlpalen op nul, vier balken op nul en
+  // een leeg ingeklapt blok. Dat is het eerste beeld van een betalende klant.
+  ok("één meting zonder plan is de eerste maand", isEersteMaand({ metingen: 1, geplandePaginas: 0 }));
+  ok(
+    "een tweede meting haalt de verdieping terug",
+    !isEersteMaand({ metingen: 2, geplandePaginas: 0 }),
+  );
+  ok(
+    "en een contentplan ook",
+    !isEersteMaand({ metingen: 1, geplandePaginas: 120 }),
+  );
+
+  // ⚠️ "1 pagina gepubliceerd" stond op hetzelfde scherm als "nog geen van je
+  // 120 geplande pagina's staat live". Allebei waar, want de eerste pagina van
+  // Gasservice Brabant is van vóór het contentplan. Het verschil hoort benoemd.
+  const gasservice = planRegels({ gepland: 120, geplaatst: 0, gepubliceerdTotaal: 1 });
+  ok("de eerste regel gaat alleen over het plan", gasservice[0].includes("120 geplande"));
+  ok("en de tweede legt het verschil uit", gasservice[1].includes("vóór dit plan"));
+
+  const gelijk = planRegels({ gepland: 120, geplaatst: 3, gepubliceerdTotaal: 3 });
+  ok("zonder verschil is er geen tweede regel", gelijk.length === 1);
+  ok("en telt de eerste regel de geplaatste", gelijk[0].includes("3 van je 120"));
+});
+
+group("de kansenlijst: alleen tonen wat onderscheidt (25 augustus 2026)", () => {
+  // ⚠️ Bij Gasservice Brabant stond zes keer "Potentie 68/100 (hoge)" onder
+  // elkaar: de potentiescore is zichtbaarheidsgat × zoekvolume, het zoekvolume
+  // hoort bij het ONDERWERP, en dit merk heeft er één. De chip beloofde een
+  // rangorde die er niet was.
+  ok(
+    "zes keer hetzelfde getal onderscheidt niets",
+    !potentieVarieert([{ potential: 68 }, { potential: 68 }, { potential: 68 }]),
+  );
+  ok(
+    "twee verschillende getallen wel",
+    potentieVarieert([{ potential: 68 }, { potential: 31 }]),
+  );
+  ok("en een lijst zonder potentie ook niet", !potentieVarieert([{ potential: null }]));
+
+  // Het pad in plaats van het volledige adres. Het adres van zeventig tekens
+  // stond middenin de enige klikbare zin van de kaart.
+  ok(
+    "het pad is wat je leest",
+    paginaPad("https://gasservice-brabant.nl/cv-ketel-onderhoud-tilburg/") ===
+      "/cv-ketel-onderhoud-tilburg/",
+  );
+  ok("zonder adres geen pad", paginaPad(null) === null);
+  ok("en een onleesbaar adres blijft staan", paginaPad("niet-een-url") === "niet-een-url");
+
+  // Het verschil tussen nieuw werk en een correctie zat alleen in een tekening
+  // van 18 pixels, en dat verschil bepaalt of je een uur of een dag kwijt bent.
+  ok(
+    "elke handeling heeft een woord",
+    Object.values(OPPORTUNITY_ACTION_LABEL).every((l) => l.length > 0),
+  );
+  ok(
+    "en nieuw werk heet anders dan een correctie",
+    OPPORTUNITY_ACTION_LABEL.nieuwe_pagina !== OPPORTUNITY_ACTION_LABEL.pagina_bijwerken,
+  );
+
+  // ⚠️ De volle zin is 33 tekens en duwde de titel van de eerste kans over twee
+  // regels. Kort in de kolom, volledig in de tooltip.
+  ok("de korte vorm past in een kolom", reachShort(3, 30) === "3 van 30 vragen");
+  ok("de volle zin blijft bestaan", reachLabel(3, 30) === "raakt 3 van de 30 gemeten vragen");
+  ok("zonder noemer alleen de teller", reachShort(3, null) === "3 vragen");
+  ok("één vraag is enkelvoud", reachShort(1, null) === "1 vraag");
+  ok("zonder doelvragen geen getal", reachShort(null, 30) === null);
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+console.log("\nDe vier cijfers op de startpagina (overview.ts, 26 augustus 2026)");
+
+group("overzichtCijfers: vier tellingen, geen vergelijking", () => {
+  // De echte stand van Gasservice Brabant op 26 augustus 2026: één gepubliceerde
+  // pagina, één cluster, en zeven aanbevelingen die uiteenvallen in twee nieuwe
+  // pagina's en vijf verbeteringen aan bestaande pagina's.
+  const c = overzichtCijfers({
+    gepubliceerd: 1,
+    clusters: 1,
+    nieuwePaginas: 2,
+    optimalisaties: 5,
   });
-  ok("ook zonder enige data drie blokken", leeg.length === 3);
+
+  ok("altijd precies vier cijfers", c.length === 4);
+  ok("in de volgorde van het scherm", c.map((x) => x.waarde).join(" ") === "1 1 2 5");
+
+  // ⚠️ Geen enkel cijfer draagt een vergelijking met een vorige periode. Deze
+  // vier zijn standen en geen metingen: het aantal clusters verandert door een
+  // besluit, niet doordat er gemeten is.
   ok(
-    "en dan staat er waaróm het leeg is",
-    leeg.every((b) => b.detail !== null && b.detail.length > 0),
+    "geen enkele detailregel claimt groei",
+    c.every((x) => !/\+|sinds|steeg|daalde|vorige/.test(x.detail)),
   );
+  ok("en elk cijfer heeft een toelichting", c.every((x) => x.detail.length > 0));
 
-  ok("de groei staat er met een plusteken", m[1].waarde === "+12 punten");
-  ok("met het startpunt erbij", m[1].detail?.includes("22") === true);
-  ok("de maandteller telt vanaf de start", m[0].detail?.includes("Maand 4") === true);
-  ok("en het aantal pagina's staat er los", m[2].waarde === "12");
+  // Enkelvoud en meervoud, want deze getallen staan vaak op 1 of op 0.
+  ok("één pagina is enkelvoud", c[0].label === "Pagina gepubliceerd");
+  ok("één cluster is enkelvoud", c[1].label === "Cluster actief");
+  const meer = overzichtCijfers({
+    gepubliceerd: 4,
+    clusters: 3,
+    nieuwePaginas: 1,
+    optimalisaties: 0,
+  });
+  ok("meer pagina's is meervoud", meer[0].label === "Pagina's gepubliceerd");
+  ok("één nieuwe pagina is enkelvoud", meer[2].label === "Nieuwe pagina");
+  ok("nul optimalisaties is meervoud", meer[3].label === "Paginaoptimalisaties");
 
-  // ⚠️ Conventie 3: bij één meting is er geen groei, alleen een startpunt. "0%"
-  // zou suggereren dat er niets gebeurde, terwijl er nog niets te vergelijken is.
-  const eenMeting = milestones({ ...basis, metingen: 1, eersteScore: 22, laatsteScore: 22 });
+  // ⚠️ Nul is hier een echte telling en geen onbekende waarde (conventie 3 gaat
+  // over gokken, niet over tellen). De detailregel zegt wel wat nul betekent.
+  const leeg = overzichtCijfers({
+    gepubliceerd: 0,
+    clusters: 0,
+    nieuwePaginas: 0,
+    optimalisaties: 0,
+  });
+  ok("nul blijft nul", leeg.every((x) => x.waarde === "0"));
+  ok("en zegt waarom het nul is", leeg[0].detail === "Nog geen pagina live");
+
+  // ⚠️ Vier kolommen naast elkaar, waarvan drie ook een scheidingslijn met
+  // inspringing dragen: die zijn 24 pixels smaller dan de eerste. Een
+  // toelichting die daar over twee regels valt, maakt de rij rafelig en de
+  // kolommen ongelijk hoog. 23 tekens is wat er in de smalste kolom past.
   ok(
-    "bij één meting staat er een startpunt en geen groei",
-    eenMeting[1].detail?.includes("startpunt") === true,
+    "elke toelichting past op één regel",
+    [...c, ...meer, ...leeg].every((x) => x.detail.length <= 23),
   );
-
-  // Achteruitgang wordt niet verstopt.
-  const omlaag = milestones({ ...basis, eersteScore: 40, laatsteScore: 31 });
-  ok("een daling staat er gewoon", omlaag[1].waarde === "-9 punten");
-
-  // Besluit 16: zonder bedrag aantallen, met bedrag geld. Zo hoeft er geen
-  // scherm om zodra de prijzen er zijn.
-  ok("zonder waarde per vermelding geen bedrag", m[1].detail?.includes("€") === false);
-  const metGeld = milestones({ ...basis, waardePerVermelding: 25 });
-  ok("met waarde per vermelding wél", metGeld[1].detail?.includes("€ 300") === true);
-  ok(
-    "maar niet bij een daling, want dat zou een verlies als opbrengst tonen",
-    milestones({ ...basis, eersteScore: 40, laatsteScore: 31, waardePerVermelding: 25 })[1]
-      .detail?.includes("€") === false,
-  );
-
-  // Enkelvoud en meervoud: "1 pagina's" is precies het soort slordigheid dat
-  // een demo-scherm goedkoop laat lijken.
-  ok("één pagina is enkelvoud", milestones({ ...basis, gepubliceerd: 1 })[2].label === "Pagina gepubliceerd");
+  ok("ook de nulvarianten", leeg.every((x) => x.detail.length <= 23));
 });
 
 // ════════════════════════════════════════════════════════════════════════════
@@ -7786,7 +7957,7 @@ group("één meetronde is één regel, geen dertig", () => {
   );
 });
 
-group("het overzicht: één hoofdgetal en een chip die de soort werk volgt", () => {
+group("het overzicht: één hoofdgetal, één primaire knop, één rekensom", () => {
   // ⚠️ BRONCODECONTROLE, om dezelfde reden als de klantschermcontrole hieronder:
   // een handmatige doorloop gebeurt één keer, het risico ontstaat bij de
   // volgende wijziging.
@@ -7795,9 +7966,22 @@ group("het overzicht: één hoofdgetal en een chip die de soort werk volgt", () 
   // Alle vijf de werksoorten stonden op amber. "Bekijk wat er mis is" (een
   // cluster dat niet gelukt is) zag er daardoor precies zo uit als "Nakijken".
   // `docs/ux-design.md` §2: warning is "kijk hier even naar", danger is
-  // "blokkade, mislukt", attention is "vraagt een keuze, is niet fout".
-  ok("de chip volgt de soort werk", overzicht.includes("workChipTone(w.kind)"));
-  ok("en niet één vaste tint", !overzicht.includes("chip chip-warning"));
+  // "blokkade, mislukt", attention is "vraagt een keuze, is niet fout". Sinds
+  // 25 augustus 2026 draagt de KAART die toon en niet meer een chip van 60
+  // pixels, maar het onderscheid moet blijven bestaan.
+  ok("de soort werk bepaalt de toon", overzicht.includes("workChipTone(item.kind)"));
+
+  // ── ⚠️ ÉÉN PRIMAIRE KNOP (25 AUGUSTUS 2026) ─────────────────────────────
+  //
+  // Dit scherm is de bestemming na inloggen (`app/page.tsx`) en had géén enkele
+  // primaire knop: de enige verzadigde kleur was een chip, en een chip is een
+  // etiket. Het scherm vroeg nergens om een klik. Een tweede primaire knop is
+  // net zo fout: dan kiest de klant welke van de twee de hoofdactie is, en dan
+  // is er geen.
+  ok(
+    "precies één primaire knop op het scherm",
+    (overzicht.match(/btn-primary/g) ?? []).length === 1,
+  );
 
   // Het hoofdgetal stond vier keer op dit scherm, in drie schalen. De subkop is
   // er één van, en dat is de makkelijkste om per ongeluk terug te zetten.
@@ -7806,12 +7990,45 @@ group("het overzicht: één hoofdgetal en een chip die de soort werk volgt", () 
     !overzicht.includes("van de vragen waarin ze een aanbieder"),
   );
 
-  // Acht databronnen op de startpagina van de klant: één onverwachte datavorm
-  // mag niet het hele scherm weghalen (`docs/ux-design.md` §4).
+  // ── ⚠️ ÉÉN REKENSOM VOOR HET MERKCIJFER ─────────────────────────────────
+  //
+  // De standkaart rekende hier zijn eigen gewogen gemiddelde uit terwijl
+  // `lib/insights-data.ts` en het toenmalige `lib/milestones-data.ts` een ongewogen
+  // namen. Op één scherm stond daardoor 57%, "van 30 naar 60" en "+30 punten".
+  // Dit scherm mag die som niet meer zelf doen.
+  ok(
+    "het scherm haalt de scores niet zelf op",
+    !overzicht.includes('from("visibility_scores")'),
+  );
+  ok("en rekent ze niet zelf om", !overzicht.includes("function merkCijfer"));
+
+  // De regel onder de merknaam zegt hoe vers de meting is. Zonder die regel ziet
+  // een wekelijkse bezoeker vier keer hetzelfde maandcijfer zonder te weten dat
+  // het hetzelfde is.
+  ok("de kop zegt hoe vers de meting is", overzicht.includes("versheidsregel"));
+
+  // Zeven databronnen op de startpagina van de klant: één onverwachte datavorm
+  // mag niet het hele scherm weghalen (`docs/ux-design.md` §4). Vijf blokken
+  // sinds het opbrengstblok eraf ging (26 augustus 2026).
   ok(
     "elk blok staat in zijn eigen foutopvang",
-    (overzicht.match(/<SectionErrorBoundary/g) ?? []).length >= 6,
+    (overzicht.match(/<SectionErrorBoundary/g) ?? []).length >= 5,
   );
+
+  // ── ⚠️ HET ZICHTBAARHEIDSPERCENTAGE STAAT HIER NIET MEER ────────────────
+  //
+  // Besloten op 26 augustus 2026: de startpagina toont de omvang van het
+  // programma, het percentage staat op Analytics. Het is het soort cijfer dat
+  // per ongeluk terugkeert, want het is het hoofdgetal van het product.
+  ok("geen percentage als hoofdgetal", !overzicht.includes('text-5xl'));
+  ok("en geen tweede rekensom ernaast", !overzicht.includes("confidenceBand"));
+
+  // ── ⚠️ SECTIEKOPPEN ZIJN KOPPEN ─────────────────────────────────────────
+  //
+  // Ze waren `<span className="mono-label">`, precies dezelfde opmaak als een
+  // regel metadata ín een kaart. Daardoor had de pagina één kop (`h1`) en
+  // daaronder acht naamloze blokken.
+  ok("de secties hebben echte koppen", overzicht.includes("<SectionHeading"));
 });
 
 // ════════════════════════════════════════════════════════════════════════════

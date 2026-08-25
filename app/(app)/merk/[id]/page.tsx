@@ -12,20 +12,27 @@ import {
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { PageHeader } from "@/components/page-header";
-import { MilestonesBlock } from "@/components/milestones-block";
+import { SectionHeading } from "@/components/section-heading";
 import { InsightLines, OpportunitiesBlock } from "@/components/loop-blocks";
 import { CollapsibleSection } from "@/components/collapsible-section";
 import { SectionErrorBoundary } from "@/components/section-error-boundary";
 import { ProfileProgress } from "./_components/profile-progress";
-import { LastUpdated } from "@/components/last-updated";
 import { InfoHint } from "@/components/info-hint";
-import { activeOnly } from "@/lib/archive";
-import { loadMilestones } from "@/lib/milestones-data";
+import { loadGepubliceerd } from "@/lib/overview-data";
 import { loadLoop } from "@/lib/insights-data";
 import type { Insight } from "@/lib/insights";
-import { loadWorkAcross, sortWork, workChipTone, workKindIcon } from "@/lib/work";
-import { confidenceBand } from "@/lib/stats/uncertainty";
+import { loadWorkAcross, sortWork, workChipTone, workKindIcon, WORK_KIND_LABEL } from "@/lib/work";
+import type { WorkItem } from "@/lib/work";
 import { activiteit, type AfgerondeTaak } from "@/lib/activity";
+import { formatDateShort, formatRelativeTime } from "@/lib/format";
+import {
+  isEersteMaand,
+  overzichtCijfers,
+  type OverzichtCijfer,
+  planRegels,
+  versheidsregel,
+  volgendeMeting,
+} from "@/lib/overview";
 import {
   contentMix,
   funnelVoortgang,
@@ -33,13 +40,12 @@ import {
   type Funnelfase,
   type VoortgangPagina,
 } from "@/lib/plan-progress";
-import type { VisibilityScore } from "@/lib/types/database";
 import { Icon } from "@/components/icon";
 
 export const dynamic = "force-dynamic";
 
 /**
- * OVERZICHT: de startpagina van een merk, en de eerste die de app ooit had.
+ * OVERZICHT: de startpagina van een merk, en de bestemming na inloggen.
  *
  * ── WAAROM DIT SCHERM ER MOEST KOMEN ────────────────────────────────────────
  *
@@ -49,26 +55,30 @@ export const dynamic = "force-dynamic";
  * hoe sta ik ervoor, wat wacht op mij, waar begin ik, en pas daarna de
  * verdieping: wat leverde het op, ligt het plan op schema, wat is er gedaan.
  *
- * ── ⚠️ DE VOLGORDE IS OP 24 AUGUSTUS 2026 OMGEZET, EN DAT IS DE HELE INGREEP ─
+ * ── ⚠️ DIT IS HET EERSTE SCHERM VAN ELKE SESSIE ─────────────────────────────
+ *
+ * `app/page.tsx` stuurt na inloggen hierheen, en bij één merk zonder tussenstap.
+ * Dat is geen detail voor de vormgeving maar de hoofdregel ervan: de vraag van
+ * een terugkerende bezoeker is niet "hoe sta ik ervoor" maar "is er iets nieuws
+ * sinds ik hier was". Er wordt maandelijks gemeten (`vercel.json`, `0 6 1 * *`)
+ * en de klant kijkt vaker, dus zonder een meetdatum ziet hij vier weken achter
+ * elkaar hetzelfde cijfer zonder te weten dát het hetzelfde is. Die regel staat
+ * nu onder de merknaam (`lib/overview.ts`, `versheidsregel`).
+ *
+ * ── ⚠️ DE VOLGORDE IS OP 24 AUGUSTUS 2026 OMGEZET ───────────────────────────
  *
  * Het scherm telde tien blokken, allemaal open, allemaal even zwaar, in één
- * kolom. "Waar begin je" stond als tiende. `docs/ux-design.md` §5 zegt dat dit
- * scherm "hoe sta ik ervoor en wat moet ik nu doen" beantwoordt, en §1 vraagt
- * rust boven volledigheid. Wat de klant moet doen stond dus onder vijf blokken
- * toelichting.
+ * kolom. "Waar begin je" stond als tiende. Nu: de stand, wat op je wacht, waar
+ * je begint. Daarna pas de verdieping, op desktop in twee kolommen.
  *
- * Nu: de stand, wat op je wacht, waar je begint. Daarna pas de verdieping, op
- * desktop in twee kolommen zodat een voortgangsbalk van 2px niet de volle 1024
- * pixels opeist.
+ * ── ⚠️ ÉÉN HOOFDGETAL, EN ÉÉN REKENSOM ERONDER (25 AUGUSTUS 2026) ───────────
  *
- * ── ⚠️ ÉÉN HOOFDGETAL, EN DAT WAS HET NIET ──────────────────────────────────
- *
- * De zichtbaarheid stond vier keer op één scherm: in de subkop ("in 0% van de
- * vragen"), in de stand-kaart ("0%"), in de mijlpalen ("0, zichtbaarheid in
- * AI-antwoorden") en in de maandinzichten ("de eerste meting staat op 0 van de
- * 100"). Drie schalen voor één cijfer. De subkop noemt het niet meer, de
- * inzichten staan nu ín de stand-kaart als duiding bij het cijfer, en
- * `lib/insights.ts` laat het getal bij een eerste meting weg.
+ * De zichtbaarheid stond niet alleen op meerdere plekken, hij stond er in
+ * verschillende GETALLEN: de standkaart zei 57% (gewogen, gewogen gemiddeld over
+ * de clusters), de duiding eronder zei "van 30 naar 60" en het opbrengstblok zei
+ * "+30 punten", allebei uit de ongewogen score, ongewogen gemiddeld. Drie
+ * rekensommen voor één begrip op één scherm. Sinds `lib/brand-score.ts` valt die
+ * som één keer en voeden alle drie de blokken zich eruit.
  *
  * ── ⚠️ DE WACHTRIJ BLIJFT KORT, EN DAT IS NIET COSMETISCH ───────────────────
  *
@@ -78,15 +88,26 @@ export const dynamic = "force-dynamic";
  * komt nu terug met een harde grens: **maximaal vijf regels**, alleen de staat
  * `nu`, met een doorklik naar de rest. Zonder die grens herhalen we de fout.
  *
- * Blijkt hij in de praktijk tóch vol te lopen, dan is de volgende stap hem per
- * cluster te tonen in plaats van opgeteld, niet hem groter te maken.
+ * ── ⚠️ ÉÉN PRIMAIRE KNOP, EN DIE HOORT BIJ DE KLANT ─────────────────────────
+ *
+ * Er stond er geen enkele. De enige verzadigde kleur op het scherm was een chip,
+ * en een chip is een etiket, geen knop: het scherm vroeg dus nergens om een
+ * klik. De primaire knop staat nu bij wat er op de klant wacht, want dat is het
+ * enige waar hij vandaag iets aan kan doen. De eerste kans krijgt bewust
+ * `btn-outline` en niet nog een primaire knop.
+ *
+ * ── ⚠️ IN DE EERSTE MAAND VALT DE VERDIEPING WEG ────────────────────────────
+ *
+ * Bij één meting en zonder contentplan stonden hier drie mijlpalen op nul, vier
+ * voortgangsbalken op nul en een ingeklapt blok zonder inhoud. Dat is het eerste
+ * beeld dat een nieuwe klant van het product krijgt, en het meldde vooral wat er
+ * nog niet was. Zie `isEersteMaand` in `lib/overview.ts`.
  *
  * ── ⚠️ HET LAATSTE BLOK SUGGEREERT GEEN AUTONOMIE ───────────────────────────
  *
  * "Wat ORBIT ENGINE deze week deed" komt uit de takenwachtrij en niet uit een
  * animatie. Het product is sales-led: de beheerder start betaald werk, de klant
- * keurt per stap goed. Zie `lib/activity.ts`. Het staat ingeklapt, want het is
- * het enige blok waar geen handeling uit volgt.
+ * keurt per stap goed. Zie `lib/activity.ts`.
  *
  * ── ⚠️ ELK BLOK STAAT IN ZIJN EIGEN FOUTOPVANG ──────────────────────────────
  *
@@ -104,11 +125,25 @@ export async function generateMetadata({
   return { title: profile ? (profile.brand_name ?? profile.name) : "Overzicht" };
 }
 
-/** Hoe ver terug blok 6 kijkt. Een week, want de kop belooft een week. */
+/** Hoe ver terug het activiteitenblok kijkt. Een week, want de kop belooft een week. */
 const ACTIVITEIT_DAGEN = 7;
 
 /** De harde grens op de wachtrij. Zie de waarschuwing hierboven. */
 const MAX_WACHTRIJ = 5;
+
+/** Hoeveel activiteitsregels er open staan voordat de rest inklapt. */
+const ACTIVITEIT_ZICHTBAAR = 5;
+
+/**
+ * Hoeveel regels er in totaal te zien zijn, uitgeklapt.
+ *
+ * ⚠️ Een harde grens, om dezelfde reden als `MAX_WACHTRIJ`. `activiteit()`
+ * groepeert per taaksoort en er zijn er 32 (`lib/jobs/types.ts`), dus in een
+ * drukke week kan deze lijst zonder grens langer worden dan al het andere op de
+ * pagina samen. Dit blok is het enige waar geen handeling uit volgt; het hoort
+ * nooit het langste te zijn.
+ */
+const ACTIVITEIT_MAX = 15;
 
 export default async function OverzichtPage({
   params,
@@ -129,9 +164,9 @@ export default async function OverzichtPage({
   const supabase = await createClient();
   const admin = createAdminClient();
 
-  const [{ analyses, work }, mijlpalen, lus, { data: planRow }] = await Promise.all([
+  const [{ analyses, work }, gepubliceerd, lus, { data: planRow }] = await Promise.all([
     loadWorkAcross(supabase, user.id),
-    loadMilestones(admin, id, profile.account_id),
+    loadGepubliceerd(admin, id),
     loadLoop(admin, id),
     admin
       .from("content_plans")
@@ -174,24 +209,30 @@ export default async function OverzichtPage({
   const eigenClusters = analyses.filter((a) => a.profile_id === id);
   const eigenIds = new Set(eigenClusters.map((a) => a.id));
 
-  // ── Blok 2: het hoofdcijfer ──────────────────────────────────────────────
-  let scores: VisibilityScore[] = [];
-  if (eigenIds.size > 0) {
-    const { data: scoreRows } = await supabase
-      .from("visibility_scores")
-      .select("*")
-      .in("analysis_id", [...eigenIds])
-      .order("week_no");
-    scores = (scoreRows ?? []) as VisibilityScore[];
-  }
-  const hoofdcijfer = merkCijfer(scores);
+  // ── De vier cijfers bovenaan ─────────────────────────────────────────────
+  //
+  // ⚠️ Het zichtbaarheidspercentage stond hier tot 26 augustus 2026 als
+  // hoofdgetal. Zie `overzichtCijfers()` in `lib/overview.ts` voor waarom het
+  // verhuisd is naar Analytics en wat ervoor in de plaats komt.
+  //
+  // De meetreeks blijft nodig: hij bepaalt hoe vers de kop is en of dit merk nog
+  // in zijn eerste maand zit. `lus.periods` komt uit dezelfde bundel als de
+  // inzichten, dus dit scherm doet zijn eigen scorequery niet.
+  const periodes = lus.periods;
+  const laatste = periodes.length > 0 ? periodes[periodes.length - 1] : null;
+  const cijfers = overzichtCijfers({
+    gepubliceerd,
+    clusters: eigenClusters.length,
+    nieuwePaginas: lus.opportunities.filter((o) => o.handeling === "nieuwe_pagina").length,
+    optimalisaties: lus.opportunities.filter((o) => o.handeling === "pagina_bijwerken").length,
+  });
 
-  // ── Blok 3: de wachtrij, alleen wat op de klant wacht ────────────────────
+  // ── De wachtrij, alleen wat op de klant wacht ────────────────────────────
   const eigenWerk = sortWork(work.filter((w) => eigenIds.has(w.analysisId) && w.state === "nu"));
   const wachtrij = eigenWerk.slice(0, MAX_WACHTRIJ);
   const restWachtrij = eigenWerk.length - wachtrij.length;
 
-  // ── Blok 4 en 5: het plan ────────────────────────────────────────────────
+  // ── Het plan ─────────────────────────────────────────────────────────────
   const [{ data: paginaRijen }, { data: faseRijen }, { data: maandRijen }] = await Promise.all([
     admin
       .from("planned_pages")
@@ -224,7 +265,7 @@ export default async function OverzichtPage({
   const maanden = (maandRijen ?? []) as { month_number: number; status: string }[];
   const lopendeMaand = maanden.filter((m) => m.status === "goedgekeurd").length;
 
-  // ── Blok 6: wat ORBIT ENGINE deze week deed ──────────────────────────────
+  // ── Wat ORBIT ENGINE deze week deed ──────────────────────────────────────
   const sinds = new Date(Date.now() - ACTIVITEIT_DAGEN * 86400000).toISOString();
   const { data: taakRijen } = await admin
     .from("jobs")
@@ -243,17 +284,34 @@ export default async function OverzichtPage({
   const regels = activiteit(eigenTaken);
 
   const merknaam = profile.brand_name ?? profile.name;
+  const nu = new Date();
+  const eersteMaand = isEersteMaand({
+    metingen: periodes.length,
+    geplandePaginas: totalen.gepland,
+  });
 
   return (
-    <div className="flex flex-col gap-6">
+    // ⚠️ 32 pixels tussen de secties en 12 binnen een sectie. Het was overal 24,
+    // dus nergens was in witruimte uitgedrukt dat zes kansen bij elkaar horen en
+    // het opbrengstblok een nieuw hoofdstuk is.
+    <div className="flex flex-col gap-8">
       {/* ── Kop ────────────────────────────────────────────────────────────
           ⚠️ Geen cijfer in de subkop. Het hoofdgetal staat één blok lager, en
           twee keer hetzelfde getal in twee formuleringen laat de klant zoeken
-          welke van de twee nu de echte is (`docs/ux-design.md` §1). */}
+          welke van de twee nu de echte is (`docs/ux-design.md` §1).
+
+          De beschrijving was een opsomming van de blokken eronder ("hoe
+          zichtbaar je bent, wat er op je wacht en waar je begint"), dus hij zei
+          op elk bezoek hetzelfde. Nu zegt hij of dit bezoek iets nieuws
+          oplevert. */}
       <PageHeader
-        eyebrow={lopendeMaand > 0 ? `Maand ${lopendeMaand} sinds de start` : "Overzicht"}
+        eyebrow={lopendeMaand > 0 ? `Maand ${lopendeMaand} sinds de start` : undefined}
         title={merknaam}
-        description="Hoe zichtbaar je bent in AI-antwoorden, wat er op je wacht en waar je begint."
+        description={versheidsregel({
+          metingen: periodes.length,
+          gemetenOp: laatste?.gemetenOp ?? null,
+          now: nu,
+        })}
       />
 
       {/* ── De fase, alleen voor jou (deel B4) ────────────────────────────
@@ -279,43 +337,23 @@ export default async function OverzichtPage({
         </div>
       )}
 
-      {/* ── 1. De stand: één cijfer, wat het betekent, en waar je het naleest
-          De drie zinnen van `insights()` staan hierbinnen en niet in een eigen
-          blok verderop: ze zijn de duiding bij dít getal. */}
-      <SectionErrorBoundary label="Je zichtbaarheid">
-        <div className={`card ${railKlasse(lus.insights)} flex flex-col gap-4`}>
-          <div className="flex flex-wrap items-start justify-between gap-4">
-            {hoofdcijfer === null ? (
-              <span className="flex flex-col gap-1">
-                <span className="mono-label">Zichtbaarheid in AI</span>
-                <span className="text-secondary">
-                  ORBIT ENGINE heeft je merk in kaart. Start een cluster, dan meet ORBIT ENGINE
-                  hoe vaak AI-assistenten je noemen bij de vragen van je klanten.
-                </span>
-              </span>
-            ) : (
-              <span className="flex flex-col gap-1">
-                <span className="mono-label flex items-center gap-1">
-                  Zichtbaarheid in AI
-                  <InfoHint label="Hoe is dit gerekend?">
-                    Het gemiddelde over je clusters, gewogen op het aantal vragen dat per cluster
-                    gemeten is. Een cluster met vijf metingen telt lichter mee dan een met negentig.
-                  </InfoHint>
-                </span>
-                <span className="flex flex-wrap items-baseline gap-3">
-                  <span className="stat-value text-5xl">{Math.round(hoofdcijfer.waarde)}%</span>
-                  {hoofdcijfer.band.margin > 0 && (
-                    <span className="mono-label">
-                      marge {Math.max(0, Math.round(hoofdcijfer.band.low))}% tot{" "}
-                      {Math.min(100, Math.round(hoofdcijfer.band.high))}%
-                    </span>
-                  )}
-                </span>
-              </span>
-            )}
+      {/* ── 1. De stand: vier tellingen, en wat de meting ervan zegt ───────
+          ⚠️ Hier stond tot 26 augustus 2026 het zichtbaarheidspercentage als
+          hoofdgetal, met de marge, het verschil en het verloop eromheen. Zie
+          `overzichtCijfers()` in `lib/overview.ts` voor het waarom van de
+          verhuizing. De duiding blijft: de drie zinnen van `insights()` gaan nog
+          steeds over de meting, en de knop ernaast gaat naar het cijfer zelf. */}
+      <SectionErrorBoundary label="Je programma">
+        <div className={`card ${railKlasse(lus.insights)} flex flex-col gap-5`}>
+          <CijferRij cijfers={cijfers} />
+
+          <div className="flex flex-wrap items-start justify-between gap-4 border-t border-[var(--border-subtle)] pt-4">
+            <div className="min-w-0 flex-1">
+              <InsightLines insights={lus.insights} />
+            </div>
             <Link
               href={
-                hoofdcijfer === null
+                laatste === null
                   ? `/merk/${id}/strategie/clusters`
                   : `/merk/${id}/analytics`
               }
@@ -325,71 +363,47 @@ export default async function OverzichtPage({
                   of Analytics, dezelfde tekening als in de zijbalk. Zo wijst de
                   knop naar een plek die de klant herkent voordat hij klikt, in
                   plaats van naar een woord. */}
-              <Icon naam={hoofdcijfer === null ? "strategie" : "analytics"} size={18} />
-              {hoofdcijfer === null ? "Naar je clusters" : "Bekijk je zichtbaarheid"}
+              <Icon naam={laatste === null ? "strategie" : "analytics"} size={18} />
+              {laatste === null ? "Naar je clusters" : "Bekijk je zichtbaarheid"}
             </Link>
           </div>
-          <InsightLines insights={lus.insights} />
         </div>
       </SectionErrorBoundary>
 
       {/* ── 2. Wat er nu op jou wacht ───────────────────────────────────────
           Maximaal vijf regels. Zie de waarschuwing bovenaan dit bestand. */}
       <SectionErrorBoundary label="Wat er op je wacht">
-        <div className="flex flex-col gap-2">
-          <span className="mono-label">
-            {eigenWerk.length === 0
-              ? "Er wacht niets op jou"
-              : eigenWerk.length === 1
-                ? "1 ding wacht op jou"
-                : `${eigenWerk.length} dingen wachten op jou`}
-          </span>
+        <div className="flex flex-col gap-3">
+          <SectionHeading
+            title={
+              eigenWerk.length === 0
+                ? "Er wacht niets op jou"
+                : eigenWerk.length === 1
+                  ? "Eén ding wacht op jou"
+                  : `${eigenWerk.length} dingen wachten op jou`
+            }
+          />
           {wachtrij.length === 0 ? (
-            <div className="card flex flex-col gap-1">
-              <span className="mono-label">Niets te doen</span>
+            <div className="card">
               <p className="text-secondary">
                 ORBIT ENGINE meet maandelijks door en laat het weten zodra er iets beweegt.
               </p>
             </div>
           ) : (
-            <ul className="flex flex-col gap-2">
+            <ul className="flex flex-col gap-3">
               {wachtrij.map((w) => (
                 <li key={w.id}>
-                  <Link
-                    href={w.href}
-                    className="card card-interactive flex flex-wrap items-center gap-3"
-                  >
-                    {/* De soort werk, links van de titel. De chip rechts zegt
-                        wat je gaat DOEN, deze tekening zegt waar het OVER gaat
-                        (`lib/work.ts`, `workKindIcon`). In de leeskleur, want
-                        het icoon versnelt het terugvinden en draagt de
-                        betekenis niet (`docs/designsystem.md` §6b.3). */}
-                    <span className="text-secondary">
-                      <Icon naam={workKindIcon(w.kind)} size={18} />
-                    </span>
-                    <span className="min-w-0 flex-1">
-                      <span className="block truncate font-semibold">{w.title}</span>
-                      <span className="mono-label">{w.analysisName}</span>
-                    </span>
-                    {/* De tint komt uit de soort werk (`workChipTone`). Alles
-                        stond op amber, waardoor een cluster dat niet gelukt is
-                        er precies zo uitzag als een pagina die nagekeken moet
-                        worden (`docs/ux-design.md` §2). */}
-                    <span className={`chip chip-${workChipTone(w.kind)} shrink-0`}>
-                      {w.actionLabel ?? "Bekijken"}
-                      <Icon naam="naar" size={12} />
-                    </span>
-                  </Link>
+                  <WachtrijKaart item={w} />
                 </li>
               ))}
               {restWachtrij > 0 && (
                 <li>
                   <Link
                     href={`/merk/${id}/strategie/clusters`}
-                    className="mono-label inline-flex items-center gap-1.5 hover:underline"
+                    className="inline-flex items-center gap-1.5 text-sm font-semibold hover:underline"
                   >
                     Nog {restWachtrij} {restWachtrij === 1 ? "punt" : "punten"} in je clusters
-                    <Icon naam="naar" size={12} />
+                    <Icon naam="naar" size={14} />
                   </Link>
                 </li>
               )}
@@ -401,8 +415,8 @@ export default async function OverzichtPage({
       {/* ── 3. Waar begin je ───────────────────────────────────────────────
           Stond als tiende blok en is de reden dat dit scherm bestaat. */}
       <SectionErrorBoundary label="Waar je begint">
-        <div className="flex flex-col gap-2">
-          <span className="mono-label">Waar begin je</span>
+        <div className="flex flex-col gap-3">
+          <SectionHeading title="Waar je begint" />
           <OpportunitiesBlock
             opportunities={lus.opportunities}
             restHref={`/merk/${id}/strategie/clusters`}
@@ -410,159 +424,351 @@ export default async function OverzichtPage({
         </div>
       </SectionErrorBoundary>
 
-      {/* ── 4. Wat dit tot nu toe opleverde ─────────────────────────────────
-          Blijft op dit scherm (besluit 7, `docs/logbook.md`), maar onder de
-          handeling: in maand 1 zijn alle drie de getallen nul, en drie nullen
-          pal onder een zichtbaarheid van 0% is geen argument om te blijven. */}
-      <SectionErrorBoundary label="Wat dit tot nu toe opleverde">
-        <div className="flex flex-col gap-2">
-          <span className="mono-label">Wat dit tot nu toe opleverde</span>
-          <MilestonesBlock milestones={mijlpalen} />
+      {/* ── De verdieping ──────────────────────────────────────────────────
+          In de eerste maand staan hier alleen nullen, en dat is precies het
+          moment waarop een nieuwe klant besluit of dit serieus is. Dan één
+          regel over wat er gaat gebeuren, en verder niets. */}
+      {eersteMaand ? (
+        <p className="text-sm text-muted">
+          ORBIT ENGINE meet opnieuw op{" "}
+          {volgendeMeting(nu).toLocaleDateString("nl-NL", {
+            day: "numeric",
+            month: "long",
+            timeZone: "UTC",
+          })}
+          . Dan staat hier wat je zichtbaarheid gedaan heeft, en hoe ver je contentplan is.
+        </p>
+      ) : (
+        <>
+          {/* ── 4. Het contentplan, over de volle breedte ───────────────────
+              ⚠️ Stond tot 26 augustus 2026 in een kolom van de helft, naast het
+              activiteitenblok. Dat was ooit bedoeld om twee smalle blokken te
+              laten passen, maar het plan is het enige blok met vier soorten
+              inhoud (voortgang, fases, mix, reservepagina's) en het werd daar
+              geknepen. Over de volle breedte staan de voortgang en de mix naast
+              elkaar in plaats van onder elkaar. */}
+          <SectionErrorBoundary label="Je contentplan">
+            <div className="flex flex-col gap-3">
+              <SectionHeading title="Je contentplan" />
+              {funnel.length === 0 || totalen.gepland === 0 ? (
+                <LeegPlan id={id} />
+              ) : (
+                <PlanKaart
+                  funnel={funnel}
+                  mix={mix}
+                  totalen={totalen}
+                  gepubliceerdTotaal={gepubliceerd}
+                />
+              )}
+            </div>
+          </SectionErrorBoundary>
+
+          {/* ── 5. Wat ORBIT ENGINE deed ────────────────────────────────────
+              Eronder en niet ernaast, ook over de volle breedte: een lijst van
+              korte regels met een tijdstip rechts leest beter breed dan smal,
+              want dan valt het tijdstip niet op een eigen regel. */}
+          <SectionErrorBoundary label="Wat ORBIT ENGINE deze week deed">
+            <div className="flex flex-col gap-3">
+              <SectionHeading title="Wat ORBIT ENGINE deed" meta="Afgelopen week" />
+              <ActiviteitKaart regels={regels} />
+            </div>
+          </SectionErrorBoundary>
+        </>
+      )}
+    </div>
+  );
+}
+
+/**
+ * De vier cijfers boven aan het scherm, over de volle breedte van hun kaart.
+ *
+ * ── ⚠️ VIER KOLOMMEN IN ÉÉN KAART, GEEN VIER KAARTEN ────────────────────────
+ *
+ * Zelfde vorm als het opbrengstblok dat hier tot 26 augustus 2026 onderaan stond:
+ * één kaart met scheidingslijnen ertussen. Vier kaders naast elkaar die samen
+ * één ding zeggen, is de kaartinflatie waar `docs/ux-design.md` §1 voor
+ * waarschuwt. Op mobiel zakken ze naar twee kolommen, want vier getallen naast
+ * elkaar op 375 pixels is per kolom nog geen 90 pixels.
+ *
+ * ⚠️ De getallen staan in `stat-value` (cijfermono, tabellarisch), zodat ze
+ * onder elkaar uitlijnen als er een cijfer bij komt. De labels niet: die zijn
+ * tekst.
+ */
+function CijferRij({ cijfers }: { cijfers: OverzichtCijfer[] }) {
+  return (
+    <div className="grid grid-cols-2 gap-x-6 gap-y-5 lg:grid-cols-4">
+      {cijfers.map((c, i) => (
+        <div
+          key={c.label}
+          className={`flex min-w-0 flex-col gap-0.5 ${
+            // De scheidingslijn hoort tussen de kolommen en niet eromheen. Op
+            // twee kolommen valt hij op de even posities, op vier op alles
+            // behalve de eerste.
+            i % 2 === 1 ? "border-l border-[var(--border-subtle)] pl-6" : ""
+          } ${i > 0 ? "lg:border-l lg:border-[var(--border-subtle)] lg:pl-6" : "lg:border-l-0 lg:pl-0"}`}
+        >
+          <span className="stat-value text-3xl">{c.waarde}</span>
+          <span className="text-sm font-medium">{c.label}</span>
+          <span className="text-sm text-muted">{c.detail}</span>
         </div>
-      </SectionErrorBoundary>
+      ))}
+    </div>
+  );
+}
 
-      {/* ── 5 en 6. De verdieping, op desktop naast elkaar ──────────────────
-          Allebei smal van inhoud: een voortgangsbalk en een lijst korte
-          regels. Onder elkaar kostten ze samen bijna een halve pagina
-          (`docs/ux-design.md` §7: desktop is het uitgangspunt). */}
-      <div className="grid items-start gap-6 lg:grid-cols-2">
-        <SectionErrorBoundary label="Je contentplan">
-          <div className="flex flex-col gap-2">
-            <span className="mono-label">Je contentplan</span>
-            {funnel.length === 0 || totalen.gepland === 0 ? (
-              <LeegPlan id={id} />
-            ) : (
-              <div className="card flex flex-col gap-4">
-                <p className="text-secondary">
-                  {totalen.geplaatst === 0
-                    ? `Nog geen van je ${totalen.gepland} geplande pagina's staat live.`
-                    : `${totalen.geplaatst} van je ${totalen.gepland} geplande pagina's staan live.`}
-                </p>
+/**
+ * Eén regel werk dat op de klant wacht.
+ *
+ * ── ⚠️ DE HELE KAART WAS EEN LINK, MET EEN CHIP ERIN (25 AUGUSTUS 2026) ─────
+ *
+ * Twee dingen gingen daar mis. De chip rechts ("Beantwoorden") was de enige
+ * verzadigde kleur van het hele scherm, dus de blik ging er als eerste heen,
+ * maar een chip is een etiket: hij zag eruit als een status en niet als een
+ * knop. En onder de titel stond `analysisName`, wat in de praktijk een rauw
+ * adres in hoofdletters is ("HTTPS://GASSERVICE-BRABANT.NL · CV-KETEL
+ * ONDERHOUD"), terwijl `WorkItem.why` de zin bevat die zegt waaróm dit ertoe
+ * doet. Het scherm toonde het minst bruikbare veld en gooide het bruikbaarste
+ * weg.
+ *
+ * Nu: de zin staat er, de handeling is een echte knop, en de kaart zelf is geen
+ * link meer. Eén doel per regel, en geen knop genest in een link.
+ */
+function WachtrijKaart({ item }: { item: WorkItem }) {
+  // ⚠️ De toon van de soort werk zit nu op de KAART en niet meer op een chip.
+  // Alle vijf de werksoorten stonden ooit op amber, waardoor een cluster dat
+  // niet gelukt is er precies zo uitzag als een pagina die nagekeken moet
+  // worden (`docs/ux-design.md` §2). Dat onderscheid blijft, maar het draagt
+  // nu verder: een blokkade kleurt zijn hele rand in plaats van één etiket van
+  // 60 pixels, en de soort staat er in woorden bij.
+  const blokkerend = workChipTone(item.kind) === "danger";
 
-                {/* Vier kaarten werden vier regels. De funnel houdt zijn eigen
-                    volgorde, ook als een fase leeg is (`lib/plan-progress.ts`). */}
-                <ul className="flex flex-col gap-3">
-                  {funnel.map((f) => (
-                    <li key={f.label} className="flex flex-col gap-1.5">
-                      <span className="flex flex-wrap items-baseline justify-between gap-2">
-                        <span className="text-sm font-semibold">{f.label}</span>
-                        <span className="mono-label">
-                          {f.gepland === 0
-                            ? "niets gepland"
-                            : `${f.geplaatst} van de ${f.gepland} geplaatst`}
-                        </span>
-                      </span>
-                      <span
-                        className="h-2 w-full overflow-hidden rounded-[var(--radius-pill)]"
-                        style={{ background: "var(--bg-elevated)" }}
-                      >
-                        <span
-                          className="block h-full rounded-[var(--radius-pill)]"
-                          style={{
-                            width: `${f.percentage ?? 0}%`,
-                            background: "var(--intent-growth-solid)",
-                          }}
-                        />
-                      </span>
-                    </li>
-                  ))}
-                </ul>
+  return (
+    <div className={`card ${blokkerend ? "card-danger" : ""} flex flex-wrap items-start gap-4`}>
+      {/* De soort werk, links van de titel. De knop rechts zegt wat je gaat
+          DOEN, deze tekening zegt waar het OVER gaat (`lib/work.ts`,
+          `workKindIcon`). In de leeskleur, want het icoon versnelt het
+          terugvinden en draagt de betekenis niet (`docs/designsystem.md`
+          §6b.3). */}
+      <span className="pt-0.5 text-secondary">
+        <Icon naam={workKindIcon(item.kind)} size={20} />
+      </span>
+      <div className="flex min-w-0 flex-1 flex-col gap-1">
+        <span className="flex flex-wrap items-center gap-2">
+          <span className="font-semibold">{item.title}</span>
+          {blokkerend && <span className="chip chip-danger">{WORK_KIND_LABEL[item.kind]}</span>}
+        </span>
+        <span className="text-sm text-secondary">{item.why}</span>
+        {item.meta && <span className="mono-label">{item.meta}</span>}
+      </div>
+      {/* De enige primaire knop van dit scherm. Zie de waarschuwing bovenaan. */}
+      <Link href={item.href} className="btn-primary btn-sm shrink-0">
+        {item.actionLabel ?? "Bekijken"}
+        <Icon naam="naar" size={14} />
+      </Link>
+    </div>
+  );
+}
 
-                {mix.length > 0 && (
-                  <div className="flex flex-col gap-3 border-t border-[var(--border-subtle)] pt-4">
-                    <span className="mono-label flex items-center gap-1">
-                      Wat voor content er gepland staat
-                      <InfoHint label="Welke types zijn dit?">
-                        De indeling uit je contentplan: informatief, categorie en dienst. Dezelfde
-                        as als bij &ldquo;klikken per paginatype&rdquo; op Zoekverkeer, zodat je
-                        kunt zien welk soort content het meeste oplevert en je plan daarop kunt
-                        bijstellen.
-                      </InfoHint>
-                    </span>
-                    <span className="flex h-3 w-full overflow-hidden rounded-[var(--radius-pill)]">
-                      {mix.map((m, i) => (
-                        <span
-                          key={m.type}
-                          title={`${m.type}: ${m.aantal}`}
-                          style={{
-                            width: `${m.percentage}%`,
-                            background: `var(--chart-${(i % 6) + 1})`,
-                          }}
-                        />
-                      ))}
-                    </span>
-                    <ul className="flex flex-wrap gap-x-4 gap-y-1.5">
-                      {mix.map((m, i) => (
-                        <li key={m.type} className="mono-label flex items-center gap-1.5">
-                          <span
-                            aria-hidden
-                            className="inline-block h-2 w-2 rounded-[var(--radius-pill)]"
-                            style={{ background: `var(--chart-${(i % 6) + 1})` }}
-                          />
-                          <span className="capitalize">{m.type}</span>
-                          <span className="text-muted">
-                            {m.aantal} ({Math.round(m.percentage)}%)
-                          </span>
-                        </li>
-                      ))}
-                    </ul>
-                    {totalen.reserve > 0 && (
-                      <p className="text-sm text-muted">
-                        {totalen.reserve === 1
-                          ? "Eén reservepagina staat klaar als er iets afvalt."
-                          : `${totalen.reserve} reservepagina's staan klaar als er iets afvalt.`}{" "}
-                        Ze tellen niet mee in je maandtotaal.
-                      </p>
-                    )}
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-        </SectionErrorBoundary>
+/**
+ * Het contentplan: hoe ver is het, en waar zit het.
+ *
+ * ── ⚠️ VIER VOORTGANGSBALKEN WERDEN ÉÉN (25 AUGUSTUS 2026) ──────────────────
+ *
+ * Elke funnelfase had een eigen balk over de volle breedte. Bij Gasservice
+ * Brabant stonden die alle vier op 0%, dus er stonden vier lege grijze banen
+ * onder elkaar en vijf keer het woord nul. Een voortgangsbalk die nul toont,
+ * toont niets: het cijfer ernaast zei het al.
+ *
+ * Nu draagt één balk de voortgang van het hele plan, en staan de fases eronder
+ * als tellingen. Dat is dezelfde informatie in een derde van de hoogte, en het
+ * scheelt de tweede gestapelde balk pal naast de contentmix, die er al staat en
+ * wél een verdeling toont.
+ */
+function PlanKaart({
+  funnel,
+  mix,
+  totalen,
+  gepubliceerdTotaal,
+}: {
+  funnel: ReturnType<typeof funnelVoortgang>;
+  mix: ReturnType<typeof contentMix>;
+  totalen: ReturnType<typeof planTotalen>;
+  gepubliceerdTotaal: number;
+}) {
+  const percentage = totalen.gepland > 0 ? (totalen.geplaatst / totalen.gepland) * 100 : 0;
 
-        {/* ── 6. Wat ORBIT ENGINE deze week deed ───────────────────────────
-            Ingeklapt: het is het enige blok waar geen handeling uit volgt, en
-            het was het langste van de pagina. */}
-        <SectionErrorBoundary label="Wat ORBIT ENGINE deze week deed">
-          <div className="flex flex-col gap-2">
-            <span className="mono-label">Wat ORBIT ENGINE deze week deed</span>
-            {regels.length === 0 ? (
-              <div className="card flex flex-col gap-1">
-                <span className="mono-label">Deze week niets gedraaid</span>
-                <p className="text-secondary">
-                  Er stond geen werk klaar. De volgende meetronde staat gepland voor de eerste van
-                  de maand.
-                </p>
-              </div>
-            ) : (
-              <CollapsibleSection
-                title="Het werk van deze week"
-                badge={
-                  regels.length === 1 ? "1 soort werk" : `${regels.length} soorten werk`
-                }
-                defaultOpen={false}
-              >
-                <ul className="flex flex-col gap-2">
-                  {regels.map((r) => (
-                    <li
-                      key={r.tekst}
-                      className="flex flex-wrap items-baseline justify-between gap-2"
-                    >
-                      <span className="text-sm text-secondary">
-                        ORBIT ENGINE {r.tekst}
-                        {r.aantal > 1 && <span className="text-muted"> ({r.aantal}×)</span>}
-                      </span>
-                      <LastUpdated at={r.laatst} className="mono-label" />
-                    </li>
-                  ))}
-                </ul>
-              </CollapsibleSection>
-            )}
-          </div>
-        </SectionErrorBoundary>
+  return (
+    <div className="card flex flex-col gap-4">
+      <div className="flex flex-col gap-2">
+        {/* ⚠️ Twee tellingen die elkaar tegenspraken, staan nu naast elkaar met
+            hun verschil erbij (`lib/overview.ts`, `planRegels`). */}
+        {planRegels({
+          gepland: totalen.gepland,
+          geplaatst: totalen.geplaatst,
+          gepubliceerdTotaal,
+        }).map((regel, i) => (
+          <p key={i} className={i === 0 ? "text-secondary" : "text-sm text-muted"}>
+            {regel}
+          </p>
+        ))}
+        <span
+          className="h-2 w-full overflow-hidden rounded-[var(--radius-pill)]"
+          style={{ background: "var(--bg-elevated)" }}
+        >
+          <span
+            className="block h-full rounded-[var(--radius-pill)]"
+            style={{ width: `${percentage}%`, background: "var(--intent-growth-solid)" }}
+          />
+        </span>
+      </div>
+
+      {/* ⚠️ Twee kolommen sinds 26 augustus 2026, want dit blok staat nu over de
+          volle breedte. De fases en de mix onder elkaar zetten op 940 pixels
+          levert twee regels met heel veel wit ertussen op; naast elkaar vullen
+          ze de breedte en blijft de kaart half zo hoog. */}
+      <div className="grid gap-x-8 gap-y-4 border-t border-[var(--border-subtle)] pt-4 md:grid-cols-2">
+        {/* De funnel houdt zijn eigen volgorde, ook als een fase leeg is
+            (`lib/plan-progress.ts`). Als telling, niet als balk: een fase van
+            nul is geen achterstand om te tekenen. */}
+        <div className="flex flex-col gap-2">
+          <span className="mono-label">Per fase van de klantreis</span>
+          <ul className="flex flex-col gap-2">
+            {funnel.map((f) => (
+              <li key={f.label} className="flex flex-wrap items-baseline justify-between gap-2">
+                <span className="text-sm font-medium">{f.label}</span>
+                <span className="mono-label">
+                  {f.gepland === 0 ? "niets gepland" : `${f.geplaatst} van de ${f.gepland}`}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+
+      {mix.length > 0 && (
+        <div className="flex flex-col gap-3">
+          <span className="mono-label flex items-center gap-1">
+            Wat voor content er gepland staat
+            <InfoHint label="Welke types zijn dit?">
+              De indeling uit je contentplan: informatief, categorie en dienst. Dezelfde
+              as als bij &ldquo;klikken per paginatype&rdquo; op Zoekverkeer, zodat je
+              kunt zien welk soort content het meeste oplevert en je plan daarop kunt
+              bijstellen.
+            </InfoHint>
+          </span>
+          <span className="flex h-3 w-full overflow-hidden rounded-[var(--radius-pill)]">
+            {mix.map((m, i) => (
+              <span
+                key={m.type}
+                title={`${m.type}: ${m.aantal}`}
+                style={{
+                  width: `${m.percentage}%`,
+                  background: `var(--chart-${(i % 6) + 1})`,
+                }}
+              />
+            ))}
+          </span>
+          <ul className="flex flex-wrap gap-x-4 gap-y-1.5">
+            {mix.map((m, i) => (
+              <li key={m.type} className="mono-label flex items-center gap-1.5">
+                <span
+                  aria-hidden
+                  className="inline-block h-2 w-2 rounded-[var(--radius-pill)]"
+                  style={{ background: `var(--chart-${(i % 6) + 1})` }}
+                />
+                <span className="capitalize">{m.type}</span>
+                <span className="text-muted">
+                  {m.aantal} ({Math.round(m.percentage)}%)
+                </span>
+              </li>
+            ))}
+          </ul>
+          {totalen.reserve > 0 && (
+            <p className="text-sm text-muted">
+              {totalen.reserve === 1
+                ? "Eén reservepagina staat klaar als er iets afvalt."
+                : `${totalen.reserve} reservepagina's staan klaar als er iets afvalt.`}{" "}
+              Ze tellen niet mee in je maandtotaal.
+            </p>
+          )}
+        </div>
+      )}
       </div>
     </div>
+  );
+}
+
+/**
+ * Wat ORBIT ENGINE deze week deed.
+ *
+ * ── ⚠️ HET WAS ÉÉN INGEKLAPTE BALK NAAST EEN KAART VAN 500 PIXELS ───────────
+ *
+ * De rechterkolom bestond uit één dichte accordeon met daaronder een gat van
+ * zo'n 400 pixels. Dat oogt als een fout in de indeling, niet als een keuze. De
+ * regels zijn er wel: het waren er tien bij Gasservice Brabant.
+ *
+ * Nu staan de eerste drie open en klapt de rest uit. Het blok vult zijn kolom
+ * met informatie die er al was, in plaats van hem leeg te laten.
+ *
+ * ⚠️ Nog steeds geen animatie en geen voortgangsbalk die uit zichzelf beweegt.
+ * Het product is sales-led en dit blok belooft geen autonomie (`lib/activity.ts`).
+ */
+function ActiviteitKaart({ regels }: { regels: ReturnType<typeof activiteit> }) {
+  if (regels.length === 0) {
+    return (
+      <div className="card flex flex-col gap-1">
+        <span className="mono-label">Deze week niets gedraaid</span>
+        <p className="text-secondary">
+          Er stond geen werk klaar. De volgende meetronde staat gepland voor de eerste van
+          de maand.
+        </p>
+      </div>
+    );
+  }
+
+  const open = regels.slice(0, ACTIVITEIT_ZICHTBAAR);
+  const rest = regels.slice(ACTIVITEIT_ZICHTBAAR, ACTIVITEIT_MAX);
+  const buitenBeeld = Math.max(0, regels.length - ACTIVITEIT_MAX);
+
+  return (
+    <div className="card flex flex-col gap-4">
+      <ActiviteitRegels regels={open} />
+      {rest.length > 0 && (
+        <CollapsibleSection
+          title="Ouder werk van deze week"
+          badge={rest.length === 1 ? "1 soort werk" : `${rest.length} soorten werk`}
+          defaultOpen={false}
+        >
+          <ActiviteitRegels regels={rest} />
+          {buitenBeeld > 0 && (
+            <p className="text-sm text-muted">
+              Er draaide nog {buitenBeeld} {buitenBeeld === 1 ? "andere soort" : "andere soorten"}{" "}
+              werk deze week.
+            </p>
+          )}
+        </CollapsibleSection>
+      )}
+    </div>
+  );
+}
+
+function ActiviteitRegels({ regels }: { regels: ReturnType<typeof activiteit> }) {
+  return (
+    <ul className="flex flex-col gap-2">
+      {regels.map((r) => (
+        <li key={r.tekst} className="flex items-baseline justify-between gap-3">
+          <span className="min-w-0 text-sm text-secondary">
+            ORBIT ENGINE {r.tekst}
+            {r.aantal > 1 && <span className="text-muted"> ({r.aantal}×)</span>}
+          </span>
+          {/* Alleen de tijd, zonder "laatst bijgewerkt" ervoor: in een lijst van
+              tien regels is dat voorvoegsel tien keer hetzelfde woord. De
+              volledige datum staat in de tooltip. */}
+          <span className="mono-label shrink-0" title={formatDateShort(r.laatst)}>
+            {formatRelativeTime(r.laatst)}
+          </span>
+        </li>
+      ))}
+    </ul>
   );
 }
 
@@ -581,6 +787,9 @@ export default async function OverzichtPage({
  * (`lib/insights.ts`). Die toon bepaalt de tint. Zonder inzichten, of bij een
  * eerste meting, blijft de stang grijs: hij markeert dan wél waar je moet
  * kijken, maar belooft niets over de richting.
+ *
+ * ⚠️ Er is precies één stang per scherm, plus die op de eerste kans in
+ * `OpportunitiesBlock`. Een derde en de stang markeert niets meer.
  */
 function railKlasse(inzichten: Insight[]): string {
   const toon = inzichten[0]?.toon;
@@ -603,39 +812,4 @@ function LeegPlan({ id }: { id: string }) {
       </Link>
     </div>
   );
-}
-
-/**
- * Het merkcijfer, gewogen op het aantal gemeten vragen per cluster.
- *
- * ⚠️ Dezelfde rekensom als op `/merk/[id]/analytics`. Twee schermen die
- * hetzelfde getal anders berekenen is precies de fout die `lib/dashboard.ts`
- * ooit oploste, en dit scherm en dat scherm staan één klik uit elkaar.
- */
-function merkCijfer(
-  scores: VisibilityScore[],
-): { waarde: number; band: { low: number; high: number; margin: number } } | null {
-  const laatstePerCluster = new Map<string, VisibilityScore>();
-  for (const s of scores) {
-    const huidig = laatstePerCluster.get(s.analysis_id);
-    if (!huidig || s.week_no > huidig.week_no) laatstePerCluster.set(s.analysis_id, s);
-  }
-  const actueel = [...laatstePerCluster.values()];
-  if (actueel.length === 0) return null;
-
-  let som = 0;
-  let gewicht = 0;
-  let varianceSom = 0;
-  for (const s of actueel) {
-    const w = Math.max(1, s.winnable_runs ?? 1);
-    const waarde = s.weighted_score ?? s.score;
-    const se = (s.weighted_score != null ? s.weighted_stderr : s.score_stderr) ?? 0;
-    som += waarde * w;
-    gewicht += w;
-    varianceSom += (se * w) ** 2;
-  }
-  if (gewicht === 0) return null;
-
-  const waarde = som / gewicht;
-  return { waarde, band: confidenceBand(waarde, Math.sqrt(varianceSom) / gewicht) };
 }

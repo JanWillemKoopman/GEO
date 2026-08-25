@@ -4764,3 +4764,93 @@ uitleg is voor het scherm dat leeg blijft, niet voor een zoekveld dat nul treffe
 Nagerekend: `npx tsc --noEmit`, 2197 unittests (twee nieuwe voor de gesplitste `refreshConfirmation`),
 303 ketentests en de productiebuild zijn groen. De vier controles uit `designsystem.md` §11 geven nul
 regels.
+
+---
+
+## 25 augustus 2026: ontwerpronde op het merkoverzicht, de landingspagina
+
+Het merkoverzicht kreeg een ontwerpronde. Aanleiding: dit is sinds 17 augustus de bestemming na
+inloggen (`app/page.tsx`), en bij een klant met één merk is er geen tussenstap. Het is dus niet een
+scherm dat je opzoekt maar het eerste scherm van elke sessie, en dat verandert waar het antwoord op
+moet geven. De volledige vormregels staan in `docs/ux-design.md` §5; de ronde zelf, met wat er is
+afgewezen, in `docs/tasks/ontwerprondes.md`.
+
+**Wat het scherm mankeerde, in drie zinnen.** Acht blokken van gelijk gewicht, waardoor het antwoord
+op zijn eigen titelvraag één getal zonder richting was en de enige echte handeling er kleiner uitzag
+dan zes adviezen. De enige kleur die er lag, zes identieke groene potentiechips, beloofde een
+rangorde die er niet was, terwijl de gegevens die wél onderscheiden allemaal opgehaald werden en niet
+in beeld kwamen. En er stonden drie versies van hetzelfde getal plus één regelrechte tegenspraak op
+één scherm.
+
+**Het cijfer dat drie keer anders was.** De standkaart toonde 57%, de duiding eronder "je
+zichtbaarheid steeg van 30 naar 60" en het opbrengstblok "+30 punten". Nagerekend op Gasservice
+Brabant: de standkaart nam `weighted_score` en woog de clusters op `winnable_runs`,
+`lib/insights-data.ts` en `lib/milestones-data.ts` namen allebei de ongewogen `score` en middelden
+de clusters ongewogen. Bij één cluster scheelt dat 3 punten, bij meerdere clusters meer.
+`lib/brand-score.ts` doet die som nu één keer; alle drie de blokken lezen die uitkomst en de
+startpagina heeft haar eigen tweede query op `visibility_scores` niet meer nodig.
+
+**De chip die zes keer 68 zei.** De potentiescore is zichtbaarheidsgat maal zoekvolume, het
+zoekvolume hoort bij het onderwerp, en Gasservice Brabant heeft er één. Alle zeven aanbevelingen
+kwamen daardoor uit op precies 68 van de 100. Op het scherm stonden zes identieke groene chips op de
+meest opvallende plek van elke kaart, terwijl de regel eronder beweerde dat de lijst gesorteerd was
+op wat de kansen opleveren. De chip verschijnt nu alleen nog als hij binnen de lijst varieert
+(`potentieVarieert`), en op zijn plek staat wat wél verschilt: hoeveel gemeten vragen een kans raakt.
+Dat scheelt bovendien het duurste deel van de laadtijd, want die score kostte vier leesqueries per
+aanbeveling.
+
+**De tegenspraak.** "1 · Pagina gepubliceerd" stond op hetzelfde scherm als "Nog geen van je 120
+geplande pagina's staat live". Allebei waar: de eerste pagina van dit merk is geschreven vóórdat het
+contentplan bestond en hangt aan geen enkele planregel. Twee tellingen van hetzelfde ding die elkaar
+tegenspreken, en dan gelooft de klant geen van beide. `planRegels()` in `lib/overview.ts` benoemt het
+verschil nu.
+
+**Wat de landingspagina-status oplevert aan regels.** Drie, en ze gelden voor elke toekomstige
+landingspagina: zeg hoe vers de data is (er wordt maandelijks gemeten en de klant kijkt vaker, dus
+zonder meetdatum ziet hij vier keer hetzelfde cijfer zonder te weten dát het hetzelfde is); geef het
+scherm precies één primaire knop en zet die bij wat er op de klant wacht; en behandel de half
+gevulde staat als de eerste indruk, niet als randgeval. Dat laatste betekent dat de verdiepingslaag
+in de eerste maand wegvalt in plaats van drie nullen en vier lege balken te tonen.
+
+Nagerekend: `npx tsc --noEmit`, 2241 unittests (39 nieuwe, voor `brand-score.ts`, `overview.ts` en de
+kansenlijst), 303 ketentests en de productiebuild zijn groen. Het resultaat is in beide standen
+bekeken op de echte productiedata, in drie staten: het gevulde scherm, een merk met vijf metingen en
+de eerste maand.
+
+---
+
+## 26 augustus 2026: het overzicht toont de omvang van het programma
+
+Vervolg op de ontwerpronde van de dag ervoor, en op één punt een correctie daarop door de eigenaar.
+
+**Het zichtbaarheidspercentage is van de startpagina af.** Het stond er als hoofdgetal, met de marge,
+het verschil en het verloop eromheen. Het staat nu op Analytics, één klik weg via de knop die er nog
+steeds naast staat, en in woorden in de drie duidingszinnen eronder. De reden: de vraag die een
+klant bij het inloggen stelt is niet "wat is mijn score" maar "wat loopt er voor mij, en wat staat
+er klaar". Vier tellingen in de plaats, over de volle breedte: pagina's gepubliceerd, clusters
+actief, nieuwe pagina's voorgesteld, paginaoptimalisaties voorgesteld. Geen van de vier draagt een
+vergelijking met een vorige periode, want het zijn standen en geen metingen: het aantal clusters
+verandert doordat de eigenaar er een aanzet, niet doordat er gemeten is.
+
+**Het opbrengstblok is verwijderd, en daarmee een deel van besluit 7.** "Actief sinds", "+30 punten"
+en "1 pagina gepubliceerd" stonden onderaan het overzicht als het middel dat opzeggen tegenhoudt bij
+een doorlopend opzegbaar abonnement. Van die drie is er één overgebleven, bovenaan tussen de vier
+programmacijfers. `lib/milestones.ts`, `lib/milestones-data.ts` en
+`components/milestones-block.tsx` zijn verwijderd en vervangen door `lib/overview-data.ts`, dat nog
+één telling doet. Wat dat betekent, expliciet: het argument "waar betaal ik voor" staat niet meer in
+die vorm op de startpagina, en `accounts.value_per_mention_eur` uit besluit 16 wordt daardoor op geen
+enkel scherm meer getoond. De kolom blijft bestaan en blijft bewerkbaar; komt er een scherm dat over
+rendement gaat, dan hoort hij daar.
+
+**Het contentplan en het activiteitenblok staan nu onder elkaar over de volle breedte.** Ze stonden
+op desktop naast elkaar omdat ze allebei smal van inhoud waren, maar het plan is het enige blok met
+vier soorten inhoud en werd in een halve kolom geknepen. Over de volle breedte staan de fases en de
+contentmix náást elkaar, waardoor die kaart half zo hoog is. Het activiteitenblok toont vijf regels
+open en hooguit vijftien in totaal: dezelfde harde grens als op de wachtrij, want `activiteit()`
+groepeert per taaksoort en er zijn er 32. Het is het enige blok waar geen handeling uit volgt, dus
+het hoort nooit het langste te zijn.
+
+Nagerekend: `npx tsc --noEmit`, 2241 unittests, 303 ketentests en de productiebuild zijn groen. De
+mijlpalentests zijn vervangen door tests op de vier nieuwe cijfers, inclusief een grens op de lengte
+van de toelichting: drie van de vier kolommen zijn 24 pixels smaller dan de eerste, en een regel die
+alleen dáár afbreekt leest als een fout.

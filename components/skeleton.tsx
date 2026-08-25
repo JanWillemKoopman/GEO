@@ -40,19 +40,34 @@ export function ListSkeleton({ rows = 3 }: { rows?: number }) {
  * pagina bij het vullen verspringen en doet precies wat een spinner doet: hij
  * zegt dát er gewacht wordt, niet waarop.
  */
+/**
+ * De startpagina.
+ *
+ * ⚠️ Het skelet volgt de indeling van `app/(app)/merk/[id]/page.tsx`, inclusief
+ * de afstanden: 32 pixels tussen de secties, 12 binnen een sectie. Het toonde
+ * drie blokken waar er zes komen, en de kop zat op 24 pixels afstand terwijl de
+ * pagina er 32 gebruikt. Daardoor sprong het scherm zichtbaar op het moment dat
+ * de data binnenkwam, en dat is precies het eerste wat iemand na inloggen ziet.
+ */
 export function OverviewSkeleton() {
   return (
-    <div className="flex flex-col gap-6" aria-busy="true" aria-label="Bezig met laden">
+    <div className="flex flex-col gap-8" aria-busy="true" aria-label="Bezig met laden">
       <div className="flex flex-col gap-2">
-        <Skeleton className="h-3 w-40" />
         <Skeleton className="h-8 w-64" />
+        <Skeleton className="h-4 w-96 max-w-full" />
       </div>
-      <Skeleton className="h-44" style={{ borderRadius: "var(--radius-lg)" }} />
-      <div className="flex flex-col gap-2">
-        <Skeleton className="h-3 w-44" />
-        {Array.from({ length: 3 }).map((_, i) => (
-          <Skeleton key={i} className="h-16" style={{ borderRadius: "var(--radius-lg)" }} />
-        ))}
+      {/* De standkaart. */}
+      <Skeleton className="h-48" style={{ borderRadius: "var(--radius-lg)" }} />
+      {/* Wat op je wacht: kop plus één regel. */}
+      <div className="flex flex-col gap-3">
+        <Skeleton className="h-6 w-56" />
+        <Skeleton className="h-24" style={{ borderRadius: "var(--radius-lg)" }} />
+      </div>
+      {/* Waar je begint: kop, de gemarkeerde eerste kans, dan de lijst. */}
+      <div className="flex flex-col gap-3">
+        <Skeleton className="h-6 w-40" />
+        <Skeleton className="h-32" style={{ borderRadius: "var(--radius-lg)" }} />
+        <Skeleton className="h-64" style={{ borderRadius: "var(--radius-lg)" }} />
       </div>
     </div>
   );
