@@ -118,19 +118,34 @@ export function isPastMonth(
  * (besluit: geen enkele grens aan het aantal per maand): zet iemand er drie in,
  * dan staan ze op dag 1, 10 en 19, en niet op dag 1, 2 en 3 met de rest van de
  * maand leeg.
+ *
+ * ⚠️⚠️ IN DE LOPENDE MAAND BEGINT DE SPREIDING MORGEN, niet op de eerste.
+ * Gevonden op het scherm van Gasservice Brabant: het plan werd op 25 augustus
+ * opgesteld en maand 1 is augustus, dus alle tien de pagina's kregen een datum
+ * tussen 1 en 28 augustus. Negen daarvan lagen al in het verleden, en het scherm
+ * meldde bij elke regel "Stond gepland voor 1 augustus". Een planning die begint
+ * met negen achterstallige regels is geen planning.
  */
 export function spreadDates(
   startedOn: string,
   monthNumber: number,
   aantal: number,
+  now: Date = new Date(),
 ): string[] {
   const k = monthCalendar(startedOn, monthNumber);
   if (!k || aantal < 1) return [];
 
-  const stap = aantal === 1 ? 0 : (LAATSTE_DAG - 1) / (aantal - 1);
+  // In de lopende maand is de vroegste bruikbare dag morgen: vandaag schrijven
+  // kan niet meer, de schrijfronde draait 's nachts.
+  const eersteDag = isRunningMonth(startedOn, monthNumber, now)
+    ? Math.min(LAATSTE_DAG, now.getDate() + 1)
+    : 1;
+  const ruimte = LAATSTE_DAG - eersteDag;
+
+  const stap = aantal === 1 ? 0 : ruimte / (aantal - 1);
   const data: string[] = [];
   for (let i = 0; i < aantal; i++) {
-    const dag = Math.min(LAATSTE_DAG, Math.max(1, Math.round(1 + i * stap)));
+    const dag = Math.min(LAATSTE_DAG, Math.max(1, Math.round(eersteDag + i * stap)));
     const d = new Date(Date.UTC(k.jaar, k.maandIndex, dag));
     data.push(d.toISOString().slice(0, 10));
   }
@@ -167,8 +182,9 @@ export function resequenceMonth(
   startedOn: string,
   monthNumber: number,
   rijen: HerplanRij[],
+  now: Date = new Date(),
 ): HerplanUpdate[] {
-  const data = spreadDates(startedOn, monthNumber, rijen.length);
+  const data = spreadDates(startedOn, monthNumber, rijen.length, now);
   const updates: HerplanUpdate[] = [];
 
   for (const [i, rij] of rijen.entries()) {

@@ -1,16 +1,12 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/components/toast";
 import { ConfirmDialog } from "@/components/confirm-dialog";
-import {
-  MONTH_STATUS_META,
-  PLAN_STATUS_META,
-  planRunningDate,
-} from "@/lib/plan-status";
-import { contentHref } from "@/lib/plan-overview";
+import { MONTH_STATUS_META, PLAN_STATUS_META, planRunningDate } from "@/lib/plan-status";
+import { contentHref, sharedNotice } from "@/lib/plan-overview";
 import {
   monthCalendar,
   isRunningMonth,
@@ -27,18 +23,9 @@ import {
   type BacklogItem,
   type BacklogFilters,
 } from "@/lib/plan-backlog";
-import {
-  writeDecision,
-  writeBlockNotice,
-  type TopicWritingState,
-} from "@/lib/plan-writing";
+import { writeDecision, writeBlockNotice, type TopicWritingState } from "@/lib/plan-writing";
 import { canMove } from "@/lib/plan-order";
-import type {
-  ContentPlan,
-  FunnelStage,
-  PlanMonth,
-  PlannedPage,
-} from "@/lib/types/database";
+import type { ContentPlan, FunnelStage, PlanMonth, PlannedPage } from "@/lib/types/database";
 import { Icon } from "@/components/icon";
 
 /**
@@ -46,33 +33,52 @@ import { Icon } from "@/components/icon";
  *
  * ── WAT ER OP 25 AUGUSTUS 2026 IS OMGEDRAAID ────────────────────────────────
  *
- * Dit scherm toonde een jaarplan dat de machine had verdeeld: twaalf maanden,
- * tien pagina's per maand, klaar. Bij Gasservice Brabant stonden er 120 rijen,
- * opgebouwd uit 28 unieke titels (zeven clusters × vier funnelfasen), dus elke
- * titel kwam vier tot vijf keer terug. En van die 120 waren er 17 te schrijven:
- * zes van de zeven clusters zijn nooit gemeten, en zonder meting heeft de
- * schrijfstap geen briefing.
+ * Dit scherm toonde een jaarplan dat de machine had verdeeld: 120 rijen uit 28
+ * unieke titels, waarvan er 17 te schrijven waren. Nu staat links wat
+ * beschikbaar is (gemeten kansen, met cluster, potentie en reden) en rechts
+ * twaalf maanden die de gebruiker zelf vult. De achtergrond staat in
+ * `docs/logbook.md`.
  *
- * Het scherm loog dus twee keer tegelijk. Het beloofde variatie die er niet was,
- * en werk dat niet kon beginnen. Wat het niet deed, was de enige vraag
- * beantwoorden die de gebruiker heeft: wat laat ik volgende maand schrijven?
+ * ── WAT ER OP 26 AUGUSTUS UIT IS GESLOOPT, EN WAAROM ────────────────────────
  *
- * ── DE OMKERING ─────────────────────────────────────────────────────────────
+ * De eerste versie van deze indeling was functioneel compleet en visueel
+ * onleesbaar. Eén regel van maand 1 besloeg VIJF regels tekst en droeg zeven
+ * bedieningen:
  *
- * Links staat wat er beschikbaar is: gemeten kansen, elk met zijn cluster, zijn
- * potentie en de reden waarom hij een kans is. Rechts staan twaalf maanden die
- * beginnen zoals de gebruiker ze laat beginnen. Ertussen zit slepen.
+ *   Verbeter de pagina over geen warm water voor Midden-Brabant
+ *   [dienst]  Stond gepland voor 1 augustus
+ *   ORBIT ENGINE schrijft pas als deze maand is vrijgegeven
+ *   [↑] [↓]  [ORBIT ENGINE schrijft dit later]
+ *   [ Verplaats naar…                                    ▾ ]
+ *   Terug naar voorraad   Verwijderen
  *
- * ⚠️ Slepen is hier nieuw, en het spreekt `lib/plan-order.ts` tegen: dat bestand
- * legt uit waarom volgorde met kNOPPEN werkt en niet met slepen (HTML5-drag doet
- * niets op een telefoon, en de eerste klacht van dit traject ging over mobiel).
- * Die redenering staat nog steeds, en daarom is slepen hier niet de enige weg:
- * elke kaart draagt óók een keuzelijst "Plan in", en die werkt met een vinger,
- * met een toetsenbord en met een schermlezer. Slepen is de snelle weg voor wie
- * een muis heeft, geen voorwaarde om het scherm te kunnen gebruiken.
+ * Tien van die blokken onder elkaar, elk in een eigen kaart met eigen rand,
+ * binnen de kaart van de maand. Vier ingrepen:
  *
- * De rekenkunde staat in `lib/plan-backlog.ts` en `lib/plan-schedule.ts`, allebei
- * puur en getest (conventie 2).
+ *   1. **De keuzelijst is een menu geworden.** `.field` is 40 pixels hoog, over
+ *      de volle breedte, met een dikke rand: op elke regel stond de bediening
+ *      dus zwaarder in beeld dan de titel. Nu zit alles wat een regel kan achter
+ *      één knop met drie puntjes. Slepen blijft de snelle weg, het menu blijft
+ *      de weg die op een telefoon en met een toetsenbord werkt.
+ *   2. **De herhaalde zin staat nog één keer, boven de maand.** "ORBIT ENGINE
+ *      schrijft pas als deze maand is vrijgegeven" is een eigenschap van de
+ *      MAAND en stond tien keer. `sharedNotice()` bepaalt wat alle regels delen;
+ *      alleen wat per regel verschilt blijft per regel staan.
+ *   3. **Geen kaart in een kaart.** De maand is de kaart, de regels zijn platte
+ *      rijen met een scheidingslijn. Dat scheelt per regel twee randen, twintig
+ *      pixels marge en een schaduwvlak.
+ *   4. **De statuschip verdwijnt bij de normale gang van zaken.** "ORBIT ENGINE
+ *      schrijft dit later" stond op elke geplande regel en zei niets wat de
+ *      datum ernaast niet al zei. Een chip verschijnt nu alleen als de regel
+ *      iets anders doet dan wachten.
+ *
+ * Wat NIET is overgenomen uit de aangeleverde review: die noemt velden die dit
+ * scherm niet heeft (Vraagsoort, Thema, Basisinstellingen, Bewaar akkoord) en
+ * vraagt om een statuschip naast de maandtitel en een primaire knop rechts in de
+ * maandkop, en die stonden er allebei al.
+ *
+ * De rekenkunde staat in `lib/plan-backlog.ts`, `lib/plan-schedule.ts` en
+ * `lib/plan-overview.ts`, alle drie puur en getest (conventie 2).
  */
 
 /** Wat er op dit moment onder de muis hangt. */
@@ -81,6 +87,12 @@ interface Sleep {
   titel: string;
   /** De maand waar de kaart vandaan komt. `null` = uit de voorraad. */
   uitMaand: string | null;
+}
+
+interface MaandKeuze {
+  id: string;
+  label: string;
+  voorbij: boolean;
 }
 
 export function PlanView({
@@ -113,21 +125,17 @@ export function PlanView({
   const [monthDialog, setMonthDialog] = useState<PlanMonth | null>(null);
   const [bulkDialog, setBulkDialog] = useState<PlanMonth | null>(null);
   const [removeDialog, setRemoveDialog] = useState<PlannedPage | null>(null);
+  const [removeKans, setRemoveKans] = useState<BacklogItem | null>(null);
+  const [opnieuwDialog, setOpnieuwDialog] = useState(false);
   const [filters, setFilters] = useState<BacklogFilters>(LEGE_BACKLOG_FILTERS);
   const [sleep, setSleep] = useState<Sleep | null>(null);
   const [sleepDoel, setSleepDoel] = useState<string | null>(null);
   const [dicht, setDicht] = useState<Record<string, boolean>>({});
-  const [opnieuwDialog, setOpnieuwDialog] = useState(false);
+  const [uitgeklapt, setUitgeklapt] = useState<Record<string, boolean>>({});
 
-  const funnelNaam = useMemo(
-    () => new Map(funnels.map((f) => [f.id, f.label])),
-    [funnels],
-  );
+  const funnelNaam = useMemo(() => new Map(funnels.map((f) => [f.id, f.label])), [funnels]);
   const maandVan = useMemo(() => new Map(months.map((m) => [m.id, m])), [months]);
-  const onderwerp = useMemo(
-    () => new Map(topics.map((t) => [t.topicId, t])),
-    [topics],
-  );
+  const onderwerp = useMemo(() => new Map(topics.map((t) => [t.topicId, t])), [topics]);
 
   /** Waarom staat deze pagina stil? Null = er is niets aan de hand. */
   function blokkade(page: PlannedPage) {
@@ -148,42 +156,44 @@ export function PlanView({
   }
 
   const echt = useMemo(() => pages.filter((p) => !p.is_buffer), [pages]);
-
-  const zichtbareVoorraad = useMemo(
-    () => filterBacklog(backlog, filters),
-    [backlog, filters],
-  );
+  const zichtbareVoorraad = useMemo(() => filterBacklog(backlog, filters), [backlog, filters]);
   const clusters = useMemo(() => clusterCounts(backlog), [backlog]);
-
   const ongemeten = useMemo(
     () => ongemetenClusters(topics, new Set(metKansen)),
     [topics, metKansen],
   );
 
-  /** Alles wat een maandkop moet weten, in één keer uitgerekend. */
+  /** Alles wat een maand moet weten, in één keer uitgerekend. */
   const maanden = useMemo(
     () =>
       months.map((month) => {
         const inhoud = echt
           .filter((p) => p.plan_month_id === month.id)
           .sort((a, b) => a.sort_order - b.sort_order);
+        // ⚠️ De melding die ALLE regels delen hoort bij de maand, niet bij de
+        // regels. Zie `sharedNotice()`.
+        const gedeeld = sharedNotice(inhoud.map((p) => blokkade(p)?.text ?? null));
         return {
           month,
           inhoud,
+          gedeeld,
           kalender: monthCalendar(plan.started_on, month.month_number)?.label ?? null,
           lopend: isRunningMonth(plan.started_on, month.month_number),
           voorbij: isPastMonth(plan.started_on, month.month_number),
         };
       }),
-    [months, echt, plan.started_on],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [months, echt, plan.started_on, maandVan, onderwerp],
   );
 
   const eerstvolgende = useMemo(() => {
     const vandaag = new Date().toISOString().slice(0, 10);
-    return echt
-      .filter((p) => p.scheduled_for && p.status !== "geplaatst" && p.scheduled_for >= vandaag)
-      .map((p) => p.scheduled_for as string)
-      .sort()[0] ?? null;
+    return (
+      echt
+        .filter((p) => p.scheduled_for && p.status !== "geplaatst" && p.scheduled_for >= vandaag)
+        .map((p) => p.scheduled_for as string)
+        .sort()[0] ?? null
+    );
   }, [echt]);
 
   // ── Handelingen ──────────────────────────────────────────────────────────
@@ -200,9 +210,7 @@ export function PlanView({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       });
-      const j = (await res.json().catch(() => null)) as
-        | { error?: string; bufferUsed?: boolean }
-        | null;
+      const j = (await res.json().catch(() => null)) as { error?: string } | null;
       if (!res.ok) {
         toast({
           intent: "fout",
@@ -252,7 +260,7 @@ export function PlanView({
   }
 
   async function paginaActie(
-    page: PlannedPage,
+    page: { id: string; title: string },
     actie: "goedkeuren" | "afwijzen" | "geplaatst",
     url?: string,
   ) {
@@ -274,6 +282,7 @@ export function PlanView({
     }
     setPostDialog(null);
     setRemoveDialog(null);
+    setRemoveKans(null);
     setPostUrl("");
   }
 
@@ -317,11 +326,9 @@ export function PlanView({
   }
 
   /**
-   * "Markeer alles als geplaatst" voor één maand.
-   *
-   * Kwaliteitslat K5: alleen de server weet welke pagina's het haalden, dus die
-   * stelt de melding samen (`lib/plan-bulk.ts`, getest). Dit scherm toont hem en
-   * verzint er niets bij.
+   * "Markeer alles als geplaatst" voor één maand. Kwaliteitslat K5: alleen de
+   * server weet welke pagina's het haalden, dus die stelt de melding samen
+   * (`lib/plan-bulk.ts`, getest). Dit scherm toont hem en verzint er niets bij.
    */
   async function alsGeplaatstMarkeren(month: PlanMonth) {
     setBusy(month.id);
@@ -358,16 +365,8 @@ export function PlanView({
   }
 
   /**
-   * Het plan opnieuw opzetten.
-   *
-   * ⚠️ Dit ontbrak, en dat was een gat: zodra er één plan stond, was er geen weg
-   * terug. De enige uitweg was een maand afwijzen, en dat zette niets in gang
-   * (het scherm beloofde "ORBIT ENGINE stelt een nieuw voorstel op" en er
-   * gebeurde niets). Nu zet deze knop twaalf verse maanden neer met een voorzet
-   * in maand 1.
-   *
-   * Wat er NIET gebeurt: iets weggooien. Het oude plan gaat op `gestopt` en
-   * blijft met al zijn pagina's in de database staan (conventie 8).
+   * Het plan opnieuw opzetten. Twaalf verse maanden met een voorzet in maand 1;
+   * het oude plan gaat op `gestopt` en blijft bewaard (conventie 8).
    */
   async function planOpnieuw() {
     setBusy("plan");
@@ -404,230 +403,252 @@ export function PlanView({
     }
   }
 
-  const maandKeuzes = maanden.map((m) => ({
+  const maandKeuzes: MaandKeuze[] = maanden.map((m) => ({
     id: m.month.id,
     label: `Maand ${m.month.month_number}${m.kalender ? ` · ${m.kalender}` : ""}`,
     voorbij: m.voorbij,
   }));
 
   return (
-    <div className="flex flex-col gap-6">
-      {/* ── De feiten van het plan ───────────────────────────────────────── */}
-      <div className="card flex flex-wrap items-center justify-between gap-x-4 gap-y-1">
-        <span className="mono-label">
-          pakket {plan.pages_per_month} pagina&apos;s per maand · plan {plan.version}
-        </span>
-        <span className="flex flex-wrap items-center gap-3">
-          <span className="text-sm text-secondary">
-            {echt.length} ingepland · {backlog.length} in de voorraad
-            {eerstvolgende && ` · volgende publicatie ${formatDagNL(eerstvolgende)}`}
-          </span>
-          {/* Besluit 18: opnieuw opzetten raakt het hele jaar, dus alleen de
-              beheerder. De klant ziet de knop niet, want hij zou een 403 geven. */}
-          {staff && (
-            <button
-              type="button"
-              className="btn-outline btn-sm"
-              onClick={() => setOpnieuwDialog(true)}
-              disabled={busy === "plan"}
-            >
-              Opnieuw opzetten
-            </button>
+    <div className="flex flex-col gap-5">
+      {/* ── De feiten van het plan, één regel ────────────────────────────── */}
+      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+        <span className="text-sm text-secondary">
+          <span className="mono-label">pakket {plan.pages_per_month} per maand</span>
+          <span className="mx-2 text-muted">·</span>
+          {echt.length} ingepland
+          <span className="mx-2 text-muted">·</span>
+          {backlog.length} in de voorraad
+          {eerstvolgende && (
+            <>
+              <span className="mx-2 text-muted">·</span>
+              volgende publicatie {formatDagNL(eerstvolgende)}
+            </>
           )}
         </span>
+        {/* Besluit 18: opnieuw opzetten raakt het hele jaar, dus alleen de
+            beheerder. De klant ziet de knop niet, want hij zou een 403 geven. */}
+        {staff && (
+          <button
+            type="button"
+            className="btn-ghost btn-sm"
+            onClick={() => setOpnieuwDialog(true)}
+            disabled={busy === "plan"}
+          >
+            Opnieuw opzetten
+          </button>
+        )}
       </div>
 
-      <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,22rem)_minmax(0,1fr)]">
+      <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,23rem)_minmax(0,1fr)]">
         {/* ── Links: de voorraad ─────────────────────────────────────────── */}
         <div
-          className="flex flex-col gap-3 lg:sticky lg:top-4"
+          className="flex flex-col gap-4 lg:sticky lg:top-4"
           onDragOver={(e) => {
             if (sleep?.uitMaand) {
               e.preventDefault();
               setSleepDoel("voorraad");
             }
           }}
-          onDragLeave={() => setSleepDoel(null)}
+          onDragLeave={(e) => {
+            if (!e.currentTarget.contains(e.relatedTarget as Node)) setSleepDoel(null);
+          }}
           onDrop={(e) => {
             e.preventDefault();
             setSleepDoel(null);
             if (sleep?.uitMaand) void naarVoorraad(sleep.pageId, sleep.titel);
             setSleep(null);
           }}
-          style={
-            sleepDoel === "voorraad"
-              ? {
-                  outline: "2px dashed var(--intent-intelligence-border)",
-                  outlineOffset: "6px",
-                  borderRadius: "var(--radius-lg)",
-                }
-              : undefined
-          }
         >
-          <div className="flex flex-col gap-1">
-            <h2 className="text-lg font-semibold">Beschikbaar om te schrijven</h2>
-            <p className="text-sm text-secondary">
-              Kansen die ORBIT ENGINE uit je metingen haalde. Sleep er een naar een maand, of
-              gebruik de keuzelijst op de kaart.
-            </p>
-          </div>
-
-          {/* ── Filters ──────────────────────────────────────────────────── */}
-          {backlog.length > 0 && (
-            <div className="flex flex-col gap-2">
-              <input
-                className="field"
-                value={filters.zoek}
-                onChange={(e) => setFilters((f) => ({ ...f, zoek: e.target.value }))}
-                placeholder="Zoek in titel, reden of cluster"
-                aria-label="Zoek in de voorraad"
-              />
-              {clusters.length > 1 && (
-                <select
-                  className="field"
-                  value={filters.cluster}
-                  onChange={(e) => setFilters((f) => ({ ...f, cluster: e.target.value }))}
-                  aria-label="Filter op cluster"
-                >
-                  <option value="">Alle clusters ({backlog.length})</option>
-                  {clusters.map((c) => (
-                    <option key={c.naam} value={c.naam}>
-                      {c.naam} ({c.aantal})
-                    </option>
-                  ))}
-                </select>
-              )}
-              <div className="flex flex-wrap gap-2">
-                <Segment
-                  actief={filters.handeling === ""}
-                  aantal={backlog.length}
-                  onClick={() => setFilters((f) => ({ ...f, handeling: "" }))}
-                >
-                  Alles
-                </Segment>
-                <Segment
-                  actief={filters.handeling === "nieuw"}
-                  aantal={backlog.filter((b) => b.handeling === "nieuw").length}
-                  onClick={() => setFilters((f) => ({ ...f, handeling: "nieuw" }))}
-                >
-                  Nieuw
-                </Segment>
-                <Segment
-                  actief={filters.handeling === "verbeteren"}
-                  aantal={backlog.filter((b) => b.handeling === "verbeteren").length}
-                  onClick={() => setFilters((f) => ({ ...f, handeling: "verbeteren" }))}
-                >
-                  Verbeteren
-                </Segment>
+          <section
+            className="card flex flex-col overflow-hidden"
+            style={{
+              padding: 0,
+              maxHeight: "calc(100vh - 8rem)",
+              ...(sleepDoel === "voorraad"
+                ? { borderColor: "var(--intent-intelligence-border)", background: "var(--intent-intelligence-surface)" }
+                : {}),
+            }}
+          >
+            <div className="flex flex-col gap-2 px-4 pb-3 pt-4">
+              <div className="flex items-baseline justify-between gap-2">
+                {/* ⚠️ NIET `text-base`. In dit project maakt `--color-base` van `text-base`
+                    een KLEURklasse (`color: var(--bg-base)`), en dan staat de kop in de
+                    donkere stand bijna onzichtbaar in de kleur van de paginagrond. De
+                    typografie loopt via de `type-`-klassen uit `app/globals.css`. */}
+                <h2 className="type-body-emphasis">Beschikbaar</h2>
+                <span className="mono-label text-muted">
+                  {zichtbareVoorraad.length === backlog.length
+                    ? `${backlog.length}`
+                    : `${zichtbareVoorraad.length} van ${backlog.length}`}
+                </span>
               </div>
-            </div>
-          )}
 
-          {/* ── De kaarten ───────────────────────────────────────────────── */}
-          {backlog.length === 0 ? (
-            <div className="card flex flex-col gap-1">
-              <span className="mono-label">De voorraad is leeg</span>
-              <p className="text-sm text-secondary">
+              {backlog.length > 0 && (
+                <>
+                  <input
+                    className="field"
+                    style={{ height: 34, fontSize: "0.875rem" }}
+                    value={filters.zoek}
+                    onChange={(e) => setFilters((f) => ({ ...f, zoek: e.target.value }))}
+                    placeholder="Zoeken"
+                    aria-label="Zoek in de voorraad"
+                  />
+                  <div className="flex flex-wrap gap-1.5">
+                    {clusters.length > 1 && (
+                      <select
+                        className="field"
+                        style={{ height: 30, width: "auto", fontSize: "0.8125rem", paddingRight: 28 }}
+                        value={filters.cluster}
+                        onChange={(e) => setFilters((f) => ({ ...f, cluster: e.target.value }))}
+                        aria-label="Filter op cluster"
+                      >
+                        <option value="">Alle clusters</option>
+                        {clusters.map((c) => (
+                          <option key={c.naam} value={c.naam}>
+                            {c.naam} ({c.aantal})
+                          </option>
+                        ))}
+                      </select>
+                    )}
+                    <Segment
+                      actief={filters.handeling === ""}
+                      onClick={() => setFilters((f) => ({ ...f, handeling: "" }))}
+                    >
+                      Alles
+                    </Segment>
+                    <Segment
+                      actief={filters.handeling === "nieuw"}
+                      onClick={() => setFilters((f) => ({ ...f, handeling: "nieuw" }))}
+                    >
+                      Nieuw
+                    </Segment>
+                    <Segment
+                      actief={filters.handeling === "verbeteren"}
+                      onClick={() => setFilters((f) => ({ ...f, handeling: "verbeteren" }))}
+                    >
+                      Verbeteren
+                    </Segment>
+                  </div>
+                </>
+              )}
+            </div>
+
+            {backlog.length === 0 ? (
+              <p className="px-4 pb-4 text-sm text-secondary">
                 ORBIT ENGINE vult deze lijst met kansen uit je metingen. Zolang er geen cluster
-                gemeten is, is er niets om op te schrijven: de schrijfstap heeft de gemiste
-                vragen uit een meting nodig als briefing.
+                gemeten is, is er niets om op te schrijven.
               </p>
-            </div>
-          ) : zichtbareVoorraad.length === 0 ? (
-            <div className="card flex flex-col gap-1">
-              <span className="mono-label">Niets in deze selectie</span>
-              <button
-                type="button"
-                className="w-fit text-sm text-secondary hover:underline"
-                onClick={() => setFilters(LEGE_BACKLOG_FILTERS)}
-              >
-                Toon alle {backlog.length} kansen
-              </button>
-            </div>
-          ) : (
-            <ul className="flex max-h-[70vh] flex-col gap-2 overflow-y-auto pr-1">
-              {zichtbareVoorraad.map((item) => (
-                <BacklogKaart
-                  key={item.id}
-                  item={item}
-                  maanden={maandKeuzes}
-                  busy={busy === item.id}
-                  onSleepStart={() =>
-                    setSleep({ pageId: item.id, titel: item.title, uitMaand: null })
-                  }
-                  onSleepEinde={() => {
-                    setSleep(null);
-                    setSleepDoel(null);
-                  }}
-                  onKies={(maandId) => void inplannen(item.id, item.title, maandId, null)}
-                />
-              ))}
-            </ul>
-          )}
+            ) : zichtbareVoorraad.length === 0 ? (
+              <div className="flex flex-col items-start gap-1 px-4 pb-4">
+                <span className="text-sm text-secondary">Niets in deze selectie.</span>
+                <button
+                  type="button"
+                  className="text-sm text-secondary hover:underline"
+                  onClick={() => setFilters(LEGE_BACKLOG_FILTERS)}
+                >
+                  Toon alle {backlog.length} kansen
+                </button>
+              </div>
+            ) : (
+              <ul className="flex-1 overflow-y-auto">
+                {zichtbareVoorraad.map((item) => (
+                  <BacklogRij
+                    key={item.id}
+                    item={item}
+                    maanden={maandKeuzes}
+                    busy={busy === item.id}
+                    open={uitgeklapt[item.id] ?? false}
+                    onToggle={() =>
+                      setUitgeklapt((u) => ({ ...u, [item.id]: !(u[item.id] ?? false) }))
+                    }
+                    onSleepStart={() =>
+                      setSleep({ pageId: item.id, titel: item.title, uitMaand: null })
+                    }
+                    onSleepEinde={() => {
+                      setSleep(null);
+                      setSleepDoel(null);
+                    }}
+                    onKies={(maandId) => void inplannen(item.id, item.title, maandId, null)}
+                    onVerwijder={() => setRemoveKans(item)}
+                  />
+                ))}
+              </ul>
+            )}
+          </section>
 
-          {/* ── Wat de voorraad kan laten groeien ────────────────────────── */}
+          {/* ── Wat de voorraad kan laten groeien ─────────────────────────── */}
           {ongemeten.length > 0 && (
-            <div className="card flex flex-col gap-2">
-              <span className="mono-label">Nog geen kansen uit deze clusters</span>
+            <section className="flex flex-col gap-2">
+              <span className="mono-label text-muted">Nog niet gemeten</span>
               <p className="text-sm text-secondary">
                 {ongemeten.length === 1
-                  ? "Dit cluster is nog niet gemeten, dus ORBIT ENGINE weet nog niet waar hier iets te winnen valt."
-                  : `Deze ${ongemeten.length} clusters zijn nog niet gemeten, dus ORBIT ENGINE weet nog niet waar daar iets te winnen valt.`}
+                  ? "Dit cluster levert nog geen kansen op."
+                  : `Deze ${ongemeten.length} clusters leveren nog geen kansen op.`}
               </p>
-              <ul className="flex flex-col gap-1">
+              <ul className="flex flex-col">
                 {ongemeten.map((c) => (
-                  <li key={c.topicId} className="flex flex-wrap items-center gap-2 text-sm">
-                    <span className="min-w-0 truncate">{c.title}</span>
+                  <li
+                    key={c.topicId}
+                    className="flex items-center justify-between gap-3 border-t py-2 text-sm"
+                    style={{ borderColor: "var(--border-subtle)" }}
+                  >
+                    <span className="min-w-0 truncate text-secondary">{c.title}</span>
                     {c.loopt ? (
-                      <span className="chip chip-neutral">meting loopt</span>
-                    ) : c.analysisId ? (
-                      <Link
-                        href={`/analyses/${c.analysisId}`}
-                        className="text-secondary hover:underline"
-                      >
-                        Naar het cluster
-                      </Link>
+                      <span className="shrink-0 text-xs text-muted">meting loopt</span>
                     ) : (
                       <Link
-                        href={`/merk/${profileId}/strategie/clusters`}
-                        className="text-secondary hover:underline"
+                        href={
+                          c.analysisId
+                            ? `/analyses/${c.analysisId}`
+                            : `/merk/${profileId}/strategie/clusters`
+                        }
+                        className="shrink-0 text-xs text-secondary hover:underline"
                       >
-                        Start de meting
+                        Meten
                       </Link>
                     )}
                   </li>
                 ))}
               </ul>
-            </div>
+            </section>
           )}
         </div>
 
         {/* ── Rechts: de twaalf maanden ──────────────────────────────────── */}
-        <div className="flex flex-col gap-4">
-          {maanden.map(({ month, inhoud, kalender, lopend, voorbij }) => {
+        <div className="flex flex-col gap-3">
+          {maanden.map(({ month, inhoud, gedeeld, kalender, lopend, voorbij }) => {
             const meta = MONTH_STATUS_META[month.status];
-            const open = !(dicht[month.id] ?? (voorbij && inhoud.length === 0));
+            // Een lege maand die niet loopt, begint dicht: twaalf lege
+            // dropzones onder elkaar zijn twaalf keer dezelfde uitnodiging.
+            const open = !(dicht[month.id] ?? (inhoud.length === 0 && !lopend));
             const overVol = inhoud.length > plan.pages_per_month;
+            const isDoel = sleepDoel === month.id;
+            // ⚠️ Een lege, dichtgeklapte maand krijgt géén kaartrand. Er staan er
+            // tien onder elkaar zodra een plan net begint, en tien even zware
+            // kaders met alleen het woord "leeg" erin vullen het halve scherm met
+            // niets. Ze blijven wel een sleepdoel, en zodra je iets boven ze
+            // houdt licht de rand alsnog op.
+            const stil = inhoud.length === 0 && !open && !isDoel;
             return (
               <section
                 key={month.id}
-                className="flex flex-col gap-2 rounded-[var(--radius-lg)] p-2 transition-colors"
-                style={
-                  sleepDoel === month.id
+                className={stil ? "overflow-hidden" : "card overflow-hidden transition-colors"}
+                style={{
+                  padding: 0,
+                  ...(isDoel
                     ? {
-                        outline: "2px dashed var(--intent-intelligence-border)",
-                        background: "var(--intent-intelligence-surface)",
+                        borderColor: "var(--intent-intelligence-border)",
+                        boxShadow: "0 0 0 1px var(--intent-intelligence-border)",
                       }
-                    : undefined
-                }
+                    : {}),
+                }}
                 onDragOver={(e) => {
                   if (!sleep) return;
                   e.preventDefault();
                   setSleepDoel(month.id);
                 }}
                 onDragLeave={(e) => {
-                  // Alleen loslaten als de muis de hele sectie verlaat, niet bij
-                  // elke kaart die eronder langsgaat.
                   if (!e.currentTarget.contains(e.relatedTarget as Node)) {
                     setSleepDoel((d) => (d === month.id ? null : d));
                   }
@@ -639,94 +660,129 @@ export function PlanView({
                   setSleep(null);
                 }}
               >
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <span className="flex min-w-0 flex-wrap items-baseline gap-2">
-                    {/* Besluit 7: "maand 4 sinds de start", nooit "van 12". De
-                        kalendermaand komt uit de startdatum van het plan, niet
-                        meer uit de publicatiedata: een lege maand hoort ook een
-                        naam te hebben. */}
-                    <h2 className="text-lg font-semibold">
-                      <button
-                        type="button"
-                        aria-expanded={open}
-                        onClick={() => setDicht((d) => ({ ...d, [month.id]: open }))}
-                        className="flex items-center gap-2 hover:underline"
-                      >
-                        <Icon naam={open ? "openen" : "verder"} size={14} />
-                        Maand {month.month_number}
-                      </button>
-                    </h2>
+                {/* ── De maandkop, op een eigen vlak ───────────────────── */}
+                <div
+                  className={`flex flex-wrap items-center justify-between gap-x-3 gap-y-2 px-4 ${
+                    stil ? "py-1.5" : "py-2.5"
+                  }`}
+                  style={{
+                    background: isDoel
+                      ? "var(--intent-intelligence-surface)"
+                      : stil
+                        ? "transparent"
+                        : "var(--bg-muted)",
+                  }}
+                >
+                  <div className="flex min-w-0 flex-wrap items-baseline gap-x-2.5 gap-y-1">
+                    <button
+                      type="button"
+                      aria-expanded={open}
+                      onClick={() => setDicht((d) => ({ ...d, [month.id]: open }))}
+                      className="flex items-center gap-2 text-sm font-semibold hover:underline"
+                    >
+                      <Icon naam={open ? "openen" : "verder"} size={13} />
+                      {/* Besluit 7: "maand 4 sinds de start", nooit "van 12". */}
+                      Maand {month.month_number}
+                    </button>
                     {kalender && <span className="mono-label text-muted">{kalender}</span>}
                     {lopend && <span className="chip chip-info">Deze maand</span>}
-                    <span className="mono-label text-muted">
+                    {/* ⚠️ Bij een lege, dichtgeklapte maand geen chip. "Concept"
+                        was daar het zwaarste element van de regel terwijl het
+                        niets toevoegde: dat de maand leeg is, staat er al. */}
+                    {!stil && (
+                      <span
+                        className={
+                          month.status === "goedgekeurd"
+                            ? "chip chip-success"
+                            : month.status === "ter_goedkeuring"
+                              ? "chip chip-warning"
+                              : "chip chip-neutral"
+                        }
+                      >
+                        {meta.label}
+                      </span>
+                    )}
+                    <span className="text-xs text-muted">
                       {inhoud.length === 0
                         ? "leeg"
                         : `${inhoud.length} ${inhoud.length === 1 ? "pagina" : "pagina's"}`}
                     </span>
-                    {/* Besluit: geen enkele grens aan het aantal per maand. Het
-                        scherm zegt wél wat het pakket is, want een maand die
+                    {/* Besluit: geen grens aan het aantal per maand. Het scherm
+                        zegt wél wanneer je erboven zit, want een maand die
                         stilzwijgend het dubbele schrijft is een rekening die de
                         klant niet zag aankomen. */}
                     {overVol && (
                       <span className="chip chip-warning">
-                        {inhoud.length - plan.pages_per_month} boven je pakket
+                        {inhoud.length - plan.pages_per_month} boven pakket
                       </span>
                     )}
-                    <span
-                      className={
-                        month.status === "goedgekeurd"
-                          ? "chip chip-success"
-                          : month.status === "ter_goedkeuring"
-                            ? "chip chip-warning"
-                            : "chip chip-neutral"
-                      }
-                    >
-                      {meta.label}
-                    </span>
-                  </span>
+                  </div>
 
-                  <span className="flex flex-wrap items-center gap-2">
+                  <div className="flex shrink-0 items-center gap-2">
                     {inhoud.some((p) => p.status === "goedgekeurd") && (
                       <button
                         type="button"
-                        className="btn-outline btn-sm"
+                        className="btn-ghost btn-sm"
                         onClick={() => setBulkDialog(month)}
                         disabled={busy === month.id}
                       >
-                        Markeer alles als geplaatst
+                        Alles geplaatst
                       </button>
                     )}
-
                     {month.status !== "goedgekeurd" &&
                       inhoud.length > 0 &&
                       (staff ? (
+                        // ⚠️ Alleen de maand die aan de beurt is, krijgt de zware
+                        // knop. Stonden er twee even witte knoppen onder elkaar,
+                        // dan trok een maand die pas over een halfjaar speelt
+                        // evenveel aandacht als de maand van deze week.
                         <button
                           type="button"
-                          className="btn-primary btn-sm"
+                          className={
+                            month.status === "ter_goedkeuring" || lopend
+                              ? "btn-primary btn-sm"
+                              : "btn-ghost btn-sm"
+                          }
                           onClick={() => setMonthDialog(month)}
                           disabled={busy === month.id}
                         >
-                          Maand vrijgeven
+                          Vrijgeven
                         </button>
                       ) : (
                         // Besluit 18. De klant ziet wél dat er iets van hem
                         // gevraagd wordt, en bij wie hij daarvoor moet zijn.
-                        <span className="text-sm text-secondary">
-                          Laat je consultant deze maand vrijgeven
+                        <span className="text-xs text-secondary">
+                          Je consultant geeft deze maand vrij
                         </span>
                       ))}
-                  </span>
+                  </div>
                 </div>
+
+                {/* ⚠️ Eén keer per maand in plaats van tien keer per regel. */}
+                {open && gedeeld && (
+                  <p
+                    className="border-t px-4 py-2 text-xs"
+                    style={{
+                      borderColor: "var(--border-subtle)",
+                      color: "var(--intent-warning-text)",
+                    }}
+                  >
+                    {gedeeld}
+                  </p>
+                )}
 
                 {open &&
                   (inhoud.length === 0 ? (
-                    <p className="rounded-[var(--radius-md)] border border-dashed border-[var(--border-subtle)] px-4 py-6 text-center text-sm text-muted">
+                    <p
+                      className="border-t px-4 py-5 text-center text-xs text-muted"
+                      style={{ borderColor: "var(--border-subtle)" }}
+                    >
                       Sleep hier een kans uit de voorraad naartoe
                     </p>
                   ) : (
-                    <ul className="flex flex-col gap-2">
+                    <ul>
                       {inhoud.map((page, index) => (
-                        <PageRow
+                        <PageRij
                           key={page.id}
                           page={page}
                           profileId={profileId}
@@ -737,11 +793,10 @@ export function PlanView({
                               : null,
                           )}
                           funnel={
-                            page.funnel_stage_id
-                              ? (funnelNaam.get(page.funnel_stage_id) ?? null)
-                              : null
+                            page.funnel_stage_id ? (funnelNaam.get(page.funnel_stage_id) ?? null) : null
                           }
                           blokkade={blokkade(page)}
+                          gedeeld={gedeeld}
                           kanOmhoog={canMove(inhoud, page.id, "omhoog")}
                           kanOmlaag={canMove(inhoud, page.id, "omlaag")}
                           onMove={(richting) => void verplaats(page, richting)}
@@ -749,11 +804,7 @@ export function PlanView({
                           maanden={maandKeuzes}
                           huidigeMaand={month.id}
                           onSleepStart={() =>
-                            setSleep({
-                              pageId: page.id,
-                              titel: page.title,
-                              uitMaand: month.id,
-                            })
+                            setSleep({ pageId: page.id, titel: page.title, uitMaand: month.id })
                           }
                           onSleepEinde={() => {
                             setSleep(null);
@@ -764,9 +815,7 @@ export function PlanView({
                             setSleep(null);
                             setSleepDoel(null);
                           }}
-                          onKies={(maandId) =>
-                            void inplannen(page.id, page.title, maandId, null)
-                          }
+                          onKies={(maandId) => void inplannen(page.id, page.title, maandId, null)}
                           onNaarVoorraad={() => void naarVoorraad(page.id, page.title)}
                           onApprove={() => void paginaActie(page, "goedkeuren")}
                           onPost={() => {
@@ -809,14 +858,15 @@ export function PlanView({
         />
       </ConfirmDialog>
 
-      {/* ── Definitief verwijderen ──────────────────────────────────────────
-          Iets anders dan terugleggen in de voorraad, en het scherm zegt dat
-          verschil hardop: teruggelegd kun je morgen alsnog inplannen,
-          verwijderd niet. */}
+      {/* ── Definitief verwijderen, uit een maand of uit de voorraad ─────
+          Iets anders dan terugleggen, en het scherm zegt dat verschil hardop:
+          teruggelegd kun je morgen alsnog inplannen, verwijderd niet. */}
       <ConfirmDialog
-        open={removeDialog !== null}
+        open={removeDialog !== null || removeKans !== null}
         title="Definitief verwijderen"
-        body={`"${removeDialog?.title ?? ""}" verdwijnt uit het plan én uit de voorraad. Wil je hem alleen uit deze maand halen, gebruik dan "terug naar de voorraad".`}
+        body={`"${removeDialog?.title ?? removeKans?.title ?? ""}" verdwijnt uit het plan én uit de voorraad.${
+          removeDialog ? ' Wil je hem alleen uit deze maand halen, kies dan "terug naar de voorraad".' : ""
+        }`}
         irreversible={{
           title: "Dit kun je niet terugdraaien",
           description:
@@ -825,9 +875,15 @@ export function PlanView({
         confirmLabel="Definitief verwijderen"
         confirmingLabel="Bezig…"
         danger
-        busy={busy === removeDialog?.id}
-        onCancel={() => setRemoveDialog(null)}
-        onConfirm={() => removeDialog && void paginaActie(removeDialog, "afwijzen")}
+        busy={busy === (removeDialog?.id ?? removeKans?.id)}
+        onCancel={() => {
+          setRemoveDialog(null);
+          setRemoveKans(null);
+        }}
+        onConfirm={() => {
+          const doel = removeDialog ?? removeKans;
+          if (doel) void paginaActie(doel, "afwijzen");
+        }}
       />
 
       {/* ── Alles van een maand als geplaatst markeren ──────────────────── */}
@@ -835,8 +891,7 @@ export function PlanView({
         open={bulkDialog !== null}
         title="Markeer alles als geplaatst"
         body={`Je markeert ${
-          echt.filter((p) => p.plan_month_id === bulkDialog?.id && p.status === "goedgekeurd")
-            .length
+          echt.filter((p) => p.plan_month_id === bulkDialog?.id && p.status === "goedgekeurd").length
         } goedgekeurde pagina's van maand ${bulkDialog?.month_number ?? ""} als live, elk op het adres dat in het plan staat. Pagina's zonder adres of zonder akkoord blijven staan, en je krijgt te horen welke.`}
         irreversible={{
           title: "Dit kun je niet terugdraaien",
@@ -890,127 +945,217 @@ export function PlanView({
   );
 }
 
-interface MaandKeuze {
-  id: string;
-  label: string;
-  voorbij: boolean;
-}
-
 /**
- * De keuzelijst die naast het slepen staat.
+ * Het menu achter de drie puntjes.
  *
- * ⚠️ Dit is geen extraatje maar de gelijkwaardige weg. Zie de toelichting
- * bovenaan: HTML5-slepen doet niets op een telefoon en niets met een
- * toetsenbord, en `lib/plan-order.ts` legt uit waarom dat hier zwaar weegt. Een
- * kale `select` is daarvoor het juiste gereedschap: hij werkt overal, hij is
- * bedienbaar met een schermlezer, en hij vraagt geen enkele bibliotheek.
+ * ── WAAROM DIT GEEN KEUZELIJST MEER IS ──────────────────────────────────────
+ *
+ * Er stond een `<select class="field">` op elke regel: 40 pixels hoog, volle
+ * breedte, met de dikkere veldrand. Bij tien regels onder elkaar waren dat tien
+ * grijze balken die zwaarder in beeld stonden dan de titels ernaast, terwijl je
+ * ze bijna nooit gebruikt. Een menu kost één klik meer en negen regels ruis
+ * minder.
+ *
+ * ⚠️ Het blijft de toegankelijke weg naast slepen (`lib/plan-order.ts`): echte
+ * knoppen, bereikbaar met tab, sluitend met Escape. Slepen is de snelle weg voor
+ * wie een muis heeft, dit is de weg die overal werkt.
  */
-function MaandKiezer({
-  maanden,
-  huidige,
-  busy,
+function RijMenu({
   label,
-  onKies,
+  busy,
+  children,
 }: {
-  maanden: MaandKeuze[];
-  huidige?: string;
-  busy: boolean;
   label: string;
-  onKies: (maandId: string) => void;
+  busy: boolean;
+  children: (sluit: () => void) => React.ReactNode;
 }) {
+  const [open, setOpen] = useState(false);
+  const wrap = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    function buiten(e: MouseEvent) {
+      if (wrap.current && !wrap.current.contains(e.target as Node)) setOpen(false);
+    }
+    function toets(e: KeyboardEvent) {
+      if (e.key === "Escape") setOpen(false);
+    }
+    document.addEventListener("mousedown", buiten);
+    document.addEventListener("keydown", toets);
+    return () => {
+      document.removeEventListener("mousedown", buiten);
+      document.removeEventListener("keydown", toets);
+    };
+  }, [open]);
+
   return (
-    <select
-      className="field w-fit text-sm"
-      value=""
-      disabled={busy}
-      aria-label={label}
-      onChange={(e) => {
-        const gekozen = e.target.value;
-        e.target.value = "";
-        if (gekozen) onKies(gekozen);
-      }}
-    >
-      <option value="">{label}</option>
-      {maanden
-        .filter((m) => m.id !== huidige)
-        .map((m) => (
-          <option key={m.id} value={m.id}>
-            {m.label}
-            {m.voorbij ? " (voorbij)" : ""}
-          </option>
-        ))}
-    </select>
+    <div className="relative shrink-0" ref={wrap}>
+      <button
+        type="button"
+        aria-label={label}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        disabled={busy}
+        onClick={() => setOpen((o) => !o)}
+        className="rounded-[var(--radius-md)] p-1.5 text-muted transition-colors hover:bg-[var(--bg-muted)] hover:text-[var(--text-primary)] disabled:opacity-40"
+      >
+        <Icon naam="meer" size={16} />
+      </button>
+      {open && (
+        <div
+          role="menu"
+          className="absolute right-0 z-20 mt-1 flex max-h-80 w-60 flex-col overflow-y-auto rounded-[var(--radius-md)] py-1"
+          style={{
+            background: "var(--bg-surface)",
+            border: "var(--border-width-xs) solid var(--border-subtle)",
+            boxShadow: "var(--shadow-overlay)",
+          }}
+        >
+          {children(() => setOpen(false))}
+        </div>
+      )}
+    </div>
   );
 }
 
-/** Eén kans in de voorraad. */
-function BacklogKaart({
+function MenuKnop({
+  onClick,
+  danger = false,
+  children,
+}: {
+  onClick: () => void;
+  danger?: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      role="menuitem"
+      onClick={onClick}
+      className="w-full px-3 py-1.5 text-left text-sm transition-colors hover:bg-[var(--bg-muted)]"
+      style={danger ? { color: "var(--intent-danger-text)" } : undefined}
+    >
+      {children}
+    </button>
+  );
+}
+
+function MenuKop({ children }: { children: React.ReactNode }) {
+  return <span className="mono-label px-3 pb-1 pt-2 text-muted">{children}</span>;
+}
+
+function MenuScheiding() {
+  return <span className="my-1 border-t" style={{ borderColor: "var(--border-subtle)" }} />;
+}
+
+/** Eén kans in de voorraad: titel, herkomst en cijfer, meer niet. */
+function BacklogRij({
   item,
   maanden,
   busy,
+  open,
+  onToggle,
   onSleepStart,
   onSleepEinde,
   onKies,
+  onVerwijder,
 }: {
   item: BacklogItem;
   maanden: MaandKeuze[];
   busy: boolean;
+  open: boolean;
+  onToggle: () => void;
   onSleepStart: () => void;
   onSleepEinde: () => void;
   onKies: (maandId: string) => void;
+  onVerwijder: () => void;
 }) {
   const potentie = potentieLabel(item);
   const raakt = raaktLabel(item);
 
   return (
     <li
-      className="card flex cursor-grab flex-col gap-2 active:cursor-grabbing"
+      className="group flex cursor-grab items-start gap-2 border-t px-4 py-2.5 transition-colors hover:bg-[var(--bg-muted)] active:cursor-grabbing"
+      style={{ borderColor: "var(--border-subtle)", ...(busy ? { opacity: 0.5 } : {}) }}
       draggable={!busy}
       onDragStart={onSleepStart}
       onDragEnd={onSleepEinde}
-      style={busy ? { opacity: 0.5 } : undefined}
     >
-      <div className="flex flex-col gap-1">
-        <span className="font-medium">{item.title}</span>
-        <span className="flex flex-wrap items-center gap-2 text-sm text-muted">
-          {item.cluster && <span className="chip chip-neutral">{item.cluster}</span>}
-          {item.handeling === "verbeteren" ? (
-            <span className="chip chip-info">verbeteren</span>
-          ) : (
-            <span className="chip chip-neutral">nieuw</span>
-          )}
-          {/* Conventie 3: bij een onbekende potentie staat er geen getal, ook
-              geen nul. Dit getal bepaalt wat iemand als eerste laat schrijven. */}
-          {potentie && <span className="chip chip-success">{potentie}</span>}
+      <div className="flex min-w-0 flex-1 flex-col gap-1">
+        <button
+          type="button"
+          onClick={onToggle}
+          aria-expanded={open}
+          className="text-left text-sm font-medium leading-snug hover:underline"
+        >
+          {item.title}
+        </button>
+        {/* Eén meta-regel in plaats van drie chips: de herkomst, wat het
+            oplevert en wat voor werk het is. Conventie 3: bij een onbekende
+            potentie staat er geen getal, ook geen nul. */}
+        <span className="flex flex-wrap items-center gap-x-1.5 text-xs text-muted">
+          {item.cluster && <span className="truncate">{item.cluster}</span>}
+          {item.cluster && potentie && <span>·</span>}
+          {potentie && <span>{potentie}</span>}
+          <span>·</span>
+          <span>{item.handeling === "verbeteren" ? "verbeteren" : "nieuw"}</span>
         </span>
-        {raakt && <span className="text-sm text-secondary">{raakt}</span>}
+        {open && (
+          <div className="flex flex-col gap-1 pt-1">
+            {raakt && <span className="text-xs text-secondary">{raakt}</span>}
+            {item.why && (
+              <p className="text-xs text-secondary" style={{ lineHeight: 1.5 }}>
+                {item.why}
+              </p>
+            )}
+            {item.existingUrl && (
+              <span className="truncate text-xs text-muted" title={item.existingUrl}>
+                {item.existingUrl}
+              </span>
+            )}
+          </div>
+        )}
       </div>
 
-      {item.why && (
-        <p className="text-sm text-secondary" style={{ lineHeight: 1.5 }}>
-          {item.why}
-        </p>
-      )}
-
-      {item.existingUrl && (
-        <span className="truncate text-sm text-muted" title={item.existingUrl}>
-          Werkt aan {item.existingUrl}
-        </span>
-      )}
-
-      <MaandKiezer maanden={maanden} busy={busy} label="Plan in…" onKies={onKies} />
+      <RijMenu label={`Wat wil je met "${item.title}" doen?`} busy={busy}>
+        {(sluit) => (
+          <>
+            <MenuKop>Plan in</MenuKop>
+            {maanden.map((m) => (
+              <MenuKnop
+                key={m.id}
+                onClick={() => {
+                  sluit();
+                  onKies(m.id);
+                }}
+              >
+                {m.label}
+                {m.voorbij ? " (voorbij)" : ""}
+              </MenuKnop>
+            ))}
+            <MenuScheiding />
+            <MenuKnop
+              danger
+              onClick={() => {
+                sluit();
+                onVerwijder();
+              }}
+            >
+              Definitief verwijderen
+            </MenuKnop>
+          </>
+        )}
+      </RijMenu>
     </li>
   );
 }
 
 function Segment({
   actief,
-  aantal,
   onClick,
   children,
 }: {
   actief: boolean;
-  aantal: number;
   onClick: () => void;
   children: React.ReactNode;
 }) {
@@ -1019,7 +1164,7 @@ function Segment({
       type="button"
       onClick={onClick}
       aria-pressed={actief}
-      className="flex items-center gap-2 rounded-[var(--radius-md)] border px-3 py-2 text-sm font-medium transition-colors hover:bg-[var(--wash-hover)]"
+      className="rounded-[var(--radius-md)] border px-2.5 py-1 text-xs font-medium transition-colors hover:bg-[var(--wash-hover)]"
       style={{
         borderColor: actief ? "var(--intent-intelligence-border)" : "var(--border-subtle)",
         background: actief ? "var(--intent-intelligence-surface)" : undefined,
@@ -1027,18 +1172,26 @@ function Segment({
       }}
     >
       {children}
-      <span className="chip chip-neutral">{aantal}</span>
     </button>
   );
 }
 
-/** Eén ingeplande pagina. De drie statuslagen staan er alle drie op. */
-function PageRow({
+/**
+ * Eén ingeplande pagina, als platte rij.
+ *
+ * In de normale gang van zaken is dat ÉÉN regel: greep, titel, funnelfase,
+ * datum, menu. Alles wat daar bij komt, komt er alleen bij als het iets zegt:
+ * een statuschip zodra de regel niet meer gewoon staat te wachten, een reden
+ * zodra die van de rest van de maand afwijkt, en een knop zodra er iets van de
+ * klant gevraagd wordt.
+ */
+function PageRij({
   page,
   profileId,
   href,
   funnel,
   blokkade,
+  gedeeld,
   kanOmhoog,
   kanOmlaag,
   onMove,
@@ -1059,8 +1212,9 @@ function PageRow({
   /** Waar de geschreven tekst staat. `null` = er is nog niets geschreven. */
   href: string | null;
   funnel: string | null;
-  /** Waarom ORBIT ENGINE deze pagina niet kan schrijven. `null` = er is niets aan de hand. */
   blokkade: { text: string; whoseTurn: "klant" | "orbit_engine" | null } | null;
+  /** De melding die de hele maand al draagt. Die staat boven, niet hier. */
+  gedeeld: string | null;
   kanOmhoog: boolean;
   kanOmlaag: boolean;
   onMove: (richting: "omhoog" | "omlaag") => void;
@@ -1077,19 +1231,32 @@ function PageRow({
   onRemove: () => void;
 }) {
   const meta = PLAN_STATUS_META[page.status];
-  const wanneer = planRunningDate(page);
-  // ⚠️ Er is één pad waarbij een pagina om akkoord vraagt zonder gekoppelde
-  // tekst: schreef de pijplijn eerder al iets met dezelfde titel onder deze
-  // analyse, dan zet de cron alleen de status om (`alreadyDone` in
-  // `app/api/cron/plan/route.ts`) en blijft `content_piece_id` leeg.
-  const losseTekst = href === null && page.status === "ter_goedkeuring";
-  // Alleen wat nog niet in beweging is, mag terug of verhuizen. Een geschreven
-  // tekst terugleggen is betaald werk weggooien.
   const magVerhuizen = page.status === "gepland";
+  // ⚠️ Alleen de reden die AFWIJKT van de maand. Staat hij al boven de maand,
+  // dan is hij hier ruis (zie `sharedNotice()`).
+  const eigenBlokkade = blokkade && blokkade.text !== gedeeld ? blokkade : null;
+  // Bij `gepland` zegt de datum alles; de chip zei daar tien keer per maand
+  // hetzelfde. Bij elke andere status draagt de chip wél iets.
+  const toonStatus = page.status !== "gepland";
+  // ⚠️ Twee dingen die hetzelfde zeggen, naast elkaar op één regel: de chip
+  // "Tekst klaar voor akkoord" stond naast de zin "Publiceert zodra je akkoord
+  // geeft". Waar de chip het antwoord al draagt, blijft alleen de chip staan; de
+  // datum verschijnt alleen als hij een échte datum is.
+  const datum =
+    page.status === "gepland" && page.scheduled_for
+      ? formatDagNL(page.scheduled_for)
+      : page.status === "schrijven" || page.status === "geplaatst"
+        ? planRunningDate(page)
+        : null;
+  // Er is één pad waarbij een pagina om akkoord vraagt zonder gekoppelde tekst:
+  // schreef de pijplijn eerder al iets met dezelfde titel, dan zet de cron alleen
+  // de status om (`alreadyDone` in `app/api/cron/plan/route.ts`).
+  const losseTekst = href === null && page.status === "ter_goedkeuring";
 
   return (
     <li
-      className="card flex flex-wrap items-center justify-between gap-3"
+      className="group flex items-center gap-2.5 border-t px-4 py-2 transition-colors hover:bg-[var(--bg-muted)]"
+      style={{ borderColor: "var(--border-subtle)", ...(busy ? { opacity: 0.5 } : {}) }}
       draggable={magVerhuizen && !busy}
       onDragStart={onSleepStart}
       onDragEnd={onSleepEinde}
@@ -1098,134 +1265,168 @@ function PageRow({
         e.preventDefault();
         onDropHier();
       }}
-      style={busy ? { opacity: 0.5 } : undefined}
     >
-      <div className="flex min-w-0 flex-col gap-1">
-        {href ? (
-          <Link href={href} className="font-medium hover:underline">
-            {page.title}
-          </Link>
-        ) : (
-          <span className="font-medium">{page.title}</span>
-        )}
-        <span className="flex flex-wrap items-center gap-2 text-sm text-muted">
-          <span className="chip chip-neutral">{page.page_type}</span>
-          {funnel && <span>{funnel}</span>}
-          {wanneer && <span>· {wanneer}</span>}
-        </span>
-        {/* De reden staat ONDER de regel en niet als chip ernaast: het is een
-            zin, geen etiket. */}
-        {blokkade && (
+      {/* De greep verschijnt pas bij aanwijzen: op elke regel een altijd
+          zichtbaar sleepteken is twaalf keer een teken dat niets doet. */}
+      <span
+        className="shrink-0 cursor-grab text-muted opacity-0 transition-opacity group-hover:opacity-100"
+        aria-hidden="true"
+      >
+        <Icon naam="versleep" size={14} />
+      </span>
+
+      <div className="flex min-w-0 flex-1 flex-col">
+        <div className="flex min-w-0 items-baseline gap-x-2">
+          {href ? (
+            <Link href={href} className="truncate text-sm font-medium hover:underline">
+              {page.title}
+            </Link>
+          ) : (
+            <span className="truncate text-sm font-medium">{page.title}</span>
+          )}
+          {/* De funnelfase mag wegvallen als de titel de ruimte nodig heeft: hij
+              is context, geen inhoud. `hidden sm:inline` in plaats van afkappen. */}
+          {funnel && <span className="hidden shrink-0 text-xs text-muted sm:inline">{funnel}</span>}
+        </div>
+        {eigenBlokkade && (
           <span
-            className="text-sm"
+            className="text-xs"
             style={{
               color:
-                blokkade.whoseTurn === "klant"
+                eigenBlokkade.whoseTurn === "klant"
                   ? "var(--intent-warning-text)"
                   : "var(--text-secondary)",
             }}
           >
-            {blokkade.text}
+            {eigenBlokkade.text}
           </span>
         )}
         {losseTekst && (
-          <span className="text-sm text-secondary">
+          <span className="text-xs text-secondary">
             De tekst hangt niet aan deze regel.{" "}
-            <Link
-              href={`/merk/${profileId}/strategie/bibliotheek`}
-              className="hover:underline"
-            >
+            <Link href={`/merk/${profileId}/strategie/bibliotheek`} className="hover:underline">
               Zoek hem in de bibliotheek
             </Link>
           </span>
         )}
       </div>
 
-      <div className="flex shrink-0 flex-wrap items-center gap-2">
-        {(kanOmhoog || kanOmlaag) && (
-          <span className="flex items-center">
-            <button
-              type="button"
-              className="rounded-[var(--radius-md)] px-2 py-1 text-secondary transition-colors hover:bg-[var(--bg-muted)] disabled:opacity-40"
-              onClick={() => onMove("omhoog")}
-              disabled={busy || !kanOmhoog}
-              aria-label={`"${page.title}" een plek eerder publiceren`}
-            >
-              <Icon naam="omhoog" size={14} />
-            </button>
-            <button
-              type="button"
-              className="rounded-[var(--radius-md)] px-2 py-1 text-secondary transition-colors hover:bg-[var(--bg-muted)] disabled:opacity-40"
-              onClick={() => onMove("omlaag")}
-              disabled={busy || !kanOmlaag}
-              aria-label={`"${page.title}" een plek later publiceren`}
-            >
-              <Icon naam="omlaag" size={14} />
-            </button>
-          </span>
-        )}
+      {datum && <span className="shrink-0 text-xs text-muted">{datum}</span>}
 
+      {toonStatus && (
         <span
           className={
             meta.tone === "wacht"
-              ? "chip chip-warning"
+              ? "chip chip-warning shrink-0"
               : meta.tone === "klaar"
-                ? "chip chip-success"
+                ? "chip chip-success shrink-0"
                 : meta.tone === "fout"
-                  ? "chip chip-danger"
-                  : "chip chip-neutral"
+                  ? "chip chip-danger shrink-0"
+                  : "chip chip-neutral shrink-0"
           }
         >
-          {meta.running}
+          {meta.label}
         </span>
+      )}
 
-        {magVerhuizen && (
-          <MaandKiezer
-            maanden={maanden}
-            huidige={huidigeMaand}
-            busy={busy}
-            label="Verplaats naar…"
-            onKies={onKies}
-          />
-        )}
+      {/* De twee handelingen die om de klant vragen, blijven zichtbaar: dit is
+          waar het scherm voor bestaat. */}
+      {page.status === "ter_goedkeuring" && href && (
+        <Link href={href} className="btn-ghost btn-sm shrink-0">
+          Lezen
+        </Link>
+      )}
+      {page.status === "ter_goedkeuring" && (
+        <button
+          type="button"
+          className="btn-primary btn-sm shrink-0"
+          onClick={onApprove}
+          disabled={busy}
+        >
+          Goedkeuren
+        </button>
+      )}
+      {page.status === "goedgekeurd" && (
+        <button
+          type="button"
+          className="btn-primary btn-sm shrink-0"
+          onClick={onPost}
+          disabled={busy}
+        >
+          Geplaatst
+        </button>
+      )}
 
-        {/* Het TWEEDE akkoord: over de geschreven tekst, niet over de maand. */}
-        {page.status === "ter_goedkeuring" && href && (
-          <Link href={href} className="btn-outline btn-sm">
-            Lezen
-          </Link>
-        )}
-        {page.status === "ter_goedkeuring" && (
-          <button type="button" className="btn-primary btn-sm" onClick={onApprove} disabled={busy}>
-            Tekst goedkeuren
-          </button>
-        )}
-        {page.status === "goedgekeurd" && (
-          <button type="button" className="btn-primary btn-sm" onClick={onPost} disabled={busy}>
-            Ik heb hem geplaatst
-          </button>
-        )}
-        {magVerhuizen && (
-          <button
-            type="button"
-            className="text-sm text-secondary hover:underline"
-            onClick={onNaarVoorraad}
-            disabled={busy}
-          >
-            Terug naar voorraad
-          </button>
-        )}
-        {(page.status === "gepland" || page.status === "ter_goedkeuring") && (
-          <button
-            type="button"
-            className="text-sm text-muted hover:underline"
-            onClick={onRemove}
-            disabled={busy}
-          >
-            Verwijderen
-          </button>
-        )}
-      </div>
+      {(magVerhuizen || page.status === "ter_goedkeuring") && (
+        <RijMenu label={`Wat wil je met "${page.title}" doen?`} busy={busy}>
+          {(sluit) => (
+            <>
+              {magVerhuizen && (kanOmhoog || kanOmlaag) && (
+                <>
+                  {kanOmhoog && (
+                    <MenuKnop
+                      onClick={() => {
+                        sluit();
+                        onMove("omhoog");
+                      }}
+                    >
+                      Een plek eerder
+                    </MenuKnop>
+                  )}
+                  {kanOmlaag && (
+                    <MenuKnop
+                      onClick={() => {
+                        sluit();
+                        onMove("omlaag");
+                      }}
+                    >
+                      Een plek later
+                    </MenuKnop>
+                  )}
+                  <MenuScheiding />
+                </>
+              )}
+              {magVerhuizen && (
+                <>
+                  <MenuKop>Verplaats naar</MenuKop>
+                  {maanden
+                    .filter((m) => m.id !== huidigeMaand)
+                    .map((m) => (
+                      <MenuKnop
+                        key={m.id}
+                        onClick={() => {
+                          sluit();
+                          onKies(m.id);
+                        }}
+                      >
+                        {m.label}
+                        {m.voorbij ? " (voorbij)" : ""}
+                      </MenuKnop>
+                    ))}
+                  <MenuScheiding />
+                  <MenuKnop
+                    onClick={() => {
+                      sluit();
+                      onNaarVoorraad();
+                    }}
+                  >
+                    Terug naar de voorraad
+                  </MenuKnop>
+                </>
+              )}
+              <MenuKnop
+                danger
+                onClick={() => {
+                  sluit();
+                  onRemove();
+                }}
+              >
+                Definitief verwijderen
+              </MenuKnop>
+            </>
+          )}
+        </RijMenu>
+      )}
     </li>
   );
 }

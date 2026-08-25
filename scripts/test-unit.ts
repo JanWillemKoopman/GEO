@@ -219,6 +219,7 @@ import {
   spreadDates,
   resequenceMonth,
 } from "@/lib/plan-schedule";
+import { sharedNotice } from "@/lib/plan-overview";
 import {
   filterBacklog,
   sortBacklog,
@@ -4238,7 +4239,13 @@ group("de kalender van een plan (plan-schedule)", () => {
 });
 
 group("publicatiedata spreiden over een maand (plan-schedule)", () => {
-  const tien = spreadDates("2026-08-12", 1, 10);
+  // ⚠️ Een vaste `now`, ver buiten de geteste maand. Zonder dat argument leest
+  // `spreadDates()` de echte klok, en dan slaat de regel "in de lopende maand
+  // niet in het verleden plannen" toe zodra deze test tijdens augustus 2026
+  // draait: de test zou dan een halfjaar lang groen zijn en daarna rood, zonder
+  // dat er iets veranderd is.
+  const buitenDeMaand = new Date("2027-06-15T12:00:00Z");
+  const tien = spreadDates("2026-08-12", 1, 10, buitenDeMaand);
   ok("tien pagina's leveren tien data", tien.length === 10);
   ok("de eerste staat op dag 1", tien[0] === "2026-08-01");
   // Binnen dag 1 tot en met 28, zodat februari geen uitzondering is.
@@ -4251,17 +4258,75 @@ group("publicatiedata spreiden over een maand (plan-schedule)", () => {
   // ⚠️ De spreiding hangt af van het AANTAL in de maand en niet van de quota.
   // Zet iemand er drie in, dan horen ze over de maand verdeeld te staan en niet
   // op dag 1, 2 en 3 met drie weken niets erachter.
-  const drie = spreadDates("2026-08-12", 1, 3);
+  const drie = spreadDates("2026-08-12", 1, 3, buitenDeMaand);
   ok("drie pagina's spreiden ook over de hele maand", drie[2] === "2026-08-28");
   ok("de middelste ligt ertussenin", drie[1] > drie[0] && drie[1] < drie[2]);
 
-  ok("één pagina staat op dag 1", spreadDates("2026-08-12", 1, 1)[0] === "2026-08-01");
-  ok("nul pagina's leveren niets", spreadDates("2026-08-12", 1, 0).length === 0);
+  ok(
+    "één pagina staat op dag 1",
+    spreadDates("2026-08-12", 1, 1, buitenDeMaand)[0] === "2026-08-01",
+  );
+  ok("nul pagina's leveren niets", spreadDates("2026-08-12", 1, 0, buitenDeMaand).length === 0);
   // Februari heeft 28 dagen: geen enkele datum mag daarbuiten vallen.
   ok(
     "februari levert geen 29e of 30e op",
-    spreadDates("2026-01-01", 2, 10).every((d) => Number(d.slice(8)) <= 28),
+    spreadDates("2026-01-01", 2, 10, buitenDeMaand).every((d) => Number(d.slice(8)) <= 28),
   );
+});
+
+group("de lopende maand plant niet in het verleden (plan-schedule)", () => {
+  // ⚠️ Gevonden op het scherm van Gasservice Brabant: het plan werd op 25
+  // augustus opgesteld met augustus als maand 1, dus negen van de tien pagina's
+  // kregen een datum die al geweest was, en bij elke regel stond "Stond gepland
+  // voor 1 augustus".
+  const opDe25e = new Date("2026-08-25T10:00:00Z");
+  const lopend = spreadDates("2026-08-25", 1, 3, opDe25e);
+  ok(
+    "in de lopende maand begint de spreiding morgen",
+    lopend[0] === "2026-08-26",
+    `eerste datum was ${lopend[0]}`,
+  );
+  ok(
+    "en geen enkele datum ligt in het verleden",
+    lopend.every((d) => d > "2026-08-25"),
+  );
+  ok("de laatste blijft binnen de maand", lopend[lopend.length - 1] === "2026-08-28");
+
+  // Een latere maand is niet de lopende maand en begint dus gewoon op dag 1.
+  const later = spreadDates("2026-08-25", 3, 3, opDe25e);
+  ok("een volgende maand begint gewoon op de eerste", later[0] === "2026-10-01");
+
+  // Loopt de maand bijna af, dan is er geen ruimte meer om te spreiden en
+  // schuiven ze samen op de laatste bruikbare dag. Beter dan een datum in het
+  // verleden.
+  const bijnaVoorbij = spreadDates("2026-08-27", 1, 3, new Date("2026-08-27T10:00:00Z"));
+  ok(
+    "aan het eind van de maand blijft alles binnen dag 28",
+    bijnaVoorbij.every((d) => d >= "2026-08-28" && d <= "2026-08-28"),
+    bijnaVoorbij.join(", "),
+  );
+});
+
+group("één melding voor de hele maand (plan-overview)", () => {
+  // ⚠️ De aanleiding: bij elk van de tien regels van maand 1 stond dezelfde
+  // oranje zin. Dat is een eigenschap van de maand, niet van de regel.
+  ok(
+    "delen alle regels dezelfde melding, dan is het er één",
+    sharedNotice(["Maand nog niet vrijgegeven", "Maand nog niet vrijgegeven"]) ===
+      "Maand nog niet vrijgegeven",
+  );
+  // ⚠️ Alleen bij unanimiteit: geldt hij voor negen van de tien, dan verhuist er
+  // een mededeling naar de kop die voor één regel niet klopt.
+  ok(
+    "wijkt er één af, dan blijft alles per regel staan",
+    sharedNotice(["Maand nog niet vrijgegeven", "Start eerst de meting"]) === null,
+  );
+  ok(
+    "een regel zonder melding telt mee als afwijking",
+    sharedNotice(["Maand nog niet vrijgegeven", null]) === null,
+  );
+  ok("een maand zonder meldingen geeft niets", sharedNotice([null, null]) === null);
+  ok("een lege maand geeft niets", sharedNotice([]) === null);
 });
 
 group("een maand opnieuw nummeren en dateren (plan-schedule)", () => {
@@ -4270,14 +4335,16 @@ group("een maand opnieuw nummeren en dateren (plan-schedule)", () => {
     { id: "b", sort_order: 1, scheduled_for: "2026-08-15", status: "gepland" },
     { id: "c", sort_order: 2, scheduled_for: "2026-08-28", status: "gepland" },
   ];
+  // Zelfde reden als hierboven: een vaste `now` buiten de geteste maand.
+  const buiten = new Date("2027-06-15T12:00:00Z");
   ok(
     "een lijst die al klopt levert geen enkele update",
-    resequenceMonth("2026-08-12", 1, rijen).length === 0,
+    resequenceMonth("2026-08-12", 1, rijen, buiten).length === 0,
   );
 
   // Er is er één uit de maand gehaald: de twee die overblijven horen opnieuw
   // over de maand verdeeld te worden, niet op dag 1 en dag 15 te blijven staan.
-  const naEruit = resequenceMonth("2026-08-12", 1, [rijen[0], rijen[2]]);
+  const naEruit = resequenceMonth("2026-08-12", 1, [rijen[0], rijen[2]], buiten);
   ok("na het weghalen van het middelste schuift de rest op", naEruit.length === 1);
   ok(
     "en de laatste komt op dag 28 uit",
@@ -4286,10 +4353,15 @@ group("een maand opnieuw nummeren en dateren (plan-schedule)", () => {
 
   // ⚠️ Een geplaatste pagina houdt zijn datum: die datum is de werkelijkheid
   // geworden, en hem verzetten zou liegen over wanneer er iets live ging.
-  const metLive = resequenceMonth("2026-08-12", 1, [
-    { id: "a", sort_order: 5, scheduled_for: "2026-08-03", status: "geplaatst" },
-    { id: "b", sort_order: 6, scheduled_for: null, status: "gepland" },
-  ]);
+  const metLive = resequenceMonth(
+    "2026-08-12",
+    1,
+    [
+      { id: "a", sort_order: 5, scheduled_for: "2026-08-03", status: "geplaatst" },
+      { id: "b", sort_order: 6, scheduled_for: null, status: "gepland" },
+    ],
+    buiten,
+  );
   const live = metLive.find((u) => u.id === "a");
   ok("een geplaatste pagina houdt zijn publicatiedatum", live?.scheduled_for === "2026-08-03");
   ok("maar krijgt wél zijn nieuwe plek in de nummering", live?.sort_order === 0);
