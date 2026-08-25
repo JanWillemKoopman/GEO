@@ -498,6 +498,13 @@ leverancier toevoegt aan een product dat zich eerst zonder moet bewijzen. Hierna
 een gemeten getal in plaats van een inschatting, en pas dan klopt de zin "ORBIT ENGINE ontdekt
 relevante zoekvraag en long-tail kansen".
 
+**Volledig uitgewerkt in [`docs/tasks/dataforseo-integratie.md`](./dataforseo-integratie.md)**
+(25 augustus 2026): de exacte endpoints, de prijs per endpoint, de technische laag
+(`lib/search-demand/`, migratie `0066`), en de vier plekken in de app waar een gemeten getal een
+schatting vervangt of aanvult, van de potentiescore tot het marktrapport van de GEO Prospect Engine.
+Wat hieronder staat is de samenvatting die de sprintvolgorde droeg, niet meer herhalen bij een
+prijswijziging: dat cijfer heeft nu één eigenaar, het andere document.
+
 **Jij besluit eerst welke bron.** De vergelijking met echte prijzen staat in §6. De aanbeveling is
 DataForSEO: betalen per aanroep, geen abonnement, en bij deze omvang een paar dollar per maand.
 
