@@ -14,8 +14,8 @@ import "server-only";
  */
 import { createAdminClient } from "@/lib/supabase/admin";
 import { insights, type Insight } from "@/lib/insights";
+import { brandScorePerPeriod, type BrandPeriod, type BrandScoreRow } from "@/lib/brand-score";
 import { opportunities, type Opportunity } from "@/lib/opportunities";
-import { binomialStderr } from "@/lib/stats/uncertainty";
 import { loadRecommendationPotential } from "@/lib/potential-data";
 
 type Admin = ReturnType<typeof createAdminClient>;
@@ -23,6 +23,14 @@ type Admin = ReturnType<typeof createAdminClient>;
 export interface LoopBundle {
   insights: Insight[];
   opportunities: Opportunity[];
+  /**
+   * Het merkcijfer per meetperiode, oplopend.
+   *
+   * ⚠️ Zit in deze bundel en niet in een eigen query op de pagina. De startpagina
+   * haalde dezelfde rijen nóg een keer op om zijn hoofdgetal te berekenen, en
+   * berekende ze anders. Eén ophaalactie, één som, drie blokken.
+   */
+  periods: BrandPeriod[];
 }
 
 export async function loadLoop(admin: Admin, profileId: string): Promise<LoopBundle> {
@@ -46,7 +54,14 @@ export async function loadLoop(admin: Admin, profileId: string): Promise<LoopBun
     analysisIds.length > 0
       ? admin
           .from("visibility_scores")
-          .select("analysis_id, week_no, score")
+          // ⚠️ Ook de gewogen kolommen. Deze functie middelde tot 25 augustus
+          // 2026 de ONGEWOGEN `score` ongewogen over de clusters, terwijl de
+          // standkaart op hetzelfde scherm de gewogen som toonde. Zie
+          // `lib/brand-score.ts` voor waarom dat drie cijfers voor één ding
+          // opleverde.
+          .select(
+            "analysis_id, week_no, score, weighted_score, score_stderr, weighted_stderr, winnable_runs, judged_runs, computed_at",
+          )
           .in("analysis_id", analysisIds)
           .order("week_no")
       : Promise.resolve({ data: [] }),
@@ -89,9 +104,9 @@ export async function loadLoop(admin: Admin, profileId: string): Promise<LoopBun
       .neq("status", "gestopt")
       .limit(1)
       .maybeSingle(),
-    // ⚠️ Hoeveel metingen er onder elke score liggen. Dat is geen detail: de
-    // onzekerheid hangt er volledig van af, en `insights()` beslist daarmee of
-    // een verschil ruis is of een echte verandering.
+    // De vragen per cluster, voor de noemer onder een kans ("raakt 3 van de 30
+    // gemeten vragen"). De onzekerheid van het merkcijfer komt hier niet meer
+    // vandaan: die staat opgeslagen bij de score zelf (`lib/brand-score.ts`).
     analysisIds.length > 0
       ? admin
           .from("tracking_runs")
@@ -100,17 +115,11 @@ export async function loadLoop(admin: Admin, profileId: string): Promise<LoopBun
       : Promise.resolve({ data: [] }),
   ]);
 
-  // Aantal beoordeelde metingen per periode, over alle analyses van het merk.
   const alleRuns = (runRows ?? []) as {
     analysis_id: string;
     week_no: number;
     purpose: string | null;
   }[];
-  const metingenPerPeriode = new Map<number, number>();
-  for (const r of alleRuns) {
-    metingenPerPeriode.set(r.week_no, (metingenPerPeriode.get(r.week_no) ?? 0) + 1);
-  }
-
   // ── De noemer bij een kans: hoeveel vragen zijn er in dit cluster gemeten ──
   //
   // Alleen de gewone meting telt, net als in het rapport zelf
@@ -131,29 +140,17 @@ export async function loadLoop(admin: Admin, profileId: string): Promise<LoopBun
     gemetenPerAnalyse.set(r.analysis_id, (gemetenPerAnalyse.get(r.analysis_id) ?? 0) + 1);
   }
 
-  // ── De scores, gemiddeld per periode over alle analyses van het merk ───────
-  const perPeriode = new Map<number, number[]>();
-  for (const r of (scoreRows ?? []) as { week_no: number; score: number | string }[]) {
-    const lijst = perPeriode.get(r.week_no) ?? [];
-    lijst.push(Number(r.score));
-    perPeriode.set(r.week_no, lijst);
-  }
-  const scores = [...perPeriode.entries()]
-    .sort((a, b) => a[0] - b[0])
-    .map(([period, waarden]) => {
-      const gemiddelde = waarden.reduce((a, b) => a + b, 0) / waarden.length;
-      // ⚠️ De onzekerheid mag niet weggelaten worden. `insights()` beslist er
-      // mee of een verschil ruis is, en een stderr van 0 zou élk verschil een
-      // echte verandering noemen. Hij komt uit het WERKELIJKE aantal metingen
-      // van die periode: bij dertig vragen is de band ±17 punten, bij tien is
-      // hij bijna twee keer zo breed, en dat verschil moet de zin dragen.
-      const n = metingenPerPeriode.get(period) ?? 0;
-      return {
-        period,
-        score: gemiddelde,
-        stderr: binomialStderr((gemiddelde / 100) * n, n),
-      };
-    });
+  // ── Het merkcijfer per periode ────────────────────────────────────────────
+  //
+  // ⚠️ Eén rekensom voor de hele startpagina (`lib/brand-score.ts`). Deze
+  // functie deed hem hier zelf, ongewogen, en de standkaart deed hem gewogen:
+  // dat scheelde bij Gasservice Brabant 3 punten (57 tegen 60) en de klant zag
+  // beide cijfers tegelijk op één scherm.
+  //
+  // De onzekerheid komt nu uit de opgeslagen standaardfout in plaats van uit een
+  // hertelling van de metingen. Dat is dezelfde grootheid waar `aggregate_week`
+  // hem mee heeft weggeschreven, dus er valt niets meer uit de pas te lopen.
+  const scores = brandScorePerPeriod((scoreRows ?? []) as BrandScoreRow[]);
 
   // ── De aanbevelingen van het laatste rapport per analyse ──────────────────
   const gezien = new Set<string>();
@@ -231,6 +228,7 @@ export async function loadLoop(admin: Admin, profileId: string): Promise<LoopBun
   });
 
   return {
+    periods: scores,
     insights: insights({
       scores,
       gepubliceerdDezeMaand,

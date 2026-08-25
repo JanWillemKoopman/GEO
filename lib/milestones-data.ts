@@ -15,14 +15,28 @@ import "server-only";
  */
 import { createAdminClient } from "@/lib/supabase/admin";
 import { milestones, type Milestone } from "@/lib/milestones";
+import { brandScorePerPeriod, type BrandScoreRow } from "@/lib/brand-score";
 
 type Admin = ReturnType<typeof createAdminClient>;
+
+export interface MilestoneBundle {
+  milestones: Milestone[];
+  /**
+   * Alle live pagina's van dit merk, ook die van vóór het contentplan.
+   *
+   * ⚠️ Komt mee naar buiten omdat het contentplan op hetzelfde scherm zijn eigen
+   * telling toont ("0 van de 120 geplaatst"). Zolang die twee getallen los van
+   * elkaar op het scherm stonden, spraken ze elkaar tegen zonder uit te leggen
+   * waarom (`lib/overview.ts`, `planRegels`).
+   */
+  gepubliceerd: number;
+}
 
 export async function loadMilestones(
   admin: Admin,
   profileId: string,
   accountId: string | null,
-): Promise<Milestone[]> {
+): Promise<MilestoneBundle> {
   const [{ data: accountRow }, { data: analysisRows }] = await Promise.all([
     accountId
       ? admin
@@ -56,26 +70,18 @@ export async function loadMilestones(
       : Promise.resolve({ count: 0 }),
   ]);
 
-  // Gemiddelde per periode over alle analyses van het merk.
-  const perPeriode = new Map<number, number[]>();
-  for (const r of (scoreRows ?? []) as { week_no: number; score: number | string }[]) {
-    const lijst = perPeriode.get(r.week_no) ?? [];
-    lijst.push(Number(r.score));
-    perPeriode.set(r.week_no, lijst);
-  }
-  const periodes = [...perPeriode.keys()].sort((a, b) => a - b);
-  const gemiddelde = (n: number) => {
-    const lijst = perPeriode.get(n) ?? [];
-    return lijst.length === 0 ? null : lijst.reduce((a, b) => a + b, 0) / lijst.length;
-  };
+  const periodes = brandScorePerPeriod((scoreRows ?? []) as BrandScoreRow[]);
 
-  return milestones({
-    startedAt: (accountRow?.started_at as string | null) ?? null,
-    eersteScore: periodes.length > 0 ? gemiddelde(periodes[0]) : null,
-    laatsteScore: periodes.length > 0 ? gemiddelde(periodes[periodes.length - 1]) : null,
-    metingen: periodes.length,
+  return {
+    milestones: milestones({
+      startedAt: (accountRow?.started_at as string | null) ?? null,
+      eersteScore: periodes.length > 0 ? periodes[0].score : null,
+      laatsteScore: periodes.length > 0 ? periodes[periodes.length - 1].score : null,
+      metingen: periodes.length,
+      gepubliceerd: gepubliceerd ?? 0,
+      // Besluit 16: optioneel. Staat er geen bedrag, dan toont het blok aantallen.
+      waardePerVermelding: (accountRow?.value_per_mention_eur as number | null) ?? null,
+    }),
     gepubliceerd: gepubliceerd ?? 0,
-    // Besluit 16: optioneel. Staat er geen bedrag, dan toont het blok aantallen.
-    waardePerVermelding: (accountRow?.value_per_mention_eur as number | null) ?? null,
-  });
+  };
 }

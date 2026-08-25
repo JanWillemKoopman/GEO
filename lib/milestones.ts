@@ -73,28 +73,45 @@ export function milestones(input: MilestoneInput): Milestone[] {
   ];
 }
 
+/**
+ * Hoe lang dit loopt.
+ *
+ * ── ⚠️ DE DATUM IS GEEN MEETWAARDE (25 AUGUSTUS 2026) ───────────────────────
+ *
+ * Hier stond de startdatum als hoofdwaarde: "11 augustus 2026", gezet in de
+ * cijfermono van `stat-value`. Naast "+30 punten" en "1" was dat het breedste
+ * element van de rij, dus het trok de meeste aandacht van drie getallen terwijl
+ * het als enige geen prestatie is. Een datum is een feit, geen opbrengst.
+ *
+ * Nu draagt de hoofdwaarde de verstreken tijd, net als de twee kolommen ernaast
+ * een getal dragen, en zakt de datum naar de detailregel waar hij thuishoort.
+ */
 function duurMilestone(startedAt: string | null, now: Date): Milestone {
   if (!startedAt) {
     return {
       waarde: "Nog niet",
-      label: "Actief sinds",
+      label: "Actief",
       detail: "Het abonnement is nog niet gestart.",
     };
   }
   const start = new Date(startedAt);
   if (Number.isNaN(start.getTime())) {
-    return { waarde: "Onbekend", label: "Actief sinds", detail: null };
+    return { waarde: "Onbekend", label: "Actief", detail: null };
   }
 
   const dagen = Math.max(0, Math.floor((now.getTime() - start.getTime()) / 86400000));
+  const maand = maandNummer(start, now);
   return {
-    waarde: start.toLocaleDateString("nl-NL", {
+    // "Maand 4 sinds de start", nooit "maand 4 van 12": besluit 7 maakte het
+    // abonnement doorlopend opzegbaar, en dan is een noemer een belofte over een
+    // looptijd die niet is afgesproken. Zelfde regel als in `plan-view.tsx`.
+    waarde: dagen < 31 ? `${dagen} dagen` : `Maand ${maand}`,
+    label: "Actief",
+    detail: `Sinds ${start.toLocaleDateString("nl-NL", {
       day: "numeric",
       month: "long",
       year: "numeric",
-    }),
-    label: "Actief sinds",
-    detail: dagen < 31 ? `${dagen} dagen onderweg` : `Maand ${maandNummer(start, now)} sinds de start`,
+    })}`,
   };
 }
 

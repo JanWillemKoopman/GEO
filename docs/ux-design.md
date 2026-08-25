@@ -1,14 +1,16 @@
 # UX & Design
 
 Leidend voor elk scherm. Tokens en primitieven staan in `app/globals.css`; dit document legt uit
-wat ze zijn en wanneer je welke gebruikt. **Peildatum: 24 augustus 2026.** De vormgeving zelf ging
+wat ze zijn en wanneer je welke gebruikt. **Peildatum: 25 augustus 2026.** De vormgeving zelf ging
 op 6 augustus over op het systeem van de NOVA-workspace (volledige verantwoording in
 `designsystem.md`); deze datum volgt de gedragspatronen die daarna zijn bijgekomen (statustaal,
 foutafhandeling, de content-editie, op 21 augustus de iconen in de zijbalk, en op 24 augustus de
 indeling van het merkoverzicht plus de vormgevingsronde erna, de regels voor een lange lijst en de
 uitvraag op "Vraagt jouw input", alle drie hieronder in §5). Later op 24 augustus kwam de
 narekening tegen Nova's eigen CSS erbij, met als grootste gevolgen een witte paginagrond en een
-donkere modus met een schakelaar (§2 hieronder, `designsystem.md` §2.1 en §10).
+donkere modus met een schakelaar (§2 hieronder, `designsystem.md` §2.1 en §10). Op 25 augustus
+kwam daar de ontwerpronde op het merkoverzicht bij: dat scherm is de bestemming na inloggen, en
+daaruit volgen drie regels die voor elke landingspagina gelden (§5 hieronder).
 
 > **Voor de tékst in die schermen geldt `docs/schrijfstijl.md`**: de tone-of-voice van ORBIT ENGINE,
 > afgeleid van InSpace Nova. Dit document gaat over hoe iets eruitziet, dat over hoe het klinkt.
@@ -250,7 +252,7 @@ noemde. Elk hoofdstuk beantwoordt nu één vraag:
 
 | Hoofdstuk | De vraag | Bestemmingen |
 |---|---|---|
-| Overzicht | Hoe sta ik ervoor en wat moet ik nu doen? | `/merk/[id]` |
+| Overzicht | Is er iets nieuws, en wat moet ik nu doen? | `/merk/[id]`, tevens de bestemming na inloggen |
 | Strategie | Wat gaan we doen, en wat is er al gemaakt? | Contentplan, Clusters, Bibliotheek |
 | Analytics | Wat zeggen de cijfers, en waarom? | Zichtbaarheid in AI, Zoekverkeer, Concurrenten, Mijn reputatie |
 | Merkprofiel | Wie ben ik volgens ORBIT ENGINE, en klopt dat? | Merkdossier, Bewerken, Vraagt jouw input |
@@ -329,12 +331,15 @@ actieve staat zit in het vlak eronder.
 
 | Blok | Wat het beantwoordt |
 |---|---|
-| Kop | Welk merk, hoeveelste maand |
-| De stand | Eén cijfer, de marge eronder, en de drie zinnen van `insights()` als duiding erbij |
+| Kop | Welk merk, en hoe vers de meting is (aangescherpt op 25 augustus, hieronder) |
+| De stand | Eén cijfer, het verschil, de marge en de noemer, en de drie zinnen van `insights()` als duiding |
 | Wat er op jou wacht | Hooguit vijf regels, alleen de staat `nu`, doorklik naar de rest |
-| Waar begin je | De zes bovenste kansen, gesorteerd op wat ze opleveren |
-| Wat dit tot nu toe opleverde | De drie mijlpalen (besluit 7) |
-| Je contentplan · Wat ORBIT ENGINE deze week deed | Op `lg` naast elkaar, want allebei smal van inhoud |
+| Waar begin je | De zes bovenste kansen, de eerste gemarkeerd |
+| Wat dit opleverde | De drie mijlpalen (besluit 7), weg in de eerste maand |
+| Je contentplan · Wat ORBIT ENGINE deed | Op `lg` naast elkaar, want allebei smal van inhoud |
+
+⚠️ **De ronde van 25 augustus hieronder scherpt de vorm van deze blokken aan.** De volgorde
+hierboven blijft; wat eronder staat vervangt de vormgeving ervan, niet de indeling.
 
 ⚠️ **Eén hoofdgetal, en dat was het niet.** De zichtbaarheid stond vier keer op dit scherm: in de
 subkop, in de stand-kaart, in de mijlpalen en in de maandinzichten, in drie verschillende schalen
@@ -343,8 +348,9 @@ eigen blok meer maar staan ín de stand-kaart, en `lib/insights.ts` laat het get
 meting: daar staat het immers vlak boven. Bij twee metingen blijven de cijfers wél staan, want dan
 gaat de zin over het verschil en dat is nieuwe informatie.
 
-⚠️ **De chip achter een werkregel volgt de soort werk** (`workChipTone()` in `lib/work-kind.ts`,
-doorgegeven via `lib/work.ts`). Alle
+⚠️ **De toon van een werkregel volgt de soort werk** (`workChipTone()` in `lib/work-kind.ts`,
+doorgegeven via `lib/work.ts`). Sinds 25 augustus draagt de KAART die toon (`card-danger`) in plaats
+van een chip; het onderscheid zelf blijft precies zoals hier beschreven. Alle
 vijf de soorten stonden op `chip-warning`, waardoor "Bekijk wat er mis is" er precies zo uitzag als
 "Nakijken". §2: `attention` vraagt een keuze en is niet fout, `danger` is een blokkade of iets dat
 niet gelukt is. Een storing die eruitziet als een routineklus blijft liggen.
@@ -388,11 +394,123 @@ de bovenste toevallig het hoofdgetal van het merk droeg. Zes ingrepen, allemaal 
 | Kaarttitels van 500 naar 600, het hoofdgetal naar 700 | Titel en toelichting leken even zwaar; het cijfer dat het antwoord van het scherm is, was niet het zwaarste element van zijn kaart | `designsystem.md` §3.1 |
 | De potentiechip rechts uitgelijnd, en minder rond | Hij draagt het getal waarop de lijst gesorteerd is, dus hij hoort in één kolom te staan en niet achter elke titel op een andere plek | `designsystem.md` §5.1 |
 
+⚠️ **De laatste regel is op 25 augustus ingehaald.** De kolom rechts klopte, de inhoud niet: bij een
+merk met één onderwerp kan de potentiescore niet variëren en stond er zes keer hetzelfde getal. De
+kolom is gebleven, de chip is vervangen door wat wél verschilt. Zie de ronde hieronder.
+
 ⚠️ **Vier van de zes gelden voor de hele app en niet voor dit scherm.** De chipvorm, de gewichten
 en de twee icoonregels staan in `globals.css` en in gedeelde componenten, en zijn in dezelfde ronde
 doorgevoerd op `/merk/[id]/analytics` (hetzelfde hoofdgetal, dezelfde stang) en op `WorkRow`
 (dezelfde werkregels, dezelfde iconen). Een vormgevingsregel die maar op één scherm geldt, is geen
 regel maar een uitzondering, en die groeien vanzelf terug uit elkaar.
+
+### Het overzicht is de landingspagina, en dat verandert de regels (25 augustus 2026)
+
+`app/page.tsx` stuurt na inloggen door naar `/merk/[id]`, bij één merk zonder tussenstap. Dit is dus
+niet een scherm dat je opzoekt maar het scherm dat je élke sessie als eerste ziet. Drie regels
+volgen daaruit, en ze gelden voor elke toekomstige landingspagina.
+
+**1. Zeg hoe vers het is.** Er wordt maandelijks gemeten (`vercel.json`, `0 6 1 * *`) en de klant
+kijkt vaker. Zonder meetdatum ziet hij vier weken achter elkaar dezelfde 57% zonder te weten dát het
+dezelfde meting is, en dan wordt inloggen zinloos. De beschrijving onder de merknaam was een
+opsomming van de blokken eronder ("hoe zichtbaar je bent, wat er op je wacht en waar je begint") en
+zei op elk bezoek hetzelfde. Nu: "Je nieuwste meting is van 15 augustus. De volgende draait op 1
+september" (`lib/overview.ts`, `versheidsregel`). Kost geen query: `visibility_scores.computed_at`
+stond er al.
+
+**2. Eén primaire knop, en die hoort bij de klant.** Er stond er geen enkele. De enige verzadigde
+kleur op het scherm was een chip, en een chip is een etiket: het scherm vroeg nergens om een klik.
+De primaire knop staat nu op de wachtrijregel, want dat is het enige waar de klant vandaag iets aan
+kan doen. De eerste kans krijgt bewust `btn-outline`. Een tweede primaire knop laat de klant kiezen
+welke van de twee de hoofdactie is, en dan is er geen. `scripts/test-unit.ts` telt ze.
+
+**3. De half gevulde staat is de eerste indruk, geen randgeval.** Bij één meting en zonder
+contentplan stonden er drie mijlpalen op nul, vier voortgangsbalken op nul en een ingeklapt blok
+zonder inhoud. Dat is precies het beeld waarop een nieuwe klant besluit of dit serieus is, en het
+meldde vooral wat er nog niet was. De verdiepingslaag valt nu weg tot hij iets te zeggen heeft, met
+één regel in de plaats: "ORBIT ENGINE meet opnieuw op 1 september. Dan staat hier wat je
+zichtbaarheid gedaan heeft" (`lib/overview.ts`, `isEersteMaand`).
+
+#### Eén hoofdgetal betekent ook: één rekensom
+
+De ronde van 24 augustus haalde het hoofdgetal terug naar één plek op het scherm. Het bleef in drie
+GETALLEN staan: de standkaart zei 57% (gewogen score, gewogen gemiddeld over de clusters), de duiding
+eronder zei "van 30 naar 60" en het opbrengstblok zei "+30 punten", allebei uit de ongewogen score,
+ongewogen gemiddeld. Drie rekensommen voor één begrip, nagerekend op Gasservice Brabant.
+
+`lib/brand-score.ts` doet die som nu één keer, gewogen op het aantal vragen per cluster, en de
+standkaart, `lib/insights-data.ts` en `lib/milestones-data.ts` lezen alle drie die uitkomst. De
+startpagina haalde `visibility_scores` ook nog een tweede keer zelf op; die query is weg.
+
+⚠️ **Dezelfde regel geldt voor elk scherm met een gedeeld kengetal.** Twee blokken die hetzelfde
+begrip tonen en het zelf uitrekenen, lopen uit elkaar zodra iemand er één aanpast.
+
+#### Een cijfer zonder richting is geen informatie
+
+Naast het getal staat een chip met het verschil, met de toon uit dezelfde toets als de zin eronder
+(`changeIsMeaningful`), zodat de chip nooit iets anders beweert dan de duiding. Blijft het verschil
+binnen de meetruis, dan zegt de chip "gelijk gebleven" met een streepje in plaats van "+5" met een
+pijl omhoog. Op de regel eronder: de marge én de noemer ("marge 42% tot 72% · gemeten over 30
+vragen"). De noemer stond nergens.
+
+⚠️ **Het verloopslijntje pas vanaf drie metingen.** Een lijn van twee punten toont geen vorm maar
+een richting, en die staat al in de chip. Twee elementen voor één mededeling, en het lijntje van 96
+pixels was de zwakste van de twee.
+
+#### Sectiekoppen zijn koppen, geen opgemaakte spans
+
+`mono-label` deed op dit scherm zeven taken tegelijk: paginakop, sectiekop, kaartlabel, metadata
+onder een titel, teller, legenda en doorkliklink. Een sectiekop en een regel metadata ín een kaart
+waren typografisch niet te onderscheiden, dus er was nergens zichtbaar waar een hoofdstuk begon. Dat
+is de goedkoopste oorzaak van "het voelt rommelig" die er is.
+
+`components/section-heading.tsx`: `type-section`, leeskleur, gewone zinsvorm, en een echte `h2`. Het
+scherm had één kop (`h1`) en daaronder acht naamloze blokken, dus wie met een schermlezer door de
+koppen springt sprong van de merknaam meteen naar het einde. `mono-label` houdt één taak over:
+metadata en labels bínnen een kaart.
+
+⚠️ **Het ritme drukt de groepering uit:** 32 pixels tussen secties, 12 binnen een sectie. Het was
+overal 24, dus nergens stond in witruimte dat zes kansen bij elkaar horen en het opbrengstblok een
+nieuw hoofdstuk is. Het laadskelet volgt diezelfde maten, anders springt het scherm op het moment
+dat de data binnenkomt.
+
+#### Toon alleen wat onderscheidt
+
+De kansenlijst was zes kaarten van gelijke maat en gelijk gewicht, elk met rechtsboven een groene
+chip die bij Gasservice Brabant zes keer exact "Potentie 68/100 (hoge)" zei. De potentiescore is
+zichtbaarheidsgat × zoekvolume, het zoekvolume hoort bij het ONDERWERP, en dit merk heeft er één:
+die chip kón daar niet variëren. Hij beloofde een rangorde die er niet was, stond in groen terwijl
+hij een gát markeert, en kostte de meest opvallende plek van elke kaart.
+
+| Wat | Nu |
+|---|---|
+| De potentiechip | Alleen als er binnen de lijst meer dan één waarde voorkomt, en dan `chip-neutral` (`potentieVarieert`) |
+| Rechts in de kolom | Wat wél verschilt: "3 van 30 vragen" (`reachShort`), volle zin in de tooltip |
+| Onder de titel | De soort werk als woord ("Pagina bijwerken") plus het pad van de pagina |
+| De linktekst | "Werk deze pagina bij" in plaats van "Werk https://... bij" |
+| De vorm | De eerste kans is een kaart met stang, de rest is één lijst met scheidingslijnen |
+
+⚠️ **Er zijn precies twee stangen op dit scherm:** de standkaart en de eerste kans. Een derde en de
+stang markeert niets meer.
+
+#### Twee tellingen die elkaar tegenspreken, gelden als een fout
+
+"1 · Pagina gepubliceerd" stond op hetzelfde scherm als "Nog geen van je 120 geplande pagina's staat
+live". Allebei waar: de eerste pagina van Gasservice Brabant is geschreven vóórdat het contentplan
+bestond en hangt aan geen enkele planregel. Voor de klant zijn het twee tellingen van hetzelfde ding
+die elkaar tegenspreken, en dan gelooft hij geen van beide. `lib/overview.ts` (`planRegels`) benoemt
+het verschil in plaats van het te laten raden.
+
+#### De verdieping, opnieuw ingedeeld
+
+| Wat | Waarom |
+|---|---|
+| De drie mijlpalen werden één kaart met scheidingslijnen | Drie kaders naast elkaar die één ding zeggen, op een scherm met nog vijf kaders |
+| De startdatum is niet meer de hoofdwaarde | "11 augustus 2026" in de cijfermono was het breedste element van een rij met drie getallen, terwijl het als enige geen prestatie is. Nu de looptijd, met de datum eronder |
+| Vier voortgangsbalken werden één | Ze stonden alle vier op 0%: vier lege banen en vijf keer het woord nul. De fases staan er nu als tellingen; één balk draagt de voortgang van het hele plan |
+| Het activiteitenblok toont zijn eerste drie regels | Het was één dichte accordeon met 400 pixels leegte eronder, naast een kaart van 500 pixels. Dat oogt als een fout in de indeling, niet als een keuze |
+| De wachtrijregel toont `WorkItem.why` | Er stond `analysisName`, in de praktijk een rauw adres in hoofdletters. Het scherm toonde het minst bruikbare veld en gooide het bruikbaarste weg |
+| De toon van de soort werk zit op de kaart | `card-danger` bij een blokkade, in plaats van een chip van 60 pixels. Het onderscheid uit §2 blijft, maar draagt verder |
 
 ### De fase van een merk (19 augustus 2026)
 

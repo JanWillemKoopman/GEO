@@ -1,8 +1,15 @@
 import Link from "next/link";
 import { Icon } from "@/components/icon";
 import type { Insight } from "@/lib/insights";
-import { OPPORTUNITY_ICON, reachLabel, type Opportunity } from "@/lib/opportunities";
-import { potentialBand, POTENTIAL_BAND_LABEL } from "@/lib/potential";
+import {
+  OPPORTUNITY_ACTION_LABEL,
+  OPPORTUNITY_ICON,
+  paginaPad,
+  potentieVarieert,
+  reachLabel,
+  reachShort,
+  type Opportunity,
+} from "@/lib/opportunities";
 
 /**
  * De twee blokken van fase 6: wat er gebeurde, en waar je begint.
@@ -24,13 +31,6 @@ const TOON_KLEUR: Record<Insight["toon"], string> = {
   goed: "var(--intent-growth-solid)",
   let_op: "var(--intent-warning-solid)",
   neutraal: "var(--border-strong)",
-};
-
-const POTENTIAL_CHIP_TONE: Record<ReturnType<typeof potentialBand>, string> = {
-  hoog: "chip-success",
-  gemiddeld: "chip-info",
-  beperkt: "chip-neutral",
-  onbekend: "chip-neutral",
 };
 
 /**
@@ -83,6 +83,19 @@ export function InsightLines({ insights }: { insights: Insight[] }) {
  * Adviezen zaten verspreid over het rapport, de onderwerpenlijst en de
  * technische audit. Elk daarvan is op zichzelf te volgen, maar samen
  * beantwoordden ze de enige vraag die de klant echt stelt niet: waar begin ik.
+ *
+ * ── ⚠️ ZES GELIJKE KAARTEN WERDEN ÉÉN KANS PLUS EEN LIJST (25 AUGUSTUS 2026) ─
+ *
+ * Er stonden zes kaarten van gelijke maat, gelijk gewicht en gelijke kleur onder
+ * elkaar, samen zo'n 700 pixels. Elk met rechtsboven een groene chip die bij
+ * Gasservice Brabant zes keer exact "Potentie 68/100 (hoge)" zei. Die chip
+ * beloofde een rangorde die er niet was (zie `potentieVarieert`), stond in
+ * groen terwijl hij een gát markeert, en kostte de plek waar iets had kunnen
+ * staan dat wél verschilt.
+ *
+ * Nu draagt de eerste regel het gewicht en is de rest een lijst. Wat de rijen
+ * onderscheidt staat rechts: hoeveel gemeten vragen de kans raakt. Wat voor werk
+ * het is, staat als woord onder de titel in plaats van alleen als tekening.
  */
 export function OpportunitiesBlock({
   opportunities,
@@ -110,77 +123,41 @@ export function OpportunitiesBlock({
 
   const zichtbaar = opportunities.slice(0, limiet);
   const rest = opportunities.length - zichtbaar.length;
+  // De chip verschijnt alleen als hij twee kansen uit elkaar houdt. Zie
+  // `potentieVarieert` voor waarom dat bij één onderwerp nooit zo is.
+  const toonPotentie = potentieVarieert(zichtbaar);
+
+  const [eerste, ...overige] = zichtbaar;
 
   return (
     <div className="flex flex-col gap-3">
-      <ul className="flex flex-col gap-2">
-        {zichtbaar.map((o) => {
-          // Fase 2, docs/tasks/potentiescore.md: de potentiescore is
-          // vergelijkbaar over alle onderwerpen van dit merk en gaat daarom
-          // voor. Het aantal geraakte vragen is het vangnet zolang dit merk nog
-          // geen enkele profielbrede herberekening had.
-          const band = potentialBand(o.potential);
-          const omvang = reachLabel(o.raakt, o.gemeten);
-          return (
-            <li key={o.id} className="card flex gap-3">
-              {/* ⚠️ Het icoon staat in de leeskleur en niet in de merkkleur.
-                  Twaalf paarse tekeningen onder elkaar trekken de blik naar de
-                  linkerrand, terwijl de titel het antwoord draagt
-                  (`docs/designsystem.md` §6b.2: currentColor, altijd). Het
-                  verschil tussen "nieuwe pagina" en "bestaande pagina
-                  bijwerken" zit in de tekening, niet in een tint. */}
-              <span className="pt-0.5 text-secondary">
-                <Icon naam={OPPORTUNITY_ICON[o.handeling]} size={18} />
-              </span>
-              <span className="flex min-w-0 flex-1 flex-col gap-1">
-                {/* De chip rechts uitgelijnd op dezelfde regel als de titel: hij
-                    draagt het getal waarop deze lijst gesorteerd is, dus hij
-                    hoort in één kolom te staan en niet achter elke titel op een
-                    andere plek. */}
-                <span className="flex items-start justify-between gap-3">
-                  <span className="font-semibold">{o.title}</span>
-                  {o.potential !== null ? (
-                    <span className={`chip shrink-0 ${POTENTIAL_CHIP_TONE[band]}`}>
-                      Potentie {o.potential}/100 ({POTENTIAL_BAND_LABEL[band].replace(" potentie", "")})
-                    </span>
-                  ) : (
-                    omvang && <span className="chip chip-info shrink-0">{omvang}</span>
-                  )}
-                </span>
-                {/* Leeg als het vangnet de hele modeltekst heeft weggelaten. Dan
-                    staat er niets in plaats van een half afgebroken zin. */}
-                {o.why && <span className="text-sm text-secondary">{o.why}</span>}
-                {/* De handeling IS de link. Er stond een vette regel met daarnaast
-                    een los "Ga erheen": twee elementen voor één stap, en het
-                    klikbare deel was het deel dat niet zei wat er ging gebeuren.
+      {/* De eerste kans is het antwoord op "waar begin je". Hij krijgt de
+          stang, een grotere titel en de enige knop van deze lijst. */}
+      <div className="card card-rail">
+        <KansRegel kans={eerste} toonPotentie={toonPotentie} eerste />
+      </div>
 
-                    ⚠️ In de leeskleur, met een pijl erachter. De merkkleur is in
-                    dit product de kleur van de primaire knop; twaalf paarse
-                    regels onder elkaar maken van een lijst een muur van
-                    gelijkwaardige hoofdacties. Onderstrepen bij hover en het
-                    pijltje zeggen dat het klikbaar is. */}
-                <span className="pt-1 text-sm font-semibold">
-                  {o.href ? (
-                    <Link
-                      href={o.href}
-                      className="inline-flex items-center gap-1.5 hover:underline"
-                    >
-                      {o.action}
-                      <Icon naam="naar" size={14} />
-                    </Link>
-                  ) : (
-                    o.action
-                  )}
-                </span>
-              </span>
+      {overige.length > 0 && (
+        <ul className="card flex flex-col gap-0 py-0">
+          {overige.map((o) => (
+            <li
+              key={o.id}
+              className="border-t border-[var(--border-subtle)] py-4 first:border-t-0"
+            >
+              <KansRegel kans={o} toonPotentie={toonPotentie} />
             </li>
-          );
-        })}
-      </ul>
+          ))}
+        </ul>
+      )}
+
       {rest > 0 &&
         (restHref ? (
-          <Link href={restHref} className="mono-label w-fit hover:underline">
-            Nog {rest} {rest === 1 ? "kans" : "kansen"} met een kleiner effect
+          <Link
+            href={restHref}
+            className="inline-flex w-fit items-center gap-1.5 text-sm font-semibold hover:underline"
+          >
+            Bekijk de {rest === 1 ? "laatste kans" : `${rest} overige kansen`}
+            <Icon naam="naar" size={14} />
           </Link>
         ) : (
           <p className="text-sm text-muted">
@@ -188,6 +165,108 @@ export function OpportunitiesBlock({
             onbekend effect.
           </p>
         ))}
+    </div>
+  );
+}
+
+/**
+ * Eén kans: waar het over gaat, wat voor werk het is, en wat je doet.
+ *
+ * ⚠️ De eerste regel krijgt `btn-outline` en géén `btn-primary`. De enige
+ * primaire knop van dit scherm hoort bij wat er op de klant wácht (zijn eigen
+ * werk), niet bij een advies. Twee primaire knoppen op één scherm laten de
+ * klant kiezen welke van de twee nu de hoofdactie is, en dan is er geen.
+ */
+function KansRegel({
+  kans,
+  toonPotentie,
+  eerste = false,
+}: {
+  kans: Opportunity;
+  toonPotentie: boolean;
+  eerste?: boolean;
+}) {
+  // Kort in de kolom, de volle zin in de tooltip. Zie `reachShort`.
+  const omvang = reachShort(kans.raakt, kans.gemeten);
+  const omvangVol = reachLabel(kans.raakt, kans.gemeten);
+  const pad = paginaPad(kans.url);
+
+  return (
+    <div className="flex gap-3">
+      {/* ⚠️ Het icoon staat in de leeskleur en niet in de merkkleur. Twaalf
+          paarse tekeningen onder elkaar trekken de blik naar de linkerrand,
+          terwijl de titel het antwoord draagt (`docs/designsystem.md` §6b.2:
+          currentColor, altijd). Sinds 25 augustus 2026 staat het verschil tussen
+          nieuw werk en een correctie óók als woord in de regel eronder: een
+          tekening van 18 pixels alleen is te weinig om op te plannen. */}
+      <span className={`text-secondary ${eerste ? "pt-1" : "pt-0.5"}`}>
+        <Icon naam={OPPORTUNITY_ICON[kans.handeling]} size={eerste ? 20 : 18} />
+      </span>
+
+      <div className="flex min-w-0 flex-1 flex-col gap-1">
+        <div className="flex items-start justify-between gap-4">
+          <span className={eerste ? "text-lg font-semibold" : "font-semibold"}>{kans.title}</span>
+          {/* Rechts één kolom met wat de kansen onderling vergelijkbaar maakt.
+              De chip staat er alleen bij als de potentiescore in deze lijst
+              daadwerkelijk uiteenloopt, en dan neutraal: een gat dat te winnen
+              valt is geen goed nieuws, dus geen groen. */}
+          {(omvang || (toonPotentie && kans.potential !== null)) && (
+            <span className="flex shrink-0 flex-col items-end gap-1 text-right">
+              {omvang && (
+                <span className="mono-label" title={omvangVol ?? undefined}>
+                  {omvang}
+                </span>
+              )}
+              {toonPotentie && kans.potential !== null && (
+                <span className="chip chip-neutral">Potentie {kans.potential}/100</span>
+              )}
+            </span>
+          )}
+        </div>
+
+        {/* Wat voor werk dit is, en op welke pagina. Het volledige adres zit in
+            `title`, zodat hoveren het alsnog geeft; het pad is wat je leest. */}
+        <span className="mono-label flex flex-wrap items-center gap-x-2">
+          <span>{OPPORTUNITY_ACTION_LABEL[kans.handeling]}</span>
+          {pad && (
+            <>
+              <span aria-hidden>·</span>
+              <span className="truncate" title={kans.url ?? undefined}>
+                {pad}
+              </span>
+            </>
+          )}
+        </span>
+
+        {/* Leeg als het vangnet de hele modeltekst heeft weggelaten. Dan staat
+            er niets in plaats van een half afgebroken zin. */}
+        {kans.why && <span className="pt-0.5 text-sm text-secondary">{kans.why}</span>}
+
+        <span className="pt-2">
+          {kans.href ? (
+            eerste ? (
+              <Link href={kans.href} className="btn-outline btn-sm">
+                {kans.action}
+                <Icon naam="naar" size={14} />
+              </Link>
+            ) : (
+              // ⚠️ In de leeskleur, met een pijl erachter. De merkkleur is in dit
+              // product de kleur van de primaire knop; zes gekleurde regels onder
+              // elkaar maken van een lijst een muur van gelijkwaardige
+              // hoofdacties.
+              <Link
+                href={kans.href}
+                className="inline-flex items-center gap-1.5 text-sm font-semibold hover:underline"
+              >
+                {kans.action}
+                <Icon naam="naar" size={14} />
+              </Link>
+            )
+          ) : (
+            <span className="text-sm font-semibold">{kans.action}</span>
+          )}
+        </span>
+      </div>
     </div>
   );
 }

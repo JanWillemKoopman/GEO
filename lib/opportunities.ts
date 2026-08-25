@@ -126,6 +126,18 @@ export interface Opportunity {
   potential: number | null;
   /** Waar de knop heen gaat. Null = er is geen scherm voor. */
   href: string | null;
+  /**
+   * De bestaande pagina waar deze kans over gaat, als die er is.
+   *
+   * ⚠️ Los van `action`, en dat is de hele ingreep van 25 augustus 2026. De
+   * handeling luidde "Werk https://gasservice-brabant.nl/cv-ketel-onderhoud-tilburg/
+   * bij": een adres van zeventig tekens middenin de enige klikbare zin van de
+   * kaart. Vijf van die regels onder elkaar maken van een lijst een muur, en de
+   * klikbare tekst zei niet meer wat er ging gebeuren. Nu draagt `action` de
+   * handeling en dit veld het adres, zodat het scherm zelf kan kiezen hoe kort
+   * hij het adres toont.
+   */
+  url: string | null;
 }
 
 export interface OpportunityInput {
@@ -180,6 +192,7 @@ export function opportunities(input: OpportunityInput): Opportunity[] {
       share: null,
       potential: null,
       href: `/merk/${input.profileId}/analytics`,
+      url: null,
     });
   }
 
@@ -201,9 +214,8 @@ export function opportunities(input: OpportunityInput): Opportunity[] {
       // ⚠️ Het vangnet op de modeltekst (conventie 1). Zonder dit stond er "V1
       // en V2 hebben gewicht 0,60" op het scherm van de klant.
       why: leesbaarWaarom(r.why) ?? "",
-      action: bijwerken
-        ? `Werk ${r.existingUrl} bij`
-        : "Laat ORBIT ENGINE deze pagina schrijven",
+      // ⚠️ De handeling, zonder het adres erin. Zie `url` op de interface.
+      action: bijwerken ? "Werk deze pagina bij" : "Laat ORBIT ENGINE deze pagina schrijven",
       source: "meting",
       handeling: bijwerken ? "pagina_bijwerken" : "nieuwe_pagina",
       // Geen doelvragen betekent geen getal, niet nul: nul zou zeggen dat er
@@ -213,6 +225,7 @@ export function opportunities(input: OpportunityInput): Opportunity[] {
       share: gewichten.length > 0 ? som(gewichten) : null,
       potential: typeof r.potential === "number" ? r.potential : null,
       href: input.hasPlan ? `/merk/${input.profileId}/strategie/plan` : null,
+      url: bijwerken ? (r.existingUrl ?? null) : null,
     });
   }
 
@@ -235,6 +248,7 @@ export function opportunities(input: OpportunityInput): Opportunity[] {
       share: null,
       potential: null,
       href: input.hasPlan ? `/merk/${input.profileId}/strategie/plan` : null,
+      url: null,
     });
   }
 
@@ -251,6 +265,7 @@ export function opportunities(input: OpportunityInput): Opportunity[] {
       share: null,
       potential: null,
       href: `/analyses/aanbevolen?merk=${input.profileId}`,
+      url: null,
     });
   }
 
@@ -327,6 +342,94 @@ export function reachLabel(raakt: number | null, gemeten: number | null): string
   return `raakt ${raakt} van de ${gemeten} gemeten vragen`;
 }
 
+/**
+ * Dezelfde telling, kort genoeg voor een kolom rechts: "3 van 30 vragen".
+ *
+ * ── ⚠️ WAAROM NAAST `reachLabel` EN NIET IN PLAATS DAARVAN ──────────────────
+ *
+ * De volle zin ("raakt 3 van de 30 gemeten vragen") is 33 tekens en stond op het
+ * overzicht in een kolom rechts van de titel, in mono-kapitalen. Daar duwde hij
+ * de titel van de eerste kans over twee regels en werd hij zelf het breedste
+ * element van de rij, terwijl hij een terzijde is. De volle zin blijft bestaan
+ * voor plekken met ruimte, en hoort hier in het `title`-attribuut zodat hoveren
+ * hem alsnog geeft.
+ */
+export function reachShort(raakt: number | null, gemeten: number | null): string | null {
+  if (raakt === null || raakt <= 0) return null;
+  if (gemeten === null || gemeten < raakt) {
+    return raakt === 1 ? "1 vraag" : `${raakt} vragen`;
+  }
+  return `${raakt} van ${gemeten} vragen`;
+}
+
 function som(getallen: number[]): number {
   return getallen.reduce((a, b) => a + b, 0);
+}
+
+/**
+ * Wat voor werk een kans is, in één woordgroep.
+ *
+ * ── ⚠️ WAAROM DIT NAAST HET ICOON STAAT ─────────────────────────────────────
+ *
+ * Het verschil tussen "hier moet een nieuwe pagina komen" en "hier staat al iets
+ * dat aangevuld moet worden" zat tot 25 augustus 2026 uitsluitend in een
+ * tekening van 18 pixels in de leeskleur. Op het overzicht van Gasservice
+ * Brabant stonden zes kansen onder elkaar waarvan er twee nieuw werk waren en
+ * vier een correctie, en dat verschil bepaalt of je een uur of een dag kwijt
+ * bent. Een tekening alleen is te weinig om daarop te plannen
+ * (`docs/designsystem.md` §6b.3: het icoon versnelt het terugvinden en draagt de
+ * betekenis niet).
+ */
+export const OPPORTUNITY_ACTION_LABEL: Record<OpportunityAction, string> = {
+  nieuwe_pagina: "Nieuwe pagina",
+  pagina_bijwerken: "Pagina bijwerken",
+  publiceren: "Online zetten",
+  meten: "Meting starten",
+  deblokkeren: "Techniek",
+};
+
+/**
+ * Het pad van een adres, kort genoeg voor één regel: "/cv-ketel-onderhoud-tilburg/".
+ *
+ * ⚠️ Het volledige adres blijft bestaan en hoort in de `title` van het element,
+ * zodat hoveren het alsnog geeft. Dit is een leeshulp, geen vervanging: twee
+ * pagina's op twee domeinen met hetzelfde pad zouden hier hetzelfde tonen, en
+ * dat kan binnen één merk niet voorkomen omdat een aanbeveling altijd over de
+ * eigen site gaat.
+ */
+export function paginaPad(url: string | null): string | null {
+  if (!url) return null;
+  try {
+    const pad = new URL(url).pathname;
+    return pad === "" ? "/" : pad;
+  } catch {
+    // Geen geldig adres: dan liever het hele ding tonen dan niets. Conventie 3
+    // gaat over verzonnen waarden, niet over ruwe invoer die al klopte.
+    return url;
+  }
+}
+
+/**
+ * Zegt de potentiescore in DEZE lijst iets, of staat overal hetzelfde getal?
+ *
+ * ── ⚠️ HET GETAL DAT ZES KEER 68 ZEI ────────────────────────────────────────
+ *
+ * De potentiescore is zichtbaarheidsgat maal zoekvolume (`lib/potential.ts`), en
+ * het zoekvolume hoort bij het ONDERWERP. Een merk met één onderwerp heeft dus
+ * per definitie één zoekvolume, en aanbevelingen gaan over vragen die het merk
+ * nu mist, dus is het gat er ook overal 100%. Op het overzicht van Gasservice
+ * Brabant leverde dat zes identieke groene chips op: "Potentie 68/100 (hoge)",
+ * zes keer, op de meest opvallende plek van elke kaart, terwijl de lijst
+ * beweerde gesorteerd te zijn op wat de kansen opleveren.
+ *
+ * De chip verdwijnt daarom zodra hij niets onderscheidt. Hij blijft staan bij
+ * een merk met meerdere onderwerpen, want dáár vergelijkt hij wél iets: dat is
+ * precies waarvoor de profielbrede herkalibratie gebouwd is
+ * (docs/tasks/potentiescore.md).
+ */
+export function potentieVarieert(lijst: Pick<Opportunity, "potential">[]): boolean {
+  const waarden = new Set(
+    lijst.map((o) => o.potential).filter((p): p is number => typeof p === "number"),
+  );
+  return waarden.size > 1;
 }
