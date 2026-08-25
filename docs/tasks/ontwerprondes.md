@@ -16,6 +16,58 @@ dan de eigenaar van dat feit; hier staat waar hij vandaan kwam. Het besluit met 
 
 ---
 
+## Contentplan, `/merk/[id]/strategie/plan` · 26 augustus 2026 (dichtheidsronde)
+
+De indeling van de dag ervoor klopte, de dichtheid niet. Eén regel van maand 1 besloeg vijf regels
+tekst en droeg zeven bedieningen; tien van die blokken vulden anderhalf scherm zonder dat er meer
+in stond dan tien titels met een datum.
+
+### Wat er per regel af ging
+
+| Weg | Waarom |
+|---|---|
+| De keuzelijst "Verplaats naar…" | `.field` is 40 pixels hoog en volle breedte: op elke regel stond de bediening zwaarder in beeld dan de titel. Nu een menu achter drie puntjes |
+| De zin "ORBIT ENGINE schrijft pas als deze maand is vrijgegeven" | Stond tien keer. Het is een eigenschap van de MAAND en staat er nu één keer, boven de maand |
+| De chip "ORBIT ENGINE schrijft dit later" | Zei niets wat de datum ernaast niet al zei. Een chip verschijnt alleen nog als de regel iets anders doet dan wachten |
+| De kaartrand per regel | Een kaart in een kaart. De maand is de kaart, de regels zijn platte rijen met een scheidingslijn |
+| De twee pijlknoppen en twee tekstlinks | Naar hetzelfde menu. Ze stonden op elke regel en werden bijna nooit gebruikt |
+| De "Concept"-chip op een lege maand | Het zwaarste element van die regel, terwijl "leeg" er al stond |
+
+Resultaat: een geplande regel is in de normale gang van zaken **één regel** (greep, titel,
+funnelfase, datum, menu), en tien lege maanden zijn tien stille regels in plaats van tien kaarten.
+
+### Wat er níet is overgenomen uit de aangeleverde review
+
+Vier van de zeven voorstellen gingen over dingen die dit scherm niet heeft: velden "Vraagsoort" en
+"Thema", een blok "Basisinstellingen" met lange helptekst, een knop "Bewaar akkoord" zonder
+contrast, en een globale actiebalk "Updaten instellingen" die sticky zou moeten worden. Twee andere
+vroegen om iets dat er al stond: de statuschip naast de maandtitel en een primaire knop rechts in
+de maandkop. Alleen de eerste drie punten (kaartinflatie, herhalende zin, dichtgeklapte
+keuzelijsten) raakten het echte scherm, en die zijn alle drie doorgevoerd.
+
+### Ontwerpregels die hieruit volgen, ook elders
+
+16. **Een mededeling die voor alle regels geldt, hoort boven de lijst en niet in de lijst.** Tien
+    keer dezelfde zin leest een mens één keer, en daarna leest hij de zinnen die wél verschillen
+    ook niet meer. `sharedNotice()` in `lib/plan-overview.ts` doet de bepaling.
+17. **Bediening die je zelden gebruikt, weegt niet zwaarder dan inhoud die je altijd leest.** Een
+    `.field` per rij is 40 pixels bediening tegen 20 pixels titel. Zelden gebruikt gaat achter een
+    menu, mits dat menu met het toetsenbord bereikbaar blijft.
+18. **Een statuschip die op elke regel hetzelfde zegt, is geen status maar behang.** Toon hem
+    alleen als de regel afwijkt van de normale gang van zaken.
+19. **Gebruik de `type-`-klassen, nooit Tailwinds `text-*`-maten.** `text-base` is in dit project
+    een KLEUR (`--color-base`), geen tekstgrootte. Zie `docs/designsystem.md` §3.2.
+
+### Hoe het resultaat bekeken is
+
+Opnieuw met een wegwerpharnas, zoals de ronde ervoor: `renderToStaticMarkup` op het échte
+component met stubs voor `next/navigation`, `next/link` en de toast, de CSS gebouwd met
+`npx @tailwindcss/cli -i app/globals.css`, en een schermafbeelding met Playwright in beide standen.
+Dat harnas vond de kleurenvalstrik van regel 19 in vijf minuten; hij was in code niet te zien, want
+`text-base` compileert prima. **Bewust niet gecommit**, zelfde reden als vorige keer.
+
+---
+
 ## Contentplan, `/merk/[id]/strategie/plan` · 25 augustus 2026
 
 Aanleiding: "ik vind het plannen van content nog heel onoverzichtelijk, ik wil zelf bepalen welke

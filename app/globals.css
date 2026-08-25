@@ -680,6 +680,14 @@
 
 /* Tailwind-utilities koppelen aan de tokens (v4 @theme inline). */
 @theme inline {
+  /* ⚠️ LET OP, DEZE EERSTE REGEL IS EEN VALSTRIK. Uit `--color-base` maakt
+     Tailwind de klasse `text-base`, en die zet dus een KLEUR
+     (`color: var(--bg-base)`) en niet de tekstgrootte van 1rem die je in elk
+     ander Tailwind-project krijgt. Wie `text-base` schrijft voor "gewone
+     tekstgrootte" krijgt in de donkere stand letters in de kleur van de
+     paginagrond, dus onleesbaar. Dat gebeurde op 26 augustus 2026 met de kop
+     "Beschikbaar" op het contentplan. Gebruik de `type-`-klassen hierboven voor
+     typografie; ze zijn er precies om dit soort botsingen te voorkomen. */
   --color-base: var(--bg-base);
   --color-muted-surface: var(--bg-muted);
   --color-elevated: var(--bg-elevated);

@@ -223,3 +223,31 @@ export function contentHref(
   if (!contentPieceId || !analysisId) return null;
   return `/analyses/${analysisId}/bibliotheek/${contentPieceId}?van=plan`;
 }
+
+/**
+ * De melding die voor de HELE maand geldt, in plaats van tien keer per maand.
+ *
+ * ── HET PROBLEEM DAT DIT OPLOST ─────────────────────────────────────────────
+ *
+ * Op het scherm van Gasservice Brabant stond bij elk van de tien regels van
+ * maand 1 dezelfde oranje zin: "ORBIT ENGINE schrijft pas als deze maand is
+ * vrijgegeven". Dat is geen eigenschap van die regel maar van de maand, en tien
+ * keer dezelfde zin leest een mens één keer en negeert hij daarna. Erger: hij
+ * verdringt de meldingen die wél per regel verschillen, zoals "start eerst de
+ * meting van dit onderwerp".
+ *
+ * Deze functie zegt welke melding door ALLE regels gedeeld wordt. Die gaat naar
+ * de maandkop; de rest blijft per regel staan.
+ *
+ * ⚠️ Alleen bij unanimiteit. Geldt de melding voor negen van de tien regels, dan
+ * is hij géén eigenschap van de maand en blijft hij per regel staan, want anders
+ * verhuist er een mededeling naar de kop die voor één regel niet klopt.
+ *
+ * Puur, dus testbaar (conventie 2).
+ */
+export function sharedNotice(meldingen: (string | null)[]): string | null {
+  if (meldingen.length === 0) return null;
+  const eerste = meldingen[0];
+  if (!eerste) return null;
+  return meldingen.every((m) => m === eerste) ? eerste : null;
+}
