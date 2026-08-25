@@ -1207,7 +1207,12 @@ table {
      die sinds de omzetting allemaal `--radius-md` hebben. */
   border-radius: var(--radius-sm);
   background-color: var(--intent-intelligence-surface);
-  color: var(--intent-intelligence-text);
+  /* ⚠️ Vaste kleur, niet `--intent-intelligence-text`. In de donkere stand is
+     die variabele #ad45ff op een chipvlak van #42006d: 3,49:1, ruim onder de
+     4,5:1 die WCAG AA eist voor tekst van dit formaat (12px, dus geen "grote
+     tekst"-uitzondering). #dbcce7 op datzelfde vlak haalt 9,5:1. In de lichte
+     stand (#8511d9 op #faf4ff, 6,32:1) verandert er niets aan de leesbaarheid. */
+  color: #dbcce7;
   border: var(--border-width-xs) solid var(--intent-intelligence-border);
 }
 .chip-success {
@@ -1244,6 +1249,30 @@ table {
   background-color: var(--intent-growth-surface);
   color: var(--intent-growth-text);
   border-color: var(--intent-growth-border);
+}
+/* Twee andere varianten haalden in de donkere stand ook net geen 4,5:1 op hun
+   eigen chipvlak: .chip-attention #f6339a op #510424 is 4,21:1, .chip-danger
+   #fb2c36 op #460809 is 4,25:1. Op de algemene paginatekst zijn diezelfde
+   kleuren wel voldoende leesbaar, dus de globale variabele blijft ongemoeid;
+   alleen op het diepere chipvlak krijgen ze hier een wittere tint (5,4:1 en
+   5,9:1). De andere vier chipvarianten haalden al ruim boven 4,5:1. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    .chip-attention {
+      color: #f743a2;
+    }
+    .chip-danger {
+      color: #fb3d46;
+    }
+  }
+}
+:root[data-theme="dark"] {
+  .chip-attention {
+    color: #f743a2;
+  }
+  .chip-danger {
+    color: #fb3d46;
+  }
 }
 
 /* ── Invoervelden ──────────────────────────────────────────────────────────
