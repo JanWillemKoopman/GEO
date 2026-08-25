@@ -131,6 +131,8 @@ probleem dan een dollar.
 | `fact_requests` | De briefingvragen aan de klant, max 8 per batch. `scope: 'merk'` slaat op met `analysis_id = null`. Ook de open punten uit de synthese staan hier, herkenbaar aan `raw_json.bron = 'synthese-gap'`; dat merkje bepaalt dat hun antwoord géén tweede regel in `profiles.proof_points` krijgt (het bereikt de schrijver al via `buildFactBase()`, en dan mét de juiste bron). |
 | `content_pieces` | Gegenereerde pagina's. Versiebeheer per (analyse, titel) via `version`/`is_current`/`supersedes_id`, plus `briefing_snapshot_json`, `claims_json`, `source_coverage`, `quality_score`, `geo_score`, `needs_review`, `reviewed_at`/`reviewed_by`. `faq_json` is sinds de content-editie (§5, stap 16) ook door de klant bewerkbaar via de PATCH-route, niet alleen door het model. |
 | `content_impact` | Hermeetgolven na publicatie + statistisch verdict. |
+| `content_plans` / `plan_months` | Het contentplan (`0049`): één lopende versie per merk, twaalf maanden. `pages_per_month` is een KOPIE van het pakket, geen verwijzing: wie halverwege upgradet hoort niet met terugwerkende kracht een ander plan te krijgen. Een vorige versie gaat op `gestopt` en blijft staan (conventie 8). |
+| `planned_pages` | Twee toestanden in één tabel (`0065`): met een `plan_month_id` staat de pagina ingepland, zonder staat hij in de **voorraad**. Inplannen verandert alleen de maand en de datum, dus de kaart houdt zijn status, zijn `content_piece_id` en zijn geschiedenis. `source` zegt waar hij vandaan komt (`aanbeveling` = een gemeten kans uit een rapport), `source_ref` (`"<rapport-id>#<volgnummer>"`) maakt het vullen idempotent, en `why`/`target_intent`/`existing_url`/`recommendation_action` dragen de briefing die anders opnieuw bedacht zou moeten worden. `potential` is de opgeslagen potentiescore, ververst bij elke synchronisatie. |
 | `technical_audits` | Kunnen AI-crawlers de site bereiken (robots.txt vs GPTBot, CCBot, …). Geen AI. |
 | `source_landscape` / `offsite_tasks` | Off-site aanwezigheid: welke externe domeinen relevant zijn en of het merk er staat. |
 | `jobs` | De wachtrij. |
@@ -155,6 +157,33 @@ probleem dan een dollar.
   `draftContentPiece()` stelt de "is dit een hervatting?"-vraag alleen voor `draft`.
 - `needs_review = true` betekent "nog niet vrijgegeven"; `reviewed_at`/`reviewed_by` leggen vast
   dát iemand keek en wie. Zonder die twee betekende `needs_review = false` twee dingen tegelijk.
+
+### Het contentplan: een voorraad, geen jaarverdeling (25 augustus 2026, migratie `0065`)
+
+Tot 25 augustus verdeelde `buildPlan()` het hele jaar vooruit: elk onderwerp × elke funnelfase,
+uitgesmeerd over twaalf maanden. Bij Gasservice Brabant leverde dat 120 rijen op uit **28 unieke
+titels**, dus elke titel stond er vier tot vijf keer in. En 103 van die 120 hingen aan een cluster
+dat nooit gemeten is; schrijven leunt op de gemiste vragen uit een meting als briefing
+(`lib/plan-writing.ts`), dus die konden nooit beginnen. De rekenkunde klopte, de aanname eronder
+niet: dat er genoeg te schrijven vált zodra er onderwerpen zijn.
+
+Nu vullen alleen **gemeten kansen** de voorraad. `syncBacklog()` (`lib/plan-backlog-data.ts`) leest
+het laatste rapport per cluster en zet elke aanbeveling als kaart klaar, met de potentiescore die
+`loadRecommendationPotential()` over precies de doelvragen van die aanbeveling uitrekent. Dat draait
+bij elke opening van het planscherm, idempotent via `source_ref`, en verwijdert nooit iets: een
+aanbeveling die uit een nieuw rapport verdwijnt blijft staan, want anders zou ingepland werk zonder
+melding uit iemands plan vallen.
+
+`createPlan()` maakt twaalf **lege** maanden en vult alleen maand 1, met de sterkste kansen tot aan
+de quota. De rest van het jaar stelt de gebruiker zelf samen: `assignToMonth()` en `moveToBacklog()`
+verplaatsen kaarten, en `resequenceMonth()` (`lib/plan-schedule.ts`) hangt er daarna kloppende
+publicatiedata aan. De spreiding hangt af van het aantal pagina's in die maand en niet van de quota:
+er is bewust **geen bovengrens** aan wat je in één maand zet, het scherm zegt alleen hoeveel je
+boven je pakket zit.
+
+⚠️ De kalendermaand komt sinds `0065` uit `content_plans.started_on` plus het maandnummer, niet meer
+uit de vroegste publicatiedatum in die maand. Een lege maand had anders geen naam, en dat is precies
+de maand waar iemand iets in wil slepen.
 
 ## 4. De jobwachtrij
 
@@ -615,6 +644,10 @@ gepubliceerd moeten worden, krijgen een schrijftaak; de route plant alleen, de w
 een maand vrijgeven en een geschreven tekst goedkeuren zijn twee verschillende handelingen, en die
 deelden hiervoor één woord (`docs/ux-design.md` §5). De databasewaarde is niet mee hernoemd, want
 een statuswaarde omdopen raakt migraties, cron en tests voor alleen een etiket.
+De briefing komt sinds `0065` uit de kans zelf als die er is: bij handeling `verbeteren` gaat de
+bestaande URL mee de schrijfstap in, zodat er een pagina wordt aangevuld in plaats van een tweede
+pagina naast de eerste gezet. Hiervoor stond er onvoorwaardelijk `action: "nieuw"`, en dat zou bij
+Gasservice Brabant vier van de zeven kansen verkeerd hebben uitgevoerd.
 Wat er níet geschreven kan worden telt de route apart en verzwijgt hij niet: schrijven leunt op een
 gemeten analyse, en bij Van den Udenhout hebben zes van de acht onderwerpen er nog geen. De regel
 staat in `lib/plan-writing.ts` (`writeDecision`), de reden per pagina staat in het scherm. De brug

@@ -46,6 +46,12 @@ interface PageRow {
   scheduled_for: string | null;
   is_buffer: boolean;
   topic_id: string | null;
+  /** De velden van een gemeten kans (migratie 0065). Leeg bij een oude planpagina. */
+  source: string | null;
+  why: string | null;
+  target_intent: string | null;
+  recommendation_action: string | null;
+  existing_url: string | null;
   plan_months: { month_number: number; status: PlanMonthStatus } | null;
   profile_funnel_stages: { label: string } | null;
   profile_topics: {
@@ -75,6 +81,7 @@ export async function GET(request: Request) {
     .from("planned_pages")
     .select(
       `id, profile_id, title, page_type, status, scheduled_for, is_buffer, topic_id,
+       source, why, target_intent, recommendation_action, existing_url,
        plan_months!inner(month_number, status),
        profile_funnel_stages(label),
        profile_topics(title, analysis_id, analyses(status, user_id))`,
@@ -132,6 +139,19 @@ export async function GET(request: Request) {
       continue;
     }
 
+    // ── DE BRIEFING KOMT UIT DE KANS ZELF ALS DIE ER IS ──────────────────
+    //
+    // Een voorraaditem draagt de reden, de doelgroep en het adres van de
+    // aanbeveling mee (migratie 0065). Die zijn geschreven op basis van gemiste
+    // vragen uit een echte meting en dus scherper dan wat `planBriefing()` uit
+    // een onderwerp en een funnelfase kan afleiden.
+    //
+    // ⚠️ En het verschil is niet cosmetisch: bij een kans met handeling
+    // "verbeteren" hoort de schrijfstap een BESTAANDE pagina aan te vullen. Tot
+    // 25 augustus 2026 stond hier onvoorwaardelijk `action: "nieuw"` met
+    // `existingUrl: null`, dus vier van de zeven kansen van Gasservice Brabant
+    // zouden een tweede pagina hebben opgeleverd naast de pagina die ze hadden
+    // moeten verbeteren.
     const briefing = planBriefing({
       title: page.title,
       pageType: page.page_type,
@@ -139,6 +159,7 @@ export async function GET(request: Request) {
       funnelLabel: page.profile_funnel_stages?.label ?? null,
       monthNumber: maand.month_number,
     });
+    const uitKans = page.source === "aanbeveling";
 
     try {
       const { created, alreadyDone } = await planContentDraft(admin, {
@@ -147,8 +168,11 @@ export async function GET(request: Request) {
         plannedPageId: page.id,
         recommendation: {
           ...briefing,
-          action: "nieuw",
-          existingUrl: null,
+          why: uitKans && page.why ? page.why : briefing.why,
+          targetIntent:
+            uitKans && page.target_intent ? page.target_intent : briefing.targetIntent,
+          action: page.recommendation_action === "verbeteren" ? "verbeteren" : "nieuw",
+          existingUrl: page.recommendation_action === "verbeteren" ? page.existing_url : null,
           reportId: null,
         },
       });

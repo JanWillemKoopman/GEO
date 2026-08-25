@@ -4,6 +4,7 @@ import { requireUser } from "@/lib/auth";
 import { isStaff } from "@/lib/staff";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { loadPlan } from "@/lib/plans";
+import { backlogCount } from "@/lib/plan-backlog-data";
 import { PageHeader } from "@/components/page-header";
 import { PlanView } from "./plan-view";
 import { CreatePlanBox } from "./create-plan-box";
@@ -48,20 +49,20 @@ export default async function PlanPage({
 
   const quota = (account?.package_pages_per_month as number | null) ?? null;
 
-  const [{ count: topicCount }] = await Promise.all([
-    admin
-      .from("profile_topics")
-      .select("id", { count: "exact", head: true })
-      .eq("profile_id", id)
-      .neq("status", "afgewezen"),
-  ]);
+  // ⚠️ De voorwaarde voor een plan is niet meer "er zijn onderwerpen" maar "er
+  // is minstens één cluster gemeten". Een plan opstellen uit onderwerpen die
+  // nooit gemeten zijn, leverde precies de 120 rijen op waarvan er 103 een jaar
+  // lang op een meting stonden te wachten. Alleen tellen als er nog geen plan
+  // is: staat het scherm hieronder al, dan heeft `loadPlan()` de voorraad net
+  // gesynchroniseerd.
+  const kansen = bundle ? 0 : await backlogCount(admin, id);
 
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
         eyebrow="Strategie"
         title="Contentplan"
-        description="Twaalf maanden vooruit. Je geeft een maand vrij, ORBIT ENGINE begint tien dagen voor elke publicatiedatum met schrijven, en daarna keur jij elke tekst goed."
+        description="Links staat wat ORBIT ENGINE uit je metingen haalde, rechts staan je twaalf maanden. Sleep een kans naar de maand waarin hij geschreven moet worden."
       />
 
       {bundle ? (
@@ -70,6 +71,8 @@ export default async function PlanPage({
           plan={bundle.plan}
           months={bundle.months}
           pages={bundle.pages}
+          backlog={bundle.backlog}
+          metKansen={bundle.metKansen}
           funnels={bundle.funnels}
           topics={bundle.topics}
           staff={staff}
@@ -79,7 +82,7 @@ export default async function PlanPage({
           profileId={id}
           staff={staff}
           quota={quota}
-          topicCount={topicCount ?? 0}
+          kansCount={kansen}
           accountName={(account?.name as string | undefined) ?? null}
         />
       )}

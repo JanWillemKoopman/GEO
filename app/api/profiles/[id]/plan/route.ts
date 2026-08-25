@@ -9,9 +9,9 @@ import { checkBudgetForProfile } from "@/lib/spend-limit";
 /**
  * POST /api/profiles/[id]/plan, een contentplan opstellen.
  *
- * Geen AI-aanroep: `buildPlan()` verdeelt de onderwerpen die `propose_topics`
- * al gevonden heeft over maanden, typen en funnelfasen. Zie de toelichting
- * bovenaan `lib/pipeline/plan-build.ts`.
+ * Geen AI-aanroep: `createPlan()` maakt twaalf lege maanden, haalt de gemeten
+ * kansen op uit de rapporten en vult daarmee alleen maand 1. De rest van het jaar
+ * stelt de gebruiker zelf samen. Zie de toelichting bovenaan `lib/plans.ts`.
  *
  * ⚠️ Het aantal pagina's per maand komt uit het pakket op het ACCOUNT en niet
  * uit het verzoek. Zou de client dat mogen meesturen, dan is de quota een

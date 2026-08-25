@@ -3,13 +3,16 @@ import "server-only";
 /**
  * Het contentplan: aanmaken, lezen, goedkeuren, plaatsen.
  *
- * De rekenkant staat in `lib/pipeline/plan-build.ts` en de statustaal in
- * `lib/plan-status.ts`, allebei zonder `server-only` (conventie 2). Hier staat
- * alles wat de database raakt.
+ * De rekenkant staat in `lib/plan-schedule.ts` (kalender en publicatiedata) en
+ * `lib/plan-backlog.ts` (de voorraad), de statustaal in `lib/plan-status.ts`,
+ * alle drie zonder `server-only` (conventie 2). Hier staat alles wat de database
+ * raakt.
  */
 import { createAdminClient } from "@/lib/supabase/admin";
-import { buildPlan, DEFAULT_FUNNELS, MONTHS_AHEAD } from "@/lib/pipeline/plan-build";
-import { loadAnalysisPotential } from "@/lib/potential-data";
+import { DEFAULT_FUNNELS, MONTHS_AHEAD } from "@/lib/plan-constants";
+import { resequenceMonth, spreadDates, type HerplanRij } from "@/lib/plan-schedule";
+import { syncBacklog, meetbareVragenPerAnalyse } from "@/lib/plan-backlog-data";
+import { sortBacklog, type BacklogItem } from "@/lib/plan-backlog";
 import type { TopicWritingState } from "@/lib/plan-writing";
 import type {
   AnalysisStatus,
@@ -17,7 +20,6 @@ import type {
   FunnelStage,
   PlanMonth,
   PlannedPage,
-  ProfileTopic,
 } from "@/lib/types/database";
 
 type Admin = ReturnType<typeof createAdminClient>;
@@ -25,15 +27,42 @@ type Admin = ReturnType<typeof createAdminClient>;
 export interface PlanBundle {
   plan: ContentPlan;
   months: PlanMonth[];
+  /** Wat in een maand van DIT plan staat. */
   pages: PlannedPage[];
+  /** Wat beschikbaar is maar nog geen maand heeft, op potentie gesorteerd. */
+  backlog: BacklogItem[];
+  /**
+   * De clusters die al minstens één kans hebben opgeleverd, ingepland of niet.
+   *
+   * ⚠️ Niet af te leiden uit de voorraad alleen. Een cluster waarvan alle kansen
+   * al in een maand staan, zou dan als "nog niet gemeten" op het scherm komen,
+   * en dan staat er een meetknop bij een cluster dat net gemeten is.
+   */
+  metKansen: string[];
   funnels: FunnelStage[];
   topics: TopicWritingState[];
 }
 
-/** Het lopende plan van een merk, met alles eromheen. Null als er nog geen is. */
+/**
+ * Het lopende plan van een merk, met alles eromheen. Null als er nog geen is.
+ *
+ * ── DE VOORRAAD WORDT EERST BIJGEWERKT ──────────────────────────────────────
+ *
+ * `syncBacklog()` draait vóór het lezen, zodat een cluster dat gisteren gemeten
+ * is vandaag zijn kansen in de lijst heeft staan zonder dat iemand op een knop
+ * hoefde te drukken. Idempotent en licht (conventie 9); zet `sync` op false in
+ * tests die de voorraad zelf klaarzetten.
+ *
+ * ⚠️ De pagina's worden begrensd tot de maanden van DIT plan. Dat was een stille
+ * fout: `planned_pages` hangt aan het merk en niet aan de planversie, dus na een
+ * tweede planversie las het scherm ook de 132 rijen van de eerste mee. Zichtbaar
+ * werden ze niet (ze horen bij maanden die niet in dit plan zitten), maar de
+ * teller bovenaan telde ze wél mee.
+ */
 export async function loadPlan(
   admin: Admin,
   profileId: string,
+  opties: { sync?: boolean } = {},
 ): Promise<PlanBundle | null> {
   const { data: planRow } = await admin
     .from("content_plans")
@@ -47,36 +76,89 @@ export async function loadPlan(
   if (!planRow) return null;
   const plan = planRow as ContentPlan;
 
-  const [{ data: months }, { data: pages }, { data: funnels }, { data: topics }] = await Promise.all([
-    admin
-      .from("plan_months")
-      .select("*")
-      .eq("plan_id", plan.id)
-      .order("month_number"),
-    admin
-      .from("planned_pages")
-      .select("*")
-      .eq("profile_id", profileId)
-      .order("sort_order"),
-    admin
-      .from("profile_funnel_stages")
-      .select("*")
-      .eq("profile_id", profileId)
-      .order("sort_order"),
-    // Schrijven leunt op een gemeten analyse (`lib/plan-writing.ts`). Zonder
+  if (opties.sync !== false) await syncBacklog(admin, profileId);
+
+  const { data: monthRows } = await admin
+    .from("plan_months")
+    .select("*")
+    .eq("plan_id", plan.id)
+    .order("month_number");
+
+  const months = (monthRows ?? []) as PlanMonth[];
+  const monthIds = months.map((m) => m.id);
+
+  const [{ data: pages }, { data: voorraadRows }, { data: funnels }, { data: topics }] =
+    await Promise.all([
+      monthIds.length > 0
+        ? admin
+            .from("planned_pages")
+            .select("*")
+            .eq("profile_id", profileId)
+            .in("plan_month_id", monthIds)
+            .order("sort_order")
+        : Promise.resolve({ data: [] }),
+      // De voorraad hoort bij het MERK en niet bij de planversie: wat nog niet
+      // geschreven is, is niet van een plan maar van de klant. `afgewezen`
+      // blijft staan in de database (conventie 8) maar hoort niet in de lijst.
+      admin
+        .from("planned_pages")
+        .select("*")
+        .eq("profile_id", profileId)
+        .is("plan_month_id", null)
+        .neq("status", "afgewezen"),
+      admin
+        .from("profile_funnel_stages")
+        .select("*")
+        .eq("profile_id", profileId)
+        .order("sort_order"),
+      // Schrijven leunt op een gemeten analyse (`lib/plan-writing.ts`). Zonder
       // deze query kan het scherm alleen "Gepland" tonen bij een pagina die
       // nooit aan de beurt komt, en dat is de stilste manier om iemand te laten
       // wachten op iets wat niet gaat gebeuren.
-    admin
-      .from("profile_topics")
-      .select("id, title, analysis_id, analyses(status)")
-      .eq("profile_id", profileId),
-  ]);
+      admin
+        .from("profile_topics")
+        .select("id, title, analysis_id, analyses(status)")
+        .eq("profile_id", profileId),
+    ]);
+
+  const voorraad = (voorraadRows ?? []) as unknown as VoorraadRow[];
+
+  // De clusternamen apart ophalen in plaats van ze mee te joinen. Een geneste
+  // selectie zou korter zijn, maar dit pad draagt het hele planscherm: gaat de
+  // vorm van zo'n join ergens mis, dan valt het scherm om in plaats van dat er
+  // één naam ontbreekt.
+  const clusterIds = [
+    ...new Set(voorraad.map((v) => v.source_analysis_id).filter((id): id is string => Boolean(id))),
+  ];
+  const { data: clusterRows } = clusterIds.length
+    ? await admin.from("analyses").select("id, topic").in("id", clusterIds)
+    : { data: [] };
+  const clusterNaam = new Map(
+    ((clusterRows ?? []) as { id: string; topic: string | null }[]).map((c) => [c.id, c.topic]),
+  );
+
+  const { data: kansClusters } = await admin
+    .from("planned_pages")
+    .select("source_analysis_id")
+    .eq("profile_id", profileId)
+    .not("source_analysis_id", "is", null);
+  const gemeten = await meetbareVragenPerAnalyse(
+    admin,
+    [...new Set(voorraad.map((v) => v.source_analysis_id).filter((id): id is string => Boolean(id)))],
+  );
 
   return {
     plan,
-    months: (months ?? []) as PlanMonth[],
+    months,
     pages: (pages ?? []) as PlannedPage[],
+    backlog: sortBacklog(voorraad.map((rij) => naarBacklogItem(rij, gemeten, clusterNaam))),
+    metKansen: [
+      ...new Set(
+        ((kansClusters ?? []) as { source_analysis_id: string | null }[])
+          .map((r) => r.source_analysis_id)
+          .filter((id): id is string => Boolean(id)),
+      ),
+    ],
     funnels: (funnels ?? []) as FunnelStage[],
     topics: ((topics ?? []) as unknown as TopicRow[]).map((t) => ({
       topicId: t.id,
@@ -84,6 +166,46 @@ export async function loadPlan(
       analysisId: t.analysis_id,
       analysisStatus: t.analyses?.status ?? null,
     })),
+  };
+}
+
+/** Een voorraadrij zoals de query hem oplevert. */
+interface VoorraadRow extends PlannedPage {
+  source_analysis_id: string | null;
+  recommendation_action: string | null;
+  existing_url: string | null;
+  why: string | null;
+  target_intent: string | null;
+  target_count: number | null;
+  target_weight: number | null;
+  potential: number | null;
+}
+
+function naarBacklogItem(
+  rij: VoorraadRow,
+  gemeten: Map<string, number>,
+  clusterNaam: Map<string, string | null>,
+): BacklogItem {
+  return {
+    id: rij.id,
+    title: rij.title,
+    why: rij.why,
+    targetIntent: rij.target_intent,
+    cluster: rij.source_analysis_id ? (clusterNaam.get(rij.source_analysis_id) ?? null) : null,
+    clusterId: rij.source_analysis_id,
+    handeling:
+      rij.recommendation_action === "verbeteren"
+        ? "verbeteren"
+        : rij.recommendation_action === "nieuw"
+          ? "nieuw"
+          : null,
+    existingUrl: rij.existing_url,
+    // ⚠️ `Number()` en geen kale cast. Postgres levert `numeric` als tekst aan de
+    // JS-client, en een tekst sorteert alfabetisch: dan komt "9" boven "80".
+    potentie: rij.potential === null ? null : Number(rij.potential),
+    raakt: rij.target_count,
+    gemeten: rij.source_analysis_id ? (gemeten.get(rij.source_analysis_id) ?? null) : null,
+    gewicht: rij.target_weight === null ? null : Number(rij.target_weight),
   };
 }
 
@@ -140,18 +262,36 @@ export type CreatePlanResult =
   | { ok: false; problems: string[] };
 
 /**
- * Stelt een nieuw plan op.
+ * Stelt een nieuw plan op: twaalf lege maanden en een voorzet voor de eerste.
  *
- * ── WAAROM DE OUDE NIET WEGGEGOOID WORDT ────────────────────────────────────
+ * ── WAT HIER OP 25 AUGUSTUS 2026 IS VERDWENEN ───────────────────────────────
  *
- * Conventie 8: alles bewaren. Een vorige versie gaat op `gestopt` en blijft
- * staan. Nova doet dit ook (`purgeStrategyDescription`: "Posted and approved
- * content is kept"), en de reden is praktisch: als de klant halverwege zegt dat
- * het vorige plan beter was, moet dat terug te vinden zijn.
+ * De jaarverdeling. `buildPlan()` vulde alle twaalf maanden vooruit door elk
+ * cluster met elke funnelfase te combineren. Bij Gasservice Brabant leverde dat
+ * 120 rijen op uit 28 unieke titels: elke titel stond er vier tot vijf keer in.
+ * En van die 120 waren er 17 daadwerkelijk te schrijven, want zes van de zeven
+ * clusters zijn nooit gemeten en zonder meting heeft de schrijfstap geen
+ * briefing.
  *
- * ⚠️ Geplaatste en goedgekeurde pagina's van het oude plan blijven óók staan.
- * Ze horen bij hun oude maand, en die maand blijft bestaan. Alleen wat nog
- * `gepland` was wordt door het nieuwe plan vervangen.
+ * Een plan dat een jaar vooruit belooft wat het niet kan waarmaken, is geen
+ * planning maar decor. Wat ervoor in de plaats komt: de voorraad
+ * (`lib/plan-backlog-data.ts`) met alleen gemeten kansen, en een mens die zelf
+ * bepaalt welke daarvan in welke maand terechtkomen.
+ *
+ * ── WAAROM MAAND 1 TOCH EEN VOORZET KRIJGT ──────────────────────────────────
+ *
+ * Twaalf lege maanden zijn eerlijk maar doen niets. Het systeem hoort de eerste
+ * zet te doen en de mens hoort hem te kunnen overrulen (`docs/visie.md`: een
+ * stap die het systeem zelfstandig kan zetten gaat voor een stap die weer een
+ * handeling toevoegt). Dus: de kansen met de hoogste potentie vullen maand 1 tot
+ * aan de quota, de rest blijft in de voorraad staan. Zijn er minder kansen dan
+ * de quota, dan wordt maand 1 gewoon korter; er wordt niets bijverzonnen.
+ *
+ * ── WAAROM DE OUDE PLANVERSIE NIET WEGGEGOOID WORDT ─────────────────────────
+ *
+ * Conventie 8: alles bewaren. De vorige versie gaat op `gestopt` en blijft
+ * staan, met zijn maanden en zijn pagina's. Als de klant halverwege zegt dat het
+ * vorige plan beter was, moet dat terug te vinden zijn.
  */
 export async function createPlan(
   admin: Admin,
@@ -162,44 +302,46 @@ export async function createPlan(
     strategyNote?: string | null;
   },
 ): Promise<CreatePlanResult> {
-  const [{ data: topicRows }, funnels] = await Promise.all([
-    admin
-      .from("profile_topics")
-      .select("id, title, priority, status, analysis_id")
-      .eq("profile_id", input.profileId)
-      .neq("status", "afgewezen")
-      .order("priority", { ascending: false }),
-    ensureFunnels(admin, input.profileId),
-  ]);
+  if (input.pagesPerMonth < 1) {
+    return {
+      ok: false,
+      problems: ["Er is geen pakket gekozen, dus ORBIT ENGINE weet niet hoeveel pagina's per maand."],
+    };
+  }
 
-  const topicRowsTyped = (topicRows ?? []) as (ProfileTopic & { analysis_id: string | null })[];
+  // De funnelfasen blijven bestaan: ze zeggen nog steeds iets over waar een
+  // pagina in de klantreis zit, ook nu ze de verdeling niet meer sturen.
+  await ensureFunnels(admin, input.profileId);
 
-  // Potentiescore per onderwerp (docs/tasks/potentiescore.md, fase 3): sterker
-  // signaal dan de bevroren dag-1-gok van `priority`, zie `buildPlan()` regel 1.
-  // Alleen onderwerpen met een analyse hebben er één; de rest blijft `null` en
-  // `buildPlan()` valt voor hen terug op `priority`.
-  const potenties = await Promise.all(
-    topicRowsTyped.map((t) =>
-      t.analysis_id ? loadAnalysisPotential(admin, t.analysis_id) : Promise.resolve(null),
-    ),
-  );
+  // ⚠️ Eerst de voorraad vullen, dan pas het plan aanmaken. Een leeg plan naast
+  // een lege voorraad is niet te onderscheiden van een storing, en de klant
+  // hoort het verschil te zien tussen "er is niets gemeten" en "er ging iets mis".
+  await syncBacklog(admin, input.profileId);
 
-  const topics = topicRowsTyped.map((t, i) => ({
-    id: t.id,
-    title: t.title,
-    priority: t.priority,
-    potential: potenties[i]?.potential ?? null,
-  }));
+  const { data: voorraadRows } = await admin
+    .from("planned_pages")
+    .select("id, potential, target_weight, title")
+    .eq("profile_id", input.profileId)
+    .is("plan_month_id", null)
+    .eq("status", "gepland");
+
+  const voorraad = (voorraadRows ?? []) as {
+    id: string;
+    potential: number | null;
+    target_weight: number | null;
+    title: string;
+  }[];
+
+  if (voorraad.length === 0) {
+    return {
+      ok: false,
+      problems: [
+        "Er zijn nog geen gemeten kansen om in te plannen. Meet eerst een cluster: ORBIT ENGINE haalt de kansen daarna uit het rapport.",
+      ],
+    };
+  }
 
   const startedOn = input.startedOn ?? new Date();
-  const gebouwd = buildPlan({
-    startedOn,
-    pagesPerMonth: input.pagesPerMonth,
-    topics,
-    funnels: funnels.map((f) => ({ id: f.id, label: f.label, sortOrder: f.sort_order })),
-  });
-
-  if (gebouwd.problems.length > 0) return { ok: false, problems: gebouwd.problems };
 
   // Vorige versie stoppen, niet verwijderen.
   const { data: vorige } = await admin
@@ -255,30 +397,248 @@ export async function createPlan(
     return { ok: false, problems: ["De maanden konden niet worden aangemaakt."] };
   }
 
-  const maandId = new Map(
-    monthRows.map((m) => [m.month_number as number, m.id as string]),
+  const eersteMaand = (monthRows as { id: string; month_number: number }[]).find(
+    (m) => m.month_number === 1,
   );
 
-  const { error: pageError } = await admin.from("planned_pages").insert(
-    gebouwd.pages.map((p) => ({
-      plan_month_id: maandId.get(p.monthNumber)!,
-      profile_id: input.profileId,
-      title: p.title,
-      page_type: p.pageType,
-      funnel_stage_id: p.funnelStageId,
-      topic_id: p.topicId,
-      sort_order: p.sortOrder,
-      is_buffer: p.isBuffer,
-      scheduled_for: p.scheduledFor || null,
-    })),
-  );
+  // De voorzet: de sterkste kansen bovenaan, tot aan de quota.
+  const gesorteerd = [...voorraad].sort((a, b) => {
+    const pa = a.potential === null ? null : Number(a.potential);
+    const pb = b.potential === null ? null : Number(b.potential);
+    if (pa !== null && pb !== null && pa !== pb) return pb - pa;
+    if ((pa === null) !== (pb === null)) return pa === null ? 1 : -1;
+    return Number(b.target_weight ?? 0) - Number(a.target_weight ?? 0);
+  });
+  const voorzet = gesorteerd.slice(0, input.pagesPerMonth);
 
-  if (pageError) {
-    console.error("Pagina's aanmaken mislukt:", pageError.message);
-    return { ok: false, problems: ["De pagina's konden niet worden aangemaakt."] };
+  if (eersteMaand && voorzet.length > 0) {
+    const data = spreadDates(startedOn.toISOString().slice(0, 10), 1, voorzet.length);
+    for (const [i, kaart] of voorzet.entries()) {
+      const { error } = await admin
+        .from("planned_pages")
+        .update({
+          plan_month_id: eersteMaand.id,
+          sort_order: i,
+          scheduled_for: data[i] ?? null,
+        })
+        .eq("id", kaart.id)
+        // ⚠️ Alleen als hij op dit moment nog in de voorraad staat. Zonder deze
+        // voorwaarde kan een gelijktijdige sleepactie overschreven worden.
+        .is("plan_month_id", null);
+      if (error) {
+        console.error("Voorzet inplannen mislukt:", error.message);
+        break;
+      }
+    }
   }
 
   return { ok: true, planId };
+}
+
+/**
+ * Een kans uit de voorraad in een maand zetten.
+ *
+ * ── WAT ER PRECIES VERANDERT ────────────────────────────────────────────────
+ *
+ * De maand, de plek in de maand en de publicatiedatum. Verder niets: de kaart
+ * houdt zijn titel, zijn cluster, zijn potentie en zijn geschiedenis. Dat is het
+ * hele punt van één tabel voor twee toestanden (migratie 0065).
+ *
+ * ⚠️ Na het inplannen wordt de HELE maand opnieuw gedateerd. Een maand met vier
+ * pagina's spreidt anders dan een maand met tien, en zonder herberekening staan
+ * er vier pagina's op dag 1, 4, 7 en 10 met drie weken niets erachter.
+ *
+ * `index` is de plek waar de kaart terechtkomt; `null` betekent onderaan.
+ */
+export async function assignToMonth(
+  admin: Admin,
+  input: {
+    profileId: string;
+    pageId: string;
+    monthId: string;
+    index: number | null;
+  },
+): Promise<{ ok: boolean; probleem: string | null }> {
+  const maand = await maandMetPlan(admin, input.monthId, input.profileId);
+  if (!maand) return { ok: false, probleem: "Deze maand hoort niet bij dit merk." };
+
+  // ⚠️ Een geplaatste pagina verhuist niet. Zijn publicatiedatum is de
+  // werkelijkheid geworden; hem naar een andere maand slepen zou een leugen
+  // opleveren over wanneer er iets live ging.
+  const { data: kaartRow } = await admin
+    .from("planned_pages")
+    .select("id, status, plan_month_id")
+    .eq("id", input.pageId)
+    .eq("profile_id", input.profileId)
+    .maybeSingle();
+
+  const kaart = kaartRow as { id: string; status: string; plan_month_id: string | null } | null;
+  if (!kaart) return { ok: false, probleem: "Deze pagina bestaat niet." };
+  if (kaart.status === "geplaatst") {
+    return { ok: false, probleem: "Een pagina die al live staat, blijft in zijn eigen maand." };
+  }
+
+  const vorigeMaand = kaart.plan_month_id;
+
+  const { error } = await admin
+    .from("planned_pages")
+    .update({ plan_month_id: input.monthId })
+    .eq("id", input.pageId);
+  if (error) {
+    console.error("Inplannen mislukt:", error.message);
+    return { ok: false, probleem: "Inplannen is niet gelukt." };
+  }
+
+  await herplanMaand(admin, maand, { verplaatst: input.pageId, naarIndex: input.index });
+  // Kwam de kaart uit een andere maand, dan klopt de spreiding daar nu ook niet
+  // meer: er is een gat gevallen.
+  if (vorigeMaand && vorigeMaand !== input.monthId) {
+    const oud = await maandMetPlan(admin, vorigeMaand, input.profileId);
+    if (oud) await herplanMaand(admin, oud, null);
+  }
+
+  return { ok: true, probleem: null };
+}
+
+/**
+ * Een pagina uit een maand halen en terugleggen in de voorraad.
+ *
+ * Bewust géén verwijdering: de kaart komt gewoon weer beschikbaar. Dat is het
+ * verschil met `removePage()` hieronder, en het is het verschil dat het scherm
+ * ook maakt: "terug naar de voorraad" is iets anders dan "hier wil ik nooit meer
+ * over schrijven".
+ *
+ * ⚠️ Alleen wat nog niet in beweging is. Staat er al een tekst geschreven of
+ * loopt de schrijftaak, dan is teruggeven naar de voorraad betaald werk
+ * weggooien.
+ */
+export async function moveToBacklog(
+  admin: Admin,
+  input: { profileId: string; pageId: string },
+): Promise<{ ok: boolean; probleem: string | null }> {
+  const { data: kaartRow } = await admin
+    .from("planned_pages")
+    .select("id, status, plan_month_id")
+    .eq("id", input.pageId)
+    .eq("profile_id", input.profileId)
+    .maybeSingle();
+
+  const kaart = kaartRow as { id: string; status: string; plan_month_id: string | null } | null;
+  if (!kaart) return { ok: false, probleem: "Deze pagina bestaat niet." };
+  if (!kaart.plan_month_id) return { ok: true, probleem: null };
+  if (kaart.status !== "gepland") {
+    return {
+      ok: false,
+      probleem:
+        "ORBIT ENGINE is met deze pagina bezig of heeft hem al geschreven. Verwijderen kan wel, terugleggen niet.",
+    };
+  }
+
+  const maand = await maandMetPlan(admin, kaart.plan_month_id, input.profileId);
+
+  const { error } = await admin
+    .from("planned_pages")
+    .update({ plan_month_id: null, scheduled_for: null, sort_order: 0 })
+    .eq("id", input.pageId)
+    .eq("status", "gepland");
+  if (error) {
+    console.error("Terugleggen mislukt:", error.message);
+    return { ok: false, probleem: "Terugleggen is niet gelukt." };
+  }
+
+  if (maand) await herplanMaand(admin, maand, null);
+  return { ok: true, probleem: null };
+}
+
+interface MaandMetPlan {
+  id: string;
+  month_number: number;
+  started_on: string;
+}
+
+/**
+ * De maand plus de startdatum van zijn plan, en de controle of hij bij dit merk
+ * hoort.
+ *
+ * ⚠️ Die controle is geen dubbelop. Zonder deze regel kan iemand met toegang tot
+ * merk A een kaart in een maand van merk B laten zetten door het id te raden.
+ *
+ * Twee losse queries en geen geneste `!inner`-select: die tweede vorm leest
+ * korter maar is niet na te bootsen door de shim waarmee `scripts/test-chain.ts`
+ * tegen echte Postgres draait, en een pad dat niet in de ketentest past is een
+ * pad waarvan niemand weet of het werkt.
+ */
+async function maandMetPlan(
+  admin: Admin,
+  monthId: string,
+  profileId: string,
+): Promise<MaandMetPlan | null> {
+  const { data: maandRij } = await admin
+    .from("plan_months")
+    .select("id, month_number, plan_id")
+    .eq("id", monthId)
+    .maybeSingle();
+
+  const maand = maandRij as { id: string; month_number: number; plan_id: string } | null;
+  if (!maand) return null;
+
+  const { data: planRij } = await admin
+    .from("content_plans")
+    .select("profile_id, started_on")
+    .eq("id", maand.plan_id)
+    .maybeSingle();
+
+  const plan = planRij as { profile_id: string; started_on: string } | null;
+  if (!plan || plan.profile_id !== profileId) return null;
+
+  return {
+    id: maand.id,
+    month_number: maand.month_number,
+    started_on: plan.started_on,
+  };
+}
+
+/**
+ * Eén maand opnieuw nummeren en dateren.
+ *
+ * `verplaatst` zet die ene kaart eerst op de gevraagde plek; de rest schuift
+ * eromheen. Zonder dat argument houdt de bestaande volgorde stand en worden
+ * alleen de gaten dichtgetrokken.
+ */
+async function herplanMaand(
+  admin: Admin,
+  maand: MaandMetPlan,
+  verplaatsing: { verplaatst: string; naarIndex: number | null } | null,
+): Promise<void> {
+  const { data } = await admin
+    .from("planned_pages")
+    .select("id, sort_order, scheduled_for, status")
+    .eq("plan_month_id", maand.id)
+    .eq("is_buffer", false)
+    .neq("status", "afgewezen")
+    .order("sort_order");
+
+  let rijen = (data ?? []) as HerplanRij[];
+
+  if (verplaatsing) {
+    const kaart = rijen.find((r) => r.id === verplaatsing.verplaatst);
+    if (kaart) {
+      const zonder = rijen.filter((r) => r.id !== kaart.id);
+      const doel =
+        verplaatsing.naarIndex === null
+          ? zonder.length
+          : Math.max(0, Math.min(zonder.length, verplaatsing.naarIndex));
+      rijen = [...zonder.slice(0, doel), kaart, ...zonder.slice(doel)];
+    }
+  }
+
+  const updates = resequenceMonth(maand.started_on, maand.month_number, rijen);
+  for (const u of updates) {
+    await admin
+      .from("planned_pages")
+      .update({ sort_order: u.sort_order, scheduled_for: u.scheduled_for })
+      .eq("id", u.id);
+  }
 }
 
 /**

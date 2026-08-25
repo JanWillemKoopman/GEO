@@ -16,6 +16,48 @@ dan de eigenaar van dat feit; hier staat waar hij vandaan kwam. Het besluit met 
 
 ---
 
+## Contentplan, `/merk/[id]/strategie/plan` · 25 augustus 2026
+
+Aanleiding: "ik vind het plannen van content nog heel onoverzichtelijk, ik wil zelf bepalen welke
+content er in welke maand geschreven wordt." De diagnose viel zwaarder uit dan de vraag: het scherm
+toonde 120 rijen uit 28 unieke titels, waarvan er 17 te schrijven waren.
+
+### Aangenomen
+
+| Wat | Kern |
+|---|---|
+| Twee panelen: voorraad links, twaalf maanden rechts | Links wat beschikbaar is, rechts waar het heen kan. De vraag van dit scherm is een verdeling, en een verdeling heeft twee kanten nodig |
+| Slepen, met een keuzelijst ernaast | Slepen is de snelle weg, de keuzelijst "Plan in" is de gelijkwaardige weg die op een telefoon en met een toetsenbord werkt |
+| Maanden beginnen leeg, behalve maand 1 | Het systeem doet de eerste zet met de sterkste kansen, de mens overruled hem |
+| Alleen gemeten kansen in de voorraad | Elke kaart draagt cluster, potentie, doelvragen en de reden. Een kaart zonder meting kan niet geschreven worden en hoort er dus niet in |
+| Niet-gemeten clusters apart, onder de voorraad | Geen content, maar wél de verklaring waarom de lijst kort is, met de meting als handeling |
+
+### Afgewezen
+
+**Een bovengrens per maand.** Overwogen als harde rem (het pakket is 10 per maand), gekozen voor
+niets: het scherm zegt hoeveel je erboven zit en houdt niemand tegen. De rem op geld staat al ergens
+anders, namelijk op het vrijgeven van een maand.
+
+**Het filter over de maanden ("wacht op jou", "staat live").** Dat filter verborg pagina's binnen een
+maand, en dat botst met een scherm waarin je maanden samenstelt: je kunt niet slepen in een lijst
+waarvan je de helft niet ziet. Het filteren is verhuisd naar de voorraad, waar het wél over kiezen
+gaat.
+
+### Ontwerpregels die hieruit volgen, ook elders
+
+12. **Een lijst die iets belooft, moet dat kunnen waarmaken.** 120 geplande pagina's waarvan er 103
+    op een meting wachten is geen planning maar decor. Toon liever zeven regels die kloppen dan
+    honderdtwintig die wachten.
+13. **Een lege staat die de gebruiker iets verwijt, is een lege staat die niets oplost.** Naast de
+    lege voorraad staat wélke clusters gemeten moeten worden, met de knop erbij.
+14. **Slepen mag nooit de enige weg zijn.** Elke sleepactie heeft een tweelingbediening die met een
+    vinger en met een toetsenbord werkt. Zie `lib/plan-order.ts` voor waarom dat hier zwaar weegt.
+15. **Twee handelingen die verschillend uitpakken, delen geen woord.** "Terug naar de voorraad" en
+    "definitief verwijderen" stonden op het punt allebei "verwijderen" te heten; alleen de tweede is
+    onomkeerbaar, en alleen die krijgt een bevestiging met een waarschuwing.
+
+---
+
 ## Overzicht, `/merk/[id]` · 26 augustus 2026 (vervolg)
 
 Correcties van de eigenaar op de ronde van de dag ervoor. Geen nieuwe diagnose: een keuze over wat
