@@ -753,7 +753,7 @@ niet bij het merk hoort krijgt een **404 en geen 403**: een 403 bevestigt dat he
 **Vaste breedtes in de zijbalk** (240px, ingeklapt 64px). Een zijbalk die meegroeit met de langste
 merknaam laat de hele pagina verspringen zodra je wisselt.
 
-**Een analyse is één dossier in vier hoofdstukken**, geen tabbalk:
+**Een analyse is één dossier in vier hoofdstukken**, als tabbladen:
 
 ```
 01  STAND       Hoe sta ik ervoor?     score · verandering · wat het betekent
@@ -762,15 +762,30 @@ merknaam laat de hele pagina verspringen zodra je wisselt.
 04  RESULTAAT   Heeft het gewerkt?     effect van wat gepubliceerd is
 ```
 
-De volgorde ís de logica: hoofdstuk 4 voedt volgende periode hoofdstuk 1. Tabs zijn juist als
-secties onafhankelijk zijn en de gebruiker weet welke hij nodig heeft. Geen van beide geldt hier.
-Een verticale as kan volgorde uitdrukken, een horizontale tabrij niet. Bijkomend: het bewijs staat
-direct onder de bewering, in plaats van een tabblad verderop.
+De volgorde ís de logica: hoofdstuk 4 voedt volgende periode hoofdstuk 1. Dat gaf lang de doorslag
+tegen een tabbalk (§9, `docs/logbook.md` 17 juli 2026): een tabbalk kan een vaste volgorde niet
+uitdrukken, en werk kruiste de oude, gelijkwaardige tabbladen. Op expliciet verzoek is dat op 26
+augustus 2026 alsnog omgedraaid: vier losse tabbladen, gestuurd via `?hoofdstuk=` in de URL, met
+maar één hoofdstuk tegelijk gerenderd. De volgorde blijft zichtbaar via de nummering 01 t/m 04, en
+hoofdstuk 04 benoemt in zijn eigen tekst nog steeds dat hij hoofdstuk 01 voedt, alleen niet meer met
+schermruimte. Zie `docs/logbook.md` 26 augustus 2026 voor de volledige afweging.
 
-Oriëntatie via de **sectie-rail** (`components/section-rail.tsx`): genummerde mono-labels, paarse
-actieve markering, scroll-spy. Desktop verticaal en sticky links; tablet/mobiel een sticky
-horizontale chiprij. De rail toont stand per hoofdstuk ("4 open", een `live-dot` bij een lopende
-meting), iets wat een tabbalk niet doet.
+Oriëntatie via de **hoofdstuktabs** (`components/chapter-tabs.tsx`): genummerde mono-labels, een
+horizontale, sticky chiprij boven de inhoud, op zowel desktop als mobiel. De balk toont stand per
+hoofdstuk ("4 open", een `live-dot` bij een lopende meting). Serverside navigatie (`Link` met een
+querystring), geen client-side tabstate: elk hoofdstuk houdt zo zijn eigen `Suspense`-grens en elk
+tabblad is een deelbare URL. Dit is een los component van de **sectie-rail**
+(`components/section-rail.tsx`, verticaal, met scroll-spy): die draait nog op het onboardingscherm,
+dat wél één doorlopende pagina blijft.
+
+**De lagen onder en boven een sticky balk.** Er plakken er twee onder elkaar, en dat gaat op twee
+manieren mis. De hoogte van de bovenbalk staat daarom in één token, `--header-h` in
+`app/globals.css`, dat `workspace-chrome.tsx` óók op de balk zelf zet: een sticky balk eronder
+begint op `top-[var(--header-h)]` en kan er niet meer naast zitten. En de z-index-ladder is vast:
+inhoud van een hoofdstuk `z-10` → popovers en losse sticky blokken `z-20` → navigatiebalken
+(bovenbalk, hoofdstuktabs) `z-30` → uitklapmenu's `z-40` → dialogen en meldingen `z-50`. Een
+navigatiebalk op `z-10` verliest van hoofdstukinhoud die later in de DOM staat, en schuift daar dan
+onderdoor bij het scrollen.
 
 **Dezelfde regel geldt op de contentdetailpagina** (`analyses/[id]/bibliotheek/[pieceId]/page.tsx`,
 content-editie): geen tabbladen, wél een leesvolgorde die van context naar handeling loopt.

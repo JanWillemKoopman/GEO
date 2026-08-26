@@ -221,7 +221,7 @@ export async function WerkChapter({
                     </ul>
                     {r.targets.some((t) => t.runId) && (
                       <Link
-                        href={`/analyses/${analysis.id}?runs=${r.targets
+                        href={`/analyses/${analysis.id}?hoofdstuk=bewijs&runs=${r.targets
                           .map((t) => t.runId)
                           .filter(Boolean)
                           .join(",")}#antwoorden`}
@@ -256,7 +256,7 @@ export async function WerkChapter({
       {/* Off-site is ander werk: een pagina schrijf je vanmiddag, op een
           platform komen te staan kan weken duren en gaat vaak via iemand
           anders. De werklijst hierboven wijst hiernaartoe; hier vink je af. */}
-      <div id="offsite" className="scroll-mt-24">
+      <div id="offsite" className="scroll-mt-[calc(var(--header-h)+4rem)]">
         <OffsitePanel
           analysisId={analysis.id}
           initialTasks={(offsiteRows ?? []) as OffsiteTask[]}

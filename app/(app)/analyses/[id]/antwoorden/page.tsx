@@ -16,5 +16,9 @@ export default async function AntwoordenRedirect({
 }) {
   const { id } = await params;
   const { runs } = await searchParams;
-  redirect(runs ? `/analyses/${id}?runs=${runs}#antwoorden` : `/analyses/${id}#bewijs`);
+  redirect(
+    runs
+      ? `/analyses/${id}?hoofdstuk=bewijs&runs=${runs}#antwoorden`
+      : `/analyses/${id}?hoofdstuk=bewijs`,
+  );
 }

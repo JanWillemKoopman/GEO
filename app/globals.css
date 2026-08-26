@@ -315,6 +315,17 @@
   --border-width-sm: 2px;
   --border-width-md: 4px;
 
+  /* ── Hoogte van de bovenbalk ──────────────────────────────────────────────
+     Eén getal, want twee balken plakken eronder: de hoofdstuktabs van het
+     dossier (`components/chapter-tabs.tsx`) en de mobiele chiprij van de
+     sectie-rail (`components/section-rail.tsx`). Die stonden allebei op een
+     losse `top-[57px]`, en de bovenbalk is inmiddels 61 pixels hoog: 36 voor
+     de knoppen (h-9), 2 × 12 padding en 1 voor de onderrand. Die 4 pixels
+     verschil waren een kier waar de pagina-inhoud doorheen schoof onder de
+     bovenbalk. `workspace-chrome.tsx` zet deze hoogte óók op de balk zelf, dus
+     de twee kunnen niet meer uit elkaar lopen. */
+  --header-h: 61px;
+
   /* ── Diepte ───────────────────────────────────────────────────────────────
      Eén schaduw in het hele systeem, letterlijk die van Nova, en hij is
      voorbehouden aan wat boven de pagina zweeft: menu's, dialogen, de

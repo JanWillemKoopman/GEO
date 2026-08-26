@@ -44,8 +44,13 @@ export function WorkspaceChrome({
 
   return (
     <div className="flex min-h-dvh flex-col">
-      <header className="no-print sticky top-0 z-30 border-b border-[var(--border-subtle)] bg-[var(--bg-base-blur)] backdrop-blur-md">
-        <div className="flex items-center justify-between gap-3 px-4 py-3 sm:px-6">
+      {/* De hoogte staat vast op --header-h en volgt niet meer uit de inhoud:
+          de hoofdstuktabs van het dossier plakken exact onder deze balk, en
+          zodra de twee getallen uit elkaar lopen ontstaat er een kier waar de
+          pagina-inhoud doorheen schuift. Zie het blok bij --header-h in
+          globals.css. */}
+      <header className="no-print sticky top-0 z-30 h-[var(--header-h)] border-b border-[var(--border-subtle)] bg-[var(--bg-base-blur)] backdrop-blur-md">
+        <div className="flex h-full items-center justify-between gap-3 px-4 sm:px-6">
           <div className="flex min-w-0 items-center gap-3">
             <button
               type="button"

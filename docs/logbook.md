@@ -5211,3 +5211,41 @@ weer weg en het dossier is weer de doorlopende pagina met `SectionRail` van vó�
 reden voor de oorspronkelijke, niet teruggedraaide keuze (§9: werk kruiste de oude vijf tabbladen,
 een tabbalk kan de vaste volgorde stand → bewijs → werk → resultaat niet uitdrukken) staat nog
 onverkort in `components/chapter.tsx`.
+
+## 26 augustus 2026: het dossier opnieuw naar tabbladen, nu met de lagen erbij
+
+Dezelfde dag, na de terugdraai hierboven, is de omzetting opnieuw gevraagd, en nu met twee eisen die
+de eerste ronde niet had: de balk moet bij het scrollen aan de bovenkant blijven hangen, en hij moet
+altijd zichtbaar zijn en overal bovenop liggen. De code van de eerste ronde is teruggehaald uit de
+git-historie (commit `06f66ea`) en op die twee punten uitgebreid.
+
+**Vier losse tabbladen.** Het analysedossier (`app/(app)/analyses/[id]/page.tsx`) toont nog één
+hoofdstuk tegelijk (Stand, Waar je mist, Wat je moet doen, Opgeleverd), gestuurd via
+`?hoofdstuk=stand|bewijs|werk|resultaat` in de URL. Geen client-side tabstate: elk tabblad blijft
+een deelbare link en houdt zijn eigen `Suspense`-grens, want er staat nooit meer dan één hoofdstuk
+in de DOM. Acht plekken linkten met een `#hoofdstuk`-anker naar het dossier; die zijn omgezet naar
+`?hoofdstuk=...`, want een anker naar een hoofdstuk dat niet gerenderd wordt scrolt nergens heen.
+Nieuw component `components/chapter-tabs.tsx`, los van `components/section-rail.tsx`: die laatste
+draait ook op het onboardingscherm, dat wél één doorlopende pagina met scroll-spy blijft.
+
+**De kier van vier pixels.** Beide sticky chiprijen stonden op een los getal, `top-[57px]`, terwijl
+de bovenbalk 61 pixels hoog is: 36 voor de knoppen, 2 × 12 padding en 1 voor de onderrand. Daar
+schoof de pagina-inhoud dus doorheen, tussen de bovenbalk en de balk eronder. De hoogte staat nu in
+één token, `--header-h` in `app/globals.css`, en `workspace-chrome.tsx` zet hem óók op de bovenbalk
+zelf, zodat de twee getallen niet meer uit elkaar kunnen lopen. Dezelfde variabele bepaalt nu ook
+waar een anker binnen een hoofdstuk (`#antwoorden`, `#offsite`) stopt met scrollen; dat stond op
+`scroll-mt-24` (96 pixels) terwijl de twee balken samen ongeveer 106 pixels beslaan, dus de kop van
+zo'n blok verdween onder de balk.
+
+**De z-index-ladder.** De tabbalk stond op `z-10`, en elk hoofdstuk zet zijn kop en inhoud óók op
+`relative z-10` (`components/chapter.tsx`). Bij een gelijke z-index wint wat later in de DOM staat,
+dus de hoofdstukinhoud schoof bij het scrollen dwars over de balk heen. De ladder ligt nu vast en
+staat in `docs/ux-design.md`: hoofdstukinhoud `z-10`, popovers `z-20`, navigatiebalken `z-30`,
+uitklapmenu's `z-40`, dialogen en meldingen `z-50`. De tabbalk zit dus op dezelfde laag als de
+bovenbalk, en blijft onder de menu's en dialogen die wél over navigatie heen horen te vallen.
+
+Wat hiermee niet is opgelost, en dat is bekend: de vaste leesvolgorde stand → bewijs → werk →
+resultaat, waarbij hoofdstuk 04 het hoofdstuk 01 van de volgende periode voedt, kan een tabbalk niet
+uitdrukken. Dat was §9 de reden om er destijds vanaf te stappen. De nummering 01 t/m 04 blijft de
+volgorde tonen en hoofdstuk 04 benoemt de terugkoppeling in zijn eigen tekst, maar met één scroll
+van meting naar bewijs naar werk lopen kan niet meer; dat zijn nu drie klikken.
