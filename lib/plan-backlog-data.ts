@@ -25,6 +25,7 @@ import "server-only";
  */
 import { createAdminClient } from "@/lib/supabase/admin";
 import { loadRecommendationPotential } from "@/lib/potential-data";
+import { readRecommendations, type RecommendationTarget } from "@/lib/pipeline/recommendation";
 import type { BacklogItem, BacklogHandeling } from "@/lib/plan-backlog";
 import type { PageType } from "@/lib/types/database";
 
@@ -333,4 +334,42 @@ export async function backlogCount(admin: Admin, profileId: string): Promise<num
     .is("plan_month_id", null)
     .eq("status", "gepland");
   return count ?? 0;
+}
+
+/**
+ * Leest de doelvragen van een gemeten kans terug uit het rapport waar ze
+ * vandaan komen (doorloop-huyberts.md punt 2).
+ *
+ * `sourceRef` is "<rapport-id>#<volgnummer>", dezelfde sleutel als hierboven in
+ * `syncBacklog()` wordt opgebouwd. `/api/cron/plan` gebruikt hem om de
+ * schrijftaak van een kans de doelvragen mee te geven; zonder die vragen
+ * schrijft `saveTargets()` in content.ts nul rijen in `content_piece_targets`,
+ * en slaat `planImpactWaves()` de effectmeting stilzwijgend over.
+ *
+ * `readRecommendations()` leest defensief: een onbekend of leeg rapport levert
+ * gewoon een lege doelvragenlijst op, nooit een gooi. Dan valt de schrijfstap
+ * terug op het oude gedrag (thematische inspiratie zonder doelvragen), minder
+ * scherp maar niet stuk.
+ */
+export async function targetsFromSourceRef(
+  admin: Admin,
+  sourceRef: string | null,
+): Promise<{ reportId: string | null; targets: RecommendationTarget[] }> {
+  const leeg = { reportId: null, targets: [] as RecommendationTarget[] };
+  if (!sourceRef) return leeg;
+
+  const [reportId, volgnummerRaw] = sourceRef.split("#");
+  const volgnummer = Number(volgnummerRaw);
+  if (!reportId || !Number.isInteger(volgnummer) || volgnummer < 0) return leeg;
+
+  const { data } = await admin
+    .from("reports")
+    .select("recommendations_json")
+    .eq("id", reportId)
+    .maybeSingle();
+  if (!data) return leeg;
+
+  const aanbevelingen = readRecommendations(data.recommendations_json);
+  const aanbeveling = aanbevelingen[volgnummer];
+  return aanbeveling ? { reportId, targets: aanbeveling.targets } : leeg;
 }

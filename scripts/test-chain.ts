@@ -4112,6 +4112,160 @@ async function main(): Promise<void> {
     }
 
     // ════════════════════════════════════════════════════════════════════════
+    // Een pagina uit het contentplan kan nu wél gemeten worden
+    // (doorloop-huyberts.md punt 2).
+    //
+    // ⚠️ DE SAMENHANG DIE HIER FOUT KAN GAAN: `/api/cron/plan` bouwde zijn
+    // schrijfopdracht uit `planBriefing()` en vulde `why`, `targetIntent`,
+    // `action` en `existingUrl` aan, maar zette geen `targets`. `saveTargets()`
+    // in content.ts schreef dan nul rijen in `content_piece_targets`, en
+    // `planImpactWaves()` sloeg de effectmeting stilzwijgend over met "geen
+    // doelvragen". Fase 5 bestond zo niet voor een pagina die via het
+    // contentplan geschreven is, en dat is sinds migratie 0065 de normale
+    // route. `targetsFromSourceRef()` leest de doelvragen nu terug uit het
+    // rapport waar `source_ref` ("<rapport-id>#<volgnummer>") naar wijst.
+    {
+      console.log("\nHet contentplan geeft zijn doelvragen mee aan de schrijftaak (punt 2)");
+      const ptUserId = randomUUID();
+      const ptProfileId = randomUUID();
+      const ptAnalysisId = randomUUID();
+      const ptPromptId = randomUUID();
+
+      await db.client.query("insert into auth.users (id, email) values ($1, $2)", [
+        ptUserId,
+        "plantargets@example.com",
+      ]);
+      await db.client.query(
+        `insert into public.profiles (id, user_id, name, url, brand_name, proof_points, status)
+         values ($1, $2, 'Plantargets BV', 'https://plantargets-bv.nl', 'Plantargets BV',
+                 array['Sinds 2010 actief', 'Meer dan 500 klanten geholpen'], 'klaar')`,
+        [ptProfileId, ptUserId],
+      );
+      await db.client.query(
+        `insert into public.analyses (id, user_id, profile_id, name, url, topic, status)
+         values ($1, $2, $3, 'Plantargets — onderwerp', 'https://plantargets-bv.nl', 'onderwerp', 'gereed')`,
+        [ptAnalysisId, ptUserId, ptProfileId],
+      );
+      await db.client.query(
+        `insert into public.prompts (id, analysis_id, text, category, active)
+         values ($1, $2, 'Waar vind ik dit onderwerp?', 'Beslissing', true)`,
+        [ptPromptId, ptAnalysisId],
+      );
+      const { rows: ptReportRows } = await db.client.query(
+        `insert into public.reports (analysis_id, period, recommendations_json)
+         values ($1, 'week 0', $2::jsonb) returning id`,
+        [
+          ptAnalysisId,
+          JSON.stringify([
+            {
+              title: "Kans pagina",
+              why: "De AI noemt ons niet bij dit onderwerp.",
+              type: "landing",
+              action: "nieuw",
+              targetIntent: "Iemand die dit onderwerp zoekt",
+              targets: [{ promptId: ptPromptId, weight: 0.7, text: "Waar vind ik dit onderwerp?" }],
+            },
+          ]),
+        ],
+      );
+      const ptReportId = ptReportRows[0].id as string;
+
+      // ── De leesfunctie zelf: drie gevallen ──────────────────────────────
+      const { targetsFromSourceRef } = await import("@/lib/plan-backlog-data");
+      const gevonden = await targetsFromSourceRef(admin as never, `${ptReportId}#0`);
+      ok(
+        "de doelvraag van de aanbeveling wordt teruggevonden uit het rapport",
+        gevonden.targets.length === 1 && gevonden.targets[0]?.promptId === ptPromptId,
+        JSON.stringify(gevonden),
+      );
+      ok("en het rapport-id komt mee, voor content_pieces.report_id", gevonden.reportId === ptReportId);
+
+      const zonderRef = await targetsFromSourceRef(admin as never, null);
+      ok(
+        "zonder source_ref blijft de doelvragenlijst leeg (oude planpagina's)",
+        zonderRef.targets.length === 0 && zonderRef.reportId === null,
+      );
+
+      const onbekendRapport = await targetsFromSourceRef(admin as never, `${randomUUID()}#0`);
+      ok(
+        "een onbekend rapport levert geen gooi op, alleen een lege lijst",
+        onbekendRapport.targets.length === 0,
+      );
+
+      // ── De volledige keten: schrijftaak inplannen mét de teruggevonden
+      // doelvragen, echt schrijven, en controleren wat er in
+      // content_piece_targets terechtkomt. ──────────────────────────────
+      const { planContentDraft } = await import("@/lib/jobs/content-jobs");
+      const { created: ptCreated } = await planContentDraft(admin as never, {
+        analysisId: ptAnalysisId,
+        userId: ptUserId,
+        recommendation: {
+          title: "Kans pagina",
+          type: "landing",
+          targetIntent: "Iemand die dit onderwerp zoekt",
+          why: "De AI noemt ons niet bij dit onderwerp.",
+          action: "nieuw",
+          existingUrl: null,
+          reportId: gevonden.reportId,
+          targets: gevonden.targets,
+        },
+      });
+      ok("de schrijftaak wordt ingepland", ptCreated);
+
+      const { rows: ptJobRows } = await db.client.query(
+        `select * from public.jobs where analysis_id = $1 and type = 'content_draft'
+          order by created_at desc limit 1`,
+        [ptAnalysisId],
+      );
+      const { runJob } = await import("@/lib/jobs/handlers");
+      await runJob({ admin: admin as never, job: { ...ptJobRows[0], status: "running" } });
+
+      const { rows: ptStukRows } = await db.client.query(
+        `select id, report_id from public.content_pieces where analysis_id = $1
+          order by created_at desc limit 1`,
+        [ptAnalysisId],
+      );
+      const ptContentPieceId = ptStukRows[0]?.id as string | undefined;
+      ok("de pagina is geschreven", Boolean(ptContentPieceId));
+      ok(
+        "en draagt het rapport waar hij uit voortkomt",
+        ptStukRows[0]?.report_id === ptReportId,
+      );
+
+      const { rows: ptDoelvraagRows } = await db.client.query(
+        `select prompt_id from public.content_piece_targets where content_piece_id = $1`,
+        [ptContentPieceId],
+      );
+      ok(
+        "de doelvraag staat in content_piece_targets in plaats van leeg te blijven",
+        ptDoelvraagRows.length === 1 && ptDoelvraagRows[0]?.prompt_id === ptPromptId,
+        `${ptDoelvraagRows.length} doelvra(a)g(en)`,
+      );
+
+      // ── En de effectmeting mag nu wél twee golven plannen ───────────────
+      // (voorheen: "geen doelvragen", nul golven, fase 5 bestond niet voor
+      // een pagina uit het contentplan).
+      await db.client.query(
+        `update public.content_pieces
+            set status = 'published', published_at = now(),
+                published_url = 'https://plantargets-bv.nl/kans'
+          where id = $1`,
+        [ptContentPieceId],
+      );
+      const { planImpactWaves } = await import("@/lib/pipeline/impact");
+      const ptGolven = await planImpactWaves(admin as never, {
+        analysisId: ptAnalysisId,
+        contentPieceId: ptContentPieceId as string,
+        publishedAt: new Date(),
+      });
+      ok(
+        "de effectmeting plant nu twee golven in plaats van 'geen doelvragen'",
+        ptGolven.planned === 2,
+        `${ptGolven.planned} golf/golven`,
+      );
+    }
+
+    // ════════════════════════════════════════════════════════════════════════
     // De effectmeting gooide de helft van haar betaalde metingen weg
     // (doorloop-huyberts.md punt 1, migratie 0066).
     //

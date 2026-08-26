@@ -5,6 +5,7 @@ import { planContentDraft } from "@/lib/jobs/content-jobs";
 import { enqueue, dedupe } from "@/lib/jobs/queue";
 import { writeDecision, planBriefing, type WriteBlock } from "@/lib/plan-writing";
 import { SCHRIJFVOORSPRONG_DAGEN } from "@/lib/plan-status";
+import { targetsFromSourceRef } from "@/lib/plan-backlog-data";
 import type { AnalysisStatus, PageType, PlanMonthStatus } from "@/lib/types/database";
 
 /**
@@ -52,6 +53,8 @@ interface PageRow {
   target_intent: string | null;
   recommendation_action: string | null;
   existing_url: string | null;
+  /** "<rapport-id>#<volgnummer>", wijst naar de aanbeveling met de doelvragen. */
+  source_ref: string | null;
   plan_months: { month_number: number; status: PlanMonthStatus } | null;
   profile_funnel_stages: { label: string } | null;
   profile_topics: {
@@ -81,7 +84,7 @@ export async function GET(request: Request) {
     .from("planned_pages")
     .select(
       `id, profile_id, title, page_type, status, scheduled_for, is_buffer, topic_id,
-       source, why, target_intent, recommendation_action, existing_url,
+       source, why, target_intent, recommendation_action, existing_url, source_ref,
        plan_months!inner(month_number, status),
        profile_funnel_stages(label),
        profile_topics(title, analysis_id, analyses(status, user_id))`,
@@ -161,6 +164,20 @@ export async function GET(request: Request) {
     });
     const uitKans = page.source === "aanbeveling";
 
+    // ── DE DOELVRAGEN KOMEN UIT HETZELFDE RAPPORT ALS DE KANS ─────────────
+    //
+    // `source_ref` wijst als "<rapport-id>#<volgnummer>" rechtstreeks naar de
+    // aanbeveling in `reports.recommendations_json` waar de doelvragen in
+    // staan (lib/plan-backlog-data.ts, dezelfde sleutel als de voorraad
+    // gebruikt). Zonder dit bleef `targets` hier leeg: `saveTargets()` in
+    // content.ts schreef dan nul rijen in `content_piece_targets`, en
+    // `planImpactWaves()` sloeg de effectmeting over met "geen doelvragen".
+    // Fase 5 bestond zo niet voor een pagina die via het contentplan
+    // geschreven is, en dat is sinds migratie 0065 de normale route.
+    const { reportId, targets } = uitKans
+      ? await targetsFromSourceRef(admin, page.source_ref)
+      : { reportId: null, targets: [] };
+
     try {
       const { created, alreadyDone } = await planContentDraft(admin, {
         analysisId: besluit.analysisId,
@@ -173,7 +190,8 @@ export async function GET(request: Request) {
             uitKans && page.target_intent ? page.target_intent : briefing.targetIntent,
           action: page.recommendation_action === "verbeteren" ? "verbeteren" : "nieuw",
           existingUrl: page.recommendation_action === "verbeteren" ? page.existing_url : null,
-          reportId: null,
+          reportId,
+          targets,
         },
       });
 
