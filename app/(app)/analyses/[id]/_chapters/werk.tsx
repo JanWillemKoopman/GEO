@@ -221,7 +221,7 @@ export async function WerkChapter({
                     </ul>
                     {r.targets.some((t) => t.runId) && (
                       <Link
-                        href={`/analyses/${analysis.id}?hoofdstuk=bewijs&runs=${r.targets
+                        href={`/analyses/${analysis.id}?runs=${r.targets
                           .map((t) => t.runId)
                           .filter(Boolean)
                           .join(",")}#antwoorden`}

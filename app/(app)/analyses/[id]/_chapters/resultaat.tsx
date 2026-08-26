@@ -29,7 +29,7 @@ export async function ResultaatChapter({ analysis }: { analysis: Analysis }) {
           vragen waarvoor je niets publiceerde. Zo weet je of het je pagina&apos;s waren, en niet
           het toeval.
         </p>
-        <Link href={`/analyses/${analysis.id}?hoofdstuk=werk`} className="btn-outline mt-1 w-fit">
+        <Link href={`/analyses/${analysis.id}#werk`} className="btn-outline mt-1 w-fit">
           Naar wat je nu kunt doen
         </Link>
       </div>

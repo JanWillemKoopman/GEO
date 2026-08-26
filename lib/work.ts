@@ -412,7 +412,7 @@ export function deriveWork(sources: WorkSources): WorkItem[] {
       why: task.why,
       urgency: URGENCY.offsite,
       // Off-site werk vink je af in het blok onderaan hetzelfde hoofdstuk.
-      href: `/analyses/${task.analysis_id}?hoofdstuk=werk#offsite`,
+      href: `/analyses/${task.analysis_id}#offsite`,
       meta: task.domain ?? undefined,
       analysisId: task.analysis_id,
       analysisName: analysis.name,
