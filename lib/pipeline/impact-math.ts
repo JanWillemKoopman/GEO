@@ -75,3 +75,58 @@ export function verdictOf(c: Comparison): ImpactVerdict {
   if (Math.abs(delta) <= thresholdOf(c)) return "gelijk";
   return delta > 0 ? "gestegen" : "gedaald";
 }
+
+/**
+ * Bovengrens voor de zoektocht hieronder. Een verschil dat zelfs bij 200
+ * vergelijkbare vragen nog binnen de meetruis zou vallen, is voor geen enkele
+ * pagina haalbaar; dan is "onbekend" (`null`) eerlijker dan een getal dat
+ * niemand ooit gaat halen.
+ */
+const MAX_SEARCH_QUESTIONS = 200;
+
+/**
+ * Hoeveel vergelijkbare vragen zijn er minimaal nodig om DIT verschil, op
+ * dezelfde verhouding, van toeval te kunnen onderscheiden? (doorloop-huyberts.md
+ * punt 6)
+ *
+ * ── WAAROM DIT ERBIJ MOEST ───────────────────────────────────────────────────
+ *
+ * `thresholdOf()` is statistisch correct en tegelijk onbruikbaar voor de klant:
+ * "dat verschil valt binnen de meetruis (55 punten nodig)" zegt niet WAT er te
+ * doen valt. Bij de Eindhoven-pagina van Huyberts Keukens ging de zichtbaarheid
+ * van 0 naar 1 van de 5 doelvragen (20%), met een drempel van 55 punten: bij dit
+ * aantal vragen kan de toets nooit iets anders zeggen dan "gelijk". Dit getal
+ * maakt dat concreet: "met 5 vragen is dit niet te onderscheiden van toeval,
+ * daar zijn er minstens N voor nodig".
+ *
+ * ── HOE ──────────────────────────────────────────────────────────────────────
+ *
+ * Zoekt vanaf het huidige aantal vragen omhoog, met de GEMETEN vóór- en
+ * ná-percentages vastgehouden (niet de aantallen zelf: die zouden bij elke n
+ * apart moeten afronden, en dat afronden laat de uitkomst instabiel heen en
+ * weer springen rond een oneven n). `binomialStderr()` rekent net zo goed met
+ * een niet-geheel aantal successen, dus dat afronden is hier niet nodig.
+ *
+ * `null` als zelfs `MAX_SEARCH_QUESTIONS` vragen dit verschil niet zouden
+ * onderscheiden (delta 0, of een verschil dat verhoudingsgewijs te klein is):
+ * conventie 3, onbekend is een betere waarde dan een getal dat de lezer nooit
+ * gaat halen.
+ */
+export function minQuestionsForSignal(c: Comparison): number | null {
+  if (c.total <= 0) return null;
+  const delta = Math.abs(deltaOf(c));
+  if (delta === 0) return null; // geen verschil gemeten; meer vragen maken dat niet anders
+
+  const beforeRate = c.beforeMentioned / c.total;
+  const afterRate = c.afterMentioned / c.total;
+
+  for (let n = c.total + 1; n <= MAX_SEARCH_QUESTIONS; n++) {
+    const hypothetisch: Comparison = {
+      total: n,
+      beforeMentioned: beforeRate * n,
+      afterMentioned: afterRate * n,
+    };
+    if (delta > thresholdOf(hypothetisch)) return n;
+  }
+  return null;
+}

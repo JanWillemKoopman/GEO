@@ -996,6 +996,27 @@ terwijl "markeer als geplaatst" een volledige bevestiging kreeg. Een handeling d
 haalt krijgt dezelfde `ConfirmDialog` met `danger`, inclusief wat er daarna gebeurt (hier: een
 reservepagina schuift in, of het maandtotaal wordt één lager).
 
+### "Gelijk" is geen uitspraak zonder erbij te zeggen wat er nodig zou zijn (26 augustus 2026)
+
+Het effectscherm (`ResultsPanel`, optimalisatie.md 5.6) zette bij een pagina zonder aantoonbaar
+verschil "dat verschil valt binnen de meetruis (55 punten nodig)" onder de chip "Nog gelijk". Cijfer
+en chip klopten allebei, en toch was de zin onbruikbaar: "55 punten nodig" zegt niet wát er 55 punten
+moet worden, en bij een pagina met een handvol doelvragen (de Eindhoven-pagina van de testklant
+Huyberts Keukens: 5 vragen, 0 naar 1 genoemd) kan de toets sowieso nooit iets anders zeggen dan
+"gelijk". Dat is een eigenschap van de steekproefgrootte, geen conclusie over de pagina, en het
+scherm zei dat nergens.
+
+De zin noemt nu het aantal VRAGEN in plaats van PUNTEN, en het concrete aantal dat nodig zou zijn:
+"met 5 vragen is dit verschil niet te onderscheiden van toeval, daar zijn er minstens 25 voor nodig"
+(`minQuestionsForSignal()`, `lib/pipeline/impact-math.ts`). Dat is een zin waar een klant iets mee
+kan: hij weet nu dat het probleem bij het aantal doelvragen zit, niet bij de pagina. Meer doelvragen
+per pagina toekennen (de structurele oplossing) raakt hoe het rapport aanbevelingen opstelt en is een
+aparte, grotere opdracht, zie `docs/tasks/roadmap.md`.
+
+⚠️ **Geen nieuw cijfer.** `delta_threshold` en `verdict` in `content_impact` zijn ongewijzigd; alleen
+de UITLEG eronder is anders. Een pagina met een écht gemeten stijging of daling toont deze zin
+sowieso niet, want die verschijnt alleen bij `verdict === "gelijk"`.
+
 ## 6. Eén werkmodel
 
 `lib/work.ts` is de enige statusmachine voor "werk". Daarvoor bestond werk in vijf vormen die

@@ -240,6 +240,15 @@ verschil tussen de 7,5 minuut die je in een demo belooft en 12 minuten.
   actuele cijfers staan in `architecture.md` §6: op de GPT-4.1-familie ~$0,82 per ronde en ~$1,06
   met herhalingen; na de overstap naar GPT-5.6 naar schatting ~$0,40, zie punt 0 hierboven, die
   schatting is nog niet nagerekend.
+- **Meer doelvragen per pagina toekennen (26 augustus 2026, uit doorloop-huyberts.md punt 6).**
+  Het effectscherm legt sinds punt 6 uit waarom het oordeel bij een handvol doelvragen nooit iets
+  anders dan "gelijk" kan zeggen (`minQuestionsForSignal()`, `lib/pipeline/impact-math.ts`), maar
+  lost het onderliggende probleem niet op: bij de Eindhoven-pagina van Huyberts Keukens zijn er
+  minstens 25 vergelijkbare doelvragen nodig om een verschil van 20% aan te tonen, tegen 5
+  toegewezen doelvragen nu. Een structurele oplossing raakt hoe het rapport doelvragen aan een
+  aanbeveling toekent (`lib/pipeline/recommendation.ts`, `resolveTargets()`) en mogelijk hoeveel
+  vragen een cluster meet, dus is een eigen ontwerpronde waard, geen bijvangst van een andere
+  opdracht.
 
 ## Fase 6, wat er nog wacht op de eerste publicatie (11 augustus 2026)
 

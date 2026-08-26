@@ -35,7 +35,7 @@ import { resolveTargets, readRecommendations } from "@/lib/pipeline/recommendati
 import type { RawRecommendation, CodedMissedPrompt } from "@/lib/pipeline/recommendation";
 import { geoScore, geoIssues } from "@/lib/schemas/critique";
 import type { GeoCriteria } from "@/lib/schemas/critique";
-import { compare, deltaOf, thresholdOf, verdictOf } from "@/lib/pipeline/impact-math";
+import { compare, deltaOf, thresholdOf, verdictOf, minQuestionsForSignal } from "@/lib/pipeline/impact-math";
 import { buildChangeBlock, isWorthEmailing } from "@/lib/pipeline/period-change-format";
 import type { PeriodChange } from "@/lib/pipeline/period-change-format";
 import { domainOf } from "@/lib/offsite/domain";
@@ -825,6 +825,40 @@ group("oordeel", () => {
   ok("0→alles bij 10 vragen = gestegen", verdictOf({ total: 10, beforeMentioned: 0, afterMentioned: 10 }) === "gestegen");
   ok("alles→0 = gedaald", verdictOf({ total: 10, beforeMentioned: 10, afterMentioned: 0 }) === "gedaald");
   ok("+1 op 20 is ruis", verdictOf({ total: 20, beforeMentioned: 5, afterMentioned: 6 }) === "gelijk");
+});
+
+// doorloop-huyberts.md punt 6: "gelijk" is statistisch correct en voor de klant
+// onbruikbaar zonder te zeggen hoeveel vragen er nodig zouden zijn. Echte
+// productiecijfers van Huyberts Keukens, ná de fix van punt 1 (die 5 in plaats
+// van 2 gemeten doelvragen opleverde voor de Eindhoven-pagina).
+group("minQuestionsForSignal: hoeveel vragen zijn er nodig, echte cijfers", () => {
+  const eindhoven = { total: 5, beforeMentioned: 0, afterMentioned: 1 }; // 0 -> 1 van de 5, 20%
+  ok("de Eindhoven-pagina zelf is 'gelijk'", verdictOf(eindhoven) === "gelijk");
+  eq2("en heeft er minstens 25 vragen voor nodig", minQuestionsForSignal(eindhoven), 25);
+
+  // Het oorspronkelijke voorbeeld uit doorloop-huyberts.md, vóór de fix van
+  // punt 1: 2 doelvragen, 0 -> 1, een stijging van 50 punten.
+  const oudVoorbeeld = { total: 2, beforeMentioned: 0, afterMentioned: 1 };
+  ok(
+    "bij minder vragen is het gevraagde aantal ook lager (grotere waargenomen sprong)",
+    (minQuestionsForSignal(oudVoorbeeld) ?? Infinity) < (minQuestionsForSignal(eindhoven) ?? Infinity),
+  );
+
+  eq2("geen gemeten verschil: geen enkel aantal vragen helpt", minQuestionsForSignal({
+    total: 8,
+    beforeMentioned: 3,
+    afterMentioned: 3,
+  }), null);
+
+  eq2("nul vragen: onbekend, geen gooi", minQuestionsForSignal({ total: 0, beforeMentioned: 0, afterMentioned: 0 }), null);
+
+  // Een grote, echte sprong bij een redelijk aantal vragen hoeft geen extra
+  // vragen: het antwoord is dan het HUIDIGE aantal, niet een hoger getal.
+  const duidelijkeStijging = { total: 20, beforeMentioned: 0, afterMentioned: 20 };
+  ok(
+    "wat al significant is (0 naar 20 van de 20), krijgt geen 'meer nodig'-getal",
+    verdictOf(duidelijkeStijging) === "gestegen",
+  );
 });
 
 // ════════════════════════════════════════════════════════════════════════════

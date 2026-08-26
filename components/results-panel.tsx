@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { InfoHint } from "@/components/info-hint";
 import type { ResultsSummary } from "@/lib/pipeline/results";
-import type { ImpactVerdict } from "@/lib/types/database";
+import type { ImpactVerdict, ContentImpact } from "@/lib/types/database";
+import { minQuestionsForSignal } from "@/lib/pipeline/impact-math";
 import { formatDateLong } from "@/lib/format";
 
 /**
@@ -22,6 +23,35 @@ const VERDICT: Record<ImpactVerdict, { text: string; className: string }> = {
   gelijk: { text: "Nog gelijk", className: "chip chip-neutral" },
   te_weinig_data: { text: "Nog aan het meten", className: "chip chip-neutral" },
 };
+
+/**
+ * Waarom "gelijk" hier geen echte uitspraak is (doorloop-huyberts.md punt 6).
+ *
+ * "Dat verschil valt binnen de meetruis (55 punten nodig)" is statistisch
+ * correct en voor een klant onbruikbaar: het zegt niet WAT er te doen valt.
+ * Bij een handvol doelvragen per pagina kan de toets vrijwel nooit iets anders
+ * zeggen dan "gelijk", en dat is een eigenschap van de steekproefgrootte, geen
+ * conclusie over de pagina. `minQuestionsForSignal()` maakt dat concreet: hoeveel
+ * vergelijkbare vragen zouden er nodig zijn om DIT verschil, op dezelfde
+ * verhouding, wél van toeval te kunnen onderscheiden.
+ */
+function gelijkUitleg(impact: ContentImpact): string {
+  const vraagWoord = impact.target_total === 1 ? "vraag" : "vragen";
+  const nodig = minQuestionsForSignal({
+    total: impact.target_total,
+    beforeMentioned: impact.target_before_mentioned,
+    afterMentioned: impact.target_after_mentioned,
+  });
+  if (nodig === null) {
+    return Number(impact.target_delta ?? 0) === 0
+      ? `er is geen verschil gemeten op deze ${vraagWoord}`
+      : `dit verschil is te klein om met een haalbaar aantal vragen aan te tonen`;
+  }
+  return (
+    `met ${impact.target_total} ${vraagWoord} is dit verschil niet te onderscheiden van toeval, ` +
+    `daar zijn er minstens ${nodig} voor nodig`
+  );
+}
 
 export function ResultsPanel({ analysisId, results }: { analysisId: string; results: ResultsSummary }) {
   const { funnel, pieces, totals } = results;
@@ -117,14 +147,7 @@ export function ResultsPanel({ analysisId, results }: { analysisId: string; resu
                     Op {p.impact.target_total} {p.impact.target_total === 1 ? "vraag" : "vragen"}:{" "}
                     {p.impact.target_before_mentioned}× genoemd vóór, {p.impact.target_after_mentioned}×
                     nu
-                    {p.impact.verdict === "gelijk" && (
-                      <>
-                        , want dat verschil valt binnen de meetruis ({Math.round(
-                          Number(p.impact.delta_threshold ?? 0),
-                        )}{" "}
-                        punten nodig)
-                      </>
-                    )}
+                    {p.impact.verdict === "gelijk" && <>, want {gelijkUitleg(p.impact)}</>}
                     {p.impact.control_total > 0 && (
                       <>
                         . Controlegroep: {p.impact.control_delta! > 0 ? "+" : ""}
