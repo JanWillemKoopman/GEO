@@ -25,6 +25,7 @@ import "server-only";
  */
 import { createAdminClient } from "@/lib/supabase/admin";
 import { loadRecommendationPotential } from "@/lib/potential-data";
+import { distributePotentialByWeight } from "@/lib/potential";
 import { readRecommendations, type RecommendationTarget } from "@/lib/pipeline/recommendation";
 import type { BacklogItem, BacklogHandeling } from "@/lib/plan-backlog";
 import type { PageType } from "@/lib/types/database";
@@ -218,13 +219,27 @@ export async function syncBacklog(
     ),
   );
 
+  // Kansen van hetzelfde onderwerp die toevallig exact dezelfde score delen
+  // (het zoekvolume komt per onderwerp, en bij een nieuwe klant is de
+  // zichtbaarheid overal nul): herverdeel die score naar rato van het gewicht
+  // van hun doelvragen, zie `distributePotentialByWeight()` in
+  // lib/potential.ts (doorloop-huyberts.md punt 4).
+  const herverdeeld = distributePotentialByWeight(
+    kandidaten.map((k, i) => ({
+      id: k.sourceRef,
+      analysisId: k.analysisId,
+      potential: potenties[i].potential,
+      targetWeight: k.vragen.reduce((som, v) => som + (v.weight ?? 0), 0) || null,
+    })),
+  );
+
   const nieuw: Record<string, unknown>[] = [];
   const bijwerken: { id: string; potential: number | null; target_count: number | null }[] = [];
 
   for (const [i, k] of kandidaten.entries()) {
     const gewicht = k.vragen.reduce((som, v) => som + (v.weight ?? 0), 0);
     const raakt = k.vragen.length > 0 ? k.vragen.length : null;
-    const potential = potenties[i].potential;
+    const potential = herverdeeld.get(k.sourceRef) ?? potenties[i].potential;
 
     const bestaandeId = bestaand.get(k.sourceRef);
     if (bestaandeId) {

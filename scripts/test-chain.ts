@@ -2726,6 +2726,133 @@ async function main(): Promise<void> {
     );
 
     // ══════════════════════════════════════════════════════════════════════
+    // De potentiescore onderscheidt kansen van hetzelfde onderwerp
+    // (doorloop-huyberts.md punt 4)
+    //
+    // ⚠️ DE SAMENHANG DIE HIER FOUT KAN GAAN: het zoekvolume komt per
+    // ONDERWERP en de zichtbaarheid is bij een nieuwe klant overal nul, dus
+    // `syncBacklog()` kon twee kansen van hetzelfde onderwerp met een
+    // identieke potentiescore opslaan. Dit scenario bouwt precies dat na (twee
+    // aanbevelingen in ÉÉN rapport, op ÉÉN onderwerp, geen van beide gemeten
+    // als genoemd) en controleert dat de opgeslagen `potential` ze alsnog
+    // onderscheidt.
+    console.log("\nDe potentiescore onderscheidt kansen van hetzelfde onderwerp (punt 4)");
+    {
+      const pvUserId = randomUUID();
+      const pvProfileId = randomUUID();
+      const pvAnalysisId = randomUUID();
+      const pvTopicId = randomUUID();
+      const zwareVraagId = randomUUID();
+      const lichteVraagId = randomUUID();
+
+      await db.client.query("insert into auth.users (id, email) values ($1, $2)", [
+        pvUserId,
+        "potentieverdeling@example.com",
+      ]);
+      await db.client.query(
+        `insert into public.profiles (id, user_id, name, url, brand_name, status)
+         values ($1, $2, 'Potentieverdeling BV', 'https://potentieverdeling-bv.nl', 'Potentieverdeling BV', 'klaar')`,
+        [pvProfileId, pvUserId],
+      );
+      await db.client.query(
+        `insert into public.analyses (id, user_id, profile_id, name, url, topic, status)
+         values ($1, $2, $3, 'Potentieverdeling — onderwerp', 'https://potentieverdeling-bv.nl', 'onderwerp', 'gereed')`,
+        [pvAnalysisId, pvUserId, pvProfileId],
+      );
+      await db.client.query(
+        `insert into public.profile_topics (id, profile_id, analysis_id, title, priority, status, search_volume_index)
+         values ($1, $2, $3, 'onderwerp', 5, 'goedgekeurd', 58)`,
+        [pvTopicId, pvProfileId, pvAnalysisId],
+      );
+      await db.client.query(
+        `insert into public.prompts (id, analysis_id, text, category, active) values
+         ($1, $2, 'Zware vraag?', 'Beslissing', true),
+         ($3, $2, 'Lichte vraag?', 'Beslissing', true)`,
+        [zwareVraagId, pvAnalysisId, lichteVraagId],
+      );
+      // Eén periodieke meting per vraag, geen van beide genoemd: zichtbaarheid
+      // nul voor allebei de kansen, exact het scenario van Huyberts.
+      for (const promptId of [zwareVraagId, lichteVraagId]) {
+        const runId = randomUUID();
+        await db.client.query(
+          `insert into public.tracking_runs
+             (id, analysis_id, prompt_id, prompt_text_snapshot, prompt_category_snapshot, week_no, purpose)
+           values ($1, $2, $3, 'antwoord', 'Beslissing', 0, 'periodic')`,
+          [runId, pvAnalysisId, promptId],
+        );
+        await db.client.query(
+          `insert into public.tracking_run_mentions (tracking_run_id, entity_name, is_own_brand, mentioned)
+           values ($1, 'Potentieverdeling BV', true, false)`,
+          [runId],
+        );
+      }
+      await db.client.query(
+        "insert into public.visibility_scores (analysis_id, week_no, score) values ($1, 0, 0)",
+        [pvAnalysisId],
+      );
+      // Eén rapport, twee aanbevelingen op hetzelfde onderwerp: de zware kans
+      // (gewicht 1,0) en de lichte kans (gewicht 0,3). Zonder punt 4 komen
+      // beide op dezelfde potentiescore uit, want ze delen zoekvolume 58 en
+      // zichtbaarheid 0.
+      await db.client.query(
+        `insert into public.reports (analysis_id, period, recommendations_json)
+         values ($1, 'week 0', $2::jsonb)`,
+        [
+          pvAnalysisId,
+          JSON.stringify([
+            {
+              title: "De zware kans",
+              why: "Weegt het zwaarst.",
+              type: "landing",
+              action: "nieuw",
+              targetIntent: "Iemand met de zware vraag",
+              targets: [{ promptId: zwareVraagId, weight: 1.0, text: "Zware vraag?" }],
+            },
+            {
+              title: "De lichte kans",
+              why: "Weegt het lichtst.",
+              type: "landing",
+              action: "nieuw",
+              targetIntent: "Iemand met de lichte vraag",
+              targets: [{ promptId: lichteVraagId, weight: 0.3, text: "Lichte vraag?" }],
+            },
+          ]),
+        ],
+      );
+
+      const { syncBacklog: pvSyncBacklog } = await import("@/lib/plan-backlog-data");
+      await pvSyncBacklog(admin as never, pvProfileId);
+
+      const { rows: pvKansen } = await db.client.query(
+        `select title, potential, target_weight from public.planned_pages
+          where profile_id = $1 order by title`,
+        [pvProfileId],
+      );
+      const zwareKans = pvKansen.find((r: { title: string }) => r.title === "De zware kans");
+      const lichteKans = pvKansen.find((r: { title: string }) => r.title === "De lichte kans");
+
+      ok(
+        "vóór punt 4 zouden deze twee dezelfde potentie hebben (zelfde onderwerp, zichtbaarheid 0)",
+        Number(zwareKans?.target_weight) === 1 && Number(lichteKans?.target_weight) === 0.3,
+      );
+      ok(
+        "de zware kans is het anker en houdt de onderwerpscore (58)",
+        Number(zwareKans?.potential) === 58,
+        `potentie was ${zwareKans?.potential}`,
+      );
+      ok(
+        "de lichte kans krijgt een lagere, evenredige score in plaats van ook 58",
+        Number(lichteKans?.potential) > 0 && Number(lichteKans?.potential) < 58,
+        `potentie was ${lichteKans?.potential}`,
+      );
+      ok(
+        "en die score klopt met de hand (58 × 0,3/1,0 ≈ 17)",
+        Number(lichteKans?.potential) === 17,
+        `potentie was ${lichteKans?.potential}`,
+      );
+    }
+
+    // ══════════════════════════════════════════════════════════════════════
     // Een klant volledig verwijderen (F4, AVG)
     //
     // ⚠️ Dit hoort bij uitstek in de ketentest en niet in test-unit.ts, want het

@@ -276,7 +276,13 @@ import {
 import { COST_DENIED } from "@/lib/cost-rules";
 import { requireCount } from "@/lib/require-count";
 import { mayMeasureAgain, MIN_DAGEN_TUSSEN_PERIODES } from "@/lib/measure-cadence";
-import { visibilityIndex, potentialScore, potentialBand, potentialExplanation } from "@/lib/potential";
+import {
+  visibilityIndex,
+  potentialScore,
+  potentialBand,
+  potentialExplanation,
+  distributePotentialByWeight,
+} from "@/lib/potential";
 import {
   DEFAULT_MIX,
   checkMix,
@@ -504,6 +510,11 @@ function ok(name: string, condition: boolean, detail = "") {
  * waren, niet hoeveel het er wél waren, en dan begint het zoeken opnieuw.
  */
 function eq(name: string, actual: string, expected: string) {
+  ok(name, actual === expected, actual === expected ? "" : `verwacht ${expected}, kreeg ${actual}`);
+}
+
+/** Zelfde als `eq()`, voor een getal (of `null`/`undefined`) in plaats van tekst. */
+function eq2(name: string, actual: number | null | undefined, expected: number | null) {
   ok(name, actual === expected, actual === expected ? "" : `verwacht ${expected}, kreeg ${actual}`);
 }
 
@@ -6804,6 +6815,109 @@ group("potentialExplanation: nooit een gegokte zin", () => {
   ok(
     "met beide bekend staat het gemiste percentage erin",
     potentialExplanation(40, 80).includes("60%"),
+  );
+});
+
+// doorloop-huyberts.md punt 4: de zeven kansen van Huyberts Keukens (echte
+// productie-cijfers, 26 augustus 2026) kwamen allemaal op potentie 58 uit,
+// want ze delen hetzelfde onderwerp (dus hetzelfde zoekvolume) en dezelfde
+// zichtbaarheid (nul, een gloednieuwe klant). distributePotentialByWeight()
+// moet ze alsnog onderscheiden, met de zwaarste kans als anker op 58.
+group("distributePotentialByWeight: Huyberts Keukens, echte cijfers", () => {
+  const analysisId = "huyberts-renovatie";
+  const kansen = [
+    { id: "renovatiepagina", analysisId, potential: 58, targetWeight: 3.0 },
+    { id: "eindhoven", analysisId, potential: 58, targetWeight: 1.7 },
+    { id: "den-bosch-helmond-veghel", analysisId, potential: 58, targetWeight: 1.5 },
+    { id: "deurtjes-fronten-grepen", analysisId, potential: 58, targetWeight: 1.3 },
+    { id: "keukenmontage", analysisId, potential: 58, targetWeight: 1.3 },
+    { id: "apparatuur-kookplaten", analysisId, potential: 58, targetWeight: 1.1 },
+    { id: "kosten", analysisId, potential: 58, targetWeight: 0.3 },
+  ];
+  const uitkomst = distributePotentialByWeight(kansen);
+
+  eq2("de zwaarste kans is het anker en houdt zijn score", uitkomst.get("renovatiepagina"), 58);
+  eq2("een kans met iets meer dan de helft van het gewicht", uitkomst.get("eindhoven"), 33);
+  eq2("exact de helft van het gewicht", uitkomst.get("den-bosch-helmond-veghel"), 29);
+  eq2("gelijk gewicht geeft gelijke score, en dat is eerlijk", uitkomst.get("deurtjes-fronten-grepen"), 25);
+  eq2("dezelfde score als zijn gewichtsgenoot", uitkomst.get("keukenmontage"), 25);
+  eq2("een derde van het gewicht", uitkomst.get("apparatuur-kookplaten"), 21);
+  eq2("de lichtste kans krijgt de laagste score, niet nul", uitkomst.get("kosten"), 6);
+
+  const scores = kansen.map((k) => uitkomst.get(k.id));
+  ok(
+    "zes van de zeven scores zijn nu onderling verschillend (twee wegen precies even zwaar)",
+    new Set(scores).size === 6,
+    `${new Set(scores).size} unieke scores: ${scores.join(", ")}`,
+  );
+});
+
+group("distributePotentialByWeight: raakt niets dat al onderscheidt", () => {
+  // Gasservice Brabant: vijf kansen delen score 77 (herverdelen), drie
+  // andere kansen hebben elk hun EIGEN score (echt gemeten verschil in
+  // zichtbaarheid) en horen dus onaangeraakt te blijven.
+  const analysisId = "gasservice-cv-ketel";
+  const uitkomst = distributePotentialByWeight([
+    { id: "prijzen-repareren-vervangen", analysisId, potential: 77, targetWeight: 1.2 },
+    { id: "geen-warm-water", analysisId, potential: 77, targetWeight: 0.8 },
+    { id: "bereikbaarheid", analysisId, potential: 77, targetWeight: 0.6 },
+    { id: "storingen-eindhoven", analysisId, potential: 77, targetWeight: 0.5 },
+    { id: "remeha-limburg", analysisId, potential: 77, targetWeight: 0.5 },
+    { id: "spoedhulp-den-bosch", analysisId, potential: 39, targetWeight: 0.8 },
+    { id: "onderhoud-oudere-ketels", analysisId, potential: 34, targetWeight: 0.32 },
+    { id: "storing-inspectie-vught", analysisId, potential: 0, targetWeight: 0.5 },
+  ]);
+
+  eq2("de groep van vijf krijgt zijn anker terug", uitkomst.get("prijzen-repareren-vervangen"), 77);
+  eq2("en wordt daarbinnen onderscheiden", uitkomst.get("geen-warm-water"), 51);
+  ok(
+    "twee kansen met gelijk gewicht in de groep van vijf krijgen gelijke score",
+    uitkomst.get("storingen-eindhoven") === uitkomst.get("remeha-limburg"),
+  );
+
+  // De drie singletons (geen enkele andere kans deelt hun score) blijven
+  // exact zoals ze waren: dit vangnet mag nooit een al gemeten verschil
+  // overschrijven.
+  eq2("een kans met een unieke score blijft onaangeraakt (39)", uitkomst.get("spoedhulp-den-bosch"), 39);
+  eq2("een kans met een unieke score blijft onaangeraakt (34)", uitkomst.get("onderhoud-oudere-ketels"), 34);
+  eq2("potentie 0 blijft 0", uitkomst.get("storing-inspectie-vught"), 0);
+});
+
+group("distributePotentialByWeight: randgevallen", () => {
+  const analysisId = "randgeval";
+  ok(
+    "geen enkel gewicht bekend in de groep: niemand wordt aangeraakt",
+    (() => {
+      const u = distributePotentialByWeight([
+        { id: "a", analysisId, potential: 40, targetWeight: null },
+        { id: "b", analysisId, potential: 40, targetWeight: null },
+      ]);
+      return u.get("a") === 40 && u.get("b") === 40;
+    })(),
+  );
+  ok(
+    "een onbekend gewicht binnen een groep houdt de groepsscore (geen gegokte nul)",
+    (() => {
+      const u = distributePotentialByWeight([
+        { id: "a", analysisId, potential: 40, targetWeight: 2 },
+        { id: "b", analysisId, potential: 40, targetWeight: null },
+      ]);
+      return u.get("a") === 40 && u.get("b") === 40;
+    })(),
+  );
+  ok(
+    "null potentie blijft null, en telt niet mee in een groep",
+    distributePotentialByWeight([{ id: "a", analysisId, potential: null, targetWeight: 1 }]).get("a") === null,
+  );
+  ok(
+    "twee kansen uit VERSCHILLENDE analyses met dezelfde score worden niet met elkaar vergeleken",
+    (() => {
+      const u = distributePotentialByWeight([
+        { id: "a", analysisId: "cluster-1", potential: 50, targetWeight: 5 },
+        { id: "b", analysisId: "cluster-2", potential: 50, targetWeight: 0.1 },
+      ]);
+      return u.get("a") === 50 && u.get("b") === 50;
+    })(),
   );
 });
 

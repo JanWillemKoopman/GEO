@@ -64,6 +64,83 @@ function clamp(n: number): number {
   return Math.max(0, Math.min(100, n));
 }
 
+/**
+ * Onderscheidt kansen die toevallig exact dezelfde potentiescore delen
+ * (doorloop-huyberts.md punt 4).
+ *
+ * ── WAAROM DIT NODIG IS ──────────────────────────────────────────────────────
+ *
+ * Het zoekvolume in `potentialScore()` komt per ONDERWERP (`profile_topics.
+ * search_volume_index`), dus alle kansen van hetzelfde onderwerp delen dat
+ * getal. Is de zichtbaarheid bij elke kans ook nul, en dat is bij elke nieuwe
+ * klant zo, dan valt er niets meer te onderscheiden: `(1 - 0/100) ×
+ * volumeIndex` is voor elke kans identiek. Bij Huyberts Keukens kwamen alle
+ * zeven kansen van hetzelfde cluster op exact 58 uit.
+ *
+ * ── DE OPLOSSING ─────────────────────────────────────────────────────────────
+ *
+ * De onderliggende cijfers die wél verschillen liggen er al:
+ * `content_piece_targets`/`planned_pages.target_weight`, het opgetelde gewicht
+ * (vraagvolume × koopklaarheid, `promptWeight()`) van de doelvragen die DEZE
+ * specifieke kans zou winnen. Binnen een groep kansen die exact dezelfde
+ * potentiescore delen, herverdeelt deze functie die score naar rato van dat
+ * gewicht: de zwaarste kans in de groep is het ANKER en behoudt zijn score
+ * ongewijzigd, de rest krijgt een evenredig lager deel.
+ *
+ * ⚠️ Bewust ALLEEN binnen een groep met een IDENTIEKE score, en nooit
+ * groepsoverstijgend: heeft een kans al een eigen, andere score (omdat zijn
+ * doelvragen al deels wél gemeten zichtbaarheid hebben, zoals bij een deel van
+ * Gasservice Brabant), dan is dat een echt gemeten verschil en blijft die kans
+ * onaangeraakt. Dit vangnet raakt dus nooit een score die al onderscheidt.
+ *
+ * Een kans zonder bekend gewicht (`null`, of een gewicht ≤ 0) behoudt de
+ * groepsscore: onbekend gewicht als nul behandelen zou hem onterecht onderaan
+ * duwen, en conventie 3 zegt dat onbekend een betere waarde is dan een
+ * gegokte.
+ */
+export interface WeightedPotential {
+  id: string;
+  /** Kansen worden alleen binnen dezelfde analyse (hetzelfde onderwerp) met elkaar vergeleken. */
+  analysisId: string;
+  potential: number | null;
+  /** Het opgetelde gewicht van de doelvragen die deze kans zou winnen (`planned_pages.target_weight`). */
+  targetWeight: number | null;
+}
+
+export function distributePotentialByWeight(
+  items: WeightedPotential[],
+): Map<string, number | null> {
+  const uitkomst = new Map<string, number | null>();
+  for (const item of items) uitkomst.set(item.id, item.potential);
+
+  const groepen = new Map<string, WeightedPotential[]>();
+  for (const item of items) {
+    if (item.potential === null) continue;
+    const sleutel = `${item.analysisId}:${item.potential}`;
+    const groep = groepen.get(sleutel) ?? [];
+    groep.push(item);
+    groepen.set(sleutel, groep);
+  }
+
+  for (const groep of groepen.values()) {
+    if (groep.length < 2) continue; // geen botsing, niets te herverdelen
+
+    const gewichten = groep
+      .map((g) => g.targetWeight)
+      .filter((w): w is number => w !== null && w > 0);
+    if (gewichten.length === 0) continue; // geen enkel gewicht bekend in deze groep
+
+    const maxGewicht = Math.max(...gewichten);
+    for (const item of groep) {
+      if (item.targetWeight === null || item.targetWeight <= 0) continue; // onbekend: houdt de groepsscore
+      const aandeel = Math.min(1, item.targetWeight / maxGewicht);
+      uitkomst.set(item.id, Math.round((item.potential as number) * aandeel));
+    }
+  }
+
+  return uitkomst;
+}
+
 export type PotentialBand = "hoog" | "gemiddeld" | "beperkt" | "onbekend";
 
 /** Grenzen zijn een keuze, geen meting: ruwweg in drieën, zoals `volume.ts` dat ook doet. */
