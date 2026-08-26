@@ -27,7 +27,9 @@ export function ChangeBlock({ c, merk }: { c: RunComparison; merk: string }) {
 
   return (
     <div className="card flex flex-col gap-3">
-      <span className="mono-label">Vergeleken met de vorige meting</span>
+      {/* ⚠️ Geen eigen kop meer. Dit blok staat sinds 25 augustus 2026 onder de
+          sectiekop "Sinds de vorige meting", en een tweede kop met dezelfde
+          strekking eronder maakte van één mededeling twee regels. */}
       <p className="text-secondary">{compareSentence(c, merk)}</p>
 
       {c.warning && (
@@ -54,7 +56,7 @@ export function ChangeBlock({ c, merk }: { c: RunComparison; merk: string }) {
       )}
 
       {heeftLijstjes && (
-        <div className="grid gap-3 sm:grid-cols-2">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {c.newWeaknesses.length > 0 && (
             <Lijst
               kop="Nieuw genoemde bezwaren"
@@ -112,12 +114,12 @@ function Lijst({ kop, items, uitleg }: { kop: string; items: string[]; uitleg: s
   return (
     <div className="flex flex-col gap-1">
       <span className="mono-label">{kop}</span>
-      <ul className="flex flex-col gap-1 text-sm text-secondary">
+      <ul className="flex flex-col gap-1 type-compact text-secondary">
         {items.map((i) => (
           <li key={i}>{i}</li>
         ))}
       </ul>
-      <p className="text-sm text-muted">{uitleg}</p>
+      <p className="type-caption text-muted">{uitleg}</p>
     </div>
   );
 }

@@ -5,21 +5,34 @@ import { requireUser } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { PageHeader } from "@/components/page-header";
+import { SectionHeading } from "@/components/section-heading";
 import { InfoHint } from "@/components/info-hint";
 import { CollapsibleSection } from "@/components/collapsible-section";
 import { ExternalLink } from "@/components/external-link";
+import { SectionErrorBoundary } from "@/components/section-error-boundary";
 import { mayTriggerCost, COST_DENIED } from "@/lib/cost-guard";
-import { toneSentence } from "@/lib/reputation/tone";
 import { spreadSentence } from "@/lib/reputation/score";
 import { sourceMixSentence } from "@/lib/reputation/sources";
 import { compareRuns, snapshotFromRun } from "@/lib/reputation/compare";
+import {
+  buildOfferingViews,
+  groupOfferings,
+  evidenceGapSentence,
+  evidenceWord,
+  countPerProduct,
+  marketSplitSentence,
+  reputationHeadline,
+  reviewRatings,
+  type ToneShape,
+} from "@/lib/reputation/screen";
 import { StartReputationButton } from "./_components/start-reputation-button";
 import { ChangeBlock } from "./_components/change-block";
-import { ToneChip, EvidenceChip, RankChip } from "./_components/tone-chip";
-import { OfferingRows } from "./_components/offering-rows";
+import { ToneMeter } from "./_components/tone-meter";
+import { OfferingList } from "./_components/offering-list";
 import { RivalTable } from "./_components/rival-table";
 import type {
   ReputationAnswer,
+  ReputationMarketRow,
   ReputationOfferingScore,
   ReputationRank,
   ReputationRun,
@@ -30,8 +43,8 @@ export const dynamic = "force-dynamic";
 export const metadata = { title: "Mijn reputatie" };
 
 /**
- * MIJN REPUTATIE: hoe AI over dit merk praat, per dienst en tegenover de
- * concurrenten (docs/tasks/mijn-reputatie.md).
+ * MIJN REPUTATIE: hoe AI over dit merk praat, per product en tegenover de
+ * concurrenten.
  *
  * ── DE VIJFDE VRAAG, EN HIJ STAAT OP ZICHZELF ───────────────────────────────
  *
@@ -40,24 +53,35 @@ export const metadata = { title: "Mijn reputatie" };
  * markt (het bronnenlandschap). Alle drie gaan over AANWEZIGHEID. Geen van
  * drieën gaat over TOON.
  *
- * Een merk kan bij elke koopvraag genoemd worden en er tegelijk om bekend staan
- * dat de levering altijd te laat is. Dat zag de app tot nu toe niet, en het is
- * precies wat een ondernemer als eerste wil weten.
- *
  * ── ⚠️ TWEE GETALLEN, NOOIT ÉÉN ─────────────────────────────────────────────
  *
- * De toon staat op dit scherm nooit alleen. Er staat altijd de bewijskracht
- * naast: hoeveel echte bronnen er onder dat oordeel liggen. Een taalmodel is
- * standaard vriendelijk over een bedrijf waar het niets van weet, en zonder die
- * tweede kolom maakt dit scherm van een onzichtbaar bedrijf een gerustgesteld
- * bedrijf. Dat is de gevaarlijkste uitkomst die dit product kan geven, en het is
- * de meest voorkomende uitslag bij een MKB-bedrijf.
+ * De toon staat op dit scherm nooit alleen. Er staat altijd bij waar dat oordeel
+ * op rust: hoeveel echte bronnen eronder liggen. Een taalmodel is standaard
+ * vriendelijk over een bedrijf waar het niets van weet, en zonder die tweede
+ * waarde maakt dit scherm van een onzichtbaar bedrijf een gerustgesteld bedrijf.
+ * Dat is de gevaarlijkste uitkomst die dit product kan geven, en de meest
+ * voorkomende uitslag bij een MKB-bedrijf.
  *
- * ── WAT DE KLANT BINNEN TIEN SECONDEN ZIET ──────────────────────────────────
+ * ── DE HERBOUW VAN 25 AUGUSTUS 2026, EN WAAROM ──────────────────────────────
  *
- * Blok 1 en verder niets. De zeven blokken eronder zijn er om na te lezen, en de
- * meeste staan daarom ingeklapt. Acht blokken op één pagina is veel; acht
- * blokken die allemaal tegelijk om aandacht vragen is onleesbaar.
+ * Het scherm telde acht blokken op hoofdniveau en veertien uitklapkoppen, alle
+ * met hetzelfde grijze mono-label en hetzelfde gewicht. Nergens was zichtbaar
+ * wat het antwoord was en wat de voetnoot. De drie zwaarste fouten:
+ *
+ *   1. **Het hoofdgetal sprak zichzelf tegen.** Bovenaan stond de chip "neutraal
+ *      0", twee regels lager de zin "bij 22 van de 22 vragen noemt ChatGPT zowel
+ *      lof als kritiek". Het etiket `gemengd` scoort altijd 0 en 0 heet
+ *      neutraal, dus de zwaarste mededeling van het scherm ontkende de op één na
+ *      zwaarste. De kop komt nu uit `reputationHeadline()` en zegt "verdeeld".
+ *   2. **Per product stond er twaalf keer hetzelfde.** Zie `offering-list.tsx`.
+ *   3. **De beste data werd niet uitgelezen.** `reputation_market` bevat per
+ *      product wie ChatGPT aanraadt en op welke plek de klant staat. Dit scherm
+ *      raakte die tabel niet aan, terwijl dat het enige cijfer op dit scherm is
+ *      waar rechtstreeks geld aan hangt.
+ *
+ * De volgorde is nu: de uitspraak, per product, wat terugkomt, waar het vandaan
+ * komt, en pas dan wat er sinds de vorige meting veranderde. Meta-informatie
+ * over onze eigen meting staat nooit meer boven de inhoud.
  */
 export default async function ReputatiePage({
   params,
@@ -98,17 +122,17 @@ export default async function ReputatiePage({
   // ── Staat 1: kan nog niet ─────────────────────────────────────────────────
   //
   // Dezelfde voorwaarde als `startReputationRun()` hanteert, zodat het scherm en
-  // de pijplijn nooit iets anders zeggen. Dit onderdeel meet PER DIENST, dus
-  // zonder diensten valt er niets te meten, en dan is een knop die tot een
+  // de pijplijn nooit iets anders zeggen. Dit onderdeel meet PER PRODUCT, dus
+  // zonder aanbod valt er niets te meten, en dan is een knop die tot een
   // mislukte run leidt erger dan geen knop.
   if (meetbareKnopen === 0 && laatste === null) {
     return (
-      <div className="flex flex-col gap-6">
-        <Kop id={id} />
+      <div className="flex flex-col gap-8">
+        <Kop />
         <div className="card flex flex-col gap-2">
           <span className="mono-label">Kan nog niet</span>
           <p className="text-secondary">
-            Een reputatieanalyse meet per dienst of product hoe AI over je praat. In het
+            Een reputatieanalyse meet per product of dienst hoe AI over je praat. In het
             merkprofiel van {merk} staan nog geen diensten of producten, dus er valt nog niets te
             meten.
           </p>
@@ -123,14 +147,14 @@ export default async function ReputatiePage({
   // ── Staat 2 en 3: klaar om te starten ─────────────────────────────────────
   if (laatste === null) {
     return (
-      <div className="flex flex-col gap-6">
-        <Kop id={id} />
+      <div className="flex flex-col gap-8">
+        <Kop />
         <div className="card flex flex-col gap-2">
           <span className="mono-label">Nog niet gemeten</span>
           <p className="text-secondary">
-            ORBIT ENGINE vraagt ChatGPT hoe er over {merk} gepraat wordt: per dienst, met de
-            bronnen erbij, en naast de concurrenten die uit je metingen zijn gekomen. Je krijgt
-            een toon, de bewijskracht eronder, en de plaats die AI je geeft als hij moet kiezen.
+            ORBIT ENGINE vraagt ChatGPT hoe er over {merk} gepraat wordt: per product, met de
+            bronnen erbij, en met de vraag die een koper stelt. Je ziet per product of ChatGPT je
+            noemt als iemand kiest, wie hij anders noemt, en welke bezwaren hij aan je koppelt.
           </p>
           <p className="text-sm text-muted">
             Ongeveer 50 vragen aan ChatGPT, een halfuur werk, ongeveer 75 cent.
@@ -158,8 +182,8 @@ export default async function ReputatiePage({
       .in("status", ["queued", "running"]);
 
     return (
-      <div className="flex flex-col gap-6">
-        <Kop id={id} />
+      <div className="flex flex-col gap-8">
+        <Kop />
         <div className="card flex flex-col gap-2">
           <span className="mono-label">De analyse loopt</span>
           <p className="text-secondary">
@@ -180,9 +204,9 @@ export default async function ReputatiePage({
   // ── Staat 7: mislukt ──────────────────────────────────────────────────────
   if (laatste.status === "mislukt") {
     return (
-      <div className="flex flex-col gap-6">
-        <Kop id={id} />
-        <div className="card flex flex-col gap-2">
+      <div className="flex flex-col gap-8">
+        <Kop />
+        <div className="card card-danger flex flex-col gap-2">
           <span className="mono-label">De analyse is niet gelukt</span>
           {/* ⚠️ Geen half cijfer. Een cijfer op twee antwoorden is geen cijfer,
               en zo eentje één keer tonen kost het vertrouwen in alle volgende. */}
@@ -211,22 +235,32 @@ export default async function ReputatiePage({
   }
 
   // ── Staat 5 en 6: klaar, of klaar met een kanttekening ────────────────────
-  const [{ data: answerRows }, { data: rankRows }, { data: scoreRows }, { data: sourceRows }] =
-    await Promise.all([
-      supabase.from("reputation_answers").select("*").eq("run_id", laatste.id),
-      supabase.from("reputation_ranks").select("*").eq("run_id", laatste.id),
-      supabase.from("reputation_offering_scores").select("*").eq("run_id", laatste.id),
-      supabase
-        .from("reputation_sources")
-        .select("*")
-        .eq("run_id", laatste.id)
-        .order("citations", { ascending: false }),
-    ]);
+  const [
+    { data: answerRows },
+    { data: rankRows },
+    { data: scoreRows },
+    { data: sourceRows },
+    { data: marketRows },
+  ] = await Promise.all([
+    supabase.from("reputation_answers").select("*").eq("run_id", laatste.id),
+    supabase.from("reputation_ranks").select("*").eq("run_id", laatste.id),
+    supabase.from("reputation_offering_scores").select("*").eq("run_id", laatste.id),
+    supabase
+      .from("reputation_sources")
+      .select("*")
+      .eq("run_id", laatste.id)
+      .order("citations", { ascending: false }),
+    // ⚠️ Deze tabel werd door dit scherm nooit uitgelezen, terwijl er per product
+    // in staat wie ChatGPT aanraadt en op welke plek de klant staat. Dat is de
+    // kern van hoofdstuk 02.
+    supabase.from("reputation_market").select("*").eq("run_id", laatste.id),
+  ]);
 
   const answers = (answerRows ?? []) as ReputationAnswer[];
   const ranks = (rankRows ?? []) as ReputationRank[];
   const scores = (scoreRows ?? []) as ReputationOfferingScore[];
   const sources = (sourceRows ?? []) as ReputationSource[];
+  const market = (marketRows ?? []) as ReputationMarketRow[];
 
   const merkbredeRanks = ranks.filter((r) => r.offering_id === null);
 
@@ -242,330 +276,370 @@ export default async function ReputatiePage({
 
   // De verdeeldheid komt uit de opgeslagen verdeling, zodat het scherm hem niet
   // opnieuw uitrekent uit de antwoorden. Eén feit, één eigenaar.
-  const verdeling = laatste.tone_distribution as
-    | { counts: Record<string, number>; spread: number; n: number }
-    | null;
+  const verdeling = laatste.tone_distribution as ToneShape | null;
   const verdeeldheid = verdeling ? spreadSentence(verdeling) : null;
   const vragen = answers.filter((a) => (a.answer_text ?? "").length > 0).length;
 
-  // Blok 2: zonder opzoeken tegenover met opzoeken. Het VERSCHIL is het inzicht.
+  const kop = reputationHeadline({
+    toneIndex: laatste.tone_index,
+    distribution: verdeling,
+    brand: merk,
+  });
+
+  const views = buildOfferingViews({ scores, answers, market });
+  const groepen = groupOfferings(views);
+  const cijfers = reviewRatings(sources);
+  const bewijsgat = evidenceGapSentence(views);
+
+  // Blok "uit zichzelf": zonder opzoeken tegenover met opzoeken. Het VERSCHIL is
+  // het inzicht, en het staat bij de herkomst en niet meer bovenaan.
   const zonderZoeken = answers.find((a) => a.block === "merk" && !a.web_search) ?? null;
   const metZoeken =
     answers.find((a) => a.block === "merk" && a.web_search && a.grounding !== "geen") ?? null;
 
   return (
-    <div className="flex flex-col gap-6">
-      <Kop id={id} />
+    // Het ritme drukt de groepering uit: 32 pixels tussen hoofdstukken, 12
+    // erbinnen (`ux-design.md`, de ronde van 25 augustus 2026 op het overzicht).
+    <div className="flex flex-col gap-8">
+      <Kop
+        action={
+          magStarten ? (
+            /* max-w-sm en geen w-full: de knop zelf is smal, maar de
+               bevestigingsuitleg die eronder uitklapt zou zonder grens de halve
+               kop breed worden. Met w-full brak hij de kopregel in tweeën. */
+            <div className="max-w-sm">
+              <StartReputationButton
+                profileId={id}
+                mayStart={magStarten}
+                deniedMessage={COST_DENIED.reputatie_starten}
+                repeat
+              />
+            </div>
+          ) : undefined
+        }
+      />
 
-      {/* ── BLOK 1 · De uitspraak ──────────────────────────────────────────
-          Eén zin in gewone taal, dan pas de getallen. Wie dit scherm opent moet
-          binnen tien seconden zien hoe hij ervoor staat. */}
-      <div className="card flex flex-col gap-3">
-        <p className="text-lg">{laatste.summary ?? toneSentence(laatste.tone_index, merk)}</p>
+      {/* ══ 01 · DE UITSPRAAK ═══════════════════════════════════════════════
+          Eén schermhoogte, en verder niets. Wie dit scherm opent moet binnen tien
+          seconden weten hoe hij ervoor staat. */}
+      <SectionErrorBoundary label="De uitspraak">
+        <section className="flex flex-col gap-3">
+          <div className="card card-rail flex flex-col gap-4">
+            <div className="flex flex-col gap-2">
+              <h2 className="type-section">{kop.kop}</h2>
+              {verdeeldheid && <p className="text-secondary">{verdeeldheid}</p>}
+            </div>
 
-        {/* ── De marktzin, en die staat bovenaan met opzet ──────────────────
-            Dit is het commercieel scherpste getal dat dit product heeft: niet
-            hoe er over je gepraat wordt, maar of AI je noemt als een koper
-            vraagt wie hij moet hebben. Een ondernemer die leest dat hij bij geen
-            enkele koopvraag genoemd wordt, heeft binnen één zin begrepen waarom
-            dit product bestaat. */}
-        {laatste.market_hit_rate !== null && (
-          <p className="text-secondary">
-            {laatste.market_position === null ? (
-              <>
-                Vraagt een koper wie hij moet hebben, dan noemt ChatGPT {merk}{" "}
-                <strong>bij geen enkele vraag</strong>. Je bent niet zichtbaar op het moment dat
-                iemand kiest.
-              </>
-            ) : (
-              <>
-                Vraagt een koper wie hij moet hebben, dan noemt ChatGPT {merk} bij{" "}
-                <strong>{Math.round(laatste.market_hit_rate * 100)}% van de vragen</strong>,
-                gemiddeld op plek {laatste.market_position}
-                {laatste.market_of !== null && ` van ${laatste.market_of}`}.
-              </>
+            <ToneMeter
+              index={laatste.tone_index}
+              stderr={laatste.tone_stderr}
+              woord={kop.woord}
+            />
+
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+              <span className="mono-label">
+                ChatGPT ·{" "}
+                {new Date(laatste.started_at).toLocaleDateString("nl-NL", {
+                  day: "numeric",
+                  month: "short",
+                  year: "numeric",
+                })}{" "}
+                · {vragen} vragen · {views.length}{" "}
+                {views.length === 1 ? "product" : "producten"}
+              </span>
+              <InfoHint label="Hoe lees je dit?">
+                De <strong>toon</strong> zegt hoe er over je gepraat wordt, van heel negatief tot
+                heel positief. Daarnaast staat altijd waar dat op rust: hoeveel controleerbare
+                bronnen ChatGPT aanhaalt en hoeveel daarvan niet je eigen site zijn. Die twee horen
+                bij elkaar. Een mooie toon met weinig bronnen betekent dat ChatGPT aardig tegen je
+                doet zonder je te kennen, en dat is iets anders dan een goede reputatie.
+              </InfoHint>
+            </div>
+
+            {/* Staat 6: budget op. Wat er wél gemeten is en wat is overgeslagen.
+                ⚠️ Nooit stil, maar ook nooit meer in een omkaderd blok dat met de
+                uitslag concurreert: het is een voetnoot bij de meting en geen
+                bevinding over het merk. */}
+            {laatste.notes.length > 0 && (
+              <details className="type-caption">
+                <summary className="cursor-pointer text-muted">
+                  Let op bij deze meting ({laatste.notes.length})
+                </summary>
+                <div className="mt-2 flex flex-col gap-1">
+                  {laatste.notes.map((n) => (
+                    <p key={n} className="text-secondary">
+                      {n}
+                    </p>
+                  ))}
+                </div>
+              </details>
             )}
-          </p>
-        )}
+          </div>
 
-        <div className="flex flex-wrap items-center gap-2">
-          <ToneChip index={laatste.tone_index} />
-          {/* ⚠️ De marge hoort bij de toon en niet erna: een cijfer zonder marge
-              leest als exact, en dit cijfer is dat niet. */}
-          {laatste.tone_stderr !== null && laatste.tone_index !== null && (
-            <span className="chip chip-neutral">
-              marge ±{Math.round(laatste.tone_stderr * 1.96)}
-            </span>
-          )}
-          <EvidenceChip score={laatste.evidence_score} />
-          <RankChip
-            position={laatste.rank_position}
-            of={laatste.rank_of}
-            indicative={laatste.rank_indicative}
-          />
-          {/* ⚠️ Alleen bij herhalingen gevuld, dus vandaag zelden. `null` tonen
-              als "100% eenduidig" zou een zekerheid suggereren die alleen
-              bestaat omdat er niets vergeleken is. */}
-          {laatste.consistency !== null && (
-            <span className="chip chip-neutral">eenduidigheid {laatste.consistency}</span>
-          )}
-          <InfoHint label="Wat betekenen deze getallen?">
-            De <strong>toon</strong> zegt hoe er over je gepraat wordt, van heel negatief tot heel
-            positief. De <strong>bewijskracht</strong> zegt waar dat op rust: hoeveel
-            controleerbare bronnen ChatGPT aanhaalt en hoeveel daarvan niet je eigen site zijn.
-            Die twee horen bij elkaar. Een mooie toon met een lage bewijskracht betekent dat
-            ChatGPT aardig tegen je doet zonder je te kennen, en dat is iets anders dan een goede
-            reputatie. De <strong>plaats</strong> zegt wie ChatGPT kiest als hij jou naast je
-            concurrenten legt.
-          </InfoHint>
-        </div>
-
-        {/* ── De zin die het verschil maakt tussen een cijfer en een bevinding ──
-            Tien keer "gemengd" en tien keer "neutraal" leveren allebei een toon
-            van nul op, en dat zijn compleet verschillende merken. Het eerste
-            heeft lof én kritiek, het tweede heeft geen profiel. Deze zin is wat
-            een consultant voorleest. */}
-        {verdeeldheid && <p className="text-secondary">{verdeeldheid}</p>}
-
-        <span className="mono-label">
-          ChatGPT · {new Date(laatste.started_at).toLocaleDateString("nl-NL", {
-            day: "numeric",
-            month: "short",
-            year: "numeric",
-          })}{" "}
-          · {vragen} vragen ·{" "}
-          {laatste.rivals.length === 0
-            ? "geen concurrenten"
-            : laatste.rivals.length === 1
-              ? "1 concurrent"
-              : `${laatste.rivals.length} concurrenten`}
-        </span>
-
-        {/* Staat 6: budget op. Wat er wél gemeten is, en wat er is overgeslagen.
-            Nooit stil: een cijfer dat doet alsof er niets aan de hand was, is
-            erger dan geen cijfer. */}
-        {laatste.notes.length > 0 && (
-          <div className="flex flex-col gap-1 rounded-[var(--radius-md)] border border-[var(--border-subtle)] p-3">
-            <span className="mono-label">Kanttekening bij deze meting</span>
-            {laatste.notes.map((n) => (
-              <p key={n} className="text-sm text-secondary">
-                {n}
+          {/* De twee steunfeiten. Niet vijf chips op één rij, maar de twee vragen
+              die een ondernemer echt stelt: kiest AI mij, en waar rust dit op? */}
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="card flex flex-col gap-1">
+              <span className="mono-label">Als een koper kiest</span>
+              <span className="stat-value text-2xl">
+                {groepen.genoemd.length} van de {groepen.genoemd.length + groepen.nietGenoemd.length}
+              </span>
+              <p className="type-compact text-secondary">
+                producten waarbij ChatGPT je noemt als iemand vraagt welk bedrijf hij moet hebben.
+                Welke dat zijn, staat hieronder.
               </p>
-            ))}
-          </div>
-        )}
-      </div>
+              {/* ⚠️ HIER STOND "gemiddeld op plek 2,3 van 6", EN DAT KON NIET KLOPPEN
+                  MET DE LIJST ERONDER. Dat gemiddelde loopt over alle marktvragen,
+                  ook de merkbrede, en die kende zes partijen. De vier producten
+                  eronder staan op plek 2 van 3, 2 van 5, 3 van 5 en 2 van 4: nergens
+                  een noemer van 6. Twee tellingen van hetzelfde die elkaar
+                  tegenspreken gelden als een fout (`ux-design.md`, 25 augustus 2026),
+                  en van de twee is de lijst de concrete. Het gemiddelde blijft
+                  opgeslagen in `market_position` voor de vergelijking over de tijd. */}
+            </div>
 
-      {/* ── BLOK 1b · Vergeleken met de vorige meting ──────────────────────
-          Staat direct onder de uitspraak, want wie voor de tweede keer kijkt
-          komt hiervoor. Bestaat er nog geen tweede meting, dan staat er niets:
-          een leeg blok met "nog geen vergelijking" voegt geen feit toe. */}
-      {vergelijking && <ChangeBlock c={vergelijking} merk={merk} />}
-
-      {/* ── BLOK 2 · Zonder opzoeken tegenover met opzoeken ────────────────
-          Dezelfde woorden als de kennistest gebruikt, zodat een klant die beide
-          ziet niet twee talen hoeft te leren. */}
-      <CollapsibleSection title="Wat ChatGPT uit zichzelf weet, en wat hij vindt" defaultOpen={false}>
-        <div className="grid gap-3 sm:grid-cols-2">
-          <div className="flex flex-col gap-1">
-            <span className="mono-label">Zonder opzoeken</span>
-            <p className="text-sm text-secondary">
-              {zonderZoeken?.answer_text ?? "Deze vraag is niet gesteld."}
-            </p>
+            <div className="card flex flex-col gap-1">
+              <span className="mono-label">Waar dit beeld op rust</span>
+              <span className="stat-value text-2xl">{evidenceWord(laatste.evidence_score)}</span>
+              <p className="type-compact text-secondary">
+                {sourceMixSentence(sources.map((s) => ({ domain: s.domain, kind: s.kind })))}
+                {cijfers.length > 0 && (
+                  <>
+                    {" "}
+                    ChatGPT leest onder meer een {nl(cijfers[0].rating as number)} op{" "}
+                    {cijfers[0].domain}
+                    {cijfers[0].rating_count !== null &&
+                      ` over ${cijfers[0].rating_count} beoordelingen`}
+                    .
+                  </>
+                )}
+              </p>
+            </div>
           </div>
-          <div className="flex flex-col gap-1">
-            <span className="mono-label">Met opzoeken</span>
-            <p className="text-sm text-secondary">
-              {metZoeken?.answer_text ?? "Deze vraag leverde niets op."}
-            </p>
-          </div>
-        </div>
-        <p className="mt-3 text-sm text-muted">
-          Het verschil is het inzicht. Weet ChatGPT uit zichzelf niets en met opzoeken alles, dan
-          hangt je reputatie volledig af van wat er online over je staat. Weet hij uit zichzelf
-          iets verouderds, dan los je dat met nieuwe content niet op.
-        </p>
-      </CollapsibleSection>
+        </section>
+      </SectionErrorBoundary>
 
-      {/* ── BLOK 3 · Waar AI dit vandaan haalt ─────────────────────────────── */}
-      <CollapsibleSection
-        title="Waar ChatGPT dit vandaan haalt"
-        badge={sources.length === 1 ? "1 bron" : `${sources.length} bronnen`}
-        defaultOpen={false}
-      >
-        {sources.length === 0 ? (
-          <p className="text-secondary">
-            ChatGPT haalt geen enkele controleerbare bron aan over {merk}. Dat is de zwaarste
-            uitkomst die dit blok kan geven: wat AI over je zegt, rust dan nergens op.
-          </p>
-        ) : (
-          <div className="flex flex-col gap-2">
-            <ul className="flex flex-col gap-2">
-              {sources.slice(0, 15).map((b) => (
-                <li key={b.id} className="flex flex-wrap items-center justify-between gap-3">
-                  <span className="min-w-0 flex-1">
-                    <span className="break-url block font-medium">
+      {/* ══ 02 · PER PRODUCT EN DIENST ══════════════════════════════════════ */}
+      <SectionErrorBoundary label="Per product en dienst">
+        <section className="flex flex-col gap-3">
+          <SectionHeading title="Per product en dienst" />
+          <OfferingList views={views} brand={merk} />
+        </section>
+      </SectionErrorBoundary>
+
+      {/* ══ 03 · WAT ER OVER JE TERUGKOMT ═══════════════════════════════════
+          De patronen uit de synthese, met de telling erbij uit hoeveel producten
+          ze terugkomen. Een bezwaar dat bij zeven producten opduikt is werk voor
+          morgen; een bezwaar bij één product is een incident. */}
+      <SectionErrorBoundary label="Wat er over je terugkomt">
+        <section className="flex flex-col gap-3">
+          <SectionHeading title="Wat er over je terugkomt" />
+          <div className="grid gap-3 sm:grid-cols-2">
+            <Patroon
+              kop="Waar ChatGPT je om prijst"
+              punten={countPerProduct(laatste.strengths, views, (v) => v.pros)}
+              leeg="Niets dat in meer dan één antwoord terugkwam. Eén keer iets noemen is toeval, geen patroon."
+            />
+            <Patroon
+              kop="Welke bezwaren terugkomen"
+              punten={countPerProduct(laatste.weaknesses, views, (v) => v.cons)}
+              leeg="Geen bezwaar kwam in meer dan één antwoord terug. ORBIT ENGINE heeft er wél expliciet naar gevraagd."
+            />
+          </div>
+          {bewijsgat && (
+            <div className="card flex flex-col gap-1">
+              <span className="mono-label">Waar niets over te vinden was</span>
+              <p className="text-secondary">{bewijsgat}</p>
+            </div>
+          )}
+        </section>
+      </SectionErrorBoundary>
+
+      {/* ══ 04 · WAAR DIT BEELD VANDAAN KOMT ════════════════════════════════ */}
+      <SectionErrorBoundary label="Waar dit beeld vandaan komt">
+        <section className="flex flex-col gap-3">
+          <SectionHeading title="Waar dit beeld vandaan komt" />
+
+          {cijfers.length > 0 && (
+            <div className="card flex flex-col gap-2">
+              <span className="mono-label">De cijfers die ChatGPT over je leest</span>
+              <ul className="flex flex-col gap-2">
+                {cijfers.map((c) => (
+                  <li key={c.domain} className="flex flex-wrap items-baseline justify-between gap-2">
+                    <span className="break-url">
+                      {c.url ? <ExternalLink href={c.url}>{c.domain}</ExternalLink> : c.domain}
+                      {c.rating_count !== null && (
+                        <span className="type-caption text-muted">
+                          {" "}
+                          over {c.rating_count} beoordelingen
+                        </span>
+                      )}
+                    </span>
+                    <span className="flex items-center gap-2">
+                      <span className="stat-value">{nl(c.rating as number)}</span>
+                      {/* ⚠️ Een cijfer uit een AI-antwoord is een gok tot het
+                          bewezen is. Bevestigd betekent: onze eigen crawler heeft
+                          de pagina opgehaald en er stond een hard cijfer op. */}
+                      <span className={`chip ${c.verified ? "chip-success" : "chip-warning"}`}>
+                        {c.verified ? "bevestigd" : "onbevestigd"}
+                      </span>
+                    </span>
+                  </li>
+                ))}
+              </ul>
+              <p className="type-caption text-muted">
+                Dit is het concreetste bewijs op dit scherm, en het enige dat je zelf kunt laten
+                groeien: elke nieuwe review verandert wat AI over je leest.
+              </p>
+            </div>
+          )}
+
+          <CollapsibleSection
+            title="Alle bronnen die ChatGPT aanhaalt"
+            badge={sources.length === 1 ? "1 bron" : `${sources.length} bronnen`}
+            defaultOpen={false}
+          >
+            {sources.length === 0 ? (
+              <p className="text-secondary">
+                ChatGPT haalt geen enkele controleerbare bron aan over {merk}. Dat is de zwaarste
+                uitkomst die dit blok kan geven: wat AI over je zegt, rust dan nergens op.
+              </p>
+            ) : (
+              <ul className="flex flex-col gap-2">
+                {sources.map((b) => (
+                  <li key={b.id} className="flex flex-wrap items-baseline justify-between gap-3">
+                    <span className="break-url min-w-0 flex-1">
                       {b.url ? <ExternalLink href={b.url}>{b.domain}</ExternalLink> : b.domain}
                     </span>
                     <span className="mono-label">
                       {SOORT_LABEL[b.kind] ?? b.kind} ·{" "}
                       {b.citations === 1 ? "1 keer aangehaald" : `${b.citations} keer aangehaald`}
                     </span>
-                  </span>
-                  {b.rating !== null && (
-                    <span className="flex items-center gap-2">
-                      <span className="stat-value">
-                        {b.rating}
-                        {b.rating_count !== null && (
-                          <span className="text-muted"> ({b.rating_count})</span>
-                        )}
-                      </span>
-                      {/* ⚠️ Een cijfer uit een AI-antwoord is een gok tot het
-                          bewezen is. Bevestigd betekent: onze eigen crawler heeft
-                          de pagina opgehaald en er stond een hard cijfer op. */}
-                      <span className={`chip ${b.verified ? "chip-success" : "chip-warning"}`}>
-                        {b.verified ? "bevestigd" : "onbevestigd"}
-                      </span>
-                    </span>
-                  )}
-                </li>
-              ))}
-            </ul>
-            <p className="text-sm text-muted">
-              {sourceMixSentence(sources.map((s) => ({ domain: s.domain, kind: s.kind })))}
-            </p>
-          </div>
-        )}
-      </CollapsibleSection>
-
-      {/* ── BLOK 4 · Per product en dienst, de kern ────────────────────────── */}
-      <div className="flex flex-col gap-2">
-        <span className="mono-label">Per product en dienst</span>
-        <p className="text-sm text-muted">
-          Het probleem staat bovenaan. Klap een regel open om te zien wat er precies gevraagd is
-          en wat ChatGPT letterlijk antwoordde.
-        </p>
-        <OfferingRows scores={scores} answers={answers} ranks={ranks} />
-      </div>
-
-      {/* ── BLOK 5 · Tegenover je concurrenten ─────────────────────────────── */}
-      <div className="flex flex-col gap-2">
-        <span className="mono-label">Wie ChatGPT aanraadt in jouw markt</span>
-        <p className="text-sm text-muted">
-          Hier is niet gevraagd om jou met iemand te vergelijken. Er is gevraagd wat een koper
-          vraagt: welke bedrijven raad je aan. Wie ChatGPT dan noemt, is je echte concurrent.
-        </p>
-        {laatste.market_rivals.length === 0 ? (
-          <div className="card flex flex-col gap-1">
-            <span className="mono-label">Geen namen</span>
-            <p className="text-secondary">
-              ChatGPT noemt geen enkel bedrijf als een koper vraagt wie hij moet hebben. Dat
-              betekent dat er in jouw markt weinig te verliezen valt op zo&apos;n vraag, maar ook
-              weinig te winnen.
-            </p>
-          </div>
-        ) : (
-          <div className="card flex flex-col gap-2">
-            <span className="mono-label">De bedrijven die ChatGPT zelf noemt</span>
-            <ol className="flex flex-col gap-1 text-sm text-secondary">
-              {laatste.market_rivals.map((naam, i) => (
-                <li key={naam}>
-                  {i + 1}. {naam}
-                </li>
-              ))}
-            </ol>
-            <p className="text-sm text-muted">
-              Op volgorde van hoe vaak ChatGPT ze noemde. Staan hier namen die je niet kent, dan
-              zijn dat de partijen waar je klanten wél op stuiten.
-            </p>
-          </div>
-        )}
-      </div>
-
-      {/* ── BLOK 5b · De benoemde vergelijking ──────────────────────────────
-          Blijft bestaan naast de marktvraag, maar niet meer als hoofdmechanisme.
-          Bij een merk waarvan AI de concurrenten kent, levert een gedwongen
-          rangschikking scherpere uitspraken op; bij een regionaal bedrijf levert
-          hij niets op en neemt de marktvraag het over. */}
-      <CollapsibleSection title="Naast je concurrenten gelegd" defaultOpen={false}>
-        <RivalTable run={laatste} ranks={merkbredeRanks} brandName={merk} />
-      </CollapsibleSection>
-
-      {/* ── BLOK 6 · Sterk en kwetsbaar ────────────────────────────────────── */}
-      <CollapsibleSection title="Sterk en kwetsbaar" defaultOpen={false}>
-        <div className="grid gap-3 sm:grid-cols-2">
-          <div className="flex flex-col gap-1">
-            <span className="mono-label">Wat AI structureel aan je koppelt</span>
-            {laatste.strengths.length === 0 ? (
-              <p className="text-sm text-muted">
-                Niets dat in meer dan één antwoord terugkwam. Eén keer iets noemen is toeval, geen
-                patroon.
-              </p>
-            ) : (
-              <ul className="flex flex-col gap-1 text-sm text-secondary">
-                {laatste.strengths.map((s) => (
-                  <li key={s}>{s}</li>
+                  </li>
                 ))}
               </ul>
             )}
-          </div>
-          <div className="flex flex-col gap-1">
-            <span className="mono-label">Welke bezwaren terugkomen</span>
-            {laatste.weaknesses.length === 0 ? (
-              <p className="text-sm text-muted">
-                Geen bezwaar kwam in meer dan één antwoord terug. ORBIT ENGINE heeft er wél
-                expliciet naar gevraagd.
-              </p>
-            ) : (
-              <ul className="flex flex-col gap-1 text-sm text-secondary">
-                {laatste.weaknesses.map((s) => (
-                  <li key={s}>{s}</li>
-                ))}
-              </ul>
-            )}
-          </div>
-        </div>
-        <p className="mt-3 text-sm text-muted">
-          Alleen punten die in minstens twee antwoorden voorkomen staan hier. Anders is het
-          toeval en geen patroon.
-        </p>
-      </CollapsibleSection>
+          </CollapsibleSection>
 
-      {/* ── BLOK 7 · Wat dit niet is ───────────────────────────────────────
-          ⚠️ Dit blok verdwijnt nooit en wordt nooit ingeklapt. */}
-      <Voorbehoud run={laatste} vragen={vragen} />
+          <CollapsibleSection
+            title="Wat ChatGPT uit zichzelf weet, en wat hij opzoekt"
+            defaultOpen={false}
+          >
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="flex flex-col gap-1">
+                <span className="mono-label">Zonder opzoeken</span>
+                <p className="type-compact text-secondary">
+                  {zonderZoeken?.answer_text ?? "Deze vraag is niet gesteld."}
+                </p>
+              </div>
+              <div className="flex flex-col gap-1">
+                <span className="mono-label">Met opzoeken</span>
+                <p className="type-compact text-secondary">
+                  {metZoeken?.answer_text ?? "Deze vraag leverde niets op."}
+                </p>
+              </div>
+            </div>
+            <p className="type-caption text-muted">
+              Het verschil is het inzicht. Weet ChatGPT uit zichzelf niets en met opzoeken alles,
+              dan hangt je reputatie volledig af van wat er online over je staat. Weet hij uit
+              zichzelf iets verouderds, dan los je dat met nieuwe content niet op.
+            </p>
+          </CollapsibleSection>
 
-      {/* ── BLOK 8 · De vervolgstap ────────────────────────────────────────
-          ⚠️ Er komt GEEN knop die iets belooft wat er niet is. Van reputatie naar
-          content is fase 2 en die bestaat nog niet; een knop hier zou zeggen dat
-          hij wel bestaat. */}
-      <div className="card flex flex-col gap-1">
-        <span className="mono-label">En nu</span>
-        <p className="text-secondary">
-          Dit scherm laat zien hoe je ervoor staat. Wat je eraan doet, bepaal je met je
-          consultant.
-        </p>
-      </div>
+          <CollapsibleSection title="Naast je concurrenten gelegd" defaultOpen={false}>
+            <RivalTable run={laatste} ranks={merkbredeRanks} brandName={merk} />
+          </CollapsibleSection>
 
-      {magStarten && (
-        <StartReputationButton
-          profileId={id}
-          mayStart={magStarten}
-          deniedMessage={COST_DENIED.reputatie_starten}
-          repeat
-        />
+          {laatste.market_rivals.length > 0 && (
+            <p className="type-compact text-muted">
+              De bedrijven die ChatGPT het vaakst zelf noemt in jouw markt:{" "}
+              {laatste.market_rivals.slice(0, 5).join(", ")}
+              {laatste.market_rivals.length > 5 && ` en ${laatste.market_rivals.length - 5} andere`}
+              .{" "}
+              <Link href={`/merk/${id}/analytics/concurrenten`} className="underline">
+                Bekijk je concurrenten
+              </Link>
+              .
+            </p>
+          )}
+        </section>
+      </SectionErrorBoundary>
+
+      {/* ══ 05 · SINDS DE VORIGE METING ═════════════════════════════════════
+          ⚠️ Onderaan en niet bovenaan. Dit hoofdstuk gaat over onze meting en
+          niet over het merk, en het stond eerder op plek twee: boven alles wat
+          een klant komt halen. Bestaat er nog geen tweede meting, dan staat er
+          niets. Een leeg blok met "nog geen vergelijking" voegt geen feit toe. */}
+      {vergelijking && (
+        <SectionErrorBoundary label="Sinds de vorige meting">
+          <section className="flex flex-col gap-3">
+            <SectionHeading title="Sinds de vorige meting" />
+            <ChangeBlock c={vergelijking} merk={merk} />
+          </section>
+        </SectionErrorBoundary>
       )}
+
+      {/* ⚠️ Dit blok verdwijnt nooit en wordt nooit ingeklapt. */}
+      <Voorbehoud run={laatste} vragen={vragen} />
     </div>
   );
 }
 
-function Kop({ id }: { id: string }) {
+/**
+ * Een getal in het Nederlands: 2.3 wordt 2,3 en 8.2 wordt 8,2.
+ *
+ * ⚠️ Stond er niet, waardoor de gemiddelde plek als "2.3" op het scherm kwam en
+ * een reviewcijfer als "8.2". Dat leest als een versienummer.
+ */
+function nl(waarde: number): string {
+  return waarde.toLocaleString("nl-NL", { maximumFractionDigits: 1 });
+}
+
+function Kop({ action }: { action?: React.ReactNode }) {
   return (
     <PageHeader
       eyebrow="Analytics"
       title="Mijn reputatie"
-      description="Hoe AI over je praat, per dienst, hoe je het doet tegenover je concurrenten, en waar dat beeld vandaan komt."
+      description="Wat AI over je zegt, per product, en of hij je noemt als een koper vraagt wie hij moet hebben."
+      action={action}
     />
+  );
+}
+
+/** Eén patroon met de telling uit hoeveel producten het terugkomt. */
+function Patroon({
+  kop,
+  punten,
+  leeg,
+}: {
+  kop: string;
+  punten: { punt: string; producten: number }[];
+  leeg: string;
+}) {
+  return (
+    <div className="card flex flex-col gap-2">
+      <span className="mono-label">{kop}</span>
+      {punten.length === 0 ? (
+        <p className="type-compact text-muted">{leeg}</p>
+      ) : (
+        <ul className="flex flex-col gap-1.5">
+          {punten.map((p) => (
+            // ⚠️ Geen `flex-wrap`. Een punt van meer dan een regel duwde de
+            // telling naar een eigen regel eronder, en dan leest hij als een
+            // nieuw punt in plaats van als het aantal bij het punt erboven.
+            <li key={p.punt} className="flex items-baseline justify-between gap-3">
+              <span className="type-compact min-w-0 flex-1 text-secondary">{p.punt}</span>
+              {/* ⚠️ Alleen bij twee of meer producten. Bij één zegt de telling
+                  niets wat de regel zelf niet al zegt, en dan is het een cijfer
+                  om het cijfer. */}
+              {p.producten > 1 && (
+                <span className="type-caption shrink-0 text-muted">bij {p.producten} producten</span>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
   );
 }
 
@@ -579,17 +653,19 @@ const SOORT_LABEL: Record<string, string> = {
 };
 
 /**
- * Blok 7: wat dit niet is.
+ * Wat dit niet is.
  *
  * ⚠️ Altijd zichtbaar, nooit ingeklapt, en ook aanwezig op de schermen waar nog
  * geen uitslag staat. De reden is richtlijn 8 uit `docs/schrijfstijl.md`: bewijs
  * boven belofte. Een meetinstrument dat zijn eigen grenzen benoemt is meer waard
- * dan een meetinstrument met een voorbehoud in de kleine lettertjes, en de klant
- * hoort die grenzen te kennen vóórdat hij het cijfer leest, niet erna.
+ * dan een meetinstrument met een voorbehoud in de kleine lettertjes.
+ *
+ * Wat wél veranderd is: het staat als laatste, in één gedempt blok, en niet meer
+ * in dezelfde opmaak als de bevindingen erboven.
  */
 function Voorbehoud({ run, vragen }: { run: ReputationRun | null; vragen?: number }) {
   return (
-    <div className="flex flex-col gap-1 text-sm text-muted">
+    <div className="flex flex-col gap-1 border-t border-[var(--border-subtle)] pt-4 type-caption text-muted">
       <span className="mono-label">Wat dit niet is</span>
       <p>Eén AI-assistent: ChatGPT. Andere assistenten kunnen iets anders zeggen.</p>
       <p>
