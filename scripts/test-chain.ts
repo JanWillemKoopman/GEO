@@ -4111,6 +4111,147 @@ async function main(): Promise<void> {
       ok("wat beantwoord is telt niet meer mee als open", nogOpen[0].n === 1, String(nogOpen[0].n));
     }
 
+    // ════════════════════════════════════════════════════════════════════════
+    // De effectmeting gooide de helft van haar betaalde metingen weg
+    // (doorloop-huyberts.md punt 1, migratie 0066).
+    //
+    // ⚠️ DE SAMENHANG DIE HIER FOUT KAN GAAN: twee unieke indexen op
+    // tracking_runs spraken elkaar tegen. tracking_runs_idem_idx (0041) kende
+    // impact_wave en content_piece_id niet, dus golf 2 van dezelfde vraag
+    // botste met golf 1, en twee pagina's die dezelfde vraag als doel hebben
+    // botsten met elkaar. Dat gebeurde NA de betaalde web_search-aanroep. Bij
+    // Huyberts Keukens kostte dat 56 van de 112 betaalde zoekacties.
+    {
+      console.log("\nDe impactmeting bewaart nu beide golven en beide pagina's (0066)");
+      const impactProfileId = randomUUID();
+      const impactAnalysisId = randomUUID();
+      const promptId = randomUUID();
+      const pieceA = randomUUID();
+      const pieceB = randomUUID();
+
+      await db.client.query(
+        `insert into public.profiles (id, user_id, name, url, brand_name, status)
+         values ($1, $2, 'Fysi-Unique impact', 'https://fysi-unique.nl', 'Fysi-Unique', 'klaar')`,
+        [impactProfileId, userId],
+      );
+      await db.client.query(
+        `insert into public.analyses (id, user_id, profile_id, name, url, topic, status)
+         values ($1, $2, $3, 'Fysi-Unique — impact', 'https://fysi-unique.nl', 'hardloopblessure', 'gereed')`,
+        [impactAnalysisId, userId, impactProfileId],
+      );
+      // ÉÉN vraag, gedeeld door twee pagina's; dat is precies de botsing uit
+      // punt 1 van doorloop-huyberts.md.
+      await db.client.query(
+        `insert into public.prompts (id, analysis_id, text, category, active)
+         values ($1, $2, 'Waar kan ik in Amersfoort terecht voor een hardloopblessure?', 'Oriëntatie', true)`,
+        [promptId, impactAnalysisId],
+      );
+      await db.client.query(
+        `insert into public.content_pieces (id, analysis_id, type, title) values
+         ($1, $2, 'article', 'Hardloopblessures in Amersfoort'),
+         ($3, $2, 'article', 'Wat kost een behandeling')`,
+        [pieceA, impactAnalysisId, pieceB],
+      );
+
+      const { measurePromptById } = await import("@/lib/pipeline/measure");
+      const weekNo = 3; // "de laatste periode", zoals een echte impactmeting meegeeft
+
+      // Golf 1 en golf 2 van dezelfde pagina, dezelfde vraag. Vóór 0066 sloeg
+      // de tweede insert dood op tracking_runs_idem_idx, ná een betaalde
+      // web_search.
+      let golf1Fout: unknown = null;
+      let golf2Fout: unknown = null;
+      let pagBFout: unknown = null;
+      try {
+        await measurePromptById(impactAnalysisId, promptId, weekNo, {
+          purpose: "impact",
+          contentPieceId: pieceA,
+          wave: 1,
+        });
+      } catch (err) {
+        golf1Fout = err;
+      }
+      try {
+        await measurePromptById(impactAnalysisId, promptId, weekNo, {
+          purpose: "impact",
+          contentPieceId: pieceA,
+          wave: 2,
+        });
+      } catch (err) {
+        golf2Fout = err;
+      }
+      // Pagina B, dezelfde vraag, dezelfde week: de tweede botsing uit punt 1.
+      try {
+        await measurePromptById(impactAnalysisId, promptId, weekNo, {
+          purpose: "impact",
+          contentPieceId: pieceB,
+          wave: 1,
+        });
+      } catch (err) {
+        pagBFout = err;
+      }
+
+      ok("golf 1 wordt opgeslagen", golf1Fout === null, String(golf1Fout));
+      ok("golf 2 van dezelfde pagina wordt NIET tegengehouden door golf 1", golf2Fout === null, String(golf2Fout));
+      ok("pagina B met dezelfde vraag wordt NIET tegengehouden door pagina A", pagBFout === null, String(pagBFout));
+
+      const { rows: impactRijen } = await db.client.query(
+        `select content_piece_id, impact_wave from public.tracking_runs
+          where analysis_id = $1 and prompt_id = $2 and purpose = 'impact'
+          order by content_piece_id, impact_wave`,
+        [impactAnalysisId, promptId],
+      );
+      ok(
+        "alle drie de metingen staan als aparte rijen",
+        impactRijen.length === 3,
+        `${impactRijen.length} rij(en)`,
+      );
+
+      // Een herhaalde aanroep voor exact dezelfde pagina en golf (een herhaalde
+      // taak, of een cron die twee keer binnen dezelfde minuut draait) moet
+      // idempotent blijven: geen vierde rij, geen nieuwe betaalde aanroep.
+      await measurePromptById(impactAnalysisId, promptId, weekNo, {
+        purpose: "impact",
+        contentPieceId: pieceA,
+        wave: 1,
+      });
+      const { rows: naHerhaling } = await db.client.query(
+        `select count(*)::int as n from public.tracking_runs
+          where analysis_id = $1 and prompt_id = $2 and purpose = 'impact'
+            and content_piece_id = $3 and impact_wave = 1`,
+        [impactAnalysisId, promptId, pieceA],
+      );
+      ok("een herhaalde meting van dezelfde golf blijft op één rij staan", naHerhaling[0].n === 1);
+
+      // De keerzijde: tracking_runs_idem_periodic_idx moet periodieke metingen
+      // nog steeds tegenhouden. content_piece_id is hier null, dus dit raakt
+      // een ANDERE index dan hierboven, en die moet nog gewoon werken.
+      await db.client.query(
+        `insert into public.tracking_runs
+           (analysis_id, prompt_id, prompt_text_snapshot, prompt_category_snapshot,
+            engine, week_no, purpose, repeat_index, raw_response, raw_response_received_at)
+         values ($1, $2, 'antwoord 1', 'Oriëntatie', 'openai', $3, 'periodic', 0, 'antwoord 1', now())`,
+        [impactAnalysisId, promptId, weekNo],
+      );
+      let periodiekDubbelFout: unknown = null;
+      try {
+        await db.client.query(
+          `insert into public.tracking_runs
+             (analysis_id, prompt_id, prompt_text_snapshot, prompt_category_snapshot,
+              engine, week_no, purpose, repeat_index, raw_response, raw_response_received_at)
+           values ($1, $2, 'antwoord 2', 'Oriëntatie', 'openai', $3, 'periodic', 0, 'antwoord 2', now())`,
+          [impactAnalysisId, promptId, weekNo],
+        );
+      } catch (err) {
+        periodiekDubbelFout = err;
+      }
+      ok(
+        "een dubbele periodieke meting botst nog steeds op de unieke index",
+        periodiekDubbelFout !== null && String(periodiekDubbelFout).includes("tracking_runs_idem_periodic_idx"),
+        String(periodiekDubbelFout),
+      );
+    }
+
     __setTestAdminClient(null);
     __setTestTransport(null);
     __setTestPlainTransport(null);

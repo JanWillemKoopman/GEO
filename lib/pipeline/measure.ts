@@ -71,6 +71,9 @@ const MIN_SUCCESS_RATIO = 0.7;
  */
 const MIN_ANSWER_CHARS = 40;
 
+/** Postgres-foutcode voor een geschonden unieke index (zie ook lib/jobs/queue.ts). */
+const UNIQUE_VIOLATION = "23505";
+
 /**
  * Waarvoor deze meting gedaan wordt (optimalisatie.md 5.3).
  *
@@ -116,30 +119,39 @@ export async function measureOnePrompt(
   // impactmeting hangt hij aan de pagina en de golf, want dezelfde prompt kan in
   // dezelfde periode zowel periodiek als voor twee verschillende pagina's
   // gemeten worden.
-  const query = admin
-    .from("tracking_runs")
-    .select("*")
-    .eq("analysis_id", analysis.id)
-    .eq("prompt_id", prompt.id);
+  //
+  // Een postgrest-js queryobject is eenmalig: eenmaal ge-`await`ed mag het niet
+  // nog een keer opgebouwd worden. Vandaar een functie die 'm bij elke aanroep
+  // vers opbouwt, want migratie 0066 (zie hieronder) kan hem twee keer nodig
+  // hebben binnen één meting: eerst hier, en bij een botsing op de unieke index
+  // nog een keer om de rij over te nemen die er al bleek te staan.
+  const findExisting = () => {
+    const q = admin
+      .from("tracking_runs")
+      .select("*")
+      .eq("analysis_id", analysis.id)
+      .eq("prompt_id", prompt.id)
+      // De engine hoort ONVOORWAARDELIJK in de sleutel. Zonder dit ziet een
+      // Gemini-meting de OpenAI-meting van dezelfde vraag als "al gedaan" en
+      // slaat hij zichzelf over. Zonder foutmelding, met een lege score per
+      // engine terwijl alles groen lijkt. Migratie 0041 dwingt dezelfde sleutel
+      // af met een unieke index, zodat de code en de database het niet oneens
+      // kunnen worden.
+      .eq("engine", engineId);
+    return impact
+      ? q
+          .eq("content_piece_id", impact.contentPieceId)
+          .eq("impact_wave", impact.wave)
+          .eq("purpose", impact.purpose)
+          .maybeSingle()
+      : q
+          .eq("week_no", weekNo)
+          .eq("purpose", "periodic")
+          .eq("repeat_index", repeatIndex)
+          .maybeSingle();
+  };
 
-  // De engine hoort ONVOORWAARDELIJK in de sleutel. Zonder dit ziet een
-  // Gemini-meting de OpenAI-meting van dezelfde vraag als "al gedaan" en slaat
-  // hij zichzelf over. Zonder foutmelding, met een lege score per engine
-  // terwijl alles groen lijkt. Migratie 0041 dwingt dezelfde sleutel af met een
-  // unieke index, zodat de code en de database het niet oneens kunnen worden.
-  const { data: existing } = impact
-    ? await query
-        .eq("engine", engineId)
-        .eq("content_piece_id", impact.contentPieceId)
-        .eq("impact_wave", impact.wave)
-        .eq("purpose", impact.purpose)
-        .maybeSingle()
-    : await query
-        .eq("engine", engineId)
-        .eq("week_no", weekNo)
-        .eq("purpose", "periodic")
-        .eq("repeat_index", repeatIndex)
-        .maybeSingle();
+  const { data: existing } = await findExisting();
 
   let run = existing as TrackingRun | null;
 
@@ -220,8 +232,29 @@ export async function measureOnePrompt(
       .select("*")
       .single();
 
-    if (error || !inserted) throw new Error(`Opslaan van 3a mislukt voor prompt ${prompt.id}.`);
-    run = inserted as TrackingRun;
+    if (error || !inserted) {
+      // Botsing op een unieke index (Postgres-foutcode 23505): een andere
+      // poging van dezelfde taak, of een gelijktijdige herhaling, sloeg deze
+      // exacte meting net op. Migratie 0066 loste de structurele oorzaak op
+      // (twee indexen met een verschillende sleutel), maar een race blijft
+      // mogelijk zolang de queue meer dan één poging tegelijk kan draaien. De
+      // web_search hierboven is al betaald; die kosten teruggeven kan niet
+      // meer, maar de rij die er al staat overnemen voorkomt dat de taak op
+      // dezelfde meting nóg drie keer misgaat (MAX_ATTEMPTS = 4) en zo de
+      // dure aanroep nog drie keer extra doet.
+      if (error?.code === UNIQUE_VIOLATION) {
+        const { data: existingAfterRace } = await findExisting();
+        if (existingAfterRace) {
+          run = existingAfterRace as TrackingRun;
+        } else {
+          throw new Error(`Opslaan van 3a mislukt voor prompt ${prompt.id}.`);
+        }
+      } else {
+        throw new Error(`Opslaan van 3a mislukt voor prompt ${prompt.id}.`);
+      }
+    } else {
+      run = inserted as TrackingRun;
+    }
   }
 
   if (run.mention_json) return; // 3b al gedaan, niets te doen (idempotent)

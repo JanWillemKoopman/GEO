@@ -492,6 +492,16 @@ const ANTWOORDEN: Record<string, (user: string) => unknown> = {
     ],
   }),
 
+  /**
+   * Halte 3b, het oordeel over een gesimuleerd antwoord (measureOnePrompt,
+   * lib/pipeline/measure.ts). De metingscenario's van vóór "de impactmeting
+   * bewaart nu beide golven" (0066) hadden dit nooit nodig: die bootsten hun
+   * uitkomst na met voorgebakken rijen in tracking_runs. Wat hier gecontroleerd
+   * wordt is de idempotentiesleutel, niet de classificatie, dus een leeg
+   * oordeel is genoeg; het antwoord is lang genoeg om MIN_ANSWER_CHARS te halen.
+   */
+  mention: () => ({ mentions: [] }),
+
   profile_research: () => ({
     brandName: "Fysi-Unique",
     industry: "wellness en massage",
