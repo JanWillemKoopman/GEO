@@ -1557,6 +1557,95 @@ async function main(): Promise<void> {
     );
 
     // ══════════════════════════════════════════════════════════════════════
+    // Toewijzen laat de accountlaag nu ook meeverhuizen (doorloop-huyberts.md,
+    // kleiner punt B)
+    //
+    // ⚠️ DE SAMENHANG DIE HIER FOUT KON GAAN: /api/profiles/[id]/assign
+    // verplaatste tot 26 augustus 2026 alleen profiles.user_id en
+    // analyses.user_id (laag 2, de historische terugval). profiles.account_id
+    // (laag 1, de hoofdregel) bleef op het account van de beheerder staan. De
+    // klant kwam dan binnen via laag 2 in plaats van laag 1, en dat is precies
+    // de omweg die defaultAccountFor() destijds al repareerde voor NIEUWE
+    // profielen. Dit scenario bootst na wat de route nu doet: hetzelfde
+    // account resolveren dat een nieuw profiel ook zou krijgen, en dat
+    // meegeven in de update.
+    // ══════════════════════════════════════════════════════════════════════
+    console.log("\nToewijzen laat de accountlaag nu meeverhuizen (kleiner punt B)");
+    {
+      const beheerderId = randomUUID();
+      const beheerderAccountId = randomUUID();
+      const klantVoorToewijzing = randomUUID();
+      const toeTeWijzenProfiel = randomUUID();
+
+      await db.client.query("insert into auth.users (id, email) values ($1, $2)", [
+        beheerderId,
+        "beheerder-toewijzen@voorbeeld.nl",
+      ]);
+      await db.client.query("insert into public.accounts (id, name) values ($1, 'ORBIT ENGINE beheer')", [
+        beheerderAccountId,
+      ]);
+      await db.client.query(
+        `insert into public.account_users (account_id, user_id, role) values ($1, $2, 'admin')`,
+        [beheerderAccountId, beheerderId],
+      );
+      // Precies de startsituatie van de bug: een profiel op naam van de
+      // beheerder, met account_id op het account van de beheerder.
+      await db.client.query(
+        `insert into public.profiles (id, user_id, account_id, name, url, status)
+         values ($1, $2, $3, 'Toe te wijzen merk', 'https://toewijzen-test.nl', 'klaar')`,
+        [toeTeWijzenProfiel, beheerderId, beheerderAccountId],
+      );
+
+      await db.client.query("insert into auth.users (id, email) values ($1, $2)", [
+        klantVoorToewijzing,
+        "klant-toewijzen@voorbeeld.nl",
+      ]);
+
+      // Wat de route nu doet: het doelaccount van de klant resolven (dezelfde
+      // functie als een nieuw profiel gebruikt) en meegeven in de update.
+      const doelAccountId = await defaultAccountFor(klantVoorToewijzing);
+      ok("de klant krijgt een eigen account (had er nog geen)", doelAccountId !== null);
+      ok(
+        "en dat is NIET het account van de beheerder",
+        doelAccountId !== beheerderAccountId,
+      );
+
+      await db.client.query(
+        `update public.profiles set user_id = $1, account_id = $2, assigned_at = now() where id = $3`,
+        [klantVoorToewijzing, doelAccountId, toeTeWijzenProfiel],
+      );
+
+      const { rows: naToewijzen } = await db.client.query(
+        `select user_id, account_id from public.profiles where id = $1`,
+        [toeTeWijzenProfiel],
+      );
+      ok("user_id staat op de klant (laag 2)", naToewijzen[0].user_id === klantVoorToewijzing);
+      ok(
+        "en account_id staat NIET meer op het account van de beheerder (laag 1)",
+        naToewijzen[0].account_id !== beheerderAccountId,
+        `account_id is nog ${naToewijzen[0].account_id}`,
+      );
+      ok(
+        "account_id staat op het eigen account van de klant",
+        naToewijzen[0].account_id === doelAccountId,
+      );
+
+      // De echte toets: ziet de klant zijn merk via laag 1 (het account), niet
+      // via de terugvallende laag 2?
+      ok(
+        "de klant ziet zijn toegewezen merk via de accountlaag",
+        (await ownedProfile(adminClient, toeTeWijzenProfiel, klantVoorToewijzing))?.id === toeTeWijzenProfiel,
+      );
+
+      // En de beheerder, die geen laag meer over heeft naar dit profiel, ziet
+      // het niet langer als "zijn" merk via de accountlaag.
+      ok(
+        "de beheerder hoort niet meer bij het account van dit merk",
+        !(await isMember(beheerderId, doelAccountId)),
+      );
+    }
+
+    // ══════════════════════════════════════════════════════════════════════
     // Het budgetplafond (F1, migratie 0053)
     //
     // ⚠️ Hoort hier en niet in test-unit.ts, want de helft van dit mechanisme
