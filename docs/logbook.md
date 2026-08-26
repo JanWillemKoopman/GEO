@@ -4985,6 +4985,7 @@ halfjaar lang groen en zouden in augustus 2026 rood zijn geworden zonder dat er 
 Nagerekend: `npx tsc --noEmit`, 2241 unittests, 322 ketentests en de productiebuild zijn groen, en
 het scherm is in beide standen bekeken met een gerenderde schermafbeelding van het echte component.
 
+---
 
 ## 26 augustus 2026: Mijn reputatie grondig herbouwd als scherm
 
@@ -5042,3 +5043,75 @@ producten van "conflict over een afspraak voor een gaslek" bij 4.
 
 Migraties ongewijzigd (t/m `0065`), 2290 unittests en 322 ketentests groen, en de productiebuild is
 schoon.
+
+---
+
+## 26 augustus 2026: een hele klant nagebootst, en wat daaruit viel
+
+Er stond nog nooit één klant volledig door de keten heen. Er waren losse verificaties per fase, maar
+niemand had de reis van webadres tot gepubliceerde pagina met zoekcijfers achter elkaar gelopen.
+Daarom is **Huyberts Keukens** (huyberts.nl, keukenspeciaalzaak in Sint-Oedenrode) er als testklant
+doorheen gehaald: aanmaken, onderzoek, demogesprek, cluster, meting, rapport, contentplan, twee
+geschreven pagina's, een gefingeerde publicatie met 543 dagen Search Console-cijfers, en de
+effectmeting. Kosten van de hele reis: **$2,85 over 216 AI-aanroepen**.
+
+De keten werkt. De commerciële laag uit het gesprek komt terug in het rapport (het noemt het
+omzetdoel van de klant), de meting ontdekte concurrenten die het vooronderzoek niet kende (Berkers
+Keukens staat vier keer als eerste aanbeveling op positie 1,2 terwijl Huyberts nergens genoemd
+wordt), en de geschreven pagina's gebruiken de antwoorden uit het gesprek als feiten. Maar de reis
+legde ook zes dingen bloot die geen enkele test kon vangen, want ze zitten allemaal in de samenhang
+tussen stappen.
+
+**1. De effectmeting gooide 56 van haar 112 betaalde zoekacties weg.** Twee unieke indexen op
+`tracking_runs` spreken elkaar tegen. `tracking_runs_impact_unique_idx` (migratie `0020`) zegt: één
+meting per pagina, golf, vraag en doel. `tracking_runs_idem_idx` (migratie `0041`) zegt: één meting
+per analyse, vraag, week, engine, herhaling en doel, en die kent `impact_wave` en
+`content_piece_id` niet. Een impactmeting draagt week 0 en herhaling 0, dus golf 2 van dezelfde
+vraag botst met golf 1, en twee pagina's die dezelfde vraag als doel hebben botsen met elkaar. Het
+opslaan mislukt dan **nadat** de web-zoekactie betaald is, en de taak probeert het vier keer.
+Veertien taken maal vier pogingen is 56 weggegooide zoekacties, ongeveer $0,86 van de $1,73 die de
+metingen kostten. Precies de helft.
+
+**2. Een pagina uit het contentplan kan nooit gemeten worden.** `/api/cron/plan` bouwt zijn
+schrijfopdracht uit `planBriefing()` en zet daar `why`, `targetIntent`, `action` en `existingUrl`
+bij, maar géén `targets`. `saveTargets()` in `content.ts` schrijft daarom nul rijen in
+`content_piece_targets`, en `planImpactWaves()` slaat de effectmeting over met de melding "geen
+doelvragen". Fase 5 bestaat dus niet voor pagina's die via het plan geschreven zijn, en dat is sinds
+migratie `0065` de normale route. De doelvragen liggen wel klaar: ze staan in
+`reports.recommendations_json`, en `planned_pages.source_ref` wijst er met rapport-id plus
+volgnummer rechtstreeks naar.
+
+**3. De titel van een geschreven pagina is een opdracht aan de klant.** `content.ts` neemt
+`recommendation.title` letterlijk over, en dat is de aanbeveling uit het rapport. De pagina heet nu
+"Publiceer een regionale pagina voor keukenrenovatie in Eindhoven". De `meta_title` die het model
+zelf schrijft klopt wel ("Keukenrenovatie Eindhoven | Huyberts Keukens").
+
+**4. De potentiescore onderscheidt niets bij een nieuwe klant.** Alle zeven kansen van Huyberts
+kregen exact 58. De score is `(1 − zichtbaarheid/100) × zoekvolume` en het zoekvolume is per
+onderwerp, dus bij zichtbaarheid nul valt hij voor elke kans van hetzelfde onderwerp gelijk uit.
+Juist bij de klant die nog nergens genoemd wordt, en dat is elke nieuwe klant, is er niets te
+sorteren.
+
+**5. Een artikel schrijven past niet in het tijdbudget van 105 seconden.** Het tweede artikel (1034
+woorden) had vier pogingen nodig voor de schrijfstap en nog eens vier voor de herschrijfstap, elke
+keer afgebroken met "Request was aborted". Het lukte uiteindelijk, maar het kostte een halfuur en
+zes verspilde aanroepen op het duurste model. De pagina van 574 woorden ging in één keer goed.
+
+**6. Het effectoordeel kan bij een handvol doelvragen nooit iets anders zeggen dan "gelijk".**
+`thresholdOf()` rekent een 95%-band over twee binomiale schattingen. Bij twee doelvragen is die band
+92 procentpunt breed, bij één doelvraag 136. De Eindhoven-pagina ging van nul naar één van de twee
+doelvragen, een stijging van 50 punten, en kreeg "gelijk". Het cijfer is statistisch correct en
+tegelijk onbruikbaar: de test kan bij deze aantallen alleen maar "geen verschil" zeggen.
+
+Kleiner, maar genoteerd: de claimvalidator markeert feiten die de klant in het gesprek zelf
+bevestigd heeft als "zonder bron" (vier zinnen op de Eindhoven-pagina, waaronder het eigen
+montageteam), en `POST /api/profiles/[id]/assign` verplaatst wel `profiles.user_id` en
+`analyses.user_id` maar voegt de klant niet toe aan `account_users`, zodat hij binnenkomt via de
+oudere eigenaarsregel in plaats van via de accountlaag.
+
+**Wat aan deze testklant niet echt is**, zodat niemand er later conclusies uit trekt die hij niet
+draagt: de twee pagina's staan niet op huyberts.nl, dus de publicatiecontrole is met de hand op
+geslaagd gezet, en de Search Console-cijfers zijn berekend en niet opgehaald. De hele doorloop is
+bovendien op databaseniveau gedaan, waarbij per stap de code van de betreffende route is gelezen en
+nagedaan; de schermen zelf zijn niet bediend. Het plan van aanpak voor de zes punten hierboven staat
+in `docs/tasks/doorloop-huyberts.md`.
