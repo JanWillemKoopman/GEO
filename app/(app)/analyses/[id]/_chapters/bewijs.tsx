@@ -162,7 +162,7 @@ export async function BewijsChapter({
                       de vragenlijst een stuk lager op dezelfde pagina. */}
                   {g.evidenceRunIds?.length > 0 && (
                     <Link
-                      href={`/analyses/${analysis.id}?runs=${g.evidenceRunIds.join(",")}#antwoorden`}
+                      href={`/analyses/${analysis.id}?hoofdstuk=bewijs&runs=${g.evidenceRunIds.join(",")}#antwoorden`}
                       className="mono-label underline transition-colors hover:text-[var(--text-primary)]"
                     >
                       {g.evidenceRunIds.length}× aangetoond, toon het bewijs
@@ -176,7 +176,7 @@ export async function BewijsChapter({
         </div>
       )}
 
-      <div id="antwoorden" className="scroll-mt-24">
+      <div id="antwoorden" className="scroll-mt-[calc(var(--header-h)+4rem)]">
         {answers ? (
           <AnswersView
             rows={answers.rows}
