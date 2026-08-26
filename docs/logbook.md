@@ -33,6 +33,7 @@ verwijzing in de code straks nergens meer heen.
 | `tasks/onboarding-3.0.md` deel A t/m K | Het bouwplan van onboarding 3.0: de vergelijking met Nova (A), de route van de beheerder (B), drie momenten met één veldenlijst (C), de vijftien nieuwe velden (D), het oordeel per Nova-veld (E), de zes fases (F), de schermspec van de sessie (G) | De zes alinea's van 19 augustus 2026 hieronder. Gebouwd en verwijderd op 19 augustus 2026. De velden zelf staan in migratie `0060` en in `lib/pipeline/brand-fields.ts`, het schermontwerp in `ux-design.md` §5, en de uitleg zonder techniek in `APP_FLOW_DOCUMENTATION.md` §6 |
 | `Nova.md` | InSpace Nova gereconstrueerd, de gap-analyse en het achtfasenbouwplan dat daaruit volgde | Bouwplan afgebouwd, zie de secties hieronder per fase. Zelf verwijderd op 17 augustus 2026, de citaten die er verderop in dit logboek nog naar verwijzen zijn historisch en blijven staan zoals ze geschreven zijn. De richting daarna staat in `visie.md` |
 | `tasks/mijn-reputatie.md` (en de leesbare versie ernaast, `tasks/mijn-reputatie.html`) | Het product- en implementatieplan voor de reputatieanalyse: waarom een los product, de vier vragen aan ChatGPT, de oordeelslaag, het datamodel en de rekensom over de kosten | Alle vijf sprints (R1 t/m R5) gebouwd en op drie echte runs geverifieerd, zie de zeven secties hieronder van 22 en 23 augustus 2026. Het datamodel zelf staat in de migraties `0062` t/m `0064`, de pijplijnstap in `architecture.md` §6 rij 21, de code in `lib/reputation/` en `lib/pipeline/reputation-*.ts`. Verwijderd 23 augustus 2026, toen R5 geverifieerd was |
+| `tasks/doorloop-huyberts.md` | De zes punten uit de eerste volledige klantdoorloop van 26 augustus 2026, met per punt de bestanden, de aanpak en het verificatiecriterium, testklant Huyberts Keukens als bewijsmateriaal | Alle zes punten en de twee kleinere punten afgehandeld, zie "26 augustus 2026: de zes punten uit de doorloop afgewerkt" hieronder. Migratie `0066`, `docs/architecture.md` §9 (opnieuw doorgerekend), `docs/tasks/roadmap.md` (het opengebleven structurele vervolg op punt 6). Verwijderd 26 augustus 2026 |
 
 De volledige originelen staan in de git-historie (laatste versie: de commit vóór de
 documentatie-herstructurering).
@@ -5113,5 +5114,89 @@ oudere eigenaarsregel in plaats van via de accountlaag.
 draagt: de twee pagina's staan niet op huyberts.nl, dus de publicatiecontrole is met de hand op
 geslaagd gezet, en de Search Console-cijfers zijn berekend en niet opgehaald. De hele doorloop is
 bovendien op databaseniveau gedaan, waarbij per stap de code van de betreffende route is gelezen en
-nagedaan; de schermen zelf zijn niet bediend. Het plan van aanpak voor de zes punten hierboven staat
-in `docs/tasks/doorloop-huyberts.md`.
+nagedaan; de schermen zelf zijn niet bediend. Het plan van aanpak voor de zes punten hierboven stond
+in `docs/tasks/doorloop-huyberts.md`; wat eruit is gebouwd staat in de alinea hieronder.
+
+---
+
+## 26 augustus 2026: de zes punten uit de doorloop afgewerkt
+
+Alle zes punten uit `docs/tasks/doorloop-huyberts.md` zijn afgehandeld, elk in een eigen commit,
+elk nagerekend tegen de echte, opgeslagen data van Huyberts Keukens (conventie 10) en niet alleen
+tegen de tests. `npx tsc --noEmit`, de unittests, de ketentests en de productiebuild stonden na elk
+punt op groen.
+
+**1. De effectmeting gooide de helft van haar betaalde metingen weg.** Twee tegensprekende unieke
+indexen op `tracking_runs` (migratie `0066`): `tracking_runs_idem_idx` kende `impact_wave` en
+`content_piece_id` niet, dus golf 2 van een impactmeting botste met golf 1, en twee pagina's met
+dezelfde doelvraag botsten met elkaar, ná de betaalde `web_search`. Vervangen door een partiële
+index die alleen over periodieke metingen gaat; impact- en controlemetingen vallen nu uitsluitend
+onder de bestaande index uit `0020`. `measure.ts` vangt daarnaast een resterende race op de index af
+zonder de dure aanroep te herhalen. Op productie geverifieerd: de 14 taken die op de botsing
+vastliepen zijn opnieuw ingepland, allemaal geslaagd. `tracking_runs` telt nu 24 impact/control-rijen
+voor Huyberts in plaats van 10, en nul gefaalde taken.
+
+**2. Een pagina uit het contentplan kon nooit gemeten worden.** `/api/cron/plan` bouwde de
+schrijfopdracht zonder `targets` mee te geven. `targetsFromSourceRef()` (`lib/plan-backlog-data.ts`)
+leest de doelvragen nu terug uit het rapport waar `source_ref` (`"<rapport-id>#<volgnummer>"`) naar
+wijst, dezelfde sleutel die de contentvoorraad al gebruikt. Geverifieerd: de vijf doelvragen die deze
+functie voor de Eindhoven-pagina teruggeeft komen exact overeen met wat er al in
+`content_piece_targets` stond voor de pagina's die wél via het goede pad geschreven zijn. Vijf nog
+niet geschreven pagina's van Huyberts krijgen hun doelvragen nu wél mee zodra dit op productie
+draait.
+
+**3. De titel van een geschreven pagina was een opdracht aan de klant.** `content_pieces.title`
+blijft de aanbevelingstitel (de dedupe-sleutel van de schrijftaak, onaangeraakt), maar
+`displayTitle()` (`lib/pipeline/slug.ts`) toont overal waar de klant kijkt (kop, browsertab,
+bibliotheek, export, voorgestelde URL) de `meta_title` die het model zelf schrijft, met de
+aanbevelingstitel als terugval. Geverifieerd: de Eindhoven-pagina toont nu "Keukenrenovatie
+Eindhoven | Huyberts Keukens" in plaats van "Publiceer een regionale pagina voor keukenrenovatie in
+Eindhoven".
+
+**4. De potentiescore onderscheidde niets bij een nieuwe klant** (ontwerpvraag, voorstel afgestemd
+vóór de bouw). Het zoekvolume komt per onderwerp, dus alle kansen van hetzelfde onderwerp deelden
+dat getal, en bij een gloednieuwe klant is de zichtbaarheid overal nul. `distributePotentialByWeight()`
+(`lib/potential.ts`) herverdeelt de score binnen een groep kansen met een identieke score naar rato
+van het gewicht van hun doelvragen, met de zwaarste kans als anker die zijn score behoudt. Nagerekend
+op de echte cijfers van Huyberts: zeven keer 58 werd 58, 33, 29, 25, 25, 21, 6. Raakt nooit een kans
+die al een eigen, gemeten verschil heeft, zoals bij Gasservice Brabant al deels het geval was.
+
+**5. Een artikel schrijven paste niet altijd in het tijdbudget van 105 seconden** (voorstel: budget
+omhoog in plaats van de redeneerinspanning omlaag). Nagemeten op 26 echte schrijf- en
+herschrijfaanroepen op productie: de duur hangt niet netjes samen met het aantal woorden, de
+redeneertijd van het model domineert de uitschieters. `CALL_BUDGET_MS` naar 150s (was 105s).
+`HEAVY_JOB_RESERVE_MS` in `lib/jobs/worker.ts` bleek 2 × het volledige aanroepbudget te reserveren,
+ook voor de kritiekaanroep die in de praktijk enkele seconden duurt; herzien naar wat de twee
+aanroepen van een zware taak (schrijven + de kritiekaanroep) daadwerkelijk nodig hebben, wat de
+reservering zelfs verlaagde (200s) ondanks dat de trage aanroep meer lucht kreeg. Routelimiet (300s)
+en werkerbudget (240s) ongewijzigd. `docs/architecture.md` §9 opnieuw doorgerekend. Nog niet te
+verifiëren met een echte schrijfronde: dit is codewerk op een branch die nog niet is uitgerold.
+
+**6. Het effectoordeel kon bij weinig doelvragen alleen "gelijk" zeggen** (ontwerpvraag, voorstel
+afgestemd vóór de bouw). `minQuestionsForSignal()` (`lib/pipeline/impact-math.ts`) maakt concreet
+hoeveel vergelijkbare doelvragen er nodig zouden zijn om een gemeten verschil van toeval te
+onderscheiden. Door de fix van punt 1 bleek de Eindhoven-pagina intussen 5 doelvragen te meten in
+plaats van de 2 uit het oorspronkelijke voorbeeld, met een verschil van 20%: het scherm zegt nu "met
+5 vragen is dit verschil niet te onderscheiden van toeval, daar zijn er minstens 25 voor nodig" in
+plaats van de ondoorzichtige melding "binnen de meetruis (55 punten nodig)". De drempel zelf is niet
+verlaagd. De structurele oplossing (meer doelvragen per pagina toekennen) is vastgelegd in
+`docs/tasks/roadmap.md`, niet meegebouwd.
+
+**Kleiner punt A, de claimvalidator, bleek bij nader onderzoek geen probleem te zijn zoals
+omschreven.** De aanname was dat `isGapQuestion()` antwoorden uit het demogesprek als bron uitsluit.
+Op de echte data van Huyberts bleek het tegendeel: het feit over het eigen montageteam stond dubbel
+op de feitenkaart en was ook echt geciteerd. De werkelijke oorzaak: het model herhaalde hetzelfde
+feit in twee andere bewoordingen op de pagina, citeerde het bij de tweede keer correct, en de eerste
+formulering haalde de overlapdrempel van 60% met de getagde claim niet. Die drempel verlagen zou de
+vangnetten verzwakken die eerder twee echte verzinsels vingen (Van der Valk, Fysi-Unique), voor een
+pagina die toch al niet op "moet nagekeken worden" staat. Overgeslagen.
+
+**Kleiner punt B, toewijzen, liet de accountlaag inderdaad links liggen.** `POST
+/api/profiles/[id]/assign` verplaatste alleen `profiles.user_id`/`analyses.user_id` (de historische
+terugvalregel) en niet `profiles.account_id` (de hoofdregel van de drielaagse toegangscontrole,
+`lib/accounts.ts`). De route gebruikt nu `defaultAccountFor()`, dezelfde functie die al voor nieuwe
+profielen bestond. Op productie geverifieerd én rechtgezet: Huyberts Keukens (`huyberts@example.com`)
+stond met `user_id` wel op zijn eigen account maar met `account_id` nog op het account van de
+beheerder; hij heeft nu een eigen account en is daar beheerder van.
+
+`docs/tasks/doorloop-huyberts.md` is verwijderd, alle zes punten zijn hierboven samengevat.
