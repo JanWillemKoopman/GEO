@@ -8,7 +8,7 @@ import { loadPeriods, resolvePeriod } from "@/lib/pipeline/periods";
 import { PrepareProgress } from "./prepare-progress";
 import { MeasureProgress } from "./measure-progress";
 import { Chapter } from "@/components/chapter";
-import { SectionRail } from "@/components/section-rail";
+import { ChapterTabs } from "@/components/chapter-tabs";
 import { PeriodPicker } from "@/components/period-picker";
 import { ChapterSkeleton } from "@/components/skeleton";
 import { SectionErrorBoundary } from "@/components/section-error-boundary";
@@ -18,39 +18,52 @@ import { WerkChapter } from "./_chapters/werk";
 import { ResultaatChapter } from "./_chapters/resultaat";
 import { countNow, loadWork } from "@/lib/work";
 
+/** De vier hoofdstukken van het dossier, in vaste leesvolgorde. */
+const HOOFDSTUKKEN = ["stand", "bewijs", "werk", "resultaat"] as const;
+type Hoofdstuk = (typeof HOOFDSTUKKEN)[number];
+
+function isHoofdstuk(value: string | undefined): value is Hoofdstuk {
+  return HOOFDSTUKKEN.includes(value as Hoofdstuk);
+}
+
 /**
- * HET DOSSIER: één analyse, van boven naar beneden te lezen.
+ * HET DOSSIER: één analyse, als vier losse tabbladen.
  *
- * ── WAAROM DIT GEEN TABBLADEN MEER ZIJN ─────────────────────────────────────
+ * ── VAN DOORLOPENDE PAGINA NAAR TABBLADEN (26 augustus 2026) ────────────────
  *
- * Een analyse was verdeeld over vijf tabbladen. Dat is een platte, volgordeloze
- * structuur voor werk dat juist een strikte volgorde heeft: je meet, je ziet
- * waar je mist, je doet er iets aan, en weken later zie je of het gewerkt heeft.
+ * Dit was één doorlopende scrollpagina met vier hoofdstukken onder elkaar en
+ * een rail ernaast, zie de git-historie voor de toenmalige redenen (werk dat
+ * tabbladen kruiste, hoofdstuk 04 dat hoofdstuk 01 voedt). Op expliciet
+ * verzoek staat de balk nu boven de inhoud, sticky, en toont hij één
+ * hoofdstuk tegelijk: `?hoofdstuk=stand|bewijs|werk|resultaat` in de URL.
  *
- * Erger nog: één stuk werk kruiste vier schermen. Een aanbevolen pagina begon op
- * het rapport-tabblad, verhuisde naar de bibliotheek, werd daar op een
- * detailpagina gepubliceerd en dook weer op als resultaat op het
- * overzicht-tabblad. Dezelfde pagina, vier plekken.
- *
- * Nu vier hoofdstukken in vaste leesvolgorde. De volgorde ís de logica, en
- * hoofdstuk 04 voedt volgende periode hoofdstuk 01.
+ * De risico's van de oude opzet blijven staan, ze zijn alleen niet meer met
+ * schermruimte opgelost: de vier hoofdstukken lezen nog altijd op volgorde
+ * (de nummering 01 t/m 04 in de tabbalk blijft), en hoofdstuk 04 benoemt in
+ * zijn eigen tekst nog steeds dat hij hoofdstuk 01 van de volgende periode
+ * voedt. Wat wél vervalt: je kunt niet meer met één scroll van meting naar
+ * bewijs naar werk lopen, dat is nu drie klikken.
  *
  * ── STREAMEN, NIET BLOKKEREN ────────────────────────────────────────────────
  *
- * Elk hoofdstuk is een eigen async component achter een `<Suspense>`. De score
- * verschijnt zodra die er is, terwijl het bewijs nog geladen wordt. Voorheen
- * blokkeerde het rapport-tabblad op zeven queries vóór er één byte HTML de deur
- * uit ging, één pagina met streaming is dus sneller dan vijf zonder.
+ * Alleen het actieve hoofdstuk rendert, achter zijn eigen `<Suspense>`. De
+ * badges op de andere tabbladen (open werk, "loopt") komen uit data die sowieso
+ * al geladen wordt (`loadWork`, voor de rail), dus die kosten geen extra call
+ * bovenop het actieve hoofdstuk.
  */
 export default async function DossierPage({
   params,
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ periode?: string; runs?: string }>;
+  searchParams: Promise<{ periode?: string; runs?: string; hoofdstuk?: string }>;
 }) {
   const { id } = await params;
-  const { periode, runs } = await searchParams;
+  const { periode, runs, hoofdstuk } = await searchParams;
+  // Een link met `runs` erin wijst altijd naar het bewijs, ook zonder expliciet
+  // gekozen tabblad. Zonder deze regel opent zo'n link stil op "Stand" en lijkt
+  // de link kapot.
+  const actief: Hoofdstuk = isHoofdstuk(hoofdstuk) ? hoofdstuk : runs ? "bewijs" : "stand";
   const analysis = await getAnalysis(id);
   if (!analysis) notFound();
 
@@ -84,18 +97,29 @@ export default async function DossierPage({
   const periods = await loadPeriods(supabase, id);
   const weekNo = resolvePeriod(periods, periode);
 
-  // Voor de rail: hoeveel er in hoofdstuk 03 op de klant wacht. Dat is het enige
-  // wat een tabbalk nooit deed, laten zien waar iets op je ligt te wachten.
+  // Voor de tabbalk: hoeveel er in hoofdstuk 03 op de klant wacht, ongeacht
+  // welk hoofdstuk nu open staat.
   const work = await loadWork(supabase, analysis);
   const openCount = countNow(work);
   const running = work.some((w) => w.state === "loopt");
 
+  // Bouwt de URL voor een tabblad, met behoud van `periode` (die geldt voor
+  // meer dan één hoofdstuk) maar zonder `runs` (die hoort alleen bij de link
+  // die je hier naartoe bracht, niet bij tabbladen die je daarna zelf kiest).
+  const hrefFor = (tab: string) => {
+    const query = new URLSearchParams();
+    if (tab !== "stand") query.set("hoofdstuk", tab);
+    if (periode) query.set("periode", periode);
+    const qs = query.toString();
+    return `/analyses/${id}${qs ? `?${qs}` : ""}`;
+  };
+
   return (
-    // Mobiel: de rail is een meescrollende chiprij bóven de inhoud. Desktop:
-    // een verticale rail ernaast.
-    <div className="flex flex-col lg:flex-row lg:gap-10">
-      <SectionRail
-        sections={[
+    <div className="flex flex-col">
+      <ChapterTabs
+        active={actief}
+        hrefFor={hrefFor}
+        tabs={[
           { id: "stand", label: "Stand" },
           { id: "bewijs", label: "Waar je mist" },
           {
@@ -109,62 +133,70 @@ export default async function DossierPage({
       />
 
       <div className="flex min-w-0 flex-1 flex-col gap-16">
-        <Chapter
-          id="stand"
-          number="01"
-          title="Hoe je ervoor"
-          accent="staat"
-          intro="Eén cijfer: hoe vaak AI-assistenten jou noemen op de vragen die er in jouw markt toe doen."
-          aside={<PeriodPicker analysisId={id} periods={periods} selected={weekNo} />}
-        >
-          <SectionErrorBoundary label="Hoofdstuk 01, Hoe je ervoor staat">
-            <Suspense fallback={<ChapterSkeleton blocks={2} />}>
-              <StandChapter analysis={analysis} weekNo={weekNo} />
-            </Suspense>
-          </SectionErrorBoundary>
-        </Chapter>
+        {actief === "stand" && (
+          <Chapter
+            id="stand"
+            number="01"
+            title="Hoe je ervoor"
+            accent="staat"
+            intro="Eén cijfer: hoe vaak AI-assistenten jou noemen op de vragen die er in jouw markt toe doen."
+            aside={<PeriodPicker analysisId={id} periods={periods} selected={weekNo} />}
+          >
+            <SectionErrorBoundary label="Hoofdstuk 01, Hoe je ervoor staat">
+              <Suspense fallback={<ChapterSkeleton blocks={2} />}>
+                <StandChapter analysis={analysis} weekNo={weekNo} />
+              </Suspense>
+            </SectionErrorBoundary>
+          </Chapter>
+        )}
 
-        <Chapter
-          id="bewijs"
-          number="02"
-          title="Waar je wint"
-          accent="en mist"
-          intro="Het bewijs onder het cijfer. Tegen wie je het opneemt, en op welke vragen je nu niet genoemd wordt."
-        >
-          <SectionErrorBoundary label="Hoofdstuk 02, Waar je wint en mist">
-            <Suspense fallback={<ChapterSkeleton blocks={2} />}>
-              <BewijsChapter analysis={analysis} weekNo={weekNo} focusRuns={runs} />
-            </Suspense>
-          </SectionErrorBoundary>
-        </Chapter>
+        {actief === "bewijs" && (
+          <Chapter
+            id="bewijs"
+            number="02"
+            title="Waar je wint"
+            accent="en mist"
+            intro="Het bewijs onder het cijfer. Tegen wie je het opneemt, en op welke vragen je nu niet genoemd wordt."
+          >
+            <SectionErrorBoundary label="Hoofdstuk 02, Waar je wint en mist">
+              <Suspense fallback={<ChapterSkeleton blocks={2} />}>
+                <BewijsChapter analysis={analysis} weekNo={weekNo} focusRuns={runs} />
+              </Suspense>
+            </SectionErrorBoundary>
+          </Chapter>
+        )}
 
-        <Chapter
-          id="werk"
-          number="03"
-          title="Wat je nu"
-          accent="moet doen"
-          intro="Alles wat er te doen valt, op volgorde van belang. Bovenaan staat wat zonder jou stilligt."
-        >
-          <SectionErrorBoundary label="Hoofdstuk 03, Wat je nu moet doen">
-            <Suspense fallback={<ChapterSkeleton blocks={2} />}>
-              <WerkChapter analysis={analysis} work={work} />
-            </Suspense>
-          </SectionErrorBoundary>
-        </Chapter>
+        {actief === "werk" && (
+          <Chapter
+            id="werk"
+            number="03"
+            title="Wat je nu"
+            accent="moet doen"
+            intro="Alles wat er te doen valt, op volgorde van belang. Bovenaan staat wat zonder jou stilligt."
+          >
+            <SectionErrorBoundary label="Hoofdstuk 03, Wat je nu moet doen">
+              <Suspense fallback={<ChapterSkeleton blocks={2} />}>
+                <WerkChapter analysis={analysis} work={work} />
+              </Suspense>
+            </SectionErrorBoundary>
+          </Chapter>
+        )}
 
-        <Chapter
-          id="resultaat"
-          number="04"
-          title="Wat het heeft"
-          accent="opgeleverd"
-          intro="Wat je gepubliceerde pagina's met je zichtbaarheid deden, afgezet tegen vragen waarvoor je niets deed. Gemeten, niet beloofd."
-        >
-          <SectionErrorBoundary label="Hoofdstuk 04, Wat het heeft opgeleverd">
-            <Suspense fallback={<ChapterSkeleton blocks={1} />}>
-              <ResultaatChapter analysis={analysis} />
-            </Suspense>
-          </SectionErrorBoundary>
-        </Chapter>
+        {actief === "resultaat" && (
+          <Chapter
+            id="resultaat"
+            number="04"
+            title="Wat het heeft"
+            accent="opgeleverd"
+            intro="Wat je gepubliceerde pagina's met je zichtbaarheid deden, afgezet tegen vragen waarvoor je niets deed. Gemeten, niet beloofd."
+          >
+            <SectionErrorBoundary label="Hoofdstuk 04, Wat het heeft opgeleverd">
+              <Suspense fallback={<ChapterSkeleton blocks={1} />}>
+                <ResultaatChapter analysis={analysis} />
+              </Suspense>
+            </SectionErrorBoundary>
+          </Chapter>
+        )}
 
         <p className="text-sm text-muted">
           Klopt er iets niet aan de vragen of de afbakening?{" "}

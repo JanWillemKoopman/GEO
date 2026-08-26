@@ -31,7 +31,7 @@ export function PeriodPicker({
         return (
           <Link
             key={p.weekNo}
-            href={`/analyses/${analysisId}?periode=${p.weekNo}#stand`}
+            href={`/analyses/${analysisId}?periode=${p.weekNo}`}
             aria-current={active ? "true" : undefined}
             className="chip"
             style={

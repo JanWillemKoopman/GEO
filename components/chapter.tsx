@@ -1,16 +1,11 @@
 /**
  * Eén hoofdstuk van het analysedossier.
  *
- * ── WAAROM HOOFDSTUKKEN EN GEEN TABBLADEN ───────────────────────────────────
- *
- * Een analyse was verdeeld over vijf tabbladen: Overzicht, Vragen & antwoorden,
- * Rapport, Bibliotheek, Instellingen. Vijf gelijkwaardige, parallelle keuzes,
- * terwijl het werk in werkelijkheid één vaste volgorde heeft: meten, zien waar
- * je mist, iets doen, kijken of het werkte.
- *
- * Een tabbalk KAN die volgorde niet uitdrukken. Dat is geen labelprobleem dat
- * je met betere woorden oplost; het is de vorm zelf. Een verticale as kan het
- * wel, en daarom is dit een doorlopende pagina met genummerde hoofdstukken.
+ * Vier hoofdstukken, elk als eigen tabblad (`app/(app)/analyses/[id]/page.tsx`
+ * rendert er telkens maar één). De genummerde kop (01 t/m 04) blijft de
+ * volgorde tonen die de tabbalk zelf niet kan uitdrukken: meten, zien waar je
+ * mist, iets doen, kijken of het werkte. Zie de pagina zelf voor waarom dit
+ * niet meer één doorlopende scrollpagina is.
  *
  * De vormgeving volgt InSpace 1-op-1 (designsystem.md §A2/§A3): een genummerd
  * mono-label in paars, een grote kop waarvan één woord de merk-gradient draagt,
