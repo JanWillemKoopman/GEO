@@ -1,6 +1,27 @@
 import type { ContentAction, ContentType } from "@/lib/types/database";
 
 /**
+ * De titel die de klant en de zoekmachine te zien horen te krijgen
+ * (doorloop-huyberts.md punt 3).
+ *
+ * `content_pieces.title` is de aanbevelingstitel uit het rapport, een OPDRACHT
+ * aan de klant ("Publiceer een regionale pagina voor keukenrenovatie in
+ * Eindhoven") en geen paginatitel. Hij blijft dat bewust: `content.ts` gebruikt
+ * hem als dedupe-sleutel van de schrijftaak en als koppeling met de plankaart,
+ * dus deze functie verandert nooit wat er opgeslagen wordt, alleen wat er
+ * getoond wordt.
+ *
+ * `meta_title` schrijft het model zelf ("Keukenrenovatie Eindhoven | Huyberts
+ * Keukens") en is wél een echte paginatitel. Die hoort de klant te zien: op het
+ * scherm, in de browsertab, in de voorgestelde URL en in de export. Ontbreekt
+ * hij (een pagina van vóór deze functie, of nog in de briefingfase), dan valt
+ * dit terug op de aanbevelingstitel, nooit een lege kop.
+ */
+export function displayTitle(piece: { title: string; meta_title: string | null }): string {
+  return piece.meta_title?.trim() || piece.title;
+}
+
+/**
  * De voorgestelde URL van een pagina, en welke URL écht klopt (content-editie,
  * onderdeel 2: search preview).
  *

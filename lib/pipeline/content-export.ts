@@ -25,6 +25,13 @@ export interface ExportFaqItem {
 }
 
 export interface TemplateExportInput {
+  /**
+   * Alleen gebruikt voor de bestandsnaam (`slugFromTitle()` hieronder), niet
+   * voor de inhoud. Geef de PAGINATITEL mee (`displayTitle()` in
+   * lib/pipeline/slug.ts), niet `content_pieces.title` zelf: dat is de
+   * aanbevelingstitel uit het rapport, een opdrachtzin en geen paginanaam
+   * (doorloop-huyberts.md punt 3).
+   */
   title: string;
   bodyMarkdown: string;
   faq: ExportFaqItem[];

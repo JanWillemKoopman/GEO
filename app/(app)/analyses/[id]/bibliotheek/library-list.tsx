@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import type { ContentPiece } from "@/lib/types/database";
+import { displayTitle } from "@/lib/pipeline/slug";
 
 const TYPE_LABEL: Record<string, string> = {
   article: "Artikel",
@@ -210,7 +211,7 @@ function PieceCard({ analysisId, piece }: { analysisId: string; piece: ContentPi
       className="card card-interactive flex w-full flex-col gap-3"
     >
       <div className="flex flex-wrap items-start justify-between gap-2">
-        <span className="text-lg leading-snug font-semibold">{piece.title}</span>
+        <span className="text-lg leading-snug font-semibold">{displayTitle(piece)}</span>
         <span className="chip chip-green shrink-0">{TYPE_LABEL[piece.type] ?? piece.type}</span>
       </div>
 

@@ -7,6 +7,7 @@ import { EmptyState } from "@/components/empty-state";
 import { activeOnly } from "@/lib/archive";
 import { LibraryView } from "./library-view";
 import type { LibraryRow } from "@/lib/library";
+import { displayTitle } from "@/lib/pipeline/slug";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Bibliotheek" };
@@ -54,7 +55,7 @@ export default async function BibliotheekPage({
     const naamVan = new Map(clusters.map((c) => [c.id, c.name]));
     const { data: pieceRows } = await supabase
       .from("content_pieces")
-      .select("id, analysis_id, title, type, status, geo_score, published_url, created_at")
+      .select("id, analysis_id, title, meta_title, type, status, geo_score, published_url, created_at")
       .in(
         "analysis_id",
         clusters.map((c) => c.id),
@@ -66,7 +67,8 @@ export default async function BibliotheekPage({
       id: p.id as string,
       analysisId: p.analysis_id as string,
       cluster: naamVan.get(p.analysis_id as string) ?? "Onbekend cluster",
-      title: p.title as string,
+      // De paginatitel, niet de aanbevelingstitel (doorloop-huyberts.md punt 3).
+      title: displayTitle({ title: p.title as string, meta_title: (p.meta_title as string | null) ?? null }),
       type: p.type as string,
       status: p.status as string,
       geoScore: (p.geo_score as number | null) ?? null,

@@ -408,7 +408,7 @@ import { formatDateShort, formatDateLong, formatRelativeTime, formatNumber } fro
 import { describeToneSliders, clampToneSlider } from "@/lib/pipeline/tone-sliders";
 import { versionReasonLabel } from "@/lib/pipeline/version-reason";
 import { checkTabooWords } from "@/lib/pipeline/content-gate";
-import { slugFrom, suggestedPath, resolvedContentUrl } from "@/lib/pipeline/slug";
+import { slugFrom, suggestedPath, resolvedContentUrl, displayTitle } from "@/lib/pipeline/slug";
 import { diffContent } from "@/lib/pipeline/content-diff";
 import { FaqEdit } from "@/lib/schemas/content-piece";
 import { ReputationSourceKinds } from "@/lib/schemas/reputation";
@@ -5414,6 +5414,30 @@ group("slugFrom, suggestedPath, resolvedContentUrl", () => {
     type: "article",
   });
   ok("zonder allebei is het een voorstel, geen feit", !voorstel.isReal && voorstel.url.includes("klant.nl"));
+});
+
+// doorloop-huyberts.md punt 3: de aanbevelingstitel is een opdracht aan de
+// klant ("Publiceer een regionale pagina voor keukenrenovatie in Eindhoven"),
+// geen paginatitel. displayTitle() laat de klant de meta_title zien die het
+// model zelf schrijft, zonder content_pieces.title zelf aan te raken (die
+// blijft de dedupe-sleutel van de schrijftaak, content.ts).
+group("displayTitle", () => {
+  ok(
+    "de meta_title wint als hij er is",
+    displayTitle({
+      title: "Publiceer een regionale pagina voor keukenrenovatie in Eindhoven",
+      meta_title: "Keukenrenovatie Eindhoven | Huyberts Keukens",
+    }) === "Keukenrenovatie Eindhoven | Huyberts Keukens",
+  );
+  ok(
+    "zonder meta_title valt hij terug op de aanbevelingstitel",
+    displayTitle({ title: "Voeg een eerlijke pagina toe over kosten", meta_title: null }) ===
+      "Voeg een eerlijke pagina toe over kosten",
+  );
+  ok(
+    "een lege of alleen-witruimte meta_title telt ook als leeg",
+    displayTitle({ title: "Aanbevelingstitel", meta_title: "   " }) === "Aanbevelingstitel",
+  );
 });
 
 // ════════════════════════════════════════════════════════════════════════════

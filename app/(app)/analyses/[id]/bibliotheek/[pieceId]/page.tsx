@@ -18,7 +18,7 @@ import { factsFromSnapshot } from "@/lib/pipeline/briefing";
 import { detectClaimSentences, claimMatchesSentence } from "@/lib/pipeline/claim-extract";
 import { isSupported, type WrittenClaim } from "@/lib/pipeline/factcard";
 import { versionReasonOf } from "@/lib/pipeline/version-reason";
-import { resolvedContentUrl } from "@/lib/pipeline/slug";
+import { resolvedContentUrl, displayTitle } from "@/lib/pipeline/slug";
 import { ExternalLink } from "@/components/external-link";
 import { WhyThisPage } from "@/components/why-this-page";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -51,10 +51,11 @@ export async function generateMetadata({
   const supabase = await createClient();
   const { data } = await supabase
     .from("content_pieces")
-    .select("title")
+    .select("title, meta_title")
     .eq("id", pieceId)
     .maybeSingle();
-  return { title: (data as { title: string } | null)?.title ?? "Contentpagina" };
+  const piece = data as { title: string; meta_title: string | null } | null;
+  return { title: piece ? displayTitle(piece) : "Contentpagina" };
 }
 
 export default async function ContentDetailPage({
@@ -81,6 +82,12 @@ export default async function ContentDetailPage({
 
   if (!data) notFound();
   const piece = data as ContentPiece;
+  // De paginatitel die de klant en Google te zien krijgen (doorloop-huyberts.md
+  // punt 3), niet de aanbevelingstitel uit content_pieces.title zelf: die
+  // blijft de dedupe-sleutel van de schrijftaak (content.ts) en wordt daarom
+  // hieronder bewust NIET vervangen door `kop` bij de versie-lookup en het
+  // bewerkveld.
+  const kop = displayTitle(piece);
   const bodyHtml = renderMarkdown(piece.body_markdown ?? "");
   const headings = extractHeadings(piece.body_markdown ?? "");
   const faq = (piece.faq_json ?? []) as Faq[];
@@ -109,7 +116,7 @@ export default async function ContentDetailPage({
 
   const templateProfile = (templateFacet?.raw_json as SiteTemplateProfile | null) ?? null;
   const templateExport = buildTemplateExport(
-    { title: piece.title, bodyMarkdown: piece.body_markdown ?? "", faq },
+    { title: kop, bodyMarkdown: piece.body_markdown ?? "", faq },
     templateProfile,
   );
 
@@ -185,7 +192,7 @@ export default async function ContentDetailPage({
     action: piece.action,
     existingUrl: piece.existing_url,
     siteUrl: analysis.url,
-    title: piece.title,
+    title: kop,
     type: piece.type,
   });
 
@@ -202,7 +209,7 @@ export default async function ContentDetailPage({
       </Link>
 
       <div className="flex flex-col gap-3">
-        <h1 className="type-title">{piece.title}</h1>
+        <h1 className="type-title">{kop}</h1>
         <span className="chip w-fit">
           {piece.action === "verbeteren" ? (
             <>
@@ -219,7 +226,7 @@ export default async function ContentDetailPage({
           )}
         </span>
         <ContentActions
-          title={piece.title}
+          title={kop}
           markdown={piece.body_markdown ?? ""}
           html={bodyHtml}
           schemaJsonLd={piece.schema_jsonld}
@@ -404,7 +411,7 @@ export default async function ContentDetailPage({
       />
 
       <PublishGuide
-        title={piece.title}
+        title={kop}
         type={piece.type}
         action={piece.action}
         existingUrl={piece.existing_url}
