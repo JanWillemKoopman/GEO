@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { getUser } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getOwnedProfile } from "@/lib/profiles";
-import { markPosted, removePage, assignToMonth, moveToBacklog } from "@/lib/plans";
+import { markPosted, removePage, assignToMonth, moveToBacklog, setPageDate } from "@/lib/plans";
 import { swapWithNeighbour, type OrderablePage } from "@/lib/plan-order";
 
 /**
@@ -24,7 +24,8 @@ type Actie =
   | "geplaatst"
   | "verplaats"
   | "inplannen"
-  | "naar_voorraad";
+  | "naar_voorraad"
+  | "datum";
 
 export async function POST(
   request: Request,
@@ -59,6 +60,7 @@ export async function POST(
     richting?: string;
     maandId?: string;
     index?: number;
+    datum?: string | null;
   };
   try {
     body = (await request.json()) as typeof body;
@@ -107,6 +109,21 @@ export async function POST(
     return NextResponse.json({ ok: true });
   }
 
+  // ── De publicatiedatum zelf zetten ───────────────────────────────────────
+  //
+  // ⚠️ Kost net als inplannen niets: de datum bepaalt wannéér ORBIT ENGINE
+  // begint, niet dát hij begint. Dat laatste blijft aan het vrijgeven van de
+  // maand hangen (besluit 18), dus dit mag de klant zelf.
+  if (actie === "datum") {
+    const rauw = body.datum;
+    const datum = typeof rauw === "string" && rauw.trim() !== "" ? rauw.trim() : null;
+    const result = await setPageDate(admin, { profileId: id, pageId, datum });
+    if (!result.ok) {
+      return NextResponse.json({ error: result.probleem }, { status: 409 });
+    }
+    return NextResponse.json({ ok: true });
+  }
+
   if (actie === "verplaats") {
     const richting = body.richting === "omhoog" ? "omhoog" : "omlaag";
 
@@ -114,7 +131,7 @@ export async function POST(
     // is, hangt van de volgorde af.
     const { data: maandPaginas } = await admin
       .from("planned_pages")
-      .select("id, sort_order, scheduled_for, is_buffer, status")
+      .select("id, sort_order, scheduled_for, is_buffer, status, scheduled_manual")
       .eq("plan_month_id", page.plan_month_id as string)
       .order("sort_order");
 

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/components/toast";
@@ -12,13 +13,13 @@ import {
   isRunningMonth,
   isPastMonth,
   formatDagNL,
+  datumProbleem,
 } from "@/lib/plan-schedule";
 import {
   filterBacklog,
   clusterCounts,
   potentieLabel,
   raaktLabel,
-  ongemetenClusters,
   LEGE_BACKLOG_FILTERS,
   type BacklogItem,
   type BacklogFilters,
@@ -101,7 +102,6 @@ export function PlanView({
   months,
   pages,
   backlog,
-  metKansen,
   funnels,
   topics,
   staff,
@@ -111,7 +111,6 @@ export function PlanView({
   months: PlanMonth[];
   pages: PlannedPage[];
   backlog: BacklogItem[];
-  metKansen: string[];
   funnels: FunnelStage[];
   topics: TopicWritingState[];
   /** Besluit 18: alleen de beheerder zet betaald werk in gang. */
@@ -125,6 +124,8 @@ export function PlanView({
   const [monthDialog, setMonthDialog] = useState<PlanMonth | null>(null);
   const [bulkDialog, setBulkDialog] = useState<PlanMonth | null>(null);
   const [removeDialog, setRemoveDialog] = useState<PlannedPage | null>(null);
+  const [datumDialog, setDatumDialog] = useState<PlannedPage | null>(null);
+  const [datumInvoer, setDatumInvoer] = useState("");
   const [removeKans, setRemoveKans] = useState<BacklogItem | null>(null);
   const [opnieuwDialog, setOpnieuwDialog] = useState(false);
   const [filters, setFilters] = useState<BacklogFilters>(LEGE_BACKLOG_FILTERS);
@@ -158,10 +159,6 @@ export function PlanView({
   const echt = useMemo(() => pages.filter((p) => !p.is_buffer), [pages]);
   const zichtbareVoorraad = useMemo(() => filterBacklog(backlog, filters), [backlog, filters]);
   const clusters = useMemo(() => clusterCounts(backlog), [backlog]);
-  const ongemeten = useMemo(
-    () => ongemetenClusters(topics, new Set(metKansen)),
-    [topics, metKansen],
-  );
 
   /** Alles wat een maand moet weten, in één keer uitgerekend. */
   const maanden = useMemo(
@@ -257,6 +254,31 @@ export function PlanView({
         tekst: `"${titel}" staat weer beschikbaar en wordt niet geschreven.`,
       },
     );
+  }
+
+  /**
+   * De publicatiedatum van één regel zetten, of teruggeven aan de automatische
+   * spreiding (`datum: null`). De maand blijft dezelfde: dit verzet een dag,
+   * geen maand.
+   */
+  async function zetDatum(page: PlannedPage, datum: string | null) {
+    const ok = await stuur(
+      page.id,
+      { actie: "datum", datum },
+      datum
+        ? {
+            titel: `Verplaatst naar ${formatDagNL(datum)}`,
+            tekst: `ORBIT ENGINE begint tien dagen daarvoor aan "${page.title}".`,
+          }
+        : {
+            titel: "Weer automatisch",
+            tekst: `"${page.title}" schuift weer mee met de spreiding van de maand.`,
+          },
+    );
+    if (ok) {
+      setDatumDialog(null);
+      setDatumInvoer("");
+    }
   }
 
   async function paginaActie(
@@ -403,6 +425,31 @@ export function PlanView({
     }
   }
 
+  // ── Wat de datumdialoog moet weten ───────────────────────────────────────
+  //
+  // De kalendermaand van de regel die openstaat, en of de ingetikte dag mag.
+  // `datumProbleem()` is dezelfde functie die de server draait, dus wat hier
+  // groen is, wordt daar niet alsnog geweigerd.
+  const datumMaandRij = datumDialog ? maandVan.get(datumDialog.plan_month_id ?? "") : null;
+  const datumMaand = datumMaandRij
+    ? (monthCalendar(plan.started_on, datumMaandRij.month_number)?.label ?? null)
+    : null;
+  const datumGrenzen = (() => {
+    const k = datumMaandRij ? monthCalendar(plan.started_on, datumMaandRij.month_number) : null;
+    if (!k) return null;
+    const laatste = new Date(Date.UTC(k.jaar, k.maandIndex + 1, 0)).getUTCDate();
+    return {
+      van: `${k.jaar}-${String(k.maandIndex + 1).padStart(2, "0")}-01`,
+      tot: `${k.jaar}-${String(k.maandIndex + 1).padStart(2, "0")}-${laatste}`,
+    };
+  })();
+  const datumFout =
+    datumDialog && datumMaandRij
+      ? datumInvoer === ""
+        ? "Kies een dag."
+        : datumProbleem(plan.started_on, datumMaandRij.month_number, datumInvoer)
+      : null;
+
   const maandKeuzes: MaandKeuze[] = maanden.map((m) => ({
     id: m.month.id,
     label: `Maand ${m.month.month_number}${m.kalender ? ` · ${m.kalender}` : ""}`,
@@ -418,7 +465,7 @@ export function PlanView({
           <span className="mx-2 text-muted">·</span>
           {echt.length} ingepland
           <span className="mx-2 text-muted">·</span>
-          {backlog.length} in de voorraad
+          {backlog.length} content beschikbaar
           {eerstvolgende && (
             <>
               <span className="mx-2 text-muted">·</span>
@@ -476,7 +523,7 @@ export function PlanView({
                     een KLEURklasse (`color: var(--bg-base)`), en dan staat de kop in de
                     donkere stand bijna onzichtbaar in de kleur van de paginagrond. De
                     typografie loopt via de `type-`-klassen uit `app/globals.css`. */}
-                <h2 className="type-body-emphasis">Beschikbaar</h2>
+                <h2 className="type-body-emphasis">In te plannen content</h2>
                 <span className="mono-label text-muted">
                   {zichtbareVoorraad.length === backlog.length
                     ? `${backlog.length}`
@@ -536,8 +583,8 @@ export function PlanView({
 
             {backlog.length === 0 ? (
               <p className="px-4 pb-4 text-sm text-secondary">
-                ORBIT ENGINE vult deze lijst met kansen uit je metingen. Zolang er geen cluster
-                gemeten is, is er niets om op te schrijven.
+                Hier komen je contentitems te staan die je kunt inplannen in je contentkalender.
+                Op dit moment zijn er geen items beschikbaar.
               </p>
             ) : zichtbareVoorraad.length === 0 ? (
               <div className="flex flex-col items-start gap-1 px-4 pb-4">
@@ -576,43 +623,6 @@ export function PlanView({
               </ul>
             )}
           </section>
-
-          {/* ── Wat de voorraad kan laten groeien ─────────────────────────── */}
-          {ongemeten.length > 0 && (
-            <section className="flex flex-col gap-2">
-              <span className="mono-label text-muted">Nog niet gemeten</span>
-              <p className="text-sm text-secondary">
-                {ongemeten.length === 1
-                  ? "Dit cluster levert nog geen kansen op."
-                  : `Deze ${ongemeten.length} clusters leveren nog geen kansen op.`}
-              </p>
-              <ul className="flex flex-col">
-                {ongemeten.map((c) => (
-                  <li
-                    key={c.topicId}
-                    className="flex items-center justify-between gap-3 border-t py-2 text-sm"
-                    style={{ borderColor: "var(--border-subtle)" }}
-                  >
-                    <span className="min-w-0 truncate text-secondary">{c.title}</span>
-                    {c.loopt ? (
-                      <span className="shrink-0 text-xs text-muted">meting loopt</span>
-                    ) : (
-                      <Link
-                        href={
-                          c.analysisId
-                            ? `/analyses/${c.analysisId}`
-                            : `/merk/${profileId}/strategie/clusters`
-                        }
-                        className="shrink-0 text-xs text-secondary hover:underline"
-                      >
-                        Meten
-                      </Link>
-                    )}
-                  </li>
-                ))}
-              </ul>
-            </section>
-          )}
         </div>
 
         {/* ── Rechts: de twaalf maanden ──────────────────────────────────── */}
@@ -817,6 +827,10 @@ export function PlanView({
                           }}
                           onKies={(maandId) => void inplannen(page.id, page.title, maandId, null)}
                           onNaarVoorraad={() => void naarVoorraad(page.id, page.title)}
+                          onDatum={() => {
+                            setDatumDialog(page);
+                            setDatumInvoer(page.scheduled_for ?? "");
+                          }}
                           onApprove={() => void paginaActie(page, "goedkeuren")}
                           onPost={() => {
                             setPostDialog(page);
@@ -856,6 +870,63 @@ export function PlanView({
           placeholder="/diensten/cv-ketel-onderhoud"
           aria-label="Het pad waar de pagina live staat"
         />
+      </ConfirmDialog>
+
+      {/* ── De publicatiedatum verzetten ────────────────────────────────
+          Géén onomkeerbaar blok: dit verzet een dag en zet niets in gang. De
+          grens staat in `datumProbleem()`: binnen de kalendermaand van deze
+          maand, en niet in het verleden. Diezelfde functie draait op de server
+          (conventie 1), hier alleen om de knop uit te zetten vóór je hem
+          indrukt. */}
+      <ConfirmDialog
+        open={datumDialog !== null}
+        title="Publicatiedatum"
+        body={`Op welke dag moet "${datumDialog?.title ?? ""}" verschijnen? ORBIT ENGINE begint tien dagen voor die datum met schrijven.`}
+        confirmLabel="Datum opslaan"
+        confirmingLabel="Bezig…"
+        busy={busy === datumDialog?.id}
+        confirmDisabled={datumFout !== null}
+        onCancel={() => {
+          setDatumDialog(null);
+          setDatumInvoer("");
+        }}
+        onConfirm={() => datumDialog && !datumFout && void zetDatum(datumDialog, datumInvoer)}
+      >
+        <div className="flex flex-col gap-2">
+          <input
+            type="date"
+            className="field"
+            value={datumInvoer}
+            min={datumGrenzen?.van}
+            max={datumGrenzen?.tot}
+            onChange={(e) => setDatumInvoer(e.target.value)}
+            aria-label="De dag waarop deze pagina verschijnt"
+          />
+          {datumFout ? (
+            <span className="text-sm" style={{ color: "var(--intent-warning-text)" }}>
+              {datumFout}
+            </span>
+          ) : (
+            datumMaand && (
+              <span className="text-sm text-secondary">
+                Kies een dag in {datumMaand}. Voor een andere maand verplaats je de pagina.
+              </span>
+            )
+          )}
+          {/* Alleen zichtbaar als er iets terug te geven valt. Bij een pagina
+              die nog gewoon meeschuift, zou deze knop een keuze aanbieden die
+              al de huidige stand is. */}
+          {datumDialog?.scheduled_manual && (
+            <button
+              type="button"
+              className="self-start text-sm text-secondary hover:underline"
+              disabled={busy === datumDialog.id}
+              onClick={() => datumDialog && void zetDatum(datumDialog, null)}
+            >
+              Laat ORBIT ENGINE de dag weer zelf kiezen
+            </button>
+          )}
+        </div>
       </ConfirmDialog>
 
       {/* ── Definitief verwijderen, uit een maand of uit de voorraad ─────
@@ -959,6 +1030,21 @@ export function PlanView({
  * ⚠️ Het blijft de toegankelijke weg naast slepen (`lib/plan-order.ts`): echte
  * knoppen, bereikbaar met tab, sluitend met Escape. Slepen is de snelle weg voor
  * wie een muis heeft, dit is de weg die overal werkt.
+ *
+ * ── WAAROM HET MENU BUITEN DE PAGINA HANGT ──────────────────────────────────
+ *
+ * Het menu stond met `position: absolute` in de rij. Elke maand is een kaart met
+ * `overflow-hidden` (anders steken de rijen door de afgeronde hoek heen) en de
+ * voorraadlijst scrolt met `overflow-y-auto`. Allebei knippen ze alles af wat
+ * buiten hun rand valt, dus op de onderste regels van een maand liep het menu
+ * dood tegen de kaartrand: bij een maand met vijf pagina's zag je van "Verplaats
+ * naar" alleen nog de kop en de helft van de eerste maand.
+ *
+ * `position: fixed` in een portal op `document.body` heeft geen last van welke
+ * `overflow` dan ook. De prijs is dat de plek zelf uitgerekend moet worden, en
+ * dat hij bij scrollen of het verslepen van het venster opnieuw moet: daarom
+ * sluit het menu bij scrollen buiten het menu zelf. Dat is ook wat de meeste
+ * mensen verwachten van een menu dat ze open lieten staan.
  */
 function RijMenu({
   label,
@@ -970,21 +1056,58 @@ function RijMenu({
   children: (sluit: () => void) => React.ReactNode;
 }) {
   const [open, setOpen] = useState(false);
+  const [plek, setPlek] = useState<{ top: number; right: number; hoogte: number } | null>(null);
   const wrap = useRef<HTMLDivElement>(null);
+  const paneel = useRef<HTMLDivElement>(null);
+
+  /**
+   * Waar past het menu?
+   *
+   * Onder de knop als het kan, erboven als er onderin het scherm geen ruimte
+   * meer is. Zonder die omslag valt het menu van de laatste rij van maand 12
+   * onder de vouw, en dan is het even onbruikbaar als toen het werd afgeknipt.
+   */
+  function meten() {
+    const knop = wrap.current?.getBoundingClientRect();
+    if (!knop) return;
+    const marge = 8;
+    const onder = window.innerHeight - knop.bottom - marge;
+    const boven = knop.top - marge;
+    const omhoog = onder < 200 && boven > onder;
+    const hoogte = Math.max(120, Math.min(320, omhoog ? boven : onder));
+    setPlek({
+      top: omhoog ? Math.max(marge, knop.top - hoogte - 4) : knop.bottom + 4,
+      right: Math.max(marge, window.innerWidth - knop.right),
+      hoogte,
+    });
+  }
 
   useEffect(() => {
     if (!open) return;
     function buiten(e: MouseEvent) {
-      if (wrap.current && !wrap.current.contains(e.target as Node)) setOpen(false);
+      const doel = e.target as Node;
+      if (wrap.current?.contains(doel) || paneel.current?.contains(doel)) return;
+      setOpen(false);
     }
     function toets(e: KeyboardEvent) {
       if (e.key === "Escape") setOpen(false);
     }
+    // Meescrollen zou het menu bij elke pixel opnieuw laten rekenen; sluiten is
+    // eerlijker en goedkoper. Wel `capture`, want de voorraadlijst scrolt zelf
+    // en zo'n scroll borrelt niet op naar `window`.
+    function scroll(e: Event) {
+      if (paneel.current?.contains(e.target as Node)) return;
+      setOpen(false);
+    }
     document.addEventListener("mousedown", buiten);
     document.addEventListener("keydown", toets);
+    document.addEventListener("scroll", scroll, true);
+    window.addEventListener("resize", meten);
     return () => {
       document.removeEventListener("mousedown", buiten);
       document.removeEventListener("keydown", toets);
+      document.removeEventListener("scroll", scroll, true);
+      window.removeEventListener("resize", meten);
     };
   }, [open]);
 
@@ -996,24 +1119,36 @@ function RijMenu({
         aria-haspopup="menu"
         aria-expanded={open}
         disabled={busy}
-        onClick={() => setOpen((o) => !o)}
+        onClick={() => {
+          if (!open) meten();
+          setOpen((o) => !o);
+        }}
         className="rounded-[var(--radius-md)] p-1.5 text-muted transition-colors hover:bg-[var(--bg-muted)] hover:text-[var(--text-primary)] disabled:opacity-40"
       >
         <Icon naam="meer" size={16} />
       </button>
-      {open && (
-        <div
-          role="menu"
-          className="absolute right-0 z-20 mt-1 flex max-h-80 w-60 flex-col overflow-y-auto rounded-[var(--radius-md)] py-1"
-          style={{
-            background: "var(--bg-surface)",
-            border: "var(--border-width-xs) solid var(--border-subtle)",
-            boxShadow: "var(--shadow-overlay)",
-          }}
-        >
-          {children(() => setOpen(false))}
-        </div>
-      )}
+      {open &&
+        plek &&
+        createPortal(
+          <div
+            ref={paneel}
+            role="menu"
+            /* z-40 is de laag van uitklapmenu's uit de ladder in `docs/ux-design.md`:
+               boven de navigatiebalken, onder de dialogen. */
+            className="fixed z-40 flex w-60 flex-col overflow-y-auto rounded-[var(--radius-md)] py-1"
+            style={{
+              top: plek.top,
+              right: plek.right,
+              maxHeight: plek.hoogte,
+              background: "var(--bg-surface)",
+              border: "var(--border-width-xs) solid var(--border-subtle)",
+              boxShadow: "var(--shadow-overlay)",
+            }}
+          >
+            {children(() => setOpen(false))}
+          </div>,
+          document.body,
+        )}
     </div>
   );
 }
@@ -1203,6 +1338,7 @@ function PageRij({
   onDropHier,
   onKies,
   onNaarVoorraad,
+  onDatum,
   onApprove,
   onPost,
   onRemove,
@@ -1226,6 +1362,8 @@ function PageRij({
   onDropHier: () => void;
   onKies: (maandId: string) => void;
   onNaarVoorraad: () => void;
+  /** De publicatiedatum verzetten. Alleen zolang de pagina nog `gepland` is. */
+  onDatum: () => void;
   onApprove: () => void;
   onPost: () => void;
   onRemove: () => void;
@@ -1311,7 +1449,34 @@ function PageRij({
         )}
       </div>
 
-      {datum && <span className="shrink-0 text-xs text-muted">{datum}</span>}
+      {/* De datum is bij een geplande regel de snelle weg naar het verzetten
+          ervan: je klikt op wat je wilt veranderen. Het menu houdt dezelfde
+          handeling voor wie met het toetsenbord werkt. Bij elke andere status
+          is de datum een mededeling en geen knop, want dan ligt hij vast. */}
+      {datum &&
+        (magVerhuizen ? (
+          <button
+            type="button"
+            onClick={onDatum}
+            disabled={busy}
+            title={
+              page.scheduled_manual
+                ? "Deze dag heb je zelf gekozen. Klik om hem te verzetten."
+                : "Verzet deze pagina naar een andere dag"
+            }
+            /* ⚠️ Een zelfgekozen dag krijgt geen eigen teken maar een iets
+               donkerdere tint. Een vinkje of een speldje naast de datum zou een
+               nieuw symbool zijn op een regel waar ✓ al "goedgekeurd" betekent,
+               en dan leest de datum als een status. */
+            className={`shrink-0 text-xs hover:text-[var(--text-primary)] hover:underline disabled:opacity-40 ${
+              page.scheduled_manual ? "text-secondary" : "text-muted"
+            }`}
+          >
+            {datum}
+          </button>
+        ) : (
+          <span className="shrink-0 text-xs text-muted">{datum}</span>
+        ))}
 
       {toonStatus && (
         <span
@@ -1388,6 +1553,15 @@ function PageRij({
               )}
               {magVerhuizen && (
                 <>
+                  <MenuKnop
+                    onClick={() => {
+                      sluit();
+                      onDatum();
+                    }}
+                  >
+                    Datum aanpassen
+                  </MenuKnop>
+                  <MenuScheiding />
                   <MenuKop>Verplaats naar</MenuKop>
                   {maanden
                     .filter((m) => m.id !== huidigeMaand)

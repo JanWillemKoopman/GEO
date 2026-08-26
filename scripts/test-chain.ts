@@ -2814,6 +2814,114 @@ async function main(): Promise<void> {
       geweigerd.ok === false && Boolean(geweigerd.probleem),
     );
 
+    // ── De publicatiedatum zelf zetten (migratie 0067) ──────────────────────
+    //
+    // ⚠️ DE SAMENHANG DIE HIER FOUT KAN GAAN: `herplanMaand()` herberekent na
+    // ELKE wijziging in een maand alle data. Een zelfgekozen datum die dat niet
+    // overleeft, is één sleepbeweging later weer weg, en geen enkele unittest
+    // ziet dat: de vlag moet uit de database komen, door de query heen, tot in
+    // `resequenceMonth()`.
+    {
+      const { setPageDate } = await import("@/lib/plans");
+      const { monthCalendar } = await import("@/lib/plan-schedule");
+      const { rows: startRij } = await db.client.query(
+        `select started_on from public.content_plans
+          where profile_id = $1 and status <> 'gestopt' order by version desc limit 1`,
+        [planPotProfileId],
+      );
+      const startedOn =
+        typeof startRij[0].started_on === "string"
+          ? startRij[0].started_on
+          : startRij[0].started_on.toISOString().slice(0, 10);
+      const k = monthCalendar(startedOn, 3);
+      const gekozenDag = `${k?.jaar}-${String((k?.maandIndex ?? 0) + 1).padStart(2, "0")}-18`;
+
+      // De kaart staat sinds de vorige controle op `schrijven`; terug naar
+      // `gepland`, want alleen dan mag de datum nog verzet worden.
+      await db.client.query("update public.planned_pages set status = 'gepland' where id = $1", [
+        inMaand3[0].id,
+      ]);
+
+      const gezetDatum = await setPageDate(admin as never, {
+        profileId: planPotProfileId,
+        pageId: inMaand3[0].id,
+        datum: gekozenDag,
+      });
+      ok("de datum zelf zetten lukt", gezetDatum.ok, gezetDatum.probleem ?? "");
+
+      const { rows: naDatum } = await db.client.query(
+        `select scheduled_for, scheduled_manual from public.planned_pages where id = $1`,
+        [inMaand3[0].id],
+      );
+      const opgeslagen =
+        typeof naDatum[0].scheduled_for === "string"
+          ? naDatum[0].scheduled_for
+          : naDatum[0].scheduled_for.toISOString().slice(0, 10);
+      ok(
+        "de gekozen dag staat in de database, met de vlag erbij",
+        opgeslagen === gekozenDag && naDatum[0].scheduled_manual === true,
+        `${opgeslagen}, vlag ${naDatum[0].scheduled_manual}`,
+      );
+
+      // Een dag buiten de kalendermaand van maand 3 hoort geweigerd te worden.
+      const buitenDeMaand = await setPageDate(admin as never, {
+        profileId: planPotProfileId,
+        pageId: inMaand3[0].id,
+        datum: `${k?.jaar}-${String((k?.maandIndex ?? 0) + 2).padStart(2, "0")}-05`,
+      });
+      ok(
+        "een dag buiten de eigen maand wordt geweigerd",
+        buitenDeMaand.ok === false && Boolean(buitenDeMaand.probleem),
+      );
+
+      // ⚠️ De echte test: er komt een tweede kaart in dezelfde maand, dus
+      // `herplanMaand()` draait. De gekozen dag hoort te blijven staan.
+      const tweedeKaart = randomUUID();
+      await db.client.query(
+        `insert into public.planned_pages (id, profile_id, plan_month_id, title, page_type, status, sort_order)
+         values ($1, $2, $3, 'Tweede kaart in maand 3', 'informatief', 'gepland', 1)`,
+        [tweedeKaart, planPotProfileId, maand3.id],
+      );
+      await assignToMonth(admin as never, {
+        profileId: planPotProfileId,
+        pageId: tweedeKaart,
+        monthId: maand3.id,
+        index: 0,
+      });
+
+      const { rows: naHerplan } = await db.client.query(
+        `select scheduled_for from public.planned_pages where id = $1`,
+        [inMaand3[0].id],
+      );
+      const nogSteeds =
+        typeof naHerplan[0].scheduled_for === "string"
+          ? naHerplan[0].scheduled_for
+          : naHerplan[0].scheduled_for.toISOString().slice(0, 10);
+      ok(
+        "de zelfgekozen dag overleeft het herplannen van de maand",
+        nogSteeds === gekozenDag,
+        `${nogSteeds} in plaats van ${gekozenDag}`,
+      );
+
+      // ⚠️ En hij vervalt zodra de kaart naar een ANDERE maand gaat: 18 oktober
+      // is geen dag in november.
+      const maand4 = maandRijen.find((m: { month_number: number }) => m.month_number === 4);
+      await assignToMonth(admin as never, {
+        profileId: planPotProfileId,
+        pageId: inMaand3[0].id,
+        monthId: maand4.id,
+        index: null,
+      });
+      const { rows: naVerhuizing } = await db.client.query(
+        `select scheduled_manual from public.planned_pages where id = $1`,
+        [inMaand3[0].id],
+      );
+      ok(
+        "maar vervalt bij een verhuizing naar een andere maand",
+        naVerhuizing[0].scheduled_manual === false,
+      );
+    }
+
     // ══════════════════════════════════════════════════════════════════════
     // De potentiescore onderscheidt kansen van hetzelfde onderwerp
     // (doorloop-huyberts.md punt 4)

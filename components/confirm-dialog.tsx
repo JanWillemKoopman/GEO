@@ -31,6 +31,7 @@ export function ConfirmDialog({
   confirmingLabel,
   busy = false,
   danger = false,
+  confirmDisabled = false,
   onConfirm,
   onCancel,
   children,
@@ -44,6 +45,8 @@ export function ConfirmDialog({
   confirmingLabel?: string;
   busy?: boolean;
   danger?: boolean;
+  /** De bevestiging staat uit zolang de invoer nog niet klopt. */
+  confirmDisabled?: boolean;
   onConfirm: () => void;
   onCancel: () => void;
   /** Extra invoer binnen de dialoog, bijvoorbeeld het pad bij "markeer als geplaatst". */
@@ -112,7 +115,7 @@ export function ConfirmDialog({
               type="button"
               className="btn-primary"
               onClick={onConfirm}
-              disabled={busy}
+              disabled={busy || confirmDisabled}
               style={
                 danger
                   ? { background: "var(--intent-danger-solid)" }

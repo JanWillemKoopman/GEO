@@ -26,6 +26,8 @@ export interface OrderablePage {
   scheduled_for: string | null;
   is_buffer: boolean;
   status: string;
+  /** Migratie 0067: de gebruiker koos deze datum zelf. Die verhuist niet mee. */
+  scheduled_manual?: boolean;
 }
 
 export interface SwapResult {
@@ -42,6 +44,11 @@ export interface SwapResult {
  * werkelijkheid geworden, en die verzetten zou een leugen opleveren over wanneer
  * er iets live ging. Hetzelfde geldt voor de buurman: verschuiven ten koste van
  * iets wat al gebeurd is, kan niet.
+ *
+ * ⚠️ Draagt één van de twee een zelfgekozen datum (migratie 0067), dan wisselen
+ * alleen de plekken en houden beide hun datum. Anders verhuist de keuze "deze
+ * pagina moet op 18 augustus, want dan is de beurs" naar de buurman, en dat is
+ * precies de pagina waarvoor die datum niet gold.
  */
 export function swapWithNeighbour(
   pages: OrderablePage[],
@@ -79,10 +86,20 @@ export function swapWithNeighbour(
     };
   }
 
+  const eigenDatum = a.scheduled_manual === true || b.scheduled_manual === true;
+
   return {
     updates: [
-      { id: a.id, sort_order: b.sort_order, scheduled_for: b.scheduled_for },
-      { id: b.id, sort_order: a.sort_order, scheduled_for: a.scheduled_for },
+      {
+        id: a.id,
+        sort_order: b.sort_order,
+        scheduled_for: eigenDatum ? a.scheduled_for : b.scheduled_for,
+      },
+      {
+        id: b.id,
+        sort_order: a.sort_order,
+        scheduled_for: eigenDatum ? b.scheduled_for : a.scheduled_for,
+      },
     ],
     problem: null,
   };

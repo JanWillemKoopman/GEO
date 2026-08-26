@@ -62,7 +62,7 @@ export default async function PlanPage({
       <PageHeader
         eyebrow="Strategie"
         title="Contentplan"
-        description="Links staat wat ORBIT ENGINE uit je metingen haalde, rechts staan je twaalf maanden. Sleep een kans naar de maand waarin hij geschreven moet worden."
+        description="Plan content op basis van je clusteranalyses. Sleep beschikbare content items naar de maand waarin ze geschreven moeten worden."
       />
 
       {bundle ? (
@@ -72,7 +72,6 @@ export default async function PlanPage({
           months={bundle.months}
           pages={bundle.pages}
           backlog={bundle.backlog}
-          metKansen={bundle.metKansen}
           funnels={bundle.funnels}
           topics={bundle.topics}
           staff={staff}

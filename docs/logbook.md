@@ -5249,3 +5249,44 @@ resultaat, waarbij hoofdstuk 04 het hoofdstuk 01 van de volgende periode voedt, 
 uitdrukken. Dat was §9 de reden om er destijds vanaf te stappen. De nummering 01 t/m 04 blijft de
 volgorde tonen en hoofdstuk 04 benoemt de terugkoppeling in zijn eigen tekst, maar met één scroll
 van meting naar bewijs naar werk lopen kan niet meer; dat zijn nu drie klikken.
+
+## 26 augustus 2026 · Het planscherm: minder blokken, een datum die je zelf zet, en een menu dat niet meer afgeknipt wordt
+
+Vijf ingrepen op `/merk/[id]/strategie/plan`, na een ronde meekijken met de eigenaar.
+
+**Het blok "Nog niet gemeten" is eruit.** Onder de voorraad stond een lijst met de clusters die nog
+geen kans konden leveren, met een meetknop erbij. Bij Gasservice Brabant waren dat er zes van de
+zeven. Het beantwoordde een echte vraag, maar niet de vraag van dít scherm: hier plan je in, en
+welke clusters nog gemeten moeten worden hoort op het clusterscherm. Bovendien stond het ónder een
+lijst die zelf al scrollt, dus je zag het pas na de hele voorraad. Weg, inclusief de pure functie
+`ongemetenClusters()` die er alleen voor bestond en de vier unittests eromheen.
+
+**Drie teksten die het scherm in zijn eigen woorden lieten praten.** "10 in de voorraad" is
+"10 content beschikbaar" geworden, de kop "Beschikbaar" is "In te plannen content", en de lege staat
+zegt nu wat er komt te staan in plaats van uit te leggen waarom er niets staat. De paginakop noemt
+niet meer links en rechts (dat klopt op een telefoon niet) maar de handeling: plan content op basis
+van je clusteranalyses, sleep items naar de maand waarin ze geschreven moeten worden.
+
+**De publicatiedatum is zelf te zetten** (migratie `0067`). De spreiding uit `spreadDates()` verdeelt
+tien pagina's netjes over de maand, en dat klopt meestal. Meestal is niet altijd: wie zijn pagina
+over de showroomdagen vóór die dagen live wil hebben, kon tot nu toe alleen de hele maand
+verschuiven. Klik nu op de datum in de regel, of kies "Datum aanpassen" in het menu. `datumProbleem()`
+bewaakt twee grenzen, in de browser en op de server met dezelfde functie (conventie 1): binnen de
+kalendermaand van die planmaand, en niet in het verleden.
+
+De valkuil zat niet in het zetten maar in het bewaren. `resequenceMonth()` herberekent na élke
+wijziging in een maand alle data, dus zonder de kolom `scheduled_manual` was 18 augustus één
+sleepbeweging later weer 15 augustus, precies zoals de spreiding hem uitrekende. De vlag geeft zo'n
+dag dezelfde uitzondering die een geplaatste pagina al had. `swapWithNeighbour()` volgt dezelfde
+regel, anders verhuist "deze pagina moet op de 18e, want dan is de beurs" naar de buurman. En hij
+vervalt zodra de kaart naar een andere maand of terug naar de voorraad gaat: een dag in oktober is
+geen dag in november. Alle drie de regels staan als ketentest in `test-chain.ts`, want geen enkele
+unittest ziet of de vlag het hele pad van database tot herberekening haalt.
+
+**Het uitklapmenu werd afgeknipt.** De drie puntjes op een planregel openden een menu met
+`position: absolute` binnen de maandkaart, en die kaart heeft `overflow-hidden` (anders steken de
+rijen door de afgeronde hoek). Op de onderste regels liep het menu dus dood tegen de kaartrand: van
+"Verplaats naar" zag je de kop en de helft van de eerste maand. Hetzelfde gold in de voorraadlijst,
+die met `overflow-y-auto` scrolt. Het menu hangt nu in een portal op `document.body` met
+`position: fixed`, klapt naar boven open als er onderin het scherm geen ruimte is, en sluit bij
+scrollen buiten zichzelf. Laag `z-40`, de laag van uitklapmenu's uit de ladder in `ux-design.md`.

@@ -218,6 +218,7 @@ import {
   isPastMonth,
   spreadDates,
   resequenceMonth,
+  datumProbleem,
 } from "@/lib/plan-schedule";
 import { sharedNotice } from "@/lib/plan-overview";
 import {
@@ -226,7 +227,6 @@ import {
   clusterCounts,
   potentieLabel,
   raaktLabel,
-  ongemetenClusters,
   LEGE_BACKLOG_FILTERS,
   type BacklogItem,
 } from "@/lib/plan-backlog";
@@ -4426,6 +4426,64 @@ group("een maand opnieuw nummeren en dateren (plan-schedule)", () => {
   const live = metLive.find((u) => u.id === "a");
   ok("een geplaatste pagina houdt zijn publicatiedatum", live?.scheduled_for === "2026-08-03");
   ok("maar krijgt wél zijn nieuwe plek in de nummering", live?.sort_order === 0);
+
+  // ⚠️ Migratie 0067. Dit is de regel die de hele functie bruikbaar maakt voor
+  // een zelfgekozen datum: zonder hem is "zet hem op 18 augustus, want dan is de
+  // beurs" één sleepbeweging later weer weg.
+  const metEigenDatum = resequenceMonth(
+    "2026-08-12",
+    1,
+    [
+      { id: "a", sort_order: 0, scheduled_for: "2026-08-01", status: "gepland" },
+      {
+        id: "b",
+        sort_order: 1,
+        scheduled_for: "2026-08-18",
+        status: "gepland",
+        scheduled_manual: true,
+      },
+      { id: "c", sort_order: 2, scheduled_for: "2026-08-28", status: "gepland" },
+    ],
+    buiten,
+  );
+  ok(
+    "een zelfgekozen datum overleeft het herplannen van de maand",
+    metEigenDatum.every((u) => u.id !== "b"),
+  );
+});
+
+group("mag deze pagina op deze dag (plan-schedule)", () => {
+  // Een plan dat op 12 augustus 2026 startte: maand 1 is augustus, maand 3 is
+  // oktober. "Nu" ligt vast op 5 augustus, anders verandert de uitkomst van
+  // "die dag is al voorbij" elke dag mee.
+  const nu = new Date("2026-08-05T12:00:00Z");
+
+  ok(
+    "een dag in de eigen maand mag",
+    datumProbleem("2026-08-12", 1, "2026-08-18", nu) === null,
+  );
+  ok("vandaag mag ook", datumProbleem("2026-08-12", 1, "2026-08-05", nu) === null);
+  ok(
+    "gisteren niet, want schrijven duurt tien dagen",
+    datumProbleem("2026-08-12", 1, "2026-08-04", nu) !== null,
+  );
+  ok(
+    "de 31e mag, ook al plant de spreiding zelf tot 28",
+    datumProbleem("2026-08-12", 1, "2026-08-31", nu) === null,
+  );
+  ok(
+    "een dag buiten de maand niet",
+    (datumProbleem("2026-08-12", 1, "2026-09-01", nu) ?? "").includes("augustus 2026"),
+  );
+  ok(
+    "en de melding noemt de maand waar hij wél in hoort",
+    (datumProbleem("2026-08-12", 3, "2026-08-20", nu) ?? "").includes("oktober 2026"),
+  );
+  ok("onzin is geen datum", datumProbleem("2026-08-12", 1, "morgen", nu) !== null);
+  ok(
+    "de 30e februari bestaat niet, en rolt hier niet stilletjes door naar maart",
+    datumProbleem("2026-08-12", 7, "2027-02-30", nu) === "Dat is geen geldige datum.",
+  );
 });
 
 group("de voorraad filteren en sorteren (plan-backlog)", () => {
@@ -4503,29 +4561,6 @@ group("wat er op een voorraadkaart komt te staan (plan-backlog)", () => {
   );
   ok("geen doelvragen is geen regel", raaktLabel(kans({ raakt: null })) === null);
   ok("nul doelvragen ook niet", raaktLabel(kans({ raakt: 0, gemeten: 30 })) === null);
-});
-
-group("welke clusters nog geen kans kunnen leveren (plan-backlog)", () => {
-  const topics = [
-    { topicId: "t1", title: "Cv-ketel onderhoud", analysisId: "a1", analysisStatus: "gereed" },
-    { topicId: "t2", title: "Cv-ketel storing", analysisId: "a2", analysisStatus: "meten" },
-    { topicId: "t3", title: "Zonneboiler", analysisId: null, analysisStatus: null },
-  ];
-
-  // ⚠️ De set komt van ALLE kansen van het merk en niet alleen van de voorraad.
-  // Een cluster waarvan alle kansen al ingepland zijn, zou anders als "nog niet
-  // gemeten" op het scherm komen, met een meetknop bij een net gemeten cluster.
-  const open = ongemetenClusters(topics, new Set(["a1"]));
-  ok("een cluster dat kansen leverde valt af", open.every((c) => c.topicId !== "t1"));
-  ok("de andere twee blijven staan", open.length === 2);
-  ok(
-    "een lopende meting is wachten, geen handeling",
-    open.find((c) => c.topicId === "t2")?.loopt === true,
-  );
-  ok(
-    "een cluster dat nog niet bestaat vraagt wél iets",
-    open.find((c) => c.topicId === "t3")?.loopt === false,
-  );
 });
 
 group("de twee constanten van het plan", () => {
@@ -5770,6 +5805,28 @@ group("de volgorde binnen een maand (plan-order)", () => {
   ok(
     "en de geplaatste pagina zelf ook niet",
     swapWithNeighbour(metGeplaatst, "x", "omlaag").problem !== null,
+  );
+
+  // ⚠️ Migratie 0067: een zelfgekozen datum verhuist niet mee. Zou hij dat wel
+  // doen, dan komt "deze pagina op 18 september, want dan is de beurs" bij de
+  // buurman terecht, en dat is precies de pagina waarvoor die dag niet gold.
+  const metEigenDatum = [
+    p("m", 0, "2026-09-18", { scheduled_manual: true }),
+    p("n", 1, "2026-09-25"),
+  ];
+  const gewisseld = swapWithNeighbour(metEigenDatum, "n", "omhoog");
+  ok("wisselen mag nog steeds", gewisseld.problem === null);
+  ok(
+    "de plekken wisselen wel",
+    gewisseld.updates.find((u) => u.id === "n")?.sort_order === 0,
+  );
+  ok(
+    "maar de zelfgekozen datum blijft bij zijn eigen pagina",
+    gewisseld.updates.find((u) => u.id === "m")?.scheduled_for === "2026-09-18",
+  );
+  ok(
+    "en de buurman houdt ook de zijne",
+    gewisseld.updates.find((u) => u.id === "n")?.scheduled_for === "2026-09-25",
   );
 
   ok(

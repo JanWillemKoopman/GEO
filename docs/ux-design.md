@@ -787,6 +787,16 @@ inhoud van een hoofdstuk `z-10` → popovers en losse sticky blokken `z-20` → 
 navigatiebalk op `z-10` verliest van hoofdstukinhoud die later in de DOM staat, en schuift daar dan
 onderdoor bij het scrollen.
 
+⚠️ **Een z-index redt een menu niet uit een `overflow: hidden`.** Elke kaart in dit project knipt af
+wat buiten zijn rand valt (anders steken de rijen door de afgeronde hoek), en elke scrollende lijst
+doet hetzelfde. Een uitklapmenu met `position: absolute` binnen zo'n kaart werkt daardoor alleen
+zolang het toevallig past: op de onderste regels van het contentplan liep het menu dood tegen de
+kaartrand, met de halve maandenlijst onzichtbaar. Zo'n menu hoort in een **portal op
+`document.body`** met `position: fixed`, de plek uitgerekend uit de knop (`getBoundingClientRect()`),
+omhoog openend als er onderin het scherm geen ruimte is, en sluitend bij scrollen buiten zichzelf.
+Het voorbeeld staat in `RijMenu` in
+`app/(app)/merk/[id]/strategie/plan/plan-view.tsx`.
+
 **Dezelfde regel geldt op de contentdetailpagina** (`analyses/[id]/bibliotheek/[pieceId]/page.tsx`,
 content-editie): geen tabbladen, wél een leesvolgorde die van context naar handeling loopt.
 Context (`WhyThisPage`, waarom deze pagina) → wat er nu staat (`SearchPreview`, inhoudsopgave,

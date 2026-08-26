@@ -18,7 +18,8 @@ Voor UI/UX: `ux-design.md`.
 > beantwoordbare vragen in `fact_requests` (§3 en §5, stap 4e), en de statusroute telt de open
 > punten niet meer apart naast die vragen.
 > **Bijgewerkt op 26 augustus 2026**: de tijdrij van §9 is opnieuw doorgerekend
-> (doorloop-huyberts.md punt 5). Migratie `0066` is erbij gekomen (supabase/README.md).
+> (doorloop-huyberts.md punt 5). Migraties `0066` en `0067` zijn erbij gekomen
+> (supabase/README.md); `0067` staat bij §3, het contentplan.
 > De rest van de peildatum hieronder blijft staan.
 > **Migraties `0058` en `0059` zijn er sindsdien bijgekomen** en staan wél in §12 en in dit
 > document verwerkt, maar de rest is niet opnieuw regel voor regel nagelopen. Verder geldt:
@@ -134,7 +135,7 @@ probleem dan een dollar.
 | `content_pieces` | Gegenereerde pagina's. Versiebeheer per (analyse, titel) via `version`/`is_current`/`supersedes_id`, plus `briefing_snapshot_json`, `claims_json`, `source_coverage`, `quality_score`, `geo_score`, `needs_review`, `reviewed_at`/`reviewed_by`. `faq_json` is sinds de content-editie (§5, stap 16) ook door de klant bewerkbaar via de PATCH-route, niet alleen door het model. |
 | `content_impact` | Hermeetgolven na publicatie + statistisch verdict. |
 | `content_plans` / `plan_months` | Het contentplan (`0049`): één lopende versie per merk, twaalf maanden. `pages_per_month` is een KOPIE van het pakket, geen verwijzing: wie halverwege upgradet hoort niet met terugwerkende kracht een ander plan te krijgen. Een vorige versie gaat op `gestopt` en blijft staan (conventie 8). |
-| `planned_pages` | Twee toestanden in één tabel (`0065`): met een `plan_month_id` staat de pagina ingepland, zonder staat hij in de **voorraad**. Inplannen verandert alleen de maand en de datum, dus de kaart houdt zijn status, zijn `content_piece_id` en zijn geschiedenis. `source` zegt waar hij vandaan komt (`aanbeveling` = een gemeten kans uit een rapport), `source_ref` (`"<rapport-id>#<volgnummer>"`) maakt het vullen idempotent, en `why`/`target_intent`/`existing_url`/`recommendation_action` dragen de briefing die anders opnieuw bedacht zou moeten worden. `potential` is de opgeslagen potentiescore, ververst bij elke synchronisatie. |
+| `planned_pages` | Twee toestanden in één tabel (`0065`): met een `plan_month_id` staat de pagina ingepland, zonder staat hij in de **voorraad**. Inplannen verandert alleen de maand en de datum, dus de kaart houdt zijn status, zijn `content_piece_id` en zijn geschiedenis. `source` zegt waar hij vandaan komt (`aanbeveling` = een gemeten kans uit een rapport), `source_ref` (`"<rapport-id>#<volgnummer>"`) maakt het vullen idempotent, en `why`/`target_intent`/`existing_url`/`recommendation_action` dragen de briefing die anders opnieuw bedacht zou moeten worden. `potential` is de opgeslagen potentiescore, ververst bij elke synchronisatie. `scheduled_manual` (`0067`) zegt dat de gebruiker de publicatiedatum zelf koos, waardoor het herplannen van de maand hem laat staan. |
 | `technical_audits` | Kunnen AI-crawlers de site bereiken (robots.txt vs GPTBot, CCBot, …). Geen AI. |
 | `source_landscape` / `offsite_tasks` | Off-site aanwezigheid: welke externe domeinen relevant zijn en of het merk er staat. |
 | `jobs` | De wachtrij. |
@@ -188,6 +189,21 @@ boven je pakket zit.
 ⚠️ De kalendermaand komt sinds `0065` uit `content_plans.started_on` plus het maandnummer, niet meer
 uit de vroegste publicatiedatum in die maand. Een lege maand had anders geen naam, en dat is precies
 de maand waar iemand iets in wil slepen.
+
+**De publicatiedatum is sinds 26 augustus zelf te zetten** (migratie `0067`, `setPageDate()` in
+`lib/plans.ts`, actie `datum` op `/api/profiles/[id]/plan/pages/[pageId]`). `datumProbleem()`
+(`lib/plan-schedule.ts`, puur en getest) bewaakt twee grenzen: de dag valt binnen de kalendermaand
+van die planmaand, en hij ligt niet in het verleden. Diezelfde functie draait in de browser om de
+knop uit te zetten en op de server om het verzoek te weigeren (conventie 1).
+
+⚠️ De kolom `planned_pages.scheduled_manual` is wat die keuze laat overleven. `resequenceMonth()`
+herberekent na élke wijziging in een maand alle data, dus zonder vlag is een zelfgekozen dag één
+sleepbeweging later weer weg; met vlag krijgt hij dezelfde uitzondering als een geplaatste pagina.
+`swapWithNeighbour()` volgt dezelfde regel: draagt één van de twee een eigen datum, dan wisselen
+alleen de plekken. De vlag vervalt zodra de pagina naar een ándere maand of terug naar de voorraad
+gaat, want een dag in oktober is geen dag in november. Alleen een pagina op `gepland` mag verzet
+worden: zodra ORBIT ENGINE schrijft is de datum een lopende opdracht, en een geplaatste pagina houdt
+zijn datum omdat die werkelijkheid is geworden.
 
 ## 4. De jobwachtrij
 

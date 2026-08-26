@@ -16,6 +16,54 @@ dan de eigenaar van dat feit; hier staat waar hij vandaan kwam. Het besluit met 
 
 ---
 
+## Contentplan, `/merk/[id]/strategie/plan` · 26 augustus 2026 (woordenronde)
+
+De dichtheidsronde hieronder maakte het scherm leesbaar. Deze ronde ging over de woorden en over
+één ding dat het scherm niet kon.
+
+### Wat er af ging
+
+| Weg | Waarom |
+|---|---|
+| Het blok "Nog niet gemeten" onder de voorraad | Beantwoordde de vraag van het clusterscherm, niet die van dit scherm. Het stond bovendien onder een lijst die zelf scrollt, dus je zag het pas voorbij alle kansen |
+
+### Wat er anders heet
+
+| Was | Is | Waarom |
+|---|---|---|
+| "10 in de voorraad" | "10 content beschikbaar" | "Voorraad" is ons woord voor de datastructuur. De gebruiker ziet contentitems |
+| Kop "Beschikbaar" | "In te plannen content" | Beschikbaar waarvoor, was de vraag. De kop zegt nu de handeling die eronder zit |
+| "ORBIT ENGINE vult deze lijst met kansen uit je metingen. Zolang er geen cluster gemeten is, is er niets om op te schrijven." | "Hier komen je contentitems te staan die je kunt inplannen in je contentkalender. Op dit moment zijn er geen items beschikbaar." | De oude tekst legde een oorzaak uit aan iemand die nog niet weet wat er in het vak hoort. Eerst zeggen wat het vak is, dan pas dat het leeg is |
+| "Links staat wat ORBIT ENGINE uit je metingen haalde, rechts staan je twaalf maanden." | "Plan content op basis van je clusteranalyses." | Links en rechts kloppen op een telefoon niet, want daar staat alles onder elkaar |
+
+### Wat erbij kwam
+
+De publicatiedatum per regel is aan te passen: klik op de datum, of kies "Datum aanpassen" in het
+menu. De grens is de kalendermaand van die planmaand, want een pagina in "Maand 2 · september" met
+een datum in november laat de maandkop liegen over wat eronder staat. Voor een andere maand versleep
+je de pagina, en dat zegt de dialoog er ook bij.
+
+### De bug die eronder zat
+
+Het uitklapmenu werd afgeknipt door de maandkaart. Elke kaart heeft `overflow-hidden`, elke
+scrollende lijst heeft `overflow-y-auto`, en een `position: absolute`-menu kan daar niet uit. Dat is
+geen probleem van dit scherm maar van elk menu binnen een kaart, vandaar regel 20 hieronder.
+
+### Ontwerpregels die hieruit volgen, ook elders
+
+20. **Een uitklapmenu binnen een kaart of een scrollende lijst hoort in een portal.** `overflow`
+    knipt alles af wat buiten de rand valt, dus `position: absolute` werkt alleen zolang het menu
+    toevallig past. Portal op `document.body` met `position: fixed`, de plek uitgerekend uit de
+    knop, omhoog openend als er onderin geen ruimte is, en sluitend bij scrollen buiten zichzelf.
+21. **Een lege staat zegt eerst wat er komt te staan, pas daarna waarom het leeg is.** Wie het vak
+    voor het eerst ziet, kent de oorzaak niet omdat hij het gevolg nog niet kent.
+22. **Zet niet ons woord voor de datastructuur op het scherm.** "Voorraad" en "backlog" zijn woorden
+    uit de code. ⚠️ Deze ronde heeft alleen de kop, de teller en de lege staat omgezet: "voorraad"
+    staat nog in de sleeptekst van een lege maand, in het menu ("Terug naar de voorraad") en in de
+    meldingen. Dat is bewust niet in dezelfde ronde meegenomen, en het is dus nog open werk.
+
+---
+
 ## Contentplan, `/merk/[id]/strategie/plan` · 26 augustus 2026 (dichtheidsronde)
 
 De indeling van de dag ervoor klopte, de dichtheid niet. Eén regel van maand 1 besloeg vijf regels

@@ -10,7 +10,12 @@ import "server-only";
  */
 import { createAdminClient } from "@/lib/supabase/admin";
 import { DEFAULT_FUNNELS, MONTHS_AHEAD } from "@/lib/plan-constants";
-import { resequenceMonth, spreadDates, type HerplanRij } from "@/lib/plan-schedule";
+import {
+  resequenceMonth,
+  spreadDates,
+  datumProbleem,
+  type HerplanRij,
+} from "@/lib/plan-schedule";
 import { syncBacklog, meetbareVragenPerAnalyse } from "@/lib/plan-backlog-data";
 import { sortBacklog, type BacklogItem } from "@/lib/plan-backlog";
 import type { TopicWritingState } from "@/lib/plan-writing";
@@ -480,9 +485,16 @@ export async function assignToMonth(
 
   const vorigeMaand = kaart.plan_month_id;
 
+  // ⚠️ Verhuist de kaart naar een ANDERE maand, dan vervalt een zelfgekozen
+  // datum (migratie 0067). Die datum lag in de kalendermaand die hij verlaat:
+  // hem meenemen naar maand 3 zou een pagina in oktober op 18 augustus zetten.
   const { error } = await admin
     .from("planned_pages")
-    .update({ plan_month_id: input.monthId })
+    .update(
+      vorigeMaand === input.monthId
+        ? { plan_month_id: input.monthId }
+        : { plan_month_id: input.monthId, scheduled_manual: false },
+    )
     .eq("id", input.pageId);
   if (error) {
     console.error("Inplannen mislukt:", error.message);
@@ -538,7 +550,12 @@ export async function moveToBacklog(
 
   const { error } = await admin
     .from("planned_pages")
-    .update({ plan_month_id: null, scheduled_for: null, sort_order: 0 })
+    .update({
+      plan_month_id: null,
+      scheduled_for: null,
+      scheduled_manual: false,
+      sort_order: 0,
+    })
     .eq("id", input.pageId)
     .eq("status", "gepland");
   if (error) {
@@ -547,6 +564,88 @@ export async function moveToBacklog(
   }
 
   if (maand) await herplanMaand(admin, maand, null);
+  return { ok: true, probleem: null };
+}
+
+/**
+ * De publicatiedatum van één ingeplande pagina zelf zetten, of teruggeven aan
+ * de automatische spreiding.
+ *
+ * ── WAAROM DIT EEN EIGEN HANDELING IS ───────────────────────────────────────
+ *
+ * De spreiding uit `spreadDates()` is een gok die meestal klopt: tien pagina's
+ * netjes over de maand. Meestal is niet altijd. Een keukenzaak wil de pagina
+ * over de showroomdagen vóór die dagen live hebben, niet op de dag die de
+ * verdeling toevallig uitrekende. Zonder deze handeling was het antwoord "sleep
+ * hem naar een andere maand", en dat is een maand verschuiven om een dag te
+ * verzetten.
+ *
+ * ⚠️ Alleen een pagina die nog op `gepland` staat. Zodra ORBIT ENGINE aan het
+ * schrijven is, is de datum geen plan meer maar een lopende opdracht, en een
+ * geplaatste pagina houdt zijn datum omdat die werkelijkheid is geworden.
+ *
+ * `datum: null` zet de pagina terug op automatisch: de vlag gaat uit en
+ * `herplanMaand()` geeft hem de dag die bij zijn plek in de maand hoort.
+ */
+export async function setPageDate(
+  admin: Admin,
+  input: { profileId: string; pageId: string; datum: string | null },
+): Promise<{ ok: boolean; probleem: string | null }> {
+  const { data: kaartRow } = await admin
+    .from("planned_pages")
+    .select("id, status, plan_month_id")
+    .eq("id", input.pageId)
+    .eq("profile_id", input.profileId)
+    .maybeSingle();
+
+  const kaart = kaartRow as { id: string; status: string; plan_month_id: string | null } | null;
+  if (!kaart) return { ok: false, probleem: "Deze pagina bestaat niet." };
+  if (!kaart.plan_month_id) {
+    return {
+      ok: false,
+      probleem: "Deze kans staat in de voorraad. Plan hem eerst in een maand.",
+    };
+  }
+  if (kaart.status !== "gepland") {
+    return {
+      ok: false,
+      probleem:
+        "ORBIT ENGINE is met deze pagina bezig of heeft hem al geschreven. De datum ligt vast.",
+    };
+  }
+
+  const maand = await maandMetPlan(admin, kaart.plan_month_id, input.profileId);
+  if (!maand) return { ok: false, probleem: "Deze maand hoort niet bij dit merk." };
+
+  // Terug naar automatisch: vlag uit, en de maand herberekent zijn spreiding.
+  if (input.datum === null) {
+    const { error } = await admin
+      .from("planned_pages")
+      .update({ scheduled_manual: false })
+      .eq("id", input.pageId)
+      .eq("status", "gepland");
+    if (error) {
+      console.error("Datum vrijgeven mislukt:", error.message);
+      return { ok: false, probleem: "De datum aanpassen is niet gelukt." };
+    }
+    await herplanMaand(admin, maand, null);
+    return { ok: true, probleem: null };
+  }
+
+  // Dezelfde controle als in de browser, en dit is de controle die telt
+  // (conventie 1: een instructie is een intentie, code is een garantie).
+  const probleem = datumProbleem(maand.started_on, maand.month_number, input.datum);
+  if (probleem) return { ok: false, probleem };
+
+  const { error } = await admin
+    .from("planned_pages")
+    .update({ scheduled_for: input.datum, scheduled_manual: true })
+    .eq("id", input.pageId)
+    .eq("status", "gepland");
+  if (error) {
+    console.error("Datum zetten mislukt:", error.message);
+    return { ok: false, probleem: "De datum aanpassen is niet gelukt." };
+  }
   return { ok: true, probleem: null };
 }
 
@@ -612,7 +711,7 @@ async function herplanMaand(
 ): Promise<void> {
   const { data } = await admin
     .from("planned_pages")
-    .select("id, sort_order, scheduled_for, status")
+    .select("id, sort_order, scheduled_for, status, scheduled_manual")
     .eq("plan_month_id", maand.id)
     .eq("is_buffer", false)
     .neq("status", "afgewezen")

@@ -158,6 +158,8 @@ export interface HerplanRij {
   scheduled_for: string | null;
   /** Een pagina die al live staat, houdt zijn datum. */
   status: string;
+  /** Migratie 0067: de gebruiker koos deze datum zelf, dus die blijft ook staan. */
+  scheduled_manual?: boolean;
 }
 
 export interface HerplanUpdate {
@@ -177,6 +179,11 @@ export interface HerplanUpdate {
  * werkelijkheid geworden en verzetten zou een leugen opleveren over wanneer er
  * iets live ging. Zelfde regel als in `lib/plan-order.ts`. Hij houdt wél zijn
  * plek in de nummering, anders springt hij bij het volgende verversen alsnog.
+ *
+ * ⚠️ Sinds migratie 0067 geldt dezelfde uitzondering voor een datum die de
+ * gebruiker zelf zette (`scheduled_manual`). Zonder die regel is zo'n keuze één
+ * sleepbeweging later weer weg: elke wijziging in de maand herberekent immers
+ * álle data, en de herberekening kan niet zien welke datum een keuze was.
  */
 export function resequenceMonth(
   startedOn: string,
@@ -188,13 +195,66 @@ export function resequenceMonth(
   const updates: HerplanUpdate[] = [];
 
   for (const [i, rij] of rijen.entries()) {
-    const nieuweDatum = rij.status === "geplaatst" ? rij.scheduled_for : (data[i] ?? null);
+    const eigenDatum = rij.status === "geplaatst" || rij.scheduled_manual === true;
+    const nieuweDatum = eigenDatum ? rij.scheduled_for : (data[i] ?? null);
     // Alleen wat echt verandert gaat naar de database. Scheelt bij een maand van
     // tien pagina's negen updates als er één kaart bij komt onderaan.
     if (rij.sort_order === i && rij.scheduled_for === nieuweDatum) continue;
     updates.push({ id: rij.id, sort_order: i, scheduled_for: nieuweDatum });
   }
   return updates;
+}
+
+/**
+ * Mag deze pagina op deze datum?
+ *
+ * Twee regels, en allebei zijn het regels van dit scherm en niet van de kalender.
+ *
+ *   1. **De datum moet in de kalendermaand van de maand vallen.** Maand 2 van
+ *      een plan dat in augustus startte IS september. Zou daar 3 november in
+ *      mogen staan, dan liegt de maandkop over wat eronder staat, en de
+ *      maandvrijgave (die de hele maand in één keer laat schrijven) gaat over
+ *      pagina's die pas twee maanden later hoeven.
+ *   2. **Niet in het verleden.** ORBIT ENGINE begint tien dagen vóór de
+ *      publicatiedatum met schrijven; een datum die al voorbij is levert geen
+ *      planning op maar direct achterstand. Vandaag mag wél: dan start het
+ *      schrijven vannacht.
+ *
+ * Puur (conventie 2): de browser gebruikt hem om de knop uit te zetten, de
+ * API-route om hem te weigeren, en `scripts/test-unit.ts` om beide na te rekenen.
+ */
+export function datumProbleem(
+  startedOn: string,
+  monthNumber: number,
+  datum: string,
+  now: Date = new Date(),
+): string | null {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(datum)) return "Dat is geen geldige datum.";
+  const d = new Date(`${datum}T00:00:00Z`);
+  // ⚠️ Terugvergelijken met de tekst. `new Date("2027-02-30")` is geen fout maar
+  // 2 maart: JavaScript rolt door. Zonder deze regel zou 30 februari als "maand
+  // 7 is februari, kies een dag in die maand" terugkomen terwijl de gebruiker
+  // een dag koos die niet bestaat.
+  if (Number.isNaN(d.getTime()) || d.toISOString().slice(0, 10) !== datum) {
+    return "Dat is geen geldige datum.";
+  }
+
+  const k = monthCalendar(startedOn, monthNumber);
+  if (!k) return "Deze maand heeft geen kalender.";
+
+  if (d.getUTCFullYear() !== k.jaar || d.getUTCMonth() !== k.maandIndex) {
+    return `Maand ${monthNumber} is ${k.label}. Kies een dag in die maand, of verplaats de pagina naar een andere maand.`;
+  }
+
+  // De kale datum van vandaag volgens de klok van de lezer, zodat "vandaag" niet
+  // aan de andere kant van de datumgrens ligt in een negatieve tijdzone.
+  const vandaag = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(
+    now.getDate(),
+  ).padStart(2, "0")}`;
+  if (datum < vandaag) {
+    return "Die dag is al voorbij. Kies een dag vanaf vandaag.";
+  }
+  return null;
 }
 
 /** "12 september", of een lege tekst bij een onbruikbare datum. */

@@ -17,8 +17,12 @@
  * algemeens op. Een korte lijst die klopt is bruikbaarder dan een lange lijst
  * die wacht.
  *
- * Wat de leegte oplost staat naast de lijst en niet erin: de niet-gemeten
- * clusters staan apart, met de meting als handeling. Zie `ongemetenClusters()`.
+ * ⚠️ Wat de leegte oplost, stond tot 26 augustus 2026 náást de lijst: een blok
+ * "Nog niet gemeten" met de zes ongemeten clusters van Gasservice Brabant en een
+ * meetknop erbij. Dat blok is eruit. Het stond onder de voorraad, dus onder aan
+ * een lijst die zelf al scrollt, en het beantwoordde een vraag die op het
+ * clusterscherm hoort: welke clusters moeten nog gemeten worden. Dit scherm gaat
+ * over inplannen.
  *
  * Puur en zonder `server-only` (conventie 2): het planscherm filtert hiermee in
  * de browser.
@@ -164,42 +168,3 @@ export function raaktLabel(item: BacklogItem): string | null {
   return `raakt ${item.raakt} van de ${item.gemeten} gemeten vragen`;
 }
 
-export interface OngemetenCluster {
-  topicId: string;
-  title: string;
-  /** Is er al een cluster aangemaakt, of moet dat ook nog? */
-  analysisId: string | null;
-  /** Loopt de meting al? Dan is wachten de juiste handeling, niet starten. */
-  loopt: boolean;
-}
-
-/**
- * De clusters die nog geen kans in de voorraad kunnen leveren.
- *
- * ⚠️ Dit staat NAAST de voorraad en niet erin. Een cluster is geen content: je
- * kunt het niet in een maand slepen en er is niets aan te schrijven zolang er
- * niets gemeten is. Maar het weglaten zou het scherm laten liegen over waarom de
- * lijst zo kort is. Bij Gasservice Brabant staan hier vandaag zes van de zeven
- * clusters, en dat is precies de mededeling die het scherm moet doen: niet "er
- * is weinig te doen" maar "er is weinig gemeten".
- */
-export function ongemetenClusters(
-  topics: {
-    topicId: string;
-    title: string;
-    analysisId: string | null;
-    analysisStatus: string | null;
-  }[],
-  clustersMetKansen: Set<string>,
-): OngemetenCluster[] {
-  return topics
-    .filter((t) => !t.analysisId || !clustersMetKansen.has(t.analysisId))
-    .map((t) => ({
-      topicId: t.topicId,
-      title: t.title,
-      analysisId: t.analysisId,
-      // `meten` = de ronde loopt, `concept_klaar` = de vragen staan klaar maar er
-      // is nog niets gemeten. Alleen de eerste is wachten.
-      loopt: t.analysisStatus === "meten",
-    }));
-}

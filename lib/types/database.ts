@@ -108,6 +108,8 @@ export interface PlannedPage {
   /** Reserve die inschuift als er een pagina sneuvelt. Telt niet mee in het maandtotaal. */
   is_buffer: boolean;
   scheduled_for: string | null;
+  /** Migratie 0067: de gebruiker koos deze datum zelf, dus herplannen laat hem staan. */
+  scheduled_manual: boolean;
   content_piece_id: string | null;
   posted_at: string | null;
   posted_url: string | null;
