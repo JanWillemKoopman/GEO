@@ -11102,6 +11102,82 @@ group("de reviewcijfers staan op bewijskracht, niet op hoogte", () => {
 });
 
 // ════════════════════════════════════════════════════════════════════════════
+console.log("\nDe tijdrijgrenzen van de werker (doorloop-huyberts.md punt 5)");
+
+// De werker en de OpenAI-client zijn `server-only`, dus de constanten zelf
+// importeren kan niet vanuit een kaal script. In plaats daarvan wordt de
+// BRONCODE gelezen: dit vangt precies de fout die dit punt veroorzaakte,
+// iemand die één getal in lib/openai/client.ts ophoogt zonder de rij in
+// lib/jobs/worker.ts opnieuw door te rekenen, en dan blijven taken op
+// 'running' staan omdat het platform de route hard afkapt.
+group("de tijdgrenzen passen nog in elkaar", () => {
+  const client = leesBestand("lib/openai/client.ts");
+  const worker = leesBestand("lib/jobs/worker.ts");
+  const config = leesBestand("lib/config.ts");
+  const route = leesBestand("app/api/cron/worker/route.ts");
+
+  const getal = (bron: string, patroon: RegExp): number | null => {
+    const m = patroon.exec(bron);
+    return m ? Number(m[1].replace(/_/g, "")) : null;
+  };
+
+  const timeoutMs = getal(client, /const TIMEOUT_MS = ([\d_]+);/);
+  const callBudgetMs = getal(client, /export const CALL_BUDGET_MS = ([\d_]+);/);
+  const critiqueReserveMs = getal(worker, /const CRITIQUE_RESERVE_MS = ([\d_]+);/);
+  const saveMarginMs = getal(worker, /const SAVE_MARGIN_MS = ([\d_]+);/);
+  const workerTimeBudgetMs = getal(
+    config,
+    /export const workerTimeBudgetMs = Number\(process\.env\.WORKER_TIME_BUDGET_MS \?\? ([\d_]+)\);/,
+  );
+  const maxDurationS = getal(route, /export const maxDuration = (\d+);/);
+
+  ok(
+    "alle zes getallen zijn nog te vinden (regex nog geldig na een herschrijving)",
+    [timeoutMs, callBudgetMs, critiqueReserveMs, saveMarginMs, workerTimeBudgetMs, maxDurationS].every(
+      (n) => n !== null,
+    ),
+    JSON.stringify({ timeoutMs, callBudgetMs, critiqueReserveMs, saveMarginMs, workerTimeBudgetMs, maxDurationS }),
+  );
+
+  if (
+    timeoutMs !== null &&
+    callBudgetMs !== null &&
+    critiqueReserveMs !== null &&
+    saveMarginMs !== null &&
+    workerTimeBudgetMs !== null &&
+    maxDurationS !== null
+  ) {
+    const maxDurationMs = maxDurationS * 1000;
+    const heavyReserveMs = callBudgetMs + critiqueReserveMs + saveMarginMs;
+    const lightReserveMs = callBudgetMs + saveMarginMs / 2;
+
+    ok(
+      "de timeout per poging blijft onder het totaalbudget van één aanroep",
+      timeoutMs < callBudgetMs,
+      `${timeoutMs} vs ${callBudgetMs}`,
+    );
+    ok(
+      "een zware taak (schrijven + redactie) past nog volledig in het werkerbudget",
+      heavyReserveMs < workerTimeBudgetMs,
+      `${heavyReserveMs} vs ${workerTimeBudgetMs}`,
+    );
+    ok(
+      "een lichte taak past nog volledig in het werkerbudget",
+      lightReserveMs < workerTimeBudgetMs,
+      `${lightReserveMs} vs ${workerTimeBudgetMs}`,
+    );
+    // Dezelfde marge die het ontwerp altijd al aanhield tegen de reaper: het
+    // platform kapt de route hard af als workerTimeBudgetMs te dicht tegen
+    // maxDuration aan zit.
+    ok(
+      "het werkerbudget houdt een echte marge tegen de routelimiet aan",
+      workerTimeBudgetMs <= maxDurationMs - 30_000,
+      `${workerTimeBudgetMs} vs ${maxDurationMs}`,
+    );
+  }
+});
+
+// ════════════════════════════════════════════════════════════════════════════
 console.log(`\n${passed} geslaagd, ${failed} mislukt`);
 if (failures.length > 0) {
   console.log("\nMislukt:");

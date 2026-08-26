@@ -17,6 +17,8 @@ Voor UI/UX: `ux-design.md`.
 > **Bijgewerkt op 24 augustus 2026**: de gespreksagenda uit de synthese landt nu als
 > beantwoordbare vragen in `fact_requests` (§3 en §5, stap 4e), en de statusroute telt de open
 > punten niet meer apart naast die vragen.
+> **Bijgewerkt op 26 augustus 2026**: de tijdrij van §9 is opnieuw doorgerekend
+> (doorloop-huyberts.md punt 5). Migratie `0066` is erbij gekomen (supabase/README.md).
 > De rest van de peildatum hieronder blijft staan.
 > **Migraties `0058` en `0059` zijn er sindsdien bijgekomen** en staan wél in §12 en in dit
 > document verwerkt, maar de rest is niet opnieuw regel voor regel nagelopen. Verder geldt:
@@ -668,23 +670,52 @@ zegt het scherm dat. ORBIT ENGINE vraagt alleen leesrecht, dus de klant voegt he
 
 ### Tijdbudgetten, waarom deze getallen bij elkaar horen
 
-De werkerroute krijgt van Vercel **300 seconden** (`maxDuration`). Alles eronder is daarvan
-afgeleid en moet daar samen in passen; klopt de som niet, dan kapt het platform de functie af en
-blijven geclaimde taken vijf minuten op 'running' staan tot de reaper ze terugzet.
+**Opnieuw doorgerekend, 26 augustus 2026 (doorloop-huyberts.md punt 5).** Het tweede geschreven
+artikel van de testklant Huyberts Keukens (1034 woorden) had drie mislukte pogingen nodig vóór de
+vierde binnen het toenmalige budget van 105 s paste, telkens afgebroken met "Request was
+aborted" ná de betaalde aanroep op het duurste model. Nagemeten op 26 echte, al betaalde
+schrijf- en herschrijfaanroepen op productie (verschillende klanten, 197 tot 1034 woorden): de
+duur hangt NIET netjes samen met het aantal woorden (197 woorden in 13 s, maar ook 570 woorden in
+89-91 s), de traagste geslaagde poging duurde 98,8 s. Dat wijst op de redeneertijd van het model
+als bepalende factor, niet de tekstlengte.
+
+De werkerroute krijgt van Vercel **300 seconden** (`maxDuration`), een harde platformgrens die niet
+te verhogen is. Alles eronder is daarvan afgeleid en moet daar samen in passen; klopt de som niet,
+dan kapt het platform de functie af en blijven geclaimde taken vijf minuten op 'running' staan tot
+de reaper ze terugzet (precies wat er op 1 augustus 2026 gebeurde).
 
 | Grens | Waarde | Waar |
 |---|---|---|
 | Routelimiet | 300 s | `maxDuration`, `app/api/cron/worker/route.ts` |
 | Tijdbudget werker | 240 s (instelbaar) | `workerTimeBudgetMs`, `lib/config.ts` |
-| Reservering zware taak | 220 s | `HEAVY_JOB_RESERVE_MS`, `lib/jobs/worker.ts` |
-| Reservering lichte taak | 115 s | `LIGHT_JOB_RESERVE_MS`, idem, gecontroleerd vóór élke claimronde |
-| Totaalbudget één AI-aanroep | 105 s | `CALL_BUDGET_MS` → `callBudget()`, `lib/openai/client.ts` |
-| Timeout per poging | 100 s | `TIMEOUT_MS`, idem |
+| Reservering zware taak | 200 s | `HEAVY_JOB_RESERVE_MS`, `lib/jobs/worker.ts` |
+| Reservering lichte taak | 160 s | `LIGHT_JOB_RESERVE_MS`, idem, gecontroleerd vóór élke claimronde |
+| Totaalbudget één AI-aanroep | 150 s | `CALL_BUDGET_MS` → `callBudget()`, `lib/openai/client.ts` |
+| Timeout per poging | 145 s | `TIMEOUT_MS`, idem |
 
 Het totaalbudget is een `AbortSignal` die over ALLE pogingen heen geldt. Zonder dat was de echte
-bovengrens van één aanroep 4 × 100 s = 400 s (`maxRetries = 3` herhaalt ook timeouts), en dan
-klopt geen enkele reservering hierboven meer. Verhoog je één van deze getallen, reken dan de rij
-opnieuw door.
+bovengrens van één aanroep 4 × 145 s ≈ 580 s (`maxRetries = 3` herhaalt ook timeouts), en dan klopt
+geen enkele reservering hierboven meer.
+
+**Wat er precies is veranderd, en waarom de reservering van de zware taak juist DAALDE terwijl het
+aanroepbudget steeg.** De reservering voor een zware taak stond op 2 × `CALL_BUDGET_MS`: een
+verdubbeling van het VOLLE aanroepbudget, ook voor de kritiekaanroep die op het schrijven volgt
+(`content_critique`, het goedkope model, in de praktijk enkele seconden, zie `ai_calls.kind =
+'content_critique'`). Die verdubbeling liet geen ruimte over toen het aanroepbudget omhoog moest:
+2 × 150 s = 300 s is al de hele routelimiet. De reservering is daarom herzien naar wat de twee
+aanroepen van één zware taak (`draftContentPiece()`/`reviseContentPiece()`, schrijven + redactie,
+`lib/pipeline/content.ts`) daadwerkelijk nodig hebben: het volle, nagemeten budget voor de trage
+schrijfaanroep (150 s) plus een ruime maar realistische marge voor de snelle kritiekaanroep (30 s)
+plus marge om de uitkomst weg te schrijven (20 s) = 200 s. Dat is 20 s MINDER dan voorheen, ook al
+kreeg de trage aanroep zelf 45 s meer lucht: de eerdere reservering was voor de verkeerde aanroep
+gebouwd. `HEAVY_JOB_RESERVE_MS` en `LIGHT_JOB_RESERVE_MS` zijn in code van `CALL_BUDGET_MS`
+afgeleid (niet los overgetypt), zodat ze niet stil uit elkaar kunnen drijven zoals hier gebeurde.
+
+De routelimiet (300 s) en het tijdbudget van de werker (240 s), met de marge van 60 s daartussen
+tegen de reaper, zijn dit keer ONGEWIJZIGD: de hele verhoging paste binnen de bestaande marge.
+Verhoog je één van de getallen in de tabel hierboven verder, reken dan de hele rij opnieuw door.
+`scripts/test-unit.ts` ("de tijdgrenzen passen nog in elkaar") leest de broncode van alle vier de
+bestanden en bewaakt dat de som nog klopt.
 
 ## 10. Omgeving
 

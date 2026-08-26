@@ -51,19 +51,23 @@ interface WorkProfile {
  *   waarin `temperature: 0` nog is toegestaan.
  * - `analytical`, onderzoek, kalibratie, gap-analyse, rapport. Hier betaalt
  *   redeneren zich wél uit. `low` en niet `medium`: de client-timeout staat op
- *   100 s (lib/openai/client.ts) en deze stappen draaien deels mét web_search,
+ *   145 s (lib/openai/client.ts) en deze stappen draaien deels mét web_search,
  *   die zelf al 20–40 s kost.
  * - `creative`, promptgeneratie. Variatie is hier het product; redeneren maakt
  *   de tien vragen per funnelfase juist weer op elkaar lijkend. Effort `none`,
  *   temperatuur hoog.
  * - `content`, het betaalde product, en de enige stap op het duurste model.
- *   Expliciet `medium` en niet `high`: één schrijfcall moet binnen de 100 s van
- *   `TIMEOUT_MS` (lib/openai/client.ts) passen, en een volledige pagina op de
- *   Sol-tier mét zware redeneertijd zit daar tegenaan. Een timeout kost hier het
+ *   Expliciet `medium` en niet `high`: één schrijfcall moet binnen `CALL_BUDGET_MS`
+ *   passen (150s, lib/openai/client.ts, opgehoogd 26 augustus 2026,
+ *   doorloop-huyberts.md punt 5, nagemeten op 26 echte productieaanroepen: de
+ *   traagste geslaagde poging duurde 98,8s en hing niet netjes samen met het
+ *   aantal woorden), en een volledige pagina op de Sol-tier mét zware
+ *   redeneertijd zit daar bij `high` alsnog tegenaan. Een timeout kost hier het
  *   dubbele van gewoon falen, de taak wordt opnieuw gedraaid en de duurste
  *   tokens van de app zijn dan twee keer betaald. `high` is de knop om aan te
- *   draaien zodra iemand de werkelijke doorlooptijd op productie heeft nagemeten
- *   en de tijdsconstanten in lib/jobs/worker.ts daarop zijn bijgesteld.
+ *   draaien zodra iemand de werkelijke doorlooptijd van DIE stand op productie
+ *   heeft nagemeten en de tijdsconstanten in lib/jobs/worker.ts daar opnieuw op
+ *   zijn bijgesteld.
  *   De temperatuur vervalt: op effort > none accepteert de API hem niet, en
  *   natuurlijke variatie komt bij een redeneermodel uit het redeneren zelf. Dat
  *   maakt de tekst niet deterministisch, de bewaking erop is dat ook nooit

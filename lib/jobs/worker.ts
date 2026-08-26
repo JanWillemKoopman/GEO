@@ -23,6 +23,7 @@ import {
 } from "@/lib/jobs/types";
 import { workerTimeBudgetMs } from "@/lib/config";
 import { describeError } from "@/lib/errors";
+import { CALL_BUDGET_MS } from "@/lib/openai/client";
 import type { Job } from "@/lib/types/database";
 
 /**
@@ -39,14 +40,37 @@ const TIME_BUDGET_MS = workerTimeBudgetMs;
  *
  * De vorige regel hier keek naar de helft van het tijdbudget. Dat werkte zolang
  * elke taak binnen een halve minuut klaar was, maar niet meer nu contentgeneratie
- * twee aanroepen van maximaal honderd seconden doet: die kon starten met te
+ * twee aanroepen na elkaar doet (schrijven + redactie): die kon starten met te
  * weinig routetijd over en werd dan alsnog middenin afgekapt.
  *
  * Nu expliciet: alleen beginnen als de traagste zware taak er nog volledig in
- * past. Twee AI-aanroepen van 100s (de clienttimeout, lib/openai/client.ts) plus
- * marge voor het opslaan.
+ * past, en dat is de som van de twee aanroepen die `draftContentPiece()` en
+ * `reviseContentPiece()` na elkaar doen (lib/pipeline/content.ts):
+ *
+ *   - de schrijf-/herschrijfaanroep zelf, op het dure model, tot CALL_BUDGET_MS
+ *     (150s, lib/openai/client.ts, opgehoogd 26 augustus 2026,
+ *     doorloop-huyberts.md punt 5: nagemeten op 26 echte productieaanroepen,
+ *     traagste geslaagde poging 98,8s);
+ *   - de kritiekaanroep erna, op het goedkope model, met een eigen ruimere marge
+ *     dan zijn gemeten duur (steevast enkele seconden, zie `ai_calls.kind =
+ *     'content_critique'`) omdat hij niet de bottleneck is.
+ *
+ * ⚠️ Was hiervoor 2 × CALL_BUDGET_MS: een verdubbeling van het VOLLEDIGE budget
+ * voor de kritiekaanroep, die dat in de praktijk nooit nodig heeft en het
+ * duurste model niet gebruikt. Die verdubbeling liet geen enkele ruimte over
+ * toen CALL_BUDGET_MS omhoog moest (2 × 150s = 300s is al de hele routelimiet).
+ * Deze vorm geeft de trage aanroep zijn volle, nagemeten budget en de snelle
+ * aanroep een ruime maar realistische marge, zonder de tijdslimiet van de
+ * route (300s) of het tijdbudget van de werker (240s) aan te raken.
+ *
+ * Uit `CALL_BUDGET_MS` (lib/openai/client.ts) berekend en niet los overgetypt:
+ * anders drift dit getal weer stil uit elkaar de volgende keer dat iemand
+ * alleen daar iets aanpast (conventie 1, een instructie is een intentie, code
+ * is een garantie).
  */
-const HEAVY_JOB_RESERVE_MS = 220_000;
+const CRITIQUE_RESERVE_MS = 30_000;
+const SAVE_MARGIN_MS = 20_000;
+const HEAVY_JOB_RESERVE_MS = CALL_BUDGET_MS + CRITIQUE_RESERVE_MS + SAVE_MARGIN_MS; // 200s
 
 /**
  * Hoeveel tijd we vrijhouden voordat we aan een GROEP netwerkgebonden zware
@@ -74,10 +98,11 @@ const IO_BOUND_RESERVE_MS = 90_000;
  * taken die op 'running' bleven staan tot de reaper ze vijf minuten later
  * terugzette.
  *
- * 115 seconden = het totale budget van één AI-aanroep (CALL_BUDGET_MS, 105s in
- * lib/openai/client.ts) plus marge om de uitkomst nog weg te schrijven.
+ * Het totale budget van één AI-aanroep (`CALL_BUDGET_MS`, lib/openai/client.ts,
+ * 150s sinds 26 augustus 2026, doorloop-huyberts.md punt 5) plus marge om de
+ * uitkomst nog weg te schrijven.
  */
-const LIGHT_JOB_RESERVE_MS = 115_000;
+const LIGHT_JOB_RESERVE_MS = CALL_BUDGET_MS + SAVE_MARGIN_MS / 2; // 160s
 
 /**
  * Hoeveel taken we per ronde claimen. Lichte taken (een meting is vooral
