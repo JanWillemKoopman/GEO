@@ -5200,3 +5200,26 @@ stond met `user_id` wel op zijn eigen account maar met `account_id` nog op het a
 beheerder; hij heeft nu een eigen account en is daar beheerder van.
 
 `docs/tasks/doorloop-huyberts.md` is verwijderd, alle zes punten zijn hierboven samengevat.
+
+## 26 augustus 2026: het dossier terug naar tabbladen, op verzoek
+
+Het analysedossier (`app/(app)/analyses/[id]/page.tsx`) had sinds §9 een verticale hoofdstuk-rail
+naast één doorlopende scrollpagina met alle vier hoofdstukken (Stand, Waar je mist, Wat je moet
+doen, Opgeleverd) onder elkaar, met scroll-spy. Dat was een bewuste, beargumenteerde keuze: werk
+kruiste destijds de oude vijf tabbladen, en een tabbalk kan de vaste volgorde van de hoofdstukken
+niet uitdrukken.
+
+Op expliciet verzoek is dat nu teruggedraaid: vier losse tabbladen, horizontaal, sticky boven de
+inhoud (ook op desktop, voorheen alleen op mobiel), en per klik rendert maar één hoofdstuk. Gestuurd
+via `?hoofdstuk=stand|bewijs|werk|resultaat` in de URL, geen client-side tabstate, zodat elk
+tabblad een deelbare link blijft en zijn eigen `Suspense`-grens houdt. De risico's van de oude opzet
+(werk dat een hoofdstuk overstijgt, hoofdstuk 04 dat hoofdstuk 01 van de volgende periode voedt) zijn
+niet weggenomen, alleen niet meer met schermruimte opgelost: de nummering 01 t/m 04 blijft de
+volgorde tonen.
+
+Nieuw component `components/chapter-tabs.tsx`, los van `components/section-rail.tsx`: die laatste
+draait ook op het onboardingscherm (`onboarding-session.tsx`), dat wél één doorlopende pagina met
+scroll-spy blijft, dus is niet meegewijzigd. Vijf plekken linkten met een `#hoofdstuk`-anker naar het
+dossier (`period-picker.tsx`, `resultaat.tsx`, `bewijs.tsx`, `werk.tsx`, `briefing/page.tsx`,
+`bibliotheek/page.tsx`, `antwoorden/page.tsx`, `lib/work.ts`); die zijn omgezet naar
+`?hoofdstuk=...`, want een anker naar een hoofdstuk dat niet gerenderd wordt scrollt nergens heen.
