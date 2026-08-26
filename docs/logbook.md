@@ -5200,3 +5200,14 @@ stond met `user_id` wel op zijn eigen account maar met `account_id` nog op het a
 beheerder; hij heeft nu een eigen account en is daar beheerder van.
 
 `docs/tasks/doorloop-huyberts.md` is verwijderd, alle zes punten zijn hierboven samengevat.
+
+## 26 augustus 2026: het dossier terug naar tabbladen, en meteen weer teruggedraaid
+
+Op verzoek is het analysedossier (`app/(app)/analyses/[id]/page.tsx`) omgezet van één doorlopende
+scrollpagina met een hoofdstuk-rail naar vier losse tabbladen, sticky en horizontaal boven de
+inhoud (`components/chapter-tabs.tsx`). Diezelfde dag is dat verzoek weer volledig ingetrokken: de
+wijziging is teruggedraaid met `git revert` op de mergecommit, `components/chapter-tabs.tsx` is
+weer weg en het dossier is weer de doorlopende pagina met `SectionRail` van vóór dit verzoek. De
+reden voor de oorspronkelijke, niet teruggedraaide keuze (§9: werk kruiste de oude vijf tabbladen,
+een tabbalk kan de vaste volgorde stand → bewijs → werk → resultaat niet uitdrukken) staat nog
+onverkort in `components/chapter.tsx`.
