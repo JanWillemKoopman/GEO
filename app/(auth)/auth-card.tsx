@@ -35,10 +35,11 @@ export function AuthCard({
       <div className="flex justify-center">
         <Link href="/" className="inline-flex items-center gap-2.5" aria-label="ORBIT ENGINE">
           <OrbitMark size={28} gradientId="orbit-mark-kaart" className="h-7 w-7" />
-          {/* Gewicht 700 en niet 800: 600 is het zwaarste gewicht dat in Nova's
-              hele typografieschaal voorkomt, en een woordmerk mag daar één stap
-              boven staan maar geen twee. */}
-          <span className="text-[1.25rem] font-bold leading-none tracking-[0.06em]">
+          {/* Archivo Black, niet Geist Sans: het woordmerk volgt sinds
+              26 augustus 2026 zijn eigen display-lettertype, los van de drie
+              gewichten in designsystem.md §3.1. `.brand-logo` zet de
+              hoofdletters en de krappe spatiëring. */}
+          <span className="brand-logo text-[1.25rem] leading-none">
             {/* Uit de tokens en niet uit de hand, sinds 24 augustus 2026. In de
                 donkere stand staan ze allebei op wit, hetzelfde besluit als bij
                 het woordmerk in de bovenbalk; het waarom staat bij

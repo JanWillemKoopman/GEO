@@ -246,6 +246,13 @@ van twee makers naast elkaar is precies het soort verschil dat je niet ziet maar
 > bewust op 700 met krappe spatiëring: het woordmerk, want dat is een logo en geen kop, en de grote
 > cijfers (`.stat-value` en de losse `text-3xl`/`text-6xl`-waarden op het overzicht en in het
 > scorepaneel), want een getal dat het antwoord van het scherm is, is geen tekst.
+>
+> **Het woordmerk zelf gebruikt sinds 26 augustus 2026 geen gewicht van `--font-sans` meer, maar
+> een eigen lettertype: Archivo Black**, altijd in hoofdletters, met een letterspatiëring van
+> -0,07em (`.brand-logo` in `app/globals.css`, het lettertype geladen als `--font-logo` in
+> `app/layout.tsx`). Twee plekken: de bovenbalk (`components/app-shell.tsx`) en de inlogkaart
+> (`app/(auth)/auth-card.tsx`). Verder nergens: dit is het enige lettertype naast Geist Sans en
+> Geist Mono, en het blijft bij het logo.
 
 **Er is geen 500 meer in een kaarttitel.** De titels van kaarten en lijstregels stonden op
 `font-medium`, precies één stap boven de zin eronder, en op het overzicht leverde dat twaalf kaarten

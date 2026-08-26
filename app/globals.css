@@ -1492,6 +1492,17 @@ textarea.field {
   color: var(--wordmark-fill);
 }
 
+/* Het lettertype van het woordmerk, los van de tekstschaal in §3.1 van
+   designsystem.md (26 augustus 2026): Archivo Black, altijd hoofdletters, met
+   een krappe spatiëring van -0,07em. Een vet display-lettertype loopt van
+   zichzelf al ruim uit elkaar; zonder de negatieve spatiëring oogt "ORBIT
+   ENGINE" als twee losse woorden in plaats van één merknaam. */
+.brand-logo {
+  font-family: var(--font-logo), var(--font-sans);
+  text-transform: uppercase;
+  letter-spacing: -0.07em;
+}
+
 /* Gerenderde Markdown (contentbibliotheek, rapport). */
 .prose {
   color: var(--text-secondary);

@@ -1,11 +1,22 @@
 import type { Metadata, Viewport } from "next";
 import { GeistSans } from "geist/font/sans";
 import { GeistMono } from "geist/font/mono";
+import { Archivo_Black } from "next/font/google";
 import "./globals.css";
 
 // Geist Sans en Geist Mono, het paar dat de NOVA-workspace zelf gebruikt.
 // Mono was JetBrains Mono: twee families van twee makers naast elkaar is precies
 // het soort verschil dat je niet ziet maar wel voelt. Zie designsystem.md §3.
+
+// Archivo Black, uitsluitend voor het woordmerk ORBIT ENGINE (26 augustus 2026).
+// Een logo is geen kop en volgt daarom niet de tekstschaal in §3.1 van
+// designsystem.md: het krijgt een eigen, zwaardere letter dan enig gewicht dat
+// in de rest van de app voorkomt. `--font-logo` staat los van `--font-sans`.
+const archivoBlack = Archivo_Black({
+  weight: "400",
+  subsets: ["latin"],
+  variable: "--font-logo",
+});
 
 // A.4: elke pagina een eigen tabbladtitel. Het sjabloon hier is de bodem: een
 // pagina die alleen `title: "Merken"` opgeeft wordt automatisch "Merken · ORBIT ENGINE".
@@ -57,7 +68,11 @@ export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="nl" className={`${GeistSans.variable} ${GeistMono.variable}`} suppressHydrationWarning>
+    <html
+      lang="nl"
+      className={`${GeistSans.variable} ${GeistMono.variable} ${archivoBlack.variable}`}
+      suppressHydrationWarning
+    >
       <head>
         <script dangerouslySetInnerHTML={{ __html: THEMA_SCRIPT }} />
       </head>
