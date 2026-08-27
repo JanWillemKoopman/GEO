@@ -8613,6 +8613,50 @@ group("het overzicht: één hoofdgetal, één primaire knop, één rekensom", ()
 // ════════════════════════════════════════════════════════════════════════════
 console.log("\nDe grens tussen klant en beheerder (besluit 4)");
 
+group("de klantweergave kan nooit rechten geven, alleen wegnemen", () => {
+  // ⚠️ Dit zijn broncodecontroles en geen pure functies: `isStaff()` leest de
+  // database en een cookie, en dat hoort niet in `test-unit.ts` (conventie 2).
+  // Wat WEL hier hoort: de garantie dat de wisselknop een echte beheerder
+  // nooit buitensluit, en een klant nooit binnenlaat.
+  const staff = readFileSync("lib/staff.ts", "utf8");
+
+  // De cookie wint alleen als het echte recht er al was. `isStaffAccount` moet
+  // eerst gecontroleerd worden en bij `false` meteen stoppen, vóór de cookie
+  // gelezen wordt: anders zou een klant die toevallig dezelfde cookie zet zich
+  // ergens tussenin kunnen wurmen.
+  ok(
+    "isStaff stopt op het echte recht vóór hij de cookie leest",
+    /const echt = await isStaffAccount\(userId\);\s*\n\s*if \(!echt\) return false;/.test(
+      staff,
+    ),
+  );
+
+  const actions = readFileSync("app/(app)/workspace-actions.ts", "utf8");
+  // Uitzetten mag altijd, zonder enige controle: dat kan nooit iemand méér
+  // rechten geven. Aanzetten mag alleen als `isStaffAccount` het echt is.
+  ok(
+    "aanzetten controleert het echte recht",
+    /if \(!aan \|\| !\(await isStaffAccount\(user\.id\)\)\)/.test(actions),
+  );
+
+  // De wisselknop zelf moet op het ECHTE recht hangen (`staffAccount`), niet op
+  // het effectieve (`staff`). Zou hij op `staff` hangen, dan verdwijnt de knop
+  // zodra je hem indrukt, en is er geen weg terug zonder de cookie met de hand
+  // te wissen.
+  const shell = readFileSync("components/app-shell.tsx", "utf8");
+  ok(
+    "de knop zelf hangt op het echte recht, niet op het effectieve",
+    /previewToggle=\{staffAccount \?/.test(shell),
+  );
+  ok("en niet per ongeluk op staff", !/previewToggle=\{staff \?/.test(shell));
+
+  // En elke bestaande beheercontrole in de app blijft ongewijzigd `isStaff`
+  // aanroepen: de klantweergave moet overal vanzelf gelden, zonder dat een
+  // scherm daar apart voor hoeft te coderen.
+  const gate = readFileSync("lib/cost-guard.ts", "utf8");
+  ok("het kostenslot blijft het effectieve recht gebruiken", gate.includes("isStaff(userId)"));
+});
+
 group("het contentplan heeft twee weergaven", () => {
   const scherm = readFileSync("app/(app)/merk/[id]/strategie/plan/page.tsx", "utf8");
 

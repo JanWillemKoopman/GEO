@@ -5422,3 +5422,25 @@ terugkomt op een klantscherm.
 De merkenlijst `/merk` is het enige klantscherm waar meer dan één merk in beeld kan komen, en dat is
 een keuzemenu: namen en status, geen cijfers. Een klant met precies één merk wordt daarvandaan
 doorgestuurd naar dat merk zelf, dus in het normale geval ziet hij die lijst nooit.
+
+**27 augustus 2026, verder op de dag: de klantweergave.** Een beheerder kan nu met één knop
+rechtsboven in de bovenbalk zien wat een klant ziet, zonder uit te loggen. `lib/staff.ts` splitst het
+echte recht (`isStaffAccount()`, de rauwe databasevraag) van het effectieve recht (`isStaff()`, dat
+ook de klantweergave meeweegt). Overal in de app waar al `isStaff(user.id)` gevraagd werd, van de
+zijbalk tot de vijf beheerschermen tot de sloten in `lib/cost-guard.ts`, geldt de klantweergave nu
+vanzelf mee, zonder dat er ergens een tweede controle bij moest.
+
+De garantie zit in de volgorde: `isStaff()` controleert eerst het echte recht en pas dáárna, alleen
+als dat er al was, de cookie. Een klant die de cookie zelf zou zetten verandert dus niets, want bij
+hem stopt de vraag al bij de eerste stap. De cookie kan met andere woorden nooit rechten geven,
+alleen wegnemen, en dat maakt hem ook zonder eigen beveiliging veilig om overal te lezen.
+
+Eén randgeval: rijbeveiliging (RLS) kent de klantweergave niet, dus een leesroute via de gewone
+Supabase-client blijft voor een beheerder altijd werken, wat maakt dat je élk merk kunt previewen.
+Schrijfroutes lopen via `hasAccess()` en vallen daar wél op `isStaff()` terug, dus een schrijfpoging
+op een merk dat niet van jezelf is wordt tijdens de klantweergave net zo geweigerd als bij een echte
+klant. Op je eigen testmerk blijft alles werken, want eigendom hangt nooit van staf-rechten af.
+
+Overwogen en afgewezen: een écht tweede klantaccount. Kan niet met hetzelfde e-mailadres (Supabase
+staat geen dubbel adres toe), en de knop lost de eigenlijke behoefte beter op: blijven ingelogd als
+jezelf en met één klik zien wat een klant ziet, in plaats van steeds in en uit te loggen.

@@ -76,6 +76,8 @@ import {
   CircleDashed,
   ClipboardCheck,
   Copy,
+  Eye,
+  EyeOff,
   FilePen,
   FilePlus2,
   FileQuestionMark,
@@ -148,7 +150,11 @@ export type IcoonNaam =
   | "offsite"
   // ── De weergave van de app zelf ─────────────────────────────────────────
   | "licht"
-  | "donker";
+  | "donker"
+  // Alleen zichtbaar voor staf: wisselen naar wat een klant ziet
+  // (`components/preview-toggle.tsx`).
+  | "klantweergave"
+  | "eigenweergave";
 
 export const ICONEN: Record<IcoonNaam, LucideIcon> = {
   // ── DE ZES HOOFDSTUKKEN ─────────────────────────────────────────────────
@@ -264,4 +270,8 @@ export const ICONEN: Record<IcoonNaam, LucideIcon> = {
   // uitspreekt, dus de betekenis hangt nergens aan het plaatje alleen.
   licht: Sun,
   donker: Moon,
+  // Een open oog voor "kijk mee zoals een klant kijkt", een doorgestreept oog
+  // voor "je bent daar nu, terug naar jezelf". Alleen zichtbaar voor staf.
+  klantweergave: Eye,
+  eigenweergave: EyeOff,
 };

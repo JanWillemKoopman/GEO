@@ -88,6 +88,40 @@ Daarom pg_cron.
 - **Registratie:** twee lagen, Supabase "Allow new users to sign up" (harde poort, ook tegen
   directe API-aanroepen) en `SIGNUPS_ENABLED` in de app (verbergt UI, blokkeert de server action).
 
+### De klantweergave: een beheerder die zichzelf tijdelijk klant maakt
+
+Een beheerder kan met één knop rechtsboven in de bovenbalk zien wat een klant ziet, zonder uit te
+loggen. De knop staat alleen bij een echte beheerder (`isStaffAccount()` in `lib/staff.ts`), en zet
+een sessiecookie (`orbit_engine_klantweergave`, geen `maxAge`, dus weg zodra de browser dicht gaat).
+
+**De cookie kan nooit rechten geven, alleen wegnemen.** `isStaff()`, de functie die overal in de app
+"mag deze gebruiker als beheerder"beantwoordt, controleert eerst het echte recht
+(`isStaffAccount()`) en pas daarna, alleen als dat recht er al was, of de klantweergave aanstaat. Een
+klant die dezelfde cookie zelf zou zetten verandert daarmee niets: bij hem was het echte recht er
+nooit, dus de tweede vraag komt niet eens aan bod.
+
+**Eén functie, geen aparte controle per scherm.** Elke plek die al "isStaff(user.id)" vroeg, voor
+menu's, voor de vijf beheerschermen, voor de sloten in `lib/cost-guard.ts`, krijgt de klantweergave
+automatisch mee, zonder dat scherm daar zelf voor hoeft te coderen. Dat is bewust: de klantweergave
+zou onbetrouwbaar zijn als één vergeten scherm zijn eigen `isStaff`-vraag anders zou beantwoorden dan
+de rest.
+
+⚠️ **Wat de klantweergave niet raakt: rijbeveiliging (RLS).** Leest een scherm via de gewone,
+gebruikersgebonden Supabase-client (bijvoorbeeld `getProfile()`), dan gelden de policies uit
+migratie `0046` gewoon, en die kennen de klantweergave niet: een beheerder blijft via
+`profiles_select_staff` elk merk kunnen lezen, ook tijdens de klantweergave. Dat is de reden dat
+previewen op eender welk merk werkt. Schrijfroutes lopen via `getOwnedProfile()` /
+`getOwnedAnalysis()` (`lib/access.ts`, `hasAccess()`), en die vallen wél terug op `isStaff()` als
+laatste stap: een beheerder die tijdens de klantweergave iets probeert te wijzigen op een merk dat
+niet van hemzelf is en niet in zijn eigen account zit, krijgt daar dezelfde weigering als een klant
+zou krijgen. Op een eigen testmerk (`profiles.user_id` is de beheerder zelf) blijft alles werken,
+want eigendom hangt nooit van `isStaff()` af.
+
+⚠️ **Faalt zacht buiten een verzoek.** `cookies()` bestaat alleen binnen een Next.js-verzoek. Roept
+iets `isStaff()` aan zonder dat verzoek (een achtergrondtaak, een script, een ketentest die een
+route-handler rechtstreeks aanroept), dan valt de klantweergave-controle terug op "niet aan het
+previewen" in plaats van te crashen.
+
 ### Eén merk tegelijk, altijd
 
 Een klant ziet nooit gegevens van meer dan één merk naast elkaar. Dat staat op drie plekken vast, en

@@ -17,6 +17,7 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { requireUser } from "@/lib/auth";
 import { listBrands, BRAND_COOKIE } from "@/lib/workspace";
+import { isStaffAccount, PREVIEW_COOKIE } from "@/lib/staff";
 
 /** Eén jaar. Een werkruimtekeuze hoort niet elke week te vervallen. */
 const EEN_JAAR = 60 * 60 * 24 * 365;
@@ -48,4 +49,41 @@ export async function selectBrand(brandId: string, goTo?: string) {
   });
 
   redirect(goTo ?? `/merk/${brandId}`);
+}
+
+/**
+ * Aan of uit zetten: kijk mee zoals een klant kijkt.
+ *
+ * ── WAAROM DIT NIET ONVEILIG KAN ZIJN, OOK ZONDER DE STAF-CHECK HIERONDER ───
+ *
+ * Deze cookie kan van niemand méér maken dan hij al is. `isStaff()` in
+ * `lib/staff.ts` gebruikt hem alleen om een echte beheerder tijdelijk als
+ * klant te laten tellen, nooit andersom. Een klant die deze actie zelf aanroept
+ * zet een vlag die voor hem toch nergens naar verwijst.
+ *
+ * De controle hier is dus geen beveiliging maar netheid: hij voorkomt dat de
+ * cookie blijft hangen bij een account waar hij nooit iets betekent, en dat de
+ * knop een gebruiker die geen beheerder is per ongeluk in een "aan"-stand zet
+ * die hij nooit kan uitzetten via de knop zelf, want die knop wordt alleen aan
+ * beheerders getoond.
+ *
+ * Geen `maxAge`: dit is een sessiecookie. Een klantweergave die een week blijft
+ * hangen omdat je hem vergat uit te zetten, is een groter risico dan hem elke
+ * keer opnieuw te moeten aanzetten.
+ */
+export async function setClientPreview(aan: boolean, terugNaar?: string) {
+  const user = await requireUser();
+  const jar = await cookies();
+
+  if (!aan || !(await isStaffAccount(user.id))) {
+    jar.delete(PREVIEW_COOKIE);
+  } else {
+    jar.set(PREVIEW_COOKIE, "1", {
+      path: "/",
+      sameSite: "lax",
+      httpOnly: true,
+    });
+  }
+
+  redirect(terugNaar ?? "/");
 }

@@ -28,6 +28,7 @@ export function WorkspaceChrome({
   staff,
   onSelectBrand,
   logo,
+  previewToggle,
   accountMenu,
   children,
 }: {
@@ -37,6 +38,8 @@ export function WorkspaceChrome({
   staff: boolean;
   onSelectBrand: (brandId: string) => void;
   logo: React.ReactNode;
+  /** De wisselknop naar de klantweergave, `null` voor wie dat recht niet heeft. */
+  previewToggle?: React.ReactNode;
   accountMenu: React.ReactNode;
   children: React.ReactNode;
 }) {
@@ -73,8 +76,11 @@ export function WorkspaceChrome({
 
           {/* De themaschakelaar staat links van het accountmenu: allebei gaan ze
               over jou en niet over dit merk, en het accountmenu blijft de
-              buitenste plek omdat daar het uitloggen achter zit. */}
+              buitenste plek omdat daar het uitloggen achter zit. De
+              wisselknop staat er nog eens links van, want die gaat over wie je
+              nu bent en niet over hoe het scherm eruitziet. */}
           <div className="flex shrink-0 items-center gap-1">
+            {previewToggle}
             <ThemeToggle />
             {accountMenu}
           </div>

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { signOut } from "@/app/(auth)/actions";
 import { selectBrand } from "@/app/(app)/workspace-actions";
 import { ProfileMenu } from "@/components/profile-menu";
+import { PreviewToggle } from "@/components/preview-toggle";
 import { WorkspaceChrome } from "@/components/workspace-chrome";
 import type { Workspace } from "@/lib/workspace";
 import type { User } from "@supabase/supabase-js";
@@ -25,12 +26,18 @@ export function AppShell({
   user,
   workspace,
   staff,
+  staffAccount,
   children,
 }: {
   user: User;
   workspace: Workspace;
-  /** Beheerder? Dan staat het CSM-paneel in de zijbalk (fase 8). */
+  /** Beheerder? Dan staat het CSM-paneel in de zijbalk (fase 8). Dit is het
+   *  EFFECTIEVE recht: staat de klantweergave aan, dan is dit `false`, ook
+   *  voor een echte beheerder (`lib/staff.ts`). */
   staff: boolean;
+  /** Het ECHTE recht, dat de klantweergave nooit verandert. Alleen gebruikt om
+   *  de wisselknop zelf te tonen: anders is er geen weg terug. */
+  staffAccount: boolean;
   children: React.ReactNode;
 }) {
   return (
@@ -50,6 +57,10 @@ export function AppShell({
           <span className="brand-logo brand-gradient-text">ORBIT ENGINE</span>
         </Link>
       }
+      // Alleen een echte beheerder ziet deze knop, ook terwijl hij zelf op de
+      // klantweergave staat: anders is er geen weg terug behalve de cookie met
+      // de hand wissen.
+      previewToggle={staffAccount ? <PreviewToggle previewing={!staff} /> : null}
       accountMenu={<ProfileMenu email={user.email ?? ""} signOutAction={signOut} />}
     >
       {children}
