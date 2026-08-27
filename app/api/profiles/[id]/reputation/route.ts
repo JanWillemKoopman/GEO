@@ -49,7 +49,7 @@ export async function POST(
     return NextResponse.json({ error: "Niet gevonden." }, { status: 404 });
 
   // ── Rem 2: wie mag betaald werk starten ──────────────────────────────────
-  if (!(await mayTriggerCost(user.id))) {
+  if (!(await mayTriggerCost(user.id, "reputatie_starten"))) {
     return NextResponse.json({ error: COST_DENIED.reputatie_starten }, { status: 403 });
   }
 

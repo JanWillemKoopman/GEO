@@ -8,7 +8,7 @@ import {
   brandNav,
   generalNav,
   hoofdstukken,
-  isExact,
+  navActief,
   type NavHoofdstuk,
   type NavItem,
 } from "@/lib/nav";
@@ -195,7 +195,7 @@ function Hoofdstuk({
   scheiding: boolean;
   onClick?: () => void;
 }) {
-  const actief = kop.items.some((i) => isExact(pathname, i.href));
+  const actief = kop.items.some((i) => navActief(pathname, i));
 
   // Ingeklapt is er geen ruimte voor kinderen. Dan blijft het teken van het
   // hoofdstuk over, en dat gaat naar de eerste bestemming eronder: een teken
@@ -248,7 +248,7 @@ function Hoofdstuk({
             <Item
               key={item.href}
               item={item}
-              active={isExact(pathname, item.href)}
+              active={navActief(pathname, item)}
               onClick={onClick}
             />
           ))}

@@ -41,7 +41,12 @@ export function CreatePlanBox({
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState("");
 
-  const mag = staff && Boolean(quota) && kansCount > 0;
+  // ⚠️ Hier stond tot 27 augustus 2026 `staff &&` voor. Het plan opstellen is
+  // werk binnen het pakket dat de klant al betaalt, dus hangt het nu alleen nog
+  // aan de twee voorwaarden die er inhoudelijk toe doen: er is een pakket, en
+  // er is minstens één gemeten kans om in te plannen. Zonder die twee levert
+  // opstellen een plan op dat nooit geschreven kan worden.
+  const mag = Boolean(quota) && kansCount > 0;
 
   async function maak() {
     setBusy(true);
@@ -89,12 +94,14 @@ export function CreatePlanBox({
           met schrijven.
         </p>
 
-        {!staff && (
+        {!staff && !mag && (
           // K1: een leeg scherm zegt waaróm het leeg is. Voor de klant is dat
-          // niet "er ontbreekt iets" maar "je consultant is aan zet".
+          // niet "er ontbreekt iets" maar "er mist nog iets, en dat staat
+          // hieronder". Zodra het wél kan, verdwijnt deze regel en staat de
+          // knop er: sinds 27 augustus 2026 stelt de klant het plan zelf op.
           <p className="text-sm text-muted">
-            Je consultant stelt het plan op. Zodra het klaarstaat, zie je hier de
-            twaalf maanden en keur je ze maand voor maand samen met hem goed.
+            Zodra hieronder alles klaarstaat, stel je het plan zelf op. Twijfel je
+            over de indeling, loop hem dan samen met je consultant door.
           </p>
         )}
 

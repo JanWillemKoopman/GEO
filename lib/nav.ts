@@ -346,6 +346,31 @@ export function isExact(pathname: string, href: string): boolean {
 }
 
 /**
+ * Welke bestemming licht op bij deze route?
+ *
+ * ── WAAROM DIT MEER IS DAN `isExact` ────────────────────────────────────────
+ *
+ * Het clusterdossier woont op een eigen adres (`/analyses/[id]`, met daaronder
+ * de bibliotheek van dat cluster, het concept en de clusterinstellingen). Dat is
+ * geen bestemming in het menu, dus zolang de klant dáár was, lichtte er in de
+ * hele zijbalk niets op. Precies op het diepste scherm van de app, de tekst die
+ * hij moet publiceren, verdween dus het antwoord op "waar ben ik".
+ *
+ * Het dossier hoort bij het onderwerp, en onderwerpen staan onder "Clusters".
+ * Dus laat "Clusters" oplichten zolang je ergens in een cluster zit. Dat is één
+ * regel in plaats van de hele routestructuur verhuizen, en het lost het gevoel
+ * van verdwalen op waar het ontstaat.
+ *
+ * ⚠️ Bewust `startsWith("/analyses/")` met de schuine streep erachter, en niet
+ * `"/analyses"`: `/analyses` zelf is sinds 27 augustus 2026 alleen nog een
+ * doorverwijzing naar dit menu-item, en die pagina wordt nooit getoond.
+ */
+export function navActief(pathname: string, item: NavItem): boolean {
+  if (isExact(pathname, item.href)) return true;
+  return pathname.startsWith("/analyses/") && item.href.endsWith("/strategie/clusters");
+}
+
+/**
  * ⚠️ Hier stonden `ACCOUNT_NAV` en daarvoor `NAV`, de platte lijst van vóór de
  * zijbalk. `NAV` verdween op 17 augustus 2026: `MainNav` las hem en bestond
  * niet meer, en het profielmenu toonde er een tweede hoofdnavigatie mee naast

@@ -94,8 +94,10 @@ export default async function ClustersPage({
         eyebrow="Strategie"
         title="Clusters"
         description="Elk cluster is één onderwerp waarop ORBIT ENGINE je zichtbaarheid volgt."
+        // Het merk gaat mee in de link: dan staat het goede merk al
+        // voorgeselecteerd én weet dat scherm waar "terug" heen moet.
         action={
-          <Link href="/analyses/new" className="btn-primary">
+          <Link href={`/analyses/new?merk=${id}`} className="btn-primary">
             + Nieuw cluster
           </Link>
         }
@@ -126,7 +128,7 @@ export default async function ClustersPage({
       {analyses.length === 0 ? (
         <EmptyState
           title="Nog geen clusters voor dit merk"
-          action={{ href: "/analyses/new", label: "Start je eerste cluster" }}
+          action={{ href: `/analyses/new?merk=${id}`, label: "Start je eerste cluster" }}
         >
           Kies het product of onderwerp dat je wilt meten. ORBIT ENGINE stelt de vragen die jouw
           klanten aan een AI stellen, en telt hoe vaak jij in het antwoord staat.

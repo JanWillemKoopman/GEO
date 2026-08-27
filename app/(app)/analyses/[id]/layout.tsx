@@ -66,12 +66,18 @@ export default async function AnalysisLayout({
   return (
     <div className="flex flex-col gap-6">
       <div>
+        {/* ⚠️ Deze knop wees tot 27 augustus 2026 naar `/analyses`, de losse
+            clusterlijst over álle merken heen. Dat was de plek waar de klant
+            de merkgrens kwijtraakte: hij werkte aan een tekst van merk A en
+            stond na één klik in een lijst waar de clusters van merk B ook in
+            stonden. Nu gaat hij terug naar de clusters van dít merk, precies
+            het menu-item dat in de zijbalk oplicht zolang hij hier is. */}
         <Link
-          href="/analyses"
+          href={`/merk/${analysis.profile_id}/strategie/clusters`}
           className="mono-label transition-colors hover:text-[var(--text-primary)]"
         >
           <Icon naam="terug" size={14} />
-          Mijn clusters
+          Clusters
         </Link>
         <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
           <h1 className="type-title">{analysis.name}</h1>

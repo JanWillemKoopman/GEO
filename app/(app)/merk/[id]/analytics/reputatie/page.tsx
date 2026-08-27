@@ -99,7 +99,7 @@ export default async function ReputatiePage({
   // ⚠️ Zien mag iedereen die bij het merk mag (RLS, de drie lagen uit
   // `lib/access.ts`); STARTEN alleen de beheerder. Die twee vragen worden hier
   // apart gesteld, want het antwoord verschilt en het scherm verschilt mee.
-  const magStarten = await mayTriggerCost(user.id);
+  const magStarten = await mayTriggerCost(user.id, "reputatie_starten");
 
   const [{ data: runRows }, { data: offeringRows }] = await Promise.all([
     supabase

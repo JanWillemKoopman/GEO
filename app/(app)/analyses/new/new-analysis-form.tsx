@@ -6,14 +6,19 @@ import type { Profile } from "@/lib/types/database";
 
 export function NewAnalysisForm({
   profiles,
+  initialProfileId,
   /** Uit tijdens het bouwen (EMAILS_ENABLED). Dan tonen we het mailvinkje niet. */
   emailsEnabled = false,
 }: {
   profiles: Profile[];
+  /** Het merk waar de klant vandaan kwam, zodat hij het niet opnieuw kiest. */
+  initialProfileId?: string;
   emailsEnabled?: boolean;
 }) {
   const router = useRouter();
-  const [profileId, setProfileId] = useState(profiles[0]?.id ?? "");
+  const [profileId, setProfileId] = useState(
+    profiles.find((p) => p.id === initialProfileId)?.id ?? profiles[0]?.id ?? "",
+  );
   const [topic, setTopic] = useState("");
   const [contentBrief, setContentBrief] = useState("");
   // Standaard aan: een analyse duurt minuten, dus je wilt bericht als het klaar is.

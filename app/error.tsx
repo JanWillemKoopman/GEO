@@ -45,11 +45,11 @@ export default function AppError({
         retryLabel="Opnieuw laden"
       />
       <Link
-        href="/analyses"
+        href="/"
         className="mono-label flex w-fit items-center gap-1.5 transition-colors hover:text-[var(--text-primary)]"
       >
         <Icon naam="terug" size={14} />
-        Terug naar je clusters
+        Terug naar je overzicht
       </Link>
     </div>
   );

@@ -48,7 +48,7 @@ export async function POST(
 
   // ⚠️ Betaald werk start alleen de beheerder (besluit 18), en het budget van
   // het account is de tweede, onafhankelijke rem (F1).
-  if (!(await mayTriggerCost(user.id))) {
+  if (!(await mayTriggerCost(user.id, "merk_onderzoeken"))) {
     return NextResponse.json(
       { error: COST_DENIED.merk_onderzoeken },
       { status: 403 },

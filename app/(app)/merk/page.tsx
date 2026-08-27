@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { requireUser } from "@/lib/auth";
+import { isStaff } from "@/lib/staff";
+import { COST_DENIED } from "@/lib/cost-rules";
 import { createClient } from "@/lib/supabase/server";
 import { ProfileStatusBadge } from "@/components/profile-status-badge";
 import { EmptyState } from "@/components/empty-state";
@@ -12,8 +14,13 @@ export const dynamic = "force-dynamic";
 export const metadata = { title: "Merken" };
 
 export default async function ProfielenPage() {
-  await requireUser();
+  const user = await requireUser();
   const supabase = await createClient();
+  // ⚠️ Een nieuw merk onderzoeken is de enige handeling op dit scherm die geld
+  // kost, en die blijft van de beheerder (`lib/cost-rules.ts`). De knop stond
+  // er tot 27 augustus 2026 voor iedereen en gaf de klant na drie ingevulde
+  // velden een weigering terug. Nu leest hij vooraf bij wie hij moet zijn.
+  const staff = await isStaff(user.id);
 
   // Gearchiveerde merken blijven in de database staan maar horen hier niet
   // (migratie 0044). Zie lib/archive.ts.
@@ -37,9 +44,11 @@ export default async function ProfielenPage() {
         title="Merken"
         description="ORBIT ENGINE leert je merk eerst kennen: branche, aanbod, concurrenten, doelgroep en tone-of-voice. Dat onderzoek doen we één keer per merk, en elk cluster eronder bouwt erop voort."
         action={
-          <Link href="/merk/nieuw" className="btn-primary">
-            + Nieuw merk
-          </Link>
+          staff ? (
+            <Link href="/merk/nieuw" className="btn-primary">
+              + Nieuw merk
+            </Link>
+          ) : null
         }
       />
 
@@ -65,10 +74,11 @@ export default async function ProfielenPage() {
       {profiles.length === 0 ? (
         <EmptyState
           title="Nog geen merken"
-          action={{ href: "/merk/nieuw", label: "Eerste merk toevoegen" }}
+          action={staff ? { href: "/merk/nieuw", label: "Eerste merk toevoegen" } : undefined}
         >
-          Begin met het merk waarvan je de zichtbaarheid wilt meten. ORBIT ENGINE brengt het in kaart;
-          daarna koppel je er clusters aan voor losse producten en onderwerpen.
+          {staff
+            ? "Begin met het merk waarvan je de zichtbaarheid wilt meten. ORBIT ENGINE brengt het in kaart; daarna koppel je er clusters aan voor losse producten en onderwerpen."
+            : COST_DENIED.merk_onderzoeken}
         </EmptyState>
       ) : (
         <ul className="flex flex-col gap-3">

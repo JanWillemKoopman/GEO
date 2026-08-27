@@ -61,7 +61,7 @@ export async function POST(request: Request) {
   // ⚠️ Betaald werk start alleen de beheerder (besluit 18). Zie lib/cost-guard.ts
   // voor de rekensom eronder: zonder deze regel kan een klant op één middag
   // dollars uitgeven zonder dat iemand het merkt.
-  if (!(await mayTriggerCost(user.id))) {
+  if (!(await mayTriggerCost(user.id, "merk_onderzoeken"))) {
     return NextResponse.json({ error: COST_DENIED.merk_onderzoeken }, { status: 403 });
   }
 

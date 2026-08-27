@@ -739,32 +739,33 @@ export function PlanView({
                         Alles geplaatst
                       </button>
                     )}
-                    {month.status !== "goedgekeurd" &&
-                      inhoud.length > 0 &&
-                      (staff ? (
-                        // ⚠️ Alleen de maand die aan de beurt is, krijgt de zware
-                        // knop. Stonden er twee even witte knoppen onder elkaar,
-                        // dan trok een maand die pas over een halfjaar speelt
-                        // evenveel aandacht als de maand van deze week.
-                        <button
-                          type="button"
-                          className={
-                            month.status === "ter_goedkeuring" || lopend
-                              ? "btn-primary btn-sm"
-                              : "btn-ghost btn-sm"
-                          }
-                          onClick={() => setMonthDialog(month)}
-                          disabled={busy === month.id}
-                        >
-                          Vrijgeven
-                        </button>
-                      ) : (
-                        // Besluit 18. De klant ziet wél dat er iets van hem
-                        // gevraagd wordt, en bij wie hij daarvoor moet zijn.
-                        <span className="text-xs text-secondary">
-                          Je consultant geeft deze maand vrij
-                        </span>
-                      ))}
+                    {month.status !== "goedgekeurd" && inhoud.length > 0 && (
+                      // ⚠️ Alleen de maand die aan de beurt is, krijgt de zware
+                      // knop. Stonden er twee even witte knoppen onder elkaar,
+                      // dan trok een maand die pas over een halfjaar speelt
+                      // evenveel aandacht als de maand van deze week.
+                      //
+                      // Sinds 27 augustus 2026 staat deze knop er ook voor de
+                      // klant. Hier stond tot die dag "je consultant geeft deze
+                      // maand vrij", en dat was de enige knop op dit scherm die
+                      // ertoe deed: de klant kreeg een planbord waar hij alles
+                      // mocht behalve het enige dat het plan in beweging zet.
+                      // De dialoog erachter vertelt nog steeds wat het kost en
+                      // wat er daarna gebeurt, dus niemand geeft per ongeluk
+                      // een maand vrij.
+                      <button
+                        type="button"
+                        className={
+                          month.status === "ter_goedkeuring" || lopend
+                            ? "btn-primary btn-sm"
+                            : "btn-ghost btn-sm"
+                        }
+                        onClick={() => setMonthDialog(month)}
+                        disabled={busy === month.id}
+                      >
+                        Vrijgeven
+                      </button>
+                    )}
                   </div>
                 </div>
 

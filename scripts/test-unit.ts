@@ -256,6 +256,9 @@ import {
   openMonthIds,
 } from "@/lib/plan-overview";
 import { brandScorePerPeriod } from "@/lib/brand-score";
+import { ronde, rondeZin } from "@/lib/ronde";
+import { actionNeedsStaff, STAFF_ONLY_ACTIONS } from "@/lib/cost-rules";
+import { navActief } from "@/lib/nav";
 import {
   isEersteMaand,
   overzichtCijfers,
@@ -6172,6 +6175,141 @@ group("de kansenlijst: alleen tonen wat onderscheidt (25 augustus 2026)", () => 
 // ════════════════════════════════════════════════════════════════════════════
 console.log("\nDe vier cijfers op de startpagina (overview.ts, 26 augustus 2026)");
 
+group("de ronde: zes stappen, precies één aan de beurt", () => {
+  // De stand van een klant die net binnen is: de nulmeting staat, de kansen
+  // staan, en verder nog niets. Precies het moment waarop hij voor het eerst
+  // alleen inlogt.
+  const nieuweKlant = ronde({
+    metingen: 1,
+    kansen: 7,
+    gepland: 0,
+    geschreven: 0,
+    gepubliceerd: 0,
+    hermeten: 0,
+  });
+
+  ok("altijd zes stappen", nieuweKlant.length === 6);
+  ok(
+    "in de volgorde van de pijplijn",
+    nieuweKlant.map((f) => f.id).join(" ") ===
+      "meten kansen plannen schrijven publiceren hermeten",
+  );
+  ok("hooguit één stap is aan de beurt", nieuweKlant.filter((f) => f.actief).length === 1);
+  ok("en dat is de eerste die nog niet staat", nieuweKlant.find((f) => f.actief)?.id === "plannen");
+  ok(
+    "wat gezet is, blijft gezet",
+    nieuweKlant[0].klaar && nieuweKlant[1].klaar && !nieuweKlant[2].klaar,
+  );
+
+  // ⚠️ Twee van de zes wachten op de klant, en dat is de arbeidsverdeling van
+  // het hele product: ORBIT ENGINE komt niet op zijn website.
+  ok(
+    "plannen en publiceren zijn van de klant",
+    nieuweKlant.filter((f) => f.vanJou).map((f) => f.id).join(" ") === "plannen publiceren",
+  );
+  ok("en de zin zegt dat hij aan zet is", rondeZin(nieuweKlant).startsWith("Je bent aan zet"));
+
+  // Een gat in het midden telt niet als voortgang: staat er niets geschreven,
+  // dan is schrijven aan de beurt, ook al staat er al een pagina live van vóór
+  // het plan. Bij Gasservice Brabant was dat precies zo.
+  const gat = ronde({
+    metingen: 2,
+    kansen: 7,
+    gepland: 12,
+    geschreven: 0,
+    gepubliceerd: 1,
+    hermeten: 0,
+  });
+  ok("een lege stap in het midden is de actieve", gat.find((f) => f.actief)?.id === "schrijven");
+  ok("en publiceren staat wel al op klaar", gat[4].klaar);
+
+  // Een ronde die rond is, is geen ronde die af is.
+  const rond = ronde({
+    metingen: 3,
+    kansen: 4,
+    gepland: 12,
+    geschreven: 12,
+    gepubliceerd: 9,
+    hermeten: 5,
+  });
+  ok("dan is geen enkele stap aan de beurt", rond.every((f) => !f.actief));
+  ok(
+    "en de zin belooft geen einde",
+    !/(bent|is) klaar|voltooid|afgerond/i.test(rondeZin(rond)),
+  );
+  ok("maar zegt wel dat het doorloopt", rondeZin(rond).includes("maandelijks"));
+
+  // Enkelvoud en meervoud, want deze standen staan bijna altijd op 0 of 1.
+  const een = ronde({ metingen: 1, kansen: 1, gepland: 1, geschreven: 1, gepubliceerd: 1, hermeten: 1 });
+  ok("één meting is enkelvoud", een[0].stand === "1 meting");
+  ok("één tekst is enkelvoud", een[3].stand === "1 tekst");
+  const leeg = ronde({ metingen: 0, kansen: 0, gepland: 0, geschreven: 0, gepubliceerd: 0, hermeten: 0 });
+  ok("nul zegt wat er ontbreekt", leeg.every((f) => f.stand.startsWith("nog")));
+  ok("en meten is dan de eerste stap", leeg.find((f) => f.actief)?.id === "meten");
+
+  // ⚠️ Geen enkele stand claimt een doel. "3 van de 12" zou een norm zijn die
+  // de klant niet zelf gesteld heeft.
+  ok("geen enkele stand noemt een doel", rond.every((f) => !/ van de /.test(f.stand)));
+});
+
+group("wie mag betaald werk starten", () => {
+  // ⚠️ De verschuiving van 27 augustus 2026: alleen een nieuwe verkoop blijft
+  // van de beheerder. Alles wat binnen het pakket van de klant valt, doet hij
+  // zelf, anders loopt zijn eerste sessie vast op een knop die weigert.
+  ok("een nieuw merk onderzoeken blijft van de beheerder", actionNeedsStaff("merk_onderzoeken"));
+  ok("een reputatieanalyse blijft van de beheerder", actionNeedsStaff("reputatie_starten"));
+  ok("de meting bevestigen doet de klant zelf", !actionNeedsStaff("meting_starten"));
+  ok("een cluster starten doet de klant zelf", !actionNeedsStaff("analyse_starten"));
+  ok("content laten schrijven doet de klant zelf", !actionNeedsStaff("content_schrijven"));
+  ok("een maand vrijgeven doet de klant zelf", !actionNeedsStaff("plan_goedkeuren"));
+  ok("precies twee handelingen staan op slot", STAFF_ONLY_ACTIONS.length === 2);
+
+  // K2: elke melding is specifiek en klinkt als een uitnodiging, niet als een
+  // dichte deur. Ze horen er ook te zijn voor de handelingen die nu open staan,
+  // want het slot zit per handeling en kan terug.
+  ok(
+    "elke handeling heeft een eigen zin",
+    new Set(Object.values(COST_DENIED)).size === Object.keys(COST_DENIED).length,
+  );
+  ok(
+    "en geen enkele zin klinkt als geen toegang",
+    Object.values(COST_DENIED).every((z) => !/geen toegang|niet toegestaan|mag niet/i.test(z)),
+  );
+});
+
+group("welk menu-item licht op", () => {
+  const clusters = {
+    href: "/merk/abc/strategie/clusters",
+    label: "Clusters",
+    hoofdstuk: "Strategie" as const,
+  };
+  const bibliotheek = {
+    href: "/merk/abc/strategie/bibliotheek",
+    label: "Bibliotheek",
+    hoofdstuk: "Strategie" as const,
+  };
+
+  ok("de bestemming zelf", navActief("/merk/abc/strategie/clusters", clusters));
+  // ⚠️ De reden dat deze functie bestaat: het clusterdossier woont op een eigen
+  // adres, en tot 27 augustus 2026 lichtte er in de hele zijbalk niets op zolang
+  // de klant daar was. Juist op het diepste scherm van de app.
+  ok("een cluster laat Clusters oplichten", navActief("/analyses/xyz", clusters));
+  ok("de tekstpagina in dat cluster ook", navActief("/analyses/xyz/bibliotheek/1", clusters));
+  ok("maar de bibliotheek van het merk niet", !navActief("/analyses/xyz", bibliotheek));
+  ok(
+    "en twee items lichten nooit tegelijk op",
+    [clusters, bibliotheek].filter((i) => navActief("/analyses/xyz", i)).length === 1,
+  );
+  // Bestemmingen zijn elkaars prefix: /merkprofiel is het begin van
+  // /merkprofiel/bewerken, en dat mag niet allebei oplichten.
+  const dossier = {
+    href: "/merk/abc/merkprofiel",
+    label: "Merkdossier",
+    hoofdstuk: "Merkprofiel" as const,
+  };
+  ok("een kind laat de ouder niet oplichten", !navActief("/merk/abc/merkprofiel/bewerken", dossier));
+});
+
 group("overzichtCijfers: vier tellingen, geen vergelijking", () => {
   // De echte stand van Gasservice Brabant op 26 augustus 2026: één gepubliceerde
   // pagina, één cluster, en zeven aanbevelingen die uiteenvallen in twee nieuwe
@@ -8328,13 +8466,35 @@ group("het overzicht: één hoofdgetal, één primaire knop, één rekensom", ()
     (overzicht.match(/<SectionErrorBoundary/g) ?? []).length >= 5,
   );
 
-  // ── ⚠️ HET ZICHTBAARHEIDSPERCENTAGE STAAT HIER NIET MEER ────────────────
+  // ── ⚠️ HET ZICHTBAARHEIDSPERCENTAGE STAAT HIER WEER ─────────────────────
   //
-  // Besloten op 26 augustus 2026: de startpagina toont de omvang van het
-  // programma, het percentage staat op Analytics. Het is het soort cijfer dat
-  // per ongeluk terugkeert, want het is het hoofdgetal van het product.
-  ok("geen percentage als hoofdgetal", !overzicht.includes('text-5xl'));
-  ok("en geen tweede rekensom ernaast", !overzicht.includes("confidenceBand"));
+  // Op 26 augustus 2026 verhuisde het naar Analytics, zodat de startpagina de
+  // omvang van het programma toonde. Op 27 augustus is dat teruggedraaid, en
+  // het waarom is een productvraag en geen smaakvraag: een meetproduct dat
+  // opent met vier productietellingen laat de klant eerst zien hoeveel er
+  // gemaakt is, terwijl hij komt kijken of het wérkt. Het cijfer waarvoor hij
+  // betaalt, stond een klik verderop.
+  //
+  // Wat hier NIET mag terugkeren is de valse winst. Het cijfer komt met zijn
+  // marge, en een verschil binnen die marge heet "gelijk gebleven" en geen
+  // stijging. Dat is dezelfde lat als op Analytics.
+  ok("het hoofdgetal staat op de startpagina", overzicht.includes("text-5xl"));
+  ok("met zijn onzekerheidsmarge erbij", overzicht.includes("confidenceBand"));
+  ok(
+    "en een verschil binnen de marge telt niet als winst",
+    overzicht.includes("changeIsMeaningful"),
+  );
+
+  // ── ⚠️ DE RONDE STAAT BOVEN DE CIJFERS ──────────────────────────────────
+  //
+  // Het product is een kringloop en het menu is een kast. Stond die kringloop
+  // nergens, dan wist de klant wel wat hij vandaag moest doen maar niet waar
+  // het toe leidde. Eerst hoe het werkt, dan hoe het ervoor staat.
+  ok("de ronde staat op de startpagina", overzicht.includes("<RondeBalk"));
+  ok(
+    "en boven de cijfers",
+    overzicht.indexOf("<RondeBalk") < overzicht.indexOf("<CijferRij"),
+  );
 
   // ── ⚠️ SECTIEKOPPEN ZIJN KOPPEN ─────────────────────────────────────────
   //

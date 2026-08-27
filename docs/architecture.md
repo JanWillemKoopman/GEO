@@ -42,7 +42,7 @@ Klant (browser/mobiel)
    │
    ▼
 Vercel: Next.js 15 op Node.js  (code: GitHub, deploy op push naar main)
- ├─ Frontend: /merk/[id]/... (de merk-werkruimte), /analyses/[id] (dossier in 4 hoofdstukken), /instellingen
+ ├─ Frontend: /merk/[id]/... (de merk-werkruimte), /analyses/[id] (dossier in 4 hoofdstukken, hangt in het menu onder Clusters), /instellingen
  ├─ API-routes: CRUD + schrijfacties (service-role key + ownership-check)
  ├─ Vercel Cron (vercel.json, Hobby-limiet: max 2 taken, elk max 1×/dag)
  │    • /api/cron/tracking   maandelijks, 1e van de maand 06:00 UTC
@@ -99,7 +99,16 @@ tegengehouden.
 | 1 | **Wie** mag dit starten? | `lib/cost-guard.ts` | 403, met een eigen zin per handeling (`lib/cost-rules.ts`) |
 | 2 | **Hoeveel** is er nog over? | `lib/spend-limit.ts` | 402, met bedrag, plafond en waar je het verhoogt |
 
-Vraag 1 is besluit 18: alleen de beheerder. Vraag 2 zijn twee plafonds, €50 per account per maand en
+Vraag 1 hangt sinds 27 augustus 2026 van de handeling af, en niet meer van de persoon alleen
+(`STAFF_ONLY_ACTIONS` in `lib/cost-rules.ts`). Twee handelingen blijven van de beheerder, omdat het
+een verkoop is en geen werk binnen het pakket: een nieuw merk onderzoeken en een reputatieanalyse.
+De vier andere doet de klant zelf: een cluster starten, de meting bevestigen, content laten
+schrijven en een maand van het contentplan vrijgeven. Tot die dag stonden alle zes op slot
+(besluit 18), en het gevolg in het scherm was erger dan de rekening: de klant zag vier volle knoppen
+die pas ná de klik weigerden, waarvan er één als taak in zijn eigen werklijst op de startpagina
+stond. De rem op de rekening is daarmee vraag 2 geworden, en die geldt voor iedereen.
+
+Vraag 2 zijn twee plafonds, €50 per account per maand en
 €150 per dag over alle accounts samen, allebei instelbaar (`MONTHLY_BUDGET_EUR`, `DAILY_BUDGET_EUR`)
 en per account te overschrijven via `accounts.monthly_budget_eur`. De regels en bedragen staan puur
 en testbaar in `lib/spend-rules.ts`.

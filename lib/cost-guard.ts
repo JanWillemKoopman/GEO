@@ -3,18 +3,20 @@ import "server-only";
 /**
  * Wie mag een handeling starten die geld kost?
  *
- * ── HET BESLUIT ─────────────────────────────────────────────────────────────
+ * ── HET BESLUIT, HERZIEN OP 27 AUGUSTUS 2026 ────────────────────────────────
  *
- * **Alleen de beheerder van ORBIT ENGINE** (besluit 18, 11 augustus 2026). Op 11 augustus
- * was eerst besloten dat een account-admin zelf een meting mocht starten en een
- * member een maand mocht goedkeuren; datzelfde besluit is dezelfde dag
- * teruggedraaid toen de rekensom eronder zichtbaar werd. Een klant met acht
- * onderwerpen kon op één middag $6,56 uitgeven zonder dat iemand het merkte, en
- * er was geen enkele rem.
+ * Het antwoord hangt sinds vandaag van de handeling af, en niet meer van de
+ * persoon alleen. Twee handelingen blijven van de beheerder, de rest is van de
+ * klant. Welke twee en waarom staat bij `STAFF_ONLY_ACTIONS` in
+ * `lib/cost-rules.ts`, want dat is data en hoort in een pure module.
  *
- * Dat past ook beter bij hoe dit product verkocht wordt (sales-led): de
- * consultant zet klaar, de klant kijkt na en keurt goed. Goedkeuren is gratis;
- * het in gang zetten van betaald werk is een handeling van de eigenaar.
+ * Kort: een nieuw merk onderzoeken en een reputatieanalyse zijn een verkoop.
+ * Een cluster starten, de meting bevestigen, content laten schrijven en een
+ * maand vrijgeven zijn het werk waarvoor de klant al betaalt.
+ *
+ * Tot vandaag stond alles op slot (besluit 18, 11 augustus 2026). Dat hield de
+ * rekening klein maar liep de klant vast: hij zag vier volle knoppen die pas ná
+ * de klik weigerden, en één ervan stond als taak in zijn eigen werklijst.
  *
  * ── WAAROM ÉÉN FUNCTIE EN GEEN CONTROLE PER ROUTE ───────────────────────────
  *
@@ -25,23 +27,39 @@ import "server-only";
  * dezelfde functie. Verandert het besluit ooit, dan verandert het hier en
  * nergens anders.
  *
+ * ⚠️ De handeling is een verplicht argument en heeft geen standaardwaarde. Dat
+ * is opzet: wie een nieuwe dure route toevoegt, moet van de compiler een keuze
+ * maken over wie hem mag starten, in plaats van er stilzwijgend de losse kant
+ * van te krijgen.
+ *
  * ── WAT HIER BEWUST NIET IN ZIT ─────────────────────────────────────────────
  *
  * Het budgetplafond zelf. Dat is een tweede, onafhankelijke rem
  * (`lib/spend-limit.ts`): deze functie zegt WIE er mag uitgeven, die andere
  * zegt HOEVEEL er nog over is. Ze horen allebei te gelden, want een beheerder
- * die zich vergist in een lus kan net zo goed een rekening opblazen.
+ * die zich vergist in een lus kan net zo goed een rekening opblazen. Nu de
+ * klant zelf werk start, is dat plafond de rem die er echt toe doet.
+ *
+ * En de ownership-controle. Elke route kijkt zelf, vóór of ná deze vraag, of
+ * dit merk of dit cluster wel van deze gebruiker is (`getOwnedProfile`,
+ * `getOwnedAnalysis`). Deze functie zegt niets over eigendom.
  */
 import { isStaff } from "@/lib/staff";
+import { actionNeedsStaff, type CostlyAction } from "@/lib/cost-rules";
 
 export { COST_DENIED, type CostlyAction } from "@/lib/cost-rules";
 
 /**
- * Mag deze gebruiker betaald werk starten?
+ * Mag deze gebruiker deze betaalde handeling starten?
  *
- * Faalt zacht naar `false`: een storing in de controle mag nooit iemand
- * onbedoeld geld laten uitgeven. Dezelfde kant op als `isStaff` zelf.
+ * Faalt zacht naar `false` bij de twee handelingen die op slot staan: een
+ * storing in de controle mag nooit iemand onbedoeld een verkoop laten starten.
+ * Dezelfde kant op als `isStaff` zelf.
  */
-export async function mayTriggerCost(userId: string): Promise<boolean> {
+export async function mayTriggerCost(
+  userId: string,
+  action: CostlyAction,
+): Promise<boolean> {
+  if (!actionNeedsStaff(action)) return true;
   return isStaff(userId);
 }

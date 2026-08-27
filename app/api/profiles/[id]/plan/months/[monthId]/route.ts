@@ -78,7 +78,7 @@ export async function POST(
   // dezelfde maand en dezelfde afspraak, en twee verschillende rechten op één
   // scherm is precies het soort verschil dat niemand kan uitleggen.
   if (body.actie === "goedkeuren" || body.actie === "afwijzen") {
-    if (!(await mayTriggerCost(user.id))) {
+    if (!(await mayTriggerCost(user.id, "plan_goedkeuren"))) {
       return NextResponse.json({ error: COST_DENIED.plan_goedkeuren }, { status: 403 });
     }
   }

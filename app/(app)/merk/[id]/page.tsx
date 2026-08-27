@@ -41,6 +41,9 @@ import {
   type VoortgangPagina,
 } from "@/lib/plan-progress";
 import { Icon } from "@/components/icon";
+import { ronde, rondeZin } from "@/lib/ronde";
+import { RondeBalk } from "./_components/ronde-balk";
+import { confidenceBand, changeIsMeaningful } from "@/lib/stats/uncertainty";
 
 export const dynamic = "force-dynamic";
 
@@ -228,7 +231,8 @@ export default async function OverzichtPage({
   });
 
   // ── De wachtrij, alleen wat op de klant wacht ────────────────────────────
-  const eigenWerk = sortWork(work.filter((w) => eigenIds.has(w.analysisId) && w.state === "nu"));
+  const eigenAlleWerk = work.filter((w) => eigenIds.has(w.analysisId));
+  const eigenWerk = sortWork(eigenAlleWerk.filter((w) => w.state === "nu"));
   const wachtrij = eigenWerk.slice(0, MAX_WACHTRIJ);
   const restWachtrij = eigenWerk.length - wachtrij.length;
 
@@ -283,6 +287,39 @@ export default async function OverzichtPage({
   })[]).filter((t) => t.profile_id === id || (t.analysis_id && eigenIds.has(t.analysis_id)));
   const regels = activiteit(eigenTaken);
 
+  // ── De ronde, en het cijfer dat eronder hangt ─────────────────────────────
+  //
+  // Beide zijn afgeleid van cijfers die dit scherm toch al ophaalt. Er komt dus
+  // geen enkele query bij: de meetperiodes zitten in `loadLoop`, de teksten in
+  // de werklijst, en de geplande pagina's in `planTotalen`.
+  const teksten = eigenAlleWerk.filter((w) => w.kind === "pagina");
+  const rondeFases = ronde({
+    metingen: periodes.length,
+    kansen: lus.opportunities.length,
+    gepland: totalen.gepland,
+    geschreven: teksten.length,
+    gepubliceerd,
+    // "klaar" betekent bij een tekst precies één ding: gepubliceerd én
+    // hermeten (`lib/work.ts`). Dat is de enige stand die bewijst dat de ronde
+    // helemaal rond is geweest.
+    hermeten: teksten.filter((w) => w.state === "klaar").length,
+  });
+
+  // ⚠️ Het hoofdgetal stond tot 26 augustus 2026 hier en verhuisde toen naar
+  // Analytics. Daarmee opende een meetproduct met vier productietellingen, en
+  // moest de klant een klik verder voor het enige cijfer waarvoor hij betaalt.
+  // Het staat nu weer bovenaan, met de marge erbij en met dezelfde
+  // terughoudendheid als overal: een verschil binnen de marge is geen verschil.
+  const vorige = periodes.length > 1 ? periodes[periodes.length - 2] : null;
+  const band = laatste ? confidenceBand(laatste.score, laatste.stderr) : null;
+  const verschil =
+    laatste && vorige
+      ? changeIsMeaningful(
+          { score: laatste.score, stderr: laatste.stderr },
+          { score: vorige.score, stderr: vorige.stderr },
+        )
+      : null;
+
   const merknaam = profile.brand_name ?? profile.name;
   const nu = new Date();
   const eersteMaand = isEersteMaand({
@@ -313,6 +350,13 @@ export default async function OverzichtPage({
           now: nu,
         })}
       />
+
+      {/* ── De ronde ───────────────────────────────────────────────────────
+          Het eerste blok van de app, en met opzet vóór de cijfers: eerst weten
+          hoe het werkt, dan pas hoe het ervoor staat. Zie `lib/ronde.ts`. */}
+      <SectionErrorBoundary label="Zo werkt je maand">
+        <RondeBalk fases={rondeFases} zin={rondeZin(rondeFases)} />
+      </SectionErrorBoundary>
 
       {/* ── De fase, alleen voor jou (deel B4) ────────────────────────────
           Een smalle regel en geen kaart: dit is stafinformatie en hoort niet
@@ -345,6 +389,42 @@ export default async function OverzichtPage({
           steeds over de meting, en de knop ernaast gaat naar het cijfer zelf. */}
       <SectionErrorBoundary label="Je programma">
         <div className={`card ${railKlasse(lus.insights)} flex flex-col gap-5`}>
+          {laatste && band && (
+            <div className="flex flex-wrap items-end gap-x-6 gap-y-2 border-b border-[var(--border-subtle)] pb-5">
+              <div className="flex min-w-0 flex-col gap-0.5">
+                <span className="mono-label">Zichtbaarheid in AI</span>
+                <span className="stat-value text-5xl">{Math.round(laatste.score)}%</span>
+              </div>
+              <div className="flex min-w-0 flex-1 flex-col gap-1 pb-1">
+                <span className="flex flex-wrap items-center gap-2">
+                  {/* Een verandering binnen de onzekerheidsmarge is geen
+                      verandering. Hem tonen als winst is de belofte die het
+                      product niet kan waarmaken. Zelfde regel als op
+                      Analytics. */}
+                  {verschil?.changed ? (
+                    <span className={verschil.delta > 0 ? "chip chip-success" : "chip chip-danger"}>
+                      <Icon naam={verschil.delta > 0 ? "stijging" : "daling"} size={12} />
+                      {Math.abs(Math.round(verschil.delta))} sinds de vorige meting
+                    </span>
+                  ) : (
+                    <span className="chip chip-neutral">
+                      {vorige === null ? "eerste meting" : "gelijk gebleven"}
+                    </span>
+                  )}
+                  {laatste.vragen > 0 && (
+                    <span className="mono-label">over {laatste.vragen} vragen</span>
+                  )}
+                </span>
+                {band.margin > 0 && (
+                  <span className="text-sm text-muted">
+                    Onzekerheidsmarge {band.low}% tot {band.high}%. Het is een steekproef, en dit
+                    is hoe breed hij is.
+                  </span>
+                )}
+              </div>
+            </div>
+          )}
+
           <CijferRij cijfers={cijfers} />
 
           <div className="flex flex-wrap items-start justify-between gap-4 border-t border-[var(--border-subtle)] pt-4">

@@ -10,6 +10,7 @@ import { ContentActions } from "./content-actions";
 import { ReviseBox } from "./revise-box";
 import { ContentEditor } from "./content-editor";
 import { PublishGuide } from "@/components/publish-guide";
+import { CollapsibleSection } from "@/components/collapsible-section";
 import { PublishBox } from "./publish-box";
 import type { PublishCheck } from "@/lib/pipeline/publish-check";
 import { GeoScorecard } from "@/components/geo-scorecard";
@@ -241,6 +242,41 @@ export default async function ContentDetailPage({
         )}
       </div>
 
+      {/* ── Publiceren, en dus bovenaan ──────────────────────────────────────
+          ⚠️ Dit blok stond tot 27 augustus 2026 helemaal onderaan, onder de
+          tekst, de FAQ, de GEO-score, het vrijgavepaneel, de editor, het
+          herschrijfvak en de versiegeschiedenis. Acht blokken lager dus, terwijl
+          dit de enige handeling op deze pagina is die het cijfer van de klant
+          beweegt: een geschreven pagina die niet online staat, levert per
+          definitie nul op. Dat is niet theoretisch, er is een herinneringsmail
+          voor gebouwd omdat teksten bleven liggen (`app/api/cron/reminders`).
+
+          De volgorde is nu: wat is dit, zet het live, en pas daarna alles wat
+          je kunt controleren en bijschaven. De handleiding staat ingeklapt
+          eronder, want wie voor de tweede keer publiceert heeft hem niet meer
+          nodig. */}
+      <PublishBox
+        analysisId={id}
+        pieceId={pieceId}
+        publishedAt={piece.published_at}
+        publishedUrl={piece.published_url}
+        check={(piece.publish_check_json as PublishCheck | null) ?? null}
+        checkedAt={piece.publish_checked_at}
+      />
+
+      {!piece.published_at && (
+        <CollapsibleSection title="Hoe zet je dit op je site?" defaultOpen={false}>
+          <PublishGuide
+            title={kop}
+            type={piece.type}
+            action={piece.action}
+            existingUrl={piece.existing_url}
+            siteUrl={analysis.url}
+            hasSchema={Boolean(piece.schema_jsonld?.trim())}
+          />
+        </CollapsibleSection>
+      )}
+
       {/* Context: waarom deze pagina (optimalisatie.md 4.1/4.11, content-editie
           onderdeel 5). Zonder dit blok is een gegenereerde tekst een tekst; mét
           dit blok is het een antwoord op een vraag waarop de klant nu niet
@@ -400,24 +436,6 @@ export default async function ContentDetailPage({
         </div>
       )}
 
-      {/* Publiceren. */}
-      <PublishBox
-        analysisId={id}
-        pieceId={pieceId}
-        publishedAt={piece.published_at}
-        publishedUrl={piece.published_url}
-        check={(piece.publish_check_json as PublishCheck | null) ?? null}
-        checkedAt={piece.publish_checked_at}
-      />
-
-      <PublishGuide
-        title={kop}
-        type={piece.type}
-        action={piece.action}
-        existingUrl={piece.existing_url}
-        siteUrl={analysis.url}
-        hasSchema={Boolean(piece.schema_jsonld?.trim())}
-      />
     </div>
   );
 }

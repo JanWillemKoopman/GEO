@@ -5290,3 +5290,73 @@ rijen door de afgeronde hoek). Op de onderste regels liep het menu dus dood tege
 die met `overflow-y-auto` scrolt. Het menu hangt nu in een portal op `document.body` met
 `position: fixed`, klapt naar boven open als er onderin het scherm geen ruimte is, en sluit bij
 scrollen buiten zichzelf. Laag `z-40`, de laag van uitklapmenu's uit de ladder in `ux-design.md`.
+
+## 27 augustus 2026: vier ingrepen uit een structuurreview met verse ogen
+
+Een product- en structuurreview van het klantoppervlak, uitgevoerd zonder de documentatie te lezen,
+juist om te zien wat een klant ziet die er ook niet in kijkt. Tien bevindingen, waarvan vier
+gebouwd. Ze hebben één ding gemeen: het gaat nergens over ontbrekende functionaliteit, maar over
+volgorde, zichtbaarheid en wie welke knop ziet.
+
+**1. De klant zag vier knoppen die hij niet mocht indrukken.** Besluit 18 (11 augustus) zette alle
+zes de betaalde handelingen op slot bij de beheerder, en de rekensom eronder klopte: een klant met
+acht onderwerpen kon op één middag $6,56 uitgeven. Het gevolg in het scherm was alleen erger dan de
+rekening. "Bevestig en start de meting" stond als volle knop onderaan het conceptscherm, "Schrijf
+deze pagina's" in hoofdstuk 03, "+ Nieuw cluster" boven Clusters en "+ Nieuw merk" boven Merken, en
+alle vier weigerden pas ná de klik. De taak "Bekijk en bevestig het concept" stond bovendien als
+tweede regel in zijn eigen werklijst op de startpagina: de app stuurde hem dus actief naar een deur
+die op slot zat.
+
+Het slot zit nu per handeling in plaats van per persoon (`STAFF_ONLY_ACTIONS` in
+`lib/cost-rules.ts`, `mayTriggerCost(userId, action)` in `lib/cost-guard.ts`). Twee handelingen
+blijven van de beheerder omdat het een verkoop is en geen werk binnen het pakket: een nieuw merk
+onderzoeken en een reputatieanalyse. Vier zijn van de klant: een cluster starten, de meting
+bevestigen, content laten schrijven en een maand van het contentplan vrijgeven. Het budgetplafond
+(`lib/spend-limit.ts`, €50 per account per maand) is daarmee de rem die er echt toe doet, en die
+gold altijd al voor iedereen. De handeling is een verplicht argument zonder standaardwaarde: wie een
+nieuwe dure route toevoegt, moet van de compiler een keuze maken.
+
+De reputatiepagina liet zien hoe het hoort: die vervangt de knop door de zin "dit zet je consultant
+voor je in gang". Dat patroon staat nu ook op de twee plekken waar een merk aangemaakt wordt.
+
+**2. Het product is een kringloop, het menu is een kast.** Meten, kansen, plannen, schrijven,
+publiceren, hermeten stond in de statussen, in de taken en in de teksten, maar op geen enkel scherm
+getekend. De klant wist wél wat hij vandaag moest doen, de werklijst op het overzicht is daar goed
+in, maar niet waar het toe leidde. `lib/ronde.ts` rekent de zes stappen uit en `RondeBalk` tekent ze
+bovenaan het overzicht, met de stand per stap en één zin die zegt wie er aan zet is. Geen vullende
+balk (die belooft een einde dat er niet is), geen "3 van de 10" (een doel dat de klant niet zelf
+gesteld heeft, is een verwijt zodra hij het niet haalt), en een stap is pas klaar als er iets
+gebeurd is en niet als er iets klaarstaat. Twee van de zes stappen dragen een chip "jij": plannen en
+publiceren. Dat is de enige plek waar de arbeidsverdeling in één oogopslag staat.
+
+**Het zichtbaarheidspercentage staat weer op de startpagina**, met marge en verschil. Dat draait de
+beslissing van 26 augustus terug, één dag oud: een meetproduct dat opent met vier
+productietellingen laat eerst zien hoeveel er gemaakt is, terwijl de klant komt kijken of het wérkt.
+De vier tellingen blijven, eronder. De twee vangrails in `test-unit.ts` die het cijfer weghielden,
+bewaken nu de omgekeerde afspraak, met dezelfde strengheid: het cijfer komt met zijn marge, en een
+verschil binnen die marge heet "gelijk gebleven".
+
+**3. Twee adressenstelsels naast elkaar.** Er waren twee clusterlijsten, `/analyses` over alle
+merken heen en die onder het merk zelf, en alleen de tweede stond in het menu. Toch kwam de klant er
+voortdurend, want de terugknop boven elk clusterdossier heette "Mijn clusters" en wees hierheen. Wie
+aan een tekst van merk A werkte en terugklikte, stond in een lijst waar de clusters van merk B ook
+in stonden. En zolang hij in een cluster zat, lichtte er in de hele zijbalk niets op, precies op het
+diepste scherm van de app. `/analyses` is nu een doorverwijzing naar de clusters van het actieve
+merk, de terugknop heet "Clusters" en wijst naar het merk waar hij vandaan kwam, en `navActief()`
+laat dat menu-item oplichten zolang hij ergens onder `/analyses/` zit. De routes zelf zijn niet
+verhuisd: dat is een grotere ingreep en dit lost het verdwalen op waar het ontstaat.
+
+**4. Publiceren stond onder acht andere blokken.** Op de contentpagina kwamen eerst de tekst, de
+FAQ, de GEO-score, het vrijgavepaneel, de kwaliteitsregel, de editor, het herschrijfvak en de
+versiegeschiedenis, en pas daarna het veld voor de link. Terwijl dat de enige handeling op dat
+scherm is die het cijfer beweegt: een geschreven pagina die niet online staat, levert per definitie
+nul op. Dat teksten bleven liggen was al bekend, er is een herinneringsmail voor gebouwd. Publiceren
+staat nu bovenaan, met de publicatiehandleiding ingeklapt eronder en alleen zolang de pagina nog niet
+live staat.
+
+**Wat niet gebouwd is, en bewust wacht.** Zes andere bevindingen uit dezelfde review: het contentplan
+is een sleepbord voor de consultant dat aan de klant getoond wordt, de app verwijst vijf keer naar
+"je consultant" zonder ergens te zeggen wie dat is, Zoekverkeer stuurt de klant met zijn enige knop
+naar een scherm dat voor hem niet bestaat (`/instellingen/koppelingen` geeft hem een 404),
+"Merkprofiel" is één lade met drie deuren waarvan er twee hetzelfde dossier openen, en er is niets
+dat de klant tussen twee metingen terughaalt (één soort herinnering gebouwd, standaard uit).

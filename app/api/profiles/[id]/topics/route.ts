@@ -92,7 +92,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 
   // ⚠️ Een onderwerp starten maakt een analyse aan en zet een meetronde in gang:
   // ~$0,82. Alleen de beheerder (besluit 18, zie lib/cost-guard.ts).
-  if (!(await mayTriggerCost(user.id))) {
+  if (!(await mayTriggerCost(user.id, "analyse_starten"))) {
     return NextResponse.json({ error: COST_DENIED.analyse_starten }, { status: 403 });
   }
 

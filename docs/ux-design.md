@@ -1,7 +1,7 @@
 # UX & Design
 
 Leidend voor elk scherm. Tokens en primitieven staan in `app/globals.css`; dit document legt uit
-wat ze zijn en wanneer je welke gebruikt. **Peildatum: 26 augustus 2026.** De vormgeving zelf ging
+wat ze zijn en wanneer je welke gebruikt. **Peildatum: 27 augustus 2026.** De vormgeving zelf ging
 op 6 augustus over op het systeem van de NOVA-workspace (volledige verantwoording in
 `designsystem.md`); deze datum volgt de gedragspatronen die daarna zijn bijgekomen (statustaal,
 foutafhandeling, de content-editie, op 21 augustus de iconen in de zijbalk, en op 24 augustus de
@@ -523,10 +523,43 @@ het verschil in plaats van het te laten raden.
 | De wachtrijregel toont `WorkItem.why` | Er stond `analysisName`, in de praktijk een rauw adres in hoofdletters. Het scherm toonde het minst bruikbare veld en gooide het bruikbaarste weg |
 | De toon van de soort werk zit op de kaart | `card-danger` bij een blokkade, in plaats van een chip van 60 pixels. Het onderscheid uit §2 blijft, maar draagt verder |
 
-### Het overzicht toont de omvang van het programma, niet de score (26 augustus 2026)
+### De ronde staat bovenaan, en de score staat er weer onder (27 augustus 2026)
+
+Twee wijzigingen aan de startpagina, uit de structuurreview van 27 augustus 2026, en de tweede
+draait de beslissing van de dag ervoor terug.
+
+**Nieuw bovenaan: de ronde** (`lib/ronde.ts`, `RondeBalk`). Zes stappen naast elkaar, meten, kansen,
+plannen, schrijven, publiceren, hermeten, met per stap de stand van nu en één zin eronder die zegt
+wie er aan zet is. Het product ís een kringloop, maar het menu is een kast met laden, en een kast
+vertelt niet dat de laden samen één ronde zijn. Wat de klant miste was niet zijn takenlijst, die is
+er en die werkt, maar het antwoord op "waar leidt dit toe".
+
+Drie regels die deze balk anders maken dan een voortgangsbalk:
+
+- **Geen balk die vult.** Een vullende balk belooft een einde; na hermeten begint de volgende
+  meting. Zes losse stappen zeggen waar je staat zonder te zeggen dat je er bijna bent.
+- **Een stap is klaar als er iets gebeurd is, niet als er iets klaarstaat.** Een plan zonder
+  ingeplande pagina's is geen plan, een tekst die niet live staat is geen publicatie.
+- **De stand is nooit "3 van de 10".** Een doel dat de klant niet zelf gesteld heeft, is een verwijt
+  zodra hij het niet haalt. Er staat dus "3 teksten".
+
+Twee van de zes stappen dragen een chip "jij": plannen en publiceren. Dat is de enige plek in de app
+waar de arbeidsverdeling in één oogopslag staat, en het is de kern ervan: ORBIT ENGINE komt niet op
+de website van de klant.
+
+**Het zichtbaarheidspercentage staat weer op de startpagina**, bovenin de standkaart, met de
+onzekerheidsmarge en het verschil sinds de vorige meting. Een meetproduct dat opent met vier
+productietellingen laat eerst zien hoeveel er gemaakt is, terwijl de klant komt kijken of het wérkt.
+Dezelfde terughoudendheid als op Analytics geldt hier: een verschil binnen de marge heet "gelijk
+gebleven" en telt niet als winst (`changeIsMeaningful`). De vier tellingen blijven staan, eronder.
+
+### Het overzicht toonde alleen de omvang van het programma (26 augustus 2026)
+
+⚠️ Deze afspraak is één dag later herzien, zie de sectie hierboven. Wat hier staat over de vier
+tellingen geldt nog steeds; wat er staat over het weghalen van het percentage niet meer.
 
 Aansluitend op de ronde hierboven, en op één punt tegen de uitkomst daarvan in. De standkaart droeg
-het zichtbaarheidspercentage als hoofdgetal. Dat is nu **weg van de startpagina**: het staat op
+het zichtbaarheidspercentage als hoofdgetal. Dat ging toen **weg van de startpagina**: het stond op
 Analytics, één klik weg via de knop die er nog steeds naast staat.
 
 **De vier cijfers die ervoor in de plaats komen** (`overzichtCijfers()` in `lib/overview.ts`), over
@@ -798,13 +831,19 @@ Het voorbeeld staat in `RijMenu` in
 `app/(app)/merk/[id]/strategie/plan/plan-view.tsx`.
 
 **Dezelfde regel geldt op de contentdetailpagina** (`analyses/[id]/bibliotheek/[pieceId]/page.tsx`,
-content-editie): geen tabbladen, wél een leesvolgorde die van context naar handeling loopt.
-Context (`WhyThisPage`, waarom deze pagina) → wat er nu staat (`SearchPreview`, inhoudsopgave,
-artikel, FAQ) → kwaliteitscontrole (GEO-score, vrijgavepaneel) → bewerken (`ContentEditor`, met
-een Bewerken/Voorbeeld-toggle in plaats van een aparte route) → geschiedenis en vergelijken
-(`VersionDiff`) → publiceren. Elke stap bouwt op de vorige: je leest eerst waarom de pagina
-bestaat en wat erop staat, vóór je hem aanpast, en de kwaliteitscontrole staat vóór de
-bewerkknop, niet erna.
+content-editie): geen tabbladen, wél een leesvolgorde die van handeling naar verdieping loopt.
+Publiceren (`PublishBox`, met de handleiding ingeklapt eronder) → context (`WhyThisPage`, waarom
+deze pagina) → wat er nu staat (`SearchPreview`, inhoudsopgave, artikel, FAQ) → kwaliteitscontrole
+(GEO-score, vrijgavepaneel) → bewerken (`ContentEditor`, met een Bewerken/Voorbeeld-toggle in
+plaats van een aparte route) → geschiedenis en vergelijken (`VersionDiff`).
+
+⚠️ **Publiceren stond hier tot 27 augustus 2026 helemaal onderaan**, onder acht andere blokken, en
+dat is verhuisd naar boven. De reden is geen smaak maar rekenkunde: het invullen van de link is de
+enige handeling op dit scherm die het cijfer van de klant beweegt, want een geschreven pagina die
+niet online staat levert per definitie nul op. Dat teksten bleven liggen was al bekend, er is een
+herinneringsmail voor gebouwd (`app/api/cron/reminders`). De volgorde is nu: wat is dit, zet het
+live, en pas daarna alles wat je kunt controleren en bijschaven. De kwaliteitscontrole staat nog
+steeds vóór de bewerkknop, niet erna.
 
 De bibliotheek blijft een eigen plek: het is een eindproduct, geen takenlijst die zich als archief
 voordoet. Het conceptscherm is een eigen route.
@@ -1061,11 +1100,18 @@ De klant groepeert niet naar "on-site of off-site". Dat is onze indeling. Hij gr
 **De opgerolde `nu`-lijst hoort bij de analyse, niet bij het overzicht ervoor.** `/analyses`
 (`lib/dashboard.ts`) toonde die lijst eerder ook, over alle analyses heen, bedoeld als "waar moet
 ik als eerste zijn", maar bij meerdere lopende analyses liep dat op tientallen punten in één kaart
-en werd het overzicht zélf de rommel die het werkmodel per analyse juist moest voorkomen. `/analyses`
-toont nu alleen nog de drie statusblokken (`DashboardStats`, `components/dashboard-stats.tsx`) en
-de analysenlijst; de werklijst blijft uitsluitend in hoofdstuk 03 van het dossier, per analyse.
+en werd het overzicht zélf de rommel die het werkmodel per analyse juist moest voorkomen. De
+werklijst blijft uitsluitend in hoofdstuk 03 van het dossier, per analyse.
 
-Elke rij in de analysenlijst toont in plaats daarvan vier vaste kaartcijfers plus het aantal
+⚠️ **`/analyses` bestaat sinds 27 augustus 2026 niet meer als scherm** en verwijst door naar de
+clusters van het actieve merk. Er waren twee clusterlijsten, deze over alle merken heen en die onder
+het merk zelf, en alleen de tweede stond in het menu. Toch kwam de klant er voortdurend: de terugknop
+boven elk clusterdossier heette "Mijn clusters" en wees hierheen. Wie aan een tekst van merk A
+werkte en terugklikte, stond ineens in een lijst waar de clusters van merk B ook in stonden. Die
+knop heet nu "Clusters" en wijst naar het merk waar hij vandaan kwam, en zolang hij ergens in een
+cluster zit licht dat menu-item op (`navActief()` in `lib/nav.ts`).
+
+Elke rij in de clusterlijst toont in plaats daarvan vier vaste kaartcijfers plus het aantal
 metingen (`AnalysisCardMetrics`, `components/analysis-card-metrics.tsx`): zichtbaarheidsscore,
 aantal openstaande vragen, aantal voorgestelde en aantal geschreven pagina's, en "N metingen". Die
 cijfers komen uit dezelfde bronnen als het werkmodel (`visibility_scores`, `content_pieces`,
