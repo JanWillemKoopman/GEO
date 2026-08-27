@@ -259,6 +259,7 @@ import { brandScorePerPeriod } from "@/lib/brand-score";
 import { ronde, rondeZin } from "@/lib/ronde";
 import { actionNeedsStaff, STAFF_ONLY_ACTIONS } from "@/lib/cost-rules";
 import { navActief } from "@/lib/nav";
+import { leesMaandKeuze, maandRegel, planStap, telStatussen } from "@/lib/plan-read";
 import {
   isEersteMaand,
   overzichtCijfers,
@@ -6175,6 +6176,105 @@ group("de kansenlijst: alleen tonen wat onderscheidt (25 augustus 2026)", () => 
 // ════════════════════════════════════════════════════════════════════════════
 console.log("\nDe vier cijfers op de startpagina (overview.ts, 26 augustus 2026)");
 
+group("het contentplan zoals de klant het leest", () => {
+  const maanden = [
+    { id: "m1", monthNumber: 1, status: "goedgekeurd" as const },
+    { id: "m2", monthNumber: 2, status: "ter_goedkeuring" as const },
+    { id: "m3", monthNumber: 3, status: "concept" as const },
+    { id: "m4", monthNumber: 4, status: "concept" as const },
+  ];
+
+  const keuze = leesMaandKeuze(maanden, 2);
+  ok("deze maand is de lopende kalendermaand", keuze.deze?.id === "m2");
+  ok("volgende is de maand erna", keuze.volgende?.id === "m3");
+  ok("de rest is naslag", keuze.rest.map((m) => m.id).join(" ") === "m1 m4");
+
+  // ⚠️ De kalender is leidend en niet de status. Wie op 3 september inlogt hoort
+  // september te zien, ook als hij augustus nooit heeft vrijgegeven. Anders
+  // kijkt hij naar een maand die voorbij is en ziet hij zijn eigen achterstand
+  // aan voor de stand van nu.
+  const achterstand = leesMaandKeuze(maanden, 3);
+  ok("een niet vrijgegeven vorige maand schuift niet naar voren", achterstand.deze?.id === "m3");
+
+  // Loopt de kalender voorbij het plan, dan is een leeg scherm geen antwoord.
+  const voorbij = leesMaandKeuze(maanden, 9);
+  ok("voorbij het plan valt het terug op de laatste maand", voorbij.deze?.id === "m4");
+  ok("en dan is er geen volgende", voorbij.volgende === null);
+  ok("zonder maanden geen keuze", leesMaandKeuze([], 1).deze === null);
+
+  // ── De ene zin die zegt wat er van de klant gevraagd wordt ────────────────
+  //
+  // De volgorde is de volgorde waarin het werk vastloopt. Een goedgekeurde
+  // tekst die niet gepubliceerd wordt levert per definitie nul op, en daar is
+  // al voor betaald; een maand die nog vrijgegeven moet worden kost nog niets.
+  const publiceren = planStap({
+    maandStatus: "goedgekeurd",
+    paginas: 10,
+    terGoedkeuring: 3,
+    teplaatsen: 2,
+  });
+  ok("publiceren gaat voor nakijken", publiceren.includes("publiceren"));
+  const nakijken = planStap({
+    maandStatus: "ter_goedkeuring",
+    paginas: 10,
+    terGoedkeuring: 3,
+    teplaatsen: 0,
+  });
+  ok("nakijken gaat voor vrijgeven", nakijken.includes("akkoord"));
+  const vrijgeven = planStap({
+    maandStatus: "ter_goedkeuring",
+    paginas: 10,
+    terGoedkeuring: 0,
+    teplaatsen: 0,
+  });
+  ok("en vrijgeven blijft over", vrijgeven.includes("vrijgave"));
+  const leeg = planStap({ maandStatus: "concept", paginas: 0, terGoedkeuring: 0, teplaatsen: 0 });
+  ok("een lege maand zegt bij wie hij moet zijn", leeg.includes("consultant"));
+  const rustig = planStap({
+    maandStatus: "goedgekeurd",
+    paginas: 10,
+    terGoedkeuring: 0,
+    teplaatsen: 0,
+  });
+  ok("niets te doen belooft geen einde", !/klaar met|afgerond/i.test(rustig));
+  ok("en zegt dat ORBIT ENGINE doorwerkt", rustig.includes("ORBIT ENGINE"));
+
+  // ── De regel onder de maandkop ───────────────────────────────────────────
+  ok(
+    "één pagina is enkelvoud",
+    maandRegel({ paginas: 1, geplaatst: 0, eersteDatum: "12 augustus" }) ===
+      "Eén pagina deze maand, de eerste op 12 augustus.",
+  );
+  ok(
+    "alles live zegt dat ook",
+    maandRegel({ paginas: 4, geplaatst: 4, eersteDatum: null }).includes("allemaal live"),
+  );
+  // Conventie 3: geen datum verzinnen als er geen datum is.
+  ok(
+    "zonder datum geen datum",
+    maandRegel({ paginas: 4, geplaatst: 0, eersteDatum: null }) === "4 pagina's deze maand.",
+  );
+  ok(
+    "een lege maand zegt dat",
+    maandRegel({ paginas: 0, geplaatst: 0, eersteDatum: null }) === "Nog niets ingepland.",
+  );
+
+  // ── Reservepagina's tellen niet mee ──────────────────────────────────────
+  //
+  // ⚠️ Ze staan klaar als er iets afvalt en horen niet in het maandtotaal dat
+  // de klant leest. Doen ze dat wel, dan lijkt zijn pakket groter dan het is.
+  const telling = telStatussen([
+    { status: "goedgekeurd", is_buffer: false },
+    { status: "ter_goedkeuring", is_buffer: false },
+    { status: "geplaatst", is_buffer: false },
+    { status: "gepland", is_buffer: true },
+  ]);
+  ok("de reserve telt niet mee", telling.echt === 3);
+  ok("te plaatsen wordt geteld", telling.teplaatsen === 1);
+  ok("nakijken wordt geteld", telling.terGoedkeuring === 1);
+  ok("live wordt geteld", telling.geplaatst === 1);
+});
+
 group("de ronde: zes stappen, precies één aan de beurt", () => {
   // De stand van een klant die net binnen is: de nulmeting staat, de kansen
   // staan, en verder nog niets. Precies het moment waarop hij voor het eerst
@@ -8506,6 +8606,33 @@ group("het overzicht: één hoofdgetal, één primaire knop, één rekensom", ()
 
 // ════════════════════════════════════════════════════════════════════════════
 console.log("\nDe grens tussen klant en beheerder (besluit 4)");
+
+group("het planbord is voor de consultant, de leesweergave voor de klant", () => {
+  const scherm = readFileSync("app/(app)/merk/[id]/strategie/plan/page.tsx", "utf8");
+
+  // ⚠️ Het sleepbord (`plan-view.tsx`) is 1600 regels met een voorraadkolom,
+  // filters, twaalf maanden, sleepdoelen en een menu per regel. De klant kreeg
+  // dat tot 27 augustus 2026 ook te zien, inclusief de uitleg "sleep
+  // beschikbare content items naar de maand waarin ze geschreven moeten
+  // worden". Hij plant niet, hij leest en geeft vrij.
+  ok("de klant krijgt de leesweergave", scherm.includes("<PlanReadView"));
+  ok("het bord hangt aan de stafvlag", /staff \? \(\s*<PlanView/.test(scherm));
+  ok("en de paginabeschrijving verschilt per rol", /description=\{\s*staff/.test(scherm));
+
+  const lees = readFileSync(
+    "app/(app)/merk/[id]/strategie/plan/plan-read-view.tsx",
+    "utf8",
+  );
+  // ⚠️ Eén handeling op dat scherm: een maand vrijgeven. Alles wat de indeling
+  // verandert blijft op het bord. Twee schermen die allebei half kunnen
+  // plannen is erger dan één dat het helemaal kan en één dat leest.
+  ok("de leesweergave kan een maand vrijgeven", lees.includes("<ReleaseMonthButton"));
+  // De sleepmachinerie zelf, niet het woord: het commentaar bovenaan legt uit
+  // waarom die er níet in zit, en dat mag geen test breken.
+  for (const verboden of ["onDrag", "draggable", "setSleep", "onDropHier"]) {
+    ok(`en sleept niet (${verboden})`, !lees.includes(verboden));
+  }
+});
 
 group("geen interne stof op een klantscherm", () => {
   // ⚠️ DIT IS DE VERIFICATIE VAN FASE 6, EN HIJ IS BEWUST EEN BRONCODECONTROLE.

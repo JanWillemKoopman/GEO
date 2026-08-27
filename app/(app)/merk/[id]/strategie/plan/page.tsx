@@ -7,6 +7,7 @@ import { loadPlan } from "@/lib/plans";
 import { backlogCount } from "@/lib/plan-backlog-data";
 import { PageHeader } from "@/components/page-header";
 import { PlanView } from "./plan-view";
+import { PlanReadView } from "./plan-read-view";
 import { CreatePlanBox } from "./create-plan-box";
 
 export const dynamic = "force-dynamic";
@@ -59,23 +60,45 @@ export default async function PlanPage({
 
   return (
     <div className="flex flex-col gap-6">
+      {/* ⚠️ Twee beschrijvingen, want dit scherm heeft sinds 27 augustus 2026
+          twee gedaanten. De oude tekst ("sleep beschikbare content items naar
+          de maand waarin ze geschreven moeten worden") stond er voor iedereen,
+          ook voor de klant die niet sleept en niet mag slepen. */}
       <PageHeader
         eyebrow="Strategie"
         title="Contentplan"
-        description="Plan content op basis van je clusteranalyses. Sleep beschikbare content items naar de maand waarin ze geschreven moeten worden."
+        description={
+          staff
+            ? "Plan content op basis van je clusteranalyses. Sleep beschikbare content items naar de maand waarin ze geschreven moeten worden."
+            : "Wat ORBIT ENGINE deze maand en volgende maand voor je schrijft, en wanneer het live moet."
+        }
       />
 
       {bundle ? (
-        <PlanView
-          profileId={id}
-          plan={bundle.plan}
-          months={bundle.months}
-          pages={bundle.pages}
-          backlog={bundle.backlog}
-          funnels={bundle.funnels}
-          topics={bundle.topics}
-          staff={staff}
-        />
+        staff ? (
+          <PlanView
+            profileId={id}
+            plan={bundle.plan}
+            months={bundle.months}
+            pages={bundle.pages}
+            backlog={bundle.backlog}
+            funnels={bundle.funnels}
+            topics={bundle.topics}
+            staff={staff}
+          />
+        ) : (
+          // De leesweergave. Zie `lib/plan-read.ts` voor het waarom: het
+          // sleepbord is het werkblad van de consultant, en het vroeg de
+          // zwaarste bediening van de app van de gebruiker die er het minst
+          // mee doet.
+          <PlanReadView
+            profileId={id}
+            plan={bundle.plan}
+            months={bundle.months}
+            pages={bundle.pages}
+            topics={bundle.topics}
+          />
+        )
       ) : (
         <CreatePlanBox
           profileId={id}

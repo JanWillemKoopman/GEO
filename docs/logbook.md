@@ -5360,3 +5360,22 @@ is een sleepbord voor de consultant dat aan de klant getoond wordt, de app verwi
 naar een scherm dat voor hem niet bestaat (`/instellingen/koppelingen` geeft hem een 404),
 "Merkprofiel" is één lade met drie deuren waarvan er twee hetzelfde dossier openen, en er is niets
 dat de klant tussen twee metingen terughaalt (één soort herinnering gebouwd, standaard uit).
+
+**Nagekomen op 27 augustus 2026: de leesweergave van het contentplan.** De vijfde bevinding uit
+dezelfde review, alsnog gebouwd. Het planscherm bediende twee gebruikers met tegengestelde
+behoeften vanaf één scherm: de consultant plant en heeft het sleepbord nodig, de klant plant niet en
+wil weten wat er deze maand voor hem geschreven wordt. De klant kreeg het bord, inclusief de uitleg
+"sleep beschikbare content items naar de maand waarin ze geschreven moeten worden", en tot vandaag
+was de enige knop die er voor hem toe deed ook nog eens niet van hem.
+
+Hij ziet nu deze maand, volgende maand, en de rest van het jaar ingeklapt. Bovenaan één zin over wat
+er van hem gevraagd wordt, met de volgorde waarin het werk vastloopt: publiceren gaat voor nakijken,
+want een goedgekeurde tekst die niet live staat is al betaald en levert nul op; nakijken gaat voor
+vrijgeven, want daar is nog niets voor betaald. De kalender bepaalt welke maand "deze maand" is en
+niet de status, anders kijkt een klant die zijn vorige maand liet liggen op 3 september nog steeds
+naar augustus.
+
+Eén handeling op dat scherm, en dezelfde als op het bord: een maand vrijgeven, met dezelfde dialoog
+en dezelfde route (conventie P2). Alles wat de indeling verandert blijft bij de consultant. Een
+broncodecontrole bewaakt dat de leesweergave geen sleepmachinerie krijgt, want dat is precies het
+soort ding dat er later per ongeluk in kruipt.
