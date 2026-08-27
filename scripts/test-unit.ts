@@ -6353,16 +6353,22 @@ group("de ronde: zes stappen, precies één aan de beurt", () => {
 });
 
 group("wie mag betaald werk starten", () => {
-  // ⚠️ De verschuiving van 27 augustus 2026: alleen een nieuwe verkoop blijft
-  // van de beheerder. Alles wat binnen het pakket van de klant valt, doet hij
-  // zelf, anders loopt zijn eerste sessie vast op een knop die weigert.
-  ok("een nieuw merk onderzoeken blijft van de beheerder", actionNeedsStaff("merk_onderzoeken"));
+  // ⚠️ Het besluit van 27 augustus 2026: de klant doet zijn eigen groeiwerk,
+  // helemaal. Tot die dag stonden alle zes op slot en zag hij vier volle
+  // knoppen die pas ná de klik weigerden, waarvan er één als taak in zijn eigen
+  // werklijst stond.
+  //
+  // De reputatieanalyse is de uitzondering, en het is er precies één: dat is
+  // geen stap in de maandelijkse ronde maar een los product dat apart gekocht
+  // wordt. De knop blijft zichtbaar met een uitnodiging ernaast, want een
+  // verborgen knop verkoopt niets.
   ok("een reputatieanalyse blijft van de beheerder", actionNeedsStaff("reputatie_starten"));
+  ok("een nieuw merk onderzoeken doet de klant zelf", !actionNeedsStaff("merk_onderzoeken"));
   ok("de meting bevestigen doet de klant zelf", !actionNeedsStaff("meting_starten"));
   ok("een cluster starten doet de klant zelf", !actionNeedsStaff("analyse_starten"));
   ok("content laten schrijven doet de klant zelf", !actionNeedsStaff("content_schrijven"));
   ok("een maand vrijgeven doet de klant zelf", !actionNeedsStaff("plan_goedkeuren"));
-  ok("precies twee handelingen staan op slot", STAFF_ONLY_ACTIONS.length === 2);
+  ok("precies één handeling staat op slot", STAFF_ONLY_ACTIONS.length === 1);
 
   // K2: elke melding is specifiek en klinkt als een uitnodiging, niet als een
   // dichte deur. Ze horen er ook te zijn voor de handelingen die nu open staan,
@@ -8607,30 +8613,36 @@ group("het overzicht: één hoofdgetal, één primaire knop, één rekensom", ()
 // ════════════════════════════════════════════════════════════════════════════
 console.log("\nDe grens tussen klant en beheerder (besluit 4)");
 
-group("het planbord is voor de consultant, de leesweergave voor de klant", () => {
+group("het contentplan heeft twee weergaven", () => {
   const scherm = readFileSync("app/(app)/merk/[id]/strategie/plan/page.tsx", "utf8");
 
-  // ⚠️ Het sleepbord (`plan-view.tsx`) is 1600 regels met een voorraadkolom,
-  // filters, twaalf maanden, sleepdoelen en een menu per regel. De klant kreeg
-  // dat tot 27 augustus 2026 ook te zien, inclusief de uitleg "sleep
-  // beschikbare content items naar de maand waarin ze geschreven moeten
-  // worden". Hij plant niet, hij leest en geeft vrij.
-  ok("de klant krijgt de leesweergave", scherm.includes("<PlanReadView"));
-  ok("het bord hangt aan de stafvlag", /staff \? \(\s*<PlanView/.test(scherm));
-  ok("en de paginabeschrijving verschilt per rol", /description=\{\s*staff/.test(scherm));
+  // ⚠️ Allebei bereikbaar voor iedereen; alleen het beginpunt verschilt. De
+  // klant landt op het overzicht en gaat met één klik naar het bord, de
+  // consultant landt op het bord. Tot 27 augustus 2026 was er alleen het bord,
+  // ook voor de klant, met bovenaan "sleep beschikbare content items naar de
+  // maand waarin ze geschreven moeten worden".
+  ok("de leesweergave bestaat", scherm.includes("<PlanReadView"));
+  ok("het bord bestaat", scherm.includes("<PlanView"));
+  ok("er is een schakelaar tussen de twee", scherm.includes("<WeergaveKiezer"));
+  ok(
+    "de rol bepaalt alleen het beginpunt",
+    scherm.includes('const bord = weergave ? weergave === "plannen" : staff;'),
+  );
+  // Een weergave in de URL wint van de rol, zodat een gedeelde link bij de
+  // klant en de consultant hetzelfde opent.
+  ok("en de URL wint van de rol", scherm.includes("searchParams"));
 
   const lees = readFileSync(
     "app/(app)/merk/[id]/strategie/plan/plan-read-view.tsx",
     "utf8",
   );
-  // ⚠️ Eén handeling op dat scherm: een maand vrijgeven. Alles wat de indeling
-  // verandert blijft op het bord. Twee schermen die allebei half kunnen
-  // plannen is erger dan één dat het helemaal kan en één dat leest.
+  // Eén handeling op de leesweergave: een maand vrijgeven. Alles wat de
+  // indeling verandert staat op het bord. Twee schermen die allebei half
+  // kunnen plannen is erger dan één dat het helemaal kan en één dat leest.
   ok("de leesweergave kan een maand vrijgeven", lees.includes("<ReleaseMonthButton"));
-  // De sleepmachinerie zelf, niet het woord: het commentaar bovenaan legt uit
-  // waarom die er níet in zit, en dat mag geen test breken.
+  ok("en wijst naar het bord om te schuiven", lees.includes("weergave=plannen"));
   for (const verboden of ["onDrag", "draggable", "setSleep", "onDropHier"]) {
-    ok(`en sleept niet (${verboden})`, !lees.includes(verboden));
+    ok(`en sleept zelf niet (${verboden})`, !lees.includes(verboden));
   }
 });
 

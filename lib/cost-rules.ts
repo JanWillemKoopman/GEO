@@ -21,56 +21,46 @@ export type CostlyAction =
   | "reputatie_starten";
 
 /**
- * De twee handelingen die alleen de beheerder start, en waarom juist deze twee.
+ * De enige handeling die alleen de beheerder start, en waarom juist deze.
  *
- * ── DE VERSCHUIVING VAN 27 AUGUSTUS 2026 ────────────────────────────────────
+ * ── HOE DIT GELOPEN IS ──────────────────────────────────────────────────────
  *
- * Tot vandaag stonden alle zes op slot (besluit 18, 11 augustus 2026). De
- * rekensom eronder klopte, een klant met acht onderwerpen kon op één middag
+ * Tot 27 augustus 2026 stonden alle zes op slot (besluit 18, 11 augustus 2026).
+ * De rekensom eronder klopte, een klant met acht onderwerpen kon op één middag
  * $6,56 uitgeven, maar het gevolg in het scherm was erger dan de rekening: de
  * klant zag vier volle knoppen die pas ná de klik weigerden, en de taak "Bekijk
  * en bevestig het concept" stond zelfs als tweede regel in zijn eigen werklijst
  * op de startpagina. Zijn eerste zelfstandige sessie liep dus vast op werk dat
  * hij betaald had.
  *
- * Wat blijft: de twee handelingen die géén werk binnen zijn pakket zijn.
- * Een nieuw merk onderzoeken is een nieuwe verkoop, en een reputatieanalyse is
- * een los product dat apart gekocht wordt. Bij die twee is "je consultant zet
- * dit voor je in gang" geen dichte deur maar een uitnodiging.
+ * Diezelfde dag is dat in twee stappen rechtgezet. Eerst gingen de vier
+ * handelingen binnen zijn pakket open. Daarna, op verzoek van de eigenaar, ook
+ * het onderzoeken van een nieuw merk: de klant doet zijn eigen groeiwerk, en
+ * daar hoort het aanmaken van een merk bij.
  *
- * Wat weg is: het slot op zijn eigen groeiwerk. Een cluster starten, de meting
- * bevestigen, content laten schrijven en een maand vrijgeven zijn precies
- * waarvoor hij betaalt, en dat is werk binnen het pakket dat hij al heeft.
+ * ── WAT ER OVERBLIJFT, EN WAAROM ────────────────────────────────────────────
  *
- * De rem op de rekening blijft bestaan, alleen niet meer deze: het budgetplafond
- * (`lib/spend-limit.ts`) telt per account door en geldt voor iedereen, ook voor
- * de beheerder.
+ * De reputatieanalyse. Dat is geen stap in de maandelijkse ronde maar een LOS
+ * PRODUCT dat een klant apart koopt, en het is de enige handeling in de app
+ * waarvoor dat geldt. De knop blijft daarom zichtbaar met een uitnodiging
+ * ernaast in plaats van verborgen: hij mag zien dat het bestaat, hij weet bij
+ * wie hij moet zijn, en zonder die knop verkoop je het nooit.
+ *
+ * De rem op de rekening is daarmee niet deze functie maar het budgetplafond
+ * (`lib/spend-limit.ts`). Dat telt per account door en geldt voor iedereen, ook
+ * voor de beheerder.
+ *
+ * ⚠️ Dit gaat alleen over betaald werk. Wie bij de beheerschermen mag
+ * (onboarding, diagnose, toewijzen, alle merken, koppelingen) is een andere
+ * vraag, en die staat in `lib/staff.ts` en in de schermen zelf.
  */
-export const STAFF_ONLY_ACTIONS: readonly CostlyAction[] = [
-  "merk_onderzoeken",
-  "reputatie_starten",
-] as const;
+export const STAFF_ONLY_ACTIONS: readonly CostlyAction[] = ["reputatie_starten"] as const;
 
 /** Mag alleen de beheerder deze handeling starten? Puur, dus testbaar. */
 export function actionNeedsStaff(action: CostlyAction): boolean {
   return STAFF_ONLY_ACTIONS.includes(action);
 }
 
-/**
- * De melding die de klant leest als hij een handeling niet zelf mag starten.
- *
- * Per handeling een eigen zin (K2 uit `docs/logbook.md`: elke foutmelding is
- * specifiek). "Geen toegang" zou hier het verkeerde beeld geven: hij mág het
- * zien, het is geen fout van hem, en het is simpelweg werk dat de consultant in
- * gang zet. Elke zin zegt daarom wát er gebeurt en bij wie hij moet zijn, en
- * geen enkele klinkt als een deur die dichtslaat.
- *
- * ⚠️ Sinds 27 augustus 2026 zijn alleen de eerste en de laatste in gebruik; de
- * vier ertussen horen bij handelingen die de klant nu zelf doet. Ze blijven
- * staan omdat het slot per handeling gezet wordt (`STAFF_ONLY_ACTIONS`) en niet
- * per zin: verandert dat besluit ooit terug, dan hoort de zin er meteen te zijn
- * in plaats van dat er "geen toegang" op het scherm verschijnt.
- */
 export const COST_DENIED: Record<CostlyAction, string> = {
   merk_onderzoeken:
     "Een nieuw merk onderzoeken doet je consultant voor je. Neem contact op, dan zetten we het klaar.",

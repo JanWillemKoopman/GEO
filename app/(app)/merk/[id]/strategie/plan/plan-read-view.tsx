@@ -13,14 +13,15 @@ import { ReleaseMonthButton } from "./release-month-button";
  * Het contentplan zoals de klant het leest.
  *
  * Deze maand, volgende maand, en de rest van het jaar ingeklapt als naslag. Het
- * waarom staat bij `lib/plan-read.ts`; kort: het sleepbord is het werkblad van
- * de consultant en vroeg de zwaarste bediening van de app van de gebruiker die
- * er het minst mee doet.
+ * waarom staat bij `lib/plan-read.ts`; kort: het sleepbord beantwoordt de
+ * planvraag, dit beantwoordt de leesvraag, en de klant komt meestal voor de
+ * tweede.
  *
  * ⚠️ Eén handeling op dit scherm, en dat is met opzet: een maand vrijgeven.
- * Alles wat de indeling verandert (slepen, verplaatsen, data zetten,
- * afwijzen) blijft op het bord. Twee schermen die allebei half kunnen plannen
- * is erger dan één scherm dat het helemaal kan en één dat leest.
+ * Alles wat de indeling verandert (slepen, verplaatsen, data zetten, afwijzen)
+ * staat op het bord, één klik verderop via de schakelaar bovenaan. Dit is dus
+ * geen beperking maar een rustiger beginpunt: twee schermen die allebei half
+ * kunnen plannen is erger dan één dat het helemaal kan en één dat leest.
  */
 export function PlanReadView({
   profileId,
@@ -137,8 +138,12 @@ export function PlanReadView({
         <Link href={`/merk/${profileId}/strategie/bibliotheek`} className="underline">
           bibliotheek
         </Link>{" "}
-        om na te lezen en te publiceren. Wil je de indeling anders, overleg dat dan met je
-        consultant.
+        om na te lezen en te publiceren. Wil je zelf schuiven met wat wanneer geschreven wordt, ga
+        dan naar{" "}
+        <Link href={`/merk/${profileId}/strategie/plan?weergave=plannen`} className="underline">
+          Plannen
+        </Link>
+        .
       </p>
     </div>
   );

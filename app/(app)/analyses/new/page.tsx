@@ -1,7 +1,5 @@
 import Link from "next/link";
 import { requireUser } from "@/lib/auth";
-import { isStaff } from "@/lib/staff";
-import { COST_DENIED } from "@/lib/cost-rules";
 import { emailsEnabled } from "@/lib/env";
 import { createClient } from "@/lib/supabase/server";
 import type { Profile } from "@/lib/types/database";
@@ -16,8 +14,7 @@ export default async function NewAnalysisPage({
   searchParams: Promise<{ merk?: string }>;
 }) {
   const { merk } = await searchParams;
-  const user = await requireUser();
-  const staff = await isStaff(user.id);
+  await requireUser();
   const supabase = await createClient();
 
   const { data } = await supabase
@@ -52,18 +49,12 @@ export default async function NewAnalysisPage({
         <div className="card flex flex-col items-center gap-4 py-12 text-center">
           <h2 className="text-xl font-semibold">Eerst een merk</h2>
           <p className="max-w-md text-secondary">
-            {staff
-              ? "ORBIT ENGINE meet altijd binnen een merk. Voeg er één toe, en daarna koppel je hier zoveel clusters aan als je wilt, één per product of onderwerp."
-              : `ORBIT ENGINE meet altijd binnen een merk, en er staat er nog geen klaar. ${COST_DENIED.merk_onderzoeken}`}
+            ORBIT ENGINE meet altijd binnen een merk. Voeg er één toe, en daarna koppel je hier zoveel
+            clusters aan als je wilt, één per product of onderwerp.
           </p>
-          {/* Een merk toevoegen kost geld en blijft van de beheerder
-              (`lib/cost-rules.ts`). De klant kreeg hier tot 27 augustus 2026
-              een knop die na het formulier weigerde. */}
-          {staff && (
-            <Link href="/merk/nieuw" className="btn-primary mt-2">
-              Merk toevoegen
-            </Link>
-          )}
+          <Link href="/merk/nieuw" className="btn-primary mt-2">
+            Merk toevoegen
+          </Link>
         </div>
       ) : (
         /* Staat de mail uit, dan verbergt het formulier het vinkje "mail me

@@ -5379,3 +5379,22 @@ Eén handeling op dat scherm, en dezelfde als op het bord: een maand vrijgeven, 
 en dezelfde route (conventie P2). Alles wat de indeling verandert blijft bij de consultant. Een
 broncodecontrole bewaakt dat de leesweergave geen sleepmachinerie krijgt, want dat is precies het
 soort ding dat er later per ongeluk in kruipt.
+
+**Bijgesteld op 27 augustus 2026, later diezelfde dag: de klant mag alles behalve twee dingen.** Op
+verzoek van de eigenaar is het slot op betaald werk verder open gegaan dan de review voorstelde.
+Wat overblijft is één handeling: de reputatieanalyse. Dat is geen stap in de maandelijkse ronde maar
+een los product dat apart gekocht wordt, en de knop blijft er staan met een uitnodiging ernaast,
+want een verborgen knop verkoopt niets. Een nieuw merk laten onderzoeken kan de klant nu wel, en de
+twee schermen waar dat begint (`/merk` en `/analyses/new`) tonen hun knop weer aan iedereen.
+
+Daarnaast is het contentplan geen twee schermen voor twee rollen meer, maar twee weergaven voor
+iedereen, met een schakelaar erboven. Hetzelfde plan beantwoordt twee vragen: "welke pagina komt in
+welke maand" is een planvraag en daar is het bord voor, "wat gebeurt er deze maand en wat moet ik
+doen" is een leesvraag en die stelt de klant het vaakst. De rol bepaalt alleen nog waar je landt, en
+een weergave in de URL wint van de rol zodat een gedeelde link bij beiden hetzelfde opent.
+
+De grens ligt daarmee niet meer bij wat geld kost, maar bij **de beheerschermen**: onboarding,
+diagnose, toewijzen, alle merken en koppelingen. Die vijf staan achter `isStaff` met een
+`notFound()`, en het hele hoofdstuk Admin verschijnt alleen in de zijbalk van staf. Eén doodlopende
+weg daarheen is meteen dichtgezet: Zoekverkeer bood de klant als enige knop "Naar de koppeling", en
+dat scherm bestaat voor hem niet. Daar staat nu de zin dat zijn consultant de koppeling legt.

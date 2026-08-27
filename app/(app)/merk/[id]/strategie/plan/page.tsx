@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getProfile } from "@/lib/profiles";
 import { requireUser } from "@/lib/auth";
@@ -14,32 +15,43 @@ export const dynamic = "force-dynamic";
 export const metadata = { title: "Contentplan" };
 
 /**
- * Het contentplan van één merk.
+ * Het contentplan, in twee weergaven die iedereen mag zien.
  *
- * Twee toestanden: er is een plan, of er is er nog geen. Dat tweede is geen lege
- * lijst maar een eigen scherm dat uitlegt wat er gaat gebeuren en wat ervoor
- * nodig is (`docs/ux-design.md` §4: een paneel dat niets te tonen heeft,
- * verdwijnt niet, het toont waaróm het leeg is).
+ * ── WAAROM TWEE ─────────────────────────────────────────────────────────────
+ *
+ * Hetzelfde plan beantwoordt twee verschillende vragen. "Wat gebeurt er deze
+ * maand en wat moet ik doen" is een leesvraag; daar hoort een lijstje bij.
+ * "Welke pagina komt in welke maand" is een planvraag; daar hoort het sleepbord
+ * bij, met de voorraad ernaast.
+ *
+ * Tot 27 augustus 2026 was er alleen het bord, ook voor de klant, met bovenaan
+ * de uitleg "sleep beschikbare content items naar de maand waarin ze geschreven
+ * moeten worden". Dat vroeg de zwaarste bediening van de app van de gebruiker
+ * die er het minst vaak komt.
+ *
+ * ⚠️ Het verschil zit alleen in wat je als eerste ziet, niet in wat je mag. De
+ * klant landt op het overzicht en gaat met één klik naar het bord; de
+ * consultant landt op het bord. Beiden kunnen alles wat het plan kan. Wie een
+ * weergave in de URL meegeeft (`?weergave=`) krijgt die, ongeacht rol, zodat
+ * een gedeelde link bij beiden hetzelfde opent.
  */
 export default async function PlanPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ weergave?: string }>;
 }) {
   const { id } = await params;
+  const { weergave } = await searchParams;
   const profile = await getProfile(id);
   if (!profile) notFound();
   const user = await requireUser();
-  // Besluit 18: betaald werk start alleen de beheerder. De klant ziet het plan
-  // volledig en keurt in het gesprek goed; de knop die geld kost, staat er voor
-  // hem niet. Een knop tonen die een 403 oplevert is erger dan geen knop.
   const staff = await isStaff(user.id);
 
   const admin = createAdminClient();
   const bundle = await loadPlan(admin, id);
 
-  // Het pakket bepaalt de quota, en zonder pakket is er geen plan te maken.
-  // Dat hoort het scherm te zeggen in plaats van een knop te tonen die faalt.
   const { data: account } = profile.account_id
     ? await admin
         .from("accounts")
@@ -50,32 +62,26 @@ export default async function PlanPage({
 
   const quota = (account?.package_pages_per_month as number | null) ?? null;
 
-  // ⚠️ De voorwaarde voor een plan is niet meer "er zijn onderwerpen" maar "er
-  // is minstens één cluster gemeten". Een plan opstellen uit onderwerpen die
-  // nooit gemeten zijn, leverde precies de 120 rijen op waarvan er 103 een jaar
-  // lang op een meting stonden te wachten. Alleen tellen als er nog geen plan
-  // is: staat het scherm hieronder al, dan heeft `loadPlan()` de voorraad net
-  // gesynchroniseerd.
   const kansen = bundle ? 0 : await backlogCount(admin, id);
+
+  const bord = weergave ? weergave === "plannen" : staff;
 
   return (
     <div className="flex flex-col gap-6">
-      {/* ⚠️ Twee beschrijvingen, want dit scherm heeft sinds 27 augustus 2026
-          twee gedaanten. De oude tekst ("sleep beschikbare content items naar
-          de maand waarin ze geschreven moeten worden") stond er voor iedereen,
-          ook voor de klant die niet sleept en niet mag slepen. */}
       <PageHeader
         eyebrow="Strategie"
         title="Contentplan"
         description={
-          staff
-            ? "Plan content op basis van je clusteranalyses. Sleep beschikbare content items naar de maand waarin ze geschreven moeten worden."
+          bord
+            ? "Sleep content naar de maand waarin het geschreven moet worden. Elke maand geef je apart vrij."
             : "Wat ORBIT ENGINE deze maand en volgende maand voor je schrijft, en wanneer het live moet."
         }
       />
 
+      {bundle && <WeergaveKiezer profileId={id} bord={bord} />}
+
       {bundle ? (
-        staff ? (
+        bord ? (
           <PlanView
             profileId={id}
             plan={bundle.plan}
@@ -87,10 +93,6 @@ export default async function PlanPage({
             staff={staff}
           />
         ) : (
-          // De leesweergave. Zie `lib/plan-read.ts` voor het waarom: het
-          // sleepbord is het werkblad van de consultant, en het vroeg de
-          // zwaarste bediening van de app van de gebruiker die er het minst
-          // mee doet.
           <PlanReadView
             profileId={id}
             plan={bundle.plan}
@@ -109,5 +111,50 @@ export default async function PlanPage({
         />
       )}
     </div>
+  );
+}
+
+/**
+ * De schakelaar tussen de twee weergaven.
+ *
+ * Twee links en geen tabbladen: dit is één scherm dat op twee manieren te lezen
+ * is, en een link houdt de keuze deelbaar. Dezelfde regel als bij de
+ * hoofdstukken van het clusterdossier (`docs/ux-design.md`).
+ */
+function WeergaveKiezer({ profileId, bord }: { profileId: string; bord: boolean }) {
+  const basis = `/merk/${profileId}/strategie/plan`;
+  return (
+    <div className="no-print flex flex-wrap items-center gap-2">
+      <Keuze href={`${basis}?weergave=overzicht`} actief={!bord}>
+        Overzicht
+      </Keuze>
+      <Keuze href={`${basis}?weergave=plannen`} actief={bord}>
+        Plannen
+      </Keuze>
+    </div>
+  );
+}
+
+function Keuze({
+  href,
+  actief,
+  children,
+}: {
+  href: string;
+  actief: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <Link
+      href={href}
+      aria-current={actief ? "page" : undefined}
+      className="rounded-[var(--radius-md)] px-3 py-1.5 text-sm font-medium transition-colors hover:bg-[var(--wash-hover)]"
+      style={{
+        color: actief ? "var(--text-primary)" : "var(--text-secondary)",
+        background: actief ? "var(--bg-elevated)" : undefined,
+      }}
+    >
+      {children}
+    </Link>
   );
 }

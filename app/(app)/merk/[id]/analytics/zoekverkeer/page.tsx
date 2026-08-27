@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getProfile } from "@/lib/profiles";
 import { requireUser } from "@/lib/auth";
+import { isStaff } from "@/lib/staff";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { PageHeader } from "@/components/page-header";
 import { TrafficChart, type ScorePunt } from "@/components/traffic-chart";
@@ -49,7 +50,8 @@ export default async function ZoekverkeerPage({
   const { id } = await params;
   const profile = await getProfile(id);
   if (!profile) notFound();
-  await requireUser();
+  const user = await requireUser();
+  const staff = await isStaff(user.id);
 
   const admin = createAdminClient();
   const { data: dagRijen } = await admin
@@ -84,9 +86,22 @@ export default async function ZoekverkeerPage({
               De laatste synchronisatie liep vast: {profile.gsc_last_error}
             </p>
           )}
-          <Link href="/instellingen/koppelingen" className="btn-primary w-fit">
-            Naar de koppeling
-          </Link>
+          {/* ⚠️ Hier stond tot 27 augustus 2026 een hoofdknop naar
+              `/instellingen/koppelingen`. Dat scherm is afgeschermd voor de
+              beheerder en gaf de klant een pagina-niet-gevonden: de enige knop
+              op dit scherm was dus ook de enige uitweg, en die was stuk. Het
+              koppelen zelf blijft beheerwerk, want het vraagt om toegang tot
+              het Google-account van de klant. */}
+          {staff ? (
+            <Link href="/instellingen/koppelingen" className="btn-primary w-fit">
+              Naar de koppeling
+            </Link>
+          ) : (
+            <p className="text-sm text-muted">
+              Je consultant legt de koppeling voor je. Laat weten dat je hem wilt, dan staat je
+              zoekverkeer hier binnen een dag.
+            </p>
+          )}
         </div>
       </div>
     );

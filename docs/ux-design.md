@@ -531,8 +531,13 @@ volgordeknoppen en een menu per pagina. De klant plant niet. Hij wil weten wat e
 hem geschreven wordt en wat hij zelf moet doen. Toch kreeg hij hetzelfde bord, met bovenaan de
 uitleg "sleep beschikbare content items naar de maand waarin ze geschreven moeten worden".
 
-**De klant krijgt sinds vandaag een leesweergave** (`plan-read-view.tsx`, met de rekenlaag in
-`lib/plan-read.ts`). Vier blokken, in deze volgorde:
+**Er zijn sinds vandaag twee weergaven, allebei voor iedereen.** Een schakelaar bovenaan het scherm
+zet ze om, en de rol bepaalt alleen waar je landt: de klant op Overzicht, de consultant op Plannen.
+Een weergave in de URL (`?weergave=`) wint van de rol, zodat een gedeelde link bij beiden hetzelfde
+opent. Het bord is ongewijzigd; de klant mag daar alles wat de consultant er mag.
+
+**Overzicht** (`plan-read-view.tsx`, met de rekenlaag in `lib/plan-read.ts`). Vier blokken, in deze
+volgorde:
 
 1. **Wat er van jou gevraagd wordt**, één zin. De volgorde erin is de volgorde waarin het werk
    vastloopt: publiceren gaat voor nakijken (een goedgekeurde tekst die niet live staat, is al
@@ -547,11 +552,12 @@ hoort september te zien, ook als hij augustus nooit heeft vrijgegeven. Zou de st
 dan blijft hij naar een voorbije maand kijken en ziet hij zijn eigen achterstand aan voor de stand
 van nu.
 
-⚠️ **Eén handeling, en alleen die.** Vrijgeven staat op beide schermen, met dezelfde dialoog en
-dezelfde route (conventie P2). Alles wat de indeling verandert, slepen, verplaatsen, data zetten,
-afwijzen, blijft op het bord. Twee schermen die allebei half kunnen plannen is erger dan één dat
-het helemaal kan en één dat leest. Een broncodecontrole in `scripts/test-unit.ts` bewaakt dat de
-leesweergave geen sleepmachinerie krijgt.
+⚠️ **Eén handeling op Overzicht, en alleen die.** Vrijgeven staat op beide weergaven, met dezelfde
+dialoog en dezelfde route (conventie P2). Alles wat de indeling verandert, slepen, verplaatsen, data
+zetten, afwijzen, staat op het bord, één klik verderop. Twee schermen die allebei half kunnen
+plannen is erger dan één dat het helemaal kan en één dat leest. Een broncodecontrole in
+`scripts/test-unit.ts` bewaakt dat de leesweergave geen sleepmachinerie krijgt en dat de schakelaar
+er staat.
 
 ### De ronde staat bovenaan, en de score staat er weer onder (27 augustus 2026)
 

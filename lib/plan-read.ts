@@ -4,24 +4,22 @@ import type { PlanMonthStatus, PlannedPageStatus } from "@/lib/types/database";
  * De leesweergave van het contentplan: welke maanden de klant ziet, en wat er
  * van hem gevraagd wordt.
  *
- * ── WAAROM DE KLANT EEN ANDER SCHERM KRIJGT ─────────────────────────────────
+ * ── WAAROM ER EEN TWEEDE WEERGAVE IS ────────────────────────────────────────
  *
- * Het planscherm is een sleepbord: een voorraadkolom met zoekveld en filters,
- * twaalf maanden, een publicatiedatum per regel, volgordeknoppen en een menu
- * per pagina. Dat is het werkblad van de consultant, en het is goed in wat het
- * doet. Maar het vroeg de zwaarste bediening van de hele app van de gebruiker
- * die er het minst mee doet: de klant plant niet, hij wil weten wat er deze
- * maand voor hem geschreven wordt en wat hij zelf moet doen.
+ * Hetzelfde plan beantwoordt twee vragen. "Welke pagina komt in welke maand" is
+ * een planvraag, en daar is het sleepbord voor: een voorraadkolom met zoekveld
+ * en filters, twaalf maanden, een publicatiedatum per regel, volgordeknoppen en
+ * een menu per pagina. "Wat gebeurt er deze maand en wat moet ik doen" is een
+ * leesvraag, en die stelt de klant het vaakst.
  *
- * De uitleg bovenaan het scherm zei intussen tegen iedereen "sleep beschikbare
- * content items naar de maand waarin ze geschreven moeten worden". Dat is de
- * kortste samenvatting van het probleem.
+ * Tot 27 augustus 2026 was er alleen het bord, met bovenaan de uitleg "sleep
+ * beschikbare content items naar de maand waarin ze geschreven moeten worden".
+ * Dat vroeg de zwaarste bediening van de hele app van de gebruiker die er het
+ * minst vaak komt.
  *
- * ── WAT DE KLANT WÉL ZELF DOET ──────────────────────────────────────────────
- *
- * Een maand vrijgeven, sinds 27 augustus 2026 (`lib/cost-rules.ts`). Dat is de
- * enige knop die het plan in beweging zet, en de enige die in deze weergave
- * hoort. Alles wat de indeling verandert blijft op het bord.
+ * ⚠️ Het is een beginpunt en geen beperking. De klant mag alles wat het plan
+ * kan, inclusief slepen en vrijgeven; hij landt alleen op de rustige weergave
+ * en gaat met één klik naar het bord. De consultant landt op het bord.
  *
  * ── WAAROM TWEE MAANDEN EN NIET TWAALF ──────────────────────────────────────
  *
@@ -104,7 +102,7 @@ export function planStap(input: StapInput): string {
       : `${input.terGoedkeuring} teksten wachten op je akkoord.`;
   }
   if (input.paginas === 0) {
-    return "Er staat voor deze maand nog niets ingepland. Je consultant vult hem samen met jou.";
+    return "Er staat voor deze maand nog niets ingepland. Vul hem bij Plannen, of laat je consultant meekijken.";
   }
   if (input.maandStatus !== "goedgekeurd") {
     return "Deze maand wacht op jouw vrijgave. Daarna begint ORBIT ENGINE te schrijven.";
