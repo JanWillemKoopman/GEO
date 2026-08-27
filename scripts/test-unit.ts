@@ -8646,6 +8646,53 @@ group("het contentplan heeft twee weergaven", () => {
   }
 });
 
+group("een klant ziet nooit twee merken tegelijk", () => {
+  // ⚠️ DE REGEL: geen enkel klantscherm toont gegevens van meer dan één merk.
+  // Dat was tot 27 augustus 2026 een filter op het scherm en geen grens in de
+  // query: `loadWorkAcross()` haalde élke analyse van de gebruiker op en de
+  // twee schermen die hem aanriepen filterden daarna zelf. Filteren is een
+  // intentie, de query is de garantie (conventie 1). Bij een bureau met drie
+  // merken in één account kost één vergeten filter de klantrelatie.
+  // ⚠️ Zonder commentaar, want juist de toelichting bovenaan die bestanden
+  // noemt de oude namen om uit te leggen waarom ze weg zijn. Een test die daar
+  // op valt, dwingt je de uitleg te schrappen, en dan is de reden weg.
+  const zonderUitleg = (bron: string) =>
+    bron.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
+
+  const werk = zonderUitleg(readFileSync("lib/work.ts", "utf8"));
+  ok("de werklader kent geen 'over alle merken heen' meer", !werk.includes("loadWorkAcross"));
+  ok(
+    "en het merk gaat mee de database in",
+    /\.eq\("user_id", userId\)\.eq\("profile_id", profileId\)/.test(werk),
+  );
+
+  const dash = zonderUitleg(readFileSync("lib/dashboard.ts", "utf8"));
+  ok("het dashboard vraagt om een merk", /loadDashboard\([\s\S]{0,120}profileId: string/.test(dash));
+  // De twee aggregaten die over merken heen telden zijn weg met het scherm dat
+  // ze toonde. Een aggregaat zonder scherm is precies wat er per ongeluk
+  // terugkomt op een klantscherm.
+  for (const dood of ["biggestChange", "publishedThisMonth", "openOffsiteTasks"]) {
+    ok(`en telt niet meer over merken heen (${dood})`, !dash.includes(dood));
+  }
+
+  const overzicht = readFileSync("app/(app)/merk/[id]/page.tsx", "utf8");
+  ok("het overzicht geeft zijn merk mee", overzicht.includes("loadBrandWork(supabase, user.id, id)"));
+  const clusters = readFileSync(
+    "app/(app)/merk/[id]/strategie/clusters/page.tsx",
+    "utf8",
+  );
+  ok("de clusterlijst ook", clusters.includes("loadDashboard(supabase, user.id, id)"));
+
+  // Het enige klantscherm waar meer dan één merk in beeld kán komen is de
+  // merkenlijst, en dat is een keuzemenu: namen, geen cijfers. Heeft de klant
+  // er maar één, dan slaat hij die tussenstap over.
+  const merken = readFileSync("app/(app)/merk/page.tsx", "utf8");
+  ok(
+    "één merk betekent geen keuzelijst",
+    merken.includes("if (!staff && profiles.length === 1) redirect("),
+  );
+});
+
 group("geen interne stof op een klantscherm", () => {
   // ⚠️ DIT IS DE VERIFICATIE VAN FASE 6, EN HIJ IS BEWUST EEN BRONCODECONTROLE.
   //

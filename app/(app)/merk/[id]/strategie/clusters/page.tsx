@@ -46,9 +46,11 @@ export default async function ClustersPage({
 
   const user = await requireUser();
   const supabase = await createClient();
-  const dashboard = await loadDashboard(supabase, user.id);
+  // Per merk, en het merk gaat mee de query in (`lib/work.ts`, `loadBrandWork`):
+  // een klant ziet nooit clusters van een ander merk in deze lijst.
+  const dashboard = await loadDashboard(supabase, user.id, id);
 
-  const analyses = dashboard.analyses.filter((a) => a.profile_id === id);
+  const analyses = [...dashboard.analyses];
 
   // "Wacht op jouw goedkeuring" bovenaan (abcplan.md §3.4). Sinds E ("centrale
   // foutmeldingenplek") telt ook `whoseTurn === "jij"` mee, niet alleen

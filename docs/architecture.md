@@ -88,6 +88,27 @@ Daarom pg_cron.
 - **Registratie:** twee lagen, Supabase "Allow new users to sign up" (harde poort, ook tegen
   directe API-aanroepen) en `SIGNUPS_ENABLED` in de app (verbergt UI, blokkeert de server action).
 
+### Eén merk tegelijk, altijd
+
+Een klant ziet nooit gegevens van meer dan één merk naast elkaar. Dat staat op drie plekken vast, en
+de eerste twee zijn de echte garantie:
+
+1. **De rechten.** `profiles` en `analyses` hebben RLS-policies die lezen beperken tot je eigen
+   merken, de merken van je account, en staf (migratie `0046`). Een klant die het adres van een
+   ander merk intikt krijgt `notFound()`, want `getProfile()` leest via die policies.
+2. **De query.** `loadBrandWork()` en `loadDashboard()` krijgen het merk als verplicht argument mee
+   en filteren erop in de database. Tot 27 augustus 2026 haalden ze élke analyse van de gebruiker op
+   en filterde het scherm daarna zelf; filteren is een intentie, de query is de garantie
+   (conventie 1). De twee aggregaten die over merken heen telden (`stats`, `biggestChange`) zijn
+   verwijderd met het scherm dat ze toonde.
+3. **De schermen.** Elk klantscherm hangt onder `/merk/[id]/` of onder één cluster, en dat cluster
+   hoort bij één merk. De enige uitzondering is de merkenlijst `/merk`, en dat is een keuzemenu:
+   namen en status, geen cijfers. Een klant met precies één merk wordt daarvandaan doorgestuurd naar
+   dat merk, dus hij ziet die lijst nooit.
+
+⚠️ Wat hier bewust buiten valt: `/instellingen` toont de accounts waar de gebruiker zelf lid van is,
+met de teamleden erbij. Dat zijn zijn eigen accounts en geen merkgegevens.
+
 ### Betaald werk: twee onafhankelijke remmen
 
 Elf routes zetten werk in gang dat geld kost. Ze stellen allemaal dezelfde twee vragen, in deze

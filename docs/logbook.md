@@ -5398,3 +5398,27 @@ diagnose, toewijzen, alle merken en koppelingen. Die vijf staan achter `isStaff`
 `notFound()`, en het hele hoofdstuk Admin verschijnt alleen in de zijbalk van staf. Eén doodlopende
 weg daarheen is meteen dichtgezet: Zoekverkeer bood de klant als enige knop "Naar de koppeling", en
 dat scherm bestaat voor hem niet. Daar staat nu de zin dat zijn consultant de koppeling legt.
+
+**Nagekomen op 27 augustus 2026: één merk tegelijk, en dat is nu een grens in de query.** De
+tenancy klopte al: RLS beperkt `profiles` en `analyses` tot je eigen merken plus die van je account
+(migratie `0046`), en `getProfile()` leest via die policies, dus een klant die het adres van een
+ander merk intikt krijgt een pagina-niet-gevonden. Wat er níet klopte was de laag erboven.
+`loadWorkAcross()` haalde élke analyse van de gebruiker op, over al zijn merken heen, en de twee
+schermen die hem aanriepen filterden daarna zelf op het merk waar de klant naar keek.
+
+Dat werkte, en dat is precies het probleem: filteren is een intentie, de query is de garantie
+(conventie 1). Eén vergeten filter op een volgend scherm en er staan cijfers van een ander merk in
+het overzicht van een klant. Bij een bureau met drie merken in één account is dat geen theorie maar
+een klantrelatie. De functie heet nu `loadBrandWork()`, het merk is een verplicht argument zonder
+standaardwaarde, en hij gaat mee de database in. `loadDashboard()` idem. Wie een nieuw scherm bouwt,
+moet van de compiler een merk kiezen.
+
+Twee aggregaten die over merken heen telden zijn meegegaan: `stats` (drie tellingen) en
+`biggestChange` (de grootste betekenisvolle verandering), samen met `components/dashboard-stats.tsx`.
+Ze werden getoond op de losse clusterlijst, en die is diezelfde dag een doorverwijzing geworden.
+Een aggregaat over merken heen dat geen scherm meer heeft, is precies wat er later per ongeluk
+terugkomt op een klantscherm.
+
+De merkenlijst `/merk` is het enige klantscherm waar meer dan één merk in beeld kan komen, en dat is
+een keuzemenu: namen en status, geen cijfers. Een klant met precies één merk wordt daarvandaan
+doorgestuurd naar dat merk zelf, dus in het normale geval ziet hij die lijst nooit.

@@ -135,19 +135,39 @@ export async function loadWork(db: Db, analysis: Analysis): Promise<WorkItem[]> 
 }
 
 /**
- * Het werk over alle analyses heen, voor het dashboard.
+ * Al het werk binnen ÉÉN merk.
  *
- * Lezen loopt via RLS (SELECT-only, gefilterd op user_id); de expliciete
- * user-filter hieronder is een tweede slot op dezelfde deur.
+ * Lezen loopt via RLS (SELECT-only, gefilterd op eigenaar en account); de
+ * expliciete filters hieronder zijn een tweede slot op dezelfde deur.
+ *
+ * ── WAAROM HET MERK EEN VERPLICHT ARGUMENT IS ───────────────────────────────
+ *
+ * Deze functie heette tot 27 augustus 2026 `loadWorkAcross` en haalde élke
+ * analyse van de gebruiker op, over al zijn merken heen. De twee schermen die
+ * hem aanriepen filterden daarna zelf op het merk waar de klant naar keek.
+ *
+ * Dat werkte, en dat is precies het probleem: filteren is een intentie, de
+ * query is de garantie (conventie 1). Eén vergeten filter op een nieuw scherm
+ * en de klant ziet cijfers van een ander merk in zijn eigen overzicht. Bij een
+ * bureau met drie merken in één account is dat geen theorie.
+ *
+ * De regel is sinds vandaag hard: een klant ziet nooit gegevens van meer dan
+ * één merk tegelijk. Het merk is daarom een argument zonder standaardwaarde en
+ * gaat mee de database in. Wie een nieuw scherm bouwt, moet van de compiler een
+ * merk kiezen in plaats van er stilzwijgend alles bij te krijgen.
  */
-export async function loadWorkAcross(db: Db, userId: string): Promise<{
+export async function loadBrandWork(
+  db: Db,
+  userId: string,
+  profileId: string,
+): Promise<{
   analyses: Analysis[];
   work: WorkItem[];
 }> {
   // Gearchiveerde analyses tellen nergens mee, niet in de lijst, niet in de
   // werkitems, niet in de kaartcijfers (migratie 0044).
   const { data } = await activeOnly(
-    db.from("analyses").select("*").eq("user_id", userId),
+    db.from("analyses").select("*").eq("user_id", userId).eq("profile_id", profileId),
   ).order("created_at", { ascending: false });
 
   const analyses = (data ?? []) as Analysis[];

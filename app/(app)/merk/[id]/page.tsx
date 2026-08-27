@@ -21,7 +21,7 @@ import { InfoHint } from "@/components/info-hint";
 import { loadGepubliceerd } from "@/lib/overview-data";
 import { loadLoop } from "@/lib/insights-data";
 import type { Insight } from "@/lib/insights";
-import { loadWorkAcross, sortWork, workChipTone, workKindIcon, WORK_KIND_LABEL } from "@/lib/work";
+import { loadBrandWork, sortWork, workChipTone, workKindIcon, WORK_KIND_LABEL } from "@/lib/work";
 import type { WorkItem } from "@/lib/work";
 import { activiteit, type AfgerondeTaak } from "@/lib/activity";
 import { formatDateShort, formatRelativeTime } from "@/lib/format";
@@ -168,7 +168,7 @@ export default async function OverzichtPage({
   const admin = createAdminClient();
 
   const [{ analyses, work }, gepubliceerd, lus, { data: planRow }] = await Promise.all([
-    loadWorkAcross(supabase, user.id),
+    loadBrandWork(supabase, user.id, id),
     loadGepubliceerd(admin, id),
     loadLoop(admin, id),
     admin
@@ -209,7 +209,10 @@ export default async function OverzichtPage({
     });
   }
 
-  const eigenClusters = analyses.filter((a) => a.profile_id === id);
+  // ⚠️ `loadBrandWork` haalt sinds 27 augustus 2026 alléén dit merk op, dus hier
+  // valt niets meer te filteren. Dat is het punt: de grens staat in de query en
+  // niet in een filter dat een volgend scherm kan vergeten.
+  const eigenClusters = analyses;
   const eigenIds = new Set(eigenClusters.map((a) => a.id));
 
   // ── De vier cijfers bovenaan ─────────────────────────────────────────────
@@ -231,7 +234,7 @@ export default async function OverzichtPage({
   });
 
   // ── De wachtrij, alleen wat op de klant wacht ────────────────────────────
-  const eigenAlleWerk = work.filter((w) => eigenIds.has(w.analysisId));
+  const eigenAlleWerk = work;
   const eigenWerk = sortWork(eigenAlleWerk.filter((w) => w.state === "nu"));
   const wachtrij = eigenWerk.slice(0, MAX_WACHTRIJ);
   const restWachtrij = eigenWerk.length - wachtrij.length;

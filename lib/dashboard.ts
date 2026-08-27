@@ -9,14 +9,13 @@ import "server-only";
  * deze week doen?"*
  *
  * Sinds het werkmodel (`lib/work.ts`) leidt dit bestand het werk niet meer zelf
- * af. Het is een dunne bovenlaag: het werk komt uit `loadWorkAcross()`, hier
+ * af. Het is een dunne bovenlaag: het werk komt uit `loadBrandWork()`, hier
  * komen alleen de cijfers bij die je pas over analyses heen kunt berekenen.
  * Zo kan het dashboard niet meer iets anders zeggen dan het dossier zegt over
  * hetzelfde item. Dat waren voorheen twee losse waarheden.
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { changeIsMeaningful } from "@/lib/stats/uncertainty";
-import { loadWorkAcross, type WorkItem } from "@/lib/work";
+import { loadBrandWork, type WorkItem } from "@/lib/work";
 import { readRecommendations } from "@/lib/pipeline/recommendation";
 import { ownMentionCount } from "@/lib/pipeline/brand-rankings";
 import type { Analysis, VisibilityScore } from "@/lib/types/database";
@@ -39,44 +38,38 @@ export interface AnalysisCardMetrics {
 
 export interface DashboardData {
   analyses: Analysis[];
-  /** Al het werk, over alle analyses heen, hetzelfde model als in het dossier. */
+  /** Al het werk binnen dit merk, hetzelfde model als in het dossier. */
   work: WorkItem[];
-  stats: {
-    /** Pagina's die deze maand live zijn gegaan. */
-    publishedThisMonth: number;
-    /** Klaargezette pagina's die nog niet gepubliceerd zijn. */
-    waitingToPublish: number;
-    /** Openstaande off-site taken. */
-    openOffsiteTasks: number;
-  };
-  /** De grootste betekenisvolle verandering over alle analyses heen. */
-  biggestChange: {
-    analysisId: string;
-    analysisName: string;
-    delta: number;
-  } | null;
+  /**
+   * ⚠️ Hier stonden `stats` en `biggestChange`: drie tellingen en de grootste
+   * verandering, allebei OVER ALLE MERKEN HEEN. Ze werden getoond door
+   * `DashboardStats` op de losse clusterlijst, en die lijst is op 27 augustus
+   * 2026 een doorverwijzing geworden. Daarmee waren het aggregaten zonder
+   * scherm, en een aggregaat over merken heen dat blijft rondslingeren is
+   * precies wat er per ongeluk terugkomt op een klantscherm. De git-historie
+   * is het archief.
+   */
   /** De kaartcijfers van 3.4, per analyse-id. */
   cardMetrics: Record<string, AnalysisCardMetrics>;
 }
 
-export async function loadDashboard(db: Db, userId: string): Promise<DashboardData> {
-  const { analyses, work } = await loadWorkAcross(db, userId);
+/**
+ * ⚠️ Per merk, en het merk is verplicht. Zie `loadBrandWork()` voor het waarom:
+ * een klant ziet nooit gegevens van meer dan één merk tegelijk, en die regel
+ * hoort in de query te staan en niet in een filter op het scherm.
+ */
+export async function loadDashboard(
+  db: Db,
+  userId: string,
+  profileId: string,
+): Promise<DashboardData> {
+  const { analyses, work } = await loadBrandWork(db, userId, profileId);
 
   if (analyses.length === 0) {
-    return {
-      analyses,
-      work,
-      stats: { publishedThisMonth: 0, waitingToPublish: 0, openOffsiteTasks: 0 },
-      biggestChange: null,
-      cardMetrics: {},
-    };
+    return { analyses, work, cardMetrics: {} };
   }
 
   const ids = analyses.map((a) => a.id);
-  const monthStart = new Date();
-  monthStart.setDate(1);
-  monthStart.setHours(0, 0, 0, 0);
-
   const [{ data: pieceRows }, { data: scoreRows }, { data: reportRows }] = await Promise.all([
     db
       .from("content_pieces")
@@ -94,25 +87,9 @@ export async function loadDashboard(db: Db, userId: string): Promise<DashboardDa
   const pieces = pieceRows ?? [];
   const scores = (scoreRows ?? []) as VisibilityScore[];
 
-  let publishedThisMonth = 0;
-  let waitingToPublish = 0;
-  for (const p of pieces) {
-    if (p.published_at) {
-      if (new Date(p.published_at as string) >= monthStart) publishedThisMonth++;
-    } else if (p.status === "ready") {
-      waitingToPublish++;
-    }
-  }
-
   return {
     analyses,
     work,
-    stats: {
-      publishedThisMonth,
-      waitingToPublish,
-      openOffsiteTasks: work.filter((w) => w.kind === "offsite" && w.state === "nu").length,
-    },
-    biggestChange: findBiggestChange(scores, new Map(analyses.map((a) => [a.id, a]))),
     cardMetrics: buildCardMetrics(
       ids,
       pieces,
@@ -190,48 +167,3 @@ function buildCardMetrics(
   return result;
 }
 
-/**
- * De grootste BETEKENISVOLLE verandering over alle analyses heen.
- *
- * Betekenisvol, niet grootst: een sprong van veertig punten op een analyse met
- * vijf vragen is ruis, en die bovenaan een dashboard zetten is het tegendeel van
- * informeren. Dezelfde drempel als overal elders (2.3).
- */
-function findBiggestChange(
-  scores: VisibilityScore[],
-  byAnalysis: Map<string, Analysis>,
-): DashboardData["biggestChange"] {
-  const byAnalysisId = new Map<string, VisibilityScore[]>();
-  for (const s of scores) {
-    byAnalysisId.set(s.analysis_id, [...(byAnalysisId.get(s.analysis_id) ?? []), s]);
-  }
-
-  let best: DashboardData["biggestChange"] = null;
-
-  for (const [analysisId, list] of byAnalysisId) {
-    if (list.length < 2) continue;
-    const sorted = [...list].sort((a, b) => a.week_no - b.week_no);
-    const current = sorted[sorted.length - 1];
-    const previous = sorted[sorted.length - 2];
-
-    const lead = (s: VisibilityScore) => s.weighted_score ?? s.score;
-    const stderr = (s: VisibilityScore) =>
-      (s.weighted_score != null ? s.weighted_stderr : s.score_stderr) ?? 0;
-
-    const change = changeIsMeaningful(
-      { score: lead(current), stderr: stderr(current) },
-      { score: lead(previous), stderr: stderr(previous) },
-    );
-    if (!change.changed) continue;
-
-    if (!best || Math.abs(change.delta) > Math.abs(best.delta)) {
-      best = {
-        analysisId,
-        analysisName: byAnalysis.get(analysisId)?.name ?? "Cluster",
-        delta: change.delta,
-      };
-    }
-  }
-
-  return best;
-}

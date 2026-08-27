@@ -1,5 +1,7 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { requireUser } from "@/lib/auth";
+import { isStaff } from "@/lib/staff";
 import { createClient } from "@/lib/supabase/server";
 import { ProfileStatusBadge } from "@/components/profile-status-badge";
 import { EmptyState } from "@/components/empty-state";
@@ -12,8 +14,9 @@ export const dynamic = "force-dynamic";
 export const metadata = { title: "Merken" };
 
 export default async function ProfielenPage() {
-  await requireUser();
+  const user = await requireUser();
   const supabase = await createClient();
+  const staff = await isStaff(user.id);
 
   // Gearchiveerde merken blijven in de database staan maar horen hier niet
   // (migratie 0044). Zie lib/archive.ts.
@@ -27,6 +30,14 @@ export default async function ProfielenPage() {
   // E, "centrale foutmeldingenplek": mislukte merkonderzoeken bovenaan, zelfde
   // reden als bij "Mijn analyses". Stabiele sort, dus binnen elke groep blijft
   // de bestaande volgorde (nieuwste eerst) staan.
+  // ⚠️ Een klant met precies één merk krijgt deze lijst niet te zien, maar zijn
+  // merk zelf. Dit scherm is voor hem een keuzemenu, en een keuzemenu met één
+  // regel is een tussenstap zonder keuze. De regel eronder is belangrijker: een
+  // klant ziet nooit gegevens van meer dan één merk tegelijk, en dit is het
+  // enige klantscherm waar er meer dan één in beeld kan komen. Daarom staan er
+  // alleen namen op, en geen cijfer, score of stand van het werk.
+  if (!staff && profiles.length === 1) redirect(`/merk/${profiles[0].id}`);
+
   const failedProfiles = profiles.filter((p) => p.status === "mislukt");
   profiles = [...failedProfiles, ...profiles.filter((p) => p.status !== "mislukt")];
 
