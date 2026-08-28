@@ -5598,8 +5598,29 @@ sluiten en de melding verschijnen, en daarna stonden de cijfers er nog een secon
 stand. Nieuwe hook `useRefresh()` (`components/use-refresh.ts`) zet de verversing in een
 `useTransition`, zodat de knop pas loslaat als het scherm klopt. Zie `docs/ux-design.md` §4.
 
-⚠️ **Nog niet nagerekend op productie (conventie 10).** De vier controles zijn groen (2434
-unittests, 358 ketentests, typecheck, build) en de tellingen hierboven komen uit de code, niet uit
-een meting op de draaiende app. Wat er nog moet gebeuren: na de deploy in Vercel kijken of
-`VERCEL_REGION` op `dub1` staat en of de duur van een paginaverzoek in de runtime-logs daadwerkelijk
-gedaald is. De regiowijziging is de enige die pas op `main` effect heeft.
+**Nagerekend op productie, dezelfde dag (conventie 10).** De verhuizing naar Dublin is gemeten aan
+de werker, die elke minuut draait en daarbij precies twee aanroepen naar Supabase doet
+(`claim_jobs` en `reclaim_stuck_jobs`). Het gat tussen die twee in de Supabase-logboeken is dus
+elke minuut opnieuw dezelfde meting van hetzelfde werk, en het verschil ertussen is de afstand.
+
+| | Vóór (`iad1`, Washington) | Na (`dub1`, Dublin) |
+|---|---|---|
+| Metingen | 20 minuten | 12 minuten |
+| Mediaan | 451 ms | 125 ms |
+| Zonder koude start | | 104 ms |
+| Slechtste geval | 866 ms | 293 ms |
+
+De mediaan zakt met 72%, en zonder de koude starts vlak na de deploy met 77%. Het slechtste geval
+is bijna drie keer beter, en dat telt zwaarder dan de mediaan: dát is het bezoek waarop een klant
+denkt dat de app hangt.
+
+⚠️ **Wat hiermee níét gemeten is.** Deze meting isoleert de afstand tot de database. De drie andere
+maatregelen (minder aanroepen achter elkaar, de wachtvormen, de knopfeedback) zijn gecontroleerd met
+2495 unittests, 358 ketentests, typecheck en build, maar niet op een echt paginabezoek: de app had
+in de zeven dagen ervoor geen enkel bezoek buiten de cron, dus er was geen verkeer om mee te
+vergelijken. Ze werken op elkaar in: minder aanroepen telt pas echt op zolang elke aanroep duur is,
+en die is nu goedkoop geworden.
+
+Na de deploy gecontroleerd dat de middleware nog doet wat hij moet: `/merk` stuurt een bezoeker
+zonder sessie nog steeds naar het inlogscherm, en `/api/health` antwoordt zonder dat de middleware
+er nog overheen gaat.
