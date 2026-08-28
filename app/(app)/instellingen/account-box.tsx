@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRefresh } from "@/components/use-refresh";
 import { useToast } from "@/components/toast";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { monthsSinceStart, isActiveAccount } from "@/lib/account-status";
@@ -36,9 +36,12 @@ export function AccountBox({
   /** Alleen een admin van dit account mag wijzigen. Een member leest mee. */
   mayEdit: boolean;
 }) {
-  const router = useRouter();
+  const { refresh, refreshing } = useRefresh();
   const toast = useToast();
   const [busy, setBusy] = useState(false);
+  // ⚠️ De knop laat pas los als het scherm de nieuwe stand heeft, niet als de
+  // aanvraag de deur uit is. Zie `components/use-refresh.ts`.
+  const wacht = busy || refreshing;
   const [opzegDialoog, setOpzegDialoog] = useState(false);
   const [form, setForm] = useState({
     legal_name: account.legal_name ?? "",
@@ -74,7 +77,7 @@ export function AccountBox({
         return;
       }
       toast({ intent: "succes", title: "Opgeslagen", description: "Je bedrijfsgegevens staan bij." });
-      router.refresh();
+      refresh();
     } finally {
       setBusy(false);
     }
@@ -102,7 +105,7 @@ export function AccountBox({
         title: "Het abonnement is opgezegd",
         description: "Tot het einde van de betaalde maand verandert er niets aan wat je ziet.",
       });
-      router.refresh();
+      refresh();
     } finally {
       setBusy(false);
       setOpzegDialoog(false);
@@ -167,15 +170,15 @@ export function AccountBox({
 
       {mayEdit && (
         <div className="flex flex-wrap items-center gap-3">
-          <button type="button" className="btn-primary btn-sm w-fit" onClick={() => void bewaar()} disabled={busy}>
-            {busy ? "Bezig…" : "Bewaar"}
+          <button type="button" className="btn-primary btn-sm w-fit" onClick={() => void bewaar()} disabled={wacht}>
+            {wacht ? "Bezig…" : "Bewaar"}
           </button>
           {actief && (
             <button
               type="button"
               className="text-sm text-secondary hover:underline"
               onClick={() => setOpzegDialoog(true)}
-              disabled={busy}
+              disabled={wacht}
             >
               Abonnement opzeggen
             </button>
@@ -194,7 +197,7 @@ export function AccountBox({
         }}
         confirmLabel="Ja, zeg op"
         confirmingLabel="Bezig…"
-        busy={busy}
+        busy={wacht}
         onCancel={() => setOpzegDialoog(false)}
         onConfirm={() => void zegOp()}
       />

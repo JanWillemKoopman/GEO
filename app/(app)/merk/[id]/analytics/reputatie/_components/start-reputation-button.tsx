@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRefresh } from "@/components/use-refresh";
 
 /**
  * De startknop van de reputatieanalyse (§3.3, staten 2 en 3).
@@ -33,13 +33,16 @@ export function StartReputationButton({
   /** Is er al eerder een analyse gedraaid? Dan heet de knop anders. */
   repeat: boolean;
 }) {
-  const router = useRouter();
+  const { refresh, refreshing } = useRefresh();
   const [confirming, setConfirming] = useState(false);
   // ⚠️ Standaard staat op "standaard", en dat is een kostenbesluit. De diepe
   // modus meet meer dan twee keer zo veel diensten en kost navenant meer; die
   // keuze hoort bewust gemaakt te worden, niet per ongeluk overgenomen.
   const [depth, setDepth] = useState<"standaard" | "diep">("standaard");
   const [pending, setPending] = useState(false);
+  // ⚠️ De knop laat pas los als het scherm de nieuwe stand heeft, niet als de
+  // aanvraag de deur uit is. Zie `components/use-refresh.ts`.
+  const wacht = pending || refreshing;
   const [error, setError] = useState<string | null>(null);
 
   if (!mayStart) {
@@ -66,7 +69,7 @@ export function StartReputationButton({
         setPending(false);
         return;
       }
-      router.refresh();
+      refresh();
     } catch {
       setError("De reputatieanalyse kon niet gestart worden. Controleer je verbinding.");
       setPending(false);
@@ -132,7 +135,7 @@ export function StartReputationButton({
               name="reputatie-diepte"
               className="mt-1"
               checked={depth === optie.waarde}
-              disabled={pending}
+              disabled={wacht}
               onChange={() => setDepth(optie.waarde)}
             />
             <span>
@@ -146,7 +149,7 @@ export function StartReputationButton({
         <button
           type="button"
           className="btn-primary btn-sm disabled:opacity-60"
-          disabled={pending}
+          disabled={wacht}
           onClick={() => void start()}
         >
           {pending ? "Starten…" : "Ja, start de analyse"}
@@ -154,7 +157,7 @@ export function StartReputationButton({
         <button
           type="button"
           className="btn-outline btn-sm"
-          disabled={pending}
+          disabled={wacht}
           onClick={() => setConfirming(false)}
         >
           Annuleren

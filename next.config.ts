@@ -14,6 +14,13 @@ const nextConfig: NextConfig = {
     serverActions: {
       bodySizeLimit: "2mb",
     },
+    // `lib/icons.ts` haalt veertig iconen uit een pakket dat er ruim 1.600
+    // levert, allemaal achter één verzamelbestand. In de productiebuild wordt
+    // de rest er toch uit geschud, maar tijdens `npm run dev` compileert Next
+    // dat verzamelbestand bij elke wijziging opnieuw. Dit zet de import om naar
+    // de losse bestanden, en dat scheelt bij het ontwikkelen seconden per
+    // schermwissel.
+    optimizePackageImports: ["lucide-react"],
   },
   async redirects() {
     return DOORVERWIJZINGEN;

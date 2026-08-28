@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRefresh } from "@/components/use-refresh";
 import { useToast } from "@/components/toast";
 import { MONTHS_AHEAD } from "@/lib/plan-constants";
 import { Icon } from "@/components/icon";
@@ -36,9 +36,12 @@ export function CreatePlanBox({
   kansCount: number;
   accountName: string | null;
 }) {
-  const router = useRouter();
+  const { refresh, refreshing } = useRefresh();
   const toast = useToast();
   const [busy, setBusy] = useState(false);
+  // ⚠️ De knop laat pas los als het scherm de nieuwe stand heeft, niet als de
+  // aanvraag de deur uit is. Zie `components/use-refresh.ts`.
+  const wacht = busy || refreshing;
   const [note, setNote] = useState("");
 
   // ⚠️ Hier stond tot 27 augustus 2026 `staff &&` voor. Het plan opstellen is
@@ -70,7 +73,7 @@ export function CreatePlanBox({
         title: "Het contentplan staat klaar",
         description: `${MONTHS_AHEAD} maanden, ${quota} pagina's per maand. Maand 1 wacht op vrijgave.`,
       });
-      router.refresh();
+      refresh();
     } catch {
       toast({
         intent: "fout",
@@ -169,9 +172,9 @@ export function CreatePlanBox({
             type="button"
             className="btn-primary btn-lg w-fit"
             onClick={() => void maak()}
-            disabled={busy}
+            disabled={wacht}
           >
-            {busy ? "Bezig met opstellen…" : "Stel het contentplan op"}
+            {wacht ? "Bezig met opstellen…" : "Stel het contentplan op"}
           </button>
         </div>
       )}

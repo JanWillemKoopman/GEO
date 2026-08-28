@@ -5558,3 +5558,48 @@ beviel niet, en is dezelfde dag teruggedraaid: `<main>` in de donkere stand is w
 `--bg-muted`, zonder stippen. Het token `--workspace-canvas-dot` is weer weg; het patroon zelf staat
 weer met de letterlijke kleur `#e4e9ee`, precies zoals bij de eerste invoering. Alleen de lichte
 stand houdt het stippenpatroon. Zie `docs/designsystem.md` §2.1.
+
+**28 augustus 2026, aan het eind van de dag: de app is traag omdat hij te ver van zijn database
+staat.** De eigenaar meldde dat schermen lang laden en knoppen traag reageren. Het eerste dat we
+uitsloten was de database zelf: in `pg_stat_statements` staat geen enkele app-query in de top van
+de zwaarste verbruikers, en de client-bundel is met 102 kB gedeeld en 104 tot 130 kB per scherm
+klein genoeg om geen rol te spelen. De oorzaak zat er tussenin, en op vier plekken tegelijk.
+
+**De grootste: de Vercel-functies stonden in `iad1` (Washington) en het Supabase-project in
+`eu-west-1` (Ierland).** Er stond geen `regions` in `vercel.json`, dus koos Vercel zijn standaard.
+Elke databasevraag stak daardoor de oceaan over en weer terug, ongeveer 80 milliseconden, terwijl
+de vraag zelf in de database rond de één milliseconde kost. Het merkoverzicht stelt er dertien
+achter elkaar. `vercel.json` zet nu `"regions": ["dub1"]`, dezelfde AWS-regio als de database.
+⚠️ Verhuist het Supabase-project ooit, dan hoort deze regel mee te verhuizen: staan ze uit elkaar,
+dan telt geen van de drie andere maatregelen nog op. Zie `docs/architecture.md` §1.
+
+**De tweede: dertien netwerkrondes waar er acht nodig waren.** `supabase.auth.getUser()` is geen
+cookie-lezing maar een controle bij de Auth-server van Supabase, en werd drie keer per scherm
+gesteld: door de shell, door de merk-layout en door de pagina zelf. Nu één keer, gememoïseerd met
+`cache()` van React, dus per verzoek en niet per proces: de controle blijft, de herhaling niet.
+Daarnaast stonden in de shell drie onafhankelijke vragen onder elkaar te wachten (werkruimte,
+`isStaff`, `isStaffAccount`), stelde de merkenlijst het lidmaatschap en het beheerdersrecht
+achter elkaar, en haalde de teller in de bovenbalk eerst het profiel op en pas daarna de twee
+vragenlijsten. Alle drie gaan nu tegelijk. De middleware sloeg tot slot `/api/` niet over, terwijl
+ze daar niets te doen heeft: dat was een extra ronde naar de Auth-server vóór élke knopklik.
+
+**De derde: achttien schermen zonder wachtvorm.** Elf schermen hadden een `loading.tsx` en achttien
+niet, en de achttien zonder waren juist de schermen die in de zijbalk staan. Next.js laat bij een
+klik de oude pagina staan tot de nieuwe klaar is, dus daar gebeurde er tussen klik en scherm
+niets zichtbaars: geen traag scherm maar een scherm dat lijkt te hangen. Veertien hebben er nu één,
+via de gedeelde `PageSkeleton`. De vier die overblijven zijn doorverwijzingen en `/merk/nieuw`, dat
+geen enkele query doet; daar zou een wachtvorm oplichten en meteen weer verdwijnen.
+
+**De vierde: dertien knoppen zeiden "klaar" voordat ze het waren.** Het patroon was overal
+hetzelfde: `fetch()` naar een API-route, dan `router.refresh()`, en in een `finally` de bezig-stand
+weer uit. Maar `router.refresh()` geeft niets terug om op te wachten, dus die `finally` liep af op
+het moment dat de aanvraag de deur uit ging. De klant zag de knop terugspringen, het venster
+sluiten en de melding verschijnen, en daarna stonden de cijfers er nog een seconde in de oude
+stand. Nieuwe hook `useRefresh()` (`components/use-refresh.ts`) zet de verversing in een
+`useTransition`, zodat de knop pas loslaat als het scherm klopt. Zie `docs/ux-design.md` §4.
+
+⚠️ **Nog niet nagerekend op productie (conventie 10).** De vier controles zijn groen (2434
+unittests, 358 ketentests, typecheck, build) en de tellingen hierboven komen uit de code, niet uit
+een meting op de draaiende app. Wat er nog moet gebeuren: na de deploy in Vercel kijken of
+`VERCEL_REGION` op `dub1` staat en of de duur van een paginaverzoek in de runtime-logs daadwerkelijk
+gedaald is. De regiowijziging is de enige die pas op `main` effect heeft.

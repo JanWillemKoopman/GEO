@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRefresh } from "@/components/use-refresh";
 import {
   CONTEXT_FACTOR_KINDS,
   CONTEXT_FACTOR_LABELS,
@@ -29,10 +29,13 @@ export function StrategyBox({
   initialNotes: string | null;
   initialFactors: ContextFactor[];
 }) {
-  const router = useRouter();
+  const { refresh, refreshing } = useRefresh();
   const [notes, setNotes] = useState(initialNotes ?? "");
   const [factors, setFactors] = useState<ContextFactor[]>(initialFactors);
   const [pending, setPending] = useState(false);
+  // ⚠️ De knop laat pas los als het scherm de nieuwe stand heeft, niet als de
+  // aanvraag de deur uit is. Zie `components/use-refresh.ts`.
+  const wacht = pending || refreshing;
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState<string | null>(null);
 
@@ -86,7 +89,7 @@ export function StrategyBox({
           : "Opgeslagen.",
       );
       setPending(false);
-      router.refresh();
+      refresh();
     } catch {
       setError("Opslaan is niet gelukt. Controleer je verbinding.");
       setPending(false);
@@ -206,10 +209,10 @@ export function StrategyBox({
       <button
         type="button"
         className="btn-primary w-fit disabled:opacity-60"
-        disabled={pending}
+        disabled={wacht}
         onClick={() => void save()}
       >
-        {pending ? "Opslaan…" : "Bewaren"}
+        {wacht ? "Opslaan…" : "Bewaren"}
       </button>
     </div>
   );

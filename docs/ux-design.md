@@ -175,6 +175,22 @@ database-queries een dood interval zonder enige terugkoppeling.
 - **`loading.tsx` per sectie**, met een **skeleton, geen spinner**. Een skeleton communiceert
   *waar* de inhoud komt; een spinner alleen *dat* er gewacht wordt. De vorm van de skeleton is de
   vorm van de kaarten die eronder komen.
+- **⚠️ Geen `loading.tsx` betekent niet "een leeg scherm", het betekent "geen scherm" (28 augustus
+  2026).** Next.js laat de oude pagina staan tot de nieuwe klaar is. Zonder wachtvorm verandert er
+  bij een klik dus letterlijk niets, en dat leest als een app die hangt, niet als een app die laadt.
+  Achttien schermen hadden er geen, waaronder Analytics, Clusters, Contentplan, Merkprofiel en
+  Instellingen: precies de vijf die in de zijbalk staan. Veertien hebben er nu één; de vier die
+  ontbreken zijn doorverwijzingen (`/analyses`, `antwoorden`, `rapport`) en `/merk/nieuw`, dat geen
+  enkele query doet. Bij een doorverwijzing zou een wachtvorm oplichten en meteen weer weg zijn,
+  en dat is onrustiger dan niets. De gedeelde vorm staat in `PageSkeleton`
+  (`components/skeleton.tsx`).
+- **⚠️ Een knop laat pas los als het scherm klopt, niet als de aanvraag verstuurd is.**
+  `router.refresh()` geeft niets terug om op te wachten, dus een `finally { setBusy(false) }`
+  eromheen liep al af terwijl de server nog bezig was: knop terug, venster dicht, melding in beeld,
+  en de cijfers eronder nog een seconde op de oude waarde. Dertien knoppen deden dat. Gebruik
+  `useRefresh()` (`components/use-refresh.ts`): die zet `router.refresh()` in een `useTransition`,
+  zodat `refreshing` waar blijft tot React de nieuwe pagina getekend heeft. De eigen bezig-stand
+  van de knop dekt het werk, `refreshing` dekt het scherm, en de knop kijkt naar allebei.
 - **`app/error.tsx`** en **`app/not-found.tsx`** renderen binnen de AppShell, via `ErrorNotice`:
   mensentaal boven, techniek weggevouwen. Nooit een kale Next.js-foutpagina.
 - **`SectionErrorBoundary`** (`components/section-error-boundary.tsx`) isoleert een crash tot één

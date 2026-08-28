@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRefresh } from "@/components/use-refresh";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { useToast } from "@/components/toast";
 
@@ -25,10 +25,13 @@ export function ReleaseMonthButton({
   monthNumber: number;
   paginas: number;
 }) {
-  const router = useRouter();
+  const { refresh, refreshing } = useRefresh();
   const toast = useToast();
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
+  // ⚠️ De knop laat pas los als het scherm de nieuwe stand heeft, niet als de
+  // aanvraag de deur uit is. Zie `components/use-refresh.ts`.
+  const wacht = busy || refreshing;
 
   async function vrijgeven() {
     setBusy(true);
@@ -53,7 +56,7 @@ export function ReleaseMonthButton({
         description:
           "ORBIT ENGINE begint tien dagen voor elke publicatiedatum met schrijven.",
       });
-      router.refresh();
+      refresh();
     } catch {
       toast({
         intent: "fout",
@@ -72,7 +75,7 @@ export function ReleaseMonthButton({
         type="button"
         className="btn-primary w-fit"
         onClick={() => setOpen(true)}
-        disabled={busy}
+        disabled={wacht}
       >
         Geef deze maand vrij
       </button>
@@ -90,7 +93,7 @@ export function ReleaseMonthButton({
         }}
         confirmLabel="Vrijgeven"
         confirmingLabel="Bezig…"
-        busy={busy}
+        busy={wacht}
         onCancel={() => setOpen(false)}
         onConfirm={() => void vrijgeven()}
       />

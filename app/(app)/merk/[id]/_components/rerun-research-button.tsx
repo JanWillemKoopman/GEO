@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRefresh } from "@/components/use-refresh";
 
 /**
  * "Onderzoek opnieuw" (docs/tasks/onboarding-2.0.md §8, punt 3).
@@ -16,9 +16,12 @@ import { useRouter } from "next/navigation";
  * het aanbod. Geen modaal venster: één klik die verandert in twee is genoeg.
  */
 export function RerunResearchButton({ profileId }: { profileId: string }) {
-  const router = useRouter();
+  const { refresh, refreshing } = useRefresh();
   const [confirming, setConfirming] = useState(false);
   const [pending, setPending] = useState(false);
+  // ⚠️ De knop laat pas los als het scherm de nieuwe stand heeft, niet als de
+  // aanvraag de deur uit is. Zie `components/use-refresh.ts`.
+  const wacht = pending || refreshing;
   const [error, setError] = useState<string | null>(null);
 
   async function run() {
@@ -34,7 +37,7 @@ export function RerunResearchButton({ profileId }: { profileId: string }) {
         setPending(false);
         return;
       }
-      router.refresh();
+      refresh();
     } catch {
       setError("Opnieuw onderzoeken is niet gelukt. Controleer je verbinding.");
       setPending(false);
@@ -72,15 +75,15 @@ export function RerunResearchButton({ profileId }: { profileId: string }) {
         <button
           type="button"
           className="btn-primary btn-sm disabled:opacity-60"
-          disabled={pending}
+          disabled={wacht}
           onClick={() => void run()}
         >
-          {pending ? "Starten…" : "Ja, opnieuw onderzoeken"}
+          {wacht ? "Starten…" : "Ja, opnieuw onderzoeken"}
         </button>
         <button
           type="button"
           className="btn-outline btn-sm"
-          disabled={pending}
+          disabled={wacht}
           onClick={() => setConfirming(false)}
         >
           Annuleren

@@ -11775,6 +11775,105 @@ group("de tijdgrenzen passen nog in elkaar", () => {
 });
 
 // ════════════════════════════════════════════════════════════════════════════
+console.log("\nSnelheid: waar het scherm op wacht (28 augustus 2026)");
+
+// ── De middleware-matcher ───────────────────────────────────────────────────
+//
+// ⚠️ Deze regex is de enige plek die bepaalt of een bezoeker zonder sessie op
+// een beschermd scherm naar het inlogscherm gaat. Hij is op 28 augustus 2026
+// uitgebreid zodat `/api/` er buiten valt: de middleware had daar niets te
+// doen en kostte er wél een netwerkronde naar de Auth-server, vóór élke
+// knopklik. Eén teken verkeerd in dit patroon zet óf de bescherming uit óf de
+// besparing terug, en allebei gebeurt zonder foutmelding. Vandaar deze test.
+group("de middleware draait waar hij moet, en nergens anders", () => {
+  const bron = leesBestand("middleware.ts");
+  const gevonden = bron.match(/"(\/\(\(\?!.*)"/);
+  ok("de matcher staat in middleware.ts", Boolean(gevonden));
+  const patroon = new RegExp(`^${(gevonden?.[1] ?? "x").replace(/\\\\/g, "\\")}$`);
+
+  // Wél: elk scherm dat de sessie nodig heeft, plus de auth-pagina's waar een
+  // ingelogde bezoeker juist wéggestuurd wordt.
+  for (const pad of [
+    "/",
+    "/login",
+    "/register",
+    "/merk",
+    "/merk/abc-123",
+    "/merk/abc-123/analytics/zoekverkeer",
+    "/analyses/abc-123",
+    "/instellingen",
+    "/instellingen/koppelingen",
+    "/beheer",
+  ]) {
+    ok(`draait op ${pad}`, patroon.test(pad));
+  }
+
+  // Niet: de API-routes doen hun eigen controle, en de statische bestanden
+  // hebben er sowieso niets aan.
+  for (const pad of [
+    "/api/health",
+    "/api/cron/worker",
+    "/api/profiles/abc-123/plan",
+    "/api/invites/accept",
+    "/_next/static/chunks/main.js",
+    "/favicon.ico",
+    "/logo.svg",
+  ]) {
+    ok(`draait NIET op ${pad}`, !patroon.test(pad));
+  }
+});
+
+// ── Elke route heeft een wachtvorm ─────────────────────────────────────────
+//
+// ⚠️ Zonder `loading.tsx` laat Next.js bij een klik de oude pagina staan tot de
+// nieuwe klaar is. Er verandert dan letterlijk niets op het scherm, en dat
+// leest als een app die hangt in plaats van een app die laadt. Achttien
+// schermen misten er één, waaronder alle vijf de schermen uit de zijbalk.
+//
+// De vier uitzonderingen zijn geen vergissing: drie zijn doorverwijzingen naar
+// een ander adres (een wachtvorm zou oplichten en meteen weer weg zijn) en
+// `/merk/nieuw` doet geen enkele query.
+group("elk scherm met data heeft een wachtvorm", () => {
+  const zonderWachtvorm = new Set([
+    "app/(app)/analyses",
+    "app/(app)/analyses/[id]/antwoorden",
+    "app/(app)/analyses/[id]/rapport",
+    "app/(app)/merk/nieuw",
+  ]);
+
+  const paginas = tsxOnder("app/(app)").filter((p) => p.endsWith("page.tsx"));
+  ok("er zijn schermen gevonden", paginas.length > 20, `${paginas.length}`);
+
+  for (const pagina of paginas) {
+    const map = pagina.slice(0, -"/page.tsx".length);
+    if (zonderWachtvorm.has(map)) {
+      ok(`${map} is bewust zonder wachtvorm`, leesBestand(`${map}/loading.tsx`) === "");
+      continue;
+    }
+    ok(`${map} heeft een wachtvorm`, leesBestand(`${map}/loading.tsx`) !== "");
+  }
+});
+
+// ── De knop laat pas los als het scherm klopt ──────────────────────────────
+//
+// ⚠️ `router.refresh()` geeft niets terug om op te wachten. Een `finally` met
+// `setBusy(false)` eromheen liep dus af terwijl de server nog bezig was: knop
+// terug, venster dicht, melding in beeld, en de cijfers eronder nog een
+// seconde in de oude stand. Dertien knoppen deden dat. Wie `useRefresh()`
+// gebruikt, hoort `refreshing` ook echt te lezen, anders is de hook er wel
+// maar doet hij niets.
+group("wie useRefresh gebruikt, leest ook refreshing", () => {
+  const gebruikers = tsxOnder("app/(app)").filter((p) =>
+    leesBestand(p).includes("useRefresh()"),
+  );
+  ok("de hook wordt gebruikt", gebruikers.length >= 12, `${gebruikers.length}`);
+  for (const bestand of gebruikers) {
+    const bron = leesBestand(bestand);
+    ok(`${bestand} leest refreshing`, /\|\|\s*refreshing/.test(bron));
+  }
+});
+
+// ════════════════════════════════════════════════════════════════════════════
 console.log(`\n${passed} geslaagd, ${failed} mislukt`);
 if (failures.length > 0) {
   console.log("\nMislukt:");
