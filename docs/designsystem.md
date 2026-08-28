@@ -99,6 +99,14 @@ omdat het oog in donker anders werkt.
 witte pagina haalde `#9daab6` nog maar 2,1:1 en zakte daarmee onder de 3,0 die WCAG voor een
 niet-tekstueel element vraagt; `#788795` haalt 3,2:1.
 
+**Uitzondering: de ingelogde werkruimte blijft lichtgrijs (28 augustus 2026).** Het `<main>` in
+`components/workspace-chrome.tsx`, de kolom rechts van de zijbalk waar elk scherm in landt, kreeg
+op verzoek van de eigenaar zijn achtergrond terug op `--bg-muted` (`#f8fafc`) in plaats van het
+paginawit hierboven. Nova's witte pagina is een kale pagina zonder zijbalk; zodra kaarten op wit
+naast een zijbalk staan, valt de rand van die kaarten tegen een even witte grond weg. Dit is een
+bewuste, plaatselijke afwijking van de regel hierboven en geldt alleen voor dit ene element, niet
+voor `--bg-base` zelf: de inlogroute en losse pagina's zonder zijbalk blijven wit.
+
 **Waarom de randen een echte tint zijn en geen doorschijnend zwart:** doorschijnend zwart wordt vuil
 zodra het op een gekleurd vlak ligt. Een chip met een amber vulling kreeg zo een grijsbruine rand.
 Een echte tint heeft dat probleem niet.

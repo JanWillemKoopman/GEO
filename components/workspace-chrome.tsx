@@ -97,8 +97,16 @@ export function WorkspaceChrome({
         {/* `min-w-0` is hier geen sier: dit is een flex-kind, en zonder deze
             regel zet één lange URL diep in een kaart de minimale breedte van de
             hele kolom. Zie het blok "Niets is breder dan het scherm" in
-            globals.css. */}
-        <main className="min-w-0 flex-1">
+            globals.css.
+
+            De achtergrond staat hier bewust WEL op --bg-muted en niet op het
+            pagina-wit van --bg-base. Nova's eigen pagina is wit (24 augustus
+            2026, zie globals.css), maar dat geldt voor een kale pagina zonder
+            zijbalk. Zodra de inhoud in kaarten op wit staat, valt de rand van
+            die kaarten tegen deze even witte grond weg: op verzoek van de
+            eigenaar (28 augustus 2026) krijgt de werkruimte hier weer het
+            lichtgrijs dat de kaarten laat opvallen. */}
+        <main className="min-w-0 flex-1 bg-[var(--bg-muted)]">
           <div className="mx-auto w-full max-w-5xl px-6 py-10">{children}</div>
         </main>
       </div>

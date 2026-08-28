@@ -5444,3 +5444,13 @@ klant. Op je eigen testmerk blijft alles werken, want eigendom hangt nooit van s
 Overwogen en afgewezen: een écht tweede klantaccount. Kan niet met hetzelfde e-mailadres (Supabase
 staat geen dubbel adres toe), en de knop lost de eigenlijke behoefte beter op: blijven ingelogd als
 jezelf en met één klik zien wat een klant ziet, in plaats van steeds in en uit te loggen.
+
+**28 augustus 2026: de werkruimte krijgt haar lichtgrijs terug.** De narekening tegen Nova van 24
+augustus 2026 maakte de hele pagina wit, inclusief de ingelogde werkruimte: Nova's eigen `body` is
+inderdaad wit. Maar Nova's witte pagina is een pagina zónder zijbalk; zodra kaarten op wit náást een
+zijbalk staan, zoals op elk scherm in de werkruimte, valt de rand van die kaarten tegen een even
+witte grond weg. De eigenaar zag dat terug als "de achtergrond is nu gewoon wit" op het clusterscherm.
+Oplossing is plaatselijk: `<main>` in `components/workspace-chrome.tsx` (de kolom rechts van de
+zijbalk, waar elk scherm in landt) kreeg zijn achtergrond terug op `--bg-muted` (`#f8fafc`). De
+token `--bg-base` zelf blijft wit, dus de inlogroute en losse pagina's zonder zijbalk veranderen
+niet. Zie `docs/designsystem.md` §2.1.
