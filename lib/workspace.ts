@@ -25,6 +25,7 @@ import "server-only";
  * altijd opnieuw of deze gebruiker bij dit merk mag; een geplakte cookie levert
  * niets op. De toegangscontrole zelf zit in `getOwnedProfile()`.
  */
+import { cache } from "react";
 import { cookies } from "next/headers";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { accountIdsOf } from "@/lib/accounts";
@@ -47,11 +48,19 @@ export interface BrandOption {
  *
  * Dezelfde drie lagen als `getOwnedProfile()`: account, historische eigenaar,
  * beheerder. Gearchiveerde merken blijven eruit (`lib/archive.ts`).
+ *
+ * ⚠️ Gememoïseerd per verzoek, net als `isStaff` (`lib/staff.ts`). De shell
+ * leest deze lijst voor de merkkiezer en `activeBrand()` leest hem nog een
+ * keer voor het actieve merk; zonder cache waren dat twee identieke queries
+ * binnen dezelfde paginaweergave.
  */
-export async function listBrands(userId: string): Promise<BrandOption[]> {
+export const listBrands = cache(async (userId: string): Promise<BrandOption[]> => {
   const admin = createAdminClient();
-  const accountIds = await accountIdsOf(userId);
-  const staff = await isStaff(userId);
+  // ⚠️ Parallel, niet achter elkaar. Deze twee weten niets van elkaar: het
+  // lidmaatschap komt uit `account_users`, het beheerdersrecht uit
+  // `staff_users`. Ze een voor een afwachten kostte twee netwerkrondes waar er
+  // één nodig is, en deze functie draait naast élk scherm van de app.
+  const [accountIds, staff] = await Promise.all([accountIdsOf(userId), isStaff(userId)]);
 
   let query = admin
     .from("profiles")
@@ -82,7 +91,7 @@ export async function listBrands(userId: string): Promise<BrandOption[]> {
     url: p.url as string,
     busy: p.status === "bezig",
   }));
-}
+});
 
 /**
  * Het merk waar de gebruiker nu in zit.
@@ -120,7 +129,7 @@ export interface Workspace {
   active: BrandOption | null;
 }
 
-export async function loadWorkspace(userId: string): Promise<Workspace> {
+export const loadWorkspace = cache(async (userId: string): Promise<Workspace> => {
   const brands = await listBrands(userId);
   if (brands.length === 0) return { brands, active: null };
 
@@ -131,7 +140,7 @@ export async function loadWorkspace(userId: string): Promise<Workspace> {
     brands,
     active: match ?? (brands.length === 1 ? brands[0] : null),
   };
-}
+});
 
 /** Handig voor schermen die het volledige profiel willen, niet alleen de kiezerregel. */
 export async function activeBrandProfile(userId: string): Promise<Profile | null> {

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRefresh } from "@/components/use-refresh";
 import Link from "next/link";
 import { formatDateLong } from "@/lib/format";
 import type { PoortOordeel } from "@/lib/content-final-gate";
@@ -76,8 +76,11 @@ export function ReleasePanel({
   /** Waar die vragen staan. */
   vragenHref: string;
 }) {
-  const router = useRouter();
+  const { refresh, refreshing } = useRefresh();
   const [busy, setBusy] = useState(false);
+  // ⚠️ De knop laat pas los als het scherm de nieuwe stand heeft, niet als de
+  // aanvraag de deur uit is. Zie `components/use-refresh.ts`.
+  const wacht = busy || refreshing;
   const [error, setError] = useState<string | null>(null);
 
   const zonderBron = claims.filter((c) => !c.factRef);
@@ -95,7 +98,7 @@ export function ReleasePanel({
         const data = (await res.json().catch(() => ({}))) as { error?: string };
         throw new Error(data.error ?? "Vrijgeven is niet gelukt.");
       }
-      router.refresh();
+      refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Er ging iets mis.");
     } finally {
@@ -202,8 +205,8 @@ export function ReleasePanel({
         </span>
       ) : poort.mag ? (
         <div className="flex flex-wrap items-center gap-3">
-          <button type="button" className="btn-primary btn-sm" onClick={approve} disabled={busy}>
-            {busy ? "Vastleggen…" : "Ik heb dit gecontroleerd"}
+          <button type="button" className="btn-primary btn-sm" onClick={approve} disabled={wacht}>
+            {wacht ? "Vastleggen…" : "Ik heb dit gecontroleerd"}
           </button>
           <span className="text-sm text-muted">
             {needsReview

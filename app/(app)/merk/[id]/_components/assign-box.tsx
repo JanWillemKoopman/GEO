@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRefresh } from "@/components/use-refresh";
 
 /**
  * Profiel toewijzen aan een klantaccount (blok A). Alleen zichtbaar voor de
@@ -26,10 +26,13 @@ export function AssignBox({
   currentUserId: string;
   assignedAt: string | null;
 }) {
-  const router = useRouter();
+  const { refresh, refreshing } = useRefresh();
   const [accounts, setAccounts] = useState<AccountOption[] | null>(null);
   const [choice, setChoice] = useState("");
   const [pending, setPending] = useState(false);
+  // ⚠️ De knop laat pas los als het scherm de nieuwe stand heeft, niet als de
+  // aanvraag de deur uit is. Zie `components/use-refresh.ts`.
+  const wacht = pending || refreshing;
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState<string | null>(null);
 
@@ -68,7 +71,7 @@ export function AssignBox({
       }
       setDone(json.email ?? "het gekozen account");
       setPending(false);
-      router.refresh();
+      refresh();
     } catch {
       setError("Toewijzen is niet gelukt. Controleer je verbinding.");
       setPending(false);
@@ -103,7 +106,7 @@ export function AssignBox({
             className="field"
             value={choice}
             onChange={(e) => setChoice(e.target.value)}
-            disabled={accounts === null || pending}
+            disabled={accounts === null || wacht}
           >
             <option value="">
               {accounts === null ? "Accounts laden…" : "Kies een account"}
@@ -119,10 +122,10 @@ export function AssignBox({
         <button
           type="button"
           onClick={() => void assign()}
-          disabled={pending || !choice || choice === currentUserId}
+          disabled={wacht || !choice || choice === currentUserId}
           className="btn-outline disabled:opacity-40"
         >
-          {pending ? "Toewijzen…" : "Toewijzen"}
+          {wacht ? "Toewijzen…" : "Toewijzen"}
         </button>
       </div>
 

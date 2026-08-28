@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRefresh } from "@/components/use-refresh";
 import { useToast } from "@/components/toast";
 
 /**
@@ -37,10 +37,13 @@ export function SearchConsoleBox({
   /** Hoeveel dagen aan cijfers er al binnen zijn. */
   dagen: number;
 }) {
-  const router = useRouter();
+  const { refresh, refreshing } = useRefresh();
   const toast = useToast();
   const [waarde, setWaarde] = useState(property ?? "");
   const [busy, setBusy] = useState(false);
+  // ⚠️ De knop laat pas los als het scherm de nieuwe stand heeft, niet als de
+  // aanvraag de deur uit is. Zie `components/use-refresh.ts`.
+  const wacht = busy || refreshing;
   const [gekopieerd, setGekopieerd] = useState(false);
 
   async function koppel() {
@@ -61,7 +64,7 @@ export function SearchConsoleBox({
           title: "ORBIT ENGINE kan de cijfers nog niet ophalen",
           description: j?.error ?? j?.reason ?? "Probeer het opnieuw.",
         });
-        router.refresh();
+        refresh();
         return;
       }
 
@@ -70,7 +73,7 @@ export function SearchConsoleBox({
         title: "Search Console is gekoppeld",
         description: `ORBIT ENGINE haalde ${j.rijen ?? 0} regels op en werkt de cijfers voortaan elke dag bij.`,
       });
-      router.refresh();
+      refresh();
     } catch {
       toast({
         intent: "fout",
@@ -178,9 +181,9 @@ export function SearchConsoleBox({
           type="button"
           className="btn-primary btn-sm w-fit"
           onClick={() => void koppel()}
-          disabled={busy || waarde.trim().length === 0 || !serviceAccountEmail}
+          disabled={wacht || waarde.trim().length === 0 || !serviceAccountEmail}
         >
-          {busy ? "Bezig met controleren…" : gekoppeld ? "Opnieuw controleren" : "Koppel en controleer"}
+          {wacht ? "Bezig met controleren…" : gekoppeld ? "Opnieuw controleren" : "Koppel en controleer"}
         </button>
       </div>
 

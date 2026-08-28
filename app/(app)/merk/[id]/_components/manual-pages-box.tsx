@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRefresh } from "@/components/use-refresh";
 import { Icon } from "@/components/icon";
 
 /**
@@ -28,10 +28,13 @@ export function ManualPagesBox({
   /** De pagina's die al handmatig zijn toegevoegd, zodat je ze ook weer weg kunt halen. */
   pages: { url: string; title: string | null }[];
 }) {
-  const router = useRouter();
+  const { refresh, refreshing } = useRefresh();
   const [open, setOpen] = useState(false);
   const [invoer, setInvoer] = useState("");
   const [bezig, setBezig] = useState(false);
+  // ⚠️ De knop laat pas los als het scherm de nieuwe stand heeft, niet als de
+  // aanvraag de deur uit is. Zie `components/use-refresh.ts`.
+  const wacht = bezig || refreshing;
   const [fout, setFout] = useState<string | null>(null);
   const [uitslag, setUitslag] = useState<{
     added: number;
@@ -58,7 +61,7 @@ export function ManualPagesBox({
       setUitslag(json);
       if (json.added > 0) {
         setInvoer("");
-        router.refresh();
+        refresh();
       }
     } catch {
       setFout("We konden ORBIT ENGINE niet bereiken. Controleer je verbinding en probeer het opnieuw.");
@@ -80,7 +83,7 @@ export function ManualPagesBox({
         setFout(json.error ?? "Weghalen is niet gelukt.");
         return;
       }
-      router.refresh();
+      refresh();
     } catch {
       setFout("We konden ORBIT ENGINE niet bereiken.");
     }
@@ -136,21 +139,21 @@ export function ManualPagesBox({
             placeholder={"https://jouwsite.nl/diensten/bekkenfysiotherapie\nhttps://jouwsite.nl/tarieven"}
             value={invoer}
             onChange={(e) => setInvoer(e.target.value)}
-            disabled={bezig}
+            disabled={wacht}
           />
           <div className="flex flex-wrap gap-2">
             <button
               type="button"
               className="btn-primary btn-sm disabled:opacity-60"
-              disabled={bezig || !invoer.trim()}
+              disabled={wacht || !invoer.trim()}
               onClick={() => void voegToe()}
             >
-              {bezig ? "ORBIT ENGINE leest de pagina's…" : "Toevoegen"}
+              {wacht ? "ORBIT ENGINE leest de pagina's…" : "Toevoegen"}
             </button>
             <button
               type="button"
               className="btn-outline btn-sm"
-              disabled={bezig}
+              disabled={wacht}
               onClick={() => {
                 setOpen(false);
                 setUitslag(null);

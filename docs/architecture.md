@@ -77,6 +77,44 @@ hebben (`maxDuration = 300`) en het werk moet doorlopen als de klant zijn browse
 dagelijks. Een regel met `"schedule": "* * * * *"` laat niet de cron maar de **hele build** falen.
 Daarom pg_cron.
 
+### ⚠️ De functies draaien in Dublin, en dat is geen detail (28 augustus 2026)
+
+`vercel.json` zet `"regions": ["dub1"]`. Dublin is AWS `eu-west-1`, precies de regio waar het
+Supabase-project staat. Tot 28 augustus 2026 stond er niets, en dan kiest Vercel `iad1`
+(Washington). Elke databasevraag legde dus de Atlantische Oceaan af en weer terug: ongeveer 80
+milliseconden per vraag, terwijl de vraag zelf in de database een tiende daarvan kost
+(`pg_stat_statements`: geen enkele app-query staat in de top van de zwaarste verbruikers, de
+zwaarste post is de minuutlijkse `trigger_worker()` met 8,7 ms gemiddeld).
+
+Dat verklaarde het meeste van de traagheid: niet de queries, maar de afstand ertussen, maal het
+aantal vragen dat een scherm stelt. Binnen dezelfde AWS-regio is die afstand ongeveer één
+milliseconde.
+
+**Deze regel hoort mee te verhuizen als het Supabase-project ooit van regio verandert.** Staan ze
+uit elkaar, dan is elke query weer een oversteek en telt geen enkele optimalisatie hieronder nog op.
+
+### Hoeveel netwerkrondes een scherm kost (28 augustus 2026)
+
+Een scherm rendert op de server, en elke vraag aan Supabase is een aparte netwerkronde. Wat er
+onder elkaar staat, wacht ook onder elkaar. Vier plekken deden dat zonder dat het nodig was, en
+alle vier draaiden ze onder **élk** scherm van de app:
+
+| Wat | Was | Is |
+|---|---|---|
+| `supabase.auth.getUser()` (`lib/auth.ts`) | 3× per scherm, want de shell, de merk-layout en de pagina vroegen het elk apart | 1×, gememoïseerd per verzoek met `cache()` |
+| De shell (`app/(app)/layout.tsx`) | werkruimte, `isStaff` en `isStaffAccount` achter elkaar | tegelijk, in één `Promise.all` |
+| De merkenlijst (`lib/workspace.ts`) | lidmaatschap en beheerdersrecht achter elkaar, en de hele lijst twee keer opgehaald | tegelijk, en gememoïseerd |
+| De teller open vragen (`lib/open-questions.ts`) | profiel ophalen, dán de twee vragenlijsten | alle drie tegelijk |
+
+⚠️ `auth.getUser()` is géén cookie-lezing: hij laat het token valideren door de Auth-server van
+Supabase, en dat is precies waarom hij veiliger is dan `getSession()`. Die controle blijft staan,
+hij gebeurt alleen nog één keer per verzoek in plaats van drie keer.
+
+⚠️ De middleware slaat `/api/` sinds dezelfde datum over. Ze deed daar niets nuttigs (een
+doorverwijzing naar HTML helpt een `fetch()` niet) en kostte wél een ronde naar de Auth-server
+vóór de route-handler begon. Elke knop in de app doet een `fetch()`, dus die ronde zat in elke
+klik. Alle routes doen hun eigen controle; `health` en `invites/accept` zijn met opzet publiek.
+
 ## 2. Rechten en schrijfstrategie
 
 - **Lezen:** de client leest rechtstreeks via de Supabase-client met de eigen sessie. RLS-policies

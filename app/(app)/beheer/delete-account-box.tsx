@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRefresh } from "@/components/use-refresh";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { useToast } from "@/components/toast";
 
@@ -39,13 +39,16 @@ interface Plan {
 }
 
 export function DeleteAccountBox({ accounts }: { accounts: DeletableAccount[] }) {
-  const router = useRouter();
+  const { refresh, refreshing } = useRefresh();
   const toast = useToast();
   const [open, setOpen] = useState(false);
   const [gekozen, setGekozen] = useState<DeletableAccount | null>(null);
   const [plan, setPlan] = useState<Plan | null>(null);
   const [getypt, setGetypt] = useState("");
   const [bezig, setBezig] = useState(false);
+  // ⚠️ De knop laat pas los als het scherm de nieuwe stand heeft, niet als de
+  // aanvraag de deur uit is. Zie `components/use-refresh.ts`.
+  const wacht = bezig || refreshing;
   const [laden, setLaden] = useState(false);
 
   async function start(account: DeletableAccount) {
@@ -98,7 +101,7 @@ export function DeleteAccountBox({ accounts }: { accounts: DeletableAccount[] })
         } zijn weggehaald.`,
       });
       setOpen(false);
-      router.refresh();
+      refresh();
     } catch {
       toast({
         title: "Verwijderen mislukt",
@@ -158,7 +161,7 @@ export function DeleteAccountBox({ accounts }: { accounts: DeletableAccount[] })
         }
         confirmLabel="Definitief verwijderen"
         confirmingLabel="Bezig met verwijderen"
-        busy={bezig}
+        busy={wacht}
         danger
         onConfirm={() => void verwijder()}
         onCancel={() => setOpen(false)}

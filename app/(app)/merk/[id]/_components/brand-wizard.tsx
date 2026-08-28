@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useRefresh } from "@/components/use-refresh";
 import { useToast } from "@/components/toast";
 import {
   BRAND_FIELDS,
@@ -70,6 +71,7 @@ export function BrandWizard({
   startStap?: BrandStep;
 }) {
   const router = useRouter();
+  const { refresh, refreshing } = useRefresh();
   const toast = useToast();
   const [stap, setStap] = useState<BrandStep>(startStap);
   // ⚠️ Alleen de klantstappen, en dat is niet cosmetisch. De hele inhoud van
@@ -89,6 +91,9 @@ export function BrandWizard({
   const voorbeelden = useMemo(() => examplesFor(initial), [initial]);
   const [vuil, setVuil] = useState(false);
   const [busy, setBusy] = useState(false);
+  // ⚠️ De knop laat pas los als het scherm de nieuwe stand heeft, niet als de
+  // aanvraag de deur uit is. Zie `components/use-refresh.ts`.
+  const wacht = busy || refreshing;
 
   const voortgang = useMemo(
     () => overallProgress(waarden as Partial<Profile>),
@@ -154,7 +159,7 @@ export function BrandWizard({
         description:
           "ORBIT ENGINE gebruikt dit vanaf nu in élke pagina die het schrijft, niet alleen in de eerstvolgende.",
       });
-      router.refresh();
+      refresh();
       daarna?.();
     } catch {
       toast({
@@ -249,7 +254,7 @@ export function BrandWizard({
             type="button"
             className="btn-outline"
             onClick={() => void bewaar()}
-            disabled={busy || !vuil}
+            disabled={wacht || !vuil}
           >
             {busy ? "Bezig…" : "Bewaren"}
           </button>
@@ -260,7 +265,7 @@ export function BrandWizard({
               onClick={() =>
                 void bewaar(() => router.push(`/merk/${profileId}/merkprofiel`))
               }
-              disabled={busy}
+              disabled={wacht}
             >
               Bewaren en terug naar het dossier
             </button>

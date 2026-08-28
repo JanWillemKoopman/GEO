@@ -98,3 +98,56 @@ export function DetailSkeleton() {
     </div>
   );
 }
+
+/**
+ * De vorm die veertien schermen delen: kop, en daaronder blokken.
+ *
+ * ── ⚠️ WAAROM DIT ER OP 28 AUGUSTUS 2026 BIJ KWAM ───────────────────────────
+ *
+ * Elf schermen hadden een `loading.tsx` en achttien niet, en de achttien zonder
+ * waren juist de schermen die in de zijbalk staan: Analytics, Clusters,
+ * Contentplan, Merkprofiel, Instellingen. Op die schermen gebeurde er tussen de
+ * klik en het scherm níéts zichtbaars. Next.js houdt de oude pagina dan staan
+ * tot de nieuwe klaar is, dus de app leek te hangen op precies de plek waar hij
+ * het hardst werkte.
+ *
+ * Elk van die veertien opent op dezelfde manier: een `PageHeader` met een
+ * kicker, een titel en een regel uitleg, en daaronder kaarten. Die kop hier
+ * neerzetten in plaats van veertien keer apart houdt hem op één maat, en dan
+ * springt het scherm niet op het moment dat de echte kop arriveert.
+ *
+ * `ruim` is 32 pixels tussen de blokken en `normaal` 24: de twee afstanden die
+ * de schermen zelf gebruiken (`gap-8` en `gap-6`). Als losse woorden en niet
+ * als getal, want Tailwind leest de klassenamen uit de broncode en een
+ * samengestelde naam vindt hij niet terug.
+ */
+export function PageSkeleton({
+  blocks = 2,
+  hoogte = "h-40",
+  ruimte = "normaal",
+  kicker = true,
+}: {
+  blocks?: number;
+  /** De hoogte van één blok. Volg het echte scherm. */
+  hoogte?: string;
+  ruimte?: "normaal" | "ruim";
+  /** Heeft de kop een kicker erboven (`eyebrow`)? */
+  kicker?: boolean;
+}) {
+  return (
+    <div
+      className={`flex flex-col ${ruimte === "ruim" ? "gap-8" : "gap-6"}`}
+      aria-busy="true"
+      aria-label="Bezig met laden"
+    >
+      <div className="flex flex-col gap-2">
+        {kicker && <Skeleton className="h-3 w-24" />}
+        <Skeleton className="h-8 w-64 max-w-full" />
+        <Skeleton className="h-4 w-[28rem] max-w-full" />
+      </div>
+      {Array.from({ length: blocks }).map((_, i) => (
+        <Skeleton key={i} className={hoogte} style={{ borderRadius: "var(--radius-lg)" }} />
+      ))}
+    </div>
+  );
+}

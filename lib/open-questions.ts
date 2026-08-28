@@ -30,6 +30,7 @@ import "server-only";
  * dan blijft het bolletje branden voor werk dat niemand meer kan doen.
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { getProfile } from "@/lib/profiles";
 import { findGaps, type ProfileGap } from "@/lib/profile-gaps";
 import { openVragenTotaal } from "@/lib/open-questions-count";
 import type { FactRequest, Profile } from "@/lib/types/database";
@@ -55,28 +56,39 @@ export interface OpenVragen {
  * op het moment dat de app zijn vragen niet kon ophalen. Vandaar `fout`
  * (conventie 3: onbekend is een betere waarde dan een verkeerde).
  */
+/**
+ * De twee queries, los van het profiel dat erbij hoort.
+ *
+ * Als eigen functie omdat de bovenbalk het profiel nog niet heeft en de
+ * vragenpagina wél: zie `countOpenQuestionsForBrand` hieronder. Allebei de
+ * lezers stellen zo gegarandeerd dezelfde vraag aan de database.
+ */
+function fetchQuestionRows(db: Db, profileId: string) {
+  return Promise.all([
+    db
+      .from("fact_requests")
+      .select("*")
+      .eq("profile_id", profileId)
+      // ⚠️ Overgeslagen vragen horen er wél bij in de LIJST. Het scherm heeft
+      // een blok "toon wat je oversloeg" waarmee je een vraag alsnog kunt
+      // beantwoorden, en dat blok bleef leeg zolang de query die rijen niet
+      // ophaalde. In de TELLING tellen ze niet mee, zie hierboven.
+      .in("status", ["open", "beantwoord", "overgeslagen"])
+      .order("created_at"),
+    db
+      .from("profile_field_sources")
+      .select("field")
+      .eq("profile_id", profileId)
+      .eq("not_applicable", true),
+  ]);
+}
+
 export async function loadOpenQuestions(
   db: Db,
   profile: Profile,
 ): Promise<OpenVragen> {
   const [{ data: factRows, error: factError }, { data: nvtRows, error: nvtError }] =
-    await Promise.all([
-      db
-        .from("fact_requests")
-        .select("*")
-        .eq("profile_id", profile.id)
-        // ⚠️ Overgeslagen vragen horen er wél bij in de LIJST. Het scherm heeft
-        // een blok "toon wat je oversloeg" waarmee je een vraag alsnog kunt
-        // beantwoorden, en dat blok bleef leeg zolang de query die rijen niet
-        // ophaalde. In de TELLING tellen ze niet mee, zie hierboven.
-        .in("status", ["open", "beantwoord", "overgeslagen"])
-        .order("created_at"),
-      db
-        .from("profile_field_sources")
-        .select("field")
-        .eq("profile_id", profile.id)
-        .eq("not_applicable", true),
-    ]);
+    await fetchQuestionRows(db, profile.id);
 
   const facts = (factRows ?? []) as FactRequest[];
   const nvt = ((nvtRows ?? []) as { field: string }[]).map((r) => r.field);
@@ -96,12 +108,34 @@ export async function loadOpenQuestions(
 /**
  * Alleen het getal, voor de bovenbalk.
  *
- * Draait naast élk scherm van de app, dus twee queries en niet meer: het profiel
- * zelf heeft de aanroeper al, want de bovenbalk kent het actieve merk.
+ * ── ⚠️ WAAROM DIT EEN MERK-ID AANNEEMT EN GEEN PROFIEL (28 AUGUSTUS 2026) ───
+ *
+ * De bovenbalk kent het actieve merk uit `loadWorkspace()`, maar dat is de
+ * smalle kiezerregel (naam, adres, status) en niet het volle profiel. `findGaps`
+ * heeft dat volle profiel wél nodig, dus de shell haalde het eerst op en stelde
+ * daarná pas de twee vragen: drie netwerkrondes achter elkaar, naast élk scherm
+ * van de app.
+ *
+ * Alle drie kunnen tegelijk, want de twee queries hebben aan het merk-id genoeg
+ * en wachten nergens op. Drie rondes worden er zo één, zonder dat het getal
+ * verandert.
  */
-export async function countOpenQuestions(db: Db, profile: Profile): Promise<number> {
-  const { totaal } = await loadOpenQuestions(db, profile);
-  return totaal;
+export async function countOpenQuestionsForBrand(db: Db, profileId: string): Promise<number> {
+  const [profile, [{ data: factRows }, { data: nvtRows }]] = await Promise.all([
+    getProfile(profileId),
+    fetchQuestionRows(db, profileId),
+  ]);
+
+  // Geen profiel betekent hier niet "nul vragen" maar "we weten het niet". Het
+  // getal is dan de enige eerlijke stand: geen bolletje in de balk. Conventie 3.
+  if (!profile) return 0;
+
+  const facts = (factRows ?? []) as FactRequest[];
+  const nvt = ((nvtRows ?? []) as { field: string }[]).map((r) => r.field);
+  return openVragenTotaal({
+    openFacts: facts.filter((f) => f.status === "open").length,
+    gaps: findGaps(profile, nvt).length,
+  });
 }
 
 /**
