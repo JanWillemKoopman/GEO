@@ -5532,3 +5532,13 @@ nagekeken.
 scherm), het weghalen van de rondebalk, en de statuscijfers in de bovenbalk. Ze staan hier omdat de
 afweging bewaard hoort te blijven: komt de hernoeming terug, dan hoort de meetronde in dezelfde
 ronde een eigen woord te krijgen.
+
+**28 augustus 2026, verder op de dag: een stippenpatroon op de werkruimte.** De eigenaar bracht zelf
+CSS voor een stippenpatroon aan, gevonden buiten de app, en vroeg het toe te passen op `<main>` in
+`components/workspace-chrome.tsx`, alleen in de lichte stand. De aangeleverde CSS klopte inhoudelijk
+maar had één maskerregel uitgecommentarieerd die juist het punt van het effect was: zonder masker
+zijn de stippen overal even zichtbaar, terwijl de bedoeling ("in het midden niet zichtbaar, naar
+buiten uitlopend") vraagt om precies dat masker aan te zetten. Verwerkt als `.workspace-canvas` in
+`app/globals.css`: de stippen zitten op een eigen `::before`-laag, los van de vlakke `--bg-muted`
+van het element zelf, want anders veegt het masker ook de bodemkleur mee weg in het midden. In
+donker valt het patroon weg. Zie `docs/designsystem.md` §2.1.

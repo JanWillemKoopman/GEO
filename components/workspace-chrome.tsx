@@ -112,8 +112,12 @@ export function WorkspaceChrome({
             zijbalk. Zodra de inhoud in kaarten op wit staat, valt de rand van
             die kaarten tegen deze even witte grond weg: op verzoek van de
             eigenaar (28 augustus 2026) krijgt de werkruimte hier weer het
-            lichtgrijs dat de kaarten laat opvallen. */}
-        <main className="min-w-0 flex-1 bg-[var(--bg-muted)]">
+            lichtgrijs dat de kaarten laat opvallen.
+
+            `.workspace-canvas` (ook 28 augustus 2026, globals.css) legt daar
+            een fijn stippenpatroon overheen dat naar het midden toe wegvalt,
+            en alleen in de lichte stand: zie de toelichting bij die klasse. */}
+        <main className="workspace-canvas min-w-0 flex-1">
           <div className="mx-auto w-full max-w-5xl px-6 py-10">{children}</div>
         </main>
       </div>

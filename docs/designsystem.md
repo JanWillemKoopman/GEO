@@ -107,6 +107,17 @@ naast een zijbalk staan, valt de rand van die kaarten tegen een even witte grond
 bewuste, plaatselijke afwijking van de regel hierboven en geldt alleen voor dit ene element, niet
 voor `--bg-base` zelf: de inlogroute en losse pagina's zonder zijbalk blijven wit.
 
+**Datzelfde vlak draagt sinds 28 augustus 2026 een stippenpatroon, alleen in de lichte stand.** De
+klasse `.workspace-canvas` (`app/globals.css`) legt op `<main>` een fijn rooster van stippen
+(`#e4e9ee`, één stap donkerder dan `--bg-muted`) op een aparte laag onder de inhoud. Twee radiale
+patronen 90° gedraaid geven het effect van korte streepjes in plaats van losse stippen, en een
+maskergradiënt maakt ze onzichtbaar in het midden en zichtbaar naar de randen: decor, geen ruis
+over de kaarten. De stippenlaag zit op een eigen `::before`, los van de vlakke achtergrondkleur van
+`<main>` zelf, anders zou het masker ook die kleur wegvegen en zou er in het midden pagina-wit
+doorschemeren. In de donkere stand valt het patroon volledig weg (`background-image: none`): daar
+is `--bg-muted` (`#27323d`) al de kleur van een kaartrand, en stippen in precies die kleur zijn niet
+te zien.
+
 **Waarom de randen een echte tint zijn en geen doorschijnend zwart:** doorschijnend zwart wordt vuil
 zodra het op een gekleurd vlak ligt. Een chip met een amber vulling kreeg zo een grijsbruine rand.
 Een echte tint heeft dat probleem niet.

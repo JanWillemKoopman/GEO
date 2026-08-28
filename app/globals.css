@@ -775,6 +775,71 @@ body {
   overflow-wrap: break-word;
 }
 
+/* ── Het werkruimte-canvas (28 augustus 2026) ────────────────────────────────
+   Fijne stippen op `<main>` in `components/workspace-chrome.tsx`, de kolom
+   rechts van de zijbalk. De stippen liggen op een eigen laag (`::before`),
+   los van de vlakke `--bg-muted`-kleur van het element zelf: anders zou het
+   masker hieronder ook de bodemkleur wegvegen in plaats van alleen de
+   stippen, en dan schemert er in het midden wit doorheen (--bg-base) in
+   plaats van het rustige lichtgrijs.
+
+   Het masker maakt de stippen onzichtbaar in het midden en laat ze naar de
+   randen toe verschijnen: precies omgekeerd aan een vignet. Zonder masker
+   zou het patroon over de hele kaartenkolom liggen en de aandacht van de
+   kaarten aftrekken; met het masker is het decor, geen ruis.
+
+   ⚠️ Alleen in de lichte stand. In donker blijft `--bg-muted` (#27323d) vlak:
+   dat is al de kaartrand-kleur, en stippen in exact die kleur op zichzelf
+   zijn niet te onderscheiden van geen stippen. Zie de twee donkere blokken
+   verderop in dit bestand. */
+.workspace-canvas {
+  position: relative;
+  isolation: isolate;
+  background-color: var(--bg-muted);
+}
+.workspace-canvas::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  /* #e4e9ee, één stap donkerder dan --bg-muted (#f8fafc), tussen --bg-muted
+     en --bg-elevated (#e7edf2) in. Twee radiale patronen 90° gedraaid ten
+     opzichte van elkaar geven het gestreepte-blokjes-effect: geen los rooster
+     van stippen, maar korte streepjes. */
+  background-image:
+    radial-gradient(circle, #e4e9ee 0.8px, transparent 0.8px),
+    radial-gradient(circle, #e4e9ee 0.8px, transparent 0.8px);
+  background-size:
+    5px 20px,
+    20px 5px;
+  background-position:
+    -2.5px -10px,
+    -10px -2.5px;
+  mask-image: radial-gradient(ellipse at center, transparent 40%, rgba(0, 0, 0, 0.6) 100%);
+  -webkit-mask-image: radial-gradient(
+    ellipse at center,
+    transparent 40%,
+    rgba(0, 0, 0, 0.6) 100%
+  );
+  mask-size: 100% 100%;
+  -webkit-mask-size: 100% 100%;
+  mask-repeat: no-repeat;
+  -webkit-mask-repeat: no-repeat;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    .workspace-canvas::before {
+      background-image: none;
+    }
+  }
+}
+:root[data-theme="dark"] {
+  .workspace-canvas::before {
+    background-image: none;
+  }
+}
+
 /* ── Niets is breder dan het scherm ─────────────────────────────────────────
    Op een iPhone was de pagina breder dan het toestel: je kon horizontaal
    scrollen en de rechterkant viel weg. De oorzaak is niet één kapotte kaart
