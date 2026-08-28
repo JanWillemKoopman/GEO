@@ -81,9 +81,6 @@
   --bg-muted: #f8fafc; /* geneste vlakken, tabelkoppen, hover op een oppervlak */
   --bg-elevated: #e7edf2; /* chips, voortgangsbanen */
   --bg-surface-2: #dce3ea; /* een tint dieper, hover op een genest vlak */
-  /* De stip in het werkruimte-canvas (.workspace-canvas, 28 augustus 2026).
-     Eén stap donkerder dan --bg-muted, tussen --bg-muted en --bg-elevated in. */
-  --workspace-canvas-dot: #e4e9ee;
 
   /* De grond onder een scherm dat uit één gecentreerde kaart bestaat: inloggen,
      wachtwoord herstellen, een uitnodiging aannemen. Die kaart moet zich van de
@@ -438,12 +435,6 @@
        hier ONDER de kaart en niet erboven. #121a22 onder #17212b, met een rand
        van #27323d ertussen die dan wel te zien is. */
     --bg-stage: #121a22;
-    /* Tegengesteld aan de lichte stand: daar is de stip een stap dónkerder dan
-       --bg-muted, hier moet hij een stap líchter zijn, anders verdwijnt hij
-       simpelweg in het donker. --bg-elevated is in donker gelijk aan
-       --bg-muted (#27323d), dus de eerstvolgende échte stap is --bg-surface-2
-       (#43505d), dezelfde kleur als een randcontrast. */
-    --workspace-canvas-dot: var(--bg-surface-2);
 
     --text-primary: #ffffff;
     --text-secondary: #c2ccd6;
@@ -584,8 +575,6 @@
   --bg-surface-2: #43505d;
   /* Tegengesteld aan de lichte stand, zie de toelichting daar. */
   --bg-stage: #121a22;
-  /* Zie de toelichting bij het andere donkere blok hierboven. */
-  --workspace-canvas-dot: var(--bg-surface-2);
 
   --text-primary: #ffffff;
   --text-secondary: #c2ccd6;
@@ -799,12 +788,11 @@ body {
    zou het patroon over de hele kaartenkolom liggen en de aandacht van de
    kaarten aftrekken; met het masker is het decor, geen ruis.
 
-   De stipkleur zelf, `--workspace-canvas-dot`, wisselt per stand: in licht een
-   stap dónkerder dan --bg-muted, in donker een stap líchter, want een donkere
-   stip op een donkere grond verdwijnt gewoon. Zie de tokendefinities bovenaan
-   dit bestand en in de twee donkere blokken. Het masker houdt de dekking in
-   allebei de standen laag (0 tot 60%), dus het patroon maakt het vlak in geen
-   van beide standen merkbaar lichter of donkerder in zijn geheel. */
+   ⚠️ Alleen in de lichte stand (28 augustus 2026, teruggedraaid voor donker
+   op verzoek van de eigenaar). Er is kort ook een donkere variant geweest
+   met `--bg-surface-2` als stipkleur; die bleek niet gewenst en `<main>`
+   in de donkere stand is weer een vlak `--bg-muted` zonder patroon. Zie de
+   twee donkere blokken verderop in dit bestand. */
 .workspace-canvas {
   position: relative;
   isolation: isolate;
@@ -816,12 +804,13 @@ body {
   inset: 0;
   z-index: -1;
   pointer-events: none;
-  /* Twee radiale patronen 90° gedraaid ten opzichte van elkaar geven het
-     gestreepte-blokjes-effect: geen los rooster van stippen, maar korte
-     streepjes. */
+  /* #e4e9ee, één stap donkerder dan --bg-muted (#f8fafc), tussen --bg-muted
+     en --bg-elevated (#e7edf2) in. Twee radiale patronen 90° gedraaid ten
+     opzichte van elkaar geven het gestreepte-blokjes-effect: geen los rooster
+     van stippen, maar korte streepjes. */
   background-image:
-    radial-gradient(circle, var(--workspace-canvas-dot) 0.8px, transparent 0.8px),
-    radial-gradient(circle, var(--workspace-canvas-dot) 0.8px, transparent 0.8px);
+    radial-gradient(circle, #e4e9ee 0.8px, transparent 0.8px),
+    radial-gradient(circle, #e4e9ee 0.8px, transparent 0.8px);
   background-size:
     5px 20px,
     20px 5px;
@@ -838,6 +827,18 @@ body {
   -webkit-mask-size: 100% 100%;
   mask-repeat: no-repeat;
   -webkit-mask-repeat: no-repeat;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    .workspace-canvas::before {
+      background-image: none;
+    }
+  }
+}
+:root[data-theme="dark"] {
+  .workspace-canvas::before {
+    background-image: none;
+  }
 }
 
 /* ── Niets is breder dan het scherm ─────────────────────────────────────────

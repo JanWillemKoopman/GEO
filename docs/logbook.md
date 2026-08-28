@@ -5552,3 +5552,9 @@ verdwijnt. Nieuw token `--workspace-canvas-dot` wijst nu in licht naar `#e4e9ee`
 gelijk aan `--bg-muted` en biedt dus geen tussenstap. Het masker (dekking 0 tot 60%) bleef ongewijzigd
 en houdt het effect in allebei de standen even subtiel, dus het vlak wordt in geen van beide standen
 merkbaar lichter of donkerder. Zie `docs/designsystem.md` §2.1.
+
+**28 augustus 2026, nog verder op de dag: het patroon in donker weer terug.** De donkere variant
+beviel niet, en is dezelfde dag teruggedraaid: `<main>` in de donkere stand is weer een vlak
+`--bg-muted`, zonder stippen. Het token `--workspace-canvas-dot` is weer weg; het patroon zelf staat
+weer met de letterlijke kleur `#e4e9ee`, precies zoals bij de eerste invoering. Alleen de lichte
+stand houdt het stippenpatroon. Zie `docs/designsystem.md` §2.1.
