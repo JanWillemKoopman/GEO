@@ -17,6 +17,9 @@ Voor UI/UX: `ux-design.md`.
 > **Bijgewerkt op 24 augustus 2026**: de gespreksagenda uit de synthese landt nu als
 > beantwoordbare vragen in `fact_requests` (§3 en §5, stap 4e), en de statusroute telt de open
 > punten niet meer apart naast die vragen.
+> **Bijgewerkt op 28 augustus 2026**: de eindpoort staat in §2 (geen definitieve versie zolang er
+> vragen open staan), en "Vraagt jouw input" heet "Openstaande vragen" en staat op
+> `/merk/[id]/strategie/vragen`. Geen migratie: alle kolommen bestonden al.
 > **Bijgewerkt op 26 augustus 2026**: de tijdrij van §9 is opnieuw doorgerekend
 > (doorloop-huyberts.md punt 5). Migraties `0066` en `0067` zijn erbij gekomen
 > (supabase/README.md); `0067` staat bij §3, het contentplan.
@@ -87,6 +90,32 @@ Daarom pg_cron.
 - **Cron:** alle drie de routes eisen `Authorization: Bearer <CRON_SECRET>`.
 - **Registratie:** twee lagen, Supabase "Allow new users to sign up" (harde poort, ook tegen
   directe API-aanroepen) en `SIGNUPS_ENABLED` in de app (verbergt UI, blokkeert de server action).
+
+### De eindpoort: geen definitieve versie met openstaande vragen (28 augustus 2026)
+
+Een pagina kan geschreven worden terwijl er vragen open staan, maar hij kan niet **afgerond**
+worden. De poort staat op twee routes:
+
+| Route | Wat hij doet | Wat de poort doet |
+|---|---|---|
+| `POST /api/analyses/[id]/content/[pieceId]` | Herschrijven met feedback, levert een nieuwe versie | 409 zolang er vragen open staan |
+| `POST /api/analyses/[id]/content/[pieceId]/approve` | Vrijgeven (`needs_review` op `false`) | 409, idem |
+| `POST /api/analyses/[id]/generate` met `regenerate: true` | Nieuwe versie bovenop een afgeronde pagina | 409, idem |
+
+Het eerste concept (`generate` zonder `regenerate`) blijft vrij. Dat is geen slordigheid maar de
+kern: de scherpste vragen ontstaan pas tijdens dat schrijven, want de claim-audit leest wat de tekst
+beweert en vraagt precies dát na (`lib/pipeline/briefing.ts`). Een poort ervóór zou vragen om
+antwoorden die nog niet bestaan.
+
+**Wat tegenhoudt** (`countBlockingQuestions` in `lib/open-questions.ts`): open vragen met de
+`analysis_id` van dit cluster, plus open vragen waarvan `content_piece_ids` deze pagina bevat. Een
+merkbrede vraag die niet aan deze pagina hangt telt niet mee, anders zet één onbeantwoorde vraag uit
+de onboarding élke pagina van élk cluster voorgoed dicht. Status `overgeslagen` telt als behandeld:
+dat is de uitweg die de poort leefbaar houdt.
+
+De beslissing en de meldingstekst staan in `lib/content-final-gate.ts`, puur en zonder
+`server-only`, zodat de knop en de route letterlijk dezelfde zin tonen (conventie 1: de knop is de
+intentie, de route de garantie).
 
 ### De klantweergave: een beheerder die zichzelf tijdelijk klant maakt
 
@@ -347,7 +376,7 @@ Bron: `lib/jobs/{types,queue,worker,handlers,pending}.ts`.
 | 4b | Core topics | luna | `propose-topics.ts`: 5–8 onderwerpen uit de aanbodboom, elk met verwijzing naar de knopen waar ze uit volgen. Voorstel, geen meting, goedkeuring is een aparte handeling. |
 | 4c | Markt | luna, web_search | `market.ts`: per concurrent wáárom die wint, plus het bronnenlandschap van de markt. |
 | 4d | LLM-kennisbasislijn | luna, deels web_search | `llm-baseline.ts`: vijf blokken (`kent`, `klopt`, `citeert`, `verwarring`, `categorie`). `kent` stelt **zes** formuleringen en levert een verhouding, niet een ja of nee; `categorie` kiest zijn koopvragen via de topics en krijgt een eigen oordeel (word je genoemd, en wie wél). Alle oordelen worden in code geveld (`baseline-verdict.ts`), nooit door het model over zichzelf. |
-| 4e | Synthese | **sol** (`SYNTHESIS_PREMIUM`) | `synthesis.ts`: dossier, gespreksagenda en `brand_facts`, alleen feiten waarvan het citaat letterlijk op de bronpagina staat. ⚠️ Sinds 24 augustus 2026 wordt de gespreksagenda ook wegschreven als merkbrede rijen in `fact_requests` (`gap-questions.ts`), zodat de klant ze op "Vraagt jouw input" kan beantwoorden in plaats van alleen lezen. Idempotent via de unieke index op (`profile_id`, `question`). |
+| 4e | Synthese | **sol** (`SYNTHESIS_PREMIUM`) | `synthesis.ts`: dossier, gespreksagenda en `brand_facts`, alleen feiten waarvan het citaat letterlijk op de bronpagina staat. ⚠️ Sinds 24 augustus 2026 wordt de gespreksagenda ook wegschreven als merkbrede rijen in `fact_requests` (`gap-questions.ts`), zodat de klant ze op "Openstaande vragen" kan beantwoorden in plaats van alleen lezen. Idempotent via de unieke index op (`profile_id`, `question`). |
 | 4f | **Onboardingsessie** |, | `/merk/[id]/admin/onboarding`, staf-only en het enige stafscherm dat gedeeld wordt. De consultant loopt het dossier mét de klant na, vult de commerciële laag in (migratie `0060`) en legt het gesprek vast. Opslaan gaat per veld, met bron `gesprek`. Nul AI-aanroepen: het scherm leest wat er ligt. |
 | 4g | **Het onderzoek bijwerken** |, | `POST /api/profiles/[id]/refresh`, achter `mayTriggerCost` en het budgetplafond. `onboarding-refresh.ts` bepaalt per gewijzigd veld welke stappen opnieuw draaien: bereik of werkgebied → promptgeneratie plus kennistest, commerciële sturing → onderwerpen, concurrenten → markt. Tien van de vijftien velden leveren nul stappen op. Een stap die zo wordt ingepland krijgt `chain: false` en sleept zijn opvolger niet mee. |
 | 5 | Analyse aanmaken |, | Verplicht onderwerp + optionele content-brief. |

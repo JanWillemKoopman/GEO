@@ -8,7 +8,8 @@
  * en was daardoor niet te testen vanuit `scripts/test-unit.ts` (conventie 2).
  * Bij de herindeling van 17 augustus 2026 gingen feitenvragen en open punten
  * naar één scherm, en toen zou dezelfde functie op twee plekken nodig zijn: op
- * `/merk/[id]/merkprofiel/input` en straks in de teller op Overzicht. Twee
+ * `/merk/[id]/strategie/vragen` (tot 28 augustus 2026 `/merkprofiel/input`) en in
+ * de teller in de bovenbalk. Twee
  * kopieën van dezelfde vier regels lopen gegarandeerd uit elkaar. Sinds
  * onboarding 3.0 is de onboardingsessie de derde lezer.
  *

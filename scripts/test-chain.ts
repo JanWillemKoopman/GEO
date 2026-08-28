@@ -4389,7 +4389,7 @@ async function main(): Promise<void> {
         vragen.map((r) => String(r.bron)).join(" | "),
       );
 
-      // ⚠️ Dezelfde query als "Vraagt jouw input" doet. Een rij die de synthese
+      // ⚠️ Dezelfde query als "Openstaande vragen" doet. Een rij die de synthese
       // schrijft maar dit filter niet overleeft, staat nergens.
       const { rows: opHetScherm } = await db.client.query(
         `select id from public.fact_requests
@@ -4729,6 +4729,117 @@ async function main(): Promise<void> {
         String(periodiekDubbelFout),
       );
     }
+
+    // ══════════════════════════════════════════════════════════════════════
+    // DE EINDPOORT: geen definitieve versie zolang er vragen open staan
+    // (28 augustus 2026, `lib/content-final-gate.ts`)
+    //
+    // Dit hoort in de KETENTEST en niet in de unittest: de poort is een
+    // samenspel tussen twee tabellen die niets van elkaar weten. De rekenkant
+    // (`eindpoort`) staat in `scripts/test-unit.ts`; wat hier getoetst wordt is
+    // of de telling de goede rijen pakt, en vooral welke rijen NIET.
+    // ══════════════════════════════════════════════════════════════════════
+    console.log("\nDe eindpoort telt de juiste vragen");
+
+    const poortProfiel = randomUUID();
+    await db.client.query(
+      `insert into public.profiles (id, user_id, name, url, status)
+       values ($1, $2, 'Poortmerk', 'https://poortmerk.nl', 'klaar')`,
+      [poortProfiel, userId],
+    );
+    const { rows: poortAnalyses } = await db.client.query(
+      `insert into public.analyses (user_id, profile_id, url, topic, name, status)
+       values ($1, $2, 'https://poortmerk.nl', 'onderhoud', 'Onderhoud', 'gereed'),
+              ($1, $2, 'https://poortmerk.nl', 'installatie', 'Installatie', 'gereed')
+       returning id`,
+      [userId, poortProfiel],
+    );
+    const poortCluster = poortAnalyses[0].id as string;
+    const anderCluster = poortAnalyses[1].id as string;
+
+    const { rows: poortPagina } = await db.client.query(
+      `insert into public.content_pieces (analysis_id, type, title, status, action)
+       values ($1, 'article', 'Wat kost een onderhoudsbeurt', 'ready', 'nieuw') returning id`,
+      [poortCluster],
+    );
+    const poortPieceId = poortPagina[0].id as string;
+
+    const { countBlockingQuestions } = await import("@/lib/open-questions");
+    const { eindpoort } = await import("@/lib/content-final-gate");
+
+    ok(
+      "zonder vragen staat de poort open",
+      eindpoort(await countBlockingQuestions(admin as never, poortCluster, poortPieceId)).mag,
+    );
+
+    // 1. Een open vraag uit DIT cluster blokkeert.
+    await db.client.query(
+      `insert into public.fact_requests
+         (profile_id, analysis_id, question, reason, status, scope, kind, answer_type, required)
+       values ($1, $2, 'Wat kost een onderhoudsbeurt bij jullie?', 'prijs', 'open',
+               'analyse', 'bewijs', 'tekst_kort', true)`,
+      [poortProfiel, poortCluster],
+    );
+    ok(
+      "een open vraag uit dit cluster houdt de definitieve versie tegen",
+      !eindpoort(await countBlockingQuestions(admin as never, poortCluster, poortPieceId)).mag,
+    );
+
+    // 2. Een open vraag uit een ANDER cluster blokkeert deze pagina niet.
+    //    Zonder deze grens zet één vraag over installaties de onderhoudspagina
+    //    dicht, en dan wacht de klant op werk dat er niets mee te maken heeft.
+    await db.client.query(
+      `update public.fact_requests set status = 'overgeslagen' where analysis_id = $1`,
+      [poortCluster],
+    );
+    await db.client.query(
+      `insert into public.fact_requests
+         (profile_id, analysis_id, question, reason, status, scope, kind, answer_type, required)
+       values ($1, $2, 'Welke merken installeren jullie?', 'aanbod', 'open',
+               'analyse', 'aanvulling', 'tekst_kort', true)`,
+      [poortProfiel, anderCluster],
+    );
+    ok(
+      "overslaan telt als antwoord, en een ander cluster telt niet mee",
+      eindpoort(await countBlockingQuestions(admin as never, poortCluster, poortPieceId)).mag,
+    );
+
+    // 3. Een MERKBREDE vraag die aan déze pagina hangt blokkeert wél. Die komt
+    //    uit de claim-audit: de tekst beweert iets, dus het feit moet kloppen.
+    await db.client.query(
+      `insert into public.fact_requests
+         (profile_id, analysis_id, question, reason, status, scope, kind, answer_type,
+          required, content_piece_ids)
+       values ($1, null, 'In welk jaar zijn jullie opgericht?', 'de tekst noemt het', 'open',
+               'merk', 'verificatie', 'tekst_kort', true, array[$2::uuid])`,
+      [poortProfiel, poortPieceId],
+    );
+    ok(
+      "een merkbrede vraag die aan deze pagina hangt telt wél mee",
+      !eindpoort(await countBlockingQuestions(admin as never, poortCluster, poortPieceId)).mag,
+    );
+
+    // 4. Een merkbrede vraag die NERGENS aan hangt blokkeert niets. Zonder deze
+    //    grens zet één onbeantwoorde vraag uit de onboarding élke pagina van
+    //    élk cluster voorgoed dicht, en dan is de poort een slot.
+    await db.client.query(
+      `update public.fact_requests set status = 'beantwoord', answer = '1974'
+        where profile_id = $1 and analysis_id is null`,
+      [poortProfiel],
+    );
+    await db.client.query(
+      `insert into public.fact_requests
+         (profile_id, analysis_id, question, reason, status, scope, kind, answer_type, required)
+       values ($1, null, 'Hoeveel monteurs hebben jullie?', 'onboarding', 'open',
+               'merk', 'aanvulling', 'tekst_kort', false)`,
+      [poortProfiel],
+    );
+    ok(
+      "een losse merkvraag blokkeert deze pagina niet",
+      eindpoort(await countBlockingQuestions(admin as never, poortCluster, poortPieceId)).mag,
+    );
+
+    await db.client.query("delete from public.profiles where id = $1", [poortProfiel]);
 
     __setTestAdminClient(null);
     __setTestTransport(null);

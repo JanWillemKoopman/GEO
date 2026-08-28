@@ -211,6 +211,19 @@ class QueryBuilder<T> implements PromiseLike<Antwoord<T>> {
   }
 
   contains(kol: string, waarde: unknown): this {
+    // ⚠️ PostgREST gebruikt `@>` voor twee soorten kolommen, en die vragen een
+    // ander type parameter. `payload_json` is jsonb, `content_piece_ids` is
+    // `uuid[]` (migratie 0024). Met de jsonb-cast op een uuid-kolom geeft
+    // Postgres geen fout maar nul rijen, en dan lijkt de poort van
+    // `lib/content-final-gate.ts` gewoon open te staan: precies het soort
+    // verschil tussen de shim en de echte database waar een ketentest voor is.
+    //
+    // Een JS-array wordt hier dus een array-vergelijking. Het type laten we aan
+    // Postgres: `uuid[] @> $1` leidt het parametertype zelf af uit de kolom.
+    if (Array.isArray(waarde)) {
+      this.filters.push({ sql: `${kolom(kol)} @> $$`, params: [waarde] });
+      return this;
+    }
     this.filters.push({ sql: `${kolom(kol)} @> $$::jsonb`, params: [JSON.stringify(waarde)] });
     return this;
   }

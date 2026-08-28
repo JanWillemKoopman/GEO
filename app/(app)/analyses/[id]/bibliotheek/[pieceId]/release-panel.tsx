@@ -2,7 +2,9 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { formatDateLong } from "@/lib/format";
+import type { PoortOordeel } from "@/lib/content-final-gate";
 
 /**
  * Het vrijgavepaneel (implementatieplan.md S6).
@@ -22,12 +24,19 @@ import { formatDateLong } from "@/lib/format";
  * alleen in de database stonden, de gebruikte feitenkaart, elke uitspraak over
  * het bedrijf met of zonder bron, en wat er ontbreekt omdat een vraag open bleef.
  *
- * ── GEEN MUUR ───────────────────────────────────────────────────────────────
+ * ── GEEN MUUR, MET ÉÉN UITZONDERING SINDS 28 AUGUSTUS 2026 ──────────────────
  *
- * De knop blokkeert niets en de tekst blijft gewoon te kopiëren. Een gate die je
+ * De tekst blijft gewoon te lezen, te kopiëren en te bewerken. Een gate die je
  * niet kunt passeren is een muur, en muren leveren afgehaakte klanten op in
  * plaats van betere content (README.md §2). Het verschil met vroeger is dat
  * "klaar" nu iets betekent: iemand heeft gekeken.
+ *
+ * ⚠️ De knop zélf gaat wél op slot zolang er vragen open staan die deze pagina
+ * blokkeren (`lib/content-final-gate.ts`, besluit van de eigenaar). Vrijgeven is
+ * de handeling die zegt "deze tekst is af", en dat kan niet terwijl ORBIT ENGINE
+ * nog wacht op de feiten waar de tekst om vroeg. De uitweg is één klik:
+ * overslaan telt als antwoord. Alles wat hierboven staat over kopiëren en
+ * publiceren blijft gelden, want dat doet de klant zelf en buiten de app om.
  */
 
 export interface ReleaseFact {
@@ -51,6 +60,8 @@ export function ReleasePanel({
   facts,
   claims,
   unansweredRequired,
+  poort,
+  vragenHref,
 }: {
   analysisId: string;
   pieceId: string;
@@ -60,6 +71,10 @@ export function ReleasePanel({
   facts: ReleaseFact[];
   claims: ReleaseClaim[];
   unansweredRequired: string[];
+  /** Houden openstaande vragen het vrijgeven tegen? (28 augustus 2026) */
+  poort: PoortOordeel;
+  /** Waar die vragen staan. */
+  vragenHref: string;
 }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
@@ -185,7 +200,7 @@ export function ReleasePanel({
         <span className="text-sm text-muted">
           Vrijgegeven op {formatDateLong(reviewedAt)}.
         </span>
-      ) : (
+      ) : poort.mag ? (
         <div className="flex flex-wrap items-center gap-3">
           <button type="button" className="btn-primary btn-sm" onClick={approve} disabled={busy}>
             {busy ? "Vastleggen…" : "Ik heb dit gecontroleerd"}
@@ -195,6 +210,18 @@ export function ReleasePanel({
               ? "Kopiëren kan ook zonder dit. Het is een aantekening voor jezelf."
               : "ORBIT ENGINE's controles vonden niets, maar er heeft nog geen mens naar gekeken."}
           </span>
+        </div>
+      ) : (
+        // ⚠️ Een grijze knop zonder uitleg is een dood einde
+        // (`docs/ux-design.md` §4). De melding zegt wat er open staat, waaróm dat
+        // uitmaakt en waar je het oplost, en de knop ernaast gaat er direct
+        // heen. Overslaan staat in de melding zelf, want dat is de uitweg.
+        <div className="flex flex-col gap-2 rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--bg-elevated)] p-3">
+          <span className="mono-label">Nog niet vrij te geven</span>
+          <p className="text-sm text-secondary">{poort.melding}</p>
+          <Link href={vragenHref} className="btn-outline btn-sm w-fit">
+            Naar je openstaande vragen
+          </Link>
         </div>
       )}
     </div>

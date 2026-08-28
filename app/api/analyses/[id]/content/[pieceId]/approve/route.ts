@@ -3,6 +3,8 @@ import { getUser } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getOwnedAnalysis } from "@/lib/analyses";
 import { describeError, classifyError } from "@/lib/errors";
+import { eindpoort, EINDPOORT_STATUS } from "@/lib/content-final-gate";
+import { countBlockingQuestions } from "@/lib/open-questions";
 
 /**
  * POST /api/analyses/[id]/content/[pieceId]/approve, de klant geeft een pagina
@@ -49,6 +51,24 @@ export async function POST(
   const admin = createAdminClient();
   const analysis = await getOwnedAnalysis(admin, id, user.id);
   if (!analysis) return NextResponse.json({ error: "Niet gevonden." }, { status: 404 });
+
+  // ── De eindpoort (28 augustus 2026) ──────────────────────────────────────
+  //
+  // Vrijgeven is de handeling die zegt: deze tekst is af. Dat kan niet terwijl
+  // ORBIT ENGINE nog wacht op de feiten waar de tekst om vroeg. De uitweg is één
+  // klik: overslaan telt als antwoord (`lib/content-final-gate.ts`).
+  //
+  // ⚠️ Dit nuanceert het besluit "geen muur" uit `release-panel.tsx`. Wat er van
+  // dat besluit staan blijft: de tekst blijft leesbaar, kopieerbaar en
+  // bewerkbaar, en de klant kan zelf publiceren wat hij wil. Wat op slot gaat is
+  // dat ORBIT ENGINE hem als afgerond registreert.
+  const poort = eindpoort(await countBlockingQuestions(admin, id, pieceId));
+  if (!poort.mag) {
+    return NextResponse.json(
+      { error: poort.melding, openVragen: poort.open },
+      { status: EINDPOORT_STATUS },
+    );
+  }
 
   try {
     // De pagina moet bij DEZE analyse horen. Zonder deze voorwaarde zou een

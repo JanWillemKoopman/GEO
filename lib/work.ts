@@ -458,7 +458,7 @@ export function deriveWork(sources: WorkSources): WorkItem[] {
       title: count === 1 ? "Eén vraag over je bedrijf" : `${count} vragen over je bedrijf`,
       why: "Concrete cijfers en jaartallen zijn precies wat een AI-assistent aanhaalt. Eén keer invullen, en élke pagina die ORBIT ENGINE daarna schrijft wordt citeerbaarder.",
       urgency: URGENCY.feit,
-      href: `/merk/${profileId}/merkprofiel/input`,
+      href: `/merk/${profileId}/strategie/vragen`,
       actionLabel: "Beantwoorden",
       analysisId: analysis.id,
       analysisName: analysis.name,

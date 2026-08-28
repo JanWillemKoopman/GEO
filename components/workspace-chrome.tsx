@@ -26,8 +26,10 @@ export function WorkspaceChrome({
   brands,
   activeBrand,
   staff,
+  openVragen,
   onSelectBrand,
   logo,
+  openQuestions,
   previewToggle,
   accountMenu,
   children,
@@ -36,8 +38,12 @@ export function WorkspaceChrome({
   activeBrand: BrandOption | null;
   /** Beheerder? Dan komt het CSM-paneel in de zijbalk (fase 8). */
   staff: boolean;
+  /** Hoeveel vragen er open staan. Zet het bolletje in de zijbalk aan. */
+  openVragen: number;
   onSelectBrand: (brandId: string) => void;
   logo: React.ReactNode;
+  /** De teller "3 openstaande vragen". Leeg zodra er niets open staat. */
+  openQuestions?: React.ReactNode;
   /** De wisselknop naar de klantweergave, `null` voor wie dat recht niet heeft. */
   previewToggle?: React.ReactNode;
   accountMenu: React.ReactNode;
@@ -80,6 +86,7 @@ export function WorkspaceChrome({
               wisselknop staat er nog eens links van, want die gaat over wie je
               nu bent en niet over hoe het scherm eruitziet. */}
           <div className="flex shrink-0 items-center gap-1">
+            {openQuestions}
             {previewToggle}
             <ThemeToggle />
             {accountMenu}
@@ -91,7 +98,7 @@ export function WorkspaceChrome({
         {/* Vaste zijbalk vanaf lg. Sticky onder de bovenbalk, met een eigen
             scrollbaan zodat een lange merknaam de pagina niet meeneemt. */}
         <aside className="no-print hidden shrink-0 self-start border-r border-[var(--border-subtle)] lg:block">
-          <Sidebar activeBrand={activeBrand} staff={staff} />
+          <Sidebar activeBrand={activeBrand} staff={staff} openVragen={openVragen} />
         </aside>
 
         {/* `min-w-0` is hier geen sier: dit is een flex-kind, en zonder deze
@@ -135,6 +142,7 @@ export function WorkspaceChrome({
             <Sidebar
               staff={staff}
               activeBrand={activeBrand}
+              openVragen={openVragen}
               onMobileClose={() => setLadeOpen(false)}
             />
           </div>

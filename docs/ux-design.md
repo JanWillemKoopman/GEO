@@ -256,9 +256,9 @@ noemde. Elk hoofdstuk beantwoordt nu één vraag:
 | Hoofdstuk | De vraag | Bestemmingen |
 |---|---|---|
 | Overzicht | Is er iets nieuws, en wat moet ik nu doen? | `/merk/[id]`, tevens de bestemming na inloggen |
-| Strategie | Wat gaan we doen, en wat is er al gemaakt? | Contentplan, Clusters, Bibliotheek |
+| Strategie | Wat gaan we doen, en wat is er al gemaakt? | Clusters, Openstaande vragen, Contentplan, Bibliotheek |
 | Analytics | Wat zeggen de cijfers, en waarom? | Zichtbaarheid in AI, Zoekverkeer, Concurrenten, Mijn reputatie |
-| Merkprofiel | Wie ben ik volgens ORBIT ENGINE, en klopt dat? | Merkdossier, Bewerken, Vraagt jouw input |
+| Merkprofiel | Wie ben ik volgens ORBIT ENGINE, en klopt dat? | Merkdossier, Bewerken |
 | Admin | (alleen beheerders, onder een scheidingslijn) | Onboarding, Diagnose, Toewijzen, Alle merken, Koppelingen |
 
 ⚠️ **"Instellingen" stond hier tot 25 augustus 2026, met "Account en team" en "Koppelingen"
@@ -962,11 +962,17 @@ Sinds 17 augustus 2026 heeft dit hoofdstuk drie bestemmingen, en elk beantwoordt
 aanvullen, toevoegingen), met twee formulieren die naar dezelfde kolommen
 schreven.
 
+⚠️ **Het zijn er sinds 28 augustus 2026 twee.** "Vraagt jouw input" heet nu
+"Openstaande vragen" en staat onder Strategie, op
+`/merk/[id]/strategie/vragen`, met de vragen uit élk cluster erbij. Dit
+hoofdstuk gaat over wie je bent; die vragen bepalen wat er geschreven wordt, en
+sinds de eindpoort zelfs of een pagina afgerond kan worden. Het oude adres
+verwijst permanent door (`lib/redirects.ts`).
+
 | Scherm | De vraag | Wat erop staat |
 |---|---|---|
 | Merkdossier `/merk/[id]/merkprofiel` | Wat weet ORBIT ENGINE van mij? | Kop, het dossier, wat AI over je weet, aanbod, concurrenten |
 | Bewerken `/merk/[id]/merkprofiel/bewerken` | Klopt dat? | 41 velden in zeven stappen, plus gereedschap |
-| Vraagt jouw input `/merk/[id]/merkprofiel/input` | Moet ik nog iets aanvullen? | Feitenvragen en open punten, teller in de kop |
 
 **Het merkdossier is een leesscherm.** Geen sectie-rail: de blokken hebben geen
 vaste chronologie zoals de vier hoofdstukken van een cluster, en een rail belooft
@@ -1007,12 +1013,19 @@ Wat géén merkveld is, staat buiten de wizard: hoe grondig ORBIT ENGINE de site
 uitleest (`InventoryBox`) en de brontekst die de klant zelf aanlevert
 (`DossierBox`). Die grens houdt de teller eerlijk.
 
-**Vraagt jouw input** is één blok waar er twee waren: de feitenvragen mét
+**Openstaande vragen** (tot 28 augustus 2026 "Vraagt jouw input", en tot die
+dag onder dit hoofdstuk) is één blok waar er twee waren: de feitenvragen mét
 invoerveld en de open punten uit het onderzoek. Voor de gebruiker is dat één
 ding, "moet ik iets aanvullen", dus staat het op één plek met de teller in de
-kop. ⚠️ Feitenvragen die uit één cluster komen (`fact_requests.analysis_id`
-gezet) horen daar níet bij maar bij hoofdstuk 03 van dat cluster; die scheiding
-is op 14 augustus 2026 bewust aangebracht.
+kop.
+
+⚠️ **Sinds 28 augustus 2026 staan de clustervragen er óók op**, met een filter
+per cluster en een aparte knop voor de merkvragen. De scheiding van 14 augustus
+2026 (clustervragen bij hoofdstuk 03 van dat cluster) is daarmee opgeheven voor
+de klant: hoofdstuk 03 toont ze nog steeds bij het schrijfwerk waar ze vandaan
+komen, maar wie de vraag "moet ik nog iets aanvullen" stelt, krijgt op één plek
+het volledige antwoord. Het invoerveld staat sindsdien onder de vraag en is drie
+regels hoog; naast de vraag, één regel hoog, paste er geen antwoord in.
 
 ⚠️ **Elke regel op dit scherm is te beantwoorden, en dat was hij niet** (24
 augustus 2026). De open punten uit de synthese stonden er als platte tekst: bij
