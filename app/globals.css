@@ -830,12 +830,18 @@ body {
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
+    .workspace-canvas {
+      background-color: var(--bg-base);
+    }
     .workspace-canvas::before {
       background-image: none;
     }
   }
 }
 :root[data-theme="dark"] {
+  .workspace-canvas {
+    background-color: var(--bg-base);
+  }
   .workspace-canvas::before {
     background-image: none;
   }
