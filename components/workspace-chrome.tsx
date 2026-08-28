@@ -116,7 +116,8 @@ export function WorkspaceChrome({
 
             `.workspace-canvas` (ook 28 augustus 2026, globals.css) legt daar
             een fijn stippenpatroon overheen dat naar het midden toe wegvalt,
-            en alleen in de lichte stand: zie de toelichting bij die klasse. */}
+            in beide standen met een eigen stipkleur: zie de toelichting bij
+            die klasse. */}
         <main className="workspace-canvas min-w-0 flex-1">
           <div className="mx-auto w-full max-w-5xl px-6 py-10">{children}</div>
         </main>

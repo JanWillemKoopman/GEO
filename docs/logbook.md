@@ -5542,3 +5542,13 @@ buiten uitlopend") vraagt om precies dat masker aan te zetten. Verwerkt als `.wo
 `app/globals.css`: de stippen zitten op een eigen `::before`-laag, los van de vlakke `--bg-muted`
 van het element zelf, want anders veegt het masker ook de bodemkleur mee weg in het midden. In
 donker valt het patroon weg. Zie `docs/designsystem.md` §2.1.
+
+**28 augustus 2026, nog verder op de dag: hetzelfde patroon in donker.** Het stippenpatroon stond
+alleen in de lichte stand; de eigenaar vroeg om dezelfde toevoeging voor donker, met kleuren die de
+achtergrond in zijn geheel ongeveer even donker houden. De lichte stip is één stap dónkerder dan
+`--bg-muted`; die richting werkt in donker niet, want een donkerdere stip op een donkere grond
+verdwijnt. Nieuw token `--workspace-canvas-dot` wijst nu in licht naar `#e4e9ee` en in donker naar
+`--bg-surface-2` (`#43505d`), een stap líchter, want `--bg-elevated` is in de donkere stand toevallig
+gelijk aan `--bg-muted` en biedt dus geen tussenstap. Het masker (dekking 0 tot 60%) bleef ongewijzigd
+en houdt het effect in allebei de standen even subtiel, dus het vlak wordt in geen van beide standen
+merkbaar lichter of donkerder. Zie `docs/designsystem.md` §2.1.

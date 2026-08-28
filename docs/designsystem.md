@@ -107,16 +107,22 @@ naast een zijbalk staan, valt de rand van die kaarten tegen een even witte grond
 bewuste, plaatselijke afwijking van de regel hierboven en geldt alleen voor dit ene element, niet
 voor `--bg-base` zelf: de inlogroute en losse pagina's zonder zijbalk blijven wit.
 
-**Datzelfde vlak draagt sinds 28 augustus 2026 een stippenpatroon, alleen in de lichte stand.** De
-klasse `.workspace-canvas` (`app/globals.css`) legt op `<main>` een fijn rooster van stippen
-(`#e4e9ee`, één stap donkerder dan `--bg-muted`) op een aparte laag onder de inhoud. Twee radiale
-patronen 90° gedraaid geven het effect van korte streepjes in plaats van losse stippen, en een
-maskergradiënt maakt ze onzichtbaar in het midden en zichtbaar naar de randen: decor, geen ruis
-over de kaarten. De stippenlaag zit op een eigen `::before`, los van de vlakke achtergrondkleur van
-`<main>` zelf, anders zou het masker ook die kleur wegvegen en zou er in het midden pagina-wit
-doorschemeren. In de donkere stand valt het patroon volledig weg (`background-image: none`): daar
-is `--bg-muted` (`#27323d`) al de kleur van een kaartrand, en stippen in precies die kleur zijn niet
-te zien.
+**Datzelfde vlak draagt sinds 28 augustus 2026 een stippenpatroon, in beide standen.** De klasse
+`.workspace-canvas` (`app/globals.css`) legt op `<main>` een fijn rooster van stippen op een aparte
+laag onder de inhoud. Twee radiale patronen 90° gedraaid geven het effect van korte streepjes in
+plaats van losse stippen, en een maskergradiënt maakt ze onzichtbaar in het midden en zichtbaar naar
+de randen: decor, geen ruis over de kaarten. De stippenlaag zit op een eigen `::before`, los van de
+vlakke achtergrondkleur van `<main>` zelf, anders zou het masker ook die kleur wegvegen en zou er in
+het midden pagina-wit (of, in donker, paginazwart) doorschemeren.
+
+De stipkleur zit in een eigen token, `--workspace-canvas-dot`, en wisselt van richting per stand: in
+licht is hij `#e4e9ee`, één stap dónkerder dan `--bg-muted` (tussen `--bg-muted` en `--bg-elevated`
+in). In donker moet dat juist andersom: een donkerdere stip op een al donkere grond is onzichtbaar,
+dus daar wijst het token naar `--bg-surface-2` (`#43505d`), een stap líchter. `--bg-elevated` is in
+donker toevallig gelijk aan `--bg-muted` (`#27323d`), dus die stap bestaat daar niet en
+`--bg-surface-2` is de eerstvolgende die wél verschilt. Het masker houdt de dekking in allebei de
+standen laag (0 tot 60%), dus ondanks de tegengestelde richting oogt het vlak in zijn geheel in geen
+van beide standen merkbaar lichter of donkerder dan zonder het patroon.
 
 **Waarom de randen een echte tint zijn en geen doorschijnend zwart:** doorschijnend zwart wordt vuil
 zodra het op een gekleurd vlak ligt. Een chip met een amber vulling kreeg zo een grijsbruine rand.
