@@ -18,7 +18,7 @@ import { CollapsibleSection } from "@/components/collapsible-section";
 import { SectionErrorBoundary } from "@/components/section-error-boundary";
 import { ProfileProgress } from "./_components/profile-progress";
 import { InfoHint } from "@/components/info-hint";
-import { loadGepubliceerd } from "@/lib/overview-data";
+import { loadContentTotalen } from "@/lib/overview-data";
 import { loadLoop } from "@/lib/insights-data";
 import type { Insight } from "@/lib/insights";
 import { loadBrandWork, sortWork, workChipTone, workKindIcon, WORK_KIND_LABEL } from "@/lib/work";
@@ -28,6 +28,7 @@ import { formatDateShort, formatRelativeTime } from "@/lib/format";
 import {
   isEersteMaand,
   overzichtCijfers,
+  totalenKop,
   type OverzichtCijfer,
   planRegels,
   versheidsregel,
@@ -167,9 +168,9 @@ export default async function OverzichtPage({
   const supabase = await createClient();
   const admin = createAdminClient();
 
-  const [{ analyses, work }, gepubliceerd, lus, { data: planRow }] = await Promise.all([
+  const [{ analyses, work }, contentTotalen, lus, { data: planRow }] = await Promise.all([
     loadBrandWork(supabase, user.id, id),
-    loadGepubliceerd(admin, id),
+    loadContentTotalen(admin, id),
     loadLoop(admin, id),
     admin
       .from("content_plans")
@@ -226,11 +227,19 @@ export default async function OverzichtPage({
   // inzichten, dus dit scherm doet zijn eigen scorequery niet.
   const periodes = lus.periods;
   const laatste = periodes.length > 0 ? periodes[periodes.length - 1] : null;
+  //
+  // ⚠️ Sinds 28 augustus 2026 tellen drie van de vier cijfers wat er GEMAAKT is
+  // en niet meer wat er voorgesteld is. "Nieuwe pagina's" en "Optimalisaties"
+  // kwamen hiervoor uit `lus.opportunities`, dus uit de kansenlijst: bij Van den
+  // Udenhout stond de rij daardoor op 0 · 0 · 7 · 5 terwijl er nog niets gedaan
+  // was. Die voorstellen staan nog steeds op dit scherm, in het kansenblok
+  // eronder, want dáár gaan ze over wat je kunt doen.
+  const gepubliceerd = contentTotalen.gepubliceerd;
   const cijfers = overzichtCijfers({
-    gepubliceerd,
     clusters: eigenClusters.length,
-    nieuwePaginas: lus.opportunities.filter((o) => o.handeling === "nieuwe_pagina").length,
-    optimalisaties: lus.opportunities.filter((o) => o.handeling === "pagina_bijwerken").length,
+    geschreven: contentTotalen.geschreven,
+    geoptimaliseerd: contentTotalen.geoptimaliseerd,
+    gepubliceerd,
   });
 
   // ── De wachtrij, alleen wat op de klant wacht ────────────────────────────
@@ -428,7 +437,7 @@ export default async function OverzichtPage({
             </div>
           )}
 
-          <CijferRij cijfers={cijfers} />
+          <CijferRij cijfers={cijfers} kop={totalenKop(contentTotalen.start)} />
 
           <div className="flex flex-wrap items-start justify-between gap-4 border-t border-[var(--border-subtle)] pt-4">
             <div className="min-w-0 flex-1">
@@ -577,24 +586,33 @@ export default async function OverzichtPage({
  * onder elkaar uitlijnen als er een cijfer bij komt. De labels niet: die zijn
  * tekst.
  */
-function CijferRij({ cijfers }: { cijfers: OverzichtCijfer[] }) {
+function CijferRij({ cijfers, kop }: { cijfers: OverzichtCijfer[]; kop: string }) {
   return (
-    <div className="grid grid-cols-2 gap-x-6 gap-y-5 lg:grid-cols-4">
-      {cijfers.map((c, i) => (
-        <div
-          key={c.label}
-          className={`flex min-w-0 flex-col gap-0.5 ${
-            // De scheidingslijn hoort tussen de kolommen en niet eromheen. Op
-            // twee kolommen valt hij op de even posities, op vier op alles
-            // behalve de eerste.
-            i % 2 === 1 ? "border-l border-[var(--border-subtle)] pl-6" : ""
-          } ${i > 0 ? "lg:border-l lg:border-[var(--border-subtle)] lg:pl-6" : "lg:border-l-0 lg:pl-0"}`}
-        >
-          <span className="stat-value text-3xl">{c.waarde}</span>
-          <span className="text-sm font-medium">{c.label}</span>
-          <span className="text-sm text-muted">{c.detail}</span>
-        </div>
-      ))}
+    <div className="flex flex-col gap-3">
+      {/* ⚠️ Deze regel is geen versiering. Drie van de vier getallen gaan over de
+          hele looptijd van de klant, en zonder die regel leest iemand met twaalf
+          geschreven pagina's ze als "deze maand". Het eerste cijfer is de
+          uitzondering, en dat staat in zijn eigen toelichting ("Nu actief"):
+          een tweede regel erbij om die uitzondering uit te leggen zou meer
+          uitleg zijn dan de rij zelf. */}
+      <span className="mono-label">{kop}</span>
+      <div className="grid grid-cols-2 gap-x-6 gap-y-5 lg:grid-cols-4">
+        {cijfers.map((c, i) => (
+          <div
+            key={c.label}
+            className={`flex min-w-0 flex-col gap-0.5 ${
+              // De scheidingslijn hoort tussen de kolommen en niet eromheen. Op
+              // twee kolommen valt hij op de even posities, op vier op alles
+              // behalve de eerste.
+              i % 2 === 1 ? "border-l border-[var(--border-subtle)] pl-6" : ""
+            } ${i > 0 ? "lg:border-l lg:border-[var(--border-subtle)] lg:pl-6" : "lg:border-l-0 lg:pl-0"}`}
+          >
+            <span className="stat-value text-3xl">{c.waarde}</span>
+            <span className="text-sm font-medium">{c.label}</span>
+            <span className="text-sm text-muted">{c.detail}</span>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

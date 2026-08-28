@@ -1484,6 +1484,35 @@ textarea.field {
   }
 }
 
+/* ── Het bolletje bij "openstaande vragen" (28 augustus 2026) ───────────────
+   Staat rechts in de bovenbalk en achter het menu-item, dus naast ÉLK scherm van
+   de app. Daarom ademt hij traag: vier seconden per gang, van de groene tint uit
+   het systeem naar een donkerder variant ervan en terug. Snel knipperen is een
+   alarm, en dit is een uitnodiging, er staat werk klaar dat geen haast heeft.
+
+   ⚠️ Geen `box-shadow`-puls zoals `.live-dot`. Die zegt "er gebeurt nu iets",
+   en dit zegt "er wacht iets op jou". Twee verschillende beloftes horen twee
+   verschillende bewegingen te hebben, anders betekent de puls niets meer.
+
+   De kleur komt uit `--intent-growth-solid` en niet uit een eigen groen: het
+   systeem kent één groen, en dat blijft zo (`docs/designsystem.md` §8). */
+.vraag-dot {
+  width: 8px;
+  height: 8px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background-color: var(--intent-growth-solid);
+  animation: vraag-adem 4s var(--ease-standard) infinite alternate;
+}
+@keyframes vraag-adem {
+  from {
+    background-color: color-mix(in srgb, var(--intent-growth-solid) 45%, transparent);
+  }
+  to {
+    background-color: var(--intent-growth-solid);
+  }
+}
+
 /* Het woordmerk, en verder niets. De gradient stond ook op accentwoorden in
    koppen; in de Nova-werkomgeving komt hij nul keer voor. Eén plek is genoeg om
    herkenbaar te zijn, overal is een landingspagina. */
@@ -1600,6 +1629,12 @@ textarea.field {
 @media (prefers-reduced-motion: reduce) {
   .live-dot {
     animation: none;
+  }
+  /* Stil, en in de donkerste stand: het bolletje moet zichtbaar blijven, want
+     het is het enige teken dat er werk op je wacht. Alleen de beweging valt weg. */
+  .vraag-dot {
+    animation: none;
+    background-color: var(--intent-growth-solid);
   }
   /* De melding verschijnt en verdwijnt nog steeds, alleen zonder beweging. Het
      voortgangsstreepje blijft wél lopen: dat is informatie (hoe lang blijft

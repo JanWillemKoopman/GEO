@@ -4,6 +4,7 @@ import { selectBrand } from "@/app/(app)/workspace-actions";
 import { ProfileMenu } from "@/components/profile-menu";
 import { PreviewToggle } from "@/components/preview-toggle";
 import { WorkspaceChrome } from "@/components/workspace-chrome";
+import { OpenQuestionsBadge } from "@/components/open-questions-badge";
 import type { Workspace } from "@/lib/workspace";
 import type { User } from "@supabase/supabase-js";
 
@@ -27,6 +28,7 @@ export function AppShell({
   workspace,
   staff,
   staffAccount,
+  openVragen,
   children,
 }: {
   user: User;
@@ -38,6 +40,8 @@ export function AppShell({
   /** Het ECHTE recht, dat de klantweergave nooit verandert. Alleen gebruikt om
    *  de wisselknop zelf te tonen: anders is er geen weg terug. */
   staffAccount: boolean;
+  /** Hoeveel vragen er op de klant wachten, voor de teller in de bovenbalk. */
+  openVragen: number;
   children: React.ReactNode;
 }) {
   return (
@@ -45,6 +49,7 @@ export function AppShell({
       brands={workspace.brands}
       activeBrand={workspace.active}
       staff={staff}
+      openVragen={openVragen}
       onSelectBrand={selectBrand}
       logo={
         // Het woordmerk gaat naar het overzicht van het merk waar je in zit, en
@@ -60,6 +65,15 @@ export function AppShell({
       // Alleen een echte beheerder ziet deze knop, ook terwijl hij zelf op de
       // klantweergave staat: anders is er geen weg terug behalve de cookie met
       // de hand wissen.
+      // De teller staat het verst naar links van de drie: hij gaat over dit
+      // merk, en de twee ernaast gaan over jou (wie je bent, en hoe het scherm
+      // eruitziet). Zo staat de merkinformatie bij elkaar.
+      openQuestions={
+        <OpenQuestionsBadge
+          aantal={openVragen}
+          href={workspace.active ? `/merk/${workspace.active.id}/strategie/vragen` : null}
+        />
+      }
       previewToggle={staffAccount ? <PreviewToggle previewing={!staff} /> : null}
       accountMenu={<ProfileMenu email={user.email ?? ""} signOutAction={signOut} />}
     >

@@ -141,14 +141,36 @@ export function brandNav(brandId: string, staff = false): NavItem[] {
     },
 
     // ── STRATEGIE ────────────────────────────────────────────────────────
-    {
-      href: `/merk/${brandId}/strategie/plan`,
-      label: "Contentplan",
-      hoofdstuk: "Strategie",
-    },
+    //
+    // ⚠️ DE VOLGORDE IS OP 28 AUGUSTUS 2026 OMGEZET, EN HET ZIJN ER VIER.
+    //
+    // De volgorde volgt nu de ronde zelf: de clusters leveren de vragen, de
+    // antwoorden voeden het plan, het plan levert de teksten in de bibliotheek.
+    // Contentplan stond vóór Clusters, en dat las als "begin bij het plan"
+    // terwijl er zonder meting niets te plannen valt.
+    //
+    // ⚠️ Vier bestemmingen, waar drie de regel was (besluit 1 tot en met 8 van
+    // 17 augustus 2026). De reden is van dezelfde soort als bij Analytics: de
+    // andere drie TONEN wat ORBIT ENGINE deed, "Openstaande vragen" is de enige
+    // plek in dit hoofdstuk waar de klant zelf iets moet DOEN. Sinds de
+    // eindpoort (`lib/content-final-gate.ts`) houdt een openstaande vraag een
+    // pagina tegen, en dan hoort dat werk niet weggestopt te staan onder een
+    // ander hoofdstuk. Het stond tot vandaag onder Merkprofiel, als "Vraagt
+    // jouw input"; dat hoofdstuk gaat over wie je bent, niet over wat er
+    // geschreven wordt.
     {
       href: `/merk/${brandId}/strategie/clusters`,
       label: "Clusters",
+      hoofdstuk: "Strategie",
+    },
+    {
+      href: `/merk/${brandId}/strategie/vragen`,
+      label: "Openstaande vragen",
+      hoofdstuk: "Strategie",
+    },
+    {
+      href: `/merk/${brandId}/strategie/plan`,
+      label: "Contentplan",
       hoofdstuk: "Strategie",
     },
     {
@@ -210,11 +232,8 @@ export function brandNav(brandId: string, staff = false): NavItem[] {
       label: "Bewerken",
       hoofdstuk: "Merkprofiel",
     },
-    {
-      href: `/merk/${brandId}/merkprofiel/input`,
-      label: "Vraagt jouw input",
-      hoofdstuk: "Merkprofiel",
-    },
+    // ⚠️ "Vraagt jouw input" stond hier tot 28 augustus 2026. Het heet nu
+    // "Openstaande vragen" en staat onder Strategie, zie het blok hierboven.
 
     // ── ADMIN ────────────────────────────────────────────────────────────
     //

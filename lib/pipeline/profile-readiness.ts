@@ -203,7 +203,7 @@ export function assessReadiness(input: ReadinessInput): Readiness {
       input.openFactRequests === 0,
       "Alle vragen gehad",
       false,
-      `/merk/${p}/merkprofiel/input`,
+      `/merk/${p}/strategie/vragen`,
       false,
     ),
   ];

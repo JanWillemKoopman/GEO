@@ -5444,3 +5444,81 @@ klant. Op je eigen testmerk blijft alles werken, want eigendom hangt nooit van s
 Overwogen en afgewezen: een écht tweede klantaccount. Kan niet met hetzelfde e-mailadres (Supabase
 staat geen dubbel adres toe), en de knop lost de eigenlijke behoefte beter op: blijven ingelogd als
 jezelf en met één klik zien wat een klant ziet, in plaats van steeds in en uit te loggen.
+
+## 28 augustus 2026: de startpagina telt opbrengst, de vragen krijgen een eigen plek, en een pagina wordt pas af als de vragen behandeld zijn
+
+Vier wensen van de eigenaar in één ronde. Ze hangen samen op één punt: wat het product oplevert,
+en wat de klant moet leveren om dat op te leveren.
+
+**1. Drie van de vier cijfers op "Hoe sta je ervoor" zijn totalen geworden.** Twee van de vier
+kwamen uit de kansenlijst, dus uit voorstellen. Bij Van den Udenhout stond de rij daardoor op
+`0 · 0 · 7 · 5` terwijl er nog geen letter geschreven was: een rij die leest als opbrengst en
+voornemens telt. De volgorde is nu clusters actief (een stand van nu), pagina's geschreven,
+pagina's geoptimaliseerd en gepubliceerd, met de regel "Sinds maart 2026" erboven zodat niemand ze
+als maandcijfers leest. De voorstellen staan nog steeds op het scherm, in het kansenblok eronder,
+waar ze over werk gaan in plaats van over resultaat.
+
+Twee tellingen zijn daarbij rechtgezet. Een pagina met status `briefing` telt niet meer als
+geschreven: die wacht nog op antwoorden, en zonder dat filter liep de teller op bij het indrukken
+van de knop. En `gepubliceerd` telt nu alleen de huidige versie, waar een herpublicatie van versie 2
+eerder dubbel telde. Bij één live pagina viel dat niet op, bij de eerste herschrijving wel.
+
+**2. "Vraagt jouw input" heet "Openstaande vragen" en staat onder Strategie.** Het scherm toonde
+alleen de merkbrede vragen; de vragen uit het rapport van een cluster stonden in hoofdstuk 03 van
+dát cluster. Voor de klant is dat één vraag op twee plekken, precies de splitsing die op 17 augustus
+2026 al eens is opgeheven. Ze staan nu bij elkaar op `/merk/[id]/strategie/vragen`, met een filter
+per cluster en een aparte knop voor de merkvragen. Het oude adres verwijst permanent door, want het
+stond in de werklijst en in verstuurde mails.
+
+Het invoerveld is meeverhuisd van één regel naast de vraag naar drie regels eronder, over de volle
+breedte. De oude vorm was een keuze voor een korte lijst, en hij kostte de antwoorden: in een regel
+van 26rem schrijft niemand op welke garantie hij geeft.
+
+Strategie heeft daarmee vier bestemmingen, waar drie de regel was. De reden is van dezelfde soort
+als bij Analytics op 22 augustus: de andere drie tónen wat ORBIT ENGINE deed, dit is de enige plek
+in dat hoofdstuk waar de klant zelf iets moet dóén. Merkprofiel houdt er twee over.
+
+**3. Een groene teller in de bovenbalk.** Rechts, links van de themaschakelaar: "3 openstaande
+vragen", met een bolletje dat in vier seconden van licht naar donkergroen ademt. Achter het
+menu-item staat hetzelfde bolletje zonder getal, want twee keer hetzelfde cijfer op één scherm laat
+de lezer zoeken welke de echte is. Bij nul verdwijnt de hele melding: een balk die naast élk scherm
+"0 openstaande vragen" meldt, went binnen een dag weg. Bij `prefers-reduced-motion` staat het stil.
+
+Het getal komt uit één loader en één pure optelling (`lib/open-questions.ts` en
+`lib/open-questions-count.ts`), gelezen door de bovenbalk, de zijbalk én de paginakop. Drie plekken
+die het los uitrekenen lopen gegarandeerd uit elkaar. Het kost twee queries per paginaweergave, en
+dat is de prijs van een teller die klopt op het moment dat je hem leest.
+
+**4. De eindpoort: geen definitieve versie zolang er vragen open staan.** Dit is het besluit met de
+meeste gevolgen, en het spreekt een eerder besluit tegen. `release-panel.tsx` zei: "Geen muur. Een
+gate die je niet kunt passeren is een muur, en muren leveren afgehaakte klanten op in plaats van
+betere content." Dat argument blijft gelden voor alles behalve de eindstap: de tekst blijft
+leesbaar, kopieerbaar en bewerkbaar, en publiceren doet de klant zelf buiten de app om. Wat op slot
+gaat is dat ORBIT ENGINE de pagina afrondt.
+
+De poort staat bewust **niet** vóór het eerste concept. De scherpste vragen ontstaan pas tijdens het
+schrijven: de claim-audit leest wat de tekst beweert en vraagt precies dát na. Een poort ervóór zou
+vragen om antwoorden die nog niet bestaan. Hij staat dus op de twee momenten waarop een versie
+definitief wordt: een nieuwe versie laten schrijven, en vrijgeven.
+
+Wat tegenhoudt zijn de open vragen van dít cluster plus de vragen die aan déze pagina hangen. Een
+losse merkvraag uit de onboarding blokkeert niets: die zou anders élke pagina van élk cluster
+voorgoed dichtzetten, en dan is de poort geen kwaliteitsmaatregel maar een slot. Overslaan telt als
+antwoord, en dat is de uitweg die het geheel leefbaar houdt. Twee lagen, zoals conventie 1 vraagt:
+de knop toont de melding, de route weigert met 409.
+
+De ketentest legde meteen een verschil bloot tussen de testshim en de echte database:
+`.contains()` castte altijd naar `jsonb`, terwijl `fact_requests.content_piece_ids` een `uuid[]` is.
+Postgres gaf daarop geen fout maar nul rijen, en de poort leek gewoon open te staan. Dat is precies
+het soort stille afwijking waarvoor de ketentest er is; de shim doet nu een array-vergelijking.
+
+**En één wens bleek al gebouwd.** "Klanten moeten ook content kunnen laten schrijven" is op
+27 augustus 2026 al ingevoerd: van de zes betaalde handelingen staat alleen nog de reputatieanalyse
+op slot, omdat dat een los product is (`lib/cost-rules.ts`). Er is dus niets veranderd, alleen
+nagekeken.
+
+**Ingetrokken tijdens deze ronde, door de eigenaar zelf.** De hernoeming van "clusters" naar
+"metingen" (het botste met de maandelijkse meetronde, twee begrippen met dezelfde naam op één
+scherm), het weghalen van de rondebalk, en de statuscijfers in de bovenbalk. Ze staan hier omdat de
+afweging bewaard hoort te blijven: komt de hernoeming terug, dan hoort de meetronde in dezelfde
+ronde een eigen woord te krijgen.

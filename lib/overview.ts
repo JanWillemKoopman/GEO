@@ -144,20 +144,32 @@ export function planRegels({
  * staat er klaar". De score zelf blijft één klik weg (de knop ernaast) en staat
  * nog steeds in woorden in de duiding eronder (`lib/insights.ts`).
  *
+ * ── ⚠️ DRIE VAN DE VIER ZIJN TOTALEN SINDS DE START (28 AUGUSTUS 2026) ──────
+ *
+ * Twee van de vier cijfers kwamen tot vandaag uit de KANSENLIJST: "Nieuwe
+ * pagina's" en "Paginaoptimalisaties" telden voorstellen, dus werk dat nog
+ * gedaan moest worden. Op een rij die leest als "wat heeft het opgeleverd"
+ * stonden dus twee getallen die zeiden wat er nog moest gebeuren, en bij Van den
+ * Udenhout stond die rij daardoor op 0 · 0 · 7 · 5 terwijl er niets gedaan was.
+ *
+ * De rij telt nu wat er daadwerkelijk gemaakt is, over de hele looptijd van de
+ * klant: geschreven nieuwe pagina's, geschreven optimalisaties, en hoeveel
+ * daarvan live staat. De voorstellen staan nog steeds op het scherm, in het
+ * kansenblok eronder, waar ze horen: dat blok gaat over wat je kunt doen.
+ *
+ * ⚠️ Cijfer 1 is de uitzondering en blijft een stand van NU. Het aantal actieve
+ * clusters is geen opbrengst maar de omvang van het programma op dit moment; een
+ * cluster dat gearchiveerd wordt hoort dat cijfer te verlagen, terwijl een
+ * pagina die vorig jaar geschreven is geschreven blijft. Vandaar dat de
+ * toelichting eronder "Nu actief" zegt en de kop boven de rij over de rest gaat.
+ *
  * ── ⚠️ VIER TELLINGEN, GEEN VERGELIJKING ────────────────────────────────────
  *
- * Bewust geen verschil met een vorige periode. Deze vier zijn standen en geen
- * metingen: het aantal clusters verandert als de eigenaar er een aanzet, niet
- * doordat er iets gemeten is. Een groeipercentage erop plakken zou beweging
- * suggereren waar een besluit zit. De duiding over de tijd hoort bij de score,
- * en die staat in de drie zinnen eronder.
- *
- * ── DE TWEE VOORSTELTELLINGEN KOMEN UIT DE KANSENLIJST ──────────────────────
- *
- * `nieuwe_pagina` en `pagina_bijwerken` zijn precies de twee handelingen die uit
- * een rapport van een cluster komen (`lib/opportunities.ts`). Ze tellen ALLE
- * kansen en niet alleen de zes die het scherm toont, want de vraag is hoeveel
- * werk er klaarligt en niet hoeveel er in beeld past.
+ * Bewust geen verschil met een vorige periode. Deze vier zijn standen en
+ * totalen, geen metingen: het aantal clusters verandert als de eigenaar er een
+ * aanzet, niet doordat er iets gemeten is. Een groeipercentage erop plakken zou
+ * beweging suggereren waar een besluit zit. De duiding over de tijd hoort bij de
+ * score, en die staat in de drie zinnen eronder.
  *
  * Puur, dus testbaar (conventie 2).
  */
@@ -178,41 +190,57 @@ export interface OverzichtCijfer {
   detail: string;
 }
 
+/**
+ * De regel bóven de rij. Zegt dat drie van de vier cijfers over de hele looptijd
+ * gaan, want zonder die regel leest een klant met 12 geschreven pagina's ze als
+ * "deze maand" en klopt zijn beeld van het tempo niet.
+ *
+ * Met een startdatum erbij als die bekend is: "Sinds maart 2026" is concreter
+ * dan "sinds de start", en de datum staat er toch al (de oudste analyse van dit
+ * merk, anders het merkprofiel zelf).
+ */
+export function totalenKop(start: string | null): string {
+  if (!start) return "Sinds de start van je programma";
+  const d = new Date(start);
+  if (Number.isNaN(d.getTime())) return "Sinds de start van je programma";
+  return `Sinds ${d.toLocaleDateString("nl-NL", { month: "long", year: "numeric", timeZone: "UTC" })}`;
+}
+
 export function overzichtCijfers({
-  gepubliceerd,
   clusters,
-  nieuwePaginas,
-  optimalisaties,
+  geschreven,
+  geoptimaliseerd,
+  gepubliceerd,
 }: {
-  /** Pagina's die live staan, uit `content_pieces.published_at`. */
-  gepubliceerd: number;
   /** Actieve clusters van dit merk. Gearchiveerde tellen niet mee (migratie 0044). */
   clusters: number;
-  /** Voorgestelde nieuwe pagina's, over alle clusters. */
-  nieuwePaginas: number;
-  /** Voorgestelde verbeteringen aan bestaande pagina's, over alle clusters. */
-  optimalisaties: number;
+  /** Nieuwe pagina's die ORBIT ENGINE ooit voor dit merk schreef. */
+  geschreven: number;
+  /** Verbeteringen aan bestaande pagina's die ORBIT ENGINE ooit schreef. */
+  geoptimaliseerd: number;
+  /** Wat daarvan live staat, uit `content_pieces.published_at`. */
+  gepubliceerd: number;
 }): OverzichtCijfer[] {
   return [
     {
-      waarde: String(gepubliceerd),
-      label: gepubliceerd === 1 ? "Pagina gepubliceerd" : "Pagina's gepubliceerd",
-      detail: gepubliceerd === 0 ? "Nog geen pagina live" : "Live op je site",
-    },
-    {
       waarde: String(clusters),
       label: clusters === 1 ? "Cluster actief" : "Clusters actief",
-      detail: clusters === 0 ? "Nog niets gemeten" : "Actief in de meting",
+      detail: clusters === 0 ? "Nog niets gemeten" : "Nu actief",
     },
     {
-      waarde: String(nieuwePaginas),
-      label: nieuwePaginas === 1 ? "Nieuwe pagina" : "Nieuwe pagina's",
-      detail: nieuwePaginas === 0 ? "Geen open voorstellen" : "Nog te schrijven",
+      waarde: String(geschreven),
+      label: geschreven === 1 ? "Pagina geschreven" : "Pagina's geschreven",
+      detail: geschreven === 0 ? "Nog niets geschreven" : "Nieuwe pagina's",
     },
     {
-      waarde: String(optimalisaties),
-      label: optimalisaties === 1 ? "Paginaoptimalisatie" : "Paginaoptimalisaties",
-      detail: optimalisaties === 0 ? "Geen open voorstellen" : "Voor bestaande pagina's",
+      waarde: String(geoptimaliseerd),
+      label: geoptimaliseerd === 1 ? "Pagina geoptimaliseerd" : "Pagina's geoptimaliseerd",
+      detail: geoptimaliseerd === 0 ? "Nog niets bijgewerkt" : "Bestaande pagina's",
+    },
+    {
+      waarde: String(gepubliceerd),
+      label: "Gepubliceerd",
+      detail: gepubliceerd === 0 ? "Nog niets live" : "Live op je site",
     },
   ];
 }

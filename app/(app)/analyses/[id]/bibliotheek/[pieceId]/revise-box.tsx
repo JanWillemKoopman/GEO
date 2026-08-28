@@ -1,9 +1,11 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ErrorNotice, problemFromResponse, networkProblem } from "@/components/error-notice";
 import type { UserFacingError } from "@/lib/errors";
+import type { PoortOordeel } from "@/lib/content-final-gate";
 
 /**
  * "Wat moet er anders?" (optimalisatie.md 4.8).
@@ -23,7 +25,26 @@ const SUGGESTIONS = [
   "Voeg onze prijzen en levertijden toe",
 ];
 
-export function ReviseBox({ analysisId, pieceId }: { analysisId: string; pieceId: string }) {
+export function ReviseBox({
+  analysisId,
+  pieceId,
+  poort,
+  vragenHref,
+}: {
+  analysisId: string;
+  pieceId: string;
+  /**
+   * Houden openstaande vragen een nieuwe versie tegen? (28 augustus 2026)
+   *
+   * Een nieuwe versie is de versie die definitief wordt, en die schrijft ORBIT
+   * ENGINE pas als de vragen behandeld zijn (`lib/content-final-gate.ts`). Het
+   * eerste concept mag wél met open vragen: de scherpste vragen ontstaan pas
+   * tijdens dat schrijven.
+   */
+  poort: PoortOordeel;
+  /** Waar die vragen staan. */
+  vragenHref: string;
+}) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [note, setNote] = useState("");
@@ -73,6 +94,21 @@ export function ReviseBox({ analysisId, pieceId }: { analysisId: string; pieceId
           Dit duurt een paar minuten. Je kunt dit scherm sluiten. De nieuwe versie komt er vanzelf
           te staan, en deze blijft bewaard voor het geval je terug wilt.
         </p>
+      </div>
+    );
+  }
+
+  // ⚠️ De poort staat vóór de knop en niet erachter: een knop die openklapt naar
+  // een formulier dat je niet kunt versturen, laat de klant eerst typen en dan
+  // pas ontdekken dat het niet kan. Dat is de omgekeerde volgorde van uitleggen.
+  if (!poort.mag) {
+    return (
+      <div className="card flex flex-col gap-2">
+        <span className="mono-label">Nog geen nieuwe versie</span>
+        <p className="text-sm text-secondary">{poort.melding}</p>
+        <Link href={vragenHref} className="btn-outline btn-sm w-fit">
+          Naar je openstaande vragen
+        </Link>
       </div>
     );
   }

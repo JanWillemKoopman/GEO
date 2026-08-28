@@ -8,6 +8,8 @@ import type { ContentAction } from "@/lib/types/database";
 import type { RecommendationPayload } from "@/lib/jobs/types";
 import type { RecommendationTarget } from "@/lib/pipeline/recommendation";
 import { mayTriggerCost, COST_DENIED } from "@/lib/cost-guard";
+import { eindpoort, EINDPOORT_STATUS } from "@/lib/content-final-gate";
+import { countBlockingQuestions } from "@/lib/open-questions";
 import { checkBudgetForProfile } from "@/lib/spend-limit";
 
 /**
@@ -82,6 +84,24 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 
   const title = body.title?.trim();
   if (!title) return NextResponse.json({ error: "Titel ontbreekt." }, { status: 400 });
+
+  // ── De eindpoort, alleen op het herschrijfpad (28 augustus 2026) ──────────
+  //
+  // Het EERSTE concept mag met open vragen: de scherpste vragen ontstaan pas
+  // tijdens dat schrijven, want de claim-audit leest wat de tekst beweert en
+  // vraagt precies dát na. Een poort ervóór zou vragen om antwoorden die nog
+  // niet bestaan. `regenerate: true` schrijft een NIEUWE versie bovenop een
+  // afgeronde pagina, en dat is wél de versie die definitief wordt.
+  // Zie `lib/content-final-gate.ts`.
+  if (body.regenerate === true) {
+    const poort = eindpoort(await countBlockingQuestions(admin, id, null));
+    if (!poort.mag) {
+      return NextResponse.json(
+        { error: poort.melding, openVragen: poort.open },
+        { status: EINDPOORT_STATUS },
+      );
+    }
+  }
 
   const recommendation: RecommendationPayload = {
     title,

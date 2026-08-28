@@ -96,11 +96,19 @@ const OPSLAG = "orbit_engine_zijbalk_ingeklapt";
 export function Sidebar({
   activeBrand,
   staff = false,
+  openVragen = 0,
   onMobileClose,
 }: {
   activeBrand: BrandOption | null;
   /** Beheerder? Dan staan de Admin-bestemmingen erbij. */
   staff?: boolean;
+  /**
+   * Hoeveel vragen er op de klant wachten. Zet het groene bolletje achter
+   * "Openstaande vragen" aan. Bewust zonder getal: dat staat al in de
+   * bovenbalk, en twee keer hetzelfde cijfer op één scherm laat de lezer zoeken
+   * welke van de twee de echte is (`docs/ux-design.md` §1).
+   */
+  openVragen?: number;
   /** Alleen gezet in de mobiele lade: dan sluit een klik het menu. */
   onMobileClose?: () => void;
 }) {
@@ -145,6 +153,7 @@ export function Sidebar({
           kop={kop}
           pathname={pathname}
           smal={smal}
+          openVragen={openVragen}
           // Het eerste hoofdstuk krijgt geen extra ruimte erboven: de balk zelf
           // heeft al padding, en anders zakt de hele lijst zichtbaar weg onder
           // de bovenbalk.
@@ -186,11 +195,13 @@ function Hoofdstuk({
   smal,
   eerste,
   scheiding,
+  openVragen,
   onClick,
 }: {
   kop: NavHoofdstuk;
   pathname: string;
   smal: boolean;
+  openVragen: number;
   eerste: boolean;
   scheiding: boolean;
   onClick?: () => void;
@@ -249,6 +260,11 @@ function Hoofdstuk({
               key={item.href}
               item={item}
               active={navActief(pathname, item)}
+              // Alleen de vragenpagina draagt een bolletje. Een tweede
+              // markering in deze balk maakt van "hier wacht iets" opnieuw een
+              // versiering, en dat is precies waarom de iconen bij de
+              // bestemmingen op 21 augustus 2026 verdwenen zijn.
+              wacht={item.href.endsWith("/strategie/vragen") && openVragen > 0}
               onClick={onClick}
             />
           ))}
@@ -261,10 +277,13 @@ function Hoofdstuk({
 function Item({
   item,
   active,
+  wacht = false,
   onClick,
 }: {
   item: NavItem;
   active: boolean;
+  /** Wacht hier werk op de klant? Dan een groen bolletje achter de tekst. */
+  wacht?: boolean;
   onClick?: () => void;
 }) {
   return (
@@ -300,7 +319,20 @@ function Item({
           : "text-[var(--text-secondary)] hover:bg-[var(--wash-hover)] hover:text-[var(--text-primary)]"
       }`}
     >
-      <span className="truncate">{item.label}</span>
+      <span className="flex min-w-0 items-center gap-2">
+        <span className="truncate">{item.label}</span>
+        {/* ⚠️ Achter de tekst en niet ervoor: ervoor duwt het label uit de
+            uitlijning met de regels eronder, en dan lijkt de balk scheef zodra
+            het bolletje verschijnt of verdwijnt. */}
+        {wacht && (
+          <>
+            <span className="vraag-dot" aria-hidden />
+            {/* Kleur alleen is nooit de drager van betekenis. De bovenbalk zegt
+                het voluit; hier staat het voor wie voorleest. */}
+            <span className="sr-only">er wachten vragen op je</span>
+          </>
+        )}
+      </span>
       {item.staffOnly && (
         <span
           // Een stempel en niet los grijs hoofdlettertekst: los in de regel las

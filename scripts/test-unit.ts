@@ -259,10 +259,13 @@ import { brandScorePerPeriod } from "@/lib/brand-score";
 import { ronde, rondeZin } from "@/lib/ronde";
 import { actionNeedsStaff, STAFF_ONLY_ACTIONS } from "@/lib/cost-rules";
 import { navActief } from "@/lib/nav";
+import { openVragenTotaal, openVragenLabel } from "@/lib/open-questions-count";
+import { eindpoort } from "@/lib/content-final-gate";
 import { leesMaandKeuze, maandRegel, planStap, telStatussen } from "@/lib/plan-read";
 import {
   isEersteMaand,
   overzichtCijfers,
+  totalenKop,
   planRegels,
   versheidsregel,
   volgendeMeting,
@@ -6416,52 +6419,65 @@ group("welk menu-item licht op", () => {
   ok("een kind laat de ouder niet oplichten", !navActief("/merk/abc/merkprofiel/bewerken", dossier));
 });
 
-group("overzichtCijfers: vier tellingen, geen vergelijking", () => {
-  // De echte stand van Gasservice Brabant op 26 augustus 2026: één gepubliceerde
-  // pagina, één cluster, en zeven aanbevelingen die uiteenvallen in twee nieuwe
-  // pagina's en vijf verbeteringen aan bestaande pagina's.
+group("overzichtCijfers: drie totalen en één stand van nu", () => {
+  // ⚠️ Herschreven op 28 augustus 2026. Tot die dag kwamen twee van de vier
+  // cijfers uit de KANSENLIJST, dus uit voorstellen: bij Van den Udenhout stond
+  // de rij op 0 · 0 · 7 · 5 terwijl er nog geen letter geschreven was. De rij
+  // telt nu wat er gemaakt is, over de hele looptijd.
   const c = overzichtCijfers({
-    gepubliceerd: 1,
     clusters: 1,
-    nieuwePaginas: 2,
-    optimalisaties: 5,
+    geschreven: 1,
+    geoptimaliseerd: 1,
+    gepubliceerd: 1,
   });
 
   ok("altijd precies vier cijfers", c.length === 4);
-  ok("in de volgorde van het scherm", c.map((x) => x.waarde).join(" ") === "1 1 2 5");
+  ok(
+    "de clusters staan vooraan, de publicaties achteraan",
+    c[0].label === "Cluster actief" && c[3].label === "Gepubliceerd",
+  );
 
-  // ⚠️ Geen enkel cijfer draagt een vergelijking met een vorige periode. Deze
-  // vier zijn standen en geen metingen: het aantal clusters verandert door een
-  // besluit, niet doordat er gemeten is.
+  // ⚠️ Geen enkel cijfer draagt een vergelijking met een vorige periode. Het
+  // aantal clusters verandert door een besluit, niet doordat er gemeten is, en
+  // de andere drie zijn optellingen over de hele looptijd.
   ok(
     "geen enkele detailregel claimt groei",
     c.every((x) => !/\+|sinds|steeg|daalde|vorige/.test(x.detail)),
   );
   ok("en elk cijfer heeft een toelichting", c.every((x) => x.detail.length > 0));
 
+  // ⚠️ Alleen het eerste cijfer is een stand van NU. Dat verschil moet uit de
+  // toelichting blijken, want de kop boven de rij zegt "sinds de start" en die
+  // geldt voor de andere drie.
+  ok("het eerste cijfer zegt dat het van nu is", c[0].detail === "Nu actief");
+
   // Enkelvoud en meervoud, want deze getallen staan vaak op 1 of op 0.
-  ok("één pagina is enkelvoud", c[0].label === "Pagina gepubliceerd");
-  ok("één cluster is enkelvoud", c[1].label === "Cluster actief");
+  ok("één geschreven pagina is enkelvoud", c[1].label === "Pagina geschreven");
+  ok("één optimalisatie is enkelvoud", c[2].label === "Pagina geoptimaliseerd");
   const meer = overzichtCijfers({
-    gepubliceerd: 4,
     clusters: 3,
-    nieuwePaginas: 1,
-    optimalisaties: 0,
+    geschreven: 4,
+    geoptimaliseerd: 2,
+    gepubliceerd: 5,
   });
-  ok("meer pagina's is meervoud", meer[0].label === "Pagina's gepubliceerd");
-  ok("één nieuwe pagina is enkelvoud", meer[2].label === "Nieuwe pagina");
-  ok("nul optimalisaties is meervoud", meer[3].label === "Paginaoptimalisaties");
+  ok("meer clusters is meervoud", meer[0].label === "Clusters actief");
+  ok("meer pagina's is meervoud", meer[1].label === "Pagina's geschreven");
+  ok("meer optimalisaties is meervoud", meer[2].label === "Pagina's geoptimaliseerd");
+  // ⚠️ "Gepubliceerd" kent geen enkelvoud. Het label slaat op twee soorten
+  // tegelijk (nieuwe pagina's én optimalisaties), en "1 gepubliceerde pagina of
+  // optimalisatie" past niet in een kolom van 190 pixels.
+  ok("gepubliceerd verandert nooit van vorm", meer[3].label === "Gepubliceerd");
 
   // ⚠️ Nul is hier een echte telling en geen onbekende waarde (conventie 3 gaat
   // over gokken, niet over tellen). De detailregel zegt wel wat nul betekent.
   const leeg = overzichtCijfers({
-    gepubliceerd: 0,
     clusters: 0,
-    nieuwePaginas: 0,
-    optimalisaties: 0,
+    geschreven: 0,
+    geoptimaliseerd: 0,
+    gepubliceerd: 0,
   });
   ok("nul blijft nul", leeg.every((x) => x.waarde === "0"));
-  ok("en zegt waarom het nul is", leeg[0].detail === "Nog geen pagina live");
+  ok("en zegt waarom het nul is", leeg[1].detail === "Nog niets geschreven");
 
   // ⚠️ Vier kolommen naast elkaar, waarvan drie ook een scheidingslijn met
   // inspringing dragen: die zijn 24 pixels smaller dan de eerste. Een
@@ -6472,6 +6488,25 @@ group("overzichtCijfers: vier tellingen, geen vergelijking", () => {
     [...c, ...meer, ...leeg].every((x) => x.detail.length <= 23),
   );
   ok("ook de nulvarianten", leeg.every((x) => x.detail.length <= 23));
+});
+
+group("totalenKop: de regel die zegt dat het totalen zijn", () => {
+  // ⚠️ Zonder deze regel leest een klant met twaalf geschreven pagina's de rij
+  // als "deze maand". Met een datum erbij is het concreter dan "sinds de start",
+  // en die datum staat er toch al: de oudste analyse van dit merk.
+  ok(
+    "met een startdatum staat de maand erin",
+    totalenKop("2026-03-04T10:00:00Z") === "Sinds maart 2026",
+  );
+  ok(
+    "zonder startdatum blijft het algemeen",
+    totalenKop(null) === "Sinds de start van je programma",
+  );
+  // Onbruikbare invoer wordt nooit een halve zin op het scherm (conventie 3).
+  ok(
+    "en onleesbare invoer ook",
+    totalenKop("geen datum") === "Sinds de start van je programma",
+  );
 });
 
 // ════════════════════════════════════════════════════════════════════════════
@@ -7789,6 +7824,78 @@ group("De poort voor handgeschreven vragen", () => {
 });
 
 // ════════════════════════════════════════════════════════════════════════════
+console.log("\nOpenstaande vragen en de eindpoort (28 augustus 2026)");
+
+group("openVragenTotaal: één getal voor drie plekken", () => {
+  // ⚠️ Dit getal staat in de bovenbalk, als bolletje in de zijbalk én in de kop
+  // van de vragenpagina. Drie plekken die het los uitrekenen lopen uit elkaar,
+  // en dan staat er "3 openstaande vragen" boven een pagina die er twee toont.
+  ok("open vragen plus open punten", openVragenTotaal({ openFacts: 2, gaps: 1 }) === 3);
+  ok("niets open is nul", openVragenTotaal({ openFacts: 0, gaps: 0 }) === 0);
+  // Een negatieve telling kan alleen uit een fout komen. Nul is dan het enige
+  // eerlijke antwoord (conventie 3), en geen negatief getal op het scherm.
+  ok("nooit onder nul", openVragenTotaal({ openFacts: -3, gaps: 0 }) === 0);
+});
+
+group("openVragenLabel: nul verdwijnt, één is enkelvoud", () => {
+  // ⚠️ Bij nul verdwijnt de hele melding uit de bovenbalk, inclusief het
+  // bolletje. Een balk die naast élk scherm "0 openstaande vragen" meldt vraagt
+  // aandacht voor niets, en went binnen een dag weg.
+  ok("nul levert geen melding op", openVragenLabel(0) === null);
+  ok("en een negatief getal ook niet", openVragenLabel(-1) === null);
+  ok("één is enkelvoud", openVragenLabel(1) === "1 openstaande vraag");
+  ok("meer is meervoud", openVragenLabel(4) === "4 openstaande vragen");
+});
+
+group("eindpoort: geen definitieve versie met vragen open", () => {
+  const dicht = eindpoort(2);
+  ok("twee open vragen houden hem tegen", dicht.mag === false && dicht.open === 2);
+  // ⚠️ De melding noemt de uitweg in dezelfde zin als de blokkade. Een melding
+  // die alleen zegt wat niet mag, is een dood einde (`docs/ux-design.md` §4), en
+  // dan weet de klant niet dat "weet ik niet" ook een antwoord is.
+  ok("en de melding noemt de uitweg", /overslaan|sla de vraag dan over/i.test(dicht.melding));
+  ok("en zegt waarom het uitmaakt", /geciteerd|algemeen/i.test(dicht.melding));
+
+  const een = eindpoort(1);
+  ok("één vraag is enkelvoud", een.melding.startsWith("Er staat nog één vraag open"));
+
+  const open = eindpoort(0);
+  ok("niets open, dus het mag", open.mag === true && open.open === 0);
+  // Ook als het mag staat er iets: een lege melding zou het scherm laten zien
+  // dat er niets gebeurd is, terwijl er juist een controle geslaagd is.
+  ok("en er staat nog steeds een zin", open.melding.length > 0);
+
+  // Een negatieve telling kan alleen uit een fout komen, en dan hoort de poort
+  // open te staan: een geschreven pagina niet kunnen afronden omdat een telling
+  // misging is erger dan een pagina afronden met een vraag open.
+  ok("een onmogelijke telling blokkeert niet", eindpoort(-2).mag === true);
+});
+
+group("de vragenpagina staat in Strategie, tussen clusters en plan", () => {
+  const items = brandNav("00000000-0000-0000-0000-000000000001", false);
+  const strategie = items.filter((i) => i.hoofdstuk === "Strategie").map((i) => i.label);
+  // ⚠️ De volgorde volgt de ronde: de clusters leveren de vragen, de antwoorden
+  // voeden het plan, het plan levert de teksten. Contentplan stond vóór
+  // Clusters, en dat las als "begin bij het plan" terwijl er zonder meting niets
+  // te plannen valt.
+  ok(
+    "de volgorde is clusters, vragen, plan, bibliotheek",
+    strategie.join(" · ") === "Clusters · Openstaande vragen · Contentplan · Bibliotheek",
+    strategie.join(" · "),
+  );
+  // ⚠️ En hij staat niet meer onder Merkprofiel. Twee vragenschermen naast
+  // elkaar is precies de splitsing die op 17 augustus 2026 is opgeheven.
+  ok(
+    "er is geen tweede vragenscherm",
+    !items.some((i) => i.label === "Vraagt jouw input"),
+  );
+  ok(
+    "en Merkprofiel houdt er twee over",
+    items.filter((i) => i.hoofdstuk === "Merkprofiel").length === 2,
+  );
+});
+
+// ════════════════════════════════════════════════════════════════════════════
 console.log("\nDe appstructuur: hoofdstukken en doorverwijzingen (17 augustus 2026)");
 
 group("de zijbalk kent vijf hoofdstukken plus Admin", () => {
@@ -7820,11 +7927,20 @@ group("de zijbalk kent vijf hoofdstukken plus Admin", () => {
   // "Mijn reputatie" is een los product dat de klant apart koopt en dat per keer
   // gestart en betaald wordt. Drie plus een product.
   //
+  // ⚠️ Strategie mag er sinds 28 augustus 2026 vier, en de reden is opnieuw van
+  // dezelfde soort: Clusters, Contentplan en Bibliotheek TONEN wat ORBIT ENGINE
+  // deed, "Openstaande vragen" is de enige plek in dat hoofdstuk waar de klant
+  // zelf iets moet DOEN. Die pagina stond tot die dag onder Merkprofiel, en dat
+  // hoofdstuk gaat over wie je bent, niet over wat er geschreven wordt. Sinds de
+  // eindpoort houdt een openstaande vraag bovendien een pagina tegen, en dan
+  // hoort hij naast het werk te staan dat hij blokkeert.
+  //
   // De rest van de regel blijft staan, en scherper dan eerst: een VIJFDE bestaat
-  // in geen van beide hoofdstukken zonder eerst iets samen te voegen, en de
-  // overige klanthoofdstukken blijven op drie.
+  // in geen van deze hoofdstukken zonder eerst iets samen te voegen, en
+  // Merkprofiel blijft op drie (het zijn er nu twee).
   for (const kop of beheerder) {
-    const grens = kop.naam === "Admin" ? 5 : kop.naam === "Analytics" ? 4 : 3;
+    const grens =
+      kop.naam === "Admin" ? 5 : kop.naam === "Analytics" || kop.naam === "Strategie" ? 4 : 3;
     ok(
       `${kop.naam} heeft hooguit ${grens} bestemmingen`,
       kop.items.length <= grens,
@@ -7841,8 +7957,8 @@ group("de zijbalk kent vijf hoofdstukken plus Admin", () => {
   );
   const metVier = beheerder.filter((k) => k.items.length === 4).map((k) => k.naam);
   ok(
-    "en alleen Analytics heeft er vier",
-    metVier.every((n) => n === "Analytics"),
+    "en alleen Analytics en Strategie hebben er vier",
+    metVier.every((n) => n === "Analytics" || n === "Strategie"),
     metVier.join(", "),
   );
   ok(
@@ -7969,8 +8085,8 @@ group("elk oud merkadres verwijst permanent naar zijn nieuwe", () => {
     "/profielen/:id": "/merk/:id/merkprofiel",
     "/profielen/:id/merkprofiel": "/merk/:id/merkprofiel/bewerken",
     "/profielen/:id/profielgegevens": "/merk/:id/merkprofiel/bewerken",
-    "/profielen/:id/aanvullen": "/merk/:id/merkprofiel/input",
-    "/profielen/:id/toevoegingen": "/merk/:id/merkprofiel/input",
+    "/profielen/:id/aanvullen": "/merk/:id/strategie/vragen",
+    "/profielen/:id/toevoegingen": "/merk/:id/strategie/vragen",
     "/profielen/:id/producten": "/merk/:id/merkprofiel",
     "/profielen/:id/plan": "/merk/:id/strategie/plan",
     "/profielen/:id/techniek": "/merk/:id/analytics",

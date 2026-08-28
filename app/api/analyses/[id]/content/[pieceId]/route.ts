@@ -8,6 +8,8 @@ import { loadSchemaOrg } from "@/lib/pipeline/content";
 import { validateOrRebuildJsonLd, bestaandeDatePublished } from "@/lib/schema-jsonld";
 import { FaqEdit } from "@/lib/schemas/content-piece";
 import { describeError, classifyError } from "@/lib/errors";
+import { eindpoort, EINDPOORT_STATUS } from "@/lib/content-final-gate";
+import { countBlockingQuestions } from "@/lib/open-questions";
 import type { ContentPiece, ContentPieceTarget } from "@/lib/types/database";
 import type { StoredRecommendation } from "@/lib/pipeline/recommendation";
 
@@ -168,6 +170,25 @@ export async function POST(
   const note = typeof body.note === "string" ? body.note.trim().slice(0, MAX_NOTE_LENGTH) : "";
   if (!note) {
     return NextResponse.json({ error: "Schrijf even wat er anders moet." }, { status: 400 });
+  }
+
+  // ── De eindpoort (28 augustus 2026) ──────────────────────────────────────
+  //
+  // Een nieuwe versie is de versie die definitief wordt, en die schrijft ORBIT
+  // ENGINE pas als de vragen behandeld zijn. Het eerste concept mag wél met open
+  // vragen: de scherpste vragen ontstaan pas tijdens dat schrijven. Zie
+  // `lib/content-final-gate.ts` voor het volledige waarom, inclusief de
+  // tegenspraak met "geen muur" uit het vrijgavepaneel.
+  //
+  // ⚠️ Conventie 1: de knop toont dezelfde melding, maar een melding is een
+  // intentie en deze regel is de garantie. Zonder deze controle is de poort met
+  // één `fetch` te omzeilen, en er hangt echt geld aan een schrijfronde.
+  const poort = eindpoort(await countBlockingQuestions(admin, id, pieceId));
+  if (!poort.mag) {
+    return NextResponse.json(
+      { error: poort.melding, openVragen: poort.open },
+      { status: EINDPOORT_STATUS },
+    );
   }
 
   // De doelvragen van de vorige versie meenemen (4.1). Zonder dat zou een

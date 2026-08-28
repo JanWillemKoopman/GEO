@@ -23,7 +23,7 @@
  * verkeerde is niet terug te nemen.
  *
  *   • `/profielgegevens` en `/merkprofiel`  → `/merkprofiel/bewerken`
- *   • `/aanvullen` en `/toevoegingen`       → `/merkprofiel/input`
+ *   • `/aanvullen` en `/toevoegingen`       → `/strategie/vragen`
  *   • `/producten`                          → `/merkprofiel` (blok Aanbod)
  *   • `/techniek`                           → `/analytics` (blok Technische diagnose)
  *
@@ -58,15 +58,26 @@ export const DOORVERWIJZINGEN: Doorverwijzing[] = [
   },
   {
     source: "/profielen/:id/aanvullen",
-    destination: "/merk/:id/merkprofiel/input",
+    destination: "/merk/:id/strategie/vragen",
     permanent: true,
   },
   {
     source: "/profielen/:id/toevoegingen",
-    destination: "/merk/:id/merkprofiel/input",
+    destination: "/merk/:id/strategie/vragen",
     permanent: true,
   },
   { source: "/profielen/:id/producten", destination: "/merk/:id/merkprofiel", permanent: true },
+
+  // ⚠️ "Vraagt jouw input" verhuisde op 28 augustus 2026 van Merkprofiel naar
+  // Strategie en heet nu "Openstaande vragen". Dit adres stond in de werklijst
+  // op de startpagina, in de onboardingsessie en in de leesbevestiging van het
+  // merkprofiel, dus het is niet zomaar een bladwijzer: het staat in mails die
+  // al verstuurd zijn.
+  {
+    source: "/merk/:id/merkprofiel/input",
+    destination: "/merk/:id/strategie/vragen",
+    permanent: true,
+  },
   { source: "/profielen/:id/plan", destination: "/merk/:id/strategie/plan", permanent: true },
   { source: "/profielen/:id/techniek", destination: "/merk/:id/analytics", permanent: true },
   {

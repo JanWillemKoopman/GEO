@@ -8,6 +8,8 @@ import { renderMarkdown, extractHeadings } from "@/lib/markdown";
 import { TableOfContents } from "@/components/table-of-contents";
 import { ContentActions } from "./content-actions";
 import { ReviseBox } from "./revise-box";
+import { eindpoort } from "@/lib/content-final-gate";
+import { countBlockingQuestions } from "@/lib/open-questions";
 import { ContentEditor } from "./content-editor";
 import { PublishGuide } from "@/components/publish-guide";
 import { CollapsibleSection } from "@/components/collapsible-section";
@@ -184,6 +186,17 @@ export default async function ContentDetailPage({
     .in("status", ["open", "overgeslagen"]);
   const unansweredRequired = (openVragen ?? []).map((v) => v.question as string);
 
+  // ── Wat de eindpoort tegenhoudt (28 augustus 2026) ───────────────────────
+  //
+  // Andere telling dan `unansweredRequired` hierboven, en dat is opzet: die
+  // lijst gaat over VERPLICHTE vragen over het hele merk en staat in het
+  // vrijgavepaneel als "dit ontbreekt in de tekst". Dit getal gaat over wat het
+  // afronden blokkeert: de open vragen van dít cluster plus die aan déze pagina
+  // hangen (`lib/open-questions.ts`). Eén telling voor de knop en voor de route,
+  // want twee tellingen voor één poort lopen uit elkaar.
+  const blokkerend = await countBlockingQuestions(supabase, id, pieceId);
+  const poort = eindpoort(blokkerend);
+
   // Content-editie, onderdeel 2: welke URL toon je in het zoekresultaat-
   // voorbeeld? Eenmalig hier bepaald (verandert niet tijdens het bewerken),
   // en doorgegeven aan zowel de statische preview hieronder als de live
@@ -349,6 +362,8 @@ export default async function ContentDetailPage({
         facts={[...releaseFacts.filter((f) => f.allowed), ...verbodenFeiten]}
         claims={releaseClaims}
         unansweredRequired={unansweredRequired}
+        poort={poort}
+        vragenHref={`/merk/${analysis.profile_id}/strategie/vragen`}
       />
 
       <div className="card flex flex-wrap items-center gap-x-6 gap-y-2">
@@ -396,7 +411,12 @@ export default async function ContentDetailPage({
         previewUrl={previewUrl}
       />
 
-      <ReviseBox analysisId={id} pieceId={pieceId} />
+      <ReviseBox
+        analysisId={id}
+        pieceId={pieceId}
+        poort={poort}
+        vragenHref={`/merk/${analysis.profile_id}/strategie/vragen`}
+      />
 
       {/* Geschiedenis en vergelijken. */}
       {versions.length > 1 && (

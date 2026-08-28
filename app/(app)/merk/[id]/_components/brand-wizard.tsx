@@ -62,7 +62,8 @@ export function BrandWizard({
   sources: Record<string, string>;
   /**
    * Waar het formulier opent. Alleen gezet als iemand hierheen gestuurd is
-   * vanaf een open punt ("Vraagt jouw input"), en dan wijst het naar de stap
+   * vanaf een open punt ("Openstaande vragen", tot 28 augustus 2026 "Vraagt jouw
+   * input"), en dan wijst het naar de stap
    * waar dát veld in staat. Zonder deze parameter landt zo'n knop op stap 1 en
    * moet de klant zelf zoeken in welke van de zeven stappen zijn veld zit.
    */
