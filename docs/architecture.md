@@ -23,10 +23,10 @@ Voor UI/UX: `ux-design.md`.
 > **Bijgewerkt op 26 augustus 2026**: de tijdrij van §9 is opnieuw doorgerekend
 > (doorloop-huyberts.md punt 5). Migraties `0066` en `0067` zijn erbij gekomen
 > (supabase/README.md); `0067` staat bij §3, het contentplan.
-> **Bijgewerkt op 29 augustus 2026** voor sprint 1 en 2 van de Sales-module (migraties `0068`
-> tot en met `0070`): §2 (de derde en vierde rol), §3 (de Sales-tabellen), §4 (vier taaksoorten
-> erbij en een derde soort taakeigenaar) en §12. Die module is intern en de klant ziet er niets
-> van; de scheiding staat in de database en niet alleen in de schermen.
+> **Bijgewerkt op 29 augustus 2026** voor sprint 1 tot en met 3 van de Sales-module (migraties
+> `0068` tot en met `0071`): §2 (de derde en vierde rol), §3 (de Sales-tabellen), §4 (acht
+> taaksoorten erbij en twee extra soorten taakeigenaar) en §12. Die module is intern en de klant
+> ziet er niets van; de scheiding staat in de database en niet alleen in de schermen.
 > De rest van de peildatum hieronder blijft staan.
 > **Migraties `0058` en `0059` zijn er sindsdien bijgekomen** en staan wél in §12 en in dit
 > document verwerkt, maar de rest is niet opnieuw regel voor regel nagelopen. Verder geldt:
@@ -317,7 +317,7 @@ probleem dan een dollar.
 | `reputation_market` | Eén rij per bedrijf dat AI zélf noemde op de open kopersvraag, per aanbodknoop (`0063`). Betrouwbaarder dan de opgelegde concurrentieset, want een bedrijf dat het model niet kent noemt het gewoon niet, en dat is zelf de uitkomst. ⚠️ Dit is de tabel waarop het scherm sinds 26 augustus 2026 zijn hoofdstuk per product bouwt: staat de klant er niet tussen, dan zeggen de rijen wie ChatGPT in zijn plaats aanraadt. |
 | `reputation_evidence` | Het gedeelde bewijscorpus (`0063`): letterlijke fragmenten met bron, waar de dienstvragen als achtergrond uit putten. Wordt niet op een klantscherm getoond. |
 
-**De Sales-module (migratie `0068`).** Vier tabellen die de klantomgeving nergens raken. Ze staan
+**De Sales-module (migraties `0068` tot en met `0071`).** Negen tabellen die de klantomgeving nergens raken. Ze staan
 bewust apart in deze tabel: een klant mag nooit kunnen zien dat hij ooit als prospect in het systeem
 heeft gestaan (zie §2).
 
@@ -327,9 +327,14 @@ heeft gestaan (zie §2).
 | `sales_markets` | Een onderzochte markt: branche plus plaats plus straal, met een `slug` die straks ook het publieke adres is. Permanent en herhaald gemeten; de meetrondes zelf komen in een latere migratie. Zes standen, met een check-constraint en geen enum, want de lijst groeit nog. |
 | `sales_companies` | Een bedrijf, over markten heen, ontdubbeld op genormaliseerd domein. ⚠️ `domain` is nullable met een gedeeltelijke unieke index: een bedrijf zonder website is juist de prospect die deze module zoekt. ⚠️ `last_activity_at` en `anonymised_at` dragen de bewaartermijn van twaalf maanden; de rekenkunde staat puur in `lib/sales/retention.ts`. `do_not_contact` is absoluut en geldt over alle markten. |
 | `sales_market_companies` | Hoort dit bedrijf in deze markt? Draagt de vindplaatsen (`evidence_urls`), de zekerheid en de herkomst in gewone taal. ⚠️ `included` heeft drie standen: `null` (nog niet beoordeeld), `true` en `false`. Zonder dat onderscheid is een niet-beoordeelde lijst niet te scheiden van een afgekeurde, en dan kan de goedkeuringspoort niet bestaan. |
+| `sales_runs` | Eén meetronde van één markt (migratie `0071`). De markt is permanent, de ronde niet: zonder dat onderscheid overschrijft ronde twee ronde één en bestaat opportunitytype 8 (verlies) niet |
+| `sales_questions` | De gestelde vragen, met per vraag de klantreisfase, de commerciële intentie en het bevroren gewicht. Zonder het intentielabel is de uitkomst een cijfer in plaats van een verkoopargument |
+| `sales_answers` | Eén antwoord per vraag per engine, met de ruwe uitvoer, de aangehaalde bronnen en de genoemde bedrijven die in geen enkele bron zaten |
+| `sales_mentions` | Eén rij per bedrijf per antwoord, ook voor de bedrijven die er niet in staan. De tabel waar elke score uit gerekend wordt |
+| `sales_company_scores` | De rekensom daarover: per bedrijf per ronde per engine, plus een rij `alle` voor het gecombineerde beeld |
 | `sales_suppressions` | Wie er nooit in een prospectlijst mag staan (migratie `0069`): een bestaande klant, een lopend traject, een concurrent van een klant, of een bedrijf dat zich heeft afgemeld. Bij elke ronde opnieuw geëvalueerd. ⚠️ De ENIGE plek waar de Sales-module naar `profiles` verwijst, en het verkeer gaat maar één kant op: Sales leest wie er klant is om die eruit te houden. |
 
-Volledig ontwerp en de zes sprints die hierop volgen: [`tasks/geo-prospect-engine.md`](tasks/geo-prospect-engine.md).
+Volledig ontwerp en de vier sprints die hierop volgen: [`tasks/geo-prospect-engine.md`](tasks/geo-prospect-engine.md).
 
 **Alles bewaren.** Elke AI-call slaat zijn volledige ruwe JSON op (`raw_json`/`mention_json`/
 `source_raw_json`) náást de uitgesplitste kolommen.
@@ -400,7 +405,8 @@ Bron: `lib/jobs/{types,queue,worker,handlers,pending}.ts`.
   `gsc_sync`, `recalculate_potential`, `reputation_start`, `reputation_brand`,
   `reputation_offering`, `reputation_compare`, `reputation_sources`, `reputation_synthesis`,
   `reputation_market`, `reputation_evidence`, `sales_market_discover`, `sales_market_verify`,
-  `sales_market_suppress`, `sales_company_enrich`.
+  `sales_market_suppress`, `sales_company_enrich`, `sales_market_intents`,
+  `sales_market_questions`, `sales_measure_question`, `sales_market_aggregate`.
   `profile_competitors` hangt tussen `aggregate_week` en `generate_report`: destilleert per
   concurrent de eigenschappen uit de antwoordfragmenten van die periode (`competitor-intel.ts`),
   een eigen taak omdat het een eigen AI-aanroep is (conventie 7), niet omdat het inhoudelijk apart
@@ -409,7 +415,7 @@ Bron: `lib/jobs/{types,queue,worker,handlers,pending}.ts`.
   zodra een analyse haar eerste rapport krijgt: herberekent `search_volume_index` op ALLE
   onderwerpen van dat merk in één aanroep (`lib/pipeline/search-demand.ts`), zie
   `docs/tasks/potentiescore.md`.
-- **De Sales-keten** (de vier `sales_*`-taken, migraties `0069` en `0070`) hangt aan een MARKT en niet aan
+- **De Sales-keten** (de acht `sales_*`-taken, migraties `0069` tot en met `0071`) hangt aan een MARKT en niet aan
   een merk. Daarvoor is `jobs.sales_market_id` de derde soort taakeigenaar naast `analysis_id` en
   `profile_id`; de constraint `jobs_has_owner` uit `0013` eist er nog steeds precies één van.
   ⚠️ **Maar één van de vier roept een model aan.** Ontdubbelen, uitsluiten en de crawl per bedrijf

@@ -149,4 +149,24 @@ export const dedupe = {
    */
   salesEnrich: (marketId: string, companyId: string) =>
     `sales_enrich:${marketId}:${companyId}`,
+
+  // ── Sprint 3: de meting (plan hoofdstuk 10 en 11) ─────────────────────────
+  //
+  // Vanaf hier hangt alles aan de RONDE en niet aan de markt. Een markt wordt
+  // herhaald gemeten (plan hoofdstuk 6), en zou de sleutel op de markt staan,
+  // dan zou ronde twee zichzelf als duplicaat van ronde één wegfilteren. Dan
+  // bestaat opportunitytype 8 (verlies) niet meer, en dat is het type waar de
+  // hele economie van hermeten aan hangt.
+  salesIntents: (marketId: string) => `sales_intents:${marketId}`,
+  salesQuestions: (runId: string) => `sales_questions:${runId}`,
+  /**
+   * ⚠️ De ENGINE hoort onvoorwaardelijk in deze sleutel, precies zoals bij de
+   * klantmeting (migratie 0041). Zonder de engine ziet de Gemini-meting van een
+   * vraag de OpenAI-meting als "al ingepland" en slaat hij zichzelf over: zonder
+   * foutmelding, met een lege score per engine terwijl alles groen lijkt. En dan
+   * bestaat opportunitytype 4 (engine gap) niet.
+   */
+  salesMeasure: (runId: string, questionId: string, engine: string) =>
+    `sales_measure:${runId}:${questionId}:${engine}`,
+  salesAggregate: (runId: string) => `sales_aggregate:${runId}`,
 };

@@ -114,8 +114,8 @@ zet `structured.ts` hem voor de rest van het proces uit in plaats van de taak te
 npm run dev              # localhost:3000
 npm run build            # productiebuild
 npx tsc --noEmit         # typecheck, moet schoon zijn
-npm run test:unit        # 2708 tests, pure functies, geen DB en geen API-sleutel
-npm run test:chain       # 406 ketentests, echte handlers tegen echte Postgres, geen netwerk
+npm run test:unit        # 2804 tests, pure functies, geen DB en geen API-sleutel
+npm run test:chain       # 438 ketentests, echte handlers tegen echte Postgres, geen netwerk
 npm run test:openai      # rooktest, MAAKT ECHTE BETAALDE CALLS
 npm run eval:mention     # accuratesse mention-classificatie (vereist API-key)
 ```
@@ -195,11 +195,15 @@ lib/entities/      merknaam-normalisatie en -matching
 lib/schemas/       Zod-contracten      lib/stats/  onzekerheidsmarges
 lib/sales/         de Sales-module (intern, klanten zien er niets van): rechten,
                    marktdefinitie, marktontdekking, uitsluitingen, plafond per
-                   markt, bewaartermijn. De pijplijnstappen staan in
+                   markt, bewaartermijn. Plus de meetlaag: intenties en
+                   vraaggewichten (intents), de vragenverdeling (questions), het
+                   koppelen van een genoemde naam aan een bedrijf (match), de
+                   rekensom over de vermeldingen (measure-math) en de twee
+                   meetprompts (measure-prompt). De pijplijnstappen staan in
                    lib/pipeline/sales-*.ts
 lib/audit/         robots.txt en AI-crawlertoegang plus entiteitsconsistentie
 lib/offsite/       off-site aanwezigheid     lib/archive.ts  wat zichtbaar is in de app
-supabase/migrations/  0001-0070 (0033 gereserveerd, nooit gedraaid, vervangen door 0039)
+supabase/migrations/  0001-0071 (0033 gereserveerd, nooit gedraaid, vervangen door 0039)
 scripts/           test-unit · test-chain · test-openai · eval-mention
 ```
 

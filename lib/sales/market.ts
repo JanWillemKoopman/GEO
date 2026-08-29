@@ -19,11 +19,23 @@
  * Zie `docs/tasks/geo-prospect-engine.md` §7.1 voor het datamodel eronder.
  */
 
-/** De zes standen uit plan 7.1, in de volgorde waarin ze doorlopen worden. */
+/**
+ * De standen van een markt, in de volgorde waarin ze doorlopen worden.
+ *
+ * ⚠️ **`vragen_klaar` is er in sprint 3 bijgekomen** (migratie 0071), en dat is
+ * geen verfijning maar een noodzaak. Er zitten twee goedkeuringspoorten in de
+ * keten (plan §8.1). Bij poort 1 was de stand nog af te leiden uit
+ * `wacht_op_goedkeuring` plus `approved_at`, maar tussen die poort en poort 2
+ * zit een hele keten: crawlen, intenties bepalen, vragen schrijven. Zonder een
+ * eigen stand staat een markt die nog crawlt er hetzelfde bij als een markt die
+ * op een mens wacht, en dan is de poort geen poort maar een lijst waar niemand
+ * naar kijkt.
+ */
 export const MARKT_STANDEN = [
   "concept",
   "bedrijven_gevonden",
   "wacht_op_goedkeuring",
+  "vragen_klaar",
   "meet",
   "klaar",
   "mislukt",
@@ -59,6 +71,10 @@ export const MARKT_STAND_TEKST: Record<MarktStand, { label: string; uitleg: stri
   },
   wacht_op_goedkeuring: {
     label: "Wacht op jou",
+    uitleg: "Kijk de bedrijvenlijst na. Wat je goedkeurt, wordt straks gemeten.",
+  },
+  vragen_klaar: {
+    label: "Vragen klaar",
     uitleg: "Kijk de vragen en de kostenraming na, dan start de meting.",
   },
   meet: {
@@ -94,7 +110,10 @@ export const MARKT_STAND_TEKST: Record<MarktStand, { label: string; uitleg: stri
 const OVERGANGEN: Record<MarktStand, readonly MarktStand[]> = {
   concept: ["bedrijven_gevonden", "mislukt"],
   bedrijven_gevonden: ["wacht_op_goedkeuring", "mislukt"],
-  wacht_op_goedkeuring: ["meet", "bedrijven_gevonden", "mislukt"],
+  // ⚠️ NIET rechtstreeks naar `meet`. Tussen de goedgekeurde bedrijvenlijst en
+  // de meting liggen de crawl, de intenties en de vragen, en daarna poort 2.
+  wacht_op_goedkeuring: ["vragen_klaar", "bedrijven_gevonden", "mislukt"],
+  vragen_klaar: ["meet", "mislukt"],
   meet: ["klaar", "mislukt"],
   klaar: ["meet"],
   mislukt: ["concept"],
@@ -135,8 +154,8 @@ export function marktFase(markt: {
     return {
       label: "Goedgekeurd",
       uitleg:
-        "Je hebt de bedrijvenlijst goedgekeurd. ORBIT ENGINE leest nu de site van elk bedrijf uit. " +
-        "Het meten zelf wordt gebouwd.",
+        "Je hebt de bedrijvenlijst goedgekeurd. ORBIT ENGINE leest nu de site van elk bedrijf uit " +
+        "en stelt daarna de vragen op. Dan is het weer aan jou.",
     };
   }
   return MARKT_STAND_TEKST[markt.status];

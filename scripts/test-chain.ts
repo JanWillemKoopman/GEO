@@ -5332,6 +5332,263 @@ async function main(): Promise<void> {
           "en een onbereikbare site is niet hetzelfde als geen site",
           naCrawl.some((c) => c.crawl_status === "niet_gelukt"),
         );
+
+        // ══════════════════════════════════════════════════════════════════
+        // Sprint 3: van goedgekeurde lijst tot gemeten markt
+        //
+        // ⚠️ DE SAMENHANG DIE HIER FOUT KAN GAAN, EN DIE GEEN UNITTEST VANGT:
+        //
+        //   1. De LAATSTE crawltaak plant de intentiestap in. Zou elke taak dat
+        //      doen, dan draait de intentieronde dertig keer.
+        //   2. De vragenstap plant NIETS in. Dat is poort 2: hier hoort de
+        //      keten te stoppen tot een mens de kostenraming heeft gezien.
+        //   3. De aggregatie draait pas als de laatste meting klaar is, en telt
+        //      op de RONDE en niet op de markt.
+        //
+        // Alle drie zijn het fouten die stil misgaan: de keten lijkt te lopen,
+        // en pas als iemand de rekening of de cijfers bekijkt blijkt het.
+        console.log("\nDe Sales-module: van goedgekeurde lijst tot gemeten markt (sprint 3)");
+
+        const { rows: naEnrich } = await db.client.query(
+          "select type, status from public.jobs where sales_market_id = $1 and type = 'sales_market_intents'",
+          [salesMarktId],
+        );
+        eqc(
+          "de laatste crawltaak plant de intentiestap in, en precies één keer",
+          String(naEnrich.length),
+          "1",
+        );
+
+        await draaiSalesTaken();
+
+        const { rows: rondes } = await db.client.query(
+          "select id, round_no, status, question_count, engines, estimate_usd, intents_json, notes from public.sales_runs where market_id = $1",
+          [salesMarktId],
+        );
+        eqc("er is één meetronde", String(rondes.length), "1");
+        eqc("en dat is ronde 1", String(rondes[0].round_no), "1");
+        eqc("de ronde wacht op poort 2", String(rondes[0].status), "vragen_klaar");
+
+        const intents = (rondes[0].intents_json ?? {}) as {
+          intenties?: { label: string }[];
+          kanttekening?: string;
+        };
+        // Het model leverde er elf; met veertig vragen passen er acht.
+        eqc("te veel intenties zijn teruggebracht", String(intents.intenties?.length ?? 0), "8");
+        ok(
+          "en dat is hardop gezegd",
+          String(intents.kanttekening ?? "").includes("niet meegenomen"),
+          String(intents.kanttekening),
+        );
+
+        const { rows: vragen } = await db.client.query(
+          "select id, intent_label, intent_stage, weight, active from public.sales_questions where run_id = $1 order by position",
+          [rondes[0].id],
+        );
+        eqc("er staan veertig vragen klaar", String(vragen.length), "40");
+        eqc("en de ronde weet dat", String(rondes[0].question_count), "40");
+        ok("er is een kostenraming", Number(rondes[0].estimate_usd) > 0, String(rondes[0].estimate_usd));
+
+        // Elke intentie moet genoeg vragen hebben om iets te kunnen betekenen.
+        // Bij drie vragen is "nul van de drie" nog toeval (plan hoofdstuk 12).
+        const perIntentie = new Map<string, number>();
+        for (const v of vragen) {
+          perIntentie.set(String(v.intent_label), (perIntentie.get(String(v.intent_label)) ?? 0) + 1);
+        }
+        ok(
+          "elke intentie krijgt minstens vijf vragen",
+          Array.from(perIntentie.values()).every((n) => n >= 5),
+          Array.from(perIntentie.entries()).map(([k, n]) => `${k}=${n}`).join(", "),
+        );
+        ok(
+          "en de zware fases wegen zwaarder dan de lichte",
+          vragen.some((v) => Number(v.weight) >= 0.5) && vragen.some((v) => Number(v.weight) < 0.2),
+        );
+
+        // ── POORT 2: de keten staat stil ────────────────────────────────────
+        const { rows: naVragen } = await db.client.query(
+          "select count(*)::int as n from public.jobs where sales_market_id = $1 and type = 'sales_measure_question'",
+          [salesMarktId],
+        );
+        eqc("de vragenstap plant geen enkele meting in", String(naVragen[0].n), "0");
+        const { rows: marktNaVragen } = await db.client.query(
+          "select status from public.sales_markets where id = $1",
+          [salesMarktId],
+        );
+        eqc("en de markt wacht op een mens", String(marktNaVragen[0].status), "vragen_klaar");
+
+        // ── De admin haalt één vraag weg en keurt de rest goed ──────────────
+        //
+        // De route doet dit met een gebruiker erbij; hier bootsen we na wat er
+        // toe doet: een uitgezette vraag wordt niet gemeten en telt niet mee in
+        // de noemer.
+        await db.client.query("update public.sales_questions set active = false where id = $1", [
+          vragen[0].id,
+        ]);
+        await db.client.query(
+          "update public.sales_runs set status = 'meet', approved_at = now(), question_count = 39 where id = $1",
+          [rondes[0].id],
+        );
+        await db.client.query("update public.sales_markets set status = 'meet' where id = $1", [
+          salesMarktId,
+        ]);
+
+        for (const v of vragen.slice(1)) {
+          await db.client.query(
+            `insert into public.jobs (type, payload_json, dedupe_key, status, sales_market_id, sales_run_id)
+             values ('sales_measure_question', $1, $2, 'queued', $3, $4)`,
+            [
+              JSON.stringify({
+                marketId: salesMarktId,
+                runId: rondes[0].id,
+                questionId: v.id,
+                engine: "openai",
+              }),
+              `sales_measure:${rondes[0].id}:${v.id}:openai`,
+              salesMarktId,
+              rondes[0].id,
+            ],
+          );
+        }
+
+        await draaiSalesTaken();
+
+        const { rows: antwoorden } = await db.client.query(
+          "select id, engine, unknown_names, cited_sources from public.sales_answers where run_id = $1",
+          [rondes[0].id],
+        );
+        eqc("er is één antwoord per actieve vraag", String(antwoorden.length), "39");
+        ok(
+          "de bronnen zijn teruggebracht tot domeinen",
+          (antwoorden[0].cited_sources as string[]).includes("funda.nl"),
+          JSON.stringify(antwoorden[0].cited_sources),
+        );
+        ok(
+          "een genoemd bedrijf dat wij niet kennen wordt bewaard",
+          (antwoorden[0].unknown_names as string[]).includes("Jansen Makelaardij"),
+          JSON.stringify(antwoorden[0].unknown_names),
+        );
+        ok(
+          "en een bedrijf dat het model verzon staat er niet bij",
+          !(antwoorden[0].unknown_names as string[]).some((n) => n.includes("Er Niet In Staat")),
+          JSON.stringify(antwoorden[0].unknown_names),
+        );
+
+        // ⚠️ Eén rij per bedrijf per antwoord, óók voor de bedrijven die er niet
+        // in staan. Die nulrijen zijn de kern: opportunitytype 1 leeft ervan.
+        const { rows: vermeldingTelling } = await db.client.query(
+          `select count(*)::int as n, count(*) filter (where mentioned)::int as genoemd
+             from public.sales_mentions where run_id = $1`,
+          [rondes[0].id],
+        );
+        eqc(
+          "elk bedrijf krijgt een rij bij elk antwoord",
+          String(vermeldingTelling[0].n),
+          String(antwoorden.length * goedgekeurd.length),
+        );
+        ok("en niet elk bedrijf is genoemd", vermeldingTelling[0].genoemd < vermeldingTelling[0].n);
+
+        // ⚠️ Een rol mag alleen gevuld zijn als het bedrijf genoemd is (plan
+        // 15.2). Dit is dezelfde fout die bij de klantmeting 10 van de 27
+        // niet-genoemde merken een rol gaf.
+        const { rows: rolFout } = await db.client.query(
+          "select count(*)::int as n from public.sales_mentions where not mentioned and mention_role is not null",
+        );
+        eqc("een niet-genoemd bedrijf heeft nooit een rol", String(rolFout[0].n), "0");
+
+        // ── De aggregatie draait pas als de laatste meting klaar is ─────────
+        const { rows: aggTaken } = await db.client.query(
+          "select count(*)::int as n from public.jobs where sales_run_id = $1 and type = 'sales_market_aggregate'",
+          [rondes[0].id],
+        );
+        eqc("de aggregatie is precies één keer ingepland", String(aggTaken[0].n), "1");
+
+        const { rows: scores } = await db.client.query(
+          `select company_id, engine, questions_total, mentions, share, weighted_share, stderr, per_intent
+             from public.sales_company_scores where run_id = $1`,
+          [rondes[0].id],
+        );
+        ok("er staan scores", scores.length > 0, String(scores.length));
+
+        const alle = scores.filter((s) => s.engine === "alle");
+        eqc(
+          "elk goedgekeurd bedrijf heeft een gecombineerd cijfer",
+          String(alle.length),
+          String(goedgekeurd.length),
+        );
+
+        // ⚠️ DE NOEMER. De uitgezette vraag telt niet mee: 39 antwoorden, geen 40.
+        ok(
+          "de noemer telt antwoorden en geen vragen",
+          alle.every((s) => Number(s.questions_total) === 39),
+          alle.map((s) => String(s.questions_total)).join(", "),
+        );
+
+        // Van X Makelaars wordt in élk stubantwoord als eerste genoemd, dus die
+        // hoort op 100% te staan. Dat is geen realistisch cijfer maar wel de
+        // enige manier om te toetsen dát de koppeling werkt: het bedrijf uit de
+        // markt is herkend in de tekst van het antwoord.
+        const { rows: vanXRij } = await db.client.query(
+          "select id from public.sales_companies where domain = 'vanxmakelaars.nl'",
+        );
+        const vanXScore = alle.find((s) => String(s.company_id) === String(vanXRij[0].id));
+        eqc(
+          "het genoemde bedrijf is bij elk antwoord herkend",
+          String(vanXScore?.mentions ?? 0),
+          "39",
+        );
+        eqc("en staat dus op honderd procent", String(Number(vanXScore?.share ?? 0)), "1");
+
+        const onzichtbaar = alle.filter((s) => Number(s.mentions) === 0);
+        ok(
+          "en het onzichtbare bedrijf staat er wél in, met nul",
+          onzichtbaar.length > 0 && onzichtbaar.every((s) => Number(s.stderr) > 0),
+          `${onzichtbaar.length} bedrijven op nul`,
+        );
+
+        // Het intentielabel is de hele reden dat deze meting anders is dan een
+        // score (plan 10.2). Zonder deze laag is er geen intent gap.
+        ok(
+          "de uitkomst is per intentie uitgesplitst",
+          Object.keys((alle[0].per_intent ?? {}) as Record<string, unknown>).length >= 3,
+          JSON.stringify(alle[0].per_intent),
+        );
+
+        const { rows: naMeting } = await db.client.query(
+          "select status, engines, notes, finished_at from public.sales_runs where id = $1",
+          [rondes[0].id],
+        );
+        eqc("de ronde is afgerond", String(naMeting[0].status), "klaar");
+        ok("met een eindtijd", naMeting[0].finished_at !== null);
+        eqc(
+          "en alleen de engine die echt gemeten heeft staat erop",
+          (naMeting[0].engines as string[]).join(","),
+          "openai",
+        );
+
+        // ── Idempotentie: nog een keer meten kost geen tweede aanroep ───────
+        const aantalVoor = log.filter((l) => l.schemaName === "plain").length;
+        await db.client.query(
+          `insert into public.jobs (type, payload_json, dedupe_key, status, sales_market_id, sales_run_id)
+           values ('sales_measure_question', $1, $2, 'queued', $3, $4)`,
+          [
+            JSON.stringify({
+              marketId: salesMarktId,
+              runId: rondes[0].id,
+              questionId: vragen[1].id,
+              engine: "openai",
+            }),
+            `sales_measure:${rondes[0].id}:${vragen[1].id}:openai:tweede`,
+            salesMarktId,
+            rondes[0].id,
+          ],
+        );
+        await draaiSalesTaken();
+        eqc(
+          "een tweede meting van dezelfde vraag kost niets",
+          String(log.filter((l) => l.schemaName === "plain").length),
+          String(aantalVoor),
+        );
       } finally {
         globalThis.fetch = origineleFetch;
       }

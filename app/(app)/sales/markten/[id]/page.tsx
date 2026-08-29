@@ -8,6 +8,10 @@ import { EmptyState } from "@/components/empty-state";
 import { marktFase, isMarktStand } from "@/lib/sales/market";
 import { Bedrijvenlijst, type BedrijfRegel } from "./bedrijvenlijst";
 import { StartOnderzoek } from "./start-onderzoek";
+import { Vragenlijst, type VraagRegel } from "./vragenlijst";
+import { Meetuitkomst, type ScoreRegel } from "./meetuitkomst";
+import { EUR_TO_USD } from "@/lib/sales/budget";
+import type { Intentie } from "@/lib/sales/intents";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "Markt" };
@@ -108,6 +112,92 @@ export default async function SalesMarktPage({
       );
     });
 
+  // ── De jongste meetronde, en wat eruit kwam ─────────────────────────────
+  //
+  // Eén query voor de ronde, en daarna pas de vragen of de scores: welke van de
+  // twee er nodig is, hangt af van de stand van die ronde. Beide altijd ophalen
+  // zou bij een markt van dertig bedrijven maal veertig vragen maal twee engines
+  // een paar duizend rijen kosten voor een scherm dat er de helft van toont.
+  const { data: runRijen } = await supabase
+    .from("sales_runs")
+    .select("id, round_no, status, engines, question_count, estimate_usd, intents_json, notes, approved_at")
+    .eq("market_id", id)
+    .order("round_no", { ascending: false })
+    .limit(1);
+
+  const run = (runRijen ?? [])[0] as
+    | {
+        id: string;
+        round_no: number;
+        status: string;
+        engines: string[] | null;
+        question_count: number;
+        estimate_usd: number | null;
+        intents_json: { intenties?: Intentie[]; kanttekening?: string } | null;
+        notes: string | null;
+        approved_at: string | null;
+      }
+    | undefined;
+
+  let vragen: VraagRegel[] = [];
+  let scores: ScoreRegel[] = [];
+  let onbekendeNamen: string[] = [];
+
+  if (run?.status === "vragen_klaar") {
+    const { data } = await supabase
+      .from("sales_questions")
+      .select("id, text, intent_label, intent_stage, weight, active")
+      .eq("run_id", run.id)
+      .order("position");
+
+    const namen = new Map(
+      (run.intents_json?.intenties ?? []).map((i) => [i.label, i.naam] as const),
+    );
+
+    vragen = ((data ?? []) as Record<string, unknown>[]).map((v) => ({
+      id: v.id as string,
+      tekst: v.text as string,
+      intentLabel: v.intent_label as string,
+      // Valt de naam weg, dan is het etiket zelf nog altijd leesbaarder dan een
+      // lege kop. Conventie 3: onbekend is een betere waarde dan een verkeerde.
+      intentNaam: namen.get(v.intent_label as string) ?? (v.intent_label as string),
+      fase: v.intent_stage as string,
+      gewicht: Number(v.weight ?? 0),
+      actief: v.active !== false,
+    }));
+  }
+
+  if (run && (run.status === "klaar" || run.status === "meet")) {
+    const [{ data: scoreRijen }, { data: antwoordRijen }] = await Promise.all([
+      supabase
+        .from("sales_company_scores")
+        .select("company_id, engine, questions_total, mentions, share, weighted_share, stderr")
+        .eq("run_id", run.id),
+      supabase.from("sales_answers").select("unknown_names").eq("run_id", run.id),
+    ]);
+
+    const naamPerBedrijf = new Map(bedrijven.map((b) => [b.companyId, b.naam] as const));
+
+    scores = ((scoreRijen ?? []) as Record<string, unknown>[]).map((s) => ({
+      companyId: s.company_id as string,
+      naam: naamPerBedrijf.get(s.company_id as string) ?? "Onbekend bedrijf",
+      engine: s.engine as string,
+      vragen: Number(s.questions_total ?? 0),
+      vermeldingen: Number(s.mentions ?? 0),
+      share: Number(s.share ?? 0),
+      weightedShare: Number(s.weighted_share ?? 0),
+      stderr: Number(s.stderr ?? 0),
+    }));
+
+    onbekendeNamen = Array.from(
+      new Set(
+        ((antwoordRijen ?? []) as { unknown_names: string[] | null }[]).flatMap(
+          (a) => a.unknown_names ?? [],
+        ),
+      ),
+    ).slice(0, 40);
+  }
+
   const status = markt.status as string;
   const fase = marktFase({ status, approved_at: markt.approved_at as string | null });
   const magStarten = admin && isMarktStand(status) && status === "concept";
@@ -142,6 +232,28 @@ export default async function SalesMarktPage({
           <h2 className="text-lg font-semibold">Wat het onderzoek zelf niet zeker wist</h2>
           <p className="mt-1 text-secondary">{markt.discovery_note as string}</p>
         </div>
+      )}
+
+      {run?.status === "vragen_klaar" && vragen.length > 0 && (
+        <Vragenlijst
+          marketId={id}
+          vragen={vragen}
+          ramingEur={Number((((run.estimate_usd ?? 0) as number) / EUR_TO_USD).toFixed(2))}
+          engines={run.engines ?? []}
+          kanttekening={
+            [run.intents_json?.kanttekening, run.notes].filter(Boolean).join(" ") || null
+          }
+          magGoedkeuren={Boolean(admin)}
+        />
+      )}
+
+      {scores.length > 0 && (
+        <Meetuitkomst
+          scores={scores}
+          engines={(run?.engines ?? []).filter((e) => e !== "alle")}
+          notitie={run?.notes ?? null}
+          onbekendeNamen={onbekendeNamen}
+        />
       )}
 
       {bedrijven.length === 0 ? (

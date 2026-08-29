@@ -61,9 +61,86 @@ export const STAP_KOSTEN_USD = {
   suppress: 0,
   /** De crawl per bedrijf. Geen model, dus gratis (plan 21.2, tweede regel). */
   enrich: 0,
+  /** Eén aanroep die de commerciële intenties van de markt voorstelt. */
+  intents: 0.06,
+  /** Eén aanroep die de veertig vragen schrijft. */
+  questions: 0.1,
+  /**
+   * Eén vraag op één engine: de dure zoekactie plus de goedkope beoordeling.
+   *
+   * ⚠️ **Dit is de kostenknop van de hele module** (plan 21.1). Veertig vragen
+   * maal twee engines is tachtig keer dit bedrag, en dat is ~95% van wat een
+   * marktronde kost. Het aantal BEDRIJVEN verandert er niets aan: die komen uit
+   * hetzelfde antwoord. Vandaar dat het aantal vragen begrensd is en het aantal
+   * bedrijven niet.
+   *
+   * Het bedrag is de web-zoekactie (~$0,025 vast tarief) plus tokens, gelijk aan
+   * wat een klantmeting per vraag kost (`docs/architecture.md` §6). De
+   * beoordeling erna is verwaarloosbaar naast die zoekactie.
+   */
+  measure: 0.03,
+  /** De aggregatie. Geen model, dus gratis. */
+  aggregate: 0,
 } as const;
 
 export type SalesStap = keyof typeof STAP_KOSTEN_USD;
+
+/**
+ * Wat gaat deze meetronde kosten?
+ *
+ * ── WAAROM DIT EEN EIGEN FUNCTIE IS EN GEEN SOM OP HET SCHERM ───────────────
+ *
+ * Dit getal staat bij poort 2 naast de vragenlijst, en het is het enige waarop
+ * de sales admin zijn ja baseert (plan §8.1). Zou het scherm hem zelf uitrekenen,
+ * dan is er niets dat hem koppelt aan wat de meting daadwerkelijk doet, en dan
+ * groeit het verschil tussen raming en rekening zonder dat iemand het merkt.
+ *
+ * De raming wordt daarom bewaard op de ronde (`sales_runs.estimate_usd`), náást
+ * wat het werd. Een raming die er structureel naast zit, zie je alleen als je
+ * hem bewaart.
+ */
+export function raamMeetronde(vragen: number, engines: number): number {
+  const meten = vragen * Math.max(1, engines) * STAP_KOSTEN_USD.measure;
+  return Number((meten + STAP_KOSTEN_USD.aggregate).toFixed(2));
+}
+
+/**
+ * Past deze hele meetronde nog binnen het plafond?
+ *
+ * ⚠️ Deze vraag hoort VÓÓR de eerste meting gesteld te worden en niet per vraag.
+ * Per vraag beoordelen betekent dat een ronde halverwege stopt: dertig van de
+ * veertig vragen gemeten, een score die op een willekeurige deelverzameling
+ * rust, en een rekening die toch is betaald. Beter is het om te weigeren te
+ * beginnen en te zeggen hoeveel vragen er wél in passen.
+ */
+export function beoordeelRonde(
+  besteedUsd: number,
+  vragen: number,
+  engines: number,
+  plafondEur: number = MARKT_BUDGET_EUR,
+): BudgetOordeel & { pastVragen: number } {
+  const raming = raamMeetronde(vragen, engines);
+  const plafond = budgetUsd(plafondEur);
+  const ruimte = plafond - besteedUsd;
+
+  if (besteedUsd + raming <= plafond) {
+    return { ok: true, besteed: besteedUsd, stap: raming, melding: null, pastVragen: vragen };
+  }
+
+  const perVraag = Math.max(1, engines) * STAP_KOSTEN_USD.measure;
+  const pastVragen = Math.max(0, Math.floor(ruimte / perVraag));
+
+  return {
+    ok: false,
+    besteed: besteedUsd,
+    stap: raming,
+    pastVragen,
+    melding:
+      `Deze meting kost naar schatting ${euro(raming)} en er is nog ${euro(Math.max(0, ruimte))} ` +
+      `van het plafond over. Er passen nog ${pastVragen} vragen in. Haal vragen uit de lijst of ` +
+      "verhoog het plafond.",
+  };
+}
 
 export interface BudgetOordeel {
   ok: boolean;
@@ -91,6 +168,21 @@ export interface BudgetOordeel {
  * dat het ook maar één cent bespaart. Een rem hoort te remmen waar geld
  * wegloopt, en nergens anders.
  */
+/**
+ * Een bedrag in dollars, geschreven als euro's.
+ *
+ * K2: een melding zegt wat er niet gebeurt, hoeveel er op staat en waar de grens
+ * ligt. Nederlandse notatie met een vaste locale, want de server in Vercel staat
+ * niet op Nederlands.
+ */
+function euro(usd: number): string {
+  return (usd / EUR_TO_USD).toLocaleString("nl-NL", {
+    style: "currency",
+    currency: "EUR",
+    minimumFractionDigits: 2,
+  });
+}
+
 export function beoordeelBudget(
   besteedUsd: number,
   stap: SalesStap,
@@ -103,16 +195,6 @@ export function beoordeelBudget(
   if (kosten === 0 || na <= plafond) {
     return { ok: true, besteed: besteedUsd, stap: kosten, melding: null };
   }
-
-  // K2: de melding zegt wat er niet gebeurt, hoeveel er op staat en waar de
-  // grens ligt. Nederlandse notatie met een vaste locale, want de server in
-  // Vercel staat niet op Nederlands.
-  const euro = (usd: number) =>
-    (usd / EUR_TO_USD).toLocaleString("nl-NL", {
-      style: "currency",
-      currency: "EUR",
-      minimumFractionDigits: 2,
-    });
 
   return {
     ok: false,

@@ -80,3 +80,109 @@ export const SalesMarketDiscovery = z.object({
 });
 
 export type SalesMarketDiscovery = z.infer<typeof SalesMarketDiscovery>;
+
+/**
+ * Wat de intentiestap oplevert (plan 10.1, as 2).
+ *
+ * ⚠️ Het model stelt VOOR, het beslist niet. Hoeveel intenties er meedoen, hoe
+ * de vragen erover verdeeld worden en hoe zwaar elke vraag telt, staat in
+ * `lib/sales/intents.ts` als rekensom. Vraag je een model om die verdeling, dan
+ * krijg je zesendertig vragen of elf over dezelfde intentie: tellen is geen
+ * taalwerk.
+ */
+export const SalesMarketIntents = z.object({
+  intenties: z.array(
+    z.object({
+      /** Het etiket, kleingeschreven en zonder spaties, bijvoorbeeld `aankoopbegeleiding`. */
+      label: z.string(),
+      /** Wat een salesmedewerker leest, bijvoorbeeld "Aankoopbegeleiding". */
+      naam: z.string(),
+      /** Waarom deze intentie commercieel telt, in één zin. */
+      uitleg: z.string(),
+      /**
+       * Hoe waardevol één opdracht uit deze intentie is: hoog, midden of laag.
+       *
+       * Drie banden en geen bedrag. Een bedrag zou een precisie suggereren die
+       * niemand heeft, en het zou in een verkoopmail terechtkomen.
+       */
+      waarde: z.enum(["hoog", "midden", "laag"]),
+      /**
+       * Hoe vaak deze intentie voorkomt, GESCHAT (plan 10.3).
+       *
+       * Echte zoekvolumes zijn in ORBIT ENGINE bewust niet gebouwd. Het woord
+       * "schatting" reist mee tot op het scherm.
+       */
+      frequentie: z.enum(["hoog", "midden", "laag"]),
+    }),
+  ),
+  /** Wat het model niet zeker wist, in gewone taal. Komt bij poort 2 op het scherm. */
+  kanttekening: z.string(),
+});
+
+export type SalesMarketIntents = z.infer<typeof SalesMarketIntents>;
+
+/**
+ * Wat de vragenstap oplevert (plan 10.1, het kruis van de twee assen).
+ *
+ * Het model krijgt de plekken aangereikt (intentie plus fase) en vult alleen de
+ * tekst in. Het geeft ze terug mét het etiket erbij, zodat de code kan
+ * controleren dat de vraag op de plek hoort waar hij terechtkomt, in plaats van
+ * te vertrouwen op de volgorde van een lijst.
+ */
+export const SalesMarketQuestions = z.object({
+  vragen: z.array(
+    z.object({
+      /** Het etiket van de intentie waar deze vraag bij hoort. */
+      intent_label: z.string(),
+      /** De klantreisfase: orientatie, vergelijken, selecteren of contact. */
+      fase: z.string(),
+      /** De vraag zoals een echte klant hem zou stellen. */
+      vraag: z.string(),
+    }),
+  ),
+});
+
+export type SalesMarketQuestions = z.infer<typeof SalesMarketQuestions>;
+
+/**
+ * Het oordeel over één antwoord: welke bedrijven staan erin? (plan 7.2, 15.2)
+ *
+ * ── PURE ONTDEKKING, NET ALS BIJ DE KLANTMETING ─────────────────────────────
+ *
+ * De namen van de dertig bedrijven uit de markt gaan NIET mee in deze prompt, om
+ * dezelfde reden als in `lib/openai/mention-prompt.ts`: een vooraf meegegeven
+ * lijst richt het model op die namen in plaats van op wat er werkelijk staat, en
+ * elke meegegeven naam komt in élke meting terug. Bij dertig bedrijven weegt dat
+ * zwaarder dan bij één merk, en het zou de meting bovendien duur maken.
+ *
+ * Het koppelen van een genoemde naam aan een bedrijf uit de markt gebeurt daarna
+ * in `lib/sales/match.ts`, deterministisch en testbaar. Een naam die bij geen
+ * enkel bedrijf hoort, wordt bewaard: dat is ofwel een gat in onze
+ * marktinventarisatie, ofwel een verzonnen naam, en allebei is informatie.
+ */
+export const SalesAnswerJudgement = z.object({
+  bedrijven: z.array(
+    z.object({
+      /** De bedrijfsnaam precies zoals hij in het antwoord staat. */
+      naam: z.string(),
+      /** Het webadres als het antwoord er een noemt, anders leeg. */
+      website: z.string(),
+      /** De hoeveelste genoemde partij dit is, 1 is de eerste. */
+      positie: z.number(),
+      /**
+       * Hoe prominent dit bedrijf in het antwoord staat.
+       *
+       * Dezelfde drie rollen als bij de klantmeting, want het verschil tussen
+       * "je staat erbij" en "je wordt aangeraden" is precies waar het gesprek
+       * over gaat.
+       */
+      rol: z.enum(["eerste_aanbeveling", "een_van_meerdere", "zijdelings"]),
+      /** Het stukje tekst waarin dit bedrijf voorkomt, hooguit twee zinnen. */
+      fragment: z.string(),
+    }),
+  ),
+  /** De brondomeinen die het antwoord aanhaalt, bijvoorbeeld `funda.nl`. */
+  bronnen: z.array(z.string()),
+});
+
+export type SalesAnswerJudgement = z.infer<typeof SalesAnswerJudgement>;

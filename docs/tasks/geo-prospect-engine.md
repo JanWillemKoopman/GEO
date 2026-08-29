@@ -1426,16 +1426,21 @@ Uitgangspunt: één markt, de volledige markt aan bedrijven, 40 vragen, twee eng
 Zeven sprints. Elke sprint levert zelfstandig iets bruikbaars op, en is pas af als het verificatiecriterium tegen
 echte data is aangetoond. Gebouwd is niet geverifieerd, conventie 10.
 
-**Stand op 24 augustus 2026.** Sprint 1 is gebouwd en geverifieerd. Sprint 2 is gebouwd en staat op
-productie, maar het verificatiecriterium is nog niet gehaald: daarvoor moet er één echte markt
-gedraaid hebben en moet New business zeggen of de lijst klopt. Tot dat gebeurd is telt sprint 2 niet
-als af, ook al werkt alles.
+**Stand op 29 augustus 2026.** Sprint 1 is gebouwd en geverifieerd. Sprint 2 en 3 zijn gebouwd en
+staan op productie, maar hun verificatiecriteria zijn niet gehaald: daarvoor moet er één echte markt
+gedraaid hebben, moet New business zeggen of de bedrijvenlijst klopt, en moeten de zichtbaarheids-
+cijfers met de hand nagerekend zijn tegen de opgeslagen antwoorden. Tot dat gebeurd is tellen ze
+niet als af, ook al werkt alles (conventie 10).
+
+⚠️ **De migratienummers in dit plan liepen achter.** Sprint 1 tot en met 3 kregen `0065`, `0066` en
+`0067`, maar die drie nummers waren op 25 en 26 augustus al door ander werk gebruikt. De
+Sales-migraties heten nu `0068` tot en met `0071`; `supabase/README.md` is de eigenaar van dat feit.
 
 | Sprint | Wat erin zit | Migratie | Verificatiecriterium |
 |---|---|---|---|
-| **1. Fundament** ✅ | De rol sales en sales admin, de Sales-sectie in de sidebar, lege schermen, `sales_markets` en `sales_companies`, markt aanmaken | `0065` | Een salesmedewerker ziet Sales, een klant krijgt "pagina bestaat niet", en een markt kan aangemaakt worden |
-| **2. Ontdekken** (gebouwd, nog niet geverifieerd) | Marktontdekking uit de gratis bronnen, ontdubbelen, de uitsluitingen uit 9.5, poort 1, de crawlverrijking | `0066` en `0067` | New business kijkt naar de gevonden lijst voor één echte markt en zegt of hij klopt. Minstens 80% van de bedrijven die zij zelf kennen zit erin |
-| **3. Meten** | Intenties, vragen, poort 2, meting op beide engines, beoordelen, aggregatie | eigen migratie | De zichtbaarheidscijfers zijn met de hand na te rekenen uit de opgeslagen antwoorden, en een tweede meting van dezelfde markt geeft geen wild ander beeld |
+| **1. Fundament** ✅ | De rol sales en sales admin, de Sales-sectie in de sidebar, lege schermen, `sales_markets` en `sales_companies`, markt aanmaken | `0068` | Een salesmedewerker ziet Sales, een klant krijgt "pagina bestaat niet", en een markt kan aangemaakt worden |
+| **2. Ontdekken** (gebouwd, nog niet geverifieerd) | Marktontdekking uit de gratis bronnen, ontdubbelen, de uitsluitingen uit 9.5, poort 1, de crawlverrijking | `0069` en `0070` | New business kijkt naar de gevonden lijst voor één echte markt en zegt of hij klopt. Minstens 80% van de bedrijven die zij zelf kennen zit erin |
+| **3. Meten** (gebouwd, nog niet geverifieerd) | Intenties, vragen, poort 2, meting op beide engines, beoordelen, aggregatie | `0071` | De zichtbaarheidscijfers zijn met de hand na te rekenen uit de opgeslagen antwoorden, en een tweede meting van dezelfde markt geeft geen wild ander beeld |
 | **4. Opportunities** | De acht types (verlies pas actief vanaf de tweede ronde), de score, de hook, het bewijs, het prospectdossier, het Opportunities-scherm | eigen migratie | New business beoordeelt de top tien en de bodem tien en is het met minstens acht van de tien eens. Elke oneens is een kalibratiepunt en wordt verwerkt |
 | **5. Outreach** | Contactpersonen zoeken, conceptmails per hooktype, de belvoorbereiding, de verzendplafonds uit 16.6, de werkstroom, statussen, toewijzing, `sales_events`, de trechtercijfers | eigen migratie | Een salesmedewerker leest tien conceptmails en zegt van minstens acht: deze zou ik versturen. Daarna: de eerste echte mails gaan uit |
 | **6. Publiceren** | De publieke route, het rapport, de adresstructuur, verwijderprocedure | eigen migratie | Het rapport staat online, een prospect heeft de link geopend, en er is geen verzoek tot verwijdering geweest dat we niet konden honoreren |

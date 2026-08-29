@@ -78,14 +78,18 @@ export const TAAK_TEKST: Record<JobType, string | null> = {
 
   // ── De Sales-module: nooit zichtbaar voor een klant (plan §4.3) ───────────
   //
-  // Deze vier taken gaan over bedrijven die geen klant zijn. Ze hangen aan geen
-  // enkel merk, dus ze zouden hier sowieso niet langskomen. Dat `null` is het
-  // tweede slot: ook als iemand de filtering ooit verandert, blijft er niets van
-  // te zien.
+  // Deze taken gaan over bedrijven die geen klant zijn. Ze hangen aan geen enkel
+  // merk, dus ze zouden hier sowieso niet langskomen. Dat `null` is het tweede
+  // slot: ook als iemand de filtering ooit verandert, blijft er niets van te
+  // zien.
   sales_market_discover: null,
   sales_market_verify: null,
   sales_market_suppress: null,
   sales_company_enrich: null,
+  sales_market_intents: null,
+  sales_market_questions: null,
+  sales_measure_question: null,
+  sales_market_aggregate: null,
 };
 
 export interface AfgerondeTaak {

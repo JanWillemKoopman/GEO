@@ -122,6 +122,27 @@ import {
 } from "@/lib/sales/budget";
 import { bouwOntdekVraag, beschrijfHerkomst } from "@/lib/sales/discovery";
 import { marktFase } from "@/lib/sales/market";
+// Sprint 3, de meting: de twee assen, het koppelen van een genoemde naam aan een
+// bedrijf, en de rekensom over de vermeldingen.
+import {
+  INTENT_STAGES,
+  STAGE_WEIGHT,
+  BAND_FACTOR,
+  MIN_VRAGEN_PER_INTENTIE,
+  INTENTIES_MAX,
+  VRAGEN_STANDAARD,
+  vraagGewicht,
+  verdeelVragen,
+  schoonIntenties,
+  normaliseerLabel,
+  type Intentie,
+} from "@/lib/sales/intents";
+import { koppelNaam, koppelAntwoord, domeinSleutel } from "@/lib/sales/match";
+import { rekenScores, marktBronnen, ENGINE_ALLE } from "@/lib/sales/measure-math";
+import { raamMeetronde, beoordeelRonde } from "@/lib/sales/budget";
+import { koppelVragen, bouwVragenVraag } from "@/lib/sales/questions";
+import { bouwIntentieVraag } from "@/lib/sales/intents";
+import { bouwBeoordeelVraag, SIMULATIE_SYSTEM } from "@/lib/sales/measure-prompt";
 import { ICONEN } from "@/lib/icons";
 import { DOORVERWIJZINGEN } from "@/lib/redirects";
 import { findGaps, gapLink } from "@/lib/profile-gaps";
@@ -12129,10 +12150,20 @@ group("de statusmachine is de code-garantie onder de twee poorten", () => {
     "van bedrijven gevonden kun je niet rechtstreeks naar meten",
     !magOvergaan("bedrijven_gevonden", "meet"),
   );
+  // ⚠️ Sinds sprint 3 liggen er twee poorten in plaats van één, en de
+  // statusmachine zegt dat: van een goedgekeurde bedrijvenlijst naar meten kan
+  // niet in één stap. Daar zitten de crawl, de intenties en de vragen tussen, en
+  // daarna poort 2. Zou dit wél mogen, dan is er te meten zonder dat iemand de
+  // vragen of de kostenraming heeft gezien, en dat is ~95% van wat een markt kost.
   ok(
     "er moet eerst goedkeuring tussen",
     magOvergaan("bedrijven_gevonden", "wacht_op_goedkeuring") &&
-      magOvergaan("wacht_op_goedkeuring", "meet"),
+      magOvergaan("wacht_op_goedkeuring", "vragen_klaar") &&
+      magOvergaan("vragen_klaar", "meet"),
+  );
+  ok(
+    "en van een goedgekeurde lijst kun je niet meteen meten: poort 2 zit ertussen",
+    !magOvergaan("wacht_op_goedkeuring", "meet"),
   );
   ok("en concept kan al helemaal niet meteen meten", !magOvergaan("concept", "meet"));
   ok("of meteen klaar zijn", !magOvergaan("concept", "klaar"));
@@ -12646,14 +12677,420 @@ group("de fase van een markt zegt wat er nu gebeurt", () => {
     marktFase({ status: "wacht_op_goedkeuring", approved_at: "2026-08-24T10:00:00Z" }).label,
     "Goedgekeurd",
   );
-  // Het mag niet suggereren dat er vanzelf gemeten gaat worden: dat is nog niet
-  // gebouwd (CLAUDE.md, "schrijf nooit dat iets al kan wat nog niet gebouwd is").
-  ok(
-    "en belooft geen meting die er nog niet is",
-    marktFase({ status: "wacht_op_goedkeuring", approved_at: "2026-08-24T10:00:00Z" })
-      .uitleg.includes("wordt gebouwd"),
+  // ⚠️ Deze test stond er tot sprint 3 andersom in: hij eiste de woorden "wordt
+  // gebouwd", want het meten bestond nog niet en de app mag nooit zeggen dat
+  // iets al kan (CLAUDE.md). Nu bestaat het wél, en dan is diezelfde zin
+  // onjuist geworden. De regel eronder is niet veranderd: de tekst zegt wat er
+  // echt gebeurt, en zegt wie er daarna aan zet is.
+  const naGoedkeuring = marktFase({
+    status: "wacht_op_goedkeuring",
+    approved_at: "2026-08-24T10:00:00Z",
+  }).uitleg;
+  ok("en belooft niets wat nog niet gebouwd is", !naGoedkeuring.includes("wordt gebouwd"));
+  ok("maar zegt wel wie er hierna aan zet is", naGoedkeuring.includes("weer aan jou"));
+  eq(
+    "poort 2 wacht op de vragen en de kostenraming",
+    marktFase({ status: "vragen_klaar" }).label,
+    "Vragen klaar",
   );
   eq("een onbekende stand blijft onbekend", marktFase({ status: "verzonnen" }).label, "Onbekende stand");
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+console.log("\nDe Sales-module: de markt meten (sprint 3)");
+
+group("de twee assen bepalen wat een vraag waard is", () => {
+  // Plan 10.3: fase × waarde × frequentie. De bandbreedte moet groot genoeg zijn
+  // dat een koopklare vraag écht zwaarder telt dan een oriënterende, anders is
+  // het gewogen aandeel hetzelfde cijfer als het ongewogen aandeel met ruis erop.
+  const zwaarst = vraagGewicht("selecteren", "hoog", "hoog");
+  const lichtst = vraagGewicht("orientatie", "laag", "laag");
+  eq2("de zwaarste vraag telt vol mee", zwaarst, 1);
+  ok("en de lichtste bijna niet", lichtst < 0.05, String(lichtst));
+  ok("een factor twintig of meer ertussen", zwaarst / lichtst >= 20, String(zwaarst / lichtst));
+
+  // ⚠️ Geen enkele vraag mag op 0 uitkomen. Een vraag met gewicht 0 telt niet
+  // mee in de gewogen score en verdwijnt stil uit de meting, terwijl hij wel
+  // betaald is.
+  for (const stage of INTENT_STAGES) {
+    ok(`${stage} met de laagste banden telt nog steeds mee`, vraagGewicht(stage, "laag", "laag") > 0);
+  }
+
+  // De koopbeslissing weegt zwaarder dan de oriëntatie. Dat is de hele reden dat
+  // "onzichtbaar bij selecteren" een ander gesprek is dan "onzichtbaar bij
+  // oriëntatie" (plan 10.2).
+  ok("selecteren weegt zwaarder dan oriënteren", STAGE_WEIGHT.selecteren > STAGE_WEIGHT.orientatie);
+  ok("en contact weegt net iets minder dan selecteren", STAGE_WEIGHT.contact < STAGE_WEIGHT.selecteren);
+  ok("de banden lopen van hoog naar laag", BAND_FACTOR.hoog > BAND_FACTOR.midden && BAND_FACTOR.midden > BAND_FACTOR.laag);
+});
+
+group("de vragen worden geteld en niet gevraagd", () => {
+  const intenties: Intentie[] = [
+    { label: "verkoop", naam: "Verkoop", uitleg: "", waarde: "hoog", frequentie: "hoog" },
+    { label: "aankoop", naam: "Aankoop", uitleg: "", waarde: "hoog", frequentie: "midden" },
+    { label: "taxatie", naam: "Taxatie", uitleg: "", waarde: "midden", frequentie: "laag" },
+  ];
+
+  // ⚠️ Het totaal moet EXACT kloppen. De kostenraming bij poort 2 rust erop, en
+  // de noemer van elke score ook. Een verdeling die 38 of 41 vragen oplevert bij
+  // een gevraagde 40 maakt van de raming een schatting van een schatting.
+  const veertig = verdeelVragen(intenties, 40);
+  eq2("veertig gevraagd is veertig gekregen", veertig.length, 40);
+  const dertien = verdeelVragen(intenties, 13);
+  eq2("ook als het niet deelbaar is", dertien.length, 13);
+
+  // Elke intentie krijgt ongeveer evenveel vragen. Een intentie met twee vragen
+  // kan geen intent gap dragen (plan hoofdstuk 12, type 3).
+  const perIntentie = new Map<string, number>();
+  for (const v of veertig) perIntentie.set(v.intentLabel, (perIntentie.get(v.intentLabel) ?? 0) + 1);
+  const aantallen = Array.from(perIntentie.values());
+  ok("elke intentie komt aan bod", perIntentie.size === 3);
+  ok(
+    "en ze krijgen er hooguit één verschil",
+    Math.max(...aantallen) - Math.min(...aantallen) <= 1,
+    aantallen.join(", "),
+  );
+
+  // De rest van de deling gaat naar de zwaarste fases en niet naar de eerste in
+  // de lijst: bij dertien vragen over drie intenties valt er van alles af, en
+  // wat overblijft hoort de fase te zijn waar de koopbeslissing valt.
+  const eersteIntentie = dertien.filter((v) => v.intentLabel === "verkoop");
+  ok("selecteren komt als eerste aan bod", eersteIntentie[0]?.stage === "selecteren");
+
+  ok("zonder intenties zijn er geen vragen", verdeelVragen([], 40).length === 0);
+  ok("en zonder aantal ook niet", verdeelVragen(intenties, 0).length === 0);
+});
+
+group("te veel intenties is een as die niets meet", () => {
+  // ⚠️ Het model levert er graag twaalf. Twaalf intenties op veertig vragen is
+  // drie vragen per intentie, en dan valt elk verschil tussen twee intenties
+  // binnen de marge. Dan is de hele tweede as waardeloos, en die as is precies
+  // waarom deze module niet "je scoort 18 van 40" zegt.
+  const ruw = Array.from({ length: 12 }, (_, i) => ({
+    label: `intentie_${i}`,
+    naam: `Intentie ${i}`,
+    uitleg: "",
+    waarde: i < 3 ? "hoog" : "laag",
+    frequentie: i < 3 ? "hoog" : "laag",
+  }));
+
+  const uit = schoonIntenties(ruw, 40);
+  ok("er blijven er hooguit acht over", uit.intenties.length <= INTENTIES_MAX);
+  ok(
+    "en niet meer dan er vragen voor zijn",
+    uit.intenties.length <= Math.floor(40 / MIN_VRAGEN_PER_INTENTIE),
+    String(uit.intenties.length),
+  );
+  ok("wat eruit gaat wordt hardop gezegd", uit.meldingen.length === 1, uit.meldingen.join(" "));
+  ok(
+    "en de waardevolste blijven staan",
+    uit.intenties.slice(0, 3).every((i) => i.waarde === "hoog"),
+  );
+
+  // Conventie 3: onbekend wordt `midden` en geen gok naar boven. Een intentie
+  // met een verzonnen hoge waarde komt bovenaan de vragenlijst op grond van niets.
+  const onbekend = schoonIntenties([{ naam: "Iets", label: "iets", waarde: "enorm" }], 40);
+  eq("een onbekende band wordt midden", onbekend.intenties[0]?.waarde ?? "", "midden");
+
+  // Dubbele labels tellen één keer: anders krijgt dezelfde intentie twee keer
+  // een deel van de vragen en lijkt hij dubbel zo breed gemeten.
+  const dubbel = schoonIntenties(
+    [
+      { naam: "Aankoop", label: "aankoop", waarde: "hoog", frequentie: "hoog" },
+      { naam: "Aankoop begeleiding", label: "Aankoop", waarde: "hoog", frequentie: "hoog" },
+    ],
+    40,
+  );
+  eq2("hetzelfde label telt één keer", dubbel.intenties.length, 1);
+  eq("en het label is genormaliseerd", normaliseerLabel("Aankoop Begeleiding!"), "aankoop_begeleiding");
+});
+
+group("een geleverde vraag hoort op de plek waar hij thuishoort", () => {
+  const intenties: Intentie[] = [
+    { label: "verkoop", naam: "Verkoop", uitleg: "", waarde: "hoog", frequentie: "hoog" },
+    { label: "aankoop", naam: "Aankoop", uitleg: "", waarde: "hoog", frequentie: "hoog" },
+  ];
+  const plekken = verdeelVragen(intenties, 4);
+
+  const uit = koppelVragen(plekken, [
+    { intent_label: "verkoop", fase: "selecteren", vraag: "Welke makelaar kies ik in Eindhoven?" },
+    { intent_label: "Verkoop", fase: "vergelijken", vraag: "Wat kost een makelaar in Eindhoven?" },
+    { intent_label: "aankoop", fase: "selecteren", vraag: "Wie helpt mij bij het kopen van een huis?" },
+    { intent_label: "aankoop", fase: "vergelijken", vraag: "Aankoopmakelaar of zelf doen?" },
+  ]);
+  eq2("vier plekken, vier vragen", uit.vragen.length, 4);
+  ok("er is niets te melden", uit.melding === null, uit.melding ?? "");
+  ok(
+    "een net anders geschreven etiket telt gewoon mee",
+    uit.vragen.some((v) => v.intentLabel === "verkoop" && v.stage === "vergelijken"),
+  );
+
+  // ⚠️ Wat er gebeurt als het model erlangs levert. Zonder dit vangnet krijgt
+  // de ene intentie negen vragen en de andere één, en meet de intent gap iets
+  // wat er niet is.
+  const scheef = koppelVragen(plekken, [
+    { intent_label: "verkoop", fase: "selecteren", vraag: "Welke makelaar kies ik in Eindhoven?" },
+    { intent_label: "verkoop", fase: "selecteren", vraag: "Welke makelaar is de beste hier?" },
+    { intent_label: "onbekend", fase: "selecteren", vraag: "Iets heel anders over deze markt" },
+    { intent_label: "verkoop", fase: "bestaat_niet", vraag: "Een fase die niet bestaat, wat nu?" },
+  ]);
+  eq2("een tweede vraag voor dezelfde plek valt af", scheef.vragen.length, 1);
+  ok("en dat wordt gemeld", (scheef.melding ?? "").includes("3 van de 4"), scheef.melding ?? "");
+
+  // Dezelfde vraagtekst twee keer is twee keer betalen voor hetzelfde antwoord.
+  const dubbel = koppelVragen(plekken, [
+    { intent_label: "verkoop", fase: "selecteren", vraag: "Welke makelaar kies ik hier?" },
+    { intent_label: "aankoop", fase: "selecteren", vraag: "welke makelaar kies ik hier?" },
+  ]);
+  eq2("dezelfde vraag telt één keer", dubbel.vragen.length, 1);
+});
+
+group("een genoemde naam koppelen aan een bedrijf uit de markt", () => {
+  const bedrijven = [
+    { id: "a", name: "Van X Makelaars", nameVariants: ["Van X"], domain: "vanx.nl" },
+    { id: "b", name: "Bakker Wonen", nameVariants: [], domain: "bakkerwonen.nl" },
+    { id: "c", name: "De Hypotheker Eindhoven", nameVariants: [], domain: null },
+  ];
+
+  // Het domein wint, want twee bedrijven met hetzelfde webadres bestaan niet.
+  const opDomein = koppelNaam({ naam: "Iets heel anders", domein: "https://www.vanx.nl/team" }, bedrijven);
+  eq("het domein wint van de naam", `${opDomein.companyId}:${opDomein.grond}`, "a:domein");
+
+  const opNaam = koppelNaam({ naam: "Van X Makelaars B.V." }, bedrijven);
+  eq("de rechtsvorm doet er niet toe", `${opNaam.companyId}:${opNaam.grond}`, "a:naam");
+
+  const opVariant = koppelNaam({ naam: "Van X" }, bedrijven);
+  eq("een schrijfwijze telt ook", `${opVariant.companyId}:${opVariant.grond}`, "a:variant");
+
+  // ⚠️ Conservatief, net als bij de merken: "Bakker Wonen" en "Bakkers Wonen"
+  // zijn twee bedrijven. Twee bedrijven samenvoegen vervalst de data stil, en
+  // dan krijgt de buurman de vermelding.
+  ok("bijna dezelfde naam is een ander bedrijf", koppelNaam({ naam: "Bakkers Wonen" }, bedrijven).companyId === null);
+  ok("een bedrijf zonder website is gewoon te vinden op naam", koppelNaam({ naam: "De Hypotheker Eindhoven" }, bedrijven).companyId === "c");
+
+  eq("een webadres wordt teruggebracht tot zijn kern", domeinSleutel("https://WWW.VanX.nl/over-ons"), "vanx");
+});
+
+group("wat de AI noemt en wij niet kennen, is informatie", () => {
+  const bedrijven = [
+    { id: "a", name: "Van X Makelaars", nameVariants: [], domain: "vanx.nl" },
+    { id: "b", name: "Bakker Wonen", nameVariants: [], domain: null },
+  ];
+
+  const uit = koppelAntwoord(
+    [
+      { naam: "Van X Makelaars" },
+      { naam: "Bakker Wonen" },
+      { naam: "Jansen Makelaardij" },
+      // Dezelfde naam twee keer in één antwoord: één antwoord waarin het bedrijf
+      // voorkomt, en niet twee. Anders telt een engine die zichzelf herhaalt als
+      // betere zichtbaarheid.
+      { naam: "Van X Makelaars" },
+      { naam: "jansen makelaardij" },
+    ],
+    bedrijven,
+  );
+
+  eq2("twee bedrijven gekoppeld", uit.gekoppeld.length, 2);
+  eq2("en één naam die we niet kennen", uit.onbekend.length, 1);
+  eq("die naam wordt bewaard", uit.onbekend[0], "Jansen Makelaardij");
+});
+
+group("de rekensom over de vermeldingen", () => {
+  // Een vaste meetset, met de hand na te rekenen. Twee bedrijven, vier vragen,
+  // twee engines. Bedrijf A wordt in drie van de vier OpenAI-antwoorden genoemd
+  // en in één van de vier Gemini-antwoorden; bedrijf B nergens.
+  const vragen = [
+    { id: "v1", intentLabel: "verkoop", stage: "selecteren" as const, weight: 1 },
+    { id: "v2", intentLabel: "verkoop", stage: "orientatie" as const, weight: 0.25 },
+    { id: "v3", intentLabel: "aankoop", stage: "selecteren" as const, weight: 1 },
+    { id: "v4", intentLabel: "aankoop", stage: "orientatie" as const, weight: 0.25 },
+  ];
+  const antwoorden = [
+    { id: "a1", questionId: "v1", engine: "openai", sources: ["funda.nl"] },
+    { id: "a2", questionId: "v2", engine: "openai", sources: ["funda.nl", "nvm.nl"] },
+    { id: "a3", questionId: "v3", engine: "openai", sources: [] },
+    { id: "a4", questionId: "v4", engine: "openai", sources: [] },
+    { id: "b1", questionId: "v1", engine: "gemini", sources: ["funda.nl"] },
+    { id: "b2", questionId: "v2", engine: "gemini", sources: [] },
+    { id: "b3", questionId: "v3", engine: "gemini", sources: [] },
+    { id: "b4", questionId: "v4", engine: "gemini", sources: [] },
+  ];
+  const vermeldingen = [
+    { answerId: "a1", companyId: "A", mentioned: true, position: 1, sources: ["funda.nl"] },
+    { answerId: "a2", companyId: "A", mentioned: true, position: 3, sources: ["funda.nl"] },
+    { answerId: "a3", companyId: "A", mentioned: true, position: 2, sources: [] },
+    { answerId: "a4", companyId: "A", mentioned: false },
+    { answerId: "b1", companyId: "A", mentioned: true, position: 1, sources: ["funda.nl"] },
+    { answerId: "b2", companyId: "A", mentioned: false },
+    { answerId: "b3", companyId: "A", mentioned: false },
+    { answerId: "b4", companyId: "A", mentioned: false },
+  ];
+
+  const scores = rekenScores(["A", "B"], vragen, antwoorden, vermeldingen);
+
+  const alle = scores.find((s) => s.companyId === "A" && s.engine === ENGINE_ALLE)!;
+  eq2("acht antwoorden in de noemer", alle.questionsTotal, 8);
+  eq2("vier vermeldingen", alle.mentions, 4);
+  eq2("het ongewogen aandeel is de helft", alle.share, 0.5);
+
+  // Gewogen: A wordt genoemd bij v1 (1,0), v2 (0,25), v3 (1,0) op OpenAI en v1
+  // (1,0) op Gemini. Totaal gewicht over acht antwoorden is 2 × 2,5 = 5;
+  // genoemd gewicht is 1 + 0,25 + 1 + 1 = 3,25. Dat is 0,65.
+  eq2("en het gewogen aandeel ligt hoger, want de zware vragen zitten erbij", alle.weightedShare, 0.65);
+
+  const openai = scores.find((s) => s.companyId === "A" && s.engine === "openai")!;
+  const gemini = scores.find((s) => s.companyId === "A" && s.engine === "gemini")!;
+  eq2("op OpenAI drie van de vier", openai.share, 0.75);
+  eq2("op Gemini één van de vier", gemini.share, 0.25);
+
+  // ⚠️ Dit is opportunitytype 4 (engine gap) in de kiem: het verschil tussen twee
+  // engines is zelf een verkoopargument, en dat kan alleen als de scores per
+  // engine apart bewaard worden.
+  ok("het verschil tussen engines is zichtbaar", openai.share - gemini.share === 0.5);
+
+  // ⚠️ HET BEDRIJF DAT NERGENS GENOEMD WORDT MOET IN DE UITKOMST STAAN. Dat is
+  // precies de prospect waar deze module naar zoekt (opportunitytype 1). Zou de
+  // functie over de vermeldingen lopen in plaats van over de bedrijven, dan
+  // verdwijnt hij, en is hij onvindbaar in plaats van onzichtbaar.
+  const b = scores.find((s) => s.companyId === "B" && s.engine === ENGINE_ALLE)!;
+  eq2("het onzichtbare bedrijf staat er wel degelijk in", b.questionsTotal, 8);
+  eq2("met nul vermeldingen", b.mentions, 0);
+  ok("en met een marge, want nul uit acht is nog geen zekerheid", b.stderr > 0);
+
+  // Per intentie: A scoort vol bij aankoop op de zware vraag en mist de lichte.
+  eq2("per intentie wordt apart geteld", alle.perIntent.verkoop?.vragen ?? 0, 4);
+  eq2("en dat is de laag waar de intent gap op draait", alle.perIntent.aankoop?.vermeldingen ?? -1, 1);
+  eq2("de fases ook", alle.perStage.selecteren?.vragen ?? 0, 4);
+
+  eq2("de gemiddelde positie telt alleen echte vermeldingen", openai.avgPosition, 2);
+  ok("een bedrijf zonder vermelding heeft geen positie", b.avgPosition === null);
+
+  // De bronnen die dit bedrijf dragen, voor opportunitytype 6.
+  eq("de vaakst genoemde bron staat vooraan", alle.sources[0]?.domain ?? "", "funda.nl");
+});
+
+group("een vraag die niet gemeten is, telt niet als niet genoemd", () => {
+  // ⚠️ DE FOUT DIE HIER HET VAAKST GEMAAKT WORDT. Viel de meting van vier van de
+  // veertig vragen om, dan is de noemer zesendertig. Zou hij veertig blijven,
+  // dan zakt elk bedrijf in de markt even hard en lijkt de markt onzichtbaarder
+  // dan hij is, zonder dat iemand het kan zien.
+  const vragen = [
+    { id: "v1", intentLabel: "verkoop", stage: "selecteren" as const, weight: 1 },
+    { id: "v2", intentLabel: "verkoop", stage: "selecteren" as const, weight: 1 },
+  ];
+  // Alleen v1 is beantwoord; de meting van v2 is omgevallen.
+  const antwoorden = [{ id: "a1", questionId: "v1", engine: "openai", sources: [] }];
+  const vermeldingen = [{ answerId: "a1", companyId: "A", mentioned: true, position: 1 }];
+
+  const scores = rekenScores(["A"], vragen, antwoorden, vermeldingen);
+  const alle = scores.find((s) => s.engine === ENGINE_ALLE)!;
+  eq2("de noemer telt antwoorden en geen vragen", alle.questionsTotal, 1);
+  eq2("dus honderd procent en niet vijftig", alle.share, 1);
+});
+
+group("het bronnenlandschap van de markt", () => {
+  // Plan hoofdstuk 12, type 6: welke domeinen haalt de AI hier structureel aan?
+  // Zonder dit marktbeeld is "jouw bedrijf staat in geen van de bronnen" een
+  // bewering zonder maatstaf.
+  const bronnen = marktBronnen([
+    { id: "a1", questionId: "v1", engine: "openai", sources: ["funda.nl", "funda.nl", "nvm.nl"] },
+    { id: "a2", questionId: "v2", engine: "openai", sources: ["funda.nl"] },
+    { id: "a3", questionId: "v3", engine: "gemini", sources: ["nvm.nl"] },
+  ]);
+  eq("de vaakst aangehaalde bron staat vooraan", bronnen[0]?.domain ?? "", "funda.nl");
+  // ⚠️ Per antwoord telt een domein één keer. Een engine die dezelfde bron drie
+  // keer aanhaalt in één antwoord maakt die bron niet drie keer belangrijker.
+  eq2("dubbel aanhalen in één antwoord telt één keer", bronnen[0]?.count ?? 0, 2);
+});
+
+group("de kostenraming is het enige waarop de goedkeuring rust", () => {
+  // Plan 21.1: de kostenknop is het aantal VRAGEN, niet het aantal bedrijven.
+  const veertigEen = raamMeetronde(40, 1);
+  const veertigTwee = raamMeetronde(40, 2);
+  ok("twee engines kost twee keer zoveel", Math.abs(veertigTwee - veertigEen * 2) < 0.01);
+  ok("en meer vragen kost meer", raamMeetronde(60, 2) > veertigTwee);
+
+  // ⚠️ De hele ronde wordt VOORAF beoordeeld en niet per vraag. Per vraag
+  // beoordelen levert een ronde op die halverwege stopt: dertig van de veertig
+  // vragen gemeten, een score op een willekeurige deelverzameling, en een
+  // rekening die toch betaald is.
+  const past = beoordeelRonde(0, 40, 2);
+  ok("een lege markt kan een volle ronde aan", past.ok);
+  eq2("en er hoeft niets weg", past.pastVragen, 40);
+
+  const vol = beoordeelRonde(marktBudgetUsd() - 0.5, 40, 2);
+  ok("een bijna volle markt kan dat niet", !vol.ok);
+  ok("er passen er nog een paar in", vol.pastVragen > 0 && vol.pastVragen < 40, String(vol.pastVragen));
+  // K2: de melding zegt wat er niet gebeurt, hoeveel er op staat en wat je eraan
+  // kunt doen.
+  ok("en de melding zegt wat je kunt doen", (vol.melding ?? "").includes("Haal vragen uit de lijst"));
+});
+
+group("de vragen aan het model laten niets aan het model over", () => {
+  const markt = { label: "Makelaars Eindhoven", industry: "makelaar", location: "Eindhoven", radius_km: 15 };
+  const intenties: Intentie[] = [
+    { label: "verkoop", naam: "Verkoop", uitleg: "", waarde: "hoog", frequentie: "hoog" },
+    { label: "aankoop", naam: "Aankoop", uitleg: "", waarde: "hoog", frequentie: "hoog" },
+  ];
+
+  const intentieVraag = bouwIntentieVraag(markt, ["woning verkopen", "taxatie"]);
+  ok("de markt staat erin", intentieVraag.includes("Makelaars Eindhoven"));
+  ok("de gecrawlde diensten ook", intentieVraag.includes("woning verkopen"));
+  // Zonder websitegegevens moet dat gezegd worden in plaats van stil weggelaten.
+  ok(
+    "en zonder websitegegevens zegt hij dat",
+    bouwIntentieVraag(markt, []).includes("geen websitegegevens"),
+  );
+
+  const vragenVraag = bouwVragenVraag(markt, intenties, verdeelVragen(intenties, 8));
+  ok("het model krijgt een boodschappenlijst en geen rekensom", vragenVraag.includes("label: verkoop"));
+  ok("met per fase een aantal", /\d+ in de fase selecteren/.test(vragenVraag));
+  // ⚠️ Een vraag met een bedrijfsnaam erin meet of de AI die naam herhaalt, en
+  // niet of het bedrijf gevonden wordt.
+  ok("en de opdracht om geen bedrijfsnaam te noemen", vragenVraag.includes("Noem nooit de naam van een bedrijf"));
+
+  const beoordeel = bouwBeoordeelVraag("Welke makelaar kies ik?", "Van X en Bakker Wonen zijn goed.");
+  ok("de beoordeling krijgt de vraag mee", beoordeel.includes("Welke makelaar kies ik?"));
+  ok("en het antwoord", beoordeel.includes("Van X en Bakker Wonen"));
+  // ⚠️ Pure ontdekking: de namen van de bedrijven uit de markt gaan NIET mee.
+  // Een meegegeven lijst richt het model op die namen in plaats van op wat er
+  // staat, en elke meegegeven naam komt in élke meting terug.
+  ok("het model mag niets toevoegen wat er niet staat", beoordeel.includes("Voeg nooit een bedrijf toe"));
+  ok("de meting stuurt niet op meer bedrijven", !SIMULATIE_SYSTEM.includes("zoveel mogelijk"));
+});
+
+group("het aantal vragen is de kostenknop en staat begrensd", () => {
+  // Plan 21.1. Dertig bedrijven meten kost precies evenveel als drie, want er
+  // wordt per vraag betaald en de bedrijven komen uit hetzelfde antwoord.
+  ok("de standaard is veertig vragen", VRAGEN_STANDAARD === 40);
+  ok(
+    "en één ronde blijft ruim onder het plafond",
+    raamMeetronde(VRAGEN_STANDAARD, 2) < marktBudgetUsd(),
+    `${raamMeetronde(VRAGEN_STANDAARD, 2)} tegen ${marktBudgetUsd()}`,
+  );
+  // De meetstap is de grootste post: meer dan alle andere stappen samen. Zou de
+  // ontdekking duurder zijn, dan knelt het plafond op de verkeerde stap en gaan
+  // mensen vragen wegsnijden om een markt betaalbaar te houden. Precies het
+  // omgekeerde van wat plan 21.1 wil.
+  const restVanDeRonde =
+    SALES_STAP_KOSTEN.discover +
+    SALES_STAP_KOSTEN.intents +
+    SALES_STAP_KOSTEN.questions +
+    SALES_STAP_KOSTEN.verify +
+    SALES_STAP_KOSTEN.suppress +
+    SALES_STAP_KOSTEN.enrich +
+    SALES_STAP_KOSTEN.aggregate;
+  ok(
+    "meten kost meer dan alle andere stappen samen",
+    SALES_STAP_KOSTEN.measure * VRAGEN_STANDAARD * 2 > restVanDeRonde,
+    `${(SALES_STAP_KOSTEN.measure * VRAGEN_STANDAARD * 2).toFixed(2)} tegen ${restVanDeRonde.toFixed(2)}`,
+  );
+  // ⚠️ En wat meeschaalt met het aantal BEDRIJVEN blijft gratis (plan 21.1).
+  // Zou de crawl per bedrijf geld kosten, dan wordt een volledige markt duur en
+  // gaan mensen bedrijven wegsnijden: precies de onzichtbare bedrijven die deze
+  // module zoekt.
+  ok("en wat per bedrijf schaalt kost niets", SALES_STAP_KOSTEN.enrich === 0);
 });
 
 // ════════════════════════════════════════════════════════════════════════════

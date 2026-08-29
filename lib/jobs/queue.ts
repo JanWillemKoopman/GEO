@@ -38,6 +38,14 @@ export interface EnqueueArgs<T extends JobType> {
   profileId?: string | null;
   salesMarketId?: string | null;
   /**
+   * Bij welke MEETRONDE hoort deze taak (migratie 0071)? Alleen voor de
+   * meetstappen, en altijd naast `salesMarketId`: de markt draagt het plafond,
+   * de ronde draagt de voortgang. Zonder dit veld is niet te zien hoeveel
+   * metingen er van rónde twee nog open staan, en dan weet de aggregatie niet
+   * wanneer ze aan de beurt is.
+   */
+  salesRunId?: string | null;
+  /**
    * Sleutel die dit specifieke werk identificeert. Bestaat er al een OPENSTAANDE
    * taak met dezelfde sleutel, dan doet deze aanroep niets. Klaar of definitief
    * mislukt werk blokkeert niet. Anders zou een retry onmogelijk zijn.
@@ -65,6 +73,7 @@ export async function enqueue<T extends JobType>(
       analysis_id: args.analysisId ?? null,
       profile_id: args.profileId ?? null,
       sales_market_id: args.salesMarketId ?? null,
+      sales_run_id: args.salesRunId ?? null,
       dedupe_key: args.dedupeKey,
       status: "queued" as const,
       scheduled_for: (args.scheduledFor ?? new Date()).toISOString(),

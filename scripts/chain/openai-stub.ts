@@ -126,6 +126,88 @@ const ANTWOORDEN: Record<string, (user: string) => unknown> = {
   }),
 
   /**
+   * De commerciële intenties van de markt (sprint 3, plan hoofdstuk 10).
+   *
+   * ⚠️ Met opzet ELF intenties, en dat is er meer dan er in veertig vragen
+   * passen. Zo toetst de keten wat er gebeurt als het model er te veel levert:
+   * `schoonIntenties` hoort er acht over te houden en dat hardop te melden. Een
+   * stub met precies vier intenties zou die hele laag ongetest laten.
+   */
+  sales_market_intents: () => ({
+    intenties: [
+      { label: "verkoopbegeleiding", naam: "Verkoopbegeleiding", uitleg: "Een woning verkopen levert de hoogste courtage op.", waarde: "hoog", frequentie: "hoog" },
+      { label: "aankoopbegeleiding", naam: "Aankoopbegeleiding", uitleg: "Kopers zoeken vaker begeleiding dan vroeger.", waarde: "hoog", frequentie: "midden" },
+      { label: "taxatie", naam: "Taxatie", uitleg: "Een taxatie is klein werk met een vaste prijs.", waarde: "midden", frequentie: "hoog" },
+      { label: "nieuwbouw", naam: "Nieuwbouw", uitleg: "Nieuwbouwprojecten leveren meerdere opdrachten tegelijk op.", waarde: "hoog", frequentie: "laag" },
+      { label: "verhuur", naam: "Verhuur", uitleg: "Verhuurbemiddeling is terugkerend werk.", waarde: "midden", frequentie: "midden" },
+      { label: "expats", naam: "Expats", uitleg: "Expats betalen voor ontzorging.", waarde: "hoog", frequentie: "laag" },
+      { label: "starters", naam: "Starters", uitleg: "Starters worden vaak klant voor het leven.", waarde: "midden", frequentie: "midden" },
+      { label: "bedrijfspanden", naam: "Bedrijfspanden", uitleg: "Zakelijk vastgoed is een aparte markt.", waarde: "hoog", frequentie: "laag" },
+      { label: "erfenis", naam: "Verkoop uit nalatenschap", uitleg: "Een nalatenschap vraagt begeleiding.", waarde: "midden", frequentie: "laag" },
+      { label: "energielabel", naam: "Energielabel", uitleg: "Kleine klus, lage marge.", waarde: "laag", frequentie: "laag" },
+      { label: "woningruil", naam: "Woningruil", uitleg: "Zeldzaam en bewerkelijk.", waarde: "laag", frequentie: "laag" },
+    ],
+    kanttekening: "De verhouding tussen koop en huur in deze plaats is een schatting.",
+  }),
+
+  /**
+   * De vragen zelf.
+   *
+   * ⚠️ De stub LEEST de boodschappenlijst uit de prompt en levert precies wat er
+   * gevraagd wordt. Een stub met vaste vragen zou de koppeling in
+   * `koppelVragen()` ongetest laten, en juist daar zit de garantie dat een
+   * intentie niet negen vragen krijgt terwijl een andere er één heeft.
+   */
+  sales_market_questions: (user: string) => ({
+    vragen: leesVragenlijst(user),
+  }),
+
+  /**
+   * Het oordeel over één marktantwoord (sprint 3, plan 15.2).
+   *
+   * Drie bedrijven: twee die in de markt zitten en één die er niet in zit. Dat
+   * derde is het punt van plan 9.1, laatste rij: een naam die wij niet kennen is
+   * informatie, geen afval.
+   */
+  sales_answer_judgement: () => ({
+    bedrijven: [
+      {
+        naam: "Van X Makelaars",
+        website: "vanxmakelaars.nl",
+        positie: 1,
+        rol: "eerste_aanbeveling",
+        fragment: "Van X Makelaars wordt het vaakst genoemd in Eindhoven.",
+      },
+      {
+        naam: "Q Makelaars",
+        website: "",
+        positie: 2,
+        rol: "een_van_meerdere",
+        fragment: "Q Makelaars is een goed alternatief.",
+      },
+      {
+        naam: "Jansen Makelaardij",
+        website: "",
+        positie: 3,
+        rol: "zijdelings",
+        fragment: "Jansen Makelaardij wordt ook wel genoemd.",
+      },
+      // ⚠️ Een bedrijf dat NIET in de tekst staat. Het model doet dit echt: bij
+      // de klantmeting vulde het bij 10 van de 27 niet-genoemde merken toch iets
+      // in. Het vangnet in `sales-measure.ts` hoort deze eruit te gooien op grond
+      // van de tekst zelf, en niet op grond van het woord van het model.
+      {
+        naam: "Bedrijf Dat Er Niet In Staat",
+        website: "",
+        positie: 4,
+        rol: "zijdelings",
+        fragment: "verzonnen",
+      },
+    ],
+    bronnen: ["https://www.funda.nl/eindhoven", "nvm.nl"],
+  }),
+
+  /**
    * De open marktvraag (blok M).
    *
    * ⚠️ De klant staat NIET vooraan, en dat is opzet. Dit blok moet aantonen dat
@@ -589,6 +671,38 @@ const ANTWOORDEN: Record<string, (user: string) => unknown> = {
  * antwoordtekst voorkomt. Zonder dat woord zou de test dat vangnet niet kunnen
  * onderscheiden van een stub die toevallig niets teruggeeft.
  */
+/**
+ * De boodschappenlijst uit de vragenprompt teruglezen.
+ *
+ * Dezelfde reden als bij `leesFeitenkaart` hierboven: een stub met vaste
+ * antwoorden test of je goed geraden hebt, en niet of de bedrading klopt. De
+ * vorm komt uit `bouwVragenVraag()`:
+ *
+ *   - Verkoopbegeleiding (label: verkoopbegeleiding): 2 in de fase selecteren, 1 in de fase contact
+ */
+function leesVragenlijst(user: string): { intent_label: string; fase: string; vraag: string }[] {
+  const uit: { intent_label: string; fase: string; vraag: string }[] = [];
+  for (const regel of user.split("\n")) {
+    const kop = regel.match(/^- (.+) \(label: ([a-z0-9_]+)\): (.+)$/);
+    if (!kop) continue;
+    const [, naam, label, rest] = kop;
+    for (const deel of rest.split(",")) {
+      const m = deel.trim().match(/^(\d+) in de fase ([a-z]+)$/);
+      if (!m) continue;
+      const aantal = Number(m[1]);
+      const fase = m[2];
+      for (let i = 0; i < aantal; i++) {
+        uit.push({
+          intent_label: label,
+          fase,
+          vraag: `Wie kan mij helpen met ${naam.toLowerCase()} in Eindhoven (${fase} ${i + 1})?`,
+        });
+      }
+    }
+  }
+  return uit;
+}
+
 export function createPlainStub(log: StubLog[]) {
   return async (opts: {
     system: string;
@@ -596,6 +710,24 @@ export function createPlainStub(log: StubLog[]) {
     webSearch?: boolean;
   }): Promise<{ text: string; raw: unknown }> => {
     log.push({ schemaName: "plain", user: opts.user });
+
+    // ── De marktmeting van de Sales-module (sprint 3) ────────────────────────
+    //
+    // Herkend aan de systeemprompt en niet aan de vraagtekst: de vragen worden
+    // door een andere stub gegenereerd en zouden dus mee veranderen. De
+    // systeemprompt ligt vast in `lib/sales/measure-prompt.ts`.
+    //
+    // Het antwoord noemt twee bedrijven die in de markt zitten en één die er
+    // niet in zit, precies zoals een echt antwoord dat doet.
+    if (opts.system.includes("Noem concrete bedrijven of bronnen")) {
+      return {
+        text:
+          "In Eindhoven wordt Van X Makelaars het vaakst genoemd voor dit soort werk. " +
+          "Q Makelaars is een goed alternatief, zeker bij kleinere woningen. " +
+          "Jansen Makelaardij wordt ook wel genoemd. Zie funda.nl en nvm.nl voor het aanbod.",
+        raw: { stub: true },
+      };
+    }
 
     if (opts.user.includes("Vergelijk ")) {
       return {

@@ -5784,3 +5784,63 @@ dus de sectie is voor niemand zichtbaar totdat daar een rij in gezet wordt.
 
 Migraties `0068` tot en met `0070` op productie, 2708 unittests en 406 ketentests groen, typecheck
 schoon en de productiebuild draait.
+
+## 29 augustus 2026: de Sales-module meet, sprint 3 van zeven
+
+Uit een goedgekeurde bedrijvenlijst komt nu een gemeten markt. Wat erbij kwam: de commerciële
+intenties van de markt, de vragen die daaruit volgen, de tweede goedkeuringspoort, de meting zelf op
+elke beschikbare AI-assistent, het oordeel per antwoord en de rekensom erover. Vier taaksoorten,
+vijf tabellen, migratie `0071`.
+
+**De tweede as is het hele punt.** Een meting zonder intentielabel levert "je scoort 18 van 40" op,
+en daar kan een ondernemer niets mee. Met dat label wordt het "bij de negen vragen over
+aankoopbegeleiding word je nul keer genoemd", en dat is een gesprek. Elke vraag draagt daarom twee
+etiketten: waar in de klantreis hij staat en welke soort opdracht hij meet. Het gewicht dat eruit
+volgt is een rekensom van drie factoren, en die staat in een pure module zodat hij te controleren is
+tegenover een prospect die hem naloopt.
+
+**De verdeling wordt geteld en niet gevraagd.** Vraag een model om veertig vragen over zes intenties
+en vier fases te verdelen, en je krijgt er zesendertig, of veertig waarvan er elf over dezelfde
+intentie gaan. Dat is geen slordigheid maar de aard van de opdracht: tellen is geen taalwerk. De code
+bepaalt daarom welke plekken er te vullen zijn, het model vult alleen de tekst in, en een geleverde
+vraag die op geen enkele plek past valt af. Het stubantwoord in de ketentest levert met opzet elf
+intenties terwijl er acht in passen, zodat die laag echt getoetst wordt.
+
+**Het beoordelen is pure ontdekking.** De namen van de dertig bedrijven gaan niet mee in de prompt,
+om dezelfde reden als bij de klantmeting: een meegegeven lijst richt het model op die namen in plaats
+van op wat er staat. Het model somt op wie het ziet, en het koppelen aan een bedrijf uit de markt
+gebeurt daarna deterministisch, op domein, op naam en op schrijfwijze, in die volgorde. Een naam die
+bij geen enkel bedrijf hoort wordt bewaard: dat is ofwel een gat in onze marktinventarisatie, ofwel
+een verzonnen naam, en allebei hoort de admin te zien.
+
+**Twee vangnetten uit eerdere fouten, opnieuw.** De tekst beslist of een bedrijf genoemd is en niet
+het model; bij de klantmeting gaf het model `mentioned` op merken die nergens in het antwoord
+stonden. En een rol mag alleen gevuld zijn als het bedrijf genoemd is; daar vulde het model er bij
+de klantmeting 10 van de 27 verkeerd in. Beide staan nu in code én als check-constraint in de
+database.
+
+**De noemer telt antwoorden en geen vragen.** Viel de meting van vier van de veertig vragen om, dan
+is de noemer zesendertig. Zou hij veertig blijven, dan zakt elk bedrijf in de markt even hard en
+lijkt de markt onzichtbaarder dan hij is, zonder dat iemand het kan zien. Datzelfde geldt per
+intentie en per fase.
+
+**Een fout die de ketentest vond, en die precies in de samenhang zat.** De meetstap schrijft de
+bronnen (jsonb) en de onbekende namen (`text[]`) in één update. De testshim maakte van allebei een
+Postgres-array, de jsonb-kolom weigerde dat, en omdat de aanroepende code de fout niet las bleef de
+kolom leeg. Twee dingen zijn daarop veranderd: de code leest de fout nu wél, en de shim haalt de
+echte kolomtypes uit de database in plaats van te raden. Zonder die eerste wijziging zou een markt
+op productie een meting kunnen opleveren die compleet lijkt terwijl twee van de acht
+opportunitytypes er niets uit kunnen halen.
+
+**Wat het gaat kosten, en waar de knop zit.** Veertig vragen maal twee assistenten is ongeveer 95%
+van wat een marktronde kost. Het aantal bedrijven verandert daar niets aan: die komen uit hetzelfde
+antwoord. Vandaar dat het aantal vragen begrensd is en het aantal bedrijven niet, en dat de hele
+ronde vooraf tegen het plafond wordt gehouden in plaats van per vraag. Per vraag beoordelen levert
+een ronde op die halverwege stopt, met een score op een willekeurige deelverzameling en een rekening
+die toch betaald is.
+
+**Nog niet geverifieerd.** Het criterium van sprint 3 is dat de zichtbaarheidscijfers met de hand na
+te rekenen zijn uit de opgeslagen antwoorden van een echte markt, en dat een tweede meting geen wild
+ander beeld geeft. Er is nog geen echte markt gedraaid. Alles werkt, en dat is iets anders dan af.
+
+Migratie `0071` op productie, 2804 unittests en 438 ketentests groen.

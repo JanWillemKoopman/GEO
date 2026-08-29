@@ -82,6 +82,16 @@ const TYPICAL_SECONDS: Record<JobType, number> = {
   sales_market_suppress: 5,
   // Tot 25 pagina's van één site, in batches. Geen AI.
   sales_company_enrich: 20,
+  // Eén aanroep over de branche plus de gecrawlde diensten, zonder web-zoeken.
+  sales_market_intents: 25,
+  // Eén aanroep die veertig vragen schrijft. Langer dan de intenties, want er
+  // komt meer tekst uit.
+  sales_market_questions: 40,
+  // Eén vraag stellen met web-zoeken plus de beoordeling erna. Gelijk aan
+  // `measure_prompt`, want het is dezelfde soort aanroep.
+  sales_measure_question: 18,
+  // Puur rekenwerk over de vermeldingen van de hele ronde.
+  sales_market_aggregate: 5,
 };
 
 /**

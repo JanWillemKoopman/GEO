@@ -149,6 +149,34 @@ export const JOB_TYPES = [
    * niet meenemen.
    */
   "sales_company_enrich",
+  // ── Sprint 3: de meting (plan hoofdstuk 10 en 11) ─────────────────────────
+  /**
+   * Welke commerciële intenties heeft deze markt? Eén aanroep, geen web-zoeken.
+   *
+   * Draait ná de verrijking en niet ervoor: de intenties komen mede uit wat de
+   * sites van déze bedrijven aanbieden, en niet alleen uit wat het model over de
+   * branche weet (plan hoofdstuk 10).
+   */
+  "sales_market_intents",
+  /**
+   * De vragen schrijven op de plekken die de verdeling oplevert. Eén aanroep.
+   *
+   * ⚠️ Een EIGEN taaksoort en geen staart aan `sales_market_intents`. Twee
+   * aanroepen in één taak is conventie 7 overtreden, en het zou betekenen dat een
+   * mislukte vragenstap de intentiestap opnieuw laat betalen.
+   */
+  "sales_market_questions",
+  /**
+   * Eén vraag aan één engine stellen en het antwoord beoordelen.
+   *
+   * Precies de opzet van `measure_prompt`: de dure zoekactie en de goedkope
+   * beoordeling in één taak, zodat een mislukte beoordeling de zoekactie niet
+   * opnieuw laat betalen. Veertig vragen maal twee engines is tachtig taken, en
+   * dat is waar ~95% van de kosten van een marktronde zit (plan 21.1).
+   */
+  "sales_measure_question",
+  /** De meting omrekenen naar zichtbaarheid per bedrijf. Geen AI. */
+  "sales_market_aggregate",
   /**
    * Blok M: de open koperssvraag die concurrenten ONTDEKT in plaats van ze op
    * te leggen. Vervangt de benoemde vergelijking als hoofdmechanisme, na de
@@ -302,6 +330,15 @@ export interface JobPayloads {
   sales_market_verify: { marketId: string };
   sales_market_suppress: { marketId: string };
   sales_company_enrich: { marketId: string; companyId: string };
+  sales_market_intents: { marketId: string };
+  sales_market_questions: { marketId: string; runId: string };
+  sales_measure_question: {
+    marketId: string;
+    runId: string;
+    questionId: string;
+    engine: EngineId;
+  };
+  sales_market_aggregate: { marketId: string; runId: string };
   reputation_evidence: { runId: string };
   reputation_market: {
     runId: string;
