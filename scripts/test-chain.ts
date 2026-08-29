@@ -1404,17 +1404,56 @@ async function main(): Promise<void> {
       !(await acceptInvite(uitnodiging!.token, "Wachtwoord1")).ok,
     );
 
-    // Een uitnodiging voor iemand die al een account heeft, voegt alleen het
-    // lidmaatschap toe. Zou hij een wachtwoord zetten, dan was een uitnodiging
-    // een overnameroute voor een bestaand account.
+    // ══════════════════════════════════════════════════════════════════════
+    // Een uitnodiging voor iemand die AL een account heeft
+    //
+    // ⚠️ Twee dingen tegelijk, en ze horen allebei bewezen te worden.
+    //
+    // 1. Zijn wachtwoord blijft ongemoeid. Zou een uitnodiging een nieuw
+    //    wachtwoord kunnen zetten, dan was hij een overnameroute: wie een adres
+    //    kent, nodigt uit en zet er een nieuw wachtwoord op.
+    // 2. Hij wordt niet stilzwijgend lid (antihack.md M1). De uitnodiger houdt
+    //    de link mét het ruwe token in handen, dus zonder deze controle kan hij
+    //    de uitnodiging zelf verzilveren en een vreemde in zijn account trekken
+    //    zonder dat die er iets van merkt.
+    // ══════════════════════════════════════════════════════════════════════
     const tweedeUitnodiging = await createInvite({
       accountId,
       email: klantAdres,
       role: "admin",
       invitedBy: userId,
     });
-    const nogmaals = await acceptInvite(tweedeUitnodiging!.token, "Wachtwoord2");
-    ok("een bestaand adres krijgt alleen het lidmaatschap", nogmaals.ok);
+
+    const zonderSessie = await acceptInvite(tweedeUitnodiging!.token, "Wachtwoord2");
+    ok(
+      "een bestaand adres wordt NIET stilzwijgend lid",
+      !zonderSessie.ok && zonderSessie.reason === "inloggen_vereist",
+    );
+    const { rows: rolOngewijzigd } = await db.client.query(
+      `select role from public.account_users where account_id = $1 and user_id = $2`,
+      [accountId, nieuweGebruiker[0].id],
+    );
+    ok(
+      "en zijn rol is niet stiekem opgehoogd naar admin",
+      rolOngewijzigd[0].role === "member",
+    );
+
+    const verkeerdAdres = await acceptInvite(
+      tweedeUitnodiging!.token,
+      "Wachtwoord2",
+      "iemand.anders@voorbeeld.nl",
+    );
+    ok(
+      "ingelogd zijn als iemand ANDERS helpt ook niet",
+      !verkeerdAdres.ok && verkeerdAdres.reason === "inloggen_vereist",
+    );
+
+    const metSessie = await acceptInvite(
+      tweedeUitnodiging!.token,
+      "Wachtwoord2",
+      klantAdres.toUpperCase(), // hoofdletters mogen niet uitmaken
+    );
+    ok("ingelogd als de uitgenodigde slaagt het wél", metSessie.ok);
     const { rows: naTweede } = await db.client.query(
       `select count(*) as n from auth.users where email = $1`,
       [klantAdres.toLowerCase()],

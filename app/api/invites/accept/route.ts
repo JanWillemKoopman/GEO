@@ -24,6 +24,8 @@ const MELDING: Record<string, string> = {
   gebruikt: "Deze uitnodiging is al gebruikt. Log in met je e-mailadres en wachtwoord.",
   zwak: "Dit wachtwoord voldoet nog niet aan alle drie de regels.",
   mislukt: "Activeren is niet gelukt. Probeer het zo nog eens.",
+  inloggen_vereist:
+    "Dit e-mailadres heeft al een ORBIT ENGINE-account. Log eerst in, en open daarna deze link opnieuw.",
 };
 
 export async function POST(request: Request) {
@@ -40,13 +42,30 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: MELDING.ongeldig }, { status: 400 });
   }
 
-  const result = await acceptInvite(token, password);
+  // ⚠️ Wie is er NU ingelogd? Meestal niemand, en dan verandert er niets: bij een
+  // adres zonder account kiest de uitgenodigde gewoon een wachtwoord. Alleen als
+  // het adres al een account heeft is dit de toestemming die het token niet geeft.
+  // Zie de toelichting in `acceptInvite()` (antihack.md M1).
+  const supabase = await createClient();
+  const {
+    data: { user: ingelogd },
+  } = await supabase.auth.getUser();
+
+  const result = await acceptInvite(token, password, ingelogd?.email ?? null);
   if (!result.ok) {
-    // 410 bij een link die ooit geldig wás (verlopen, gebruikt), 400 bij de rest.
-    // Dat scheelt bij het uitzoeken van een melding achteraf.
+    // 410 bij een link die ooit geldig wás (verlopen, gebruikt), 409 als er
+    // ingelogd moet worden (de link is prima, de stand van de bezoeker niet),
+    // 400 bij de rest. Dat scheelt bij het uitzoeken van een melding achteraf.
     const status =
-      result.reason === "verlopen" || result.reason === "gebruikt" ? 410 : 400;
-    return NextResponse.json({ error: MELDING[result.reason] }, { status });
+      result.reason === "verlopen" || result.reason === "gebruikt"
+        ? 410
+        : result.reason === "inloggen_vereist"
+          ? 409
+          : 400;
+    return NextResponse.json(
+      { error: MELDING[result.reason], inloggenVereist: result.reason === "inloggen_vereist" },
+      { status },
+    );
   }
 
   // Meteen inloggen. De klant heeft net een wachtwoord gekozen; hem daarna naar
@@ -56,7 +75,6 @@ export async function POST(request: Request) {
   // Bij een bestaande gebruiker (bureau dat bij een tweede klant wordt
   // uitgenodigd) mislukt dit als hij een ander wachtwoord heeft. Dat is geen
   // fout: hij is lid geworden, en het inlogscherm is dan de juiste volgende stap.
-  const supabase = await createClient();
   const { invite } = await lookupInvite(token);
   if (invite) {
     await supabase.auth.signInWithPassword({ email: invite.email, password });

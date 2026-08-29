@@ -31,6 +31,13 @@ export function ActivationForm({
   const [toon, setToon] = useState(false);
   const [busy, setBusy] = useState(false);
   const [fout, setFout] = useState<string | null>(null);
+  /**
+   * Heeft dit adres al een account? Dan is inloggen de volgende stap en geen
+   * nieuwe poging met een ander wachtwoord. Zonder deze vlag zou de klant de
+   * melding lezen en het formulier opnieuw invullen, want dat is wat er op het
+   * scherm staat.
+   */
+  const [inloggenVereist, setInloggenVereist] = useState(false);
 
   const regels = passwordRules(password);
   const mag = passwordOk(password) && !busy;
@@ -47,8 +54,11 @@ export function ActivationForm({
         body: JSON.stringify({ token, password }),
       });
       if (!res.ok) {
-        const json = (await res.json().catch(() => null)) as { error?: string } | null;
+        const json = (await res.json().catch(() => null)) as
+          | { error?: string; inloggenVereist?: boolean }
+          | null;
         setFout(json?.error ?? "Activeren is niet gelukt. Probeer het opnieuw.");
+        setInloggenVereist(Boolean(json?.inloggenVereist));
         return;
       }
       // Volledig herladen en niet `router.push`: de sessiecookie is net gezet en
@@ -119,9 +129,21 @@ export function ActivationForm({
       </div>
 
       {fout && (
-        <p className="card card-danger text-sm" role="alert">
-          {fout}
-        </p>
+        <div className="card card-danger flex flex-col gap-3 text-sm" role="alert">
+          <p>{fout}</p>
+          {/* Een melding zonder uitweg is een doodlopende weg. Heeft dit adres al
+              een account, dan is inloggen de volgende stap, en die zetten we
+              hier neer in plaats van de klant te laten zoeken. */}
+          {/* ⚠️ Bewust GEEN `?volgende=`-parameter: het inlogscherm doet daar niets
+              mee, `signIn` stuurt altijd naar de wortel. Een link die belooft
+              dat je terugkomt en dat niet doet, is erger dan geen link. De
+              melding zegt daarom expliciet dat je deze link opnieuw opent. */}
+          {inloggenVereist && (
+            <a className="btn-outline self-start" href="/login">
+              Naar het inlogscherm
+            </a>
+          )}
+        </div>
       )}
 
       <button type="submit" className="btn-primary btn-lg" disabled={!mag}>
