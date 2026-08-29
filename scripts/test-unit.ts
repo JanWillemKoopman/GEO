@@ -39,7 +39,7 @@ import { compare, deltaOf, thresholdOf, verdictOf, minQuestionsForSignal } from 
 import { buildChangeBlock, isWorthEmailing } from "@/lib/pipeline/period-change-format";
 import type { PeriodChange } from "@/lib/pipeline/period-change-format";
 import { domainOf } from "@/lib/offsite/domain";
-import { checkUrlFormat } from "@/lib/url";
+import { checkUrlFormat, isInternalHostname } from "@/lib/url";
 import { sanitizeForPostgres, hasUnstorableChars } from "@/lib/pg-text";
 import { countOpenPeriodicMeasurements } from "@/lib/jobs/pending";
 import { formatEvidenceDossier, excerpt } from "@/lib/pipeline/evidence-format";
@@ -952,6 +952,59 @@ group("webadres controleren", () => {
   ok("leeg wordt geweigerd", !checkUrlFormat("").ok);
   ok("spaties worden geweigerd", !checkUrlFormat("voor beeld.nl").ok);
   ok("e-mailadres wordt geweigerd", !checkUrlFormat("jan@voorbeeld.nl").ok);
+});
+
+/**
+ * ⚠️ Deze groep bewaakt de kritieke bevinding uit antihack.md (K1). Elk adres
+ * hieronder kwam op 29 augustus 2026 door `checkUrlFormat` heen, en de pijplijn
+ * haalde het vervolgens op en toonde de inhoud terug in het merkdossier.
+ *
+ * Gaat hier ooit een test rood, verwijder hem dan NIET: dan is de zeef stuk.
+ */
+group("interne adressen worden geweerd (antihack.md K1)", () => {
+  const intern = [
+    "169.254.169.254", // metadata-adres van de cloud
+    "10.0.0.55",
+    "10.0.0.5",
+    "192.168.1.10",
+    "172.17.0.12", // Docker
+    "172.31.255.1",
+    "100.64.0.10", // carrier grade NAT
+    "127.0.0.1",
+    "0.0.0.0",
+    "198.18.0.1", // testnetwerk
+    "224.0.0.1", // multicast
+    "localhost",
+    "db.internal",
+    "kassa.local",
+    "::1",
+    "fd00::1",
+  ];
+  for (const host of intern) {
+    ok(`weert ${host}`, isInternalHostname(host));
+    ok(`formaatcontrole weert ${host}`, !checkUrlFormat(host).ok);
+  }
+
+  // ⚠️ De tegenproef telt net zo zwaar. Een zeef die alles weert is geen zeef,
+  // en 172.32 en 172.15 vallen NET buiten het privé-bereik 172.16 tot 172.31.
+  const publiek = [
+    "outerorbit.nl",
+    "mediamarkt.nl",
+    "sub.domein.co.uk",
+    "voorbeeld-met-streepje.nl",
+    "8.8.8.8",
+    "172.32.0.1",
+    "172.15.0.1",
+    "193.176.0.1",
+  ];
+  for (const host of publiek) {
+    ok(`laat ${host} door`, !isInternalHostname(host));
+  }
+
+  // ⚠️ Dit adres komt hier bewust WEL doorheen, en dat is geen fout maar de
+  // grens van een pure functie: het is een geldige publieke naam die pas bij het
+  // opzoeken naar 127.0.0.1 blijkt te wijzen. Die vangt lib/safe-fetch.ts.
+  ok("een publieke naam die naar binnen wijst komt hier langs", !isInternalHostname("127.0.0.1.nip.io"));
 });
 
 // ════════════════════════════════════════════════════════════════════════════

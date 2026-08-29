@@ -246,7 +246,16 @@ async function collectSitemapPageUrls(
       const locs = extractLocs(xml);
       if (isSitemapIndex(xml)) {
         for (const loc of locs) {
-          if (!seen.has(loc) && !isProductSitemap(loc)) queue.push(loc);
+          // ⚠️ `sameDomain` stond hier NIET, terwijl hij vier regels lager bij de
+          // paginalijst wél staat. Gevonden bij de audit van 29 augustus 2026
+          // (antihack.md K1). Daardoor kon een VREEMDE website onze crawler
+          // aansturen: zet een sitemap-index op je eigen site met verwijzingen
+          // naar adressen die jij kiest, en de crawler volgde ze, tot vijftig
+          // stuks (MAX_SITEMAPS). Het slachtoffer zag ons IP-adres, niet dat van
+          // de aanvaller.
+          if (!seen.has(loc) && !isProductSitemap(loc) && sameDomain(loc, baseHost)) {
+            queue.push(loc);
+          }
         }
       } else {
         for (const loc of locs) {
