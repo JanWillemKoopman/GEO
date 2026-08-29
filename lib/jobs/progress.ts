@@ -70,6 +70,18 @@ const TYPICAL_SECONDS: Record<JobType, number> = {
   reputation_evidence: 70,
   // Drie gegronde aanbevelingsvragen merkbreed, één per dienst.
   reputation_market: 50,
+
+  // ── De Sales-module ──────────────────────────────────────────────────────
+  // Eén gegronde onderzoeksaanroep met web-zoeken over een hele markt: dat is de
+  // zwaarste enkele aanroep van de app, want hij zoekt naar tientallen bedrijven
+  // in plaats van naar één.
+  sales_market_discover: 75,
+  // Tot twaalf bronpagina's ophalen. Geen AI, alleen netwerk.
+  sales_market_verify: 30,
+  // Twee query's en een vergelijking in geheugen.
+  sales_market_suppress: 5,
+  // Tot 25 pagina's van één site, in batches. Geen AI.
+  sales_company_enrich: 20,
 };
 
 /**

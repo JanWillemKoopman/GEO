@@ -9,6 +9,7 @@ import {
   generalNav,
   hoofdstukken,
   navActief,
+  salesNav,
   type NavHoofdstuk,
   type NavItem,
 } from "@/lib/nav";
@@ -25,17 +26,18 @@ import type { BrandOption } from "@/lib/workspace";
  * onderscheid is horizontaal niet te maken zonder scheidingstekens die niets
  * betekenen. Verticaal is het één tussenkopje.
  *
- * ── VIJF KOPPEN IN PLAATS VAN ZEVEN REGELS MET EEN VERGAARBAK ───────────────
+ * ── KOPPEN IN PLAATS VAN ZEVEN REGELS MET EEN VERGAARBAK ───────────────────
  *
  * Tot 17 augustus 2026 was dit een lijst van 7 regels die uitklapten naar 15
  * bestemmingen, waarvan er negen onder één kop hingen. Nu groepeert de balk een
  * platte lijst bestemmingen op hun hoofdstuk (`lib/nav.ts`), in een vaste
- * volgorde, met hooguit drie kinderen per kop. Een hoofdstuk zonder
- * bestemmingen wordt niet getoond.
+ * volgorde, met een grens per kop die in `GRENS_PER_HOOFDSTUK` staat: drie voor
+ * de klanthoofdstukken, vier voor Analytics en Admin, vijf voor Sales. Een
+ * hoofdstuk zonder bestemmingen wordt niet getoond.
  *
  * ── ALLES STAAT OPEN, ER VALT NIETS MEER UIT TE KLAPPEN ─────────────────────
  *
- * Het uitklappen was er voor die ene kop met negen kinderen. Met hooguit drie
+ * Het uitklappen was er voor die ene kop met negen kinderen. Met hooguit vijf
  * per hoofdstuk passen alle bestemmingen tegelijk in beeld, en dan is een
  * klapknop een klik die niets oplevert. Ingeklapt (64px) blijft alleen het
  * icoon van het hoofdstuk over, en dat linkt naar zijn eerste bestemming.
@@ -49,8 +51,12 @@ import type { BrandOption } from "@/lib/workspace";
  * later diezelfde dag. Ze hebben ze een halve dag wél gehad, en dat zag er
  * netjes uit maar werkte averechts: zestien tekeningen in een balk van zestien
  * regels markeren niets meer. Het icoon van de kop moet het verschil maken
- * tussen "dit is een van de zes vaste plekken" en "dit is een pagina daarbinnen",
+ * tussen "dit is een van de vaste plekken" en "dit is een pagina daarbinnen",
  * en dat verschil verdwijnt zodra beide er een dragen.
+ *
+ * Hoeveel koppen je ziet hangt af van wie je bent: een klant vier, Outer Orbit
+ * daar Admin bovenop, en wie de salesrol heeft ook Sales. Sales is de enige kop
+ * die aan een rol hangt en niet aan een merk (plan §4.1).
  *
  * ── DE VORMGEVING VAN 24 AUGUSTUS 2026 ──────────────────────────────────────
  *
@@ -96,12 +102,15 @@ const OPSLAG = "orbit_engine_zijbalk_ingeklapt";
 export function Sidebar({
   activeBrand,
   staff = false,
+  sales = false,
   openVragen = 0,
   onMobileClose,
 }: {
   activeBrand: BrandOption | null;
   /** Beheerder? Dan staan de Admin-bestemmingen erbij. */
   staff?: boolean;
+  /** Salesmedewerker? Dan staat de Sales-sectie erbij (plan §4.1). */
+  sales?: boolean;
   /**
    * Hoeveel vragen er op de klant wachten. Zet het groene bolletje achter
    * "Openstaande vragen" aan. Bewust zonder getal: dat staat al in de
@@ -133,7 +142,13 @@ export function Sidebar({
   // Merk- en app-bestemmingen gaan door dezelfde groepering heen, zodat
   // Instellingen en Admin op hun eigen plek in de volgorde landen en niet in
   // een tweede lijst eronder.
-  const alles = [...(activeBrand ? brandNav(activeBrand.id, staff) : []), ...generalNav(staff)];
+  // Sales hangt niet aan een merk (een prospect ís nog geen merk), dus die
+  // groep staat er ook als er geen merk gekozen is.
+  const alles = [
+    ...(activeBrand ? brandNav(activeBrand.id, staff) : []),
+    ...generalNav(staff),
+    ...salesNav(sales),
+  ];
   const koppen = hoofdstukken(alles);
 
   // De breedte zit hier en niet op de <aside>: het inklappen is clientstate en

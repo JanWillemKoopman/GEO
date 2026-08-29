@@ -5624,3 +5624,163 @@ en die is nu goedkoop geworden.
 Na de deploy gecontroleerd dat de middleware nog doet wat hij moet: `/merk` stuurt een bezoeker
 zonder sessie nog steeds naar het inlogscherm, en `/api/health` antwoordt zonder dat de middleware
 er nog overheen gaat.
+
+## 24 augustus 2026: de Sales-module, sprint 1 van zeven
+
+⚠️ **Deze twee stukken zijn op 24 augustus geschreven en pas op 29 augustus samengevoegd met de
+hoofdlijn.** Ze staan daarom niet op hun chronologische plek, en de migratienummers erin zijn
+gewijzigd: 0065 tot en met 0067 waren intussen door ander werk bezet, dus de Sales-migraties heten
+nu `0068` tot en met `0070`. Zie de aantekening van 29 augustus onderaan.
+
+Het fundament van de GEO Prospect Engine staat: de rol, de markt en het bedrijf. Het plan zelf staat
+in `docs/tasks/geo-prospect-engine.md`; hier alleen wat er bij het bouwen is besloten en waarom.
+
+**Drie rollen in plaats van twee, en de beheerder blijft de breedste.** `sales_users` komt naast
+`staff_users`, met dezelfde opzet: RLS aan, nul policies, rijen komen er alleen via het
+Supabase-dashboard in. Een beheerder is automatisch ook sales admin, andersom niet. Dat scheelt een
+openstaande beslissing: de vraag "wie krijgt de rol sales admin" (24.4 punt 4 van het plan) blokkeerde
+sprint 1 op papier, maar de eigenaar kan de module nu openen zonder dat er ook maar één rij in
+`sales_users` staat. De vraag knelt pas bij de eerste salesmedewerker die geen beheerder is.
+
+**De scheiding met de klantomgeving staat op drie plekken, niet op één.** Dat is bewust
+overgedimensioneerd voor één sectie, en de reden is dat dit de enige plek in de app is met gegevens
+over bedrijven die geen klant zijn en er niet om gevraagd hebben. De database geeft een klant nul
+rijen (RLS met `is_sales()`), de route geeft hem "pagina bestaat niet" en geen "geen toegang", en
+een broncodecontrole in `scripts/test-unit.ts` houdt vast dat geen enkel klantscherm een
+Sales-tabel leest. Alleen de gedeelde app-layout importeert uit de Sales-laag, en precies om de kop
+te kunnen verbergen. Die uitzondering staat met naam in de test, zodat er geen tweede bij kan komen
+zonder dat iemand het merkt.
+
+**Drie keuzes waar het plan iets anders voorschreef, alle drie omdat de letterlijke lezing iets
+kapot zou maken.**
+
+1. **`sales_companies.domain` is nullable geworden.** Het plan noemt hem uniek en verplicht. Maar een
+   bedrijf zonder website is juist de prospect waar deze module naar zoekt: aantoonbaar bestaand en
+   volledig onzichtbaar. Een verplichte kolom zou precies die groep bij de marktontdekking
+   weggooien, en dat is hetzelfde AI-vooroordeel dat hoofdstuk 9 van het plan nou juist wegneemt.
+   De uniciteit zit nu in een gedeeltelijke index.
+2. **`sales_market_companies.included` heeft drie standen.** `null` is "de admin heeft er nog niet
+   naar gekeken" en `false` is "eruit gehaald". Met twee standen is een niet-beoordeelde lijst niet
+   te onderscheiden van een lijst waar alles is afgekeurd, en dan kan goedkeuringspoort 1 niet
+   bestaan. Conventie 3, en hier met een gevolg: de poort is de duurste fout die deze module kan
+   voorkomen.
+3. **`standaardLabel()` maakt geen meervoud.** Het plan schrijft "Makelaars Eindhoven" en dat leest
+   prettiger, maar automatisch vermeervoudigen is in het Nederlands een gok: makelaar wordt makelaars
+   en architect wordt architecten. Het voorstel luidt nu "Makelaar Eindhoven" en is aan te passen.
+
+**De zijbalk kreeg een zevende kop, en daarmee een grens die in data staat.** De regel van 17
+augustus was drie bestemmingen per hoofdstuk, met sindsdien twee onderbouwde uitzonderingen op vier
+(Admin, Analytics). Sales heeft er vijf. In plaats van de derde uitzondering in een `if` te verwerken
+staat de grens nu per hoofdstuk in `GRENS_PER_HOOFDSTUK`, en leest de test diezelfde tabel. Het
+verschil is niet gemak: een uitzondering staat nu op één plek met een naam en een reden erbij, en de
+klanthoofdstukken staan er expliciet op drie in plaats van dat "hooguit vier" langzaam de norm wordt.
+De onderbouwing voor Sales is van een andere soort dan bij de andere twee, en dat is het punt: het
+bezwaar van 17 augustus ging over wat een klant te zien krijgt, en de klant ziet deze groep nooit.
+
+**Twee fouten in het plan zelf gecorrigeerd.** Sprint 1 en sprint 2 hadden allebei hetzelfde
+migratienummer, wat niet kan zodra de eerste op productie draait; sprint 2 kreeg het volgende nummer
+en de rest schuift mee. En de uitsluitingen uit 9.5 stonden in de migratie van sprint 5 terwijl sprint 2 ze gebruikt,
+drie sprints te laat. Daarnaast spraken drie plekken nog van zeven opportunitytypes terwijl er acht
+zijn; dat is een restant van voordat type 8 (verlies) werd toegevoegd.
+
+**Wat er nog niet is, en dat hoort zo.** Er wordt niets ontdekt, niets gemeten en niets geschreven.
+Een markt aanmaken kost dus ook niets, en er zit daarom geen budgetcontrole op die route: een rem op
+een handeling die niets kost, wekt de indruk dat er iets in gang wordt gezet.
+
+Migratie `0068` op productie, 2206 unittests en 310 ketentests groen.
+
+## 24 augustus 2026: de Sales-module, sprint 2 van zeven
+
+De marktontdekking staat: uit een branche en een plaats komt een bedrijvenlijst, ontdubbeld, met een
+zekerheid per bedrijf en zonder de klanten van Outer Orbit erin. Vier taken in de wachtrij, waarvan
+er één een model aanroept.
+
+**Besloten: eerst de gratis bronnen.** Van de vier bronnen uit hoofdstuk 9 van het plan zijn er twee
+gebouwd. Een onderzoeksmodel dat het web doorzoekt, en de overzichtspagina's die dat model aanwijst,
+daarna door onze eigen crawler uitgelezen. Het kaartenregister en het handelsregister kosten geld per
+opvraging en staan uit tot de eerste echte markt uitwijst dat ze nodig zijn.
+
+**Die tweede bron is het hele punt van deze sprint.** Het plan waarschuwt ervoor dat een systeem dat
+alleen verzamelt wat AI noemt, per definitie blind is voor zijn beste prospects. Een model vragen om
+bedrijven op te sommen lost dat maar half op, want het blijft hetzelfde kanaal. Wat het wél oplost:
+het model de overzichtspagina's laten aanwijzen en die daarna zelf uitlezen. Een ledenlijst van een
+branchevereniging linkt naar zijn leden, ook naar de leden die geen model ooit noemt. De ketentest
+heeft daar een bedrijf in zitten dat uitsluitend via die weg binnenkomt, en dat is de assertie die de
+belofte van hoofdstuk 9 bewaakt.
+
+**Bedrijven worden op links geoogst en niet op lijststructuur.** Elke ledenlijst heeft zijn eigen
+opmaak, en een parser per site gaat stuk bij de eerste ontwerpwijziging van die site. Uitgaande links
+zijn overal hetzelfde. Grover, en bestand tegen verandering. De linktekst is op zo'n pagina meestal
+de bedrijfsnaam, en dat scheelt een netwerkverzoek per bedrijf; is de tekst nietszeggend ("lees
+meer"), dan valt de naam terug op het domein en is dat zichtbaar als herkomst `domein`.
+
+**Poort 1 is een echte stop en geen pauze.** De uitsluitingsstap plant niets in. Alleen een mens die
+op goedkeuren drukt zet de crawltaken in gang. Dat is met opzet: het duurste dat deze module kan doen
+is een verkeerd afgebakende markt doormeten, en dat is precies het moment waarop dat nog gratis te
+herstellen is. Wat er ná goedkeuring gebeurt is de crawl per bedrijf, en die kost niets.
+
+**Twee fouten die de tests hebben gevonden, en beide zaten in de samenhang.**
+
+1. **`jobs_has_owner` weigerde elke Sales-taak.** Migratie `0013` eiste dat een taak aan een analyse
+   of een merk hangt. Een Sales-taak hangt aan een markt, en een markt is geen merk. De ketentest zag
+   het bij de eerste keer dat de keten draaide. Gerepareerd met een derde soort eigenaar
+   (`jobs.sales_market_id`, migratie `0070`) en niet met een uitzondering op de regel: met "of het
+   type begint met sales" zou de taak nog steeds aan niets hangen en zou niemand achteraf kunnen
+   vragen wat er voor een markt gedraaid heeft.
+2. **Het plafond blokkeerde ook de gratis stappen.** `beoordeelBudget` keek of de kosten na de stap
+   nog onder het plafond bleven, en bij nul kosten is dat nog steeds onwaar zodra het budget vol is.
+   Gevolg: een markt met een vol budget zou ook zijn crawlgegevens verliezen, zonder dat het één cent
+   bespaart. Een rem hoort te remmen waar geld wegloopt en nergens anders, dus een stap die niets
+   kost wordt nooit meer geblokkeerd.
+
+**Wat er nog niet is.** Er wordt niets gemeten. De keten stopt na de crawl, en dat is waar sprint 3
+begint. De kostencijfers van deze module zijn schattingen, geen metingen: er heeft nog geen enkele
+echte marktanalyse gedraaid. Zodra dat gebeurt horen ze tegen `ai_calls` nagerekend te worden,
+precies zoals bij de reputatieanalyse is gedaan.
+
+**En één correctie op het plan zelf, voor de tweede keer.** Het plan legde per sprint een
+migratienummer vast. Dat liep twee keer vast: eerst omdat sprint 1 en 2 hetzelfde nummer kregen, toen
+omdat sprint 2 er een tweede nodig bleek te hebben. Je weet vooraf niet hoeveel migraties een sprint
+kost, dus die nummers staan er nu niet meer in. `supabase/README.md` is de eigenaar van dat feit, en
+het plan zegt alleen nog wát er nodig is.
+
+**Nog niet geverifieerd.** Het verificatiecriterium van sprint 2 is dat New business naar de lijst
+van één echte markt kijkt en zegt of hij klopt, met minstens 80% van de bedrijven die zij zelf
+kennen erin. Dat is niet gebeurd. Alles werkt, en dat is iets anders dan af (conventie 10).
+
+Migraties `0069` en `0070` op productie, 2308 unittests en 338 ketentests groen.
+
+## 29 augustus 2026: de Sales-module weer op de hoofdlijn, en drie migratienummers verschoven
+
+De GEO Prospect Engine stond sinds 24 augustus op een eigen werklijn en is nooit samengevoegd. De
+database liep intussen vóór op de code: de drie Sales-migraties draaiden wél op productie, de
+schermen stonden niet in de live app. Dat is nu rechtgezet, en er zaten drie dingen in de weg.
+
+**De nummers botsten.** De Sales-migraties heetten `0065`, `0066` en `0067`. Op 25 en 26 augustus
+gaf ander werk diezelfde drie nummers aan de contentvoorraad, de correctie op de effectmeting en de
+handmatige publicatiedatum. Beide reeksen staan op productie, dus de nummers zeggen niets meer over
+de volgorde waarin ze gedraaid zijn. De Sales-reeks heet nu `0068` tot en met `0070`. De inhoud is
+geen letter veranderd en alle drie zijn ze idempotent (`create table if not exists`,
+`add column if not exists`), dus opnieuw toepassen onder de nieuwe naam verandert niets aan de data.
+
+**De zijbalk was in tien weken verbouwd.** De Sales-sectie haakte in vier bestanden die intussen
+allemaal veranderd waren. De grens per hoofdstuk staat sinds deze samenvoeging voor álle hoofdstukken
+in `GRENS_PER_HOOFDSTUK` (`lib/nav.ts`): Strategie en Analytics op vier, Sales en Admin op vijf, de
+rest op drie. Dat was op de twee werklijnen apart uitgevonden, één keer als tabel en één keer als
+reeks `if`-takken in de test; de tabel wint, want dan staat elke uitzondering op één plek met een
+reden erbij.
+
+**Een marktdossier liet de zijbalk doven.** `navActief()` lichtte alleen de exacte route op, dus wie
+`/sales/markten/<id>` opende zag nergens meer waar hij was. Dezelfde regel die het clusterdossier al
+had, geldt nu voor de Sales-sectie: een dossier laat zijn lijst oplichten.
+
+Verder zes wachtvormen erbij, want de regel van 28 augustus dat elk scherm met data een `loading.tsx`
+heeft, bestond nog niet toen de Sales-schermen gebouwd werden.
+
+**Wat er nog niet is.** Sprint 3 tot en met 7: meten, opportunities, outreach, publiceren en
+hermeten. En het verificatiecriterium van sprint 2 is nog steeds niet gehaald: er is geen echte markt
+gedraaid en New business heeft de lijst niet beoordeeld. Er staat ook nog niemand in `sales_users`,
+dus de sectie is voor niemand zichtbaar totdat daar een rij in gezet wordt.
+
+Migraties `0068` tot en met `0070` op productie, 2708 unittests en 406 ketentests groen, typecheck
+schoon en de productiebuild draait.

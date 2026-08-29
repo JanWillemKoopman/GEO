@@ -35,7 +35,7 @@ export async function updateSession(request: NextRequest) {
   // `/merk`, en dat viel buiten deze controle. De pagina's zelf roepen
   // `requireUser()` aan, dus er lekte niets, maar een bezoeker zonder sessie
   // kreeg een omweg via een server-render in plaats van meteen het inlogscherm.
-  const isProtected = ["/analyses", "/merk", "/instellingen", "/beheer"].some(
+  const isProtected = ["/analyses", "/merk", "/instellingen", "/beheer", "/sales"].some(
     (p) => path === p || path.startsWith(`${p}/`),
   );
   const isAuthPage = path === "/login" || path === "/register";

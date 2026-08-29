@@ -28,6 +28,7 @@ export function AppShell({
   workspace,
   staff,
   staffAccount,
+  sales,
   openVragen,
   children,
 }: {
@@ -40,6 +41,8 @@ export function AppShell({
   /** Het ECHTE recht, dat de klantweergave nooit verandert. Alleen gebruikt om
    *  de wisselknop zelf te tonen: anders is er geen weg terug. */
   staffAccount: boolean;
+  /** Salesmedewerker? Dan staat de Sales-sectie in de zijbalk (plan §4.1). */
+  sales: boolean;
   /** Hoeveel vragen er op de klant wachten, voor de teller in de bovenbalk. */
   openVragen: number;
   children: React.ReactNode;
@@ -49,6 +52,7 @@ export function AppShell({
       brands={workspace.brands}
       activeBrand={workspace.active}
       staff={staff}
+      sales={sales}
       openVragen={openVragen}
       onSelectBrand={selectBrand}
       logo={

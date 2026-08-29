@@ -73,6 +73,59 @@ function citaatUit(tekst: string, woorden = 6): string {
 
 const ANTWOORDEN: Record<string, (user: string) => unknown> = {
   /**
+   * De marktontdekking van de Sales-module (plan hoofdstuk 9).
+   *
+   * ⚠️ Met opzet ONGEMAKKELIJK gekozen, net als de andere antwoorden hier. Er
+   * zitten vijf dingen in die stuk voor stuk een vangnet moeten raken:
+   *
+   *   1. Een bedrijf ZONDER website. Dat is precies de prospect die deze module
+   *      zoekt, en het mag niet weggegooid worden.
+   *   2. Hetzelfde bedrijf twee keer, één keer met `www.` en één keer zonder.
+   *      Dat moet één bedrijf worden.
+   *   3. Een platform (funda.nl) tussen de bedrijven. Dat is een bron en geen
+   *      prospect, en het hoort eruit.
+   *   4. Een bedrijf zonder naam. Dat is geen kandidaat.
+   *   5. Een bedrijf dat ook op de bronpagina staat, zodat er iets is dat op
+   *      twee onafhankelijke bronnen uitkomt en dus `middel` scoort.
+   */
+  sales_market_discovery: () => ({
+    bedrijven: [
+      {
+        naam: "Van X Makelaars",
+        website: "https://www.vanxmakelaars.nl/over-ons",
+        plaats: "Eindhoven",
+        bron_url: "https://nvm.nl/leden/eindhoven",
+      },
+      {
+        naam: "Van X Makelaars",
+        website: "vanxmakelaars.nl",
+        plaats: "Eindhoven",
+        bron_url: "https://eindhoven.nl/bedrijvengids",
+      },
+      {
+        naam: "Y Makelaars",
+        website: "https://ymakelaars.nl",
+        plaats: "Eindhoven",
+        bron_url: "https://nvm.nl/leden/eindhoven",
+      },
+      {
+        naam: "Makelaardij Zonder Site",
+        website: "",
+        plaats: "Veldhoven",
+        bron_url: "https://eindhoven.nl/bedrijvengids",
+      },
+      { naam: "Funda", website: "https://www.funda.nl", plaats: "", bron_url: "" },
+      { naam: "", website: "https://naamloos.nl", plaats: "", bron_url: "" },
+    ],
+    bronpaginas: [
+      { url: "https://nvm.nl/leden/eindhoven", wat: "ledenlijst NVM Eindhoven" },
+      { url: "https://eindhoven.nl/bedrijvengids", wat: "gemeentelijke bedrijvengids" },
+    ],
+    kanttekening:
+      "Kleine kantoren zonder eigen website zijn waarschijnlijk niet volledig in beeld.",
+  }),
+
+  /**
    * De open marktvraag (blok M).
    *
    * ⚠️ De klant staat NIET vooraan, en dat is opzet. Dit blok moet aantonen dat

@@ -30,8 +30,15 @@ import { JOB_TYPES, type JobType } from "@/lib/jobs/types";
  *
  * ⚠️ Alle taaksoorten staan erin, en `scripts/test-unit.ts` faalt zodra er
  * eentje bijkomt zonder vertaling.
+ *
+ * ⚠️ **`null` betekent: dit ziet de klant nooit** (sinds de Sales-module, 24
+ * augustus 2026). Dat is geen ontbrekende vertaling maar een besluit, en het
+ * verschil moet zichtbaar zijn. Een Sales-taak gaat over een bedrijf dat geen
+ * klant is; die mag in geen enkele klantlijst opduiken, ook niet als iemand ooit
+ * de filtering op merk-id weghaalt. Vandaar dat de vertaling `null` is en niet
+ * een zin die per ongeluk gebruikt kan worden.
  */
-export const TAAK_TEKST: Record<JobType, string> = {
+export const TAAK_TEKST: Record<JobType, string | null> = {
   profile_discover: "je website uitgelezen",
   profile_research: "je merk onderzocht",
   profile_offering: "je aanbod in kaart gebracht",
@@ -68,6 +75,17 @@ export const TAAK_TEKST: Record<JobType, string> = {
   reputation_synthesis: "je reputatieanalyse afgerond",
   reputation_evidence: "uitgezocht wat er online over je te vinden is",
   reputation_market: "gevraagd wie AI aanraadt in jouw markt",
+
+  // ── De Sales-module: nooit zichtbaar voor een klant (plan §4.3) ───────────
+  //
+  // Deze vier taken gaan over bedrijven die geen klant zijn. Ze hangen aan geen
+  // enkel merk, dus ze zouden hier sowieso niet langskomen. Dat `null` is het
+  // tweede slot: ook als iemand de filtering ooit verandert, blijft er niets van
+  // te zien.
+  sales_market_discover: null,
+  sales_market_verify: null,
+  sales_market_suppress: null,
+  sales_company_enrich: null,
 };
 
 export interface AfgerondeTaak {

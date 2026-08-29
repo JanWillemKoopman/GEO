@@ -26,6 +26,7 @@ export function WorkspaceChrome({
   brands,
   activeBrand,
   staff,
+  sales,
   openVragen,
   onSelectBrand,
   logo,
@@ -38,6 +39,8 @@ export function WorkspaceChrome({
   activeBrand: BrandOption | null;
   /** Beheerder? Dan komt het CSM-paneel in de zijbalk (fase 8). */
   staff: boolean;
+  /** Salesmedewerker? Dan komt de Sales-sectie in de zijbalk (plan §4.1). */
+  sales: boolean;
   /** Hoeveel vragen er open staan. Zet het bolletje in de zijbalk aan. */
   openVragen: number;
   onSelectBrand: (brandId: string) => void;
@@ -98,7 +101,7 @@ export function WorkspaceChrome({
         {/* Vaste zijbalk vanaf lg. Sticky onder de bovenbalk, met een eigen
             scrollbaan zodat een lange merknaam de pagina niet meeneemt. */}
         <aside className="no-print hidden shrink-0 self-start border-r border-[var(--border-subtle)] lg:block">
-          <Sidebar activeBrand={activeBrand} staff={staff} openVragen={openVragen} />
+          <Sidebar activeBrand={activeBrand} staff={staff} sales={sales} openVragen={openVragen} />
         </aside>
 
         {/* `min-w-0` is hier geen sier: dit is een flex-kind, en zonder deze
@@ -145,6 +148,7 @@ export function WorkspaceChrome({
             </div>
             <Sidebar
               staff={staff}
+              sales={sales}
               activeBrand={activeBrand}
               openVragen={openVragen}
               onMobileClose={() => setLadeOpen(false)}

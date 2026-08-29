@@ -51,7 +51,7 @@
  *    zoekactie door 38 bestanden. Twee namen mogen dezelfde tekening delen als
  *    ze iets anders betekenen: `stijging` is een meting, `omhoog` is een
  *    handeling van de gebruiker, en die twee horen los te kunnen bewegen.
- * 4. **Alleen de zes hoofdstukken van de zijbalk hebben er een, de bestemmingen
+ * 4. **Alleen de zeven hoofdstukken van de zijbalk hebben er een, de bestemmingen
  *    eronder niet** (besluit 21 augustus 2026). Ze hebben ze een halve dag wél
  *    gehad, en toen bleek dat zestien tekeningen in een balk van zestien regels
  *    niets meer markeren. `lib/nav.ts` heeft daarom geen icoonveld op `NavItem`,
@@ -104,15 +104,16 @@ import {
 
 /**
  * Elke betekenis die de app tekent, in de volgorde waarin je ze tegenkomt:
- * eerst de zes hoofdstukken van de zijbalk, dan de bediening, dan de standen.
+ * eerst de zeven hoofdstukken van de zijbalk, dan de bediening, dan de standen.
  */
 export type IcoonNaam =
-  // ── De zes hoofdstukken van de zijbalk ──────────────────────────────────
+  // ── De zeven hoofdstukken van de zijbalk ────────────────────────────────
   | "overzicht"
   | "strategie"
   | "analytics"
   | "merkprofiel"
   | "instellingen"
+  | "sales"
   | "admin"
   // ── Bediening ───────────────────────────────────────────────────────────
   | "menu"
@@ -157,7 +158,7 @@ export type IcoonNaam =
   | "eigenweergave";
 
 export const ICONEN: Record<IcoonNaam, LucideIcon> = {
-  // ── DE ZES HOOFDSTUKKEN ─────────────────────────────────────────────────
+  // ── DE ZEVEN HOOFDSTUKKEN ───────────────────────────────────────────────
   //
   // `Orbit` bovenaan is geen woordgrapje op de productnaam maar het antwoord
   // op de vraag die dit hoofdstuk stelt: waar sta je ten opzichte van de rest.
@@ -177,6 +178,12 @@ export const ICONEN: Record<IcoonNaam, LucideIcon> = {
   // waarschuwt, en instellingen zijn hier ook echt afstellen: hoe vaak meten,
   // wie mag erbij, welke koppeling staat aan.
   instellingen: SlidersHorizontal,
+  // Een radar tekent precies wat deze sectie doet: een gebied afzoeken en
+  // zichtbaar maken wat erin zit. Geen doelwit met een kruis erin, want dat
+  // maakt van een prospect een prooi, en geen geldteken, want de module gaat
+  // over de kans en niet over de rekening. Sales staat net als Admin onder de
+  // scheidingslijn: de klant ziet het nooit (plan §4.3).
+  sales: Radar,
   // Het schild is niet "beveiligd" maar "afgeschermd": dit hoofdstuk staat al
   // onder een scheidingslijn omdat de klant het nooit ziet (`lib/nav.ts`).
   admin: Shield,
