@@ -177,6 +177,24 @@ export const JOB_TYPES = [
   "sales_measure_question",
   /** De meting omrekenen naar zichtbaarheid per bedrijf. Geen AI. */
   "sales_market_aggregate",
+  // ── Sprint 4: de kansen (plan hoofdstuk 12 t/m 15) ────────────────────────
+  /**
+   * De acht opportunitytypes detecteren en scoren. Geen AI, en dat is het punt.
+   *
+   * Plan hoofdstuk 12: "Detectie is deterministisch. Het model schrijft later
+   * alleen de uitleg, en verzint nooit de conclusie zelf." Wat hieruit komt
+   * belandt in een mail aan een ondernemer die zijn eigen markt kent, en een
+   * conclusie die uit een model komt is niet na te rekenen.
+   */
+  "sales_detect_opportunities",
+  /**
+   * De uitleg en de haak bij ÉÉN kans. Eén goedkope aanroep, geen web-zoeken.
+   *
+   * Eén taak per kans en niet één taak voor de hele markt: dertig haken in één
+   * aanroep is één lang antwoord waarvan het staartje afgekapt raakt, en dan
+   * missen de laatste bedrijven hun zin zonder dat iemand het ziet.
+   */
+  "sales_opportunity_explain",
   /**
    * Blok M: de open koperssvraag die concurrenten ONTDEKT in plaats van ze op
    * te leggen. Vervangt de benoemde vergelijking als hoofdmechanisme, na de
@@ -339,6 +357,8 @@ export interface JobPayloads {
     engine: EngineId;
   };
   sales_market_aggregate: { marketId: string; runId: string };
+  sales_detect_opportunities: { marketId: string; runId: string };
+  sales_opportunity_explain: { marketId: string; runId: string; opportunityId: string };
   reputation_evidence: { runId: string };
   reputation_market: {
     runId: string;

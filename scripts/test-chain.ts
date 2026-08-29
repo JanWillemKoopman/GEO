@@ -5503,6 +5503,21 @@ async function main(): Promise<void> {
         );
         eqc("de aggregatie is precies één keer ingepland", String(aggTaken[0].n), "1");
 
+        // ⚠️ En de detectie ook. Deze telling staat hier en niet verderop, want
+        // de idempotentieproef hieronder draait de aggregatie bewust nog een
+        // keer, en dan komt er terecht een tweede detectietaak bij: de dedupe
+        // blokkeert alleen OPENSTAAND werk, zodat een mislukte stap opnieuw
+        // geprobeerd kan worden.
+        const { rows: detectieNaMeting } = await db.client.query(
+          "select count(*)::int as n from public.jobs where sales_run_id = $1 and type = 'sales_detect_opportunities'",
+          [rondes[0].id],
+        );
+        eqc(
+          "en de detectie precies één keer, niet één keer per meting",
+          String(detectieNaMeting[0].n),
+          "1",
+        );
+
         const { rows: scores } = await db.client.query(
           `select company_id, engine, questions_total, mentions, share, weighted_share, stderr, per_intent
              from public.sales_company_scores where run_id = $1`,
@@ -5588,6 +5603,138 @@ async function main(): Promise<void> {
           "een tweede meting van dezelfde vraag kost niets",
           String(log.filter((l) => l.schemaName === "plain").length),
           String(aantalVoor),
+        );
+
+        // ══════════════════════════════════════════════════════════════════
+        // Sprint 4: van gemeten markt tot gekwalificeerde kans
+        //
+        // ⚠️ DE SAMENHANG DIE HIER FOUT KAN GAAN:
+        //
+        //   1. De aggregatie ketent door naar de detectie, en precies één keer.
+        //   2. Elke kans heeft METEEN een haak, ook de kansen waar geen model
+        //      aan te pas komt. Anders staat er op het Opportunities-scherm een
+        //      regel zonder reden.
+        //   3. Alleen de kansen die iemand oppakt krijgen een schrijftaak. Voor
+        //      een lage kans een mail schrijven die niemand verstuurt is
+        //      weggegooid geld (plan 21.3).
+        //   4. De haak met een verzonnen getal wordt verworpen. Het stubantwoord
+        //      bevat er met opzet een.
+        console.log("\nDe Sales-module: van gemeten markt tot kans (sprint 4)");
+
+        const { rows: kansen } = await db.client.query(
+          `select o.id, o.type, o.score, o.tier, o.confidence, o.hook_text, o.hook_source,
+                  o.score_breakdown, o.alle_types, c.name
+             from public.sales_opportunities o
+             join public.sales_companies c on c.id = o.company_id
+            where o.run_id = $1 order by o.score desc`,
+          [rondes[0].id],
+        );
+        ok("er zijn kansen gevonden", kansen.length > 0, String(kansen.length));
+
+        // ⚠️ ELKE kans heeft een haak, en die haak is waar: hij komt uit het
+        // sjabloon dat alleen gecontroleerde waarden bevat.
+        ok(
+          "elke kans heeft meteen een reden om te bellen",
+          kansen.every((k) => String(k.hook_text ?? "").length > 10),
+          kansen.filter((k) => !k.hook_text).map((k) => String(k.name)).join(", "),
+        );
+        ok(
+          "en elke kans heeft een uitgesplitste score",
+          kansen.every(
+            (k) => Object.keys((k.score_breakdown ?? {}) as Record<string, unknown>).length >= 5,
+          ),
+        );
+
+        // Het bewijs is een join en geen zoektocht door jsonb (plan §7.3).
+        const { rows: bewijs } = await db.client.query(
+          `select e.kind, q.text as vraag, a.engine
+             from public.sales_evidence e
+             left join public.sales_questions q on q.id = e.question_id
+             left join public.sales_answers a on a.id = e.answer_id
+            where e.opportunity_id = $1`,
+          [kansen[0].id],
+        );
+        // Bij een onzichtbaar bedrijf is de afwezigheid het bewijs, en dan zijn
+        // er geen rijen. Bij elk ander type moeten ze er zijn.
+        if (String(kansen[0].type) !== "onzichtbaar") {
+          ok("het bewijs is doorklikbaar", bewijs.length > 0, String(kansen[0].type));
+          ok("met de vraag erbij", bewijs.every((b) => b.vraag !== null || b.engine !== null));
+        }
+
+        // ── De schrijftaken: alleen voor wie opgepakt wordt ─────────────────
+        const { rows: schrijfTaken } = await db.client.query(
+          `select distinct payload_json->>'opportunityId' as kans_id
+             from public.jobs where sales_run_id = $1 and type = 'sales_opportunity_explain'`,
+          [rondes[0].id],
+        );
+        const warm = kansen.filter((k) => String(k.tier) !== "laag");
+        const koud = kansen.filter((k) => String(k.tier) === "laag");
+        // Per KANS geteld en niet per taakrij: een tweede detectieronde plant de
+        // schrijftaak opnieuw in als de eerste al klaar is, en dat is precies wat
+        // de dedupe moet toestaan.
+        eqc(
+          "alleen de kansen die iemand oppakt krijgen een schrijftaak",
+          String(schrijfTaken.length),
+          String(warm.length),
+        );
+        // ⚠️ Plan 21.3, tweede rem: voor een lage kans een mail schrijven die
+        // niemand verstuurt is weggegooid geld. Hij houdt zijn sjabloonzin, en
+        // die is waar.
+        const koudeIds = new Set(koud.map((k) => String(k.id)));
+        ok(
+          "en een koude kans krijgt er geen",
+          schrijfTaken.every((t) => !koudeIds.has(String(t.kans_id))),
+        );
+
+        await draaiSalesTaken();
+
+        if (warm.length > 0) {
+          const { rows: naSchrijven } = await db.client.query(
+            "select hook_text, hook_source, why_text from public.sales_opportunities where id = $1",
+            [warm[0].id],
+          );
+          // ⚠️ HET VANGNET UIT HOOFDSTUK 14. De stub levert als eerste zin een
+          // verzonnen getal (97). Die hoort verworpen te zijn, en het
+          // alternatief zonder getallen hoort te winnen.
+          ok(
+            "een zin met een verzonnen getal haalt het niet",
+            !String(naSchrijven[0].hook_text ?? "").includes("97"),
+            String(naSchrijven[0].hook_text),
+          );
+          eqc("de haak komt van het model", String(naSchrijven[0].hook_source), "model");
+          ok("en er staat een uitleg bij", String(naSchrijven[0].why_text ?? "").length > 20);
+        }
+
+        // Idempotentie: nog een keer detecteren levert geen tweede set kansen op.
+        await db.client.query(
+          `insert into public.jobs (type, payload_json, dedupe_key, status, sales_market_id, sales_run_id)
+           values ('sales_detect_opportunities', $1, $2, 'queued', $3, $4)`,
+          [
+            JSON.stringify({ marketId: salesMarktId, runId: rondes[0].id }),
+            `sales_detect:${rondes[0].id}:tweede`,
+            salesMarktId,
+            rondes[0].id,
+          ],
+        );
+        await draaiSalesTaken();
+        const { rows: naTweedeDetectie } = await db.client.query(
+          "select id from public.sales_opportunities where run_id = $1 order by id",
+          [rondes[0].id],
+        );
+        eqc(
+          "een tweede detectie levert geen tweede set kansen op",
+          String(naTweedeDetectie.length),
+          String(kansen.length),
+        );
+        // ⚠️ EN DE KANSEN HOUDEN HUN ID. Sprint 5 hangt de toewijzing, de
+        // conceptmail en de uitkomst aan dat id. Zou de detectie de rijen
+        // opnieuw aanmaken, dan wijst de outreach van een verkoper naar een kans
+        // die niet meer bestaat, en is achteraf niet te reconstrueren waarom hij
+        // gebeld heeft.
+        eqc(
+          "en ze houden hun id, want daar hangt straks de outreach aan",
+          naTweedeDetectie.map((k) => String(k.id)).join(","),
+          kansen.map((k) => String(k.id)).sort().join(","),
         );
       } finally {
         globalThis.fetch = origineleFetch;

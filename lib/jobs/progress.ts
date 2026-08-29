@@ -92,6 +92,11 @@ const TYPICAL_SECONDS: Record<JobType, number> = {
   sales_measure_question: 18,
   // Puur rekenwerk over de vermeldingen van de hele ronde.
   sales_market_aggregate: 5,
+  // De detectie over alle bedrijven van een markt. Geen AI, wel een handvol
+  // query's en een rekensom per bedrijf.
+  sales_detect_opportunities: 8,
+  // Eén goedkope aanroep zonder web-zoeken, met drie kandidaatzinnen.
+  sales_opportunity_explain: 12,
 };
 
 /**

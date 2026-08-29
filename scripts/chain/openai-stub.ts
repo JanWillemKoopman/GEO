@@ -208,6 +208,27 @@ const ANTWOORDEN: Record<string, (user: string) => unknown> = {
   }),
 
   /**
+   * De uitleg en de haak bij één kans (sprint 4, plan hoofdstuk 14).
+   *
+   * ⚠️ De eerste zin bevat MET OPZET een verzonnen getal. Zo toetst de keten wat
+   * er gebeurt als het model een cijfer bedenkt dat nergens uit de meting volgt:
+   * de controle hoort hem te verwerpen en door te gaan naar het alternatief. Een
+   * stub die netjes de goede cijfers gebruikt, zou precies het vangnet ongetest
+   * laten waar dit hele hoofdstuk om draait.
+   */
+  sales_opportunity_text: () => ({
+    haak: "Dit bedrijf wordt 97 keer minder genoemd dan de rest van de markt.",
+    alternatieven: [
+      "In deze markt wordt dit bedrijf bij geen van de gemeten vragen genoemd.",
+      "De AI-assistenten noemen dit bedrijf niet als antwoord op vragen uit deze markt.",
+    ],
+    uitleg:
+      "De meting laat zien dat dit bedrijf in deze markt nauwelijks voorkomt in de antwoorden " +
+      "van AI-assistenten. De concurrenten worden wel genoemd. Dat verschil is niet te " +
+      "verklaren uit de omvang van het bedrijf.",
+  }),
+
+  /**
    * De open marktvraag (blok M).
    *
    * ⚠️ De klant staat NIET vooraan, en dat is opzet. Dit blok moet aantonen dat

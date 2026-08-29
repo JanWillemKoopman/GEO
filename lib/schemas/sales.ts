@@ -186,3 +186,26 @@ export const SalesAnswerJudgement = z.object({
 });
 
 export type SalesAnswerJudgement = z.infer<typeof SalesAnswerJudgement>;
+
+/**
+ * De uitleg en de haak bij één kans (plan hoofdstuk 14).
+ *
+ * ⚠️ **Drie kandidaten en geen één.** De controle achteraf verwerpt een zin met
+ * een getal dat nergens uit de meetdata volgt, en dan moet er iets anders zijn
+ * om op terug te vallen. Drie kandidaten in één aanroep is goedkoper dan drie
+ * aanroepen, en het maakt de terugval op het sjabloon zeldzaam in plaats van
+ * gewoon.
+ *
+ * Het model kiest niet WELKE kans dit is en het rekent niets: dat lag al vast
+ * voordat deze aanroep begon (`lib/pipeline/sales-detect.ts`).
+ */
+export const SalesOpportunityText = z.object({
+  /** De beste zin: één reden om te bellen, met de gemeten cijfers erin. */
+  haak: z.string(),
+  /** Twee alternatieven, voor als de eerste een getal bevat dat niet klopt. */
+  alternatieven: z.array(z.string()),
+  /** De zakelijke uitleg, drie tot vijf zinnen. Wat er gemeten is en wat het betekent. */
+  uitleg: z.string(),
+});
+
+export type SalesOpportunityText = z.infer<typeof SalesOpportunityText>;

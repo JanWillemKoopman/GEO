@@ -58,6 +58,8 @@ import { bepaalIntenties } from "@/lib/pipeline/sales-intents";
 import { genereerVragen } from "@/lib/pipeline/sales-questions";
 import { meetVraag } from "@/lib/pipeline/sales-measure";
 import { aggregeerRonde } from "@/lib/pipeline/sales-aggregate";
+import { detecteerVoorRonde } from "@/lib/pipeline/sales-detect";
+import { schrijfUitleg } from "@/lib/pipeline/sales-explain";
 import { VRAGEN_STANDAARD, type Intentie } from "@/lib/sales/intents";
 import { raamMeetronde } from "@/lib/sales/budget";
 import { availableEngineIds } from "@/lib/engines/registry";
@@ -1080,9 +1082,71 @@ const handlers: { [T in JobType]: Handler<T> } = {
     await planAggregatieAlsLaatste(admin, payload.marketId, payload.runId, job.id);
   },
 
-  /** Stap 8: de meting omrekenen naar zichtbaarheid per bedrijf. Geen AI. */
+  /**
+   * Stap 8: de meting omrekenen naar zichtbaarheid per bedrijf. Geen AI.
+   *
+   * Ketent door naar de detectie. Die twee zijn allebei gratis en allebei
+   * deterministisch, maar het blijven twee taken: de aggregatie leest álle
+   * vermeldingen van de ronde, de detectie leest de uitkomst daarvan plus de
+   * vorige ronde. Samen in één taak zou een mislukte detectie de hele
+   * aggregatie opnieuw laten draaien.
+   */
   sales_market_aggregate: async ({ admin }, payload) => {
-    await aggregeerRonde(admin, payload.runId);
+    const uit = await aggregeerRonde(admin, payload.runId);
+    // Zonder engine die gemeten heeft valt er niets te detecteren. Dat is geen
+    // markt zonder kansen maar een mislukte ronde, en die twee horen niet
+    // hetzelfde te zien te zijn.
+    if (uit.engines.length === 0) return;
+
+    await enqueue(admin, {
+      type: "sales_detect_opportunities",
+      payload: { marketId: payload.marketId, runId: payload.runId },
+      salesMarketId: payload.marketId,
+      salesRunId: payload.runId,
+      dedupeKey: dedupe.salesDetect(payload.runId),
+    });
+  },
+
+  /**
+   * Stap 9: de acht types detecteren en scoren. Geen AI.
+   *
+   * Plant daarna één schrijftaak per kans in. Dat is de enige plek in deze
+   * keten waar het aantal taken met het aantal BEDRIJVEN meeschaalt, en het is
+   * meteen de enige plek waar dat geld kost. Vandaar dat de goedkoopste kansen
+   * geen schrijftaak krijgen: zie hieronder.
+   */
+  sales_detect_opportunities: async ({ admin }, payload) => {
+    await detecteerVoorRonde(admin, payload.runId);
+
+    const { data: kansen } = await admin
+      .from("sales_opportunities")
+      .select("id, tier")
+      .eq("run_id", payload.runId);
+
+    for (const kans of (kansen ?? []) as { id: string; tier: string }[]) {
+      // ⚠️ Alleen voor de kansen die een verkoper ook echt oppakt. Plan 21.3,
+      // tweede rem: "voor bedrijven met een lage score een mail schrijven die
+      // niemand verstuurt, is weggegooid geld". Een lage kans houdt zijn
+      // sjabloonzin, en die is waar; hij is alleen minder mooi.
+      if (kans.tier === "laag") continue;
+
+      await enqueue(admin, {
+        type: "sales_opportunity_explain",
+        payload: {
+          marketId: payload.marketId,
+          runId: payload.runId,
+          opportunityId: kans.id,
+        },
+        salesMarketId: payload.marketId,
+        salesRunId: payload.runId,
+        dedupeKey: dedupe.salesExplain(kans.id),
+      });
+    }
+  },
+
+  /** Stap 10: de uitleg en de haak bij één kans. */
+  sales_opportunity_explain: async ({ admin }, payload) => {
+    await schrijfUitleg(admin, payload.opportunityId);
   },
 
   /**

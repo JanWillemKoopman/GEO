@@ -169,4 +169,12 @@ export const dedupe = {
   salesMeasure: (runId: string, questionId: string, engine: string) =>
     `sales_measure:${runId}:${questionId}:${engine}`,
   salesAggregate: (runId: string) => `sales_aggregate:${runId}`,
+  salesDetect: (runId: string) => `sales_detect:${runId}`,
+  /**
+   * ⚠️ Op de KANS en niet op het bedrijf. Een bedrijf kan in twee markten
+   * zitten, en dan zijn dat twee kansen met twee verschillende haken. Zou de
+   * sleutel op het bedrijf staan, dan schrijft de tweede markt geen haak en
+   * staat daar een lege regel waar niemand een reden voor kan vinden.
+   */
+  salesExplain: (opportunityId: string) => `sales_explain:${opportunityId}`,
 };

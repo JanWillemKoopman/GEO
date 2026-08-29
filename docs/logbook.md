@@ -5844,3 +5844,53 @@ te rekenen zijn uit de opgeslagen antwoorden van een echte markt, en dat een twe
 ander beeld geeft. Er is nog geen echte markt gedraaid. Alles werkt, en dat is iets anders dan af.
 
 Migratie `0071` op productie, 2804 unittests en 438 ketentests groen.
+
+## 29 augustus 2026: de Sales-module maakt er kansen van, sprint 4 van zeven
+
+Uit een gemeten markt komt nu een lijst gekwalificeerde saleskansen: per bedrijf welk soort kans er
+is, hoe interessant die is, waarom, met welke openingszin en met het bewijs eronder. Twee
+taaksoorten, twee tabellen, migratie `0072`.
+
+**De detectie is deterministisch, en dat is het hele punt.** De acht types uit het plan zijn acht
+regels in code, niet acht vragen aan een model. Wat hier uitkomt gaat naar een ondernemer die zijn
+eigen markt kent, en een conclusie die uit een model komt is niet na te rekenen. Het model schrijft
+alleen de zin, en daarna controleert code elk getal in die zin tegen de meetdata. Klopt er een niet,
+dan valt de zin af en wint de volgende kandidaat; halen ze het geen van drieën, dan wint een
+sjabloonzin die alleen gecontroleerde waarden bevat. Bij welke van de twee het uitkwam wordt
+opgeslagen, want anders is niet te tellen hoe vaak het model getallen verzint.
+
+**De score sorteert bewust niet op laagste zichtbaarheid.** Dat is de fout die het hele systeem
+onbruikbaar zou maken: een bedrijf dat nul keer genoemd wordt kan een eenmanszaak zijn zonder
+website, zonder budget en zonder ambitie, terwijl de professionele partij die één dure dienst mist
+commercieel veel interessanter is. Van de honderd punten gaan er dertig naar de vraag of dit bedrijf
+klant kán worden en of wij het plausibel kunnen oplossen. Er is een unittest die precies dat geval
+tegenover elkaar zet, en die valt om zodra iemand de weging terugdraait.
+
+**Twee dingen die de detectie bewust NIET doet.** Een verschil dat binnen de onzekerheidsmarge valt
+is geen verschil: dat oordeel komt uit `lib/stats/` en niet uit een eigen vergelijking, want twee
+plekken die "significant" net anders rekenen geven twee antwoorden op dezelfde vraag. En een intent
+gap bestaat alleen als de eigen website die dienst beschrijft. Zonder die voorwaarde is het geen
+kans maar een verwijt, en dan begint het gesprek verkeerd.
+
+**Van de acht types is er één smaller gebouwd dan het plan beschrijft.** Het information gap
+detecteert alleen het geval dat hard te bewijzen is: een antwoord dat het bedrijf in een andere
+plaats zet dan waar het zit. Een verouderde dienst of een niet meer bestaand aanbod vraagt een
+feitenlaag per bedrijf zoals de klantkant die heeft, en die bestaat aan de saleskant niet. Liever één
+type dat klopt dan een tweede dat op een vermoeden rust.
+
+**Wat de ketentest vond.** De detectie gooide bij een herberekening alle kansen weg en maakte ze
+opnieuw aan. Dat leverde dezelfde uitkomst op met nieuwe id's, en daar hangt sprint 5 de toewijzing,
+de conceptmail en de uitkomst aan: de outreach van een verkoper zou wijzen naar een kans die niet
+meer bestaat. Het is nu een upsert op markt plus bedrijf, en er is een ketentest die de id's na een
+tweede detectie naast elkaar legt.
+
+**De kosten blijven waar ze horen.** Alleen de kansen die een verkoper ook echt oppakt krijgen een
+geschreven zin; een lage kans houdt zijn sjabloonzin, en die is waar. Voor dertig bedrijven een mail
+laten schrijven die niemand verstuurt is weggegooid geld, en dat is de tweede rem uit hoofdstuk 21
+van het plan.
+
+**Nog niet geverifieerd.** Het criterium van sprint 4 is dat New business de top tien en de bodem
+tien beoordeelt en het met minstens acht van de tien eens is. Elke afwijking is een kalibratiepunt en
+verandert een getal in de gewichtentabel. Dat gesprek heeft nog niet plaatsgevonden.
+
+Migratie `0072` op productie, 2875 unittests en 451 ketentests groen.

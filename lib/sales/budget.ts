@@ -81,6 +81,16 @@ export const STAP_KOSTEN_USD = {
   measure: 0.03,
   /** De aggregatie. Geen model, dus gratis. */
   aggregate: 0,
+  /** De detectie van de kansen. Deterministisch, dus geen model en gratis. */
+  detect: 0,
+  /**
+   * De uitleg en de haak bij één kans.
+   *
+   * Eén goedkope aanroep zonder web-zoeken, met drie kandidaatzinnen tegelijk.
+   * Bij dertig bedrijven is dat ~€0,90 voor de hele markt, precies de post
+   * "opportunities verklaren en hooks schrijven" uit de begroting in plan 21.2.
+   */
+  explain: 0.03,
 } as const;
 
 export type SalesStap = keyof typeof STAP_KOSTEN_USD;

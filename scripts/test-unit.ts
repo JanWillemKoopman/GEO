@@ -143,6 +143,36 @@ import { raamMeetronde, beoordeelRonde } from "@/lib/sales/budget";
 import { koppelVragen, bouwVragenVraag } from "@/lib/sales/questions";
 import { bouwIntentieVraag } from "@/lib/sales/intents";
 import { bouwBeoordeelVraag, SIMULATIE_SYSTEM } from "@/lib/sales/measure-prompt";
+// Sprint 4: de acht types, de score en de haak.
+import {
+  detecteerKansen,
+  kiesPrimair,
+  detecteerVerlies,
+  siteBeschrijftDienst,
+  buitenDeMarge,
+  PRIMAIRE_VOLGORDE,
+  KANS_TYPES,
+  KANS_LABEL,
+  ONZICHTBAAR_GRENS,
+  type BedrijfMeting,
+  type MarktContext,
+  type MeetScore,
+  type Kans,
+} from "@/lib/sales/opportunity";
+import {
+  rekenScore,
+  GEWICHTEN,
+  SCHERPTE,
+  BEWEGING_BONUS,
+  TIER_HOOG,
+} from "@/lib/sales/opportunity-score";
+import {
+  controleerHook,
+  sjabloonHook,
+  kiesHook,
+  bouwHookVraag,
+  toegestaneGetallen,
+} from "@/lib/sales/hook";
 import { ICONEN } from "@/lib/icons";
 import { DOORVERWIJZINGEN } from "@/lib/redirects";
 import { findGaps, gapLink } from "@/lib/profile-gaps";
@@ -13091,6 +13121,537 @@ group("het aantal vragen is de kostenknop en staat begrensd", () => {
   // gaan mensen bedrijven wegsnijden: precies de onzichtbare bedrijven die deze
   // module zoekt.
   ok("en wat per bedrijf schaalt kost niets", SALES_STAP_KOSTEN.enrich === 0);
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+console.log("\nDe Sales-module: de kansen (sprint 4)");
+
+/** Een meting opbouwen zonder dertig regels boilerplate per test. */
+function meting(
+  id: string,
+  naam: string,
+  opties: Partial<{
+    aandeel: number;
+    vragen: number;
+    stderr: number;
+    perIntent: Record<string, { vragen: number; vermeldingen: number; share: number }>;
+    perEngine: Record<string, { aandeel: number; stderr: number; vragen: number }>;
+    secties: string[];
+    plaats: string | null;
+    domein: string | null;
+    bronnen: { domain: string; count: number }[];
+    fragmenten: { answerId: string; questionId: string; engine: string; snippet: string }[];
+    vorige: { aandeel: number; stderr: number; perEngine?: Record<string, { aandeel: number; stderr: number }> } | null;
+  }> = {},
+): BedrijfMeting {
+  const vragen = opties.vragen ?? 40;
+  const aandeel = opties.aandeel ?? 0.3;
+  const score: MeetScore = {
+    questionsTotal: vragen,
+    mentions: Math.round(aandeel * vragen),
+    share: aandeel,
+    weightedShare: aandeel,
+    stderr: opties.stderr ?? 0.05,
+    perIntent: opties.perIntent ?? {},
+  };
+  const perEngine: Record<string, MeetScore> = {};
+  for (const [engine, e] of Object.entries(opties.perEngine ?? {})) {
+    perEngine[engine] = {
+      questionsTotal: e.vragen,
+      mentions: Math.round(e.aandeel * e.vragen),
+      share: e.aandeel,
+      weightedShare: e.aandeel,
+      stderr: e.stderr,
+      perIntent: {},
+    };
+  }
+  return {
+    companyId: id,
+    naam,
+    domein: opties.domein === undefined ? `${id}.nl` : opties.domein,
+    plaats: opties.plaats === undefined ? "Eindhoven" : opties.plaats,
+    secties: opties.secties ?? [],
+    alle: score,
+    perEngine,
+    bronnen: opties.bronnen ?? [],
+    fragmenten:
+      opties.fragmenten ??
+      [{ answerId: `a-${id}`, questionId: `v-${id}`, engine: "openai", snippet: `${naam} is goed.` }],
+    vorige: opties.vorige
+      ? {
+          weightedShare: opties.vorige.aandeel,
+          stderr: opties.vorige.stderr,
+          perEngine: Object.fromEntries(
+            Object.entries(opties.vorige.perEngine ?? {}).map(([k, v]) => [
+              k,
+              { weightedShare: v.aandeel, stderr: v.stderr },
+            ]),
+          ),
+        }
+      : null,
+  };
+}
+
+const markt: MarktContext = {
+  bronnen: [
+    { domain: "funda.nl", count: 30 },
+    { domain: "nvm.nl", count: 20 },
+  ],
+  gemiddeldePerIntent: { verkoop: 0.3, aankoop: 0.3 },
+  engines: ["openai", "gemini"],
+  plaats: "Eindhoven",
+};
+
+group("onzichtbaar is een toestand en geen oordeel over de prospect", () => {
+  const stil = meting("stil", "Stil Makelaars", { aandeel: 0.02, stderr: 0.02 });
+  const kansen = detecteerKansen(stil, markt, [stil]);
+  ok("onder de grens is onzichtbaar", kansen.some((k) => k.type === "onzichtbaar"));
+
+  const zichtbaar = meting("zicht", "Zichtbaar BV", { aandeel: 0.3 });
+  ok(
+    "erboven niet",
+    !detecteerKansen(zichtbaar, markt, [zichtbaar]).some((k) => k.type === "onzichtbaar"),
+  );
+
+  // ⚠️ De valkuil uit plan type 1 staat NIET in de detectie: een eenmanszaak
+  // zonder website is onzichtbaar én geen prospect. Dat weegt in de SCORE, niet
+  // hier. Zou het hier wegen, dan verdwijnt precies het soort bedrijf dat wel
+  // degelijk klant kan worden.
+  const zonderSite = meting("geen", "Zonder Site", { aandeel: 0.01, domein: null });
+  ok(
+    "een bedrijf zonder website wordt gewoon gedetecteerd",
+    detecteerKansen(zonderSite, markt, [zonderSite]).some((k) => k.type === "onzichtbaar"),
+  );
+  ok("de grens staat op vijf procent", ONZICHTBAAR_GRENS === 0.05);
+});
+
+group("een concurrent die voorloopt is pas een kans buiten de marge", () => {
+  const eigen = meting("eigen", "Van X", { aandeel: 0.1, stderr: 0.03 });
+  const groot = meting("groot", "Y Makelaars", { aandeel: 0.6, stderr: 0.04 });
+
+  const kansen = detecteerKansen(eigen, markt, [eigen, groot]);
+  const gap = kansen.find((k) => k.type === "concurrent_gap");
+  ok("een concurrent die zes keer zo vaak genoemd wordt is een kans", Boolean(gap));
+  eq("en de naam hangt eraan", gap?.rivalCompanyId ?? "", "groot");
+
+  // ⚠️ Het bewijs is de vraag waarin de ander wél en dit bedrijf niet genoemd
+  // wordt. Dat is wat een verkoper laat zien, en niet een percentage.
+  ok("met het bewijs erbij", (gap?.antwoorden.length ?? 0) > 0);
+
+  // Binnen de marge is het geen verschil. Dit is de fout die een verkoper voor
+  // schut zet: hij belt over een verschil dat statistisch niet bestaat.
+  const bijnaGelijk = meting("bijna", "Bijna Gelijk", { aandeel: 0.22, stderr: 0.2 });
+  const eigenBreed = meting("eigen2", "Van X", { aandeel: 0.1, stderr: 0.2 });
+  ok(
+    "een verschil binnen de marge telt niet",
+    !detecteerKansen(eigenBreed, markt, [eigenBreed, bijnaGelijk]).some(
+      (k) => k.type === "concurrent_gap",
+    ),
+  );
+  ok("en dat oordeel komt uit lib/stats", !buitenDeMarge({ score: 0.1, stderr: 0.2 }, { score: 0.22, stderr: 0.2 }));
+});
+
+group("een intent gap bestaat alleen als de site die dienst beschrijft", () => {
+  // Het bedrijf scoort 30% in het algemeen, maar 0 van de 8 bij aankoop.
+  const perIntent = {
+    verkoop: { vragen: 8, vermeldingen: 5, share: 0.63 },
+    aankoop: { vragen: 8, vermeldingen: 0, share: 0 },
+  };
+
+  const metPagina = meting("met", "Met Pagina", {
+    aandeel: 0.3,
+    perIntent,
+    secties: ["aankoopbegeleiding", "verkoop", "contact"],
+  });
+  const metIntent: MarktContext = {
+    ...markt,
+    gemiddeldePerIntent: { verkoop: 0.4, aankoop: 0.35 },
+  };
+  const kansen = detecteerKansen(metPagina, metIntent, [metPagina]);
+  const gap = kansen.find((k) => k.type === "intent_gap");
+  ok("het gat wordt gezien", Boolean(gap));
+  ok("en de intentie staat erbij", (gap?.intentLabels ?? []).includes("aankoop"));
+
+  // ⚠️ Zonder die pagina is het geen kans maar een verwijt. Het hele punt van
+  // dit type is dat het bedrijf de dienst aantoonbaar wél levert (plan type 3).
+  const zonderPagina = meting("zonder", "Zonder Pagina", {
+    aandeel: 0.3,
+    perIntent,
+    secties: ["verkoop", "contact"],
+  });
+  ok(
+    "zonder die pagina is er geen intent gap",
+    !detecteerKansen(zonderPagina, metIntent, [zonderPagina]).some((k) => k.type === "intent_gap"),
+  );
+
+  ok("de woordvergelijking is streng aan de onderkant", !siteBeschrijftDienst(zonderPagina, "aankoop"));
+  ok("maar herkent een dienst die er staat", siteBeschrijftDienst(metPagina, "aankoop"));
+
+  // Te weinig vragen is geen gat maar toeval: bij drie vragen is nul van de drie
+  // niets.
+  const dun = meting("dun", "Dun Gemeten", {
+    aandeel: 0.3,
+    perIntent: { aankoop: { vragen: 3, vermeldingen: 0, share: 0 } },
+    secties: ["aankoopbegeleiding"],
+  });
+  ok(
+    "drie vragen is te dun voor een conclusie",
+    !detecteerKansen(dun, metIntent, [dun]).some((k) => k.type === "intent_gap"),
+  );
+});
+
+group("een engine gap vraagt twee engines die echt gemeten hebben", () => {
+  const scheef = meting("scheef", "Scheef", {
+    aandeel: 0.35,
+    perEngine: {
+      openai: { aandeel: 0.6, stderr: 0.05, vragen: 40 },
+      gemini: { aandeel: 0.1, stderr: 0.05, vragen: 40 },
+    },
+  });
+  ok(
+    "een verschil van vijftig punten is een kans",
+    detecteerKansen(scheef, markt, [scheef]).some((k) => k.type === "engine_gap"),
+  );
+
+  // ⚠️ Een engine die wegviel levert een verschil van honderd punten op, en dat
+  // is geen engine gap maar een mislukte meting.
+  const eenEngine = meting("een", "Eén Engine", {
+    aandeel: 0.35,
+    perEngine: { openai: { aandeel: 0.6, stderr: 0.05, vragen: 40 } },
+  });
+  ok(
+    "één engine levert nooit een engine gap op",
+    !detecteerKansen(eenEngine, markt, [eenEngine]).some((k) => k.type === "engine_gap"),
+  );
+});
+
+group("een verkeerde plaats is het enige information gap dat te bewijzen is", () => {
+  const elders = meting("elders", "Elders BV", {
+    aandeel: 0.3,
+    plaats: "Helmond",
+    fragmenten: [
+      {
+        answerId: "a1",
+        questionId: "v1",
+        engine: "openai",
+        snippet: "Elders BV is een makelaar in Eindhoven.",
+      },
+    ],
+  });
+  ok(
+    "het antwoord zet het bedrijf in de verkeerde plaats",
+    detecteerKansen(elders, markt, [elders]).some((k) => k.type === "information_gap"),
+  );
+
+  // Zonder eigen plaats is er niets om tegen af te zetten, en dan is het een
+  // vermoeden. Conventie 3.
+  const onbekend = meting("onb", "Onbekend", { aandeel: 0.3, plaats: null });
+  ok(
+    "zonder eigen plaats geen oordeel",
+    !detecteerKansen(onbekend, markt, [onbekend]).some((k) => k.type === "information_gap"),
+  );
+});
+
+group("een source gap verlegt het gesprek naar het speelveld", () => {
+  const buiten = meting("buiten", "Buiten De Bronnen", { aandeel: 0.2, bronnen: [] });
+  const a = meting("a", "A", { aandeel: 0.3, bronnen: [{ domain: "funda.nl", count: 5 }] });
+  const b = meting("b", "B", { aandeel: 0.3, bronnen: [{ domain: "nvm.nl", count: 4 }] });
+
+  ok(
+    "wie in geen enkele marktbron staat terwijl twee concurrenten er wel in staan",
+    detecteerKansen(buiten, markt, [buiten, a, b]).some((k) => k.type === "source_gap"),
+  );
+
+  // Bij één concurrent is het een toevalligheid van die ene en geen speelveld.
+  ok(
+    "bij één concurrent is er geen speelveld",
+    !detecteerKansen(buiten, markt, [buiten, a]).some((k) => k.type === "source_gap"),
+  );
+});
+
+group("verlies is de sterkste, en heeft twee vangnetten", () => {
+  const gezakt = meting("gezakt", "Gezakt", {
+    aandeel: 0.1,
+    stderr: 0.03,
+    perEngine: {
+      openai: { aandeel: 0.1, stderr: 0.03, vragen: 40 },
+      gemini: { aandeel: 0.1, stderr: 0.03, vragen: 40 },
+    },
+    vorige: {
+      aandeel: 0.5,
+      stderr: 0.03,
+      perEngine: { openai: { aandeel: 0.5, stderr: 0.03 }, gemini: { aandeel: 0.5, stderr: 0.03 } },
+    },
+  });
+  ok("een daling buiten de marge is verlies", Boolean(detecteerVerlies(gezakt, markt)));
+
+  // ⚠️ Vangnet 1: een daling binnen de marge is geen daling.
+  const ruis = meting("ruis", "Ruis", {
+    aandeel: 0.28,
+    stderr: 0.2,
+    vorige: { aandeel: 0.32, stderr: 0.2 },
+  });
+  ok("binnen de marge is het geen daling", detecteerVerlies(ruis, markt) === null);
+
+  // ⚠️ Vangnet 2: een daling bij één engine terwijl de andere gelijk bleef, is
+  // een engine gap en geen verlies. De engine veranderde, het bedrijf niet.
+  const eenEngineGezakt = meting("een", "Eén Engine Gezakt", {
+    aandeel: 0.3,
+    stderr: 0.03,
+    perEngine: {
+      openai: { aandeel: 0.1, stderr: 0.03, vragen: 40 },
+      gemini: { aandeel: 0.5, stderr: 0.03, vragen: 40 },
+    },
+    vorige: {
+      aandeel: 0.6,
+      stderr: 0.03,
+      perEngine: { openai: { aandeel: 0.7, stderr: 0.03 }, gemini: { aandeel: 0.5, stderr: 0.03 } },
+    },
+  });
+  ok("één engine die zakt is geen verlies", detecteerVerlies(eenEngineGezakt, markt) === null);
+
+  // Zonder vorige ronde bestaat het type niet. Dat is de reden om markten
+  // structureel te hermeten in plaats van eenmalig te meten.
+  const eersteRonde = meting("eerst", "Eerste Ronde", { aandeel: 0.1 });
+  ok("zonder vorige ronde geen verlies", detecteerVerlies(eersteRonde, markt) === null);
+});
+
+group("het primaire type staat vast en is niet te beïnvloeden", () => {
+  // Plan 12.1: verlies, information gap, intent gap, concurrent gap, source gap,
+  // engine gap, onzichtbaar, sterk met zwakke plek. In die volgorde.
+  const alle: Kans[] = KANS_TYPES.map((type) => ({
+    type,
+    vragen: [],
+    antwoorden: [],
+    cijfers: {},
+  }));
+  eq("verlies wint van alles", kiesPrimair(alle)?.type ?? "", "verlies");
+  eq(
+    "en information gap van de rest",
+    kiesPrimair(alle.filter((k) => k.type !== "verlies"))?.type ?? "",
+    "information_gap",
+  );
+  eq(
+    "onzichtbaar verliest van een intent gap",
+    kiesPrimair(alle.filter((k) => k.type === "onzichtbaar" || k.type === "intent_gap"))?.type ?? "",
+    "intent_gap",
+  );
+  ok("zonder kansen is er geen primair type", kiesPrimair([]) === null);
+  eq2("alle acht types staan in de volgorde", PRIMAIRE_VOLGORDE.length, KANS_TYPES.length);
+  ok(
+    "en elk type heeft een naam die een verkoper leest",
+    KANS_TYPES.every((t) => (KANS_LABEL[t] ?? "").length > 3),
+  );
+});
+
+group("de score sorteert niet op laagste zichtbaarheid", () => {
+  // ⚠️ DE TOETS DIE HOOFDSTUK 2 AFDWINGT. Het onzichtbare eenmansbedrijf zonder
+  // website tegenover de professionele partij die één dienst mist. Zou de score
+  // op zichtbaarheid sorteren, dan wint de eerste, en dan is de hele module een
+  // lijst met bedrijven die niets kopen.
+  const eenmanszaak: Kans = {
+    type: "onzichtbaar",
+    vragen: [],
+    antwoorden: [],
+    cijfers: { aandeel: 0, vermeldingen: 0, vragen: 40 },
+  };
+  const gemist: Kans = {
+    type: "intent_gap",
+    vragen: ["v1", "v2"],
+    antwoorden: ["a1", "a2"],
+    intentLabels: ["aankoop"],
+    cijfers: { eigen_aandeel: 0.35 },
+  };
+
+  const klein = rekenScore({
+    bedrijf: meting("klein", "Eenmanszaak", { aandeel: 0, domein: null, secties: [] }),
+    kansen: [eenmanszaak],
+    primair: eenmanszaak,
+    marktGemiddelde: 0.3,
+    heeftContactgegevens: false,
+    sizeSignal: "zzp",
+    doNotContact: false,
+    eerderAfgewezen: false,
+  });
+
+  const groot = rekenScore({
+    bedrijf: meting("groot", "Professioneel", {
+      aandeel: 0.35,
+      secties: ["aankoop", "verkoop", "taxatie", "team", "contact", "nieuws", "over", "diensten"],
+    }),
+    kansen: [gemist],
+    primair: gemist,
+    marktGemiddelde: 0.5,
+    heeftContactgegevens: true,
+    sizeSignal: "middel",
+    doNotContact: false,
+    eerderAfgewezen: false,
+  });
+
+  ok(
+    "de professionele partij die één dienst mist wint van de onzichtbare eenmanszaak",
+    groot.score > klein.score,
+    `${groot.score} tegen ${klein.score}`,
+  );
+
+  // De opbouw staat er altijd bij, want zonder de componenten is de score niet
+  // uit te leggen en bestaat de leerlus uit hoofdstuk 19 later niet.
+  ok("elke component staat apart", Object.keys(groot.breakdown).length >= 7);
+  ok("de aftrek is zichtbaar en niet weggemoffeld", klein.breakdown.aftrek < 0);
+});
+
+group("een afgemeld bedrijf scoort nul, hoe groot de kans ook is", () => {
+  // Plan 13.1: `do_not_contact` en een afwijzing binnen twaalf maanden zetten de
+  // score op NUL in plaats van hem te verlagen. Een score van 30 op een bedrijf
+  // dat zich heeft afgemeld staat nog steeds in de lijst en wordt toch gebeld.
+  const kans: Kans = {
+    type: "verlies",
+    vragen: ["v1"],
+    antwoorden: ["a1"],
+    cijfers: { nu: 0.1, eerder: 0.6, daling: 0.5 },
+  };
+  const uit = rekenScore({
+    bedrijf: meting("weg", "Afgemeld", { aandeel: 0.1 }),
+    kansen: [kans],
+    primair: kans,
+    marktGemiddelde: 0.5,
+    heeftContactgegevens: true,
+    sizeSignal: "groot",
+    doNotContact: true,
+    eerderAfgewezen: false,
+  });
+  eq2("de score is nul", uit.score, 0);
+  ok("en de reden staat in de opbouw", uit.breakdown.reden_afgemeld === 1);
+});
+
+group("urgentie verhoogt de score, en scherpte weegt mee", () => {
+  const basis = {
+    bedrijf: meting("b", "Bedrijf", { aandeel: 0.2, secties: ["a", "b", "c", "d"] }),
+    marktGemiddelde: 0.4,
+    heeftContactgegevens: true,
+    sizeSignal: "middel",
+    doNotContact: false,
+    eerderAfgewezen: false,
+  };
+  const zonderVerlies: Kans = {
+    type: "onzichtbaar",
+    vragen: [],
+    antwoorden: [],
+    cijfers: {},
+  };
+  const metVerlies: Kans = { type: "verlies", vragen: ["v"], antwoorden: ["a"], cijfers: {} };
+
+  const a = rekenScore({ ...basis, kansen: [zonderVerlies], primair: zonderVerlies });
+  const b = rekenScore({ ...basis, kansen: [metVerlies], primair: metVerlies });
+  ok("een aantoonbare daling telt zwaarder", b.score > a.score, `${b.score} tegen ${a.score}`);
+  ok("de bonus is tien punten", BEWEGING_BONUS === 10);
+
+  // Plan 13.1: type 5 en 3 zijn scherper dan type 1, want specifiek en
+  // verifieerbaar.
+  ok("een information gap is scherper dan onzichtbaar", SCHERPTE.information_gap > SCHERPTE.onzichtbaar);
+  ok("een intent gap ook", SCHERPTE.intent_gap > SCHERPTE.onzichtbaar);
+
+  // De gewichten samen zijn honderd, plus de bonus erbovenop.
+  const som = Object.values(GEWICHTEN).reduce((s, g) => s + g, 0);
+  eq2("de componenten tellen op tot honderd", som, 100);
+});
+
+group("een haak met een verzonnen getal wordt verworpen", () => {
+  // ⚠️ DIT IS HET VANGNET UIT PLAN HOOFDSTUK 14. Een model dat een zin mooier
+  // maakt rondt onderweg een getal af, en dat is precies wat een prospect
+  // naleest.
+  const kans: Kans = {
+    type: "concurrent_gap",
+    vragen: ["v1", "v2"],
+    antwoorden: ["a1", "a2"],
+    rivalCompanyId: "y",
+    cijfers: { eigen_aandeel: 0.1, concurrent_aandeel: 0.4, vragen: 40 },
+  };
+
+  ok(
+    "een zin met de gemeten percentages mag",
+    controleerHook("Y wordt bij 40% van de vragen genoemd, jij bij 10%.", kans).ok,
+  );
+  ok(
+    "de verhouding uit die twee mag ook",
+    controleerHook("Y wordt 4 keer vaker genoemd dan jij.", kans).ok,
+  );
+  const fout = controleerHook("Y wordt 7 keer vaker genoemd dan jij.", kans);
+  ok("een verzonnen verhouding niet", !fout.ok);
+  eq2("en het foute getal wordt benoemd", fout.onbekend[0] ?? 0, 7);
+  ok(
+    "een zin zonder getallen mag altijd",
+    controleerHook("Y wordt vaker genoemd dan jij.", kans).ok,
+  );
+  ok("de toegestane getallen komen uit de meetdata", toegestaneGetallen(kans).has(40));
+});
+
+group("valt er geen zin door de controle, dan wint het sjabloon", () => {
+  const kans: Kans = {
+    type: "concurrent_gap",
+    vragen: ["v1"],
+    antwoorden: ["a1"],
+    rivalCompanyId: "y",
+    cijfers: { eigen_aandeel: 0.1, concurrent_aandeel: 0.4 },
+  };
+
+  const goed = kiesHook(
+    ["Y wordt bij 40% van de vragen genoemd, Van X bij 10%."],
+    kans,
+    "Van X",
+    "Y Makelaars",
+  );
+  eq("een kloppende zin komt uit het model", goed.bron, "model");
+
+  const alleFout = kiesHook(
+    ["Y wordt 9 keer vaker genoemd.", "Y scoort 88% beter.", "Y wint met 77 punten."],
+    kans,
+    "Van X",
+    "Y Makelaars",
+  );
+  eq("drie foute zinnen leveren het sjabloon op", alleFout.bron, "sjabloon");
+  // ⚠️ En dat sjabloon is zelf gecontroleerd: het bevat uitsluitend waarden uit
+  // de meetdata. Een saaie ware zin verslaat een mooie zin met een verzonnen
+  // getal, want die tweede kost het hele gesprek.
+  ok("en het sjabloon komt door zijn eigen controle", controleerHook(alleFout.tekst, kans).ok);
+
+  // Elk van de acht types heeft een sjabloonzin die de controle haalt.
+  for (const type of KANS_TYPES) {
+    const k: Kans = {
+      type,
+      vragen: ["v1"],
+      antwoorden: ["a1"],
+      cijfers: {
+        vermeldingen: 3,
+        vragen: 40,
+        eigen_aandeel: 0.1,
+        concurrent_aandeel: 0.4,
+        hoogste_aandeel: 0.6,
+        laagste_aandeel: 0.1,
+        concurrenten_in_die_bronnen: 3,
+        positie: 2,
+        nu: 0.2,
+        eerder: 0.5,
+      },
+    };
+    const zin = sjabloonHook(k, "Van X", "Y Makelaars");
+    ok(`het sjabloon van ${type} klopt met de data`, controleerHook(zin, k).ok, zin);
+    ok(`en noemt het bedrijf bij naam`, zin.includes("Van X") || type === "information_gap");
+  }
+});
+
+group("de opdracht aan het model laat geen ruimte voor eigen cijfers", () => {
+  const kans: Kans = {
+    type: "concurrent_gap",
+    vragen: ["v1"],
+    antwoorden: ["a1"],
+    cijfers: { eigen_aandeel: 0.1, concurrent_aandeel: 0.4 },
+  };
+  const vraag = bouwHookVraag(kans, "Van X", "Y Makelaars", "Makelaars Eindhoven");
+  ok("de cijfers gaan mee als percentages", vraag.includes("40%"));
+  ok("het sjabloon staat erbij als ondergrens", vraag.includes("Dit staat er als je het niet beter kunt"));
+  ok("en de opdracht om niets te verzinnen", vraag.includes("Verzin geen enkel getal"));
+  ok("één zin, niet vijf", vraag.includes("Eén zin"));
 });
 
 // ════════════════════════════════════════════════════════════════════════════
