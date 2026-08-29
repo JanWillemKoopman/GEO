@@ -29,16 +29,34 @@ fase 3 horen bij de stappen en zijn per stap genummerd.
 dat risico wel heeft (het contentbeveiligingsbeleid, stap `A2`), staat er expliciet een
 tussenstap in de meetstand voordat hij afdwingt.
 
+### Vastgelegde keuzes
+
+Deze zes zijn op 29 augustus 2026 door de eigenaar beslist. **Stel ze niet opnieuw**, bouw ze.
+
+| Onderwerp | Besluit | Raakt |
+|---|---|---|
+| Hoe vaak een crawl mag | **5 per uur, per merk en per gebruiker geteld.** De drukste dag ooit gemeten waren er 2, dus dit is ruim 2,5x de echte praktijk en knelt nooit bij normaal gebruik. | `A3` |
+| Herstelmail vanaf previews | **Nee, alleen productie.** Dus één vast adres uit `NEXT_PUBLIC_SITE_URL`, en `VERCEL_URL` komt er niet aan te pas. Dit is de simpelste en veiligste variant. | `Q6` |
+| Uitnodiging naar een bestaand account | **Eerst inloggen, dan koppelt de link.** Niet het bestaande wachtwoord op het activatiescherm vragen. | `Q3` |
+| Schermen insluiten in een iframe | **Nee, nooit.** Dus `X-Frame-Options: DENY` en `frame-ancestors 'none'`, zonder uitzonderingen. | `Q2`, `A2` |
+| Omleidingslijst in Supabase | Volgt uit het tweede besluit: **alleen het productieadres**, geen patroon met een jokerteken voor `*.vercel.app`. | `Q6` |
+| Externe partijen in de pagina | Nagerekend, niet gevraagd: **er zijn er nul.** Geen analytics, geen externe scripts, geen iframes, en de browser praat alleen met de eigen app en met Supabase. Daarom kan het contentbeveiligingsbeleid strak, en is de kans dat `A2` iets breekt klein. | `A2` |
+| Een klant die een merk aanmaakt | **Wordt een aanvraag, geen aanmaakactie.** De klant kan het zelf starten, maar het komt als verzoek bij de eigenaar binnen en de crawl begint pas na goedkeuring. Het scherm moet duidelijk maken dat je een verzoek doet. | `A8` |
+| Technische foutdetails bij de klant | **Vervangen door een foutcode.** De klant leest een kort kenmerk, de volledige fout staat in het serverlogboek. | `A6` |
+| Backuptabel `_backup_20260729` | **Inhoud eerst bekeken, zie `L6`.** Beslissing over verwijderen volgt daar. | `Q10` |
+
 ---
 
 ## 1. Executive Summary
 
 ### De korte versie
 
-ORBIT ENGINE is **beter beveiligd dan gemiddeld voor een applicatie van deze omvang**. De audit
-vond **geen kritieke kwetsbaarheid**: geen enkel gat waardoor een willekeurige bezoeker van
-internet zonder inloggegevens klantdata kan lezen, wijzigen of verwijderen. Dat is geen toeval maar
-het gevolg van drie keuzes die consequent zijn volgehouden:
+ORBIT ENGINE is **beter beveiligd dan gemiddeld voor een applicatie van deze omvang**, met
+**een uitzondering die meteen aandacht vraagt**.
+
+Het fundament is goed. Er is geen enkel gat waardoor een bezoeker **zonder inloggegevens** bij
+klantdata komt, en geen gat waardoor de ene klant de opgeslagen gegevens van de andere klant kan
+lezen. Dat is geen toeval maar het gevolg van drie keuzes die consequent zijn volgehouden:
 
 - **De toegangsvraag staat op een plek.** `lib/access.ts` beantwoordt "mag deze gebruiker bij deze
   rij" met drie lagen, en alle 50 beveiligde routes onder `app/api/` stellen die vraag via `getOwnedProfile()`
@@ -51,27 +69,49 @@ het gevolg van drie keuzes die consequent zijn volgehouden:
   De cron-sleutel die de database gebruikt om de werker wakker te maken staat in Supabase Vault,
   niet hardgecodeerd in de databasefunctie.
 
-### Wat wel aandacht vraagt
+### De uitzondering: de crawler haalt op wat de klant aanwijst
 
-De risico's die er zijn, zitten niet in de toegangscontrole maar op **vier andere plekken**:
+**`K1`, kritiek.** ORBIT ENGINE haalt websites op die de gebruiker aanwijst, en controleert
+daarbij niet waar dat adres naartoe wijst. De volledige keten, elke schakel nagerekend:
 
-1. **De crawler is een open deur naar binnen (`Hoog`).** ORBIT ENGINE haalt websites op die de
-   gebruiker aanwijst, en controleert daarbij niet waar dat adres naartoe wijst. Nagerekend:
-   `10.0.0.55`, `192.168.1.10`, `172.17.0.12` en `169.254.169.254` komen allemaal door de
-   adrescontrole heen. Een ingelogde klant kan het sitemap-adres van zijn merk op een intern
-   adres zetten en ORBIT ENGINE dat laten ophalen. Dit heet server side request forgery. Vandaag
-   is de schade beperkt omdat de app op Vercel in een geisoleerde omgeving draait, maar het is
-   precies het soort gat dat bij de eerste verhuizing naar een eigen netwerk levensgevaarlijk
-   wordt.
-2. **Er staat geen enkele rem op het aantal verzoeken (`Hoog`).** Geen rate limiting, nergens.
+1. Een klant maakt een merk aan en vult als website een **intern adres** in. Nagemeten met je
+   eigen `checkUrlFormat()`: `169.254.169.254`, `10.0.0.55`, `192.168.1.10`, `172.17.0.12` en
+   `127.0.0.1.nip.io` komen er allemaal doorheen.
+2. **Elke ingelogde klant mag dat**, niet alleen jij. Sinds 27 augustus 2026 staat van de zes
+   dure handelingen alleen nog `reputatie_starten` op slot (`lib/cost-rules.ts:57`), en een merk
+   aanmaken is er bewust uitgehaald zodat de klant zijn eigen groeiwerk doet.
+3. De pijplijn haalt dat adres op, zet het antwoord om naar platte tekst en **bewaart die**
+   (`lib/pipeline/refresh-inventory.ts:44`).
+4. De leesregels geven die tekst gewoon terug aan de eigenaar van het merk, en het merkdossier
+   toont hem op het scherm.
+
+Dat is dus geen blinde aanval maar **een leesbare**: wat er op het opgehaalde adres staat, komt
+terug op het scherm van de aanvaller. Dit heet server side request forgery.
+
+**Wat dat vandaag waard is, en wat morgen.** Vandaag draait de app op Vercel in een geisoleerde
+omgeving, dus er staat weinig achter die deur om op te halen. Dat is de enige reden dat er nu
+waarschijnlijk niets te halen valt, en het is een eigenschap van je hosting en niet van je code.
+Op de dag dat ORBIT ENGINE naast een eigen dienst of database komt te staan, is dit zonder één
+regel codewijziging een lek van interne gegevens. Bovendien werkt het nu al als anonieme
+verkeersversterker: de aanvaller is jouw server, en het slachtoffer ziet jouw IP-adres.
+
+**Correctie op mijn eerste lezing.** In de eerste versie van dit document stond dat deze route
+alleen voor de beheerder open stond. Dat klopte niet: ik had `mayTriggerCost` gelezen zonder
+`STAFF_ONLY_ACTIONS` erbij te halen. Daarmee ging de bevinding van `Hoog` naar `Kritiek`.
+
+### Wat verder aandacht vraagt
+
+Daarnaast drie bevindingen op niveau `Hoog`:
+
+1. **Er staat geen enkele rem op het aantal verzoeken.** Geen rate limiting, nergens.
    Een ingelogde klant kan `/api/profiles/[id]/refresh-inventory` in een lus aanroepen en per
    aanroep 150 pagina's laten ophalen. Daarmee is ORBIT ENGINE niet alleen zelf plat te leggen,
    maar ook te gebruiken als aanvalswapen tegen de website van iemand anders.
-3. **Er staat geen enkele beveiligingsheader op de app (`Hoog`).** Geen contentbeveiligingsbeleid,
+2. **Er staat geen enkele beveiligingsheader op de app.** Geen contentbeveiligingsbeleid,
    geen clickjacking-bescherming, geen HSTS. De app toont AI-gegenereerde content met
    `dangerouslySetInnerHTML`. De markdown-omzetter zelf is aantoonbaar veilig, maar er is geen
    tweede net onder: als er ooit een gat in valt, is de sessiecookie meteen mee te nemen.
-4. **Vier hoge kwetsbaarheden in afhankelijkheden (`Hoog`).** `npm audit` meldt er vier, allemaal
+3. **Vier hoge kwetsbaarheden in afhankelijkheden.** `npm audit` meldt er vier, allemaal
    in de Next.js-boom. Geen ervan is vandaag uitbuitbaar in deze app, maar ze horen weg.
 
 ### De scherpste zin uit dit rapport
@@ -85,8 +125,8 @@ momenten is dat de fouten dan niet meer terug te draaien zijn.
 
 | Niveau | Aantal | Samenvatting |
 |---|---:|---|
-| **Kritiek** | 0 | Geen. Geen pad van internet naar klantdata zonder geldige sessie. |
-| **Hoog** | 4 | Crawler-SSRF, geen rate limiting, geen beveiligingsheaders, kwetsbare pakketten. |
+| **Kritiek** | 1 | Crawler-SSRF: elke ingelogde klant laat ORBIT ENGINE een intern adres ophalen en leest het antwoord terug. |
+| **Hoog** | 3 | Geen rate limiting, geen beveiligingsheaders, kwetsbare pakketten. |
 | **Medium** | 7 | Uitnodigingsflow, health-endpoint, herstel-link, CSV-formules, promptinjectie, anonieme RPC-rechten, lekwachtwoordcontrole uit. |
 | **Laag** | 9 | Timing-vergelijking, technische foutdetails, filterinterpolatie, en zes kleinere. |
 
@@ -145,7 +185,7 @@ dat niet van hemzelf komt:
 4. `lib/crawler.ts:110` en `:146`, het merkadres zelf, bij het aanmaken van een merk.
 
 Alle vier gaan naar `fetch()` met `redirect: "follow"` (`lib/crawler.ts:174-181`), dus ook een
-omleiding naar een intern adres wordt gevolgd. Zie `H1`.
+omleiding naar een intern adres wordt gevolgd. Zie `K1`.
 
 ### 2.4 De achtergrondwachtrij en de cron-endpoints
 
@@ -219,18 +259,14 @@ Volledigheidshalve, deze vectoren zijn onderzocht en **schoon** bevonden:
 
 ### KRITIEK
 
-**Geen.**
+**Wat hier NIET staat, en dat is het vermelden waard.** Er is geen pad gevonden waarlangs een
+bezoeker **zonder geldige sessie** klantdata kan lezen, wijzigen of verwijderen, en geen pad
+waarlangs een ingelogde klant bij de **opgeslagen gegevens van een andere klant** komt. De
+drielaagse toegangscontrole is consequent toegepast, de database is op rijniveau dicht, en er zijn
+geen geheimen gelekt. De bevinding hieronder gaat over iets anders: niet over data die al in
+ORBIT ENGINE staat, maar over ORBIT ENGINE als middel om ergens anders bij te komen.
 
-Er is geen pad gevonden waarlangs een bezoeker zonder geldige sessie klantdata kan lezen,
-wijzigen of verwijderen, en geen pad waarlangs een ingelogde klant bij de data van een andere
-klant komt. De drielaagse toegangscontrole is consequent toegepast, de database is op rijniveau
-dicht, en er zijn geen geheimen gelekt.
-
----
-
-### HOOG
-
-#### H1. Server side request forgery via de crawler
+#### K1. Server side request forgery via de crawler
 
 **Bestanden:**
 - `lib/url.ts:60-67` (de adrescontrole die te weinig weert)
@@ -260,27 +296,58 @@ Let op de laatste twee: die worden geweigerd door de regel `tld.length < 2` op `
 die bedoeld is om de typefout "voorbeeld.n" te vangen. Dat is toeval, geen bescherming. Zodra het
 laatste getal twee cijfers heeft, komt het adres er gewoon doorheen.
 
-**Wie kan dit uitbuiten, en hoe ver komt hij.** Er zijn twee paden met een verschillende
-reikwijdte, en dat onderscheid is belangrijk:
+**Wie kan dit uitbuiten, en hoe ver komt hij.** Er zijn twee paden, en ze zijn **allebei
+bereikbaar voor elke ingelogde klant**:
 
-| Pad | Wie | Wat hij bereikt |
-|---|---|---|
-| `sitemap_url` bijwerken, dan `refresh-inventory` aanroepen | **elke ingelogde klant** die bij het merk mag | ORBIT ENGINE haalt het opgegeven adres op. Het antwoord wordt als XML uitgekamd en de gevonden adressen worden op domein gefilterd, dus de inhoud komt niet terug op het scherm. Dit is een **blinde** aanval: wel bruikbaar om te ontdekken welke interne poorten open staan (het verschil tussen "weigert meteen" en "wacht 12 seconden" is meetbaar), niet om data uit te lezen. |
-| het merkadres zetten bij het aanmaken | **alleen de beheerder** (`mayTriggerCost` op `app/api/profiles/route.ts:64`) | ORBIT ENGINE haalt de pagina op, zet hem om naar tekst en **bewaart die zichtbaar in het merkdossier**. Dit is een volledig leesbare aanval. |
+| Pad | Wat hij bereikt |
+|---|---|
+| **Een merk aanmaken met een intern adres** als website (`POST /api/profiles`) | ORBIT ENGINE haalt het op, zet het om naar platte tekst, **bewaart die** (`lib/pipeline/refresh-inventory.ts:44`) en **toont hem in het merkdossier**. Een volledig **leesbare** aanval: wat er achter dat adres staat, komt terug op het scherm van de aanvaller. |
+| **`sitemap_url` bijwerken en `refresh-inventory` aanroepen** | ORBIT ENGINE haalt het op en kamt het uit als XML. De inhoud komt niet op het scherm, dus dit is **blind**, maar wel bruikbaar om te ontdekken welke interne adressen en poorten bestaan: het verschil tussen "weigert meteen" en "wacht twaalf seconden" is goed meetbaar. |
 
-De blinde variant is dus bereikbaar voor elke klant, de leesbare alleen voor de beheerder. Dat is
-de reden dat dit `Hoog` is en niet `Kritiek`.
+**⚠️ Het eerste pad staat niet op slot, en dat is een bewuste productkeuze geweest.** Je zou
+verwachten dat `mayTriggerCost(user.id, "merk_onderzoeken")` op `app/api/profiles/route.ts:64` dit
+tot de beheerder beperkt. Dat deed het tot 27 augustus 2026, maar sindsdien bevat
+`STAFF_ONLY_ACTIONS` (`lib/cost-rules.ts:57`) nog maar één handeling, `reputatie_starten`. Een
+merk aanmaken is er toen bewust uit gehaald, met een goede reden: de klant doet zijn eigen
+groeiwerk. Dat besluit is prima. Het gevolg dat niemand toen kon zien is dat daarmee ook het
+invoerveld voor de crawler open ging voor iedereen.
 
-**Waarom dit toch nu opgelost moet worden.** Drie redenen. De crawler volgt omleidingen, dus een
-adres dat vandaag netjes lijkt kan morgen naar binnen wijzen. Punt 3 hierboven betekent dat een
+Dit is precies het patroon waar dit soort fouten vandaan komt: een verandering die op zichzelf
+klopt, verschuift ergens anders een grens die niemand in het gesprek betrok.
+
+**Waarom dit `Kritiek` heet en niet `Hoog`.** Omdat de drie voorwaarden voor de zwaarste
+classificatie alle drie waar zijn: elke gewone klant kan het starten, de aanvaller **leest het
+antwoord terug**, en er is geen enkele controle die het tegenhoudt. Dat er vandaag weinig achter
+die deur staat, is een eigenschap van je hosting en geen eigenschap van je code.
+
+**Drie dingen die de zaak nog erger maken.** De crawler volgt omleidingen, dus een adres dat
+vandaag netjes lijkt kan morgen naar binnen wijzen, en een adres met een geldig certificaat kan
+gewoon naar `127.0.0.1` verwijzen. Punt 3 in de bestandenlijst hierboven betekent dat zelfs een
 **vreemde website** de crawler kan aansturen: zet een sitemap-index op je site met verwijzingen
-naar interne adressen van ORBIT ENGINE, en de crawler volgt ze, tot vijftig stuks. En de dag dat
-deze applicatie in een eigen netwerk komt te staan, naast een database of een interne dienst,
-verandert deze bevinding zonder één regel codewijziging van `Hoog` in `Kritiek`.
+naar adressen die jij kiest, en de crawler volgt ze, tot vijftig stuks. En zolang er geen rate
+limiting is (`H2`), kan dit in een lus, waarmee ORBIT ENGINE een scanner wordt die op jouw naam
+staat.
 
-**Oplossing:** `Q1` (snelle afdichting) en `A1` (de volledige poort).
+**Oplossing: drie lagen, en ze vervangen elkaar niet.**
+
+| Stap | Wat het doet | Wanneer |
+|---|---|---|
+| `Q1` | Weert adressen die letterlijk intern zijn. De noodgreep. | **Eerst, vóór alles.** |
+| `A1` | Zoekt de naam op en kijkt naar het IP-adres, ook bij elke omleiding. De echte poort. | Fase 2, eerste stap. |
+| `A8` | Een mens kijkt naar het adres voordat er iets opgehaald wordt. | Fase 2, na `A1`. |
+
+⚠️ **`A8` maakt `A1` niet overbodig, en dat is de belangrijkste zin van deze bevinding.** Een mens
+die naar een aanvraag kijkt, ziet `10.0.0.55` meteen. Hij ziet **niet** dat `127.0.0.1.nip.io` naar
+localhost wijst, en al helemaal niet dat `research-partner.example` een A-record naar `10.0.0.5`
+heeft. Alleen het opzoeken van de naam verraadt dat, en dat gebeurt in `A1`. Bovendien dekt `A8`
+alleen het aanmaken: `sitemap_url` bijwerken en `refresh-inventory` aanroepen op een merk dat al
+goedgekeurd is, gaat er volledig langs.
+
+Bouw ze dus alle drie.
 
 ---
+
+### HOOG
 
 #### H2. Geen enkele rem op het aantal verzoeken
 
@@ -294,7 +361,7 @@ nul treffers in de applicatiecode. Dat raakt vier dingen tegelijk:
    een eigendomscontrole. Elke aanroep haalt tot 150 pagina's op
    (`MAX_PAGES_HARD_CAP`, `lib/crawler.ts:48`), acht tegelijk. Een klant die dit in een lus zet,
    met `sitemap_url` gericht op een website van iemand anders, gebruikt ORBIT ENGINE als
-   verkeersversterker tegen die site. Gecombineerd met `H1` is dit de scherpste van de twee.
+   verkeersversterker tegen die site. Gecombineerd met `K1` is dit de scherpste van de twee.
 2. **Uitnodigingen raden.** `POST /api/invites/accept` mag onbeperkt geprobeerd worden. Het token
    is 256 bits, dus raden lukt niet, maar er is geen reden om het pogen toe te staan.
 3. **Wachtwoorden raden.** `signIn` in `app/(auth)/actions.ts:18` leunt volledig op de limieten
@@ -485,10 +552,28 @@ uitnodiging (`lib/invite-rules.ts`), dus dit raakt elke klant die binnenkomt. Zi
 | **L3** | Stringinterpolatie in een PostgREST-filter | `lib/jobs/content-jobs.ts:139` | `.or(\`scope.eq.merk,analysis_id.eq.${analysisId}\`)`. Niet uitbuitbaar: die tak wordt alleen bereikt als de analyse net met dezelfde id is gevonden, dus het is een echte UUID. Wel een breekbaar patroon. |
 | **L4** | Registratiefout wordt letterlijk doorgegeven | `app/(auth)/actions.ts:41` | `Registreren mislukt: ${error.message}` maakt het mogelijk te achterhalen of een adres al bestaat. Registratie staat standaard uit, dus nu onbereikbaar. |
 | **L5** | E-mailadres wijzigen vraagt niet om het wachtwoord | `app/api/account/security/route.ts:42-62` | Wachtwoord wijzigen vraagt het huidige wachtwoord, e-mailadres wijzigen niet. Supabase stuurt wel een bevestiging naar het nieuwe adres, dus overname lukt niet, maar de twee horen gelijk behandeld te worden. |
-| **L6** | Backuptabel staat nog in productie | tabel `public._backup_20260729` | 51 rijen. RLS aan, nul policies, dus onbereikbaar van buiten. Maar het is een kopie van data van een maand oud die niemand meer bijhoudt. |
+| **L6** | Backuptabel staat nog in productie | tabel `public._backup_20260729` | 51 rijen, uitgelezen op 29 augustus 2026. Zie de toelichting onder deze tabel. |
 | **L7** | `X-Powered-By` staat aan | `next.config.ts` | Vertelt bij elke response welke serversoftware er draait. Eén regel om uit te zetten. |
 | **L8** | Onbeperkte body-grootte op API-routes | `next.config.ts:16-18` | Server Actions zijn op 2 MB gezet, route handlers niet. Een grote body kan geheugen opeten. |
 | **L9** | Toegangscontrole in de contentpijplijn wijkt af | `lib/pipeline/content.ts:611` | `analysisRow.user_id !== userId` gebruikt alleen de eigenaarslaag, niet de accountlaag uit `lib/access.ts`. Dit is strenger dan nodig, dus het is geen gat. Het is wel exact het uiteenlopen dat `lib/access.ts` moest voorkomen, en het betekent dat contentgeneratie faalt voor een uitgenodigde klant die niet de oorspronkelijke eigenaar is. Dit is eerder een werkingsfout dan een beveiligingsfout, maar hij hoort in dezelfde ronde mee. |
+
+**Wat er in `_backup_20260729` staat (`L6`), uitgelezen op 29 augustus 2026:**
+
+| Bron | Reden | Rijen | Datum |
+|---|---|---:|---|
+| `prompts` | cluster-overflow | 23 | 29 juli |
+| `entities` | entiteit-normalisatie | 15 | 29 juli |
+| `content_pieces` | opruiming titel, doelintentie, meta, CTA, review-notities | 7 | 30 juli |
+| `content_pieces` | titel, bestaande URL, schema, review-notities | 3 | 29 juli |
+| `reports` | opruiming aanbevelingen | 1 | 30 juli |
+| `reports` | cluster-overflow in gaten en aanbevelingen | 1 | 29 juli |
+| `visibility_scores` | share of voice herberekend | 1 | 29 juli |
+
+Het zijn dus **veiligheidskopieën van vóór zeven opruimacties** op 29 en 30 juli, allemaal een
+maand oud. Als die opruimacties destijds zijn nagerekend, en de app draait er sindsdien een maand
+op zonder klacht, dan is dit wegwerpdata. **Mijn aanbeveling: verwijderen**, met de kanttekening
+dat het jouw beslissing is en onomkeerbaar. De veiligheidswinst is klein (hij lekt nu niets), de
+opruimwinst is dat er geen tabel meer staat waarvan over een jaar niemand weet wat hij doet.
 
 ---
 
@@ -511,11 +596,15 @@ uitnodiging (`lib/invite-rules.ts`), dus dit raakt elke klant die binnenkomt. Zi
 Doel: de gaten dichten die vandaag open staan, zonder de architectuur aan te raken. Geschatte
 omvang: een halve dag. Elke stap is losstaand en terug te draaien.
 
+⚠️ **`Q1` is de enige met een volgorde-eis: die gaat eerst.** Hij hoort bij de kritieke bevinding.
+De andere negen mogen in elke volgorde.
+
 ---
 
 #### Q1. Weer interne adressen in de adrescontrole
 
-**Lost op:** `H1`, gedeeltelijk. Dit is de noodgreep. De volledige oplossing is `A1`.
+**Lost op:** `K1`, gedeeltelijk. Dit is de noodgreep, en het is de eerste wijziging die je
+doet. De volledige oplossing is `A1`.
 **Bestanden:** `lib/url.ts` (nieuwe functie erbij), `scripts/test-unit.ts` (tests).
 **Risico voor de werking:** nihil. Legitieme klantwebsites hebben geen privé-adres.
 
@@ -547,9 +636,10 @@ contentbeveiligingsbeleid, dat wél iets kan breken, zit bewust in `A2`.
 **Wat je doet.** Voeg een `headers()`-functie toe aan `next.config.ts` met zes headers, en zet
 `poweredByHeader` uit. Code: zie **fase 3, voorbeeld 2**.
 
-**Let op bij `X-Frame-Options: DENY`:** controleer eerst of er geen scherm van ORBIT ENGINE
-bedoeld is om in een frame te draaien. Uit de codebase blijkt van niet. Blijkt dat later toch zo,
-gebruik dan `SAMEORIGIN`.
+**`X-Frame-Options: DENY` is bevestigd** door de eigenaar op 29 augustus 2026: schermen worden
+als link gedeeld, nooit ingesloten. Gebruik dus `DENY` en niet `SAMEORIGIN`, en zet in `A2`
+`frame-ancestors 'none'`. Wordt er later tóch een demo ingesloten, dan is dat één regel, maar het
+is dan wel een bewust besluit in plaats van een openstaande deur.
 
 **Verificatie:** `npm run build && npm start`, dan
 `curl -sI http://localhost:3000/login | grep -iE "x-frame|x-content|referrer|permissions|powered"`.
@@ -567,15 +657,18 @@ tweede klant wordt uitgenodigd. Lees de toelichting.
 
 **Wat je doet.** In `acceptInvite()` (`lib/invites.ts:137`), in de tak waar de gebruiker al
 bestaat: maak het lidmaatschap **niet** meer aan op basis van het token alleen. Eis dat de
-aanvrager kan bewijzen dat hij die gebruiker is. Twee manieren, kies de eerste:
+aanvrager kan bewijzen dat hij die gebruiker is.
 
-1. **Aanbevolen.** Is er een ingelogde sessie en hoort die bij het uitgenodigde e-mailadres, dan
-   het lidmaatschap aanmaken. Is die er niet, geef dan een nieuwe uitkomst terug,
-   `reason: "inloggen_vereist"`, en laat het activatiescherm zeggen: "Dit adres heeft al een
-   ORBIT ENGINE-account. Log in, dan koppelen we de uitnodiging." Na het inloggen komt de klant
-   terug op dezelfde link en slaagt de aanroep wel.
-2. **Alternatief, minder goed.** Vraag het bestaande wachtwoord in plaats van een nieuw
-   wachtwoord, en controleer het met `signInWithPassword`.
+**Besloten op 29 augustus 2026: via inloggen, niet via het bestaande wachtwoord.** Is er een
+ingelogde sessie en hoort die bij het uitgenodigde e-mailadres, dan het lidmaatschap aanmaken. Is
+die er niet, geef dan een nieuwe uitkomst terug, `reason: "inloggen_vereist"`, en laat het
+activatiescherm zeggen: "Dit adres heeft al een ORBIT ENGINE-account. Log in, dan koppelen we de
+uitnodiging." Na het inloggen opent de klant dezelfde link opnieuw en slaagt hij wel.
+
+De afgewezen variant was: het bestaande wachtwoord vragen op het activatiescherm. Dat scheelt een
+stap, maar het leert klanten hun wachtwoord in te typen op een pagina waar ze via een e-maillink
+zijn binnengekomen, en dat is precies de gewoonte waar oplichting op drijft. **Bouw die variant
+dus niet**, ook niet als hij onderweg handiger lijkt.
 
 Code: zie **fase 3, voorbeeld 3**.
 
@@ -631,11 +724,12 @@ openen. Punt 3 raakt de sessie, dus dat handmatige rondje is niet optioneel.
 
 **Lost op:** `M3`.
 **Bestand:** `app/(auth)/actions.ts:89-91`.
-**Risico voor de werking:** let op de preview-omgevingen van Vercel, daar is deze code voor
-gemaakt. De oplossing hieronder houdt die werkend.
+**Risico voor de werking:** nihil, gegeven het besluit hierboven. Deze code was gemaakt om ook
+vanaf een preview-omgeving een herstelmail te kunnen sturen. Dat hoeft niet, dus het adres mag
+vastgezet worden en de Host-header verdwijnt volledig uit beeld.
 
-**Wat je doet.** Vergelijk de `Host` met een lijst adressen die je vertrouwt in plaats van hem
-blind over te nemen. Code: zie **fase 3, voorbeeld 5**.
+**Wat je doet.** Bouw de terugkomlink uit `NEXT_PUBLIC_SITE_URL` en gebruik de `Host`-header
+helemaal niet meer. Code: zie **fase 3, voorbeeld 5**.
 
 **Doe in dezelfde stap deze controle in het Supabase-dashboard**, want dat is de echte poort:
 Authentication, URL Configuration. Staat er bij "Redirect URLs" een jokerteken zoals `**` of
@@ -725,13 +819,17 @@ protection" aan. Controleer bij dezelfde gelegenheid dat de minimumlengte overee
 ### FASE 2: Architectonische Beveiliging
 
 Doel: de structurele maatregelen. Deze veranderen hoe de app werkt en verdienen elk een eigen
-commit met tests. Geschatte omvang: twee tot drie dagen.
+commit met tests. Geschatte omvang: drie tot vier dagen, waarvan `A8` het grootste deel is omdat
+daar ook schermwerk bij zit.
+
+Volgorde: `A1` eerst (dat is de echte poort onder `K1`), daarna `A3` en `A8` (die dekken samen de
+resterende routes naar de crawler af), en dan de rest in elke volgorde.
 
 ---
 
 #### A1. Eén veilige uitgaande verbinding voor de hele applicatie
 
-**Lost op:** `H1` volledig. Vervangt de noodgreep uit `Q1`.
+**Lost op:** `K1` volledig. Vervangt de noodgreep uit `Q1`.
 **Nieuwe bestanden:** `lib/net-guard.ts` (puur, testbaar), `lib/safe-fetch.ts` (`server-only`).
 **Gewijzigd:** `lib/crawler.ts` (alle vier de `fetch`-aanroepen), `lib/crawl-urls.ts:249`.
 
@@ -813,16 +911,28 @@ Code: zie **fase 3, voorbeeld 11**.
 
 | Endpoint | Sleutel | Limiet | Waarom |
 |---|---|---|---|
-| `POST /api/invites/accept` | IP-adres | 10 per uur | Raden onmogelijk maken. |
-| `POST /api/profiles/[id]/refresh-inventory` | gebruiker plus merk | 5 per uur | **De belangrijkste.** Haalt tot 150 pagina's op en heeft geen kostencontrole. |
-| `POST /api/profiles` | gebruiker | 10 per uur | Naast de bestaande kostencontrole. |
-| `POST /api/profiles/[id]/pages` | gebruiker plus merk | 20 per uur | Haalt per aanroep pagina's op. |
-| `POST /api/account/security` | gebruiker | 10 per uur | Doet een inlogpoging per aanroep. |
+| `POST /api/profiles/[id]/refresh-inventory` | gebruiker **plus** merk | **5 per uur** | **De belangrijkste.** Haalt tot 150 pagina's op en heeft als enige dure route géén kostencontrole. |
+| `POST /api/profiles` | gebruiker | **5 per uur** | Dit is de route van `K1`: hier komt het crawladres binnen. Zelfde limiet, zelfde reden. |
+| `POST /api/profiles/[id]/pages` | gebruiker plus merk | 20 per uur | Haalt per aanroep pagina's op, maar alleen van het eigen domein. |
+| `POST /api/invites/accept` | IP-adres | 10 per uur | Raden onmogelijk maken. Geen gebruiker om op te tellen, dus op IP. |
+| `POST /api/account/security` | gebruiker | 10 per uur | Doet per aanroep een echte inlogpoging. |
 | overige schrijfroutes | gebruiker | 120 per minuut | Ruim boven normaal gebruik, vangt alleen lussen. |
+
+**De vijf per uur is niet gegokt maar gemeten.** Over alle 30 crawltaken in productie: het drukste
+uur voor één merk waren er **2**, de drukste dag ook **2**. Vijf is dus ruim twee keer de drukste
+dag die ooit is voorgekomen, in een venster van een uur in plaats van een dag. Een consultant die
+tijdens een demogesprek met een sitemap zit te stoeien merkt hier niets van; een lus haalt er
+binnen een minuut honderden en loopt er meteen tegenaan.
+
+**Tel per gebruiker én per merk samen** (`${user.id}:${profileId}`), niet per merk alleen. Anders
+deelt een bureau met vijf mensen één teller en hindert de een de ander. En niet per gebruiker
+alleen, want dan zit iemand met tien merken elkaar in de weg.
 
 **Belangrijk voor de werking:** zet de limieten ruim. Ze zijn er om een lus te stoppen, niet om
 een vlijtige klant te hinderen. Geef bij overschrijding een 429 met een begrijpelijke Nederlandse
-tekst en een `Retry-After`-header, geen kale foutcode.
+tekst en een `Retry-After`-header, geen kale foutcode. En zet de knop in
+`app/(app)/merk/[id]/_components/inventory-box.tsx:65` op `disabled` zolang het verzoek loopt:
+die heeft nu geen enkele blokkade, dus dubbelklikken telt gewoon dubbel.
 
 **Verificatie:** unittests op `lib/rate-limit-rules.ts`, plus een ketentest die een endpoint
 zeventien keer aanroept en controleert dat de zesde een 429 geeft.
@@ -875,12 +985,30 @@ die bij elke schrijfactie kijkt of de `Origin`-header bij deze installatie hoort
 **Lost op:** `L2`.
 **Bestanden:** de tien routes met `detail: describeError(err)`.
 
+**Besloten op 29 augustus 2026: een foutcode, details alleen in het logboek.**
+
 De uitgebreide melding uit `classifyError()` is uitstekend en moet blijven: die vertelt de klant in
 gewone taal wat er is en wat hij kan doen. Wat weg moet is het veld `detail` met de ruwe
-servertekst. Vervang het door een **foutkenmerk**: een kort willekeurig nummer dat je meestuurt én
-in het serverlogboek zet. De klant leest "meld foutcode `a3f9c1`", en support vindt daarmee de
-volledige fout terug in de logboeken. Zelfde behulpzaamheid, zonder de interne details prijs te
-geven.
+servertekst. Vervang het door een **foutkenmerk**: zes willekeurige tekens die je meestuurt én in
+het serverlogboek zet.
+
+```ts
+const kenmerk = randomUUID().slice(0, 6);
+console.error(`[${kenmerk}] dossier ${id} mislukt:`, err);
+return NextResponse.json(
+  { error: "Verwerken is niet gelukt.", kenmerk, problem: classifyError(err) },
+  { status: 500 },
+);
+```
+
+Het scherm toont dan "Meld foutcode `a3f9c1`" in plaats van de uitklapper met servertekst. Zoek
+die code op in het Vercel-logboek en de volledige fout staat er, inclusief stack trace: méér dan
+de klant nu ziet, niet minder.
+
+⚠️ **Verwijder `detail` overal, ook uit `UserFacingError`** in `lib/errors.ts:41`. Blijft het veld
+bestaan, dan vult iemand hem over een half jaar weer, en dan staat de servertekst er stilletjes
+weer in. Laat `describeError()` zelf wél bestaan: die wordt gebruikt voor het logboek, en daar
+hoort hij.
 
 ---
 
@@ -899,6 +1027,116 @@ moest voorkomen, opnieuw, op een plek waar niemand keek.
 
 **Verificatie:** een ketentest waarin een uitgenodigd accountlid dat niet de eigenaar is, content
 laat genereren. Die moet slagen.
+
+---
+
+#### A8. Een merk aanvragen in plaats van aanmaken
+
+**Lost op:** de derde laag onder `K1`, en het sluit meteen aan op het sales-led model.
+**Nieuwe bestanden:** migratie `supabase/migrations/0070_merk_aanvraag.sql`,
+`lib/profile-request.ts` (puur, de regels), `app/api/profiles/[id]/goedkeuren/route.ts`.
+**Gewijzigd:** `app/api/profiles/route.ts`, `lib/profile-status.ts`, het aanmaakscherm, `/beheer`.
+
+**Het besluit, van de eigenaar op 29 augustus 2026.** Een klant mag een merk blijven starten, want
+dat besluit van 27 augustus was goed en blijft staan. Maar het wordt een **verzoek**: het komt bij
+de eigenaar binnen, en de klant moet op het scherm kunnen zien dat hij een verzoek doet en geen
+merk aanmaakt. Pas na goedkeuring gaat ORBIT ENGINE de website ophalen.
+
+**Waarom dit ook los van beveiliging het juiste is.** `CLAUDE.md` zegt dat het product sales-led
+is: de eigenaar zet het merkprofiel klaar vóór een demogesprek, en een nieuw merk is in de praktijk
+een nieuwe klant. Een knop die stilzwijgend een merk aanmaakt en er dollars aan onderzoek in stopt,
+past daar niet bij. Dit brengt de code in lijn met hoe het product verkocht wordt.
+
+**De beveiligingswinst.** Er wordt geen enkel adres opgehaald voordat een mens het gezien heeft.
+Geen fetch, geen AI-aanroep, geen kosten. Bij een aanvraag met `10.0.0.55` als website valt dat
+onmiddellijk op.
+
+**Hoe je het bouwt, in vijf delen:**
+
+1. **De status.** `profile_status` is een Postgres-enum met drie waarden (`bezig`, `klaar`,
+   `mislukt`, aangemaakt in `0004_profiles.sql:19`). Voeg `aangevraagd` en `afgewezen` toe:
+
+   ```sql
+   -- ⚠️ ALTER TYPE ... ADD VALUE mag in PostgreSQL 12+ in een transactie, maar de
+   -- nieuwe waarde is pas ná die transactie bruikbaar. Zet het dus in een EIGEN
+   -- migratie, los van de code die de waarde gebruikt, anders faalt de tweede helft.
+   alter type profile_status add value if not exists 'aangevraagd';
+   alter type profile_status add value if not exists 'afgewezen';
+   ```
+
+   Vul `PROFILE_STATUS_META` in `lib/profile-status.ts:8` aan met allebei. Let op `whoseTurn`:
+   bij `aangevraagd` is de beurt aan ORBIT ENGINE en niet aan de klant, want hij wacht op jou.
+
+2. **De aanmaakroute splitst.** In `app/api/profiles/route.ts`, na de eigendoms- en budgetcontrole:
+
+   ```ts
+   // ⚠️ HIER KOMT HET CRAWLADRES BINNEN (antihack.md K1). Een klant mag een merk
+   // aanvragen, maar er wordt niets opgehaald voordat de eigenaar het adres
+   // gezien heeft. Dat is niet alleen een slot: een nieuw merk is in dit product
+   // een nieuwe klant, en dat is een gesprek en geen knop.
+   const staf = await isStaff(user.id);
+   const status = staf ? "bezig" : "aangevraagd";
+
+   // ... het merk aanmaken met deze status, ongewijzigd verder ...
+
+   // De crawl start ALLEEN als de eigenaar zelf aanmaakt. Bij een aanvraag doet
+   // de goedkeuringsroute dit, en tot dat moment kost dit merk niets en raakt
+   // ORBIT ENGINE geen enkele externe server aan.
+   if (staf) {
+     await enqueue(admin, {
+       type: "profile_discover",
+       payload: {},
+       profileId: data.id as string,
+       dedupeKey: dedupe.profileDiscover(data.id as string),
+     });
+   }
+   ```
+
+3. **De goedkeuringsroute.** `POST /api/profiles/[id]/goedkeuren`, alleen voor `isStaff`, zet de
+   status op `bezig` en plant `profile_discover` in. Een tweede route of een veld in dezelfde
+   route doet de afwijzing, met een reden die de klant te zien krijgt.
+
+   ⚠️ **Controleer in die route opnieuw dat de status `aangevraagd` is**, en gebruik dat in de
+   `update` als voorwaarde (`.eq("status", "aangevraagd")`). Anders start twee keer klikken twee
+   crawls, en dat is precies de dubbeltelling die `dedupeKey` net moet voorkomen.
+
+4. **Het scherm van de klant.** Dit is het deel dat de eigenaar expliciet gevraagd heeft, en het
+   is geen detail: **de klant moet vóór het klikken weten dat hij een verzoek doet.**
+
+   - De knop heet "Merk aanvragen", niet "Merk aanmaken".
+   - Boven de knop staat wat er gaat gebeuren. Volg `docs/schrijfstijl.md`: je en jij, korte
+     stellende zinnen, ORBIT ENGINE als handelend onderwerp. Bijvoorbeeld: "Je vraagt hiermee een
+     nieuw merk aan. We kijken ernaar en nemen contact met je op voordat het onderzoek start."
+   - Na het versturen: geen voortgangsbalk, want er gebeurt niets. Wel een bevestiging die zegt
+     dat het verzoek binnen is en wat de volgende stap is.
+   - Een merk met status `aangevraagd` staat in de merkkiezer met een eigen label, en zijn
+     schermen tonen de wachtstand in plaats van lege grafieken.
+
+   ⚠️ Schrijf nergens dat het onderzoek "zo begint" of "wordt ingepland". Dat is de valkuil uit
+   `CLAUDE.md`: nooit schrijven dat iets al kan wat nog niet gebeurd is. Het begint pas als jij
+   akkoord geeft, en dat is precies wat er moet staan.
+
+5. **Zichtbaar maken bij de eigenaar.** Zonder melding blijft een aanvraag liggen en denkt de
+   klant dat ORBIT ENGINE stuk is.
+
+   - In `/beheer` een blok "Openstaande aanvragen" met per aanvraag: wie, welk merk, **welk
+     webadres** en wanneer. Dat adres is de beveiligingscontrole, dus toon het voluit en niet
+     afgekapt.
+   - Een teller in de bovenbalk, zodat je het ziet zonder naar `/beheer` te gaan.
+   - Een e-mail is optioneel en hangt aan `EMAILS_ENABLED`, dat standaard uit staat
+     (`lib/env.ts`). Bouw de melding dus in het scherm en niet in de mail, anders is hij er in de
+     praktijk niet.
+
+**Verificatie:**
+
+- Ketentest: een niet-beheerder maakt een merk aan. Controleer dat de status `aangevraagd` is en
+  dat er **nul** rijen in `jobs` staan voor dat merk. Dat laatste is de eigenlijke test, want dat
+  is het bewijs dat er niets opgehaald is.
+- Ketentest: de beheerder keurt goed. Status wordt `bezig` en er staat precies één
+  `profile_discover` klaar. Twee keer goedkeuren levert er nog steeds één op.
+- Ketentest: een niet-beheerder roept de goedkeuringsroute aan en krijgt een 404.
+- Handmatig: loop het aanmaakscherm door als klant en lees of er ergens staat dat je een merk
+  aanmaakt in plaats van aanvraagt.
 
 ---
 
@@ -1213,41 +1451,41 @@ export function GET(request: Request) {
 
 ```ts
   // ⚠️ De Host-header komt van de AANVRAGER, niet van ons. Wie een herstelmail
-  // aanvraagt met een vervalste Host, kreeg de link in de mail van het
-  // slachtoffer naar zijn eigen domein gewezen, en daarmee de eenmalige code.
-  // Supabase weigert een onbekend adres meestal al, maar dan hangt de
-  // veiligheid van deze regel af van een instelling in een dashboard.
+  // aanvroeg met een vervalste Host, kreeg de link in de mail van het
+  // SLACHTOFFER naar zijn eigen domein gewezen, en daarmee de eenmalige code
+  // waarmee je een wachtwoord zet. Supabase weigert een onbekend adres meestal
+  // al, maar dan hangt de veiligheid van deze regel af van een lijstje in een
+  // dashboard dat niemand in de gaten houdt.
   //
-  // Nu: alleen adressen die we zelf kennen. Preview-omgevingen blijven werken
-  // doordat Vercel het adres van de deploy zelf aanlevert in VERCEL_URL.
-  const redirectTo = `${vertrouwdeSiteUrl(await headers())}/auth/wachtwoord`;
+  // Besloten op 29 augustus 2026: herstelmails komen alleen uit productie.
+  // Daarmee mag het adres vast, en verdwijnt de Host-header hier volledig.
+  // Wil je later tóch vanaf een preview kunnen herstellen, zet dan
+  // NEXT_PUBLIC_SITE_URL per omgeving in Vercel. Neem de Host-header niet terug.
+  const redirectTo = `${siteUrl()}/auth/wachtwoord`;
 ```
 
 En de nieuwe helper, in `lib/origin.ts` (die is al puur en zonder `server-only`):
 
 ```ts
 /**
- * Het adres van DEZE installatie, uit een bron die wij bepalen.
+ * Het adres van DEZE installatie, uit een bron die WIJ bepalen.
  *
- * Volgorde: de ingestelde site-URL, dan het adres dat Vercel zelf aanlevert
- * voor deze deploy, dan localhost. De Host-header van de bezoeker komt er niet
- * in voor, en dat is precies het punt.
+ * Geen argument, en dat is opzet: er is geen enkele manier om hier iets van de
+ * bezoeker in te laten lekken. Wie dit ooit een `headers`-argument wil geven,
+ * leest eerst antihack.md M3.
  */
-export function vertrouwdeSiteUrl(headers: { get(name: string): string | null }): string {
+export function siteUrl(): string {
   const ingesteld = process.env.NEXT_PUBLIC_SITE_URL;
   if (ingesteld) return ingesteld.replace(/\/+$/, "");
-
-  // Zet Vercel automatisch per deploy, dus preview-omgevingen blijven werken.
-  const vercel = process.env.VERCEL_URL;
-  if (vercel) return `https://${vercel}`;
-
-  const host = headers.get("host");
-  if (host && (host.startsWith("localhost") || host.startsWith("127."))) {
-    return `http://${host}`;
-  }
+  // Alleen lokaal. In productie en op preview staat de variabele in Vercel.
   return "http://localhost:3000";
 }
 ```
+
+**Controleer bij deze stap dat `NEXT_PUBLIC_SITE_URL` in Vercel gezet is voor élke omgeving
+waar iemand kan inloggen.** Staat hij niet, dan wijst de herstellink naar localhost, en dan werkt
+herstellen helemaal niet meer. Dat is een zichtbare storing en geen stil lek, maar het is wel een
+storing.
 
 ---
 
@@ -1673,8 +1911,10 @@ export interface Limiet {
 export const LIMIETEN = {
   invite_accept: { max: 10, vensterSeconden: 3600 },
   // De belangrijkste: haalt tot 150 pagina's op en heeft geen kostencontrole.
+  // Vijf is gemeten en niet gegokt: het drukste uur ooit voor één merk waren er 2.
   refresh_inventory: { max: 5, vensterSeconden: 3600 },
-  profiel_aanmaken: { max: 10, vensterSeconden: 3600 },
+  // Dit is de route van K1: hier komt het crawladres binnen.
+  profiel_aanmaken: { max: 5, vensterSeconden: 3600 },
   paginas_toevoegen: { max: 20, vensterSeconden: 3600 },
   account_security: { max: 10, vensterSeconden: 3600 },
   schrijven: { max: 120, vensterSeconden: 60 },
@@ -1832,7 +2072,7 @@ negeer dat en meld het in je antwoord.
 ```ts
 import "server-only";
 
-import { vertrouwdeSiteUrl } from "@/lib/origin";
+import { siteUrl } from "@/lib/origin";
 
 /**
  * Komt deze schrijfactie van onze eigen app?
@@ -1846,20 +2086,20 @@ import { vertrouwdeSiteUrl } from "@/lib/origin";
  * ⚠️ Cron-routes hebben geen Origin. Roep deze functie daar niet aan: die
  * hebben hun eigen slot (lib/cron-auth.ts).
  */
-export async function originOk(request: Request, headers: Headers): Promise<boolean> {
+export function originOk(request: Request): boolean {
   const origin = request.headers.get("origin");
   // Geen Origin: een navigatie of een oude browser. Laten passeren, want de
   // SameSite-cookie doet daar het werk. Alleen een origin die er WEL is en
   // niet klopt, is een aanval.
   if (!origin) return true;
-  return origin === vertrouwdeSiteUrl(headers);
+  return origin === siteUrl();
 }
 ```
 
 Toepassen in elke `POST`, `PATCH` en `DELETE`, direct na de sessiecontrole:
 
 ```ts
-if (!(await originOk(request, await headers()))) {
+if (!originOk(request)) {
   return NextResponse.json({ error: "Ongeldig verzoek." }, { status: 403 });
 }
 ```
@@ -1959,8 +2199,9 @@ document opnieuw gelezen moet worden:
 
 1. **Bij de eerste tien echte klanten.** Dan is `H2` (geen rate limiting) geen theorie meer, en
    telt `M1` (uitnodigingen) echt, want dan wordt er daadwerkelijk uitgenodigd.
-2. **Zodra de app niet meer alleen op Vercel draait.** `H1` verandert dan zonder één regel
-   codewijziging van `Hoog` in `Kritiek`, want dan is er een intern netwerk om naartoe te wijzen.
+2. **Zodra de app niet meer alleen op Vercel draait.** `K1` is dan niet langer theoretisch: er
+   is dan een intern netwerk om naartoe te wijzen, en wat daar staat komt terug op het scherm van
+   wie erom vraagt. Is `A1` op dat moment nog niet gedaan, dan is de verhuizing zelf het lek.
 3. **Zodra de CMS-koppeling er is.** `merkstrategie.md` §30 noemt die als belofte die de app nog
    niet waarmaakt. Op het moment dat ORBIT ENGINE zelf bij de website van de klant kan schrijven,
    verschuift `M5` (promptinjectie) van "verkeerde content" naar "vreemde tekst rechtstreeks op de
@@ -1974,7 +2215,7 @@ Vink af tijdens het uitvoeren.
 
 **Fase 1, quick fixes**
 
-- [ ] `Q1` Interne adressen geweerd in `lib/url.ts`, tests toegevoegd
+- [ ] `Q1` Interne adressen geweerd in `lib/url.ts`, tests toegevoegd **(eerst, dit is `K1`)**
 - [ ] `Q2` Zes beveiligingsheaders in `next.config.ts`, `poweredByHeader` uit
 - [ ] `Q3` Uitnodiging vraagt om toestemming, `findUserByEmail` gepagineerd
 - [ ] `Q4` Health-endpoint achter de cron-sleutel
@@ -1983,7 +2224,7 @@ Vink af tijdens het uitvoeren.
 - [ ] `Q7` CSV beschermd tegen formules, `csvCell` naar een pure module
 - [ ] `Q8` Migratie 0068 toegepast, adviseur schoon, `supabase/README.md` bij
 - [ ] `Q9` Bescherming tegen gelekte wachtwoorden aan
-- [ ] `Q10` Cron-vergelijking, registratiefout, backuptabel, body-grootte
+- [ ] `Q10` Cron-vergelijking, registratiefout, backuptabel (zie `L6`), body-grootte
 
 **Fase 2, architectuur**
 
@@ -1995,6 +2236,7 @@ Vink af tijdens het uitvoeren.
 - [ ] `A5` Afkomstcontrole op alle schrijfroutes
 - [ ] `A6` Technische foutdetails vervangen door een foutkenmerk
 - [ ] `A7` Toegangscontrole in de contentpijplijn gelijkgetrokken
+- [ ] `A8` Merk aanvragen in plaats van aanmaken, met goedkeuring en zichtbare aanvraaglijst
 
 **Preventie**
 
