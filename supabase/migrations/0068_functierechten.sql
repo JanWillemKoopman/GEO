@@ -76,7 +76,18 @@ alter function public.normaliseer_prompt_cluster() set search_path = public, pg_
 -- `net`-schema staat niet in de blootgestelde API-schema's, dus vandaag is er
 -- geen weg naartoe. Dat is precies de reden om hem nu in te trekken en niet te
 -- wachten tot die weg er wel is.
-revoke usage on schema net from anon, authenticated;
+-- ⚠️ In een `do`-blok met een controle erop, en niet als kale regel. De
+-- ketentest (`scripts/test-chain.ts`) draait deze migraties tegen een kale
+-- Postgres zonder de extensies van Supabase, en daar bestaat het `net`-schema
+-- niet. Een kale `revoke` liet de hele ketentest omvallen op een regel die daar
+-- niets te doen heeft. Zelfde reden als de idempotentie-eis in conventie 4: een
+-- migratie hoort te draaien waar hij landt.
+do $$
+begin
+  if exists (select 1 from pg_namespace where nspname = 'net') then
+    execute 'revoke usage on schema net from anon, authenticated';
+  end if;
+end $$;
 
 -- ═══════════════════════════════════════════════════════════════════════════
 -- ⚠️ WAT ER NA DEZE MIGRATIE VERANDERT VOOR EEN BEZOEKER ZONDER SESSIE

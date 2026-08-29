@@ -39,7 +39,7 @@ import { compare, deltaOf, thresholdOf, verdictOf, minQuestionsForSignal } from 
 import { buildChangeBlock, isWorthEmailing } from "@/lib/pipeline/period-change-format";
 import type { PeriodChange } from "@/lib/pipeline/period-change-format";
 import { domainOf } from "@/lib/offsite/domain";
-import { checkUrlFormat, isInternalHostname } from "@/lib/url";
+import { checkUrlFormat, isInternalHostname, isInternalIp } from "@/lib/url";
 import { csvCell } from "@/lib/csv";
 import { sanitizeForPostgres, hasUnstorableChars } from "@/lib/pg-text";
 import { countOpenPeriodicMeasurements } from "@/lib/jobs/pending";
@@ -989,6 +989,34 @@ group("CSV-cellen zijn veilig voor Excel (antihack.md M4)", () => {
   // een uitgevoerde cel is een lek. Alle getalkolommen in de export zijn
   // tellingen en verschillen, en die zijn nooit negatief behalve een daling.
   ok("negatief getal krijgt de apostrof", csvCell(-3) === "'-3");
+});
+
+group("interne IP-adressen na het opzoeken (antihack.md K1, stap A1)", () => {
+  const intern = [
+    "169.254.169.254", "10.0.0.55", "127.0.0.1", "192.168.1.10",
+    "172.16.0.1", "172.31.255.254", "100.64.0.1", "0.0.0.0",
+    "198.18.0.1", "224.0.0.1", "192.0.0.1",
+    "::1", "::", "fd00::1", "fc00::abcd", "fe80::1",
+    // ⚠️ Een IPv4-adres vermomd als IPv6. Zonder het uitpakken hiervan glipt
+    // elk privé adres er in deze vorm gewoon langs.
+    "::ffff:10.0.0.1", "::ffff:127.0.0.1",
+  ];
+  for (const ip of intern) ok(`weert ${ip}`, isInternalIp(ip));
+
+  const publiek = [
+    "8.8.8.8", "1.1.1.1", "193.176.0.1", "172.32.0.1", "172.15.0.1",
+    // ⚠️ Publieke IPv6 moet WEL door. isInternalHostname weigert elk
+    // IPv6-adres, want niemand typt zijn website zo in. Hier mag dat niet:
+    // een doodgewone website kan een AAAA-record hebben, en die weigeren zou
+    // betekenen dat we hem niet meer kunnen crawlen.
+    "2001:4860:4860::8888", "2a00:1450:4001:800::200e",
+    "::ffff:8.8.8.8",
+  ];
+  for (const ip of publiek) ok(`laat ${ip} door`, !isInternalIp(ip));
+
+  ok("rommel telt als intern", isInternalIp("niet-een-adres"));
+  ok("leeg telt als intern", isInternalIp(""));
+  ok("een deel boven 255 telt als intern", isInternalIp("999.1.1.1"));
 });
 
 group("interne adressen worden geweerd (antihack.md K1)", () => {

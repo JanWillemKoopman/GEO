@@ -3268,26 +3268,39 @@ async function main(): Promise<void> {
     );
     const alleUrls = ["https://grootpraktijk.nl/", ...blogUrls, ...dienstUrls];
 
+    // ⚠️ De stub geeft een ECHT Response-object terug en geen los objectje met
+    // `ok`, `status` en `text`. Dat was hij wel, en dat brak op het moment dat
+    // `lib/safe-fetch.ts` omleidingen zelf ging volgen (antihack.md K1, stap A1):
+    // die leest `res.headers.get("location")`, en een stub zonder `headers`
+    // gooit dan. Zeven crawltests vielen om op een reden die niets met crawlen
+    // te maken had.
+    //
+    // Een stub die minder kan dan het echte ding, test iets anders dan de
+    // productiecode doet. Vandaar `new Response()`: die heeft headers, een
+    // status en een body, en gedraagt zich dus zoals `fetch` zich gedraagt.
     const origineleFetch = globalThis.fetch;
     globalThis.fetch = (async (input: RequestInfo | URL) => {
       const url = String(input);
-      const antwoord = (body: string) => ({ ok: true, status: 200, text: async () => body });
+      const antwoord = (body: string, type = "text/html") =>
+        new Response(body, { status: 200, headers: { "Content-Type": type } });
+      const nietGevonden = () => new Response("", { status: 404 });
 
-      if (url.endsWith("/robots.txt")) return { ok: false, status: 404, text: async () => "" };
+      if (url.endsWith("/robots.txt")) return nietGevonden();
       if (url.endsWith("/sitemap.xml")) {
         return antwoord(
           `<?xml version="1.0"?><urlset>${alleUrls
             .map((u) => `<loc>${u}</loc>`)
             .join("")}</urlset>`,
+          "application/xml",
         );
       }
-      if (url.endsWith("/sitemap_index.xml")) return { ok: false, status: 404, text: async () => "" };
+      if (url.endsWith("/sitemap_index.xml")) return nietGevonden();
       if (alleUrls.includes(url)) {
         return antwoord(
           `<html><head><title>${url}</title></head><body><p>${"Inhoud van deze pagina. ".repeat(20)}</p></body></html>`,
         );
       }
-      return { ok: false, status: 404, text: async () => "" };
+      return nietGevonden();
     }) as typeof globalThis.fetch;
 
     try {
@@ -4879,6 +4892,63 @@ async function main(): Promise<void> {
     );
 
     await db.client.query("delete from public.profiles where id = $1", [poortProfiel]);
+
+    // ══════════════════════════════════════════════════════════════════════
+    // De SSRF-poort (antihack.md K1, stap A1)
+    //
+    // ⚠️ Dit is de enige test in deze suite die een ECHTE server start, en dat
+    // is met opzet. De vraag "wordt dat interne adres opgehaald" is met een
+    // aanname niet te beantwoorden: je moet meten of er iets op de deur klopt.
+    // De teller `geraakt` is daarom de belangrijkste regel van dit blok.
+    //
+    // Wat hier misging vóór 29 augustus 2026: elke ingelogde klant kon een merk
+    // aanmaken met een intern adres als website, en de pijplijn haalde dat op,
+    // sloeg de tekst op en toonde hem terug in het merkdossier.
+    // ══════════════════════════════════════════════════════════════════════
+    console.log("\nDe SSRF-poort: haalt ORBIT ENGINE nog interne adressen op");
+
+    const { createServer } = await import("node:http");
+    const { safeFetch, GeblokkeerdAdresError } = await import("@/lib/safe-fetch");
+    const { crawlSite, isReachable } = await import("@/lib/crawler");
+
+    const GEHEIM = "GEHEIM-INTERNE-DATA-DIE-NIET-MAG-LEKKEN";
+    let geraakt = 0;
+    const interneServer = createServer((_req, res) => {
+      geraakt++;
+      res.writeHead(200, { "Content-Type": "text/html" });
+      res.end(`<html><title>Intern</title><body>${GEHEIM}</body></html>`);
+    });
+    const POORT = 8199;
+    await new Promise<void>((r) => interneServer.listen(POORT, "127.0.0.1", () => r()));
+
+    try {
+      async function geweigerd(adres: string): Promise<boolean> {
+        try {
+          await safeFetch(adres);
+          return false;
+        } catch (e) {
+          return e instanceof GeblokkeerdAdresError;
+        }
+      }
+
+      ok("het loopback-adres wordt geweigerd", await geweigerd(`http://127.0.0.1:${POORT}/`));
+      ok("het metadata-adres van de cloud wordt geweigerd", await geweigerd("http://169.254.169.254/latest/meta-data/"));
+      ok("een privé adres wordt geweigerd", await geweigerd("http://10.0.0.55/"));
+      ok("file: wordt geweigerd", await geweigerd("file:///etc/passwd"));
+      ok("data: wordt geweigerd", await geweigerd("data:text/html,<b>x</b>"));
+
+      // Het echte pad dat een klant loopt: een merk met een intern adres.
+      const gecrawld = await crawlSite(`127.0.0.1:${POORT}`);
+      ok("crawlSite haalt geen tekst van een intern adres", !gecrawld.ok && gecrawld.text === "");
+      ok("en het geheim staat niet in de uitkomst", !gecrawld.text.includes(GEHEIM));
+      ok("isReachable noemt een intern adres niet bereikbaar", (await isReachable(`127.0.0.1:${POORT}`)) === false);
+
+      // ⚠️ DE HARDE MEETLAT. Alles hierboven kan slagen terwijl de fetch tóch
+      // gebeurde en alleen de uitkomst weggegooid werd. Deze teller niet.
+      ok(`de interne server is nul keer aangeraakt (teller: ${geraakt})`, geraakt === 0);
+    } finally {
+      await new Promise<void>((r) => interneServer.close(() => r()));
+    }
 
     __setTestAdminClient(null);
     __setTestTransport(null);

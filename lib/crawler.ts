@@ -8,6 +8,7 @@ import "server-only";
  */
 
 import { sanitizeForPostgres } from "@/lib/pg-text";
+import { safeFetch } from "@/lib/safe-fetch";
 import {
   harvestStructuredData,
   assessRendering,
@@ -113,9 +114,12 @@ export async function crawlSite(host: string): Promise<CrawlResult> {
   const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
 
   try {
-    const res = await fetch(url, {
+    // ⚠️ `safeFetch` en niet `fetch`: die controleert waar het adres na het
+    // opzoeken op uitkomt, en doet dat opnieuw bij elke omleiding. Zie
+    // lib/safe-fetch.ts en antihack.md K1. Hij volgt omleidingen zelf, dus
+    // `redirect: "follow"` staat er niet meer bij.
+    const res = await safeFetch(url, {
       signal: controller.signal,
-      redirect: "follow",
       headers: {
         "User-Agent": USER_AGENT,
         Accept: "text/html,application/xhtml+xml",
@@ -154,10 +158,13 @@ export async function isReachable(host: string): Promise<boolean> {
   };
 
   try {
-    let res = await fetch(url, { method: "HEAD", signal: controller.signal, redirect: "follow", headers });
+    // ⚠️ Ook hier `safeFetch`. Dit is de eerste plek waar een net ingevoerd
+    // adres wordt aangeraakt, dus als er ergens een intern adres tegengehouden
+    // moet worden is het hier, vóór het merk überhaupt bestaat.
+    let res = await safeFetch(url, { method: "HEAD", signal: controller.signal, headers });
     // 405/501: server kent HEAD niet, nog één keer met GET.
     if (res.status === 405 || res.status === 501) {
-      res = await fetch(url, { method: "GET", signal: controller.signal, redirect: "follow", headers });
+      res = await safeFetch(url, { method: "GET", signal: controller.signal, headers });
     }
     return res.status < 400 || res.status === 403;
   } catch {
@@ -171,9 +178,11 @@ export async function fetchText(url: string): Promise<string | null> {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
   try {
-    const res = await fetch(url, {
+    // ⚠️ De belangrijkste van de vier: hier komen de sitemap-adressen langs die
+    // de KLANT invult (`sitemap_url`) en de adressen die een VREEMDE website ons
+    // aanreikt via zijn robots.txt en zijn sitemap-index.
+    const res = await safeFetch(url, {
       signal: controller.signal,
-      redirect: "follow",
       headers: {
         "User-Agent": USER_AGENT,
         Accept: "text/html,application/xhtml+xml,application/xml,text/xml",

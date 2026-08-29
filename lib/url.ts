@@ -159,3 +159,54 @@ export function isInternalHostname(host: string): boolean {
 export function buildAnalysisName(url: string, topic: string | null): string {
   return topic && topic.trim() ? `${url} · ${topic.trim()}` : `${url} (hele site)`;
 }
+
+/**
+ * Is dit IP-adres, als tekst, intern of gereserveerd?
+ *
+ * ── HET VERSCHIL MET `isInternalHostname` HIERBOVEN ─────────────────────────
+ *
+ * Die functie beoordeelt wat de klant TYPT, deze beoordeelt waar een naam na het
+ * OPZOEKEN op uitkomt. Dat verschil is niet cosmetisch en zit in IPv6:
+ *
+ *   • `isInternalHostname` weigert élk IPv6-adres, want niemand vult zijn
+ *     website in als een letterlijk IPv6-adres. Weigeren kost daar dus niets.
+ *   • Deze functie moet IPv6 wél echt beoordelen, want een doodgewone publieke
+ *     website kan prima een AAAA-record hebben. Alles weigeren zou hier
+ *     betekenen dat we die site niet meer kunnen crawlen.
+ *
+ * Puur en zonder `server-only` (conventie 2). Gebruikt door `lib/safe-fetch.ts`.
+ */
+export function isInternalIp(ip: string): boolean {
+  const adres = ip.trim().toLowerCase().replace(/^\[|\]$/g, "");
+  if (!adres) return true;
+
+  if (adres.includes(":")) {
+    // Onbepaald adres en loopback.
+    if (adres === "::" || adres === "::1") return true;
+    // Een IPv4-adres vermomd als IPv6 (::ffff:10.0.0.1). Eerst uitpakken,
+    // anders glipt elk privé IPv4-adres er in deze vorm langs.
+    const ingebed = adres.match(/^::ffff:(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})$/);
+    if (ingebed) return isInternalIp(ingebed[1]);
+    // fc00::/7, uniek lokaal (het IPv6-equivalent van 10.x en 192.168.x).
+    if (/^f[cd][0-9a-f]{2}:/.test(adres)) return true;
+    // fe80::/10, link-local.
+    if (/^fe[89ab][0-9a-f]:/.test(adres)) return true;
+    return false;
+  }
+
+  const delen = adres.split(".");
+  if (delen.length !== 4) return true; // onbekend is geen toegang (conventie 3)
+  const n = delen.map((d) => (/^\d{1,3}$/.test(d) ? Number(d) : -1));
+  if (n.some((d) => d < 0 || d > 255)) return true;
+
+  const [a, b] = n;
+  if (a === 0 || a === 10 || a === 127) return true;
+  if (a === 169 && b === 254) return true;
+  if (a === 172 && b >= 16 && b <= 31) return true;
+  if (a === 192 && b === 168) return true;
+  if (a === 192 && b === 0) return true;
+  if (a === 100 && b >= 64 && b <= 127) return true;
+  if (a === 198 && (b === 18 || b === 19)) return true;
+  if (a >= 224) return true;
+  return false;
+}

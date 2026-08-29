@@ -1,4 +1,5 @@
 import "server-only";
+import { safeFetch } from "@/lib/safe-fetch";
 
 /**
  * Technische GEO-audit (optimalisatie.md 3B).
@@ -54,9 +55,12 @@ async function fetchRaw(url: string): Promise<{ status: number; body: string } |
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), TIMEOUT_MS);
   try {
-    const res = await fetch(url, {
+    // ⚠️ `safeFetch` en niet `fetch`: `url` is hier afgeleid van `profile.url`,
+    // dus van wat de klant invulde. Deze audit haalt robots.txt, de homepage en
+    // llms.txt op, en dat zijn drie kansen om een intern adres te raken. Zie
+    // lib/safe-fetch.ts en antihack.md K1.
+    const res = await safeFetch(url, {
       signal: controller.signal,
-      redirect: "follow",
       headers: { "User-Agent": USER_AGENT, Accept: "*/*" },
     });
     return { status: res.status, body: await res.text() };
