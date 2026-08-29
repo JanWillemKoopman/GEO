@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { emailsEnabled, serverEnv } from "@/lib/env";
+import { emailsEnabled } from "@/lib/env";
+import { cronAuthOk } from "@/lib/cron-auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { sendPublishReminder } from "@/lib/email/publish-reminder";
 import type { Analysis } from "@/lib/types/database";
@@ -21,8 +22,7 @@ export const maxDuration = 60;
 const WAITING_DAYS = 7;
 
 export async function GET(request: Request) {
-  const authHeader = request.headers.get("authorization");
-  if (authHeader !== `Bearer ${serverEnv.cronSecret}`) {
+  if (!cronAuthOk(request.headers.get("authorization"))) {
     return NextResponse.json({ error: "Je bent niet ingelogd." }, { status: 401 });
   }
 
