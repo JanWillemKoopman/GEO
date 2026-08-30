@@ -49,6 +49,19 @@ export const Report = z.object({
       reason: z.string(), // waarom dit de content beter maakt
     }),
   ),
+  /**
+   * Gemeten gemissen die overwogen maar NIET tot een aanbeveling gemaakt zijn
+   * (werkpakket C §5.1, migratie 0078). Maakt de vier eisen uit
+   * `recommendations` navolgbaar: zonder deze lijst is een lege plek in de
+   * aanbevelingen niet te onderscheiden van "hier was niets te vinden".
+   */
+  declinedGaps: z.array(
+    z.object({
+      cluster: z.string(),
+      problem: z.string(),
+      reason: z.string(), // welke van de vier eisen niet gehaald werd, en waarom
+    }),
+  ),
 });
 
 export type Report = z.infer<typeof Report>;

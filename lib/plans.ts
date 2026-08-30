@@ -16,8 +16,8 @@ import {
   datumProbleem,
   type HerplanRij,
 } from "@/lib/plan-schedule";
-import { syncBacklog, meetbareVragenPerAnalyse } from "@/lib/plan-backlog-data";
-import { sortBacklog, type BacklogItem } from "@/lib/plan-backlog";
+import { syncBacklog, meetbareVragenPerAnalyse, loadDeclinedOpportunities } from "@/lib/plan-backlog-data";
+import { sortBacklog, type BacklogItem, type DeclinedItem } from "@/lib/plan-backlog";
 import type { TopicWritingState } from "@/lib/plan-writing";
 import type {
   AnalysisStatus,
@@ -36,6 +36,8 @@ export interface PlanBundle {
   pages: PlannedPage[];
   /** Wat beschikbaar is maar nog geen maand heeft, op potentie gesorteerd. */
   backlog: BacklogItem[];
+  /** Wat het rapportmodel overwoog maar niet voorstelde, met de reden (werkpakket C §5.1). */
+  declined: DeclinedItem[];
   /**
    * De clusters die al minstens één kans hebben opgeleverd, ingepland of niet.
    *
@@ -151,12 +153,14 @@ export async function loadPlan(
     admin,
     [...new Set(voorraad.map((v) => v.source_analysis_id).filter((id): id is string => Boolean(id)))],
   );
+  const declined = await loadDeclinedOpportunities(admin, profileId);
 
   return {
     plan,
     months,
     pages: (pages ?? []) as PlannedPage[],
     backlog: sortBacklog(voorraad.map((rij) => naarBacklogItem(rij, gemeten, clusterNaam))),
+    declined,
     metKansen: [
       ...new Set(
         ((kansClusters ?? []) as { source_analysis_id: string | null }[])

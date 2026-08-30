@@ -105,6 +105,11 @@ const REPORT_SYSTEM =
   "bestaande pagina die dit onderwerp al goed dekt (anders is het 'verbeteren', geen nieuwe kans), " +
   "(4) hij overlapt inhoudelijk niet met een andere aanbeveling in dit rapport. Voldoen er twee, geef " +
   "er twee; voldoen er tien, geef er tien. Rond nooit af naar een 'nette' lijst. " +
+  // Werkpakket C §5.1: maak de afwijzing navolgbaar in plaats van onzichtbaar.
+  "Kwam je een gemeten gemis tegen dat je NIET tot aanbeveling maakte, zet hem dan in declinedGaps " +
+  "met welke van de vier eisen hij niet haalde (geen bewijs, niets waars te zeggen, al gedekt door een " +
+  "bestaande pagina, of overlapt met een andere aanbeveling). Dat is geen extra werk maar de andere " +
+  "kant van dezelfde beslissing die je toch al nam. " +
   "Vraag daarnaast in factRequests om CONCRETE FEITEN die je mist en die de content aantoonbaar beter " +
   "zouden maken (bv. 'Hoeveel jaar bestaan jullie?', 'Wat is jullie levertijd?', 'Hoeveel klanten per " +
   "jaar?'). Alleen feiten die een ondernemer uit zijn hoofd weet, en alleen als ze deze pagina's echt " +
@@ -827,6 +832,7 @@ export async function generateReport(
         summary: report.parsed.summary,
         gaps_json: gaps as never,
         recommendations_json: recommendations as never,
+        declined_json: report.parsed.declinedGaps as never,
         stripped_claims_json: stripped as never,
         gap_analysis_raw_json: gap.raw as never, // volledige ruwe OpenAI-output B1 (§5)
         raw_json: report.raw as never, // volledige ruwe OpenAI-output B2 (§5)

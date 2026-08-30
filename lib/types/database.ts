@@ -917,6 +917,8 @@ export interface Report {
   summary: string | null;
   gaps_json: unknown | null;
   recommendations_json: unknown | null;
+  /** [{cluster, problem, reason}] (migratie 0078), gemeten gemissen zonder aanbeveling, met waarom. */
+  declined_json: unknown | null;
   gap_analysis_raw_json: unknown | null;
   raw_json: unknown | null;
   generated_at: string;

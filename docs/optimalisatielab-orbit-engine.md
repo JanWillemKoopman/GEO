@@ -34,7 +34,12 @@ zoekvragen per cluster" en "een acceptabel budget per cluster-run" met zoveel wo
 de eigenaar, niet als aannames voor Claude Code (hoofdstuk 7, open vragen). Die vraag ligt na deze
 sessie bij de eigenaar.
 
-Werkpakket C staat nog volledig open.
+| 30 augustus 2026 | Werkpakket C: bij het uitzoeken bleek een deel al te bestaan, gebouwd op 25 en 26 augustus 2026 onder de naam "contentvoorraad" (migratie 0065): de voorraad zelf (`lib/plan-backlog.ts`), de waardescore met toelichting (`potentieLabel()`/`raaktLabel()`), koppeling aan het publicatietempo (`pages_per_month`), en filteren/sorteren/bulkacties op het planscherm. Nieuw toegevoegd: het derde niveau "afgevallen, met reden" (`reports.declined_json`, migratie 0078, dezelfde uitbreiding van het rapportmodel als werkpakket B) en de zin die zegt hoe lang de voorraad meegaat bij het huidige tempo (`backlogDurationLabel()`) | Live op productie |
+
+Werkpakket C is met deze aanvulling **compleet** op wat zonder de meetkosten van werkpakket B punt 2
+te bouwen was. Zodra de meetvolume-vraag hierboven beantwoord is en punt 2 gebouwd wordt, groeit de
+voorraad merkbaar, en dat is precies het moment waarop deze schermen voor het eerst echt getest worden
+bij een merk met honderd-plus kansen in plaats van zeven.
 
 ---
 
@@ -238,11 +243,11 @@ Het knelpunt verschuift dus van "hoeveel ideeën hebben we" naar "hoeveel kan de
 
 ### Uit te voeren
 
-1. Voeg de drie niveaus toe: nu aan de beurt, voorraad, afgevallen met reden.
-2. Bouw de waardescore en toon per voorstel in één zin waarom het die plek heeft.
-3. Koppel "nu aan de beurt" aan het publicatietempo uit het contentplan.
-4. Toon hoe lang de voorraad meegaat bij het huidige tempo.
-5. Bouw filteren, sorteren en bulkacties in het overzicht.
+1. ✅ Voeg de drie niveaus toe: nu aan de beurt, voorraad, afgevallen met reden. *(Nu aan de beurt en voorraad bestonden al sinds 25/26 augustus 2026 (migratie 0065); afgevallen is nieuw op 30 augustus 2026, migratie 0078.)*
+2. ✅ Bouw de waardescore en toon per voorstel in één zin waarom het die plek heeft. *(Bestond al: `potentieLabel()` en `raaktLabel()`.)*
+3. ✅ Koppel "nu aan de beurt" aan het publicatietempo uit het contentplan. *(Bestond al: `plan.pages_per_month`.)*
+4. ✅ Toon hoe lang de voorraad meegaat bij het huidige tempo. *(30 augustus 2026, `backlogDurationLabel()`.)*
+5. ✅ Bouw filteren, sorteren en bulkacties in het overzicht. *(Bestond al op het planscherm.)*
 
 ### Hoe je controleert dat het werkt
 

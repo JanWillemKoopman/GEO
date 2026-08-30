@@ -236,6 +236,8 @@ import {
   clusterCounts,
   potentieLabel,
   raaktLabel,
+  estimateBacklogMonths,
+  backlogDurationLabel,
   LEGE_BACKLOG_FILTERS,
   type BacklogItem,
 } from "@/lib/plan-backlog";
@@ -4729,6 +4731,22 @@ group("wat er op een voorraadkaart komt te staan (plan-backlog)", () => {
   );
   ok("geen doelvragen is geen regel", raaktLabel(kans({ raakt: null })) === null);
   ok("nul doelvragen ook niet", raaktLabel(kans({ raakt: 0, gemeten: 30 })) === null);
+});
+
+group("Hoe lang de voorraad meegaat (werkpakket C §5.2)", () => {
+  ok("zeven kansen bij vier per maand is twee maanden", estimateBacklogMonths(7, 4) === 2);
+  ok("acht kansen bij vier per maand is precies twee", estimateBacklogMonths(8, 4) === 2);
+  ok("negen kansen bij vier per maand rondt naar boven af naar drie", estimateBacklogMonths(9, 4) === 3);
+  ok("lege voorraad heeft geen duur", estimateBacklogMonths(0, 4) === null);
+  ok("een tempo van nul is geen deler", estimateBacklogMonths(7, 0) === null);
+  ok("een negatief tempo ook niet", estimateBacklogMonths(7, -1) === null);
+
+  ok("enkelvoud bij één maand", backlogDurationLabel(3, 4) === "Bij dit tempo duurt de voorraad nog 1 maand.");
+  ok(
+    "meervoud bij meer maanden",
+    backlogDurationLabel(9, 4) === "Bij dit tempo duurt de voorraad nog 3 maanden.",
+  );
+  ok("geen voorraad levert geen zin op", backlogDurationLabel(0, 4) === null);
 });
 
 group("de twee constanten van het plan", () => {

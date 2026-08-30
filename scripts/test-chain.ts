@@ -2621,6 +2621,18 @@ async function main(): Promise<void> {
     // Al overal zichtbaar (genoemd) en weinig zoekvolume: er valt bijna niets
     // meer te winnen. Potentie ≈ 0.
     const lagePotentie = await clusterMetKans("lage potentie", true, 10);
+    // Werkpakket C §5.1: dit cluster overwoog ook een tweede gemis, maar dat
+    // werd geen aanbeveling. `loadPlan()` moet dat teruggeven in `declined`.
+    await db.client.query(
+      `update public.reports set declined_json = $1::jsonb
+        where analysis_id = $2`,
+      [
+        JSON.stringify([
+          { cluster: "lage potentie", problem: "AI noemt geen enkele aanbieder", reason: "geen bestaand aanbod om over te schrijven" },
+        ]),
+        lagePotentie.analyseId,
+      ],
+    );
     // Nog nergens zichtbaar en veel zoekvolume: dít is de kans. Potentie ≈ 90.
     const hogePotentie = await clusterMetKans("hoge potentie", false, 90);
 
@@ -2729,6 +2741,11 @@ async function main(): Promise<void> {
       "de clusters die al kansen leverden staan apart, zodat het scherm niet om een meting vraagt die er is",
       bundel?.metKansen.length === 2,
       `${bundel?.metKansen.length} clusters met kansen`,
+    );
+    ok(
+      "de afgevallen kans van het rapport komt mee in de bundel (0078)",
+      bundel?.declined.length === 1 && bundel?.declined[0]?.reason.includes("geen bestaand aanbod"),
+      JSON.stringify(bundel?.declined),
     );
 
     // ── Idempotentie (conventie 9) ──────────────────────────────────────────

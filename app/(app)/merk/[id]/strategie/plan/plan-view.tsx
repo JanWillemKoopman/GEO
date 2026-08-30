@@ -20,9 +20,11 @@ import {
   clusterCounts,
   potentieLabel,
   raaktLabel,
+  backlogDurationLabel,
   LEGE_BACKLOG_FILTERS,
   type BacklogItem,
   type BacklogFilters,
+  type DeclinedItem,
 } from "@/lib/plan-backlog";
 import { writeDecision, writeBlockNotice, type TopicWritingState } from "@/lib/plan-writing";
 import { canMove } from "@/lib/plan-order";
@@ -102,6 +104,7 @@ export function PlanView({
   months,
   pages,
   backlog,
+  declined,
   funnels,
   topics,
   staff,
@@ -111,6 +114,8 @@ export function PlanView({
   months: PlanMonth[];
   pages: PlannedPage[];
   backlog: BacklogItem[];
+  /** Wat het rapportmodel overwoog maar niet voorstelde, met de reden (werkpakket C §5.1). */
+  declined: DeclinedItem[];
   funnels: FunnelStage[];
   topics: TopicWritingState[];
   /** Besluit 18: alleen de beheerder zet betaald werk in gang. */
@@ -459,20 +464,30 @@ export function PlanView({
   return (
     <div className="flex flex-col gap-5">
       {/* ── De feiten van het plan, één regel ────────────────────────────── */}
-      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
-        <span className="text-sm text-secondary">
-          <span className="mono-label">pakket {plan.pages_per_month} per maand</span>
-          <span className="mx-2 text-muted">·</span>
-          {echt.length} ingepland
-          <span className="mx-2 text-muted">·</span>
-          {backlog.length} content beschikbaar
-          {eerstvolgende && (
-            <>
-              <span className="mx-2 text-muted">·</span>
-              volgende publicatie {formatDagNL(eerstvolgende)}
-            </>
+      <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-2">
+        <div className="flex flex-col gap-0.5">
+          <span className="text-sm text-secondary">
+            <span className="mono-label">pakket {plan.pages_per_month} per maand</span>
+            <span className="mx-2 text-muted">·</span>
+            {echt.length} ingepland
+            <span className="mx-2 text-muted">·</span>
+            {backlog.length} content beschikbaar
+            {eerstvolgende && (
+              <>
+                <span className="mx-2 text-muted">·</span>
+                volgende publicatie {formatDagNL(eerstvolgende)}
+              </>
+            )}
+          </span>
+          {/* Werkpakket C §5.2: geen kwaliteitsoordeel, alleen een rekensom die
+              laat zien wanneer "meer content" een gesprek wordt in plaats van
+              een getal in een tabel. */}
+          {backlogDurationLabel(backlog.length, plan.pages_per_month) && (
+            <span className="text-sm text-muted">
+              {backlogDurationLabel(backlog.length, plan.pages_per_month)}
+            </span>
           )}
-        </span>
+        </div>
         {/* Besluit 18: opnieuw opzetten raakt het hele jaar, dus alleen de
             beheerder. De klant ziet de knop niet, want hij zou een 403 geven. */}
         {staff && (
@@ -623,6 +638,36 @@ export function PlanView({
               </ul>
             )}
           </section>
+
+          {/* Werkpakket C §5.1: het derde niveau, afgevallen kansen met reden.
+              Uitgeklapt inzichtelijk maar niet in het gezicht: dit is geen werk
+              dat wacht, het is de onderbouwing van wat er NIET in de voorraad
+              staat. */}
+          {declined.length > 0 && (
+            <details className="card flex flex-col gap-2">
+              <summary className="mono-label cursor-pointer">
+                {declined.length} afgevallen kans{declined.length === 1 ? "" : "en"}
+              </summary>
+              <p className="text-sm text-secondary">
+                Gemeten gemissen die overwogen zijn maar geen aanbeveling werden, met de reden. Ziet
+                deze lijst er verkeerd uit, dan is dat een signaal om de kwaliteitstoets bij te stellen.
+              </p>
+              <ul className="flex flex-col gap-2">
+                {declined.map((item, i) => (
+                  <li
+                    key={i}
+                    className="rounded-[var(--radius-md)] border border-[var(--border-subtle)] p-2.5 text-sm"
+                  >
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="text-secondary">{item.problem}</span>
+                      {item.cluster && <span className="chip chip-neutral shrink-0">{item.cluster}</span>}
+                    </div>
+                    <p className="text-muted">{item.reason}</p>
+                  </li>
+                ))}
+              </ul>
+            </details>
+          )}
         </div>
 
         {/* ── Rechts: de twaalf maanden ──────────────────────────────────── */}
