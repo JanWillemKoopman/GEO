@@ -1,9 +1,9 @@
 "use server";
 
-import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { signupsEnabled } from "@/lib/config";
+import { siteUrl } from "@/lib/origin";
 
 export interface AuthState {
   error: string | null;
@@ -38,7 +38,17 @@ export async function signUp(_prev: AuthState, formData: FormData): Promise<Auth
 
   const supabase = await createClient();
   const { data, error } = await supabase.auth.signUp({ email, password });
-  if (error) return { error: `Registreren mislukt: ${error.message}` };
+  // ⚠️ De melding van Supabase werd hier letterlijk doorgegeven, en die zegt bij
+  // een bestaand adres "User already registered" (antihack.md L4). Daarmee is dit
+  // formulier een manier om te achterhalen wie er een account heeft, precies wat
+  // `requestPasswordReset` hieronder wél zorgvuldig vermijdt.
+  if (error) {
+    console.error("Registreren mislukt:", error.message);
+    return {
+      error:
+        "Registreren is niet gelukt. Probeer het opnieuw, of vraag je contactpersoon om een uitnodiging.",
+    };
+  }
 
   // Als e-mailbevestiging aanstaat, is er nog geen sessie, stuur terug naar login met uitleg.
   if (!data.session) {
@@ -83,12 +93,14 @@ export async function requestPasswordReset(
   const email = String(formData.get("email") ?? "").trim();
   if (!email) return { error: "Vul je e-mailadres in." };
 
-  // De terugkomlink moet naar deze installatie wijzen, niet naar een vaste URL:
-  // preview-deploys op Vercel draaien op een ander domein dan productie, en een
-  // hardgecodeerde link stuurt de klant dan naar de verkeerde omgeving.
-  const host = (await headers()).get("host");
-  const proto = host?.startsWith("localhost") || host?.startsWith("127.") ? "http" : "https";
-  const redirectTo = host ? `${proto}://${host}/auth/wachtwoord` : undefined;
+  // ⚠️ De terugkomlink kwam hier uit de `Host`-header, en die komt van de
+  // AANVRAGER. Wie een herstelmail aanvroeg met een vervalste Host, kreeg de link
+  // in de mail van het SLACHTOFFER naar zijn eigen domein gewezen, en daarmee de
+  // eenmalige code waarmee je een wachtwoord zet (antihack.md M3).
+  //
+  // Besloten op 29 augustus 2026: herstelmails komen alleen uit productie, dus
+  // het adres mag vast. Zie `siteUrl()` in lib/origin.ts voor het waarom.
+  const redirectTo = `${siteUrl()}/auth/wachtwoord`;
 
   const supabase = await createClient();
   await supabase.auth.resetPasswordForEmail(email, { redirectTo });

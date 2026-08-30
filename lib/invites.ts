@@ -112,7 +112,10 @@ export async function lookupInvite(token: string): Promise<InviteLookup> {
 
 export type AcceptResult =
   | { ok: true }
-  | { ok: false; reason: "ongeldig" | "verlopen" | "gebruikt" | "zwak" | "mislukt" };
+  | {
+      ok: false;
+      reason: "ongeldig" | "verlopen" | "gebruikt" | "zwak" | "mislukt" | "inloggen_vereist";
+    };
 
 /**
  * Accepteert een uitnodiging: maakt de gebruiker aan (of koppelt een bestaande),
@@ -134,7 +137,16 @@ export type AcceptResult =
  * wachtwoord van een bestaand account overschrijven. Dat zou een overnameroute
  * zijn: wie een adres kent, nodigt uit en zet er een nieuw wachtwoord op.
  */
-export async function acceptInvite(token: string, password: string): Promise<AcceptResult> {
+export async function acceptInvite(
+  token: string,
+  password: string,
+  /**
+   * Het adres van de INGELOGDE gebruiker, of null als er niemand ingelogd is.
+   * Alleen van belang als het uitgenodigde adres al een account heeft, zie de
+   * toelichting bij die tak hieronder.
+   */
+  huidigeGebruikerEmail: string | null = null,
+): Promise<AcceptResult> {
   const admin = createAdminClient();
   const { state, invite } = await lookupInvite(token);
 
@@ -149,6 +161,30 @@ export async function acceptInvite(token: string, password: string): Promise<Acc
 
   let userId: string;
   if (bestaand) {
+    // ⚠️ HET TOKEN ALLEEN IS HIER NIET GENOEG (antihack.md M1).
+    //
+    // De uitnodiger krijgt de link mét het ruwe token terug in het antwoord van
+    // POST /api/accounts/[id]/invites. Dat is bewust: zolang de uitnodigingsmail
+    // uit staat (EMAILS_ENABLED is standaard false) stuurt hij hem zelf door.
+    // Maar het betekent ook dat hij de uitnodiging ZELF kan verzilveren.
+    //
+    // Bij een NIEUWE gebruiker geeft dat niets: die bestaat nog niet, en het
+    // wachtwoord wordt door de uitgenodigde gekozen. Bij een BESTAANDE gebruiker
+    // maakte dit iemand lid van een account waar hij nooit ja tegen heeft gezegd.
+    // Het lidmaatschap loopt de goede kant op (het slachtoffer krijgt toegang tot
+    // het account van de aanvaller, niet andersom), dus er lekte geen data. Maar
+    // het slachtoffer zag ineens een vreemd merk in zijn merkkiezer staan, en dat
+    // is een geloofwaardige opstap naar oplichting bij een product dat aan
+    // bureaus verkocht wordt.
+    //
+    // Wie al een account heeft, moet dus ingelogd zijn met dát adres. Bewust NIET
+    // het bestaande wachtwoord opvragen op dit scherm: dat scheelt een stap, maar
+    // leert klanten hun wachtwoord in te typen op een pagina waar ze via een
+    // e-maillink zijn binnengekomen, en dat is precies de gewoonte waar
+    // oplichting op drijft.
+    if (!huidigeGebruikerEmail || huidigeGebruikerEmail.trim().toLowerCase() !== email) {
+      return { ok: false, reason: "inloggen_vereist" };
+    }
     userId = bestaand;
   } else {
     if (!passwordOk(password)) return { ok: false, reason: "zwak" };
@@ -201,19 +237,45 @@ export async function acceptInvite(token: string, password: string): Promise<Acc
  * Zoekt een gebruiker op e-mailadres.
  *
  * De admin-API heeft geen directe "zoek op e-mail", dus dit loopt over de
- * ledenlijst. Bij twintig klanten (besluit 11) is dat één pagina; wordt het
- * groter, dan hoort hier een eigen index tegenover te staan.
+ * ledenlijst.
+ *
+ * ⚠️ KEEK EERDER MAAR NAAR DE EERSTE 200 GEBRUIKERS, en dat was een tijdbom
+ * onder de uitnodigingsflow (antihack.md M1). Bij meer dan 200 gebruikers werd
+ * een bestaande gebruiker niet gevonden, waarna de code hem opnieuw probeerde
+ * aan te maken. Dat mislukte netjes met "mislukt", dus het was geen gat, maar
+ * het uitgenodigde bureau kwam er niet in en niemand zou hebben begrepen waarom.
+ *
+ * Nu doorbladeren tot hij gevonden is. De bovengrens is er om een oneindige lus
+ * uit te sluiten als de API ooit iets onverwachts teruggeeft: 50 pagina's van
+ * 200 is 10.000 gebruikers, ver voorbij waar dit product op gebouwd is
+ * (twintig klanten in het eerste jaar, besluit 11). Wordt dat ooit krap, dan
+ * hoort hier een eigen index tegenover te staan en niet een hoger getal.
  */
+const MAX_GEBRUIKERSPAGINAS = 50;
+const GEBRUIKERS_PER_PAGINA = 200;
+
 async function findUserByEmail(email: string): Promise<string | null> {
   const admin = createAdminClient();
+  const gezocht = email.trim().toLowerCase();
   try {
-    const { data, error } = await admin.auth.admin.listUsers({ page: 1, perPage: 200 });
-    if (error) {
-      console.error("Gebruikers ophalen mislukt:", error.message);
-      return null;
+    for (let page = 1; page <= MAX_GEBRUIKERSPAGINAS; page++) {
+      const { data, error } = await admin.auth.admin.listUsers({
+        page,
+        perPage: GEBRUIKERS_PER_PAGINA,
+      });
+      if (error) {
+        console.error("Gebruikers ophalen mislukt:", error.message);
+        return null;
+      }
+      const match = data.users.find((u) => (u.email ?? "").toLowerCase() === gezocht);
+      if (match) return match.id;
+      // Minder dan een volle pagina terug: dit was de laatste.
+      if (data.users.length < GEBRUIKERS_PER_PAGINA) return null;
     }
-    const match = data.users.find((u) => (u.email ?? "").toLowerCase() === email);
-    return match?.id ?? null;
+    console.error(
+      `Gebruiker zoeken afgebroken na ${MAX_GEBRUIKERSPAGINAS} pagina's. Zie findUserByEmail.`,
+    );
+    return null;
   } catch (err) {
     console.error("Gebruikers ophalen mislukt:", err);
     return null;

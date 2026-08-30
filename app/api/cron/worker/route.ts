@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { serverEnv } from "@/lib/env";
+import { cronAuthOk } from "@/lib/cron-auth";
 import { runWorker } from "@/lib/jobs/worker";
 import { describeError } from "@/lib/errors";
 
@@ -26,8 +26,7 @@ export const maxDuration = 300;
 export const dynamic = "force-dynamic";
 
 export async function GET(request: Request) {
-  const authHeader = request.headers.get("authorization");
-  if (authHeader !== `Bearer ${serverEnv.cronSecret}`) {
+  if (!cronAuthOk(request.headers.get("authorization"))) {
     return NextResponse.json({ error: "Je bent niet ingelogd." }, { status: 401 });
   }
 

@@ -1,4 +1,5 @@
 import { getUser } from "@/lib/auth";
+import { csvCell } from "@/lib/csv";
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getOwnedAnalysis } from "@/lib/analyses";
@@ -15,13 +16,7 @@ import { loadResults } from "@/lib/pipeline/results";
  * en een PDF genereren vraagt een bibliotheek van megabytes voor iets wat
  * niemand daarna nog kan bewerken.
  */
-function csvCell(value: string | number | null): string {
-  if (value == null) return "";
-  const s = String(value);
-  // Puntkomma als scheidingsteken (Nederlandse Excel-instelling), dus die moet
-  // ook ontsnapt worden, net als aanhalingstekens en regeleindes.
-  return /[";\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
-}
+
 
 export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
