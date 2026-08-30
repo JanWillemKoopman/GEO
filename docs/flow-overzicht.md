@@ -7,7 +7,7 @@
 
 ORBIT ENGINE meet of ChatGPT jouw merk noemt wanneer een koper een vraag stelt, schrijft de
 pagina's die het gat dichten, en meet weken later of het gewerkt heeft. Negen stappen, waarvan er
-vier iets van jou vragen.
+vijf iets van jou vragen: stap 2, 4, 6, 7 en 8.
 
 **[KLANT]** jouw werk · **[ORBIT ENGINE]** automatisch · **[CONSULTANT]** onze begeleiding
 

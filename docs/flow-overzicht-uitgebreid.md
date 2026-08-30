@@ -11,8 +11,8 @@ fysiotherapeut in Tilburg is goed bij rugklachten?" levert geen tien blauwe link
 antwoord met drie namen erin. Sta jij daar niet tussen, dan besta je in dat gesprek niet.
 
 ORBIT ENGINE meet of jij genoemd wordt, verklaart waarom wel of niet, schrijft de pagina's die dat
-gat dichten, en meet weken later of het gewerkt heeft. Negen stappen. Vier daarvan vragen iets van
-jou, de rest gebeurt terwijl je andere dingen doet.
+gat dichten, en meet weken later of het gewerkt heeft. Negen stappen. Vijf daarvan vragen iets van
+jou (2, 4, 6, 7 en 8), de rest gebeurt terwijl je andere dingen doet.
 
 **[KLANT]** jouw werk · **[ORBIT ENGINE]** automatisch · **[CONSULTANT]** onze begeleiding
 
