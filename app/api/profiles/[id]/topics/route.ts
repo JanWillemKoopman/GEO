@@ -7,6 +7,7 @@ import { mayTriggerCost, COST_DENIED } from "@/lib/cost-guard";
 import { checkMix, type FunnelStage } from "@/lib/prompt-mix";
 import { checkBudgetForProfile } from "@/lib/spend-limit";
 import { buildAnalysisName } from "@/lib/url";
+import { buildTopicBrief } from "@/lib/pipeline/topic-brief";
 import type { ProfileTopic } from "@/lib/types/database";
 
 /**
@@ -35,7 +36,15 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   const profile = await getOwnedProfile(admin, id, user.id);
   if (!profile) return NextResponse.json({ error: "Niet gevonden." }, { status: 404 });
 
-  let body: { topicId?: string; status?: string; clientNote?: string | null; title?: string };
+  let body: {
+    topicId?: string;
+    status?: string;
+    clientNote?: string | null;
+    clientQuestions?: string | null;
+    clientFriction?: string | null;
+    clientEdge?: string | null;
+    title?: string;
+  };
   try {
     body = await request.json();
   } catch {
@@ -51,7 +60,20 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     }
     patch.status = body.status;
   }
+  // Legacy vrij veld (migratie 0040) blijft schrijfbaar: een profiel dat nog
+  // nooit de nieuwe drie velden zag, mag zijn bestaande notitie aanpassen.
   if (body.clientNote !== undefined) patch.client_note = body.clientNote?.trim() || null;
+  // De clusterlaag (migratie 0075): drie gerichte velden in plaats van één
+  // generieke notitie, zie lib/pipeline/topic-brief.ts.
+  if (body.clientQuestions !== undefined) {
+    patch.client_questions = body.clientQuestions?.trim() || null;
+  }
+  if (body.clientFriction !== undefined) {
+    patch.client_friction = body.clientFriction?.trim() || null;
+  }
+  if (body.clientEdge !== undefined) {
+    patch.client_edge = body.clientEdge?.trim() || null;
+  }
   if (body.title !== undefined) {
     const title = body.title.trim();
     if (!title) return NextResponse.json({ error: "Een onderwerp mag niet leeg zijn." }, { status: 400 });

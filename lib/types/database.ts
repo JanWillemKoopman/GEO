@@ -567,8 +567,19 @@ export interface ProfileTopic {
    */
   offering_names: string[];
   priority: number;
-  /** Wat de klant er in het gesprek over zei; overrulet de AI-prioritering. */
+  /**
+   * Legacy vrij tekstveld (migratie 0040), vóór de drie clusterlaagvelden
+   * hieronder bestonden. Blijft bewaard (conventie 4), overrulet de
+   * AI-prioritering net als altijd. `lib/pipeline/topic-brief.ts` valt hierop
+   * terug zolang geen van de drie nieuwe velden is ingevuld.
+   */
   client_note: string | null;
+  /** Clusterlaag (migratie 0075): wat klanten hierover het vaakst vragen. */
+  client_questions: string | null;
+  /** Clusterlaag (migratie 0075): wat er op dit onderwerp vaak misgaat. */
+  client_friction: string | null;
+  /** Clusterlaag (migratie 0075): onderscheid met de concurrent op dit onderwerp. */
+  client_edge: string | null;
   status: TopicStatus;
   /**
    * concept: voorgesteld vóór het strategisch gesprek, ter voorbereiding,
@@ -1006,6 +1017,31 @@ export interface FactRequest {
    * het antwoord wordt opgeslagen (`isGapQuestion()`).
    */
   raw_json?: { bron?: string } | null;
+  /**
+   * Op welk niveau dit antwoord herbruikbaar is (migratie 0024): merk = elke
+   * analyse van deze klant, analyse = dit cluster, pagina = dit ene
+   * `content_piece`. Optioneel gelezen: rijen van vóór 0024 hebben de
+   * kolomdefault ('analyse'), maar niet elke lezer heeft hem nodig.
+   */
+  scope?: "merk" | "analyse" | "pagina";
+  /** Aan welke pagina('s) deze vraag hangt, naast eventueel `analysis_id`. */
+  content_piece_ids?: string[];
+  /** De vraagsoort (contentbriefing.md §5), voor groepering in het scherm. */
+  kind?: "verificatie" | "aanvulling" | "onderscheid" | "bewijs" | "praktisch" | "grenzen";
+  /**
+   * Bepaalt het invoerveld in het scherm (migratie 0024, claim-audit.ts).
+   * Ontbreekt hij op een oudere rij, dan valt de UI terug op 'tekst_kort'.
+   */
+  answer_type?: "ja_nee" | "bedrag" | "getal" | "tekst_kort" | "tekst_lang" | "keuze" | "url" | "lijst";
+  /** Alleen gevuld bij `answer_type === 'keuze'`. */
+  options?: string[];
+  /** Concept-antwoord uit bekende data; bevestigen is goedkoper dan formuleren. */
+  suggested_answer?: string | null;
+  /** Zonder dit antwoord blijft de bewering die de vraag opriep onbewezen. */
+  required?: boolean;
+  claim_key?: string | null;
+  fact_ref?: string | null;
+  verify_after?: string | null;
 }
 
 /**
