@@ -209,3 +209,62 @@ export const SalesOpportunityText = z.object({
 });
 
 export type SalesOpportunityText = z.infer<typeof SalesOpportunityText>;
+
+/**
+ * De contactpersoon bij één bedrijf (plan 9.4).
+ *
+ * ⚠️ Het model levert wat het VINDT, met de vindplaats erbij. Of die persoon
+ * daarna een ontvanger mag zijn, bepaalt `lib/sales/contact.ts`: een afgeleid
+ * adres zonder menselijke bevestiging nooit, en een verkeerde functie ook niet.
+ * Zonder die scheiding zou een model dat "wel een adres weet" bepalen naar wie
+ * er gemaild wordt.
+ */
+export const SalesContactFinding = z.object({
+  personen: z.array(
+    z.object({
+      /** De naam zoals hij op de vindplaats staat. */
+      naam: z.string(),
+      /** De functie, letterlijk zoals vermeld. Leeg als hij er niet bij staat. */
+      rol: z.string(),
+      /**
+       * Het mailadres, of leeg.
+       *
+       * ⚠️ Leeg is een prima antwoord. Een gegokt adres is erger dan geen adres:
+       * een mail die stuitert kost niets, een mail bij de verkeerde persoon kost
+       * het bedrijf.
+       */
+      email: z.string(),
+      telefoon: z.string(),
+      /** De pagina waar dit vandaan komt. Zonder vindplaats is het een gerucht. */
+      bron_url: z.string(),
+    }),
+  ),
+  /** Wat het onderzoek niet zeker wist, in gewone taal. */
+  kanttekening: z.string(),
+});
+
+export type SalesContactFinding = z.infer<typeof SalesContactFinding>;
+
+/**
+ * Het conceptbericht plus de gespreksvoorbereiding (plan 16.2 en 16.5).
+ *
+ * Eén aanroep voor allebei, want ze putten uit hetzelfde dossier en de mail is
+ * de opener terwijl het gesprek het doel is. Twee aanroepen zou twee keer
+ * hetzelfde dossier meesturen voor twee teksten die op elkaar moeten aansluiten.
+ */
+export const SalesOutreachDraft = z.object({
+  onderwerp: z.string(),
+  /** Het bericht zelf, ondertekend door de medewerker. */
+  bericht: z.string(),
+  /** Een tweede versie, voor als de eerste een getal bevat dat niet klopt. */
+  alternatief_bericht: z.string(),
+  /** De twee cijfers die de verkoper paraat moet hebben. Niet zeven. */
+  cijfers: z.array(z.string()),
+  /** Drie openingszinnen: geen reactie, interesse, scepsis. */
+  openingen: z.array(z.string()),
+  bezwaren: z.array(z.object({ bezwaar: z.string(), antwoord: z.string() })),
+  /** Wat je bij dit bedrijf nooit moet zeggen: de grens van wat de meting draagt. */
+  niet_zeggen: z.array(z.string()),
+});
+
+export type SalesOutreachDraft = z.infer<typeof SalesOutreachDraft>;

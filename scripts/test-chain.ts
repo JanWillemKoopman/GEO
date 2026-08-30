@@ -5622,7 +5622,7 @@ async function main(): Promise<void> {
         console.log("\nDe Sales-module: van gemeten markt tot kans (sprint 4)");
 
         const { rows: kansen } = await db.client.query(
-          `select o.id, o.type, o.score, o.tier, o.confidence, o.hook_text, o.hook_source,
+          `select o.id, o.company_id, o.type, o.score, o.tier, o.confidence, o.hook_text, o.hook_source,
                   o.score_breakdown, o.alle_types, c.name
              from public.sales_opportunities o
              join public.sales_companies c on c.id = o.company_id
@@ -5736,6 +5736,180 @@ async function main(): Promise<void> {
           naTweedeDetectie.map((k) => String(k.id)).join(","),
           kansen.map((k) => String(k.id)).sort().join(","),
         );
+
+        // ══════════════════════════════════════════════════════════════════
+        // Sprint 5: van kans tot conceptmail
+        //
+        // ⚠️ DE SAMENHANG DIE HIER FOUT KAN GAAN:
+        //
+        //   1. Toewijzen zet de contactstap in gang, en die ketent naar het
+        //      concept. Draaien ze parallel, dan schrijft de ene stap een mail
+        //      aan een onbekende terwijl de andere net de eigenaar vindt.
+        //   2. Een verkeerde rol en een adres op een ander domein komen de
+        //      contacttabel niet in.
+        //   3. Het concept met een verzonnen cijfer wordt verworpen.
+        //   4. Een afwijzing zet de klok op het bedrijf, want die bepaalt of de
+        //      volgende ronde hem nog als kans aanbiedt.
+        console.log("\nDe Sales-module: van kans tot conceptmail (sprint 5)");
+
+        const salesUserId = randomUUID();
+        await db.client.query("insert into auth.users (id, email) values ($1, 'verkoper@outerorbit.test')", [
+          salesUserId,
+        ]);
+
+        const teBellen = kansen[0];
+
+        // ⚠️ Dit bedrijf kreeg bij de marktontdekking geen webadres, en de
+        // domeincontrole hieronder is juist wat dit scenario toetst. We geven
+        // hem er daarom een: dat gebeurt in het echt ook, een prospect die
+        // vandaag geen site heeft kan er volgende maand een hebben.
+        await db.client.query(
+          "update public.sales_companies set domain = 'zondersite.nl' where id = $1",
+          [String(teBellen.company_id ?? "")],
+        );
+        const { rows: outreachRij } = await db.client.query(
+          `insert into public.sales_outreach (company_id, opportunity_id, market_id, owner_user_id, status)
+           select o.company_id, o.id, o.market_id, $2, 'toegewezen'
+             from public.sales_opportunities o where o.id = $1
+           returning id, company_id`,
+          [teBellen.id, salesUserId],
+        );
+        ok("de outreach hangt aan een bedrijf met een webadres", outreachRij.length === 1);
+        const outreachId = String(outreachRij[0].id);
+        const bedrijfId = String(outreachRij[0].company_id);
+
+        await db.client.query(
+          `insert into public.jobs (type, payload_json, dedupe_key, status, sales_market_id)
+           values ('sales_contact_find', $1, $2, 'queued', $3)`,
+          [
+            JSON.stringify({ marketId: salesMarktId, companyId: bedrijfId, outreachId }),
+            `sales_contact:${bedrijfId}`,
+            salesMarktId,
+          ],
+        );
+        await draaiSalesTaken();
+
+        const { rows: contacten } = await db.client.query(
+          "select name, role, email, email_kind from public.sales_contacts where company_id = $1",
+          [bedrijfId],
+        );
+        // ⚠️ Twee van de drie uit de stub horen er niet in: de administratief
+        // medewerker (verkeerde rol) en de persoon met een adres op het domein
+        // van de webbouwer.
+        eqc("alleen de juiste rol komt in de tabel", String(contacten.length), "2");
+        ok(
+          "de administratief medewerker niet",
+          !contacten.some((c) => String(c.role).includes("Administratief")),
+        );
+        const webbouwer = contacten.find((c) => String(c.name) === "P. Pietersen");
+        ok(
+          "en een adres op een ander domein wordt niet overgenomen",
+          webbouwer !== undefined && webbouwer.email === null,
+          JSON.stringify(contacten),
+        );
+        ok(
+          "het adres op het eigen domein wel, als gevonden",
+          contacten.some(
+            (c) =>
+              String(c.name) === "J. Jansen" &&
+              String(c.email) === "j.jansen@zondersite.nl" &&
+              String(c.email_kind) === "gevonden",
+          ),
+          JSON.stringify(contacten),
+        );
+
+        const { rows: concept } = await db.client.query(
+          "select subject, body_draft, call_prep, notes from public.sales_outreach where id = $1",
+          [outreachId],
+        );
+        ok("er staat een conceptmail klaar", String(concept[0].body_draft ?? "").length > 50);
+        // ⚠️ HET VANGNET UIT HOOFDSTUK 16. De stub levert als eerste bericht twee
+        // verzonnen cijfers (73% en 12 opdrachten). Die hoort verworpen te zijn.
+        ok(
+          "een mail met verzonnen cijfers haalt het niet",
+          !String(concept[0].body_draft).includes("73") &&
+            !String(concept[0].body_draft).includes("12 opdrachten"),
+          String(concept[0].body_draft),
+        );
+        ok("en er staat een gespreksvoorbereiding bij", concept[0].call_prep !== null);
+        const prep = concept[0].call_prep as { nietZeggen?: string[] };
+        ok(
+          "met de grens van wat de meting draagt erin",
+          (prep.nietZeggen ?? []).length > 0,
+          JSON.stringify(prep),
+        );
+
+        // ── De werkstroom: verstuurd melden telt mee voor het plafond ───────
+        await db.client.query(
+          "update public.sales_outreach set status = 'gemaild', sent_at = now() where id = $1",
+          [outreachId],
+        );
+        await db.client.query(
+          `insert into public.sales_send_stats (user_id, dag, verstuurd) values ($1, current_date, 1)
+           on conflict (user_id, dag) do update set verstuurd = public.sales_send_stats.verstuurd + 1`,
+          [salesUserId],
+        );
+        const { rows: teller } = await db.client.query(
+          "select verstuurd from public.sales_send_stats where user_id = $1 and dag = current_date",
+          [salesUserId],
+        );
+        eqc("de dagteller loopt op", String(teller[0].verstuurd), "1");
+
+        // ── Eén actieve outreach per bedrijf ───────────────────────────────
+        //
+        // ⚠️ Twee verkopers die hetzelfde bedrijf tegelijk benaderen is de
+        // pijnlijkste fout die deze module kan maken na het benaderen van een
+        // bestaande klant. De database weigert het, niet alleen het scherm.
+        let dubbelGeweigerd = false;
+        try {
+          await db.client.query(
+            `insert into public.sales_outreach (company_id, opportunity_id, market_id, owner_user_id, status)
+             values ($1, $2, $3, $4, 'toegewezen')`,
+            [bedrijfId, teBellen.id, salesMarktId, salesUserId],
+          );
+        } catch {
+          dubbelGeweigerd = true;
+        }
+        ok("een tweede actieve outreach op hetzelfde bedrijf wordt geweigerd", dubbelGeweigerd);
+
+        // ── Een afwijzing zonder reden bestaat niet ────────────────────────
+        let zonderRedenGeweigerd = false;
+        try {
+          await db.client.query(
+            "update public.sales_outreach set status = 'afgewezen' where id = $1",
+            [outreachId],
+          );
+        } catch {
+          zonderRedenGeweigerd = true;
+        }
+        ok("de database weigert een afwijzing zonder reden", zonderRedenGeweigerd);
+
+        await db.client.query(
+          `update public.sales_outreach
+              set status = 'afgewezen', lost_reason = 'geen_budget', outcome_at = now()
+            where id = $1`,
+          [outreachId],
+        );
+        await db.client.query(
+          "update public.sales_companies set last_rejected_at = now() where id = $1",
+          [bedrijfId],
+        );
+        const { rows: naAfwijzing } = await db.client.query(
+          "select last_rejected_at from public.sales_companies where id = $1",
+          [bedrijfId],
+        );
+        // ⚠️ Het bedrijf onthoudt zijn nee: binnen twaalf maanden zet dat de
+        // opportunityscore op nul in plaats van hem te verlagen (plan 13.1).
+        ok("het bedrijf onthoudt zijn nee", naAfwijzing[0].last_rejected_at !== null);
+
+        // En daarna kan hetzelfde bedrijf opnieuw opgepakt worden: de
+        // gedeeltelijke index telt alleen ACTIEVE outreach.
+        const { rows: opnieuw } = await db.client.query(
+          `insert into public.sales_outreach (company_id, opportunity_id, market_id, owner_user_id, status)
+           values ($1, $2, $3, $4, 'toegewezen') returning id`,
+          [bedrijfId, teBellen.id, salesMarktId, salesUserId],
+        );
+        ok("na een afwijzing kan het bedrijf later opnieuw opgepakt worden", opnieuw.length === 1);
       } finally {
         globalThis.fetch = origineleFetch;
       }

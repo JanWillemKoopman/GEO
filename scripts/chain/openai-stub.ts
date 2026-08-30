@@ -229,6 +229,79 @@ const ANTWOORDEN: Record<string, (user: string) => unknown> = {
   }),
 
   /**
+   * De contactpersoon (sprint 5, plan 9.4).
+   *
+   * ⚠️ Drie personen, en twee daarvan horen NIET in de tabel te komen: een
+   * administratief medewerker (verkeerde rol) en iemand met een adres op een
+   * ander domein (het adres van de webbouwer). Een stub met alleen de goede
+   * persoon zou beide vangnetten ongetest laten.
+   */
+  sales_contact_finding: (user: string) => {
+    // De stub antwoordt over het bedrijf waar hij naar gevraagd is, net als een
+    // echt model. Een vast domein zou de domeincontrole hieronder toevallig laten
+    // slagen of falen, afhankelijk van welk bedrijf er in de test bovenaan staat.
+    const domein = user.match(/^Website: (.+)$/m)?.[1]?.trim() ?? "onbekend.nl";
+    return {
+      personen: [
+        {
+          naam: "J. Jansen",
+          rol: "Commercieel directeur",
+          email: `j.jansen@${domein}`,
+          telefoon: "040 123 4567",
+          bron_url: `https://www.${domein}/over-ons`,
+        },
+        {
+          naam: "A. de Boer",
+          rol: "Administratief medewerker",
+          email: `a.deboer@${domein}`,
+          telefoon: "",
+          bron_url: `https://www.${domein}/team`,
+        },
+        {
+          naam: "P. Pietersen",
+          rol: "Eigenaar",
+          email: "p.pietersen@webbouwer.nl",
+          telefoon: "",
+          bron_url: `https://www.${domein}/contact`,
+        },
+      ],
+      kanttekening: "Van één persoon staat de functie niet expliciet op de site.",
+    };
+  },
+
+  /**
+   * De conceptmail plus de gespreksvoorbereiding (sprint 5, plan 16.2 en 16.5).
+   *
+   * ⚠️ Het eerste bericht bevat MET OPZET twee verzonnen cijfers. De controle
+   * hoort hem te verwerpen en het alternatief te nemen. Een stub die netjes
+   * blijft, zou precies het vangnet ongetest laten waar hoofdstuk 16 om draait.
+   */
+  sales_outreach_draft: () => ({
+    onderwerp: "Van X Makelaars in AI-antwoorden over makelaars",
+    bericht:
+      "Beste, jullie lopen 73% achter op de markt en missen daardoor 12 opdrachten per maand. " +
+      "Dat kunnen wij oplossen. Tien minuten deze week?",
+    alternatief_bericht:
+      "Beste, wij stelden vragen aan AI-assistenten over makelaars in Eindhoven. Van X Makelaars " +
+      "komt in die antwoorden nauwelijks voor, terwijl andere kantoren wel genoemd worden. Dat " +
+      "zegt niets over jullie werk, wel over wat een AI-assistent over jullie weet. " +
+      "Heb je tien minuten deze week om er even naar te kijken?",
+    cijfers: ["Genoemd bij een klein deel van de gemeten vragen", "De concurrent scoort hoger"],
+    openingen: [
+      "Je hebt niet gereageerd op mijn mail, mag ik het kort toelichten?",
+      "Fijn dat je reageerde. Zal ik laten zien waar het verschil zit?",
+      "Je gaf aan dat je twijfelt of dit klopt. Dat snap ik, ik laat je de vragen zien.",
+    ],
+    bezwaren: [
+      {
+        bezwaar: "Wij krijgen onze klanten via mond-tot-mondreclame.",
+        antwoord: "Dat klopt vaak, en dit gaat over de mensen die je zo niet bereikt.",
+      },
+    ],
+    niet_zeggen: ["Hoeveel omzet dit misloopt weten we niet, dus dat zeggen we niet."],
+  }),
+
+  /**
    * De open marktvraag (blok M).
    *
    * ⚠️ De klant staat NIET vooraan, en dat is opzet. Dit blok moet aantonen dat

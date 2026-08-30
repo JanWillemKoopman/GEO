@@ -91,6 +91,16 @@ export const STAP_KOSTEN_USD = {
    * "opportunities verklaren en hooks schrijven" uit de begroting in plan 21.2.
    */
   explain: 0.03,
+  /**
+   * Eén onderzoeksaanroep mét web-zoeken die de contactpersoon zoekt.
+   *
+   * ⚠️ Draait pas bij TOEWIJZING en niet bij detectie (plan §8.2b). Voor dertig
+   * bedrijven een contactpersoon uitzoeken terwijl er acht benaderd worden, is
+   * werk en geld dat niemand gebruikt.
+   */
+  contact: 0.05,
+  /** De conceptmail plus de gespreksvoorbereiding. Eén aanroep, geen web-zoeken. */
+  draft: 0.15,
 } as const;
 
 export type SalesStap = keyof typeof STAP_KOSTEN_USD;

@@ -97,6 +97,11 @@ const TYPICAL_SECONDS: Record<JobType, number> = {
   sales_detect_opportunities: 8,
   // Eén goedkope aanroep zonder web-zoeken, met drie kandidaatzinnen.
   sales_opportunity_explain: 12,
+  // Eén gegronde zoekactie naar één bedrijf. Korter dan de marktontdekking,
+  // want het is één site en geen hele branche.
+  sales_contact_find: 35,
+  // Eén aanroep die een mail én een gespreksvoorbereiding schrijft.
+  sales_outreach_draft: 30,
 };
 
 /**

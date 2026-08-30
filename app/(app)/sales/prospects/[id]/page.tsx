@@ -7,6 +7,8 @@ import { ExternalLink } from "@/components/external-link";
 import { KANS_LABEL, type KansType } from "@/lib/sales/opportunity";
 import { GEWICHTEN } from "@/lib/sales/opportunity-score";
 import { engineLabel } from "@/lib/engines/label";
+import { magOntvangerZijn } from "@/lib/sales/contact";
+import { Werkpaneel } from "./werkpaneel";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "Prospect" };
@@ -112,6 +114,67 @@ export default async function ProspectDossierPage({
 
   const bewijs = (bewijsRijen ?? []) as unknown as Bewijs[];
 
+  // ── De outreach en de contactpersoon ────────────────────────────────────
+  //
+  // Beide horen bij het dossier en niet op een apart scherm: plan §17.2 zegt dat
+  // een verkoper vanuit de analyse direct moet kunnen handelen, zonder ergens
+  // anders heen te navigeren.
+  const { data: outreachRij } = await supabase
+    .from("sales_outreach")
+    .select("id, status, subject, body_draft, call_prep, contact_id")
+    .eq("company_id", id)
+    .not("status", "in", "(afgewezen,klant,niet_nu)")
+    .maybeSingle();
+
+  type OutreachRij = {
+    id: string;
+    status: string;
+    subject: string | null;
+    body_draft: string | null;
+    call_prep: {
+      cijfers?: string[];
+      openingen?: string[];
+      bezwaren?: { bezwaar: string; antwoord: string }[];
+      nietZeggen?: string[];
+    } | null;
+    contact_id: string | null;
+  };
+  const outreach = outreachRij as unknown as OutreachRij | null;
+
+  const { data: contactRij } = await supabase
+    .from("sales_contacts")
+    .select("id, name, role, email, email_kind, confidence, verified_at")
+    .eq("company_id", id)
+    .order("confidence")
+    .limit(1)
+    .maybeSingle();
+
+  type ContactRij = {
+    id: string;
+    name: string;
+    role: string | null;
+    email: string | null;
+    email_kind: "gevonden" | "afgeleid";
+    confidence: "hoog" | "middel" | "laag";
+    verified_at: string | null;
+  };
+  const contactData = contactRij as unknown as ContactRij | null;
+
+  // ⚠️ Het oordeel "mag deze persoon een ontvanger zijn" komt uit de pure module
+  // en niet uit een `if` op dit scherm. Er staat straks een route naast die
+  // hetzelfde antwoord moet geven, en twee plekken die dat oordeel apart vellen
+  // lopen uit elkaar (plan 9.4).
+  const contactOordeel = contactData
+    ? magOntvangerZijn({
+        naam: contactData.name,
+        rol: contactData.role,
+        email: contactData.email,
+        emailKind: contactData.email_kind,
+        zekerheid: contactData.confidence,
+        verifiedAt: contactData.verified_at,
+      })
+    : null;
+
   let rivaalNaam: string | null = null;
   if (kans?.rival_company_id) {
     const { data } = await supabase
@@ -174,6 +237,13 @@ export default async function ProspectDossierPage({
               </p>
             )}
 
+            {kans.hook_source === "sjabloon" && (
+              <p className="text-sm text-muted">
+                Deze zin komt uit het vaste sjabloon en is niet apart geschreven. Hij klopt met de
+                meting; hij is alleen zakelijker dan nodig.
+              </p>
+            )}
+
             {kans.alle_types.length > 1 && (
               <p className="text-sm text-muted">
                 Er speelt meer bij dit bedrijf:{" "}
@@ -185,6 +255,30 @@ export default async function ProspectDossierPage({
               </p>
             )}
           </section>
+
+          <Werkpaneel
+            opportunityId={kans.id}
+            outreach={
+              outreach
+                ? {
+                    id: outreach.id,
+                    status: outreach.status,
+                    subject: outreach.subject,
+                    bodyDraft: outreach.body_draft,
+                    callPrep: outreach.call_prep,
+                    contact: contactData
+                      ? {
+                          naam: contactData.name,
+                          rol: contactData.role,
+                          email: contactData.email,
+                          magMailen: Boolean(contactOordeel?.ok),
+                          melding: contactOordeel?.melding ?? null,
+                        }
+                      : null,
+                  }
+                : null
+            }
+          />
 
           <section className="card flex flex-col gap-3">
             <div>

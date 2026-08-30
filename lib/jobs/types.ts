@@ -195,6 +195,21 @@ export const JOB_TYPES = [
    * missen de laatste bedrijven hun zin zonder dat iemand het ziet.
    */
   "sales_opportunity_explain",
+  // ── Sprint 5: de outreach (plan hoofdstuk 16) ─────────────────────────────
+  //
+  // ⚠️ Deze twee draaien pas bij TOEWIJZING en niet bij detectie (plan §8.2b).
+  // Voor dertig bedrijven een contactpersoon uitzoeken en een mail schrijven die
+  // niemand verstuurt, is werk en geld dat niemand gebruikt.
+  /** Wie mailen we bij dit bedrijf? Eén onderzoeksaanroep mét web-zoeken. */
+  "sales_contact_find",
+  /**
+   * De conceptmail plus de gespreksvoorbereiding. Eén aanroep.
+   *
+   * ⚠️ Deze taak VERSTUURT NIETS, en dat kan hij ook niet: er is geen code in
+   * deze module die een verbinding met een mailserver maakt (plan 16.3). Hij zet
+   * een concept klaar dat de medewerker leest, aanpast en zelf verstuurt.
+   */
+  "sales_outreach_draft",
   /**
    * Blok M: de open koperssvraag die concurrenten ONTDEKT in plaats van ze op
    * te leggen. Vervangt de benoemde vergelijking als hoofdmechanisme, na de
@@ -359,6 +374,8 @@ export interface JobPayloads {
   sales_market_aggregate: { marketId: string; runId: string };
   sales_detect_opportunities: { marketId: string; runId: string };
   sales_opportunity_explain: { marketId: string; runId: string; opportunityId: string };
+  sales_contact_find: { marketId: string; companyId: string; outreachId: string };
+  sales_outreach_draft: { marketId: string; outreachId: string };
   reputation_evidence: { runId: string };
   reputation_market: {
     runId: string;

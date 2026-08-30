@@ -5894,3 +5894,60 @@ tien beoordeelt en het met minstens acht van de tien eens is. Elke afwijking is 
 verandert een getal in de gewichtentabel. Dat gesprek heeft nog niet plaatsgevonden.
 
 Migratie `0072` op productie, 2875 unittests en 451 ketentests groen.
+
+## 29 augustus 2026: de Sales-module bereidt het gesprek voor, sprint 5 van zeven
+
+Een opgepakte kans levert nu een contactpersoon op, een conceptmail en een gespreksvoorbereiding, en
+de hele werkstroom eromheen: statussen, een trechter, een afwijzing met een reden en een logboek.
+Twee taaksoorten, vier tabellen, migratie `0073`.
+
+**De app verstuurt niets, en dat is in de structuur vastgelegd.** De openingsmail gaat altijd door
+de handen van de medewerker: hij leest het concept, past het aan en verstuurt het uit zijn eigen
+mailbox. Dat staat niet als afspraak in een document maar als afwezigheid in de code. Er is geen
+kolom met een verzendstatus, geen wachtrij, geen bezorgingsvlag, en geen enkel bestand in deze
+module raakt de maillaag. Een unittest leest de broncode en valt om zodra dat verandert, want een
+afspraak verdwijnt zodra iemand het handig vindt.
+
+De reden is niet principieel maar praktisch, en er zijn er vier. De ontvanger krijgt een bericht van
+een mens en niet van een systeem. De antwoorden landen in de mailbox van de verkoper in plaats van
+in een systeempostbus. Er ligt altijd een menselijke lezing tussen het concept en de ontvanger, en
+dat is de sterkste garantie tegen een verkeerde bewering in een eerste contact. En het beschermt het
+maildomein: bulkverzending vanaf één systeem is precies het patroon waar spamfilters op letten.
+
+**Wat de app wél remt is de aanvoer.** Twintig concepten per persoon per dag, en dat plafond
+halveert zodra meer dan vijf procent van de verstuurde mails stuitert of een klacht oplevert. Dat is
+geen kostenrem: gaan er honderd berichten per week uit vanaf hetzelfde domein waarop ook de
+facturatie loopt, dan kan één golf klachten dat domein afknijpen. Dan komen ook de offertes niet
+meer aan, en dat merk je pas als het weken misgaat.
+
+**Drie regels over wie er een mail krijgt, en ze staan alle drie in code.** Een afgeleid adres is
+geen adres: een gok op het naampatroon van het bedrijf mag opgeslagen worden, maar er gaat niets
+naartoe voordat een mens hem bevestigt. Een mail die stuitert kost niets, een mail bij de verkeerde
+persoon kost het bedrijf. Liever geen contact dan de verkeerde: vindt de stap niemand, dan blijft het
+leeg en zoekt de verkoper zelf iemand op. En de functie moet passen: de eigenaar of de commercieel
+verantwoordelijke, niet de administratief medewerker die toevallig op de teampagina staat. Een adres
+op een ander domein dan het bedrijf wordt geweigerd, want dat is meestal de webbouwer.
+
+**De mail en de belvoorbereiding gaan door dezelfde getallencontrole als de haak.** Elk cijfer erin
+moet uit de meting komen; klopt er een niet, dan valt de tekst terug op een alternatief en anders op
+een sjabloon dat saai en waar is. Dat geldt nadrukkelijk ook voor de voorbereiding: een verkoper die
+een verzonnen cijfer voorleest aan de telefoon, staat er net zo hard naast als wanneer het in de mail
+had gestaan. De voorbereiding heeft bovendien een verplicht blok "wat je niet moet zeggen", precies
+om te voorkomen dat iemand iets belooft wat we niet gemeten hebben.
+
+**Twee dingen die de database afdwingt en niet alleen het scherm.** Een afwijzing zonder categorie
+bestaat niet, want zonder categorie is niet te leren welk soort prospect afhaakt. En er kan maar één
+actieve outreach per bedrijf zijn: twee verkopers die hetzelfde bedrijf tegelijk benaderen is na het
+benaderen van een bestaande klant de pijnlijkste fout die deze module kan maken. Beide zijn met een
+ketentest tegen echte Postgres getoetst, en beide weigeren.
+
+**De trechter telt cumulatief.** Wie een gesprek had is ook gemaild geweest, en een afgewezen kans
+telt mee tot waar hij gekomen is. Zou de trechter op de huidige stand tellen, dan zakt "gemaild"
+zodra iemand doorschuift naar "gebeld", en dan daalt het aantal verstuurde mails terwijl er méér
+verstuurd is. Dat is de klassieke fout in een trechtergrafiek.
+
+**Nog niet geverifieerd.** Het criterium van sprint 5 is dat een verkoper tien conceptmails leest en
+van minstens acht zegt: deze zou ik versturen. Daarna gaan de eerste echte mails eruit. Dat is niet
+gebeurd.
+
+Migratie `0073` op productie, 2951 unittests en 465 ketentests groen.

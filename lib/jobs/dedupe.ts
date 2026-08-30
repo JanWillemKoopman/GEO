@@ -177,4 +177,6 @@ export const dedupe = {
    * staat daar een lege regel waar niemand een reden voor kan vinden.
    */
   salesExplain: (opportunityId: string) => `sales_explain:${opportunityId}`,
+  salesContact: (companyId: string) => `sales_contact:${companyId}`,
+  salesDraft: (outreachId: string) => `sales_draft:${outreachId}`,
 };

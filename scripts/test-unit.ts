@@ -173,6 +173,32 @@ import {
   bouwHookVraag,
   toegestaneGetallen,
 } from "@/lib/sales/hook";
+// Sprint 5: de werkstroom, de mail en de contactregels.
+import {
+  OUTREACH_STANDEN,
+  STAND_TEKST,
+  AFWIJS_REDENEN,
+  CONCEPTEN_PER_DAG,
+  magOvergaanNaar,
+  volgendeStandenVoor,
+  beoordeelStatus,
+  beoordeelPlafond,
+  rekenTrechter,
+} from "@/lib/sales/workflow";
+import {
+  controleerConcept,
+  controleerVoorbereiding,
+  sjabloonConcept,
+  bouwMailVraag,
+  TOON_PER_TYPE,
+  VERBODEN_IN_MAIL,
+} from "@/lib/sales/mail";
+import {
+  magOntvangerZijn,
+  rolPast,
+  leidAdresAf,
+  bouwContactVraag,
+} from "@/lib/sales/contact";
 import { ICONEN } from "@/lib/icons";
 import { DOORVERWIJZINGEN } from "@/lib/redirects";
 import { findGaps, gapLink } from "@/lib/profile-gaps";
@@ -13652,6 +13678,313 @@ group("de opdracht aan het model laat geen ruimte voor eigen cijfers", () => {
   ok("het sjabloon staat erbij als ondergrens", vraag.includes("Dit staat er als je het niet beter kunt"));
   ok("en de opdracht om niets te verzinnen", vraag.includes("Verzin geen enkel getal"));
   ok("één zin, niet vijf", vraag.includes("Eén zin"));
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+console.log("\nDe Sales-module: de outreach (sprint 5)");
+
+group("de trechter loopt één kant op, met drie uitgangen", () => {
+  // Plan 17.1. De uitgangen zijn overal bereikbaar, want een prospect kan op elk
+  // moment nee zeggen; terug kan niet, want dan telt hetzelfde bedrijf drie keer
+  // als "gesprek" in de trechter van hoofdstuk 18.
+  ok("nieuw gaat naar toegewezen", magOvergaanNaar("nieuw", "toegewezen"));
+  ok("en toegewezen naar gemaild", magOvergaanNaar("toegewezen", "gemaild"));
+  ok("gesprek kan rechtstreeks klant worden", magOvergaanNaar("gesprek", "klant"));
+  ok("maar gemaild niet terug naar toegewezen", !magOvergaanNaar("gemaild", "toegewezen"));
+  ok("en nieuw niet meteen klant", !magOvergaanNaar("nieuw", "klant"));
+
+  // De enige weg terug: een uitgestelde kans kan opnieuw opgepakt worden. Daar
+  // is de follow-updatum voor.
+  ok("niet nu kan terug naar toegewezen", magOvergaanNaar("niet_nu", "toegewezen"));
+  ok("een afgewezen kans is eindstation", volgendeStandenVoor("afgewezen").length === 0);
+  ok("elke stand heeft een tekst die een verkoper leest", OUTREACH_STANDEN.every((s) => (STAND_TEKST[s]?.label ?? "").length > 2));
+});
+
+group("een afwijzing zonder reden bestaat niet", () => {
+  // ⚠️ Plan 17.1: de reden is verplicht en komt uit een korte lijst. Zonder
+  // categorie is niet te tellen welk soort prospect afhaakt, en dan is de
+  // leerlus uit hoofdstuk 19 onmogelijk. De database dwingt het ook af, maar een
+  // constraint-fout is een 500 en dit is een zin die de verkoper kan lezen.
+  const zonder = beoordeelStatus("gemaild", "afgewezen", null);
+  ok("zonder reden mag het niet", !zonder.ok);
+  ok("en de melding legt uit waarom", (zonder.melding ?? "").includes("welk soort prospect"));
+
+  const met = beoordeelStatus("gemaild", "afgewezen", "geen_budget");
+  ok("met een reden uit de lijst wel", met.ok, met.melding ?? "");
+
+  const verzonnen = beoordeelStatus("gemaild", "afgewezen", "geen_zin");
+  ok("een verzonnen reden telt niet", !verzonnen.ok);
+
+  const onmogelijk = beoordeelStatus("nieuw", "klant", null);
+  ok("een onmogelijke sprong wordt geweigerd", !onmogelijk.ok);
+  ok(
+    "en de melding zegt wat er wél kan",
+    (onmogelijk.melding ?? "").includes("Vanaf hier kun je naar"),
+    onmogelijk.melding ?? "",
+  );
+  eq2("er zijn zes redenen om uit te kiezen", AFWIJS_REDENEN.length, 6);
+});
+
+group("het plafond beschermt het maildomein en niet het budget", () => {
+  // Plan 16.6, eerste maatregel. Omdat de medewerker zelf verstuurt kan de app
+  // het versturen niet tegenhouden, maar wel de AANVOER van concepten.
+  const rustig = beoordeelPlafond({ verstuurd: 5, bounces: 0, klachten: 0, afmeldingen: 0 });
+  ok("vijf van de twintig laat ruimte", rustig.ok);
+  eq2("en zegt hoeveel", rustig.ruimte, CONCEPTEN_PER_DAG - 5);
+
+  const vol = beoordeelPlafond({ verstuurd: CONCEPTEN_PER_DAG, bounces: 0, klachten: 0, afmeldingen: 0 });
+  ok("bij het plafond stopt de aanvoer", !vol.ok);
+  ok("en de melding legt uit waarom dit bestaat", (vol.melding ?? "").includes("maildomein"));
+
+  // ⚠️ De tweede rem: loopt het aandeel bounces en klachten op, dan halveert het
+  // plafond. Meer volume is dan precies de verkeerde reactie, want het domein is
+  // al aan het beschadigen.
+  const slecht = beoordeelPlafond({ verstuurd: 10, bounces: 2, klachten: 0, afmeldingen: 0 });
+  ok("twee bounces op tien halveert het plafond", !slecht.ok);
+  ok("en dat wordt gezegd", (slecht.melding ?? "").includes("gehalveerd"));
+});
+
+group("de trechter telt cumulatief en niet op de huidige stand", () => {
+  // ⚠️ DE KLASSIEKE FOUT IN EEN TRECHTERGRAFIEK. Zou hij tellen op de huidige
+  // stand, dan zakt "gemaild" zodra iemand doorschuift naar "gebeld", en dan
+  // daalt het aantal verstuurde mails terwijl er méér verstuurd is.
+  const trechter = rekenTrechter(["gemaild", "gebeld", "gesprek", "toegewezen", "afgewezen"]);
+  const per = new Map(trechter.map((t) => [t.stand, t.aantal]));
+
+  eq2("wie een gesprek had, is ook gemaild geweest", per.get("gemaild") ?? 0, 3);
+  // Alle vijf zijn ooit toegewezen geweest, ook de afgewezen kans: er was
+  // iemand om af te wijzen.
+  eq2("en alle vijf zijn toegewezen geweest", per.get("toegewezen") ?? 0, 5);
+  eq2("het gesprek is het cijfer dat telt", per.get("gesprek") ?? 0, 1);
+
+  // Een afgewezen kans telt mee tot waar hij gekomen is en niet verder. Zou hij
+  // helemaal uit de trechter vallen, dan lijkt de conversie beter dan hij is.
+  ok("een afgewezen kans valt niet uit de telling", (per.get("toegewezen") ?? 0) > (per.get("gemaild") ?? 0));
+
+  const conversie = trechter.find((t) => t.stand === "gemaild")?.conversie ?? 0;
+  ok("en er staat een conversie per stap bij", conversie > 0 && conversie <= 1, String(conversie));
+});
+
+group("een mail met een verzonnen cijfer wordt niet klaargezet", () => {
+  const kans: Kans = {
+    type: "concurrent_gap",
+    vragen: ["v1"],
+    antwoorden: ["a1"],
+    cijfers: { eigen_aandeel: 0.08, concurrent_aandeel: 0.6, vragen: 40 },
+  };
+
+  const goed = controleerConcept(
+    {
+      onderwerp: "Van X in AI-antwoorden over makelaars",
+      tekst:
+        "Beste, wij stelden 40 vragen aan AI-assistenten over makelaars in Eindhoven. Van X wordt " +
+        "bij 8% van die vragen genoemd en Y Makelaars bij 60%. Dat zegt niets over jullie werk, " +
+        "wel over wat een AI-assistent over jullie weet. Tien minuten deze week?",
+    },
+    kans,
+  );
+  ok("een mail met alleen gemeten cijfers mag", goed.ok, goed.bezwaren.join(" "));
+
+  const fout = controleerConcept(
+    {
+      onderwerp: "Van X in AI-antwoorden",
+      tekst:
+        "Beste, jullie lopen 73% achter op de markt en missen daardoor 12 opdrachten per maand. " +
+        "Dat kunnen wij oplossen. Tien minuten deze week? Met vriendelijke groet.",
+    },
+    kans,
+  );
+  ok("een mail met verzonnen cijfers niet", !fout.ok);
+  ok("en de bezwaren noemen ze", (fout.bezwaren[0] ?? "").includes("73"));
+
+  // Plan 16.2, punt 1: de onderwerpregel gaat over hen en niet over ons.
+  const overOns = controleerConcept(
+    {
+      onderwerp: "ORBIT ENGINE helpt jullie met AI-zichtbaarheid",
+      tekst:
+        "Beste, wij stelden 40 vragen over makelaars in Eindhoven. Van X wordt bij 8% genoemd. " +
+        "Tien minuten deze week om er even naar te kijken? Met vriendelijke groet.",
+    },
+    kans,
+  );
+  ok("een onderwerpregel over onszelf wordt afgekeurd", !overOns.ok);
+
+  // Het sjabloon is het vangnet: saai, kort en waar.
+  const sjabloon = sjabloonConcept(kans, "Van X", "makelaars Eindhoven", "Y wordt bij 60% genoemd, Van X bij 8%.", "M. de Vries");
+  ok("het sjabloon komt door zijn eigen controle", controleerConcept(sjabloon, kans).ok);
+  ok("en vraagt om tien minuten in plaats van een demo", sjabloon.tekst.includes("tien minuten"));
+});
+
+group("de gespreksvoorbereiding valt onder dezelfde bewijsregel", () => {
+  // Plan 16.5: elk getal in de voorbereiding wordt tegen de meetdata
+  // gecontroleerd. Een verkoper die een verkeerd cijfer voorleest, staat er net
+  // zo hard naast als wanneer het in de mail stond.
+  const kans: Kans = {
+    type: "onzichtbaar",
+    vragen: [],
+    antwoorden: [],
+    cijfers: { vermeldingen: 3, vragen: 40 },
+  };
+
+  const goed = controleerVoorbereiding(
+    {
+      cijfers: ["3 van de 40 vragen", "40 gemeten vragen"],
+      openingen: ["Geen reactie gehad?", "Je gaf aan interesse te hebben.", "Je was sceptisch."],
+      bezwaren: [{ bezwaar: "Wij krijgen klanten via mond-tot-mond.", antwoord: "Dat klopt vaak." }],
+      nietZeggen: ["Hoeveel omzet dit misloopt, dat weten we niet."],
+    },
+    kans,
+  );
+  ok("een voorbereiding met gemeten cijfers mag", goed.ok, goed.bezwaren.join(" "));
+
+  const fout = controleerVoorbereiding(
+    {
+      cijfers: ["3 van de 40", "je mist 12 opdrachten per maand"],
+      openingen: ["a", "b", "c"],
+      bezwaren: [],
+      nietZeggen: ["iets"],
+    },
+    kans,
+  );
+  ok("een verzonnen cijfer niet", !fout.ok);
+
+  // ⚠️ De grens van wat de meting draagt is verplicht. Juist die zin voorkomt dat
+  // een verkoper iets belooft wat we niet gemeten hebben.
+  const zonderGrens = controleerVoorbereiding(
+    {
+      cijfers: ["3 van de 40"],
+      openingen: ["a", "b", "c"],
+      bezwaren: [],
+      nietZeggen: [],
+    },
+    kans,
+  );
+  ok("zonder die grens is de voorbereiding niet compleet", !zonderGrens.ok);
+});
+
+group("elk hooktype krijgt een eigen toon, en de mail geen pitch", () => {
+  // Plan 16.2: "Dezelfde mail voor alle acht types is een sjabloon met
+  // variabelen, en dat ruikt een ondernemer."
+  for (const type of KANS_TYPES) {
+    ok(`${type} heeft een eigen toon`, (TOON_PER_TYPE[type] ?? "").length > 30);
+  }
+  const tonen = new Set(Object.values(TOON_PER_TYPE));
+  eq2("en die tonen verschillen echt van elkaar", tonen.size, KANS_TYPES.length);
+
+  const vraag = bouwMailVraag(
+    { type: "onzichtbaar", vragen: [], antwoorden: [], cijfers: { vermeldingen: 3, vragen: 40 } },
+    "Van X",
+    "makelaars Eindhoven",
+    "Van X wordt bij 3 van de 40 vragen genoemd.",
+    "M. de Vries",
+    null,
+  );
+  ok("de opdracht noemt wat er niet in mag", VERBODEN_IN_MAIL.every((v) => vraag.includes(v)));
+  ok("en vraagt om tien minuten in plaats van een demo", vraag.includes("tien minuten deze week"));
+  ok("zonder publiek rapport staat er geen link in", !vraag.includes("orbitengine.nl"));
+});
+
+group("wie mag er een mail krijgen, en wie zeker niet", () => {
+  // ⚠️ Plan 9.4, regel 1: een afgeleid adres is geen adres. "Een mail die
+  // stuitert kost je niets, maar een mail bij de verkeerde persoon kost je het
+  // bedrijf."
+  const afgeleid = magOntvangerZijn({
+    naam: "J. Jansen",
+    rol: "Directeur",
+    email: "j.jansen@vanx.nl",
+    emailKind: "afgeleid",
+    zekerheid: "middel",
+  });
+  ok("een afgeleid adres mag niet zonder bevestiging", !afgeleid.ok);
+  ok("en de melding zegt wat je moet doen", (afgeleid.melding ?? "").includes("Controleer hem eerst"));
+
+  const bevestigd = magOntvangerZijn({
+    naam: "J. Jansen",
+    rol: "Directeur",
+    email: "j.jansen@vanx.nl",
+    emailKind: "afgeleid",
+    zekerheid: "middel",
+    verifiedAt: "2026-08-29T10:00:00Z",
+  });
+  ok("bevestigd door een mens mag wel", bevestigd.ok);
+
+  // Regel 3: de juiste rol, en een uitsluiting weegt zwaarder dan een treffer.
+  ok("een directeur past", rolPast("Directeur"));
+  ok("een commercieel manager ook", rolPast("Commercieel manager"));
+  ok("een administratief medewerker niet", !rolPast("Administratief medewerker"));
+  ok(
+    "ook niet als er marketing in de titel staat",
+    !rolPast("Administratief medewerker marketing"),
+  );
+  ok("en zonder functie weten we het niet", !rolPast(null));
+
+  const zonderAdres = magOntvangerZijn({
+    naam: "J. Jansen",
+    rol: "Directeur",
+    email: null,
+    emailKind: "gevonden",
+    zekerheid: "hoog",
+  });
+  ok("zonder adres gaat er niets uit", !zonderAdres.ok);
+  ok("en er wordt er geen gegokt", (zonderAdres.melding ?? "").includes("gokt er geen"));
+});
+
+group("een adres afleiden mag alleen met een echt patroon", () => {
+  // ⚠️ Uit één adres een patroon afleiden is geen afleiding maar een aanname met
+  // een steekproef van één.
+  ok(
+    "één bekend adres is geen patroon",
+    leidAdresAf("Jan", "Jansen", "vanx.nl", ["info@vanx.nl"]) === null,
+  );
+
+  const patroon = leidAdresAf("Jan", "Jansen", "vanx.nl", [
+    "piet.klaassen@vanx.nl",
+    "marie.devries@vanx.nl",
+  ]);
+  eq("twee gelijke patronen leveren een gok op", patroon?.email ?? "", "jan.jansen@vanx.nl");
+  ok("met de vorm erbij", (patroon?.patroon ?? "").includes("voornaam"));
+
+  ok(
+    "twee verschillende vormen zijn geen patroon",
+    leidAdresAf("Jan", "Jansen", "vanx.nl", ["piet@vanx.nl", "marie.devries@vanx.nl"]) === null,
+  );
+});
+
+group("de contactvraag zoekt de juiste persoon en verzint niets", () => {
+  const vraag = bouwContactVraag({ naam: "Van X Makelaars", domein: "vanx.nl", plaats: "Eindhoven" });
+  ok("het bedrijf staat erin", vraag.includes("Van X Makelaars"));
+  ok("de opdracht zoekt de commercieel verantwoordelijke", vraag.includes("over de commercie gaat"));
+  ok("administratief personeel is uitgesloten", vraag.includes("Noem geen administratief"));
+  ok("en verzinnen mag niet", vraag.includes("Verzin nooit een mailadres"));
+  ok(
+    "zonder website zegt hij dat",
+    bouwContactVraag({ naam: "Zonder Site", domein: null, plaats: null }).includes(
+      "geen bekende website",
+    ),
+  );
+});
+
+group("er bestaat nergens een route die zelf een openingsmail verstuurt", () => {
+  // ⚠️ PLAN 16.3 IS EEN VASTE REGEL EN GEEN ONTWERPOPTIE: "Er bestaat geen knop,
+  // geen instelling en geen cron die een openingsmail de deur uit doet." Deze
+  // broncodecontrole is de garantie. Zonder hem is het een afspraak, en een
+  // afspraak verdwijnt zodra iemand het handig vindt.
+  const salesBestanden = [
+    ...tsOnder("lib/sales"),
+    ...tsOnder("lib/pipeline").filter((p) => p.includes("sales-")),
+    ...tsOnder("app/api/sales"),
+  ];
+  ok("er zijn Sales-bestanden gevonden", salesBestanden.length > 10, `${salesBestanden.length}`);
+
+  const verstuurders = salesBestanden.filter((pad) => {
+    const bron = leesBestand(pad);
+    return /from "@\/lib\/email|sendMail|resend|nodemailer/i.test(bron);
+  });
+  ok(
+    "geen enkel Sales-bestand raakt de maillaag",
+    verstuurders.length === 0,
+    verstuurders.join(", "),
+  );
 });
 
 // ════════════════════════════════════════════════════════════════════════════

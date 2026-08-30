@@ -60,6 +60,8 @@ import { meetVraag } from "@/lib/pipeline/sales-measure";
 import { aggregeerRonde } from "@/lib/pipeline/sales-aggregate";
 import { detecteerVoorRonde } from "@/lib/pipeline/sales-detect";
 import { schrijfUitleg } from "@/lib/pipeline/sales-explain";
+import { zoekContact } from "@/lib/pipeline/sales-contact";
+import { schrijfConcept } from "@/lib/pipeline/sales-draft";
 import { VRAGEN_STANDAARD, type Intentie } from "@/lib/sales/intents";
 import { raamMeetronde } from "@/lib/sales/budget";
 import { availableEngineIds } from "@/lib/engines/registry";
@@ -1147,6 +1149,34 @@ const handlers: { [T in JobType]: Handler<T> } = {
   /** Stap 10: de uitleg en de haak bij één kans. */
   sales_opportunity_explain: async ({ admin }, payload) => {
     await schrijfUitleg(admin, payload.opportunityId);
+  },
+
+  /**
+   * Stap 12: de contactpersoon zoeken, en daarna pas het concept.
+   *
+   * ⚠️ De volgorde is niet omkeerbaar. Het concept wordt ondertekend en gaat
+   * naar een persoon; wie dat is, bepaalt de toon en soms de inhoud. Zouden ze
+   * parallel draaien, dan schrijft de ene stap een mail aan een onbekende
+   * terwijl de andere net de eigenaar vindt.
+   *
+   * Vindt de stap niemand, dan gaat het concept tóch door: de verkoper kan zelf
+   * iemand opzoeken of bellen, en dan is een klaarliggend concept nuttiger dan
+   * een lege regel (plan 9.4, regel 2).
+   */
+  sales_contact_find: async ({ admin }, payload) => {
+    await zoekContact(admin, payload.marketId, payload.companyId);
+
+    await enqueue(admin, {
+      type: "sales_outreach_draft",
+      payload: { marketId: payload.marketId, outreachId: payload.outreachId },
+      salesMarketId: payload.marketId,
+      dedupeKey: dedupe.salesDraft(payload.outreachId),
+    });
+  },
+
+  /** Stap 13: de conceptmail en de gespreksvoorbereiding. Verstuurt niets. */
+  sales_outreach_draft: async ({ admin }, payload) => {
+    await schrijfConcept(admin, payload.outreachId);
   },
 
   /**
