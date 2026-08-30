@@ -10,6 +10,7 @@ import { Bedrijvenlijst, type BedrijfRegel } from "./bedrijvenlijst";
 import { StartOnderzoek } from "./start-onderzoek";
 import { Vragenlijst, type VraagRegel } from "./vragenlijst";
 import { Meetuitkomst, type ScoreRegel } from "./meetuitkomst";
+import { Marktacties } from "./marktacties";
 import { EUR_TO_USD } from "@/lib/sales/budget";
 import type { Intentie } from "@/lib/sales/intents";
 
@@ -41,7 +42,7 @@ export default async function SalesMarktPage({
   const { data: markt } = await supabase
     .from("sales_markets")
     .select(
-      "id, label, industry, location, radius_km, status, approved_at, conflict_note, discovery_note, failure_reason, is_public",
+      "id, slug, label, industry, location, radius_km, status, approved_at, conflict_note, discovery_note, failure_reason, is_public, published_run_id",
     )
     .eq("id", id)
     .maybeSingle();
@@ -142,6 +143,7 @@ export default async function SalesMarktPage({
   let vragen: VraagRegel[] = [];
   let scores: ScoreRegel[] = [];
   let onbekendeNamen: string[] = [];
+  let heeftRapport = false;
 
   if (run?.status === "vragen_klaar") {
     const { data } = await supabase
@@ -165,6 +167,15 @@ export default async function SalesMarktPage({
       gewicht: Number(v.weight ?? 0),
       actief: v.active !== false,
     }));
+  }
+
+  if (run?.status === "klaar") {
+    const { data: rapport } = await supabase
+      .from("sales_market_reports")
+      .select("id")
+      .eq("run_id", run.id)
+      .maybeSingle();
+    heeftRapport = Boolean(rapport);
   }
 
   if (run && (run.status === "klaar" || run.status === "meet")) {
@@ -244,6 +255,16 @@ export default async function SalesMarktPage({
             [run.intents_json?.kanttekening, run.notes].filter(Boolean).join(" ") || null
           }
           magGoedkeuren={Boolean(admin)}
+        />
+      )}
+
+      {run?.status === "klaar" && (
+        <Marktacties
+          marketId={id}
+          slug={markt.slug as string}
+          isPublic={Boolean(markt.is_public)}
+          heeftRapport={heeftRapport}
+          magHermeten={Boolean(admin)}
         />
       )}
 

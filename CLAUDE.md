@@ -114,8 +114,8 @@ zet `structured.ts` hem voor de rest van het proces uit in plaats van de taak te
 npm run dev              # localhost:3000
 npm run build            # productiebuild
 npx tsc --noEmit         # typecheck, moet schoon zijn
-npm run test:unit        # 2951 tests, pure functies, geen DB en geen API-sleutel
-npm run test:chain       # 465 ketentests, echte handlers tegen echte Postgres, geen netwerk
+npm run test:unit        # 3021 tests, pure functies, geen DB en geen API-sleutel
+npm run test:chain       # 478 ketentests, echte handlers tegen echte Postgres, geen netwerk
 npm run test:openai      # rooktest, MAAKT ECHTE BETAALDE CALLS
 npm run eval:mention     # accuratesse mention-classificatie (vereist API-key)
 ```
@@ -175,6 +175,7 @@ app/(app)/merk/[id]/  de merk-werkruimte in vijf hoofdstukken: overzicht, strate
                    onboardingsessie, diagnose, toewijzen)
 app/(app)/         analyses/[id] (clusterdossier in 4 hoofdstukken), instellingen, beheer (CSM),
                    sales (intern: overzicht, opportunities, prospects, markten, outreach)
+app/markt/[slug]/  het publieke marktrapport, de enige pagina zonder inlog
 app/(auth)/        login/register (server actions)
 app/api/           analyses · profiles · accounts · invites · sales · cron (worker,
                    tracking, reminders, plan) · health
@@ -205,10 +206,11 @@ lib/sales/         de Sales-module (intern, klanten zien er niets van): rechten,
                    (hook). Plus de saleslaag: de statusmachine met het
                    verzendplafond en de trechter (workflow), de mailregels met de
                    getallencontrole (mail) en wie er een mail mag krijgen
-                   (contact). De pijplijnstappen staan in lib/pipeline/sales-*.ts
+                   (contact) en wat er op een publieke pagina mag (report). De
+                   pijplijnstappen staan in lib/pipeline/sales-*.ts
 lib/audit/         robots.txt en AI-crawlertoegang plus entiteitsconsistentie
 lib/offsite/       off-site aanwezigheid     lib/archive.ts  wat zichtbaar is in de app
-supabase/migrations/  0001-0073 (0033 gereserveerd, nooit gedraaid, vervangen door 0039)
+supabase/migrations/  0001-0074 (0033 gereserveerd, nooit gedraaid, vervangen door 0039)
 scripts/           test-unit · test-chain · test-openai · eval-mention
 ```
 

@@ -101,6 +101,8 @@ export const STAP_KOSTEN_USD = {
   contact: 0.05,
   /** De conceptmail plus de gespreksvoorbereiding. Eén aanroep, geen web-zoeken. */
   draft: 0.15,
+  /** Het publieke marktrapport. Eén aanroep, alleen bij publicatie (plan 21.2). */
+  report: 0.35,
 } as const;
 
 export type SalesStap = keyof typeof STAP_KOSTEN_USD;

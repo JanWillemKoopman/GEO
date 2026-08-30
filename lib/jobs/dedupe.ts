@@ -179,4 +179,10 @@ export const dedupe = {
   salesExplain: (opportunityId: string) => `sales_explain:${opportunityId}`,
   salesContact: (companyId: string) => `sales_contact:${companyId}`,
   salesDraft: (outreachId: string) => `sales_draft:${outreachId}`,
+  /**
+   * ⚠️ Op de RONDE en niet op de markt: bij een hermeting hoort er een nieuw
+   * rapport te komen met de nieuwe cijfers, en dat zou met een marktsleutel als
+   * duplicaat wegvallen.
+   */
+  salesReport: (runId: string) => `sales_report:${runId}`,
 };

@@ -94,6 +94,7 @@ export const TAAK_TEKST: Record<JobType, string | null> = {
   sales_opportunity_explain: null,
   sales_contact_find: null,
   sales_outreach_draft: null,
+  sales_market_report: null,
 };
 
 export interface AfgerondeTaak {

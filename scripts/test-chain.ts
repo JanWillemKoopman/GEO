@@ -5910,6 +5910,218 @@ async function main(): Promise<void> {
           [bedrijfId, teBellen.id, salesMarktId, salesUserId],
         );
         ok("na een afwijzing kan het bedrijf later opnieuw opgepakt worden", opnieuw.length === 1);
+
+        // ══════════════════════════════════════════════════════════════════
+        // Sprint 6 en 7: publiceren en hermeten
+        //
+        // ⚠️ DE SAMENHANG DIE HIER FOUT KAN GAAN:
+        //
+        //   1. Een hermeting moet EXACT dezelfde vragen gebruiken. Anders meet
+        //      je het verschil tussen twee vragenlijsten en presenteer je dat
+        //      als een daling van het bedrijf.
+        //   2. Een rapport met een oordeel over een bedrijf mag niet online.
+        //   3. Publiceren is een tweede besluit: de meetketen doet het niet.
+        console.log("\nDe Sales-module: publiceren en hermeten (sprint 6 en 7)");
+
+        // ── Het rapport ────────────────────────────────────────────────────
+        //
+        // ⚠️ Eerst een controle die er echt toe doet: deze markt heeft te weinig
+        // bedrijven om te publiceren. Onder de vijf is elk bedrijf herkenbaar aan
+        // zijn plek in de lijst, en dan is "verwijderd op verzoek" een loze
+        // belofte. Het rapport hoort dus geweigerd te worden.
+        await db.client.query(
+          `insert into public.jobs (type, payload_json, dedupe_key, status, sales_market_id, sales_run_id)
+           values ('sales_market_report', $1, $2, 'queued', $3, $4)`,
+          [
+            JSON.stringify({ marketId: salesMarktId, runId: rondes[0].id }),
+            `sales_report:${rondes[0].id}:teklein`,
+            salesMarktId,
+            rondes[0].id,
+          ],
+        );
+        await draaiSalesTaken();
+        const { rows: teKlein } = await db.client.query(
+          "select count(*)::int as n from public.sales_market_reports where run_id = $1",
+          [rondes[0].id],
+        );
+        eqc("een markt met te weinig bedrijven wordt niet beschreven", String(teKlein[0].n), "0");
+
+        // Zes bedrijven erbij, zodat er een echt marktbeeld is om over te
+        // schrijven. In het echt komen die uit de marktontdekking.
+        for (let i = 0; i < 6; i++) {
+          const extraId = randomUUID();
+          await db.client.query(
+            "insert into public.sales_companies (id, name, domain) values ($1, $2, $3)",
+            [extraId, `Extra Makelaars ${i}`, `extra${i}.nl`],
+          );
+          await db.client.query(
+            `insert into public.sales_market_companies (market_id, company_id, included, confidence)
+             values ($1, $2, true, 'middel')`,
+            [salesMarktId, extraId],
+          );
+          await db.client.query(
+            `insert into public.sales_company_scores
+               (run_id, company_id, engine, questions_total, mentions, share, weighted_share, stderr)
+             values ($1, $2, 'alle', 39, $3, $4, $4, 0.05)`,
+            [rondes[0].id, extraId, i * 2, Number(((i * 2) / 39).toFixed(5))],
+          );
+        }
+
+        await db.client.query(
+          `insert into public.jobs (type, payload_json, dedupe_key, status, sales_market_id, sales_run_id)
+           values ('sales_market_report', $1, $2, 'queued', $3, $4)`,
+          [
+            JSON.stringify({ marketId: salesMarktId, runId: rondes[0].id }),
+            `sales_report:${rondes[0].id}`,
+            salesMarktId,
+            rondes[0].id,
+          ],
+        );
+        await draaiSalesTaken();
+
+        const { rows: rapporten } = await db.client.query(
+          "select intro, methode, bevindingen, bron, cijfers from public.sales_market_reports where run_id = $1",
+          [rondes[0].id],
+        );
+        eqc("er is één rapport voor deze ronde", String(rapporten.length), "1");
+        // ⚠️ Het stubantwoord bevat een oordeel over een bedrijf. Dat hoort
+        // geweigerd te zijn, en dan wint het sjabloon.
+        eqc("een oordeel over een bedrijf haalt het niet", String(rapporten[0].bron), "sjabloon");
+        ok(
+          "en het sjabloon zegt wat het NIET beweert",
+          String(rapporten[0].bevindingen).includes("zegt niets over de kwaliteit"),
+          String(rapporten[0].bevindingen),
+        );
+        // De cijfers zijn bevroren op dit moment: zonder dat is een gepubliceerde
+        // pagina niet meer na te rekenen zodra de volgende ronde de scores
+        // overschrijft.
+        const bevroren = rapporten[0].cijfers as { vragen?: number; bedrijven?: unknown[] };
+        eqc("de cijfers zijn bevroren", String(bevroren.vragen), "39");
+        ok("met de bedrijven erbij", (bevroren.bedrijven ?? []).length > 0);
+
+        // ── Een verwijderverzoek haalt een bedrijf van de pagina ───────────
+        await db.client.query(
+          "update public.sales_companies set hidden_from_report = true, do_not_contact = true where id = $1",
+          [bedrijfId],
+        );
+
+        // ── De hermeting: exact dezelfde vragen ────────────────────────────
+        const { rows: vragenRonde1 } = await db.client.query(
+          "select text, intent_label, intent_stage, weight from public.sales_questions where run_id = $1 and active = true order by position",
+          [rondes[0].id],
+        );
+
+        const { rows: ronde2 } = await db.client.query(
+          `insert into public.sales_runs (market_id, round_no, status, intents_json, question_count, engines)
+           select market_id, round_no + 1, 'vragen_klaar', intents_json, $2, engines
+             from public.sales_runs where id = $1
+           returning id, round_no`,
+          [rondes[0].id, vragenRonde1.length],
+        );
+        const ronde2Id = String(ronde2[0].id);
+        eqc("de tweede ronde telt door", String(ronde2[0].round_no), "2");
+
+        for (const [i, v] of vragenRonde1.entries()) {
+          await db.client.query(
+            `insert into public.sales_questions (run_id, text, intent_label, intent_stage, weight, position)
+             values ($1, $2, $3, $4, $5, $6)`,
+            [ronde2Id, v.text, v.intent_label, v.intent_stage, v.weight, i],
+          );
+        }
+
+        const { rows: vragenRonde2 } = await db.client.query(
+          "select text, weight from public.sales_questions where run_id = $1 order by position",
+          [ronde2Id],
+        );
+        // ⚠️ LETTERLIJK DEZELFDE VRAGEN, MET HETZELFDE GEWICHT. Opportunitytype 8
+        // vergelijkt twee rondes, en dat mag alleen als het verschil aan de markt
+        // ligt en niet aan de vraag.
+        eqc(
+          "de hermeting stelt exact dezelfde vragen",
+          vragenRonde2.map((v) => String(v.text)).join("|"),
+          vragenRonde1.map((v) => String(v.text)).join("|"),
+        );
+        eqc(
+          "met hetzelfde gewicht",
+          vragenRonde2.map((v) => String(v.weight)).join(","),
+          vragenRonde1.map((v) => String(v.weight)).join(","),
+        );
+
+        // ── Meten, aggregeren en detecteren op ronde 2 ─────────────────────
+        //
+        // De stub geeft elk antwoord hetzelfde, dus de cijfers blijven gelijk.
+        // Dat is precies wat getoetst moet worden: GEEN verlies melden als er
+        // niets veranderd is. Een daling die er niet is, is de fout die een
+        // verkoper voor schut zet.
+        await db.client.query(
+          "update public.sales_runs set status = 'meet', approved_at = now() where id = $1",
+          [ronde2Id],
+        );
+        const { rows: vragen2Ids } = await db.client.query(
+          "select id from public.sales_questions where run_id = $1 order by position",
+          [ronde2Id],
+        );
+        for (const v of vragen2Ids) {
+          await db.client.query(
+            `insert into public.jobs (type, payload_json, dedupe_key, status, sales_market_id, sales_run_id)
+             values ('sales_measure_question', $1, $2, 'queued', $3, $4)`,
+            [
+              JSON.stringify({
+                marketId: salesMarktId,
+                runId: ronde2Id,
+                questionId: v.id,
+                engine: "openai",
+              }),
+              `sales_measure:${ronde2Id}:${v.id}:openai`,
+              salesMarktId,
+              ronde2Id,
+            ],
+          );
+        }
+        await draaiSalesTaken();
+
+        const { rows: kansen2 } = await db.client.query(
+          `select o.type, o.alle_types, c.name
+             from public.sales_opportunities o
+             join public.sales_companies c on c.id = o.company_id
+            where o.run_id = $1`,
+          [ronde2Id],
+        );
+        ok("de tweede ronde levert opnieuw kansen op", kansen2.length > 0, String(kansen2.length));
+
+        // ⚠️ TWEE KANTEN VAN HETZELFDE VANGNET, en ze horen allebei getoetst.
+        //
+        // De bedrijven die in beide rondes hetzelfde gemeten zijn, mogen GEEN
+        // verlies opleveren. Een daling die er niet is, is precies de fout die
+        // een verkoper voor schut zet bij een ondernemer die vraagt wat er
+        // veranderd is.
+        const ongewijzigd = kansen2.filter((k) => !String(k.name).startsWith("Extra Makelaars"));
+        ok(
+          "een bedrijf dat gelijk bleef, krijgt geen verlies",
+          ongewijzigd.every((k) => String(k.type) !== "verlies"),
+          ongewijzigd.map((k) => `${k.name}=${k.type}`).join(", "),
+        );
+
+        // En de bedrijven die in ronde 1 scoorden en in ronde 2 niet meer, horen
+        // het WEL te krijgen. Dat is opportunitytype 8, en het bestaat pas vanaf
+        // de tweede ronde: dit is de hele reden om markten te hermeten.
+        const gezakteBedrijven = kansen2.filter((k) => String(k.name).startsWith("Extra Makelaars"));
+        ok(
+          "een bedrijf dat echt gezakt is, krijgt wel verlies",
+          gezakteBedrijven.some((k) => String(k.type) === "verlies"),
+          gezakteBedrijven.map((k) => `${k.name}=${k.type}`).join(", "),
+        );
+
+        // ── De kansen van ronde 1 wijzen naar hun opvolger ─────────────────
+        const { rows: oud } = await db.client.query(
+          "select count(*)::int as n from public.sales_opportunities where run_id = $1 and superseded_by is not null",
+          [rondes[0].id],
+        );
+        ok(
+          "de kansen van de vorige ronde wijzen naar de nieuwe",
+          oud[0].n > 0,
+          `${oud[0].n} van de ${kansen.length}`,
+        );
       } finally {
         globalThis.fetch = origineleFetch;
       }

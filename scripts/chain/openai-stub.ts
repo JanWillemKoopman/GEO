@@ -302,6 +302,26 @@ const ANTWOORDEN: Record<string, (user: string) => unknown> = {
   }),
 
   /**
+   * Het publieke marktrapport (sprint 6, plan hoofdstuk 20).
+   *
+   * ⚠️ De bevindingen bevatten MET OPZET een oordeel over een bedrijf ("doet
+   * slecht werk"). De controle hoort dat te weigeren en op het sjabloon terug te
+   * vallen: deze pagina zegt wat de AI-assistenten antwoordden en niets over de
+   * kwaliteit van een bedrijf, en de ondernemer over wie het gaat leest hem zelf.
+   */
+  sales_market_report: () => ({
+    intro:
+      "Steeds meer mensen vragen een AI-assistent om een aanbeveling. Deze pagina laat zien wie " +
+      "er in deze markt genoemd wordt.",
+    methode:
+      "Wij stelden dezelfde vragen aan de beschikbare AI-assistenten en telden per antwoord welke " +
+      "bedrijven genoemd werden.",
+    bevindingen:
+      "Een deel van de markt komt goed naar voren. De rest doet slecht werk aan zijn " +
+      "zichtbaarheid en komt daardoor niet in beeld.",
+  }),
+
+  /**
    * De open marktvraag (blok M).
    *
    * ⚠️ De klant staat NIET vooraan, en dat is opzet. Dit blok moet aantonen dat

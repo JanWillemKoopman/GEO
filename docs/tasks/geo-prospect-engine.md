@@ -1426,13 +1426,20 @@ Uitgangspunt: één markt, de volledige markt aan bedrijven, 40 vragen, twee eng
 Zeven sprints. Elke sprint levert zelfstandig iets bruikbaars op, en is pas af als het verificatiecriterium tegen
 echte data is aangetoond. Gebouwd is niet geverifieerd, conventie 10.
 
-**Stand op 29 augustus 2026.** Sprint 1 is gebouwd en geverifieerd. Sprint 2 tot en met 5 zijn
+**Stand op 29 augustus 2026.** Sprint 1 is gebouwd en geverifieerd. Sprint 2 tot en met 7 zijn
 gebouwd en staan op productie, maar hun verificatiecriteria zijn niet gehaald: daarvoor moet er één
 echte markt gedraaid hebben, moet New business zeggen of de bedrijvenlijst klopt, moeten de
 zichtbaarheidscijfers met de hand nagerekend zijn tegen de opgeslagen antwoorden, en moet New
 business het eens zijn met minstens acht van de tien beoordeelde kansen, en moet een verkoper van
-tien conceptmails er minstens acht willen versturen. Tot dat gebeurd is tellen ze niet als af, ook
-al werkt alles (conventie 10).
+tien conceptmails er minstens acht willen versturen, moet er één publieke pagina online staan die
+een prospect geopend heeft, en moet een hermeting van de pilotmarkt belaanleidingen uit de
+verandering zelf opleveren. Tot dat gebeurd is tellen ze niet als af, ook al werkt alles
+(conventie 10).
+
+⚠️ **Alles is gebouwd, niets is geverifieerd.** Dat is de stand van de hele module: de keten loopt
+van een branche plus een plaats tot een conceptmail met bewijs eronder, en er is geen enkele echte
+markt doorheen gegaan. Het verificatiewerk is daarmee het enige dat nog tussen deze module en het
+eerste gesprek staat, en het is werk dat niet in code te doen is.
 
 ⚠️ **De migratienummers in dit plan liepen achter.** Sprint 1 tot en met 3 kregen `0065`, `0066` en
 `0067`, maar die drie nummers waren op 25 en 26 augustus al door ander werk gebruikt. De
@@ -1445,8 +1452,8 @@ Sales-migraties heten nu `0068` tot en met `0071`; `supabase/README.md` is de ei
 | **3. Meten** (gebouwd, nog niet geverifieerd) | Intenties, vragen, poort 2, meting op beide engines, beoordelen, aggregatie | `0071` | De zichtbaarheidscijfers zijn met de hand na te rekenen uit de opgeslagen antwoorden, en een tweede meting van dezelfde markt geeft geen wild ander beeld |
 | **4. Opportunities** (gebouwd, nog niet geverifieerd) | De acht types (verlies pas actief vanaf de tweede ronde), de score, de hook, het bewijs, het prospectdossier, het Opportunities-scherm | `0072` | New business beoordeelt de top tien en de bodem tien en is het met minstens acht van de tien eens. Elke oneens is een kalibratiepunt en wordt verwerkt |
 | **5. Outreach** (gebouwd, nog niet geverifieerd) | Contactpersonen zoeken, conceptmails per hooktype, de belvoorbereiding, de verzendplafonds uit 16.6, de werkstroom, statussen, toewijzing, `sales_events`, de trechtercijfers | `0073` | Een salesmedewerker leest tien conceptmails en zegt van minstens acht: deze zou ik versturen. Daarna: de eerste echte mails gaan uit |
-| **6. Publiceren** | De publieke route, het rapport, de adresstructuur, verwijderprocedure | eigen migratie | Het rapport staat online, een prospect heeft de link geopend, en er is geen verzoek tot verwijdering geweest dat we niet konden honoreren |
-| **7. Hermeten** | De tweede ronde op de pilotmarkt, opportunitytype 8 actief, de vergelijking tussen rondes op elk scherm | geen | Er komen belaanleidingen uit de verandering zelf, en New business bevestigt dat een daling een beter gesprek oplevert dan een statische observatie |
+| **6. Publiceren** (gebouwd, nog niet geverifieerd) | De publieke route, het rapport, de adresstructuur, verwijderprocedure | `0074` | Het rapport staat online, een prospect heeft de link geopend, en er is geen verzoek tot verwijdering geweest dat we niet konden honoreren |
+| **7. Hermeten** (gebouwd, nog niet geverifieerd) | De tweede ronde op de pilotmarkt, opportunitytype 8 actief, de vergelijking tussen rondes op elk scherm | `0074` | Er komen belaanleidingen uit de verandering zelf, en New business bevestigt dat een daling een beter gesprek oplevert dan een statische observatie |
 
 ### 22.1 De pilot
 

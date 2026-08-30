@@ -210,6 +210,15 @@ export const JOB_TYPES = [
    * een concept klaar dat de medewerker leest, aanpast en zelf verstuurt.
    */
   "sales_outreach_draft",
+  // ── Sprint 6: het publieke rapport (plan hoofdstuk 20) ────────────────────
+  /**
+   * De publieke marktpagina schrijven. Eén aanroep, geen web-zoeken.
+   *
+   * ⚠️ Deze taak PUBLICEERT niet. Publiceren is een expliciete handeling van een
+   * sales admin en intrekken kan altijd; een keten die dat als bijproduct doet,
+   * zou een pagina online zetten die niemand gelezen heeft.
+   */
+  "sales_market_report",
   /**
    * Blok M: de open koperssvraag die concurrenten ONTDEKT in plaats van ze op
    * te leggen. Vervangt de benoemde vergelijking als hoofdmechanisme, na de
@@ -376,6 +385,7 @@ export interface JobPayloads {
   sales_opportunity_explain: { marketId: string; runId: string; opportunityId: string };
   sales_contact_find: { marketId: string; companyId: string; outreachId: string };
   sales_outreach_draft: { marketId: string; outreachId: string };
+  sales_market_report: { marketId: string; runId: string };
   reputation_evidence: { runId: string };
   reputation_market: {
     runId: string;

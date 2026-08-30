@@ -5951,3 +5951,57 @@ van minstens acht zegt: deze zou ik versturen. Daarna gaan de eerste echte mails
 gebeurd.
 
 Migratie `0073` op productie, 2951 unittests en 465 ketentests groen.
+
+## 29 augustus 2026: de Sales-module is compleet gebouwd, sprint 6 en 7 van zeven
+
+De laatste twee sprints: de publieke marktpagina en het hermeten. Eén taaksoort, één tabel, vijf
+routes, migratie `0074`. Daarmee loopt de keten van een branche plus een plaats tot een conceptmail
+met bewijs eronder, en van een gemeten markt naar een openbare pagina waar een prospect het kan
+nakijken.
+
+**Het rapport hangt aan de meetronde en niet aan de markt.** Dat lijkt een detail en het is precies
+waar het misgaat: een markt wordt herhaald gemeten, en een rapport dat bij ronde twee overschreven
+wordt, laat een prospect andere cijfers zien dan er in zijn mail stonden. Om dezelfde reden
+verschuift de publieke pagina niet vanzelf mee met de laatste meting. Wie hem wil bijwerken,
+publiceert de nieuwe ronde bewust; anders blijft staan wat er stond, ook als er intussen opnieuw
+gemeten is.
+
+**Schrijven en publiceren zijn twee besluiten.** De meetketen schrijft geen rapport, want dan komt er
+voor elke markt een tekst die misschien nooit online gaat. En een knop die schrijft én publiceert,
+zet een tekst online die niemand gelezen heeft, met daarin de namen van bedrijven die er niet om
+gevraagd hebben. Eerst lees je wat er staat, dan pas gaat het naar buiten.
+
+**Drie dingen mogen nooit op die pagina.** Geen personen, want contactgegevens zijn
+persoonsgegevens, ook als ze publiek op een website staan. Geen bedrijf dat om verwijdering vroeg,
+zonder discussie en direct. En geen oordeel over een bedrijf: wat er staat is wat de AI-assistenten
+antwoordden, en de ondernemer over wie het gaat leest die pagina zelf. Het stubantwoord in de
+ketentest bevat met opzet zo'n oordeel, en de controle weigert hem en valt terug op een sjabloon.
+
+**Een te dunne markt gaat niet online.** Onder de vijf zichtbare bedrijven is elk bedrijf herkenbaar
+aan zijn plek in de lijst, en dan is "verwijderd op verzoek" een loze belofte tegenover de rest van
+de markt. Die drempel wordt twee keer getoetst: bij het schrijven en opnieuw bij het publiceren,
+want tussen die twee momenten kan er iemand om verwijdering hebben gevraagd.
+
+**Een hermeting stelt letterlijk dezelfde vragen.** Dat is de voorwaarde onder opportunitytype 8:
+alleen dan ligt een verschil aan de markt en niet aan de vragenlijst. De hermeting kopieert daarom de
+vragen van de vorige ronde inclusief hun gewicht en hun intentielabel, en slaat de intentie- en
+vragenstap over. Poort 2 blijft wel staan, want meten kost ook de tweede keer geld.
+
+**En dat type werkt, aantoonbaar.** De ketentest meet een markt twee keer. De bedrijven die
+hetzelfde gemeten worden krijgen géén verlies, want een daling die er niet is, is de fout die een
+verkoper voor schut zet. De bedrijven die in ronde twee wegvallen krijgen het wél. Dat is de reden om
+markten structureel te hermeten: elke ronde levert nieuwe belaanleidingen op uit een markt die je al
+kent, tegen alleen de meetkosten.
+
+**Van prospect naar klant is er nu ook**, de enige plek waar deze module de klantomgeving raakt. Er
+wordt een merkprofiel aangemaakt met het webadres, de bedrijfsnaam en de naamvarianten die tijdens de
+marktontdekking al geverifieerd zijn, en de gewone onboarding start. Dat laatste veld is geen detail:
+daar levert een verkeerde invulling later een te lage meting op.
+
+**De stand van de hele module: alles gebouwd, niets geverifieerd.** Zeven sprints staan er, en er is
+geen enkele echte markt doorheen gegaan. Wat er nog moet gebeuren is geen code: één markt draaien,
+New business naar de bedrijvenlijst laten kijken, de cijfers met de hand narekenen, de top tien en de
+bodem tien laten beoordelen, tien conceptmails laten lezen, en dan de eerste mails de deur uit doen.
+Pas daarna is deze module af.
+
+Migratie `0074` op productie, 3021 unittests en 478 ketentests groen.

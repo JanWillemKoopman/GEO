@@ -199,6 +199,16 @@ import {
   leidAdresAf,
   bouwContactVraag,
 } from "@/lib/sales/contact";
+// Sprint 6: het publieke rapport.
+import {
+  marktAdres,
+  publiekeBedrijven,
+  magPubliceren,
+  controleerRapport,
+  sjabloonRapport,
+  bouwRapportVraag,
+  type RapportInvoer,
+} from "@/lib/sales/report";
 import { ICONEN } from "@/lib/icons";
 import { DOORVERWIJZINGEN } from "@/lib/redirects";
 import { findGaps, gapLink } from "@/lib/profile-gaps";
@@ -13985,6 +13995,202 @@ group("er bestaat nergens een route die zelf een openingsmail verstuurt", () => 
     verstuurders.length === 0,
     verstuurders.join(", "),
   );
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+console.log("\nDe Sales-module: publiceren en hermeten (sprint 6 en 7)");
+
+/** Een markt met tien bedrijven, waarvan er één om verwijdering vroeg. */
+function rapportInvoer(overschrijf: Partial<RapportInvoer> = {}): RapportInvoer {
+  const bedrijven = Array.from({ length: 10 }, (_, i) => ({
+    companyId: `c${i}`,
+    naam: `Bedrijf ${i}`,
+    aandeel: i === 0 ? 0.6 : i < 4 ? 0.2 : 0,
+    vermeldingen: i === 0 ? 24 : i < 4 ? 8 : 0,
+    vragen: 40,
+    verborgen: i === 9,
+  }));
+  return {
+    markt: "Makelaars Eindhoven",
+    plaats: "Eindhoven",
+    branche: "makelaar",
+    bedrijven,
+    vragen: 40,
+    engines: ["openai", "gemini"],
+    gemetenOp: "2026-08-29T10:00:00Z",
+    ...overschrijf,
+  };
+}
+
+group("wie om verwijdering vroeg, staat er niet op", () => {
+  // ⚠️ Plan hoofdstuk 20, laatste alinea: "zonder discussie". Niet
+  // geanonimiseerd, niet als 'een bedrijf in deze markt', niet in een totaal dat
+  // hem impliciet zichtbaar maakt. Weg is weg.
+  const invoer = rapportInvoer();
+  const zichtbaar = publiekeBedrijven(invoer.bedrijven);
+  eq2("negen van de tien blijven over", zichtbaar.length, 9);
+  ok("en het verwijderde bedrijf staat er niet tussen", !zichtbaar.some((b) => b.naam === "Bedrijf 9"));
+  ok("de best zichtbare staat bovenaan", zichtbaar[0]?.naam === "Bedrijf 0");
+
+  eq("het adres van een markt ligt vast", marktAdres("makelaar-eindhoven"), "/markt/makelaar-eindhoven");
+});
+
+group("een te dunne markt wordt niet gepubliceerd", () => {
+  ok("een normale markt mag online", magPubliceren(rapportInvoer()).ok);
+
+  // ⚠️ Onder de vijf zichtbare bedrijven is elk bedrijf herkenbaar aan zijn plek
+  // in de lijst. Dan is "verwijderd op verzoek" een loze belofte, want de rest
+  // van de markt weet precies wie er weg is.
+  const klein = magPubliceren(
+    rapportInvoer({
+      bedrijven: rapportInvoer().bedrijven.slice(0, 4),
+    }),
+  );
+  ok("een markt met vier bedrijven niet", !klein.ok);
+  ok("en de reden gaat over herkenbaarheid", klein.bezwaren.join(" ").includes("herkenbaar"));
+
+  const dun = magPubliceren(rapportInvoer({ vragen: 6 }));
+  ok("zes vragen is te weinig voor een openbare uitspraak", !dun.ok);
+
+  const zonderEngine = magPubliceren(rapportInvoer({ engines: [] }));
+  ok("en zonder engine is er niets gemeten", !zonderEngine.ok);
+});
+
+group("op een publieke pagina telt elk getal en elk woord", () => {
+  const invoer = rapportInvoer();
+
+  const goed = controleerRapport(
+    "Wij stelden 40 vragen aan 2 AI-assistenten. Bedrijf 0 wordt bij 24 van de 40 vragen genoemd.",
+    invoer,
+  );
+  ok("gemeten cijfers mogen", goed.ok, goed.bezwaren.join(" "));
+
+  const fout = controleerRapport(
+    "Wij stelden 40 vragen. Bedrijf 0 loopt 87% voor op de rest van de markt.",
+    invoer,
+  );
+  ok("een verzonnen cijfer niet", !fout.ok);
+  ok(
+    "en de reden zegt waarom dat hier erger is",
+    fout.bezwaren.join(" ").includes("iedereen kan narekenen"),
+  );
+
+  // ⚠️ Deze pagina zegt wat de AI-assistenten antwoordden, en niets over de
+  // kwaliteit van een bedrijf. De ondernemer over wie het gaat leest hem zelf.
+  const oordeel = controleerRapport(
+    "Bedrijf 3 doet slecht werk aan zijn zichtbaarheid en wordt daarom niet genoemd.",
+    invoer,
+  );
+  ok("een oordeel over een bedrijf komt er niet op", !oordeel.ok);
+  ok("en dat wordt met zoveel woorden gezegd", oordeel.bezwaren.join(" ").includes("oordeel"));
+});
+
+group("het sjabloonrapport is saai, kort en waar", () => {
+  const invoer = rapportInvoer();
+  const sjabloon = sjabloonRapport(invoer);
+  const geheel = `${sjabloon.intro} ${sjabloon.methode} ${sjabloon.bevindingen}`;
+
+  ok("het sjabloon komt door zijn eigen controle", controleerRapport(geheel, invoer).ok, geheel);
+  ok("de methode staat erin", sjabloon.methode.includes("40 vragen"));
+  // ⚠️ De zin die voorkomt dat deze pagina als aanklacht leest. Wie hier komt
+  // kijken is meestal het bedrijf zelf.
+  ok(
+    "en er staat bij wat het NIET zegt",
+    sjabloon.bevindingen.includes("zegt niets over de kwaliteit"),
+  );
+
+  const vraag = bouwRapportVraag(invoer);
+  ok("het model krijgt de cijfers per bedrijf", vraag.includes("24 van de 40"));
+  ok("met de opdracht om er niets bij te verzinnen", vraag.includes("Verzin er geen enkel bij"));
+  ok("en geen oordeel te geven", vraag.includes("Geef geen oordeel over een bedrijf"));
+  ok("geen personen", vraag.includes("Noem geen personen"));
+  // Het verwijderde bedrijf gaat niet mee in de opdracht: het model kan niet
+  // noemen wat het niet ziet, en dat is een tweede slot naast de controle.
+  ok("het verwijderde bedrijf gaat niet mee naar het model", !vraag.includes("Bedrijf 9"));
+});
+
+group("de publieke pagina leest niet via RLS, en dat is bewust", () => {
+  // ⚠️ Een anonieme selectpolicy op `sales_market_reports` zou betekenen dat élk
+  // rapport leesbaar is zodra iemand het adres raadt, ook een rapport dat nog
+  // niet gepubliceerd is of net is ingetrokken. De pagina leest daarom via de
+  // service-role key mét een expliciete controle op is_public en
+  // published_run_id.
+  const bron = leesBestand("app/markt/[slug]/page.tsx");
+  ok("de pagina bestaat", bron.length > 0);
+  ok("hij leest via de service-role key", bron.includes("createAdminClient"));
+  ok("en controleert of de markt publiek is", bron.includes("is_public"));
+  ok("en welke ronde er getoond mag worden", bron.includes("published_run_id"));
+  // Geen inlogcontrole: dit is de enige pagina van de app zonder account. De
+  // toets kijkt naar de IMPORT en niet naar het woord, want in het commentaar
+  // bovenaan staat uitgelegd waarom hij er niet is.
+  ok("de authlaag wordt niet geïmporteerd", !bron.includes('from "@/lib/auth"'));
+  // ⚠️ En er staat geen persoonsgegeven op: contactpersonen zijn
+  // persoonsgegevens, ook als ze publiek op een website staan (plan 9.4).
+  ok("en er worden geen contactpersonen getoond", !bron.includes("sales_contacts"));
+});
+
+group("een hermeting gebruikt exact dezelfde vragen", () => {
+  // ⚠️ Opportunitytype 8 vergelijkt twee rondes. Dat mag alleen als het verschil
+  // aan de markt ligt en niet aan de vraag. Zou de hermeting nieuwe vragen
+  // genereren, dan meet je het verschil tussen twee vragenlijsten en presenteer
+  // je dat als een daling van het bedrijf.
+  const bron = leesBestand("app/api/sales/markets/[id]/remeasure/route.ts");
+  ok("de route bestaat", bron.length > 0);
+  ok("hij leest de vragen van de vorige ronde", bron.includes("sales_questions"));
+  ok("en schrijft ze over naar de nieuwe ronde", bron.includes("run_id: runId"));
+  // Geen intentie- of vragenstap: die zouden andere vragen opleveren.
+  ok("hij plant geen nieuwe vragenstap in", !bron.includes("sales_market_questions"));
+  // ⚠️ Maar poort 2 blijft staan: meten kost geld, ook de tweede keer.
+  ok("en de ronde wacht weer op goedkeuring", bron.includes("vragen_klaar"));
+  ok("het rondenummer telt door", bron.includes("round_no: vorige.round_no + 1"));
+});
+
+group("het rapport wordt niet vanzelf geschreven en niet vanzelf gepubliceerd", () => {
+  // Plan 21.2: "Publiek rapport schrijven, alleen bij publicatie." Zou de
+  // meetketen dit doen, dan schrijft ORBIT ENGINE voor elke markt een pagina die
+  // misschien nooit online komt.
+  const handlers = leesBestand("lib/jobs/handlers.ts");
+  const naAggregatie = handlers.slice(handlers.indexOf("sales_market_aggregate:"));
+  ok(
+    "de meetketen plant geen rapporttaak in",
+    !naAggregatie.slice(0, 2000).includes("salesReport"),
+  );
+
+  // En publiceren is een tweede besluit, met een eigen route.
+  const publish = leesBestand("app/api/sales/markets/[id]/publish/route.ts");
+  ok("publiceren is een eigen handeling", publish.includes("export async function POST"));
+  ok("intrekken kan altijd", publish.includes("export async function DELETE"));
+  ok("en alleen een sales admin mag het", publish.includes("isSalesAdmin"));
+  // ⚠️ De pagina verschuift niet vanzelf mee met de laatste meting: dan
+  // veranderen de cijfers onder een lopende mailcampagne.
+  ok("de gepubliceerde ronde wordt expliciet gezet", publish.includes("published_run_id"));
+});
+
+group("een verwijderverzoek doet drie dingen tegelijk", () => {
+  // Plan hoofdstuk 20 en 16.4: van de pagina af, nooit meer benaderen, en de
+  // lopende outreach stopt. Die drie horen bij elkaar: iemand die vraagt of zijn
+  // naam eraf kan, vraagt niet om volgende maand alsnog gebeld te worden.
+  const bron = leesBestand("app/api/sales/companies/[id]/remove/route.ts");
+  ok("de route bestaat", bron.length > 0);
+  ok("het bedrijf gaat van de publieke pagina af", bron.includes("hidden_from_report: true"));
+  ok("het wordt nooit meer benaderd", bron.includes("do_not_contact: true"));
+  ok("en de lopende outreach stopt", bron.includes("sales_outreach"));
+  // ⚠️ De rij blijft staan: anders vindt de marktontdekking hem volgende ronde
+  // gewoon opnieuw.
+  ok("er wordt niets weggegooid", !bron.includes(".delete()"));
+});
+
+group("van prospect naar klant is de enige brug naar de klantomgeving", () => {
+  const bron = leesBestand("app/api/sales/outreach/[id]/convert/route.ts");
+  ok("de route bestaat", bron.length > 0);
+  ok("er wordt een merkprofiel aangemaakt", bron.includes('from("profiles")'));
+  // ⚠️ De naamvarianten verhuizen mee. Dat is precies het veld waar een
+  // verkeerde invulling later een te lage score oplevert, en de Sales-module
+  // heeft ze al geverifieerd tijdens de marktontdekking (plan 17.4).
+  ok("de naamvarianten gaan mee", bron.includes("name_variants"));
+  ok("de bestaande onboarding start", bron.includes("profile_discover"));
+  ok("en de statusmachine beslist of het mag", bron.includes("beoordeelStatus"));
+  ok("alleen een sales admin", bron.includes("isSalesAdmin"));
 });
 
 // ════════════════════════════════════════════════════════════════════════════

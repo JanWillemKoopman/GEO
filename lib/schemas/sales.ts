@@ -268,3 +268,20 @@ export const SalesOutreachDraft = z.object({
 });
 
 export type SalesOutreachDraft = z.infer<typeof SalesOutreachDraft>;
+
+/**
+ * Het publieke marktrapport (plan hoofdstuk 20).
+ *
+ * Drie stukken en geen vrij veld: een inleiding, de verantwoording van de
+ * methode en de bevindingen. Die driedeling is niet cosmetisch. Wie op deze
+ * pagina komt, komt uit een mail met een cijfer erin en wil weten of dat cijfer
+ * klopt; dan is de methode het belangrijkste stuk van de pagina en hoort hij een
+ * eigen plek te hebben in plaats van weggestopt te zijn in een slotalinea.
+ */
+export const SalesMarketReport = z.object({
+  intro: z.string(),
+  methode: z.string(),
+  bevindingen: z.string(),
+});
+
+export type SalesMarketReport = z.infer<typeof SalesMarketReport>;

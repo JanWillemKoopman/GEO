@@ -62,6 +62,7 @@ import { detecteerVoorRonde } from "@/lib/pipeline/sales-detect";
 import { schrijfUitleg } from "@/lib/pipeline/sales-explain";
 import { zoekContact } from "@/lib/pipeline/sales-contact";
 import { schrijfConcept } from "@/lib/pipeline/sales-draft";
+import { schrijfRapport } from "@/lib/pipeline/sales-report";
 import { VRAGEN_STANDAARD, type Intentie } from "@/lib/sales/intents";
 import { raamMeetronde } from "@/lib/sales/budget";
 import { availableEngineIds } from "@/lib/engines/registry";
@@ -1177,6 +1178,11 @@ const handlers: { [T in JobType]: Handler<T> } = {
   /** Stap 13: de conceptmail en de gespreksvoorbereiding. Verstuurt niets. */
   sales_outreach_draft: async ({ admin }, payload) => {
     await schrijfConcept(admin, payload.outreachId);
+  },
+
+  /** Het publieke marktrapport schrijven. Publiceert niet. */
+  sales_market_report: async ({ admin }, payload) => {
+    await schrijfRapport(admin, payload.runId);
   },
 
   /**

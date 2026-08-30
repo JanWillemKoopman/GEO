@@ -102,6 +102,8 @@ const TYPICAL_SECONDS: Record<JobType, number> = {
   sales_contact_find: 35,
   // Eén aanroep die een mail én een gespreksvoorbereiding schrijft.
   sales_outreach_draft: 30,
+  // Eén aanroep die drie stukken tekst schrijft over cijfers die al vastliggen.
+  sales_market_report: 25,
 };
 
 /**
