@@ -23,7 +23,18 @@
 | 30 augustus 2026 | Werkpakket A, punt 10: de knop "Stel nieuwe clusters voor", alleen zichtbaar en uitvoerbaar voor de beheerdersrol (`clusters_aanvullen` in `lib/cost-rules.ts`, afgedwongen in de route, niet alleen verborgen in de weergave). Altijd aanvullend, nooit vervangend. Neemt mee: het aanbod, het gesprek, bestaande onderwerpen (om dubbel voorstellen te voorkomen), afwijzingsredenen, en gemeten gaps uit de laatste rapporten van lopende clusters. Weigert te draaien zonder nieuwe informatie sinds de vorige klik, met een preview vooraf (gratis) die dat laat zien. Elke ronde staat gelogd in `profile_topic_rounds`, ook een ronde die niets opleverde. Migratie `0077_clusters_aanvullen.sql` | Live op productie |
 | 30 augustus 2026 | Werkpakket A, punt 8: een superlatief of marktclaim in een klantantwoord ("wij zijn de beste van de regio") wordt bewaard maar niet automatisch als vaststaand feit gebruikt in teksten, tenzij er een cijfer, bron of voorbeeld bij staat. Eigen mededelingen over de eigen werkwijze blijven zonder meer aangenomen. `lib/pipeline/claim-plausibility.ts`, toegepast in `app/api/profiles/[id]/facts/route.ts` | Live op productie |
 
-**Werkpakket A is hiermee compleet.** Werkpakketten B en C staan nog volledig open.
+**Werkpakket A is hiermee compleet.**
+
+| 30 augustus 2026 | Werkpakket B, punten 3, 4, 5 en 7: het rapport zegt nu expliciet dat het aantal aanbevelingen niet vastligt, met de vier eisen uit het plan letterlijk in de instructie. `mergeOverlappingRecommendations()` is het deterministische vangnet tegen twee aanbevelingen op dezelfde zwaarste gemiste vraag. `describeActionRatio()` legt de verhouding nieuw/verbeteren uit op het rapportscherm | Live op productie |
+
+Bewust nog niet gebouwd in werkpakket B: punt 2 (het aantal zoekvragen per cluster variabel maken met
+een verzadigingsregel) en punt 6 (het budgetplafond per cluster-run). Beide vermenigvuldigen direct de
+meetkosten (nu ~$0,82 per ronde, vrijwel geheel `web_search`), en het plan zelf noemt "tot hoeveel
+zoekvragen per cluster" en "een acceptabel budget per cluster-run" met zoveel woorden als vragen voor
+de eigenaar, niet als aannames voor Claude Code (hoofdstuk 7, open vragen). Die vraag ligt na deze
+sessie bij de eigenaar.
+
+Werkpakket C staat nog volledig open.
 
 ---
 
@@ -189,13 +200,13 @@ Dit is ook waar extra API-budget hoort te landen. Bij een klant met veel ruimte 
 
 ### Uit te voeren
 
-1. Zoek op waar het aantal van 7 vandaan komt en haal die grens weg.
-2. Maak het aantal zoekvragen per cluster variabel, met een verzadigingsregel.
-3. Herschrijf de instructie: van "geef de beste 7" naar "lever elk gemeten gemis op dat door de kwaliteitstoets komt".
-4. Bouw de vier eisen expliciet in en laat de AI per voorstel tonen op welke meting het steunt.
-5. Laat de verhouding nieuw/verbeteren voortkomen uit de meetuitkomst, met uitleg.
-6. Voeg het budgetplafond per run toe plus logging van kosten per kans.
-7. Voeg een dubbelcheck toe die overlappende voorstellen binnen één run samenvoegt.
+1. ✅ Zoek op waar het aantal van 7 vandaan komt en haal die grens weg. *(30 augustus 2026: er stond geen harde grens in de code, het getal ontstond doordat niets in de instructie een ander aantal aanmoedigde. Nu staat "het aantal ligt niet vast" er expliciet.)*
+2. Maak het aantal zoekvragen per cluster variabel, met een verzadigingsregel. *(Nog niet gebouwd, raakt de meetkosten direct, ligt bij de eigenaar.)*
+3. ✅ Herschrijf de instructie: van "geef de beste 7" naar "lever elk gemeten gemis op dat door de kwaliteitstoets komt". *(30 augustus 2026)*
+4. ✅ Bouw de vier eisen expliciet in en laat de AI per voorstel tonen op welke meting het steunt. *(30 augustus 2026: de vier eisen staan letterlijk in de instructie; elke aanbeveling wijst al naar zijn V-codes, dat bestond al.)*
+5. ✅ Laat de verhouding nieuw/verbeteren voortkomen uit de meetuitkomst, met uitleg. *(30 augustus 2026, `describeActionRatio()`)*
+6. Voeg het budgetplafond per run toe plus logging van kosten per kans. *(Nog niet gebouwd, vereist eerst het antwoord op punt 2.)*
+7. ✅ Voeg een dubbelcheck toe die overlappende voorstellen binnen één run samenvoegt. *(30 augustus 2026, `mergeOverlappingRecommendations()`)*
 
 ### Hoe je controleert dat het werkt
 
