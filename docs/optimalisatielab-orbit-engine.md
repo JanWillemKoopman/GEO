@@ -8,6 +8,19 @@
 
 ---
 
+## Voortgang
+
+| Wanneer | Wat | Status |
+|---|---|---|
+| 30 augustus 2026 | Werkpakket A, punt 1: in kaart gebracht hoe clusters nu ontstaan (zie het gesprek dat aan dit plan voorafging) | Afgerond, geen codewijziging |
+| 30 augustus 2026 | Werkpakket A, punt 2: onderwerpen krijgen een fase, `concept` vóór het strategisch gesprek en `definitief` erna. Een concept is zichtbaar maar niet te goedkeuren of te starten, op het scherm én op de achterkant. Zodra het gesprek wordt opgeslagen, maakt ORBIT ENGINE zelf een definitieve ronde die de onbesliste concepten vervangt. Migratie `0074_concept_definitief_topics.sql` (zie `supabase/README.md`) | Live op productie |
+
+De rest van werkpakket A (de invulomgeving met de drie lagen, de overige strategische velden in de
+clustergeneratie, de wegvallende vragengrens, en de knop "Stel nieuwe clusters voor") staat nog open,
+net als de werkpakketten B en C.
+
+---
+
 ## 1. Waar we nu staan (gemeten, niet geschat)
 
 Gemeten op de live database, 30 augustus 2026, over 4 profielen met 16 analyses.
@@ -126,8 +139,8 @@ Dit lost een echt probleem op: de eerste set clusters ontstaat vroeg, wanneer je
 
 ### Uit te voeren
 
-1. Breng in kaart welke code de clusters aanmaakt en wat het startsein is.
-2. Splits dat in twee momenten: concept-clusters na de aanbodboom, definitieve clusters na het gesprek. Goedkeuren en draaien kan alleen na het gesprek.
+1. ✅ Breng in kaart welke code de clusters aanmaakt en wat het startsein is.
+2. ✅ Splits dat in twee momenten: concept-clusters na de aanbodboom, definitieve clusters na het gesprek. Goedkeuren en draaien kan alleen na het gesprek. *(30 augustus 2026, migratie 0074, zie Voortgang hierboven)*
 3. Bouw de invulomgeving met de drie lagen, gericht op handmatig typen tijdens een gesprek.
 4. Voeg alle strategische velden toe aan de instructie die clusters genereert, met de regel: gedeprioriteerde diensten en verboden onderwerpen leveren geen clusters op, prioriteitsdiensten krijgen voorrang.
 5. Geef elk cluster een zichtbare herkomstregel: uit het aanbod, uit het gesprek, of beide.
