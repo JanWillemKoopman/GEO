@@ -21,9 +21,9 @@
 | 28 augustus 2026 | Werkpakket A, punt 7 (blokkeer schrijven zolang onmisbare antwoorden ontbreken) bleek al gebouwd, vóór dit plan: `lib/content-final-gate.ts`. Geen aparte wijziging nodig | Al aanwezig |
 | 30 augustus 2026 | Werkpakket A, punt 9: een bijgewerkt gesprek maakt de knop "Stel nieuwe clusters voor" weer de moeite waard, met de reden erbij ("het strategisch gesprek is bijgewerkt"). Goedgekeurde en gestarte onderwerpen worden nooit aangeraakt | Live op productie |
 | 30 augustus 2026 | Werkpakket A, punt 10: de knop "Stel nieuwe clusters voor", alleen zichtbaar en uitvoerbaar voor de beheerdersrol (`clusters_aanvullen` in `lib/cost-rules.ts`, afgedwongen in de route, niet alleen verborgen in de weergave). Altijd aanvullend, nooit vervangend. Neemt mee: het aanbod, het gesprek, bestaande onderwerpen (om dubbel voorstellen te voorkomen), afwijzingsredenen, en gemeten gaps uit de laatste rapporten van lopende clusters. Weigert te draaien zonder nieuwe informatie sinds de vorige klik, met een preview vooraf (gratis) die dat laat zien. Elke ronde staat gelogd in `profile_topic_rounds`, ook een ronde die niets opleverde. Migratie `0077_clusters_aanvullen.sql` | Live op productie |
+| 30 augustus 2026 | Werkpakket A, punt 8: een superlatief of marktclaim in een klantantwoord ("wij zijn de beste van de regio") wordt bewaard maar niet automatisch als vaststaand feit gebruikt in teksten, tenzij er een cijfer, bron of voorbeeld bij staat. Eigen mededelingen over de eigen werkwijze blijven zonder meer aangenomen. `lib/pipeline/claim-plausibility.ts`, toegepast in `app/api/profiles/[id]/facts/route.ts` | Live op productie |
 
-Nog open in werkpakket A: punt 8 (onderscheid eigen feiten tegenover te onderbouwen claims in het
-schrijfproces). Werkpakketten B en C staan nog volledig open.
+**Werkpakket A is hiermee compleet.** Werkpakketten B en C staan nog volledig open.
 
 ---
 
@@ -152,7 +152,7 @@ Dit lost een echt probleem op: de eerste set clusters ontstaat vroeg, wanneer je
 5. ✅ Geef elk cluster een zichtbare herkomstregel: uit het aanbod, uit het gesprek, of beide. *(30 augustus 2026, migratie 0076)*
 6. ✅ Haal de grens op het aantal vragen weg en bouw de ontbrekendheidscheck. *(30 augustus 2026: de grens van acht geldt voortaan alleen voor optionele vragen, elke onmisbare vraag gaat altijd mee, zie `lib/pipeline/briefing-select.ts`.)*
 7. ✅ Markeer onmisbare antwoorden per pagina en blokkeer schrijven zolang die ontbreken. *(bleek al gebouwd op 28 augustus 2026, `lib/content-final-gate.ts`.)*
-8. Bouw het onderscheid tussen eigen feiten en te onderbouwen claims in het schrijfproces in.
+8. ✅ Bouw het onderscheid tussen eigen feiten en te onderbouwen claims in het schrijfproces in. *(30 augustus 2026: `lib/pipeline/claim-plausibility.ts`, toegepast op klantantwoorden vóórdat ze `proof_points` in gaan.)*
 9. ✅ Zorg dat het gesprek later bijgewerkt kan worden, waarna de app voorstelt de clusters opnieuw te bekijken, zonder goedgekeurde clusters weg te gooien. *(30 augustus 2026: het gesprek kon al altijd opnieuw worden opgeslagen; nieuw is dat "Stel nieuwe clusters voor" dat oppikt en aanraadt.)*
 10. ✅ Bouw de knop "Stel nieuwe clusters voor" op de clusterpagina, alleen zichtbaar en uitvoerbaar voor de beheerdersrol, met de ontdubbelingscheck, het meenemen van afwijzingsredenen, het overzicht van wat er nieuw is sinds de vorige ronde, en herkomst per voorstel. *(30 augustus 2026, migratie 0077)*
 

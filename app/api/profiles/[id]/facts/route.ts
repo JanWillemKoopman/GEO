@@ -3,6 +3,7 @@ import { getUser } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getOwnedProfile } from "@/lib/profiles";
 import { isGapQuestion } from "@/lib/pipeline/gap-questions";
+import { beoordeelClaim, MARKTCLAIM_UITLEG } from "@/lib/pipeline/claim-plausibility";
 import type { FactRequest } from "@/lib/types/database";
 
 /**
@@ -80,6 +81,19 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   // publiceerbaar feit: de synthese vraagt ook naar commerciële prioriteiten.
   // Zie `isGapQuestion()` voor de volledige redenering.
   if (isGapQuestion(fact.raw_json)) return NextResponse.json(updated);
+
+  // ── Niet alle klantinput is gelijk (werkpakket A §3.4) ───────────────────
+  //
+  // Een superlatief of marktclaim zonder cijfer, bron of voorbeeld gaat NIET
+  // naar `proof_points`: die lijst is wat de hele schrijfpijplijn als
+  // vaststaand feit leest, en "wij zijn de beste van de regio" is dat niet.
+  // Het antwoord blijft wel gewoon staan in `fact_requests` (conventie 8, niets
+  // gaat verloren), alleen de automatische promotie naar een vaststaand feit
+  // slaat over.
+  const oordeel = beoordeelClaim(answer);
+  if (!oordeel.aangenomen) {
+    return NextResponse.json({ ...updated, needsEvidence: true, evidenceHint: MARKTCLAIM_UITLEG });
+  }
 
   // Het antwoord ook als geverifieerd feit bij het profiel zetten. Dubbelop met
   // `fact_requests`, maar bewust: `proof_points` is waar de hele schrijfpijplijn

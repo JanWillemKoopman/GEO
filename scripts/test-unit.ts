@@ -390,6 +390,7 @@ import {
   snapshotsGelijk,
   type TopicRoundSnapshot,
 } from "@/lib/pipeline/topic-round-diff";
+import { beoordeelClaim } from "@/lib/pipeline/claim-plausibility";
 import { ONBOARDING_NEXT, nextInChain } from "@/lib/jobs/chain";
 import { extractConfusions } from "@/lib/pipeline/baseline-verdict";
 import {
@@ -10093,6 +10094,41 @@ group("De knop 'Stel nieuwe clusters voor' draait alleen bij nieuwe informatie (
   ok(
     "minder tellingen dan vorige keer is geen aanleiding om te draaien",
     minderIsGeenNieuws.nieuws === false,
+  );
+});
+
+group("Niet alle klantinput is gelijk (claim-plausibility.ts, werkpakket A §3.4)", () => {
+  // Eigen werkwijze, aanbod, prijzen, garanties: zonder meer aangenomen.
+  ok("een eigen mededeling wordt zonder meer aangenomen", beoordeelClaim("Wij zijn dinsdag dicht").aangenomen);
+  ok(
+    "ook met een cijfer erin",
+    beoordeelClaim("Wij leveren binnen 48 uur").aangenomen,
+  );
+
+  // Superlatieven en marktclaims: pas aangenomen mét bewijs.
+  const zonderBewijs = beoordeelClaim("Wij zijn de beste van de regio");
+  ok("een superlatief wordt herkend", zonderBewijs.isMarktclaim);
+  ok("zonder cijfer of link geen bewijs", !zonderBewijs.heeftBewijs);
+  ok("en dus niet zomaar aangenomen", !zonderBewijs.aangenomen);
+
+  const metBewijs = beoordeelClaim("Wij zijn de beste van de regio volgens 340 Google-reviews van 4,8 sterren");
+  ok("dezelfde claim mét een cijfer wordt wel aangenomen", metBewijs.isMarktclaim && metBewijs.aangenomen);
+
+  ok("marktleider wordt herkend", beoordeelClaim("Wij zijn marktleider in Nederland").isMarktclaim);
+  ok("nummer 1 wordt herkend", beoordeelClaim("Wij zijn nummer 1 in onze branche").isMarktclaim);
+  ok(
+    "'de enige die' wordt herkend",
+    beoordeelClaim("Wij zijn de enige die dit aanbiedt in de regio").isMarktclaim,
+  );
+  ok(
+    "een vergelijking met de concurrent wordt herkend",
+    beoordeelClaim("Onze service is beter dan de concurrent").isMarktclaim,
+  );
+
+  // Bij twijfel niet blokkeren: een gewone zin zonder superlatief blijft gewoon aangenomen.
+  ok(
+    "een gewone zin over het eigen werk is geen marktclaim",
+    !beoordeelClaim("Wij monteren de kozijnen binnen één dag").isMarktclaim,
   );
 });
 
