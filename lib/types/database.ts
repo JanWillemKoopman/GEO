@@ -586,6 +586,11 @@ export interface ProfileTopic {
    * niet te starten. definitief: te goedkeuren en te starten (migratie 0074).
    */
   stage: "concept" | "definitief";
+  /**
+   * Herkomst op het moment van voorstellen (migratie 0076): aanbod, of aanbod
+   * plus het strategisch gesprek. Null voor onderwerpen van vóór 0076.
+   */
+  origin: "aanbod" | "aanbod_en_gesprek" | null;
   analysis_id: string | null;
   /**
    * Zoekvolume 0-100, profielbreed herkalibreerd (docs/tasks/potentiescore.md,

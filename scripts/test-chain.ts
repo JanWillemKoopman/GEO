@@ -4469,13 +4469,18 @@ async function main(): Promise<void> {
       ok("de eerste ronde levert onderwerpen op", eersteRonde.proposed === 2, String(eersteRonde.proposed));
 
       const { rows: conceptRijen } = await db.client.query(
-        `select id, title, stage, status from public.profile_topics where profile_id = $1 order by title`,
+        `select id, title, stage, status, origin from public.profile_topics where profile_id = $1 order by title`,
         [stageProfileId],
       );
       ok(
         "zonder gesprek krijgen ze allemaal stage 'concept'",
         conceptRijen.every((r) => r.stage === "concept"),
         conceptRijen.map((r) => `${r.title}:${r.stage}`).join(", "),
+      );
+      ok(
+        "en herkomst 'aanbod' (0076), er was nog geen gesprek",
+        conceptRijen.every((r) => r.origin === "aanbod"),
+        conceptRijen.map((r) => `${r.title}:${r.origin}`).join(", "),
       );
 
       // Eén onderwerp wordt een keuze van de klant, niet meer een concept.
@@ -4503,8 +4508,18 @@ async function main(): Promise<void> {
 
       const definitieveRonde = await proposeTopics(stageProfileId);
       const { rows: naGesprek } = await db.client.query(
-        `select title, stage, status from public.profile_topics where profile_id = $1 order by title`,
+        `select title, stage, status, origin from public.profile_topics where profile_id = $1 order by title`,
         [stageProfileId],
+      );
+      ok(
+        "het nieuwe onderwerp draagt de herkomst 'aanbod_en_gesprek'",
+        naGesprek.find((r) => r.title === "Warmtepomp advies op maat")?.origin === "aanbod_en_gesprek",
+        naGesprek.map((r) => `${r.title}:${r.origin}`).join(", "),
+      );
+      ok(
+        "het afgewezen onderwerp behoudt zijn oude herkomst 'aanbod'",
+        naGesprek.find((r) => r.title === "Airco laten installeren")?.origin === "aanbod",
+        naGesprek.map((r) => `${r.title}:${r.origin}`).join(", "),
       );
       ok(
         "de definitieve ronde vervangt alleen de onbesliste concepten",

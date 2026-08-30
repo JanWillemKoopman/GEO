@@ -384,6 +384,7 @@ import {
   siteStructureRule,
   goalRule,
 } from "@/lib/pipeline/commercial-context";
+import { buildTopicBrief } from "@/lib/pipeline/topic-brief";
 import { ONBOARDING_NEXT, nextInChain } from "@/lib/jobs/chain";
 import { extractConfusions } from "@/lib/pipeline/baseline-verdict";
 import {
@@ -1392,6 +1393,55 @@ group("Briefingvragen selecteren (contentbriefing.md §3.4 / R5.1)", () => {
   ok("afgekapt op acht", veel.length === MAX_QUESTIONS);
   ok("de zwaarste vraag staat bovenaan", veel[0].question === "Vraag 19?");
 
+  // ⚠️ Twaalf `kern`-vragen gaan allemaal mee, ook al is dat meer dan acht
+  // (werkpakket A §3.3, 30 augustus 2026). Vóór deze wijziging verdwenen de
+  // laatste vier stilzwijgend uit `fact_requests`, en dan kon
+  // `content-final-gate.ts` ze nooit tegenhouden: de eindpoort stond open op
+  // precies de pagina's met de meeste onbeantwoorde kernfeiten.
+  const veelKern = selectBriefingQuestions({
+    candidates: Array.from({ length: 12 }, (_, i) => ({
+      ...basis,
+      claimKey: `kern${i}`,
+      question: `Kernvraag ${i}?`,
+      required: true,
+      contentPieceIds: ["p1"],
+    })),
+    alreadyKnown: new Set(),
+  });
+  ok(
+    "alle twaalf kernvragen gaan mee, de grens van acht geldt niet voor verplicht",
+    veelKern.length === 12,
+    String(veelKern.length),
+  );
+
+  // Vijf verplichte en tien optionele: de vijf gaan altijd mee, de resterende
+  // drie plekken (acht min vijf) naar de sterkste optionele vragen.
+  const gemengd = selectBriefingQuestions({
+    candidates: [
+      ...Array.from({ length: 5 }, (_, i) => ({
+        ...basis,
+        claimKey: `verplicht${i}`,
+        question: `Verplicht ${i}?`,
+        required: true,
+        contentPieceIds: ["p1"],
+      })),
+      ...Array.from({ length: 10 }, (_, i) => ({
+        ...basis,
+        claimKey: `optie${i}`,
+        question: `Optie ${i}?`,
+        required: false,
+        contentPieceIds: ["p1"],
+        priority: 10 - i,
+      })),
+    ],
+    alreadyKnown: new Set(),
+  });
+  ok("vijf verplicht plus drie optioneel is acht", gemengd.length === MAX_QUESTIONS, String(gemengd.length));
+  ok(
+    "alle vijf verplichte vragen zitten erin",
+    gemengd.filter((v) => v.required).length === 5,
+  );
+
   // Lege vragen horen er nooit in te belanden.
   const leeg = selectBriefingQuestions({
     candidates: [{ ...basis, claimKey: "x", question: "   ", required: true, contentPieceIds: ["p1"] }],
@@ -2086,11 +2136,20 @@ group("de gereserveerde plek", () => {
     candidates: [...vulling, positionering],
     alreadyKnown: new Set(),
   });
-  ok("nog steeds acht vragen", met.length === MAX_QUESTIONS);
+  // Negen en niet acht (sinds 30 augustus 2026, werkpakket A §3.3): de acht
+  // verplichte vragen laten geen optionele ruimte over om de positioneringsvraag
+  // te ruilen, dus komt hij erbovenop in plaats van dat een `kern`-vraag
+  // sneuvelt. Zie de aantekening bij `selectBriefingQuestions()`.
+  ok("acht verplicht plus de positioneringsvraag erbovenop", met.length === MAX_QUESTIONS + 1);
   // Zonder reservering verliest deze vraag altijd: hij is nooit `kern` en raakt
   // zelden alle pagina's, dus de sortering op impact duwt hem er structureel uit.
   // Dat is precies waarom hij 0 van de 62 keer gesteld werd.
   ok("de positioneringsvraag haalt de lijst", met.some((v) => v.kind === "onderscheid"));
+  ok(
+    "geen enkele verplichte vraag sneuvelt ervoor",
+    met.filter((v) => v.required).length === MAX_QUESTIONS,
+    String(met.filter((v) => v.required).length),
+  );
 });
 
 // ════════════════════════════════════════════════════════════════════════════
@@ -9511,6 +9570,16 @@ group("de commerciële laag heeft echte lezers (fase 4)", () => {
   ok("de klantgroepen komen erin", sturing.includes("installateurs"));
   ok("en de verboden onderwerpen", sturing.includes("lopende rechtszaken"));
 
+  // Het doel over twaalf maanden stuurt de clusterkeuze mee (0075), maar
+  // growth_regions/seasonality/sales_objections/offline_proof bewust niet: die
+  // beantwoorden HOE er binnen een onderwerp gevraagd wordt, niet WELK onderwerp.
+  const metDoel = topicSteering({ ...gevuld, goal_12m: "Meer trouwhulp buiten de regio" });
+  ok("het doel komt in de clustersturing terecht", metDoel.includes("trouwhulp buiten de regio"));
+  ok(
+    "geen doel levert geen regel over het doel op",
+    !topicSteering(gevuld).includes("DOEL OVER TWAALF MAANDEN"),
+  );
+
   // De deterministische controle achteraf. Een promptinstructie is een
   // intentie, dit is de garantie (conventie 1).
   ok(
@@ -9910,6 +9979,7 @@ function onderwerp(
     client_edge: null,
     status,
     stage: "definitief",
+    origin: null,
     analysis_id: null,
     search_volume_index: null,
     search_volume_reasoning: null,
@@ -9917,6 +9987,40 @@ function onderwerp(
     updated_at: "",
   };
 }
+
+group("De clusterlaag smelt tot één tekst (topic-brief.ts, migratie 0075)", () => {
+  const leeg = {
+    client_questions: null,
+    client_friction: null,
+    client_edge: null,
+    client_note: null,
+  };
+  ok("niets ingevuld levert null op", buildTopicBrief(leeg) === null);
+
+  ok(
+    "valt terug op het legacy vrije veld als de drie nieuwe leeg zijn",
+    buildTopicBrief({ ...leeg, client_note: "hier komt 40% van de omzet vandaan" }) ===
+      "hier komt 40% van de omzet vandaan",
+  );
+
+  const brief = buildTopicBrief({
+    ...leeg,
+    client_questions: "zit pechhulp erbij?",
+    client_friction: "klanten onderschatten de levertijd",
+    client_edge: "wij hebben als enige een 24-uurs storingsdienst",
+    // Het legacy veld wordt genegeerd zodra er nieuwe velden zijn: anders
+    // krijgt de schrijver twee keer dezelfde informatie, en misschien
+    // tegenstrijdig als iemand alleen de nieuwe velden bijwerkt.
+    client_note: "een oude aantekening die niet meer relevant is",
+  });
+  ok("de vaakst gestelde vraag komt erin", brief?.includes("zit pechhulp erbij?") ?? false);
+  ok("wat er misgaat ook", brief?.includes("klanten onderschatten de levertijd") ?? false);
+  ok("en het onderscheid", brief?.includes("24-uurs storingsdienst") ?? false);
+  ok(
+    "de oude aantekening wordt niet meegenomen zodra er nieuwe velden zijn",
+    !brief?.includes("niet meer relevant"),
+  );
+});
 
 group("de knopenselectie kapt 60 knopen af op 12, met de prioriteiten bovenaan", () => {
   // Zestig knopen, oplopend genummerd. `dienst-40` staat achteraan in de

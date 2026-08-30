@@ -219,7 +219,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       topic: topic.title,
       name: buildAnalysisName(profile.url, topic.title),
       status: "bezig",
-      content_brief: topic.client_note,
+      content_brief: buildTopicBrief(topic),
       notify_by_email: true,
       ...(mixUpdate ?? {}),
     })

@@ -46,8 +46,16 @@ export function TopicsPanel({
   const [topics, setTopics] = useState(initial);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [noteFor, setNoteFor] = useState<string | null>(null);
-  const [noteText, setNoteText] = useState("");
+  // De clusterlaag (migratie 0075, docs/optimalisatielab-orbit-engine.md §3.1):
+  // drie gerichte velden in plaats van één generiek notitieveld. `briefFor`
+  // onthoudt welk onderwerp opengeklapt is, `briefDraft` de conceptwaarden
+  // tijdens het typen.
+  const [briefFor, setBriefFor] = useState<string | null>(null);
+  const [briefDraft, setBriefDraft] = useState({
+    clientQuestions: "",
+    clientFriction: "",
+    clientEdge: "",
+  });
   // De verdeling over de funnelfasen (migratie 0054). Dicht bij de startknop,
   // want dit is het enige moment waarop hij nog telt: zodra de vragen er zijn,
   // ligt de verdeling vast.
@@ -80,7 +88,9 @@ export function TopicsPanel({
   // Daarna, net als het contentplan (docs/tasks/potentiescore.md fase 3): de
   // potentiescore eerst als hij er is, anders de dag-1-gok van het model.
   const sorted = [...topics].sort((a, b) => {
-    const rang = (t: ProfileTopic) => (t.status === "afgewezen" ? 2 : t.client_note ? 0 : 1);
+    const heeftClusterinfo = (t: ProfileTopic) =>
+      Boolean(t.client_questions || t.client_friction || t.client_edge || t.client_note);
+    const rang = (t: ProfileTopic) => (t.status === "afgewezen" ? 2 : heeftClusterinfo(t) ? 0 : 1);
     const rangVerschil = rang(a) - rang(b);
     if (rangVerschil !== 0) return rangVerschil;
 
@@ -182,11 +192,40 @@ export function TopicsPanel({
 
         {t.rationale && <p className="text-sm text-secondary">{t.rationale}</p>}
 
-        {t.client_note && (
-          <p className="text-sm">
-            <span className="mono-label">Uit het gesprek</span>{" "}
-            <span className="text-secondary">{t.client_note}</span>
-          </p>
+        {t.origin && (
+          <span className="mono-label text-muted">
+            {t.origin === "aanbod_en_gesprek" ? "Uit het aanbod en het gesprek" : "Uit het aanbod"}
+          </span>
+        )}
+
+        {(t.client_questions || t.client_friction || t.client_edge) ? (
+          <dl className="flex flex-col gap-1.5 text-sm">
+            {t.client_questions && (
+              <div>
+                <dt className="mono-label inline">Vaakst gevraagd</dt>{" "}
+                <dd className="inline text-secondary">{t.client_questions}</dd>
+              </div>
+            )}
+            {t.client_friction && (
+              <div>
+                <dt className="mono-label inline">Gaat vaak mis</dt>{" "}
+                <dd className="inline text-secondary">{t.client_friction}</dd>
+              </div>
+            )}
+            {t.client_edge && (
+              <div>
+                <dt className="mono-label inline">Onderscheid</dt>{" "}
+                <dd className="inline text-secondary">{t.client_edge}</dd>
+              </div>
+            )}
+          </dl>
+        ) : (
+          t.client_note && (
+            <p className="text-sm">
+              <span className="mono-label">Eerdere aantekening</span>{" "}
+              <span className="text-secondary">{t.client_note}</span>
+            </p>
+          )
         )}
 
         {mixFor === t.id && (
@@ -247,28 +286,59 @@ export function TopicsPanel({
           </div>
         )}
 
-        {noteFor === t.id ? (
-          <div className="flex flex-col gap-2">
-            <textarea
-              className="field"
-              rows={2}
-              value={noteText}
-              onChange={(e) => setNoteText(e.target.value)}
-              placeholder="Wat zei de klant hierover? Bijv. 'hier komt 40% van de omzet vandaan'."
-              autoFocus
-            />
+        {briefFor === t.id ? (
+          <div className="flex flex-col gap-3">
+            <label className="flex flex-col gap-1 text-sm">
+              <span className="mono-label">Vaakst gestelde klantvraag</span>
+              <textarea
+                className="field"
+                rows={2}
+                value={briefDraft.clientQuestions}
+                onChange={(e) =>
+                  setBriefDraft((d) => ({ ...d, clientQuestions: e.target.value }))
+                }
+                placeholder="Bijv. 'zit pechhulp bij het maandbedrag inbegrepen?'"
+                autoFocus
+              />
+            </label>
+            <label className="flex flex-col gap-1 text-sm">
+              <span className="mono-label">Wat er vaak misgaat</span>
+              <textarea
+                className="field"
+                rows={2}
+                value={briefDraft.clientFriction}
+                onChange={(e) =>
+                  setBriefDraft((d) => ({ ...d, clientFriction: e.target.value }))
+                }
+                placeholder="Bijv. 'klanten onderschatten de levertijd in het hoogseizoen'"
+              />
+            </label>
+            <label className="flex flex-col gap-1 text-sm">
+              <span className="mono-label">Onderscheid met de concurrent</span>
+              <textarea
+                className="field"
+                rows={2}
+                value={briefDraft.clientEdge}
+                onChange={(e) => setBriefDraft((d) => ({ ...d, clientEdge: e.target.value }))}
+                placeholder="Bijv. 'wij zijn de enige met een 24-uurs storingsdienst in de regio'"
+              />
+            </label>
             <div className="flex gap-2">
               <button
                 type="button"
                 className="btn-primary btn-sm"
                 disabled={bezig}
                 onClick={() => {
-                  void patch(t.id, { clientNote: noteText }).then(() => setNoteFor(null));
+                  void patch(t.id, {
+                    clientQuestions: briefDraft.clientQuestions,
+                    clientFriction: briefDraft.clientFriction,
+                    clientEdge: briefDraft.clientEdge,
+                  }).then(() => setBriefFor(null));
                 }}
               >
                 Bewaren
               </button>
-              <button type="button" className="btn-outline btn-sm" onClick={() => setNoteFor(null)}>
+              <button type="button" className="btn-outline btn-sm" onClick={() => setBriefFor(null)}>
                 Annuleren
               </button>
             </div>
@@ -306,11 +376,17 @@ export function TopicsPanel({
               className="btn-outline btn-sm disabled:opacity-50"
               disabled={bezig}
               onClick={() => {
-                setNoteText(t.client_note ?? "");
-                setNoteFor(t.id);
+                setBriefDraft({
+                  clientQuestions: t.client_questions ?? "",
+                  clientFriction: t.client_friction ?? "",
+                  clientEdge: t.client_edge ?? "",
+                });
+                setBriefFor(t.id);
               }}
             >
-              {t.client_note ? "Notitie aanpassen" : "Notitie uit gesprek"}
+              {t.client_questions || t.client_friction || t.client_edge
+                ? "Clusterinfo aanpassen"
+                : "Clusterinfo uit gesprek"}
             </button>
             {t.status !== "afgewezen" && !t.analysis_id && (
               <button

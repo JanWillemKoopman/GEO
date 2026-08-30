@@ -99,6 +99,9 @@ export async function proposeTopics(profileId: string): Promise<TopicResult> {
   } | null;
   const hasGesprek = Boolean(strategy?.recorded_at);
   const nieuweStage: "concept" | "definitief" = hasGesprek ? "definitief" : "concept";
+  // Herkomst op het moment van voorstellen (0076, §3.5): elk onderwerp komt uit
+  // het aanbod, en draagt het gesprek erbij zodra dat al gevoerd was.
+  const nieuweOorsprong: "aanbod" | "aanbod_en_gesprek" = hasGesprek ? "aanbod_en_gesprek" : "aanbod";
 
   const bestaand = (existingTopics ?? []) as {
     id: string;
@@ -314,6 +317,7 @@ export async function proposeTopics(profileId: string): Promise<TopicResult> {
       priority: Math.max(0, MAX_TOPICS - (Number.isFinite(t.priority) ? t.priority : i + 1)),
       status: "voorgesteld",
       stage: nieuweStage,
+      origin: nieuweOorsprong,
     })),
   );
 

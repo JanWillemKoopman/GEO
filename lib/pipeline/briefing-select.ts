@@ -6,12 +6,21 @@
  * en "de klant krijgt 6 vragen te zien". Geen AI-aanroep: bundelen, ontdubbelen,
  * prioriteren en afkappen zijn regels, geen oordelen.
  *
- * ── DE HARDE GRENS VAN ACHT ─────────────────────────────────────────────────
+ * ── ACHT IS DE GRENS VOOR OPTIONEEL, NIET VOOR ONMISBAAR ────────────────────
  *
- * Maximaal 8 vragen per briefing. Wat er niet in past blijft open staan en komt
- * bij een volgende batch terug. Liever een korte lijst die iemand invult dan een
- * lange die iemand wegklikt, README.md §2. Dit is ook de reden dat de
- * prioritering ertoe doet: bij het afkappen moet het beste bovenaan staan.
+ * Tot 30 augustus 2026 was 8 een harde grens over ALLE vragen: kwamen er meer
+ * dan acht `kern`-vragen (zonder dit feit mist de pagina zijn doel) uit de
+ * audit, dan verdwenen de overtolligen stilzwijgend, vóórdat ze ooit als rij in
+ * `fact_requests` bestonden. `content-final-gate.ts` telt open vragen om de
+ * definitieve versie tegen te houden, maar kan een vraag die nooit is opgeslagen
+ * natuurlijk niet zien: de eindpoort stond zo open op precies de pagina's met de
+ * meeste gaten. Zie docs/optimalisatielab-orbit-engine.md, werkpakket A §3.3.
+ *
+ * Vanaf nu geldt de grens van 8 alleen voor de OPTIONELE vragen. Elke `kern`-
+ * vraag gaat altijd mee, hoeveel er ook zijn: liever een klant die twaalf keer
+ * "weet ik niet, sla over" klikt dan een pagina die zijn onmisbare feiten nooit
+ * te zien kreeg. Liever een korte lijst die iemand invult dan een lange die
+ * iemand wegklikt (README.md §2) blijft het uitgangspunt voor wat OPTIONEEL is.
  *
  * Bewust ZONDER `server-only`: pure selectielogica, testbaar in een kaal script.
  */
@@ -358,7 +367,23 @@ export function selectBriefingQuestions(args: {
         a.question.localeCompare(b.question),
     );
 
-  const gekozen = gesorteerd.slice(0, max);
+  // ── Verplicht gaat altijd mee, `max` begrenst alleen het optionele deel ────
+  //
+  // Vóór 30 augustus 2026 sneed `slice(0, max)` dwars door verplichte vragen
+  // heen zodra er meer dan `max` waren: die verdwenen zonder rij in
+  // `fact_requests`, en dus zonder dat `content-final-gate.ts` ze ooit kon
+  // tegenhouden. Nu telt de grens alleen voor de OPTIONELE vragen; hoeveel
+  // `kern`-vragen er ook zijn, ze gaan allemaal mee.
+  const optioneleRuimte = Math.max(0, max - gesorteerd.filter((v) => v.required).length);
+  let optioneelGebruikt = 0;
+  const gekozen = gesorteerd.filter((v) => {
+    if (v.required) return true;
+    if (optioneelGebruikt < optioneleRuimte) {
+      optioneelGebruikt++;
+      return true;
+    }
+    return false;
+  });
 
   // ── De gereserveerde plek voor 'onderscheid' (S4) ─────────────────────────
   //
@@ -367,12 +392,26 @@ export function selectBriefingQuestions(args: {
   // van elke verificatievraag, ook nu er eindelijk een mechanisme is dat hem
   // produceert. Zonder deze reservering zou `onderscheid` 0 van de 62 blijven.
   //
-  // Bewust de LAATSTE plek en niet de zwakste verplichte: de lijst staat al op
-  // impact gesorteerd, dus de laatste is per definitie de minst waardevolle die
-  // het haalde.
-  if (gekozen.length >= max && !gekozen.some((v) => v.kind === "onderscheid")) {
+  // Verplichte vragen worden hiervoor NOOIT geruild, dat zou de garantie
+  // hierboven tegenspreken. Is de optionele ruimte al vol, dan wisselt de
+  // zwakste al gekozen OPTIONELE vraag. Is er geen optionele ruimte (de
+  // verplichte vragen vullen `max` al), dan komt de positioneringsvraag er in
+  // de zeldzame gevallen bovenop: liever één vraag extra dan de enige vraag
+  // die een concurrent niet kan overschrijven laten vervallen.
+  if (!gekozen.some((v) => v.kind === "onderscheid")) {
     const kandidaat = gesorteerd.find((v) => v.kind === "onderscheid");
-    if (kandidaat) gekozen.splice(max - RESERVED_FOR_ONDERSCHEID, RESERVED_FOR_ONDERSCHEID, kandidaat);
+    if (kandidaat) {
+      // Was er optionele ruimte, dan is die al vol met sterkere optionele
+      // vragen (anders had de filter hierboven `kandidaat` al gekozen): ruil de
+      // zwakste optionele vraag. Was er geen optionele ruimte, dan is er niets
+      // te ruilen en komt de vraag erbovenop.
+      const zwaksteOptioneleIndex = [...gekozen].reverse().findIndex((v) => !v.required);
+      if (optioneleRuimte > 0 && zwaksteOptioneleIndex >= 0) {
+        gekozen.splice(gekozen.length - 1 - zwaksteOptioneleIndex, RESERVED_FOR_ONDERSCHEID, kandidaat);
+      } else {
+        gekozen.push(kandidaat);
+      }
+    }
   }
 
   return gekozen;

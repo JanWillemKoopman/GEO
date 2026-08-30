@@ -32,6 +32,24 @@
  * de schaal van 0 tot 100 en de drie banden eronder wél kapotgaan. Het veld
  * wordt vastgelegd en getoond; een lezer krijgt het pas als er een beslissing
  * is die merken onderling vergelijkt.
+ *
+ * ── WAAROM DE CLUSTERKEUZE (`topicSteering`) NIET ALLE TWAALF LEEST ─────────
+ *
+ * Werkpakket A §4 van docs/optimalisatielab-orbit-engine.md vraagt "alle
+ * strategische velden" in de instructie die clusters genereert. Dat is geen
+ * automatisme: een veld hoort daar alleen bij als het antwoord geeft op de
+ * vraag die `topicSteering` stelt, namelijk WELK ONDERWERP. `goal_12m` doet dat
+ * ("groeien naar meer trouwhulp" duwt een onderwerp als "trouwhulp huren" naar
+ * boven) en staat er daarom nu bij. `growth_regions`, `seasonality`,
+ * `sales_objections` en `offline_proof` geven geen antwoord op WELK onderwerp,
+ * ze bepalen HOE er binnen een al gekozen onderwerp gevraagd en geschreven
+ * wordt (een plaatsnaam is geen onderwerp, een seizoenspiek evenmin), en hebben
+ * daarom hun eigen lezer verderop in dit bestand: `growthRegionsRule` in
+ * `prompts.ts`, `goalRule`'s seizoensdeel en `objectionsRule` in `briefing.ts`
+ * en `content.ts`, `offlineProofFacts` in `factbase.ts`. Ze daar wegplukken en
+ * ook in de clusterkeuze douwen zou dezelfde fout maken die `deal_value_band`
+ * hierboven al voorkwam: een veld met de verkeerde vorm in een instructie
+ * proppen waar het geen zinnig antwoord op geeft.
  */
 import type { Profile } from "@/lib/types/database";
 
@@ -63,7 +81,7 @@ function lijst(v: string[] | null | undefined): string[] {
  * precies het aanbod waar de klant vanaf wil.
  */
 export function topicSteering(p: Pick<CommercialFields,
-  "priority_offerings" | "deprioritised_offerings" | "target_segments" | "forbidden_topics">): string {
+  "priority_offerings" | "deprioritised_offerings" | "target_segments" | "forbidden_topics" | "goal_12m">): string {
   const regels: string[] = [];
   const voorop = lijst(p.priority_offerings);
   const achteraan = lijst(p.deprioritised_offerings);
@@ -90,6 +108,14 @@ export function topicSteering(p: Pick<CommercialFields,
   if (verboden.length > 0) {
     regels.push(
       `VERBODEN ONDERWERPEN (juridisch of concurrentiegevoelig, nooit voorstellen): ${verboden.join(", ")}.`,
+    );
+  }
+  // Het doel is geen segment en geen dienst, maar wel de reden waarom het ene
+  // onderwerp meer waard is dan het andere op dit moment (0075).
+  if (p.goal_12m?.trim()) {
+    regels.push(
+      `HET DOEL OVER TWAALF MAANDEN: ${p.goal_12m.trim()}. Geef onderwerpen die hieraan bijdragen ` +
+        `voorrang boven onderwerpen die dat niet doen.`,
     );
   }
 
