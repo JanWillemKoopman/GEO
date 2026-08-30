@@ -26,7 +26,7 @@ import "server-only";
  * niemand een vraag over aan ChatGPT. Het bruikbare niveau zit ertussenin, en
  * dat is precies waarom de boom uit fase 1 hieraan voorafgaat.
  *
- * ── CONCEPT VÓÓR HET GESPREK, DEFINITIEF ERNA (migratie 0068) ──────────────
+ * ── CONCEPT VÓÓR HET GESPREK, DEFINITIEF ERNA (migratie 0074) ──────────────
  *
  * Deze stap draait meteen nadat de aanbodboom er is, dus ruim vóórdat het
  * strategisch gesprek ooit gevoerd is. Is er nog geen gesprek vastgelegd
@@ -161,7 +161,7 @@ export async function proposeTopics(profileId: string): Promise<TopicResult> {
 
   const regios = profile.service_regions.length > 0 ? profile.service_regions.join(", ") : null;
 
-  // Wat er in het gesprek is gezegd (migratie 0068). Alleen meegeven in de
+  // Wat er in het gesprek is gezegd (migratie 0074). Alleen meegeven in de
   // definitieve ronde: in de conceptronde bestaat dit nog niet, en dat is
   // precies waarom er straks een tweede, betere ronde volgt.
   const gesprekBlok =

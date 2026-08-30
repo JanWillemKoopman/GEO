@@ -62,7 +62,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   }
 
   // ⚠️ Een concept-onderwerp bestaat alleen als gespreksvoorbereiding (migratie
-  // 0068): het strategisch gesprek is nog niet vastgelegd op dit merk. Pas
+  // 0074): het strategisch gesprek is nog niet vastgelegd op dit merk. Pas
   // goedkeuren nadat de definitieve ronde (na het gesprek) is gedraaid,
   // anders keurt de app een onderwerp goed dat er zo weer af gaat.
   if (patch.status === "goedgekeurd") {
@@ -167,7 +167,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   const topic = topicRow as ProfileTopic;
 
   // ⚠️ Zie de PATCH-route hierboven: een concept-onderwerp is gespreksvoorbereiding,
-  // geen startbaar cluster (migratie 0068).
+  // geen startbaar cluster (migratie 0074).
   if (topic.stage === "concept") {
     return NextResponse.json(
       {

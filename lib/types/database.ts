@@ -572,7 +572,7 @@ export interface ProfileTopic {
   status: TopicStatus;
   /**
    * concept: voorgesteld vóór het strategisch gesprek, ter voorbereiding,
-   * niet te starten. definitief: te goedkeuren en te starten (migratie 0068).
+   * niet te starten. definitief: te goedkeuren en te starten (migratie 0074).
    */
   stage: "concept" | "definitief";
   analysis_id: string | null;

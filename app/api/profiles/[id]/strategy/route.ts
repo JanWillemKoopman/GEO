@@ -95,7 +95,7 @@ export async function PUT(
   if (error)
     return NextResponse.json({ error: "Opslaan is niet gelukt." }, { status: 500 });
 
-  // ── De definitieve onderwerpronde (migratie 0068) ────────────────────────
+  // ── De definitieve onderwerpronde (migratie 0074) ────────────────────────
   // Het gesprek ligt nu vast. Staan er nog onbesliste conceptonderwerpen (van
   // vóór dit gesprek), dan vervangt `proposeTopics()` die door een definitieve
   // ronde mét deze gespreksinformatie erbij. Kost ~$0,01; staan er geen

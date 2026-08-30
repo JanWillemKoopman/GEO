@@ -520,7 +520,7 @@ const ANTWOORDEN: Record<string, (user: string) => unknown> = {
   }),
 
   /**
-   * De onderwerpvoorstellen (`lib/pipeline/propose-topics.ts`, migratie 0068).
+   * De onderwerpvoorstellen (`lib/pipeline/propose-topics.ts`, migratie 0074).
    *
    * ⚠️ Het antwoord hangt af van de invoer: staat "UIT HET STRATEGISCH
    * GESPREK" in de aanroep, dan is dit de definitieve ronde ná het gesprek en

@@ -1,4 +1,4 @@
--- 0068: onderwerpen krijgen een fase: concept vóór het gesprek, definitief erna
+-- 0074: onderwerpen krijgen een fase: concept vóór het gesprek, definitief erna
 --
 -- ── WAT DIT OPLOST ─────────────────────────────────────────────────────────
 --
@@ -30,4 +30,4 @@ alter table public.profile_topics
 comment on column public.profile_topics.stage is
   'concept: voorgesteld vóór het strategisch gesprek, ter voorbereiding, niet '
   'te starten. definitief: te goedkeuren en te starten. Standaard definitief, '
-  'zodat bestaand werk niet met terugwerkende kracht op slot gaat (0068).';
+  'zodat bestaand werk niet met terugwerkende kracht op slot gaat (0074).';

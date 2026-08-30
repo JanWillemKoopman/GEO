@@ -4436,7 +4436,7 @@ async function main(): Promise<void> {
     }
 
     // ════════════════════════════════════════════════════════════════════════
-    // Onderwerpen zijn concept vóór het gesprek, definitief erna (0068,
+    // Onderwerpen zijn concept vóór het gesprek, definitief erna (0074,
     // docs/optimalisatielab-orbit-engine.md werkpakket A §3.2).
     //
     // ⚠️ DE SAMENHANG DIE HIER FOUT KAN GAAN: `proposeTopics()` draait twee
@@ -4447,7 +4447,7 @@ async function main(): Promise<void> {
     // zitten die hij nooit kan starten.
     // ════════════════════════════════════════════════════════════════════════
     {
-      console.log("\nOnderwerpen: concept vóór het gesprek, definitief erna (0068)");
+      console.log("\nOnderwerpen: concept vóór het gesprek, definitief erna (0074)");
       const { proposeTopics } = await import("@/lib/pipeline/propose-topics");
       const stageProfileId = randomUUID();
 
