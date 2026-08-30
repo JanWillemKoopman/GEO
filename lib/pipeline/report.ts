@@ -13,7 +13,7 @@ import { MODELS } from "@/lib/openai/models";
 import { GapAnalysis } from "@/lib/schemas/gap-analysis";
 import { Report } from "@/lib/schemas/report";
 import { NEUTRAL_WEIGHT } from "@/lib/pipeline/prompt-weight";
-import { resolveTargets } from "@/lib/pipeline/recommendation";
+import { resolveTargets, mergeOverlappingRecommendations } from "@/lib/pipeline/recommendation";
 import {
   buildEvidenceDossier,
   loadBrandsByRun,
@@ -94,6 +94,17 @@ const REPORT_SYSTEM =
   "winnen: minimaal één, en alleen vragen die inhoudelijk bij die pagina horen. Eén pagina mag " +
   "meerdere verwante vragen bedienen; verdeel de zwaarste vragen over de aanbevelingen en laat geen " +
   "zware vraag onbenoemd. " +
+  // Werkpakket B §4.2: geen vast aantal. Vóór 30 augustus 2026 kwam hier in de
+  // praktijk (bijna) altijd precies 7 aanbevelingen uit, niet omdat de code dat
+  // afdwingt (dat deed hij nooit) maar omdat niets in de instructie een ander
+  // aantal aanmoedigde. Expliciet maken voorkomt dat het model naar een "net
+  // rond" getal afrondt terwijl er acht of drie echte kansen liggen.
+  "HET AANTAL AANBEVELINGEN LIGT NIET VAST. Geef een aanbeveling voor ELKE gemiste vraag die aan alle " +
+  "vier deze eisen voldoet, niet meer en niet minder: (1) er is een gemeten gemis met bewijs (een " +
+  "V-code), (2) de klant heeft er via zijn aanbod of feiten iets echts over te zeggen, (3) er is geen " +
+  "bestaande pagina die dit onderwerp al goed dekt (anders is het 'verbeteren', geen nieuwe kans), " +
+  "(4) hij overlapt inhoudelijk niet met een andere aanbeveling in dit rapport. Voldoen er twee, geef " +
+  "er twee; voldoen er tien, geef er tien. Rond nooit af naar een 'nette' lijst. " +
   "Vraag daarnaast in factRequests om CONCRETE FEITEN die je mist en die de content aantoonbaar beter " +
   "zouden maken (bv. 'Hoeveel jaar bestaan jullie?', 'Wat is jullie levertijd?', 'Hoeveel klanten per " +
   "jaar?'). Alleen feiten die een ondernemer uit zijn hoofd weet, en alleen als ze deze pagina's echt " +
@@ -778,7 +789,12 @@ export async function generateReport(
     // De vraagcodes (V1, V2, …) omzetten naar echte verwijzingen vóór opslag
     // (optimalisatie.md 4.1). Vanaf hier werkt de rest van de app met prompt- en
     // meting-id's; de codes bestaan alleen binnen deze ene aanroep.
-    const enriched = resolveTargets(report.parsed.recommendations, missed);
+    // Werkpakket B §4.2, eis 4: geen twee aanbevelingen die op dezelfde
+    // zwaarste gemiste vraag mikken. De instructie vraagt het model dit al,
+    // dit is de garantie erachter (conventie 1).
+    const enriched = mergeOverlappingRecommendations(
+      resolveTargets(report.parsed.recommendations, missed),
+    );
 
     // ── Claimvalidatie (implementatieplan.md R1.3) ─────────────────────────
     // Het deterministische vangnet onder R1.1/R1.2: elke concurrentnaam moet

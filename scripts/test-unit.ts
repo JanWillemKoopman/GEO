@@ -31,8 +31,17 @@ import { promptWeight, NEUTRAL_WEIGHT } from "@/lib/pipeline/prompt-weight";
 import { parseRobots, isAllowed, sitemapsFrom } from "@/lib/audit/robots";
 import { splitByTerms } from "@/lib/highlight";
 import { redactCompetitors, containsCompetitor } from "@/lib/pipeline/redact";
-import { resolveTargets, readRecommendations } from "@/lib/pipeline/recommendation";
-import type { RawRecommendation, CodedMissedPrompt } from "@/lib/pipeline/recommendation";
+import {
+  resolveTargets,
+  readRecommendations,
+  mergeOverlappingRecommendations,
+  describeActionRatio,
+} from "@/lib/pipeline/recommendation";
+import type {
+  RawRecommendation,
+  CodedMissedPrompt,
+  StoredRecommendation,
+} from "@/lib/pipeline/recommendation";
 import { geoScore, geoIssues } from "@/lib/schemas/critique";
 import type { GeoCriteria } from "@/lib/schemas/critique";
 import { compare, deltaOf, thresholdOf, verdictOf, minQuestionsForSignal } from "@/lib/pipeline/impact-math";
@@ -802,6 +811,93 @@ group("oude rapporten blijven leesbaar", () => {
   ok("niet-array → leeg", readRecommendations(null).length === 0);
   ok("zonder targets → lege lijst", readRecommendations([{ title: "X" }])[0].targets.length === 0);
   ok("ontbrekend type → article", readRecommendations([{ title: "X" }])[0].type === "article");
+});
+
+group("Geen twee aanbevelingen op dezelfde zwaarste vraag (werkpakket B §4.2)", () => {
+  const target = (promptId: string, weight: number) => ({
+    promptId,
+    runId: `run-${promptId}`,
+    text: `vraag ${promptId}`,
+    cluster: null,
+    weight,
+  });
+  const stored = (over: Partial<StoredRecommendation>): StoredRecommendation => ({
+    title: "T",
+    type: "article",
+    targetIntent: "i",
+    why: "w",
+    priority: 1,
+    action: "nieuw",
+    existingUrl: null,
+    targets: [],
+    ...over,
+  });
+
+  // Twee aanbevelingen die allebei p1 als zwaarste doelvraag hebben: dat is
+  // hetzelfde gemis, ook al verschillen de titels.
+  const dubbel = mergeOverlappingRecommendations([
+    stored({ title: "Wasmachine kopen", priority: 1, targets: [target("p1", 0.9)] }),
+    stored({ title: "Een wasmachine aanschaffen", priority: 2, targets: [target("p1", 0.9), target("p2", 0.4)] }),
+  ]);
+  ok("worden samengevoegd tot één aanbeveling", dubbel.length === 1, String(dubbel.length));
+  ok("de belangrijkste (laagste priority) titel wint", dubbel[0].title === "Wasmachine kopen");
+  ok(
+    "de extra doelvraag van de verliezer blijft behouden",
+    dubbel[0].targets.some((t) => t.promptId === "p2"),
+    dubbel[0].targets.map((t) => t.promptId).join(", "),
+  );
+
+  // Twee aanbevelingen op een andere zwaarste vraag blijven gewoon twee.
+  const geenOverlap = mergeOverlappingRecommendations([
+    stored({ title: "A", targets: [target("p1", 0.9)] }),
+    stored({ title: "B", targets: [target("p3", 0.7)] }),
+  ]);
+  ok("verschillende zwaarste vraag blijft twee aanbevelingen", geenOverlap.length === 2);
+
+  // Zonder doelvraag valt niets samen, ook niet met zichzelf.
+  const zonderTargets = mergeOverlappingRecommendations([
+    stored({ title: "A", targets: [] }),
+    stored({ title: "B", targets: [] }),
+  ]);
+  ok("aanbevelingen zonder doelvraag blijven allebei staan", zonderTargets.length === 2);
+
+  // Drie op dezelfde vraag: ook dat wordt er één, niet twee.
+  const drieDubbel = mergeOverlappingRecommendations([
+    stored({ title: "A", priority: 3, targets: [target("p1", 0.9)] }),
+    stored({ title: "B", priority: 1, targets: [target("p1", 0.9)] }),
+    stored({ title: "C", priority: 2, targets: [target("p1", 0.9)] }),
+  ]);
+  ok("drie dubbele aanbevelingen worden er één", drieDubbel.length === 1, String(drieDubbel.length));
+  ok("en de belangrijkste van de drie wint", drieDubbel[0].title === "B");
+});
+
+group("De verhouding nieuw/verbeteren in een zin (werkpakket B §4.3)", () => {
+  const stored = (action: "nieuw" | "verbeteren"): StoredRecommendation => ({
+    title: "T",
+    type: "article",
+    targetIntent: "i",
+    why: "w",
+    priority: 1,
+    action,
+    existingUrl: null,
+    targets: [],
+  });
+
+  ok("geen aanbevelingen levert geen zin op", describeActionRatio([]) === null);
+  ok(
+    "allemaal nieuw krijgt een eigen zin",
+    describeActionRatio([stored("nieuw"), stored("nieuw")])!.includes("Alle 2 aanbevelingen zijn nieuwe"),
+  );
+  ok(
+    "één verbetering krijgt een eigen zin, geen 'alle 1'",
+    describeActionRatio([stored("verbeteren")])!.includes("De ene aanbeveling verbetert"),
+  );
+  ok(
+    "meerdere verbeteringen gebruiken wel 'alle'",
+    describeActionRatio([stored("verbeteren"), stored("verbeteren")])!.includes("Alle 2 aanbevelingen verbeteren"),
+  );
+  const gemengd = describeActionRatio([stored("nieuw"), stored("nieuw"), stored("verbeteren")])!;
+  ok("gemengd noemt beide aantallen", gemengd.includes("2 van de 3") && gemengd.includes("de andere 1"), gemengd);
 });
 
 group("GEO-score", () => {

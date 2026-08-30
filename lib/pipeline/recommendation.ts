@@ -108,6 +108,102 @@ export function resolveTargets(
   });
 }
 
+/**
+ * Twee aanbevelingen die op dezelfde zwaarste gemiste vraag mikken, samenvoegen
+ * (werkpakket B §4.2, eis 4: "overlapt niet inhoudelijk met een andere
+ * aanbeveling in dit rapport").
+ *
+ * ── WAAROM DE ZWAARSTE DOELVRAAG DE SLEUTEL IS EN NIET DE TITEL ─────────────
+ *
+ * Titels vergelijken ("Wasmachine kopen" tegenover "Een wasmachine aanschaffen")
+ * is een taalprobleem en geen datavraag; twee modellen die er onafhankelijk
+ * naar kijken zouden het oneens kunnen zijn. `resolveTargets()` sorteert de
+ * doelvragen van elke aanbeveling al op gewicht (zwaarste eerst), dus
+ * `targets[0].promptId` is de vraag die de aanbeveling in de kern moet winnen.
+ * Twee aanbevelingen die dezelfde zwaarste vraag als kern hebben, beantwoorden
+ * per definitie hetzelfde gemis, ook als de titels verschillen. Dat is een
+ * garantie in code (conventie 1): de instructie vraagt het model al om niet te
+ * overlappen, maar de instructie is een intentie.
+ *
+ * Aanbevelingen ZONDER doelvraag (geen enkele match op een V-code) doen niet
+ * mee: die kunnen niet vergeleken worden en horen niet per ongeluk samen te
+ * vallen met iets willekeurigs.
+ */
+export function mergeOverlappingRecommendations(
+  recommendations: StoredRecommendation[],
+): StoredRecommendation[] {
+  const zonderDoelvraag = recommendations.filter((r) => r.targets.length === 0);
+  const metDoelvraag = recommendations.filter((r) => r.targets.length > 0);
+
+  const perZwaarsteVraag = new Map<string, StoredRecommendation>();
+  const volgorde: string[] = [];
+
+  for (const rec of metDoelvraag) {
+    const sleutel = rec.targets[0].promptId;
+    if (!sleutel) {
+      // Geen prompt-id (bv. een verwijderde prompt): niet te groeperen, blijft
+      // gewoon een eigen aanbeveling.
+      zonderDoelvraag.push(rec);
+      continue;
+    }
+    const bestaand = perZwaarsteVraag.get(sleutel);
+    if (!bestaand) {
+      perZwaarsteVraag.set(sleutel, { ...rec });
+      volgorde.push(sleutel);
+      continue;
+    }
+    // De belangrijkste (laagste priority-getal) blijft de hoofdaanbeveling; de
+    // andere levert alleen zijn extra doelvragen in, niet zijn titel of tekst.
+    const winnaar = rec.priority < bestaand.priority ? rec : bestaand;
+    const verliezer = winnaar === rec ? bestaand : rec;
+    const samengevoegdeTargets = [...winnaar.targets];
+    for (const t of verliezer.targets) {
+      if (!samengevoegdeTargets.some((x) => x.promptId === t.promptId)) {
+        samengevoegdeTargets.push(t);
+      }
+    }
+    perZwaarsteVraag.set(sleutel, {
+      ...winnaar,
+      targets: samengevoegdeTargets.sort((a, b) => b.weight - a.weight),
+    });
+  }
+
+  return [...volgorde.map((s) => perZwaarsteVraag.get(s)!), ...zonderDoelvraag];
+}
+
+/**
+ * De verhouding nieuw tegenover verbeteren, in een zin (werkpakket B §4.3).
+ *
+ * Geen vast percentage: de verhouding is de UITKOMST van hoeveel bestaande
+ * pagina's het model al goed genoeg vond om te verbeteren in plaats van een
+ * nieuwe te beginnen, en dat volgt weer uit hoe goed de site vandaag meedoet
+ * in de metingen. Deze functie herhaalt alleen wat er al is besloten, in
+ * gewone taal; ze beslist niets.
+ */
+export function describeActionRatio(recommendations: StoredRecommendation[]): string | null {
+  if (recommendations.length === 0) return null;
+  const nieuw = recommendations.filter((r) => r.action === "nieuw").length;
+  const verbeteren = recommendations.length - nieuw;
+
+  if (verbeteren === 0) {
+    const zin = nieuw === 1 ? "De ene aanbeveling is een nieuwe pagina" : `Alle ${nieuw} aanbevelingen zijn nieuwe pagina's`;
+    return (
+      `${zin}: geen van de bestaande pagina's dekte een gemeten gemis al goed genoeg om te verbeteren.`
+    );
+  }
+  if (nieuw === 0) {
+    const zin =
+      verbeteren === 1
+        ? "De ene aanbeveling verbetert een bestaande pagina"
+        : `Alle ${verbeteren} aanbevelingen verbeteren een bestaande pagina`;
+    return `${zin}: de site dekt de gemeten onderwerpen al, maar nog niet overtuigend genoeg.`;
+  }
+  return (
+    `${nieuw} van de ${recommendations.length} aanbevelingen zijn nieuwe pagina's, de andere ` +
+    `${verbeteren} verbeteren een bestaande pagina die het onderwerp al gedeeltelijk dekt.`
+  );
+}
+
 /** Leest de opgeslagen aanbevelingen defensief: oude rapporten missen `targets`. */
 export function readRecommendations(value: unknown): StoredRecommendation[] {
   if (!Array.isArray(value)) return [];
