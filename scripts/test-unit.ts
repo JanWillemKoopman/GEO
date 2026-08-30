@@ -9906,6 +9906,7 @@ function onderwerp(
     priority,
     client_note: null,
     status,
+    stage: "definitief",
     analysis_id: null,
     search_volume_index: null,
     search_volume_reasoning: null,

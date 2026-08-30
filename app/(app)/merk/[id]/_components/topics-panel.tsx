@@ -152,17 +152,29 @@ export function TopicsPanel({
       >
         <div className="flex flex-wrap items-start justify-between gap-2">
           <span className="font-semibold">{t.title}</span>
-          {t.analysis_id ? (
-            <Link href={`/analyses/${t.analysis_id}`} className="chip chip-success">
-              Cluster loopt
-              <Icon naam="naar" size={12} />
-            </Link>
-          ) : t.status === "goedgekeurd" ? (
-            <span className="chip chip-green">Goedgekeurd</span>
-          ) : t.status === "afgewezen" ? (
-            <span className="chip chip-neutral">Afgewezen</span>
-          ) : null}
+          <div className="flex flex-wrap items-center gap-2">
+            {t.stage === "concept" && !t.analysis_id && (
+              <span className="chip chip-neutral">Concept</span>
+            )}
+            {t.analysis_id ? (
+              <Link href={`/analyses/${t.analysis_id}`} className="chip chip-success">
+                Cluster loopt
+                <Icon naam="naar" size={12} />
+              </Link>
+            ) : t.status === "goedgekeurd" ? (
+              <span className="chip chip-green">Goedgekeurd</span>
+            ) : t.status === "afgewezen" ? (
+              <span className="chip chip-neutral">Afgewezen</span>
+            ) : null}
+          </div>
         </div>
+
+        {t.stage === "concept" && !t.analysis_id && (
+          <p className="text-sm text-secondary">
+            Concept, ter voorbereiding op het strategisch gesprek. Zodra het gesprek is
+            vastgelegd, maakt ORBIT ENGINE de definitieve onderwerpen die je kunt starten.
+          </p>
+        )}
 
         {t.analysis_id && potenties[t.id] && (
           <PotentialInline triple={potenties[t.id]} />
@@ -263,7 +275,7 @@ export function TopicsPanel({
           </div>
         ) : (
           <div className="flex flex-wrap gap-2">
-            {!t.analysis_id && (
+            {!t.analysis_id && t.stage !== "concept" && (
               <button
                 type="button"
                 className="btn-primary btn-sm disabled:opacity-50"
@@ -276,7 +288,7 @@ export function TopicsPanel({
             {/* ⚠️ Een aparte knop en geen veld dat altijd openstaat. Negen van de
                 tien keer is 10/10/10 goed, en dan hoort er één klik te zijn.
                 Wie het anders wil, klapt het open en ziet meteen wat het kost. */}
-            {!t.analysis_id && mixFor !== t.id && (
+            {!t.analysis_id && t.stage !== "concept" && mixFor !== t.id && (
               <button
                 type="button"
                 className="btn-outline btn-sm disabled:opacity-50"

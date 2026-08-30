@@ -4436,6 +4436,113 @@ async function main(): Promise<void> {
     }
 
     // ════════════════════════════════════════════════════════════════════════
+    // Onderwerpen zijn concept vóór het gesprek, definitief erna (0068,
+    // docs/optimalisatielab-orbit-engine.md werkpakket A §3.2).
+    //
+    // ⚠️ DE SAMENHANG DIE HIER FOUT KAN GAAN: `proposeTopics()` draait twee
+    // keer voor hetzelfde profiel, en de tweede keer moet de onbesliste
+    // conceptronde vervangen zonder een reeds gestart of afgewezen onderwerp
+    // aan te raken. Slaagt de tweede ronde per ongeluk over (het bestaande
+    // idempotentiegedrag), dan blijft een klant voor altijd op conceptonderwerpen
+    // zitten die hij nooit kan starten.
+    // ════════════════════════════════════════════════════════════════════════
+    {
+      console.log("\nOnderwerpen: concept vóór het gesprek, definitief erna (0068)");
+      const { proposeTopics } = await import("@/lib/pipeline/propose-topics");
+      const stageProfileId = randomUUID();
+
+      await db.client.query(
+        `insert into public.profiles (id, user_id, name, url, brand_name, status)
+         values ($1, $2, 'Warmte BV', 'https://warmte-bv.nl', 'Warmte BV', 'klaar')`,
+        [stageProfileId, userId],
+      );
+      await db.client.query(
+        `insert into public.profile_offerings (profile_id, kind, name, source, sort_order)
+         values ($1, 'dienst', 'CV-ketel onderhoud', 'ai', 0),
+                ($1, 'dienst', 'Airco', 'ai', 1),
+                ($1, 'dienst', 'Warmtepomp', 'ai', 2)`,
+        [stageProfileId],
+      );
+
+      // ── Ronde 1: nog geen gesprek vastgelegd ──────────────────────────────
+      const eersteRonde = await proposeTopics(stageProfileId);
+      ok("de eerste ronde levert onderwerpen op", eersteRonde.proposed === 2, String(eersteRonde.proposed));
+
+      const { rows: conceptRijen } = await db.client.query(
+        `select id, title, stage, status from public.profile_topics where profile_id = $1 order by title`,
+        [stageProfileId],
+      );
+      ok(
+        "zonder gesprek krijgen ze allemaal stage 'concept'",
+        conceptRijen.every((r) => r.stage === "concept"),
+        conceptRijen.map((r) => `${r.title}:${r.stage}`).join(", "),
+      );
+
+      // Eén onderwerp wordt een keuze van de klant, niet meer een concept.
+      const afgewezenId = (conceptRijen.find((r) => r.title === "Airco laten installeren") as { id: string })
+        .id;
+      await db.client.query(
+        "update public.profile_topics set status = 'afgewezen' where id = $1",
+        [afgewezenId],
+      );
+
+      // Nog geen gesprek: een tweede aanroep verandert niets (conventie 9).
+      const tweedeZonderGesprek = await proposeTopics(stageProfileId);
+      ok(
+        "zonder gesprek blijft een tweede ronde idempotent",
+        tweedeZonderGesprek.proposed === 2,
+        String(tweedeZonderGesprek.proposed),
+      );
+
+      // ── Het gesprek wordt vastgelegd ───────────────────────────────────────
+      await db.client.query(
+        `insert into public.profile_strategy (profile_id, strategy_notes, recorded_by, recorded_at)
+         values ($1, 'De klant wil vooral groeien op warmtepompadvies.', $2, now())`,
+        [stageProfileId, userId],
+      );
+
+      const definitieveRonde = await proposeTopics(stageProfileId);
+      const { rows: naGesprek } = await db.client.query(
+        `select title, stage, status from public.profile_topics where profile_id = $1 order by title`,
+        [stageProfileId],
+      );
+      ok(
+        "de definitieve ronde vervangt alleen de onbesliste concepten",
+        naGesprek.length === 2,
+        naGesprek.map((r) => `${r.title}:${r.stage}:${r.status}`).join(", "),
+      );
+      ok(
+        "het afgewezen onderwerp blijft onaangeroerd staan",
+        naGesprek.some((r) => r.title === "Airco laten installeren" && r.status === "afgewezen"),
+        naGesprek.map((r) => `${r.title}:${r.status}`).join(", "),
+      );
+      ok(
+        "het onbesliste concept is vervangen door een definitief onderwerp uit het gesprek",
+        naGesprek.some((r) => r.title === "Warmtepomp advies op maat" && r.stage === "definitief"),
+        naGesprek.map((r) => `${r.title}:${r.stage}`).join(", "),
+      );
+      ok(
+        "het oude, vervangen conceptonderwerp staat er niet meer naast",
+        !naGesprek.some((r) => r.title === "CV-ketel onderhoud"),
+        naGesprek.map((r) => r.title).join(", "),
+      );
+      ok("de definitieve ronde meldt het totaal, geen nul", definitieveRonde.proposed === 2);
+
+      // Een derde aanroep, met het gesprek nog steeds vastgelegd en niets
+      // onbeslist meer: niets verandert (conventie 9, geen verspilde kosten).
+      const derdeRonde = await proposeTopics(stageProfileId);
+      const { rows: naDerde } = await db.client.query(
+        "select count(*)::int as n from public.profile_topics where profile_id = $1",
+        [stageProfileId],
+      );
+      ok(
+        "een derde ronde na het gesprek doet niets meer",
+        derdeRonde.proposed === 2 && naDerde[0].n === 2,
+        `${derdeRonde.proposed} / ${naDerde[0].n}`,
+      );
+    }
+
+    // ════════════════════════════════════════════════════════════════════════
     // Een pagina uit het contentplan kan nu wél gemeten worden
     // (doorloop-huyberts.md punt 2).
     //

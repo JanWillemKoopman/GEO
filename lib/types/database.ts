@@ -570,6 +570,11 @@ export interface ProfileTopic {
   /** Wat de klant er in het gesprek over zei; overrulet de AI-prioritering. */
   client_note: string | null;
   status: TopicStatus;
+  /**
+   * concept: voorgesteld vóór het strategisch gesprek, ter voorbereiding,
+   * niet te starten. definitief: te goedkeuren en te starten (migratie 0068).
+   */
+  stage: "concept" | "definitief";
   analysis_id: string | null;
   /**
    * Zoekvolume 0-100, profielbreed herkalibreerd (docs/tasks/potentiescore.md,

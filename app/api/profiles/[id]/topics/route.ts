@@ -61,6 +61,29 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     return NextResponse.json({ error: "Niets te wijzigen." }, { status: 400 });
   }
 
+  // ⚠️ Een concept-onderwerp bestaat alleen als gespreksvoorbereiding (migratie
+  // 0068): het strategisch gesprek is nog niet vastgelegd op dit merk. Pas
+  // goedkeuren nadat de definitieve ronde (na het gesprek) is gedraaid,
+  // anders keurt de app een onderwerp goed dat er zo weer af gaat.
+  if (patch.status === "goedgekeurd") {
+    const { data: huidig } = await admin
+      .from("profile_topics")
+      .select("stage")
+      .eq("id", body.topicId)
+      .eq("profile_id", id)
+      .maybeSingle();
+    if (huidig?.stage === "concept") {
+      return NextResponse.json(
+        {
+          error:
+            "Dit onderwerp is nog een concept, ter voorbereiding op het strategisch gesprek. " +
+            "Leg het gesprek vast, dan maakt ORBIT ENGINE de definitieve onderwerpen die je kunt goedkeuren.",
+        },
+        { status: 409 },
+      );
+    }
+  }
+
   const { data, error } = await admin
     .from("profile_topics")
     .update(patch)
@@ -142,6 +165,19 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     .maybeSingle();
   if (!topicRow) return NextResponse.json({ error: "Onderwerp niet gevonden." }, { status: 404 });
   const topic = topicRow as ProfileTopic;
+
+  // ⚠️ Zie de PATCH-route hierboven: een concept-onderwerp is gespreksvoorbereiding,
+  // geen startbaar cluster (migratie 0068).
+  if (topic.stage === "concept") {
+    return NextResponse.json(
+      {
+        error:
+          "Dit onderwerp is nog een concept, ter voorbereiding op het strategisch gesprek. " +
+          "Leg het gesprek vast, dan maakt ORBIT ENGINE de definitieve onderwerpen die je kunt starten.",
+      },
+      { status: 409 },
+    );
+  }
 
   // Twee keer starten op hetzelfde topic levert twee analyses over dezelfde 30
   // vragen op, dubbele meetkosten zonder extra inzicht.
