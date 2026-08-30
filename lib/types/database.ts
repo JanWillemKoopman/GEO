@@ -591,6 +591,10 @@ export interface ProfileTopic {
    * plus het strategisch gesprek. Null voor onderwerpen van vóór 0076.
    */
   origin: "aanbod" | "aanbod_en_gesprek" | null;
+  /** Stond er gemeten bewijs in de aanroep die dit onderwerp opleverde (migratie 0077)? */
+  origin_uses_measurement: boolean;
+  /** Waarom dit onderwerp is afgewezen (migratie 0077), instructie voor een volgende ronde. */
+  rejection_reason: string | null;
   analysis_id: string | null;
   /**
    * Zoekvolume 0-100, profielbreed herkalibreerd (docs/tasks/potentiescore.md,

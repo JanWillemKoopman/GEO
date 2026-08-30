@@ -43,6 +43,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     clientQuestions?: string | null;
     clientFriction?: string | null;
     clientEdge?: string | null;
+    rejectionReason?: string | null;
     title?: string;
   };
   try {
@@ -73,6 +74,11 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   }
   if (body.clientEdge !== undefined) {
     patch.client_edge = body.clientEdge?.trim() || null;
+  }
+  // Waarom afgewezen (migratie 0077): instructie voor "Stel nieuwe clusters
+  // voor", zie lib/pipeline/propose-more-topics.ts.
+  if (body.rejectionReason !== undefined) {
+    patch.rejection_reason = body.rejectionReason?.trim() || null;
   }
   if (body.title !== undefined) {
     const title = body.title.trim();

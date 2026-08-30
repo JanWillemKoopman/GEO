@@ -15,6 +15,7 @@ import {
 import { PotentialInline } from "@/components/potential-metrics";
 import type { PotentialTriple } from "@/lib/potential";
 import { Icon } from "@/components/icon";
+import { TopicRefreshButton } from "./topic-refresh-button";
 
 /**
  * De core topics (docs/tasks/onboarding-2.0.md, blok D).
@@ -36,11 +37,18 @@ export function TopicsPanel({
   profileId,
   initial,
   potenties,
+  staff,
 }: {
   profileId: string;
   initial: ProfileTopic[];
   /** Potentiescore per onderwerp-id, alleen gevuld voor onderwerpen met een analyse. */
   potenties: Record<string, PotentialTriple>;
+  /**
+   * Alleen de beheerder ziet "Stel nieuwe clusters voor" (§3.5): de knop kost
+   * geld per klik en is een regieknop, geen klantwerk. De echte grendel staat
+   * op de route, dit is alleen de weergave.
+   */
+  staff: boolean;
 }) {
   const router = useRouter();
   const [topics, setTopics] = useState(initial);
@@ -410,6 +418,23 @@ export function TopicsPanel({
             )}
           </div>
         )}
+
+        {t.status === "afgewezen" && (
+          <label className="flex flex-col gap-1 text-sm">
+            <span className="mono-label">Reden (optioneel)</span>
+            <textarea
+              className="field"
+              rows={1}
+              defaultValue={t.rejection_reason ?? ""}
+              placeholder="Waarom niet relevant? Helpt een volgende ronde dezelfde richting te vermijden."
+              onBlur={(e) => {
+                if (e.target.value.trim() !== (t.rejection_reason ?? "")) {
+                  void patch(t.id, { rejectionReason: e.target.value });
+                }
+              }}
+            />
+          </label>
+        )}
       </li>
     );
   }
@@ -441,6 +466,8 @@ export function TopicsPanel({
           {error}
         </p>
       )}
+
+      {staff && <TopicRefreshButton profileId={profileId} />}
     </div>
   );
 }

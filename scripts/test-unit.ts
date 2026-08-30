@@ -385,6 +385,11 @@ import {
   goalRule,
 } from "@/lib/pipeline/commercial-context";
 import { buildTopicBrief } from "@/lib/pipeline/topic-brief";
+import {
+  beoordeelRonde,
+  snapshotsGelijk,
+  type TopicRoundSnapshot,
+} from "@/lib/pipeline/topic-round-diff";
 import { ONBOARDING_NEXT, nextInChain } from "@/lib/jobs/chain";
 import { extractConfusions } from "@/lib/pipeline/baseline-verdict";
 import {
@@ -6430,7 +6435,11 @@ group("wie mag betaald werk starten", () => {
   ok("een cluster starten doet de klant zelf", !actionNeedsStaff("analyse_starten"));
   ok("content laten schrijven doet de klant zelf", !actionNeedsStaff("content_schrijven"));
   ok("een maand vrijgeven doet de klant zelf", !actionNeedsStaff("plan_goedkeuren"));
-  ok("precies één handeling staat op slot", STAFF_ONLY_ACTIONS.length === 1);
+  // Toegevoegd 30 augustus 2026 (optimalisatielab-orbit-engine.md §3.5): de
+  // knop "Stel nieuwe clusters voor" is een regieknop, geen apart product, en
+  // mag bij de klant niet eens zichtbaar zijn.
+  ok("nieuwe clusters aanvullen blijft ook van de beheerder", actionNeedsStaff("clusters_aanvullen"));
+  ok("precies twee handelingen staan op slot", STAFF_ONLY_ACTIONS.length === 2, String(STAFF_ONLY_ACTIONS.length));
 
   // K2: elke melding is specifiek en klinkt als een uitnodiging, niet als een
   // dichte deur. Ze horen er ook te zijn voor de handelingen die nu open staan,
@@ -7137,7 +7146,7 @@ group("elke dure route vraagt het aan dezelfde functie", () => {
   // foutmelding is specifiek). Zes handelingen sinds 22 augustus 2026, zes
   // zinnen, geen dubbele.
   const zinnen = Object.values(COST_DENIED);
-  ok("zes handelingen hebben elk een eigen melding", zinnen.length === 6, `${zinnen.length}`);
+  ok("zeven handelingen hebben elk een eigen melding", zinnen.length === 7, `${zinnen.length}`);
   ok("en geen twee zijn hetzelfde", new Set(zinnen).size === zinnen.length);
   ok(
     "geen enkele melding zegt alleen 'geen toegang'",
@@ -9980,6 +9989,8 @@ function onderwerp(
     status,
     stage: "definitief",
     origin: null,
+    origin_uses_measurement: false,
+    rejection_reason: null,
     analysis_id: null,
     search_volume_index: null,
     search_volume_reasoning: null,
@@ -10019,6 +10030,69 @@ group("De clusterlaag smelt tot één tekst (topic-brief.ts, migratie 0075)", ()
   ok(
     "de oude aantekening wordt niet meegenomen zodra er nieuwe velden zijn",
     !brief?.includes("niet meer relevant"),
+  );
+});
+
+group("De knop 'Stel nieuwe clusters voor' draait alleen bij nieuwe informatie (0077)", () => {
+  const basis: TopicRoundSnapshot = {
+    gesprekVastgelegdOp: null,
+    beantwoordeVragen: 0,
+    gemetenClusters: 0,
+    afgewezenOnderwerpen: 0,
+  };
+
+  ok("twee identieke momentopnamen zijn gelijk", snapshotsGelijk(basis, { ...basis }));
+  ok(
+    "een andere teller maakt ze ongelijk",
+    !snapshotsGelijk(basis, { ...basis, beantwoordeVragen: 1 }),
+  );
+
+  const eersteKeer = beoordeelRonde(null, basis);
+  ok("de allereerste ronde mag altijd draaien", eersteKeer.nieuws === true);
+
+  const nietsNieuws = beoordeelRonde(basis, { ...basis });
+  ok("exact dezelfde stand van zaken levert geen nieuws op", nietsNieuws.nieuws === false);
+  ok(
+    "en de melding raadt af om de knop te gebruiken",
+    /hetzelfde resultaat/i.test(nietsNieuws.melding),
+    nietsNieuws.melding,
+  );
+
+  const gesprekErbij = beoordeelRonde(basis, {
+    ...basis,
+    gesprekVastgelegdOp: "2026-08-30T10:00:00Z",
+  });
+  ok("een nieuw gesprek is nieuws", gesprekErbij.nieuws === true);
+  ok(
+    "en de melding noemt het gesprek",
+    gesprekErbij.melding.includes("strategisch gesprek is vastgelegd"),
+    gesprekErbij.melding,
+  );
+
+  const allesErbij = beoordeelRonde(basis, {
+    gesprekVastgelegdOp: "2026-08-30T10:00:00Z",
+    beantwoordeVragen: 14,
+    gemetenClusters: 3,
+    afgewezenOnderwerpen: 1,
+  });
+  ok("meerdere veranderingen tellen allemaal mee", allesErbij.nieuws === true);
+  ok("veertien klantantwoorden komen in de melding", allesErbij.melding.includes("14 klantantwoorden"));
+  ok(
+    "drie clusters komen in de melding",
+    allesErbij.melding.includes("metingen van 3 clusters"),
+    allesErbij.melding,
+  );
+  ok(
+    "en één afgewezen onderwerp, enkelvoud",
+    allesErbij.melding.includes("1 afgewezen onderwerp"),
+    allesErbij.melding,
+  );
+
+  // Minder metingen (bv. een opgeschoonde teststand) is geen NIEUWE informatie.
+  const minderIsGeenNieuws = beoordeelRonde({ ...basis, gemetenClusters: 5 }, { ...basis, gemetenClusters: 2 });
+  ok(
+    "minder tellingen dan vorige keer is geen aanleiding om te draaien",
+    minderIsGeenNieuws.nieuws === false,
   );
 });
 

@@ -4558,6 +4558,137 @@ async function main(): Promise<void> {
     }
 
     // ════════════════════════════════════════════════════════════════════════
+    // De knop "Stel nieuwe clusters voor" (0077, werkpakket A §3.5)
+    //
+    // ⚠️ DE SAMENHANG DIE HIER FOUT KAN GAAN: een aanvullende ronde die een
+    // onderwerp voorstelt dat er al staat, kost geld voor niets én verwart de
+    // beheerder ("waarom stelt hij dit nog een keer voor?"). En een tweede
+    // klik zonder nieuwe informatie moet GEEN aanroep doen, anders is de knop
+    // een manier om geld te verbranden in plaats van een regieknop.
+    // ════════════════════════════════════════════════════════════════════════
+    {
+      console.log("\nDe knop 'Stel nieuwe clusters voor' (0077)");
+      const { proposeAdditionalTopics, previewAdditionalRound } = await import(
+        "@/lib/pipeline/propose-more-topics"
+      );
+      const moreProfileId = randomUUID();
+
+      await db.client.query(
+        `insert into public.profiles (id, user_id, name, url, brand_name, status)
+         values ($1, $2, 'Klimaat BV', 'https://klimaat-bv.nl', 'Klimaat BV', 'klaar')`,
+        [moreProfileId, userId],
+      );
+      await db.client.query(
+        `insert into public.profile_offerings (profile_id, kind, name, source, sort_order)
+         values ($1, 'dienst', 'CV-ketel onderhoud', 'ai', 0),
+                ($1, 'dienst', 'Airco', 'ai', 1)`,
+        [moreProfileId],
+      );
+
+      // Een lopend cluster met een gemeten gap, zodat deze ronde kan tonen dat
+      // hij meetbewijs meeneemt.
+      const moreAnalysisId = randomUUID();
+      await db.client.query(
+        `insert into public.analyses (id, user_id, profile_id, name, url, topic, status)
+         values ($1, $2, $3, 'CV-ketel onderhoud', 'https://klimaat-bv.nl', 'CV-ketel onderhoud', 'gereed')`,
+        [moreAnalysisId, userId, moreProfileId],
+      );
+      await db.client.query(
+        `insert into public.reports (analysis_id, gaps_json)
+         values ($1, $2::jsonb)`,
+        [
+          moreAnalysisId,
+          JSON.stringify([
+            { cluster: "onderhoud", problem: "AI noemt Feenstra, Klimaat BV niet", evidenceRunIds: [] },
+          ]),
+        ],
+      );
+      // Dit onderwerp bestaat al (goedgekeurd, met cluster): een aanvullende
+      // ronde mag hem niet nog een keer voorstellen, ook al geeft de
+      // teststub 'm standaard terug.
+      await db.client.query(
+        `insert into public.profile_topics (profile_id, title, status, stage, analysis_id)
+         values ($1, 'CV-ketel onderhoud', 'goedgekeurd', 'definitief', $2)`,
+        [moreProfileId, moreAnalysisId],
+      );
+      // En dit onderwerp is met reden afgewezen: de instructie voor de
+      // volgende ronde, ook al kan de teststub er niet inhoudelijk op reageren.
+      await db.client.query(
+        `insert into public.profile_topics (profile_id, title, status, rejection_reason)
+         values ($1, 'Warmtepomp advies op maat', 'afgewezen', 'te duur voor deze doelgroep')`,
+        [moreProfileId],
+      );
+
+      const preview = await previewAdditionalRound(moreProfileId);
+      ok("de eerste keer is er altijd een reden om te draaien", preview.aanraden === true);
+
+      const eersteKlik = await proposeAdditionalTopics(moreProfileId);
+      ok("de eerste klik draait echt", eersteKlik.gedraaid === true);
+
+      const { rows: naEersteKlik } = await db.client.query(
+        `select title, origin, origin_uses_measurement from public.profile_topics
+          where profile_id = $1 order by title`,
+        [moreProfileId],
+      );
+      ok(
+        "het bestaande onderwerp wordt niet nog een keer voorgesteld",
+        naEersteKlik.filter((r) => r.title === "CV-ketel onderhoud").length === 1,
+        naEersteKlik.map((r) => r.title).join(", "),
+      );
+      ok(
+        "het nieuwe onderwerp draagt dat er gemeten bewijs was",
+        naEersteKlik.some((r) => r.title === "Airco laten installeren" && r.origin_uses_measurement === true),
+        naEersteKlik.map((r) => `${r.title}:${r.origin_uses_measurement}`).join(", "),
+      );
+
+      const { rows: rondeRijen } = await db.client.query(
+        `select proposed_count, cost_usd from public.profile_topic_rounds where profile_id = $1`,
+        [moreProfileId],
+      );
+      ok("de ronde is gelogd", rondeRijen.length === 1, String(rondeRijen.length));
+      ok(
+        "met het aantal en de kosten erbij",
+        rondeRijen[0].proposed_count > 0 && rondeRijen[0].cost_usd !== null,
+        JSON.stringify(rondeRijen[0]),
+      );
+
+      // Tweede klik, niets veranderd: geen nieuwe aanroep, geen nieuwe rijen.
+      const tweedeKlik = await proposeAdditionalTopics(moreProfileId);
+      ok("zonder nieuwe informatie draait de tweede klik niet echt", tweedeKlik.gedraaid === false);
+      ok("en levert dus ook niets op", tweedeKlik.voorgesteld === 0);
+
+      const previewNa = await previewAdditionalRound(moreProfileId);
+      ok(
+        "de preview raadt de knop nu af",
+        previewNa.aanraden === false,
+        previewNa.melding,
+      );
+
+      const { rows: naTweedeKlik } = await db.client.query(
+        "select count(*)::int as n from public.profile_topics where profile_id = $1",
+        [moreProfileId],
+      );
+      ok(
+        "er is geen enkel onderwerp bij gekomen",
+        naTweedeKlik[0].n === naEersteKlik.length,
+        `${naTweedeKlik[0].n} / ${naEersteKlik.length}`,
+      );
+
+      // Er komt een klantantwoord bij: dat is nieuwe informatie.
+      await db.client.query(
+        `insert into public.fact_requests (profile_id, question, status, scope)
+         values ($1, 'Wat is de gemiddelde levertijd?', 'beantwoord', 'merk')`,
+        [moreProfileId],
+      );
+      const previewNaAntwoord = await previewAdditionalRound(moreProfileId);
+      ok(
+        "een nieuw klantantwoord maakt de knop weer de moeite waard",
+        previewNaAntwoord.aanraden === true,
+        previewNaAntwoord.melding,
+      );
+    }
+
+    // ════════════════════════════════════════════════════════════════════════
     // Een pagina uit het contentplan kan nu wél gemeten worden
     // (doorloop-huyberts.md punt 2).
     //

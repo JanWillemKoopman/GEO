@@ -19,10 +19,11 @@
 | 30 augustus 2026 | Werkpakket A, punt 5: elk onderwerp draagt zijn herkomst, "uit het aanbod" of "uit het aanbod en het gesprek", zichtbaar op de clusterpagina. Migratie `0076_topic_herkomst.sql` | Live op productie |
 | 30 augustus 2026 | Werkpakket A, punt 6: de grens van acht vragen per contentbriefing geldt voortaan alleen voor de optionele vragen. Een onmisbare (`kern`) vraag wordt nooit meer stilzwijgend weggesneden, en kan dus ook nooit meer ongezien de eindpoort omzeilen | Live op productie |
 | 28 augustus 2026 | Werkpakket A, punt 7 (blokkeer schrijven zolang onmisbare antwoorden ontbreken) bleek al gebouwd, vóór dit plan: `lib/content-final-gate.ts`. Geen aparte wijziging nodig | Al aanwezig |
+| 30 augustus 2026 | Werkpakket A, punt 9: een bijgewerkt gesprek maakt de knop "Stel nieuwe clusters voor" weer de moeite waard, met de reden erbij ("het strategisch gesprek is bijgewerkt"). Goedgekeurde en gestarte onderwerpen worden nooit aangeraakt | Live op productie |
+| 30 augustus 2026 | Werkpakket A, punt 10: de knop "Stel nieuwe clusters voor", alleen zichtbaar en uitvoerbaar voor de beheerdersrol (`clusters_aanvullen` in `lib/cost-rules.ts`, afgedwongen in de route, niet alleen verborgen in de weergave). Altijd aanvullend, nooit vervangend. Neemt mee: het aanbod, het gesprek, bestaande onderwerpen (om dubbel voorstellen te voorkomen), afwijzingsredenen, en gemeten gaps uit de laatste rapporten van lopende clusters. Weigert te draaien zonder nieuwe informatie sinds de vorige klik, met een preview vooraf (gratis) die dat laat zien. Elke ronde staat gelogd in `profile_topic_rounds`, ook een ronde die niets opleverde. Migratie `0077_clusters_aanvullen.sql` | Live op productie |
 
 Nog open in werkpakket A: punt 8 (onderscheid eigen feiten tegenover te onderbouwen claims in het
-schrijfproces), punt 9 (het gesprek later bijwerken meldt dat clusters het overwegen waard zijn) en
-punt 10 (de knop "Stel nieuwe clusters voor"). Werkpakketten B en C staan nog volledig open.
+schrijfproces). Werkpakketten B en C staan nog volledig open.
 
 ---
 
@@ -152,8 +153,8 @@ Dit lost een echt probleem op: de eerste set clusters ontstaat vroeg, wanneer je
 6. ✅ Haal de grens op het aantal vragen weg en bouw de ontbrekendheidscheck. *(30 augustus 2026: de grens van acht geldt voortaan alleen voor optionele vragen, elke onmisbare vraag gaat altijd mee, zie `lib/pipeline/briefing-select.ts`.)*
 7. ✅ Markeer onmisbare antwoorden per pagina en blokkeer schrijven zolang die ontbreken. *(bleek al gebouwd op 28 augustus 2026, `lib/content-final-gate.ts`.)*
 8. Bouw het onderscheid tussen eigen feiten en te onderbouwen claims in het schrijfproces in.
-9. Zorg dat het gesprek later bijgewerkt kan worden, waarna de app voorstelt de clusters opnieuw te bekijken — zonder goedgekeurde clusters weg te gooien.
-10. Bouw de knop "Stel nieuwe clusters voor" op de clusterpagina, alleen zichtbaar en uitvoerbaar voor de beheerdersrol, met de ontdubbelingscheck, het meenemen van afwijzingsredenen, het overzicht van wat er nieuw is sinds de vorige ronde, en herkomst per voorstel.
+9. ✅ Zorg dat het gesprek later bijgewerkt kan worden, waarna de app voorstelt de clusters opnieuw te bekijken, zonder goedgekeurde clusters weg te gooien. *(30 augustus 2026: het gesprek kon al altijd opnieuw worden opgeslagen; nieuw is dat "Stel nieuwe clusters voor" dat oppikt en aanraadt.)*
+10. ✅ Bouw de knop "Stel nieuwe clusters voor" op de clusterpagina, alleen zichtbaar en uitvoerbaar voor de beheerdersrol, met de ontdubbelingscheck, het meenemen van afwijzingsredenen, het overzicht van wat er nieuw is sinds de vorige ronde, en herkomst per voorstel. *(30 augustus 2026, migratie 0077)*
 
 ### Hoe je controleert dat het werkt
 
