@@ -27,12 +27,13 @@
 
 | 30 augustus 2026 | Werkpakket B, punten 3, 4, 5 en 7: het rapport zegt nu expliciet dat het aantal aanbevelingen niet vastligt, met de vier eisen uit het plan letterlijk in de instructie. `mergeOverlappingRecommendations()` is het deterministische vangnet tegen twee aanbevelingen op dezelfde zwaarste gemiste vraag. `describeActionRatio()` legt de verhouding nieuw/verbeteren uit op het rapportscherm | Live op productie |
 
-Bewust nog niet gebouwd in werkpakket B: punt 2 (het aantal zoekvragen per cluster variabel maken met
-een verzadigingsregel) en punt 6 (het budgetplafond per cluster-run). Beide vermenigvuldigen direct de
-meetkosten (nu ~$0,82 per ronde, vrijwel geheel `web_search`), en het plan zelf noemt "tot hoeveel
-zoekvragen per cluster" en "een acceptabel budget per cluster-run" met zoveel woorden als vragen voor
-de eigenaar, niet als aannames voor Claude Code (hoofdstuk 7, open vragen). Die vraag ligt na deze
-sessie bij de eigenaar.
+| 30 augustus 2026 | Werkpakket B, punt 2 en 6, na afstemming met de eigenaar over het volume (tot ~100 vragen, ~$2,40 per meetronde): `MAX_TOTAL` in `lib/prompt-mix.ts` van 90 naar 100. `suggestPromptMix()` schat de verdeling op basis van hoeveel diensten onder een onderwerp hangen en hoeveel werkgebieden het merk opgeeft, met een wortelschaal (elke volgende dienst of regio levert minder extra vragen op dan de vorige) en harde clamps op de bestaande per-fase- en totaalgrenzen. Vult voortaan het scherm "Verdeling aanpassen" voor in plaats van altijd 10/10/10, zodat de klant of beheerder de grotere, duurdere meting expliciet ziet en kiest vóór hij hem start. `exceedsRunBudgetWarning()` toont een waarschuwing boven de 80 vragen (~$1,92), zonder de knop te blokkeren | Live op productie |
+
+⚠️ Dit lost punt 2 gedeeltelijk op: de omvang-gebaseerde schatting hierboven, niet de
+"verzadigingsregel" die het plan ook noemt ("stop vanzelf zodra nieuwe vragen niets nieuws meer
+opleveren"). Die vraagt om een tweede meetronde die de eerste beoordeelt, en dat is een grotere,
+losstaande uitbreiding op de pijplijn (één taak = één meting, conventie 7) die bewust niet in dezelfde
+stap is meegenomen. Zie de aantekening in `lib/prompt-mix.ts` bij `suggestPromptMix()`.
 
 | 30 augustus 2026 | Werkpakket C: bij het uitzoeken bleek een deel al te bestaan, gebouwd op 25 en 26 augustus 2026 onder de naam "contentvoorraad" (migratie 0065): de voorraad zelf (`lib/plan-backlog.ts`), de waardescore met toelichting (`potentieLabel()`/`raaktLabel()`), koppeling aan het publicatietempo (`pages_per_month`), en filteren/sorteren/bulkacties op het planscherm. Nieuw toegevoegd: het derde niveau "afgevallen, met reden" (`reports.declined_json`, migratie 0078, dezelfde uitbreiding van het rapportmodel als werkpakket B) en de zin die zegt hoe lang de voorraad meegaat bij het huidige tempo (`backlogDurationLabel()`) | Live op productie |
 
@@ -206,11 +207,11 @@ Dit is ook waar extra API-budget hoort te landen. Bij een klant met veel ruimte 
 ### Uit te voeren
 
 1. ✅ Zoek op waar het aantal van 7 vandaan komt en haal die grens weg. *(30 augustus 2026: er stond geen harde grens in de code, het getal ontstond doordat niets in de instructie een ander aantal aanmoedigde. Nu staat "het aantal ligt niet vast" er expliciet.)*
-2. Maak het aantal zoekvragen per cluster variabel, met een verzadigingsregel. *(Nog niet gebouwd, raakt de meetkosten direct, ligt bij de eigenaar.)*
+2. 🟡 Maak het aantal zoekvragen per cluster variabel, met een verzadigingsregel. *(30 augustus 2026: de omvang-gebaseerde schatting staat er, `suggestPromptMix()`. De verzadigingsregel zelf (stoppen zodra nieuwe vragen niets nieuws meer opleveren) staat nog open, dat vraagt een tweede meetronde en is een grotere uitbreiding.)*
 3. ✅ Herschrijf de instructie: van "geef de beste 7" naar "lever elk gemeten gemis op dat door de kwaliteitstoets komt". *(30 augustus 2026)*
 4. ✅ Bouw de vier eisen expliciet in en laat de AI per voorstel tonen op welke meting het steunt. *(30 augustus 2026: de vier eisen staan letterlijk in de instructie; elke aanbeveling wijst al naar zijn V-codes, dat bestond al.)*
 5. ✅ Laat de verhouding nieuw/verbeteren voortkomen uit de meetuitkomst, met uitleg. *(30 augustus 2026, `describeActionRatio()`)*
-6. Voeg het budgetplafond per run toe plus logging van kosten per kans. *(Nog niet gebouwd, vereist eerst het antwoord op punt 2.)*
+6. ✅ Voeg het budgetplafond per run toe plus logging van kosten per kans. *(30 augustus 2026: `exceedsRunBudgetWarning()`, een zichtbare waarschuwing boven 80 vragen, geen harde blokkade. Kosten per kans zijn al terug te vinden in `ai_calls`, conventie 8.)*
 7. ✅ Voeg een dubbelcheck toe die overlappende voorstellen binnen één run samenvoegt. *(30 augustus 2026, `mergeOverlappingRecommendations()`)*
 
 ### Hoe je controleert dat het werkt

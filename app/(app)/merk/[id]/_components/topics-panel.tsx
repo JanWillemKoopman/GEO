@@ -10,6 +10,8 @@ import {
   checkMix,
   describeMix,
   isDefaultMix,
+  suggestPromptMix,
+  exceedsRunBudgetWarning,
   type PromptMix,
 } from "@/lib/prompt-mix";
 import { PotentialInline } from "@/components/potential-metrics";
@@ -38,6 +40,7 @@ export function TopicsPanel({
   initial,
   potenties,
   staff,
+  serviceRegionCount,
 }: {
   profileId: string;
   initial: ProfileTopic[];
@@ -49,6 +52,8 @@ export function TopicsPanel({
    * op de route, dit is alleen de weergave.
    */
   staff: boolean;
+  /** `profiles.service_regions.length`, voor de voorgestelde verdeling (werkpakket B punt 2). */
+  serviceRegionCount: number;
 }) {
   const router = useRouter();
   const [topics, setTopics] = useState(initial);
@@ -245,6 +250,13 @@ export function TopicsPanel({
                 om te kiezen, zet dan Beslissing hoger. Bij een onderwerp waar hij nog
                 aan het uitzoeken is, juist Oriëntatie.
               </p>
+              {!isDefaultMix(mix) && (
+                <p className="text-sm text-secondary">
+                  Dit is een voorzet op basis van hoeveel diensten dit onderwerp heeft en hoeveel
+                  werkgebieden dit merk opgeeft. Zet de getallen terug naar 10 als je liever de
+                  standaard meet.
+                </p>
+              )}
             </div>
 
             <div className="grid gap-2 sm:grid-cols-3">
@@ -268,6 +280,13 @@ export function TopicsPanel({
             {/* Het getal veranderen is gratis, de gevolgen niet. Dus staan de
                 kosten en de onzekerheidsmarge eronder, en niet pas op de rekening. */}
             <p className="text-sm text-secondary">{describeMix(mix)}</p>
+            {/* Werkpakket B punt 6: geen harde grens, wel een zichtbare
+                waarschuwing vóórdat het geld wordt uitgegeven. */}
+            {exceedsRunBudgetWarning(mix) && checkMix(mix).ok && (
+              <p className="text-sm" style={{ color: "var(--intent-danger-text)" }}>
+                Dit is een grote meetronde. Weet je zeker dat dit onderwerp dit verdient?
+              </p>
+            )}
             {!checkMix(mix).ok && (
               <p className="text-sm" style={{ color: "var(--intent-danger-text)" }}>
                 {(checkMix(mix) as { ok: false; reason: string }).reason}
@@ -372,7 +391,16 @@ export function TopicsPanel({
                 className="btn-outline btn-sm disabled:opacity-50"
                 disabled={bezig}
                 onClick={() => {
-                  setMix(DEFAULT_MIX);
+                  // Werkpakket B punt 2: een voorzet op de omvang van dit
+                  // cluster, niet altijd dezelfde tien per fase. De klant of
+                  // beheerder ziet de suggestie én de kosten vóórdat hij klikt,
+                  // en kan hem gewoon terugzetten naar de standaard.
+                  setMix(
+                    suggestPromptMix({
+                      offeringCount: t.offering_ids.length,
+                      regionCount: serviceRegionCount,
+                    }),
+                  );
                   setMixFor(t.id);
                 }}
               >

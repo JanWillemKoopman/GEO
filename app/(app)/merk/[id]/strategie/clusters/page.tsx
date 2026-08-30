@@ -177,7 +177,13 @@ export default async function ClustersPage({
             </p>
           </div>
         ) : (
-          <TopicsPanel profileId={id} initial={topics} potenties={potenties} staff={staff} />
+          <TopicsPanel
+            profileId={id}
+            initial={topics}
+            potenties={potenties}
+            staff={staff}
+            serviceRegionCount={profile.service_regions.length}
+          />
         )}
       </div>
     </div>

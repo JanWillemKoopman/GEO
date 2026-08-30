@@ -308,6 +308,10 @@ import {
   isDefaultMix,
   mixTotal,
   resolveMix,
+  suggestPromptMix,
+  exceedsRunBudgetWarning,
+  MAX_PER_STAGE,
+  MAX_TOTAL,
 } from "@/lib/prompt-mix";
 import { readKey } from "@/lib/search-console/key-state";
 import {
@@ -7600,7 +7604,7 @@ group("checkMix: de grenzen, en waarom ze er zijn", () => {
   );
 
   const teveelTotaal = checkMix({ "Oriëntatie": 40, "Overweging": 40, "Beslissing": 40 });
-  ok("meer dan 90 in totaal wordt geweigerd", !teveelTotaal.ok);
+  ok("meer dan 100 in totaal wordt geweigerd", !teveelTotaal.ok);
   ok(
     "en de melding noemt wat het zou kosten",
     !teveelTotaal.ok && teveelTotaal.reason.includes("$"),
@@ -7625,6 +7629,45 @@ group("describeMix: wat het kost en wat het oplevert", () => {
   const zestig = describeMix({ "Oriëntatie": 20, "Overweging": 20, "Beslissing": 20 });
   ok("zestig vragen kost twee keer zoveel", zestig.includes("$1.44"));
   ok("maar de marge wordt maar een kwart smaller", zestig.includes("11,6"));
+});
+
+group("suggestPromptMix: grotere clusters krijgen meer vragen (werkpakket B punt 2)", () => {
+  const klein = suggestPromptMix({ offeringCount: 0, regionCount: 0 });
+  ok("geen diensten en geen regio's blijft de standaard", mixTotal(klein) === 30, String(mixTotal(klein)));
+  ok("gelijk aan DEFAULT_MIX", JSON.stringify(klein) === JSON.stringify(DEFAULT_MIX));
+
+  const groter = suggestPromptMix({ offeringCount: 10, regionCount: 4 });
+  ok("meer diensten en regio's levert meer vragen op", mixTotal(groter) > 30, String(mixTotal(groter)));
+  ok(
+    "de regio's wegen door in Beslissing",
+    groter.Beslissing > DEFAULT_MIX.Beslissing,
+    JSON.stringify(groter),
+  );
+
+  // Extreme waarden mogen nooit de per-fase- of totaalgrens doorbreken, ook al
+  // zou de wortelschaal dat wiskundig toestaan.
+  const extreem = suggestPromptMix({ offeringCount: 500, regionCount: 500 });
+  ok("Oriëntatie blijft binnen de perfasegrens", extreem.Oriëntatie <= MAX_PER_STAGE);
+  ok("Overweging blijft binnen de perfasegrens", extreem.Overweging <= MAX_PER_STAGE);
+  ok("Beslissing blijft binnen de perfasegrens", extreem.Beslissing <= MAX_PER_STAGE);
+  ok(
+    "het totaal blijft binnen MAX_TOTAL",
+    mixTotal(extreem) <= MAX_TOTAL,
+    String(mixTotal(extreem)),
+  );
+  ok("checkMix keurt de suggestie altijd goed", checkMix(extreem).ok, JSON.stringify(extreem));
+
+  // Negatieve of kapotte signalen mogen nooit een negatieve verdeling opleveren.
+  const negatief = suggestPromptMix({ offeringCount: -5, regionCount: -5 });
+  ok("negatieve signalen worden behandeld als nul", JSON.stringify(negatief) === JSON.stringify(DEFAULT_MIX));
+});
+
+group("De waarschuwing bij een grote meetronde (werkpakket B punt 6)", () => {
+  ok("de standaard verdiening geen waarschuwing", !exceedsRunBudgetWarning(DEFAULT_MIX));
+  ok(
+    "een verdeling boven de drempel wel",
+    exceedsRunBudgetWarning({ "Oriëntatie": 30, "Overweging": 30, "Beslissing": 30 }),
+  );
 });
 
 // ════════════════════════════════════════════════════════════════════════════
