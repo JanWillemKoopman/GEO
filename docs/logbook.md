@@ -5624,3 +5624,39 @@ en die is nu goedkoop geworden.
 Na de deploy gecontroleerd dat de middleware nog doet wat hij moet: `/merk` stuurt een bezoeker
 zonder sessie nog steeds naar het inlogscherm, en `/api/health` antwoordt zonder dat de middleware
 er nog overheen gaat.
+
+## 31 augustus 2026, de eerste live doorloop van de hele klantreis
+
+Werkpakket A, B en C uit `docs/optimalisatielab-orbit-engine.md` stonden op productie maar waren
+alleen met tests gecontroleerd, nooit met een echte klant, een echte crawl en een echte meting. Deze
+ronde heeft dat wel gedaan: één echt bestaand installatiebedrijf, van merk aanmaken tot en met de
+contentbriefing, met echte betaalde aanroepen. Totale kosten $1,36, waarvan $0,77 de meting zelf.
+Alle 73 achtergrondtaken slaagden in één poging, zonder handmatig ingrijpen.
+
+**Wat de doorloop bevestigde.** De onderwerpen kwamen na de crawl binnen als `concept`, zichtbaar
+als gespreksvoorbereiding maar niet goed te keuren of te starten: beide routes weigerden met een
+409 en een uitleg, geen stille no-op. Het aantal was 7 bij dit merk en 5 bij een tweede, dus geen
+vast getal meer. Het vastleggen van het gesprek verving die concepten meteen door zes definitieve
+onderwerpen die herkenbaar voortbouwden op wat alleen in het gesprek stond, zoals onderhoud voor
+VvE's en het herstellen van een warmtepomp die een ander slecht installeerde. De drie clustervelden
+kwamen samengevoegd in `analyses.content_brief` terecht. `suggestPromptMix()` stelde 16/17/38 voor
+in plaats van 10/10/10, de waarschuwing verscheen bij 90 vragen, en de grens van 100 was niet te
+doorbreken, ook niet door de route rechtstreeks aan te roepen. De gewone startknop bleef de goedkope
+standaard gebruiken. Geen twee aanbevelingen deelden dezelfde gemiste vraag. De afgevallen kansen
+stonden met reden op het planscherm, en de voorraadduur ging van 1 maand bij tien pagina's per maand
+naar 3 maanden bij twee. De knop "Stel nieuwe clusters voor" stond niet op het klantscherm, de
+klantaanroep kreeg 403, en een tweede ronde direct na de eerste weigerde te draaien met de reden
+erbij en kostte niets. De briefing leverde zeven onmisbare vragen naast zes optionele, samen dertien,
+dus de grens van acht snijdt inderdaad geen kernvraag meer weg.
+
+**Wat de doorloop aan het licht bracht.** Tien punten, waarvan twee die een klant raken: een pagina
+die nog in de briefingfase staat wordt in de werklijst aangeboden als "de tekst is klaar om te
+publiceren" met een knop Publiceren, omdat `lib/work.ts` de status `briefing` niet kent. En een
+plaatsnaam uit het gesprek belandt als hele zin in `service_regions`, het veld waaruit de
+meetvragen hun plaatsnamen halen. De volledige lijst met bestand, regelnummer en waarneming staat in
+`docs/tasks/bevindingen-live-test-31-augustus-2026.md`, samen met wat er van deze test op productie
+is achtergebleven en opgeruimd moet worden.
+
+⚠️ **Het testmerk hoort bij een echt bedrijf dat geen klant is.** De antwoorden op de klantvragen en
+het strategisch gesprek zijn verzonnen om de keten te kunnen testen en staan als zodanig op
+productie. Ze zijn geen feiten over dat bedrijf.
