@@ -5777,3 +5777,63 @@ openstaande onboardingvraag beantwoord met een superlatief verscheen "Noem er ee
 deze zin in je teksten." De `GET` van "Stel nieuwe clusters voor" gaf het klantaccount een 403 en het
 beheerdersaccount de vooruitblik met "Geschatte kosten: ~$0,02."; "Verdeling aanpassen" toonde
 "ongeveer $1,68 per maand" naast "±10,7 punten", nu allebei met een komma.
+
+## 31 augustus 2026: Ronde A van de onboardingoptimalisatie, zes losse ingrepen zonder migratie
+
+`documentatie/onboarding_optimalisatie.md` §18 zet de verbouwing van de onboardingsessie in vier
+ronden; Ronde A is de eerste, met zes ingrepen die stuk voor stuk los terug te draaien zijn en geen
+migratie nodig hebben. Alle zes zijn deze ronde gebouwd.
+
+**A1. Het blok "Wat we al gevonden hebben" stond op een laptop van de CSM standaard helemaal open.**
+`CollapsibleSection` staat op desktop standaard open, en de sessie gaf nooit `defaultOpen` mee. Alle
+41 klantvelden stonden dus tegelijk uitgeklapt, en dat verklaarde waarom het scherm ongeveer tien
+schermhoogtes lang was. Nu krijgt elke stap `defaultOpen={!p.compleet}` mee: een stap die al
+compleet is opent dicht, een stap met nog een leeg veld opent open. Het scherm opent daardoor op
+ongeveer een kwart van zijn vorige lengte plus precies het werk dat er nog ligt.
+
+**A2. Negen velden (vijf schuiven, drie keuzemenu's, het ja-nee-veld) hadden geen werkend label voor
+schermlezers.** `Standen` gebruikte `aria-labelledby={id}`, terwijl `id` het veld-id is en niet het
+id van een bestaand element: het label zette alleen `htmlFor`, nooit een eigen `id`. Het label krijgt
+nu ook `id={labelId(id)}` (`${id}-label`), en de drie aanroepen van `Standen` geven dat label-id mee
+in plaats van het veld-id. Toetsenbordnavigatie werkte al; nu kondigt de knoppenrij ook de vraag aan
+die hij beantwoordt.
+
+**A3. Zes lijstvelden werden alleen door de invoercomponent getrimd, niet door de opslagroute
+zelf.** `products`, `value_props`, `competitors`, `aliases`, `service_regions` en `proof_points`
+stonden niet in `LIST_FIELDS` in `app/api/profiles/[id]/route.ts`, terwijl twaalf andere lijstvelden
+er al in stonden. In de praktijk ging het goed omdat `TagListEditor` altijd nette waarden aanlevert,
+maar dat is precies de garantie die conventie 1 in de route wil en niet alleen in de client: een
+ander scherm of een aanroep buiten de app om kon een lege string in `aliases` zetten, waar de meting
+letterlijk op vergelijkt. De zes velden staan er nu bij.
+
+**A4. Een getypte waarde in een openstaand veld ging verloren bij het sluiten van het tabblad.**
+Opslaan gebeurt bij `onBlur`, bewust, omdat een gesprek springt en onderbroken wordt. Maar wie het
+tabblad sluit terwijl de cursor nog in een tekstvak staat, verliest wat er getypt is: er komt dan
+geen blur meer. De sessie houdt nu per veld bij of het gewijzigd maar nog niet opgeslagen is, en
+stuurt die velden alsnog weg bij `pagehide` en bij `visibilitychange` naar verborgen, met
+`keepalive: true` zodat de aanvraag doorloopt nadat de pagina al is losgelaten.
+
+**A5. Het contentpakket bij het aanmaken van een merk landde op het account van de consultant, niet
+van de klant.** `POST /api/profiles` schreef het gekozen pakket naar `defaultAccountFor(user.id)`,
+en dat is bij een consultant zijn eigen standaardaccount: het merk wordt pas bij Toewijzen aan het
+klantaccount gekoppeld. Het pakketveld in de aanmaakwizard deed voor de klant dus niets, en
+overschreef ondertussen wel het pakket op het account van de consultant zelf. Het veld is uit de
+aanmaakwizard gehaald; het pakket wordt voortaan uitsluitend gezet op het toewijzingsscherm
+(`PackageBox`, die daar al stond sinds de eerste live doorloop van 31 augustus), met een regel erbij
+dat dit vóór het eerste contentplan moet gebeuren.
+
+**A6. De opslagknop van "Wat er speelt buiten je website om" zei niet wat hij deed.** Opslaan van dit
+blok zet meteen de definitieve onderwerpronde in gang: de conceptonderwerpen worden vervangen door
+een definitieve lijst, nu met wat er in het gesprek is verteld. Dat stond nergens op het scherm. De
+knop heet nu "Gesprek vastleggen en onderwerpen definitief maken", met een regel eronder die zegt wat
+er gebeurt.
+
+Elke ingreep kreeg een broncodecontrole in `scripts/test-unit.ts` (groep "Ronde A: losse ingrepen aan
+de onboardingsessie"), naar hetzelfde patroon als de bestaande controle die verboden taaknamen en
+bedragen op dit scherm opspoort: dit scherm heeft geen pure rekenkern, dus de garantie zit in de
+broncode zelf nalezen. Vier controles groen: typecheck, 2713 unittests (24 nieuwe, twee ervan na een
+eerste poging aangescherpt omdat de regex de code niet raakte), 397 ketentests, en de productiebuild.
+
+Verificatie op productie (§18.1, onder A): het scherm openen op een testmerk toont nu de
+openstaande stappen uitgeklapt en de complete stappen dicht, in plaats van 41 velden in één keer. Een
+veld getypt, tabblad gesloten en teruggekomen: de waarde staat er.

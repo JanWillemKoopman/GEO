@@ -12705,6 +12705,104 @@ group("geen haakjesmeervoud meer in klanttekst (punt 9)", () => {
 });
 
 // ════════════════════════════════════════════════════════════════════════════
+// Ronde A: losse ingrepen aan de onboardingsessie (31 augustus 2026,
+// documentatie/onboarding_optimalisatie.md §18, stap A1 t/m A6). Geen migratie,
+// dus broncodecontroles: elke ingreep is los terug te draaien en heeft geen
+// eigen pure module gekregen.
+// ════════════════════════════════════════════════════════════════════════════
+
+group("A1: het gevonden-blok opent alleen als de stap nog niet compleet is", () => {
+  const bron = leesBestand("app/(app)/merk/[id]/_components/onboarding-session.tsx");
+  ok(
+    "CollapsibleSection krijgt defaultOpen mee, afgeleid van stepProgress().compleet",
+    /<CollapsibleSection[\s\S]{0,500}defaultOpen=\{!p\.compleet\}/.test(bron),
+  );
+});
+
+group("A2: de negen schuif-, keuze- en ja-nee-velden hebben een werkend label", () => {
+  const bron = leesBestand("app/(app)/merk/[id]/_components/brand-field-input.tsx");
+  ok(
+    "het label krijgt een eigen id, naast htmlFor",
+    /<label htmlFor=\{id\} id=\{labelId\(id\)\}/.test(bron),
+  );
+  // De radiogroep moet naar het label-id verwijzen (`${id}-label`), niet naar
+  // het veld-id zelf: dat element bestaat bij deze veldsoorten niet.
+  const standenAanroepen = [...bron.matchAll(/<Standen\s+id=\{([^}]+)\}/g)].map((m) => m[1]);
+  ok("Standen wordt minstens twee keer aangeroepen", standenAanroepen.length >= 2, `${standenAanroepen.length}`);
+  for (const arg of standenAanroepen) {
+    ok(`<Standen id={${arg}}> wijst naar het label-id`, arg === "labelId(id)");
+  }
+  ok(
+    "de radiogroep leest zijn naam uit dat label-id",
+    bron.includes('role="radiogroup" aria-labelledby={id}'),
+  );
+});
+
+group("A3: het vangnet van de opslagroute dekt alle lijstvelden", () => {
+  const bron = leesBestand("app/api/profiles/[id]/route.ts");
+  const match = bron.match(/const LIST_FIELDS = \[([\s\S]*?)\] as const;/);
+  ok("LIST_FIELDS is gevonden", match !== null);
+  const lijst = match?.[1] ?? "";
+  for (const veld of [
+    "products",
+    "value_props",
+    "competitors",
+    "aliases",
+    "service_regions",
+    "proof_points",
+  ]) {
+    ok(`"${veld}" staat in LIST_FIELDS`, new RegExp(`"${veld}"`).test(lijst));
+  }
+});
+
+group("A4: een openstaand veld wordt bewaard bij het sluiten van het tabblad", () => {
+  const bron = leesBestand("app/(app)/merk/[id]/_components/onboarding-session.tsx");
+  ok("er wordt geluisterd naar pagehide", bron.includes('addEventListener("pagehide"'));
+  ok(
+    "er wordt geluisterd naar visibilitychange",
+    bron.includes('addEventListener("visibilitychange"'),
+  );
+  ok(
+    "de aanvraag blijft doorlopen na het loslaten van de pagina",
+    /fetch\(`\/api\/profiles\/\$\{profileId\}`[\s\S]{0,200}keepalive: true/.test(bron),
+  );
+  ok(
+    "elke veldwijziging wordt als openstaand gemarkeerd",
+    /function zet\(key: string, value: unknown\) \{[\s\S]{0,120}openstaandeVelden\.current\.add\(key\)/.test(
+      bron,
+    ),
+  );
+});
+
+group("A5: het contentpakket landt niet meer op het account van de consultant", () => {
+  const route = leesBestand("app/api/profiles/route.ts");
+  ok("de route zet packagePagesPerMonth niet meer op een account", !route.includes("packagePagesPerMonth"));
+  ok("toPackageSize wordt hier niet meer gebruikt", !route.includes("toPackageSize"));
+
+  const wizard = leesBestand("app/(app)/merk/nieuw/onboarding-wizard.tsx");
+  ok("de aanmaakwizard vraagt geen contentpakket meer", !wizard.includes("packagePagesPerMonth"));
+  ok("de aanmaakwizard heeft geen isStaff-vertakking meer nodig", !wizard.includes("isStaff"));
+
+  const pakketBlok = leesBestand("app/(app)/merk/[id]/_components/package-box.tsx");
+  ok(
+    "het toewijzingsscherm zegt dat dit vóór het eerste contentplan moet gebeuren",
+    pakketBlok.includes("vóór het eerste contentplan"),
+  );
+});
+
+group("A6: de opslagknop van het gespreksblok zegt wat hij doet", () => {
+  const bron = leesBestand("app/(app)/merk/[id]/_components/strategy-box.tsx");
+  ok(
+    "de knop heet 'Gesprek vastleggen en onderwerpen definitief maken'",
+    bron.includes("Gesprek vastleggen en onderwerpen definitief maken"),
+  );
+  ok(
+    "er staat een regel uitleg onder de knop",
+    bron.includes("ORBIT ENGINE vervangt de voorlopige onderwerpen door een definitieve lijst"),
+  );
+});
+
+// ════════════════════════════════════════════════════════════════════════════
 console.log(`\n${passed} geslaagd, ${failed} mislukt`);
 if (failures.length > 0) {
   console.log("\nMislukt:");

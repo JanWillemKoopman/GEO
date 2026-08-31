@@ -71,7 +71,11 @@ export function BrandFieldInput({
       style={notApplicable ? { opacity: 0.55 } : undefined}
     >
       <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <label htmlFor={id} className="text-sm font-semibold">
+        {/* A2: een eigen id op het label, want de schuiven, keuzemenu's en het
+            ja-nee-veld renderen geen element met `id={id}` waar `htmlFor` naar
+            kan wijzen. `Standen` verwijst met `aria-labelledby` naar dit
+            label-id, niet naar `id` zelf. */}
+        <label htmlFor={id} id={labelId(id)} className="text-sm font-semibold">
           {field.label}
         </label>
         <span className="flex flex-wrap items-center gap-2">
@@ -124,7 +128,7 @@ export function BrandFieldInput({
         />
       ) : field.kind === "janee" ? (
         <Standen
-          id={id}
+          id={labelId(id)}
           options={field.options ?? ["Ja", "Nee"]}
           // Twee standen die een `boolean` opslaan: stand 1 is ja, stand 2 is
           // nee. Nogmaals klikken zet hem terug op niet vastgesteld, want dat is
@@ -141,7 +145,7 @@ export function BrandFieldInput({
         />
       ) : field.kind === "schuif" || field.kind === "keuze" ? (
         <Standen
-          id={id}
+          id={labelId(id)}
           options={field.options ?? []}
           // Een `keuze` slaat een woord op (`lokaal`, `dienstverlener`), een
           // `schuif` een nummer van 1 tot 3 of 4. De stand op het scherm is in
@@ -201,6 +205,11 @@ function Stand({ stand }: { stand: VeldStand }) {
   if (stand === "opslaan") return <span className="chip chip-neutral">opslaan</span>;
   if (stand === "opgeslagen") return <span className="chip chip-success">opgeslagen</span>;
   return <span className="chip chip-danger">niet gelukt</span>;
+}
+
+/** Het id van het label bij een veld, waar `aria-labelledby` naar wijst (A2). */
+function labelId(fieldId: string): string {
+  return `${fieldId}-label`;
 }
 
 /** Welke stand hoort bij deze opgeslagen waarde? 1-gebaseerd, `null` als hij er niet bij staat. */

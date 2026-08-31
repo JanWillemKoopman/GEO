@@ -31,6 +31,16 @@ const LIST_FIELDS = [
   "forbidden_topics",
   "offline_proof",
   "name_exclusions",
+  // A3: deze zes werden vóór 31 augustus 2026 alleen door de invoercomponent
+  // getrimd, nooit door de route zelf. Conventie 1 wil de garantie hier, niet
+  // alleen in de client: een ander scherm of een aanroep buiten de app om kon
+  // een lege string in `aliases` zetten, waar de meting op vergelijkt.
+  "products",
+  "value_props",
+  "competitors",
+  "aliases",
+  "service_regions",
+  "proof_points",
 ] as const;
 
 /** Vrije tekst: een leeg veld wordt `null`, nooit een lege string. */
