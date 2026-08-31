@@ -5893,3 +5893,56 @@ Ronde B deel twee (B5 tot en met B9: de voorbereidingskaart, de open vragen erbi
 onderwerp-triggerende velden markeren, de resterende vijf nieuwe velden, en de vormgeving) volgt in
 een volgende sessie op dezelfde branch, en wordt pas gezamenlijk als één pull request opgeleverd
 (§15.2: een half verbouwd scherm in productie is erger dan niet verbouwd).
+
+**31 augustus 2026, onboarding ronde B (deel twee, stap B5 tot en met B9).** Zelfde branch,
+`documentatie/onboarding_optimalisatie.md` §18, vervolg op deel één. Vijf stappen, geen migratie: de
+kolommen die B5 tot en met B9 nodig hebben bestonden allemaal al.
+
+**B5. Blok 0, de voorbereiding, via de bestaande readiness-module.** `computeReadiness()` (destijds
+`assessReadiness()`) en `ProfileReadinessPanel` stonden al sinds 17 augustus 2026 klaar in de
+codebase, met nul aanroepers: het paneel werd door geen enkel scherm gerenderd. Blok 0 van de
+onboardingsessie roept hem nu aan. Twee rijen toegevoegd aan `ReadinessInput`/`assessReadiness()`
+voor de vijfde en zesde startvoorwaarde uit hoofdstuk 14.1 ("pakket op het account", "merk
+toegewezen"), beide `nodig: false`: het product is sales-led, dus tijdens dit gesprek is een merk
+meestal nog niet toegewezen en staat er nog geen pakket, en dat mag "compleet" niet blokkeren. De
+status-route (`/api/profiles/[id]/status`) haalt daarvoor het pakket van het account erbij.
+
+**B6. Blok 1 toont nu ook de feitenvragen, niet meer alleen de open punten.** De sessiepagina
+gebruikt `loadOpenQuestions()`, dezelfde loader als `/strategie/vragen`, en rendert `FactRequests`
+eronder: dezelfde vragen, met dezelfde antwoord- en overslaanknoppen, zonder tweede telling. De
+knop "Ga naar dit veld" voor de profielgaten blijft client-side reactief op `findGaps()`, dat kan niet
+uit de server-loader komen zonder de live-typende consultant een paar seconden achter te laten lopen.
+
+**B7. De vier velden die een nieuwe onderwerpronde veroorzaken dragen nu een chip.** Geen nieuwe
+lijst: `BrandFieldInput` krijgt een `triggersTopics`-vlag die rechtstreeks uit `FIELD_TASKS`
+(`onboarding-refresh.ts`) wordt afgeleid, dus een latere wijziging aan die vertaaltabel verandert de
+markering automatisch mee. De waarschuwing "beslis onderwerpen pas ná het gesprek" bleek al te
+bestaan op het clusterscherm: elk conceptonderwerp toont daar al "Zodra het gesprek is vastgelegd,
+maakt ORBIT ENGINE de definitieve onderwerpen die je kunt starten" (`profile_topics.stage`,
+migratie 0074). Geen tweede waarschuwing op een tweede scherm.
+
+**B8. De vijf resterende velden.** `style_samples` (stap "stem"), `max_inventory_pages` en
+`crawl_priority_paths` (stap "bedrijf", nieuw `FieldKind: "getal"` voor het eerste) toegevoegd aan
+`BRAND_FIELDS` en `EDITABLE_PROFILE_FIELDS`; de laatste twee stonden al vast in de PATCH-route
+(validatie en klemming) maar niet in de catalogus, dus geen dubbele afhandeling. De catalogus telt
+sindsdien 60 velden, de klantwizard 45. `url` is bewust géén catalogusveld: alleen tonen met een
+aparte actie "Website wijzigen", die waarschuwt dat de crawl en de inventaris opnieuw moeten. Search
+Console staat als statusregel met een link naar `/instellingen/koppelingen`, geen invoerveld.
+
+**B9. Vormgeving.** Tweekolomsindeling op groot scherm (rechts een blijvende kolom met de meter en
+de openstaande punten), voortgang per blok in de zijrail ("6 van de 9"), één vaste regel bovenaan in
+plaats van een chip per veld bij elke opslag (de chip blijft alleen staan bij een mislukte opslag),
+het scherm ververst zichzelf na een geslaagde bijwerkronde, en een knop "Samenvatting van dit
+gesprek" die de verplichte velden en de gespreksnotitie samenvat om terug te sturen.
+
+**Verificatie op productie (§18.1, onder B).** Doorgerekend tegen de echte, opgeslagen data van
+"Van Loon Klimaattechniek" (uitdrukkelijk een testmerk, dat staat letterlijk in het eigen
+merkdossier): de readiness-module meldt op basis van de negen echte tellingen (9 pagina's, 38
+aanbodonderdelen, 5 onderwerpen, 11 kennistestrijen, 16 technische controles) terecht "compleet",
+met de twee nieuwe rijen als open punt in plaats van blokkade, en de kop noemt de drie resterende
+punten als agenda voor het gesprek. `missingRequired()`, `FIELD_TASKS` en `planRefresh()` gaven op
+ditzelfde profiel de verwachte uitkomst. Een volledige klik-doorloop in de browser is niet gedaan:
+deze sessie had geen lokale Supabase-inloggegevens beschikbaar. De vier controles (typecheck,
+2734 unittests, 397 ketentests, productiebuild) zijn wel alle vier groen.
+
+Ronde B is hiermee als geheel af.

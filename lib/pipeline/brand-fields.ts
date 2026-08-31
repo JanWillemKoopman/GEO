@@ -74,7 +74,9 @@ export type FieldKind =
   | "keuze"
   | "personas"
   /** Twee standen die een `boolean` opslaan in plaats van een woord of een nummer. */
-  | "janee";
+  | "janee"
+  /** Onboarding ronde B, stap B8: een geheel getal, zoals `max_inventory_pages`. */
+  | "getal";
 
 export interface BrandField {
   /** De kolomnaam in `profiles`. Ook de sleutel in `profile_field_sources`. */
@@ -284,6 +286,32 @@ export const BRAND_FIELDS: BrandField[] = [
     usage: "Hiermee vindt ORBIT ENGINE je pagina's. Laat leeg en ORBIT ENGINE zoekt hem zelf.",
     priority: "optioneel",
   },
+  {
+    // Onboarding ronde B, stap B8. Stond tot deze stap alleen op
+    // `/merkprofiel/bewerken`, terwijl dit typisch een keuze is die je samen met
+    // de klant maakt op het moment dat je naar de site kijkt. De opslagroute
+    // valideert en klemt dit al (`app/api/profiles/[id]/route.ts`).
+    key: "max_inventory_pages",
+    step: "bedrijf",
+    label: "Hoeveel pagina's we lezen",
+    description: "Bepaalt hoeveel pagina's ORBIT ENGINE van je site leest.",
+    kind: "getal",
+    derivable: false,
+    usage: "Stuurt hoeveel pagina's de crawl, de inventaris en het aanbod meenemen.",
+    priority: "optioneel",
+  },
+  {
+    key: "crawl_priority_paths",
+    step: "bedrijf",
+    label: "Welke delen van de site voorrang krijgen",
+    description:
+      "Bij een grote site leest ORBIT ENGINE deze mappen eerst, bijvoorbeeld /diensten.",
+    placeholder: "/diensten",
+    kind: "lijst",
+    derivable: false,
+    usage: "Stuurt welke sitesecties voorrang krijgen bij de crawl, de inventaris en het aanbod.",
+    priority: "optioneel",
+  },
 
   // ── 2. Je merk ────────────────────────────────────────────────────────────
   {
@@ -457,6 +485,20 @@ export const BRAND_FIELDS: BrandField[] = [
     kind: "lange-tekst",
     derivable: true,
     usage: "Gaat mee in het onderzoek en in elke schrijfopdracht.",
+    priority: "aanbevolen",
+  },
+  {
+    // Onboarding ronde B, stap B8: letterlijke stijlvoorbeelden. Stond tot deze
+    // stap alleen in `EDITABLE_PROFILE_FIELDS` en werd uitsluitend door het
+    // AI-onderzoek gevuld; de klant kon geen voorbeeld toevoegen of weghalen.
+    key: "style_samples",
+    step: "stem",
+    label: "Stukjes eigen tekst als voorbeeld",
+    description: "Twee of drie alinea's uit je eigen teksten die je goed vindt.",
+    placeholder: "Een stukje uit je tarievenpagina of een blog dat je zelf schreef",
+    kind: "lijst",
+    derivable: true,
+    usage: "Gaan letterlijk mee in de schrijfopdracht, zodat teksten in je eigen stem klinken.",
     priority: "aanbevolen",
   },
 
@@ -1184,6 +1226,7 @@ export const SESSION_BLOCKS: SessionBlock[] = [
       "tone_humor",
       "tone_emotional",
       "tone_of_voice",
+      "style_samples",
       "taboo_phrases",
       "compliance_notes",
       "signature_phrases",
@@ -1196,7 +1239,7 @@ export const SESSION_BLOCKS: SessionBlock[] = [
     volgnummer: "8",
     titel: "Techniek en koppelingen",
     uitleg: "Hier bepaal je waar ORBIT ENGINE je pagina's vindt.",
-    velden: ["sitemap_url"],
+    velden: ["sitemap_url", "max_inventory_pages", "crawl_priority_paths"],
   },
   {
     id: "afspraken",

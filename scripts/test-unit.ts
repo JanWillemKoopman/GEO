@@ -5174,11 +5174,13 @@ group("het merkprofiel als veldenlijst (brand-fields)", () => {
     zonderStap.length === 0,
   );
   // Was 41 tot migratie 0060, 56 sinds onboarding 3.0 fase 1 (de commerciële
-  // laag en de contactpersoon), en 57 sinds onboarding ronde B stap B1: toen
-  // kwam `brand_name` erbij, de naam waarop de meting daadwerkelijk telt.
+  // laag en de contactpersoon), 57 sinds onboarding ronde B stap B1
+  // (`brand_name`), en 60 sinds stap B8: `style_samples`, `max_inventory_pages`
+  // en `crawl_priority_paths` stonden al in de database maar niet in de
+  // catalogus, alleen op `/merkprofiel/bewerken`.
   ok(
-    `het zijn er 57 aan beide kanten (nu ${BRAND_FIELDS.length} en ${EDITABLE_PROFILE_FIELDS.length})`,
-    BRAND_FIELDS.length === 57 && EDITABLE_PROFILE_FIELDS.length === 57,
+    `het zijn er 60 aan beide kanten (nu ${BRAND_FIELDS.length} en ${EDITABLE_PROFILE_FIELDS.length})`,
+    BRAND_FIELDS.length === 60 && EDITABLE_PROFILE_FIELDS.length === 60,
   );
 
   ok(
@@ -5190,10 +5192,12 @@ group("het merkprofiel als veldenlijst (brand-fields)", () => {
   // een veld dat naar een andere stap verhuist een bewuste wijziging is en geen
   // stille verschuiving.
   const perStap = STEP_ORDER.map((s) => `${s}:${fieldsOfStep(s).length}`).join(" ");
+  // Onboarding ronde B, stap B8: `max_inventory_pages` en `crawl_priority_paths`
+  // erbij in "bedrijf" (9 → 11), `style_samples` erbij in "stem" (6 → 7).
   ok(
-    `de verdeling is 9-3-6-6-5-7-6-12-3 (nu ${perStap})`,
+    `de verdeling is 11-3-6-7-5-7-6-12-3 (nu ${perStap})`,
     perStap ===
-      "bedrijf:9 merk:3 klant:6 stem:6 woorden:5 auteur:7 bekend:6 strategie:12 contact:3",
+      "bedrijf:11 merk:3 klant:6 stem:7 woorden:5 auteur:7 bekend:6 strategie:12 contact:3",
   );
   ok(
     "elke stap heeft velden",
@@ -5269,10 +5273,12 @@ group("het merkprofiel als veldenlijst (brand-fields)", () => {
   // `csm-data.ts` gebruikt om te bepalen of een dossier deelbaar is, en staat
   // élk merk eeuwig in "wacht op jouw nakijkwerk".
   const klantVelden = BRAND_FIELDS.filter((f) => CLIENT_STEPS.includes(f.step));
+  // 45 sinds stap B8: de drie nieuwe velden staan in "bedrijf" en "stem", allebei
+  // klantstappen.
   ok(
-    `de noemer is de klantlijst van 42 (nu ${overallProgress(leeg).totaal})`,
+    `de noemer is de klantlijst van 45 (nu ${overallProgress(leeg).totaal})`,
     overallProgress(leeg).totaal === klantVelden.length &&
-      klantVelden.length === 42,
+      klantVelden.length === 45,
   );
   ok(
     "de sessie kan alle negen stappen meetellen",
@@ -5287,10 +5293,11 @@ group("het merkprofiel als veldenlijst (brand-fields)", () => {
     tone_humor: 1,
     tone_emotional: 2,
     tone_of_voice: "Een ervaren monteur",
+    style_samples: ["Een stukje uit de eigen tarievenpagina"],
   } as never;
   const p = stepProgress(stem, "stem");
   ok("een volledig ingevulde stap is compleet", p.compleet === true);
-  ok("en telt al zijn velden", p.gevuld === p.totaal && p.totaal === 6);
+  ok("en telt al zijn velden", p.gevuld === p.totaal && p.totaal === 7);
   ok(
     "terwijl een andere stap dan nog leeg is",
     stepProgress(stem, "auteur").gevuld === 0,
@@ -5451,8 +5458,8 @@ group("microcopy, verplichtstelling en de negen blokken (onboarding ronde B)", (
     teveelB4.length === 0,
   );
   ok(
-    "samen zijn het er 57",
-    samenB4.length === 57 && samenB4.length === BRAND_FIELDS.length,
+    "samen zijn het er 60",
+    samenB4.length === 60 && samenB4.length === BRAND_FIELDS.length,
   );
   ok("zeven blokken met velden", SESSION_BLOCKS.length === 7);
   ok(
@@ -5714,6 +5721,9 @@ group("assessReadiness", () => {
     openFactRequests: 0,
     scopeKnown: true,
     scopeDetail: "Lokaal: Amersfoort",
+    // B5: informatief, blokkeert `compleet` niet (zie de uitleg bij het type).
+    packagePages: 20,
+    assigned: true,
   };
 
   const r = assessReadiness(compleet);
@@ -10371,11 +10381,12 @@ group("het formulier praat de taal van de branche", () => {
       (f) => f.key as string,
     ),
   );
-  // Elf sinds onboarding ronde B: `brand_name` erbij, want het label en de
-  // omschrijving bepalen het antwoord al volledig, net als bij `name`.
+  // Elf sinds stap B1 (`brand_name` erbij, het label bepaalt het antwoord al
+  // volledig, net als bij `name`), twaalf sinds stap B8: `max_inventory_pages`
+  // is een getal, en een getalveld heeft aan het label genoeg.
   ok(
-    "elf velden hebben bewust geen voorbeeld",
-    zonderVoorbeeld.size === 11,
+    "twaalf velden hebben bewust geen voorbeeld",
+    zonderVoorbeeld.size === 12,
     `${zonderVoorbeeld.size}`,
   );
   ok(

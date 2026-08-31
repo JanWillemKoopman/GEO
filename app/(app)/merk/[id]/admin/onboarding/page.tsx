@@ -6,6 +6,8 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { PageHeader } from "@/components/page-header";
 import { OnboardingSession } from "../../_components/onboarding-session";
 import { parseContextFactors } from "@/lib/pipeline/context-factors";
+import { loadOpenQuestions } from "@/lib/open-questions";
+import { activeOnly } from "@/lib/archive";
 import type { FieldState } from "@/lib/profile-meter";
 
 export const dynamic = "force-dynamic";
@@ -47,27 +49,35 @@ export default async function OnboardingSessiePagina({
   if (!(await isStaff(user.id))) notFound();
 
   const admin = createAdminClient();
-  const [{ data: bronRijen }, { data: strategieRij }, { data: analyseRijen }] = await Promise.all([
-    admin
-      .from("profile_field_sources")
-      // ⚠️ Bewust niet het bewijs erbij (`evidence_quote`, `evidence_url`): dat
-      // is onderzoeksdetail en de klant kijkt mee.
-      .select("field, source, not_applicable, set_at")
-      .eq("profile_id", id),
-    admin
-      .from("profile_strategy")
-      .select("strategy_notes, context_factors, recorded_at")
-      .eq("profile_id", id)
-      .maybeSingle(),
-    // Analyses waarvan de vragen nog opnieuw opgesteld kunnen worden. Bij een
-    // analyse die al gemeten is zou een nieuwe vragenset de trendlijn breken.
-    admin
-      .from("analyses")
-      .select("id")
-      .eq("profile_id", id)
-      .is("archived_at", null)
-      .in("status", ["bezig", "concept_klaar"]),
-  ]);
+  const [{ data: bronRijen }, { data: strategieRij }, { data: analyseRijen }, vragen, { data: alleAnalyses }] =
+    await Promise.all([
+      admin
+        .from("profile_field_sources")
+        // ⚠️ Bewust niet het bewijs erbij (`evidence_quote`, `evidence_url`): dat
+        // is onderzoeksdetail en de klant kijkt mee.
+        .select("field, source, not_applicable, set_at")
+        .eq("profile_id", id),
+      admin
+        .from("profile_strategy")
+        .select("strategy_notes, context_factors, recorded_at")
+        .eq("profile_id", id)
+        .maybeSingle(),
+      // Analyses waarvan de vragen nog opnieuw opgesteld kunnen worden. Bij een
+      // analyse die al gemeten is zou een nieuwe vragenset de trendlijn breken.
+      admin
+        .from("analyses")
+        .select("id")
+        .eq("profile_id", id)
+        .is("archived_at", null)
+        .in("status", ["bezig", "concept_klaar"]),
+      // Onboarding ronde B, stap B6: dezelfde loader als de vragenpagina
+      // (`/strategie/vragen`), zodat er geen tweede telling ontstaat.
+      loadOpenQuestions(admin, profile),
+      // Voor het groepsfilter van `FactRequests`: alle actieve clusters, niet
+      // alleen de twee statussen hierboven, want een vraag kan bij elk cluster
+      // horen dat nog niet is gearchiveerd.
+      activeOnly(admin.from("analyses").select("id, topic").eq("profile_id", id)),
+    ]);
 
   const states: Record<string, FieldState> = {};
   for (const rij of (bronRijen ?? []) as {
@@ -97,6 +107,21 @@ export default async function OnboardingSessiePagina({
 
   const merknaam = profile.brand_name ?? profile.name;
 
+  // Zelfde filter en groepering als de vragenpagina: een vraag uit een
+  // gearchiveerd cluster is geen werk meer, en het merk staat voorop omdat die
+  // antwoorden élke pagina van élk cluster verbeteren.
+  const analyses = (alleAnalyses ?? []) as { id: string; topic: string | null }[];
+  const actieveIds = new Set(analyses.map((a) => a.id));
+  const factGroepen = [
+    { id: "merk", naam: "Over je merk" },
+    ...analyses
+      .map((a) => ({ id: a.id, naam: a.topic ?? "Cluster" }))
+      .sort((a, b) => a.naam.localeCompare(b.naam, "nl")),
+  ];
+  const factRequests = vragen.facts.filter(
+    (f) => f.analysis_id === null || actieveIds.has(f.analysis_id),
+  );
+
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
@@ -114,6 +139,8 @@ export default async function OnboardingSessiePagina({
         recordedAt={strategie?.recorded_at ?? null}
         changedSinceResearch={gewijzigd}
         openAnalyses={(analyseRijen ?? []).length}
+        factRequests={factRequests}
+        factGroepen={factGroepen}
       />
     </div>
   );

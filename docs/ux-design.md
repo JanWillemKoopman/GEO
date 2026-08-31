@@ -1015,7 +1015,7 @@ verwijst permanent door (`lib/redirects.ts`).
 | Scherm | De vraag | Wat erop staat |
 |---|---|---|
 | Merkdossier `/merk/[id]/merkprofiel` | Wat weet ORBIT ENGINE van mij? | Kop, het dossier, wat AI over je weet, aanbod, concurrenten |
-| Bewerken `/merk/[id]/merkprofiel/bewerken` | Klopt dat? | 42 velden in zeven stappen, plus gereedschap |
+| Bewerken `/merk/[id]/merkprofiel/bewerken` | Klopt dat? | 45 velden in zeven stappen, plus gereedschap |
 
 **Het merkdossier is een leesscherm.** Geen sectie-rail: de blokken hebben geen
 vaste chronologie zoals de vier hoofdstukken van een cluster, en een rail belooft
@@ -1031,6 +1031,9 @@ is een percentage over werk dat de klant niet doet, en voor de consultant een
 verkoopinstrument ("kan ik dit scherm delen"). Dat is besluit 4: de klant ziet
 wat ORBIT ENGINE weet en hoe zeker dat is, niet hoe ORBIT ENGINE eraan kwam.
 Hetzelfde geldt voor de mijlpalen en de maandinzichten, die naar Overzicht gaan.
+Sinds onboarding ronde B, stap B5, is dit ook waar: het paneel bestond al sinds
+17 augustus 2026 maar werd door geen enkel scherm aangeroepen. Het staat nu als
+blok 0 boven aan `/merk/[id]/admin/onboarding`.
 
 **Het bewerkscherm opent op de stap uit de link.** `?stap=` (alleen de
 klantstappen; een onbekende waarde valt terug op stap 1). Dat is de enige plek
@@ -1044,13 +1047,16 @@ van de twee won. De wizardvorm wint omdat hij per veld de herkomstchip toont
 ("uit je website gehaald", Nova's `draftedBadge`): de klant kijkt na in plaats
 van in te vullen, en dat is een wezenlijk andere handeling.
 
-⚠️ **41 in, 41 uit.** De zeven stappen dekken exact `EDITABLE_PROFILE_FIELDS`, en
-`scripts/test-unit.ts` faalt in béide richtingen. Eén veld dat nergens landt is
-een veld dat de klant niet meer kan corrigeren, en dat merkt niemand tot de
-volgende contentronde, want er verschijnt geen foutmelding. De verdeling is
-8-3-6-6-5-7-6 over Je bedrijf, Je merk, Je klant, Hoe je klinkt, Je woorden, Wie
-het schrijft en Waar je om bekend wilt staan. Die laatste stap heeft Nova niet,
-en het is juist de stap die bepaalt wat een AI-assistent over je kán zeggen.
+⚠️ **Elk opslaanbaar veld staat in een stap, en `scripts/test-unit.ts` faalt in
+béide richtingen.** Eén veld dat nergens landt is een veld dat de klant niet meer
+kan corrigeren, en dat merkt niemand tot de volgende contentronde, want er
+verschijnt geen foutmelding. De zeven klantstappen dekken samen 45 velden (was
+42 tot onboarding ronde B, stap B8: `style_samples`, `max_inventory_pages` en
+`crawl_priority_paths` stonden tot dan alleen op dit scherm en niet in de
+onboardingsessie). De verdeling is 11-3-6-7-5-7-6 over Je bedrijf, Je merk, Je
+klant, Hoe je klinkt, Je woorden, Wie het schrijft en Waar je om bekend wilt
+staan. Die laatste stap heeft Nova niet, en het is juist de stap die bepaalt wat
+een AI-assistent over je kán zeggen.
 
 Wat géén merkveld is, staat buiten de wizard: hoe grondig ORBIT ENGINE de site
 uitleest (`InventoryBox`) en de brontekst die de klant zelf aanlevert
