@@ -24,6 +24,14 @@ export interface TopicRoundSnapshot {
   gemetenClusters: number;
   /** Aantal onderwerpen met status 'afgewezen'. */
   afgewezenOnderwerpen: number;
+  /**
+   * Aantal actieve aanbodknopen (onboarding Ronde C, §16.6, migratie 0079).
+   * Zonder deze telling meldde de knop "er is niets veranderd" nadat de
+   * consultant tijdens het gesprek drie diensten met de hand had toegevoegd:
+   * de vergelijking keek naar het gesprek, de klantvragen en de metingen, maar
+   * niet naar de boom die de onderwerpen zelf voedt.
+   */
+  actieveAanbodknopen: number;
 }
 
 /** Zijn twee momentopnamen identiek? Dan levert een nieuwe ronde niets nieuws op. */
@@ -32,7 +40,8 @@ export function snapshotsGelijk(a: TopicRoundSnapshot, b: TopicRoundSnapshot): b
     a.gesprekVastgelegdOp === b.gesprekVastgelegdOp &&
     a.beantwoordeVragen === b.beantwoordeVragen &&
     a.gemetenClusters === b.gemetenClusters &&
-    a.afgewezenOnderwerpen === b.afgewezenOnderwerpen
+    a.afgewezenOnderwerpen === b.afgewezenOnderwerpen &&
+    a.actieveAanbodknopen === b.actieveAanbodknopen
   );
 }
 
@@ -89,6 +98,14 @@ export function beoordeelRonde(
   const nieuweAfwijzingen = huidige.afgewezenOnderwerpen - vorige.afgewezenOnderwerpen;
   if (nieuweAfwijzingen > 0) {
     delen.push(`${nieuweAfwijzingen} afgewezen onderwerp${nieuweAfwijzingen === 1 ? "" : "en"}`);
+  }
+  const nieuweAanbodknopen = huidige.actieveAanbodknopen - vorige.actieveAanbodknopen;
+  if (nieuweAanbodknopen > 0) {
+    delen.push(
+      nieuweAanbodknopen === 1
+        ? `${nieuweAanbodknopen} nieuwe aanbodknoop`
+        : `${nieuweAanbodknopen} nieuwe aanbodknopen`,
+    );
   }
 
   if (delen.length === 0) {

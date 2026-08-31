@@ -411,6 +411,13 @@ import {
   type TopicRoundSnapshot,
 } from "@/lib/pipeline/topic-round-diff";
 import {
+  isOfferingKind,
+  normaliseOfferingName,
+  normaliseOptionalText,
+  nextSortOrder,
+  wouldCreateCycle,
+} from "@/lib/offerings-validate";
+import {
   beoordeelClaim,
   ontbrekendeOnderbouwing,
   marktclaimUitleg,
@@ -10458,6 +10465,10 @@ function knoop(
     sort_order: sortOrder,
     created_at: "",
     updated_at: "",
+    note: null,
+    removed_at: null,
+    removed_by: null,
+    updated_by: null,
   };
 }
 
@@ -10533,6 +10544,7 @@ group("De knop 'Stel nieuwe clusters voor' draait alleen bij nieuwe informatie (
     beantwoordeVragen: 0,
     gemetenClusters: 0,
     afgewezenOnderwerpen: 0,
+    actieveAanbodknopen: 0,
   };
 
   ok("twee identieke momentopnamen zijn gelijk", snapshotsGelijk(basis, { ...basis }));
@@ -10568,6 +10580,7 @@ group("De knop 'Stel nieuwe clusters voor' draait alleen bij nieuwe informatie (
     beantwoordeVragen: 14,
     gemetenClusters: 3,
     afgewezenOnderwerpen: 1,
+    actieveAanbodknopen: 0,
   });
   ok("meerdere veranderingen tellen allemaal mee", allesErbij.nieuws === true);
   ok("veertien klantantwoorden komen in de melding", allesErbij.melding.includes("14 klantantwoorden"));
@@ -10587,6 +10600,97 @@ group("De knop 'Stel nieuwe clusters voor' draait alleen bij nieuwe informatie (
   ok(
     "minder tellingen dan vorige keer is geen aanleiding om te draaien",
     minderIsGeenNieuws.nieuws === false,
+  );
+
+  // Onboarding Ronde C, §16.6: zonder deze telling meldde de knop "niets
+  // veranderd" nadat de consultant tijdens het gesprek drie diensten met de
+  // hand had toegevoegd.
+  const dienstToegevoegd = beoordeelRonde(basis, { ...basis, actieveAanbodknopen: 3 });
+  ok("een toegevoegde dienst is nieuws", dienstToegevoegd.nieuws === true);
+  ok(
+    "en de melding noemt de nieuwe aanbodknopen",
+    dienstToegevoegd.melding.includes("3 nieuwe aanbodknopen"),
+    dienstToegevoegd.melding,
+  );
+  const enkeleAanbodknoop = beoordeelRonde(basis, { ...basis, actieveAanbodknopen: 1 });
+  ok(
+    "enkelvoud bij precies één nieuwe knoop",
+    enkeleAanbodknoop.melding.includes("1 nieuwe aanbodknoop") &&
+      !enkeleAanbodknoop.melding.includes("1 nieuwe aanbodknopen"),
+    enkeleAanbodknoop.melding,
+  );
+  const minderKnopenIsGeenNieuws = beoordeelRonde(
+    { ...basis, actieveAanbodknopen: 5 },
+    { ...basis, actieveAanbodknopen: 2 },
+  );
+  ok(
+    "een verwijderde dienst is op zichzelf geen nieuwe informatie",
+    minderKnopenIsGeenNieuws.nieuws === false,
+  );
+});
+
+group("De aanbodboom bewerkbaar: validatie (onboarding Ronde C, §16.3, migratie 0079)", () => {
+  ok("de vijf bekende soorten zijn geldig", isOfferingKind("dienst") && isOfferingKind("vestiging"));
+  ok("een onbekend soort is ongeldig", !isOfferingKind("filiaal"));
+  ok("een leeg soort is ongeldig", !isOfferingKind(""));
+
+  ok("een getrimde naam blijft staan", normaliseOfferingName("  Onderhoudsabonnement  ") === "Onderhoudsabonnement");
+  ok("een lege naam is ongeldig", normaliseOfferingName("   ") === null);
+  ok("een getal is geen naam", normaliseOfferingName(42) === null);
+
+  ok("lege tekst wordt null", normaliseOptionalText("   ") === null);
+  ok("ontbrekende tekst wordt null", normaliseOptionalText(undefined) === null);
+  ok("getrimde tekst blijft staan", normaliseOptionalText(" vanaf 19 euro ") === "vanaf 19 euro");
+
+  ok("een lege boom begint bij 10", nextSortOrder([]) === 10);
+  ok(
+    "de hoogste bestaande plus tien",
+    nextSortOrder([{ sort_order: 0 }, { sort_order: 40 }, { sort_order: 20 }]) === 50,
+  );
+
+  // Lus-controle: A → B → C, mag C niet onder A hangen? Nee, want dat is geen
+  // lus (A is geen nakomeling van C). Wel geweigerd: A onder C, of B onder B.
+  const boom = [
+    { id: "a", parent_id: null },
+    { id: "b", parent_id: "a" },
+    { id: "c", parent_id: "b" },
+  ];
+  ok("een knoop mag niet onder zichzelf hangen", wouldCreateCycle(boom, "b", "b"));
+  ok("een knoop mag niet onder zijn eigen nakomeling hangen", wouldCreateCycle(boom, "a", "c"));
+  ok("een knoop mag wél onder een niet-nakomeling hangen", !wouldCreateCycle(boom, "c", "a"));
+  ok("een nieuwe knoop (geen id) kan nooit een lus veroorzaken", !wouldCreateCycle(boom, null, "c"));
+  ok("geen ouder is nooit een lus", !wouldCreateCycle(boom, "b", null));
+});
+
+group("C2: alle lezers van profile_offerings gebruiken de gedeelde helper (§16.4)", () => {
+  // ⚠️ Dit is een broncodecontrole, net als de klantscherm-check hierboven: de
+  // zes bestanden die vóór 31 augustus 2026 rechtstreeks selecteerden, moeten
+  // via `activeOfferings()`/`activeOfferingCount()` uit `lib/offerings.ts`
+  // lopen. Vergeet je dat bij een nieuwe aanroepplek, dan komt een net
+  // verwijderde dienst alsnog terug in een onderwerpvoorstel of een meetronde.
+  const bewaakteBestanden = [
+    "lib/pipeline/propose-topics.ts",
+    "lib/pipeline/propose-more-topics.ts",
+    "lib/pipeline/llm-baseline.ts",
+    "lib/pipeline/reputation-start.ts",
+    "app/(app)/merk/[id]/merkprofiel/page.tsx",
+  ];
+  for (const pad of bewaakteBestanden) {
+    const bron = leesBestand(pad);
+    ok(
+      `${pad} selecteert profile_offerings niet meer rechtstreeks`,
+      !bron.includes('from("profile_offerings")') && !bron.includes("from('profile_offerings')"),
+    );
+    ok(`${pad} gebruikt de gedeelde helper`, /activeOfferings|activeOfferingCount/.test(bron));
+  }
+
+  // `offering.ts` mag wél rechtstreeks selecteren (het is de idempotentie-
+  // controle van de aanbodstap zelf, geen "actieve boom"-lezer), maar dan
+  // uitsluitend op `source = 'ai'` (§16.5.2).
+  const offeringBron = leesBestand("lib/pipeline/offering.ts");
+  ok(
+    "offering.ts telt bij het idempotentiecontrole alleen AI-knopen",
+    offeringBron.includes('.eq("source", "ai")'),
   );
 });
 

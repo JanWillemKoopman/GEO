@@ -531,6 +531,13 @@ export interface ProfileOffering {
   sort_order: number;
   created_at: string;
   updated_at: string;
+  /** Vrije context uit het gesprek, bijvoorbeeld "levert 40% van de omzet" (migratie 0079). */
+  note: string | null;
+  /** Verwijderen is uitzetten, niet wissen (conventie 8, migratie 0079). Null = actief. */
+  removed_at: string | null;
+  removed_by: string | null;
+  /** Wie de knoop voor het laatst wijzigde via de schrijfroute (migratie 0079). */
+  updated_by: string | null;
 }
 
 /** Herkomst per profielveld (migratie 0039). */

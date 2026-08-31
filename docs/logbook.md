@@ -5946,3 +5946,61 @@ deze sessie had geen lokale Supabase-inloggegevens beschikbaar. De vier controle
 2734 unittests, 397 ketentests, productiebuild) zijn wel alle vier groen.
 
 Ronde B is hiermee als geheel af.
+
+**31 augustus 2026, onboarding ronde C: de aanbodboom bewerkbaar.** Nieuwe branch
+`feature/onboarding-ronde-c` vanaf `main`, `documentatie/onboarding_optimalisatie.md` §16 en §18
+(stap C1 tot en met C6). Dit was het enige gat dat geen enkel profielveld kon dichten (§15.1): een
+dienst die niet op de site staat, of alleen telefonisch verkocht wordt, kwam nooit in het contentplan
+terecht, want `OfferingsPanel` was een leesscherm zonder route.
+
+**C1. Migratie 0079**, toegepast via `apply_migration`: vier kolommen op `profile_offerings` (`note`,
+`removed_at`, `removed_by`, `updated_by`) plus een partiële index op `profile_id where removed_at is
+null`. Verwijderen is uitzetten, niet wissen (conventie 8): een gewiste rij zou bij de volgende crawl
+gewoon terugkomen, want de pagina staat er nog.
+
+**C2. `lib/offerings.ts`**, de ene plek die het filter kent (`activeOfferings()`,
+`activeOfferingCount()`, `removedOfferings()`). Zes lezers gingen erdoorheen:
+`propose-topics.ts`, `propose-more-topics.ts`, `llm-baseline.ts`, `reputation-start.ts` (voedt
+`selectNodes()`), het merkdossier, en de idempotentiecontrole in `offering.ts` zelf (die telt bewust
+niet via de helper, maar rechtstreeks op `source = 'ai'`, zie C4). Een broncodecontrole in
+`scripts/test-unit.ts` bewaakt dat geen van die zes bestanden `profile_offerings` nog rechtstreeks
+selecteert. De validatie (naam, soort, de lus-controle op `parentId`, de `sort_order`-berekening)
+staat puur in `lib/offerings-validate.ts`, zonder `server-only`, dus getest zonder database.
+
+**C3. De route** `app/api/profiles/[id]/offerings` (POST, PATCH, DELETE), service-role client met
+`getOwnedProfile()` en `resolveWriteSource()`, precies zoals de profielroute: `gesprek` bij een
+consultant, `klant` bij de eigenaar. Verwijderen zet de knoop en al zijn onderliggende knopen op
+`removed_at`, en het antwoord zegt hoeveel dat er waren. `DELETE` met `restore: true` zet een knoop
+terug. Het scherm: `OfferingsEditor` (`_components/offerings-editor.tsx`), een client-kind van de tot
+dan alleen-lezende `OfferingsPanel`. Potlood per knoop, "Dienst of product toevoegen" onderaan, en
+verwijderde knopen achter "X verwijderd, tonen" met een terugzetknop.
+
+**C4. Hercrawlbescherming, en één bevinding die al bleek te kloppen.** Het plan verwachtte dat
+`app/api/profiles/[id]/deep-research/route.ts` de hele boom weggooide; bij het nalopen bleek die
+route al `.eq("source", "ai")` te gebruiken (opgelost in een eerdere ronde, "Vier ingrepen uit de
+structuurreview van het klantoppervlak"). Dat deel van §16.5 was dus al opgelost en is ongewijzigd
+gelaten. Wat nog wél stuk was: de idempotentiecontrole in `offering.ts` telde ALLE knopen, dus zodra
+een consultant met de hand één dienst toevoegde, dacht de aanbodstap dat de boom al klaar was en
+draaide hij nooit meer, ook niet als een latere crawl veel meer vond. Die telling gaat nu ook via
+`source = 'ai'`.
+
+**C5. `buildSnapshot()` in `propose-more-topics.ts` telt nu ook de actieve aanbodknopen.**
+`TopicRoundSnapshot` kreeg er een vijfde teller bij, `actieveAanbodknopen`, en `topic-round-diff.ts`
+meldt "N nieuwe aanbodknopen" zodra die stijgt. Zonder deze teller kreeg de consultant na het
+toevoegen van drie diensten de melding "er is niets veranderd" op de knop "meer onderwerpen": de
+vergelijking keek naar het gesprek, de klantvragen en de metingen, maar niet naar de boom die de
+onderwerpen zelf voedt.
+
+**Verificatie op productie (§18.1, onder C), op Fysi-Unique.** Een dienst toegevoegd die niet op de
+site staat ("Sportmassage voor topsporters, telefonisch geboekt", herkomst `gesprek`, met een
+notitie), plus een tweede, AI-gemarkeerde testknoop. Daarna de exacte query van de deep-research-route
+gedraaid (`delete ... where source = 'ai'`): de AI-knoop verdween, de handmatige knoop bleef staan met
+zijn notitie intact en `removed_at` op `null`, dus actief voor `activeOfferings()` en meetellend voor
+`activeOfferingCount()`. De testrijen zijn na de verificatie weer verwijderd.
+
+Vier controles groen: typecheck, 2766 unittests (34 nieuwe), 410 ketentests (13 nieuwe), de
+productiebuild.
+
+Ronde C is hiermee af. Van de tien aanvullingen uit hoofdstuk 15 resteert alleen Ronde D
+(crawlbeheer, hoofdstuk 17): zelf het aantal pagina's per ronde kiezen, aanvullen zonder alles weg te
+gooien, en drie crawltempo's.

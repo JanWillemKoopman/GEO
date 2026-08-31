@@ -113,12 +113,18 @@ export async function buildOfferingTree(profileId: string): Promise<OfferingResu
   // Idempotent vóór de dure aanroep (conventie 9): staat de boom er al, dan
   // niets opnieuw doen. Een retry na een mislukte vervolgtaak mag geen tweede
   // keer betaald worden.
+  //
+  // ⚠️ Telt hier bewust alleen `source = 'ai'` (onboarding Ronde C, §16.5.2).
+  // Tot 31 augustus 2026 telde dit alle knopen, dus zodra een consultant met
+  // de hand één dienst toevoegde, dacht deze stap dat de boom al klaar was en
+  // draaide hij nooit meer, ook niet als de crawl daarna veel meer vond.
   const existing = requireCount(
     await admin
       .from("profile_offerings")
       .select("id", { count: "exact", head: true })
-      .eq("profile_id", profileId),
-    "de aanbodboom van dit merk",
+      .eq("profile_id", profileId)
+      .eq("source", "ai"),
+    "de door AI gebouwde aanbodboom van dit merk",
   );
   if (existing > 0) {
     return {

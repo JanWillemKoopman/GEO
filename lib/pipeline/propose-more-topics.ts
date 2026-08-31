@@ -34,6 +34,7 @@ import { MODELS } from "@/lib/openai/models";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { discontinuedNames, parseContextFactors } from "@/lib/pipeline/context-factors";
 import { requireCount } from "@/lib/require-count";
+import { activeOfferings, activeOfferingCount } from "@/lib/offerings";
 import { topicSteering, goalRule } from "@/lib/pipeline/commercial-context";
 import { TopicProposals } from "@/lib/pipeline/propose-topics";
 import {
@@ -70,7 +71,7 @@ async function buildSnapshot(
   admin: ReturnType<typeof createAdminClient>,
   profileId: string,
 ): Promise<TopicRoundSnapshot> {
-  const [strategyRes, vraagRes, analyseRes, afgewezenRes] = await Promise.all([
+  const [strategyRes, vraagRes, analyseRes, afgewezenRes, aanbodknopen] = await Promise.all([
     admin.from("profile_strategy").select("recorded_at").eq("profile_id", profileId).maybeSingle(),
     admin
       .from("fact_requests")
@@ -83,6 +84,9 @@ async function buildSnapshot(
       .select("id", { count: "exact", head: true })
       .eq("profile_id", profileId)
       .eq("status", "afgewezen"),
+    // §16.6: zonder deze telling meldt de knop "niets veranderd" na een
+    // handmatig toegevoegde dienst.
+    activeOfferingCount(admin, profileId),
   ]);
 
   const analyseIds = (analyseRes.data ?? []).map((r) => r.id as string);
@@ -101,6 +105,7 @@ async function buildSnapshot(
     beantwoordeVragen: requireCount(vraagRes, "de beantwoorde klantvragen van dit merk"),
     gemetenClusters,
     afgewezenOnderwerpen: requireCount(afgewezenRes, "de afgewezen onderwerpen van dit merk"),
+    actieveAanbodknopen: aanbodknopen,
   };
 }
 
@@ -226,8 +231,9 @@ export async function proposeAdditionalTopics(
     return { gedraaid: false, voorgesteld: 0, costUsd: 0, melding };
   }
 
-  const [{ data: offeringRows }, { data: strategyRow }, { data: bestaandeTopics }] = await Promise.all([
-    admin.from("profile_offerings").select("*").eq("profile_id", profileId).order("sort_order"),
+  const [offeringRows, { data: strategyRow }, { data: bestaandeTopics }] = await Promise.all([
+    // `activeOfferings()` laat verwijderde knopen weg (§16.4).
+    activeOfferings(admin, profileId),
     admin
       .from("profile_strategy")
       .select("strategy_notes, context_factors, recorded_at")
@@ -247,7 +253,7 @@ export async function proposeAdditionalTopics(
   const hasGesprek = Boolean(strategy?.recorded_at);
 
   const gestopt = discontinuedNames(parseContextFactors(strategy?.context_factors));
-  const offerings = ((offeringRows ?? []) as ProfileOffering[]).filter(
+  const offerings = (offeringRows as ProfileOffering[]).filter(
     (o) => !gestopt.some((naam) => o.name.toLowerCase().includes(naam)),
   );
 

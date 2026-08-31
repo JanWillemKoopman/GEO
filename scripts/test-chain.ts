@@ -977,6 +977,159 @@ async function main(): Promise<void> {
     );
 
     // ══════════════════════════════════════════════════════════════════════
+    // De aanbodboom bewerkbaar: toevoegen, wijzigen, verwijderen, hercrawl
+    // (onboarding Ronde C, documentatie/onboarding_optimalisatie.md §16, migratie 0079)
+    //
+    // C3 t/m C5 in één doorloop, tegen dezelfde route-logica als
+    // `app/api/profiles/[id]/offerings/route.ts`: de pure functies uit
+    // `lib/offerings-validate.ts`, en de gedeelde lezer uit `lib/offerings.ts`.
+    // ══════════════════════════════════════════════════════════════════════
+    console.log("\nDe aanbodboom bewerkbaar: toevoegen, wijzigen, verwijderen, hercrawl");
+
+    const { activeOfferings, activeOfferingCount, removedOfferings } = await import(
+      "@/lib/offerings"
+    );
+    const { nextSortOrder: berekenSortOrder, wouldCreateCycle: geeftLus } = await import(
+      "@/lib/offerings-validate"
+    );
+
+    // Schone lei: de knopen uit het 0043-scenario hierboven horen hier niet bij.
+    await db.client.query("delete from public.profile_offerings where profile_id = $1", [
+      profileId,
+    ]);
+
+    // ── C3, toevoegen: de eerste knoop krijgt sort_order 10 ───────────────────
+    const eersteVolgorde = berekenSortOrder(await activeOfferings(admin as never, profileId));
+    ok("C3: een lege boom begint bij sort_order 10", eersteVolgorde === 10);
+    const { rows: [onderhoud] } = await db.client.query(
+      `insert into public.profile_offerings (profile_id, kind, name, source, sort_order, note)
+       values ($1, 'dienst', 'Onderhoudsabonnement', 'gesprek', $2, 'levert 40% van de omzet')
+       returning id`,
+      [profileId, eersteVolgorde],
+    );
+
+    // ── C3, toevoegen onder een knoop: de tweede komt op sort_order 20 ────────
+    const tweedeVolgorde = berekenSortOrder(await activeOfferings(admin as never, profileId));
+    ok("C3: de tweede knoop komt op sort_order 20", tweedeVolgorde === 20);
+    const { rows: [reparatie] } = await db.client.query(
+      `insert into public.profile_offerings (profile_id, parent_id, kind, name, source, sort_order)
+       values ($1, $2, 'dienst', 'Reparatie', 'ai', $3)
+       returning id`,
+      [profileId, onderhoud.id, tweedeVolgorde],
+    );
+
+    // ── C3, de lus-controle: Reparatie mag niet de ouder van Onderhoudsabonnement worden ──
+    const { rows: bomenVoorLus } = await db.client.query(
+      "select id, parent_id from public.profile_offerings where profile_id = $1",
+      [profileId],
+    );
+    ok(
+      "C3: Onderhoudsabonnement onder Reparatie hangen zou een lus zijn",
+      geeftLus(
+        bomenVoorLus as { id: string; parent_id: string | null }[],
+        onderhoud.id as string,
+        reparatie.id as string,
+      ),
+    );
+    ok(
+      "C3: Reparatie onder Onderhoudsabonnement hangen (waar hij al hangt) is geen lus",
+      !geeftLus(
+        bomenVoorLus as { id: string; parent_id: string | null }[],
+        reparatie.id as string,
+        onderhoud.id as string,
+      ),
+    );
+
+    // ── C3, wijzigen: de PATCH-route zet source en updated_by, altijd ─────────
+    const bewerkerId = randomUUID();
+    await db.client.query("insert into auth.users (id, email) values ($1, $2)", [
+      bewerkerId,
+      "bewerker@example.com",
+    ]);
+    await db.client.query(
+      `update public.profile_offerings
+       set name = 'Onderhoudsabonnement (jaarlijks)', source = 'klant', updated_by = $2
+       where id = $1`,
+      [onderhoud.id, bewerkerId],
+    );
+    const { rows: [naWijziging] } = await db.client.query(
+      "select name, source, updated_by from public.profile_offerings where id = $1",
+      [onderhoud.id],
+    );
+    ok("C3: de wijziging is doorgevoerd", naWijziging.name === "Onderhoudsabonnement (jaarlijks)");
+    ok("C3: en de herkomst is bijgewerkt naar wie hem zette", naWijziging.source === "klant");
+
+    // ── C3, verwijderen: uitzetten met de onderliggende knopen mee ────────────
+    const nu = new Date().toISOString();
+    await db.client.query(
+      `update public.profile_offerings set removed_at = $2, removed_by = $3
+       where id in ($1, (select id from public.profile_offerings where parent_id = $1))`,
+      [onderhoud.id, nu, bewerkerId],
+    );
+
+    const actiefNaVerwijderen = await activeOfferings(admin as never, profileId);
+    ok(
+      "C3: na verwijderen staat de boom leeg voor de actieve lezers",
+      actiefNaVerwijderen.length === 0,
+      `${actiefNaVerwijderen.length} nog actief`,
+    );
+    const verwijderdeKnopen = await removedOfferings(admin as never, profileId);
+    ok(
+      "C3: de knoop en zijn kind staan allebei bij de verwijderde knopen",
+      verwijderdeKnopen.length === 2,
+      `${verwijderdeKnopen.length} verwijderd`,
+    );
+    ok(
+      "C2: de notitie uit het gesprek is bewaard, ook na verwijderen",
+      verwijderdeKnopen.some((o) => o.note === "levert 40% van de omzet"),
+    );
+
+    // ── C4, hercrawlbescherming: alleen de AI-knopen gaan weg ──────────────────
+    //
+    // Onderhoudsabonnement is hier bewust 'klant' (handmatig gewijzigd) en al
+    // verwijderd; Reparatie is 'ai' en zou van een nieuwe crawl komen. Zet ze
+    // allebei terug op actief, simuleer daarna wat de deep-research-route doet
+    // (`.eq("source", "ai")`), en controleer dat alleen de AI-knoop verdwijnt.
+    await db.client.query(
+      "update public.profile_offerings set removed_at = null, removed_by = null where profile_id = $1",
+      [profileId],
+    );
+    await db.client.query(
+      "delete from public.profile_offerings where profile_id = $1 and source = 'ai'",
+      [profileId],
+    );
+    const naHercrawl = await activeOfferings(admin as never, profileId);
+    ok(
+      "C4: de handmatig gewijzigde dienst overleeft de hercrawl",
+      naHercrawl.some((o) => o.id === onderhoud.id),
+    );
+    ok(
+      "C4: en de AI-knoop is weg, precies zoals vóór deze ronde al gebeurde",
+      !naHercrawl.some((o) => o.id === reparatie.id),
+    );
+
+    // ── C4, de idempotentiecontrole van offering.ts telt alleen AI-knopen ─────
+    //
+    // Zonder de §16.5.2-reparatie zou deze telling ook de knoop van de klant
+    // meetellen, en dan zou `buildOfferingTree()` nooit meer draaien zodra er
+    // één handmatige dienst bij staat, ook niet als de crawl daarna veel meer
+    // vindt.
+    const aiTellingNaHercrawl = await activeOfferingCount(admin as never, profileId);
+    const { rows: [{ count: aiRijen }] } = await db.client.query(
+      "select count(*) from public.profile_offerings where profile_id = $1 and source = 'ai'",
+      [profileId],
+    );
+    ok(
+      "C4: geen AI-knopen meer, dus de aanbodstap mag opnieuw draaien",
+      Number(aiRijen) === 0,
+    );
+    ok(
+      "C2/C5: de actieve telling ziet de overgebleven klantknoop",
+      aiTellingNaHercrawl === 1,
+      `${aiTellingNaHercrawl}`,
+    );
+
+    // ══════════════════════════════════════════════════════════════════════
     // Archiveren: onzichtbaar in de app, aanwezig in de database (0044)
     //
     // Zes query's sommen merken of analyses op, en het filter moet in alle zes.

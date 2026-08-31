@@ -11,6 +11,7 @@ import { ProfileHero } from "../_components/profile-hero";
 import { ProfileSection } from "../_components/profile-section";
 import { OfferingsPanel } from "../_components/offerings-panel";
 import { assessStructureCoverage } from "@/lib/pipeline/structure-gap";
+import { activeOfferings, removedOfferings } from "@/lib/offerings";
 import type { ProfileLlmBaseline, ProfileOffering } from "@/lib/types/database";
 
 export const metadata = { title: "Merkdossier" };
@@ -49,7 +50,8 @@ export default async function MerkdossierPage({
     { data: baselineRows },
     { data: synthesisRow },
     { data: pageRows },
-    { data: offeringRows },
+    offeringRows,
+    verwijderdeOfferings,
     { data: offeringFacetRow },
     { data: entityRows },
   ] = await Promise.all([
@@ -68,7 +70,11 @@ export default async function MerkdossierPage({
       .maybeSingle(),
     // Blok 4, Aanbod: het aanbod zoals gevonden, en wat nog geen pagina heeft.
     supabase.from("profile_pages").select("url, title, source").eq("profile_id", id),
-    supabase.from("profile_offerings").select("*").eq("profile_id", id).order("sort_order"),
+    // `activeOfferings()`/`removedOfferings()` (onboarding Ronde C, §16.4 en
+    // §16.7): het scherm toont de actieve boom, met de verwijderde knopen
+    // achter "tonen" in plaats van stil weg.
+    activeOfferings(supabase, id),
+    removedOfferings(supabase, id),
     supabase
       .from("profile_facets")
       .select("confidence")
@@ -116,7 +122,7 @@ export default async function MerkdossierPage({
   // Blok 4: welke onderdelen van het aanbod nog geen eigen pagina hebben.
   // Deterministisch, geen AI (`docs/architecture.md` §6, "Bewust géén AI").
   const coverage = assessStructureCoverage(
-    (offeringRows ?? []) as ProfileOffering[],
+    offeringRows as ProfileOffering[],
     ((pageRows ?? []) as { url: string; title: string | null }[]).map((p) => ({
       url: p.url,
       title: p.title,
@@ -188,7 +194,8 @@ export default async function MerkdossierPage({
       >
         <OfferingsPanel
           profileId={id}
-          offerings={(offeringRows ?? []) as ProfileOffering[]}
+          offerings={offeringRows as ProfileOffering[]}
+          removedOfferings={verwijderdeOfferings as ProfileOffering[]}
           inventory={profile.inventory_quality_json}
           confidence={offeringConfidence}
           coverage={coverage}

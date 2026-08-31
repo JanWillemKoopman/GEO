@@ -45,6 +45,7 @@ import { topicSteering } from "@/lib/pipeline/commercial-context";
 import { MODELS } from "@/lib/openai/models";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { discontinuedNames, parseContextFactors } from "@/lib/pipeline/context-factors";
+import { activeOfferings } from "@/lib/offerings";
 import type { Profile, ProfileOffering } from "@/lib/types/database";
 
 export const TopicProposals = z.object({
@@ -129,11 +130,10 @@ export async function proposeTopics(profileId: string): Promise<TopicResult> {
     }
   }
 
-  const { data: offeringRows } = await admin
-    .from("profile_offerings")
-    .select("*")
-    .eq("profile_id", profileId)
-    .order("sort_order");
+  // `activeOfferings()` filtert al `removed_at is null` (onboarding Ronde C,
+  // §16.4): een knoop die de consultant handmatig uitzette hoort hier niet
+  // opnieuw in te stromen, dat zou de verwijdering ongedaan maken.
+  const offeringRows = await activeOfferings(admin, profileId);
 
   // Wat de klant in het gesprek als gestopt opgaf, hoort niet in de voorstellen
   // (blok C). De crawl vindt zo'n dienst nog wel, hij staat vaak nog maanden
@@ -141,7 +141,7 @@ export async function proposeTopics(profileId: string): Promise<TopicResult> {
   // wat het bedrijf niet meer levert.
   const gestopt = discontinuedNames(parseContextFactors(strategy?.context_factors));
 
-  const offerings = ((offeringRows ?? []) as ProfileOffering[]).filter(
+  const offerings = (offeringRows as ProfileOffering[]).filter(
     (o) => !gestopt.some((naam) => o.name.toLowerCase().includes(naam)),
   );
 
