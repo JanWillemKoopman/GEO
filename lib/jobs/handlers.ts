@@ -50,6 +50,7 @@ import { runSourcesBlock } from "@/lib/pipeline/reputation-sources";
 import { runSynthesis } from "@/lib/pipeline/reputation-synthesis";
 import { runMarketBlock } from "@/lib/pipeline/reputation-market";
 import { runEvidenceBlock } from "@/lib/pipeline/reputation-evidence";
+import { refreshInventory } from "@/lib/pipeline/refresh-inventory";
 import { enqueue, dedupe } from "@/lib/jobs/queue";
 import { countOpenPeriodicMeasurements } from "@/lib/jobs/pending";
 import type {
@@ -824,6 +825,25 @@ const handlers: { [T in JobType]: Handler<T> } = {
   reputation_market: async ({ admin, job }, payload) => {
     await runMarketBlock(admin, payload.runId, payload.offeringId, payload.repeats);
     await scheduleSynthesisIfLast(admin, payload.runId, job.id);
+  },
+
+  /**
+   * Crawlbeheer (onboarding Ronde D, §17.7). `budgetMs` is een vaste,
+   * behoudende marge: de werker start deze taak alleen als er nog
+   * `HEAVY_JOB_RESERVE_MS` (200s) over is in het tijdbudget, en dit blijft daar
+   * ruim onder. Loopt de crawl tegen die grens aan, dan stopt hij netjes met
+   * wat hij tot dan toe vond in plaats van de platformlimiet van 300s te
+   * raken; de consultant kan de knop gewoon nog een keer gebruiken, "meer"
+   * pakt automatisch verder waar deze ronde bleef steken.
+   */
+  crawl_inventory: async ({ job }, payload) => {
+    if (!job.profile_id) throw new Error("crawl_inventory zonder profile_id.");
+    await refreshInventory(job.profile_id, {
+      mode: payload.mode,
+      maxPages: payload.maxPages,
+      speed: payload.speed,
+      budgetMs: 180_000,
+    });
   },
 };
 

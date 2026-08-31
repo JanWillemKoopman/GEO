@@ -164,6 +164,15 @@ export function selectUrls(
   all: readonly string[],
   max: number,
   priorityPaths: readonly string[] = [],
+  /**
+   * URL's die al bekend zijn (onboarding Ronde D, §17.8, modus "meer"): eruit
+   * VÓÓR het kiezen, niet erna. Zou het kiezen eerst de beste `max` pakken en
+   * pas daarna filteren, dan levert een site waarvan de topplekken al gecrawld
+   * zijn een lege aanvulling op, ook als er nog honderden ongelezen pagina's
+   * zijn. Telt niet mee in `totalFound`: dat cijfer blijft de ware omvang van
+   * de site, ongeacht wat er al gecrawld is.
+   */
+  exclude: ReadonlySet<string> = new Set(),
 ): UrlSelection {
   // Ontdubbelen op de canonieke sleutel en niet op de letterlijke tekst: de
   // sitemap van udenhout.nl bevat zowel `https://udenhout.nl` als
@@ -175,8 +184,8 @@ export function selectUrls(
     const sleutel = canonicalKey(url);
     if (!perSleutel.has(sleutel)) perSleutel.set(sleutel, url);
   }
-  const uniek = [...perSleutel.values()];
-  const totalFound = uniek.length;
+  const totalFound = perSleutel.size;
+  const uniek = [...perSleutel.values()].filter((url) => !exclude.has(url));
 
   const perSectie = new Map<string, string[]>();
   for (const url of uniek) {

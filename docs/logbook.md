@@ -6004,3 +6004,59 @@ productiebuild.
 Ronde C is hiermee af. Van de tien aanvullingen uit hoofdstuk 15 resteert alleen Ronde D
 (crawlbeheer, hoofdstuk 17): zelf het aantal pagina's per ronde kiezen, aanvullen zonder alles weg te
 gooien, en drie crawltempo's.
+
+**31 augustus 2026, onboarding ronde D: crawlbeheer.** Nieuwe branch `feature/onboarding-ronde-d`
+vanaf `main`, `documentatie/onboarding_optimalisatie.md` §17 en §18 (stap D1 tot en met D6). Laatste
+van de tien aanvullingen uit hoofdstuk 15.
+
+**D1. Migratie 0080**, toegepast via `apply_migration`: vijf kolommen op `profiles` (`crawl_speed`,
+`crawl_as_browser`, `crawl_last_run_at`, `crawl_last_mode`, `crawl_last_blocked_at`), met een
+constraint op de drie standen en op de twee modi.
+
+**D2. `lib/crawl-speed.ts`**, puur en getest: `speedProfile()` (batchgrootte en pauzebandbreedte per
+stand), `nextDelayMs()` (met een injecteerbare toevalsgenerator, dus reproduceerbaar), `slowerThan()`
+voor de terugval bij een 429/503.
+
+**D3. `lib/crawler.ts`.** `crawlInventory()` kreeg er `speed`, `exclude` en `asBrowser` bij, en
+respecteert nu `Retry-After` bij een 429/503 (met een stand omlaag voor de rest van de ronde) en stopt
+bij een 403 in plaats van door te gaan met lege pagina's. Eén gedeelde `requestHeaders()`, met een
+volledige, kloppende set (`Accept-Language`, `Accept-Encoding`) zodat de crawler zich als een nette
+bezoeker gedraagt. `selectUrls()` (`url-priority.ts`) kreeg er een `exclude`-parameter bij die vóór
+het kiezen filtert, niet erna: anders levert "meer" bij een site waarvan de topplekken al gecrawld
+zijn een lege aanvulling op, ook met honderden ongelezen pagina's.
+
+**D4. Jobtype `crawl_inventory`**, met een dedupe-sleutel per profiel. `POST
+/api/profiles/[id]/refresh-inventory` plant voortaan alleen de taak in en geeft meteen antwoord, in
+plaats van zelf te crawlen: op "langzaam" duurt 150 pagina's ruim tien minuten, en de route mocht
+maar 60 seconden. De taak geeft zichzelf een vast, behoudend tijdbudget (180 seconden) binnen het
+tijdbudget dat de werker al reserveert voor een zware taak, zodat een grote crawl zichzelf op tijd
+afbreekt in plaats van de platformlimiet van 300 seconden te raken; wat er dan al gevonden is blijft
+staan, en de consultant kan de knop gewoon nog een keer gebruiken.
+
+**D5. `refresh-inventory.ts`: twee modi.** "Opnieuw" vervangt de gecrawlde pagina's zoals voorheen.
+"Meer" is nieuw: `appendCrawledPages()` (`discover.ts`) voegt alleen toe wat nog niet bekend is.
+Handmatig toegevoegde pagina's overleven allebei. **Eén bevinding tijdens het bouwen die het plan zelf
+niet noemde:** een 403 vóór de eerste pagina levert nul bruikbare pagina's op, en zonder ingreep zou
+"opnieuw" de bestaande, goede inventaris dan gewoon vervangen door niets. Bij nul nieuwe pagina's
+raakt de route de tabel nu niet aan; de ketentest hieronder bewaakt dat met een eigen scenario.
+
+**D6. Het scherm.** `InventoryBox` (op `/merk/[id]/merkprofiel/bewerken`, waar het crawlblok al
+stond) kreeg de tempokeuze, twee knoppen ("Meer pagina's lezen", "Opnieuw crawlen" met bevestiging),
+de laatste-ronde-regel en de blokkademelding. Geen voortgangsbalk: de knop laat los zodra de taak in
+de wachtrij staat, met "Ingepland, ververs zo dadelijk" in plaats van een live meelopende crawl, want
+dat zou een tweede voortgangsmechanisme naast de bestaande onboardingstatus zijn geweest.
+
+**Verificatie op productie (§18.1, onder D).** Zonder lokale inloggegevens kon deze sessie geen
+achtergrondtaak via de draaiende app zelf inplannen (zelfde beperking als bij Ronde B). In plaats
+daarvan: de sitemap van hema.nl rechtstreeks opgehaald (met de eigen bot-identiteit) om de
+startvoorwaarde van punt D uit hoofdstuk 18.1 te bevestigen, een site van ruim duizend pagina's
+(zes deelsitemaps met productcategorieën). Het daadwerkelijke "meer op langzaam tempo"-gedrag is
+doorgerekend in de ketentest tegen een gesimuleerde grote site: drie rondes na elkaar
+("opnieuw", "meer", "opnieuw") op dezelfde acht kandidaat-URL's, met een expliciete controle dat
+"meer" nooit een al bekende URL dubbel ophaalt en dat een 403 de bestaande, net opgeslagen pagina's
+niet wist.
+
+Vier controles groen: typecheck, 2783 unittests (17 nieuwe), 429 ketentests (19 nieuwe), de
+productiebuild.
+
+Ronde D is hiermee af. Alle tien aanvullingen uit hoofdstuk 15 zijn nu gebouwd.

@@ -1,4 +1,5 @@
 import type { EntityRole } from "@/lib/schemas/entity-classification";
+import type { CrawlSpeed } from "@/lib/crawl-speed";
 /**
  * TypeScript-representatie van het datamodel (abcplan.md §5).
  * Handgeschreven (in plaats van gegenereerd) zodat de scaffolding zonder
@@ -319,6 +320,17 @@ export interface Profile {
    * consultant. Leeg = alleen de deterministische score van `url-priority.ts`.
    */
   crawl_priority_paths: string[];
+  /**
+   * Crawlbeheer (onboarding Ronde D, §17, migratie 0080): hoeveel, hoe vaak en
+   * hoe rustig. `crawl_speed` stuurt `lib/crawl-speed.ts`.
+   */
+  crawl_speed: CrawlSpeed;
+  /** Standaard uit. Alleen aan met toestemming van de klant voor zijn EIGEN domein. */
+  crawl_as_browser: boolean;
+  crawl_last_run_at: string | null;
+  crawl_last_mode: "meer" | "opnieuw" | null;
+  /** Wanneer de site voor het laatst met 403 antwoordde. */
+  crawl_last_blocked_at: string | null;
   /**
    * Entiteitsaanwezigheid (optimalisatie.md 7.4, migratie 0022). Of een merk in
    * Wikidata/Wikipedia voorkomt is een van de sterkste signalen waarmee
