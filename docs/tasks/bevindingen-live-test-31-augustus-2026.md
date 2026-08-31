@@ -2,7 +2,8 @@
 
 > **Stand op 31 augustus 2026:** punt 1, 2, 4 en 8 zijn opgelost, staan met een test in
 > `scripts/test-unit.ts`, en zijn daarna op productie nagelopen in de draaiende app
-> (conventie 10). Punt 3, 5, 6, 7 en de kleinere punten staan nog open.
+> (conventie 10). Punt 3, 5, 6, 7 en de kleinere punten staan nog open; de uitgewerkte
+> opdracht daarvoor staat in `docs/tasks/opdracht-bevindingen-5-tot-9.md`.
 >
 > Wat de hercontrole liet zien: de briefingkaart zegt nu "De briefing staat klaar" met een knop
 > Briefing invullen; de zin "Uitbreiding richting Oosterhout en Geertruidenberg." voegt niets meer
@@ -179,12 +180,14 @@ Dat kost niets, dus het is geen uitgavelek. Het is wel de regie-informatie die v
 
 ## Wat er van deze test op productie is achtergebleven
 
-Niets hiervan is opgeruimd, conform de opdracht. Zeg wat weg mag, dan ruimt de volgende sessie het op.
+Niets hiervan is opgeruimd. De eigenaar heeft op 31 augustus 2026 besloten dat de twee
+inlogaccounts blijven staan, zodat ze voor volgende tests herbruikbaar zijn. Van de rest: zeg wat
+weg mag, dan ruimt een volgende sessie het op.
 
 | Wat | Waar |
 |---|---|
 | Merk Wouter Warmtepomp, met meting, rapport, contentplan en briefing | profiel `b3d74993-8940-497d-a7fe-26973d921dda` |
 | Merk Van Loon Klimaattechniek, een fictief opwarmmerk zonder meting | profiel `a1d095a9-acf8-4a55-b8e3-c6930a0ccad0` |
-| Twee inlogaccounts | `e2e-consultant@orbit-test.nl` (beheerder) en `e2e-klant@orbit-test.nl` |
+| Twee inlogaccounts, **blijven staan voor toekomstige tests** | `e2e-consultant@orbit-test.nl` (beheerder) en `e2e-klant@orbit-test.nl` |
 | Een fictieve bedrijfswebsite | Vercel-project `van-loon-klimaattechniek`, aangemaakt om het opwarmmerk iets te laten uitlezen |
 | Verzonnen klantantwoorden over een echt bedrijf | `fact_requests` en `profile_strategy` bij het eerste profiel hierboven |
