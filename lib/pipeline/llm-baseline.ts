@@ -53,6 +53,7 @@ import {
 } from "@/lib/pipeline/baseline-verdict";
 import { remainingBudgetUsd } from "@/lib/pipeline/onboarding-budget";
 import { measureWebSearchEnabled } from "@/lib/config";
+import { enkelOfMeervoud } from "@/lib/format";
 import type { EngineAdapter } from "@/lib/engines/types";
 import type { HarvestedFact } from "@/lib/pipeline/structured-data";
 import type { Profile, ProfileOffering, ProfileTopic } from "@/lib/types/database";
@@ -608,7 +609,9 @@ async function beschrijf(
         ...kentOordelen.map((v) => v.contradicted),
       );
       if (tegengesproken > 0) {
-        delen.push(`spreekt ${tegengesproken} gegeven(s) tegen`);
+        // Geen haakjesvorm "gegeven(s)" meer in de regel die de klant als
+        // eerste ziet (punt 9 van docs/tasks/opdracht-bevindingen-5-tot-9.md).
+        delen.push(`spreekt ${tegengesproken} ${enkelOfMeervoud(tegengesproken, "gegeven", "gegevens")} tegen`);
       }
 
       if (categorieOordelen.length > 0) {

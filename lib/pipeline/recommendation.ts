@@ -13,6 +13,7 @@
  * dit type ook kunnen gebruiken.
  */
 import type { ContentAction, ContentType } from "@/lib/types/database";
+import { enkelOfMeervoud } from "@/lib/format";
 
 /** Eén gemiste vraag die deze pagina moet gaan winnen. */
 export interface RecommendationTarget {
@@ -172,6 +173,20 @@ export function mergeOverlappingRecommendations(
 }
 
 /**
+ * Getallen tot en met twaalf voluit, zoals `docs/schrijfstijl.md` voorschrijft
+ * voor lopende tekst ("Eén van de zes" leest beter dan "1 van de 6").
+ * Cijfers erboven blijven cijfers: niemand schrijft "zeventien" in een zin.
+ */
+const TELWOORDEN = [
+  "nul", "één", "twee", "drie", "vier", "vijf", "zes",
+  "zeven", "acht", "negen", "tien", "elf", "twaalf",
+] as const;
+
+function telwoord(n: number): string {
+  return n >= 0 && n < TELWOORDEN.length ? TELWOORDEN[n] : String(n);
+}
+
+/**
  * De verhouding nieuw tegenover verbeteren, in een zin (werkpakket B §4.3).
  *
  * Geen vast percentage: de verhouding is de UITKOMST van hoeveel bestaande
@@ -186,21 +201,29 @@ export function describeActionRatio(recommendations: StoredRecommendation[]): st
   const verbeteren = recommendations.length - nieuw;
 
   if (verbeteren === 0) {
-    const zin = nieuw === 1 ? "De ene aanbeveling is een nieuwe pagina" : `Alle ${nieuw} aanbevelingen zijn nieuwe pagina's`;
-    return (
-      `${zin}: geen van de bestaande pagina's dekte een gemeten gemis al goed genoeg om te verbeteren.`
-    );
+    const onderwerp = nieuw === 1 ? "De ene aanbeveling" : `Alle ${telwoord(nieuw)} aanbevelingen`;
+    const werkwoord = enkelOfMeervoud(nieuw, "is een nieuwe pagina", "zijn nieuwe pagina's");
+    return `${onderwerp} ${werkwoord}: geen van de bestaande pagina's dekte een gemeten gemis al goed genoeg om te verbeteren.`;
   }
   if (nieuw === 0) {
-    const zin =
-      verbeteren === 1
-        ? "De ene aanbeveling verbetert een bestaande pagina"
-        : `Alle ${verbeteren} aanbevelingen verbeteren een bestaande pagina`;
-    return `${zin}: de site dekt de gemeten onderwerpen al, maar nog niet overtuigend genoeg.`;
+    const onderwerp = verbeteren === 1 ? "De ene aanbeveling" : `Alle ${telwoord(verbeteren)} aanbevelingen`;
+    const werkwoord = enkelOfMeervoud(verbeteren, "verbetert", "verbeteren");
+    return `${onderwerp} ${werkwoord} een bestaande pagina: de site dekt de gemeten onderwerpen al, maar nog niet overtuigend genoeg.`;
   }
+
+  // Het gemengde geval: allebei minstens één. Precies hier zat de fout, want
+  // "1 van de 6" is bij nul en veel altijd het begin van een correcte zin,
+  // maar bij precies één aan een van beide kanten niet.
+  const nieuwOnderwerp = nieuw === 1 ? "Eén" : telwoord(nieuw);
+  const nieuwWerkwoord = enkelOfMeervoud(nieuw, "is een nieuwe pagina", "zijn nieuwe pagina's");
+  // Bij precies één is "de andere" al enkelvoud: "de andere 1 verbeteren" had
+  // zowel een overbodig cijfer als het verkeerde werkwoord.
+  const verbeterenAantal = verbeteren === 1 ? "" : ` ${telwoord(verbeteren)}`;
+  const verbeterenWerkwoord = enkelOfMeervoud(verbeteren, "verbetert", "verbeteren");
   return (
-    `${nieuw} van de ${recommendations.length} aanbevelingen zijn nieuwe pagina's, de andere ` +
-    `${verbeteren} verbeteren een bestaande pagina die het onderwerp al gedeeltelijk dekt.`
+    `${nieuwOnderwerp} van de ${telwoord(recommendations.length)} aanbevelingen ${nieuwWerkwoord}, ` +
+    `de andere${verbeterenAantal} ${verbeterenWerkwoord} een bestaande pagina die het onderwerp al ` +
+    `gedeeltelijk dekt.`
   );
 }
 

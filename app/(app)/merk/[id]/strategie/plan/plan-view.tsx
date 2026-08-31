@@ -14,6 +14,7 @@ import {
   isPastMonth,
   formatDagNL,
   datumProbleem,
+  schrijfBelofte,
 } from "@/lib/plan-schedule";
 import {
   filterBacklog,
@@ -317,6 +318,21 @@ export function PlanView({
     await stuur(page.id, { actie: "verplaats", richting }, null);
   }
 
+  /**
+   * De vroegste publicatiedatum in een maand, voor `schrijfBelofte()`: zonder
+   * dit blijft de vrijgeef-melding "tien dagen voor elke publicatiedatum"
+   * beloven terwijl de eerste pagina al over drie dagen moet (punt 5 van
+   * docs/tasks/opdracht-bevindingen-5-tot-9.md).
+   */
+  function eersteDatumVanMaand(monthId: string): string | null {
+    return (
+      echt
+        .filter((p) => p.plan_month_id === monthId && p.scheduled_for && p.status !== "geplaatst")
+        .map((p) => p.scheduled_for as string)
+        .sort()[0] ?? null
+    );
+  }
+
   async function maandActie(month: PlanMonth, actie: "goedkeuren" | "afwijzen") {
     setBusy(month.id);
     try {
@@ -342,7 +358,7 @@ export function PlanView({
             : `Maand ${month.month_number} afgewezen`,
         description:
           actie === "goedkeuren"
-            ? "ORBIT ENGINE begint tien dagen voor elke publicatiedatum met schrijven."
+            ? `${schrijfBelofte(eersteDatumVanMaand(month.id))} met schrijven.`
             : "De pagina's blijven staan; je kunt de maand opnieuw samenstellen.",
       });
       router.refresh();
@@ -1028,7 +1044,9 @@ export function PlanView({
         title={`Maand ${monthDialog?.month_number ?? ""} vrijgeven`}
         body={`Je geeft ${
           echt.filter((p) => p.plan_month_id === monthDialog?.id).length
-        } pagina's in één keer vrij om geschreven te worden. ORBIT ENGINE begint tien dagen voor elke publicatiedatum, en legt elke tekst daarna aan jou voor.`}
+        } pagina's in één keer vrij om geschreven te worden. ${schrijfBelofte(
+          monthDialog ? eersteDatumVanMaand(monthDialog.id) : null,
+        )}, en legt elke tekst daarna aan jou voor.`}
         irreversible={{
           title: "Dit zet het schrijven in gang",
           description:

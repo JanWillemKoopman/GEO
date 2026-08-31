@@ -228,6 +228,8 @@ import {
   spreadDates,
   resequenceMonth,
   datumProbleem,
+  maandIsVol,
+  schrijfBelofte,
 } from "@/lib/plan-schedule";
 import { sharedNotice } from "@/lib/plan-overview";
 import {
@@ -405,7 +407,12 @@ import {
   snapshotsGelijk,
   type TopicRoundSnapshot,
 } from "@/lib/pipeline/topic-round-diff";
-import { beoordeelClaim } from "@/lib/pipeline/claim-plausibility";
+import {
+  beoordeelClaim,
+  ontbrekendeOnderbouwing,
+  marktclaimUitleg,
+  MARKTCLAIM_UITLEG,
+} from "@/lib/pipeline/claim-plausibility";
 import { ONBOARDING_NEXT, nextInChain } from "@/lib/jobs/chain";
 import { extractConfusions } from "@/lib/pipeline/baseline-verdict";
 import {
@@ -448,7 +455,7 @@ import {
   toPackageSize,
   packageLabel,
 } from "@/lib/package-sizes";
-import { formatDateShort, formatDateLong, formatRelativeTime, formatNumber } from "@/lib/format";
+import { formatDateShort, formatDateLong, formatRelativeTime, formatNumber, formatUsd, enkelOfMeervoud } from "@/lib/format";
 import { describeToneSliders, clampToneSlider } from "@/lib/pipeline/tone-sliders";
 import { versionReasonLabel } from "@/lib/pipeline/version-reason";
 import { checkTabooWords } from "@/lib/pipeline/content-gate";
@@ -898,21 +905,75 @@ group("De verhouding nieuw/verbeteren in een zin (werkpakket B §4.3)", () => {
     targets: [],
   });
 
+  const lijst = (nieuw: number, verbeteren: number): StoredRecommendation[] => [
+    ...Array.from({ length: nieuw }, () => stored("nieuw")),
+    ...Array.from({ length: verbeteren }, () => stored("verbeteren")),
+  ];
+
   ok("geen aanbevelingen levert geen zin op", describeActionRatio([]) === null);
   ok(
-    "allemaal nieuw krijgt een eigen zin",
-    describeActionRatio([stored("nieuw"), stored("nieuw")])!.includes("Alle 2 aanbevelingen zijn nieuwe"),
+    "allemaal nieuw krijgt een eigen zin, met het telwoord voluit",
+    describeActionRatio(lijst(2, 0))!.includes("Alle twee aanbevelingen zijn nieuwe"),
   );
   ok(
     "één verbetering krijgt een eigen zin, geen 'alle 1'",
-    describeActionRatio([stored("verbeteren")])!.includes("De ene aanbeveling verbetert"),
+    describeActionRatio(lijst(0, 1))!.includes("De ene aanbeveling verbetert"),
   );
   ok(
-    "meerdere verbeteringen gebruiken wel 'alle'",
-    describeActionRatio([stored("verbeteren"), stored("verbeteren")])!.includes("Alle 2 aanbevelingen verbeteren"),
+    "meerdere verbeteringen gebruiken wel 'alle', met het telwoord voluit",
+    describeActionRatio(lijst(0, 2))!.includes("Alle twee aanbevelingen verbeteren"),
   );
-  const gemengd = describeActionRatio([stored("nieuw"), stored("nieuw"), stored("verbeteren")])!;
-  ok("gemengd noemt beide aantallen", gemengd.includes("2 van de 3") && gemengd.includes("de andere 1"), gemengd);
+
+  // ⚠️ Het randgeval van punt 7 (docs/tasks/opdracht-bevindingen-5-tot-9.md):
+  // "1 van de 6 aanbevelingen zijn nieuwe pagina's, de andere 5 verbeteren"
+  // was dubbel fout Nederlands ("1 ... zijn" en "de andere 1 verbeteren" bij
+  // precies één aan een kant). Deze lus draait alle combinaties van 0 tot en
+  // met 3 aan beide kanten, plus de twee genoemde randgevallen 1 op 7 en 7 op
+  // 1, en controleert bij elke uitkomst dat geen van beide fouten erin zit.
+  for (let nieuw = 0; nieuw <= 3; nieuw++) {
+    for (let verbeteren = 0; verbeteren <= 3; verbeteren++) {
+      const zin = describeActionRatio(lijst(nieuw, verbeteren));
+      if (nieuw === 0 && verbeteren === 0) {
+        ok(`0 nieuw en 0 verbeteren levert geen zin op`, zin === null);
+        continue;
+      }
+      ok(`${nieuw} nieuw, ${verbeteren} verbeteren is een lopende zin`, typeof zin === "string" && zin.length > 0);
+      ok(
+        `${nieuw} nieuw, ${verbeteren} verbeteren zegt nergens "1 ... zijn"`,
+        !/\b1\b[^.]*\bzijn\b/.test(zin ?? ""),
+        zin ?? "",
+      );
+      ok(
+        `${nieuw} nieuw, ${verbeteren} verbeteren zegt nergens "de andere 1 verbeteren"`,
+        !(zin ?? "").includes("de andere 1 verbeteren"),
+        zin ?? "",
+      );
+    }
+  }
+  for (const [nieuw, verbeteren] of [
+    [1, 6],
+    [6, 1],
+  ] as const) {
+    const zin = describeActionRatio(lijst(nieuw, verbeteren))!;
+    ok(
+      `${nieuw} op ${verbeteren} is een lopende zin zonder "1 ... zijn" of "de andere 1 verbeteren"`,
+      !/\b1\b[^.]*\bzijn\b/.test(zin) && !zin.includes("de andere 1 verbeteren"),
+      zin,
+    );
+  }
+
+  const eenOpZes = describeActionRatio(lijst(1, 5))!;
+  ok(
+    "één nieuw op vijf verbeteren: 'Eén' en 'is', geen '1' en geen 'zijn'",
+    eenOpZes.startsWith("Eén van de zes aanbevelingen is een nieuwe pagina"),
+    eenOpZes,
+  );
+  const vijfOpEen = describeActionRatio(lijst(5, 1))!;
+  ok(
+    "vijf nieuw op één verbeteren: 'de andere verbetert', geen 'de andere 1'",
+    vijfOpEen.includes("de andere verbetert een bestaande pagina"),
+    vijfOpEen,
+  );
 });
 
 group("GEO-score", () => {
@@ -3332,9 +3393,32 @@ group("het volledige oordeel en hoe de klant het leest", () => {
 
   const tekst = describeVerdict(v, "ChatGPT", "Fysi-Unique");
   ok("de zin noemt de tegenspraak", tekst.includes("tegengesproken"), tekst);
+  // ⚠️ Precies één tegenspraak: geen haakjesvorm "gegeven(s)" meer, en het
+  // werkwoord buigt mee (punt 9 van docs/tasks/opdracht-bevindingen-5-tot-9.md).
+  ok(
+    "en dat is enkelvoud, geen haakjesvorm",
+    tekst.includes("1 gegeven wordt tegengesproken") && !tekst.includes("gegeven(s)"),
+    tekst,
+  );
 
   const onbekend = buildVerdict("Ik ken dit bedrijf niet.", "Fysi-Unique", [], []);
   ok("niet gekend levert een andere zin", describeVerdict(onbekend, "Gemini", "Fysi-Unique").includes("niet te kennen"));
+
+  const meerdereGegevens = buildVerdict(
+    "Fysi-Unique is opgericht in 1990. Bel ons op 020 999 8877.",
+    "Fysi-Unique",
+    [],
+    [
+      { key: "telefoon", value: "033 123 4567" },
+      { key: "opgericht", value: "2005" },
+    ],
+  );
+  const tekstMeerdere = describeVerdict(meerdereGegevens, "Claude", "Fysi-Unique");
+  ok(
+    "twee tegenspraken worden meervoud",
+    tekstMeerdere.includes("gegevens worden tegengesproken"),
+    tekstMeerdere,
+  );
 });
 
 group("contextfactoren: wat de pijplijn niet kan zien (blok C)", () => {
@@ -4548,6 +4632,76 @@ group("de lopende maand plant niet in het verleden (plan-schedule)", () => {
     "aan het eind van de maand blijft alles binnen dag 28",
     bijnaVoorbij.every((d) => d >= "2026-08-28" && d <= "2026-08-28"),
     bijnaVoorbij.join(", "),
+  );
+});
+
+group("een volle maand levert een lege lijst, nooit een datum in het verleden (plan-schedule)", () => {
+  // ⚠️ De aanleiding: bij Wouter Warmtepomp is het plan op 31 augustus 2026
+  // opgesteld. `now.getDate() + 1` werd dan 32, en `Math.min(28, 32)` klemde
+  // dat terug naar dag 28, drie dagen in het verleden. Alle zeven pagina's van
+  // maand 1 kregen zo een publicatiedatum die al voorbij was (punt 5 van
+  // docs/tasks/opdracht-bevindingen-5-tot-9.md).
+  const op31Augustus = new Date("2026-08-31T10:00:00Z");
+  ok(
+    "op 31 augustus is er geen bruikbare dag meer over",
+    spreadDates("2026-08-01", 1, 7, op31Augustus).length === 0,
+  );
+  ok("dus maandIsVol() zegt hetzelfde", maandIsVol("2026-08-01", 1, op31Augustus) === true);
+
+  // Op de 20e is er nog volop ruimte: zeven data, allemaal ná vandaag en
+  // binnen dag 28.
+  const op20Augustus = new Date("2026-08-20T10:00:00Z");
+  const zevenOpDe20e = spreadDates("2026-08-01", 1, 7, op20Augustus);
+  ok("op 20 augustus levert de aanroep zeven data op", zevenOpDe20e.length === 7);
+  ok(
+    "en ze liggen allemaal ná vandaag, binnen dag 28",
+    zevenOpDe20e.every((d) => d > "2026-08-20" && Number(d.slice(8)) <= 28),
+    zevenOpDe20e.join(", "),
+  );
+  ok("dus maandIsVol() zegt hier van niet", maandIsVol("2026-08-01", 1, op20Augustus) === false);
+
+  // ⚠️ De volledige lus uit het verificatiecriterium: voor elke dag van de
+  // maand (1 tot en met 31) en elk aantal pagina's (1 tot en met 20) mag er
+  // NOOIT een datum uitkomen die vóór `now` ligt. Vóór de reparatie brak dit
+  // bij elke dag vanaf de 28e: de geklemde datum kwam dan vóór vandaag te
+  // liggen.
+  let overtredingen = 0;
+  for (let dag = 1; dag <= 31; dag++) {
+    const vandaag = new Date(Date.UTC(2026, 7, Math.min(dag, 31), 10));
+    const vandaagIso = vandaag.toISOString().slice(0, 10);
+    for (let aantal = 1; aantal <= 20; aantal++) {
+      const data = spreadDates("2026-08-01", 1, aantal, vandaag);
+      if (data.some((d) => d <= vandaagIso)) overtredingen++;
+    }
+  }
+  ok(
+    "geen enkele datum ligt ooit op of vóór vandaag, voor elke dag en elk aantal pagina's",
+    overtredingen === 0,
+    `${overtredingen} overtredingen`,
+  );
+});
+
+group("de voorsprongzin past zich aan (plan-schedule, schrijfBelofte)", () => {
+  // ⚠️ "ORBIT ENGINE begint tien dagen voor elke publicatiedatum" klopt niet
+  // als de eerste pagina al over drie dagen moet. Zie punt 5 van
+  // docs/tasks/opdracht-bevindingen-5-tot-9.md.
+  const nu = new Date("2026-08-20T10:00:00Z");
+  ok(
+    "geen datum: de gewone voorsprongzin",
+    schrijfBelofte(null, nu) === "ORBIT ENGINE begint tien dagen voor elke publicatiedatum",
+  );
+  ok(
+    "een datum ver genoeg weg: dezelfde voorsprongzin",
+    schrijfBelofte("2026-09-05", nu) === "ORBIT ENGINE begint tien dagen voor elke publicatiedatum",
+    `precies tien dagen verschil`,
+  );
+  ok(
+    "een datum over drie dagen: de zin past zich aan",
+    schrijfBelofte("2026-08-23", nu) === "ORBIT ENGINE begint zodra de maand is vrijgegeven",
+  );
+  ok(
+    "vandaag zelf: ook aangepast",
+    schrijfBelofte("2026-08-20", nu) === "ORBIT ENGINE begint zodra de maand is vrijgegeven",
   );
 });
 
@@ -6453,6 +6607,21 @@ group("het contentplan zoals de klant het leest", () => {
     "een lege maand zegt dat",
     maandRegel({ paginas: 0, geplaatst: 0, eersteDatum: null }) === "Nog niets ingepland.",
   );
+  // ⚠️ Twee lege maanden die niets met elkaar te maken hebben (punt 5 van
+  // docs/tasks/opdracht-bevindingen-5-tot-9.md): een maand die de klant zelf
+  // nog niet gevuld heeft, en maand 1 die geen bruikbare dag meer over had
+  // toen het plan werd opgesteld. "Nog niets ingepland" leest bij de tweede
+  // als een taak voor de klant, terwijl er niets te doen viel.
+  ok(
+    "leeg door ruimtegebrek krijgt een eigen zin",
+    maandRegel({ paginas: 0, geplaatst: 0, eersteDatum: null, leegDoorRuimtegebrek: true }) ===
+      "Deze maand is te ver gevorderd om nog te publiceren, dus je plan begint volgende maand.",
+  );
+  ok(
+    "een gevulde maand negeert de vlag",
+    maandRegel({ paginas: 2, geplaatst: 0, eersteDatum: null, leegDoorRuimtegebrek: true }) ===
+      "2 pagina's deze maand.",
+  );
 
   // ── Reservepagina's tellen niet mee ──────────────────────────────────────
   //
@@ -7628,7 +7797,11 @@ group("describeMix: wat het kost en wat het oplevert", () => {
   const zin = describeMix(DEFAULT_MIX);
   ok("noemt het totaal", zin.includes("30 vragen"));
   // $0,024 per vraag maal 30 is $0,72. Gemeten over 428 echte metingen.
-  ok("noemt de maandkosten", zin.includes("$0.72"));
+  // ⚠️ Met een komma, niet een punt: punt 9 van
+  // docs/tasks/opdracht-bevindingen-5-tot-9.md. Dit was tot 31 augustus 2026
+  // letterlijk "$0.72" en dat botste in dezelfde zin met "±16,4 punten".
+  ok("noemt de maandkosten, in de Nederlandse schrijfwijze", zin.includes("$0,72"));
+  ok("en niet meer de punt-schrijfwijze", !zin.includes("$0.72"));
   // Bij dertig vragen en een score rond 30 is de 95%-band ±16,4 punten.
   ok("en de onzekerheidsmarge", zin.includes("16,4"));
 
@@ -7636,8 +7809,21 @@ group("describeMix: wat het kost en wat het oplevert", () => {
   // band, niet de helft. Dat is precies wat iemand moet weten vóórdat hij het
   // getal omhoog zet.
   const zestig = describeMix({ "Oriëntatie": 20, "Overweging": 20, "Beslissing": 20 });
-  ok("zestig vragen kost twee keer zoveel", zestig.includes("$1.44"));
+  ok("zestig vragen kost twee keer zoveel", zestig.includes("$1,44"));
   ok("maar de marge wordt maar een kwart smaller", zestig.includes("11,6"));
+});
+
+group("formatUsd: de Nederlandse schrijfwijze voor een dollarbedrag (punt 9)", () => {
+  ok("30 vragen: $0,72", formatUsd(30 * 0.024) === "$0,72");
+  ok("60 vragen: $1,44", formatUsd(60 * 0.024) === "$1,44");
+  ok("een rond getal krijgt toch twee decimalen", formatUsd(2) === "$2,00");
+  ok("er komt nooit een punt in te staan", !formatUsd(1234.5).includes("."));
+});
+
+group("enkelOfMeervoud: één hulpstuk voor heel de app (punt 9)", () => {
+  ok("één is enkelvoud", enkelOfMeervoud(1, "punt", "punten") === "punt");
+  ok("nul is meervoud", enkelOfMeervoud(0, "punt", "punten") === "punten");
+  ok("twee is meervoud", enkelOfMeervoud(2, "punt", "punten") === "punten");
 });
 
 group("suggestPromptMix: grotere clusters krijgen meer vragen (werkpakket B punt 2)", () => {
@@ -10296,6 +10482,41 @@ group("Niet alle klantinput is gelijk (claim-plausibility.ts, werkpakket A §3.4
     "een gewone zin over het eigen werk is geen marktclaim",
     !beoordeelClaim("Wij monteren de kozijnen binnen één dag").isMarktclaim,
   );
+
+  // ── Wat ontbreekt er precies? (punt 6 van opdracht-bevindingen-5-tot-9.md) ──
+  ok(
+    "'de snelste' vraagt om een cijfer",
+    ontbrekendeOnderbouwing("Wij zijn de snelste van de regio") === "cijfer",
+  );
+  ok(
+    "'marktleider' vraagt om een bron",
+    ontbrekendeOnderbouwing("Wij zijn marktleider in Nederland") === "bron",
+  );
+  ok(
+    "'de enige die' vraagt om een voorbeeld",
+    ontbrekendeOnderbouwing("Wij zijn de enige die dit aanbiedt in de regio") === "voorbeeld",
+  );
+  ok(
+    "staat er al een cijfer of link bij, dan ontbreekt er niets meer",
+    ontbrekendeOnderbouwing("Wij zijn de snelste, gemiddeld binnen 2 uur ter plaatse") === null,
+  );
+  ok(
+    "een gewone zin heeft niets te missen",
+    ontbrekendeOnderbouwing("Wij monteren de kozijnen binnen één dag") === null,
+  );
+
+  // ── De concrete zin op het scherm ────────────────────────────────────────
+  ok(
+    "de klant leest wat er specifiek ontbreekt, niet alleen dat er iets ontbreekt",
+    marktclaimUitleg("Wij zijn de snelste van de regio") ===
+      "Dit klinkt als een claim over de markt of de concurrentie, geen mededeling over jullie eigen " +
+        "werk. Noem er een cijfer bij, dan mag deze zin in je teksten. Laat je het antwoord zoals het " +
+        "is, dan blijft de tekst er voorzichtig over.",
+  );
+  ok(
+    "zonder een herkend patroon valt de zin terug op de algemene uitleg",
+    marktclaimUitleg("Wij zijn dinsdag dicht") === MARKTCLAIM_UITLEG,
+  );
 });
 
 group("de knopenselectie kapt 60 knopen af op 12, met de prioriteiten bovenaan", () => {
@@ -12392,6 +12613,95 @@ group("de werklijst kent de briefingfase (bevinding 1)", () => {
     if (!naam || naam === "published" || naam === "ready" || naam === "archived") continue;
     ok(`work.ts weet raad met "${naam}"`, bron.includes(`piece.status === "${naam}"`));
   }
+});
+
+group("beide helften van 'Stel nieuwe clusters voor' zijn afgeschermd (punt 8)", () => {
+  // ⚠️ De `POST` was op slot, de `GET` ernaast niet: die controleerde alleen
+  // eigendom, dus een klantaccount kreeg gewoon de vooruitblik te zien. Zelfde
+  // patroon als bij punt 1 van de vorige ronde (`work.ts` en `ContentStatus`):
+  // deze test leest de broncode en eist dat élke exportfunctie in dit bestand
+  // `mayTriggerCost` aanroept, zodat de volgende routehelft die erbij komt
+  // niet stil onbeschermd kan blijven.
+  const bron = leesBestand("app/api/profiles/[id]/topics/refresh/route.ts");
+  ok("het bestand is gevonden", bron.length > 0);
+
+  const functies = [...bron.matchAll(/export async function (\w+)\(/g)].map((m) => m[1]);
+  ok("er staan minstens twee routehelften in (GET en POST)", functies.length >= 2, functies.join(", "));
+
+  for (const naam of functies) {
+    // Het lichaam van deze ene functie: van zijn eigen `export async function`
+    // tot aan de volgende (of het einde van het bestand). Zo raakt een
+    // aanroep in een ANDERE functie deze telling niet.
+    const start = bron.indexOf(`export async function ${naam}(`);
+    const volgende = bron.indexOf("export async function ", start + 1);
+    const lichaam = bron.slice(start, volgende === -1 ? undefined : volgende);
+    ok(`${naam} roept mayTriggerCost aan`, lichaam.includes("mayTriggerCost("));
+  }
+});
+
+group("geen haakjesmeervoud meer in klanttekst (punt 9)", () => {
+  // ⚠️ "en nog 6 punt(en)" op het briefingscherm, en dezelfde fout bij
+  // "gegeven(s)" (de reputatiesamenvatting) en "bewering(en)" (de
+  // redactienotitie), zie docs/tasks/opdracht-bevindingen-5-tot-9.md. De vorm
+  // is herkenbaar aan zijn vorm: een geteld aantal (`${...}`), gevolgd door
+  // een woord met de meervoudsvorm tussen haakjes. Dat is precies wat een
+  // logregel voor jezelf ook doet ("2 veld(en) wél opgeslagen"), dus die
+  // blijven met opzet in de UITZONDERINGEN: ze zijn niet voor de klant, net
+  // als de bedragen in logregels verderop.
+  //
+  // Commentaar eraf vóór het zoeken: anders valt deze test over zijn EIGEN
+  // uitleg hierboven, die het patroon als voorbeeld citeert.
+  const zonderCommentaar = (bron: string) =>
+    bron.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
+
+  function bestandenOnder(map: string, extensies: string[]): string[] {
+    const uit: string[] = [];
+    let inhoud: { name: string; isDirectory: () => boolean }[];
+    try {
+      inhoud = readdirSync(map, { withFileTypes: true, encoding: "utf8" });
+    } catch {
+      return uit;
+    }
+    for (const item of inhoud) {
+      const pad = join(map, item.name);
+      if (item.isDirectory()) uit.push(...bestandenOnder(pad, extensies));
+      else if (extensies.some((e) => item.name.endsWith(e))) uit.push(pad);
+    }
+    return uit;
+  }
+
+  const UITZONDERINGEN = [
+    "veld(en) wél opgeslagen", // console.error, app/api/profiles/route.ts en [id]/route.ts
+    "Engine(s) overgeslagen", // console.warn, lib/engines/registry.ts
+    "gelijknamige partij(en) voorgesteld", // console.info, lib/pipeline/llm-baseline.ts
+    "niet-onderbouwde bewering(en)", // console.warn, lib/pipeline/report.ts
+    "onderwerp(en) hersteld", // console.info, lib/pipeline/offering.ts
+  ];
+
+  const bestanden = [
+    ...bestandenOnder("app/(app)", [".ts", ".tsx"]),
+    ...bestandenOnder("lib", [".ts"]),
+  ];
+
+  // Het patroon van de fout: een geteld aantal, direct gevolgd door een woord
+  // met een haakjesmeervoud. Dat onderscheidt "${x} punt(en)" van code als
+  // `setSegment(s)` of `Boolean(n)`, die nooit een `${...}` ervoor hebben.
+  const PATROON = /\$\{[^}]*\}\s*[a-zà-ÿ]+\((en|s)\)/gi;
+  const treffers: string[] = [];
+  for (const pad of bestanden) {
+    const bron = zonderCommentaar(readFileSync(pad, "utf8"));
+    for (const regel of bron.split("\n")) {
+      if (!PATROON.test(regel)) continue;
+      PATROON.lastIndex = 0;
+      if (UITZONDERINGEN.some((u) => regel.includes(u))) continue;
+      treffers.push(`${pad}: ${regel.trim()}`);
+    }
+  }
+  ok(
+    "geen haakjesmeervoud meer in klanttekst onder app/(app) en lib/",
+    treffers.length === 0,
+    treffers.join(" | "),
+  );
 });
 
 // ════════════════════════════════════════════════════════════════════════════

@@ -2638,9 +2638,21 @@ async function main(): Promise<void> {
 
     // ⚠️ Eén pagina per maand, zodat de voorzet moet KIEZEN. Met twee zouden
     // beide kansen in maand 1 belanden en zou de test niets bewijzen.
+    //
+    // ⚠️ Vaste `startedOn`, een heel jaar verderop. Zonder dat argument leest
+    // `createPlan()` de echte klok, en de rest van dit scenario (verderop
+    // `assignToMonth()` en `setPageDate()`, die geen `now` kunnen krijgen)
+    // rekent ALTIJD tegen de echte klok, ongeacht wat hier staat. Ligt een van
+    // de twaalf maanden van dit plan toevallig in dezelfde kalendermaand als
+    // vandaag, dan geldt daar dezelfde grens als in `maandIsVol()` (punt 5 van
+    // docs/tasks/opdracht-bevindingen-5-tot-9.md) en breekt dat bij "de datum
+    // zelf zetten" verderop in dit scenario met "Die dag is al voorbij".
+    // Zelfde reden waarom de tests in `plan-schedule` een `now` gebruiken die
+    // een jaar van de geteste maand vandaan ligt.
     const planResultaat = await createPlan(admin as never, {
       profileId: planPotProfileId,
       pagesPerMonth: 1,
+      startedOn: new Date("2027-06-10T00:00:00Z"),
     });
     ok(
       "het plan wordt gemaakt",
@@ -2936,6 +2948,156 @@ async function main(): Promise<void> {
       ok(
         "maar vervalt bij een verhuizing naar een andere maand",
         naVerhuizing[0].scheduled_manual === false,
+      );
+    }
+
+    // ══════════════════════════════════════════════════════════════════════
+    // Een plan dat te laat in de maand start, begint in maand 2
+    // (punt 5, docs/tasks/opdracht-bevindingen-5-tot-9.md)
+    // ══════════════════════════════════════════════════════════════════════
+    //
+    // ⚠️ DE SAMENHANG DIE HIER FOUT KAN GAAN: `spreadDates()` geeft terecht
+    // een lege lijst terug als maand 1 geen bruikbare dag meer over heeft,
+    // maar `createPlan()` moet die lege lijst OPVANGEN en de voorzet naar
+    // maand 2 zetten in plaats van pagina's zonder datum in maand 1 achter te
+    // laten. Geen enkele unittest op `spreadDates()` alleen kan zien of de
+    // aanroeper dat ook echt doet: dat is precies waar het bij Wouter
+    // Warmtepomp misging op 31 augustus 2026, toen alle zeven pagina's van
+    // maand 1 een publicatiedatum in het verleden kregen.
+    console.log("\nEen plan dat te laat in de maand start, begint in maand 2 (punt 5)");
+    {
+      const teLaatUserId = randomUUID();
+      const teLaatProfileId = randomUUID();
+      const teLaatAnalyseId = randomUUID();
+      const teLaatTopicId = randomUUID();
+      const teLaatPromptId = randomUUID();
+      const teLaatRunId = randomUUID();
+
+      await db.client.query("insert into auth.users (id, email) values ($1, $2)", [
+        teLaatUserId,
+        "telaatinmaand@example.com",
+      ]);
+      await db.client.query(
+        `insert into public.profiles (id, user_id, name, url, brand_name, status)
+         values ($1, $2, 'Te Laat BV', 'https://telaat-bv.nl', 'Te Laat BV', 'klaar')`,
+        [teLaatProfileId, teLaatUserId],
+      );
+      await db.client.query(
+        `insert into public.analyses (id, user_id, profile_id, name, url, topic, status)
+         values ($1, $2, $3, 'warmtepomp', 'https://telaat-bv.nl', 'warmtepomp', 'gereed')`,
+        [teLaatAnalyseId, teLaatUserId, teLaatProfileId],
+      );
+      await db.client.query(
+        `insert into public.profile_topics (id, profile_id, analysis_id, title, priority, status, search_volume_index)
+         values ($1, $2, $3, 'warmtepomp', 5, 'goedgekeurd', 50)`,
+        [teLaatTopicId, teLaatProfileId, teLaatAnalyseId],
+      );
+      await db.client.query(
+        `insert into public.prompts (id, analysis_id, text, category, active)
+         values ($1, $2, 'Waar vind ik een warmtepomp?', 'Beslissing', true)`,
+        [teLaatPromptId, teLaatAnalyseId],
+      );
+      await db.client.query(
+        `insert into public.tracking_runs
+           (id, analysis_id, prompt_id, prompt_text_snapshot, prompt_category_snapshot, week_no, purpose)
+         values ($1, $2, $3, 'Waar vind ik een warmtepomp?', 'Beslissing', 0, 'periodic')`,
+        [teLaatRunId, teLaatAnalyseId, teLaatPromptId],
+      );
+      await db.client.query(
+        `insert into public.tracking_run_mentions (tracking_run_id, entity_name, is_own_brand, mentioned)
+         values ($1, 'Te Laat BV', true, false)`,
+        [teLaatRunId],
+      );
+      await db.client.query(
+        "insert into public.visibility_scores (analysis_id, week_no, score) values ($1, 0, 0)",
+        [teLaatAnalyseId],
+      );
+      await db.client.query(
+        `insert into public.reports (analysis_id, period, recommendations_json)
+         values ($1, 'week 0', $2::jsonb)`,
+        [
+          teLaatAnalyseId,
+          JSON.stringify([
+            {
+              title: "Warmtepomp laten installeren in een bestaande woning",
+              why: "De AI noemt ons niet.",
+              type: "landing",
+              action: "nieuw",
+              targetIntent: "Iemand die een warmtepomp zoekt",
+              targets: [
+                { promptId: teLaatPromptId, weight: 1, text: "Waar vind ik een warmtepomp?" },
+              ],
+            },
+          ]),
+        ],
+      );
+
+      // Exact het scenario van Wouter Warmtepomp: het plan wordt op de
+      // laatste dag van de maand opgesteld. `now` gaat expliciet mee zodat
+      // deze test hetzelfde uitkomt ongeacht de werkelijke datum waarop hij
+      // draait (dezelfde reden waarom `spreadDates()`-tests altijd een vaste
+      // `now` meegeven).
+      const opDe31e = new Date("2026-08-31T09:00:00Z");
+      const planResultaat = await createPlan(admin as never, {
+        profileId: teLaatProfileId,
+        pagesPerMonth: 5,
+        startedOn: opDe31e,
+        now: opDe31e,
+      });
+      ok(
+        "het plan wordt gemaakt, ook als maand 1 vol is",
+        planResultaat.ok,
+        planResultaat.ok ? "" : JSON.stringify((planResultaat as { problems: string[] }).problems),
+      );
+
+      const { rows: teLaatMaanden } = await db.client.query(
+        `select pm.month_number, pm.status,
+                (select count(*)::int from public.planned_pages pp
+                  where pp.plan_month_id = pm.id and pp.is_buffer = false) as aantal
+           from public.plan_months pm
+           join public.content_plans cp on cp.id = pm.plan_id
+          where cp.profile_id = $1 and cp.status <> 'gestopt'
+          order by pm.month_number`,
+        [teLaatProfileId],
+      );
+      const teLaatMaand1 = teLaatMaanden.find((m: { month_number: number }) => m.month_number === 1);
+      const teLaatMaand2 = teLaatMaanden.find((m: { month_number: number }) => m.month_number === 2);
+
+      ok(
+        "maand 1 blijft leeg",
+        teLaatMaand1?.aantal === 0,
+        `maand 1 kreeg ${teLaatMaand1?.aantal} pagina's`,
+      );
+      ok(
+        "en blijft dus concept, er is niets om aan de klant voor te leggen",
+        teLaatMaand1?.status === "concept",
+        `status was ${teLaatMaand1?.status}`,
+      );
+      ok(
+        "de voorzet staat in maand 2",
+        teLaatMaand2?.aantal === 1,
+        `maand 2 kreeg ${teLaatMaand2?.aantal} pagina's`,
+      );
+      ok(
+        "en maand 2 staat ter goedkeuring",
+        teLaatMaand2?.status === "ter_goedkeuring",
+        `status was ${teLaatMaand2?.status}`,
+      );
+
+      const { rows: teLaatPagina } = await db.client.query(
+        `select pp.scheduled_for from public.planned_pages pp
+           join public.plan_months pm on pm.id = pp.plan_month_id
+          where pm.month_number = 2 and pp.profile_id = $1`,
+        [teLaatProfileId],
+      );
+      const teLaatDatum = teLaatPagina[0]?.scheduled_for
+        ? new Date(teLaatPagina[0].scheduled_for).toISOString().slice(0, 10)
+        : null;
+      // September 2026: geen enkele datum meer in augustus, en binnen dag 28.
+      ok(
+        "die pagina krijgt een datum in september, niet in het verleden",
+        typeof teLaatDatum === "string" && teLaatDatum >= "2026-09-01" && teLaatDatum <= "2026-09-28",
+        `datum was ${teLaatDatum}`,
       );
     }
 
@@ -4450,6 +4612,131 @@ async function main(): Promise<void> {
         [gapProfileId],
       );
       ok("wat beantwoord is telt niet meer mee als open", nogOpen[0].n === 1, String(nogOpen[0].n));
+    }
+
+    // ════════════════════════════════════════════════════════════════════════
+    // De uitleg bij een marktclaim blijft nooit meer weg (punt 6,
+    // docs/tasks/opdracht-bevindingen-5-tot-9.md)
+    //
+    // ⚠️ DE SAMENHANG DIE HIER FOUT KAN GAAN: `answerFact()` moet twee
+    // besluiten LOS van elkaar nemen. Vóór de reparatie hing de uitleg aan de
+    // vertakking op `isGapQuestion()`, die meteen terugkeerde: een gapvraag
+    // met een superlatief liet dan geen enkele uitleg zien. Deze vier
+    // gevallen (gap × wel/geen claim, clustervraag × wel/geen claim) zijn
+    // precies de vier combinaties uit het verificatiecriterium, tegen de
+    // echte functie en de echte database.
+    // ════════════════════════════════════════════════════════════════════════
+    console.log("\nDe uitleg bij een marktclaim blijft nooit meer weg (punt 6)");
+    {
+      const { answerFact } = await import("@/lib/facts");
+
+      const marktclaimUserId = randomUUID();
+      const marktclaimProfileId = randomUUID();
+      await db.client.query("insert into auth.users (id, email) values ($1, $2)", [
+        marktclaimUserId,
+        "marktclaimtest@example.com",
+      ]);
+      await db.client.query(
+        `insert into public.profiles (id, user_id, name, url, brand_name, status, proof_points)
+         values ($1, $2, 'Marktclaim BV', 'https://marktclaim-bv.nl', 'Marktclaim BV', 'klaar', '{}')`,
+        [marktclaimProfileId, marktclaimUserId],
+      );
+
+      async function nieuweVraag(vraag: string, gap: boolean): Promise<string> {
+        const factId = randomUUID();
+        await db.client.query(
+          `insert into public.fact_requests (id, profile_id, question, reason, status, raw_json)
+           values ($1, $2, $3, 'test', 'open', $4::jsonb)`,
+          [factId, marktclaimProfileId, vraag, gap ? JSON.stringify({ bron: "synthese-gap" }) : null],
+        );
+        return factId;
+      }
+
+      // ── 1. Gapvraag met een superlatief ─────────────────────────────────
+      const gapMetClaim = await nieuweVraag(
+        "Binnen hoeveel uur wordt normaal gereageerd op een storing?",
+        true,
+      );
+      const uitkomst1 = await answerFact(admin as never, {
+        profileId: marktclaimProfileId,
+        factId: gapMetClaim,
+        answer: "Wij zijn de snelste van de regio en reageren sneller dan elke concurrent.",
+        existingProofPoints: [],
+      });
+      ok(
+        "een gapvraag met een superlatief levert needsEvidence op",
+        uitkomst1.ok && uitkomst1.outcome.needsEvidence === true,
+      );
+      ok(
+        "en verandert proof_points niet",
+        (await proofPointsVan(marktclaimProfileId)).length === 0,
+      );
+
+      // ── 2. Gapvraag met een gewoon antwoord ─────────────────────────────
+      const gapZonderClaim = await nieuweVraag("In welk jaar is het bedrijf opgericht?", true);
+      const uitkomst2 = await answerFact(admin as never, {
+        profileId: marktclaimProfileId,
+        factId: gapZonderClaim,
+        answer: "1998",
+        existingProofPoints: [],
+      });
+      ok(
+        "een gapvraag met een gewoon antwoord levert geen needsEvidence op",
+        uitkomst2.ok && uitkomst2.outcome.needsEvidence === false,
+      );
+      ok(
+        "en verandert proof_points ook niet (gapvragen promoveren nooit)",
+        (await proofPointsVan(marktclaimProfileId)).length === 0,
+      );
+
+      // ── 3. Clustervraag met een superlatief ─────────────────────────────
+      const clusterMetClaim = await nieuweVraag("Waarom kiezen klanten voor jullie?", false);
+      const uitkomst3 = await answerFact(admin as never, {
+        profileId: marktclaimProfileId,
+        factId: clusterMetClaim,
+        answer: "Omdat wij marktleider zijn in de regio.",
+        existingProofPoints: await proofPointsVan(marktclaimProfileId),
+      });
+      ok(
+        "een clustervraag met een superlatief levert óók needsEvidence op",
+        uitkomst3.ok && uitkomst3.outcome.needsEvidence === true,
+      );
+      ok(
+        "met de specifieke uitleg erbij (marktleider vraagt om een bron), niet de algemene",
+        uitkomst3.ok && (uitkomst3.outcome.evidenceHint ?? "").includes("Noem de bron erbij"),
+        uitkomst3.ok ? (uitkomst3.outcome.evidenceHint ?? "") : "",
+      );
+      ok(
+        "en verandert proof_points niet",
+        (await proofPointsVan(marktclaimProfileId)).length === 0,
+      );
+
+      // ── 4. Clustervraag met een gewoon antwoord ─────────────────────────
+      const clusterZonderClaim = await nieuweVraag("Hoe lang bestaat het bedrijf al?", false);
+      const uitkomst4 = await answerFact(admin as never, {
+        profileId: marktclaimProfileId,
+        factId: clusterZonderClaim,
+        answer: "Al 25 jaar.",
+        existingProofPoints: await proofPointsVan(marktclaimProfileId),
+      });
+      ok(
+        "een clustervraag met een gewoon antwoord komt wél in proof_points",
+        uitkomst4.ok && uitkomst4.outcome.needsEvidence === false,
+      );
+      const puntenNaVier = await proofPointsVan(marktclaimProfileId);
+      ok(
+        "het proof point staat er echt, met de vraag en het antwoord erbij",
+        puntenNaVier.length === 1 && puntenNaVier[0].includes("Al 25 jaar."),
+        puntenNaVier.join(" | "),
+      );
+
+      async function proofPointsVan(profileId: string): Promise<string[]> {
+        const { rows } = await db.client.query(
+          "select proof_points from public.profiles where id = $1",
+          [profileId],
+        );
+        return (rows[0]?.proof_points as string[] | null) ?? [];
+      }
     }
 
     // ════════════════════════════════════════════════════════════════════════

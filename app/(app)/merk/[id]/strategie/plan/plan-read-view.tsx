@@ -3,7 +3,7 @@ import { Icon } from "@/components/icon";
 import { CollapsibleSection } from "@/components/collapsible-section";
 import { PLAN_STATUS_META, MONTH_STATUS_META, type StatusTone } from "@/lib/plan-status";
 import { contentHref, formatDagNL } from "@/lib/plan-overview";
-import { monthCalendar, isRunningMonth } from "@/lib/plan-schedule";
+import { monthCalendar, isRunningMonth, maandIsVol } from "@/lib/plan-schedule";
 import { leesMaandKeuze, maandRegel, planStap, telStatussen } from "@/lib/plan-read";
 import type { TopicWritingState } from "@/lib/plan-writing";
 import type { ContentPlan, PlanMonth, PlannedPage } from "@/lib/types/database";
@@ -193,6 +193,7 @@ function MaandKaart({
             paginas: telling.echt,
             geplaatst: telling.geplaatst,
             eersteDatum: eerste?.scheduled_for ? formatDagNL(eerste.scheduled_for) : null,
+            leegDoorRuimtegebrek: telling.echt === 0 && maandIsVol(plan.started_on, month.month_number),
           })}
         </p>
       </div>
@@ -249,6 +250,7 @@ function MaandKaart({
             monthId={month.id}
             monthNumber={month.month_number}
             paginas={telling.echt}
+            eersteDatum={eerste?.scheduled_for ?? null}
           />
         </div>
       )}

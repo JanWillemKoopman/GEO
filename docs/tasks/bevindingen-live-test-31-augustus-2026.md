@@ -2,8 +2,7 @@
 
 > **Stand op 31 augustus 2026:** punt 1, 2, 4 en 8 zijn opgelost, staan met een test in
 > `scripts/test-unit.ts`, en zijn daarna op productie nagelopen in de draaiende app
-> (conventie 10). Punt 3, 5, 6, 7 en de kleinere punten staan nog open; de uitgewerkte
-> opdracht daarvoor staat in `docs/tasks/opdracht-bevindingen-5-tot-9.md`.
+> (conventie 10).
 >
 > Wat de hercontrole liet zien: de briefingkaart zegt nu "De briefing staat klaar" met een knop
 > Briefing invullen; de zin "Uitbreiding richting Oosterhout en Geertruidenberg." voegt niets meer
@@ -13,6 +12,12 @@
 > rapport schrijft "Er zijn 30 vragen onderzocht, samen 46 keer gemeten" in plaats van de eerdere
 > 15. Dat herdraaide rapport leverde bovendien 8 aanbevelingen op waar de eerste ronde er 7 gaf,
 > wat punt 10 hieronder deels beantwoordt: 7 is geen verborgen grens.
+>
+> **Punt 5, 6, 7, 8 en de kleinere punten van punt 9 zijn daarna, op basis van
+> `docs/tasks/opdracht-bevindingen-5-tot-9.md`, in code en test opgelost**: typecheck, 2689
+> unittests, 397 ketentests en de productiebuild staan groen. De live controle op
+> `https://geo-ten-blush.vercel.app` volgt zodra de eigenaar akkoord geeft om deze branch naar
+> `main` te pushen (de branchpreview zit achter een Vercel-login), conventie 10.
 
 De volledige klantreis is op productie doorlopen met een echt bedrijf, van merk aanmaken tot en met
 de contentbriefing. Dit bestand bevat wat er misging. Wat goed ging staat samengevat in
@@ -80,6 +85,13 @@ de twaalf plaatsen die het onderzoek zelf vond.
 
 ## 3. De verhoudingszin klopt grammaticaal niet zodra een van beide getallen 1 is
 
+> **Opgelost op 31 augustus 2026.** `describeActionRatio()` bouwt de zin nu met een klein hulpstuk
+> voor enkelvoud en meervoud (`enkelOfMeervoud()`, verplaatst naar `lib/format.ts` op hetzelfde
+> moment als punt 9 hieronder) in plaats van vier losse takken. Getallen tot en met twaalf staan
+> voluit ("Eén van de zes" in plaats van "1 van de 6"), zoals `docs/schrijfstijl.md` voorschrijft.
+> Een unittest draait alle combinaties van 0 tot en met 3 aan beide kanten, plus 1 op 7 en 7 op 1,
+> en controleert expliciet dat "1 ... zijn" en "de andere 1 verbeteren" nergens meer voorkomen.
+
 **Waar:** `lib/pipeline/recommendation.ts`, `describeActionRatio()`, regel 183 tot 205.
 
 De functie vangt twee randgevallen af: alleen nieuw, en alleen verbeteren. Beide krijgen een eigen
@@ -116,6 +128,15 @@ gevraagd te worden.
 
 ## 5. De uitleg bij een marktclaim blijft weg bij de onboardingvragen
 
+> **Opgelost op 31 augustus 2026.** Het oordeel over de claim (`beoordeelClaim()`) staat nu vóór de
+> vertakking op `isGapQuestion()` in plaats van erna, en beide losgetrokken uit de route naar
+> `answerFact()` in het nieuwe `lib/facts.ts` (zelfde patroon als `createPlan()` in `lib/plans.ts`),
+> zodat de samenhang tussen route en tabel in `scripts/test-chain.ts` te toetsen is. De klant ziet nu
+> altijd de uitleg, ongeacht waar de vraag vandaan komt; de promotie naar `proof_points` blijft bij
+> een gapvraag precies zoals hij was. De uitleg is bovendien specifiek geworden:
+> `ontbrekendeOnderbouwing()` in `claim-plausibility.ts` zegt of er een cijfer, een bron of een
+> voorbeeld mist, op basis van hetzelfde woordpatroon dat de claim herkende.
+
 **Waar:** `app/api/profiles/[id]/facts/route.ts`, regel 83 tot 96.
 
 De route stopt bij `isGapQuestion(fact.raw_json)` met een `return` vóór `beoordeelClaim()`. Alle
@@ -134,6 +155,18 @@ voorbeeld bij te zetten. Bij een clustervraag uit de briefing werkt dat wel: daa
 
 ## 6. Het contentplan zet de eerste maand in het verleden
 
+> **Opgelost op 31 augustus 2026.** `spreadDates()` klemt niet langer terug naar dag 28 als de
+> vroegste bruikbare dag daar voorbij valt, maar geeft een lege lijst. `createPlan()` (`lib/plans.ts`)
+> vangt die lege lijst op en zet de voorzet dan in maand 2 in plaats van maand 1; maand 2 wordt de
+> maand die ter goedkeuring staat, en maand 1 blijft leeg met een eigen zin op het planscherm
+> ("Deze maand is te ver gevorderd om nog te publiceren, dus je plan begint volgende maand."). De
+> belofte "ORBIT ENGINE begint tien dagen voor elke publicatiedatum" past zich aan
+> (`schrijfBelofte()`) als de eerste pagina al binnen die termijn moet. Een unittest draait de
+> spreiding voor elke dag van de maand en elk aantal pagina's van 1 tot en met 20 in een lus en
+> controleert dat er nooit een datum uitkomt die vóór vandaag ligt; een ketentest bouwt exact het
+> scenario van Wouter Warmtepomp na (plan opgesteld op de 31e) en controleert dat de voorzet in
+> maand 2 belandt met een datum in september.
+
 Het plan is op 31 augustus 2026 opgesteld. Alle zeven pagina's van maand 1 kregen publicatiedatum
 28 augustus 2026, drie dagen eerder. Het scherm zegt er tegelijk bij dat ORBIT ENGINE tien dagen
 voor elke publicatiedatum begint met schrijven, en dat moment is dan al ruim voorbij.
@@ -141,6 +174,11 @@ voor elke publicatiedatum begint met schrijven, en dat moment is dan al ruim voo
 ---
 
 ## 7. De preview van "Stel nieuwe clusters voor" is niet afgeschermd
+
+> **Opgelost op 31 augustus 2026.** De `GET` doet nu dezelfde `mayTriggerCost(user.id,
+> "clusters_aanvullen")`-controle als de `POST`, met dezelfde 403-melding bij weigering. Een
+> unittest leest de broncode van het bestand en eist dat élke exportfunctie erin `mayTriggerCost`
+> aanroept, hetzelfde patroon als bij punt 1 hierboven voor `ContentStatus` in `work.ts`.
 
 **Waar:** `app/api/profiles/[id]/topics/refresh/route.ts`, de `GET`.
 
@@ -157,10 +195,20 @@ Dat kost niets, dus het is geen uitgavelek. Het is wel de regie-informatie die v
 
 ## 8. Kleinere punten
 
-- **"punt(en)" in de schermtekst.** `app/(app)/analyses/[id]/briefing/briefing-form.tsx`, regel 228:
-  "en nog 6 punt(en)". De haakjesvorm hoort niet in klanttekst thuis.
-- **Twee schrijfwijzen voor getallen in één zin.** Op het scherm "Verdeling aanpassen" staat
-  "ongeveer $1.70 per maand" met een punt, en in dezelfde zin "±10,7 punten" met een komma.
+- **"punt(en)" in de schermtekst.** *Opgelost op 31 augustus 2026.* Nieuwe hulpfunctie
+  `enkelOfMeervoud()` in `lib/format.ts`, gebruikt op alle plekken waar dit los was uitgeschreven of
+  fout stond: het briefingscherm, `app/(app)/merk/[id]/page.tsx` ("punt(en)" in de clusterteller), de
+  reputatiesamenvatting ("gegeven(s)", met het werkwoord mee gebogen) en de redactienotitie bij een
+  geschreven pagina ("bewering(en)"). Een broncodetest over `app/(app)` en `lib/` zoekt naar het
+  patroon "geteld aantal, direct gevolgd door een woord met haakjesmeervoud" en eist dat het nergens
+  meer voorkomt, met een korte uitzonderingslijst voor logregels die niet voor de klant zijn.
+- **Twee schrijfwijzen voor getallen in één zin.** *Opgelost op 31 augustus 2026.* `euro()` in
+  `lib/prompt-mix.ts` is verplaatst naar `lib/format.ts` als `formatUsd()`, met de juiste naam (hij
+  toont dollars, geen euro's) en de Nederlandse schrijfwijze (komma). Gebruikt in `describeMix()`, de
+  weigeringsmelding bij `MAX_TOTAL`, `refreshConfirmation()` in `onboarding-refresh.ts`, en de
+  kostenindicatie bij "Stel nieuwe clusters voor" (`topic-refresh-button.tsx`, die tot dan toe zelf
+  een kale `.toFixed(2)` deed). Bedragen in logregels (`console.warn`/`console.error`) blijven met
+  een punt: die zijn voor de ontwikkelaar.
 - **Het pakket is nergens te kiezen.** *Opgelost op 31 augustus 2026.* Het contentpakket staat nu
   als verplicht veld naast naam en webadres in de pre-boardingwizard, alleen zichtbaar voor de
   beheerder, en is daarna aan te passen op het scherm Toewijzen. `PATCH /api/accounts/[id]`

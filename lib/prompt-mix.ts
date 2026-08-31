@@ -26,6 +26,7 @@
  * Puur, dus testbaar vanuit `scripts/test-unit.ts` (conventie 2).
  */
 import { PROMPT_CATEGORIES } from "@/lib/types/database";
+import { formatUsd } from "@/lib/format";
 
 export type FunnelStage = (typeof PROMPT_CATEGORIES)[number];
 
@@ -164,15 +165,11 @@ export function checkMix(input: Partial<Record<FunnelStage, unknown>>): MixCheck
       ok: false,
       reason:
         `Samen ${totaal} vragen, en het maximum is ${MAX_TOTAL}. Dat is ongeveer ` +
-        `${euro(totaal * COST_PER_PROMPT_USD)} per meetronde, elke maand opnieuw.`,
+        `${formatUsd(totaal * COST_PER_PROMPT_USD)} per meetronde, elke maand opnieuw.`,
     };
   }
 
   return { ok: true, mix };
-}
-
-function euro(usd: number): string {
-  return `$${usd.toFixed(2)}`;
 }
 
 /**
@@ -190,7 +187,7 @@ export function describeMix(mix: PromptMix): string {
   // en dan afgerond op één decimaal. Bij dertig vragen levert dat ±16,4.
   const band = Math.round(1.96 * Math.sqrt((0.3 * 0.7) / Math.max(1, totaal)) * 1000) / 10;
   return (
-    `${totaal} vragen per meetronde, ongeveer ${euro(kosten)} per maand voor dit onderwerp. ` +
+    `${totaal} vragen per meetronde, ongeveer ${formatUsd(kosten)} per maand voor dit onderwerp. ` +
     `De onzekerheidsmarge op de score is dan ongeveer ±${band.toFixed(1).replace(".", ",")} punten.`
   );
 }

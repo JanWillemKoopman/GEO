@@ -32,23 +32,34 @@
  * enkele superlatief die er per ongeluk doorheen glipt).
  */
 
-/** Superlatieven en marktclaims: zonder eigen naam kloppen ze per definitie niet als "gewoon feit". */
-const SUPERLATIEF_PATRONEN: RegExp[] = [
-  /\bde\s+beste\b/i,
-  /\bde\s+grootste\b/i,
-  /\bde\s+goedkoopste\b/i,
-  /\bde\s+snelste\b/i,
-  /\bmarktleider\b/i,
-  /\btoonaangevend/i,
-  /\bnummer\s*1\b/i,
-  /\bmeest\s+gekozen\b/i,
-  /\bmeest\s+gebruikte\b/i,
-  /\bde\s+enige\s+(die|met|in)\b/i,
-  /\bniemand\s+(anders\s+)?(doet|biedt|kan)\b/i,
-  /\bbeter\s+dan\s+(de|onze|elke|iedere)\s+concurrent/i,
+/** Welk soort onderbouwing een aangenomen claim op dit punt het eerst zou redden. */
+export type OntbrekendBewijs = "cijfer" | "bron" | "voorbeeld";
+
+/**
+ * Superlatieven en marktclaims: zonder eigen naam kloppen ze per definitie
+ * niet als "gewoon feit". Elk patroon draagt meteen welk soort onderbouwing
+ * de claim het meest natuurlijk redt, zodat de uitleg aan de klant kan zeggen
+ * WAT er mist in plaats van alleen DAT er iets mist (punt 6 van
+ * `docs/tasks/opdracht-bevindingen-5-tot-9.md`). "De snelste" vraagt om een
+ * cijfer (reactietijd, doorlooptijd), "marktleider" om een bron (een lijst, een
+ * award), "de enige die" om een concreet voorbeeld (een klant, een project).
+ */
+const SUPERLATIEF_PATRONEN: { patroon: RegExp; ontbreekt: OntbrekendBewijs }[] = [
+  { patroon: /\bde\s+beste\b/i, ontbreekt: "bron" },
+  { patroon: /\bde\s+grootste\b/i, ontbreekt: "cijfer" },
+  { patroon: /\bde\s+goedkoopste\b/i, ontbreekt: "cijfer" },
+  { patroon: /\bde\s+snelste\b/i, ontbreekt: "cijfer" },
+  { patroon: /\bmarktleider\b/i, ontbreekt: "bron" },
+  { patroon: /\btoonaangevend/i, ontbreekt: "bron" },
+  { patroon: /\bnummer\s*1\b/i, ontbreekt: "bron" },
+  { patroon: /\bmeest\s+gekozen\b/i, ontbreekt: "cijfer" },
+  { patroon: /\bmeest\s+gebruikte\b/i, ontbreekt: "cijfer" },
+  { patroon: /\bde\s+enige\s+(die|met|in)\b/i, ontbreekt: "voorbeeld" },
+  { patroon: /\bniemand\s+(anders\s+)?(doet|biedt|kan)\b/i, ontbreekt: "voorbeeld" },
+  { patroon: /\bbeter\s+dan\s+(de|onze|elke|iedere)\s+concurrent/i, ontbreekt: "voorbeeld" },
 ];
 
-/** Cijfer, percentage, jaartal of URL: het "cijfer of voorbeeld" dat de claim mag dragen. */
+/** Cijfer, percentage, jaartal of URL: het "cijfer, bron of voorbeeld" dat de claim mag dragen. */
 const BEWIJS_PATROON = /\d|https?:\/\//;
 
 export interface ClaimBeoordeling {
@@ -65,7 +76,7 @@ export interface ClaimBeoordeling {
  * eerst een cijfer, bron of voorbeeld nodig heeft?
  */
 export function beoordeelClaim(tekst: string): ClaimBeoordeling {
-  const isMarktclaim = SUPERLATIEF_PATRONEN.some((p) => p.test(tekst));
+  const isMarktclaim = SUPERLATIEF_PATRONEN.some((p) => p.patroon.test(tekst));
   const heeftBewijs = BEWIJS_PATROON.test(tekst);
   return {
     isMarktclaim,
@@ -74,8 +85,46 @@ export function beoordeelClaim(tekst: string): ClaimBeoordeling {
   };
 }
 
-/** Wat de klant leest als zijn antwoord (nog) niet aangenomen wordt. */
+/**
+ * Welk soort onderbouwing ontbreekt er nog, voor de tekst die dat concreet
+ * benoemt? `null` als er al bewijs bij staat, of als geen enkel patroon de
+ * claim herkent (dan is er niets specifieks te missen).
+ *
+ * Zelfde patronen als `beoordeelClaim()`: is de tekst een marktclaim volgens
+ * `SUPERLATIEF_PATRONEN`, dan levert dit altijd het bijbehorende
+ * `ontbreekt`-type, nooit `null`.
+ */
+export function ontbrekendeOnderbouwing(tekst: string): OntbrekendBewijs | null {
+  if (BEWIJS_PATROON.test(tekst)) return null;
+  return SUPERLATIEF_PATRONEN.find((p) => p.patroon.test(tekst))?.ontbreekt ?? null;
+}
+
+/** Wat de klant leest als zijn antwoord (nog) niet aangenomen wordt, zonder dat er iets specifieks te missen valt. */
 export const MARKTCLAIM_UITLEG =
   "Dit klinkt als een claim over de markt of de concurrentie, geen mededeling over jullie eigen " +
   "werk. Zulke claims gebruiken we pas in een tekst als er een cijfer, bron of concreet voorbeeld " +
   "bij zit. Vul dat toe, of laat het antwoord zoals het is, dan blijft de tekst er voorzichtig over.";
+
+/** De concrete zin per soort ontbrekende onderbouwing. */
+const ONDERBOUWING_ZIN: Record<OntbrekendBewijs, string> = {
+  cijfer: "Noem er een cijfer bij, dan mag deze zin in je teksten.",
+  bron: "Noem de bron erbij, dan mag deze zin in je teksten.",
+  voorbeeld: "Noem een concreet voorbeeld, dan mag deze zin in je teksten.",
+};
+
+/**
+ * De uitleg die de klant op het scherm leest: specifiek waar mogelijk, de
+ * algemene waarschuwing als terugval. "Dit klinkt als een claim" bleef eerder
+ * de enige zin die de klant zag; deze functie zegt er meteen bij WAT er
+ * ontbreekt, zodat de klant weet wat hij moet toevoegen in plaats van te
+ * moeten raden (punt 6 van docs/tasks/opdracht-bevindingen-5-tot-9.md).
+ */
+export function marktclaimUitleg(tekst: string): string {
+  const ontbreekt = ontbrekendeOnderbouwing(tekst);
+  if (!ontbreekt) return MARKTCLAIM_UITLEG;
+  return (
+    "Dit klinkt als een claim over de markt of de concurrentie, geen mededeling over jullie eigen " +
+    `werk. ${ONDERBOUWING_ZIN[ontbreekt]} Laat je het antwoord zoals het is, dan blijft de tekst er ` +
+    "voorzichtig over."
+  );
+}

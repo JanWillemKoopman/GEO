@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRefresh } from "@/components/use-refresh";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { useToast } from "@/components/toast";
+import { schrijfBelofte } from "@/lib/plan-schedule";
 
 /**
  * De enige knop van de leesweergave: geef deze maand vrij.
@@ -19,11 +20,18 @@ export function ReleaseMonthButton({
   monthId,
   monthNumber,
   paginas,
+  eersteDatum,
 }: {
   profileId: string;
   monthId: string;
   monthNumber: number;
   paginas: number;
+  /**
+   * De vroegste publicatiedatum in deze maand, of `null`. Bepaalt of de
+   * voorsprongzin hieronder klopt: `schrijfBelofte()` in `lib/plan-schedule.ts`
+   * (punt 5 van docs/tasks/opdracht-bevindingen-5-tot-9.md).
+   */
+  eersteDatum: string | null;
 }) {
   const { refresh, refreshing } = useRefresh();
   const toast = useToast();
@@ -53,8 +61,7 @@ export function ReleaseMonthButton({
       toast({
         intent: "succes",
         title: `Maand ${monthNumber} vrijgegeven`,
-        description:
-          "ORBIT ENGINE begint tien dagen voor elke publicatiedatum met schrijven.",
+        description: `${schrijfBelofte(eersteDatum)} met schrijven.`,
       });
       refresh();
     } catch {
@@ -85,7 +92,7 @@ export function ReleaseMonthButton({
         title={`Maand ${monthNumber} vrijgeven`}
         body={`Je geeft ${paginas} ${
           paginas === 1 ? "pagina" : "pagina's"
-        } in één keer vrij om geschreven te worden. ORBIT ENGINE begint tien dagen voor elke publicatiedatum, en legt elke tekst daarna aan jou voor.`}
+        } in één keer vrij om geschreven te worden. ${schrijfBelofte(eersteDatum)}, en legt elke tekst daarna aan jou voor.`}
         irreversible={{
           title: "Dit zet het schrijven in gang",
           description:

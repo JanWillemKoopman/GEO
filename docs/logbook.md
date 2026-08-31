@@ -5713,3 +5713,62 @@ Dat herdraaien leverde en passant het antwoord op een openstaande vraag: op exac
 metingen kwamen er nu 8 aanbevelingen en 4 afgevallen kansen uit, tegen 7 en 6 bij de eerste ronde.
 Het aantal aanbevelingen ligt dus niet vast, en dat was precies wat werkpakket B punt 1 beoogde. De
 zes overgebleven bevindingen staan in `docs/tasks/bevindingen-live-test-31-augustus-2026.md`.
+
+## 31 augustus 2026, punt 5 tot en met 9 uit de live doorloop verwerkt
+
+De resterende vijf bevindingen uit `docs/tasks/opdracht-bevindingen-5-tot-9.md`, alle vijf in code
+en test opgelost, zonder migratie.
+
+**Het contentplan begon in het verleden bij elk plan dat op de 28e of later wordt opgesteld
+(punt 5).** `spreadDates()` klemde de vroegste bruikbare dag terug naar dag 28 zodra
+`now.getDate() + 1` daarboven uitkwam: op 31 augustus werd dat 32, geklemd naar 28, drie dagen
+terug. Bij Wouter Warmtepomp kregen zo alle zeven pagina's van maand 1 een publicatiedatum die al
+voorbij was. De functie geeft nu een lege lijst in plaats van te klemmen, en `createPlan()` vangt die
+op door de voorzet in maand 2 te zetten in plaats van in een maand 1 die toch leeg zou blijven. Maand
+1 blijft leeg met een eigen zin op het scherm; de belofte "ORBIT ENGINE begint tien dagen voor elke
+publicatiedatum" past zich aan (`schrijfBelofte()`) zodra de eerste pagina al binnen die termijn
+moet. Om dit deterministisch te testen kreeg `createPlan()` een los `now`-argument naast
+`startedOn`: zonder die scheiding hangt "is maand 1 vol" af van de kalenderdag waarop de test
+toevallig draait, precies de fout die deze ronde repareert.
+
+**De uitleg bij een marktclaim bereikte de klant nooit als de vraag uit de synthese kwam
+(punt 6).** `beoordeelClaim()` stond ná de vertakking op `isGapQuestion()` in `facts/route.ts`, die
+meteen terugkeerde. Alle tien onboardingvragen uit de doorloop droegen `raw_json.bron =
+"synthese-gap"`, dus het oordeel werd nooit bereikt: op "Wij zijn de snelste van de regio en
+reageren sneller dan elke concurrent" verscheen geen enkele uitleg. De uitkomst was toevallig veilig
+(een gapvraag promoveert sowieso nooit naar `proof_points`), de klant zag alleen niets. Beide
+besluiten staan nu los van elkaar en komen uit één plek: `answerFact()` in het nieuwe `lib/facts.ts`,
+losgetrokken uit de route naar hetzelfde patroon als `createPlan()` in `lib/plans.ts`, zodat de
+samenhang met de tabel in `scripts/test-chain.ts` te toetsen is. De uitleg zelf is specifieker
+geworden: `ontbrekendeOnderbouwing()` zegt of er een cijfer, een bron of een voorbeeld ontbreekt, op
+basis van hetzelfde patroon dat de claim herkende, in plaats van een algemene waarschuwing.
+
+**De verhoudingszin ("X van de Y aanbevelingen") was dubbel fout Nederlands zodra een van beide
+kanten precies 1 was (punt 7).** "1 van de 6 aanbevelingen zijn nieuwe pagina's, de andere 1
+verbeteren" hoort "is" en "verbetert" te zijn, zonder het overbodige cijfer bij "de andere". Nieuwe
+hulpfunctie `enkelOfMeervoud()` (verplaatst naar `lib/format.ts`, ook gebruikt bij punt 9 hieronder)
+vervangt vier losse takken met geplakte zinnen, en getallen tot en met twaalf staan nu voluit ("Eén
+van de zes") zoals `docs/schrijfstijl.md` voorschrijft.
+
+**De vooruitblik bij "Stel nieuwe clusters voor" was niet afgeschermd voor een klant (punt 8).** De
+`POST` was op slot, de `GET` ernaast controleerde alleen eigendom en niet de beheerdersrol: een
+klantaccount kreeg gewoon de vooruitblik en de geschatte kosten te zien. Onschadelijk (de vooruitblik
+kost niets en de knop staat niet op het klantscherm), maar wel regie-informatie die bij de beheerder
+hoort. Dezelfde `mayTriggerCost`-controle staat er nu op beide routehelften; een unittest leest de
+broncode en eist dat élke exportfunctie in het bestand die aanroept, hetzelfde patroon als bij
+`ContentStatus` in `work.ts` een ronde eerder.
+
+**Twee schrijffouten in klanttekst (punt 9).** De haakjesvorm "punt(en)" stond op het briefingscherm
+en, bij nader zoeken, ook als "gegeven(s)" in de reputatiesamenvatting en "bewering(en)" in de
+redactienotitie bij een geschreven pagina: dezelfde fout op drie plekken. Eén hulpfunctie,
+`enkelOfMeervoud()`, vervangt ze allemaal. En `euro()` in `lib/prompt-mix.ts` toonde dollarbedragen
+met een punt ("$1.70") terwijl de onzekerheidsmarge ernaast in dezelfde zin een komma gebruikte
+("±10,7 punten"): verplaatst naar `lib/format.ts` als `formatUsd()` (de juiste naam, want het zijn
+dollars, geen euro's), met de Nederlandse schrijfwijze, en gebruikt op elke plek waar een bedrag naar
+een scherm gaat, inclusief de kostenindicatie bij "Stel nieuwe clusters voor" die tot dan toe zelf
+een kale `.toFixed(2)` deed. Bedragen in logregels blijven met een punt, die zijn niet voor de klant.
+
+Vier controles groen: typecheck, 2689 unittests, 397 ketentests en de productiebuild. Live nagelopen
+op productie moet nog: de branchpreview zit achter een Vercel-login, dus dat wacht op akkoord van de
+eigenaar om deze branch naar `main` te pushen (conventie 10, en zo staat het ook letterlijk in de
+opdracht).

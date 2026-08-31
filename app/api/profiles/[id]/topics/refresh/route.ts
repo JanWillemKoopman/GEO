@@ -27,6 +27,19 @@ export async function GET(
   const user = await getUser();
   if (!user) return NextResponse.json({ error: "Je bent niet ingelogd." }, { status: 401 });
 
+  // ⚠️ Dezelfde controle als de POST hieronder, en dat stond er eerst niet.
+  // Deze `GET` toetste alleen eigendom, dus een klantaccount kreeg gewoon de
+  // vooruitblik ("Dit is de eerste aanvullende ronde voor dit merk", met de
+  // geschatte kosten erbij): geen uitgavelek, maar wel de regie-informatie die
+  // volgens werkpakket A §3.5 bij de beheerder hoort te blijven (punt 8 van
+  // docs/tasks/opdracht-bevindingen-5-tot-9.md). `TopicRefreshButton` is de
+  // enige aanroeper en die staat alleen op het scherm van een beheerder
+  // (`topics-panel.tsx`), dus een klant kwam er nooit langs; deze regel is de
+  // garantie op de achterkant die daar niet van afhankelijk is (conventie 1).
+  if (!(await mayTriggerCost(user.id, "clusters_aanvullen"))) {
+    return NextResponse.json({ error: COST_DENIED.clusters_aanvullen }, { status: 403 });
+  }
+
   const admin = createAdminClient();
   const profile = await getOwnedProfile(admin, id, user.id);
   if (!profile) return NextResponse.json({ error: "Niet gevonden." }, { status: 404 });

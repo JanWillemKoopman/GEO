@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { formatUsd } from "@/lib/format";
 
 /**
  * De knop "Stel nieuwe clusters voor" (docs/optimalisatielab-orbit-engine.md,
@@ -75,7 +76,11 @@ export function TopicRefreshButton({ profileId }: { profileId: string }) {
         <>
           <p className="text-sm text-secondary">{preview.melding}</p>
           {preview.aanraden && (
-            <p className="text-sm text-muted">Geschatte kosten: ~${preview.geschatteKostenUsd.toFixed(2)}.</p>
+            // ⚠️ Nederlandse schrijfwijze, komma als decimaalteken, via
+            // `formatUsd()` (punt 9 van docs/tasks/opdracht-bevindingen-5-tot-9.md).
+            // Dit bedrag stond hier los uitgeschreven met `.toFixed(2)`, dus
+            // met een punt, dezelfde fout als bij "Verdeling aanpassen".
+            <p className="text-sm text-muted">Geschatte kosten: ~{formatUsd(preview.geschatteKostenUsd)}.</p>
           )}
           <div className="flex flex-wrap gap-2">
             <button

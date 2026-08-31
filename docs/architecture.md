@@ -32,6 +32,12 @@ Voor UI/UX: `ux-design.md`.
 > **Bijgewerkt op 26 augustus 2026**: de tijdrij van §9 is opnieuw doorgerekend
 > (doorloop-huyberts.md punt 5). Migraties `0066` en `0067` zijn erbij gekomen
 > (supabase/README.md); `0067` staat bij §3, het contentplan.
+> **Bijgewerkt op 31 augustus 2026** (punt 5 tot en met 9 van de live doorloop, geen migratie):
+> `spreadDates()` geeft een lege lijst in plaats van een datum in het verleden te klemmen zodra maand
+> 1 geen bruikbare dag meer over heeft, en `createPlan()` zet de voorzet dan in maand 2 (§3); het
+> oordeel over een marktclaim in `fact_requests` staat vóór de vertakking op een gapvraag, in het
+> nieuwe `lib/facts.ts` (§3); en de `GET` van `/api/profiles/[id]/topics/refresh` vraagt nu dezelfde
+> beheerdersrol als de `POST` (§5).
 > De rest van de peildatum hieronder blijft staan.
 > **Migraties `0058` en `0059` zijn er sindsdien bijgekomen** en staan wél in §12 en in dit
 > document verwerkt, maar de rest is niet opnieuw regel voor regel nagelopen. Verder geldt:
@@ -276,7 +282,7 @@ probleem dan een dollar.
 | `reports` | Rapport per periode + trend. `stripped_claims_json` = audit-trail van door de claimvalidator verwijderde zinnen. |
 | `brand_facts` | De feitenbank (`0036`). Elk feit heeft een `fact_key` (identiteit, geen positie), een scope (merkbreed / per analyse) en `superseded_by` in plaats van overschrijven. |
 | `brand_documents` | Door de klant geplakte brontekst + sha256-hash, met `facts_extracted`/`facts_rejected`. |
-| `fact_requests` | De briefingvragen aan de klant, max 8 per batch. `scope: 'merk'` slaat op met `analysis_id = null`. Ook de open punten uit de synthese staan hier, herkenbaar aan `raw_json.bron = 'synthese-gap'`; dat merkje bepaalt dat hun antwoord géén tweede regel in `profiles.proof_points` krijgt (het bereikt de schrijver al via `buildFactBase()`, en dan mét de juiste bron). |
+| `fact_requests` | De briefingvragen aan de klant, max 8 per batch. `scope: 'merk'` slaat op met `analysis_id = null`. Ook de open punten uit de synthese staan hier, herkenbaar aan `raw_json.bron = 'synthese-gap'`; dat merkje bepaalt dat hun antwoord géén tweede regel in `profiles.proof_points` krijgt (het bereikt de schrijver al via `buildFactBase()`, en dan mét de juiste bron). ⚠️ 31 augustus 2026: `answerFact()` (`lib/facts.ts`) beoordeelt élk antwoord op een superlatief of marktclaim (`beoordeelClaim()`) vóórdat het naar `raw_json.bron` kijkt, dus de klant ziet de uitleg altijd, ook bij een gapvraag; alleen de promotie naar `proof_points` blijft bij een gapvraag achterwege. |
 | `content_pieces` | Gegenereerde pagina's. Versiebeheer per (analyse, titel) via `version`/`is_current`/`supersedes_id`, plus `briefing_snapshot_json`, `claims_json`, `source_coverage`, `quality_score`, `geo_score`, `needs_review`, `reviewed_at`/`reviewed_by`. `faq_json` is sinds de content-editie (§5, stap 16) ook door de klant bewerkbaar via de PATCH-route, niet alleen door het model. |
 | `content_impact` | Hermeetgolven na publicatie + statistisch verdict. |
 | `content_plans` / `plan_months` | Het contentplan (`0049`): één lopende versie per merk, twaalf maanden. `pages_per_month` is een KOPIE van het pakket (`accounts.package_pages_per_month`), geen verwijzing: wie halverwege upgradet hoort niet met terugwerkende kracht een ander plan te krijgen. Het pakket zelf zet de beheerder, in de pre-boardingwizard en daarna op Toewijzen; een klant mag het niet wijzigen, want het is een verkoopafspraak (`lib/package-sizes.ts`). Een vorige versie gaat op `gestopt` en blijft staan (conventie 8). |
@@ -324,8 +330,9 @@ bij elke opening van het planscherm, idempotent via `source_ref`, en verwijdert 
 aanbeveling die uit een nieuw rapport verdwijnt blijft staan, want anders zou ingepland werk zonder
 melding uit iemands plan vallen.
 
-`createPlan()` maakt twaalf **lege** maanden en vult alleen maand 1, met de sterkste kansen tot aan
-de quota. De rest van het jaar stelt de gebruiker zelf samen: `assignToMonth()` en `moveToBacklog()`
+`createPlan()` maakt twaalf **lege** maanden en vult de eerste maand met ruimte (meestal maand 1,
+tenzij die geen bruikbare dag meer over heeft, zie ⚠️ hieronder) met de sterkste kansen tot aan de
+quota. De rest van het jaar stelt de gebruiker zelf samen: `assignToMonth()` en `moveToBacklog()`
 verplaatsen kaarten, en `resequenceMonth()` (`lib/plan-schedule.ts`) hangt er daarna kloppende
 publicatiedata aan. De spreiding hangt af van het aantal pagina's in die maand en niet van de quota:
 er is bewust **geen bovengrens** aan wat je in één maand zet, het scherm zegt alleen hoeveel je
@@ -334,6 +341,16 @@ boven je pakket zit.
 ⚠️ De kalendermaand komt sinds `0065` uit `content_plans.started_on` plus het maandnummer, niet meer
 uit de vroegste publicatiedatum in die maand. Een lege maand had anders geen naam, en dat is precies
 de maand waar iemand iets in wil slepen.
+
+⚠️ **Een publicatiedatum ligt nooit in het verleden en nooit op vandaag** (31 augustus 2026,
+punt 5 van `docs/tasks/opdracht-bevindingen-5-tot-9.md`). `spreadDates()` gaf bij een plan dat op de
+28e of later van de maand werd opgesteld eerder een datum tot drie dagen terug: `now.getDate() + 1`
+werd geklemd op dag 28 in plaats van de maand als vol te behandelen. De functie geeft nu een lege
+lijst zodra de lopende maand geen bruikbare dag meer over heeft (`maandIsVol()`), en `createPlan()`
+zet de voorzet dan in maand 2, die altijd op dag 1 begint en dus altijd ruimte heeft. Maand 1 blijft
+in dat geval leeg en op `concept`; maand 2 krijgt de status `ter_goedkeuring` in zijn plaats. De
+voorsprongzin ("ORBIT ENGINE begint tien dagen voor elke publicatiedatum") past zich aan
+(`schrijfBelofte()`) zodra de eerste pagina al binnen die termijn moet.
 
 **De publicatiedatum is sinds 26 augustus zelf te zetten** (migratie `0067`, `setPageDate()` in
 `lib/plans.ts`, actie `datum` op `/api/profiles/[id]/plan/pages/[pageId]`). `datumProbleem()`

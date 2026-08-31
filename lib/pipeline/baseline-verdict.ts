@@ -31,6 +31,7 @@
  * zwijgen beter dan een beschuldiging.
  */
 import { textContainsName } from "@/lib/entities/normalize";
+import { enkelOfMeervoud } from "@/lib/format";
 
 export type FactVerdict = "bevestigd" | "tegengesproken" | "niet_genoemd";
 
@@ -336,9 +337,20 @@ export function describeVerdict(
   }
 
   const delen = [`${engineLabel} kent ${brandName}`];
-  if (v.confirmed > 0) delen.push(`${v.confirmed} gegeven(s) kloppen`);
+  // Geen haakjesvorm "gegeven(s)" meer, en het werkwoord mee laten buigen: bij
+  // precies één is het "1 gegeven klopt", niet "1 gegeven kloppen" (punt 9 van
+  // docs/tasks/opdracht-bevindingen-5-tot-9.md).
+  if (v.confirmed > 0) {
+    delen.push(`${v.confirmed} ${enkelOfMeervoud(v.confirmed, "gegeven klopt", "gegevens kloppen")}`);
+  }
   if (v.contradicted > 0) {
-    delen.push(`**${v.contradicted} gegeven(s) worden tegengesproken**`);
+    delen.push(
+      `**${v.contradicted} ${enkelOfMeervoud(
+        v.contradicted,
+        "gegeven wordt tegengesproken",
+        "gegevens worden tegengesproken",
+      )}**`,
+    );
   }
   if (v.notMentioned > 0) delen.push(`${v.notMentioned} niet genoemd`);
   return `${delen.join(" · ")}.`;
