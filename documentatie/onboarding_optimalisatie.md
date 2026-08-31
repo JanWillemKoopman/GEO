@@ -902,3 +902,75 @@ Onbeantwoorde verplichte feitenvragen blokkeren het schrijven **niet**. De schri
 passage dan weg te laten in plaats van hem in te vullen. Dat is een goede keuze (liever een gat dan een verzinsel),
 maar het betekent wel dat een pagina stilzwijgend magerder wordt naarmate er meer vragen open staan. Dat is het
 sterkste argument voor A3: die vragen tijdens het gesprek beantwoorden in plaats van er later per mail achteraan gaan.
+
+
+---
+
+## 15. Vastgestelde scope: tien aanvullingen
+
+Besloten op 31 augustus 2026: alle acht voorstellen uit de tweede reviewronde gaan door, plus twee nieuwe punten over
+de aanbodboom. Dit hoofdstuk is de definitieve scope naast hoofdstuk 12 en 13.
+
+| # | Aanvulling | Raakt |
+|---|---|---|
+| 1 | Pakketfout bij het aanmaken van een merk repareren | `app/api/profiles/route.ts`, toewijzingsscherm |
+| 2 | Startvoorwaarden als checklist in blok 0 | `profile-readiness.ts`, onboardingsessie |
+| 3 | De opslagknop van het gespreksblok laten zeggen wat hij doet | `strategy-box.tsx` |
+| 4 | Waarschuwing: beslis onderwerpen pas ná het gesprek | onboardingsessie, clusterscherm |
+| 5 | Aanbodboom-status tonen (aantal knopen, of hij leeg is) | onboardingsessie |
+| 6 | De vier velden markeren die een nieuwe onderwerpronde veroorzaken | `brand-fields.ts`, `onboarding-refresh.ts` |
+| 7 | Uitnodiging versturen vanaf het afrondblok | onboardingsessie, `lib/invites.ts` |
+| 8 | Onderscheid "verplicht om te starten" en "verplicht voor een goede meting" | `brand-fields.ts`, blok 0 |
+| 9 | **De aanbodboom zelf kunnen bewerken** | nieuw: `app/api/profiles/[id]/offerings` |
+| 10 | **Extra informatie per product of dienst** | zelfde route, `offerings-panel.tsx` |
+
+### 15.1 Punt 9 en 10: de aanbodboom bewerkbaar maken
+
+**Wat er nu is.** `profile_offerings` bevat per knoop al: naam, soort (dienst, product, categorie, merk, vestiging),
+omschrijving, doelgroep, prijsindicatie, bronpagina, broncitaat, zekerheid, herkomst en een verwijzing naar de
+bovenliggende knoop. Het paneel dat dit toont is **alleen lezen**: er is geen API-route en geen knop. Toevoegen,
+verwijderen of aanvullen kan dus nergens, ook niet voor staf.
+
+**Wat dat kost.** De aanbodboom is de bron van de onderwerpen: geen boom betekent nul voorgestelde clusters, en een
+dienst die niet op de site staat (nieuw, of alleen telefonisch verkocht) komt nooit in het contentplan. Dat is precies
+het gat dat het gesprek zou moeten dichten en nu niet kan.
+
+**Wat er gebouwd moet worden.**
+
+- Eén route met toevoegen, wijzigen en verwijderen, via de service-role client met ownership-check, zoals elke andere
+  schrijfroute. Herkomst `gesprek` bij een consultant, `klant` bij de eigenaar.
+- In het paneel per knoop een bewerkknop en onderaan "Dienst of product toevoegen", met de velden die de kolommen al
+  hebben: naam, soort, omschrijving, voor wie, prijsindicatie, en onder welke knoop hij hangt.
+- Verwijderen is een keuze, geen wissen: de knoop verdwijnt uit de voorstellen maar blijft bewaard (conventie 8).
+  Voorstel: een kolom `removed_at`, zodat een verwijderde dienst niet stilletjes terugkomt bij een volgende ronde.
+
+**Drie dingen die anders stuk gaan, en die bij dit punt horen:**
+
+1. **Handwerk moet een hercrawl overleven.** "Onderzoek opnieuw" verwijdert vandaag álle rijen uit `profile_offerings`
+   voordat het opnieuw begint. Alles wat de CSM met de hand toevoegde is dan weg. Dezelfde bescherming als bij de
+   profielvelden: wat een mens heeft gezet blijft staan, alleen de rijen met herkomst `ai` worden vervangen.
+2. **Een handmatige toevoeging moet ook iets doen.** De vergelijking achter de knop "meer onderwerpen" kijkt naar vier
+   tellingen, en de aanbodboom zit daar niet bij. Voeg je een dienst toe en druk je op de knop, dan krijg je
+   "er is niets veranderd". Het aantal knopen hoort in die vergelijking.
+3. **De boom vult zichzelf nooit aan.** De aanbodstap slaat zichzelf over zodra er ook maar één rij bestaat. Dat is
+   goede idempotentie, maar het betekent dat een uitgebreidere crawl later niets meer toevoegt. Bij dit punt hoort de
+   vraag of "aanbod aanvullen" een eigen actie moet worden, naast het bestaande alles-of-niets.
+
+### 15.2 Oordeel over de volledige scope
+
+Alles doen is verstandig, om drie redenen. De acht punten repareren stuk voor stuk een plek waar het scherm iets
+belooft dat er niet gebeurt, of iets verzwijgt dat wel gebeurt. Ze raken bijna allemaal andere bestanden, dus ze
+kunnen los. En vier ervan halen een verrassing weg die anders pas weken later opvalt, wanneer herstellen duurder is.
+
+Eén kanttekening. De scope loopt nu van "een label hernoemen" tot "een nieuwe schrijfroute met beschermde herkomst".
+Dat is te veel voor één ronde en te veel voor één keer nakijken. Voorstel: drie ronden, in deze volgorde.
+
+| Ronde | Inhoud | Waarom deze volgorde |
+|---|---|---|
+| A | Stap 0 uit hoofdstuk 13 (A1, A7, A8, A10), plus punt 1 en 3 | Losse ingrepen zonder migratie, allemaal apart terug te draaien. Maakt het scherm meteen korter en eerlijker. |
+| B | De schermherindeling: hoofdstuk 12 stap 1 tot en met 6, plus punt 2, 4, 5, 6 en 8 | Dit is één samenhangende verbouwing van hetzelfde scherm. In stukken opleveren geeft een half verbouwd scherm in productie. |
+| C | Punt 7, 9 en 10 | Deze drie raken data en rechten, niet alleen vormgeving. Ze verdienen hun eigen migratie, hun eigen ketentests en hun eigen verificatie op productie. |
+
+Ronde C is inhoudelijk het zwaarst en levert het meeste op: pas als de CSM de aanbodboom kan bijwerken, kan het
+gesprek een dienst toevoegen die nergens op de site staat, en dat is vandaag het enige gat dat met geen enkel veld te
+dichten is.
