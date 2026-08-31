@@ -437,8 +437,17 @@ import {
   staleAdviceNotice,
   extraAliasesFrom,
   extraRegionsFrom,
+  regionsFromDescription,
   discontinuedNames,
 } from "@/lib/pipeline/context-factors";
+import { correctQuestionCount, questionCountLine } from "@/lib/pipeline/report-summary";
+import {
+  PACKAGE_SIZES,
+  DEFAULT_PACKAGE_SIZE,
+  isPackageSize,
+  toPackageSize,
+  packageLabel,
+} from "@/lib/package-sizes";
 import { formatDateShort, formatDateLong, formatRelativeTime, formatNumber } from "@/lib/format";
 import { describeToneSliders, clampToneSlider } from "@/lib/pipeline/tone-sliders";
 import { versionReasonLabel } from "@/lib/pipeline/version-reason";
@@ -12245,6 +12254,143 @@ group("wie useRefresh gebruikt, leest ook refreshing", () => {
   for (const bestand of gebruikers) {
     const bron = leesBestand(bestand);
     ok(`${bestand} leest refreshing`, /\|\|\s*refreshing/.test(bron));
+  }
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+// Bevindingen uit de eerste live doorloop, 31 augustus 2026
+// (docs/tasks/bevindingen-live-test-31-augustus-2026.md)
+// ════════════════════════════════════════════════════════════════════════════
+
+// ⚠️ De fout: in het gesprek stond bij een nieuwe regio "Uitbreiding richting
+// Oosterhout en Geertruidenberg." en die hele zin kwam als plaatsnaam in
+// `service_regions`. Dat veld wordt letterlijk in de lokale meetvragen geplakt
+// en het aantal regio's stuurt `suggestPromptMix()` aan, dus dat kost de klant
+// onbruikbare vragen én een duurdere meting.
+group("een hele zin wordt geen plaatsnaam (bevinding 2)", () => {
+  ok(
+    "de zin uit de doorloop levert niets op",
+    regionsFromDescription("Uitbreiding richting Oosterhout en Geertruidenberg.").length === 0,
+  );
+  ok(
+    "een enkele plaats komt er wel uit",
+    regionsFromDescription("Amersfoort")[0] === "Amersfoort",
+  );
+  ok(
+    "een punt erachter valt weg",
+    regionsFromDescription("Amersfoort.")[0] === "Amersfoort",
+  );
+
+  // De reden dat er NIET op "en" gesplitst wordt: dan zou hier "Gilze" en
+  // "Rijen" uitkomen, twee plaatsen die niet bestaan.
+  const gilze = regionsFromDescription("Gilze en Rijen");
+  ok("Gilze en Rijen blijft één gemeente", gilze.length === 1 && gilze[0] === "Gilze en Rijen");
+  ok(
+    "Bergen op Zoom blijft heel",
+    regionsFromDescription("Bergen op Zoom")[0] === "Bergen op Zoom",
+  );
+
+  const twee = regionsFromDescription("Oosterhout, Geertruidenberg");
+  ok("een komma is wel een opsomming", twee.length === 2, twee.join("|"));
+  ok("en beide plaatsen komen er heel uit", twee[1] === "Geertruidenberg", twee.join("|"));
+
+  const drie = regionsFromDescription("Oosterhout, Gilze en Rijen, 's-Hertogenbosch");
+  ok("gemengd blijft ook goed", drie.length === 3, drie.join("|"));
+  ok("met apostrof en al", drie[2] === "'s-Hertogenbosch", drie.join("|"));
+
+  // Kleine letter vooraan is een zin, geen plaatsnaam.
+  ok("een losse bijzin valt af", regionsFromDescription("richting het zuiden").length === 0);
+  ok("leeg blijft leeg", regionsFromDescription("   ").length === 0);
+
+  ok(
+    "extraRegionsFrom gebruikt dezelfde regel",
+    extraRegionsFrom([
+      { kind: "nieuwe_regio", description: "Uitbreiding richting Oosterhout en Geertruidenberg.", effective_from: null },
+      { kind: "nieuwe_regio", description: "Oosterhout, Waalwijk", effective_from: null },
+    ]).join("|") === "Oosterhout|Waalwijk",
+  );
+});
+
+// ⚠️ De fout: het rapport schreef "nog niet genoemd bij de 15 onderzochte
+// vragen" terwijl er 30 vragen waren, en sprak zichzelf drie zinnen verder
+// tegen met "de meting bestaat uit 30 antwoorden". Het getal is te tellen, dus
+// hoort er code onder te staan en niet alleen een promptregel (conventie 1).
+group("het aantal onderzochte vragen wordt rechtgezet (bevinding 4)", () => {
+  const fout =
+    "Wouter Warmtepomp wordt in deze eerste meting nog niet genoemd bij de 15 onderzochte vragen. " +
+    "De meting bestaat uit 30 antwoorden.";
+  const hersteld = correctQuestionCount(fout, 30);
+  ok("het getal is vervangen", hersteld.summary.includes("de 30 onderzochte vragen"), hersteld.summary);
+  ok("en de oude waarde is gelogd", hersteld.corrected[0] === 15, String(hersteld.corrected));
+  ok("de rest van de zin blijft heel", hersteld.summary.includes("nog niet genoemd bij"));
+
+  ok(
+    "een kloppend getal wordt niet aangeraakt",
+    correctQuestionCount("bij de 30 onderzochte vragen", 30).corrected.length === 0,
+  );
+
+  // ⚠️ Een verhouding is geen totaal. Zou deze zin ook rechtgezet worden, dan
+  // maakt het vangnet er een onwaarheid van.
+  const verhouding = correctQuestionCount("bij 17 van de 30 vragen ontbreekt het merk", 30);
+  ok("een verhouding blijft ongemoeid", verhouding.corrected.length === 0, verhouding.summary);
+
+  ok("andere formuleringen ook", correctQuestionCount("er zijn 12 vragen gemeten", 30).summary.includes("30 vragen gemeten"));
+  ok("zonder betrouwbaar eigen getal gebeurt er niets", correctQuestionCount("de 15 onderzochte vragen", 0).corrected.length === 0);
+  ok("een lege samenvatting valt niet om", correctQuestionCount(null, 30).summary === "");
+
+  const regel = questionCountLine(30, 46);
+  ok("de instructie noemt het aantal vragen", regel.includes("30"), regel);
+  ok("en het verschil met het aantal metingen", regel.includes("46"), regel);
+  ok("bij nul vragen valt de regel weg", questionCountLine(0, 0) === "");
+});
+
+// ⚠️ De fout: het planscherm blokkeerde op "kies eerst 10, 20 of 40 pagina's
+// per maand" terwijl er nergens een scherm was om dat te kiezen. Het pakket
+// staat nu in de pre-boardingwizard en op het toewijzen-scherm.
+group("het contentpakket kent maar drie maten (bevinding 8)", () => {
+  ok("er zijn er drie", PACKAGE_SIZES.length === 3, PACKAGE_SIZES.join("|"));
+  ok("de standaard is het instappakket", DEFAULT_PACKAGE_SIZE === 10);
+  ok("10 mag", isPackageSize(10));
+  ok("40 mag", isPackageSize(40));
+  ok("15 niet", !isPackageSize(15));
+  ok("tekst niet", !isPackageSize("10"));
+  ok("een half pakket niet", !isPackageSize(10.5));
+
+  ok("een getal uit een formulier komt er als getal uit", toPackageSize("20") === 20);
+  ok("leeg betekent geen pakket", toPackageSize("") === null);
+  ok("null blijft null", toPackageSize(null) === null);
+  ok("een onbekende maat wordt null en geen gok", toPackageSize(33) === null);
+
+  ok("het label leest als een afspraak", packageLabel(20) === "20 pagina's per maand");
+  ok("en zonder pakket zegt het dat", packageLabel(null) === "Nog geen pakket gekozen");
+});
+
+// ⚠️ De fout: een pagina in de briefingfase werd in de werklijst aangeboden als
+// "de tekst is klaar om te publiceren", met een knop Publiceren, terwijl er
+// geen letter geschreven was. `lib/work.ts` kende alleen `draft` en
+// gepubliceerd; `briefing` viel door naar de tak "klaar". Deze test leest de
+// broncode omdat `work.ts` `server-only` is en dus niet importeerbaar.
+group("de werklijst kent de briefingfase (bevinding 1)", () => {
+  const bron = leesBestand("lib/work.ts");
+  ok('work.ts behandelt status "briefing"', bron.includes('piece.status === "briefing"'));
+  ok(
+    "en doet dat vóór de tak die 'klaar om te publiceren' zegt",
+    bron.indexOf('piece.status === "briefing"') < bron.indexOf("De tekst is klaar om te publiceren"),
+  );
+  ok(
+    "de briefingkaart wijst naar het briefingscherm",
+    /briefing[\s\S]{0,600}\/briefing`/.test(bron),
+  );
+  // Elke status uit ContentStatus hoort een tak te hebben, anders ontstaat
+  // dezelfde fout opnieuw bij de volgende die erbij komt.
+  const statussen = leesBestand("lib/types/database.ts").match(
+    /export type ContentStatus =([^;]+);/,
+  );
+  ok("ContentStatus is gevonden", statussen !== null);
+  for (const rauw of (statussen?.[1] ?? "").split("|")) {
+    const naam = rauw.trim().replace(/"/g, "");
+    if (!naam || naam === "published" || naam === "ready" || naam === "archived") continue;
+    ok(`work.ts weet raad met "${naam}"`, bron.includes(`piece.status === "${naam}"`));
   }
 });
 

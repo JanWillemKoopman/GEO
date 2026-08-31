@@ -4,6 +4,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { membershipsOf } from "@/lib/accounts";
 import { isStaff } from "@/lib/staff";
 import { EDITABLE_ACCOUNT_FIELDS } from "@/lib/account-editable";
+import { toPackageSize } from "@/lib/package-sizes";
 import { deletionPlan, deleteAccount } from "@/lib/deletion";
 import {
   confirmationMatches,
@@ -67,6 +68,34 @@ export async function PATCH(
   // pure module, precies zoals bij het merkprofiel: daar bleek een veld in de
   // wizard te staan dat niet in de bewerkbare lijst zat, en dat sloeg stil niets op.
   const update: Record<string, unknown> = {};
+
+  // ── Het contentpakket, alleen door de beheerder ─────────────────────────
+  //
+  // ⚠️ Bewust NIET in `EDITABLE_ACCOUNT_FIELDS`: dat is de lijst die een
+  // klant-admin mag wijzigen, en het pakket is een verkoopafspraak. Zie
+  // `lib/package-sizes.ts` voor de redenering, en voor de fout die dit
+  // repareert: tot 31 augustus 2026 was er geen enkel scherm waar deze waarde
+  // te zetten viel, waardoor het contentplan van een nieuwe klant vastliep.
+  if ("package_pages_per_month" in body) {
+    if (!staff) {
+      return NextResponse.json(
+        {
+          error:
+            "Het contentpakket wordt door je consultant vastgelegd. Laat weten wat je wilt afspreken, dan passen we het aan.",
+        },
+        { status: 403 },
+      );
+    }
+    const maat = toPackageSize(body.package_pages_per_month);
+    if (maat === null && body.package_pages_per_month != null && body.package_pages_per_month !== "") {
+      return NextResponse.json(
+        { error: `Kies 10, 20 of 40 pagina's per maand.` },
+        { status: 400 },
+      );
+    }
+    update.package_pages_per_month = maat;
+  }
+
   for (const veld of EDITABLE_ACCOUNT_FIELDS) {
     if (!(veld in body)) continue;
     const waarde = body[veld];

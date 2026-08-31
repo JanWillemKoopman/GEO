@@ -1,5 +1,8 @@
 # Bevindingen live end-to-end test, 31 augustus 2026
 
+> **Stand op 31 augustus 2026:** punt 1, 2, 4 en 8 zijn opgelost en staan met een test in
+> `scripts/test-unit.ts`. Punt 3, 5, 6, 7 en de kleinere punten staan nog open.
+
 De volledige klantreis is op productie doorlopen met een echt bedrijf, van merk aanmaken tot en met
 de contentbriefing. Dit bestand bevat wat er misging. Wat goed ging staat samengevat in
 `docs/logbook.md`.
@@ -16,6 +19,8 @@ dat bedrijf en ruim het merk op zodra deze bevindingen verwerkt zijn. Zie de opr
 ---
 
 ## 1. Een pagina in de briefingfase wordt gepresenteerd alsof de tekst klaarstaat
+
+> **Opgelost op 31 augustus 2026.** `lib/work.ts` heeft een eigen tak voor de status `briefing`: de kaart zegt nu "De briefing staat klaar" en wijst naar het briefingscherm, met de urgentie van een feitenvraag. Een unittest leest de broncode en eist voortaan dat élke waarde uit `ContentStatus` een tak heeft, zodat dezelfde fout niet terugkomt bij de volgende status die erbij komt.
 
 **Waar:** `lib/work.ts`, regel 387 tot 415.
 
@@ -41,6 +46,8 @@ scherm dat bedoeld is om te zeggen wat er zonder hem stilligt. Waargenomen op 31
 ---
 
 ## 2. Een plaatsnaam uit het gesprek komt als hele zin in het werkgebied terecht
+
+> **Opgelost op 31 augustus 2026.** `regionsFromDescription()` accepteert alleen nog wat er als plaatsnaam uitziet: hooguit vier woorden, elk met een hoofdletter behalve de tussenvoegsels, gesplitst op komma's en niet op "en". Daardoor blijven "Gilze en Rijen" en "Bergen op Zoom" heel en levert de zin uit deze test niets meer op. Het gespreksscherm zegt er nu bij dat je alleen plaatsnamen invult.
 
 **Waar:** `lib/pipeline/context-factors.ts`, `extraRegionsFrom()`, regel 142 tot 147.
 
@@ -79,6 +86,8 @@ testplan noemde.
 ---
 
 ## 4. Het rapport noemt een aantal vragen dat niet klopt
+
+> **Opgelost op 31 augustus 2026.** De schrijfinstructie krijgt het aantal onderzochte vragen expliciet mee, en `correctQuestionCount()` zet achteraf recht wat er alsnog uit komt (`lib/pipeline/report-summary.ts`). Een verhouding als "17 van de 30 vragen" blijft ongemoeid, want dat is geen totaal.
 
 **Waar:** de modelgeschreven samenvatting in `reports.summary`.
 
@@ -141,10 +150,11 @@ Dat kost niets, dus het is geen uitgavelek. Het is wel de regie-informatie die v
   "en nog 6 punt(en)". De haakjesvorm hoort niet in klanttekst thuis.
 - **Twee schrijfwijzen voor getallen in één zin.** Op het scherm "Verdeling aanpassen" staat
   "ongeveer $1.70 per maand" met een punt, en in dezelfde zin "±10,7 punten" met een komma.
-- **Het pakket is nergens te kiezen.** Het planscherm blokkeert op "Er is nog geen pakket gekozen.
-  Kies eerst 10, 20 of 40 pagina's per maand", maar er is geen scherm dat
-  `accounts.package_pages_per_month` zet. Tijdens deze test is dat rechtstreeks in de database
-  gedaan. Zolang dat zo is, kan een nieuwe klant zijn contentplan niet zelf opstellen.
+- **Het pakket is nergens te kiezen.** *Opgelost op 31 augustus 2026.* Het contentpakket staat nu
+  als verplicht veld naast naam en webadres in de pre-boardingwizard, alleen zichtbaar voor de
+  beheerder, en is daarna aan te passen op het scherm Toewijzen. `PATCH /api/accounts/[id]`
+  weigert de waarde van een klant met een 403, dus de grens zit niet alleen in de weergave
+  (conventie 1). Zie `lib/package-sizes.ts`.
 - **Het aantal aanbevelingen kwam opnieuw uit op 7.** Dat is niet aantoonbaar een grens, want er is
   maar één meetronde gedaan en er stonden 12 gemeten gemissen tegenover 7 aanbevelingen en 6
   afgevallen kansen. Het is wel het getal waarvan werkpakket B punt 1 zei dat het niet meer vast zou

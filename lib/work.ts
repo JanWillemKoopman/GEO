@@ -384,6 +384,40 @@ export function deriveWork(sources: WorkSources): WorkItem[] {
       continue;
     }
 
+    // ⚠️ De briefingfase MOET vóór de val naar "klaar" hieronder staan.
+    //
+    // Gevonden op 31 augustus 2026, in de eerste live doorloop van de hele
+    // klantreis. Sinds R5.1 begint een pagina niet meer bij `draft` maar bij
+    // `briefing`: de klant kiest een aanbeveling, ORBIT ENGINE bouwt de
+    // feitenkaart, en pas na "Schrijf mijn pagina" gaat er een schrijftaak de
+    // rij in. Die vijfde status is toen niet aan dit bestand toegevoegd, en
+    // omdat alles wat geen `draft` en niet gepubliceerd is doorvalt naar de
+    // tak "klaar of gearchiveerd", kreeg de klant een pagina zonder één woord
+    // tekst voorgeschoteld als "de tekst is klaar om te publiceren", met een
+    // knop Publiceren ernaast. Precies in het scherm dat hoort te vertellen
+    // wat er zonder hem stilligt.
+    //
+    // De urgentie is die van een feitenvraag en niet die van publiceren: dit
+    // is uitvragen, geen afronden. Hij staat wel apart van de merkbrede
+    // feitenkaart hierboven, want die wijst naar de vragenpagina van het merk
+    // en deze naar de briefing van déze pagina, waar de knop staat die het
+    // schrijven daadwerkelijk in gang zet.
+    if (piece.status === "briefing") {
+      items.push({
+        id: `pagina:${piece.id}`,
+        kind: "pagina",
+        state: "nu",
+        title: piece.title,
+        why: "De briefing staat klaar. Vul aan wat ORBIT ENGINE niet van je website kan halen, dan schrijft het de pagina.",
+        urgency: URGENCY.feit,
+        href: `/analyses/${piece.analysis_id}/briefing`,
+        actionLabel: "Briefing invullen",
+        analysisId: piece.analysis_id,
+        analysisName: analysis.name,
+      });
+      continue;
+    }
+
     if (piece.status === "draft") {
       items.push({
         id: `pagina:${piece.id}`,

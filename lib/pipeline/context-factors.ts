@@ -52,7 +52,7 @@ export const CONTEXT_FACTOR_EFFECTS: Record<ContextFactorKind, string> = {
     "De crawl vindt hem niet, want hij staat nog nergens. Voeg hem met de hand toe aan het aanbod, dan telt hij mee bij de onderwerpen.",
   gestopte_dienst: "Valt uit het aanbod en uit de voorgestelde onderwerpen.",
   nieuwe_regio:
-    "Gaat mee in het werkgebied, dus ook in de lokale zoekvragen van de meting.",
+    "Gaat mee in het werkgebied, dus ook in de lokale zoekvragen van de meting. Schrijf alleen plaatsnamen op, gescheiden door een komma; een hele zin komt niet in het werkgebied terecht.",
   overig: "Alleen ter informatie; hier hangt geen automatische actie aan.",
 };
 
@@ -138,12 +138,105 @@ export function discontinuedNames(factors: ContextFactor[]): string[] {
     .filter((d) => d.length >= 2);
 }
 
-/** Extra werkgebieden die nog niet op de site staan. */
+/**
+ * Hoeveel tekens een plaatsnaam hoogstens is, en uit hoeveel woorden.
+ *
+ * "'s-Hertogenbosch" is 16 tekens, "Bergen op Zoom" is drie woorden, en
+ * "Gilze en Rijen" ook. Daarboven is het geen plaatsnaam meer maar een zin.
+ */
+const MAX_PLAATS_TEKENS = 40;
+const MAX_PLAATS_WOORDEN = 4;
+
+/**
+ * De kleine woorden die in een Nederlandse plaatsnaam met kleine letter
+ * geschreven worden. Alle andere woorden in een plaatsnaam beginnen met een
+ * hoofdletter, en dát is wat een plaatsnaam van een zin onderscheidt:
+ * "Gilze en Rijen" en "Bergen op Zoom" mogen, "Uitbreiding richting Oosterhout"
+ * niet, want "richting" staat hier niet tussen.
+ */
+const TUSSENVOEGSELS = new Set([
+  "aan",
+  "bij",
+  "de",
+  "den",
+  "der",
+  "en",
+  "het",
+  "op",
+  "over",
+  "te",
+  "ten",
+  "ter",
+  "van",
+]);
+
+/**
+ * Plaatsnamen uit de omschrijving van een `nieuwe_regio`, of niets.
+ *
+ * ── DE FOUT DIE DIT REPAREERT ───────────────────────────────────────────────
+ *
+ * ⚠️ Gevonden op 31 augustus 2026, in de eerste live doorloop van de hele
+ * klantreis. In het gesprek stond bij een nieuwe regio de omschrijving
+ * "Uitbreiding richting Oosterhout en Geertruidenberg." Die hele zin, punt en
+ * al, kwam als dertiende "plaatsnaam" in `profiles.service_regions` terecht.
+ *
+ * Dat veld is geen administratie. `service_regions[0]` wordt letterlijk in de
+ * kennistestvragen geplakt, de promptgeneratie maakt er lokale zoekvragen mee,
+ * en het AANTAL regio's stuurt `suggestPromptMix()` aan. Eén zin op die plek
+ * levert dus onbruikbare meetvragen op én een duurdere meting, en de klant
+ * betaalt voor allebei.
+ *
+ * ── WAAROM WEIGEREN EN NIET ONTLEDEN ────────────────────────────────────────
+ *
+ * De verleiding is een zin uit elkaar te trekken op "en" en op komma's. Dat
+ * gaat in het Nederlands gegarandeerd mis: "Gilze en Rijen" is één gemeente en
+ * "Bergen op Zoom" ook. Een half ontleed werkgebied is erger dan geen, want het
+ * meet dan onder een naam die niet bestaat (conventie 3, onbekend is een betere
+ * waarde dan een verkeerde).
+ *
+ * Deze functie splitst daarom alleen op komma's, wat een opsomming is en geen
+ * zin, en accepteert een deel pas als het er ook echt uitziet als een
+ * plaatsnaam: kort genoeg, hooguit vier woorden, en beginnend met een
+ * hoofdletter. Een zin als hierboven levert nul plaatsen op. De contextfactor
+ * zelf blijft gewoon staan (conventie 8, niets gaat verloren) en de consultant
+ * ziet in het gespreksscherm wat er wél verwacht wordt.
+ */
+export function regionsFromDescription(description: string): string[] {
+  return description
+    .split(",")
+    .map((deel) => deel.trim().replace(/^[-–—]+/, "").replace(/[.;:!?]+$/, "").trim())
+    .filter(isPlaatsnaam);
+}
+
+/**
+ * Ziet dit eruit als een plaatsnaam?
+ *
+ * Kort, hooguit vier woorden, en elk woord begint met een hoofdletter behalve
+ * de tussenvoegsels hierboven. Een zinsdeel als "We gaan uitbreiden" valt af op
+ * "gaan", "Uitbreiding richting Oosterhout" op "richting".
+ */
+function isPlaatsnaam(deel: string): boolean {
+  if (deel.length < 2 || deel.length > MAX_PLAATS_TEKENS) return false;
+  const woorden = deel.split(/\s+/).filter(Boolean);
+  if (woorden.length === 0 || woorden.length > MAX_PLAATS_WOORDEN) return false;
+  return woorden.every((woord, i) => {
+    if (i > 0 && TUSSENVOEGSELS.has(woord.toLowerCase())) return true;
+    // "'s-Hertogenbosch" en "'t Harde" beginnen met een apostrof; daarna telt
+    // de eerste letter.
+    return /^['’]?[a-z]?-?[A-ZÀ-Þ]/.test(woord) || /^['’][a-z]$/.test(woord);
+  });
+}
+
+/**
+ * Extra werkgebieden die nog niet op de site staan.
+ *
+ * Levert alleen op wat er als plaatsnaam doorheen komt; zie
+ * `regionsFromDescription()` voor waarom een hele zin hier niets oplevert.
+ */
 export function extraRegionsFrom(factors: ContextFactor[]): string[] {
   return factors
     .filter((f) => f.kind === "nieuwe_regio")
-    .map((f) => f.description.trim())
-    .filter((d) => d.length >= 2);
+    .flatMap((f) => regionsFromDescription(f.description));
 }
 
 function formatDate(iso: string): string {

@@ -20,6 +20,15 @@ Voor UI/UX: `ux-design.md`.
 > **Bijgewerkt op 28 augustus 2026**: de eindpoort staat in §2 (geen definitieve versie zolang er
 > vragen open staan), en "Vraagt jouw input" heet "Openstaande vragen" en staat op
 > `/merk/[id]/strategie/vragen`. Geen migratie: alle kolommen bestonden al.
+> **Bijgewerkt op 31 augustus 2026** na de eerste live doorloop van de hele klantreis
+> (`docs/logbook.md`): het contentpakket (10, 20 of 40 pagina's per maand) wordt sinds vandaag
+> in de pre-boardingwizard gevraagd en op het toewijzen-scherm aangepast, allebei alleen door de
+> beheerder (`lib/package-sizes.ts`); `lib/work.ts` kent de contentstatus `briefing`; de
+> rapportsamenvatting krijgt het aantal onderzochte vragen als deterministisch vangnet
+> (`lib/pipeline/report-summary.ts`); en een omschrijving bij een nieuw werkgebied levert alleen
+> nog echte plaatsnamen op (`regionsFromDescription()`). Geen migratie: de kolom
+> `accounts.package_pages_per_month` bestond al.
+>
 > **Bijgewerkt op 26 augustus 2026**: de tijdrij van §9 is opnieuw doorgerekend
 > (doorloop-huyberts.md punt 5). Migraties `0066` en `0067` zijn erbij gekomen
 > (supabase/README.md); `0067` staat bij §3, het contentplan.
@@ -270,7 +279,7 @@ probleem dan een dollar.
 | `fact_requests` | De briefingvragen aan de klant, max 8 per batch. `scope: 'merk'` slaat op met `analysis_id = null`. Ook de open punten uit de synthese staan hier, herkenbaar aan `raw_json.bron = 'synthese-gap'`; dat merkje bepaalt dat hun antwoord géén tweede regel in `profiles.proof_points` krijgt (het bereikt de schrijver al via `buildFactBase()`, en dan mét de juiste bron). |
 | `content_pieces` | Gegenereerde pagina's. Versiebeheer per (analyse, titel) via `version`/`is_current`/`supersedes_id`, plus `briefing_snapshot_json`, `claims_json`, `source_coverage`, `quality_score`, `geo_score`, `needs_review`, `reviewed_at`/`reviewed_by`. `faq_json` is sinds de content-editie (§5, stap 16) ook door de klant bewerkbaar via de PATCH-route, niet alleen door het model. |
 | `content_impact` | Hermeetgolven na publicatie + statistisch verdict. |
-| `content_plans` / `plan_months` | Het contentplan (`0049`): één lopende versie per merk, twaalf maanden. `pages_per_month` is een KOPIE van het pakket, geen verwijzing: wie halverwege upgradet hoort niet met terugwerkende kracht een ander plan te krijgen. Een vorige versie gaat op `gestopt` en blijft staan (conventie 8). |
+| `content_plans` / `plan_months` | Het contentplan (`0049`): één lopende versie per merk, twaalf maanden. `pages_per_month` is een KOPIE van het pakket (`accounts.package_pages_per_month`), geen verwijzing: wie halverwege upgradet hoort niet met terugwerkende kracht een ander plan te krijgen. Het pakket zelf zet de beheerder, in de pre-boardingwizard en daarna op Toewijzen; een klant mag het niet wijzigen, want het is een verkoopafspraak (`lib/package-sizes.ts`). Een vorige versie gaat op `gestopt` en blijft staan (conventie 8). |
 | `planned_pages` | Twee toestanden in één tabel (`0065`): met een `plan_month_id` staat de pagina ingepland, zonder staat hij in de **voorraad**. Inplannen verandert alleen de maand en de datum, dus de kaart houdt zijn status, zijn `content_piece_id` en zijn geschiedenis. `source` zegt waar hij vandaan komt (`aanbeveling` = een gemeten kans uit een rapport), `source_ref` (`"<rapport-id>#<volgnummer>"`) maakt het vullen idempotent, en `why`/`target_intent`/`existing_url`/`recommendation_action` dragen de briefing die anders opnieuw bedacht zou moeten worden. `potential` is de opgeslagen potentiescore, ververst bij elke synchronisatie. `scheduled_manual` (`0067`) zegt dat de gebruiker de publicatiedatum zelf koos, waardoor het herplannen van de maand hem laat staan. |
 | `technical_audits` | Kunnen AI-crawlers de site bereiken (robots.txt vs GPTBot, CCBot, …). Geen AI. |
 | `source_landscape` / `offsite_tasks` | Off-site aanwezigheid: welke externe domeinen relevant zijn en of het merk er staat. |

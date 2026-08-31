@@ -5660,3 +5660,47 @@ is achtergebleven en opgeruimd moet worden.
 ⚠️ **Het testmerk hoort bij een echt bedrijf dat geen klant is.** De antwoorden op de klantvragen en
 het strategisch gesprek zijn verzonnen om de keten te kunnen testen en staan als zodanig op
 productie. Ze zijn geen feiten over dat bedrijf.
+
+## 31 augustus 2026, de eerste vier bevindingen uit de live doorloop verwerkt
+
+De doorloop hierboven leverde tien punten op. De eigenaar koos de vier die een echte klant in zijn
+eerste week tegenkomt. Geen migratie nodig: alle vier zaten in code, niet in het datamodel.
+
+**De werklijst kende de briefingfase niet.** `lib/work.ts` had een tak voor `draft` en een voor
+gepubliceerd, en liet al het andere doorvallen naar "klaar of gearchiveerd". Sinds de briefingfase
+(R5.1) begint een pagina echter bij `briefing`, en die viel dus in de verkeerde tak: de klant kreeg
+een pagina zonder één woord tekst aangeboden als "de tekst is klaar om te publiceren", met een knop
+Publiceren, precies in het scherm dat hoort te vertellen wat er zonder hem stilligt. De nieuwe tak
+wijst naar het briefingscherm. De test die erbij hoort leest de broncode en eist dat élke waarde uit
+`ContentStatus` een eigen tak heeft, zodat de volgende status die erbij komt niet stilzwijgend
+hetzelfde pad neemt.
+
+**Een hele zin werd een plaatsnaam.** In het gesprek stond bij een nieuw werkgebied "Uitbreiding
+richting Oosterhout en Geertruidenberg." Die zin kwam als dertiende waarde in
+`profiles.service_regions`, het veld waaruit de promptgeneratie de plaatsnamen voor lokale
+meetvragen haalt en waarvan het AANTAL `suggestPromptMix()` aanstuurt. Eén zin daar kost dus
+onbruikbare meetvragen én een duurdere meting. `regionsFromDescription()` accepteert nu alleen wat
+er als plaatsnaam uitziet: hooguit vier woorden, elk met een hoofdletter behalve de dertien
+tussenvoegsels, en gesplitst op komma's. Bewust NIET op "en": dan zou "Gilze en Rijen" twee plaatsen
+worden die geen van beide bestaan, en dat is erger dan niets (conventie 3).
+
+**Het contentpakket was nergens te kiezen.** Het planscherm blokkeerde op "kies eerst 10, 20 of 40
+pagina's per maand" terwijl er in de hele app geen scherm was dat `accounts.package_pages_per_month`
+zette; de doorloop kwam alleen verder doordat de waarde met de hand in de database is gezet. Op
+verzoek van de eigenaar staat het pakket nu als verplicht veld naast naam en webadres in de
+pre-boardingwizard, zodat het er altijd al is op het moment dat de klant zijn contentplan opent, en
+is het daarna aan te passen op het scherm Toewijzen. Alleen de beheerder ziet het en alleen de
+beheerder mag het zetten: `PATCH /api/accounts/[id]` weigert de waarde van een klant met een 403,
+dus de grens zit niet alleen in de weergave (conventie 1). Het pakket blijft bewust buiten
+`EDITABLE_ACCOUNT_FIELDS`, want het is een verkoopafspraak en geen instelling.
+
+**Het rapport noemde 15 onderzochte vragen bij een meting van 30.** In dezelfde alinea stond drie
+zinnen verder "de meting bestaat uit 30 antwoorden", dus de klant las twee getallen die elkaar
+tegenspreken. Het aantal is te tellen, dus hoort er code onder te staan: de schrijfinstructie krijgt
+het nu expliciet mee (de intentie) en `correctQuestionCount()` zet achteraf recht wat er alsnog
+uitkomt (de garantie). Het vangnet is met opzet smal en raakt alleen zinsdelen die het TOTAAL
+beweren; "17 van de 30 vragen" is een verhouding en blijft ongemoeid, want een te gretige vervanging
+zou daar een onwaarheid van maken.
+
+Vier controles groen: typecheck, 2606 unittests, 382 ketentests en de productiebuild. De zes
+overgebleven bevindingen staan in `docs/tasks/bevindingen-live-test-31-augustus-2026.md`.

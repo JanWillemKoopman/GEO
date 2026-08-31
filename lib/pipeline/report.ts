@@ -14,6 +14,7 @@ import { GapAnalysis } from "@/lib/schemas/gap-analysis";
 import { Report } from "@/lib/schemas/report";
 import { NEUTRAL_WEIGHT } from "@/lib/pipeline/prompt-weight";
 import { resolveTargets, mergeOverlappingRecommendations } from "@/lib/pipeline/recommendation";
+import { correctQuestionCount, questionCountLine } from "@/lib/pipeline/report-summary";
 import {
   buildEvidenceDossier,
   loadBrandsByRun,
@@ -279,12 +280,19 @@ function buildReportInput(
    * noemen.
    */
   structureGaps: string,
+  /**
+   * Hoeveel unieke vragen er in deze ronde onderzocht zijn, en hoe vaak ze
+   * samen gemeten zijn. Zie `lib/pipeline/report-summary.ts` voor waarom dit
+   * getal expliciet meegaat in plaats van dat het model het afleidt.
+   */
+  measurementSize: { questions: number; runs: number },
 ): string {
   return [
     `Eigen merk: ${ownLabel(analysis, profile)}`,
     ...briefLine(analysis),
     ...(siteMigrationNotice ? ["", `LET OP: ${siteMigrationNotice}`, ""] : []),
     scoreLine(score),
+    questionCountLine(measurementSize.questions, measurementSize.runs),
     changeBlock,
     formatEvidenceDossier(dossier),
     "",
@@ -333,6 +341,36 @@ const MISSED_CAP = 15;
  * bevroren gewicht (volume × waarde), de waardevolste kansen bovenaan. Verrijkt
  * met de prompt-tags (cluster/intent_type) via prompt_id.
  */
+/**
+ * Hoeveel unieke vragen er in deze ronde onderzocht zijn, en hoe vaak ze samen
+ * gemeten zijn.
+ *
+ * Twee getallen en niet één, want ze lopen uiteen: de zwaarstwegende vragen
+ * worden herhaald, dus bij de doorloop van 31 augustus 2026 stonden er 30
+ * vragen tegenover 46 metingen. "Hoeveel vragen" is wat de klant leest,
+ * "hoeveel metingen" hoort in de betrouwbaarheidszin. Zie
+ * `lib/pipeline/report-summary.ts` voor de fout die dit voorkomt.
+ *
+ * Dezelfde afbakening als `computeMissedPrompts()`: alleen `periodic`, want
+ * impact- en controlemetingen gaan over een handvol vragen en zouden het
+ * totaal dat de klant leest vertekenen.
+ */
+async function countMeasurementSize(
+  admin: ReturnType<typeof createAdminClient>,
+  analysisId: string,
+  weekNo: number,
+): Promise<{ questions: number; runs: number }> {
+  const { data } = await admin
+    .from("tracking_runs")
+    .select("prompt_id")
+    .eq("analysis_id", analysisId)
+    .eq("week_no", weekNo)
+    .eq("purpose", "periodic");
+  const rows = data ?? [];
+  const uniek = new Set(rows.map((r) => r.prompt_id as string).filter(Boolean));
+  return { questions: uniek.size, runs: rows.length };
+}
+
 async function computeMissedPrompts(
   admin: ReturnType<typeof createAdminClient>,
   analysisId: string,
@@ -706,6 +744,10 @@ export async function generateReport(
   // B1/B2 de aanbevelingen richten op de waardevolste kansen (§6 A3 / §7).
   const missed = await computeMissedPrompts(admin, id, weekNo);
 
+  // Hoeveel vragen er onderzocht zijn. Gaat mee in de instructie én dient als
+  // ijkgetal voor het vangnet onder de samenvatting hieronder.
+  const measurementSize = await countMeasurementSize(admin, id, weekNo);
+
   // Het bewijsdossier: per gemiste vraag welke bedrijven er in DÁT antwoord
   // stonden (implementatieplan.md R1.1). Deterministisch uit de database, zodat
   // het model de koppeling vraag↔concurrent niet hoeft af te leiden, en hem dus
@@ -783,6 +825,7 @@ export async function generateReport(
         changeBlock,
         migratieMelding,
         structuurGaten,
+        measurementSize,
       ),
       schema: Report,
       schemaName: "report",
@@ -822,6 +865,23 @@ export async function generateReport(
       );
     }
 
+    // ── Het aantal onderzochte vragen rechtzetten (conventie 1) ────────────
+    // De instructie kreeg het getal expliciet mee; dit is de garantie erachter.
+    // Zie `lib/pipeline/report-summary.ts` voor de fout uit de doorloop van
+    // 31 augustus 2026, waar het rapport "15 onderzochte vragen" schreef bij
+    // een meting van 30 vragen en zichzelf drie zinnen verder tegensprak.
+    const samenvatting = correctQuestionCount(
+      report.parsed.summary,
+      measurementSize.questions,
+    );
+    if (samenvatting.corrected.length > 0) {
+      console.warn(
+        `Analyse ${id} periode ${weekNo}: het rapport noemde ` +
+          `${samenvatting.corrected.join(", ")} onderzochte vragen terwijl het er ` +
+          `${measurementSize.questions} waren. Rechtgezet vóór opslag.`,
+      );
+    }
+
     const { data: reportRow, error: reportError } = await admin
       .from("reports")
       .insert({
@@ -829,7 +889,7 @@ export async function generateReport(
         week_no: weekNo,
         period: weekNo === 0 ? "nulmeting" : `periode ${weekNo}`,
         change_json: change as never,
-        summary: report.parsed.summary,
+        summary: samenvatting.summary,
         gaps_json: gaps as never,
         recommendations_json: recommendations as never,
         declined_json: report.parsed.declinedGaps as never,

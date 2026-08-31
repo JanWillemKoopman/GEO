@@ -4,6 +4,8 @@ import { requireUser } from "@/lib/auth";
 import { isStaff } from "@/lib/staff";
 import { PageHeader } from "@/components/page-header";
 import { AssignBox } from "../../_components/assign-box";
+import { PackageBox } from "../../_components/package-box";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Toewijzen" };
@@ -29,6 +31,19 @@ export default async function ToewijzenPage({
   const staff = await isStaff(user.id);
   if (!staff) notFound();
 
+  // Het pakket hangt aan het account onder dit merk, niet aan het merk zelf.
+  // Zie `app/(app)/merk/[id]/_components/package-box.tsx` voor waarom het juist
+  // op dit scherm staat, en `lib/package-sizes.ts` voor de fout die het oplost.
+  const account = profile.account_id
+    ? (
+        await createAdminClient()
+          .from("accounts")
+          .select("id, name, package_pages_per_month")
+          .eq("id", profile.account_id)
+          .maybeSingle()
+      ).data
+    : null;
+
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
@@ -41,6 +56,12 @@ export default async function ToewijzenPage({
         profileId={id}
         currentUserId={profile.user_id}
         assignedAt={profile.assigned_at}
+      />
+
+      <PackageBox
+        accountId={(account?.id as string | undefined) ?? null}
+        accountName={(account?.name as string | undefined) ?? null}
+        current={(account?.package_pages_per_month as number | null | undefined) ?? null}
       />
     </div>
   );

@@ -9,6 +9,8 @@ import { mayTriggerCost, COST_DENIED } from "@/lib/cost-guard";
 import { checkBudget } from "@/lib/spend-limit";
 import { resolveScope } from "@/lib/pipeline/field-merge";
 import { consultantFields } from "@/lib/profile-source";
+import { isStaff } from "@/lib/staff";
+import { toPackageSize } from "@/lib/package-sizes";
 
 /**
  * POST /api/profiles, nieuw klantprofiel aanmaken vanuit de onboarding-wizard
@@ -30,6 +32,16 @@ interface ProfileIntakeBody {
   tone_of_voice?: string;
   intake_description?: string;
   intake_audience?: string;
+  /**
+   * Het contentpakket van de klant, 10, 20 of 40 pagina's per maand.
+   *
+   * ⚠️ Alleen de beheerder mag dit meesturen; bij een klant wordt het genegeerd.
+   * Het is een verkoopafspraak en geen instelling, zie `lib/package-sizes.ts`.
+   * Het staat in de pre-boardingwizard omdat het planscherm er hard op
+   * blokkeert: tot 31 augustus 2026 was er nergens een scherm om het te zetten,
+   * en liep een nieuwe klant vast op zijn eigen contentplan.
+   */
+  packagePagesPerMonth?: unknown;
   /**
    * Klant heeft de "site onbereikbaar"-waarschuwing gezien en wil tóch door
    * (optimalisatie.md 0.12). Een site kan achter een firewall zitten of onze
@@ -116,6 +128,30 @@ export async function POST(request: Request) {
   // ⚠️ Zonder account is een merk onvolledig: het contentplan vindt geen pakket
   // en een uitgenodigde klant ziet het niet. Zie `defaultAccountFor()`.
   const accountId = await defaultAccountFor(user.id);
+
+  // ── Het contentpakket meteen vastleggen ──────────────────────────────────
+  //
+  // Het pakket hangt aan het ACCOUNT en niet aan het merk: een klant kan
+  // meerdere merken hebben en koopt één pakket (besluit 10). Het wordt hier
+  // gezet in plaats van in een apart scherm, zodat het er altijd al staat op
+  // het moment dat de klant zijn contentplan voor het eerst opent.
+  //
+  // Alleen de beheerder, en dat wordt hier afgedwongen en niet alleen in de
+  // wizard verborgen (conventie 1). Een mislukte schrijfactie is bewust geen
+  // 500: het merk staat er en het onderzoek moet gewoon draaien, en het pakket
+  // is daarna alsnog te zetten bij Toewijzen.
+  const pakket = toPackageSize(body.packagePagesPerMonth);
+  if (pakket !== null && accountId && (await isStaff(user.id))) {
+    const { error: pakketError } = await admin
+      .from("accounts")
+      .update({ package_pages_per_month: pakket })
+      .eq("id", accountId);
+    if (pakketError) {
+      console.error(
+        `Contentpakket vastleggen mislukt bij account ${accountId}: ${pakketError.message}`,
+      );
+    }
+  }
 
   // ⚠️ Mensinvoer door dezelfde normalisatie als modeluitvoer (fase 2 van
   // onboarding 3.0). `resolveScope()` ontdubbelt de plaatsnamen en maakt van

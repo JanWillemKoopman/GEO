@@ -166,7 +166,7 @@ export function StrategyBox({
                 f.kind === "naamswijziging" || f.kind === "rebranding"
                   ? "De andere naam, precies zoals hij geschreven wordt"
                   : f.kind === "nieuwe_regio"
-                    ? "De plaats of regio"
+                    ? "Alleen de plaatsnamen, bijvoorbeeld: Oosterhout, Geertruidenberg"
                     : "Korte omschrijving"
               }
             />
