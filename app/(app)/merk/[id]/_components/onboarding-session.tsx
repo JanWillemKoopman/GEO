@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { SectionRail } from "@/components/section-rail";
 import { CollapsibleSection } from "@/components/collapsible-section";
 import { ConfirmDialog } from "@/components/confirm-dialog";
@@ -114,8 +114,19 @@ export function OnboardingSession({
     [waarden, states],
   );
 
+  // A4: welke velden zijn getypt maar nog niet opgeslagen. Bijgehouden in een
+  // ref omdat een pagehide-listener buiten de React-renderklok afgaat en dan
+  // de laatste stand nodig heeft, niet de stand van het moment dat hij werd
+  // aangemeld.
+  const openstaandeVelden = useRef<Set<string>>(new Set());
+  const waardenRef = useRef(waarden);
+  useEffect(() => {
+    waardenRef.current = waarden;
+  }, [waarden]);
+
   function zet(key: string, value: unknown) {
     setWaarden((w) => ({ ...w, [key]: value }));
+    openstaandeVelden.current.add(key);
   }
 
   /**
@@ -141,10 +152,44 @@ export function OnboardingSession({
       setStanden((s) => ({ ...s, [key]: "opgeslagen" }));
       setStates((s) => ({ ...s, [key]: { ...s[key], source: "gesprek" } }));
       setGewijzigd((v) => (v.includes(key) ? v : [...v, key]));
+      openstaandeVelden.current.delete(key);
     } catch {
       setStanden((s) => ({ ...s, [key]: "mislukt" }));
     }
   }
+
+  /**
+   * A4: opslaan bij het sluiten van het tabblad.
+   *
+   * Opslaan gebeurt normaal bij `onBlur`, maar wie het tabblad sluit terwijl de
+   * cursor nog in een tekstvak staat, verliest zonder dit wat er getypt is: er
+   * komt dan geen blur meer. `pagehide` vangt het sluiten en het navigeren weg,
+   * `visibilitychange` naar verborgen vangt ook het wisselen van tabblad of app
+   * op een telefoon. `keepalive` laat de aanvraag doorlopen nadat de pagina al
+   * is losgelaten.
+   */
+  useEffect(() => {
+    function bewaarOpenstaand() {
+      for (const key of openstaandeVelden.current) {
+        void fetch(`/api/profiles/${profileId}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ [key]: waardenRef.current[key], bron: "gesprek" }),
+          keepalive: true,
+        });
+      }
+      openstaandeVelden.current.clear();
+    }
+    function opZichtbaarheid() {
+      if (document.visibilityState === "hidden") bewaarOpenstaand();
+    }
+    window.addEventListener("pagehide", bewaarOpenstaand);
+    document.addEventListener("visibilitychange", opZichtbaarheid);
+    return () => {
+      window.removeEventListener("pagehide", bewaarOpenstaand);
+      document.removeEventListener("visibilitychange", opZichtbaarheid);
+    };
+  }, [profileId]);
 
   /** Niet van toepassing aan- of uitzetten. Zelfde route, andere sleutel. */
   async function zetNvt(key: string) {
@@ -293,6 +338,11 @@ export function OnboardingSession({
               <CollapsibleSection
                 key={stap}
                 title={`${STEP_META[stap].title} · ${p.gevuld} van de ${p.totaal}`}
+                // A1: alleen de stappen die nog niet compleet zijn openen. Een
+                // stap die al af is, hoeft niet in de weg te staan tijdens het
+                // gesprek. Overschrijft het breakpointgedrag van
+                // `CollapsibleSection` bewust, ook op desktop.
+                defaultOpen={!p.compleet}
               >
                 <div className="flex flex-col gap-4">
                   <p className="text-sm text-muted">{STEP_META[stap].description}</p>

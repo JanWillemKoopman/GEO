@@ -1,20 +1,16 @@
 import { OnboardingWizard } from "./onboarding-wizard";
-import { getUser } from "@/lib/auth";
-import { isStaff } from "@/lib/staff";
 
 export const metadata = { title: "Nieuw merk" };
 
 /**
- * De pre-boarding: naam, webadres, schrijfwijzen en, voor de beheerder, het
- * contentpakket.
+ * De pre-boarding: naam, webadres en schrijfwijzen.
  *
- * ⚠️ De beheerdersvraag wordt hier op de server beantwoord en niet in de
- * browser. Zou het formulier zelf bepalen of iemand beheerder is, dan is de
- * grens een weergavekwestie; nu is het scherm alleen de eerste laag en weigert
- * `POST /api/profiles` het pakket ook echt van een klant (conventie 1).
+ * Het contentpakket wordt hier bewust niet meer gevraagd (A5): tot 31 augustus
+ * 2026 landde het op het eigen account van de consultant in plaats van dat van
+ * de klant, omdat het merk pas bij Toewijzen op het klantaccount komt te
+ * staan. Het pakket wordt sindsdien uitsluitend gezet op het
+ * toewijzingsscherm, ná het koppelen (`package-box.tsx`).
  */
-export default async function NewProfilePage() {
-  const user = await getUser();
-  const staff = user ? await isStaff(user.id) : false;
-  return <OnboardingWizard isStaff={staff} />;
+export default function NewProfilePage() {
+  return <OnboardingWizard />;
 }

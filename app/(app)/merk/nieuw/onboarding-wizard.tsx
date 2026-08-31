@@ -5,11 +5,6 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { TagListEditor } from "@/components/tag-list-editor";
 import { checkUrlFormat } from "@/lib/url";
-import {
-  PACKAGE_SIZES,
-  DEFAULT_PACKAGE_SIZE,
-  type PackageSize,
-} from "@/lib/package-sizes";
 import { Icon } from "@/components/icon";
 
 /**
@@ -43,24 +38,14 @@ interface FormState {
   name: string;
   url: string;
   aliases: string[];
-  /**
-   * Het contentpakket, alleen gevraagd aan de beheerder.
-   *
-   * ⚠️ Staat hier naast naam en webadres, en niet ergens verderop in de app,
-   * omdat het planscherm er hard op blokkeert. Tot 31 augustus 2026 was er
-   * geen enkel scherm waar deze waarde te zetten viel; een nieuwe klant liep
-   * daardoor vast op zijn eigen contentplan. Zie `lib/package-sizes.ts`.
-   */
-  packagePagesPerMonth: PackageSize;
 }
 
-export function OnboardingWizard({ isStaff = false }: { isStaff?: boolean }) {
+export function OnboardingWizard() {
   const router = useRouter();
   const [form, setForm] = useState<FormState>({
     name: "",
     url: "",
     aliases: [],
-    packagePagesPerMonth: DEFAULT_PACKAGE_SIZE,
   });
   const [error, setError] = useState<string | null>(null);
   const [urlTouched, setUrlTouched] = useState(false);
@@ -109,12 +94,7 @@ export function OnboardingWizard({ isStaff = false }: { isStaff?: boolean }) {
       const res = await fetch("/api/profiles", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        // Een klant stuurt het pakket niet mee. De route weigert het ook van
-        // hem (verkoopafspraak, geen instelling), maar het niet meesturen
-        // scheelt een foutmelding die hij niet kan oplossen.
-        body: JSON.stringify(
-          isStaff ? { ...form, force } : { ...form, packagePagesPerMonth: undefined, force },
-        ),
+        body: JSON.stringify({ ...form, force }),
       });
       const json = await res.json();
       if (!res.ok) {
@@ -199,29 +179,6 @@ export function OnboardingWizard({ isStaff = false }: { isStaff?: boolean }) {
             en valt je score te laag uit.
           </span>
         </div>
-
-        {isStaff && (
-          <label className="flex flex-col gap-1.5">
-            <span className="mono-label">Contentpakket *</span>
-            <select
-              className="field"
-              value={form.packagePagesPerMonth}
-              onChange={(e) =>
-                set("packagePagesPerMonth", Number(e.target.value) as PackageSize)
-              }
-            >
-              {PACKAGE_SIZES.map((maat) => (
-                <option key={maat} value={maat}>
-                  {maat} pagina&apos;s per maand
-                </option>
-              ))}
-            </select>
-            <span className="text-sm text-muted">
-              Alleen jij ziet dit veld. Het bepaalt hoeveel pagina&apos;s er per maand in het
-              contentplan komen, en je past het later aan bij Toewijzen.
-            </span>
-          </label>
-        )}
 
         {error && (
           <div className="flex flex-col gap-2">

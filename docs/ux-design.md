@@ -795,6 +795,17 @@ dit scherm kan maken. Mislukt een opslag, dan blijft de getypte waarde staan met
 opnieuw te proberen; stil terugdraaien laat de consultant het opnieuw typen zonder te weten dat het
 de eerste keer ook al niet lukte.
 
+**De gevonden-stappen openen ingeklapt, behalve wat nog niet compleet is** (Ronde A, 31 augustus
+2026). `CollapsibleSection` staat op desktop standaard open; zonder `defaultOpen` mee te geven stonden
+alle 41 klantvelden dus tegelijk uitgeklapt en liep het scherm over een lengte van ongeveer tien
+schermhoogtes. Elke stap krijgt nu `defaultOpen={!stepProgress(...).compleet}`: een complete stap
+opent dicht, een stap met nog een leeg veld opent open.
+
+**Een getypte waarde overleeft het sluiten van het tabblad** (Ronde A). Opslaan gaat bij `onBlur`,
+maar wie het tabblad sluit terwijl de cursor nog in een veld staat, verliest zonder extra vangnet wat
+er getypt is. De sessie stuurt openstaande velden alsnog weg bij `pagehide` en bij
+`visibilitychange` naar verborgen, met `fetch(..., { keepalive: true })`.
+
 **Elk veld kan op "niet van toepassing"** (migratie `0060`). Een merk zonder auteur heeft geen
 auteursbio, en dat is geen gat. Zo'n veld telt als behandeld en verdwijnt uit de gatenlijst.
 

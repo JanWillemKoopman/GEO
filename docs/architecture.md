@@ -38,6 +38,11 @@ Voor UI/UX: `ux-design.md`.
 > oordeel over een marktclaim in `fact_requests` staat vóór de vertakking op een gapvraag, in het
 > nieuwe `lib/facts.ts` (§3); en de `GET` van `/api/profiles/[id]/topics/refresh` vraagt nu dezelfde
 > beheerdersrol als de `POST` (§5).
+> **Bijgewerkt op 31 augustus 2026** (Ronde A van `documentatie/onboarding_optimalisatie.md` §18, geen
+> migratie): het contentpakket wordt niet meer in de pre-boardingwizard gevraagd (dat schreef het naar
+> het standaardaccount van de consultant in plaats van dat van de klant), maar uitsluitend op het
+> toewijzingsscherm, ná het koppelen aan het klantaccount. De regel op 24 augustus hierboven is in
+> zoverre achterhaald.
 > De rest van de peildatum hieronder blijft staan.
 > **Migraties `0058` en `0059` zijn er sindsdien bijgekomen** en staan wél in §12 en in dit
 > document verwerkt, maar de rest is niet opnieuw regel voor regel nagelopen. Verder geldt:

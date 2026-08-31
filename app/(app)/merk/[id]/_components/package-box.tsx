@@ -95,6 +95,9 @@ export function PackageBox({
           {accountName ?? "dit account"}. Alleen jij stelt dit in; de klant ziet het aantal terug in
           zijn contentplan.
         </p>
+        <p className="text-sm text-secondary">
+          Zet dit vóór het eerste contentplan: zonder pakket blokkeert dat scherm voor de klant.
+        </p>
       </div>
 
       <label className="flex flex-col gap-1.5">
