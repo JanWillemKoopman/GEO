@@ -445,360 +445,293 @@ overheen staan. Hieronder wat er gebouwd is en het cijfer dat elke keuze droeg.
 
 **Het cijfer dat de hele ronde droeg: 6.000 tegen 60.** Het profielonderzoek deed één AI-aanroep op
 `crawlSite()`, de homepage, afgekapt op 6.000 tekens. De content-inventaris van 60 pagina's draaide
-er parallel aan en werd pas ná de aanroep opgeslagen, dus die kwam het onderzoek nooit in. Alles wat
-het model over diensten, prijzen, vestigingen en team "wist", kwam uit die ene pagina plus een gok.
-`profile_discover` draait nu vóór het onderzoek en levert 60.000 tekens context aan voor ~$0,003 aan
+parallel en werd pas ná de aanroep opgeslagen, dus kwam nooit het onderzoek in. Alles wat het model
+over diensten, prijzen, vestigingen en team "wist" kwam uit die ene pagina plus een gok.
+`profile_discover` draait nu vóór het onderzoek en levert 60.000 tekens context voor ~$0,003 aan
 invoer. De duurste kennisbron bleek gratis en werd weggegooid.
 
 **Verkoopgedreven in plaats van self-serve.** De onboarding vroeg vier wizardstappen met elf velden
-uit voordat er iets gebeurde. Nu drie velden, webadres, bedrijfsnaam, andere schrijfwijzen, en de
-pijplijn doet de rest. De oude kolommen bestaan nog en worden door het onderzoek gevuld. Corrigeren
-gebeurt achteraf op de profielpagina, als er iets te corrigeren vált.
+uit voordat er iets gebeurde. Nu drie velden (webadres, bedrijfsnaam, andere schrijfwijzen), de
+pijplijn doet de rest. De oude kolommen worden door het onderzoek gevuld; corrigeren gebeurt achteraf
+op de profielpagina.
 
-**De stafrol als extra policy, niet als herschrijving.** Er staan 19 tabellen met een
-`*_select_own`-policy. Postgres OR't permissieve policies, dus één extra policy per tabel doet
-hetzelfde als alle 19 herschrijven, maar additief, en met één `drop` per tabel weer weg.
-`staff_users` heeft RLS aan en nul policies (zoals `jobs`), en `is_staff()` is daarom
-`security definer` met een vaste `search_path`: als aanroeper zou hij die tabel mét RLS lezen en
-altijd `false` geven, de hele verbreding zou dan stil niet werken.
+**De stafrol als extra policy, niet als herschrijving.** 19 tabellen hebben een `*_select_own`-policy.
+Postgres OR't permissieve policies, dus één extra policy per tabel doet hetzelfde als alle 19
+herschrijven, additief en met één `drop` per tabel terug te draaien. `staff_users` heeft RLS aan en
+nul policies (zoals `jobs`), en `is_staff()` is daarom `security definer` met een vaste `search_path`:
+als aanroeper zou hij die tabel mét RLS lezen en altijd `false` geven, de hele verbreding zou dan stil
+niet werken.
 
 **Toewijzen raakt precies twee tabellen.** `user_id` komt alleen voor in `profiles` (0004) en
-`analyses` (0001); nagelopen over alle 41 migraties. De rest hangt via `analysis_id` aan de analyse
-en verhuist mee met de RLS-join. Faalt de tweede update, dan wordt de eerste teruggedraaid, een
-profiel bij de klant en de analyses bij de beheerder is erger dan een mislukte toewijzing.
+`analyses` (0001), nagelopen over alle 41 migraties. De rest hangt via `analysis_id` aan de analyse en
+verhuist mee met de RLS-join. Faalt de tweede update, dan wordt de eerste teruggedraaid: een profiel
+bij de klant en de analyses bij de beheerder is erger dan een mislukte toewijzing.
 
 **Wachtwoordherstel is een route handler, geen pagina.** Het inwisselen van de herstelcode schrijft
-een cookie, en een Server Component mag dat niet in Next 15: dat faalt stil in de try/catch van
-`lib/supabase/server.ts`, waarna de klant een nieuw wachtwoord intypt dat nergens heen gaat.
+een cookie, wat een Server Component in Next 15 niet mag: dat faalt stil in de try/catch van
+`lib/supabase/server.ts`, waarna het nieuwe wachtwoord nergens heen gaat.
 
 **R6.2 opgelost op de plek waar hij thuishoort.** Bol leverde 1 pagina in de inventaris op, HEMA 40
 productpagina's; in beide gevallen degradeerde het rapport zonder melding. Het oordeel valt nu in
 fase 0, waar constateren nog nul euro kost. Migratie `0033` vervalt daarmee definitief.
 
 **De renderbaarheidstest is de zwaarste bevinding die er bestaat en kost niets.** AI-crawlers voeren
-geen JavaScript uit. Boven de 50% JavaScript-pagina's is dat een blocker en geen aandachtspunt: de
-site is dan voor een AI-assistent grotendeels leeg, en betere content helpt niets.
+geen JavaScript uit. Boven de 50% JavaScript-pagina's is dat een blocker: de site is dan voor een
+AI-assistent grotendeels leeg, en betere content helpt niets.
 
 **Van "verzin een onderwerp" naar "kies uit wat je aanbiedt".** De aanbodboom
-(`profile_offerings`) is bewust een boom en geen `text[]`: een core topic zit op het niveau tússen
-categorie en product in, categorieniveau meet een hele markt, productniveau wordt door niemand
-gevraagd. `propose_topics` kost ~$0,01 en doet bewust geen meting per voorstel; dat zou 8 × $0,40
-zijn vóórdat iemand ja heeft gezegd.
+(`profile_offerings`) is bewust een boom en geen `text[]`: een core topic zit tússen categorie en
+product, categorieniveau meet een hele markt, productniveau vraagt niemand. `propose_topics` kost
+~$0,01 en doet bewust geen meting per voorstel, dat zou 8 × $0,40 zijn vóórdat iemand ja heeft gezegd.
 
-**De enginelaag is bedrading zonder fan-out.** `lib/engines/` is er, de Gemini-adapter is er, de
-meetsleutel kent de engine en migratie `0041` dwingt hem af. Wat er bewust nog níét is: uitwaaieren
-per engine in de planning. `computeAggregates`, `measurementIsUsable` en
-`countOpenPeriodicMeasurements` tellen alle runs van een periode ongeacht engine. Nu per engine
-inplannen zou elke vraag dubbel laten meetellen in de score. Het stappenplan staat in
-`lib/jobs/queue.ts`, bij de plek waar het moet gebeuren.
+**De enginelaag is bedrading zonder fan-out.** `lib/engines/` en de Gemini-adapter zijn er, de
+meetsleutel kent de engine en migratie `0041` dwingt hem af. Wat bewust nog níét is: uitwaaieren per
+engine in de planning. `computeAggregates`, `measurementIsUsable` en `countOpenPeriodicMeasurements`
+tellen alle runs van een periode ongeacht engine; nu per engine inplannen zou elke vraag dubbel laten
+meetellen. Het stappenplan staat in `lib/jobs/queue.ts`.
 
-**`dedupe` verhuisde naar een eigen module zonder `server-only`.** Die sleutels bepalen of werk
-dubbel wordt ingepland; één tekenverschil is het verschil tussen een genegeerde dubbele taak en een
-tweede betaalde web-zoekactie per vraag. Ze waren onbereikbaar voor de unittests, en dat viel pas op
-toen de engine erbij kwam. Precies conventie 2, twaalf migraties te laat toegepast.
+**`dedupe` verhuisde naar een eigen module zonder `server-only`.** Die sleutels bepalen of werk dubbel
+wordt ingepland, één tekenverschil is het verschil tussen een genegeerde dubbele taak en een tweede
+betaalde web-zoekactie per vraag. Onbereikbaar voor unittests tot de engine erbij kwam. Conventie 2,
+twaalf migraties te laat toegepast.
 
-**Aanvulling, later op 3 augustus.** De tweede helft van de ronde: de
-LLM-kennisbasislijn met een oordeel dat in code wordt geveld en niet door het
-model (`baseline-verdict.ts`. Het model vragen of zijn eigen antwoord klopt is
-de meting aan de gemetene vragen), de strategiekaart met contextfactoren die
-elk een gevolg in code hebben, en `field-merge.ts`, dat "een mens wint van een
-model" afdwingbaar maakt. Dat laatste is wat "onderzoek opnieuw" van een
-gevaarlijke knop in een bruikbare verandert.
+**Aanvulling, later op 3 augustus.** De tweede helft: de LLM-kennisbasislijn met een oordeel dat in
+code wordt geveld en niet door het model (`baseline-verdict.ts`, het model vragen of zijn eigen
+antwoord klopt is de meting aan de gemetene vragen), de strategiekaart met contextfactoren die elk een
+gevolg in code hebben, en `field-merge.ts`, dat "een mens wint van een model" afdwingbaar maakt. Dat
+laatste maakt "onderzoek opnieuw" van een gevaarlijke knop een bruikbare.
 
-Eén bevinding onderweg die het noteren waard is: `dedupe` stond in een
-`server-only`-module en was daardoor onbereikbaar voor de unittests, twaalf
-migraties lang, want conventie 2 bestaat sinds ronde één. Het viel pas op toen
-de engine in de sleutel moest en juist die sleutel getoetst wilde worden. Eén
-tekenverschil daar is het verschil tussen een genegeerde dubbele taak en een
-tweede betaalde web-zoekactie per vraag.
-
-En na de RLS-verbreding meldde de Supabase-linter dat `is_staff()` aanroepbaar
-was door `anon`. Onschadelijk, `auth.uid()` is dan null, dus altijd `false`,
-maar migratie `0042` zet hem dicht, samen met een `to authenticated` op de 26
-stafpolicies. Die twee horen in één migratie: los toegepast levert het intrekken
-van de EXECUTE-rechten een "permission denied" op waar nul rijen hoort te staan.
-
+En na de RLS-verbreding meldde de Supabase-linter dat `is_staff()` aanroepbaar was door `anon`.
+Onschadelijk (`auth.uid()` is dan null, dus altijd `false`), maar migratie `0042` zet hem dicht, samen
+met een `to authenticated` op de 26 stafpolicies: los toegepast levert het intrekken van de
+EXECUTE-rechten een "permission denied" op waar nul rijen hoort te staan.
 
 ### 3 augustus 2026, de eerste echte onboarding, en wat hij liet zien
 
-Onboarding 2.0 ging naar `main` en draaide daarna één keer volledig op productie:
-Fysi-Unique, een fysiotherapiepraktijk in Amersfoort. **7,5 minuut van invoer tot
-afgerond dossier, $0,24 van de $2,15.** De keten liep zonder één mislukte taak,
-`profile_discover` → `technical_audit` → `profile_research` → `profile_offering` →
-`propose_topics` → `profile_market` → `profile_llm_baseline` → `profile_synthesis`.
+Onboarding 2.0 ging naar `main` en draaide daarna één keer volledig op productie: Fysi-Unique, een
+fysiotherapiepraktijk in Amersfoort. **7,5 minuut van invoer tot afgerond dossier, $0,24 van de
+$2,15.** De keten liep zonder één mislukte taak, `profile_discover` → `technical_audit` →
+`profile_research` → `profile_offering` → `propose_topics` → `profile_market` →
+`profile_llm_baseline` → `profile_synthesis`.
 
-Wat er goed uit kwam, en waarom het de bouwronde rechtvaardigt: 30 pagina's
-gecrawld (was: één homepage van 6000 tekens), een aanbodboom van 20 knopen mét de
-tarieven van de tarievenpagina, intake € 59,00, manuele therapie € 57,50,
-jaarabonnement medische fitness € 370,00, en met diensten die alleen op diepe
-pagina's staan (seksuologie, loopanalyse, inloopspreekuur). Het oude onderzoek zag
-daar niets van. Acht core topics, acht concurrenten met onderbouwing, zestien
-technische controles waaronder de vier entiteitschecks.
+Wat er goed uit kwam: 30 pagina's gecrawld (was: één homepage van 6000 tekens), een aanbodboom van 20
+knopen mét de tarieven van de tarievenpagina (intake € 59,00, manuele therapie € 57,50,
+jaarabonnement medische fitness € 370,00), met diensten die alleen op diepe pagina's staan
+(seksuologie, loopanalyse, inloopspreekuur, allemaal onzichtbaar voor het oude onderzoek). Acht core
+topics, acht concurrenten met onderbouwing, zestien technische controles waaronder de vier
+entiteitschecks.
 
-**En zes fouten die geen enkele test had kunnen vangen, want ze zaten er alle zes
-tússen.** Conventie 10, opnieuw bevestigd: gebouwd is niet geverifieerd.
+**En zes fouten die geen enkele test had kunnen vangen, want ze zaten er alle zes tússen.** Conventie
+10, opnieuw bevestigd.
 
-1. **De kennistest gaf een vals positief, en dat is de ernstigste die er is.**
-   ChatGPT antwoordde twee keer letterlijk *"zonder plaatsnaam of website kan ik
-   niet met zekerheid zeggen welke organisatie je bedoelt"*. `admitsUnknown()`
-   kende die formulering niet, dus `knowsBrand()` gaf `true`, enkel omdat de
-   merknaam in het antwoord stond, en die stond er omdat hij in de **vraag** stond.
-   Het `llm_kennis`-facet kwam daardoor uit op "ChatGPT kent Fysi-Unique", en de
-   synthese schreef dat over als *"ChatGPT kent het bedrijf al"*. Precies het
-   cijfer waar een ondernemer op afgaat, precies de verkeerde kant op.
+1. **De kennistest gaf een vals positief, de ernstigste die er is.** ChatGPT antwoordde twee keer
+   letterlijk *"zonder plaatsnaam of website kan ik niet met zekerheid zeggen welke organisatie je
+   bedoelt"*. `admitsUnknown()` kende die formulering niet, dus `knowsBrand()` gaf `true`, enkel omdat
+   de merknaam in het antwoord stond, en die stond er omdat hij in de **vraag** stond. Het
+   `llm_kennis`-facet kwam uit op "ChatGPT kent Fysi-Unique", de synthese schreef dat over als
+   *"ChatGPT kent het bedrijf al"*. Precies het cijfer waar een ondernemer op afgaat, precies de
+   verkeerde kant op.
 
-   *Correctie van 4 augustus:* hier stond eerst dat het **profielscherm** het
-   meldde. Dat klopte niet. Het paneel dat die regel toont werd op dat moment
-   helemaal niet gerenderd (zie de notitie van 4 augustus hieronder); de onjuiste
-   bewering bereikte de klant via de synthesetekst, die wél op het scherm staat.
-2. **De 19 gecontroleerde "feiten" waren 17 paginatitels en 2× de merknaam.** De
-   `WebPage`-opmaak levert per pagina een `name` op ("Tarieven | Fysi-Unique"), en
-   die gingen ongefilterd de controle in. `checkableFacts()` gooit nu
-   paginaniveau-opmaak en de merknaam zelf eruit. Bij deze site blijft er dan nul
-   over, en dat is het eerlijke antwoord: er staat geen adres, telefoonnummer of
-   oprichtingsjaar in de opmaak.
-3. **`service_scope`, `service_regions` en `market_language` bleven leeg.** De
-   oude wizard vroeg ze aan de klant; de nieuwe onboarding van drie velden doet dat
-   niet meer, en het onderzoek leverde ze nooit. Gevolg: `prompts.ts` zet de regel
-   "dit is een LOKAAL bedrijf, verwerk de plaatsnaam" alleen neer als bereik én
-   regio gevuld zijn, dus een praktijk in Amersfoort had zich gemeten tegen de
-   landelijke markt. De kennistest vroeg dan ook "aanbieders van
-   sportfysiotherapie **in Nederland**" in plaats van in Amersfoort. Nu in het
-   onderzoeksschema, met `'onbekend'` als eerste enum-waarde, structured output
-   kiest bij twijfel de eerste, dus die hoort de eerlijkste te zijn, en met
-   `resolveScope()` als vangnet: 'lokaal' zonder regio wordt `null`.
-4. **Alle acht topics hadden een lege `offering_ids`.** De aanbodlijst in de prompt
-   toont elke knoop als "Ouder › Kind" en vraagt de namen letterlijk over te nemen;
-   het model deed dat, de koppeling zocht alleen op `o.name`. Acht onderbouwingen
-   die op het scherm nergens naar terug te klikken zijn.
-5. **`profile_field_sources` bleef leeg, dus de bescherming was inert.** Alleen de
-   strategieroute schreef herkomst, en dan nog alleen voor aliassen en werkgebied
-   uit de contextfactoren. `PATCH /api/profiles/[id]`, de gewone manier waarop
-   iemand een profiel corrigeert, zette `edited_by_user = true` en verder niets.
-   `filterProtectedFields()` kon dus nooit iets blokkeren en "onderzoek opnieuw"
-   zou elke correctie stil overschrijven: exact het scenario waarvoor migratie
-   `0039` gemaakt is.
-6. **Twintig grijze "niet vastgesteld"-chips naast een goed onderbouwde
-   aanbodboom.** `confidence` stond hard op `null`. Nu deterministisch, dezelfde
-   regel als in `synthesis.ts` en verhuisd naar één gedeelde module
-   (`quote-check.ts`): staat het citaat letterlijk op de pagina waar de knoop naar
-   verwijst, dan is het 1,00. Anders 0,50. Alleen het twijfelgeval valt nog op,
-   en dat is wat die chip hoort te doen.
+   *Correctie van 4 augustus:* hier stond eerst dat het **profielscherm** het meldde. Dat klopte niet;
+   het paneel dat die regel toont werd op dat moment helemaal niet gerenderd (zie 4 augustus
+   hieronder), de onjuiste bewering bereikte de klant via de synthesetekst, die wél op het scherm
+   staat.
+2. **De 19 gecontroleerde "feiten" waren 17 paginatitels en 2× de merknaam.** De `WebPage`-opmaak
+   levert per pagina een `name` op ("Tarieven | Fysi-Unique"), ongefilterd de controle in.
+   `checkableFacts()` gooit nu paginaniveau-opmaak en de merknaam zelf eruit; bij deze site blijft er
+   dan nul over, het eerlijke antwoord (geen adres, telefoonnummer of oprichtingsjaar in de opmaak).
+3. **`service_scope`, `service_regions` en `market_language` bleven leeg.** De oude wizard vroeg ze
+   aan de klant, de nieuwe onboarding van drie velden niet meer, en het onderzoek leverde ze nooit.
+   Gevolg: `prompts.ts` zet de regel "dit is een LOKAAL bedrijf" alleen neer als bereik én regio gevuld
+   zijn, dus een praktijk in Amersfoort werd gemeten tegen de landelijke markt: de kennistest vroeg
+   "aanbieders van sportfysiotherapie **in Nederland**" in plaats van in Amersfoort. Nu in het
+   onderzoeksschema, met `'onbekend'` als eerste enum-waarde (structured output kiest bij twijfel de
+   eerste, dus die hoort de eerlijkste te zijn), en `resolveScope()` als vangnet: 'lokaal' zonder regio
+   wordt `null`.
+4. **Alle acht topics hadden een lege `offering_ids`.** De aanbodlijst toont elke knoop als "Ouder ›
+   Kind" en vraagt de namen letterlijk over te nemen; het model deed dat, de koppeling zocht alleen op
+   `o.name`. Acht onderbouwingen die op het scherm nergens naar terug te klikken zijn.
+5. **`profile_field_sources` bleef leeg, dus de bescherming was inert.** Alleen de strategieroute
+   schreef herkomst, en dan nog alleen voor aliassen en werkgebied. `PATCH /api/profiles/[id]`, de
+   gewone correctieroute, zette `edited_by_user = true` en verder niets: `filterProtectedFields()` kon
+   dus nooit iets blokkeren en "onderzoek opnieuw" zou elke correctie stil overschrijven, exact het
+   scenario waarvoor migratie `0039` gemaakt is.
+6. **Twintig grijze "niet vastgesteld"-chips naast een goed onderbouwde aanbodboom.** `confidence`
+   stond hard op `null`. Nu deterministisch, dezelfde regel als in `synthesis.ts`, verhuisd naar één
+   gedeelde module (`quote-check.ts`): staat het citaat letterlijk op de pagina waar de knoop naar
+   verwijst, dan 1,00, anders 0,50. Alleen het twijfelgeval valt nog op.
 
-**De hermeting op de gerepareerde code, diezelfde avond.** Tweede schone
-onboarding van dezelfde site: **$0,2463**, alle acht taken groen. Vier van de zes
-reparaties tekenden zichzelf af, `service_scope = lokaal`, `service_regions =
-["Amersfoort"]`, `market_language = "Nederland, Nederlands"`; 22 aanbodknopen
-allemaal op `confidence 1.00` (elk citaat letterlijk teruggevonden, dus nul grijze
-chips); acht topics met 2–4 aanbodkoppelingen elk in plaats van nul; en de
-categorievragen van de kennistest vroegen nu "aanbieders van fysiotherapie **in
-Amersfoort**" in plaats van "in Nederland", met FitForum, SMC Amersfoort en
+**De hermeting op de gerepareerde code, diezelfde avond.** Tweede schone onboarding van dezelfde site:
+**$0,2463, alle acht taken groen.** Vier van de zes reparaties tekenden zichzelf af: `service_scope =
+lokaal`, `service_regions = ["Amersfoort"]`, `market_language = "Nederland, Nederlands"`; 22
+aanbodknopen allemaal op `confidence 1.00` (elk citaat letterlijk teruggevonden, nul grijze chips);
+acht topics met 2–4 aanbodkoppelingen elk in plaats van nul; de categorievragen vroegen nu "aanbieders
+van fysiotherapie **in Amersfoort**" in plaats van "in Nederland", met FitForum, SMC Amersfoort en
 Praktijk Boshuijzen als antwoord.
 
-**En de kennistest liet zien dat reparatie 1 te ver ging.** Met het werkgebied in
-de vraag antwoordde het model wél raak, *"Fysi-Unique in Amersfoort is een
-fysiotherapiepraktijk (…) Ik kan zonder actuele website-informatie niet met
-zekerheid zeggen welke specialisaties zij momenteel aanbieden"*, en dát werd nu
-als "kent het merk niet" gemeld. Vals negatief, waar het eerst vals positief was.
-De oorzaak: de reparatie nam naast de identiteitszinnen ook losse hedges mee
-("niet met zekerheid", "ik weet niet zeker"), en die slaan net zo vaak op een
-detail als op het merk.
+**En de kennistest liet zien dat reparatie 1 te ver ging.** Met het werkgebied in de vraag antwoordde
+het model raak, *"Fysi-Unique in Amersfoort is een fysiotherapiepraktijk (…) Ik kan zonder actuele
+website-informatie niet met zekerheid zeggen welke specialisaties zij momenteel aanbieden"*, en dát
+werd nu als "kent het merk niet" gemeld. Vals negatief waar het eerst vals positief was: de reparatie
+nam naast de identiteitszinnen ook losse hedges mee ("niet met zekerheid", "ik weet niet zeker"), en
+die slaan net zo vaak op een detail als op het merk.
 
-De grens ligt bij **identiteit**: "ik weet niet wélk bedrijf je bedoelt" is het
-tegendeel van kennen; "ik weet de openingstijden niet" is een detail dat
-`checkFacts()` afhandelt. De losse hedges zijn eruit, de vier antwoorden uit beide
-meetronden staan als testgevallen in `test-unit.ts`, twee die wél en twee die
-niet als onbekend mogen tellen. Zonder die tweede ronde was de overcorrectie pas
-opgevallen bij een klant die wél bekend is.
+De grens ligt bij **identiteit**: "ik weet niet wélk bedrijf je bedoelt" is het tegendeel van kennen;
+"ik weet de openingstijden niet" is een detail dat `checkFacts()` afhandelt. De losse hedges zijn eruit,
+de vier antwoorden uit beide meetronden staan als testgevallen in `test-unit.ts`. Zonder die tweede
+ronde was de overcorrectie pas opgevallen bij een klant die wél bekend is.
 
-De kostenverdeling verraste: `profile_synthesis` is met $0,127 (52%) de duurste
-stap, niet de web-zoekacties. Dat is het Sol-model achter `SYNTHESIS_PREMIUM`.
-De drie categorievragen van de kennistest samen $0,044; de rest valt in het niet.
-Het budget van $2,15 is geen knellende grens. Er is ruimte voor een tweede engine
-zonder aan de plafonds te komen.
+De kostenverdeling verraste: `profile_synthesis` is met $0,127 (52%) de duurste stap, niet de
+web-zoekacties, door het Sol-model achter `SYNTHESIS_PREMIUM`. De drie categorievragen van de
+kennistest samen $0,044; de rest valt in het niet. Het budget van $2,15 is geen knellende grens, er is
+ruimte voor een tweede engine.
 
 ### 4 augustus 2026, vijf verbeteringen die uit de meetronden zelf kwamen
 
-Niet uit een plan, maar uit wat twee volledige onboardings op productie lieten
-zien. Alle vijf kosten vrijwel niets extra aan API-calls; samen brengen ze de
-ronde van **$0,2463 naar naar schatting ~$0,247**.
+Niet uit een plan, maar uit wat twee volledige onboardings op productie lieten zien. Alle vijf kosten
+vrijwel niets extra aan API-calls; samen brengen ze de ronde van **$0,2463 naar naar schatting
+~$0,247**.
 
-**1. De nulmeting stelde een vraag en gaf geen antwoord.** Het profielscherm zette
-boven het categorieblok de kop *"Word je genoemd bij koopvragen?"* en beantwoordde
-hem nergens: `askOne()` bouwde alleen een oordeel voor het blok `kent`, en de drie
-categorie-antwoorden belandden als ruwe tekst in een uitklapper. Dat terwijl dit
-blok **$0,044 van de $0,2463 kost, 18%, de op één na duurste post** van de hele
-onboarding, en het precies het cijfer is waar een ondernemer op wacht.
+**1. De nulmeting stelde een vraag en gaf geen antwoord.** Het profielscherm zette boven het
+categorieblok de kop *"Word je genoemd bij koopvragen?"* en beantwoordde hem nergens: `askOne()`
+bouwde alleen een oordeel voor blok `kent`, de drie categorie-antwoorden belandden als ruwe tekst in
+een uitklapper, terwijl dit blok **$0,044 van de $0,2463 kost, 18%, de op één na duurste post**, en
+precies het cijfer is waar een ondernemer op wacht.
 
-`scoreCategoryAnswer()` beantwoordt hem nu deterministisch met `textContainsName()`
-, dezelfde functie die de betaalde meting gebruikt, en om dezelfde reden: de
-LLM-beoordeling van `mentioned` gaf daar soms `true` terwijl het merk nergens in
-het antwoord stond. Nul kosten. Erbij: welke bekende concurrenten wél genoemd
+`scoreCategoryAnswer()` beantwoordt hem nu deterministisch met `textContainsName()`, dezelfde functie
+als de betaalde meting, om dezelfde reden: de LLM-beoordeling van `mentioned` gaf soms `true` terwijl
+het merk nergens in het antwoord stond. Nul kosten. Erbij: welke bekende concurrenten wél genoemd
 worden, want *"deze drie kwamen boven, jij niet"* zegt meer dan een nul.
 
-Dat vroeg wel om `cleanCompetitorName()`. `profiles.competitors` is een mengsel:
-`market.ts` schrijft er kale namen in, maar `prepare-profile.ts`. Die eerder
-draait, zet er de hele onderbouwing in die het onderzoek teruggaf, inclusief
-markdown-link. Zo'n regel als naam door een tekstcontrole halen levert altijd
-`false` op.
+Dat vroeg om `cleanCompetitorName()`: `profiles.competitors` is een mengsel, `market.ts` schrijft er
+kale namen in, `prepare-profile.ts` (die eerder draait) zet er de hele onderbouwing in inclusief
+markdown-link. Zo'n regel als naam door een tekstcontrole halen levert altijd `false` op.
 
-**2. "Kent hij je merk" hing aan één formulering.** Ronde 1 vroeg *"Wat weet je over
-Fysi-Unique?"* → het model kon de naam aan geen enkele organisatie koppelen.
-Ronde 2 vroeg *"Wat weet je over Fysi-Unique úít Amersfoort?"* → een correcte
-omschrijving. Twee woorden verschil, en het was de kopregel van het profielscherm
-die omsloeg.
+**2. "Kent hij je merk" hing aan één formulering.** Ronde 1 vroeg *"Wat weet je over Fysi-Unique?"* →
+geen koppeling aan een organisatie. Ronde 2 vroeg *"Wat weet je over Fysi-Unique úít Amersfoort?"* →
+een correcte omschrijving. Twee woorden verschil, en het was de kopregel van het profielscherm die
+omsloeg.
 
-Het blok kostte **$0,0003 voor twee vragen**. Nu zes formuleringen voor ~$0,001,
-mét en zónder plaatsnaam, en een verhouding in plaats van een ja of nee. Geen
-verzonnen drempel: 0 van de 6 is "kent je niet", 6 van de 6 is "kent je", alles
-daartussen is "wisselend", wat het dan ook echt is. Dat verschil is zelf een
-bevinding: een merk dat alleen mét plaatsnaam herkend wordt, is niet als entiteit
-bekend maar als woordcombinatie.
+Het blok kostte **$0,0003 voor twee vragen**. Nu zes formuleringen voor ~$0,001, mét en zónder
+plaatsnaam, en een verhouding in plaats van ja/nee: 0 van de 6 is "kent je niet", 6 van de 6 is "kent
+je", alles daartussen is "wisselend". Dat verschil is zelf een bevinding: een merk dat alleen mét
+plaatsnaam herkend wordt, is niet als entiteit bekend maar als woordcombinatie.
 
-**3. De koopvragen gingen over de generiekste diensten.** `slice(0, 3)` op
-`sort_order`, en die volgorde komt van de site: fysiotherapie, manuele therapie,
-sportfysiotherapie, de drie waar élke praktijk op concurreert. Terwijl het
-marktonderzoek van dezelfde ronde schreef dat *"vooral de combinatie van
-bekkenfysiotherapie, zwangerschapsbegeleiding en seksuologie"* deze praktijk
-onderscheidt. Die drie zijn nooit gevraagd; de nulmeting mat de klant op zijn
-zwakste punt. `categoryLeaves()` kiest ze nu via de topics, die de boom al op
-commerciële relevantie gewogen hebben, en die sinds 3 augustus ook daadwerkelijk
+**3. De koopvragen gingen over de generiekste diensten.** `slice(0, 3)` op `sort_order`, en die
+volgorde komt van de site: fysiotherapie, manuele therapie, sportfysiotherapie, waar élke praktijk op
+concurreert. Het marktonderzoek van dezelfde ronde schreef dat *"vooral de combinatie van
+bekkenfysiotherapie, zwangerschapsbegeleiding en seksuologie"* deze praktijk onderscheidt, nooit
+gevraagd: de nulmeting mat de klant op zijn zwakste punt. `categoryLeaves()` kiest ze nu via de
+topics, die de boom al op commerciële relevantie gewogen hebben en sinds 3 augustus ook daadwerkelijk
 naar de aanbodknopen wijzen.
 
-**4. Feiten kwamen alleen uit JSON-LD.** Na filtering bleven er **nul**
-controleerbare feiten over voor Fysi-Unique: de site zet wel `Organization` in
-zijn opmaak, maar zonder adres, telefoonnummer of oprichtingsjaar. Het blok "klopt
-wat ChatGPT zegt?" had dus niets. Terwijl het `citeert`-antwoord van diezelfde
-meting ze letterlijk noemde, *"Henry Dunantstraat 32, 3822 XE"* en *"(033) 455 89
-45"*, van de contactpagina die wij zelf gecrawld hadden. Voor het merendeel van
-het MKB is dat de normale situatie.
+**4. Feiten kwamen alleen uit JSON-LD.** Na filtering bleven er **nul** controleerbare feiten over
+voor Fysi-Unique: de site zet wel `Organization` in zijn opmaak, maar zonder adres, telefoonnummer of
+oprichtingsjaar. Het blok "klopt wat ChatGPT zegt?" had dus niets, terwijl het `citeert`-antwoord van
+diezelfde meting ze letterlijk noemde, *"Henry Dunantstraat 32, 3822 XE"* en *"(033) 455 89 45"*, van
+de contactpagina die wij zelf gecrawld hadden. Voor het merendeel van het MKB is dat de normale
+situatie.
 
-`text-facts.ts` oogst telefoon, adres, e-mail en KvK met reguliere expressies, en
-met twee beperkingen die vals alarm voorkomen: alleen canonieke pagina's
-(homepage, contact, over-ons) en per soort alleen de waarde die op de meeste
-daarvan staat. Bij een gelijkspel: niets. Een verkeerd feit zou ChatGPT's júíste
-antwoord als `tegengesproken` markeren, en dat is de melding waar een ondernemer
-van schrikt.
+`text-facts.ts` oogst telefoon, adres, e-mail en KvK met reguliere expressies, met twee beperkingen
+tegen vals alarm: alleen canonieke pagina's (homepage, contact, over-ons) en per soort alleen de
+waarde die op de meeste daarvan staat, bij gelijkspel niets. Een verkeerd feit zou ChatGPT's júíste
+antwoord als `tegengesproken` markeren, de melding waar een ondernemer van schrikt.
 
-**5. Topics verloren hun aanbod bij "onderzoek opnieuw".** De herhaalroute
-verwijdert de AI-knopen (moet wel. Anders slaat `buildOfferingTree()` zichzelf
-over) en laat de topics staan. `offering_ids` is een `uuid[]` en kan dus geen
-foreign key hebben: na één herhaalronde wijst élke koppeling naar een verwijderde
-rij. Stil, want er valt niets om. Migratie `0043` zet de namen ernaast; die
-overleven een herbouw, en `relinkOfferingIds()` legt de koppeling terug, inclusief
-de knopen met bron `klant`, die de herhaalronde laat staan.
+**5. Topics verloren hun aanbod bij "onderzoek opnieuw".** De herhaalroute verwijdert de AI-knopen
+(moet wel, anders slaat `buildOfferingTree()` zichzelf over) en laat de topics staan. `offering_ids`
+is een `uuid[]` zonder foreign key: na één herhaalronde wijst élke koppeling naar een verwijderde rij,
+stil, want er valt niets om. Migratie `0043` zet de namen ernaast (overleven een herbouw), en
+`relinkOfferingIds()` legt de koppeling terug, inclusief de knopen met bron `klant`.
 
-Tests: **608 unittests, 42 ketentests.** De ketentest zet de twee stappen achter
-elkaar (verwijderen, herbouwen) en controleert dat er ná afloop geen enkele
-koppeling meer naar een verdwenen knoop wijst. Precies de samenhang die geen
-unittest kan zien.
+Tests: **608 unittests, 42 ketentests.** De ketentest zet verwijderen en herbouwen achter elkaar en
+controleert dat geen koppeling meer naar een verdwenen knoop wijst, samenhang die geen unittest kan
+zien.
 
 ### 4 augustus 2026, drie panelen die nooit op het scherm stonden
 
-Gevonden bij het bouwen van optimalisatie 1, toen bleek dat het aanbodpaneel
-nergens een dekkingschip kon krijgen: **`OfferingsPanel`, `LlmKnowledgePanel` en
-`StrategyBox` stonden wél in de imports van `app/(app)/profielen/[id]/page.tsx`
-en hun data werd wél opgehaald, maar geen van de drie stond in de render.**
+Gevonden bij het bouwen van optimalisatie 1: **`OfferingsPanel`, `LlmKnowledgePanel` en `StrategyBox`
+stonden wél in de imports van `app/(app)/profielen/[id]/page.tsx` en hun data werd wél opgehaald, maar
+geen van de drie stond in de render.**
 
-Dat betekent dat de hele opbrengst van blok B, C en D onzichtbaar was: de
-aanbodboom van 22 knopen mét tarieven, de kennistest over vijf blokken, en de
-strategiekaart met contextfactoren. Het profielscherm toonde alleen de
-synthesetekst die er achteraf overheen geschreven was. Alles wat ik in de twee
-meetronden van 3 augustus in de database heb nagerekend, klopte, en niets ervan
-was voor een klant te zien.
+De hele opbrengst van blok B, C en D was daardoor onzichtbaar: de aanbodboom van 22 knopen mét
+tarieven, de kennistest over vijf blokken, de strategiekaart met contextfactoren. Het profielscherm
+toonde alleen de synthesetekst die er achteraf overheen geschreven was. Alles wat in de twee
+meetronden van 3 augustus in de database nagerekend is, klopte, en niets ervan was voor een klant te
+zien.
 
-Twee dingen om te onthouden. Ten eerste: `tsc` en `build` waren de hele tijd
-schoon. Een ongebruikte import is geen fout, en een component die nergens wordt
-aangeroepen compileert prima. Conventie 10 gaat dus ook over de UI, en "de
-component bestaat" is geen verificatie.
+Twee dingen om te onthouden. Ten eerste: `tsc` en `build` waren de hele tijd schoon, een ongebruikte
+import is geen fout en een component die nergens wordt aangeroepen compileert prima. Conventie 10 gaat
+dus ook over de UI, "de component bestaat" is geen verificatie.
 
-Ten tweede, en vervelender: dit is de **tweede keer** in dit traject. Op 3
-augustus stonden `staleAdviceNotice`, `confidenceLevel` en `describeMerge` in
-dezelfde toestand, gebouwd, getest, nergens aangesloten. Toen was de conclusie
-"drie dingen die ik te vroeg had afgevinkt". Nu is het een patroon, en het
-patroon heeft een oorzaak: er is geen enkele controle die zegt of een geëxporteerd
-paneel ook daadwerkelijk in een pagina terechtkomt.
+Ten tweede, vervelender: dit is de **tweede keer**. Op 3 augustus stonden `staleAdviceNotice`,
+`confidenceLevel` en `describeMerge` in dezelfde toestand, gebouwd, getest, nergens aangesloten. Toen
+was de conclusie "drie dingen die ik te vroeg had afgevinkt". Nu is het een patroon zonder controle die
+zegt of een geëxporteerd paneel ook daadwerkelijk in een pagina terechtkomt.
 
-Daarom is bij deze ronde één regel in de verificatie erbij gekomen: **een paneel
-telt pas als af wanneer het op de gedeployde pagina is teruggezien**, niet
-wanneer het compileert.
+Daarom is er nu één regel bij: **een paneel telt pas als af wanneer het op de gedeployde pagina is
+teruggezien**, niet wanneer het compileert.
 
 ### 4 augustus 2026, de vier InSpace-optimalisaties
 
-Uit de analyse van hoe InSpace Nova werkt (`docs/tasks/inspace-optimalisaties-1-4.md`).
-**Nul extra API-kosten en geen nieuwe migratie**: alle vier draaien op data die er
-al ligt.
+Uit de analyse van hoe InSpace Nova werkt (`docs/tasks/inspace-optimalisaties-1-4.md`). **Nul extra
+API-kosten en geen nieuwe migratie**: alle vier draaien op data die er al ligt.
 
-**1. Structurele gap-analyse.** Onze aanbevelingen kwamen uit gemiste vragen: 30
-vragen gesteld, bij 17 niet genoemd, daar volgen pagina's uit. Dat is reactief, en
-de blinde vlek werd pas zichtbaar met de aanbodboom. Levert een klant twaalf
-diensten en raakt de meting er toevallig vier, dan hoort hij over acht diensten
-niets, ook al heeft hij er geen pagina voor. En dát is juist de reden dat een
+**1. Structurele gap-analyse.** Onze aanbevelingen kwamen uit gemiste vragen: 30 vragen gesteld, bij
+17 niet genoemd, daar volgen pagina's uit. Dat is reactief, en de blinde vlek werd pas zichtbaar met
+de aanbodboom: levert een klant twaalf diensten en raakt de meting er toevallig vier, dan hoort hij
+over acht diensten niets, óók al heeft hij er geen pagina voor, en dát is juist de reden dat een
 assistent hem daar niet kan noemen.
 
-`structure-gap.ts` vergelijkt `profile_offerings` met `profile_pages` en geeft per
-onderdeel `eigen_pagina`, `zwak_gedekt` of `ontbreekt`. Drie standen en geen twee,
-omdat het verschil het advies stuurt: zwak gedekt wordt *verbeteren*, ontbreekt
-wordt *nieuw*. De matching hergebruikt `page-relevance.ts`, een tweede algoritme
-zou twee plekken opleveren die het oneens kunnen worden over dezelfde vraag.
+`structure-gap.ts` vergelijkt `profile_offerings` met `profile_pages` en geeft per onderdeel
+`eigen_pagina`, `zwak_gedekt` of `ontbreekt`. Drie standen omdat het verschil het advies stuurt: zwak
+gedekt wordt *verbeteren*, ontbreekt wordt *nieuw*. De matching hergebruikt `page-relevance.ts`, een
+tweede algoritme zou twee plekken opleveren die het oneens kunnen worden over dezelfde vraag.
 
-Het vangnet: een categorie die zelf kinderen heeft telt niet mee, anders adviseert
-de app vijf pagina's waar er één hoort. En `kind: "merk"` valt er helemaal buiten;
-een retailer hoeft geen pagina per gevoerd merk. Geen opslag: de uitkomst
-verandert zodra er een pagina bijkomt, en een kopie zou een vierde plek zijn die
-kan verouderen. Landt in de rapportinvoer. Daar maakt het verschil, en als chip
-per knoop in het aanbodpaneel.
+Het vangnet: een categorie die zelf kinderen heeft telt niet mee, anders adviseert de app vijf
+pagina's waar er één hoort, en `kind: "merk"` valt er helemaal buiten (een retailer hoeft geen pagina
+per gevoerd merk). Geen opslag, de uitkomst verandert zodra er een pagina bijkomt en een kopie zou een
+vierde plek zijn die veroudert. Landt in de rapportinvoer en als chip per knoop in het aanbodpaneel.
 
-**2. Rijkere schema.org en een zichtbare datum.** `schema-jsonld.ts` kende drie
-uitkomsten: `FAQPage`, `WebPage`, `Article`. Dat was een gat in ons eigen verhaal:
-sinds de entiteitscontrole beoordelen wíj de klant op schemadekking, terwijl onze
-eigen pagina's het bij een kaal `WebPage` lieten. Nu volgt het `@type` het
-bedrijfsmodel (een landingspagina van een dienstverlener is een `Service`, van een
-retailer een `CollectionPage`), komt er een `@graph` met de organisatie erachter
-inclusief de `sameAs` die fase 0 al geoogst had, en staan `datePublished` en
-`dateModified` erin.
+**2. Rijkere schema.org en een zichtbare datum.** `schema-jsonld.ts` kende drie uitkomsten: `FAQPage`,
+`WebPage`, `Article`. Een gat in ons eigen verhaal: sinds de entiteitscontrole beoordelen wíj de klant
+op schemadekking, terwijl onze eigen pagina's het bij een kaal `WebPage` lieten. Nu volgt het `@type`
+het bedrijfsmodel (een landingspagina van een dienstverlener is een `Service`, van een retailer een
+`CollectionPage`), komt er een `@graph` met de organisatie erachter inclusief de `sameAs` die fase 0
+al geoogst had, en staan `datePublished` en `dateModified` erin.
 
-Twee dingen die anders stil misgaan. De validatie accepteerde alles met een
-`@context` en een `@type`. Dus ook een `Recipe` op een dienstenpagina; nu moet
-het type passen. En onze eigen velden gaan er **altijd** overheen, ook bij een
-geldig modelresultaat: een `datePublished` van een jaar geleden op een pagina die
-vanmorgen geschreven is, is een versheidssignaal dat tegen de klant werkt.
-`withFreshnessLine()` zet de datum ook zichtbaar onder de tekst, want een assistent
-citeert uit de lopende tekst en niet uit de JSON-LD. De functie is idempotent, omdat
-`content_revise` over bestaande tekst heen draait.
+Twee dingen die anders stil misgaan. De validatie accepteerde alles met een `@context` en een `@type`,
+dus ook een `Recipe` op een dienstenpagina, nu moet het type passen. En onze eigen velden gaan er
+**altijd** overheen, ook bij een geldig modelresultaat: een `datePublished` van een jaar geleden op
+een pagina die vanmorgen geschreven is, is een versheidssignaal dat tegen de klant werkt.
+`withFreshnessLine()` zet de datum ook zichtbaar onder de tekst, want een assistent citeert uit de
+lopende tekst en niet uit de JSON-LD. Idempotent, omdat `content_revise` over bestaande tekst heen
+draait.
 
-**3 en 4. Duplicatie en leesbaarheid, in een tweede poort.** Het ontwerpprobleem
-eerst: `geo_score` wordt berekend uit `checkContentGate()`, dus er twee checks bij
-zetten maakt de score van vorige maand onvergelijkbaar met die van vandaag,
-terwijl de app juist trends toont. Vandaar `checkQuality()` ernaast: voedt
-`review_notes` en `needs_review`, raakt `geo_score` niet aan. Een unittest legt
-vast dat die functie geen score teruggeeft waarmee hij erin zou kunnen lekken.
+**3 en 4. Duplicatie en leesbaarheid, in een tweede poort.** `geo_score` wordt berekend uit
+`checkContentGate()`, dus er twee checks bij zetten maakt de score van vorige maand onvergelijkbaar met
+vandaag, terwijl de app juist trends toont. Vandaar `checkQuality()` ernaast: voedt `review_notes` en
+`needs_review`, raakt `geo_score` niet aan. Een unittest legt vast dat die functie geen score
+teruggeeft waarmee hij erin zou kunnen lekken.
 
-Duplicatie is een echt risico en geen theorie: wij schrijven tot tien pagina's per
-merk uit dezelfde feitenkaart, met dezelfde stijlvoorbeelden en dezelfde
-merkregels. `similarity.ts` gebruikt Jaccard op woord-**vijf**-grammen, want twee
-dienstenpagina's van dezelfde praktijk delen onvermijdelijk hun vakjargon maar
-niet hun zinsbouw. Drempel 0,35, bewust ruim, en de gemeten waarde wordt altijd
-gelogd zodat hij na tien echte pagina's op data bijgesteld kan worden in plaats van
-op gevoel. De vergelijking gaat over álle huidige pagina's van het **profiel**,
-niet van één analyse: een merk heeft meerdere analyses en die putten uit dezelfde
-feiten.
+Duplicatie is een echt risico: wij schrijven tot tien pagina's per merk uit dezelfde feitenkaart, met
+dezelfde stijlvoorbeelden en merkregels. `similarity.ts` gebruikt Jaccard op woord-**vijf**-grammen,
+want twee dienstenpagina's van dezelfde praktijk delen onvermijdelijk hun vakjargon maar niet hun
+zinsbouw. Drempel 0,35, bewust ruim, de gemeten waarde wordt altijd gelogd zodat hij na tien echte
+pagina's op data bijgesteld kan worden. De vergelijking gaat over álle huidige pagina's van het
+**profiel**, niet van één analyse: een merk heeft meerdere analyses die uit dezelfde feiten putten.
 
-Leesbaarheid zonder verzonnen Flesch-score. Een getal van 0 tot 100 op Nederlandse
-tekst suggereert een precisie die de formule niet heeft, en niemand weet wat 58
-betekent, hetzelfde patroon als het verzonnen volumegetal dat migratie `0017`
-verving door drie banden. In plaats daarvan vier gemeten grootheden en een
-verbeterpunt dat een **aantal** noemt: *"5 zinnen zijn langer dan 30 woorden, knip
-ze in tweeën."* Dat kan iemand aanpakken.
+Leesbaarheid zonder verzonnen Flesch-score: een getal van 0 tot 100 op Nederlandse tekst suggereert
+een precisie die de formule niet heeft, hetzelfde patroon als het verzonnen volumegetal dat migratie
+`0017` verving door drie banden. In plaats daarvan vier gemeten grootheden en een verbeterpunt dat een
+**aantal** noemt: *"5 zinnen zijn langer dan 30 woorden, knip ze in tweeën."* Dat kan iemand
+aanpakken.
 
-Tests: **658 unittests, 42 ketentests.** De ketentest ving onderweg nog iets:
-`loadSiblingPages` gebruikte eerst een ingebedde join (`analyses!inner`), en de
-shim weigert die met opzet in plaats van iets plausibels terug te geven. Twee
-losse queries doen hetzelfde en lezen beter.
+Tests: **658 unittests, 42 ketentests.** De ketentest ving onderweg nog iets: `loadSiblingPages`
+gebruikte eerst een ingebedde join (`analyses!inner`), die de shim met opzet weigert in plaats van iets
+plausibels terug te geven. Twee losse queries doen hetzelfde en lezen beter.
 
-**Verificatie van 4 augustus, derde meetronde.** Volledige onboarding op de
-gerepareerde code: **$0,2495, zestien AI-aanroepen, acht taken groen.** Wat de
-ronde afdekte:
+**Verificatie van 4 augustus, derde meetronde.** Volledige onboarding op de gerepareerde code:
+**$0,2495, zestien AI-aanroepen, acht taken groen.** Wat de ronde afdekte:
 
 | Wat | Uitkomst |
 |---|---|
@@ -808,123 +741,100 @@ ronde afdekte:
 | Koopvragen uit de topics | knie-, nek- en schouderklachten in plaats van de drie generiekste diensten |
 | `offering_names` | gevuld naast `offering_ids`, dus de koppeling overleeft een herbouw |
 
-En de tekstfeiten hadden een tweede ronde nodig. De eerste versie vond alléén het
-e-mailadres, met drie oorzaken die pas op echte tekst zichtbaar werden:
-`crawlPages` bewaart 1500 tekens per pagina en de contactpagina begint met een
-navigatiemenu van ruim duizend, dus het telefoonnummer viel buiten beeld. Het
-oogsten verhuisde naar de crawler, waar de volledige tekst nog beschikbaar is.
-Het telefoonpatroon kende geen haakjes, en "(033) 455 89 45" brak af na drie
-cijfers. En het adrespatroon stond de komma alleen vóór de postcode, terwijl deze
-site "Henry Dunantstraat 32 3822 XE, **Amersfoort**" schrijft.
+En de tekstfeiten hadden een tweede ronde nodig. De eerste versie vond alléén het e-mailadres, met
+drie oorzaken die pas op echte tekst zichtbaar werden: `crawlPages` bewaart 1500 tekens per pagina en
+de contactpagina begint met een navigatiemenu van ruim duizend, dus het telefoonnummer viel buiten
+beeld (het oogsten verhuisde naar de crawler, waar de volledige tekst nog beschikbaar is); het
+telefoonpatroon kende geen haakjes en "(033) 455 89 45" brak af na drie cijfers; het adrespatroon
+stond de komma alleen vóór de postcode, terwijl deze site "Henry Dunantstraat 32 3822 XE,
+**Amersfoort**" schrijft.
 
-Na die reparatie komt er `(033) 455 89 45` en `Henry Dunantstraat 32 3822 XE,
-Amersfoort` uit, nagerekend op productie met een gratis herhaling van fase 0.
-Het testgeval in `test-unit.ts` is nu letterlijk de voettekst van de site en geen
-nette variant ervan; twee tekens verschil was het verschil tussen drie feiten en
-één.
+Na die reparatie komt er `(033) 455 89 45` en `Henry Dunantstraat 32 3822 XE, Amersfoort` uit,
+nagerekend op productie met een gratis herhaling van fase 0. Het testgeval in `test-unit.ts` is nu
+letterlijk de voettekst van de site: twee tekens verschil was het verschil tussen drie feiten en één.
 
 ### 4 augustus 2026, UX-ronde op de onboarding
 
-Tien bevindingen uit een doorloop van het onboardingscherm tegen
-`docs/ux-design.md` en de strategie van InSpace Nova. Alle tien uitgevoerd; geen
-migratie, geen API-kosten.
+Tien bevindingen uit een doorloop van het onboardingscherm tegen `docs/ux-design.md` en de strategie
+van InSpace Nova. Alle tien uitgevoerd, geen migratie, geen API-kosten.
 
-**De profielpagina had geen kop.** Twaalf kaarten, geen `PageHeader`, geen `<h1>`,
-en de merknaam pas op ~plek 9 als een regel binnenín de editor. Dit is het scherm
-dat de consultant deelt in de demo. Het opende zonder te zeggen over wie het
-ging. `/profielen` gebruikte de gedeelde kop wél; de detailpagina was de
-uitzondering, en dat is waar drift begint.
+**De profielpagina had geen kop.** Twaalf kaarten, geen `PageHeader`, geen `<h1>`, de merknaam pas op
+~plek 9 als een regel binnenín de editor. Dit is het scherm dat de consultant in de demo deelt en het
+opende zonder te zeggen over wie het ging. `/profielen` gebruikte de gedeelde kop wél, de detailpagina
+was de uitzondering, en dat is waar drift begint.
 
-**Er was geen hoofdgetal**, terwijl regel 1 van `ux-design.md` dat voorschrijft.
-De drie cijfers die ervoor in aanmerking komen, herkenning (6/6), genoemd bij
-koopvragen (1/3), diensten zonder eigen pagina (2 van 12), stonden als chip
-verspreid over drie panelen. Nu een statrij in de kop, gerekend in
-`onboarding-summary.ts`. Met een duidingszin erboven, en die is geen versiering:
-"0/3" zonder uitleg leest als een cijfer op een rapport, terwijl het voor vrijwel
-elk MKB-merk de normale startsituatie is. Een tegenspraak wint van alles. Dat
-is de alarmerendste uitkomst die de onboarding kan opleveren.
+**Er was geen hoofdgetal**, terwijl regel 1 van `ux-design.md` dat voorschrijft. De drie cijfers die
+ervoor in aanmerking komen (herkenning 6/6, genoemd bij koopvragen 1/3, diensten zonder eigen pagina 2
+van 12) stonden als chip verspreid over drie panelen. Nu een statrij in de kop, gerekend in
+`onboarding-summary.ts`, met een duidingszin erboven: "0/3" zonder uitleg leest als een cijfer op een
+rapport terwijl het voor vrijwel elk MKB-merk de normale startsituatie is. Een tegenspraak wint van
+alles, de alarmerendste uitkomst die de onboarding kan opleveren.
 
-**De volgorde was niet die van het gesprek.** `ProfileGaps`. Het huiswerk voor de
-klant, stond op plek 3, vóór de kennistest en het aanbod. Dat is de inspanning
-vóór de waarde, precies omgekeerd aan bijlage A9. En `AssignBox` stond op plek 4:
-een beheerdersactie tussen de bevindingen, op een scherm waar de klant meekijkt
-naar de knop waarmee hij wordt overgedragen. Nu vijf blokken in de volgorde van de
-demo, met beheer onderaan.
+**De volgorde was niet die van het gesprek.** `ProfileGaps`, het huiswerk voor de klant, stond op
+plek 3, vóór de kennistest en het aanbod, de inspanning vóór de waarde, precies omgekeerd aan bijlage
+A9. En `AssignBox` stond op plek 4: een beheerdersactie tussen de bevindingen, op een scherm waar de
+klant meekijkt naar de knop waarmee hij wordt overgedragen. Nu vijf blokken in de volgorde van de
+demo, beheer onderaan.
 
-**Zeven panelen verdwenen stil bij lege data** (`return null`). Bij een dunne
-crawl, Bol had één pagina, en dat is geen randgeval, zag de klant een half
-scherm en wist niet dát er een aanbodanalyse en een kennistest bestonden. Drie
-van de zeven hebben nu een lege staat met de reden erbij en de knop die hem
-oplost; de andere vier zijn terecht (een strip die niets te melden heeft hoort
-weg te zijn).
+**Zeven panelen verdwenen stil bij lege data** (`return null`). Bij een dunne crawl (Bol had één
+pagina) zag de klant een half scherm en wist niet dát er een aanbodanalyse en een kennistest
+bestonden. Drie van de zeven hebben nu een lege staat met de reden erbij en de knop die hem oplost, de
+andere vier zijn terecht (een strip die niets te melden heeft hoort weg te zijn).
 
-**Mobiel was niet apart ontworpen.** Over alle panelen samen twee responsive
-classes, terwijl §7 letterlijk zegt dat mobiel geen verkleinde desktop is en voor
-dichte detailschermen accordion-dicht voorschrijft. Het profielscherm is inmiddels
-dichter dan het conceptscherm, dat in datzelfde document als toetssteen geldt.
-`ProfileSection` klapt nu in op mobiel, en start bewust open, zodat een blok niet
-dichtklapt omdat de bundel nog niet geladen is.
+**Mobiel was niet apart ontworpen.** Over alle panelen samen twee responsive classes, terwijl §7
+letterlijk zegt dat mobiel geen verkleinde desktop is en accordion-dicht voorschrijft voor dichte
+detailschermen. Het profielscherm is inmiddels dichter dan het conceptscherm dat als toetssteen geldt.
+`ProfileSection` klapt nu in op mobiel, start bewust open zodat een blok niet dichtklapt omdat de
+bundel nog niet geladen is.
 
-**De aanbodboom stond volledig uitgeklapt**: 22 knopen × vier regels is twee tot
-drie schermen scrollen midden in een demo, terwijl de interessante regels juist de
-knopen met een dekkingsgat zijn. Nu één scanbare regel per knoop met de details in
-een native `<details>`. Geen client-state, want dit paneel is een servercomponent.
+**De aanbodboom stond volledig uitgeklapt**: 22 knopen × vier regels is twee tot drie schermen
+scrollen midden in een demo, terwijl de interessante regels juist de knopen met een dekkingsgat zijn.
+Nu één scanbare regel per knoop met de details in een native `<details>`. Geen client-state, dit
+paneel is een servercomponent.
 
-**Het wachten was twee ervaringen achter elkaar**: een generiek scherm van een
-minuut, dan een stappenlijst. De stappen zaten al ín de status-payload en werden
-in het eerste scherm niet gebruikt. En het afrondingsmoment. Het beste moment
-van de hele flow, ging ongemarkeerd voorbij: de strip verdween en de panelen
-ploften erin. Nu één doorlopende lijst plus een expliciete afronding, alleen voor
-wie het heeft zien lopen.
+**Het wachten was twee ervaringen achter elkaar**: een generiek scherm van een minuut, dan een
+stappenlijst, terwijl de stappen al ín de status-payload zaten. Het afrondingsmoment, het beste van de
+hele flow, ging ongemarkeerd voorbij: de strip verdween en de panelen ploften erin. Nu één doorlopende
+lijst plus een expliciete afronding.
 
-**Twee van de vier `ProfileGaps` waren achterhaald** door de verbeteringen van
-dezelfde week: werkgebied en concurrenten worden nu door het onderzoek zelf
-gevuld. Eruit, en vervangen door twee die wél uit de nieuwe data volgen, 'lokaal'
-zonder plaatsnaam (`resolveScope()` zet dat bewust op null in plaats van te
-gokken) en een ontbrekend bedrijfsmodel.
+**Twee van de vier `ProfileGaps` waren achterhaald** door verbeteringen van dezelfde week: werkgebied
+en concurrenten worden nu door het onderzoek zelf gevuld. Eruit, vervangen door twee die wél uit de
+nieuwe data volgen: 'lokaal' zonder plaatsnaam (`resolveScope()` zet dat bewust op null in plaats van
+te gokken) en een ontbrekend bedrijfsmodel.
 
-**Er was geen volgende stap.** Nu één primaire actie in de kop, met de titel van
-het hoogst geprioriteerde onderwerp erin: *Meet "Knieklachten behandelen"* zegt
-meer dan "start een analyse".
+**Er was geen volgende stap.** Nu één primaire actie in de kop, met de titel van het hoogst
+geprioriteerde onderwerp erin: *Meet "Knieklachten behandelen"* zegt meer dan "start een analyse".
 
-**En de strategiekaart is bewust nauwelijks aangeraakt.** Hij stond acht blokken
-naar beneden terwijl de consultant er tijdens het uur consultancy in typt; hij is
-nu bereikbaar via een springlink in de kop. Het formulier zelf herontwerpen zou
-gokwerk zijn zolang er nog geen echt gesprek mee gevoerd is. Dat wachten we af.
+**En de strategiekaart is bewust nauwelijks aangeraakt.** Hij stond acht blokken naar beneden terwijl
+de consultant er tijdens het uur consultancy in typt, nu bereikbaar via een springlink in de kop.
+Herontwerpen zou gokwerk zijn zolang er nog geen echt gesprek mee gevoerd is.
 
-Tests: **675 unittests, 42 ketentests.** De rekenkant van de kop staat in een
-pure module met de stand van de derde meetronde als testgeval.
+Tests: **675 unittests, 42 ketentests.** De rekenkant van de kop staat in een pure module met de stand
+van de derde meetronde als testgeval.
 
 ### 4 augustus 2026, archiveren in plaats van verwijderen
 
-De eigenaar wilde met een schone lei beginnen: de zeven testmerken en elf
-analyses uit beeld, maar wél bewaard. Migratie `0044` zet `archived_at` op
-`profiles` en `analyses`.
+De eigenaar wilde met een schone lei beginnen: de zeven testmerken en elf analyses uit beeld, maar wél
+bewaard. Migratie `0044` zet `archived_at` op `profiles` en `analyses`.
 
-**Waarom geen `delete`.** `on delete cascade` hangt aan vrijwel alles,
-`analyses` → `prompts` → `tracking_runs` → `tracking_run_mentions`, plus
-rapporten en contentpagina's. Eén `delete from profiles` had **352 metingen en
-32 contentpagina's** weggegooid, en die zijn niet te reconstrueren zonder
-opnieuw te betalen. Conventie 4 geldt net zo goed voor data als voor schema.
+**Waarom geen `delete`.** `on delete cascade` hangt aan vrijwel alles, `analyses` → `prompts` →
+`tracking_runs` → `tracking_run_mentions`, plus rapporten en contentpagina's. Eén `delete from
+profiles` had **352 metingen en 32 contentpagina's** weggegooid, niet te reconstrueren zonder opnieuw
+te betalen. Conventie 4 geldt net zo goed voor data als voor schema.
 
-**Het filter staat op zes plekken, en één ervan kost geld.** De merkenlijst, de
-analysenlijst, de telling achter "+ Nieuwe analyse", het werkmodel, de
-herinneringsmail, en `/api/cron/tracking`. Zonder dat laatste filter plant de
-app elke maand een volledige meetronde in voor een merk dat niemand meer in de
-app ziet staan: ~$0,40 per analyse per maand, onzichtbaar, want de uitkomst
-verschijnt nergens. Dat is de duurste vorm van "verborgen maar nog actief" die
-er is. `lib/archive.ts` is de ene plek die weet wat "actief" betekent; de zes
-query's gebruiken hem.
+**Het filter staat op zes plekken, en één ervan kost geld.** De merkenlijst, de analysenlijst, de
+telling achter "+ Nieuwe analyse", het werkmodel, de herinneringsmail, en `/api/cron/tracking`. Zonder
+dat laatste filter plant de app elke maand een volledige meetronde in voor een merk dat niemand meer in
+de app ziet: ~$0,40 per analyse per maand, onzichtbaar want de uitkomst verschijnt nergens, de
+duurste vorm van "verborgen maar nog actief" die er is. `lib/archive.ts` is de ene plek die weet wat
+"actief" betekent, de zes query's gebruiken hem.
 
-**Bewust niet in RLS.** Een gearchiveerd merk hoort voor de eigenaar bereikbaar
-te blijven via zijn directe URL. Het is een back-up, geen verwijdering. In de
-policies zetten zou het onbereikbaar maken, en dat is het tegenovergestelde van
-wat er gevraagd werd.
+**Bewust niet in RLS.** Een gearchiveerd merk hoort voor de eigenaar bereikbaar te blijven via zijn
+directe URL, het is een back-up, geen verwijdering; in de policies zetten zou het onbereikbaar maken,
+het tegenovergestelde van wat gevraagd werd.
 
-De ketentest zet de twee stappen achter elkaar: archiveren, controleren dat de
-onderliggende data er nog is, dat geen enkele lijst hem nog telt, dat de
-meetronde hem overslaat, en dat dearchiveren werkt.
-
+De ketentest zet de twee stappen achter elkaar: archiveren, controleren dat de onderliggende data er
+nog is, dat geen enkele lijst hem nog telt, dat de meetronde hem overslaat, en dat dearchiveren werkt.
 ## 15. De strategie, sales-led, naar het model van InSpace Nova (3 augustus 2026)
 
 De bouwrondes hierboven volgen allemaal uit één beslissing die zelf nergens stond opgeschreven.
@@ -1738,37 +1648,32 @@ Playwright op 390 en 1280: geen horizontale overflow.
 ## Fase 4 begonnen: het contentplan als kernobject (10 augustus 2026)
 
 Migratie `0049_contentplan`, toegepast en geverifieerd op productie, plus twee pure modules met 35
-nieuwe tests. Dit is het fundament onder besluit 3: twaalf maanden vooruit, pagina's per maand,
-goedkeuring per maand.
+nieuwe tests. Fundament onder besluit 3: twaalf maanden vooruit, pagina's per maand, goedkeuring per
+maand.
 
-**Wat dit expliciet níet is: een contract.** Nova zet overal "contract month {current} of {total}",
-en dat kan hier niet want de klant kan morgen opzeggen (besluit 7). Er staat daarom geen looptijd in
-`content_plans` en geen einddatum, alleen een startdatum. Het plan kijkt wél twaalf maanden vooruit,
-want een programma zonder horizon is geen programma. Het verschil zit in de taal, niet in de data.
+**Geen contract.** Nova zet overal "contract month {current} of {total}", maar de klant kan morgen
+opzeggen (besluit 7). Geen looptijd of einddatum in `content_plans`, wel een startdatum: het plan
+kijkt twaalf maanden vooruit, want een programma zonder horizon is geen programma.
 
-**De derde statuslaag is er nu ook.** `lib/analysis-status.ts` nam in augustus Nova's technische
-status en hun "wie is er aan zet" al over. Wat ontbrak was `runningDate`, en die telt pas als er
-pagina's zijn die over zes weken verschijnen: bij een plan van twaalf maanden is het verschil tussen
-een lijst en een agenda precies dat je ziet wánneer er iets gebeurt. Eén detail daarin verdient
-uitleg: een pagina die op akkoord wacht krijgt géén datum maar "publiceert zodra je akkoord geeft".
-Die datum hangt van de klant af, niet van ons, en een datum tonen zou een belofte zijn die wij niet
-kunnen waarmaken.
+**Derde statuslaag: `runningDate`.** `lib/analysis-status.ts` had Nova's technische status en "wie is
+aan zet" al. `runningDate` telt pas als er pagina's binnen zes weken verschijnen: bij twaalf maanden
+is het verschil tussen lijst en agenda precies of je ziet wánneer iets gebeurt. Een pagina die op
+akkoord wacht krijgt geen datum maar "publiceert zodra je akkoord geeft": die datum hangt van de
+klant af, een datum tonen zou een belofte zijn die wij niet waarmaken.
 
-**`buildPlan()` verdeelt, het bedenkt niet.** Uit de analyse in `Nova.md` §11.1 bleek dat Nova een
-agent het hele plan laat opstellen. ORBIT ENGINE heeft de bedenkkant al (`propose_topics` levert onderwerpen
-mét prioriteit) en miste alleen de verdeling. Dat scheelt een zware AI-stap: deze taak heeft er nul
-nodig, het is rekenwerk. Vier regels sturen hem, en de eerste volgt rechtstreeks uit besluit 7:
-hoogste prioriteit in de eerste maanden, want een klant die na drie maanden opzegt moet de béste drie
-maanden gehad hebben.
+**`buildPlan()` verdeelt, het bedenkt niet.** Nova laat een agent het hele plan opstellen (`Nova.md`
+§11.1); ORBIT ENGINE heeft de bedenkkant al (`propose_topics` levert onderwerpen mét prioriteit) en
+miste alleen de verdeling, dus geen zware AI-stap nodig, puur rekenwerk. Eerste regel volgt uit
+besluit 7: hoogste prioriteit in de eerste maanden, want een klant die na drie maanden opzegt moet de
+béste drie maanden gehad hebben.
 
-**⚠️ De praktijkcheck tegen Van den Udenhout ving een echt probleem.** Het plan is gedraaid met zijn
-acht echte onderwerpen en tien pagina's per maand. Uitkomst: 132 pagina's, netjes verdeeld, alle
-funnelfasen in elke maand. Maar "Auto financieren" stond twee keer in maand één, met exact dezelfde
-titel, omdat acht onderwerpen bij tien plekken al in de eerste maand rondlopen. Een plan waarin twee
-regels hetzelfde heten leest als een fout. De werktitel draagt nu de funnelfase als invalshoek
-("Auto financieren · Oriëntatie"), en er is een test die bewaakt dat geen twee pagina's in dezelfde
-maand dezelfde titel dragen. Dit is precies waarom conventie 10 bestaat: op papier klopte de
-verdeling, en pas tegen echte data zag je waaróm hij niet bruikbaar was.
+**⚠️ De praktijkcheck tegen Van den Udenhout ving een echt probleem.** Acht onderwerpen, tien
+pagina's per maand: 132 pagina's, netjes verdeeld, alle funnelfasen in elke maand. Maar "Auto
+financieren" stond twee keer in maand één met exact dezelfde titel, omdat acht onderwerpen bij tien
+plekken al in maand één rondlopen. De werktitel draagt nu de funnelfase als invalshoek ("Auto
+financieren · Oriëntatie"), met een test die bewaakt dat geen twee pagina's in dezelfde maand
+dezelfde titel dragen. Precies waarom conventie 10 bestaat: op papier klopte de verdeling, pas tegen
+echte data bleek hij onbruikbaar.
 
 Nog te bouwen in deze fase: de lijst met maandsegmenten, de vier dialogen (goedkeuren, alles
 goedkeuren, maand goedkeuren met afwijzen-en-hergenereren, markeren als geplaatst), het herordenen,
@@ -1776,971 +1681,794 @@ de bufferlogica bij verwijderen, en de cron die tien dagen vooruit schrijft.
 
 Vier controles groen: `tsc`, 845 unittests (35 nieuwe), 47 ketentests, productiebuild.
 
-**Fase 4 vervolgd: het plan is bedienbaar (10 augustus 2026).** Op het datamodel van 0049 staan nu
-de serverkant (`lib/plans.ts`), drie API-routes, een bevestigingsdialoog en het strategiescherm.
+**Fase 4 vervolgd: het plan is bedienbaar (10 augustus 2026).** Op het datamodel van 0049 staan nu de
+serverkant (`lib/plans.ts`), drie API-routes, een bevestigingsdialoog en het strategiescherm.
 
-**De bufferlogica werkt zoals Nova hem beschrijft** (`deleteUrl.body`: "A buffer URL for its month
-will backfill the slot if one is available"). Een verwijderde pagina gaat op `afgewezen` en verdwijnt
-niet (conventie 8), en de eerste reserve van diezelfde maand neemt zijn plek én zijn datum over. Twee
-regels eromheen die er niet vanzelf in zitten: een buffer schuift alleen in voor een pagina die nog
-niet geschreven wás (bij een geschreven pagina is er niets te vervangen), en de melding zegt
-expliciet óf er een reserve gebruikt is. Zonder dat laatste ziet de klant een maandtotaal dat
-onveranderd blijft zonder verklaring.
+**De bufferlogica volgt Nova** (`deleteUrl.body`: "A buffer URL for its month will backfill the slot
+if one is available"). Een verwijderde pagina gaat op `afgewezen` en verdwijnt niet (conventie 8), de
+eerste reserve van diezelfde maand neemt plek én datum over. Een buffer schuift alleen in voor een
+pagina die nog niet geschreven wás, en de melding zegt expliciet óf een reserve gebruikt is, anders
+lijkt het maandtotaal onveranderd zonder verklaring.
 
-**Twee dingen die bewust níet automatisch gaan.** Een maand afwijzen genereert géén nieuw plan in
-dezelfde route: dat zou betekenen dat één klik het hele jaarplan vervangt, inclusief maanden die al
-goedgekeurd waren. Twee handelingen, twee bevestigingen. En de quota komt uit het pakket op het
-account en nooit uit het verzoek: zou de client dat mogen meesturen, dan is de afspraak een suggestie
-en kan iemand met een pakket van 10 er 40 vragen.
+**Twee dingen bewust niet automatisch.** Een maand afwijzen genereert géén nieuw plan in dezelfde
+route, dat zou het hele jaarplan vervangen inclusief al goedgekeurde maanden. Twee handelingen, twee
+bevestigingen. En de quota komt uit het pakket op het account, nooit uit het verzoek, anders is de
+afspraak een suggestie.
 
-**De bevestigingsdialoog heeft Nova's `cannotBeUndone`-blok.** Niet als waarschuwing tússen de
-uitleg maar als eigen, omkaderd blok, want een waarschuwing in een alinea wordt gelezen als toon en
-een waarschuwing in een kader als feit. Bij "maand goedkeuren" staat er wat het kost: elke pagina die
-geschreven wordt kost geld, dus afwijzen is de goedkopere fout. De bewegingen (overlay 0,15s, paneel
-vanaf `scale(.96)`) komen uit Nova's gecompileerde CSS.
+**De bevestigingsdialoog heeft Nova's `cannotBeUndone`-blok**, als eigen omkaderd blok in plaats van
+een waarschuwing tussen de uitleg: een waarschuwing in een alinea leest als toon, in een kader als
+feit. Bij "maand goedkeuren" staat wat het kost, dus afwijzen is de goedkopere fout. Bewegingen
+(overlay 0,15s, paneel vanaf `scale(.96)`) komen uit Nova's gecompileerde CSS.
 
-**Geverifieerd op productie.** Een volledig plan ingevoegd met de vorm die `buildPlan()` oplevert: 12
-maanden, 132 pagina's, 12 buffers zonder datum. Alle check-constraints hielden, en het verwijderen
-van het plan nam maanden en pagina's mee via de cascade. Daarna is alles weer opgeruimd; er staat nu
-niets in die vier tabellen.
+**Geverifieerd op productie:** een volledig plan ingevoegd (12 maanden, 132 pagina's, 12 buffers
+zonder datum), alle check-constraints hielden, verwijderen van het plan nam maanden en pagina's mee
+via de cascade. Daarna opgeruimd.
 
-Nog open in deze fase: herordenen met slepen, en de cron die tien dagen vooruit schrijft
-(`shouldStartWriting()` is er al en getest, de taak eromheen nog niet).
+Nog open: herordenen met slepen, en de cron die tien dagen vooruit schrijft (`shouldStartWriting()`
+is er al en getest, de taak eromheen nog niet).
 
-**Het eerste echte plan legde een verdeelfout bloot (11 augustus 2026).** Het pakket van het account
-staat op 10 pagina's per maand en Van den Udenhout heeft een plan gekregen: 12 maanden, 132 pagina's,
-12 buffers. Bij het nalopen van maand 1 stond "Auto financieren · Oriëntatie" er twee keer in, op
-plek 1 en plek 9. Dat is dezelfde fout als bij de praktijkcheck van 10 augustus, maar een laag dieper:
-toen kreeg de titel de funnelfase erbij, en dat lost het op zolang het páár verschilt. Hier verschilde
-het paar niet. Van den Udenhout heeft acht onderwerpen en er zijn vier fasen, en beide tellers liepen
-één omhoog per pagina. 8 is deelbaar door 4, dus na acht pagina's stonden ze allebei weer op hun
-beginstand.
+**Het eerste echte plan legde een verdeelfout bloot (11 augustus 2026).** Pakket van 10 pagina's per
+maand: 12 maanden, 132 pagina's, 12 buffers. In maand 1 stond "Auto financieren · Oriëntatie" twee
+keer, op plek 1 en 9. Diepere versie van de fout van 10 augustus: toen kreeg de titel de funnelfase
+erbij, wat werkt zolang het páár verschilt, maar hier verschilde het paar niet. Acht onderwerpen, vier
+fasen, en beide tellers liepen één omhoog per pagina: 8 is deelbaar door 4, dus na acht pagina's
+stonden ze weer op hun beginstand.
 
-**De oplossing is een schuif, geen uitzondering.** Elke keer dat de onderwerpenlijst rondgaat schuift
-de fase een extra stap op, met een stapgrootte die zo gekozen is dat het paar pas terugkomt na álle
-combinaties: 32 in plaats van 8 bij dit merk. En omdat er merken zijn waar dat rekenkundig niet
-uitkan (40 pagina's per maand, 8 onderwerpen, 4 fasen: 41 plekken op 32 combinaties) krijgt de
-onvermijdelijke herhaling "(deel 2)" achter de titel. Twee regels die letterlijk hetzelfde heten
-leest als een fout in het plan; "(deel 2)" leest als een tweede artikel over hetzelfde, en dat is het.
+**Oplossing: een schuif, geen uitzondering.** Elke ronde door de onderwerpenlijst schuift de fase een
+extra stap op, met een stapgrootte die het paar pas laat terugkomen na álle combinaties (32 in plaats
+van 8 hier). Waar het rekenkundig niet uitkan (40 pagina's, 8 onderwerpen, 4 fasen: 41 plekken op 32
+combinaties) krijgt de onvermijdelijke herhaling "(deel 2)" achter de titel: dat leest als een tweede
+artikel over hetzelfde, en dat is het.
 
-**Waarom de test dit niet zag, en wat er nu getest wordt.** De unittest hield zeven onderwerpen aan.
-Zeven en vier hebben geen deler gemeen, dus daar viel het toevallig goed uit. Het aantal onderwerpen
-van een merk is niets om op te vertrouwen, en dus loopt de test nu langs 1 tot en met 16 onderwerpen
-maal alle drie de pakketten, met per combinatie de eis dat geen titel twee keer in dezelfde maand
-staat. 881 unittests, waarvan 36 nieuw.
+**Waarom de test dit niet zag.** De unittest hield zeven onderwerpen aan; zeven en vier delen geen
+gemene deler, dus dat viel toevallig goed uit. Het aantal onderwerpen is niets om op te vertrouwen: de
+test loopt nu langs 1 tot en met 16 onderwerpen maal alle drie de pakketten, met de eis dat geen titel
+twee keer in dezelfde maand staat. 881 unittests, 36 nieuw.
 
-**Het plan schrijft zichzelf (11 augustus 2026).** De laatste ontbrekende schakel van fase 4: een
-dagelijkse cron (`/api/cron/plan`, pg_cron-taak `aura-plan-writer`, migratie 0050, sinds migratie 0059 `orbit-engine-plan-writer`) zet schrijftaken
-klaar voor pagina's van een goedgekeurde maand die binnen tien dagen gepubliceerd moeten worden. De
-route plant alleen, de werker schrijft, precies zoals `/api/cron/tracking`.
+**Het plan schrijft zichzelf (11 augustus 2026).** Laatste schakel van fase 4: een dagelijkse cron
+(`/api/cron/plan`, pg_cron-taak `aura-plan-writer`, migratie 0050, sinds migratie 0059
+`orbit-engine-plan-writer`) zet schrijftaken klaar voor pagina's van een goedgekeurde maand die
+binnen tien dagen gepubliceerd moeten worden. De route plant, de werker schrijft, zoals
+`/api/cron/tracking`.
 
-**Bij het bouwen bleek de echte blokkade een andere dan tien dagen.** Schrijven leunt op een gemeten
-analyse: de contentpijplijn gebruikt de gemiste vragen en de winnende antwoorden als briefing.
-Zonder meting schrijft het model iets algemeens, en dat is het soort tekst waarvoor niemand betaalt.
-Bij Van den Udenhout hebben twee van de acht onderwerpen een analyse, en beide zijn ooit gestart via
-de topic-knop. Zes van de tien pagina's in maand 1 kunnen dus vandaag niet geschreven worden, met
-pakket 10.
+**De echte blokkade bleek niet de tien dagen maar de meting.** Schrijven leunt op een gemeten analyse
+(gemiste vragen, winnende antwoorden als briefing); zonder meting schrijft het model iets algemeens.
+Bij Van den Udenhout hebben twee van de acht onderwerpen een analyse. Zes van de tien pagina's in
+maand 1 kunnen dus vandaag niet geschreven worden, met pakket 10.
 
-**Dat is geen randgeval maar de normale toestand, en dus krijgt het een plek in het scherm.**
-`lib/plan-writing.ts` geeft geen boolean maar een beslissing mét reden, en die reden staat onder de
-regel in het plan, in Nova's wie-is-aan-zet-taal: "Start eerst de meting van dit onderwerp, anders
-schrijft ORBIT ENGINE zonder cijfers" (bal bij de klant) of "De meting van dit onderwerp loopt nog" (bal bij
-ORBIT ENGINE). Blokkades die géén probleem zijn, zoals "nog niet aan de beurt", krijgen bewust geen melding:
-een melding bij iets wat gewoon goed gaat, leert mensen meldingen negeren.
+**Dat is de normale toestand, dus krijgt het een plek in het scherm.** `lib/plan-writing.ts` geeft
+een beslissing mét reden, in Nova's wie-is-aan-zet-taal: "Start eerst de meting van dit onderwerp,
+anders schrijft ORBIT ENGINE zonder cijfers" (bal bij de klant) of "De meting van dit onderwerp loopt
+nog" (bal bij ORBIT ENGINE). Blokkades zonder probleem, zoals "nog niet aan de beurt", krijgen bewust
+geen melding: een melding bij iets wat goed gaat, leert mensen meldingen negeren.
 
-**De brug tussen plan en contentpijplijn is één veld.** De pijplijn kent alleen analyses, het plan
-alleen merken. `plannedPageId` in de payload van `content_draft` verbindt ze: de handler schrijft
-`content_piece_id` terug en zet de pagina op `ter_goedkeuring`, en de werker zet hem op `mislukt`
-als het schrijven definitief niet lukt. Dat laatste stond er eerst niet in, en zonder die regel
-blijft een pagina op "ORBIT ENGINE is bezig" staan terwijl er niets meer gebeurt: de ergste van alle
-statussen, want hij vraagt om geduld dat nergens toe leidt.
+**De brug tussen plan en contentpijplijn is één veld.** `plannedPageId` in de payload van
+`content_draft` verbindt merk-plan en analyse-pijplijn: de handler schrijft `content_piece_id` terug
+en zet de pagina op `ter_goedkeuring`, de werker zet hem op `mislukt` als schrijven definitief
+mislukt. Zonder die laatste regel blijft een pagina op "ORBIT ENGINE is bezig" staan terwijl er niets
+meer gebeurt, de ergste status omdat hij geduld vraagt dat nergens toe leidt.
 
-**Getest waar de fout zou zitten.** Die brug bestaat uit drie stukken (de cron zet het veld, de
-handler koppelt terug, de werker meldt de mislukking) en valt er één weg, dan schrijft ORBIT ENGINE wél maar
-loopt het plan achter. Dat is samenhang tussen taken en dus onzichtbaar voor een unittest: er staan
-nu vijf ketentests omheen. Eén ervan wees meteen iets aan wat ook in de cron zit: de eigenaar moet
-uit `analyses.user_id` komen en niet uit het profiel, want een toegewezen analyse hoort bij de klant
-en de contentpijplijn weigert te schrijven voor iemand die geen eigenaar is. 899 unittests, 52
-ketentests.
+**Getest waar de fout zou zitten.** Die brug (cron zet het veld, handler koppelt terug, werker meldt
+mislukking) valt bij één weggevallen stuk uiteen: ORBIT ENGINE schrijft wél maar het plan loopt achter.
+Samenhang tussen taken, dus onzichtbaar voor een unittest: vijf ketentests staan er nu omheen. Eén
+wees meteen aan dat de eigenaar uit `analyses.user_id` moet komen en niet uit het profiel, want een
+toegewezen analyse hoort bij de klant. 899 unittests, 52 ketentests.
 
-**Fase 8, het CSM-paneel (11 augustus 2026).** Het stond oorspronkelijk achteraan met de redenering
-"bij minder dan tien klanten kun je dit met SQL". Besluit 11 haalde die onderuit: twintig klanten in
-het eerste jaar, allemaal met mogelijk meerdere websites en deels via bureaus. `/beheer` toont nu
-alle merken van alle klanten, gesorteerd op wat het eerst aandacht vraagt. Alleen voor beheerders,
-en bij een gewone gebruiker een 404 en geen 403: een 403 bevestigt dat het scherm bestaat.
+**Fase 8, het CSM-paneel (11 augustus 2026).** Stond achteraan met "bij minder dan tien klanten kun
+je dit met SQL"; besluit 11 haalde dat onderuit (twintig klanten in jaar één, mogelijk meerdere
+websites, deels via bureaus). `/beheer` toont alle merken van alle klanten, gesorteerd op wat het
+eerst aandacht vraagt. Alleen voor beheerders; een gewone gebruiker krijgt een 404, geen 403, want een
+403 bevestigt dat het scherm bestaat.
 
-**Zeven segmenten, maar niet die van Nova.** Nova's zeven gaan over funnels, talen en doellanden
-invullen. Die velden vult ORBIT ENGINE zelf in: besluit 13 schrapte meertaligheid en de vier funnelfasen
-komen uit `plan-build.ts`. Wat overblijft is de vraag die er wél toe doet, en dat werden er ook
-zeven: vastgelopen, onderzoek loopt, wacht op jouw nakijkwerk, nog niet gemeten, wacht op de klant,
-geen contentplan, loopt. Elk segment heeft Nova's banner die zegt wát je moet doen, en een eigen
-lege staat, want een leeg segment is hier goed nieuws.
+**Zeven segmenten, niet die van Nova.** Nova's zeven gaan over funnels, talen en doellanden; die vult
+ORBIT ENGINE zelf in (besluit 13 schrapte meertaligheid, de vier funnelfasen komen uit
+`plan-build.ts`). De zeven die er wél toe doen: vastgelopen, onderzoek loopt, wacht op jouw
+nakijkwerk, nog niet gemeten, wacht op de klant, geen contentplan, loopt. Elk segment heeft Nova's
+banner die zegt wát je moet doen, en een eigen lege staat, hier goed nieuws.
 
-**De volgorde van de controles ís de prioriteit.** Een merk valt in het eerste segment dat past, en
-een pijplijnfout wint van een openstaand akkoord. Zonder die regel staat een merk in twee lijsten en
-telt hij dubbel in elke teller boven de tabel. Er staat een test op die eist dat de segmenten samen
-optellen tot het aantal merken; dat is de enige manier om te zien of de tabbladtellers kloppen met
-de tabel eronder.
+**De volgorde van de controles ís de prioriteit.** Een merk valt in het eerste segment dat past; een
+pijplijnfout wint van een openstaand akkoord, anders staat een merk in twee lijsten en telt dubbel.
+Een test eist dat de segmenten samen optellen tot het aantal merken, de enige manier om te zien of de
+tabbladtellers kloppen met de tabel eronder.
 
-**Zes query's, geen zes per merk.** Dit scherm toont álle merken. Zou het per merk zijn tellers
-ophalen, dan is dat bij twintig klanten al honderden ronden naar Supabase op één pagina. Dezelfde
-afweging als bij `enqueueMeasurement()`, waar 2×N sequentiële aanroepen ooit de bevestigroute omver
-duwden.
+**Zes query's, geen zes per merk.** Dit scherm toont álle merken; per-merk tellers zouden bij twintig
+klanten al honderden Supabase-ronden zijn op één pagina. Zelfde afweging als bij
+`enqueueMeasurement()`, waar 2×N sequentiële aanroepen ooit de bevestigroute omver duwden.
 
-**De drempel voor "nagekeken" staat op 80% en niet op 100%.** Van de 27 merkvelden leidt ORBIT ENGINE er 25
-zelf af en de laatste paar weet alleen de klant. Op 100 zou élk merk eeuwig in "wacht op jouw
-nakijkwerk" blijven staan en werd het segment betekenisloos. 919 unittests.
+**De drempel voor "nagekeken" staat op 80%, niet 100%.** Van de 27 merkvelden leidt ORBIT ENGINE er 25
+zelf af; op 100 zou élk merk eeuwig in "wacht op jouw nakijkwerk" blijven en werd het segment
+betekenisloos. 919 unittests.
 
-**Herordenen zonder slepen (11 augustus 2026).** De laatste open post van fase 4. Nova laat je
-slepen; dat is op een muis prettig en op een telefoon onbetrouwbaar, want HTML5-drag werkt daar niet
-en de vervangers vragen dat je een rij eerst een halve seconde vasthoudt zonder te scrollen. De
-eerste klacht van dit hele traject ging over mobiel, dus dat is geen theoretisch bezwaar. Twee
-pijltjes doen hetzelfde werk, werken overal, en zijn met het toetsenbord te bedienen.
+**Herordenen zonder slepen (11 augustus 2026).** Laatste open post van fase 4. Nova laat slepen, wat
+op een muis prettig is en op een telefoon onbetrouwbaar (HTML5-drag werkt daar niet, vervangers vragen
+een halve seconde vasthouden zonder scrollen), en de eerste klacht van dit hele traject ging over
+mobiel. Twee pijltjes doen hetzelfde werk, overal, ook met toetsenbord.
 
-**Wat er verwisselt is de plek én de datum.** Alleen de plek zou een lijst opleveren waarin de
-bovenste pagina later verschijnt dan de onderste, en dan is het geen agenda meer. Alleen de datum
-zou de lijst laten verspringen bij de volgende keer verversen. Twee regels eromheen: buffers doen
-niet mee (die hebben geen datum om te ruilen) en een geplaatste pagina houdt zijn datum, want die is
-de werkelijkheid geworden.
+**Wat verwisselt is plek én datum.** Alleen de plek zou een lijst opleveren waarin de bovenste pagina
+later verschijnt dan de onderste; alleen de datum zou de lijst laten verspringen bij verversen.
+Buffers doen niet mee (geen datum om te ruilen), een geplaatste pagina houdt haar datum (die is de
+werkelijkheid geworden).
 
-**Eén fout onderweg, gevangen vóór hij bestond.** De pijlen rekenden eerst op de zichtbare lijst.
-Staat het filter op "vraagt actie", dan zijn de buren van een pagina meestal onzichtbaar, en dan
-springt hij over die buren heen met de datum van de verkeerde pagina. Ze rekenen nu op de volledige
-maand. 928 unittests.
+**Eén fout gevangen vóór hij bestond.** De pijlen rekenden eerst op de zichtbare lijst: staat het
+filter op "vraagt actie", dan springt een pagina over onzichtbare buren heen met hun datum. Ze rekenen
+nu op de volledige maand. 928 unittests.
 
 **Het CSM-paneel telde mislukkingen die geen mislukkingen meer waren (11 augustus 2026).** Direct
-gevonden op productie, bij het eerste merk dat het scherm liet zien. Het merkonderzoek van Van den
-Udenhout faalde op 5 en 6 augustus drie keer met "You have no credits remaining", en op 9 augustus
-liep precies datzelfde onderzoek gewoon door tot en met de synthese. Het merk is dus af, maar stond
-bovenaan onder "Vastgelopen" met een rode teller die nooit meer op nul zou komen. Dat is precies hoe
-je iemand leert een teller te negeren, en daarmee was het duurste segment van het scherm waardeloos
-geweest.
+gevonden op productie. Het merkonderzoek van Van den Udenhout faalde op 5 en 6 augustus drie keer op
+"You have no credits remaining", en liep op 9 augustus gewoon door tot en met de synthese. Het merk
+was dus af, maar stond bovenaan onder "Vastgelopen" met een rode teller die nooit op nul zou komen:
+zo leer je iemand een teller negeren, en het duurste segment van het scherm was waardeloos geweest.
 
-**De regel is geen tijdvenster maar een feit uit de wachtrij.** Een mislukte taak telt alleen als er
+**De regel is een feit uit de wachtrij, geen tijdvenster.** Een mislukte taak telt alleen als er
 daarná geen geslaagde taak van hetzélfde soort voor dezelfde eigenaar is (`unresolvedFailures()`).
-"Alles ouder dan dertig dagen negeren" zou een gok zijn geweest en zou een echt kapotte taak na een
-maand laten verdwijnen. Eigenaar is bewust de analyse óf het merk en niet allebei op één hoop: een
-mislukte meting van analyse A zegt niets over analyse B van hetzelfde merk. Vier tests, waarvan één
-letterlijk de rijen van productie. 932 unittests.
+"Alles ouder dan dertig dagen negeren" zou een gok zijn en een echt kapotte taak na een maand laten
+verdwijnen. Eigenaar is bewust de analyse óf het merk, niet allebei: een mislukte meting van analyse A
+zegt niets over analyse B. Vier tests, waaronder één op echte rijen van productie. 932 unittests.
 
-**De contentketen van het plan is met echt geld nagerekend (11 augustus 2026).** Conventie 10:
-gebouwd is niet geverifieerd. Maand 1 van Van den Udenhout goedgekeurd op productie en de cron
-afgetrapt. De uitkomst: 10 pagina's bekeken, 2 ingepland, 2 geblokkeerd op een lopende meting en 6
-op een ontbrekende analyse. Precies de voorspelling, en de eerste keer dat die verdeling uit de
-werkelijkheid kwam in plaats van uit een test.
+**De contentketen van het plan is met echt geld nagerekend (11 augustus 2026).** Conventie 10.
+Maand 1 van Van den Udenhout goedgekeurd, cron afgetrapt: 10 pagina's bekeken, 2 ingepland, 2
+geblokkeerd op een lopende meting, 6 op een ontbrekende analyse, precies de voorspelling, nu uit de
+werkelijkheid in plaats van een test.
 
 **De brug tussen plan en pijplijn houdt.** `plannedPageId` ging mee in de schrijftaak, de handler
 koppelde de tekst terug, de eerste versie haalde de poort niet en ketende naar een herschrijfronde,
-en daarna stond de plan-pagina op `ter_goedkeuring` met 878 woorden eronder. Onderweg legde de
-werker een tweede zware taak netjes terug in de rij omdat hij niet meer in het tijdbudget paste; dat
-zag er even uit als een vastloper maar was precies het ontworpen gedrag.
+daarna stond de plan-pagina op `ter_goedkeuring` met 878 woorden eronder. Een tweede zware taak werd
+netjes teruggezet in de rij omdat hij niet meer in het tijdbudget paste, geen vastloper maar het
+ontworpen gedrag.
 
-**Kosten: $0,42 voor anderhalve pagina**, dus ongeveer $0,25 tot $0,30 per pagina inclusief de
-herschrijfronde op `gpt-5.6-sol`. Bij pakket 10 is dat ruwweg $3 per maand aan schrijfkosten per
-merk. Dat is een bruikbaar getal voor de prijsstelling en het stond nergens eerder.
+**Kosten: $0,42 voor anderhalve pagina**, zo'n $0,25 tot $0,30 per pagina inclusief herschrijfronde op
+`gpt-5.6-sol`. Bij pakket 10 is dat ruwweg $3 per maand aan schrijfkosten per merk, een nieuw getal
+voor de prijsstelling.
 
-**Fase 5 begint met het opbrengstblok en niet met Google.** Drie getallen bovenaan het merkdossier:
-actief sinds, groei in AI-zichtbaarheid, pagina's gepubliceerd. `docs/Nova.md` §5 noemt dit het
-middel dat opzeggen tegenhoudt (besluit 7, doorlopend opzegbaar), en het is vandaag te verifiëren
-omdat het aan geen enkele externe koppeling hangt. De waarde per vermelding is optioneel (besluit 16,
-migratie 0051): leeg toont aantallen, een bedrag toont geld, dus het scherm hoeft niet om zodra de
-prijzen er zijn.
+**Fase 5 begint met het opbrengstblok, niet met Google.** Drie getallen bovenaan het merkdossier:
+actief sinds, groei in AI-zichtbaarheid, pagina's gepubliceerd (`Nova.md` §5: het middel dat opzeggen
+tegenhoudt, besluit 7). Vandaag al te verifiëren, want het hangt aan geen externe koppeling. De waarde
+per vermelding is optioneel (besluit 16, migratie 0051): leeg toont aantallen, een bedrag toont geld.
 
-**Twee regels die uit de tests kwamen.** Bij één meting staat er een startpunt en geen groei, want
-"0%" zou suggereren dat er niets gebeurde terwijl er nog niets te vergelijken is (conventie 3). En
-bij een daling verschijnt er géén bedrag: dat zou een verlies als opbrengst tonen. 945 unittests.
+**Twee regels uit de tests.** Bij één meting staat een startpunt en geen groei, "0%" zou suggereren
+dat er niets gebeurde (conventie 3). Bij een daling verschijnt géén bedrag, dat zou een verlies als
+opbrengst tonen. 945 unittests.
 
 **Fase 5, deel 2: de Search Console-koppeling (11 augustus 2026).** Gebouwd volgens de keuzes die
-`docs/tasks/zoekdata-koppeling.md` op 6 augustus al had uitgezocht, dus zonder die afweging opnieuw
-te maken: een service account in plaats van OAuth (de `webmasters`-scopes zijn bij Google "sensitive"
-en vragen dan een verificatietraject van weken met privacybeleid en demovideo, voor nul extra waarde
-bij een handvol MKB-klanten), alleen leesrecht, en `dataState: "final"` omdat Google's verse cijfers
-nog herzien worden.
+`docs/tasks/zoekdata-koppeling.md` op 6 augustus al uitzocht: een service account in plaats van OAuth
+(de `webmasters`-scopes zijn bij Google "sensitive" en vragen weken verificatie voor nul extra waarde
+bij een handvol MKB-klanten), alleen leesrecht, `dataState: "final"` omdat Google's verse cijfers nog
+herzien worden.
 
-**Geen `googleapis`-pakket.** Dat is tientallen megabytes voor élke Google-API die bestaat, terwijl
-hier twee HTTP-verzoeken nodig zijn: een JWT tekenen en hem inruilen voor een toegangstoken. Node
-kan RS256 zelf. Een afhankelijkheid die honderd keer groter is dan wat je ervan gebruikt, betaal je
-bij elke build en moet je bij elke kwetsbaarheid nakijken.
+**Geen `googleapis`-pakket.** Tientallen megabytes voor élke Google-API terwijl hier twee
+HTTP-verzoeken volstaan (JWT tekenen, inruilen voor toegangstoken); Node kan RS256 zelf. Een
+afhankelijkheid honderd keer groter dan wat je gebruikt betaal je bij elke build en bij elke
+kwetsbaarheid.
 
-**Twee regels die uit de vertraging volgen.** Definitieve cijfers lopen twee dagen achter, en Google
-corrigeert de dagen daarvóór nog na. Elke ronde haalt daarom een nawerkvenster van tien dagen
-opnieuw op, en de unieke sleutel `(profile_id, day, page)` maakt daar een correctie van in plaats van
-een dubbele rij. Zonder dat tweede zouden de totalen optellen tot een veelvoud van de waarheid;
-zonder het eerste bevriest een half gecorrigeerde dag voor altijd.
+**Twee regels uit de vertraging.** Definitieve cijfers lopen twee dagen achter en Google corrigeert
+de dagen daarvóór nog na. Elke ronde haalt daarom opnieuw een nawerkvenster van tien dagen op, en de
+unieke sleutel `(profile_id, day, page)` maakt daar een correctie van in plaats van een dubbele rij.
+Zonder dat tweede zouden totalen tot een veelvoud van de waarheid optellen, zonder het eerste bevriest
+een half gecorrigeerde dag voor altijd.
 
-**De property-naam is een eigen functie met een eigen test.** Search Console kent twee vormen,
-`sc-domain:voorbeeld.nl` en `https://voorbeeld.nl/` mét slotstreep, en allebei zien er anders uit dan
-een webadres. Wie het kale domein invult krijgt van Google een 404 zonder uitleg, en dan denkt iemand
-dat de koppeling stuk is terwijl er een teken mist. `normalizeProperty()` noemt in dat geval beide
-vormen mét het ingetypte domein erin.
+**De property-naam is een eigen functie met eigen test.** Search Console kent `sc-domain:voorbeeld.nl`
+en `https://voorbeeld.nl/` mét slotstreep, allebei anders dan een webadres. Het kale domein geeft een
+404 zonder uitleg. `normalizeProperty()` noemt in dat geval beide vormen mét het ingetypte domein
+erin.
 
-**Wat expliciet in het scherm staat.** Google splitst klikken uit AI-antwoorden niet uit: die zitten
-ongesplitst in `web`. Dat is precies het cijfer waarvan een klant aanneemt dat het erin zit, en een
-product dat AI-zichtbaarheid meet kan die verwarring niet laten bestaan. Die zin staat onder het
-koppelblok.
+**In het scherm staat expliciet dat Google klikken uit AI-antwoorden niet uitsplitst**, die zitten
+ongesplitst in `web`, precies het cijfer waarvan een klant aanneemt dat het erin zit.
 
-**Wat nog niet geverifieerd is, en waarom.** De sleutel zelf. `GOOGLE_SERVICE_ACCOUNT_JSON` moet
-aangemaakt worden in een Google Cloud-project en dat kan alleen de eigenaar. Tot die er is toont het
-scherm dat de koppeling niet is ingericht in plaats van te falen, en staat de rest onder test: de
-property-controle, het venster, en het gedrag bij 403 en 404. Conventie 10 blijft dus openstaan voor
-precies één stap. 960 unittests.
+**Wat nog niet geverifieerd is: de sleutel zelf.** `GOOGLE_SERVICE_ACCOUNT_JSON` moet in een Google
+Cloud-project aangemaakt worden, alleen door de eigenaar. Tot dan toont het scherm dat de koppeling
+niet is ingericht in plaats van te falen; property-controle, venster en gedrag bij 403/404 staan nog
+onder test. 960 unittests.
 
-**Fase 6, de lus sluiten: twee van de vier onderdelen (11 augustus 2026).** Vóór het bouwen
-nagerekend wat er te verifiëren viel, en dat veranderde de omvang van de fase. `content_impact` heeft
-**nul rijen** en er is **nooit een pagina gepubliceerd**. Twee van de vier onderdelen hangen daar
-volledig aan: "impact terug in het plan" (een pagina die na 60 dagen niets deed leidt tot een
-voorstel) en de automatische controles op gepubliceerde pagina's. Die bouwen zou een onbeproefde laag
-op een onbeproefde laag zetten, precies wat conventie 10 verbiedt en wat
-`docs/tasks/zoekdata-koppeling.md` §0 al als risico had opgeschreven.
+**Fase 6, de lus sluiten: twee van de vier onderdelen (11 augustus 2026).** Vooraf nagerekend wat er
+te verifiëren viel, wat de omvang veranderde: `content_impact` heeft **nul rijen**, er is **nooit een
+pagina gepubliceerd**. Twee onderdelen hangen daar volledig aan ("impact terug in het plan" en
+automatische controles op gepubliceerde pagina's) en zijn niet gebouwd: dat zou een onbeproefde laag
+op een onbeproefde laag zetten, wat conventie 10 verbiedt en `zoekdata-koppeling.md` §0 al als risico
+noemde.
 
-**Wat wél kon, is gebouwd en tegen echte data nagerekend.** De kansenlijst (`lib/opportunities.ts`)
-en het inzichtenblok (`lib/insights.ts`). Voor het tweede was er precies één merk met genoeg
-geschiedenis: Fysi-Unique, drie meetronden, 18 naar 36 naar 38.
+**Wél gebouwd en nagerekend: de kansenlijst (`lib/opportunities.ts`) en het inzichtenblok
+(`lib/insights.ts`).** Voor het tweede was er precies één merk met genoeg geschiedenis: Fysi-Unique,
+drie meetronden, 18 naar 36 naar 38.
 
-**Die 18 naar 36 is waarom dit blok geen AI-aanroep is.** Het ziet eruit als een verdubbeling en valt
-tóch binnen de meetonzekerheid van 23 punten bij dertig vragen. Een model zou daar "je zichtbaarheid
-is verdubbeld" van maken, en dat is een leugen met een grafiekje eromheen. De drie zinnen volgen
-rechtstreeks uit cijfers die er al staan, dus dit hoort een garantie te zijn en geen intentie
-(conventie 1). Nagerekend op productiecijfers: beide overgangen lezen als "gelijk gebleven", met het
-getal én de drempel in de zin.
+**Die 18 naar 36 is waarom dit blok geen AI-aanroep is.** Het lijkt een verdubbeling maar valt binnen
+de meetonzekerheid van 23 punten bij dertig vragen; een model zou er "je zichtbaarheid is verdubbeld"
+van maken, een leugen met een grafiekje. De drie zinnen volgen rechtstreeks uit bestaande cijfers, dus
+dit hoort een garantie te zijn (conventie 1). Nagerekend op productiecijfers: beide overgangen lezen
+als "gelijk gebleven", met getal én drempel in de zin.
 
-**De sortering van de kansenlijst ging de eerste keer mis en de test ving het.** Sorteren op omvang
-zette een aanbeveling van 30% boven "er staan twee geschreven pagina's die nog niet online zijn".
-Maar die aanbeveling kost nog een schrijfronde op het duurste model, en die twee pagina's zijn al
-geschreven, goedgekeurd en betaald en leveren zolang ze offline staan gegarandeerd nul op. Werk dat
-af is gaat vóór werk dat nog moet beginnen; een geblokkeerde AI-crawler gaat vóór allebei, want dan
-levert élke pagina niets op.
+**De sortering van de kansenlijst ging eerst mis, de test ving het.** Sorteren op omvang zette een
+aanbeveling van 30% boven "er staan twee geschreven pagina's die nog niet online zijn", terwijl die
+twee al betaald zijn en offline gegarandeerd nul opleveren. Werk dat af is gaat vóór werk dat nog moet
+beginnen; een geblokkeerde AI-crawler gaat vóór allebei.
 
-**De blokkade-teller komt uit de audit zelf en niet uit een eigen regel.** `technical_audits.blockers`
-bevat het oordeel al: bij Van den Udenhout staan de zoek-crawlers toe en zijn alleen de
-trainings-crawlers geweigerd, wat daar terecht als waarschuwing telt en niet als blokkade. Zelf op
-`severity` filteren zou dat onderscheid opnieuw bedenken en vroeg of laat anders uitkomen dan de
-auditpagina.
+**De blokkade-teller komt uit de audit zelf.** `technical_audits.blockers` bevat het oordeel al: bij
+Van den Udenhout staan zoek-crawlers toe en zijn alleen trainings-crawlers geweigerd, terecht een
+waarschuwing en geen blokkade. Zelf op `severity` filteren zou dat onderscheid opnieuw bedenken.
 
-**Eén fout in eigen werk gevangen vóór hij live ging.** De onzekerheid per periode werd eerst met
-`Math.random()` benaderd. Dan kan dezelfde meting bij de ene render "gelijk gebleven" zeggen en bij
-de volgende "een echte stijging". Hij komt nu uit het werkelijke aantal metingen van die periode.
-983 unittests.
+**Eén fout gevangen vóór hij live ging.** De onzekerheid per periode werd eerst met `Math.random()`
+benaderd, waardoor dezelfde meting wisselend "gelijk gebleven" of "een echte stijging" kon zeggen. Hij
+komt nu uit het werkelijke aantal metingen van die periode. 983 unittests.
 
 **Fase 7, het accountscherm (11 augustus 2026).** Uitgesteld uit fase 3, nu af. Bedrijfsgegevens,
-factuuradres en contactpersoon staan bij het ACCOUNT en niet bij het merk, want een bureau met vijf
+factuuradres en contactpersoon staan bij het ACCOUNT, niet bij het merk, want een bureau met vijf
 merken factureert één keer (besluit 9). Het btw-nummer heeft Nova's aparte vinkje "niet van
 toepassing": het verschil tussen "nog niet ingevuld" en "bestaat niet" is echt, een stichting hééft
-geen btw-nummer, en één leeg veld zou die twee op één hoop gooien en het scherm eeuwig onaf laten
-lijken.
+geen btw-nummer.
 
-**Opzeggen is een datum, geen knop die iets weggooit** (besluit 14). De bevestiging zegt met zoveel
-woorden wat er blijft staan en wat er verandert, want "abonnement opzeggen" leest anders als "alles
-kwijt".
+**Opzeggen is een datum, geen knop die iets weggooit** (besluit 14). De bevestiging zegt wat blijft
+staan en wat verandert.
 
-**Wat een klant NIET zelf mag zetten, met een test eromheen.** Het pakket is een verkoopafspraak, geen
-instelling: kon een klant zichzelf op 40 zetten, dan is de afspraak een suggestie. `started_at`,
-`cancelled_at` en de waarde per vermelding staan er om dezelfde reden buiten. `lib/account-editable.ts`
-is dezelfde constructie als `lib/profile-editable.ts`, en die bestaat omdat daar één veld wél in de
-wizard stond en niet in de opslagroute, en dus stilzwijgend niets bewaarde terwijl de melding
-"opgeslagen" zei. De test controleert nu beide kanten: elk zichtbaar veld is opslaanbaar, en de
-verboden velden zitten er niet in.
+**Wat een klant NIET zelf mag zetten, met een test eromheen.** Het pakket is een verkoopafspraak,
+geen instelling: `started_at`, `cancelled_at` en de waarde per vermelding zijn om dezelfde reden
+onbereikbaar. `lib/account-editable.ts` is dezelfde constructie als `lib/profile-editable.ts`, ontstaan
+nadat één veld wél in de wizard stond en niet in de opslagroute en dus stilzwijgend niets bewaarde
+terwijl "opgeslagen" verscheen. De test controleert nu beide kanten.
 
 **De donkere modus is eerst uitgesteld en daarna geschrapt.** 986 unittests.
 
-**Besluit 17: de donkere modus vervalt (11 augustus 2026).** Niet uitgesteld maar geschrapt; hij
-staat nergens meer op een lijst. Het `:root`-blok heeft 107 kleur-tokens die elk een doordachte
-tegenhanger nodig hebben, mechanisch omkeren geeft grijze modder, en het resultaat is pas te
-beoordelen door elk scherm in beide standen naast elkaar te leggen. Dat is een dag werk plus een
-designronde voor de enige fase in het plan met impact "laag", bij een product dat sales-led in een
-demogesprek verkocht wordt en dus altijd op één scherm in één stand getoond wordt. Fase 7 krimpt
-daarmee van 2 naar 1 dag en het totaal van 47 naar 46. De tokennamen blijven op twee standen
-ingericht, maar dat is nu gewoon betere naamgeving en geen voorbereiding meer.
+**Besluit 17: de donkere modus vervalt (11 augustus 2026).** Geschrapt, niet uitgesteld. Het
+`:root`-blok heeft 107 kleur-tokens die elk een doordachte tegenhanger nodig hebben; mechanisch
+omkeren geeft grijze modder, en beoordelen kost een dag plus een designronde voor de enige fase met
+impact "laag", bij een product dat sales-led op één scherm in één stand getoond wordt. Fase 7 krimpt
+van 2 naar 1 dag, het totaal van 47 naar 46. De tokennamen blijven op twee standen ingericht, nu
+gewoon betere naamgeving.
 
 **Het uitnodigingspad nagespeeld, en het legde een echte fout bloot (11 augustus 2026).** Van den
-Udenhout wordt binnenkort echt onboard, en het pad dat hij aflegt was nog nooit van begin tot eind
-gelopen: uitnodiging aanmaken, link doorsturen, wachtwoord kiezen, binnenkomen, merk zien. Registreren
-staat dicht, dus dit is de énige deur naar binnen; er is geen tweede pad dat het opvangt.
+Udenhout wordt binnenkort echt onboard; het pad (uitnodiging aanmaken, link doorsturen, wachtwoord
+kiezen, binnenkomen, merk zien) was nog nooit van begin tot eind gelopen. Registreren staat dicht,
+dit is de énige deur naar binnen.
 
 **De vondst: `getOwnedAnalysis()` miste de accountlaag.** `getOwnedProfile()` kreeg bij migratie 0046
-een derde laag (lid van het account) en deze functie niet. De RLS op `analyses` kreeg hem wél
-(`analyses_select_account`), en juist dáárdoor was het bijna onzichtbaar: een uitgenodigde klant zág
-zijn analyses gewoon, want lezen loopt over RLS. Maar élke schrijfactie loopt over deze functie,
-vragen bevestigen, content laten schrijven, een pagina goedkeuren, archiveren, en die gaven allemaal
-404 voor precies de persoon voor wie het product bedoeld is. In Nova's model is "de klant keurt goed"
-de hele rol van de klant, en goedkeuren is een schrijfactie. Dit had de eerste dag van de eerste
-echte klant geraakt.
+een derde laag (lid van het account), deze functie niet. RLS op `analyses` kreeg hem wél
+(`analyses_select_account`), waardoor het bijna onzichtbaar bleef: lezen loopt over RLS, dus een
+uitgenodigde klant zág zijn analyses gewoon. Maar élke schrijfactie loopt over deze functie, vragen
+bevestigen, content laten schrijven, een pagina goedkeuren, archiveren, en die gaven allemaal 404 voor
+precies de persoon voor wie het product bedoeld is. In Nova's model is goedkeuren de hele rol van de
+klant. Dit had de eerste dag van de eerste echte klant geraakt.
 
-**De ketentest kon dit pas zien nadat de harnas zelf gerepareerd was.** Twee gaten:
-
-1. **Geen auth-laag.** `acceptInvite()` maakt de gebruiker aan met `admin.auth.admin.createUser`, en
-   dat kon de shim niet. Nu schrijft hij naar de échte `auth.users` van de testdatabase, dus de
-   foreign keys en de unieke index op het adres gelden ook echt.
-2. **Geneste selects werden STIL weggegooid.** `"*, accounts(name)"` werd simpelweg `*`. Dat is
-   precies het "stil afwijken" dat de kop van dat bestand verbiedt, en het kostte meteen een valse
-   testfout: `lookupInvite()` leek de accountnaam niet terug te geven terwijl PostgREST hem op
-   productie gewoon levert. Ze worden nu echt uitgevoerd, met de koppeling uit de **werkelijke**
-   foreign keys van de testdatabase en niet uit een naamconventie: `profile_topics` hangt aan
-   `analyses` via `analysis_id`, maar `planned_pages` hangt aan `profile_topics` via `topic_id`, en
-   een conventie valt daar om. Wat de shim niet kan (`!inner`, geneste filters, dubbel geneste
-   selects) gooit nu mét de reden erin.
+**De ketentest kon dit pas zien nadat het testharnas zelf gerepareerd was.** Twee gaten: (1) geen
+auth-laag, `acceptInvite()` maakt de gebruiker aan met `admin.auth.admin.createUser` en dat kon de
+shim niet, nu schrijft hij naar de échte `auth.users` zodat foreign keys en de unieke index op het
+adres ook echt gelden; (2) geneste selects werden STIL weggegooid, `"*, accounts(name)"` werd `*`, wat
+een valse testfout gaf (`lookupInvite()` leek de accountnaam niet terug te geven terwijl PostgREST hem
+op productie wel levert). Ze worden nu echt uitgevoerd via de **werkelijke** foreign keys van de
+testdatabase (bv. `planned_pages` hangt aan `profile_topics` via `topic_id`, niet aan `analyses`),
+wat de shim niet kan gooit nu mét de reden erin.
 
 **Zeventien nieuwe ketentests**, waarvan de scherpste: een uitgenodigde klant ziet zijn merk én zijn
-analyses, en een merk van een ánder account blijft dicht. Die laatste stond er niet voor niets: alle
-andere asserties kijken of iemand er wél in komt, en dan blijft een te ruime regel onopgemerkt.
-77 ketentests, 986 unittests.
+analyses, een merk van een ánder account blijft dicht. 77 ketentests, 986 unittests.
 
 **Elke schrijfroute nagelopen vóór de eerste echte klant (11 augustus 2026).** Alle 44 API-routes in
-kaart gebracht met hun bewaker. De uitkomst was geruststellender dan verwacht: 22 routes gaan over
-`getOwnedAnalysis` en 15 over `getOwnedProfile`, dus de reparatie van de accountlaag werkt in één
-klap door in allemaal. Drie routes hebben geen bewaker, en twee daarvan horen dat zo (`health` en
-`invites/accept`, waar het token zélf de autorisatie is).
+kaart gebracht met hun bewaker: 22 gaan over `getOwnedAnalysis`, 15 over `getOwnedProfile`, dus de
+reparatie van de accountlaag werkt in één klap door. Drie routes hebben geen bewaker, twee terecht
+(`health` en `invites/accept`, waar het token zélf de autorisatie is).
 
 **De derde legde een tweede echte fout bloot: een nieuw merk kreeg geen account.** Migratie 0046
 vulde `account_id` met terugwerkende kracht voor élk bestaand merk, maar `POST /api/profiles` zette
-hem niet. Elk merk dat daarna via de app ontstond kwam dus zonder account binnen, en dat is geen
-cosmetisch gemis: het contentplan vindt geen pakket (de quota hangt aan het account) en zegt dan
-eeuwig "er is nog geen pakket gekozen", een uitgenodigde klant ziet het merk niet omdat dat over laag
-1 loopt, en het CSM-paneel toont het zonder klantnaam. Precies het scenario van de eerste echte
-onboarding, want die begint met een nieuw merk aanmaken.
+hem niet. Elk merk daarna via de app ontstaan kwam zonder account: het contentplan vindt geen pakket
+en zegt eeuwig "er is nog geen pakket gekozen", een uitgenodigde klant ziet het merk niet (laag 1),
+het CSM-paneel toont het zonder klantnaam. Precies het scenario van de eerste echte onboarding.
 
-`defaultAccountFor()` hanteert dezelfde regel als de backfill: bestaand account gebruiken, bij
-meerdere het oudste (dat is je eigen account, een bureau komt er later bij), en anders er één maken op
-het e-mailadres met jezelf als beheerder. Faalt zacht naar `null`, want een mislukte accountaanmaak
-mag nooit het aanmaken van het merk zelf blokkeren. Op productie stond de teller op nul merken zonder
-account, dus dit was puur een toekomstig gat.
+`defaultAccountFor()` volgt dezelfde regel als de backfill (bestaand account, bij meerdere het
+oudste, anders een nieuw account op het e-mailadres), faalt zacht naar `null` zodat een mislukte
+accountaanmaak nooit het merk zelf blokkeert. Op productie stond de teller op nul merken zonder
+account.
 
-**Fase 7 is af: e-mail en wachtwoord wijzigen.** Beide van Nova overgenomen omdat ze allebei een echt
-probleem oplossen. Zonder bevestigingsmail kan een tikfout iemand permanent buitensluiten, het oude
-adres werkt dan niet meer en het nieuwe bestaat niet; Supabase stuurt die mail zelf naar het nieuwe
-adres en het oude blijft werken tot hij bevestigd is. Zonder controle op het huidige wachtwoord is
-een openstaande laptop genoeg om een account over te nemen.
+**Fase 7 is af: e-mail en wachtwoord wijzigen.** Beide van Nova over: zonder bevestigingsmail sluit een
+tikfout iemand permanent buiten (oud adres werkt niet meer, nieuw bestaat niet); Supabase stuurt zelf
+naar het nieuwe adres en het oude blijft werken tot bevestiging. Zonder controle op het huidige
+wachtwoord is een openstaande laptop genoeg om een account over te nemen.
 
-**Die controle loopt bewust met de publieke sleutel.** Een wachtwoordcontrole heeft geen enkele
-verhoogde bevoegdheid nodig, en een mislukte inlogpoging doen met de sleutel die overal bij mag, is
-het verkeerde gereedschap voor een alledaagse handeling. De eerste versie gebruikte de service-role;
-dat werkte, maar het is de verkeerde sleutel voor de klus.
+**Die controle loopt bewust met de publieke sleutel**, niet de service-role: een wachtwoordcontrole
+heeft geen verhoogde bevoegdheid nodig.
 
-**Twee knoppen, geen gezamenlijk formulier.** Ze hebben een andere uitkomst: het adres wijzigen levert
-een bevestigingsmail op en verandert nog niets, het wachtwoord wijzigen is meteen klaar. Eén knop voor
-twee beloftes is precies hoe iemand denkt dat hij iets deed wat hij niet deed. De wachtwoordregels
-staan live onder het veld, dezelfde drie als bij de uitnodiging: twee verschillende sterktes voor
-hetzelfde wachtwoord is een verschil dat niemand kan uitleggen. 998 unittests, 82 ketentests.
+**Twee knoppen, geen gezamenlijk formulier**, want ze hebben een andere uitkomst: adres wijzigen
+levert een bevestigingsmail op en verandert nog niets, wachtwoord wijzigen is meteen klaar.
+Wachtwoordregels staan live onder het veld, dezelfde drie als bij de uitnodiging. 998 unittests, 82
+ketentests.
 
 **Het lanceerplan (11 augustus 2026).** `docs/tasks/lanceerplan.md`: het pad van "gebouwd" naar "Van
-den Udenhout is klant", in vijf testsporen over twee weken. Aanleiding: in negen bouwrondes is het
-Nova-plan afgebouwd, maar niemand heeft het geheel één keer als klant doorlopen.
+den Udenhout is klant", vijf testsporen over twee weken. Aanleiding: negen bouwrondes bouwden het
+Nova-plan af, maar niemand liep het geheel één keer als klant door.
 
-**De kern is dat "InSpace-kwaliteit" toetsbaar gemaakt is.** Dat was een gevoel en daar kun je niet op
-afvinken. Uit de reconstructie komen vijf eigenschappen die in hun berichtenbestand aantoonbaar zijn
-en dus ook in ORBIT ENGINE te controleren: elke toestand een eigen scherm (zij hebben vier lege staten voor
-één tabel), elke foutmelding specifiek (zestien in alleen het accountscherm), de taal zegt wie aan
-zet is, onomkeerbaar wordt vooraf in een eigen kader benoemd, en bulk is eerlijk over gedeeltelijk
-succes. Die vijf zijn de kolom "Nova-kwaliteit" per scherm.
+**"InSpace-kwaliteit" is toetsbaar gemaakt.** Vijf eigenschappen uit de reconstructie, aantoonbaar in
+hun berichtenbestand en dus ook in ORBIT ENGINE te controleren: elke toestand een eigen scherm (zij
+hebben vier lege staten voor één tabel), elke foutmelding specifiek (zestien alleen al in het
+accountscherm), taal die zegt wie aan zet is, onomkeerbaar vooraf in een eigen kader, bulk eerlijk
+over gedeeltelijk succes. Die vijf zijn de kolom "Nova-kwaliteit" per scherm.
 
-**Met de grens van dat oordeel er expliciet bij.** Ik heb Nova nooit gezien; het beeld komt uit 900
-berichtsleutels, hun CSS en hun marketingtekst. Dat is genoeg voor gedrag, toestanden en taal, en
-niet voor vormgeving en ritme. Tien schermafdrukken zouden spoor C twee keer zo scherp maken.
+**Met de grens van dat oordeel erbij.** Ik heb Nova nooit gezien, het beeld komt uit 900
+berichtsleutels, hun CSS en marketingtekst, genoeg voor gedrag, toestanden en taal, niet voor
+vormgeving en ritme. Tien schermafdrukken zouden spoor C twee keer zo scherp maken.
 
-**De drie fouten van vandaag zijn in het plan verwerkt als voorspelling.** Ze hebben één patroon: een
-laag toegevoegd en één aanroeper vergeten. Daarom jagen spoor B (de rolmatrix, met de "nee"-vakjes
-eerst) en spoor D (wedstrijdcondities) expliciet op naden en niet op nieuwe modules.
+**De drie fouten van vandaag zijn als voorspelling verwerkt.** Eén patroon: een laag toegevoegd en
+één aanroeper vergeten. Spoor B (rolmatrix, "nee"-vakjes eerst) en spoor D (wedstrijdcondities) jagen
+daarom expliciet op naden, niet op nieuwe modules.
 
-**Eén som staat er nu vast in plaats van als vermoeden.** De maandelijkse meetronde plant bij twintig
-klanten 4.800 taken tegelijk in; bij vijf per worker-ronde en ~18 seconden per meting is dat ongeveer
-16 uur. Dat past binnen een etmaal, dus het is geen storing maar een grens die rond dertig klanten in
-zicht komt. Uitrekenen nu, oplossen bij klant tien.
+**Eén som staat nu vast in plaats van als vermoeden.** De maandelijkse meetronde plant bij twintig
+klanten 4.800 taken tegelijk; bij vijf per worker-ronde en ~18 seconden per meting is dat ~16 uur.
+Past binnen een etmaal, dus geen storing maar een grens die rond dertig klanten in zicht komt.
 
 **Twee dingen die het plan bewust NIET doet:** geen nieuwe functionaliteit (de twee wachtende
-onderdelen zouden bij een klant in maand één toch leeg zijn), en geen prestatieoptimalisatie
+onderdelen zouden bij een klant in maand één toch leeg zijn), geen prestatieoptimalisatie
 (optimaliseren zonder meten is de duurste manier om niets te doen).
 
-**Het lanceerplan kreeg een tweede lat: productiewaardig, los van Nova (11 augustus 2026).** Op
-verzoek, en terecht: Nova-pariteit is één maatstaf en Nova is zelf software van mensen die keuzes
-maakten onder tijdsdruk. §0b van `lanceerplan.md` heeft zeven eigenschappen die uit eigen oordeel
-komen en niet uit hun berichtenbestand. Vier ervan staan op "nee".
+**Het lanceerplan kreeg een tweede lat: productiewaardig, los van Nova (11 augustus 2026).** Terecht:
+Nova-pariteit is één maatstaf, Nova is zelf software gemaakt onder tijdsdruk. §0b van
+`lanceerplan.md` heeft zeven eigenschappen uit eigen oordeel, vier ervan staan op "nee".
 
-**De scherpste vondst zit in die tweede lat en niet in de Nova-vergelijking: er is geen rem op de
-uitgaven.** Er is precies één plafond in de hele app, $2,15 voor de onboarding
-(`onboarding-budget.ts`). Daarbuiten niets. En op 11 augustus is besloten dat een account-admin zelf
-een meting mag starten (~$0,82) en een member een maand mag goedkeuren (~$2,80 aan schrijfwerk). Beide
-terecht, want dat ís het product, maar een klant met acht onderwerpen kan op één middag $6,56
-uitgeven zonder dat iemand het merkt, en twintig klanten die hun plan goedkeuren is $56 in één nacht.
-Een maandplafond per account en een dagplafond als noodrem zijn daarmee lanceervoorwaarden geworden,
-en ze staan op maandag van week 1: de rem hoort er eerder te zijn dan de test die hem nodig heeft.
+**De scherpste vondst: er is geen rem op de uitgaven.** Precies één plafond in de hele app, $2,15 voor
+de onboarding (`onboarding-budget.ts`). Op 11 augustus is besloten dat een account-admin zelf een
+meting mag starten (~$0,82) en een member een maand mag goedkeuren (~$2,80 aan schrijfwerk); terecht,
+maar een klant met acht onderwerpen kan op één middag $6,56 uitgeven zonder dat iemand het merkt,
+twintig klanten die hun plan goedkeuren is $56 in één nacht. Een maandplafond per account en een
+dagplafond als noodrem zijn lanceervoorwaarden geworden, week 1 maandag: de rem hoort er eerder te
+zijn dan de test die hem nodig heeft.
 
-**Eén verbetering op Nova, en het is er een die uit dit besluit volgt.** Bij elke knop die geld kost,
-komt te staan wat het kost. Nova doet dat niet, want zij factureren per pakket en de klant ziet nooit
-een aanroepprijs. ORBIT ENGINE wel: wie de prijs ziet, klikt bewuster en belt niet achteraf verbaasd.
+**Eén verbetering op Nova, uit dit besluit.** Bij elke knop die geld kost staat wat het kost. Nova
+doet dat niet (zij factureren per pakket), ORBIT ENGINE wel: wie de prijs ziet klikt bewuster.
 
-**Twee dingen rechtgezet die ik eerder te makkelijk had opgeschreven.** Ik kán geen schermafdrukken
-maken: van Nova niet (dat zit achter een inlog waar ik geen account voor heb) en van ORBIT ENGINE ook niet,
-want de browser komt hier niet door de uitgaande proxy heen, drie configuraties geprobeerd, alle drie
-`ERR_CONNECTION_RESET`. `curl` werkt wel, dus HTML en statuscodes kan ik lezen, pixels niet. Daarmee
-zijn tien afdrukken van ORBIT ENGINE zelf het enige wat de eigenaar in dit plan moet leveren.
+**Twee dingen rechtgezet.** Ik kán geen schermafdrukken maken: van Nova niet (achter een inlog), van
+ORBIT ENGINE ook niet (de browser komt hier niet door de uitgaande proxy, drie configuraties
+geprobeerd, alle `ERR_CONNECTION_RESET`). `curl` werkt wel, dus HTML en statuscodes lezen kan, pixels
+niet. Tien afdrukken van ORBIT ENGINE zelf zijn dus het enige wat de eigenaar in dit plan moet
+leveren.
 
-**Search Console en de eerste publicatie zijn van het kritieke pad gehaald.** Er is geen Google-sleutel
-en publiceren kan nog niet, en de lancering hangt er niet op: Search Console is een bewijsstuk náást
-de AI-meting, en de impactlus heeft pas betekenis als er een pagina live staat, wat bij een klant in
-maand één sowieso niet zo is.
+**Search Console en de eerste publicatie zijn van het kritieke pad gehaald.** Geen Google-sleutel,
+publiceren kan nog niet, en de lancering hangt er niet op: Search Console is bewijsstuk náást de
+AI-meting, en de impactlus heeft pas betekenis als er een pagina live staat.
 
-**Het proefmerk voor de generale repetitie is gekozen en nagekeken:** `gasservice-brabant.nl`, een
-CV- en warmtepompinstallateur uit Den Bosch. Zelfde soort bedrijf en zelfde regio als Van den
-Udenhout, andere branche dus geen besmetting, WordPress met 214 links op de homepage, en een
-`robots.txt` die alles toestaat zodat de technische audit niet het hele beeld overstemt. Bewust niet
-HEMA of Bol: een merk dat elke AI-assistent uit zijn hoofd kent, meet niets.
+**Het proefmerk voor de generale repetitie: `gasservice-brabant.nl`**, een CV- en
+warmtepompinstallateur uit Den Bosch. Zelfde soort bedrijf en regio als Van den Udenhout, andere
+branche (geen besmetting), WordPress met 214 links op de homepage, `robots.txt` die alles toestaat.
+Bewust niet HEMA of Bol, een merk dat elke AI-assistent uit zijn hoofd kent meet niets.
 
-**Besluit 18: alleen de beheerder start betaald werk (11 augustus 2026).** 's Ochtends was besloten
-dat een account-admin zelf een meting mocht starten en een member een maand mocht goedkeuren.
-Diezelfde dag teruggedraaid toen de rekensom zichtbaar werd: een klant met acht onderwerpen kon op één
-middag $6,56 uitgeven zonder enige rem, en twintig klanten die hun plan goedkeuren is $56 in één
-nacht. Het sluit ook beter aan op `Nova.md` §1.2, waar uit hun berichtenbestand blijkt dat de klant
-goedkeurt en niet maakt: zijn hele rol past in drie werkwoorden.
+**Besluit 18: alleen de beheerder start betaald werk (11 augustus 2026).** 's Ochtends besloten dat
+een account-admin zelf een meting mocht starten en een member een maand mocht goedkeuren; diezelfde
+dag teruggedraaid toen de rekensom ($6,56 per klant op één middag, $56 per nacht bij twintig klanten)
+zichtbaar werd. Sluit ook beter aan op `Nova.md` §1.2: de klant goedkeurt, maakt niet, zijn hele rol
+past in drie werkwoorden.
 
-**De scheidslijn loopt langs geld en niet langs rol.** Elf routes stellen dezelfde vraag aan dezelfde
-functie (`lib/cost-guard.ts`), en de meldingen staan in een pure module ernaast zodat ze te testen
-zijn (conventie 2). Gratis handelingen blijven bij de klant: een pagina goedkeuren, als geplaatst
-markeren, een feitvraag beantwoorden, het merkprofiel corrigeren. De test die erbij hoort is bewust
-een broncodecontrole en geen gedragstest: de fout die je wilt vangen is niet "de controle werkt niet"
-maar "er komt een route bij en iemand vergeet hem". Dat is precies hoe `getOwnedAnalysis` de
+**De scheidslijn loopt langs geld, niet langs rol.** Elf routes stellen dezelfde vraag aan dezelfde
+functie (`lib/cost-guard.ts`), de meldingen staan in een pure module ernaast (conventie 2). Gratis
+handelingen blijven bij de klant: pagina goedkeuren, als geplaatst markeren, feitvraag beantwoorden,
+merkprofiel corrigeren. De test is bewust een broncodecontrole en geen gedragstest: de fout die je
+wilt vangen is "er komt een route bij en iemand vergeet hem", precies hoe `getOwnedAnalysis` de
 accountlaag miste.
 
 **En de knop is weg waar het recht weg is.** Op het planscherm ziet een klant geen goedkeurknop meer
-maar de zin dat hij zijn consultant akkoord geeft. Een knop tonen die een 403 oplevert is erger dan
-geen knop.
+maar dat hij zijn consultant akkoord geeft. Een knop die een 403 oplevert is erger dan geen knop.
 
-**Spoor R: de meting mat de verkeerde vragen, en dat is met cijfers aangetoond.** De eigenaar merkte
-op dat Van den Udenhout alleen in Brabant werkt en dat landelijke vragen hem niets zeggen. Nagerekend
-op productie, en het is erger dan een smaakkwestie:
+**Spoor R: de meting mat de verkeerde vragen, met cijfers aangetoond.** Van den Udenhout werkt alleen
+in Brabant, landelijke vragen zeggen hem niets. Nagerekend op productie:
 
 | | vragen | metingen | genoemd | score |
 |---|---|---|---|---|
 | Fysi-Unique, niet-regionaal | 20 | 57 | **0** | **0** |
 | Fysi-Unique, regionaal | 10 | 40 | 11 | **28** |
 
-Élke vermelding die dat merk ooit verdiende, kwam uit een regionale vraag. Van 57 betaalde metingen op
-landelijke vragen leverde er niet één iets op. Drie gevolgen: twee derde van het meetbudget kocht
-niets (en `web_search` is ~94% van de meetkosten), de getoonde score van 18/36/38 was systematisch
-lager dan de 28 op de vragen die ertoe doen, en de gap-analyse stelde pagina's voor over een markt
-waar de klant niet in zit.
+Élke vermelding kwam uit een regionale vraag. Van 57 betaalde metingen op landelijke vragen leverde er
+niet één iets op. Drie gevolgen: twee derde van het meetbudget kocht niets (`web_search` is ~94% van
+de meetkosten), de getoonde score van 18/36/38 was systematisch lager dan de 28 op de vragen die
+ertoe doen, en de gap-analyse stelde pagina's voor over een markt waar de klant niet in zit.
 
-**De oorzaak was conventie 1 in het klein.** Er stónd een regionale regel in `prompts.ts`, en hij
-vuurde ook: Van den Udenhout had scope `lokaal` en negen plaatsen. Maar hij zei "verwerk in een deel
-van de prompts een plaatsnaam", en dat is een intentie. Uitkomst: 38%. Nu staat er een aantal in de
-instructie (minstens 70%) én een deterministisch vangnet erachter dat bijvult tot het klopt, met
-dezelfde bijvullus die de merkneutraliteitsregel al had.
+**De oorzaak was conventie 1 in het klein.** Er stond een regionale regel in `prompts.ts` die ook
+vuurde (Van den Udenhout: scope `lokaal`, negen plaatsen), maar ze zei "verwerk in een deel van de
+prompts een plaatsnaam", een intentie. Uitkomst: 38%. Nu staat er een aantal in de instructie
+(minstens 70%) én een deterministisch vangnet erachter dat bijvult, zoals bij de
+merkneutraliteitsregel.
 
-**Twee details die het verschil maken tussen werkt en werkt-bijna.** De twaalf provincies staan in de
-lijst, want `service_regions` bevat alleen plaatsen terwijl een zoeker net zo vaak "in Brabant" zegt;
-zonder die lijst zou precies de vraag waar het om gaat als landelijk tellen. En de woordgrenzen zijn
-geen theorie: "Oss" staat letterlijk in de regio's van een Brabantse dealer en zou zonder grens
-aanslaan op "grossier". 1032 unittests.
+**Twee details tussen werkt en werkt-bijna.** De twaalf provincies staan in de lijst naast plaatsen
+(anders telt "in Brabant" als landelijk), en de woordgrenzen zijn geen theorie: "Oss" staat letterlijk
+in de regio's van een Brabantse dealer en zou zonder grens aanslaan op "grossier". 1032 unittests.
 
-**De drempel ging van 70% naar 100%, en het argument ertegen was zwakker dan het leek.** De eigenaar
-draaide dezelfde dag het "70% laat ruimte"-argument terug: een regionale klant wil alleen op
-regionaal niveau beoordeeld worden, anders klopt het beeld niet. Dat is de sterkere redenering, want
-een score is een **aandeel**. Meng je er vragen doorheen die dit bedrijf per definitie niet kan
-winnen, dan is de uitkomst niet "iets te laag" maar onwaar. Dat Van den Udenhout in Drenthe niet
-genoemd wordt, is geen tekortkoming die in zijn cijfer thuishoort. `prompts.ts` schrapt daarom na de
-bijvulrondes wat er aan landelijke vragen overblijft, in plaats van het te laten staan.
+**De drempel ging van 70% naar 100%.** De eigenaar draaide het "70% laat ruimte"-argument zelf terug:
+een regionale klant wil alleen op regionaal niveau beoordeeld worden, anders klopt het beeld niet. Een
+score is een **aandeel**: meng je vragen erdoorheen die dit bedrijf per definitie niet kan winnen, dan
+is de uitkomst niet "iets te laag" maar onwaar. `prompts.ts` schrapt daarom na de bijvulrondes wat er
+aan landelijke vragen overblijft.
 
-**De 55 vragen zijn uitgezet op productie, en de cijfers eronder verrasten.** Alle 150 vragen blijven
-bewaard (`active = false`, conventie 8); alleen de meting verandert. Drie van de vijf analyses stonden
-er al goed voor: APK 25 van 30 regionaal, Private Lease Skoda 23, Schadeherstel 25. De twee nieuwste
-juist niet: Auto financieren 9 en Auto leasen 13. **Hetzelfde merk, dezelfde prompt, en het model
-haalde de ene keer 83% en de andere keer 30%.** Dat is niet een prompt die "meestal wel werkt", dat is
-precies waarom een instructie geen garantie is.
+**De 55 vragen zijn uitgezet op productie, de cijfers verrasten.** Alle 150 vragen blijven bewaard
+(`active = false`, conventie 8), alleen de meting verandert. Drie van de vijf analyses stonden er al
+goed voor (APK 25 van 30 regionaal, Private Lease Skoda 23, Schadeherstel 25), twee nieuwste juist
+niet (Auto financieren 9, Auto leasen 13). **Hetzelfde merk, dezelfde prompt: het model haalde de ene
+keer 83% en de andere keer 30%.** Precies waarom een instructie geen garantie is.
 
-De prijs is zichtbaar en eerlijk: met negen vragen is de onzekerheidsband ±15,0 punten in plaats van
-±9. Aanvullen tot dertig regionale vragen kost ~$0,001 aan generatie maar ~$0,57 extra per meetronde,
-want meten rekent per vraag. Dat is een uitgave en dus een besluit van de eigenaar.
+Met negen vragen is de onzekerheidsband ±15,0 punten in plaats van ±9. Aanvullen tot dertig regionale
+vragen kost ~$0,001 aan generatie maar ~$0,57 extra per meetronde, een besluit van de eigenaar.
 
-**Het gat boven het vangnet is nog open, en het is het grootste.** Het vangnet hangt aan
-`service_scope === "lokaal"`. Op productie staat dat veld bij vier van de negen profielen op `null`,
-waaronder Fysi-Unique: de fysiopraktijk in Amersfoort wiens meetcijfers deze hele vondst dróegen. Voor
-dat merk zou de garantie dus nog steeds niet gevuurd hebben. `resolveScope()` zet 'onbekend' bewust op
-`null` (conventie 3) en dat klopt, maar daarmee is de vraag alleen verplaatst: voor de
-promptgeneratie is een leeg bereik niet te onderscheiden van "landelijk", terwijl het "we weten het
-niet" betekent, en bij een MKB-klant is lokaal de regel. Staat als R6 in `docs/tasks/lanceerplan.md`.
+**Het gat boven het vangnet is nog het grootste open punt.** Het vangnet hangt aan
+`service_scope === "lokaal"`; op productie staat dat bij vier van negen profielen op `null`, waaronder
+Fysi-Unique zelf. `resolveScope()` zet 'onbekend' bewust op `null` (conventie 3), maar voor
+promptgeneratie is een leeg bereik niet te onderscheiden van "landelijk" terwijl het "we weten het
+niet" betekent, en bij MKB is lokaal de regel. Staat als R6 in `lanceerplan.md`.
 
-**En de poort geldt nu ook voor handwerk.** `POST` en `PATCH` op `/api/analyses/[id]/prompts` lieten
-een vraag toevoegen of herschrijven zonder enige controle. De generator betaalt drie bijvulrondes voor
-de regionale garantie; één tekstveld haalde hem onderuit. `regionGateMessage()` weigert nu, met een
-melding die de plaatsen noemt zodat de volgende poging meteen goed is. 1039 unittests.
+**En de poort geldt nu ook voor handwerk.** `POST`/`PATCH` op `/api/analyses/[id]/prompts` lieten een
+vraag toevoegen of herschrijven zonder controle. `regionGateMessage()` weigert nu, met de plaatsen
+erin genoemd. 1039 unittests.
 
-**R6 dicht: het werkgebied blokkeert nu het dossier.** Het eerste voorstel was een harde stop in de
-pijplijn vóór de promptgeneratie. Dat bleek de verkeerde plek: het zou de bestaande profielen met een
-leeg bereik laten vastlopen op iets dat in tien seconden te repareren is, en de consultant pas een
-melding geven op het moment dat hij er niets meer aan kan doen. De juiste plek is het afrondingsblok,
-en wel omdat het product sales-led is: de consultant zet het profiel klaar vóór het demogesprek, en
-dat is precies wanneer hij dit ziet en kan zetten. "Werkgebied vastgesteld" is daar nu een blokkerende
-regel, en de kop noemt hem bij naam.
+**R6 dicht: het werkgebied blokkeert nu het dossier.** Eerst voorgesteld als harde stop vóór
+promptgeneratie, maar dat zou bestaande profielen met leeg bereik laten vastlopen op iets dat in tien
+seconden te repareren is, met de melding pas op het moment dat de consultant er niets meer aan kan
+doen. Nu blokkeert "Werkgebied vastgesteld" in het afrondingsblok, waar de consultant het profiel vóór
+het demogesprek klaarzet.
 
-`scopeSummary()` staat in `field-merge.ts` naast `resolveScope()`: de een stelt de vraag, de ander
-beantwoordt hem. 'lokaal' zonder één regio telt als onbekend, want dat is exact wat `isLokaal()` ervan
-maakt. Zou dat als bekend gelden, dan meldt het scherm groen terwijl de promptregel niet vuurt, en dat
-is van de twee de ergere fout. De vier profielen op productie met een leeg bereik zijn bewust niet
-aangeraakt: dat invullen zou een gok zijn, en conventie 3 zegt dat onbekend beter is dan verkeerd.
-1049 unittests.
+`scopeSummary()` in `field-merge.ts` beantwoordt wat `resolveScope()` vraagt: 'lokaal' zonder één
+regio telt als onbekend, zoals `isLokaal()` het al bepaalt. De vier profielen met leeg bereik op
+productie zijn bewust niet aangeraakt, invullen zou een gok zijn (conventie 3). 1049 unittests.
 
-**F1: het budgetplafond, de tweede rem.** Besluit 18 haalde de klant weg als risicobron, maar niet
-het risico. Een beheerder die zich vergist in een lus blaast een rekening net zo hard op, en een cron
-die twintig keer vuurt vraagt niemand om toestemming. Tot 11 augustus 2026 was er precies één plafond
-in de hele app, en dat gold alleen de onboarding van één merk ($2,15). Alles daarna kon doorlopen.
+**F1: het budgetplafond, de tweede rem.** Besluit 18 haalde de klant weg als risicobron, niet het
+risico: een beheerder die zich vergist in een lus of een cron die twintig keer vuurt blaast de
+rekening net zo hard op. Tot 11 augustus 2026 was er precies één plafond, alleen voor de onboarding
+van één merk ($2,15).
 
-Nu twee plafonds, want ze vangen verschillende rampen: €50 per account per maand (de klant die
-structureel te veel kost) en €150 per dag over alle accounts samen (het ongeluk). De bedragen komen
-uit de echte cijfers: een klant met vier onderwerpen kost ruwweg €6 per maand, dus €50 laat een
-factor acht ruimte en raakt een normale klant nooit. Twintig goedkeuringen op één dag is ~€52 en past
-ruim onder het dagplafond. Elf routes stellen nu allebei de vragen, en de broncodecontrole in
-`test-unit.ts` bewaakt dat er geen twaalfde bijkomt die er één vergeet.
+Nu twee plafonds: €50 per account per maand (structureel te veel kostende klant) en €150 per dag over
+alle accounts (het ongeluk). Bedragen uit echte cijfers: een klant met vier onderwerpen kost ~€6 per
+maand, €50 laat factor acht ruimte, twintig goedkeuringen op één dag is ~€52, ruim onder het
+dagplafond. Elf routes stellen nu allebei de vragen, een broncodecontrole in `test-unit.ts` bewaakt
+dat geen twaalfde route er één vergeet.
 
-**Drie keuzes die de andere kant op vallen dan je zou verwachten.** De rem faalt naar doorlaten en
-niet naar blokkeren: bij "wie mag dit" is het ergste geval dat iemand even niets kan, bij "hoeveel is
-er over" zou zacht falen één trage query de hele pijplijn laten stilzetten voor alle klanten. Hij is
-geen exacte boekhouding: de grens wordt gecontroleerd vóór een taak, niet tijdens, dus een lopende
-meetronde wordt niet halverwege afgekapt (een halve analyse is een groter probleem dan een dollar).
-En een maand afwijzen gaat om de rem heen, want dat kost niets en een account met een vol plafond
-moet zijn maand nog wél kunnen afwijzen.
+**Drie keuzes die de andere kant op vallen.** De rem faalt naar doorlaten, niet blokkeren: bij "wie
+mag dit" is het ergste geval dat iemand even niets kan, bij "hoeveel is er over" zou zacht falen de
+hele pijplijn stilzetten voor alle klanten. Geen exacte boekhouding: de grens wordt vóór een taak
+gecontroleerd, niet tijdens, dus een lopende meetronde wordt niet halverwege afgekapt. Een maand
+afwijzen gaat om de rem heen, want dat kost niets.
 
-**Migratie 0053 geeft `ai_calls` een `account_id`,** gevuld door een trigger in de database. Niet in
-`ledger.ts`: dat logboek is best-effort en mag geen extra netwerkronde doen om een account op te
-zoeken, want een mislukte logregel mag nooit een meting laten falen. Alle 1.140 bestaande rijen zijn
-bijgewerkt, nul bleven er onverdeeld. Totaal uitgegeven sinds de start: $13,38.
+**Migratie 0053 geeft `ai_calls` een `account_id`,** gevuld door een databasetrigger, niet in
+`ledger.ts` (dat logboek is best-effort en mag geen extra netwerkronde doen). Alle 1.140 bestaande
+rijen bijgewerkt, nul onverdeeld. Totaal uitgegeven sinds start: $13,38.
 
-**En de ketentest bewees meteen twee dingen tegelijk.** Hij viel om op een `.gte` die de shim niet
-kende, precies de klasse fout waar die shim voor gewaarschuwd is. Maar de melding eronder liet zien
-dat de zachte terugval werkt zoals bedoeld: de handeling ging door, luid gelogd, en niet stil
-geblokkeerd. De shim kent nu `gte`, `gt`, `lte`, `lt` en `range`. 1088 unittests, 92 ketentests.
+**De ketentest bewees meteen twee dingen tegelijk.** Hij viel om op een `.gte` die de shim niet kende,
+precies de klasse fout waar die shim voor gewaarschuwd is, maar de melding eronder liet zien dat de
+zachte terugval werkt: de handeling ging door, luid gelogd, niet stil geblokkeerd. De shim kent nu
+`gte`, `gt`, `lte`, `lt`, `range`. 1088 unittests, 92 ketentests.
 
-**F3: de tweeling is opgeheven.** `getOwnedProfile` en `getOwnedAnalysis` hadden allebei dezelfde
-drie lagen, op twee plekken uitgeschreven. Toen migratie 0046 de accountlaag toevoegde, kreeg de
-eerste hem wel en de tweede niet, en dat bleef bijna onzichtbaar doordat lezen over RLS loopt en die
-de laag wel had: een uitgenodigde klant zag zijn analyses gewoon staan. Maar élke schrijfactie loopt
-over deze controle, dus precies de persoon voor wie het product bedoeld is kon niets bevestigen,
-niets laten schrijven en niets goedkeuren.
+**F3: de tweeling is opgeheven.** `getOwnedProfile` en `getOwnedAnalysis` hadden dezelfde drie lagen
+op twee plekken uitgeschreven. Migratie 0046 gaf de eerste een accountlaag, de tweede niet, bijna
+onzichtbaar omdat lezen over RLS loopt (die de laag wel had): een uitgenodigde klant zag zijn analyses
+gewoon. Maar élke schrijfactie loopt over deze controle, dus precies de persoon voor wie het product
+bedoeld is kon niets bevestigen, laten schrijven of goedkeuren.
 
-De reparatie van die dag was de tweede functie bijwerken. `lib/access.ts` is de reparatie van de
-oorzaak: de drie lagen staan er één keer, en een vierde laag verandert voortaan één plek. Een
-broncodecontrole houdt het zo, want zodra er weer een eigen `isStaff(` of `isMember(` in een van de
-twee functies staat, is er een tweede oordeel bijgekomen.
+`lib/access.ts` repareert de oorzaak: de drie lagen staan één keer, een vierde laag verandert voortaan
+één plek. Een broncodecontrole bewaakt dat er geen eigen `isStaff(`/`isMember(` meer in de twee
+functies verschijnt.
 
-**Wat er bewust niet is samengevoegd:** het ophalen van de rij. Een merk draagt zijn account direct,
-een analyse niet, die hangt aan een merk en het merk hangt aan een account. Dat verschil is echt en
-moet blijven, want een merk kan bij een toewijzing van account wisselen en dan verhuizen zijn
-analyses vanzelf mee. Alleen het OORDEEL was dubbel, niet het opzoeken. 1095 unittests.
+**Bewust niet samengevoegd: het ophalen van de rij.** Een merk draagt zijn account direct, een
+analyse hangt aan een merk die aan een account hangt: dat verschil is echt, alleen het OORDEEL was
+dubbel. 1095 unittests.
 
-**Stap A9 van het lanceerplan is herschreven.** Er stond "als klant: maand goedkeuren, pagina
-goedkeuren", en dat kan sinds besluit 18 niet meer. De stap toetst nu het omgekeerde: ziet de klant
-een uitleg in plaats van een knop die een foutmelding geeft. Een plan dat nog uitgaat van de oude
-rolverdeling toetst het verkeerde en geeft groen licht op iets dat niet meer bestaat.
+**Stap A9 van het lanceerplan is herschreven.** "Als klant: maand goedkeuren, pagina goedkeuren" kan
+sinds besluit 18 niet meer; de stap toetst nu of de klant een uitleg ziet in plaats van een knop die
+faalt.
 
-**F4: verwijderen bestaat nu echt.** Conventie 8 is "alles bewaren" en besluit 14 zegt dat opzeggen
-een datum zet en niets weghaalt. Die regels blijven staan, want archiveren is negen van de tien keer
-precies wat iemand bedoelt met "verwijder dit". Maar de AVG kent een recht op verwijdering en dat koop
-je niet af met een archief. Er is nu een tweede pad, bewust de uitzondering, en bewust omslachtig.
+**F4: verwijderen bestaat nu echt.** Conventie 8 (alles bewaren) en besluit 14 (opzeggen zet een
+datum) blijven staan, archiveren is negen van de tien keer wat iemand bedoelt met "verwijder dit". Maar
+de AVG kent een recht op verwijdering, dat koop je niet af met een archief. Er is nu een tweede pad,
+bewust de uitzondering en bewust omslachtig.
 
-**Drie sloten.** Alleen een beheerder van ORBIT ENGINE: een account-admin mag zijn bedrijfsgegevens wel
-wijzigen, maar een wijziging draai je terug en dit niet. Niet je eigen account, want dat verwijdert je
-eigen inlog en dat herstel je niet met een backup omdat de sessie dan al weg is. En de naam moet
-worden overgetypt, serverkant gecontroleerd, want een bevestiging die je met een rechtstreekse aanroep
-kunt overslaan is geen bevestiging.
+**Drie sloten.** Alleen een beheerder van ORBIT ENGINE (een account-admin mag bedrijfsgegevens wijzigen
+maar niet dit onomkeerbare). Niet je eigen account (dat verwijdert je eigen inlog, niet te herstellen
+want de sessie is dan al weg). De naam moet worden overgetypt, serverkant gecontroleerd.
 
 **Je ziet eerst wat er verdwijnt.** "Dit verwijdert 3 merken, 5 analyses en 412 metingen" is een ander
-besluit dan "dit verwijdert een account". De ketentest controleert apart dat het opvragen van dat
-overzicht zelf niets weggooit, want een scherm dat alleen kijkt zou anders al kunnen verwijderen.
+besluit dan "dit verwijdert een account". Een ketentest controleert apart dat het overzicht opvragen
+zelf niets weggooit.
 
-**De structuur werkte mee, en één ding was al goed geregeld zonder dat het daarvoor bedoeld was.**
-Bijna alles hangt met `on delete cascade` aan `profiles`. Maar `profiles.account_id` staat op
-`no action`, en daardoor weigert de database een account weg te gooien zolang er merken aan hangen.
-Dat maakt "per ongeluk een account verwijderen" onmogelijk in plaats van stil, en het bepaalt de
-volgorde: eerst de merken, dan het account, dan de inlogaccounts.
+**Eén ding was al goed geregeld zonder dat het daarvoor bedoeld was.** Bijna alles hangt met `on
+delete cascade` aan `profiles`, maar `profiles.account_id` staat op `no action`: de database weigert
+een account weg te gooien zolang er merken aan hangen, wat de volgorde bepaalt (eerst merken, dan
+account, dan inlogaccounts).
 
-**De inlogaccounts gaan mee, maar alleen van wie nergens anders bij hoort.** Dat is de kern van de
-plicht: het dossier weghalen en de inlog laten staan is geen verwijdering. Wie ook lid is van een
-ander account houdt zijn inlog, anders sluit het opruimen van klant A per ongeluk klant B buiten.
+**De inlogaccounts gaan mee, maar alleen van wie nergens anders bij hoort**: het dossier weghalen en
+de inlog laten staan is geen verwijdering, maar wie ook lid is van een ander account houdt zijn inlog.
 
-⚠️ **Twee dingen die eerlijk in de code staan.** Er is geen transactie omheen, want de Supabase-client
-praat over HTTP en kent er geen; faalt het halverwege, dan zijn de merken weg en het account nog niet,
-en dat is herstelbaar terwijl het omgekeerde dat niet is. En het kostenlogboek van die klant gaat mee,
-waardoor het dagplafond die dag iets ruimer staat. Verwaarloosbaar, en het alternatief maakt een
-onomkeerbare handeling ingewikkelder. 1116 unittests, 109 ketentests.
+⚠️ **Twee dingen die eerlijk in de code staan.** Geen transactie omheen (Supabase praat over HTTP,
+kent er geen); faalt het halverwege, zijn de merken weg en het account nog niet, herstelbaar terwijl
+het omgekeerde dat niet is. Het kostenlogboek van die klant gaat mee, waardoor het dagplafond die dag
+iets ruimer staat, verwaarloosbaar. 1116 unittests, 109 ketentests.
 
-**De generale repetitie op `gasservice-brabant.nl` (12 augustus 2026).** Een vers merk, van nul, met
-echt geld. De onboarding: **8,0 minuten, $0,235, acht van de acht stappen klaar, nul mislukkingen en
-nul herkansingen.** 148 pagina's gelezen, 7 onderwerpen, 17 onderdelen aanbod, 10 concurrenten, 17
+**De generale repetitie op `gasservice-brabant.nl` (12 augustus 2026).** Vers merk, van nul, echt geld.
+Onboarding: **8,0 minuten, $0,235, acht van de acht stappen klaar, nul mislukkingen en nul
+herkansingen.** 148 pagina's gelezen, 7 onderwerpen, 17 onderdelen aanbod, 10 concurrenten, 17
 technische controlepunten zonder blokkades.
 
 **De R6-zorg bleek kleiner dan gedacht.** Het onderzoek vulde zélf in dat dit een lokaal bedrijf is,
-met zeven plaatsen in Brabant. De vier lege werkgebieden die op productie stonden zijn dus oude
-gegevens en geen structureel gat. De blokkerende regel blijft nuttig als vangnet, maar hij zal bij een
-nieuwe klant zelden aanslaan.
+met zeven plaatsen in Brabant. De vier lege werkgebieden op productie zijn dus oude gegevens, geen
+structureel gat. De blokkerende regel blijft nuttig als vangnet maar zal bij een nieuwe klant zelden
+aanslaan.
 
 **De regionale regel deed wat hij belooft: 30 van de 30 vragen regionaal**, tegenover 9 van 30 en 13
 van 30 bij Van den Udenhout vóór de reparatie.
 
 ⚠️ **En de repetitie vond meteen waar hij voor bedoeld was.** Vier van de dertig vragen waren
-geforceerd, allemaal in de oriëntatiefase. Het scherpste voorbeeld: "Heeft regelmatig onderhoud
-invloed op de levensduur van een cv-ketel in Den Bosch?" De levensduur van een ketel heeft niets met
-Den Bosch te maken en niemand stelt die vraag zo. Een AI-assistent antwoordt er algemeen op, noemt
-geen enkel bedrijf, en de vraag meet dus niets terwijl hij de score wél omlaag drukt.
+geforceerd, allemaal oriëntatie. Scherpste voorbeeld: "Heeft regelmatig onderhoud invloed op de
+levensduur van een cv-ketel in Den Bosch?" De levensduur van een ketel heeft niets met Den Bosch te
+maken, niemand stelt de vraag zo, een AI-assistent antwoordt algemeen zonder bedrijf te noemen, dus de
+vraag meet niets terwijl hij de score wél omlaag drukt.
 
-Het probleem was niet de drempel maar wát het model met de plaats deed: het plakte hem achter een
-informatieve vraag in plaats van de vraag om te bouwen naar het zoeken van een aanbieder. De
-instructie noemt nu expliciet een fout en een goed voorbeeld, en zegt dat het model een andere vraag
-moet bedenken als lokaal maken niet natuurlijk lukt. Dat blijft een intentie: het vangnet telt of er
-een plaats in staat, niet of de vraag natuurlijk klinkt, en dat laatste is niet deterministisch te
-meten. Dat hoort in het commentaar te staan in plaats van gesuggereerd te worden dat het afgedekt is.
+Het probleem zat in wát het model met de plaats deed: die achter een informatieve vraag plakken in
+plaats van naar een aanbieder-zoekende vraag toe te bouwen. De instructie noemt nu een fout- en een
+goed voorbeeld en zegt dat het model een andere vraag moet bedenken als lokaal maken niet natuurlijk
+lukt. Dat blijft een intentie: het vangnet telt of er een plaats in staat, niet of de vraag natuurlijk
+klinkt, niet deterministisch te meten en dat hoort zo in het commentaar te staan.
 
-De beslissings- en overwegingsvragen waren wél goed. "Wie kan mijn cv-ketel in Den Bosch vakkundig
+De beslissings- en overwegingsvragen waren wél goed: "Wie kan mijn cv-ketel in Den Bosch vakkundig
 onderhouden?" is precies de vraag waar deze klant gevonden wil worden.
 
-**De meting van de repetitie: score 30, en de keten hield stand.** Dertig vragen, dertig metingen,
-nul mislukkingen, 2,2 minuten. Negen vermeldingen op dertig vragen. De hele repetitie (onboarding,
-analyse, meting, rapport) kostte **$0,77**, waarvan $0,61 aan `web_search`, onder de geschatte $1,10.
+**De meting van de repetitie: score 30, de keten hield stand.** Dertig vragen, dertig metingen, nul
+mislukkingen, 2,2 minuten, negen vermeldingen op dertig vragen. Hele repetitie (onboarding, analyse,
+meting, rapport) kostte **$0,77**, waarvan $0,61 aan `web_search`, onder de geschatte $1,10.
 
-**Drie dingen bleken goed zonder dat er iets voor gerepareerd hoefde te worden.** De concurrentenlijst
-bevat alleen echte installateurs: Rijksoverheid werd zestien keer genoemd en de Consumentenbond vijf
-keer, maar allebei landen ze in `zijdelings` en niet in de concurrentenlijst. Ik verwachtte daar een
-fout en vond er geen. De toelichting per concurrent is bruikbaar in plaats van alleen waar. En het
+**Drie dingen bleken goed zonder reparatie.** De concurrentenlijst bevat alleen echte installateurs:
+Rijksoverheid (zestien keer genoemd) en Consumentenbond (vijf keer) landen allebei in `zijdelings` en
+niet in de concurrentenlijst. De toelichting per concurrent is bruikbaar, niet alleen waar. En het
 rapport noemt zijn eigen onzekerheid: "ongeveer 30 op 100, marge ongeveer ±17 punten, zie dit als een
-orde van grootte, niet als een exact cijfer". Dat cijfer klopt ook: bij dertig vragen en een score van
-30 is de band ±16,4.
+orde van grootte, niet als een exact cijfer", en dat cijfer klopt ook (bij dertig vragen en score 30
+is de band ±16,4).
 
-Gasservice Brabant staat bij de eerste aanbevelingen, gemiddelde positie 2,9. Van de echte
+Gasservice Brabant staat bij de eerste aanbevelingen, gemiddelde positie 2,9; van de echte
 concurrenten staat alleen Kemkens hoger.
 
-**Wat de repetitie niet kon toetsen.** A1 is niet via de knop in de app gedaan maar met precies de
-rijen die de route schrijft, want deze omgeving kan niet inloggen. Daarmee zijn de nieuwe 403
-(besluit 18) en 402 (budgetplafond) nog niet in het echt gezien. Datzelfde geldt voor A6 tot en met
-A10: het contentplan, de uitnodiging en het klantpad vragen allemaal een ingelogde browser.
+**Wat de repetitie niet kon toetsen.** A1 is niet via de knop maar met de rijen die de route schrijft
+gedaan (deze omgeving kan niet inloggen), dus de nieuwe 403 (besluit 18) en 402 (budgetplafond) zijn
+nog niet in het echt gezien, evenmin A6 tot en met A10 (contentplan, uitnodiging, klantpad vragen een
+ingelogde browser).
 
-**F5, de stille-fout-ronde: vier vondsten, en de eerste raakt de hele pijplijn.** In `lib/` staan 118
-queries en 97 schrijfacties zonder foutcontrole. Die allemaal omhullen levert meer ruis dan waarde,
-want de meeste lezen één rij waar `null` een echte toestand is. De vraag was dus niet waar een
-controle ontbreekt, maar waar een storing leidt tot geld, een verkeerd getal, of stil verlies.
+**F5, de stille-fout-ronde: vier vondsten, de eerste raakt de hele pijplijn.** In `lib/` staan 118
+queries en 97 schrijfacties zonder foutcontrole; die allemaal omhullen levert meer ruis dan waarde. De
+vraag was waar een storing leidt tot geld, een verkeerd getal, of stil verlies.
 
 **Elke idempotentiecontrole faalde de verkeerde kant op.** Conventie 9 zegt dat elke stap controleert
-of zijn werk al gedaan is vóór een dure aanroep, en dat stond overal als `if ((count ?? 0) > 0)
-return`. Gaat die telling stuk, dan is `count` niet een getal maar `null`, en `null ?? 0` is 0, dus
-"er staat nog niets", dus de dure aanroep gaat alsnog. De bescherming tegen dubbel betalen faalde
-precies op het moment waarop een taak opnieuw geprobeerd wordt, want dat is hetzelfde moment waarop de
-database hapert. Het commentaar bij `offering.ts` zei letterlijk "een retry mag geen tweede keer
-betaald worden", terwijl de code dat niet waarmaakte. `lib/require-count.ts` gooit nu in plaats van te
-gokken, op zeven plekken.
+of zijn werk al gedaan is vóór een dure aanroep, uitgeschreven als `if ((count ?? 0) > 0) return`.
+Gaat de telling stuk, dan is `count` niet een getal maar `null`, en `null ?? 0` is 0, dus "er staat nog
+niets", dus de dure aanroep gaat alsnog: de bescherming tegen dubbel betalen faalde precies op het
+moment waarop een taak opnieuw geprobeerd wordt, hetzelfde moment waarop de database hapert.
+`lib/require-count.ts` gooit nu in plaats van te gokken, op zeven plekken.
 
 **De duurste zat in de werker.** Het afvinken van een gelukte taak was een kale `await`. Mislukt die
-update, dan blijft de taak op `running`, pakt `reclaim_stuck_jobs` hem terug, en wordt het werk
-opnieuw gedaan: bij een meting dertig betaalde web-zoekacties voor een uitkomst die er al was. Nu drie
-pogingen op de boekhouding en niet op het werk, want het werk is dan al gelukt en opnieuw gooien zou
-precies veroorzaken wat we willen voorkomen.
+update, dan blijft de taak op `running`, pakt `reclaim_stuck_jobs` hem terug, en wordt het werk opnieuw
+gedaan, bij een meting dertig betaalde web-zoekacties voor een uitkomst die er al was. Nu drie
+pogingen op de boekhouding, niet op het werk.
 
-**Een storing die zich voordeed als een afwezigheid.** De Google-sleutel gaf `null` in drie gevallen:
-leeg, kapotte JSON, of ontbrekende velden. Eén melding voor alle drie: "de sleutel is nog niet
-ingesteld". Bij een kapotte sleutel stuurt die zin je iets instellen dat er al staat. Een verkeerde
-diagnose kost meer tijd dan geen diagnose. Nu drie toestanden met drie meldingen.
+**Een storing die zich voordeed als een afwezigheid.** De Google-sleutel gaf `null` in drie gevallen
+(leeg, kapotte JSON, ontbrekende velden) met één melding: "de sleutel is nog niet ingesteld", wat bij
+een kapotte sleutel naar iets stuurt dat er al staat. Nu drie toestanden met drie meldingen.
 
 **En een stille nul die werk liet verdwijnen.** Het aantal beantwoorde feitvragen zit in de
-dedupe-sleutel van een contenttaak. Faalt die telling en wordt hij 0, dan botst de sleutel met een
-eerdere poging waarin er écht nul antwoorden waren, en wordt de taak als dubbel gezien en niet
-ingepland. De klant beantwoordt drie vragen, verwacht een herschreven pagina, en er gebeurt niets.
+dedupe-sleutel van een contenttaak. Faalt die telling naar 0, dan botst de sleutel met een eerdere
+poging met écht nul antwoorden, de taak telt als dubbel en wordt niet ingepland: de klant beantwoordt
+drie vragen, verwacht een herschreven pagina, er gebeurt niets.
 
 **Eén plek blijft bewust zacht.** `determineStage()` kiest alleen welk voortgangsscherm getoond wordt,
-en dat scherm haalt daarna zelf de stand op. Hard falen zou een zelfherstellend schoonheidsfoutje
-inruilen voor een pagina die het niet doet. Die afweging staat in de code, anders repareert iemand hem
-later alsnog. 1131 unittests, 109 ketentests.
+en dat scherm haalt zelf de stand op; hard falen zou een schoonheidsfoutje inruilen voor een pagina
+die het niet doet. 1131 unittests, 109 ketentests.
 
 **F4 heette af en was dat niet.** De veiligheidscontrole van Supabase vond binnen een minuut wat ik
 gemist had: migratie 0025 maakte bij een dataopschoning van elke aangeraakte rij een kopie in
-`_backup_20260729`, 51 momentopnamen van vragen, entiteiten, geschreven pagina's, rapporten en scores.
-Die tabel heeft geen verwijzing naar `profiles`, dus de cascade raakt hem niet. Een "volledig
-verwijderde" klant was uit elk scherm verdwenen terwijl zijn teksten er nog stonden, in een tabel die
-niemand meer bekijkt. Dat is precies het restant waar de AVG over gaat.
+`_backup_20260729`, 51 momentopnamen van vragen, entiteiten, geschreven pagina's, rapporten en scores,
+zonder verwijzing naar `profiles` en dus buiten de cascade. Een "volledig verwijderde" klant was uit
+elk scherm verdwenen terwijl zijn teksten er nog stonden, in een tabel die niemand bekijkt. Precies
+het restant waar de AVG over gaat.
 
-Nu wordt de opruiming vóór de merken gedaan, want daarna zijn de id's zelf verdwenen en is er niets
-meer om op te matchen. De ketentest zet er een momentopname neer en controleert dat hij verdwijnt, dus
-dit kan niet opnieuw wegglippen.
+De opruiming gebeurt nu vóór de merken, anders zijn de id's zelf al verdwenen en is er niets meer om
+op te matchen. Een ketentest zet een momentopname neer en controleert dat hij verdwijnt.
 
 **Wat de controle verder liet zien.** Geen enkele tabel staat zonder rijbeveiliging, en de tabellen
-zonder regels (`jobs`, `account_invites`, `ai_calls`, `staff_users`) zijn juist de dichtgetimmerde:
-dat is een gesloten deur, geen open deur. Wel open: bescherming tegen gelekte wachtwoorden staat uit
-in Supabase Auth, en drie functies met verhoogde rechten zijn aanroepbaar via de REST-API, waaronder
-de trigger die ik vanochtend zelf toevoegde. Die staan in het lanceerplan als openstaand.
-110 ketentests.
+zonder regels (`jobs`, `account_invites`, `ai_calls`, `staff_users`) zijn juist de dichtgetimmerde,
+een gesloten deur. Wel open: bescherming tegen gelekte wachtwoorden staat uit in Supabase Auth, en
+drie functies met verhoogde rechten zijn aanroepbaar via de REST-API, waaronder de trigger van
+vanochtend zelf. Staan als openstaand in het lanceerplan. 110 ketentests.
 
-**De promptverdeling is per analyse instelbaar (12 augustus 2026, migratie 0054).** Standaard blijft
-10/10/10, en per analyse kun je dat wijzigen. Per ANALYSE en niet per merk, op verzoek van de
-eigenaar en om de juiste reden: de goede verdeling hangt aan het onderwerp, niet aan het bedrijf.
-Dezelfde installateur wil bij "cv-ketel onderhoud" vooral beslissingsvragen ("wie kan dit voor mij
-doen in Den Bosch") en bij "warmtepomp subsidie" juist oriëntatievragen, want daar is de koper nog
-aan het uitzoeken wát hij wil.
+**De promptverdeling is per analyse instelbaar (12 augustus 2026, migratie 0054).** Standaard 10/10/10,
+per ANALYSE instelbaar (niet per merk): de goede verdeling hangt aan het onderwerp, niet aan het
+bedrijf. Dezelfde installateur wil bij "cv-ketel onderhoud" beslissingsvragen en bij "warmtepomp
+subsidie" oriëntatievragen.
 
-**Nul is een keuze en geen leegte.** Een analyse zonder oriëntatievragen is geldig voor een lokale
-ondernemer die alleen op koopmomenten beoordeeld wil worden. Overal in de keten is dat expliciet
-afgehandeld: `resolveMix` valt per fase apart terug op de standaard en gebruikt geen `??` (dat zou
-nul wegrekenen), een fase met nul krijgt géén taak, en de generatie ziet een lege uitkomst dan niet
-als storing.
+**Nul is een keuze, geen leegte.** Een analyse zonder oriëntatievragen is geldig voor een lokale
+ondernemer die alleen op koopmomenten beoordeeld wil worden. `resolveMix` valt per fase apart terug op
+de standaard zonder `??` (dat zou nul wegrekenen), een fase met nul krijgt géén taak.
 
 **Het scherm zegt wat het kost vóórdat je op start drukt.** "60 vragen per meetronde, ongeveer $1.44
 per maand voor dit onderwerp. De onzekerheidsmarge op de score is dan ongeveer ±11,6 punten." Beide
-getallen komen uit echte data: $0,024 per vraag, gemeten over 428 metingen op productie, en de marge
-uit dezelfde binomiale rekensom als `lib/stats/uncertainty.ts`. De marge schaalt met de wortel, dus
-verdubbelen levert een kwart smallere band en niet de helft. Dat hoort iemand te weten vóór hij het
-getal omhoog zet en niet pas op de rekening.
+getallen uit echte data: $0,024 per vraag over 428 metingen op productie, marge uit dezelfde
+binomiale rekensom als `lib/stats/uncertainty.ts` (schaalt met de wortel: verdubbelen levert een kwart
+smallere band, niet de helft).
 
 **De generatie is gesplitst in één taak per funnelfase, en dat moest sowieso.** De gezamenlijke taak
-liep op productie één keer 228 seconden van de 300 die hij heeft. Met meer vragen per fase zou hij
-daar overheen gaan en middenin worden afgekapt. Drie taken van ~76 seconden houdt ruimte over, en het
-is bovendien conventie 7: één taak doet hooguit één zware AI-aanroep.
+liep op productie ooit 228 van de 300 beschikbare seconden; met meer vragen zou hij afgekapt worden.
+Drie taken van ~76 seconden houden ruimte over, en het is conventie 7 (één taak, hooguit één zware
+AI-aanroep).
 
 **Twee vallen die de splitsing zelf introduceerde, allebei afgevangen.** De poort naar
-klant-goedkeuring mag pas open als álle fasen klaar zijn; zou de eerste fasetaak hem openen, dan ziet
-de klant een derde van zijn vragen met de mededeling dat ze klaar zijn. En de controle "is dit een
-mislukte voorbereiding of een mislukte meting" keek naar "zijn er al vragen"; slaagt fase één en
-mislukt fase twee, dan zíjn er vragen en zou de herkansing afketsen, waarna de analyse voorgoed op
-'mislukt' blijft staan met een derde van zijn vragen. Die controle vraagt nu of élke fase die vragen
-hoort te hebben, ze ook heeft.
+klant-goedkeuring mag pas open als álle fasen klaar zijn, anders ziet de klant een derde van zijn
+vragen als klaar gemeld. De controle "mislukte voorbereiding of mislukte meting" vraagt nu of élke
+fase die vragen hoort te hebben ze ook heeft, in plaats van alleen "zijn er al vragen" (waarbij een
+mislukte tweede fase de herkansing zou blokkeren met een derde van de vragen).
 
-⚠️ **En de ronde van vanochtend had er één gemist.** De idempotentiecontrole in `prepare.ts` die
-bepaalt of de vragen al bestaan, stond nog op het oude `if (!count)`. Exact het patroon dat F5 moest
-uitroeien: gaat de telling stuk, dan luidt de conclusie "er staat nog niets" en wordt een hele
-funnelfase opnieuw gegenereerd en betaald. Nu ook op `requireCount`. 1154 unittests, 119 ketentests.
+⚠️ **De ronde van vanochtend had er één gemist.** De idempotentiecontrole in `prepare.ts` stond nog op
+het oude `if (!count)`, exact het patroon dat F5 moest uitroeien. Nu ook op `requireCount`. 1154
+unittests, 119 ketentests.
 
 **De maandmeting heeft een tijdslot gekregen (12 augustus 2026).** De maandelijkse taak keek alleen of
-er al een volgende periode bestond, niet of de vorige meting lang genoeg geleden was. Het bewijs stond
-in de database: Fysi-Unique had periode 0, 1 en 2 op 30, 30 en 31 juli. Bij die analyse waren dat
-handmatige testrondes, maar dezelfde weg staat open voor een echte klant, en daar gebeurt het vanzelf:
-onboard je iemand op 28 augustus, dan meet de taak op 1 september alweer. Een volle betaalde ronde
-vier dagen later, en een punt op de trendlijn dat vier dagen verandering toont alsof het een maand is.
+er al een volgende periode bestond, niet of de vorige lang genoeg geleden was. Fysi-Unique had periode
+0, 1 en 2 op 30, 30 en 31 juli (handmatige testrondes), maar dezelfde weg staat open voor een echte
+klant: onboard je iemand op 28 augustus, dan meet de taak op 1 september alweer, een volle betaalde
+ronde vier dagen later.
 
-De grens staat op 21 dagen en niet op 28, omdat een maand 28 tot 31 dagen duurt: bij 28 valt een klant
-die op de 3e gemeten is er nét binnen en een klant van de 5e er nét buiten, zonder dat er iets aan hem
-anders is. Overslaan kost niets; te vroeg meten kost geld en zet een punt in een grafiek dat er nooit
-meer uitgaat. De taak meldt nu ook wát hij oversloeg en waarom, want "waarom is deze klant niet
-gemeten" is precies de vraag die je dan stelt.
+De grens staat op 21 dagen, niet 28: een maand duurt 28 tot 31 dagen, en bij 28 valt een klant van de
+3e er nét binnen en een klant van de 5e er nét buiten zonder verschil. Overslaan kost niets, te vroeg
+meten kost geld en zet een punt in een grafiek dat er nooit meer uitgaat. De taak meldt nu wát hij
+oversloeg en waarom.
 
-**Gearchiveerd werk wordt overgeslagen.** De maandronde filtert gearchiveerde analyses al, maar de
-taken die er op dat moment al stonden niet. Nu slaat de werker ze over. Dit is geen fout die een klant
-kan uitlokken, want archiveren gebeurt met SQL en niet met een knop; het maakt die handmatige actie
-wel veilig.
+**Gearchiveerd werk wordt overgeslagen.** De maandronde filtert gearchiveerde analyses al, taken die
+er dan al stonden nu ook.
 
 ⚠️ **En er is vandaag iets echt kapotgegaan, kort maar volledig.** Migratie 0055 trok het uitvoerrecht
-in op vier functies die de veiligheidscontrole van Supabase aanwees als "aanroepbaar via de API".
-Drie daarvan worden in RLS-regels gebruikt, en een RLS-regel wordt geëvalueerd namens de bevragende
-rol. Zonder dat recht faalt niet de regel maar de héle query: een ingelogde gebruiker kon niets meer
-lezen, op 28 tabellen tegelijk. Een paar minuten zo op productie gestaan, meteen teruggedraaid.
+in op vier functies die Supabase's veiligheidscontrole als "aanroepbaar via de API" aanwees. Drie
+worden in RLS-regels gebruikt, en zonder dat recht faalt niet de regel maar de héle query: een
+ingelogde gebruiker kon niets meer lezen, op 28 tabellen. Een paar minuten zo op productie, meteen
+teruggedraaid.
 
-De les zit niet in de fout maar in wat eromheen ontbrak: er was geen enkele test die "een ingelogde
-gebruiker kan lezen" bewaakte. Die is er nu, en algemener dan het geval dat hem brak: élke functie die
-in een RLS-regel voorkomt moet aanroepbaar zijn door `authenticated`. Ik heb die test rood gemaakt om
-te bewijzen dat hij de fout vangt, want een test die nooit gefaald heeft bewijst niets.
+De les: er was geen enkele test die "een ingelogde gebruiker kan lezen" bewaakte. Die is er nu, algemeen
+geformuleerd: élke functie die in een RLS-regel voorkomt moet aanroepbaar zijn door `authenticated`,
+eerst rood gemaakt om te bewijzen dat hij vangt.
 
-De melding voor de andere drie blijft dus staan, en dat is een bewuste keuze: ze leunen op
-`auth.uid()` en geven een niet-ingelogde bezoeker een lege lijst terug. De nette oplossing is ze naar
-een niet-aangeboden schema verplaatsen, maar dat betekent 36 RLS-regels opnieuw aanmaken. Dat is
-echt risico voor een melding zonder echt gevolg. 1166 unittests, 125 ketentests.
+De melding voor de andere drie blijft staan (ze leunen op `auth.uid()` en geven een niet-ingelogde
+bezoeker een lege lijst); de nette oplossing (naar een niet-aangeboden schema) betekent 36 RLS-regels
+opnieuw aanmaken, echt risico voor een melding zonder echt gevolg. 1166 unittests, 125 ketentests.
 
-**De rolmatrix, leeskant: elk tweede teamlid zag een leeg dossier, en geen enkele test kon dat ooit
-zien.** Bij het narekenen van wie wat mag zien bleek: `analyses` en `profiles` kennen drie lagen om
-te lezen (eigenaar, account, beheerder), maar de 23 tabellen die eraan hangen, de vragen, de
-metingen, het rapport, de geschreven pagina's, hadden er maar twee: eigenaar en beheerder. De
-accountlaag ontbrak.
+**De rolmatrix, leeskant: elk tweede teamlid zag een leeg dossier, geen enkele test kon dat zien.**
+`analyses` en `profiles` kennen drie leeslagen (eigenaar, account, beheerder), maar de 23 tabellen
+eronder (vragen, metingen, rapport, geschreven pagina's) hadden er maar twee: eigenaar en beheerder.
+De accountlaag ontbrak.
 
-De historische eigenaar (`user_id`) is precies de ene gebruiker die "Merk toewijzen" kiest. Elke
-volgende collega of bureaumedewerker die je bij hetzelfde account uitnodigt, komt binnen via
-`account_users`, en voor hem kwam elk hoofdstuk van het dossier leeg terug. Niet een foutmelding: nul
-vragen, geen score, een leeg rapport. Dezelfde soort fout als `getOwnedAnalysis` op 11 augustus, nu op
-de leeskant en over 23 tabellen tegelijk in plaats van één functie.
+De historische eigenaar (`user_id`) is precies de ene gebruiker die "Merk toewijzen" kiest; elke
+volgende collega komt binnen via `account_users`, en voor hem kwam elk hoofdstuk leeg terug, geen
+foutmelding: nul vragen, geen score, een leeg rapport. Dezelfde soort fout als `getOwnedAnalysis`, nu
+op de leeskant en over 23 tabellen tegelijk.
 
-**En geen enkele test kon dit ooit zien, om een structurele reden.** De ketentest draait bewust met de
-service-role, die RLS omzeilt, om de pijplijn te kunnen testen. Maar een dossierpagina leest met de
-sessie van de klant, dus mét RLS, en die kant werd nergens getoetst. `auth.uid()` gaf in de testopzet
-altijd `null` terug, dus zelfs een test die het geprobeerd had, was nergens gekomen.
+**Geen enkele test kon dit zien, om een structurele reden.** De ketentest draait bewust met de
+service-role (omzeilt RLS) om de pijplijn te testen, maar een dossierpagina leest met de sessie van de
+klant, mét RLS, en die kant werd nergens getoetst; `auth.uid()` gaf in de testopzet altijd `null`.
 
-**Migratie 0056 voegt op 23 tabellen een accountregel toe**, naast de bestaande regels en niet in de
-plaats ervan (Postgres combineert regels met OR, hetzelfde patroon als migratie 0038). Getest op
-productie met een tijdelijke echte gebruiker: vóór de reparatie 0 vragen zichtbaar voor een teamlid,
-erna 30, 30 metingen, het rapport, 52 concurrentregels, 148 pagina's. Een vreemde bleef op 0, dus dit
-repareert een deur die te veel dichtzat en opent er geen die open hoort te blijven.
+**Migratie 0056 voegt op 23 tabellen een accountregel toe**, naast de bestaande (Postgres combineert
+met OR, zoals migratie 0038). Getest met een tijdelijke echte gebruiker: vóór de reparatie 0 vragen
+zichtbaar voor een teamlid, erna 30, 30 metingen, het rapport, 52 concurrentregels, 148 pagina's. Een
+vreemde bleef op 0.
 
-**En de testopzet zelf is voortaan in staat dit na te rekenen.** `auth.uid()` leest nu echt
-`request.jwt.claim.sub`, en de test kent voortaan tabelrechten toe zoals Supabase dat buiten onze
-migraties om al deed. Een nieuwe ketentest zet vier rollen tegenover elkaar (eigenaar, teamlid,
-beheerder, vreemde) en is met opzet rood gemaakt om te bewijzen dat hij dit gat vangt. 1166
-unittests, 132 ketentests.
+**De testopzet zelf kan dit voortaan nagaan.** `auth.uid()` leest nu echt `request.jwt.claim.sub`, de
+test kent tabelrechten toe zoals Supabase dat al doet. Een nieuwe ketentest zet vier rollen tegenover
+elkaar (eigenaar, teamlid, beheerder, vreemde), met opzet eerst rood gemaakt. 1166 unittests, 132
+ketentests.
 
-**Wedstrijdcondities: drie situaties nagerekend, één bleek echt kapot.** Aansluitend op de
-rolmatrix drie vragen doorgerekend over wat er gebeurt als twee dingen op precies hetzelfde moment
-gebeuren, met echte gelijktijdige aanroepen (`Promise.all`) tegen echte Postgres, niet in mijn
-hoofd.
+**Wedstrijdcondities: drie situaties nagerekend, één bleek echt kapot.** Drie vragen doorgerekend over
+gelijktijdige aanroepen (`Promise.all`) tegen echte Postgres, niet in mijn hoofd.
 
-Een maand twee keer tegelijk goedkeuren (`approveMonth`) bleek al veilig: de `UPDATE ... WHERE
-status <> 'goedgekeurd'` in `lib/plans.ts` laat de database zelf beslissen wie wint, dus precies één
-van de twee aanroepen zet `approved_by_user_id`. Dat is bewezen, niet aangenomen.
+Een maand twee keer tegelijk goedkeuren (`approveMonth`) bleek al veilig: `UPDATE ... WHERE status <>
+'goedgekeurd'` laat de database beslissen wie wint, bewezen.
 
-Een pagina verwijderen (`removePage`) bleek dat niet. De functie las eerst of een pagina nog
-`gepland` was, en besliste dáárna, op die verouderde lezing, of de buffer van die maand moest
-inschuiven. Precies tussen die lezing en die beslissing kan de content-taak de pagina al naar
-`geschreven` hebben gezet: dan schuift de buffer alsnog in voor een plek die al gevuld was, en
-staat er een geschreven pagina naast een buffer die er niet had hoeven komen. Voor de klant
-betekent dat een maand die stilzwijgend een pagina te veel toont, of een buffer die "verdwenen" is
-zonder dat iemand hem gebruikt heeft.
+Een pagina verwijderen (`removePage`) bleek dat niet: de functie las eerst of een pagina nog `gepland`
+was en besliste dáárna op die verouderde lezing of de buffer moest inschuiven. Precies daartussen kan
+de content-taak de pagina al naar `geschreven` gezet hebben, waardoor de buffer alsnog inschuift voor
+een al gevulde plek: een maand met stilzwijgend een pagina te veel, of een buffer die "verdwenen" is
+zonder gebruikt te zijn. Gerepareerd met dezelfde voorwaardelijke `UPDATE` als bij `approveMonth`,
+`WHERE status = 'gepland'` op het moment zelf. Bij het nabouwen kwam een tweede, kleinere race boven
+water: twee pagina's die vrijwel gelijktijdig verwijderd worden konden dezelfde buffer allebei
+claimen. Eén extra voorwaarde (`is_buffer = true` in de claim-update) sluit ook dat. Beide routes eerst
+rood gemaakt om de proef te bewijzen.
 
-Gerepareerd door dezelfde soort voorwaardelijke `UPDATE` als bij `approveMonth`: de database
-beslist met `WHERE status = 'gepland'` op het moment zelf, niet een `SELECT` ervoor. Bij het
-nabouwen van de proef kwam er een tweede, kleinere race boven water in dezelfde functie: twee
-pagina's die vrijwel gelijktijdig verwijderd worden in dezelfde maand konden dezelfde buffer allebei
-claimen, zodat de ene verwijdering denkt dat hij is opgevuld terwijl dat niet zo is. Eén extra
-voorwaarde (`is_buffer = true` in de claim-update) sluit ook dat. Beide routes zijn met opzet eerst
-rood gemaakt (de guard tijdelijk weggehaald) om te bewijzen dat de proef het gat echt vangt, en
-daarna weer dichtgezet.
+De derde vraag (of twee achtergrondtaken elkaar dezelfde klus laten doen) was al gesloten:
+`claim_jobs()` pakt een taak atomisch met een databaseslot, al bewezen. 1166 unittests, 145
+ketentests.
 
-De derde vraag, of twee tegelijk lopende achtergrondtaken elkaar dezelfde klus kunnen laten doen, was
-al gesloten door het werk van eerder deze week: `claim_jobs()` pakt een taak atomisch met een
-databaseslot, en dat is al met een ketentest bewezen. 1166 unittests, 145 ketentests.
+**De potentiescore: hoeveel is er te winnen, met dezelfde meetlat overal.** De product owner wilde
+zien wat het advies impliciet al deed: een pagina is pas een grote kans als de klant er nog niet
+zichtbaar is ÉN veel mensen ernaar zoeken, niet bij één van de twee alleen. Het zichtbaarheidsgat
+stond er al. Het zoekvolume bestond ook, maar als losse gok per analyse: elke analyse kreeg "gebruik de
+volle schaal 0 tot 100" op zijn eigen dertig vragen, waardoor de zwaarste vraag van een piepklein
+nichemarktje op dezelfde 100 uitkwam als die van een grote markt, niet vergelijkbaar.
 
-**De potentiescore: hoeveel is er te winnen, en is dat overal met dezelfde meetlat gemeten.** De
-product owner wilde zien wat het advies al impliciet deed: een pagina is pas een grote kans als de
-klant er nog niet zichtbaar is ÉN veel mensen ernaar zoeken, niet bij één van de twee alleen. De
-eerste helft (zichtbaarheidsgat) stond er al. De tweede (zoekvolume) bestond ook, maar als een losse
-gok per analyse: elke analyse kreeg de opdracht "gebruik de volle schaal 0 tot 100" op zijn eigen
-dertig vragen, waardoor de zwaarste vraag van een piepklein nichemarktje op precies dezelfde manier
-bij 100 uitkwam als de zwaarste vraag van een grote markt. Twee analyses met elk hun eigen 0-100 zijn
-niet te vergelijken, en dat is precies wat "eerlijk over analyses heen" moest oplossen.
+De per-analyse-schatting blijft bestaan als ruwe invoer (`prompts.volume_estimate`). Een nieuwe stap
+zet ALLE onderwerpen van een merk in één aanroep tegen elkaar af, met vier vaste ijkpunten
+("wasmachine kopen" bijna altijd hoog, een specifieke behandelvraag in het midden), zodat de schaal
+bij elke herberekening hetzelfde blijft betekenen. Draait zodra een onderwerp zijn eerste rapport
+krijgt, herschrijft dan ALLE onderwerpen van het merk. Bewezen met een ketentest die twee onderwerpen
+kalibreert (zwaarste op 100), er een derde groter onderwerp bij zet, en narekent dat het EERSTE zakt
+van 100 naar 84 puur omdat er nu een groter onderwerp meedoet.
 
-De oplossing raakt niet de per-analyse-schatting zelf, die blijft bestaan als ruwe invoer
-(`prompts.volume_estimate`). Er komt een tweede, nieuwe stap overheen die ALLE onderwerpen van een
-merk in één aanroep tegen elkaar afzet, met vier vaste ijkpunten in de instructie ("wasmachine kopen"
-is bijna altijd hoog, een specifieke behandelvraag binnen één vakgebied ligt in het midden), zodat de
-schaal bij elke herberekening hetzelfde blijft betekenen. Die stap draait zodra een onderwerp zijn
-eerste rapport krijgt, en herschrijft dan ALLE onderwerpen van het merk, ook de onderwerpen die zelf
-niet veranderd zijn. Bewezen met een ketentest die twee onderwerpen kalibreert (het zwaarste komt op
-100), er dan een derde, groter onderwerp bij zet, en narekent dat het EERSTE onderwerp zakt van 100
-naar 84, puur omdat er nu een groter onderwerp meedoet: exact het gedrag dat de vraag beschreef.
+Drie getallen, allemaal 0-100: zichtbaarheid, zoekvolume, potentie (het product van de twee,
+vermenigvuldigen niet optellen: een onderwerp waar het merk al overal genoemd wordt heeft potentie 0
+ongeacht zoekvolume). Zichtbaar op het analysedossier, bij elke voorgestelde pagina en in de
+bibliotheek. De bestaande `weighted_score` was zelf al vermenigvuldigd met een grove volumeschatting,
+dus de nieuwe "zichtbaarheid" moest een verse, ongewogen telling zijn, anders telde zoekvolume dubbel.
 
-Drie getallen, niet één, allemaal 0-100: zichtbaarheid, zoekvolume, en de potentie die het product van
-de twee is (vermenigvuldigen, niet optellen: een onderwerp waar het merk al overal genoemd wordt heeft
-potentie 0, hoe hoog het zoekvolume ook is). Zichtbaar op het analysedossier, bij elke voorgestelde
-pagina vóór hij geschreven wordt, en bij elke geschreven pagina in de bibliotheek. Eén addertje
-onderweg: de score die al op het scherm stond (`weighted_score`) is zelf al vermenigvuldigd met een
-grove volumeschatting, dus de nieuwe "zichtbaarheid" moest een verse, ongewogen telling worden, anders
-was zoekvolume twee keer meegeteld in de potentiescore.
+Bewust niet stilzwijgend weggelaten, staat in `docs/tasks/potentiescore.md`: de Kansen-lijst sorteert
+nog niet op dit getal, het contentplan houdt nog de dag-1-gok van `profile_topics.priority` aan, en de
+trigger (`generate_report`) heeft nog geen enkele ketentest, een bestaand gat dat dit werk erft. 1191
+unittests, 157 ketentests.
 
-Wat nog niet gebouwd is, staat met opzet in `docs/tasks/potentiescore.md` en niet stilzwijgend
-weggelaten: de Kansen-lijst sorteert nog niet op dit nieuwe getal, en het contentplan blijft nog de
-dag-1-gok van `profile_topics.priority` aanhouden in plaats van mee te bewegen met een score die na
-de lancering van een onderwerp blijft veranderen. En de trigger die dit alles in gang zet, ligt in
-`generate_report`, een functie die in deze codebase nog geen enkele ketentest heeft: een bestaand gat
-dat dit werk erft, niet zelf veroorzaakt. 1191 unittests, 157 ketentests.
+**De potentiescore, fase 2 en 3: het getal moest ook ergens iets DOEN.** Fase 1 toonde het getal maar
+liet de Kansen-lijst (grover `share`-gewicht) en het contentplan
+(`profile_topics.priority`-dag-1-gok) op hun oude sortering staan: een klant kon een hoge potentiescore
+zien en de pagina toch niet bovenaan zien staan.
 
-**De potentiescore, fase 2 en 3: het getal moest ook ergens iets DOEN, niet alleen staan.** Fase 1
-toonde het getal, maar liet de twee plekken waar ORBIT ENGINE zelf al een volgorde koos, de Kansen-lijst en
-het contentplan, ongemoeid op hun oude sortering staan: de eerste op een grover, per-analyse gewicht
-(`share`), de tweede op de eenmalige dag-1-gok van het model (`profile_topics.priority`). Dat was het
-overgebleven gat: een klant kon een hoge potentiescore op een pagina zien staan, en toch zag hij die
-pagina niet bovenaan de lijst van wat hij eerst zou moeten doen.
+Beide sorteringen kregen de potentiescore als eerste sleutel, met het oude gedrag als vangnet als de
+potentiescore nog ontbreekt. Voor het contentplan geldt: dit raakt alleen een NIEUW gebouwd plan, nooit
+een jaarplan dat een klant al zag.
 
-Beide sorteringen kregen de potentiescore als eerste sleutel, met hun oude gedrag als vangnet: mist een
-kans of onderwerp de potentiescore nog (dit merk had nog geen enkele profielbrede herberekening), dan
-valt de sortering terug op precies wat er vóór vandaag stond. Bewust géén nieuw gedrag voor een merk
-dat nog niets gemeten heeft. Voor het contentplan geldt bovendien: dit raakt alleen een NIEUW gebouwd
-plan, nooit een jaarplan dat een klant al gezien heeft, dat zou onder hem verschuiven zonder dat hij
-iets deed.
+Bewezen tot op de echte functie: een ketentest roept `createPlan()` aan tegen echte Postgres, met een
+onderwerp met hoogste dag-1-prioriteit (9) maar weinig oplevering, en een met laagste prioriteit (1)
+maar de echte kans (nog nergens zichtbaar, hoog zoekvolume); het contentplan zet het tweede vooraan.
 
-Bewezen tot op het niveau van de echte functie, niet alleen de rekenkern: een ketentest roept de echte
-`createPlan()` aan tegen een echte Postgres, met twee onderwerpen waarvan het ene de hoogste
-dag-1-prioriteit heeft (9) maar amper nog iets oplevert, en het andere de laagste prioriteit (1) maar
-de echte kans is (nog nergens zichtbaar, hoog zoekvolume). Het contentplan zet het tweede onderwerp
-vooraan.
+Bewust laten liggen: de gewogen zichtbaarheidsscore die al maanden op elk scherm staat overstappen naar
+de nieuwe index, een eigen afweging voor een latere ronde. 1201 unittests, 160 ketentests.
 
-Bewust laten liggen: de gewogen zichtbaarheidsscore die al maanden op elk scherm staat, laten
-overstappen van de grove volumeband naar de nieuwe index. Dat cijfer draagt de trendlijn van elke
-klant, en het met terugwerkende kracht laten meebewegen is een eigen afweging die deze bouwronde niet
-vanzelf mocht meenemen. 1201 unittests, 160 ketentests.
+**Sjabloondetectie: content die technisch past op de site van de klant (13 augustus 2026).** ORBIT
+ENGINE leverde content altijd als platte Markdown/HTML, ongeacht of de klant een WordPress-site met
+FAQ-accordion had of een custom site zonder uitklapblok, dus de klant moest zelf ombouwen: precies het
+"technisch één op één plakbaar" dat niet waargemaakt werd.
 
-**Sjabloondetectie: content die technisch past op de site van de klant, niet alleen inhoudelijk klopt
-(13 augustus 2026).** ORBIT ENGINE leverde content altijd als platte Markdown/HTML, ongeacht of de klant een
-WordPress-site met een FAQ-accordion had of een custom site zonder één uitklapblok. De klant moest dan
-zelf ombouwen, precies het "technisch één op één plakbaar" dat het product beloofde niet waarmaakte.
-
-De crawl in fase 0 haalt toch al de ruwe HTML van elke pagina op en gooit die daarna weg; er hoefde dus
-niets extra opgehaald te worden, alleen iets extra herkend vóórdat die HTML verdwijnt
-(`lib/pipeline/template-detect.ts`): welk CMS de site waarschijnlijk gebruikt (aan concrete
-asset-vingerafdrukken, geen gok), of er al FAQ-accordions of citaatblokken zijn, hoe diep de
-koppenstructuur gaat. Opgeslagen als een nieuw `profile_facets`-facet `sjabloon`, nul AI-kosten. Een
-tweede, aparte module (`lib/pipeline/content-export.ts`) vertaalt daarna dezelfde gegenereerde content
-naar die vorm: bij WordPress de hele pagina als Gutenberg-blokken, elders alleen de FAQ als
-`<details>`-accordion als de site dat patroon al kent. Geen van beide is een AI-aanroep: de schrijver
-levert de inhoud, code levert de garantie over de opmaak (conventie 1). Zonder enig herkend signaal
-toont het scherm gewoon de bestaande generieke exportknoppen, geen knop die niets toevoegt (conventie 3).
+De crawl in fase 0 haalt de ruwe HTML toch al op en gooit die weg; er hoefde alleen iets herkend te
+worden vóórdat die HTML verdwijnt (`lib/pipeline/template-detect.ts`): welk CMS, of er al
+FAQ-accordions of citaatblokken zijn, hoe diep de koppenstructuur gaat. Opgeslagen als nieuw
+`profile_facets`-facet `sjabloon`, nul AI-kosten. Een tweede module
+(`lib/pipeline/content-export.ts`) vertaalt gegenereerde content naar die vorm: bij WordPress als
+Gutenberg-blokken, elders alleen de FAQ als `<details>`-accordion als het patroon bekend is. Geen van
+beide een AI-aanroep (conventie 1). Zonder herkend signaal toont het scherm gewoon de bestaande
+generieke exportknoppen (conventie 3).
 
 Terzijde gevonden: `renderMarkdown()` (`lib/markdown.ts`) escapet een regel eerst en herkent de
-structuur daarna, en de citaatregex zocht nog naar het kale `>` terwijl dat na het escapen allang
-`&gt;` was. Elk citaat dat het schrijvende model ooit met `> ` opmaakte, stond dus als kale tekst
-`&gt; ...` op een gepubliceerde pagina in plaats van als opgemaakt citaatblok, sinds de bouw van deze
-functie, zonder dat een test dat ooit had gezien. Gerepareerd in dezelfde ronde. 1233 unittests, 160
+structuur daarna, maar de citaatregex zocht nog naar het kale `>` terwijl dat na escapen `&gt;` was.
+Elk citaat dat het schrijvende model met `> ` opmaakte, stond dus als kale tekst `&gt; ...` op een
+gepubliceerde pagina, sinds de bouw van deze functie, ongezien. Gerepareerd. 1233 unittests, 160
 ketentests.
 
 **Het merkdossier gesplitst in subpagina's, klant-feedback op het scherm zelf (14 augustus 2026).**
-`/profielen/[id]/page.tsx` was 525 regels en negen ongelijksoortige blokken: een leesscherm ("wat
-weten we"), drie werkschermen ("vul aan", "corrigeer", "wijs toe") en gereedschap ("techniek",
-"profielgegevens", "concurrenten", "beheer") stonden allemaal onder elkaar, met een primaire knop
-bovenaan die naar een heel ander scherm verwees. De klant die het scherm bij Gasservice Brabant
-opende, noemde het letterlijk een vergaarbak.
+`/profielen/[id]/page.tsx` was 525 regels en negen ongelijksoortige blokken: een leesscherm, drie
+werkschermen ("vul aan", "corrigeer", "wijs toe") en gereedschap ("techniek", "profielgegevens",
+"concurrenten", "beheer") stonden onder elkaar, met een primaire knop bovenaan die naar een heel ander
+scherm verwees. De klant bij Gasservice Brabant noemde het letterlijk een vergaarbak.
 
 Elk blok dat geen leesstof was kreeg een eigen subpagina onder "Merkdossier" in de zijbalk (`lib/nav.ts`,
-negen kinderen: Merkprofiel, Producten, Aanvullen, Toevoegingen, Search console, Techniek,
-Profielgegevens, Concurrenten, Beheer). De zijbalk (`components/sidebar.tsx`) klapt zo'n groep nu
-automatisch open zodra je op de hoofdpagina of een van zijn subpagina's zit, en dicht overal elders:
-geen knop, geen te onthouden state.
+negen kinderen). De zijbalk (`components/sidebar.tsx`) klapt zo'n groep automatisch open op de
+hoofdpagina of een subpagina, dicht overal elders.
 
-Twee blokken bleken bij nader inzien output van analyses, niet van het merkdossier, en verhuisden mee:
-"Onderwerpen om op te meten" (de `TopicsPanel`) werd `/analyses/aanbevolen`, onder "Clusters" (de
-zijbalk noemt "Analyses" nu "Clusters"). "Waar begin je" (`OpportunitiesBlock`) is in werkelijkheid geen
-output van één analyse maar van `loadLoop()` over ALLE analyses van een merk heen (`lib/insights-data.ts`
-deelt die query bewust met "Wat er deze maand gebeurde"); die twee blijven daarom samen, en verhuisden
-naar de merk-gefilterde `/analyses`-lijst in plaats van naar één analysescherm. De feitenvragen die uit
-een specifieke analyse komen (`fact_requests.analysis_id` gezet, bv. "CV-ketel onderhoud") verschenen
-voorheen op het merkscherm; ze staan nu bij hoofdstuk 03 van díe analyse ("Wat je nu moet doen"), naast
-de aanbevolen pagina's die ze mogelijk maken. Vragen uit de nulmeting zelf (`analysis_id is null`) bleven
-"Aanvullen" onder Merkdossier.
+Twee blokken bleken output van analyses, niet van het merkdossier, en verhuisden mee: "Onderwerpen om
+op te meten" werd `/analyses/aanbevolen` onder "Clusters" (zijbalk hernoemt "Analyses" naar
+"Clusters"). "Waar begin je" is in werkelijkheid output van `loadLoop()` over ALLE analyses van een
+merk (`lib/insights-data.ts` deelt die query met "Wat er deze maand gebeurde"), en verhuisde naar de
+merk-gefilterde `/analyses`-lijst. Feitenvragen uit een specifieke analyse staan nu bij hoofdstuk 03
+van díe analyse, naast de aanbevolen pagina's die ze mogelijk maken; vragen uit de nulmeting zelf
+bleven "Aanvullen" onder Merkdossier.
 
-Wat overblijft op `/profielen/[id]` is precies twee dingen: is het dossier compleet
-(`ProfileReadinessPanel`, ankers verwijzen nu naar de juiste subpagina's) en wat weet ORBIT ENGINE over de klant
-uit de nulmeting (de samenvatting plus de nulmeting per vraag). De primaire knop en de springlinkbalk
-bovenaan (`ProfileHero`) zijn weg: beide wezen naar blokken die nu een eigen bestemming in de zijbalk
-hebben, dus is een tweede navigatielaag erbovenop overbodig. 1233 unittests, 160 ketentests.
+Wat overblijft op `/profielen/[id]`: is het dossier compleet (`ProfileReadinessPanel`) en wat weet
+ORBIT ENGINE uit de nulmeting. Primaire knop en springlinkbalk (`ProfileHero`) zijn weg, hun blokken
+hebben nu een eigen bestemming in de zijbalk. 1233 unittests, 160 ketentests.
 
-**De rangordetabel: "Jij" hoort niet altijd bovenaan te staan (13 augustus 2026).** Aanleiding was
-een screenshot van een concurrent met een nette ranglijst: merk, vermeldingen, positie, aandeel. De
-eerste vraag was welke van die cijfers ORBIT ENGINE al had, en het antwoord was: bijna allemaal, alleen
-verspreid. `competitor_breakdown` bewaart sinds migratie `0029` al `avg_position` en
-`first_mention_count` per concurrent, maar de bestaande balkjes (`CompetitorCard`) lazen daar alleen
+**De rangordetabel: "Jij" hoort niet altijd bovenaan te staan (13 augustus 2026).** Aanleiding: een
+screenshot van een concurrent met een nette ranglijst (merk, vermeldingen, positie, aandeel). ORBIT
+ENGINE had bijna alle cijfers al, alleen verspreid: `competitor_breakdown` bewaart sinds migratie
+`0029` al `avg_position` en `first_mention_count`, maar `CompetitorCard` las er alleen
 `mentions_count` uit.
 
-Belangrijker dan het ontbrekende scherm was een scheve aanname die pas opviel bij het bouwen: de
-balk van "Jij" toont het percentage van de hoofdscore (genoemd ÷ **winbare** vragen), de balken van
-concurrenten tonen genoemd ÷ **alle gemeten** vragen. Twee verschillende noemers, onzichtbaar zolang
-je zelf altijd de eerste rij was. Een rangorde-tabel die belooft "hier sta je écht tussen de rest"
-houdt die belofte niet als de rekensom voor jezelf anders is dan voor de rest. `brand-rankings.ts`
-rekent daarom iedereen over dezelfde noemer, en "Jij" komt op de plek terecht die de cijfers
-aanwijzen: in de testcase staat een concurrent met 18 vermeldingen boven een eigen merk met 8,
-precies andersom dan de oude balkjes het altijd toonden.
+Belangrijker was een scheve aanname: de balk van "Jij" toonde genoemd ÷ **winbare** vragen, concurrenten
+genoemd ÷ **alle gemeten** vragen. Twee noemers, onzichtbaar zolang je zelf altijd de eerste rij was.
+`brand-rankings.ts` rekent nu iedereen over dezelfde noemer; in de testcase komt een concurrent met 18
+vermeldingen boven een eigen merk met 8, precies andersom dan voorheen.
 
-Bewust een lege cel in plaats van een gegokt getal: het percentage "eigen site als bron gebruikt"
-wordt alleen voor het eigen domein gemeten, een concurrent-versie ervan zou een cijfer zijn dat nooit
-gemeten is. 1250 unittests, 160 ketentests.
+Bewust een lege cel in plaats van een gegokt getal: "eigen site als bron" wordt alleen voor het eigen
+domein gemeten. 1250 unittests, 160 ketentests.
 
-**Diezelfde dag alsnog opgelost: de citatiekolom werkt nu ook voor concurrenten.** "Is dit mogelijk
-alsnog te repareren" was de logische vervolgvraag, en het antwoord was ja, zonder dat er ooit een
-domein van een concurrent is opgeslagen. `citesOwnSite()` (`lib/entities/normalize.ts`) hergebruikt
-de al bestaande merknaam-normalisatie (`isSameEntity()`) om een geciteerd domein tegen een merknaam
-te leggen, "coolblue.nl" en "Coolblue" normaliseren toch al allebei naar "coolblue". Migratie `0058`
-voegt `competitor_breakdown.citation_count` toe, `measure.ts` vult hem bij elke nieuwe aggregatie.
+**Diezelfde dag alsnog opgelost: de citatiekolom werkt nu ook voor concurrenten.** `citesOwnSite()`
+(`lib/entities/normalize.ts`) hergebruikt de bestaande merknaam-normalisatie (`isSameEntity()`), zonder
+dat ooit een concurrent-domein is opgeslagen. Migratie `0058` voegt `competitor_breakdown.citation_count`
+toe, `measure.ts` vult hem bij elke nieuwe aggregatie.
 
-Twee dingen bewust niet gedaan. Geen backfill van bestaande periodes: dat zou de matchlogica in SQL
-moeten naspiegelen, en twee implementaties van dezelfde regel lopen vroeg of laat uiteen. Bestaande
-periodes tonen dus een streepje tot de eerstvolgende meting, nooit een 0% die er niet hoort te staan,
-en dat onderscheid (nooit berekend versus berekend-en-nul) is in dezelfde ronde ook op "Aanbevolen"
-en op het eigen merk toegepast, waar diezelfde stille aanname al langer sluimerde. En geen
-ketentest tegen een echte aggregatie: `measure.ts` heeft dat spoor nooit gehad (hetzelfde gat als bij
-de generate_report-trigger, fase 1 hierboven), dus dit is getoetst tot op de pure functies, niet
-end-to-end op productie. 1257 unittests, 160 ketentests.
+Twee dingen bewust niet gedaan: geen backfill van bestaande periodes (dat zou de matchlogica in SQL
+naspiegelen en twee implementaties lopen vroeg of laat uiteen; bestaande periodes tonen een streepje
+tot de eerstvolgende meting, nooit een onterechte 0%, ook toegepast op "Aanbevolen" en het eigen merk),
+en geen ketentest tegen een echte aggregatie (`measure.ts` heeft dat spoor nooit gehad, hetzelfde gat
+als de generate_report-trigger). 1257 unittests, 160 ketentests.
 
 ## De visie van Outer Orbit vastgelegd, en waar ze nog niet overeenkomt met vandaag (17 augustus 2026)
 
@@ -5457,151 +5185,122 @@ niet. Zie `docs/designsystem.md` §2.1.
 
 ## 28 augustus 2026: de startpagina telt opbrengst, de vragen krijgen een eigen plek, en een pagina wordt pas af als de vragen behandeld zijn
 
-Vier wensen van de eigenaar in één ronde. Ze hangen samen op één punt: wat het product oplevert,
-en wat de klant moet leveren om dat op te leveren.
+Vier wensen van de eigenaar in één ronde, samenhangend op één punt: wat het product oplevert, en wat
+de klant moet leveren om dat op te leveren.
 
-**1. Drie van de vier cijfers op "Hoe sta je ervoor" zijn totalen geworden.** Twee van de vier
-kwamen uit de kansenlijst, dus uit voorstellen. Bij Van den Udenhout stond de rij daardoor op
-`0 · 0 · 7 · 5` terwijl er nog geen letter geschreven was: een rij die leest als opbrengst en
-voornemens telt. De volgorde is nu clusters actief (een stand van nu), pagina's geschreven,
-pagina's geoptimaliseerd en gepubliceerd, met de regel "Sinds maart 2026" erboven zodat niemand ze
-als maandcijfers leest. De voorstellen staan nog steeds op het scherm, in het kansenblok eronder,
-waar ze over werk gaan in plaats van over resultaat.
+**1. Drie van de vier cijfers op "Hoe sta je ervoor" zijn totalen geworden.** Twee kwamen uit de
+kansenlijst, dus uit voorstellen: bij Van den Udenhout stond de rij op `0 · 0 · 7 · 5` terwijl er nog
+geen letter geschreven was, opbrengst en voornemens door elkaar. Nu: clusters actief, pagina's
+geschreven, pagina's geoptimaliseerd en gepubliceerd, met "Sinds maart 2026" erboven zodat niemand ze
+als maandcijfers leest. De voorstellen staan nog in het kansenblok eronder, waar ze over werk gaan in
+plaats van resultaat.
 
-Twee tellingen zijn daarbij rechtgezet. Een pagina met status `briefing` telt niet meer als
-geschreven: die wacht nog op antwoorden, en zonder dat filter liep de teller op bij het indrukken
-van de knop. En `gepubliceerd` telt nu alleen de huidige versie, waar een herpublicatie van versie 2
-eerder dubbel telde. Bij één live pagina viel dat niet op, bij de eerste herschrijving wel.
+Twee tellingen rechtgezet: een pagina met status `briefing` telt niet meer als geschreven (die wacht
+nog op antwoorden, anders liep de teller op bij het indrukken van de knop), en `gepubliceerd` telt nu
+alleen de huidige versie, waar een herpublicatie van versie 2 eerder dubbel telde.
 
 **2. "Vraagt jouw input" heet "Openstaande vragen" en staat onder Strategie.** Het scherm toonde
-alleen de merkbrede vragen; de vragen uit het rapport van een cluster stonden in hoofdstuk 03 van
-dát cluster. Voor de klant is dat één vraag op twee plekken, precies de splitsing die op 17 augustus
-2026 al eens is opgeheven. Ze staan nu bij elkaar op `/merk/[id]/strategie/vragen`, met een filter
-per cluster en een aparte knop voor de merkvragen. Het oude adres verwijst permanent door, want het
-stond in de werklijst en in verstuurde mails.
+alleen merkbrede vragen; clustervragen stonden in hoofdstuk 03 van dát cluster, dezelfde splitsing
+die op 17 augustus 2026 al eens is opgeheven. Nu bij elkaar op `/merk/[id]/strategie/vragen`, met
+filter per cluster en aparte knop voor merkvragen; het oude adres verwijst permanent door (stond in
+werklijst en verstuurde mails).
 
-Het invoerveld is meeverhuisd van één regel naast de vraag naar drie regels eronder, over de volle
-breedte. De oude vorm was een keuze voor een korte lijst, en hij kostte de antwoorden: in een regel
-van 26rem schrijft niemand op welke garantie hij geeft.
+Het invoerveld is meeverhuisd van één regel naast de vraag naar drie regels eronder over de volle
+breedte: in 26rem schrijft niemand op welke garantie hij geeft. Strategie heeft daarmee vier
+bestemmingen waar drie de regel was, dezelfde reden als bij Analytics op 22 augustus: de andere drie
+tónen wat ORBIT ENGINE deed, dit is de enige plek waar de klant zelf iets moet dóén. Merkprofiel
+houdt er twee over.
 
-Strategie heeft daarmee vier bestemmingen, waar drie de regel was. De reden is van dezelfde soort
-als bij Analytics op 22 augustus: de andere drie tónen wat ORBIT ENGINE deed, dit is de enige plek
-in dat hoofdstuk waar de klant zelf iets moet dóén. Merkprofiel houdt er twee over.
+**3. Een groene teller in de bovenbalk.** "3 openstaande vragen" met een bolletje dat in vier seconden
+ademt; achter het menu-item staat hetzelfde bolletje zonder getal (twee keer hetzelfde cijfer laat de
+lezer zoeken welke echt is). Bij nul verdwijnt de melding, want een balk die altijd "0 openstaande
+vragen" meldt went binnen een dag weg. Bij `prefers-reduced-motion` staat het stil.
 
-**3. Een groene teller in de bovenbalk.** Rechts, links van de themaschakelaar: "3 openstaande
-vragen", met een bolletje dat in vier seconden van licht naar donkergroen ademt. Achter het
-menu-item staat hetzelfde bolletje zonder getal, want twee keer hetzelfde cijfer op één scherm laat
-de lezer zoeken welke de echte is. Bij nul verdwijnt de hele melding: een balk die naast élk scherm
-"0 openstaande vragen" meldt, went binnen een dag weg. Bij `prefers-reduced-motion` staat het stil.
+Het getal komt uit één loader en optelling (`lib/open-questions.ts`, `lib/open-questions-count.ts`),
+gelezen door bovenbalk, zijbalk én paginakop: drie plekken die het los uitrekenen lopen gegarandeerd
+uit elkaar. Kost twee queries per weergave, de prijs van een teller die klopt op het moment dat je hem
+leest.
 
-Het getal komt uit één loader en één pure optelling (`lib/open-questions.ts` en
-`lib/open-questions-count.ts`), gelezen door de bovenbalk, de zijbalk én de paginakop. Drie plekken
-die het los uitrekenen lopen gegarandeerd uit elkaar. Het kost twee queries per paginaweergave, en
-dat is de prijs van een teller die klopt op het moment dat je hem leest.
+**4. De eindpoort: geen definitieve versie zolang er vragen open staan.** Het besluit met de meeste
+gevolgen, en het spreekt een eerder besluit tegen. `release-panel.tsx` zei: "Geen muur, een gate die
+je niet kunt passeren levert afgehaakte klanten op." Dat argument blijft gelden voor alles behalve de
+eindstap: tekst blijft leesbaar, kopieerbaar en bewerkbaar, publiceren doet de klant zelf. Op slot
+gaat alleen dat ORBIT ENGINE de pagina afrondt.
 
-**4. De eindpoort: geen definitieve versie zolang er vragen open staan.** Dit is het besluit met de
-meeste gevolgen, en het spreekt een eerder besluit tegen. `release-panel.tsx` zei: "Geen muur. Een
-gate die je niet kunt passeren is een muur, en muren leveren afgehaakte klanten op in plaats van
-betere content." Dat argument blijft gelden voor alles behalve de eindstap: de tekst blijft
-leesbaar, kopieerbaar en bewerkbaar, en publiceren doet de klant zelf buiten de app om. Wat op slot
-gaat is dat ORBIT ENGINE de pagina afrondt.
+De poort staat bewust **niet** vóór het eerste concept, want de scherpste vragen ontstaan pas tijdens
+het schrijven (de claim-audit leest wat de tekst beweert en vraagt precies dát na). Hij staat op de
+twee momenten waarop een versie definitief wordt: nieuwe versie laten schrijven, en vrijgeven.
 
-De poort staat bewust **niet** vóór het eerste concept. De scherpste vragen ontstaan pas tijdens het
-schrijven: de claim-audit leest wat de tekst beweert en vraagt precies dát na. Een poort ervóór zou
-vragen om antwoorden die nog niet bestaan. Hij staat dus op de twee momenten waarop een versie
-definitief wordt: een nieuwe versie laten schrijven, en vrijgeven.
+Wat tegenhoudt zijn de open vragen van dít cluster plus de vragen die aan déze pagina hangen; een
+losse merkvraag uit de onboarding blokkeert niets, anders zou die élke pagina van élk cluster voorgoed
+dichtzetten en is de poort geen kwaliteitsmaatregel maar een slot. Overslaan telt als antwoord. Twee
+lagen (conventie 1): de knop toont de melding, de route weigert met 409.
 
-Wat tegenhoudt zijn de open vragen van dít cluster plus de vragen die aan déze pagina hangen. Een
-losse merkvraag uit de onboarding blokkeert niets: die zou anders élke pagina van élk cluster
-voorgoed dichtzetten, en dan is de poort geen kwaliteitsmaatregel maar een slot. Overslaan telt als
-antwoord, en dat is de uitweg die het geheel leefbaar houdt. Twee lagen, zoals conventie 1 vraagt:
-de knop toont de melding, de route weigert met 409.
+De ketentest legde een verschil bloot tussen shim en echte database: `.contains()` castte altijd naar
+`jsonb`, terwijl `fact_requests.content_piece_ids` een `uuid[]` is, en Postgres gaf nul rijen in plaats
+van een fout, dus de poort leek gewoon open. De shim doet nu een array-vergelijking.
 
-De ketentest legde meteen een verschil bloot tussen de testshim en de echte database:
-`.contains()` castte altijd naar `jsonb`, terwijl `fact_requests.content_piece_ids` een `uuid[]` is.
-Postgres gaf daarop geen fout maar nul rijen, en de poort leek gewoon open te staan. Dat is precies
-het soort stille afwijking waarvoor de ketentest er is; de shim doet nu een array-vergelijking.
+**En één wens bleek al gebouwd.** "Klanten moeten ook content kunnen laten schrijven" is op 27 augustus
+2026 al ingevoerd: van de zes betaalde handelingen staat alleen de reputatieanalyse op slot, een los
+product (`lib/cost-rules.ts`).
 
-**En één wens bleek al gebouwd.** "Klanten moeten ook content kunnen laten schrijven" is op
-27 augustus 2026 al ingevoerd: van de zes betaalde handelingen staat alleen nog de reputatieanalyse
-op slot, omdat dat een los product is (`lib/cost-rules.ts`). Er is dus niets veranderd, alleen
-nagekeken.
+**Ingetrokken tijdens deze ronde, door de eigenaar zelf:** de hernoeming van "clusters" naar
+"metingen" (botste met de maandelijkse meetronde, twee begrippen dezelfde naam), het weghalen van de
+rondebalk, en de statuscijfers in de bovenbalk. Komt de hernoeming terug, dan hoort de meetronde een
+eigen woord te krijgen.
 
-**Ingetrokken tijdens deze ronde, door de eigenaar zelf.** De hernoeming van "clusters" naar
-"metingen" (het botste met de maandelijkse meetronde, twee begrippen met dezelfde naam op één
-scherm), het weghalen van de rondebalk, en de statuscijfers in de bovenbalk. Ze staan hier omdat de
-afweging bewaard hoort te blijven: komt de hernoeming terug, dan hoort de meetronde in dezelfde
-ronde een eigen woord te krijgen.
+**28 augustus 2026, verder op de dag: een stippenpatroon op de werkruimte.** De eigenaar leverde CSS
+aan voor een stippenpatroon op `<main>` in `components/workspace-chrome.tsx`, alleen lichte stand. De
+CSS had één maskerregel uitgecommentarieerd die net het punt van het effect was ("in het midden niet
+zichtbaar, naar buiten uitlopend"). Verwerkt als `.workspace-canvas` in `app/globals.css` op een
+eigen `::before`-laag, los van de vlakke `--bg-muted`, anders veegt het masker ook de bodemkleur mee
+weg. In donker valt het patroon weg. Zie `docs/designsystem.md` §2.1.
 
-**28 augustus 2026, verder op de dag: een stippenpatroon op de werkruimte.** De eigenaar bracht zelf
-CSS voor een stippenpatroon aan, gevonden buiten de app, en vroeg het toe te passen op `<main>` in
-`components/workspace-chrome.tsx`, alleen in de lichte stand. De aangeleverde CSS klopte inhoudelijk
-maar had één maskerregel uitgecommentarieerd die juist het punt van het effect was: zonder masker
-zijn de stippen overal even zichtbaar, terwijl de bedoeling ("in het midden niet zichtbaar, naar
-buiten uitlopend") vraagt om precies dat masker aan te zetten. Verwerkt als `.workspace-canvas` in
-`app/globals.css`: de stippen zitten op een eigen `::before`-laag, los van de vlakke `--bg-muted`
-van het element zelf, want anders veegt het masker ook de bodemkleur mee weg in het midden. In
-donker valt het patroon weg. Zie `docs/designsystem.md` §2.1.
+**28 augustus 2026, nog verder op de dag: hetzelfde patroon in donker.** De lichte stip is één stap
+dónkerder dan `--bg-muted`, wat in donker niet werkt (een donkerdere stip op donkere grond verdwijnt).
+Nieuw token `--workspace-canvas-dot`: licht `#e4e9ee`, donker `--bg-surface-2` (`#43505d`), een stap
+líchter, want `--bg-elevated` valt in de donkere stand toevallig samen met `--bg-muted`. Masker
+(dekking 0 tot 60%) ongewijzigd, dus even subtiel in beide standen. Zie `docs/designsystem.md` §2.1.
 
-**28 augustus 2026, nog verder op de dag: hetzelfde patroon in donker.** Het stippenpatroon stond
-alleen in de lichte stand; de eigenaar vroeg om dezelfde toevoeging voor donker, met kleuren die de
-achtergrond in zijn geheel ongeveer even donker houden. De lichte stip is één stap dónkerder dan
-`--bg-muted`; die richting werkt in donker niet, want een donkerdere stip op een donkere grond
-verdwijnt. Nieuw token `--workspace-canvas-dot` wijst nu in licht naar `#e4e9ee` en in donker naar
-`--bg-surface-2` (`#43505d`), een stap líchter, want `--bg-elevated` is in de donkere stand toevallig
-gelijk aan `--bg-muted` en biedt dus geen tussenstap. Het masker (dekking 0 tot 60%) bleef ongewijzigd
-en houdt het effect in allebei de standen even subtiel, dus het vlak wordt in geen van beide standen
-merkbaar lichter of donkerder. Zie `docs/designsystem.md` §2.1.
-
-**28 augustus 2026, nog verder op de dag: het patroon in donker weer terug.** De donkere variant
-beviel niet, en is dezelfde dag teruggedraaid: `<main>` in de donkere stand is weer een vlak
-`--bg-muted`, zonder stippen. Het token `--workspace-canvas-dot` is weer weg; het patroon zelf staat
-weer met de letterlijke kleur `#e4e9ee`, precies zoals bij de eerste invoering. Alleen de lichte
-stand houdt het stippenpatroon. Zie `docs/designsystem.md` §2.1.
+**28 augustus 2026, nog verder op de dag: het patroon in donker weer terug.** Beviel niet, teruggedraaid
+dezelfde dag: `<main>` in donker is weer vlak `--bg-muted`, token `--workspace-canvas-dot` weg. Alleen
+licht houdt het stippenpatroon (`#e4e9ee`, als bij de eerste invoering). Zie `docs/designsystem.md`
+§2.1.
 
 **28 augustus 2026, aan het eind van de dag: de app is traag omdat hij te ver van zijn database
-staat.** De eigenaar meldde dat schermen lang laden en knoppen traag reageren. Het eerste dat we
-uitsloten was de database zelf: in `pg_stat_statements` staat geen enkele app-query in de top van
-de zwaarste verbruikers, en de client-bundel is met 102 kB gedeeld en 104 tot 130 kB per scherm
-klein genoeg om geen rol te spelen. De oorzaak zat er tussenin, en op vier plekken tegelijk.
+staat.** Schermen laden lang, knoppen reageren traag. Database zelf uitgesloten: geen enkele app-query
+in de top van `pg_stat_statements`, client-bundel klein genoeg (102 kB gedeeld, 104-130 kB per scherm)
+om geen rol te spelen. De oorzaak zat ertussenin, op vier plekken.
 
-**De grootste: de Vercel-functies stonden in `iad1` (Washington) en het Supabase-project in
-`eu-west-1` (Ierland).** Er stond geen `regions` in `vercel.json`, dus koos Vercel zijn standaard.
-Elke databasevraag stak daardoor de oceaan over en weer terug, ongeveer 80 milliseconden, terwijl
-de vraag zelf in de database rond de één milliseconde kost. Het merkoverzicht stelt er dertien
-achter elkaar. `vercel.json` zet nu `"regions": ["dub1"]`, dezelfde AWS-regio als de database.
-⚠️ Verhuist het Supabase-project ooit, dan hoort deze regel mee te verhuizen: staan ze uit elkaar,
-dan telt geen van de drie andere maatregelen nog op. Zie `docs/architecture.md` §1.
+**De grootste: Vercel-functies stonden in `iad1` (Washington), Supabase in `eu-west-1` (Ierland).**
+Geen `regions` in `vercel.json`, dus Vercel's standaard. Elke databasevraag stak de oceaan over en
+terug, ~80ms, tegen ~1ms in de database zelf; het merkoverzicht stelt er dertien achter elkaar.
+`vercel.json` zet nu `"regions": ["dub1"]`, dezelfde AWS-regio als de database. ⚠️ Verhuist Supabase
+ooit, dan hoort deze regel mee te verhuizen. Zie `docs/architecture.md` §1.
 
-**De tweede: dertien netwerkrondes waar er acht nodig waren.** `supabase.auth.getUser()` is geen
-cookie-lezing maar een controle bij de Auth-server van Supabase, en werd drie keer per scherm
-gesteld: door de shell, door de merk-layout en door de pagina zelf. Nu één keer, gememoïseerd met
-`cache()` van React, dus per verzoek en niet per proces: de controle blijft, de herhaling niet.
-Daarnaast stonden in de shell drie onafhankelijke vragen onder elkaar te wachten (werkruimte,
-`isStaff`, `isStaffAccount`), stelde de merkenlijst het lidmaatschap en het beheerdersrecht
-achter elkaar, en haalde de teller in de bovenbalk eerst het profiel op en pas daarna de twee
-vragenlijsten. Alle drie gaan nu tegelijk. De middleware sloeg tot slot `/api/` niet over, terwijl
-ze daar niets te doen heeft: dat was een extra ronde naar de Auth-server vóór élke knopklik.
+**De tweede: dertien netwerkrondes waar acht nodig waren.** `supabase.auth.getUser()` is een controle
+bij de Auth-server, drie keer per scherm gesteld (shell, merk-layout, pagina zelf). Nu één keer,
+gememoïseerd met React `cache()` per verzoek. Daarnaast wachtten in de shell drie onafhankelijke
+vragen (werkruimte, `isStaff`, `isStaffAccount`) achter elkaar, stelde de merkenlijst lidmaatschap en
+beheerdersrecht achter elkaar, en haalde de teller in de bovenbalk eerst het profiel op en pas daarna
+de twee vragenlijsten; alle drie gaan nu tegelijk. De middleware sloeg tot slot `/api/` niet over,
+een extra ronde naar de Auth-server vóór élke knopklik.
 
-**De derde: achttien schermen zonder wachtvorm.** Elf schermen hadden een `loading.tsx` en achttien
-niet, en de achttien zonder waren juist de schermen die in de zijbalk staan. Next.js laat bij een
-klik de oude pagina staan tot de nieuwe klaar is, dus daar gebeurde er tussen klik en scherm
-niets zichtbaars: geen traag scherm maar een scherm dat lijkt te hangen. Veertien hebben er nu één,
-via de gedeelde `PageSkeleton`. De vier die overblijven zijn doorverwijzingen en `/merk/nieuw`, dat
-geen enkele query doet; daar zou een wachtvorm oplichten en meteen weer verdwijnen.
+**De derde: achttien schermen zonder wachtvorm.** Elf schermen hadden een `loading.tsx`, achttien
+niet, en die achttien stonden juist in de zijbalk. Next.js laat de oude pagina staan tot de nieuwe
+klaar is, dus leek het scherm te hangen in plaats van traag te laden. Veertien hebben er nu één, via
+`PageSkeleton`. De vier die overblijven zijn doorverwijzingen en `/merk/nieuw` (geen enkele query).
 
-**De vierde: dertien knoppen zeiden "klaar" voordat ze het waren.** Het patroon was overal
-hetzelfde: `fetch()` naar een API-route, dan `router.refresh()`, en in een `finally` de bezig-stand
-weer uit. Maar `router.refresh()` geeft niets terug om op te wachten, dus die `finally` liep af op
-het moment dat de aanvraag de deur uit ging. De klant zag de knop terugspringen, het venster
-sluiten en de melding verschijnen, en daarna stonden de cijfers er nog een seconde in de oude
+**De vierde: dertien knoppen zeiden "klaar" voordat ze het waren.** Patroon overal hetzelfde:
+`fetch()`, dan `router.refresh()`, en in een `finally` de bezig-stand uit. Maar `router.refresh()`
+geeft niets terug om op te wachten, dus liep die `finally` af zodra de aanvraag de deur uitging: knop
+sprong terug, venster sloot, melding verscheen, en de cijfers stonden er nog een seconde in de oude
 stand. Nieuwe hook `useRefresh()` (`components/use-refresh.ts`) zet de verversing in een
-`useTransition`, zodat de knop pas loslaat als het scherm klopt. Zie `docs/ux-design.md` §4.
+`useTransition`, de knop laat pas los als het scherm klopt. Zie `docs/ux-design.md` §4.
 
-**Nagerekend op productie, dezelfde dag (conventie 10).** De verhuizing naar Dublin is gemeten aan
-de werker, die elke minuut draait en daarbij precies twee aanroepen naar Supabase doet
-(`claim_jobs` en `reclaim_stuck_jobs`). Het gat tussen die twee in de Supabase-logboeken is dus
-elke minuut opnieuw dezelfde meting van hetzelfde werk, en het verschil ertussen is de afstand.
+**Nagerekend op productie, dezelfde dag (conventie 10).** Gemeten aan de werker, die elke minuut
+precies twee aanroepen doet (`claim_jobs`, `reclaim_stuck_jobs`); het gat ertussen in de
+Supabase-logboeken is de afstand.
 
 | | Vóór (`iad1`, Washington) | Na (`dub1`, Dublin) |
 |---|---|---|
@@ -5610,21 +5309,16 @@ elke minuut opnieuw dezelfde meting van hetzelfde werk, en het verschil ertussen
 | Zonder koude start | | 104 ms |
 | Slechtste geval | 866 ms | 293 ms |
 
-De mediaan zakt met 72%, en zonder de koude starts vlak na de deploy met 77%. Het slechtste geval
-is bijna drie keer beter, en dat telt zwaarder dan de mediaan: dát is het bezoek waarop een klant
-denkt dat de app hangt.
+Mediaan zakt met 72%, zonder koude starts met 77%. Het slechtste geval is bijna drie keer beter, en dat
+telt zwaarder: dát is het bezoek waarop een klant denkt dat de app hangt.
 
-⚠️ **Wat hiermee níét gemeten is.** Deze meting isoleert de afstand tot de database. De drie andere
-maatregelen (minder aanroepen achter elkaar, de wachtvormen, de knopfeedback) zijn gecontroleerd met
-2495 unittests, 358 ketentests, typecheck en build, maar niet op een echt paginabezoek: de app had
-in de zeven dagen ervoor geen enkel bezoek buiten de cron, dus er was geen verkeer om mee te
-vergelijken. Ze werken op elkaar in: minder aanroepen telt pas echt op zolang elke aanroep duur is,
-en die is nu goedkoop geworden.
+⚠️ **Wat hiermee níét gemeten is.** Alleen de afstand tot de database is geïsoleerd gemeten. De drie
+andere maatregelen zijn gecontroleerd met 2495 unittests, 358 ketentests, typecheck en build, maar
+niet op een echt paginabezoek (geen verkeer in de zeven dagen ervoor buiten de cron). Ze werken op
+elkaar in: minder aanroepen telt pas echt op zolang elke aanroep duur is, en die is nu goedkoop.
 
-Na de deploy gecontroleerd dat de middleware nog doet wat hij moet: `/merk` stuurt een bezoeker
-zonder sessie nog steeds naar het inlogscherm, en `/api/health` antwoordt zonder dat de middleware
-er nog overheen gaat.
-
+Na de deploy gecontroleerd dat de middleware nog doet wat hij moet: `/merk` stuurt een bezoeker zonder
+sessie nog naar het inlogscherm, `/api/health` antwoordt zonder dat de middleware erover heen gaat.
 ## 31 augustus 2026, de eerste live doorloop van de hele klantreis
 
 Werkpakket A, B en C uit `docs/optimalisatielab-orbit-engine.md` stonden op productie maar waren
