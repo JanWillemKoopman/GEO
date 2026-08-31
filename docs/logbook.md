@@ -5768,7 +5768,12 @@ dollars, geen euro's), met de Nederlandse schrijfwijze, en gebruikt op elke plek
 een scherm gaat, inclusief de kostenindicatie bij "Stel nieuwe clusters voor" die tot dan toe zelf
 een kale `.toFixed(2)` deed. Bedragen in logregels blijven met een punt, die zijn niet voor de klant.
 
-Vier controles groen: typecheck, 2689 unittests, 397 ketentests en de productiebuild. Live nagelopen
-op productie moet nog: de branchpreview zit achter een Vercel-login, dus dat wacht op akkoord van de
-eigenaar om deze branch naar `main` te pushen (conventie 10, en zo staat het ook letterlijk in de
-opdracht).
+Vier controles groen: typecheck, 2689 unittests, 397 ketentests en de productiebuild. Daarna, met
+akkoord van de eigenaar, naar `main` gepushed en op productie nagelopen (conventie 10). Op de
+testklant Wouter Warmtepomp, opnieuw een contentplan opgesteld op 31 augustus zelf (dus precies de
+bugsituatie): maand 1 ging op `concept` met de nieuwe zin, en de dertien beschikbare kansen kwamen in
+maand 2 terecht met data van 1 tot en met 28 september, geen enkele in het verleden. Op een echte
+openstaande onboardingvraag beantwoord met een superlatief verscheen "Noem er een cijfer bij, dan mag
+deze zin in je teksten." De `GET` van "Stel nieuwe clusters voor" gaf het klantaccount een 403 en het
+beheerdersaccount de vooruitblik met "Geschatte kosten: ~$0,02."; "Verdeling aanpassen" toonde
+"ongeveer $1,68 per maand" naast "±10,7 punten", nu allebei met een komma.

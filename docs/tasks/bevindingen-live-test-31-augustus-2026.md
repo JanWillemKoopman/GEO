@@ -14,10 +14,19 @@
 > wat punt 10 hieronder deels beantwoordt: 7 is geen verborgen grens.
 >
 > **Punt 5, 6, 7, 8 en de kleinere punten van punt 9 zijn daarna, op basis van
-> `docs/tasks/opdracht-bevindingen-5-tot-9.md`, in code en test opgelost**: typecheck, 2689
-> unittests, 397 ketentests en de productiebuild staan groen. De live controle op
-> `https://geo-ten-blush.vercel.app` volgt zodra de eigenaar akkoord geeft om deze branch naar
-> `main` te pushen (de branchpreview zit achter een Vercel-login), conventie 10.
+> `docs/tasks/opdracht-bevindingen-5-tot-9.md`, in code, test én op productie opgelost**:
+> typecheck, 2689 unittests, 397 ketentests en de productiebuild stonden groen; de eigenaar gaf
+> akkoord om naar `main` te pushen en de branch is live gecontroleerd op
+> `https://geo-ten-blush.vercel.app` met beide testaccounts (conventie 10). Wat dat liet zien: een
+> nieuw contentplan voor Wouter Warmtepomp (opgesteld op 31 augustus, dus precies de bugsituatie)
+> zet maand 1 nu op concept met de zin "Deze maand is te ver gevorderd om nog te publiceren, dus je
+> plan begint volgende maand." en zet de dertien beschikbare kansen in maand 2, allemaal met een
+> datum tussen 1 en 28 september; het antwoord "Wij zijn de snelste van de regio en reageren
+> sneller dan elke concurrent" op een echte openstaande onboardingvraag toont nu "Noem er een cijfer
+> bij, dan mag deze zin in je teksten."; de `GET` van "Stel nieuwe clusters voor" geeft het
+> klantaccount een 403 en het beheerdersaccount gewoon de vooruitblik, met de kostenindicatie nog
+> steeds zichtbaar op de clusterpagina ("Geschatte kosten: ~$0,02."); en "Verdeling aanpassen" toont
+> "ongeveer $1,68 per maand" naast "±10,7 punten", allebei met een komma.
 
 De volledige klantreis is op productie doorlopen met een echt bedrijf, van merk aanmaken tot en met
 de contentbriefing. Dit bestand bevat wat er misging. Wat goed ging staat samengevat in
