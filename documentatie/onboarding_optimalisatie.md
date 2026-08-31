@@ -5,7 +5,8 @@
 **Status:** analyse en plan. Er is in deze ronde bewust nog geen enkele UI-wijziging doorgevoerd.
 **Leeswijzer:** hoofdstuk 1 tot en met 12 gaan over structuur, velden en teksten. Hoofdstuk 13 is een tweede
 reviewronde over het gedrag van het scherm (opslaan, bijwerken, verversen) en bevat de vier ingrepen die als eerste
-zouden moeten gebeuren.
+zouden moeten gebeuren. Hoofdstuk 14 beantwoordt de vraag welke gegevens echt verplicht zijn om een klant te laten
+starten, en wat er precies voor nodig is om nieuwe clusters voorgesteld te krijgen.
 **Bronbestanden:** `lib/pipeline/brand-fields.ts` (veldencatalogus), `app/(app)/merk/[id]/_components/onboarding-session.tsx` (het scherm),
 `app/(app)/merk/[id]/admin/onboarding/page.tsx` (de serverlaag), `lib/profile-editable.ts` (de opslagroute),
 `lib/profile-gaps.ts`, `lib/profile-meter.ts`, `lib/pipeline/onboarding-refresh.ts`, `lib/pipeline/context-factors.ts`.
@@ -800,3 +801,104 @@ En er komt één onderzoeksvraag bij die vóór stap 5 beantwoord moet zijn: **A
 gesprek. Zolang `deep_research_at` niet meebeweegt met de bijwerkronde, blijft het afrondblok hetzelfde werk aanbieden
 en kan hetzelfde werk twee keer betaald worden. Dat is geen vormgevingskwestie maar een fout in de keten, en hij
 hoort opgelost te zijn voordat het scherm de CSM nadrukkelijker naar die knop leidt.
+
+
+---
+
+## 14. Startvoorwaarden: wat moet er echt ingevuld zijn?
+
+Deze vraag kwam vóór de implementatie op tafel: welke velden zijn een harde voorwaarde om een klant te laten starten,
+en klopt het dat een compleet klantprofiel nieuwe clusters oplevert? Hieronder wat de code daadwerkelijk afdwingt,
+per mijlpaal. "Harde blokkade" betekent dat de route of de functie weigert; "bepaalt de kwaliteit" betekent dat het
+werk gewoon doorgaat, maar op een slechtere uitkomst.
+
+### 14.1 De vijf harde blokkades
+
+| Mijlpaal | Harde voorwaarde in code | Waar |
+|---|---|---|
+| Merk aanmaken | Bedrijfsnaam en een geldige, bereikbare website. De bereikbaarheidscontrole is te overrulen met "toch doorgaan". | `app/api/profiles/route.ts` |
+| Cluster (analyse) aanmaken | Het profiel moet status `klaar` hebben, en er moet een onderwerp ingevuld zijn. **Geen enkel profielveld is verplicht.** | `app/api/analyses/route.ts` |
+| Meting starten | De analyse staat op `meten` (dus de vragen zijn gegenereerd en bevestigd), de starter is beheerder, en het dag- en maandbudget van het account is niet op. | `app/api/analyses/[id]/measure/route.ts` |
+| Contentplan aanmaken | Een pakket op het **account** (minimaal 1 pagina per maand) **en** minstens één gemeten cluster met rapport. Zonder het eerste: "Er is geen pakket gekozen". Zonder het tweede: "Er zijn nog geen gemeten kansen om in te plannen." | `lib/plans.ts` |
+| Klant kan inloggen | Een account, het merk aan dat account toegewezen, en een uitnodiging naar een e-mailadres. | `lib/invites.ts`, `app/api/profiles/[id]/assign/route.ts` |
+
+Wat hier níet in staat is net zo belangrijk: **geen van de 56 onboardingvelden is een harde voorwaarde voor
+wat dan ook.** Een merk met alleen een naam en een website kan een cluster krijgen, een meting draaien en een rapport
+opleveren. De velden bepalen de kwaliteit van die uitkomst, niet of hij mag starten.
+
+### 14.2 Wat wél de uitkomst bepaalt, en dus in de praktijk verplicht is
+
+Deze vijf staan in hoofdstuk 6 op "verplicht", en dit is de onderbouwing:
+
+1. **Werkgebied** (`service_scope`, plus `service_regions` bij lokaal). De plaatsnaam wordt letterlijk in de zoekvragen
+   geplakt. Ontbreekt hij, dan gaan alle vragen landelijk en meet je een lokale partij af tegen de landelijke markt.
+   Dit is de enige fout die pas ná een betaalde meetronde zichtbaar wordt.
+2. **De naam waarop gemeten wordt** (`brand_name`) en **de schrijfwijzen** (`aliases`). De vermeldingsclassificatie
+   eist de letterlijke naam in de tekst. Fout of onvolledig betekent een score die structureel te laag uitvalt.
+   Zie hoofdstuk 5.1: `brand_name` is op dit moment nergens te corrigeren.
+3. **Naamgenoten** (`name_exclusions`). De tegenhanger: zonder dit valt de score juist te hoog uit.
+4. **Concurrenten** (`competitors`). Zonder deze lijst heeft het marktonderzoek geen vergelijking en het rapport geen
+   tegenpartij.
+5. **Het pakket op het account.** Geen profielveld, maar wel de enige harde blokkade die pas weken later opvalt,
+   namelijk als de klant zijn contentplan opent.
+
+⚠️ **Let op de volgorde bij het pakket.** Bij het aanmaken van een merk wordt het gekozen pakket weggeschreven naar
+het **standaardaccount van de ingelogde gebruiker**, en dat is bij een consultant zijn eigen account, niet dat van de
+klant. Pas bij Toewijzen komt het merk op het klantaccount te staan, en daar staat dan nog geen pakket. Het pakketveld
+in de aanmaakwizard doet voor de klant dus niets, en overschrijft ondertussen wel het pakket op het account van de
+consultant zelf. Praktische regel tot dit is opgelost: **eerst toewijzen, dan het pakket zetten op het
+toewijzingsscherm.** Dit hoort als los punt op de takenlijst; het valt buiten de schermoptimalisatie.
+
+### 14.3 Klopt het dat nieuwe clusters worden voorgesteld na het invullen?
+
+Ja, maar niet door de velden. De trigger is een andere, en dat is belangrijk voor de CSM om te weten.
+
+**Wat onderwerpen echt oplevert, is de aanbodboom.** `proposeTopics()` leest `profile_offerings`, de boom die uit de
+crawl van de website komt. Is die leeg, dan zijn er nul voorstellen, hoe compleet het profiel verder ook is. De code
+kiest daar bewust voor: onderwerpen verzinnen op basis van alleen een branchenaam levert generieke onderwerpen op die
+precies niet over deze klant gaan.
+
+**Er zijn twee momenten waarop er een nieuwe ronde komt:**
+
+1. **Bij het vastleggen van het gesprek.** Het opslaan van het blok "Wat er speelt buiten je website om" zet
+   `recorded_at` en plant meteen een onderwerpronde in. Die ronde vervangt de nog onbesliste **conceptonderwerpen**
+   door een definitieve lijst, nu mét de gespreksinformatie erbij (onderwerpen die al gestart, goedgekeurd of afgewezen
+   zijn blijven altijd staan). Kost ongeveer één cent.
+2. **Bij het bijwerken na het gesprek.** De knop "Onderzoek bijwerken" plant een onderwerpronde in, maar alleen als
+   één van deze vier velden is gewijzigd: `priority_offerings`, `deprioritised_offerings`, `target_segments`,
+   `forbidden_topics`. Andere velden leiden niet tot nieuwe onderwerpen.
+
+**En er is een derde, handmatige knop:** "meer onderwerpen" (`proposeAdditionalTopics`). Die draait alleen als er iets
+veranderd is aan vier tellingen: is het gesprek vastgelegd, hoeveel feitenvragen zijn beantwoord, hoeveel clusters zijn
+gemeten, en hoeveel onderwerpen zijn afgewezen. **De 56 profielvelden zitten niet in die vergelijking.** Wie dus alle
+velden invult en daarna op "meer onderwerpen" drukt, krijgt de melding dat er niets veranderd is.
+
+**Praktische samenvatting voor de CSM:**
+
+- Velden invullen alleen is niet genoeg. Het gesprek moet worden **vastgelegd** in het blok "Wat er speelt", want dat
+  is de knop die de definitieve onderwerpronde in gang zet.
+- Zijn de conceptonderwerpen al goedgekeurd of afgewezen vóór het gesprek, dan valt er niets meer te vervangen en komt
+  er geen nieuwe ronde. Beslis dus pas over onderwerpen ná het onboardinggesprek.
+- Zonder aanbodboom uit de crawl komen er sowieso geen voorstellen. Dat is een crawlprobleem en geen invulprobleem,
+  en het is precies waarom de crawlinstellingen uit hoofdstuk 5.4 op dit scherm horen.
+
+### 14.4 Wat dit toevoegt aan het ontwerp
+
+Drie dingen die het scherm moet doen en nu niet doet:
+
+- **Blok 0 toont de vijf harde voorwaarden als checklist**, met de stand erbij: website bereikbaar, onderzoek klaar,
+  aanbodboom gevuld (met aantal), pakket op het account, merk toegewezen. De readiness-module uit A2 dekt het grootste
+  deel hiervan al.
+- **Het gespreksblok moet zeggen wat de opslagknop doet.** Nu heet het "Wat er speelt buiten je website om" en staat er
+  nergens dat opslaan de definitieve onderwerpronde start. Voorstel voor de knoptekst: "Gesprek vastleggen en
+  onderwerpen definitief maken", met eronder één regel: "ORBIT ENGINE vervangt de voorlopige onderwerpen door een
+  definitieve lijst, met wat je vandaag hebt verteld erbij."
+- **Het afrondblok moet het verschil tonen tussen de vier velden die een nieuwe onderwerpronde veroorzaken en de rest.**
+  Dat rekent `planRefresh()` al uit; het staat alleen niet in die woorden op het scherm.
+
+### 14.5 Wat er niet blokkeert, maar wel stilletjes schaadt
+
+Onbeantwoorde verplichte feitenvragen blokkeren het schrijven **niet**. De schrijfopdracht krijgt de instructie om de
+passage dan weg te laten in plaats van hem in te vullen. Dat is een goede keuze (liever een gat dan een verzinsel),
+maar het betekent wel dat een pagina stilzwijgend magerder wordt naarmate er meer vragen open staan. Dat is het
+sterkste argument voor A3: die vragen tijdens het gesprek beantwoorden in plaats van er later per mail achteraan gaan.
