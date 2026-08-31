@@ -362,12 +362,15 @@ import {
   BRAND_FIELDS,
   CLIENT_STEPS,
   SESSION_STEPS,
+  SESSION_BLOCKS,
+  SESSION_AUTHOR_FIELDS,
   STEP_META,
   STEP_ORDER,
   fieldsOfStep,
   isFilled,
   stepProgress,
   overallProgress,
+  missingRequired,
 } from "@/lib/pipeline/brand-fields";
 import { resolveWriteSource, consultantFields } from "@/lib/profile-source";
 import {
@@ -5170,11 +5173,12 @@ group("het merkprofiel als veldenlijst (brand-fields)", () => {
     `elk opslaanbaar veld staat in een stap${zonderStap.length ? " (mist: " + zonderStap.join(", ") + ")" : ""}`,
     zonderStap.length === 0,
   );
-  // Was 41 tot migratie 0060; sindsdien 56, want de commerciële laag (12) en de
-  // contactpersoon (3) staan er sinds onboarding 3.0 fase 1 bij.
+  // Was 41 tot migratie 0060, 56 sinds onboarding 3.0 fase 1 (de commerciële
+  // laag en de contactpersoon), en 57 sinds onboarding ronde B stap B1: toen
+  // kwam `brand_name` erbij, de naam waarop de meting daadwerkelijk telt.
   ok(
-    `het zijn er 56 aan beide kanten (nu ${BRAND_FIELDS.length} en ${EDITABLE_PROFILE_FIELDS.length})`,
-    BRAND_FIELDS.length === 56 && EDITABLE_PROFILE_FIELDS.length === 56,
+    `het zijn er 57 aan beide kanten (nu ${BRAND_FIELDS.length} en ${EDITABLE_PROFILE_FIELDS.length})`,
+    BRAND_FIELDS.length === 57 && EDITABLE_PROFILE_FIELDS.length === 57,
   );
 
   ok(
@@ -5187,9 +5191,9 @@ group("het merkprofiel als veldenlijst (brand-fields)", () => {
   // stille verschuiving.
   const perStap = STEP_ORDER.map((s) => `${s}:${fieldsOfStep(s).length}`).join(" ");
   ok(
-    `de verdeling is 8-3-6-6-5-7-6-12-3 (nu ${perStap})`,
+    `de verdeling is 9-3-6-6-5-7-6-12-3 (nu ${perStap})`,
     perStap ===
-      "bedrijf:8 merk:3 klant:6 stem:6 woorden:5 auteur:7 bekend:6 strategie:12 contact:3",
+      "bedrijf:9 merk:3 klant:6 stem:6 woorden:5 auteur:7 bekend:6 strategie:12 contact:3",
   );
   ok(
     "elke stap heeft velden",
@@ -5266,9 +5270,9 @@ group("het merkprofiel als veldenlijst (brand-fields)", () => {
   // élk merk eeuwig in "wacht op jouw nakijkwerk".
   const klantVelden = BRAND_FIELDS.filter((f) => CLIENT_STEPS.includes(f.step));
   ok(
-    `de noemer is de klantlijst van 41 (nu ${overallProgress(leeg).totaal})`,
+    `de noemer is de klantlijst van 42 (nu ${overallProgress(leeg).totaal})`,
     overallProgress(leeg).totaal === klantVelden.length &&
-      klantVelden.length === 41,
+      klantVelden.length === 42,
   );
   ok(
     "de sessie kan alle negen stappen meetellen",
@@ -5355,6 +5359,105 @@ group("drie oppervlakken, één veldenlijst (onboarding 3.0 fase 1)", () => {
   ok(
     "het heeft twee benoemde standen en geen waardenlijst",
     janee[0]?.options?.length === 2 && janee[0]?.values === undefined,
+  );
+});
+
+group("microcopy, verplichtstelling en de negen blokken (onboarding ronde B)", () => {
+  // ── B2: elk veld toont waar het antwoord landt ──────────────────────────
+  // Zonder deze eis kan een nieuw veld landen zonder dat iemand heeft
+  // opgeschreven waarom het gevraagd wordt, en dat is precies het gat dat
+  // hoofdstuk 2 (P2) beschrijft.
+  const zonderUsage = BRAND_FIELDS.filter((f) => !f.usage || f.usage.trim().length < 10).map(
+    (f) => f.key as string,
+  );
+  ok(
+    `elk veld heeft een usage-tekst${zonderUsage.length ? " (mist: " + zonderUsage.join(", ") + ")" : ""}`,
+    zonderUsage.length === 0,
+  );
+
+  // ── B3: verplicht, aanbevolen, optioneel ────────────────────────────────
+  const geldigePrioriteiten = new Set(["verplicht", "aanbevolen", "optioneel"]);
+  ok(
+    "elk veld heeft een geldige priority",
+    BRAND_FIELDS.every((f) => geldigePrioriteiten.has(f.priority)),
+  );
+  // De vijf meetkritische velden uit hoofdstuk 6, blok 2, 3 en 5.
+  const verplichteSleutels = new Set(
+    BRAND_FIELDS.filter((f) => f.priority === "verplicht").map((f) => f.key as string),
+  );
+  ok(
+    "brand_name, aliases, industry, business_model, service_scope, competitors, products, proof_points, summary, intake_audience en priority_offerings zijn verplicht",
+    [
+      "brand_name",
+      "aliases",
+      "industry",
+      "business_model",
+      "service_scope",
+      "competitors",
+      "products",
+      "proof_points",
+      "summary",
+      "intake_audience",
+      "priority_offerings",
+    ].every((k) => verplichteSleutels.has(k)),
+  );
+
+  ok(
+    "een leeg profiel mist alle verplichte velden",
+    missingRequired({}).length === verplichteSleutels.size,
+  );
+  ok(
+    "n.v.t. haalt een verplicht veld van de lijst",
+    missingRequired({}, ["brand_name"]).length === verplichteSleutels.size - 1,
+  );
+  ok(
+    "een ingevuld verplicht veld staat er niet meer bij",
+    missingRequired({ brand_name: "Bakkerij Jansen" } as never).length ===
+      verplichteSleutels.size - 1,
+  );
+
+  // ⚠️ `service_regions` staat in de catalogus op "aanbevolen", maar is in de
+  // praktijk verplicht zodra het werkgebied lokaal is (hoofdstuk 14.2).
+  ok(
+    "service_regions staat in de catalogus op aanbevolen",
+    BRAND_FIELDS.find((f) => f.key === "service_regions")?.priority === "aanbevolen",
+  );
+  ok(
+    "maar telt mee zodra het werkgebied lokaal is en de plaats ontbreekt",
+    missingRequired({ service_scope: "lokaal" } as never).some(
+      (v) => v.field === "service_regions",
+    ),
+  );
+  ok(
+    "en niet bij een landelijk werkgebied",
+    !missingRequired({ service_scope: "landelijk" } as never).some(
+      (v) => v.field === "service_regions",
+    ),
+  );
+
+  // ── B4: de negen blokken dekken samen exact BRAND_FIELDS ────────────────
+  const inBlokken = SESSION_BLOCKS.flatMap((b) => b.velden as string[]);
+  const samenB4 = [...inBlokken, ...(SESSION_AUTHOR_FIELDS as string[])];
+  const bestaandeSleutels = BRAND_FIELDS.map((f) => f.key as string);
+  ok("geen dubbel veld in de blokindeling", new Set(samenB4).size === samenB4.length);
+  const missenB4 = bestaandeSleutels.filter((k) => !samenB4.includes(k));
+  ok(
+    `elk veld staat in een blok of bij de auteursvelden${missenB4.length ? " (mist: " + missenB4.join(", ") + ")" : ""}`,
+    missenB4.length === 0,
+  );
+  const teveelB4 = samenB4.filter((k) => !bestaandeSleutels.includes(k));
+  ok(
+    `en er staat geen veld bij dat niet bestaat${teveelB4.length ? " (" + teveelB4.join(", ") + ")" : ""}`,
+    teveelB4.length === 0,
+  );
+  ok(
+    "samen zijn het er 57",
+    samenB4.length === 57 && samenB4.length === BRAND_FIELDS.length,
+  );
+  ok("zeven blokken met velden", SESSION_BLOCKS.length === 7);
+  ok(
+    "elk blok heeft een titel en een uitleg van minstens één zin",
+    SESSION_BLOCKS.every((b) => b.titel.length > 2 && b.uitleg.length > 15),
   );
 });
 
@@ -9397,7 +9500,7 @@ group("de zijbalk verraadt niets aan een klant", () => {
   );
   ok(
     "en de onboardingsessie staat erbij",
-    adminItems.some((i) => i.href.endsWith("/admin/onboarding") && i.label === "Onboarding"),
+    adminItems.some((i) => i.href.endsWith("/admin/onboarding") && i.label === "Onboardinggesprek"),
   );
   ok(
     "met Diagnose ernaast, en niet nog een keer 'Onboarding-inzicht'",
@@ -9774,6 +9877,31 @@ group("de sessiepagina wordt gedeeld met de klant (deel B3)", () => {
   ok(
     "en definieert zelf geen velden",
     !sessie.includes("derivable:") && !sessie.includes("placeholder:"),
+  );
+
+  // ── Onboarding ronde B: de herindeling en de teksten uit hoofdstuk 7 ─────
+  ok("de sessie rendert de negen blokken", sessie.includes("SESSION_BLOCKS"));
+  ok(
+    "het openingsblok heet Openstaande punten, niet meer Wat we nog niet weten",
+    sessie.includes("Openstaande punten") && !sessie.includes("Wat we nog niet weten"),
+  );
+  ok(
+    "de springlink heet Ga naar dit veld, niet Invullen (de knop slaat niets op)",
+    sessie.includes("Ga naar dit veld") && !sessie.includes(">Invullen<"),
+  );
+  ok(
+    "de auteursvelden staan ingeklapt onder één gezamenlijke uitleg",
+    sessie.includes("Auteur, voor later") && sessie.includes("SESSION_AUTHOR_FIELDS"),
+  );
+  ok(
+    "het afrondblok noemt de openstaande verplichte velden",
+    sessie.includes("openstaandVerplicht"),
+  );
+
+  const paginaBron = leesBestand("app/(app)/merk/[id]/admin/onboarding/page.tsx");
+  ok(
+    "de pagina heet Onboardinggesprek, niet meer kaal Onboarding",
+    paginaBron.includes("Onboardinggesprek"),
   );
 });
 
@@ -10243,9 +10371,11 @@ group("het formulier praat de taal van de branche", () => {
       (f) => f.key as string,
     ),
   );
+  // Elf sinds onboarding ronde B: `brand_name` erbij, want het label en de
+  // omschrijving bepalen het antwoord al volledig, net als bij `name`.
   ok(
-    "tien velden hebben bewust geen voorbeeld",
-    zonderVoorbeeld.size === 10,
+    "elf velden hebben bewust geen voorbeeld",
+    zonderVoorbeeld.size === 11,
     `${zonderVoorbeeld.size}`,
   );
   ok(

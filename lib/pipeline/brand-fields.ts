@@ -118,6 +118,33 @@ export interface BrandField {
    * "uit je website gehaald" mag verschijnen, en of een leeg veld erg is.
    */
   derivable: boolean;
+  /**
+   * Waar het antwoord landt, in één zin. Staat onder het invoerveld
+   * (`brand-field-input.tsx`), en is precies het antwoord op de vraag die een
+   * klant tijdens de onboardingsessie het vaakst stelt: "waarom willen jullie
+   * dit weten?" Een veld zonder lezer zegt dat hier ook eerlijk: "Alleen
+   * vastgelegd voor het gesprek, wordt op dit moment nergens gebruikt."
+   *
+   * ⚠️ Verplicht voor elk veld (onboarding ronde B, hoofdstuk 6). Zonder die
+   * eis kan een nieuw veld landen zonder dat iemand heeft opgeschreven waar
+   * het voor dient, en dat is precies het gat dat deze kolom dicht.
+   */
+  usage: string;
+  /**
+   * Hoe zwaar dit veld weegt in het gesprek (hoofdstuk 6, kolom "Status").
+   *
+   * `verplicht`  = het gesprek is niet af zonder dit veld; een fout hier kost
+   *                een hele meetronde of een score die structureel te laag of
+   *                te hoog uitvalt.
+   * `aanbevolen` = merkbaar betere uitkomst, het product werkt ook zonder.
+   * `optioneel`  = mag leeg blijven.
+   *
+   * ⚠️ `service_regions` staat hier op `aanbevolen`: hij is alleen verplicht
+   * als `service_scope` op `lokaal` staat. Die uitzondering zit in
+   * `missingRequired()`, niet in deze kolom, want de kolom kent het profiel
+   * niet.
+   */
+  priority: "verplicht" | "aanbevolen" | "optioneel";
 }
 
 /**
@@ -140,6 +167,26 @@ export const BRAND_FIELDS: BrandField[] = [
     description: "Zoals je bedrijf heet. Dit is ook het label van dit merk in ORBIT ENGINE.",
     kind: "tekst",
     derivable: true,
+    usage: "Het label van dit merk in ORBIT ENGINE. Zie je overal terug in schermen, rapporten en e-mails.",
+    priority: "verplicht",
+  },
+  {
+    // Onboarding ronde B, stap B1: de naam waarop de meting daadwerkelijk
+    // telt. Tot deze stap kon niemand hem corrigeren, terwijl ongeveer twintig
+    // modules hem lezen (`measure.ts`, `answers.ts`, `market.ts`, `report.ts`,
+    // `content.ts`, `offering.ts`, en de schermtitel van bijna elk merkscherm).
+    // Gezet door het AI-onderzoek, maar `field-merge.ts` laat hem daarna met
+    // rust zodra een mens hem heeft aangepast, net als elk ander veld.
+    key: "brand_name",
+    step: "bedrijf",
+    label: "Naam waarop we meten",
+    description:
+      "De naam zoals een klant je merk noemt, precies zoals hij in een AI-antwoord zou staan.",
+    kind: "tekst",
+    derivable: true,
+    usage:
+      "Hierop telt ORBIT ENGINE of een AI-assistent jou noemt. Staat hier iets anders dan wat mensen zeggen, dan valt je score te laag uit.",
+    priority: "verplicht",
   },
   {
     key: "aliases",
@@ -149,6 +196,9 @@ export const BRAND_FIELDS: BrandField[] = [
       "Noemt een AI je als \"Jansen BV\" terwijl je dossier \"Bakkerij Jansen\" zegt, dan telt die vermelding niet mee en valt je score te laag uit.",
     kind: "lijst",
     derivable: true,
+    usage:
+      "Telt mee bij het meten van je vermeldingen. Zonder varianten telt een vermelding onder een andere schrijfwijze niet mee.",
+    priority: "verplicht",
   },
   {
     key: "industry",
@@ -158,6 +208,9 @@ export const BRAND_FIELDS: BrandField[] = [
     placeholder: "Autodealer, fysiotherapiepraktijk, B2B-software",
     kind: "tekst",
     derivable: true,
+    usage:
+      "Stuurt bijna de hele analyse: het onderzoek, de zoekvragen, de concurrenten en de teksten.",
+    priority: "verplicht",
   },
   {
     // Het bedrijfsmodel (R8.5, migratie 0032) stuurt welke vragen de klant bij
@@ -179,6 +232,9 @@ export const BRAND_FIELDS: BrandField[] = [
     ],
     values: ["dienstverlener", "retailer", "platform", "fabrikant", "overig"],
     derivable: true,
+    usage:
+      "Bepaalt waar ORBIT ENGINE in je aanbod naar zoekt en welke vragen je krijgt voordat er een pagina geschreven wordt.",
+    priority: "verplicht",
   },
   {
     key: "service_scope",
@@ -190,6 +246,8 @@ export const BRAND_FIELDS: BrandField[] = [
     options: ["Lokaal", "Landelijk", "Internationaal"],
     values: ["lokaal", "landelijk", "internationaal"],
     derivable: true,
+    usage: "Bepaalt of ORBIT ENGINE regionale zoekvragen stelt. Fout hier kost een hele meetronde.",
+    priority: "verplicht",
   },
   {
     key: "service_regions",
@@ -198,6 +256,10 @@ export const BRAND_FIELDS: BrandField[] = [
     description: "Gebruikt voor de lokale zoekvragen in de meting.",
     kind: "lijst",
     derivable: true,
+    usage: "Komt letterlijk in de zoekvragen van de meting terecht.",
+    // ⚠️ Alleen verplicht bij een lokaal werkgebied. Die uitzondering staat
+    // niet hier maar in `missingRequired()`, die het profiel wél kent.
+    priority: "aanbevolen",
   },
   {
     key: "market_language",
@@ -207,6 +269,8 @@ export const BRAND_FIELDS: BrandField[] = [
     placeholder: "Nederland en België, Nederlands",
     kind: "tekst",
     derivable: true,
+    usage: "Bepaalt in welke taal en voor welk land de zoekvragen worden gesteld.",
+    priority: "aanbevolen",
   },
   {
     key: "sitemap_url",
@@ -217,6 +281,8 @@ export const BRAND_FIELDS: BrandField[] = [
     placeholder: "https://voorbeeld.nl/sitemap.xml",
     kind: "tekst",
     derivable: true,
+    usage: "Hiermee vindt ORBIT ENGINE je pagina's. Laat leeg en ORBIT ENGINE zoekt hem zelf.",
+    priority: "optioneel",
   },
 
   // ── 2. Je merk ────────────────────────────────────────────────────────────
@@ -228,6 +294,8 @@ export const BRAND_FIELDS: BrandField[] = [
     placeholder: "Wij zorgen dat iedereen in de regio zorgeloos kan rijden",
     kind: "lange-tekst",
     derivable: true,
+    usage: "Alleen vastgelegd voor het gesprek. Wordt op dit moment niet verder gebruikt in de applicatie.",
+    priority: "optioneel",
   },
   {
     key: "brand_positioning",
@@ -237,6 +305,8 @@ export const BRAND_FIELDS: BrandField[] = [
     placeholder: "De grootste keuze in de regio, met de service van een familiebedrijf",
     kind: "lange-tekst",
     derivable: true,
+    usage: "Alleen vastgelegd voor het gesprek. Wordt op dit moment niet verder gebruikt in de applicatie.",
+    priority: "optioneel",
   },
   {
     key: "value_props",
@@ -246,6 +316,8 @@ export const BRAND_FIELDS: BrandField[] = [
     placeholder: "Eerlijk advies",
     kind: "lijst",
     derivable: true,
+    usage: "Gaat mee in de schrijfopdracht als reden waarom klanten kiezen.",
+    priority: "aanbevolen",
   },
 
   // ── 3. Je klant ───────────────────────────────────────────────────────────
@@ -257,6 +329,8 @@ export const BRAND_FIELDS: BrandField[] = [
     placeholder: "Particulieren in Noord-Brabant die een tweede auto zoeken",
     kind: "lange-tekst",
     derivable: true,
+    usage: "Bepaalt op wie het onderzoek en de teksten worden afgestemd.",
+    priority: "verplicht",
   },
   {
     key: "audience_secondary",
@@ -266,6 +340,8 @@ export const BRAND_FIELDS: BrandField[] = [
     placeholder: "Zzp'ers die een bestelbus willen leasen",
     kind: "lange-tekst",
     derivable: false,
+    usage: "Alleen vastgelegd voor het gesprek. Wordt op dit moment niet verder gebruikt.",
+    priority: "optioneel",
   },
   {
     key: "audience_knowledge_level",
@@ -276,6 +352,8 @@ export const BRAND_FIELDS: BrandField[] = [
     kind: "schuif",
     options: ["Weinig", "Redelijk wat", "Veel, is vakgenoot"],
     derivable: false,
+    usage: "Alleen vastgelegd voor het gesprek. Wordt op dit moment niet verder gebruikt.",
+    priority: "optioneel",
   },
   {
     key: "personas",
@@ -286,6 +364,8 @@ export const BRAND_FIELDS: BrandField[] = [
     placeholder: "Jonge ouders",
     kind: "personas",
     derivable: true,
+    usage: "Alleen vastgelegd voor het gesprek. Wordt op dit moment niet gebruikt bij het schrijven.",
+    priority: "optioneel",
   },
   {
     key: "differentiator",
@@ -295,6 +375,8 @@ export const BRAND_FIELDS: BrandField[] = [
     placeholder: "Bij ons staat er altijd iemand aan de balie die je herkent",
     kind: "lange-tekst",
     derivable: true,
+    usage: "Alleen vastgelegd voor het gesprek. Wordt op dit moment nog niet in de teksten gebruikt.",
+    priority: "aanbevolen",
   },
   {
     key: "competitors",
@@ -304,6 +386,9 @@ export const BRAND_FIELDS: BrandField[] = [
       "De partijen waar je klant ook naar kijkt. Clusters vullen dit per onderwerp aan met eigen, specifieke concurrenten.",
     kind: "lijst",
     derivable: true,
+    usage:
+      "Wordt gebruikt in de meting, het concurrentieonderzoek en de vergelijking in je rapport.",
+    priority: "verplicht",
   },
 
   // ── 4. Hoe je klinkt ──────────────────────────────────────────────────────
@@ -315,6 +400,8 @@ export const BRAND_FIELDS: BrandField[] = [
     kind: "schuif",
     options: ["Informeel", "Tussenin", "Formeel"],
     derivable: false,
+    usage: "Bepaalt de toon van elke tekst die ORBIT ENGINE schrijft.",
+    priority: "aanbevolen",
   },
   {
     key: "tone_energy",
@@ -324,6 +411,8 @@ export const BRAND_FIELDS: BrandField[] = [
     kind: "schuif",
     options: ["Rustig", "Gebalanceerd", "Energiek"],
     derivable: false,
+    usage: "Bepaalt de toon van elke tekst die ORBIT ENGINE schrijft.",
+    priority: "aanbevolen",
   },
   {
     key: "tone_complexity",
@@ -333,6 +422,8 @@ export const BRAND_FIELDS: BrandField[] = [
     kind: "schuif",
     options: ["Eenvoudig", "Toegankelijk expert", "Diep expert"],
     derivable: false,
+    usage: "Bepaalt hoe diep de teksten de materie in gaan.",
+    priority: "aanbevolen",
   },
   {
     key: "tone_humor",
@@ -342,6 +433,8 @@ export const BRAND_FIELDS: BrandField[] = [
     kind: "schuif",
     options: ["Geen", "Subtiel", "Speels"],
     derivable: false,
+    usage: "Bepaalt de toon van elke tekst die ORBIT ENGINE schrijft.",
+    priority: "aanbevolen",
   },
   {
     key: "tone_emotional",
@@ -351,6 +444,8 @@ export const BRAND_FIELDS: BrandField[] = [
     kind: "schuif",
     options: ["Neutraal", "Geruststellend", "Enthousiast", "Urgent"],
     derivable: false,
+    usage: "Alleen vastgelegd voor het gesprek. De vier andere schuiven sturen de teksten wel.",
+    priority: "optioneel",
   },
   {
     key: "tone_of_voice",
@@ -361,6 +456,8 @@ export const BRAND_FIELDS: BrandField[] = [
     placeholder: "Een ervaren monteur die het uitlegt zonder je dom te laten voelen",
     kind: "lange-tekst",
     derivable: true,
+    usage: "Gaat mee in het onderzoek en in elke schrijfopdracht.",
+    priority: "aanbevolen",
   },
 
   // ── 5. Je woorden ─────────────────────────────────────────────────────────
@@ -372,6 +469,8 @@ export const BRAND_FIELDS: BrandField[] = [
     placeholder: "Altijd dichtbij",
     kind: "lijst",
     derivable: true,
+    usage: "Alleen vastgelegd voor het gesprek. Wordt op dit moment niet in de teksten gebruikt.",
+    priority: "optioneel",
   },
   {
     key: "taboo_phrases",
@@ -382,6 +481,9 @@ export const BRAND_FIELDS: BrandField[] = [
     placeholder: "goedkoop",
     kind: "lijst",
     derivable: false,
+    usage:
+      "ORBIT ENGINE gebruikt ze niet, en controleert na het schrijven of ze er echt niet in staan.",
+    priority: "aanbevolen",
   },
   {
     key: "pronoun_preference",
@@ -393,6 +495,8 @@ export const BRAND_FIELDS: BrandField[] = [
     options: ["je en jij", "u en uw", "wij en ons"],
     values: ["je", "u", "wij"],
     derivable: false,
+    usage: "Alleen vastgelegd voor het gesprek. Wordt op dit moment niet in de teksten toegepast.",
+    priority: "optioneel",
   },
   {
     key: "identity_keywords",
@@ -402,6 +506,8 @@ export const BRAND_FIELDS: BrandField[] = [
     placeholder: "vakmanschap",
     kind: "lijst",
     derivable: true,
+    usage: "Alleen vastgelegd voor het gesprek. Wordt op dit moment niet in de teksten gebruikt.",
+    priority: "optioneel",
   },
   {
     key: "compliance_notes",
@@ -412,6 +518,8 @@ export const BRAND_FIELDS: BrandField[] = [
     placeholder: "Geen uitspraken over rendement, altijd de kleine lettertjes vermelden",
     kind: "lange-tekst",
     derivable: false,
+    usage: "Gaat letterlijk mee in elke schrijfopdracht.",
+    priority: "aanbevolen",
   },
 
   // ── 6. Wie het schrijft ───────────────────────────────────────────────────
@@ -423,6 +531,9 @@ export const BRAND_FIELDS: BrandField[] = [
       "Moet een echt persoon zijn die bij je werkt en online te vinden is. Een verzonnen auteur werkt averechts.",
     kind: "tekst",
     derivable: false,
+    usage:
+      "Bedoeld voor de naam onder je artikelen. Wordt op dit moment nog niet automatisch onder content gezet.",
+    priority: "optioneel",
   },
   {
     key: "author_role",
@@ -432,6 +543,8 @@ export const BRAND_FIELDS: BrandField[] = [
     placeholder: "Bedrijfsleider werkplaats",
     kind: "tekst",
     derivable: false,
+    usage: "Vastgelegd bij dit merk, nog niet gebruikt bij het publiceren.",
+    priority: "optioneel",
   },
   {
     key: "author_bio",
@@ -441,6 +554,8 @@ export const BRAND_FIELDS: BrandField[] = [
     placeholder: "Sanne werkt sinds 2011 in de werkplaats en leidt daar het onderhoudsteam.",
     kind: "lange-tekst",
     derivable: false,
+    usage: "Vastgelegd bij dit merk, nog niet gebruikt bij het publiceren.",
+    priority: "optioneel",
   },
   {
     key: "author_photo_url",
@@ -450,6 +565,8 @@ export const BRAND_FIELDS: BrandField[] = [
     placeholder: "https://voorbeeld.nl/team/sanne.jpg",
     kind: "tekst",
     derivable: false,
+    usage: "Vastgelegd bij dit merk, nog niet gebruikt bij het publiceren.",
+    priority: "optioneel",
   },
   {
     key: "author_linkedin_url",
@@ -459,6 +576,8 @@ export const BRAND_FIELDS: BrandField[] = [
     placeholder: "https://linkedin.com/in/…",
     kind: "tekst",
     derivable: false,
+    usage: "Vastgelegd bij dit merk, nog niet gebruikt bij het publiceren.",
+    priority: "optioneel",
   },
   {
     key: "author_facebook_url",
@@ -468,6 +587,8 @@ export const BRAND_FIELDS: BrandField[] = [
     placeholder: "https://facebook.com/…",
     kind: "tekst",
     derivable: false,
+    usage: "Vastgelegd bij dit merk, nog niet gebruikt bij het publiceren.",
+    priority: "optioneel",
   },
   {
     key: "author_other_url",
@@ -477,6 +598,8 @@ export const BRAND_FIELDS: BrandField[] = [
     placeholder: "https://voorbeeld.nl/over-ons/sanne",
     kind: "tekst",
     derivable: false,
+    usage: "Vastgelegd bij dit merk, nog niet gebruikt bij het publiceren.",
+    priority: "optioneel",
   },
 
   // ── 7. Waar je om bekend wilt staan ───────────────────────────────────────
@@ -491,6 +614,8 @@ export const BRAND_FIELDS: BrandField[] = [
     placeholder: "Als enige in Brabant een eigen schadeherstelbedrijf én verhuur",
     kind: "lange-tekst",
     derivable: true,
+    usage: "Alleen vastgelegd voor het gesprek. Wordt op dit moment nog niet in de teksten gebruikt.",
+    priority: "aanbevolen",
   },
   {
     key: "key_messages",
@@ -500,6 +625,8 @@ export const BRAND_FIELDS: BrandField[] = [
     placeholder: "Altijd een vervangende auto",
     kind: "lijst",
     derivable: true,
+    usage: "Alleen vastgelegd voor het gesprek. Wordt op dit moment nog niet in de teksten gebruikt.",
+    priority: "aanbevolen",
   },
   {
     key: "proof_points",
@@ -510,6 +637,9 @@ export const BRAND_FIELDS: BrandField[] = [
     placeholder: "400 medewerkers in 9 vestigingen",
     kind: "lijst",
     derivable: true,
+    usage:
+      "Vormt de feitenbank: hiermee onderbouwt ORBIT ENGINE claims in je teksten. Zonder feiten wordt elke tekst algemeen.",
+    priority: "verplicht",
   },
   {
     key: "products",
@@ -519,6 +649,8 @@ export const BRAND_FIELDS: BrandField[] = [
     placeholder: "Onderhoudsbeurt",
     kind: "lijst",
     derivable: true,
+    usage: "Bepaalt welk aanbod ORBIT ENGINE meet en waar de teksten over gaan.",
+    priority: "verplicht",
   },
   {
     key: "summary",
@@ -528,6 +660,8 @@ export const BRAND_FIELDS: BrandField[] = [
     placeholder: "Van Mossel is een regionale autodealer met negen vestigingen in Brabant.",
     kind: "lange-tekst",
     derivable: true,
+    usage: "Opent elk onderzoek en komt terug in je rapport en in de e-mail aan je klant.",
+    priority: "verplicht",
   },
   {
     key: "intake_description",
@@ -537,6 +671,8 @@ export const BRAND_FIELDS: BrandField[] = [
       "Alles wat hierboven niet paste maar wel meetelt. Wat je hier zet blijft staan, ook als het onderzoek opnieuw draait.",
     kind: "lange-tekst",
     derivable: false,
+    usage: "Gaat mee in het onderzoek en blijft staan, ook als het onderzoek opnieuw draait.",
+    priority: "optioneel",
   },
 
   // ── 8. Wat je met je markt wilt ───────────────────────────────────────────
@@ -557,6 +693,8 @@ export const BRAND_FIELDS: BrandField[] = [
     placeholder: "Onderhoudsabonnementen",
     kind: "lijst",
     derivable: false,
+    usage: "Deze onderwerpen stelt ORBIT ENGINE als eerste voor in je contentplan.",
+    priority: "verplicht",
   },
   {
     key: "deprioritised_offerings",
@@ -567,6 +705,8 @@ export const BRAND_FIELDS: BrandField[] = [
     placeholder: "Losse bandenwissel",
     kind: "lijst",
     derivable: false,
+    usage: "Hier maakt ORBIT ENGINE geen content voor, ook niet als het zoekvolume hoog is.",
+    priority: "aanbevolen",
   },
   {
     key: "target_segments",
@@ -577,6 +717,8 @@ export const BRAND_FIELDS: BrandField[] = [
     placeholder: "Installateurs met eigen monteurs",
     kind: "lijst",
     derivable: false,
+    usage: "Scherpt de onderwerpkeuze aan, specifieker dan je algemene doelgroep.",
+    priority: "aanbevolen",
   },
   {
     key: "growth_regions",
@@ -586,6 +728,8 @@ export const BRAND_FIELDS: BrandField[] = [
       "Plaatsen of streken waar je nog niet zit maar wel wilt komen. ORBIT ENGINE stelt daar extra vragen over, naast je huidige werkgebied.",
     kind: "lijst",
     derivable: false,
+    usage: "Levert extra zoekvragen op voor gebieden waar je nog geen klanten hebt.",
+    priority: "optioneel",
   },
   {
     key: "deal_value_band",
@@ -602,6 +746,8 @@ export const BRAND_FIELDS: BrandField[] = [
     ],
     values: ["onbekend", "klein", "midden", "groot"],
     derivable: false,
+    usage: "Alleen vastgelegd voor het gesprek. Wordt op dit moment nog niet meegewogen in de app.",
+    priority: "optioneel",
   },
   {
     key: "seasonality",
@@ -612,6 +758,9 @@ export const BRAND_FIELDS: BrandField[] = [
     placeholder: "Drukste periode is september tot november, zomer is dood",
     kind: "lange-tekst",
     derivable: false,
+    usage:
+      "Bepaalt wanneer een pagina klaar moet zijn, niet of hij geschreven wordt. Komt terug in de duiding van je rapport.",
+    priority: "aanbevolen",
   },
   {
     key: "sales_objections",
@@ -622,6 +771,9 @@ export const BRAND_FIELDS: BrandField[] = [
     placeholder: "Jullie zijn duurder dan de rest",
     kind: "lijst",
     derivable: false,
+    usage:
+      "Gaat mee in elke schrijfopdracht: een AI-antwoord heeft vaak precies de vorm van zo'n bezwaar.",
+    priority: "aanbevolen",
   },
   {
     key: "forbidden_topics",
@@ -632,6 +784,9 @@ export const BRAND_FIELDS: BrandField[] = [
     placeholder: "Lopende rechtszaken",
     kind: "lijst",
     derivable: false,
+    usage:
+      "ORBIT ENGINE stelt deze onderwerpen niet voor en controleert na het schrijven of ze er echt niet in staan.",
+    priority: "aanbevolen",
   },
   {
     key: "offline_proof",
@@ -642,6 +797,9 @@ export const BRAND_FIELDS: BrandField[] = [
     placeholder: "ISO 9001 sinds 2019",
     kind: "lijst",
     derivable: false,
+    usage:
+      "Komt in dezelfde feitenbank terecht, zodat ORBIT ENGINE claims kan onderbouwen die het anders niet mag maken.",
+    priority: "aanbevolen",
   },
   {
     key: "name_exclusions",
@@ -652,6 +810,8 @@ export const BRAND_FIELDS: BrandField[] = [
     placeholder: "Jansen Techniek in Groningen",
     kind: "lijst",
     derivable: false,
+    usage: "Voorkomt dat vermeldingen van een naamgenoot als die van jou worden geteld.",
+    priority: "aanbevolen",
   },
   {
     key: "respect_site_structure",
@@ -662,6 +822,8 @@ export const BRAND_FIELDS: BrandField[] = [
     kind: "janee",
     options: ["Ja, nieuwe pagina's mogen", "Nee, blijf binnen de structuur"],
     derivable: false,
+    usage: "Bij 'nee' stelt ORBIT ENGINE alleen verbeteringen aan bestaande pagina's voor.",
+    priority: "aanbevolen",
   },
   {
     key: "goal_12m",
@@ -672,6 +834,8 @@ export const BRAND_FIELDS: BrandField[] = [
     placeholder: "Bekend staan als dé specialist in warmtepompen in Midden-Nederland",
     kind: "lange-tekst",
     derivable: false,
+    usage: "Stuurt welke onderwerpen worden voorgesteld en komt terug in elk rapport.",
+    priority: "aanbevolen",
   },
 
   // ── 9. Met wie we praten ──────────────────────────────────────────────────
@@ -687,6 +851,9 @@ export const BRAND_FIELDS: BrandField[] = [
     description: "Wie het aanspreekpunt is voor dit merk.",
     kind: "tekst",
     derivable: false,
+    usage:
+      "Alleen vastgelegd bij dit merk. Het inlogaccount en de facturatiegegevens staan bij het account, niet hier.",
+    priority: "aanbevolen",
   },
   {
     key: "contact_email",
@@ -695,6 +862,8 @@ export const BRAND_FIELDS: BrandField[] = [
     description: "Waar de uitnodiging en de rapporten heen gaan.",
     kind: "tekst",
     derivable: false,
+    usage: "Alleen vastgelegd bij dit merk. Uitnodigingen en rapporten gaan naar het adres dat bij het account staat.",
+    priority: "aanbevolen",
   },
   {
     key: "contact_phone",
@@ -703,6 +872,8 @@ export const BRAND_FIELDS: BrandField[] = [
     description: "Voor als er iets niet klopt en mailen te traag is.",
     kind: "tekst",
     derivable: false,
+    usage: "Alleen vastgelegd bij dit merk. Wordt niet verder gebruikt in de applicatie.",
+    priority: "optioneel",
   },
 ];
 
@@ -864,3 +1035,193 @@ export function overallProgress(
   const gevuld = velden.filter((f) => isFilled(profile[f.key])).length;
   return { gevuld, totaal: velden.length };
 }
+
+/** Eén verplicht veld dat nog leeg is. */
+export interface MissingRequiredField {
+  field: string;
+  label: string;
+}
+
+/**
+ * Welke verplichte velden staan nog open? (Onboarding ronde B, stap B3.)
+ *
+ * Het afrondblok van de sessie gebruikt dit om te zeggen wat er nog moet
+ * gebeuren vóórdat het gesprek klaar is. Bewust geen validatie tijdens het
+ * typen: de klant kijkt mee, en een rode rand op een veld dat hij nog niet
+ * heeft kunnen beantwoorden hoort niet op een scherm dat je samen bekijkt
+ * (hoofdstuk 8.3).
+ *
+ * ⚠️ `service_regions` heeft in de catalogus `priority: "aanbevolen"`, maar is
+ * in de praktijk verplicht zodra `service_scope` op `lokaal` staat
+ * (hoofdstuk 14.2): zonder plaatsnaam gaan de zoekvragen landelijk, en dat is
+ * pas ná een betaalde meetronde zichtbaar. Die uitzondering staat hier, niet
+ * in de catalogus, want de catalogus kent het profiel niet.
+ */
+export function missingRequired(
+  profile: Partial<Profile>,
+  notApplicable: string[] = [],
+): MissingRequiredField[] {
+  const nvt = new Set(notApplicable);
+  const missing: MissingRequiredField[] = [];
+  for (const f of BRAND_FIELDS) {
+    const key = f.key as string;
+    if (nvt.has(key)) continue;
+    const verplicht =
+      f.priority === "verplicht" ||
+      (key === "service_regions" && profile.service_scope === "lokaal");
+    if (!verplicht) continue;
+    if (!isFilled(profile[f.key])) missing.push({ field: key, label: f.label });
+  }
+  return missing;
+}
+
+/** Eén blok van de onboardingsessie: de gespreksvolgorde uit hoofdstuk 3. */
+export interface SessionBlock {
+  id: string;
+  /** Het volgnummer zoals het in het gesprek genoemd wordt, "2" tot en met "9". */
+  volgnummer: string;
+  titel: string;
+  /** Eén zin die zegt wat dit blok bepaalt (hoofdstuk 3, structuurregel 1). */
+  uitleg: string;
+  velden: (keyof Profile)[];
+}
+
+/**
+ * De negen blokken van de onboardingsessie (onboarding ronde B, stap B4).
+ *
+ * ⚠️ GEEN TWEEDE VELDENLIJST. Dit hergroepeert `BRAND_FIELDS` alleen voor de
+ * volgorde waarin de sessie ze toont; de klantwizard (`/merkprofiel/bewerken`)
+ * blijft de catalogusvolgorde via `CLIENT_STEPS` gebruiken. Minder ingrijpend
+ * dan een nieuwe `BrandStep`-waarde, en het voorkomt dat één veld twee keer
+ * een "stap" krijgt (hoofdstuk 18, stap B4).
+ *
+ * De volgorde volgt hoe het gesprek daadwerkelijk loopt: eerst wat er verkocht
+ * wordt, dan pas waar de groei zit; eerst het aanbod, dan de markt. Dat is een
+ * andere volgorde dan de catalogus (`STEP_ORDER`), en dat is precies het punt
+ * (hoofdstuk 3 en P5).
+ *
+ * Blok 0 (voorbereiding) en blok 1 (openstaande punten) hebben geen velden en
+ * staan daarom niet in deze lijst; die renderen rechtstreeks in
+ * `onboarding-session.tsx`. Blok 7 (materiaal en veranderingen) heeft ook geen
+ * velden uit de catalogus: dat blok is het documentenvak en het gespreksblok.
+ *
+ * ⚠️ `SESSION_BLOCKS` plus `SESSION_AUTHOR_FIELDS` dekt samen exact
+ * `BRAND_FIELDS`, niets meer en niets minder. Een unittest bewaakt dat: geen
+ * enkel veld mag zoekraken in de herindeling.
+ */
+export const SESSION_BLOCKS: SessionBlock[] = [
+  {
+    id: "bedrijf",
+    volgnummer: "2",
+    titel: "Je bedrijf en je namen",
+    uitleg: "Dit blok bepaalt op welke naam en in welk gebied ORBIT ENGINE meet.",
+    velden: [
+      "name",
+      "brand_name",
+      "aliases",
+      "name_exclusions",
+      "industry",
+      "business_model",
+      "service_scope",
+      "service_regions",
+      "market_language",
+    ],
+  },
+  {
+    id: "aanbod",
+    volgnummer: "3",
+    titel: "Je aanbod en waar je op wilt groeien",
+    uitleg: "Eerst staat vast wat je verkoopt, dan pas waar de groei zit.",
+    velden: [
+      "products",
+      "priority_offerings",
+      "deprioritised_offerings",
+      "target_segments",
+      "growth_regions",
+      "seasonality",
+      "deal_value_band",
+      "forbidden_topics",
+      "respect_site_structure",
+      "goal_12m",
+    ],
+  },
+  {
+    id: "markt",
+    volgnummer: "4",
+    titel: "Je markt en je concurrenten",
+    uitleg: "Dit blok bepaalt waarmee je vergeleken wordt, en waarop je wint.",
+    velden: ["competitors", "differentiator", "usp", "sales_objections"],
+  },
+  {
+    id: "bewijs",
+    volgnummer: "5",
+    titel: "Je bewijs en je boodschap",
+    uitleg: "De feiten die een AI-assistent kan aanhalen, en de boodschap eromheen.",
+    velden: [
+      "proof_points",
+      "offline_proof",
+      "summary",
+      "value_props",
+      "key_messages",
+      "brand_mission",
+      "brand_positioning",
+      "intake_description",
+    ],
+  },
+  {
+    id: "klant",
+    volgnummer: "6",
+    titel: "Je klant en je toon",
+    uitleg: "Voor wie we schrijven, en hoe het klinkt.",
+    velden: [
+      "intake_audience",
+      "audience_secondary",
+      "audience_knowledge_level",
+      "personas",
+      "tone_formality",
+      "tone_energy",
+      "tone_complexity",
+      "tone_humor",
+      "tone_emotional",
+      "tone_of_voice",
+      "taboo_phrases",
+      "compliance_notes",
+      "signature_phrases",
+      "identity_keywords",
+      "pronoun_preference",
+    ],
+  },
+  {
+    id: "techniek",
+    volgnummer: "8",
+    titel: "Techniek en koppelingen",
+    uitleg: "Hier bepaal je waar ORBIT ENGINE je pagina's vindt.",
+    velden: ["sitemap_url"],
+  },
+  {
+    id: "afspraken",
+    volgnummer: "9",
+    titel: "Afspraken en afronden",
+    uitleg: "Wie het aanspreekpunt is, en wat we hierna gebruiken.",
+    velden: ["contact_name", "contact_email", "contact_phone"],
+  },
+];
+
+/**
+ * Auteursvelden: een eigen, ingeklapt blok binnen "Afspraken en afronden".
+ *
+ * Zeven velden die nergens landen (hoofdstuk 4, "niemand") zijn zeven vragen
+ * die het gesprek vertragen. Ze blijven in de catalogus staan (geen enkel veld
+ * verdwijnt), maar krijgen in de sessie één gezamenlijke uitleg in plaats van
+ * zeven losse kaarten in de hoofdstroom (hoofdstuk 6, "Ontwerpkeuze bij de
+ * auteursvelden").
+ */
+export const SESSION_AUTHOR_FIELDS: (keyof Profile)[] = [
+  "author_name",
+  "author_role",
+  "author_bio",
+  "author_photo_url",
+  "author_linkedin_url",
+  "author_facebook_url",
+  "author_other_url",
+];

@@ -263,7 +263,7 @@ export function brandNav(brandId: string, staff = false): NavItem[] {
       ? [
           {
             href: `/merk/${brandId}/admin/onboarding`,
-            label: "Onboarding",
+            label: "Onboardinggesprek",
             hoofdstuk: "Admin" as const,
             staffOnly: true,
           },

@@ -97,6 +97,10 @@ export function BrandFieldInput({
         </span>
       </div>
       <p className="text-sm text-muted">{field.description}</p>
+      {/* Onboarding ronde B, stap B2: waar het antwoord landt, in één zin.
+          Precies het antwoord op de vraag die tijdens de sessie het vaakst
+          valt: "waarom willen jullie dit weten?" */}
+      <p className="text-xs text-muted">{field.usage}</p>
 
       {/* ⚠️ De waarde blijft staan, en er komt een knop bij. Stil terugdraaien
           naar de oude waarde laat de consultant het opnieuw typen zonder te

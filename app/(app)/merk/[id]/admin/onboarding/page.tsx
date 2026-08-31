@@ -9,7 +9,7 @@ import { parseContextFactors } from "@/lib/pipeline/context-factors";
 import type { FieldState } from "@/lib/profile-meter";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Onboarding" };
+export const metadata = { title: "Onboardinggesprek" };
 
 /**
  * DE ONBOARDINGSESSIE, het werk mét de klant.
@@ -100,8 +100,8 @@ export default async function OnboardingSessiePagina({
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
-        title="Onboarding"
-        description={`Samen nalopen wat ORBIT ENGINE over ${merknaam} heeft gevonden, aanvullen wat een website niet kan vertellen, en vastleggen wat we afspreken.`}
+        title="Onboardinggesprek"
+        description={`Samen nalopen wat ORBIT ENGINE over ${merknaam} heeft gevonden, aanvullen wat een website niet kan vertellen, en vastleggen wat we afspreken. Alles wat je hier invult wordt meteen bewaard.`}
       />
 
       <OnboardingSession

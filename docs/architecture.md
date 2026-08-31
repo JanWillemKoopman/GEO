@@ -919,7 +919,7 @@ niet in Supabase.**
 |---|---|---|
 | 1 | Supabase → Authentication → Users → **Add user** | E-mail + wachtwoord, **Auto Confirm User aan**. Er komt géén rij in `profiles` bij. |
 | 2 | De app, ingelogd als beheerder → **Merken → + Nieuw merk** | Webadres, bedrijfsnaam, schrijfwijzen. De pijplijn draait ~7,5 min (~$0,25). Het profiel staat nu op het account van de beheerder. |
-| 3 | Het demogesprek → **Admin → Onboarding** | De sessiepagina: open punten eerst, dan de commerciële laag, dan het gevonden dossier ter controle. Opslaan gaat per veld. Sluit af met het gesprek vastleggen en, als er iets gewijzigd is dat ertoe doet, het onderzoek bijwerken. |
+| 3 | Het demogesprek → **Admin → Onboardinggesprek** | De sessiepagina, sinds onboarding ronde B in negen blokken en niet meer in de catalogusvolgorde: open punten eerst, dan je bedrijf en je namen, dan je aanbod, je markt, je bewijs, je klant en je toon, dan materiaal en veranderingen, techniek en koppelingen, en tot slot afspraken en afronden. Opslaan gaat per veld. Onder elk veld staat in één zin waar het antwoord landt (`BrandField.usage`). Sluit af met het gesprek vastleggen en, als er iets gewijzigd is dat ertoe doet, het onderzoek bijwerken. |
 | 4 | Profielpagina → blok **Beheer** (alleen zichtbaar voor beheerders) | Kies het account uit stap 1. |
 
 Stap 4 zet `profiles.user_id` op de klant, vult `assigned_at`, laat `created_by_user_id` op de

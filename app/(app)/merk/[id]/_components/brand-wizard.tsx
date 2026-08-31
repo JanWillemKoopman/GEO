@@ -26,7 +26,7 @@ import type { Profile } from "@/lib/types/database";
  * Nova laat hun klant twintig minuten uittrekken (`landingTimeNote`) voor een
  * onboarding van dertig velden die hij van nul invult. ORBIT ENGINE kan dat korter,
  * omdat het onderzoek hier vóór de kennismaking draait in plaats van erna: van
- * de 41 velden staat het merendeel er al, gevonden op de site van de klant.
+ * de 42 velden staat het merendeel er al, gevonden op de site van de klant.
  *
  * Vandaar het label **"uit je website gehaald"** (Nova's `draftedBadge`) bij
  * elk veld dat de pijplijn zelf vulde. De klant vult niets in, hij kijkt na. Dat

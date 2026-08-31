@@ -5837,3 +5837,59 @@ eerste poging aangescherpt omdat de regex de code niet raakte), 397 ketentests, 
 Verificatie op productie (§18.1, onder A): het scherm openen op een testmerk toont nu de
 openstaande stappen uitgeklapt en de complete stappen dicht, in plaats van 41 velden in één keer. Een
 veld getypt, tabblad gesloten en teruggekomen: de waarde staat er.
+
+**31 augustus 2026, onboarding ronde B (deel één, stap B1 tot en met B4).** De schermverbouwing van
+`documentatie/onboarding_optimalisatie.md` §18, uitgevoerd op `feature/onboarding-ronde-b` vanaf
+`main`. Vier stappen, in de volgorde van §18.0 (pure module vóór scherm), zonder migratie: alle
+kolommen bestonden al.
+
+**B1. `brand_name` is nu bewerkbaar.** De naam waarop de vermeldingsclassificatie telt of een
+AI-antwoord over dit merk gaat, werd tot deze ronde uitsluitend door het AI-onderzoek gezet
+(`discover.ts`) en stond nergens in een formulier. Een verkeerd afgeleide naam bleef daardoor elke
+volgende meetronde meelopen, terwijl ongeveer twintig modules hem lezen. Toegevoegd aan
+`EDITABLE_PROFILE_FIELDS` en aan `BRAND_FIELDS` (stap "bedrijf", direct na `name`, `derivable: true`),
+zodat hij automatisch meeloopt in zowel de onboardingsessie als de klantwizard, en `field-merge.ts`
+hem met rust laat zodra een mens hem heeft gezet. De catalogus telt sindsdien 57 velden in plaats van
+56, en de klantwizard 42 in plaats van 41.
+
+**B2. Elk veld toont nu waar het antwoord landt.** Nieuw verplicht veld `usage` op `BrandField`
+(`lib/pipeline/brand-fields.ts`), gevuld voor alle 57 velden met de tekst uit hoofdstuk 6 van het
+plan, gerenderd onder het invoerveld door `BrandFieldInput` in kleine grijze letters. Werkt
+automatisch door in de klantwizard, wat gewenst is: dezelfde vraag ("waarom willen jullie dit
+weten?") speelt daar net zo goed. Een unittest eist dat élk veld een `usage`-tekst van minstens tien
+tekens heeft, zodat een nieuw veld niet zonder uitleg kan landen.
+
+**B3. Verplicht, aanbevolen en optioneel bestaan nu.** Nieuw veld `priority` op `BrandField`, gezet
+volgens de statuskolom van hoofdstuk 6: twaalf velden verplicht (waaronder `brand_name`, `aliases`,
+`competitors`, `products`, `proof_points`), de rest aanbevolen of optioneel. Nieuwe pure functie
+`missingRequired(profile, notApplicable)` telt welke verplichte velden nog leeg zijn, met één
+uitzondering die in de functie zit en niet in de catalogus: `service_regions` staat op "aanbevolen",
+maar wordt pas verplicht zodra `service_scope` op "lokaal" staat (hoofdstuk 14.2). Het afrondblok van
+de sessie noemt de openstaande verplichte velden met springlinks naar het veld. Geen validatie
+tijdens het typen: de klant kijkt mee.
+
+**B4. Het scherm volgt nu de gespreksvolgorde, niet de catalogusvolgorde.** Nieuwe export
+`SESSION_BLOCKS` groepeert de 57 velden opnieuw in de negen blokken van hoofdstuk 3: openstaande
+punten, je bedrijf en je namen, je aanbod, je markt, je bewijs, je klant en je toon, documenten en
+teksten met de veranderingen die eraan komen, techniek en koppelingen, en afspraken en afronden. Dit
+is bewust géén nieuwe `BrandStep`-waarde: de klantwizard blijft de catalogusvolgorde
+(`CLIENT_STEPS`/`STEP_ORDER`) gebruiken, en `SESSION_BLOCKS` hergroepeert alleen hoe de sessie ze
+toont. De zeven auteursvelden staan voortaan in een eigen, ingeklapt blok "Auteur, voor later" binnen
+"Afspraken en afronden" (`SESSION_AUTHOR_FIELDS`), met één gezamenlijke uitleg in plaats van zeven
+losse kaarten in de hoofdstroom. De teksten volgen hoofdstuk 7: "Openstaande punten" in plaats van
+"Wat we nog niet weten", de springlink heet "Ga naar dit veld" in plaats van "Invullen" (die knop
+sloeg nooit iets op), en het scherm en het menu-item heten voortaan "Onboardinggesprek" in plaats van
+kaal "Onboarding". De A1-fix (een compleet blok opent ingeklapt) is meeverhuisd van per catalogusstap
+naar per gespreksblok, zodat het scherm ook in de nieuwe indeling kort blijft.
+
+Een aanname uit het plan bleek niet te kloppen bij het natellen: hoofdstuk 11 noemt "17 velden,
+waarvan 1 nieuw" voor blok 6 ("Je klant en je toon"), maar de rijentelling in hoofdstuk 6 komt uit op
+16 (15 bestaande plus `style_samples`, dat in deel twee van deze ronde volgt). De rijentelling in
+hoofdstuk 6 is de brontabel; de samenvatting in hoofdstuk 11 was niet bijgewerkt na een latere
+wijziging aan die tabel.
+
+Vier controles groen: typecheck, 2734 unittests (21 nieuwe), 397 ketentests, de productiebuild.
+Ronde B deel twee (B5 tot en met B9: de voorbereidingskaart, de open vragen erbij, de vier
+onderwerp-triggerende velden markeren, de resterende vijf nieuwe velden, en de vormgeving) volgt in
+een volgende sessie op dezelfde branch, en wordt pas gezamenlijk als één pull request opgeleverd
+(§15.2: een half verbouwd scherm in productie is erger dan niet verbouwd).

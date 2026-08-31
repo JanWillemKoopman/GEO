@@ -8,10 +8,11 @@ import { BrandFieldInput, type VeldStand } from "./brand-field-input";
 import { DossierBox } from "./dossier-box";
 import { StrategyBox } from "./strategy-box";
 import {
-  STEP_META,
-  CLIENT_STEPS,
-  fieldsOfStep,
-  stepProgress,
+  BRAND_FIELDS,
+  SESSION_BLOCKS,
+  SESSION_AUTHOR_FIELDS,
+  missingRequired,
+  isFilled,
 } from "@/lib/pipeline/brand-fields";
 import { findGaps } from "@/lib/profile-gaps";
 import { examplesFor } from "@/lib/pipeline/brand-examples";
@@ -79,7 +80,7 @@ export function OnboardingSession({
 }) {
   const [waarden, setWaarden] = useState<Record<string, unknown>>(() => {
     const start: Record<string, unknown> = {};
-    for (const veld of ALLE_VELDEN) start[veld.key as string] = initial[veld.key];
+    for (const veld of BRAND_FIELDS) start[veld.key as string] = initial[veld.key];
     return start;
   });
   const [standen, setStanden] = useState<Record<string, VeldStand>>({});
@@ -111,6 +112,13 @@ export function OnboardingSession({
         },
         notApplicableFields(states),
       ),
+    [waarden, states],
+  );
+
+  // B3: welke verplichte velden staan nog open, inclusief het onderscheid uit
+  // hoofdstuk 14 (`service_regions` telt alleen mee bij een lokaal werkgebied).
+  const openstaandVerplicht = useMemo(
+    () => missingRequired(waarden as Partial<Profile>, notApplicableFields(states)),
     [waarden, states],
   );
 
@@ -236,7 +244,7 @@ export function OnboardingSession({
   }
 
   function veld(key: string) {
-    const definitie = ALLE_VELDEN.find((f) => (f.key as string) === key)!;
+    const definitie = BRAND_FIELDS.find((f) => (f.key as string) === key)!;
     return (
       <BrandFieldInput
         key={key}
@@ -260,32 +268,31 @@ export function OnboardingSession({
         sections={[
           {
             id: "open",
-            label: "Nog niet bekend",
+            label: "Openstaande punten",
             badge: gaten.length > 0 ? `${gaten.length} open` : undefined,
           },
-          { id: "markt", label: "Wat je wilt" },
-          { id: "gevonden", label: "Wat we vonden" },
-          { id: "materiaal", label: "Wat je hebt" },
-          { id: "speelt", label: "Wat er speelt" },
-          { id: "afronden", label: "Afronden" },
+          ...SESSION_BLOCKS.map((blok) => ({ id: blok.id, label: blok.titel })),
+          { id: "materiaal", label: "Documenten en teksten" },
+          { id: "afronden", label: "Afspraken en afronden" },
         ]}
       />
 
       <div className="flex min-w-0 flex-1 flex-col gap-12">
-        {/* ── 1. Wat we nog niet weten ─────────────────────────────────────
+        {/* ── 1. Openstaande punten ────────────────────────────────────────
             Bovenaan, en dat is de kern van dit scherm. Elk punt noemt het
             gevolg en niet het gemis, en de zwaarste staat bovenaan. */}
         <section id="open" className="flex flex-col gap-3">
           <Kop
             nummer="01"
-            titel="Wat we nog niet weten"
+            titel="Openstaande punten"
             uitleg="Hier begint het gesprek. Elk punt hieronder maakt de meting of de teksten scherper, en het zwaarste staat bovenaan."
           />
           {gaten.length === 0 ? (
             <div className="card card-success flex flex-col gap-1">
               <span className="mono-label">Niets open</span>
               <p className="text-secondary">
-                ORBIT ENGINE heeft alles wat het nodig heeft om te meten en te schrijven.
+                Alles wat de meting stuurt staat er. De rest maakt het scherper, maar is niet
+                nodig om te beginnen.
               </p>
             </div>
           ) : (
@@ -298,7 +305,7 @@ export function OnboardingSession({
                     href={`#veld-anker-${gat.field}`}
                     className="btn-outline w-fit"
                   >
-                    Invullen
+                    Ga naar dit veld
                   </a>
                 </li>
               ))}
@@ -306,89 +313,100 @@ export function OnboardingSession({
           )}
         </section>
 
-        {/* ── 2. Wat we van je willen weten ────────────────────────────────
-            De commerciële laag. Het enige blok dat helemaal leeg begint, en
-            waar het uur consultancy over gaat. */}
-        <section id="markt" className="flex flex-col gap-3">
-          <Kop nummer="02" titel={STEP_META.strategie.title} uitleg={STEP_META.strategie.description} />
-          <div className="flex flex-col gap-4">
-            {fieldsOfStep("strategie").map((f) => veld(f.key as string))}
-          </div>
-
-          <div className="mt-4 flex flex-col gap-3">
-            <Kop nummer="02b" titel={STEP_META.contact.title} uitleg={STEP_META.contact.description} />
-            <div className="flex flex-col gap-4">
-              {fieldsOfStep("contact").map((f) => veld(f.key as string))}
-            </div>
-          </div>
-        </section>
-
-        {/* ── 3. Wat we al gevonden hebben ─────────────────────────────────
-            Ter controle, ingeklapt per stap met de teller ernaast, zodat een
-            stap die af is niet in de weg zit. */}
-        <section id="gevonden" className="flex flex-col gap-3">
-          <Kop
-            nummer="03"
-            titel="Wat we al gevonden hebben"
-            uitleg="Dit heeft ORBIT ENGINE zelf van de website gehaald. Klap open wat je wilt nalopen; wat je aanpast staat meteen vast."
-          />
-          {CLIENT_STEPS.map((stap) => {
-            const p = stepProgress(waarden as Partial<Profile>, stap);
-            return (
+        {/* ── 2 tot en met 6, 8. De blokken van hoofdstuk 3 ─────────────────
+            De gespreksvolgorde: eerst wie je bent en wat je verkoopt, dan pas
+            de markt en de toon. Elk blok combineert wat ORBIT ENGINE al vond
+            met wat alleen het gesprek kan opleveren; de herkomstchip per veld
+            (`BrandFieldInput`) laat zien welke van de twee het is. */}
+        {SESSION_BLOCKS.map((blok) => {
+          const gevuld = blok.velden.filter((k) => isFilled(waarden[k as string])).length;
+          const p = { gevuld, totaal: blok.velden.length, compleet: gevuld === blok.velden.length };
+          return (
+            <section key={blok.id} id={blok.id} className="flex flex-col gap-3">
+              <Kop nummer={blok.volgnummer} titel={blok.titel} uitleg={blok.uitleg} />
+              {/* A1, toegepast op de negen blokken: een blok dat al compleet is
+                  hoeft niet in de weg te staan tijdens het gesprek. */}
               <CollapsibleSection
-                key={stap}
-                title={`${STEP_META[stap].title} · ${p.gevuld} van de ${p.totaal}`}
-                // A1: alleen de stappen die nog niet compleet zijn openen. Een
-                // stap die al af is, hoeft niet in de weg te staan tijdens het
-                // gesprek. Overschrijft het breakpointgedrag van
-                // `CollapsibleSection` bewust, ook op desktop.
+                title={`${p.gevuld} van de ${p.totaal} ingevuld`}
                 defaultOpen={!p.compleet}
               >
-                <div className="flex flex-col gap-4">
-                  <p className="text-sm text-muted">{STEP_META[stap].description}</p>
-                  {fieldsOfStep(stap).map((f) => veld(f.key as string))}
-                </div>
+                {blok.velden.map((k) => veld(k as string))}
               </CollapsibleSection>
-            );
-          })}
-        </section>
+            </section>
+          );
+        })}
 
-        {/* ── 4. Wat je al hebt liggen ─────────────────────────────────────
+        {/* ── 7. Documenten en teksten, plus veranderingen ─────────────────
             Uitgeklapt en niet ingeklapt: het moment waarop de klant zijn
             tarievenpagina of brochure daadwerkelijk bij zich heeft, is dit
             gesprek. */}
-        <section id="materiaal" className="flex flex-col gap-3">
-          <Kop
-            nummer="04"
-            titel="Wat je al hebt liggen"
-            uitleg="Plak hier een tarievenpagina, een brochure of een stuk tekst. ORBIT ENGINE haalt er de feiten uit en bewaart ze."
-          />
-          <DossierBox profileId={profileId} />
+        <section id="materiaal" className="flex flex-col gap-6">
+          <div className="flex flex-col gap-3">
+            <Kop
+              nummer="07"
+              titel="Documenten en teksten"
+              uitleg="Plak hier een tarievenpagina, een brochure of een stuk tekst. ORBIT ENGINE haalt er de feiten uit en bewaart ze."
+            />
+            <DossierBox profileId={profileId} />
+          </div>
+
+          <div className="flex flex-col gap-3">
+            <Kop
+              nummer="07b"
+              titel="Veranderingen die eraan komen"
+              uitleg="Een nieuwe naam, een nieuwe vestiging, een dienst die stopt. Dit soort dingen staan nergens op je site en veranderen wél wat ORBIT ENGINE meet."
+            />
+            <StrategyBox
+              profileId={profileId}
+              initialNotes={strategyNotes}
+              initialFactors={strategyFactors}
+            />
+          </div>
         </section>
 
-        {/* ── 5. Wat er speelt buiten de website om ────────────────────────── */}
-        <section id="speelt" className="flex flex-col gap-3">
+        {/* ── 9. Afspraken en afronden ──────────────────────────────────── */}
+        <section id="afronden" className="flex flex-col gap-6">
           <Kop
-            nummer="05"
-            titel="Wat er speelt buiten je website om"
-            uitleg="Een nieuwe naam, een nieuwe vestiging, een dienst die stopt. Dit soort dingen staan nergens op je site en veranderen wél wat ORBIT ENGINE meet."
+            nummer="09"
+            titel="Afspraken en afronden"
+            uitleg={`Wie het aanspreekpunt is bij ${brandName}, en wat er na dit gesprek nog open staat.`}
           />
-          <StrategyBox
-            profileId={profileId}
-            initialNotes={strategyNotes}
-            initialFactors={strategyFactors}
-          />
-        </section>
 
-        {/* ── 6. Afronden ─────────────────────────────────────────────────── */}
-        <section id="afronden" className="flex flex-col gap-3">
-          <Kop
-            nummer="06"
-            titel="Afronden"
-            uitleg={`Wat er na dit gesprek nog open staat, en waar ORBIT ENGINE mee verder gaat voor ${brandName}.`}
-          />
+          <div className="flex flex-col gap-3">
+            <span className="mono-label text-muted">Contactpersoon</span>
+            <div className="flex flex-col gap-4">
+              {veld("contact_name")}
+              {veld("contact_email")}
+              {veld("contact_phone")}
+            </div>
+          </div>
+
+          <CollapsibleSection title="Auteur, voor later" defaultOpen={false}>
+            <div className="flex flex-col gap-4">
+              <p className="text-sm text-muted">
+                Zeven velden voor de naam onder je artikelen. Vastgelegd, maar nog niet
+                automatisch onder gepubliceerde content gezet.
+              </p>
+              {SESSION_AUTHOR_FIELDS.map((k) => veld(k as string))}
+            </div>
+          </CollapsibleSection>
+
           <div className="card flex flex-col gap-3">
             <Meter meter={meter} />
+            {openstaandVerplicht.length > 0 && (
+              <div className="flex flex-col gap-1">
+                <span className="mono-label">Nog {openstaandVerplicht.length} verplichte velden open</span>
+                <ul className="flex flex-col gap-1">
+                  {openstaandVerplicht.map((v) => (
+                    <li key={v.field}>
+                      <a href={`#veld-anker-${v.field}`} className="text-sm text-secondary underline-offset-2 hover:underline">
+                        {v.label}
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
             {gaten.length > 0 ? (
               <div className="flex flex-col gap-1">
                 <span className="mono-label">Nog open</span>
@@ -412,8 +430,8 @@ export function OnboardingSession({
 
             <p className="text-sm text-secondary">
               {recordedAt
-                ? `Het gesprek is vastgelegd op ${nlDatum(recordedAt)}. Pas je hierboven iets aan, bewaar het dan opnieuw bij "Wat er speelt".`
-                : "Leg het gesprek vast bij “Wat er speelt buiten je website om”. Dan staat er wat je hebt afgesproken, met de datum erbij."}
+                ? `Het gesprek is vastgelegd op ${nlDatum(recordedAt)}. Pas je hierboven iets aan, bewaar het dan opnieuw bij "Veranderingen die eraan komen".`
+                : "Leg het gesprek vast bij “Veranderingen die eraan komen”. Dan staat er wat je hebt afgesproken, met de datum erbij."}
             </p>
           </div>
 
@@ -488,13 +506,6 @@ export function OnboardingSession({
     </div>
   );
 }
-
-/** Alle velden van de sessie, in catalogusvolgorde. */
-const ALLE_VELDEN = [
-  ...CLIENT_STEPS.flatMap((s) => fieldsOfStep(s)),
-  ...fieldsOfStep("strategie"),
-  ...fieldsOfStep("contact"),
-];
 
 function Kop({
   nummer,

@@ -248,7 +248,7 @@ tussenkopje. Vandaar een **zijbalk** (`components/sidebar.tsx`).
 
 **Vier klanthoofdstukken, elk met hooguit drie kinderen** (besluit 1 tot en met 8 van 17 augustus
 2026). ⚠️ **Admin mag er sinds 19 augustus 2026 vier**, bij het toevoegen van de onboardingsessie:
-drie ervan gaan over dít merk (Onboarding, Diagnose, Toewijzen) en de vierde, "Alle merken", is de
+drie ervan gaan over dít merk (Onboardinggesprek, Diagnose, Toewijzen) en de vierde, "Alle merken", is de
 uitgang naar de app als geheel. Dat is geen vergaarbak van vier gelijksoortige regels maar drie plus
 een uitgang. ⚠️ **En sinds 25 augustus 2026 vijf**, toen "Koppelingen" van Instellingen naar Admin
 verhuisde: een koppeling zet de consultant klaar, niet de klant (het product is sales-led, besloten
@@ -275,7 +275,7 @@ noemde. Elk hoofdstuk beantwoordt nu één vraag:
 | Strategie | Wat gaan we doen, en wat is er al gemaakt? | Clusters, Openstaande vragen, Contentplan, Bibliotheek |
 | Analytics | Wat zeggen de cijfers, en waarom? | Zichtbaarheid in AI, Zoekverkeer, Concurrenten, Mijn reputatie |
 | Merkprofiel | Wie ben ik volgens ORBIT ENGINE, en klopt dat? | Merkdossier, Bewerken |
-| Admin | (alleen beheerders, onder een scheidingslijn) | Onboarding, Diagnose, Toewijzen, Alle merken, Koppelingen |
+| Admin | (alleen beheerders, onder een scheidingslijn) | Onboardinggesprek, Diagnose, Toewijzen, Alle merken, Koppelingen |
 
 ⚠️ **"Instellingen" stond hier tot 25 augustus 2026, met "Account en team" en "Koppelingen"
 eronder.** Geen van beide is nog een klantbestemming in de zijbalk: "Account en team" staat nu als
@@ -741,7 +741,7 @@ niet zijn plek in onze verkoopcyclus.
 
 ### Voorbeelden per branche (19 augustus 2026)
 
-Van de 56 velden hebben er 35 een voorbeeld, en die waren allemaal geschreven vanuit één fictieve
+Van de 57 velden hebben er 35 een voorbeeld, en die waren allemaal geschreven vanuit één fictieve
 autodealer. Voor een fysiotherapiepraktijk of een advocatenkantoor leest dat als een formulier dat
 voor iemand anders is gemaakt.
 
@@ -784,9 +784,16 @@ bedrag, een taaknaam of een foutcode in komt te staan. Een doorloop met de hand 
 het risico ontstaat bij de vólgende wijziging.
 
 **De volgorde van het scherm is de belangrijkste ontwerpkeuze.** Het opent met wat ORBIT ENGINE
-níét weet (`lib/profile-gaps.ts`, gesorteerd op gevolg en niet op veldvolgorde), daarna de
-commerciële laag die het gesprek moet vullen, en pas daarna wat er al gevonden is, ingeklapt per
-blok. Zonder die volgorde kost het gesprek een uur aan het bevestigen van dingen die al klopten.
+níét weet (`lib/profile-gaps.ts`, gesorteerd op gevolg en niet op veldvolgorde). Daarna volgt sinds
+onboarding ronde B (31 augustus 2026) de gespreksvolgorde uit `SESSION_BLOCKS`
+(`lib/pipeline/brand-fields.ts`): je bedrijf en je namen, je aanbod en waar je op wilt groeien, je
+markt en je concurrenten, je bewijs en je boodschap, je klant en je toon, documenten en teksten met
+de veranderingen die eraan komen, techniek en koppelingen, en tot slot afspraken en afronden. Dat is
+een andere volgorde dan de catalogus (`STEP_ORDER`), die de klantwizard nog steeds gebruikt: eerst
+staat vast wat er verkocht wordt, pas dan komt de vraag waar de groei zit. Elk blok mengt wat ORBIT
+ENGINE al vond met wat alleen het gesprek oplevert; de herkomstchip per veld laat zien welke van de
+twee het is, en onder elk veld staat in één zin waar het antwoord landt (`BrandField.usage`).
+Zonder die volgorde kost het gesprek een uur aan het bevestigen van dingen die al klopten.
 
 **Opslaan gaat per veld**, zodra het de focus verlaat, met drie standen (opslaan, opgeslagen, niet
 gelukt). Anders dan in de klantwizard, waar één knop juist beter past: een gesprek springt en wordt
@@ -795,11 +802,12 @@ dit scherm kan maken. Mislukt een opslag, dan blijft de getypte waarde staan met
 opnieuw te proberen; stil terugdraaien laat de consultant het opnieuw typen zonder te weten dat het
 de eerste keer ook al niet lukte.
 
-**De gevonden-stappen openen ingeklapt, behalve wat nog niet compleet is** (Ronde A, 31 augustus
-2026). `CollapsibleSection` staat op desktop standaard open; zonder `defaultOpen` mee te geven stonden
-alle 41 klantvelden dus tegelijk uitgeklapt en liep het scherm over een lengte van ongeveer tien
-schermhoogtes. Elke stap krijgt nu `defaultOpen={!stepProgress(...).compleet}`: een complete stap
-opent dicht, een stap met nog een leeg veld opent open.
+**Elk blok opent ingeklapt, behalve wat nog niet compleet is** (Ronde A, 31 augustus 2026; verhuisd
+van per catalogusstap naar per gespreksblok in Ronde B). `CollapsibleSection` staat op desktop
+standaard open; zonder `defaultOpen` mee te geven stonden alle klantvelden dus tegelijk uitgeklapt en
+liep het scherm over een lengte van ongeveer tien schermhoogtes. Elk blok krijgt nu
+`defaultOpen={!p.compleet}`, met de teller "x van de y ingevuld" als titel van de sectie: een
+compleet blok opent dicht, een blok met nog een leeg veld opent open.
 
 **Een getypte waarde overleeft het sluiten van het tabblad** (Ronde A). Opslaan gaat bij `onBlur`,
 maar wie het tabblad sluit terwijl de cursor nog in een veld staat, verliest zonder extra vangnet wat
@@ -813,6 +821,14 @@ auteursbio, en dat is geen gat. Zo'n veld telt als behandeld en verdwijnt uit de
 ORBIT ENGINE gevonden, nog open. Eén percentage verbergt precies het verschil dat in een gesprek
 telt. De contactvelden tellen niet mee, want ze zeggen niets over hoe goed ORBIT ENGINE het merk
 kent.
+
+**Elk veld weegt verplicht, aanbevolen of optioneel** (`BrandField.priority`, Ronde B). Verplicht
+betekent dat een fout een hele meetronde kost of de score structureel te laag of te hoog laat
+uitvallen; aanbevolen levert een merkbaar betere uitkomst zonder dat het product ervan afhangt;
+optioneel mag leeg blijven. `missingRequired()` telt welke verplichte velden nog open staan
+(`service_regions` telt daarbij alleen mee bij een lokaal werkgebied, ook al staat hij in de
+catalogus op aanbevolen) en het afrondblok noemt ze met een springlink. Geen rode rand tijdens het
+typen: de klant kijkt mee.
 
 **De actieve regel is exact, niet met prefix** (`isExact`, naast `isActive`). De bestemmingen binnen
 een hoofdstuk zijn elkaars prefix: `/merk/x/merkprofiel` is het begin van
@@ -999,7 +1015,7 @@ verwijst permanent door (`lib/redirects.ts`).
 | Scherm | De vraag | Wat erop staat |
 |---|---|---|
 | Merkdossier `/merk/[id]/merkprofiel` | Wat weet ORBIT ENGINE van mij? | Kop, het dossier, wat AI over je weet, aanbod, concurrenten |
-| Bewerken `/merk/[id]/merkprofiel/bewerken` | Klopt dat? | 41 velden in zeven stappen, plus gereedschap |
+| Bewerken `/merk/[id]/merkprofiel/bewerken` | Klopt dat? | 42 velden in zeven stappen, plus gereedschap |
 
 **Het merkdossier is een leesscherm.** Geen sectie-rail: de blokken hebben geen
 vaste chronologie zoals de vier hoofdstukken van een cluster, en een rail belooft

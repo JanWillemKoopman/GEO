@@ -25,6 +25,10 @@
  */
 export const EDITABLE_PROFILE_FIELDS = [
   "name",
+  // Onboarding ronde B, stap B1: de naam waarop de meting daadwerkelijk telt.
+  // Tot deze stap kon alleen het AI-onderzoek hem zetten (`discover.ts`), en
+  // was een verkeerd afgeleide naam nergens te corrigeren.
+  "brand_name",
   "industry",
   // Het bedrijfsmodel (R8.5, migratie 0032). Bewerkbaar omdat de klant beter
   // weet dan het model of hij een retailer of een fabrikant is, en omdat deze
