@@ -5702,5 +5702,14 @@ uitkomt (de garantie). Het vangnet is met opzet smal en raakt alleen zinsdelen d
 beweren; "17 van de 30 vragen" is een verhouding en blijft ongemoeid, want een te gretige vervanging
 zou daar een onwaarheid van maken.
 
-Vier controles groen: typecheck, 2606 unittests, 382 ketentests en de productiebuild. De zes
-overgebleven bevindingen staan in `docs/tasks/bevindingen-live-test-31-augustus-2026.md`.
+Vier controles groen: typecheck, 2606 unittests, 382 ketentests en de productiebuild. Daarna, want
+gebouwd is niet geverifieerd (conventie 10), alle vier op productie nagelopen in de draaiende app
+met de twee testaccounts: de briefingkaart wijst nu naar de briefing in plaats van naar publiceren,
+de zin uit het gesprek voegt niets meer toe aan het werkgebied terwijl "Made, Etten-Leur" er wel
+twee plaatsen bij zet, het pakket is als beheerder te zetten en levert een klant een 403 op, en het
+herdraaide rapport schrijft "Er zijn 30 vragen onderzocht, samen 46 keer gemeten".
+
+Dat herdraaien leverde en passant het antwoord op een openstaande vraag: op exact dezelfde 30
+metingen kwamen er nu 8 aanbevelingen en 4 afgevallen kansen uit, tegen 7 en 6 bij de eerste ronde.
+Het aantal aanbevelingen ligt dus niet vast, en dat was precies wat werkpakket B punt 1 beoogde. De
+zes overgebleven bevindingen staan in `docs/tasks/bevindingen-live-test-31-augustus-2026.md`.

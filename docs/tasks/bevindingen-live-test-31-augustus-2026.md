@@ -1,7 +1,17 @@
 # Bevindingen live end-to-end test, 31 augustus 2026
 
-> **Stand op 31 augustus 2026:** punt 1, 2, 4 en 8 zijn opgelost en staan met een test in
-> `scripts/test-unit.ts`. Punt 3, 5, 6, 7 en de kleinere punten staan nog open.
+> **Stand op 31 augustus 2026:** punt 1, 2, 4 en 8 zijn opgelost, staan met een test in
+> `scripts/test-unit.ts`, en zijn daarna op productie nagelopen in de draaiende app
+> (conventie 10). Punt 3, 5, 6, 7 en de kleinere punten staan nog open.
+>
+> Wat de hercontrole liet zien: de briefingkaart zegt nu "De briefing staat klaar" met een knop
+> Briefing invullen; de zin "Uitbreiding richting Oosterhout en Geertruidenberg." voegt niets meer
+> toe aan het werkgebied terwijl "Made, Etten-Leur" er wel netjes twee plaatsen bij zet en
+> "Gilze en Rijen" heel blijft; het pakket is als beheerder te kiezen in de wizard en aan te passen
+> bij Toewijzen, een klant krijgt er een 403 op en een maat van 33 een 400; en het herdraaide
+> rapport schrijft "Er zijn 30 vragen onderzocht, samen 46 keer gemeten" in plaats van de eerdere
+> 15. Dat herdraaide rapport leverde bovendien 8 aanbevelingen op waar de eerste ronde er 7 gaf,
+> wat punt 10 hieronder deels beantwoordt: 7 is geen verborgen grens.
 
 De volledige klantreis is op productie doorlopen met een echt bedrijf, van merk aanmaken tot en met
 de contentbriefing. Dit bestand bevat wat er misging. Wat goed ging staat samengevat in
@@ -155,11 +165,11 @@ Dat kost niets, dus het is geen uitgavelek. Het is wel de regie-informatie die v
   beheerder, en is daarna aan te passen op het scherm Toewijzen. `PATCH /api/accounts/[id]`
   weigert de waarde van een klant met een 403, dus de grens zit niet alleen in de weergave
   (conventie 1). Zie `lib/package-sizes.ts`.
-- **Het aantal aanbevelingen kwam opnieuw uit op 7.** Dat is niet aantoonbaar een grens, want er is
-  maar één meetronde gedaan en er stonden 12 gemeten gemissen tegenover 7 aanbevelingen en 6
-  afgevallen kansen. Het is wel het getal waarvan werkpakket B punt 1 zei dat het niet meer vast zou
-  moeten liggen, dus het verdient een tweede meetronde bij een merk met een andere omvang voordat
-  dat punt afgevinkt wordt.
+- **Het aantal aanbevelingen kwam opnieuw uit op 7.** *Grotendeels weerlegd op 31 augustus 2026.*
+  Bij het herdraaien van hetzelfde rapport op dezelfde 30 metingen kwamen er 8 aanbevelingen en 4
+  afgevallen kansen uit, waar de eerste ronde 7 en 6 gaf. Het aantal ligt dus niet vast. Wat nog
+  open staat is de vraag of het aantal ook echt meebeweegt met de OMVANG van een merk; daarvoor is
+  een tweede merk nodig.
 - **De herkomst onderscheidt weinig.** Na het gesprek kregen alle zes onderwerpen
   `origin = 'aanbod_en_gesprek'`, ook "Warmtepomp laten installeren in een bestaande woning", dat
   rechtstreeks uit het aanbod komt. Het label zegt daarmee vooral iets over de ronde waarin een
