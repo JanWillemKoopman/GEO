@@ -100,6 +100,7 @@ Alle migraties zijn toegepast op productie, behalve `0033`.
 | `0076_topic_herkomst.sql` | `profile_topics.origin` (`aanbod` \| `aanbod_en_gesprek`, null voor oudere rijen): welke informatie er meeging toen dit onderwerp werd voorgesteld, zichtbaar op de clusterpagina (§3.5) |
 | `0077_clusters_aanvullen.sql` | De knop "Stel nieuwe clusters voor" (§3.5, punt 10). Nieuwe tabel `profile_topic_rounds` (wanneer, door wie, tegen welke stand van zaken, tegen welke kosten) waarmee `lib/pipeline/topic-round-diff.ts` bepaalt of een volgende klik nog iets oplevert. Plus `profile_topics.rejection_reason` (instructie voor een volgende ronde) en `origin_uses_measurement` (de tweede as van de herkomstregel, naast `origin` uit 0076) |
 | `0078_afgevallen_kansen.sql` | `reports.declined_json`: gemeten gemissen die het rapportmodel overwoog maar niet als aanbeveling opnam, met de reden. Voedt het "afgevallen"-niveau van de contentvoorraad (werkpakket C §5.1). Null voor rapporten van vóór deze migratie |
+| `0079_aanbod_bewerkbaar.sql` | De aanbodboom bewerkbaar (onboarding Ronde C, `documentatie/onboarding_optimalisatie.md` §16). Vier kolommen op `profile_offerings`: `note` (vrije context per dienst), `removed_at`/`removed_by` (verwijderen is uitzetten, niet wissen), `updated_by`. Plus een partiële index op `profile_id where removed_at is null` voor elke lezer die alleen de actieve knopen wil |
 
 ## Na `0038`, eenmalig, met de hand
 

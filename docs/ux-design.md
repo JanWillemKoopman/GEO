@@ -1017,10 +1017,21 @@ verwijst permanent door (`lib/redirects.ts`).
 | Merkdossier `/merk/[id]/merkprofiel` | Wat weet ORBIT ENGINE van mij? | Kop, het dossier, wat AI over je weet, aanbod, concurrenten |
 | Bewerken `/merk/[id]/merkprofiel/bewerken` | Klopt dat? | 45 velden in zeven stappen, plus gereedschap |
 
-**Het merkdossier is een leesscherm.** Geen sectie-rail: de blokken hebben geen
-vaste chronologie zoals de vier hoofdstukken van een cluster, en een rail belooft
-een volgorde die er niet is. Wel een kop met de merknaam, de website en één
-duidingszin (`profile-hero.tsx`).
+**Het merkdossier is grotendeels een leesscherm.** Geen sectie-rail: de blokken
+hebben geen vaste chronologie zoals de vier hoofdstukken van een cluster, en een
+rail belooft een volgorde die er niet is. Wel een kop met de merknaam, de
+website en één duidingszin (`profile-hero.tsx`).
+
+⚠️ **Eén uitzondering sinds onboarding Ronde C (31 augustus 2026): het blok
+Aanbod is bewerkbaar.** `OfferingsPanel` is een servercomponent met een
+client-kind, `OfferingsEditor` (`_components/offerings-editor.tsx`): potlood
+per knoop, "Dienst of product toevoegen" onderaan de boom, en verwijderde
+knopen achter "X verwijderd, tonen" met een terugzetknop. De route
+(`app/api/profiles/[id]/offerings`) is dezelfde voor staf en klant; de herkomst
+(`gesprek` tegenover `klant`) volgt automatisch uit wie is ingelogd, net als bij
+de onboardingvelden. Reden om dit hier te bouwen en niet als los scherm: het is
+precies de plek waar het gat zichtbaar wordt (een dienst die niet op de site
+staat), dus is het ook de plek waar hij gedicht wordt.
 
 Elk blok is een `ProfileSection` met een **titel én een omschrijving** (Nova geeft
 élk blok allebei). Twee soorten: `verhaal` staat op desktop open en is wat de
