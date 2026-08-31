@@ -1073,6 +1073,17 @@ Wat géén merkveld is, staat buiten de wizard: hoe grondig ORBIT ENGINE de site
 uitleest (`InventoryBox`) en de brontekst die de klant zelf aanlevert
 (`DossierBox`). Die grens houdt de teller eerlijk.
 
+⚠️ **`InventoryBox` is sinds onboarding Ronde D (31 augustus 2026) crawlbeheer,
+niet meer één knop.** Naast het aantal pagina's en de voorrangsmappen staat er
+nu een tempokeuze (snel/normaal/langzaam, `lib/crawl-speed.ts`) en twee acties:
+"Meer pagina's lezen" (vult aan, vervangt niets) en "Opnieuw crawlen" (met een
+bevestiging, want dat vervangt de gecrawlde pagina's). Beide plannen sinds deze
+ronde een achtergrondtaak in (`crawl_inventory`) in plaats van zelf te crawlen:
+de knop laat los zodra de taak in de wachtrij staat, niet zodra de crawl klaar
+is, en toont dat met "Ingepland, ververs zo dadelijk" in plaats van een
+voortgangsbalk. Bij een 403 van de site staat er een melding met wat de klant
+kan doen (ons adres toelaten, of het tempo op langzaam zetten).
+
 **Openstaande vragen** (tot 28 augustus 2026 "Vraagt jouw input", en tot die
 dag onder dit hoofdstuk) is één blok waar er twee waren: de feitenvragen mét
 invoerveld en de open punten uit het onderzoek. Voor de gebruiker is dat één

@@ -70,6 +70,11 @@ const TYPICAL_SECONDS: Record<JobType, number> = {
   reputation_evidence: 70,
   // Drie gegronde aanbevelingsvragen merkbreed, één per dienst.
   reputation_market: 50,
+
+  // Onboarding Ronde D. Sterk afhankelijk van het tempo en het aantal
+  // pagina's; dit is de schatting voor "normaal" op het standaardaantal.
+  // Conservatief, net als profile_discover hierboven.
+  crawl_inventory: 90,
 };
 
 /**

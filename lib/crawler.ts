@@ -27,11 +27,40 @@ import {
   toFetchUrl,
 } from "@/lib/crawl-urls";
 import { scoreUrl, selectUrls, type UrlSelection } from "@/lib/pipeline/url-priority";
+import { speedProfile, nextDelayMs, slowerThan, type CrawlSpeed } from "@/lib/crawl-speed";
 
 export { decodeXmlEntities, extractLocs, isProductSitemap, isProductUrl, isSitemapIndex, sameDomain };
 
 /** Eén plek voor de bot-identiteit, zodat een site ons kan herkennen en toelaten. */
 export const USER_AGENT = "GEO-Tracker-Bot/1.0 (+https://geo-tracker.app)";
+
+/**
+ * Alleen voor `crawl_as_browser` (§17.3, migratie 0080): een klant kan
+ * toestemming geven om zíjn EIGEN site als gewone browser te lezen, als zijn
+ * firewall het bot-verkeer anders weert. Dit is geen vermomming om een
+ * blokkade te omzeilen bij een site die niet van de klant is; die knop bestaat
+ * bewust niet.
+ */
+const BROWSER_USER_AGENT =
+  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36";
+
+/**
+ * Eén gedeelde headerset (§17.6, punt 2), zodat die niet op drie plekken los
+ * wordt opgebouwd. Een volledige, kloppende set (`Accept-Language`,
+ * `Accept-Encoding`) is onderdeel van "je gedragen als een nette bezoeker"
+ * (§17.3); dat is iets anders dan verbergen wie we zijn, de `User-Agent`
+ * blijft zichzelf identificeren tenzij `asBrowser` expliciet aan staat.
+ */
+export function requestHeaders(opts: { asBrowser?: boolean; referer?: string } = {}): HeadersInit {
+  const headers: Record<string, string> = {
+    "User-Agent": opts.asBrowser ? BROWSER_USER_AGENT : USER_AGENT,
+    Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+    "Accept-Language": "nl-NL,nl;q=0.9,en;q=0.5",
+    "Accept-Encoding": "gzip, deflate, br",
+  };
+  if (opts.referer) headers.Referer = opts.referer;
+  return headers;
+}
 
 const MAX_CHARS = 6000; // genoeg context, houdt de tokenkost laag
 const PAGE_MAX_CHARS = 1500; // kleinere cap per pagina bij de content-inventaris (meerdere pagina's tegelijk)
@@ -453,6 +482,9 @@ export interface InventoryPage {
   text: string | null;
 }
 
+/** Absolute bovengrens voor een crawl die als achtergrondtaak draait (§17.7), ruimer dan `MAX_PAGES_HARD_CAP`. */
+export const MAX_PAGES_BACKGROUND = 500;
+
 export interface InventoryOptions {
   /** Max aantal pagina's in de inventaris (per profiel instelbaar). */
   maxPages?: number;
@@ -460,6 +492,20 @@ export interface InventoryOptions {
   sitemapUrl?: string | null;
   /** Sitesecties die voorrang krijgen bij het verdelen van de plekken. */
   priorityPaths?: readonly string[];
+  /** Hoe hard er gecrawld wordt (§17.2). Standaard `normaal`. */
+  speed?: CrawlSpeed;
+  /** URL's die al in de inventaris staan (modus "meer", §17.8): niet opnieuw kiezen of ophalen. */
+  exclude?: readonly string[];
+  /** Alleen met toestemming van de klant, voor zijn EIGEN domein (§17.3). */
+  asBrowser?: boolean;
+  /**
+   * Hoeveel wandkloktijd deze aanroep zichzelf gunt, in milliseconden. Een
+   * achtergrondtaak geeft hier haar resterende werkbudget mee, zodat een grote
+   * "langzaam"-crawl zichzelf op tijd afbreekt in plaats van de platformlimiet
+   * van 300 seconden te raken (§17.7). Onbeperkt als niet meegegeven, voor de
+   * bestaande synchrone aanroepers die al binnen 150 pagina's blijven.
+   */
+  budgetMs?: number;
 }
 
 export interface InventoryResult {
@@ -467,28 +513,152 @@ export interface InventoryResult {
   /** Hoeveel URL's er te kiezen waren. Groter dan `pages.length` = afgekapt. */
   totalFound: number;
   truncated: boolean;
+  /** Kwam er een 403 voorbij? Dan is gestopt in plaats van doorgegaan met lege pagina's. */
+  blocked: boolean;
+  /** De stand waarmee daadwerkelijk gecrawld is (kan door een 429/503 een stand lager zijn dan gevraagd). */
+  usedSpeed: CrawlSpeed;
+  /**
+   * Geselecteerde URL's die niet meer aan de beurt kwamen: door een 403, of
+   * omdat `budgetMs` op was. Leeg = de ronde is volledig afgerond. Een
+   * achtergrondtaak plant zichzelf hiermee opnieuw in (§17.7).
+   */
+  remaining: string[];
+}
+
+/** Eén batch ophalen met de headers en de status van de speed-aware crawl, i.p.v. `fetchText()`'s "null bij elke fout". */
+async function fetchPageStatus(
+  url: string,
+  timeoutMs: number,
+  opts: { asBrowser?: boolean; referer?: string },
+): Promise<{ status: number; retryAfterMs: number | null; html: string | null }> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const res = await fetch(url, {
+      signal: controller.signal,
+      redirect: "follow",
+      headers: requestHeaders(opts),
+    });
+    const retryAfterHeader = res.headers.get("retry-after");
+    const retryAfterMs = retryAfterHeader && /^\d+$/.test(retryAfterHeader)
+      ? Number(retryAfterHeader) * 1000
+      : null;
+    if (!res.ok) return { status: res.status, retryAfterMs, html: null };
+    return { status: res.status, retryAfterMs, html: await res.text() };
+  } catch {
+    // Time-out of netwerkfout: geen HTTP-status om op te reageren, behandeld
+    // als een gewone mislukte pagina, niet als een blokkade.
+    return { status: 0, retryAfterMs: null, html: null };
+  } finally {
+    clearTimeout(timeout);
+  }
 }
 
 /**
  * Bouwt de content-inventaris van een site: ontdekt de (niet-product) pagina-URL's
  * en haalt daarvan titel + tekst op, tot `maxPages` (begrensd door de harde
- * bovengrens). Een pagina waarvan de fetch faalt komt met titel/tekst = null in
- * de lijst, zodat de URL-lijst niettemin de gevonden pagina's weerspiegelt.
+ * bovengrens, of door `MAX_PAGES_BACKGROUND` als `budgetMs` is meegegeven).
+ * Een pagina waarvan de fetch faalt komt met titel/tekst = null in de lijst,
+ * zodat de URL-lijst niettemin de gevonden pagina's weerspiegelt.
+ *
+ * ── HET TEMPO EN DE TERUGVAL (§17.3, §17.6) ─────────────────────────────────
+ *
+ * `speedProfile()` bepaalt de batchgrootte en de pauze. Antwoordt de site met
+ * `429` of `503`, dan respecteert dit een `Retry-After` en gaat het tempo
+ * automatisch één stand omlaag (`slowerThan()`) voor de rest van deze ronde.
+ * Antwoordt hij met `403`, dan stopt de crawl: doorgaan zou een resultaat vol
+ * lege pagina's opleveren dat eruitziet als een geslaagde, dunne crawl.
  */
 export async function crawlInventory(
   host: string,
   opts: InventoryOptions = {},
 ): Promise<InventoryResult> {
-  const maxPages = Math.min(Math.max(opts.maxPages ?? DEFAULT_MAX_PAGES, 1), MAX_PAGES_HARD_CAP);
-  const index = await discoverPageIndex(host, maxPages, opts.sitemapUrl, opts.priorityPaths);
-  const crawled = await crawlPages(index.urls);
-  const byUrl = new Map(crawled.map((p) => [p.url, p]));
+  const hardCap = opts.budgetMs !== undefined ? MAX_PAGES_BACKGROUND : MAX_PAGES_HARD_CAP;
+  const maxPages = Math.min(Math.max(opts.maxPages ?? DEFAULT_MAX_PAGES, 1), hardCap);
+
+  // Modus "meer" (§17.8): het uitsluiten gebeurt VÓÓR het kiezen, niet erna.
+  // Zou `selectUrls()` eerst de beste `maxPages` kiezen en pas daarna de al
+  // bekende URL's eruit filteren, dan levert een site waarvan de topplekken
+  // allemaal al gecrawld zijn een lege aanvulling op, ook als er nog honderden
+  // ongelezen pagina's zijn.
+  const { urls: alleUrls } = await collectPageUrls(host, opts.sitemapUrl);
+  // `selectUrls()` filtert `exclude` VÓÓR het kiezen (§17.8) en telt
+  // `totalFound` over de volledige, ongefilterde lijst, dus "meer" bij een
+  // grotendeels gecrawlde site toont nog steeds de ware omvang van de site.
+  const exclude = new Set(opts.exclude ?? []);
+  const index = selectUrls(alleUrls, maxPages, opts.priorityPaths, exclude);
+  const teCrawlen = index.urls;
+
+  let speed = opts.speed ?? "normaal";
+  let profile = speedProfile(speed);
+  const start = Date.now();
+  const base = toFetchUrl(host);
+
+  const gehaald = new Map<string, { title: string | null; text: string }>();
+  let blocked = false;
+  let remaining: string[] = [];
+
+  for (let i = 0; i < teCrawlen.length; i += profile.batchSize) {
+    if (blocked) {
+      remaining = teCrawlen.slice(i);
+      break;
+    }
+    if (opts.budgetMs !== undefined && Date.now() - start > opts.budgetMs) {
+      remaining = teCrawlen.slice(i);
+      break;
+    }
+
+    const batch = teCrawlen.slice(i, i + profile.batchSize);
+    const referer = i === 0 ? base : teCrawlen[Math.max(0, i - 1)];
+    const results = await Promise.all(
+      batch.map((url) => fetchPageStatus(url, profile.timeoutMs, { asBrowser: opts.asBrowser, referer })),
+    );
+
+    let vertraagIets = false;
+    for (let j = 0; j < results.length; j++) {
+      const r = results[j];
+      const url = batch[j];
+      if (r.status === 403) {
+        blocked = true;
+        continue;
+      }
+      if (r.status === 429 || r.status === 503) {
+        vertraagIets = true;
+        if (r.retryAfterMs) await sleep(r.retryAfterMs);
+        continue;
+      }
+      if (r.html) {
+        const volledigeTekst = htmlToText(r.html);
+        if (volledigeTekst.length > 0) {
+          gehaald.set(url, { title: extractTitle(r.html), text: volledigeTekst.slice(0, PAGE_MAX_CHARS) });
+        }
+      }
+    }
+
+    if (vertraagIets) {
+      speed = slowerThan(speed);
+      profile = speedProfile(speed);
+    }
+    if (!blocked && i + profile.batchSize < teCrawlen.length) {
+      await sleep(nextDelayMs(profile));
+    }
+  }
+
   return {
-    pages: index.urls.map((url) => {
-      const c = byUrl.get(url);
-      return { url, title: c?.title ?? null, text: c?.text ?? null };
-    }),
+    pages: teCrawlen
+      .filter((u) => !remaining.includes(u))
+      .map((url) => {
+        const c = gehaald.get(url);
+        return { url, title: c?.title ?? null, text: c?.text ?? null };
+      }),
     totalFound: index.totalFound,
     truncated: index.truncated,
+    blocked,
+    usedSpeed: speed,
+    remaining,
   };
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }

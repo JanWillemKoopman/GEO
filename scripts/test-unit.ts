@@ -417,6 +417,7 @@ import {
   nextSortOrder,
   wouldCreateCycle,
 } from "@/lib/offerings-validate";
+import { speedProfile, nextDelayMs, slowerThan, isCrawlSpeed } from "@/lib/crawl-speed";
 import {
   beoordeelClaim,
   ontbrekendeOnderbouwing,
@@ -3028,6 +3029,77 @@ group("url-priority: een gekozen map krijgt echt voorrang", () => {
     metShowroom > zonderShowroom,
   );
   ok("en de hele showroom past", metShowroom === 40);
+});
+
+group("url-priority: exclude filtert vóór het kiezen, niet erna (onboarding Ronde D, §17.8)", () => {
+  // De topplekken staan hier al bekend; zonder exclude zou "meer" niets nieuws
+  // opleveren, terwijl er nog 27 ongelezen pagina's in de showroom staan.
+  // Bewust minder "bekend"-URL's dan het quotum van hun sectie, anders kiest
+  // de sectieverdeling er zelf al niet alle tien (dat is een ander mechanisme,
+  // getest hierboven, en niet waar dit scenario over gaat).
+  const bekend = Array.from({ length: 3 }, (_, i) => `https://a.nl/diensten/d-${i}`);
+  const nieuw = Array.from({ length: 27 }, (_, i) => `https://a.nl/showroom/s-${i}`);
+  const alles = [...bekend, ...nieuw];
+
+  const zonderExclude = selectUrls(alles, 10);
+  ok(
+    "zonder exclude komen de bekende pagina's opnieuw naar boven",
+    bekend.every((u) => zonderExclude.urls.includes(u)),
+  );
+
+  const metExclude = selectUrls(alles, 10, [], new Set(bekend));
+  ok(
+    "met exclude staat geen enkele bekende pagina meer in de keuze",
+    metExclude.urls.every((u) => !bekend.includes(u)),
+  );
+  eq("en de tien plekken gaan naar de nieuwe pagina's", String(metExclude.urls.length), "10");
+  eq(
+    "totalFound blijft de ware omvang van de site, exclude of niet",
+    String(metExclude.totalFound),
+    String(alles.length),
+  );
+
+  const allesBekend = selectUrls(bekend, 10, [], new Set(bekend));
+  eq(
+    "is alles al bekend, dan levert 'meer' een lege aanvulling op, geen gok",
+    String(allesBekend.urls.length),
+    "0",
+  );
+});
+
+group("crawl-speed: drie standen, één doel (onboarding Ronde D, §17.5, migratie 0080)", () => {
+  ok("snel bevat geen pauze", speedProfile("snel").minDelayMs === 0 && speedProfile("snel").maxDelayMs === 0);
+  ok(
+    "normaal is drie tegelijk met een korte pauze",
+    speedProfile("normaal").batchSize === 3 && speedProfile("normaal").minDelayMs > 0,
+  );
+  ok(
+    "langzaam is één tegelijk met de langste pauze",
+    speedProfile("langzaam").batchSize === 1 &&
+      speedProfile("langzaam").minDelayMs > speedProfile("normaal").minDelayMs,
+  );
+
+  // `nextDelayMs()` met een vaste toevalsgenerator: altijd binnen de
+  // bandbreedte van de stand, en reproduceerbaar in plaats van flaky.
+  const altijdNul = () => 0;
+  const altijdBijnaEen = () => 0.999999;
+  eq("op 0 valt de pauze op de ondergrens", String(nextDelayMs(speedProfile("normaal"), altijdNul)), "700");
+  ok(
+    "op bijna 1 blijft de pauze onder de bovengrens",
+    nextDelayMs(speedProfile("normaal"), altijdBijnaEen) < speedProfile("normaal").maxDelayMs,
+  );
+  eq(
+    "snel heeft geen bandbreedte, dus altijd 0, ongeacht het toeval",
+    String(nextDelayMs(speedProfile("snel"), altijdBijnaEen)),
+    "0",
+  );
+
+  eq("snel gaat bij een terugval naar normaal", slowerThan("snel"), "normaal");
+  eq("normaal gaat naar langzaam", slowerThan("normaal"), "langzaam");
+  eq("langzaam is de bodem, blijft langzaam", slowerThan("langzaam"), "langzaam");
+
+  ok("de drie standen zijn geldig", isCrawlSpeed("snel") && isCrawlSpeed("langzaam"));
+  ok("een onbekende stand is ongeldig", !isCrawlSpeed("bliksemsnel"));
 });
 
 // ════════════════════════════════════════════════════════════════════════════
