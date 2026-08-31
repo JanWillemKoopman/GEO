@@ -3,6 +3,9 @@
 **Scherm:** `/merk/[id]/admin/onboarding` (staff, gedeeld met de klant tijdens het gesprek)
 **Datum analyse:** 31 augustus 2026
 **Status:** analyse en plan. Er is in deze ronde bewust nog geen enkele UI-wijziging doorgevoerd.
+**Leeswijzer:** hoofdstuk 1 tot en met 12 gaan over structuur, velden en teksten. Hoofdstuk 13 is een tweede
+reviewronde over het gedrag van het scherm (opslaan, bijwerken, verversen) en bevat de vier ingrepen die als eerste
+zouden moeten gebeuren.
 **Bronbestanden:** `lib/pipeline/brand-fields.ts` (veldencatalogus), `app/(app)/merk/[id]/_components/onboarding-session.tsx` (het scherm),
 `app/(app)/merk/[id]/admin/onboarding/page.tsx` (de serverlaag), `lib/profile-editable.ts` (de opslagroute),
 `lib/profile-gaps.ts`, `lib/profile-meter.ts`, `lib/pipeline/onboarding-refresh.ts`, `lib/pipeline/context-factors.ts`.
@@ -584,7 +587,8 @@ Totaal: 56 bestaande velden, allemaal behouden, plus 6 nieuwe invoervelden
 
 ## 12. Implementatieplan
 
-Zes stappen, elk apart te bouwen en te testen. Elke stap eindigt met `npx tsc --noEmit`, `npm run test:unit`,
+Zes stappen, elk apart te bouwen en te testen. Hoofdstuk 13 zet er een **stap 0** voor: vier kleine ingrepen
+die samen minder werk zijn dan één van de stappen hieronder en die het scherm meteen bruikbaarder maken. Elke stap eindigt met `npx tsc --noEmit`, `npm run test:unit`,
 `npm run test:chain` en `npm run build`.
 
 **Stap 1. `brand_name` bewerkbaar maken (kleinste stap, grootste effect).**
@@ -625,3 +629,174 @@ taaknamen, bedragen of foutcodes op dit scherm verschijnen.
 
 **Wat bewust buiten dit plan valt:** het opruimen van de dode kolom `customer_questions` en de ongebruikte tabel
 `brand_dna`, en het bouwen van de auteursregel onder gepubliceerde content. Beide zijn eigen opdrachten.
+
+
+---
+
+## 13. Tweede reviewronde: aanvullende bevindingen
+
+De hoofdstukken 1 tot en met 12 gaan over structuur, teksten en velden. Deze tweede ronde kijkt naar het **gedrag**
+van het scherm: wat er gebeurt bij opslaan, bij bijwerken, bij herladen, en wat er al in de codebase klaarligt maar
+nergens wordt gebruikt. Elf bevindingen, gesorteerd op wat ze opleveren tegenover wat ze kosten.
+
+### A1. Het grootste blok staat op desktop helemaal open (kleine ingreep, groot effect)
+
+`onboarding-session.tsx` zet blok 03 in `CollapsibleSection`, met in het commentaar de bedoeling "ingeklapt per stap
+met de teller ernaast, zodat een stap die af is niet in de weg zit". Maar `components/collapsible-section.tsx` staat op
+desktop standaard **open** (`useState(defaultOpen ?? true)`, en de breakpoint-check zet hem alleen op mobiel dicht).
+Op de laptop van de CSM staan dus alle 41 klantvelden tegelijk uitgeklapt. Dat verklaart de lengte van de screenshot,
+en het is de directe oorzaak van probleem P1.
+
+**Fix:** `defaultOpen={false}` meegeven, of beter: open alleen de stappen die nog niet compleet zijn
+(`stepProgress(...).compleet === false`). Dan opent het scherm precies op het werk dat er nog ligt.
+Eén regel code, en het scherm wordt ongeveer vier keer korter.
+
+### A2. Er ligt al een voorbereidingsblok in de codebase dat nergens wordt getoond
+
+`lib/pipeline/profile-readiness.ts` beantwoordt letterlijk de vraag "is dit merkdossier af genoeg om mee het gesprek in
+te gaan": regels met een stand (klaar, leeg, loopt), een detail ("31 pagina's"), een onderscheid tussen nodig en
+optioneel, en een anker voor de springlink. Er hoort een component bij, `profile-readiness-panel.tsx`.
+
+**Beide worden nergens aangeroepen.** `computeReadiness()` heeft nul aanroepers in de hele codebase en
+`ProfileReadinessPanel` wordt door geen enkel scherm gerenderd; de enige vermelding staat in een commentaarregel.
+
+**Gevolg voor dit plan:** blok 0 uit hoofdstuk 3 hoeft niet ontworpen te worden. Het bestaat al, inclusief de
+"nodig tegenover optioneel"-logica die hoofdstuk 8.3 vraagt. Aanroepen en renderen is genoeg. Wel eerst controleren
+of de ankers nog kloppen: het commentaar noemt schermen die sinds augustus 2026 zijn verplaatst.
+
+### A3. De openstaande vragen van de klant staan op een ander scherm (grootste inhoudelijke winst)
+
+ORBIT ENGINE genereert zelf vragen die het niet kan beantwoorden en zet ze in `fact_requests`. Ze staan op
+`/merk/[id]/strategie/vragen`, met de tekst "zolang er vragen open staan, kan ORBIT ENGINE een pagina niet afronden".
+Die vragen worden dus per mail of via het klantportaal uitgezet, terwijl de klant precies één keer een uur lang naast
+de CSM zit: tijdens dit gesprek.
+
+`lib/open-questions.ts` is al één loader met drie lezers (bovenbalk, zijbalk, vragenpagina) en levert zowel de
+feitenvragen als de open punten uit `findGaps()`. De onboardingsessie gebruikt alleen die tweede helft.
+
+**Voorstel:** blok 1 wordt "Openstaande punten en vragen" en toont beide lijsten uit dezelfde loader, met de
+mogelijkheid het antwoord meteen vast te leggen. Dit is de goedkoopste manier om het uur consultancy meer te laten
+opleveren, en er hoeft geen nieuwe telling of tweede waarheid voor bij te komen.
+
+### A4. Het scherm kan tegelijk "Niets open" en "23 nog open" zeggen
+
+`findGaps()` kent maar vier velden: werkgebied, schrijfwijzen, bedrijfsmodel en bewijspunten. Staan die vier goed, dan
+zegt het openingsblok in een groene kaart "ORBIT ENGINE heeft alles wat het nodig heeft om te meten en te schrijven",
+terwijl de meter onderaan hetzelfde moment tientallen open velden telt. Twee tegenstrijdige uitspraken op één pagina,
+en de groene kaart is de eerste die de klant leest.
+
+**Fix:** de tekst van de lege staat aanscherpen naar wat hij echt betekent, bijvoorbeeld "Alles wat de meting stuurt
+staat er. De rest maakt het scherper, maar is niet nodig om te beginnen." Plus de gesplitste meter uit 8.5, zodat de
+twee getallen elkaar niet tegenspreken.
+
+### A5. Het afrondblok blijft na afloop hetzelfde werk aanbieden, en dat kan geld kosten
+
+De keten werkt zo: het scherm bepaalt "gewijzigd" als elke veldwijziging met een mensbron ná `deep_research_at`.
+De vier bijwerktaken (onderwerpen, markt, vragen, kennistest) werken `deep_research_at` **niet** bij; alleen de
+volledige onderzoeksronde in `prepare-profile.ts` doet dat. Verder blokkeert `dedupe` alleen taken die nog openstaan,
+klaar werk blokkeert niets, en de client leegt zijn lijst met wijzigingen na een geslaagde aanroep niet.
+
+Drie gevolgen:
+
+1. Direct na het klikken staat de knop weer aan en het blok zegt nog steeds dat er iets bijgewerkt moet worden.
+2. Bij elk volgend bezoek, ook weken later, biedt het scherm exact dezelfde stappen opnieuw aan.
+3. Wie er twee keer op drukt terwijl de eerste ronde al klaar is, betaalt twee keer.
+
+**Fix:** vastleggen wanneer een veld is meegenomen in een bijwerkronde, bijvoorbeeld met een kolom `refreshed_at`
+op `profile_field_sources` of een `last_refresh_at` op `profiles`, en "gewijzigd" daartegen afzetten in plaats van
+tegen `deep_research_at`. In de tussentijd, als kleine ingreep: na een geslaagde aanroep de knop uitzetten en het blok
+laten zeggen dat het werk loopt.
+
+### A6. Oude kennistestantwoorden blijven meetellen na een correctie (te verifiëren)
+
+De kennistest slaat per vraag een rij op en slaat bij een herhaling over wat er al staat, vergeleken op
+engine, blok en vraagtekst. De lezers van die tabel selecteren alle rijen van het profiel, zonder filter op ronde of
+datum. Verandert het werkgebied van Tilburg naar landelijk, dan komen er nieuwe vragen bij terwijl de oude
+Tilburg-antwoorden in het oordeel blijven meelopen.
+
+Dit is een leesbevinding uit de code, geen waarneming op productie. **Verifiëren op een echt profiel** waar het
+werkgebied is gewijzigd, en zo nodig verouderde rijen markeren in plaats van te bewaren en mee te tellen.
+Het raakt dit scherm rechtstreeks, want het is het scherm dat de correctie uitlokt.
+
+### A7. Negen velden hebben geen werkend label voor schermlezers
+
+In `brand-field-input.tsx` staat `<label htmlFor={id}>` boven elk veld, en `id` is `veld-<kolomnaam>`. Bij tekst en
+lange tekst bestaat dat element. Bij de vijf schuiven, de drie keuzemenu's en het ja-nee-veld wordt in plaats daarvan
+`Standen` gerenderd, en dat component zet het id nergens op een element: het gebruikt
+`role="radiogroup" aria-labelledby={id}`, dus het verwijst naar een id dat niet bestaat.
+
+Resultaat: bij die negen velden wijst het label nergens heen, en de knoppenrij kondigt zichzelf aan zonder naam.
+Toetsenbordnavigatie werkt wel, maar de gebruiker hoort niet welke vraag hij beantwoordt.
+
+**Fix:** het label krijgt een eigen id (bijvoorbeeld de veldsleutel met achtervoegsel "-label") en de radiogroep verwijst daarnaar. Dat is de standaardoplossing en
+raakt verder niets.
+
+### A8. Het laatste antwoord kan verloren gaan bij het sluiten van het tabblad
+
+Opslaan gebeurt bij het verlaten van het veld (`onBlur`). Dat is bewust, en de keuze om geen waarschuwing bij weglopen
+te tonen ook. Maar wie het tabblad sluit terwijl de cursor nog in een tekstvak staat, verliest wat er getypt is:
+er komt geen blur meer.
+
+**Fix:** ook opslaan bij `pagehide` en bij `visibilitychange` naar verborgen. Dat past bij de bestaande keuze
+(bewaren zonder te waarschuwen) in plaats van hem terug te draaien.
+
+### A9. Het scherm ververst nooit
+
+De sessie krijgt het profiel één keer mee vanaf de server en houdt daarna zijn eigen kopie bij. Werkt een bijwerktaak
+iets uit, of past de klant iets aan in zijn eigen tabblad, dan is dat hier niet te zien tot een handmatige herlaad.
+Op een scherm dat bedoeld is om samen naar te kijken is dat verwarrend, en het gespreksblok gebruikt al wél een
+verversing na opslaan (`use-refresh.ts`).
+
+**Fix:** dezelfde verversing gebruiken na een geslaagde bijwerkronde, en de meter en herkomstchips daarop laten
+meelopen.
+
+### A10. Het vangnet in de opslagroute dekt niet alle lijstvelden
+
+De PATCH-route filtert lege en niet-tekstuele items uit twaalf lijstvelden. Zes andere lijstvelden staan niet in die
+lijst: `products`, `value_props`, `competitors`, `aliases`, `service_regions` en `proof_points`. Die worden nu netjes
+door de invoercomponent aangeleverd, dus in de praktijk gaat het goed. Maar dat is precies het patroon dat conventie 1
+verbiedt: de garantie zit in de client in plaats van in de route. Eén ander scherm, of een aanroep buiten de app om,
+en er staat een lege string in `aliases`, waar de meting op vergelijkt.
+
+**Fix:** de zes velden toevoegen aan `LIST_FIELDS`. Kost niets en sluit een gat.
+
+### A11. Twee mensen in hetzelfde dossier merken niets van elkaar
+
+Elke veldwijziging is een losse PATCH zonder versiecontrole. Werkt de klant in zijn eigen scherm terwijl de CSM in
+het gesprek zit, dan wint stilzwijgend wie het laatst opslaat, en het scherm van de ander blijft de oude waarde tonen.
+Het komt zelden voor, maar precies tijdens een onboardinggesprek is de kans het grootst.
+
+**Fix (klein):** de herkomstchip toont al wie de waarde zette; daar de datum bij tonen, en bij het opslaan controleren
+of `updated_at` nog gelijk is aan wat het scherm kent. Verschilt hij, dan een melding in plaats van stil overschrijven.
+
+### A12. Het scherm is een eindpunt, terwijl het gesprek doorloopt
+
+Na de sessie gaat het werk verder op het clusterscherm (de commerciële notitie per onderwerp), op het vragenscherm en
+bij het contentplan. De onboardingsessie linkt naar geen van drieën. De CSM moet via het menu zoeken waar het gesprek
+verdergaat.
+
+**Fix:** onderaan blok 9 drie doorverwijzingen met één zin elk: wat er op dat scherm gebeurt en waarom het na dit
+gesprek aan de beurt is.
+
+### Wat dit toevoegt aan het implementatieplan
+
+Vier van deze elf zijn los te bouwen en samen minder werk dan één van de stappen uit hoofdstuk 12. Ze horen daarom
+vóór stap 1 te komen als **stap 0, dezelfde middag te doen**:
+
+| Volgorde | Ingreep | Waarom eerst |
+|---|---|---|
+| 0.1 | A1: het gevonden-blok ingeklapt openen | Maakt het scherm meteen vier keer korter, één regel code |
+| 0.2 | A7: labels koppelen bij de negen keuzevelden | Toegankelijkheidsfout, standaardoplossing, raakt niets anders |
+| 0.3 | A10: zes lijstvelden in het vangnet van de route | Sluit een gat in de meting, kost niets |
+| 0.4 | A8: opslaan bij het sluiten van het tabblad | Voorkomt verlies van een antwoord tijdens een gesprek |
+
+Daarna verschuiven twee stappen uit hoofdstuk 12 van bouwen naar aansluiten:
+
+- **Blok 0 (voorbereiding)** wordt "`computeReadiness()` aanroepen en `ProfileReadinessPanel` renderen", niet
+  "een contextkaart ontwerpen". Zie A2.
+- **Blok 1 (openstaande punten)** wordt "`getOpenVragen()` gebruiken in plaats van alleen `findGaps()`". Zie A3.
+
+En er komt één onderzoeksvraag bij die vóór stap 5 beantwoord moet zijn: **A5 en A6**, het bijwerkgedrag na het
+gesprek. Zolang `deep_research_at` niet meebeweegt met de bijwerkronde, blijft het afrondblok hetzelfde werk aanbieden
+en kan hetzelfde werk twee keer betaald worden. Dat is geen vormgevingskwestie maar een fout in de keten, en hij
+hoort opgelost te zijn voordat het scherm de CSM nadrukkelijker naar die knop leidt.
