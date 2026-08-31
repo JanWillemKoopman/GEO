@@ -31,6 +31,7 @@ export function BrandFieldInput({
   source,
   notApplicable,
   stand,
+  triggersTopics,
   onChange,
   onCommit,
   onToggleNvt,
@@ -49,6 +50,12 @@ export function BrandFieldInput({
   notApplicable?: boolean;
   /** Weglaten op een oppervlak dat met één knop opslaat. */
   stand?: VeldStand;
+  /**
+   * Onboarding ronde B, stap B7: dit veld staat in `FIELD_TASKS` met de taak
+   * "onderwerpen" (`lib/pipeline/onboarding-refresh.ts`). Wijzigt het, dan
+   * vervangt de eerstvolgende bijwerkronde de voorgestelde onderwerpen.
+   */
+  triggersTopics?: boolean;
   onRetry?: () => void;
   onChange: (value: unknown) => void;
   /**
@@ -79,7 +86,19 @@ export function BrandFieldInput({
           {field.label}
         </label>
         <span className="flex flex-wrap items-center gap-2">
-          {stand && stand !== "rust" && <Stand stand={stand} />}
+          {/* B9, hoofdstuk 8.6: alleen nog een chip bij een mislukte opslag.
+              "opslaan" en "opgeslagen" stonden hier eerst ook, en bij snel
+              doorlopen sprong het scherm bij elke `onBlur`. Dat werk draagt nu
+              de ene vaste regel bovenaan het scherm (`laatsteOpslag`). */}
+          {stand === "mislukt" && <Stand stand={stand} />}
+          {triggersTopics && !notApplicable && (
+            <span
+              className="chip chip-neutral"
+              title="Wijzig je dit, dan maakt de eerstvolgende bijwerkronde nieuwe onderwerpvoorstellen."
+            >
+              start nieuwe onderwerpen
+            </span>
+          )}
           {notApplicable ? (
             <span className="chip chip-neutral">niet van toepassing</span>
           ) : (
@@ -97,6 +116,10 @@ export function BrandFieldInput({
         </span>
       </div>
       <p className="text-sm text-muted">{field.description}</p>
+      {/* Onboarding ronde B, stap B2: waar het antwoord landt, in één zin.
+          Precies het antwoord op de vraag die tijdens de sessie het vaakst
+          valt: "waarom willen jullie dit weten?" */}
+      <p className="text-xs text-muted">{field.usage}</p>
 
       {/* ⚠️ De waarde blijft staan, en er komt een knop bij. Stil terugdraaien
           naar de oude waarde laat de consultant het opnieuw typen zonder te
@@ -168,6 +191,17 @@ export function BrandFieldInput({
             onChange(null);
             onCommit?.();
           }}
+        />
+      ) : field.kind === "getal" ? (
+        <input
+          id={id}
+          className="field"
+          type="number"
+          min={5}
+          value={typeof value === "number" ? value : ""}
+          onChange={(e) => onChange(e.target.value === "" ? null : Number(e.target.value))}
+          onBlur={() => onCommit?.()}
+          placeholder={voorbeeld}
         />
       ) : field.kind === "lange-tekst" ? (
         <textarea

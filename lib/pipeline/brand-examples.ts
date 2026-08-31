@@ -3,7 +3,7 @@
  *
  * ── WAT HET PROBLEEM WAS ────────────────────────────────────────────────────
  *
- * Van de 56 velden in `brand-fields.ts` hebben er 35 een voorbeeld, en die waren
+ * Van de 57 velden in `brand-fields.ts` hebben er 35 een voorbeeld, en die waren
  * bijna allemaal geschreven vanuit één fictieve autodealer: "Wij zorgen dat
  * iedereen in de regio zorgeloos kan rijden", "400 medewerkers in 9
  * vestigingen". Voor een fysiotherapiepraktijk of een advocatenkantoor leest dat

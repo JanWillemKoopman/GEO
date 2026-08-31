@@ -5837,3 +5837,112 @@ eerste poging aangescherpt omdat de regex de code niet raakte), 397 ketentests, 
 Verificatie op productie (§18.1, onder A): het scherm openen op een testmerk toont nu de
 openstaande stappen uitgeklapt en de complete stappen dicht, in plaats van 41 velden in één keer. Een
 veld getypt, tabblad gesloten en teruggekomen: de waarde staat er.
+
+**31 augustus 2026, onboarding ronde B (deel één, stap B1 tot en met B4).** De schermverbouwing van
+`documentatie/onboarding_optimalisatie.md` §18, uitgevoerd op `feature/onboarding-ronde-b` vanaf
+`main`. Vier stappen, in de volgorde van §18.0 (pure module vóór scherm), zonder migratie: alle
+kolommen bestonden al.
+
+**B1. `brand_name` is nu bewerkbaar.** De naam waarop de vermeldingsclassificatie telt of een
+AI-antwoord over dit merk gaat, werd tot deze ronde uitsluitend door het AI-onderzoek gezet
+(`discover.ts`) en stond nergens in een formulier. Een verkeerd afgeleide naam bleef daardoor elke
+volgende meetronde meelopen, terwijl ongeveer twintig modules hem lezen. Toegevoegd aan
+`EDITABLE_PROFILE_FIELDS` en aan `BRAND_FIELDS` (stap "bedrijf", direct na `name`, `derivable: true`),
+zodat hij automatisch meeloopt in zowel de onboardingsessie als de klantwizard, en `field-merge.ts`
+hem met rust laat zodra een mens hem heeft gezet. De catalogus telt sindsdien 57 velden in plaats van
+56, en de klantwizard 42 in plaats van 41.
+
+**B2. Elk veld toont nu waar het antwoord landt.** Nieuw verplicht veld `usage` op `BrandField`
+(`lib/pipeline/brand-fields.ts`), gevuld voor alle 57 velden met de tekst uit hoofdstuk 6 van het
+plan, gerenderd onder het invoerveld door `BrandFieldInput` in kleine grijze letters. Werkt
+automatisch door in de klantwizard, wat gewenst is: dezelfde vraag ("waarom willen jullie dit
+weten?") speelt daar net zo goed. Een unittest eist dat élk veld een `usage`-tekst van minstens tien
+tekens heeft, zodat een nieuw veld niet zonder uitleg kan landen.
+
+**B3. Verplicht, aanbevolen en optioneel bestaan nu.** Nieuw veld `priority` op `BrandField`, gezet
+volgens de statuskolom van hoofdstuk 6: twaalf velden verplicht (waaronder `brand_name`, `aliases`,
+`competitors`, `products`, `proof_points`), de rest aanbevolen of optioneel. Nieuwe pure functie
+`missingRequired(profile, notApplicable)` telt welke verplichte velden nog leeg zijn, met één
+uitzondering die in de functie zit en niet in de catalogus: `service_regions` staat op "aanbevolen",
+maar wordt pas verplicht zodra `service_scope` op "lokaal" staat (hoofdstuk 14.2). Het afrondblok van
+de sessie noemt de openstaande verplichte velden met springlinks naar het veld. Geen validatie
+tijdens het typen: de klant kijkt mee.
+
+**B4. Het scherm volgt nu de gespreksvolgorde, niet de catalogusvolgorde.** Nieuwe export
+`SESSION_BLOCKS` groepeert de 57 velden opnieuw in de negen blokken van hoofdstuk 3: openstaande
+punten, je bedrijf en je namen, je aanbod, je markt, je bewijs, je klant en je toon, documenten en
+teksten met de veranderingen die eraan komen, techniek en koppelingen, en afspraken en afronden. Dit
+is bewust géén nieuwe `BrandStep`-waarde: de klantwizard blijft de catalogusvolgorde
+(`CLIENT_STEPS`/`STEP_ORDER`) gebruiken, en `SESSION_BLOCKS` hergroepeert alleen hoe de sessie ze
+toont. De zeven auteursvelden staan voortaan in een eigen, ingeklapt blok "Auteur, voor later" binnen
+"Afspraken en afronden" (`SESSION_AUTHOR_FIELDS`), met één gezamenlijke uitleg in plaats van zeven
+losse kaarten in de hoofdstroom. De teksten volgen hoofdstuk 7: "Openstaande punten" in plaats van
+"Wat we nog niet weten", de springlink heet "Ga naar dit veld" in plaats van "Invullen" (die knop
+sloeg nooit iets op), en het scherm en het menu-item heten voortaan "Onboardinggesprek" in plaats van
+kaal "Onboarding". De A1-fix (een compleet blok opent ingeklapt) is meeverhuisd van per catalogusstap
+naar per gespreksblok, zodat het scherm ook in de nieuwe indeling kort blijft.
+
+Een aanname uit het plan bleek niet te kloppen bij het natellen: hoofdstuk 11 noemt "17 velden,
+waarvan 1 nieuw" voor blok 6 ("Je klant en je toon"), maar de rijentelling in hoofdstuk 6 komt uit op
+16 (15 bestaande plus `style_samples`, dat in deel twee van deze ronde volgt). De rijentelling in
+hoofdstuk 6 is de brontabel; de samenvatting in hoofdstuk 11 was niet bijgewerkt na een latere
+wijziging aan die tabel.
+
+Vier controles groen: typecheck, 2734 unittests (21 nieuwe), 397 ketentests, de productiebuild.
+Ronde B deel twee (B5 tot en met B9: de voorbereidingskaart, de open vragen erbij, de vier
+onderwerp-triggerende velden markeren, de resterende vijf nieuwe velden, en de vormgeving) volgt in
+een volgende sessie op dezelfde branch, en wordt pas gezamenlijk als één pull request opgeleverd
+(§15.2: een half verbouwd scherm in productie is erger dan niet verbouwd).
+
+**31 augustus 2026, onboarding ronde B (deel twee, stap B5 tot en met B9).** Zelfde branch,
+`documentatie/onboarding_optimalisatie.md` §18, vervolg op deel één. Vijf stappen, geen migratie: de
+kolommen die B5 tot en met B9 nodig hebben bestonden allemaal al.
+
+**B5. Blok 0, de voorbereiding, via de bestaande readiness-module.** `computeReadiness()` (destijds
+`assessReadiness()`) en `ProfileReadinessPanel` stonden al sinds 17 augustus 2026 klaar in de
+codebase, met nul aanroepers: het paneel werd door geen enkel scherm gerenderd. Blok 0 van de
+onboardingsessie roept hem nu aan. Twee rijen toegevoegd aan `ReadinessInput`/`assessReadiness()`
+voor de vijfde en zesde startvoorwaarde uit hoofdstuk 14.1 ("pakket op het account", "merk
+toegewezen"), beide `nodig: false`: het product is sales-led, dus tijdens dit gesprek is een merk
+meestal nog niet toegewezen en staat er nog geen pakket, en dat mag "compleet" niet blokkeren. De
+status-route (`/api/profiles/[id]/status`) haalt daarvoor het pakket van het account erbij.
+
+**B6. Blok 1 toont nu ook de feitenvragen, niet meer alleen de open punten.** De sessiepagina
+gebruikt `loadOpenQuestions()`, dezelfde loader als `/strategie/vragen`, en rendert `FactRequests`
+eronder: dezelfde vragen, met dezelfde antwoord- en overslaanknoppen, zonder tweede telling. De
+knop "Ga naar dit veld" voor de profielgaten blijft client-side reactief op `findGaps()`, dat kan niet
+uit de server-loader komen zonder de live-typende consultant een paar seconden achter te laten lopen.
+
+**B7. De vier velden die een nieuwe onderwerpronde veroorzaken dragen nu een chip.** Geen nieuwe
+lijst: `BrandFieldInput` krijgt een `triggersTopics`-vlag die rechtstreeks uit `FIELD_TASKS`
+(`onboarding-refresh.ts`) wordt afgeleid, dus een latere wijziging aan die vertaaltabel verandert de
+markering automatisch mee. De waarschuwing "beslis onderwerpen pas ná het gesprek" bleek al te
+bestaan op het clusterscherm: elk conceptonderwerp toont daar al "Zodra het gesprek is vastgelegd,
+maakt ORBIT ENGINE de definitieve onderwerpen die je kunt starten" (`profile_topics.stage`,
+migratie 0074). Geen tweede waarschuwing op een tweede scherm.
+
+**B8. De vijf resterende velden.** `style_samples` (stap "stem"), `max_inventory_pages` en
+`crawl_priority_paths` (stap "bedrijf", nieuw `FieldKind: "getal"` voor het eerste) toegevoegd aan
+`BRAND_FIELDS` en `EDITABLE_PROFILE_FIELDS`; de laatste twee stonden al vast in de PATCH-route
+(validatie en klemming) maar niet in de catalogus, dus geen dubbele afhandeling. De catalogus telt
+sindsdien 60 velden, de klantwizard 45. `url` is bewust géén catalogusveld: alleen tonen met een
+aparte actie "Website wijzigen", die waarschuwt dat de crawl en de inventaris opnieuw moeten. Search
+Console staat als statusregel met een link naar `/instellingen/koppelingen`, geen invoerveld.
+
+**B9. Vormgeving.** Tweekolomsindeling op groot scherm (rechts een blijvende kolom met de meter en
+de openstaande punten), voortgang per blok in de zijrail ("6 van de 9"), één vaste regel bovenaan in
+plaats van een chip per veld bij elke opslag (de chip blijft alleen staan bij een mislukte opslag),
+het scherm ververst zichzelf na een geslaagde bijwerkronde, en een knop "Samenvatting van dit
+gesprek" die de verplichte velden en de gespreksnotitie samenvat om terug te sturen.
+
+**Verificatie op productie (§18.1, onder B).** Doorgerekend tegen de echte, opgeslagen data van
+"Van Loon Klimaattechniek" (uitdrukkelijk een testmerk, dat staat letterlijk in het eigen
+merkdossier): de readiness-module meldt op basis van de negen echte tellingen (9 pagina's, 38
+aanbodonderdelen, 5 onderwerpen, 11 kennistestrijen, 16 technische controles) terecht "compleet",
+met de twee nieuwe rijen als open punt in plaats van blokkade, en de kop noemt de drie resterende
+punten als agenda voor het gesprek. `missingRequired()`, `FIELD_TASKS` en `planRefresh()` gaven op
+ditzelfde profiel de verwachte uitkomst. Een volledige klik-doorloop in de browser is niet gedaan:
+deze sessie had geen lokale Supabase-inloggegevens beschikbaar. De vier controles (typecheck,
+2734 unittests, 397 ketentests, productiebuild) zijn wel alle vier groen.
+
+Ronde B is hiermee als geheel af.

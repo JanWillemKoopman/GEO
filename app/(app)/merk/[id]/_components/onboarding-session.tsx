@@ -1,17 +1,21 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { SectionRail } from "@/components/section-rail";
 import { CollapsibleSection } from "@/components/collapsible-section";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { BrandFieldInput, type VeldStand } from "./brand-field-input";
 import { DossierBox } from "./dossier-box";
 import { StrategyBox } from "./strategy-box";
+import { FactRequests } from "./fact-requests";
+import { ProfileReadinessPanel } from "./profile-readiness-panel";
 import {
-  STEP_META,
-  CLIENT_STEPS,
-  fieldsOfStep,
-  stepProgress,
+  BRAND_FIELDS,
+  SESSION_BLOCKS,
+  SESSION_AUTHOR_FIELDS,
+  missingRequired,
+  isFilled,
 } from "@/lib/pipeline/brand-fields";
 import { findGaps } from "@/lib/profile-gaps";
 import { examplesFor } from "@/lib/pipeline/brand-examples";
@@ -19,9 +23,10 @@ import {
   planRefresh,
   refreshConfirmation,
   TASK_LABELS,
+  FIELD_TASKS,
 } from "@/lib/pipeline/onboarding-refresh";
 import { sessionMeter, notApplicableFields, type FieldState } from "@/lib/profile-meter";
-import type { ContextFactor, Profile } from "@/lib/types/database";
+import type { ContextFactor, FactRequest, Profile } from "@/lib/types/database";
 
 /**
  * DE ONBOARDINGSESSIE: het scherm waar consultant en klant samen aan tafel zitten.
@@ -62,6 +67,8 @@ export function OnboardingSession({
   recordedAt,
   changedSinceResearch,
   openAnalyses,
+  factRequests,
+  factGroepen,
 }: {
   profileId: string;
   brandName: string;
@@ -76,10 +83,18 @@ export function OnboardingSession({
   changedSinceResearch: string[];
   /** Analyses waarvan de vragen nog opnieuw opgesteld kunnen worden. */
   openAnalyses: number;
+
+  /**
+   * B6: dezelfde feitenvragen als op de vragenpagina, uit `loadOpenQuestions()`.
+   * Eén loader, geen tweede telling (hoofdstuk 13, A3).
+   */
+  factRequests: FactRequest[];
+  factGroepen: { id: string; naam: string }[];
 }) {
+  const router = useRouter();
   const [waarden, setWaarden] = useState<Record<string, unknown>>(() => {
     const start: Record<string, unknown> = {};
-    for (const veld of ALLE_VELDEN) start[veld.key as string] = initial[veld.key];
+    for (const veld of BRAND_FIELDS) start[veld.key as string] = initial[veld.key];
     return start;
   });
   const [standen, setStanden] = useState<Record<string, VeldStand>>({});
@@ -93,6 +108,14 @@ export function OnboardingSession({
   const [bijwerken, setBijwerken] = useState<"rust" | "bezig" | "gedaan" | "mislukt">("rust");
   const [bevestigBijwerken, setBevestigBijwerken] = useState(false);
   const [states, setStates] = useState<Record<string, FieldState>>(initialStates);
+  // B9: één regel bovenin in plaats van een chip per veld (hoofdstuk 8.6). Een
+  // chip blijft alleen staan bij een mislukte opslag, dat blijft aan het veld
+  // zelf hangen.
+  const [laatsteOpslag, setLaatsteOpslag] = useState<Date | null>(null);
+  const [toonSamenvatting, setToonSamenvatting] = useState(false);
+  const [urlBewerken, setUrlBewerken] = useState(false);
+  const [urlWaarde, setUrlWaarde] = useState(initial.url);
+  const [bevestigUrl, setBevestigUrl] = useState(false);
 
   const meter = useMemo(
     () => sessionMeter(waarden as Partial<Profile>, states),
@@ -111,6 +134,21 @@ export function OnboardingSession({
         },
         notApplicableFields(states),
       ),
+    [waarden, states],
+  );
+
+  // B6: de open feitenvragen tellen mee in de badge van blok 1, naast de
+  // profielgaten. `factRequests` komt uit dezelfde `loadOpenQuestions()` als de
+  // vragenpagina; overgeslagen vragen tellen bewust niet mee (zie die module).
+  const openFeitenvragen = useMemo(
+    () => factRequests.filter((f) => f.status === "open"),
+    [factRequests],
+  );
+
+  // B3: welke verplichte velden staan nog open, inclusief het onderscheid uit
+  // hoofdstuk 14 (`service_regions` telt alleen mee bij een lokaal werkgebied).
+  const openstaandVerplicht = useMemo(
+    () => missingRequired(waarden as Partial<Profile>, notApplicableFields(states)),
     [waarden, states],
   );
 
@@ -153,6 +191,7 @@ export function OnboardingSession({
       setStates((s) => ({ ...s, [key]: { ...s[key], source: "gesprek" } }));
       setGewijzigd((v) => (v.includes(key) ? v : [...v, key]));
       openstaandeVelden.current.delete(key);
+      setLaatsteOpslag(new Date());
     } catch {
       setStanden((s) => ({ ...s, [key]: "mislukt" }));
     }
@@ -191,6 +230,33 @@ export function OnboardingSession({
     };
   }, [profileId]);
 
+  /**
+   * B8: de website wijzigen. `url` staat bewust niet in `BRAND_FIELDS`: het is
+   * geen veld dat je "nakijkt" zoals de rest, het is de bron van de hele crawl.
+   * Daarom eerst alleen tonen, en een aparte actie met een waarschuwing die
+   * duidelijk maakt dat de crawl opnieuw moet (hoofdstuk 5.2).
+   */
+  async function bewaarUrl() {
+    setBevestigUrl(false);
+    setStanden((s) => ({ ...s, url: "opslaan" }));
+    try {
+      const res = await fetch(`/api/profiles/${profileId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url: urlWaarde, bron: "gesprek" }),
+      });
+      if (!res.ok) {
+        setStanden((s) => ({ ...s, url: "mislukt" }));
+        return;
+      }
+      setStanden((s) => ({ ...s, url: "opgeslagen" }));
+      setLaatsteOpslag(new Date());
+      setUrlBewerken(false);
+    } catch {
+      setStanden((s) => ({ ...s, url: "mislukt" }));
+    }
+  }
+
   /** Niet van toepassing aan- of uitzetten. Zelfde route, andere sleutel. */
   async function zetNvt(key: string) {
     const nieuw = !states[key]?.notApplicable;
@@ -207,6 +273,7 @@ export function OnboardingSession({
       }
       setStanden((s) => ({ ...s, [key]: "opgeslagen" }));
       setStates((s) => ({ ...s, [key]: { ...s[key], notApplicable: nieuw } }));
+      setLaatsteOpslag(new Date());
     } catch {
       setStanden((s) => ({ ...s, [key]: "mislukt" }));
     }
@@ -223,6 +290,10 @@ export function OnboardingSession({
    *
    * De bevestiging draagt de raming, en dat is de enige plek waar een bedrag
    * hoort te staan: dit scherm wordt met de klant gedeeld.
+   *
+   * B9: ná een geslaagde ronde ververst de pagina. Zonder dit blijft de knop
+   * staan alsof er nog niets gebeurd is, en ziet de consultant pas na een
+   * handmatige herlaadbeurt dat het werk daadwerkelijk liep (hoofdstuk 13, A9).
    */
   async function werkBij() {
     setBevestigBijwerken(false);
@@ -230,13 +301,28 @@ export function OnboardingSession({
     try {
       const res = await fetch(`/api/profiles/${profileId}/refresh`, { method: "POST" });
       setBijwerken(res.ok ? "gedaan" : "mislukt");
+      if (res.ok) router.refresh();
     } catch {
       setBijwerken("mislukt");
     }
   }
 
+  // B9: de voortgang per blok, voor de badges in de rail (hoofdstuk 8.2). Zonder
+  // dit ziet de consultant pas na het scrollen door alle negen blokken hoe ver
+  // hij is; de rail zei tot nu toe alleen "Openstaande punten".
+  const blokVoortgang = useMemo(
+    () =>
+      Object.fromEntries(
+        SESSION_BLOCKS.map((blok) => {
+          const gevuld = blok.velden.filter((k) => isFilled(waarden[k as string])).length;
+          return [blok.id, { gevuld, totaal: blok.velden.length }];
+        }),
+      ),
+    [waarden],
+  );
+
   function veld(key: string) {
-    const definitie = ALLE_VELDEN.find((f) => (f.key as string) === key)!;
+    const definitie = BRAND_FIELDS.find((f) => (f.key as string) === key)!;
     return (
       <BrandFieldInput
         key={key}
@@ -246,6 +332,10 @@ export function OnboardingSession({
         source={states[key]?.source}
         notApplicable={states[key]?.notApplicable}
         stand={standen[key] ?? "rust"}
+        // B7: precies de vier velden waar `FIELD_TASKS` de taak "onderwerpen"
+        // aan hangt. Geen tweede lijst: verandert de vertaaltabel, dan verandert
+        // deze markering vanzelf mee.
+        triggersTopics={(FIELD_TASKS[key] ?? []).includes("onderwerpen")}
         onChange={(v) => zet(key, v)}
         onCommit={() => void bewaarVeld(key)}
         onToggleNvt={() => void zetNvt(key)}
@@ -258,137 +348,294 @@ export function OnboardingSession({
     <div className="flex flex-col lg:flex-row lg:gap-10">
       <SectionRail
         sections={[
+          { id: "voorbereiding", label: "Voorbereiding" },
           {
             id: "open",
-            label: "Nog niet bekend",
-            badge: gaten.length > 0 ? `${gaten.length} open` : undefined,
+            label: "Openstaande punten",
+            badge:
+              gaten.length + openFeitenvragen.length > 0
+                ? `${gaten.length + openFeitenvragen.length} open`
+                : undefined,
           },
-          { id: "markt", label: "Wat je wilt" },
-          { id: "gevonden", label: "Wat we vonden" },
-          { id: "materiaal", label: "Wat je hebt" },
-          { id: "speelt", label: "Wat er speelt" },
-          { id: "afronden", label: "Afronden" },
+          // B9, hoofdstuk 8.2: voortgang per blok in de rail, zodat de
+          // consultant ziet waar hij staat zonder alle negen blokken langs te
+          // scrollen.
+          ...SESSION_BLOCKS.map((blok) => {
+            const p = blokVoortgang[blok.id];
+            return {
+              id: blok.id,
+              label: blok.titel,
+              badge: p ? `${p.gevuld} van de ${p.totaal}` : undefined,
+            };
+          }),
+          { id: "materiaal", label: "Documenten en teksten" },
+          { id: "afronden", label: "Afspraken en afronden" },
         ]}
       />
 
-      <div className="flex min-w-0 flex-1 flex-col gap-12">
-        {/* ── 1. Wat we nog niet weten ─────────────────────────────────────
-            Bovenaan, en dat is de kern van dit scherm. Elk punt noemt het
-            gevolg en niet het gemis, en de zwaarste staat bovenaan. */}
-        <section id="open" className="flex flex-col gap-3">
-          <Kop
-            nummer="01"
-            titel="Wat we nog niet weten"
-            uitleg="Hier begint het gesprek. Elk punt hieronder maakt de meting of de teksten scherper, en het zwaarste staat bovenaan."
-          />
-          {gaten.length === 0 ? (
-            <div className="card card-success flex flex-col gap-1">
-              <span className="mono-label">Niets open</span>
-              <p className="text-secondary">
-                ORBIT ENGINE heeft alles wat het nodig heeft om te meten en te schrijven.
-              </p>
-            </div>
-          ) : (
-            <ul className="flex flex-col gap-3">
-              {gaten.map((gat) => (
-                <li key={gat.field} className="card flex flex-col gap-2">
-                  <span className="text-sm font-semibold">{gat.label}</span>
-                  <p className="text-sm text-secondary">{gat.effect}</p>
-                  <a
-                    href={`#veld-anker-${gat.field}`}
-                    className="btn-outline w-fit"
-                  >
-                    Invullen
-                  </a>
-                </li>
-              ))}
-            </ul>
+      <div className="flex min-w-0 flex-1 flex-col gap-10 lg:flex-row">
+        <div className="flex min-w-0 flex-1 flex-col gap-12">
+          {/* B9, hoofdstuk 8.6: één vaste regel in plaats van een chip per
+              veld. Springt niet, en zegt precies wat de klant wil weten: dat
+              er niets kwijtraakt. */}
+          {laatsteOpslag && (
+            <p className="mono-label text-muted" role="status">
+              Alles bewaard · laatste wijziging{" "}
+              {laatsteOpslag.toLocaleTimeString("nl-NL", { hour: "2-digit", minute: "2-digit" })}
+            </p>
           )}
-        </section>
 
-        {/* ── 2. Wat we van je willen weten ────────────────────────────────
-            De commerciële laag. Het enige blok dat helemaal leeg begint, en
-            waar het uur consultancy over gaat. */}
-        <section id="markt" className="flex flex-col gap-3">
-          <Kop nummer="02" titel={STEP_META.strategie.title} uitleg={STEP_META.strategie.description} />
-          <div className="flex flex-col gap-4">
-            {fieldsOfStep("strategie").map((f) => veld(f.key as string))}
-          </div>
+          {/* ── 0. Voorbereiding ─────────────────────────────────────────────
+              Hoofdstuk 3 en 14: wat de consultant vóór het gesprek wil weten,
+              via de bestaande readiness-module (`profile-readiness.ts`). Die
+              stond al in de codebase klaar, alleen nog nergens aangeroepen. */}
+          <section id="voorbereiding" className="flex flex-col gap-3">
+            <Kop
+              nummer="00"
+              titel="Voorbereiding"
+              uitleg={`${initial.url} · ${initial.industry ?? "branche nog niet bekend"}. Wat ORBIT ENGINE al weet, en wat er nog moet gebeuren voordat je dit scherm deelt.`}
+            />
+            <ProfileReadinessPanel profileId={profileId} brandName={brandName} />
+          </section>
 
-          <div className="mt-4 flex flex-col gap-3">
-            <Kop nummer="02b" titel={STEP_META.contact.title} uitleg={STEP_META.contact.description} />
-            <div className="flex flex-col gap-4">
-              {fieldsOfStep("contact").map((f) => veld(f.key as string))}
-            </div>
-          </div>
-        </section>
+          {/* ── 1. Openstaande punten en vragen ──────────────────────────────
+              Bovenaan, en dat is de kern van dit scherm. B6: naast de open
+              punten in het profiel staan hier ook de feitenvragen uit
+              `fact_requests`, uit dezelfde loader als de vragenpagina
+              (`loadOpenQuestions()`). Eén telling, niet twee. */}
+          <section id="open" className="flex flex-col gap-3">
+            <Kop
+              nummer="01"
+              titel="Openstaande punten en vragen"
+              uitleg="Hier begint het gesprek. Elk punt hieronder maakt de meting of de teksten scherper, en het zwaarste staat bovenaan. Vragen beantwoord je meteen, hier."
+            />
+            {gaten.length === 0 ? (
+              <div className="card card-success flex flex-col gap-1">
+                <span className="mono-label">Niets open</span>
+                <p className="text-secondary">
+                  Alles wat de meting stuurt staat er. De rest maakt het scherper, maar is niet
+                  nodig om te beginnen.
+                </p>
+              </div>
+            ) : (
+              <ul className="flex flex-col gap-3">
+                {gaten.map((gat) => (
+                  <li key={gat.field} className="card flex flex-col gap-2">
+                    <span className="text-sm font-semibold">{gat.label}</span>
+                    <p className="text-sm text-secondary">{gat.effect}</p>
+                    <a
+                      href={`#veld-anker-${gat.field}`}
+                      className="btn-outline w-fit"
+                    >
+                      Ga naar dit veld
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            )}
+            {factRequests.length > 0 && (
+              <FactRequests
+                profileId={profileId}
+                initial={factRequests}
+                groepen={factGroepen}
+                kop="Wat ORBIT ENGINE nog van je wil weten"
+              />
+            )}
+          </section>
 
-        {/* ── 3. Wat we al gevonden hebben ─────────────────────────────────
-            Ter controle, ingeklapt per stap met de teller ernaast, zodat een
-            stap die af is niet in de weg zit. */}
-        <section id="gevonden" className="flex flex-col gap-3">
-          <Kop
-            nummer="03"
-            titel="Wat we al gevonden hebben"
-            uitleg="Dit heeft ORBIT ENGINE zelf van de website gehaald. Klap open wat je wilt nalopen; wat je aanpast staat meteen vast."
-          />
-          {CLIENT_STEPS.map((stap) => {
-            const p = stepProgress(waarden as Partial<Profile>, stap);
+          {/* ── 2 tot en met 6, 8. De blokken van hoofdstuk 3 ─────────────────
+              De gespreksvolgorde: eerst wie je bent en wat je verkoopt, dan pas
+              de markt en de toon. Elk blok combineert wat ORBIT ENGINE al vond
+              met wat alleen het gesprek kan opleveren; de herkomstchip per veld
+              (`BrandFieldInput`) laat zien welke van de twee het is. */}
+          {SESSION_BLOCKS.map((blok) => {
+            const p = { ...blokVoortgang[blok.id], compleet: blokVoortgang[blok.id].gevuld === blokVoortgang[blok.id].totaal };
             return (
-              <CollapsibleSection
-                key={stap}
-                title={`${STEP_META[stap].title} · ${p.gevuld} van de ${p.totaal}`}
-                // A1: alleen de stappen die nog niet compleet zijn openen. Een
-                // stap die al af is, hoeft niet in de weg te staan tijdens het
-                // gesprek. Overschrijft het breakpointgedrag van
-                // `CollapsibleSection` bewust, ook op desktop.
-                defaultOpen={!p.compleet}
-              >
-                <div className="flex flex-col gap-4">
-                  <p className="text-sm text-muted">{STEP_META[stap].description}</p>
-                  {fieldsOfStep(stap).map((f) => veld(f.key as string))}
-                </div>
-              </CollapsibleSection>
+              <section key={blok.id} id={blok.id} className="flex flex-col gap-3">
+                <Kop nummer={blok.volgnummer} titel={blok.titel} uitleg={blok.uitleg} />
+                {/* A1, toegepast op de negen blokken: een blok dat al compleet is
+                    hoeft niet in de weg te staan tijdens het gesprek. */}
+                <CollapsibleSection
+                  title={`${p.gevuld} van de ${p.totaal} ingevuld`}
+                  defaultOpen={!p.compleet}
+                >
+                  {blok.velden.map((k) => veld(k as string))}
+                  {/* B8: de website, alleen tonen met een aparte wijzigactie,
+                      en de Search Console-koppeling als statusregel. Allebei
+                      geen catalogusveld: de eerste is de bron van de hele
+                      crawl, de tweede is geen invoer maar een verwijzing. */}
+                  {blok.id === "techniek" && (
+                    <>
+                      <div className="card flex flex-col gap-2" id="veld-anker-url">
+                        <div className="flex flex-wrap items-baseline justify-between gap-2">
+                          <span className="text-sm font-semibold">Website</span>
+                          {standen.url === "mislukt" && (
+                            <span className="chip chip-danger">niet gelukt</span>
+                          )}
+                        </div>
+                        <p className="text-sm text-muted">
+                          Het domein waar ORBIT ENGINE leest: de crawl, de inventaris en het advies
+                          over je pagina&apos;s beginnen hier.
+                        </p>
+                        {urlBewerken ? (
+                          <div className="flex flex-col gap-2">
+                            <input
+                              className="field"
+                              value={urlWaarde}
+                              onChange={(e) => setUrlWaarde(e.target.value)}
+                            />
+                            <p className="text-sm text-[var(--status-error)]">
+                              Let op: dit verandert het domein waar ORBIT ENGINE op leest. De crawl
+                              en de inventaris moeten daarna opnieuw.
+                            </p>
+                            <div className="flex flex-wrap gap-3">
+                              <button
+                                type="button"
+                                className="btn-primary w-fit"
+                                disabled={
+                                  !urlWaarde.trim() ||
+                                  urlWaarde === initial.url ||
+                                  standen.url === "opslaan"
+                                }
+                                onClick={() => setBevestigUrl(true)}
+                              >
+                                Website wijzigen
+                              </button>
+                              <button
+                                type="button"
+                                className="text-sm text-secondary underline-offset-2 hover:underline"
+                                onClick={() => {
+                                  setUrlBewerken(false);
+                                  setUrlWaarde(initial.url);
+                                }}
+                              >
+                                Annuleren
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="flex flex-wrap items-center gap-3">
+                            <a
+                              href={initial.url}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="text-sm underline-offset-2 hover:underline"
+                            >
+                              {initial.url}
+                            </a>
+                            <button
+                              type="button"
+                              className="btn-outline w-fit"
+                              onClick={() => setUrlBewerken(true)}
+                            >
+                              Website wijzigen
+                            </button>
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="card flex flex-col gap-2">
+                        <span className="text-sm font-semibold">Search Console</span>
+                        <p className="text-sm text-muted">
+                          Zonder koppeling blijft het scherm Zoekverkeer leeg en mist je rapport de
+                          cijfers over klikken en vertoningen.
+                        </p>
+                        <div className="flex flex-wrap items-center gap-2">
+                          {initial.gsc_property ? (
+                            <span className="chip chip-success">
+                              Gekoppeld
+                              {initial.gsc_last_sync_at &&
+                                ` · laatst gesynchroniseerd ${nlDatum(initial.gsc_last_sync_at)}`}
+                            </span>
+                          ) : (
+                            <span className="chip chip-neutral">Nog niet gekoppeld</span>
+                          )}
+                          <a
+                            href="/instellingen/koppelingen"
+                            className="text-sm text-secondary underline-offset-2 hover:underline"
+                          >
+                            Naar koppelingen
+                          </a>
+                        </div>
+                      </div>
+                    </>
+                  )}
+                </CollapsibleSection>
+              </section>
             );
           })}
-        </section>
 
-        {/* ── 4. Wat je al hebt liggen ─────────────────────────────────────
-            Uitgeklapt en niet ingeklapt: het moment waarop de klant zijn
-            tarievenpagina of brochure daadwerkelijk bij zich heeft, is dit
-            gesprek. */}
-        <section id="materiaal" className="flex flex-col gap-3">
-          <Kop
-            nummer="04"
-            titel="Wat je al hebt liggen"
-            uitleg="Plak hier een tarievenpagina, een brochure of een stuk tekst. ORBIT ENGINE haalt er de feiten uit en bewaart ze."
-          />
-          <DossierBox profileId={profileId} />
-        </section>
+          {/* ── 7. Documenten en teksten, plus veranderingen ─────────────────
+              Uitgeklapt en niet ingeklapt: het moment waarop de klant zijn
+              tarievenpagina of brochure daadwerkelijk bij zich heeft, is dit
+              gesprek. */}
+          <section id="materiaal" className="flex flex-col gap-6">
+            <div className="flex flex-col gap-3">
+              <Kop
+                nummer="07"
+                titel="Documenten en teksten"
+                uitleg="Plak hier een tarievenpagina, een brochure of een stuk tekst. ORBIT ENGINE haalt er de feiten uit en bewaart ze."
+              />
+              <DossierBox profileId={profileId} />
+            </div>
 
-        {/* ── 5. Wat er speelt buiten de website om ────────────────────────── */}
-        <section id="speelt" className="flex flex-col gap-3">
-          <Kop
-            nummer="05"
-            titel="Wat er speelt buiten je website om"
-            uitleg="Een nieuwe naam, een nieuwe vestiging, een dienst die stopt. Dit soort dingen staan nergens op je site en veranderen wél wat ORBIT ENGINE meet."
-          />
-          <StrategyBox
-            profileId={profileId}
-            initialNotes={strategyNotes}
-            initialFactors={strategyFactors}
-          />
-        </section>
+            <div className="flex flex-col gap-3">
+              <Kop
+                nummer="07b"
+                titel="Veranderingen die eraan komen"
+                uitleg="Een nieuwe naam, een nieuwe vestiging, een dienst die stopt. Dit soort dingen staan nergens op je site en veranderen wél wat ORBIT ENGINE meet."
+              />
+              <StrategyBox
+                profileId={profileId}
+                initialNotes={strategyNotes}
+                initialFactors={strategyFactors}
+              />
+            </div>
+          </section>
 
-        {/* ── 6. Afronden ─────────────────────────────────────────────────── */}
-        <section id="afronden" className="flex flex-col gap-3">
+        {/* ── 9. Afspraken en afronden ──────────────────────────────────── */}
+        <section id="afronden" className="flex flex-col gap-6">
           <Kop
-            nummer="06"
-            titel="Afronden"
-            uitleg={`Wat er na dit gesprek nog open staat, en waar ORBIT ENGINE mee verder gaat voor ${brandName}.`}
+            nummer="09"
+            titel="Afspraken en afronden"
+            uitleg={`Wie het aanspreekpunt is bij ${brandName}, en wat er na dit gesprek nog open staat.`}
           />
+
+          <div className="flex flex-col gap-3">
+            <span className="mono-label text-muted">Contactpersoon</span>
+            <div className="flex flex-col gap-4">
+              {veld("contact_name")}
+              {veld("contact_email")}
+              {veld("contact_phone")}
+            </div>
+          </div>
+
+          <CollapsibleSection title="Auteur, voor later" defaultOpen={false}>
+            <div className="flex flex-col gap-4">
+              <p className="text-sm text-muted">
+                Zeven velden voor de naam onder je artikelen. Vastgelegd, maar nog niet
+                automatisch onder gepubliceerde content gezet.
+              </p>
+              {SESSION_AUTHOR_FIELDS.map((k) => veld(k as string))}
+            </div>
+          </CollapsibleSection>
+
           <div className="card flex flex-col gap-3">
             <Meter meter={meter} />
+            {openstaandVerplicht.length > 0 && (
+              <div className="flex flex-col gap-1">
+                <span className="mono-label">Nog {openstaandVerplicht.length} verplichte velden open</span>
+                <ul className="flex flex-col gap-1">
+                  {openstaandVerplicht.map((v) => (
+                    <li key={v.field}>
+                      <a href={`#veld-anker-${v.field}`} className="text-sm text-secondary underline-offset-2 hover:underline">
+                        {v.label}
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
             {gaten.length > 0 ? (
               <div className="flex flex-col gap-1">
                 <span className="mono-label">Nog open</span>
@@ -412,9 +659,45 @@ export function OnboardingSession({
 
             <p className="text-sm text-secondary">
               {recordedAt
-                ? `Het gesprek is vastgelegd op ${nlDatum(recordedAt)}. Pas je hierboven iets aan, bewaar het dan opnieuw bij "Wat er speelt".`
-                : "Leg het gesprek vast bij “Wat er speelt buiten je website om”. Dan staat er wat je hebt afgesproken, met de datum erbij."}
+                ? `Het gesprek is vastgelegd op ${nlDatum(recordedAt)}. Pas je hierboven iets aan, bewaar het dan opnieuw bij "Veranderingen die eraan komen".`
+                : "Leg het gesprek vast bij “Veranderingen die eraan komen”. Dan staat er wat je hebt afgesproken, met de datum erbij."}
             </p>
+          </div>
+
+          {/* B9, hoofdstuk 8.8: een samenvatting om terug te sturen. De
+              consultant had tot nu toe geen manier om wat er is afgesproken
+              door te sturen zonder zelf een e-mail te typen. */}
+          <div className="card flex flex-col gap-3">
+            <button
+              type="button"
+              className="btn-outline w-fit"
+              onClick={() => setToonSamenvatting((s) => !s)}
+              aria-expanded={toonSamenvatting}
+            >
+              {toonSamenvatting ? "Samenvatting verbergen" : "Samenvatting van dit gesprek"}
+            </button>
+            {toonSamenvatting && (
+              <div className="flex flex-col gap-3 text-sm">
+                <p className="text-secondary">
+                  {brandName} · {initial.url}
+                  {recordedAt && ` · gesprek vastgelegd op ${nlDatum(recordedAt)}`}
+                </p>
+                <div className="flex flex-col gap-1.5">
+                  {BRAND_FIELDS.filter((f) => f.priority === "verplicht").map((f) => (
+                    <p key={f.key as string}>
+                      <span className="text-muted">{f.label}: </span>
+                      <span>{samenvattingswaarde(waarden[f.key as string])}</span>
+                    </p>
+                  ))}
+                </div>
+                {strategyNotes && (
+                  <p>
+                    <span className="text-muted">Afgesproken: </span>
+                    <span>{strategyNotes}</span>
+                  </p>
+                )}
+              </div>
+            )}
           </div>
 
           {/* ── Het onderzoek bijwerken ──────────────────────────────────
@@ -464,6 +747,26 @@ export function OnboardingSession({
             </div>
           </div>
         </section>
+        </div>
+
+        {/* B9, hoofdstuk 8.1: een blijvende contextkolom naast de invoer, met
+            de meter en de openstaande punten. Zonder dit moest de consultant
+            voor de meter naar de bodem van een lange pagina scrollen. */}
+        <aside className="hidden w-64 shrink-0 flex-col gap-4 self-start lg:sticky lg:top-[calc(var(--header-h)+2.5rem)] lg:flex">
+          <div className="card flex flex-col gap-3">
+            <Meter meter={meter} />
+          </div>
+          {gaten.length + openFeitenvragen.length > 0 && (
+            <div className="card flex flex-col gap-2">
+              <span className="mono-label">
+                {gaten.length + openFeitenvragen.length} nog open
+              </span>
+              <a href="#open" className="text-sm text-secondary underline-offset-2 hover:underline">
+                Naar de openstaande punten
+              </a>
+            </div>
+          )}
+        </aside>
       </div>
 
       {/* Was een kaal `window.confirm()` met alles op één regel, "Doorgaan?"
@@ -485,16 +788,35 @@ export function OnboardingSession({
         onConfirm={() => void werkBij()}
         onCancel={() => setBevestigBijwerken(false)}
       />
+
+      {/* B8: de bevestiging bij het wijzigen van de website. Andere volgorde
+          dan het bijwerkvenster: hier is de waarschuwing de kern van het
+          bericht, niet een bedrag ernaast. */}
+      <ConfirmDialog
+        open={bevestigUrl}
+        title="Website wijzigen"
+        body={`ORBIT ENGINE gaat voortaan lezen op ${urlWaarde}.`}
+        irreversible={{
+          title: "De crawl moet opnieuw",
+          description:
+            "De inventaris en het aanbod zijn gebaseerd op de oude website. Draai \"Onderzoek bijwerken\" zodra je klaar bent, anders blijft ORBIT ENGINE werken met de oude pagina's.",
+        }}
+        confirmLabel="Website wijzigen"
+        confirmingLabel="Bezig…"
+        busy={standen.url === "opslaan"}
+        onConfirm={() => void bewaarUrl()}
+        onCancel={() => setBevestigUrl(false)}
+      />
     </div>
   );
 }
 
-/** Alle velden van de sessie, in catalogusvolgorde. */
-const ALLE_VELDEN = [
-  ...CLIENT_STEPS.flatMap((s) => fieldsOfStep(s)),
-  ...fieldsOfStep("strategie"),
-  ...fieldsOfStep("contact"),
-];
+/** Eén regel voor de deelbare samenvatting: een waarde in gewone taal, of "nog niet ingevuld". */
+function samenvattingswaarde(value: unknown): string {
+  if (Array.isArray(value)) return value.length > 0 ? value.join(", ") : "nog niet ingevuld";
+  if (typeof value === "string" && value.trim()) return value;
+  return "nog niet ingevuld";
+}
 
 function Kop({
   nummer,

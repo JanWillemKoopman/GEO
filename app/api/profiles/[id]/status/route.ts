@@ -85,6 +85,17 @@ export async function GET(
       .eq("status", "open"),
   ]);
 
+  // Onboarding ronde B, stap B5: de twee overige startvoorwaarden uit
+  // hoofdstuk 14.1. Alleen op te halen als het merk al een account heeft; een
+  // vers aangemaakt merk heeft dat meestal nog niet (sales-led, zie CLAUDE.md).
+  const { data: accountRow } = profile.account_id
+    ? await admin
+        .from("accounts")
+        .select("package_pages_per_month")
+        .eq("id", profile.account_id)
+        .maybeSingle()
+    : { data: null };
+
   const facetSummaries: Record<string, string | null> = {};
   for (const row of facetRows ?? []) {
     facetSummaries[row.facet as string] =
@@ -138,6 +149,8 @@ export async function GET(
       // definitie niet kan winnen. Zie lib/pipeline/field-merge.ts.
       scopeKnown: bereik.known,
       scopeDetail: bereik.detail,
+      packagePages: (accountRow?.package_pages_per_month as number | null) ?? null,
+      assigned: Boolean(profile.assigned_at),
     },
   });
 }

@@ -11,9 +11,9 @@ import { Icon } from "@/components/icon";
  * `max_inventory_pages` is geen merkeigenschap maar een crawl-instelling: het
  * zegt niets over wie de klant is, alleen hoe grondig ORBIT ENGINE zijn site
  * uitleest. Het staat daarom naast de wizard en niet erin, samen met de knop
- * die de crawl opnieuw start. De 41 velden in `lib/pipeline/brand-fields.ts`
- * gaan uitsluitend over het merk zelf, en die grens houdt de teller "41 in,
- * 41 uit" eerlijk.
+ * die de crawl opnieuw start. De 42 klantvelden in `lib/pipeline/brand-fields.ts`
+ * gaan uitsluitend over het merk zelf, en die grens houdt de teller "42 in,
+ * 42 uit" eerlijk.
  *
  * ⚠️ Het sitemap-adres staat wél in de wizard (stap 1): dat is een feit over de
  * site van de klant, geen instelling van ons. Wijzig je het daar, bewaar dan
