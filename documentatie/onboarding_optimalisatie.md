@@ -2,10 +2,12 @@
 
 **Scherm:** `/merk/[id]/admin/onboarding` (staff, gedeeld met de klant tijdens het gesprek)
 **Datum analyse:** 31 augustus 2026
-**Status:** analyse en plan. Er is in deze ronde bewust nog geen enkele UI-wijziging doorgevoerd.
+**Status:** implementatieplan, klaar om uit te voeren. Er is nog geen enkele UI-wijziging doorgevoerd.
+**Begin bij hoofdstuk 18** voor de uitvoering, en bij hoofdstuk 19 voor de prompt waarmee je een nieuwe sessie start.
 **Leeswijzer:** hoofdstuk 1 tot en met 12 gaan over structuur, velden en teksten. Hoofdstuk 13 is een tweede
 reviewronde over het gedrag van het scherm (opslaan, bijwerken, verversen) en bevat de vier ingrepen die als eerste
-zouden moeten gebeuren. Hoofdstuk 14 beantwoordt de vraag welke gegevens echt verplicht zijn om een klant te laten
+zouden moeten gebeuren. Hoofdstuk 16 en 17 zijn de detailontwerpen voor het aanbodbeheer en het crawlbeheer,
+hoofdstuk 18 is het uitvoeringsplan en hoofdstuk 19 de startprompt. Hoofdstuk 14 beantwoordt de vraag welke gegevens echt verplicht zijn om een klant te laten
 starten, en wat er precies voor nodig is om nieuwe clusters voorgesteld te krijgen.
 **Bronbestanden:** `lib/pipeline/brand-fields.ts` (veldencatalogus), `app/(app)/merk/[id]/_components/onboarding-session.tsx` (het scherm),
 `app/(app)/merk/[id]/admin/onboarding/page.tsx` (de serverlaag), `lib/profile-editable.ts` (de opslagroute),
@@ -974,3 +976,396 @@ Dat is te veel voor één ronde en te veel voor één keer nakijken. Voorstel: d
 Ronde C is inhoudelijk het zwaarst en levert het meeste op: pas als de CSM de aanbodboom kan bijwerken, kan het
 gesprek een dienst toevoegen die nergens op de site staat, en dat is vandaag het enige gat dat met geen enkel veld te
 dichten is.
+
+
+---
+
+## 16. Aanbodbeheer: de aanbodboom bewerkbaar maken
+
+Dit hoofdstuk is een bouwopdracht. Alles wat hier staat is nagekeken in de code van 31 augustus 2026.
+
+### 16.1 Wat er nu staat
+
+`OfferingsPanel` is een servercomponent zonder JavaScript. Elke knoop is één regel, met een native uitklap
+(`<details>`) waarin nu alleen de omschrijving, de doelgroep en de bronlink staan. Er is **geen** schrijfroute
+(`app/api/profiles/[id]/offerings` bestaat niet), dus toevoegen, wijzigen en verwijderen kan nergens.
+
+De tabel `profile_offerings` heeft al: `parent_id`, `kind` (dienst, product, categorie, merk, vestiging), `name`,
+`description`, `audience`, `price_indication`, `evidence_url`, `evidence_quote`, `confidence`, `source`, `sort_order`.
+
+### 16.2 Migratie 0079
+
+Additief en idempotent, zoals elke migratie hier.
+
+```sql
+alter table profile_offerings
+  add column if not exists note text,
+  add column if not exists removed_at timestamptz,
+  add column if not exists removed_by uuid references auth.users(id),
+  add column if not exists updated_by uuid references auth.users(id);
+
+create index if not exists profile_offerings_actief_idx
+  on profile_offerings (profile_id) where removed_at is null;
+```
+
+- `note`: vrije context van het gesprek per dienst, bijvoorbeeld "levert 40 procent van de omzet, staat nergens op de
+  site". Dit is het veld dat de vraag "extra informatie per product" beantwoordt en dat de andere kolommen niet dekken,
+  want die beschrijven het aanbod zelf en niet wat de klant erover vertelde.
+- `removed_at`: verwijderen is uitzetten, niet wissen (conventie 8). Een gewiste rij komt bij de volgende ronde
+  gewoon terug, want de crawl vindt de pagina nog steeds.
+
+### 16.3 De route
+
+Nieuw bestand: `app/api/profiles/[id]/offerings/route.ts`. Service-role client, `getOwnedProfile()`, en de herkomst via
+`resolveWriteSource()` net als de profielroute: `gesprek` bij een consultant, `klant` bij de eigenaar.
+
+| Methode | Doet | Body | Antwoord |
+|---|---|---|---|
+| `POST` | Knoop toevoegen | `{ name, kind, parentId?, description?, audience?, priceIndication?, note? }` | `{ id }` |
+| `PATCH` | Knoop wijzigen | `{ id, ...dezelfde velden }` | `{ ok: true }` |
+| `DELETE` | Knoop uitzetten | `{ id }` | `{ ok: true, kinderen: n }` |
+
+Regels die in de route horen en niet in het scherm (conventie 1):
+
+1. `name` verplicht en getrimd, `kind` alleen uit de vijf bekende waarden, anders 400.
+2. `parentId` moet bij hetzelfde profiel horen en mag niet naar zichzelf of naar een eigen nakomeling wijzen.
+   Zonder die controle levert de boomopbouw een oneindige lus op.
+3. Bij `DELETE` gaan de onderliggende knopen mee op `removed_at`, en het antwoord zegt hoeveel dat er waren, zodat het
+   scherm dat kan bevestigen in plaats van stil zes regels te laten verdwijnen.
+4. `sort_order` bij toevoegen: hoogste bestaande plus tien, zodat handmatige knopen onderaan komen en de bestaande
+   volgorde niet verschuift.
+5. Elke schrijfactie zet `source` en `updated_by`, en `updated_at` op nu.
+
+### 16.4 Alle lezers moeten verwijderde knopen overslaan
+
+Dit is de plek waar dit werk stuk kan gaan. Zes bestanden lezen `profile_offerings` en moeten
+`removed_at is null` toevoegen:
+
+`lib/pipeline/propose-topics.ts`, `lib/pipeline/propose-more-topics.ts`, `lib/pipeline/llm-baseline.ts`,
+`lib/reputation/select-nodes.ts`, `lib/pipeline/offering.ts` en het merkdossier
+(`app/(app)/merk/[id]/merkprofiel/page.tsx`).
+
+Neem één gedeelde helper in `lib/offerings.ts` (`activeOfferings(admin, profileId)`) zodat het filter op één plek staat.
+Een test in `scripts/test-unit.ts` die faalt als een van deze bestanden nog rechtstreeks selecteert.
+
+### 16.5 Handwerk moet een hercrawl overleven
+
+Twee ingrepen, en zonder allebei is dit werk zinloos:
+
+1. **`app/api/profiles/[id]/deep-research/route.ts` verwijdert nu de hele boom.** Dat wordt: alleen rijen met
+   `source = 'ai'` verwijderen. Wat een mens heeft toegevoegd of gewijzigd blijft staan, precies zoals
+   `field-merge.ts` dat voor de profielvelden doet.
+2. **`lib/pipeline/offering.ts` slaat zichzelf over zodra er één rij bestaat.** Die telling moet alleen naar
+   `source = 'ai'` kijken, anders draait de aanbodstap nooit meer zodra de consultant één dienst met de hand heeft
+   toegevoegd.
+
+### 16.6 Een toevoeging moet ook effect hebben
+
+`buildSnapshot()` in `lib/pipeline/propose-more-topics.ts` vergelijkt vier tellingen en de aanbodboom zit daar niet
+bij. Voeg toe: het aantal actieve knopen. Zonder dat krijgt de consultant na het toevoegen van drie diensten de
+melding "er is niets veranderd" als hij op "meer onderwerpen" drukt.
+
+### 16.7 Het scherm
+
+`OfferingsPanel` wordt een servercomponent met een client-kind (`offerings-editor.tsx`) voor het bewerken. Per knoop:
+
+```
+[dienst] Onderhoudsabonnement           vanaf 19 euro   [door ons ingevuld]   [potlood] [v]
+  uitgeklapt:
+    Omschrijving      Maandelijks onderhoud voor particuliere klanten
+    Voor wie          Particulieren met een auto ouder dan 5 jaar
+    Prijsindicatie    vanaf 19 euro per maand
+    Notitie           Levert 40 procent van de omzet, staat niet op de site
+    Zekerheid         hoog (0,82)
+    Gevonden op       /onderhoud/abonnement    "..."
+    Eigen pagina      ontbreekt
+    Hangt onder       Onderhoud
+    Herkomst          uit je website gehaald, bijgewerkt op 31 augustus
+```
+
+- Het potlood opent hetzelfde blok als bewerkbaar formulier, met opslaan per knoop (zelfde patroon als de
+  onboardingvelden: bewaren zodra je het veld verlaat).
+- Onderaan de boom: "Dienst of product toevoegen", met de keuze onder welke knoop hij komt.
+- Verwijderen zit in het uitgeklapte blok, met een bevestigvenster dat zegt hoeveel onderliggende onderdelen meegaan.
+- Verwijderde knopen zijn niet weg maar verborgen achter "3 verwijderd, tonen", met een knop om terug te zetten.
+
+### 16.8 Tests
+
+- **Unit:** de boomopbouw met verwijderde knopen, de lus-controle op `parentId`, de `sort_order`-berekening, en de
+  validatie van `kind` en `name`.
+- **Keten:** toevoegen, wijzigen, verwijderen via de echte route tegen Postgres; daarna een hercrawl simuleren en
+  vaststellen dat de handmatige knoop er nog is en de AI-knopen vervangen zijn.
+
+---
+
+## 17. Crawlbeheer: hoeveel, hoe vaak en hoe rustig
+
+### 17.1 Wat er nu staat
+
+De crawl haalt de sitemaps op, indexeert tot 10.000 URL's, kiest daaruit met `url-priority.ts` en haalt de gekozen
+pagina's op in batches van acht tegelijk, zonder pauze ertussen. Het plafond is `max_inventory_pages` per profiel
+(standaard 40, harde bovengrens 150 vanwege de zestig seconden die een route mag duren). Er is één knop, "Onderzoek
+opnieuw", die alles vervangt. Er is geen snelheidsinstelling, geen manier om het aantal pagina's per ronde te kiezen,
+en geen manier om alleen aan te vullen.
+
+### 17.2 Wat erbij komt
+
+**Drie bedieningen in het crawlblok van blok 8:**
+
+1. **Aantal pagina's** voor deze ronde. Standaard wat er nu op het profiel staat, met de context erbij:
+   "Je sitemap heeft 8.212 pagina's. We lezen er nu 40."
+2. **Meer pagina's.** Zoekt de volgende serie pagina's die nog niet in de inventaris staan en voegt ze toe.
+   Vervangt niets.
+3. **Opnieuw crawlen.** Gooit de gecrawlde pagina's weg en begint opnieuw, met het opgegeven aantal.
+   Handmatig toegevoegde pagina's blijven staan, zoals nu al.
+
+**En een snelheidskeuze**, per merk opgeslagen:
+
+| Stand | Gedrag | Wanneer |
+|---|---|---|
+| Snel | 8 pagina's tegelijk, geen pauze | Kleine sites, eigen testsites, haast |
+| Normaal (standaard) | 3 tegelijk, 700 tot 1.500 ms pauze met variatie | Vrijwel altijd |
+| Langzaam | 1 tegelijk, 3 tot 7 seconden pauze met variatie | Sites die blokkeren of traag zijn, en grote sites waar we niet in de weg willen zitten |
+
+### 17.3 Netjes crawlen, en wat we bewust niet doen
+
+De sites die ORBIT ENGINE leest zijn van klanten die daar zelf opdracht toe geven. Het doel van de snelheidskeuze is
+dat de crawler een website niet overbelast en niet wordt aangezien voor een aanval. Daar hoort bij:
+
+- **Wij blijven ons identificeren.** De bot-identiteit met contact-URL blijft in de `User-Agent` staan, en robots.txt
+  blijft leidend. Een crawler die zich voordoet als iemand anders om een blokkade te omzeilen bouwen we niet: dat
+  levert bij een klantsite niets op wat een telefoontje niet sneller oplost, en bij elke andere site is het niet aan ons.
+- **Wel gedragen we ons als een nette bezoeker.** Dat is iets anders dan verbergen: een volledige, kloppende set
+  headers (`Accept`, `Accept-Language: nl-NL`, `Accept-Encoding`), een `Referer` van de vorige pagina op dezelfde site,
+  hergebruik van de verbinding, en een tempo met variatie in plaats van een strak ritme. Een vast interval van precies
+  800 ms is het duidelijkste bot-signaal dat er is, en tegelijk het makkelijkst te vermijden.
+- **We luisteren naar wat de site zegt.** Bij `429` of `503` met een `Retry-After` wachten we die tijd en verlagen we
+  het tempo automatisch een stand. Bij `403` stoppen we en melden we het op het scherm, met de suggestie om ons
+  adres bij de hostingpartij te laten toelaten. Nu loopt de crawl in dat geval stil door met lege pagina's.
+- **Optie voor de eigen site van de klant.** Wil een klant dat wij zijn site als gewone browser lezen omdat zijn eigen
+  firewall ons anders weert, dan is dat zijn keuze over zijn eigen site. Dat wordt een expliciete instelling per merk
+  (`crawl_as_browser`, standaard uit) met een zin erbij dat de klant hiermee toestemming geeft voor zijn eigen
+  domein. Nooit standaard aan, en nooit voor een domein dat niet van deze klant is.
+
+### 17.4 Migratie 0080
+
+```sql
+alter table profiles
+  add column if not exists crawl_speed text not null default 'normaal',
+  add column if not exists crawl_as_browser boolean not null default false,
+  add column if not exists crawl_last_run_at timestamptz,
+  add column if not exists crawl_last_mode text,
+  add column if not exists crawl_last_blocked_at timestamptz;
+
+alter table profiles drop constraint if exists profiles_crawl_speed_check;
+alter table profiles add constraint profiles_crawl_speed_check
+  check (crawl_speed in ('snel','normaal','langzaam'));
+```
+
+### 17.5 Nieuwe module: `lib/crawl-speed.ts`
+
+Puur, zonder `server-only`, dus testbaar (conventie 2).
+
+```ts
+export type CrawlSpeed = "snel" | "normaal" | "langzaam";
+
+export interface SpeedProfile {
+  batchSize: number;        // gelijktijdige fetches
+  minDelayMs: number;       // pauze tussen batches, ondergrens
+  maxDelayMs: number;       // bovengrens, met variatie ertussen
+  timeoutMs: number;
+  label: string;            // "Normaal"
+  description: string;      // wat de consultant leest
+}
+
+export function speedProfile(speed: CrawlSpeed): SpeedProfile;
+export function nextDelayMs(p: SpeedProfile, random?: () => number): number;
+export function slowerThan(speed: CrawlSpeed): CrawlSpeed;  // voor de 429-terugval
+```
+
+Waarden: snel `{8, 0, 0, 12000}`, normaal `{3, 700, 1500, 15000}`, langzaam `{1, 3000, 7000, 20000}`.
+
+### 17.6 Wijzigingen in `lib/crawler.ts`
+
+1. `crawlInventory()` krijgt er opties bij: `speed`, `exclude` (URL's die al in de inventaris staan) en
+   `asBrowser`. De batchgrootte en de pauze komen uit `speedProfile()` in plaats van de vaste `CRAWL_BATCH_SIZE`.
+2. Eén gedeelde `requestHeaders(url, { asBrowser, referer })`, zodat er niet op drie plekken een eigen headerset staat.
+3. Terugval bij `429` en `503`: `Retry-After` respecteren, tempo een stand omlaag, en dat terugmelden in het resultaat.
+4. Stoppen bij `403` met een herkenbare uitkomst, in plaats van doorgaan met lege pagina's.
+5. `crawlInventory()` geeft er twee dingen bij terug: `blocked: boolean` en `usedSpeed: CrawlSpeed`.
+
+### 17.7 De uitvoering wordt een achtergrondtaak
+
+Dit is de belangrijkste ontwerpkeuze van dit hoofdstuk. Op "langzaam" duurt 150 pagina's ruim tien minuten, en een
+route mag zestig seconden. De crawl moet dus uit de route en de wachtrij in.
+
+- Nieuw jobtype `crawl_inventory` in `lib/jobs/types.ts`, met payload `{ mode: "meer" | "opnieuw", maxPages, speed }`.
+- Handler in `lib/jobs/handlers.ts` die `refreshInventory()` aanroept met die opties. Eén zware stap, dus een eigen
+  jobtype en geen uitbreiding van een bestaande (conventie 7).
+- Dedupe-sleutel `crawl_inventory:<profileId>`, zodat twee keer klikken één crawl oplevert.
+- `POST /api/profiles/[id]/refresh-inventory` plant voortaan die taak in en geeft meteen antwoord, in plaats van de
+  crawl zelf te draaien. De bestaande statusroute toont de voortgang.
+- De harde bovengrens mag daarmee omhoog voor achtergrondwerk: `MAX_PAGES_BACKGROUND = 500`, met de bestaande 150 als
+  grens voor alles wat nog wel synchroon draait.
+
+### 17.8 "Meer pagina's" in `refresh-inventory.ts`
+
+Bij `mode: "meer"`:
+
+1. Haal de URL's op die al in `profile_pages` staan.
+2. Roep `crawlInventory()` aan met die lijst als `exclude` en met het opgegeven aantal als extra budget.
+3. Voeg toe met een nieuwe `appendCrawledPages()` in plaats van `replaceCrawledPages()`.
+4. Werk `sitemap_total_urls`, `inventory_quality_json`, `crawl_last_run_at` en `crawl_last_mode` bij.
+
+Bij `mode: "opnieuw"` blijft het huidige gedrag, inclusief het behoud van handmatig toegevoegde pagina's.
+
+### 17.9 Het scherm
+
+In blok 8 van de onboardingsessie, en op dezelfde manier in het merkdossier:
+
+```
+Pagina's van je site                     34 gelezen van 8.212 gevonden
+Laatst gelezen: 29 augustus, opnieuw gecrawld, normaal tempo
+
+Aantal pagina's deze ronde   [  60 ]     (maximaal 500)
+Tempo                        [ Snel ] [ Normaal ] [ Langzaam ]
+                             Langzaam leest één pagina tegelijk met een pauze
+                             ertussen. Kies dit als de site ons blokkeert.
+
+[ Meer pagina's lezen ]   [ Opnieuw crawlen ]
+```
+
+- "Opnieuw crawlen" krijgt een bevestigvenster: de bestaande gelezen pagina's worden vervangen.
+- Werd de crawl geblokkeerd (`crawl_last_blocked_at`), dan staat daar een melding met wat de klant kan doen:
+  ons adres toelaten bij de hostingpartij, of het tempo op langzaam zetten.
+
+### 17.10 Tests
+
+- **Unit:** `speedProfile()` per stand, `nextDelayMs()` binnen de grenzen met een vaste toevalsgenerator,
+  `slowerThan()`, en de `exclude`-filter in de URL-keuze.
+- **Keten:** een crawlronde in de modus "meer" die alleen nieuwe pagina's toevoegt en de bestaande laat staan, plus
+  een ronde "opnieuw" die vervangt maar de handmatige pagina's behoudt.
+
+
+---
+
+## 18. Uitvoeringsplan
+
+Dit hoofdstuk is leidend voor de bouw en vervangt de volgorde uit hoofdstuk 12. De hoofdstukken 1 tot en met 17 zijn
+de onderbouwing; hier staat wat er gedaan wordt, in welke volgorde, met wat er af moet zijn voordat een stap klaar heet.
+
+### 18.0 Werkafspraken voor de hele uitvoering
+
+- **Branch:** één branch per ronde, vanaf `main`. Nooit rechtstreeks op `main` werken.
+- **Volgorde binnen een stap:** migratie eerst, dan de pure module, dan de route, dan het scherm, dan de tests,
+  dan de documentatie.
+- **Vaste controle vóór elke commit, alle vier groen:** `npx tsc --noEmit`, `npm run test:unit`,
+  `npm run test:chain`, `npm run build`.
+- **Migraties** zijn additief en idempotent, nooit `drop`. Toepassen op productie via de Supabase MCP-tool
+  (`apply_migration`), daarna `supabase/README.md` bijwerken.
+- **Documentatie in dezelfde ronde:** `docs/architecture.md` bij gedragswijzigingen, `docs/ux-design.md` bij
+  schermwijzigingen, een alinea onderaan `docs/logbook.md` met datum en het cijfer dat de keuze droeg.
+- **Niet doen zonder overleg:** velden weghalen, bestaande kolommen hernoemen, of de vier controles overslaan.
+- **Taal:** alle UI-teksten volgen `docs/schrijfstijl.md`. Geen gedachtestreepjes, geen schuine streep tussen woorden.
+
+### Ronde A. Losse ingrepen, geen migratie
+
+Doel: het scherm meteen korter, eerlijker en toegankelijker, met wijzigingen die los terug te draaien zijn.
+
+| Stap | Wat | Bestanden | Klaar als |
+|---|---|---|---|
+| A1 | Het blok "Wat we al gevonden hebben" opent ingeklapt, behalve de stappen die nog niet compleet zijn | `app/(app)/merk/[id]/_components/onboarding-session.tsx` | Het scherm opent op één schermhoogte plus de openstaande stappen |
+| A2 | Labels koppelen bij de negen schuif-, keuze- en ja-nee-velden | `app/(app)/merk/[id]/_components/brand-field-input.tsx` | Elk veld heeft een label dat naar een bestaand element wijst, en de knoppenrij verwijst daarnaar |
+| A3 | Zes lijstvelden toevoegen aan het vangnet van de opslagroute | `app/api/profiles/[id]/route.ts` | `products`, `value_props`, `competitors`, `aliases`, `service_regions` en `proof_points` worden servergezijdig getrimd en ontdaan van lege items |
+| A4 | Opslaan bij het sluiten van het tabblad | `onboarding-session.tsx` | Een getypte waarde in een openstaand veld wordt bewaard bij `pagehide` en bij verbergen van de pagina |
+| A5 | Pakketfout bij het aanmaken van een merk | `app/api/profiles/route.ts`, `app/(app)/merk/nieuw/onboarding-wizard.tsx` | Het pakket landt niet meer op het account van de consultant. Kortste weg: het veld uit de aanmaakwizard halen en alleen op het toewijzingsscherm laten staan, met een regel op dat scherm dat dit vóór het eerste contentplan gezet moet zijn |
+| A6 | De opslagknop van het gespreksblok zegt wat hij doet | `app/(app)/merk/[id]/_components/strategy-box.tsx` | De knop heet "Gesprek vastleggen en onderwerpen definitief maken", met één regel uitleg eronder |
+
+### Ronde B. De schermverbouwing
+
+Doel: van een lijst databasevelden naar een gespreksvolgorde. In één keer opleveren; half verbouwd in productie is
+erger dan niet verbouwd.
+
+| Stap | Wat | Bestanden | Klaar als |
+|---|---|---|---|
+| B1 | `brand_name` bewerkbaar | `lib/pipeline/brand-fields.ts`, `lib/profile-editable.ts` | De meetnaam is in de sessie te corrigeren, de bestaande test op gelijke lijsten blijft groen, en een gezette waarde overleeft een onderzoeksronde |
+| B2 | Microcopy per veld | `brand-fields.ts` (nieuw veld `usage`), `brand-field-input.tsx` | Elk veld toont onder het invoerveld waar het antwoord landt. Een unittest faalt als een veld geen `usage` heeft |
+| B3 | Verplicht, aanbevolen, optioneel, plus het onderscheid uit hoofdstuk 14 | `brand-fields.ts` (`priority`), nieuwe pure functie `missingRequired()` | Het afrondblok noemt de openstaande verplichte velden met springlinks. Geen rode randen tijdens het typen |
+| B4 | Herindeling in negen blokken, met de teksten uit hoofdstuk 7 | `onboarding-session.tsx`, `lib/pipeline/brand-fields.ts`, `lib/nav.ts` | Alle 56 velden staan er nog, in de nieuwe volgorde, met de nieuwe blok- en railnamen |
+| B5 | Blok 0: voorbereiding, via de bestaande readiness-module | `lib/pipeline/profile-readiness.ts`, `app/(app)/merk/[id]/_components/profile-readiness-panel.tsx`, de sessiepagina | `computeReadiness()` wordt aangeroepen en gerenderd, met de vijf startvoorwaarden uit hoofdstuk 14 erin, en kloppende springlinks |
+| B6 | Blok 1: openstaande punten én feitenvragen | `lib/open-questions.ts`, de sessiepagina | De vragen uit `fact_requests` staan op het gespreksscherm en zijn daar te beantwoorden. Eén loader, geen tweede telling |
+| B7 | De vier velden markeren die een nieuwe onderwerpronde veroorzaken, plus de waarschuwing dat onderwerpen pas ná het gesprek beslist moeten worden | `brand-fields.ts`, `onboarding-refresh.ts`, sessiepagina, clusterscherm | De chip staat bij precies de vier velden uit `FIELD_TASKS` met taak `onderwerpen` |
+| B8 | De vijf overige nieuwe velden: `style_samples`, `max_inventory_pages`, `crawl_priority_paths`, `url` als toonveld met wijzigactie, Search Console als statusregel | `brand-fields.ts`, `profile-editable.ts`, sessiepagina | Alle vijf zijn vanuit de sessie te bereiken, en de PATCH-route handelt ze precies één keer af |
+| B9 | Vormgeving: tweekolomsindeling, voortgang per blok, rustiger opslagfeedback, verversen na een bijwerkronde, samenvatting om te delen | sessiepagina, `components/section-rail.tsx` | De meter en de openstaande punten blijven in beeld, en het scherm ververst na afloop van een bijwerkronde |
+
+### Ronde C. Aanbodbeheer
+
+Doel: de aanbodboom is te bewerken, en handwerk overleeft een hercrawl. Volledig uitgewerkt in hoofdstuk 16.
+
+| Stap | Wat | Klaar als |
+|---|---|---|
+| C1 | Migratie 0079 (`note`, `removed_at`, `removed_by`, `updated_by`, index) | Toegepast op productie, `supabase/README.md` bijgewerkt |
+| C2 | `lib/offerings.ts` met `activeOfferings()`, en de zes lezers erop aangesloten | Geen enkel bestand leest `profile_offerings` nog rechtstreeks. Een unittest bewaakt dat |
+| C3 | De route `app/api/profiles/[id]/offerings/route.ts` met POST, PATCH en DELETE | Ketentest: toevoegen, wijzigen, verwijderen, en een lus-poging via `parentId` wordt geweigerd |
+| C4 | Hercrawlbescherming: `deep-research` verwijdert alleen AI-rijen, `offering.ts` telt alleen AI-rijen | Ketentest: na een hercrawl staat de handmatige dienst er nog en zijn de AI-knopen vervangen |
+| C5 | Het aantal actieve knopen opnemen in `buildSnapshot()` | Een toegevoegde dienst maakt de knop "meer onderwerpen" weer zinvol |
+| C6 | Het scherm: uitklappen met alle inzichten, potlood per knoop, toevoegen, verwijderen met bevestiging, verwijderde knopen achter "tonen" | Elke kolom uit `profile_offerings` is zichtbaar en, waar dat zinvol is, bewerkbaar |
+
+### Ronde D. Crawlbeheer
+
+Doel: zelf bepalen hoeveel er gelezen wordt, aanvullen zonder alles weg te gooien, en rustig genoeg crawlen om niet
+in de weg te zitten. Volledig uitgewerkt in hoofdstuk 17.
+
+| Stap | Wat | Klaar als |
+|---|---|---|
+| D1 | Migratie 0080 (`crawl_speed`, `crawl_as_browser`, `crawl_last_run_at`, `crawl_last_mode`, `crawl_last_blocked_at`) | Toegepast, met de controleregel op de drie snelheden |
+| D2 | `lib/crawl-speed.ts`, puur en getest | Unittests op de drie standen, de variatie binnen de grenzen, en de terugval een stand omlaag |
+| D3 | `lib/crawler.ts`: snelheid, `exclude`, gedeelde headers, `Retry-After`, stoppen bij 403, `blocked` in het resultaat | Een geblokkeerde crawl levert een herkenbare uitkomst op in plaats van lege pagina's |
+| D4 | Jobtype `crawl_inventory` plus handler en dedupe-sleutel | Twee keer klikken levert één crawl op, en een langzame ronde van 150 pagina's loopt af zonder tijdslimiet |
+| D5 | `refresh-inventory.ts`: modus "meer" met `appendCrawledPages()`, modus "opnieuw" ongewijzigd | Ketentest: "meer" voegt toe en vervangt niets, "opnieuw" vervangt maar behoudt handmatige pagina's |
+| D6 | Het crawlblok op het scherm: aantal, tempo, twee knoppen, laatste ronde, blokkademelding | De consultant kan een ronde starten zonder de code of de database aan te raken |
+
+### 18.1 Verificatie op productie
+
+Conventie 10: gebouwd is niet geverifieerd. Per ronde minimaal dit, op een echt merk:
+
+- **A:** het scherm openen en meten hoe lang het is. Een veld invullen, tabblad sluiten, terugkomen, waarde staat er.
+- **B:** een volledig gesprek naspelen op een testmerk, van blok 0 tot de afronding, en vaststellen dat elk veld
+  landt en dat de meter meebeweegt.
+- **C:** een dienst toevoegen die niet op de site staat, daarna "onderzoek opnieuw" draaien, en vaststellen dat de
+  dienst er nog is en meedoet in een nieuwe onderwerpronde.
+- **D:** een ronde "meer pagina's" op langzaam tempo op een site van meer dan 1.000 pagina's, en controleren dat er
+  alleen nieuwe pagina's bij komen en de site niets merkt van de belasting.
+
+---
+
+## 19. Startprompt voor een nieuwe sessie
+
+Plak dit in een nieuwe Claude Code-sessie op deze repository.
+
+```text
+Lees eerst /documentatie/onboarding_optimalisatie.md volledig, en daarnaast
+/documentatie/onboarding_velden.html als naslag voor de velden.
+
+Dat document is het implementatieplan voor de onboardingsessie
+(/merk/[id]/admin/onboarding), het aanbodbeheer en het crawlbeheer. Hoofdstuk 18
+is leidend voor de volgorde en de werkafspraken; hoofdstuk 16 en 17 zijn de
+detailontwerpen voor het aanbod en de crawl.
+
+Opdracht: voer ronde A uit, volledig, inclusief tests en documentatie.
+Werk op een nieuwe branch vanaf main. Houd je aan de werkafspraken in 18.0:
+migratie eerst, dan pure module, dan route, dan scherm, dan tests, dan docs.
+Alle vier de controles moeten groen zijn voordat je commit:
+npx tsc --noEmit, npm run test:unit, npm run test:chain, npm run build.
+
+Verlies geen enkel bestaand onboardingveld. Kom je iets tegen dat in het plan
+op een verkeerde aanname blijkt te rusten, zeg dat dan eerst in één alinea en
+bouw daarna verder.
+
+Rond af met een samenvatting in het Nederlands, te volgen zonder technische
+kennis, en zeg per stap wat er nu anders is voor de Client Success Manager.
+```
+
+Voor de volgende ronden vervang je in die prompt "ronde A" door **ronde B**, **ronde C** of **ronde D**. Ronde B
+gaat over het scherm, C over het aanbod en D over de crawl. Ze zijn in die volgorde bedoeld, maar C en D zijn los van
+elkaar te bouwen als dat beter uitkomt.
