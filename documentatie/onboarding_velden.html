@@ -1,0 +1,390 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&display=swap">
+<title>Onboardingvelden</title>
+<style>
+:root{
+  --bg:#f5f6fb; --surface:#ffffff; --surface-2:#eef0f9;
+  --border:#dfe2f0; --text:#1c2033; --muted:#5c6079;
+  --accent:#4552c9; --accent-soft:#e7e9fb;
+  --good-bg:#e4f5ec; --good-fg:#1c7a52; --good-bd:#bfe4d0;
+  --warn-bg:#fdf1de; --warn-fg:#9a6812; --warn-bd:#f2ddb2;
+  --off-bg:#fbe8ea; --off-fg:#a13c4c; --off-bd:#f2ccd2;
+  --mono-bg:#eef0f9;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0c0e16; --surface:#141726; --surface-2:#191d30;
+    --border:#282c42; --text:#e7e9f4; --muted:#9296ad;
+    --accent:#8891ea; --accent-soft:#232752;
+    --good-bg:#123024; --good-fg:#5fd39c; --good-bd:#1f4a37;
+    --warn-bg:#332512; --warn-fg:#e0af5c; --warn-bd:#4a3a1c;
+    --off-bg:#331b21; --off-fg:#e88a97; --off-bd:#4a2530;
+    --mono-bg:#191d30;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0c0e16; --surface:#141726; --surface-2:#191d30;
+  --border:#282c42; --text:#e7e9f4; --muted:#9296ad;
+  --accent:#8891ea; --accent-soft:#232752;
+  --good-bg:#123024; --good-fg:#5fd39c; --good-bd:#1f4a37;
+  --warn-bg:#332512; --warn-fg:#e0af5c; --warn-bd:#4a3a1c;
+  --off-bg:#331b21; --off-fg:#e88a97; --off-bd:#4a2530;
+  --mono-bg:#191d30;
+}
+
+*{box-sizing:border-box;}
+body{
+  background:var(--bg); color:var(--text);
+  font-family:'Geist Sans','Inter',-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  padding:2.5rem 1.25rem 5rem;
+}
+.wrap{max-width:1180px;margin:0 auto;}
+
+.hero{max-width:760px;margin-bottom:2.75rem;}
+.eyebrow{
+  font-family:'JetBrains Mono',ui-monospace,monospace;
+  font-size:0.72rem; letter-spacing:0.12em; text-transform:uppercase;
+  color:var(--accent); margin:0 0 0.75rem;
+}
+h1{
+  font-size:clamp(1.7rem,3vw,2.3rem); line-height:1.15; margin:0 0 0.9rem;
+  text-wrap:balance; letter-spacing:-0.01em;
+}
+.hero p{
+  color:var(--muted); font-size:1rem; line-height:1.6; margin:0 0 0.75rem;
+  max-width:66ch;
+}
+.hero p strong{color:var(--text); font-weight:600;}
+
+.stat-row{display:flex; gap:2rem; margin:1.75rem 0 0; flex-wrap:wrap;}
+.stat{display:flex; flex-direction:column; gap:0.15rem;}
+.stat b{font-size:1.6rem; font-variant-numeric:tabular-nums; letter-spacing:-0.01em;}
+.stat span{font-family:'JetBrains Mono',monospace; font-size:0.68rem; letter-spacing:0.05em; text-transform:uppercase; color:var(--muted);}
+
+.legend{
+  display:flex; flex-wrap:wrap; gap:0.6rem 1rem; align-items:center;
+  margin:1.5rem 0 0; padding-top:1.25rem; border-top:1px solid var(--border);
+}
+.legend span{font-size:0.82rem; color:var(--muted); display:flex; align-items:center; gap:0.45rem;}
+
+.badge{
+  display:inline-flex; align-items:center; padding:0.2rem 0.55rem;
+  border-radius:5px; font-size:0.72rem; font-weight:600; white-space:nowrap;
+  border:1px solid transparent;
+}
+.badge.good{background:var(--good-bg); color:var(--good-fg); border-color:var(--good-bd);}
+.badge.warn{background:var(--warn-bg); color:var(--warn-fg); border-color:var(--warn-bd);}
+.badge.off{background:var(--off-bg); color:var(--off-fg); border-color:var(--off-bd);}
+
+section.step{margin-bottom:2.75rem;}
+.step-head{
+  display:flex; align-items:baseline; gap:0.85rem; margin-bottom:0.35rem;
+  padding-bottom:0.85rem; border-bottom:2px solid var(--accent-soft);
+}
+.step-num{
+  font-family:'JetBrains Mono',monospace; font-size:0.78rem; color:var(--accent);
+  background:var(--accent-soft); border-radius:5px; padding:0.15rem 0.5rem;
+  flex:none;
+}
+.step-head h2{font-size:1.2rem; margin:0; letter-spacing:-0.005em;}
+.step-desc{color:var(--muted); font-size:0.88rem; margin:0.5rem 0 1rem; max-width:72ch; line-height:1.55;}
+
+.table-scroll{overflow-x:auto; border:1px solid var(--border); border-radius:10px; background:var(--surface);}
+table{width:100%; border-collapse:collapse; font-size:0.86rem; min-width:820px;}
+thead th{
+  text-align:left; font-family:'JetBrains Mono',monospace; font-weight:600;
+  font-size:0.68rem; letter-spacing:0.06em; text-transform:uppercase; color:var(--muted);
+  background:var(--surface-2); padding:0.65rem 0.9rem; border-bottom:1px solid var(--border);
+  position:sticky; top:0;
+}
+tbody td{padding:0.75rem 0.9rem; border-bottom:1px solid var(--border); vertical-align:top; line-height:1.5;}
+tbody tr:last-child td{border-bottom:none;}
+tbody tr:hover{background:var(--surface-2);}
+
+td.label{font-weight:600; white-space:nowrap;}
+td.key{white-space:nowrap;}
+.key-code{
+  font-family:'JetBrains Mono',monospace; font-size:0.76rem; color:var(--muted);
+  background:var(--mono-bg); padding:0.1rem 0.4rem; border-radius:4px;
+}
+td.type{white-space:nowrap; color:var(--muted); font-size:0.8rem;}
+td.use{color:var(--text); max-width:420px;}
+td.use .note{display:block; color:var(--muted); font-size:0.8rem; margin-top:0.15rem;}
+
+footer{
+  margin-top:3rem; padding-top:1.5rem; border-top:1px solid var(--border);
+  color:var(--muted); font-size:0.82rem; max-width:70ch; line-height:1.6;
+}
+footer code{font-family:'JetBrains Mono',monospace; background:var(--mono-bg); padding:0.05rem 0.35rem; border-radius:4px; font-size:0.8em;}
+
+@media (max-width:640px){
+  body{padding:1.75rem 0.9rem 4rem;}
+  .stat-row{gap:1.25rem;}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="hero">
+    <p class="eyebrow">ORBIT ENGINE · referentie</p>
+    <h1>Alle invoervelden van de onboardingsessie</h1>
+    <p>
+      Het scherm <strong>/merk/[id]/admin/onboarding</strong> doorloopt negen stappen met in totaal
+      <strong>56 velden</strong>. Elk veld komt uit dezelfde catalogus (<code
+      style="font-family:'JetBrains Mono',monospace;font-size:0.85em;background:var(--mono-bg);padding:0.05rem 0.35rem;border-radius:4px;">lib/pipeline/brand-fields.ts</code>)
+      die ook de klantwizard en de opslagroute gebruiken: geen apart formulier, geen apart veld dat ergens anders iets anders betekent.
+    </p>
+    <p>
+      Per veld staat hieronder of ORBIT ENGINE het zelf van de website kan afleiden, en waar de ingevulde waarde
+      verderop in de app terugkomt. <strong>23 van de 56 velden</strong> worden op dit moment alleen opgeslagen en getoond:
+      ze staan wel in het profiel en de klant of consultant kan ze bewerken, maar geen onderzoeks-, meet- of
+      schrijfstap leest ze op dit moment nog uit. Dat is geen fout, maar wel iets om te weten: invullen kost dan tijd
+      zonder dat het nu al effect heeft.
+    </p>
+    <div class="stat-row">
+      <div class="stat"><b>56</b><span>velden</span></div>
+      <div class="stat"><b>9</b><span>stappen</span></div>
+      <div class="stat"><b>33</b><span>al ergens gebruikt</span></div>
+      <div class="stat"><b>23</b><span>nog niet gebruikt</span></div>
+    </div>
+    <div class="legend">
+      <span><span class="badge good">Ja</span> ORBIT ENGINE kan dit zelf van de website afleiden</span>
+      <span><span class="badge warn">Nee</span> Alleen te achterhalen in het gesprek</span>
+      <span><span class="badge off">Ongebruikt</span> Nog geen stap leest dit veld uit</span>
+    </div>
+  </div>
+
+  <!-- STAP 1 -->
+  <section class="step" id="bedrijf">
+    <div class="step-head"><span class="step-num">01</span><h2>Je bedrijf</h2></div>
+    <p class="step-desc">De harde feiten waar de meting op draait: hoe je heet, waar je werkt, en wat voor bedrijf je bent.</p>
+    <div class="table-scroll"><table>
+      <thead><tr><th>Veld</th><th>Kolom</th><th>Type</th><th>Herleidbaar</th><th>Gebruikt in de app</th></tr></thead>
+      <tbody>
+        <tr><td class="label">Naam van je bedrijf</td><td class="key"><span class="key-code">name</span></td><td class="type">Tekst</td><td><span class="badge good">Ja</span></td>
+          <td class="use">De merknaam zelf. Komt overal terug: koppen, meting, rapportage, klantmail, klantbeheer. Het label van het merk in heel ORBIT ENGINE.</td></tr>
+        <tr><td class="label">Andere schrijfwijzen</td><td class="key"><span class="key-code">aliases</span></td><td class="type">Lijst</td><td><span class="badge good">Ja</span></td>
+          <td class="use">Telt een AI-vermelding onder een andere schrijfwijze nog mee. Gebruikt in de entiteitsherkenning, de meting en de naamconsistentiecontrole.</td></tr>
+        <tr><td class="label">In welke categorie je zit</td><td class="key"><span class="key-code">industry</span></td><td class="type">Tekst</td><td><span class="badge good">Ja</span></td>
+          <td class="use">Stuurt vrijwel de hele pijplijn: onderzoek, aanbodherkenning, marktvragen, contentopdracht, crawlkeuzes, off-site scan.</td></tr>
+        <tr><td class="label">Wat voor bedrijf je bent</td><td class="key"><span class="key-code">business_model</span></td><td class="type">Keuzemenu</td><td><span class="badge good">Ja</span></td>
+          <td class="use">Bepaalt welke aanbod-vragen gesteld worden en welke schrijfopdracht past (dienstverlener, retailer, platform, fabrikant, overig).</td></tr>
+        <tr><td class="label">Hoe ver je bereik gaat</td><td class="key"><span class="key-code">service_scope</span></td><td class="type">Keuzemenu</td><td><span class="badge good">Ja</span></td>
+          <td class="use">Lokaal, landelijk of internationaal: bepaalt of er regionale zoekvragen bijkomen in de meting.</td></tr>
+        <tr><td class="label">In welke plaatsen je werkt</td><td class="key"><span class="key-code">service_regions</span></td><td class="type">Lijst</td><td><span class="badge good">Ja</span></td>
+          <td class="use">De plaatsnamen voor de lokale zoekvragen in de meting, en voor de onderwerpenkeuze op de strategiepagina.</td></tr>
+        <tr><td class="label">Markt en taal</td><td class="key"><span class="key-code">market_language</span></td><td class="type">Tekst</td><td><span class="badge good">Ja</span></td>
+          <td class="use">Taal en land waarin de vragen voor de meting worden geformuleerd.</td></tr>
+        <tr><td class="label">Adres van je sitemap</td><td class="key"><span class="key-code">sitemap_url</span></td><td class="type">Tekst</td><td><span class="badge good">Ja</span></td>
+          <td class="use">Waar ORBIT ENGINE de sitemap ophaalt voor de crawldekking. Leeg laten: dan zoekt ORBIT ENGINE hem zelf.</td></tr>
+      </tbody>
+    </table></div>
+  </section>
+
+  <!-- STAP 2 -->
+  <section class="step" id="merk">
+    <div class="step-head"><span class="step-num">02</span><h2>Je merk</h2></div>
+    <p class="step-desc">Waar je voor staat. Dit stuurt de toon van alles wat ORBIT ENGINE schrijft.</p>
+    <div class="table-scroll"><table>
+      <thead><tr><th>Veld</th><th>Kolom</th><th>Type</th><th>Herleidbaar</th><th>Gebruikt in de app</th></tr></thead>
+      <tbody>
+        <tr><td class="label">Wat je merk wil bereiken</td><td class="key"><span class="key-code">brand_mission</span></td><td class="type">Lange tekst</td><td><span class="badge good">Ja</span></td>
+          <td class="use">Alleen opgeslagen en te bewerken. <span class="note">Ongebruikt: geen onderzoeks-, meet- of schrijfstap leest dit veld nu apart uit.</span></td></tr>
+        <tr><td class="label">Hoe je je verhoudt tot de rest</td><td class="key"><span class="key-code">brand_positioning</span></td><td class="type">Lange tekst</td><td><span class="badge good">Ja</span></td>
+          <td class="use">Alleen opgeslagen en te bewerken. <span class="note">Ongebruikt: geen onderzoeks-, meet- of schrijfstap leest dit veld nu apart uit.</span></td></tr>
+        <tr><td class="label">Waar je voor staat</td><td class="key"><span class="key-code">value_props</span></td><td class="type">Lijst</td><td><span class="badge good">Ja</span></td>
+          <td class="use">Gebruikt in de schrijfopdracht ("waarom klanten kiezen") en in het klantonderzoek.</td></tr>
+      </tbody>
+    </table></div>
+  </section>
+
+  <!-- STAP 3 -->
+  <section class="step" id="klant">
+    <div class="step-head"><span class="step-num">03</span><h2>Je klant</h2></div>
+    <p class="step-desc">Voor wie de teksten zijn, en waar je klant je mee vergelijkt.</p>
+    <div class="table-scroll"><table>
+      <thead><tr><th>Veld</th><th>Kolom</th><th>Type</th><th>Herleidbaar</th><th>Gebruikt in de app</th></tr></thead>
+      <tbody>
+        <tr><td class="label">Voor wie je het vooral doet</td><td class="key"><span class="key-code">intake_audience</span></td><td class="type">Lange tekst</td><td><span class="badge good">Ja</span></td>
+          <td class="use">De doelgroep waar de onderzoeks- en schrijfopdracht op wordt afgestemd.</td></tr>
+        <tr><td class="label">Wie je er nog meer mee wilt bereiken</td><td class="key"><span class="key-code">audience_secondary</span></td><td class="type">Lange tekst</td><td><span class="badge warn">Nee</span></td>
+          <td class="use">Alleen opgeslagen en te bewerken. <span class="note">Ongebruikt in de pijplijn.</span></td></tr>
+        <tr><td class="label">Hoeveel weet je lezer al</td><td class="key"><span class="key-code">audience_knowledge_level</span></td><td class="type">Schuif</td><td><span class="badge warn">Nee</span></td>
+          <td class="use">Alleen opgeslagen en te bewerken. <span class="note">Ongebruikt in de pijplijn.</span></td></tr>
+        <tr><td class="label">Je klanttypes</td><td class="key"><span class="key-code">personas</span></td><td class="type">Klanttypes</td><td><span class="badge good">Ja</span></td>
+          <td class="use">Alleen opgeslagen en te bewerken. <span class="note">Ongebruikt: nog geen onderzoeks- of schrijfstap schrijft per klanttype apart.</span></td></tr>
+        <tr><td class="label">Waarom ze voor jou kiezen</td><td class="key"><span class="key-code">differentiator</span></td><td class="type">Lange tekst</td><td><span class="badge good">Ja</span></td>
+          <td class="use">Alleen opgeslagen en te bewerken. <span class="note">Ongebruikt in de pijplijn.</span></td></tr>
+        <tr><td class="label">Met wie je vergeleken wordt</td><td class="key"><span class="key-code">competitors</span></td><td class="type">Lijst</td><td><span class="badge good">Ja</span></td>
+          <td class="use">Een van de meest gebruikte velden van het hele profiel: concurrentie-analyse, meting, briefing, schrijfopdracht en off-site scan lezen het allemaal.</td></tr>
+      </tbody>
+    </table></div>
+  </section>
+
+  <!-- STAP 4 -->
+  <section class="step" id="stem">
+    <div class="step-head"><span class="step-num">04</span><h2>Hoe je klinkt</h2></div>
+    <p class="step-desc">Vijf schuiven en een eigen omschrijving bepalen de toon van elke pagina die ORBIT ENGINE maakt.</p>
+    <div class="table-scroll"><table>
+      <thead><tr><th>Veld</th><th>Kolom</th><th>Type</th><th>Herleidbaar</th><th>Gebruikt in de app</th></tr></thead>
+      <tbody>
+        <tr><td class="label">Hoe formeel</td><td class="key"><span class="key-code">tone_formality</span></td><td class="type">Schuif</td><td><span class="badge warn">Nee</span></td>
+          <td class="use">Stuurt de toon van elke tekst die ORBIT ENGINE schrijft.</td></tr>
+        <tr><td class="label">Hoeveel energie</td><td class="key"><span class="key-code">tone_energy</span></td><td class="type">Schuif</td><td><span class="badge warn">Nee</span></td>
+          <td class="use">Stuurt de toon van elke tekst die ORBIT ENGINE schrijft.</td></tr>
+        <tr><td class="label">Hoe technisch</td><td class="key"><span class="key-code">tone_complexity</span></td><td class="type">Schuif</td><td><span class="badge warn">Nee</span></td>
+          <td class="use">Stuurt de toon van elke tekst die ORBIT ENGINE schrijft.</td></tr>
+        <tr><td class="label">Hoeveel humor</td><td class="key"><span class="key-code">tone_humor</span></td><td class="type">Schuif</td><td><span class="badge warn">Nee</span></td>
+          <td class="use">Stuurt de toon van elke tekst die ORBIT ENGINE schrijft.</td></tr>
+        <tr><td class="label">Welke lading</td><td class="key"><span class="key-code">tone_emotional</span></td><td class="type">Schuif</td><td><span class="badge warn">Nee</span></td>
+          <td class="use">Alleen opgeslagen en te bewerken. <span class="note">Ongebruikt in de pijplijn: de andere vier schuiven sturen de schrijfopdracht al wel, deze nog niet.</span></td></tr>
+        <tr><td class="label">Je merk als persoon</td><td class="key"><span class="key-code">tone_of_voice</span></td><td class="type">Lange tekst</td><td><span class="badge good">Ja</span></td>
+          <td class="use">De eigen omschrijving van de merkstem, los van de schuiven. Gebruikt in het onderzoek en de schrijfopdracht.</td></tr>
+      </tbody>
+    </table></div>
+  </section>
+
+  <!-- STAP 5 -->
+  <section class="step" id="woorden">
+    <div class="step-head"><span class="step-num">05</span><h2>Je woorden</h2></div>
+    <p class="step-desc">Wat er wél in mag, wat er nooit in mag, en hoe je je lezer aanspreekt.</p>
+    <div class="table-scroll"><table>
+      <thead><tr><th>Veld</th><th>Kolom</th><th>Type</th><th>Herleidbaar</th><th>Gebruikt in de app</th></tr></thead>
+      <tbody>
+        <tr><td class="label">Uitdrukkingen die van jou zijn</td><td class="key"><span class="key-code">signature_phrases</span></td><td class="type">Lijst</td><td><span class="badge good">Ja</span></td>
+          <td class="use">Alleen opgeslagen en te bewerken. <span class="note">Ongebruikt in de pijplijn.</span></td></tr>
+        <tr><td class="label">Woorden die je nooit wilt zien</td><td class="key"><span class="key-code">taboo_phrases</span></td><td class="type">Lijst</td><td><span class="badge warn">Nee</span></td>
+          <td class="use">De schrijfopdracht vermijdt deze woorden actief en controleert na het schrijven of ze er echt niet in staan.</td></tr>
+        <tr><td class="label">Hoe je je lezer aanspreekt</td><td class="key"><span class="key-code">pronoun_preference</span></td><td class="type">Keuzemenu</td><td><span class="badge warn">Nee</span></td>
+          <td class="use">Alleen opgeslagen en te bewerken. <span class="note">Ongebruikt in de pijplijn.</span></td></tr>
+        <tr><td class="label">Woorden die bij je horen</td><td class="key"><span class="key-code">identity_keywords</span></td><td class="type">Lijst</td><td><span class="badge good">Ja</span></td>
+          <td class="use">Alleen opgeslagen en te bewerken. <span class="note">Ongebruikt in de pijplijn.</span></td></tr>
+        <tr><td class="label">Regels waar je aan moet voldoen</td><td class="key"><span class="key-code">compliance_notes</span></td><td class="type">Lange tekst</td><td><span class="badge warn">Nee</span></td>
+          <td class="use">Wettelijke of branche-eisen die letterlijk worden meegegeven in de schrijfopdracht.</td></tr>
+      </tbody>
+    </table></div>
+  </section>
+
+  <!-- STAP 6 -->
+  <section class="step" id="auteur">
+    <div class="step-head"><span class="step-num">06</span><h2>Wie het schrijft</h2></div>
+    <p class="step-desc">Content verschijnt onder een naam. Een vindbaar mens telt mee als betrouwbaarheidssignaal.</p>
+    <div class="table-scroll"><table>
+      <thead><tr><th>Veld</th><th>Kolom</th><th>Type</th><th>Herleidbaar</th><th>Gebruikt in de app</th></tr></thead>
+      <tbody>
+        <tr><td class="label">Naam</td><td class="key"><span class="key-code">author_name</span></td><td class="type">Tekst</td><td><span class="badge warn">Nee</span></td>
+          <td class="use">Alleen opgeslagen en te bewerken. <span class="note">Ongebruikt: nog geen stap koppelt dit aan gepubliceerde content.</span></td></tr>
+        <tr><td class="label">Functie</td><td class="key"><span class="key-code">author_role</span></td><td class="type">Tekst</td><td><span class="badge warn">Nee</span></td>
+          <td class="use">Alleen opgeslagen en te bewerken. <span class="note">Ongebruikt in de pijplijn.</span></td></tr>
+        <tr><td class="label">Korte introductie</td><td class="key"><span class="key-code">author_bio</span></td><td class="type">Lange tekst</td><td><span class="badge warn">Nee</span></td>
+          <td class="use">Alleen opgeslagen en te bewerken. <span class="note">Ongebruikt in de pijplijn.</span></td></tr>
+        <tr><td class="label">Foto</td><td class="key"><span class="key-code">author_photo_url</span></td><td class="type">Tekst</td><td><span class="badge warn">Nee</span></td>
+          <td class="use">Alleen opgeslagen en te bewerken. <span class="note">Ongebruikt in de pijplijn.</span></td></tr>
+        <tr><td class="label">LinkedIn</td><td class="key"><span class="key-code">author_linkedin_url</span></td><td class="type">Tekst</td><td><span class="badge warn">Nee</span></td>
+          <td class="use">Alleen opgeslagen en te bewerken. <span class="note">Ongebruikt in de pijplijn.</span></td></tr>
+        <tr><td class="label">Facebook</td><td class="key"><span class="key-code">author_facebook_url</span></td><td class="type">Tekst</td><td><span class="badge warn">Nee</span></td>
+          <td class="use">Alleen opgeslagen en te bewerken. <span class="note">Ongebruikt in de pijplijn.</span></td></tr>
+        <tr><td class="label">Nog een profiel</td><td class="key"><span class="key-code">author_other_url</span></td><td class="type">Tekst</td><td><span class="badge warn">Nee</span></td>
+          <td class="use">Alleen opgeslagen en te bewerken. <span class="note">Ongebruikt in de pijplijn.</span></td></tr>
+      </tbody>
+    </table></div>
+  </section>
+
+  <!-- STAP 7 -->
+  <section class="step" id="bekend">
+    <div class="step-head"><span class="step-num">07</span><h2>Waar je om bekend wilt staan</h2></div>
+    <p class="step-desc">De feiten en boodschappen die een AI-assistent over je kan herhalen. Zonder cijfers wordt elke tekst algemeen.</p>
+    <div class="table-scroll"><table>
+      <thead><tr><th>Veld</th><th>Kolom</th><th>Type</th><th>Herleidbaar</th><th>Gebruikt in de app</th></tr></thead>
+      <tbody>
+        <tr><td class="label">Wat je beter doet dan wie dan ook</td><td class="key"><span class="key-code">usp</span></td><td class="type">Lange tekst</td><td><span class="badge good">Ja</span></td>
+          <td class="use">Alleen opgeslagen en te bewerken. <span class="note">Ongebruikt in de pijplijn.</span></td></tr>
+        <tr><td class="label">Wat in elke tekst terug moet komen</td><td class="key"><span class="key-code">key_messages</span></td><td class="type">Lijst</td><td><span class="badge good">Ja</span></td>
+          <td class="use">Alleen opgeslagen en te bewerken. <span class="note">Ongebruikt in de pijplijn.</span></td></tr>
+        <tr><td class="label">Cijfers die je claims waarmaken</td><td class="key"><span class="key-code">proof_points</span></td><td class="type">Lijst</td><td><span class="badge good">Ja</span></td>
+          <td class="use">Het feitendossier: onderbouwt claims in gepubliceerde content en stuurt welke vragen ORBIT ENGINE nog stelt om gaten te dichten.</td></tr>
+        <tr><td class="label">Je producten en diensten</td><td class="key"><span class="key-code">products</span></td><td class="type">Lijst</td><td><span class="badge good">Ja</span></td>
+          <td class="use">Gebruikt in de aanbodherkenning, de meting, de schrijfopdracht en de onderzoeksprompt.</td></tr>
+        <tr><td class="label">Je bedrijf in een alinea</td><td class="key"><span class="key-code">summary</span></td><td class="type">Lange tekst</td><td><span class="badge good">Ja</span></td>
+          <td class="use">Opent elk onderzoek, en komt terug in rapportage en de klantmail.</td></tr>
+        <tr><td class="label">Wat je er zelf over kwijt wilt</td><td class="key"><span class="key-code">intake_description</span></td><td class="type">Lange tekst</td><td><span class="badge warn">Nee</span></td>
+          <td class="use">Vrije aanvulling die blijft staan ook als het onderzoek opnieuw draait. Gaat mee de onderzoeksopdracht in.</td></tr>
+      </tbody>
+    </table></div>
+  </section>
+
+  <!-- STAP 8 -->
+  <section class="step" id="strategie">
+    <div class="step-head"><span class="step-num">08</span><h2>Wat je met je markt wilt</h2></div>
+    <p class="step-desc">
+      Waar je op wilt groeien en waar juist niet. Het enige blok dat je website niet kan vertellen: alle twaalf
+      velden staan hier alleen omdat het gesprek ze opleverde. Dit blok staat niet in de klantwizard, alleen in de
+      onboardingsessie.
+    </p>
+    <div class="table-scroll"><table>
+      <thead><tr><th>Veld</th><th>Kolom</th><th>Type</th><th>Herleidbaar</th><th>Gebruikt in de app</th></tr></thead>
+      <tbody>
+        <tr><td class="label">Waar je op wilt groeien</td><td class="key"><span class="key-code">priority_offerings</span></td><td class="type">Lijst</td><td><span class="badge warn">Nee</span></td>
+          <td class="use">Stuurt welke onderwerpen ORBIT ENGINE als eerste voorstelt op de strategiepagina.</td></tr>
+        <tr><td class="label">Waar juist niet</td><td class="key"><span class="key-code">deprioritised_offerings</span></td><td class="type">Lijst</td><td><span class="badge warn">Nee</span></td>
+          <td class="use">Onderwerpen die worden overgeslagen bij het voorstellen van content, ook bij hoog zoekvolume.</td></tr>
+        <tr><td class="label">De klantgroepen waar de groei zit</td><td class="key"><span class="key-code">target_segments</span></td><td class="type">Lijst</td><td><span class="badge warn">Nee</span></td>
+          <td class="use">Scherpt de onderwerpkeuze verder aan dan de algemene doelgroep uit stap 3.</td></tr>
+        <tr><td class="label">Waar je heen wilt</td><td class="key"><span class="key-code">growth_regions</span></td><td class="type">Lijst</td><td><span class="badge warn">Nee</span></td>
+          <td class="use">Levert extra zoekvragen op voor plaatsen waar het merk nog niet zit maar wel wil komen.</td></tr>
+        <tr><td class="label">Wat een klant ongeveer waard is</td><td class="key"><span class="key-code">deal_value_band</span></td><td class="type">Keuzemenu</td><td><span class="badge warn">Nee</span></td>
+          <td class="use">Alleen opgeslagen en te bewerken. <span class="note">Weegt bewust nog niet mee in de onderwerpkeuze, zo staat het ook in het codecommentaar: te grof voor een uur gesprek.</span></td></tr>
+        <tr><td class="label">Je pieken en dalen in het jaar</td><td class="key"><span class="key-code">seasonality</span></td><td class="type">Lange tekst</td><td><span class="badge warn">Nee</span></td>
+          <td class="use">Bepaalt wanneer een pagina klaar moet zijn, en komt terug in de rapportduiding.</td></tr>
+        <tr><td class="label">De bezwaren die je steeds hoort</td><td class="key"><span class="key-code">sales_objections</span></td><td class="type">Lijst</td><td><span class="badge warn">Nee</span></td>
+          <td class="use">Stuurt de schrijfopdracht: een AI-antwoord heeft vaak precies de vorm van zo'n bezwaar.</td></tr>
+        <tr><td class="label">Waar niet over geschreven mag worden</td><td class="key"><span class="key-code">forbidden_topics</span></td><td class="type">Lijst</td><td><span class="badge warn">Nee</span></td>
+          <td class="use">De onderwerpkeuze slaat dit over, en de schrijfopdracht controleert na afloop of het er echt niet in staat.</td></tr>
+        <tr><td class="label">Bewijs dat niet op je site staat</td><td class="key"><span class="key-code">offline_proof</span></td><td class="type">Lijst</td><td><span class="badge warn">Nee</span></td>
+          <td class="use">Extra onderbouwing voor claims in het feitendossier, naast wat er al op de website staat.</td></tr>
+        <tr><td class="label">Gelijknamige bedrijven die jij niet bent</td><td class="key"><span class="key-code">name_exclusions</span></td><td class="type">Lijst</td><td><span class="badge warn">Nee</span></td>
+          <td class="use">Voorkomt dat een vermelding van een gelijknamig ander bedrijf meetelt in de meting.</td></tr>
+        <tr><td class="label">Mogen er nieuwe pagina's bij</td><td class="key"><span class="key-code">respect_site_structure</span></td><td class="type">Ja/nee</td><td><span class="badge warn">Nee</span></td>
+          <td class="use">Bepaalt of ORBIT ENGINE nieuwe pagina's mag voorstellen, of alleen verbeteringen aan bestaande.</td></tr>
+        <tr><td class="label">Waar je over een jaar wilt staan</td><td class="key"><span class="key-code">goal_12m</span></td><td class="type">Lange tekst</td><td><span class="badge warn">Nee</span></td>
+          <td class="use">Stuurt de onderwerpkeuze en komt terug in de duiding van elk rapport.</td></tr>
+      </tbody>
+    </table></div>
+  </section>
+
+  <!-- STAP 9 -->
+  <section class="step" id="contact">
+    <div class="step-head"><span class="step-num">09</span><h2>Met wie we praten</h2></div>
+    <p class="step-desc">
+      Wie het aanspreekpunt is voor dit merk. Deze drie velden tellen bewust niet mee in de volledigheidsmeter:
+      ze zeggen niets over hoe goed ORBIT ENGINE het merk kent.
+    </p>
+    <div class="table-scroll"><table>
+      <thead><tr><th>Veld</th><th>Kolom</th><th>Type</th><th>Herleidbaar</th><th>Gebruikt in de app</th></tr></thead>
+      <tbody>
+        <tr><td class="label">Naam</td><td class="key"><span class="key-code">contact_name</span></td><td class="type">Tekst</td><td><span class="badge warn">Nee</span></td>
+          <td class="use">Alleen opgeslagen en te bewerken. <span class="note">Ongebruikt in de pijplijn.</span></td></tr>
+        <tr><td class="label">E-mailadres</td><td class="key"><span class="key-code">contact_email</span></td><td class="type">Tekst</td><td><span class="badge warn">Nee</span></td>
+          <td class="use">Alleen opgeslagen en te bewerken. <span class="note">Ongebruikt in de pijplijn.</span></td></tr>
+        <tr><td class="label">Telefoonnummer</td><td class="key"><span class="key-code">contact_phone</span></td><td class="type">Tekst</td><td><span class="badge warn">Nee</span></td>
+          <td class="use">Alleen opgeslagen en te bewerken. <span class="note">Ongebruikt in de pijplijn.</span></td></tr>
+      </tbody>
+    </table></div>
+  </section>
+
+  <footer>
+    Bron: <code>lib/pipeline/brand-fields.ts</code> (veldencatalogus) en <code>app/(app)/merk/[id]/_components/onboarding-session.tsx</code>
+    (het scherm zelf). "Gebruikt in de app" is nagegaan door elke kolomnaam op te zoeken in <code>lib/pipeline</code>,
+    <code>lib/reputation</code>, <code>lib/offsite</code>, <code>lib/audit</code> en <code>app/api</code>, met uitzondering
+    van de opslagroute (<code>lib/profile-editable.ts</code>) en het scherm zelf, die per definitie elk veld raken.
+    Stap 1 tot en met 7 zijn ook zichtbaar in de klantwizard; stap 8 en 9 alleen in deze onboardingsessie.
+  </footer>
+</div>
+</body>
+</html>
