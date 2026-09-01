@@ -248,7 +248,7 @@ tussenkopje. Vandaar een **zijbalk** (`components/sidebar.tsx`).
 
 **Vier klanthoofdstukken, elk met hooguit drie kinderen** (besluit 1 tot en met 8 van 17 augustus
 2026). ⚠️ **Admin mag er sinds 19 augustus 2026 vier**, bij het toevoegen van de onboardingsessie:
-drie ervan gaan over dít merk (Onboarding, Diagnose, Toewijzen) en de vierde, "Alle merken", is de
+drie ervan gaan over dít merk (Onboardinggesprek, Diagnose, Toewijzen) en de vierde, "Alle merken", is de
 uitgang naar de app als geheel. Dat is geen vergaarbak van vier gelijksoortige regels maar drie plus
 een uitgang. ⚠️ **En sinds 25 augustus 2026 vijf**, toen "Koppelingen" van Instellingen naar Admin
 verhuisde: een koppeling zet de consultant klaar, niet de klant (het product is sales-led, besloten
@@ -275,7 +275,7 @@ noemde. Elk hoofdstuk beantwoordt nu één vraag:
 | Strategie | Wat gaan we doen, en wat is er al gemaakt? | Clusters, Openstaande vragen, Contentplan, Bibliotheek |
 | Analytics | Wat zeggen de cijfers, en waarom? | Zichtbaarheid in AI, Zoekverkeer, Concurrenten, Mijn reputatie |
 | Merkprofiel | Wie ben ik volgens ORBIT ENGINE, en klopt dat? | Merkdossier, Bewerken |
-| Admin | (alleen beheerders, onder een scheidingslijn) | Onboarding, Diagnose, Toewijzen, Alle merken, Koppelingen |
+| Admin | (alleen beheerders, onder een scheidingslijn) | Onboardinggesprek, Diagnose, Toewijzen, Alle merken, Koppelingen |
 
 ⚠️ **"Instellingen" stond hier tot 25 augustus 2026, met "Account en team" en "Koppelingen"
 eronder.** Geen van beide is nog een klantbestemming in de zijbalk: "Account en team" staat nu als
@@ -741,7 +741,7 @@ niet zijn plek in onze verkoopcyclus.
 
 ### Voorbeelden per branche (19 augustus 2026)
 
-Van de 56 velden hebben er 35 een voorbeeld, en die waren allemaal geschreven vanuit één fictieve
+Van de 57 velden hebben er 35 een voorbeeld, en die waren allemaal geschreven vanuit één fictieve
 autodealer. Voor een fysiotherapiepraktijk of een advocatenkantoor leest dat als een formulier dat
 voor iemand anders is gemaakt.
 
@@ -784,9 +784,16 @@ bedrag, een taaknaam of een foutcode in komt te staan. Een doorloop met de hand 
 het risico ontstaat bij de vólgende wijziging.
 
 **De volgorde van het scherm is de belangrijkste ontwerpkeuze.** Het opent met wat ORBIT ENGINE
-níét weet (`lib/profile-gaps.ts`, gesorteerd op gevolg en niet op veldvolgorde), daarna de
-commerciële laag die het gesprek moet vullen, en pas daarna wat er al gevonden is, ingeklapt per
-blok. Zonder die volgorde kost het gesprek een uur aan het bevestigen van dingen die al klopten.
+níét weet (`lib/profile-gaps.ts`, gesorteerd op gevolg en niet op veldvolgorde). Daarna volgt sinds
+onboarding ronde B (31 augustus 2026) de gespreksvolgorde uit `SESSION_BLOCKS`
+(`lib/pipeline/brand-fields.ts`): je bedrijf en je namen, je aanbod en waar je op wilt groeien, je
+markt en je concurrenten, je bewijs en je boodschap, je klant en je toon, documenten en teksten met
+de veranderingen die eraan komen, techniek en koppelingen, en tot slot afspraken en afronden. Dat is
+een andere volgorde dan de catalogus (`STEP_ORDER`), die de klantwizard nog steeds gebruikt: eerst
+staat vast wat er verkocht wordt, pas dan komt de vraag waar de groei zit. Elk blok mengt wat ORBIT
+ENGINE al vond met wat alleen het gesprek oplevert; de herkomstchip per veld laat zien welke van de
+twee het is, en onder elk veld staat in één zin waar het antwoord landt (`BrandField.usage`).
+Zonder die volgorde kost het gesprek een uur aan het bevestigen van dingen die al klopten.
 
 **Opslaan gaat per veld**, zodra het de focus verlaat, met drie standen (opslaan, opgeslagen, niet
 gelukt). Anders dan in de klantwizard, waar één knop juist beter past: een gesprek springt en wordt
@@ -795,6 +802,18 @@ dit scherm kan maken. Mislukt een opslag, dan blijft de getypte waarde staan met
 opnieuw te proberen; stil terugdraaien laat de consultant het opnieuw typen zonder te weten dat het
 de eerste keer ook al niet lukte.
 
+**Elk blok opent ingeklapt, behalve wat nog niet compleet is** (Ronde A, 31 augustus 2026; verhuisd
+van per catalogusstap naar per gespreksblok in Ronde B). `CollapsibleSection` staat op desktop
+standaard open; zonder `defaultOpen` mee te geven stonden alle klantvelden dus tegelijk uitgeklapt en
+liep het scherm over een lengte van ongeveer tien schermhoogtes. Elk blok krijgt nu
+`defaultOpen={!p.compleet}`, met de teller "x van de y ingevuld" als titel van de sectie: een
+compleet blok opent dicht, een blok met nog een leeg veld opent open.
+
+**Een getypte waarde overleeft het sluiten van het tabblad** (Ronde A). Opslaan gaat bij `onBlur`,
+maar wie het tabblad sluit terwijl de cursor nog in een veld staat, verliest zonder extra vangnet wat
+er getypt is. De sessie stuurt openstaande velden alsnog weg bij `pagehide` en bij
+`visibilitychange` naar verborgen, met `fetch(..., { keepalive: true })`.
+
 **Elk veld kan op "niet van toepassing"** (migratie `0060`). Een merk zonder auteur heeft geen
 auteursbio, en dat is geen gat. Zo'n veld telt als behandeld en verdwijnt uit de gatenlijst.
 
@@ -802,6 +821,14 @@ auteursbio, en dat is geen gat. Zo'n veld telt als behandeld en verdwijnt uit de
 ORBIT ENGINE gevonden, nog open. Eén percentage verbergt precies het verschil dat in een gesprek
 telt. De contactvelden tellen niet mee, want ze zeggen niets over hoe goed ORBIT ENGINE het merk
 kent.
+
+**Elk veld weegt verplicht, aanbevolen of optioneel** (`BrandField.priority`, Ronde B). Verplicht
+betekent dat een fout een hele meetronde kost of de score structureel te laag of te hoog laat
+uitvallen; aanbevolen levert een merkbaar betere uitkomst zonder dat het product ervan afhangt;
+optioneel mag leeg blijven. `missingRequired()` telt welke verplichte velden nog open staan
+(`service_regions` telt daarbij alleen mee bij een lokaal werkgebied, ook al staat hij in de
+catalogus op aanbevolen) en het afrondblok noemt ze met een springlink. Geen rode rand tijdens het
+typen: de klant kijkt mee.
 
 **De actieve regel is exact, niet met prefix** (`isExact`, naast `isActive`). De bestemmingen binnen
 een hoofdstuk zijn elkaars prefix: `/merk/x/merkprofiel` is het begin van
@@ -988,12 +1015,23 @@ verwijst permanent door (`lib/redirects.ts`).
 | Scherm | De vraag | Wat erop staat |
 |---|---|---|
 | Merkdossier `/merk/[id]/merkprofiel` | Wat weet ORBIT ENGINE van mij? | Kop, het dossier, wat AI over je weet, aanbod, concurrenten |
-| Bewerken `/merk/[id]/merkprofiel/bewerken` | Klopt dat? | 41 velden in zeven stappen, plus gereedschap |
+| Bewerken `/merk/[id]/merkprofiel/bewerken` | Klopt dat? | 45 velden in zeven stappen, plus gereedschap |
 
-**Het merkdossier is een leesscherm.** Geen sectie-rail: de blokken hebben geen
-vaste chronologie zoals de vier hoofdstukken van een cluster, en een rail belooft
-een volgorde die er niet is. Wel een kop met de merknaam, de website en één
-duidingszin (`profile-hero.tsx`).
+**Het merkdossier is grotendeels een leesscherm.** Geen sectie-rail: de blokken
+hebben geen vaste chronologie zoals de vier hoofdstukken van een cluster, en een
+rail belooft een volgorde die er niet is. Wel een kop met de merknaam, de
+website en één duidingszin (`profile-hero.tsx`).
+
+⚠️ **Eén uitzondering sinds onboarding Ronde C (31 augustus 2026): het blok
+Aanbod is bewerkbaar.** `OfferingsPanel` is een servercomponent met een
+client-kind, `OfferingsEditor` (`_components/offerings-editor.tsx`): potlood
+per knoop, "Dienst of product toevoegen" onderaan de boom, en verwijderde
+knopen achter "X verwijderd, tonen" met een terugzetknop. De route
+(`app/api/profiles/[id]/offerings`) is dezelfde voor staf en klant; de herkomst
+(`gesprek` tegenover `klant`) volgt automatisch uit wie is ingelogd, net als bij
+de onboardingvelden. Reden om dit hier te bouwen en niet als los scherm: het is
+precies de plek waar het gat zichtbaar wordt (een dienst die niet op de site
+staat), dus is het ook de plek waar hij gedicht wordt.
 
 Elk blok is een `ProfileSection` met een **titel én een omschrijving** (Nova geeft
 élk blok allebei). Twee soorten: `verhaal` staat op desktop open en is wat de
@@ -1004,6 +1042,9 @@ is een percentage over werk dat de klant niet doet, en voor de consultant een
 verkoopinstrument ("kan ik dit scherm delen"). Dat is besluit 4: de klant ziet
 wat ORBIT ENGINE weet en hoe zeker dat is, niet hoe ORBIT ENGINE eraan kwam.
 Hetzelfde geldt voor de mijlpalen en de maandinzichten, die naar Overzicht gaan.
+Sinds onboarding ronde B, stap B5, is dit ook waar: het paneel bestond al sinds
+17 augustus 2026 maar werd door geen enkel scherm aangeroepen. Het staat nu als
+blok 0 boven aan `/merk/[id]/admin/onboarding`.
 
 **Het bewerkscherm opent op de stap uit de link.** `?stap=` (alleen de
 klantstappen; een onbekende waarde valt terug op stap 1). Dat is de enige plek
@@ -1017,17 +1058,31 @@ van de twee won. De wizardvorm wint omdat hij per veld de herkomstchip toont
 ("uit je website gehaald", Nova's `draftedBadge`): de klant kijkt na in plaats
 van in te vullen, en dat is een wezenlijk andere handeling.
 
-⚠️ **41 in, 41 uit.** De zeven stappen dekken exact `EDITABLE_PROFILE_FIELDS`, en
-`scripts/test-unit.ts` faalt in béide richtingen. Eén veld dat nergens landt is
-een veld dat de klant niet meer kan corrigeren, en dat merkt niemand tot de
-volgende contentronde, want er verschijnt geen foutmelding. De verdeling is
-8-3-6-6-5-7-6 over Je bedrijf, Je merk, Je klant, Hoe je klinkt, Je woorden, Wie
-het schrijft en Waar je om bekend wilt staan. Die laatste stap heeft Nova niet,
-en het is juist de stap die bepaalt wat een AI-assistent over je kán zeggen.
+⚠️ **Elk opslaanbaar veld staat in een stap, en `scripts/test-unit.ts` faalt in
+béide richtingen.** Eén veld dat nergens landt is een veld dat de klant niet meer
+kan corrigeren, en dat merkt niemand tot de volgende contentronde, want er
+verschijnt geen foutmelding. De zeven klantstappen dekken samen 45 velden (was
+42 tot onboarding ronde B, stap B8: `style_samples`, `max_inventory_pages` en
+`crawl_priority_paths` stonden tot dan alleen op dit scherm en niet in de
+onboardingsessie). De verdeling is 11-3-6-7-5-7-6 over Je bedrijf, Je merk, Je
+klant, Hoe je klinkt, Je woorden, Wie het schrijft en Waar je om bekend wilt
+staan. Die laatste stap heeft Nova niet, en het is juist de stap die bepaalt wat
+een AI-assistent over je kán zeggen.
 
 Wat géén merkveld is, staat buiten de wizard: hoe grondig ORBIT ENGINE de site
 uitleest (`InventoryBox`) en de brontekst die de klant zelf aanlevert
 (`DossierBox`). Die grens houdt de teller eerlijk.
+
+⚠️ **`InventoryBox` is sinds onboarding Ronde D (31 augustus 2026) crawlbeheer,
+niet meer één knop.** Naast het aantal pagina's en de voorrangsmappen staat er
+nu een tempokeuze (snel/normaal/langzaam, `lib/crawl-speed.ts`) en twee acties:
+"Meer pagina's lezen" (vult aan, vervangt niets) en "Opnieuw crawlen" (met een
+bevestiging, want dat vervangt de gecrawlde pagina's). Beide plannen sinds deze
+ronde een achtergrondtaak in (`crawl_inventory`) in plaats van zelf te crawlen:
+de knop laat los zodra de taak in de wachtrij staat, niet zodra de crawl klaar
+is, en toont dat met "Ingepland, ververs zo dadelijk" in plaats van een
+voortgangsbalk. Bij een 403 van de site staat er een melding met wat de klant
+kan doen (ons adres toelaten, of het tempo op langzaam zetten).
 
 **Openstaande vragen** (tot 28 augustus 2026 "Vraagt jouw input", en tot die
 dag onder dit hoofdstuk) is één blok waar er twee waren: de feitenvragen mét

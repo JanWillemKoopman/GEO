@@ -1,4 +1,5 @@
 import type { EntityRole } from "@/lib/schemas/entity-classification";
+import type { CrawlSpeed } from "@/lib/crawl-speed";
 /**
  * TypeScript-representatie van het datamodel (abcplan.md §5).
  * Handgeschreven (in plaats van gegenereerd) zodat de scaffolding zonder
@@ -320,6 +321,17 @@ export interface Profile {
    */
   crawl_priority_paths: string[];
   /**
+   * Crawlbeheer (onboarding Ronde D, §17, migratie 0080): hoeveel, hoe vaak en
+   * hoe rustig. `crawl_speed` stuurt `lib/crawl-speed.ts`.
+   */
+  crawl_speed: CrawlSpeed;
+  /** Standaard uit. Alleen aan met toestemming van de klant voor zijn EIGEN domein. */
+  crawl_as_browser: boolean;
+  crawl_last_run_at: string | null;
+  crawl_last_mode: "meer" | "opnieuw" | null;
+  /** Wanneer de site voor het laatst met 403 antwoordde. */
+  crawl_last_blocked_at: string | null;
+  /**
    * Entiteitsaanwezigheid (optimalisatie.md 7.4, migratie 0022). Of een merk in
    * Wikidata/Wikipedia voorkomt is een van de sterkste signalen waarmee
    * AI-systemen een bedrijf als bestaande entiteit herkennen.
@@ -531,6 +543,13 @@ export interface ProfileOffering {
   sort_order: number;
   created_at: string;
   updated_at: string;
+  /** Vrije context uit het gesprek, bijvoorbeeld "levert 40% van de omzet" (migratie 0079). */
+  note: string | null;
+  /** Verwijderen is uitzetten, niet wissen (conventie 8, migratie 0079). Null = actief. */
+  removed_at: string | null;
+  removed_by: string | null;
+  /** Wie de knoop voor het laatst wijzigde via de schrijfroute (migratie 0079). */
+  updated_by: string | null;
 }
 
 /** Herkomst per profielveld (migratie 0039). */

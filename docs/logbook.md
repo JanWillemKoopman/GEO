@@ -4636,3 +4636,286 @@ maand 2 met data van 1-28 september, geen enkele in het verleden. Een openstaand
 superlatief beantwoord gaf "Noem er een cijfer bij, dan mag deze zin in je teksten." De `GET` gaf het
 klantaccount een 403 en het beheerdersaccount "Geschatte kosten: ~$0,02"; "Verdeling aanpassen" toonde
 "ongeveer $1,68 per maand" naast "±10,7 punten", nu allebei met een komma.
+
+## 31 augustus 2026: Ronde A van de onboardingoptimalisatie, zes losse ingrepen zonder migratie
+
+`documentatie/onboarding_optimalisatie.md` §18 zet de verbouwing van de onboardingsessie in vier
+ronden; Ronde A is de eerste, met zes ingrepen die stuk voor stuk los terug te draaien zijn en geen
+migratie nodig hebben. Alle zes zijn deze ronde gebouwd.
+
+**A1. Het blok "Wat we al gevonden hebben" stond op een laptop van de CSM standaard helemaal open.**
+`CollapsibleSection` staat op desktop standaard open, en de sessie gaf nooit `defaultOpen` mee. Alle
+41 klantvelden stonden dus tegelijk uitgeklapt, en dat verklaarde waarom het scherm ongeveer tien
+schermhoogtes lang was. Nu krijgt elke stap `defaultOpen={!p.compleet}` mee: een stap die al
+compleet is opent dicht, een stap met nog een leeg veld opent open. Het scherm opent daardoor op
+ongeveer een kwart van zijn vorige lengte plus precies het werk dat er nog ligt.
+
+**A2. Negen velden (vijf schuiven, drie keuzemenu's, het ja-nee-veld) hadden geen werkend label voor
+schermlezers.** `Standen` gebruikte `aria-labelledby={id}`, terwijl `id` het veld-id is en niet het
+id van een bestaand element: het label zette alleen `htmlFor`, nooit een eigen `id`. Het label krijgt
+nu ook `id={labelId(id)}` (`${id}-label`), en de drie aanroepen van `Standen` geven dat label-id mee
+in plaats van het veld-id. Toetsenbordnavigatie werkte al; nu kondigt de knoppenrij ook de vraag aan
+die hij beantwoordt.
+
+**A3. Zes lijstvelden werden alleen door de invoercomponent getrimd, niet door de opslagroute
+zelf.** `products`, `value_props`, `competitors`, `aliases`, `service_regions` en `proof_points`
+stonden niet in `LIST_FIELDS` in `app/api/profiles/[id]/route.ts`, terwijl twaalf andere lijstvelden
+er al in stonden. In de praktijk ging het goed omdat `TagListEditor` altijd nette waarden aanlevert,
+maar dat is precies de garantie die conventie 1 in de route wil en niet alleen in de client: een
+ander scherm of een aanroep buiten de app om kon een lege string in `aliases` zetten, waar de meting
+letterlijk op vergelijkt. De zes velden staan er nu bij.
+
+**A4. Een getypte waarde in een openstaand veld ging verloren bij het sluiten van het tabblad.**
+Opslaan gebeurt bij `onBlur`, bewust, omdat een gesprek springt en onderbroken wordt. Maar wie het
+tabblad sluit terwijl de cursor nog in een tekstvak staat, verliest wat er getypt is: er komt dan
+geen blur meer. De sessie houdt nu per veld bij of het gewijzigd maar nog niet opgeslagen is, en
+stuurt die velden alsnog weg bij `pagehide` en bij `visibilitychange` naar verborgen, met
+`keepalive: true` zodat de aanvraag doorloopt nadat de pagina al is losgelaten.
+
+**A5. Het contentpakket bij het aanmaken van een merk landde op het account van de consultant, niet
+van de klant.** `POST /api/profiles` schreef het gekozen pakket naar `defaultAccountFor(user.id)`,
+en dat is bij een consultant zijn eigen standaardaccount: het merk wordt pas bij Toewijzen aan het
+klantaccount gekoppeld. Het pakketveld in de aanmaakwizard deed voor de klant dus niets, en
+overschreef ondertussen wel het pakket op het account van de consultant zelf. Het veld is uit de
+aanmaakwizard gehaald; het pakket wordt voortaan uitsluitend gezet op het toewijzingsscherm
+(`PackageBox`, die daar al stond sinds de eerste live doorloop van 31 augustus), met een regel erbij
+dat dit vóór het eerste contentplan moet gebeuren.
+
+**A6. De opslagknop van "Wat er speelt buiten je website om" zei niet wat hij deed.** Opslaan van dit
+blok zet meteen de definitieve onderwerpronde in gang: de conceptonderwerpen worden vervangen door
+een definitieve lijst, nu met wat er in het gesprek is verteld. Dat stond nergens op het scherm. De
+knop heet nu "Gesprek vastleggen en onderwerpen definitief maken", met een regel eronder die zegt wat
+er gebeurt.
+
+Elke ingreep kreeg een broncodecontrole in `scripts/test-unit.ts` (groep "Ronde A: losse ingrepen aan
+de onboardingsessie"), naar hetzelfde patroon als de bestaande controle die verboden taaknamen en
+bedragen op dit scherm opspoort: dit scherm heeft geen pure rekenkern, dus de garantie zit in de
+broncode zelf nalezen. Vier controles groen: typecheck, 2713 unittests (24 nieuwe, twee ervan na een
+eerste poging aangescherpt omdat de regex de code niet raakte), 397 ketentests, en de productiebuild.
+
+Verificatie op productie (§18.1, onder A): het scherm openen op een testmerk toont nu de
+openstaande stappen uitgeklapt en de complete stappen dicht, in plaats van 41 velden in één keer. Een
+veld getypt, tabblad gesloten en teruggekomen: de waarde staat er.
+
+**31 augustus 2026, onboarding ronde B (deel één, stap B1 tot en met B4).** De schermverbouwing van
+`documentatie/onboarding_optimalisatie.md` §18, uitgevoerd op `feature/onboarding-ronde-b` vanaf
+`main`. Vier stappen, in de volgorde van §18.0 (pure module vóór scherm), zonder migratie: alle
+kolommen bestonden al.
+
+**B1. `brand_name` is nu bewerkbaar.** De naam waarop de vermeldingsclassificatie telt of een
+AI-antwoord over dit merk gaat, werd tot deze ronde uitsluitend door het AI-onderzoek gezet
+(`discover.ts`) en stond nergens in een formulier. Een verkeerd afgeleide naam bleef daardoor elke
+volgende meetronde meelopen, terwijl ongeveer twintig modules hem lezen. Toegevoegd aan
+`EDITABLE_PROFILE_FIELDS` en aan `BRAND_FIELDS` (stap "bedrijf", direct na `name`, `derivable: true`),
+zodat hij automatisch meeloopt in zowel de onboardingsessie als de klantwizard, en `field-merge.ts`
+hem met rust laat zodra een mens hem heeft gezet. De catalogus telt sindsdien 57 velden in plaats van
+56, en de klantwizard 42 in plaats van 41.
+
+**B2. Elk veld toont nu waar het antwoord landt.** Nieuw verplicht veld `usage` op `BrandField`
+(`lib/pipeline/brand-fields.ts`), gevuld voor alle 57 velden met de tekst uit hoofdstuk 6 van het
+plan, gerenderd onder het invoerveld door `BrandFieldInput` in kleine grijze letters. Werkt
+automatisch door in de klantwizard, wat gewenst is: dezelfde vraag ("waarom willen jullie dit
+weten?") speelt daar net zo goed. Een unittest eist dat élk veld een `usage`-tekst van minstens tien
+tekens heeft, zodat een nieuw veld niet zonder uitleg kan landen.
+
+**B3. Verplicht, aanbevolen en optioneel bestaan nu.** Nieuw veld `priority` op `BrandField`, gezet
+volgens de statuskolom van hoofdstuk 6: twaalf velden verplicht (waaronder `brand_name`, `aliases`,
+`competitors`, `products`, `proof_points`), de rest aanbevolen of optioneel. Nieuwe pure functie
+`missingRequired(profile, notApplicable)` telt welke verplichte velden nog leeg zijn, met één
+uitzondering die in de functie zit en niet in de catalogus: `service_regions` staat op "aanbevolen",
+maar wordt pas verplicht zodra `service_scope` op "lokaal" staat (hoofdstuk 14.2). Het afrondblok van
+de sessie noemt de openstaande verplichte velden met springlinks naar het veld. Geen validatie
+tijdens het typen: de klant kijkt mee.
+
+**B4. Het scherm volgt nu de gespreksvolgorde, niet de catalogusvolgorde.** Nieuwe export
+`SESSION_BLOCKS` groepeert de 57 velden opnieuw in de negen blokken van hoofdstuk 3: openstaande
+punten, je bedrijf en je namen, je aanbod, je markt, je bewijs, je klant en je toon, documenten en
+teksten met de veranderingen die eraan komen, techniek en koppelingen, en afspraken en afronden. Dit
+is bewust géén nieuwe `BrandStep`-waarde: de klantwizard blijft de catalogusvolgorde
+(`CLIENT_STEPS`/`STEP_ORDER`) gebruiken, en `SESSION_BLOCKS` hergroepeert alleen hoe de sessie ze
+toont. De zeven auteursvelden staan voortaan in een eigen, ingeklapt blok "Auteur, voor later" binnen
+"Afspraken en afronden" (`SESSION_AUTHOR_FIELDS`), met één gezamenlijke uitleg in plaats van zeven
+losse kaarten in de hoofdstroom. De teksten volgen hoofdstuk 7: "Openstaande punten" in plaats van
+"Wat we nog niet weten", de springlink heet "Ga naar dit veld" in plaats van "Invullen" (die knop
+sloeg nooit iets op), en het scherm en het menu-item heten voortaan "Onboardinggesprek" in plaats van
+kaal "Onboarding". De A1-fix (een compleet blok opent ingeklapt) is meeverhuisd van per catalogusstap
+naar per gespreksblok, zodat het scherm ook in de nieuwe indeling kort blijft.
+
+Een aanname uit het plan bleek niet te kloppen bij het natellen: hoofdstuk 11 noemt "17 velden,
+waarvan 1 nieuw" voor blok 6 ("Je klant en je toon"), maar de rijentelling in hoofdstuk 6 komt uit op
+16 (15 bestaande plus `style_samples`, dat in deel twee van deze ronde volgt). De rijentelling in
+hoofdstuk 6 is de brontabel; de samenvatting in hoofdstuk 11 was niet bijgewerkt na een latere
+wijziging aan die tabel.
+
+Vier controles groen: typecheck, 2734 unittests (21 nieuwe), 397 ketentests, de productiebuild.
+Ronde B deel twee (B5 tot en met B9: de voorbereidingskaart, de open vragen erbij, de vier
+onderwerp-triggerende velden markeren, de resterende vijf nieuwe velden, en de vormgeving) volgt in
+een volgende sessie op dezelfde branch, en wordt pas gezamenlijk als één pull request opgeleverd
+(§15.2: een half verbouwd scherm in productie is erger dan niet verbouwd).
+
+**31 augustus 2026, onboarding ronde B (deel twee, stap B5 tot en met B9).** Zelfde branch,
+`documentatie/onboarding_optimalisatie.md` §18, vervolg op deel één. Vijf stappen, geen migratie: de
+kolommen die B5 tot en met B9 nodig hebben bestonden allemaal al.
+
+**B5. Blok 0, de voorbereiding, via de bestaande readiness-module.** `computeReadiness()` (destijds
+`assessReadiness()`) en `ProfileReadinessPanel` stonden al sinds 17 augustus 2026 klaar in de
+codebase, met nul aanroepers: het paneel werd door geen enkel scherm gerenderd. Blok 0 van de
+onboardingsessie roept hem nu aan. Twee rijen toegevoegd aan `ReadinessInput`/`assessReadiness()`
+voor de vijfde en zesde startvoorwaarde uit hoofdstuk 14.1 ("pakket op het account", "merk
+toegewezen"), beide `nodig: false`: het product is sales-led, dus tijdens dit gesprek is een merk
+meestal nog niet toegewezen en staat er nog geen pakket, en dat mag "compleet" niet blokkeren. De
+status-route (`/api/profiles/[id]/status`) haalt daarvoor het pakket van het account erbij.
+
+**B6. Blok 1 toont nu ook de feitenvragen, niet meer alleen de open punten.** De sessiepagina
+gebruikt `loadOpenQuestions()`, dezelfde loader als `/strategie/vragen`, en rendert `FactRequests`
+eronder: dezelfde vragen, met dezelfde antwoord- en overslaanknoppen, zonder tweede telling. De
+knop "Ga naar dit veld" voor de profielgaten blijft client-side reactief op `findGaps()`, dat kan niet
+uit de server-loader komen zonder de live-typende consultant een paar seconden achter te laten lopen.
+
+**B7. De vier velden die een nieuwe onderwerpronde veroorzaken dragen nu een chip.** Geen nieuwe
+lijst: `BrandFieldInput` krijgt een `triggersTopics`-vlag die rechtstreeks uit `FIELD_TASKS`
+(`onboarding-refresh.ts`) wordt afgeleid, dus een latere wijziging aan die vertaaltabel verandert de
+markering automatisch mee. De waarschuwing "beslis onderwerpen pas ná het gesprek" bleek al te
+bestaan op het clusterscherm: elk conceptonderwerp toont daar al "Zodra het gesprek is vastgelegd,
+maakt ORBIT ENGINE de definitieve onderwerpen die je kunt starten" (`profile_topics.stage`,
+migratie 0074). Geen tweede waarschuwing op een tweede scherm.
+
+**B8. De vijf resterende velden.** `style_samples` (stap "stem"), `max_inventory_pages` en
+`crawl_priority_paths` (stap "bedrijf", nieuw `FieldKind: "getal"` voor het eerste) toegevoegd aan
+`BRAND_FIELDS` en `EDITABLE_PROFILE_FIELDS`; de laatste twee stonden al vast in de PATCH-route
+(validatie en klemming) maar niet in de catalogus, dus geen dubbele afhandeling. De catalogus telt
+sindsdien 60 velden, de klantwizard 45. `url` is bewust géén catalogusveld: alleen tonen met een
+aparte actie "Website wijzigen", die waarschuwt dat de crawl en de inventaris opnieuw moeten. Search
+Console staat als statusregel met een link naar `/instellingen/koppelingen`, geen invoerveld.
+
+**B9. Vormgeving.** Tweekolomsindeling op groot scherm (rechts een blijvende kolom met de meter en
+de openstaande punten), voortgang per blok in de zijrail ("6 van de 9"), één vaste regel bovenaan in
+plaats van een chip per veld bij elke opslag (de chip blijft alleen staan bij een mislukte opslag),
+het scherm ververst zichzelf na een geslaagde bijwerkronde, en een knop "Samenvatting van dit
+gesprek" die de verplichte velden en de gespreksnotitie samenvat om terug te sturen.
+
+**Verificatie op productie (§18.1, onder B).** Doorgerekend tegen de echte, opgeslagen data van
+"Van Loon Klimaattechniek" (uitdrukkelijk een testmerk, dat staat letterlijk in het eigen
+merkdossier): de readiness-module meldt op basis van de negen echte tellingen (9 pagina's, 38
+aanbodonderdelen, 5 onderwerpen, 11 kennistestrijen, 16 technische controles) terecht "compleet",
+met de twee nieuwe rijen als open punt in plaats van blokkade, en de kop noemt de drie resterende
+punten als agenda voor het gesprek. `missingRequired()`, `FIELD_TASKS` en `planRefresh()` gaven op
+ditzelfde profiel de verwachte uitkomst. Een volledige klik-doorloop in de browser is niet gedaan:
+deze sessie had geen lokale Supabase-inloggegevens beschikbaar. De vier controles (typecheck,
+2734 unittests, 397 ketentests, productiebuild) zijn wel alle vier groen.
+
+Ronde B is hiermee als geheel af.
+
+**31 augustus 2026, onboarding ronde C: de aanbodboom bewerkbaar.** Nieuwe branch
+`feature/onboarding-ronde-c` vanaf `main`, `documentatie/onboarding_optimalisatie.md` §16 en §18
+(stap C1 tot en met C6). Dit was het enige gat dat geen enkel profielveld kon dichten (§15.1): een
+dienst die niet op de site staat, of alleen telefonisch verkocht wordt, kwam nooit in het contentplan
+terecht, want `OfferingsPanel` was een leesscherm zonder route.
+
+**C1. Migratie 0079**, toegepast via `apply_migration`: vier kolommen op `profile_offerings` (`note`,
+`removed_at`, `removed_by`, `updated_by`) plus een partiële index op `profile_id where removed_at is
+null`. Verwijderen is uitzetten, niet wissen (conventie 8): een gewiste rij zou bij de volgende crawl
+gewoon terugkomen, want de pagina staat er nog.
+
+**C2. `lib/offerings.ts`**, de ene plek die het filter kent (`activeOfferings()`,
+`activeOfferingCount()`, `removedOfferings()`). Zes lezers gingen erdoorheen:
+`propose-topics.ts`, `propose-more-topics.ts`, `llm-baseline.ts`, `reputation-start.ts` (voedt
+`selectNodes()`), het merkdossier, en de idempotentiecontrole in `offering.ts` zelf (die telt bewust
+niet via de helper, maar rechtstreeks op `source = 'ai'`, zie C4). Een broncodecontrole in
+`scripts/test-unit.ts` bewaakt dat geen van die zes bestanden `profile_offerings` nog rechtstreeks
+selecteert. De validatie (naam, soort, de lus-controle op `parentId`, de `sort_order`-berekening)
+staat puur in `lib/offerings-validate.ts`, zonder `server-only`, dus getest zonder database.
+
+**C3. De route** `app/api/profiles/[id]/offerings` (POST, PATCH, DELETE), service-role client met
+`getOwnedProfile()` en `resolveWriteSource()`, precies zoals de profielroute: `gesprek` bij een
+consultant, `klant` bij de eigenaar. Verwijderen zet de knoop en al zijn onderliggende knopen op
+`removed_at`, en het antwoord zegt hoeveel dat er waren. `DELETE` met `restore: true` zet een knoop
+terug. Het scherm: `OfferingsEditor` (`_components/offerings-editor.tsx`), een client-kind van de tot
+dan alleen-lezende `OfferingsPanel`. Potlood per knoop, "Dienst of product toevoegen" onderaan, en
+verwijderde knopen achter "X verwijderd, tonen" met een terugzetknop.
+
+**C4. Hercrawlbescherming, en één bevinding die al bleek te kloppen.** Het plan verwachtte dat
+`app/api/profiles/[id]/deep-research/route.ts` de hele boom weggooide; bij het nalopen bleek die
+route al `.eq("source", "ai")` te gebruiken (opgelost in een eerdere ronde, "Vier ingrepen uit de
+structuurreview van het klantoppervlak"). Dat deel van §16.5 was dus al opgelost en is ongewijzigd
+gelaten. Wat nog wél stuk was: de idempotentiecontrole in `offering.ts` telde ALLE knopen, dus zodra
+een consultant met de hand één dienst toevoegde, dacht de aanbodstap dat de boom al klaar was en
+draaide hij nooit meer, ook niet als een latere crawl veel meer vond. Die telling gaat nu ook via
+`source = 'ai'`.
+
+**C5. `buildSnapshot()` in `propose-more-topics.ts` telt nu ook de actieve aanbodknopen.**
+`TopicRoundSnapshot` kreeg er een vijfde teller bij, `actieveAanbodknopen`, en `topic-round-diff.ts`
+meldt "N nieuwe aanbodknopen" zodra die stijgt. Zonder deze teller kreeg de consultant na het
+toevoegen van drie diensten de melding "er is niets veranderd" op de knop "meer onderwerpen": de
+vergelijking keek naar het gesprek, de klantvragen en de metingen, maar niet naar de boom die de
+onderwerpen zelf voedt.
+
+**Verificatie op productie (§18.1, onder C), op Fysi-Unique.** Een dienst toegevoegd die niet op de
+site staat ("Sportmassage voor topsporters, telefonisch geboekt", herkomst `gesprek`, met een
+notitie), plus een tweede, AI-gemarkeerde testknoop. Daarna de exacte query van de deep-research-route
+gedraaid (`delete ... where source = 'ai'`): de AI-knoop verdween, de handmatige knoop bleef staan met
+zijn notitie intact en `removed_at` op `null`, dus actief voor `activeOfferings()` en meetellend voor
+`activeOfferingCount()`. De testrijen zijn na de verificatie weer verwijderd.
+
+Vier controles groen: typecheck, 2766 unittests (34 nieuwe), 410 ketentests (13 nieuwe), de
+productiebuild.
+
+Ronde C is hiermee af. Van de tien aanvullingen uit hoofdstuk 15 resteert alleen Ronde D
+(crawlbeheer, hoofdstuk 17): zelf het aantal pagina's per ronde kiezen, aanvullen zonder alles weg te
+gooien, en drie crawltempo's.
+
+**31 augustus 2026, onboarding ronde D: crawlbeheer.** Nieuwe branch `feature/onboarding-ronde-d`
+vanaf `main`, `documentatie/onboarding_optimalisatie.md` §17 en §18 (stap D1 tot en met D6). Laatste
+van de tien aanvullingen uit hoofdstuk 15.
+
+**D1. Migratie 0080**, toegepast via `apply_migration`: vijf kolommen op `profiles` (`crawl_speed`,
+`crawl_as_browser`, `crawl_last_run_at`, `crawl_last_mode`, `crawl_last_blocked_at`), met een
+constraint op de drie standen en op de twee modi.
+
+**D2. `lib/crawl-speed.ts`**, puur en getest: `speedProfile()` (batchgrootte en pauzebandbreedte per
+stand), `nextDelayMs()` (met een injecteerbare toevalsgenerator, dus reproduceerbaar), `slowerThan()`
+voor de terugval bij een 429/503.
+
+**D3. `lib/crawler.ts`.** `crawlInventory()` kreeg er `speed`, `exclude` en `asBrowser` bij, en
+respecteert nu `Retry-After` bij een 429/503 (met een stand omlaag voor de rest van de ronde) en stopt
+bij een 403 in plaats van door te gaan met lege pagina's. Eén gedeelde `requestHeaders()`, met een
+volledige, kloppende set (`Accept-Language`, `Accept-Encoding`) zodat de crawler zich als een nette
+bezoeker gedraagt. `selectUrls()` (`url-priority.ts`) kreeg er een `exclude`-parameter bij die vóór
+het kiezen filtert, niet erna: anders levert "meer" bij een site waarvan de topplekken al gecrawld
+zijn een lege aanvulling op, ook met honderden ongelezen pagina's.
+
+**D4. Jobtype `crawl_inventory`**, met een dedupe-sleutel per profiel. `POST
+/api/profiles/[id]/refresh-inventory` plant voortaan alleen de taak in en geeft meteen antwoord, in
+plaats van zelf te crawlen: op "langzaam" duurt 150 pagina's ruim tien minuten, en de route mocht
+maar 60 seconden. De taak geeft zichzelf een vast, behoudend tijdbudget (180 seconden) binnen het
+tijdbudget dat de werker al reserveert voor een zware taak, zodat een grote crawl zichzelf op tijd
+afbreekt in plaats van de platformlimiet van 300 seconden te raken; wat er dan al gevonden is blijft
+staan, en de consultant kan de knop gewoon nog een keer gebruiken.
+
+**D5. `refresh-inventory.ts`: twee modi.** "Opnieuw" vervangt de gecrawlde pagina's zoals voorheen.
+"Meer" is nieuw: `appendCrawledPages()` (`discover.ts`) voegt alleen toe wat nog niet bekend is.
+Handmatig toegevoegde pagina's overleven allebei. **Eén bevinding tijdens het bouwen die het plan zelf
+niet noemde:** een 403 vóór de eerste pagina levert nul bruikbare pagina's op, en zonder ingreep zou
+"opnieuw" de bestaande, goede inventaris dan gewoon vervangen door niets. Bij nul nieuwe pagina's
+raakt de route de tabel nu niet aan; de ketentest hieronder bewaakt dat met een eigen scenario.
+
+**D6. Het scherm.** `InventoryBox` (op `/merk/[id]/merkprofiel/bewerken`, waar het crawlblok al
+stond) kreeg de tempokeuze, twee knoppen ("Meer pagina's lezen", "Opnieuw crawlen" met bevestiging),
+de laatste-ronde-regel en de blokkademelding. Geen voortgangsbalk: de knop laat los zodra de taak in
+de wachtrij staat, met "Ingepland, ververs zo dadelijk" in plaats van een live meelopende crawl, want
+dat zou een tweede voortgangsmechanisme naast de bestaande onboardingstatus zijn geweest.
+
+**Verificatie op productie (§18.1, onder D).** Zonder lokale inloggegevens kon deze sessie geen
+achtergrondtaak via de draaiende app zelf inplannen (zelfde beperking als bij Ronde B). In plaats
+daarvan: de sitemap van hema.nl rechtstreeks opgehaald (met de eigen bot-identiteit) om de
+startvoorwaarde van punt D uit hoofdstuk 18.1 te bevestigen, een site van ruim duizend pagina's
+(zes deelsitemaps met productcategorieën). Het daadwerkelijke "meer op langzaam tempo"-gedrag is
+doorgerekend in de ketentest tegen een gesimuleerde grote site: drie rondes na elkaar
+("opnieuw", "meer", "opnieuw") op dezelfde acht kandidaat-URL's, met een expliciete controle dat
+"meer" nooit een al bekende URL dubbel ophaalt en dat een 403 de bestaande, net opgeslagen pagina's
+niet wist.
+
+Vier controles groen: typecheck, 2783 unittests (17 nieuwe), 429 ketentests (19 nieuwe), de
+productiebuild.
+
+Ronde D is hiermee af. Alle tien aanvullingen uit hoofdstuk 15 zijn nu gebouwd.

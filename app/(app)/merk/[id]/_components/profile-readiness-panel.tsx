@@ -50,6 +50,8 @@ interface StatusPayload {
     openFactRequests: number;
     scopeKnown: boolean;
     scopeDetail: string | null;
+    packagePages: number | null;
+    assigned: boolean;
   };
 }
 

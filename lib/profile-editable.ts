@@ -25,6 +25,10 @@
  */
 export const EDITABLE_PROFILE_FIELDS = [
   "name",
+  // Onboarding ronde B, stap B1: de naam waarop de meting daadwerkelijk telt.
+  // Tot deze stap kon alleen het AI-onderzoek hem zetten (`discover.ts`), en
+  // was een verkeerd afgeleide naam nergens te corrigeren.
+  "brand_name",
   "industry",
   // Het bedrijfsmodel (R8.5, migratie 0032). Bewerkbaar omdat de klant beter
   // weet dan het model of hij een retailer of een fabrikant is, en omdat deze
@@ -45,6 +49,12 @@ export const EDITABLE_PROFILE_FIELDS = [
   "service_regions",
   "market_language",
   "sitemap_url",
+  // Onboarding ronde B, stap B8: stonden al vast in de PATCH-route
+  // (validatie en klemming, zie hieronder), maar niet in de catalogus. Ze
+  // krijgen nu ook een herkomstregel, net als elk ander veld.
+  "style_samples",
+  "max_inventory_pages",
+  "crawl_priority_paths",
   // Migratie 0045, naar het voorbeeld van InSpace Nova's onboardingstappen
   // "Words & language", "Voice" en "Author".
   "taboo_phrases",

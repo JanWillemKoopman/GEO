@@ -362,12 +362,15 @@ import {
   BRAND_FIELDS,
   CLIENT_STEPS,
   SESSION_STEPS,
+  SESSION_BLOCKS,
+  SESSION_AUTHOR_FIELDS,
   STEP_META,
   STEP_ORDER,
   fieldsOfStep,
   isFilled,
   stepProgress,
   overallProgress,
+  missingRequired,
 } from "@/lib/pipeline/brand-fields";
 import { resolveWriteSource, consultantFields } from "@/lib/profile-source";
 import {
@@ -407,6 +410,14 @@ import {
   snapshotsGelijk,
   type TopicRoundSnapshot,
 } from "@/lib/pipeline/topic-round-diff";
+import {
+  isOfferingKind,
+  normaliseOfferingName,
+  normaliseOptionalText,
+  nextSortOrder,
+  wouldCreateCycle,
+} from "@/lib/offerings-validate";
+import { speedProfile, nextDelayMs, slowerThan, isCrawlSpeed } from "@/lib/crawl-speed";
 import {
   beoordeelClaim,
   ontbrekendeOnderbouwing,
@@ -3020,6 +3031,77 @@ group("url-priority: een gekozen map krijgt echt voorrang", () => {
   ok("en de hele showroom past", metShowroom === 40);
 });
 
+group("url-priority: exclude filtert vóór het kiezen, niet erna (onboarding Ronde D, §17.8)", () => {
+  // De topplekken staan hier al bekend; zonder exclude zou "meer" niets nieuws
+  // opleveren, terwijl er nog 27 ongelezen pagina's in de showroom staan.
+  // Bewust minder "bekend"-URL's dan het quotum van hun sectie, anders kiest
+  // de sectieverdeling er zelf al niet alle tien (dat is een ander mechanisme,
+  // getest hierboven, en niet waar dit scenario over gaat).
+  const bekend = Array.from({ length: 3 }, (_, i) => `https://a.nl/diensten/d-${i}`);
+  const nieuw = Array.from({ length: 27 }, (_, i) => `https://a.nl/showroom/s-${i}`);
+  const alles = [...bekend, ...nieuw];
+
+  const zonderExclude = selectUrls(alles, 10);
+  ok(
+    "zonder exclude komen de bekende pagina's opnieuw naar boven",
+    bekend.every((u) => zonderExclude.urls.includes(u)),
+  );
+
+  const metExclude = selectUrls(alles, 10, [], new Set(bekend));
+  ok(
+    "met exclude staat geen enkele bekende pagina meer in de keuze",
+    metExclude.urls.every((u) => !bekend.includes(u)),
+  );
+  eq("en de tien plekken gaan naar de nieuwe pagina's", String(metExclude.urls.length), "10");
+  eq(
+    "totalFound blijft de ware omvang van de site, exclude of niet",
+    String(metExclude.totalFound),
+    String(alles.length),
+  );
+
+  const allesBekend = selectUrls(bekend, 10, [], new Set(bekend));
+  eq(
+    "is alles al bekend, dan levert 'meer' een lege aanvulling op, geen gok",
+    String(allesBekend.urls.length),
+    "0",
+  );
+});
+
+group("crawl-speed: drie standen, één doel (onboarding Ronde D, §17.5, migratie 0080)", () => {
+  ok("snel bevat geen pauze", speedProfile("snel").minDelayMs === 0 && speedProfile("snel").maxDelayMs === 0);
+  ok(
+    "normaal is drie tegelijk met een korte pauze",
+    speedProfile("normaal").batchSize === 3 && speedProfile("normaal").minDelayMs > 0,
+  );
+  ok(
+    "langzaam is één tegelijk met de langste pauze",
+    speedProfile("langzaam").batchSize === 1 &&
+      speedProfile("langzaam").minDelayMs > speedProfile("normaal").minDelayMs,
+  );
+
+  // `nextDelayMs()` met een vaste toevalsgenerator: altijd binnen de
+  // bandbreedte van de stand, en reproduceerbaar in plaats van flaky.
+  const altijdNul = () => 0;
+  const altijdBijnaEen = () => 0.999999;
+  eq("op 0 valt de pauze op de ondergrens", String(nextDelayMs(speedProfile("normaal"), altijdNul)), "700");
+  ok(
+    "op bijna 1 blijft de pauze onder de bovengrens",
+    nextDelayMs(speedProfile("normaal"), altijdBijnaEen) < speedProfile("normaal").maxDelayMs,
+  );
+  eq(
+    "snel heeft geen bandbreedte, dus altijd 0, ongeacht het toeval",
+    String(nextDelayMs(speedProfile("snel"), altijdBijnaEen)),
+    "0",
+  );
+
+  eq("snel gaat bij een terugval naar normaal", slowerThan("snel"), "normaal");
+  eq("normaal gaat naar langzaam", slowerThan("normaal"), "langzaam");
+  eq("langzaam is de bodem, blijft langzaam", slowerThan("langzaam"), "langzaam");
+
+  ok("de drie standen zijn geldig", isCrawlSpeed("snel") && isCrawlSpeed("langzaam"));
+  ok("een onbekende stand is ongeldig", !isCrawlSpeed("bliksemsnel"));
+});
+
 // ════════════════════════════════════════════════════════════════════════════
 // Welke pagina's de aanbod-aanroep in gaan. Dit is de nauwste doorgang van de
 // hele onboarding: ~35 van de 150 gelezen pagina's.
@@ -5170,11 +5252,14 @@ group("het merkprofiel als veldenlijst (brand-fields)", () => {
     `elk opslaanbaar veld staat in een stap${zonderStap.length ? " (mist: " + zonderStap.join(", ") + ")" : ""}`,
     zonderStap.length === 0,
   );
-  // Was 41 tot migratie 0060; sindsdien 56, want de commerciële laag (12) en de
-  // contactpersoon (3) staan er sinds onboarding 3.0 fase 1 bij.
+  // Was 41 tot migratie 0060, 56 sinds onboarding 3.0 fase 1 (de commerciële
+  // laag en de contactpersoon), 57 sinds onboarding ronde B stap B1
+  // (`brand_name`), en 60 sinds stap B8: `style_samples`, `max_inventory_pages`
+  // en `crawl_priority_paths` stonden al in de database maar niet in de
+  // catalogus, alleen op `/merkprofiel/bewerken`.
   ok(
-    `het zijn er 56 aan beide kanten (nu ${BRAND_FIELDS.length} en ${EDITABLE_PROFILE_FIELDS.length})`,
-    BRAND_FIELDS.length === 56 && EDITABLE_PROFILE_FIELDS.length === 56,
+    `het zijn er 60 aan beide kanten (nu ${BRAND_FIELDS.length} en ${EDITABLE_PROFILE_FIELDS.length})`,
+    BRAND_FIELDS.length === 60 && EDITABLE_PROFILE_FIELDS.length === 60,
   );
 
   ok(
@@ -5186,10 +5271,12 @@ group("het merkprofiel als veldenlijst (brand-fields)", () => {
   // een veld dat naar een andere stap verhuist een bewuste wijziging is en geen
   // stille verschuiving.
   const perStap = STEP_ORDER.map((s) => `${s}:${fieldsOfStep(s).length}`).join(" ");
+  // Onboarding ronde B, stap B8: `max_inventory_pages` en `crawl_priority_paths`
+  // erbij in "bedrijf" (9 → 11), `style_samples` erbij in "stem" (6 → 7).
   ok(
-    `de verdeling is 8-3-6-6-5-7-6-12-3 (nu ${perStap})`,
+    `de verdeling is 11-3-6-7-5-7-6-12-3 (nu ${perStap})`,
     perStap ===
-      "bedrijf:8 merk:3 klant:6 stem:6 woorden:5 auteur:7 bekend:6 strategie:12 contact:3",
+      "bedrijf:11 merk:3 klant:6 stem:7 woorden:5 auteur:7 bekend:6 strategie:12 contact:3",
   );
   ok(
     "elke stap heeft velden",
@@ -5265,10 +5352,12 @@ group("het merkprofiel als veldenlijst (brand-fields)", () => {
   // `csm-data.ts` gebruikt om te bepalen of een dossier deelbaar is, en staat
   // élk merk eeuwig in "wacht op jouw nakijkwerk".
   const klantVelden = BRAND_FIELDS.filter((f) => CLIENT_STEPS.includes(f.step));
+  // 45 sinds stap B8: de drie nieuwe velden staan in "bedrijf" en "stem", allebei
+  // klantstappen.
   ok(
-    `de noemer is de klantlijst van 41 (nu ${overallProgress(leeg).totaal})`,
+    `de noemer is de klantlijst van 45 (nu ${overallProgress(leeg).totaal})`,
     overallProgress(leeg).totaal === klantVelden.length &&
-      klantVelden.length === 41,
+      klantVelden.length === 45,
   );
   ok(
     "de sessie kan alle negen stappen meetellen",
@@ -5283,10 +5372,11 @@ group("het merkprofiel als veldenlijst (brand-fields)", () => {
     tone_humor: 1,
     tone_emotional: 2,
     tone_of_voice: "Een ervaren monteur",
+    style_samples: ["Een stukje uit de eigen tarievenpagina"],
   } as never;
   const p = stepProgress(stem, "stem");
   ok("een volledig ingevulde stap is compleet", p.compleet === true);
-  ok("en telt al zijn velden", p.gevuld === p.totaal && p.totaal === 6);
+  ok("en telt al zijn velden", p.gevuld === p.totaal && p.totaal === 7);
   ok(
     "terwijl een andere stap dan nog leeg is",
     stepProgress(stem, "auteur").gevuld === 0,
@@ -5355,6 +5445,105 @@ group("drie oppervlakken, één veldenlijst (onboarding 3.0 fase 1)", () => {
   ok(
     "het heeft twee benoemde standen en geen waardenlijst",
     janee[0]?.options?.length === 2 && janee[0]?.values === undefined,
+  );
+});
+
+group("microcopy, verplichtstelling en de negen blokken (onboarding ronde B)", () => {
+  // ── B2: elk veld toont waar het antwoord landt ──────────────────────────
+  // Zonder deze eis kan een nieuw veld landen zonder dat iemand heeft
+  // opgeschreven waarom het gevraagd wordt, en dat is precies het gat dat
+  // hoofdstuk 2 (P2) beschrijft.
+  const zonderUsage = BRAND_FIELDS.filter((f) => !f.usage || f.usage.trim().length < 10).map(
+    (f) => f.key as string,
+  );
+  ok(
+    `elk veld heeft een usage-tekst${zonderUsage.length ? " (mist: " + zonderUsage.join(", ") + ")" : ""}`,
+    zonderUsage.length === 0,
+  );
+
+  // ── B3: verplicht, aanbevolen, optioneel ────────────────────────────────
+  const geldigePrioriteiten = new Set(["verplicht", "aanbevolen", "optioneel"]);
+  ok(
+    "elk veld heeft een geldige priority",
+    BRAND_FIELDS.every((f) => geldigePrioriteiten.has(f.priority)),
+  );
+  // De vijf meetkritische velden uit hoofdstuk 6, blok 2, 3 en 5.
+  const verplichteSleutels = new Set(
+    BRAND_FIELDS.filter((f) => f.priority === "verplicht").map((f) => f.key as string),
+  );
+  ok(
+    "brand_name, aliases, industry, business_model, service_scope, competitors, products, proof_points, summary, intake_audience en priority_offerings zijn verplicht",
+    [
+      "brand_name",
+      "aliases",
+      "industry",
+      "business_model",
+      "service_scope",
+      "competitors",
+      "products",
+      "proof_points",
+      "summary",
+      "intake_audience",
+      "priority_offerings",
+    ].every((k) => verplichteSleutels.has(k)),
+  );
+
+  ok(
+    "een leeg profiel mist alle verplichte velden",
+    missingRequired({}).length === verplichteSleutels.size,
+  );
+  ok(
+    "n.v.t. haalt een verplicht veld van de lijst",
+    missingRequired({}, ["brand_name"]).length === verplichteSleutels.size - 1,
+  );
+  ok(
+    "een ingevuld verplicht veld staat er niet meer bij",
+    missingRequired({ brand_name: "Bakkerij Jansen" } as never).length ===
+      verplichteSleutels.size - 1,
+  );
+
+  // ⚠️ `service_regions` staat in de catalogus op "aanbevolen", maar is in de
+  // praktijk verplicht zodra het werkgebied lokaal is (hoofdstuk 14.2).
+  ok(
+    "service_regions staat in de catalogus op aanbevolen",
+    BRAND_FIELDS.find((f) => f.key === "service_regions")?.priority === "aanbevolen",
+  );
+  ok(
+    "maar telt mee zodra het werkgebied lokaal is en de plaats ontbreekt",
+    missingRequired({ service_scope: "lokaal" } as never).some(
+      (v) => v.field === "service_regions",
+    ),
+  );
+  ok(
+    "en niet bij een landelijk werkgebied",
+    !missingRequired({ service_scope: "landelijk" } as never).some(
+      (v) => v.field === "service_regions",
+    ),
+  );
+
+  // ── B4: de negen blokken dekken samen exact BRAND_FIELDS ────────────────
+  const inBlokken = SESSION_BLOCKS.flatMap((b) => b.velden as string[]);
+  const samenB4 = [...inBlokken, ...(SESSION_AUTHOR_FIELDS as string[])];
+  const bestaandeSleutels = BRAND_FIELDS.map((f) => f.key as string);
+  ok("geen dubbel veld in de blokindeling", new Set(samenB4).size === samenB4.length);
+  const missenB4 = bestaandeSleutels.filter((k) => !samenB4.includes(k));
+  ok(
+    `elk veld staat in een blok of bij de auteursvelden${missenB4.length ? " (mist: " + missenB4.join(", ") + ")" : ""}`,
+    missenB4.length === 0,
+  );
+  const teveelB4 = samenB4.filter((k) => !bestaandeSleutels.includes(k));
+  ok(
+    `en er staat geen veld bij dat niet bestaat${teveelB4.length ? " (" + teveelB4.join(", ") + ")" : ""}`,
+    teveelB4.length === 0,
+  );
+  ok(
+    "samen zijn het er 60",
+    samenB4.length === 60 && samenB4.length === BRAND_FIELDS.length,
+  );
+  ok("zeven blokken met velden", SESSION_BLOCKS.length === 7);
+  ok(
+    "elk blok heeft een titel en een uitleg van minstens één zin",
+    SESSION_BLOCKS.every((b) => b.titel.length > 2 && b.uitleg.length > 15),
   );
 });
 
@@ -5611,6 +5800,9 @@ group("assessReadiness", () => {
     openFactRequests: 0,
     scopeKnown: true,
     scopeDetail: "Lokaal: Amersfoort",
+    // B5: informatief, blokkeert `compleet` niet (zie de uitleg bij het type).
+    packagePages: 20,
+    assigned: true,
   };
 
   const r = assessReadiness(compleet);
@@ -9397,7 +9589,7 @@ group("de zijbalk verraadt niets aan een klant", () => {
   );
   ok(
     "en de onboardingsessie staat erbij",
-    adminItems.some((i) => i.href.endsWith("/admin/onboarding") && i.label === "Onboarding"),
+    adminItems.some((i) => i.href.endsWith("/admin/onboarding") && i.label === "Onboardinggesprek"),
   );
   ok(
     "met Diagnose ernaast, en niet nog een keer 'Onboarding-inzicht'",
@@ -9774,6 +9966,31 @@ group("de sessiepagina wordt gedeeld met de klant (deel B3)", () => {
   ok(
     "en definieert zelf geen velden",
     !sessie.includes("derivable:") && !sessie.includes("placeholder:"),
+  );
+
+  // ── Onboarding ronde B: de herindeling en de teksten uit hoofdstuk 7 ─────
+  ok("de sessie rendert de negen blokken", sessie.includes("SESSION_BLOCKS"));
+  ok(
+    "het openingsblok heet Openstaande punten, niet meer Wat we nog niet weten",
+    sessie.includes("Openstaande punten") && !sessie.includes("Wat we nog niet weten"),
+  );
+  ok(
+    "de springlink heet Ga naar dit veld, niet Invullen (de knop slaat niets op)",
+    sessie.includes("Ga naar dit veld") && !sessie.includes(">Invullen<"),
+  );
+  ok(
+    "de auteursvelden staan ingeklapt onder één gezamenlijke uitleg",
+    sessie.includes("Auteur, voor later") && sessie.includes("SESSION_AUTHOR_FIELDS"),
+  );
+  ok(
+    "het afrondblok noemt de openstaande verplichte velden",
+    sessie.includes("openstaandVerplicht"),
+  );
+
+  const paginaBron = leesBestand("app/(app)/merk/[id]/admin/onboarding/page.tsx");
+  ok(
+    "de pagina heet Onboardinggesprek, niet meer kaal Onboarding",
+    paginaBron.includes("Onboardinggesprek"),
   );
 });
 
@@ -10243,9 +10460,12 @@ group("het formulier praat de taal van de branche", () => {
       (f) => f.key as string,
     ),
   );
+  // Elf sinds stap B1 (`brand_name` erbij, het label bepaalt het antwoord al
+  // volledig, net als bij `name`), twaalf sinds stap B8: `max_inventory_pages`
+  // is een getal, en een getalveld heeft aan het label genoeg.
   ok(
-    "tien velden hebben bewust geen voorbeeld",
-    zonderVoorbeeld.size === 10,
+    "twaalf velden hebben bewust geen voorbeeld",
+    zonderVoorbeeld.size === 12,
     `${zonderVoorbeeld.size}`,
   );
   ok(
@@ -10317,6 +10537,10 @@ function knoop(
     sort_order: sortOrder,
     created_at: "",
     updated_at: "",
+    note: null,
+    removed_at: null,
+    removed_by: null,
+    updated_by: null,
   };
 }
 
@@ -10392,6 +10616,7 @@ group("De knop 'Stel nieuwe clusters voor' draait alleen bij nieuwe informatie (
     beantwoordeVragen: 0,
     gemetenClusters: 0,
     afgewezenOnderwerpen: 0,
+    actieveAanbodknopen: 0,
   };
 
   ok("twee identieke momentopnamen zijn gelijk", snapshotsGelijk(basis, { ...basis }));
@@ -10427,6 +10652,7 @@ group("De knop 'Stel nieuwe clusters voor' draait alleen bij nieuwe informatie (
     beantwoordeVragen: 14,
     gemetenClusters: 3,
     afgewezenOnderwerpen: 1,
+    actieveAanbodknopen: 0,
   });
   ok("meerdere veranderingen tellen allemaal mee", allesErbij.nieuws === true);
   ok("veertien klantantwoorden komen in de melding", allesErbij.melding.includes("14 klantantwoorden"));
@@ -10446,6 +10672,97 @@ group("De knop 'Stel nieuwe clusters voor' draait alleen bij nieuwe informatie (
   ok(
     "minder tellingen dan vorige keer is geen aanleiding om te draaien",
     minderIsGeenNieuws.nieuws === false,
+  );
+
+  // Onboarding Ronde C, §16.6: zonder deze telling meldde de knop "niets
+  // veranderd" nadat de consultant tijdens het gesprek drie diensten met de
+  // hand had toegevoegd.
+  const dienstToegevoegd = beoordeelRonde(basis, { ...basis, actieveAanbodknopen: 3 });
+  ok("een toegevoegde dienst is nieuws", dienstToegevoegd.nieuws === true);
+  ok(
+    "en de melding noemt de nieuwe aanbodknopen",
+    dienstToegevoegd.melding.includes("3 nieuwe aanbodknopen"),
+    dienstToegevoegd.melding,
+  );
+  const enkeleAanbodknoop = beoordeelRonde(basis, { ...basis, actieveAanbodknopen: 1 });
+  ok(
+    "enkelvoud bij precies één nieuwe knoop",
+    enkeleAanbodknoop.melding.includes("1 nieuwe aanbodknoop") &&
+      !enkeleAanbodknoop.melding.includes("1 nieuwe aanbodknopen"),
+    enkeleAanbodknoop.melding,
+  );
+  const minderKnopenIsGeenNieuws = beoordeelRonde(
+    { ...basis, actieveAanbodknopen: 5 },
+    { ...basis, actieveAanbodknopen: 2 },
+  );
+  ok(
+    "een verwijderde dienst is op zichzelf geen nieuwe informatie",
+    minderKnopenIsGeenNieuws.nieuws === false,
+  );
+});
+
+group("De aanbodboom bewerkbaar: validatie (onboarding Ronde C, §16.3, migratie 0079)", () => {
+  ok("de vijf bekende soorten zijn geldig", isOfferingKind("dienst") && isOfferingKind("vestiging"));
+  ok("een onbekend soort is ongeldig", !isOfferingKind("filiaal"));
+  ok("een leeg soort is ongeldig", !isOfferingKind(""));
+
+  ok("een getrimde naam blijft staan", normaliseOfferingName("  Onderhoudsabonnement  ") === "Onderhoudsabonnement");
+  ok("een lege naam is ongeldig", normaliseOfferingName("   ") === null);
+  ok("een getal is geen naam", normaliseOfferingName(42) === null);
+
+  ok("lege tekst wordt null", normaliseOptionalText("   ") === null);
+  ok("ontbrekende tekst wordt null", normaliseOptionalText(undefined) === null);
+  ok("getrimde tekst blijft staan", normaliseOptionalText(" vanaf 19 euro ") === "vanaf 19 euro");
+
+  ok("een lege boom begint bij 10", nextSortOrder([]) === 10);
+  ok(
+    "de hoogste bestaande plus tien",
+    nextSortOrder([{ sort_order: 0 }, { sort_order: 40 }, { sort_order: 20 }]) === 50,
+  );
+
+  // Lus-controle: A → B → C, mag C niet onder A hangen? Nee, want dat is geen
+  // lus (A is geen nakomeling van C). Wel geweigerd: A onder C, of B onder B.
+  const boom = [
+    { id: "a", parent_id: null },
+    { id: "b", parent_id: "a" },
+    { id: "c", parent_id: "b" },
+  ];
+  ok("een knoop mag niet onder zichzelf hangen", wouldCreateCycle(boom, "b", "b"));
+  ok("een knoop mag niet onder zijn eigen nakomeling hangen", wouldCreateCycle(boom, "a", "c"));
+  ok("een knoop mag wél onder een niet-nakomeling hangen", !wouldCreateCycle(boom, "c", "a"));
+  ok("een nieuwe knoop (geen id) kan nooit een lus veroorzaken", !wouldCreateCycle(boom, null, "c"));
+  ok("geen ouder is nooit een lus", !wouldCreateCycle(boom, "b", null));
+});
+
+group("C2: alle lezers van profile_offerings gebruiken de gedeelde helper (§16.4)", () => {
+  // ⚠️ Dit is een broncodecontrole, net als de klantscherm-check hierboven: de
+  // zes bestanden die vóór 31 augustus 2026 rechtstreeks selecteerden, moeten
+  // via `activeOfferings()`/`activeOfferingCount()` uit `lib/offerings.ts`
+  // lopen. Vergeet je dat bij een nieuwe aanroepplek, dan komt een net
+  // verwijderde dienst alsnog terug in een onderwerpvoorstel of een meetronde.
+  const bewaakteBestanden = [
+    "lib/pipeline/propose-topics.ts",
+    "lib/pipeline/propose-more-topics.ts",
+    "lib/pipeline/llm-baseline.ts",
+    "lib/pipeline/reputation-start.ts",
+    "app/(app)/merk/[id]/merkprofiel/page.tsx",
+  ];
+  for (const pad of bewaakteBestanden) {
+    const bron = leesBestand(pad);
+    ok(
+      `${pad} selecteert profile_offerings niet meer rechtstreeks`,
+      !bron.includes('from("profile_offerings")') && !bron.includes("from('profile_offerings')"),
+    );
+    ok(`${pad} gebruikt de gedeelde helper`, /activeOfferings|activeOfferingCount/.test(bron));
+  }
+
+  // `offering.ts` mag wél rechtstreeks selecteren (het is de idempotentie-
+  // controle van de aanbodstap zelf, geen "actieve boom"-lezer), maar dan
+  // uitsluitend op `source = 'ai'` (§16.5.2).
+  const offeringBron = leesBestand("lib/pipeline/offering.ts");
+  ok(
+    "offering.ts telt bij het idempotentiecontrole alleen AI-knopen",
+    offeringBron.includes('.eq("source", "ai")'),
   );
 });
 
@@ -12701,6 +13018,104 @@ group("geen haakjesmeervoud meer in klanttekst (punt 9)", () => {
     "geen haakjesmeervoud meer in klanttekst onder app/(app) en lib/",
     treffers.length === 0,
     treffers.join(" | "),
+  );
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+// Ronde A: losse ingrepen aan de onboardingsessie (31 augustus 2026,
+// documentatie/onboarding_optimalisatie.md §18, stap A1 t/m A6). Geen migratie,
+// dus broncodecontroles: elke ingreep is los terug te draaien en heeft geen
+// eigen pure module gekregen.
+// ════════════════════════════════════════════════════════════════════════════
+
+group("A1: het gevonden-blok opent alleen als de stap nog niet compleet is", () => {
+  const bron = leesBestand("app/(app)/merk/[id]/_components/onboarding-session.tsx");
+  ok(
+    "CollapsibleSection krijgt defaultOpen mee, afgeleid van stepProgress().compleet",
+    /<CollapsibleSection[\s\S]{0,500}defaultOpen=\{!p\.compleet\}/.test(bron),
+  );
+});
+
+group("A2: de negen schuif-, keuze- en ja-nee-velden hebben een werkend label", () => {
+  const bron = leesBestand("app/(app)/merk/[id]/_components/brand-field-input.tsx");
+  ok(
+    "het label krijgt een eigen id, naast htmlFor",
+    /<label htmlFor=\{id\} id=\{labelId\(id\)\}/.test(bron),
+  );
+  // De radiogroep moet naar het label-id verwijzen (`${id}-label`), niet naar
+  // het veld-id zelf: dat element bestaat bij deze veldsoorten niet.
+  const standenAanroepen = [...bron.matchAll(/<Standen\s+id=\{([^}]+)\}/g)].map((m) => m[1]);
+  ok("Standen wordt minstens twee keer aangeroepen", standenAanroepen.length >= 2, `${standenAanroepen.length}`);
+  for (const arg of standenAanroepen) {
+    ok(`<Standen id={${arg}}> wijst naar het label-id`, arg === "labelId(id)");
+  }
+  ok(
+    "de radiogroep leest zijn naam uit dat label-id",
+    bron.includes('role="radiogroup" aria-labelledby={id}'),
+  );
+});
+
+group("A3: het vangnet van de opslagroute dekt alle lijstvelden", () => {
+  const bron = leesBestand("app/api/profiles/[id]/route.ts");
+  const match = bron.match(/const LIST_FIELDS = \[([\s\S]*?)\] as const;/);
+  ok("LIST_FIELDS is gevonden", match !== null);
+  const lijst = match?.[1] ?? "";
+  for (const veld of [
+    "products",
+    "value_props",
+    "competitors",
+    "aliases",
+    "service_regions",
+    "proof_points",
+  ]) {
+    ok(`"${veld}" staat in LIST_FIELDS`, new RegExp(`"${veld}"`).test(lijst));
+  }
+});
+
+group("A4: een openstaand veld wordt bewaard bij het sluiten van het tabblad", () => {
+  const bron = leesBestand("app/(app)/merk/[id]/_components/onboarding-session.tsx");
+  ok("er wordt geluisterd naar pagehide", bron.includes('addEventListener("pagehide"'));
+  ok(
+    "er wordt geluisterd naar visibilitychange",
+    bron.includes('addEventListener("visibilitychange"'),
+  );
+  ok(
+    "de aanvraag blijft doorlopen na het loslaten van de pagina",
+    /fetch\(`\/api\/profiles\/\$\{profileId\}`[\s\S]{0,200}keepalive: true/.test(bron),
+  );
+  ok(
+    "elke veldwijziging wordt als openstaand gemarkeerd",
+    /function zet\(key: string, value: unknown\) \{[\s\S]{0,120}openstaandeVelden\.current\.add\(key\)/.test(
+      bron,
+    ),
+  );
+});
+
+group("A5: het contentpakket landt niet meer op het account van de consultant", () => {
+  const route = leesBestand("app/api/profiles/route.ts");
+  ok("de route zet packagePagesPerMonth niet meer op een account", !route.includes("packagePagesPerMonth"));
+  ok("toPackageSize wordt hier niet meer gebruikt", !route.includes("toPackageSize"));
+
+  const wizard = leesBestand("app/(app)/merk/nieuw/onboarding-wizard.tsx");
+  ok("de aanmaakwizard vraagt geen contentpakket meer", !wizard.includes("packagePagesPerMonth"));
+  ok("de aanmaakwizard heeft geen isStaff-vertakking meer nodig", !wizard.includes("isStaff"));
+
+  const pakketBlok = leesBestand("app/(app)/merk/[id]/_components/package-box.tsx");
+  ok(
+    "het toewijzingsscherm zegt dat dit vóór het eerste contentplan moet gebeuren",
+    pakketBlok.includes("vóór het eerste contentplan"),
+  );
+});
+
+group("A6: de opslagknop van het gespreksblok zegt wat hij doet", () => {
+  const bron = leesBestand("app/(app)/merk/[id]/_components/strategy-box.tsx");
+  ok(
+    "de knop heet 'Gesprek vastleggen en onderwerpen definitief maken'",
+    bron.includes("Gesprek vastleggen en onderwerpen definitief maken"),
+  );
+  ok(
+    "er staat een regel uitleg onder de knop",
+    bron.includes("ORBIT ENGINE vervangt de voorlopige onderwerpen door een definitieve lijst"),
   );
 });
 

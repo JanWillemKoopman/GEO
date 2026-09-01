@@ -12,12 +12,12 @@ export const dynamic = "force-dynamic";
 export const metadata = { title: "Bewerken" };
 
 /**
- * Het merkprofiel nakijken en aanvullen: 41 velden in zeven stappen.
+ * Het merkprofiel nakijken en aanvullen: 42 velden in zeven stappen.
  *
  * ── WAAROM DIT EEN EIGEN SCHERM IS EN GEEN BLOK IN HET DOSSIER ──────────────
  *
  * Het merkdossier is een leesscherm: het vertelt wat ORBIT ENGINE vond en hoe
- * het merk ervoor staat. Dit is een werkscherm: 41 velden nakijken en aanvullen.
+ * het merk ervoor staat. Dit is een werkscherm: 42 velden nakijken en aanvullen.
  * Die twee door elkaar zetten maakt het dossier weer wat het in de ronde van
  * 10 augustus net niet meer was, een pagina van meters lang.
  *
@@ -33,12 +33,12 @@ export const metadata = { title: "Bewerken" };
  *
  * De twee blokken onderaan zijn géén merkvelden maar gereedschap: hoe grondig
  * ORBIT ENGINE de site uitleest, en waar het extra brontekst vandaan haalt. Ze
- * staan bewust buiten de wizard, want dan blijft de teller "41 in, 41 uit"
+ * staan bewust buiten de wizard, want dan blijft de teller "42 in, 42 uit"
  * eerlijk (`lib/pipeline/brand-fields.ts`).
  *
- * ── ⚠️ HIER STAAN 41 VAN DE 56 VELDEN, EN DAT IS GEEN OMISSIE ───────────────
+ * ── ⚠️ HIER STAAN 42 VAN DE 57 VELDEN, EN DAT IS GEEN OMISSIE ───────────────
  *
- * Sinds migratie 0060 telt de catalogus 56 velden: de 41 hier, plus twaalf
+ * Sinds onboarding ronde B telt de catalogus 57 velden: de 42 hier, plus twaalf
  * commerciële velden en drie contactvelden. Die vijftien verschijnen op dit
  * scherm NIET, en dat is de enige plek waar het klantoppervlak en het
  * consultantoppervlak met opzet van elkaar verschillen.
@@ -78,7 +78,7 @@ export default async function BewerkenPage({
 
   // Per veld waar de waarde vandaan komt. Dit is wat het label "uit je website
   // gehaald" mogelijk maakt (Nova's `draftedBadge`), en het is de reden dat de
-  // klant geen leeg formulier van 41 velden ziet maar 41 velden die hij mág
+  // klant geen leeg formulier van 42 velden ziet maar 42 velden die hij mág
   // nakijken.
   const sources: Record<string, string> = {};
   for (const row of sourceRows ?? []) {
@@ -119,6 +119,10 @@ export default async function BewerkenPage({
             initialMax={profile.max_inventory_pages}
             initialTotalFound={profile.sitemap_total_urls}
             initialPriorityPaths={profile.crawl_priority_paths ?? []}
+            initialSpeed={profile.crawl_speed}
+            initialLastRunAt={profile.crawl_last_run_at}
+            initialLastMode={profile.crawl_last_mode}
+            initialBlockedAt={profile.crawl_last_blocked_at}
           />
         </CollapsibleSection>
         <CollapsibleSection title="Wat je al hebt liggen">
