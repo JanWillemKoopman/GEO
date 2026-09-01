@@ -50,6 +50,23 @@ import { runSourcesBlock } from "@/lib/pipeline/reputation-sources";
 import { runSynthesis } from "@/lib/pipeline/reputation-synthesis";
 import { runMarketBlock } from "@/lib/pipeline/reputation-market";
 import { runEvidenceBlock } from "@/lib/pipeline/reputation-evidence";
+import { ontdekMarkt } from "@/lib/pipeline/sales-discover";
+import { verifieerMarkt } from "@/lib/pipeline/sales-verify";
+import { sluitUit } from "@/lib/pipeline/sales-suppress";
+import { verrijkBedrijf } from "@/lib/pipeline/sales-enrich";
+import { bepaalIntenties } from "@/lib/pipeline/sales-intents";
+import { genereerVragen } from "@/lib/pipeline/sales-questions";
+import { meetVraag } from "@/lib/pipeline/sales-measure";
+import { aggregeerRonde } from "@/lib/pipeline/sales-aggregate";
+import { detecteerVoorRonde } from "@/lib/pipeline/sales-detect";
+import { schrijfUitleg } from "@/lib/pipeline/sales-explain";
+import { zoekContact } from "@/lib/pipeline/sales-contact";
+import { schrijfConcept } from "@/lib/pipeline/sales-draft";
+import { schrijfRapport } from "@/lib/pipeline/sales-report";
+import { VRAGEN_STANDAARD, type Intentie } from "@/lib/sales/intents";
+import { raamMeetronde } from "@/lib/sales/budget";
+import { availableEngineIds } from "@/lib/engines/registry";
+import type { Kandidaat } from "@/lib/sales/discovery";
 import { refreshInventory } from "@/lib/pipeline/refresh-inventory";
 import { enqueue, dedupe } from "@/lib/jobs/queue";
 import { countOpenPeriodicMeasurements } from "@/lib/jobs/pending";
@@ -808,6 +825,367 @@ const handlers: { [T in JobType]: Handler<T> } = {
     await runSynthesis(admin, payload.runId);
   },
 
+  // ── De Sales-module, sprint 2 (docs/tasks/geo-prospect-engine.md §8) ──────
+  //
+  // De keten is: ontdekken → verifiëren → uitsluiten → POORT 1 → verrijken.
+  // Alleen de eerste stap kost geld. De poort zit ertussen als een echte stop:
+  // de verrijking wordt niet door een handler ingepland maar door de admin die
+  // op goedkeuren drukt (`app/api/sales/markets/[id]/approve/route.ts`). Dat is
+  // het verschil tussen een poort en een pauze.
+
+  /**
+   * Stap 1: welke bedrijven vormen deze markt?
+   *
+   * ⚠️ De ruwe uitkomst gaat naar de database vóórdat de volgende stap wordt
+   * ingepland (conventie 8, en hier ook praktisch). Zou hij alleen in de payload
+   * meegaan, dan zou een mislukte verificatiestap de dure zoekactie opnieuw laten
+   * betalen. Nu is een tweede poging gratis.
+   */
+  sales_market_discover: async ({ admin }, payload) => {
+    const uit = await ontdekMarkt(admin, payload.marketId);
+    if (uit.skipped) return;
+
+    if (uit.kandidaten.length === 0 && uit.bronpaginas.length === 0) {
+      // Nul bedrijven én nul bronpagina's is geen lege markt maar een mislukte
+      // zoekactie: elke branche in elke plaats heeft aanbieders. Dat zeggen we
+      // hardop in plaats van een lege lijst aan poort 1 aan te bieden.
+      await admin
+        .from("sales_markets")
+        .update({
+          status: "mislukt",
+          failure_reason:
+            "Het onderzoek vond geen bedrijven en geen overzichtspagina's. " +
+            "Controleer de branche en de plaats, en probeer het opnieuw.",
+        })
+        .eq("id", payload.marketId);
+      return;
+    }
+
+    await admin
+      .from("sales_markets")
+      .update({
+        discovery_json: {
+          kandidaten: uit.kandidaten,
+          bronpaginas: uit.bronpaginas,
+        } as unknown as Record<string, unknown>,
+        discovery_note: uit.kanttekening || null,
+        discovered_at: new Date().toISOString(),
+      })
+      .eq("id", payload.marketId);
+
+    await enqueue(admin, {
+      type: "sales_market_verify",
+      payload: { marketId: payload.marketId },
+      salesMarketId: payload.marketId,
+      dedupeKey: dedupe.salesVerify(payload.marketId),
+    });
+  },
+
+  /** Stap 2: de bronpagina's uitlezen, ontdubbelen en vastleggen. Geen AI. */
+  sales_market_verify: async ({ admin }, payload) => {
+    const { data } = await admin
+      .from("sales_markets")
+      .select("discovery_json, discovery_note")
+      .eq("id", payload.marketId)
+      .maybeSingle();
+
+    const bewaard = (data?.discovery_json ?? null) as {
+      kandidaten?: Kandidaat[];
+      bronpaginas?: { url: string; wat: string }[];
+    } | null;
+    if (!bewaard) {
+      throw new Error(`Markt ${payload.marketId} heeft geen bewaarde ontdekking.`);
+    }
+
+    const uit = await verifieerMarkt(
+      admin,
+      payload.marketId,
+      bewaard.kandidaten ?? [],
+      (bewaard.bronpaginas ?? []).map((p) => p.url),
+    );
+
+    if (uit.bedrijven === 0) {
+      await admin
+        .from("sales_markets")
+        .update({
+          status: "mislukt",
+          failure_reason:
+            "Na het ontdubbelen bleef er geen enkel bedrijf over. " +
+            "Waarschijnlijk stonden er alleen platforms en vergelijkingssites in de uitkomst.",
+        })
+        .eq("id", payload.marketId);
+      return;
+    }
+
+    // De kanttekening groeit mee met wat er onderweg misging. Poort 1 hoort te
+    // weten waar de lijst dun is, niet alleen hoe lang hij is.
+    const extra: string[] = [];
+    if (uit.bronpaginasMislukt > 0) {
+      extra.push(
+        uit.bronpaginasMislukt === 1
+          ? "1 overzichtspagina was niet te openen."
+          : `${uit.bronpaginasMislukt} overzichtspagina's waren niet te openen.`,
+      );
+    }
+    if (uit.afgekapt.length > 0) {
+      extra.push(
+        `Deze pagina's waren te groot om helemaal te lezen: ${uit.afgekapt.join(", ")}.`,
+      );
+    }
+
+    const bestaande = (data?.discovery_note as string | null) ?? "";
+    const nieuweNotitie = [bestaande, ...extra].filter(Boolean).join(" ");
+
+    await admin
+      .from("sales_markets")
+      .update({
+        status: "bedrijven_gevonden",
+        discovery_note: nieuweNotitie || null,
+      })
+      .eq("id", payload.marketId);
+
+    await enqueue(admin, {
+      type: "sales_market_suppress",
+      payload: { marketId: payload.marketId },
+      salesMarketId: payload.marketId,
+      dedupeKey: dedupe.salesSuppress(payload.marketId),
+    });
+  },
+
+  /**
+   * Stap 2b: klanten, lopende trajecten en afmeldingen eruit.
+   *
+   * ⚠️ Deze stap zet de markt op `wacht_op_goedkeuring` en plant NIETS in. Dat
+   * is poort 1: hier stopt de keten tot een mens gekeken heeft. Zou hij de
+   * verrijking zelf inplannen, dan was de poort een pauze met een knop ernaast.
+   */
+  sales_market_suppress: async ({ admin }, payload) => {
+    await sluitUit(admin, payload.marketId);
+    await admin
+      .from("sales_markets")
+      .update({ status: "wacht_op_goedkeuring" })
+      .eq("id", payload.marketId);
+  },
+
+  /**
+   * Stap 3: de site van één goedgekeurd bedrijf uitlezen. Geen AI.
+   *
+   * ⚠️ De LAATSTE crawltaak plant de intentiestap in, niet elke taak. Zonder die
+   * controle zou elk bedrijf een intentieronde starten, en dertig markten aan
+   * intenties voor één markt kost dertig keer zoveel als het mag. Dezelfde
+   * constructie als `scheduleSynthesisIfLast` bij de reputatieanalyse.
+   */
+  sales_company_enrich: async ({ admin, job }, payload) => {
+    await verrijkBedrijf(admin, payload.companyId);
+    await planIntentiesAlsLaatste(admin, payload.marketId, job.id);
+  },
+
+  /**
+   * Stap 4: de commerciële intenties van deze markt (plan hoofdstuk 10).
+   *
+   * Deze stap maakt ook de meetronde aan. Dat hoort hier en niet bij de
+   * goedkeuring van de bedrijvenlijst: een ronde zonder intenties heeft geen
+   * vragen, en een lege ronde in de lijst is een ronde waarvan niemand weet of
+   * hij nog komt.
+   */
+  sales_market_intents: async ({ admin }, payload) => {
+    const uit = await bepaalIntenties(admin, payload.marketId, VRAGEN_STANDAARD);
+    if (uit.skipped) {
+      if (uit.melding) {
+        await admin
+          .from("sales_markets")
+          .update({ status: "mislukt", failure_reason: uit.melding })
+          .eq("id", payload.marketId);
+      }
+      return;
+    }
+
+    const runId = await maakRonde(admin, payload.marketId, uit.intenties, uit.kanttekening);
+
+    await enqueue(admin, {
+      type: "sales_market_questions",
+      payload: { marketId: payload.marketId, runId },
+      salesMarketId: payload.marketId,
+      salesRunId: runId,
+      dedupeKey: dedupe.salesQuestions(runId),
+    });
+  },
+
+  /**
+   * Stap 5: de vragen schrijven, en dan stoppen.
+   *
+   * ⚠️ Deze taak plant NIETS in. Dat is poort 2 (plan §8.1): hier stopt de keten
+   * tot een mens de vragen en de kostenraming gezien heeft. Zou hij de meting
+   * zelf inplannen, dan is de poort een pauze met een knop ernaast en wordt er
+   * geld uitgegeven zonder dat iemand ja heeft gezegd.
+   */
+  sales_market_questions: async ({ admin }, payload) => {
+    const { data: run } = await admin
+      .from("sales_runs")
+      .select("id, intents_json, notes")
+      .eq("id", payload.runId)
+      .maybeSingle();
+    if (!run) throw new Error(`Meetronde ${payload.runId} bestaat niet.`);
+
+    const intenties = ((run.intents_json as { intenties?: Intentie[] } | null)?.intenties ??
+      []) as Intentie[];
+
+    const uit = await genereerVragen(admin, payload.marketId, intenties, VRAGEN_STANDAARD);
+    if (uit.vragen.length === 0) {
+      await admin
+        .from("sales_runs")
+        .update({
+          status: "mislukt",
+          notes: [run.notes as string | null, uit.melding].filter(Boolean).join(" ") || null,
+        })
+        .eq("id", payload.runId);
+      await admin
+        .from("sales_markets")
+        .update({
+          status: "mislukt",
+          failure_reason: uit.melding ?? "Er zijn geen vragen geschreven voor deze markt.",
+        })
+        .eq("id", payload.marketId);
+      return;
+    }
+
+    const { error } = await admin.from("sales_questions").insert(
+      uit.vragen.map((v) => ({
+        run_id: payload.runId,
+        text: v.text,
+        intent_stage: v.stage,
+        intent_label: v.intentLabel,
+        weight: v.weight,
+        position: v.position,
+        source: "gegenereerd",
+      })),
+    );
+    if (error) throw new Error(`Opslaan van de vragen mislukt: ${error.message}`);
+
+    const engines = availableEngineIds();
+    await admin
+      .from("sales_runs")
+      .update({
+        status: "vragen_klaar",
+        question_count: uit.vragen.length,
+        engines,
+        estimate_usd: raamMeetronde(uit.vragen.length, engines.length),
+        notes: [run.notes as string | null, uit.melding].filter(Boolean).join(" ") || null,
+      })
+      .eq("id", payload.runId);
+
+    await admin
+      .from("sales_markets")
+      .update({ status: "vragen_klaar" })
+      .eq("id", payload.marketId);
+  },
+
+  /** Stap 6 en 7: één vraag op één engine, plus de beoordeling. */
+  sales_measure_question: async ({ admin, job }, payload) => {
+    await meetVraag(admin, payload.runId, payload.questionId, payload.engine);
+    await planAggregatieAlsLaatste(admin, payload.marketId, payload.runId, job.id);
+  },
+
+  /**
+   * Stap 8: de meting omrekenen naar zichtbaarheid per bedrijf. Geen AI.
+   *
+   * Ketent door naar de detectie. Die twee zijn allebei gratis en allebei
+   * deterministisch, maar het blijven twee taken: de aggregatie leest álle
+   * vermeldingen van de ronde, de detectie leest de uitkomst daarvan plus de
+   * vorige ronde. Samen in één taak zou een mislukte detectie de hele
+   * aggregatie opnieuw laten draaien.
+   */
+  sales_market_aggregate: async ({ admin }, payload) => {
+    const uit = await aggregeerRonde(admin, payload.runId);
+    // Zonder engine die gemeten heeft valt er niets te detecteren. Dat is geen
+    // markt zonder kansen maar een mislukte ronde, en die twee horen niet
+    // hetzelfde te zien te zijn.
+    if (uit.engines.length === 0) return;
+
+    await enqueue(admin, {
+      type: "sales_detect_opportunities",
+      payload: { marketId: payload.marketId, runId: payload.runId },
+      salesMarketId: payload.marketId,
+      salesRunId: payload.runId,
+      dedupeKey: dedupe.salesDetect(payload.runId),
+    });
+  },
+
+  /**
+   * Stap 9: de acht types detecteren en scoren. Geen AI.
+   *
+   * Plant daarna één schrijftaak per kans in. Dat is de enige plek in deze
+   * keten waar het aantal taken met het aantal BEDRIJVEN meeschaalt, en het is
+   * meteen de enige plek waar dat geld kost. Vandaar dat de goedkoopste kansen
+   * geen schrijftaak krijgen: zie hieronder.
+   */
+  sales_detect_opportunities: async ({ admin }, payload) => {
+    await detecteerVoorRonde(admin, payload.runId);
+
+    const { data: kansen } = await admin
+      .from("sales_opportunities")
+      .select("id, tier")
+      .eq("run_id", payload.runId);
+
+    for (const kans of (kansen ?? []) as { id: string; tier: string }[]) {
+      // ⚠️ Alleen voor de kansen die een verkoper ook echt oppakt. Plan 21.3,
+      // tweede rem: "voor bedrijven met een lage score een mail schrijven die
+      // niemand verstuurt, is weggegooid geld". Een lage kans houdt zijn
+      // sjabloonzin, en die is waar; hij is alleen minder mooi.
+      if (kans.tier === "laag") continue;
+
+      await enqueue(admin, {
+        type: "sales_opportunity_explain",
+        payload: {
+          marketId: payload.marketId,
+          runId: payload.runId,
+          opportunityId: kans.id,
+        },
+        salesMarketId: payload.marketId,
+        salesRunId: payload.runId,
+        dedupeKey: dedupe.salesExplain(kans.id),
+      });
+    }
+  },
+
+  /** Stap 10: de uitleg en de haak bij één kans. */
+  sales_opportunity_explain: async ({ admin }, payload) => {
+    await schrijfUitleg(admin, payload.opportunityId);
+  },
+
+  /**
+   * Stap 12: de contactpersoon zoeken, en daarna pas het concept.
+   *
+   * ⚠️ De volgorde is niet omkeerbaar. Het concept wordt ondertekend en gaat
+   * naar een persoon; wie dat is, bepaalt de toon en soms de inhoud. Zouden ze
+   * parallel draaien, dan schrijft de ene stap een mail aan een onbekende
+   * terwijl de andere net de eigenaar vindt.
+   *
+   * Vindt de stap niemand, dan gaat het concept tóch door: de verkoper kan zelf
+   * iemand opzoeken of bellen, en dan is een klaarliggend concept nuttiger dan
+   * een lege regel (plan 9.4, regel 2).
+   */
+  sales_contact_find: async ({ admin }, payload) => {
+    await zoekContact(admin, payload.marketId, payload.companyId);
+
+    await enqueue(admin, {
+      type: "sales_outreach_draft",
+      payload: { marketId: payload.marketId, outreachId: payload.outreachId },
+      salesMarketId: payload.marketId,
+      dedupeKey: dedupe.salesDraft(payload.outreachId),
+    });
+  },
+
+  /** Stap 13: de conceptmail en de gespreksvoorbereiding. Verstuurt niets. */
+  sales_outreach_draft: async ({ admin }, payload) => {
+    await schrijfConcept(admin, payload.outreachId);
+  },
+
+  /** Het publieke marktrapport schrijven. Publiceert niet. */
+  sales_market_report: async ({ admin }, payload) => {
+    await schrijfRapport(admin, payload.runId);
+  },
+
   /**
    * ⚠️ Deze taak plant de dienstvragen in NADAT hij klaar is, en niet andersom.
    * De dienstvragen lezen het corpus dat hier gevuld wordt; zouden ze parallel
@@ -846,6 +1224,122 @@ const handlers: { [T in JobType]: Handler<T> } = {
     });
   },
 };
+
+/**
+ * De intentiestap inplannen zodra de laatste crawltaak van deze markt klaar is.
+ *
+ * ⚠️ De taak die dit aanroept staat zélf nog op `running`, dus die moet
+ * uitgesloten worden. Zonder die uitsluiting is het aantal openstaande taken
+ * altijd minstens één en wordt de vervolgstap nooit ingepland. Exact dezelfde
+ * val als bij de weekaggregatie van de klantmeting, waar hij ook is
+ * ingelopen.
+ */
+async function planIntentiesAlsLaatste(
+  admin: Admin,
+  marketId: string,
+  currentJobId: string,
+): Promise<void> {
+  const { data: open } = await admin
+    .from("jobs")
+    .select("id")
+    .eq("sales_market_id", marketId)
+    .eq("type", "sales_company_enrich")
+    .in("status", ["queued", "running"])
+    .neq("id", currentJobId);
+
+  if ((open ?? []).length > 0) return;
+
+  await enqueue(admin, {
+    type: "sales_market_intents",
+    payload: { marketId },
+    salesMarketId: marketId,
+    dedupeKey: dedupe.salesIntents(marketId),
+  });
+}
+
+/**
+ * De aggregatie inplannen zodra de laatste meting van deze ronde klaar is.
+ *
+ * Dezelfde constructie, en dezelfde uitsluiting van de eigen taak. Er wordt op
+ * de RONDE geteld en niet op de markt: bij een hermeting lopen er anders nog
+ * taken van ronde één in de telling mee, en dan wacht ronde twee op werk dat
+ * allang gedaan is.
+ */
+async function planAggregatieAlsLaatste(
+  admin: Admin,
+  marketId: string,
+  runId: string,
+  currentJobId: string,
+): Promise<void> {
+  const { data: open } = await admin
+    .from("jobs")
+    .select("id")
+    .eq("sales_run_id", runId)
+    .eq("type", "sales_measure_question")
+    .in("status", ["queued", "running"])
+    .neq("id", currentJobId);
+
+  if ((open ?? []).length > 0) return;
+
+  await enqueue(admin, {
+    type: "sales_market_aggregate",
+    payload: { marketId, runId },
+    salesMarketId: marketId,
+    salesRunId: runId,
+    dedupeKey: dedupe.salesAggregate(runId),
+  });
+}
+
+/**
+ * De meetronde aanmaken, met de intenties erop.
+ *
+ * Het rondenummer telt door op wat er al staat. Dat is wat opportunitytype 8
+ * (verlies) nodig heeft: "de vorige ronde" moet ook kloppen als er twee rondes
+ * op één dag zijn, en dan is een datumvergelijking niet genoeg.
+ */
+async function maakRonde(
+  admin: Admin,
+  marketId: string,
+  intenties: Intentie[],
+  kanttekening: string,
+): Promise<string> {
+  const { data: bestaand } = await admin
+    .from("sales_runs")
+    .select("id, round_no, status")
+    .eq("market_id", marketId)
+    .order("round_no", { ascending: false })
+    .limit(1);
+
+  const laatste = (bestaand ?? [])[0] as { id: string; round_no: number; status: string } | undefined;
+
+  // Een ronde die nog niet gemeten heeft, wordt hergebruikt in plaats van
+  // gedupliceerd (conventie 9). Anders levert een tweede poging van de
+  // intentiestap een tweede lege ronde op, en dan staan er twee rondes 1 in een
+  // lijst waar de verkoper er één verwacht.
+  if (laatste && (laatste.status === "concept" || laatste.status === "vragen_klaar")) {
+    await admin
+      .from("sales_runs")
+      .update({
+        intents_json: { intenties, kanttekening } as unknown as Record<string, unknown>,
+      })
+      .eq("id", laatste.id);
+    return laatste.id;
+  }
+
+  const { data: nieuw, error } = await admin
+    .from("sales_runs")
+    .insert({
+      market_id: marketId,
+      round_no: (laatste?.round_no ?? 0) + 1,
+      status: "concept",
+      intents_json: { intenties, kanttekening } as unknown as Record<string, unknown>,
+    })
+    .select("id")
+    .single();
+
+  if (error || !nieuw) throw new Error(`Meetronde aanmaken mislukt: ${error?.message}`);
+  return nieuw.id as string;
+}
 
 /**
  * Zet de dienstvragen klaar zodra het bewijscorpus er is.

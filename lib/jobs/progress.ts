@@ -71,6 +71,39 @@ const TYPICAL_SECONDS: Record<JobType, number> = {
   // Drie gegronde aanbevelingsvragen merkbreed, één per dienst.
   reputation_market: 50,
 
+  // ── De Sales-module ──────────────────────────────────────────────────────
+  // Eén gegronde onderzoeksaanroep met web-zoeken over een hele markt: dat is de
+  // zwaarste enkele aanroep van de app, want hij zoekt naar tientallen bedrijven
+  // in plaats van naar één.
+  sales_market_discover: 75,
+  // Tot twaalf bronpagina's ophalen. Geen AI, alleen netwerk.
+  sales_market_verify: 30,
+  // Twee query's en een vergelijking in geheugen.
+  sales_market_suppress: 5,
+  // Tot 25 pagina's van één site, in batches. Geen AI.
+  sales_company_enrich: 20,
+  // Eén aanroep over de branche plus de gecrawlde diensten, zonder web-zoeken.
+  sales_market_intents: 25,
+  // Eén aanroep die veertig vragen schrijft. Langer dan de intenties, want er
+  // komt meer tekst uit.
+  sales_market_questions: 40,
+  // Eén vraag stellen met web-zoeken plus de beoordeling erna. Gelijk aan
+  // `measure_prompt`, want het is dezelfde soort aanroep.
+  sales_measure_question: 18,
+  // Puur rekenwerk over de vermeldingen van de hele ronde.
+  sales_market_aggregate: 5,
+  // De detectie over alle bedrijven van een markt. Geen AI, wel een handvol
+  // query's en een rekensom per bedrijf.
+  sales_detect_opportunities: 8,
+  // Eén goedkope aanroep zonder web-zoeken, met drie kandidaatzinnen.
+  sales_opportunity_explain: 12,
+  // Eén gegronde zoekactie naar één bedrijf. Korter dan de marktontdekking,
+  // want het is één site en geen hele branche.
+  sales_contact_find: 35,
+  // Eén aanroep die een mail én een gespreksvoorbereiding schrijft.
+  sales_outreach_draft: 30,
+  // Eén aanroep die drie stukken tekst schrijft over cijfers die al vastliggen.
+  sales_market_report: 25,
   // Onboarding Ronde D. Sterk afhankelijk van het tempo en het aantal
   // pagina's; dit is de schatting voor "normaal" op het standaardaantal.
   // Conservatief, net als profile_discover hierboven.

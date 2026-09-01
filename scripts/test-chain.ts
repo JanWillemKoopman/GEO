@@ -2853,7 +2853,7 @@ async function main(): Promise<void> {
     );
 
     // ⚠️ De andere kans is NIET verdwenen en NIET ingepland: hij staat in de
-    // voorraad. Dat is het hele punt van migratie 0065, en het verschil met de
+    // voorraad. Dat is het hele punt van migratie 0068, en het verschil met de
     // oude jaarverdeling, die alle twaalf maanden vooruit volstopte.
     const { rows: voorraad } = await db.client.query(
       `select id, topic_id, scheduled_for, potential from public.planned_pages
@@ -2996,7 +2996,7 @@ async function main(): Promise<void> {
       geweigerd.ok === false && Boolean(geweigerd.probleem),
     );
 
-    // ── De publicatiedatum zelf zetten (migratie 0067) ──────────────────────
+    // ── De publicatiedatum zelf zetten (migratie 0070) ──────────────────────
     //
     // ⚠️ DE SAMENHANG DIE HIER FOUT KAN GAAN: `herplanMaand()` herberekent na
     // ELKE wijziging in een maand alle data. Een zelfgekozen datum die dat niet
@@ -5494,7 +5494,7 @@ async function main(): Promise<void> {
 
     // ════════════════════════════════════════════════════════════════════════
     // De effectmeting gooide de helft van haar betaalde metingen weg
-    // (doorloop-huyberts.md punt 1, migratie 0066).
+    // (doorloop-huyberts.md punt 1, migratie 0069).
     //
     // ⚠️ DE SAMENHANG DIE HIER FOUT KAN GAAN: twee unieke indexen op
     // tracking_runs spraken elkaar tegen. tracking_runs_idem_idx (0041) kende
@@ -5743,6 +5743,1292 @@ async function main(): Promise<void> {
     );
 
     await db.client.query("delete from public.profiles where id = $1", [poortProfiel]);
+
+    // ══════════════════════════════════════════════════════════════════════
+    console.log("\nDe Sales-module: de scheiding met de klantomgeving (migratie 0068)");
+
+    {
+      // ⚠️ DIT IS DE VERIFICATIE VAN PLAN §4.3, EN HIJ HOORT HIER EN NIET ALLEEN
+      // IN EEN BRONCODECONTROLE.
+      //
+      // Een scherm dat iets niet toont is één wijziging van tonen verwijderd.
+      // Een tabel die RLS niet teruggeeft is dat niet. De belofte luidt: een
+      // klant mag nooit kunnen zien dat hij ooit als prospect met een
+      // opportunityscore in dit systeem heeft gestaan. Die belofte is pas hard
+      // als de database hem draagt, en dat is precies wat hieronder gemeten
+      // wordt met een echte sessie en echte policies.
+      //
+      // Dit is dezelfde opzet als de proef op `ai_calls` en `jobs` hierboven, en
+      // om dezelfde reden: op 12 augustus 2026 bleek dat 23 tabellen een
+      // toegangslaag misten die geen enkele test kon zien, omdat `auth.uid()`
+      // in de stub altijd null gaf.
+      const salesUserId = randomUUID();
+      const salesAdminId = randomUUID();
+      const beheerderId = randomUUID();
+      const klantId = randomUUID();
+      for (const [id, mail] of [
+        [salesUserId, "sales@outerorbit.test"],
+        [salesAdminId, "salesadmin@outerorbit.test"],
+        [beheerderId, "beheer@outerorbit.test"],
+        [klantId, "klant@voorbeeld.test"],
+      ] as const) {
+        await db.client.query("insert into auth.users (id, email) values ($1, $2)", [id, mail]);
+      }
+      await db.client.query("insert into public.sales_users (user_id) values ($1)", [salesUserId]);
+      await db.client.query(
+        "insert into public.sales_users (user_id, is_admin) values ($1, true)",
+        [salesAdminId],
+      );
+      await db.client.query("insert into public.staff_users (user_id) values ($1)", [beheerderId]);
+
+      const marktId = randomUUID();
+      await db.client.query(
+        `insert into public.sales_markets (id, slug, label, industry, location, radius_km, created_by)
+         values ($1, 'makelaar-eindhoven', 'Makelaar Eindhoven', 'makelaar', 'Eindhoven', 15, $2)`,
+        [marktId, salesAdminId],
+      );
+
+      /** Leest een Sales-tabel als `wie`, met echte RLS. Geeft het aantal zichtbare rijen. */
+      async function salesZichtbaarAls(wie: string, tabel: string, kolom: string, waarde: string) {
+        await db.client.query("begin");
+        await db.client.query("set local role authenticated");
+        await db.client.query("select set_config('request.jwt.claim.sub', $1, true)", [wie]);
+        const { rows } = await db.client.query(
+          `select count(*)::int as n from public.${tabel} where ${kolom} = $1`,
+          [waarde],
+        );
+        await db.client.query("commit");
+        return rows[0].n as number;
+      }
+
+      ok(
+        "een salesmedewerker ziet de markt",
+        (await salesZichtbaarAls(salesUserId, "sales_markets", "id", marktId)) === 1,
+      );
+      ok(
+        "een sales admin ook",
+        (await salesZichtbaarAls(salesAdminId, "sales_markets", "id", marktId)) === 1,
+      );
+      // Een beheerder is automatisch ook sales: `is_sales()` roept `is_staff()`
+      // aan. Zonder die regel zou de eigenaar zichzelf eerst in een tweede tabel
+      // moeten zetten om zijn eigen module te kunnen openen.
+      ok(
+        "een beheerder is automatisch ook sales",
+        (await salesZichtbaarAls(beheerderId, "sales_markets", "id", marktId)) === 1,
+      );
+      // ⚠️ DE KERN. Dit getal moet nul zijn en blijven.
+      ok(
+        "een klant ziet de markt niet",
+        (await salesZichtbaarAls(klantId, "sales_markets", "id", marktId)) === 0,
+        "een klant zag een Sales-markt: dit is een lek, geen ontbrekende garantie",
+      );
+
+      const bedrijfId = randomUUID();
+      await db.client.query(
+        `insert into public.sales_companies (id, domain, name) values ($1, 'vanxmakelaars.nl', 'Van X Makelaars')`,
+        [bedrijfId],
+      );
+      await db.client.query(
+        `insert into public.sales_market_companies (market_id, company_id, discovery_sources)
+         values ($1, $2, array['kaartendienst'])`,
+        [marktId, bedrijfId],
+      );
+      ok(
+        "en ook geen bedrijf",
+        (await salesZichtbaarAls(klantId, "sales_companies", "id", bedrijfId)) === 0,
+      );
+      ok(
+        "en geen marktlidmaatschap",
+        (await salesZichtbaarAls(klantId, "sales_market_companies", "company_id", bedrijfId)) === 0,
+      );
+      ok(
+        "terwijl sales ze alle twee wel ziet",
+        (await salesZichtbaarAls(salesUserId, "sales_companies", "id", bedrijfId)) === 1 &&
+          (await salesZichtbaarAls(salesUserId, "sales_market_companies", "company_id", bedrijfId)) === 1,
+      );
+
+      // ⚠️ `sales_users` heeft NUL policies, net als `staff_users` en `jobs`.
+      // Niemand mag uitlezen wie salesmedewerker is, ook een salesmedewerker
+      // zelf niet. Zonder deze regel kan iemand met een klantinlog de
+      // personeelslijst van Outer Orbit ophalen.
+      ok(
+        "niemand kan uitlezen wie salesmedewerker is",
+        (await salesZichtbaarAls(salesUserId, "sales_users", "user_id", salesUserId)) === 0 &&
+          (await salesZichtbaarAls(beheerderId, "sales_users", "user_id", salesUserId)) === 0 &&
+          (await salesZichtbaarAls(klantId, "sales_users", "user_id", salesUserId)) === 0,
+      );
+
+      // ══════════════════════════════════════════════════════════════════════
+      console.log("\nDe Sales-module: wat de database weigert");
+
+      /** Voert iets uit dat hoort te falen, en geeft terug of dat ook gebeurde. */
+      async function weigert(sql: string, params: unknown[] = []): Promise<boolean> {
+        try {
+          await db.client.query(sql, params);
+          return false;
+        } catch {
+          // Een mislukte statement laat de verbinding in een aborted transactie
+          // achter zodra er een `begin` omheen staat. Die staat er hier niet,
+          // maar een rollback kost niets en houdt de rest van de test schoon.
+          await db.client.query("rollback").catch(() => {});
+          return true;
+        }
+      }
+
+      // Het adres van een markt wordt straks het publieke adres. Twee markten
+      // met hetzelfde adres zou betekenen dat de ene pagina de andere overschrijft.
+      ok(
+        "twee markten met hetzelfde adres worden geweigerd",
+        await weigert(
+          `insert into public.sales_markets (slug, label, industry, location)
+           values ('makelaar-eindhoven', 'Nog een keer', 'makelaar', 'Eindhoven')`,
+        ),
+      );
+
+      // Een stand die de code niet kent, mag er niet in. Anders staat er een
+      // markt in een toestand waar geen enkel scherm iets mee kan.
+      ok(
+        "een onbekende stand wordt geweigerd",
+        await weigert(
+          `insert into public.sales_markets (slug, label, industry, location, status)
+           values ('anders-eindhoven', 'Anders', 'anders', 'Eindhoven', 'verzonnen')`,
+        ),
+      );
+
+      // Een straal van nul is geen markt.
+      ok(
+        "een straal van nul wordt geweigerd",
+        await weigert(
+          `insert into public.sales_markets (slug, label, industry, location, radius_km)
+           values ('nul-eindhoven', 'Nul', 'nul', 'Eindhoven', 0)`,
+        ),
+      );
+
+      // Ontdubbelen op domein gebeurt in de database en niet alleen in de code.
+      ok(
+        "hetzelfde webadres twee keer wordt geweigerd",
+        await weigert(
+          `insert into public.sales_companies (domain, name) values ('vanxmakelaars.nl', 'Van X (dubbel)')`,
+        ),
+      );
+
+      // ⚠️ MAAR BEDRIJVEN ZONDER WEBSITE MOETEN ER ALLEMAAL IN KUNNEN. Dat is
+      // hoofdstuk 9 van het plan: als we alleen verzamelen wat online al goed
+      // vindbaar is, missen we precies de bedrijven met het grootste
+      // GEO-probleem. Een gewone unieke kolom zou hier de tweede weigeren,
+      // want in Postgres botsen twee lege waarden niet, maar dat is bij deze
+      // opzet makkelijk mis te gaan. Vandaar de proef.
+      await db.client.query(
+        `insert into public.sales_companies (name) values ('Makelaar zonder site'), ('Nog een zonder site')`,
+      );
+      const { rows: zonderSite } = await db.client.query(
+        `select count(*)::int as n from public.sales_companies where domain is null`,
+      );
+      ok(
+        "twee bedrijven zonder website mogen naast elkaar bestaan",
+        zonderSite[0].n === 2,
+        `${zonderSite[0].n} gevonden`,
+      );
+
+      // Eén bedrijf hoort hooguit één keer in dezelfde markt. Zonder deze regel
+      // levert een tweede marktontdekking dubbele rijen op en telt de meting het
+      // bedrijf twee keer.
+      ok(
+        "hetzelfde bedrijf twee keer in dezelfde markt wordt geweigerd",
+        await weigert(
+          `insert into public.sales_market_companies (market_id, company_id) values ($1, $2)`,
+          [marktId, bedrijfId],
+        ),
+      );
+
+      // ⚠️ POORT 1 HEEFT DRIE STANDEN EN GEEN TWEE (conventie 3). `null` betekent
+      // "de admin heeft er nog niet naar gekeken", en dat is iets anders dan
+      // `false` ("eruit gehaald"). Zonder dat onderscheid is een niet-beoordeelde
+      // lijst niet te onderscheiden van een lijst waar alles is afgekeurd, en
+      // dan kan de goedkeuringspoort niet bestaan.
+      const { rows: lidmaatschap } = await db.client.query(
+        `select included, is_prospect from public.sales_market_companies
+          where market_id = $1 and company_id = $2`,
+        [marktId, bedrijfId],
+      );
+      ok(
+        "een nieuw marktlidmaatschap staat op 'nog niet beoordeeld' en niet op afgekeurd",
+        lidmaatschap[0].included === null,
+        String(lidmaatschap[0].included),
+      );
+      ok("en telt standaard als prospect", lidmaatschap[0].is_prospect === true);
+
+      // De bewaartermijn heeft een startpunt nodig vanaf de eerste rij, anders
+      // valt er over de periode dat hij ontbrak niets terug te rekenen.
+      const { rows: klok } = await db.client.query(
+        `select last_activity_at, anonymised_at, do_not_contact
+           from public.sales_companies where id = $1`,
+        [bedrijfId],
+      );
+      ok("een nieuw bedrijf heeft meteen een klok voor de bewaartermijn", klok[0].last_activity_at !== null);
+      ok("en is nog niet geanonimiseerd", klok[0].anonymised_at === null);
+      ok("en staat niet op 'niet benaderen'", klok[0].do_not_contact === false);
+    }
+
+    // ══════════════════════════════════════════════════════════════════════
+    console.log("\nDe Sales-module: van markt tot goedgekeurde bedrijvenlijst (sprint 2)");
+
+    {
+      const { runJob } = await import("@/lib/jobs/handlers");
+
+      /** Draait alle openstaande Sales-taken af, in volgorde. */
+      async function draaiSalesTaken(): Promise<string[]> {
+        const gedraaid: string[] = [];
+        for (let i = 0; i < 60; i++) {
+          const { rows } = await db.client.query(
+            `select * from public.jobs
+              where type like 'sales%' and status = 'queued'
+              order by scheduled_for asc, created_at asc limit 1`,
+          );
+          if (rows.length === 0) break;
+          await db.client.query("update public.jobs set status = 'running' where id = $1", [rows[0].id]);
+          await runJob({ admin: admin as never, job: { ...rows[0], status: "running" } });
+          await db.client.query("update public.jobs set status = 'done' where id = $1", [rows[0].id]);
+          gedraaid.push(rows[0].type as string);
+        }
+        return gedraaid;
+      }
+
+      // ── Het decor ──────────────────────────────────────────────────────────
+      //
+      // Eén markt, en één BESTAANDE KLANT die toevallig in die markt zit. Dat
+      // laatste is het punt van deze scenario: `ymakelaars.nl` staat in het
+      // stubantwoord van de marktontdekking én in `profiles` als toegewezen
+      // merk. Het moet er dus uit, en de markt moet gaan waarschuwen.
+      const salesMarktId = randomUUID();
+      await db.client.query(
+        `insert into public.sales_markets (id, slug, label, industry, location, radius_km)
+         values ($1, 'makelaar-eindhoven-keten', 'Makelaar Eindhoven', 'makelaar', 'Eindhoven', 15)`,
+        [salesMarktId],
+      );
+
+      const klantEigenaarId = randomUUID();
+      await db.client.query("insert into auth.users (id, email) values ($1, 'y@ymakelaars.test')", [
+        klantEigenaarId,
+      ]);
+      await db.client.query(
+        `insert into public.profiles (id, user_id, name, url, brand_name, status, assigned_at)
+         values ($1, $2, 'Y Makelaars', 'https://www.ymakelaars.nl', 'Y Makelaars', 'klaar', now())`,
+        [randomUUID(), klantEigenaarId],
+      );
+
+      // ── De bronpagina's, zonder internet ──────────────────────────────────
+      //
+      // De ledenlijst noemt Van X (die het model ook al noemde, dus die krijgt
+      // twee bronnen) plus Q Makelaars, die het model NIET noemde. Dat tweede is
+      // de kern van hoofdstuk 9: de bronpagina vindt bedrijven die geen model
+      // ooit noemt.
+      const origineleFetch = globalThis.fetch;
+      globalThis.fetch = (async (input: RequestInfo | URL) => {
+        const url = String(input);
+        const antwoord = (body: string) => ({ ok: true, status: 200, text: async () => body });
+
+        if (url.startsWith("https://nvm.nl/leden/eindhoven")) {
+          return antwoord(`<html><body>
+            <a href="/over-ons">Over ons</a>
+            <a href="https://www.vanxmakelaars.nl">Van X Makelaars</a>
+            <a href="https://qmakelaars.nl">Q Makelaars</a>
+            <a href="https://www.funda.nl">Funda</a>
+          </body></html>`);
+        }
+        if (url.startsWith("https://eindhoven.nl/bedrijvengids")) {
+          return antwoord(`<html><body>
+            <a href="https://www.ymakelaars.nl">Y Makelaars</a>
+          </body></html>`);
+        }
+        return { ok: false, status: 404, text: async () => "" };
+      }) as typeof globalThis.fetch;
+
+      try {
+        await db.client.query(
+          `insert into public.jobs (type, payload_json, dedupe_key, status, sales_market_id)
+           values ('sales_market_discover', $1, $2, 'queued', $3)`,
+          [JSON.stringify({ marketId: salesMarktId }), `sales_discover:${salesMarktId}`, salesMarktId],
+        );
+
+        const gedraaid = await draaiSalesTaken();
+
+        // ⚠️ DE KETEN LOOPT DOOR OP DE SERVER, EN STOPT BIJ POORT 1.
+        ok(
+          "de ontdekking ketent naar verifiëren en uitsluiten",
+          gedraaid.join(",") ===
+            "sales_market_discover,sales_market_verify,sales_market_suppress",
+          gedraaid.join(","),
+        );
+        ok(
+          "en plant de crawl NIET zelf in: dat is poort 1",
+          !gedraaid.includes("sales_company_enrich"),
+        );
+
+        const { rows: naKeten } = await db.client.query(
+          `select status, approved_at, conflict_note, discovery_note, discovery_json, discovered_at
+             from public.sales_markets where id = $1`,
+          [salesMarktId],
+        );
+        eqc("de markt wacht op goedkeuring", naKeten[0].status, "wacht_op_goedkeuring");
+        ok("en is nog niet goedgekeurd", naKeten[0].approved_at === null);
+        ok("de ruwe uitkomst is bewaard (conventie 8)", naKeten[0].discovery_json !== null);
+        ok("met een tijdstip erbij", naKeten[0].discovered_at !== null);
+        ok(
+          "de kanttekening van het onderzoek staat er",
+          String(naKeten[0].discovery_note ?? "").includes("zonder eigen website"),
+        );
+
+        // ── Wat er in de lijst staat ────────────────────────────────────────
+        const { rows: bedrijven } = await db.client.query(
+          `select c.name, c.domain, c.crawl_status, mc.confidence, mc.included,
+                  mc.discovery_sources, mc.evidence_urls, mc.excluded_reason
+             from public.sales_market_companies mc
+             join public.sales_companies c on c.id = mc.company_id
+            where mc.market_id = $1
+            order by c.name`,
+          [salesMarktId],
+        );
+
+        const perNaam = new Map(bedrijven.map((b) => [b.name as string, b]));
+
+        // ⚠️ HET BEDRIJF DAT ALLEEN OP DE BRONPAGINA STOND. Dit is de hele reden
+        // dat de bronpagina's uitgelezen worden: een model noemde Q Makelaars
+        // niet, en juist zo'n bedrijf heeft het grootste GEO-probleem.
+        ok("een bedrijf dat alleen op de bronpagina stond komt erin", perNaam.has("Q Makelaars"));
+
+        // Twee bronnen voor hetzelfde bedrijf, ondanks www en een pad ervoor.
+        const vanX = perNaam.get("Van X Makelaars");
+        ok("Van X staat er één keer in", Boolean(vanX));
+        eqc("met zekerheid middel, want twee bronnen", String(vanX?.confidence), "middel");
+        ok(
+          "en de vindplaatsen zijn bewaard",
+          Array.isArray(vanX?.evidence_urls) && (vanX?.evidence_urls as string[]).length > 0,
+        );
+
+        // Een bedrijf zonder website blijft staan (plan hoofdstuk 9).
+        const zonderSite = perNaam.get("Makelaardij Zonder Site");
+        ok("een bedrijf zonder website blijft staan", Boolean(zonderSite));
+        ok("zonder verzonnen webadres", zonderSite?.domain === null);
+        eqc(
+          "en de crawlstand zegt dat er niets te crawlen valt",
+          String(zonderSite?.crawl_status),
+          "geen_website",
+        );
+
+        // Platforms zijn bronnen en geen prospects.
+        ok(
+          "Funda staat niet in de lijst",
+          !bedrijven.some((b) => String(b.domain ?? "").includes("funda")),
+        );
+        ok(
+          "en een bedrijf zonder naam ook niet",
+          !bedrijven.some((b) => String(b.name).trim() === ""),
+        );
+
+        // ⚠️ DE BESTAANDE KLANT. Dit is de fout die het duurst is: een mail naar
+        // een bedrijf dat al klant is.
+        const klant = perNaam.get("Y Makelaars");
+        ok("de bestaande klant staat er wel in", Boolean(klant));
+        ok("maar is uitgesloten", klant?.included === false);
+        ok(
+          "met de reden erbij",
+          String(klant?.excluded_reason ?? "").includes("al klant"),
+          String(klant?.excluded_reason),
+        );
+
+        const { rows: uitsluiting } = await db.client.query(
+          `select s.kind, s.related_profile_id
+             from public.sales_suppressions s
+             join public.sales_companies c on c.id = s.company_id
+            where c.domain = 'ymakelaars.nl'`,
+        );
+        eqc("de uitsluiting is vastgelegd", String(uitsluiting[0]?.kind), "klant");
+        ok("met een verwijzing naar het merk", uitsluiting[0]?.related_profile_id !== null);
+
+        ok(
+          "en de markt waarschuwt dat er een klant in zit",
+          String(naKeten[0].conflict_note ?? "").includes("klant van ons"),
+          String(naKeten[0].conflict_note),
+        );
+
+        // ── Idempotentie: nog een keer starten kost geen tweede zoekactie ────
+        await db.client.query(
+          `insert into public.jobs (type, payload_json, dedupe_key, status, sales_market_id)
+           values ('sales_market_discover', $1, $2, 'queued', $3)`,
+          [
+            JSON.stringify({ marketId: salesMarktId }),
+            `sales_discover:${salesMarktId}:tweede`,
+            salesMarktId,
+          ],
+        );
+        const nogEens = await draaiSalesTaken();
+        eqc("een tweede ontdekking doet niets", nogEens.join(","), "sales_market_discover");
+        const { rows: naTweede } = await db.client.query(
+          "select count(*)::int as n from public.sales_market_companies where market_id = $1",
+          [salesMarktId],
+        );
+        eqc(
+          "en er komen geen bedrijven bij",
+          String(naTweede[0].n),
+          String(bedrijven.length),
+        );
+
+        // ── Poort 1: goedkeuren plant de crawl in ───────────────────────────
+        //
+        // De route doet dit met een gebruiker erbij; hier bootsen we hem na op
+        // de twee dingen die ertoe doen: alles wat niemand weghaalde gaat mee, en
+        // elk goedgekeurd bedrijf krijgt een crawltaak.
+        await db.client.query(
+          `update public.sales_market_companies set included = true
+            where market_id = $1 and included is null`,
+          [salesMarktId],
+        );
+        await db.client.query(
+          "update public.sales_markets set approved_at = now() where id = $1",
+          [salesMarktId],
+        );
+        const { rows: goedgekeurd } = await db.client.query(
+          "select company_id from public.sales_market_companies where market_id = $1 and included = true",
+          [salesMarktId],
+        );
+        for (const g of goedgekeurd) {
+          await db.client.query(
+            `insert into public.jobs (type, payload_json, dedupe_key, status, sales_market_id)
+             values ('sales_company_enrich', $1, $2, 'queued', $3)`,
+            [
+              JSON.stringify({ marketId: salesMarktId, companyId: g.company_id }),
+              `sales_enrich:${salesMarktId}:${g.company_id}`,
+              salesMarktId,
+            ],
+          );
+        }
+
+        ok(
+          "de uitgesloten klant krijgt geen crawltaak",
+          goedgekeurd.length === bedrijven.length - 1,
+          `${goedgekeurd.length} van ${bedrijven.length}`,
+        );
+
+        await draaiSalesTaken();
+
+        const { rows: naCrawl } = await db.client.query(
+          `select c.name, c.crawl_status from public.sales_companies c
+             join public.sales_market_companies mc on mc.company_id = c.id
+            where mc.market_id = $1 and mc.included = true`,
+          [salesMarktId],
+        );
+
+        // De crawl bereikt niets in deze test (de fetch-stub geeft 404 op elke
+        // bedrijfssite), en dat is precies wat er getoetst moet worden: een
+        // onbereikbare site is een BEVINDING en geen storing die de keten stopt.
+        ok(
+          "elk goedgekeurd bedrijf heeft een crawluitkomst",
+          naCrawl.every((c) => c.crawl_status !== "open"),
+          naCrawl.map((c) => `${c.name}=${c.crawl_status}`).join(", "),
+        );
+        ok(
+          "een bedrijf zonder website houdt zijn eigen stand",
+          naCrawl.find((c) => c.name === "Makelaardij Zonder Site")?.crawl_status === "geen_website",
+        );
+        ok(
+          "en een onbereikbare site is niet hetzelfde als geen site",
+          naCrawl.some((c) => c.crawl_status === "niet_gelukt"),
+        );
+
+        // ══════════════════════════════════════════════════════════════════
+        // Sprint 3: van goedgekeurde lijst tot gemeten markt
+        //
+        // ⚠️ DE SAMENHANG DIE HIER FOUT KAN GAAN, EN DIE GEEN UNITTEST VANGT:
+        //
+        //   1. De LAATSTE crawltaak plant de intentiestap in. Zou elke taak dat
+        //      doen, dan draait de intentieronde dertig keer.
+        //   2. De vragenstap plant NIETS in. Dat is poort 2: hier hoort de
+        //      keten te stoppen tot een mens de kostenraming heeft gezien.
+        //   3. De aggregatie draait pas als de laatste meting klaar is, en telt
+        //      op de RONDE en niet op de markt.
+        //
+        // Alle drie zijn het fouten die stil misgaan: de keten lijkt te lopen,
+        // en pas als iemand de rekening of de cijfers bekijkt blijkt het.
+        console.log("\nDe Sales-module: van goedgekeurde lijst tot gemeten markt (sprint 3)");
+
+        const { rows: naEnrich } = await db.client.query(
+          "select type, status from public.jobs where sales_market_id = $1 and type = 'sales_market_intents'",
+          [salesMarktId],
+        );
+        eqc(
+          "de laatste crawltaak plant de intentiestap in, en precies één keer",
+          String(naEnrich.length),
+          "1",
+        );
+
+        await draaiSalesTaken();
+
+        const { rows: rondes } = await db.client.query(
+          "select id, round_no, status, question_count, engines, estimate_usd, intents_json, notes from public.sales_runs where market_id = $1",
+          [salesMarktId],
+        );
+        eqc("er is één meetronde", String(rondes.length), "1");
+        eqc("en dat is ronde 1", String(rondes[0].round_no), "1");
+        eqc("de ronde wacht op poort 2", String(rondes[0].status), "vragen_klaar");
+
+        const intents = (rondes[0].intents_json ?? {}) as {
+          intenties?: { label: string }[];
+          kanttekening?: string;
+        };
+        // Het model leverde er elf; met veertig vragen passen er acht.
+        eqc("te veel intenties zijn teruggebracht", String(intents.intenties?.length ?? 0), "8");
+        ok(
+          "en dat is hardop gezegd",
+          String(intents.kanttekening ?? "").includes("niet meegenomen"),
+          String(intents.kanttekening),
+        );
+
+        const { rows: vragen } = await db.client.query(
+          "select id, intent_label, intent_stage, weight, active from public.sales_questions where run_id = $1 order by position",
+          [rondes[0].id],
+        );
+        eqc("er staan veertig vragen klaar", String(vragen.length), "40");
+        eqc("en de ronde weet dat", String(rondes[0].question_count), "40");
+        ok("er is een kostenraming", Number(rondes[0].estimate_usd) > 0, String(rondes[0].estimate_usd));
+
+        // Elke intentie moet genoeg vragen hebben om iets te kunnen betekenen.
+        // Bij drie vragen is "nul van de drie" nog toeval (plan hoofdstuk 12).
+        const perIntentie = new Map<string, number>();
+        for (const v of vragen) {
+          perIntentie.set(String(v.intent_label), (perIntentie.get(String(v.intent_label)) ?? 0) + 1);
+        }
+        ok(
+          "elke intentie krijgt minstens vijf vragen",
+          Array.from(perIntentie.values()).every((n) => n >= 5),
+          Array.from(perIntentie.entries()).map(([k, n]) => `${k}=${n}`).join(", "),
+        );
+        ok(
+          "en de zware fases wegen zwaarder dan de lichte",
+          vragen.some((v) => Number(v.weight) >= 0.5) && vragen.some((v) => Number(v.weight) < 0.2),
+        );
+
+        // ── POORT 2: de keten staat stil ────────────────────────────────────
+        const { rows: naVragen } = await db.client.query(
+          "select count(*)::int as n from public.jobs where sales_market_id = $1 and type = 'sales_measure_question'",
+          [salesMarktId],
+        );
+        eqc("de vragenstap plant geen enkele meting in", String(naVragen[0].n), "0");
+        const { rows: marktNaVragen } = await db.client.query(
+          "select status from public.sales_markets where id = $1",
+          [salesMarktId],
+        );
+        eqc("en de markt wacht op een mens", String(marktNaVragen[0].status), "vragen_klaar");
+
+        // ── De admin haalt één vraag weg en keurt de rest goed ──────────────
+        //
+        // De route doet dit met een gebruiker erbij; hier bootsen we na wat er
+        // toe doet: een uitgezette vraag wordt niet gemeten en telt niet mee in
+        // de noemer.
+        await db.client.query("update public.sales_questions set active = false where id = $1", [
+          vragen[0].id,
+        ]);
+        await db.client.query(
+          "update public.sales_runs set status = 'meet', approved_at = now(), question_count = 39 where id = $1",
+          [rondes[0].id],
+        );
+        await db.client.query("update public.sales_markets set status = 'meet' where id = $1", [
+          salesMarktId,
+        ]);
+
+        for (const v of vragen.slice(1)) {
+          await db.client.query(
+            `insert into public.jobs (type, payload_json, dedupe_key, status, sales_market_id, sales_run_id)
+             values ('sales_measure_question', $1, $2, 'queued', $3, $4)`,
+            [
+              JSON.stringify({
+                marketId: salesMarktId,
+                runId: rondes[0].id,
+                questionId: v.id,
+                engine: "openai",
+              }),
+              `sales_measure:${rondes[0].id}:${v.id}:openai`,
+              salesMarktId,
+              rondes[0].id,
+            ],
+          );
+        }
+
+        await draaiSalesTaken();
+
+        const { rows: antwoorden } = await db.client.query(
+          "select id, engine, unknown_names, cited_sources from public.sales_answers where run_id = $1",
+          [rondes[0].id],
+        );
+        eqc("er is één antwoord per actieve vraag", String(antwoorden.length), "39");
+        ok(
+          "de bronnen zijn teruggebracht tot domeinen",
+          (antwoorden[0].cited_sources as string[]).includes("funda.nl"),
+          JSON.stringify(antwoorden[0].cited_sources),
+        );
+        ok(
+          "een genoemd bedrijf dat wij niet kennen wordt bewaard",
+          (antwoorden[0].unknown_names as string[]).includes("Jansen Makelaardij"),
+          JSON.stringify(antwoorden[0].unknown_names),
+        );
+        ok(
+          "en een bedrijf dat het model verzon staat er niet bij",
+          !(antwoorden[0].unknown_names as string[]).some((n) => n.includes("Er Niet In Staat")),
+          JSON.stringify(antwoorden[0].unknown_names),
+        );
+
+        // ⚠️ Eén rij per bedrijf per antwoord, óók voor de bedrijven die er niet
+        // in staan. Die nulrijen zijn de kern: opportunitytype 1 leeft ervan.
+        const { rows: vermeldingTelling } = await db.client.query(
+          `select count(*)::int as n, count(*) filter (where mentioned)::int as genoemd
+             from public.sales_mentions where run_id = $1`,
+          [rondes[0].id],
+        );
+        eqc(
+          "elk bedrijf krijgt een rij bij elk antwoord",
+          String(vermeldingTelling[0].n),
+          String(antwoorden.length * goedgekeurd.length),
+        );
+        ok("en niet elk bedrijf is genoemd", vermeldingTelling[0].genoemd < vermeldingTelling[0].n);
+
+        // ⚠️ Een rol mag alleen gevuld zijn als het bedrijf genoemd is (plan
+        // 15.2). Dit is dezelfde fout die bij de klantmeting 10 van de 27
+        // niet-genoemde merken een rol gaf.
+        const { rows: rolFout } = await db.client.query(
+          "select count(*)::int as n from public.sales_mentions where not mentioned and mention_role is not null",
+        );
+        eqc("een niet-genoemd bedrijf heeft nooit een rol", String(rolFout[0].n), "0");
+
+        // ── De aggregatie draait pas als de laatste meting klaar is ─────────
+        const { rows: aggTaken } = await db.client.query(
+          "select count(*)::int as n from public.jobs where sales_run_id = $1 and type = 'sales_market_aggregate'",
+          [rondes[0].id],
+        );
+        eqc("de aggregatie is precies één keer ingepland", String(aggTaken[0].n), "1");
+
+        // ⚠️ En de detectie ook. Deze telling staat hier en niet verderop, want
+        // de idempotentieproef hieronder draait de aggregatie bewust nog een
+        // keer, en dan komt er terecht een tweede detectietaak bij: de dedupe
+        // blokkeert alleen OPENSTAAND werk, zodat een mislukte stap opnieuw
+        // geprobeerd kan worden.
+        const { rows: detectieNaMeting } = await db.client.query(
+          "select count(*)::int as n from public.jobs where sales_run_id = $1 and type = 'sales_detect_opportunities'",
+          [rondes[0].id],
+        );
+        eqc(
+          "en de detectie precies één keer, niet één keer per meting",
+          String(detectieNaMeting[0].n),
+          "1",
+        );
+
+        const { rows: scores } = await db.client.query(
+          `select company_id, engine, questions_total, mentions, share, weighted_share, stderr, per_intent
+             from public.sales_company_scores where run_id = $1`,
+          [rondes[0].id],
+        );
+        ok("er staan scores", scores.length > 0, String(scores.length));
+
+        const alle = scores.filter((s) => s.engine === "alle");
+        eqc(
+          "elk goedgekeurd bedrijf heeft een gecombineerd cijfer",
+          String(alle.length),
+          String(goedgekeurd.length),
+        );
+
+        // ⚠️ DE NOEMER. De uitgezette vraag telt niet mee: 39 antwoorden, geen 40.
+        ok(
+          "de noemer telt antwoorden en geen vragen",
+          alle.every((s) => Number(s.questions_total) === 39),
+          alle.map((s) => String(s.questions_total)).join(", "),
+        );
+
+        // Van X Makelaars wordt in élk stubantwoord als eerste genoemd, dus die
+        // hoort op 100% te staan. Dat is geen realistisch cijfer maar wel de
+        // enige manier om te toetsen dát de koppeling werkt: het bedrijf uit de
+        // markt is herkend in de tekst van het antwoord.
+        const { rows: vanXRij } = await db.client.query(
+          "select id from public.sales_companies where domain = 'vanxmakelaars.nl'",
+        );
+        const vanXScore = alle.find((s) => String(s.company_id) === String(vanXRij[0].id));
+        eqc(
+          "het genoemde bedrijf is bij elk antwoord herkend",
+          String(vanXScore?.mentions ?? 0),
+          "39",
+        );
+        eqc("en staat dus op honderd procent", String(Number(vanXScore?.share ?? 0)), "1");
+
+        const onzichtbaar = alle.filter((s) => Number(s.mentions) === 0);
+        ok(
+          "en het onzichtbare bedrijf staat er wél in, met nul",
+          onzichtbaar.length > 0 && onzichtbaar.every((s) => Number(s.stderr) > 0),
+          `${onzichtbaar.length} bedrijven op nul`,
+        );
+
+        // Het intentielabel is de hele reden dat deze meting anders is dan een
+        // score (plan 10.2). Zonder deze laag is er geen intent gap.
+        ok(
+          "de uitkomst is per intentie uitgesplitst",
+          Object.keys((alle[0].per_intent ?? {}) as Record<string, unknown>).length >= 3,
+          JSON.stringify(alle[0].per_intent),
+        );
+
+        const { rows: naMeting } = await db.client.query(
+          "select status, engines, notes, finished_at from public.sales_runs where id = $1",
+          [rondes[0].id],
+        );
+        eqc("de ronde is afgerond", String(naMeting[0].status), "klaar");
+        ok("met een eindtijd", naMeting[0].finished_at !== null);
+        eqc(
+          "en alleen de engine die echt gemeten heeft staat erop",
+          (naMeting[0].engines as string[]).join(","),
+          "openai",
+        );
+
+        // ── Idempotentie: nog een keer meten kost geen tweede aanroep ───────
+        const aantalVoor = log.filter((l) => l.schemaName === "plain").length;
+        await db.client.query(
+          `insert into public.jobs (type, payload_json, dedupe_key, status, sales_market_id, sales_run_id)
+           values ('sales_measure_question', $1, $2, 'queued', $3, $4)`,
+          [
+            JSON.stringify({
+              marketId: salesMarktId,
+              runId: rondes[0].id,
+              questionId: vragen[1].id,
+              engine: "openai",
+            }),
+            `sales_measure:${rondes[0].id}:${vragen[1].id}:openai:tweede`,
+            salesMarktId,
+            rondes[0].id,
+          ],
+        );
+        await draaiSalesTaken();
+        eqc(
+          "een tweede meting van dezelfde vraag kost niets",
+          String(log.filter((l) => l.schemaName === "plain").length),
+          String(aantalVoor),
+        );
+
+        // ══════════════════════════════════════════════════════════════════
+        // Sprint 4: van gemeten markt tot gekwalificeerde kans
+        //
+        // ⚠️ DE SAMENHANG DIE HIER FOUT KAN GAAN:
+        //
+        //   1. De aggregatie ketent door naar de detectie, en precies één keer.
+        //   2. Elke kans heeft METEEN een haak, ook de kansen waar geen model
+        //      aan te pas komt. Anders staat er op het Opportunities-scherm een
+        //      regel zonder reden.
+        //   3. Alleen de kansen die iemand oppakt krijgen een schrijftaak. Voor
+        //      een lage kans een mail schrijven die niemand verstuurt is
+        //      weggegooid geld (plan 21.3).
+        //   4. De haak met een verzonnen getal wordt verworpen. Het stubantwoord
+        //      bevat er met opzet een.
+        console.log("\nDe Sales-module: van gemeten markt tot kans (sprint 4)");
+
+        const { rows: kansen } = await db.client.query(
+          `select o.id, o.company_id, o.type, o.score, o.tier, o.confidence, o.hook_text, o.hook_source,
+                  o.score_breakdown, o.alle_types, c.name
+             from public.sales_opportunities o
+             join public.sales_companies c on c.id = o.company_id
+            where o.run_id = $1 order by o.score desc`,
+          [rondes[0].id],
+        );
+        ok("er zijn kansen gevonden", kansen.length > 0, String(kansen.length));
+
+        // ⚠️ ELKE kans heeft een haak, en die haak is waar: hij komt uit het
+        // sjabloon dat alleen gecontroleerde waarden bevat.
+        ok(
+          "elke kans heeft meteen een reden om te bellen",
+          kansen.every((k) => String(k.hook_text ?? "").length > 10),
+          kansen.filter((k) => !k.hook_text).map((k) => String(k.name)).join(", "),
+        );
+        ok(
+          "en elke kans heeft een uitgesplitste score",
+          kansen.every(
+            (k) => Object.keys((k.score_breakdown ?? {}) as Record<string, unknown>).length >= 5,
+          ),
+        );
+
+        // Het bewijs is een join en geen zoektocht door jsonb (plan §7.3).
+        const { rows: bewijs } = await db.client.query(
+          `select e.kind, q.text as vraag, a.engine
+             from public.sales_evidence e
+             left join public.sales_questions q on q.id = e.question_id
+             left join public.sales_answers a on a.id = e.answer_id
+            where e.opportunity_id = $1`,
+          [kansen[0].id],
+        );
+        // Bij een onzichtbaar bedrijf is de afwezigheid het bewijs, en dan zijn
+        // er geen rijen. Bij elk ander type moeten ze er zijn.
+        if (String(kansen[0].type) !== "onzichtbaar") {
+          ok("het bewijs is doorklikbaar", bewijs.length > 0, String(kansen[0].type));
+          ok("met de vraag erbij", bewijs.every((b) => b.vraag !== null || b.engine !== null));
+        }
+
+        // ── De schrijftaken: alleen voor wie opgepakt wordt ─────────────────
+        const { rows: schrijfTaken } = await db.client.query(
+          `select distinct payload_json->>'opportunityId' as kans_id
+             from public.jobs where sales_run_id = $1 and type = 'sales_opportunity_explain'`,
+          [rondes[0].id],
+        );
+        const warm = kansen.filter((k) => String(k.tier) !== "laag");
+        const koud = kansen.filter((k) => String(k.tier) === "laag");
+        // Per KANS geteld en niet per taakrij: een tweede detectieronde plant de
+        // schrijftaak opnieuw in als de eerste al klaar is, en dat is precies wat
+        // de dedupe moet toestaan.
+        eqc(
+          "alleen de kansen die iemand oppakt krijgen een schrijftaak",
+          String(schrijfTaken.length),
+          String(warm.length),
+        );
+        // ⚠️ Plan 21.3, tweede rem: voor een lage kans een mail schrijven die
+        // niemand verstuurt is weggegooid geld. Hij houdt zijn sjabloonzin, en
+        // die is waar.
+        const koudeIds = new Set(koud.map((k) => String(k.id)));
+        ok(
+          "en een koude kans krijgt er geen",
+          schrijfTaken.every((t) => !koudeIds.has(String(t.kans_id))),
+        );
+
+        await draaiSalesTaken();
+
+        if (warm.length > 0) {
+          const { rows: naSchrijven } = await db.client.query(
+            "select hook_text, hook_source, why_text from public.sales_opportunities where id = $1",
+            [warm[0].id],
+          );
+          // ⚠️ HET VANGNET UIT HOOFDSTUK 14. De stub levert als eerste zin een
+          // verzonnen getal (97). Die hoort verworpen te zijn, en het
+          // alternatief zonder getallen hoort te winnen.
+          ok(
+            "een zin met een verzonnen getal haalt het niet",
+            !String(naSchrijven[0].hook_text ?? "").includes("97"),
+            String(naSchrijven[0].hook_text),
+          );
+          eqc("de haak komt van het model", String(naSchrijven[0].hook_source), "model");
+          ok("en er staat een uitleg bij", String(naSchrijven[0].why_text ?? "").length > 20);
+        }
+
+        // Idempotentie: nog een keer detecteren levert geen tweede set kansen op.
+        await db.client.query(
+          `insert into public.jobs (type, payload_json, dedupe_key, status, sales_market_id, sales_run_id)
+           values ('sales_detect_opportunities', $1, $2, 'queued', $3, $4)`,
+          [
+            JSON.stringify({ marketId: salesMarktId, runId: rondes[0].id }),
+            `sales_detect:${rondes[0].id}:tweede`,
+            salesMarktId,
+            rondes[0].id,
+          ],
+        );
+        await draaiSalesTaken();
+        const { rows: naTweedeDetectie } = await db.client.query(
+          "select id from public.sales_opportunities where run_id = $1 order by id",
+          [rondes[0].id],
+        );
+        eqc(
+          "een tweede detectie levert geen tweede set kansen op",
+          String(naTweedeDetectie.length),
+          String(kansen.length),
+        );
+        // ⚠️ EN DE KANSEN HOUDEN HUN ID. Sprint 5 hangt de toewijzing, de
+        // conceptmail en de uitkomst aan dat id. Zou de detectie de rijen
+        // opnieuw aanmaken, dan wijst de outreach van een verkoper naar een kans
+        // die niet meer bestaat, en is achteraf niet te reconstrueren waarom hij
+        // gebeld heeft.
+        eqc(
+          "en ze houden hun id, want daar hangt straks de outreach aan",
+          naTweedeDetectie.map((k) => String(k.id)).join(","),
+          kansen.map((k) => String(k.id)).sort().join(","),
+        );
+
+        // ══════════════════════════════════════════════════════════════════
+        // Sprint 5: van kans tot conceptmail
+        //
+        // ⚠️ DE SAMENHANG DIE HIER FOUT KAN GAAN:
+        //
+        //   1. Toewijzen zet de contactstap in gang, en die ketent naar het
+        //      concept. Draaien ze parallel, dan schrijft de ene stap een mail
+        //      aan een onbekende terwijl de andere net de eigenaar vindt.
+        //   2. Een verkeerde rol en een adres op een ander domein komen de
+        //      contacttabel niet in.
+        //   3. Het concept met een verzonnen cijfer wordt verworpen.
+        //   4. Een afwijzing zet de klok op het bedrijf, want die bepaalt of de
+        //      volgende ronde hem nog als kans aanbiedt.
+        console.log("\nDe Sales-module: van kans tot conceptmail (sprint 5)");
+
+        const salesUserId = randomUUID();
+        await db.client.query("insert into auth.users (id, email) values ($1, 'verkoper@outerorbit.test')", [
+          salesUserId,
+        ]);
+
+        const teBellen = kansen[0];
+
+        // ⚠️ Dit bedrijf kreeg bij de marktontdekking geen webadres, en de
+        // domeincontrole hieronder is juist wat dit scenario toetst. We geven
+        // hem er daarom een: dat gebeurt in het echt ook, een prospect die
+        // vandaag geen site heeft kan er volgende maand een hebben.
+        await db.client.query(
+          "update public.sales_companies set domain = 'zondersite.nl' where id = $1",
+          [String(teBellen.company_id ?? "")],
+        );
+        const { rows: outreachRij } = await db.client.query(
+          `insert into public.sales_outreach (company_id, opportunity_id, market_id, owner_user_id, status)
+           select o.company_id, o.id, o.market_id, $2, 'toegewezen'
+             from public.sales_opportunities o where o.id = $1
+           returning id, company_id`,
+          [teBellen.id, salesUserId],
+        );
+        ok("de outreach hangt aan een bedrijf met een webadres", outreachRij.length === 1);
+        const outreachId = String(outreachRij[0].id);
+        const bedrijfId = String(outreachRij[0].company_id);
+
+        await db.client.query(
+          `insert into public.jobs (type, payload_json, dedupe_key, status, sales_market_id)
+           values ('sales_contact_find', $1, $2, 'queued', $3)`,
+          [
+            JSON.stringify({ marketId: salesMarktId, companyId: bedrijfId, outreachId }),
+            `sales_contact:${bedrijfId}`,
+            salesMarktId,
+          ],
+        );
+        await draaiSalesTaken();
+
+        const { rows: contacten } = await db.client.query(
+          "select name, role, email, email_kind from public.sales_contacts where company_id = $1",
+          [bedrijfId],
+        );
+        // ⚠️ Twee van de drie uit de stub horen er niet in: de administratief
+        // medewerker (verkeerde rol) en de persoon met een adres op het domein
+        // van de webbouwer.
+        eqc("alleen de juiste rol komt in de tabel", String(contacten.length), "2");
+        ok(
+          "de administratief medewerker niet",
+          !contacten.some((c) => String(c.role).includes("Administratief")),
+        );
+        const webbouwer = contacten.find((c) => String(c.name) === "P. Pietersen");
+        ok(
+          "en een adres op een ander domein wordt niet overgenomen",
+          webbouwer !== undefined && webbouwer.email === null,
+          JSON.stringify(contacten),
+        );
+        ok(
+          "het adres op het eigen domein wel, als gevonden",
+          contacten.some(
+            (c) =>
+              String(c.name) === "J. Jansen" &&
+              String(c.email) === "j.jansen@zondersite.nl" &&
+              String(c.email_kind) === "gevonden",
+          ),
+          JSON.stringify(contacten),
+        );
+
+        const { rows: concept } = await db.client.query(
+          "select subject, body_draft, call_prep, notes from public.sales_outreach where id = $1",
+          [outreachId],
+        );
+        ok("er staat een conceptmail klaar", String(concept[0].body_draft ?? "").length > 50);
+        // ⚠️ HET VANGNET UIT HOOFDSTUK 16. De stub levert als eerste bericht twee
+        // verzonnen cijfers (73% en 12 opdrachten). Die hoort verworpen te zijn.
+        ok(
+          "een mail met verzonnen cijfers haalt het niet",
+          !String(concept[0].body_draft).includes("73") &&
+            !String(concept[0].body_draft).includes("12 opdrachten"),
+          String(concept[0].body_draft),
+        );
+        ok("en er staat een gespreksvoorbereiding bij", concept[0].call_prep !== null);
+        const prep = concept[0].call_prep as { nietZeggen?: string[] };
+        ok(
+          "met de grens van wat de meting draagt erin",
+          (prep.nietZeggen ?? []).length > 0,
+          JSON.stringify(prep),
+        );
+
+        // ── De werkstroom: verstuurd melden telt mee voor het plafond ───────
+        await db.client.query(
+          "update public.sales_outreach set status = 'gemaild', sent_at = now() where id = $1",
+          [outreachId],
+        );
+        await db.client.query(
+          `insert into public.sales_send_stats (user_id, dag, verstuurd) values ($1, current_date, 1)
+           on conflict (user_id, dag) do update set verstuurd = public.sales_send_stats.verstuurd + 1`,
+          [salesUserId],
+        );
+        const { rows: teller } = await db.client.query(
+          "select verstuurd from public.sales_send_stats where user_id = $1 and dag = current_date",
+          [salesUserId],
+        );
+        eqc("de dagteller loopt op", String(teller[0].verstuurd), "1");
+
+        // ── Eén actieve outreach per bedrijf ───────────────────────────────
+        //
+        // ⚠️ Twee verkopers die hetzelfde bedrijf tegelijk benaderen is de
+        // pijnlijkste fout die deze module kan maken na het benaderen van een
+        // bestaande klant. De database weigert het, niet alleen het scherm.
+        let dubbelGeweigerd = false;
+        try {
+          await db.client.query(
+            `insert into public.sales_outreach (company_id, opportunity_id, market_id, owner_user_id, status)
+             values ($1, $2, $3, $4, 'toegewezen')`,
+            [bedrijfId, teBellen.id, salesMarktId, salesUserId],
+          );
+        } catch {
+          dubbelGeweigerd = true;
+        }
+        ok("een tweede actieve outreach op hetzelfde bedrijf wordt geweigerd", dubbelGeweigerd);
+
+        // ── Een afwijzing zonder reden bestaat niet ────────────────────────
+        let zonderRedenGeweigerd = false;
+        try {
+          await db.client.query(
+            "update public.sales_outreach set status = 'afgewezen' where id = $1",
+            [outreachId],
+          );
+        } catch {
+          zonderRedenGeweigerd = true;
+        }
+        ok("de database weigert een afwijzing zonder reden", zonderRedenGeweigerd);
+
+        await db.client.query(
+          `update public.sales_outreach
+              set status = 'afgewezen', lost_reason = 'geen_budget', outcome_at = now()
+            where id = $1`,
+          [outreachId],
+        );
+        await db.client.query(
+          "update public.sales_companies set last_rejected_at = now() where id = $1",
+          [bedrijfId],
+        );
+        const { rows: naAfwijzing } = await db.client.query(
+          "select last_rejected_at from public.sales_companies where id = $1",
+          [bedrijfId],
+        );
+        // ⚠️ Het bedrijf onthoudt zijn nee: binnen twaalf maanden zet dat de
+        // opportunityscore op nul in plaats van hem te verlagen (plan 13.1).
+        ok("het bedrijf onthoudt zijn nee", naAfwijzing[0].last_rejected_at !== null);
+
+        // En daarna kan hetzelfde bedrijf opnieuw opgepakt worden: de
+        // gedeeltelijke index telt alleen ACTIEVE outreach.
+        const { rows: opnieuw } = await db.client.query(
+          `insert into public.sales_outreach (company_id, opportunity_id, market_id, owner_user_id, status)
+           values ($1, $2, $3, $4, 'toegewezen') returning id`,
+          [bedrijfId, teBellen.id, salesMarktId, salesUserId],
+        );
+        ok("na een afwijzing kan het bedrijf later opnieuw opgepakt worden", opnieuw.length === 1);
+
+        // ══════════════════════════════════════════════════════════════════
+        // Sprint 6 en 7: publiceren en hermeten
+        //
+        // ⚠️ DE SAMENHANG DIE HIER FOUT KAN GAAN:
+        //
+        //   1. Een hermeting moet EXACT dezelfde vragen gebruiken. Anders meet
+        //      je het verschil tussen twee vragenlijsten en presenteer je dat
+        //      als een daling van het bedrijf.
+        //   2. Een rapport met een oordeel over een bedrijf mag niet online.
+        //   3. Publiceren is een tweede besluit: de meetketen doet het niet.
+        console.log("\nDe Sales-module: publiceren en hermeten (sprint 6 en 7)");
+
+        // ── Het rapport ────────────────────────────────────────────────────
+        //
+        // ⚠️ Eerst een controle die er echt toe doet: deze markt heeft te weinig
+        // bedrijven om te publiceren. Onder de vijf is elk bedrijf herkenbaar aan
+        // zijn plek in de lijst, en dan is "verwijderd op verzoek" een loze
+        // belofte. Het rapport hoort dus geweigerd te worden.
+        await db.client.query(
+          `insert into public.jobs (type, payload_json, dedupe_key, status, sales_market_id, sales_run_id)
+           values ('sales_market_report', $1, $2, 'queued', $3, $4)`,
+          [
+            JSON.stringify({ marketId: salesMarktId, runId: rondes[0].id }),
+            `sales_report:${rondes[0].id}:teklein`,
+            salesMarktId,
+            rondes[0].id,
+          ],
+        );
+        await draaiSalesTaken();
+        const { rows: teKlein } = await db.client.query(
+          "select count(*)::int as n from public.sales_market_reports where run_id = $1",
+          [rondes[0].id],
+        );
+        eqc("een markt met te weinig bedrijven wordt niet beschreven", String(teKlein[0].n), "0");
+
+        // Zes bedrijven erbij, zodat er een echt marktbeeld is om over te
+        // schrijven. In het echt komen die uit de marktontdekking.
+        for (let i = 0; i < 6; i++) {
+          const extraId = randomUUID();
+          await db.client.query(
+            "insert into public.sales_companies (id, name, domain) values ($1, $2, $3)",
+            [extraId, `Extra Makelaars ${i}`, `extra${i}.nl`],
+          );
+          await db.client.query(
+            `insert into public.sales_market_companies (market_id, company_id, included, confidence)
+             values ($1, $2, true, 'middel')`,
+            [salesMarktId, extraId],
+          );
+          await db.client.query(
+            `insert into public.sales_company_scores
+               (run_id, company_id, engine, questions_total, mentions, share, weighted_share, stderr)
+             values ($1, $2, 'alle', 39, $3, $4, $4, 0.05)`,
+            [rondes[0].id, extraId, i * 2, Number(((i * 2) / 39).toFixed(5))],
+          );
+        }
+
+        await db.client.query(
+          `insert into public.jobs (type, payload_json, dedupe_key, status, sales_market_id, sales_run_id)
+           values ('sales_market_report', $1, $2, 'queued', $3, $4)`,
+          [
+            JSON.stringify({ marketId: salesMarktId, runId: rondes[0].id }),
+            `sales_report:${rondes[0].id}`,
+            salesMarktId,
+            rondes[0].id,
+          ],
+        );
+        await draaiSalesTaken();
+
+        const { rows: rapporten } = await db.client.query(
+          "select intro, methode, bevindingen, bron, cijfers from public.sales_market_reports where run_id = $1",
+          [rondes[0].id],
+        );
+        eqc("er is één rapport voor deze ronde", String(rapporten.length), "1");
+        // ⚠️ Het stubantwoord bevat een oordeel over een bedrijf. Dat hoort
+        // geweigerd te zijn, en dan wint het sjabloon.
+        eqc("een oordeel over een bedrijf haalt het niet", String(rapporten[0].bron), "sjabloon");
+        ok(
+          "en het sjabloon zegt wat het NIET beweert",
+          String(rapporten[0].bevindingen).includes("zegt niets over de kwaliteit"),
+          String(rapporten[0].bevindingen),
+        );
+        // De cijfers zijn bevroren op dit moment: zonder dat is een gepubliceerde
+        // pagina niet meer na te rekenen zodra de volgende ronde de scores
+        // overschrijft.
+        const bevroren = rapporten[0].cijfers as { vragen?: number; bedrijven?: unknown[] };
+        eqc("de cijfers zijn bevroren", String(bevroren.vragen), "39");
+        ok("met de bedrijven erbij", (bevroren.bedrijven ?? []).length > 0);
+
+        // ── Een verwijderverzoek haalt een bedrijf van de pagina ───────────
+        await db.client.query(
+          "update public.sales_companies set hidden_from_report = true, do_not_contact = true where id = $1",
+          [bedrijfId],
+        );
+
+        // ── De hermeting: exact dezelfde vragen ────────────────────────────
+        const { rows: vragenRonde1 } = await db.client.query(
+          "select text, intent_label, intent_stage, weight from public.sales_questions where run_id = $1 and active = true order by position",
+          [rondes[0].id],
+        );
+
+        const { rows: ronde2 } = await db.client.query(
+          `insert into public.sales_runs (market_id, round_no, status, intents_json, question_count, engines)
+           select market_id, round_no + 1, 'vragen_klaar', intents_json, $2, engines
+             from public.sales_runs where id = $1
+           returning id, round_no`,
+          [rondes[0].id, vragenRonde1.length],
+        );
+        const ronde2Id = String(ronde2[0].id);
+        eqc("de tweede ronde telt door", String(ronde2[0].round_no), "2");
+
+        for (const [i, v] of vragenRonde1.entries()) {
+          await db.client.query(
+            `insert into public.sales_questions (run_id, text, intent_label, intent_stage, weight, position)
+             values ($1, $2, $3, $4, $5, $6)`,
+            [ronde2Id, v.text, v.intent_label, v.intent_stage, v.weight, i],
+          );
+        }
+
+        const { rows: vragenRonde2 } = await db.client.query(
+          "select text, weight from public.sales_questions where run_id = $1 order by position",
+          [ronde2Id],
+        );
+        // ⚠️ LETTERLIJK DEZELFDE VRAGEN, MET HETZELFDE GEWICHT. Opportunitytype 8
+        // vergelijkt twee rondes, en dat mag alleen als het verschil aan de markt
+        // ligt en niet aan de vraag.
+        eqc(
+          "de hermeting stelt exact dezelfde vragen",
+          vragenRonde2.map((v) => String(v.text)).join("|"),
+          vragenRonde1.map((v) => String(v.text)).join("|"),
+        );
+        eqc(
+          "met hetzelfde gewicht",
+          vragenRonde2.map((v) => String(v.weight)).join(","),
+          vragenRonde1.map((v) => String(v.weight)).join(","),
+        );
+
+        // ── Meten, aggregeren en detecteren op ronde 2 ─────────────────────
+        //
+        // De stub geeft elk antwoord hetzelfde, dus de cijfers blijven gelijk.
+        // Dat is precies wat getoetst moet worden: GEEN verlies melden als er
+        // niets veranderd is. Een daling die er niet is, is de fout die een
+        // verkoper voor schut zet.
+        await db.client.query(
+          "update public.sales_runs set status = 'meet', approved_at = now() where id = $1",
+          [ronde2Id],
+        );
+        const { rows: vragen2Ids } = await db.client.query(
+          "select id from public.sales_questions where run_id = $1 order by position",
+          [ronde2Id],
+        );
+        for (const v of vragen2Ids) {
+          await db.client.query(
+            `insert into public.jobs (type, payload_json, dedupe_key, status, sales_market_id, sales_run_id)
+             values ('sales_measure_question', $1, $2, 'queued', $3, $4)`,
+            [
+              JSON.stringify({
+                marketId: salesMarktId,
+                runId: ronde2Id,
+                questionId: v.id,
+                engine: "openai",
+              }),
+              `sales_measure:${ronde2Id}:${v.id}:openai`,
+              salesMarktId,
+              ronde2Id,
+            ],
+          );
+        }
+        await draaiSalesTaken();
+
+        const { rows: kansen2 } = await db.client.query(
+          `select o.type, o.alle_types, c.name
+             from public.sales_opportunities o
+             join public.sales_companies c on c.id = o.company_id
+            where o.run_id = $1`,
+          [ronde2Id],
+        );
+        ok("de tweede ronde levert opnieuw kansen op", kansen2.length > 0, String(kansen2.length));
+
+        // ⚠️ TWEE KANTEN VAN HETZELFDE VANGNET, en ze horen allebei getoetst.
+        //
+        // De bedrijven die in beide rondes hetzelfde gemeten zijn, mogen GEEN
+        // verlies opleveren. Een daling die er niet is, is precies de fout die
+        // een verkoper voor schut zet bij een ondernemer die vraagt wat er
+        // veranderd is.
+        const ongewijzigd = kansen2.filter((k) => !String(k.name).startsWith("Extra Makelaars"));
+        ok(
+          "een bedrijf dat gelijk bleef, krijgt geen verlies",
+          ongewijzigd.every((k) => String(k.type) !== "verlies"),
+          ongewijzigd.map((k) => `${k.name}=${k.type}`).join(", "),
+        );
+
+        // En de bedrijven die in ronde 1 scoorden en in ronde 2 niet meer, horen
+        // het WEL te krijgen. Dat is opportunitytype 8, en het bestaat pas vanaf
+        // de tweede ronde: dit is de hele reden om markten te hermeten.
+        const gezakteBedrijven = kansen2.filter((k) => String(k.name).startsWith("Extra Makelaars"));
+        ok(
+          "een bedrijf dat echt gezakt is, krijgt wel verlies",
+          gezakteBedrijven.some((k) => String(k.type) === "verlies"),
+          gezakteBedrijven.map((k) => `${k.name}=${k.type}`).join(", "),
+        );
+
+        // ── De kansen van ronde 1 wijzen naar hun opvolger ─────────────────
+        const { rows: oud } = await db.client.query(
+          "select count(*)::int as n from public.sales_opportunities where run_id = $1 and superseded_by is not null",
+          [rondes[0].id],
+        );
+        ok(
+          "de kansen van de vorige ronde wijzen naar de nieuwe",
+          oud[0].n > 0,
+          `${oud[0].n} van de ${kansen.length}`,
+        );
+      } finally {
+        globalThis.fetch = origineleFetch;
+      }
+    }
 
     __setTestAdminClient(null);
     __setTestTransport(null);

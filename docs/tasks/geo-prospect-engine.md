@@ -24,9 +24,10 @@ opener. De salesmedewerker is de menselijke schakel. Het gesprek is het doel.
 gaan werken. Hoofdstuk 1 tot en met 6 zijn voor beiden. Hoofdstuk 7 tot en met 16 zijn technisch.
 Hoofdstuk 17 tot en met 24 zijn weer voor beiden.
 
-**Peildatum: 24 augustus 2026.** Migraties in de repo lopen tot en met `0064`; de nummers in dit
-plan beginnen daarom bij `0065`. Alle kostencijfers over de bestaande pijplijn zijn nagerekend
-tegen de kostenlogboeken op productie en komen uit `docs/architecture.md` §6.
+**Peildatum: 24 augustus 2026.** Sprint 1 en 2 zijn gebouwd en staan op productie (migraties `0065`
+tot en met `0067`). Alle kostencijfers over de bestaande pijplijn zijn nagerekend tegen de
+kostenlogboeken op productie en komen uit `docs/architecture.md` §6; de kostencijfers over deze
+module zelf zijn schattingen tot de eerste echte markt gedraaid heeft.
 
 ---
 
@@ -422,11 +423,25 @@ Drie gevolgen die je in de code terugziet:
 
 ## 7. Datamodel en migraties
 
-Voorstel voor twaalf tabellen, verdeeld over vier migraties. Additief en idempotent, nooit `drop`,
-conform `supabase/README.md`. Alle tabellen krijgen RLS aan met alleen een `select`-policy voor
+Dertien tabellen, verdeeld over vijf migraties. Additief en idempotent, nooit `drop`, conform
+`supabase/README.md`. Alle tabellen krijgen RLS aan met alleen een `select`-policy voor
 `is_sales()`; schrijven loopt via de service-role key.
 
-### 7.1 Migratie 0065: markt en bedrijf
+**⚠️ De migratienummers staan hier niet meer, op de twee gedraaide na.** Dat is een correctie van
+24 augustus 2026, en de aanleiding was tweemaal hetzelfde probleem. Eerst gaf dit plan sprint 1 en
+sprint 2 allebei nummer `0065`, wat niet kan zodra de eerste op productie heeft gedraaid. Daarna
+bleek sprint 2 een tweede migratie nodig te hebben (`0067`, ontdekt door de ketentest), en schoof
+alles opnieuw op.
+
+Een plan dat nummers vooruit vastlegt, loopt daar gegarandeerd op vast: je weet vooraf niet hoeveel
+migraties een sprint kost. **Eén feit heeft één eigenaar**, en de eigenaar van "welke migratie doet
+wat" is [`supabase/README.md`](../../supabase/README.md). Dit document zegt alleen nog wát er nodig
+is, en de index zegt welk nummer het geworden is.
+
+De uitsluitingen uit 9.5 stonden bovendien in de migratie van sprint 5, terwijl sprint 2 ze
+gebruikt; die zijn hieronder naar 7.1b verhuisd.
+
+### 7.1 De rol, de markt en het bedrijf (sprint 1, gebouwd in `0065`)
 
 **`sales_markets`**
 
@@ -460,11 +475,61 @@ conform `supabase/README.md`. Alle tabellen krijgen RLS aan met alleen een `sele
 | `do_not_contact` | bool | zet een bedrijf permanent uit, zie 24.2 |
 | `do_not_contact_reason` | text | |
 
-**`sales_market_companies`**: de koppeltabel, met `market_id`, `company_id`, `discovery_source`
+**`sales_market_companies`**: de koppeltabel, met `market_id`, `company_id`, `discovery_sources`
 (waar dit bedrijf vandaan kwam), `confidence` (hoe zeker weten we dat het in deze markt hoort),
-`included` (heeft de admin het goedgekeurd), `excluded_reason`.
+`included` (heeft de admin het goedgekeurd), `is_prospect`, `excluded_reason`.
 
-### 7.2 Migratie 0066: meting
+**`sales_users`**: `user_id`, `is_admin`, `note`, `created_at`. RLS aan en nul policies, naar het
+patroon van `staff_users`. Plus de functies `is_sales()` en `is_sales_admin()`, allebei
+`security definer` met een vaste `search_path` en alleen aanroepbaar door `authenticated`.
+
+**Wat er bij het bouwen anders is gegaan dan hierboven staat, met de reden erbij.** Vier dingen, en
+ze staan alle vier ook in `supabase/README.md` bij migratie `0065`.
+
+1. **`domain` is nullable, met een gedeeltelijke unieke index.** Hierboven staat "text uniek", en
+   dat blijft de bedoeling, maar een verplichte kolom zou elk bedrijf zonder website weggooien. Dat
+   zijn precies de prospects die hoofdstuk 9 zoekt: aantoonbaar bestaand en volledig onzichtbaar.
+   Ontdubbelen op domein gebeurt nu waar er een domein is, en op naam waar dat niet zo is.
+2. **`included` heeft drie standen en geen twee.** `null` betekent "de admin heeft er nog niet naar
+   gekeken", `false` betekent "eruit gehaald". Zonder dat onderscheid is een niet-beoordeelde lijst
+   niet te scheiden van een afgekeurde, en dan kan poort 1 niet bestaan.
+3. **`discovery_sources` is meervoud.** Een bedrijf uit drie onafhankelijke bronnen is zeker en een
+   bedrijf dat alleen een model noemde is dat niet (9.1). Met één kolom is die zekerheid niet vast
+   te leggen, alleen de laatste bron.
+4. **`last_activity_at` en `anonymised_at` staan er meteen op.** Dat is de bewaartermijn uit 24.2,
+   en de reden dat hij niet kan wachten is rekenkundig: een termijn die je later toevoegt kan niet
+   terugrekenen over de periode dat hij ontbrak. De rekenkunde staat puur in `lib/sales/retention.ts`,
+   het opruimen zelf komt in een latere sprint.
+
+### 7.1b Uitsluitingen en verrijking (sprint 2, gebouwd in `0066` en `0067`)
+
+**`sales_suppressions`**: de uitsluitingen uit 9.5. `company_id` of `market_id`, `kind`
+(`klant`, `lopend_traject`, `concurrent_van_klant`, `do_not_contact`), `reason`, `related_profile_id`,
+`created_at`, `expires_at`. Uitsluitingen worden bij elke ronde opnieuw geëvalueerd, want een markt
+waar vandaag geen klant zit, kan er over drie maanden wel een hebben.
+
+**⚠️ Deze tabel stond eerst in de migratie van sprint 5, en dat was een fout in de volgorde.** De
+controle op uitsluitingen gebeurt vóórdat een opportunity zichtbaar wordt en niet pas bij het
+versturen (9.5). Sprint 2 heeft hem dus nodig, drie sprints eerder dan waar hij stond.
+
+**Wat er verder bij kwam.** Op de markt: `discovered_at`, `approved_at` en `approved_by` (poort 1
+moet bewijsbaar zijn, niet alleen gebeurd), `failure_reason`, `conflict_note`, plus `discovery_json`
+en `discovery_note`. Op het bedrijf: `crawl_status` met vier standen, `crawl_error` en `name_source`.
+Op het lidmaatschap: `evidence_urls` en `discovery_note`. En `ai_calls.sales_market_id`, zonder welke
+het plafond van tien euro per markt niet af te dwingen is.
+
+**⚠️ `crawl_status` heeft vier standen en geen boolean**, en dat is conventie 3 met een prijskaartje:
+"we hebben het niet geprobeerd", "het lukte niet" en "er is niets om te proberen" zijn drie
+verschillende dingen. Alleen de tweede is een probleem dat iemand moet oplossen. De derde,
+`geen_website`, is juist een interessante prospect (hoofdstuk 9), en die tussen de storingen laten
+verdwijnen zou precies de bedrijven wegmoffelen waar deze module voor bestaat.
+
+**En een tweede migratie die niemand had voorzien** (`0067`): de constraint `jobs_has_owner` uit
+`0013` eiste dat elke taak aan een analyse of een merk hangt. Een Sales-taak hangt aan een markt, en
+een markt is geen merk. Opgelost met een derde soort eigenaar en niet met een uitzondering op de
+regel. Gevonden door de ketentest, bij de eerste keer dat de keten draaide.
+
+### 7.2 Meting (sprint 3)
 
 **`sales_runs`**: één rij per meetronde per markt. `market_id`, `started_at`, `finished_at`,
 `engines` (welke engines meededen), `question_count`, `status`, `cost_cents`, `notes`.
@@ -481,7 +546,7 @@ selecteren, contact), `intent_label` (de commerciële intentie, bijvoorbeeld `aa
 `mention_role` (mag alleen gevuld zijn als `mentioned` waar is, zie 15.2), `position` int,
 `snippet` text. Dit is de tabel waar alles uit gerekend wordt.
 
-### 7.3 Migratie 0067: opportunity
+### 7.3 Opportunity (sprint 4)
 
 **`sales_opportunities`**
 
@@ -489,7 +554,7 @@ selecteren, contact), `intent_label` (de commerciële intentie, bijvoorbeeld `aa
 |---|---|---|
 | `id` | uuid pk | |
 | `run_id`, `company_id`, `market_id` | uuid | |
-| `type` | text | een van de zeven uit hoofdstuk 12 |
+| `type` | text | een van de acht uit hoofdstuk 12 |
 | `score` | int 0-100 | de GEO Opportunity Score |
 | `score_breakdown` | jsonb | elke component apart, zodat de score uitlegbaar blijft |
 | `tier` | text | `hoog`, `gemiddeld`, `laag` |
@@ -504,7 +569,7 @@ selecteren, contact), `intent_label` (de commerciële intentie, bijvoorbeeld `aa
 **`sales_evidence`**: expliciete koppelingen tussen een opportunity en de vragen en antwoorden die
 haar dragen, zodat doorklikken een join is en geen zoektocht door een jsonb-veld.
 
-### 7.4 Migratie 0068: outreach, contactpersonen, uitsluitingen en uitkomst
+### 7.4 Outreach, contactpersonen en uitkomst (sprint 5)
 
 **`sales_outreach`**: `company_id`, `opportunity_id`, `owner_user_id`, `status`, `subject`,
 `body_draft`, `body_sent`, `sent_at`, `sent_via`, `reply_at`, `reply_sentiment`, `call_at`,
@@ -515,11 +580,6 @@ die maar één actieve outreach per bedrijf toestaat.
 `email_kind` (`gevonden` of `afgeleid`), `phone`, `source_url`, `confidence`, `verified_by_user_id`,
 `verified_at`. Een rij met `email_kind = afgeleid` en zonder `verified_at` mag nooit een ontvanger
 zijn; dat is een controle in code en niet alleen in de UI (9.4).
-
-**`sales_suppressions`**: de uitsluitingen uit 9.5. `company_id` of `market_id`, `kind`
-(`klant`, `lopend_traject`, `concurrent_van_klant`, `do_not_contact`), `reason`, `related_profile_id`,
-`created_at`, `expires_at`. Uitsluitingen worden bij elke ronde opnieuw geëvalueerd, want een markt
-waar vandaag geen klant zit, kan er over drie maanden wel een hebben.
 
 **`sales_send_stats`**: per gebruiker per dag het aantal verstuurde mails, bounces, klachten en
 afmeldingen, voor het plafond uit 16.6.
@@ -551,7 +611,7 @@ flowchart TD
     G1 --> H[7 · market_judge<br/>per antwoord: wie genoemd, in welke rol]
     G2 --> H
     H --> I[8 · market_aggregate<br/>zichtbaarheid, marges, bronnen, per intentie]
-    I --> J[9 · opportunity_detect<br/>zeven types, deterministisch]
+    I --> J[9 · opportunity_detect<br/>acht types, deterministisch]
     J --> K[10 · opportunity_explain<br/>uitleg, hook, dossiertekst]
     K --> M([Opportunities-scherm gevuld])
     M --> N1[12 · contact_find<br/>wie mailen we, alleen bij toewijzing]
@@ -613,9 +673,18 @@ prospects. De marktinventarisatie moet daarom **onafhankelijk van de AI-meting**
 | Websearch met een onderzoeksmodel | de rest, en de controle op de andere drie | AI, laag |
 | De AI-meting zelf, achteraf | bedrijven die genoemd worden maar in geen enkele bron zaten | valt onder de meting |
 
-Elk bedrijf krijgt `discovery_source` en `confidence`. Een bedrijf uit drie onafhankelijke bronnen
-is zeker; een bedrijf dat alleen een model noemde is dat niet, en die twijfel hoort zichtbaar te
-zijn bij poort 1.
+Elk bedrijf krijgt `discovery_sources` (meervoud) en `confidence`. Een bedrijf uit drie
+onafhankelijke bronnen is zeker; een bedrijf dat alleen een model noemde is dat niet, en die twijfel
+hoort zichtbaar te zijn bij poort 1.
+
+**⚠️ Gebouwd zijn de derde en de vierde rij, en niet meer dan dat** (besluit 24 augustus 2026, zie
+24.4 punt 1). Het onderzoeksmodel levert bedrijven én de overzichtspagina's waar die markt op staat;
+onze eigen crawler haalt die pagina's daarna op en leest eruit naar welke bedrijven ze linken. Dat
+tweede is de enige bron die niet door een model heen is gegaan, en het is gratis.
+
+Wees eerlijk over wat dat betekent voor de zekerheid: met twee bronnen is `hoog` in de praktijk
+onbereikbaar, en dat is niet erg zolang je weet waarom. `laag` betekent nu "alleen het model noemde
+dit", en dat is precies de rij die aandacht vraagt bij poort 1.
 
 **De laatste regel in die tabel is een vangnet dat er echt in moet.** Noemt de AI tijdens de meting
 een bedrijf dat in geen enkele bron zat, dan is dat op zichzelf informatie: ofwel onze inventarisatie
@@ -1020,7 +1089,7 @@ Wat er niet in hoort: GEO uitleggen, Outer Orbit presenteren, features opsommen,
 superlatieven, "ik zag dat jullie", of een vaag compliment over de website.
 
 **Per hooktype een eigen toon.** Een onzichtbaar bedrijf krijgt een contrast. Een marktleider krijgt
-een kwetsbaarheid. Een information gap krijgt urgentie. Dezelfde mail voor alle zeven types is een
+een kwetsbaarheid. Een information gap krijgt urgentie. Dezelfde mail voor alle acht types is een
 sjabloon met variabelen, en dat ruikt een ondernemer.
 
 ### 16.3 De medewerker verstuurt de mail altijd zelf
@@ -1357,15 +1426,34 @@ Uitgangspunt: één markt, de volledige markt aan bedrijven, 40 vragen, twee eng
 Zeven sprints. Elke sprint levert zelfstandig iets bruikbaars op, en is pas af als het verificatiecriterium tegen
 echte data is aangetoond. Gebouwd is niet geverifieerd, conventie 10.
 
+**Stand op 29 augustus 2026.** Sprint 1 is gebouwd en geverifieerd. Sprint 2 tot en met 7 zijn
+gebouwd en staan op productie, maar hun verificatiecriteria zijn niet gehaald: daarvoor moet er één
+echte markt gedraaid hebben, moet New business zeggen of de bedrijvenlijst klopt, moeten de
+zichtbaarheidscijfers met de hand nagerekend zijn tegen de opgeslagen antwoorden, en moet New
+business het eens zijn met minstens acht van de tien beoordeelde kansen, en moet een verkoper van
+tien conceptmails er minstens acht willen versturen, moet er één publieke pagina online staan die
+een prospect geopend heeft, en moet een hermeting van de pilotmarkt belaanleidingen uit de
+verandering zelf opleveren. Tot dat gebeurd is tellen ze niet als af, ook al werkt alles
+(conventie 10).
+
+⚠️ **Alles is gebouwd, niets is geverifieerd.** Dat is de stand van de hele module: de keten loopt
+van een branche plus een plaats tot een conceptmail met bewijs eronder, en er is geen enkele echte
+markt doorheen gegaan. Het verificatiewerk is daarmee het enige dat nog tussen deze module en het
+eerste gesprek staat, en het is werk dat niet in code te doen is.
+
+⚠️ **De migratienummers in dit plan liepen achter.** Sprint 1 tot en met 3 kregen `0065`, `0066` en
+`0067`, maar die drie nummers waren op 25 en 26 augustus al door ander werk gebruikt. De
+Sales-migraties heten nu `0068` tot en met `0071`; `supabase/README.md` is de eigenaar van dat feit.
+
 | Sprint | Wat erin zit | Migratie | Verificatiecriterium |
 |---|---|---|---|
-| **1. Fundament** | De rol sales en sales admin, de Sales-sectie in de sidebar, lege schermen, `sales_markets` en `sales_companies`, markt aanmaken | 0065 | Een salesmedewerker ziet Sales, een klant krijgt "pagina bestaat niet", en een markt kan aangemaakt worden |
-| **2. Ontdekken** | Marktontdekking uit meerdere bronnen, ontdubbelen, de uitsluitingen uit 9.5, poort 1, de crawlverrijking | 0065 | New business kijkt naar de gevonden lijst voor één echte markt en zegt of hij klopt. Minstens 80% van de bedrijven die zij zelf kennen zit erin |
-| **3. Meten** | Intenties, vragen, poort 2, meting op beide engines, beoordelen, aggregatie | 0066 | De zichtbaarheidscijfers zijn met de hand na te rekenen uit de opgeslagen antwoorden, en een tweede meting van dezelfde markt geeft geen wild ander beeld |
-| **4. Opportunities** | De acht types (verlies pas actief vanaf de tweede ronde), de score, de hook, het bewijs, het prospectdossier, het Opportunities-scherm | 0067 | New business beoordeelt de top tien en de bodem tien en is het met minstens acht van de tien eens. Elke oneens is een kalibratiepunt en wordt verwerkt |
-| **5. Outreach** | Contactpersonen zoeken, conceptmails per hooktype, de belvoorbereiding, de verzendplafonds uit 16.6, de werkstroom, statussen, toewijzing, `sales_events`, de trechtercijfers | 0068 | Een salesmedewerker leest tien conceptmails en zegt van minstens acht: deze zou ik versturen. Daarna: de eerste echte mails gaan uit |
-| **6. Publiceren** | De publieke route, het rapport, de adresstructuur, verwijderprocedure | 0069 | Het rapport staat online, een prospect heeft de link geopend, en er is geen verzoek tot verwijdering geweest dat we niet konden honoreren |
-| **7. Hermeten** | De tweede ronde op de pilotmarkt, opportunitytype 8 actief, de vergelijking tussen rondes op elk scherm | geen | Er komen belaanleidingen uit de verandering zelf, en New business bevestigt dat een daling een beter gesprek oplevert dan een statische observatie |
+| **1. Fundament** ✅ | De rol sales en sales admin, de Sales-sectie in de sidebar, lege schermen, `sales_markets` en `sales_companies`, markt aanmaken | `0068` | Een salesmedewerker ziet Sales, een klant krijgt "pagina bestaat niet", en een markt kan aangemaakt worden |
+| **2. Ontdekken** (gebouwd, nog niet geverifieerd) | Marktontdekking uit de gratis bronnen, ontdubbelen, de uitsluitingen uit 9.5, poort 1, de crawlverrijking | `0069` en `0070` | New business kijkt naar de gevonden lijst voor één echte markt en zegt of hij klopt. Minstens 80% van de bedrijven die zij zelf kennen zit erin |
+| **3. Meten** (gebouwd, nog niet geverifieerd) | Intenties, vragen, poort 2, meting op beide engines, beoordelen, aggregatie | `0071` | De zichtbaarheidscijfers zijn met de hand na te rekenen uit de opgeslagen antwoorden, en een tweede meting van dezelfde markt geeft geen wild ander beeld |
+| **4. Opportunities** (gebouwd, nog niet geverifieerd) | De acht types (verlies pas actief vanaf de tweede ronde), de score, de hook, het bewijs, het prospectdossier, het Opportunities-scherm | `0072` | New business beoordeelt de top tien en de bodem tien en is het met minstens acht van de tien eens. Elke oneens is een kalibratiepunt en wordt verwerkt |
+| **5. Outreach** (gebouwd, nog niet geverifieerd) | Contactpersonen zoeken, conceptmails per hooktype, de belvoorbereiding, de verzendplafonds uit 16.6, de werkstroom, statussen, toewijzing, `sales_events`, de trechtercijfers | `0073` | Een salesmedewerker leest tien conceptmails en zegt van minstens acht: deze zou ik versturen. Daarna: de eerste echte mails gaan uit |
+| **6. Publiceren** (gebouwd, nog niet geverifieerd) | De publieke route, het rapport, de adresstructuur, verwijderprocedure | `0081` | Het rapport staat online, een prospect heeft de link geopend, en er is geen verzoek tot verwijdering geweest dat we niet konden honoreren |
+| **7. Hermeten** (gebouwd, nog niet geverifieerd) | De tweede ronde op de pilotmarkt, opportunitytype 8 actief, de vergelijking tussen rondes op elk scherm | `0081` | Er komen belaanleidingen uit de verandering zelf, en New business bevestigt dat een daling een beter gesprek oplevert dan een statische observatie |
 
 ### 22.1 De pilot
 
@@ -1516,14 +1604,30 @@ Deze komen uit de bestaande architectuur en staan niet ter discussie:
 
 Deze horen genomen te zijn vóór de sprint waarin ze knellen.
 
-1. **Welke bronnen gebruiken we voor de marktontdekking**, en welke daarvan zijn betaald? Nodig vóór
-   sprint 2.
+1. **Besloten op 24 augustus 2026: eerst de gratis bronnen.** Van de vier bronnen uit 9.1 zijn er
+   twee gebouwd, en allebei zonder abonnement: een onderzoeksmodel dat het web doorzoekt, en de
+   overzichtspagina's die dat model aanwijst, daarna door onze eigen crawler uitgelezen. Het
+   kaartenregister en het handelsregister kosten geld per opvraging en staan nog uit.
+
+   **Wat dat wél en niet oplost.** Het lost het AI-vooroordeel gedeeltelijk op: een ledenlijst van
+   een branchevereniging linkt naar zijn leden, ook naar de leden die geen model ooit noemt, en dat
+   is aantoonbaar zo (de ketentest heeft er een bedrijf in zitten dat alleen op de bronpagina staat).
+   Wat het niet oplost: een bedrijf dat op geen enkele lijst staat én geen website heeft, vinden we
+   nu niet. Dat hoort bij poort 1 gezegd te worden en staat in de kanttekening bij de markt.
+
+   **Wanneer de betaalde bronnen alsnog nodig zijn:** zodra sprint 2 zijn verificatiecriterium niet
+   haalt, dus zodra New business bij de eerste echte markt zegt dat er te veel bedrijven ontbreken
+   die zij zelf kennen. Dan is de vraag niet meer "willen we betalen" maar "wat kost het om het niet
+   te doen".
 2. **Komen bedrijven die nul keer genoemd worden op de publieke pagina?** Nodig vóór sprint 6. Zie
    23.2: er is geen precedent, en het is de scherpste haak én het grootste risico.
 3. **Hoe streng zijn we met de concurrenten van bestaande klanten?** Hele markt op slot, alleen de
    directe concurrenten, of per geval met goedkeuring van de eigenaar van de klantrelatie. Mijn
    advies staat in 9.5. Nodig vóór de eerste mail, dus vóór sprint 5.
-4. **Wie krijgt de rol sales admin**, en hoeveel mensen zijn dat? Nodig vóór sprint 1.
+4. **Wie krijgt de rol sales admin**, en hoeveel mensen zijn dat? **Blokkeert sprint 1 niet meer.**
+   Een beheerder is automatisch ook sales admin (§4.2), dus de eigenaar kan de module openen zonder
+   dat er ook maar één rij in `sales_users` staat. De vraag knelt pas bij de eerste
+   salesmedewerker die géén beheerder is, en dus vóór sprint 5.
 5. **Besloten, staat niet meer open.** De mail wordt altijd door de medewerker zelf verzonden vanuit
    zijn eigen mailbox (16.3). Wat nog open staat is alleen gemak: blijft het kopiëren naar de eigen
    client, of komt er later een koppeling die het concept in Gmail of Outlook klaarzet? Dat mag na

@@ -25,9 +25,26 @@ const UNIQUE_VIOLATION = "23505";
 export interface EnqueueArgs<T extends JobType> {
   type: T;
   payload: JobPayloads[T];
-  /** Analyse waar de taak bij hoort (of profileId. Precies één van beide). */
+  /**
+   * Waar deze taak bij hoort. Precies één van de drie.
+   *
+   * ⚠️ `salesMarketId` is de derde soort eigenaar (migratie 0070). Een markt uit
+   * de Sales-module is geen merk: een prospect is per definitie nog geen klant,
+   * en er is dus geen `profiles`-rij om de taak aan op te hangen. De constraint
+   * `jobs_has_owner` eist er één van de drie, dus een Sales-taak die geen markt
+   * meegeeft wordt door de database geweigerd.
+   */
   analysisId?: string | null;
   profileId?: string | null;
+  salesMarketId?: string | null;
+  /**
+   * Bij welke MEETRONDE hoort deze taak (migratie 0071)? Alleen voor de
+   * meetstappen, en altijd naast `salesMarketId`: de markt draagt het plafond,
+   * de ronde draagt de voortgang. Zonder dit veld is niet te zien hoeveel
+   * metingen er van rónde twee nog open staan, en dan weet de aggregatie niet
+   * wanneer ze aan de beurt is.
+   */
+  salesRunId?: string | null;
   /**
    * Sleutel die dit specifieke werk identificeert. Bestaat er al een OPENSTAANDE
    * taak met dezelfde sleutel, dan doet deze aanroep niets. Klaar of definitief
@@ -55,6 +72,8 @@ export async function enqueue<T extends JobType>(
       payload_json: args.payload as never,
       analysis_id: args.analysisId ?? null,
       profile_id: args.profileId ?? null,
+      sales_market_id: args.salesMarketId ?? null,
+      sales_run_id: args.salesRunId ?? null,
       dedupe_key: args.dedupeKey,
       status: "queued" as const,
       scheduled_for: (args.scheduledFor ?? new Date()).toISOString(),

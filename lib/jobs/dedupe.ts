@@ -130,6 +130,61 @@ export const dedupe = {
    */
   reputationMarket: (runId: string, offeringId: string | null) =>
     offeringId ? `rep_markt:${runId}:${offeringId}` : `rep_markt:${runId}:merk`,
+
+  // ── De Sales-module (docs/tasks/geo-prospect-engine.md §8.3) ──────────────
+  //
+  // De eerste drie zijn per markt: er is precies één ontdekking, één verificatie
+  // en één uitsluitingsronde per markt tegelijk. Loopt er een, dan doet een tweede
+  // startklik niets, en dat is de bedoeling: de ontdekking is de enige betaalde
+  // stap van deze sprint.
+  salesDiscover: (marketId: string) => `sales_discover:${marketId}`,
+  salesVerify: (marketId: string) => `sales_verify:${marketId}`,
+  salesSuppress: (marketId: string) => `sales_suppress:${marketId}`,
+  /**
+   * ⚠️ De MARKT hoort in deze sleutel, naast het bedrijf. Een bedrijf kan in
+   * meerdere markten zitten (plan hoofdstuk 6), en twee markten die hetzelfde
+   * bedrijf goedkeuren horen niet elkaars crawltaak weg te filteren als duplicaat.
+   * De crawl zelf is idempotent, dus twee taken kosten hooguit één extra
+   * netwerkverzoek; één taak te weinig kost een bedrijf zonder gegevens.
+   */
+  salesEnrich: (marketId: string, companyId: string) =>
+    `sales_enrich:${marketId}:${companyId}`,
+
+  // ── Sprint 3: de meting (plan hoofdstuk 10 en 11) ─────────────────────────
+  //
+  // Vanaf hier hangt alles aan de RONDE en niet aan de markt. Een markt wordt
+  // herhaald gemeten (plan hoofdstuk 6), en zou de sleutel op de markt staan,
+  // dan zou ronde twee zichzelf als duplicaat van ronde één wegfilteren. Dan
+  // bestaat opportunitytype 8 (verlies) niet meer, en dat is het type waar de
+  // hele economie van hermeten aan hangt.
+  salesIntents: (marketId: string) => `sales_intents:${marketId}`,
+  salesQuestions: (runId: string) => `sales_questions:${runId}`,
+  /**
+   * ⚠️ De ENGINE hoort onvoorwaardelijk in deze sleutel, precies zoals bij de
+   * klantmeting (migratie 0041). Zonder de engine ziet de Gemini-meting van een
+   * vraag de OpenAI-meting als "al ingepland" en slaat hij zichzelf over: zonder
+   * foutmelding, met een lege score per engine terwijl alles groen lijkt. En dan
+   * bestaat opportunitytype 4 (engine gap) niet.
+   */
+  salesMeasure: (runId: string, questionId: string, engine: string) =>
+    `sales_measure:${runId}:${questionId}:${engine}`,
+  salesAggregate: (runId: string) => `sales_aggregate:${runId}`,
+  salesDetect: (runId: string) => `sales_detect:${runId}`,
+  /**
+   * ⚠️ Op de KANS en niet op het bedrijf. Een bedrijf kan in twee markten
+   * zitten, en dan zijn dat twee kansen met twee verschillende haken. Zou de
+   * sleutel op het bedrijf staan, dan schrijft de tweede markt geen haak en
+   * staat daar een lege regel waar niemand een reden voor kan vinden.
+   */
+  salesExplain: (opportunityId: string) => `sales_explain:${opportunityId}`,
+  salesContact: (companyId: string) => `sales_contact:${companyId}`,
+  salesDraft: (outreachId: string) => `sales_draft:${outreachId}`,
+  /**
+   * ⚠️ Op de RONDE en niet op de markt: bij een hermeting hoort er een nieuw
+   * rapport te komen met de nieuwe cijfers, en dat zou met een marktsleutel als
+   * duplicaat wegvallen.
+   */
+  salesReport: (runId: string) => `sales_report:${runId}`,
   /**
    * Eén per profiel, geen modus in de sleutel (onboarding Ronde D, §17.7):
    * twee keer op "meer pagina's" of "opnieuw crawlen" drukken terwijl de

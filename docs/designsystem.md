@@ -518,7 +518,7 @@ op de kleur van de oude stand.
 staat in `lib/icons.ts` (35 betekenissen), het omhulsel dat maat en lijndikte vastzet in
 `components/icon.tsx`.
 
-⚠️ **Waar een icoon wél en niet komt.** De zes hoofdstukken van de zijbalk hebben er een, de
+⚠️ **Waar een icoon wél en niet komt.** De zeven hoofdstukken van de zijbalk hebben er een, de
 bestemmingen eronder niet. Dat is dezelfde dag nog bijgesteld: ze hebben ze een halve dag wél gehad,
 en zestien tekeningen in een balk van zestien regels markeren niets meer. Zie §6b.3, regel 4.
 
@@ -559,7 +559,7 @@ tegenovergestelde van §15.1 van `merkstrategie.md`: precies, rustig, premium.
 3. **De naam is de betekenis, niet de tekening.** `strategie`, niet `waypoints`. Verandert de
    tekening, dan is dat één regel in `lib/icons.ts`.
 4. **In de zijbalk draagt alleen de kop een icoon.** De bestemmingen eronder niet. Het icoon van de
-   kop moet het verschil dragen tussen "dit is een van de zes vaste plekken in de app" en "dit is
+   kop moet het verschil dragen tussen "dit is een van de zeven vaste plekken in de app" en "dit is
    een pagina daarbinnen", en dat verschil verdwijnt zodra beide er een hebben: als alles opvalt,
    valt niets op. De bestemming springt al in tot ónder de tekst van zijn kop, en dat zegt genoeg.
    (Tot 24 augustus 2026 stond daar ook een verticale lijn; die is weg omdat de uitlijning het

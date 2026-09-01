@@ -119,6 +119,107 @@ export const JOB_TYPES = [
   "reputation_sources",
   /** Blok D: de getallen rekenen, de tekst schrijven, de run afsluiten. */
   "reputation_synthesis",
+
+  // ── De Sales-module, sprint 2 (docs/tasks/geo-prospect-engine.md §8) ──────
+  //
+  // Vier taaksoorten, en maar één ervan roept een model aan. Dat is het ontwerp
+  // uit plan 21.1: wat meeschaalt met het aantal bedrijven moet gratis zijn,
+  // anders wordt een volledige markt duur en gaan mensen bedrijven wegsnijden.
+  // Precies de onzichtbare bedrijven die deze module zoekt.
+  /**
+   * Welke bedrijven vormen deze markt? De enige betaalde stap: één
+   * onderzoeksaanroep mét web-zoeken (conventie 7).
+   */
+  "sales_market_discover",
+  /**
+   * De bronpagina's uitlezen, ontdubbelen en de lijst vastleggen. Geen AI.
+   *
+   * ⚠️ Een EIGEN taaksoort en geen staart aan `sales_market_discover`. Die stap
+   * doet een web-zoekactie van tientallen seconden; deze haalt tot twaalf
+   * pagina's op. Samen passen ze niet betrouwbaar in één werker-aanroep, en dan
+   * zou een tijdslimiet de dure aanroep opnieuw laten betalen.
+   */
+  "sales_market_verify",
+  /** Klanten, lopende trajecten en afmeldingen eruit (plan 9.5). Geen AI. */
+  "sales_market_suppress",
+  /**
+   * De site van ÉÉN bedrijf uitlezen. Geen AI, en één taak per bedrijf.
+   *
+   * Zelfde reden als bij `measure_prompt`: dertig sites in één taak past niet in
+   * één werker-aanroep, en één onbereikbare site mag de andere negenentwintig
+   * niet meenemen.
+   */
+  "sales_company_enrich",
+  // ── Sprint 3: de meting (plan hoofdstuk 10 en 11) ─────────────────────────
+  /**
+   * Welke commerciële intenties heeft deze markt? Eén aanroep, geen web-zoeken.
+   *
+   * Draait ná de verrijking en niet ervoor: de intenties komen mede uit wat de
+   * sites van déze bedrijven aanbieden, en niet alleen uit wat het model over de
+   * branche weet (plan hoofdstuk 10).
+   */
+  "sales_market_intents",
+  /**
+   * De vragen schrijven op de plekken die de verdeling oplevert. Eén aanroep.
+   *
+   * ⚠️ Een EIGEN taaksoort en geen staart aan `sales_market_intents`. Twee
+   * aanroepen in één taak is conventie 7 overtreden, en het zou betekenen dat een
+   * mislukte vragenstap de intentiestap opnieuw laat betalen.
+   */
+  "sales_market_questions",
+  /**
+   * Eén vraag aan één engine stellen en het antwoord beoordelen.
+   *
+   * Precies de opzet van `measure_prompt`: de dure zoekactie en de goedkope
+   * beoordeling in één taak, zodat een mislukte beoordeling de zoekactie niet
+   * opnieuw laat betalen. Veertig vragen maal twee engines is tachtig taken, en
+   * dat is waar ~95% van de kosten van een marktronde zit (plan 21.1).
+   */
+  "sales_measure_question",
+  /** De meting omrekenen naar zichtbaarheid per bedrijf. Geen AI. */
+  "sales_market_aggregate",
+  // ── Sprint 4: de kansen (plan hoofdstuk 12 t/m 15) ────────────────────────
+  /**
+   * De acht opportunitytypes detecteren en scoren. Geen AI, en dat is het punt.
+   *
+   * Plan hoofdstuk 12: "Detectie is deterministisch. Het model schrijft later
+   * alleen de uitleg, en verzint nooit de conclusie zelf." Wat hieruit komt
+   * belandt in een mail aan een ondernemer die zijn eigen markt kent, en een
+   * conclusie die uit een model komt is niet na te rekenen.
+   */
+  "sales_detect_opportunities",
+  /**
+   * De uitleg en de haak bij ÉÉN kans. Eén goedkope aanroep, geen web-zoeken.
+   *
+   * Eén taak per kans en niet één taak voor de hele markt: dertig haken in één
+   * aanroep is één lang antwoord waarvan het staartje afgekapt raakt, en dan
+   * missen de laatste bedrijven hun zin zonder dat iemand het ziet.
+   */
+  "sales_opportunity_explain",
+  // ── Sprint 5: de outreach (plan hoofdstuk 16) ─────────────────────────────
+  //
+  // ⚠️ Deze twee draaien pas bij TOEWIJZING en niet bij detectie (plan §8.2b).
+  // Voor dertig bedrijven een contactpersoon uitzoeken en een mail schrijven die
+  // niemand verstuurt, is werk en geld dat niemand gebruikt.
+  /** Wie mailen we bij dit bedrijf? Eén onderzoeksaanroep mét web-zoeken. */
+  "sales_contact_find",
+  /**
+   * De conceptmail plus de gespreksvoorbereiding. Eén aanroep.
+   *
+   * ⚠️ Deze taak VERSTUURT NIETS, en dat kan hij ook niet: er is geen code in
+   * deze module die een verbinding met een mailserver maakt (plan 16.3). Hij zet
+   * een concept klaar dat de medewerker leest, aanpast en zelf verstuurt.
+   */
+  "sales_outreach_draft",
+  // ── Sprint 6: het publieke rapport (plan hoofdstuk 20) ────────────────────
+  /**
+   * De publieke marktpagina schrijven. Eén aanroep, geen web-zoeken.
+   *
+   * ⚠️ Deze taak PUBLICEERT niet. Publiceren is een expliciete handeling van een
+   * sales admin en intrekken kan altijd; een keten die dat als bijproduct doet,
+   * zou een pagina online zetten die niemand gelezen heeft.
+   */
+  "sales_market_report",
   /**
    * Blok M: de open koperssvraag die concurrenten ONTDEKT in plaats van ze op
    * te leggen. Vervangt de benoemde vergelijking als hoofdmechanisme, na de
@@ -271,6 +372,30 @@ export interface JobPayloads {
   };
   reputation_sources: { runId: string };
   reputation_synthesis: { runId: string };
+
+  // ── De Sales-module ──────────────────────────────────────────────────────
+  //
+  // Alle vier dragen `marketId`, ook de taak die over één bedrijf gaat. Dat is
+  // nodig voor het plafond per markt (`lib/sales/budget.ts`) en voor de vraag
+  // "zijn alle bedrijven van deze markt klaar", die anders niet te stellen is.
+  sales_market_discover: { marketId: string };
+  sales_market_verify: { marketId: string };
+  sales_market_suppress: { marketId: string };
+  sales_company_enrich: { marketId: string; companyId: string };
+  sales_market_intents: { marketId: string };
+  sales_market_questions: { marketId: string; runId: string };
+  sales_measure_question: {
+    marketId: string;
+    runId: string;
+    questionId: string;
+    engine: EngineId;
+  };
+  sales_market_aggregate: { marketId: string; runId: string };
+  sales_detect_opportunities: { marketId: string; runId: string };
+  sales_opportunity_explain: { marketId: string; runId: string; opportunityId: string };
+  sales_contact_find: { marketId: string; companyId: string; outreachId: string };
+  sales_outreach_draft: { marketId: string; outreachId: string };
+  sales_market_report: { marketId: string; runId: string };
   reputation_evidence: { runId: string };
   reputation_market: {
     runId: string;

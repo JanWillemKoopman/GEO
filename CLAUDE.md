@@ -18,6 +18,13 @@ Geen gedachtestreepjes (`—`/`–`) en geen "en/of" — overal, ook in code en 
 **Sales-led, niet self-serve** (`docs/logbook.md` §15): eigenaar zet merkprofiel klaar vóór
 demogesprek, pijplijn doet onderzoek, profiel wordt pas ná verkoop aan klantaccount gekoppeld.
 
+**De Sales-module** (`lib/sales/`, `app/(app)/sales/`, `docs/tasks/geo-prospect-engine.md`) is
+intern: een klant ziet er niets van, en de scheiding staat in de database en niet alleen in de
+schermen. Hij zoekt uit een markt de beste saleskansen, onderbouwt ze en zet een conceptmail klaar.
+Twee regels die overal in die module terugkomen: de app verstuurt zelf nooit een openingsmail, en
+elk getal in een zin die naar buiten gaat wordt tegen de meetdata gecontroleerd. Gebouwd, nog niet
+op een echte markt geverifieerd (`docs/tasks/live-testprompt-sales-module.md`).
+
 `main` is productie (Vercel). Werk op een feature-branch.
 
 ## Toegang

@@ -350,11 +350,12 @@ class QueryBuilder<T> implements PromiseLike<Antwoord<T>> {
     if (this.soort === "insert" || this.soort === "upsert") {
       const rijen = Array.isArray(this.payload) ? this.payload : [this.payload ?? {}];
       if (rijen.length === 0) return [];
+      const types = await laadKolomTypes(this.client);
       const kolommen = Array.from(new Set(rijen.flatMap((r) => Object.keys(r))));
       const params: unknown[] = [];
       const waardeRijen = rijen.map((r) => {
         const stukken = kolommen.map((k) => {
-          params.push(serialiseer(r[k]));
+          params.push(serialiseer(r[k], types.get(`${this.tabel}.${k}`)));
           return `$${params.length}`;
         });
         return `(${stukken.join(", ")})`;
@@ -380,9 +381,10 @@ class QueryBuilder<T> implements PromiseLike<Antwoord<T>> {
       const patch = (this.payload ?? {}) as Rij;
       const kolommen = Object.keys(patch);
       if (kolommen.length === 0) return [];
+      const types = await laadKolomTypes(this.client);
       const params: unknown[] = [];
       const sets = kolommen.map((k) => {
-        params.push(serialiseer(patch[k]));
+        params.push(serialiseer(patch[k], types.get(`${this.tabel}.${k}`)));
         return `${kolom(k)} = $${params.length}`;
       });
       const { sql, params: whereParams } = this.whereClause(params.length + 1);
@@ -404,16 +406,55 @@ class QueryBuilder<T> implements PromiseLike<Antwoord<T>> {
 }
 
 /**
- * Objecten en arrays gaan als JSON naar Postgres.
+ * De echte kolomtypes uit de database, één keer opgehaald.
  *
- * `pg` maakt van een JS-array een Postgres-array, en dat is voor een `jsonb`- of
- * `text[]`-kolom niet hetzelfde. Voor `text[]` klopt het wél, dus alleen
- * objecten en arrays-van-objecten worden geserialiseerd. Precies de vorm die de
- * `*_json`-kolommen krijgen.
+ * ── WAAROM DIT UIT POSTGRES KOMT EN NIET UIT EEN LIJSTJE HIER ───────────────
+ *
+ * Een array van strings moet naar een `text[]`-kolom als Postgres-array en naar
+ * een `jsonb`-kolom als JSON. Dat verschil is aan de JavaScript-kant niet te
+ * zien: `["funda.nl", "nvm.nl"]` is in beide gevallen hetzelfde.
+ *
+ * Dat is niet theoretisch misgegaan. De marktmeting van sprint 3 schrijft
+ * `cited_sources` (jsonb) en `unknown_names` (text[]) in dezelfde update. De
+ * shim maakte van allebei een Postgres-array, de jsonb-kolom weigerde dat, en
+ * omdat de aanroepende code de fout niet las bleef de kolom leeg. De ketentest
+ * bleef groen op alles behalve die ene assertie. Precies de stille afwijking
+ * waar de kop van dit bestand voor waarschuwt.
+ *
+ * Een handmatig lijstje jsonb-kolommen zou hetzelfde probleem over een half jaar
+ * terugbrengen, want dat lijstje loopt achter op de migraties. Dit niet: het
+ * leest wat er staat.
  */
-function serialiseer(waarde: unknown): unknown {
+let kolomTypes: Map<string, string> | null = null;
+
+async function laadKolomTypes(client: Client): Promise<Map<string, string>> {
+  if (kolomTypes) return kolomTypes;
+  const res = await client.query(
+    `select table_name, column_name, data_type
+       from information_schema.columns
+      where table_schema = 'public'`,
+  );
+  kolomTypes = new Map(
+    res.rows.map((r: Record<string, unknown>) => [
+      `${String(r.table_name)}.${String(r.column_name)}`,
+      String(r.data_type),
+    ]),
+  );
+  return kolomTypes;
+}
+
+/**
+ * Objecten en arrays gaan als JSON naar Postgres, tenzij de kolom een echte
+ * Postgres-array is.
+ *
+ * `pg` maakt van een JS-array een Postgres-array. Voor `text[]` klopt dat, voor
+ * `jsonb` niet, en welke van de twee het is staat in de kolomtypes hierboven.
+ */
+function serialiseer(waarde: unknown, kolomType: string | undefined): unknown {
   if (waarde === null || waarde === undefined) return null;
+  const isJson = kolomType === "jsonb" || kolomType === "json";
   if (Array.isArray(waarde)) {
+    if (isJson) return JSON.stringify(waarde);
     return waarde.some((v) => typeof v === "object" && v !== null) ? JSON.stringify(waarde) : waarde;
   }
   if (typeof waarde === "object" && !(waarde instanceof Date)) return JSON.stringify(waarde);

@@ -36,6 +36,23 @@ export interface CallMeta {
    * hoort de dimensie te dragen waarop je afrekent.
    */
   reputationRunId?: string | null;
+  /**
+   * Bij welke marktanalyse van de Sales-module hoort deze aanroep (migratie 0069)?
+   *
+   * Zelfde onderbouwing als `reputationRunId` hierboven: zonder dit veld is niet
+   * te tellen wat één markt heeft gekost, en dan is het plafond van 10 euro per
+   * markt uit `lib/sales/budget.ts` niet af te dwingen.
+   */
+  salesMarketId?: string | null;
+  /**
+   * Bij welke MEETRONDE van die markt hoort deze aanroep (migratie 0071)?
+   *
+   * Naast `salesMarketId` en niet in plaats daarvan: de markt draagt het
+   * plafond, de ronde draagt de kostprijs per hermeting. Dat tweede getal
+   * bepaalt of structureel hermeten uit kan (plan hoofdstuk 21), en dat is niet
+   * na te rekenen zolang alle rondes van een markt op één hoop liggen.
+   */
+  salesRunId?: string | null;
 }
 
 export interface LoggedCall {
@@ -64,6 +81,8 @@ export async function logAiCall(meta: CallMeta, call: LoggedCall): Promise<void>
       cost_usd: call.costUsd,
       openai_response_id: call.responseId,
       reputation_run_id: meta.reputationRunId ?? null,
+      sales_market_id: meta.salesMarketId ?? null,
+      sales_run_id: meta.salesRunId ?? null,
     });
   } catch (err) {
     // Bewust alleen loggen: zie de best-effort-regel bovenaan dit bestand.
