@@ -5583,3 +5583,72 @@ verkeerde beeld daar terugkomen.
 
 Vier controles groen: typecheck, 3398 unittests (met een nieuwe test op de `ready`-berekening), 549
 ketentests, de productiebuild.
+
+## 1 september 2026: de contentpijplijn krijgt een contract, een panel en gerichte reparatie
+
+Aanleiding: de opdracht om de contentpijplijn kritisch door te lichten en te herontwerpen, met als
+tweede eis dat een pagina als een VOLLEDIGE pagina moet lezen. De analyse staat in
+`docs/tasks/contentpijplijn-herontwerp.md`; dit is wat er gebouwd is.
+
+**Wat de cijfers zeiden.** Nagerekend op productie in plaats van geschat. Uit `ai_calls`: een pagina
+kostte $0,32, waarvan $0,316 in de twee aanroepen op het dure model (schrijven $0,154, volledig
+herschrijven $0,162, gemiddeld 4214 uitvoertokens à $30 per miljoen). Een beoordeling op de goedkope
+tier kostte $0,0008. Uit `content_pieces`: van de 29 afgeronde pagina's stonden er 15 op "check
+nodig", de gemiddelde pagina telde 548 woorden waar een artikel op 700 tot 1200 mikt, en de
+bronherleidbaarheid was 78,6% (bij de drie gepubliceerde pagina's 52,2%). Onderzoeken, plannen en
+beoordelen zijn dus vrijwel gratis; alleen schrijven is duur. Daarop is de hele keuze gebaseerd: het
+sectiegewijs schrijven op de dure tier (het enige voorstel dat de rekening echt verhoogt, naar
+ongeveer $0,90 per pagina) is NIET gebouwd, op verzoek van de eigenaar, en wacht tot de app bij
+meerdere klanten draait.
+
+**Het contentcontract, en waarom dit de kern is.** De claim-audit leverde BEWERINGEN, geen
+inhoudsopgave. Niemand bepaalde vooraf welke secties een pagina nodig had. Volledigheid hing daarmee
+aan promptregel 7 en aan één boolean die het model over zichzelf invulde, precies wat conventie 1
+verbiedt. Nu stelt een nieuwe taak (`content_plan`) per contentitem een contract op: secties, per
+sectie de deelvraag, de verplichte F-nummers, de uit te leggen termen en een richtlengte
+(`lib/pipeline/content-contract.ts`, `lib/schemas/content-contract.ts`). Datzelfde contract gaat naar
+de schrijver én naar de poort die de tekst narekent (`content-coverage.ts`, puur en getest). Dezelfde
+lijst die de opdracht geeft, rekent hem na.
+
+**Het itemdossier: het cluster vindt de kans, het item bepaalt de pagina.** Uitdrukkelijke wens van
+de eigenaar, en de logische voortzetting van S9 en S10. Eén onderzoekstap per aanbeveling, mét
+web_search, levert de deelvragen van de lezer, de vervolgvragen, de twijfels en de vaktermen die
+uitleg nodig hebben (`item-dossier.ts`). Kosten ongeveer anderhalve cent per pagina.
+
+**Elke algemene uitleg krijgt een bron die wij narekenen.** De feitenkaart bewaakt alles over de
+KLANT (R5.3); de algemene laag had geen enkele bewaking. Een completere pagina laat die laag juist
+groeien, dus dat gat groeit mee. `explainer-verify.ts` haalt de bron op en zoekt het letterlijke
+citaat terug; wat de controle niet haalt, vervalt en haalt de schrijfprompt niet. Onbekend is een
+betere waarde dan een verkeerde (conventie 3).
+
+**Drie beoordelaars in plaats van één.** De kritiek draaide op de goedkoopste stand (`effort: none`)
+van het goedkoopste model, voor het enige dat de klant letterlijk publiceert. Nu redactie,
+feitelijkheid en citeerbaarheid parallel, op dezelfde goedkope tier maar mét redeneertijd (nieuwe
+werk-soort `judging` in `sampling.ts`). Samen ongeveer $0,008 per pagina. De derde beoordelaar is
+nieuw en is de reden dat dit panel bestaat: die zegt welke vraag een lezer overhoudt.
+
+**De volledige herschrijving is weg.** In plaats daarvan repareert het model alleen de secties met
+een bevinding en zet CODE ze terug op hun plek (`content-sections.ts`, `ContentPatch`). Twee winsten:
+het model kan de goede passages niet meer stukmaken, want het krijgt ze niet in handen, en de
+uitvoertokens dalen fors. Maximaal drie rondes (`REPAIR_MAX`), geteld op de pagina zelf zodat de
+grens een taakherhaling overleeft. Verwachte kosten per pagina daarmee ongeveer $0,24, dus LAGER dan
+de $0,32 van vandaag.
+
+**Twee dingen die alleen over doorlooptijd gaan.** Contenttaken stonden niet in
+`IO_BOUND_HEAVY_TYPES` en draaiden dus strikt één voor één, met 200 van de 240 seconden vrijgehouden
+per stuk: een batch van tien pagina's is twintig taken en die vielen vrijwel allemaal in hun eigen
+werker-aanroep van een minuut. Ze hebben nu een eigen groep (`PARALLEL_CONTENT_TYPES`, drie tegelijk)
+mét de volle reservering, anders dan de reputatietaken: één afgebroken schrijfaanroep kost het
+duurste model twee keer. En de bronanalyse, die bij het schrijven én het herschrijven per pagina
+draaide, wordt gecacht op profiel plus een hash van (URL's, doelvragen).
+
+**Eén vraag per pagina gegarandeerd.** De briefing koos acht vragen, gesorteerd op hoeveel pagina's
+ze dienen. Een vraag die vier pagina's dient won dus altijd van een vraag die er één scherp maakt, en
+bij een batch van tien kon een pagina nul vragen krijgen terwijl juist die de dunste dekking had.
+Elke pagina zonder gekozen vraag krijgt er nu alsnog één, erbovenop en niet in ruil.
+
+Migratie `0082` (vier kolommen op `content_pieces`, tabel `source_analysis_cache`), toegepast op
+productie. Vier controles groen: typecheck, 3455 unittests, 557 ketentests, de productiebuild.
+**Nog niet geverifieerd tegen een echte klant** (conventie 10): het contract, de dekkingspoort en de
+reparatielus zijn getoetst tegen de stub en tegen opgeslagen data, niet tegen een verse pagina op
+productie. Dat is de eerstvolgende praktijktoets, en pas daarna mag hier staan dat het werkt.

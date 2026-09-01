@@ -74,6 +74,23 @@ export const dedupe = {
   contentBrief: (analysisId: string, titles: string[]) =>
     `brief:${analysisId}:${[...titles].sort().join("|")}`,
   contentRevise: (contentPieceId: string) => `content_revise:${contentPieceId}`,
+  /**
+   * De planstap vóór het schrijven (A1/A2, migratie 0082).
+   *
+   * Zelfde vorm als `contentDraft`, met een eigen voorvoegsel: de plantaak en de
+   * schrijftaak zijn twee verschillende taken over dezelfde pagina, en met één
+   * sleutel zou de tweede als duplicaat van de eerste wegvallen.
+   */
+  contentPlan: (analysisId: string, title: string) => `content_plan:${analysisId}:${title}`,
+  /**
+   * De schrijftaak die uit één plantaak voortkomt.
+   *
+   * Op het TAAK-id van de plantaak en niet op de pagina, want de plantaak heeft
+   * de versie en het aantal beantwoorde vragen al in zijn eigen sleutel zitten.
+   * Eén plantaak hoort precies één schrijftaak op te leveren, ook als de werker
+   * hem opnieuw probeert nadat het inplannen halverwege strandde.
+   */
+  contentDraftNa: (planJobId: string) => `content_draft_na:${planJobId}`,
   // Per DAG en per merk: twee rondes op dezelfde dag halen exact dezelfde
   // cijfers op, want Google levert pas definitieve data met twee dagen
   // vertraging (`lib/search-console/window.ts`).

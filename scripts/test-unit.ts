@@ -75,6 +75,15 @@ import {
   MAX_QUESTIONS,
 } from "@/lib/pipeline/briefing-select";
 import type { BriefingQuestion } from "@/lib/pipeline/briefing-select";
+import {
+  splitSections,
+  joinSections,
+  applySectionPatch,
+  normalizeHeading,
+} from "@/lib/pipeline/content-sections";
+import { checkContractCoverage } from "@/lib/pipeline/content-coverage";
+import type { ContentContract } from "@/lib/schemas/content-contract";
+import { normaliseerContract, formatContract } from "@/lib/pipeline/contract-format";
 import { checkContentGate, openingVan, geoRegels } from "@/lib/pipeline/content-gate";
 import {
   brandNav,
@@ -1744,6 +1753,53 @@ group("Briefingvragen selecteren (contentbriefing.md §3.4 / R5.1)", () => {
   // Verplicht wint van optioneel: is de vraag voor één pagina kern, dan is hij kern.
   ok("verplicht wint van optioneel", samengevoegd[0].required === true);
 
+  // ── Minstens één vraag per pagina (A8) ────────────────────────────────────
+  //
+  // De sortering is `aantal pagina's × kern × prioriteit`, dus een vraag die
+  // vier pagina's dient wint altijd van een vraag die er één scherp maakt. Bij
+  // een batch van tien pagina's kreeg een individuele pagina daardoor nul
+  // vragen, terwijl juist die de dunste feitendekking kon hebben.
+  const breedEnSmal = selectBriefingQuestions({
+    candidates: [
+      // Tien echt verschillende onderwerpen, want vragen over hetzelfde
+      // onderwerp worden eerst samengevoegd (`dedupeOpOnderwerp`).
+      ...[
+        "Hoeveel behandelkamers zijn er?",
+        "Welke openingstijden gelden er?",
+        "Is er gratis parkeergelegenheid?",
+        "Werken jullie met contracten van zorgverzekeraars?",
+        "Hoeveel therapeuten staan er ingeschreven?",
+        "Bestaat de praktijk langer dan tien jaar?",
+        "Wordt er ook aan huis behandeld?",
+        "Welke keurmerken heeft de praktijk?",
+        "Kunnen kinderen ook terecht?",
+        "Is er een wachtlijst voor nieuwe klanten?",
+      ].map((question, i) => ({
+        ...basis,
+        claimKey: `breed${i}`,
+        question,
+        required: false,
+        contentPieceIds: ["p1", "p2", "p3", "p4"],
+      })),
+      {
+        ...basis,
+        claimKey: "smal",
+        question: "Wat kost een losse sessie?",
+        required: false,
+        contentPieceIds: ["p9"],
+      },
+    ],
+    alreadyKnown: new Set(),
+  });
+  ok(
+    "een pagina die anders leeg zou blijven krijgt alsnog zijn eigen vraag",
+    breedEnSmal.some((v) => v.contentPieceIds.includes("p9")),
+  );
+  ok(
+    "en de brede vragen worden er niet voor weggeruild",
+    breedEnSmal.filter((v) => v.contentPieceIds.includes("p1")).length >= 8,
+  );
+
   // Nooit vragen wat we al weten. Dat is geloofwaardigheidsverlies (§4 regel 6).
   const bekend = selectBriefingQuestions({
     candidates: [{ ...basis, claimKey: "a", question: "Al bekend?", required: true, contentPieceIds: ["p1"] }],
@@ -2832,6 +2888,13 @@ group("soort werk → parameters", () => {
   const con = resolveTuning(MODELS.content, "content");
   ok("content krijgt redeneertijd", con.reasoningEffort === "medium");
   ok("zonder temperatuur", con.temperature === undefined);
+
+  // Het beoordelaarspanel (A5): hetzelfde goedkope model als classificeren,
+  // maar mét redeneertijd. Gaat dit stuk, dan beoordeelt de goedkoopste stand
+  // van het goedkoopste model weer het duurste product van de app.
+  const jud = resolveTuning(MODELS.quality, "judging");
+  ok("beoordelen krijgt redeneertijd", jud.reasoningEffort === "medium");
+  ok("en dus geen temperatuur", jud.temperature === undefined);
 
   const sim = resolveTuning(MODELS.quality, "simulation");
   ok("de meting draait op de modelstandaard", sim.temperature === undefined && sim.reasoningEffort === undefined);
@@ -15846,6 +15909,269 @@ group("van prospect naar klant is de enige brug naar de klantomgeving", () => {
   ok("de bestaande onboarding start", bron.includes("profile_discover"));
   ok("en de statusmachine beslist of het mag", bron.includes("beoordeelStatus"));
   ok("alleen een sales admin", bron.includes("isSalesAdmin"));
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+group("Een pagina in secties knippen en repareren (A6)", () => {
+  const pagina = [
+    "Fysi-Unique behandelt hardloopblessures in Amersfoort.",
+    "",
+    "## Welke klachten",
+    "",
+    "Runnersknie en shin splints.",
+    "",
+    "## Afspraak maken",
+    "",
+    "Bel of mail.",
+  ].join("\n");
+
+  const secties = splitSections(pagina);
+  ok("de aanhef telt als eigen sectie", secties[0].heading === "" && secties.length === 3);
+  ok("de kop staat er zonder hekjes in", secties[1].heading === "Welke klachten");
+  ok("de kopregel zit niet in de body", !secties[1].body.includes("##"));
+
+  // Heen en terug mag de tekst niet veranderen: anders zou elke reparatie de
+  // pagina stilletjes herschrijven, ook waar niets aan de hand was.
+  ok("heen en terug levert dezelfde tekst", joinSections(splitSections(pagina)) === pagina.trim());
+
+  ok("koppen vergelijken negeert hoofdletters en leestekens",
+    normalizeHeading("## Afspraak, maken!") === normalizeHeading("afspraak maken"));
+
+  // ── De kern van A6: één sectie vervangen, de rest blijft letterlijk staan ──
+  const gepatcht = applySectionPatch(pagina, [
+    { heading: "Afspraak maken", markdown: "Bel of mail; je kunt binnen 24 uur terecht." },
+  ]);
+  ok("de genoemde sectie is vervangen", gepatcht.bodyMarkdown.includes("binnen 24 uur"));
+  ok("de andere sectie is onaangeroerd", gepatcht.bodyMarkdown.includes("Runnersknie en shin splints."));
+  ok("de aanhef blijft staan", gepatcht.bodyMarkdown.startsWith("Fysi-Unique behandelt"));
+  ok("en wordt als vervangen gemeld", gepatcht.vervangen.length === 1);
+
+  // Een kop die nog niet bestaat wordt toegevoegd, niet weggegooid: dat is
+  // precies het geval waarin de dekkingspoort een ontbrekende sectie vond.
+  const aangevuld = applySectionPatch(pagina, [
+    { heading: "Wat kost het", markdown: "Een intake kost 45 euro." },
+  ]);
+  ok("een ontbrekende sectie wordt toegevoegd", aangevuld.bodyMarkdown.includes("## Wat kost het"));
+  ok("en als toegevoegd gemeld", aangevuld.toegevoegd.length === 1);
+
+  // Een lege patch mag nooit een sectie leegmaken.
+  const leeg = applySectionPatch(pagina, [{ heading: "Welke klachten", markdown: "   " }]);
+  ok("een lege patch verandert niets", leeg.bodyMarkdown.includes("Runnersknie en shin splints."));
+
+  // De aanhef repareren gaat met een lege kop.
+  const aanhef = applySectionPatch(pagina, [{ heading: "", markdown: "Ja, je kunt zonder verwijzing terecht." }]);
+  ok("de aanhef is te repareren", aanhef.bodyMarkdown.startsWith("Ja, je kunt zonder verwijzing"));
+  ok("zonder de rest te raken", aanhef.bodyMarkdown.includes("## Welke klachten"));
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+group("De dekkingspoort op het contentcontract (A3)", () => {
+  const contract: ContentContract = {
+    openingAnswer: "Fysi-Unique behandelt hardloopblessures in Amersfoort.",
+    sections: [
+      {
+        id: "s1",
+        heading: "Welke klachten",
+        subQuestion: "Welke hardloopblessures behandelt Fysi-Unique?",
+        mustCover: [],
+        factRefs: ["F2"],
+        explainerTerms: ["runnersknie"],
+        targetWords: 100,
+      },
+      {
+        id: "s2",
+        heading: "Wat kost het",
+        subQuestion: "Wat kost een behandeling bij Fysi-Unique?",
+        mustCover: [],
+        factRefs: [],
+        explainerTerms: [],
+        targetWords: 100,
+      },
+    ],
+    faqQuestions: ["Heb ik een verwijzing nodig?"],
+    reasoning: "",
+  };
+
+  const compleet = [
+    "Fysi-Unique behandelt hardloopblessures in Amersfoort.",
+    "",
+    "## Welke klachten",
+    "",
+    "Fysi-Unique behandelt hardloopblessures zoals runnersknie en shin splints, en kijkt bij elke " +
+      "blessure eerst naar de looptechniek voordat de behandeling begint. Runnersknie is pijn aan " +
+      "de buitenkant van de knie door overbelasting bij het hardlopen.",
+    "",
+    "## Wat kost het",
+    "",
+    "Een behandeling bij Fysi-Unique kost 45 euro per sessie, en een intake duurt drie kwartier " +
+      "zodat er tijd is om de klacht goed in kaart te brengen.",
+  ].join("\n");
+
+  const goed = checkContractCoverage({
+    contract,
+    bodyMarkdown: compleet,
+    faq: [{ q: "Heb ik een verwijzing nodig?", a: "Nee, dat hoeft niet." }],
+    claims: [{ factRef: "F2" }],
+  });
+  ok("een pagina die het contract volgt haalt 100", goed.score === 100, `score ${goed.score}`);
+  ok("en levert geen enkele bevinding op", goed.issues.length === 0, goed.issues.join(" | "));
+
+  // ── De reden dat deze poort bestaat: een ontbrekende sectie ───────────────
+  const zonderPrijs = compleet.split("## Wat kost het")[0].trim();
+  const mist = checkContractCoverage({
+    contract,
+    bodyMarkdown: zonderPrijs,
+    faq: [{ q: "Heb ik een verwijzing nodig?", a: "Nee, dat hoeft niet." }],
+    claims: [{ factRef: "F2" }],
+  });
+  ok("een ontbrekende sectie drukt de score", (mist.score ?? 100) < 100);
+  ok("en wordt met kop en al benoemd",
+    mist.issues.some((i) => i.includes("Wat kost het")),
+    mist.issues.join(" | "));
+
+  // Een sectie die er staat maar de vraag niet beantwoordt: het geval waarin de
+  // oude pijplijn een pagina goedkeurde die inhoudelijk niets zei.
+  const leegPraat = compleet.replace(
+    "Een behandeling bij Fysi-Unique kost 45 euro per sessie, en een intake duurt drie kwartier " +
+      "zodat er tijd is om de klacht goed in kaart te brengen.",
+    "Wij vinden het belangrijk dat iedereen zich welkom voelt bij ons in de praktijk vandaag.",
+  );
+  const dun = checkContractCoverage({
+    contract,
+    bodyMarkdown: leegPraat,
+    faq: [{ q: "Heb ik een verwijzing nodig?", a: "Nee." }],
+    claims: [{ factRef: "F2" }],
+  });
+  ok("een sectie die de deelvraag niet beantwoordt telt niet mee",
+    dun.secties.find((s) => s.id === "s2")?.beantwoordt === false);
+
+  // Een verplicht feit dat nergens gebruikt is.
+  const zonderFeit = checkContractCoverage({
+    contract,
+    bodyMarkdown: compleet,
+    faq: [{ q: "Heb ik een verwijzing nodig?", a: "Nee." }],
+    claims: [],
+  });
+  ok("een ongebruikt verplicht feit wordt gemeld",
+    zonderFeit.issues.some((i) => i.includes("F2")), zonderFeit.issues.join(" | "));
+
+  // Een ontbrekende FAQ-vraag.
+  const zonderFaq = checkContractCoverage({
+    contract,
+    bodyMarkdown: compleet,
+    faq: [],
+    claims: [{ factRef: "F2" }],
+  });
+  ok("een ontbrekende FAQ-vraag wordt gemeld", zonderFaq.ontbrekendeFaq.length === 1);
+
+  // ⚠️ Zonder contract géén oordeel, en zeker geen 0 (conventie 3).
+  const geen = checkContractCoverage({
+    contract: null,
+    bodyMarkdown: compleet,
+    faq: [],
+    claims: [],
+  });
+  ok("zonder contract is de dekking onbekend, niet nul", geen.score === null);
+  ok("en levert hij geen bevindingen op", geen.issues.length === 0);
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+group("Het contract opschonen en als opdracht formuleren (A2)", () => {
+  const rommelig: ContentContract = {
+    openingAnswer: "Ja, dat kan.",
+    sections: [
+      {
+        id: "",
+        heading: "Wat kost het",
+        subQuestion: "Wat kost een behandeling?",
+        mustCover: ["", "de prijs"],
+        factRefs: ["", "F1"],
+        explainerTerms: [""],
+        targetWords: 0,
+      },
+      // Een sectie zonder kop of zonder deelvraag kan de poort niet toetsen en
+      // de schrijver niet uitvoeren: die hoort te vervallen.
+      { id: "s2", heading: "  ", subQuestion: "iets", mustCover: [], factRefs: [], explainerTerms: [], targetWords: 100 },
+      { id: "s3", heading: "Kop", subQuestion: "  ", mustCover: [], factRefs: [], explainerTerms: [], targetWords: 9999 },
+    ],
+    faqQuestions: ["", "Heb ik een verwijzing nodig?"],
+    reasoning: "",
+  };
+  const schoon = normaliseerContract(rommelig);
+  ok("secties zonder kop of deelvraag vervallen", schoon.sections.length === 1);
+  ok("een lege id wordt aangevuld", schoon.sections[0].id === "s1");
+  ok("een onzinnige lengte wordt begrensd", schoon.sections[0].targetWords >= 40);
+  ok("lege punten worden opgeruimd", schoon.sections[0].mustCover.length === 1);
+  ok("lege FAQ-vragen ook", schoon.faqQuestions.length === 1);
+
+  const opdracht = formatContract(schoon);
+  ok("de opdracht noemt de opening", opdracht.includes("Ja, dat kan."));
+  ok("en de kop van de sectie", opdracht.includes("Wat kost het"));
+  ok("en zegt dat het nagerekend wordt", opdracht.includes("rekenen"));
+  ok("zonder contract is de opdracht leeg", formatContract(null) === "");
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+group("De bedrading van de nieuwe contentpijplijn", () => {
+  // ── De planstap gaat vóór het schrijven (A1/A2) ──────────────────────────
+  const planner = leesBestand("lib/jobs/content-jobs.ts");
+  ok("de schrijfknop start de planstap", planner.includes('type: "content_plan"'));
+  ok("en niet meer rechtstreeks het schrijven", !planner.includes('type: "content_draft"'));
+
+  const handlers = leesBestand("lib/jobs/handlers.ts");
+  ok("de plantaak plant daarna het schrijven in", handlers.includes('type: "content_draft"'));
+  ok("en geeft het contract mee in de payload", handlers.includes("voorbereid"));
+
+  // ── Contenttaken draaien parallel (A10) ──────────────────────────────────
+  const types = leesBestand("lib/jobs/types.ts");
+  ok("contenttaken mogen naast elkaar draaien", types.includes("PARALLEL_CONTENT_TYPES"));
+  const worker = leesBestand("lib/jobs/worker.ts");
+  ok("de werker kent die groep", worker.includes("PARALLEL_CONTENT_TYPES"));
+  // ⚠️ De VOLLE reservering, niet de krappe van de reputatietaken: één
+  // afgebroken schrijfaanroep kost het duurste model twee keer.
+  ok(
+    "met de volle reservering per groep",
+    worker.includes("parallelContent.length") && worker.includes("HEAVY_JOB_RESERVE_MS > TIME_BUDGET_MS"),
+  );
+
+  // ── De reparatie is gericht, niet een volledige herschrijving (A6) ───────
+  const content = leesBestand("lib/pipeline/content.ts");
+  ok("de reparatie vraagt om een patch", content.includes("schema: ContentPatch"));
+  ok("en zet die met code terug op zijn plek", content.includes("applySectionPatch"));
+  ok("er is een harde grens op het aantal rondes", content.includes("REPAIR_MAX"));
+  // De oude vorm mag niet terugkomen: die liet het dure model de hele pagina
+  // opnieuw schrijven, met alle bevindingen op één hoop.
+  ok("de volledige herschrijving is weg", !content.includes("buildReviseInput"));
+
+  // ── Het panel beoordeelt, niet één generalist (A5) ───────────────────────
+  const panel = leesBestand("lib/pipeline/content-panel.ts");
+  ok("er zijn drie beoordelaars", panel.includes("content_factuality") && panel.includes("content_citability"));
+  ok("ze draaien tegelijk", panel.includes("Promise.all"));
+  ok("op de goedkope tier", panel.includes("MODELS.quality") && !panel.includes("MODELS.content"));
+  ok("met redeneertijd", panel.includes('work: "judging"'));
+
+  // ── Algemene uitleg komt alleen met nagerekende bron op de pagina (A7) ───
+  const uitleg = leesBestand("lib/pipeline/explainer-verify.ts");
+  ok("de bron wordt echt opgehaald", uitleg.includes("crawlPages"));
+  ok("en het citaat teruggezocht", uitleg.includes("quoteInText"));
+  ok(
+    "alleen geverifieerde uitleg gaat de pagina op",
+    uitleg.includes("goed = explainers.filter((e) => e.verified)") ||
+      uitleg.includes("filter((e) => e.verified)"),
+  );
+  ok("en de schrijver krijgt alleen die", content.includes("explainers.filter") || content.includes("e.verified"));
+
+  // ── De dekkingspoort hangt aan de eindstand (A3) ─────────────────────────
+  ok("de dekking bepaalt mee of er gerepareerd wordt", content.includes("COVERAGE_THRESHOLD"));
+  ok("en wordt bewaard bij de pagina", content.includes("coverage_score"));
+
+  // ── De bronanalyse wordt hergebruikt (A9) ────────────────────────────────
+  const bron = leesBestand("lib/pipeline/source-analysis.ts");
+  ok("de bronanalyse wordt gecacht", bron.includes("source_analysis_cache"));
+  // ⚠️ De doelvragen horen in de sleutel: anders krijgen twee pagina's met
+  // dezelfde bronnen dezelfde analyse, en dat is precies de clusterbrede
+  // vervlakking die S9 en S10 kwamen repareren.
+  ok("met de doelvragen in de sleutel", bron.includes("vragen:"));
 });
 
 // ════════════════════════════════════════════════════════════════════════════

@@ -5439,12 +5439,27 @@ async function main(): Promise<void> {
       });
       ok("de schrijftaak wordt ingepland", ptCreated);
 
+      // ── Eerst de planstap, dan het schrijven (A1/A2, migratie 0082) ────────
+      //
+      // `planContentDraft()` plant sinds dit werk `content_plan` in; die taak
+      // zoekt uit wat er op de pagina moet staan en plant daarna zelf
+      // `content_draft` in. De keten toetst hier dus precies de bedrading die
+      // veranderd is: zonder de plantaak komt er geen schrijftaak.
+      const { runJob } = await import("@/lib/jobs/handlers");
+      const { rows: ptPlanRows } = await db.client.query(
+        `select * from public.jobs where analysis_id = $1 and type = 'content_plan'
+          order by created_at desc limit 1`,
+        [ptAnalysisId],
+      );
+      ok("de planstap staat vóór het schrijven in de rij", ptPlanRows.length === 1);
+      await runJob({ admin: admin as never, job: { ...ptPlanRows[0], status: "running" } });
+
       const { rows: ptJobRows } = await db.client.query(
         `select * from public.jobs where analysis_id = $1 and type = 'content_draft'
           order by created_at desc limit 1`,
         [ptAnalysisId],
       );
-      const { runJob } = await import("@/lib/jobs/handlers");
+      ok("de plantaak plant het schrijven in", ptJobRows.length === 1);
       await runJob({ admin: admin as never, job: { ...ptJobRows[0], status: "running" } });
 
       const { rows: ptStukRows } = await db.client.query(
@@ -5468,6 +5483,65 @@ async function main(): Promise<void> {
         ptDoelvraagRows.length === 1 && ptDoelvraagRows[0]?.prompt_id === ptPromptId,
         `${ptDoelvraagRows.length} doelvra(a)g(en)`,
       );
+
+      // ── Het contract landt bij de pagina, en de reparatie is gericht ─────
+      //
+      // (docs/tasks/contentpijplijn-herontwerp.md A2/A3/A6). Twee dingen die
+      // alleen in de keten te zien zijn: dat de plantaak zijn contract echt
+      // doorgeeft aan de geschreven pagina, en dat een reparatieronde alleen
+      // de genoemde sectie aanraakt en de rest letterlijk laat staan.
+      const { rows: ptContractRows } = await db.client.query(
+        `select contract_json, dossier_json, coverage_score, body_markdown
+           from public.content_pieces where id = $1`,
+        [ptContentPieceId],
+      );
+      const ptContract = ptContractRows[0]?.contract_json as { sections?: unknown[] } | null;
+      ok("het contract staat bij de geschreven pagina", (ptContract?.sections ?? []).length === 2);
+      ok("de dekking is berekend", ptContractRows[0]?.coverage_score !== null);
+      // ⚠️ De uitleg uit het dossier haalde de controle NIET (de bron bestaat
+      // niet in de ketentest), en dat hoort zo: niet-geverifieerde uitleg mag de
+      // pagina niet op (A7).
+      const ptDossier = ptContractRows[0]?.dossier_json as
+        | { explainers?: { verified?: boolean }[] }
+        | null;
+      ok(
+        "uitleg zonder werkende bron gaat niet mee",
+        (ptDossier?.explainers ?? []).every((e) => e.verified !== true),
+      );
+
+      const ptVoorReparatie = (ptContractRows[0]?.body_markdown as string) ?? "";
+      await db.client.query(`update public.content_pieces set status = 'draft' where id = $1`, [
+        ptContentPieceId,
+      ]);
+      const { reviseContentPiece } = await import("@/lib/pipeline/content");
+      const ptReparatie = await reviseContentPiece({
+        analysisId: ptAnalysisId,
+        userId: ptUserId,
+        contentPieceId: ptContentPieceId as string,
+        recommendation: {
+          title: "Kans pagina",
+          type: "landing",
+          targetIntent: "Iemand die dit onderwerp zoekt",
+          why: "De AI noemt ons niet bij dit onderwerp.",
+          targets: gevonden.targets,
+        },
+        issues: ['In de sectie "Afspraak maken": zeg hoe snel iemand terecht kan.'],
+      });
+      const { rows: ptNaRows } = await db.client.query(
+        `select body_markdown, repair_round from public.content_pieces where id = $1`,
+        [ptContentPieceId],
+      );
+      const ptNa = (ptNaRows[0]?.body_markdown as string) ?? "";
+      ok("de reparatieronde is geteld", ptNaRows[0]?.repair_round === 1 && ptReparatie.ronde === 1);
+      ok("de genoemde sectie is herschreven", ptNa.includes("Bel of mail voor een afspraak"));
+      ok(
+        "de andere sectie staat er letterlijk nog",
+        ptNa.includes("runnersknie") && ptVoorReparatie.includes("runnersknie"),
+      );
+
+      await db.client.query(`update public.content_pieces set status = 'ready' where id = $1`, [
+        ptContentPieceId,
+      ]);
 
       // ── En de effectmeting mag nu wél twee golven plannen ───────────────
       // (voorheen: "geen doelvragen", nul golven, fase 5 bestond niet voor

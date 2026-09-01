@@ -414,6 +414,32 @@ export function selectBriefingQuestions(args: {
     }
   }
 
+  // ── Minstens één vraag per PAGINA (A8) ────────────────────────────────────
+  //
+  // De sortering hierboven is `aantal pagina's × kern(2) × prioriteit`. Een
+  // vraag die vier pagina's dient wint daarmee altijd van een vraag die er één
+  // scherp maakt, en bij een batch van tien pagina's kan een individuele pagina
+  // dus nul vragen krijgen terwijl juist die de dunste feitendekking heeft. Dat
+  // is dezelfde fout als de clusterbrede input die S9 en S10 repareerden, maar
+  // dan in de vragenronde: de kans wordt clusterbreed gevonden, de PAGINA moet
+  // itemspecifiek geschreven worden.
+  //
+  // Per pagina zonder gekozen vraag komt de best scorende kandidaat van díé
+  // pagina er alsnog bij. Bewust erbovenop en niet in ruil: een vraag die vier
+  // pagina's dient wegruilen om er één te helpen maakt het probleem groter, en
+  // de klant ziet ze gegroepeerd per pagina.
+  const gedekt = new Set(gekozen.flatMap((v) => v.contentPieceIds));
+  const allePaginas = new Set(gesorteerd.flatMap((v) => v.contentPieceIds));
+  for (const pieceId of allePaginas) {
+    if (gedekt.has(pieceId)) continue;
+    const kandidaat = gesorteerd.find(
+      (v) => v.contentPieceIds.includes(pieceId) && !gekozen.includes(v),
+    );
+    if (!kandidaat) continue;
+    gekozen.push(kandidaat);
+    for (const id of kandidaat.contentPieceIds) gedekt.add(id);
+  }
+
   return gekozen;
 }
 

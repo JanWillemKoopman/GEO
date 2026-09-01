@@ -33,7 +33,15 @@ import { currentPiece } from "@/lib/jobs/content-jobs";
 import { callStructured } from "@/lib/openai/structured";
 import { MODELS } from "@/lib/openai/models";
 import { ContentPiece } from "@/lib/schemas/content-piece";
-import { Critique, geoScore, geoIssues } from "@/lib/schemas/critique";
+import { geoScore, geoIssues } from "@/lib/schemas/critique";
+import { ContentPatch } from "@/lib/schemas/content-patch";
+import type { ContentContract } from "@/lib/schemas/content-contract";
+import type { ItemDossier } from "@/lib/schemas/item-dossier";
+import { formatContract } from "@/lib/pipeline/contract-format";
+import { checkContractCoverage } from "@/lib/pipeline/content-coverage";
+import { applySectionPatch, splitSections } from "@/lib/pipeline/content-sections";
+import { runPanel } from "@/lib/pipeline/content-panel";
+import { formatExplainerBlock, type VerifiedExplainer } from "@/lib/pipeline/explainer-verify";
 import {
   checkContentGate,
   checkQuality,
@@ -97,6 +105,29 @@ const REVIEW_THRESHOLD = 80;
 const GEO_THRESHOLD = 60;
 
 /**
+ * Onder deze dekking van het CONTENTCONTRACT is de pagina niet af
+ * (docs/tasks/contentpijplijn-herontwerp.md A3).
+ *
+ * 85 en niet 100: het contract is een plan, en een goede schrijver mag twee
+ * secties samenvoegen als dat beter leest. Onder 85 gaat het niet meer om
+ * schrijverskeuzes maar om ontbrekende inhoud, en dat is precies het gevoel
+ * "er mist iets" waar dit werk voor bestaat.
+ */
+const COVERAGE_THRESHOLD = 85;
+
+/**
+ * Hoeveel gerichte reparatierondes een pagina hoogstens krijgt (A6).
+ *
+ * Drie. Er was er één, en die herschreef de HELE pagina: op productie kostte
+ * dat $0,162 per keer en kregen alle vijf de pagina's van 26 augustus er één.
+ * Een gerichte reparatie raakt alleen de secties met een bevinding, dus drie
+ * ervan kosten samen minder dan die ene volledige herschrijving. Meer dan drie
+ * heeft geen zin: wat er dan nog staat, is meestal een ontbrekend FEIT, en dat
+ * lost geen herschrijving op maar een vraag aan de klant.
+ */
+const REPAIR_MAX = 3;
+
+/**
  * Hoeveel concurrenten we ophalen vóór het herrangschikken op relevantie voor
  * deze pagina (S10), tegenover hoeveel EIGENSCHAPPEN daarvan uiteindelijk de
  * prompt in gaan. Ruimer dan vroeger (was meteen de eindlimiet), want anders
@@ -114,7 +145,7 @@ const EDGE_MAX = 8;
  * artikel is. Een AI-assistent citeert bovendien liever een compacte, precieze
  * passage dan een uitgesponnen betoog, lengte is hier geen kwaliteitsmaat.
  */
-const TARGET_WORDS: Record<ContentType, { min: number; max: number }> = {
+export const TARGET_WORDS: Record<ContentType, { min: number; max: number }> = {
   faq: { min: 250, max: 500 }, // korte inleiding; het werk zit in de vraag-antwoordparen
   landing: { min: 400, max: 700 }, // overtuigen kost ruimte, uitweiden niet
   article: { min: 700, max: 1200 }, // het enige type waar diepte echt telt
@@ -177,7 +208,23 @@ const CONTENT_SYSTEM =
   "woorden. Schrijf dus 'en of' voltuit en 'product of dienst' voltuit. Dat zijn de twee leestekens " +
   "waaraan een lezer AI-tekst herkent, en deze pagina verschijnt onder de naam van de klant zelf. " +
   "Splits zo'n zin in twee zinnen, of gebruik een komma, een dubbele punt of het woord 'of'. " +
-  "Een koppelteken in een samenstelling ('AI-assistent') is gewoon goed en mag blijven.";
+  "Een koppelteken in een samenstelling ('AI-assistent') is gewoon goed en mag blijven. " +
+  // ── Het contentcontract (A2/A3) ──────────────────────────────────────────
+  // Dit is de enige regel in deze lijst die de VOLLEDIGHEID bewaakt, en de enige
+  // die achteraf sectie voor sectie nagerekend wordt (`content-coverage.ts`).
+  // De vorige vorm hiervan was "beantwoord ook de logische vervolgvragen", een
+  // wens zonder maat: de gemeten uitkomst was 548 woorden gemiddeld, onder de
+  // ondergrens van drie van de vier paginatypes.
+  "(10) HET CONTRACT. Krijg je hieronder een CONTRACT met secties, dan is dat geen suggestie maar " +
+  "de inhoudsopgave van deze pagina. Elke sectie komt erop, in die volgorde, met een kop, en elke " +
+  "sectie beantwoordt de vraag die erbij staat met minstens één zin die losstaand te begrijpen is. " +
+  "Wij rekenen dat na, sectie voor sectie. Je mag beter schrijven dan het contract vraagt; je mag " +
+  "er niets uit weglaten. " +
+  "(11) ALGEMENE UITLEG. Onder 'GECONTROLEERDE ALGEMENE UITLEG' staat uitleg over het onderwerp " +
+  "waarvan wij de bron hebben nagerekend. Die mag je gebruiken en hoort vaak juist op de pagina, " +
+  "want hij maakt hem compleet. Hij gaat over het ONDERWERP en nooit over dit bedrijf, dus er " +
+  "hoort geen F-nummer bij. Andere algemene uitleg mag ook, maar houd hem dan bij wat algemeen " +
+  "bekend is: verzin nooit een cijfer, een norm of een termijn die je niet hebt gekregen.";
 
 // De vangnet-instructie bij web-zoeken tijdens het schrijven (optimalisatie.md
 // 4.6) staat als `buildFactFindingAddendum()` in `factcard.ts`: puur en
@@ -200,7 +247,7 @@ const CRITIQUE_SYSTEM =
   "Geef concrete, korte verbeterpunten. Antwoord in het Nederlands.";
 
 /** Type-specifieke instructie, bepaalt wat voor pagina er echt uitkomt. */
-const TYPE_GUIDANCE: Record<ContentType, string> = {
+export const TYPE_GUIDANCE: Record<ContentType, string> = {
   faq:
     "Schrijf ECHTE veelgestelde klantvragen + antwoorden: dingen die klanten willen weten vóór ze " +
     "langskomen of boeken (bv. hoe maak ik een afspraak of kan ik zonder afspraak langskomen, welke " +
@@ -351,6 +398,10 @@ function buildContentInput(args: {
   plan: AuditedClaim[];
   /** Verplichte vragen die de klant liet liggen. Die claims vervallen (§6). */
   unansweredRequired: string[];
+  /** De inhoudsopgave die deze pagina moet volgen (A2). `null` = geen contract. */
+  contract: ContentContract | null;
+  /** Algemene uitleg met nagerekende bron (A7). Leeg = niets te gebruiken. */
+  explainerBlock: string;
 }): string {
   const {
     analysis,
@@ -366,6 +417,8 @@ function buildContentInput(args: {
     facts,
     plan,
     unansweredRequired,
+    contract,
+    explainerBlock,
   } = args;
 
   const styleSamples = profile?.style_samples ?? [];
@@ -419,6 +472,16 @@ function buildContentInput(args: {
     objectionsRule({ sales_objections: profile?.sales_objections ?? [] }),
     // ✅ De gesloten feitenkaart (R5.3). Geen uitnodiging maar een grens.
     formatFactCard(facts),
+    // ✅ HET CONTRACT (A2): de inhoudsopgave van deze pagina. Staat bewust vóór
+    // het paginaplan en direct onder de feitenkaart: dit is de opdracht, en
+    // wat bovenaan een prompt staat wordt het best gevolgd. Wij rekenen hem
+    // achteraf sectie voor sectie na (`content-coverage.ts`), dus dit is de
+    // enige instructie in dit blok die een deterministisch vangnet heeft.
+    formatContract(contract),
+    // ✅ Geverifieerde algemene uitleg (A7): de tweede laag van een complete
+    // pagina, mét bron nagerekend. Zonder deze laag blijft een pagina correct
+    // maar dun, precies de klacht die dit werk oplost.
+    explainerBlock,
     // ✅ Het paginaplan uit de claim-audit (S2), wat de pagina moet vertellen,
     // met per punt of we het kunnen onderbouwen. Direct onder de kaart, want de
     // twee horen bij elkaar: het plan noemt de F-nummers die de kaart draagt.
@@ -475,54 +538,86 @@ function buildContentInput(args: {
 }
 
 /**
- * Input voor de redactie-stap. Krijgt sinds fase 4 de DOELVRAAG mee. Zonder die
- * vraag kon de beoordelaar onmogelijk vaststellen of de pagina hem beantwoordt,
- * en beoordeelde hij dus alleen of de tekst lekker las.
+ * De rol voor de GERICHTE REPARATIE (A6).
+ *
+ * Een eigen systeemprompt en niet `CONTENT_SYSTEM` met een zin erbij, want de
+ * opdracht is wezenlijk anders: dit model schrijft geen pagina, het repareert
+ * de secties waarop een bevinding zit en laat de rest ongemoeid. De harde
+ * regels die de tekst begrenzen (feitenkaart, geen concurrenten, interpunctie)
+ * gelden onverkort en staan er daarom letterlijk in.
  */
-function buildCritiqueInput(
-  piece: ContentPiece,
-  rec: RecommendationInput,
-  targets: RecommendationTarget[],
-  brandName: string,
-): string {
-  return [
-    `Type pagina: ${rec.type}. Doel: ${rec.targetIntent}.`,
-    `Bedrijfsnaam die expliciet genoemd moet worden: ${brandName}`,
-    targets.length
-      ? `DOELVRAGEN die deze pagina moet beantwoorden:\n- ${targets.map((t) => t.text).join("\n- ")}`
-      : "DOELVRAAG: niet opgegeven. Beoordeel dan of de pagina zijn eigen titel als vraag beantwoordt.",
-    `Titel: ${piece.title}`,
-    "",
-    "Pagina-inhoud (Markdown):",
-    piece.bodyMarkdown,
-    piece.faq.length ? `\nFAQ:\n${piece.faq.map((f) => `Q: ${f.q}\nA: ${f.a}`).join("\n")}` : "",
-  ]
-    .filter(Boolean)
-    .join("\n");
-}
+const REPAIR_SYSTEM =
+  "Je bent een ervaren contentredacteur. Je krijgt een bestaande webpagina van een ondernemer en " +
+  "een lijst bevindingen. Je REPAREERT gericht: je levert alleen de secties terug die je aanpast. " +
+  "WAT JE TERUGGEEFT: per sectie de bestaande KOP (letterlijk overnemen, zodat wij hem terug kunnen " +
+  "zetten op zijn plek) en de volledige nieuwe tekst van die sectie zonder de kopregel. Voor de " +
+  "tekst vóór de eerste kop gebruik je een lege kop. " +
+  "Ontbreekt er een sectie die het CONTRACT eist, dan geef je hem met zijn nieuwe kop terug; wij " +
+  "voegen hem toe. " +
+  "HARDE REGELS (ongewijzigd, ook tijdens repareren): " +
+  "(1) Noem NOOIT concurrenten of andere bedrijven bij naam. " +
+  "(2) De FEITENKAART is de ENIGE toegestane bron van concrete beweringen over dit bedrijf. Los een " +
+  "bevinding NOOIT op door een feit te verzinnen: kun je hem niet oplossen met wat er op de kaart " +
+  "staat, laat de passage dan weg of schrijf hem algemener. " +
+  "(3) Noem het bedrijf expliciet bij naam waar je iets over hem zegt, niet 'wij'. " +
+  "(4) Elke sectie bevat minstens één zin die LOSSTAAND te begrijpen is. " +
+  "(5) Raak niets aan wat niet in een bevinding genoemd wordt. Een sectie die je niet teruggeeft, " +
+  "blijft letterlijk staan, en dat is de bedoeling. " +
+  "(6) Gebruik GEEN gedachtestreepjes (— of –) en GEEN schuine streep tussen twee woorden. " +
+  "Lever in `claims` de VOLLEDIGE lijst beweringen over het bedrijf zoals de pagina er ná jouw " +
+  "reparatie uitziet, elk met het F-nummer en het letterlijke citaat uit dat feit. " +
+  "Antwoord in het Nederlands.";
 
-/** Input voor de herschrijf-stap: de originele opdracht + de feedback. */
-function buildReviseInput(
-  baseInput: string,
-  piece: ContentPiece,
-  issues: string[],
-  revisionNote?: string | null,
-): string {
+/**
+ * Input voor de gerichte reparatie: de huidige tekst, de bevindingen, en de
+ * grenzen waarbinnen gerepareerd mag worden.
+ *
+ * Bewust NIET de volledige schrijfopdracht (`baseInput`) zoals de oude
+ * herschrijfronde kreeg. Die opdracht zegt "schrijf een pagina", en dat is
+ * precies wat we hier niet willen: hij nodigde het model uit alles opnieuw te
+ * doen. Wat er wél in moet, is alles wat de grenzen bepaalt: de feitenkaart,
+ * het contract en de geverifieerde uitleg.
+ */
+function buildRepairInput(args: {
+  piece: ContentPiece;
+  issues: string[];
+  facts: FactItem[];
+  contract: ContentContract | null;
+  explainerBlock: string;
+  brandName: string;
+  revisionNote?: string | null;
+}): string {
+  const { piece, issues, facts, contract, explainerBlock, brandName, revisionNote } = args;
+  const secties = splitSections(piece.bodyMarkdown);
+
   return [
-    baseInput,
-    "",
-    "── HERSCHRIJF-OPDRACHT ──",
-    "Hieronder je eigen eerdere versie én de opmerkingen. Herschrijf de pagina zodat álle opmerkingen " +
-      "zijn verwerkt, met behoud van de harde regels.",
+    `Bedrijf: ${brandName}`,
+    formatFactCard(facts),
+    formatContract(contract),
+    explainerBlock,
     // De klant gaat vóór de redacteur. Dit is zijn website; vraagt hij om een
     // andere toon of een ander accent, dan is dat geen suggestie (4.8).
     revisionNote?.trim()
       ? `\nWAT DE KLANT ZELF VRAAGT (dit weegt het ZWAARST: dit is zijn website):\n"""\n${revisionNote.trim()}\n"""`
       : "",
-    issues.length ? `\nVerbeterpunten van de eindredacteur:\n${issues.map((i) => `- ${i}`).join("\n")}` : "",
     "",
-    "Je eerdere versie (Markdown):",
-    piece.bodyMarkdown,
+    "── DE HUIDIGE PAGINA, PER SECTIE ──",
+    ...secties.map(
+      (sectie, i) =>
+        `\n[SECTIE ${i + 1}] kop: "${sectie.heading}"\n${sectie.body}`,
+    ),
+    piece.faq?.length
+      ? `\n[FAQ]\n${piece.faq.map((f) => `Q: ${f.q}\nA: ${f.a}`).join("\n")}`
+      : "",
+    "",
+    "── TE REPAREREN ──",
+    issues.length
+      ? issues.map((i) => `- ${i}`).join("\n")
+      : "- Geen concrete bevindingen; laat de pagina dan ongewijzigd en geef een lege sectielijst terug.",
+    "",
+    `Huidige metatitel: "${piece.metaTitle}"`,
+    `Huidige metabeschrijving: "${piece.metaDescription}"`,
+    "Neem die twee letterlijk over als de reparatie ze niet raakt.",
   ]
     .filter(Boolean)
     .join("\n");
@@ -551,6 +646,18 @@ interface ContentContext {
   facts: FactItem[];
   /** Wat de pagina moet vertellen, uit de claim-audit (S2). Leeg = geen plan. */
   plan: AuditedClaim[];
+  /**
+   * Het CONTENTCONTRACT van deze pagina (A2, migratie 0082): welke secties er
+   * moeten komen en welke deelvraag elke sectie beantwoordt. `null` bij een
+   * pagina van vóór dit werk of als de planstap niet gedraaid heeft; dan valt
+   * alles terug op het gedrag van daarvoor en telt de dekkingspoort niet mee
+   * (conventie 3: onbekend is geen onvoldoende).
+   */
+  contract: ContentContract | null;
+  /** Het itemdossier waaruit dat contract kwam (A1). Alleen voor de audit-trail. */
+  dossier: ItemDossier | null;
+  /** De algemene uitleg mét nagerekende bron (A7). Alleen geverifieerde gaat mee. */
+  explainers: VerifiedExplainer[];
   /**
    * Wat de klant als ONDERSCHEIDEND heeft opgegeven (R8.8). De briefing vraagt
    * er expliciet naar (contentbriefing.md §5, vraagsoort 3) omdat het de enige
@@ -622,6 +729,20 @@ async function loadContentContext(
   analysisId: string,
   userId: string,
   recommendation: RecommendationInput,
+  /**
+   * Het contract en het dossier zoals de planstap ze net berekend heeft (A2).
+   *
+   * Meegeven gaat vóór wat er in de database staat. Reden: de planstap draait
+   * als eigen taak en geeft zijn uitkomst mee in de payload, zodat het schrijven
+   * ook doorgaat als het wegschrijven naar de rij niet lukte. Zonder deze
+   * voorrang zou een pagina dan zonder contract geschreven worden, precies de
+   * situatie die dit werk oplost.
+   */
+  voorbereid?: {
+    contract: ContentContract | null;
+    dossier: ItemDossier | null;
+    explainers: VerifiedExplainer[];
+  } | null,
 ): Promise<ContentContext> {
   const { data: analysisRow } = await admin.from("analyses").select("*").eq("id", analysisId).single();
   if (!analysisRow || analysisRow.user_id !== userId) throw new Error("Analyse niet gevonden.");
@@ -865,11 +986,26 @@ async function loadContentContext(
   // ging invullen.
   const { data: pieceRow } = await admin
     .from("content_pieces")
-    .select("briefing_snapshot_json")
+    .select("briefing_snapshot_json, contract_json, dossier_json")
     .eq("analysis_id", analysisId)
     .eq("title", recommendation.title)
     .eq("is_current", true)
     .maybeSingle();
+
+  // ── Het contract van deze pagina (A2, migratie 0082) ─────────────────────
+  //
+  // Eerst wat de planstap meegaf, anders wat er op de rij staat, anders niets.
+  // Geen contract is een geldige stand: pagina's van vóór dit werk hebben er
+  // geen, en dan gedraagt de pijplijn zich als voorheen. De dekkingspoort telt
+  // dan niet mee in plaats van een 0 te geven (conventie 3).
+  const opgeslagenDossier = (pieceRow?.dossier_json ?? null) as
+    | { dossier?: ItemDossier; explainers?: VerifiedExplainer[] }
+    | null;
+  const contract = voorbereid?.contract ?? ((pieceRow?.contract_json ?? null) as ContentContract | null);
+  const dossier = voorbereid?.dossier ?? opgeslagenDossier?.dossier ?? null;
+  const explainers = (voorbereid?.explainers ?? opgeslagenDossier?.explainers ?? []).filter(
+    (e) => e.verified,
+  );
 
   const bevroren = factsFromSnapshot(pieceRow?.briefing_snapshot_json);
   const basis =
@@ -960,6 +1096,9 @@ async function loadContentContext(
     // `buildFactFindingAddendum()` in factcard.ts voor wat elk van de twee
     // daadwerkelijk aan de schrijver meegeeft.
     generalContextGaps,
+    contract,
+    dossier,
+    explainers,
     needsFactFinding:
       contentWebSearchEnabled &&
       (proofCount < minProofPointsForConcreteContent || generalContextGaps.length > 0),
@@ -977,6 +1116,8 @@ async function loadContentContext(
       facts,
       plan,
       unansweredRequired,
+      contract,
+      explainerBlock: formatExplainerBlock(explainers),
     }),
   };
 }
@@ -1025,6 +1166,16 @@ async function saveTargets(
   }));
   const { error } = await admin.from("content_piece_targets").insert(rows);
   if (error) console.warn(`Doelvragen koppelen mislukt voor pagina ${contentPieceId}: ${error.message}`);
+}
+
+/** Wat één gerichte reparatieronde oplevert (A6). */
+export interface RepairResult {
+  /** Is dit de eindstand, of komt er nog een ronde? */
+  klaar: boolean;
+  /** De hoeveelste ronde dit was. */
+  ronde: number;
+  /** Wat er ná deze ronde nog openstaat. */
+  issues: string[];
 }
 
 export interface DraftResult {
@@ -1339,6 +1490,17 @@ export async function draftContentPiece(args: {
    * De bestaande versie blijft bewaard; dit wordt versie n+1.
    */
   regenerate?: boolean;
+  /**
+   * Wat de planstap (`content_plan`) net heeft uitgezocht: het contract, het
+   * dossier en de geverifieerde uitleg (A1/A2/A7). Weglaten mag: dan pakt
+   * `loadContentContext` wat er op de rij staat, en zonder dat schrijft de
+   * pijplijn zoals vóór dit werk.
+   */
+  voorbereid?: {
+    contract: ContentContract | null;
+    dossier: ItemDossier | null;
+    explainers: VerifiedExplainer[];
+  } | null;
 }): Promise<DraftResult> {
   const { analysisId, userId, reportId, recommendation, regenerate = false } = args;
   const admin = createAdminClient();
@@ -1390,7 +1552,7 @@ export async function draftContentPiece(args: {
   const resumeId = hergebruikt ? current!.id : null;
   const nextVersion = hergebruikt ? current!.version : (current?.version ?? 0) + 1;
 
-  const ctx = await loadContentContext(admin, analysisId, userId, recommendation);
+  const ctx = await loadContentContext(admin, analysisId, userId, recommendation, args.voorbereid);
   const { analysis, targets, baseInput, brandName } = ctx;
 
   // ── Draft (premium model) ────────────────────────────────────────────────
@@ -1444,19 +1606,27 @@ export async function draftContentPiece(args: {
     ? resumeId!
     : await persistDraft(admin, draftRow, { resumeId, currentId: current?.id ?? null });
 
-  // ── Redactie/kritiek (goedkoop model) ────────────────────────────────────
-  const critique = await callStructured({
-    model: MODELS.quality,
-    system: CRITIQUE_SYSTEM,
-    user: buildCritiqueInput(draft.parsed, recommendation, targets, brandName),
-    schema: Critique,
-    schemaName: "content_critique",
-    webSearch: false,
-    work: "deterministic",
-    meta: { kind: "content_critique", analysisId, profileId: analysis.profile_id },
+  // ── Het beoordelaarspanel (A5) ───────────────────────────────────────────
+  //
+  // Drie beoordelaars tegelijk in plaats van één die alles deed: redactie,
+  // feitelijkheid en citeerbaarheid. Alle drie op de goedkope tier, maar mét
+  // redeneertijd; samen kosten ze minder dan een cent, tegenover $0,15 voor de
+  // schrijfaanroep hierboven. Zie lib/pipeline/content-panel.ts voor waarom één
+  // beoordelaar hier niet volstond.
+  const panel = await runPanel({
+    bodyMarkdown: draft.parsed.bodyMarkdown,
+    faq: draft.parsed.faq ?? [],
+    title: recommendation.title,
+    brandName,
+    targetQuestions: targets.map((t) => t.text),
+    contract: ctx.contract,
+    facts: ctx.facts,
+    analysisId,
+    profileId: analysis.profile_id,
   });
+  const critique = panel.critique;
 
-  const geo = critique.parsed.geo;
+  const geo = critique.geo;
   // ── De deterministische poort (R8.2/R8.7/R8.8) ───────────────────────────
   //
   // Niet ná maar NAAST de zelfrapportage van het model, en zijn oordeel wint.
@@ -1471,6 +1641,18 @@ export async function draftContentPiece(args: {
     distinctiveAnswers: ctx.distinctiveAnswers,
   });
   const geo_score = gate.score ?? geoScore(geo);
+
+  // ── De dekkingspoort op het contract (A3) ────────────────────────────────
+  //
+  // De enige controle die weet wat "compleet" voor DEZE pagina betekent, omdat
+  // hij tegen dezelfde lijst rekent die de opdracht gaf. Zonder contract levert
+  // hij `null` en telt hij nergens in mee (conventie 3).
+  const coverage = checkContractCoverage({
+    contract: ctx.contract,
+    bodyMarkdown: draft.parsed.bodyMarkdown,
+    faq: draft.parsed.faq ?? [],
+    claims: draft.parsed.claims ?? [],
+  });
 
   // ── De tweede poort: kwaliteit, los van de GEO-score ─────────────────────
   //
@@ -1522,9 +1704,10 @@ export async function draftContentPiece(args: {
   // De GEO-tekortkomingen worden gewone verbeterpunten: de herschrijfronde weet
   // dan precies wát er moet veranderen in plaats van "beter maken".
   const issues = [
-    ...critique.parsed.issues,
+    ...panel.issues,
     ...geoIssues(geo),
     ...gate.issues,
+    ...coverage.issues,
     ...quality.issues,
     ...brononderbouwing,
     ...taboo.issues,
@@ -1532,9 +1715,10 @@ export async function draftContentPiece(args: {
   ];
 
   const needsRevise =
-    !critique.parsed.followsRules ||
-    critique.parsed.qualityScore < REVIEW_THRESHOLD ||
+    !critique.followsRules ||
+    critique.qualityScore < REVIEW_THRESHOLD ||
     geo_score < GEO_THRESHOLD ||
+    (coverage.score !== null && coverage.score < COVERAGE_THRESHOLD) ||
     issues.length > 0;
 
   // De tekst staat er al (hierboven weggeschreven); dit vult alleen het oordeel
@@ -1542,9 +1726,22 @@ export async function draftContentPiece(args: {
   const { error: critiqueError } = await admin
     .from("content_pieces")
     .update({
-      critique_raw_json: [critique.raw] as never,
-      quality_score: critique.parsed.qualityScore,
+      critique_raw_json: panel.raw as never,
+      quality_score: critique.qualityScore,
       geo_score,
+      coverage_score: coverage.score,
+      // Het contract en het dossier bewaren bij de tekst die eruit voortkwam
+      // (migratie 0082). Zelfde principe als `briefing_snapshot_json`: achteraf
+      // moet naast "waarop rustte deze zin" ook "wat had deze pagina moeten
+      // behandelen" terug te vinden zijn, ook als het contract later verandert.
+      contract_json: (ctx.contract ?? null) as never,
+      // Dossier én de geverifieerde uitleg samen, in de vorm die
+      // `loadContentContext` terugleest. De uitleg apart laten staan zou hem bij
+      // de reparatieronde kwijtmaken, en dan repareert het model met minder
+      // materiaal dan waarmee het schreef.
+      dossier_json: (ctx.dossier || ctx.explainers.length > 0
+        ? { dossier: ctx.dossier, explainers: ctx.explainers }
+        : null) as never,
       // Beide oordelen bewaren: `zelfrapportage` is wat het model ervan vond,
       // `deterministisch` is wat de code kon vaststellen. Uit elkaar houden
       // maakt achteraf zichtbaar wannéér die twee gingen afwijken. Precies het
@@ -1554,12 +1751,13 @@ export async function draftContentPiece(args: {
         deterministisch: gate.checks,
         kwaliteit: quality.checks,
         gemeten: quality.gemeten,
+        dekking: { score: coverage.score, secties: coverage.secties },
       } as never,
       // Wat er nog aan schort, in gewone taal (4.13). Stond alleen in de ruwe
       // API-respons, en die laat je een klant niet lezen.
       review_notes: issues,
       // Komt de eerste versie al door de poort, dan is dit meteen de eindstand.
-      needs_review: needsRevise ? true : !critique.parsed.followsRules,
+      needs_review: needsRevise ? true : !critique.followsRules,
       status: needsRevise ? ("draft" as const) : ("ready" as const),
     })
     .eq("id", pieceId);
@@ -1573,11 +1771,22 @@ export async function draftContentPiece(args: {
 }
 
 /**
- * ── STAP 2 — herschrijven + herbeoordelen ───────────────────────────────────
+ * ── STAP 2, de GERICHTE REPARATIE (A6) ──────────────────────────────────────
  *
- * Verwerkt de verbeterpunten uit stap 1 (en eventueel wat de klant zelf vroeg)
- * en bepaalt de eindscore. Faalt deze stap definitief, dan blijft de draft uit
- * stap 1 staan in plaats van dat het schrijfwerk verloren gaat.
+ * Was: het dure model schrijft de HELE pagina opnieuw, één keer, met alle
+ * bevindingen op één hoop. Dat kostte op productie $0,162 per keer, alle vijf
+ * de pagina's van 26 augustus kregen er één, en niets controleerde of de
+ * bevindingen daarna ook echt weg waren. Erger: een volledige herschrijving
+ * mocht ook de passages aanraken die in ronde 1 juist goed waren.
+ *
+ * Nu krijgt het model alleen de secties waarop een bevinding zit, levert het
+ * alleen die secties terug, en zet CODE ze op hun plek
+ * (`applySectionPatch()`). De rest van de tekst kan het niet stukmaken, want
+ * het krijgt hem niet in handen. Dat is conventie 1 op zijn duidelijkst.
+ *
+ * Blijven er bevindingen over, dan volgt er nog een ronde, tot REPAIR_MAX. Wat
+ * daarna nog staat gaat als benoemd punt naar de klant: dat is bijna altijd een
+ * ontbrekend FEIT, en dat lost geen herschrijving op maar een vraag.
  */
 export async function reviseContentPiece(args: {
   analysisId: string;
@@ -1585,7 +1794,7 @@ export async function reviseContentPiece(args: {
   contentPieceId: string;
   recommendation: RecommendationInput;
   issues: string[];
-}): Promise<void> {
+}): Promise<RepairResult> {
   const { analysisId, userId, contentPieceId, recommendation, issues } = args;
   const admin = createAdminClient();
 
@@ -1595,11 +1804,13 @@ export async function reviseContentPiece(args: {
     .eq("id", contentPieceId)
     .maybeSingle();
   if (!pieceRow) throw new Error(`Contentpagina ${contentPieceId} niet gevonden.`);
-  if (pieceRow.status !== "draft") return; // al afgerond, niets te doen (idempotent)
+  // Al afgerond: niets te doen (idempotent, conventie 9).
+  if (pieceRow.status !== "draft") return { klaar: true, ronde: 0, issues: [] };
 
   const ctx = await loadContentContext(admin, analysisId, userId, recommendation);
-  const { analysis, targets, baseInput, brandName } = ctx;
-  const draftPiece = pieceFromRow(pieceRow as ContentPieceRow);
+  const { analysis, targets, brandName } = ctx;
+  const huidig = pieceFromRow(pieceRow as ContentPieceRow);
+  const ronde = ((pieceRow.repair_round as number | null) ?? 0) + 1;
 
   // De publicatiedatum van de eerste versie behouden (optimalisatie 2). Staat
   // hij er nog niet, een pagina van vóór deze wijziging. Dan valt hij terug op
@@ -1609,36 +1820,58 @@ export async function reviseContentPiece(args: {
     bestaandeDatePublished(pieceRow.schema_jsonld as string | null) ??
     ((pieceRow.created_at as string | null) ?? herzienOp);
 
-  const revised = await callStructured({
+  const patch = await callStructured({
     model: MODELS.content,
-    system: ctx.needsFactFinding
-      ? CONTENT_SYSTEM + buildFactFindingAddendum(ctx.generalContextGaps)
-      : CONTENT_SYSTEM,
-    user: buildReviseInput(baseInput, draftPiece, issues, recommendation.revisionNote),
-    schema: ContentPiece,
-    schemaName: "content_piece",
-    webSearch: ctx.needsFactFinding,
+    system: REPAIR_SYSTEM,
+    user: buildRepairInput({
+      piece: huidig,
+      issues,
+      facts: ctx.facts,
+      contract: ctx.contract,
+      explainerBlock: formatExplainerBlock(ctx.explainers),
+      brandName,
+      revisionNote: recommendation.revisionNote,
+    }),
+    schema: ContentPatch,
+    schemaName: "content_patch",
+    webSearch: false,
     work: "content",
     meta: { kind: "content_revise", analysisId, profileId: analysis.profile_id },
   });
 
-  // Herbeoordelen geeft een eerlijke eindscore voor de kwaliteitspoort.
-  const critique = await callStructured({
-    model: MODELS.quality,
-    system: CRITIQUE_SYSTEM,
-    user: buildCritiqueInput(revised.parsed, recommendation, targets, brandName),
-    schema: Critique,
-    schemaName: "content_critique",
-    webSearch: false,
-    work: "deterministic",
-    meta: { kind: "content_critique", analysisId, profileId: analysis.profile_id },
-  });
+  // ── De patch toepassen, in code ──────────────────────────────────────────
+  const toegepast = applySectionPatch(huidig.bodyMarkdown, patch.parsed.sections ?? []);
+  const final: ContentPiece = {
+    ...huidig,
+    bodyMarkdown: toegepast.bodyMarkdown,
+    faq: patch.parsed.faq?.length ? patch.parsed.faq : huidig.faq,
+    claims: patch.parsed.claims?.length ? patch.parsed.claims : huidig.claims,
+    metaTitle: patch.parsed.metaTitle?.trim() || huidig.metaTitle,
+    metaDescription: patch.parsed.metaDescription?.trim() || huidig.metaDescription,
+  };
 
-  const final = revised.parsed;
-  const geo = critique.parsed.geo;
-  // Dezelfde deterministische poort als bij de eerste ronde (R8.2/R8.7/R8.8).
-  // Juist hier telt hij: dit is de EINDSTAND: er volgt geen derde ronde, dus
-  // wat hier doorheen komt gaat zo naar de klant.
+  console.info(
+    `Contentpagina ${contentPieceId}, reparatieronde ${ronde}: ` +
+      `${toegepast.vervangen.length} ${enkelOfMeervoud(toegepast.vervangen.length, "sectie", "secties")} herschreven` +
+      `${toegepast.toegevoegd.length > 0 ? `, ${toegepast.toegevoegd.length} toegevoegd` : ""}, ` +
+      `${issues.length} ${enkelOfMeervoud(issues.length, "bevinding", "bevindingen")} meegegeven.`,
+  );
+
+  // ── Opnieuw beoordelen: dezelfde poorten als bij ronde 1 ─────────────────
+  const panel = await runPanel({
+    bodyMarkdown: final.bodyMarkdown,
+    faq: final.faq ?? [],
+    title: recommendation.title,
+    brandName,
+    targetQuestions: targets.map((t) => t.text),
+    contract: ctx.contract,
+    facts: ctx.facts,
+    analysisId,
+    profileId: analysis.profile_id,
+  });
+  const critique = panel.critique;
+  const geo = critique.geo;
+
   const gate = checkContentGate({
     bodyMarkdown: final.bodyMarkdown,
     faq: final.faq ?? [],
@@ -1648,8 +1881,13 @@ export async function reviseContentPiece(args: {
   });
   const geo_score = gate.score ?? geoScore(geo);
 
-  // De tweede poort, ook hier: dit is de EINDSTAND en er volgt geen derde ronde.
-  // Raakt `geo_score` bewust niet aan, zie de toelichting bij `checkQuality`.
+  const dekking = checkContractCoverage({
+    contract: ctx.contract,
+    bodyMarkdown: final.bodyMarkdown,
+    faq: final.faq ?? [],
+    claims: final.claims ?? [],
+  });
+
   const quality = checkQuality({
     bodyMarkdown: final.bodyMarkdown,
     mostSimilar: mostSimilar(
@@ -1665,9 +1903,9 @@ export async function reviseContentPiece(args: {
     );
   }
 
-  // ✅ Migratie 0045 (C.29), ook op de eindstand: er volgt geen derde ronde, dus
-  // een verboden woord dat de herschrijfronde er alsnog in liet staan, moet nu
-  // gevonden worden, niet later door de klant.
+  // ✅ Migratie 0045 (C.29), ook op de eindstand: er volgt geen ronde meer zodra
+  // REPAIR_MAX bereikt is, dus een verboden woord dat de reparatie er alsnog in
+  // liet staan, moet nu gevonden worden, niet later door de klant.
   const taboo = checkTabooWords(final.bodyMarkdown, final.faq ?? [], ctx.profile?.taboo_phrases ?? []);
   const verbodenOnderwerpen = checkForbiddenTopics(
     final.bodyMarkdown,
@@ -1675,24 +1913,6 @@ export async function reviseContentPiece(args: {
     ctx.profile?.forbidden_topics ?? [],
   );
 
-  const needsReview =
-    !critique.parsed.followsRules ||
-    critique.parsed.qualityScore < REVIEW_THRESHOLD ||
-    geo_score < GEO_THRESHOLD ||
-    // Een openstaand punt uit de poort is een harde reden om na te kijken. De
-    // redacteur beoordeelt de tekst; de poort beoordeelt of de pagina zijn
-    // opdracht uitvoert, en dat laatste mag niet stil wegvallen.
-    gate.issues.length > 0 ||
-    quality.issues.length > 0 ||
-    taboo.issues.length > 0 ||
-    verbodenOnderwerpen.issues.length > 0;
-
-  // Ruwe kritiek van BEIDE rondes bewaren (§5: we bewaren alles).
-  const previousCritiques = Array.isArray(pieceRow.critique_raw_json) ? pieceRow.critique_raw_json : [];
-
-  // De bronnendekking opnieuw narekenen (R5.3). De herschrijfronde levert een
-  // andere tekst op, dus ook andere beweringen, de dekking van de eerste
-  // versie laten staan zou een cijfer over een tekst zijn die niet meer bestaat.
   const { coverage, unsupported, untagged } = assessClaims(final, ctx.facts, brandName);
   const bronNotitie = [
     ...(unsupported.length > 0
@@ -1717,18 +1937,41 @@ export async function reviseContentPiece(args: {
       : []),
   ];
 
+  const openstaand = [
+    ...panel.issues,
+    ...geoIssues(geo),
+    ...gate.issues,
+    ...dekking.issues,
+    ...quality.issues,
+    ...bronNotitie,
+    ...taboo.issues,
+    ...verbodenOnderwerpen.issues,
+  ];
+
+  const scoresTeLaag =
+    !critique.followsRules ||
+    critique.qualityScore < REVIEW_THRESHOLD ||
+    geo_score < GEO_THRESHOLD ||
+    (dekking.score !== null && dekking.score < COVERAGE_THRESHOLD);
+
+  // ── Nog een ronde, of is dit de eindstand? ───────────────────────────────
+  //
+  // Doorgaan zolang er iets te repareren is EN er nog rondes over zijn. Zonder
+  // die tweede voorwaarde zou een pagina waarvan het laatste punt een ontbrekend
+  // FEIT is eindeloos herschreven worden: dat punt lost geen tekst op.
+  const nogEenRonde = (scoresTeLaag || openstaand.length > 0) && ronde < REPAIR_MAX;
+
+  // Ruwe beoordelingen van ALLE rondes bewaren (§5: we bewaren alles).
+  const previousCritiques = Array.isArray(pieceRow.critique_raw_json) ? pieceRow.critique_raw_json : [];
+
   await admin
     .from("content_pieces")
     .update({
       // `title` bewust NIET bijwerken: de titel uit het rapport is de sleutel
       // waarop de rest van de app deze pagina terugvindt (zie de toelichting bij
-      // het invoegen in draftContentPiece). De herschrijfronde mag de inhoud
-      // veranderen, niet waar de pagina heet.
-      target_intent: final.targetIntent,
-      cluster: final.cluster,
+      // het invoegen in draftContentPiece).
       // `withFreshnessLine` is idempotent: hij vervangt een bestaande regel in
-      // plaats van er een tweede onder te zetten. Zonder dat zou elke
-      // herschrijfronde er een regel bij plakken.
+      // plaats van er een tweede onder te zetten.
       body_markdown: withFreshnessLine(final.bodyMarkdown, herzienOp),
       meta_title: final.metaTitle,
       meta_description: final.metaDescription,
@@ -1747,46 +1990,42 @@ export async function reviseContentPiece(args: {
         dateModified: herzienOp,
       }),
       faq_json: final.faq as never,
-      raw_json: revised.raw as never,
+      raw_json: patch.raw as never,
       claims_json: (final.claims ?? []).map((c) => ({
         ...c,
         factId: resolveFactId(c.factRef, ctx.facts),
       })) as never,
       source_coverage: coverage,
-      critique_raw_json: [...previousCritiques, critique.raw] as never,
-      quality_score: critique.parsed.qualityScore,
+      critique_raw_json: [...previousCritiques, ...panel.raw] as never,
+      quality_score: critique.qualityScore,
       geo_score,
+      coverage_score: dekking.score,
+      repair_round: ronde,
       geo_json: {
         zelfrapportage: geo,
         deterministisch: gate.checks,
         kwaliteit: quality.checks,
         gemeten: quality.gemeten,
+        dekking: { score: dekking.score, secties: dekking.secties },
       } as never,
-      // Een onherleidbare bewering is óók een reden om na te kijken, ook als de
-      // redacteur tevreden was: die beoordeelt de tekst, niet de herkomst.
-      review_notes: [
-        ...(needsReview ? [...critique.parsed.issues, ...geoIssues(geo)] : []),
-        ...gate.issues,
-        ...quality.issues,
-        ...bronNotitie,
-        ...taboo.issues,
-        ...verbodenOnderwerpen.issues,
-      ],
+      review_notes: openstaand,
       // Een onherleidbare bewering telt, en sinds S3 ook een bewerende zin
       // zónder claim: dat is precies de vorm waarin de twee fabricages van
       // 31 juli aan elke controle ontsnapten.
       needs_review:
-        needsReview ||
+        scoresTeLaag ||
+        openstaand.length > 0 ||
         unsupported.length > 0 ||
-        untagged.length > 0 ||
-        taboo.issues.length > 0 ||
-        verbodenOnderwerpen.issues.length > 0,
-      status: "ready" as const,
-      word_count: countWords(final.bodyMarkdown),
+        untagged.length > 0,
+      // Zolang er nog een ronde komt blijft de pagina 'draft': dan pakt de
+      // volgende taak hem op. Anders is dit de eindstand.
+      status: nogEenRonde ? ("draft" as const) : ("ready" as const),
     })
     .eq("id", contentPieceId);
 
-  // De titel kan in de herschrijfronde veranderd zijn; de koppeling met de
+  // De titel kan in de reparatie veranderd zijn; de koppeling met de
   // doelvragen moet blijven staan.
   await saveTargets(admin, contentPieceId, targets);
+
+  return { klaar: !nogEenRonde, ronde, issues: openstaand };
 }

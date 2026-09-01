@@ -681,6 +681,101 @@ const ANTWOORDEN: Record<string, (user: string) => unknown> = {
   source_analysis: () => ({ sources: [], whatIsMissing: null }),
 
   /**
+   * Het itemdossier (A1, migratie 0082).
+   *
+   * Eén uitleg mét bron, en die bron is met opzet onbereikbaar in de ketentest:
+   * `verifyExplainers()` haalt hem op en keurt hem af, dus de keten toetst
+   * precies wat hij moet toetsen, namelijk dat niet-geverifieerde uitleg de
+   * schrijfprompt NIET haalt (A7). Uitleg die wél door de controle komt, is
+   * werk voor een test met een echte bron.
+   */
+  item_dossier: () => ({
+    subQuestions: [
+      { question: "Wat kost een behandeling?", why: "dit is de eerste vraag die iedereen stelt" },
+      { question: "Heb ik een verwijzing nodig?", why: "onzekerheid houdt mensen tegen" },
+    ],
+    followUps: ["Hoe lang duurt het herstel?"],
+    concerns: ["Ik weet niet of het vergoed wordt."],
+    explainers: [
+      {
+        term: "runnersknie",
+        explanation: "Pijn aan de buitenkant van de knie door overbelasting bij hardlopen.",
+        sourceUrl: "https://voorbeeld.test/runnersknie",
+        quote: "Runnersknie is pijn aan de buitenkant van de knie door overbelasting.",
+      },
+    ],
+  }),
+
+  /**
+   * Het contentcontract (A2). De koppen komen letterlijk overeen met wat
+   * `content_piece` hierboven schrijft, zodat de dekkingspoort in de keten een
+   * echte uitslag geeft in plaats van alles af te keuren op een stub die zichzelf
+   * tegenspreekt.
+   */
+  content_contract: () => ({
+    openingAnswer:
+      "Fysi-Unique behandelt hardloopblessures in Amersfoort en werkt met een vast team.",
+    sections: [
+      {
+        id: "s1",
+        heading: "Welke klachten",
+        subQuestion: "Welke hardloopblessures behandelt Fysi-Unique?",
+        mustCover: ["de klachten die behandeld worden"],
+        factRefs: [],
+        explainerTerms: [],
+        targetWords: 120,
+      },
+      {
+        id: "s2",
+        heading: "Afspraak maken",
+        subQuestion: "Hoe snel kan ik terecht voor een intake?",
+        mustCover: ["hoe je een afspraak maakt"],
+        factRefs: [],
+        explainerTerms: [],
+        targetWords: 100,
+      },
+    ],
+    faqQuestions: ["Heb ik een verwijzing nodig?"],
+    reasoning: "Twee deelvragen, plus de vraag over de verwijzing als FAQ.",
+  }),
+
+  /** De feitelijkheidsbeoordelaar (A5): in de keten vindt hij niets. */
+  content_factuality: () => ({
+    unsupportedSentences: [],
+    overreachingClaims: [],
+    allClaimsCovered: true,
+  }),
+
+  /** De citeerbaarheidsbeoordelaar (A5): idem, alles beantwoord. */
+  content_citability: () => ({
+    subQuestionAnswers: [],
+    remainingReaderQuestions: [],
+    issues: [],
+  }),
+
+  /**
+   * De gerichte reparatie (A6).
+   *
+   * Geeft één sectie terug met de kop die `content_piece` ook gebruikt, zodat de
+   * keten toetst wat de bedoeling is: `applySectionPatch()` zet hem op zijn
+   * plek en laat de rest van de pagina letterlijk staan.
+   */
+  content_patch: () => ({
+    sections: [
+      {
+        heading: "Afspraak maken",
+        markdown:
+          "Bij Fysi-Unique kun je binnen 24 uur terecht voor een intake. Bel of mail voor een afspraak.",
+      },
+    ],
+    faq: [{ q: "Heb ik een verwijzing nodig?", a: "Nee, je kunt direct een afspraak maken." }],
+    claims: [],
+    metaTitle: "Hardloopblessure in Amersfoort",
+    metaDescription: "Fysi-Unique behandelt hardloopblessures in Amersfoort.",
+    notes: ["De sectie over de afspraak is aangevuld."],
+  }),
+
+  /**
    * De profielbrede zoekvolume-herkalibratie (docs/tasks/potentiescore.md, stap
    * B, `lib/pipeline/search-demand.ts`).
    *

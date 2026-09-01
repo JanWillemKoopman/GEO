@@ -998,6 +998,22 @@ export interface ContentPiece {
   briefing_snapshot_json: unknown | null;
   brief_instruction: string | null;
   source_coverage: number | null;
+  /**
+   * Het contentcontract en het itemdossier (migratie 0082,
+   * docs/tasks/contentpijplijn-herontwerp.md A1/A2/A3/A6).
+   *
+   * `dossier_json` = wat dit ENE item nodig heeft: de deelvragen van de lezer,
+   * de vervolgvragen, en de algemene begrippen met geverifieerde uitleg.
+   * `contract_json` = de secties die de pagina moet hebben, met per sectie de
+   * deelvraag en de verplichte F-nummers. `coverage_score` = hoeveel procent
+   * daarvan de tekst afdekt, bewust los van `geo_score` zodat die reeks
+   * vergelijkbaar blijft. `repair_round` = hoeveel gerichte reparatierondes er
+   * al geweest zijn.
+   */
+  dossier_json?: unknown | null;
+  contract_json?: unknown | null;
+  coverage_score?: number | null;
+  repair_round?: number;
   /** Heeft de klant de tekst zelf bijgewerkt? (4.12) */
   edited_by_user: boolean;
   /** Publicatie (optimalisatie.md 5.1/5.2, migratie 0020). */
