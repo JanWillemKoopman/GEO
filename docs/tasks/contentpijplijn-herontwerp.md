@@ -5,7 +5,8 @@ waar nodig opnieuw ontwerpen. Doel: hogere kwaliteit en hardere feitelijkheid, m
 minder werk voor de klant, en pagina's die als een volledige pagina lezen in plaats van als een
 verzameling onderbouwde zinnen. Kosten zijn geen beperking zolang de pagina er beter van wordt.
 
-Dit document is advies. Er is nog geen code gewijzigd.
+Dit document is advies. Er is nog geen code gewijzigd. De kosten in §3 zijn nagerekend tegen
+`ai_calls` op productie en niet geschat; de kwaliteitscijfers komen uit `content_pieces`.
 
 Gelezen vóór dit advies: `lib/pipeline/content.ts`, `briefing.ts`, `briefing-select.ts`, `factbase.ts`,
 `factcard.ts`, `content-gate.ts`, `source-analysis.ts`, `lib/jobs/worker.ts`, `lib/jobs/types.ts`,
@@ -126,8 +127,8 @@ met de URL als sleutel.
 | A1 | **Itemdossier per aanbeveling.** Eén onderzoekstap per contentitem (niet per cluster), met web_search, die vastlegt: welke deelvragen een lezer bij deze doelvraag stelt, wat de winnende antwoorden inhoudelijk behandelen, welke algemene begrippen uitleg nodig hebben en welke externe uitleg met bron beschikbaar is. Vervangt de clusterbrede achtergrond als leidende context. | Urgent | Middelmatig | Hogere kwaliteit, einde aan generieke pagina's, meer onderscheid per item |
 | A2 | **Contentcontract in plaats van een claimlijst.** Uit A1 plus de claim-audit een inhoudsopgave als data: secties, per sectie de deelvraag die hij beantwoordt, de verplichte F-nummers, de algemene uitleg die erin hoort, en een doellengte. Opgeslagen naast het briefing-snapshot, meegegeven aan de schrijver én aan de poort. | Urgent | Groot | Volledigheid wordt meetbaar, de lezer mist niets meer |
 | A3 | **Dekkingspoort op het contract.** Deterministische controle: elke sectie aanwezig, elke deelvraag beantwoord met minstens één losstaande zin, elk verplicht F-nummer gebruikt. Onbehandelde punten worden benoemde bevindingen in plaats van een algemeen "check nodig". | Urgent | Middelmatig | Hogere kwaliteit, minder klantfrictie, harde garantie in plaats van een belofte |
-| A4 | **Sectiegewijs schrijven, parallel.** Opening plus de secties plus de FAQ als aparte, gelijktijdige aanroepen op de dure tier met effort `high`, gevolgd door één korte naadstap die overgangen en herhaling gladstrijkt. | Normaal | Groot | Hogere kwaliteit per onderdeel, kortere doorlooptijd, geen timeoutrisico meer |
-| A5 | **Beoordelaarspanel op de dure tier, parallel.** Drie gespecialiseerde beoordelaars in plaats van één goedkope generalist, elk met een eigen opdracht en eigen bevindingen. | Urgent | Klein | Hogere kwaliteit, strengere en beter bruikbare bevindingen |
+| A4 | **Sectiegewijs schrijven, parallel.** Opening plus de secties plus de FAQ als aparte, gelijktijdige aanroepen op de dure tier met effort `high`, gevolgd door één korte naadstap die overgangen en herhaling gladstrijkt. **Dit is de enige aanbeveling die de kosten echt verhoogt (van ongeveer €0,29 naar ongeveer €0,85 per pagina) en wacht daarom tot de app bij meerdere klanten draait.** | Niet-urgent | Groot | Hogere kwaliteit per onderdeel, kortere doorlooptijd, geen timeoutrisico meer |
+| A5 | **Beoordelaarspanel, parallel.** Drie gespecialiseerde beoordelaars in plaats van één generalist, elk met een eigen opdracht en eigen bevindingen. Voor nu op de goedkope tier mét redeneertijd (effort `medium` in plaats van `none`): dat kost samen ongeveer $0,008 per pagina. De dure tier is een keuze voor later. | Urgent | Klein | Hogere kwaliteit, strengere en beter bruikbare bevindingen, vrijwel geen extra kosten |
 | A6 | **Gerichte reparatie in plaats van volledig herschrijven.** Per bevinding alleen de betrokken sectie herschrijven, daarna dezelfde controle opnieuw op alleen dat punt. Maximaal drie rondes, en stoppen zodra alles groen is. | Urgent | Middelmatig | Minder regressie, minder pagina's met "check nodig", minder handwerk voor de klant |
 | A7 | **Bronverificatie op de algemene laag.** Elke feitelijke zin zonder F-nummer krijgt een bron-URL plus een letterlijk citaat, en de code controleert dat het citaat echt op die pagina staat. | Urgent | Middelmatig | Feitelijkheid van de tweede laag, nu volledig onbewaakt |
 | A8 | **Vragen per item garanderen.** Minstens één plek per pagina reserveren in de briefing, en de rest verdelen zoals nu. Daarnaast de vragen tonen per pagina in plaats van als één lijst per batch. | Normaal | Klein | Minder generieke pagina's, de klant ziet waar zijn antwoord terechtkomt |
@@ -136,15 +137,61 @@ met de URL als sleutel.
 | A11 | **Evaluatieset voor content.** Tien echte, vastgezette gevallen met hun contract, plus een script dat na elke promptwijziging dekking, bronherleidbaarheid en poortuitslagen naast de vorige stand zet. | Normaal | Middelmatig | Wijzigingen worden aantoonbaar in plaats van aannemelijk |
 | A12 | **Regenereren met behoud.** Bij opnieuw genereren de goedgekeurde secties vasthouden en alleen de afgekeurde opnieuw laten schrijven. | Niet-urgent | Middelmatig | Lagere kosten, minder verlies van werk dat al goed was |
 
-### Wat dit kost
+### Wat dit kost, nagerekend op productie in plaats van geschat
 
-Een pagina kost nu grofweg drie aanroepen bij het schrijven (bronanalyse, schrijven, kritiek) en twee
-bij het herschrijven, waarvan twee op de dure tier. Na dit voorstel worden het er ongeveer twaalf tot
-achttien, waarvan de meeste kort. Ruwe schatting: van enkele dubbeltjes naar ongeveer één tot twee
-euro per pagina. Dat is een schatting op basis van de tarieven in `models.ts`, geen meting. Tegenover
-een meetronde van ongeveer $0,82 en tegenover het feit dat dit het enige is wat de klant publiceert,
-is dat een verantwoorde verschuiving. De doorlooptijd daalt ondanks meer aanroepen, omdat vrijwel
-alles parallel kan.
+Mijn eerste schatting van ongeveer twee euro per pagina was te hoog. Ik heb hem vervangen door de
+werkelijke cijfers uit `ai_calls`, de tabel waarin elke aanroep zijn kosten wegschrijft.
+
+**Wat een pagina vandaag kost** (de vijf pagina's die op 26 augustus 2026 op de huidige modellen
+draaiden):
+
+| Stap | Model | Kosten |
+| --- | --- | --- |
+| Schrijven | sol | $0,154 |
+| Beoordelen | luna | $0,001 |
+| Herschrijven | sol | $0,162 |
+| Opnieuw beoordelen | luna | $0,001 |
+| Bronanalyse plus atomisering | luna | ongeveer $0,003 |
+| **Samen** | | **ongeveer $0,32, dus ongeveer €0,29** |
+
+**Waar dat geld zit.** Bijna alles zit in de uitvoertokens van het dure model: gemiddeld 4214
+uitvoertokens per schrijfaanroep tegen $30 per miljoen. De invoer is met 5599 tokens goed voor nog geen
+zes cent. Alles wat op de goedkope tier draait kost een tiende cent per aanroep, ook mét redeneertijd.
+
+Dat is de sleutel voor de kostenvraag: **onderzoeken, plannen en beoordelen zijn vrijwel gratis, alleen
+schrijven is duur.** De aanbevelingen die de pagina compleet maken (het itemdossier, het contract, de
+dekkingspoort, het beoordelaarspanel) raken de dure aanroep niet. Wat wél geld kost is A4, en dat is
+precies de aanbeveling die kan wachten.
+
+**Twee varianten:**
+
+| | Nu bouwen | Later, bij meerdere klanten |
+| --- | --- | --- |
+| Onderdelen | A1, A2, A3, A5 op de goedkope tier met redeneertijd, A6, A7, A9, A10 | A4, A5 op de dure tier, A11, A12 |
+| Schrijven | één aanroep zoals nu, maar contract-gestuurd | secties parallel, meer redeneertijd |
+| Repareren | één gerichte sectie in plaats van de hele pagina opnieuw | idem |
+| Kosten per pagina | **ongeveer $0,24, dus ongeveer €0,22** | ongeveer $0,90, dus ongeveer €0,85 |
+
+De "nu"-variant is dus **goedkoper dan vandaag**, ongeveer zeven cent per pagina minder. Dat komt van
+één plek: de volledige herschrijving op het dure model ($0,162) verdwijnt en wordt een gerichte
+sectiereparatie van ongeveer $0,06. Dat is geen bezuiniging ten koste van kwaliteit maar het gevolg
+ervan, want een pagina die de eerste keer tegen een contract geschreven is heeft minder te repareren.
+Op de huidige stand kreeg elke pagina de volledige herschrijving: vijf schrijfrondes, vijf
+herschrijfrondes.
+
+**Een aanpassing in de tabel hierboven.** A5 wordt in de "nu"-variant drie beoordelaars op de goedkope
+tier mét redeneertijd (effort `medium` in plaats van `none`), niet op de dure tier. Dat kost samen
+ongeveer $0,008 per pagina en is daarmee vrijwel gratis. De dure tier voor beoordelen is een keuze voor
+later, en alleen als de goedkope tier met redeneertijd aantoonbaar tekortschiet.
+
+### Wat de cijfers verder laten zien
+
+Van de 29 afgeronde pagina's in productie staan er **15 op "check nodig"**, dus meer dan de helft. De
+gemiddelde pagina is **548 woorden**, terwijl de doelbandbreedte voor een artikel 700 tot 1200 woorden
+is. De bronherleidbaarheid is gemiddeld 78,6 procent, en bij de drie gepubliceerde pagina's 52,2
+procent. Dat is de rekenkundige versie van "er lijkt iets te ontbreken": de pagina's zijn kort, ruim de
+helft vraagt om handwerk van de klant, en van elke twee beweringen is er ongeveer één niet tot een
+bevestigd feit te herleiden.
 
 ---
 
@@ -191,11 +238,14 @@ staan, met overslaan als uitweg.
 ### De volgorde waarin ik dit zou bouwen
 
 1. A10 en A9. Klein, meteen merkbaar in doorlooptijd en kosten, geen risico voor de tekst.
-2. A2 en A3. Het contract en de poort erop. Dit is de kern van "de pagina voelt compleet".
-3. A5 en A6. Betere beoordeling en gerichte reparatie, bovenop het contract.
-4. A1 en A7. Het itemdossier en de bronverificatie van de algemene laag.
-5. A4. Sectiegewijs schrijven, de grootste verbouwing, en alleen zinnig als het contract er al ligt.
-6. A11, A8, A12.
+2. A2 en A3. Het contract en de poort erop. Dit is de kern van "de pagina voelt compleet", en het kost
+   ongeveer een halve cent per pagina.
+3. A5 op de goedkope tier met redeneertijd, plus A6. Betere beoordeling en gerichte reparatie. Hier
+   daalt de rekening, want de volledige herschrijving op het dure model vervalt.
+4. A1 en A7. Het itemdossier en de bronverificatie van de algemene laag, samen ongeveer twee cent.
+5. A8. Vragen per item.
+6. **Grens van de "nu"-variant.** Wat hierna komt kost echt geld en wacht tot de app bij meerdere
+   klanten draait: A4 (sectiegewijs schrijven), A5 op de dure tier, A11 en A12.
 
 ### Twee dingen die dit advies niet oplost
 
