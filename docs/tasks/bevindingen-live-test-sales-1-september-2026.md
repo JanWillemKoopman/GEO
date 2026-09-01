@@ -10,9 +10,22 @@
 > makkelijker dan productie, en werd de code die P0-1 veroorzaakte netjes groen goedgekeurd. De shim
 > weigert een dubbelzinnige uitvraag nu net zo hard als PostgREST, met dezelfde melding.
 >
-> **De P1's en lager staan nog open**, en de verificatiecriteria uit hoofdstuk 22 van het plan zijn
-> niet gehaald: daarvoor moet er een markt met de gecorrigeerde vragen doorheen. Het oordeel
-> hieronder beschrijft de stand tijdens de test, niet de stand na de reparatie.
+> **De verificatiemeting is daarna gedraaid**, op een verse markt (Warmtepomp Tilburg, 26 bedrijven,
+> 40 vragen, $0,66). Wat er veranderde: 22 van de 40 vragen noemen nu de plaats in plaats van 3, 16
+> van de 40 antwoorden noemen een bedrijf uit de markt in plaats van 2, 12 van de 26 bedrijven worden
+> genoemd in plaats van 1 van de 43, en er komen 17 concurrent gaps uit met de concurrent bij naam
+> in plaats van 43 keer "Onzichtbaar". De cijfers zijn met de hand nagerekend en kloppen voor alle
+> twaalf genoemde bedrijven.
+>
+> **Daarna zijn ook P1-5 tot en met P1-8 opgelost**: de contactpersoon komt in de aanhef, een
+> algemene postbus en een functie die over een ander bedrijf gaat mogen geen ontvanger meer zijn, de
+> belvoorbereiding wordt geschreven en opgeslagen (met de reden op het scherm als hij afvalt), de
+> afzender is geen plaatshouder met een intern mailadres meer, een linktekst telt niet meer als
+> bedrijfsnaam, en het Overzicht-scherm haalt echte gegevens op. Zie onderaan `docs/logbook.md`.
+>
+> **Nog open:** P1-9 (de score kan bij gelijke invoer niet kiezen), P1-10 (de ruwe uitvoer van een
+> AI-aanroep wordt niet bewaard), P1-11 (de bewijstabel), en alle P2's en P3's. Het oordeel
+> hieronder beschrijft de stand tijdens de test, niet de stand na de reparaties.
 
 **Wat er getest is.** Eén echte markt, van begin tot eind, op de productieomgeving
 (`geo-ten-blush.vercel.app` en het Supabase-project GEO), met echte betaalde AI-aanroepen en echte
