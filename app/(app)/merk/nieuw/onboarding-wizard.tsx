@@ -104,7 +104,7 @@ export function OnboardingWizard() {
         setPending(false);
         return;
       }
-      router.push(`/merk/${json.id}/merkprofiel`);
+      router.push(`/merk/${json.id}/admin/0-meting`);
     } catch {
       setError("We konden ORBIT ENGINE niet bereiken. Controleer je verbinding en probeer het opnieuw.");
       setPending(false);

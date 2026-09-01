@@ -148,7 +148,7 @@ export function assessReadiness(input: ReadinessInput): Readiness {
       input.dossier,
       "Samengevat in gewone taal",
       true,
-      "#dossier",
+      `/merk/${p}/admin/0-meting#dossier`,
       stepRunning(s, "profile_synthesis"),
     ),
     row(
@@ -156,7 +156,7 @@ export function assessReadiness(input: ReadinessInput): Readiness {
       input.offerings > 0,
       `${input.offerings} onderdelen`,
       true,
-      `/merk/${p}/merkprofiel`,
+      `/merk/${p}/admin/aanbodboom`,
       stepRunning(s, "profile_offering"),
     ),
     row(
@@ -164,7 +164,7 @@ export function assessReadiness(input: ReadinessInput): Readiness {
       input.baselineRows > 0,
       "Nulmeting gedaan",
       true,
-      "#ai-kennis",
+      `/merk/${p}/admin/0-meting#ai-kennis`,
       stepRunning(s, "profile_llm_baseline"),
     ),
     row(

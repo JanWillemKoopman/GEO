@@ -9,10 +9,18 @@ import { InventoryBox } from "../../_components/inventory-box";
 import { DossierBox } from "../../_components/dossier-box";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Bewerken" };
+export const metadata = { title: "Merkdossier" };
 
 /**
  * Het merkprofiel nakijken en aanvullen: 42 velden in zeven stappen.
+ *
+ * ⚠️ **Heette tot 1 september 2026 "Bewerken".** Sinds die dag is het
+ * voormalige leesscherm (`/merk/[id]/merkprofiel`, "Merkdossier") opgesplitst
+ * en naar Admin verhuisd als "0-meting" en "Aanbodboom" (zie
+ * `app/(app)/merk/[id]/admin/0-meting/page.tsx`): allebei stafgereedschap, geen
+ * klantscherm. Deze pagina is daarmee de enige plek onder Merkprofiel en heeft
+ * de naam "Merkdossier" overgenomen: het scherm waar de klant zelf nog iets aan
+ * zijn profiel doet.
  *
  * ── WAAROM DIT EEN EIGEN SCHERM IS EN GEEN BLOK IN HET DOSSIER ──────────────
  *
@@ -96,7 +104,7 @@ export default async function BewerkenPage({
     <div className="flex flex-col gap-6">
       <PageHeader
         eyebrow="Merkprofiel"
-        title="Bewerken"
+        title="Merkdossier"
         description="ORBIT ENGINE heeft het meeste al van je website gehaald. Kijk het na, corrigeer wat niet klopt, en vul aan wat het niet kon weten. Alles wat je hier vastlegt blijft staan, ook als het onderzoek opnieuw draait."
       />
 

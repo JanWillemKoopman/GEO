@@ -5330,3 +5330,30 @@ eenduidig.
 Vier controles groen na de samenvoeging: typecheck, 3309 unittests, 549 ketentests en de
 productiebuild. Dat zijn 288 unittests en 71 ketentests meer dan mijn eigen tak had: al het werk van
 de hoofdlijn draait dus mee.
+
+## 1 september 2026: het merkdossier gesplitst, "0-meting" en "Aanbodboom" naar Admin
+
+Het hoofdstuk Merkprofiel had twee bestemmingen: het leesscherm "Merkdossier" (`/merkprofiel`, wat
+ORBIT ENGINE over het merk te weten kwam, met het aanbod erin) en "Bewerken" (`/merkprofiel/bewerken`,
+de 42 velden die de klant zelf nakijkt). In de praktijk bladert een klant nooit zelfstandig door het
+leesscherm: het is de nulmeting die de consultant gebruikt om het profiel vóór het demogesprek klaar
+te zetten (sales-led, §15). Dat maakte het geen klantscherm maar stafgereedschap dat toevallig onder
+een klanthoofdstuk stond.
+
+Het leesscherm is daarom opgesplitst in twee stafbestemmingen onder Admin, tussen Onboardinggesprek en
+Diagnose (de volgorde van de sessie zelf: eerst het gesprek, dan wat eruit is opgehaald, dan de
+techniek erachter): **"0-meting"** (`/admin/0-meting`, de kop, het dossier, wat AI-assistenten weten en
+de concurrenten) en **"Aanbodboom"** (`/admin/aanbodboom`, het aanbodblok, dat al sinds Ronde C
+bewerkbaar is). "Bewerken" is omgedoopt tot **"Merkdossier"** en is nu de enige bestemming die
+Merkprofiel nog heeft: het enige scherm waar de klant zelf nog iets aan zijn profiel doet.
+
+`GRENS_PER_HOOFDSTUK.Admin` gaat van vijf naar zeven, met dezelfde onderbouwing als de eerdere
+uitzonderingen: het is geen vergaarbak maar vijf bestemmingen over dít merk plus twee uitgangen naar de
+app als geheel. Alle links die naar het oude leesscherm wezen zijn meeverhuisd: de knop na het
+aanmaken van een nieuw merk (die ook het onderzoek in gang zet via `ProfileProgress`), de CSM-lijst,
+de readiness-rijen in `profile-readiness.ts`, en de "terug"-knoppen in de wizard zelf (die nu naar het
+merkoverzicht wijzen, niet naar een dossier dat voor een klant niet meer bestaat). Het oude adres
+`/merk/:id/merkprofiel` en de bijbehorende `/profielen/:id`-doorverwijzingen wijzen permanent door naar
+hun nieuwe plek (`lib/redirects.ts`).
+
+Vier controles groen: typecheck, 3311 unittests, 549 ketentests, de productiebuild.

@@ -1,13 +1,10 @@
 import { Skeleton } from "@/components/skeleton";
 
 /**
- * Het merkprofiel opent niet met een `PageHeader` maar met `ProfileHero`: een
+ * De 0-meting opent niet met een `PageHeader` maar met `ProfileHero`: een
  * brede kaart met de merknaam, het adres en de kopregel uit de nulmeting.
- * Vandaar een eigen vorm en niet `PageSkeleton`.
- *
- * ⚠️ Dit is het scherm dat de eigenaar deelt in een demogesprek
- * (`docs/logbook.md` §15). Een scherm dat daar seconden blanco blijft is niet
- * alleen traag, het is het eerste wat een mogelijke klant van het product ziet.
+ * Vandaar een eigen vorm en niet `PageSkeleton`, zelfde reden als bij het oude
+ * merkdossier waar dit scherm van afstamt.
  */
 export default function Loading() {
   return (

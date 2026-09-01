@@ -101,7 +101,7 @@ export default async function ConceptPage({ params }: { params: Promise<{ id: st
             )}
           </div>
           {profile && (
-            <Link href={`/merk/${profile.id}/merkprofiel`} className="btn-outline w-fit">
+            <Link href={`/merk/${profile.id}/merkprofiel/bewerken`} className="btn-outline w-fit">
               Merk bewerken
             </Link>
           )}

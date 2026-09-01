@@ -8653,9 +8653,12 @@ group("de vragenpagina staat in Strategie, tussen clusters en plan", () => {
     "er is geen tweede vragenscherm",
     !items.some((i) => i.label === "Vraagt jouw input"),
   );
+  // ⚠️ Sinds 1 september 2026 houdt Merkprofiel er nog maar één over: het
+  // leesscherm ("Merkdossier") is opgesplitst en naar Admin verhuisd, als
+  // "0-meting" en "Aanbodboom". Zie `GRENS_PER_HOOFDSTUK` in `lib/nav.ts`.
   ok(
-    "en Merkprofiel houdt er twee over",
-    items.filter((i) => i.hoofdstuk === "Merkprofiel").length === 2,
+    "en Merkprofiel houdt er één over",
+    items.filter((i) => i.hoofdstuk === "Merkprofiel").length === 1,
   );
 });
 
@@ -8857,12 +8860,12 @@ group("elk oud merkadres verwijst permanent naar zijn nieuwe", () => {
   const verwacht: Record<string, string> = {
     "/profielen/nieuw": "/merk/nieuw",
     "/profielen": "/merk",
-    "/profielen/:id": "/merk/:id/merkprofiel",
+    "/profielen/:id": "/merk/:id/admin/0-meting",
     "/profielen/:id/merkprofiel": "/merk/:id/merkprofiel/bewerken",
     "/profielen/:id/profielgegevens": "/merk/:id/merkprofiel/bewerken",
     "/profielen/:id/aanvullen": "/merk/:id/strategie/vragen",
     "/profielen/:id/toevoegingen": "/merk/:id/strategie/vragen",
-    "/profielen/:id/producten": "/merk/:id/merkprofiel",
+    "/profielen/:id/producten": "/merk/:id/admin/aanbodboom",
     "/profielen/:id/plan": "/merk/:id/strategie/plan",
     "/profielen/:id/techniek": "/merk/:id/analytics",
     "/profielen/:id/concurrenten": "/merk/:id/analytics/concurrenten",
@@ -9774,9 +9777,9 @@ group("de zijbalk verraadt niets aan een klant", () => {
   // per ongeluk tijdens een gedeeld scherm op een interne pagina klikt.
   const staffItems = [...brandNav(merkId, true), ...generalNav(true), ...salesNav(true)];
   const adminItems = staffItems.filter((i) => i.hoofdstuk === "Admin");
-  // Drie over dít merk plus "Alle merken" en "Koppelingen" over de app als
-  // geheel.
-  ok("een beheerder heeft vijf Admin-bestemmingen", adminItems.length === 5);
+  // Vijf over dít merk (Onboardinggesprek, 0-meting, Aanbodboom, Diagnose,
+  // Toewijzen) plus "Alle merken" en "Koppelingen" over de app als geheel.
+  ok("een beheerder heeft zeven Admin-bestemmingen", adminItems.length === 7);
   ok(
     "en Koppelingen staat erbij",
     adminItems.some((i) => i.href === "/instellingen/koppelingen" && i.label === "Koppelingen"),
@@ -10968,7 +10971,7 @@ group("C2: alle lezers van profile_offerings gebruiken de gedeelde helper (§16.
     "lib/pipeline/propose-more-topics.ts",
     "lib/pipeline/llm-baseline.ts",
     "lib/pipeline/reputation-start.ts",
-    "app/(app)/merk/[id]/merkprofiel/page.tsx",
+    "app/(app)/merk/[id]/admin/aanbodboom/page.tsx",
   ];
   for (const pad of bewaakteBestanden) {
     const bron = leesBestand(pad);

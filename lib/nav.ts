@@ -91,6 +91,17 @@ export type Hoofdstuk = (typeof HOOFDSTUKKEN)[number];
  * verstuurd. Samenvoegen zou er twee in één scherm proppen die niets met elkaar
  * te maken hebben.
  *
+ * **Admin staat sinds 1 september 2026 op zeven.** Het merkdossier
+ * (`/merkprofiel`) is die dag opgesplitst: de leesbare "0-meting" en de
+ * "Aanbodboom" zijn allebei stafgereedschap geworden en niet meer iets waar
+ * een klant zelfstandig doorheen bladert (het product is sales-led, de
+ * consultant richt het profiel in vóór het demogesprek). Ze staan tussen
+ * Onboardinggesprek en Diagnose, in de volgorde van de sessie zelf: eerst het
+ * gesprek, dan wat daaruit is opgehaald, dan de techniek erachter.
+ * Merkprofiel houdt daarmee nog maar één bestemming over, "Merkdossier" (de
+ * voormalige "Bewerken"): het enige scherm waar de klant zelf nog iets aan
+ * zijn profiel doet.
+ *
  * De klanthoofdstukken blijven op drie, met Analytics en Strategie als de twee
  * genoemde uitzonderingen op vier. Dát is de regel die overeind moet blijven,
  * en die is met deze tabel scherper dan eerst.
@@ -101,7 +112,7 @@ export const GRENS_PER_HOOFDSTUK: Record<Hoofdstuk, number> = {
   Analytics: 4,
   Merkprofiel: 3,
   Sales: 5,
-  Admin: 5,
+  Admin: 7,
 };
 
 /**
@@ -269,14 +280,16 @@ export function brandNav(brandId: string, staff = false): NavItem[] {
     },
 
     // ── MERKPROFIEL ──────────────────────────────────────────────────────
-    {
-      href: `/merk/${brandId}/merkprofiel`,
-      label: "Merkdossier",
-      hoofdstuk: "Merkprofiel",
-    },
+    //
+    // ⚠️ HIER STOND OOK "MERKDOSSIER" (/merkprofiel), TOT 1 SEPTEMBER 2026. Dat
+    // leesscherm is opgesplitst en verhuisd naar Admin, als "0-meting" en
+    // "Aanbodboom" (zie hieronder): allebei stafgereedschap, geen klantscherm.
+    // Wat overblijft is deze ene bestemming, omgedoopt van "Bewerken" naar
+    // "Merkdossier": het enige scherm waar de klant zelf nog iets aan zijn
+    // profiel doet.
     {
       href: `/merk/${brandId}/merkprofiel/bewerken`,
-      label: "Bewerken",
+      label: "Merkdossier",
       hoofdstuk: "Merkprofiel",
     },
     // ⚠️ "Vraagt jouw input" stond hier tot 28 augustus 2026. Het heet nu
@@ -284,33 +297,51 @@ export function brandNav(brandId: string, staff = false): NavItem[] {
 
     // ── ADMIN ────────────────────────────────────────────────────────────
     //
-    // ⚠️ VIJF BESTEMMINGEN IS HET MAXIMUM VAN DÍT HOOFDSTUK, EN DIT ZIJN ER
-    // DRIE VAN. De vierde, "Alle merken", en de vijfde, "Koppelingen", staan
+    // ⚠️ ZEVEN BESTEMMINGEN IS HET MAXIMUM VAN DÍT HOOFDSTUK, EN DIT ZIJN ER
+    // VIJF VAN. De zesde, "Alle merken", en de zevende, "Koppelingen", staan
     // in `generalNav()`.
     //
     // Elk klanthoofdstuk heeft er hooguit drie (besluit 1 tot en met 8 van
     // 17 augustus 2026, `docs/ux-design.md` §5). Voor Admin is die grens op
     // 19 augustus 2026 bewust op vier gezet, bij het toevoegen van de
-    // onboardingsessie, en op 25 augustus 2026 verder op vijf, toen
-    // "Koppelingen" van Instellingen naar Admin verhuisde: een koppeling maken
-    // is voortaan alleen aan de consultant, niet meer aan de klant. De reden
-    // blijft van dezelfde soort: de drie hierboven gaan over dít merk, "Alle
-    // merken" en "Koppelingen" gaan over de app als geheel, dus het is geen
-    // vergaarbak van vijf gelijksoortige regels maar drie plus twee uitgangen.
-    // De rest van de regel blijft staan: een ZESDE bestaat niet zonder eerst
-    // iets samen te voegen, en de klanthoofdstukken blijven op drie.
+    // onboardingsessie, op 25 augustus 2026 op vijf, toen "Koppelingen" van
+    // Instellingen naar Admin verhuisde, en op 1 september 2026 op zeven, toen
+    // het merkdossier opgesplitst werd in "0-meting" en "Aanbodboom": beide
+    // zijn stafgereedschap geworden en geen klantscherm meer (het product is
+    // sales-led, de consultant richt het profiel in vóór het demogesprek). De
+    // reden blijft van dezelfde soort: de vijf hierboven gaan over dít merk,
+    // "Alle merken" en "Koppelingen" gaan over de app als geheel, dus het is
+    // geen vergaarbak van zeven gelijksoortige regels maar vijf plus twee
+    // uitgangen. De rest van de regel blijft staan: een ACHTSTE bestaat niet
+    // zonder eerst iets samen te voegen, en de klanthoofdstukken blijven op
+    // drie.
     //
-    // De scheiding tussen de eerste twee is scherp en zonder overlap:
-    // Onboarding is het werk MÉT de klant en is het enige stafscherm dat
-    // gedeeld wordt, Diagnose is wat er technisch gebeurde en is alleen voor
-    // jou. "Onboarding-inzicht" heette dat scherm hiervoor, en dat leek te veel
-    // op "Onboardingsessie" om tijdens een gedeeld scherm nog uit elkaar te
+    // "0-meting" en "Aanbodboom" staan tussen Onboardinggesprek en Diagnose,
+    // in de volgorde van de sessie zelf: eerst het gesprek met de klant, dan
+    // wat daaruit is opgehaald, dan de techniek erachter. De scheiding tussen
+    // Onboarding en Diagnose blijft scherp en zonder overlap: Onboarding is
+    // het werk MÉT de klant en is het enige stafscherm dat gedeeld wordt,
+    // Diagnose is wat er technisch gebeurde en is alleen voor jou.
+    // "Onboarding-inzicht" heette dat scherm hiervoor, en dat leek te veel op
+    // "Onboardingsessie" om tijdens een gedeeld scherm nog uit elkaar te
     // houden.
     ...(staff
       ? [
           {
             href: `/merk/${brandId}/admin/onboarding`,
             label: "Onboardinggesprek",
+            hoofdstuk: "Admin" as const,
+            staffOnly: true,
+          },
+          {
+            href: `/merk/${brandId}/admin/0-meting`,
+            label: "0-meting",
+            hoofdstuk: "Admin" as const,
+            staffOnly: true,
+          },
+          {
+            href: `/merk/${brandId}/admin/aanbodboom`,
+            label: "Aanbodboom",
             hoofdstuk: "Admin" as const,
             staffOnly: true,
           },

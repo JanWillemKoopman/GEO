@@ -251,7 +251,7 @@ function Rij({ brand }: { brand: CsmBrand }) {
   return (
     <li className="card flex flex-wrap items-start justify-between gap-3">
       <div className="flex min-w-0 flex-col gap-1">
-        <Link href={`/merk/${brand.profileId}/merkprofiel`} className="font-medium hover:underline">
+        <Link href={`/merk/${brand.profileId}/admin/0-meting`} className="font-medium hover:underline">
           {brand.name}
         </Link>
         <span className="flex flex-wrap items-center gap-2 text-sm text-muted">
@@ -297,7 +297,7 @@ function Rij({ brand }: { brand: CsmBrand }) {
             Onboarding
           </Link>
         )}
-        <Link href={`/merk/${brand.profileId}/merkprofiel`} className="text-secondary hover:underline">
+        <Link href={`/merk/${brand.profileId}/admin/0-meting`} className="text-secondary hover:underline">
           Merkdossier
         </Link>
         {brand.heeftPlan && (

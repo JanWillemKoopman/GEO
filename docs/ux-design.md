@@ -289,9 +289,9 @@ noemde. Elk hoofdstuk beantwoordt nu één vraag:
 | Overzicht | Is er iets nieuws, en wat moet ik nu doen? | `/merk/[id]`, tevens de bestemming na inloggen |
 | Strategie | Wat gaan we doen, en wat is er al gemaakt? | Clusters, Openstaande vragen, Contentplan, Bibliotheek |
 | Analytics | Wat zeggen de cijfers, en waarom? | Zichtbaarheid in AI, Zoekverkeer, Concurrenten, Mijn reputatie |
-| Merkprofiel | Wie ben ik volgens ORBIT ENGINE, en klopt dat? | Merkdossier, Bewerken |
+| Merkprofiel | Klopt wat ORBIT ENGINE van me vond? | Merkdossier |
 | Sales | (alleen Outer Orbit, onder een scheidingslijn) | Overzicht, Opportunities, Prospects, Markten, Outreach |
-| Admin | (alleen beheerders, onder een scheidingslijn) | Onboardinggesprek, Diagnose, Toewijzen, Alle merken, Koppelingen |
+| Admin | (alleen beheerders, onder een scheidingslijn) | Onboardinggesprek, 0-meting, Aanbodboom, Diagnose, Toewijzen, Alle merken, Koppelingen |
 
 ⚠️ **"Instellingen" stond hier tot 25 augustus 2026, met "Account en team" en "Koppelingen"
 eronder.** Geen van beide is nog een klantbestemming in de zijbalk: "Account en team" staat nu als
@@ -1020,29 +1020,33 @@ een dode link, en dat is zichtbaarder dan het blok zelf.
 Laag 3 bestaat omdat de handmatige doorloop die het uitvoerplan voorschreef één keer gebeurt en
 daarna nooit meer, terwijl het risico juist bij de vólgende wijziging ontstaat.
 
-### Het hoofdstuk Merkprofiel: drie schermen waar er vijf waren
+### Het hoofdstuk Merkprofiel: nog maar één scherm
 
-Sinds 17 augustus 2026 heeft dit hoofdstuk drie bestemmingen, en elk beantwoordt
+Sinds 17 augustus 2026 had dit hoofdstuk drie bestemmingen, en elk beantwoordde
 één vraag. Daarvoor waren het er vijf (dossier, merkprofiel, profielgegevens,
 aanvullen, toevoegingen), met twee formulieren die naar dezelfde kolommen
 schreven.
 
-⚠️ **Het zijn er sinds 28 augustus 2026 twee.** "Vraagt jouw input" heet nu
-"Openstaande vragen" en staat onder Strategie, op
-`/merk/[id]/strategie/vragen`, met de vragen uit élk cluster erbij. Dit
-hoofdstuk gaat over wie je bent; die vragen bepalen wat er geschreven wordt, en
-sinds de eindpoort zelfs of een pagina afgerond kan worden. Het oude adres
-verwijst permanent door (`lib/redirects.ts`).
+⚠️ **Het zijn er sinds 28 augustus 2026 twee geworden**, toen "Vraagt jouw
+input" (nu "Openstaande vragen") naar Strategie verhuisde, **en sinds
+1 september 2026 nog maar één.** Het leesscherm dat hier "Merkdossier" heette
+is die dag opgesplitst en naar Admin verhuisd, als "0-meting" en
+"Aanbodboom" (zie hieronder): allebei bleken stafgereedschap, geen klantscherm
+(het product is sales-led, de consultant richt het profiel in vóór het
+demogesprek). Wat overblijft heette "Bewerken" en heet nu zelf "Merkdossier":
+het enige scherm waar de klant zelf nog iets aan zijn profiel doet. De oude
+adressen verwijzen permanent door (`lib/redirects.ts`).
 
 | Scherm | De vraag | Wat erop staat |
 |---|---|---|
-| Merkdossier `/merk/[id]/merkprofiel` | Wat weet ORBIT ENGINE van mij? | Kop, het dossier, wat AI over je weet, aanbod, concurrenten |
-| Bewerken `/merk/[id]/merkprofiel/bewerken` | Klopt dat? | 45 velden in zeven stappen, plus gereedschap |
+| Merkdossier `/merk/[id]/merkprofiel/bewerken` | Klopt wat ORBIT ENGINE vond? | 45 velden in zeven stappen, plus gereedschap |
 
-**Het merkdossier is grotendeels een leesscherm.** Geen sectie-rail: de blokken
-hebben geen vaste chronologie zoals de vier hoofdstukken van een cluster, en een
-rail belooft een volgorde die er niet is. Wel een kop met de merknaam, de
-website en één duidingszin (`profile-hero.tsx`).
+**De 0-meting (`/merk/[id]/admin/0-meting`, alleen staf) is grotendeels een
+leesscherm.** Geen sectie-rail: de blokken hebben geen vaste chronologie zoals
+de vier hoofdstukken van een cluster, en een rail belooft een volgorde die er
+niet is. Wel een kop met de merknaam, de website en één duidingszin
+(`profile-hero.tsx`). De aanbodboom (`/merk/[id]/admin/aanbodboom`, ook alleen
+staf) staat er sinds 1 september 2026 los naast, met een eigen `PageHeader`.
 
 ⚠️ **Eén uitzondering sinds onboarding Ronde C (31 augustus 2026): het blok
 Aanbod is bewerkbaar.** `OfferingsPanel` is een servercomponent met een

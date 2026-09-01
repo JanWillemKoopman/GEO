@@ -263,11 +263,11 @@ export function BrandWizard({
               type="button"
               className="btn-primary btn-lg"
               onClick={() =>
-                void bewaar(() => router.push(`/merk/${profileId}/merkprofiel`))
+                void bewaar(() => router.push(`/merk/${profileId}`))
               }
               disabled={wacht}
             >
-              Bewaren en terug naar het dossier
+              Bewaren en terug naar het overzicht
             </button>
           ) : (
             <button
@@ -284,8 +284,8 @@ export function BrandWizard({
       {vuil && (
         <p className="text-sm text-muted">
           Je hebt wijzigingen die nog niet bewaard zijn.{" "}
-          <Link href={`/merk/${profileId}/merkprofiel`} className="underline">
-            Terug naar het dossier
+          <Link href={`/merk/${profileId}`} className="underline">
+            Terug naar het overzicht
           </Link>{" "}
           zonder bewaren gooit ze weg.
         </p>

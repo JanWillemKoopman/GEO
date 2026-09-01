@@ -64,7 +64,7 @@ export default async function ProfielenPage() {
           <ul className="flex flex-col gap-1">
             {failedProfiles.map((p) => (
               <li key={p.id}>
-                <Link href={`/merk/${p.id}/merkprofiel`} className="text-sm underline">
+                <Link href={`/merk/${p.id}/merkprofiel/bewerken`} className="text-sm underline">
                   {p.name}
                 </Link>
               </li>
@@ -86,7 +86,7 @@ export default async function ProfielenPage() {
           {profiles.map((p) => (
             <li key={p.id}>
               <Link
-                href={`/merk/${p.id}/merkprofiel`}
+                href={`/merk/${p.id}/merkprofiel/bewerken`}
                 className="card card-interactive flex flex-wrap items-center justify-between gap-4"
               >
                 <div className="min-w-0">
