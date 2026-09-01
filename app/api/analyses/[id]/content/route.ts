@@ -14,6 +14,14 @@ import { dedupe } from "@/lib/jobs/queue";
  * `draft` betekent: stap 1 (schrijven) is klaar, stap 2 (herschrijven) loopt
  * nog. Voor de klant is dat nog steeds "bezig".
  *
+ * ⚠️ `briefing` is GEEN geschreven pagina. Vóór R5.1 bestond die status niet en
+ * gold hier "alles wat geen `draft` is, is klaar". Sinds een pagina begint als
+ * `briefing` (de klant moet eerst de feitenvragen beantwoorden, zie
+ * `/api/analyses/[id]/briefing`) telde dat scherm zich binnen vier seconden na
+ * de klik op "Laat ORBIT ENGINE deze pagina schrijven" als `ready: true`, met
+ * een lege pagina in de bibliotheek als gevolg. Vandaar de expliciete
+ * uitzondering hieronder, naast `draft`.
+ *
  * ── WAAROM `failed` ZO NAUW AFGEBAKEND IS ───────────────────────────────────
  *
  * Dit telde eerst álle mislukte content-taken van de HELE analyse. Eén pagina
@@ -74,7 +82,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
   const hasFailed = jobs.some((j) => j.status === "failed");
 
   return NextResponse.json({
-    ready: Boolean(piece && piece.status !== "draft"),
+    ready: Boolean(piece && piece.status !== "draft" && piece.status !== "briefing"),
     contentPieceId: piece?.id ?? null,
     failed: hasFailed && !hasOpen,
   });
