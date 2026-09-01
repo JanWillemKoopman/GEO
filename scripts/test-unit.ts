@@ -9781,8 +9781,8 @@ group("de zijbalk verraadt niets aan een klant", () => {
   // Toewijzen) plus "Alle merken" en "Koppelingen" over de app als geheel.
   ok("een beheerder heeft zeven Admin-bestemmingen", adminItems.length === 7);
   ok(
-    "en Koppelingen staat erbij",
-    adminItems.some((i) => i.href === "/instellingen/koppelingen" && i.label === "Koppelingen"),
+    "en Search Console staat erbij",
+    adminItems.some((i) => i.href === "/instellingen/koppelingen" && i.label === "Search Console"),
   );
   ok(
     "en de onboardingsessie staat erbij",

@@ -11,7 +11,7 @@ import { serviceAccountEmail } from "@/lib/search-console/auth";
 import { Icon } from "@/components/icon";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Koppelingen" };
+export const metadata = { title: "Search Console" };
 
 /**
  * KOPPELINGEN: de Search Console-koppeling, per merk.
@@ -148,7 +148,7 @@ function Kop() {
   return (
     <PageHeader
       eyebrow="Instellingen"
-      title="Koppelingen"
+      title="Search Console"
       description="Waar ORBIT ENGINE zijn cijfers vandaan haalt. Eén keer instellen per merk."
     />
   );

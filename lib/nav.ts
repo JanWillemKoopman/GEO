@@ -397,7 +397,7 @@ export function generalNav(staff = false): NavItem[] {
           },
           {
             href: "/instellingen/koppelingen",
-            label: "Koppelingen",
+            label: "Search Console",
             hoofdstuk: "Admin" as const,
             staffOnly: true,
           },
