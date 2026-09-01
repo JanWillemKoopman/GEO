@@ -629,6 +629,18 @@ import {
   packageLabel,
 } from "@/lib/package-sizes";
 import { formatDateShort, formatDateLong, formatRelativeTime, formatNumber, formatUsd, enkelOfMeervoud } from "@/lib/format";
+import {
+  normaliseerLabelnaam,
+  zelfdeLabelnaam,
+  vindLabel,
+  sorteerLabels,
+  leesLabelfilter,
+  filterOpLabel,
+  telPerLabel,
+  MAX_LABELNAAM,
+  LABELFILTER_ALLES,
+  LABELFILTER_GEEN,
+} from "@/lib/cluster-labels";
 import { describeToneSliders, clampToneSlider } from "@/lib/pipeline/tone-sliders";
 import { versionReasonLabel } from "@/lib/pipeline/version-reason";
 import { checkTabooWords } from "@/lib/pipeline/content-gate";
@@ -16192,6 +16204,96 @@ group("De bedrading van de nieuwe contentpijplijn", () => {
   // dezelfde bronnen dezelfde analyse, en dat is precies de clusterbrede
   // vervlakking die S9 en S10 kwamen repareren.
   ok("met de doelvragen in de sleutel", bron.includes("vragen:"));
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+console.log("\nLabels en de prullenbak op het clusteroverzicht (migratie 0083)");
+
+group("een labelnaam wordt opgeschoond voordat hij een groep wordt", () => {
+  eq("spaties aan de randen gaan eraf", normaliseerLabelnaam("  Onderhoud  ") ?? "", "Onderhoud");
+  eq("dubbele spaties binnenin worden er één", normaliseerLabelnaam("cv  ketel") ?? "", "cv ketel");
+  eq("een regeleinde telt als spatie", normaliseerLabelnaam("cv\nketel") ?? "", "cv ketel");
+  // Conventie 3: onbruikbare invoer wordt null, nooit een leeg label dat
+  // daarna als groep in het uitklapmenu staat.
+  ok("alleen spaties levert niets op", normaliseerLabelnaam("   ") === null);
+  ok("leeg levert niets op", normaliseerLabelnaam("") === null);
+  ok("niet-tekst levert niets op", normaliseerLabelnaam(undefined) === null);
+  eq2(
+    `langer dan ${MAX_LABELNAAM} tekens wordt afgekapt`,
+    (normaliseerLabelnaam("x".repeat(80)) ?? "").length,
+    MAX_LABELNAAM,
+  );
+});
+
+group("hoofdletters maken geen tweede label", () => {
+  ok("Onderhoud is onderhoud", zelfdeLabelnaam("Onderhoud", "onderhoud"));
+  ok("maar onderhoud is geen vervanging", !zelfdeLabelnaam("Onderhoud", "vervanging"));
+
+  const labels = [
+    { id: "a", name: "Onderhoud" },
+    { id: "b", name: "Vervanging" },
+  ];
+  eq("een bestaand label wordt hergebruikt", vindLabel(labels, "ONDERHOUD")?.id ?? "geen", "a");
+  ok("een nieuw label wordt niet verzonnen", vindLabel(labels, "Storing") === null);
+});
+
+group("het uitklapmenu staat op alfabet", () => {
+  const gesorteerd = sorteerLabels([
+    { id: "1", name: "vervanging" },
+    { id: "2", name: "Onderhoud" },
+    { id: "3", name: "Advies" },
+  ]);
+  eq("op alfabet, hoofdletters tellen niet mee", gesorteerd.map((l) => l.name).join(", "), "Advies, Onderhoud, vervanging");
+});
+
+group("een label uit het adres wordt gewantrouwd", () => {
+  const labels = [{ id: "abc", name: "Onderhoud" }];
+  eq("een bekend label mag", leesLabelfilter("abc", labels), "abc");
+  eq("zonder label ook", leesLabelfilter(LABELFILTER_GEEN, labels), LABELFILTER_GEEN);
+  // ⚠️ Een label-id van een ander merk zou anders een leeg scherm geven zonder
+  // uitleg, en dat leest als "mijn clusters zijn weg".
+  eq("een onbekend label valt terug op alles", leesLabelfilter("van-een-ander-merk", labels), LABELFILTER_ALLES);
+  eq("geen label in het adres is alles", leesLabelfilter(undefined, labels), LABELFILTER_ALLES);
+});
+
+group("filteren toont precies de clusters van dat label", () => {
+  const clusters = [
+    { id: "1", label_id: "a" },
+    { id: "2", label_id: "b" },
+    { id: "3", label_id: null },
+    { id: "4", label_id: "a" },
+  ];
+  eq("alles laat alles staan", filterOpLabel(clusters, LABELFILTER_ALLES).length.toString(), "4");
+  eq("één label toont er twee", filterOpLabel(clusters, "a").map((c) => c.id).join(","), "1,4");
+  // Zonder deze stand is cluster 3 nergens meer te vinden zodra er labels zijn.
+  eq("zonder label toont er één", filterOpLabel(clusters, LABELFILTER_GEEN).map((c) => c.id).join(","), "3");
+
+  const telling = telPerLabel(clusters);
+  eq2("label a heeft er twee", telling.perLabel.a, 2);
+  eq2("label b heeft er één", telling.perLabel.b, 1);
+  eq2("en er is er één zonder label", telling.zonderLabel, 1);
+});
+
+group("de prullenbak stopt de metingen, en dat staat in de code", () => {
+  // ⚠️ Dit is de belofte van de knop. Zou `activeOnly()` uit de maandronde
+  // verdwijnen, dan blijft een weggehaald cluster elke maand geld kosten
+  // zonder dat iemand het ziet: de uitkomst staat in geen enkele lijst.
+  const cron = leesBestand("app/api/cron/tracking/route.ts");
+  ok("de maandronde slaat gearchiveerde clusters over", cron.includes("activeOnly("));
+
+  const route = leesBestand("app/api/analyses/[id]/archief/route.ts");
+  ok("de prullenbakroute controleert het eigenaarschap", route.includes("getOwnedAnalysis"));
+  ok("en schrijft via de service-role", route.includes("createAdminClient"));
+  // Archiveren en niet verwijderen: onder een cluster hangt maanden meetdata
+  // die alleen terugkomt door er opnieuw voor te betalen (migratie 0044).
+  ok("de prullenbak archiveert en verwijdert niet", route.includes("archived_at") && !route.includes(".delete("));
+  ok("en terugzetten kan ook", route.includes("archived_at: body.archived ?"));
+
+  // Het label mag nooit een cluster van een ander merk oppikken.
+  const patch = leesBestand("app/api/analyses/[id]/route.ts");
+  ok("een label moet bij hetzelfde merk horen", patch.includes('.eq("profile_id", analysis.profile_id)'));
+  const labels = leesBestand("app/api/profiles/[id]/labels/route.ts");
+  ok("de labelroute controleert het eigenaarschap", labels.includes("getOwnedProfile"));
 });
 
 // ════════════════════════════════════════════════════════════════════════════

@@ -20,7 +20,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   const analysis = await getOwnedAnalysis(admin, id, user.id);
   if (!analysis) return NextResponse.json({ error: "Niet gevonden." }, { status: 404 });
 
-  let body: { content_brief?: unknown; mix?: Record<string, unknown> };
+  let body: { content_brief?: unknown; mix?: Record<string, unknown>; label_id?: unknown };
   try {
     body = await request.json();
   } catch {
@@ -32,6 +32,31 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   if ("content_brief" in body) {
     const raw = typeof body.content_brief === "string" ? body.content_brief.trim() : "";
     update.content_brief = raw || null;
+  }
+
+  // ── Het label (migratie 0083) ────────────────────────────────────────────
+  //
+  // Puur ordening, dus altijd toegestaan, ook als het cluster al gemeten is:
+  // het label raakt geen enkele meting en geen enkele prompt. `null` haalt het
+  // label eraf, en dat is een geldige stand.
+  //
+  // ⚠️ Het label moet bij HETZELFDE merk horen. Zonder deze controle kan een
+  // gebruiker met twee merken een cluster van merk A onder een label van merk B
+  // hangen, en dan toont het overzicht van B een cluster dat er niet in staat.
+  if ("label_id" in body) {
+    const labelId = typeof body.label_id === "string" && body.label_id ? body.label_id : null;
+    if (labelId) {
+      const { data: label } = await admin
+        .from("cluster_labels")
+        .select("id")
+        .eq("id", labelId)
+        .eq("profile_id", analysis.profile_id)
+        .maybeSingle();
+      if (!label) {
+        return NextResponse.json({ error: "Dit label hoort niet bij dit merk." }, { status: 400 });
+      }
+    }
+    update.label_id = labelId;
   }
 
   // ── De verdeling over de funnelfasen (migratie 0054) ────────────────────

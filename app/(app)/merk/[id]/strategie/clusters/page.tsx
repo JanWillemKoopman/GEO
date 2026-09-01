@@ -14,7 +14,16 @@ import { TopicsPanel } from "../../_components/topics-panel";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { loadAnalysisPotential, type PotentialTriple } from "@/lib/potential-data";
 import { isStaff } from "@/lib/staff";
-import type { ProfileTopic } from "@/lib/types/database";
+import type { Analysis, ClusterLabel, ProfileTopic } from "@/lib/types/database";
+import {
+  LABELFILTER_ALLES,
+  filterOpLabel,
+  leesLabelfilter,
+  sorteerLabels,
+  telPerLabel,
+} from "@/lib/cluster-labels";
+import { ClusterBalk } from "./cluster-balk";
+import { ClusterKaart } from "./cluster-kaart";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Clusters" };
@@ -35,13 +44,28 @@ export const metadata = { title: "Clusters" };
  *
  * Het derde blok, Voorgestelde clusters, stond tot 17 augustus 2026 op een
  * eigen adres (`/analyses/aanbevolen`).
+ *
+ * ── LABELS EN DE PRULLENBAK (1 september 2026, migratie 0083) ───────────────
+ *
+ * Bij vier clusters is een lijst een lijst. Bij dertig is het een muur, en dan
+ * is de vraag niet "welk cluster staat hier" maar "waar staan mijn clusters
+ * over onderhoud". Daarom een label per cluster en een filter erop.
+ *
+ * De prullenbak is `archived_at` uit migratie 0044, die er al lag maar nooit
+ * een knop had. Een cluster daarin verdwijnt uit deze lijst én uit de
+ * maandelijkse meetronde, want `/api/cron/tracking` leest via `activeOnly()`.
+ * Het meten stopt dus per definitie, en niet omdat een scherm dat belooft.
  */
 export default async function ClustersPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ weergave?: string; label?: string }>;
 }) {
   const { id } = await params;
+  const { weergave, label: labelUitAdres } = await searchParams;
+  const inPrullenbak = weergave === "prullenbak";
   const profile = await getProfile(id);
   if (!profile) notFound();
 
@@ -66,6 +90,33 @@ export default async function ClustersPage({
   });
 
   const failed = analyses.filter((a) => a.status === "mislukt");
+
+  // ── De labels en de prullenbak (migratie 0083) ───────────────────────────
+  //
+  // De prullenbak leest zijn eigen rijen: `loadDashboard()` levert per definitie
+  // alleen de actieve clusters (`activeOnly()`), en dat filter hoort daar te
+  // blijven staan. Alleen de kolommen die het kaartje toont, want de
+  // kaartcijfers van een gearchiveerd cluster hebben geen lezer.
+  const { data: labelRijen } = await supabase
+    .from("cluster_labels")
+    .select("*")
+    .eq("profile_id", id);
+  const labels = sorteerLabels((labelRijen ?? []) as ClusterLabel[]);
+
+  const { data: archiefRijen } = await supabase
+    .from("analyses")
+    .select("*")
+    .eq("user_id", user.id)
+    .eq("profile_id", id)
+    .not("archived_at", "is", null)
+    .order("archived_at", { ascending: false });
+  const gearchiveerd = (archiefRijen ?? []) as Analysis[];
+
+  // Een `?label=` uit het adres kan van alles zijn, ook een label van een ander
+  // merk. Onbekend valt terug op "alle labels" (`lib/cluster-labels.ts`).
+  const labelfilter = leesLabelfilter(labelUitAdres, labels);
+  const zichtbaar = filterOpLabel(inPrullenbak ? gearchiveerd : analyses, labelfilter);
+  const telling = telPerLabel(inPrullenbak ? gearchiveerd : analyses);
 
   // ── Blok 3: de voorstellen uit de nulmeting ──────────────────────────────
   // Besluit 6: dit stond op een eigen adres ("Voorgestelde clusters"), en dat
@@ -107,8 +158,11 @@ export default async function ClustersPage({
       {/* ── 1. Storingen ───────────────────────────────────────────────────
           Vroeger stond een mislukt cluster alleen op de eigen pagina, dus wie
           niet net dáár keek zag hem niet. Deze lijst is de plek waar de klant
-          komt kijken "moet ik iets", dus hier hoort een storing meteen te staan. */}
-      {failed.length > 0 && (
+          komt kijken "moet ik iets", dus hier hoort een storing meteen te staan.
+
+          Niet in de prullenbak: daar is een mislukt cluster geen openstaand
+          werk meer, want er wordt niets meer aan gemeten. */}
+      {!inPrullenbak && failed.length > 0 && (
         <div className="card card-danger flex flex-col gap-2">
           <span className="chip chip-danger w-fit">
             {failed.length === 1 ? "1 cluster niet gelukt" : `${failed.length} clusters niet gelukt`}
@@ -125,64 +179,105 @@ export default async function ClustersPage({
         </div>
       )}
 
-      {/* ── 2. Mijn clusters ───────────────────────────────────────────────── */}
-      {analyses.length === 0 ? (
-        <EmptyState
-          title="Nog geen clusters voor dit merk"
-          action={{ href: `/analyses/new?merk=${id}`, label: "Start je eerste cluster" }}
-        >
-          Kies het product of onderwerp dat je wilt meten. ORBIT ENGINE stelt de vragen die jouw
-          klanten aan een AI stellen, en telt hoe vaak jij in het antwoord staat.
-        </EmptyState>
-      ) : (
-        <div className="flex flex-col gap-3">
-          <span className="mono-label">Lopend</span>
+      {/* ── 2. Mijn clusters ─────────────────────────────────────────────────
+          De balk staat er ook als er nog niets te filteren valt: hij vertelt
+          dan dat de prullenbak leeg is, en dat is precies de vraag die iemand
+          stelt die net een cluster heeft weggehaald. */}
+      <div className="flex flex-col gap-3">
+        <ClusterBalk
+          merkId={id}
+          labels={labels}
+          filter={labelfilter}
+          aantalPerLabel={telling.perLabel}
+          aantalZonderLabel={telling.zonderLabel}
+          aantalActief={analyses.length}
+          aantalPrullenbak={gearchiveerd.length}
+          inPrullenbak={inPrullenbak}
+        />
+
+        {inPrullenbak ? (
+          zichtbaar.length === 0 ? (
+            <div className="card flex flex-col gap-1">
+              <span className="mono-label">
+                {gearchiveerd.length === 0 ? "De prullenbak is leeg" : "Geen clusters met dit label"}
+              </span>
+              <p className="text-secondary">
+                {gearchiveerd.length === 0
+                  ? "Clusters die je hier neerzet verdwijnen uit je overzicht en worden niet meer gemeten. Ze blijven wel bewaard, dus terugzetten kan altijd."
+                  : "Er staat wel iets in de prullenbak, alleen niet onder dit label. Kies een ander label om het te zien."}
+              </p>
+            </div>
+          ) : (
+            <ul className="flex flex-col gap-3">
+              {zichtbaar.map((a) => (
+                <li key={a.id}>
+                  <ClusterKaart analyse={a} labels={labels} gearchiveerd />
+                </li>
+              ))}
+            </ul>
+          )
+        ) : analyses.length === 0 ? (
+          <EmptyState
+            title="Nog geen clusters voor dit merk"
+            action={{ href: `/analyses/new?merk=${id}`, label: "Start je eerste cluster" }}
+          >
+            Kies het product of onderwerp dat je wilt meten. ORBIT ENGINE stelt de vragen die jouw
+            klanten aan een AI stellen, en telt hoe vaak jij in het antwoord staat.
+          </EmptyState>
+        ) : zichtbaar.length === 0 ? (
+          <div className="card flex flex-col gap-1">
+            <span className="mono-label">Geen clusters met dit label</span>
+            <p className="text-secondary">
+              Je hebt {analyses.length === 1 ? "één cluster" : `${analyses.length} clusters`}, maar
+              geen enkele onder dit label. Kies een ander label, of hang er hieronder een cluster
+              aan.
+            </p>
+          </div>
+        ) : (
           <ul className="flex flex-col gap-3">
-            {analyses.map((a) => (
+            {zichtbaar.map((a) => (
               <li key={a.id}>
-                <Link
-                  href={`/analyses/${a.id}`}
-                  className="card card-interactive flex flex-col gap-3"
-                >
-                  <div className="flex flex-wrap items-center justify-between gap-4">
-                    <div className="min-w-0">
-                      <p className="truncate text-lg font-semibold">{a.name}</p>
-                      <LastUpdated at={a.updated_at} className="mono-label mt-1 block" />
-                    </div>
-                    <StatusBadge status={a.status} />
-                  </div>
-                  <AnalysisCardMetrics metrics={dashboard.cardMetrics[a.id]} />
-                </Link>
+                <ClusterKaart
+                  analyse={a}
+                  metrics={dashboard.cardMetrics[a.id]}
+                  labels={labels}
+                />
               </li>
             ))}
           </ul>
-        </div>
-      )}
+        )}
+      </div>
 
       {/* ── 3. Voorgestelde clusters ───────────────────────────────────────
           Onderaan en niet bovenaan: wat loopt gaat voor wat nog een voorstel
           is. Een paneel dat niets te tonen heeft verdwijnt niet maar zegt
-          waaróm het leeg is (`docs/ux-design.md` §4). */}
-      <div className="flex flex-col gap-3">
-        <span className="mono-label">Voorgesteld</span>
-        {topics.length === 0 ? (
-          <div className="card flex flex-col gap-1">
-            <span className="mono-label">Nog geen voorstellen</span>
-            <p className="text-secondary">
-              ORBIT ENGINE heeft voor {profile.brand_name ?? profile.name} nog geen onderwerpen
-              voorgesteld. Zodra de nulmeting daar iets over zegt, staat het hier.
-            </p>
-          </div>
-        ) : (
-          <TopicsPanel
-            profileId={id}
-            initial={topics}
-            potenties={potenties}
-            staff={staff}
-            serviceRegionCount={profile.service_regions.length}
-          />
-        )}
-      </div>
+          waaróm het leeg is (`docs/ux-design.md` §4).
+
+          In de prullenbak staat het er niet: die lijst gaat over wat je hebt
+          weggehaald, en een voorstel om iets nieuws te beginnen hoort daar
+          niet tussen. */}
+      {!inPrullenbak && (
+        <div className="flex flex-col gap-3">
+          <span className="mono-label">Voorgesteld</span>
+          {topics.length === 0 ? (
+            <div className="card flex flex-col gap-1">
+              <span className="mono-label">Nog geen voorstellen</span>
+              <p className="text-secondary">
+                ORBIT ENGINE heeft voor {profile.brand_name ?? profile.name} nog geen onderwerpen
+                voorgesteld. Zodra de nulmeting daar iets over zegt, staat het hier.
+              </p>
+            </div>
+          ) : (
+            <TopicsPanel
+              profileId={id}
+              initial={topics}
+              potenties={potenties}
+              staff={staff}
+              serviceRegionCount={profile.service_regions.length}
+            />
+          )}
+        </div>
+      )}
     </div>
   );
 }

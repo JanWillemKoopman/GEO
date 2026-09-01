@@ -236,11 +236,31 @@ export interface Analysis {
   /** Eenmalige herinnering bij klaarliggende, niet-gepubliceerde content (5.8). */
   publish_reminder_sent_at: string | null;
   /**
+   * Het label waaronder dit cluster in het overzicht staat (migratie 0083).
+   * Null = geen label, en dat is een geldige stand: labels zijn optioneel en
+   * dienen alleen om te groeperen. Zie `lib/cluster-labels.ts`.
+   */
+  label_id: string | null;
+  /**
    * Gearchiveerd op (migratie 0044). Verborgen uit alle lijsten én uit de
    * maandelijkse meetronde, zodat een onzichtbare analyse geen kosten meer
    * maakt. Zie lib/archive.ts.
    */
   archived_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+/**
+ * Een onderwerpgroep boven de clusters van één merk (migratie 0083).
+ *
+ * Puur ordening: het label stuurt geen pijplijnstap aan en gaat nooit mee de
+ * prompt in. Zie `lib/cluster-labels.ts` voor de regels eromheen.
+ */
+export interface ClusterLabel {
+  id: string;
+  profile_id: string;
+  name: string;
   created_at: string;
   updated_at: string;
 }

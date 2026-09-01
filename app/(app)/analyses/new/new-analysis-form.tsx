@@ -2,15 +2,25 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import type { Profile } from "@/lib/types/database";
+import type { ClusterLabel, Profile } from "@/lib/types/database";
+import { MAX_LABELNAAM, sorteerLabels } from "@/lib/cluster-labels";
+
+/** De waarde van de keuzelijst die zegt: ik typ er zelf een nieuwe. */
+const NIEUW_LABEL = "__nieuw__";
 
 export function NewAnalysisForm({
   profiles,
+  labelsPerMerk,
   initialProfileId,
   /** Uit tijdens het bouwen (EMAILS_ENABLED). Dan tonen we het mailvinkje niet. */
   emailsEnabled = false,
 }: {
   profiles: Profile[];
+  /**
+   * De bestaande labels per merk-id (migratie 0083). Per merk en niet één
+   * lijst, want een label van merk A hoort niet in de keuzelijst van merk B.
+   */
+  labelsPerMerk: Record<string, ClusterLabel[]>;
   /** Het merk waar de klant vandaan kwam, zodat hij het niet opnieuw kiest. */
   initialProfileId?: string;
   emailsEnabled?: boolean;
@@ -21,10 +31,17 @@ export function NewAnalysisForm({
   );
   const [topic, setTopic] = useState("");
   const [contentBrief, setContentBrief] = useState("");
+  // Het label (migratie 0083). Leeg = geen label, `NIEUW_LABEL` = het tekstveld
+  // eronder telt. Labels zijn optioneel: wie er één cluster heeft, heeft niets
+  // te groeperen.
+  const [labelKeuze, setLabelKeuze] = useState("");
+  const [nieuwLabel, setNieuwLabel] = useState("");
   // Standaard aan: een analyse duurt minuten, dus je wilt bericht als het klaar is.
   const [notifyByEmail, setNotifyByEmail] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
+
+  const labels = sorteerLabels(labelsPerMerk[profileId] ?? []);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -39,6 +56,8 @@ export function NewAnalysisForm({
           topic,
           content_brief: contentBrief,
           notify_by_email: notifyByEmail,
+          label_id: labelKeuze === NIEUW_LABEL ? "" : labelKeuze,
+          label_name: labelKeuze === NIEUW_LABEL ? nieuwLabel : "",
         }),
       });
       const json = await res.json();
@@ -61,7 +80,14 @@ export function NewAnalysisForm({
         <select
           required
           value={profileId}
-          onChange={(e) => setProfileId(e.target.value)}
+          onChange={(e) => {
+            // Een ander merk heeft andere labels, dus de keuze vervalt. Zonder
+            // dit blijft er een label-id staan dat bij het nieuwe merk niet
+            // bestaat, en dan weigert de route hem terecht.
+            setProfileId(e.target.value);
+            setLabelKeuze("");
+            setNieuwLabel("");
+          }}
           className="field"
         >
           {profiles.map((p) => (
@@ -87,6 +113,45 @@ export function NewAnalysisForm({
           Eén cluster = één product of onderwerp. Scherp afbakenen levert scherpere vragen op.
         </span>
       </label>
+
+      {/* Het label (migratie 0083). Onder het onderwerp en niet erboven: eerst
+          waar dit cluster over gaat, dan waar het bij hoort. Optioneel, en dat
+          staat er ook, want bij het eerste cluster valt er niets te groeperen. */}
+      <div className="flex flex-col gap-1.5">
+        <label className="flex flex-col gap-1.5">
+          <span className="mono-label">Label (optioneel)</span>
+          <select
+            value={labelKeuze}
+            onChange={(e) => setLabelKeuze(e.target.value)}
+            className="field"
+          >
+            <option value="">Geen label</option>
+            {labels.map((l) => (
+              <option key={l.id} value={l.id}>
+                {l.name}
+              </option>
+            ))}
+            <option value={NIEUW_LABEL}>+ Nieuw label maken</option>
+          </select>
+        </label>
+
+        {labelKeuze === NIEUW_LABEL && (
+          <input
+            type="text"
+            value={nieuwLabel}
+            onChange={(e) => setNieuwLabel(e.target.value)}
+            maxLength={MAX_LABELNAAM}
+            placeholder="bijv. Onderhoud"
+            className="field"
+            aria-label="Naam van het nieuwe label"
+          />
+        )}
+
+        <span className="text-sm text-muted">
+          Een label groepeert clusters op onderwerp. Zo blijft het overzicht leesbaar zodra je er
+          veel hebt. Je kunt het later altijd nog aanpassen.
+        </span>
+      </div>
 
       <label className="flex flex-col gap-1.5">
         <span className="mono-label">Wat voor content wil je? (optioneel)</span>
