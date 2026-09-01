@@ -8,7 +8,6 @@ import { ConfirmDialog } from "@/components/confirm-dialog";
 import { BrandFieldInput, type VeldStand } from "./brand-field-input";
 import { DossierBox } from "./dossier-box";
 import { StrategyBox } from "./strategy-box";
-import { FactRequests } from "./fact-requests";
 import { ProfileReadinessPanel } from "./profile-readiness-panel";
 import {
   BRAND_FIELDS,
@@ -26,7 +25,7 @@ import {
   FIELD_TASKS,
 } from "@/lib/pipeline/onboarding-refresh";
 import { sessionMeter, notApplicableFields, type FieldState } from "@/lib/profile-meter";
-import type { ContextFactor, FactRequest, Profile } from "@/lib/types/database";
+import type { ContextFactor, Profile } from "@/lib/types/database";
 
 /**
  * DE ONBOARDINGSESSIE: het scherm waar consultant en klant samen aan tafel zitten.
@@ -67,8 +66,6 @@ export function OnboardingSession({
   recordedAt,
   changedSinceResearch,
   openAnalyses,
-  factRequests,
-  factGroepen,
 }: {
   profileId: string;
   brandName: string;
@@ -83,13 +80,6 @@ export function OnboardingSession({
   changedSinceResearch: string[];
   /** Analyses waarvan de vragen nog opnieuw opgesteld kunnen worden. */
   openAnalyses: number;
-
-  /**
-   * B6: dezelfde feitenvragen als op de vragenpagina, uit `loadOpenQuestions()`.
-   * Eén loader, geen tweede telling (hoofdstuk 13, A3).
-   */
-  factRequests: FactRequest[];
-  factGroepen: { id: string; naam: string }[];
 }) {
   const router = useRouter();
   const [waarden, setWaarden] = useState<Record<string, unknown>>(() => {
@@ -135,14 +125,6 @@ export function OnboardingSession({
         notApplicableFields(states),
       ),
     [waarden, states],
-  );
-
-  // B6: de open feitenvragen tellen mee in de badge van blok 1, naast de
-  // profielgaten. `factRequests` komt uit dezelfde `loadOpenQuestions()` als de
-  // vragenpagina; overgeslagen vragen tellen bewust niet mee (zie die module).
-  const openFeitenvragen = useMemo(
-    () => factRequests.filter((f) => f.status === "open"),
-    [factRequests],
   );
 
   // B3: welke verplichte velden staan nog open, inclusief het onderscheid uit
@@ -349,14 +331,6 @@ export function OnboardingSession({
       <SectionRail
         sections={[
           { id: "voorbereiding", label: "Voorbereiding" },
-          {
-            id: "open",
-            label: "Openstaande punten",
-            badge:
-              gaten.length + openFeitenvragen.length > 0
-                ? `${gaten.length + openFeitenvragen.length} open`
-                : undefined,
-          },
           // B9, hoofdstuk 8.2: voortgang per blok in de rail, zodat de
           // consultant ziet waar hij staat zonder alle negen blokken langs te
           // scrollen.
@@ -373,8 +347,7 @@ export function OnboardingSession({
         ]}
       />
 
-      <div className="flex min-w-0 flex-1 flex-col gap-10 lg:flex-row">
-        <div className="flex min-w-0 flex-1 flex-col gap-12">
+      <div className="flex min-w-0 flex-1 flex-col gap-12">
           {/* B9, hoofdstuk 8.6: één vaste regel in plaats van een chip per
               veld. Springt niet, en zegt precies wat de klant wil weten: dat
               er niets kwijtraakt. */}
@@ -396,51 +369,6 @@ export function OnboardingSession({
               uitleg={`${initial.url} · ${initial.industry ?? "branche nog niet bekend"}. Wat ORBIT ENGINE al weet, en wat er nog moet gebeuren voordat je dit scherm deelt.`}
             />
             <ProfileReadinessPanel profileId={profileId} brandName={brandName} />
-          </section>
-
-          {/* ── 1. Openstaande punten en vragen ──────────────────────────────
-              Bovenaan, en dat is de kern van dit scherm. B6: naast de open
-              punten in het profiel staan hier ook de feitenvragen uit
-              `fact_requests`, uit dezelfde loader als de vragenpagina
-              (`loadOpenQuestions()`). Eén telling, niet twee. */}
-          <section id="open" className="flex flex-col gap-3">
-            <Kop
-              nummer="01"
-              titel="Openstaande punten en vragen"
-              uitleg="Hier begint het gesprek. Elk punt hieronder maakt de meting of de teksten scherper, en het zwaarste staat bovenaan. Vragen beantwoord je meteen, hier."
-            />
-            {gaten.length === 0 ? (
-              <div className="card card-success flex flex-col gap-1">
-                <span className="mono-label">Niets open</span>
-                <p className="text-secondary">
-                  Alles wat de meting stuurt staat er. De rest maakt het scherper, maar is niet
-                  nodig om te beginnen.
-                </p>
-              </div>
-            ) : (
-              <ul className="flex flex-col gap-3">
-                {gaten.map((gat) => (
-                  <li key={gat.field} className="card flex flex-col gap-2">
-                    <span className="text-sm font-semibold">{gat.label}</span>
-                    <p className="text-sm text-secondary">{gat.effect}</p>
-                    <a
-                      href={`#veld-anker-${gat.field}`}
-                      className="btn-outline w-fit"
-                    >
-                      Ga naar dit veld
-                    </a>
-                  </li>
-                ))}
-              </ul>
-            )}
-            {factRequests.length > 0 && (
-              <FactRequests
-                profileId={profileId}
-                initial={factRequests}
-                groepen={factGroepen}
-                kop="Wat ORBIT ENGINE nog van je wil weten"
-              />
-            )}
           </section>
 
           {/* ── 2 tot en met 6, 8. De blokken van hoofdstuk 3 ─────────────────
@@ -747,26 +675,6 @@ export function OnboardingSession({
             </div>
           </div>
         </section>
-        </div>
-
-        {/* B9, hoofdstuk 8.1: een blijvende contextkolom naast de invoer, met
-            de meter en de openstaande punten. Zonder dit moest de consultant
-            voor de meter naar de bodem van een lange pagina scrollen. */}
-        <aside className="hidden w-64 shrink-0 flex-col gap-4 self-start lg:sticky lg:top-[calc(var(--header-h)+2.5rem)] lg:flex">
-          <div className="card flex flex-col gap-3">
-            <Meter meter={meter} />
-          </div>
-          {gaten.length + openFeitenvragen.length > 0 && (
-            <div className="card flex flex-col gap-2">
-              <span className="mono-label">
-                {gaten.length + openFeitenvragen.length} nog open
-              </span>
-              <a href="#open" className="text-sm text-secondary underline-offset-2 hover:underline">
-                Naar de openstaande punten
-              </a>
-            </div>
-          )}
-        </aside>
       </div>
 
       {/* Was een kaal `window.confirm()` met alles op één regel, "Doorgaan?"

@@ -10196,13 +10196,12 @@ group("de sessiepagina wordt gedeeld met de klant (deel B3)", () => {
 
   // ── Onboarding ronde B: de herindeling en de teksten uit hoofdstuk 7 ─────
   ok("de sessie rendert de negen blokken", sessie.includes("SESSION_BLOCKS"));
+  // Het openingsblok "Openstaande punten en vragen" is op 1 september 2026
+  // verwijderd: het stond dubbel met `/strategie/vragen`, dat dezelfde
+  // `loadOpenQuestions()`-loader gebruikt. Zie docs/logbook.md.
   ok(
-    "het openingsblok heet Openstaande punten, niet meer Wat we nog niet weten",
-    sessie.includes("Openstaande punten") && !sessie.includes("Wat we nog niet weten"),
-  );
-  ok(
-    "de springlink heet Ga naar dit veld, niet Invullen (de knop slaat niets op)",
-    sessie.includes("Ga naar dit veld") && !sessie.includes(">Invullen<"),
+    "de sessie heeft geen eigen openstaande-puntenblok meer (dat staat op /strategie/vragen)",
+    !sessie.includes('id="open"') && !sessie.includes("FactRequests"),
   );
   ok(
     "de auteursvelden staan ingeklapt onder één gezamenlijke uitleg",

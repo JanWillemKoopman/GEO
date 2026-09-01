@@ -5357,3 +5357,21 @@ merkoverzicht wijzen, niet naar een dossier dat voor een klant niet meer bestaat
 hun nieuwe plek (`lib/redirects.ts`).
 
 Vier controles groen: typecheck, 3311 unittests, 549 ketentests, de productiebuild.
+
+## 1 september 2026: het openstaande-puntenblok uit het onboardinggesprek, de contextkolom weg
+
+Het onboardingscherm (`/admin/onboarding`) had een eigen blok "Openstaande punten en vragen" bovenaan,
+met dezelfde profielgaten en feitenvragen als `/strategie/vragen`. Dat was letterlijk hetzelfde
+antwoord op twee plekken: beide lazen `loadOpenQuestions()`, en de vragenpagina bestaat al sinds 28
+augustus precies om die splitsing tegen te gaan (zie de toelichting bovenaan
+`app/(app)/merk/[id]/strategie/vragen/page.tsx`). Het blok is uit het onboardinggesprek verwijderd; de
+consultant vindt de openstaande punten voortaan op één plek. De rail-ingang, de rechterkolom met de
+"nog open"-kaart die naar het blok linkte, en het ophalen van `factRequests`/`factGroepen` in
+`admin/onboarding/page.tsx` zijn meeverwijderd, want die dienden alleen dit blok.
+
+Diezelfde rechterkolom (`<aside>` met de volledigheidsmeter en de link naar de open punten) is
+helemaal weg: de meter staat al onderaan bij "Afspraken en afronden", en zonder de linkkaart had de
+kolom geen functie meer die niet al ergens anders op het scherm stond. Het middenblok met het gesprek
+zelf vult nu de volle breedte.
+
+Vier controles groen: typecheck, 3310 unittests, 549 ketentests, de productiebuild.
