@@ -5688,3 +5688,43 @@ openstaand (`docs/tasks/potentiescore.md` §4b).
 Vier controles groen: typecheck, 3462 unittests (7 nieuw, `isConfident`), 557 ketentests, de
 productiebuild. **Nog niet geverifieerd tegen een echte klant** (conventie 10): geen productieprofiel
 is nagelopen op of een kans met bekend weinig doelvragen het label ook echt krijgt.
+
+## 1 september 2026: geen aanbeveling meer voor wat de klant al heeft (existingUrl-conventie afdwingen)
+
+Aanleiding: de vraag of de app zelf al voorkomt dat een voorgestelde content-item (bijna) identiek
+is aan een bestaande pagina van de klant. Onderzoek liet zien van niet, op één punt na: het model
+achter het periodieke rapport (`REPORT_SYSTEM`, `lib/pipeline/report.ts`) krijgt bij elke
+aanbeveling de instructie "verbeteren" te kiezen met een bestaande URL als een pagina het onderwerp
+al dekt, en "nieuw" met `existingUrl: null` als dat niet zo is. Dat is een instructie, geen garantie
+(conventie 1), en in productie ging hij op twee manieren mis: bij Gasservice Brabant gaf het model
+bij een NIEUWE aanbeveling toch een URL op (letterlijk `":"`, opgevangen door `schoonAdres()` in
+`lib/plan-backlog-data.ts`), en bij Udenhout claimde het `action: "verbeteren"` met een verzonnen
+pad (`/udenhout.nl/skoda`) dat nergens in de crawl voorkomt (`lib/pipeline/briefing-select.ts`). Het
+omgekeerde geval, het model zegt "nieuw" terwijl de site het onderwerp al dekt, werd nergens
+gecontroleerd: dat is precies het scenario waarin de klant een pagina voorgesteld krijgt die hij al
+heeft. Dit stond ook los aangemerkt in `docs/tasks/roadmap.md` §7 ("existingUrl-conventie
+afdwingen"), als hygiëne die niets blokkeerde, dus nooit gebouwd.
+
+**Wat er gebouwd is.** `lib/pipeline/existing-page-match.ts`, puur en zonder AI-aanroep: rekent per
+aanbeveling de onderwerptermen uit (`topicTerms()` uit `page-relevance.ts`, hergebruikt in plaats
+van opnieuw uitgevonden) en scoort daarmee elke gecrawlde pagina (`profile_pages`, titel drie keer
+zo zwaar als de body, dezelfde weging als `scorePage()`). Bij minder dan drie bruikbare
+onderwerptermen volgt geen oordeel (conventie 3, "prijzen" alleen zegt te weinig om een pagina als
+duplicaat aan te merken). Bij 70% dekking of meer (`EXISTING_PAGE_COVERAGE_THRESHOLD`, net als
+`DUPLICATE_THRESHOLD` bewust ruim en met de gemeten waarde altijd teruggegeven, dus later op data
+bij te stellen) geldt het onderwerp als al gedekt.
+
+`reconcileExistingPageActions()` past dit toe direct na `mergeOverlappingRecommendations()` in
+`report.ts`, vóór opslag in `reports.recommendations_json`: zegt het model "nieuw" terwijl een
+gecrawlde pagina het onderwerp al ruim dekt, dan wordt het alsnog "verbeteren" met die URL. Zegt het
+model "verbeteren" met een URL die niet in de crawl voorkomt, dan vervangt de zelf gevonden pagina de
+onbevestigde URL, of valt de aanbeveling terug op "nieuw" zonder adres als ook wij niets vinden
+(nooit een niet te bevestigen link tonen, dezelfde afweging als `schoonAdres()`). Beide correcties
+gaan naar de logs, zodat zichtbaar blijft hoe vaak het model dit mis had. Geen migratie nodig: de
+correctie grijpt in vóórdat `action`/`existingUrl` worden opgeslagen, en het scherm
+(`plan-view.tsx`) toonde die twee velden al.
+
+Vier controles groen: typecheck, 3478 unittests (16 nieuw), 557 ketentests, de productiebuild.
+**Nog niet geverifieerd tegen een echte klant** (conventie 10): de dekkingsdrempel van 70% is getoetst
+tegen verzonnen voorbeeldpagina's, niet tegen een crawl van duizenden pagina's van een bestaande
+klant, waar de verhouding tussen een terechte en een onterechte "dit staat er al" nog moet blijken.

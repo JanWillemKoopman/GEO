@@ -14,6 +14,7 @@ import { GapAnalysis } from "@/lib/schemas/gap-analysis";
 import { Report } from "@/lib/schemas/report";
 import { NEUTRAL_WEIGHT } from "@/lib/pipeline/prompt-weight";
 import { resolveTargets, mergeOverlappingRecommendations } from "@/lib/pipeline/recommendation";
+import { reconcileExistingPageActions } from "@/lib/pipeline/existing-page-match";
 import { correctQuestionCount, questionCountLine } from "@/lib/pipeline/report-summary";
 import {
   buildEvidenceDossier,
@@ -844,6 +845,26 @@ export async function generateReport(
       resolveTargets(report.parsed.recommendations, missed),
     );
 
+    // ── Bestaat dit al op de website? (docs/logbook.md 1 september 2026) ───
+    // Het deterministische vangnet onder de nieuw/verbeteren-instructie in
+    // REPORT_SYSTEM: rekent zelf na tegen de crawl in plaats van te vertrouwen
+    // op wat het model beweert (conventie 1). Voorkomt zowel een verzonnen
+    // `existingUrl` als een "nieuwe" pagina die de site al ruim dekt.
+    const { recommendations: gecontroleerd, overrides: paginaCorrecties } =
+      reconcileExistingPageActions(
+        enriched,
+        pages.map((p) => ({ url: p.url, title: p.title, text: p.text_excerpt })),
+      );
+    if (paginaCorrecties.length > 0) {
+      console.warn(
+        `Analyse ${id} periode ${weekNo}: ${paginaCorrecties.length} aanbeveling(en) ` +
+          `gecorrigeerd tegen de bestaande website: ` +
+          paginaCorrecties
+            .map((o) => `"${o.title}" (${o.from} → ${o.to}, ${o.reason})`)
+            .join("; "),
+      );
+    }
+
     // ── Claimvalidatie (implementatieplan.md R1.3) ─────────────────────────
     // Het deterministische vangnet onder R1.1/R1.2: elke concurrentnaam moet
     // voorkomen in het bewijs van de vraag waaraan hij hangt. Wat dat niet
@@ -853,7 +874,7 @@ export async function generateReport(
       admin,
       {
         profileId: analysis.profile_id,
-        recommendations: enriched,
+        recommendations: gecontroleerd,
         gaps: report.parsed.gaps,
         dossier,
       },
