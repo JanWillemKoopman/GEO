@@ -32,7 +32,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { callStructured } from "@/lib/openai/structured";
 import { MODELS } from "@/lib/openai/models";
 import { ClaimAudit } from "@/lib/schemas/claim-audit";
-import type { AuditedClaim } from "@/lib/schemas/claim-audit";
+import type { AuditedClaim, GeneralContextGap } from "@/lib/schemas/claim-audit";
 import { buildFactBase, lastContradictions } from "@/lib/pipeline/factbase";
 import { describeContradictions } from "@/lib/pipeline/fact-merge";
 import { formatFactCard, isSupported, claimKey, type FactItem } from "@/lib/pipeline/factcard";
@@ -91,7 +91,15 @@ const AUDIT_SYSTEM =
   "opnieuw, ook niet net anders geformuleerd, ook niet als deelvraag. En stel binnen je eigen " +
   "antwoord nooit twee vragen die met hetzelfde antwoord beantwoord zouden worden: kies dan de " +
   "kortste. De klant krijgt er maximaal acht te zien; drie varianten van dezelfde vraag kosten " +
-  "hem drie van die acht plekken en leveren één antwoord op.";
+  "hem drie van die acht plekken en leveren één antwoord op. " +
+  "(9) NAAST de beweringen: vul ook generalContextGaps. Dat zijn GEEN beweringen over dit bedrijf, " +
+  "dus geen F-nummer nodig, maar TERMEN die in een doelvraag, titel of feit van een pagina " +
+  "voorkomen zonder dat hun betekenis ergens wordt uitgelegd (een keurmerk, een norm, een " +
+  "technische of wettelijke term), en die de pagina aantoonbaar sterker maken als ze kort worden " +
+  "toegelicht. `neededFor` verwijst naar dezelfde doelvraag als bij een bewering. Noem alleen " +
+  "termen die een lezer zonder vakkennis nodig heeft om de pagina te begrijpen: een lege lijst is " +
+  "de norm, geen uitzondering. En blijf hier ALGEMEEN: nooit een uitleg die eigenlijk een " +
+  "bewering over dit specifieke bedrijf is, die hoort bij de beweringen hierboven.";
 
 /** De doelvragen en het winnende antwoord per gekozen pagina. */
 async function buildPageBlocks(
@@ -534,6 +542,17 @@ export async function runBriefing(args: {
           // opnieuw door tegen de dan-geldende feiten, inclusief de antwoorden
           // die de klant ná de briefing gaf.
           plan: audit.parsed.claims.filter((c) => paginaVanClaim(c.neededFor).includes(pieceId)),
+          // ── DE ALGEMENE CONTEXT-GATEN BEWAREN (S9) ──────────────────────
+          //
+          // Zelfde koppeling en zelfde reden als het paginaplan hierboven: per
+          // pagina, niet clusterbreed, want de aanbevelingen in één analyse
+          // lopen soms sterk uiteen van onderwerp. `draftContentPiece()` gebruikt
+          // dit om gericht te zoeken naar uitleg van precies de termen die DEZE
+          // pagina nodig heeft, in plaats van op een blinde vuistregel over het
+          // totaal aantal feiten van de klant.
+          generalContextGaps: (audit.parsed.generalContextGaps ?? []).filter((g) =>
+            paginaVanClaim(g.neededFor).includes(pieceId),
+          ),
           recommendation: recommendations[i],
           // ── DE TEGENSPRAKEN BEWAREN (S8) ───────────────────────────────
           //
@@ -602,6 +621,25 @@ export function planFromSnapshot(snapshot: unknown): AuditedClaim[] {
       Boolean(c) &&
       typeof (c as AuditedClaim).claim === "string" &&
       typeof (c as AuditedClaim).neededFor === "string",
+  );
+}
+
+/**
+ * De algemene context-gaten van deze pagina uit de snapshot teruglezen (S9).
+ *
+ * Leeg bij een pagina van vóór S9, of bij een briefing die strandde vóór het
+ * wegschrijven. De schrijver valt dan terug op zijn oude gedrag: geen gerichte
+ * zoekopdracht, wel nog steeds de generieke vuistregel bij een dunne kaart.
+ * Zelfde afspraak als bij `planFromSnapshot()`.
+ */
+export function generalContextGapsFromSnapshot(snapshot: unknown): GeneralContextGap[] {
+  const snap = (snapshot ?? {}) as { generalContextGaps?: unknown };
+  if (!Array.isArray(snap.generalContextGaps)) return [];
+  return snap.generalContextGaps.filter(
+    (g): g is GeneralContextGap =>
+      Boolean(g) &&
+      typeof (g as GeneralContextGap).term === "string" &&
+      typeof (g as GeneralContextGap).neededFor === "string",
   );
 }
 

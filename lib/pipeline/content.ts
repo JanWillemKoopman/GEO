@@ -56,7 +56,7 @@ import { analyzeCitedSources } from "@/lib/pipeline/source-analysis";
 import { contentWebSearchEnabled, minProofPointsForConcreteContent } from "@/lib/config";
 import { buildFactBase } from "@/lib/pipeline/factbase";
 import { syncBrandFacts } from "@/lib/pipeline/factstore";
-import { factsFromSnapshot, planFromSnapshot } from "@/lib/pipeline/briefing";
+import { factsFromSnapshot, planFromSnapshot, generalContextGapsFromSnapshot } from "@/lib/pipeline/briefing";
 import { enkelOfMeervoud } from "@/lib/format";
 import {
   formatFactCard,
@@ -65,9 +65,11 @@ import {
   factFromAnswer,
   mergeAnsweredFacts,
   normalizeForQuote,
+  buildFactFindingAddendum,
   type AnsweredFactInput,
   type FactItem,
   type WrittenClaim,
+  type ContextGap,
 } from "@/lib/pipeline/factcard";
 import type { RecommendationTarget } from "@/lib/pipeline/recommendation";
 import type {
@@ -166,22 +168,10 @@ const CONTENT_SYSTEM =
   "Splits zo'n zin in twee zinnen, of gebruik een komma, een dubbele punt of het woord 'of'. " +
   "Een koppelteken in een samenstelling ('AI-assistent') is gewoon goed en mag blijven.";
 
-/**
- * Vangnet-instructie als de klant te weinig geverifieerde feiten heeft
- * (optimalisatie.md 4.6). Alleen actief bij een dunne feitenlijst, en alleen
- * met web-zoeken aan.
- *
- * De spanning die dit oplost: "verzin niets" + "wees concreet" is bij een dunne
- * website een tegenspraak, en het model kiest dan altijd voor algemeen. Door
- * ALGEMENE vakkennis te laten opzoeken (geen bedrijfsclaims. Die kunnen we niet
- * controleren) krijgt de pagina toch iets concreets om op te staan.
- */
-const FACT_FINDING_ADDENDUM =
-  " AANVULLENDE OPDRACHT: er zijn weinig geverifieerde feiten over dit bedrijf beschikbaar. Zoek daarom " +
-  "op internet naar ALGEMEEN GELDENDE, verifieerbare feiten over het ONDERWERP (normen, termijnen, " +
-  "richtprijzen in de markt, wettelijke eisen, technische standaarden) en verwerk die met bronvermelding. " +
-  "Doe dit NOOIT voor claims over dit specifieke bedrijf. Die mag je alleen uit de aangeleverde feitenlijst " +
-  "halen. Een marktfeit met bron is waardevol; een verzonnen bedrijfsfeit is schadelijk.";
+// De vangnet-instructie bij web-zoeken tijdens het schrijven (optimalisatie.md
+// 4.6) staat als `buildFactFindingAddendum()` in `factcard.ts`: puur en
+// testbaar, en sinds S9 (gesprek van 1 september) gericht op de concrete
+// termen die DEZE pagina nodig heeft in plaats van alleen op "weinig feiten".
 
 /** Redacteur-rol voor de kritiek-stap, redactioneel én GEO (optimalisatie.md 4.5). */
 const CRITIQUE_SYSTEM =
@@ -525,8 +515,10 @@ interface ContentContext {
   competitors: string[];
   targets: RecommendationTarget[];
   baseInput: string;
-  /** Web-zoeken aanzetten voor déze aanroep, omdat de feitenlijst te dun is (4.6). */
+  /** Web-zoeken aanzetten voor déze aanroep: een dunne feitenlijst, of concrete gaten hieronder (S9). */
   needsFactFinding: boolean;
+  /** Termen die DEZE pagina uitgelegd wil zien, geen bewering over de klant (S9). */
+  generalContextGaps: ContextGap[];
   brandName: string;
   /**
    * De feitenkaart waarop deze pagina geschreven wordt (R5.3). Wordt ook ná het
@@ -832,6 +824,13 @@ async function loadContentContext(
   // plaats van tegen de stand van tijdens de briefing.
   const plan = planFromSnapshot(pieceRow?.briefing_snapshot_json);
 
+  // De algemene context-gaten van DEZE pagina (S9): termen die uitleg nodig
+  // hebben zonder dat het beweringen over de klant zijn. Per pagina bepaald in
+  // de claim-audit, niet clusterbreed, precies om te voorkomen dat een pagina
+  // over onderwerp X context krijgt aangereikt die eigenlijk bij onderwerp Y
+  // hoort.
+  const generalContextGaps = generalContextGapsFromSnapshot(pieceRow?.briefing_snapshot_json);
+
   // ── De bevroren kaart is een MOMENTOPNAME, geen eindstand (R8.1) ──────────
   //
   // Hij is bevroren toen de claim-audit draaide, dus vóórdat de klant ook maar
@@ -888,7 +887,16 @@ async function loadContentContext(
       (techniekFacet?.raw_json as { sameAs?: string[] } | null)?.sameAs ?? [],
     ),
     brandName: profile?.brand_name ?? analysis.url,
-    needsFactFinding: contentWebSearchEnabled && proofCount < minProofPointsForConcreteContent,
+    // Twee onafhankelijke redenen om te mogen zoeken (S9): deze pagina heeft
+    // concrete termen die uitleg nodig hebben, OF de klant heeft in het
+    // algemeen weinig bevestigde feiten. De eerste is specifiek voor dit
+    // contentitem; de tweede blijft de generieke vuistregel van vóór S9. Zie
+    // `buildFactFindingAddendum()` in factcard.ts voor wat elk van de twee
+    // daadwerkelijk aan de schrijver meegeeft.
+    generalContextGaps,
+    needsFactFinding:
+      contentWebSearchEnabled &&
+      (proofCount < minProofPointsForConcreteContent || generalContextGaps.length > 0),
     baseInput: buildContentInput({
       analysis,
       profile,
@@ -1330,8 +1338,11 @@ export async function draftContentPiece(args: {
     saved ??
     (await callStructured({
       model: MODELS.content,
-      // Vangnet bij een dunne feitenlijst (4.6): dan mag hij marktfeiten opzoeken.
-      system: ctx.needsFactFinding ? CONTENT_SYSTEM + FACT_FINDING_ADDENDUM : CONTENT_SYSTEM,
+      // Gerichte zoekopdracht bij concrete context-gaten in DEZE pagina, anders
+      // het generieke vangnet bij een dunne feitenlijst (S9, was 4.6).
+      system: ctx.needsFactFinding
+        ? CONTENT_SYSTEM + buildFactFindingAddendum(ctx.generalContextGaps)
+        : CONTENT_SYSTEM,
       user: baseInput,
       schema: ContentPiece,
       schemaName: "content_piece",
@@ -1534,7 +1545,9 @@ export async function reviseContentPiece(args: {
 
   const revised = await callStructured({
     model: MODELS.content,
-    system: ctx.needsFactFinding ? CONTENT_SYSTEM + FACT_FINDING_ADDENDUM : CONTENT_SYSTEM,
+    system: ctx.needsFactFinding
+      ? CONTENT_SYSTEM + buildFactFindingAddendum(ctx.generalContextGaps)
+      : CONTENT_SYSTEM,
     user: buildReviseInput(baseInput, draftPiece, issues, recommendation.revisionNote),
     schema: ContentPiece,
     schemaName: "content_piece",

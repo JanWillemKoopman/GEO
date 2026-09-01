@@ -65,6 +65,7 @@ import {
   factFromAnswer,
   mergeAnsweredFacts,
   sourceCoverage,
+  buildFactFindingAddendum,
 } from "@/lib/pipeline/factcard";
 import {
   selectBriefingQuestions,
@@ -2059,6 +2060,35 @@ group("Vaste slots per bedrijfsmodel (implementatieplan.md R8.5)", () => {
     JSON.stringify(slotQuestions("landing", "p1", null, null)) ===
       JSON.stringify(slotQuestions("landing", "p1")),
   );
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+group("Gerichte fact-finding bij algemene context-gaten (S9, gesprek 1 september)", () => {
+  ok(
+    "zonder gaten valt hij terug op de generieke vuistregel",
+    buildFactFindingAddendum([]).includes("weinig geverifieerde feiten"),
+  );
+
+  const gericht = buildFactFindingAddendum([
+    { term: "ISO 9001", reason: "de pagina noemt het keurmerk zonder uit te leggen wat het inhoudt" },
+  ]);
+  ok("met gaten wordt de term letterlijk genoemd", gericht.includes("ISO 9001"));
+  ok("de reden gaat mee", gericht.includes("zonder uit te leggen wat het inhoudt"));
+  ok(
+    "de generieke vuistregel blijft weg zodra er gerichte gaten zijn",
+    !gericht.includes("weinig geverifieerde feiten"),
+  );
+  ok(
+    "de muur blijft staan: nooit een bewering over dit bedrijf",
+    gericht.includes("bewering over dit specifieke bedrijf") ||
+      gericht.includes("nooit een bewering over dit specifieke bedrijf"),
+  );
+
+  const tweeGaten = buildFactFindingAddendum([
+    { term: "ISO 9001", reason: "reden A" },
+    { term: "Keurmerk Stichting X", reason: "reden B" },
+  ]);
+  ok("twee gaten leveren twee genoemde termen op", tweeGaten.includes("ISO 9001") && tweeGaten.includes("Keurmerk Stichting X"));
 });
 
 // ════════════════════════════════════════════════════════════════════════════

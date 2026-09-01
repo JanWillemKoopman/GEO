@@ -5375,3 +5375,35 @@ kolom geen functie meer die niet al ergens anders op het scherm stond. Het midde
 zelf vult nu de volle breedte.
 
 Vier controles groen: typecheck, 3310 unittests, 549 ketentests, de productiebuild.
+
+## 1 september 2026: gerichte fact-finding per contentitem in plaats van clusterbreed (S9)
+
+Aanleiding: een pagina over "kwaliteit op basis van certificeringen" moet uitleggen wat zo'n
+certificering inhoudt, en dat staat niet op de website van de klant, dus ook niet op de feitenkaart.
+De schrijfaanroep mocht dat soort algemene, niet-bedrijfsspecifieke uitleg al zonder F-nummer
+schrijven (R5.3, "algemene uitleg over het onderwerp"), en had zelfs al een haakje om er actief op te
+zoeken (`FACT_FINDING_ADDENDUM`, optimalisatie.md 4.6). Alleen ging dat haakje aan bij `proofCount < 3`,
+een eigenschap van de HELE klant, niet van de pagina die geschreven wordt. Een klant met tien feiten
+(vijf certificeringen erbij) kreeg dus nooit die zoekopdracht, ook al miste precies dít artikel de
+uitleg die het sterk zou maken.
+
+Tweede probleem, ontdekt in hetzelfde gesprek: de aanbevelingen in één analyse (= één cluster) lopen
+soms sterk uiteen van onderwerp. Zou de oplossing bij `topic_research` komen te hangen (die draait één
+keer per analyse), dan zou diezelfde clusterbrede achtergrond voor de helft van de pagina's ruis zijn
+in plaats van versterking, exact het manco dat dit stuk werk moest oplossen.
+
+Oplossing, op het niveau waar de pijplijn al wél per pagina rekent (de claim-audit, die het paginaplan
+per `content_piece_id` bevriest in `briefing_snapshot_json`, S2): de audit levert nu naast de
+BEWERINGEN over het bedrijf ook `generalContextGaps` (`lib/schemas/claim-audit.ts`), termen die uitleg
+nodig hebben zonder dat het een bedrijfsclaim is, per doelvraag toegewezen met dezelfde koppeling als
+`neededFor`. `buildFactFindingAddendum()` (`lib/pipeline/factcard.ts`, puur en getest) zet die gaten om
+in een gerichte zoekopdracht voor de schrijfaanroep: "zoek uit wat ISO 9001 inhoudt", niet "zoek iets
+algemeens over dit onderwerp". `needsFactFinding` in `content.ts` gaat nu aan bij twee onafhankelijke
+redenen: een dunne feitenlijst (ongewijzigd, de generieke vuistregel blijft de terugvalroute) OF
+concrete gaten voor DEZE pagina. De muur die verzinsels over het bedrijf tegenhoudt (R5.3) verandert
+niet: alleen wát er gezocht mag worden, en voor wie, wordt scherper.
+
+Zes nieuwe unittests op `buildFactFindingAddendum()` in `scripts/test-unit.ts`. Vier controles groen:
+typecheck, 3316 unittests, 549 ketentests, de productiebuild. Nog niet geverifieerd tegen een echte
+klant met een cluster van uiteenlopende aanbevelingen (conventie 10); dat is de eerstvolgende
+praktijktoets.
