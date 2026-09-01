@@ -54,6 +54,7 @@ export const TAAK_TEKST: Record<JobType, string | null> = {
   profile_competitors: "uitgezocht waarom je concurrenten genoemd worden",
   generate_report: "je rapport geschreven",
   content_brief: "de briefing voor een pagina opgesteld",
+  content_plan: "uitgezocht wat er op een pagina moet staan",
   content_draft: "een pagina geschreven",
   content_revise: "een pagina herschreven",
   technical_audit: "gecontroleerd of AI-assistenten je site mogen lezen",

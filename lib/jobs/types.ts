@@ -64,6 +64,15 @@ export const JOB_TYPES = [
   "generate_report",
   /** Contentbriefing: feitenindex + claim-audit → vragen aan de klant (R5.1). */
   "content_brief",
+  /**
+   * Contentgeneratie stap 0: uitzoeken wat DEZE pagina nodig heeft
+   * (docs/tasks/contentpijplijn-herontwerp.md A1/A2). Het itemdossier plus het
+   * contentcontract. Een eigen taaksoort en geen uitbreiding van
+   * `content_draft` (conventie 7): het onderzoek doet een web-zoekactie van 20
+   * tot 40 seconden, en dat past niet vóór een schrijfaanroep die zelf al tot
+   * 150 seconden mag duren.
+   */
+  "content_plan",
   /** Contentgeneratie stap 1: schrijven + beoordelen. */
   "content_draft",
   /** Contentgeneratie stap 2: herschrijven + herbeoordelen. */
@@ -319,6 +328,14 @@ export interface JobPayloads {
     /** De hele batch gekozen pagina's: één briefing voor alles samen (§2). */
     recommendations: RecommendationPayload[];
   };
+  content_plan: {
+    userId: string;
+    recommendation: RecommendationPayload;
+    /** Opnieuw genereren: dan ook opnieuw onderzoeken (optimalisatie.md 4.7). */
+    regenerate?: boolean;
+    /** Zie `content_draft.plannedPageId`; gaat ongewijzigd door naar die taak. */
+    plannedPageId?: string;
+  };
   content_draft: {
     userId: string;
     recommendation: RecommendationPayload;
@@ -335,6 +352,19 @@ export interface JobPayloads {
      * "ORBIT ENGINE is bezig" staan tot iemand het handmatig opmerkt.
      */
     plannedPageId?: string;
+    /**
+     * Het contract en het dossier uit `content_plan` (migratie 0082).
+     *
+     * Bewust in de payload en niet alleen op de contentpagina: lukt het
+     * wegschrijven daar niet, dan schrijft deze taak alsnog mét contract. Zonder
+     * deze kopie zou een mislukte update betekenen dat de pagina zonder
+     * inhoudsopgave geschreven wordt, precies wat dit werk oplost.
+     */
+    voorbereid?: {
+      contract: unknown;
+      dossier: unknown;
+      explainers: unknown[];
+    } | null;
   };
   content_revise: {
     userId: string;
@@ -452,6 +482,7 @@ export const HEAVY_JOB_TYPES: ReadonlySet<JobType> = new Set<JobType>([
   "generate_prompts", // één funnelfase, met bijvul- en geo-rondes
   "profile_competitors", // destilleert eigenschappen uit alle antwoordfragmenten
   "content_brief", // claim-audit over de hele batch, plus alle winnende antwoorden
+  "content_plan", // itemdossier met web_search plus het contract
   "content_draft", // het premium model schrijft een volledige pagina
   "content_revise", // idem
   "offsite_scan", // crawlt niets maar doet wel een gegroundde AI-aanroep + externe API's
@@ -509,6 +540,42 @@ export const IO_BOUND_HEAVY_TYPES: ReadonlySet<JobType> = new Set<JobType>([
  * hij oplevert.
  */
 export const IO_BOUND_PARALLELISM = 3;
+
+/**
+ * Contenttaken die naast elkaar mogen draaien
+ * (docs/tasks/contentpijplijn-herontwerp.md A10).
+ *
+ * ── WAT DIT REPAREERT ───────────────────────────────────────────────────────
+ *
+ * Contentgeneratie stond in `HEAVY_JOB_TYPES` en niet hierin, dus draaide de
+ * werker de taken strikt één voor één, met 200 van de 240 seconden vrijgehouden
+ * per stuk. Een batch van tien pagina's is twintig taken (schrijven plus
+ * repareren), en die vielen daardoor vrijwel allemaal in hun eigen
+ * werker-aanroep van één minuut: tientallen minuten wachten voor werk waarvan
+ * de traagste gemeten aanroep 98,8 seconden duurde. Het wachten zat in de
+ * planning, niet in het model.
+ *
+ * ── WAAROM DIT IETS ANDERS IS DAN `IO_BOUND_HEAVY_TYPES` ────────────────────
+ *
+ * De reputatietaken bestaan uit korte aanroepen en krijgen daarom een KRAPPE
+ * reservering (`IO_BOUND_RESERVE_MS`, 90 seconden). Voor een contenttaak zou
+ * dat gevaarlijk zijn: die kan één aanroep van 150 seconden bevatten, en
+ * halverwege afgebroken worden kost het duurste model twee keer. Deze
+ * verzameling zegt daarom alleen "meer dan één tegelijk", met de VOLLE
+ * reservering per groep. Dat is precies wat er nodig was, zonder de garantie op
+ * te geven die de reservering biedt.
+ *
+ * Drie tegelijk, net als hierboven: elke contenttaak doet hooguit vier
+ * aanroepen (schrijven plus drie beoordelaars), dus drie taken samen komen niet
+ * boven de twaalf open verbindingen uit.
+ */
+export const PARALLEL_CONTENT_TYPES: ReadonlySet<JobType> = new Set<JobType>([
+  "content_plan",
+  "content_draft",
+  "content_revise",
+]);
+
+export const CONTENT_PARALLELISM = 3;
 
 /**
  * Maximaal aantal pogingen vóórdat een taak definitief mislukt is

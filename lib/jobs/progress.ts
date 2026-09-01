@@ -46,6 +46,7 @@ const TYPICAL_SECONDS: Record<JobType, number> = {
   profile_competitors: 15, // één destillatie-aanroep over de antwoordfragmenten
   generate_report: 25, // gap-analyse + rapport
   content_brief: 12, // één mini-aanroep voor de hele batch, geen web_search
+  content_plan: 35, // onderzoek met web_search plus het contract, twee goedkope aanroepen
   content_draft: 50, // het premium model schrijft een volledige pagina
   content_revise: 50,
   technical_audit: 10, // een handvol HTTP-verzoeken, geen AI

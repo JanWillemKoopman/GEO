@@ -5,8 +5,14 @@ waar nodig opnieuw ontwerpen. Doel: hogere kwaliteit en hardere feitelijkheid, m
 minder werk voor de klant, en pagina's die als een volledige pagina lezen in plaats van als een
 verzameling onderbouwde zinnen. Kosten zijn geen beperking zolang de pagina er beter van wordt.
 
-Dit document is advies. Er is nog geen code gewijzigd. De kosten in §3 zijn nagerekend tegen
-`ai_calls` op productie en niet geschat; de kwaliteitscijfers komen uit `content_pieces`.
+**Stand op 1 september 2026: de "nu"-variant is gebouwd** (A1, A2, A3, A5, A6, A7, A8, A9, A10),
+migratie `0082` staat op productie. Zie het logboek van diezelfde datum voor wat er precies gebeurd
+is. Wat nog openstaat: A4 (sectiegewijs schrijven, bewust uitgesteld omdat het als enige de kosten
+echt verhoogt), A11 (evaluatieset) en A12 (regenereren met behoud), plus de praktijktoets op een
+echte klant, want gebouwd is niet geverifieerd (conventie 10).
+
+De kosten in §3 zijn nagerekend tegen `ai_calls` op productie en niet geschat; de kwaliteitscijfers
+komen uit `content_pieces`.
 
 Gelezen vóór dit advies: `lib/pipeline/content.ts`, `briefing.ts`, `briefing-select.ts`, `factbase.ts`,
 `factcard.ts`, `content-gate.ts`, `source-analysis.ts`, `lib/jobs/worker.ts`, `lib/jobs/types.ts`,

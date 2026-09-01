@@ -145,12 +145,24 @@ export async function planContentDraft(
     "de beantwoorde feitvragen van dit merk",
   );
 
+  // ── De planstap gaat vóór het schrijven (A1/A2, migratie 0082) ────────────
+  //
+  // Deze functie plande vroeger rechtstreeks `content_draft`. Nu start hij
+  // `content_plan`, en die taak plant het schrijven zelf in zodra het
+  // itemdossier en het contract klaarstaan. Voor de vier ingangen die deze
+  // functie aanroepen verandert er niets: ze vragen nog steeds "schrijf deze
+  // pagina", alleen begint dat werk nu met uitzoeken wat erop moet.
+  //
+  // De dedupe-sleutel houdt dezelfde twee onderdelen als voorheen (de versie en
+  // het aantal beantwoorde vragen), want die bepalen nog steeds of dit dezelfde
+  // opdracht is of een nieuwe. Alleen het voorvoegsel verschilt, zodat een
+  // plantaak nooit botst met een schrijftaak over dezelfde pagina.
   const { created } = await enqueue(admin, {
-    type: "content_draft",
+    type: "content_plan",
     payload: { userId, recommendation, regenerate, plannedPageId: args.plannedPageId },
     analysisId,
     dedupeKey:
-      `${dedupe.contentDraft(analysisId, recommendation.title)}:v${nextVersion}` +
+      `${dedupe.contentPlan(analysisId, recommendation.title)}:v${nextVersion}` +
       `:f${beantwoord}`,
   });
 

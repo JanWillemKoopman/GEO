@@ -25,7 +25,13 @@ import { TEMPERATURES } from "@/lib/openai/models";
  * meting zelf (halte 3a), die bewust op de standaardinstellingen van het model
  * draait.
  */
-export type WorkKind = "deterministic" | "analytical" | "creative" | "content" | "simulation";
+export type WorkKind =
+  | "deterministic"
+  | "analytical"
+  | "creative"
+  | "content"
+  | "judging"
+  | "simulation";
 
 /**
  * Redeneerinspanning zoals GPT-5.6 die kent: `none`, `low`, `medium`, `high`,
@@ -72,6 +78,18 @@ interface WorkProfile {
  *   natuurlijke variatie komt bij een redeneermodel uit het redeneren zelf. Dat
  *   maakt de tekst niet deterministisch, de bewaking erop is dat ook nooit
  *   geweest: `content-gate.ts` keurt de uitkomst, niet de instelling.
+ * - `judging`, het beoordelaarspanel onder een geschreven pagina
+ *   (docs/tasks/contentpijplijn-herontwerp.md A5). Hetzelfde goedkope model als
+ *   `deterministic`, maar mét redeneertijd. Reden: `deterministic` staat op
+ *   effort `none` omdat een classificatie 30 keer per meetronde draait en
+ *   reproduceerbaar moet zijn. Een beoordeling van een hele pagina is iets
+ *   anders: die draait één keer per pagina, moet tegenstrijdigheden in een lange
+ *   tekst opmerken, en is nagemeten op `ai_calls` de goedkoopste stap van de
+ *   hele contentpijplijn (ongeveer $0,0008). Effort `medium` maakt drie van die
+ *   beoordelingen samen nog geen cent, tegenover $0,15 voor de schrijfaanroep
+ *   ernaast. De temperatuur vervalt daarmee, zoals bij elke stand boven `none`:
+ *   de reproduceerbaarheid komt hier van de deterministische poorten die
+ *   naast het panel draaien, niet van de sampling.
  * - `simulation`, halte 3a. Niets meegeven, in beide kolommen. We willen weten
  *   wat een AI-assistent een echte gebruiker antwoordt, en die draait ook op de
  *   standaardinstellingen. Een eigen temperatuur of effort zou de meting juist
@@ -82,6 +100,7 @@ const WORK: Record<WorkKind, WorkProfile> = {
   analytical: { temperature: TEMPERATURES.analytical, effort: "low" },
   creative: { temperature: TEMPERATURES.creative, effort: "none" },
   content: { temperature: TEMPERATURES.content, effort: "medium" },
+  judging: { effort: "medium" },
   simulation: {},
 };
 

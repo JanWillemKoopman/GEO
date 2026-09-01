@@ -16,6 +16,8 @@ import "server-only";
  * Dus halen we ze op met de bestaande crawler (gratis) en laten we één goedkope
  * AI-aanroep samenvatten wat ze inhoudelijk doen.
  */
+import { createHash } from "node:crypto";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { crawlPages } from "@/lib/crawler";
 import { callStructured } from "@/lib/openai/structured";
 import { MODELS } from "@/lib/openai/models";
@@ -55,6 +57,23 @@ export interface AnalyzedSources {
  * blok op. De contentgeneratie moet doorgaan. Dit is context die het resultaat
  * beter maakt, geen voorwaarde om te kunnen schrijven.
  */
+/**
+ * De cachesleutel: de URL's plus de doelvragen (A9, migratie 0082).
+ *
+ * De vragen horen erin. Deze analyse is gericht op wat DEZE pagina moet winnen
+ * ("de nieuwe pagina moet deze vragen gaan winnen"), dus twee pagina's met
+ * dezelfde bronnen maar andere doelvragen horen een ander antwoord te krijgen.
+ * Alleen op URL cachen zou precies de itemspecifieke scherpte weggooien die S9
+ * en S10 kwamen brengen, en dat voor een besparing van een tiende cent.
+ */
+export function sourceCacheKey(urls: string[], targetQuestions: string[]): string {
+  const basis = JSON.stringify({
+    urls: [...urls].sort(),
+    vragen: [...targetQuestions].map((v) => v.trim().toLowerCase()).sort(),
+  });
+  return createHash("sha256").update(basis).digest("hex");
+}
+
 export async function analyzeCitedSources(args: {
   urls: string[];
   /** Waar de nieuwe pagina over moet gaan, scherpt de analyse aan. */
@@ -68,6 +87,30 @@ export async function analyzeCitedSources(args: {
 
   const urls = Array.from(new Set(args.urls.filter((u) => /^https?:\/\//i.test(u)))).slice(0, MAX_SOURCES);
   if (urls.length === 0) return empty;
+
+  // ── Eerst kijken of we dit al weten (A9, conventie 9) ────────────────────
+  //
+  // Deze stap crawlt tot vier bronpagina's en doet daar een AI-aanroep
+  // overheen, en hij draaide bij het schrijven én bij het herschrijven, per
+  // pagina. Tien pagina's uit één cluster citeren grotendeels dezelfde bronnen:
+  // dat was tot twintig keer crawlen voor een uitkomst die per bron hetzelfde
+  // is. Faalt de cache (tabel weg, database traag), dan rekenen we gewoon
+  // opnieuw: een cache mag nooit een reden zijn dat er geen pagina komt.
+  const admin = createAdminClient();
+  const cacheKey = sourceCacheKey(urls, args.targetQuestions);
+  try {
+    const { data: bewaard } = await admin
+      .from("source_analysis_cache")
+      .select("block, urls")
+      .eq("profile_id", args.profileId)
+      .eq("cache_key", cacheKey)
+      .maybeSingle();
+    if (bewaard?.block) {
+      return { block: bewaard.block as string, urls: (bewaard.urls as string[]) ?? urls };
+    }
+  } catch (err) {
+    console.warn(`Cache van de bronanalyse niet leesbaar, we rekenen opnieuw: ${String(err)}`);
+  }
 
   const pages = await crawlPages(urls);
   if (pages.length === 0) return empty;
@@ -105,15 +148,27 @@ export async function analyzeCitedSources(args: {
         `  Vorm: ${s.format}\n  Concrete feiten: ${s.concreteFacts.join("; ") || "geen"}`,
     );
 
-    return {
-      urls,
-      block:
-        `\nDE LAT: dit zijn de pagina's die de AI WÉL citeerde bij deze vragen. Jouw pagina moet ` +
-        `hier inhoudelijk overheen: completer, concreter, of directer antwoordend.\n${lines.join("\n")}\n` +
-        (result.parsed.whatIsMissing
-          ? `\nWat er in deze bronnen ONTBREEKT en waar jouw pagina het verschil kan maken: ${result.parsed.whatIsMissing}`
-          : ""),
-    };
+    const block =
+      `\nDE LAT: dit zijn de pagina's die de AI WÉL citeerde bij deze vragen. Jouw pagina moet ` +
+      `hier inhoudelijk overheen: completer, concreter, of directer antwoordend.\n${lines.join("\n")}\n` +
+      (result.parsed.whatIsMissing
+        ? `\nWat er in deze bronnen ONTBREEKT en waar jouw pagina het verschil kan maken: ${result.parsed.whatIsMissing}`
+        : "");
+
+    // Wegschrijven mag mislukken zonder gevolgen: dan betalen we hem de
+    // volgende keer opnieuw, en dat is een tiende cent, geen pagina.
+    try {
+      await admin
+        .from("source_analysis_cache")
+        .upsert(
+          { profile_id: args.profileId, cache_key: cacheKey, block, urls },
+          { onConflict: "profile_id,cache_key" },
+        );
+    } catch (err) {
+      console.warn(`Bronanalyse niet kunnen cachen: ${String(err)}`);
+    }
+
+    return { urls, block };
   } catch (err) {
     console.warn(`Bronanalyse mislukt voor analyse ${args.analysisId}:`, err);
     return empty;

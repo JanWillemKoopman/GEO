@@ -17,6 +17,8 @@ import {
   HEAVY_JOB_TYPES,
   IO_BOUND_HEAVY_TYPES,
   IO_BOUND_PARALLELISM,
+  PARALLEL_CONTENT_TYPES,
+  CONTENT_PARALLELISM,
   MAX_ATTEMPTS,
   backoffMinutes,
   type JobType,
@@ -218,7 +220,19 @@ export async function runWorker(): Promise<WorkerResult> {
     // De tijdcontrole blijft wél gelden, alleen op de GROEP: er moet genoeg tijd
     // zijn voor één zo'n taak, en dan draaien er hooguit drie tegelijk.
     const ioBound = heavy.filter((j) => IO_BOUND_HEAVY_TYPES.has(j.type as JobType));
-    const langlopend = heavy.filter((j) => !IO_BOUND_HEAVY_TYPES.has(j.type as JobType));
+    // ── Contenttaken: meer dan één tegelijk, met de VOLLE reservering (A10) ──
+    //
+    // Zie PARALLEL_CONTENT_TYPES in lib/jobs/types.ts. Een batch van tien
+    // pagina's stond eerder in de rij op één taak per werker-aanroep, terwijl
+    // deze taken vooral op OpenAI wachten. Ze krijgen wél de volle reservering,
+    // anders dan de reputatietaken: één afgebroken schrijfaanroep kost het
+    // duurste model twee keer.
+    const parallelContent = heavy.filter((j) => PARALLEL_CONTENT_TYPES.has(j.type as JobType));
+    const langlopend = heavy.filter(
+      (j) =>
+        !IO_BOUND_HEAVY_TYPES.has(j.type as JobType) &&
+        !PARALLEL_CONTENT_TYPES.has(j.type as JobType),
+    );
 
     for (let i = 0; i < ioBound.length; i += IO_BOUND_PARALLELISM) {
       const groep = ioBound.slice(i, i + IO_BOUND_PARALLELISM);
@@ -230,6 +244,16 @@ export async function runWorker(): Promise<WorkerResult> {
       // twee niet meenemen. `processJob` vangt zelf al af en markeert, dus een
       // afwijzing hier is een bug en geen normaal pad, maar hem laten
       // doorslaan zou de hele werker-aanroep laten falen.
+      await Promise.allSettled(groep.map((job) => processJob(admin, job, out)));
+      if (Date.now() - startedAt >= TIME_BUDGET_MS) break;
+    }
+
+    for (let i = 0; i < parallelContent.length; i += CONTENT_PARALLELISM) {
+      const groep = parallelContent.slice(i, i + CONTENT_PARALLELISM);
+      if (Date.now() - startedAt + HEAVY_JOB_RESERVE_MS > TIME_BUDGET_MS && out.processed > 0) {
+        for (const job of groep) await releaseJob(admin, job);
+        continue;
+      }
       await Promise.allSettled(groep.map((job) => processJob(admin, job, out)));
       if (Date.now() - startedAt >= TIME_BUDGET_MS) break;
     }

@@ -36,6 +36,7 @@ import { runBriefing } from "@/lib/pipeline/briefing";
 import { generateReport } from "@/lib/pipeline/report";
 import { profileCompetitors } from "@/lib/pipeline/competitor-intel";
 import { draftContentPiece, reviseContentPiece } from "@/lib/pipeline/content";
+import { planContentPiece } from "@/lib/pipeline/content-plan";
 import { runAuditForProfile } from "@/lib/audit/store";
 import { planImpactMeasurements, computeImpact } from "@/lib/pipeline/impact";
 import { verifyPublication } from "@/lib/pipeline/publish";
@@ -75,6 +76,8 @@ import type {
   JobPayloads,
   RecommendationPayload,
 } from "@/lib/jobs/types";
+import { MAX_ATTEMPTS } from "@/lib/jobs/types";
+import { describeError } from "@/lib/errors";
 import type { Job } from "@/lib/types/database";
 import { requireCount } from "@/lib/require-count";
 import { resolveMix } from "@/lib/prompt-mix";
@@ -642,6 +645,69 @@ const handlers: { [T in JobType]: Handler<T> } = {
     );
   },
 
+  // ── Content stap 0: uitzoeken wat DEZE pagina nodig heeft (A1/A2) ─────────
+  //
+  // Het itemdossier plus het contentcontract, en daarna pas schrijven. Een eigen
+  // taak omdat het onderzoek een web-zoekactie doet: die past niet vóór een
+  // schrijfaanroep die zelf al tot 150 seconden mag duren (conventie 7).
+  //
+  // Faalt deze stap, dan faalt de taak en probeert de wachtrij hem opnieuw. Pas
+  // als hij definitief mislukt gaat de pijplijn niet verder, en dat is bewust:
+  // een pagina zonder contract is precies de dunne pagina die dit werk moest
+  // oplossen. De uitzondering staat hieronder, in de vangst.
+  content_plan: async ({ admin, job }, payload) => {
+    if (!job.analysis_id) throw new Error("content_plan zonder analysis_id.");
+
+    let voorbereid: {
+      contract: unknown;
+      dossier: unknown;
+      explainers: unknown[];
+    } | null = null;
+
+    try {
+      const result = await planContentPiece({
+        analysisId: job.analysis_id,
+        userId: payload.userId,
+        recommendation: toRecommendation(payload.recommendation),
+        force: payload.regenerate ?? false,
+      });
+      voorbereid = {
+        contract: result.contract,
+        dossier: result.dossier,
+        explainers: result.explainers,
+      };
+      console.log(
+        `Contentplan "${payload.recommendation.title}": ` +
+          `${result.contract?.sections.length ?? 0} secties` +
+          `${result.hergebruikt ? " (hergebruikt, geen nieuwe aanroep)" : ""}.`,
+      );
+    } catch (err) {
+      // ⚠️ Bewust NIET opnieuw gooien bij de laatste poging. Deze taak is
+      // voorbereiding; het schrijven is het product. Blijft het onderzoek
+      // hangen op een externe bron of een schema dat niet parst, dan is een
+      // pagina zonder contract nog altijd beter dan geen pagina. De pijplijn
+      // valt dan terug op het gedrag van vóór dit werk, en dat gedrag werkt.
+      if (job.attempts < MAX_ATTEMPTS - 1) throw err;
+      console.warn(
+        `Contentplan voor "${payload.recommendation.title}" bleef mislukken, ` +
+          `we schrijven zonder contract: ${describeError(err)}`,
+      );
+    }
+
+    await enqueue(admin, {
+      type: "content_draft",
+      payload: {
+        userId: payload.userId,
+        recommendation: payload.recommendation,
+        regenerate: payload.regenerate ?? false,
+        plannedPageId: payload.plannedPageId,
+        voorbereid,
+      },
+      analysisId: job.analysis_id,
+      dedupeKey: dedupe.contentDraftNa(job.id),
+    });
+  },
+
   // ── Content stap 1: schrijven + beoordelen ────────────────────────────────
   content_draft: async ({ admin, job }, payload) => {
     if (!job.analysis_id) throw new Error("content_draft zonder analysis_id.");
@@ -651,6 +717,13 @@ const handlers: { [T in JobType]: Handler<T> } = {
       reportId: payload.recommendation.reportId,
       recommendation: toRecommendation(payload.recommendation),
       regenerate: payload.regenerate ?? false,
+      voorbereid: payload.voorbereid
+        ? {
+            contract: (payload.voorbereid.contract ?? null) as never,
+            dossier: (payload.voorbereid.dossier ?? null) as never,
+            explainers: (payload.voorbereid.explainers ?? []) as never,
+          }
+        : null,
     });
 
     // Komt deze tekst uit het contentplan, dan hoort de plan-pagina te weten
@@ -681,7 +754,7 @@ const handlers: { [T in JobType]: Handler<T> } = {
   // ── Content stap 2: herschrijven + herbeoordelen ──────────────────────────
   content_revise: async ({ admin, job }, payload) => {
     if (!job.analysis_id) throw new Error("content_revise zonder analysis_id.");
-    await reviseContentPiece({
+    const result = await reviseContentPiece({
       analysisId: job.analysis_id,
       userId: payload.userId,
       contentPieceId: payload.contentPieceId,
@@ -689,7 +762,30 @@ const handlers: { [T in JobType]: Handler<T> } = {
       issues: payload.issues,
     });
 
-    // De herschreven versie is de definitieve: nu ligt de bal bij de klant.
+    // ── Nog een gerichte ronde? (A6) ────────────────────────────────────────
+    //
+    // Was: één herschrijving en klaar, ook als de bevindingen bleven staan. Nu
+    // repareert elke ronde alleen de secties met een bevinding, dus is nog een
+    // ronde goedkoper dan de ene volledige herschrijving van vroeger. De grens
+    // (REPAIR_MAX) zit in `reviseContentPiece`: die kent de rondeteller op de
+    // pagina, en die telling overleeft een taak die opnieuw geprobeerd wordt.
+    if (!result.klaar) {
+      await enqueue(admin, {
+        type: "content_revise",
+        payload: {
+          userId: payload.userId,
+          contentPieceId: payload.contentPieceId,
+          recommendation: payload.recommendation,
+          issues: result.issues,
+          plannedPageId: payload.plannedPageId,
+        },
+        analysisId: job.analysis_id,
+        dedupeKey: `${dedupe.contentRevise(payload.contentPieceId)}:r${result.ronde}`,
+      });
+      return;
+    }
+
+    // De gerepareerde versie is de definitieve: nu ligt de bal bij de klant.
     await linkPlannedPage(admin, payload.plannedPageId, {
       contentPieceId: payload.contentPieceId,
       klaar: true,
