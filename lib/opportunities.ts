@@ -199,7 +199,7 @@ export function opportunities(input: OpportunityInput): Opportunity[] {
   for (const [i, r] of input.recommendations.entries()) {
     // ⚠️ Dezelfde voorwaarde als bij `action` hieronder, en dat is geen
     // toeval: het icoon en de zin moeten hetzelfde beloven. Een blad met een
-    // pen erop naast "Laat ORBIT ENGINE deze pagina schrijven" is erger dan
+    // pen erop naast "Start het onderzoek voor deze pagina" is erger dan
     // geen icoon.
     const bijwerken = r.action === "verbeteren" && Boolean(r.existingUrl);
     const gewichten = (r.targets ?? [])
@@ -215,7 +215,7 @@ export function opportunities(input: OpportunityInput): Opportunity[] {
       // en V2 hebben gewicht 0,60" op het scherm van de klant.
       why: leesbaarWaarom(r.why) ?? "",
       // ⚠️ De handeling, zonder het adres erin. Zie `url` op de interface.
-      action: bijwerken ? "Werk deze pagina bij" : "Laat ORBIT ENGINE deze pagina schrijven",
+      action: bijwerken ? "Werk deze pagina bij" : "Start het onderzoek voor deze pagina",
       source: "meting",
       handeling: bijwerken ? "pagina_bijwerken" : "nieuwe_pagina",
       // Geen doelvragen betekent geen getal, niet nul: nul zou zeggen dat er
