@@ -22,8 +22,10 @@ demogesprek, pijplijn doet onderzoek, profiel wordt pas ná verkoop aan klantacc
 intern: een klant ziet er niets van, en de scheiding staat in de database en niet alleen in de
 schermen. Hij zoekt uit een markt de beste saleskansen, onderbouwt ze en zet een conceptmail klaar.
 Twee regels die overal in die module terugkomen: de app verstuurt zelf nooit een openingsmail, en
-elk getal in een zin die naar buiten gaat wordt tegen de meetdata gecontroleerd. Gebouwd, nog niet
-op een echte markt geverifieerd (`docs/tasks/live-testprompt-sales-module.md`).
+elk getal in een zin die naar buiten gaat wordt tegen de meetdata gecontroleerd. Eén echte markt is
+er op 1 september 2026 doorheen gegaan; de vier blokkerende fouten daaruit zijn gerepareerd, de
+verificatiecriteria zijn nog niet gehaald
+(`docs/tasks/bevindingen-live-test-sales-1-september-2026.md`).
 
 `main` is productie (Vercel). Werk op een feature-branch.
 

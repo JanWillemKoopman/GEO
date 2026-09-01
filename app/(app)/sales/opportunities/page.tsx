@@ -6,6 +6,7 @@ import { PageHeader } from "@/components/page-header";
 import { EmptyState } from "@/components/empty-state";
 import { KANS_LABEL, type KansType } from "@/lib/sales/opportunity";
 import { TIER_HOOG, TIER_GEMIDDELD } from "@/lib/sales/opportunity-score";
+import { KANS_BEDRIJF } from "@/lib/sales/relaties";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "Opportunities" };
@@ -38,15 +39,18 @@ export default async function SalesOpportunitiesPage() {
 
   // Lezen loopt via de sessie en dus mét RLS (migratie 0072). De poort in
   // `../layout.tsx` is het eerste slot, dit is het tweede.
-  const { data } = await supabase
+  // ⚠️ `KANS_BEDRIJF` en niet `sales_companies`: zie `lib/sales/relaties.ts`.
+  const { data, error } = await supabase
     .from("sales_opportunities")
     .select(
       "id, type, score, tier, confidence, hook_text, hook_source, market_id, company_id, " +
-        "sales_companies(name, domain, city), sales_markets(label)",
+        `${KANS_BEDRIJF}(name, domain, city), sales_markets(label)`,
     )
     .is("superseded_by", null)
     .order("score", { ascending: false })
     .limit(100);
+
+  if (error) console.error("Kansen lezen mislukt:", error.message);
 
   type Rij = {
     id: string;
@@ -72,7 +76,16 @@ export default async function SalesOpportunitiesPage() {
         description="De bedrijven met de interessantste GEO-kans, op volgorde. Per regel lees je binnen twee seconden wie het is en waarom je belt."
       />
 
-      {kansen.length === 0 ? (
+      {/* ⚠️ Een storing is iets anders dan een lege lijst, en dat verschil hoort
+          op het scherm te staan. Op 1 september 2026 zei dit scherm een dag lang
+          "nog geen kansen gevonden" terwijl er 43 in de database stonden: de
+          uitvraag faalde, en de code las alleen de gegevens en niet de fout. */}
+      {error ? (
+        <EmptyState title="De kansen konden niet geladen worden">
+          Er ging iets mis bij het ophalen. Dit is een storing en geen lege lijst: er kunnen wel
+          degelijk kansen zijn. Probeer het scherm zo opnieuw te laden.
+        </EmptyState>
+      ) : kansen.length === 0 ? (
         <EmptyState title="Nog geen kansen gevonden" action={{ href: "/sales/markten", label: "Naar de markten" }}>
           ORBIT ENGINE vult dit scherm nadat een markt gemeten is. Start een markt, keur de
           bedrijvenlijst goed en geef de meting akkoord.

@@ -30,6 +30,7 @@ import {
 import { rekenScore } from "@/lib/sales/opportunity-score";
 import { sjabloonHook } from "@/lib/sales/hook";
 import { ENGINE_ALLE } from "@/lib/sales/measure-math";
+import { alleRijen } from "@/lib/supabase/pagineer";
 
 type Admin = SupabaseClient;
 
@@ -182,7 +183,7 @@ async function leesMetingen(
   marketId: string,
   rondeNr: number,
 ): Promise<BedrijfMeting[]> {
-  const [{ data: scoreRijen }, { data: leden }, { data: vermeldingen }] = await Promise.all([
+  const [{ data: scoreRijen }, { data: leden }, vermeldingen] = await Promise.all([
     admin
       .from("sales_company_scores")
       .select("company_id, engine, questions_total, mentions, share, weighted_share, stderr, per_intent, sources")
@@ -192,11 +193,18 @@ async function leesMetingen(
       .select("company_id, sales_companies(id, name, domain, city, crawl_summary)")
       .eq("market_id", marketId)
       .eq("included", true),
-    admin
-      .from("sales_mentions")
-      .select("company_id, answer_id, snippet, sales_answers(question_id, engine)")
-      .eq("run_id", runId)
-      .eq("mentioned", true),
+    // Pagineren, om dezelfde reden als in `sales-aggregate.ts`: in een markt waar
+    // de bedrijven wél gezien worden, loopt het aantal vermeldingen hard op, en
+    // een `select` zonder bereik stopt stil na duizend rijen. Hier zou dat
+    // betekenen dat een kans zijn bewijs kwijtraakt zonder dat iemand het merkt.
+    alleRijen<Record<string, unknown>>((van, tot) =>
+      admin
+        .from("sales_mentions")
+        .select("company_id, answer_id, snippet, sales_answers(question_id, engine)")
+        .eq("run_id", runId)
+        .eq("mentioned", true)
+        .range(van, tot),
+    ),
   ]);
 
   type Lid = {
@@ -256,7 +264,7 @@ async function leesMetingen(
     }
   }
 
-  for (const v of (vermeldingen ?? []) as unknown as Vermelding[]) {
+  for (const v of vermeldingen as unknown as Vermelding[]) {
     const meting = perBedrijf.get(v.company_id);
     if (!meting || !v.sales_answers) continue;
     meting.fragmenten.push({

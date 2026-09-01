@@ -1,5 +1,19 @@
 # Live end-to-end test Sales-module, 1 september 2026
 
+> **Stand op 1 september 2026, na de reparatie.** De vier P0's hieronder zijn opgelost, met een test
+> per stuk die de fout zou hebben gevangen, en met alle vier de controles groen (typecheck, 3349
+> unittests, 549 ketentests, de productiebuild). Wat er precies veranderd is, staat onderaan
+> `docs/logbook.md`.
+>
+> Eén reparatie zit niet in de module zelf maar in de ketentest: `scripts/chain/supabase-shim.ts`
+> zocht een foreign key op met `limit 1` en pakte stil de eerste van twee. Daardoor was de test
+> makkelijker dan productie, en werd de code die P0-1 veroorzaakte netjes groen goedgekeurd. De shim
+> weigert een dubbelzinnige uitvraag nu net zo hard als PostgREST, met dezelfde melding.
+>
+> **De P1's en lager staan nog open**, en de verificatiecriteria uit hoofdstuk 22 van het plan zijn
+> niet gehaald: daarvoor moet er een markt met de gecorrigeerde vragen doorheen. Het oordeel
+> hieronder beschrijft de stand tijdens de test, niet de stand na de reparatie.
+
 **Wat er getest is.** Eén echte markt, van begin tot eind, op de productieomgeving
 (`geo-ten-blush.vercel.app` en het Supabase-project GEO), met echte betaalde AI-aanroepen en echte
 bedrijven. De markt is **Warmtepomp Eindhoven** (`3b15f714-023f-4499-bbeb-ae9c394a8559`), aangemaakt

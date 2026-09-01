@@ -89,6 +89,107 @@ export function koppelVragen(
   return { vragen: uit, melding };
 }
 
+/**
+ * De fases waarin een vraag zonder plaatsnaam niets over deze markt meet.
+ *
+ * ── WAAROM DIT VANGNET ER IS (1 september 2026) ─────────────────────────────
+ *
+ * Bij de eerste echte markt (Warmtepomp Eindhoven) noemden 3 van de 40 vragen
+ * de plaats. Het model had de instructie "de plaats mag erin, niet in elke
+ * vraag" netjes gevolgd, en dat was precies het probleem. Een AI-assistent die
+ * "Welke installateur kan bij mij in de buurt een warmtepomp goed installeren?"
+ * krijgt, antwoordt letterlijk: "heb ik je postcode of woonplaats nodig". Er
+ * komt dan geen enkel bedrijf in het antwoord voor.
+ *
+ * Resultaat: 2 van de 40 antwoorden noemden een bedrijf uit de markt, 42 van de
+ * 43 bedrijven kwamen op nul, en alle 43 kansen werden van het type
+ * "Onzichtbaar" met dezelfde zin eronder. De duurste stap van de module mat
+ * Nederland in plaats van Eindhoven.
+ *
+ * In de fases Oriëntatie en Vergelijken mag een vraag algemeen zijn: "wat kost
+ * een warmtepomp" is een echte vraag en het antwoord erop hoeft geen bedrijf te
+ * noemen. Bij Selecteren en Contact opnemen is dat anders: dáár kiest iemand een
+ * partij, en dat is de meting waar deze module om draait.
+ *
+ * Conventie 1: een promptinstructie is een intentie, code is een garantie.
+ */
+export const KOOPFASES: IntentStage[] = ["selecteren", "contact"];
+
+/**
+ * Zinsdelen die "hier in de buurt" betekenen. Ze worden vervangen door de
+ * plaats, want anders wordt het "bij mij in de buurt in Eindhoven".
+ *
+ * De volgorde is van lang naar kort: "bij mij in de buurt" moet eerder passen
+ * dan "in de buurt", anders blijft er "bij mij in Eindhoven" staan.
+ */
+const BUURTZINNEN = [
+  "bij mij in de buurt",
+  "hier in de buurt",
+  "bij mij in de omgeving",
+  "in mijn omgeving",
+  "in mijn regio",
+  "hier in de regio",
+  "in de buurt",
+  "bij mij thuis",
+];
+
+/**
+ * Zet de plaats in een vraag die hem mist.
+ *
+ * Drie stappen, in deze volgorde:
+ *
+ * 1. Staat de plaats er al in, dan blijft de vraag zoals hij is. Het model
+ *    schrijft betere zinnen dan deze functie.
+ * 2. Staat er een buurtzin in, dan wordt díe de plaats. "Wie kan een hybride
+ *    warmtepomp bij mij thuis plaatsen?" wordt "Wie kan een hybride warmtepomp
+ *    in Eindhoven plaatsen?"
+ * 3. Anders komt de plaats achteraan, vóór het vraagteken.
+ *
+ * Pure functie, geen model. Dat is het punt: dit moet ook kloppen als het model
+ * de instructie negeert.
+ */
+export function zetPlaatsInVraag(tekst: string, plaats: string): string {
+  const vraag = (tekst ?? "").trim();
+  const plek = (plaats ?? "").trim();
+  if (vraag.length === 0 || plek.length === 0) return vraag;
+  if (vraag.toLowerCase().includes(plek.toLowerCase())) return vraag;
+
+  for (const zin of BUURTZINNEN) {
+    const index = vraag.toLowerCase().indexOf(zin);
+    if (index >= 0) {
+      return `${vraag.slice(0, index)}in ${plek}${vraag.slice(index + zin.length)}`.replace(
+        /\s+/g,
+        " ",
+      );
+    }
+  }
+
+  const staart = vraag.match(/[?!.]+$/);
+  const kern = staart ? vraag.slice(0, vraag.length - staart[0].length).trimEnd() : vraag;
+  return `${kern} in ${plek}${staart ? staart[0] : ""}`;
+}
+
+/**
+ * Zorgt dat elke koopvraag de plaats noemt, en zegt hoeveel er aangepast zijn.
+ *
+ * Het aantal is geen weetje: het hoort in de melding bij poort 2, zodat de sales
+ * admin ziet dat de vragenlijst bijgestuurd is voordat hij hem goedkeurt.
+ */
+export function plaatsInKoopvragen(
+  vragen: GegenereerdeVraag[],
+  plaats: string,
+): { vragen: GegenereerdeVraag[]; aangepast: number } {
+  let aangepast = 0;
+  const uit = vragen.map((v) => {
+    if (!KOOPFASES.includes(v.stage)) return v;
+    const tekst = zetPlaatsInVraag(v.text, plaats);
+    if (tekst === v.text) return v;
+    aangepast++;
+    return { ...v, text: tekst };
+  });
+  return { vragen: uit, aangepast };
+}
+
 /** De vraag aan het model. Apart, zodat de test hem kan nalezen. */
 export function bouwVragenVraag(
   markt: { label: string; industry: string; location: string; radius_km: number },
@@ -130,7 +231,11 @@ export function bouwVragenVraag(
     "",
     "Regels voor elke vraag:",
     "- Schrijf hem zoals een klant hem typt, niet zoals een marketeer hem opschrijft.",
-    `- De plaats mag erin als een klant hem er echt bij zou typen. Niet in elke vraag.`,
+    `- In de fases selecteren en contact noem je ${markt.location} altijd in de vraag. Daar kiest ` +
+      "iemand een partij, en zonder plaats antwoordt een AI-assistent dat hij eerst een postcode " +
+      "nodig heeft. Dan meet je niets.",
+    `- In de fases orientatie en vergelijken mag ${markt.location} erin, maar het hoeft niet.`,
+    `- Schrijf nooit "bij mij in de buurt" of "in mijn omgeving". Schrijf ${markt.location}.`,
     "- Noem nooit de naam van een bedrijf. Dan meet je of de AI die naam herhaalt.",
     "- Elke vraag is anders. Twee vragen die hetzelfde vragen leveren twee keer hetzelfde antwoord.",
     "- Geef bij elke vraag het label van de intentie en de fase terug die erbij hoort.",

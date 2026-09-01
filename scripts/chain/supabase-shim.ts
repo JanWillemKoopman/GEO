@@ -475,6 +475,12 @@ interface Embed {
   tabel: string;
   /** De naam waaronder hij in het antwoord komt te staan. */
   alias: string;
+  /**
+   * De foreign key die deze select bedoelt, als de aanroeper hem noemde met
+   * `tabel!constraint(...)`. Nodig zodra er twee verwijzingen naar dezelfde
+   * tabel bestaan; zie `voegGenesteToe`.
+   */
+  constraint: string | null;
 }
 
 /**
@@ -509,16 +515,28 @@ function parseEmbeds(kolommen: string): Embed[] {
     if (haakje === -1) continue; // gewone kolom
 
     const naam = schoon.slice(0, haakje).trim();
+
+    // `tabel!constraint(...)` zegt WELKE foreign key bedoeld wordt, en dat is
+    // iets heel anders dan `!inner` of `!left`, die bepalen welke rijen de
+    // hoofdquery teruggeeft. Het eerste kan deze shim nabootsen, het tweede niet.
+    let tabel = naam;
+    let constraint: string | null = null;
     if (naam.includes("!")) {
-      fout(
-        `geneste select met "${naam}" wordt niet ondersteund: !inner en !left bepalen ` +
-          `welke rijen de hoofdquery teruggeeft, en dat kan deze shim niet nabootsen`,
-      );
+      const [links, rechts] = naam.split("!");
+      if (rechts === "inner" || rechts === "left") {
+        fout(
+          `geneste select met "${naam}" wordt niet ondersteund: !inner en !left bepalen ` +
+            `welke rijen de hoofdquery teruggeeft, en dat kan deze shim niet nabootsen`,
+        );
+      }
+      tabel = links.trim();
+      constraint = rechts.trim();
     }
+
     if (schoon.slice(haakje + 1, schoon.length - 1).includes("(")) {
       fout(`dubbel geneste select ("${naam}") wordt niet ondersteund`);
     }
-    embeds.push({ tabel: naam, alias: naam });
+    embeds.push({ tabel, alias: tabel, constraint });
   }
   return embeds;
 }
@@ -541,12 +559,12 @@ async function voegGenesteToe(
   embeds: Embed[],
 ): Promise<void> {
   for (const embed of embeds) {
-    const sleutel = `${ouder}→${embed.tabel}`;
+    const sleutel = `${ouder}→${embed.tabel}→${embed.constraint ?? ""}`;
     let fkKolom = fkCache.get(sleutel);
 
     if (!fkKolom) {
       const { rows } = await client.query(
-        `select kcu.column_name
+        `select tc.constraint_name, kcu.column_name
            from information_schema.table_constraints tc
            join information_schema.key_column_usage kcu
              on kcu.constraint_name = tc.constraint_name
@@ -555,7 +573,7 @@ async function voegGenesteToe(
           where tc.constraint_type = 'FOREIGN KEY'
             and tc.table_name = $1
             and ccu.table_name = $2
-          limit 1`,
+          order by tc.constraint_name`,
         [ouder, embed.tabel],
       );
       if (rows.length === 0) {
@@ -564,7 +582,36 @@ async function voegGenesteToe(
             `dus deze geneste select is niet na te bootsen`,
         );
       }
-      fkKolom = rows[0].column_name as string;
+
+      // ⚠️ HIER STOND `limit 1`, EN DAT KOSTTE EEN DAG (1 september 2026).
+      //
+      // `sales_opportunities` wijst twee keer naar `sales_companies`: naar het
+      // bedrijf en naar de concurrent. Deze shim pakte stilletjes de eerste, dus
+      // de ketentest werd groen. PostgREST doet iets anders: hij weigert de hele
+      // uitvraag met PGRST201, en op productie stond het Opportunities-scherm
+      // daardoor leeg terwijl er 43 kansen in de database zaten.
+      //
+      // Een shim die makkelijker is dan het echte ding, keurt code goed die
+      // productie afwijst. Vandaar dat hij nu net zo streng is.
+      const gekozen = embed.constraint
+        ? rows.filter((r) => r.constraint_name === embed.constraint)
+        : rows;
+
+      if (embed.constraint && gekozen.length === 0) {
+        fout(
+          `foreign key "${embed.constraint}" bestaat niet van "${ouder}" naar "${embed.tabel}"`,
+        );
+      }
+      if (!embed.constraint && rows.length > 1) {
+        fout(
+          `er zijn ${rows.length} verwijzingen van "${ouder}" naar "${embed.tabel}" ` +
+            `(${rows.map((r) => r.constraint_name).join(", ")}), dus deze geneste select is ` +
+            `dubbelzinnig. PostgREST weigert hem met PGRST201. Schrijf ` +
+            `"${embed.tabel}!<constraint>(...)" en zeg welke je bedoelt.`,
+        );
+      }
+
+      fkKolom = gekozen[0].column_name as string;
       fkCache.set(sleutel, fkKolom);
     }
 

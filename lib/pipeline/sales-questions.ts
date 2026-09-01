@@ -33,6 +33,7 @@ import { beoordeelBudget, besteedAanMarkt } from "@/lib/sales/budget";
 import { verdeelVragen, type Intentie } from "@/lib/sales/intents";
 import {
   koppelVragen,
+  plaatsInKoopvragen,
   bouwVragenVraag,
   type GegenereerdeVraag,
 } from "@/lib/sales/questions";
@@ -92,5 +93,29 @@ export async function genereerVragen(
     meta: { kind: "sales_market_questions", salesMarketId: marketId },
   });
 
-  return { ...koppelVragen(plekken, r.parsed.vragen), skipped: false };
+  const gekoppeld = koppelVragen(plekken, r.parsed.vragen);
+
+  // ⚠️ Het vangnet uit conventie 1. De prompt vraagt om de plaats in de fases
+  // selecteren en contact; deze regel garandeert hem. Zie `plaatsInKoopvragen`
+  // voor wat er misgaat als hij ontbreekt: een meting die Nederland meet in
+  // plaats van deze markt.
+  const { vragen, aangepast } = plaatsInKoopvragen(
+    gekoppeld.vragen,
+    data.location as string,
+  );
+
+  const meldingen = [
+    gekoppeld.melding,
+    aangepast > 0
+      ? `${aangepast} ${aangepast === 1 ? "vraag" : "vragen"} kreeg de plaats erbij. Zonder ` +
+        `${data.location as string} in de vraag antwoordt een AI-assistent over heel Nederland, ` +
+        "en dan meet je deze markt niet."
+      : null,
+  ].filter(Boolean) as string[];
+
+  return {
+    vragen,
+    melding: meldingen.length > 0 ? meldingen.join(" ") : null,
+    skipped: false,
+  };
 }
