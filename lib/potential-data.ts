@@ -4,14 +4,15 @@ import "server-only";
  * Ophaalkant van de potentiescore (docs/tasks/potentiescore.md). De rekenkant
  * staat in `lib/potential.ts`, zonder `server-only`, conventie 2.
  */
-import { visibilityIndex, potentialScore, type PotentialTriple } from "@/lib/potential";
+import { visibilityIndex, potentialScore, isConfident, type PotentialTriple } from "@/lib/potential";
+import { binomialStderr } from "@/lib/stats/uncertainty";
 import type { createAdminClient } from "@/lib/supabase/admin";
 
 type Admin = ReturnType<typeof createAdminClient>;
 
 export type { PotentialTriple };
 
-const LEEG: PotentialTriple = { visibility: null, volume: null, potential: null };
+const LEEG: PotentialTriple = { visibility: null, volume: null, potential: null, confident: true };
 
 /**
  * De drie getallen op ANALYSE-niveau (= onderwerp-niveau, want één analyse
@@ -28,7 +29,7 @@ export async function loadAnalysisPotential(
   const [{ data: scoreRow }, volume] = await Promise.all([
     admin
       .from("visibility_scores")
-      .select("score")
+      .select("score, score_stderr")
       .eq("analysis_id", analysisId)
       .order("week_no", { ascending: false })
       .limit(1)
@@ -37,7 +38,13 @@ export async function loadAnalysisPotential(
   ]);
 
   const visibility = (scoreRow?.score as number | null | undefined) ?? null;
-  return { visibility, volume, potential: potentialScore(visibility, volume) };
+  const stderr = (scoreRow?.score_stderr as number | null | undefined) ?? null;
+  return {
+    visibility,
+    volume,
+    potential: potentialScore(visibility, volume),
+    confident: isConfident(stderr),
+  };
 }
 
 /**
@@ -109,7 +116,7 @@ async function loadPotentialForTargets(
   promptIds: string[],
 ): Promise<PotentialTriple> {
   const volume = await volumeIndexOfAnalysis(admin, analysisId);
-  if (promptIds.length === 0) return { visibility: null, volume, potential: null };
+  if (promptIds.length === 0) return { ...LEEG, volume };
 
   // Alleen de meest recente periodieke meting telt, dezelfde begrenzing als de
   // wekelijkse aggregatie (computeAggregates): impact- en controlemetingen
@@ -122,7 +129,7 @@ async function loadPotentialForTargets(
     .limit(1)
     .maybeSingle();
   const laatsteWeek = scoreRow?.week_no as number | undefined;
-  if (laatsteWeek === undefined) return { visibility: null, volume, potential: null };
+  if (laatsteWeek === undefined) return { ...LEEG, volume };
 
   const { data: runRows } = await admin
     .from("tracking_runs")
@@ -132,7 +139,7 @@ async function loadPotentialForTargets(
     .eq("purpose", "periodic")
     .in("prompt_id", promptIds);
   const runs = (runRows ?? []) as { id: string; prompt_id: string | null }[];
-  if (runs.length === 0) return { visibility: null, volume, potential: null };
+  if (runs.length === 0) return { ...LEEG, volume };
 
   const { data: mentionRows } = await admin
     .from("tracking_run_mentions")
@@ -163,5 +170,14 @@ async function loadPotentialForTargets(
   const total = promptIds.filter((id) => perPrompt.has(id)).length;
   const mentionedCount = [...perPrompt.values()].filter(Boolean).length;
   const visibility = visibilityIndex(mentionedCount, total);
-  return { visibility, volume, potential: potentialScore(visibility, volume) };
+  // Dezelfde standaardfout als bij de score van een heel onderwerp
+  // (measure.ts), nu over de enkele doelvragen van déze kans, meestal een veel
+  // kleinere steekproef en dus een terecht bredere band.
+  const stderr = total > 0 ? binomialStderr(mentionedCount, total) : null;
+  return {
+    visibility,
+    volume,
+    potential: potentialScore(visibility, volume),
+    confident: isConfident(stderr),
+  };
 }

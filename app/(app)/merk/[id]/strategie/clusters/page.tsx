@@ -12,7 +12,7 @@ import { loadDashboard } from "@/lib/dashboard";
 import { LastUpdated } from "@/components/last-updated";
 import { TopicsPanel } from "../../_components/topics-panel";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { loadAnalysisPotential } from "@/lib/potential-data";
+import { loadAnalysisPotential, type PotentialTriple } from "@/lib/potential-data";
 import { isStaff } from "@/lib/staff";
 import type { ProfileTopic } from "@/lib/types/database";
 
@@ -80,10 +80,7 @@ export default async function ClustersPage({
   const topics = (topicRows ?? []) as ProfileTopic[];
 
   const admin = createAdminClient();
-  const potenties: Record<
-    string,
-    { visibility: number | null; volume: number | null; potential: number | null }
-  > = {};
+  const potenties: Record<string, PotentialTriple> = {};
   await Promise.all(
     topics
       .filter((t) => t.analysis_id)

@@ -5652,3 +5652,39 @@ productie. Vier controles groen: typecheck, 3455 unittests, 557 ketentests, de p
 **Nog niet geverifieerd tegen een echte klant** (conventie 10): het contract, de dekkingspoort en de
 reparatielus zijn getoetst tegen de stub en tegen opgeslagen data, niet tegen een verse pagina op
 productie. Dat is de eerstvolgende praktijktoets, en pas daarna mag hier staan dat het werkt.
+
+## 1 september 2026: een label voor een kans die op te weinig metingen steunt (potentiescore fase 4)
+
+Aanleiding: bij Gasservice Brabant sprong de score van cluster "Cv-ketel onderhoud" van 30 naar 60
+tussen twee metingen, verklaard in een eerder gesprek als wisselende web_search-antwoorden, geen
+bug. Een Teamsessie (skill `team-session`, vijf experts plus Devil's Advocate) boog zich over de
+vraag hoe de app hiermee om moet gaan. Bevinding, bevestigd door de Devil's Advocate na eigen
+naleeswerk: `visibility_scores.score_stderr` wordt al berekend en opgeslagen (`lib/stats/
+uncertainty.ts`), en gebruikt om de trendtekst in het rapport te temperen
+(`lib/pipeline/period-change.ts`), maar `lib/potential-data.ts` gebruikte hem nergens. Een kans of
+pagina-aanbeveling op 1 of 2 doelvragen kon zo als hard cijfer (0 of 100) getoond worden zonder dat
+er een marge bij stond.
+
+**Wat er gebouwd is.** `PotentialTriple` (`lib/potential.ts`) kreeg een vierde veld, `confident:
+boolean`. `isConfident(stderr)` zet de 95%-marge (`Z95 × stderr`) af tegen een vaste grens van 25
+punten: een volledig gemeten onderwerp (~30 vragen) heeft van zichzelf al een marge van ±16,4 punten
+(docs/architecture.md §6) en haalt die grens dus niet, een kans op een handvol doelvragen wel. Geen
+nieuwe AI-aanroep, geen tweede meetronde nodig, de standaardfout ligt al in de database
+(`score_stderr` op analyse-niveau, een verse `binomialStderr()` over de doelvragen op kansniveau).
+Op het scherm (`components/potential-metrics.tsx`): het label "Nog een meetronde nodig".
+
+**Expliciet géén filter.** De product owner was hier duidelijk over: het label mag een kans nooit
+onbruikbaar maken. Een net gestarte klant met weinig metingen zou anders precies op het moment dat
+hij moet zien wat de app oplevert, een leger contentplan krijgen, het risico dat de Devil's Advocate
+in de Teamsessie benoemde. `lib/opportunities.ts`, `lib/plan-backlog.ts` en het schrijven van een
+pagina zijn dan ook ongewijzigd: een kans met een laag `confident` blijft even bruikbaar als
+daarvoor.
+
+Bewust NIET meegenomen uit dezelfde Teamsessie: de bredere vraag of kansen over meerdere
+meetperiodes gemiddeld zouden moeten worden. Dat wachtte op een telling van hoeveel analyses
+daadwerkelijk twee of meer periodieke metingen hebben, die telling is niet gedaan, dus dat blijft
+openstaand (`docs/tasks/potentiescore.md` §4b).
+
+Vier controles groen: typecheck, 3462 unittests (7 nieuw, `isConfident`), 557 ketentests, de
+productiebuild. **Nog niet geverifieerd tegen een echte klant** (conventie 10): geen productieprofiel
+is nagelopen op of een kans met bekend weinig doelvragen het label ook echt krijgt.

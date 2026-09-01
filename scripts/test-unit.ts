@@ -17,7 +17,7 @@
  * niet te testen zonder een echt project, en een test met een nagebootste
  * database toetst vooral of je nabootsing klopt.
  */
-import { binomialStderr, weightedScoreStderr, confidenceBand, changeIsMeaningful } from "@/lib/stats/uncertainty";
+import { binomialStderr, weightedScoreStderr, confidenceBand, changeIsMeaningful, Z95 } from "@/lib/stats/uncertainty";
 import {
   normalizeEntityName,
   isSameEntity,
@@ -462,6 +462,8 @@ import {
   potentialBand,
   potentialExplanation,
   distributePotentialByWeight,
+  isConfident,
+  CONFIDENCE_MARGIN_LIMIT,
 } from "@/lib/potential";
 import {
   DEFAULT_MIX,
@@ -8039,6 +8041,24 @@ group("potentialExplanation: nooit een gegokte zin", () => {
   ok(
     "met beide bekend staat het gemiste percentage erin",
     potentialExplanation(40, 80).includes("60%"),
+  );
+});
+
+// Teamsessie 1 september 2026: een kans/pagina met te weinig metingen erachter
+// moet als "nog een meetronde nodig" gelabeld worden, nooit gefilterd, nooit
+// een nieuwe AI-aanroep nodig. isConfident() gebruikt de al opgeslagen
+// standaardfout (score_stderr/binomialStderr), geen nieuwe berekening.
+group("isConfident: label voor te weinig metingen, nooit een filter", () => {
+  ok("onbekende standaardfout telt als voldoende zeker", isConfident(null) === true);
+  ok("een smalle band (weinig ruis) is voldoende zeker", isConfident(5) === true);
+  ok("een brede band (bv. 1 doelvraag) is nog niet zeker genoeg", isConfident(20) === false);
+  ok(
+    "precies op de grens telt nog als voldoende zeker",
+    isConfident(CONFIDENCE_MARGIN_LIMIT / Z95) === true,
+  );
+  ok(
+    "net over de grens telt als nog een meetronde nodig",
+    isConfident(CONFIDENCE_MARGIN_LIMIT / Z95 + 0.01) === false,
   );
 });
 
