@@ -65,6 +65,7 @@ import {
   factFromAnswer,
   mergeAnsweredFacts,
   sourceCoverage,
+  buildFactFindingAddendum,
 } from "@/lib/pipeline/factcard";
 import {
   selectBriefingQuestions,
@@ -270,7 +271,13 @@ import {
 
 import { splitSentences, stripMarkdown, firstSentences } from "@/lib/pipeline/sentences";
 import { extractHeadings, renderMarkdown } from "@/lib/markdown";
-import { topicTerms, canonicalPath, scorePage, selectRelevantPages } from "@/lib/pipeline/page-relevance";
+import {
+  topicTerms,
+  canonicalPath,
+  scorePage,
+  selectRelevantPages,
+  scoreTermOverlap,
+} from "@/lib/pipeline/page-relevance";
 import { verifyAtoms } from "@/lib/pipeline/atom-verify";
 import { verifyDossierFacts, answerTypeOf } from "@/lib/pipeline/dossier-verify";
 import { wilsonBounds, maySkip, elicitLabel, describeElicit } from "@/lib/pipeline/elicit-rate";
@@ -2062,6 +2069,35 @@ group("Vaste slots per bedrijfsmodel (implementatieplan.md R8.5)", () => {
 });
 
 // ════════════════════════════════════════════════════════════════════════════
+group("Gerichte fact-finding bij algemene context-gaten (S9, gesprek 1 september)", () => {
+  ok(
+    "zonder gaten valt hij terug op de generieke vuistregel",
+    buildFactFindingAddendum([]).includes("weinig geverifieerde feiten"),
+  );
+
+  const gericht = buildFactFindingAddendum([
+    { term: "ISO 9001", reason: "de pagina noemt het keurmerk zonder uit te leggen wat het inhoudt" },
+  ]);
+  ok("met gaten wordt de term letterlijk genoemd", gericht.includes("ISO 9001"));
+  ok("de reden gaat mee", gericht.includes("zonder uit te leggen wat het inhoudt"));
+  ok(
+    "de generieke vuistregel blijft weg zodra er gerichte gaten zijn",
+    !gericht.includes("weinig geverifieerde feiten"),
+  );
+  ok(
+    "de muur blijft staan: nooit een bewering over dit bedrijf",
+    gericht.includes("bewering over dit specifieke bedrijf") ||
+      gericht.includes("nooit een bewering over dit specifieke bedrijf"),
+  );
+
+  const tweeGaten = buildFactFindingAddendum([
+    { term: "ISO 9001", reason: "reden A" },
+    { term: "Keurmerk Stichting X", reason: "reden B" },
+  ]);
+  ok("twee gaten leveren twee genoemde termen op", tweeGaten.includes("ISO 9001") && tweeGaten.includes("Keurmerk Stichting X"));
+});
+
+// ════════════════════════════════════════════════════════════════════════════
 group("Deterministische kwaliteitspoort (implementatieplan.md R8.2/R8.7/R8.8)", () => {
   // De kop wordt bewust NIET als opening geteld: de Coolblue-pagina herhaalde
   // de doelvraag als kop, en een vraag herhalen is het tegenovergestelde van
@@ -2282,6 +2318,28 @@ group("de echte Coolblue-selectie", () => {
   ok("adviespagina staat vooraan", gekozen[0].url === advies.url);
   ok("Engelse duplicaat is samengevouwen", gekozen.length === 2);
   ok("de Nederlandse variant blijft", gekozen.every((p) => !p.url.endsWith("/en")));
+});
+
+group("de concurrentielat per aanbeveling herrangschikken (S10)", () => {
+  // Het cluster loopt uiteen: één aanbeveling over levertijd, één over
+  // certificeringen. Beide eigenschappen komen uit dezelfde analyse.
+  const termenLevertijd = topicTerms("Levert u ook binnen 24 uur?");
+  const termenCertificering = topicTerms("Wat houdt het ISO 9001-keurmerk in?");
+
+  const levertijd = { attribute: "levertijd", evidence: "Levert altijd binnen 24 uur, ook in het weekend." };
+  const certificering = { attribute: "certificering", evidence: "Werkt met een ISO 9001-gecertificeerd proces." };
+
+  ok(
+    "de levertijdpagina scoort de levertijd-eigenschap hoger",
+    scoreTermOverlap(`${levertijd.attribute} ${levertijd.evidence}`, termenLevertijd) >
+      scoreTermOverlap(`${certificering.attribute} ${certificering.evidence}`, termenLevertijd),
+  );
+  ok(
+    "de certificeringspagina scoort de certificering-eigenschap hoger",
+    scoreTermOverlap(`${certificering.attribute} ${certificering.evidence}`, termenCertificering) >
+      scoreTermOverlap(`${levertijd.attribute} ${levertijd.evidence}`, termenCertificering),
+  );
+  ok("zonder doelvragen levert niets een voorsprong op", scoreTermOverlap(levertijd.evidence, []) === 0);
 });
 
 

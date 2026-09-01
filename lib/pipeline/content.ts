@@ -53,10 +53,11 @@ import {
 } from "@/lib/schema-jsonld";
 import { redactCompetitors, containsCompetitor } from "@/lib/pipeline/redact";
 import { analyzeCitedSources } from "@/lib/pipeline/source-analysis";
+import { topicTerms, scoreTermOverlap } from "@/lib/pipeline/page-relevance";
 import { contentWebSearchEnabled, minProofPointsForConcreteContent } from "@/lib/config";
 import { buildFactBase } from "@/lib/pipeline/factbase";
 import { syncBrandFacts } from "@/lib/pipeline/factstore";
-import { factsFromSnapshot, planFromSnapshot } from "@/lib/pipeline/briefing";
+import { factsFromSnapshot, planFromSnapshot, generalContextGapsFromSnapshot } from "@/lib/pipeline/briefing";
 import { enkelOfMeervoud } from "@/lib/format";
 import {
   formatFactCard,
@@ -65,9 +66,11 @@ import {
   factFromAnswer,
   mergeAnsweredFacts,
   normalizeForQuote,
+  buildFactFindingAddendum,
   type AnsweredFactInput,
   type FactItem,
   type WrittenClaim,
+  type ContextGap,
 } from "@/lib/pipeline/factcard";
 import type { RecommendationTarget } from "@/lib/pipeline/recommendation";
 import type {
@@ -92,6 +95,16 @@ const REVIEW_THRESHOLD = 80;
  * meteen beantwoord, of het bedrijf staat er nergens met naam in).
  */
 const GEO_THRESHOLD = 60;
+
+/**
+ * Hoeveel concurrenten we ophalen vóór het herrangschikken op relevantie voor
+ * deze pagina (S10), tegenover hoeveel EIGENSCHAPPEN daarvan uiteindelijk de
+ * prompt in gaan. Ruimer dan vroeger (was meteen de eindlimiet), want anders
+ * zou een concurrent die relevant is voor DIT onderwerp maar in het algemeen
+ * weinig genoemd wordt, nooit bij de kandidaten kunnen komen.
+ */
+const EDGE_CANDIDATE_LIMIT = 20;
+const EDGE_MAX = 8;
 
 /**
  * Doellengte per paginatype (optimalisatie.md 4.10).
@@ -166,22 +179,10 @@ const CONTENT_SYSTEM =
   "Splits zo'n zin in twee zinnen, of gebruik een komma, een dubbele punt of het woord 'of'. " +
   "Een koppelteken in een samenstelling ('AI-assistent') is gewoon goed en mag blijven.";
 
-/**
- * Vangnet-instructie als de klant te weinig geverifieerde feiten heeft
- * (optimalisatie.md 4.6). Alleen actief bij een dunne feitenlijst, en alleen
- * met web-zoeken aan.
- *
- * De spanning die dit oplost: "verzin niets" + "wees concreet" is bij een dunne
- * website een tegenspraak, en het model kiest dan altijd voor algemeen. Door
- * ALGEMENE vakkennis te laten opzoeken (geen bedrijfsclaims. Die kunnen we niet
- * controleren) krijgt de pagina toch iets concreets om op te staan.
- */
-const FACT_FINDING_ADDENDUM =
-  " AANVULLENDE OPDRACHT: er zijn weinig geverifieerde feiten over dit bedrijf beschikbaar. Zoek daarom " +
-  "op internet naar ALGEMEEN GELDENDE, verifieerbare feiten over het ONDERWERP (normen, termijnen, " +
-  "richtprijzen in de markt, wettelijke eisen, technische standaarden) en verwerk die met bronvermelding. " +
-  "Doe dit NOOIT voor claims over dit specifieke bedrijf. Die mag je alleen uit de aangeleverde feitenlijst " +
-  "halen. Een marktfeit met bron is waardevol; een verzonnen bedrijfsfeit is schadelijk.";
+// De vangnet-instructie bij web-zoeken tijdens het schrijven (optimalisatie.md
+// 4.6) staat als `buildFactFindingAddendum()` in `factcard.ts`: puur en
+// testbaar, en sinds S9 (gesprek van 1 september) gericht op de concrete
+// termen die DEZE pagina nodig heeft in plaats van alleen op "weinig feiten".
 
 /** Redacteur-rol voor de kritiek-stap, redactioneel én GEO (optimalisatie.md 4.5). */
 const CRITIQUE_SYSTEM =
@@ -374,7 +375,13 @@ function buildContentInput(args: {
   return [
     `Bedrijf: ${brandName}`,
     `Website: ${analysis.url}`,
-    `Onderwerp/scope: ${analysis.topic}`,
+    // S10: gelabeld als CLUSTER en niet als "onderwerp/scope" van deze pagina.
+    // Eén cluster bevat vaak meerdere aanbevelingen die onderling uiteenlopen
+    // (levertijd, certificeringen, duurzaamheid); dit is de bredere context
+    // waarbinnen ze allemaal vallen, niet per se waar DEZE pagina over gaat.
+    // Wat déze pagina moet worden staat verderop, apart, bij "Te maken pagina".
+    `Cluster waarbinnen deze pagina valt (bredere context, niet per se het onderwerp van DEZE ` +
+      `pagina): ${analysis.topic}`,
     analysis.content_brief?.trim()
       ? `Gewenste richting en doelgroep van de content (van de klant, VOLG dit): ${analysis.content_brief.trim()}`
       : "",
@@ -426,7 +433,13 @@ function buildContentInput(args: {
       : "",
     // ✅ Stijl-grounding: letterlijke voorbeeldzinnen om de toon na te bootsen.
     styleSamples.length ? `Voorbeeldzinnen in de merkstem (toon nabootsen):\n- ${styleSamples.join("\n- ")}` : "",
-    topicResearch?.content_summary ? `Wat de website al zegt over dit onderwerp: ${topicResearch.content_summary}` : "",
+    // S10: zelfde relabeling. Dit is één samenvatting voor het HELE cluster
+    // (topic_research draait één keer per analyse, niet per pagina), dus geen
+    // beschrijving van specifiek déze pagina.
+    topicResearch?.content_summary
+      ? `Wat de website in het algemeen zegt over het cluster hierboven (achtergrond, niet per se ` +
+        `over deze specifieke pagina): ${topicResearch.content_summary}`
+      : "",
     competitors.length ? `NIET noemen op deze pagina (concurrenten): ${competitors.join(", ")}` : "",
     "",
     `Te maken pagina: "${rec.title}" (type: ${rec.type})`,
@@ -525,8 +538,10 @@ interface ContentContext {
   competitors: string[];
   targets: RecommendationTarget[];
   baseInput: string;
-  /** Web-zoeken aanzetten voor déze aanroep, omdat de feitenlijst te dun is (4.6). */
+  /** Web-zoeken aanzetten voor déze aanroep: een dunne feitenlijst, of concrete gaten hieronder (S9). */
   needsFactFinding: boolean;
+  /** Termen die DEZE pagina uitgelegd wil zien, geen bewering over de klant (S9). */
+  generalContextGaps: ContextGap[];
   brandName: string;
   /**
    * De feitenkaart waarop deze pagina geschreven wordt (R5.3). Wordt ook ná het
@@ -753,15 +768,20 @@ async function loadContentContext(
   // R4.3, waarop worden de concurrenten genoemd? Alleen de EIGENSCHAPPEN, nooit
   // de namen: die mogen de schrijfprompt niet in, anders belandt er vroeg of laat
   // een concurrent op de pagina van de klant.
+  //
+  // EDGE_CANDIDATE_LIMIT is ruimer dan het aantal dat uiteindelijk de prompt in
+  // gaat: dit haalt de kandidaten op, de herrangschikking hieronder kiest
+  // daarna WELKE ervan bij DEZE pagina horen.
   const { data: rivalRows } = await admin
     .from("competitor_breakdown")
     .select("attributes_json")
     .eq("analysis_id", analysisId)
     .not("attributes_json", "is", null)
     .order("mentions_count", { ascending: false })
-    .limit(8);
+    .limit(EDGE_CANDIDATE_LIMIT);
 
-  // ── Waaróp worden de concurrenten genoemd? (R4.3, aangescherpt in S4) ─────
+  // ── Waaróp worden de concurrenten genoemd, EN gaat dat over DEZE pagina? ──
+  // (R4.3, aangescherpt in S4, itemspecifiek gemaakt in S10)
   //
   // Deze Map bevatte de bewijszinnen al, en er ging alleen `.keys()` de prompt
   // in. De schrijver kreeg dus letterlijk dit als "de lat":
@@ -776,18 +796,56 @@ async function loadContentContext(
   // "biedt fysiotherapie aan zonder dat een verwijsbrief nodig is". Dat is het
   // verschil tussen weten dát je op prijs verliest en weten waarvan.
   //
+  // ── S10: WAAROM DIT NIET LANGER "DE TOP 8 VAN HET HELE CLUSTER" IS ─────────
+  //
+  // De acht meest genoemde eigenschappen van de HELE analyse gingen tot nu toe
+  // naar élke pagina van dat cluster, ongeacht waar die pagina over gaat. Bij
+  // een cluster met uiteenlopende aanbevelingen (levertijd, certificeringen,
+  // duurzaamheid) kreeg de certificeringspagina zo "levertijd 24 uur" als lat
+  // mee: een instructie die de tekst actief de verkeerde kant op stuurt, want
+  // dit blok wordt als opdracht gelezen ("jouw pagina moet hierop minstens zo
+  // concreet zijn"). Zelfde soort fout als de clusterbrede achtergrond die S9
+  // al oploste, maar dan op de plek die de tekst het hardst stuurt.
+  //
+  // De kandidaten worden nu herrangschikt op overlap met de doelvragen van
+  // DEZE aanbeveling (`scoreTermOverlap()`, dezelfde aanpak als de
+  // sitepagina-selectie in S1), niet meer op hoe vaak de concurrent in het
+  // algemeen genoemd wordt. Heeft de aanbeveling geen doelvragen (score altijd
+  // 0), dan blijft de oorspronkelijke volgorde staan: onbekend is dan het
+  // eerlijkste, niet een verzonnen relevantie.
+  //
   // De namen gaan er dubbel uit, wegstrepen én controleren. Want de harde
   // regel is dat er nooit een concurrent op de pagina van de klant komt.
-  const edgeCounts = new Map<string, string>();
+  const edgeTerms = topicTerms(
+    recommendation.title,
+    recommendation.targetIntent,
+    ...targets.map((t) => t.text),
+  );
+  const edgeGezien = new Set<string>();
+  const edgeKandidaten: { attribute: string; evidence: string; score: number }[] = [];
   for (const row of rivalRows ?? []) {
     for (const a of (row.attributes_json ?? []) as { attribute: string; evidence: string }[]) {
       if (!a?.attribute?.trim() || !a?.evidence?.trim()) continue;
-      if (edgeCounts.has(a.attribute)) continue;
+      if (edgeGezien.has(a.attribute)) continue;
       const schoon = redactCompetitors(a.evidence.trim(), competitors);
       if (containsCompetitor(schoon, competitors)) continue;
-      edgeCounts.set(a.attribute, schoon);
+      edgeGezien.add(a.attribute);
+      edgeKandidaten.push({
+        attribute: a.attribute,
+        evidence: schoon,
+        score: scoreTermOverlap(`${a.attribute} ${schoon}`, edgeTerms),
+      });
     }
   }
+
+  // `.sort()` is stabiel: bij gelijke score blijft de oorspronkelijke volgorde
+  // (mentions_count) staan, dus de terugvalroute bij score 0 verandert niets.
+  const edgeCounts = new Map(
+    edgeKandidaten
+      .sort((a, b) => b.score - a.score)
+      .slice(0, EDGE_MAX)
+      .map((k) => [k.attribute, k.evidence]),
+  );
 
   const competitorEdge =
     edgeCounts.size > 0
@@ -831,6 +889,13 @@ async function loadContentContext(
   // doorgerekend tegen de kaart hieronder, inclusief de verse antwoorden, in
   // plaats van tegen de stand van tijdens de briefing.
   const plan = planFromSnapshot(pieceRow?.briefing_snapshot_json);
+
+  // De algemene context-gaten van DEZE pagina (S9): termen die uitleg nodig
+  // hebben zonder dat het beweringen over de klant zijn. Per pagina bepaald in
+  // de claim-audit, niet clusterbreed, precies om te voorkomen dat een pagina
+  // over onderwerp X context krijgt aangereikt die eigenlijk bij onderwerp Y
+  // hoort.
+  const generalContextGaps = generalContextGapsFromSnapshot(pieceRow?.briefing_snapshot_json);
 
   // ── De bevroren kaart is een MOMENTOPNAME, geen eindstand (R8.1) ──────────
   //
@@ -888,7 +953,16 @@ async function loadContentContext(
       (techniekFacet?.raw_json as { sameAs?: string[] } | null)?.sameAs ?? [],
     ),
     brandName: profile?.brand_name ?? analysis.url,
-    needsFactFinding: contentWebSearchEnabled && proofCount < minProofPointsForConcreteContent,
+    // Twee onafhankelijke redenen om te mogen zoeken (S9): deze pagina heeft
+    // concrete termen die uitleg nodig hebben, OF de klant heeft in het
+    // algemeen weinig bevestigde feiten. De eerste is specifiek voor dit
+    // contentitem; de tweede blijft de generieke vuistregel van vóór S9. Zie
+    // `buildFactFindingAddendum()` in factcard.ts voor wat elk van de twee
+    // daadwerkelijk aan de schrijver meegeeft.
+    generalContextGaps,
+    needsFactFinding:
+      contentWebSearchEnabled &&
+      (proofCount < minProofPointsForConcreteContent || generalContextGaps.length > 0),
     baseInput: buildContentInput({
       analysis,
       profile,
@@ -1330,8 +1404,11 @@ export async function draftContentPiece(args: {
     saved ??
     (await callStructured({
       model: MODELS.content,
-      // Vangnet bij een dunne feitenlijst (4.6): dan mag hij marktfeiten opzoeken.
-      system: ctx.needsFactFinding ? CONTENT_SYSTEM + FACT_FINDING_ADDENDUM : CONTENT_SYSTEM,
+      // Gerichte zoekopdracht bij concrete context-gaten in DEZE pagina, anders
+      // het generieke vangnet bij een dunne feitenlijst (S9, was 4.6).
+      system: ctx.needsFactFinding
+        ? CONTENT_SYSTEM + buildFactFindingAddendum(ctx.generalContextGaps)
+        : CONTENT_SYSTEM,
       user: baseInput,
       schema: ContentPiece,
       schemaName: "content_piece",
@@ -1534,7 +1611,9 @@ export async function reviseContentPiece(args: {
 
   const revised = await callStructured({
     model: MODELS.content,
-    system: ctx.needsFactFinding ? CONTENT_SYSTEM + FACT_FINDING_ADDENDUM : CONTENT_SYSTEM,
+    system: ctx.needsFactFinding
+      ? CONTENT_SYSTEM + buildFactFindingAddendum(ctx.generalContextGaps)
+      : CONTENT_SYSTEM,
     user: buildReviseInput(baseInput, draftPiece, issues, recommendation.revisionNote),
     schema: ContentPiece,
     schemaName: "content_piece",

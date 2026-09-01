@@ -92,10 +92,15 @@ function buildAtomiseInput(args: {
 
   return [
     `Bedrijf: ${brandName}`,
-    `Onderwerp waar de content over gaat: ${topic}`,
+    // S10: dit is het CLUSTER, niet per se het onderwerp van elke afzonderlijke
+    // pagina hieronder. Deze stap draait één keer per briefingronde, over álle
+    // gekozen pagina's samen, en die lopen soms uiteen. De doelvragen eronder
+    // zijn de echte sturing per pagina; dit is alleen de bredere context.
+    `Cluster (bredere context, de losse pagina's hieronder kunnen elk een ander deelonderwerp ` +
+      `hebben): ${topic}`,
     targetQuestions.length
       ? `De pagina's die we gaan schrijven moeten deze vragen beantwoorden. Feiten die daarbij ` +
-        `helpen zijn het waardevolst:\n- ${targetQuestions.join("\n- ")}`
+        `helpen zijn het waardevolst, en zijn leidend boven het clusteronderwerp hierboven:\n- ${targetQuestions.join("\n- ")}`
       : "",
     "",
     "Hieronder de pagina's van de eigen website. Selecteer de zinnen met een controleerbaar feit.",

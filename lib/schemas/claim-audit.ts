@@ -94,9 +94,43 @@ export const AuditedClaim = z.object({
   scope: z.enum(["merk", "analyse", "pagina"]),
 });
 
+/**
+ * Een term die algemene uitleg nodig heeft, geen bewering over dit bedrijf
+ * (geo-toelichting, gesprek van 1 september).
+ *
+ * ── WAAROM DIT EEN EIGEN TYPE IS EN GEEN AuditedClaim ───────────────────────
+ *
+ * Een aanbeveling kan een pagina voorstellen die leunt op iets dat wél op de
+ * site van de klant staat (een keurmerk, een norm) maar waarvan de BETEKENIS
+ * nergens staat. Zo'n uitleg is geen bewering over de klant en heeft dus geen
+ * F-nummer, geen `sourceRef`, geen `supportQuote`: die velden van AuditedClaim
+ * zouden hier allemaal leeg of onwaar zijn. Vandaar een eigen, kleiner type.
+ *
+ * ── WAAROM PER PAGINA EN NIET VOOR HET HELE CLUSTER ─────────────────────────
+ *
+ * De aanbevelingen in één analyse lopen soms sterk uiteen van onderwerp (het
+ * ene stuk over levertijden, het andere over certificeringen). Eén
+ * clusterbrede achtergrondtekst zou voor de helft van die pagina's ruis zijn
+ * in plaats van versterking. `neededFor` gebruikt daarom dezelfde koppeling
+ * als `AuditedClaim.neededFor`: de tekst van de doelvraag die dit item
+ * aanvult, waarmee `paginaVanClaim()` in `briefing.ts` het aan precies de
+ * juiste pagina('s) toewijst.
+ */
+export const GeneralContextGap = z.object({
+  /** De term of het begrip dat uitleg nodig heeft, bv. "ISO 9001" of "het Keurmerk Stichting X". */
+  term: z.string(),
+  /** Welke doelvraag dit item aanvult, zelfde koppeling als AuditedClaim.neededFor. */
+  neededFor: z.string(),
+  /** In gewone taal: waarom maakt uitleg van deze term de pagina sterker? */
+  reason: z.string(),
+});
+
 export const ClaimAudit = z.object({
   claims: z.array(AuditedClaim),
+  /** Termen die algemene, niet-bedrijfsspecifieke uitleg nodig hebben (S9). Leeg is de norm. */
+  generalContextGaps: z.array(GeneralContextGap),
 });
 
 export type AuditedClaim = z.infer<typeof AuditedClaim>;
+export type GeneralContextGap = z.infer<typeof GeneralContextGap>;
 export type ClaimAudit = z.infer<typeof ClaimAudit>;

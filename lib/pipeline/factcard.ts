@@ -585,3 +585,60 @@ export function topicKey(question: string): string {
     .sort()
     .join(" ");
 }
+
+/**
+ * De generieke vuistregel bij een dunne feitenkaart (optimalisatie.md 4.6):
+ * geen gerichte term bekend, dus algemeen op zoek naar marktkennis. Blijft
+ * bestaan als terugvalroute, want `buildFactFindingAddendum()` hieronder krijgt
+ * lang niet altijd gaten aangereikt (S9), en "weinig feiten" is dan nog steeds
+ * een reden om iets concreets te gaan zoeken.
+ */
+const GENERIEKE_FACT_FINDING_ADDENDUM =
+  " AANVULLENDE OPDRACHT: er zijn weinig geverifieerde feiten over dit bedrijf beschikbaar. Zoek daarom " +
+  "op internet naar ALGEMEEN GELDENDE, verifieerbare feiten over het ONDERWERP (normen, termijnen, " +
+  "richtprijzen in de markt, wettelijke eisen, technische standaarden) en verwerk die met bronvermelding. " +
+  "Doe dit NOOIT voor claims over dit specifieke bedrijf. Die mag je alleen uit de aangeleverde feitenlijst " +
+  "halen. Een marktfeit met bron is waardevol; een verzonnen bedrijfsfeit is schadelijk.";
+
+/** Eén term die deze pagina sterker maakt met een korte, algemene toelichting (S9). */
+export interface ContextGap {
+  term: string;
+  reason: string;
+}
+
+/**
+ * Bouwt de instructie waarmee de schrijfaanroep mag zoeken naar ALGEMENE,
+ * niet-bedrijfsspecifieke achtergrond (S9, herziening van optimalisatie.md 4.6).
+ *
+ * ── WAAROM DIT NIET LANGER ALLEEN OP "WEINIG FEITEN" LEUNT ──────────────────
+ *
+ * De oude aanleiding (`proofCount < 3`) is een eigenschap van de KLANT: heeft
+ * hij weinig bevestigde feiten. Een pagina over een keurmerk dat wél op de
+ * kaart staat, maar waarvan de betekenis nergens wordt uitgelegd, heeft niets
+ * met dat aantal te maken: de klant kan tien feiten hebben en toch een pagina
+ * voorstellen die deze uitleg nodig heeft.
+ *
+ * Krijgt deze functie concrete gaten (S9, per pagina bepaald in de claim-audit),
+ * dan zoekt de schrijver GERICHT op precies die termen, in plaats van "zoek iets
+ * algemeens over dit onderwerp" en hopen dat het de goede kant op valt. Dat is
+ * ook meteen specifieker per contentitem: twee aanbevelingen in hetzelfde
+ * cluster met een ander onderwerp krijgen elk hun eigen lijst, niet dezelfde.
+ *
+ * Zonder gaten (S9 leverde niets op, of de pagina heeft geen briefing-snapshot)
+ * valt hij terug op de generieke vuistregel hierboven: die blijft de vangnet
+ * voor een dunne kaart zonder dat er al een concrete term bekend is.
+ */
+export function buildFactFindingAddendum(gaps: ContextGap[]): string {
+  if (gaps.length === 0) return GENERIEKE_FACT_FINDING_ADDENDUM;
+
+  const lijst = gaps.map((g) => `- ${g.term}: ${g.reason}`).join("\n");
+  return (
+    " AANVULLENDE OPDRACHT: deze pagina noemt de volgende termen zonder dat hun betekenis wordt " +
+    "uitgelegd. Zoek per term op internet naar ALGEMEEN GELDENDE, verifieerbare uitleg (nooit een " +
+    "bewering over dit specifieke bedrijf) en verwerk die met bronvermelding:\n" +
+    lijst +
+    "\nBlijf hier bij het ALGEMENE begrip: wat het inhoudt, waar het voor staat, wat het in de " +
+    "praktijk betekent. Een bewering dat DIT bedrijf eraan voldoet mag alleen uit de feitenkaart " +
+    "komen, precies zoals de rest van deze pagina."
+  );
+}

@@ -608,6 +608,9 @@ const ANTWOORDEN: Record<string, (user: string) => unknown> = {
         scope: "analyse",
       },
     ],
+    // Leeg is de norm (S9): dit testgeval noemt geen term die algemene,
+    // niet-bedrijfsspecifieke uitleg nodig heeft.
+    generalContextGaps: [],
   }),
 
   /**
