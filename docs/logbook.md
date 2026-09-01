@@ -5407,3 +5407,36 @@ Zes nieuwe unittests op `buildFactFindingAddendum()` in `scripts/test-unit.ts`. 
 typecheck, 3316 unittests, 549 ketentests, de productiebuild. Nog niet geverifieerd tegen een echte
 klant met een cluster van uiteenlopende aanbevelingen (conventie 10); dat is de eerstvolgende
 praktijktoets.
+
+## 1 september 2026: nog drie clusterbrede plekken in de schrijfpijplijn itemspecifiek gemaakt (S10)
+
+Vervolg op S9: een doorlichting van de hele schrijftheorie (feitenverzameling, briefing, schrijfprompt,
+kwaliteitspoort) op hetzelfde patroon, clusterbrede input die een itemspecifieke pagina stuurt. Drie
+vondsten, plus één eerlijke correctie op S9 zelf.
+
+**De concurrentielat was clusterbreed, en stuurde de tekst het hardst verkeerd van de vier.**
+`content.ts` haalde de acht meest genoemde concurrent-eigenschappen van de HELE analyse op en zette ze
+letterlijk als opdracht in de prompt: "dit is de lat, jouw pagina moet hierop minstens zo concreet
+zijn." Bij een cluster met uiteenlopende aanbevelingen kreeg een pagina over certificeringen zo
+bijvoorbeeld "levertijd 24 uur" als lat. Nu worden de kandidaten (ruimer opgehaald, 20 in plaats van 8)
+herrangschikt op woordoverlap met de doelvragen van DEZE aanbeveling (`scoreTermOverlap()`, nieuw en
+puur in `page-relevance.ts`, dezelfde aanpak als de sitepagina-selectie van S1), niet meer op algemene
+populariteit. Geen doelvragen: onveranderd gedrag, de oorspronkelijke volgorde blijft staan.
+
+**Twee plekken lieten clusterbrede achtergrond ongelabeld de schrijfprompt in gaan**, alsof het over de
+specifieke pagina ging: `analysis.topic` en `topicResearch.content_summary` in `content.ts`, en het
+"onderwerp"-veld van de sitetekst-atomisering in `fact-atomise.ts` (die draait één keer per
+briefingronde, over alle gekozen pagina's samen). Beide zijn nu expliciet gelabeld als clusterbrede
+context, met de doelvragen van de pagina zelf als leidend erboven.
+
+**Eerlijke correctie op S9 zelf.** De terugvalroute van `paginaVanClaim()` in `briefing.ts` (geen match
+op een doelvraag → hoort bij alle pagina's van de batch) is voor gewone claims prima: een gemiste match
+wordt een VRAAG aan de klant, en die aan de verkeerde pagina('s) koppelen kost hooguit een dubbele
+vraag. Voor de nieuwe `generalContextGaps` (S9) is diezelfde terugval fout: een context-gat wordt
+rechtstreeks een zoekopdracht aan de schrijver, en zonder match zou dat een pagina over levertijd de
+opdracht geven een certificering uit te leggen die bij een heel andere aanbeveling hoort, exact het lek
+dat S9 moest dichten. Context-gaten krijgen nu een eigen, strikte koppeling (`paginaVanGat()`): geen
+match betekent geen pagina's, het gat vervalt in plaats van te verspreiden.
+
+Drie nieuwe unittests op `scoreTermOverlap()`. Vier controles groen: typecheck, 3319 unittests, 549
+ketentests, de productiebuild.

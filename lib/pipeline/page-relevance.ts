@@ -160,6 +160,27 @@ export function scorePage(page: CandidatePage, terms: string[]): number {
 }
 
 /**
+ * Hoeveel van de onderwerptermen raakt dit losse stuk tekst?
+ *
+ * Zelfde telling als de body-helft van `scorePage()` (het aantal VERSCHILLENDE
+ * termen, niet hoe vaak), maar zonder titel/body-onderscheid: voor tekst die
+ * niet van een pagina komt, zoals een concurrent-eigenschap of een citaat uit
+ * een meting. Gebruikt om zulke tekst te herrangschikken op relevantie voor
+ * ÉÉN aanbeveling, in plaats van clusterbreed op algemene populariteit
+ * (contentbriefing.md, gesprek van 1 september: de "concurrentielat" in
+ * `content.ts` was clusterbreed terwijl de doelvragen per pagina uiteenlopen).
+ */
+export function scoreTermOverlap(text: string, terms: string[]): number {
+  if (terms.length === 0) return 0;
+  const gevonden = new Set(topicTerms(text));
+  let score = 0;
+  for (const term of terms) {
+    if (gevonden.has(term)) score += 1;
+  }
+  return score;
+}
+
+/**
  * De pagina's die bij dit onderwerp horen, beste eerst.
  *
  * Drie regels, in deze volgorde:

@@ -271,7 +271,13 @@ import {
 
 import { splitSentences, stripMarkdown, firstSentences } from "@/lib/pipeline/sentences";
 import { extractHeadings, renderMarkdown } from "@/lib/markdown";
-import { topicTerms, canonicalPath, scorePage, selectRelevantPages } from "@/lib/pipeline/page-relevance";
+import {
+  topicTerms,
+  canonicalPath,
+  scorePage,
+  selectRelevantPages,
+  scoreTermOverlap,
+} from "@/lib/pipeline/page-relevance";
 import { verifyAtoms } from "@/lib/pipeline/atom-verify";
 import { verifyDossierFacts, answerTypeOf } from "@/lib/pipeline/dossier-verify";
 import { wilsonBounds, maySkip, elicitLabel, describeElicit } from "@/lib/pipeline/elicit-rate";
@@ -2312,6 +2318,28 @@ group("de echte Coolblue-selectie", () => {
   ok("adviespagina staat vooraan", gekozen[0].url === advies.url);
   ok("Engelse duplicaat is samengevouwen", gekozen.length === 2);
   ok("de Nederlandse variant blijft", gekozen.every((p) => !p.url.endsWith("/en")));
+});
+
+group("de concurrentielat per aanbeveling herrangschikken (S10)", () => {
+  // Het cluster loopt uiteen: één aanbeveling over levertijd, één over
+  // certificeringen. Beide eigenschappen komen uit dezelfde analyse.
+  const termenLevertijd = topicTerms("Levert u ook binnen 24 uur?");
+  const termenCertificering = topicTerms("Wat houdt het ISO 9001-keurmerk in?");
+
+  const levertijd = { attribute: "levertijd", evidence: "Levert altijd binnen 24 uur, ook in het weekend." };
+  const certificering = { attribute: "certificering", evidence: "Werkt met een ISO 9001-gecertificeerd proces." };
+
+  ok(
+    "de levertijdpagina scoort de levertijd-eigenschap hoger",
+    scoreTermOverlap(`${levertijd.attribute} ${levertijd.evidence}`, termenLevertijd) >
+      scoreTermOverlap(`${certificering.attribute} ${certificering.evidence}`, termenLevertijd),
+  );
+  ok(
+    "de certificeringspagina scoort de certificering-eigenschap hoger",
+    scoreTermOverlap(`${certificering.attribute} ${certificering.evidence}`, termenCertificering) >
+      scoreTermOverlap(`${levertijd.attribute} ${levertijd.evidence}`, termenCertificering),
+  );
+  ok("zonder doelvragen levert niets een voorsprong op", scoreTermOverlap(levertijd.evidence, []) === 0);
 });
 
 
