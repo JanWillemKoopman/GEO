@@ -7496,8 +7496,8 @@ group("opportunities: één lijst, gesorteerd op wat het oplevert", () => {
   // ── Het icoon per handeling (24 augustus 2026) ──────────────────────────
   //
   // ⚠️ Het icoon en de zin moeten hetzelfde beloven. Een blad met een pen erop
-  // naast "Laat ORBIT ENGINE deze pagina schrijven" is erger dan geen icoon:
-  // dan zegt de tekening dat er iets bestaat wat er niet is.
+  // naast "Start het onderzoek voor deze pagina" is erger dan geen icoon: dan
+  // zegt de tekening dat er iets bestaat wat er niet is.
   ok(
     "een aanbeveling zonder bestaande pagina wordt een nieuwe pagina",
     lijst.every((o) => o.source !== "meting" || o.handeling === "nieuwe_pagina"),
@@ -15448,6 +15448,23 @@ group("de werklijst kent de briefingfase (bevinding 1)", () => {
     if (!naam || naam === "published" || naam === "ready" || naam === "archived") continue;
     ok(`work.ts weet raad met "${naam}"`, bron.includes(`piece.status === "${naam}"`));
   }
+});
+
+// ⚠️ De fout: de knop "Laat ORBIT ENGINE deze pagina schrijven" (nu "Start het
+// onderzoek voor deze pagina") plant alleen de briefing in, geen letter tekst.
+// De pollroute rekende `ready` als "elke status behalve draft", dus een pagina
+// in de briefingfase telde binnen vier seconden al als klaar en de knop zei
+// "Klaar, lees hem in je bibliotheek" tegen een lege pagina. Deze test leest de
+// broncode omdat de route `server-only` is en dus niet importeerbaar.
+group("de pollroute telt de briefingfase niet als klaar (analyses/1-september-2026)", () => {
+  const bron = leesBestand("app/api/analyses/[id]/content/route.ts");
+  ok("het bestand is gevonden", bron.length > 0);
+  ok(
+    "ready sluit zowel draft als briefing uit",
+    /ready:\s*Boolean\(piece\s*&&\s*piece\.status\s*!==\s*"draft"\s*&&\s*piece\.status\s*!==\s*"briefing"\)/.test(
+      bron,
+    ),
+  );
 });
 
 group("beide helften van 'Stel nieuwe clusters voor' zijn afgeschermd (punt 8)", () => {

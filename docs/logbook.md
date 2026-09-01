@@ -5559,6 +5559,31 @@ cijfers deze maand. Geen vergelijking met collega's, conform plan §5.1.
 
 Vier controles groen: typecheck, 3396 unittests, 549 ketentests, de productiebuild.
 
+## 1 september 2026: de schrijfknop bij "Wat je moet doen" beloofde schrijven, maar startte alleen het onderzoek
+
+**Gemeld door de eigenaar.** Op de clusterpagina, hoofdstuk "Wat je moet doen", staat bij een te
+schrijven pagina de knop "Laat ORBIT ENGINE deze pagina schrijven". De klik start geen schrijfwerk:
+hij plant de briefing in (`contentbriefing.md` §8, sinds R5.1), en pas na "Schrijf mijn pagina's" op
+het briefingscherm gaat het echte schrijven van start.
+
+**Twee losse fouten, dezelfde oorzaak.** De knoptekst in `_work/generate-button.tsx` beloofde
+"schrijven" terwijl de route erachter altijd eerst de briefing inplant. Erger: de pollroute
+(`GET /api/analyses/[id]/content`) rekende `ready` als "elke status behalve `draft`", en een pagina
+in de briefingfase heeft status `briefing`, niet `draft`. De knop viel dus binnen vier seconden om
+naar "ORBIT ENGINE schrijft…" en meteen daarna naar "Klaar, lees hem in je bibliotheek", terwijl er
+nog geen letter tekst bestond en de klant eerst zelf de briefingvragen moest beantwoorden.
+
+**Wat er nu staat.** De knop heet "Start het onderzoek voor deze pagina". Komt de briefing terug uit
+de aanvraag (`json.briefing`), dan pollt de knop niet langer alsof er geschreven wordt, maar wijst
+hij naar het briefingscherm met dezelfde tekst als de werklijst ("De briefing staat klaar. Vul aan
+wat ORBIT ENGINE niet van je website kan halen, dan schrijft het de pagina."). De pollroute telt een
+pagina nu pas als `ready` als de status noch `draft`, noch `briefing` is. Dezelfde tekst in
+`lib/opportunities.ts` (het kansenblok van de Sales-module) is meeveranderd, anders zou hetzelfde
+verkeerde beeld daar terugkomen.
+
+Vier controles groen: typecheck, 3398 unittests (met een nieuwe test op de `ready`-berekening), 549
+ketentests, de productiebuild.
+
 ## 1 september 2026: de contentpijplijn krijgt een contract, een panel en gerichte reparatie
 
 Aanleiding: de opdracht om de contentpijplijn kritisch door te lichten en te herontwerpen, met als

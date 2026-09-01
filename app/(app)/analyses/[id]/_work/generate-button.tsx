@@ -11,13 +11,20 @@ import { Icon } from "@/components/icon";
 /**
  * "Genereer deze pagina" (Fase C, expliciet op klik).
  *
- * Het schrijven draait nu op de achtergrond (optimalisatie.md 1.4): de knop
- * plant het in en pollt tot de pagina klaar is. Voorheen hield deze fetch
- * zestig seconden lang een verbinding open terwijl het premium model twee volledige
- * pagina's schreef, de meest waarschijnlijke plek om op de tijdslimiet stuk te
- * lopen, en dan was het dure schrijfwerk weg.
+ * ⚠️ Deze knop schrijft NOOIT meteen. Hij plant de briefing in (contentbriefing.md
+ * §8): ORBIT ENGINE bouwt eerst de feitenkaart en de vragen die de klant nog
+ * moet beantwoorden op `/analyses/[id]/briefing`; pas ná dat scherm, op
+ * "Schrijf mijn pagina's", start het echte schrijven. Vóór 1 september 2026
+ * beloofde de knoptekst "schrijven" en viel de klik terug op de pollende
+ * "ORBIT ENGINE schrijft…"-tekst hieronder, die daar niet bij hoorde: er was
+ * nog geen letter geschreven, en de klant moest eerst zelf iets doen.
  *
- * Sluit de klant de tab, dan gaat het schrijven gewoon door.
+ * Het schrijven zelf draait op de achtergrond (optimalisatie.md 1.4): die knop
+ * (elders, na de briefing) plant in en pollt tot de pagina klaar is. Voorheen
+ * hield die fetch zestig seconden lang een verbinding open terwijl het premium
+ * model twee volledige pagina's schreef, de meest waarschijnlijke plek om op
+ * de tijdslimiet stuk te lopen, en dan was het dure schrijfwerk weg. Sluit de
+ * klant de tab, dan gaat het schrijven gewoon door.
  */
 const GENERATION_FAILED: UserFacingError = {
   kind: "unknown",
@@ -50,7 +57,7 @@ export function GenerateButton({
   /** Houdt de technische controle een blokkade tegen? (optimalisatie.md 3.7) */
   blocked?: boolean;
 }) {
-  const [state, setState] = useState<"idle" | "pending" | "done" | "error">("idle");
+  const [state, setState] = useState<"idle" | "pending" | "briefing" | "done" | "error">("idle");
   // Bij een blokkade genereren we niet zomaar: de klant moet eerst bevestigen
   // dat hij weet dat de tekst voorlopig niet gelezen kan worden. Bewust geen
   // harde blokkade, hij kan een goede reden hebben (de webbouwer is al bezig,
@@ -108,6 +115,13 @@ export function GenerateButton({
         setState("done");
         return;
       }
+      // De briefing staat klaar, er is nog geen letter tekst: de klant moet
+      // eerst de vragen beantwoorden. Niet pollen alsof er geschreven wordt,
+      // dat werk begint pas ná de briefing.
+      if (json.briefing) {
+        setState("briefing");
+        return;
+      }
       startPolling();
     } catch (err) {
       setState("error");
@@ -146,6 +160,20 @@ export function GenerateButton({
     );
   }
 
+  if (state === "briefing") {
+    return (
+      <div className="flex flex-col gap-2">
+        <span className="text-sm text-secondary">
+          De briefing staat klaar. Vul aan wat ORBIT ENGINE niet van je website kan halen, dan
+          schrijft het de pagina.
+        </span>
+        <Link href={`/analyses/${analysisId}/briefing`} className="btn-primary w-fit">
+          Briefing invullen
+        </Link>
+      </div>
+    );
+  }
+
   if (blocked && !acknowledged) {
     return (
       <div className="flex flex-col gap-2">
@@ -153,11 +181,11 @@ export function GenerateButton({
           <span className="font-medium text-[var(--text-primary)]">
             Je site houdt AI-assistenten nu buiten.
           </span>{" "}
-          ORBIT ENGINE kan deze pagina wel schrijven, maar ChatGPT kan hem nog niet citeren. Los eerst de
-          blokkade hierboven op, of laat hem alvast schrijven.
+          ORBIT ENGINE kan deze pagina wel voorbereiden, maar ChatGPT kan hem straks nog niet
+          citeren. Los eerst de blokkade hierboven op, of ga alvast verder.
         </p>
         <button onClick={() => setAcknowledged(true)} className="btn-outline w-fit">
-          Toch alvast schrijven
+          Toch alvast beginnen
         </button>
       </div>
     );
@@ -165,7 +193,7 @@ export function GenerateButton({
 
   return (
     <button onClick={() => void generate()} className="btn-primary w-fit">
-      Laat ORBIT ENGINE deze pagina schrijven
+      Start het onderzoek voor deze pagina
     </button>
   );
 }
