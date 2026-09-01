@@ -115,6 +115,15 @@ export async function POST(request: Request) {
 
   // ⚠️ Zonder account is een merk onvolledig: het contentplan vindt geen pakket
   // en een uitgenodigde klant ziet het niet. Zie `defaultAccountFor()`.
+  //
+  // A5: het contentpakket wordt hier bewust NIET meer gezet. Tot 31 augustus
+  // 2026 schreef deze route het pakket naar `defaultAccountFor(user.id)`, en
+  // dat is bij een consultant zijn EIGEN account, niet dat van de klant. Pas
+  // bij Toewijzen komt het merk op het klantaccount te staan. Het pakketveld
+  // in de aanmaakwizard deed voor de klant dus niets, en overschreef
+  // ondertussen wel het pakket op het account van de consultant zelf. Het
+  // pakket wordt sindsdien uitsluitend gezet op het toewijzingsscherm, ná het
+  // koppelen aan het klantaccount (`package-box.tsx`).
   const accountId = await defaultAccountFor(user.id);
 
   // ⚠️ Mensinvoer door dezelfde normalisatie als modeluitvoer (fase 2 van

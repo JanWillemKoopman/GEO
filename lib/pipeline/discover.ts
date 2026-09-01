@@ -341,6 +341,29 @@ export async function replaceCrawledPages(
   return { stored, failed, kept: handmatig.size };
 }
 
+/**
+ * Vult de inventaris AAN, zonder iets te vervangen (onboarding Ronde D, §17.8,
+ * modus "meer"). Anders dan `replaceCrawledPages()` hierboven: die vervangt
+ * alles wat `source = 'crawl'` is, dit voegt alleen toe wat er nog niet stond,
+ * gecrawld óf handmatig. `crawlInventory()` heeft de uitsluiting hiervoor al
+ * gedaan (het kiest alleen nieuwe URL's), dus dit filtert alleen nog op een
+ * lege tekst.
+ */
+export async function appendCrawledPages(
+  admin: ReturnType<typeof createAdminClient>,
+  profileId: string,
+  pages: readonly StorablePage[],
+): Promise<{ stored: number; failed: number }> {
+  const { data: bestaande } = await admin
+    .from("profile_pages")
+    .select("url")
+    .eq("profile_id", profileId);
+  const bekend = new Set(((bestaande ?? []) as { url: string }[]).map((r) => r.url));
+
+  const nieuw = pages.filter((p) => p.text.trim().length > 0 && !bekend.has(p.url));
+  return insertPages(admin, profileId, nieuw, "crawl");
+}
+
 /** Hoeveel pagina's er per insert meegaan. Zie `insertPages` voor waarom niet alles in één keer. */
 const INSERT_CHUNK = 25;
 

@@ -2,8 +2,7 @@ import { NextResponse } from "next/server";
 import { getUser } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getOwnedProfile } from "@/lib/profiles";
-import { isGapQuestion } from "@/lib/pipeline/gap-questions";
-import type { FactRequest } from "@/lib/types/database";
+import { answerFact } from "@/lib/facts";
 
 /**
  * PATCH /api/profiles/[id]/facts, de klant beantwoordt (of slaat over) een
@@ -17,6 +16,14 @@ import type { FactRequest } from "@/lib/types/database";
  * Een antwoord gaat naar `profiles.proof_points` en verbetert daarmee ÉLKE
  * volgende pagina, niet alleen degene waarvoor de vraag ontstond. Dat is ook wat
  * het voor de klant de moeite waard maakt: één keer invullen, altijd profijt.
+ *
+ * ⚠️ Deze route doet alleen nog auth, validatie en de "overslaan"-tak. Wat er
+ * met een echt antwoord gebeurt (opslaan, het oordeel over een marktclaim, de
+ * promotie naar `proof_points`) staat in `answerFact()` (`lib/facts.ts`),
+ * losgetrokken op 31 augustus 2026 zodat die samenhang in
+ * `scripts/test-chain.ts` te toetsen is tegen een echte Postgres, zonder een
+ * Next.js request te moeten nabootsen (punt 6 van
+ * docs/tasks/opdracht-bevindingen-5-tot-9.md).
  */
 const MAX_ANSWER_LENGTH = 500;
 
@@ -40,14 +47,17 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   const factId = typeof body.factId === "string" ? body.factId : "";
   if (!factId) return NextResponse.json({ error: "Welke vraag?" }, { status: 400 });
 
+  // ⚠️ De eigendomscontrole staat hier apart, en niet alleen als voorwaarde
+  // van de update hieronder: zonder deze losse `select` zou een niet-bestaand
+  // of niet-eigen factId in de "overslaan"-tak stil een 200 met een lege
+  // body opleveren in plaats van de 404 die er hoort te staan.
   const { data: factRow } = await admin
     .from("fact_requests")
-    .select("*")
+    .select("id")
     .eq("id", factId)
     .eq("profile_id", id)
     .maybeSingle();
   if (!factRow) return NextResponse.json({ error: "Vraag niet gevonden." }, { status: 404 });
-  const fact = factRow as FactRequest;
 
   // ── Overslaan ─────────────────────────────────────────────────────────────
   // Blijft als rij bestaan zodat we dezelfde vraag niet elk rapport opnieuw
@@ -65,33 +75,16 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   const answer = typeof body.answer === "string" ? body.answer.trim().slice(0, MAX_ANSWER_LENGTH) : "";
   if (!answer) return NextResponse.json({ error: "Vul een antwoord in." }, { status: 400 });
 
-  const { data: updated, error } = await admin
-    .from("fact_requests")
-    .update({ answer, status: "beantwoord", answered_at: new Date().toISOString() })
-    .eq("id", factId)
-    .select("*")
-    .single();
-  if (error || !updated) return NextResponse.json({ error: "Opslaan is niet gelukt." }, { status: 500 });
-
-  // ⚠️ Behalve bij een omgezet open punt uit de synthese. Dat antwoord bereikt
-  // de schrijver toch al via `buildFactBase()`, met de juiste bron ("klant,
-  // bevestigd <datum>"); als proof point zou het de bron "site <url>" krijgen
-  // terwijl het nergens op de site staat. En niet elk open punt is een
-  // publiceerbaar feit: de synthese vraagt ook naar commerciële prioriteiten.
-  // Zie `isGapQuestion()` voor de volledige redenering.
-  if (isGapQuestion(fact.raw_json)) return NextResponse.json(updated);
-
-  // Het antwoord ook als geverifieerd feit bij het profiel zetten. Dubbelop met
-  // `fact_requests`, maar bewust: `proof_points` is waar de hele schrijfpijplijn
-  // al naar kijkt, en de klant kan het daar zelf bijstellen of weghalen.
-  const line = `${fact.question} ${answer}`;
-  const existing = profile.proof_points ?? [];
-  if (!existing.some((p) => p.trim().toLowerCase() === line.toLowerCase())) {
-    await admin
-      .from("profiles")
-      .update({ proof_points: [...existing, line] })
-      .eq("id", id);
+  const resultaat = await answerFact(admin, {
+    profileId: id,
+    factId,
+    answer,
+    existingProofPoints: profile.proof_points ?? [],
+  });
+  if (!resultaat.ok) {
+    return NextResponse.json({ error: resultaat.error }, { status: resultaat.status });
   }
 
-  return NextResponse.json(updated);
+  const { fact, needsEvidence, evidenceHint } = resultaat.outcome;
+  return NextResponse.json(needsEvidence ? { ...fact, needsEvidence, evidenceHint } : fact);
 }

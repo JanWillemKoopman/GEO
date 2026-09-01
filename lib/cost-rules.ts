@@ -18,7 +18,8 @@ export type CostlyAction =
   | "meting_starten"
   | "content_schrijven"
   | "plan_goedkeuren"
-  | "reputatie_starten";
+  | "reputatie_starten"
+  | "clusters_aanvullen";
 
 /**
  * De enige handeling die alleen de beheerder start, en waarom juist deze.
@@ -53,8 +54,24 @@ export type CostlyAction =
  * ⚠️ Dit gaat alleen over betaald werk. Wie bij de beheerschermen mag
  * (onboarding, diagnose, toewijzen, alle merken, koppelingen) is een andere
  * vraag, en die staat in `lib/staff.ts` en in de schermen zelf.
+ *
+ * ── DE TWEEDE, TOEGEVOEGD OP 30 AUGUSTUS 2026 ───────────────────────────────
+ *
+ * `clusters_aanvullen` (de knop "Stel nieuwe clusters voor",
+ * docs/optimalisatielab-orbit-engine.md werkpakket A §3.5) is om een andere
+ * reden op slot dan `reputatie_starten`: niet omdat het een apart product is,
+ * maar omdat het een REGIEKNOP is. De eigenaar bepaalt wanneer het beeld van
+ * een merk (gesprek, meetuitkomsten, klantantwoorden) goed genoeg is om er een
+ * nieuwe ronde onderwerpen op los te laten, niet de klant. Anders dan bij
+ * `reputatie_starten` mag deze knop bij de klant ook niet ZICHTBAAR zijn: hij
+ * ziet wél de onderwerpen die eruit komen, maar niet de knop die ze aanmaakt
+ * (het scherm verbergt hem voor niet-beheerders; deze lijst is de garantie op
+ * de achterkant, conventie 1).
  */
-export const STAFF_ONLY_ACTIONS: readonly CostlyAction[] = ["reputatie_starten"] as const;
+export const STAFF_ONLY_ACTIONS: readonly CostlyAction[] = [
+  "reputatie_starten",
+  "clusters_aanvullen",
+] as const;
 
 /** Mag alleen de beheerder deze handeling starten? Puur, dus testbaar. */
 export function actionNeedsStaff(action: CostlyAction): boolean {
@@ -79,4 +96,9 @@ export const COST_DENIED: Record<CostlyAction, string> = {
   // wist hij niet dat dit product er is, en dan verkoop je het nooit.
   reputatie_starten:
     "Een reputatieanalyse zet je consultant voor je in gang. Laat weten dat je hem wilt, dan plannen we hem in.",
+  // Deze melding komt de klant normaal nooit te zien: de knop staat niet op
+  // zijn scherm. Ze is de garantie voor als iemand de route rechtstreeks
+  // aanroept, niet de eerste verdedigingslinie.
+  clusters_aanvullen:
+    "Nieuwe onderwerpen voorstellen doet je consultant voor je, op het moment dat hij kiest.",
 };

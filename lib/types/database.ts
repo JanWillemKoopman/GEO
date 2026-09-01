@@ -1,4 +1,5 @@
 import type { EntityRole } from "@/lib/schemas/entity-classification";
+import type { CrawlSpeed } from "@/lib/crawl-speed";
 /**
  * TypeScript-representatie van het datamodel (abcplan.md §5).
  * Handgeschreven (in plaats van gegenereerd) zodat de scaffolding zonder
@@ -320,6 +321,17 @@ export interface Profile {
    */
   crawl_priority_paths: string[];
   /**
+   * Crawlbeheer (onboarding Ronde D, §17, migratie 0080): hoeveel, hoe vaak en
+   * hoe rustig. `crawl_speed` stuurt `lib/crawl-speed.ts`.
+   */
+  crawl_speed: CrawlSpeed;
+  /** Standaard uit. Alleen aan met toestemming van de klant voor zijn EIGEN domein. */
+  crawl_as_browser: boolean;
+  crawl_last_run_at: string | null;
+  crawl_last_mode: "meer" | "opnieuw" | null;
+  /** Wanneer de site voor het laatst met 403 antwoordde. */
+  crawl_last_blocked_at: string | null;
+  /**
    * Entiteitsaanwezigheid (optimalisatie.md 7.4, migratie 0022). Of een merk in
    * Wikidata/Wikipedia voorkomt is een van de sterkste signalen waarmee
    * AI-systemen een bedrijf als bestaande entiteit herkennen.
@@ -531,6 +543,13 @@ export interface ProfileOffering {
   sort_order: number;
   created_at: string;
   updated_at: string;
+  /** Vrije context uit het gesprek, bijvoorbeeld "levert 40% van de omzet" (migratie 0079). */
+  note: string | null;
+  /** Verwijderen is uitzetten, niet wissen (conventie 8, migratie 0079). Null = actief. */
+  removed_at: string | null;
+  removed_by: string | null;
+  /** Wie de knoop voor het laatst wijzigde via de schrijfroute (migratie 0079). */
+  updated_by: string | null;
 }
 
 /** Herkomst per profielveld (migratie 0039). */
@@ -567,9 +586,34 @@ export interface ProfileTopic {
    */
   offering_names: string[];
   priority: number;
-  /** Wat de klant er in het gesprek over zei; overrulet de AI-prioritering. */
+  /**
+   * Legacy vrij tekstveld (migratie 0040), vóór de drie clusterlaagvelden
+   * hieronder bestonden. Blijft bewaard (conventie 4), overrulet de
+   * AI-prioritering net als altijd. `lib/pipeline/topic-brief.ts` valt hierop
+   * terug zolang geen van de drie nieuwe velden is ingevuld.
+   */
   client_note: string | null;
+  /** Clusterlaag (migratie 0075): wat klanten hierover het vaakst vragen. */
+  client_questions: string | null;
+  /** Clusterlaag (migratie 0075): wat er op dit onderwerp vaak misgaat. */
+  client_friction: string | null;
+  /** Clusterlaag (migratie 0075): onderscheid met de concurrent op dit onderwerp. */
+  client_edge: string | null;
   status: TopicStatus;
+  /**
+   * concept: voorgesteld vóór het strategisch gesprek, ter voorbereiding,
+   * niet te starten. definitief: te goedkeuren en te starten (migratie 0074).
+   */
+  stage: "concept" | "definitief";
+  /**
+   * Herkomst op het moment van voorstellen (migratie 0076): aanbod, of aanbod
+   * plus het strategisch gesprek. Null voor onderwerpen van vóór 0076.
+   */
+  origin: "aanbod" | "aanbod_en_gesprek" | null;
+  /** Stond er gemeten bewijs in de aanroep die dit onderwerp opleverde (migratie 0077)? */
+  origin_uses_measurement: boolean;
+  /** Waarom dit onderwerp is afgewezen (migratie 0077), instructie voor een volgende ronde. */
+  rejection_reason: string | null;
   analysis_id: string | null;
   /**
    * Zoekvolume 0-100, profielbreed herkalibreerd (docs/tasks/potentiescore.md,
@@ -892,6 +936,8 @@ export interface Report {
   summary: string | null;
   gaps_json: unknown | null;
   recommendations_json: unknown | null;
+  /** [{cluster, problem, reason}] (migratie 0078), gemeten gemissen zonder aanbeveling, met waarom. */
+  declined_json: unknown | null;
   gap_analysis_raw_json: unknown | null;
   raw_json: unknown | null;
   generated_at: string;
@@ -1001,6 +1047,31 @@ export interface FactRequest {
    * het antwoord wordt opgeslagen (`isGapQuestion()`).
    */
   raw_json?: { bron?: string } | null;
+  /**
+   * Op welk niveau dit antwoord herbruikbaar is (migratie 0024): merk = elke
+   * analyse van deze klant, analyse = dit cluster, pagina = dit ene
+   * `content_piece`. Optioneel gelezen: rijen van vóór 0024 hebben de
+   * kolomdefault ('analyse'), maar niet elke lezer heeft hem nodig.
+   */
+  scope?: "merk" | "analyse" | "pagina";
+  /** Aan welke pagina('s) deze vraag hangt, naast eventueel `analysis_id`. */
+  content_piece_ids?: string[];
+  /** De vraagsoort (contentbriefing.md §5), voor groepering in het scherm. */
+  kind?: "verificatie" | "aanvulling" | "onderscheid" | "bewijs" | "praktisch" | "grenzen";
+  /**
+   * Bepaalt het invoerveld in het scherm (migratie 0024, claim-audit.ts).
+   * Ontbreekt hij op een oudere rij, dan valt de UI terug op 'tekst_kort'.
+   */
+  answer_type?: "ja_nee" | "bedrag" | "getal" | "tekst_kort" | "tekst_lang" | "keuze" | "url" | "lijst";
+  /** Alleen gevuld bij `answer_type === 'keuze'`. */
+  options?: string[];
+  /** Concept-antwoord uit bekende data; bevestigen is goedkoper dan formuleren. */
+  suggested_answer?: string | null;
+  /** Zonder dit antwoord blijft de bewering die de vraag opriep onbewezen. */
+  required?: boolean;
+  claim_key?: string | null;
+  fact_ref?: string | null;
+  verify_after?: string | null;
 }
 
 /**

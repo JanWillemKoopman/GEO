@@ -38,6 +38,7 @@ import { MARKET_REPEATS } from "@/lib/pipeline/reputation-market";
 import { instrumentVersion } from "@/lib/reputation/instrument";
 import { BRAND_REPEATS } from "@/lib/pipeline/reputation-brand";
 import { addNote } from "@/lib/pipeline/reputation-context";
+import { activeOfferings } from "@/lib/offerings";
 import type {
   Entity,
   Profile,
@@ -90,13 +91,15 @@ export async function startReputationRun(admin: Admin, runId: string): Promise<S
   if (!profileRow) throw new Error(`Merk ${run.profile_id} niet gevonden.`);
   const profile = profileRow as Profile;
 
-  const [{ data: offeringRows }, { data: topicRows }, { data: entityRows }] = await Promise.all([
-    admin.from("profile_offerings").select("*").eq("profile_id", profile.id).order("sort_order"),
+  // `activeOfferings()` laat verwijderde knopen weg (onboarding Ronde C,
+  // §16.4): een uitgezette dienst mag niet meten worden op reputatie.
+  const [offeringRows, { data: topicRows }, { data: entityRows }] = await Promise.all([
+    activeOfferings(admin, profile.id),
     admin.from("profile_topics").select("*").eq("profile_id", profile.id),
     admin.from("entities").select("*").eq("profile_id", profile.id),
   ]);
 
-  const offerings = (offeringRows ?? []) as ProfileOffering[];
+  const offerings = offeringRows as ProfileOffering[];
   const topics = (topicRows ?? []) as ProfileTopic[];
   const entities = (entityRows ?? []) as Entity[];
 

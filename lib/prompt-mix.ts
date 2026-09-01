@@ -26,6 +26,7 @@
  * Puur, dus testbaar vanuit `scripts/test-unit.ts` (conventie 2).
  */
 import { PROMPT_CATEGORIES } from "@/lib/types/database";
+import { formatUsd } from "@/lib/format";
 
 export type FunnelStage = (typeof PROMPT_CATEGORIES)[number];
 
@@ -53,19 +54,34 @@ export const DEFAULT_MIX: PromptMix = {
  * tegen de tijdslimiet van de werker aan loopt, ook nu de generatie per fase in
  * een eigen taak zit.
  *
- * `MAX_TOTAL` op 90: dat is ~$2,16 per meetronde per onderwerp. Boven die grens
- * kost een klant met vier onderwerpen meer dan $8 per maand alleen aan meten, en
- * dan hoort er een gesprek aan vooraf te gaan in plaats van een invoerveld.
+ * `MAX_TOTAL` op 100 (opgehoogd van 90 op 30 augustus 2026, werkpakket B punt 2
+ * van docs/optimalisatielab-orbit-engine.md, expliciet met de eigenaar
+ * afgestemd omdat dit de meetkosten rechtstreeks vermenigvuldigt): dat is
+ * ~$2,40 per meetronde per onderwerp. Boven die grens kost een klant met vier
+ * onderwerpen meer dan $9,60 per maand alleen aan meten, en dan hoort er een
+ * gesprek aan vooraf te gaan in plaats van een invoerveld.
  *
  * `MIN_TOTAL` op 1: nul vragen betekent een analyse die nooit iets kan meten en
  * eeuwig op "meten" blijft staan. Dat is geen keuze maar een val.
  */
 export const MAX_PER_STAGE = 40;
-export const MAX_TOTAL = 90;
+export const MAX_TOTAL = 100;
 export const MIN_TOTAL = 1;
 
 /** Gemeten op productie over 428 metingen, augustus 2026. */
 export const COST_PER_PROMPT_USD = 0.024;
+
+/**
+ * Vanaf hier is meer dan de standaard verstandig om even bij stil te staan
+ * (werkpakket B punt 6): geen harde grens, wel een zichtbare waarschuwing vóór
+ * het geld wordt uitgegeven. ~$1,20 boven de standaard van 30 vragen.
+ */
+export const RUN_BUDGET_WARNING_TOTAL = 80;
+
+/** Overschrijdt deze verdeling het bedrag waarbij het scherm een waarschuwing toont? */
+export function exceedsRunBudgetWarning(mix: PromptMix): boolean {
+  return mixTotal(mix) > RUN_BUDGET_WARNING_TOTAL;
+}
 
 /** Wat er in de database staat: null per fase betekent "gebruik de standaard". */
 export interface PromptMixRow {
@@ -149,15 +165,11 @@ export function checkMix(input: Partial<Record<FunnelStage, unknown>>): MixCheck
       ok: false,
       reason:
         `Samen ${totaal} vragen, en het maximum is ${MAX_TOTAL}. Dat is ongeveer ` +
-        `${euro(totaal * COST_PER_PROMPT_USD)} per meetronde, elke maand opnieuw.`,
+        `${formatUsd(totaal * COST_PER_PROMPT_USD)} per meetronde, elke maand opnieuw.`,
     };
   }
 
   return { ok: true, mix };
-}
-
-function euro(usd: number): string {
-  return `$${usd.toFixed(2)}`;
 }
 
 /**
@@ -175,7 +187,68 @@ export function describeMix(mix: PromptMix): string {
   // en dan afgerond op één decimaal. Bij dertig vragen levert dat ±16,4.
   const band = Math.round(1.96 * Math.sqrt((0.3 * 0.7) / Math.max(1, totaal)) * 1000) / 10;
   return (
-    `${totaal} vragen per meetronde, ongeveer ${euro(kosten)} per maand voor dit onderwerp. ` +
+    `${totaal} vragen per meetronde, ongeveer ${formatUsd(kosten)} per maand voor dit onderwerp. ` +
     `De onzekerheidsmarge op de score is dan ongeveer ±${band.toFixed(1).replace(".", ",")} punten.`
   );
+}
+
+/**
+ * Hoeveel vragen dit cluster WAARSCHIJNLIJK nodig heeft (werkpakket B punt 2).
+ *
+ * ── WAT DIT WEL EN NIET IS ───────────────────────────────────────────────────
+ *
+ * Dit is een schatting op basis van de OMVANG van het cluster vóór de eerste
+ * meting: hoeveel diensten eronder hangen en hoe breed het werkgebied is. Het
+ * is NIET de "verzadigingsregel" die het plan ook noemt, "stop vanzelf zodra
+ * nieuwe vragen niets nieuws meer opleveren": dat vraagt om een tweede
+ * meetronde die kijkt of de eerste al genoeg vond, en dat is een grotere,
+ * losstaande uitbreiding op de huidige pijplijn (één taak, één meting, zie
+ * conventie 7) die dit plan bewust niet in dezelfde stap meeneemt. Deze functie
+ * lost het eerste, kleinere deel van punt 2 op: een klant met twintig diensten
+ * en vijf regio's krijgt niet dezelfde dertig vragen als een klant met twee
+ * diensten in één plaats.
+ *
+ * ── WAAROM EEN WORTELSCHAAL ──────────────────────────────────────────────────
+ *
+ * Elke volgende dienst of regio levert minder EXTRA vragen op dan de vorige:
+ * de eerste tien diensten dekken de kern van een cluster, dienst twintig voegt
+ * een randgeval toe. Een lineaire schaal (`aantal × vast getal`) zou een cluster
+ * met honderd diensten duizenden vragen geven; de wortel remt dat af zonder de
+ * relevante clusters plat te trekken. Zie ook `MAX_TOTAL` hierboven, de harde
+ * bovengrens waar dit nooit overheen gaat.
+ *
+ * Regio's tellen zwaarder mee in de Beslissing-fase ("wie kan dit voor mij doen
+ * in Den Bosch"), zie de module-uitleg bovenaan: dat is precies waar een breder
+ * werkgebied meer, specifiek lokale vragen oplevert.
+ */
+export function suggestPromptMix(signals: {
+  /** Hoeveel diensten/producten er onder dit onderwerp in de aanbodboom hangen. */
+  offeringCount: number;
+  /** Hoeveel werkgebieden dit merk opgeeft (`profiles.service_regions`). */
+  regionCount: number;
+}): PromptMix {
+  const diensten = Math.max(0, Math.round(signals.offeringCount));
+  const regios = Math.max(0, Math.round(signals.regionCount));
+
+  const extraAlgemeen = Math.round(Math.sqrt(diensten) * 6);
+  const extraRegionaal = Math.round(Math.sqrt(regios) * 8);
+  const ruimte = MAX_TOTAL - DEFAULT_STAGE_COUNT * 3;
+
+  // De regionale extra gaat naar Beslissing ("wie kan dit voor mij doen in Den
+  // Bosch"), maar nooit zo veel dat die fase alleen MAX_PER_STAGE al opsoupeert.
+  const regionaalDeel = Math.min(extraRegionaal, MAX_PER_STAGE - DEFAULT_STAGE_COUNT, ruimte);
+  const overigeRuimte = ruimte - regionaalDeel;
+  // De algemene extra verdeeld over Oriëntatie en Overweging, ook geclampt: bij
+  // een cluster met een onrealistisch grote aanbodboom mag dit nooit boven
+  // MAX_PER_STAGE per fase uitkomen, ook al zou de wortelschaal dat wiskundig
+  // wel toestaan.
+  const algemeenDeel = Math.min(extraAlgemeen, overigeRuimte, (MAX_PER_STAGE - DEFAULT_STAGE_COUNT) * 2);
+  const perFase = Math.floor(algemeenDeel / 2);
+  const rest = algemeenDeel - perFase * 2;
+
+  return {
+    Oriëntatie: DEFAULT_STAGE_COUNT + perFase,
+    Overweging: DEFAULT_STAGE_COUNT + perFase + rest,
+    Beslissing: DEFAULT_STAGE_COUNT + regionaalDeel,
+  };
 }

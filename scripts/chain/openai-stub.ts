@@ -767,6 +767,44 @@ const ANTWOORDEN: Record<string, (user: string) => unknown> = {
     proofPoints: ["Sinds 2011 gevestigd"],
     styleSamples: ["We kijken verder dan de klacht."],
   }),
+
+  /**
+   * De onderwerpvoorstellen (`lib/pipeline/propose-topics.ts`, migratie 0074).
+   *
+   * ⚠️ Het antwoord hangt af van de invoer: staat "UIT HET STRATEGISCH
+   * GESPREK" in de aanroep, dan is dit de definitieve ronde ná het gesprek en
+   * komen er andere titels uit dan de conceptronde ervoor. Zonder dat
+   * onderscheid zou de ketentest niet kunnen zien of de definitieve ronde
+   * echt iets anders opleverde, of toevallig hetzelfde teruggaf.
+   */
+  topic_proposals: (user: string) => {
+    const gesprek = user.includes("UIT HET STRATEGISCH GESPREK");
+    return {
+      topics: gesprek
+        ? [
+            {
+              title: "Warmtepomp advies op maat",
+              rationale: "Sluit aan op wat de klant in het gesprek vertelde.",
+              offerings: ["Warmtepomp"],
+              priority: 1,
+            },
+          ]
+        : [
+            {
+              title: "CV-ketel onderhoud",
+              rationale: "Volgt uit het aanbod op de website.",
+              offerings: ["CV-ketel onderhoud"],
+              priority: 1,
+            },
+            {
+              title: "Airco laten installeren",
+              rationale: "Volgt uit het aanbod op de website.",
+              offerings: ["Airco"],
+              priority: 2,
+            },
+          ],
+    };
+  },
 };
 
 

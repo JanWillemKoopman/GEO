@@ -57,6 +57,7 @@ import { contentWebSearchEnabled, minProofPointsForConcreteContent } from "@/lib
 import { buildFactBase } from "@/lib/pipeline/factbase";
 import { syncBrandFacts } from "@/lib/pipeline/factstore";
 import { factsFromSnapshot, planFromSnapshot } from "@/lib/pipeline/briefing";
+import { enkelOfMeervoud } from "@/lib/format";
 import {
   formatFactCard,
   sourceCoverage,
@@ -1180,7 +1181,9 @@ function buildDraftRow(args: {
     review_notes:
       unsupported.length > 0
         ? [
-            `${unsupported.length} bewering(en) in deze tekst konden we niet herleiden tot een ` +
+            // Geen haakjesvorm "bewering(en)" meer in deze notitie die de
+            // klant leest (punt 9 van docs/tasks/opdracht-bevindingen-5-tot-9.md).
+            `${unsupported.length} ${enkelOfMeervoud(unsupported.length, "bewering", "beweringen")} in deze tekst konden we niet herleiden tot een ` +
               `bevestigd feit: ${unsupported.slice(0, 3).map((c) => `"${c.claim}"`).join(", ")}` +
               `${unsupported.length > 3 ? ` (en nog ${unsupported.length - 3})` : ""}. ` +
               `Controleer of ze kloppen voordat je publiceert.`,
@@ -1615,7 +1618,7 @@ export async function reviseContentPiece(args: {
   const bronNotitie = [
     ...(unsupported.length > 0
       ? [
-          `${unsupported.length} bewering(en) konden we niet herleiden tot een bevestigd feit: ` +
+          `${unsupported.length} ${enkelOfMeervoud(unsupported.length, "bewering", "beweringen")} konden we niet herleiden tot een bevestigd feit: ` +
             `${unsupported.slice(0, 3).map((c) => `"${c.claim}"`).join(", ")}` +
             `${unsupported.length > 3 ? ` (en nog ${unsupported.length - 3})` : ""}. ` +
             `Controleer of ze kloppen voordat je publiceert.`,

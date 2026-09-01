@@ -104,6 +104,10 @@ const TYPICAL_SECONDS: Record<JobType, number> = {
   sales_outreach_draft: 30,
   // Eén aanroep die drie stukken tekst schrijft over cijfers die al vastliggen.
   sales_market_report: 25,
+  // Onboarding Ronde D. Sterk afhankelijk van het tempo en het aantal
+  // pagina's; dit is de schatting voor "normaal" op het standaardaantal.
+  // Conservatief, net als profile_discover hierboven.
+  crawl_inventory: 90,
 };
 
 /**

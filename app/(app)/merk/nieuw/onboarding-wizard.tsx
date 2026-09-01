@@ -42,7 +42,11 @@ interface FormState {
 
 export function OnboardingWizard() {
   const router = useRouter();
-  const [form, setForm] = useState<FormState>({ name: "", url: "", aliases: [] });
+  const [form, setForm] = useState<FormState>({
+    name: "",
+    url: "",
+    aliases: [],
+  });
   const [error, setError] = useState<string | null>(null);
   const [urlTouched, setUrlTouched] = useState(false);
   const [canForce, setCanForce] = useState(false);

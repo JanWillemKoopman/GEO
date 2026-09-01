@@ -20,6 +20,7 @@
  * worden. Puur, dus testbaar zonder database (conventie 2), en het is de
  * rekenkern onder het afrondblok van de sessie.
  */
+import { formatUsd } from "@/lib/format";
 
 /** De stappen die een gesprek opnieuw kan laten draaien. */
 export type RefreshTask =
@@ -167,9 +168,8 @@ export function refreshConfirmation(plan: RefreshPlan): { body: string; cost: st
     return { body: "Er is niets veranderd waar het onderzoek anders van wordt.", cost: null };
   }
   const lijst = plan.tasks.map((t) => TASK_LABELS[t]).join(", ");
-  const bedrag = plan.estimateUsd.toFixed(2).replace(".", ",");
   return {
     body: `ORBIT ENGINE werkt dit opnieuw uit: ${lijst}.`,
-    cost: `Geschatte kosten: hooguit $${bedrag}. Zodra je bevestigt, gaat ORBIT ENGINE direct aan de slag.`,
+    cost: `Geschatte kosten: hooguit ${formatUsd(plan.estimateUsd)}. Zodra je bevestigt, gaat ORBIT ENGINE direct aan de slag.`,
   };
 }

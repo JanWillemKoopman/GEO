@@ -6,7 +6,7 @@ de sessie waarin hij is geschreven: die had geen credentials en kon dus geen enk
 aanroep doen.
 
 De module is volledig gebouwd en staat op de werklijn `claude/new-business-sales-tab-status-o97ccf`
-(zeven sprints, migraties `0068` tot en met `0074`, alle vier de controles groen). Wat er níet is
+(zeven sprints, migraties `0068` tot en met `0073` plus `0081`, alle vier de controles groen). Wat er níet is
 gebeurd, is precies wat deze prompt vraagt: één echte markt van begin tot eind.
 
 ---

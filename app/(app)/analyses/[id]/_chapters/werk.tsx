@@ -8,7 +8,7 @@ import { loadAuditGate } from "@/lib/audit/gate";
 import { InfoHint } from "@/components/info-hint";
 import { PotentialInline } from "@/components/potential-metrics";
 import { loadRecommendationPotential } from "@/lib/potential-data";
-import { readRecommendations } from "@/lib/pipeline/recommendation";
+import { readRecommendations, describeActionRatio } from "@/lib/pipeline/recommendation";
 import { leesbaarWaarom } from "@/lib/recommendation-text";
 import { GenerateButton } from "../_work/generate-button";
 import { GenerateAllButton } from "../_work/generate-all-button";
@@ -147,6 +147,11 @@ export async function WerkChapter({
               Dit kan vandaag. Zodra een pagina geschreven is, staat hij hierboven in de lijst en in
               je bibliotheek klaar om na te lezen.
             </p>
+            {/* Werkpakket B §4.3: geen vast percentage nieuw/verbeteren, alleen
+                een uitleg van de uitkomst die er al lag. */}
+            {describeActionRatio(recommendations) && (
+              <p className="text-sm text-muted">{describeActionRatio(recommendations)}</p>
+            )}
           </div>
 
           <GenerateAllButton

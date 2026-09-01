@@ -14,10 +14,11 @@ import {
   resequenceMonth,
   spreadDates,
   datumProbleem,
+  maandIsVol,
   type HerplanRij,
 } from "@/lib/plan-schedule";
-import { syncBacklog, meetbareVragenPerAnalyse } from "@/lib/plan-backlog-data";
-import { sortBacklog, type BacklogItem } from "@/lib/plan-backlog";
+import { syncBacklog, meetbareVragenPerAnalyse, loadDeclinedOpportunities } from "@/lib/plan-backlog-data";
+import { sortBacklog, type BacklogItem, type DeclinedItem } from "@/lib/plan-backlog";
 import type { TopicWritingState } from "@/lib/plan-writing";
 import type {
   AnalysisStatus,
@@ -36,6 +37,8 @@ export interface PlanBundle {
   pages: PlannedPage[];
   /** Wat beschikbaar is maar nog geen maand heeft, op potentie gesorteerd. */
   backlog: BacklogItem[];
+  /** Wat het rapportmodel overwoog maar niet voorstelde, met de reden (werkpakket C §5.1). */
+  declined: DeclinedItem[];
   /**
    * De clusters die al minstens één kans hebben opgeleverd, ingepland of niet.
    *
@@ -151,12 +154,14 @@ export async function loadPlan(
     admin,
     [...new Set(voorraad.map((v) => v.source_analysis_id).filter((id): id is string => Boolean(id)))],
   );
+  const declined = await loadDeclinedOpportunities(admin, profileId);
 
   return {
     plan,
     months,
     pages: (pages ?? []) as PlannedPage[],
     backlog: sortBacklog(voorraad.map((rij) => naarBacklogItem(rij, gemeten, clusterNaam))),
+    declined,
     metKansen: [
       ...new Set(
         ((kansClusters ?? []) as { source_analysis_id: string | null }[])
@@ -292,6 +297,11 @@ export type CreatePlanResult =
  * aan de quota, de rest blijft in de voorraad staan. Zijn er minder kansen dan
  * de quota, dan wordt maand 1 gewoon korter; er wordt niets bijverzonnen.
  *
+ * ⚠️ Tenzij maand 1 geen bruikbare dag meer over heeft (`maandIsVol()`): dan
+ * gaat de voorzet naar maand 2. Een publicatiedatum ligt nooit in het
+ * verleden en nooit op vandaag, dus een maand die daar geen ruimte meer voor
+ * heeft blijft leeg in plaats van een datum drie dagen terug te krijgen.
+ *
  * ── WAAROM DE OUDE PLANVERSIE NIET WEGGEGOOID WORDT ─────────────────────────
  *
  * Conventie 8: alles bewaren. De vorige versie gaat op `gestopt` en blijft
@@ -304,6 +314,16 @@ export async function createPlan(
     profileId: string;
     pagesPerMonth: number;
     startedOn?: Date;
+    /**
+     * De klok waartegen `maandIsVol()` en `spreadDates()` "vandaag" bepalen.
+     * In productie is dit gewoon `startedOn` zelf: het plan wordt nu
+     * aangemaakt, dus is nu ook wanneer het start. Alleen tests geven ze
+     * bewust uit elkaar, dezelfde reden waarom `spreadDates()` zelf een `now`
+     * apart van `startedOn` neemt: zonder die scheiding is "is maand 1 vol"
+     * niet deterministisch te testen, want die vraag hangt af van de
+     * WERKELIJKE kalenderdag waarop de test toevallig draait.
+     */
+    now?: Date;
     strategyNote?: string | null;
   },
 ): Promise<CreatePlanResult> {
@@ -347,6 +367,7 @@ export async function createPlan(
   }
 
   const startedOn = input.startedOn ?? new Date();
+  const now = input.now ?? startedOn;
 
   // Vorige versie stoppen, niet verwijderen.
   const { data: vorige } = await admin
@@ -383,16 +404,30 @@ export async function createPlan(
   }
   const planId = planRow.id as string;
 
+  const startedOnStr = startedOn.toISOString().slice(0, 10);
+
+  // ⚠️ Maand 1 kan al te ver gevorderd zijn om nog iets in te plannen. Bij
+  // Wouter Warmtepomp werd het plan op 31 augustus opgesteld: geen bruikbare
+  // dag meer over in augustus, dus `spreadDates()` voor maand 1 gaf een lege
+  // lijst (punt 5 van docs/tasks/opdracht-bevindingen-5-tot-9.md). De voorzet
+  // gaat in dat geval naar maand 2 in plaats van naar een maand 1 die dan
+  // toch leeg blijft, en maand 2 wordt de maand die ter goedkeuring staat: er
+  // is niets zinvols om aan maand 1 voor te leggen. Maand 2 begint altijd op
+  // dag 1 van een kalendermaand en heeft dus altijd ruimte.
+  const maand1Vol = maandIsVol(startedOnStr, 1, now);
+  const voorzetMaandNummer = maand1Vol ? 2 : 1;
+
   const { data: monthRows, error: monthError } = await admin
     .from("plan_months")
     .insert(
       Array.from({ length: MONTHS_AHEAD }, (_, i) => ({
         plan_id: planId,
         month_number: i + 1,
-        // Maand 1 gaat meteen naar de klant; de rest blijft concept tot hij
-        // eraan toe is. Twaalf maanden tegelijk ter goedkeuring aanbieden is
-        // twaalf beslissingen vragen voor iets wat pas over een jaar speelt.
-        status: i === 0 ? "ter_goedkeuring" : "concept",
+        // De maand met de voorzet gaat meteen naar de klant; de rest blijft
+        // concept tot hij eraan toe is. Twaalf maanden tegelijk ter
+        // goedkeuring aanbieden is twaalf beslissingen vragen voor iets wat
+        // pas over een jaar speelt.
+        status: i + 1 === voorzetMaandNummer ? "ter_goedkeuring" : "concept",
       })),
     )
     .select("id, month_number");
@@ -402,8 +437,8 @@ export async function createPlan(
     return { ok: false, problems: ["De maanden konden niet worden aangemaakt."] };
   }
 
-  const eersteMaand = (monthRows as { id: string; month_number: number }[]).find(
-    (m) => m.month_number === 1,
+  const voorzetMaand = (monthRows as { id: string; month_number: number }[]).find(
+    (m) => m.month_number === voorzetMaandNummer,
   );
 
   // De voorzet: de sterkste kansen bovenaan, tot aan de quota.
@@ -416,13 +451,13 @@ export async function createPlan(
   });
   const voorzet = gesorteerd.slice(0, input.pagesPerMonth);
 
-  if (eersteMaand && voorzet.length > 0) {
-    const data = spreadDates(startedOn.toISOString().slice(0, 10), 1, voorzet.length);
+  if (voorzetMaand && voorzet.length > 0) {
+    const data = spreadDates(startedOnStr, voorzetMaandNummer, voorzet.length, now);
     for (const [i, kaart] of voorzet.entries()) {
       const { error } = await admin
         .from("planned_pages")
         .update({
-          plan_month_id: eersteMaand.id,
+          plan_month_id: voorzetMaand.id,
           sort_order: i,
           scheduled_for: data[i] ?? null,
         })

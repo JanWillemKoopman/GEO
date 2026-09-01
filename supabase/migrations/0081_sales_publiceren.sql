@@ -1,5 +1,5 @@
 -- ═══════════════════════════════════════════════════════════════════════════
--- 0074 · De Sales-module, sprint 6 en 7: publiceren en hermeten
+-- 0081 · De Sales-module, sprint 6 en 7: publiceren en hermeten
 -- ═══════════════════════════════════════════════════════════════════════════
 --
 -- WAT DIT TOEVOEGT
@@ -84,7 +84,7 @@ alter table public.sales_markets
   add column if not exists published_run_id uuid references public.sales_runs (id) on delete set null;
 
 comment on column public.sales_markets.published_run_id is
-  'Welke meetronde er publiek staat (migratie 0074). Verschuift alleen als iemand '
+  'Welke meetronde er publiek staat (migratie 0081). Verschuift alleen als iemand '
   'de nieuwe ronde bewust publiceert, zodat een lopende mailcampagne blijft kloppen.';
 
 -- ── 3. Verwijderen gaat voor ───────────────────────────────────────────────

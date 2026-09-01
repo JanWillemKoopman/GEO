@@ -52,7 +52,9 @@ import {
   type KnownFact,
 } from "@/lib/pipeline/baseline-verdict";
 import { remainingBudgetUsd } from "@/lib/pipeline/onboarding-budget";
+import { activeOfferings } from "@/lib/offerings";
 import { measureWebSearchEnabled } from "@/lib/config";
+import { enkelOfMeervoud } from "@/lib/format";
 import type { EngineAdapter } from "@/lib/engines/types";
 import type { HarvestedFact } from "@/lib/pipeline/structured-data";
 import type { Profile, ProfileOffering, ProfileTopic } from "@/lib/types/database";
@@ -251,17 +253,15 @@ export async function runLlmBaseline(
   const profile = row as Profile;
 
   const [
-    { data: offeringRows },
+    offeringRows,
     { data: facetRow },
     { data: doneRows },
     { data: topicRows },
     { data: marktFacet },
   ] = await Promise.all([
-    admin
-      .from("profile_offerings")
-      .select("*")
-      .eq("profile_id", profileId)
-      .order("sort_order"),
+    // `activeOfferings()` laat verwijderde knopen weg (onboarding Ronde C,
+    // §16.4): een uitgezette dienst hoort de kennistest niet meer in.
+    activeOfferings(admin, profileId),
     admin
       .from("profile_facets")
       .select("raw_json")
@@ -285,7 +285,7 @@ export async function runLlmBaseline(
       .maybeSingle(),
   ]);
 
-  const offerings = (offeringRows ?? []) as ProfileOffering[];
+  const offerings = offeringRows as ProfileOffering[];
   const topics = (topicRows ?? []) as ProfileTopic[];
 
   // ── Tegen wie zetten we het antwoord af? ──────────────────────────────────
@@ -608,7 +608,9 @@ async function beschrijf(
         ...kentOordelen.map((v) => v.contradicted),
       );
       if (tegengesproken > 0) {
-        delen.push(`spreekt ${tegengesproken} gegeven(s) tegen`);
+        // Geen haakjesvorm "gegeven(s)" meer in de regel die de klant als
+        // eerste ziet (punt 9 van docs/tasks/opdracht-bevindingen-5-tot-9.md).
+        delen.push(`spreekt ${tegengesproken} ${enkelOfMeervoud(tegengesproken, "gegeven", "gegevens")} tegen`);
       }
 
       if (categorieOordelen.length > 0) {

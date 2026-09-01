@@ -168,3 +168,45 @@ export function raaktLabel(item: BacklogItem): string | null {
   return `raakt ${item.raakt} van de ${item.gemeten} gemeten vragen`;
 }
 
+/**
+ * Het derde niveau van de voorraad (werkpakket C §5.1, migratie 0078): een
+ * gemeten gemis dat het rapportmodel overwoog maar niet tot aanbeveling
+ * maakte, met de reden. Komt uit `reports.declined_json`, dus per definitie
+ * alleen van clusters die al gemeten zijn: een ongemeten cluster heeft nog
+ * geen rapport en dus ook geen afgevallen kansen.
+ */
+export interface DeclinedItem {
+  cluster: string | null;
+  problem: string;
+  reason: string;
+}
+
+/**
+ * Hoeveel maanden de voorraad meegaat bij het huidige publicatietempo
+ * (werkpakket C §5.2).
+ *
+ * `null` bij een voorraad van nul (niets om een duur van te geven) of een
+ * tempo van nul of minder (delen door nul is geen antwoord, conventie 3).
+ * Naar boven afgerond: bij 7 kansen en een tempo van 4 per maand duurt de
+ * laatste maand ook, ook al is hij niet vol.
+ */
+export function estimateBacklogMonths(
+  backlogSize: number,
+  pagesPerMonth: number,
+): number | null {
+  if (backlogSize <= 0 || pagesPerMonth <= 0) return null;
+  return Math.ceil(backlogSize / pagesPerMonth);
+}
+
+/** De zin onder het publicatietempo: hoe lang de voorraad meegaat. */
+export function backlogDurationLabel(
+  backlogSize: number,
+  pagesPerMonth: number,
+): string | null {
+  const maanden = estimateBacklogMonths(backlogSize, pagesPerMonth);
+  if (maanden === null) return null;
+  return maanden === 1
+    ? "Bij dit tempo duurt de voorraad nog 1 maand."
+    : `Bij dit tempo duurt de voorraad nog ${maanden} maanden.`;
+}
+

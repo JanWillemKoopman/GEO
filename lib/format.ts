@@ -55,3 +55,44 @@ export function formatRelativeTime(iso: string): string {
 export function formatNumber(n: number): string {
   return n.toLocaleString("nl-NL");
 }
+
+/**
+ * "$1,70": een dollarbedrag in de Nederlandse schrijfwijze, komma als
+ * decimaalteken.
+ *
+ * ── WAAROM DOLLARS EN GEEN EURO'S, EN WAAROM DIT HIER STAAT ─────────────────
+ *
+ * Voorheen `euro()` in `lib/prompt-mix.ts`, een naam die niet klopte met wat
+ * de functie toont: de meetkosten lopen via de OpenAI-rekening en die is in
+ * dollars, dus `$0,72` en niet `€0,72`. Verplaatst naar hier op 31 augustus
+ * 2026 (punt 9 van docs/tasks/opdracht-bevindingen-5-tot-9.md), toen bleek
+ * dat elke plek die een bedrag naar een scherm stuurde zijn EIGEN
+ * `.toFixed(2)` deed: op het scherm "Verdeling aanpassen" stond in één zin
+ * "ongeveer $1.70 per maand" met een punt naast "±10,7 punten" met een komma.
+ * Twee schrijfwijzen voor een getal in dezelfde zin is precies wat een klant
+ * opvalt, ook als hij niet kan zeggen waarom de tekst onzorgvuldig aanvoelt.
+ *
+ * ⚠️ Alleen voor bedragen die de klant of de beheerder op een scherm ziet.
+ * Bedragen in `console.warn`/`console.error`-logregels blijven met een punt:
+ * die zijn voor de ontwikkelaar, en daar is een punt gebruikelijker.
+ */
+export function formatUsd(usd: number): string {
+  return `$${usd.toFixed(2).replace(".", ",")}`;
+}
+
+/**
+ * Enkelvoud of meervoud, op basis van het aantal. Eén hulpstuk in plaats van
+ * een losse `aantal === 1 ? "..." : "..."` op elke plek waar een getal een
+ * woord meesleept.
+ *
+ * Die keuze stond al los uitgeschreven op minstens drie plekken (bijvoorbeeld
+ * `restWachtrij === 1 ? "punt" : "punten"` in `app/(app)/merk/[id]/page.tsx`),
+ * en op twee ervan verkeerd: een letterlijke haakjesvorm "punt(en)" in de
+ * klanttekst van het briefingscherm, en dezelfde vorm bij "gegeven(s)" en
+ * "bewering(en)" in de reputatiesamenvatting en de redactienotitie (punt 9
+ * van docs/tasks/opdracht-bevindingen-5-tot-9.md). Die vorm hoort nooit in
+ * tekst die een klant leest: het is notatie, geen lopende zin.
+ */
+export function enkelOfMeervoud(aantal: number, enkelvoud: string, meervoud: string): string {
+  return aantal === 1 ? enkelvoud : meervoud;
+}

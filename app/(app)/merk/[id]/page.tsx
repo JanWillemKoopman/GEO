@@ -24,7 +24,7 @@ import type { Insight } from "@/lib/insights";
 import { loadBrandWork, sortWork, workChipTone, workKindIcon, WORK_KIND_LABEL } from "@/lib/work";
 import type { WorkItem } from "@/lib/work";
 import { activiteit, type AfgerondeTaak } from "@/lib/activity";
-import { formatDateShort, formatRelativeTime } from "@/lib/format";
+import { formatDateShort, formatRelativeTime, enkelOfMeervoud } from "@/lib/format";
 import {
   isEersteMaand,
   overzichtCijfers,
@@ -494,7 +494,7 @@ export default async function OverzichtPage({
                     href={`/merk/${id}/strategie/clusters`}
                     className="inline-flex items-center gap-1.5 text-sm font-semibold hover:underline"
                   >
-                    Nog {restWachtrij} {restWachtrij === 1 ? "punt" : "punten"} in je clusters
+                    Nog {restWachtrij} {enkelOfMeervoud(restWachtrij, "punt", "punten")} in je clusters
                     <Icon naam="naar" size={14} />
                   </Link>
                 </li>

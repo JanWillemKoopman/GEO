@@ -7,6 +7,7 @@ import { clampToneSlider, clampEmotional } from "@/lib/pipeline/tone-sliders";
 import { EDITABLE_PROFILE_FIELDS } from "@/lib/profile-editable";
 import { resolveWriteSource } from "@/lib/profile-source";
 import { isStaff } from "@/lib/staff";
+import { normalizeUrl, checkUrlFormat } from "@/lib/url";
 
 /**
  * PATCH /api/profiles/[id], klantprofiel bewerken. Geen AI-call: pure CRUD op
@@ -31,6 +32,18 @@ const LIST_FIELDS = [
   "forbidden_topics",
   "offline_proof",
   "name_exclusions",
+  // A3: deze zes werden vóór 31 augustus 2026 alleen door de invoercomponent
+  // getrimd, nooit door de route zelf. Conventie 1 wil de garantie hier, niet
+  // alleen in de client: een ander scherm of een aanroep buiten de app om kon
+  // een lege string in `aliases` zetten, waar de meting op vergelijkt.
+  "products",
+  "value_props",
+  "competitors",
+  "aliases",
+  "service_regions",
+  "proof_points",
+  // Onboarding ronde B, stap B8.
+  "style_samples",
 ] as const;
 
 /** Vrije tekst: een leeg veld wordt `null`, nooit een lege string. */
@@ -98,6 +111,21 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   const update: Record<string, unknown> = { edited_by_user: true };
   for (const field of EDITABLE_FIELDS) {
     if (field in body) update[field] = body[field];
+  }
+  // ── Website wijzigen (onboarding ronde B, stap B8) ───────────────────────
+  //
+  // ⚠️ Bewust GEEN catalogusveld en niet in `EDITABLE_PROFILE_FIELDS`: `url`
+  // heeft geen herkomstchip, dat zou suggereren dat een volgende
+  // onderzoeksronde hem met rust laat, terwijl elke wijziging hier juist een
+  // nieuwe crawl vereist. Dezelfde validatie als bij het aanmaken van een merk
+  // (`app/api/profiles/route.ts`), zodat een halve of ongeldige URL nooit
+  // opgeslagen wordt.
+  if (typeof body.url === "string") {
+    const format = checkUrlFormat(body.url);
+    if (!format.ok) {
+      return NextResponse.json({ error: format.message, field: "url" }, { status: 400 });
+    }
+    update.url = normalizeUrl(body.url)!;
   }
   // sitemap_url: lege string → null (dan valt de crawler terug op auto-detectie).
   if ("sitemap_url" in update) {

@@ -14,15 +14,18 @@ import {
   isPastMonth,
   formatDagNL,
   datumProbleem,
+  schrijfBelofte,
 } from "@/lib/plan-schedule";
 import {
   filterBacklog,
   clusterCounts,
   potentieLabel,
   raaktLabel,
+  backlogDurationLabel,
   LEGE_BACKLOG_FILTERS,
   type BacklogItem,
   type BacklogFilters,
+  type DeclinedItem,
 } from "@/lib/plan-backlog";
 import { writeDecision, writeBlockNotice, type TopicWritingState } from "@/lib/plan-writing";
 import { canMove } from "@/lib/plan-order";
@@ -102,6 +105,7 @@ export function PlanView({
   months,
   pages,
   backlog,
+  declined,
   funnels,
   topics,
   staff,
@@ -111,6 +115,8 @@ export function PlanView({
   months: PlanMonth[];
   pages: PlannedPage[];
   backlog: BacklogItem[];
+  /** Wat het rapportmodel overwoog maar niet voorstelde, met de reden (werkpakket C §5.1). */
+  declined: DeclinedItem[];
   funnels: FunnelStage[];
   topics: TopicWritingState[];
   /** Besluit 18: alleen de beheerder zet betaald werk in gang. */
@@ -312,6 +318,21 @@ export function PlanView({
     await stuur(page.id, { actie: "verplaats", richting }, null);
   }
 
+  /**
+   * De vroegste publicatiedatum in een maand, voor `schrijfBelofte()`: zonder
+   * dit blijft de vrijgeef-melding "tien dagen voor elke publicatiedatum"
+   * beloven terwijl de eerste pagina al over drie dagen moet (punt 5 van
+   * docs/tasks/opdracht-bevindingen-5-tot-9.md).
+   */
+  function eersteDatumVanMaand(monthId: string): string | null {
+    return (
+      echt
+        .filter((p) => p.plan_month_id === monthId && p.scheduled_for && p.status !== "geplaatst")
+        .map((p) => p.scheduled_for as string)
+        .sort()[0] ?? null
+    );
+  }
+
   async function maandActie(month: PlanMonth, actie: "goedkeuren" | "afwijzen") {
     setBusy(month.id);
     try {
@@ -337,7 +358,7 @@ export function PlanView({
             : `Maand ${month.month_number} afgewezen`,
         description:
           actie === "goedkeuren"
-            ? "ORBIT ENGINE begint tien dagen voor elke publicatiedatum met schrijven."
+            ? `${schrijfBelofte(eersteDatumVanMaand(month.id))} met schrijven.`
             : "De pagina's blijven staan; je kunt de maand opnieuw samenstellen.",
       });
       router.refresh();
@@ -459,20 +480,30 @@ export function PlanView({
   return (
     <div className="flex flex-col gap-5">
       {/* ── De feiten van het plan, één regel ────────────────────────────── */}
-      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
-        <span className="text-sm text-secondary">
-          <span className="mono-label">pakket {plan.pages_per_month} per maand</span>
-          <span className="mx-2 text-muted">·</span>
-          {echt.length} ingepland
-          <span className="mx-2 text-muted">·</span>
-          {backlog.length} content beschikbaar
-          {eerstvolgende && (
-            <>
-              <span className="mx-2 text-muted">·</span>
-              volgende publicatie {formatDagNL(eerstvolgende)}
-            </>
+      <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-2">
+        <div className="flex flex-col gap-0.5">
+          <span className="text-sm text-secondary">
+            <span className="mono-label">pakket {plan.pages_per_month} per maand</span>
+            <span className="mx-2 text-muted">·</span>
+            {echt.length} ingepland
+            <span className="mx-2 text-muted">·</span>
+            {backlog.length} content beschikbaar
+            {eerstvolgende && (
+              <>
+                <span className="mx-2 text-muted">·</span>
+                volgende publicatie {formatDagNL(eerstvolgende)}
+              </>
+            )}
+          </span>
+          {/* Werkpakket C §5.2: geen kwaliteitsoordeel, alleen een rekensom die
+              laat zien wanneer "meer content" een gesprek wordt in plaats van
+              een getal in een tabel. */}
+          {backlogDurationLabel(backlog.length, plan.pages_per_month) && (
+            <span className="text-sm text-muted">
+              {backlogDurationLabel(backlog.length, plan.pages_per_month)}
+            </span>
           )}
-        </span>
+        </div>
         {/* Besluit 18: opnieuw opzetten raakt het hele jaar, dus alleen de
             beheerder. De klant ziet de knop niet, want hij zou een 403 geven. */}
         {staff && (
@@ -623,6 +654,36 @@ export function PlanView({
               </ul>
             )}
           </section>
+
+          {/* Werkpakket C §5.1: het derde niveau, afgevallen kansen met reden.
+              Uitgeklapt inzichtelijk maar niet in het gezicht: dit is geen werk
+              dat wacht, het is de onderbouwing van wat er NIET in de voorraad
+              staat. */}
+          {declined.length > 0 && (
+            <details className="card flex flex-col gap-2">
+              <summary className="mono-label cursor-pointer">
+                {declined.length} afgevallen kans{declined.length === 1 ? "" : "en"}
+              </summary>
+              <p className="text-sm text-secondary">
+                Gemeten gemissen die overwogen zijn maar geen aanbeveling werden, met de reden. Ziet
+                deze lijst er verkeerd uit, dan is dat een signaal om de kwaliteitstoets bij te stellen.
+              </p>
+              <ul className="flex flex-col gap-2">
+                {declined.map((item, i) => (
+                  <li
+                    key={i}
+                    className="rounded-[var(--radius-md)] border border-[var(--border-subtle)] p-2.5 text-sm"
+                  >
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="text-secondary">{item.problem}</span>
+                      {item.cluster && <span className="chip chip-neutral shrink-0">{item.cluster}</span>}
+                    </div>
+                    <p className="text-muted">{item.reason}</p>
+                  </li>
+                ))}
+              </ul>
+            </details>
+          )}
         </div>
 
         {/* ── Rechts: de twaalf maanden ──────────────────────────────────── */}
@@ -983,7 +1044,9 @@ export function PlanView({
         title={`Maand ${monthDialog?.month_number ?? ""} vrijgeven`}
         body={`Je geeft ${
           echt.filter((p) => p.plan_month_id === monthDialog?.id).length
-        } pagina's in één keer vrij om geschreven te worden. ORBIT ENGINE begint tien dagen voor elke publicatiedatum, en legt elke tekst daarna aan jou voor.`}
+        } pagina's in één keer vrij om geschreven te worden. ${schrijfBelofte(
+          monthDialog ? eersteDatumVanMaand(monthDialog.id) : null,
+        )}, en legt elke tekst daarna aan jou voor.`}
         irreversible={{
           title: "Dit zet het schrijven in gang",
           description:

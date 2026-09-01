@@ -10,11 +10,14 @@ import {
   checkMix,
   describeMix,
   isDefaultMix,
+  suggestPromptMix,
+  exceedsRunBudgetWarning,
   type PromptMix,
 } from "@/lib/prompt-mix";
 import { PotentialInline } from "@/components/potential-metrics";
 import type { PotentialTriple } from "@/lib/potential";
 import { Icon } from "@/components/icon";
+import { TopicRefreshButton } from "./topic-refresh-button";
 
 /**
  * De core topics (docs/tasks/onboarding-2.0.md, blok D).
@@ -36,18 +39,36 @@ export function TopicsPanel({
   profileId,
   initial,
   potenties,
+  staff,
+  serviceRegionCount,
 }: {
   profileId: string;
   initial: ProfileTopic[];
   /** Potentiescore per onderwerp-id, alleen gevuld voor onderwerpen met een analyse. */
   potenties: Record<string, PotentialTriple>;
+  /**
+   * Alleen de beheerder ziet "Stel nieuwe clusters voor" (§3.5): de knop kost
+   * geld per klik en is een regieknop, geen klantwerk. De echte grendel staat
+   * op de route, dit is alleen de weergave.
+   */
+  staff: boolean;
+  /** `profiles.service_regions.length`, voor de voorgestelde verdeling (werkpakket B punt 2). */
+  serviceRegionCount: number;
 }) {
   const router = useRouter();
   const [topics, setTopics] = useState(initial);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [noteFor, setNoteFor] = useState<string | null>(null);
-  const [noteText, setNoteText] = useState("");
+  // De clusterlaag (migratie 0075, docs/optimalisatielab-orbit-engine.md §3.1):
+  // drie gerichte velden in plaats van één generiek notitieveld. `briefFor`
+  // onthoudt welk onderwerp opengeklapt is, `briefDraft` de conceptwaarden
+  // tijdens het typen.
+  const [briefFor, setBriefFor] = useState<string | null>(null);
+  const [briefDraft, setBriefDraft] = useState({
+    clientQuestions: "",
+    clientFriction: "",
+    clientEdge: "",
+  });
   // De verdeling over de funnelfasen (migratie 0054). Dicht bij de startknop,
   // want dit is het enige moment waarop hij nog telt: zodra de vragen er zijn,
   // ligt de verdeling vast.
@@ -80,7 +101,9 @@ export function TopicsPanel({
   // Daarna, net als het contentplan (docs/tasks/potentiescore.md fase 3): de
   // potentiescore eerst als hij er is, anders de dag-1-gok van het model.
   const sorted = [...topics].sort((a, b) => {
-    const rang = (t: ProfileTopic) => (t.status === "afgewezen" ? 2 : t.client_note ? 0 : 1);
+    const heeftClusterinfo = (t: ProfileTopic) =>
+      Boolean(t.client_questions || t.client_friction || t.client_edge || t.client_note);
+    const rang = (t: ProfileTopic) => (t.status === "afgewezen" ? 2 : heeftClusterinfo(t) ? 0 : 1);
     const rangVerschil = rang(a) - rang(b);
     if (rangVerschil !== 0) return rangVerschil;
 
@@ -152,17 +175,29 @@ export function TopicsPanel({
       >
         <div className="flex flex-wrap items-start justify-between gap-2">
           <span className="font-semibold">{t.title}</span>
-          {t.analysis_id ? (
-            <Link href={`/analyses/${t.analysis_id}`} className="chip chip-success">
-              Cluster loopt
-              <Icon naam="naar" size={12} />
-            </Link>
-          ) : t.status === "goedgekeurd" ? (
-            <span className="chip chip-green">Goedgekeurd</span>
-          ) : t.status === "afgewezen" ? (
-            <span className="chip chip-neutral">Afgewezen</span>
-          ) : null}
+          <div className="flex flex-wrap items-center gap-2">
+            {t.stage === "concept" && !t.analysis_id && (
+              <span className="chip chip-neutral">Concept</span>
+            )}
+            {t.analysis_id ? (
+              <Link href={`/analyses/${t.analysis_id}`} className="chip chip-success">
+                Cluster loopt
+                <Icon naam="naar" size={12} />
+              </Link>
+            ) : t.status === "goedgekeurd" ? (
+              <span className="chip chip-green">Goedgekeurd</span>
+            ) : t.status === "afgewezen" ? (
+              <span className="chip chip-neutral">Afgewezen</span>
+            ) : null}
+          </div>
         </div>
+
+        {t.stage === "concept" && !t.analysis_id && (
+          <p className="text-sm text-secondary">
+            Concept, ter voorbereiding op het strategisch gesprek. Zodra het gesprek is
+            vastgelegd, maakt ORBIT ENGINE de definitieve onderwerpen die je kunt starten.
+          </p>
+        )}
 
         {t.analysis_id && potenties[t.id] && (
           <PotentialInline triple={potenties[t.id]} />
@@ -170,11 +205,40 @@ export function TopicsPanel({
 
         {t.rationale && <p className="text-sm text-secondary">{t.rationale}</p>}
 
-        {t.client_note && (
-          <p className="text-sm">
-            <span className="mono-label">Uit het gesprek</span>{" "}
-            <span className="text-secondary">{t.client_note}</span>
-          </p>
+        {t.origin && (
+          <span className="mono-label text-muted">
+            {t.origin === "aanbod_en_gesprek" ? "Uit het aanbod en het gesprek" : "Uit het aanbod"}
+          </span>
+        )}
+
+        {(t.client_questions || t.client_friction || t.client_edge) ? (
+          <dl className="flex flex-col gap-1.5 text-sm">
+            {t.client_questions && (
+              <div>
+                <dt className="mono-label inline">Vaakst gevraagd</dt>{" "}
+                <dd className="inline text-secondary">{t.client_questions}</dd>
+              </div>
+            )}
+            {t.client_friction && (
+              <div>
+                <dt className="mono-label inline">Gaat vaak mis</dt>{" "}
+                <dd className="inline text-secondary">{t.client_friction}</dd>
+              </div>
+            )}
+            {t.client_edge && (
+              <div>
+                <dt className="mono-label inline">Onderscheid</dt>{" "}
+                <dd className="inline text-secondary">{t.client_edge}</dd>
+              </div>
+            )}
+          </dl>
+        ) : (
+          t.client_note && (
+            <p className="text-sm">
+              <span className="mono-label">Eerdere aantekening</span>{" "}
+              <span className="text-secondary">{t.client_note}</span>
+            </p>
+          )
         )}
 
         {mixFor === t.id && (
@@ -186,6 +250,13 @@ export function TopicsPanel({
                 om te kiezen, zet dan Beslissing hoger. Bij een onderwerp waar hij nog
                 aan het uitzoeken is, juist Oriëntatie.
               </p>
+              {!isDefaultMix(mix) && (
+                <p className="text-sm text-secondary">
+                  Dit is een voorzet op basis van hoeveel diensten dit onderwerp heeft en hoeveel
+                  werkgebieden dit merk opgeeft. Zet de getallen terug naar 10 als je liever de
+                  standaard meet.
+                </p>
+              )}
             </div>
 
             <div className="grid gap-2 sm:grid-cols-3">
@@ -209,6 +280,13 @@ export function TopicsPanel({
             {/* Het getal veranderen is gratis, de gevolgen niet. Dus staan de
                 kosten en de onzekerheidsmarge eronder, en niet pas op de rekening. */}
             <p className="text-sm text-secondary">{describeMix(mix)}</p>
+            {/* Werkpakket B punt 6: geen harde grens, wel een zichtbare
+                waarschuwing vóórdat het geld wordt uitgegeven. */}
+            {exceedsRunBudgetWarning(mix) && checkMix(mix).ok && (
+              <p className="text-sm" style={{ color: "var(--intent-danger-text)" }}>
+                Dit is een grote meetronde. Weet je zeker dat dit onderwerp dit verdient?
+              </p>
+            )}
             {!checkMix(mix).ok && (
               <p className="text-sm" style={{ color: "var(--intent-danger-text)" }}>
                 {(checkMix(mix) as { ok: false; reason: string }).reason}
@@ -235,35 +313,66 @@ export function TopicsPanel({
           </div>
         )}
 
-        {noteFor === t.id ? (
-          <div className="flex flex-col gap-2">
-            <textarea
-              className="field"
-              rows={2}
-              value={noteText}
-              onChange={(e) => setNoteText(e.target.value)}
-              placeholder="Wat zei de klant hierover? Bijv. 'hier komt 40% van de omzet vandaan'."
-              autoFocus
-            />
+        {briefFor === t.id ? (
+          <div className="flex flex-col gap-3">
+            <label className="flex flex-col gap-1 text-sm">
+              <span className="mono-label">Vaakst gestelde klantvraag</span>
+              <textarea
+                className="field"
+                rows={2}
+                value={briefDraft.clientQuestions}
+                onChange={(e) =>
+                  setBriefDraft((d) => ({ ...d, clientQuestions: e.target.value }))
+                }
+                placeholder="Bijv. 'zit pechhulp bij het maandbedrag inbegrepen?'"
+                autoFocus
+              />
+            </label>
+            <label className="flex flex-col gap-1 text-sm">
+              <span className="mono-label">Wat er vaak misgaat</span>
+              <textarea
+                className="field"
+                rows={2}
+                value={briefDraft.clientFriction}
+                onChange={(e) =>
+                  setBriefDraft((d) => ({ ...d, clientFriction: e.target.value }))
+                }
+                placeholder="Bijv. 'klanten onderschatten de levertijd in het hoogseizoen'"
+              />
+            </label>
+            <label className="flex flex-col gap-1 text-sm">
+              <span className="mono-label">Onderscheid met de concurrent</span>
+              <textarea
+                className="field"
+                rows={2}
+                value={briefDraft.clientEdge}
+                onChange={(e) => setBriefDraft((d) => ({ ...d, clientEdge: e.target.value }))}
+                placeholder="Bijv. 'wij zijn de enige met een 24-uurs storingsdienst in de regio'"
+              />
+            </label>
             <div className="flex gap-2">
               <button
                 type="button"
                 className="btn-primary btn-sm"
                 disabled={bezig}
                 onClick={() => {
-                  void patch(t.id, { clientNote: noteText }).then(() => setNoteFor(null));
+                  void patch(t.id, {
+                    clientQuestions: briefDraft.clientQuestions,
+                    clientFriction: briefDraft.clientFriction,
+                    clientEdge: briefDraft.clientEdge,
+                  }).then(() => setBriefFor(null));
                 }}
               >
                 Bewaren
               </button>
-              <button type="button" className="btn-outline btn-sm" onClick={() => setNoteFor(null)}>
+              <button type="button" className="btn-outline btn-sm" onClick={() => setBriefFor(null)}>
                 Annuleren
               </button>
             </div>
           </div>
         ) : (
           <div className="flex flex-wrap gap-2">
-            {!t.analysis_id && (
+            {!t.analysis_id && t.stage !== "concept" && (
               <button
                 type="button"
                 className="btn-primary btn-sm disabled:opacity-50"
@@ -276,13 +385,22 @@ export function TopicsPanel({
             {/* ⚠️ Een aparte knop en geen veld dat altijd openstaat. Negen van de
                 tien keer is 10/10/10 goed, en dan hoort er één klik te zijn.
                 Wie het anders wil, klapt het open en ziet meteen wat het kost. */}
-            {!t.analysis_id && mixFor !== t.id && (
+            {!t.analysis_id && t.stage !== "concept" && mixFor !== t.id && (
               <button
                 type="button"
                 className="btn-outline btn-sm disabled:opacity-50"
                 disabled={bezig}
                 onClick={() => {
-                  setMix(DEFAULT_MIX);
+                  // Werkpakket B punt 2: een voorzet op de omvang van dit
+                  // cluster, niet altijd dezelfde tien per fase. De klant of
+                  // beheerder ziet de suggestie én de kosten vóórdat hij klikt,
+                  // en kan hem gewoon terugzetten naar de standaard.
+                  setMix(
+                    suggestPromptMix({
+                      offeringCount: t.offering_ids.length,
+                      regionCount: serviceRegionCount,
+                    }),
+                  );
                   setMixFor(t.id);
                 }}
               >
@@ -294,11 +412,17 @@ export function TopicsPanel({
               className="btn-outline btn-sm disabled:opacity-50"
               disabled={bezig}
               onClick={() => {
-                setNoteText(t.client_note ?? "");
-                setNoteFor(t.id);
+                setBriefDraft({
+                  clientQuestions: t.client_questions ?? "",
+                  clientFriction: t.client_friction ?? "",
+                  clientEdge: t.client_edge ?? "",
+                });
+                setBriefFor(t.id);
               }}
             >
-              {t.client_note ? "Notitie aanpassen" : "Notitie uit gesprek"}
+              {t.client_questions || t.client_friction || t.client_edge
+                ? "Clusterinfo aanpassen"
+                : "Clusterinfo uit gesprek"}
             </button>
             {t.status !== "afgewezen" && !t.analysis_id && (
               <button
@@ -321,6 +445,23 @@ export function TopicsPanel({
               </button>
             )}
           </div>
+        )}
+
+        {t.status === "afgewezen" && (
+          <label className="flex flex-col gap-1 text-sm">
+            <span className="mono-label">Reden (optioneel)</span>
+            <textarea
+              className="field"
+              rows={1}
+              defaultValue={t.rejection_reason ?? ""}
+              placeholder="Waarom niet relevant? Helpt een volgende ronde dezelfde richting te vermijden."
+              onBlur={(e) => {
+                if (e.target.value.trim() !== (t.rejection_reason ?? "")) {
+                  void patch(t.id, { rejectionReason: e.target.value });
+                }
+              }}
+            />
+          </label>
         )}
       </li>
     );
@@ -353,6 +494,8 @@ export function TopicsPanel({
           {error}
         </p>
       )}
+
+      {staff && <TopicRefreshButton profileId={profileId} />}
     </div>
   );
 }

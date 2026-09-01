@@ -55,6 +55,10 @@ export function FactRequests({
   const router = useRouter();
   const [facts, setFacts] = useState(initial);
   const [problem, setProblem] = useState<UserFacingError | null>(null);
+  // Niet alle klantinput is gelijk (werkpakket A §3.4): een superlatief of
+  // marktclaim zonder cijfer of voorbeeld wordt wel bewaard, maar (nog) niet
+  // gebruikt in teksten. Dit is die melding, geen foutmelding.
+  const [hint, setHint] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [showAnswered, setShowAnswered] = useState(false);
   const [showSkipped, setShowSkipped] = useState(false);
@@ -85,6 +89,7 @@ export function FactRequests({
   async function send(factId: string, payload: { answer?: string; skip?: boolean }) {
     setBusy(factId);
     setProblem(null);
+    setHint(null);
     try {
       const res = await fetch(`/api/profiles/${profileId}/facts`, {
         method: "PATCH",
@@ -95,7 +100,11 @@ export function FactRequests({
         setProblem(problemFromResponse(await res.json().catch(() => null)));
         return;
       }
-      const updated = (await res.json()) as FactRequest;
+      const updated = (await res.json()) as FactRequest & {
+        needsEvidence?: boolean;
+        evidenceHint?: string;
+      };
+      if (updated.needsEvidence && updated.evidenceHint) setHint(updated.evidenceHint);
       setFacts((fs) => fs.map((f) => (f.id === factId ? updated : f)));
       // De teller staat in de paginakop en in de bovenbalk, en die zijn allebei
       // server-gerenderd. Zonder deze verversing zegt de kop "10 open" terwijl je
@@ -151,6 +160,11 @@ export function FactRequests({
       )}
 
       {problem && <ErrorNotice error={problem} />}
+      {hint && (
+        <p className="text-sm text-secondary" role="status">
+          {hint}
+        </p>
+      )}
 
       {open.length === 0 ? (
         <p className="text-sm text-secondary">

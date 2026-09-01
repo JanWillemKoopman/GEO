@@ -115,13 +115,26 @@ export function planStap(input: StapInput): string {
  *
  * Geen datum als er niets gepland staat, want dan is er niets om een datum aan
  * te hangen. Onbekend is een betere waarde dan een verkeerde (conventie 3).
+ *
+ * `leegDoorRuimtegebrek` onderscheidt twee lege maanden die niets met elkaar
+ * te maken hebben: een maand die de klant zelf nog niet gevuld heeft, en
+ * maand 1 die geen bruikbare dag meer over had toen het plan werd opgesteld
+ * (`maandIsVol()` in `lib/plan-schedule.ts`, punt 5 van
+ * `docs/tasks/opdracht-bevindingen-5-tot-9.md`). Zonder dat onderscheid las
+ * "Nog niets ingepland" als een taak voor de klant, terwijl er niets te doen
+ * viel: de eerstvolgende maand had de kansen al gekregen.
  */
 export function maandRegel(input: {
   paginas: number;
   geplaatst: number;
   eersteDatum: string | null;
+  leegDoorRuimtegebrek?: boolean;
 }): string {
-  if (input.paginas === 0) return "Nog niets ingepland.";
+  if (input.paginas === 0) {
+    return input.leegDoorRuimtegebrek
+      ? "Deze maand is te ver gevorderd om nog te publiceren, dus je plan begint volgende maand."
+      : "Nog niets ingepland.";
+  }
 
   const kop =
     input.paginas === 1 ? "Eén pagina deze maand" : `${input.paginas} pagina's deze maand`;

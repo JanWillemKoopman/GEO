@@ -88,6 +88,7 @@ export default async function PlanPage({
             months={bundle.months}
             pages={bundle.pages}
             backlog={bundle.backlog}
+            declined={bundle.declined}
             funnels={bundle.funnels}
             topics={bundle.topics}
             staff={staff}

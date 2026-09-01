@@ -18,6 +18,7 @@
  * Puur en zonder `server-only` (conventie 2): het planscherm rekent hiermee in
  * de browser, en `scripts/test-unit.ts` moet erbij kunnen.
  */
+import { SCHRIJFVOORSPRONG_DAGEN } from "@/lib/plan-status";
 
 const MAANDNAMEN = [
   "januari",
@@ -137,9 +138,20 @@ export function spreadDates(
 
   // In de lopende maand is de vroegste bruikbare dag morgen: vandaag schrijven
   // kan niet meer, de schrijfronde draait 's nachts.
-  const eersteDag = isRunningMonth(startedOn, monthNumber, now)
-    ? Math.min(LAATSTE_DAG, now.getDate() + 1)
-    : 1;
+  let eersteDag = 1;
+  if (isRunningMonth(startedOn, monthNumber, now)) {
+    eersteDag = now.getDate() + 1;
+    // ⚠️ Geen klem meer naar LAATSTE_DAG. Tot 31 augustus 2026 stond hier
+    // `Math.min(LAATSTE_DAG, now.getDate() + 1)`: op 31 augustus werd
+    // `now.getDate() + 1` gelijk aan 32, en `Math.min(28, 32)` klemde dat terug
+    // naar dag 28, drie dagen in het verleden. Bij Wouter Warmtepomp kregen
+    // zo alle zeven pagina's van maand 1 een publicatiedatum die al voorbij
+    // was (docs/tasks/opdracht-bevindingen-5-tot-9.md, punt 5). Is de vroegste
+    // bruikbare dag voorbij `LAATSTE_DAG`, dan is deze maand op: een lege
+    // lijst, zodat de aanroeper de pagina's in de eerstvolgende maand met
+    // ruimte zet in plaats van ze een datum in het verleden te geven.
+    if (eersteDag > LAATSTE_DAG) return [];
+  }
   const ruimte = LAATSTE_DAG - eersteDag;
 
   const stap = aantal === 1 ? 0 : ruimte / (aantal - 1);
@@ -150,6 +162,52 @@ export function spreadDates(
     data.push(d.toISOString().slice(0, 10));
   }
   return data;
+}
+
+/**
+ * Is er in deze maand geen bruikbare dag meer over om iets te plannen?
+ *
+ * Eén pagina is genoeg om te testen: is er voor één geen ruimte, dan is er
+ * voor geen enkele ruimte, dus `spreadDates()` met `aantal = 1` levert
+ * dezelfde grens op als de echte spreiding zou geven. Zo lezen het scherm
+ * (dat moet uitleggen waarom maand 1 leeg blijft) en `spreadDates()` zelf
+ * dezelfde regel, in plaats van de datumklem op twee plekken te herhalen.
+ */
+export function maandIsVol(
+  startedOn: string,
+  monthNumber: number,
+  now: Date = new Date(),
+): boolean {
+  return spreadDates(startedOn, monthNumber, 1, now).length === 0;
+}
+
+/**
+ * De voorsprongzin: "ORBIT ENGINE begint tien dagen voor elke
+ * publicatiedatum" klopt niet meer zodra die publicatiedatum al binnen die
+ * tien dagen ligt. Bij Wouter Warmtepomp moest een pagina op 28 augustus
+ * staan terwijl het plan pas op 31 augustus is opgesteld: geen voorsprong van
+ * tien dagen maar een achterstand van drie (punt 5 van
+ * `docs/tasks/opdracht-bevindingen-5-tot-9.md`). Deze functie geeft de
+ * juiste helft van de zin terug, zónder lidwoord aan het eind, zodat elk
+ * scherm zelf de rest van de zin eraan vast kan plakken
+ * ("... met schrijven.", "..., en legt elke tekst daarna aan jou voor.").
+ *
+ * `eersteDatum: null` (nog geen enkele pagina met een datum) levert de
+ * gewone voorsprongzin op: er is dan niets om tegen te spreken.
+ */
+export function schrijfBelofte(
+  eersteDatum: string | null,
+  now: Date = new Date(),
+): string {
+  if (eersteDatum) {
+    const vandaag = Date.UTC(now.getFullYear(), now.getMonth(), now.getDate());
+    const datum = new Date(`${eersteDatum}T00:00:00Z`).getTime();
+    const dagenTot = Math.round((datum - vandaag) / 86400000);
+    if (Number.isFinite(dagenTot) && dagenTot < SCHRIJFVOORSPRONG_DAGEN) {
+      return "ORBIT ENGINE begint zodra de maand is vrijgegeven";
+    }
+  }
+  return "ORBIT ENGINE begint tien dagen voor elke publicatiedatum";
 }
 
 export interface HerplanRij {

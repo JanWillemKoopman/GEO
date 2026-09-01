@@ -185,4 +185,10 @@ export const dedupe = {
    * duplicaat wegvallen.
    */
   salesReport: (runId: string) => `sales_report:${runId}`,
+  /**
+   * Eén per profiel, geen modus in de sleutel (onboarding Ronde D, §17.7):
+   * twee keer op "meer pagina's" of "opnieuw crawlen" drukken terwijl de
+   * vorige ronde nog loopt, mag geen tweede crawl van dezelfde site opleveren.
+   */
+  crawlInventory: (profileId: string) => `crawl_inventory:${profileId}`,
 };

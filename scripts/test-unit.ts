@@ -31,8 +31,17 @@ import { promptWeight, NEUTRAL_WEIGHT } from "@/lib/pipeline/prompt-weight";
 import { parseRobots, isAllowed, sitemapsFrom } from "@/lib/audit/robots";
 import { splitByTerms } from "@/lib/highlight";
 import { redactCompetitors, containsCompetitor } from "@/lib/pipeline/redact";
-import { resolveTargets, readRecommendations } from "@/lib/pipeline/recommendation";
-import type { RawRecommendation, CodedMissedPrompt } from "@/lib/pipeline/recommendation";
+import {
+  resolveTargets,
+  readRecommendations,
+  mergeOverlappingRecommendations,
+  describeActionRatio,
+} from "@/lib/pipeline/recommendation";
+import type {
+  RawRecommendation,
+  CodedMissedPrompt,
+  StoredRecommendation,
+} from "@/lib/pipeline/recommendation";
 import { geoScore, geoIssues } from "@/lib/schemas/critique";
 import type { GeoCriteria } from "@/lib/schemas/critique";
 import { compare, deltaOf, thresholdOf, verdictOf, minQuestionsForSignal } from "@/lib/pipeline/impact-math";
@@ -139,7 +148,7 @@ import {
 } from "@/lib/sales/intents";
 import { koppelNaam, koppelAntwoord, domeinSleutel } from "@/lib/sales/match";
 import { rekenScores, marktBronnen, ENGINE_ALLE } from "@/lib/sales/measure-math";
-import { raamMeetronde, beoordeelRonde } from "@/lib/sales/budget";
+import { raamMeetronde, beoordeelRonde as beoordeelMeetronde } from "@/lib/sales/budget";
 import { koppelVragen, bouwVragenVraag } from "@/lib/sales/questions";
 import { bouwIntentieVraag } from "@/lib/sales/intents";
 import { bouwBeoordeelVraag, SIMULATIE_SYSTEM } from "@/lib/sales/measure-prompt";
@@ -353,6 +362,8 @@ import {
   spreadDates,
   resequenceMonth,
   datumProbleem,
+  maandIsVol,
+  schrijfBelofte,
 } from "@/lib/plan-schedule";
 import { sharedNotice } from "@/lib/plan-overview";
 import {
@@ -361,6 +372,8 @@ import {
   clusterCounts,
   potentieLabel,
   raaktLabel,
+  estimateBacklogMonths,
+  backlogDurationLabel,
   LEGE_BACKLOG_FILTERS,
   type BacklogItem,
 } from "@/lib/plan-backlog";
@@ -431,6 +444,10 @@ import {
   isDefaultMix,
   mixTotal,
   resolveMix,
+  suggestPromptMix,
+  exceedsRunBudgetWarning,
+  MAX_PER_STAGE,
+  MAX_TOTAL,
 } from "@/lib/prompt-mix";
 import { readKey } from "@/lib/search-console/key-state";
 import {
@@ -479,12 +496,15 @@ import {
   BRAND_FIELDS,
   CLIENT_STEPS,
   SESSION_STEPS,
+  SESSION_BLOCKS,
+  SESSION_AUTHOR_FIELDS,
   STEP_META,
   STEP_ORDER,
   fieldsOfStep,
   isFilled,
   stepProgress,
   overallProgress,
+  missingRequired,
 } from "@/lib/pipeline/brand-fields";
 import { resolveWriteSource, consultantFields } from "@/lib/profile-source";
 import {
@@ -518,6 +538,26 @@ import {
   siteStructureRule,
   goalRule,
 } from "@/lib/pipeline/commercial-context";
+import { buildTopicBrief } from "@/lib/pipeline/topic-brief";
+import {
+  beoordeelRonde,
+  snapshotsGelijk,
+  type TopicRoundSnapshot,
+} from "@/lib/pipeline/topic-round-diff";
+import {
+  isOfferingKind,
+  normaliseOfferingName,
+  normaliseOptionalText,
+  nextSortOrder,
+  wouldCreateCycle,
+} from "@/lib/offerings-validate";
+import { speedProfile, nextDelayMs, slowerThan, isCrawlSpeed } from "@/lib/crawl-speed";
+import {
+  beoordeelClaim,
+  ontbrekendeOnderbouwing,
+  marktclaimUitleg,
+  MARKTCLAIM_UITLEG,
+} from "@/lib/pipeline/claim-plausibility";
 import { ONBOARDING_NEXT, nextInChain } from "@/lib/jobs/chain";
 import { extractConfusions } from "@/lib/pipeline/baseline-verdict";
 import {
@@ -549,9 +589,18 @@ import {
   staleAdviceNotice,
   extraAliasesFrom,
   extraRegionsFrom,
+  regionsFromDescription,
   discontinuedNames,
 } from "@/lib/pipeline/context-factors";
-import { formatDateShort, formatDateLong, formatRelativeTime, formatNumber } from "@/lib/format";
+import { correctQuestionCount, questionCountLine } from "@/lib/pipeline/report-summary";
+import {
+  PACKAGE_SIZES,
+  DEFAULT_PACKAGE_SIZE,
+  isPackageSize,
+  toPackageSize,
+  packageLabel,
+} from "@/lib/package-sizes";
+import { formatDateShort, formatDateLong, formatRelativeTime, formatNumber, formatUsd, enkelOfMeervoud } from "@/lib/format";
 import { describeToneSliders, clampToneSlider } from "@/lib/pipeline/tone-sliders";
 import { versionReasonLabel } from "@/lib/pipeline/version-reason";
 import { checkTabooWords } from "@/lib/pipeline/content-gate";
@@ -946,6 +995,147 @@ group("oude rapporten blijven leesbaar", () => {
   ok("niet-array → leeg", readRecommendations(null).length === 0);
   ok("zonder targets → lege lijst", readRecommendations([{ title: "X" }])[0].targets.length === 0);
   ok("ontbrekend type → article", readRecommendations([{ title: "X" }])[0].type === "article");
+});
+
+group("Geen twee aanbevelingen op dezelfde zwaarste vraag (werkpakket B §4.2)", () => {
+  const target = (promptId: string, weight: number) => ({
+    promptId,
+    runId: `run-${promptId}`,
+    text: `vraag ${promptId}`,
+    cluster: null,
+    weight,
+  });
+  const stored = (over: Partial<StoredRecommendation>): StoredRecommendation => ({
+    title: "T",
+    type: "article",
+    targetIntent: "i",
+    why: "w",
+    priority: 1,
+    action: "nieuw",
+    existingUrl: null,
+    targets: [],
+    ...over,
+  });
+
+  // Twee aanbevelingen die allebei p1 als zwaarste doelvraag hebben: dat is
+  // hetzelfde gemis, ook al verschillen de titels.
+  const dubbel = mergeOverlappingRecommendations([
+    stored({ title: "Wasmachine kopen", priority: 1, targets: [target("p1", 0.9)] }),
+    stored({ title: "Een wasmachine aanschaffen", priority: 2, targets: [target("p1", 0.9), target("p2", 0.4)] }),
+  ]);
+  ok("worden samengevoegd tot één aanbeveling", dubbel.length === 1, String(dubbel.length));
+  ok("de belangrijkste (laagste priority) titel wint", dubbel[0].title === "Wasmachine kopen");
+  ok(
+    "de extra doelvraag van de verliezer blijft behouden",
+    dubbel[0].targets.some((t) => t.promptId === "p2"),
+    dubbel[0].targets.map((t) => t.promptId).join(", "),
+  );
+
+  // Twee aanbevelingen op een andere zwaarste vraag blijven gewoon twee.
+  const geenOverlap = mergeOverlappingRecommendations([
+    stored({ title: "A", targets: [target("p1", 0.9)] }),
+    stored({ title: "B", targets: [target("p3", 0.7)] }),
+  ]);
+  ok("verschillende zwaarste vraag blijft twee aanbevelingen", geenOverlap.length === 2);
+
+  // Zonder doelvraag valt niets samen, ook niet met zichzelf.
+  const zonderTargets = mergeOverlappingRecommendations([
+    stored({ title: "A", targets: [] }),
+    stored({ title: "B", targets: [] }),
+  ]);
+  ok("aanbevelingen zonder doelvraag blijven allebei staan", zonderTargets.length === 2);
+
+  // Drie op dezelfde vraag: ook dat wordt er één, niet twee.
+  const drieDubbel = mergeOverlappingRecommendations([
+    stored({ title: "A", priority: 3, targets: [target("p1", 0.9)] }),
+    stored({ title: "B", priority: 1, targets: [target("p1", 0.9)] }),
+    stored({ title: "C", priority: 2, targets: [target("p1", 0.9)] }),
+  ]);
+  ok("drie dubbele aanbevelingen worden er één", drieDubbel.length === 1, String(drieDubbel.length));
+  ok("en de belangrijkste van de drie wint", drieDubbel[0].title === "B");
+});
+
+group("De verhouding nieuw/verbeteren in een zin (werkpakket B §4.3)", () => {
+  const stored = (action: "nieuw" | "verbeteren"): StoredRecommendation => ({
+    title: "T",
+    type: "article",
+    targetIntent: "i",
+    why: "w",
+    priority: 1,
+    action,
+    existingUrl: null,
+    targets: [],
+  });
+
+  const lijst = (nieuw: number, verbeteren: number): StoredRecommendation[] => [
+    ...Array.from({ length: nieuw }, () => stored("nieuw")),
+    ...Array.from({ length: verbeteren }, () => stored("verbeteren")),
+  ];
+
+  ok("geen aanbevelingen levert geen zin op", describeActionRatio([]) === null);
+  ok(
+    "allemaal nieuw krijgt een eigen zin, met het telwoord voluit",
+    describeActionRatio(lijst(2, 0))!.includes("Alle twee aanbevelingen zijn nieuwe"),
+  );
+  ok(
+    "één verbetering krijgt een eigen zin, geen 'alle 1'",
+    describeActionRatio(lijst(0, 1))!.includes("De ene aanbeveling verbetert"),
+  );
+  ok(
+    "meerdere verbeteringen gebruiken wel 'alle', met het telwoord voluit",
+    describeActionRatio(lijst(0, 2))!.includes("Alle twee aanbevelingen verbeteren"),
+  );
+
+  // ⚠️ Het randgeval van punt 7 (docs/tasks/opdracht-bevindingen-5-tot-9.md):
+  // "1 van de 6 aanbevelingen zijn nieuwe pagina's, de andere 5 verbeteren"
+  // was dubbel fout Nederlands ("1 ... zijn" en "de andere 1 verbeteren" bij
+  // precies één aan een kant). Deze lus draait alle combinaties van 0 tot en
+  // met 3 aan beide kanten, plus de twee genoemde randgevallen 1 op 7 en 7 op
+  // 1, en controleert bij elke uitkomst dat geen van beide fouten erin zit.
+  for (let nieuw = 0; nieuw <= 3; nieuw++) {
+    for (let verbeteren = 0; verbeteren <= 3; verbeteren++) {
+      const zin = describeActionRatio(lijst(nieuw, verbeteren));
+      if (nieuw === 0 && verbeteren === 0) {
+        ok(`0 nieuw en 0 verbeteren levert geen zin op`, zin === null);
+        continue;
+      }
+      ok(`${nieuw} nieuw, ${verbeteren} verbeteren is een lopende zin`, typeof zin === "string" && zin.length > 0);
+      ok(
+        `${nieuw} nieuw, ${verbeteren} verbeteren zegt nergens "1 ... zijn"`,
+        !/\b1\b[^.]*\bzijn\b/.test(zin ?? ""),
+        zin ?? "",
+      );
+      ok(
+        `${nieuw} nieuw, ${verbeteren} verbeteren zegt nergens "de andere 1 verbeteren"`,
+        !(zin ?? "").includes("de andere 1 verbeteren"),
+        zin ?? "",
+      );
+    }
+  }
+  for (const [nieuw, verbeteren] of [
+    [1, 6],
+    [6, 1],
+  ] as const) {
+    const zin = describeActionRatio(lijst(nieuw, verbeteren))!;
+    ok(
+      `${nieuw} op ${verbeteren} is een lopende zin zonder "1 ... zijn" of "de andere 1 verbeteren"`,
+      !/\b1\b[^.]*\bzijn\b/.test(zin) && !zin.includes("de andere 1 verbeteren"),
+      zin,
+    );
+  }
+
+  const eenOpZes = describeActionRatio(lijst(1, 5))!;
+  ok(
+    "één nieuw op vijf verbeteren: 'Eén' en 'is', geen '1' en geen 'zijn'",
+    eenOpZes.startsWith("Eén van de zes aanbevelingen is een nieuwe pagina"),
+    eenOpZes,
+  );
+  const vijfOpEen = describeActionRatio(lijst(5, 1))!;
+  ok(
+    "vijf nieuw op één verbeteren: 'de andere verbetert', geen 'de andere 1'",
+    vijfOpEen.includes("de andere verbetert een bestaande pagina"),
+    vijfOpEen,
+  );
 });
 
 group("GEO-score", () => {
@@ -1542,6 +1732,55 @@ group("Briefingvragen selecteren (contentbriefing.md §3.4 / R5.1)", () => {
   });
   ok("afgekapt op acht", veel.length === MAX_QUESTIONS);
   ok("de zwaarste vraag staat bovenaan", veel[0].question === "Vraag 19?");
+
+  // ⚠️ Twaalf `kern`-vragen gaan allemaal mee, ook al is dat meer dan acht
+  // (werkpakket A §3.3, 30 augustus 2026). Vóór deze wijziging verdwenen de
+  // laatste vier stilzwijgend uit `fact_requests`, en dan kon
+  // `content-final-gate.ts` ze nooit tegenhouden: de eindpoort stond open op
+  // precies de pagina's met de meeste onbeantwoorde kernfeiten.
+  const veelKern = selectBriefingQuestions({
+    candidates: Array.from({ length: 12 }, (_, i) => ({
+      ...basis,
+      claimKey: `kern${i}`,
+      question: `Kernvraag ${i}?`,
+      required: true,
+      contentPieceIds: ["p1"],
+    })),
+    alreadyKnown: new Set(),
+  });
+  ok(
+    "alle twaalf kernvragen gaan mee, de grens van acht geldt niet voor verplicht",
+    veelKern.length === 12,
+    String(veelKern.length),
+  );
+
+  // Vijf verplichte en tien optionele: de vijf gaan altijd mee, de resterende
+  // drie plekken (acht min vijf) naar de sterkste optionele vragen.
+  const gemengd = selectBriefingQuestions({
+    candidates: [
+      ...Array.from({ length: 5 }, (_, i) => ({
+        ...basis,
+        claimKey: `verplicht${i}`,
+        question: `Verplicht ${i}?`,
+        required: true,
+        contentPieceIds: ["p1"],
+      })),
+      ...Array.from({ length: 10 }, (_, i) => ({
+        ...basis,
+        claimKey: `optie${i}`,
+        question: `Optie ${i}?`,
+        required: false,
+        contentPieceIds: ["p1"],
+        priority: 10 - i,
+      })),
+    ],
+    alreadyKnown: new Set(),
+  });
+  ok("vijf verplicht plus drie optioneel is acht", gemengd.length === MAX_QUESTIONS, String(gemengd.length));
+  ok(
+    "alle vijf verplichte vragen zitten erin",
+    gemengd.filter((v) => v.required).length === 5,
+  );
 
   // Lege vragen horen er nooit in te belanden.
   const leeg = selectBriefingQuestions({
@@ -2237,11 +2476,20 @@ group("de gereserveerde plek", () => {
     candidates: [...vulling, positionering],
     alreadyKnown: new Set(),
   });
-  ok("nog steeds acht vragen", met.length === MAX_QUESTIONS);
+  // Negen en niet acht (sinds 30 augustus 2026, werkpakket A §3.3): de acht
+  // verplichte vragen laten geen optionele ruimte over om de positioneringsvraag
+  // te ruilen, dus komt hij erbovenop in plaats van dat een `kern`-vraag
+  // sneuvelt. Zie de aantekening bij `selectBriefingQuestions()`.
+  ok("acht verplicht plus de positioneringsvraag erbovenop", met.length === MAX_QUESTIONS + 1);
   // Zonder reservering verliest deze vraag altijd: hij is nooit `kern` en raakt
   // zelden alle pagina's, dus de sortering op impact duwt hem er structureel uit.
   // Dat is precies waarom hij 0 van de 62 keer gesteld werd.
   ok("de positioneringsvraag haalt de lijst", met.some((v) => v.kind === "onderscheid"));
+  ok(
+    "geen enkele verplichte vraag sneuvelt ervoor",
+    met.filter((v) => v.required).length === MAX_QUESTIONS,
+    String(met.filter((v) => v.required).length),
+  );
 });
 
 // ════════════════════════════════════════════════════════════════════════════
@@ -2934,6 +3182,77 @@ group("url-priority: een gekozen map krijgt echt voorrang", () => {
   ok("en de hele showroom past", metShowroom === 40);
 });
 
+group("url-priority: exclude filtert vóór het kiezen, niet erna (onboarding Ronde D, §17.8)", () => {
+  // De topplekken staan hier al bekend; zonder exclude zou "meer" niets nieuws
+  // opleveren, terwijl er nog 27 ongelezen pagina's in de showroom staan.
+  // Bewust minder "bekend"-URL's dan het quotum van hun sectie, anders kiest
+  // de sectieverdeling er zelf al niet alle tien (dat is een ander mechanisme,
+  // getest hierboven, en niet waar dit scenario over gaat).
+  const bekend = Array.from({ length: 3 }, (_, i) => `https://a.nl/diensten/d-${i}`);
+  const nieuw = Array.from({ length: 27 }, (_, i) => `https://a.nl/showroom/s-${i}`);
+  const alles = [...bekend, ...nieuw];
+
+  const zonderExclude = selectUrls(alles, 10);
+  ok(
+    "zonder exclude komen de bekende pagina's opnieuw naar boven",
+    bekend.every((u) => zonderExclude.urls.includes(u)),
+  );
+
+  const metExclude = selectUrls(alles, 10, [], new Set(bekend));
+  ok(
+    "met exclude staat geen enkele bekende pagina meer in de keuze",
+    metExclude.urls.every((u) => !bekend.includes(u)),
+  );
+  eq("en de tien plekken gaan naar de nieuwe pagina's", String(metExclude.urls.length), "10");
+  eq(
+    "totalFound blijft de ware omvang van de site, exclude of niet",
+    String(metExclude.totalFound),
+    String(alles.length),
+  );
+
+  const allesBekend = selectUrls(bekend, 10, [], new Set(bekend));
+  eq(
+    "is alles al bekend, dan levert 'meer' een lege aanvulling op, geen gok",
+    String(allesBekend.urls.length),
+    "0",
+  );
+});
+
+group("crawl-speed: drie standen, één doel (onboarding Ronde D, §17.5, migratie 0080)", () => {
+  ok("snel bevat geen pauze", speedProfile("snel").minDelayMs === 0 && speedProfile("snel").maxDelayMs === 0);
+  ok(
+    "normaal is drie tegelijk met een korte pauze",
+    speedProfile("normaal").batchSize === 3 && speedProfile("normaal").minDelayMs > 0,
+  );
+  ok(
+    "langzaam is één tegelijk met de langste pauze",
+    speedProfile("langzaam").batchSize === 1 &&
+      speedProfile("langzaam").minDelayMs > speedProfile("normaal").minDelayMs,
+  );
+
+  // `nextDelayMs()` met een vaste toevalsgenerator: altijd binnen de
+  // bandbreedte van de stand, en reproduceerbaar in plaats van flaky.
+  const altijdNul = () => 0;
+  const altijdBijnaEen = () => 0.999999;
+  eq("op 0 valt de pauze op de ondergrens", String(nextDelayMs(speedProfile("normaal"), altijdNul)), "700");
+  ok(
+    "op bijna 1 blijft de pauze onder de bovengrens",
+    nextDelayMs(speedProfile("normaal"), altijdBijnaEen) < speedProfile("normaal").maxDelayMs,
+  );
+  eq(
+    "snel heeft geen bandbreedte, dus altijd 0, ongeacht het toeval",
+    String(nextDelayMs(speedProfile("snel"), altijdBijnaEen)),
+    "0",
+  );
+
+  eq("snel gaat bij een terugval naar normaal", slowerThan("snel"), "normaal");
+  eq("normaal gaat naar langzaam", slowerThan("normaal"), "langzaam");
+  eq("langzaam is de bodem, blijft langzaam", slowerThan("langzaam"), "langzaam");
+
+  ok("de drie standen zijn geldig", isCrawlSpeed("snel") && isCrawlSpeed("langzaam"));
+  ok("een onbekende stand is ongeldig", !isCrawlSpeed("bliksemsnel"));
+});
+
 // ════════════════════════════════════════════════════════════════════════════
 // Welke pagina's de aanbod-aanroep in gaan. Dit is de nauwste doorgang van de
 // hele onboarding: ~35 van de 150 gelezen pagina's.
@@ -3307,9 +3626,32 @@ group("het volledige oordeel en hoe de klant het leest", () => {
 
   const tekst = describeVerdict(v, "ChatGPT", "Fysi-Unique");
   ok("de zin noemt de tegenspraak", tekst.includes("tegengesproken"), tekst);
+  // ⚠️ Precies één tegenspraak: geen haakjesvorm "gegeven(s)" meer, en het
+  // werkwoord buigt mee (punt 9 van docs/tasks/opdracht-bevindingen-5-tot-9.md).
+  ok(
+    "en dat is enkelvoud, geen haakjesvorm",
+    tekst.includes("1 gegeven wordt tegengesproken") && !tekst.includes("gegeven(s)"),
+    tekst,
+  );
 
   const onbekend = buildVerdict("Ik ken dit bedrijf niet.", "Fysi-Unique", [], []);
   ok("niet gekend levert een andere zin", describeVerdict(onbekend, "Gemini", "Fysi-Unique").includes("niet te kennen"));
+
+  const meerdereGegevens = buildVerdict(
+    "Fysi-Unique is opgericht in 1990. Bel ons op 020 999 8877.",
+    "Fysi-Unique",
+    [],
+    [
+      { key: "telefoon", value: "033 123 4567" },
+      { key: "opgericht", value: "2005" },
+    ],
+  );
+  const tekstMeerdere = describeVerdict(meerdereGegevens, "Claude", "Fysi-Unique");
+  ok(
+    "twee tegenspraken worden meervoud",
+    tekstMeerdere.includes("gegevens worden tegengesproken"),
+    tekstMeerdere,
+  );
 });
 
 group("contextfactoren: wat de pijplijn niet kan zien (blok C)", () => {
@@ -4526,6 +4868,76 @@ group("de lopende maand plant niet in het verleden (plan-schedule)", () => {
   );
 });
 
+group("een volle maand levert een lege lijst, nooit een datum in het verleden (plan-schedule)", () => {
+  // ⚠️ De aanleiding: bij Wouter Warmtepomp is het plan op 31 augustus 2026
+  // opgesteld. `now.getDate() + 1` werd dan 32, en `Math.min(28, 32)` klemde
+  // dat terug naar dag 28, drie dagen in het verleden. Alle zeven pagina's van
+  // maand 1 kregen zo een publicatiedatum die al voorbij was (punt 5 van
+  // docs/tasks/opdracht-bevindingen-5-tot-9.md).
+  const op31Augustus = new Date("2026-08-31T10:00:00Z");
+  ok(
+    "op 31 augustus is er geen bruikbare dag meer over",
+    spreadDates("2026-08-01", 1, 7, op31Augustus).length === 0,
+  );
+  ok("dus maandIsVol() zegt hetzelfde", maandIsVol("2026-08-01", 1, op31Augustus) === true);
+
+  // Op de 20e is er nog volop ruimte: zeven data, allemaal ná vandaag en
+  // binnen dag 28.
+  const op20Augustus = new Date("2026-08-20T10:00:00Z");
+  const zevenOpDe20e = spreadDates("2026-08-01", 1, 7, op20Augustus);
+  ok("op 20 augustus levert de aanroep zeven data op", zevenOpDe20e.length === 7);
+  ok(
+    "en ze liggen allemaal ná vandaag, binnen dag 28",
+    zevenOpDe20e.every((d) => d > "2026-08-20" && Number(d.slice(8)) <= 28),
+    zevenOpDe20e.join(", "),
+  );
+  ok("dus maandIsVol() zegt hier van niet", maandIsVol("2026-08-01", 1, op20Augustus) === false);
+
+  // ⚠️ De volledige lus uit het verificatiecriterium: voor elke dag van de
+  // maand (1 tot en met 31) en elk aantal pagina's (1 tot en met 20) mag er
+  // NOOIT een datum uitkomen die vóór `now` ligt. Vóór de reparatie brak dit
+  // bij elke dag vanaf de 28e: de geklemde datum kwam dan vóór vandaag te
+  // liggen.
+  let overtredingen = 0;
+  for (let dag = 1; dag <= 31; dag++) {
+    const vandaag = new Date(Date.UTC(2026, 7, Math.min(dag, 31), 10));
+    const vandaagIso = vandaag.toISOString().slice(0, 10);
+    for (let aantal = 1; aantal <= 20; aantal++) {
+      const data = spreadDates("2026-08-01", 1, aantal, vandaag);
+      if (data.some((d) => d <= vandaagIso)) overtredingen++;
+    }
+  }
+  ok(
+    "geen enkele datum ligt ooit op of vóór vandaag, voor elke dag en elk aantal pagina's",
+    overtredingen === 0,
+    `${overtredingen} overtredingen`,
+  );
+});
+
+group("de voorsprongzin past zich aan (plan-schedule, schrijfBelofte)", () => {
+  // ⚠️ "ORBIT ENGINE begint tien dagen voor elke publicatiedatum" klopt niet
+  // als de eerste pagina al over drie dagen moet. Zie punt 5 van
+  // docs/tasks/opdracht-bevindingen-5-tot-9.md.
+  const nu = new Date("2026-08-20T10:00:00Z");
+  ok(
+    "geen datum: de gewone voorsprongzin",
+    schrijfBelofte(null, nu) === "ORBIT ENGINE begint tien dagen voor elke publicatiedatum",
+  );
+  ok(
+    "een datum ver genoeg weg: dezelfde voorsprongzin",
+    schrijfBelofte("2026-09-05", nu) === "ORBIT ENGINE begint tien dagen voor elke publicatiedatum",
+    `precies tien dagen verschil`,
+  );
+  ok(
+    "een datum over drie dagen: de zin past zich aan",
+    schrijfBelofte("2026-08-23", nu) === "ORBIT ENGINE begint zodra de maand is vrijgegeven",
+  );
+  ok(
+    "vandaag zelf: ook aangepast",
+    schrijfBelofte("2026-08-20", nu) === "ORBIT ENGINE begint zodra de maand is vrijgegeven",
+  );
+});
+
 group("één melding voor de hele maand (plan-overview)", () => {
   // ⚠️ De aanleiding: bij elk van de tien regels van maand 1 stond dezelfde
   // oranje zin. Dat is een eigenschap van de maand, niet van de regel.
@@ -4719,6 +5131,22 @@ group("wat er op een voorraadkaart komt te staan (plan-backlog)", () => {
   );
   ok("geen doelvragen is geen regel", raaktLabel(kans({ raakt: null })) === null);
   ok("nul doelvragen ook niet", raaktLabel(kans({ raakt: 0, gemeten: 30 })) === null);
+});
+
+group("Hoe lang de voorraad meegaat (werkpakket C §5.2)", () => {
+  ok("zeven kansen bij vier per maand is twee maanden", estimateBacklogMonths(7, 4) === 2);
+  ok("acht kansen bij vier per maand is precies twee", estimateBacklogMonths(8, 4) === 2);
+  ok("negen kansen bij vier per maand rondt naar boven af naar drie", estimateBacklogMonths(9, 4) === 3);
+  ok("lege voorraad heeft geen duur", estimateBacklogMonths(0, 4) === null);
+  ok("een tempo van nul is geen deler", estimateBacklogMonths(7, 0) === null);
+  ok("een negatief tempo ook niet", estimateBacklogMonths(7, -1) === null);
+
+  ok("enkelvoud bij één maand", backlogDurationLabel(3, 4) === "Bij dit tempo duurt de voorraad nog 1 maand.");
+  ok(
+    "meervoud bij meer maanden",
+    backlogDurationLabel(9, 4) === "Bij dit tempo duurt de voorraad nog 3 maanden.",
+  );
+  ok("geen voorraad levert geen zin op", backlogDurationLabel(0, 4) === null);
 });
 
 group("de twee constanten van het plan", () => {
@@ -4975,11 +5403,14 @@ group("het merkprofiel als veldenlijst (brand-fields)", () => {
     `elk opslaanbaar veld staat in een stap${zonderStap.length ? " (mist: " + zonderStap.join(", ") + ")" : ""}`,
     zonderStap.length === 0,
   );
-  // Was 41 tot migratie 0060; sindsdien 56, want de commerciële laag (12) en de
-  // contactpersoon (3) staan er sinds onboarding 3.0 fase 1 bij.
+  // Was 41 tot migratie 0060, 56 sinds onboarding 3.0 fase 1 (de commerciële
+  // laag en de contactpersoon), 57 sinds onboarding ronde B stap B1
+  // (`brand_name`), en 60 sinds stap B8: `style_samples`, `max_inventory_pages`
+  // en `crawl_priority_paths` stonden al in de database maar niet in de
+  // catalogus, alleen op `/merkprofiel/bewerken`.
   ok(
-    `het zijn er 56 aan beide kanten (nu ${BRAND_FIELDS.length} en ${EDITABLE_PROFILE_FIELDS.length})`,
-    BRAND_FIELDS.length === 56 && EDITABLE_PROFILE_FIELDS.length === 56,
+    `het zijn er 60 aan beide kanten (nu ${BRAND_FIELDS.length} en ${EDITABLE_PROFILE_FIELDS.length})`,
+    BRAND_FIELDS.length === 60 && EDITABLE_PROFILE_FIELDS.length === 60,
   );
 
   ok(
@@ -4991,10 +5422,12 @@ group("het merkprofiel als veldenlijst (brand-fields)", () => {
   // een veld dat naar een andere stap verhuist een bewuste wijziging is en geen
   // stille verschuiving.
   const perStap = STEP_ORDER.map((s) => `${s}:${fieldsOfStep(s).length}`).join(" ");
+  // Onboarding ronde B, stap B8: `max_inventory_pages` en `crawl_priority_paths`
+  // erbij in "bedrijf" (9 → 11), `style_samples` erbij in "stem" (6 → 7).
   ok(
-    `de verdeling is 8-3-6-6-5-7-6-12-3 (nu ${perStap})`,
+    `de verdeling is 11-3-6-7-5-7-6-12-3 (nu ${perStap})`,
     perStap ===
-      "bedrijf:8 merk:3 klant:6 stem:6 woorden:5 auteur:7 bekend:6 strategie:12 contact:3",
+      "bedrijf:11 merk:3 klant:6 stem:7 woorden:5 auteur:7 bekend:6 strategie:12 contact:3",
   );
   ok(
     "elke stap heeft velden",
@@ -5070,10 +5503,12 @@ group("het merkprofiel als veldenlijst (brand-fields)", () => {
   // `csm-data.ts` gebruikt om te bepalen of een dossier deelbaar is, en staat
   // élk merk eeuwig in "wacht op jouw nakijkwerk".
   const klantVelden = BRAND_FIELDS.filter((f) => CLIENT_STEPS.includes(f.step));
+  // 45 sinds stap B8: de drie nieuwe velden staan in "bedrijf" en "stem", allebei
+  // klantstappen.
   ok(
-    `de noemer is de klantlijst van 41 (nu ${overallProgress(leeg).totaal})`,
+    `de noemer is de klantlijst van 45 (nu ${overallProgress(leeg).totaal})`,
     overallProgress(leeg).totaal === klantVelden.length &&
-      klantVelden.length === 41,
+      klantVelden.length === 45,
   );
   ok(
     "de sessie kan alle negen stappen meetellen",
@@ -5088,10 +5523,11 @@ group("het merkprofiel als veldenlijst (brand-fields)", () => {
     tone_humor: 1,
     tone_emotional: 2,
     tone_of_voice: "Een ervaren monteur",
+    style_samples: ["Een stukje uit de eigen tarievenpagina"],
   } as never;
   const p = stepProgress(stem, "stem");
   ok("een volledig ingevulde stap is compleet", p.compleet === true);
-  ok("en telt al zijn velden", p.gevuld === p.totaal && p.totaal === 6);
+  ok("en telt al zijn velden", p.gevuld === p.totaal && p.totaal === 7);
   ok(
     "terwijl een andere stap dan nog leeg is",
     stepProgress(stem, "auteur").gevuld === 0,
@@ -5160,6 +5596,105 @@ group("drie oppervlakken, één veldenlijst (onboarding 3.0 fase 1)", () => {
   ok(
     "het heeft twee benoemde standen en geen waardenlijst",
     janee[0]?.options?.length === 2 && janee[0]?.values === undefined,
+  );
+});
+
+group("microcopy, verplichtstelling en de negen blokken (onboarding ronde B)", () => {
+  // ── B2: elk veld toont waar het antwoord landt ──────────────────────────
+  // Zonder deze eis kan een nieuw veld landen zonder dat iemand heeft
+  // opgeschreven waarom het gevraagd wordt, en dat is precies het gat dat
+  // hoofdstuk 2 (P2) beschrijft.
+  const zonderUsage = BRAND_FIELDS.filter((f) => !f.usage || f.usage.trim().length < 10).map(
+    (f) => f.key as string,
+  );
+  ok(
+    `elk veld heeft een usage-tekst${zonderUsage.length ? " (mist: " + zonderUsage.join(", ") + ")" : ""}`,
+    zonderUsage.length === 0,
+  );
+
+  // ── B3: verplicht, aanbevolen, optioneel ────────────────────────────────
+  const geldigePrioriteiten = new Set(["verplicht", "aanbevolen", "optioneel"]);
+  ok(
+    "elk veld heeft een geldige priority",
+    BRAND_FIELDS.every((f) => geldigePrioriteiten.has(f.priority)),
+  );
+  // De vijf meetkritische velden uit hoofdstuk 6, blok 2, 3 en 5.
+  const verplichteSleutels = new Set(
+    BRAND_FIELDS.filter((f) => f.priority === "verplicht").map((f) => f.key as string),
+  );
+  ok(
+    "brand_name, aliases, industry, business_model, service_scope, competitors, products, proof_points, summary, intake_audience en priority_offerings zijn verplicht",
+    [
+      "brand_name",
+      "aliases",
+      "industry",
+      "business_model",
+      "service_scope",
+      "competitors",
+      "products",
+      "proof_points",
+      "summary",
+      "intake_audience",
+      "priority_offerings",
+    ].every((k) => verplichteSleutels.has(k)),
+  );
+
+  ok(
+    "een leeg profiel mist alle verplichte velden",
+    missingRequired({}).length === verplichteSleutels.size,
+  );
+  ok(
+    "n.v.t. haalt een verplicht veld van de lijst",
+    missingRequired({}, ["brand_name"]).length === verplichteSleutels.size - 1,
+  );
+  ok(
+    "een ingevuld verplicht veld staat er niet meer bij",
+    missingRequired({ brand_name: "Bakkerij Jansen" } as never).length ===
+      verplichteSleutels.size - 1,
+  );
+
+  // ⚠️ `service_regions` staat in de catalogus op "aanbevolen", maar is in de
+  // praktijk verplicht zodra het werkgebied lokaal is (hoofdstuk 14.2).
+  ok(
+    "service_regions staat in de catalogus op aanbevolen",
+    BRAND_FIELDS.find((f) => f.key === "service_regions")?.priority === "aanbevolen",
+  );
+  ok(
+    "maar telt mee zodra het werkgebied lokaal is en de plaats ontbreekt",
+    missingRequired({ service_scope: "lokaal" } as never).some(
+      (v) => v.field === "service_regions",
+    ),
+  );
+  ok(
+    "en niet bij een landelijk werkgebied",
+    !missingRequired({ service_scope: "landelijk" } as never).some(
+      (v) => v.field === "service_regions",
+    ),
+  );
+
+  // ── B4: de negen blokken dekken samen exact BRAND_FIELDS ────────────────
+  const inBlokken = SESSION_BLOCKS.flatMap((b) => b.velden as string[]);
+  const samenB4 = [...inBlokken, ...(SESSION_AUTHOR_FIELDS as string[])];
+  const bestaandeSleutels = BRAND_FIELDS.map((f) => f.key as string);
+  ok("geen dubbel veld in de blokindeling", new Set(samenB4).size === samenB4.length);
+  const missenB4 = bestaandeSleutels.filter((k) => !samenB4.includes(k));
+  ok(
+    `elk veld staat in een blok of bij de auteursvelden${missenB4.length ? " (mist: " + missenB4.join(", ") + ")" : ""}`,
+    missenB4.length === 0,
+  );
+  const teveelB4 = samenB4.filter((k) => !bestaandeSleutels.includes(k));
+  ok(
+    `en er staat geen veld bij dat niet bestaat${teveelB4.length ? " (" + teveelB4.join(", ") + ")" : ""}`,
+    teveelB4.length === 0,
+  );
+  ok(
+    "samen zijn het er 60",
+    samenB4.length === 60 && samenB4.length === BRAND_FIELDS.length,
+  );
+  ok("zeven blokken met velden", SESSION_BLOCKS.length === 7);
+  ok(
+    "elk blok heeft een titel en een uitleg van minstens één zin",
+    SESSION_BLOCKS.every((b) => b.titel.length > 2 && b.uitleg.length > 15),
   );
 });
 
@@ -5416,6 +5951,9 @@ group("assessReadiness", () => {
     openFactRequests: 0,
     scopeKnown: true,
     scopeDetail: "Lokaal: Amersfoort",
+    // B5: informatief, blokkeert `compleet` niet (zie de uitleg bij het type).
+    packagePages: 20,
+    assigned: true,
   };
 
   const r = assessReadiness(compleet);
@@ -6412,6 +6950,21 @@ group("het contentplan zoals de klant het leest", () => {
     "een lege maand zegt dat",
     maandRegel({ paginas: 0, geplaatst: 0, eersteDatum: null }) === "Nog niets ingepland.",
   );
+  // ⚠️ Twee lege maanden die niets met elkaar te maken hebben (punt 5 van
+  // docs/tasks/opdracht-bevindingen-5-tot-9.md): een maand die de klant zelf
+  // nog niet gevuld heeft, en maand 1 die geen bruikbare dag meer over had
+  // toen het plan werd opgesteld. "Nog niets ingepland" leest bij de tweede
+  // als een taak voor de klant, terwijl er niets te doen viel.
+  ok(
+    "leeg door ruimtegebrek krijgt een eigen zin",
+    maandRegel({ paginas: 0, geplaatst: 0, eersteDatum: null, leegDoorRuimtegebrek: true }) ===
+      "Deze maand is te ver gevorderd om nog te publiceren, dus je plan begint volgende maand.",
+  );
+  ok(
+    "een gevulde maand negeert de vlag",
+    maandRegel({ paginas: 2, geplaatst: 0, eersteDatum: null, leegDoorRuimtegebrek: true }) ===
+      "2 pagina's deze maand.",
+  );
 
   // ── Reservepagina's tellen niet mee ──────────────────────────────────────
   //
@@ -6522,7 +7075,11 @@ group("wie mag betaald werk starten", () => {
   ok("een cluster starten doet de klant zelf", !actionNeedsStaff("analyse_starten"));
   ok("content laten schrijven doet de klant zelf", !actionNeedsStaff("content_schrijven"));
   ok("een maand vrijgeven doet de klant zelf", !actionNeedsStaff("plan_goedkeuren"));
-  ok("precies één handeling staat op slot", STAFF_ONLY_ACTIONS.length === 1);
+  // Toegevoegd 30 augustus 2026 (optimalisatielab-orbit-engine.md §3.5): de
+  // knop "Stel nieuwe clusters voor" is een regieknop, geen apart product, en
+  // mag bij de klant niet eens zichtbaar zijn.
+  ok("nieuwe clusters aanvullen blijft ook van de beheerder", actionNeedsStaff("clusters_aanvullen"));
+  ok("precies twee handelingen staan op slot", STAFF_ONLY_ACTIONS.length === 2, String(STAFF_ONLY_ACTIONS.length));
 
   // K2: elke melding is specifiek en klinkt als een uitnodiging, niet als een
   // dichte deur. Ze horen er ook te zijn voor de handelingen die nu open staan,
@@ -7229,7 +7786,7 @@ group("elke dure route vraagt het aan dezelfde functie", () => {
   // foutmelding is specifiek). Zes handelingen sinds 22 augustus 2026, zes
   // zinnen, geen dubbele.
   const zinnen = Object.values(COST_DENIED);
-  ok("zes handelingen hebben elk een eigen melding", zinnen.length === 6, `${zinnen.length}`);
+  ok("zeven handelingen hebben elk een eigen melding", zinnen.length === 7, `${zinnen.length}`);
   ok("en geen twee zijn hetzelfde", new Set(zinnen).size === zinnen.length);
   ok(
     "geen enkele melding zegt alleen 'geen toegang'",
@@ -7568,7 +8125,7 @@ group("checkMix: de grenzen, en waarom ze er zijn", () => {
   );
 
   const teveelTotaal = checkMix({ "Oriëntatie": 40, "Overweging": 40, "Beslissing": 40 });
-  ok("meer dan 90 in totaal wordt geweigerd", !teveelTotaal.ok);
+  ok("meer dan 100 in totaal wordt geweigerd", !teveelTotaal.ok);
   ok(
     "en de melding noemt wat het zou kosten",
     !teveelTotaal.ok && teveelTotaal.reason.includes("$"),
@@ -7583,7 +8140,11 @@ group("describeMix: wat het kost en wat het oplevert", () => {
   const zin = describeMix(DEFAULT_MIX);
   ok("noemt het totaal", zin.includes("30 vragen"));
   // $0,024 per vraag maal 30 is $0,72. Gemeten over 428 echte metingen.
-  ok("noemt de maandkosten", zin.includes("$0.72"));
+  // ⚠️ Met een komma, niet een punt: punt 9 van
+  // docs/tasks/opdracht-bevindingen-5-tot-9.md. Dit was tot 31 augustus 2026
+  // letterlijk "$0.72" en dat botste in dezelfde zin met "±16,4 punten".
+  ok("noemt de maandkosten, in de Nederlandse schrijfwijze", zin.includes("$0,72"));
+  ok("en niet meer de punt-schrijfwijze", !zin.includes("$0.72"));
   // Bij dertig vragen en een score rond 30 is de 95%-band ±16,4 punten.
   ok("en de onzekerheidsmarge", zin.includes("16,4"));
 
@@ -7591,8 +8152,60 @@ group("describeMix: wat het kost en wat het oplevert", () => {
   // band, niet de helft. Dat is precies wat iemand moet weten vóórdat hij het
   // getal omhoog zet.
   const zestig = describeMix({ "Oriëntatie": 20, "Overweging": 20, "Beslissing": 20 });
-  ok("zestig vragen kost twee keer zoveel", zestig.includes("$1.44"));
+  ok("zestig vragen kost twee keer zoveel", zestig.includes("$1,44"));
   ok("maar de marge wordt maar een kwart smaller", zestig.includes("11,6"));
+});
+
+group("formatUsd: de Nederlandse schrijfwijze voor een dollarbedrag (punt 9)", () => {
+  ok("30 vragen: $0,72", formatUsd(30 * 0.024) === "$0,72");
+  ok("60 vragen: $1,44", formatUsd(60 * 0.024) === "$1,44");
+  ok("een rond getal krijgt toch twee decimalen", formatUsd(2) === "$2,00");
+  ok("er komt nooit een punt in te staan", !formatUsd(1234.5).includes("."));
+});
+
+group("enkelOfMeervoud: één hulpstuk voor heel de app (punt 9)", () => {
+  ok("één is enkelvoud", enkelOfMeervoud(1, "punt", "punten") === "punt");
+  ok("nul is meervoud", enkelOfMeervoud(0, "punt", "punten") === "punten");
+  ok("twee is meervoud", enkelOfMeervoud(2, "punt", "punten") === "punten");
+});
+
+group("suggestPromptMix: grotere clusters krijgen meer vragen (werkpakket B punt 2)", () => {
+  const klein = suggestPromptMix({ offeringCount: 0, regionCount: 0 });
+  ok("geen diensten en geen regio's blijft de standaard", mixTotal(klein) === 30, String(mixTotal(klein)));
+  ok("gelijk aan DEFAULT_MIX", JSON.stringify(klein) === JSON.stringify(DEFAULT_MIX));
+
+  const groter = suggestPromptMix({ offeringCount: 10, regionCount: 4 });
+  ok("meer diensten en regio's levert meer vragen op", mixTotal(groter) > 30, String(mixTotal(groter)));
+  ok(
+    "de regio's wegen door in Beslissing",
+    groter.Beslissing > DEFAULT_MIX.Beslissing,
+    JSON.stringify(groter),
+  );
+
+  // Extreme waarden mogen nooit de per-fase- of totaalgrens doorbreken, ook al
+  // zou de wortelschaal dat wiskundig toestaan.
+  const extreem = suggestPromptMix({ offeringCount: 500, regionCount: 500 });
+  ok("Oriëntatie blijft binnen de perfasegrens", extreem.Oriëntatie <= MAX_PER_STAGE);
+  ok("Overweging blijft binnen de perfasegrens", extreem.Overweging <= MAX_PER_STAGE);
+  ok("Beslissing blijft binnen de perfasegrens", extreem.Beslissing <= MAX_PER_STAGE);
+  ok(
+    "het totaal blijft binnen MAX_TOTAL",
+    mixTotal(extreem) <= MAX_TOTAL,
+    String(mixTotal(extreem)),
+  );
+  ok("checkMix keurt de suggestie altijd goed", checkMix(extreem).ok, JSON.stringify(extreem));
+
+  // Negatieve of kapotte signalen mogen nooit een negatieve verdeling opleveren.
+  const negatief = suggestPromptMix({ offeringCount: -5, regionCount: -5 });
+  ok("negatieve signalen worden behandeld als nul", JSON.stringify(negatief) === JSON.stringify(DEFAULT_MIX));
+});
+
+group("De waarschuwing bij een grote meetronde (werkpakket B punt 6)", () => {
+  ok("de standaard verdiening geen waarschuwing", !exceedsRunBudgetWarning(DEFAULT_MIX));
+  ok(
+    "een verdeling boven de drempel wel",
+    exceedsRunBudgetWarning({ "Oriëntatie": 30, "Overweging": 30, "Beslissing": 30 }),
+  );
 });
 
 // ════════════════════════════════════════════════════════════════════════════
@@ -9170,7 +9783,7 @@ group("de zijbalk verraadt niets aan een klant", () => {
   );
   ok(
     "en de onboardingsessie staat erbij",
-    adminItems.some((i) => i.href.endsWith("/admin/onboarding") && i.label === "Onboarding"),
+    adminItems.some((i) => i.href.endsWith("/admin/onboarding") && i.label === "Onboardinggesprek"),
   );
   ok(
     "met Diagnose ernaast, en niet nog een keer 'Onboarding-inzicht'",
@@ -9577,6 +10190,31 @@ group("de sessiepagina wordt gedeeld met de klant (deel B3)", () => {
     "en definieert zelf geen velden",
     !sessie.includes("derivable:") && !sessie.includes("placeholder:"),
   );
+
+  // ── Onboarding ronde B: de herindeling en de teksten uit hoofdstuk 7 ─────
+  ok("de sessie rendert de negen blokken", sessie.includes("SESSION_BLOCKS"));
+  ok(
+    "het openingsblok heet Openstaande punten, niet meer Wat we nog niet weten",
+    sessie.includes("Openstaande punten") && !sessie.includes("Wat we nog niet weten"),
+  );
+  ok(
+    "de springlink heet Ga naar dit veld, niet Invullen (de knop slaat niets op)",
+    sessie.includes("Ga naar dit veld") && !sessie.includes(">Invullen<"),
+  );
+  ok(
+    "de auteursvelden staan ingeklapt onder één gezamenlijke uitleg",
+    sessie.includes("Auteur, voor later") && sessie.includes("SESSION_AUTHOR_FIELDS"),
+  );
+  ok(
+    "het afrondblok noemt de openstaande verplichte velden",
+    sessie.includes("openstaandVerplicht"),
+  );
+
+  const paginaBron = leesBestand("app/(app)/merk/[id]/admin/onboarding/page.tsx");
+  ok(
+    "de pagina heet Onboardinggesprek, niet meer kaal Onboarding",
+    paginaBron.includes("Onboardinggesprek"),
+  );
 });
 
 
@@ -9733,6 +10371,16 @@ group("de commerciële laag heeft echte lezers (fase 4)", () => {
   ok("met de instructie om er niets over voor te stellen", sturing.includes("NIET VOORSTELLEN"));
   ok("de klantgroepen komen erin", sturing.includes("installateurs"));
   ok("en de verboden onderwerpen", sturing.includes("lopende rechtszaken"));
+
+  // Het doel over twaalf maanden stuurt de clusterkeuze mee (0075), maar
+  // growth_regions/seasonality/sales_objections/offline_proof bewust niet: die
+  // beantwoorden HOE er binnen een onderwerp gevraagd wordt, niet WELK onderwerp.
+  const metDoel = topicSteering({ ...gevuld, goal_12m: "Meer trouwhulp buiten de regio" });
+  ok("het doel komt in de clustersturing terecht", metDoel.includes("trouwhulp buiten de regio"));
+  ok(
+    "geen doel levert geen regel over het doel op",
+    !topicSteering(gevuld).includes("DOEL OVER TWAALF MAANDEN"),
+  );
 
   // De deterministische controle achteraf. Een promptinstructie is een
   // intentie, dit is de garantie (conventie 1).
@@ -10035,9 +10683,12 @@ group("het formulier praat de taal van de branche", () => {
       (f) => f.key as string,
     ),
   );
+  // Elf sinds stap B1 (`brand_name` erbij, het label bepaalt het antwoord al
+  // volledig, net als bij `name`), twaalf sinds stap B8: `max_inventory_pages`
+  // is een getal, en een getalveld heeft aan het label genoeg.
   ok(
-    "tien velden hebben bewust geen voorbeeld",
-    zonderVoorbeeld.size === 10,
+    "twaalf velden hebben bewust geen voorbeeld",
+    zonderVoorbeeld.size === 12,
     `${zonderVoorbeeld.size}`,
   );
   ok(
@@ -10109,6 +10760,10 @@ function knoop(
     sort_order: sortOrder,
     created_at: "",
     updated_at: "",
+    note: null,
+    removed_at: null,
+    removed_by: null,
+    updated_by: null,
   };
 }
 
@@ -10128,7 +10783,14 @@ function onderwerp(
     offering_names: [],
     priority,
     client_note: null,
+    client_questions: null,
+    client_friction: null,
+    client_edge: null,
     status,
+    stage: "definitief",
+    origin: null,
+    origin_uses_measurement: false,
+    rejection_reason: null,
     analysis_id: null,
     search_volume_index: null,
     search_volume_reasoning: null,
@@ -10136,6 +10798,266 @@ function onderwerp(
     updated_at: "",
   };
 }
+
+group("De clusterlaag smelt tot één tekst (topic-brief.ts, migratie 0075)", () => {
+  const leeg = {
+    client_questions: null,
+    client_friction: null,
+    client_edge: null,
+    client_note: null,
+  };
+  ok("niets ingevuld levert null op", buildTopicBrief(leeg) === null);
+
+  ok(
+    "valt terug op het legacy vrije veld als de drie nieuwe leeg zijn",
+    buildTopicBrief({ ...leeg, client_note: "hier komt 40% van de omzet vandaan" }) ===
+      "hier komt 40% van de omzet vandaan",
+  );
+
+  const brief = buildTopicBrief({
+    ...leeg,
+    client_questions: "zit pechhulp erbij?",
+    client_friction: "klanten onderschatten de levertijd",
+    client_edge: "wij hebben als enige een 24-uurs storingsdienst",
+    // Het legacy veld wordt genegeerd zodra er nieuwe velden zijn: anders
+    // krijgt de schrijver twee keer dezelfde informatie, en misschien
+    // tegenstrijdig als iemand alleen de nieuwe velden bijwerkt.
+    client_note: "een oude aantekening die niet meer relevant is",
+  });
+  ok("de vaakst gestelde vraag komt erin", brief?.includes("zit pechhulp erbij?") ?? false);
+  ok("wat er misgaat ook", brief?.includes("klanten onderschatten de levertijd") ?? false);
+  ok("en het onderscheid", brief?.includes("24-uurs storingsdienst") ?? false);
+  ok(
+    "de oude aantekening wordt niet meegenomen zodra er nieuwe velden zijn",
+    !brief?.includes("niet meer relevant"),
+  );
+});
+
+group("De knop 'Stel nieuwe clusters voor' draait alleen bij nieuwe informatie (0077)", () => {
+  const basis: TopicRoundSnapshot = {
+    gesprekVastgelegdOp: null,
+    beantwoordeVragen: 0,
+    gemetenClusters: 0,
+    afgewezenOnderwerpen: 0,
+    actieveAanbodknopen: 0,
+  };
+
+  ok("twee identieke momentopnamen zijn gelijk", snapshotsGelijk(basis, { ...basis }));
+  ok(
+    "een andere teller maakt ze ongelijk",
+    !snapshotsGelijk(basis, { ...basis, beantwoordeVragen: 1 }),
+  );
+
+  const eersteKeer = beoordeelRonde(null, basis);
+  ok("de allereerste ronde mag altijd draaien", eersteKeer.nieuws === true);
+
+  const nietsNieuws = beoordeelRonde(basis, { ...basis });
+  ok("exact dezelfde stand van zaken levert geen nieuws op", nietsNieuws.nieuws === false);
+  ok(
+    "en de melding raadt af om de knop te gebruiken",
+    /hetzelfde resultaat/i.test(nietsNieuws.melding),
+    nietsNieuws.melding,
+  );
+
+  const gesprekErbij = beoordeelRonde(basis, {
+    ...basis,
+    gesprekVastgelegdOp: "2026-08-30T10:00:00Z",
+  });
+  ok("een nieuw gesprek is nieuws", gesprekErbij.nieuws === true);
+  ok(
+    "en de melding noemt het gesprek",
+    gesprekErbij.melding.includes("strategisch gesprek is vastgelegd"),
+    gesprekErbij.melding,
+  );
+
+  const allesErbij = beoordeelRonde(basis, {
+    gesprekVastgelegdOp: "2026-08-30T10:00:00Z",
+    beantwoordeVragen: 14,
+    gemetenClusters: 3,
+    afgewezenOnderwerpen: 1,
+    actieveAanbodknopen: 0,
+  });
+  ok("meerdere veranderingen tellen allemaal mee", allesErbij.nieuws === true);
+  ok("veertien klantantwoorden komen in de melding", allesErbij.melding.includes("14 klantantwoorden"));
+  ok(
+    "drie clusters komen in de melding",
+    allesErbij.melding.includes("metingen van 3 clusters"),
+    allesErbij.melding,
+  );
+  ok(
+    "en één afgewezen onderwerp, enkelvoud",
+    allesErbij.melding.includes("1 afgewezen onderwerp"),
+    allesErbij.melding,
+  );
+
+  // Minder metingen (bv. een opgeschoonde teststand) is geen NIEUWE informatie.
+  const minderIsGeenNieuws = beoordeelRonde({ ...basis, gemetenClusters: 5 }, { ...basis, gemetenClusters: 2 });
+  ok(
+    "minder tellingen dan vorige keer is geen aanleiding om te draaien",
+    minderIsGeenNieuws.nieuws === false,
+  );
+
+  // Onboarding Ronde C, §16.6: zonder deze telling meldde de knop "niets
+  // veranderd" nadat de consultant tijdens het gesprek drie diensten met de
+  // hand had toegevoegd.
+  const dienstToegevoegd = beoordeelRonde(basis, { ...basis, actieveAanbodknopen: 3 });
+  ok("een toegevoegde dienst is nieuws", dienstToegevoegd.nieuws === true);
+  ok(
+    "en de melding noemt de nieuwe aanbodknopen",
+    dienstToegevoegd.melding.includes("3 nieuwe aanbodknopen"),
+    dienstToegevoegd.melding,
+  );
+  const enkeleAanbodknoop = beoordeelRonde(basis, { ...basis, actieveAanbodknopen: 1 });
+  ok(
+    "enkelvoud bij precies één nieuwe knoop",
+    enkeleAanbodknoop.melding.includes("1 nieuwe aanbodknoop") &&
+      !enkeleAanbodknoop.melding.includes("1 nieuwe aanbodknopen"),
+    enkeleAanbodknoop.melding,
+  );
+  const minderKnopenIsGeenNieuws = beoordeelRonde(
+    { ...basis, actieveAanbodknopen: 5 },
+    { ...basis, actieveAanbodknopen: 2 },
+  );
+  ok(
+    "een verwijderde dienst is op zichzelf geen nieuwe informatie",
+    minderKnopenIsGeenNieuws.nieuws === false,
+  );
+});
+
+group("De aanbodboom bewerkbaar: validatie (onboarding Ronde C, §16.3, migratie 0079)", () => {
+  ok("de vijf bekende soorten zijn geldig", isOfferingKind("dienst") && isOfferingKind("vestiging"));
+  ok("een onbekend soort is ongeldig", !isOfferingKind("filiaal"));
+  ok("een leeg soort is ongeldig", !isOfferingKind(""));
+
+  ok("een getrimde naam blijft staan", normaliseOfferingName("  Onderhoudsabonnement  ") === "Onderhoudsabonnement");
+  ok("een lege naam is ongeldig", normaliseOfferingName("   ") === null);
+  ok("een getal is geen naam", normaliseOfferingName(42) === null);
+
+  ok("lege tekst wordt null", normaliseOptionalText("   ") === null);
+  ok("ontbrekende tekst wordt null", normaliseOptionalText(undefined) === null);
+  ok("getrimde tekst blijft staan", normaliseOptionalText(" vanaf 19 euro ") === "vanaf 19 euro");
+
+  ok("een lege boom begint bij 10", nextSortOrder([]) === 10);
+  ok(
+    "de hoogste bestaande plus tien",
+    nextSortOrder([{ sort_order: 0 }, { sort_order: 40 }, { sort_order: 20 }]) === 50,
+  );
+
+  // Lus-controle: A → B → C, mag C niet onder A hangen? Nee, want dat is geen
+  // lus (A is geen nakomeling van C). Wel geweigerd: A onder C, of B onder B.
+  const boom = [
+    { id: "a", parent_id: null },
+    { id: "b", parent_id: "a" },
+    { id: "c", parent_id: "b" },
+  ];
+  ok("een knoop mag niet onder zichzelf hangen", wouldCreateCycle(boom, "b", "b"));
+  ok("een knoop mag niet onder zijn eigen nakomeling hangen", wouldCreateCycle(boom, "a", "c"));
+  ok("een knoop mag wél onder een niet-nakomeling hangen", !wouldCreateCycle(boom, "c", "a"));
+  ok("een nieuwe knoop (geen id) kan nooit een lus veroorzaken", !wouldCreateCycle(boom, null, "c"));
+  ok("geen ouder is nooit een lus", !wouldCreateCycle(boom, "b", null));
+});
+
+group("C2: alle lezers van profile_offerings gebruiken de gedeelde helper (§16.4)", () => {
+  // ⚠️ Dit is een broncodecontrole, net als de klantscherm-check hierboven: de
+  // zes bestanden die vóór 31 augustus 2026 rechtstreeks selecteerden, moeten
+  // via `activeOfferings()`/`activeOfferingCount()` uit `lib/offerings.ts`
+  // lopen. Vergeet je dat bij een nieuwe aanroepplek, dan komt een net
+  // verwijderde dienst alsnog terug in een onderwerpvoorstel of een meetronde.
+  const bewaakteBestanden = [
+    "lib/pipeline/propose-topics.ts",
+    "lib/pipeline/propose-more-topics.ts",
+    "lib/pipeline/llm-baseline.ts",
+    "lib/pipeline/reputation-start.ts",
+    "app/(app)/merk/[id]/merkprofiel/page.tsx",
+  ];
+  for (const pad of bewaakteBestanden) {
+    const bron = leesBestand(pad);
+    ok(
+      `${pad} selecteert profile_offerings niet meer rechtstreeks`,
+      !bron.includes('from("profile_offerings")') && !bron.includes("from('profile_offerings')"),
+    );
+    ok(`${pad} gebruikt de gedeelde helper`, /activeOfferings|activeOfferingCount/.test(bron));
+  }
+
+  // `offering.ts` mag wél rechtstreeks selecteren (het is de idempotentie-
+  // controle van de aanbodstap zelf, geen "actieve boom"-lezer), maar dan
+  // uitsluitend op `source = 'ai'` (§16.5.2).
+  const offeringBron = leesBestand("lib/pipeline/offering.ts");
+  ok(
+    "offering.ts telt bij het idempotentiecontrole alleen AI-knopen",
+    offeringBron.includes('.eq("source", "ai")'),
+  );
+});
+
+group("Niet alle klantinput is gelijk (claim-plausibility.ts, werkpakket A §3.4)", () => {
+  // Eigen werkwijze, aanbod, prijzen, garanties: zonder meer aangenomen.
+  ok("een eigen mededeling wordt zonder meer aangenomen", beoordeelClaim("Wij zijn dinsdag dicht").aangenomen);
+  ok(
+    "ook met een cijfer erin",
+    beoordeelClaim("Wij leveren binnen 48 uur").aangenomen,
+  );
+
+  // Superlatieven en marktclaims: pas aangenomen mét bewijs.
+  const zonderBewijs = beoordeelClaim("Wij zijn de beste van de regio");
+  ok("een superlatief wordt herkend", zonderBewijs.isMarktclaim);
+  ok("zonder cijfer of link geen bewijs", !zonderBewijs.heeftBewijs);
+  ok("en dus niet zomaar aangenomen", !zonderBewijs.aangenomen);
+
+  const metBewijs = beoordeelClaim("Wij zijn de beste van de regio volgens 340 Google-reviews van 4,8 sterren");
+  ok("dezelfde claim mét een cijfer wordt wel aangenomen", metBewijs.isMarktclaim && metBewijs.aangenomen);
+
+  ok("marktleider wordt herkend", beoordeelClaim("Wij zijn marktleider in Nederland").isMarktclaim);
+  ok("nummer 1 wordt herkend", beoordeelClaim("Wij zijn nummer 1 in onze branche").isMarktclaim);
+  ok(
+    "'de enige die' wordt herkend",
+    beoordeelClaim("Wij zijn de enige die dit aanbiedt in de regio").isMarktclaim,
+  );
+  ok(
+    "een vergelijking met de concurrent wordt herkend",
+    beoordeelClaim("Onze service is beter dan de concurrent").isMarktclaim,
+  );
+
+  // Bij twijfel niet blokkeren: een gewone zin zonder superlatief blijft gewoon aangenomen.
+  ok(
+    "een gewone zin over het eigen werk is geen marktclaim",
+    !beoordeelClaim("Wij monteren de kozijnen binnen één dag").isMarktclaim,
+  );
+
+  // ── Wat ontbreekt er precies? (punt 6 van opdracht-bevindingen-5-tot-9.md) ──
+  ok(
+    "'de snelste' vraagt om een cijfer",
+    ontbrekendeOnderbouwing("Wij zijn de snelste van de regio") === "cijfer",
+  );
+  ok(
+    "'marktleider' vraagt om een bron",
+    ontbrekendeOnderbouwing("Wij zijn marktleider in Nederland") === "bron",
+  );
+  ok(
+    "'de enige die' vraagt om een voorbeeld",
+    ontbrekendeOnderbouwing("Wij zijn de enige die dit aanbiedt in de regio") === "voorbeeld",
+  );
+  ok(
+    "staat er al een cijfer of link bij, dan ontbreekt er niets meer",
+    ontbrekendeOnderbouwing("Wij zijn de snelste, gemiddeld binnen 2 uur ter plaatse") === null,
+  );
+  ok(
+    "een gewone zin heeft niets te missen",
+    ontbrekendeOnderbouwing("Wij monteren de kozijnen binnen één dag") === null,
+  );
+
+  // ── De concrete zin op het scherm ────────────────────────────────────────
+  ok(
+    "de klant leest wat er specifiek ontbreekt, niet alleen dat er iets ontbreekt",
+    marktclaimUitleg("Wij zijn de snelste van de regio") ===
+      "Dit klinkt als een claim over de markt of de concurrentie, geen mededeling over jullie eigen " +
+        "werk. Noem er een cijfer bij, dan mag deze zin in je teksten. Laat je het antwoord zoals het " +
+        "is, dan blijft de tekst er voorzichtig over.",
+  );
+  ok(
+    "zonder een herkend patroon valt de zin terug op de algemene uitleg",
+    marktclaimUitleg("Wij zijn dinsdag dicht") === MARKTCLAIM_UITLEG,
+  );
+});
 
 group("de knopenselectie kapt 60 knopen af op 12, met de prioriteiten bovenaan", () => {
   // Zestig knopen, oplopend genummerd. `dienst-40` staat achteraan in de
@@ -13081,11 +14003,11 @@ group("de kostenraming is het enige waarop de goedkeuring rust", () => {
   // beoordelen levert een ronde op die halverwege stopt: dertig van de veertig
   // vragen gemeten, een score op een willekeurige deelverzameling, en een
   // rekening die toch betaald is.
-  const past = beoordeelRonde(0, 40, 2);
+  const past = beoordeelMeetronde(0, 40, 2);
   ok("een lege markt kan een volle ronde aan", past.ok);
   eq2("en er hoeft niets weg", past.pastVragen, 40);
 
-  const vol = beoordeelRonde(marktBudgetUsd() - 0.5, 40, 2);
+  const vol = beoordeelMeetronde(marktBudgetUsd() - 0.5, 40, 2);
   ok("een bijna volle markt kan dat niet", !vol.ok);
   ok("er passen er nog een paar in", vol.pastVragen > 0 && vol.pastVragen < 40, String(vol.pastVragen));
   // K2: de melding zegt wat er niet gebeurt, hoeveel er op staat en wat je eraan
@@ -13974,6 +14896,301 @@ group("de contactvraag zoekt de juiste persoon en verzint niets", () => {
   );
 });
 
+// Bevindingen uit de eerste live doorloop, 31 augustus 2026
+// (docs/tasks/bevindingen-live-test-31-augustus-2026.md)
+// ════════════════════════════════════════════════════════════════════════════
+
+// ⚠️ De fout: in het gesprek stond bij een nieuwe regio "Uitbreiding richting
+// Oosterhout en Geertruidenberg." en die hele zin kwam als plaatsnaam in
+// `service_regions`. Dat veld wordt letterlijk in de lokale meetvragen geplakt
+// en het aantal regio's stuurt `suggestPromptMix()` aan, dus dat kost de klant
+// onbruikbare vragen én een duurdere meting.
+group("een hele zin wordt geen plaatsnaam (bevinding 2)", () => {
+  ok(
+    "de zin uit de doorloop levert niets op",
+    regionsFromDescription("Uitbreiding richting Oosterhout en Geertruidenberg.").length === 0,
+  );
+  ok(
+    "een enkele plaats komt er wel uit",
+    regionsFromDescription("Amersfoort")[0] === "Amersfoort",
+  );
+  ok(
+    "een punt erachter valt weg",
+    regionsFromDescription("Amersfoort.")[0] === "Amersfoort",
+  );
+
+  // De reden dat er NIET op "en" gesplitst wordt: dan zou hier "Gilze" en
+  // "Rijen" uitkomen, twee plaatsen die niet bestaan.
+  const gilze = regionsFromDescription("Gilze en Rijen");
+  ok("Gilze en Rijen blijft één gemeente", gilze.length === 1 && gilze[0] === "Gilze en Rijen");
+  ok(
+    "Bergen op Zoom blijft heel",
+    regionsFromDescription("Bergen op Zoom")[0] === "Bergen op Zoom",
+  );
+
+  const twee = regionsFromDescription("Oosterhout, Geertruidenberg");
+  ok("een komma is wel een opsomming", twee.length === 2, twee.join("|"));
+  ok("en beide plaatsen komen er heel uit", twee[1] === "Geertruidenberg", twee.join("|"));
+
+  const drie = regionsFromDescription("Oosterhout, Gilze en Rijen, 's-Hertogenbosch");
+  ok("gemengd blijft ook goed", drie.length === 3, drie.join("|"));
+  ok("met apostrof en al", drie[2] === "'s-Hertogenbosch", drie.join("|"));
+
+  // Kleine letter vooraan is een zin, geen plaatsnaam.
+  ok("een losse bijzin valt af", regionsFromDescription("richting het zuiden").length === 0);
+  ok("leeg blijft leeg", regionsFromDescription("   ").length === 0);
+
+  ok(
+    "extraRegionsFrom gebruikt dezelfde regel",
+    extraRegionsFrom([
+      { kind: "nieuwe_regio", description: "Uitbreiding richting Oosterhout en Geertruidenberg.", effective_from: null },
+      { kind: "nieuwe_regio", description: "Oosterhout, Waalwijk", effective_from: null },
+    ]).join("|") === "Oosterhout|Waalwijk",
+  );
+});
+
+// ⚠️ De fout: het rapport schreef "nog niet genoemd bij de 15 onderzochte
+// vragen" terwijl er 30 vragen waren, en sprak zichzelf drie zinnen verder
+// tegen met "de meting bestaat uit 30 antwoorden". Het getal is te tellen, dus
+// hoort er code onder te staan en niet alleen een promptregel (conventie 1).
+group("het aantal onderzochte vragen wordt rechtgezet (bevinding 4)", () => {
+  const fout =
+    "Wouter Warmtepomp wordt in deze eerste meting nog niet genoemd bij de 15 onderzochte vragen. " +
+    "De meting bestaat uit 30 antwoorden.";
+  const hersteld = correctQuestionCount(fout, 30);
+  ok("het getal is vervangen", hersteld.summary.includes("de 30 onderzochte vragen"), hersteld.summary);
+  ok("en de oude waarde is gelogd", hersteld.corrected[0] === 15, String(hersteld.corrected));
+  ok("de rest van de zin blijft heel", hersteld.summary.includes("nog niet genoemd bij"));
+
+  ok(
+    "een kloppend getal wordt niet aangeraakt",
+    correctQuestionCount("bij de 30 onderzochte vragen", 30).corrected.length === 0,
+  );
+
+  // ⚠️ Een verhouding is geen totaal. Zou deze zin ook rechtgezet worden, dan
+  // maakt het vangnet er een onwaarheid van.
+  const verhouding = correctQuestionCount("bij 17 van de 30 vragen ontbreekt het merk", 30);
+  ok("een verhouding blijft ongemoeid", verhouding.corrected.length === 0, verhouding.summary);
+
+  ok("andere formuleringen ook", correctQuestionCount("er zijn 12 vragen gemeten", 30).summary.includes("30 vragen gemeten"));
+  ok("zonder betrouwbaar eigen getal gebeurt er niets", correctQuestionCount("de 15 onderzochte vragen", 0).corrected.length === 0);
+  ok("een lege samenvatting valt niet om", correctQuestionCount(null, 30).summary === "");
+
+  const regel = questionCountLine(30, 46);
+  ok("de instructie noemt het aantal vragen", regel.includes("30"), regel);
+  ok("en het verschil met het aantal metingen", regel.includes("46"), regel);
+  ok("bij nul vragen valt de regel weg", questionCountLine(0, 0) === "");
+});
+
+// ⚠️ De fout: het planscherm blokkeerde op "kies eerst 10, 20 of 40 pagina's
+// per maand" terwijl er nergens een scherm was om dat te kiezen. Het pakket
+// staat nu in de pre-boardingwizard en op het toewijzen-scherm.
+group("het contentpakket kent maar drie maten (bevinding 8)", () => {
+  ok("er zijn er drie", PACKAGE_SIZES.length === 3, PACKAGE_SIZES.join("|"));
+  ok("de standaard is het instappakket", DEFAULT_PACKAGE_SIZE === 10);
+  ok("10 mag", isPackageSize(10));
+  ok("40 mag", isPackageSize(40));
+  ok("15 niet", !isPackageSize(15));
+  ok("tekst niet", !isPackageSize("10"));
+  ok("een half pakket niet", !isPackageSize(10.5));
+
+  ok("een getal uit een formulier komt er als getal uit", toPackageSize("20") === 20);
+  ok("leeg betekent geen pakket", toPackageSize("") === null);
+  ok("null blijft null", toPackageSize(null) === null);
+  ok("een onbekende maat wordt null en geen gok", toPackageSize(33) === null);
+
+  ok("het label leest als een afspraak", packageLabel(20) === "20 pagina's per maand");
+  ok("en zonder pakket zegt het dat", packageLabel(null) === "Nog geen pakket gekozen");
+});
+
+// ⚠️ De fout: een pagina in de briefingfase werd in de werklijst aangeboden als
+// "de tekst is klaar om te publiceren", met een knop Publiceren, terwijl er
+// geen letter geschreven was. `lib/work.ts` kende alleen `draft` en
+// gepubliceerd; `briefing` viel door naar de tak "klaar". Deze test leest de
+// broncode omdat `work.ts` `server-only` is en dus niet importeerbaar.
+group("de werklijst kent de briefingfase (bevinding 1)", () => {
+  const bron = leesBestand("lib/work.ts");
+  ok('work.ts behandelt status "briefing"', bron.includes('piece.status === "briefing"'));
+  ok(
+    "en doet dat vóór de tak die 'klaar om te publiceren' zegt",
+    bron.indexOf('piece.status === "briefing"') < bron.indexOf("De tekst is klaar om te publiceren"),
+  );
+  ok(
+    "de briefingkaart wijst naar het briefingscherm",
+    /briefing[\s\S]{0,600}\/briefing`/.test(bron),
+  );
+  // Elke status uit ContentStatus hoort een tak te hebben, anders ontstaat
+  // dezelfde fout opnieuw bij de volgende die erbij komt.
+  const statussen = leesBestand("lib/types/database.ts").match(
+    /export type ContentStatus =([^;]+);/,
+  );
+  ok("ContentStatus is gevonden", statussen !== null);
+  for (const rauw of (statussen?.[1] ?? "").split("|")) {
+    const naam = rauw.trim().replace(/"/g, "");
+    if (!naam || naam === "published" || naam === "ready" || naam === "archived") continue;
+    ok(`work.ts weet raad met "${naam}"`, bron.includes(`piece.status === "${naam}"`));
+  }
+});
+
+group("beide helften van 'Stel nieuwe clusters voor' zijn afgeschermd (punt 8)", () => {
+  // ⚠️ De `POST` was op slot, de `GET` ernaast niet: die controleerde alleen
+  // eigendom, dus een klantaccount kreeg gewoon de vooruitblik te zien. Zelfde
+  // patroon als bij punt 1 van de vorige ronde (`work.ts` en `ContentStatus`):
+  // deze test leest de broncode en eist dat élke exportfunctie in dit bestand
+  // `mayTriggerCost` aanroept, zodat de volgende routehelft die erbij komt
+  // niet stil onbeschermd kan blijven.
+  const bron = leesBestand("app/api/profiles/[id]/topics/refresh/route.ts");
+  ok("het bestand is gevonden", bron.length > 0);
+
+  const functies = [...bron.matchAll(/export async function (\w+)\(/g)].map((m) => m[1]);
+  ok("er staan minstens twee routehelften in (GET en POST)", functies.length >= 2, functies.join(", "));
+
+  for (const naam of functies) {
+    // Het lichaam van deze ene functie: van zijn eigen `export async function`
+    // tot aan de volgende (of het einde van het bestand). Zo raakt een
+    // aanroep in een ANDERE functie deze telling niet.
+    const start = bron.indexOf(`export async function ${naam}(`);
+    const volgende = bron.indexOf("export async function ", start + 1);
+    const lichaam = bron.slice(start, volgende === -1 ? undefined : volgende);
+    ok(`${naam} roept mayTriggerCost aan`, lichaam.includes("mayTriggerCost("));
+  }
+});
+
+group("geen haakjesmeervoud meer in klanttekst (punt 9)", () => {
+  // ⚠️ "en nog 6 punt(en)" op het briefingscherm, en dezelfde fout bij
+  // "gegeven(s)" (de reputatiesamenvatting) en "bewering(en)" (de
+  // redactienotitie), zie docs/tasks/opdracht-bevindingen-5-tot-9.md. De vorm
+  // is herkenbaar aan zijn vorm: een geteld aantal (`${...}`), gevolgd door
+  // een woord met de meervoudsvorm tussen haakjes. Dat is precies wat een
+  // logregel voor jezelf ook doet ("2 veld(en) wél opgeslagen"), dus die
+  // blijven met opzet in de UITZONDERINGEN: ze zijn niet voor de klant, net
+  // als de bedragen in logregels verderop.
+  //
+  // Commentaar eraf vóór het zoeken: anders valt deze test over zijn EIGEN
+  // uitleg hierboven, die het patroon als voorbeeld citeert.
+  const zonderCommentaar = (bron: string) =>
+    bron.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
+
+  function bestandenOnder(map: string, extensies: string[]): string[] {
+    const uit: string[] = [];
+    let inhoud: { name: string; isDirectory: () => boolean }[];
+    try {
+      inhoud = readdirSync(map, { withFileTypes: true, encoding: "utf8" });
+    } catch {
+      return uit;
+    }
+    for (const item of inhoud) {
+      const pad = join(map, item.name);
+      if (item.isDirectory()) uit.push(...bestandenOnder(pad, extensies));
+      else if (extensies.some((e) => item.name.endsWith(e))) uit.push(pad);
+    }
+    return uit;
+  }
+
+  const UITZONDERINGEN = [
+    "veld(en) wél opgeslagen", // console.error, app/api/profiles/route.ts en [id]/route.ts
+    "Engine(s) overgeslagen", // console.warn, lib/engines/registry.ts
+    "gelijknamige partij(en) voorgesteld", // console.info, lib/pipeline/llm-baseline.ts
+    "niet-onderbouwde bewering(en)", // console.warn, lib/pipeline/report.ts
+    "onderwerp(en) hersteld", // console.info, lib/pipeline/offering.ts
+  ];
+
+  const bestanden = [
+    ...bestandenOnder("app/(app)", [".ts", ".tsx"]),
+    ...bestandenOnder("lib", [".ts"]),
+  ];
+
+  // Het patroon van de fout: een geteld aantal, direct gevolgd door een woord
+  // met een haakjesmeervoud. Dat onderscheidt "${x} punt(en)" van code als
+  // `setSegment(s)` of `Boolean(n)`, die nooit een `${...}` ervoor hebben.
+  const PATROON = /\$\{[^}]*\}\s*[a-zà-ÿ]+\((en|s)\)/gi;
+  const treffers: string[] = [];
+  for (const pad of bestanden) {
+    const bron = zonderCommentaar(readFileSync(pad, "utf8"));
+    for (const regel of bron.split("\n")) {
+      if (!PATROON.test(regel)) continue;
+      PATROON.lastIndex = 0;
+      if (UITZONDERINGEN.some((u) => regel.includes(u))) continue;
+      treffers.push(`${pad}: ${regel.trim()}`);
+    }
+  }
+  ok(
+    "geen haakjesmeervoud meer in klanttekst onder app/(app) en lib/",
+    treffers.length === 0,
+    treffers.join(" | "),
+  );
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+// Ronde A: losse ingrepen aan de onboardingsessie (31 augustus 2026,
+// documentatie/onboarding_optimalisatie.md §18, stap A1 t/m A6). Geen migratie,
+// dus broncodecontroles: elke ingreep is los terug te draaien en heeft geen
+// eigen pure module gekregen.
+// ════════════════════════════════════════════════════════════════════════════
+
+group("A1: het gevonden-blok opent alleen als de stap nog niet compleet is", () => {
+  const bron = leesBestand("app/(app)/merk/[id]/_components/onboarding-session.tsx");
+  ok(
+    "CollapsibleSection krijgt defaultOpen mee, afgeleid van stepProgress().compleet",
+    /<CollapsibleSection[\s\S]{0,500}defaultOpen=\{!p\.compleet\}/.test(bron),
+  );
+});
+
+group("A2: de negen schuif-, keuze- en ja-nee-velden hebben een werkend label", () => {
+  const bron = leesBestand("app/(app)/merk/[id]/_components/brand-field-input.tsx");
+  ok(
+    "het label krijgt een eigen id, naast htmlFor",
+    /<label htmlFor=\{id\} id=\{labelId\(id\)\}/.test(bron),
+  );
+  // De radiogroep moet naar het label-id verwijzen (`${id}-label`), niet naar
+  // het veld-id zelf: dat element bestaat bij deze veldsoorten niet.
+  const standenAanroepen = [...bron.matchAll(/<Standen\s+id=\{([^}]+)\}/g)].map((m) => m[1]);
+  ok("Standen wordt minstens twee keer aangeroepen", standenAanroepen.length >= 2, `${standenAanroepen.length}`);
+  for (const arg of standenAanroepen) {
+    ok(`<Standen id={${arg}}> wijst naar het label-id`, arg === "labelId(id)");
+  }
+  ok(
+    "de radiogroep leest zijn naam uit dat label-id",
+    bron.includes('role="radiogroup" aria-labelledby={id}'),
+  );
+});
+
+group("A3: het vangnet van de opslagroute dekt alle lijstvelden", () => {
+  const bron = leesBestand("app/api/profiles/[id]/route.ts");
+  const match = bron.match(/const LIST_FIELDS = \[([\s\S]*?)\] as const;/);
+  ok("LIST_FIELDS is gevonden", match !== null);
+  const lijst = match?.[1] ?? "";
+  for (const veld of [
+    "products",
+    "value_props",
+    "competitors",
+    "aliases",
+    "service_regions",
+    "proof_points",
+  ]) {
+    ok(`"${veld}" staat in LIST_FIELDS`, new RegExp(`"${veld}"`).test(lijst));
+  }
+});
+
+group("A4: een openstaand veld wordt bewaard bij het sluiten van het tabblad", () => {
+  const bron = leesBestand("app/(app)/merk/[id]/_components/onboarding-session.tsx");
+  ok("er wordt geluisterd naar pagehide", bron.includes('addEventListener("pagehide"'));
+  ok(
+    "er wordt geluisterd naar visibilitychange",
+    bron.includes('addEventListener("visibilitychange"'),
+  );
+  ok(
+    "de aanvraag blijft doorlopen na het loslaten van de pagina",
+    /fetch\(`\/api\/profiles\/\$\{profileId\}`[\s\S]{0,200}keepalive: true/.test(bron),
+  );
+  ok(
+    "elke veldwijziging wordt als openstaand gemarkeerd",
+    /function zet\(key: string, value: unknown\) \{[\s\S]{0,120}openstaandeVelden\.current\.add\(key\)/.test(
+      bron,
+    ),
+  );
+});
+
 group("er bestaat nergens een route die zelf een openingsmail verstuurt", () => {
   // ⚠️ PLAN 16.3 IS EEN VASTE REGEL EN GEEN ONTWERPOPTIE: "Er bestaat geen knop,
   // geen instelling en geen cron die een openingsmail de deur uit doet." Deze
@@ -13994,6 +15211,34 @@ group("er bestaat nergens een route die zelf een openingsmail verstuurt", () => 
     "geen enkel Sales-bestand raakt de maillaag",
     verstuurders.length === 0,
     verstuurders.join(", "),
+  );
+});
+
+group("A5: het contentpakket landt niet meer op het account van de consultant", () => {
+  const route = leesBestand("app/api/profiles/route.ts");
+  ok("de route zet packagePagesPerMonth niet meer op een account", !route.includes("packagePagesPerMonth"));
+  ok("toPackageSize wordt hier niet meer gebruikt", !route.includes("toPackageSize"));
+
+  const wizard = leesBestand("app/(app)/merk/nieuw/onboarding-wizard.tsx");
+  ok("de aanmaakwizard vraagt geen contentpakket meer", !wizard.includes("packagePagesPerMonth"));
+  ok("de aanmaakwizard heeft geen isStaff-vertakking meer nodig", !wizard.includes("isStaff"));
+
+  const pakketBlok = leesBestand("app/(app)/merk/[id]/_components/package-box.tsx");
+  ok(
+    "het toewijzingsscherm zegt dat dit vóór het eerste contentplan moet gebeuren",
+    pakketBlok.includes("vóór het eerste contentplan"),
+  );
+});
+
+group("A6: de opslagknop van het gespreksblok zegt wat hij doet", () => {
+  const bron = leesBestand("app/(app)/merk/[id]/_components/strategy-box.tsx");
+  ok(
+    "de knop heet 'Gesprek vastleggen en onderwerpen definitief maken'",
+    bron.includes("Gesprek vastleggen en onderwerpen definitief maken"),
+  );
+  ok(
+    "er staat een regel uitleg onder de knop",
+    bron.includes("ORBIT ENGINE vervangt de voorlopige onderwerpen door een definitieve lijst"),
   );
 });
 

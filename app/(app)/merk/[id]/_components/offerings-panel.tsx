@@ -1,6 +1,7 @@
 import { CollapsibleSection } from "@/components/collapsible-section";
 import { RerunResearchButton } from "./rerun-research-button";
 import { ManualPagesBox } from "./manual-pages-box";
+import { OfferingsEditor } from "./offerings-editor";
 import { ConfidenceChip } from "@/components/confidence-chip";
 import {
   describeCoverage,
@@ -9,7 +10,8 @@ import {
 import type { InventoryQuality, ProfileOffering } from "@/lib/types/database";
 
 /**
- * Het aanbod zoals wij het op de site vonden (blok B fase 1).
+ * Het aanbod zoals wij het op de site vonden, en sinds onboarding Ronde C
+ * (`documentatie/onboarding_optimalisatie.md` §16) ook te bewerken.
  *
  * ── WAAROM DE BRON ZICHTBAAR IS ─────────────────────────────────────────────
  *
@@ -24,6 +26,13 @@ import type { InventoryQuality, ProfileOffering } from "@/lib/types/database";
  * beide gevallen draaide de pijplijn gewoon door en zei het rapport nergens dat
  * het op vrijwel niets rustte (R6.2). Als het aanbod dun is omdat de crawl dun
  * was, hoort dat hier te staan, bóven de lijst, niet eronder.
+ *
+ * ── SERVERCOMPONENT MET EEN CLIENT-KIND ─────────────────────────────────────
+ *
+ * Het paneel zelf blijft server-gerenderd (kop, inventarisoordeel, statistieken
+ * onderaan). Alleen de boom zelf is nu `OfferingsEditor`, want toevoegen,
+ * bewerken en verwijderen vragen om formulierstatus die een servercomponent
+ * niet kan bijhouden.
  */
 
 /**
@@ -39,17 +48,10 @@ const VERDICT_KOPPEN: Record<InventoryQuality["verdict"], string> = {
   afgekapt: "Niet je hele site gelezen",
 };
 
-const KIND_LABELS: Record<ProfileOffering["kind"], string> = {
-  dienst: "dienst",
-  product: "product",
-  categorie: "categorie",
-  merk: "merk",
-  vestiging: "vestiging",
-};
-
 export function OfferingsPanel({
   profileId,
   offerings,
+  removedOfferings = [],
   inventory,
   confidence,
   coverage,
@@ -58,6 +60,8 @@ export function OfferingsPanel({
 }: {
   profileId: string;
   offerings: ProfileOffering[];
+  /** Uitgezette knopen (migratie 0079): "verwijderen" zet uit, wist niet. */
+  removedOfferings?: ProfileOffering[];
   inventory: InventoryQuality | null;
   /** Pagina's die een mens aan de inventaris toevoegde (migratie 0061). */
   manualPages?: { url: string; title: string | null }[];
@@ -72,123 +76,31 @@ export function OfferingsPanel({
    */
   coverage?: StructureCoverage | null;
 }) {
+  const dekkingPerId = new Map(
+    (coverage?.coverage ?? []).map((c) => [c.offeringId, c]),
+  );
+
   // Geen aanbod én geen inventarisoordeel: het onderzoek is hier niet langs
-  // geweest. Ook dan een blok tonen, met de knop die het alsnog start. Dit is
-  // het paneel waar "Onderzoek opnieuw" woont, en juist een klant met een lege
-  // boom heeft die knop nodig.
-  if (offerings.length === 0 && !inventory) {
+  // geweest. Ook dan een blok tonen, met de knop die het alsnog start én de
+  // mogelijkheid om zelf de eerste dienst vast te leggen. Dit is het paneel
+  // waar "Onderzoek opnieuw" woont, en juist een klant met een lege boom heeft
+  // die knop nodig.
+  if (offerings.length === 0 && !inventory && removedOfferings.length === 0) {
     return (
       <div className="card flex flex-col gap-3">
         <span className="mono-label">Wat je aanbiedt</span>
         <p className="text-secondary">
           Je aanbod is nog niet in kaart gebracht. Zodra het onderzoek klaar is,
           staat hier elke dienst en productgroep die ORBIT ENGINE op je site vond, met de
-          pagina waar het die vandaan haalde.
+          pagina waar het die vandaan haalde. Mist er iets dat niet op de site
+          staat, dan kun je het hieronder alvast zelf vastleggen.
         </p>
+        <OfferingsEditor profileId={profileId} offerings={offerings} removedOfferings={removedOfferings} />
         <RerunResearchButton profileId={profileId} />
         {/* Juist bij een lege boom is dit de nuttigste knop: dan is de crawl
             niets tegengekomen en weet jij wél waar het aanbod staat. */}
         <ManualPagesBox profileId={profileId} pages={manualPages} />
       </div>
-    );
-  }
-
-  const byParent = new Map<string | null, ProfileOffering[]>();
-  for (const o of offerings) {
-    const list = byParent.get(o.parent_id) ?? [];
-    list.push(o);
-    byParent.set(o.parent_id, list);
-  }
-  const roots = byParent.get(null) ?? [];
-
-  const dekkingPerId = new Map(
-    (coverage?.coverage ?? []).map((c) => [c.offeringId, c]),
-  );
-
-  /**
-   * ⚠️ EEN REGEL PER KNOOP, DETAILS ACHTER EEN KLIK
-   *
-   * Elke knoop toonde naam, omschrijving, doelgroep, prijs én bronlink onder
-   * elkaar. Bij Fysi-Unique zijn dat 22 knopen. Twee tot drie schermen scrollen
-   * midden in een demo, terwijl de interessante regels juist de knopen mét een
-   * dekkingsgat zijn.
-   *
-   * Nu is de knoop één scanbare regel en zit de rest in een `<details>`. Bewust
-   * native en geen client-state: dit paneel is een servercomponent, en er is
-   * geen enkele reden om er JavaScript voor te laden.
-   */
-  function renderNode(o: ProfileOffering, depth: number) {
-    const kinderen = byParent.get(o.id) ?? [];
-    const dekking = dekkingPerId.get(o.id);
-    const heeftDetails = Boolean(o.description || o.audience || o.evidence_url);
-
-    const kopregel = (
-      <span className="flex flex-wrap items-baseline gap-2">
-          <span className="chip chip-neutral">{KIND_LABELS[o.kind]}</span>
-          <span className="font-medium">{o.name}</span>
-          {o.price_indication && (
-            <span className="mono-label text-muted">{o.price_indication}</span>
-          )}
-          {o.source !== "ai" && (
-            <span className="chip chip-green">{o.source}</span>
-          )}
-          {/* Alleen het gebrek krijgt een chip. Naast elk onderdeel "heeft een
-              pagina" zetten maakt van de lijst een formulier; de bedoeling is
-              dat het gat opvalt. */}
-          {dekking?.dekking === "ontbreekt" && (
-            <span className="chip chip-warning" title={dekking.reason}>
-              geen eigen pagina
-            </span>
-          )}
-          {dekking?.dekking === "zwak_gedekt" && (
-            <span className="chip chip-neutral" title={dekking.reason}>
-              zwak gedekt
-            </span>
-          )}
-      </span>
-    );
-
-    const details = (
-      <div className="mt-1 flex flex-col gap-1">
-        {o.description && (
-          <p className="text-sm text-secondary">{o.description}</p>
-        )}
-        {o.audience && (
-          <p className="text-sm text-muted">
-            <span className="mono-label">voor</span> {o.audience}
-          </p>
-        )}
-        {o.evidence_url && (
-          <a
-            href={o.evidence_url}
-            target="_blank"
-            rel="noreferrer noopener"
-            className="text-sm text-[var(--intent-intelligence-text)] hover:underline"
-          >
-            gevonden op {shortUrl(o.evidence_url)}
-          </a>
-        )}
-      </div>
-    );
-
-    return (
-      <li key={o.id} className="flex flex-col">
-        {heeftDetails ? (
-          <details className="group">
-            <summary className="cursor-pointer list-none marker:content-none">
-              {kopregel}
-            </summary>
-            {details}
-          </details>
-        ) : (
-          kopregel
-        )}
-        {kinderen.length > 0 && (
-          <ul className="mt-2 flex flex-col gap-2 border-l border-[var(--border-subtle)] pl-4">
-            {kinderen.map((k) => renderNode(k, depth + 1))}
-          </ul>
-        )}
-      </li>
     );
   }
 
@@ -220,17 +132,20 @@ export function OfferingsPanel({
         </div>
       )}
 
-      {offerings.length === 0 ? (
+      {offerings.length === 0 && (
         <p className="text-sm text-secondary">
           ORBIT ENGINE kon je aanbod niet uit de website halen. Vul het hieronder aan
           tijdens het gesprek, of controleer of de site ook zonder JavaScript
           leesbaar is.
         </p>
-      ) : (
-        <ul className="flex flex-col gap-2">
-          {roots.map((o) => renderNode(o, 0))}
-        </ul>
       )}
+
+      <OfferingsEditor
+        profileId={profileId}
+        offerings={offerings}
+        removedOfferings={removedOfferings}
+        dekkingPerId={dekkingPerId}
+      />
 
       {/* De knop staat hier en niet ergens in de instellingen: als de crawl dun
           was of het aanbod klopt niet, is dit de plek waar je dat ziet. */}
@@ -266,14 +181,4 @@ export function OfferingsPanel({
       )}
     </div>
   );
-}
-
-/** Alleen het pad, want het domein staat overal hetzelfde bovenaan. */
-function shortUrl(url: string): string {
-  try {
-    const u = new URL(url);
-    return u.pathname === "/" ? u.hostname : u.pathname;
-  } catch {
-    return url;
-  }
 }

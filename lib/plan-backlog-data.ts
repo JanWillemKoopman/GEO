@@ -27,7 +27,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { loadRecommendationPotential } from "@/lib/potential-data";
 import { distributePotentialByWeight } from "@/lib/potential";
 import { readRecommendations, type RecommendationTarget } from "@/lib/pipeline/recommendation";
-import type { BacklogItem, BacklogHandeling } from "@/lib/plan-backlog";
+import type { BacklogItem, BacklogHandeling, DeclinedItem } from "@/lib/plan-backlog";
 import type { PageType } from "@/lib/types/database";
 
 type Admin = ReturnType<typeof createAdminClient>;
@@ -387,4 +387,53 @@ export async function targetsFromSourceRef(
   const aanbevelingen = readRecommendations(data.recommendations_json);
   const aanbeveling = aanbevelingen[volgnummer];
   return aanbeveling ? { reportId, targets: aanbeveling.targets } : leeg;
+}
+
+/**
+ * Het derde niveau van de voorraad: wat het rapportmodel overwoog maar niet
+ * voorstelde, met de reden (werkpakket C §5.1, migratie 0078).
+ *
+ * Alleen het LAATSTE rapport per cluster telt, dezelfde regel als
+ * `syncBacklog()`: een afwijzing uit de nulmeting die in periode 2 niet meer
+ * terugkomt (want inmiddels wél een aanbeveling werd) hoort niet meer hier.
+ */
+export async function loadDeclinedOpportunities(
+  admin: Admin,
+  profileId: string,
+): Promise<DeclinedItem[]> {
+  const { data: analysisRows } = await admin
+    .from("analyses")
+    .select("id")
+    .eq("profile_id", profileId)
+    .is("archived_at", null);
+  const analysisIds = (analysisRows ?? []).map((a) => a.id as string);
+  if (analysisIds.length === 0) return [];
+
+  const { data: reportRows } = await admin
+    .from("reports")
+    .select("analysis_id, declined_json, generated_at")
+    .in("analysis_id", analysisIds)
+    .order("generated_at", { ascending: false });
+
+  const gezien = new Set<string>();
+  const items: DeclinedItem[] = [];
+  for (const r of (reportRows ?? []) as {
+    analysis_id: string;
+    declined_json: unknown;
+  }[]) {
+    if (gezien.has(r.analysis_id)) continue;
+    gezien.add(r.analysis_id);
+    if (!Array.isArray(r.declined_json)) continue;
+    for (const ruw of r.declined_json as { cluster?: unknown; problem?: unknown; reason?: unknown }[]) {
+      const problem = typeof ruw?.problem === "string" ? ruw.problem.trim() : "";
+      const reason = typeof ruw?.reason === "string" ? ruw.reason.trim() : "";
+      if (!problem || !reason) continue;
+      items.push({
+        cluster: typeof ruw?.cluster === "string" ? ruw.cluster.trim() || null : null,
+        problem,
+        reason,
+      });
+    }
+  }
+  return items;
 }

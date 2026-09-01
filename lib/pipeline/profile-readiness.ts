@@ -74,6 +74,19 @@ export interface ReadinessInput {
   scopeKnown: boolean;
   /** Wat er staat, voor het detailregeltje. Null als het leeg is. */
   scopeDetail?: string | null;
+  /**
+   * De twee overige startvoorwaarden uit hoofdstuk 14.1: het pakket op het
+   * account (voorwaarde voor een contentplan) en of het merk al aan het
+   * klantaccount is toegewezen (voorwaarde om te kunnen inloggen).
+   *
+   * ⚠️ Blokkeren `compleet` NIET (`nodig: false` verderop). Het product is
+   * sales-led: tijdens dit gesprek is het merk meestal nog niet toegewezen en
+   * staat er nog geen pakket, dat gebeurt pas ná de verkoop (`CLAUDE.md`,
+   * `docs/logbook.md` §15). Dit zijn twee informatieve regels voor de agenda
+   * ná het gesprek, geen reden om het dossier "niet compleet" te noemen.
+   */
+  packagePages: number | null;
+  assigned: boolean;
 }
 
 export interface Readiness {
@@ -204,6 +217,25 @@ export function assessReadiness(input: ReadinessInput): Readiness {
       "Alle vragen gehad",
       false,
       `/merk/${p}/strategie/vragen`,
+      false,
+    ),
+    // ── De twee overige startvoorwaarden uit hoofdstuk 14.1 ─────────────────
+    // Informatief, niet blokkerend: zie de uitleg bij `packagePages`/`assigned`
+    // hierboven.
+    row(
+      "Pakket gekozen",
+      input.packagePages !== null,
+      input.packagePages !== null ? `${input.packagePages} pagina's per maand` : null,
+      false,
+      `/merk/${p}/admin/toewijzen`,
+      false,
+    ),
+    row(
+      "Merk toegewezen aan de klant",
+      input.assigned,
+      "De klant kan inloggen",
+      false,
+      `/merk/${p}/admin/toewijzen`,
       false,
     ),
   ];

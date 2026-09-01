@@ -977,6 +977,159 @@ async function main(): Promise<void> {
     );
 
     // ══════════════════════════════════════════════════════════════════════
+    // De aanbodboom bewerkbaar: toevoegen, wijzigen, verwijderen, hercrawl
+    // (onboarding Ronde C, documentatie/onboarding_optimalisatie.md §16, migratie 0079)
+    //
+    // C3 t/m C5 in één doorloop, tegen dezelfde route-logica als
+    // `app/api/profiles/[id]/offerings/route.ts`: de pure functies uit
+    // `lib/offerings-validate.ts`, en de gedeelde lezer uit `lib/offerings.ts`.
+    // ══════════════════════════════════════════════════════════════════════
+    console.log("\nDe aanbodboom bewerkbaar: toevoegen, wijzigen, verwijderen, hercrawl");
+
+    const { activeOfferings, activeOfferingCount, removedOfferings } = await import(
+      "@/lib/offerings"
+    );
+    const { nextSortOrder: berekenSortOrder, wouldCreateCycle: geeftLus } = await import(
+      "@/lib/offerings-validate"
+    );
+
+    // Schone lei: de knopen uit het 0043-scenario hierboven horen hier niet bij.
+    await db.client.query("delete from public.profile_offerings where profile_id = $1", [
+      profileId,
+    ]);
+
+    // ── C3, toevoegen: de eerste knoop krijgt sort_order 10 ───────────────────
+    const eersteVolgorde = berekenSortOrder(await activeOfferings(admin as never, profileId));
+    ok("C3: een lege boom begint bij sort_order 10", eersteVolgorde === 10);
+    const { rows: [onderhoud] } = await db.client.query(
+      `insert into public.profile_offerings (profile_id, kind, name, source, sort_order, note)
+       values ($1, 'dienst', 'Onderhoudsabonnement', 'gesprek', $2, 'levert 40% van de omzet')
+       returning id`,
+      [profileId, eersteVolgorde],
+    );
+
+    // ── C3, toevoegen onder een knoop: de tweede komt op sort_order 20 ────────
+    const tweedeVolgorde = berekenSortOrder(await activeOfferings(admin as never, profileId));
+    ok("C3: de tweede knoop komt op sort_order 20", tweedeVolgorde === 20);
+    const { rows: [reparatie] } = await db.client.query(
+      `insert into public.profile_offerings (profile_id, parent_id, kind, name, source, sort_order)
+       values ($1, $2, 'dienst', 'Reparatie', 'ai', $3)
+       returning id`,
+      [profileId, onderhoud.id, tweedeVolgorde],
+    );
+
+    // ── C3, de lus-controle: Reparatie mag niet de ouder van Onderhoudsabonnement worden ──
+    const { rows: bomenVoorLus } = await db.client.query(
+      "select id, parent_id from public.profile_offerings where profile_id = $1",
+      [profileId],
+    );
+    ok(
+      "C3: Onderhoudsabonnement onder Reparatie hangen zou een lus zijn",
+      geeftLus(
+        bomenVoorLus as { id: string; parent_id: string | null }[],
+        onderhoud.id as string,
+        reparatie.id as string,
+      ),
+    );
+    ok(
+      "C3: Reparatie onder Onderhoudsabonnement hangen (waar hij al hangt) is geen lus",
+      !geeftLus(
+        bomenVoorLus as { id: string; parent_id: string | null }[],
+        reparatie.id as string,
+        onderhoud.id as string,
+      ),
+    );
+
+    // ── C3, wijzigen: de PATCH-route zet source en updated_by, altijd ─────────
+    const bewerkerId = randomUUID();
+    await db.client.query("insert into auth.users (id, email) values ($1, $2)", [
+      bewerkerId,
+      "bewerker@example.com",
+    ]);
+    await db.client.query(
+      `update public.profile_offerings
+       set name = 'Onderhoudsabonnement (jaarlijks)', source = 'klant', updated_by = $2
+       where id = $1`,
+      [onderhoud.id, bewerkerId],
+    );
+    const { rows: [naWijziging] } = await db.client.query(
+      "select name, source, updated_by from public.profile_offerings where id = $1",
+      [onderhoud.id],
+    );
+    ok("C3: de wijziging is doorgevoerd", naWijziging.name === "Onderhoudsabonnement (jaarlijks)");
+    ok("C3: en de herkomst is bijgewerkt naar wie hem zette", naWijziging.source === "klant");
+
+    // ── C3, verwijderen: uitzetten met de onderliggende knopen mee ────────────
+    const nu = new Date().toISOString();
+    await db.client.query(
+      `update public.profile_offerings set removed_at = $2, removed_by = $3
+       where id in ($1, (select id from public.profile_offerings where parent_id = $1))`,
+      [onderhoud.id, nu, bewerkerId],
+    );
+
+    const actiefNaVerwijderen = await activeOfferings(admin as never, profileId);
+    ok(
+      "C3: na verwijderen staat de boom leeg voor de actieve lezers",
+      actiefNaVerwijderen.length === 0,
+      `${actiefNaVerwijderen.length} nog actief`,
+    );
+    const verwijderdeKnopen = await removedOfferings(admin as never, profileId);
+    ok(
+      "C3: de knoop en zijn kind staan allebei bij de verwijderde knopen",
+      verwijderdeKnopen.length === 2,
+      `${verwijderdeKnopen.length} verwijderd`,
+    );
+    ok(
+      "C2: de notitie uit het gesprek is bewaard, ook na verwijderen",
+      verwijderdeKnopen.some((o) => o.note === "levert 40% van de omzet"),
+    );
+
+    // ── C4, hercrawlbescherming: alleen de AI-knopen gaan weg ──────────────────
+    //
+    // Onderhoudsabonnement is hier bewust 'klant' (handmatig gewijzigd) en al
+    // verwijderd; Reparatie is 'ai' en zou van een nieuwe crawl komen. Zet ze
+    // allebei terug op actief, simuleer daarna wat de deep-research-route doet
+    // (`.eq("source", "ai")`), en controleer dat alleen de AI-knoop verdwijnt.
+    await db.client.query(
+      "update public.profile_offerings set removed_at = null, removed_by = null where profile_id = $1",
+      [profileId],
+    );
+    await db.client.query(
+      "delete from public.profile_offerings where profile_id = $1 and source = 'ai'",
+      [profileId],
+    );
+    const naHercrawl = await activeOfferings(admin as never, profileId);
+    ok(
+      "C4: de handmatig gewijzigde dienst overleeft de hercrawl",
+      naHercrawl.some((o) => o.id === onderhoud.id),
+    );
+    ok(
+      "C4: en de AI-knoop is weg, precies zoals vóór deze ronde al gebeurde",
+      !naHercrawl.some((o) => o.id === reparatie.id),
+    );
+
+    // ── C4, de idempotentiecontrole van offering.ts telt alleen AI-knopen ─────
+    //
+    // Zonder de §16.5.2-reparatie zou deze telling ook de knoop van de klant
+    // meetellen, en dan zou `buildOfferingTree()` nooit meer draaien zodra er
+    // één handmatige dienst bij staat, ook niet als de crawl daarna veel meer
+    // vindt.
+    const aiTellingNaHercrawl = await activeOfferingCount(admin as never, profileId);
+    const { rows: [{ count: aiRijen }] } = await db.client.query(
+      "select count(*) from public.profile_offerings where profile_id = $1 and source = 'ai'",
+      [profileId],
+    );
+    ok(
+      "C4: geen AI-knopen meer, dus de aanbodstap mag opnieuw draaien",
+      Number(aiRijen) === 0,
+    );
+    ok(
+      "C2/C5: de actieve telling ziet de overgebleven klantknoop",
+      aiTellingNaHercrawl === 1,
+      `${aiTellingNaHercrawl}`,
+    );
+
+    // ══════════════════════════════════════════════════════════════════════
     // Archiveren: onzichtbaar in de app, aanwezig in de database (0044)
     //
     // Zes query's sommen merken of analyses op, en het filter moet in alle zes.
@@ -2621,14 +2774,38 @@ async function main(): Promise<void> {
     // Al overal zichtbaar (genoemd) en weinig zoekvolume: er valt bijna niets
     // meer te winnen. Potentie ≈ 0.
     const lagePotentie = await clusterMetKans("lage potentie", true, 10);
+    // Werkpakket C §5.1: dit cluster overwoog ook een tweede gemis, maar dat
+    // werd geen aanbeveling. `loadPlan()` moet dat teruggeven in `declined`.
+    await db.client.query(
+      `update public.reports set declined_json = $1::jsonb
+        where analysis_id = $2`,
+      [
+        JSON.stringify([
+          { cluster: "lage potentie", problem: "AI noemt geen enkele aanbieder", reason: "geen bestaand aanbod om over te schrijven" },
+        ]),
+        lagePotentie.analyseId,
+      ],
+    );
     // Nog nergens zichtbaar en veel zoekvolume: dít is de kans. Potentie ≈ 90.
     const hogePotentie = await clusterMetKans("hoge potentie", false, 90);
 
     // ⚠️ Eén pagina per maand, zodat de voorzet moet KIEZEN. Met twee zouden
     // beide kansen in maand 1 belanden en zou de test niets bewijzen.
+    //
+    // ⚠️ Vaste `startedOn`, een heel jaar verderop. Zonder dat argument leest
+    // `createPlan()` de echte klok, en de rest van dit scenario (verderop
+    // `assignToMonth()` en `setPageDate()`, die geen `now` kunnen krijgen)
+    // rekent ALTIJD tegen de echte klok, ongeacht wat hier staat. Ligt een van
+    // de twaalf maanden van dit plan toevallig in dezelfde kalendermaand als
+    // vandaag, dan geldt daar dezelfde grens als in `maandIsVol()` (punt 5 van
+    // docs/tasks/opdracht-bevindingen-5-tot-9.md) en breekt dat bij "de datum
+    // zelf zetten" verderop in dit scenario met "Die dag is al voorbij".
+    // Zelfde reden waarom de tests in `plan-schedule` een `now` gebruiken die
+    // een jaar van de geteste maand vandaan ligt.
     const planResultaat = await createPlan(admin as never, {
       profileId: planPotProfileId,
       pagesPerMonth: 1,
+      startedOn: new Date("2027-06-10T00:00:00Z"),
     });
     ok(
       "het plan wordt gemaakt",
@@ -2729,6 +2906,11 @@ async function main(): Promise<void> {
       "de clusters die al kansen leverden staan apart, zodat het scherm niet om een meting vraagt die er is",
       bundel?.metKansen.length === 2,
       `${bundel?.metKansen.length} clusters met kansen`,
+    );
+    ok(
+      "de afgevallen kans van het rapport komt mee in de bundel (0078)",
+      bundel?.declined.length === 1 && bundel?.declined[0]?.reason.includes("geen bestaand aanbod"),
+      JSON.stringify(bundel?.declined),
     );
 
     // ── Idempotentie (conventie 9) ──────────────────────────────────────────
@@ -2919,6 +3101,156 @@ async function main(): Promise<void> {
       ok(
         "maar vervalt bij een verhuizing naar een andere maand",
         naVerhuizing[0].scheduled_manual === false,
+      );
+    }
+
+    // ══════════════════════════════════════════════════════════════════════
+    // Een plan dat te laat in de maand start, begint in maand 2
+    // (punt 5, docs/tasks/opdracht-bevindingen-5-tot-9.md)
+    // ══════════════════════════════════════════════════════════════════════
+    //
+    // ⚠️ DE SAMENHANG DIE HIER FOUT KAN GAAN: `spreadDates()` geeft terecht
+    // een lege lijst terug als maand 1 geen bruikbare dag meer over heeft,
+    // maar `createPlan()` moet die lege lijst OPVANGEN en de voorzet naar
+    // maand 2 zetten in plaats van pagina's zonder datum in maand 1 achter te
+    // laten. Geen enkele unittest op `spreadDates()` alleen kan zien of de
+    // aanroeper dat ook echt doet: dat is precies waar het bij Wouter
+    // Warmtepomp misging op 31 augustus 2026, toen alle zeven pagina's van
+    // maand 1 een publicatiedatum in het verleden kregen.
+    console.log("\nEen plan dat te laat in de maand start, begint in maand 2 (punt 5)");
+    {
+      const teLaatUserId = randomUUID();
+      const teLaatProfileId = randomUUID();
+      const teLaatAnalyseId = randomUUID();
+      const teLaatTopicId = randomUUID();
+      const teLaatPromptId = randomUUID();
+      const teLaatRunId = randomUUID();
+
+      await db.client.query("insert into auth.users (id, email) values ($1, $2)", [
+        teLaatUserId,
+        "telaatinmaand@example.com",
+      ]);
+      await db.client.query(
+        `insert into public.profiles (id, user_id, name, url, brand_name, status)
+         values ($1, $2, 'Te Laat BV', 'https://telaat-bv.nl', 'Te Laat BV', 'klaar')`,
+        [teLaatProfileId, teLaatUserId],
+      );
+      await db.client.query(
+        `insert into public.analyses (id, user_id, profile_id, name, url, topic, status)
+         values ($1, $2, $3, 'warmtepomp', 'https://telaat-bv.nl', 'warmtepomp', 'gereed')`,
+        [teLaatAnalyseId, teLaatUserId, teLaatProfileId],
+      );
+      await db.client.query(
+        `insert into public.profile_topics (id, profile_id, analysis_id, title, priority, status, search_volume_index)
+         values ($1, $2, $3, 'warmtepomp', 5, 'goedgekeurd', 50)`,
+        [teLaatTopicId, teLaatProfileId, teLaatAnalyseId],
+      );
+      await db.client.query(
+        `insert into public.prompts (id, analysis_id, text, category, active)
+         values ($1, $2, 'Waar vind ik een warmtepomp?', 'Beslissing', true)`,
+        [teLaatPromptId, teLaatAnalyseId],
+      );
+      await db.client.query(
+        `insert into public.tracking_runs
+           (id, analysis_id, prompt_id, prompt_text_snapshot, prompt_category_snapshot, week_no, purpose)
+         values ($1, $2, $3, 'Waar vind ik een warmtepomp?', 'Beslissing', 0, 'periodic')`,
+        [teLaatRunId, teLaatAnalyseId, teLaatPromptId],
+      );
+      await db.client.query(
+        `insert into public.tracking_run_mentions (tracking_run_id, entity_name, is_own_brand, mentioned)
+         values ($1, 'Te Laat BV', true, false)`,
+        [teLaatRunId],
+      );
+      await db.client.query(
+        "insert into public.visibility_scores (analysis_id, week_no, score) values ($1, 0, 0)",
+        [teLaatAnalyseId],
+      );
+      await db.client.query(
+        `insert into public.reports (analysis_id, period, recommendations_json)
+         values ($1, 'week 0', $2::jsonb)`,
+        [
+          teLaatAnalyseId,
+          JSON.stringify([
+            {
+              title: "Warmtepomp laten installeren in een bestaande woning",
+              why: "De AI noemt ons niet.",
+              type: "landing",
+              action: "nieuw",
+              targetIntent: "Iemand die een warmtepomp zoekt",
+              targets: [
+                { promptId: teLaatPromptId, weight: 1, text: "Waar vind ik een warmtepomp?" },
+              ],
+            },
+          ]),
+        ],
+      );
+
+      // Exact het scenario van Wouter Warmtepomp: het plan wordt op de
+      // laatste dag van de maand opgesteld. `now` gaat expliciet mee zodat
+      // deze test hetzelfde uitkomt ongeacht de werkelijke datum waarop hij
+      // draait (dezelfde reden waarom `spreadDates()`-tests altijd een vaste
+      // `now` meegeven).
+      const opDe31e = new Date("2026-08-31T09:00:00Z");
+      const planResultaat = await createPlan(admin as never, {
+        profileId: teLaatProfileId,
+        pagesPerMonth: 5,
+        startedOn: opDe31e,
+        now: opDe31e,
+      });
+      ok(
+        "het plan wordt gemaakt, ook als maand 1 vol is",
+        planResultaat.ok,
+        planResultaat.ok ? "" : JSON.stringify((planResultaat as { problems: string[] }).problems),
+      );
+
+      const { rows: teLaatMaanden } = await db.client.query(
+        `select pm.month_number, pm.status,
+                (select count(*)::int from public.planned_pages pp
+                  where pp.plan_month_id = pm.id and pp.is_buffer = false) as aantal
+           from public.plan_months pm
+           join public.content_plans cp on cp.id = pm.plan_id
+          where cp.profile_id = $1 and cp.status <> 'gestopt'
+          order by pm.month_number`,
+        [teLaatProfileId],
+      );
+      const teLaatMaand1 = teLaatMaanden.find((m: { month_number: number }) => m.month_number === 1);
+      const teLaatMaand2 = teLaatMaanden.find((m: { month_number: number }) => m.month_number === 2);
+
+      ok(
+        "maand 1 blijft leeg",
+        teLaatMaand1?.aantal === 0,
+        `maand 1 kreeg ${teLaatMaand1?.aantal} pagina's`,
+      );
+      ok(
+        "en blijft dus concept, er is niets om aan de klant voor te leggen",
+        teLaatMaand1?.status === "concept",
+        `status was ${teLaatMaand1?.status}`,
+      );
+      ok(
+        "de voorzet staat in maand 2",
+        teLaatMaand2?.aantal === 1,
+        `maand 2 kreeg ${teLaatMaand2?.aantal} pagina's`,
+      );
+      ok(
+        "en maand 2 staat ter goedkeuring",
+        teLaatMaand2?.status === "ter_goedkeuring",
+        `status was ${teLaatMaand2?.status}`,
+      );
+
+      const { rows: teLaatPagina } = await db.client.query(
+        `select pp.scheduled_for from public.planned_pages pp
+           join public.plan_months pm on pm.id = pp.plan_month_id
+          where pm.month_number = 2 and pp.profile_id = $1`,
+        [teLaatProfileId],
+      );
+      const teLaatDatum = teLaatPagina[0]?.scheduled_for
+        ? new Date(teLaatPagina[0].scheduled_for).toISOString().slice(0, 10)
+        : null;
+      // September 2026: geen enkele datum meer in augustus, en binnen dag 28.
+      ok(
+        "die pagina krijgt een datum in september, niet in het verleden",
+        typeof teLaatDatum === "string" && teLaatDatum >= "2026-09-01" && teLaatDatum <= "2026-09-28",
+        `datum was ${teLaatDatum}`,
       );
     }
 
@@ -3232,9 +3564,9 @@ async function main(): Promise<void> {
     const origineleFetch = globalThis.fetch;
     globalThis.fetch = (async (input: RequestInfo | URL) => {
       const url = String(input);
-      const antwoord = (body: string) => ({ ok: true, status: 200, text: async () => body });
+      const antwoord = (body: string) => ({ ok: true, status: 200, headers: new Headers(), text: async () => body });
 
-      if (url.endsWith("/robots.txt")) return { ok: false, status: 404, text: async () => "" };
+      if (url.endsWith("/robots.txt")) return { ok: false, status: 404, headers: new Headers(), text: async () => "" };
       if (url.endsWith("/sitemap.xml")) {
         return antwoord(
           `<?xml version="1.0"?><urlset>${alleUrls
@@ -3242,13 +3574,13 @@ async function main(): Promise<void> {
             .join("")}</urlset>`,
         );
       }
-      if (url.endsWith("/sitemap_index.xml")) return { ok: false, status: 404, text: async () => "" };
+      if (url.endsWith("/sitemap_index.xml")) return { ok: false, status: 404, headers: new Headers(), text: async () => "" };
       if (alleUrls.includes(url)) {
         return antwoord(
           `<html><head><title>${url}</title></head><body><p>${"Inhoud van deze pagina. ".repeat(20)}</p></body></html>`,
         );
       }
-      return { ok: false, status: 404, text: async () => "" };
+      return { ok: false, status: 404, headers: new Headers(), text: async () => "" };
     }) as typeof globalThis.fetch;
 
     try {
@@ -3313,6 +3645,199 @@ async function main(): Promise<void> {
       globalThis.fetch = origineleFetch;
     }
 
+    // ══════════════════════════════════════════════════════════════════════
+    // Crawlbeheer: "meer" vult aan, "opnieuw" vervangt (onboarding Ronde D,
+    // documentatie/onboarding_optimalisatie.md §17.8, migratie 0080)
+    // ══════════════════════════════════════════════════════════════════════
+    console.log("\nCrawlbeheer: aanvullen zonder te vervangen, en vervangen zonder handwerk te verliezen");
+    {
+      const crawlProfielId = randomUUID();
+      await db.client.query(
+        `insert into public.profiles (id, user_id, name, url, brand_name, status, max_inventory_pages)
+         values ($1, $2, 'Crawltest', 'https://crawltest.nl', 'Crawltest', 'klaar', 10)`,
+        [crawlProfielId, userId],
+      );
+      await db.client.query(
+        `insert into public.profile_pages (profile_id, url, title, text_excerpt, source) values
+         ($1, 'https://crawltest.nl/handmatig', 'Met de hand toegevoegd',
+          'Deze pagina blijft bij elke ronde staan.', 'handmatig')`,
+        [crawlProfielId],
+      );
+
+      const crawlUrls = Array.from({ length: 8 }, (_, i) => `https://crawltest.nl/pagina-${i}`);
+
+      const origineleFetch2 = globalThis.fetch;
+      globalThis.fetch = (async (input: RequestInfo | URL) => {
+        const url = String(input);
+        const antwoord = (body: string) => ({ ok: true, status: 200, headers: new Headers(), text: async () => body });
+        if (url.endsWith("/robots.txt")) return { ok: false, status: 404, headers: new Headers(), text: async () => "" };
+        if (url.endsWith("/sitemap.xml")) {
+          return antwoord(
+            `<?xml version="1.0"?><urlset>${crawlUrls
+              .map((u) => `<loc>${u}</loc>`)
+              .join("")}</urlset>`,
+          );
+        }
+        if (url.endsWith("/sitemap_index.xml")) return { ok: false, status: 404, headers: new Headers(), text: async () => "" };
+        if (crawlUrls.includes(url)) {
+          return antwoord(
+            `<html><head><title>${url}</title></head><body><p>${"Inhoud van deze pagina. ".repeat(20)}</p></body></html>`,
+          );
+        }
+        return { ok: false, status: 404, headers: new Headers(), text: async () => "" };
+      }) as typeof globalThis.fetch;
+
+      try {
+        const { refreshInventory } = await import("@/lib/pipeline/refresh-inventory");
+
+        // ── Ronde 1: "opnieuw" op vijf pagina's ──────────────────────────────
+        // ⚠️ `refreshInventory()` klemt `maxPages` op minimaal 5 (zelfde
+        // ondergrens als de PATCH-route voor `max_inventory_pages`), dus dat
+        // is ook de kleinste zinvolle waarde voor deze test.
+        const ronde1 = await refreshInventory(crawlProfielId, {
+          mode: "opnieuw",
+          maxPages: 5,
+          speed: "snel", // geen pauzes, dit is een test en geen echte site
+        });
+        ok("ronde 1: geen blokkade", !ronde1.blocked);
+        eqc("ronde 1: vijf plus de handmatige", String(ronde1.count), "6");
+
+        const { rows: naRonde1 } = await db.client.query(
+          "select url, source from public.profile_pages where profile_id = $1",
+          [crawlProfielId],
+        );
+        const crawlUrlsRonde1 = naRonde1
+          .filter((p) => p.source === "crawl")
+          .map((p) => p.url as string);
+        eqc("ronde 1: precies vijf gecrawlde pagina's", String(crawlUrlsRonde1.length), "5");
+        ok(
+          "ronde 1: de handmatige pagina staat er nog",
+          naRonde1.some((p) => p.url.endsWith("/handmatig") && p.source === "handmatig"),
+        );
+
+        // ── Ronde 2: "meer" vult aan met de drie overgebleven pagina's ──────
+        // Van de acht kandidaten zijn er vijf al bekend; "meer" kan er dus
+        // hoogstens drie nieuwe bij vinden, ook al is er om vijf gevraagd.
+        const ronde2 = await refreshInventory(crawlProfielId, {
+          mode: "meer",
+          maxPages: 5,
+          speed: "snel",
+        });
+        ok("ronde 2: geen blokkade", !ronde2.blocked);
+
+        const { rows: naRonde2 } = await db.client.query(
+          "select url, source from public.profile_pages where profile_id = $1",
+          [crawlProfielId],
+        );
+        eqc(
+          "ronde 2: de vijf van ronde 1 staan er nog, plus drie nieuwe, plus de handmatige (9)",
+          String(naRonde2.length),
+          "9",
+        );
+        const crawlUrlsRonde2 = naRonde2
+          .filter((p) => p.source === "crawl")
+          .map((p) => p.url as string);
+        ok(
+          "ronde 2: geen enkele URL van ronde 1 is dubbel opgehaald",
+          crawlUrlsRonde1.every((u) => crawlUrlsRonde2.filter((x) => x === u).length === 1),
+        );
+        ok(
+          "ronde 2: er staan nu ook URL's bij die in ronde 1 nog niet gekozen waren",
+          crawlUrlsRonde2.some((u) => !crawlUrlsRonde1.includes(u)),
+        );
+
+        // ── Ronde 3: "opnieuw" vervangt alles wat "crawl" is, handwerk blijft ─
+        const ronde3 = await refreshInventory(crawlProfielId, {
+          mode: "opnieuw",
+          maxPages: 6,
+          speed: "snel",
+        });
+        ok("ronde 3: geen blokkade", !ronde3.blocked);
+
+        const { rows: naRonde3 } = await db.client.query(
+          "select url, source from public.profile_pages where profile_id = $1",
+          [crawlProfielId],
+        );
+        eqc(
+          "ronde 3: precies zes gecrawlde pagina's plus de handmatige (7)",
+          String(naRonde3.length),
+          "7",
+        );
+        ok(
+          "ronde 3: de handmatige pagina overleeft ook de vervangronde",
+          naRonde3.some((p) => p.url.endsWith("/handmatig") && p.source === "handmatig"),
+        );
+
+        // ── En de crawlvelden op het profiel zelf zijn bijgewerkt ───────────
+        const { rows: profielNaRondes } = await db.client.query(
+          "select crawl_last_run_at, crawl_last_mode, crawl_speed, crawl_last_blocked_at from public.profiles where id = $1",
+          [crawlProfielId],
+        );
+        ok("crawl_last_run_at staat gezet", profielNaRondes[0].crawl_last_run_at !== null);
+        eqc("crawl_last_mode is de laatste modus", profielNaRondes[0].crawl_last_mode, "opnieuw");
+        eqc("crawl_speed is de gekozen stand", profielNaRondes[0].crawl_speed, "snel");
+        ok("geen blokkade gemeld", profielNaRondes[0].crawl_last_blocked_at === null);
+      } finally {
+        globalThis.fetch = origineleFetch2;
+      }
+
+      // ── Een 403 stopt de crawl in plaats van door te gaan met lege pagina's ─
+      const origineleFetch3 = globalThis.fetch;
+      globalThis.fetch = (async (input: RequestInfo | URL) => {
+        const url = String(input);
+        if (url.endsWith("/robots.txt")) return { ok: false, status: 404, headers: new Headers(), text: async () => "" };
+        if (url.endsWith("/sitemap.xml")) {
+          return {
+            ok: true,
+            status: 200,
+            text: async () =>
+              `<?xml version="1.0"?><urlset>${crawlUrls.map((u) => `<loc>${u}</loc>`).join("")}</urlset>`,
+          };
+        }
+        if (url.endsWith("/sitemap_index.xml")) return { ok: false, status: 404, headers: new Headers(), text: async () => "" };
+        // De site weert ons vanaf hier volledig.
+        return { ok: false, status: 403, headers: new Headers(), text: async () => "" };
+      }) as typeof globalThis.fetch;
+
+      try {
+        const { refreshInventory } = await import("@/lib/pipeline/refresh-inventory");
+        const geblokkeerd = await refreshInventory(crawlProfielId, {
+          mode: "opnieuw",
+          maxPages: 5,
+          speed: "snel",
+        });
+        ok("een 403 wordt herkend als blokkade", geblokkeerd.blocked);
+
+        const { rows: profielGeblokkeerd } = await db.client.query(
+          "select crawl_last_blocked_at from public.profiles where id = $1",
+          [crawlProfielId],
+        );
+        ok(
+          "en dat wordt vastgelegd op het profiel",
+          profielGeblokkeerd[0].crawl_last_blocked_at !== null,
+        );
+
+        // ⚠️ DE FOUT DIE DIT MOET VANGEN: een blokkade vóór de eerste pagina
+        // levert nul bruikbare pagina's op. Zou "opnieuw" dan gewoon de tabel
+        // vervangen, dan wist de blokkade van vandaag de zeven pagina's die
+        // ronde 3 zonet opsloeg.
+        const { rows: naBlokkade } = await db.client.query(
+          "select url, source from public.profile_pages where profile_id = $1",
+          [crawlProfielId],
+        );
+        eqc(
+          "de zeven pagina's van vóór de blokkade staan er nog, niets is gewist",
+          String(naBlokkade.length),
+          "7",
+        );
+        ok(
+          "de handmatige pagina overleeft ook een geblokkeerde ronde",
+          naBlokkade.some((p) => p.url.endsWith("/handmatig") && p.source === "handmatig"),
+        );
+      } finally {
+        globalThis.fetch = origineleFetch3;
+      }
+    }
 
     // ══════════════════════════════════════════════════════════════════════
     // Mijn reputatie: de samenhang tussen zes taken
@@ -4433,6 +4958,384 @@ async function main(): Promise<void> {
         [gapProfileId],
       );
       ok("wat beantwoord is telt niet meer mee als open", nogOpen[0].n === 1, String(nogOpen[0].n));
+    }
+
+    // ════════════════════════════════════════════════════════════════════════
+    // De uitleg bij een marktclaim blijft nooit meer weg (punt 6,
+    // docs/tasks/opdracht-bevindingen-5-tot-9.md)
+    //
+    // ⚠️ DE SAMENHANG DIE HIER FOUT KAN GAAN: `answerFact()` moet twee
+    // besluiten LOS van elkaar nemen. Vóór de reparatie hing de uitleg aan de
+    // vertakking op `isGapQuestion()`, die meteen terugkeerde: een gapvraag
+    // met een superlatief liet dan geen enkele uitleg zien. Deze vier
+    // gevallen (gap × wel/geen claim, clustervraag × wel/geen claim) zijn
+    // precies de vier combinaties uit het verificatiecriterium, tegen de
+    // echte functie en de echte database.
+    // ════════════════════════════════════════════════════════════════════════
+    console.log("\nDe uitleg bij een marktclaim blijft nooit meer weg (punt 6)");
+    {
+      const { answerFact } = await import("@/lib/facts");
+
+      const marktclaimUserId = randomUUID();
+      const marktclaimProfileId = randomUUID();
+      await db.client.query("insert into auth.users (id, email) values ($1, $2)", [
+        marktclaimUserId,
+        "marktclaimtest@example.com",
+      ]);
+      await db.client.query(
+        `insert into public.profiles (id, user_id, name, url, brand_name, status, proof_points)
+         values ($1, $2, 'Marktclaim BV', 'https://marktclaim-bv.nl', 'Marktclaim BV', 'klaar', '{}')`,
+        [marktclaimProfileId, marktclaimUserId],
+      );
+
+      async function nieuweVraag(vraag: string, gap: boolean): Promise<string> {
+        const factId = randomUUID();
+        await db.client.query(
+          `insert into public.fact_requests (id, profile_id, question, reason, status, raw_json)
+           values ($1, $2, $3, 'test', 'open', $4::jsonb)`,
+          [factId, marktclaimProfileId, vraag, gap ? JSON.stringify({ bron: "synthese-gap" }) : null],
+        );
+        return factId;
+      }
+
+      // ── 1. Gapvraag met een superlatief ─────────────────────────────────
+      const gapMetClaim = await nieuweVraag(
+        "Binnen hoeveel uur wordt normaal gereageerd op een storing?",
+        true,
+      );
+      const uitkomst1 = await answerFact(admin as never, {
+        profileId: marktclaimProfileId,
+        factId: gapMetClaim,
+        answer: "Wij zijn de snelste van de regio en reageren sneller dan elke concurrent.",
+        existingProofPoints: [],
+      });
+      ok(
+        "een gapvraag met een superlatief levert needsEvidence op",
+        uitkomst1.ok && uitkomst1.outcome.needsEvidence === true,
+      );
+      ok(
+        "en verandert proof_points niet",
+        (await proofPointsVan(marktclaimProfileId)).length === 0,
+      );
+
+      // ── 2. Gapvraag met een gewoon antwoord ─────────────────────────────
+      const gapZonderClaim = await nieuweVraag("In welk jaar is het bedrijf opgericht?", true);
+      const uitkomst2 = await answerFact(admin as never, {
+        profileId: marktclaimProfileId,
+        factId: gapZonderClaim,
+        answer: "1998",
+        existingProofPoints: [],
+      });
+      ok(
+        "een gapvraag met een gewoon antwoord levert geen needsEvidence op",
+        uitkomst2.ok && uitkomst2.outcome.needsEvidence === false,
+      );
+      ok(
+        "en verandert proof_points ook niet (gapvragen promoveren nooit)",
+        (await proofPointsVan(marktclaimProfileId)).length === 0,
+      );
+
+      // ── 3. Clustervraag met een superlatief ─────────────────────────────
+      const clusterMetClaim = await nieuweVraag("Waarom kiezen klanten voor jullie?", false);
+      const uitkomst3 = await answerFact(admin as never, {
+        profileId: marktclaimProfileId,
+        factId: clusterMetClaim,
+        answer: "Omdat wij marktleider zijn in de regio.",
+        existingProofPoints: await proofPointsVan(marktclaimProfileId),
+      });
+      ok(
+        "een clustervraag met een superlatief levert óók needsEvidence op",
+        uitkomst3.ok && uitkomst3.outcome.needsEvidence === true,
+      );
+      ok(
+        "met de specifieke uitleg erbij (marktleider vraagt om een bron), niet de algemene",
+        uitkomst3.ok && (uitkomst3.outcome.evidenceHint ?? "").includes("Noem de bron erbij"),
+        uitkomst3.ok ? (uitkomst3.outcome.evidenceHint ?? "") : "",
+      );
+      ok(
+        "en verandert proof_points niet",
+        (await proofPointsVan(marktclaimProfileId)).length === 0,
+      );
+
+      // ── 4. Clustervraag met een gewoon antwoord ─────────────────────────
+      const clusterZonderClaim = await nieuweVraag("Hoe lang bestaat het bedrijf al?", false);
+      const uitkomst4 = await answerFact(admin as never, {
+        profileId: marktclaimProfileId,
+        factId: clusterZonderClaim,
+        answer: "Al 25 jaar.",
+        existingProofPoints: await proofPointsVan(marktclaimProfileId),
+      });
+      ok(
+        "een clustervraag met een gewoon antwoord komt wél in proof_points",
+        uitkomst4.ok && uitkomst4.outcome.needsEvidence === false,
+      );
+      const puntenNaVier = await proofPointsVan(marktclaimProfileId);
+      ok(
+        "het proof point staat er echt, met de vraag en het antwoord erbij",
+        puntenNaVier.length === 1 && puntenNaVier[0].includes("Al 25 jaar."),
+        puntenNaVier.join(" | "),
+      );
+
+      async function proofPointsVan(profileId: string): Promise<string[]> {
+        const { rows } = await db.client.query(
+          "select proof_points from public.profiles where id = $1",
+          [profileId],
+        );
+        return (rows[0]?.proof_points as string[] | null) ?? [];
+      }
+    }
+
+    // ════════════════════════════════════════════════════════════════════════
+    // Onderwerpen zijn concept vóór het gesprek, definitief erna (0074,
+    // docs/optimalisatielab-orbit-engine.md werkpakket A §3.2).
+    //
+    // ⚠️ DE SAMENHANG DIE HIER FOUT KAN GAAN: `proposeTopics()` draait twee
+    // keer voor hetzelfde profiel, en de tweede keer moet de onbesliste
+    // conceptronde vervangen zonder een reeds gestart of afgewezen onderwerp
+    // aan te raken. Slaagt de tweede ronde per ongeluk over (het bestaande
+    // idempotentiegedrag), dan blijft een klant voor altijd op conceptonderwerpen
+    // zitten die hij nooit kan starten.
+    // ════════════════════════════════════════════════════════════════════════
+    {
+      console.log("\nOnderwerpen: concept vóór het gesprek, definitief erna (0074)");
+      const { proposeTopics } = await import("@/lib/pipeline/propose-topics");
+      const stageProfileId = randomUUID();
+
+      await db.client.query(
+        `insert into public.profiles (id, user_id, name, url, brand_name, status)
+         values ($1, $2, 'Warmte BV', 'https://warmte-bv.nl', 'Warmte BV', 'klaar')`,
+        [stageProfileId, userId],
+      );
+      await db.client.query(
+        `insert into public.profile_offerings (profile_id, kind, name, source, sort_order)
+         values ($1, 'dienst', 'CV-ketel onderhoud', 'ai', 0),
+                ($1, 'dienst', 'Airco', 'ai', 1),
+                ($1, 'dienst', 'Warmtepomp', 'ai', 2)`,
+        [stageProfileId],
+      );
+
+      // ── Ronde 1: nog geen gesprek vastgelegd ──────────────────────────────
+      const eersteRonde = await proposeTopics(stageProfileId);
+      ok("de eerste ronde levert onderwerpen op", eersteRonde.proposed === 2, String(eersteRonde.proposed));
+
+      const { rows: conceptRijen } = await db.client.query(
+        `select id, title, stage, status, origin from public.profile_topics where profile_id = $1 order by title`,
+        [stageProfileId],
+      );
+      ok(
+        "zonder gesprek krijgen ze allemaal stage 'concept'",
+        conceptRijen.every((r) => r.stage === "concept"),
+        conceptRijen.map((r) => `${r.title}:${r.stage}`).join(", "),
+      );
+      ok(
+        "en herkomst 'aanbod' (0076), er was nog geen gesprek",
+        conceptRijen.every((r) => r.origin === "aanbod"),
+        conceptRijen.map((r) => `${r.title}:${r.origin}`).join(", "),
+      );
+
+      // Eén onderwerp wordt een keuze van de klant, niet meer een concept.
+      const afgewezenId = (conceptRijen.find((r) => r.title === "Airco laten installeren") as { id: string })
+        .id;
+      await db.client.query(
+        "update public.profile_topics set status = 'afgewezen' where id = $1",
+        [afgewezenId],
+      );
+
+      // Nog geen gesprek: een tweede aanroep verandert niets (conventie 9).
+      const tweedeZonderGesprek = await proposeTopics(stageProfileId);
+      ok(
+        "zonder gesprek blijft een tweede ronde idempotent",
+        tweedeZonderGesprek.proposed === 2,
+        String(tweedeZonderGesprek.proposed),
+      );
+
+      // ── Het gesprek wordt vastgelegd ───────────────────────────────────────
+      await db.client.query(
+        `insert into public.profile_strategy (profile_id, strategy_notes, recorded_by, recorded_at)
+         values ($1, 'De klant wil vooral groeien op warmtepompadvies.', $2, now())`,
+        [stageProfileId, userId],
+      );
+
+      const definitieveRonde = await proposeTopics(stageProfileId);
+      const { rows: naGesprek } = await db.client.query(
+        `select title, stage, status, origin from public.profile_topics where profile_id = $1 order by title`,
+        [stageProfileId],
+      );
+      ok(
+        "het nieuwe onderwerp draagt de herkomst 'aanbod_en_gesprek'",
+        naGesprek.find((r) => r.title === "Warmtepomp advies op maat")?.origin === "aanbod_en_gesprek",
+        naGesprek.map((r) => `${r.title}:${r.origin}`).join(", "),
+      );
+      ok(
+        "het afgewezen onderwerp behoudt zijn oude herkomst 'aanbod'",
+        naGesprek.find((r) => r.title === "Airco laten installeren")?.origin === "aanbod",
+        naGesprek.map((r) => `${r.title}:${r.origin}`).join(", "),
+      );
+      ok(
+        "de definitieve ronde vervangt alleen de onbesliste concepten",
+        naGesprek.length === 2,
+        naGesprek.map((r) => `${r.title}:${r.stage}:${r.status}`).join(", "),
+      );
+      ok(
+        "het afgewezen onderwerp blijft onaangeroerd staan",
+        naGesprek.some((r) => r.title === "Airco laten installeren" && r.status === "afgewezen"),
+        naGesprek.map((r) => `${r.title}:${r.status}`).join(", "),
+      );
+      ok(
+        "het onbesliste concept is vervangen door een definitief onderwerp uit het gesprek",
+        naGesprek.some((r) => r.title === "Warmtepomp advies op maat" && r.stage === "definitief"),
+        naGesprek.map((r) => `${r.title}:${r.stage}`).join(", "),
+      );
+      ok(
+        "het oude, vervangen conceptonderwerp staat er niet meer naast",
+        !naGesprek.some((r) => r.title === "CV-ketel onderhoud"),
+        naGesprek.map((r) => r.title).join(", "),
+      );
+      ok("de definitieve ronde meldt het totaal, geen nul", definitieveRonde.proposed === 2);
+
+      // Een derde aanroep, met het gesprek nog steeds vastgelegd en niets
+      // onbeslist meer: niets verandert (conventie 9, geen verspilde kosten).
+      const derdeRonde = await proposeTopics(stageProfileId);
+      const { rows: naDerde } = await db.client.query(
+        "select count(*)::int as n from public.profile_topics where profile_id = $1",
+        [stageProfileId],
+      );
+      ok(
+        "een derde ronde na het gesprek doet niets meer",
+        derdeRonde.proposed === 2 && naDerde[0].n === 2,
+        `${derdeRonde.proposed} / ${naDerde[0].n}`,
+      );
+    }
+
+    // ════════════════════════════════════════════════════════════════════════
+    // De knop "Stel nieuwe clusters voor" (0077, werkpakket A §3.5)
+    //
+    // ⚠️ DE SAMENHANG DIE HIER FOUT KAN GAAN: een aanvullende ronde die een
+    // onderwerp voorstelt dat er al staat, kost geld voor niets én verwart de
+    // beheerder ("waarom stelt hij dit nog een keer voor?"). En een tweede
+    // klik zonder nieuwe informatie moet GEEN aanroep doen, anders is de knop
+    // een manier om geld te verbranden in plaats van een regieknop.
+    // ════════════════════════════════════════════════════════════════════════
+    {
+      console.log("\nDe knop 'Stel nieuwe clusters voor' (0077)");
+      const { proposeAdditionalTopics, previewAdditionalRound } = await import(
+        "@/lib/pipeline/propose-more-topics"
+      );
+      const moreProfileId = randomUUID();
+
+      await db.client.query(
+        `insert into public.profiles (id, user_id, name, url, brand_name, status)
+         values ($1, $2, 'Klimaat BV', 'https://klimaat-bv.nl', 'Klimaat BV', 'klaar')`,
+        [moreProfileId, userId],
+      );
+      await db.client.query(
+        `insert into public.profile_offerings (profile_id, kind, name, source, sort_order)
+         values ($1, 'dienst', 'CV-ketel onderhoud', 'ai', 0),
+                ($1, 'dienst', 'Airco', 'ai', 1)`,
+        [moreProfileId],
+      );
+
+      // Een lopend cluster met een gemeten gap, zodat deze ronde kan tonen dat
+      // hij meetbewijs meeneemt.
+      const moreAnalysisId = randomUUID();
+      await db.client.query(
+        `insert into public.analyses (id, user_id, profile_id, name, url, topic, status)
+         values ($1, $2, $3, 'CV-ketel onderhoud', 'https://klimaat-bv.nl', 'CV-ketel onderhoud', 'gereed')`,
+        [moreAnalysisId, userId, moreProfileId],
+      );
+      await db.client.query(
+        `insert into public.reports (analysis_id, gaps_json)
+         values ($1, $2::jsonb)`,
+        [
+          moreAnalysisId,
+          JSON.stringify([
+            { cluster: "onderhoud", problem: "AI noemt Feenstra, Klimaat BV niet", evidenceRunIds: [] },
+          ]),
+        ],
+      );
+      // Dit onderwerp bestaat al (goedgekeurd, met cluster): een aanvullende
+      // ronde mag hem niet nog een keer voorstellen, ook al geeft de
+      // teststub 'm standaard terug.
+      await db.client.query(
+        `insert into public.profile_topics (profile_id, title, status, stage, analysis_id)
+         values ($1, 'CV-ketel onderhoud', 'goedgekeurd', 'definitief', $2)`,
+        [moreProfileId, moreAnalysisId],
+      );
+      // En dit onderwerp is met reden afgewezen: de instructie voor de
+      // volgende ronde, ook al kan de teststub er niet inhoudelijk op reageren.
+      await db.client.query(
+        `insert into public.profile_topics (profile_id, title, status, rejection_reason)
+         values ($1, 'Warmtepomp advies op maat', 'afgewezen', 'te duur voor deze doelgroep')`,
+        [moreProfileId],
+      );
+
+      const preview = await previewAdditionalRound(moreProfileId);
+      ok("de eerste keer is er altijd een reden om te draaien", preview.aanraden === true);
+
+      const eersteKlik = await proposeAdditionalTopics(moreProfileId);
+      ok("de eerste klik draait echt", eersteKlik.gedraaid === true);
+
+      const { rows: naEersteKlik } = await db.client.query(
+        `select title, origin, origin_uses_measurement from public.profile_topics
+          where profile_id = $1 order by title`,
+        [moreProfileId],
+      );
+      ok(
+        "het bestaande onderwerp wordt niet nog een keer voorgesteld",
+        naEersteKlik.filter((r) => r.title === "CV-ketel onderhoud").length === 1,
+        naEersteKlik.map((r) => r.title).join(", "),
+      );
+      ok(
+        "het nieuwe onderwerp draagt dat er gemeten bewijs was",
+        naEersteKlik.some((r) => r.title === "Airco laten installeren" && r.origin_uses_measurement === true),
+        naEersteKlik.map((r) => `${r.title}:${r.origin_uses_measurement}`).join(", "),
+      );
+
+      const { rows: rondeRijen } = await db.client.query(
+        `select proposed_count, cost_usd from public.profile_topic_rounds where profile_id = $1`,
+        [moreProfileId],
+      );
+      ok("de ronde is gelogd", rondeRijen.length === 1, String(rondeRijen.length));
+      ok(
+        "met het aantal en de kosten erbij",
+        rondeRijen[0].proposed_count > 0 && rondeRijen[0].cost_usd !== null,
+        JSON.stringify(rondeRijen[0]),
+      );
+
+      // Tweede klik, niets veranderd: geen nieuwe aanroep, geen nieuwe rijen.
+      const tweedeKlik = await proposeAdditionalTopics(moreProfileId);
+      ok("zonder nieuwe informatie draait de tweede klik niet echt", tweedeKlik.gedraaid === false);
+      ok("en levert dus ook niets op", tweedeKlik.voorgesteld === 0);
+
+      const previewNa = await previewAdditionalRound(moreProfileId);
+      ok(
+        "de preview raadt de knop nu af",
+        previewNa.aanraden === false,
+        previewNa.melding,
+      );
+
+      const { rows: naTweedeKlik } = await db.client.query(
+        "select count(*)::int as n from public.profile_topics where profile_id = $1",
+        [moreProfileId],
+      );
+      ok(
+        "er is geen enkel onderwerp bij gekomen",
+        naTweedeKlik[0].n === naEersteKlik.length,
+        `${naTweedeKlik[0].n} / ${naEersteKlik.length}`,
+      );
+
+      // Er komt een klantantwoord bij: dat is nieuwe informatie.
+      await db.client.query(
+        `insert into public.fact_requests (profile_id, question, status, scope)
+         values ($1, 'Wat is de gemiddelde levertijd?', 'beantwoord', 'merk')`,
+        [moreProfileId],
+      );
+      const previewNaAntwoord = await previewAdditionalRound(moreProfileId);
+      ok(
+        "een nieuw klantantwoord maakt de knop weer de moeite waard",
+        previewNaAntwoord.aanraden === true,
+        previewNaAntwoord.melding,
+      );
     }
 
     // ════════════════════════════════════════════════════════════════════════

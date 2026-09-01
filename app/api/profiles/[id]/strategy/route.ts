@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getUser } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getOwnedProfile } from "@/lib/profiles";
+import { enqueue, dedupe } from "@/lib/jobs/queue";
 import {
   isContextFactorKind,
   extraAliasesFrom,
@@ -93,6 +94,18 @@ export async function PUT(
   );
   if (error)
     return NextResponse.json({ error: "Opslaan is niet gelukt." }, { status: 500 });
+
+  // ── De definitieve onderwerpronde (migratie 0074) ────────────────────────
+  // Het gesprek ligt nu vast. Staan er nog onbesliste conceptonderwerpen (van
+  // vóór dit gesprek), dan vervangt `proposeTopics()` die door een definitieve
+  // ronde mét deze gespreksinformatie erbij. Kost ~$0,01; staan er geen
+  // concepten meer, dan doet de aanroep niets (conventie 9).
+  await enqueue(admin, {
+    type: "propose_topics",
+    payload: {},
+    profileId: id,
+    dedupeKey: dedupe.proposeTopics(id),
+  });
 
   // ── Doorwerken in wat de meting gebruikt ─────────────────────────────────
   const nieuweAliassen = extraAliasesFrom(factors).filter(

@@ -20,13 +20,33 @@ Voor UI/UX: `ux-design.md`.
 > **Bijgewerkt op 28 augustus 2026**: de eindpoort staat in §2 (geen definitieve versie zolang er
 > vragen open staan), en "Vraagt jouw input" heet "Openstaande vragen" en staat op
 > `/merk/[id]/strategie/vragen`. Geen migratie: alle kolommen bestonden al.
+> **Bijgewerkt op 31 augustus 2026** na de eerste live doorloop van de hele klantreis
+> (`docs/logbook.md`): het contentpakket (10, 20 of 40 pagina's per maand) wordt sinds vandaag
+> in de pre-boardingwizard gevraagd en op het toewijzen-scherm aangepast, allebei alleen door de
+> beheerder (`lib/package-sizes.ts`); `lib/work.ts` kent de contentstatus `briefing`; de
+> rapportsamenvatting krijgt het aantal onderzochte vragen als deterministisch vangnet
+> (`lib/pipeline/report-summary.ts`); en een omschrijving bij een nieuw werkgebied levert alleen
+> nog echte plaatsnamen op (`regionsFromDescription()`). Geen migratie: de kolom
+> `accounts.package_pages_per_month` bestond al.
+>
 > **Bijgewerkt op 26 augustus 2026**: de tijdrij van §9 is opnieuw doorgerekend
 > (doorloop-huyberts.md punt 5). Migraties `0066` en `0067` zijn erbij gekomen
 > (supabase/README.md); `0067` staat bij §3, het contentplan.
 > **Bijgewerkt op 29 augustus 2026** voor de hele Sales-module, sprint 1 tot en met 7 (migraties
-> `0068` tot en met `0074`): §2 (de derde en vierde rol), §3 (de Sales-tabellen), §4 (dertien
+> `0068` tot en met `0073` plus `0081`): §2 (de derde en vierde rol), §3 (de Sales-tabellen), §4 (dertien
 > taaksoorten erbij en twee extra soorten taakeigenaar) en §12. Die module is intern en de klant
 > ziet er niets van; de scheiding staat in de database en niet alleen in de schermen.
+> **Bijgewerkt op 31 augustus 2026** (punt 5 tot en met 9 van de live doorloop, geen migratie):
+> `spreadDates()` geeft een lege lijst in plaats van een datum in het verleden te klemmen zodra maand
+> 1 geen bruikbare dag meer over heeft, en `createPlan()` zet de voorzet dan in maand 2 (§3); het
+> oordeel over een marktclaim in `fact_requests` staat vóór de vertakking op een gapvraag, in het
+> nieuwe `lib/facts.ts` (§3); en de `GET` van `/api/profiles/[id]/topics/refresh` vraagt nu dezelfde
+> beheerdersrol als de `POST` (§5).
+> **Bijgewerkt op 31 augustus 2026** (Ronde A van `documentatie/onboarding_optimalisatie.md` §18, geen
+> migratie): het contentpakket wordt niet meer in de pre-boardingwizard gevraagd (dat schreef het naar
+> het standaardaccount van de consultant in plaats van dat van de klant), maar uitsluitend op het
+> toewijzingsscherm, ná het koppelen aan het klantaccount. De regel op 24 augustus hierboven is in
+> zoverre achterhaald.
 > De rest van de peildatum hieronder blijft staan.
 > **Migraties `0058` en `0059` zijn er sindsdien bijgekomen** en staan wél in §12 en in dit
 > document verwerkt, maar de rest is niet opnieuw regel voor regel nagelopen. Verder geldt:
@@ -300,10 +320,10 @@ probleem dan een dollar.
 | `reports` | Rapport per periode + trend. `stripped_claims_json` = audit-trail van door de claimvalidator verwijderde zinnen. |
 | `brand_facts` | De feitenbank (`0036`). Elk feit heeft een `fact_key` (identiteit, geen positie), een scope (merkbreed / per analyse) en `superseded_by` in plaats van overschrijven. |
 | `brand_documents` | Door de klant geplakte brontekst + sha256-hash, met `facts_extracted`/`facts_rejected`. |
-| `fact_requests` | De briefingvragen aan de klant, max 8 per batch. `scope: 'merk'` slaat op met `analysis_id = null`. Ook de open punten uit de synthese staan hier, herkenbaar aan `raw_json.bron = 'synthese-gap'`; dat merkje bepaalt dat hun antwoord géén tweede regel in `profiles.proof_points` krijgt (het bereikt de schrijver al via `buildFactBase()`, en dan mét de juiste bron). |
+| `fact_requests` | De briefingvragen aan de klant, max 8 per batch. `scope: 'merk'` slaat op met `analysis_id = null`. Ook de open punten uit de synthese staan hier, herkenbaar aan `raw_json.bron = 'synthese-gap'`; dat merkje bepaalt dat hun antwoord géén tweede regel in `profiles.proof_points` krijgt (het bereikt de schrijver al via `buildFactBase()`, en dan mét de juiste bron). ⚠️ 31 augustus 2026: `answerFact()` (`lib/facts.ts`) beoordeelt élk antwoord op een superlatief of marktclaim (`beoordeelClaim()`) vóórdat het naar `raw_json.bron` kijkt, dus de klant ziet de uitleg altijd, ook bij een gapvraag; alleen de promotie naar `proof_points` blijft bij een gapvraag achterwege. |
 | `content_pieces` | Gegenereerde pagina's. Versiebeheer per (analyse, titel) via `version`/`is_current`/`supersedes_id`, plus `briefing_snapshot_json`, `claims_json`, `source_coverage`, `quality_score`, `geo_score`, `needs_review`, `reviewed_at`/`reviewed_by`. `faq_json` is sinds de content-editie (§5, stap 16) ook door de klant bewerkbaar via de PATCH-route, niet alleen door het model. |
 | `content_impact` | Hermeetgolven na publicatie + statistisch verdict. |
-| `content_plans` / `plan_months` | Het contentplan (`0049`): één lopende versie per merk, twaalf maanden. `pages_per_month` is een KOPIE van het pakket, geen verwijzing: wie halverwege upgradet hoort niet met terugwerkende kracht een ander plan te krijgen. Een vorige versie gaat op `gestopt` en blijft staan (conventie 8). |
+| `content_plans` / `plan_months` | Het contentplan (`0049`): één lopende versie per merk, twaalf maanden. `pages_per_month` is een KOPIE van het pakket (`accounts.package_pages_per_month`), geen verwijzing: wie halverwege upgradet hoort niet met terugwerkende kracht een ander plan te krijgen. Het pakket zelf zet de beheerder, in de pre-boardingwizard en daarna op Toewijzen; een klant mag het niet wijzigen, want het is een verkoopafspraak (`lib/package-sizes.ts`). Een vorige versie gaat op `gestopt` en blijft staan (conventie 8). |
 | `planned_pages` | Twee toestanden in één tabel (`0065`): met een `plan_month_id` staat de pagina ingepland, zonder staat hij in de **voorraad**. Inplannen verandert alleen de maand en de datum, dus de kaart houdt zijn status, zijn `content_piece_id` en zijn geschiedenis. `source` zegt waar hij vandaan komt (`aanbeveling` = een gemeten kans uit een rapport), `source_ref` (`"<rapport-id>#<volgnummer>"`) maakt het vullen idempotent, en `why`/`target_intent`/`existing_url`/`recommendation_action` dragen de briefing die anders opnieuw bedacht zou moeten worden. `potential` is de opgeslagen potentiescore, ververst bij elke synchronisatie. `scheduled_manual` (`0067`) zegt dat de gebruiker de publicatiedatum zelf koos, waardoor het herplannen van de maand hem laat staan. |
 | `technical_audits` | Kunnen AI-crawlers de site bereiken (robots.txt vs GPTBot, CCBot, …). Geen AI. |
 | `source_landscape` / `offsite_tasks` | Off-site aanwezigheid: welke externe domeinen relevant zijn en of het merk er staat. |
@@ -317,7 +337,7 @@ probleem dan een dollar.
 | `reputation_market` | Eén rij per bedrijf dat AI zélf noemde op de open kopersvraag, per aanbodknoop (`0063`). Betrouwbaarder dan de opgelegde concurrentieset, want een bedrijf dat het model niet kent noemt het gewoon niet, en dat is zelf de uitkomst. ⚠️ Dit is de tabel waarop het scherm sinds 26 augustus 2026 zijn hoofdstuk per product bouwt: staat de klant er niet tussen, dan zeggen de rijen wie ChatGPT in zijn plaats aanraadt. |
 | `reputation_evidence` | Het gedeelde bewijscorpus (`0063`): letterlijke fragmenten met bron, waar de dienstvragen als achtergrond uit putten. Wordt niet op een klantscherm getoond. |
 
-**De Sales-module (migraties `0068` tot en met `0074`).** Zestien tabellen die de klantomgeving nergens raken. Ze staan
+**De Sales-module (migraties `0068` tot en met `0073`, plus `0081`).** Zestien tabellen die de klantomgeving nergens raken. Ze staan
 bewust apart in deze tabel: een klant mag nooit kunnen zien dat hij ooit als prospect in het systeem
 heeft gestaan (zie §2).
 
@@ -338,7 +358,7 @@ heeft gestaan (zie §2).
 | `sales_outreach` | Wat er uitstaat en wat eruit kwam. ⚠️ `sent_at` betekent: de medewerker heeft gemeld dat hij hem zélf verstuurd heeft. De app verstuurt nooit een openingsmail |
 | `sales_send_stats` | Per medewerker per dag: verstuurd, gestuiterd, geklaagd, afgemeld. Remt de AANVOER van concepten en beschermt zo het maildomein |
 | `sales_events` | Het logboek: elke statuswijziging en toewijzing als eigen rij. De bron voor de trechter |
-| `sales_market_reports` | De publieke markttekst per meetronde (migratie `0074`), met de cijfers bevroren op publicatiemoment |
+| `sales_market_reports` | De publieke markttekst per meetronde (migratie `0081`), met de cijfers bevroren op publicatiemoment |
 | `sales_suppressions` | Wie er nooit in een prospectlijst mag staan (migratie `0069`): een bestaande klant, een lopend traject, een concurrent van een klant, of een bedrijf dat zich heeft afgemeld. Bij elke ronde opnieuw geëvalueerd. ⚠️ De ENIGE plek waar de Sales-module naar `profiles` verwijst, en het verkeer gaat maar één kant op: Sales leest wie er klant is om die eruit te houden. |
 
 Volledig ontwerp, en wat er nog geverifieerd moet worden: [`tasks/geo-prospect-engine.md`](tasks/geo-prospect-engine.md).
@@ -374,8 +394,9 @@ bij elke opening van het planscherm, idempotent via `source_ref`, en verwijdert 
 aanbeveling die uit een nieuw rapport verdwijnt blijft staan, want anders zou ingepland werk zonder
 melding uit iemands plan vallen.
 
-`createPlan()` maakt twaalf **lege** maanden en vult alleen maand 1, met de sterkste kansen tot aan
-de quota. De rest van het jaar stelt de gebruiker zelf samen: `assignToMonth()` en `moveToBacklog()`
+`createPlan()` maakt twaalf **lege** maanden en vult de eerste maand met ruimte (meestal maand 1,
+tenzij die geen bruikbare dag meer over heeft, zie ⚠️ hieronder) met de sterkste kansen tot aan de
+quota. De rest van het jaar stelt de gebruiker zelf samen: `assignToMonth()` en `moveToBacklog()`
 verplaatsen kaarten, en `resequenceMonth()` (`lib/plan-schedule.ts`) hangt er daarna kloppende
 publicatiedata aan. De spreiding hangt af van het aantal pagina's in die maand en niet van de quota:
 er is bewust **geen bovengrens** aan wat je in één maand zet, het scherm zegt alleen hoeveel je
@@ -384,6 +405,16 @@ boven je pakket zit.
 ⚠️ De kalendermaand komt sinds `0065` uit `content_plans.started_on` plus het maandnummer, niet meer
 uit de vroegste publicatiedatum in die maand. Een lege maand had anders geen naam, en dat is precies
 de maand waar iemand iets in wil slepen.
+
+⚠️ **Een publicatiedatum ligt nooit in het verleden en nooit op vandaag** (31 augustus 2026,
+punt 5 van `docs/tasks/opdracht-bevindingen-5-tot-9.md`). `spreadDates()` gaf bij een plan dat op de
+28e of later van de maand werd opgesteld eerder een datum tot drie dagen terug: `now.getDate() + 1`
+werd geklemd op dag 28 in plaats van de maand als vol te behandelen. De functie geeft nu een lege
+lijst zodra de lopende maand geen bruikbare dag meer over heeft (`maandIsVol()`), en `createPlan()`
+zet de voorzet dan in maand 2, die altijd op dag 1 begint en dus altijd ruimte heeft. Maand 1 blijft
+in dat geval leeg en op `concept`; maand 2 krijgt de status `ter_goedkeuring` in zijn plaats. De
+voorsprongzin ("ORBIT ENGINE begint tien dagen voor elke publicatiedatum") past zich aan
+(`schrijfBelofte()`) zodra de eerste pagina al binnen die termijn moet.
 
 **De publicatiedatum is sinds 26 augustus zelf te zetten** (migratie `0067`, `setPageDate()` in
 `lib/plans.ts`, actie `datum` op `/api/profiles/[id]/plan/pages/[pageId]`). `datumProbleem()`
@@ -424,7 +455,7 @@ Bron: `lib/jobs/{types,queue,worker,handlers,pending}.ts`.
   zodra een analyse haar eerste rapport krijgt: herberekent `search_volume_index` op ALLE
   onderwerpen van dat merk in één aanroep (`lib/pipeline/search-demand.ts`), zie
   `docs/tasks/potentiescore.md`.
-- **De Sales-keten** (de dertien `sales_*`-taken, migraties `0069` tot en met `0074`) hangt aan een MARKT en niet aan
+- **De Sales-keten** (de dertien `sales_*`-taken, migraties `0069` tot en met `0081`) hangt aan een MARKT en niet aan
   een merk. Daarvoor is `jobs.sales_market_id` de derde soort taakeigenaar naast `analysis_id` en
   `profile_id`; de constraint `jobs_has_owner` uit `0013` eist er nog steeds precies één van.
   ⚠️ **Maar één van de vier roept een model aan.** Ontdubbelen, uitsluiten en de crawl per bedrijf
@@ -484,9 +515,11 @@ Bron: `lib/jobs/{types,queue,worker,handlers,pending}.ts`.
 | 1 | Profiel aanmaken |, | Eén scherm, drie velden: webadres, bedrijfsnaam, andere schrijfwijzen. De rest doet de pijplijn. |
 | 2 | Ontdekken (fase 0) |, (luna als de site te groot is) | `discover.ts`: **alle** sitemaps volledig uitlezen (parallel, tot 10.000 URL's), daaruit tot 150 pagina's kiezen die over alle secties van de site verdeeld zijn (`url-priority.ts`), die crawlen, JSON-LD/OpenGraph oogsten, telefoon/adres/e-mail/KvK uit de lopende tekst van de canonieke pagina's (`text-facts.ts`), inventariskwaliteit beoordelen, renderbaarheid vaststellen, sjabloon herkennen (`template-detect.ts`: welk CMS, FAQ-accordions, citaatblokken, opgeslagen als facet `sjabloon`). **Nul AI-kosten**, behalve één aanroep van ~$0,01 (`crawl-focus.ts`) als de site méér pagina's heeft dan we mogen lezen: die kiest uit de echte sectielijst waar het aanbod staat. Een site die past raakt hem nooit. |
 | 2a | Pagina's met de hand toevoegen |, | `manual-pages.ts` plus `POST/DELETE /api/profiles/[id]/pages`: de consultant plakt de adressen die er zeker bij horen. Ze krijgen `profile_pages.source = 'handmatig'` en overleven daarmee elke volgende crawlronde. Geen AI, geen kostenpoort. |
+| 2b | Crawlbeheer | | Onboarding Ronde D (`documentatie/onboarding_optimalisatie.md` §17, migratie 0080). `lib/crawl-speed.ts` (puur, getest): drie standen `snel`/`normaal`/`langzaam`, elk met een eigen batchgrootte en pauzebandbreedte, opgeslagen per merk in `profiles.crawl_speed`. `crawlInventory()` in `lib/crawler.ts` respecteert `Retry-After` bij een `429`/`503` en gaat dan zelf een stand omlaag; bij een `403` stopt de crawl (`profiles.crawl_last_blocked_at`) in plaats van door te gaan met lege pagina's. Draait als achtergrondtaak `crawl_inventory` (`lib/jobs/handlers.ts`, dedupe per profiel): op "langzaam" duurt 150 pagina's ruim tien minuten, en `POST /api/profiles/[id]/refresh-inventory` plant voortaan alleen de taak in en geeft meteen antwoord, in plaats van zelf te crawlen. Twee modi: "opnieuw" (vervangt de gecrawlde pagina's, handmatige blijven staan) en "meer" (`appendCrawledPages()` in `discover.ts`, vult aan met de eerstvolgende URL's die nog niet bekend zijn, `selectUrls()`'s `exclude`-parameter filtert vóór het kiezen). De harde bovengrens gaat voor achtergrondwerk omhoog naar `MAX_PAGES_BACKGROUND` (500), tegen 150 voor alles wat nog synchroon draait. Nul AI-kosten. |
 | 3 | Technische GEO-audit |, | `robots.txt` tegen bekende AI-crawlers, plus vier entiteitschecks (naamconsistentie, `sameAs`, schema-dekking, Wikidata). Staat de site dicht, dan blokkeert dit contentgeneratie. |
 | 4 | Profielonderzoek | luna, web_search | Merk, branche, bedrijfsmodel, **bereik en werkgebied**, tone-of-voice, persona's, concurrenten, `proofPoints`, `styleSamples`. nu op alle gecrawlde pagina's in plaats van op de homepage. Klant-input is leidend (`prepare-profile.ts`), en wat een mens zette blijft staan (`field-merge.ts` tegen `profile_field_sources`). |
-| 4a | Aanbodboom | luna | `offering.ts`: het aanbod als boom (`profile_offerings`), per bedrijfsmodel een andere briefing. Een knoop zonder gecrawlde bron-URL vervalt; het citaat bepaalt de zekerheid (`quote-check.ts`). ⚠️ Er passen ~35 van de 150 gelezen pagina's in het tekenbudget van 55.000; `page-select.ts` verdeelt die over de secties van de site in plaats van de langste te nemen. Wat er afvalt (pagina's, bewijsloze knopen, knopen boven `MAX_NODES`) komt in `gaps` terecht, uit code en niet uit zelfrapportage van het model. |
+| 4a | Aanbodboom | luna | `offering.ts`: het aanbod als boom (`profile_offerings`), per bedrijfsmodel een andere briefing. Een knoop zonder gecrawlde bron-URL vervalt; het citaat bepaalt de zekerheid (`quote-check.ts`). ⚠️ Er passen ~35 van de 150 gelezen pagina's in het tekenbudget van 55.000; `page-select.ts` verdeelt die over de secties van de site in plaats van de langste te nemen. Wat er afvalt (pagina's, bewijsloze knopen, knopen boven `MAX_NODES`) komt in `gaps` terecht, uit code en niet uit zelfrapportage van het model. Idempotentie telt sinds migratie `0079` alleen `source = 'ai'`: staat er al één handmatige dienst, dan draait deze stap gewoon door zodra een hercrawl meer vindt. |
+| 4a′ | Aanbodboom bewerken | | `POST/PATCH/DELETE /api/profiles/[id]/offerings` (onboarding Ronde C, `documentatie/onboarding_optimalisatie.md` §16): staf en klant kunnen een knoop toevoegen, wijzigen of uitzetten. Verwijderen is `removed_at` zetten, niet wissen (conventie 8); de onderliggende knopen gaan mee. `lib/offerings-validate.ts` weigert een lus op `parentId` (puur, getest). `lib/offerings.ts` (`activeOfferings()`, `activeOfferingCount()`, `removedOfferings()`) is de ENIGE plek die `removed_at is null` filtert; alle zes lezers (`propose-topics.ts`, `propose-more-topics.ts`, `llm-baseline.ts`, `reputation-start.ts`, `offering.ts` z'n idempotentiecontrole, en het merkdossier) gaan erdoorheen, bewaakt door een broncodecontrole in `scripts/test-unit.ts`. `POST /api/profiles/[id]/deep-research` verwijdert bij een hercrawl alleen rijen met `source = 'ai'`; wat een mens toevoegde of wijzigde overleeft. |
 | 4b | Core topics | luna | `propose-topics.ts`: 5–8 onderwerpen uit de aanbodboom, elk met verwijzing naar de knopen waar ze uit volgen. Voorstel, geen meting, goedkeuring is een aparte handeling. |
 | 4c | Markt | luna, web_search | `market.ts`: per concurrent wáárom die wint, plus het bronnenlandschap van de markt. |
 | 4d | LLM-kennisbasislijn | luna, deels web_search | `llm-baseline.ts`: vijf blokken (`kent`, `klopt`, `citeert`, `verwarring`, `categorie`). `kent` stelt **zes** formuleringen en levert een verhouding, niet een ja of nee; `categorie` kiest zijn koopvragen via de topics en krijgt een eigen oordeel (word je genoemd, en wie wél). Alle oordelen worden in code geveld (`baseline-verdict.ts`), nooit door het model over zichzelf. |
@@ -678,6 +711,7 @@ berekenen is, is geld uitgeven aan een slechter antwoord.
 | Het oordeel over de kennistest (`baseline-verdict.ts`) | Het model vragen of zijn eigen antwoord klopt is de meting aan de gemetene vragen. In dit project drie keer misgegaan. |
 | Structurele gap-analyse (`structure-gap.ts`) | Aanbodboom tegen gecrawlde pagina's, met de matcher van `page-relevance.ts`. |
 | Duplicatie en leesbaarheid (`similarity.ts`, `readability.ts`) | Jaccard op vijf-grammen en vier gemeten grootheden. Geen verzonnen score. |
+| Crawltempo en de terugval bij een 429/503 (`crawl-speed.ts`) | Drie vaste standen (batchgrootte, pauzebandbreedte) en een deterministische stap omlaag. Geen oordeel nodig over "hoe snel mag dit", dat is een tabel. |
 
 | Constante | Waarde | Tarief (in/uit per 1M) | Voor |
 |---|---|---|---|
@@ -964,7 +998,7 @@ niet in Supabase.**
 |---|---|---|
 | 1 | Supabase → Authentication → Users → **Add user** | E-mail + wachtwoord, **Auto Confirm User aan**. Er komt géén rij in `profiles` bij. |
 | 2 | De app, ingelogd als beheerder → **Merken → + Nieuw merk** | Webadres, bedrijfsnaam, schrijfwijzen. De pijplijn draait ~7,5 min (~$0,25). Het profiel staat nu op het account van de beheerder. |
-| 3 | Het demogesprek → **Admin → Onboarding** | De sessiepagina: open punten eerst, dan de commerciële laag, dan het gevonden dossier ter controle. Opslaan gaat per veld. Sluit af met het gesprek vastleggen en, als er iets gewijzigd is dat ertoe doet, het onderzoek bijwerken. |
+| 3 | Het demogesprek → **Admin → Onboardinggesprek** | De sessiepagina, sinds onboarding ronde B in tien blokken en niet meer in de catalogusvolgorde: blok 0 (voorbereiding, `ProfileReadinessPanel`), dan open punten en feitenvragen, dan je bedrijf en je namen, dan je aanbod, je markt, je bewijs, je klant en je toon, dan materiaal en veranderingen, techniek en koppelingen (met website, Search Console-status en de crawlinstellingen), en tot slot afspraken en afronden. Opslaan gaat per veld. Onder elk veld staat in één zin waar het antwoord landt (`BrandField.usage`); de vier velden die een nieuwe onderwerpronde veroorzaken dragen een eigen chip. Sluit af met het gesprek vastleggen en, als er iets gewijzigd is dat ertoe doet, het onderzoek bijwerken. |
 | 4 | Profielpagina → blok **Beheer** (alleen zichtbaar voor beheerders) | Kies het account uit stap 1. |
 
 Stap 4 zet `profiles.user_id` op de klant, vult `assigned_at`, laat `created_by_user_id` op de

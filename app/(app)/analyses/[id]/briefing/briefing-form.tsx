@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { enkelOfMeervoud } from "@/lib/format";
 
 /**
  * Het briefingscherm (contentbriefing.md §8, implementatieplan.md R5.2).
@@ -225,8 +226,18 @@ export function BriefingForm({
                     .map((q) => q.question.replace(/\?$/, "").toLowerCase())
                     .join(", ")}
                 </strong>
-                {openVerplicht.length > 3 ? ` en nog ${openVerplicht.length - 3} punt(en)` : ""}. Dat
-                mag, er komt dan gewoon niets over te staan.
+                {openVerplicht.length > 3
+                  ? // ⚠️ Geen haakjesvorm "punt(en)" meer: die hoort niet in
+                    // klanttekst (punt 9 van
+                    // docs/tasks/opdracht-bevindingen-5-tot-9.md). Bij
+                    // precies vier open vragen is dit er één, dus enkelvoud.
+                    ` en nog ${openVerplicht.length - 3} ${enkelOfMeervoud(
+                        openVerplicht.length - 3,
+                        "punt",
+                        "punten",
+                      )}`
+                  : ""}
+                . Dat mag, er komt dan gewoon niets over te staan.
               </>
             ) : (
               <>

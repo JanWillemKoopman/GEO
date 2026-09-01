@@ -166,7 +166,7 @@ export function StrategyBox({
                 f.kind === "naamswijziging" || f.kind === "rebranding"
                   ? "De andere naam, precies zoals hij geschreven wordt"
                   : f.kind === "nieuwe_regio"
-                    ? "De plaats of regio"
+                    ? "Alleen de plaatsnamen, bijvoorbeeld: Oosterhout, Geertruidenberg"
                     : "Korte omschrijving"
               }
             />
@@ -206,14 +206,24 @@ export function StrategyBox({
         </p>
       )}
 
-      <button
-        type="button"
-        className="btn-primary w-fit disabled:opacity-60"
-        disabled={wacht}
-        onClick={() => void save()}
-      >
-        {wacht ? "Opslaan…" : "Bewaren"}
-      </button>
+      {/* A6: de knop zegt wat hij doet. Opslaan zet meteen de definitieve
+          onderwerpronde in gang (`onboarding-refresh.ts`), en dat stond er tot
+          31 augustus 2026 nergens, terwijl het precies de reden is om dit
+          gesprek als laatste stap vast te leggen en niet als eerste. */}
+      <div className="flex flex-col gap-1.5">
+        <button
+          type="button"
+          className="btn-primary w-fit disabled:opacity-60"
+          disabled={wacht}
+          onClick={() => void save()}
+        >
+          {wacht ? "Bezig…" : "Gesprek vastleggen en onderwerpen definitief maken"}
+        </button>
+        <span className="text-sm text-muted">
+          ORBIT ENGINE vervangt de voorlopige onderwerpen door een definitieve lijst, met wat je
+          vandaag hebt verteld erbij.
+        </span>
+      </div>
     </div>
   );
 }

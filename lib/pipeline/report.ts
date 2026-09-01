@@ -13,7 +13,8 @@ import { MODELS } from "@/lib/openai/models";
 import { GapAnalysis } from "@/lib/schemas/gap-analysis";
 import { Report } from "@/lib/schemas/report";
 import { NEUTRAL_WEIGHT } from "@/lib/pipeline/prompt-weight";
-import { resolveTargets } from "@/lib/pipeline/recommendation";
+import { resolveTargets, mergeOverlappingRecommendations } from "@/lib/pipeline/recommendation";
+import { correctQuestionCount, questionCountLine } from "@/lib/pipeline/report-summary";
 import {
   buildEvidenceDossier,
   loadBrandsByRun,
@@ -94,6 +95,22 @@ const REPORT_SYSTEM =
   "winnen: minimaal één, en alleen vragen die inhoudelijk bij die pagina horen. Eén pagina mag " +
   "meerdere verwante vragen bedienen; verdeel de zwaarste vragen over de aanbevelingen en laat geen " +
   "zware vraag onbenoemd. " +
+  // Werkpakket B §4.2: geen vast aantal. Vóór 30 augustus 2026 kwam hier in de
+  // praktijk (bijna) altijd precies 7 aanbevelingen uit, niet omdat de code dat
+  // afdwingt (dat deed hij nooit) maar omdat niets in de instructie een ander
+  // aantal aanmoedigde. Expliciet maken voorkomt dat het model naar een "net
+  // rond" getal afrondt terwijl er acht of drie echte kansen liggen.
+  "HET AANTAL AANBEVELINGEN LIGT NIET VAST. Geef een aanbeveling voor ELKE gemiste vraag die aan alle " +
+  "vier deze eisen voldoet, niet meer en niet minder: (1) er is een gemeten gemis met bewijs (een " +
+  "V-code), (2) de klant heeft er via zijn aanbod of feiten iets echts over te zeggen, (3) er is geen " +
+  "bestaande pagina die dit onderwerp al goed dekt (anders is het 'verbeteren', geen nieuwe kans), " +
+  "(4) hij overlapt inhoudelijk niet met een andere aanbeveling in dit rapport. Voldoen er twee, geef " +
+  "er twee; voldoen er tien, geef er tien. Rond nooit af naar een 'nette' lijst. " +
+  // Werkpakket C §5.1: maak de afwijzing navolgbaar in plaats van onzichtbaar.
+  "Kwam je een gemeten gemis tegen dat je NIET tot aanbeveling maakte, zet hem dan in declinedGaps " +
+  "met welke van de vier eisen hij niet haalde (geen bewijs, niets waars te zeggen, al gedekt door een " +
+  "bestaande pagina, of overlapt met een andere aanbeveling). Dat is geen extra werk maar de andere " +
+  "kant van dezelfde beslissing die je toch al nam. " +
   "Vraag daarnaast in factRequests om CONCRETE FEITEN die je mist en die de content aantoonbaar beter " +
   "zouden maken (bv. 'Hoeveel jaar bestaan jullie?', 'Wat is jullie levertijd?', 'Hoeveel klanten per " +
   "jaar?'). Alleen feiten die een ondernemer uit zijn hoofd weet, en alleen als ze deze pagina's echt " +
@@ -263,12 +280,19 @@ function buildReportInput(
    * noemen.
    */
   structureGaps: string,
+  /**
+   * Hoeveel unieke vragen er in deze ronde onderzocht zijn, en hoe vaak ze
+   * samen gemeten zijn. Zie `lib/pipeline/report-summary.ts` voor waarom dit
+   * getal expliciet meegaat in plaats van dat het model het afleidt.
+   */
+  measurementSize: { questions: number; runs: number },
 ): string {
   return [
     `Eigen merk: ${ownLabel(analysis, profile)}`,
     ...briefLine(analysis),
     ...(siteMigrationNotice ? ["", `LET OP: ${siteMigrationNotice}`, ""] : []),
     scoreLine(score),
+    questionCountLine(measurementSize.questions, measurementSize.runs),
     changeBlock,
     formatEvidenceDossier(dossier),
     "",
@@ -317,6 +341,36 @@ const MISSED_CAP = 15;
  * bevroren gewicht (volume × waarde), de waardevolste kansen bovenaan. Verrijkt
  * met de prompt-tags (cluster/intent_type) via prompt_id.
  */
+/**
+ * Hoeveel unieke vragen er in deze ronde onderzocht zijn, en hoe vaak ze samen
+ * gemeten zijn.
+ *
+ * Twee getallen en niet één, want ze lopen uiteen: de zwaarstwegende vragen
+ * worden herhaald, dus bij de doorloop van 31 augustus 2026 stonden er 30
+ * vragen tegenover 46 metingen. "Hoeveel vragen" is wat de klant leest,
+ * "hoeveel metingen" hoort in de betrouwbaarheidszin. Zie
+ * `lib/pipeline/report-summary.ts` voor de fout die dit voorkomt.
+ *
+ * Dezelfde afbakening als `computeMissedPrompts()`: alleen `periodic`, want
+ * impact- en controlemetingen gaan over een handvol vragen en zouden het
+ * totaal dat de klant leest vertekenen.
+ */
+async function countMeasurementSize(
+  admin: ReturnType<typeof createAdminClient>,
+  analysisId: string,
+  weekNo: number,
+): Promise<{ questions: number; runs: number }> {
+  const { data } = await admin
+    .from("tracking_runs")
+    .select("prompt_id")
+    .eq("analysis_id", analysisId)
+    .eq("week_no", weekNo)
+    .eq("purpose", "periodic");
+  const rows = data ?? [];
+  const uniek = new Set(rows.map((r) => r.prompt_id as string).filter(Boolean));
+  return { questions: uniek.size, runs: rows.length };
+}
+
 async function computeMissedPrompts(
   admin: ReturnType<typeof createAdminClient>,
   analysisId: string,
@@ -690,6 +744,10 @@ export async function generateReport(
   // B1/B2 de aanbevelingen richten op de waardevolste kansen (§6 A3 / §7).
   const missed = await computeMissedPrompts(admin, id, weekNo);
 
+  // Hoeveel vragen er onderzocht zijn. Gaat mee in de instructie én dient als
+  // ijkgetal voor het vangnet onder de samenvatting hieronder.
+  const measurementSize = await countMeasurementSize(admin, id, weekNo);
+
   // Het bewijsdossier: per gemiste vraag welke bedrijven er in DÁT antwoord
   // stonden (implementatieplan.md R1.1). Deterministisch uit de database, zodat
   // het model de koppeling vraag↔concurrent niet hoeft af te leiden, en hem dus
@@ -767,6 +825,7 @@ export async function generateReport(
         changeBlock,
         migratieMelding,
         structuurGaten,
+        measurementSize,
       ),
       schema: Report,
       schemaName: "report",
@@ -778,7 +837,12 @@ export async function generateReport(
     // De vraagcodes (V1, V2, …) omzetten naar echte verwijzingen vóór opslag
     // (optimalisatie.md 4.1). Vanaf hier werkt de rest van de app met prompt- en
     // meting-id's; de codes bestaan alleen binnen deze ene aanroep.
-    const enriched = resolveTargets(report.parsed.recommendations, missed);
+    // Werkpakket B §4.2, eis 4: geen twee aanbevelingen die op dezelfde
+    // zwaarste gemiste vraag mikken. De instructie vraagt het model dit al,
+    // dit is de garantie erachter (conventie 1).
+    const enriched = mergeOverlappingRecommendations(
+      resolveTargets(report.parsed.recommendations, missed),
+    );
 
     // ── Claimvalidatie (implementatieplan.md R1.3) ─────────────────────────
     // Het deterministische vangnet onder R1.1/R1.2: elke concurrentnaam moet
@@ -801,6 +865,23 @@ export async function generateReport(
       );
     }
 
+    // ── Het aantal onderzochte vragen rechtzetten (conventie 1) ────────────
+    // De instructie kreeg het getal expliciet mee; dit is de garantie erachter.
+    // Zie `lib/pipeline/report-summary.ts` voor de fout uit de doorloop van
+    // 31 augustus 2026, waar het rapport "15 onderzochte vragen" schreef bij
+    // een meting van 30 vragen en zichzelf drie zinnen verder tegensprak.
+    const samenvatting = correctQuestionCount(
+      report.parsed.summary,
+      measurementSize.questions,
+    );
+    if (samenvatting.corrected.length > 0) {
+      console.warn(
+        `Analyse ${id} periode ${weekNo}: het rapport noemde ` +
+          `${samenvatting.corrected.join(", ")} onderzochte vragen terwijl het er ` +
+          `${measurementSize.questions} waren. Rechtgezet vóór opslag.`,
+      );
+    }
+
     const { data: reportRow, error: reportError } = await admin
       .from("reports")
       .insert({
@@ -808,9 +889,10 @@ export async function generateReport(
         week_no: weekNo,
         period: weekNo === 0 ? "nulmeting" : `periode ${weekNo}`,
         change_json: change as never,
-        summary: report.parsed.summary,
+        summary: samenvatting.summary,
         gaps_json: gaps as never,
         recommendations_json: recommendations as never,
+        declined_json: report.parsed.declinedGaps as never,
         stripped_claims_json: stripped as never,
         gap_analysis_raw_json: gap.raw as never, // volledige ruwe OpenAI-output B1 (§5)
         raw_json: report.raw as never, // volledige ruwe OpenAI-output B2 (§5)

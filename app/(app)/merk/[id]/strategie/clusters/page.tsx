@@ -13,6 +13,7 @@ import { LastUpdated } from "@/components/last-updated";
 import { TopicsPanel } from "../../_components/topics-panel";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { loadAnalysisPotential } from "@/lib/potential-data";
+import { isStaff } from "@/lib/staff";
 import type { ProfileTopic } from "@/lib/types/database";
 
 export const dynamic = "force-dynamic";
@@ -45,6 +46,7 @@ export default async function ClustersPage({
   if (!profile) notFound();
 
   const user = await requireUser();
+  const staff = await isStaff(user.id);
   const supabase = await createClient();
   // Per merk, en het merk gaat mee de query in (`lib/work.ts`, `loadBrandWork`):
   // een klant ziet nooit clusters van een ander merk in deze lijst.
@@ -175,7 +177,13 @@ export default async function ClustersPage({
             </p>
           </div>
         ) : (
-          <TopicsPanel profileId={id} initial={topics} potenties={potenties} />
+          <TopicsPanel
+            profileId={id}
+            initial={topics}
+            potenties={potenties}
+            staff={staff}
+            serviceRegionCount={profile.service_regions.length}
+          />
         )}
       </div>
     </div>

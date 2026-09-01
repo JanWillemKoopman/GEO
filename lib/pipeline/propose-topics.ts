@@ -25,6 +25,19 @@ import "server-only";
  * productniveau ("dry needling bij een frozen shoulder") is te smal: daar stelt
  * niemand een vraag over aan ChatGPT. Het bruikbare niveau zit ertussenin, en
  * dat is precies waarom de boom uit fase 1 hieraan voorafgaat.
+ *
+ * ── CONCEPT VÓÓR HET GESPREK, DEFINITIEF ERNA (migratie 0074) ──────────────
+ *
+ * Deze stap draait meteen nadat de aanbodboom er is, dus ruim vóórdat het
+ * strategisch gesprek ooit gevoerd is. Is er nog geen gesprek vastgelegd
+ * (`profile_strategy.recorded_at` is leeg), dan krijgen de voorstellen
+ * `stage: "concept"`: zichtbaar als gespreksvoorbereiding, niet te starten
+ * (`app/api/profiles/[id]/topics/route.ts` bewaakt dat). Zodra het gesprek
+ * bewaard wordt, roept `strategy/route.ts` deze functie opnieuw aan. Staan er
+ * dan nog onbesliste concept-topics (niet gestart, niet afgewezen), dan worden
+ * die vervangen door een definitieve ronde mét de gespreksinformatie erbij.
+ * Een topic dat al gestart, goedgekeurd of afgewezen is, blijft altijd staan:
+ * dat is een keuze van de klant, geen conceptvoorstel meer om weg te gooien.
  */
 import { z } from "zod";
 import { callStructured } from "@/lib/openai/structured";
@@ -32,8 +45,8 @@ import { topicSteering } from "@/lib/pipeline/commercial-context";
 import { MODELS } from "@/lib/openai/models";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { discontinuedNames, parseContextFactors } from "@/lib/pipeline/context-factors";
+import { activeOfferings } from "@/lib/offerings";
 import type { Profile, ProfileOffering } from "@/lib/types/database";
-import { requireCount } from "@/lib/require-count";
 
 export const TopicProposals = z.object({
   topics: z.array(
@@ -68,32 +81,67 @@ export async function proposeTopics(profileId: string): Promise<TopicResult> {
   if (!row) throw new Error(`Profiel ${profileId} niet gevonden.`);
   const profile = row as Profile;
 
-  // Idempotent vóór de aanroep (conventie 9). Staan er al voorstellen, dan niets
-  // opnieuw doen, ook niet als de klant er intussen een paar heeft afgewezen.
-  // Opnieuw voorstellen zou zijn keuzes overschrijven.
-  const existing = requireCount(
-    await admin
+  const [{ data: existingTopics }, { data: strategyRow }] = await Promise.all([
+    admin
       .from("profile_topics")
-      .select("id", { count: "exact", head: true })
+      .select("id, title, status, stage, analysis_id")
       .eq("profile_id", profileId),
-    "de onderwerpen van dit merk",
-  );
-  if (existing > 0) return { proposed: existing, costUsd: 0 };
-
-  const [{ data: offeringRows }, { data: strategyRow }] = await Promise.all([
-    admin.from("profile_offerings").select("*").eq("profile_id", profileId).order("sort_order"),
-    admin.from("profile_strategy").select("context_factors").eq("profile_id", profileId).maybeSingle(),
+    admin
+      .from("profile_strategy")
+      .select("strategy_notes, context_factors, recorded_at")
+      .eq("profile_id", profileId)
+      .maybeSingle(),
   ]);
+
+  const strategy = strategyRow as {
+    strategy_notes: string | null;
+    context_factors: unknown;
+    recorded_at: string | null;
+  } | null;
+  const hasGesprek = Boolean(strategy?.recorded_at);
+  const nieuweStage: "concept" | "definitief" = hasGesprek ? "definitief" : "concept";
+  // Herkomst op het moment van voorstellen (0076, §3.5): elk onderwerp komt uit
+  // het aanbod, en draagt het gesprek erbij zodra dat al gevoerd was.
+  const nieuweOorsprong: "aanbod" | "aanbod_en_gesprek" = hasGesprek ? "aanbod_en_gesprek" : "aanbod";
+
+  const bestaand = (existingTopics ?? []) as {
+    id: string;
+    title: string;
+    status: string;
+    stage: "concept" | "definitief";
+    analysis_id: string | null;
+  }[];
+
+  // Onbesliste concepten: nog niet gestart, niet goedgekeurd, niet afgewezen.
+  // Dat zijn de enige rijen die een latere ronde nog mag vervangen (§3.2).
+  const onbeslisteConcepten = bestaand.filter(
+    (t) => t.stage === "concept" && t.status === "voorgesteld" && !t.analysis_id,
+  );
+
+  if (bestaand.length > 0) {
+    // Idempotent vóór de aanroep (conventie 9), met precies één uitzondering:
+    // het gesprek is net vastgelegd en er liggen nog onbesliste concepten. Dat
+    // is het enige moment waarop een tweede ronde geen dubbel werk is maar de
+    // definitieve vervanging van een voorlopige lijst waar niemand nog op
+    // klikte. Alles wat al gestart, goedgekeurd of afgewezen is, blijft altijd
+    // staan: dat is een keuze van de klant, geen conceptvoorstel meer.
+    if (!(hasGesprek && onbeslisteConcepten.length > 0)) {
+      return { proposed: bestaand.length, costUsd: 0 };
+    }
+  }
+
+  // `activeOfferings()` filtert al `removed_at is null` (onboarding Ronde C,
+  // §16.4): een knoop die de consultant handmatig uitzette hoort hier niet
+  // opnieuw in te stromen, dat zou de verwijdering ongedaan maken.
+  const offeringRows = await activeOfferings(admin, profileId);
 
   // Wat de klant in het gesprek als gestopt opgaf, hoort niet in de voorstellen
   // (blok C). De crawl vindt zo'n dienst nog wel, hij staat vaak nog maanden
   // op de site, dus zonder deze filter stelt de app een analyse voor op iets
   // wat het bedrijf niet meer levert.
-  const gestopt = discontinuedNames(
-    parseContextFactors((strategyRow as { context_factors?: unknown } | null)?.context_factors),
-  );
+  const gestopt = discontinuedNames(parseContextFactors(strategy?.context_factors));
 
-  const offerings = ((offeringRows ?? []) as ProfileOffering[]).filter(
+  const offerings = (offeringRows as ProfileOffering[]).filter(
     (o) => !gestopt.some((naam) => o.name.toLowerCase().includes(naam)),
   );
 
@@ -115,6 +163,16 @@ export async function proposeTopics(profileId: string): Promise<TopicResult> {
     .join("\n");
 
   const regios = profile.service_regions.length > 0 ? profile.service_regions.join(", ") : null;
+
+  // Wat er in het gesprek is gezegd (migratie 0074). Alleen meegeven in de
+  // definitieve ronde: in de conceptronde bestaat dit nog niet, en dat is
+  // precies waarom er straks een tweede, betere ronde volgt.
+  const gesprekBlok =
+    hasGesprek && strategy?.strategy_notes
+      ? `\n\nUIT HET STRATEGISCH GESPREK MET DE KLANT:\n${strategy.strategy_notes.trim()}\n` +
+        `Weeg dit mee: een onderwerp dat hier direct op aansluit weegt zwaarder dan een dat alleen ` +
+        `uit de website volgt.`
+      : "";
 
   const system =
     `Je bepaalt de ${MIN_TOPICS} tot ${MAX_TOPICS} ONDERWERPEN waarop dit bedrijf zichtbaar moet ` +
@@ -144,7 +202,8 @@ export async function proposeTopics(profileId: string): Promise<TopicResult> {
     // Wat de klant zelf zei over waar hij op wil groeien (migratie 0060). Zonder
     // dit stelt het model onderwerpen voor op grond van wat er toevallig op de
     // site staat, en dat is precies het aanbod waar hij vanaf wil.
-    topicSteering(profile);
+    topicSteering(profile) +
+    gesprekBlok;
 
   const result = await callStructured({
     model: MODELS.quality,
@@ -187,16 +246,44 @@ export async function proposeTopics(profileId: string): Promise<TopicResult> {
       byName.set(pad, kaal);
     }
   }
+  // Titels van onderwerpen die blijven staan (beslist, dus niet vervangen).
+  // Zonder deze filter kan de definitieve ronde een titel voorstellen die al
+  // een gestart of afgewezen onderwerp draagt, en dan mislukt de hele insert
+  // op de unieke index van migratie 0040, niet alleen die ene rij.
+  const blijvendeTitels = new Set(
+    bestaand
+      .filter((t) => !onbeslisteConcepten.some((c) => c.id === t.id))
+      .map((t) => t.title.trim().toLowerCase()),
+  );
+
   const voorstellen = result.parsed.topics
     .filter((t) => {
       const key = t.title.trim().toLowerCase();
-      if (!key || gezien.has(key)) return false;
+      if (!key || gezien.has(key) || blijvendeTitels.has(key)) return false;
       gezien.add(key);
       return true;
     })
     .slice(0, MAX_TOPICS);
 
-  if (voorstellen.length === 0) return { proposed: 0, costUsd: result.costUsd };
+  if (voorstellen.length === 0) return { proposed: bestaand.length, costUsd: result.costUsd };
+
+  // De definitieve ronde vervangt de onbesliste concepten, ze stonden er
+  // alleen ter voorbereiding op dit gesprek en niemand heeft erop geklikt.
+  if (onbeslisteConcepten.length > 0) {
+    const { error: deleteError } = await admin
+      .from("profile_topics")
+      .delete()
+      .in(
+        "id",
+        onbeslisteConcepten.map((c) => c.id),
+      );
+    if (deleteError) {
+      console.error(
+        `Conceptonderwerpen opruimen mislukt voor profiel ${profileId}: ${deleteError.message}`,
+      );
+      return { proposed: bestaand.length, costUsd: result.costUsd };
+    }
+  }
 
   const { error } = await admin.from("profile_topics").insert(
     voorstellen.map((t, i) => ({
@@ -229,13 +316,18 @@ export async function proposeTopics(profileId: string): Promise<TopicResult> {
       // Aflopend: hoogste prioriteit bovenaan bij `order by priority desc`.
       priority: Math.max(0, MAX_TOPICS - (Number.isFinite(t.priority) ? t.priority : i + 1)),
       status: "voorgesteld",
+      stage: nieuweStage,
+      origin: nieuweOorsprong,
     })),
   );
 
   if (error) {
     console.error(`Topicvoorstellen opslaan mislukt voor profiel ${profileId}: ${error.message}`);
-    return { proposed: 0, costUsd: result.costUsd };
+    return { proposed: bestaand.length - onbeslisteConcepten.length, costUsd: result.costUsd };
   }
 
-  return { proposed: voorstellen.length, costUsd: result.costUsd };
+  return {
+    proposed: blijvendeTitels.size + voorstellen.length,
+    costUsd: result.costUsd,
+  };
 }

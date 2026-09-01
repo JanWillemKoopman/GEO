@@ -9,6 +9,7 @@
  */
 import type { ContentAction, ContentType, EngineId } from "@/lib/types/database";
 import type { RecommendationTarget } from "@/lib/pipeline/recommendation";
+import type { CrawlSpeed } from "@/lib/crawl-speed";
 
 export const JOB_TYPES = [
   /**
@@ -231,6 +232,15 @@ export const JOB_TYPES = [
    * zoekactie te doen.
    */
   "reputation_evidence",
+
+  /**
+   * Crawlbeheer (onboarding Ronde D, §17.7): de content-inventaris opnieuw
+   * crawlen of aanvullen, met het gekozen tempo. Nul AI-kosten, wel het meeste
+   * netwerk van de hele pijplijn. Uit de synchrone route en de wachtrij in,
+   * want op "langzaam" duurt 150 pagina's ruim tien minuten en een route mag
+   * hooguit 300 seconden (`app/api/cron/worker/route.ts`).
+   */
+  "crawl_inventory",
 ] as const;
 
 export type JobType = (typeof JOB_TYPES)[number];
@@ -394,6 +404,16 @@ export interface JobPayloads {
     /** Hoeveel keer de vraag gesteld wordt. Drie merkbreed, één per dienst. */
     repeats: number;
   };
+
+  /** Onboarding Ronde D, §17.7/§17.8. */
+  crawl_inventory: {
+    /** "meer" vult aan zonder iets te vervangen, "opnieuw" vervangt de gecrawlde pagina's. */
+    mode: "meer" | "opnieuw";
+    /** Hoeveel pagina's deze ronde, of het profiel-plafond als afwezig. */
+    maxPages?: number;
+    /** Het tempo voor deze ronde, of `profiles.crawl_speed` als afwezig. */
+    speed?: CrawlSpeed;
+  };
 }
 
 /**
@@ -444,6 +464,9 @@ export const HEAVY_JOB_TYPES: ReadonlySet<JobType> = new Set<JobType>([
   "reputation_synthesis", // één aanroep over alles wat de run opleverde
   "reputation_market", // één tot drie gegronde aanbevelingsvragen
   "reputation_evidence", // vier gegronde zoekvragen plus het opknippen
+  // Tot 500 pagina's in batches tot 8, met een pauze op "langzaam" tempo.
+  // Zelfde soort werk als profile_discover, alleen groter en instelbaar.
+  "crawl_inventory",
 ]);
 
 /**
